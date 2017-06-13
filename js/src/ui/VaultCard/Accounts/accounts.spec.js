@@ -16,12 +16,11 @@
 
 import { shallow } from 'enzyme';
 import React from 'react';
+import sinon from 'sinon';
 
 import Accounts from './';
 
 let component;
-<<<<<<< HEAD:js/src/ui/VaultCard/Accounts/accounts.spec.js
-=======
 let store;
 
 function createStore () {
@@ -46,13 +45,17 @@ function createStore () {
 
   return store;
 }
->>>>>>> master:js/src/views/Application/TabBar/tabBar.spec.js
 
 function render (props = {}) {
   component = shallow(
     <Accounts
       { ...props }
-    />
+    />,
+    {
+      context: {
+        store: createStore()
+      }
+    }
   );
 
   return component;

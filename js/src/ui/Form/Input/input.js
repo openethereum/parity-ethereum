@@ -172,17 +172,13 @@ export default class Input extends Component {
     );
   }
 
-<<<<<<< HEAD
   onChange = (event, { value }) => {
-=======
-  onChange = (event, value) => {
     if (!this.props.allowPaste) {
       if (value.length - this.state.value.length > 8) {
         return;
       }
     }
 
->>>>>>> master
     event.persist();
 
     this.setValue(value, () => {

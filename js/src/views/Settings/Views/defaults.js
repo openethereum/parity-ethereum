@@ -24,41 +24,6 @@ const defaultViews = {
     icon: <AppsIcon />,
     route: '/apps',
     value: 'app'
-<<<<<<< HEAD
-=======
-  },
-
-  contracts: {
-    active: false,
-    onlyPersonal: true,
-    icon: <ContactsIcon />,
-    route: '/contracts',
-    value: 'contract'
-  },
-
-  status: {
-    active: false,
-    onlyPersonal: true,
-    icon: <StatusIcon />,
-    route: '/status',
-    value: 'status'
-  },
-
-  signer: {
-    active: true,
-    fixed: true,
-    icon: <FingerprintIcon />,
-    route: '/signer',
-    value: 'signer'
-  },
-
-  settings: {
-    active: true,
-    fixed: true,
-    icon: <SettingsIcon />,
-    route: '/settings',
-    value: 'settings'
->>>>>>> master
   }
 };
 

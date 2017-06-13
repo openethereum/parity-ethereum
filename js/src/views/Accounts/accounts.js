@@ -24,8 +24,8 @@ import { bindActionCreators } from 'redux';
 
 import HardwareStore from '@parity/shared/mobx/hardwareStore';
 import { setVisibleAccounts } from '@parity/shared/redux/providers/personalActions';
-import { Actionbar, ActionbarSearch, ActionbarSort, Button, Page } from '@parity/ui';
-import { AddIcon, FileDownloadIcon } from '@parity/ui/Icons';
+import { Actionbar, ActionbarSearch, ActionbarSort, Button, DappLink, Page } from '@parity/ui';
+import { AddIcon, KeyIcon, FileDownloadIcon } from '@parity/ui/Icons';
 
 import CreateWallet from './CreateWallet';
 import CreateAccount from './CreateAccount';
@@ -241,10 +241,7 @@ class Accounts extends Component {
 
   renderActionbar () {
     const buttons = [
-<<<<<<< HEAD
-=======
       this.renderVaultsButton(),
->>>>>>> master
       <Button
         key='newAccount'
         icon={ <AddIcon /> }
@@ -336,7 +333,7 @@ class Accounts extends Component {
     }
 
     return (
-      <Link
+      <DappLink
         to='/vaults'
         key='vaults'
       >
@@ -350,7 +347,7 @@ class Accounts extends Component {
           }
           onClick={ this.onVaultsClick }
         />
-      </Link>
+      </DappLink>
     );
   }
 
