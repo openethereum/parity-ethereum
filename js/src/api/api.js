@@ -21,7 +21,7 @@ import Contract from './contract';
 
 import { Db, Eth, Parity, Net, Personal, Shh, Signer, Trace, Web3 } from './rpc';
 import Subscriptions from './subscriptions';
-import { Provider, EthProvider, ParityProvider } from './provider';
+import { Provider, EthProvider, ParityProvider, SecureProvider } from './provider';
 import util from './util';
 import { isFunction } from './util/types';
 // import { LocalAccountsMiddleware } from './local';
@@ -48,6 +48,10 @@ export default class Api extends EventEmitter {
     this._provider = new Provider(transport);
     this._parityProvider = new ParityProvider(transport);
     this._ethProvider = new EthProvider(transport);
+
+    if (transport.isSecure()) {
+      this._secureProvider = new SecureProvider(transport);
+    }
 
     if (allowSubscriptions) {
       this._subscriptions = new Subscriptions(this);
@@ -80,6 +84,10 @@ export default class Api extends EventEmitter {
 
   get parityProvider () {
     return this._parityProvider;
+  }
+
+  get secureProvider () {
+    return this._secureProvider;
   }
 
   get db () {

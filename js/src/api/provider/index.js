@@ -16,3 +16,4 @@
 export Provider from './provider';
 export EthProvider from './ethProvider';
 export ParityProvider from './parityProvider';
+export SecureProvider from './secureProvider';

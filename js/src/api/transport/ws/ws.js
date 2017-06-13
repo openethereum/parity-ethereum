@@ -48,6 +48,10 @@ export default class Ws extends JsonRpcBase {
     }
   }
 
+  isSecure () {
+    return this._token;
+  }
+
   updateToken (token, connect = true) {
     this._token = token;
     // this._autoConnect = true;
