@@ -23,7 +23,7 @@ export default class Provider {
   _addListener (api, eventName, callback, ...eventParams) {
     return (api === 'eth_subscribe' && eventParams.length <= 0)
      ? this._transport.subscribe(api, callback, eventName)
-     : this._transport.subscribe(this._api, callback, eventName, eventParams);
+     : this._transport.subscribe(api, callback, eventName, eventParams);
   }
 
   _removeListener (api, subscriptionIds) {
