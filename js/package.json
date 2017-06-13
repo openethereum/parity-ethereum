@@ -148,7 +148,7 @@
     "sinon-as-promised": "4.0.2",
     "sinon-chai": "2.8.0",
     "style-loader": "0.13.1",
-    "stylelint": "7.9.0",
+    "stylelint": "7.11.0",
     "stylelint-config-standard": "16.0.0",
     "to-source": "2.0.3",
     "uglify-js": "2.8.22",
