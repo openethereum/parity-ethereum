@@ -42,6 +42,7 @@ class Accounts extends Component {
   static propTypes = {
     accounts: PropTypes.object.isRequired,
     accountsInfo: PropTypes.object.isRequired,
+    availability: PropTypes.string.isRequired,
     hasAccounts: PropTypes.bool.isRequired,
     setVisibleAccounts: PropTypes.func.isRequired
   }
@@ -240,6 +241,10 @@ class Accounts extends Component {
 
   renderActionbar () {
     const buttons = [
+<<<<<<< HEAD
+=======
+      this.renderVaultsButton(),
+>>>>>>> master
       <Button
         key='newAccount'
         icon={ <AddIcon /> }
@@ -251,17 +256,7 @@ class Accounts extends Component {
         }
         onClick={ this.onNewAccountClick }
       />,
-      <Button
-        key='newWallet'
-        icon={ <AddIcon /> }
-        label={
-          <FormattedMessage
-            id='accounts.button.newWallet'
-            defaultMessage='wallet'
-          />
-        }
-        onClick={ this.onNewWalletClick }
-      />,
+      this.renderNewWalletButton(),
       <Button
         key='restoreAccount'
         icon={ <AddIcon /> }
@@ -331,6 +326,50 @@ class Accounts extends Component {
         accounts={ accounts }
         onClose={ this.onRestoreAccountClose }
         restore
+      />
+    );
+  }
+
+  renderVaultsButton () {
+    if (this.props.availability !== 'personal') {
+      return null;
+    }
+
+    return (
+      <Link
+        to='/vaults'
+        key='vaults'
+      >
+        <Button
+          icon={ <KeyIcon /> }
+          label={
+            <FormattedMessage
+              id='accounts.button.vaults'
+              defaultMessage='vaults'
+            />
+          }
+          onClick={ this.onVaultsClick }
+        />
+      </Link>
+    );
+  }
+
+  renderNewWalletButton () {
+    if (this.props.availability !== 'personal') {
+      return null;
+    }
+
+    return (
+      <Button
+        key='newWallet'
+        icon={ <AddIcon /> }
+        label={
+          <FormattedMessage
+            id='accounts.button.newWallet'
+            defaultMessage='wallet'
+          />
+        }
+        onClick={ this.onNewWalletClick }
       />
     );
   }
@@ -439,10 +478,12 @@ class Accounts extends Component {
 
 function mapStateToProps (state) {
   const { accounts, accountsInfo, hasAccounts } = state.personal;
+  const { availability = 'unknown' } = state.nodeStatus.nodeKind || {};
 
   return {
     accounts,
     accountsInfo,
+    availability,
     hasAccounts
   };
 }

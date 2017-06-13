@@ -81,6 +81,7 @@ fn run<T: Informant>(args: Args, mut informant: T) {
 	params.code = Some(Arc::new(code));
 	params.data = data;
 
+	informant.set_gas(gas);
 	let result = vm::run(&mut informant, spec, params);
 	informant.finish(result);
 }

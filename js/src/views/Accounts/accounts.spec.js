@@ -60,6 +60,11 @@ function createRedux () {
         },
         balances: {
           balances: {}
+        },
+        nodeStatus: {
+          nodeKind: {
+            'availability': 'personal'
+          }
         }
       };
     }

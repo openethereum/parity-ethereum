@@ -27,6 +27,11 @@ pub fn format_time(time: &Duration) -> String {
 	format!("{}.{:.9}s", time.as_secs(), time.subsec_nanos())
 }
 
+/// Formats the time as microseconds.
+pub fn as_micros(time: &Duration) -> u64 {
+	time.as_secs() * 1_000_000 + time.subsec_nanos() as u64 / 1_000
+}
+
 /// Converts U256 into string.
 /// TODO Overcomes: https://github.com/paritytech/bigint/issues/13
 pub fn u256_as_str(v: &U256) -> String {

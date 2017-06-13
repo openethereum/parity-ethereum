@@ -14,10 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import secp256k1 from 'secp256k1';
-import { keccak_256 as keccak256 } from 'js-sha3';
-
-import { bytesToHex } from '../../util/format';
+import { bytesToHex } from '~/api/util/format';
+import { extern, slice } from './ethkey.js';
 
 const isWorker = typeof self !== 'undefined';
 
@@ -43,43 +41,40 @@ function route ({ action, payload }) {
   return null;
 }
 
+const input = slice(extern._input_ptr(), 1024);
+const secret = slice(extern._secret_ptr(), 32);
+const publicKey = slice(extern._public_ptr(), 64);
+const address = slice(extern._address_ptr(), 20);
+
+extern._ecpointg();
+
 const actions = {
   phraseToWallet (phrase) {
-    let secret = keccak256.array(phrase);
+    const phraseUtf8 = Buffer.from(phrase, 'utf8');
 
-    for (let i = 0; i < 16384; i++) {
-      secret = keccak256.array(secret);
+    if (phraseUtf8.length > input.length) {
+      throw new Error('Phrase is too long!');
     }
 
-    while (true) {
-      secret = keccak256.array(secret);
+    input.set(phraseUtf8);
 
-      const secretBuf = Buffer.from(secret);
+    extern._brain(phraseUtf8.length);
 
-      if (secp256k1.privateKeyVerify(secretBuf)) {
-        // No compression, slice out last 64 bytes
-        const publicBuf = secp256k1.publicKeyCreate(secretBuf, false).slice(-64);
-        const address = keccak256.array(publicBuf).slice(12);
+    const wallet = {
+      secret: bytesToHex(secret),
+      public: bytesToHex(publicKey),
+      address: bytesToHex(address)
+    };
 
-        if (address[0] !== 0) {
-          continue;
-        }
-
-        const wallet = {
-          secret: bytesToHex(secretBuf),
-          public: bytesToHex(publicBuf),
-          address: bytesToHex(address)
-        };
-
-        return wallet;
-      }
-    }
+    return wallet;
   },
 
-  verifySecret (secret) {
-    const key = Buffer.from(secret.slice(2), 'hex');
+  verifySecret (key) {
+    const keyBuf = Buffer.from(key.slice(2), 'hex');
 
-    return secp256k1.privateKeyVerify(key);
+    secret.set(keyBuf);
+
+    return extern._verify_secret();
   },
 
   createKeyObject ({ key, password }) {
@@ -113,7 +108,8 @@ self.onmessage = function ({ data }) {
 
     postMessage([null, result]);
   } catch (err) {
-    postMessage([err, null]);
+    console.error(err);
+    postMessage([err.toString(), null]);
   }
 };
 

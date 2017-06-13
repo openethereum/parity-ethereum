@@ -28,7 +28,8 @@ import styles from './views.css';
 class Views extends Component {
   static propTypes = {
     settings: PropTypes.object.isRequired,
-    toggleView: PropTypes.func.isRequired
+    toggleView: PropTypes.func.isRequired,
+    availability: PropTypes.string.isRequired
   }
 
   render () {
@@ -73,10 +74,57 @@ class Views extends Component {
                 />,
                 <FormattedMessage
                   id='settings.views.apps.description'
-                  defaultMessage='Distributed applications that interact with the underlying network. Add applications, manage you application portfolio and interact with application from around the network.'
+                  defaultMessage='Decentralized applications that interact with the underlying network. Add applications, manage you application portfolio and interact with application from around the network.'
                 />
               )
             }
+<<<<<<< HEAD
+=======
+            {
+              this.renderView('contracts',
+                <FormattedMessage
+                  id='settings.views.contracts.label'
+                />,
+                <FormattedMessage
+                  id='settings.views.contracts.description'
+                  defaultMessage='Watch and interact with specific contracts that have been deployed on the network. This is a more technically-focused environment, specifically for advanced users that understand the inner working of certain contracts.'
+                />
+              )
+            }
+            {
+              this.renderView('status',
+                <FormattedMessage
+                  id='settings.views.status.label'
+                />,
+                <FormattedMessage
+                  id='settings.views.status.description'
+                  defaultMessage='See how the Parity node is performing in terms of connections to the network, logs from the actual running instance and details of mining (if enabled and configured).'
+                />
+              )
+            }
+            {
+              this.renderView('signer',
+                <FormattedMessage
+                  id='settings.views.signer.label'
+                />,
+                <FormattedMessage
+                  id='settings.views.signer.description'
+                  defaultMessage='The secure transaction management area of the application where you can approve any outgoing transactions made from the application as well as those placed into the queue by decentralized applications.'
+                />
+              )
+            }
+            {
+              this.renderView('settings',
+                <FormattedMessage
+                  id='settings.views.settings.label'
+                />,
+                <FormattedMessage
+                  id='settings.views.settings.description'
+                  defaultMessage='This view. Allows you to customize the application in term of options, operation and look and feel.'
+                />
+              )
+            }
+>>>>>>> master
           </div>
         </div>
       </Container>
@@ -99,6 +147,10 @@ class Views extends Component {
 
     const toggle = () => toggleView(id);
     const view = settings.views[id];
+
+    if (view.onlyPersonal && this.props.availability !== 'personal') {
+      return null;
+    }
 
     return (
       <div className={ styles.view } key={ id }>
@@ -128,8 +180,9 @@ class Views extends Component {
 
 function mapStateToProps (state) {
   const { settings } = state;
+  const { availability = 'unknown' } = state.nodeStatus.nodeKind || {};
 
-  return { settings };
+  return { settings, availability };
 }
 
 function mapDispatchToProps (dispatch) {

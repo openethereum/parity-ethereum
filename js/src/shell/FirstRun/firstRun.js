@@ -55,6 +55,10 @@ const STAGE_NAMES = [
     defaultMessage='recovery'
   />,
   <FormattedMessage
+    id='firstRun.title.confirmation'
+    defaultMessage='confirmation'
+  />,
+  <FormattedMessage
     id='firstRun.title.completed'
     defaultMessage='completed'
   />
@@ -131,9 +135,19 @@ class FirstRun extends Component {
         );
       case 3:
         return (
-          <AccountDetails createStore={ this.createStore } />
+          <AccountDetails
+            createStore={ this.createStore }
+            withRequiredBackup
+          />
         );
       case 4:
+        return (
+          <AccountDetails
+            createStore={ this.createStore }
+            isConfirming
+          />
+        );
+      case 5:
         return (
           <Completed />
         );
@@ -143,7 +157,7 @@ class FirstRun extends Component {
   renderDialogActions () {
     const { hasAccounts } = this.props;
     const { stage, hasAcceptedTnc } = this.state;
-    const { canCreate } = this.createStore;
+    const { canCreate, phraseBackedUpError } = this.createStore;
 
     switch (stage) {
       case 0:
@@ -171,15 +185,10 @@ class FirstRun extends Component {
         const buttons = [
           <Button
             disabled={ !canCreate }
-            icon={ <CheckIcon /> }
-            key='create'
-            label={
-              <FormattedMessage
-                id='firstRun.button.create'
-                defaultMessage='Create'
-              />
-            }
-            onClick={ this.onCreate }
+            icon={ <NextIcon /> }
+            key='next'
+            label={ BUTTON_LABEL_NEXT }
+            onClick={ this.onNext }
           />
         ];
 
@@ -214,14 +223,30 @@ class FirstRun extends Component {
             onClick={ this.printPhrase }
           />,
           <Button
+            disabled={ !!phraseBackedUpError }
             icon={ <NextIcon /> }
             key='next'
             label={ BUTTON_LABEL_NEXT }
-            onClick={ this.onNext }
+            onClick={ this.onConfirmPhraseBackup }
           />
         ];
 
       case 4:
+        return (
+          <Button
+            icon={ <CheckIcon /> }
+            key='create'
+            label={
+              <FormattedMessage
+                id='firstRun.button.create'
+                defaultMessage='Create'
+              />
+            }
+            onClick={ this.onCreate }
+          />
+        );
+
+      case 5:
         return (
           <Button
             icon={ <DoneIcon /> }
@@ -246,6 +271,11 @@ class FirstRun extends Component {
     }, onClose);
   }
 
+  onConfirmPhraseBackup = () => {
+    this.createStore.clearPhrase();
+    this.onNext();
+  }
+
   onNext = () => {
     const { stage } = this.state;
 
@@ -263,11 +293,19 @@ class FirstRun extends Component {
   onCreate = () => {
     this.createStore.setBusy(true);
 
-    return this.createStore
-      .createAccount()
-      .then(() => {
-        this.onNext();
-        this.createStore.setBusy(false);
+    this.createStore.computeBackupPhraseAddress()
+      .then(err => {
+        if (err) {
+          this.createStore.setBusy(false);
+          return;
+        }
+
+        return this.createStore.createAccount()
+          .then(() => {
+            this.createStore.clearPhrase();
+            this.createStore.setBusy(false);
+            this.onNext();
+          });
       })
       .catch((error) => {
         this.createStore.setBusy(false);

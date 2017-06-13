@@ -16,7 +16,7 @@
 
 //! JSON VM output.
 
-use ethcore::trace;
+use ethcore::{evm, trace};
 use std::collections::HashMap;
 use util::{U256, H256, ToPretty};
 
@@ -26,11 +26,14 @@ use vm;
 /// JSON formatting informant.
 #[derive(Default)]
 pub struct Informant {
+	code: Vec<u8>,
 	depth: usize,
 	pc: usize,
 	instruction: u8,
+	name: &'static str,
 	gas_cost: U256,
 	gas_used: U256,
+	stack_pop: usize,
 	stack: Vec<U256>,
 	memory: Vec<u8>,
 	storage: HashMap<H256, H256>,
@@ -55,38 +58,44 @@ impl Informant {
 }
 
 impl vm::Informant for Informant {
+	fn set_gas(&mut self, gas: U256) {
+		self.gas_used = gas;
+	}
+
 	fn finish(&mut self, result: Result<vm::Success, vm::Failure>) {
 		match result {
 			Ok(success) => println!(
-				"{{\"output\":\"0x{output}\",\"gasUsed\":\"{gas:x}\",\"time\":\"{time}\"}}",
+				"{{\"output\":\"0x{output}\",\"gasUsed\":\"{gas:x}\",\"time\":{time}}}",
 				output = success.output.to_hex(),
 				gas = success.gas_used,
-				time = display::format_time(&success.time),
+				time = display::as_micros(&success.time),
 			),
 			Err(failure) => println!(
-				"{{\"error\":\"{error}\",\"time\":\"{time}\"}}",
+				"{{\"error\":\"{error}\",\"gasUsed\":\"{gas:x}\",\"time\":{time}}}",
 				error = failure.error,
-				time = display::format_time(&failure.time),
+				gas = failure.gas_used,
+				time = display::as_micros(&failure.time),
 			),
 		}
 	}
 }
 
 impl trace::VMTracer for Informant {
-	fn trace_prepare_execute(&mut self, pc: usize, instruction: u8, stack_pop: usize, gas_cost: &U256) -> bool {
+	fn trace_prepare_execute(&mut self, pc: usize, instruction: u8, gas_cost: &U256) -> bool {
 		self.pc = pc;
 		self.instruction = instruction;
 		self.gas_cost = *gas_cost;
-		let len = self.stack.len();
-		self.stack.truncate(len - stack_pop);
 		true
 	}
 
 	fn trace_executed(&mut self, gas_used: U256, stack_push: &[U256], mem_diff: Option<(usize, &[u8])>, store_diff: Option<(U256, U256)>) {
+		let info = evm::INSTRUCTIONS[self.instruction as usize];
+
 		println!(
-			"{{\"pc\":{pc},\"op\":{op},\"gas\":{gas},\"gasCost\":{gas_cost},\"memory\":{memory},\"stack\":{stack},\"storage\":{storage},\"depth\":{depth}}}",
+			"{{\"pc\":{pc},\"op\":{op},\"opName\":\"{name}\",\"gas\":{gas},\"gasCost\":{gas_cost},\"memory\":{memory},\"stack\":{stack},\"storage\":{storage},\"depth\":{depth}}}",
 			pc = self.pc,
 			op = self.instruction,
+			name = info.name,
 			gas = display::u256_as_str(&(gas_used + self.gas_cost)),
 			gas_cost = display::u256_as_str(&self.gas_cost),
 			memory = self.memory(),
@@ -96,6 +105,9 @@ impl trace::VMTracer for Informant {
 		);
 
 		self.gas_used = gas_used;
+
+		let len = self.stack.len();
+		self.stack.truncate(len - info.args);
 		self.stack.extend_from_slice(stack_push);
 
 		if let Some((pos, data)) = mem_diff {
@@ -107,17 +119,25 @@ impl trace::VMTracer for Informant {
 		}
 	}
 
-	fn prepare_subtrace(&self, _code: &[u8]) -> Self where Self: Sized {
+	fn prepare_subtrace(&self, code: &[u8]) -> Self where Self: Sized {
 		let mut vm = Informant::default();
 		vm.depth = self.depth + 1;
+		vm.code = code.to_vec();
+		vm.gas_used = self.gas_used;
 		vm
 	}
 
-	fn done_subtrace(&mut self, mut sub: Self) where Self: Sized {
+	fn done_subtrace(&mut self, mut sub: Self, is_successful: bool) where Self: Sized {
 		if sub.depth == 1 {
 			// print last line with final state:
-			sub.pc += 1;
-			sub.instruction = 0;
+			if is_successful {
+				sub.pc += 1;
+				sub.instruction = 0;
+			} else {
+				let push_bytes = evm::push_bytes(sub.instruction);
+				sub.pc += if push_bytes > 0 { push_bytes + 1 } else { 0 };
+				sub.instruction = if sub.pc < sub.code.len() { sub.code[sub.pc] } else { 0 };
+			}
 			sub.gas_cost = 0.into();
 			let gas_used = sub.gas_used;
 			trace::VMTracer::trace_executed(&mut sub, gas_used, &[], None, None);

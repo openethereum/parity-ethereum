@@ -20,6 +20,33 @@ import React from 'react';
 import Accounts from './';
 
 let component;
+<<<<<<< HEAD:js/src/ui/VaultCard/Accounts/accounts.spec.js
+=======
+let store;
+
+function createStore () {
+  store = {
+    dispatch: sinon.stub(),
+    subscribe: sinon.stub(),
+    getState: () => {
+      return {
+        settings: {
+          views: {
+            settings: { fixed: true }
+          }
+        },
+        nodeStatus: {
+          nodeKind: {
+            'availability': 'personal'
+          }
+        }
+      };
+    }
+  };
+
+  return store;
+}
+>>>>>>> master:js/src/views/Application/TabBar/tabBar.spec.js
 
 function render (props = {}) {
   component = shallow(

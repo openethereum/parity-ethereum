@@ -37,7 +37,7 @@ import NewImport from './NewImport';
 import NewQr from './NewQr';
 import RawKey from './RawKey';
 import RecoveryPhrase from './RecoveryPhrase';
-import Store, { STAGE_CREATE, STAGE_INFO, STAGE_SELECT_TYPE } from './store';
+import Store, { STAGE_CREATE, STAGE_INFO, STAGE_SELECT_TYPE, STAGE_CONFIRM_BACKUP } from './store';
 import TypeIcon from './TypeIcon';
 import print from './print';
 import recoveryPage from './recoveryPage.ejs';
@@ -61,6 +61,12 @@ const TITLES = {
       defaultMessage='account information'
     />
   ),
+  backup: (
+    <FormattedMessage
+      id='createAccount.title.backupPhrase'
+      defaultMessage='confirm recovery phrase'
+    />
+  ),
   import: (
     <FormattedMessage
       id='createAccount.title.importAccount'
@@ -80,7 +86,7 @@ const TITLES = {
     />
   )
 };
-const STAGE_NAMES = [TITLES.type, TITLES.create, TITLES.info];
+const STAGE_NAMES = [TITLES.type, TITLES.create, TITLES.info, TITLES.backup];
 const STAGE_IMPORT = [TITLES.type, TITLES.import, TITLES.info];
 const STAGE_RESTORE = [TITLES.restore, TITLES.info];
 const STAGE_QR = [TITLES.type, TITLES.qr, TITLES.info];
@@ -213,14 +219,25 @@ class CreateAccount extends Component {
         }
 
         return (
-          <AccountDetails createStore={ this.createStore } />
+          <AccountDetails
+            createStore={ this.createStore }
+            withRequiredBackup={ createType === 'fromNew' }
+          />
+        );
+
+      case STAGE_CONFIRM_BACKUP:
+        return (
+          <AccountDetails
+            createStore={ this.createStore }
+            isConfirming
+          />
         );
     }
   }
 
   renderDialogActions () {
     const { restore } = this.props;
-    const { createType, canCreate, isBusy, stage } = this.createStore;
+    const { createType, canCreate, isBusy, stage, phraseBackedUpError } = this.createStore;
 
     const cancelBtn = (
       <Button
@@ -281,8 +298,8 @@ class CreateAccount extends Component {
               createType === 'fromNew'
                 ? (
                   <FormattedMessage
-                    id='createAccount.button.create'
-                    defaultMessage='Create'
+                    id='createAccount.button.next'
+                    defaultMessage='Next'
                   />
                 )
                 : (
@@ -292,7 +309,7 @@ class CreateAccount extends Component {
                   />
                 )
             }
-            onClick={ this.onCreate }
+            onClick={ createType === 'fromNew' ? this.createStore.nextStage : this.onCreate }
           />
         ];
 
@@ -314,6 +331,7 @@ class CreateAccount extends Component {
             )
             : null,
           <Button
+            disabled={ createType === 'fromNew' && !!phraseBackedUpError }
             icon={ <DoneIcon /> }
             key='done'
             label={
@@ -322,10 +340,53 @@ class CreateAccount extends Component {
                 defaultMessage='Done'
               />
             }
-            onClick={ this.onClose }
+            onClick={ createType === 'fromNew' ? this.onConfirmPhraseBackup : this.onClose }
+          />
+        ];
+
+      case STAGE_CONFIRM_BACKUP:
+        return [
+          <Button
+            icon={ <DoneIcon /> }
+            key='done'
+            label={
+              <FormattedMessage
+                id='createAccount.button.create'
+                defaultMessage='Create'
+              />
+            }
+            onClick={ this.onCreateNew }
           />
         ];
     }
+  }
+
+  onConfirmPhraseBackup = () => {
+    this.createStore.clearPhrase();
+    this.createStore.nextStage();
+  }
+
+  onCreateNew = () => {
+    this.createStore.setBusy(true);
+    this.createStore.computeBackupPhraseAddress()
+      .then(err => {
+        if (err) {
+          this.createStore.setBusy(false);
+          return;
+        }
+
+        return this.createStore.createAccount(this.vaultStore)
+          .then(() => {
+            this.createStore.clearPhrase();
+            this.createStore.setBusy(false);
+            this.props.onUpdate && this.props.onUpdate();
+            this.onClose();
+          });
+      })
+      .catch((error) => {
+        this.createStore.setBusy(false);
+        this.props.newError(error);
+      });
   }
 
   onCreate = () => {
@@ -341,6 +402,7 @@ class CreateAccount extends Component {
   }
 
   onClose = () => {
+    this.createStore.clearPhrase();
     this.props.onClose && this.props.onClose();
   }
 
