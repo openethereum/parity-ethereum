@@ -22,6 +22,7 @@ use util::RwLock;
 
 use futures::{self, BoxFuture, Future, Stream, Sink};
 use jsonrpc_core::{self as core, Error, MetaIoHandler};
+use jsonrpc_macros::Trailing;
 use jsonrpc_macros::pubsub::Subscriber;
 use jsonrpc_pubsub::SubscriptionId;
 use tokio_timer;
@@ -64,7 +65,8 @@ impl<S: core::Middleware<Metadata>> PubSubClient<S> {
 impl<S: core::Middleware<Metadata>> PubSub for PubSubClient<S> {
 	type Metadata = Metadata;
 
-	fn parity_subscribe(&self, mut meta: Metadata, subscriber: Subscriber<core::Value>, method: String, params: core::Params) {
+	fn parity_subscribe(&self, mut meta: Metadata, subscriber: Subscriber<core::Value>, method: String, params: Trailing<core::Params>) {
+		let params = params.unwrap_or(core::Params::Array(vec![]));
 		// Make sure to get rid of PubSub session otherwise it will never be dropped.
 		meta.session = None;
 

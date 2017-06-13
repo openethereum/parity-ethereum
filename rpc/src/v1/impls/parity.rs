@@ -124,7 +124,7 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 	type Metadata = Metadata;
 
 	fn accounts_info(&self, dapp: Trailing<DappId>) -> Result<BTreeMap<H160, AccountInfo>, Error> {
-		let dapp = dapp.0;
+		let dapp = dapp.unwrap_or_default();
 
 		let store = self.account_provider()?;
 		let dapp_accounts = store
@@ -272,13 +272,13 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 
 	fn list_accounts(&self, count: u64, after: Option<H160>, block_number: Trailing<BlockNumber>) -> Result<Option<Vec<H160>>, Error> {
 		Ok(self.client
-			.list_accounts(block_number.0.into(), after.map(Into::into).as_ref(), count)
+			.list_accounts(block_number.unwrap_or_default().into(), after.map(Into::into).as_ref(), count)
 			.map(|a| a.into_iter().map(Into::into).collect()))
 	}
 
 	fn list_storage_keys(&self, address: H160, count: u64, after: Option<H256>, block_number: Trailing<BlockNumber>) -> Result<Option<Vec<H256>>, Error> {
 		Ok(self.client
-			.list_storage(block_number.0.into(), &address.into(), after.map(Into::into).as_ref(), count)
+			.list_storage(block_number.unwrap_or_default().into(), &address.into(), after.map(Into::into).as_ref(), count)
 			.map(|a| a.into_iter().map(Into::into).collect()))
 	}
 
@@ -389,7 +389,7 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 	fn block_header(&self, number: Trailing<BlockNumber>) -> BoxFuture<RichHeader, Error> {
 		const EXTRA_INFO_PROOF: &'static str = "Object exists in in blockchain (fetched earlier), extra_info is always available if object exists; qed";
 
-		let id: BlockId = number.0.into();
+		let id: BlockId = number.unwrap_or_default().into();
 		let encoded = match self.client.block_header(id.clone()) {
 			Some(encoded) => encoded,
 			None => return future::err(errors::unknown_block()).boxed(),

@@ -136,8 +136,9 @@ impl<C: Send + Sync + 'static> EthPubSub for EthPubSubClient<C> {
 		kind: pubsub::Kind,
 		params: Trailing<pubsub::Params>,
 	) {
-		match (kind, params.0) {
-			(pubsub::Kind::NewHeads, pubsub::Params::None) => {
+		let params: Option<pubsub::Params> = params.into();
+		match (kind, params) {
+			(pubsub::Kind::NewHeads, None) => {
 				self.heads_subscribers.lock().push(subscriber)
 			},
 			_ => {
