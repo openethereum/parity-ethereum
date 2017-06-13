@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { isArray } from '../util/types';
+
 export default class Provider {
   // Provider for websocket pubsub transport
   constructor (transport) {
@@ -27,6 +29,8 @@ export default class Provider {
   }
 
   _removeListener (api, subscriptionIds) {
-    return this._transport.unsubscribe(api, subscriptionIds);
+    return isArray(subscriptionIds)
+    ? this._transport.unsubscribe(api, subscriptionIds)
+    : this._transport.unsubscribe(api, [subscriptionIds]);
   }
 }
