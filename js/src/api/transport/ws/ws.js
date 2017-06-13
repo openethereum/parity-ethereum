@@ -252,7 +252,7 @@ export default class Ws extends JsonRpcBase {
         resolve(result.result);
         delete this._messages[result.id];
       } else if (result.params) {
-        callback(result.params);
+        callback(result.params.result);
       }
     } catch (e) {
       console.error('ws::_onMessage', event.data, e);
