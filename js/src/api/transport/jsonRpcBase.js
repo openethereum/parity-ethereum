@@ -127,6 +127,10 @@ export default class JsonRpcBase extends EventEmitter {
     return this._connected;
   }
 
+  get isSecure () {
+    return this._token;
+  }
+
   setDebug (flag) {
     this._debug = flag;
   }

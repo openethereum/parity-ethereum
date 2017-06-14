@@ -49,7 +49,7 @@ export default class Api extends EventEmitter {
     this._parityProvider = new ParityProvider(transport);
     this._ethProvider = new EthProvider(transport);
 
-    if (transport.isSecure()) {
+    if (transport.isSecure) {
       this._secureProvider = new SecureProvider(transport);
     }
 
