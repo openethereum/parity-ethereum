@@ -226,8 +226,8 @@ connection, disconnecting causes all subscriptions to be canceled.
     }],
     returns: {
       type: Boolean,
-        desc: 'whether the call was successful',
-        example: true
+      desc: 'whether the call was successful',
+      example: true
     }
   }
 };

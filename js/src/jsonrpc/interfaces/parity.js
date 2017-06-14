@@ -2032,7 +2032,7 @@ connection, disconnecting causes all subscriptions to be canceled.
       {
         type: Array,
         desc: 'Parameters passed to RPC method. (Optional, defaults to no parameters)',
-        example: ["0xcd2a3d9f938e13cd947ec05abc7fe734df8dd826", "latest"]
+        example: ['0xcd2a3d9f938e13cd947ec05abc7fe734df8dd826', 'latest']
       }
     ],
     returns: {
