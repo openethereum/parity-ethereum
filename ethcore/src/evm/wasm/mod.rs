@@ -114,9 +114,8 @@ impl evm::Evm for WasmInterpreter {
 						})?
 				)
 			).add_argument(interpreter::RuntimeValue::I32(d_ptr.as_raw() as i32));
-
 		
-			let module_instance = self.program.add_module("contract", contract_module)
+			let module_instance = self.program.add_module("contract", contract_module, Some(&execution_params.externals))
 				.map_err(|err| {
 					trace!(target: "wasm", "Error adding contract module: {:?}", err);
 					evm::Error::from(RuntimeError::Interpreter(err))
@@ -152,49 +151,106 @@ impl evm::Evm for WasmInterpreter {
 }
 
 fn native_bindings<'a>(runtime: &'a mut Runtime) -> interpreter::UserFunctions<'a> {
+	use parity_wasm::elements::ValueType::*;
+
 	interpreter::UserFunctions {
 		executor: runtime,
 		functions: vec![
 			interpreter::UserFunction {
 				name: "_storage_read".to_owned(),
-				params: vec![elements::ValueType::I32, elements::ValueType::I32],
-				result: Some(elements::ValueType::I32),
+				params: vec![I32, I32],
+				result: Some(I32),
 			},
 			interpreter::UserFunction {
 				name: "_storage_write".to_owned(),
-				params: vec![elements::ValueType::I32, elements::ValueType::I32],
-				result: Some(elements::ValueType::I32),
+				params: vec![I32, I32],
+				result: Some(I32),
 			},
 			interpreter::UserFunction {
 				name: "_malloc".to_owned(),
-				params: vec![elements::ValueType::I32],
-				result: Some(elements::ValueType::I32),
+				params: vec![I32],
+				result: Some(I32),
 			},
 			interpreter::UserFunction {
 				name: "gas".to_owned(),
-				params: vec![elements::ValueType::I32],
+				params: vec![I32],
 				result: None,
 			},
 			interpreter::UserFunction {
 				name: "_debug".to_owned(),
-				params: vec![elements::ValueType::I32, elements::ValueType::I32],
+				params: vec![I32, I32],
 				result: None,
 			},
 			interpreter::UserFunction {
 				name: "_free".to_owned(),
-				params: vec![elements::ValueType::I32],
+				params: vec![I32],
 				result: None,
 			},
 			interpreter::UserFunction {
 				name: "_suicide".to_owned(),
-				params: vec![elements::ValueType::I32],
+				params: vec![I32],
 				result: None,
 			},
 			interpreter::UserFunction {
 				name: "_create".to_owned(),
-				params: vec![elements::ValueType::I32, elements::ValueType::I32, elements::ValueType::I32, elements::ValueType::I32],
-				result: Some(elements::ValueType::I32),
-			},			
+				params: vec![I32, I32, I32, I32],
+				result: Some(I32),
+			},
+			interpreter::UserFunction {
+				name: "abort".to_owned(),
+				params: vec![I32],
+				result: None,
+			},
+			interpreter::UserFunction {
+				name: "_abort".to_owned(),
+				params: vec![],
+				result: None,
+			},
+			interpreter::UserFunction {
+				name: "invoke_vii".to_owned(),
+				params: vec![I32; 3],
+				result: None,
+			},
+			interpreter::UserFunction {
+				name: "invoke_vi".to_owned(),
+				params: vec![I32; 2],
+				result: None,
+			},
+			interpreter::UserFunction {
+				name: "invoke_v".to_owned(),
+				params: vec![I32],
+				result: None,
+			},
+			interpreter::UserFunction {
+				name: "invoke_iii".to_owned(),
+				params: vec![I32; 3],
+				result: Some(I32),
+			},
+			interpreter::UserFunction {
+				name: "___resumeException".to_owned(),
+				params: vec![I32],
+				result: None,
+			},
+			interpreter::UserFunction {
+				name: "_rust_begin_unwind".to_owned(),
+				params: vec![I32; 4],
+				result: None,
+			},
+			interpreter::UserFunction {
+				name: "___cxa_find_matching_catch_2".to_owned(),
+				params: vec![],
+				result: Some(I32),
+			},
+			interpreter::UserFunction {
+				name: "___gxx_personality_v0".to_owned(),
+				params: vec![I32; 6],
+				result: Some(I32),
+			},
+			interpreter::UserFunction {
+				name: "_emscripten_memcpy_big".to_owned(),
+				params: vec![I32; 3],
+				result: Some(I32),
+			},
 		],
 	}
 }

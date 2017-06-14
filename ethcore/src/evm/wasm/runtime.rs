@@ -298,6 +298,19 @@ impl<'a> Runtime<'a> {
 	pub fn memory(&self) -> &interpreter::MemoryInstance {
 		&*self.memory
 	}
+
+	fn mem_copy(&self, context: interpreter::CallerContext) 
+		-> Result<Option<interpreter::RuntimeValue>, interpreter::Error> 
+	{
+		let len = context.value_stack.pop_as::<i32>()? as u32;
+		let dst = context.value_stack.pop_as::<i32>()? as u32;
+		let src = context.value_stack.pop_as::<i32>()? as u32;
+
+		let mem = self.memory().get(src, len as usize)?;
+		self.memory().set(dst, &mem)?;
+
+		Ok(Some(0i32.into()))
+	}
 }
 
 impl<'a> interpreter::UserFunctionExecutor for Runtime<'a> {
@@ -330,6 +343,9 @@ impl<'a> interpreter::UserFunctionExecutor for Runtime<'a> {
 			},
 			"gas" => {
 				self.gas(context)
+			},
+			"_emscripten_memcpy_big" => {
+				self.mem_copy(context)
 			},
 			_ => {
 				trace!("Unknown env func: '{}'", name);
