@@ -31,359 +31,468 @@ export default class ParityProvider extends Provider {
 
   // parity API
   accountsInfo (callback) {
-    return this._addListener(this._api, 'parity_accountsInfo', callback)
-                .then(outAccountInfo);
+    return this.addListener(this._api, 'parity_accountsInfo', (error, data) => {
+      error
+        ? callback(error)
+        : callback(null, outAccountInfo(data));
+    });
   }
 
   hardwareAccountsInfo (callback) {
-    return this._addListener(this._api, 'parity_hardwareAccountsInfo', callback)
-                .then(outHwAccountInfo);
+    return this.addListener(this._api, 'parity_hardwareAccountsInfo', (error, data) => {
+      error
+        ? callback(error)
+        : callback(null, outHwAccountInfo(data));
+    });
   }
 
   defaultAccount (callback) {
-    return this._addListener(this._api, 'parity_defaultAccount', callback)
-                .then(outAddress);
+    return this.addListener(this._api, 'parity_defaultAccount', (error, data) => {
+      error
+        ? callback(error)
+        : callback(null, outAddress(data));
+    });
   }
 
   transactionsLimit (callback) {
-    return this._addListener(this._api, 'parity_transactionsLimit', callback)
-                .then(outNumber);
+    return this.addListener(this._api, 'parity_transactionsLimit', (error, data) => {
+      error
+        ? callback(error)
+        : callback(null, outNumber(data));
+    });
   }
 
   extraData (callback) {
-    return this._addListener(this._api, 'parity_extraData', callback);
+    return this.addListener(this._api, 'parity_extraData', callback);
   }
 
   gasFloorTarget (callback) {
-    return this._addListener(this._api, 'parity_gasFloorTarget', callback)
-                .then(outNumber);
+    return this.addListener(this._api, 'parity_gasFloorTarget', (error, data) => {
+      error
+        ? callback(error)
+        : callback(null, outNumber(data));
+    });
   }
 
   gasCeilTarget (callback) {
-    return this._addListener(this._api, 'parity_gasCeilTarget', callback)
-                .then(outNumber);
+    return this.addListener(this._api, 'parity_gasCeilTarget', (error, data) => {
+      error
+        ? callback(error)
+        : callback(null, outNumber(data));
+    });
   }
 
   minGasPrice (callback) {
-    return this._addListener(this._api, 'parity_minGasPrice', callback)
-                .then(outNumber);
+    return this.addListener(this._api, 'parity_minGasPrice', (error, data) => {
+      error
+        ? callback(error)
+        : callback(null, outNumber(data));
+    });
   }
 
   devLogs (callback) {
-    return this._addListener(this._api, 'parity_devLogs', callback);
+    return this.addListener(this._api, 'parity_devLogs', callback);
   }
 
   devLogsLevels (callback) {
-    return this._addListener(this._api, 'parity_devLogsLevels', callback);
+    return this.addListener(this._api, 'parity_devLogsLevels', callback);
   }
 
   netChain (callback) {
-    return this._addListener(this._api, 'parity_netChain', callback);
+    return this.addListener(this._api, 'parity_netChain', callback);
   }
 
   netPeers (callback) {
-    return this._addListener(this._api, 'parity_netPeers', callback)
-                .then(outPeers);
+    return this.addListener(this._api, 'parity_netPeers', (error, data) => {
+      error
+        ? callback(error)
+        : callback(null, outPeers(data));
+    });
   }
 
   netPort (callback) {
-    return this._addListener(this._api, 'parity_netPort', callback)
-                .then(outNumber);
+    return this.addListener(this._api, 'parity_netPort', (error, data) => {
+      error
+        ? callback(error)
+        : callback(null, outNumber(data));
+    });
   }
 
   rpcSettings (callback) {
-    return this._addListener(this._api, 'parity_rpcSettings', callback);
+    return this.addListener(this._api, 'parity_rpcSettings', callback);
   }
 
   nodeName (callback) {
-    return this._addListener(this._api, 'parity_nodeName', callback);
+    return this.addListener(this._api, 'parity_nodeName', callback);
   }
 
   defaultExtraData (callback) {
-    return this._addListener(this._api, 'parity_defaultExtraData', callback);
+    return this.addListener(this._api, 'parity_defaultExtraData', callback);
   }
 
   gasPriceHistogram (callback) {
-    return this._addListener(this._api, 'parity_gasPriceHistogram', callback)
-                .then(outHistogram);
+    return this.addListener(this._api, 'parity_gasPriceHistogram', (error, data) => {
+      error
+        ? callback(error)
+        : callback(null, outHistogram(data));
+    });
   }
 
   unsignedTransactionsCount (callback) {
-    return this._addListener(this._api, 'parity_unsignedTransactionsCount', callback)
-                .then(outNumber);
-  }
-
-  generateSecretPhrase (callback) {
-    return this._addListener(this._api, 'parity_generateSecretPhrase', callback);
-  }
-
-  phraseToAddress (callback, phrase) {
-    return this._addListener(this._api, 'parity_phraseToAddress', callback, phrase)
-                .then(outAddress);
+    return this.addListener(this._api, 'parity_unsignedTransactionsCount', (error, data) => {
+      error
+        ? callback(error)
+        : callback(null, outNumber(data));
+    });
   }
 
   registryAddress (callback) {
-    return this._addListener(this._api, 'parity_registryAddress', callback)
-                .then(outAddress);
+    return this.addListener(this._api, 'parity_registryAddress', (error, data) => {
+      error
+        ? callback(error)
+        : callback(null, outAddress(data));
+    });
   }
 
   listAccounts (callback, count, offset = null, blockNumber = 'latest') {
-    return this._addListener(this._api, 'parity_listAccounts', callback, count, inAddress(offset), inBlockNumber(blockNumber))
-               .then((accounts) => (accounts || []).map(outAddress));
+    return this.addListener(this._api, 'parity_listAccounts', (error, data) => {
+      error
+        ? callback(error)
+        : callback(null, (data) => (data || []).map(outAddress));
+    }, count, inAddress(offset), inBlockNumber(blockNumber));
   }
 
   listStorageKeys (callback, address, count, hash = null, blockNumber = 'latest') {
-    return this._addListener(this._api, 'parity_listStorageKeys', callback, inAddress(address), count, inHex(hash), inBlockNumber(blockNumber));
-  }
-
-  encryptMessage (callback, pubkey, data) {
-    return this._addListener(this._api, 'parity_encryptMessage', callback, inHex(pubkey), inHex(data));
+    return this.addListener(this._api, 'parity_listStorageKeys', callback, inAddress(address), count, inHex(hash), inBlockNumber(blockNumber));
   }
 
   pendingTransactions (callback) {
-    return this._addListener(this._api, 'parity_pendingTransactions', callback)
-                .then(data => data.map(outTransaction));
+    return this.addListener(this._api, 'parity_pendingTransactions', (error, data) => {
+      error
+        ? callback(error)
+        : callback(null, outTransaction(data));
+    });
   }
 
   futureTransactions (callback) {
-    return this._addListener(this._api, 'parity_futureTransactions', callback)
-                .then(data => data.map(outTransaction));
+    return this.addListener(this._api, 'parity_futureTransactions', (error, data) => {
+      error
+        ? callback(error)
+        : callback(null, outTransaction(data));
+    });
   }
 
   pendingTransactionsStats (callback) {
-    return this._addListener(this._api, 'parity_pendingTransactionsStats', callback);
+    return this.addListener(this._api, 'parity_pendingTransactionsStats', callback);
   }
 
   localTransactions (callback) {
-    return this._addListener(this._api, 'parity_localTransactions', callback)
-                .then(transactions => {
-                  Object.values(transactions)
-                    .filter(tx => tx.transaction)
-                    .map(tx => {
-                      tx.transaction = outTransaction(tx.transaction);
-                    });
-                  return transactions;
-                });
+    return this.addListener(this._api, 'parity_localTransactions', (error, transactions) => {
+      error
+        ? callback(error)
+        : callback(null, transactions => {
+          Object.values(transactions)
+            .filter(tx => tx.transaction)
+            .map(tx => {
+              tx.transaction = outTransaction(tx.transaction);
+            });
+          return transactions;
+        });
+    });
   }
 
   dappsUrl (callback) {
-    return this._addListener(this._api, 'parity_dappsUrl', callback);
+    return this.addListener(this._api, 'parity_dappsUrl', callback);
   }
 
   wsUrl (callback) {
-    return this._addListener(this._api, 'parity_wsUrl', callback);
+    return this.addListener(this._api, 'parity_wsUrl', callback);
   }
 
   nextNonce (callback, account) {
-    return this._addListener(this._api, 'parity_nextNonce', callback, inAddress(account))
-                .then(outNumber);
+    return this.addListener(this._api, 'parity_nextNonce', (error, data) => {
+      error
+        ? callback(error)
+        : callback(null, outNumber(data));
+    }, inAddress(account));
   }
 
   mode (callback) {
-    return this._addListener(this._api, 'parity_mode', callback);
+    return this.addListener(this._api, 'parity_mode', callback);
   }
 
   chain (callback) {
-    return this._addListener(this._api, 'parity_chain', callback);
+    return this.addListener(this._api, 'parity_chain', callback);
   }
 
   enode (callback) {
-    return this._addListener(this._api, 'parity_enode', callback);
+    return this.addListener(this._api, 'parity_enode', callback);
   }
 
   consensusCapability (callback) {
-    return this._addListener(this._api, 'parity_consensusCapability', callback);
+    return this.addListener(this._api, 'parity_consensusCapability', callback);
   }
 
   versionInfo (callback) {
-    return this._addListener(this._api, 'parity_versionInfo', callback);
+    return this.addListener(this._api, 'parity_versionInfo', callback);
   }
 
   releasesInfo (callback) {
-    return this._addListener(this._api, 'parity_releasesInfo', callback);
+    return this.addListener(this._api, 'parity_releasesInfo', callback);
   }
 
   chainStatus (callback) {
-    return this._addListener(this._api, 'parity_chainStatus', callback)
-                .then(outChainStatus);
+    return this.addListener(this._api, 'parity_chainStatus', (error, data) => {
+      error
+        ? callback(error)
+        : callback(null, outChainStatus(data));
+    });
   }
 
   nodeKind (callback) {
-    return this._addListener(this._api, 'parity_nodeKind', callback)
-                .then(outNodeKind);
+    return this.addListener(this._api, 'parity_nodeKind', (error, data) => {
+      error
+        ? callback(error)
+        : callback(null, outNodeKind(data));
+    });
   }
 
   getBlockHeaderByNumber (callback, blockNumber = 'latest') {
-    return this._addListener(this._api, 'parity_getBlockHeaderByNumber', callback, inBlockNumber(blockNumber))
-                .then(outBlock);
+    return this.addListener(this._api, 'parity_getBlockHeaderByNumber', (error, data) => {
+      error
+        ? callback(error)
+        : callback(null, outBlock(data));
+    }, inBlockNumber(blockNumber));
   }
 
   cidV0 (callback, data) {
-    return this._addListener(this._api, 'parity_cidV0', callback, inData(data));
+    return this.addListener(this._api, 'parity_cidV0', callback, inData(data));
   }
 
   //  eth API
 
   protocolVersion (callback) {
-    return this._addListener(this._api, 'eth_protocolVersion', callback);
+    return this.addListener(this._api, 'eth_protocolVersion', callback);
   }
 
   syncing (callback) {
-    return this._addListener(this._api, 'eth_syncing', callback)
-                .then(outSyncing);
+    return this.addListener(this._api, 'eth_syncing', (error, data) => {
+      error
+        ? callback(error)
+        : callback(null, outSyncing(data));
+    });
   }
 
   hashrate (callback) {
-    return this._addListener(this._api, 'eth_hashrate', callback)
-                .then(outNumber);
+    return this.addListener(this._api, 'eth_hashrate', (error, data) => {
+      error
+        ? callback(error)
+        : callback(null, outNumber(data));
+    });
   }
 
   coinbase (callback) {
-    return this._addListener(this._api, 'eth_coinbase', callback)
-                .then(outAddress);
+    return this.addListener(this._api, 'eth_coinbase', (error, data) => {
+      error
+        ? callback(error)
+        : callback(null, outAddress(data));
+    });
   }
 
   mining (callback) {
-    return this._addListener(this._api, 'eth_mining', callback);
+    return this.addListener(this._api, 'eth_mining', callback);
   }
 
   gasPrice (callback) {
-    return this._addListener(this._api, 'eth_gasPrice', callback)
-                .then(outNumber);
+    return this.addListener(this._api, 'eth_gasPrice', (error, data) => {
+      error
+        ? callback(error)
+        : callback(null, outNumber(data));
+    });
   }
 
   accounts (callback) {
-    return this._addListener(this._api, 'eth_accounts', callback)
-                .then((accounts) => (accounts || []).map(outAddress));
+    return this.addListener(this._api, 'eth_accounts', (error, accounts) => {
+      error
+        ? callback(error)
+        : callback(null, (accounts || []).map(outAddress));
+    });
   }
 
   blockNumber (callback) {
-    return this._addListener(this._api, 'eth_blockNumber', callback)
-                .then(outNumber);
+    return this.addListener(this._api, 'eth_blockNumber', (error, data) => {
+      error
+        ? callback(error)
+        : callback(null, outNumber(data));
+    });
   }
 
   getBalance (callback, address, blockNumber = 'latest') {
-    return this._addListener(this._api, 'eth_getBalance', callback, inAddress(address), inBlockNumber(blockNumber))
-    .then(outNumber);
+    return this.addListener(this._api, 'eth_getBalance', (error, data) => {
+      error
+        ? callback(error)
+        : callback(null, outNumber(data));
+    }, inAddress(address), inBlockNumber(blockNumber));
   }
 
   getStorageAt (callback, address, index = 0, blockNumber = 'latest') {
-    return this._addListener(this._api, 'eth_getStorageAt', callback, inAddress(address), inNumber16(index), inBlockNumber(blockNumber));
+    return this.addListener(this._api, 'eth_getStorageAt', callback, inAddress(address), inNumber16(index), inBlockNumber(blockNumber));
   }
 
   getBlockByHash (callback, hash, full = false) {
-    return this._addListener(this._api, 'eth_getBlockByHash', callback, inHex(hash), full)
-                .then(outBlock);
+    return this.addListener(this._api, 'eth_getBlockByHash', (error, data) => {
+      error
+        ? callback(error)
+        : callback(null, outBlock(data));
+    }, inHex(hash), full);
   }
 
   getBlockByNumber (callback, blockNumber = 'latest', full = false) {
-    return this._addListener(this._api, 'eth_getBlockByNumber', callback, inBlockNumber(blockNumber), full)
-                .then(outBlock);
+    return this.addListener(this._api, 'eth_getBlockByNumber', (error, data) => {
+      error
+        ? callback(error)
+        : callback(null, outBlock(data));
+    }, inBlockNumber(blockNumber), full);
   }
 
   getTransactionCount (callback, address, blockNumber = 'latest') {
-    return this._addListener(this._api, 'eth_getTransactionCount', callback, inAddress(address), inBlockNumber(blockNumber))
-                .then(outNumber);
+    return this.addListener(this._api, 'eth_getTransactionCount', (error, data) => {
+      error
+        ? callback(error)
+        : callback(null, outNumber(data));
+    }, inAddress(address), inBlockNumber(blockNumber));
   }
 
   getBlockTransactionCountByHash (callback, hash) {
-    return this._addListener(this._api, 'eth_getBlockTransactionCountByHash', callback, inHex(hash))
-                .then(outNumber);
+    return this.addListener(this._api, 'eth_getBlockTransactionCountByHash', (error, data) => {
+      error
+        ? callback(error)
+        : callback(null, outNumber(data));
+    }, inHex(hash));
   }
 
   getBlockTransactionCountByNumber (callback, blockNumber = 'latest') {
-    return this._addListener(this._api, 'eth_getBlockTransactionCountByNumber', callback, inBlockNumber(blockNumber))
-                .then(outNumber);
+    return this.addListener(this._api, 'eth_getBlockTransactionCountByNumber', (error, data) => {
+      error
+        ? callback(error)
+        : callback(null, outNumber(data));
+    }, inBlockNumber(blockNumber));
   }
 
   getUncleCountByBlockHash (callback, hash) {
-    return this._addListener(this._api, 'eth_getUncleCountByBlockHash', callback, inHex(hash))
-                .then(outNumber);
+    return this.addListener(this._api, 'eth_getUncleCountByBlockHash', (error, data) => {
+      error
+        ? callback(error)
+        : callback(null, outNumber(data));
+    }, inHex(hash));
   }
 
   getUncleCountByBlockNumber (callback, blockNumber = 'latest') {
-    return this._addListener(this._api, 'eth_getUncleCountByBlockNumber', callback, inBlockNumber(blockNumber))
-                .then(outNumber);
+    return this.addListener(this._api, 'eth_getUncleCountByBlockNumber', (error, data) => {
+      error
+        ? callback(error)
+        : callback(null, outNumber(data));
+    }, inBlockNumber(blockNumber));
   }
 
   getCode (callback, address, blockNumber = 'latest') {
-    return this._addListener(this._api, 'eth_getCode', callback, inAddress(address), inBlockNumber(blockNumber));
+    return this.addListener(this._api, 'eth_getCode', callback, inAddress(address), inBlockNumber(blockNumber));
   }
 
   sendRawTransaction (callback, data) {
-    return this._addListener(this._api, 'eth_sendRawTransaction', callback, inData(data));
+    return this.addListener(this._api, 'eth_sendRawTransaction', callback, inData(data));
   }
 
   submitTransaction (callback, data) {
-    return this._addListener(this._api, 'eth_submitTransaction', callback, inData(data));
+    return this.addListener(this._api, 'eth_submitTransaction', callback, inData(data));
   }
 
   call (callback, options, blockNumber = 'latest') {
-    return this._addListener(this._api, 'eth_call', callback, inOptions(options), inBlockNumber(blockNumber));
+    return this.addListener(this._api, 'eth_call', callback, inOptions(options), inBlockNumber(blockNumber));
   }
 
   estimateGas (callback, options) {
-    return this._addListener(this._api, 'eth_estimateGas', callback, inOptions(options))
-                .then(outNumber);
+    return this.addListener(this._api, 'eth_estimateGas', (error, data) => {
+      error
+        ? callback(error)
+        : callback(null, outNumber(data));
+    }, inOptions(options));
   }
 
   getTransactionByHash (callback, hash) {
-    return this._addListener(this._api, 'eth_getTransactionByHash', callback, inHex(hash))
-    .then(outTransaction);
+    return this.addListener(this._api, 'eth_getTransactionByHash', (error, data) => {
+      error
+        ? callback(error)
+        : callback(null, outTransaction(data));
+    }, inHex(hash));
   }
 
   getTransactionByBlockHashAndIndex (callback, hash, index = 0) {
-    return this._addListener(this._api, 'eth_getTransactionByBlockHashAndIndex', callback, inHex(hash), inNumber16(index))
-    .then(outTransaction);
+    return this.addListener(this._api, 'eth_getTransactionByBlockHashAndIndex', (error, data) => {
+      error
+        ? callback(error)
+        : callback(null, outTransaction(data));
+    }, inHex(hash), inNumber16(index));
   }
 
   getTransactionByBlockNumberAndIndex (callback, blockNumber = 'latest', index = 0) {
-    return this._addListener(this._api, 'eth_getTransactionByBlockNumberAndIndex', callback, inBlockNumber(blockNumber), inNumber16(index))
-    .then(outTransaction);
+    return this.addListener(this._api, 'eth_getTransactionByBlockNumberAndIndex', (error, data) => {
+      error
+        ? callback(error)
+        : callback(null, outTransaction(data));
+    }, inBlockNumber(blockNumber), inNumber16(index));
   }
 
   getTransactionReceipt (callback, txhash) {
-    return this._addListener(this._api, 'eth_getTransactionReceipt', callback, inHex(txhash))
-    .then(outReceipt);
+    return this.addListener(this._api, 'eth_getTransactionReceipt', (error, data) => {
+      error
+        ? callback(error)
+        : callback(null, outReceipt(data));
+    }, inHex(txhash));
   }
 
   getUncleByBlockHashAndIndex (callback, hash, index = 0) {
-    return this._addListener(this._api, 'eth_getUncleByBlockHashAndIndex', callback, inHex(hash), inNumber16(index));
+    return this.addListener(this._api, 'eth_getUncleByBlockHashAndIndex', callback, inHex(hash), inNumber16(index));
   }
 
   getUncleByBlockNumberAndIndex (callback, blockNumber = 'latest', index = 0) {
-    return this._addListener(this._api, 'eth_getUncleByBlockNumberAndIndex', callback, inBlockNumber(blockNumber), inNumber16(index));
+    return this.addListener(this._api, 'eth_getUncleByBlockNumberAndIndex', callback, inBlockNumber(blockNumber), inNumber16(index));
   }
 
   getLogs (callback, options) {
-    return this._addListener(this._api, 'eth_getLogs', callback, inFilter(options))
-    .then((logs) => logs.map(outLog));
+    return this.addListener(this._api, 'eth_getLogs', (error, logs) => {
+      error
+        ? callback(error)
+        : callback(null, (logs) => logs.map(outLog));
+    }, inFilter(options));
   }
 
   getWork (callback) {
-    return this._addListener(this._api, 'eth_getWork', callback);
+    return this.addListener(this._api, 'eth_getWork', callback);
   }
 
   submitWork (callback, nonce, powHash, mixDigest) {
-    return this._addListener(this._api, 'eth_submitWork', callback, inNumber16(nonce), powHash, mixDigest);
+    return this.addListener(this._api, 'eth_submitWork', callback, inNumber16(nonce), powHash, mixDigest);
   }
 
   submitHashrate (callback, hashrate, clientId) {
-    return this._addListener(this._api, 'eth_submitHashrate', callback, inNumber16(hashrate), clientId);
+    return this.addListener(this._api, 'eth_submitHashrate', callback, inNumber16(hashrate), clientId);
   }
 
   // net API
-
   version (callback) {
-    return this._addListener(this._api, 'net_version', callback);
+    return this.addListener(this._api, 'net_version', callback);
   }
 
   peerCount (callback) {
-    return this._addListener(this._api, 'net_peerCount', callback)
-                .then(outNumber);
+    return this.addListener(this._api, 'net_peerCount', (error, data) => {
+      error
+        ? callback(error)
+        : callback(null, outNumber(data));
+    });
   }
 
   listening (callback) {
-    return this._addListener(this._api, 'net_listening', callback);
+    return this.addListener(this._api, 'net_listening', callback);
   }
 }

@@ -48,10 +48,6 @@ export default class Ws extends JsonRpcBase {
     }
   }
 
-  isSecure () {
-    return this._token;
-  }
-
   updateToken (token, connect = true) {
     this._token = token;
     // this._autoConnect = true;
@@ -256,7 +252,7 @@ export default class Ws extends JsonRpcBase {
         resolve(result.result);
         delete this._messages[result.id];
       } else if (result.params) {
-        callback(result.params.result);
+        callback(null, result.params.result);
       }
     } catch (e) {
       console.error('ws::_onMessage', event.data, e);
@@ -271,7 +267,6 @@ export default class Ws extends JsonRpcBase {
         this._count++;
       }
 
-      console.log(message.json);
       return this._ws.send(message.json);
     }
 
