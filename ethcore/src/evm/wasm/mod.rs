@@ -60,7 +60,9 @@ impl evm::Evm for WasmInterpreter {
 	fn exec(&mut self, params: ActionParams, ext: &mut evm::Ext) -> evm::Result<GasLeft> {
 		use parity_wasm::elements::Deserialize;
 
-		trace!(target: "wasm", "Started wasm interpreter with code {:?}", params.code);
+		let code = params.code.expect("exec is only called on contract with code; qed");
+
+		trace!(target: "wasm", "Started wasm interpreter with code.len={:?}", code.len());
 
 		let env_instance = self.program.module("env")
 			// prefer explicit panic here
@@ -81,7 +83,6 @@ impl evm::Evm for WasmInterpreter {
 			params.gas.low_u64(),
 		);
 
-		let code = params.code.expect("exec is only called on contract with code; qed");
 		let mut cursor = ::std::io::Cursor::new(&*code);
 
 		let contract_module = wasm_utils::inject_gas_counter(
