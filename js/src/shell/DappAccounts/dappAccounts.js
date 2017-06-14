@@ -21,7 +21,7 @@ import { FormattedMessage } from 'react-intl';
 import { AccountCard, Portal, SelectionList } from '@parity/ui';
 
 @observer
-export default class DappPermissions extends Component {
+export default class DappAccounts extends Component {
   static propTypes = {
     permissionStore: PropTypes.object.isRequired
   };
@@ -39,7 +39,7 @@ export default class DappPermissions extends Component {
         open
         title={
           <FormattedMessage
-            id='dapps.permissions.label'
+            id='dapps.accounts.label'
             defaultMessage='visible dapp accounts'
           />
         }

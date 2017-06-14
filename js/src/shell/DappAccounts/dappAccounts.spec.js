@@ -17,19 +17,19 @@
 import { shallow } from 'enzyme';
 import React from 'react';
 
-import DappPermissions from './';
+import DappAccounts from './';
 
 let component;
 
 function renderShallow (permissionStore = {}) {
   component = shallow(
-    <DappPermissions permissionStore={ permissionStore } />
+    <DappAccounts permissionStore={ permissionStore } />
   );
 
   return component;
 }
 
-describe('shell/DappPermissions', () => {
+describe('shell/DappAccounts', () => {
   describe('rendering', () => {
     it('renders defaults', () => {
       expect(renderShallow()).to.be.ok;
