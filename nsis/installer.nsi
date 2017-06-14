@@ -6,7 +6,7 @@
 !define SYNC_TERM 0x00100001
 
 !define APPNAME "Parity"
-!define COMPANYNAME "Ethcore"
+!define COMPANYNAME "Parity"
 !define DESCRIPTION "Fast, light, robust Ethereum implementation"
 !define VERSIONMAJOR 1
 !define VERSIONMINOR 7

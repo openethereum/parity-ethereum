@@ -17,6 +17,6 @@
 export default {
   tooltip: {
     overview: `在应用的不同部分和不同界面进行导航，在账户界面、代币界面和分布式应用界面之间切换。`
-    // navigate between the different parts and views of the application, switching between an account view, token view and distributed application view
+    // navigate between the different parts and views of the application, switching between an account view, token view and decentralized application view
   }
 };

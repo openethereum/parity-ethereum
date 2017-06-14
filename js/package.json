@@ -1,6 +1,6 @@
 {
   "name": "parity.js",
-  "version": "1.7.87",
+  "version": "1.7.90",
   "main": "release/index.js",
   "jsnext:main": "src/index.js",
   "author": "Parity Team <admin@parity.io>",
@@ -159,6 +159,7 @@
   },
   "dependencies": {
     "@parity/wordlist": "1.0.1",
+    "arraybuffer-loader": "0.2.2",
     "babel-runtime": "6.23.0",
     "base32.js": "0.1.0",
     "bignumber.js": "3.0.1",
@@ -218,7 +219,6 @@
     "redux-thunk": "2.1.0",
     "rlp": "2.0.0",
     "scryptsy": "2.0.0",
-    "secp256k1": "3.2.5",
     "solc": "ngotchac/solc-js",
     "store": "1.3.20",
     "sw-toolbox": "^3.6.0",

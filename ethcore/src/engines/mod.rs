@@ -60,7 +60,7 @@ pub const DEFAULT_BLOCKHASH_CONTRACT: &'static str = "73ffffffffffffffffffffffff
 /// Voting errors.
 #[derive(Debug)]
 pub enum EngineError {
-	/// Signature does not belong to an authority.
+	/// Signature or author field does not belong to an authority.
 	NotAuthorized(Address),
 	/// The same author issued different votes at the same step.
 	DoubleVote(Address),
