@@ -21,6 +21,8 @@ use std::collections::hash_map::{HashMap, Entry};
 
 use util::{Address, H256};
 
+use engines::validator_set::SimpleList;
+
 /// Error indicating unknown validator.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub struct UnknownValidator;
@@ -29,7 +31,7 @@ pub struct UnknownValidator;
 /// Stores a chain of unfinalized hashes that can be pushed onto.
 pub struct RollingFinality {
 	headers: VecDeque<(H256, Address)>,
-	signers: Vec<Address>,
+	signers: SimpleList,
 	sign_count: HashMap<Address, usize>,
 }
 
@@ -38,7 +40,7 @@ impl RollingFinality {
 	pub fn blank(signers: Vec<Address>) -> Self {
 		RollingFinality {
 			headers: VecDeque::new(),
-			signers: signers,
+			signers: SimpleList::new(signers),
 			sign_count: HashMap::new(),
 		}
 	}
@@ -81,6 +83,9 @@ impl RollingFinality {
 
 	/// Get an iterator over stored hashes in order.
 	pub fn unfinalized_hashes(&self) -> Iter { Iter(self.headers.iter()) }
+
+	/// Get the validator set.
+	pub fn validators(&self) -> &SimpleList { &self.validators }
 
 	/// Push a hash onto the rolling finality checker (implying `subchain_head` == head.parent)
 	///

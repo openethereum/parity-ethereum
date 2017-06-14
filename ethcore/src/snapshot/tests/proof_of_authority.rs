@@ -52,10 +52,10 @@ lazy_static! {
 }
 
 
-/// Contract code used here: https://gist.github.com/rphmeier/2de14fd365a969e3a9e10d77eb9a1e37
+/// Contract code used here: https://gist.github.com/anonymous/98340ddb01a274e1319a504879fc9a6a
 /// Account with secrets "1".sha3() is initially the validator.
 /// Transitions to the contract at block 2, initially same validator set.
-/// Create a new Spec with BasicAuthority which uses a contract at address 5 to determine the current validators using `getValidators`.
+/// Create a new Spec with AuthorityRound which uses a contract at address 5 to determine the current validators using `getValidators`.
 /// `native_contracts::test_contracts::ValidatorSet` provides a native wrapper for the ABi.
 fn spec_fixed_to_contract() -> Spec {
 	let data = include_bytes!("test_validator_contract.json");
@@ -99,13 +99,20 @@ fn make_chain(accounts: Arc<AccountProvider>, blocks_beyond: usize, transitions:
 	{
 		// push a block with given number, signed by one of the signers, with given transactions.
 		let push_block = |signers: &[Address], n, txs: Vec<SignedTransaction>| {
+			use miner::MinerService;
+
 			let idx = n as usize % signers.len();
+			trace!(target: "snapshot", "Pushing block #{}, {} txs, author={}",
+				n, txs.len(), signers[idx]);
+
+			client.miner().set_author(signers[idx]);
+			client.miner().import_external_transactions(&*client,
+				txs.into_iter().map(Into::into).collect());
 
 			let engine = client.engine();
 			engine.set_signer(accounts.clone(), signers[idx], PASS.to_owned());
 			engine.step();
 
-			trace!(target: "snapshot", "Pushing block #{}, {} txs, author={}", n, txs.len(), signers[idx]);
 			assert_eq!(client.chain_info().best_block_number, n);
 		};
 
@@ -207,7 +214,9 @@ fn make_chain(accounts: Arc<AccountProvider>, blocks_beyond: usize, transitions:
 }
 
 #[test]
-fn fixed_to_contract() {
+fn fixed_to_contract_only() {
+	let _ = ::ethcore_logger::init_log();
+
 	let (provider, addrs) = make_accounts(&[
 		RICH_SECRET.clone(),
 		secret!("foo"),

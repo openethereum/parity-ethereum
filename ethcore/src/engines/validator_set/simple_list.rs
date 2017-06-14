@@ -42,6 +42,20 @@ impl SimpleList {
 	}
 }
 
+impl ::std::ops::Deref for SimpleList {
+	type Target = [Address];
+
+	fn deref(&self) -> &[Address] { &self.validators }
+}
+
+impl From<Vec<Address>> for SimpleList {
+	fn from(validators: Vec<Address>) -> Self {
+		SimpleList {
+			validators: validators,
+		}
+	}
+}
+
 impl HeapSizeOf for SimpleList {
 	fn heap_size_of_children(&self) -> usize {
 		self.validators.heap_size_of_children()

@@ -195,6 +195,16 @@ fn header_signature(header: &Header) -> Result<Signature, ::rlp::DecoderError> {
 	UntrustedRlp::new(&header.seal().get(1).expect("was checked with verify_block_basic; has 2 fields; qed")).as_val::<H520>().map(Into::into)
 }
 
+fn step_proposer(validators: &ValidatorSet, bh: &H256, step: usize) -> Address {
+	let proposer = validators.get(bh, step);
+	trace!(target: "engine", "Fetched proposer for step {}: {}", step, proposer);
+	proposer
+}
+
+fn is_step_proposer(validators: &ValidatorSet, bh: &H256, step: usize, address: &Address) -> bool {
+	step_proposer(validators, bh, step) == *address
+}
+
 fn verify_external(header: &Header, validators: &ValidatorSet, step: &Step) -> Result<(), Error> {
 	let header_step = header_step(header)?;
 
@@ -272,14 +282,6 @@ impl AuthorityRound {
 			engine.transition_service.register_handler(Arc::new(handler))?;
 		}
 		Ok(engine)
-	}
-
-	fn step_proposer(&self, bh: &H256, step: usize) -> Address {
-		self.validators.get(bh, step)
-	}
-
-	fn is_step_proposer(&self, bh: &H256, step: usize, address: &Address) -> bool {
-		self.step_proposer(bh, step) == *address
 	}
 }
 
@@ -378,7 +380,7 @@ impl Engine for AuthorityRound {
 		if self.proposed.load(AtomicOrdering::SeqCst) { return Seal::None; }
 		let header = block.header();
 		let step = self.step.load();
-		if self.is_step_proposer(header.parent_hash(), step, header.author()) {
+		if is_step_proposer(&self.validators, header.parent_hash(), step, header.author()) {
 			if let Ok(signature) = self.signer.sign(header.bare_hash()) {
 				trace!(target: "engine", "generate_seal: Issuing a block for step {}.", step);
 				self.proposed.store(true, AtomicOrdering::SeqCst);
@@ -387,7 +389,8 @@ impl Engine for AuthorityRound {
 				warn!(target: "engine", "generate_seal: FAIL: Accounts secret key unavailable.");
 			}
 		} else {
-			trace!(target: "engine", "generate_seal: Not a proposer for step {}.", step);
+			trace!(target: "engine", "generate_seal: {} not a proposer for step {}.",
+				header.author(), step);
 		}
 		Seal::None
 	}
@@ -477,7 +480,7 @@ impl Engine for AuthorityRound {
 		// Report skipped primaries.
 		if step > parent_step + 1 {
 			for s in parent_step + 1..step {
-				let skipped_primary = self.step_proposer(&parent.hash(), s);
+				let skipped_primary = step_proposer(&self.validators, &parent.hash(), s);
 				trace!(target: "engine", "Author {} did not build his block on top of the intermediate designated primary {}.", header.author(), skipped_primary);
 				self.validators.report_benign(&skipped_primary, header.number());
 			}
@@ -613,7 +616,7 @@ impl Engine for AuthorityRound {
 							.chain(finalized)
 							.chain(checker_ref.unfinalized_hashes())
 							.map(|hash| chain(hash)
-								.expect("these header fetched before when constructing finality checker; qed"))
+								.expect("these headers fetched before when constructing finality checker; qed"))
 							.collect::<Vec<Header>>();
 
 						let finality_proof = ::rlp::encode_list(&finality_proof);
