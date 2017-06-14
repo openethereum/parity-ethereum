@@ -35,38 +35,59 @@ export default class SecureProvider extends Provider {
   // parity accounts API (only secure API)
 
   allAccountsInfo (callback) {
-    return this._addListener(this._api, 'parity_allAccountsInfo', callback)
-                .then(outAccountInfo);
+    return this._addListener(this._api, 'parity_allAccountsInfo', (error, data) => {
+      error
+        ? callback(error)
+        : callback(null, outAccountInfo(data));
+    });
   }
 
   getDappAddresses (callback, dappId) {
-    return this._addListener(this._api, 'parity_getDappAddresses', callback, dappId)
-                .then(outAddresses);
+    return this._addListener(this._api, 'parity_getDappAddresses', (error, data) => {
+      error
+        ? callback(error)
+        : callback(null, outAddresses(data));
+    }, dappId);
   }
 
   getDappDefaultAddress (callback, dappId) {
-    return this._addListener(this._api, 'parity_getDappDefaultAddress', callback, dappId)
-                .then(outAddresses);
+    return this._addListener(this._api, 'parity_getDappDefaultAddress', (error, data) => {
+      error
+        ? callback(error)
+        : callback(null, outAddress(data));
+    }, dappId);
   }
 
   getNewDappsAddresses (callback) {
-    return this._addListener(this._api, 'parity_getDappDefaultAddress', callback)
-    .then((addresses) => addresses ? addresses.map(outAddress) : null);
+    return this._addListener(this._api, 'parity_getDappDefaultAddress', (error, addresses) => {
+      error
+        ? callback(error)
+        : callback(null, addresses ? addresses.map(outAddress) : null);
+    });
   }
 
   getNewDappsDefaultAddress (callback) {
-    return this._addListener(this._api, 'parity_getNewDappsDefaultAddress', callback)
-    .then(outAddress);
+    return this._addListener(this._api, 'parity_getNewDappsDefaultAddress', (error, data) => {
+      error
+        ? callback(error)
+        : callback(null, outAddress(data));
+    });
   }
 
   listRecentDapps (callback) {
-    return this._addListener(this._api, 'parity_listRecentDapps', callback)
-                .then(outRecentDapps);
+    return this._addListener(this._api, 'parity_listRecentDapps', (error, data) => {
+      error
+        ? callback(error)
+        : callback(null, outRecentDapps(data));
+    });
   }
 
   listGethAccounts (callback) {
-    return this._addListener(this._api, 'parity_listGethAccounts', callback)
-    .then(outAddresses);
+    return this._addListener(this._api, 'parity_listGethAccounts', (error, data) => {
+      error
+        ? callback(error)
+        : callback(null, outAddresses(data));
+    });
   }
 
   listVaults (callback) {
@@ -78,18 +99,27 @@ export default class SecureProvider extends Provider {
   }
 
   getVaultMeta (callback, vaultName) {
-    return this._addListener(this._api, 'parity_getVaultMeta', callback, vaultName)
-                .then(outVaultMeta);
+    return this._addListener(this._api, 'parity_getVaultMeta', (error, data) => {
+      error
+        ? callback(error)
+        : callback(null, outVaultMeta(data));
+    }, vaultName);
   }
 
   deriveAddressHash (callback, address, password, hash, shouldSave) {
-    return this._addListener(this._api, 'parity_deriveAddressHash', callback, inAddress(address), password, inDeriveHash(hash), !!shouldSave)
-    .then(outAddress);
+    return this._addListener(this._api, 'parity_deriveAddressHash', (error, data) => {
+      error
+        ? callback(error)
+        : callback(null, outAddress(data));
+    }, inAddress(address), password, inDeriveHash(hash), !!shouldSave);
   }
 
   deriveAddressIndex (callback, address, password, index, shouldSave) {
-    return this._addListener(this._api, 'parity_deriveAddressIndex', callback, inAddress(address), password, inDeriveIndex(index), !!shouldSave)
-                .then(outAddress);
+    return this._addListener(this._api, 'parity_deriveAddressIndex', (error, data) => {
+      error
+        ? callback(error)
+        : callback(null, outAddress(data));
+    }, inAddress(address), password, inDeriveIndex(index), !!shouldSave);
   }
 
   // Parity set API (not supported yet)
