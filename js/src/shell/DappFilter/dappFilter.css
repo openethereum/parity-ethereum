@@ -15,13 +15,20 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.container {
-  color: #444;
-  vertical-align: middle;
-  min-height: 100vh;
-  position:relative;
-}
+.filter {
+  background: #f80;
+  color: white;
+  bottom: 0;
+  position: fixed;
+  left: 0;
+  right: 0;
+  z-index: 760; /* sits above requests */
 
-.body {
-  padding: 0 0.25em;
+  .request {
+    padding: 0.5em;
+
+    > span {
+      margin-right: 1em;
+    }
+  }
 }

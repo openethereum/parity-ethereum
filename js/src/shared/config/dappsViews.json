@@ -7,8 +7,7 @@
     "description": "Display the accounts",
     "author": "Parity Team <admin@ethcore.io>",
     "version": "2.0.0",
-    "visible": true,
-    "secure": true
+    "visible": true
   },
   {
     "id": "account",
@@ -19,7 +18,6 @@
     "author": "Parity Team <admin@ethcore.io>",
     "version": "2.0.0",
     "visible": true,
-    "secure": true,
     "noselect": true
   },
   {
@@ -30,8 +28,7 @@
     "description": "Display the accounts added to the addressbook",
     "author": "Parity Team <admin@ethcore.io>",
     "version": "2.0.0",
-    "visible": true,
-    "secure": true
+    "visible": true
   },
   {
     "id": "address",
@@ -42,7 +39,6 @@
     "author": "Parity Team <admin@ethcore.io>",
     "version": "2.0.0",
     "visible": true,
-    "secure": true,
     "noselect": true
   },
   {
@@ -53,8 +49,7 @@
     "description": "Display the contracts added to the addressbook",
     "author": "Parity Team <admin@ethcore.io>",
     "version": "2.0.0",
-    "visible": true,
-    "secure": true
+    "visible": true
   },
   {
     "id": "contract",
@@ -65,7 +60,6 @@
     "author": "Parity Team <admin@ethcore.io>",
     "version": "2.0.0",
     "visible": true,
-    "secure": true,
     "noselect": true
   },
   {
@@ -76,8 +70,7 @@
     "description": "Create new contracts",
     "author": "Parity Team <admin@ethcore.io>",
     "version": "2.0.0",
-    "visible": true,
-    "secure": true
+    "visible": true
   },
   {
     "id": "home",
@@ -87,8 +80,7 @@
     "description": "Display the status of the node, recently accessed applications, accounts and news",
     "author": "Parity Team <admin@ethcore.io>",
     "version": "2.0.0",
-    "visible": true,
-    "secure": true
+    "visible": true
   },
   {
     "id": "playground",
@@ -99,7 +91,6 @@
     "author": "Parity Team <admin@ethcore.io>",
     "version": "2.0.0",
     "visible": true,
-    "secure": true,
     "noselect": true
   },
   {
@@ -110,8 +101,7 @@
     "description": "Display the current and historic Signer requests",
     "author": "Parity Team <admin@ethcore.io>",
     "version": "2.0.0",
-    "visible": true,
-    "secure": true
+    "visible": true
   },
   {
     "id": "settings",
@@ -121,8 +111,7 @@
     "description": "Allows the configuraion of all Parity & Parity-UI related options",
     "author": "Parity Team <admin@ethcore.io>",
     "version": "2.0.0",
-    "visible": true,
-    "secure": true
+    "visible": true
   },
   {
     "id": "status",
@@ -132,8 +121,7 @@
     "description": "Displays an overview of the node including settings, logs and connections",
     "author": "Parity Team <admin@ethcore.io>",
     "version": "2.0.0",
-    "visible": true,
-    "secure": true
+    "visible": true
   },
   {
     "id": "vaults",
@@ -143,8 +131,7 @@
     "description": "Allows the management of the Account Vaults, including creation, locking and account assignment",
     "author": "Parity Team <admin@ethcore.io>",
     "version": "2.0.0",
-    "visible": true,
-    "secure": true
+    "visible": true
   },
   {
     "id": "wallet",
@@ -155,7 +142,6 @@
     "author": "Parity Team <admin@ethcore.io>",
     "version": "2.0.0",
     "visible": true,
-    "secure": true,
     "noselect": true
   },
   {
@@ -167,7 +153,6 @@
     "author": "Parity Team <admin@ethcore.io>",
     "version": "2.0.0",
     "visible": true,
-    "secure": true,
     "noselect": true
   }
 ]

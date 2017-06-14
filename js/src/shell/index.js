@@ -41,7 +41,7 @@ import SecureApi from '~/secureApi';
 
 import Application from './Application';
 import Dapp from './Dapp';
-import DappFilter from './DappFilter';
+import { Store as DappFilterStore } from './DappFilter';
 import Dapps from './Dapps';
 
 injectTapEventPlugin();
@@ -67,10 +67,11 @@ const api = new SecureApi(uiUrl, token);
 patchApi(api);
 ContractInstances.get(api);
 
-DappFilter.create(api.provider, {
-  filtered: [],
-  tokens: {
-  }
+DappFilterStore.create(api.provider, {
+  filtered: [
+    'parity_hashContent'
+  ],
+  tokens: {}
 });
 
 const store = initStore(api, hashHistory);

@@ -14,52 +14,36 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export default class DappFilter {
-  constructor (provider, permissions) {
-    this.permissions = permissions;
-    this.provider = provider;
+import { observer } from 'mobx-react';
+import React from 'react';
 
-    window.addEventListener('message', this.receiveMessage, false);
+import Request from './Request';
+import Store from './store';
+import styles from './dappFilter.css';
+
+function DappFilter () {
+  const store = Store.get();
+
+  if (!store || !store.hasRequests) {
+    return null;
   }
 
-  receiveMessage = ({ data: { id, from, method, params, token }, origin, source }) => {
-    if (from === 'shell' || from !== token) {
-      return;
-    }
-
-    if (this.permissions.filtered.includes(method) && !this.permissions.tokens[token][method]) {
-      source.postMessage({
-        id,
-        from: 'shell',
-        error: new Error(`Method ${method} is not available to application`),
-        result: null,
-        token
-      }, '*');
-      return;
-    }
-
-    this.provider.send(method, params, (error, result) => {
-      source.postMessage({
-        error,
-        id,
-        from: 'shell',
-        result,
-        token
-      }, '*');
-    });
-  }
-
-  setPermissions (permissions) {
-    this.permissions = permissions;
-  }
-
-  static instance = null;
-
-  static create (provider, permissions) {
-    DappFilter.instance = new DappFilter(provider, permissions);
-  }
-
-  static get () {
-    return DappFilter.instance;
-  }
+  return (
+    <div className={ styles.filter }>
+      {
+        store.requests.map(({ queueId, request: { data } }) => (
+          <Request
+            className={ styles.request }
+            approveRequest={ store.approveRequest }
+            denyRequest={ store.rejectRequest }
+            key={ queueId }
+            queueId={ queueId }
+            request={ data }
+          />
+        ))
+      }
+    </div>
+  );
 }
+
+export default observer(DappFilter);

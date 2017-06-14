@@ -79,7 +79,7 @@
   padding: 1em;
   color: #eee;
   font-size: 0.75em;
-  font-family: 'Roboto Mono';
+  font-family: 'Roboto Mono', monospace;
   width: 100%;
   border: none;
   box-sizing: border-box;

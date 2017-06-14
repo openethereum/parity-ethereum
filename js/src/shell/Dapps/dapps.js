@@ -24,8 +24,8 @@ import { Actionbar, Button, Checkbox, DappCard, Page, SectionList } from '@parit
 import { LockedIcon, VisibleIcon } from '@parity/ui/Icons';
 
 import DappsVisible from '../DappsVisible';
-import DappPermissions from '../DappPermissions';
-import PermissionStore from '../DappPermissions/store';
+import DappAccounts from '../DappAccounts';
+import PermissionStore from '../DappAccounts/store';
 
 import DappsStore from './dappsStore';
 
@@ -80,7 +80,7 @@ class Dapps extends Component {
 
     return (
       <div>
-        <DappPermissions permissionStore={ this.permissionStore } />
+        <DappAccounts permissionStore={ this.permissionStore } />
         <DappsVisible store={ this.store } />
         <Actionbar
           className={ styles.toolbar }
@@ -104,11 +104,11 @@ class Dapps extends Component {
             />,
             <Button
               icon={ <LockedIcon /> }
-              key='permissions'
+              key='accounts'
               label={
                 <FormattedMessage
-                  id='dapps.button.permissions'
-                  defaultMessage='permissions'
+                  id='dapps.button.accounts'
+                  defaultMessage='visible accounts'
                 />
               }
               onClick={ this.openPermissionsModal }

@@ -30,11 +30,7 @@ export default class Api extends EventEmitter {
   constructor (provider, allowSubscriptions = true) {
     super();
 
-    if (!provider || (!isFunction(provider.send) && !isFunction(provider.execute))) {
-      throw new Error('Api needs provider with send() function');
-    }
-
-    if (!isFunction(provider.send)) {
+    if (!provider || !isFunction(provider.send)) {
       console.warn(new Error('deprecated: Api needs provider with send() function, old-style Transport found instead'));
     }
 
