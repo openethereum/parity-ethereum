@@ -69,8 +69,7 @@ ContractInstances.get(api);
 
 DappFilter.create(api.provider, {
   filtered: [],
-  tokens: {
-  }
+  tokens: {}
 });
 
 const store = initStore(api, hashHistory);
