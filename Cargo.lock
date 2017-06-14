@@ -1862,7 +1862,7 @@ dependencies = [
 [[package]]
 name = "parity-wasm"
 version = "0.9.1"
-source = "git+http://github.com/nikvolf/parity-wasm#9c2061c63c975107f46fb168b701f99ef3dde672"
+source = "git+http://github.com/nikvolf/parity-wasm#5aa38bc90543f8abcede0e499917812d55735963"
 dependencies = [
  "byteorder 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)",
