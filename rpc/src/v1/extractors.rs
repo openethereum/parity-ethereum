@@ -51,10 +51,10 @@ impl HttpMetaExtractor for RpcExtractor {
 }
 
 impl ipc::MetaExtractor<Metadata> for RpcExtractor {
-	fn extract(&self, _req: &ipc::RequestContext) -> Metadata {
+	fn extract(&self, req: &ipc::RequestContext) -> Metadata {
 		let mut metadata = Metadata::default();
-		// TODO [ToDr] Extract proper session id when it's available in context.
-		metadata.origin = Origin::Ipc(1.into());
+		metadata.origin = Origin::Ipc(req.session_id.into());
+		metadata.session = Some(Arc::new(Session::new(req.sender.clone())));
 		metadata
 	}
 }
@@ -77,8 +77,8 @@ impl ws::MetaExtractor<Metadata> for WsExtractor {
 	fn extract(&self, req: &ws::RequestContext) -> Metadata {
 		let mut metadata = Metadata::default();
 		let id = req.session_id as u64;
-		// TODO [ToDr] Extract dapp from Origin
-		let dapp = "".into();
+
+		let dapp = req.origin.as_ref().map(|origin| (&**origin).into()).unwrap_or_default();
 		metadata.origin = match self.authcodes_path {
 			Some(ref path) => {
 				let authorization = req.protocols.get(0).and_then(|p| auth_token_hash(&path, p));

@@ -72,13 +72,14 @@ daemonize = "0.2"
 [features]
 default = ["ui-precompiled"]
 ui = [
-	"dapps",
+	"ui-enabled",
 	"parity-dapps/ui",
 ]
 ui-precompiled = [
-	"dapps",
+	"ui-enabled",
 	"parity-dapps/ui-precompiled",
 ]
+ui-enabled = ["dapps"]
 dapps = ["parity-dapps"]
 ipc = ["ethcore/ipc", "ethsync/ipc"]
 jit = ["ethcore/jit"]
