@@ -15,8 +15,11 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import Web3 from 'web3';
+import Api from '@parity/api';
 
-const api = window.parent.secureApi;
+const web3Provider = (window.parity && window.parity.web3Provider) || (window.parent && window.parent.web3Provider);
+const api = new Api(web3Provider);
+
 let web3;
 
 api.parity.dappsUrl().then(url => {
