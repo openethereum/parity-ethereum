@@ -56,9 +56,19 @@ impl<S: core::Middleware<Metadata>> PubSubClient<S> {
 		);
 
 		PubSubClient {
-			poll_manager: poll_manager,
-			remote: remote,
+			poll_manager,
+			remote,
 		}
+	}
+}
+
+impl PubSubClient<core::NoopMiddleware> {
+	/// Creates new `PubSubClient` with deterministic ids.
+	#[cfg(test)]
+	pub fn new_test(rpc: MetaIoHandler<Metadata, core::NoopMiddleware>, remote: Remote) -> Self {
+		let client = Self::new(MetaIoHandler::with_middleware(Default::default()), remote);
+		*client.poll_manager.write() = GenericPollManager::new_test(rpc);
+		client
 	}
 }
 

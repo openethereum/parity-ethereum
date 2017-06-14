@@ -42,7 +42,7 @@ fn should_subscribe_to_a_method() {
 	// given
 	let el = EventLoop::spawn();
 	let rpc = rpc();
-	let pubsub = PubSubClient::new(rpc, el.remote()).to_delegate();
+	let pubsub = PubSubClient::new_test(rpc, el.remote()).to_delegate();
 
 	let mut io = MetaIoHandler::default();
 	io.extend_with(pubsub);
@@ -52,21 +52,23 @@ fn should_subscribe_to_a_method() {
 	metadata.session = Some(Arc::new(Session::new(sender)));
 
 	// Subscribe
-	let request = r#"{"jsonrpc": "2.0", "method": "parity_subscribe", "params": ["hello"], "id": 1}"#;
-	let response = r#"{"jsonrpc":"2.0","result":1,"id":1}"#;
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_subscribe", "params": ["hello", []], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"0x416d77337e24399d","id":1}"#;
 	assert_eq!(io.handle_request_sync(request, metadata.clone()), Some(response.to_owned()));
 
 	// Check notifications
 	let (res, receiver) = receiver.into_future().wait().unwrap();
-	let response = r#"{"jsonrpc":"2.0","method":"parity_subscription","params":{"result":"hello","subscription":1}}"#;
+	let response =
+		r#"{"jsonrpc":"2.0","method":"parity_subscription","params":{"result":"hello","subscription":"0x416d77337e24399d"}}"#;
 	assert_eq!(res, Some(response.into()));
 
 	let (res, receiver) = receiver.into_future().wait().unwrap();
-	let response = r#"{"jsonrpc":"2.0","method":"parity_subscription","params":{"result":"world","subscription":1}}"#;
+	let response =
+		r#"{"jsonrpc":"2.0","method":"parity_subscription","params":{"result":"world","subscription":"0x416d77337e24399d"}}"#;
 	assert_eq!(res, Some(response.into()));
 
 	// And unsubscribe
-	let request = r#"{"jsonrpc": "2.0", "method": "parity_unsubscribe", "params": [1], "id": 1}"#;
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_unsubscribe", "params": ["0x416d77337e24399d"], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
 	assert_eq!(io.handle_request_sync(request, metadata), Some(response.to_owned()));
 
