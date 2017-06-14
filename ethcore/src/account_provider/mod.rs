@@ -130,8 +130,9 @@ pub struct AccountProvider {
 	transient_sstore: EthMultiStore,
 	/// Accounts in hardware wallets.
 	hardware_store: Option<HardwareWalletManager>,
-	/// When unlocking permanently on for some time store a raw secret instead of password.
-	fast_unlock: bool,
+	/// When unlocking account permanently we additionally keep a raw secret in memory
+	/// to increase the performance of transaction signing.
+	unlock_keep_secret: bool,
 	/// Disallowed accounts.
 	blacklisted_accounts: Vec<Address>,
 }
@@ -142,8 +143,8 @@ pub struct AccountProviderSettings {
 	pub enable_hardware_wallets: bool,
 	/// Use the classic chain key on the hardware wallet.
 	pub hardware_wallet_classic_key: bool,
-	/// Use fast, but unsafe unlock
-	pub fast_unlock: bool,
+	/// Store raw account secret when unlocking the account permanently.
+	pub unlock_keep_secret: bool,
 	/// Disallowed accounts.
 	pub blacklisted_accounts: Vec<Address>,
 }
@@ -153,7 +154,7 @@ impl Default for AccountProviderSettings {
 		AccountProviderSettings {
 			enable_hardware_wallets: false,
 			hardware_wallet_classic_key: false,
-			fast_unlock: true,
+			unlock_keep_secret: false,
 			blacklisted_accounts: vec![],
 		}
 	}
@@ -187,7 +188,7 @@ impl AccountProvider {
 			sstore: sstore,
 			transient_sstore: transient_sstore(),
 			hardware_store: hardware_store,
-			fast_unlock: settings.fast_unlock,
+			unlock_keep_secret: settings.unlock_keep_secret,
 			blacklisted_accounts: settings.blacklisted_accounts,
 		}
 	}
@@ -202,7 +203,7 @@ impl AccountProvider {
 			sstore: Box::new(EthStore::open(Box::new(MemoryDirectory::default())).expect("MemoryDirectory load always succeeds; qed")),
 			transient_sstore: transient_sstore(),
 			hardware_store: None,
-			fast_unlock: false,
+			unlock_keep_secret: false,
 			blacklisted_accounts: vec![],
 		}
 	}
@@ -561,7 +562,7 @@ impl AccountProvider {
 			}
 		}
 
-		if self.fast_unlock && unlock != Unlock::OneTime {
+		if self.unlock_keep_secret && unlock != Unlock::OneTime {
 			// verify password and get the secret
 			let secret = self.sstore.raw_secret(&account, &password)?;
 			self.unlocked_secrets.write().insert(account.clone(), secret);
