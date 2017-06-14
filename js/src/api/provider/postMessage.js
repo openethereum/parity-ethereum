@@ -46,7 +46,11 @@ export default class PostMessage {
       return;
     }
 
-    this._callbacks[id](error, result);
+    if (error) {
+      console.error(from, error);
+    }
+
+    this._callbacks[id](error && new Error(error), result);
     this._callbacks[id] = null;
   }
 }
