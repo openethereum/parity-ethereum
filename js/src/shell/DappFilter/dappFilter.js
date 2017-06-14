@@ -17,7 +17,7 @@
 import { observer } from 'mobx-react';
 import React from 'react';
 
-import Request from './request';
+import Request from './Request';
 import Store from './store';
 import styles from './dappFilter.css';
 
