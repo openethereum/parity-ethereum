@@ -213,7 +213,7 @@ impl<Gas: CostType> Gasometer<Gas> {
 
 				Request::GasMemProvide(gas, mem, Some(requested))
 			},
-			instructions::DELEGATECALL => {
+			instructions::DELEGATECALL | instructions::STATICCALL => {
 				let gas = Gas::from(schedule.call_gas);
 				let mem = cmp::max(
 					mem_needed(stack.peek(4), stack.peek(5))?,
