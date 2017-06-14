@@ -104,7 +104,14 @@ fn prove_initial(provider: &Provider, header: &Header, caller: &Call) -> Result<
 			.wait()
 	};
 
-	res.map(|_| epoch_proof.into_inner().expect("epoch_proof always set after call; qed"))
+	res.map(|validators| {
+		let proof = epoch_proof.into_inner().expect("epoch_proof always set after call; qed");
+
+		trace!(target: "engine", "obtained proof for initial set: {} validators, {} bytes",
+			validators.len(), proof.len());
+
+		proof
+	})
 }
 
 impl ValidatorSafeContract {
@@ -294,6 +301,7 @@ impl ValidatorSet for ValidatorSafeContract {
 			};
 
 			// check state proof using given engine.
+			let number = old_header.number();
 			let addresses = self.provider.get_validators(move |a, d| {
 				let from = Address::default();
 				let tx = Transaction {
@@ -319,6 +327,9 @@ impl ValidatorSet for ValidatorSafeContract {
 					::state::ProvedExecution::Complete(e) => Ok(e.output),
 				}
 			}).wait().map_err(::engines::EngineError::InsufficientProof)?;
+
+			trace!(target: "engine", "extracted epoch set at #{}: {} addresses",
+				number, addresses.len());
 
 			Ok((SimpleList::new(addresses), Some(old_hash)))
 		} else {

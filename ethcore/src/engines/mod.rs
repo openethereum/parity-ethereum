@@ -77,6 +77,8 @@ pub enum EngineError {
 	InsufficientProof(String),
 	/// Failed system call.
 	FailedSystemCall(String),
+	/// Requires client ref, but none registered.
+	RequiresClient,
 }
 
 impl fmt::Display for EngineError {
@@ -90,6 +92,7 @@ impl fmt::Display for EngineError {
 			BadSealFieldSize(ref oob) => format!("Seal field has an unexpected length: {}", oob),
 			InsufficientProof(ref msg) => format!("Insufficient validation proof: {}", msg),
 			FailedSystemCall(ref msg) => format!("Failed to make system call: {}", msg),
+			RequiresClient => format!("Call requires client but none registered"),
 		};
 
 		f.write_fmt(format_args!("Engine error ({})", msg))

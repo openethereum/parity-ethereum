@@ -91,6 +91,11 @@ impl ValidatorSet for SimpleList {
 
 	fn get_with_caller(&self, _bh: &H256, nonce: usize, _: &Call) -> Address {
 		let validator_n = self.validators.len();
+
+		if validator_n = 0 {
+			panic!("Cannot operate with an empty validator set.");
+		}
+
 		self.validators.get(nonce % validator_n).expect("There are validator_n authorities; taking number modulo validator_n gives number in validator_n range; qed").clone()
 	}
 

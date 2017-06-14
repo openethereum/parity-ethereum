@@ -33,6 +33,7 @@ pub struct RollingFinality {
 	headers: VecDeque<(H256, Address)>,
 	signers: SimpleList,
 	sign_count: HashMap<Address, usize>,
+	last_pushed: Option<H256>,
 }
 
 impl RollingFinality {
@@ -42,27 +43,28 @@ impl RollingFinality {
 			headers: VecDeque::new(),
 			signers: SimpleList::new(signers),
 			sign_count: HashMap::new(),
+			last_pushed: None,
 		}
 	}
 
-	/// Create a rolling finality checker from an iterator of hash, signer pairs in reverse.
-	/// This will take the full unfinalized subchain from the iterator.
+	/// Extract unfinalized subchain from ancestry iterator.
+	/// Clears the current subchain.
 	///
 	/// Fails if any provided signature isn't part of the signers set.
-	pub fn from_ancestry<I>(signers: Vec<Address>, iterable: I) -> Result<Self, UnknownValidator>
+	pub fn build_ancestry_subchain<I>(&mut self, iterable: I) -> Result<(), UnknownValidator>
 		where I: IntoIterator<Item=(H256, Address)>
 	{
-		let mut checker = RollingFinality::blank(signers);
-
+		self.clear();
 		for (hash, signer) in iterable {
-			if !checker.signers.contains(&signer) { return Err(UnknownValidator) }
+			if !self.signers.contains(&signer) { return Err(UnknownValidator) }
+			if self.last_pushed.is_none() { self.last_pushed = Some(hash) }
 
 			// break when we've got our first finalized block.
 			{
-				let current_signed = checker.sign_count.len();
-				let would_be_finalized = (current_signed + 1) * 2 > checker.signers.len();
+				let current_signed = self.sign_count.len();
+				let would_be_finalized = (current_signed + 1) * 2 > self.signers.len();
 
-				let entry = checker.sign_count.entry(signer);
+				let entry = self.sign_count.entry(signer);
 				if let (true, &Entry::Vacant(_)) = (would_be_finalized, &entry) {
 					break
 				}
@@ -70,22 +72,29 @@ impl RollingFinality {
 				*entry.or_insert(0) += 1;
 			}
 
-			checker.headers.push_front((hash, signer));
+			self.headers.push_front((hash, signer));
 		}
 
-		Ok(checker)
+		Ok(())
+	}
+
+	/// Clear the finality status, but keeps the validator set.
+	pub fn clear(&mut self) {
+		self.headers.clear();
+		self.sign_count.clear();
+		self.last_pushed = None;
 	}
 
 	/// Returns the last pushed hash.
 	pub fn subchain_head(&self) -> Option<H256> {
-		self.headers.back().map(|&(h, _)| h)
+		self.last_pushed
 	}
 
 	/// Get an iterator over stored hashes in order.
 	pub fn unfinalized_hashes(&self) -> Iter { Iter(self.headers.iter()) }
 
 	/// Get the validator set.
-	pub fn validators(&self) -> &SimpleList { &self.validators }
+	pub fn validators(&self) -> &SimpleList { &self.signers }
 
 	/// Push a hash onto the rolling finality checker (implying `subchain_head` == head.parent)
 	///
@@ -169,8 +178,8 @@ mod tests {
 		let signers: Vec<_> = (0..6).map(|_| Address::random()).collect();
 		let hashes: Vec<_> = (0..12).map(|i| (H256::random(), signers[i % 6])).collect();
 
-		let finality = RollingFinality::from_ancestry(signers.clone(),
-			hashes.iter().rev().cloned()).unwrap();
+		let mut finality = RollingFinality::blank(signers.clone());
+		finality.build_ancestry_subchain(hashes.iter().rev().cloned()).unwrap();
 
 		assert_eq!(finality.unfinalized_hashes().count(), 3);
 		assert_eq!(finality.subchain_head(), Some(hashes[11].0));

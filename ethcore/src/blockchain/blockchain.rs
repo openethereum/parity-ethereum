@@ -889,27 +889,19 @@ impl BlockChain {
 		})
 	}
 
-	/// Get the transition to the epoch the given block hash is part of.
+	/// Get the transition to the epoch the given parent hash is part of
+	/// or transitions to.
+	/// This will give the epoch that any children of this parent belong to.
 	///
-	/// Note that a block which transitions to a new epoch is not considered
-	/// part of that new epoch except in the case of the genesis.
-	pub fn epoch_transition_for(&self, block_hash: H256) -> Option<EpochTransition> {
+	/// The block corresponding the the parent hash must be stored already.
+	pub fn epoch_transition_for(&self, parent_hash: H256) -> Option<EpochTransition> {
 		// slow path: loop back block by block
-		for hash in otry!(self.ancestry_iter(block_hash)) {
+		for hash in otry!(self.ancestry_iter(parent_hash)) {
 			let details = otry!(self.block_details(&hash));
-			let first = hash == block_hash;
-
-			// we're looking for transitions before the starting block unless
-			// that block is the genesis, since that "transitions" to its own epoch
-			let accept_number = |num| {
-				num == 0 || num < details.number + if first { 0 } else { 1 }
-			};
 
 			// look for transition in database.
-			if accept_number(details.number) {
-				if let Some(transition) = self.epoch_transition(details.number, hash) {
-					return Some(transition)
-				}
+			if let Some(transition) = self.epoch_transition(details.number, hash) {
+				return Some(transition)
 			}
 
 			// canonical hash -> fast breakout:
@@ -920,7 +912,7 @@ impl BlockChain {
 			if otry!(self.block_hash(details.number)) == hash {
 				return self.epoch_transitions()
 					.map(|(_, t)| t)
-					.take_while(|t| accept_number(t.block_number))
+					.take_while(|t| t.block_number <= details.number)
 					.last()
 			}
 		}

@@ -275,6 +275,8 @@ impl Client {
 					}
 				};
 
+				debug!(target: "client", "Obtained genesis transition proof: {:?}", proof);
+
 				let mut batch = DBTransaction::new();
 				chain.insert_epoch_transition(&mut batch, 0, EpochTransition {
 					block_hash: gh.hash(),
@@ -1768,8 +1770,8 @@ impl EngineClient for Client {
 		self.notify(|notify| notify.broadcast(message.clone()));
 	}
 
-	fn epoch_transition_for(&self, block_hash: H256) -> Option<::engines::EpochTransition> {
-		self.chain.read().epoch_transition_for(block_hash)
+	fn epoch_transition_for(&self, parent_hash: H256) -> Option<::engines::EpochTransition> {
+		self.chain.read().epoch_transition_for(parent_hash)
 	}
 }
 
@@ -1806,7 +1808,10 @@ impl ProvingBlockChainClient for Client {
 
 		match res {
 			Err(ExecutionError::Internal(_)) => None,
-			Err(_) => Some((Vec::new(), state.drop().1.extract_proof())),
+			Err(e) => {
+				trace!(target: "client", "Proved call failed: {}", e);
+				Some((Vec::new(), state.drop().1.extract_proof()))
+			}
 			Ok(res) => Some((res.output, state.drop().1.extract_proof())),
 		}
 	}

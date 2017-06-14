@@ -123,6 +123,88 @@ impl Step {
 	}
 }
 
+struct EpochManager {
+	epoch_transition_hash: H256,
+	finality_checker: RollingFinality,
+	force: bool,
+}
+
+impl EpochManager {
+	fn blank() -> Self {
+		EpochManager {
+			epoch_transition_hash: H256::default(),
+			finality_checker: RollingFinality::blank(Vec::new()),
+			force: true,
+		}
+	}
+
+	// zoom to epoch for given header. returns true if succeeded, false otherwise.
+	fn zoom_to(&mut self, client: &EngineClient, engine: &Engine, validators: &ValidatorSet, header: &Header) -> bool {
+		let last_was_parent = self.finality_checker.subchain_head() == Some(header.parent_hash().clone());
+
+		// early exit for current target == chain head, but only if the epochs are
+		// the same.
+		if last_was_parent && !self.force {
+			return true;
+		}
+
+		debug!(target: "engine", "Zooming to epoch for block {}", header.hash());
+
+		// epoch_transition_for can be an expensive call, but in the absence of
+		// forks it will only need to be called for the block directly after
+		// epoch transition, in which case it will be O(1) and require a single
+		// DB lookup.
+		let last_transition = match client.epoch_transition_for(*header.parent_hash()) {
+			Some(t) => t,
+			None => {
+				// this really should never happen unless the block passed
+				// hasn't got a parent in the database.
+				debug!(target: "engine", "No genesis transition found.");
+				return false;
+			}
+		};
+
+		let first = last_transition.block_number == 0;
+
+		// extract other epoch set if it's not the same as the last.
+		if last_transition.block_hash != self.epoch_transition_hash {
+			let (set_proof, _) = destructure_proofs(&last_transition.proof)
+				.expect("proof produced by this engine; therefore it is valid; qed");
+
+			trace!(target: "engine", "extracting epoch set for epoch ({}, {})",
+				last_transition.block_number, last_transition.block_hash);
+
+			let epoch_set = validators.epoch_set(
+				first,
+				engine,
+				last_transition.block_number,
+				set_proof,
+			)
+				.ok()
+				.map(|(list, _)| list.into_inner())
+				.expect("proof produced by this engine; therefore it is valid; qed");
+
+			self.finality_checker = RollingFinality::blank(epoch_set);
+		}
+
+		self.epoch_transition_hash = last_transition.block_hash;
+
+		true
+	}
+
+	// note new epoch hash. this will force the next block to re-load
+	// the epoch set
+	// TODO: optimize and don't require re-loading after epoch change.
+	fn note_new_epoch(&mut self) {
+		self.force = true;
+	}
+
+	/// Get validator set. Zoom to the correct epoch first.
+	fn validators(&self) -> &SimpleList {
+		self.finality_checker.validators()
+	}
+}
+
 /// Engine using `AuthorityRound` proof-of-authority BFT consensus.
 pub struct AuthorityRound {
 	params: CommonParams,
@@ -139,7 +221,7 @@ pub struct AuthorityRound {
 	validate_score_transition: u64,
 	eip155_transition: u64,
 	validate_step_transition: u64,
-	finality_checker: Mutex<Option<RollingFinality>>,
+	epoch_manager: Mutex<EpochManager>,
 }
 
 // header-chain validator.
@@ -274,7 +356,7 @@ impl AuthorityRound {
 				validate_score_transition: our_params.validate_score_transition,
 				eip155_transition: our_params.eip155_transition,
 				validate_step_transition: our_params.validate_step_transition,
-				finality_checker: Mutex::new(None),
+				epoch_manager: Mutex::new(EpochManager::blank()),
 			});
 		// Do not initialize timeouts for tests.
 		if should_timeout {
@@ -380,7 +462,24 @@ impl Engine for AuthorityRound {
 		if self.proposed.load(AtomicOrdering::SeqCst) { return Seal::None; }
 		let header = block.header();
 		let step = self.step.load();
-		if is_step_proposer(&self.validators, header.parent_hash(), step, header.author()) {
+
+		let client = match self.client.read().as_ref().and_then(|weak| weak.upgrade()) {
+			Some(client) => client,
+			None => {
+				warn!(target: "engine", "Unable to generate seal: missing client ref.");
+				return Seal::None;
+			}
+		};
+
+		// fetch correct validator set for current epoch, taking into account
+		// finality of previous transitions.
+		let mut epoch_manager = self.epoch_manager.lock();
+		if !epoch_manager.zoom_to(&*client, self, &*self.validators, header) {
+			debug!(target: "engine", "Unable to zoom to epoch.");
+			return Seal::None;
+		}
+
+		if is_step_proposer(epoch_manager.validators(), header.parent_hash(), step, header.author()) {
 			if let Ok(signature) = self.signer.sign(header.bare_hash()) {
 				trace!(target: "engine", "generate_seal: Issuing a block for step {}.", step);
 				self.proposed.store(true, AtomicOrdering::SeqCst);
@@ -470,6 +569,7 @@ impl Engine for AuthorityRound {
 		}
 
 		let parent_step = header_step(parent)?;
+
 		// Ensure header is from the step after parent.
 		if step == parent_step
 			|| (header.number() >= self.validate_step_transition && step <= parent_step) {
@@ -479,8 +579,11 @@ impl Engine for AuthorityRound {
 		}
 		// Report skipped primaries.
 		if step > parent_step + 1 {
+			// TODO: use epochmanager to get correct validator set for reporting?
+			// or just rely on the fact that in general these will be the same
+			// and some reports might go missing?
 			for s in parent_step + 1..step {
-				let skipped_primary = step_proposer(&self.validators, &parent.hash(), s);
+				let skipped_primary = step_proposer(&*self.validators, &parent.hash(), s);
 				trace!(target: "engine", "Author {} did not build his block on top of the intermediate designated primary {}.", header.author(), skipped_primary);
 				self.validators.report_benign(&skipped_primary, header.number());
 			}
@@ -497,7 +600,24 @@ impl Engine for AuthorityRound {
 
 	// Check the validators.
 	fn verify_block_external(&self, header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
-		verify_external(header, &*self.validators, &*self.step)
+		// get correct validator set for epoch.
+		let client = match self.client.read().as_ref().and_then(|weak| weak.upgrade()) {
+			Some(client) => client,
+			None => {
+				debug!(target: "engine", "Unable to verify sig: missing client ref.");
+				return Err(EngineError::RequiresClient.into())
+			}
+		};
+
+		// fetch correct validator set for current epoch, taking into account
+		// finality of previous transitions.
+		let mut epoch_manager = self.epoch_manager.lock();
+		if !epoch_manager.zoom_to(&*client, self, &*self.validators, header) {
+			debug!(target: "engine", "Unable to zoom to epoch.");
+			return Err(EngineError::RequiresClient.into())
+		}
+
+		verify_external(header, epoch_manager.validators(), &*self.step)
 	}
 
 	fn genesis_epoch_data(&self, header: &Header, call: &Call) -> Result<Vec<u8>, String> {
@@ -534,105 +654,60 @@ impl Engine for AuthorityRound {
 		};
 
 		// find most recently finalized blocks, then check transition store for pending transitions.
-		let mut finality_checker = self.finality_checker.lock();
-
-		// re-initialize unless the last processed block was the parent hash.
-		if finality_checker.as_ref().map_or(false, |checker| checker.subchain_head() != Some(*chain_head.parent_hash())) {
-			*finality_checker = None;
+		let mut epoch_manager = self.epoch_manager.lock();
+		if !epoch_manager.zoom_to(&*client, self, &*self.validators, chain_head) {
+			return None;
 		}
 
-		let mut to_return = None;
-		{
-			let checker_ref;
-			match &mut *finality_checker {
-				&mut Some(ref mut checker) => checker_ref = checker,
-				x @ &mut None => {
-					// epoch_transition_for can be an expensive call, but in the absence of
-					// forks it will only need to be called for the block directly after
-					// epoch transition, in which case it will be O(1) and require a single
-					// DB lookup.
-					let last_transition = match client.epoch_transition_for(chain_head.hash()) {
-						Some(t) => t,
-						None => {
-							// this really should never happen :)
-							debug!(target: "engine", "No genesis transition found.");
-							return None;
-						}
-					};
+		if epoch_manager.finality_checker.subchain_head() != Some(*chain_head.parent_hash()) {
+			// build new finality checker from ancestry of chain head,
+			// not including chain head itself yet.
+			let mut hash = chain_head.parent_hash().clone();
+			let epoch_transition_hash = epoch_manager.epoch_transition_hash;
 
-					let first = last_transition.block_number == 0;
+			// walk the chain within current epoch backwards.
+			// author == ec_recover(sig) known since
+			// the blocks are in the DB.
+			let ancestry_iter = itertools::repeat_call(move || {
+				chain(hash).and_then(|header| {
+					if header.number() == 0 { return None }
 
-					// TODO: extract validation for finalization proof.
-					let (set_proof, _) = destructure_proofs(&last_transition.proof)
-						.expect("proof produced by this engine; therefore it is valid; qed");
+					let res = (hash, header.author().clone());
+					hash = header.parent_hash().clone();
+					Some(res)
+				})
+			})
+				.while_some()
+				.take_while(|&(h, _)| h != epoch_transition_hash);
 
-					let epoch_set = self.validators.epoch_set(
-						first,
-						self,
-						last_transition.block_number,
-						set_proof,
-					)
-						.ok()
-						.map(|(list, _)| list.into_inner())
-						.expect("proof produced by this engine; therefore it is valid; qed");
-
-					// build new finality checker from ancestry of chain head,
-					// not including chain head itself yet.
-					let mut hash = chain_head.parent_hash().clone();
-
-					// walk the chain within current epoch backwards.
-					// author == ec_recover(sig) known since
-					// the blocks are in the DB.
-					let ancestry_iter = itertools::repeat_call(move || {
-						chain(hash).and_then(|header| {
-							if header.number() == 0 { return None }
-
-							let res = (hash, header.author().clone());
-							hash = header.parent_hash().clone();
-							Some(res)
-						})
-					})
-						.while_some()
-						.take_while(|&(h, _)| h != last_transition.block_hash);
-
-					let finality_checker = match RollingFinality::from_ancestry(epoch_set, ancestry_iter) {
-						Ok(f) => f,
-						Err(_) => {
-							debug!(target: "engine", "inconsistent validator set within epoch");
-							return None;
-						}
-					};
-
-					*x = Some(finality_checker);
-					checker_ref = x.as_mut().expect("just set to Some; qed");
-				}
+			if let Err(_) = epoch_manager.finality_checker.build_ancestry_subchain(ancestry_iter) {
+				debug!(target: "engine", "inconsistent validator set within epoch");
+				return None;
 			}
+		}
 
-			if let Ok(finalized) = checker_ref.push_hash(chain_head.hash(), *chain_head.author()) {
+		{
+			if let Ok(finalized) = epoch_manager.finality_checker.push_hash(chain_head.hash(), *chain_head.author()) {
 				let mut finalized = finalized.into_iter();
 				while let Some(hash) = finalized.next() {
 					if let Some(pending) = transition_store(hash) {
 						let finality_proof = ::std::iter::once(hash)
 							.chain(finalized)
-							.chain(checker_ref.unfinalized_hashes())
+							.chain(epoch_manager.finality_checker.unfinalized_hashes())
 							.map(|hash| chain(hash)
 								.expect("these headers fetched before when constructing finality checker; qed"))
 							.collect::<Vec<Header>>();
 
 						let finality_proof = ::rlp::encode_list(&finality_proof);
-						to_return = Some(combine_proofs(&pending.proof, &*finality_proof));
-						break
+						epoch_manager.note_new_epoch();
+
+						return Some(combine_proofs(&pending.proof, &*finality_proof));
 					}
 				}
 			}
 		}
 
-		// wipe the finality checker on epoch end.
-		if to_return.is_some() {
-			*finality_checker = None;
-		}
-
-		to_return
+		None
 	}
 
 	fn epoch_verifier<'a>(&self, header: &Header, proof: &'a [u8]) -> ConstructedVerifier<'a> {
