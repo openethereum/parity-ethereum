@@ -113,7 +113,6 @@ export default class Store {
     }
 
     if (this.permissions.filtered.includes(method)) {
-      console.log('this.permissions.tokens[token]', this.permissions.tokens[token]);
       if (!this.permissions.tokens[token] || !this.permissions.tokens[token][method]) {
         this.queueRequest({ data, origin, source });
         return;
