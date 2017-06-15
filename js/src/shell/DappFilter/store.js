@@ -43,16 +43,23 @@ export default class Store {
     this.requests = this.requests.concat([{ queueId, request }]);
   }
 
-  @action approveRequest = (queueId) => {
-    const { request: { data: { method, token } } } = this.findRequest(queueId);
-    const requests = this.findMatchingRequests(method, token);
+  @action approveSingleRequest = ({ queueId, request: { data, source } }) => {
+    this.removeRequest(queueId);
+    this.executeOnProvider(data, source);
+  }
 
-    this.addPermission(method, token);
+  @action approveRequest = (queueId, approveAll) => {
+    const queued = this.findRequest(queueId);
 
-    requests.forEach(({ queueId, request: { data, source } }) => {
-      this.removeRequest(queueId);
-      this.executeOnProvider(data, source);
-    });
+    if (approveAll) {
+      const { request: { data: { method, token } } } = queued;
+      const requests = this.findMatchingRequests(method, token);
+
+      this.addTokenPermission(method, token);
+      requests.forEach(this.approveSingleRequest);
+    } else {
+      this.approveSingleRequest(queued);
+    }
   }
 
   @action rejectRequest = (queueId) => {
@@ -68,8 +75,8 @@ export default class Store {
     }, '*');
   }
 
-  @action addPermission = (method, token) => {
-    this.premissions.tokens[token] = method;
+  @action addTokenPermission = (method, token) => {
+    this.permissions.tokens[token] = Object.assign({ [method]: true }, this.permissions.tokens[token] || {});
   }
 
   @action setPermissions = (permissions) => {
@@ -106,6 +113,7 @@ export default class Store {
     }
 
     if (this.permissions.filtered.includes(method)) {
+      console.log('this.permissions.tokens[token]', this.permissions.tokens[token]);
       if (!this.permissions.tokens[token] || !this.permissions.tokens[token][method]) {
         this.queueRequest({ data, origin, source });
         return;

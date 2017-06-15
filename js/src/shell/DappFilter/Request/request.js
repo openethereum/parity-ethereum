@@ -20,7 +20,8 @@ import { FormattedMessage } from 'react-intl';
 import { Button } from '@parity/ui';
 
 export default function Request ({ className, approveRequest, denyRequest, queueId, request: { from, method } }) {
-  const _onApprove = () => approveRequest(queueId);
+  const _onApprove = () => approveRequest(queueId, false);
+  const _onApproveAll = () => approveRequest(queueId, true);
   const _onReject = () => denyRequest(queueId);
 
   return (
@@ -37,7 +38,7 @@ export default function Request ({ className, approveRequest, denyRequest, queue
         label={
           <FormattedMessage
             id='dappFilter.request.buttons.approve'
-            defaultMessage='Approve request'
+            defaultMessage='Approve'
           />
         }
         onClick={ _onApprove }
@@ -45,8 +46,17 @@ export default function Request ({ className, approveRequest, denyRequest, queue
       <Button
         label={
           <FormattedMessage
+            id='dappFilter.request.buttons.approveAll'
+            defaultMessage='Approve All'
+          />
+        }
+        onClick={ _onApproveAll }
+      />
+      <Button
+        label={
+          <FormattedMessage
             id='dappFilter.request.buttons.reject'
-            defaultMessage='Reject request'
+            defaultMessage='Reject'
           />
         }
         onClick={ _onReject }
