@@ -164,20 +164,20 @@ impl EpochManager {
 			}
 		};
 
-		let first = last_transition.block_number == 0;
 
 		// extract other epoch set if it's not the same as the last.
 		if last_transition.block_hash != self.epoch_transition_hash {
-			let (set_proof, _) = destructure_proofs(&last_transition.proof)
+			let (signal_number, set_proof, _) = destructure_proofs(&last_transition.proof)
 				.expect("proof produced by this engine; therefore it is valid; qed");
 
-			trace!(target: "engine", "extracting epoch set for epoch ({}, {})",
-				last_transition.block_number, last_transition.block_hash);
+			trace!(target: "engine", "extracting epoch set for epoch ({}, {}) signalled at #{}",
+				last_transition.block_number, last_transition.block_hash, signal_number);
 
+			let first = signal_number == 0;
 			let epoch_set = validators.epoch_set(
 				first,
 				engine,
-				last_transition.block_number,
+				signal_number, // use signal number so multi-set first calculation is correct.
 				set_proof,
 			)
 				.ok()
@@ -307,17 +307,18 @@ fn verify_external(header: &Header, validators: &ValidatorSet, step: &Step) -> R
 	}
 }
 
-fn combine_proofs(set_proof: &[u8], finality_proof: &[u8]) -> Vec<u8> {
-	let mut stream = ::rlp::RlpStream::new_list(2);
-	stream.append(&set_proof).append(&finality_proof);
+fn combine_proofs(signal_number: BlockNumber, set_proof: &[u8], finality_proof: &[u8]) -> Vec<u8> {
+	let mut stream = ::rlp::RlpStream::new_list(3);
+	stream.append(&signal_number).append(&set_proof).append(&finality_proof);
 	stream.out()
 }
 
-fn destructure_proofs(combined: &[u8]) -> Result<(&[u8], &[u8]), Error> {
+fn destructure_proofs(combined: &[u8]) -> Result<(BlockNumber, &[u8], &[u8]), Error> {
 	let rlp = UntrustedRlp::new(combined);
 	Ok((
-		rlp.at(0)?.data()?,
+		rlp.at(0)?.as_val()?,
 		rlp.at(1)?.data()?,
+		rlp.at(2)?.data()?,
 	))
 }
 
@@ -622,7 +623,7 @@ impl Engine for AuthorityRound {
 
 	fn genesis_epoch_data(&self, header: &Header, call: &Call) -> Result<Vec<u8>, String> {
 		self.validators.genesis_epoch_data(header, call)
-			.map(|set_proof| combine_proofs(&set_proof, &[]))
+			.map(|set_proof| combine_proofs(0, &set_proof, &[]))
 	}
 
 	fn signals_epoch_end(&self, header: &Header, block: Option<&[u8]>, receipts: Option<&[::receipt::Receipt]>)
@@ -698,10 +699,14 @@ impl Engine for AuthorityRound {
 								.expect("these headers fetched before when constructing finality checker; qed"))
 							.collect::<Vec<Header>>();
 
+						// this gives us the block number for `hash`, assuming it's ancestry.
+						let signal_number = chain_head.number()
+							- finality_proof.len() as BlockNumber
+							+ 1;
 						let finality_proof = ::rlp::encode_list(&finality_proof);
 						epoch_manager.note_new_epoch();
 
-						return Some(combine_proofs(&pending.proof, &*finality_proof));
+						return Some(combine_proofs(signal_number, &pending.proof, &*finality_proof));
 					}
 				}
 			}
@@ -710,15 +715,14 @@ impl Engine for AuthorityRound {
 		None
 	}
 
-	fn epoch_verifier<'a>(&self, header: &Header, proof: &'a [u8]) -> ConstructedVerifier<'a> {
-		let first = header.number() == 0;
-
-		let (set_proof, finality_proof) = match destructure_proofs(proof) {
+	fn epoch_verifier<'a>(&self, _header: &Header, proof: &'a [u8]) -> ConstructedVerifier<'a> {
+		let (signal_number, set_proof, finality_proof) = match destructure_proofs(proof) {
 			Ok(x) => x,
 			Err(e) => return ConstructedVerifier::Err(e),
 		};
 
-		match self.validators.epoch_set(first, self, header.number(), set_proof) {
+		let first = signal_number == 0;
+		match self.validators.epoch_set(first, self, signal_number, set_proof) {
 			Ok((list, finalize)) => {
 				let verifier = Box::new(EpochVerifier {
 					step: self.step.clone(),

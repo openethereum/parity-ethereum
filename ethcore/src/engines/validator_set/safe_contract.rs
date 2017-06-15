@@ -191,13 +191,7 @@ impl ValidatorSafeContract {
 			.filter(move |l| check_log(l))
 			.filter_map(|log| {
 				let topics = log.topics.iter().map(|x| x.0.clone()).collect();
-				match event.decode_log(topics, log.data.clone()) {
-					Ok(decoded) => Some(decoded),
-					Err(e) => {
-						debug!(target: "engine", "Failed to decode: {:?}", e);
-						None
-					}
-				}
+				event.decode_log(topics, log.data.clone()).ok()
 			});
 
 		match decoded_events.next() {
@@ -295,6 +289,8 @@ impl ValidatorSet for ValidatorSafeContract {
 		let rlp = UntrustedRlp::new(proof);
 
 		if first {
+			trace!(target: "engine", "Recovering initial epoch set");
+
 			// TODO: match client contract_call_tx more cleanly without duplication.
 			const PROVIDED_GAS: u64 = 50_000_000;
 
