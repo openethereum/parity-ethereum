@@ -196,7 +196,7 @@ impl ChunkRebuilder {
 			ConstructedVerifier::Unconfirmed(v, finality_proof, hash) => {
 				match *last_verifier {
 					Some(ref last) =>
-						if last.check_finality_proof(finality_proof).map_or(false, |hashes| hashes.contains(&hash))
+						if last.check_finality_proof(finality_proof).map_or(true, |hashes| !hashes.contains(&hash))
 					{
 						return Err(Error::BadEpochProof(header.number()).into());
 					},
@@ -309,7 +309,7 @@ impl Rebuilder for ChunkRebuilder {
 				verified.epoch_transition);
 			self.db.write_buffered(batch);
 
-			trace!(target: "snapshot", "Verified epoch transition for epoch {}", verified.header.number());
+			trace!(target: "snapshot", "Verified epoch transition for epoch at block {}", verified.header.number());
 		}
 
 		if is_last_chunk {
@@ -362,7 +362,7 @@ impl Rebuilder for ChunkRebuilder {
 			let mut found = false;
 			while let Some(last) = lasts_reversed.next() {
 				if last.0.number() < header.number() {
-					if last.1.check_finality_proof(&finality_proof).map_or(false, |hashes| hashes.contains(&hash)) {
+					if last.1.check_finality_proof(&finality_proof).map_or(true, |hashes| !hashes.contains(&hash)) {
 						return Err(Error::BadEpochProof(header.number()).into());
 					}
 					found = true;

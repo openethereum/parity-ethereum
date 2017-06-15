@@ -709,6 +709,8 @@ impl Client {
 						},
 				};
 
+				debug!(target: "client", "Block {} signals epoch end.", hash);
+
 				// write pending transition to DB.
 				let mut batch = DBTransaction::new();
 

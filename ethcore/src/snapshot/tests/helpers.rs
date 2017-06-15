@@ -194,6 +194,7 @@ pub fn restore(
 		secondary.feed(&snappy_buffer[..len], engine, &flag)?;
 	}
 
+	trace!(target: "snapshot", "finalizing");
 	state.finalize(manifest.block_number, manifest.block_hash)?;
 	secondary.finalize(engine)
 }

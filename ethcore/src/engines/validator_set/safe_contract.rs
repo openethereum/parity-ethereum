@@ -155,9 +155,14 @@ impl ValidatorSafeContract {
 	//
 	// The log data is an array of all new validator addresses.
 	fn expected_bloom(&self, header: &Header) -> LogBloom {
+		let topics = vec![*EVENT_NAME_HASH, *header.parent_hash()];
+
+		debug!(target: "engine", "Expected topics for header {}: {:?}",
+			header.hash(), topics);
+
 		LogEntry {
 			address: self.address,
-			topics: vec![*EVENT_NAME_HASH, *header.parent_hash()],
+			topics: topics,
 			data: Vec::new(), // irrelevant for bloom.
 		}.bloom()
 	}
@@ -167,7 +172,7 @@ impl ValidatorSafeContract {
 	fn extract_from_event(&self, bloom: LogBloom, header: &Header, receipts: &[Receipt]) -> Option<SimpleList> {
 		let check_log = |log: &LogEntry| {
 			log.address == self.address &&
-				log.topics.len() == 3 &&
+				log.topics.len() == 2 &&
 				log.topics[0] == *EVENT_NAME_HASH &&
 				log.topics[1] == *header.parent_hash()
 		};
@@ -188,13 +193,17 @@ impl ValidatorSafeContract {
 				let topics = log.topics.iter().map(|x| x.0.clone()).collect();
 				match event.decode_log(topics, log.data.clone()) {
 					Ok(decoded) => Some(decoded),
-					Err(_) => None,
+					Err(e) => {
+						debug!(target: "engine", "Failed to decode: {:?}", e);
+						None
+					}
 				}
 			});
 
 		match decoded_events.next() {
 			None => None,
 			Some(matched_event) => {
+
 				// decode log manually until the native contract generator is
 				// good enough to do it for us.
 				let &(_, _, ref validators_token) = &matched_event.params[1];
@@ -209,6 +218,8 @@ impl ValidatorSafeContract {
 				if validators.is_none() {
 					debug!(target: "engine", "Successfully decoded log turned out to be bad.");
 				}
+
+				trace!(target: "engine", "decoded log. validators: {:?}", validators);
 
 				validators
 			}
@@ -248,6 +259,7 @@ impl ValidatorSet for ValidatorSafeContract {
 	{
 		// transition to the first block of a contract requires finality but has no log event.
 		if first {
+			debug!(target: "engine", "signalling transition to fresh contract.");
 			let (provider, header) = (self.provider.clone(), header.clone());
 			let with_caller: Box<Fn(&Call) -> _> = Box::new(move |caller| prove_initial(&provider, &header, caller));
 			return ::engines::EpochChange::Yes(::engines::Proof::WithState(with_caller))
@@ -259,11 +271,15 @@ impl ValidatorSet for ValidatorSafeContract {
 
 		if &bloom & header_bloom != bloom { return ::engines::EpochChange::No }
 
+		trace!(target: "engine", "detected epoch change event bloom");
+
 		match receipts {
 			None => ::engines::EpochChange::Unsure(::engines::Unsure::NeedsReceipts),
 			Some(receipts) => match self.extract_from_event(bloom, header, receipts) {
 				None => ::engines::EpochChange::No,
 				Some(_) => {
+					debug!(target: "engine", "signalling transition within contract");
+
 					let proof = encode_proof(&header, receipts);
 					::engines::EpochChange::Yes(::engines::Proof::Known(proof))
 				}
