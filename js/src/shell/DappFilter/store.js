@@ -44,10 +44,15 @@ export default class Store {
   }
 
   @action approveRequest = (queueId) => {
-    const { request: { data, source } } = this.findRequest(queueId);
+    const { request: { data: { method, token } } } = this.findRequest(queueId);
+    const requests = this.findMatchingRequests(method, token);
 
-    this.removeRequest(queueId);
-    this.executeOnProvider(data, source);
+    this.addPermission(method, token);
+
+    requests.forEach(({ queueId, request: { data, source } }) => {
+      this.removeRequest(queueId);
+      this.executeOnProvider(data, source);
+    });
   }
 
   @action rejectRequest = (queueId) => {
@@ -63,12 +68,20 @@ export default class Store {
     }, '*');
   }
 
+  @action addPermission = (method, token) => {
+    this.premissions.tokens[token] = method;
+  }
+
   @action setPermissions = (permissions) => {
     this.permissions = permissions;
   }
 
   findRequest (_queueId) {
     return this.requests.find(({ queueId }) => queueId === _queueId);
+  }
+
+  findMatchingRequests (_method, _token) {
+    return this.requests.filter(({ request: { data: { method, token } } }) => method === _method && token === _token);
   }
 
   executeOnProvider = ({ id, from, method, params, token }, source) => {
