@@ -43,6 +43,8 @@ pub enum Error {
 	MutableCallInStaticContext,
 	/// Wasm error
 	Wasm,
+	/// Contract tried to access past the return data buffer.
+	OutOfBounds,
 }
 
 impl<'a> From<&'a VmError> for Error {
@@ -57,6 +59,7 @@ impl<'a> From<&'a VmError> for Error {
 			VmError::Wasm { .. } => Error::Wasm,
 			VmError::Internal(_) => Error::Internal,
 			VmError::MutableCallInStaticContext => Error::MutableCallInStaticContext,
+			EvmError::OutOfBounds => Error::OutOfBounds,
 		}
 	}
 }
@@ -80,6 +83,7 @@ impl fmt::Display for Error {
 			Wasm => "Wasm runtime error",
 			Internal => "Internal error",
 			MutableCallInStaticContext => "Mutable Call In Static Context",
+			OutOfBounds => "Out of bounds",
 		};
 		message.fmt(f)
 	}
@@ -98,6 +102,7 @@ impl Encodable for Error {
 			BuiltIn => 6,
 			MutableCallInStaticContext => 7,
 			Wasm => 8,
+			OutOfBounds => 9,
 		};
 
 		s.append_internal(&value);
@@ -118,6 +123,7 @@ impl Decodable for Error {
 			6 => Ok(BuiltIn),
 			7 => Ok(MutableCallInStaticContext),
 			8 => Ok(Wasm),
+			9 => Ok(OutOfBounds),
 			_ => Err(DecoderError::Custom("Invalid error type")),
 		}
 	}

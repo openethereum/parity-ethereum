@@ -328,6 +328,9 @@ impl<Cost: CostType> Interpreter<Cost> {
 				let contract_code = self.mem.read_slice(init_off, init_size);
 				let can_create = ext.balance(&params.address)? >= endowment && ext.depth() < ext.schedule().max_depth;
 
+				// clear return data buffer before crearing new call frame.
+				self.return_data = ReturnData::empty();
+
 				if !can_create {
 					stack.push(U256::zero());
 					return Ok(InstructionResult::UnusedGas(create_gas));
@@ -384,6 +387,9 @@ impl<Cost: CostType> Interpreter<Cost> {
 					instructions::STATICCALL => (&params.sender, &params.address, true, CallType::StaticCall),
 					_ => panic!(format!("Unexpected instruction {} in CALL branch.", instruction))
 				};
+
+				// clear return data buffer before crearing new call frame.
+				self.return_data = ReturnData::empty();
 
 				let can_call = has_balance && ext.depth() < ext.schedule().max_depth;
 				if !can_call {
@@ -546,6 +552,14 @@ impl<Cost: CostType> Interpreter<Cost> {
 				Self::copy_data_to_memory(&mut self.mem, stack, params.data.as_ref().map_or_else(|| &[] as &[u8], |d| &*d as &[u8]));
 			},
 			instructions::RETURNDATACOPY => {
+				{
+					let source_offset = stack.peek(1);
+					let size = stack.peek(2);
+					let return_data_len = U256::from(self.return_data.len());
+					if source_offset <= &return_data_len && source_offset.overflow_add(*size).0 <= return_data_len {
+						return Err(evm::Error::OutOfBounds);
+					}
+				}
 				Self::copy_data_to_memory(&mut self.mem, stack, &*self.return_data);
 			},
 			instructions::CODECOPY => {
