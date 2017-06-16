@@ -29,7 +29,7 @@ export default class LocalAccountsMiddleware extends Middleware {
     const register = this.register.bind(this);
 
     register('eth_accounts', () => {
-      return accounts.addresses();
+      return accounts.accountAddresses();
     });
 
     register('eth_coinbase', () => {
@@ -73,7 +73,7 @@ export default class LocalAccountsMiddleware extends Middleware {
     });
 
     register('parity_defaultAccount', () => {
-      return accounts.lastAddress;
+      return accounts.dappsDefaultAddress;
     });
 
     register('parity_exportAccount', ([address, password]) => {
@@ -98,11 +98,11 @@ export default class LocalAccountsMiddleware extends Middleware {
     });
 
     register('parity_getNewDappsAddresses', () => {
-      return [];
+      return accounts.accountAddresses();
     });
 
     register('parity_getNewDappsDefaultAddress', () => {
-      return accounts.lastAddress;
+      return accounts.dappsDefaultAddress;
     });
 
     register('parity_hardwareAccountsInfo', () => {
@@ -149,6 +149,8 @@ export default class LocalAccountsMiddleware extends Middleware {
 
     register('parity_setNewDappsDefaultAddress', ([address]) => {
       accounts.dappsDefaultAddress = address;
+
+      return true;
     });
 
     register('parity_postTransaction', ([tx]) => {
@@ -208,6 +210,10 @@ export default class LocalAccountsMiddleware extends Middleware {
       const account = accounts.get(address);
 
       return account.isValidPassword(password);
+    });
+
+    register('parity_upgradeReady', () => {
+      return false;
     });
 
     register('signer_confirmRequest', ([id, modify, password]) => {
