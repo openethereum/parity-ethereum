@@ -52,7 +52,7 @@ lazy_static! {
 }
 
 
-/// Contract code used here: https://gist.github.com/anonymous/98340ddb01a274e1319a504879fc9a6a
+/// Contract code used here: https://gist.github.com/anonymous/2a43783647e0f0dfcc359bd6fd81d6d9
 /// Account with secrets "1".sha3() is initially the validator.
 /// Transitions to the contract at block 2, initially same validator set.
 /// Create a new Spec with AuthorityRound which uses a contract at address 5 to determine the current validators using `getValidators`.
