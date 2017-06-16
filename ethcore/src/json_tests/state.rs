@@ -97,9 +97,8 @@ mod state_tests {
 	}
 
 	declare_test!{GeneralStateTest_stAttackTest, "GeneralStateTests/stAttackTest/"}
-	declare_test!{GeneralStateTest_stBoundsTest, "GeneralStateTests/stBoundsTest/"}
+	declare_test!{GeneralStateTest_stBadOpcodeTest, "GeneralStateTests/stBadOpcode/"}
 	declare_test!{GeneralStateTest_stCallCodes, "GeneralStateTests/stCallCodes/"}
-	declare_test!{skip => [ "createJS_ExampleContract" ], GeneralStateTest_stCallCreateCallCodeTest, "GeneralStateTests/stCallCreateCallCodeTest/"}
 	declare_test!{GeneralStateTest_stCallDelegateCodesCallCodeHomestead, "GeneralStateTests/stCallDelegateCodesCallCodeHomestead/"}
 	declare_test!{GeneralStateTest_stCallDelegateCodesHomestead, "GeneralStateTests/stCallDelegateCodesHomestead/"}
 	declare_test!{GeneralStateTest_stChangedEIP150, "GeneralStateTests/stChangedEIP150/"}
@@ -108,6 +107,7 @@ mod state_tests {
 	declare_test!{GeneralStateTest_stDelegatecallTestHomestead, "GeneralStateTests/stDelegatecallTestHomestead/"}
 	declare_test!{GeneralStateTest_stEIP150singleCodeGasPrices, "GeneralStateTests/stEIP150singleCodeGasPrices/"}
 	declare_test!{GeneralStateTest_stEIP150Specific, "GeneralStateTests/stEIP150Specific/"}
+	declare_test!{GeneralStateTest_stEIP158Specific, "GeneralStateTests/stEIP158Specific/"}
 	declare_test!{GeneralStateTest_stExample, "GeneralStateTests/stExample/"}
 	declare_test!{GeneralStateTest_stHomesteadSpecific, "GeneralStateTests/stHomesteadSpecific/"}
 	declare_test!{GeneralStateTest_stInitCodeTest, "GeneralStateTests/stInitCodeTest/"}
@@ -121,15 +121,18 @@ mod state_tests {
 	declare_test!{GeneralStateTest_stRandom, "GeneralStateTests/stRandom/"}
 	declare_test!{GeneralStateTest_stRecursiveCreate, "GeneralStateTests/stRecursiveCreate/"}
 	declare_test!{GeneralStateTest_stRefundTest, "GeneralStateTests/stRefundTest/"}
-	declare_test!{skip => [ "RevertDepthCreateAddressCollision" ], GeneralStateTest_stRevertTest, "GeneralStateTests/stRevertTest/"}
+	declare_test!{GeneralStateTest_stReturnDataTest, "GeneralStateTests/stReturnDataTest/"}
+	declare_test!{GeneralStateTest_stRevertTest, "GeneralStateTests/stRevertTest/"}
 	declare_test!{GeneralStateTest_stSolidityTest, "GeneralStateTests/stSolidityTest/"}
 	declare_test!{GeneralStateTest_stSpecialTest, "GeneralStateTests/stSpecialTest/"}
 	declare_test!{GeneralStateTest_stStackTests, "GeneralStateTests/stStackTests/"}
+	declare_test!{GeneralStateTest_stStaticCall, "GeneralStateTests/stStaticCall/"}
 	declare_test!{GeneralStateTest_stSystemOperationsTest, "GeneralStateTests/stSystemOperationsTest/"}
 	declare_test!{GeneralStateTest_stTransactionTest, "GeneralStateTests/stTransactionTest/"}
 	declare_test!{GeneralStateTest_stTransitionTest, "GeneralStateTests/stTransitionTest/"}
 	declare_test!{GeneralStateTest_stWalletTest, "GeneralStateTests/stWalletTest/"}
 	declare_test!{GeneralStateTest_stZeroCallsRevert, "GeneralStateTests/stZeroCallsRevert/"}
 	declare_test!{GeneralStateTest_stZeroCallsTest, "GeneralStateTests/stZeroCallsTest/"}
+	declare_test!{GeneralStateTest_stZeroKnowledge, "GeneralStateTests/stZeroKnowledge/"}
 }
 

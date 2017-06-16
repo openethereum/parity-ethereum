@@ -23,6 +23,7 @@ use evm::env_info::EnvInfo;
 use executive::*;
 use evm::{self, Schedule, Ext, ContractCreateResult, MessageCallResult, CreateContractAddress, ReturnData};
 use evm::CallType;
+use evm::FinalizationResult;
 use transaction::UNSIGNED_SENDER;
 use trace::{Tracer, VMTracer};
 
@@ -121,6 +122,10 @@ impl<'a, T: 'a, V: 'a, B: 'a, E: 'a> Ext for Externalities<'a, T, V, B, E>
 		}
 	}
 
+	fn is_static(&self) -> bool {
+		return self.static_flag
+	}
+
 	fn exists(&self, address: &Address) -> evm::Result<bool> {
 		self.state.exists(address).map_err(Into::into)
 	}
@@ -210,21 +215,27 @@ impl<'a, T: 'a, V: 'a, B: 'a, E: 'a> Ext for Externalities<'a, T, V, B, E>
 			call_type: CallType::None,
 		};
 
-		if params.sender != UNSIGNED_SENDER {
-			if let Err(e) = self.state.inc_nonce(&self.origin_info.address) {
-				debug!(target: "ext", "Database corruption encountered: {:?}", e);
-				return ContractCreateResult::Failed
+		if !self.static_flag {
+			if !self.schedule.eip86 || params.sender != UNSIGNED_SENDER {
+				if let Err(e) = self.state.inc_nonce(&self.origin_info.address) {
+					debug!(target: "ext", "Database corruption encountered: {:?}", e);
+					return ContractCreateResult::Failed
+				}
 			}
 		}
 		let mut ex = Executive::from_parent(self.state, self.env_info, self.engine, self.depth, self.static_flag);
 
 		// TODO: handle internal error separately
 		match ex.create(params, self.substate, &mut None, self.tracer, self.vm_tracer) {
-			Ok((gas_left, _)) => {
+			Ok(FinalizationResult{ gas_left, apply_state: true, .. }) => {
 				self.substate.contracts_created.push(address.clone());
 				ContractCreateResult::Created(address, gas_left)
 			},
-			_ => ContractCreateResult::Failed
+			Ok(FinalizationResult{ gas_left, apply_state: false, return_data }) => {
+				ContractCreateResult::Reverted(gas_left, return_data)
+			},
+			Err(evm::Error::MutableCallInStaticContext) => ContractCreateResult::FailedInStaticCall,
+			_ => ContractCreateResult::Failed,
 		}
 	}
 
@@ -269,7 +280,8 @@ impl<'a, T: 'a, V: 'a, B: 'a, E: 'a> Ext for Externalities<'a, T, V, B, E>
 		let mut ex = Executive::from_parent(self.state, self.env_info, self.engine, self.depth, self.static_flag);
 
 		match ex.call(params, self.substate, BytesRef::Fixed(output), self.tracer, self.vm_tracer) {
-			Ok((gas_left, return_data)) => MessageCallResult::Success(gas_left, return_data),
+			Ok(FinalizationResult{ gas_left, return_data, apply_state: true }) => MessageCallResult::Success(gas_left, return_data),
+			Ok(FinalizationResult{ gas_left, return_data, apply_state: false }) => MessageCallResult::Reverted(gas_left, return_data),
 			_ => MessageCallResult::Failed
 		}
 	}
@@ -283,7 +295,7 @@ impl<'a, T: 'a, V: 'a, B: 'a, E: 'a> Ext for Externalities<'a, T, V, B, E>
 	}
 
 	#[cfg_attr(feature="dev", allow(match_ref_pats))]
-	fn ret(mut self, gas: &U256, data: &ReturnData) -> evm::Result<U256>
+	fn ret(mut self, gas: &U256, data: &ReturnData, apply_state: bool) -> evm::Result<U256>
 		where Self: Sized {
 		let handle_copy = |to: &mut Option<&mut Bytes>| {
 			to.as_mut().map(|b| **b = data.to_vec());
@@ -303,7 +315,7 @@ impl<'a, T: 'a, V: 'a, B: 'a, E: 'a> Ext for Externalities<'a, T, V, B, E>
 				vec.extend_from_slice(&*data);
 				Ok(*gas)
 			},
-			OutputPolicy::InitContract(ref mut copy) => {
+			OutputPolicy::InitContract(ref mut copy) if apply_state => {
 				let return_cost = U256::from(data.len()) * U256::from(self.schedule.create_data_gas);
 				if return_cost > *gas || data.len() > self.schedule.create_data_limit {
 					return match self.schedule.exceptional_failed_code_deposit {
@@ -311,12 +323,13 @@ impl<'a, T: 'a, V: 'a, B: 'a, E: 'a> Ext for Externalities<'a, T, V, B, E>
 						false => Ok(*gas)
 					}
 				}
-
 				handle_copy(copy);
-
 				self.state.init_code(&self.origin_info.address, data.to_vec())?;
 				Ok(*gas - return_cost)
-			}
+			},
+			OutputPolicy::InitContract(_) => {
+				Ok(*gas)
+			},
 		}
 	}
 
