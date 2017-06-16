@@ -66,6 +66,8 @@ pub struct AuthorityRoundParams {
 	pub eip155_transition: u64,
 	/// Monotonic step validation transition block.
 	pub validate_step_transition: u64,
+	/// Immediate transitions.
+	pub immediate_transitions: bool,
 }
 
 impl From<ethjson::spec::AuthorityRoundParams> for AuthorityRoundParams {
@@ -80,6 +82,7 @@ impl From<ethjson::spec::AuthorityRoundParams> for AuthorityRoundParams {
 			validate_score_transition: p.validate_score_transition.map_or(0, Into::into),
 			eip155_transition: p.eip155_transition.map_or(0, Into::into),
 			validate_step_transition: p.validate_step_transition.map_or(0, Into::into),
+			immediate_transitions: p.immediate_transitions.unwrap_or(false),
 		}
 	}
 }
@@ -125,6 +128,7 @@ impl Step {
 
 struct EpochManager {
 	epoch_transition_hash: H256,
+	epoch_transition_number: BlockNumber,
 	finality_checker: RollingFinality,
 	force: bool,
 }
@@ -133,6 +137,7 @@ impl EpochManager {
 	fn blank() -> Self {
 		EpochManager {
 			epoch_transition_hash: H256::default(),
+			epoch_transition_number: 0,
 			finality_checker: RollingFinality::blank(Vec::new()),
 			force: true,
 		}
@@ -188,6 +193,7 @@ impl EpochManager {
 		}
 
 		self.epoch_transition_hash = last_transition.block_hash;
+		self.epoch_transition_number = last_transition.block_number;
 
 		true
 	}
@@ -222,6 +228,7 @@ pub struct AuthorityRound {
 	eip155_transition: u64,
 	validate_step_transition: u64,
 	epoch_manager: Mutex<EpochManager>,
+	immediate_transitions: bool,
 }
 
 // header-chain validator.
@@ -234,7 +241,7 @@ impl super::EpochVerifier for EpochVerifier {
 	fn verify_light(&self, header: &Header) -> Result<(), Error> {
 		// always check the seal since it's fast.
 		// nothing heavier to do.
-		verify_external(header, &self.subchain_validators, &*self.step)
+		verify_external(header, &self.subchain_validators, &*self.step, |_| {})
 	}
 
 	fn check_finality_proof(&self, proof: &[u8]) -> Option<Vec<H256>> {
@@ -259,7 +266,7 @@ impl super::EpochVerifier for EpochVerifier {
 			//
 			// `verify_external` checks that signature is correct and author == signer.
 			if header.seal().len() != 2 { return None }
-			otry!(verify_external(header, &self.subchain_validators, &*self.step).ok());
+			otry!(verify_external(header, &self.subchain_validators, &*self.step, |_| {}).ok());
 
 			let newly_finalized = otry!(finality_checker.push_hash(header.hash(), header.author().clone()).ok());
 			finalized.extend(newly_finalized);
@@ -267,6 +274,16 @@ impl super::EpochVerifier for EpochVerifier {
 
 		if finalized.is_empty() { None } else { Some(finalized) }
 	}
+}
+
+// Report misbehavior
+#[derive(Debug)]
+#[allow(dead_code)]
+enum Report {
+	// Malicious behavior
+	Malicious(Address, BlockNumber, Bytes),
+	// benign misbehavior
+	Benign(Address, BlockNumber),
 }
 
 fn header_step(header: &Header) -> Result<usize, ::rlp::DecoderError> {
@@ -287,13 +304,15 @@ fn is_step_proposer(validators: &ValidatorSet, bh: &H256, step: usize, address: 
 	step_proposer(validators, bh, step) == *address
 }
 
-fn verify_external(header: &Header, validators: &ValidatorSet, step: &Step) -> Result<(), Error> {
+fn verify_external<F: Fn(Report)>(header: &Header, validators: &ValidatorSet, step: &Step, report: F)
+	-> Result<(), Error>
+{
 	let header_step = header_step(header)?;
 
 	// Give one step slack if step is lagging, double vote is still not possible.
 	if step.is_future(header_step) {
 		trace!(target: "engine", "verify_block_unordered: block from the future");
-		validators.report_benign(header.author(), header.number());
+		report(Report::Benign(*header.author(), header.number()));
 		Err(BlockError::InvalidSeal)?
 	} else {
 		let proposer_signature = header_signature(header)?;
@@ -358,7 +377,9 @@ impl AuthorityRound {
 				eip155_transition: our_params.eip155_transition,
 				validate_step_transition: our_params.validate_step_transition,
 				epoch_manager: Mutex::new(EpochManager::blank()),
+				immediate_transitions: our_params.immediate_transitions,
 			});
+
 		// Do not initialize timeouts for tests.
 		if should_timeout {
 			let handler = TransitionHandler { engine: Arc::downgrade(&engine) };
@@ -464,23 +485,32 @@ impl Engine for AuthorityRound {
 		let header = block.header();
 		let step = self.step.load();
 
-		let client = match self.client.read().as_ref().and_then(|weak| weak.upgrade()) {
-			Some(client) => client,
-			None => {
-				warn!(target: "engine", "Unable to generate seal: missing client ref.");
-				return Seal::None;
-			}
-		};
-
 		// fetch correct validator set for current epoch, taking into account
 		// finality of previous transitions.
-		let mut epoch_manager = self.epoch_manager.lock();
-		if !epoch_manager.zoom_to(&*client, self, &*self.validators, header) {
-			debug!(target: "engine", "Unable to zoom to epoch.");
-			return Seal::None;
-		}
+		let active_set;
 
-		if is_step_proposer(epoch_manager.validators(), header.parent_hash(), step, header.author()) {
+		let validators = if self.immediate_transitions {
+			&*self.validators
+		} else {
+			let mut epoch_manager = self.epoch_manager.lock();
+			let client = match self.client.read().as_ref().and_then(|weak| weak.upgrade()) {
+				Some(client) => client,
+				None => {
+					warn!(target: "engine", "Unable to generate seal: missing client ref.");
+					return Seal::None;
+				}
+			};
+
+			if !epoch_manager.zoom_to(&*client, self, &*self.validators, header) {
+				debug!(target: "engine", "Unable to zoom to epoch.");
+				return Seal::None;
+			}
+
+			active_set = epoch_manager.validators().clone();
+			&active_set as &_
+		};
+
+		if is_step_proposer(validators, header.parent_hash(), step, header.author()) {
 			if let Ok(signature) = self.signer.sign(header.bare_hash()) {
 				trace!(target: "engine", "generate_seal: Issuing a block for step {}.", step);
 				self.proposed.store(true, AtomicOrdering::SeqCst);
@@ -575,7 +605,8 @@ impl Engine for AuthorityRound {
 		if step == parent_step
 			|| (header.number() >= self.validate_step_transition && step <= parent_step) {
 			trace!(target: "engine", "Multiple blocks proposed for step {}.", parent_step);
-			self.validators.report_malicious(header.author(), header.number(), Default::default());
+
+			self.validators.report_malicious(header.author(), header.number(), header.number(), Default::default());
 			Err(EngineError::DoubleVote(header.author().clone()))?;
 		}
 		// Report skipped primaries.
@@ -586,7 +617,7 @@ impl Engine for AuthorityRound {
 			for s in parent_step + 1..step {
 				let skipped_primary = step_proposer(&*self.validators, &parent.hash(), s);
 				trace!(target: "engine", "Author {} did not build his block on top of the intermediate designated primary {}.", header.author(), skipped_primary);
-				self.validators.report_benign(&skipped_primary, header.number());
+				self.validators.report_benign(&skipped_primary, header.number(), header.number());
 			}
 		}
 
@@ -601,24 +632,42 @@ impl Engine for AuthorityRound {
 
 	// Check the validators.
 	fn verify_block_external(&self, header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
-		// get correct validator set for epoch.
-		let client = match self.client.read().as_ref().and_then(|weak| weak.upgrade()) {
-			Some(client) => client,
-			None => {
-				debug!(target: "engine", "Unable to verify sig: missing client ref.");
-				return Err(EngineError::RequiresClient.into())
-			}
-		};
-
 		// fetch correct validator set for current epoch, taking into account
 		// finality of previous transitions.
-		let mut epoch_manager = self.epoch_manager.lock();
-		if !epoch_manager.zoom_to(&*client, self, &*self.validators, header) {
-			debug!(target: "engine", "Unable to zoom to epoch.");
-			return Err(EngineError::RequiresClient.into())
-		}
+		let active_set;
 
-		verify_external(header, epoch_manager.validators(), &*self.step)
+		let (validators, set_number) = if self.immediate_transitions {
+			(&*self.validators, header.number())
+		} else {
+			// get correct validator set for epoch.
+			let client = match self.client.read().as_ref().and_then(|weak| weak.upgrade()) {
+				Some(client) => client,
+				None => {
+					debug!(target: "engine", "Unable to verify sig: missing client ref.");
+					return Err(EngineError::RequiresClient.into())
+				}
+			};
+
+			let mut epoch_manager = self.epoch_manager.lock();
+			if !epoch_manager.zoom_to(&*client, self, &*self.validators, header) {
+				debug!(target: "engine", "Unable to zoom to epoch.");
+				return Err(EngineError::RequiresClient.into())
+			}
+
+			active_set = epoch_manager.validators().clone();
+			(&active_set as &_, epoch_manager.epoch_transition_number)
+		};
+
+		let report = |report| match report {
+			Report::Benign(address, block_number) =>
+				self.validators.report_benign(&address, set_number, block_number),
+			Report::Malicious(address, block_number, proof) =>
+				self.validators.report_malicious(&address, set_number, block_number, proof),
+		};
+
+		// verify signature against fixed list, but reports should go to the
+		// contract itself.
+		verify_external(header, validators, &*self.step, report)
 	}
 
 	fn genesis_epoch_data(&self, header: &Header, call: &Call) -> Result<Vec<u8>, String> {
@@ -629,6 +678,8 @@ impl Engine for AuthorityRound {
 	fn signals_epoch_end(&self, header: &Header, block: Option<&[u8]>, receipts: Option<&[::receipt::Receipt]>)
 		-> super::EpochChange
 	{
+		if self.immediate_transitions { return super::EpochChange::No }
+
 		let first = header.number() == 0;
 		self.validators.signals_epoch_end(first, header, block, receipts)
 	}
@@ -639,6 +690,9 @@ impl Engine for AuthorityRound {
 		chain: &super::Headers,
 		transition_store: &super::PendingTransitionStore,
 	) -> Option<Vec<u8>> {
+		// epochs only matter if we want to support light clients.
+		if self.immediate_transitions { return None }
+
 		let first = chain_head.number() == 0;
 
 		// apply immediate transitions.
@@ -764,7 +818,11 @@ impl Engine for AuthorityRound {
 	}
 
 	fn snapshot_components(&self) -> Option<Box<::snapshot::SnapshotComponents>> {
-		Some(Box::new(::snapshot::PoaSnapshot))
+		if self.immediate_transitions {
+			None
+		} else {
+			Some(Box::new(::snapshot::PoaSnapshot))
+		}
 	}
 }
 
@@ -942,6 +1000,7 @@ mod tests {
 			validate_score_transition: 0,
 			validate_step_transition: 0,
 			eip155_transition: 0,
+			immediate_transitions: true,
 		};
 		let aura = AuthorityRound::new(Default::default(), params, Default::default()).unwrap();
 

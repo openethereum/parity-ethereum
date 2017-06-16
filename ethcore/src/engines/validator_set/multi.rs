@@ -121,12 +121,12 @@ impl ValidatorSet for Multi {
 			.map_or_else(usize::max_value, |set| set.count_with_caller(bh, caller))
 	}
 
-	fn report_malicious(&self, validator: &Address, block: BlockNumber, proof: Bytes) {
-		self.correct_set_by_number(block).1.report_malicious(validator, block, proof);
+	fn report_malicious(&self, validator: &Address, set_block: BlockNumber, block: BlockNumber, proof: Bytes) {
+		self.correct_set_by_number(set_block).1.report_malicious(validator, set_block, block, proof);
 	}
 
-	fn report_benign(&self, validator: &Address, block: BlockNumber) {
-		self.correct_set_by_number(block).1.report_benign(validator, block);
+	fn report_benign(&self, validator: &Address, set_block: BlockNumber, block: BlockNumber) {
+		self.correct_set_by_number(set_block).1.report_benign(validator, set_block, block);
 	}
 
 	fn register_contract(&self, client: Weak<Client>) {
@@ -153,7 +153,8 @@ mod tests {
 
 	#[test]
 	fn uses_current_set() {
-		::env_logger::init().unwrap();
+		let _ = ::env_logger::init();
+
 		let tap = Arc::new(AccountProvider::transient_provider());
 		let s0: Secret = "0".sha3().into();
 		let v0 = tap.insert_account(s0.clone(), "").unwrap();

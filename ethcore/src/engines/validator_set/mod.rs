@@ -137,9 +137,9 @@ pub trait ValidatorSet: Send + Sync {
 	fn count_with_caller(&self, parent_block_hash: &H256, caller: &Call) -> usize;
 
 	/// Notifies about malicious behaviour.
-	fn report_malicious(&self, _validator: &Address, _block: BlockNumber, _proof: Bytes) {}
+	fn report_malicious(&self, _validator: &Address, _set_block: BlockNumber, _block: BlockNumber, _proof: Bytes) {}
 	/// Notifies about benign misbehaviour.
-	fn report_benign(&self, _validator: &Address, _block: BlockNumber) {}
+	fn report_benign(&self, _validator: &Address, _set_block: BlockNumber, _block: BlockNumber) {}
 	/// Allows blockchain state access.
 	fn register_contract(&self, _client: Weak<Client>) {}
 }

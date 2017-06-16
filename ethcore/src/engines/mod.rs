@@ -434,7 +434,7 @@ pub mod common {
 		let mut substate = Substate::new();
 		let mut output = Vec::new();
 		if let Err(e) = ex.call(params, &mut substate, BytesRef::Flexible(&mut output), &mut NoopTracer, &mut NoopVMTracer) {
-			warn!("Encountered error on updating last hashes: {}", e);
+			warn!("Encountered error on making system call: {}", e);
 		}
 
 		Ok(output)
