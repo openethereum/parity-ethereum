@@ -42,6 +42,8 @@ pub enum Error {
 	Internal,
 	/// When execution tries to modify the state in static context
 	MutableCallInStaticContext,
+	/// Contract tried to access past the return data buffer.
+	OutOfBounds,
 }
 
 impl<'a> From<&'a EvmError> for Error {
@@ -55,6 +57,7 @@ impl<'a> From<&'a EvmError> for Error {
 			EvmError::BuiltIn { .. } => Error::BuiltIn,
 			EvmError::Internal(_) => Error::Internal,
 			EvmError::MutableCallInStaticContext => Error::MutableCallInStaticContext,
+			EvmError::OutOfBounds => Error::OutOfBounds,
 		}
 	}
 }
@@ -77,6 +80,7 @@ impl fmt::Display for Error {
 			BuiltIn => "Built-in failed",
 			Internal => "Internal error",
 			MutableCallInStaticContext => "Mutable Call In Static Context",
+			OutOfBounds => "Out of bounds",
 		};
 		message.fmt(f)
 	}
@@ -94,6 +98,7 @@ impl Encodable for Error {
 			Internal => 5,
 			BuiltIn => 6,
 			MutableCallInStaticContext => 7,
+			OutOfBounds => 8,
 		};
 
 		s.append_internal(&value);
@@ -113,6 +118,7 @@ impl Decodable for Error {
 			5 => Ok(Internal),
 			6 => Ok(BuiltIn),
 			7 => Ok(MutableCallInStaticContext),
+			8 => Ok(OutOfBounds),
 			_ => Err(DecoderError::Custom("Invalid error type")),
 		}
 	}

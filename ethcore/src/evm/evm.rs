@@ -64,6 +64,8 @@ pub enum Error {
 	BuiltIn(&'static str),
 	/// When execution tries to modify the state in static context
 	MutableCallInStaticContext,
+	/// Out of bounds access in RETURNDATACOPY.
+	OutOfBounds,
 	/// Likely to cause consensus issues.
 	Internal(String),
 }
@@ -85,6 +87,7 @@ impl fmt::Display for Error {
 		use self::Error::*;
 		match *self {
 			OutOfGas => write!(f, "Out of gas"),
+			OutOfBounds => write!(f, "Out of bounds"),
 			BadJumpDestination { destination } => write!(f, "Bad jump destination {:x}", destination),
 			BadInstruction { instruction } => write!(f, "Bad instruction {:x}",  instruction),
 			StackUnderflow { instruction, wanted, on_stack } => write!(f, "Stack underflow {} {}/{}", instruction, wanted, on_stack),
