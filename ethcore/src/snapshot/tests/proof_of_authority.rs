@@ -228,21 +228,21 @@ fn fixed_to_contract_only() {
 
 	assert!(provider.has_account(*RICH_ADDR).unwrap());
 
-	let client = make_chain(provider, 1, vec![
+	let client = make_chain(provider, 3, vec![
 		Transition::Manual(3, vec![addrs[2], addrs[3], addrs[5], addrs[7]]),
 		Transition::Manual(6, vec![addrs[0], addrs[1], addrs[4], addrs[6]]),
 	]);
 
 	// 6, 7, 8 prove finality for transition at 6.
-	// 1 beyond gets us to 9.
-	assert_eq!(client.chain_info().best_block_number, 9);
+	// 3 beyond gets us to 11.
+	assert_eq!(client.chain_info().best_block_number, 11);
 	let reader = snapshot_helpers::snap(&*client);
 
 	let new_db = kvdb::in_memory(::db::NUM_COLUMNS.unwrap_or(0));
 	let spec = spec_fixed_to_contract();
 
 	// ensure fresh engine's step matches.
-	for _ in 0..9 { spec.engine.step() }
+	for _ in 0..11 { spec.engine.step() }
 	snapshot_helpers::restore(Arc::new(new_db), &*spec.engine, &**reader, &spec.genesis_block()).unwrap();
 }
 
@@ -261,18 +261,18 @@ fn fixed_to_contract_to_contract() {
 
 	assert!(provider.has_account(*RICH_ADDR).unwrap());
 
-	let client = make_chain(provider, 2, vec![
+	let client = make_chain(provider, 3, vec![
 		Transition::Manual(3, vec![addrs[2], addrs[3], addrs[5], addrs[7]]),
 		Transition::Manual(6, vec![addrs[0], addrs[1], addrs[4], addrs[6]]),
 		Transition::Implicit(10, vec![addrs[0]]),
 		Transition::Manual(13, vec![addrs[2], addrs[4], addrs[6], addrs[7]]),
 	]);
 
-	assert_eq!(client.chain_info().best_block_number, 15);
+	assert_eq!(client.chain_info().best_block_number, 16);
 	let reader = snapshot_helpers::snap(&*client);
 	let new_db = kvdb::in_memory(::db::NUM_COLUMNS.unwrap_or(0));
 	let spec = spec_fixed_to_contract();
 
-	for _ in 0..15 { spec.engine.step() }
+	for _ in 0..16 { spec.engine.step() }
 	snapshot_helpers::restore(Arc::new(new_db), &*spec.engine, &**reader, &spec.genesis_block()).unwrap();
 }
