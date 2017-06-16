@@ -2295,4 +2295,85 @@ mod tests {
 		assert_eq!(bc.best_block_number(), 5);
 		assert_eq!(bc.epoch_transitions().map(|(i, _)| i).collect::<Vec<_>>(), vec![0, 1, 2, 3, 4]);
 	}
+
+	#[test]
+	fn epoch_transition_for() {
+		use ::engines::EpochTransition;
+
+		let mut canon_chain = ChainGenerator::default();
+		let mut finalizer = BlockFinalizer::default();
+		let genesis = canon_chain.generate(&mut finalizer).unwrap();
+
+		let db = new_db();
+
+		let bc = new_chain(&genesis, db.clone());
+
+		let mut batch = db.transaction();
+		bc.insert_epoch_transition(&mut batch, 0, EpochTransition {
+			block_hash: bc.genesis_hash(),
+			block_number: 0,
+			proof: vec![],
+		});
+		db.write(batch).unwrap();
+
+		// set up a chain where we have a canonical chain of 10 blocks
+		// and a non-canonical fork of 8 from genesis.
+		let fork_hash = {
+			let mut fork_chain = canon_chain.fork(1);
+			let mut fork_finalizer = finalizer.fork();
+
+			for _ in 0..7 {
+				let mut batch = db.transaction();
+				let fork_block = fork_chain.generate(&mut fork_finalizer).unwrap();
+
+				bc.insert_block(&mut batch, &fork_block, vec![]);
+				bc.commit();
+				db.write(batch).unwrap();
+			}
+
+			assert_eq!(bc.best_block_number(), 7);
+			bc.chain_info().best_block_hash
+		};
+
+		for _ in 0..10 {
+			let mut batch = db.transaction();
+			let canon_block = canon_chain.generate(&mut finalizer).unwrap();
+
+			bc.insert_block(&mut batch, &canon_block, vec![]);
+			bc.commit();
+
+			db.write(batch).unwrap();
+		}
+
+		assert_eq!(bc.best_block_number(), 10);
+
+		let mut batch = db.transaction();
+		bc.insert_epoch_transition(&mut batch, 4, EpochTransition {
+			block_hash: bc.block_hash(4).unwrap(),
+			block_number: 4,
+			proof: vec![],
+		});
+		db.write(batch).unwrap();
+
+		// blocks where the parent is one of the first 4 will be part of genesis epoch.
+		for i in 0..4 {
+			let hash = bc.block_hash(i).unwrap();
+			assert_eq!(bc.epoch_transition_for(hash).unwrap().block_number, 0);
+		}
+
+		// blocks where the parent is the transition at 4 or after will be
+		// part of that epoch.
+		for i in 4..11 {
+			let hash = bc.block_hash(i).unwrap();
+			assert_eq!(bc.epoch_transition_for(hash).unwrap().block_number, 4);
+		}
+
+		let fork_hashes = bc.ancestry_iter(fork_hash).unwrap().collect::<Vec<_>>();
+		assert_eq!(fork_hashes.len(), 8);
+
+		// non-canonical fork blocks should all have genesis transition
+		for fork_hash in fork_hashes {
+			assert_eq!(bc.epoch_transition_for(fork_hash).unwrap().block_number, 0);
+		}
+	}
 }
