@@ -1,3 +1,41 @@
+## Parity [v1.6.8](https://github.com/paritytech/parity/releases/tag/v1.6.8) (2017-06-08)
+
+This release addresses:
+
+- a rare condition where quickly creating a new account was generating an account not matching the recovery phrase.
+- compressed RLP strings caused wrong/empty transaction receipts on Classic network.
+- blacklisting the _empty phrase_ account from UI and RPC on non-development chains. See also [this blog post](https://blog.parity.io/restoring-blank-seed-phrase/).
+- canceling transactions that didn't have a condition.
+- the updated Expanse fork block and chain ID.
+
+Full changelog:
+
+- Backporting to beta [#5791](https://github.com/paritytech/parity/pull/5791)
+  - Bump to v1.6.8
+  - Update expanse json with fork at block 600000 [#5351](https://github.com/paritytech/parity/pull/5351)
+    - Update expanse json with fork at block 600000
+    - Update exp chainID to 2
+  - Bumped mio [#5763](https://github.com/paritytech/parity/pull/5763)
+  - Fixed default UI port for mac installer [#5782](https://github.com/paritytech/parity/pull/5782)
+  - Blacklist empty phrase account. [#5730](https://github.com/paritytech/parity/pull/5730)
+  - Update Cid/multihash/ring/tinykeccak [#5785](https://github.com/paritytech/parity/pull/5785)
+    - Updating ring,multihash,tiny-keccak
+    - Updating CID in ipfs.
+  - Disable compression for RLP strings [#5786](https://github.com/paritytech/parity/pull/5786)
+- Beta Backports [#5789](https://github.com/paritytech/parity/pull/5789)
+  - Fix local transactions without condition. [#5716](https://github.com/paritytech/parity/pull/5716)
+  - Block invalid account name creation [#5784](https://github.com/paritytech/parity/pull/5784)
+    - Additional non-empty phrase check (fromNew)
+    - Explicit canCreate check in create (not only on UI)
+    - BN instance check (fixes Geth imports)
+    - Fixup tests after better checks
+  - Recover from empty phrase in dev mode [#5698](https://github.com/paritytech/parity/pull/5698)
+    - Add dev chain to isTest
+    - Fix signer
+    - Fix no condition transactions
+    - Fix case: old parity
+    - Fix propTypes.
+
 ## Parity [v1.6.7](https://github.com/paritytech/parity/releases/tag/v1.6.7) (2017-05-18)
 
 This release addresses:

@@ -497,6 +497,7 @@ impl Configuration {
 			password_files: self.args.flag_password.clone(),
 			unlocked_accounts: to_addresses(&self.args.flag_unlock)?,
 			enable_hardware_wallets: !self.args.flag_no_hardware_wallets,
+			enable_fast_unlock: self.args.flag_fast_unlock,
 		};
 
 		Ok(cfg)
@@ -840,6 +841,7 @@ impl Configuration {
 			hosts: self.ws_hosts(),
 			origins: self.ws_origins(),
 			signer_path: self.directories().signer.into(),
+			support_token_api: !self.args.flag_public_node,
 			ui_address: ui.address(),
 		};
 
@@ -1036,7 +1038,7 @@ impl Configuration {
 			self.args.flag_geth ||
 			self.args.flag_no_ui;
 
-		!ui_disabled
+		!ui_disabled && cfg!(feature = "ui-enabled")
 	}
 
 	fn verifier_settings(&self) -> VerifierSettings {
@@ -1247,6 +1249,7 @@ mod tests {
 			hosts: Some(vec![]),
 			signer_path: expected.into(),
 			ui_address: Some(("127.0.0.1".to_owned(), 8180)),
+			support_token_api: true
 		}, UiConfiguration {
 			enabled: true,
 			interface: "127.0.0.1".into(),

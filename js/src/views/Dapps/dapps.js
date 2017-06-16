@@ -34,10 +34,11 @@ import styles from './dapps.css';
 class Dapps extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
-  }
+  };
 
   static propTypes = {
-    accounts: PropTypes.object.isRequired
+    accounts: PropTypes.object.isRequired,
+    availability: PropTypes.string.isRequired
   };
 
   store = DappsStore.get(this.context.api);
@@ -133,6 +134,10 @@ class Dapps extends Component {
   }
 
   renderApp = (app) => {
+    if (app.onlyPersonal && this.props.availability !== 'personal') {
+      return null;
+    }
+
     return (
       <DappCard
         app={ app }
@@ -156,6 +161,7 @@ class Dapps extends Component {
 
 function mapStateToProps (state) {
   const { accounts } = state.personal;
+  const { availability = 'unknown' } = state.nodeStatus.nodeKind || {};
 
   /**
    * Do not show the Wallet Accounts in the Dapps
@@ -165,7 +171,8 @@ function mapStateToProps (state) {
   const _accounts = omitBy(accounts, (account) => account.wallet);
 
   return {
-    accounts: _accounts
+    accounts: _accounts,
+    availability
   };
 }
 

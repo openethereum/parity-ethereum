@@ -38,7 +38,8 @@ class WorkerContainer {
         this.busy = false;
 
         if (err) {
-          reject(err);
+          // `err` ought to be a String
+          reject(new Error(err));
         } else {
           resolve(result);
         }
@@ -48,20 +49,56 @@ class WorkerContainer {
 }
 
 class WorkerPool {
-  pool = [];
+  pool = [
+    new WorkerContainer(),
+    new WorkerContainer()
+  ];
 
-  getWorker () {
+  queue = [];
+
+  _getContainer () {
+    return this.pool.find((container) => !container.busy);
+  }
+
+  action (action, payload) {
     let container = this.pool.find((container) => !container.busy);
 
+    let promise;
+
+    // const start = Date.now();
+
     if (container) {
-      return container;
+      promise = container.action(action, payload);
+    } else {
+      promise = new Promise((resolve, reject) => {
+        this.queue.push([action, payload, resolve]);
+      });
     }
 
-    container = new WorkerContainer();
+    return promise
+      .catch((err) => {
+        this.processQueue();
 
-    this.pool.push(container);
+        throw err;
+      })
+      .then((result) => {
+        this.processQueue();
 
-    return container;
+        // console.log('Work done in ', Date.now() - start);
+
+        return result;
+      });
+  }
+
+  processQueue () {
+    let container = this._getContainer();
+
+    while (container && this.queue.length > 0) {
+      const [action, payload, resolve] = this.queue.shift();
+
+      resolve(container.action(action, payload));
+      container = this._getContainer();
+    }
   }
 }
 

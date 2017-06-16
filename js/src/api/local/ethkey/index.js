@@ -17,13 +17,12 @@
 import workerPool from './workerPool';
 
 export function createKeyObject (key, password) {
-  return workerPool.getWorker().action('createKeyObject', { key, password })
+  return workerPool.action('createKeyObject', { key, password })
     .then((obj) => JSON.parse(obj));
 }
 
 export function decryptPrivateKey (keyObject, password) {
   return workerPool
-    .getWorker()
     .action('decryptPrivateKey', { keyObject, password })
     .then((privateKey) => {
       if (privateKey) {
@@ -40,9 +39,9 @@ export function phraseToAddress (phrase) {
 }
 
 export function phraseToWallet (phrase) {
-  return workerPool.getWorker().action('phraseToWallet', phrase);
+  return workerPool.action('phraseToWallet', phrase);
 }
 
 export function verifySecret (secret) {
-  return workerPool.getWorker().action('verifySecret', secret);
+  return workerPool.action('verifySecret', secret);
 }

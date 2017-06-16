@@ -23,7 +23,7 @@ use account_provider::AccountProvider;
 use block::*;
 use builtin::Builtin;
 use spec::CommonParams;
-use engines::{Engine, Seal, Call, ConstructedVerifier};
+use engines::{Engine, Seal, Call, ConstructedVerifier, EngineError};
 use error::{BlockError, Error};
 use evm::Schedule;
 use ethjson;
@@ -66,6 +66,10 @@ fn verify_external(header: &Header, validators: &ValidatorSet) -> Result<(), Err
 	// Check if the signature belongs to a validator, can depend on parent state.
 	let sig = UntrustedRlp::new(&header.seal()[0]).as_val::<H520>()?;
 	let signer = public_to_address(&recover(&sig.into(), &header.bare_hash())?);
+
+	if *header.author() != signer {
+		return Err(EngineError::NotAuthorized(*header.author()).into())
+	}
 
 	match validators.contains(header.parent_hash(), &signer) {
 		false => Err(BlockError::InvalidSeal.into()),

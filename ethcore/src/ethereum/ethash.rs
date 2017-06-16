@@ -106,7 +106,7 @@ impl From<ethjson::spec::EthashParams> for EthashParams {
 			difficulty_bound_divisor: p.difficulty_bound_divisor.into(),
 			difficulty_increment_divisor: p.difficulty_increment_divisor.map_or(10, Into::into),
 			metropolis_difficulty_increment_divisor: p.metropolis_difficulty_increment_divisor.map_or(9, Into::into),
-			duration_limit: p.duration_limit.into(),
+			duration_limit: p.duration_limit.map_or(0, Into::into),
 			block_reward: p.block_reward.into(),
 			registrar: p.registrar.map_or_else(Address::new, Into::into),
 			homestead_transition: p.homestead_transition.map_or(0, Into::into),

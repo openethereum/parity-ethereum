@@ -131,3 +131,8 @@
   padding: 0 4em 1.5em 4em;
   text-align: center;
 }
+
+.backupPhrase {
+  line-height: 1.618em;
+  margin-top: 1.5em;
+}

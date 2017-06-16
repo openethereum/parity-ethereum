@@ -26,7 +26,7 @@ use dir::{KeyDirectory, VaultKeyDirectory, VaultKey, SetKeyError};
 use account::SafeAccount;
 use presale::PresaleWallet;
 use json::{self, Uuid, OpaqueKeyFile};
-use {import, Error, SimpleSecretStore, SecretStore, SecretVaultRef, StoreAccountRef, Derivation};
+use {import, Error, SimpleSecretStore, SecretStore, SecretVaultRef, StoreAccountRef, Derivation, OpaqueSecret};
 
 /// Accounts store.
 pub struct EthStore {
@@ -140,6 +140,10 @@ impl SimpleSecretStore for EthStore {
 }
 
 impl SecretStore for EthStore {
+	fn raw_secret(&self, account: &StoreAccountRef, password: &str) -> Result<OpaqueSecret, Error> {
+		Ok(OpaqueSecret(self.get(account)?.crypto.secret(password)?))
+	}
+
 	fn import_presale(&self, vault: SecretVaultRef, json: &[u8], password: &str) -> Result<StoreAccountRef, Error> {
 		let json_wallet = json::PresaleWallet::load(json).map_err(|_| Error::InvalidKeyFile("Invalid JSON format".to_owned()))?;
 		let wallet = PresaleWallet::from(json_wallet);

@@ -17,7 +17,7 @@
 //! Interface for Evm externalities.
 
 use util::*;
-use evm::{self, Schedule};
+use evm::{self, Schedule, ReturnData};
 use env_info::*;
 use types::executed::CallType;
 
@@ -34,8 +34,8 @@ pub enum ContractCreateResult {
 /// Result of externalities call function.
 pub enum MessageCallResult {
 	/// Returned when message call was successfull.
-	/// Contains gas left.
-	Success(U256),
+	/// Contains gas left and output data.
+	Success(U256, ReturnData),
 	/// Returned when message call failed.
 	/// VM doesn't have to know the reason.
 	Failed
@@ -109,7 +109,7 @@ pub trait Ext {
 
 	/// Should be called when transaction calls `RETURN` opcode.
 	/// Returns gas_left if cost of returning the data is not too high.
-	fn ret(self, gas: &U256, data: &[u8]) -> evm::Result<U256> where Self: Sized;
+	fn ret(self, gas: &U256, data: &ReturnData) -> evm::Result<U256>;
 
 	/// Should be called when contract commits suicide.
 	/// Address to which funds should be refunded.
@@ -131,7 +131,7 @@ pub trait Ext {
 	fn inc_sstore_clears(&mut self);
 
 	/// Prepare to trace an operation. Passthrough for the VM trace.
-	fn trace_prepare_execute(&mut self, _pc: usize, _instruction: u8, _stack_pop: usize, _gas_cost: &U256) -> bool { false }
+	fn trace_prepare_execute(&mut self, _pc: usize, _instruction: u8, _gas_cost: &U256) -> bool { false }
 
 	/// Trace the finalised execution of a single instruction.
 	fn trace_executed(&mut self, _gas_used: U256, _stack_push: &[U256], _mem_diff: Option<(usize, &[u8])>, _store_diff: Option<(U256, U256)>) {}
