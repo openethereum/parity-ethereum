@@ -28,12 +28,12 @@ const LOGO_STYLE = {
   margin: '0 1.5em'
 };
 
-export default function FirstRun () {
+export default function Welcome () {
   return (
     <div className={ styles.welcome }>
       <img
         src={ imagesEthcore }
-        alt='Ethcore Ltd.'
+        alt='Parity Ltd.'
         style={ LOGO_STYLE }
       />
       <p>

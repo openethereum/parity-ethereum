@@ -40,6 +40,7 @@ export default class Input extends Component {
       PropTypes.bool,
       PropTypes.string
     ]),
+    allowPaste: PropTypes.bool,
     autoFocus: PropTypes.bool,
     children: PropTypes.node,
     className: PropTypes.string,
@@ -77,6 +78,7 @@ export default class Input extends Component {
 
   static defaultProps = {
     allowCopy: false,
+    allowPaste: true,
     escape: 'initial',
     onBlur: noop,
     onFocus: noop,
@@ -172,6 +174,12 @@ export default class Input extends Component {
   }
 
   onChange = (event, { value }) => {
+    if (!this.props.allowPaste) {
+      if (value.length - this.state.value.length > 8) {
+        return;
+      }
+    }
+
     event.persist();
 
     this.setValue(value, () => {

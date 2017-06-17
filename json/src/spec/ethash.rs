@@ -39,7 +39,7 @@ pub struct EthashParams {
 	pub metropolis_difficulty_increment_divisor: Option<Uint>,
 	/// See main EthashParams docs.
 	#[serde(rename="durationLimit")]
-	pub duration_limit: Uint,
+	pub duration_limit: Option<Uint>,
 	/// See main EthashParams docs.
 	#[serde(rename="blockReward")]
 	pub block_reward: Uint,
@@ -193,7 +193,7 @@ mod tests {
 				difficulty_bound_divisor: Uint(U256::from(0x0800)),
 				difficulty_increment_divisor: None,
 				metropolis_difficulty_increment_divisor: None,
-				duration_limit: Uint(U256::from(0x0d)),
+				duration_limit: Some(Uint(U256::from(0x0d))),
 				block_reward: Uint(U256::from(0x4563918244F40000u64)),
 				registrar: Some(Address(H160::from("0xc6d9d2cd449a754c494264e1809c50e34d64562b"))),
 				homestead_transition: Some(Uint(U256::from(0x42))),
@@ -248,7 +248,6 @@ mod tests {
 				"gasLimitBoundDivisor": "0x0400",
 				"minimumDifficulty": "0x020000",
 				"difficultyBoundDivisor": "0x0800",
-				"durationLimit": "0x0d",
 				"blockReward": "0x4563918244F40000"
 			}
 		}"#;
@@ -261,7 +260,7 @@ mod tests {
 				difficulty_bound_divisor: Uint(U256::from(0x0800)),
 				difficulty_increment_divisor: None,
 				metropolis_difficulty_increment_divisor: None,
-				duration_limit: Uint(U256::from(0x0d)),
+				duration_limit: None,
 				block_reward: Uint(U256::from(0x4563918244F40000u64)),
 				registrar: None,
 				homestead_transition: None,

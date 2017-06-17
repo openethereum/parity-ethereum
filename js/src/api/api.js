@@ -17,28 +17,24 @@
 import EventEmitter from 'eventemitter3';
 
 import Contract from './contract';
-import { PromiseWrapper, Http as HttpProvider, Ws as WsProvider } from './provider';
-import { Http as HttpTransport, Ws as WsTransport } from './transport';
+import { PromiseProvider, Http as HttpProvider, PostMessage as PostMessageProvider, WsSecure as WsSecureProvider } from './provider';
+import { Http as HttpTransport, WsSecure as WsSecureTransport } from './transport';
 
 import { Db, Eth, Parity, Net, Personal, Shh, Signer, Trace, Web3 } from './rpc';
 import Subscriptions from './subscriptions';
 import util from './util';
 import { isFunction } from './util/types';
-// import { LocalAccountsMiddleware } from './local';
+import { LocalAccountsMiddleware } from './local';
 
 export default class Api extends EventEmitter {
   constructor (provider, allowSubscriptions = true) {
     super();
 
-    if (!provider || (!isFunction(provider.send) && !isFunction(provider.execute))) {
-      throw new Error('Api needs provider with send() function');
-    }
-
-    if (!isFunction(provider.send)) {
+    if (!provider || !isFunction(provider.send)) {
       console.warn(new Error('deprecated: Api needs provider with send() function, old-style Transport found instead'));
     }
 
-    this._provider = new PromiseWrapper(provider);
+    this._provider = new PromiseProvider(provider);
 
     this._db = new Db(this._provider);
     this._eth = new Eth(this._provider);
@@ -59,9 +55,9 @@ export default class Api extends EventEmitter {
       const middleware = this.parity
         .nodeKind()
         .then((nodeKind) => {
-          // if (nodeKind.availability === 'public') {
-          //   return LocalAccountsMiddleware;
-          // }
+          if (nodeKind.availability === 'public') {
+            return LocalAccountsMiddleware;
+          }
 
           return null;
         })
@@ -171,12 +167,13 @@ export default class Api extends EventEmitter {
 
   static Provider = {
     Http: HttpProvider,
-    Ws: WsProvider
+    PostMessage: PostMessageProvider,
+    WsSecure: WsSecureProvider
   }
 
   // NOTE: kept for backwards compatibility
   static Transport = {
     Http: HttpTransport,
-    Ws: WsTransport
+    WsSecure: WsSecureTransport
   }
 }

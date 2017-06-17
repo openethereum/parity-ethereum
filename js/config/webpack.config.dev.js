@@ -93,7 +93,7 @@ module.exports = {
       // https://www.smashingmagazine.com/2016/08/a-glimpse-into-the-future-with-react-native-for-web/
       'react-native': 'react-native-web',
       '~': path.resolve(__dirname, '../src'),
-      '@parity/wordlist': path.resolve(__dirname, '../node_modules/@parity/wordlist'),
+      // '@parity/wordlist': path.resolve(__dirname, '../node_modules/@parity/wordlist'),
       '@parity': path.resolve(__dirname, '../src'),
     },
     plugins: [

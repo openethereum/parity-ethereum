@@ -25,6 +25,25 @@ const TEST_APP_HISTORY = [];
 let api;
 let component;
 let instance;
+let store;
+
+function createStore () {
+  store = {
+    dispatch: sinon.stub(),
+    subscribe: sinon.stub(),
+    getState: () => {
+      return {
+        nodeStatus: {
+          nodeKind: {
+            'availability': 'personal'
+          }
+        }
+      };
+    }
+  };
+
+  return store;
+}
 
 function createApi () {
   api = {
@@ -41,10 +60,14 @@ function render () {
     <Home />,
     {
       context: {
-        api: createApi()
+        store: createStore()
       }
     }
-  );
+  ).find('Home').shallow({
+    context: {
+      api: createApi()
+    }
+  });
   instance = component.instance();
 
   return component;

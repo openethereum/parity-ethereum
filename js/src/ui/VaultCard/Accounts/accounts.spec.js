@@ -16,16 +16,46 @@
 
 import { shallow } from 'enzyme';
 import React from 'react';
+import sinon from 'sinon';
 
 import Accounts from './';
 
 let component;
+let store;
+
+function createStore () {
+  store = {
+    dispatch: sinon.stub(),
+    subscribe: sinon.stub(),
+    getState: () => {
+      return {
+        settings: {
+          views: {
+            settings: { fixed: true }
+          }
+        },
+        nodeStatus: {
+          nodeKind: {
+            'availability': 'personal'
+          }
+        }
+      };
+    }
+  };
+
+  return store;
+}
 
 function render (props = {}) {
   component = shallow(
     <Accounts
       { ...props }
-    />
+    />,
+    {
+      context: {
+        store: createStore()
+      }
+    }
   );
 
   return component;

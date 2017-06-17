@@ -24,6 +24,7 @@ import injectTapEventPlugin from 'react-tap-event-plugin';
 import { IndexRoute, Redirect, Route, Router, hashHistory } from 'react-router';
 import qs from 'querystring';
 
+import Api from '@parity/api';
 import builtinDapps from '@parity/shared/config/dappsBuiltin.json';
 import viewsDapps from '@parity/shared/config/dappsViews.json';
 import ContractInstances from '@parity/shared/contracts';
@@ -38,6 +39,7 @@ import SecureApi from '~/secureApi';
 
 import Application from './Application';
 import Dapp from './Dapp';
+import { Store as DappFilterStore } from './DappFilter';
 import Dapps from './Dapps';
 
 es6Promise.polyfill();
@@ -64,17 +66,24 @@ const api = new SecureApi(uiUrl, token);
 patchApi(api);
 ContractInstances.get(api);
 
-const store = initStore(api, hashHistory);
+DappFilterStore.create(api.provider, {
+  filtered: [
+    'parity_hashContent'
+  ],
+  tokens: {}
+});
 
-window.secureApi = api;
+const store = initStore(api, hashHistory);
 
 const dapps = [].concat(viewsDapps, builtinDapps);
 
 const dappsHistory = HistoryStore.get('dapps');
 
-function onEnterDapp ({ params }) {
-  if (!dapps[params.id] || !dapps[params.id].skipHistory) {
-    dappsHistory.add(params.id);
+function onEnterDapp ({ params: { id } }) {
+  window.web3Provider = new Api.Provider.PostMessage(id, window);
+
+  if (!dapps[id] || !dapps[id].skipHistory) {
+    dappsHistory.add(id);
   }
 }
 

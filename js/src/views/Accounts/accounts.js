@@ -25,8 +25,8 @@ import { bindActionCreators } from 'redux';
 
 import HardwareStore from '@parity/shared/mobx/hardwareStore';
 import { setVisibleAccounts } from '@parity/shared/redux/providers/personalActions';
-import { Actionbar, ActionbarSearch, ActionbarSort, Button, Page } from '@parity/ui';
-import { AddIcon, FileDownloadIcon } from '@parity/ui/Icons';
+import { Actionbar, ActionbarSearch, ActionbarSort, Button, DappLink, Page } from '@parity/ui';
+import { AddIcon, KeyIcon, FileDownloadIcon } from '@parity/ui/Icons';
 
 import CreateWallet from './CreateWallet';
 import CreateAccount from './CreateAccount';
@@ -43,6 +43,7 @@ class Accounts extends Component {
   static propTypes = {
     accounts: PropTypes.object.isRequired,
     accountsInfo: PropTypes.object.isRequired,
+    availability: PropTypes.string.isRequired,
     hasAccounts: PropTypes.bool.isRequired,
     setVisibleAccounts: PropTypes.func.isRequired
   }
@@ -241,6 +242,7 @@ class Accounts extends Component {
 
   renderActionbar () {
     const buttons = [
+      this.renderVaultsButton(),
       <Button
         key='newAccount'
         icon={ <AddIcon /> }
@@ -252,17 +254,7 @@ class Accounts extends Component {
         }
         onClick={ this.onNewAccountClick }
       />,
-      <Button
-        key='newWallet'
-        icon={ <AddIcon /> }
-        label={
-          <FormattedMessage
-            id='accounts.button.newWallet'
-            defaultMessage='wallet'
-          />
-        }
-        onClick={ this.onNewWalletClick }
-      />,
+      this.renderNewWalletButton(),
       <Button
         key='restoreAccount'
         icon={ <AddIcon /> }
@@ -332,6 +324,50 @@ class Accounts extends Component {
         accounts={ accounts }
         onClose={ this.onRestoreAccountClose }
         restore
+      />
+    );
+  }
+
+  renderVaultsButton () {
+    if (this.props.availability !== 'personal') {
+      return null;
+    }
+
+    return (
+      <DappLink
+        to='/vaults'
+        key='vaults'
+      >
+        <Button
+          icon={ <KeyIcon /> }
+          label={
+            <FormattedMessage
+              id='accounts.button.vaults'
+              defaultMessage='vaults'
+            />
+          }
+          onClick={ this.onVaultsClick }
+        />
+      </DappLink>
+    );
+  }
+
+  renderNewWalletButton () {
+    if (this.props.availability !== 'personal') {
+      return null;
+    }
+
+    return (
+      <Button
+        key='newWallet'
+        icon={ <AddIcon /> }
+        label={
+          <FormattedMessage
+            id='accounts.button.newWallet'
+            defaultMessage='wallet'
+          />
+        }
+        onClick={ this.onNewWalletClick }
       />
     );
   }
@@ -440,10 +476,12 @@ class Accounts extends Component {
 
 function mapStateToProps (state) {
   const { accounts, accountsInfo, hasAccounts } = state.personal;
+  const { availability = 'unknown' } = state.nodeStatus.nodeKind || {};
 
   return {
     accounts,
     accountsInfo,
+    availability,
     hasAccounts
   };
 }

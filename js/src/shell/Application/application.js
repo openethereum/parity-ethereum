@@ -23,6 +23,7 @@ import { connect } from 'react-redux';
 import { Errors } from '@parity/ui';
 
 import Connection from '../Connection';
+import DappFilter from '../DappFilter';
 import Extension from '../Extension';
 import FirstRun from '../FirstRun';
 import ParityBar from '../ParityBar';
@@ -83,6 +84,7 @@ class Application extends Component {
             : null
         }
         <Connection />
+        <DappFilter />
         <Requests />
         <ParityBar dapp={ isMinimized } />
       </div>

@@ -16,10 +16,10 @@
 
 import { TEST_HTTP_URL, mockHttp } from '../../../../test/mockRpc';
 
-import { Http, PromiseWrapper } from '../../provider';
+import { Http, PromiseProvider } from '../../provider';
 import Db from './db';
 
-const instance = new Db(new PromiseWrapper(new Http(TEST_HTTP_URL, -1)));
+const instance = new Db(new PromiseProvider(new Http(TEST_HTTP_URL, -1)));
 
 describe('api/rpc/Db', () => {
   let scope;

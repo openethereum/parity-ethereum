@@ -14,8 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-const api = window.parity.api;
-const { bytesToHex, sha3, toWei, fromWei } = window.parity.api.util;
+import Api from '@parity/api';
+
+const web3Provider = (window.parity && window.parity.web3Provider) || (window.parent && window.parent.web3Provider);
+const api = new Api(web3Provider);
+const { bytesToHex, sha3, toWei, fromWei } = api.util;
 
 export {
   api,

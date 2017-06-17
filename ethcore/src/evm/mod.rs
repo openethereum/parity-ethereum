@@ -35,6 +35,7 @@ mod benches;
 
 pub use self::evm::{Evm, Error, Finalize, FinalizationResult, GasLeft, Result, CostType, ReturnData};
 pub use self::ext::{Ext, ContractCreateResult, MessageCallResult, CreateContractAddress};
+pub use self::instructions::{InstructionInfo, INSTRUCTIONS, push_bytes};
 pub use self::vmtype::VMType;
 pub use self::factory::Factory;
 pub use self::schedule::Schedule;

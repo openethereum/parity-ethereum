@@ -17,10 +17,10 @@
 import { TEST_HTTP_URL, mockHttp } from '../../../../test/mockRpc';
 import { isBigNumber } from '../../../../test/types';
 
-import { Http, PromiseWrapper } from '../../provider';
+import { Http, PromiseProvider } from '../../provider';
 import Net from './net';
 
-const instance = new Net(new PromiseWrapper(new Http(TEST_HTTP_URL, -1)));
+const instance = new Net(new PromiseProvider(new Http(TEST_HTTP_URL, -1)));
 
 describe('api/rpc/Net', () => {
   describe('peerCount', () => {

@@ -16,8 +16,7 @@
     "version": "0.3",
     "author": "Gav Wood <gavin@parity.io>",
     "position": "top-right",
-    "visible": true,
-    "secure": true
+    "visible": true
   },
   {
     "id": "0xf9f2d620c2e08f83e45555247146c62185e4ab7cf82a4b9002a265a0d020348f",
@@ -44,8 +43,7 @@
     "description": "A registry of transactable tokens on the network",
     "author": "Parity Team <admin@parity.io>",
     "version": "1.0.0",
-    "visible": true,
-    "secure": true
+    "visible": true
   },
   {
     "id": "0xf49089046f53f5d2e5f3513c1c32f5ff57d986e46309a42d2b249070e4e72c46",
@@ -64,7 +62,7 @@
     "author": "Parity Team <admin@parity.io>",
     "version": "1.0.0",
     "visible": false,
-    "secure": true
+    "onlyPersonal": true
   },
   {
     "id": "0xae74ad174b95cdbd01c88ac5b73a296d33e9088fc2a200e76bcedf3a94a7815d",
@@ -73,8 +71,7 @@
     "description": "Have a peek at the internals of your node's transaction queue",
     "author": "Parity Team <admin@parity.io>",
     "version": "1.0.0",
-    "visible": true,
-    "secure": true
+    "visible": true
   },
   {
     "id": "0x7bbc4f1a27628781b96213e781a1b8eec6982c1db8fac739af6e4c5a55862c03",
@@ -83,8 +80,7 @@
     "description": "Enables the registration and content management of dapps on the network",
     "author": "Parity Team <admin@parity.io>",
     "version": "1.0.0",
-    "visible": false,
-    "secure": true
+    "visible": false
   },
   {
     "id": "0x9042323cd85c6576992d211de34b3ecc183f15e4f639aa87859882f839c374e5",
@@ -95,6 +91,7 @@
     "version": "1.0.0",
     "visible": true,
     "skipBuild": true,
-    "skipHistory": true
+    "skipHistory": true,
+    "onlyPersonal": true
   }
 ]

@@ -29,7 +29,8 @@ import styles from './views.css';
 class Views extends Component {
   static propTypes = {
     settings: PropTypes.object.isRequired,
-    toggleView: PropTypes.func.isRequired
+    toggleView: PropTypes.func.isRequired,
+    availability: PropTypes.string.isRequired
   }
 
   render () {
@@ -74,7 +75,7 @@ class Views extends Component {
                 />,
                 <FormattedMessage
                   id='settings.views.apps.description'
-                  defaultMessage='Distributed applications that interact with the underlying network. Add applications, manage you application portfolio and interact with application from around the network.'
+                  defaultMessage='Decentralized applications that interact with the underlying network. Add applications, manage you application portfolio and interact with application from around the network.'
                 />
               )
             }
@@ -100,6 +101,10 @@ class Views extends Component {
 
     const toggle = () => toggleView(id);
     const view = settings.views[id];
+
+    if (view.onlyPersonal && this.props.availability !== 'personal') {
+      return null;
+    }
 
     return (
       <div className={ styles.view } key={ id }>
@@ -129,8 +134,9 @@ class Views extends Component {
 
 function mapStateToProps (state) {
   const { settings } = state;
+  const { availability = 'unknown' } = state.nodeStatus.nodeKind || {};
 
-  return { settings };
+  return { settings, availability };
 }
 
 function mapDispatchToProps (dispatch) {

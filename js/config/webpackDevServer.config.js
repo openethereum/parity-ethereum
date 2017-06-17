@@ -97,10 +97,9 @@ module.exports = function(proxy, allowedHost) {
 function addProxies (app) {
   const proxy = require('http-proxy-middleware');
 
-  app.use('/api', proxy({
-    target: 'http://127.0.0.1:8180',
+  app.use('/parity-utils', proxy({
+    target: 'http://127.0.0.1:3000',
     changeOrigin: true,
-    autoRewrite: true
   }));
 
   app.use('/app', proxy({

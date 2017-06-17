@@ -25,8 +25,8 @@ import { Actionbar, Button, Checkbox, DappCard, Page, SectionList } from '@parit
 import { LockedIcon, VisibleIcon } from '@parity/ui/Icons';
 
 import DappsVisible from '../DappsVisible';
-import DappPermissions from '../DappPermissions';
-import PermissionStore from '../DappPermissions/store';
+import DappAccounts from '../DappAccounts';
+import PermissionStore from '../DappAccounts/store';
 
 import DappsStore from './dappsStore';
 
@@ -36,10 +36,11 @@ import styles from './dapps.css';
 class Dapps extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
-  }
+  };
 
   static propTypes = {
-    accounts: PropTypes.object.isRequired
+    accounts: PropTypes.object.isRequired,
+    availability: PropTypes.string.isRequired
   };
 
   store = DappsStore.get(this.context.api);
@@ -80,7 +81,7 @@ class Dapps extends Component {
 
     return (
       <div>
-        <DappPermissions permissionStore={ this.permissionStore } />
+        <DappAccounts permissionStore={ this.permissionStore } />
         <DappsVisible store={ this.store } />
         <Actionbar
           className={ styles.toolbar }
@@ -104,11 +105,11 @@ class Dapps extends Component {
             />,
             <Button
               icon={ <LockedIcon /> }
-              key='permissions'
+              key='accounts'
               label={
                 <FormattedMessage
-                  id='dapps.button.permissions'
-                  defaultMessage='permissions'
+                  id='dapps.button.accounts'
+                  defaultMessage='visible accounts'
                 />
               }
               onClick={ this.openPermissionsModal }
@@ -136,6 +137,10 @@ class Dapps extends Component {
   }
 
   renderApp = (app) => {
+    if (app.onlyPersonal && this.props.availability !== 'personal') {
+      return null;
+    }
+
     return (
       <DappCard
         app={ app }
@@ -159,6 +164,7 @@ class Dapps extends Component {
 
 function mapStateToProps (state) {
   const { accounts } = state.personal;
+  const { availability = 'unknown' } = state.nodeStatus.nodeKind || {};
 
   /**
    * Do not show the Wallet Accounts in the Dapps
@@ -168,7 +174,8 @@ function mapStateToProps (state) {
   const _accounts = omitBy(accounts, (account) => account.wallet);
 
   return {
-    accounts: _accounts
+    accounts: _accounts,
+    availability
   };
 }
 

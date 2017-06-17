@@ -22,7 +22,7 @@ import injectTapEventPlugin from 'react-tap-event-plugin';
 import { initStore } from '@parity/shared/redux';
 import ContextProvider from '@parity/ui/ContextProvider';
 
-import { api } from './parity';
+import api from './api';
 
 import ContractDevelop from './contractDevelop';
 

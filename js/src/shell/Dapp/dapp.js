@@ -127,6 +127,9 @@ export default class Dapp extends Component {
       hash = `#/${params.details}`;
     }
 
+    console.log("SRC", src);
+    console.log("HASH", hash);
+
     return (
       <iframe
         className={ styles.frame }
