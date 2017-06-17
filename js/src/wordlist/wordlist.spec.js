@@ -33,10 +33,9 @@ describe('wordlist', () => {
     it('creates random phrase of specified length', () => {
       expect(phrase.length).to.equal(12);
     });
-    
+
     it('creates random phrase that was converted to array', () => {
       expect(Array.isArray(phrase)).to.be.true;
     });
   });
-
 });
