@@ -16,6 +16,6 @@
 
 export default {
   tooltip: {
-    overview: `navigeer tussen de verschillende onderdelen en weergaven in de applicatie, wissel tussen de account weergave, token weergave en gedistribueerde applicatie weergave`
+    overview: `navigeer tussen de verschillende onderdelen en weergaven in de applicatie, wissel tussen de account weergave, token weergave en decentrale applicatie weergave`
   }
 };

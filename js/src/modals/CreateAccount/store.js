@@ -24,6 +24,7 @@ const FAKEPATH = 'C:\\fakepath\\';
 const STAGE_SELECT_TYPE = 0;
 const STAGE_CREATE = 1;
 const STAGE_INFO = 2;
+const STAGE_CONFIRM_BACKUP = 3;
 
 export default class Store {
   @observable accounts = null;
@@ -41,6 +42,8 @@ export default class Store {
   @observable passwordHint = '';
   @observable passwordRepeat = '';
   @observable phrase = '';
+  @observable backupPhraseAddress = null;
+  @observable phraseBackedUp = '';
   @observable qrAddress = null;
   @observable rawKey = '';
   @observable rawKeyError = ERRORS.nokey;
@@ -70,7 +73,7 @@ export default class Store {
         return !(this.nameError || this.walletFileError);
 
       case 'fromNew':
-        return !(this.nameError || this.passwordRepeatError) && this.hasAddress;
+        return !(this.nameError || this.passwordRepeatError) && this.hasAddress && this.hasPhrase;
 
       case 'fromPhrase':
         return !(this.nameError || this.passwordRepeatError || this.passPhraseError);
@@ -94,10 +97,26 @@ export default class Store {
     return !!(this.address);
   }
 
+  @computed get hasPhrase () {
+    return this.phrase.length !== 0;
+  }
+
   @computed get passwordRepeatError () {
     return this.password === this.passwordRepeat
       ? null
       : ERRORS.noMatchPassword;
+  }
+
+  @computed get backupPhraseError () {
+    return !this.backupPhraseAddress || this.address === this.backupPhraseAddress
+      ? null
+      : ERRORS.noMatchBackupPhrase;
+  }
+
+  @computed get phraseBackedUpError () {
+    return this.phraseBackedUp === 'I have written down the phrase'
+      ? null
+      : ERRORS.noMatchPhraseBackedUp;
   }
 
   @computed get qrAddressValid () {
@@ -105,14 +124,24 @@ export default class Store {
     return this._api.util.isAddressValid(this.qrAddress);
   }
 
+  @action clearPhrase = () => {
+    transaction(() => {
+      this.phrase = '';
+      this.phraseBackedUp = '';
+    });
+  }
+
   @action clearErrors = () => {
     transaction(() => {
+      this.address = '';
       this.description = '';
       this.password = '';
       this.passwordRepeat = '';
       this.phrase = '';
+      this.backupPhraseAddress = null;
+      this.phraseBackedUp = '';
       this.name = '';
-      this.nameError = null;
+      this.nameError = ERRORS.noName;
       this.qrAddress = null;
       this.rawKey = '';
       this.rawKeyError = null;
@@ -188,6 +217,26 @@ export default class Store {
     });
   }
 
+  @action setBackupPhraseAddress = (address) => {
+    this.backupPhraseAddress = address;
+  }
+
+  @action computeBackupPhraseAddress = () => {
+    return this._api.parity.phraseToAddress(this.phrase)
+      .then(address => {
+        this.setBackupPhraseAddress(address);
+        return address !== this.address;
+      })
+      .catch((error) => {
+        console.error('createAccount', error);
+        throw error;
+      });
+  }
+
+  @action setPhraseBackedUp = (backedUp) => {
+    this.phraseBackedUp = backedUp;
+  }
+
   @action setPassword = (password) => {
     this.password = password;
   }
@@ -213,6 +262,7 @@ export default class Store {
       .filter((part) => part.length);
 
     this.phrase = phraseParts.join(' ');
+    this.backupPhraseAddress = null;
   }
 
   @action setRawKey = (rawKey) => {
@@ -250,6 +300,10 @@ export default class Store {
   }
 
   @action nextStage = () => {
+    if (this.stage === 0) {
+      this.clearErrors();
+    }
+
     this.stage++;
   }
 
@@ -258,6 +312,10 @@ export default class Store {
   }
 
   createAccount = (vaultStore) => {
+    if (!this.canCreate) {
+      return false;
+    }
+
     this.setBusy(true);
 
     return this
@@ -448,7 +506,8 @@ export default class Store {
 }
 
 export {
-  STAGE_CREATE,
   STAGE_INFO,
+  STAGE_CONFIRM_BACKUP,
+  STAGE_CREATE,
   STAGE_SELECT_TYPE
 };

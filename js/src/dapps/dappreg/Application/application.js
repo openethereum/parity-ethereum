@@ -42,7 +42,7 @@ export default class Application extends Component {
     return (
       <div className={ styles.body }>
         <div className={ styles.header }>
-          DAPP REGISTRY, a global view of distributed applications available on the network. Putting the puzzle together.
+          DAPP REGISTRY, a global view of decentralized applications available on the network. Putting the puzzle together.
         </div>
 
         <div>

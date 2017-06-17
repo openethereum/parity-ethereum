@@ -54,6 +54,9 @@
 //! }
 //! ```
 
+//TODO: use Poll from mio
+#![allow(deprecated)]
+
 extern crate mio;
 #[macro_use]
 extern crate log as rlog;

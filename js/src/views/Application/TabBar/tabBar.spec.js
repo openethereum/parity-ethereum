@@ -33,6 +33,11 @@ function createStore () {
           views: {
             settings: { fixed: true }
           }
+        },
+        nodeStatus: {
+          nodeKind: {
+            'availability': 'personal'
+          }
         }
       };
     }

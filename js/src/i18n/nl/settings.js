@@ -69,7 +69,7 @@ export default {
       label: `Adresboek`
     },
     apps: {
-      description: `Gedistibueerde applicaties die gebruik maken van het onderliggende Ethereum netwerk. Voeg applicaties toe, beheer je applicatie portfolio en maak gebruik van applicaties op het wereldwijde netwerk.`,
+      description: `Decentrale applicaties die gebruik maken van het onderliggende Ethereum netwerk. Voeg applicaties toe, beheer je applicatie portfolio en maak gebruik van applicaties op het wereldwijde netwerk.`,
       label: `Applicaties`
     },
     contracts: {
@@ -85,7 +85,7 @@ export default {
       label: `Instellingen`
     },
     signer: {
-      description: `Het beveiligde transactie beheergebied van de applicatie waar je elke uitgaande transactie die je hebt gemaakt met Parity evenals de transacties die in de wachtrij zijn geplaatst door gedistribueerde applicaties kan goedkeuren.`,
+      description: `Het beveiligde transactie beheergebied van de applicatie waar je goedkeuring kunt verlenen aan elke uitgaande transactie die je hebt gemaakt met Parity evenals de transacties die in de wachtrij zijn geplaatst door decentrale applicaties.`,
       label: `Signer`
     },
     status: {

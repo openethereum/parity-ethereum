@@ -55,9 +55,19 @@ impl<S: core::Middleware<Metadata>> PubSubClient<S> {
 		);
 
 		PubSubClient {
-			poll_manager: poll_manager,
-			remote: remote,
+			poll_manager,
+			remote,
 		}
+	}
+}
+
+impl PubSubClient<core::NoopMiddleware> {
+	/// Creates new `PubSubClient` with deterministic ids.
+	#[cfg(test)]
+	pub fn new_test(rpc: MetaIoHandler<Metadata, core::NoopMiddleware>, remote: Remote) -> Self {
+		let client = Self::new(MetaIoHandler::with_middleware(Default::default()), remote);
+		*client.poll_manager.write() = GenericPollManager::new_test(rpc);
+		client
 	}
 }
 
@@ -72,13 +82,7 @@ impl<S: core::Middleware<Metadata>> PubSub for PubSubClient<S> {
 		let (id, receiver) = poll_manager.subscribe(meta, method, params);
 		match subscriber.assign_id(id.clone()) {
 			Ok(sink) => {
-				self.remote.spawn(receiver.map(|res| match res {
-					Ok(val) => val,
-					Err(error) => {
-						warn!(target: "pubsub", "Subscription error: {:?}", error);
-						core::Value::Null
-					},
-				}).forward(sink.sink_map_err(|e| {
+				self.remote.spawn(receiver.forward(sink.sink_map_err(|e| {
 					warn!("Cannot send notification: {:?}", e);
 				})).map(|_| ()));
 			},
