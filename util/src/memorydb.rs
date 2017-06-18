@@ -103,11 +103,7 @@ impl MemoryDB {
 
 	/// Purge all zero-referenced data from the database.
 	pub fn purge(&mut self) {
-		let empties: Vec<_> = self.data.iter()
-			.filter(|&(_, &(_, rc))| rc == 0)
-			.map(|(k, _)| k.clone())
-			.collect();
-		for empty in empties { self.data.remove(&empty); }
+		self.data.retain(|_, &mut (_, rc)| rc != 0);
 	}
 
 	/// Return the internal map of hashes to data, clearing the current state.
