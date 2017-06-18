@@ -346,14 +346,23 @@ dependencies = [
 
 [[package]]
 name = "ethabi"
-version = "1.0.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
+version = "1.1.0"
 dependencies = [
- "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde 0.9.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde_derive 0.9.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde_json 0.9.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rustc-hex 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde 1.0.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_derive 1.0.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_json 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "tiny-keccak 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "ethabi-cli"
+version = "1.1.0"
+dependencies = [
+ "docopt 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethabi 1.1.0",
+ "rustc-hex 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -377,7 +386,7 @@ dependencies = [
  "clippy 0.0.103 (registry+https://github.com/rust-lang/crates.io-index)",
  "crossbeam 0.2.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethabi 1.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethabi 1.1.0",
  "ethash 1.7.0",
  "ethcore-bloom-journal 0.1.0",
  "ethcore-devtools 1.7.0",
@@ -581,7 +590,7 @@ name = "ethcore-secretstore"
 version = "1.0.0"
 dependencies = [
  "byteorder 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethabi 1.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethabi 1.1.0",
  "ethcore 1.7.0",
  "ethcore-devtools 1.7.0",
  "ethcore-ipc 1.7.0",
@@ -1359,7 +1368,7 @@ dependencies = [
 name = "native-contract-generator"
 version = "0.1.0"
 dependencies = [
- "ethabi 1.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethabi 1.1.0",
  "heck 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -1368,7 +1377,7 @@ name = "native-contracts"
 version = "0.1.0"
 dependencies = [
  "byteorder 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethabi 1.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethabi 1.1.0",
  "ethcore-util 1.7.0",
  "futures 0.1.11 (registry+https://github.com/rust-lang/crates.io-index)",
  "native-contract-generator 0.1.0",
@@ -1652,7 +1661,7 @@ dependencies = [
 name = "parity-hash-fetch"
 version = "1.7.0"
 dependencies = [
- "ethabi 1.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethabi 1.1.0",
  "ethcore-util 1.7.0",
  "fetch 0.1.0",
  "futures 0.1.11 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1812,7 +1821,7 @@ dependencies = [
 name = "parity-updater"
 version = "1.7.0"
 dependencies = [
- "ethabi 1.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethabi 1.1.0",
  "ethcore 1.7.0",
  "ethcore-ipc 1.7.0",
  "ethcore-ipc-codegen 1.7.0",
@@ -2174,6 +2183,11 @@ dependencies = [
 ]
 
 [[package]]
+name = "rustc-hex"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
 name = "rustc-serialize"
 version = "0.3.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2324,6 +2338,17 @@ dependencies = [
  "itoa 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "num-traits 0.1.32 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 0.9.6 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "serde_json"
+version = "1.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "dtoa 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "itoa 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "num-traits 0.1.32 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde 1.0.4 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -2897,7 +2922,6 @@ dependencies = [
 "checksum elastic-array 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)" = "561b1b1bb58e6d9212b75a28cca442f8a87cceb35cb1b6d6f39f5df5346a9160"
 "checksum env_logger 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)" = "e3856f1697098606fc6cb97a93de88ca3f3bc35bb878c725920e6e82ecf05e83"
 "checksum eth-secp256k1 0.5.6 (git+https://github.com/paritytech/rust-secp256k1)" = "<none>"
-"checksum ethabi 1.0.5 (registry+https://github.com/rust-lang/crates.io-index)" = "65f71b9ac0b0f8e6230d32dbf5acf7c2c61334af1148175d0a7e72b14c3d475e"
 "checksum fdlimit 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "b1ee15a7050e5580b3712877157068ea713b245b080ff302ae2ca973cfcd9baa"
 "checksum flate2 0.2.14 (registry+https://github.com/rust-lang/crates.io-index)" = "3eeb481e957304178d2e782f2da1257f1434dfecbae883bafb61ada2a9fea3bb"
 "checksum fnv 1.0.5 (registry+https://github.com/rust-lang/crates.io-index)" = "6cc484842f1e2884faf56f529f960cc12ad8c71ce96cc7abba0a067c98fee344"
@@ -3017,6 +3041,7 @@ dependencies = [
 "checksum rpassword 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "5d3a99497c5c544e629cc8b359ae5ede321eba5fa8e5a8078f3ced727a976c3f"
 "checksum rpassword 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)" = "ab6e42be826e215f30ff830904f8f4a0933c6e2ae890e1af8b408f5bae60081e"
 "checksum rust-crypto 0.2.36 (registry+https://github.com/rust-lang/crates.io-index)" = "f76d05d3993fd5f4af9434e8e436db163a12a9d40e1a58a726f27a01dfd12a2a"
+"checksum rustc-hex 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "0ceb8ce7a5e520de349e1fa172baeba4a9e8d5ef06c47471863530bc4972ee1e"
 "checksum rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)" = "6159e4e6e559c81bd706afe9c8fd68f547d3e851ce12e76b1de7914bab61691b"
 "checksum rustc_version 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)" = "c5f5376ea5e30ce23c03eb77cbe4962b988deead10910c372b226388b594c084"
 "checksum rustc_version 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "1e114e275f7c9b5d50bb52b28f9aac1921209f02aa6077c8b255e21eefaf8ffa"
@@ -3036,6 +3061,7 @@ dependencies = [
 "checksum serde_derive 1.0.4 (registry+https://github.com/rust-lang/crates.io-index)" = "9fd81eef9f0b4ec341b11095335b6a4b28ed85581b12dd27585dee1529df35e0"
 "checksum serde_derive_internals 0.15.0 (registry+https://github.com/rust-lang/crates.io-index)" = "021c338d22c7e30f957a6ab7e388cb6098499dda9fd4ba1661ee074ca7a180d1"
 "checksum serde_json 0.9.5 (registry+https://github.com/rust-lang/crates.io-index)" = "cf37ce931677e98b4fa5e6469aaa3ab4b6228309ea33b1b22d3ec055adfc4515"
+"checksum serde_json 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)" = "48b04779552e92037212c3615370f6bd57a40ebba7f20e554ff9f55e41a69a7b"
 "checksum serde_urlencoded 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)" = "a81f15da4b9780e1524697f73b09076b6e42298ef673bead9ca8f848b334ef84"
 "checksum sha1 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "cc30b1e1e8c40c121ca33b86c23308a090d19974ef001b4bf6e61fd1a0fb095c"
 "checksum shell32-sys 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "72f20b8f3c060374edb8046591ba28f62448c369ccbdc7b02075103fb3a9e38d"

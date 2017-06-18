@@ -7,7 +7,6 @@ version = "1.7.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
-ethabi = "1.0"
 futures = "0.1"
 log = "0.3"
 mime = "0.2"
@@ -15,6 +14,7 @@ mime_guess = "1.6.1"
 rand = "0.3"
 rustc-serialize = "0.3"
 fetch = { path = "../util/fetch" }
+ethabi = { path = "../ethabi" }
 ethcore-util = { path = "../util" }
 parity-reactor = { path = "../util/reactor" }
 native-contracts = { path = "../ethcore/native_contracts" }

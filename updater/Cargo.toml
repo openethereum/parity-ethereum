@@ -11,8 +11,8 @@ ethcore-ipc-codegen = { path = "../ipc/codegen" }
 
 [dependencies]
 log = "0.3"
-ethabi = "1.0"
 target_info = "0.1"
+ethabi = { path = "../ethabi" }
 ethcore = { path = "../ethcore" }
 ethsync = { path = "../sync" }
 ethcore-util = { path = "../util" }

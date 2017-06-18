@@ -104,3 +104,4 @@ lto = false
 panic = "abort"
 
 [workspace]
+members = ["ethabi/cli"]
