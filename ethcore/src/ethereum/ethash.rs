@@ -255,13 +255,13 @@ impl Engine for Arc<Ethash> {
 
 	fn on_new_block(&self, block: &mut ExecutedBlock, last_hashes: Arc<LastHashes>) -> Result<(), Error> {
 		let parent_hash = block.fields().header.parent_hash().clone();
-		try!(::engines::common::push_last_hash(block, last_hashes, self, &parent_hash));
+		::engines::common::push_last_hash(block, last_hashes, self, &parent_hash)?;
 		if block.fields().header.number() == self.ethash_params.dao_hardfork_transition {
 			let state = block.fields_mut().state;
 			for child in &self.ethash_params.dao_hardfork_accounts {
 				let beneficiary = &self.ethash_params.dao_hardfork_beneficiary;
-				try!(state.balance(child)
-					.and_then(|b| state.transfer_balance(child, beneficiary, &b, CleanupMode::NoEmpty)));
+				state.balance(child)
+					.and_then(|b| state.transfer_balance(child, beneficiary, &b, CleanupMode::NoEmpty))?;
 			}
 		}
 		Ok(())
