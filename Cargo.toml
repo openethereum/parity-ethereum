@@ -40,7 +40,6 @@ ethcore-light = { path = "ethcore/light" }
 ethcore-logger = { path = "logger" }
 ethcore-stratum = { path = "stratum" }
 ethkey = { path = "ethkey" }
-evmbin = { path = "evmbin" }
 rlp = { path = "util/rlp" }
 rpc-cli = { path = "rpc_cli" }
 parity-hash-fetch = { path = "hash-fetch" }
@@ -102,4 +101,4 @@ lto = false
 panic = "abort"
 
 [workspace]
-members = ["ethstore/cli", "ethkey/cli"]
+members = ["ethstore/cli", "ethkey/cli", "evmbin"]
