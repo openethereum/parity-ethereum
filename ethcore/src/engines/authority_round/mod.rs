@@ -153,6 +153,7 @@ impl EpochManager {
 			return true;
 		}
 
+		self.force = false;
 		debug!(target: "engine", "Zooming to epoch for block {}", header.hash());
 
 		// epoch_transition_for can be an expensive call, but in the absence of
@@ -617,9 +618,11 @@ impl Engine for AuthorityRound {
 			// TODO: use epochmanager to get correct validator set for reporting?
 			// or just rely on the fact that in general these will be the same
 			// and some reports might go missing?
+			trace!(target: "engine", "Author {} built block with step gap. current step: {}, parent step: {}",
+				header.author(), step, parent_step);
+
 			for s in parent_step + 1..step {
 				let skipped_primary = step_proposer(&*self.validators, &parent.hash(), s);
-				trace!(target: "engine", "Author {} did not build his block on top of the intermediate designated primary {}.", header.author(), skipped_primary);
 				self.validators.report_benign(&skipped_primary, header.number(), header.number());
 			}
 		}
