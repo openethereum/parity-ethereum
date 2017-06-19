@@ -546,4 +546,21 @@ mod tests {
 			_ => panic!("Expected bloom to be recognized."),
 		};
 	}
+
+	#[test]
+	fn initial_contract_is_signal() {
+		use header::Header;
+		use engines::{EpochChange, Proof};
+
+		let client = generate_dummy_client_with_spec_and_accounts(Spec::new_validator_safe_contract, None);
+		let engine = client.engine().clone();
+
+		let mut new_header = Header::default();
+		new_header.set_number(0); // so the validator set doesn't look for a log
+
+		match engine.signals_epoch_end(&new_header, None, None) {
+			EpochChange::Yes(Proof::WithState(_)) => {},
+			_ => panic!("Expected state to be required to prove initial signal"),
+		};
+	}
 }

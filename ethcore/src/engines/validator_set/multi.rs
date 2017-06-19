@@ -142,14 +142,19 @@ impl ValidatorSet for Multi {
 
 #[cfg(test)]
 mod tests {
-	use util::*;
-	use types::ids::BlockId;
-	use spec::Spec;
 	use account_provider::AccountProvider;
 	use client::{BlockChainClient, EngineClient};
+	use engines::EpochChange;
+	use engines::validator_set::ValidatorSet;
 	use ethkey::Secret;
+	use header::Header;
 	use miner::MinerService;
+	use spec::Spec;
 	use tests::helpers::{generate_dummy_client_with_spec_and_accounts, generate_dummy_client_with_spec_and_data};
+	use types::ids::BlockId;
+	use util::*;
+
+	use super::Multi;
 
 	#[test]
 	fn uses_current_set() {
@@ -194,5 +199,40 @@ mod tests {
 		}
 		sync_client.flush_queue();
 		assert_eq!(sync_client.chain_info().best_block_number, 3);
+	}
+
+	#[test]
+	fn transition_to_fixed_list_instant() {
+		use super::super::SimpleList;
+
+		let mut map: BTreeMap<_, Box<ValidatorSet>> = BTreeMap::new();
+		let list1: Vec<_> = (0..10).map(|_| Address::random()).collect();
+		let list2 = {
+			let mut list = list1.clone();
+			list.push(Address::random());
+			list
+		};
+
+		map.insert(0, Box::new(SimpleList::new(list1)));
+		map.insert(500, Box::new(SimpleList::new(list2)));
+
+		let multi = Multi::new(map);
+
+		let mut header = Header::new();
+		header.set_number(499);
+
+		match multi.signals_epoch_end(false, &header, None, None) {
+			EpochChange::No => {},
+			_ => panic!("Expected no epoch signal change."),
+		}
+		assert!(multi.is_epoch_end(false, &header).is_none());
+
+		header.set_number(500);
+
+		match multi.signals_epoch_end(false, &header, None, None) {
+			EpochChange::No => {},
+			_ => panic!("Expected no epoch signal change."),
+		}
+		assert!(multi.is_epoch_end(false, &header).is_some());
 	}
 }

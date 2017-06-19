@@ -80,7 +80,6 @@ impl ValidatorSet for SimpleList {
 		::engines::EpochChange::No
 	}
 
-
 	fn epoch_set(&self, _first: bool, _: &Engine, _: BlockNumber, _: &[u8]) -> Result<(SimpleList, Option<H256>), ::error::Error> {
 		Ok((self.clone(), None))
 	}
