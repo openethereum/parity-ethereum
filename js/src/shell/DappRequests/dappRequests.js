@@ -19,9 +19,9 @@ import React from 'react';
 
 import Request from './Request';
 import Store from './store';
-import styles from './dappFilter.css';
+import styles from './dappRequests.css';
 
-function DappFilter () {
+function DappRequests () {
   const store = Store.get();
 
   if (!store || !store.hasRequests) {
@@ -29,9 +29,9 @@ function DappFilter () {
   }
 
   return (
-    <div className={ styles.filter }>
+    <div className={ styles.requests }>
       {
-        store.requests.map(({ queueId, request: { data } }) => (
+        store.squashedRequests.map(({ queueId, request: { data } }) => (
           <Request
             className={ styles.request }
             approveRequest={ store.approveRequest }
@@ -46,4 +46,4 @@ function DappFilter () {
   );
 }
 
-export default observer(DappFilter);
+export default observer(DappRequests);

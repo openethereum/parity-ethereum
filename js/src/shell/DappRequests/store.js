@@ -16,14 +16,16 @@
 
 import { action, computed, observable } from 'mobx';
 
+import filteredRequests from './filteredRequests';
+import MethodsStore from '../DappMethods/store';
+
 let nextQueueId = 0;
 
 export default class Store {
-  @observable permissions = [];
+  @observable methodsStore = MethodsStore.get();
   @observable requests = [];
 
-  constructor (provider, permissions) {
-    this.permissions = permissions;
+  constructor (provider) {
     this.provider = provider;
 
     window.addEventListener('message', this.receiveMessage, false);
@@ -31,6 +33,21 @@ export default class Store {
 
   @computed get hasRequests () {
     return this.requests.length !== 0;
+  }
+
+  @computed get squashedRequests () {
+    const duplicates = {};
+
+    return this.requests.filter(({ request: { data: { method, token } } }) => {
+      const id = `${token}:${method}`;
+
+      if (!duplicates[id]) {
+        duplicates[id] = true;
+        return true;
+      }
+
+      return false;
+    });
   }
 
   @action removeRequest = (_queueId) => {
@@ -55,7 +72,8 @@ export default class Store {
       const { request: { data: { method, token } } } = queued;
       const requests = this.findMatchingRequests(method, token);
 
-      this.addTokenPermission(method, token);
+      // TODO: Use single-use token, map back to app name
+      this.methodsStore.addMethodPermission(method, token);
       requests.forEach(this.approveSingleRequest);
     } else {
       this.approveSingleRequest(queued);
@@ -73,14 +91,6 @@ export default class Store {
       result: null,
       token
     }, '*');
-  }
-
-  @action addTokenPermission = (method, token) => {
-    this.permissions.tokens[token] = Object.assign({ [method]: true }, this.permissions.tokens[token] || {});
-  }
-
-  @action setPermissions = (permissions) => {
-    this.permissions = permissions;
   }
 
   findRequest (_queueId) {
@@ -112,11 +122,12 @@ export default class Store {
       return;
     }
 
-    if (this.permissions.filtered.includes(method)) {
-      if (!this.permissions.tokens[token] || !this.permissions.tokens[token][method]) {
-        this.queueRequest({ data, origin, source });
-        return;
-      }
+    const filterId = `${method}:${token}`;
+
+    // TODO: Use single-use token, map back to app name
+    if (filteredRequests[method] && !this.methodsStore.permissions[filterId]) {
+      this.queueRequest({ data, origin, source });
+      return;
     }
 
     this.executeOnProvider(data, source);
@@ -124,8 +135,12 @@ export default class Store {
 
   static instance = null;
 
-  static create (provider, permissions) {
-    Store.instance = new Store(provider, permissions);
+  static create (provider) {
+    if (!Store.instance) {
+      Store.instance = new Store(provider, {});
+    }
+
+    return Store.instance;
   }
 
   static get () {

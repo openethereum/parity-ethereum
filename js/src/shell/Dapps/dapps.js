@@ -21,11 +21,13 @@ import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 
 import { Actionbar, Button, Checkbox, DappCard, Page, SectionList } from '@parity/ui';
-import { LockedIcon, VisibleIcon } from '@parity/ui/Icons';
+import { LockedIcon, MethodsIcon, VisibleIcon } from '@parity/ui/Icons';
 
-import DappsVisible from '../DappsVisible';
 import DappAccounts from '../DappAccounts';
 import PermissionStore from '../DappAccounts/store';
+import DappMethods from '../DappMethods';
+import MethodsStore from '../DappMethods/store';
+import DappsVisible from '../DappsVisible';
 
 import DappsStore from './dappsStore';
 
@@ -43,6 +45,7 @@ class Dapps extends Component {
   };
 
   store = DappsStore.get(this.context.api);
+  methodsStore = MethodsStore.get();
   permissionStore = new PermissionStore(this.context.api);
 
   componentWillMount () {
@@ -81,6 +84,10 @@ class Dapps extends Component {
     return (
       <div>
         <DappAccounts permissionStore={ this.permissionStore } />
+        <DappMethods
+          methodsStore={ this.methodsStore }
+          visibleStore={ this.store }
+        />
         <DappsVisible store={ this.store } />
         <Actionbar
           className={ styles.toolbar }
@@ -97,7 +104,7 @@ class Dapps extends Component {
               label={
                 <FormattedMessage
                   id='dapps.button.edit'
-                  defaultMessage='edit'
+                  defaultMessage='edit applications'
                 />
               }
               onClick={ this.store.openModal }
@@ -108,10 +115,21 @@ class Dapps extends Component {
               label={
                 <FormattedMessage
                   id='dapps.button.accounts'
-                  defaultMessage='visible accounts'
+                  defaultMessage='allowed accounts'
                 />
               }
               onClick={ this.openPermissionsModal }
+            />,
+            <Button
+              icon={ <MethodsIcon /> }
+              key='methods'
+              label={
+                <FormattedMessage
+                  id='dapps.button.methods'
+                  defaultMessage='allowed methods'
+                />
+              }
+              onClick={ this.methodsStore.openModal }
             />
           ] }
         />

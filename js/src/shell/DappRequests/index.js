@@ -14,5 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export Store from './store';
-export default from './dappFilter';
+import Store from './store';
+
+export function setupProviderFilters (provider) {
+  return Store.create(provider);
+}
+
+export default from './dappRequests';
