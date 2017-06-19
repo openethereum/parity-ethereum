@@ -16,14 +16,16 @@
 
 import { action, computed, observable } from 'mobx';
 
+import filteredRequests from './filteredRequests';
+
 let nextQueueId = 0;
 
 export default class Store {
-  @observable permissions = [];
+  @observable tokens = {};
   @observable requests = [];
 
-  constructor (provider, permissions) {
-    this.permissions = permissions;
+  constructor (provider, tokens) {
+    this.tokens = tokens;
     this.provider = provider;
 
     window.addEventListener('message', this.receiveMessage, false);
@@ -76,11 +78,11 @@ export default class Store {
   }
 
   @action addTokenPermission = (method, token) => {
-    this.permissions.tokens[token] = Object.assign({ [method]: true }, this.permissions.tokens[token] || {});
+    this.tokens[token] = Object.assign({ [method]: true }, this.tokens[token] || {});
   }
 
-  @action setPermissions = (permissions) => {
-    this.permissions = permissions;
+  @action setTokenPermissions = (tokens) => {
+    this.tokens = tokens;
   }
 
   findRequest (_queueId) {
@@ -112,8 +114,8 @@ export default class Store {
       return;
     }
 
-    if (this.permissions.filtered.includes(method)) {
-      if (!this.permissions.tokens[token] || !this.permissions.tokens[token][method]) {
+    if (filteredRequests[method]) {
+      if (!this.tokens[token] || !this.tokens[token][method]) {
         this.queueRequest({ data, origin, source });
         return;
       }
@@ -124,8 +126,12 @@ export default class Store {
 
   static instance = null;
 
-  static create (provider, permissions) {
-    Store.instance = new Store(provider, permissions);
+  static create (provider) {
+    if (!Store.instance) {
+      Store.instance = new Store(provider, {});
+    }
+
+    return Store.instance;
   }
 
   static get () {
