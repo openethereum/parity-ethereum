@@ -27,7 +27,7 @@ export default function Request ({ className, approveRequest, denyRequest, queue
   return (
     <div className={ className }>
       <FormattedMessage
-        id='dappFilter.request.info'
+        id='dappRequests.request.info'
         defaultMessage='Received request for {method} from {from}'
         values={ {
           from,
@@ -37,7 +37,7 @@ export default function Request ({ className, approveRequest, denyRequest, queue
       <Button
         label={
           <FormattedMessage
-            id='dappFilter.request.buttons.approve'
+            id='dappRequests.request.buttons.approve'
             defaultMessage='Approve'
           />
         }
@@ -46,7 +46,7 @@ export default function Request ({ className, approveRequest, denyRequest, queue
       <Button
         label={
           <FormattedMessage
-            id='dappFilter.request.buttons.approveAll'
+            id='dappRequests.request.buttons.approveAll'
             defaultMessage='Approve All'
           />
         }
@@ -55,7 +55,7 @@ export default function Request ({ className, approveRequest, denyRequest, queue
       <Button
         label={
           <FormattedMessage
-            id='dappFilter.request.buttons.reject'
+            id='dappRequests.request.buttons.reject'
             defaultMessage='Reject'
           />
         }

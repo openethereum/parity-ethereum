@@ -41,7 +41,7 @@ import SecureApi from '~/secureApi';
 
 import Application from './Application';
 import Dapp from './Dapp';
-import { setupProviderFilters } from './DappFilter';
+import { setupProviderFilters } from './DappRequests';
 import Dapps from './Dapps';
 
 injectTapEventPlugin();

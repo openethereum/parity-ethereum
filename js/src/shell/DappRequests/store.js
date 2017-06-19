@@ -21,11 +21,11 @@ import filteredRequests from './filteredRequests';
 let nextQueueId = 0;
 
 export default class Store {
-  @observable tokens = {};
+  @observable permissions = {};
   @observable requests = [];
 
-  constructor (provider, tokens) {
-    this.tokens = tokens;
+  constructor (provider, permissions) {
+    this.permissions = permissions;
     this.provider = provider;
 
     window.addEventListener('message', this.receiveMessage, false);
@@ -93,11 +93,11 @@ export default class Store {
   }
 
   @action addTokenPermission = (method, token) => {
-    this.tokens[token] = Object.assign({ [method]: true }, this.tokens[token] || {});
+    this.permissions[token] = Object.assign({}, this.permissions[token] || {}, { [method]: true });
   }
 
-  @action setTokenPermissions = (tokens) => {
-    this.tokens = tokens;
+  @action setTokenPermissions = (permissions) => {
+    this.permissions = permissions;
   }
 
   findRequest (_queueId) {
@@ -130,7 +130,7 @@ export default class Store {
     }
 
     if (filteredRequests[method]) {
-      if (!this.tokens[token] || !this.tokens[token][method]) {
+      if (!this.permissions[token] || !this.permissions[token][method]) {
         this.queueRequest({ data, origin, source });
         return;
       }

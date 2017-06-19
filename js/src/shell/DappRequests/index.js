@@ -14,36 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { observer } from 'mobx-react';
-import React from 'react';
-
-import Request from './Request';
 import Store from './store';
-import styles from './dappFilter.css';
 
-function DappFilter () {
-  const store = Store.get();
-
-  if (!store || !store.hasRequests) {
-    return null;
-  }
-
-  return (
-    <div className={ styles.filter }>
-      {
-        store.squashedRequests.map(({ queueId, request: { data } }) => (
-          <Request
-            className={ styles.request }
-            approveRequest={ store.approveRequest }
-            denyRequest={ store.rejectRequest }
-            key={ queueId }
-            queueId={ queueId }
-            request={ data }
-          />
-        ))
-      }
-    </div>
-  );
+export function setupProviderFilters (provider) {
+  return Store.create(provider);
 }
 
-export default observer(DappFilter);
+export default from './dappRequests';
