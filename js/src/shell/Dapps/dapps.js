@@ -84,7 +84,10 @@ class Dapps extends Component {
     return (
       <div>
         <DappAccounts permissionStore={ this.permissionStore } />
-        <DappMethods store={ this.methodsStore } />
+        <DappMethods
+          methodsStore={ this.methodsStore }
+          visibleStore={ this.store }
+        />
         <DappsVisible store={ this.store } />
         <Actionbar
           className={ styles.toolbar }

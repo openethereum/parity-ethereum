@@ -14,28 +14,27 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { action, observable } from 'mobx';
+import React, { PropTypes } from 'react';
 
-import filteredRequests from '../DappRequests/filteredRequests';
+import { CheckboxTickedIcon, CheckboxUntickedIcon } from '@parity/ui/Icons';
 
-export default class Store {
-  @observable filteredRequests = Object.keys(filteredRequests);
-  @observable modalOpen = false;
-  @observable permissions = {};
+export default function MethodCheck ({ checked, dappId, method, onToggle }) {
+  const _onClick = () => onToggle(method, dappId);
 
-  @action closeModal = () => {
-    this.modalOpen = false;
-  }
-
-  @action openModal = () => {
-    this.modalOpen = true;
-  }
-
-  @action toggleMethod = (method, dappId) => {
-    const id = `${method}:${dappId}`;
-
-    this.permissions = Object.assign({}, this.permissions, {
-      [id]: !this.permissions[id]
-    });
-  }
+  return (
+    <div onClick={ _onClick }>
+      {
+        checked
+          ? <CheckboxTickedIcon />
+          : <CheckboxUntickedIcon />
+      }
+    </div>
+  );
 }
+
+MethodCheck.propTypes = {
+  checked: PropTypes.bool.isRequired,
+  dappId: PropTypes.string.isRequired,
+  method: PropTypes.string.isRequired,
+  onToggle: PropTypes.func.isRequired
+};

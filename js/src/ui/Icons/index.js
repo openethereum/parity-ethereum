@@ -25,6 +25,8 @@ export const AttachFileIcon = (props) => <Icon name='attach' { ...props } />;
 export const BackgroundIcon = (props) => <Icon name='image' { ...props } />;
 export const CancelIcon = (props) => <Icon name='cancel' { ...props } />;
 export const CheckIcon = (props) => <Icon name='check' { ...props } />;
+export const CheckboxTickedIcon = (props) => <Icon name='check circle outline' { ...props } />;
+export const CheckboxUntickedIcon = (props) => <Icon name='radio' { ...props } />;
 export const CloseIcon = (props) => <Icon name='close' { ...props } />;
 export const CompareIcon = (props) => <Icon name='exchange' { ...props } />;
 export const ComputerIcon = (props) => <Icon name='desktop' { ...props } />;

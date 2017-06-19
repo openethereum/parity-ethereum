@@ -14,28 +14,4 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { action, observable } from 'mobx';
-
-import filteredRequests from '../DappRequests/filteredRequests';
-
-export default class Store {
-  @observable filteredRequests = Object.keys(filteredRequests);
-  @observable modalOpen = false;
-  @observable permissions = {};
-
-  @action closeModal = () => {
-    this.modalOpen = false;
-  }
-
-  @action openModal = () => {
-    this.modalOpen = true;
-  }
-
-  @action toggleMethod = (method, dappId) => {
-    const id = `${method}:${dappId}`;
-
-    this.permissions = Object.assign({}, this.permissions, {
-      [id]: !this.permissions[id]
-    });
-  }
-}
+export default from './MethodCheck';

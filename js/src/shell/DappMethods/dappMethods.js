@@ -20,25 +20,27 @@ import { FormattedMessage } from 'react-intl';
 
 import { Portal } from '@parity/ui';
 
+import MethodCheck from './MethodCheck';
 import styles from './dappMethods.css';
 
 @observer
 export default class DappsMethods extends Component {
   static propTypes = {
-    store: PropTypes.object.isRequired
+    methodsStore: PropTypes.object.isRequired,
+    visibleStore: PropTypes.object.isRequired
   };
 
   render () {
-    const { store } = this.props;
+    const { methodsStore, visibleStore } = this.props;
 
-    if (!store.modalOpen) {
+    if (!methodsStore.modalOpen) {
       return null;
     }
 
     return (
       <Portal
         className={ styles.modal }
-        onClose={ store.closeModal }
+        onClose={ methodsStore.closeModal }
         open
         title={
           <FormattedMessage
@@ -47,7 +49,46 @@ export default class DappsMethods extends Component {
           />
         }
       >
-        hello...
+        <table>
+          <thead>
+            <tr>
+              <th>&nbsp;</th>
+              {
+                methodsStore.filteredRequests.map((method, requestIndex) => (
+                  <th key={ requestIndex }>
+                    <div>
+                      <span>{ method }</span>
+                    </div>
+                  </th>
+                ))
+              }
+            </tr>
+          </thead>
+          <tbody>
+            {
+              visibleStore.visibleApps.map(({ id, name }, dappIndex) => (
+                <tr key={ dappIndex }>
+                  <td>{ name }</td>
+                  {
+                    methodsStore.filteredRequests.map((method, requestIndex) => (
+                      <td
+                        className={ styles.check }
+                        key={ `${dappIndex}_${requestIndex}` }
+                      >
+                        <MethodCheck
+                          checked={ methodsStore.permissions[`${method}:${id}`] || false }
+                          dappId={ id }
+                          method={ method }
+                          onToggle={ methodsStore.toggleMethod }
+                        />
+                      </td>
+                    ))
+                  }
+                </tr>
+              ))
+            }
+          </tbody>
+        </table>
       </Portal>
     );
   }
