@@ -51,6 +51,7 @@ export const LinkIcon = (props) => <Icon name='linkify' { ...props } />;
 export const ListIcon = (props) => <Icon name='list ul' { ...props } />;
 export const LockedIcon = (props) => <Icon name='unlock alternate' { ...props } />;
 export const MembershipIcon = (props) => <Icon name='id card outline' { ...props } />;
+export const MethodsIcon = (props) => <Icon name='map signs' { ...props } />;
 export const MoveIcon = (props) => <Icon name='move' { ...props } />;
 export const NextIcon = (props) => <Icon name='chevron right' { ...props } />;
 export const PauseIcon = (props) => <Icon name='pause' { ...props } />;
