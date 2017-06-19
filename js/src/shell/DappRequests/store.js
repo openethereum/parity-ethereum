@@ -72,6 +72,7 @@ export default class Store {
       const { request: { data: { method, token } } } = queued;
       const requests = this.findMatchingRequests(method, token);
 
+      // TODO: Use single-use token, map back to app name
       this.methodsStore.addMethodPermission(method, token);
       requests.forEach(this.approveSingleRequest);
     } else {
@@ -123,6 +124,7 @@ export default class Store {
 
     const filterId = `${method}:${token}`;
 
+    // TODO: Use single-use token, map back to app name
     if (filteredRequests[method] && !this.methodsStore.permissions[filterId]) {
       this.queueRequest({ data, origin, source });
       return;
