@@ -31,7 +31,7 @@
     "react-copy-to-clipboard": "4.2.3",
     "react-datetime": "2.8.10",
     "react-dropzone": "3.7.3",
-    "react-event-listener": "0.4.1",
+    "react-event-listener": "^0.4.0",
     "react-portal": "3.0.0",
     "react-qr-reader": "1.0.3",
     "recharts": "0.15.2",
