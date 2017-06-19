@@ -19,9 +19,7 @@ use util::{Address, HashMap};
 use builtin::Builtin;
 use engines::{Engine, Seal};
 use spec::CommonParams;
-use evm::Schedule;
 use block::ExecutedBlock;
-use header::BlockNumber;
 
 /// An engine which does not provide any consensus mechanism, just seals blocks internally.
 pub struct InstantSeal {
@@ -56,11 +54,6 @@ impl Engine for InstantSeal {
 
 	fn builtins(&self) -> &BTreeMap<Address, Builtin> {
 		&self.builtins
-	}
-
-	fn schedule(&self, block_number: BlockNumber) -> Schedule {
-		let eip86 = block_number >= self.params.eip86_transition;
-		Schedule::new_post_eip150(usize::max_value(), true, true, true, eip86)
 	}
 
 	fn seals_internally(&self) -> Option<bool> { Some(true) }

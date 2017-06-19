@@ -195,13 +195,13 @@ impl Engine for Arc<Ethash> {
 		} else if block_number < self.ethash_params.eip150_transition {
 			Schedule::new_homestead()
 		} else {
-			Schedule::new_post_eip150(
+			let mut schedule = Schedule::new_post_eip150(
 				self.ethash_params.max_code_size as usize,
 				block_number >= self.ethash_params.eip160_transition,
 				block_number >= self.ethash_params.eip161abc_transition,
-				block_number >= self.ethash_params.eip161d_transition,
-				block_number >= self.params.eip86_transition
-			)
+				block_number >= self.ethash_params.eip161d_transition);
+			schedule.apply_params(block_number, self.params());
+			schedule
 		}
 	}
 
@@ -259,13 +259,13 @@ impl Engine for Arc<Ethash> {
 		_begins_epoch: bool,
 	) -> Result<(), Error> {
 		let parent_hash = block.fields().header.parent_hash().clone();
-		try!(::engines::common::push_last_hash(block, last_hashes, self, &parent_hash));
+		::engines::common::push_last_hash(block, last_hashes, self, &parent_hash)?;
 		if block.fields().header.number() == self.ethash_params.dao_hardfork_transition {
 			let state = block.fields_mut().state;
 			for child in &self.ethash_params.dao_hardfork_accounts {
 				let beneficiary = &self.ethash_params.dao_hardfork_beneficiary;
-				try!(state.balance(child)
-					.and_then(|b| state.transfer_balance(child, beneficiary, &b, CleanupMode::NoEmpty)));
+				state.balance(child)
+					.and_then(|b| state.transfer_balance(child, beneficiary, &b, CleanupMode::NoEmpty))?;
 			}
 		}
 		Ok(())

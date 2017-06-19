@@ -296,6 +296,7 @@ mod test {
 		assert!(check_vault_name("vault_with_underscores"));
 		assert!(check_vault_name("vault-with-dashes"));
 		assert!(check_vault_name("vault-with-digits-123"));
+		assert!(check_vault_name("vault中文名字"));
 	}
 
 	#[test]

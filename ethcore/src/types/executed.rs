@@ -36,6 +36,8 @@ pub enum CallType {
 	CallCode,
 	/// DELEGATECALL.
 	DelegateCall,
+	/// STATICCALL
+	StaticCall,
 }
 
 impl Encodable for CallType {
@@ -45,6 +47,7 @@ impl Encodable for CallType {
 			CallType::Call => 1,
 			CallType::CallCode => 2,
 			CallType::DelegateCall => 3,
+			CallType::StaticCall => 4,
 		};
 		Encodable::rlp_append(&v, s);
 	}
@@ -57,6 +60,7 @@ impl Decodable for CallType {
 			1 => CallType::Call,
 			2 => CallType::CallCode,
 			3 => CallType::DelegateCall,
+			4 => CallType::StaticCall,
 			_ => return Err(DecoderError::Custom("Invalid value of CallType item")),
 		}))
 	}
@@ -145,6 +149,8 @@ pub enum ExecutionError {
 		/// Actual balance.
 		got: U512
 	},
+	/// When execution tries to modify the state in static context
+	MutableCallInStaticContext,
 	/// Returned when internal evm error occurs.
 	Internal(String),
 	/// Returned when generic transaction occurs
@@ -172,6 +178,7 @@ impl fmt::Display for ExecutionError {
 			NotEnoughCash { ref required, ref got } =>
 				format!("Cost of transaction exceeds sender balance. {} is required \
 					but the sender only has {}", required, got),
+			MutableCallInStaticContext => "Mutable Call in static context".to_owned(),
 			Internal(ref msg) => msg.clone(),
 			TransactionMalformed(ref err) => format!("Malformed transaction: {}", err),
 		};

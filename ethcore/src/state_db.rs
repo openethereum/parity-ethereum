@@ -477,7 +477,7 @@ mod tests {
 		let mut batch = DBTransaction::new();
 
 		// blocks  [ 3a(c) 2a(c) 2b 1b 1a(c) 0 ]
-	    // balance [ 5     5     4  3  2     2 ]
+		// balance [ 5     5     4  3  2     2 ]
 		let mut s = state_db.boxed_clone_canon(&root_parent);
 		s.add_to_account_cache(address, Some(Account::new_basic(2.into(), 0.into())), false);
 		s.journal_under(&mut batch, 0, &h0).unwrap();

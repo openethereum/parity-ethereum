@@ -27,7 +27,6 @@ use client::{Client, EngineClient};
 use engines::{Call, Engine, Seal, EngineError, ConstructedVerifier};
 use error::{Error, TransactionError, BlockError};
 use ethjson;
-use evm::Schedule;
 use header::{Header, BlockNumber};
 use spec::CommonParams;
 use state::CleanupMode;
@@ -454,11 +453,6 @@ impl Engine for AuthorityRound {
 			"step".into() => header_step(header).as_ref().map(ToString::to_string).unwrap_or("".into()),
 			"signature".into() => header_signature(header).as_ref().map(ToString::to_string).unwrap_or("".into())
 		]
-	}
-
-	fn schedule(&self, block_number: BlockNumber) -> Schedule {
-		let eip86 = block_number >= self.params.eip86_transition;
-		Schedule::new_post_eip150(usize::max_value(), true, true, true, eip86)
 	}
 
 	fn populate_from_parent(&self, header: &mut Header, parent: &Header, gas_floor_target: U256, _gas_ceil_target: U256) {

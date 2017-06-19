@@ -87,28 +87,28 @@ impl Default for Schedule {
 }
 
 impl Ext for FakeExt {
-	fn storage_at(&self, key: &H256) -> trie::Result<H256> {
+	fn storage_at(&self, key: &H256) -> evm::Result<H256> {
 		Ok(self.store.get(key).unwrap_or(&H256::new()).clone())
 	}
 
-	fn set_storage(&mut self, key: H256, value: H256) -> trie::Result<()> {
+	fn set_storage(&mut self, key: H256, value: H256) -> evm::Result<()> {
 		self.store.insert(key, value);
 		Ok(())
 	}
 
-	fn exists(&self, address: &Address) -> trie::Result<bool> {
+	fn exists(&self, address: &Address) -> evm::Result<bool> {
 		Ok(self.balances.contains_key(address))
 	}
 
-	fn exists_and_not_null(&self, address: &Address) -> trie::Result<bool> {
+	fn exists_and_not_null(&self, address: &Address) -> evm::Result<bool> {
 		Ok(self.balances.get(address).map_or(false, |b| !b.is_zero()))
 	}
 
-	fn origin_balance(&self) -> trie::Result<U256> {
+	fn origin_balance(&self) -> evm::Result<U256> {
 		unimplemented!()
 	}
 
-	fn balance(&self, address: &Address) -> trie::Result<U256> {
+	fn balance(&self, address: &Address) -> evm::Result<U256> {
 		Ok(self.balances[address])
 	}
 
@@ -152,26 +152,27 @@ impl Ext for FakeExt {
 		MessageCallResult::Success(*gas, ReturnData::empty())
 	}
 
-	fn extcode(&self, address: &Address) -> trie::Result<Arc<Bytes>> {
+	fn extcode(&self, address: &Address) -> evm::Result<Arc<Bytes>> {
 		Ok(self.codes.get(address).unwrap_or(&Arc::new(Bytes::new())).clone())
 	}
 
-	fn extcodesize(&self, address: &Address) -> trie::Result<usize> {
+	fn extcodesize(&self, address: &Address) -> evm::Result<usize> {
 		Ok(self.codes.get(address).map_or(0, |c| c.len()))
 	}
 
-	fn log(&mut self, topics: Vec<H256>, data: &[u8]) {
+	fn log(&mut self, topics: Vec<H256>, data: &[u8]) -> evm::Result<()> {
 		self.logs.push(FakeLogEntry {
 			topics: topics,
 			data: data.to_vec()
 		});
+		Ok(())
 	}
 
 	fn ret(self, _gas: &U256, _data: &ReturnData) -> evm::Result<U256> {
 		unimplemented!();
 	}
 
-	fn suicide(&mut self, _refund_address: &Address) -> trie::Result<()> {
+	fn suicide(&mut self, _refund_address: &Address) -> evm::Result<()> {
 		unimplemented!();
 	}
 

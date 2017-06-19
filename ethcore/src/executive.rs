@@ -76,6 +76,7 @@ pub struct Executive<'a, B: 'a + StateBackend, E: 'a + Engine + ?Sized> {
 	info: &'a EnvInfo,
 	engine: &'a E,
 	depth: usize,
+	static_flag: bool,
 }
 
 impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
@@ -86,16 +87,18 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 			info: info,
 			engine: engine,
 			depth: 0,
+			static_flag: false,
 		}
 	}
 
 	/// Populates executive from parent properties. Increments executive depth.
-	pub fn from_parent(state: &'a mut State<B>, info: &'a EnvInfo, engine: &'a E, parent_depth: usize) -> Self {
+	pub fn from_parent(state: &'a mut State<B>, info: &'a EnvInfo, engine: &'a E, parent_depth: usize, static_flag: bool) -> Self {
 		Executive {
 			state: state,
 			info: info,
 			engine: engine,
 			depth: parent_depth + 1,
+			static_flag: static_flag,
 		}
 	}
 
@@ -106,9 +109,11 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 		substate: &'any mut Substate,
 		output: OutputPolicy<'any, 'any>,
 		tracer: &'any mut T,
-		vm_tracer: &'any mut V
+		vm_tracer: &'any mut V,
+		static_call: bool,
 	) -> Externalities<'any, T, V, B, E> where T: Tracer, V: VMTracer {
-		Externalities::new(self.state, self.info, self.engine, self.depth, origin_info, substate, output, tracer, vm_tracer)
+		let is_static = self.static_flag || static_call;
+		Externalities::new(self.state, self.info, self.engine, self.depth, origin_info, substate, output, tracer, vm_tracer, is_static)
 	}
 
 	/// This function should be used to execute transaction.
@@ -246,11 +251,12 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 	) -> evm::Result<FinalizationResult> where T: Tracer, V: VMTracer {
 
 		let depth_threshold = ::io::LOCAL_STACK_SIZE.with(|sz| sz.get() / STACK_SIZE_PER_DEPTH);
+		let static_call = params.call_type == CallType::StaticCall;
 
 		// Ordinary execution - keep VM in same thread
 		if (self.depth + 1) % depth_threshold != 0 {
 			let vm_factory = self.state.vm_factory();
-			let mut ext = self.as_externalities(OriginInfo::from(&params), unconfirmed_substate, output_policy, tracer, vm_tracer);
+			let mut ext = self.as_externalities(OriginInfo::from(&params), unconfirmed_substate, output_policy, tracer, vm_tracer, static_call);
 			trace!(target: "executive", "ext.schedule.have_delegate_call: {}", ext.schedule().have_delegate_call);
 			return vm_factory.create(params.gas).exec(params, &mut ext).finalize(ext);
 		}
@@ -260,7 +266,7 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 		// https://github.com/aturon/crossbeam/issues/16
 		crossbeam::scope(|scope| {
 			let vm_factory = self.state.vm_factory();
-			let mut ext = self.as_externalities(OriginInfo::from(&params), unconfirmed_substate, output_policy, tracer, vm_tracer);
+			let mut ext = self.as_externalities(OriginInfo::from(&params), unconfirmed_substate, output_policy, tracer, vm_tracer, static_call);
 
 			scope.spawn(move || {
 				vm_factory.create(params.gas).exec(params, &mut ext).finalize(ext)
@@ -280,6 +286,15 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 		tracer: &mut T,
 		vm_tracer: &mut V
 	) -> evm::Result<(U256, ReturnData)> where T: Tracer, V: VMTracer {
+
+		trace!("Executive::call(params={:?}) self.env_info={:?}", params, self.info);
+		if (params.call_type == CallType::StaticCall ||
+				((params.call_type == CallType::Call || params.call_type == CallType::DelegateCall) &&
+				 self.static_flag))
+			&& params.value.value() > 0.into() {
+			return Err(evm::Error::MutableCallInStaticContext);
+		}
+
 		// backup used in case of running out of gas
 		self.state.checkpoint();
 
@@ -289,7 +304,6 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 		if let ActionValue::Transfer(val) = params.value {
 			self.state.transfer_balance(&params.sender, &params.address, &val, substate.to_cleanup_mode(&schedule))?;
 		}
-		trace!("Executive::call(params={:?}) self.env_info={:?}", params, self.info);
 
 		// if destination is builtin, try to execute it
 		if let Some(builtin) = self.engine.builtin(&params.code_address, self.info.number) {
@@ -401,6 +415,12 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 		let scheme = self.engine.create_address_scheme(self.info.number);
 		if scheme != CreateContractAddress::FromSenderAndNonce && self.state.exists_and_has_code(&params.address)? {
 			return Err(evm::Error::OutOfGas);
+		}
+
+		if params.call_type == CallType::StaticCall || self.static_flag {
+			let trace_info = tracer.prepare_trace_create(&params);
+			tracer.trace_failed_create(trace_info, vec![], evm::Error::MutableCallInStaticContext.into());
+			return Err(evm::Error::MutableCallInStaticContext);
 		}
 
 		// backup used in case of running out of gas
@@ -541,6 +561,7 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 				| Err(evm::Error::StackUnderflow {..})
 				| Err(evm::Error::BuiltIn {..})
 				| Err(evm::Error::OutOfStack {..})
+				| Err(evm::Error::MutableCallInStaticContext)
 				| Ok(FinalizationResult { apply_state: false, .. }) => {
 					self.state.revert_to_checkpoint();
 			},
