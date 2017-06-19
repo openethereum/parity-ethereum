@@ -35,6 +35,21 @@ export default class Store {
     return this.requests.length !== 0;
   }
 
+  @computed get squashedRequests () {
+    const duplicates = {};
+
+    return this.requests.filter(({ request: { data: { method, token } } }) => {
+      const id = `${token}:${method}`;
+
+      if (!duplicates[id]) {
+        duplicates[id] = true;
+        return true;
+      }
+
+      return false;
+    });
+  }
+
   @action removeRequest = (_queueId) => {
     this.requests = this.requests.filter(({ queueId }) => queueId !== _queueId);
   }

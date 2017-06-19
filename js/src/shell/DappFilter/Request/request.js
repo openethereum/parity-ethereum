@@ -28,7 +28,7 @@ export default function Request ({ className, approveRequest, denyRequest, queue
     <div className={ className }>
       <FormattedMessage
         id='dappFilter.request.info'
-        defaultMessage='Received request from {method} from {from}'
+        defaultMessage='Received request for {method} from {from}'
         values={ {
           from,
           method

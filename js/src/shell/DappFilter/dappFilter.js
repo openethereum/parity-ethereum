@@ -31,7 +31,7 @@ function DappFilter () {
   return (
     <div className={ styles.filter }>
       {
-        store.requests.map(({ queueId, request: { data } }) => (
+        store.squashedRequests.map(({ queueId, request: { data } }) => (
           <Request
             className={ styles.request }
             approveRequest={ store.approveRequest }
