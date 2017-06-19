@@ -62,7 +62,8 @@ pub enum Error {
 	},
 	/// Built-in contract failed on given input
 	BuiltIn(&'static str),
-	/// Returned on evm internal error. Should never be ignored during development.
+	/// When execution tries to modify the state in static context
+	MutableCallInStaticContext,
 	/// Likely to cause consensus issues.
 	Internal(String),
 }
@@ -90,6 +91,7 @@ impl fmt::Display for Error {
 			OutOfStack { instruction, wanted, limit } => write!(f, "Out of stack {} {}/{}", instruction, wanted, limit),
 			BuiltIn(name) => write!(f, "Built-in failed: {}", name),
 			Internal(ref msg) => write!(f, "Internal error: {}", msg),
+			MutableCallInStaticContext => write!(f, "Mutable call in static context"),
 		}
 	}
 }

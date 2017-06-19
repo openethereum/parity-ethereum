@@ -196,13 +196,13 @@ impl Engine for Arc<Ethash> {
 		} else if block_number < self.ethash_params.eip150_transition {
 			Schedule::new_homestead()
 		} else {
-			Schedule::new_post_eip150(
+			let mut schedule = Schedule::new_post_eip150(
 				self.ethash_params.max_code_size as usize,
 				block_number >= self.ethash_params.eip160_transition,
 				block_number >= self.ethash_params.eip161abc_transition,
-				block_number >= self.ethash_params.eip161d_transition,
-				block_number >= self.params.eip86_transition
-			)
+				block_number >= self.ethash_params.eip161d_transition);
+			schedule.apply_params(block_number, self.params());
+			schedule
 		}
 	}
 
