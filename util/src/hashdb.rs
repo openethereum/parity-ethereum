@@ -86,7 +86,7 @@ pub trait HashDB: AsHashDB + Send + Sync {
 	fn emplace(&mut self, key: H256, value: DBValue);
 
 	/// Remove a datum previously inserted. Insertions can be "owed" such that the same number of `insert()`s may
-	/// happen without the data being eventually being inserted into the DB.
+	/// happen without the data being eventually being inserted into the DB. It can be "owed" more than once.
 	///
 	/// # Examples
 	/// ```rust
@@ -99,6 +99,10 @@ pub trait HashDB: AsHashDB + Send + Sync {
 	///   let d = "Hello world!".as_bytes();
 	///   let key = &d.sha3();
 	///   m.remove(key);	// OK - we now owe an insertion.
+	///   assert!(!m.contains(key));
+	///   m.remove(key);	// OK - we now owe two insertions.
+	///   assert!(!m.contains(key));
+	///   m.insert(d);	// OK - still owed.
 	///   assert!(!m.contains(key));
 	///   m.insert(d);	// OK - now it's "empty" again.
 	///   assert!(!m.contains(key));

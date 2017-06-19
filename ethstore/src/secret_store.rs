@@ -20,6 +20,7 @@ use ethkey::{Address, Message, Signature, Secret, Public};
 use Error;
 use json::{Uuid, OpaqueKeyFile};
 use bigint::hash::H256;
+use OpaqueSecret;
 
 /// Key directory reference
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -88,6 +89,15 @@ pub trait SimpleSecretStore: Send + Sync {
 
 /// Secret Store API
 pub trait SecretStore: SimpleSecretStore {
+
+	/// Returns a raw opaque Secret that can be later used to sign a message.
+	fn raw_secret(&self, account: &StoreAccountRef, password: &str) -> Result<OpaqueSecret, Error>;
+
+	/// Signs a message with raw secret.
+	fn sign_with_secret(&self, secret: &OpaqueSecret, message: &Message) -> Result<Signature, Error> {
+		Ok(::ethkey::sign(&secret.0, message)?)
+	}
+
 	/// Imports presale wallet
 	fn import_presale(&self, vault: SecretVaultRef, json: &[u8], password: &str) -> Result<StoreAccountRef, Error>;
 	/// Imports existing JSON wallet
