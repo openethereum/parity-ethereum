@@ -38,7 +38,7 @@ use super::simple_list::SimpleList;
 const MEMOIZE_CAPACITY: usize = 500;
 
 // TODO: ethabi should be able to generate this.
-const EVENT_NAME: &'static [u8] = &*b"ValidatorsChanged(bytes32,address[])";
+const EVENT_NAME: &'static [u8] = &*b"InitiateChange(bytes32,address[])";
 
 lazy_static! {
 	static ref EVENT_NAME_HASH: H256 = EVENT_NAME.sha3();
@@ -178,8 +178,8 @@ impl ValidatorSafeContract {
 		};
 
 		let event = Provider::contract(&self.provider)
-			.event("ValidatorsChanged".into())
-			.expect("Contract known ahead of time to have `ValidatorsChanged` event; qed");
+			.event("InitiateChange".into())
+			.expect("Contract known ahead of time to have `InitiateChange` event; qed");
 
 		// iterate in reverse because only the _last_ change in a given
 		// block actually has any effect.
@@ -234,7 +234,7 @@ impl ValidatorSet for ValidatorSafeContract {
 	fn on_epoch_begin(&self, first: bool, _header: &Header, caller: &mut SystemCall) -> Result<(), ::error::Error> {
 		if first { return Ok(()) } // only signalled changes need to be noted.
 
-		self.provider.finalize_signal(caller)
+		self.provider.finalize_change(caller)
 			.wait()
 			.map_err(::engines::EngineError::FailedSystemCall)
 			.map_err(Into::into)
