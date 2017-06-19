@@ -79,7 +79,7 @@ export default class DappsMethods extends Component {
                           checked={ methodsStore.permissions[`${method}:${id}`] || false }
                           dappId={ id }
                           method={ method }
-                          onToggle={ methodsStore.toggleMethod }
+                          onToggle={ methodsStore.toggleMethodPermission }
                         />
                       </td>
                     ))

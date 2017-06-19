@@ -31,11 +31,29 @@ export default class Store {
     this.modalOpen = true;
   }
 
-  @action toggleMethod = (method, dappId) => {
-    const id = `${method}:${dappId}`;
+  @action addMethodPermission = (method, token) => {
+    const id = `${method}:${token}`;
+
+    this.permissions = Object.assign({}, this.permissions, {
+      [id]: true
+    });
+  }
+
+  @action toggleMethodPermission = (method, token) => {
+    const id = `${method}:${token}`;
 
     this.permissions = Object.assign({}, this.permissions, {
       [id]: !this.permissions[id]
     });
+  }
+
+  static instance = null;
+
+  static get () {
+    if (!Store.instance) {
+      Store.instance = new Store();
+    }
+
+    return Store.instance;
   }
 }

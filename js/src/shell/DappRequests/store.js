@@ -17,15 +17,15 @@
 import { action, computed, observable } from 'mobx';
 
 import filteredRequests from './filteredRequests';
+import MethodsStore from '../DappMethods/store';
 
 let nextQueueId = 0;
 
 export default class Store {
-  @observable permissions = {};
+  @observable methodsStore = MethodsStore.get();
   @observable requests = [];
 
-  constructor (provider, permissions) {
-    this.permissions = permissions;
+  constructor (provider) {
     this.provider = provider;
 
     window.addEventListener('message', this.receiveMessage, false);
@@ -72,7 +72,7 @@ export default class Store {
       const { request: { data: { method, token } } } = queued;
       const requests = this.findMatchingRequests(method, token);
 
-      this.addTokenPermission(method, token);
+      this.methodsStore.addMethodPermission(method, token);
       requests.forEach(this.approveSingleRequest);
     } else {
       this.approveSingleRequest(queued);
@@ -90,14 +90,6 @@ export default class Store {
       result: null,
       token
     }, '*');
-  }
-
-  @action addTokenPermission = (method, token) => {
-    this.permissions[token] = Object.assign({}, this.permissions[token] || {}, { [method]: true });
-  }
-
-  @action setTokenPermissions = (permissions) => {
-    this.permissions = permissions;
   }
 
   findRequest (_queueId) {
@@ -129,11 +121,11 @@ export default class Store {
       return;
     }
 
-    if (filteredRequests[method]) {
-      if (!this.permissions[token] || !this.permissions[token][method]) {
-        this.queueRequest({ data, origin, source });
-        return;
-      }
+    const filterId = `${method}:${token}`;
+
+    if (filteredRequests[method] && !this.methodsStore.permissions[filterId]) {
+      this.queueRequest({ data, origin, source });
+      return;
     }
 
     this.executeOnProvider(data, source);

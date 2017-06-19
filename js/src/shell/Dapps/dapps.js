@@ -45,7 +45,7 @@ class Dapps extends Component {
   };
 
   store = DappsStore.get(this.context.api);
-  methodsStore = new MethodsStore();
+  methodsStore = MethodsStore.get();
   permissionStore = new PermissionStore(this.context.api);
 
   componentWillMount () {
