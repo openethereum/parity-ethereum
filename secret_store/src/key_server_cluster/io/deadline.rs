@@ -24,7 +24,7 @@ type DeadlineBox<F> where F: Future = BoxFuture<DeadlineStatus<F::Item>, F::Erro
 /// Complete a passed future or fail if it is not completed within timeout.
 pub fn deadline<F, T>(duration: Duration, handle: &Handle, future: F) -> Result<Deadline<F>, io::Error>
 	where F: Future<Item = T, Error = io::Error> + Send + 'static, T: 'static {
-	let timeout = try!(Timeout::new(duration, handle)).map(|_| DeadlineStatus::Timeout).boxed();
+	let timeout = Timeout::new(duration, handle)?.map(|_| DeadlineStatus::Timeout).boxed();
 	let future = future.map(DeadlineStatus::Meet).boxed();
 	let deadline = Deadline {
 		future: timeout.select(future),
