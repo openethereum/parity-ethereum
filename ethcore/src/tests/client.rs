@@ -358,7 +358,7 @@ fn transaction_proof() {
 	let root = client.best_block_header().state_root();
 
 	let mut state = State::from_existing(backend, root, 0.into(), factories.clone()).unwrap();
-	Executive::new(&mut state, &client.latest_env_info(), &*test_spec.engine, &factories.vm)
+	Executive::new(&mut state, &client.latest_env_info(), &*test_spec.engine)
 		.transact(&transaction, Default::default()).unwrap();
 
 	assert_eq!(state.balance(&Address::default()).unwrap(), 5.into());

@@ -28,7 +28,7 @@ use std::collections::hash_map::Entry;
 /// Reference-counted memory-based `HashDB` implementation.
 ///
 /// Use `new()` to create a new database. Insert items with `insert()`, remove items
-/// with `remove()`, check for existence with `containce()` and lookup a hash to derive
+/// with `remove()`, check for existence with `contains()` and lookup a hash to derive
 /// the data with `get()`. Clear with `clear()` and purge the portions of the data
 /// that have no references with `purge()`.
 ///
@@ -103,11 +103,7 @@ impl MemoryDB {
 
 	/// Purge all zero-referenced data from the database.
 	pub fn purge(&mut self) {
-		let empties: Vec<_> = self.data.iter()
-			.filter(|&(_, &(_, rc))| rc == 0)
-			.map(|(k, _)| k.clone())
-			.collect();
-		for empty in empties { self.data.remove(&empty); }
+		self.data.retain(|_, &mut (_, rc)| rc != 0);
 	}
 
 	/// Return the internal map of hashes to data, clearing the current state.
@@ -122,7 +118,7 @@ impl MemoryDB {
 	/// when the refs > 0.
 	pub fn raw(&self, key: &H256) -> Option<(DBValue, i32)> {
 		if key == &SHA3_NULL_RLP {
-			return Some((DBValue::from_slice(&NULL_RLP_STATIC), 1));
+			return Some((DBValue::from_slice(&NULL_RLP), 1));
 		}
 		self.data.get(key).cloned()
 	}
@@ -172,12 +168,10 @@ impl MemoryDB {
 	}
 }
 
-static NULL_RLP_STATIC: [u8; 1] = [0x80; 1];
-
 impl HashDB for MemoryDB {
 	fn get(&self, key: &H256) -> Option<DBValue> {
 		if key == &SHA3_NULL_RLP {
-			return Some(DBValue::from_slice(&NULL_RLP_STATIC));
+			return Some(DBValue::from_slice(&NULL_RLP));
 		}
 
 		match self.data.get(key) {
@@ -252,46 +246,57 @@ impl HashDB for MemoryDB {
 	}
 }
 
-#[test]
-fn memorydb_remove_and_purge() {
-	let hello_bytes = b"Hello world!";
-	let hello_key = hello_bytes.sha3();
+#[cfg(test)]
+mod tests {
+	use super::*;
 
-	let mut m = MemoryDB::new();
-	m.remove(&hello_key);
-	assert_eq!(m.raw(&hello_key).unwrap().1, -1);
-	m.purge();
-	assert_eq!(m.raw(&hello_key).unwrap().1, -1);
-	m.insert(hello_bytes);
-	assert_eq!(m.raw(&hello_key).unwrap().1, 0);
-	m.purge();
-	assert_eq!(m.raw(&hello_key), None);
+	#[test]
+	fn memorydb_remove_and_purge() {
+		let hello_bytes = b"Hello world!";
+		let hello_key = hello_bytes.sha3();
 
-	let mut m = MemoryDB::new();
-	assert!(m.remove_and_purge(&hello_key).is_none());
-	assert_eq!(m.raw(&hello_key).unwrap().1, -1);
-	m.insert(hello_bytes);
-	m.insert(hello_bytes);
-	assert_eq!(m.raw(&hello_key).unwrap().1, 1);
-	assert_eq!(&*m.remove_and_purge(&hello_key).unwrap(), hello_bytes);
-	assert_eq!(m.raw(&hello_key), None);
-	assert!(m.remove_and_purge(&hello_key).is_none());
-}
+		let mut m = MemoryDB::new();
+		m.remove(&hello_key);
+		assert_eq!(m.raw(&hello_key).unwrap().1, -1);
+		m.purge();
+		assert_eq!(m.raw(&hello_key).unwrap().1, -1);
+		m.insert(hello_bytes);
+		assert_eq!(m.raw(&hello_key).unwrap().1, 0);
+		m.purge();
+		assert_eq!(m.raw(&hello_key), None);
 
-#[test]
-fn consolidate() {
-	let mut main = MemoryDB::new();
-	let mut other = MemoryDB::new();
-	let remove_key = other.insert(b"doggo");
-	main.remove(&remove_key);
+		let mut m = MemoryDB::new();
+		assert!(m.remove_and_purge(&hello_key).is_none());
+		assert_eq!(m.raw(&hello_key).unwrap().1, -1);
+		m.insert(hello_bytes);
+		m.insert(hello_bytes);
+		assert_eq!(m.raw(&hello_key).unwrap().1, 1);
+		assert_eq!(&*m.remove_and_purge(&hello_key).unwrap(), hello_bytes);
+		assert_eq!(m.raw(&hello_key), None);
+		assert!(m.remove_and_purge(&hello_key).is_none());
+	}
 
-	let insert_key = other.insert(b"arf");
-	main.emplace(insert_key, DBValue::from_slice(b"arf"));
+	#[test]
+	fn consolidate() {
+		let mut main = MemoryDB::new();
+		let mut other = MemoryDB::new();
+		let remove_key = other.insert(b"doggo");
+		main.remove(&remove_key);
 
-	main.consolidate(other);
+		let insert_key = other.insert(b"arf");
+		main.emplace(insert_key, DBValue::from_slice(b"arf"));
 
-	let overlay = main.drain();
+		let negative_remove_key = other.insert(b"negative");
+		other.remove(&negative_remove_key);	// ref cnt: 0
+		other.remove(&negative_remove_key);	// ref cnt: -1
+		main.remove(&negative_remove_key);	// ref cnt: -1
 
-	assert_eq!(overlay.get(&remove_key).unwrap(), &(DBValue::from_slice(b"doggo"), 0));
-	assert_eq!(overlay.get(&insert_key).unwrap(), &(DBValue::from_slice(b"arf"), 2));
+		main.consolidate(other);
+
+		let overlay = main.drain();
+
+		assert_eq!(overlay.get(&remove_key).unwrap(), &(DBValue::from_slice(b"doggo"), 0));
+		assert_eq!(overlay.get(&insert_key).unwrap(), &(DBValue::from_slice(b"arf"), 2));
+		assert_eq!(overlay.get(&negative_remove_key).unwrap(), &(DBValue::from_slice(b"negative"), -2));
+	}
 }

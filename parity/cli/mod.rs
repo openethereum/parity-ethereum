@@ -114,6 +114,8 @@ usage! {
 			or |c: &Config| otry!(c.account).keys_iterations.clone(),
 		flag_no_hardware_wallets: bool = false,
 			or |c: &Config| otry!(c.account).disable_hardware.clone(),
+		flag_fast_unlock: bool = false,
+			or |c: &Config| otry!(c.account).fast_unlock.clone(),
 
 
 		flag_force_ui: bool = false,
@@ -424,6 +426,7 @@ struct Account {
 	password: Option<Vec<String>>,
 	keys_iterations: Option<u32>,
 	disable_hardware: Option<bool>,
+	fast_unlock: Option<bool>,
 }
 
 #[derive(Default, Debug, PartialEq, RustcDecodable)]
@@ -707,6 +710,7 @@ mod tests {
 			flag_password: vec!["~/.safe/password.file".into()],
 			flag_keys_iterations: 10240u32,
 			flag_no_hardware_wallets: false,
+			flag_fast_unlock: false,
 
 			flag_force_ui: false,
 			flag_no_ui: false,
@@ -927,6 +931,7 @@ mod tests {
 				password: Some(vec!["passwdfile path".into()]),
 				keys_iterations: None,
 				disable_hardware: None,
+				fast_unlock: None,
 			}),
 			ui: Some(Ui {
 				force: None,

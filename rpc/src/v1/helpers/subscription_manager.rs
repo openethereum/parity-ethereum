@@ -54,6 +54,14 @@ impl<S: core::Middleware<Metadata>> GenericPollManager<S> {
 		}
 	}
 
+	/// Creates new poll manager with deterministic ids.
+	#[cfg(test)]
+	pub fn new_test(rpc: MetaIoHandler<Metadata, S>) -> Self {
+		let mut manager = Self::new(rpc);
+		manager.subscribers = Subscribers::new_test();
+		manager
+	}
+
 	/// Subscribes to update from polling given method.
 	pub fn subscribe(&mut self, metadata: Metadata, method: String, params: core::Params)
 		-> (SubscriptionId, mpsc::Receiver<Result<core::Value, core::Error>>)
@@ -81,7 +89,7 @@ impl<S: core::Middleware<Metadata>> GenericPollManager<S> {
 		for (id, subscription) in self.subscribers.iter() {
 			let call = core::MethodCall {
 				jsonrpc: Some(core::Version::V2),
-				id: core::Id::Num(*id as u64),
+				id: core::Id::Str(id.as_string()),
 				method: subscription.method.clone(),
 				params: Some(subscription.params.clone()),
 			};
@@ -139,7 +147,7 @@ mod tests {
 				Ok(Value::String("world".into()))
 			}
 		});
-		GenericPollManager::new(io)
+		GenericPollManager::new_test(io)
 	}
 
 	#[test]
@@ -148,7 +156,7 @@ mod tests {
 		let mut el = reactor::Core::new().unwrap();
 		let mut poll_manager = poll_manager();
 		let (id, rx) = poll_manager.subscribe(Default::default(), "hello".into(), Params::None);
-		assert_eq!(id, SubscriptionId::Number(1));
+		assert_eq!(id, SubscriptionId::String("0x416d77337e24399d".into()));
 
 		// then
 		poll_manager.tick().wait().unwrap();

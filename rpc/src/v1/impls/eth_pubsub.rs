@@ -67,6 +67,14 @@ impl<C> EthPubSubClient<C> {
 		}
 	}
 
+	/// Creates new `EthPubSubCient` with deterministic subscription ids.
+	#[cfg(test)]
+	pub fn new_test(client: Arc<C>, remote: Remote) -> Self {
+		let client = Self::new(client, remote);
+		*client.heads_subscribers.lock() = Subscribers::new_test();
+		client
+	}
+
 	/// Returns a chain notification handler.
 	pub fn handler(&self) -> Arc<ChainNotificationHandler<C>> {
 		self.handler.clone()

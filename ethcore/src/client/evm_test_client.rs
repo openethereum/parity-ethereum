@@ -103,8 +103,8 @@ impl EvmTestClient {
 		let mut substate = state::Substate::new();
 		let mut tracer = trace::NoopTracer;
 		let mut output = vec![];
-		let mut executive = executive::Executive::new(&mut state, &info, &*self.spec.engine, &self.factories.vm);
-		let gas_left = executive.call(
+		let mut executive = executive::Executive::new(&mut state, &info, &*self.spec.engine);
+		let (gas_left, _) = executive.call(
 			params,
 			&mut substate,
 			util::BytesRef::Flexible(&mut output),

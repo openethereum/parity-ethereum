@@ -9,6 +9,7 @@ variables:
   RUST_BACKTRACE: "1"
   RUSTFLAGS: ""
   CARGOFLAGS: ""
+  CI_SERVER_NAME: "GitLab CI"
 cache:
   key: "$CI_BUILD_STAGE/$CI_BUILD_REF_NAME"
   untracked: true
@@ -66,18 +67,33 @@ linux-snap:
   only:
     - snap
     - beta
+    - tags
+    - triggers
   script:
+    - export VER=$(grep -m 1 version Cargo.toml | awk '{print $3}' | tr -d '"' | tr -d "\n")
+    - cd snap
     - rm -rf *snap
-    - cd scripts
+    - sed -i 's/master/'"$VER"'/g' snapcraft.yaml
+    - echo "Version:"$VER
     - snapcraft
+    - ls
+    - cp "parity_"$CI_BUILD"_REF_NAME_amd64.snap" "parity_"$VER"_amd64.snap"
+    - md5sum "parity_"$VER"_amd64.snap" > "parity_"$VER"_amd64.snap.md5"
+    - aws configure set aws_access_key_id $s3_key
+    - aws configure set aws_secret_access_key $s3_secret
+    - if [[ $CI_BUILD_REF_NAME =~ ^(master|beta|stable|nightly)$ ]]; then export S3_BUCKET=builds-parity-published; else export S3_BUCKET=builds-parity; fi
+    - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/x86_64-unknown-linux-gnu/"parity_"$VER"_amd64.snap" --body "parity_"$VER"_amd64.snap"
+    - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/x86_64-unknown-linux-gnu/"parity_"$VER"_amd64.snap.md5" --body "parity_"$VER"_amd64.snap.md5"
+    - curl --data "commit=$CI_BUILD_REF&sha3=$SHA3&filename=parity&secret=$RELEASES_SECRET" http://update.parity.io:1337/push-build/$CI_BUILD_REF_NAME/x86_64-unknown-linux-gnu
+    - curl --data "commit=$CI_BUILD_REF&sha3=$SHA3&filename=parity&secret=$RELEASES_SECRET" http://update.parity.io:1338/push-build/$CI_BUILD_REF_NAME/x86_64-unknown-linux-gnu
   tags:
     - rust
     - rust-stable
   artifacts:
     paths:
-    - scripts/parity_master_amd64.snap
-    name: "stable-x86_64-unknown-linux-gnu_parity-snap"
-  allow_failure: true
+    - scripts/parity_*_amd64.snap
+    name: "stable-x86_64-unknown-snap-gnu_parity"
+  allow_failure: true  
 linux-stable-debian:
   stage: build
   image: parity/rust-debian:gitlab-ci
@@ -419,6 +435,7 @@ darwin:
   script: |
       export COMMIT=$(git rev-parse HEAD)
       export PLATFORM=x86_64-apple-darwin
+      rustup default stable
       cargo build -j 8 --features final --release #$CARGOFLAGS
       cargo build -j 8 --features final --release -p ethstore #$CARGOFLAGS
       rm -rf parity.md5
@@ -593,23 +610,11 @@ js-test:
   tags:
     - rust
     - rust-stable
-js-test-node_7:
-  stage: test
-  image: parity/rust-debian-node_7:gitlab-ci
-  before_script:
-    - git submodule update --init --recursive
-    - export JS_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep ^js/ | wc -l)
-    - if [ $JS_FILES_MODIFIED -eq 0 ]; then echo "Skipping JS deps install since no JS files modified."; else ./js/scripts/install-deps.sh;fi
-  script:
-    - if [ $JS_FILES_MODIFIED -eq 0 ]; then echo "Skipping JS lint since no JS files modified."; else ./js/scripts/lint.sh && ./js/scripts/test.sh && ./js/scripts/build.sh; fi
-  tags:
-    - rust
-    - rust-stable
-  allow_failure: true
 test-rust-beta:
   stage: test
   only:
     - triggers
+    - master
   image: parity/rust:gitlab-ci
   before_script:
     - git submodule update --init --recursive
@@ -626,6 +631,7 @@ test-rust-nightly:
   stage: test
   only:
     - triggers
+    - master
   image: parity/rust:gitlab-ci
   before_script:
     - git submodule update --init --recursive
@@ -645,6 +651,7 @@ js-release:
     - beta
     - stable
     - tags
+    - triggers
   image: parity/rust:gitlab-ci
   before_script:
     - export JS_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep ^js/ | wc -l)
@@ -660,6 +667,7 @@ push-release:
   stage: push-release
   only:
     - tags
+    - triggers
   image: parity/rust:gitlab-ci
   script:
     - rustup default stable

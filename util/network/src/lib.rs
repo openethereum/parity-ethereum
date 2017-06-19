@@ -54,6 +54,9 @@
 //! }
 //! ```
 
+//TODO: use Poll from mio
+#![allow(deprecated)]
+
 extern crate ethcore_io as io;
 extern crate ethcore_util as util;
 extern crate parking_lot;

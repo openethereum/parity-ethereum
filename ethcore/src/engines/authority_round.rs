@@ -26,9 +26,8 @@ use account_provider::AccountProvider;
 use block::*;
 use spec::CommonParams;
 use engines::{Call, Engine, Seal, EngineError};
-use header::{Header, BlockNumber};
+use header::Header;
 use error::{Error, TransactionError, BlockError};
-use evm::Schedule;
 use ethjson;
 use io::{IoContext, IoHandler, TimerToken, IoService};
 use builtin::Builtin;
@@ -168,7 +167,10 @@ fn verify_external(header: &Header, validators: &ValidatorSet, step: &Step) -> R
 	} else {
 		let proposer_signature = header_signature(header)?;
 		let correct_proposer = validators.get(header.parent_hash(), header_step);
-		if !verify_address(&correct_proposer, &proposer_signature, &header.bare_hash())? {
+		let is_invalid_proposer = *header.author() != correct_proposer ||
+			!verify_address(&correct_proposer, &proposer_signature, &header.bare_hash())?;
+
+		if is_invalid_proposer {
 			trace!(target: "engine", "verify_block_unordered: bad proposer for step: {}", header_step);
 			Err(EngineError::NotProposer(Mismatch { expected: correct_proposer, found: header.author().clone() }))?
 		} else {
@@ -293,11 +295,6 @@ impl Engine for AuthorityRound {
 		]
 	}
 
-	fn schedule(&self, block_number: BlockNumber) -> Schedule {
-		let eip86 = block_number >= self.params.eip86_transition;
-		Schedule::new_post_eip150(usize::max_value(), true, true, true, eip86)
-	}
-
 	fn populate_from_parent(&self, header: &mut Header, parent: &Header, gas_floor_target: U256, _gas_ceil_target: U256) {
 		// Chain scoring: total weight is sqrt(U256::max_value())*height - step
 		let new_difficulty = U256::from(U128::max_value()) + header_step(parent).expect("Header has been verified; qed").into() - self.step.load().into();
@@ -340,16 +337,17 @@ impl Engine for AuthorityRound {
 	}
 
 	/// Apply the block reward on finalisation of the block.
-	fn on_close_block(&self, block: &mut ExecutedBlock) {
+	fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<(), Error> {
 		let fields = block.fields_mut();
 		// Bestow block reward
 		let res = fields.state.add_balance(fields.header.author(), &self.block_reward, CleanupMode::NoEmpty)
 			.map_err(::error::Error::from)
 			.and_then(|_| fields.state.commit());
 		// Commit state so that we can actually figure out the state root.
-		if let Err(e) = res {
+		if let Err(ref e) = res {
 			warn!("Encountered error on closing block: {}", e);
 		}
+		res
 	}
 
 	/// Check the number of seal fields.

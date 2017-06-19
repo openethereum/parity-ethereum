@@ -62,7 +62,8 @@ pub enum Error {
 	},
 	/// Built-in contract failed on given input
 	BuiltIn(&'static str),
-	/// Returned on evm internal error. Should never be ignored during development.
+	/// When execution tries to modify the state in static context
+	MutableCallInStaticContext,
 	/// Likely to cause consensus issues.
 	Internal(String),
 }
@@ -76,32 +77,67 @@ impl From<Box<trie::TrieError>> for Error {
 impl From<builtin::Error> for Error {
 	fn from(err: builtin::Error) -> Self {
 		Error::BuiltIn(err.0)
-	}	
+	}
 }
 
 impl fmt::Display for Error {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		use self::Error::*;
-		let message = match *self {
-			OutOfGas => "Out of gas",
-			BadJumpDestination { .. } => "Bad jump destination",
-			BadInstruction { .. } => "Bad instruction",
-			StackUnderflow { .. } => "Stack underflow",
-			OutOfStack { .. } => "Out of stack",
-			BuiltIn { .. } => "Built-in failed",
-			Internal(ref msg) => msg,
-		};
-		message.fmt(f)
+		match *self {
+			OutOfGas => write!(f, "Out of gas"),
+			BadJumpDestination { destination } => write!(f, "Bad jump destination {:x}", destination),
+			BadInstruction { instruction } => write!(f, "Bad instruction {:x}",  instruction),
+			StackUnderflow { instruction, wanted, on_stack } => write!(f, "Stack underflow {} {}/{}", instruction, wanted, on_stack),
+			OutOfStack { instruction, wanted, limit } => write!(f, "Out of stack {} {}/{}", instruction, wanted, limit),
+			BuiltIn(name) => write!(f, "Built-in failed: {}", name),
+			Internal(ref msg) => write!(f, "Internal error: {}", msg),
+			MutableCallInStaticContext => write!(f, "Mutable call in static context"),
+		}
 	}
 }
 
 /// A specialized version of Result over EVM errors.
 pub type Result<T> = ::std::result::Result<T, Error>;
 
+
+/// Return data buffer. Holds memory from a previous call and a slice into that memory.
+#[derive(Debug)]
+pub struct ReturnData {
+	mem: Vec<u8>,
+	offset: usize,
+	size: usize,
+}
+
+impl ::std::ops::Deref for ReturnData {
+	type Target = [u8];
+	fn deref(&self) -> &[u8] {
+		&self.mem[self.offset..self.offset + self.size]
+	}
+}
+
+impl ReturnData {
+	/// Create empty `ReturnData`.
+	pub fn empty() -> Self {
+		ReturnData {
+			mem: Vec::new(),
+			offset: 0,
+			size: 0,
+		}
+	}
+	/// Create `ReturnData` from give buffer and slice.
+	pub fn new(mem: Vec<u8>, offset: usize, size: usize) -> Self {
+		ReturnData {
+			mem: mem,
+			offset: offset,
+			size: size,
+		}
+	}
+}
+
 /// Gas Left: either it is a known value, or it needs to be computed by processing
 /// a return instruction.
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub enum GasLeft<'a> {
+#[derive(Debug)]
+pub enum GasLeft {
 	/// Known gas left
 	Known(U256),
 	/// Return or Revert instruction must be processed.
@@ -109,7 +145,7 @@ pub enum GasLeft<'a> {
 		/// Amount of gas left.
 		gas_left: U256,
 		/// Return data buffer.
-		data: &'a [u8],
+		data: ReturnData,
 		/// Apply or revert state changes on revert.
 		apply_state: bool
 	},
@@ -123,6 +159,8 @@ pub struct FinalizationResult {
 	pub gas_left: U256,
 	/// Apply execution state changes or revert them.
 	pub apply_state: bool,
+	/// Return data buffer.
+	pub return_data: ReturnData,
 }
 
 /// Types that can be "finalized" using an EVM.
@@ -134,13 +172,14 @@ pub trait Finalize {
 	fn finalize<E: Ext>(self, ext: E) -> Result<FinalizationResult>;
 }
 
-impl<'a> Finalize for Result<GasLeft<'a>> {
+impl Finalize for Result<GasLeft> {
 	fn finalize<E: Ext>(self, ext: E) -> Result<FinalizationResult> {
 		match self {
-			Ok(GasLeft::Known(gas_left)) => Ok(FinalizationResult { gas_left: gas_left, apply_state: true }),
-			Ok(GasLeft::NeedsReturn {gas_left, data, apply_state}) => ext.ret(&gas_left, data).map(|gas_left| FinalizationResult {
+			Ok(GasLeft::Known(gas_left)) => Ok(FinalizationResult { gas_left: gas_left, apply_state: true, return_data: ReturnData::empty() }),
+			Ok(GasLeft::NeedsReturn {gas_left, data, apply_state}) => ext.ret(&gas_left, &data).map(|gas_left| FinalizationResult {
 				gas_left: gas_left,
 				apply_state: apply_state,
+				return_data: data,
 			}),
 			Err(err) => Err(err),
 		}

@@ -64,7 +64,7 @@ class FakeTransport {
 
 class FrameSecureApi extends SecureApi {
   constructor (transport) {
-    super('', null, () => {
+    super(transport.uiUrl, null, () => {
       return transport;
     });
   }
@@ -91,7 +91,11 @@ class FrameSecureApi extends SecureApi {
   }
 }
 
-const api = new FrameSecureApi(window.secureTransport || new FakeTransport());
+const transport = window.secureTransport || new FakeTransport();
+const uiUrl = transport.uiUrl || 'http://127.0.0.1:8180';
+
+transport.uiUrl = uiUrl.replace('http://', '').replace('https://', '');
+const api = new FrameSecureApi(transport);
 
 patchApi(api);
 ContractInstances.create(api);
@@ -104,7 +108,7 @@ store.dispatch(setApi(api));
 window.secureApi = api;
 
 const app = (
-  <ParityBar dapp externalLink={ 'http://127.0.0.1:8180' } />
+  <ParityBar dapp externalLink={ uiUrl } />
 );
 const container = document.querySelector('#container');
 

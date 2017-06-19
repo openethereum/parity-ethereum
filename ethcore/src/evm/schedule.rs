@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Cost schedule and other parameterisations for the EVM.
+use spec::CommonParams;
 
 /// Definition of the cost schedule and other parameterisations for the EVM.
 pub struct Schedule {
@@ -103,6 +104,10 @@ pub struct Schedule {
 	pub no_empty: bool,
 	/// Kill empty accounts if touched.
 	pub kill_empty: bool,
+	/// Blockhash instruction gas cost.
+	pub blockhash_gas: usize,
+	/// Static Call opcode enabled.
+	pub have_static_call: bool,
 }
 
 impl Schedule {
@@ -117,12 +122,12 @@ impl Schedule {
 	}
 
 	/// Schedule for the post-EIP-150-era of the Ethereum main net.
-	pub fn new_post_eip150(max_code_size: usize, fix_exp: bool, no_empty: bool, kill_empty: bool, have_metropolis_instructions: bool) -> Schedule {
+	pub fn new_post_eip150(max_code_size: usize, fix_exp: bool, no_empty: bool, kill_empty: bool) -> Schedule {
 		Schedule {
 			exceptional_failed_code_deposit: true,
 			have_delegate_call: true,
-			have_create2: have_metropolis_instructions,
-			have_revert: have_metropolis_instructions,
+			have_create2: false,
+			have_revert: false,
 			stack_limit: 1024,
 			max_depth: 1024,
 			tier_step_gas: [0, 2, 3, 5, 8, 10, 20, 0],
@@ -161,12 +166,36 @@ impl Schedule {
 			sub_gas_cap_divisor: Some(64),
 			no_empty: no_empty,
 			kill_empty: kill_empty,
+			blockhash_gas: 20,
+			have_static_call: false,
+		}
+	}
+
+	/// Schedule for the Metropolis era from common spec params.
+	pub fn from_params(block_number: u64, params: &CommonParams) -> Schedule {
+		let mut schedule = Schedule::new_post_eip150(usize::max_value(), true, true, true);
+		schedule.apply_params(block_number, params);
+		schedule
+ 	}
+
+	/// Apply common spec config parameters to the schedule.
+ 	pub fn apply_params(&mut self, block_number: u64, params: &CommonParams) {
+		self.have_create2 = block_number >= params.eip86_transition;
+		self.have_revert = block_number >= params.eip140_transition;
+		self.have_static_call = block_number >= params.eip214_transition;
+		if block_number >= params.eip210_transition {
+			self.blockhash_gas = 350;
 		}
 	}
 
 	/// Schedule for the Metropolis of the Ethereum main net.
 	pub fn new_metropolis() -> Schedule {
-		Self::new_post_eip150(24576, true, true, true, true)
+		let mut schedule = Self::new_post_eip150(24576, true, true, true);
+		schedule.have_create2 = true;
+		schedule.have_revert = true;
+		schedule.have_static_call = true;
+		schedule.blockhash_gas = 350;
+		schedule
 	}
 
 	fn new(efcd: bool, hdc: bool, tcg: usize) -> Schedule {
@@ -213,6 +242,8 @@ impl Schedule {
 			sub_gas_cap_divisor: None,
 			no_empty: false,
 			kill_empty: false,
+			blockhash_gas: 20,
+			have_static_call: false,
 		}
 	}
 }

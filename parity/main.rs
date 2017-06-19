@@ -82,18 +82,6 @@ extern crate pretty_assertions;
 #[cfg(windows)] extern crate ws2_32;
 #[cfg(windows)] extern crate winapi;
 
-macro_rules! dependency {
-	($dep_ty:ident, $url:expr) => {
-		{
-			let dep = boot::dependency::<$dep_ty<_>>($url)
-				.unwrap_or_else(|e| panic!("Fatal: error connecting service ({:?})", e));
-			dep.handshake()
-				.unwrap_or_else(|e| panic!("Fatal: error in connected service ({:?})", e));
-			dep
-		}
-	}
-}
-
 mod account;
 mod blockchain;
 mod cache;

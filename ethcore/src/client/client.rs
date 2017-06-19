@@ -1032,8 +1032,7 @@ impl BlockChainClient for Client {
 		let original_state = if analytics.state_diffing { Some(state.clone()) } else { None };
 
 		let options = TransactOptions { tracing: analytics.transaction_tracing, vm_tracing: analytics.vm_tracing, check_nonce: false };
-		let mut ret = Executive::new(&mut state, &env_info, &*self.engine, &self.factories.vm)
-			.transact_virtual(t, options)?;
+		let mut ret = Executive::new(&mut state, &env_info, &*self.engine).transact_virtual(t, options)?;
 
 		// TODO gav move this into Executive.
 		if let Some(original) = original_state {
@@ -1063,7 +1062,7 @@ impl BlockChainClient for Client {
 			let tx = tx.fake_sign(sender);
 
 			let mut state = original_state.clone();
-			Ok(Executive::new(&mut state, &env_info, &*self.engine, &self.factories.vm)
+			Ok(Executive::new(&mut state, &env_info, &*self.engine)
 				.transact_virtual(&tx, options.clone())
 				.map(|r| r.exception.is_none())
 				.unwrap_or(false))
@@ -1125,13 +1124,13 @@ impl BlockChainClient for Client {
 		let rest = txs.split_off(address.index);
 		for t in txs {
 			let t = SignedTransaction::new(t).expect(PROOF);
-			let x = Executive::new(&mut state, &env_info, &*self.engine, &self.factories.vm).transact(&t, Default::default())?;
+			let x = Executive::new(&mut state, &env_info, &*self.engine).transact(&t, Default::default())?;
 			env_info.gas_used = env_info.gas_used + x.gas_used;
 		}
 		let first = rest.into_iter().next().expect("We split off < `address.index`; Length is checked earlier; qed");
 		let t = SignedTransaction::new(first).expect(PROOF);
 		let original_state = if analytics.state_diffing { Some(state.clone()) } else { None };
-		let mut ret = Executive::new(&mut state, &env_info, &*self.engine, &self.factories.vm).transact(&t, options)?;
+		let mut ret = Executive::new(&mut state, &env_info, &*self.engine).transact(&t, options)?;
 		if let Some(original) = original_state {
 			ret.state_diff = Some(state.diff_from(original).map_err(ExecutionError::from)?)
 		}
@@ -1753,7 +1752,7 @@ impl ProvingBlockChainClient for Client {
 
 		let mut state = state.replace_backend(backend);
 		let options = TransactOptions { tracing: false, vm_tracing: false, check_nonce: false };
-		let res = Executive::new(&mut state, &env_info, &*self.engine, &self.factories.vm).transact(&transaction, options);
+		let res = Executive::new(&mut state, &env_info, &*self.engine).transact(&transaction, options);
 
 		match res {
 			Err(ExecutionError::Internal(_)) => None,

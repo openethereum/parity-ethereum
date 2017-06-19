@@ -19,19 +19,19 @@ const PAGES = [
     path: 'overview',
     title: 'Overview',
     byline: 'Display all the current information relating to your own deployed tokens',
-    description: 'View the total number of tokens in circulation, the number of different tokens associated with your accounts as well as the types of tokens created by you. In addition view the balances associated with your accounts in reltion to the total in circulation.'
+    description: 'View the total number of tokens in circulation, the number of different tokens associated with your accounts, as well as the types of tokens created by you. In addition, view the balances associated with your accounts in relation to the total in circulation.'
   },
   {
     path: 'transfer',
     title: 'Transfer',
     byline: 'Send tokens associated with your accounts to other addresses',
-    description: 'Send any tokens created byt you or received from others. In addition have a bird\'s eye view of all events relating to token transfers, be it yours, created byt others, either local or globally available on the network.'
+    description: 'Send any tokens created by you or received from others. In addition, have a bird\'s eye view of all events relating to token transfers, be it yours, created by others, either local or globally available on the network.'
   },
   {
     path: 'deploy',
     title: 'Deploy',
     byline: 'Deploy a new token to the network',
-    description: 'Token registration has never been this easy. Select the name for your token, the TLA and the number of tokens in circulation. Start sending the tokens to contacts right from this interface. Optionally you can register the token with the Token Registry which would allow you to transaction in tokens from anywhere these transactions are allowed.'
+    description: 'Token registration has never been this easy. Select the name for your token, the TLA and the number of tokens in circulation. Start sending the tokens to contacts right from this interface. Optionally you can register the token with the Token Registry which would allow you to transact in tokens from anywhere these transactions are allowed.'
   }
 ];
 

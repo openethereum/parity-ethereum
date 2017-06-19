@@ -497,6 +497,7 @@ impl Configuration {
 			password_files: self.args.flag_password.clone(),
 			unlocked_accounts: to_addresses(&self.args.flag_unlock)?,
 			enable_hardware_wallets: !self.args.flag_no_hardware_wallets,
+			enable_fast_unlock: self.args.flag_fast_unlock,
 		};
 
 		Ok(cfg)
@@ -762,10 +763,6 @@ impl Configuration {
 	}
 
 	fn ui_hosts(&self) -> Option<Vec<String>> {
-		if self.args.flag_ui_no_validation {
-			return None;
-		}
-
 		self.hosts(&self.args.flag_ui_hosts, &self.ui_interface())
 	}
 
@@ -774,10 +771,18 @@ impl Configuration {
 	}
 
 	fn ws_hosts(&self) -> Option<Vec<String>> {
+		if self.args.flag_ui_no_validation {
+			return None;
+		}
+
 		self.hosts(&self.args.flag_ws_hosts, &self.ws_interface())
 	}
 
 	fn ws_origins(&self) -> Option<Vec<String>> {
+		if self.args.flag_unsafe_expose {
+			return None;
+		}
+
 		Self::parse_hosts(&self.args.flag_ws_origins)
 	}
 
@@ -836,6 +841,7 @@ impl Configuration {
 			hosts: self.ws_hosts(),
 			origins: self.ws_origins(),
 			signer_path: self.directories().signer.into(),
+			support_token_api: !self.args.flag_public_node,
 			ui_address: ui.address(),
 		};
 
@@ -881,8 +887,8 @@ impl Configuration {
 		use path;
 
 		let local_path = default_local_path();
-		let base_path = self.args.flag_base_path.as_ref().map_or_else(|| default_data_path(), |s| s.clone());
-		let data_path = replace_home("", self.args.flag_datadir.as_ref().unwrap_or(&base_path));
+		let base_path = self.args.flag_base_path.as_ref().or_else(|| self.args.flag_datadir.as_ref()).map_or_else(|| default_data_path(), |s| s.clone());
+		let data_path = replace_home("", &base_path);
 		let base_db_path = if self.args.flag_base_path.is_some() && self.args.flag_db_path.is_none() {
 			// If base_path is set and db_path is not we default to base path subdir instead of LOCAL.
 			"$BASE/chains"
@@ -1032,7 +1038,7 @@ impl Configuration {
 			self.args.flag_geth ||
 			self.args.flag_no_ui;
 
-		!ui_disabled
+		!ui_disabled && cfg!(feature = "ui-enabled")
 	}
 
 	fn verifier_settings(&self) -> VerifierSettings {
@@ -1243,6 +1249,7 @@ mod tests {
 			hosts: Some(vec![]),
 			signer_path: expected.into(),
 			ui_address: Some(("127.0.0.1".to_owned(), 8180)),
+			support_token_api: true
 		}, UiConfiguration {
 			enabled: true,
 			interface: "127.0.0.1".into(),
@@ -1482,13 +1489,15 @@ mod tests {
 			port: 8180,
 			hosts: Some(vec![]),
 		});
+		assert!(conf0.ws_config().unwrap().hosts.is_some());
 		assert_eq!(conf1.directories().signer, "signer".to_owned());
 		assert_eq!(conf1.ui_config(), UiConfiguration {
 			enabled: true,
 			interface: "127.0.0.1".into(),
 			port: 8180,
-			hosts: None,
+			hosts: Some(vec![]),
 		});
+		assert_eq!(conf1.ws_config().unwrap().hosts, None);
 		assert_eq!(conf2.directories().signer, "signer".to_owned());
 		assert_eq!(conf2.ui_config(), UiConfiguration {
 			enabled: true,
@@ -1496,6 +1505,7 @@ mod tests {
 			port: 3123,
 			hosts: Some(vec![]),
 		});
+		assert!(conf2.ws_config().unwrap().hosts.is_some());
 		assert_eq!(conf3.directories().signer, "signer".to_owned());
 		assert_eq!(conf3.ui_config(), UiConfiguration {
 			enabled: true,
@@ -1503,6 +1513,7 @@ mod tests {
 			port: 8180,
 			hosts: Some(vec![]),
 		});
+		assert!(conf3.ws_config().unwrap().hosts.is_some());
 	}
 
 	#[test]
@@ -1590,6 +1601,7 @@ mod tests {
 		assert_eq!(conf0.http_config().unwrap().hosts, None);
 		assert_eq!(&conf0.ws_config().unwrap().interface, "0.0.0.0");
 		assert_eq!(conf0.ws_config().unwrap().hosts, None);
+		assert_eq!(conf0.ws_config().unwrap().origins, None);
 		assert_eq!(&conf0.ui_config().interface, "0.0.0.0");
 		assert_eq!(conf0.ui_config().hosts, None);
 		assert_eq!(&conf0.secretstore_config().unwrap().interface, "0.0.0.0");

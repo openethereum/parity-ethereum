@@ -16,6 +16,6 @@
 
 export default {
   tooltip: {
-    overview: `navigate between the different parts and views of the application, switching between an account view, token view and distributed application view`
+    overview: `navigate between the different parts and views of the application, switching between an account view, token view and decentralized application view`
   }
 };
