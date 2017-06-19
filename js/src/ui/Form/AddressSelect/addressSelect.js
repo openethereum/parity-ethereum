@@ -1,3 +1,4 @@
+import PropTypes from 'prop-types';
 // Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
@@ -14,7 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component, PropTypes } from 'react';
+import React, { Component } from 'react';
 import ReactDOM from 'react-dom';
 import { connect } from 'react-redux';
 import keycode, { codes } from 'keycode';
@@ -42,7 +43,7 @@ let currentId = 1;
 @observer
 class AddressSelect extends Component {
   static contextTypes = {
-    intl: React.PropTypes.object.isRequired,
+    intl: PropTypes.object.isRequired,
     api: PropTypes.object.isRequired
   };
 
@@ -471,7 +472,7 @@ class AddressSelect extends Component {
       const nextValues = values[nextCat];
       const nextFocus = nextValues ? nextValues.values[0] : null;
 
-      return this.focusItem(nextFocus && nextFocus.index || 1);
+      return this.focusItem((nextFocus && nextFocus.index) || 1);
     }
 
     event.preventDefault();

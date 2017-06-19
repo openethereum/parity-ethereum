@@ -22,12 +22,12 @@ import '@parity/shared/environment/tests';
 
 // Mock API for tests
 import * as Api from '../parity';
+import BigNumber from 'bignumber.js';
+import { Transaction, LocalTransaction } from './transaction';
+
 Api.api = {
   util: EthApi.prototype.util
 };
-
-import BigNumber from 'bignumber.js';
-import { Transaction, LocalTransaction } from './transaction';
 
 describe('dapps/localtx/Transaction', () => {
   describe('rendering', () => {

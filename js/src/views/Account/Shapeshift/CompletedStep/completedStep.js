@@ -15,7 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { observer } from 'mobx-react';
-import React, { Component, PropTypes } from 'react';
+import PropTypes from 'prop-types';
+import React, { Component } from 'react';
 import { FormattedMessage } from 'react-intl';
 
 import Value from '../Value';
@@ -39,7 +40,7 @@ export default class CompletedStep extends Component {
             id='shapeshift.completedStep.completed'
             defaultMessage='{shapeshiftLink} has completed the funds exchange.'
             values={ {
-              shapeshiftLink: <a href='https://shapeshift.io' target='_blank'>ShapeShift.io</a>
+              shapeshiftLink: <a href='https://shapeshift.io' target='_blank' rel='noopener noreferrer'>ShapeShift.io</a>
             } }
           />
         </div>

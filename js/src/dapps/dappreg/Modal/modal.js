@@ -15,7 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import keycode from 'keycode';
-import React, { Component, PropTypes } from 'react';
+import PropTypes from 'prop-types';
+import React, { Component } from 'react';
 import ReactDOM from 'react-dom';
 
 import Button from '../Button';
@@ -57,7 +58,7 @@ export default class Modal extends Component {
           className={ styles.dialog }
           onClick={ this.stopEvent }
           ref={ this.handleSetRef }
-          tabIndex={ open ? 0 : null }
+          tabIndex={ open ? 0 : null } // eslint-disable-line
         >
           <div className={ styles.header }>
             { header }
@@ -65,12 +66,13 @@ export default class Modal extends Component {
               className={ styles.close }
               onClick={ this.handleClose }
               onKeyPress={ this.handleCloseKeyPress }
-              tabIndex={ open ? 0 : null }
+              tabIndex={ open ? 0 : null } // eslint-disable-line
               title='close'
             >
               <img
                 className={ styles.closeIcon }
                 src={ CloseImage }
+                alt='closeIcon'
               />
             </div>
           </div>
@@ -98,6 +100,8 @@ export default class Modal extends Component {
 
             case 'close':
               onClick = this.handleClose;
+              break;
+            default:
               break;
           }
 

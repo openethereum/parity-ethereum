@@ -1,3 +1,4 @@
+import PropTypes from 'prop-types';
 // Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
@@ -14,7 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { PropTypes } from 'react';
+import React from 'react';
 
 import styles from './dappIcon.css';
 
@@ -23,6 +24,7 @@ export default function DappIcon ({ app, className, small }, { api }) {
 
   return (
     <img
+      alt='dapp-icon'
       className={
         [styles.icon, styles[small ? 'small' : 'normal'], className].join(' ')
       }

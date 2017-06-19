@@ -17,7 +17,8 @@
 import moment from 'moment';
 import dateDifference from 'date-difference';
 import { FormattedMessage } from 'react-intl';
-import React, { Component, PropTypes } from 'react';
+import PropTypes from 'prop-types';
+import React, { Component } from 'react';
 import { connect } from 'react-redux';
 
 import { txLink } from '~/3rdparty/etherscan/links';
@@ -96,6 +97,7 @@ class TxRow extends Component {
               className={ styles.link }
               href={ txLink(tx.hash, false, netVersion) }
               target='_blank'
+              rel='noopener noreferrer'
             >
               { `${tx.hash.substr(2, 6)}...${tx.hash.slice(-6)}` }
             </a>

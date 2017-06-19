@@ -15,7 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { observer } from 'mobx-react';
-import React, { Component, PropTypes } from 'react';
+import PropTypes from 'prop-types';
+import React, { Component } from 'react';
 import { FormattedMessage } from 'react-intl';
 
 import { CopyToClipboard, QrCode } from '@parity/ui';
@@ -58,7 +59,7 @@ export default class AwaitingDepositStep extends Component {
             id='shapeshift.awaitingDepositStep.awaitingDeposit'
             defaultMessage='{shapeshiftLink} is awaiting a {typeSymbol} deposit. Send the funds from your {typeSymbol} network client to -'
             values={ {
-              shapeshiftLink: <a href='https://shapeshift.io' target='_blank'>ShapeShift.io</a>,
+              shapeshiftLink: <a href='https://shapeshift.io' target='_blank' rel='noopener noreferrer'>ShapeShift.io</a>,
               typeSymbol
             } }
           />
@@ -94,6 +95,9 @@ export default class AwaitingDepositStep extends Component {
       case 'BTC':
         protocolLink = `bitcoin:${depositAddress}`;
         break;
+
+      default:
+        break;
     }
 
     return (
@@ -104,6 +108,7 @@ export default class AwaitingDepositStep extends Component {
               <a
                 href={ protocolLink }
                 target='_blank'
+                rel='noopener noreferrer'
               >
                 { qrcode }
               </a>

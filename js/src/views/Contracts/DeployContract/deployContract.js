@@ -16,7 +16,8 @@
 
 import BigNumber from 'bignumber.js';
 import { observer } from 'mobx-react';
-import React, { Component, PropTypes } from 'react';
+import PropTypes from 'prop-types';
+import React, { Component } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
@@ -276,6 +277,9 @@ class DeployContract extends Component {
           cancelBtn,
           createButton
         ];
+
+      default:
+        return null;
     }
   }
 
@@ -314,6 +318,9 @@ class DeployContract extends Component {
 
       case 'EXTRAS':
         return this.renderExtrasPage();
+
+      default:
+        return null;
     }
   }
 

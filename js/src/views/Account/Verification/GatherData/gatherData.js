@@ -1,3 +1,4 @@
+import PropTypes from 'prop-types';
 // Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
@@ -14,7 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component, PropTypes } from 'react';
+import React, { Component } from 'react';
 import { FormattedMessage } from 'react-intl';
 import BigNumber from 'bignumber.js';
 
@@ -33,7 +34,7 @@ const boolOfError = PropTypes.oneOfType([ PropTypes.bool, PropTypes.instanceOf(E
 
 export default class GatherData extends Component {
   static propTypes = {
-    fee: React.PropTypes.instanceOf(BigNumber),
+    fee: PropTypes.instanceOf(BigNumber),
     fields: PropTypes.array.isRequired,
     accountHasRequested: nullableProptype(PropTypes.bool.isRequired),
     isServerRunning: nullableProptype(PropTypes.bool.isRequired),

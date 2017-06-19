@@ -85,6 +85,8 @@ export default class Signer {
           this._postTransaction(data);
           this._listRequests(false);
           return;
+        default:
+          return;
       }
     });
   }

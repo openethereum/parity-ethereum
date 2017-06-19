@@ -15,7 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import moment from 'moment';
-import React, { Component, PropTypes } from 'react';
+import PropTypes from 'prop-types';
+import React, { Component } from 'react';
 
 import { api } from '../../parity';
 import { getCoin, txLink } from '../../services';
@@ -62,7 +63,7 @@ export default class Event extends Component {
         </td>
         <td className={ styles.address }>
           { this.renderAddress(event.params.owner) }
-          <div><a href={ txLink(event.transactionHash) } target='_blank' className={ styles.link }>{ this.renderHash(event.transactionHash) }</a></div>
+          <div><a href={ txLink(event.transactionHash) } target='_blank' rel='noopener noreferrer' className={ styles.link }>{ this.renderHash(event.transactionHash) }</a></div>
         </td>
         <td>{ isPending || !coin.isGlobal ? '' : 'global' }</td>
       </tr>

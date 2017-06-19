@@ -16,7 +16,8 @@
 
 import BigNumber from 'bignumber.js';
 import moment from 'moment';
-import React, { Component, PropTypes } from 'react';
+import PropTypes from 'prop-types';
+import React, { Component } from 'react';
 import { FormattedMessage } from 'react-intl';
 
 import { IdentityIcon, IdentityName, ShortenedHash, TypedInput } from '@parity/ui';
@@ -82,7 +83,7 @@ export default class Event extends Component {
           <div className={ styles.eventType }>
             { event.type }({ keys })
           </div>
-          <a href={ url } target='_blank'><ShortenedHash data={ event.transactionHash } /></a>
+          <a href={ url } target='_blank' rel='noopener noreferrer'><ShortenedHash data={ event.transactionHash } /></a>
         </td>
         <td className={ styles.eventDetails }>
           <div className={ styles.eventParams }>
@@ -113,7 +114,7 @@ export default class Event extends Component {
 
   renderParam (name, param) {
     // Don't add a label id the name is an index key (ie. a Number)
-    const label = parseInt(name).toString() === name.toString()
+    const label = parseInt(name, 10).toString() === name.toString()
       ? undefined
       : name;
 

@@ -15,7 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { observer } from 'mobx-react';
-import React, { Component, PropTypes } from 'react';
+import PropTypes from 'prop-types';
+import React, { Component } from 'react';
 
 import { api } from '../parity';
 import DappsStore from '../dappsStore';
@@ -201,7 +202,7 @@ export default class DappModal extends Component {
     return (
       <div>
         <div className={ styles.icon }>
-          <img src={ image.url } />
+          <img src={ image.url } alt='url' />
         </div>
         <div>
           <div className={ styles.name }>
@@ -240,6 +241,7 @@ export default class DappModal extends Component {
   renderOwnerSelect (dapp) {
     const overlayImage = (
       <img
+        alt='overlayImage'
         className={ styles.overlayImage }
         src={ api.util.createIdentityImg(this.props.dapp.wip.owner.address, 4) }
       />
@@ -263,6 +265,7 @@ export default class DappModal extends Component {
   renderOwnerStatic (dapp) {
     const overlayImage = (
       <img
+        alt='overlayImage'
         className={ styles.overlayImage }
         src={ api.util.createIdentityImg(dapp.owner.address, 4) }
       />
@@ -300,6 +303,7 @@ export default class DappModal extends Component {
     const overlayImage = (isImage && hash)
       ? (
         <img
+          alt='overlayImage'
           className={ styles.overlayImage }
           src={ `/api/content/${hash.substr(2)}` }
         />

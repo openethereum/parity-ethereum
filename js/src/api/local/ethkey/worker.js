@@ -17,7 +17,7 @@
 import { bytesToHex } from '~/api/util/format';
 import { extern, slice } from './ethkey.js';
 
-const isWorker = typeof self !== 'undefined';
+const isWorker = typeof self !== 'undefined'; // eslint-disable-line
 
 // Stay compatible between environments
 if (!isWorker) {
@@ -30,7 +30,7 @@ if (!isWorker) {
 let keythereum = require('keythereum');
 
 if (isWorker) {
-  keythereum = self.keythereum;
+  keythereum = self.keythereum; // eslint-disable-line
 }
 
 function route ({ action, payload }) {
@@ -102,7 +102,7 @@ const actions = {
   }
 };
 
-self.onmessage = function ({ data }) {
+self.onmessage = function ({ data }) { // eslint-disable-line
   try {
     const result = route(data);
 

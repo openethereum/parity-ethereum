@@ -64,7 +64,7 @@ export default class Application extends Component {
       // Add transaction data to locals
       transactions
         .filter(tx => tx.isLocal)
-        .map(data => {
+        .forEach(data => {
           const tx = data.transaction;
 
           local[tx.hash].transaction = tx;

@@ -34,6 +34,7 @@ export function inBlockNumber (blockNumber) {
       case 'earliest':
       case 'latest':
       case 'pending':
+      default:
         return blockNumber;
     }
   }
@@ -96,6 +97,10 @@ export function inFilter (options) {
 
         case 'topics':
           options[key] = inTopics(options[key]);
+          break;
+
+        default:
+          return null;
       }
     });
   }
@@ -173,6 +178,9 @@ export function inOptions (_options = {}) {
       case 'data':
         options[key] = inData(options[key]);
         break;
+
+      default:
+        return null;
     }
   });
 
@@ -193,6 +201,9 @@ export function inTraceFilter (filterObject) {
         case 'fromBlock':
           filterObject[key] = inBlockNumber(filterObject[key]);
           break;
+
+        default:
+          return null;
       }
     });
   }

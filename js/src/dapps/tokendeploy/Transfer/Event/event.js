@@ -16,7 +16,8 @@
 
 // TODO: This is a copy & paste for Deploy/Event -> render() different. Not very DRY
 import moment from 'moment';
-import React, { Component, PropTypes } from 'react';
+import PropTypes from 'prop-types';
+import React, { Component } from 'react';
 
 import { api } from '../../parity';
 import { txLink } from '../../services';
@@ -65,7 +66,7 @@ export default class Event extends Component {
         <td className={ styles.value }>
           <div>{ event.params.value.div(1000000).toFormat(6) }</div>
           <div>⇒</div>
-          <div><a href={ txLink(event.transactionHash) } target='_blank' className={ styles.link }>{ this.renderHash(event.transactionHash) }</a></div>
+          <div><a href={ txLink(event.transactionHash) } target='_blank' rel='noopener noreferrer' className={ styles.link }>{ this.renderHash(event.transactionHash) }</a></div>
         </td>
         <td className={ styles.address }>
           { this.renderAddress(event.params.to) }

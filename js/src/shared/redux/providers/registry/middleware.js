@@ -138,7 +138,9 @@ export default class RegistryMiddleware {
         break;
       case 'ReverseRemoved':
         delete this.addressesToCheck[log.params.reverse.value];
-
+        break;
+        
+      default:
         break;
     }
   };

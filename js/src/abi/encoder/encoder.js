@@ -65,11 +65,12 @@ export default class Encoder {
         case 'fixedArray':
         case 'array':
           return new Mediate(token.type, token.value.map((token) => Encoder.encodeToken(token)));
+
+        default:
+          throw new Error(`Invalid token type ${token.type} in encodeToken`);
       }
     } catch (e) {
       throw new Error(`Cannot encode token #${index} [${token.type}: ${token.value}]. ${e.message}`);
     }
-
-    throw new Error(`Invalid token type ${token.type} in encodeToken`);
   }
 }

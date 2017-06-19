@@ -59,7 +59,7 @@ export default class SolidityUtils {
       .then((r) => r.text())
       .then((code) => {
         // `window` for main thread, `self` for workers
-        const _self = isWorker ? self : window;
+        const _self = isWorker ? self : window; // eslint-disable-line
 
         _self.Module = {};
 

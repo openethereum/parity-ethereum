@@ -120,6 +120,9 @@ export default class SettingsMiddleware {
         case 'updateBackground':
           saveBackground(action.backgroundSeed);
           break;
+
+        default:
+          break;
       }
 
       next(action);

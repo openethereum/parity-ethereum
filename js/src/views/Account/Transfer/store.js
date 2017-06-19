@@ -129,6 +129,9 @@ export default class TransferStore {
 
       case 2:
         return verifyValid;
+
+      default:
+        return null;
     }
   }
 
@@ -173,6 +176,9 @@ export default class TransferStore {
 
       case 'value':
         return this._onUpdateValue(value);
+
+      default:
+        return null;
     }
   }
 

@@ -1,3 +1,4 @@
+import PropTypes from 'prop-types';
 // Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
@@ -14,7 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component, PropTypes } from 'react';
+import React, { Component } from 'react';
 
 import styles from './header.css';
 import blocks from '@parity/shared/assets/images/dapps/blocks-350.jpg';
@@ -33,7 +34,7 @@ export default class Header extends Component {
         <div className={ styles.banner }>
           contract signature registry
         </div>
-        <img src={ blocks } />
+        <img src={ blocks } alt='blocks' />
         <div className={ styles.content }>
           <div className={ styles.hero }>
             { totalSignatures.toFormat(0) }

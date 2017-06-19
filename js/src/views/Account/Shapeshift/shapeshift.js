@@ -15,7 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { observer } from 'mobx-react';
-import React, { Component, PropTypes } from 'react';
+import PropTypes from 'prop-types';
+import React, { Component } from 'react';
 import { FormattedMessage } from 'react-intl';
 
 import { Button, IdentityIcon, Portal } from '@parity/ui';
@@ -117,8 +118,9 @@ export default class Shapeshift extends Component {
         href='http://shapeshift.io'
         key='logo'
         target='_blank'
+        rel='noopener noreferrer'
       >
-        <img src={ shapeshiftLogo } />
+        <img src={ shapeshiftLogo } alt='dialogActions' />
       </a>
     );
     const cancelBtn = (
@@ -188,6 +190,9 @@ export default class Shapeshift extends Component {
             onClick={ this.onClose }
           />
         ];
+
+      default:
+        return null;
     }
   }
 
@@ -220,6 +225,9 @@ export default class Shapeshift extends Component {
         return (
           <CompletedStep store={ this.store } />
         );
+
+      default:
+        return null;
     }
   }
 

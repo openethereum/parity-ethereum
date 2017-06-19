@@ -41,7 +41,7 @@ export default class CreateDappCard extends Component {
         <Card
           dashed
           focus={ focus }
-          icon={ (<img src={ PlusImage } />) }
+          icon={ (<img src={ PlusImage } alt='plus' />) }
           name={ { value: 'Register a dapp' } }
           onClick={ this.handleOpen }
         />

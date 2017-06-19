@@ -1,3 +1,4 @@
+import PropTypes from 'prop-types';
 // Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
@@ -14,7 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component, PropTypes } from 'react';
+import React, { Component } from 'react';
 import { FormattedMessage } from 'react-intl';
 
 import { Container } from '@parity/ui';
@@ -58,16 +59,16 @@ export default class Proxy extends Component {
                 />
               </div>
               <div className={ layout.center }>
-                <a href={ proxyurl } target='_blank'>{ proxyurl }</a>
+                <a href={ proxyurl } target='_blank' rel='noopener noreferrer'>{ proxyurl }</a>
               </div>
               <div>
                 <FormattedMessage
                   id='settings.proxy.details_1'
                   defaultMessage='To learn how to configure the proxy, instructions are provided for {windowsLink}, {macOSLink} or {ubuntuLink}.'
                   values={ {
-                    windowsLink: <a href='https://blogs.msdn.microsoft.com/ieinternals/2013/10/11/understanding-web-proxy-configuration/' target='_blank'><FormattedMessage id='settings.proxy.details_windows' defaultMessage='Windows' /></a>,
-                    macOSLink: <a href='https://support.apple.com/kb/PH18553?locale=en_US' target='_blank'><FormattedMessage id='settings.proxy.details_macos' defaultMessage='macOS' /></a>,
-                    ubuntuLink: <a href='http://xmodulo.com/how-to-set-up-proxy-auto-config-on-ubuntu-desktop.html' target='_blank'><FormattedMessage id='settings.proxy.details_ubuntu' defaultMessage='Ubuntu' /></a>
+                    windowsLink: <a href='https://blogs.msdn.microsoft.com/ieinternals/2013/10/11/understanding-web-proxy-configuration/' target='_blank' rel='noopener noreferrer'><FormattedMessage id='settings.proxy.details_windows' defaultMessage='Windows' /></a>,
+                    macOSLink: <a href='https://support.apple.com/kb/PH18553?locale=en_US' target='_blank' rel='noopener noreferrer'><FormattedMessage id='settings.proxy.details_macos' defaultMessage='macOS' /></a>,
+                    ubuntuLink: <a href='http://xmodulo.com/how-to-set-up-proxy-auto-config-on-ubuntu-desktop.html' target='_blank' rel='noopener noreferrer'><FormattedMessage id='settings.proxy.details_ubuntu' defaultMessage='Ubuntu' /></a>
                   } }
                 />
               </div>

@@ -1,3 +1,4 @@
+import PropTypes from 'prop-types';
 // Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
@@ -14,7 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component, PropTypes } from 'react';
+import React, { Component } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import { Card, CardHeader, CardText } from 'material-ui/Card';
@@ -31,7 +32,7 @@ import { fromWei } from '../parity.js';
 import { clearError, reserve, drop } from './actions';
 import styles from './names.css';
 
-const useSignerText = (<p>Use the <a href='/#/signer' className={ styles.link } target='_blank'>Signer</a> to authenticate the following changes.</p>);
+const useSignerText = (<p>Use the <a href='/#/signer' className={ styles.link } target='_blank' rel='noopener noreferrer'>Signer</a> to authenticate the following changes.</p>);
 
 const renderNames = (names) => {
   const values = Object.values(names);

@@ -15,7 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import BigNumber from 'bignumber.js';
-import React, { Component, PropTypes } from 'react';
+import PropTypes from 'prop-types';
+import React, { Component } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 
@@ -120,7 +121,7 @@ class TxHash extends Component {
     const { hash, netVersion, summary } = this.props;
 
     const hashLink = (
-      <a href={ txLink(hash, false, netVersion) } target='_blank'>
+      <a href={ txLink(hash, false, netVersion) } target='_blank' rel='noopener noreferrer'>
         <ShortenedHash data={ hash } />
       </a>
     );

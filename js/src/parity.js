@@ -15,13 +15,12 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import 'whatwg-fetch';
-
 import es6Promise from 'es6-promise';
-es6Promise.polyfill();
 
 import Api from './api';
-
 import './dev.parity.html';
+
+es6Promise.polyfill();
 
 const web3Provider = new Api.Provider.Http('/rpc/');
 const api = new Api(web3Provider);

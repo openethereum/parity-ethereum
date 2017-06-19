@@ -1,3 +1,4 @@
+import PropTypes from 'prop-types';
 // Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
@@ -14,7 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component, PropTypes } from 'react';
+import React, { Component } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
@@ -87,7 +88,7 @@ class Views extends Component {
   renderViews () {
     const { settings } = this.props;
 
-    return Object.keys(settings.views).map((id) => {
+    return Object.keys(settings.views).forEach((id) => {
       const description = <FormattedMessage id={ `settings.views.${id}.description` } />;
       const label = <FormattedMessage id={ `settings.views.${id}.label` } />;
 

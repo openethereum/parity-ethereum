@@ -30,6 +30,8 @@ export function createRenderers (tagStyles = {}) {
             return createElement('a', { href, title, style }, children);
           };
           break;
+        default:
+          break;
       }
 
       return renderers;

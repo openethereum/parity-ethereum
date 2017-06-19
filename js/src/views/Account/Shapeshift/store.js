@@ -177,6 +177,9 @@ export default class Store {
           this.setExchangeInfo(result);
         }
         return;
+
+      default:
+        return;
     }
   }
 

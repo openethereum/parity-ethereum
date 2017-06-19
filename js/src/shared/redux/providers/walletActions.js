@@ -224,8 +224,8 @@ function fetchWalletInfo (contract, update, getState) {
         const ownersUpdate = updates.find((u) => u.key === UPDATE_OWNERS);
         const transactionsUpdate = updates.find((u) => u.key === UPDATE_TRANSACTIONS);
 
-        const owners = ownersUpdate && ownersUpdate.value || null;
-        const transactions = transactionsUpdate && transactionsUpdate.value || null;
+        const owners = (ownersUpdate && ownersUpdate.value) || null;
+        const transactions = (transactionsUpdate && transactionsUpdate.value) || null;
 
         return fetchWalletConfirmations(contract, update[UPDATE_CONFIRMATIONS], owners, transactions, getState)
           .then((update) => {
@@ -471,7 +471,6 @@ function parseLogs (logs) {
               (prev[UPDATE_CONFIRMATIONS] || []).concat(operation)
             )
           };
-
           return;
 
         case WalletSignatures.Deposit:
@@ -483,6 +482,9 @@ function parseLogs (logs) {
             ...prev,
             [ UPDATE_TRANSACTIONS ]: true
           };
+          return;
+
+        default:
           return;
       }
     });
