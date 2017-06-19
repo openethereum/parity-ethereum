@@ -49,7 +49,7 @@ class Status extends Component {
             { netChain }
           </div>
           <div className={ styles.peers }>
-            { netPeers.active.toFormat() }/{ netPeers.connected.toFormat() }/{ netPeers.max.toFormat() } peers
+            { netPeers.connected.toFormat() }/{ netPeers.max.toFormat() } peers
           </div>
         </div>
       </div>
