@@ -40,6 +40,8 @@ pub enum Error {
 	/// Returned on evm internal error. Should never be ignored during development.
 	/// Likely to cause consensus issues.
 	Internal,
+	/// When execution tries to modify the state in static context
+	MutableCallInStaticContext,
 	/// Wasm error
 	Wasm,
 }
@@ -55,6 +57,7 @@ impl<'a> From<&'a EvmError> for Error {
 			EvmError::BuiltIn { .. } => Error::BuiltIn,
 			EvmError::Wasm { .. } => Error::Wasm,
 			EvmError::Internal(_) => Error::Internal,
+			EvmError::MutableCallInStaticContext => Error::MutableCallInStaticContext,
 		}
 	}
 }
@@ -77,6 +80,7 @@ impl fmt::Display for Error {
 			BuiltIn => "Built-in failed",
 			Wasm => "Wasm runtime error",
 			Internal => "Internal error",
+			MutableCallInStaticContext => "Mutable Call In Static Context",
 		};
 		message.fmt(f)
 	}
@@ -93,7 +97,8 @@ impl Encodable for Error {
 			OutOfStack => 4,
 			Internal => 5,
 			BuiltIn => 6,
-			Wasm => 7,
+			MutableCallInStaticContext => 7,
+			Wasm => 8,
 		};
 
 		s.append_internal(&value);
@@ -112,6 +117,8 @@ impl Decodable for Error {
 			4 => Ok(OutOfStack),
 			5 => Ok(Internal),
 			6 => Ok(BuiltIn),
+			7 => Ok(MutableCallInStaticContext),
+			8 => Ok(Wasm),
 			_ => Err(DecoderError::Custom("Invalid error type")),
 		}
 	}

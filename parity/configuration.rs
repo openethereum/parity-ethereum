@@ -497,6 +497,7 @@ impl Configuration {
 			password_files: self.args.flag_password.clone(),
 			unlocked_accounts: to_addresses(&self.args.flag_unlock)?,
 			enable_hardware_wallets: !self.args.flag_no_hardware_wallets,
+			enable_fast_unlock: self.args.flag_fast_unlock,
 		};
 
 		Ok(cfg)

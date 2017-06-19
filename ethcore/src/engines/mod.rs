@@ -147,7 +147,9 @@ pub trait Engine : Sync + Send {
 	fn params(&self) -> &CommonParams;
 
 	/// Get the EVM schedule for the given `block_number`.
-	fn schedule(&self, block_number: BlockNumber) -> Schedule;
+	fn schedule(&self, block_number: BlockNumber) -> Schedule {
+		Schedule::from_params(block_number, self.params())
+	}
 
 	/// Builtin-contracts we would like to see in the chain.
 	/// (In principle these are just hints for the engine since that has the last word on them.)

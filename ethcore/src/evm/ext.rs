@@ -53,25 +53,24 @@ pub enum CreateContractAddress {
 }
 
 /// Externalities interface for EVMs
-// TODO: [rob] associated error type instead of `trie::Result`. Not all EVMs are trie powered.
 pub trait Ext {
 	/// Returns a value for given key.
-	fn storage_at(&self, key: &H256) -> trie::Result<H256>;
+	fn storage_at(&self, key: &H256) -> evm::Result<H256>;
 
 	/// Stores a value for given key.
-	fn set_storage(&mut self, key: H256, value: H256) -> trie::Result<()>;
+	fn set_storage(&mut self, key: H256, value: H256) -> evm::Result<()>;
 
 	/// Determine whether an account exists.
-	fn exists(&self, address: &Address) -> trie::Result<bool>;
+	fn exists(&self, address: &Address) -> evm::Result<bool>;
 
 	/// Determine whether an account exists and is not null (zero balance/nonce, no code).
-	fn exists_and_not_null(&self, address: &Address) -> trie::Result<bool>;
+	fn exists_and_not_null(&self, address: &Address) -> evm::Result<bool>;
 
 	/// Balance of the origin account.
-	fn origin_balance(&self) -> trie::Result<U256>;
+	fn origin_balance(&self) -> evm::Result<U256>;
 
 	/// Returns address balance.
-	fn balance(&self, address: &Address) -> trie::Result<U256>;
+	fn balance(&self, address: &Address) -> evm::Result<U256>;
 
 	/// Returns the hash of one of the 256 most recent complete blocks.
 	fn blockhash(&mut self, number: &U256) -> H256;
@@ -99,13 +98,13 @@ pub trait Ext {
 	) -> MessageCallResult;
 
 	/// Returns code at given address
-	fn extcode(&self, address: &Address) -> trie::Result<Arc<Bytes>>;
+	fn extcode(&self, address: &Address) -> evm::Result<Arc<Bytes>>;
 
 	/// Returns code size at given address
-	fn extcodesize(&self, address: &Address) -> trie::Result<usize>;
+	fn extcodesize(&self, address: &Address) -> evm::Result<usize>;
 
 	/// Creates log entry with given topics and data
-	fn log(&mut self, topics: Vec<H256>, data: &[u8]);
+	fn log(&mut self, topics: Vec<H256>, data: &[u8]) -> evm::Result<()>;
 
 	/// Should be called when transaction calls `RETURN` opcode.
 	/// Returns gas_left if cost of returning the data is not too high.
@@ -113,7 +112,7 @@ pub trait Ext {
 
 	/// Should be called when contract commits suicide.
 	/// Address to which funds should be refunded.
-	fn suicide(&mut self, refund_address: &Address) -> trie::Result<()> ;
+	fn suicide(&mut self, refund_address: &Address) -> evm::Result<()> ;
 
 	/// Returns schedule.
 	fn schedule(&self) -> &Schedule;

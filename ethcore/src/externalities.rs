@@ -40,7 +40,7 @@ pub struct OriginInfo {
 	address: Address,
 	origin: Address,
 	gas_price: U256,
-	value: U256
+	value: U256,
 }
 
 impl OriginInfo {
@@ -52,7 +52,7 @@ impl OriginInfo {
 			gas_price: params.gas_price,
 			value: match params.value {
 				ActionValue::Transfer(val) | ActionValue::Apparent(val) => val
-			}
+			},
 		}
 	}
 }
@@ -71,6 +71,7 @@ pub struct Externalities<'a, T: 'a, V: 'a, B: 'a, E: 'a + Engine + ?Sized>
 	output: OutputPolicy<'a, 'a>,
 	tracer: &'a mut T,
 	vm_tracer: &'a mut V,
+	static_flag: bool,
 }
 
 impl<'a, T: 'a, V: 'a, B: 'a, E: 'a> Externalities<'a, T, V, B, E>
@@ -87,6 +88,7 @@ impl<'a, T: 'a, V: 'a, B: 'a, E: 'a> Externalities<'a, T, V, B, E>
 		output: OutputPolicy<'a, 'a>,
 		tracer: &'a mut T,
 		vm_tracer: &'a mut V,
+		static_flag: bool,
 	) -> Self {
 		Externalities {
 			state: state,
@@ -99,6 +101,7 @@ impl<'a, T: 'a, V: 'a, B: 'a, E: 'a> Externalities<'a, T, V, B, E>
 			output: output,
 			tracer: tracer,
 			vm_tracer: vm_tracer,
+			static_flag: static_flag,
 		}
 	}
 }
@@ -106,26 +109,32 @@ impl<'a, T: 'a, V: 'a, B: 'a, E: 'a> Externalities<'a, T, V, B, E>
 impl<'a, T: 'a, V: 'a, B: 'a, E: 'a> Ext for Externalities<'a, T, V, B, E>
 	where T: Tracer, V: VMTracer, B: StateBackend, E: Engine + ?Sized
 {
-	fn storage_at(&self, key: &H256) -> trie::Result<H256> {
-		self.state.storage_at(&self.origin_info.address, key)
+	fn storage_at(&self, key: &H256) -> evm::Result<H256> {
+		self.state.storage_at(&self.origin_info.address, key).map_err(Into::into)
 	}
 
-	fn set_storage(&mut self, key: H256, value: H256) -> trie::Result<()> {
-		self.state.set_storage(&self.origin_info.address, key, value)
+	fn set_storage(&mut self, key: H256, value: H256) -> evm::Result<()> {
+		if self.static_flag {
+			Err(evm::Error::MutableCallInStaticContext)
+		} else {
+			self.state.set_storage(&self.origin_info.address, key, value).map_err(Into::into)
+		}
 	}
 
-	fn exists(&self, address: &Address) -> trie::Result<bool> {
-		self.state.exists(address)
+	fn exists(&self, address: &Address) -> evm::Result<bool> {
+		self.state.exists(address).map_err(Into::into)
 	}
 
-	fn exists_and_not_null(&self, address: &Address) -> trie::Result<bool> {
-		self.state.exists_and_not_null(address)
+	fn exists_and_not_null(&self, address: &Address) -> evm::Result<bool> {
+		self.state.exists_and_not_null(address).map_err(Into::into)
 	}
 
-	fn origin_balance(&self) -> trie::Result<U256> { self.balance(&self.origin_info.address) }
+	fn origin_balance(&self) -> evm::Result<U256> {
+		self.balance(&self.origin_info.address).map_err(Into::into)
+	}
 
-	fn balance(&self, address: &Address) -> trie::Result<U256> {
-		self.state.balance(address)
+	fn balance(&self, address: &Address) -> evm::Result<U256> {
+		self.state.balance(address).map_err(Into::into)
 	}
 
 	fn blockhash(&mut self, number: &U256) -> H256 {
@@ -208,7 +217,7 @@ impl<'a, T: 'a, V: 'a, B: 'a, E: 'a> Ext for Externalities<'a, T, V, B, E>
 				return ContractCreateResult::Failed
 			}
 		}
-		let mut ex = Executive::from_parent(self.state, self.env_info, self.engine, self.depth);
+		let mut ex = Executive::from_parent(self.state, self.env_info, self.engine, self.depth, self.static_flag);
 
 		// TODO: handle internal error separately
 		match ex.create(params, self.substate, self.tracer, self.vm_tracer) {
@@ -258,7 +267,7 @@ impl<'a, T: 'a, V: 'a, B: 'a, E: 'a> Ext for Externalities<'a, T, V, B, E>
 			params.value = ActionValue::Transfer(value);
 		}
 
-		let mut ex = Executive::from_parent(self.state, self.env_info, self.engine, self.depth);
+		let mut ex = Executive::from_parent(self.state, self.env_info, self.engine, self.depth, self.static_flag);
 
 		match ex.call(params, self.substate, BytesRef::Fixed(output), self.tracer, self.vm_tracer) {
 			Ok((gas_left, return_data)) => MessageCallResult::Success(gas_left, return_data),
@@ -266,11 +275,11 @@ impl<'a, T: 'a, V: 'a, B: 'a, E: 'a> Ext for Externalities<'a, T, V, B, E>
 		}
 	}
 
-	fn extcode(&self, address: &Address) -> trie::Result<Arc<Bytes>> {
+	fn extcode(&self, address: &Address) -> evm::Result<Arc<Bytes>> {
 		Ok(self.state.code(address)?.unwrap_or_else(|| Arc::new(vec![])))
 	}
 
-	fn extcodesize(&self, address: &Address) -> trie::Result<usize> {
+	fn extcodesize(&self, address: &Address) -> evm::Result<usize> {
 		Ok(self.state.code_size(address)?.unwrap_or(0))
 	}
 
@@ -312,8 +321,12 @@ impl<'a, T: 'a, V: 'a, B: 'a, E: 'a> Ext for Externalities<'a, T, V, B, E>
 		}
 	}
 
-	fn log(&mut self, topics: Vec<H256>, data: &[u8]) {
+	fn log(&mut self, topics: Vec<H256>, data: &[u8]) -> evm::Result<()> {
 		use log_entry::LogEntry;
+
+		if self.static_flag {
+			return Err(evm::Error::MutableCallInStaticContext);
+		}
 
 		let address = self.origin_info.address.clone();
 		self.substate.logs.push(LogEntry {
@@ -321,9 +334,15 @@ impl<'a, T: 'a, V: 'a, B: 'a, E: 'a> Ext for Externalities<'a, T, V, B, E>
 			topics: topics,
 			data: data.to_vec()
 		});
+
+		Ok(())
 	}
 
-	fn suicide(&mut self, refund_address: &Address) -> trie::Result<()> {
+	fn suicide(&mut self, refund_address: &Address) -> evm::Result<()> {
+		if self.static_flag {
+			return Err(evm::Error::MutableCallInStaticContext);
+		}
+
 		let address = self.origin_info.address.clone();
 		let balance = self.balance(&address)?;
 		if &address == refund_address {
@@ -434,7 +453,7 @@ mod tests {
 		let mut tracer = NoopTracer;
 		let mut vm_tracer = NoopVMTracer;
 
-		let ext = Externalities::new(state, &setup.env_info, &*setup.engine, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract(None), &mut tracer, &mut vm_tracer);
+		let ext = Externalities::new(state, &setup.env_info, &*setup.engine, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract(None), &mut tracer, &mut vm_tracer, false);
 
 		assert_eq!(ext.env_info().number, 100);
 	}
@@ -446,7 +465,7 @@ mod tests {
 		let mut tracer = NoopTracer;
 		let mut vm_tracer = NoopVMTracer;
 
-		let mut ext = Externalities::new(state, &setup.env_info, &*setup.engine, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract(None), &mut tracer, &mut vm_tracer);
+		let mut ext = Externalities::new(state, &setup.env_info, &*setup.engine, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract(None), &mut tracer, &mut vm_tracer, false);
 
 		let hash = ext.blockhash(&U256::from_str("0000000000000000000000000000000000000000000000000000000000120000").unwrap());
 
@@ -470,7 +489,7 @@ mod tests {
 		let mut tracer = NoopTracer;
 		let mut vm_tracer = NoopVMTracer;
 
-		let mut ext = Externalities::new(state, &setup.env_info, &*setup.engine, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract(None), &mut tracer, &mut vm_tracer);
+		let mut ext = Externalities::new(state, &setup.env_info, &*setup.engine, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract(None), &mut tracer, &mut vm_tracer, false);
 
 		let hash = ext.blockhash(&U256::from_str("0000000000000000000000000000000000000000000000000000000000120000").unwrap());
 
@@ -485,7 +504,7 @@ mod tests {
 		let mut tracer = NoopTracer;
 		let mut vm_tracer = NoopVMTracer;
 
-		let mut ext = Externalities::new(state, &setup.env_info, &*setup.engine, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract(None), &mut tracer, &mut vm_tracer);
+		let mut ext = Externalities::new(state, &setup.env_info, &*setup.engine, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract(None), &mut tracer, &mut vm_tracer, false);
 
 		let mut output = vec![];
 
@@ -513,8 +532,8 @@ mod tests {
 		let mut vm_tracer = NoopVMTracer;
 
 		{
-			let mut ext = Externalities::new(state, &setup.env_info, &*setup.engine, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract(None), &mut tracer, &mut vm_tracer);
-			ext.log(log_topics, &log_data);
+			let mut ext = Externalities::new(state, &setup.env_info, &*setup.engine, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract(None), &mut tracer, &mut vm_tracer, false);
+			ext.log(log_topics, &log_data).unwrap();
 		}
 
 		assert_eq!(setup.sub_state.logs.len(), 1);
@@ -530,7 +549,7 @@ mod tests {
 		let mut vm_tracer = NoopVMTracer;
 
 		{
-			let mut ext = Externalities::new(state, &setup.env_info, &*setup.engine, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract(None), &mut tracer, &mut vm_tracer);
+			let mut ext = Externalities::new(state, &setup.env_info, &*setup.engine, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract(None), &mut tracer, &mut vm_tracer, false);
 			ext.suicide(refund_account).unwrap();
 		}
 
