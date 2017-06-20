@@ -777,6 +777,7 @@ fn prepare_account_provider(spec: &SpecType, dirs: &Directories, data_dir: &str,
 	let account_settings = AccountProviderSettings {
 		enable_hardware_wallets: cfg.enable_hardware_wallets,
 		hardware_wallet_classic_key: spec == &SpecType::Classic,
+		unlock_keep_secret: cfg.enable_fast_unlock,
 		blacklisted_accounts: 	match *spec {
 			SpecType::Morden | SpecType::Ropsten | SpecType::Kovan | SpecType::Dev => vec![],
 			_ => vec![

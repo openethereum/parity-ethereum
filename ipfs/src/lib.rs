@@ -77,10 +77,10 @@ impl IpfsHandler {
 /// Implement Hyper's HTTP handler
 impl Handler<HttpStream> for IpfsHandler {
 	fn on_request(&mut self, req: Request<HttpStream>) -> Next {
-		if *req.method() != Method::Get {
-			return Next::write();
+		match *req.method() {
+			Method::Get | Method::Post => {},
+			_ => return Next::write()
 		}
-
 
 		if !http::is_host_allowed(&req, &self.allowed_hosts) {
 			self.out = Out::Bad("Disallowed Host header");

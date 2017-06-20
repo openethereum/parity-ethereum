@@ -497,6 +497,7 @@ impl Configuration {
 			password_files: self.args.flag_password.clone(),
 			unlocked_accounts: to_addresses(&self.args.flag_unlock)?,
 			enable_hardware_wallets: !self.args.flag_no_hardware_wallets,
+			enable_fast_unlock: self.args.flag_fast_unlock,
 		};
 
 		Ok(cfg)
@@ -888,15 +889,20 @@ impl Configuration {
 		let local_path = default_local_path();
 		let base_path = self.args.flag_base_path.as_ref().or_else(|| self.args.flag_datadir.as_ref()).map_or_else(|| default_data_path(), |s| s.clone());
 		let data_path = replace_home("", &base_path);
-		let base_db_path = if self.args.flag_base_path.is_some() && self.args.flag_db_path.is_none() {
-			// If base_path is set and db_path is not we default to base path subdir instead of LOCAL.
+		let is_using_base_path = self.args.flag_base_path.is_some();
+		// If base_path is set and db_path is not we default to base path subdir instead of LOCAL.
+		let base_db_path = if is_using_base_path && self.args.flag_db_path.is_none() {
 			"$BASE/chains"
 		} else {
 			self.args.flag_db_path.as_ref().map_or(dir::CHAINS_PATH, |s| &s)
 		};
+		let cache_path = if is_using_base_path {
+			"$BASE/cache".into()
+		} else {
+			replace_home_and_local(&data_path, &local_path, &dir::CACHE_PATH)
+		};
 
 		let db_path = replace_home_and_local(&data_path, &local_path, &base_db_path);
-		let cache_path = replace_home_and_local(&data_path, &local_path, &base_db_path);
 		let keys_path = replace_home(&data_path, &self.args.flag_keys_path);
 		let dapps_path = replace_home(&data_path, &self.args.flag_dapps_path);
 		let secretstore_path = replace_home(&data_path, &self.args.flag_secretstore_path);

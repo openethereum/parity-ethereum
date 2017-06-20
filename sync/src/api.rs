@@ -709,7 +709,7 @@ impl LightSync {
 			};
 
 			let mut light_proto = LightProtocol::new(params.client.clone(), light_params);
-			let sync_handler = Arc::new(try!(SyncHandler::new(params.client.clone())));
+			let sync_handler = Arc::new(SyncHandler::new(params.client.clone())?);
 			light_proto.add_handler(sync_handler.clone());
 
 			for handler in params.handlers {
@@ -719,7 +719,7 @@ impl LightSync {
 			(sync_handler, Arc::new(light_proto))
 		};
 
-		let service = try!(NetworkService::new(params.network_config));
+		let service = NetworkService::new(params.network_config)?;
 
 		Ok(LightSync {
 			proto: light_proto,

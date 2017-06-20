@@ -106,13 +106,13 @@ impl Light {
 		light_compute(self, header_hash, nonce)
 	}
 
-	pub fn file_path(mut cache_dir: &Path, seed_hash: H256) -> PathBuf {
+	pub fn file_path(cache_dir: &Path, seed_hash: H256) -> PathBuf {
 		let mut cache_dir = cache_dir.to_path_buf();
 		cache_dir.push(to_hex(&seed_hash));
 		cache_dir
 	}
 
-	pub fn from_file(mut cache_dir: &Path, block_number: u64) -> io::Result<Light> {
+	pub fn from_file(cache_dir: &Path, block_number: u64) -> io::Result<Light> {
 		let seed_compute = SeedHashCompute::new();
 		let path = Light::file_path(cache_dir, seed_compute.get_seedhash(block_number));
 		let mut file = File::open(path)?;
@@ -348,7 +348,7 @@ fn light_new(cache_dir: &Path, block_number: u64) -> Light {
 	let seedhash = seed_compute.get_seedhash(block_number);
 	let cache_size = get_cache_size(block_number);
 
-	assert!(cache_size % NODE_BYTES != 0, "Unaligned cache size");
+	assert!(cache_size % NODE_BYTES == 0, "Unaligned cache size");
 	let num_nodes = cache_size / NODE_BYTES;
 
 	let mut nodes = Vec::with_capacity(num_nodes);

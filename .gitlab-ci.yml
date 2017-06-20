@@ -71,13 +71,13 @@ linux-snap:
     - triggers
   script:
     - export VER=$(grep -m 1 version Cargo.toml | awk '{print $3}' | tr -d '"' | tr -d "\n")
-    - cd scripts
+    - cd snap
     - rm -rf *snap
     - sed -i 's/master/'"$VER"'/g' snapcraft.yaml
     - echo "Version:"$VER
     - snapcraft
     - ls
-    - cp parity_master_amd64.snap parity_"$VER"_amd64.snap
+    - cp "parity_"$CI_BUILD"_REF_NAME_amd64.snap" "parity_"$VER"_amd64.snap"
     - md5sum "parity_"$VER"_amd64.snap" > "parity_"$VER"_amd64.snap.md5"
     - aws configure set aws_access_key_id $s3_key
     - aws configure set aws_secret_access_key $s3_secret

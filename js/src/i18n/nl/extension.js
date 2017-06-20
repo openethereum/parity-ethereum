@@ -16,5 +16,5 @@
 
 export default {
   install: `Installeer de extensie nu`,
-  intro: `Parity heeft nu een extensie voor Chrome beschikbaar waarmee je veillig Ethereum-enabled gedistribueerde applicaties kunt bekijken. Het wordt ten zeerste aanbevolen om deze extensie te installeren om je Parity ervaring nog beter te maken.`
+  intro: `Parity heeft nu een extensie voor Chrome beschikbaar waarmee je veillig Ethereum-enabled decentrale applicaties kunt bekijken. Het wordt ten zeerste aanbevolen om deze extensie te installeren om je Parity ervaring nog beter te maken.`
 };
