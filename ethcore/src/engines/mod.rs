@@ -325,7 +325,6 @@ pub trait Engine : Sync + Send {
 	}
 }
 
-
 /// Common engine utilities
 pub mod common {
 	use block::ExecutedBlock;

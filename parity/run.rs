@@ -171,7 +171,7 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 	let panic_handler = PanicHandler::new_in_arc();
 
 	// load spec
-	let spec = cmd.spec.spec()?;
+	let spec = cmd.spec.spec(&cmd.dirs.cache)?;
 
 	// load genesis hash
 	let genesis_hash = spec.genesis_header().hash();
@@ -356,7 +356,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	let panic_handler = PanicHandler::new_in_arc();
 
 	// load spec
-	let spec = cmd.spec.spec()?;
+	let spec = cmd.spec.spec(&cmd.dirs.cache)?;
 
 	// load genesis hash
 	let genesis_hash = spec.genesis_header().hash();

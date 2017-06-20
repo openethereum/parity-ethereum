@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::{str, fs, fmt};
+use std::{str, fs, fmt, path};
 use std::time::Duration;
 use util::{Address, U256, version_data};
 use util::journaldb::Algorithm;
@@ -79,19 +79,20 @@ impl fmt::Display for SpecType {
 }
 
 impl SpecType {
-	pub fn spec(&self) -> Result<Spec, String> {
+	pub fn spec<T: AsRef<path::Path>>(&self, cache_dir: T) -> Result<Spec, String> {
+		let cache_dir = cache_dir.as_ref();
 		match *self {
-			SpecType::Foundation => Ok(ethereum::new_foundation()),
-			SpecType::Morden => Ok(ethereum::new_morden()),
-			SpecType::Ropsten => Ok(ethereum::new_ropsten()),
-			SpecType::Olympic => Ok(ethereum::new_olympic()),
-			SpecType::Classic => Ok(ethereum::new_classic()),
-			SpecType::Expanse => Ok(ethereum::new_expanse()),
-			SpecType::Kovan => Ok(ethereum::new_kovan()),
+			SpecType::Foundation => Ok(ethereum::new_foundation(cache_dir)),
+			SpecType::Morden => Ok(ethereum::new_morden(cache_dir)),
+			SpecType::Ropsten => Ok(ethereum::new_ropsten(cache_dir)),
+			SpecType::Olympic => Ok(ethereum::new_olympic(cache_dir)),
+			SpecType::Classic => Ok(ethereum::new_classic(cache_dir)),
+			SpecType::Expanse => Ok(ethereum::new_expanse(cache_dir)),
+			SpecType::Kovan => Ok(ethereum::new_kovan(cache_dir)),
 			SpecType::Dev => Ok(Spec::new_instant()),
 			SpecType::Custom(ref filename) => {
-				let file = fs::File::open(filename).map_err(|_| "Could not load specification file.")?;
-				Spec::load(file)
+				let file = fs::File::open(filename).map_err(|e| format!("Could not load specification file at {}: {}", filename, e))?;
+				Spec::load(cache_dir, file)
 			}
 		}
 	}

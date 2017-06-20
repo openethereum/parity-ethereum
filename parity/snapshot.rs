@@ -138,7 +138,7 @@ impl SnapshotCommand {
 		let panic_handler = PanicHandler::new_in_arc();
 
 		// load spec file
-		let spec = self.spec.spec()?;
+		let spec = self.spec.spec(&self.dirs.cache)?;
 
 		// load genesis hash
 		let genesis_hash = spec.genesis_header().hash();

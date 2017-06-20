@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::path::Path;
 use ethash::{quick_get_difficulty, slow_get_seedhash, EthashManager};
 use util::*;
 use block::*;
@@ -24,7 +25,7 @@ use header::{Header, BlockNumber};
 use state::CleanupMode;
 use spec::CommonParams;
 use transaction::UnverifiedTransaction;
-use engines::Engine;
+use engines::{self, Engine};
 use evm::Schedule;
 use ethjson;
 use rlp::{self, UntrustedRlp};
@@ -144,12 +145,17 @@ pub struct Ethash {
 
 impl Ethash {
 	/// Create a new instance of Ethash engine
-	pub fn new(params: CommonParams, ethash_params: EthashParams, builtins: BTreeMap<Address, Builtin>) -> Arc<Self> {
+	pub fn new(
+		cache_dir: &Path,
+		params: CommonParams,
+		ethash_params: EthashParams,
+		builtins: BTreeMap<Address, Builtin>,
+	) -> Arc<Self> {
 		Arc::new(Ethash {
-			params: params,
-			ethash_params: ethash_params,
-			builtins: builtins,
-			pow: EthashManager::new(),
+			params,
+			ethash_params,
+			builtins,
+			pow: EthashManager::new(cache_dir),
 		})
 	}
 }
@@ -162,7 +168,7 @@ impl Ethash {
 // for any block in the chain.
 // in the future, we might move the Ethash epoch
 // caching onto this mechanism as well.
-impl ::engines::EpochVerifier for Arc<Ethash> {
+impl engines::EpochVerifier for Arc<Ethash> {
 	fn epoch_number(&self) -> u64 { 0 }
 	fn verify_light(&self, _header: &Header) -> Result<(), Error> { Ok(()) }
 	fn verify_heavy(&self, header: &Header) -> Result<(), Error> {
@@ -255,7 +261,7 @@ impl Engine for Arc<Ethash> {
 
 	fn on_new_block(&self, block: &mut ExecutedBlock, last_hashes: Arc<LastHashes>) -> Result<(), Error> {
 		let parent_hash = block.fields().header.parent_hash().clone();
-		try!(::engines::common::push_last_hash(block, last_hashes, self, &parent_hash));
+		try!(engines::common::push_last_hash(block, last_hashes, self, &parent_hash));
 		if block.fields().header.number() == self.ethash_params.dao_hardfork_transition {
 			let state = block.fields_mut().state;
 			for child in &self.ethash_params.dao_hardfork_accounts {
@@ -387,7 +393,7 @@ impl Engine for Arc<Ethash> {
 		Ok(())
 	}
 
-	fn epoch_verifier(&self, _header: &Header, _proof: &[u8]) -> Result<Box<::engines::EpochVerifier>, Error> {
+	fn epoch_verifier(&self, _header: &Header, _proof: &[u8]) -> Result<Box<engines::EpochVerifier>, Error> {
 		Ok(Box::new(self.clone()))
 	}
 
