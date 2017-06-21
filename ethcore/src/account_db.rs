@@ -95,9 +95,9 @@ impl<'db> HashDB for AccountDB<'db>{
 		unimplemented!()
 	}
 
-	fn get_exec(&self, key: &H256, f: &mut FnMut(&DBValue)) {
+	fn get_exec(&self, key: &H256, f: &mut FnMut(&[u8])) {
 		if key == &SHA3_NULL_RLP {
-			f(&DBValue::from_slice(&NULL_RLP));
+			f(&NULL_RLP);
 			return;
 		}
 
@@ -156,9 +156,9 @@ impl<'db> HashDB for AccountDBMut<'db>{
 		unimplemented!()
 	}
 
-	fn get_exec(&self, key: &H256, f: &mut FnMut(&DBValue)) {
+	fn get_exec(&self, key: &H256, f: &mut FnMut(&[u8])) {
 		if key == &SHA3_NULL_RLP {
-			f(&DBValue::from_slice(&NULL_RLP));
+			f(&NULL_RLP);
 			return;
 		}
 
@@ -206,9 +206,9 @@ impl<'db> HashDB for Wrapping<'db> {
 		unimplemented!()
 	}
 
-	fn get_exec(&self, key: &H256, f: &mut FnMut(&DBValue)) {
+	fn get_exec(&self, key: &H256, f: &mut FnMut(&[u8])) {
 		if key == &SHA3_NULL_RLP {
-			f(&DBValue::from_slice(&NULL_RLP));
+			f(&NULL_RLP);
 			return;
 		}
 
@@ -242,9 +242,9 @@ impl<'db> HashDB for WrappingMut<'db>{
 		unimplemented!()
 	}
 
-	fn get_exec(&self, key: &H256, f: &mut FnMut(&DBValue)) {
+	fn get_exec(&self, key: &H256, f: &mut FnMut(&[u8])) {
 		if key == &SHA3_NULL_RLP {
-			f(&DBValue::from_slice(&NULL_RLP));
+			f(&NULL_RLP);
 			return;
 		}
 

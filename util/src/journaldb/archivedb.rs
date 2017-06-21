@@ -22,7 +22,7 @@ use hashdb::*;
 use memorydb::*;
 use super::{DB_PREFIX_LEN, LATEST_ERA_KEY};
 use super::traits::JournalDB;
-use kvdb::{KeyValueDB, DBTransaction};
+use kvdb::{KeyValueDB, KeyValueDBExt, DBTransaction};
 
 /// Implementation of the `HashDB` trait for a disk-backed database with a memory overlay
 /// and latent-removal semantics.
@@ -63,7 +63,7 @@ impl ArchiveDB {
     )
 	}
 
-	fn payload_exec(&self, key: &H256, f: &mut FnMut(&DBValue)) {
+	fn payload_exec(&self, key: &H256, f: &mut FnMut(&[u8])) {
     // TODO: Fix this once `KeyValueDB` has a `get_exec` method
 		if let Some(val) = self.payload(key) {
       f(&val);
@@ -86,20 +86,20 @@ impl HashDB for ArchiveDB {
 		ret
 	}
 
-	fn get_exec(&self, key: &H256, f: &mut FnMut(&DBValue)) {
+	fn get_exec(&self, key: &H256, f: &mut FnMut(&[u8])) {
 		let k = self.overlay.raw_ref(key);
 
 		if let Some((d, rc)) = k {
 			if rc > 0 {
-        f(d.as_ref());
-      }
+				f(d.as_ref());
+			}
 		}
 
 		self.payload_exec(key, f);
 	}
 
 	fn contains(&self, key: &H256) -> bool {
-		self.get(key).is_some()
+		self.get_with(key, |_| ()).is_some()
 	}
 
 	fn insert(&mut self, value: &[u8]) -> H256 {
@@ -168,7 +168,7 @@ impl JournalDB for ArchiveDB {
 		for i in self.overlay.drain() {
 			let (key, (value, rc)) = i;
 			if rc > 0 {
-				if self.backing.get(self.column, &key)?.is_some() {
+				if self.backing.get_with(self.column, &key, |_| ())?.is_some() {
 					return Err(BaseDataError::AlreadyExists(key).into());
 				}
 				batch.put(self.column, &key, &value);
@@ -176,7 +176,7 @@ impl JournalDB for ArchiveDB {
 			}
 			if rc < 0 {
 				assert!(rc == -1);
-				if self.backing.get(self.column, &key)?.is_none() {
+				if self.backing.get_with(self.column, &key, |_| ())?.is_none() {
 					return Err(BaseDataError::NegativelyReferencedHash(key).into());
 				}
 				batch.delete(self.column, &key);

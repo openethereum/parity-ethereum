@@ -129,34 +129,34 @@ enum KeyState {
 }
 
 pub trait KeyValueDBExt {
-	fn get_with<Out, F: FnOnce(&DBValue) -> Out>(
+	fn get_with<Out, F: FnOnce(&[u8]) -> Out>(
 		&self,
 		col: Option<u32>,
 		key: &[u8],
 		f: F,
-	) -> Option<Out>;
+	) -> Result<Option<Out>, String>;
 }
 
 macro_rules! get_with_fn_def {
 	() => {
-		fn get_with<Out, F: FnOnce(&DBValue) -> Out>(
+		fn get_with<Out, F: FnOnce(&[u8]) -> Out>(
 			&self,
 			col: Option<u32>,
 			key: &[u8],
 			f: F,
-		) -> Option<Out> {
+		) -> Result<Option<Out>, String> {
 			let mut o_func: Option<F>   = Some(f);
 			let mut output: Option<Out> = None;
 
 			{
-				let mut wrapper = |key: &DBValue| {
+				let mut wrapper = |key: &[u8]| {
 					output = Some((o_func.take().unwrap())(key));
 				};
 
-				self.get_exec(col, key, &mut wrapper);
+				self.get_exec(col, key, &mut wrapper)?;
 			}
 
-			output
+			Ok(output)
 		}
 	}
 }
@@ -209,11 +209,11 @@ pub trait KeyValueDB: Sync + Send {
 
 	/// Get a value by key.
 	fn get(&self, col: Option<u32>, key: &[u8]) -> Result<Option<DBValue>, String> {
-		let mut o_func = Some(Clone::clone);
+		let mut o_func = Some(DBValue::from_slice);
 		let mut output = None;
 
 		{
-			let mut wrapper = |key: &DBValue| { output = Some((o_func.take().unwrap())(key)); };
+			let mut wrapper = |key: &[u8]| { output = Some((o_func.take().unwrap())(key)); };
 
 			if let Err(err) = self.get_exec(col, key, &mut wrapper) {
 				return Err(err);
@@ -227,7 +227,7 @@ pub trait KeyValueDB: Sync + Send {
 		&self,
 		col: Option<u32>,
 		key: &[u8],
-		f: &mut FnMut(&DBValue),
+		f: &mut FnMut(&[u8]),
 	) -> Result<(), String>;
 
 	/// Get a value by partial key. Only works for flushed data.
@@ -280,7 +280,7 @@ impl KeyValueDB for InMemory {
 		&self,
 		col: Option<u32>,
 		key: &[u8],
-		f: &mut FnMut(&DBValue),
+		f: &mut FnMut(&[u8]),
 	) -> Result<(), String> {
 		let columns = self.columns.read();
 		match columns.get(&col) {
@@ -876,7 +876,7 @@ impl KeyValueDB for Database {
 		&self,
 		col: Option<u32>,
 		key: &[u8],
-		f: &mut FnMut(&DBValue),
+		f: &mut FnMut(&[u8]),
 	) -> Result<(), String> {
 		match *self.db.read() {
 			Some(DBAndColumns { ref db, ref cfs }) => {
@@ -907,7 +907,7 @@ impl KeyValueDB for Database {
 											db.get_cf_opt(cfs[c as usize], key, &self.read_opts)
 												.map(
 													|r| if let Some(val) = r {
-														f(&DBValue::from_slice(&val));
+														f(&val);
 													},
 												)
 										},
@@ -917,7 +917,7 @@ impl KeyValueDB for Database {
 											db.get_opt(key, &self.read_opts)
 												.map(
 													|r| if let Some(val) = r {
-														f(&DBValue::from_slice(&val));
+														f(&val);
 													},
 												)
 										},

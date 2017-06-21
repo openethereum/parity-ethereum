@@ -26,7 +26,7 @@ use ethcore::transaction::{
 use ethcore::service::ClientIoMessage;
 use io::IoHandler;
 use rlp::UntrustedRlp;
-use util::kvdb::KeyValueDB;
+use util::{KeyValueDB, KeyValueDBExt};
 
 extern crate ethcore;
 extern crate ethcore_util as util;
@@ -156,17 +156,23 @@ pub struct LocalDataStore<T: NodeInfo> {
 impl<T: NodeInfo> LocalDataStore<T> {
 	/// Attempt to read pending transactions out of the local store.
 	pub fn pending_transactions(&self) -> Result<Vec<PendingTransaction>, Error> {
-		if let Some(val) = self.db.get(self.col, LOCAL_TRANSACTIONS_KEY).map_err(Error::Database)? {
-			let local_txs: Vec<_> = ::serde_json::from_slice::<Vec<TransactionEntry>>(&val)
-				.map_err(Error::Json)?
-				.into_iter()
-				.filter_map(TransactionEntry::into_pending)
-				.collect();
+		self.db.get_with(
+			self.col,
+			LOCAL_TRANSACTIONS_KEY,
+			|val| {
+				let local_txs: Vec<_> = ::serde_json::from_slice::<Vec<TransactionEntry>>(&val)
+					.map_err(Error::Json)?
+					.into_iter()
+					.filter_map(TransactionEntry::into_pending)
+					.collect();
 
-			Ok(local_txs)
-		} else {
-			Ok(Vec::new())
-		}
+				Ok(local_txs)
+			}
+		).map_err(
+			Error::Database
+		).and_then(
+			|inner| inner.unwrap_or(Ok(Vec::new()))
+		)
 	}
 
 	/// Update the entries in the database.

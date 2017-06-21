@@ -82,20 +82,20 @@ impl MemoryDB {
 		}
 	}
 
-  pub fn raw_ref(&self, key: &H256) -> Option<(Cow<DBValue>, i32)> {
+	pub fn raw_ref(&self, key: &H256) -> Option<(Cow<DBValue>, i32)> {
 		if key == &SHA3_NULL_RLP {
 			return Some(
-        (
-          Cow::Owned(DBValue::from_slice(&NULL_RLP)),
-          1,
-        )
-      );
+				(
+					Cow::Owned(DBValue::from_slice(&NULL_RLP)),
+					1,
+				)
+			);
 		}
 
 		self.data.get(key).map(
-      |&(ref val, refcount)| (Cow::Borrowed(val), refcount)
-    )
-  }
+			|&(ref val, refcount)| (Cow::Borrowed(val), refcount)
+		)
+	}
 
 	/// Clear all data from the database.
 	///
@@ -133,7 +133,7 @@ impl MemoryDB {
 	/// Even when Some is returned, the data is only guaranteed to be useful
 	/// when the refs > 0.
 	pub fn raw(&self, key: &H256) -> Option<(DBValue, i32)> {
-    self.raw_ref(key).map(|(val, refcount)| (val.into_owned(), refcount))
+		self.raw_ref(key).map(|(val, refcount)| (val.into_owned(), refcount))
 	}
 
 	/// Returns the size of allocated heap memory
@@ -183,13 +183,13 @@ impl MemoryDB {
 
 impl HashDB for MemoryDB {
 	fn get(&self, key: &H256) -> Option<DBValue> {
-    self.get_with(key, Clone::clone)
+		self.get_with(key, DBValue::from_slice)
 	}
 
-	fn get_exec(&self, key: &H256, f: &mut FnMut(&DBValue)) {
+	fn get_exec(&self, key: &H256, f: &mut FnMut(&[u8])) {
 		if key == &SHA3_NULL_RLP {
-			f(&DBValue::from_slice(&NULL_RLP));
-      return;
+			f(&NULL_RLP);
+			return;
 		}
 
 		match self.data.get(key) {

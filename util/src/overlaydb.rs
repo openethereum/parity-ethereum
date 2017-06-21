@@ -110,29 +110,6 @@ impl OverlayDB {
 			)
 	}
 
-	fn payload_exec(&self, key: &H256, f: &mut FnMut(&DBValue)) {
-		// return ok if positive; if negative, check backing - might be enough
-		// references there to make it positive again.
-		let k = self.overlay.raw_ref(key);
-
-		let memrc = if let Some((d, rc)) = k {
-			if rc > 0 {
-				f(d.as_ref());
-				return;
-			}
-
-			rc
-		} else {
-			0
-		};
-
-		// TODO: Fix this once `KeyValueDB` has a `get_exec` method
-		match self.payload(key) {
-			Some((ref d, ref rc)) if rc.clone() as i32 + memrc.clone() > 0 => f(d),
-			_ => {}
-		}
-	}
-
 	/// Put the refs and value of the given key, possibly deleting it from the db.
 	fn put_payload_in_batch(&self, batch: &mut DBTransaction, key: &H256, payload: (DBValue, u32)) -> bool {
 		if payload.1 > 0 {
@@ -164,8 +141,32 @@ impl HashDB for OverlayDB {
 		ret
 	}
 
-	fn get_exec(&self, key: &H256, f: &mut FnMut(&DBValue)) {
-		self.payload_exec(key, f);
+	fn get_exec(&self, key: &H256, f: &mut FnMut(&[u8])) {
+		// return ok if positive; if negative, check backing - might be enough
+		// references there to make it positive again.
+		let k = self.overlay.raw_ref(key);
+
+		let memrc = if let Some((d, rc)) = k {
+			if rc > 0 {
+				f(d.as_ref());
+				return;
+			}
+
+			rc
+		} else {
+			0
+		};
+
+		if let Some(d) = self.backing.get(self.column, key).expect(
+			"Low-level database error. Some issue with your hard disk?"
+		) {
+			let r = Rlp::new(&d);
+			let refcount: u32 = r.at(0).as_val();
+
+			if refcount as i32 + memrc.clone() > 0 {
+				f(r.at(1).data())
+			}
+		}
 	}
 	fn contains(&self, key: &H256) -> bool {
 		// return ok if positive; if negative, check backing - might be enough references there to make

@@ -21,7 +21,7 @@ use rlp::{decode, Rlp, RlpStream};
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use util::{Bytes, KeyValueDB, Address, H256};
+use util::{Bytes, Address, H256};
 use util::kvdb::Database;
 use util::migration::{Batch, Config, Error, Migration, SimpleMigration, Progress};
 use util::sha3::Hashable;

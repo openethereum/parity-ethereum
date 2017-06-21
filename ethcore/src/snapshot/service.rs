@@ -34,7 +34,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
-use util::{KeyValueDB, Bytes, H256, Mutex, RwLock, RwLockReadGuard, UtilError};
+use util::{Bytes, H256, Mutex, RwLock, RwLockReadGuard, UtilError};
 use util::journaldb::Algorithm;
 use util::kvdb::{Database, DatabaseConfig};
 use util::snappy;

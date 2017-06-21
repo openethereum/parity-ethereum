@@ -24,7 +24,7 @@ use std::fmt;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use ::kvdb::{CompactionProfile, Database, DatabaseConfig, DBTransaction, KeyValueDB};
+use ::kvdb::{CompactionProfile, Database, DatabaseConfig, DBTransaction};
 
 /// Migration config.
 #[derive(Clone)]

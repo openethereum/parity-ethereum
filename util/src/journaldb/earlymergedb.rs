@@ -22,7 +22,7 @@ use hashdb::*;
 use memorydb::*;
 use super::{DB_PREFIX_LEN, LATEST_ERA_KEY};
 use super::traits::JournalDB;
-use kvdb::{KeyValueDB, DBTransaction};
+use kvdb::{KeyValueDB, KeyValueDBExt, DBTransaction};
 
 #[derive(Clone, PartialEq, Eq)]
 struct RefInfo {
@@ -163,8 +163,13 @@ impl EarlyMergeDB {
 				continue;
 			}
 
+			let value =
+				backing.get_with(col, h, |_| ()).expect(
+					"Low-level database error. Some issue with your hard disk?"
+				);
+
 			// this is the first entry for this node in the journal.
-			if backing.get(col, h).expect("Low-level database error. Some issue with your hard disk?").is_some() {
+			if value.is_some() {
 				// already in the backing DB. start counting, and remember it was already in.
 				Self::set_already_in(batch, col, h);
 				refs.insert(h.clone(), RefInfo{queue_refs: 1, in_archive: true});
@@ -274,7 +279,7 @@ impl EarlyMergeDB {
 		self.backing.get(self.column, key).expect("Low-level database error. Some issue with your hard disk?")
 	}
 
-	fn payload_exec(&self, key: &H256, f: &mut FnMut(&DBValue)) {
+	fn payload_exec(&self, key: &H256, f: &mut FnMut(&[u8])) {
     // TODO: Fix this once `KeyValueDB` has a `get_exec` method
 		if let Some(val) = self.payload(key) {
       f(&val);
@@ -326,7 +331,7 @@ impl HashDB for EarlyMergeDB {
 		ret
 	}
 
-	fn get_exec(&self, key: &H256, f: &mut FnMut(&DBValue)) {
+	fn get_exec(&self, key: &H256, f: &mut FnMut(&[u8])) {
 		let k = self.overlay.raw_ref(key);
 
 		if let Some((d, rc)) = k {
@@ -366,7 +371,9 @@ impl JournalDB for EarlyMergeDB {
 	}
 
 	fn is_empty(&self) -> bool {
-		self.backing.get(self.column, &LATEST_ERA_KEY).expect("Low level database error").is_none()
+		self.backing.get_with(self.column, &LATEST_ERA_KEY, |_| ())
+			.expect("Low level database error")
+			.is_none()
 	}
 
 	fn backing(&self) -> &Arc<KeyValueDB> {
@@ -533,13 +540,13 @@ impl JournalDB for EarlyMergeDB {
 			match rc {
 				0 => {}
 				1 => {
-					if self.backing.get(self.column, &key)?.is_some() {
+					if self.backing.get_with(self.column, &key, |_| ())?.is_some() {
 						return Err(BaseDataError::AlreadyExists(key).into());
 					}
 					batch.put(self.column, &key, &value)
 				}
 				-1 => {
-					if self.backing.get(self.column, &key)?.is_none() {
+					if self.backing.get_with(self.column, &key, |_| ())?.is_none() {
 						return Err(BaseDataError::NegativelyReferencedHash(key).into());
 					}
 					batch.delete(self.column, &key)

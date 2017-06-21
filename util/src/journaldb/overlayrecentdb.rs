@@ -128,19 +128,6 @@ impl OverlayRecentDB {
 		journal_overlay.cumulative_size == reconstructed.cumulative_size
 	}
 
-	fn payload(&self, key: &H256) -> Option<DBValue> {
-		self.backing
-			.get(self.column, key)
-			.expect("Low-level database error. Some issue with your hard disk?")
-	}
-
-	fn payload_exec(&self, key: &H256, f: &mut FnMut(&DBValue)) {
-		// TODO: Fix this once `KeyValueDB` has a `get_exec` method
-		if let Some(val) = self.payload(key) {
-			f(&val);
-		}
-	}
-
 	fn read_overlay(db: &KeyValueDB, col: Option<u32>) -> JournalOverlay {
 		let mut journal = HashMap::new();
 		let mut overlay = MemoryDB::new();
@@ -425,7 +412,7 @@ impl HashDB for OverlayRecentDB {
 		ret
 	}
 
-	fn get_exec(&self, key: &H256, mut f: &mut FnMut(&DBValue)) {
+	fn get_exec(&self, key: &H256, mut f: &mut FnMut(&[u8])) {
 		let k = self.transaction_overlay.raw_ref(key);
 
 		if let Some((d, rc)) = k {
@@ -437,7 +424,7 @@ impl HashDB for OverlayRecentDB {
 
 		let journal_overlay = self.journal_overlay.read();
 		let short_key = to_short_key(key);
-		// This weird `&mut &mut FnMut(&DBValue)` trick is necessary because the borrow checker
+		// This weird `&mut &mut FnMut(&[u8])` trick is necessary because the borrow checker
 		// complains that `f` has been moved into `get_with`. I don't know why right now and it's
 		// too hot for me to figure it out.
 		let backing_overlay_has_key =
@@ -448,12 +435,13 @@ impl HashDB for OverlayRecentDB {
 		} else if let Some(pending_val) = journal_overlay.pending_overlay.get(&short_key) {
 			f(pending_val);
 		} else {
-			self.payload_exec(&key, f);
+			self.backing.get_exec(self.column, &key, f)
+				.expect("Low-level database error. Some issue with your hard disk?");
 		}
 	}
 
 	fn contains(&self, key: &H256) -> bool {
-		self.get(key).is_some()
+		self.get_with(key, |_| ()).is_some()
 	}
 
 	fn insert(&mut self, value: &[u8]) -> H256 {

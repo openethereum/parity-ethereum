@@ -25,12 +25,12 @@ pub type DBValue = ElasticArray128<u8>;
 
 // TODO: Should this include a generic version of `HashDB::insert`?
 pub trait HashDBExt {
-	fn get_with<Out, F: FnOnce(&DBValue) -> Out>(&self, _: &H256, _: F) -> Option<Out>;
+	fn get_with<Out, F: FnOnce(&[u8]) -> Out>(&self, _: &H256, _: F) -> Option<Out>;
 }
 
 macro_rules! get_with_fn_def {
 	() => {
-		fn get_with<Out, F: FnOnce(&DBValue) -> Out>(
+		fn get_with<Out, F: FnOnce(&[u8]) -> Out>(
 			&self,
 			key: &H256,
 			f: F,
@@ -39,7 +39,7 @@ macro_rules! get_with_fn_def {
 			let mut output: Option<Out> = None;
 
 			{
-				let mut wrapper = |key: &DBValue| {
+				let mut wrapper = |key: &[u8]| {
 					output = Some((o_func.take().unwrap())(key));
 				};
 
@@ -96,11 +96,11 @@ pub trait HashDB: AsHashDB + Send + Sync {
 	/// }
 	/// ```
 	fn get(&self, key: &H256) -> Option<DBValue> {
-		let mut o_func = Some(Clone::clone);
+		let mut o_func = Some(DBValue::from_slice);
 		let mut output = None;
 
 		{
-			let mut wrapper = |key: &DBValue| { output = Some((o_func.take().unwrap())(key)); };
+			let mut wrapper = |key: &[u8]| { output = Some((o_func.take().unwrap())(key)); };
 
 			self.get_exec(key, &mut wrapper);
 		}
@@ -113,7 +113,7 @@ pub trait HashDB: AsHashDB + Send + Sync {
 	/// default implementation of `get_with` will panic if `f` is called more than
 	/// once and in general there is no sensible behavior if `f` is called more
 	/// than once.
-	fn get_exec(&self, key: &H256, f: &mut FnMut(&DBValue));
+	fn get_exec(&self, key: &H256, f: &mut FnMut(&[u8]));
 
 	/// Check for the existance of a hash-key.
 	///

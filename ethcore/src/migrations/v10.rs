@@ -20,7 +20,7 @@ use bloom_journal::Bloom;
 use db::{COL_EXTRA, COL_HEADERS, COL_STATE};
 use state_db::{ACCOUNT_BLOOM_SPACE, DEFAULT_ACCOUNT_PRESET, StateDB};
 use std::sync::Arc;
-use util::{journaldb, H256, Trie, KeyValueDB, Database, DBTransaction};
+use util::{journaldb, H256, Trie, Database, DBTransaction};
 use util::migration::{Error, Migration, Progress, Batch, Config};
 use util::trie::TrieDB;
 use views::HeaderView;
