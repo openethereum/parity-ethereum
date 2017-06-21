@@ -129,6 +129,8 @@ export default class Accounts {
 
   set dappsDefaultAddress (value) {
     this._dappsDefaultAddress = value.toLowerCase();
+
+    this.persist();
   }
 
   get (address) {
@@ -191,8 +193,14 @@ export default class Accounts {
     this.persist();
   }
 
-  addresses () {
+  allAddresses () {
     return Object.keys(this._store);
+  }
+
+  accountAddresses () {
+    return Object
+      .keys(this._store)
+      .filter((address) => this._store[address].uuid);
   }
 
   map (mapper) {

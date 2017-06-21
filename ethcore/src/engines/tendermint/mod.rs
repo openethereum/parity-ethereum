@@ -38,7 +38,6 @@ use account_provider::AccountProvider;
 use block::*;
 use spec::CommonParams;
 use engines::{Engine, Seal, EngineError};
-use evm::Schedule;
 use state::CleanupMode;
 use io::IoService;
 use super::signer::EngineSigner;
@@ -402,11 +401,6 @@ impl Engine for Tendermint {
 			"view".into() => message.vote_step.view.to_string(),
 			"block_hash".into() => message.block_hash.as_ref().map(ToString::to_string).unwrap_or("".into())
 		]
-	}
-
-	fn schedule(&self, block_number: BlockNumber) -> Schedule {
-		let eip86 = block_number >= self.params.eip86_transition;
-		Schedule::new_post_eip150(usize::max_value(), true, true, true, eip86)
 	}
 
 	fn populate_from_parent(&self, header: &mut Header, parent: &Header, gas_floor_target: U256, _gas_ceil_target: U256) {
