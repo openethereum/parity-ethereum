@@ -263,6 +263,30 @@ impl Client {
 		for verified_header in self.queue.drain(MAX) {
 			let (num, hash) = (verified_header.number(), verified_header.hash());
 
+			// Verify Block Family
+			let parent_header = match self.chain.block_header(BlockId::Hash(*verified_header.parent_hash())) {
+				Some(header) => header,
+				None => continue, // skip import of block with missing parent.
+			};
+
+			let verify_family_result = self.engine.verify_block_family(&verified_header, &parent_header.decode(), None);
+			if let Err(e) = verify_family_result {
+				warn!(target: "client", "Stage 3 block verification failed for #{} ({})\nError: {:?}",
+					verified_header.number(), verified_header.hash(), e);
+				bad.push(hash);
+				continue;
+			};
+
+			// "external" verification.
+			let verify_external_result = self.engine.verify_block_external(&verified_header, None);
+			if let Err(e) = verify_external_result {
+				warn!(target: "client", "Stage 4 block verification failed for #{} ({})\nError: {:?}",
+					verified_header.number(), verified_header.hash(), e);
+
+				bad.push(hash);
+				continue;
+			};
+
 			let mut tx = self.db.transaction();
 			let pending = match self.chain.insert(&mut tx, verified_header) {
 				Ok(pending) => {
@@ -273,9 +297,10 @@ impl Client {
 				Err(e) => {
 					debug!(target: "client", "Error importing header {:?}: {}", (num, hash), e);
 					bad.push(hash);
-					break;
+					continue;
 				}
 			};
+
 			self.db.write_buffered(tx);
 			self.chain.apply_pending(pending);
 			if let Err(e) = self.db.flush() {
