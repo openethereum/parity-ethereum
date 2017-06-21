@@ -55,9 +55,10 @@ export default class Store {
   }
 
   @action queueRequest = (request) => {
+    const appId = this.methodsStore.tokens[request.data.from];
     let queueId = ++nextQueueId;
 
-    this.requests = this.requests.concat([{ queueId, request }]);
+    this.requests = this.requests.concat([{ appId, queueId, request }]);
   }
 
   @action approveSingleRequest = ({ queueId, request: { data, source } }) => {
@@ -72,8 +73,7 @@ export default class Store {
       const { request: { data: { method, token } } } = queued;
       const requests = this.findMatchingRequests(method, token);
 
-      // TODO: Use single-use token, map back to app name
-      this.methodsStore.addMethodPermission(method, token);
+      this.methodsStore.addTokenPermission(method, token);
       requests.forEach(this.approveSingleRequest);
     } else {
       this.approveSingleRequest(queued);
@@ -122,10 +122,7 @@ export default class Store {
       return;
     }
 
-    const filterId = `${method}:${token}`;
-
-    // TODO: Use single-use token, map back to app name
-    if (filteredRequests[method] && !this.methodsStore.permissions[filterId]) {
+    if (filteredRequests[method] && !this.methodsStore.hasTokenPermission(method, token)) {
       this.queueRequest({ data, origin, source });
       return;
     }

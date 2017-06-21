@@ -291,6 +291,10 @@ export default class DappsStore extends EventEmitter {
       this.setDisplayApps(visibility);
     });
   }
+
+  getAppById = (id) => {
+    return this.apps.find((app) => app.id === id);
+  }
 }
 
 export {

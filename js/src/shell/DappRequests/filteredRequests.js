@@ -15,5 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 export default {
+  'parity_accountsInfo': {},
+  'parity_allAccountsInfo': {},
   'parity_hashContent': {}
 };

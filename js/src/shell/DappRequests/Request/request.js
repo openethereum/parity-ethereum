@@ -19,18 +19,22 @@ import { FormattedMessage } from 'react-intl';
 
 import { Button } from '@parity/ui';
 
-export default function Request ({ className, approveRequest, denyRequest, queueId, request: { from, method } }) {
+import DappsStore from '../../Dapps/dappsStore';
+
+export default function Request ({ appId, className, approveRequest, denyRequest, queueId, request: { from, method } }) {
   const _onApprove = () => approveRequest(queueId, false);
   const _onApproveAll = () => approveRequest(queueId, true);
   const _onReject = () => denyRequest(queueId);
+
+  const app = DappsStore.get().getAppById(appId);
 
   return (
     <div className={ className }>
       <FormattedMessage
         id='dappRequests.request.info'
-        defaultMessage='Received request for {method} from {from}'
+        defaultMessage='Received request for {method} from {appName}'
         values={ {
-          from,
+          appName: app.name,
           method
         } }
       />
@@ -66,6 +70,7 @@ export default function Request ({ className, approveRequest, denyRequest, queue
 }
 
 Request.propTypes = {
+  appId: PropTypes.string.isRequired,
   className: PropTypes.string,
   approveRequest: PropTypes.func.isRequired,
   denyRequest: PropTypes.func.isRequired,
