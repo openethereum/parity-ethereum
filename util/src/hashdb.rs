@@ -15,12 +15,65 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Database of byte-slices keyed to their Keccak hash.
+
+use elastic_array::ElasticArray128;
 use hash::*;
 use std::collections::HashMap;
-use elastic_array::ElasticArray128;
 
 /// `HashDB` value type.
 pub type DBValue = ElasticArray128<u8>;
+
+// TODO: Should this include a generic version of `HashDB::insert`?
+pub trait HashDBExt {
+	fn get_with<Out, F: FnOnce(&DBValue) -> Out>(&self, _: &H256, _: F) -> Option<Out>;
+}
+
+macro_rules! get_with_fn_def {
+	() => {
+		fn get_with<Out, F: FnOnce(&DBValue) -> Out>(
+			&self,
+			key: &H256,
+			f: F,
+		) -> Option<Out> {
+			let mut o_func: Option<F>   = Some(f);
+			let mut output: Option<Out> = None;
+
+			{
+				let mut wrapper = |key: &DBValue| {
+					output = Some((o_func.take().unwrap())(key));
+				};
+
+				self.get_exec(key, &mut wrapper);
+			}
+
+			output
+		}
+	}
+}
+
+impl<T: HashDB> HashDBExt for T {
+	get_with_fn_def!{}
+}
+
+impl HashDBExt for Box<HashDB> {
+	get_with_fn_def!{}
+}
+
+impl<'any> HashDBExt for &'any HashDB {
+	get_with_fn_def!{}
+}
+
+impl<'any> HashDBExt for &'any mut HashDB {
+	get_with_fn_def!{}
+}
+
+impl HashDBExt for ::std::rc::Rc<HashDB> {
+	get_with_fn_def!{}
+}
+
+impl HashDBExt for ::std::sync::Arc<HashDB> {
+	get_with_fn_def!{}
+}
 
 /// Trait modelling datastore keyed by a 32-byte Keccak hash.
 pub trait HashDB: AsHashDB + Send + Sync {
@@ -42,7 +95,25 @@ pub trait HashDB: AsHashDB + Send + Sync {
 	///   assert_eq!(m.get(&hash).unwrap(), hello_bytes);
 	/// }
 	/// ```
-	fn get(&self, key: &H256) -> Option<DBValue>;
+	fn get(&self, key: &H256) -> Option<DBValue> {
+		let mut o_func = Some(Clone::clone);
+		let mut output = None;
+
+		{
+			let mut wrapper = |key: &DBValue| { output = Some((o_func.take().unwrap())(key)); };
+
+			self.get_exec(key, &mut wrapper);
+		}
+
+		output
+	}
+
+	/// Any implementation of this function should call `f` zero times if a value
+	/// for `key` is not found, and precisely once if a value is found. The
+	/// default implementation of `get_with` will panic if `f` is called more than
+	/// once and in general there is no sensible behavior if `f` is called more
+	/// than once.
+	fn get_exec(&self, key: &H256, f: &mut FnMut(&DBValue));
 
 	/// Check for the existance of a hash-key.
 	///

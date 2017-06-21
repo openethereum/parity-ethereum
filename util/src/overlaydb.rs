@@ -18,12 +18,12 @@
 
 use error::*;
 use hash::*;
-use rlp::*;
 use hashdb::*;
-use memorydb::*;
-use std::sync::*;
-use std::collections::HashMap;
 use kvdb::{KeyValueDB, DBTransaction};
+use memorydb::*;
+use rlp::*;
+use std::collections::HashMap;
+use std::sync::*;
 
 /// Implementation of the `HashDB` trait for a disk-backed database with a memory overlay.
 ///
@@ -102,10 +102,35 @@ impl OverlayDB {
 	fn payload(&self, key: &H256) -> Option<(DBValue, u32)> {
 		self.backing.get(self.column, key)
 			.expect("Low-level database error. Some issue with your hard disk?")
-			.map(|d| {
-				let r = Rlp::new(&d);
-				(DBValue::from_slice(r.at(1).data()), r.at(0).as_val())
-			})
+			.map(
+				|d| {
+					let r = Rlp::new(&d);
+					(DBValue::from_slice(r.at(1).data()), r.at(0).as_val())
+				},
+			)
+	}
+
+	fn payload_exec(&self, key: &H256, f: &mut FnMut(&DBValue)) {
+		// return ok if positive; if negative, check backing - might be enough
+		// references there to make it positive again.
+		let k = self.overlay.raw_ref(key);
+
+		let memrc = if let Some((d, rc)) = k {
+			if rc > 0 {
+				f(d.as_ref());
+				return;
+			}
+
+			rc
+		} else {
+			0
+		};
+
+		// TODO: Fix this once `KeyValueDB` has a `get_exec` method
+		match self.payload(key) {
+			Some((ref d, ref rc)) if rc.clone() as i32 + memrc.clone() > 0 => f(d),
+			_ => {}
+		}
 	}
 
 	/// Put the refs and value of the given key, possibly deleting it from the db.
@@ -138,32 +163,9 @@ impl HashDB for OverlayDB {
 		}
 		ret
 	}
-	fn get(&self, key: &H256) -> Option<DBValue> {
-		// return ok if positive; if negative, check backing - might be enough references there to make
-		// it positive again.
-		let k = self.overlay.raw(key);
-		let memrc = {
-			if let Some((d, rc)) = k {
-				if rc > 0 { return Some(d); }
-				rc
-			} else {
-				0
-			}
-		};
-		match self.payload(key) {
-			Some(x) => {
-				let (d, rc) = x;
-				if rc as i32 + memrc > 0 {
-					Some(d)
-				}
-				else {
-					None
-				}
-			}
-			// Replace above match arm with this once https://github.com/rust-lang/rust/issues/15287 is done.
-			//Some((d, rc)) if rc + memrc > 0 => Some(d),
-			_ => None,
-		}
+
+	fn get_exec(&self, key: &H256, f: &mut FnMut(&DBValue)) {
+		self.payload_exec(key, f);
 	}
 	fn contains(&self, key: &H256) -> bool {
 		// return ok if positive; if negative, check backing - might be enough references there to make

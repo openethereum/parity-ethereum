@@ -129,7 +129,16 @@ impl OverlayRecentDB {
 	}
 
 	fn payload(&self, key: &H256) -> Option<DBValue> {
-		self.backing.get(self.column, key).expect("Low-level database error. Some issue with your hard disk?")
+		self.backing
+			.get(self.column, key)
+			.expect("Low-level database error. Some issue with your hard disk?")
+	}
+
+	fn payload_exec(&self, key: &H256, f: &mut FnMut(&DBValue)) {
+		// TODO: Fix this once `KeyValueDB` has a `get_exec` method
+		if let Some(val) = self.payload(key) {
+			f(&val);
+		}
 	}
 
 	fn read_overlay(db: &KeyValueDB, col: Option<u32>) -> JournalOverlay {
@@ -416,18 +425,31 @@ impl HashDB for OverlayRecentDB {
 		ret
 	}
 
-	fn get(&self, key: &H256) -> Option<DBValue> {
-		let k = self.transaction_overlay.raw(key);
+	fn get_exec(&self, key: &H256, mut f: &mut FnMut(&DBValue)) {
+		let k = self.transaction_overlay.raw_ref(key);
+
 		if let Some((d, rc)) = k {
-			if rc > 0 { return Some(d) }
+			if rc > 0 {
+				f(d.as_ref());
+				return;
+			}
 		}
-		let v = {
-			let journal_overlay = self.journal_overlay.read();
-			let key = to_short_key(key);
-			journal_overlay.backing_overlay.get(&key)
-				.or_else(|| journal_overlay.pending_overlay.get(&key).cloned())
-		};
-		v.or_else(|| self.payload(key))
+
+		let journal_overlay = self.journal_overlay.read();
+		let short_key = to_short_key(key);
+		// This weird `&mut &mut FnMut(&DBValue)` trick is necessary because the borrow checker
+		// complains that `f` has been moved into `get_with`. I don't know why right now and it's
+		// too hot for me to figure it out.
+		let backing_overlay_has_key =
+			journal_overlay.backing_overlay.get_with(&short_key, &mut f).is_some();
+
+		if backing_overlay_has_key {
+			return;
+		} else if let Some(pending_val) = journal_overlay.pending_overlay.get(&short_key) {
+			f(pending_val);
+		} else {
+			self.payload_exec(&key, f);
+		}
 	}
 
 	fn contains(&self, key: &H256) -> bool {

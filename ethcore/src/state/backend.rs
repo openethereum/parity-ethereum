@@ -90,6 +90,10 @@ impl HashDB for ProofCheck {
 		self.0.get(key)
 	}
 
+	fn get_exec(&self, key: &H256, f: &mut FnMut(&DBValue)) {
+		self.0.get_exec(key, f);
+	}
+
 	fn contains(&self, key: &H256) -> bool {
 		self.0.contains(key)
 	}
@@ -139,13 +143,25 @@ impl<H: AsHashDB + Send + Sync> HashDB for Proving<H> {
 		keys
 	}
 
-	fn get(&self, key: &H256) -> Option<DBValue> {
-		match self.base.as_hashdb().get(key) {
-			Some(val) => {
+	fn get_exec(&self, key: &H256, mut f: &mut FnMut(&DBValue)) {
+		let mut called = false;
+
+		{
+			let mut optional_f = Some(&mut f);
+			let mut wrapper = |val: &DBValue| {
+				called = true;
 				self.proof.lock().insert(val.clone());
-				Some(val)
-			}
-			None => self.changed.get(key)
+
+				if let Some(f) = optional_f.take() {
+					f(val);
+				}
+			};
+
+			self.base.as_hashdb().get_exec(key, &mut wrapper);
+		}
+
+		if !called {
+			self.changed.get_exec(key, f);
 		}
 	}
 

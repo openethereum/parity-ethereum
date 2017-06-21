@@ -24,6 +24,7 @@ use heapsize::*;
 use std::mem;
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
+use std::borrow::Cow;
 
 /// Reference-counted memory-based `HashDB` implementation.
 ///
@@ -81,6 +82,21 @@ impl MemoryDB {
 		}
 	}
 
+  pub fn raw_ref(&self, key: &H256) -> Option<(Cow<DBValue>, i32)> {
+		if key == &SHA3_NULL_RLP {
+			return Some(
+        (
+          Cow::Owned(DBValue::from_slice(&NULL_RLP)),
+          1,
+        )
+      );
+		}
+
+		self.data.get(key).map(
+      |&(ref val, refcount)| (Cow::Borrowed(val), refcount)
+    )
+  }
+
 	/// Clear all data from the database.
 	///
 	/// # Examples
@@ -117,10 +133,7 @@ impl MemoryDB {
 	/// Even when Some is returned, the data is only guaranteed to be useful
 	/// when the refs > 0.
 	pub fn raw(&self, key: &H256) -> Option<(DBValue, i32)> {
-		if key == &SHA3_NULL_RLP {
-			return Some((DBValue::from_slice(&NULL_RLP), 1));
-		}
-		self.data.get(key).cloned()
+    self.raw_ref(key).map(|(val, refcount)| (val.into_owned(), refcount))
 	}
 
 	/// Returns the size of allocated heap memory
@@ -170,13 +183,18 @@ impl MemoryDB {
 
 impl HashDB for MemoryDB {
 	fn get(&self, key: &H256) -> Option<DBValue> {
+    self.get_with(key, Clone::clone)
+	}
+
+	fn get_exec(&self, key: &H256, f: &mut FnMut(&DBValue)) {
 		if key == &SHA3_NULL_RLP {
-			return Some(DBValue::from_slice(&NULL_RLP));
+			f(&DBValue::from_slice(&NULL_RLP));
+      return;
 		}
 
 		match self.data.get(key) {
-			Some(&(ref d, rc)) if rc > 0 => Some(d.clone()),
-			_ => None
+			Some(&(ref d, rc)) if rc > 0 => f(d),
+			_ => { },
 		}
 	}
 

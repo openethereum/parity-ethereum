@@ -16,13 +16,6 @@
 
 //! Snapshot network service implementation.
 
-use std::collections::HashSet;
-use std::io::ErrorKind;
-use std::fs;
-use std::path::PathBuf;
-use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-
 use super::{ManifestData, StateRebuilder, Rebuilder, RestorationStatus, SnapshotService};
 use super::io::{SnapshotReader, LooseReader, SnapshotWriter, LooseWriter};
 
@@ -31,11 +24,17 @@ use client::{BlockChainClient, Client};
 use engines::Engine;
 use error::Error;
 use ids::BlockId;
-use service::ClientIoMessage;
 
 use io::IoChannel;
+use service::ClientIoMessage;
+use std::collections::HashSet;
+use std::fs;
+use std::io::ErrorKind;
+use std::path::PathBuf;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
-use util::{Bytes, H256, Mutex, RwLock, RwLockReadGuard, UtilError};
+use util::{KeyValueDB, Bytes, H256, Mutex, RwLock, RwLockReadGuard, UtilError};
 use util::journaldb::Algorithm;
 use util::kvdb::{Database, DatabaseConfig};
 use util::snappy;

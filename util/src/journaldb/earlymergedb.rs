@@ -274,6 +274,13 @@ impl EarlyMergeDB {
 		self.backing.get(self.column, key).expect("Low-level database error. Some issue with your hard disk?")
 	}
 
+	fn payload_exec(&self, key: &H256, f: &mut FnMut(&DBValue)) {
+    // TODO: Fix this once `KeyValueDB` has a `get_exec` method
+		if let Some(val) = self.payload(key) {
+      f(&val);
+    }
+	}
+
 	fn read_refs(db: &KeyValueDB, col: Option<u32>) -> (Option<u64>, HashMap<H256, RefInfo>) {
 		let mut refs = HashMap::new();
 		let mut latest_era = None;
@@ -319,12 +326,17 @@ impl HashDB for EarlyMergeDB {
 		ret
 	}
 
-	fn get(&self, key: &H256) -> Option<DBValue> {
-		let k = self.overlay.raw(key);
+	fn get_exec(&self, key: &H256, f: &mut FnMut(&DBValue)) {
+		let k = self.overlay.raw_ref(key);
+
 		if let Some((d, rc)) = k {
-			if rc > 0 { return Some(d) }
+			if rc > 0 {
+        f(d.as_ref());
+        return;
+      }
 		}
-		self.payload(key)
+
+		self.payload_exec(key, f);
 	}
 
 	fn contains(&self, key: &H256) -> bool {
