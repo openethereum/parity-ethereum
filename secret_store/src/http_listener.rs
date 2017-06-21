@@ -145,7 +145,7 @@ impl<T> HttpHandler for KeyServerHttpHandler<T> where T: KeyServer + 'static {
 		match &req_uri {
 			&RequestUri::AbsolutePath(ref path) => match parse_request(&req_method, &path) {
 				Request::GenerateServerKey(document, signature, threshold) => {
-					return_server_pubic_key(req, res, self.handler.key_server.generate_key(&document, &signature, threshold)
+					return_server_public_key(req, res, self.handler.key_server.generate_key(&document, &signature, threshold)
 						.map_err(|err| {
 							warn!(target: "secretstore", "GenerateServerKey request {} has failed with: {}", req_uri, err);
 							err
@@ -203,7 +203,7 @@ fn return_empty(req: HttpRequest, res: HttpResponse, empty: Result<(), Error>) {
 	return_bytes::<i32>(req, res, empty.map(|_| None))
 }
 
-fn return_server_pubic_key(req: HttpRequest, res: HttpResponse, server_public: Result<Public, Error>) {
+fn return_server_public_key(req: HttpRequest, res: HttpResponse, server_public: Result<Public, Error>) {
 	return_bytes(req, res, server_public.map(|k| Some(SerializablePublic(k))))
 }
 
