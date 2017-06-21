@@ -55,9 +55,10 @@ export default class Store {
   }
 
   @action queueRequest = (request) => {
+    const appId = this.methodsStore.tokens[request.data.from];
     let queueId = ++nextQueueId;
 
-    this.requests = this.requests.concat([{ queueId, request }]);
+    this.requests = this.requests.concat([{ appId, queueId, request }]);
   }
 
   @action approveSingleRequest = ({ queueId, request: { data, source } }) => {

@@ -31,8 +31,9 @@ function DappRequests () {
   return (
     <div className={ styles.requests }>
       {
-        store.squashedRequests.map(({ queueId, request: { data } }) => (
+        store.squashedRequests.map(({ appId, queueId, request: { data } }) => (
           <Request
+            appId={ appId }
             className={ styles.request }
             approveRequest={ store.approveRequest }
             denyRequest={ store.rejectRequest }
