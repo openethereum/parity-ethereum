@@ -356,7 +356,6 @@ fn read_point(reader: &mut io::Chain<&[u8], io::Repeat>) -> Result<::bn::G1, Err
 
 	reader.read_exact(&mut buf[..]).expect("reading from zero-extended memory cannot fail; qed");
 	let py = Fq::from_slice(&buf[0..32]).map_err(|_| Error::from("Invalid point y coordinate"))?;
-
 	Ok(
 		if px == Fq::zero() && py == Fq::zero() {
 			G1::zero()
