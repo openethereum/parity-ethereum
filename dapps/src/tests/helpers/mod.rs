@@ -100,13 +100,15 @@ pub fn serve_with_registrar_and_fetch_and_threads(multi_threaded: bool) -> (Serv
 	(server, fetch, reg)
 }
 
-pub fn serve_with_fetch(web_token: &'static str) -> (Server, FakeFetch) {
+pub fn serve_with_fetch(web_token: &'static str, domain: &'static str) -> (Server, FakeFetch) {
 	let fetch = FakeFetch::default();
 	let f = fetch.clone();
 	let (server, _) = init_server(move |builder| {
 		builder
 			.fetch(f.clone())
-			.web_proxy_tokens(Arc::new(move |token| &token == web_token))
+			.web_proxy_tokens(Arc::new(move |token| {
+				if &token == web_token { Some(domain.into()) } else { None }
+			}))
 	}, Default::default(), Remote::new_sync());
 
 	(server, fetch)
@@ -147,7 +149,7 @@ impl ServerBuilder {
 			dapps_path: dapps_path.as_ref().to_owned(),
 			registrar: registrar,
 			sync_status: Arc::new(|| false),
-			web_proxy_tokens: Arc::new(|_| false),
+			web_proxy_tokens: Arc::new(|_| None),
 			signer_address: None,
 			allowed_hosts: DomainsValidation::Disabled,
 			remote: remote,
