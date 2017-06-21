@@ -76,10 +76,10 @@ export default class DappsMethods extends Component {
                         key={ `${dappIndex}_${requestIndex}` }
                       >
                         <MethodCheck
-                          checked={ methodsStore.permissions[`${method}:${id}`] || false }
+                          checked={ methodsStore.hasAppPermission(method, id) }
                           dappId={ id }
                           method={ method }
-                          onToggle={ methodsStore.toggleMethodPermission }
+                          onToggle={ methodsStore.toggleAppPermission }
                         />
                       </td>
                     ))

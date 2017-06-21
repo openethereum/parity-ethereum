@@ -16,12 +16,15 @@
 
 import { action, observable } from 'mobx';
 
+import { sha3 } from '@parity/api/util/sha3';
+
 import filteredRequests from '../DappRequests/filteredRequests';
 
 export default class Store {
   @observable filteredRequests = Object.keys(filteredRequests);
   @observable modalOpen = false;
   @observable permissions = {};
+  @observable tokens = {};
 
   @action closeModal = () => {
     this.modalOpen = false;
@@ -31,20 +34,38 @@ export default class Store {
     this.modalOpen = true;
   }
 
-  @action addMethodPermission = (method, token) => {
-    const id = `${method}:${token}`;
+  @action createToken = (appId) => {
+    const token = sha3(`${appId}:${Date.now()}`);
+
+    this.tokens = Object.assign({}, this.tokens, {
+      [token]: appId
+    });
+
+    return token;
+  }
+
+  @action addTokenPermission = (method, token) => {
+    const id = `${method}:${this.tokens[token]}`;
 
     this.permissions = Object.assign({}, this.permissions, {
       [id]: true
     });
   }
 
-  @action toggleMethodPermission = (method, token) => {
-    const id = `${method}:${token}`;
+  @action toggleAppPermission = (method, appId) => {
+    const id = `${method}:${appId}`;
 
     this.permissions = Object.assign({}, this.permissions, {
       [id]: !this.permissions[id]
     });
+  }
+
+  hasTokenPermission = (method, token) => {
+    return this.hasAppPermission(method, this.tokens[token]);
+  }
+
+  hasAppPermission = (method, appId) => {
+    return this.permissions[`${method}:${appId}`] || false;
   }
 
   static instance = null;

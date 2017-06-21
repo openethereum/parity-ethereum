@@ -42,6 +42,7 @@ import SecureApi from '~/secureApi';
 import Application from './Application';
 import Dapp from './Dapp';
 import { setupProviderFilters } from './DappRequests';
+import DappMethodsStore from './DappMethods/store';
 import Dapps from './Dapps';
 
 injectTapEventPlugin();
@@ -76,7 +77,9 @@ const dapps = [].concat(viewsDapps, builtinDapps);
 const dappsHistory = HistoryStore.get('dapps');
 
 function onEnterDapp ({ params: { id } }) {
-  window.web3Provider = new Api.Provider.PostMessage(id, window);
+  const token = DappMethodsStore.get().createToken(id);
+
+  window.web3Provider = new Api.Provider.PostMessage(token, window);
 
   if (!dapps[id] || !dapps[id].skipHistory) {
     dappsHistory.add(id);
