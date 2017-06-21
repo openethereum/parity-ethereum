@@ -184,7 +184,7 @@ impl Schedule {
 		self.have_revert = block_number >= params.eip140_transition;
 		self.have_static_call = block_number >= params.eip214_transition;
 		if block_number >= params.eip210_transition {
-			self.blockhash_gas = 350;
+			self.blockhash_gas = 800;
 		}
 	}
 
@@ -194,7 +194,7 @@ impl Schedule {
 		schedule.have_create2 = true;
 		schedule.have_revert = true;
 		schedule.have_static_call = true;
-		schedule.blockhash_gas = 350;
+		schedule.blockhash_gas = 800;
 		schedule
 	}
 
