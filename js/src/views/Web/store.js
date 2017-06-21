@@ -60,11 +60,12 @@ export default class Store {
 
   @action gotoUrl = (_url) => {
     let url = (_url || this.nextUrl).trim().replace(/\/+$/, '');
+
     if (!hasProtocol.test(url)) {
       url = `https://${url}`;
     }
 
-    this.generateToken(url).then(() => {
+    return this.generateToken(url).then(() => {
       transaction(() => {
         this.setNextUrl(url);
         this.setCurrentUrl(this.nextUrl);
@@ -120,7 +121,6 @@ export default class Store {
 
   @action setCurrentUrl = (_url) => {
     const url = _url || this.currentUrl;
-    const parsedUrl = parseUrl(url);
 
     transaction(() => {
       this.currentUrl = url;
