@@ -109,6 +109,9 @@ pub trait LightChainClient: Send + Sync {
 
 	/// Get the EIP-86 transition block number.
 	fn eip86_transition(&self) -> u64;
+
+	/// Get a report of import activity since the last call.
+	fn report(&self) -> ClientReport;
 }
 
 /// An actor listening to light chain events.
@@ -438,5 +441,9 @@ impl LightChainClient for Client {
 
 	fn eip86_transition(&self) -> u64 {
 		self.engine().params().eip86_transition
+	}
+
+	fn report(&self) -> ClientReport {
+		Client::report(self)
 	}
 }

@@ -16,27 +16,28 @@
 
 use std::sync::Arc;
 use std::net::{TcpListener};
+
 use ctrlc::CtrlC;
-use fdlimit::raise_fd_limit;
-use parity_rpc::{NetworkSettings, informant, is_major_importing};
-use ethsync::NetworkConfiguration;
-use util::{Colour, version, Mutex, Condvar};
-use io::{MayPanic, ForwardPanic, PanicHandler};
 use ethcore_logger::{Config as LogConfig, RotatingLogger};
-use ethcore::miner::{StratumOptions, Stratum};
-use ethcore::client::{Client, Mode, DatabaseCompactionProfile, VMType, BlockChainClient};
-use ethcore::service::ClientService;
 use ethcore::account_provider::{AccountProvider, AccountProviderSettings};
+use ethcore::client::{Client, Mode, DatabaseCompactionProfile, VMType, BlockChainClient};
+use ethcore::ethstore::ethkey;
 use ethcore::miner::{Miner, MinerService, ExternalMiner, MinerOptions};
+use ethcore::miner::{StratumOptions, Stratum};
+use ethcore::service::ClientService;
 use ethcore::snapshot;
 use ethcore::verification::queue::VerifierSettings;
-use ethcore::ethstore::ethkey;
-use light::Cache as LightDataCache;
+use ethsync::NetworkConfiguration;
 use ethsync::SyncConfig;
-use informant::{Informant, FullNodeInformantData};
-use updater::{UpdatePolicy, Updater};
-use parity_reactor::EventLoop;
+use fdlimit::raise_fd_limit;
 use hash_fetch::fetch::{Fetch, Client as FetchClient};
+use informant::{Informant, LightNodeInformantData, FullNodeInformantData};
+use io::{MayPanic, ForwardPanic, PanicHandler};
+use light::Cache as LightDataCache;
+use parity_reactor::EventLoop;
+use parity_rpc::{NetworkSettings, informant, is_major_importing};
+use updater::{UpdatePolicy, Updater};
+use util::{Colour, version, Mutex, Condvar};
 
 use params::{
 	SpecType, Pruning, AccountsConfig, GasPricerConfig, MinerExtras, Switch,
@@ -301,7 +302,7 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 		logger: logger,
 		settings: Arc::new(cmd.net_settings),
 		on_demand: on_demand,
-		cache: cache,
+		cache: cache.clone(),
 		transaction_queue: txq,
 		dapps_service: dapps_service,
 		dapps_address: cmd.dapps_conf.address(cmd.http_conf.address()),
@@ -323,16 +324,25 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 	let _ipc_server = rpc::new_ipc(cmd.ipc_conf, &dependencies)?;
 	let _ui_server = rpc::new_http("Parity Wallet (UI)", "ui", cmd.ui_conf.clone().into(), &dependencies, ui_middleware)?;
 
-	// minimal informant thread. Just prints block number every 5 seconds.
-	// TODO: integrate with informant.rs
-	let informant_client = service.client().clone();
-	::std::thread::spawn(move || loop {
-		info!("#{}", informant_client.best_block_header().number());
-		::std::thread::sleep(::std::time::Duration::from_secs(5));
-	});
+	// the informant
+	let informant = Arc::new(Informant::new(
+		LightNodeInformantData {
+			client: service.client().clone(),
+			sync: light_sync.clone(),
+			cache: cache,
+		},
+		None,
+		Some(rpc_stats),
+		cmd.logger_config.color,
+	));
 
-	// wait for ctrl-c.
-	Ok(wait_for_exit(panic_handler, None, None, can_restart))
+	service.register_handler(informant.clone()).map_err(|_| "Unable to register informant handler".to_owned())?;
+
+	// wait for ctrl-c and then shut down the informant.
+	let res = wait_for_exit(panic_handler, None, None, can_restart);
+	informant.shutdown();
+
+	Ok(res)
 }
 
 pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> Result<(bool, Option<String>), String> {

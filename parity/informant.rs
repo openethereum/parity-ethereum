@@ -20,20 +20,22 @@ use self::ansi_term::Style;
 
 use std::sync::{Arc};
 use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
-
 use std::time::{Instant, Duration};
-use io::{TimerToken, IoContext, IoHandler};
-use isatty::{stdout_isatty};
-use ethsync::{SyncProvider, ManageNetwork};
-use util::{RwLock, Mutex, H256, Colour, Bytes};
+
 use ethcore::client::*;
 use ethcore::header::BlockNumber;
 use ethcore::service::ClientIoMessage;
-use ethcore::snapshot::service::Service as SnapshotService;
 use ethcore::snapshot::{RestorationStatus, SnapshotService as SS};
+use ethcore::snapshot::service::Service as SnapshotService;
+use ethsync::{LightSyncProvider, LightSync, SyncProvider, ManageNetwork};
+use io::{TimerToken, IoContext, IoHandler};
+use isatty::{stdout_isatty};
+use light::Cache as LightDataCache;
+use light::client::LightChainClient;
 use number_prefix::{binary_prefix, Standalone, Prefixed};
 use parity_rpc::{is_major_importing};
 use parity_rpc::informant::RpcStats;
+use util::{RwLock, Mutex, H256, Colour, Bytes};
 
 /// Format byte counts to standard denominations.
 pub fn format_bytes(b: usize) -> String {
@@ -109,6 +111,7 @@ pub trait InformantData: Send + Sync {
 	fn report(&self) -> Report;
 }
 
+/// Informant data for a full node.
 pub struct FullNodeInformantData {
 	pub client: Arc<Client>,
 	pub sync: Option<Arc<SyncProvider>>,
@@ -154,6 +157,47 @@ impl InformantData for FullNodeInformantData {
 
 		Report {
 			importing,
+			chain_info,
+			client_report,
+			queue_info,
+			cache_sizes,
+			sync_info,
+		}
+	}
+}
+
+/// Informant data for a light node -- note that the network is required.
+pub struct LightNodeInformantData {
+	pub client: Arc<LightChainClient>,
+	pub sync: Arc<LightSync>,
+	pub cache: Arc<Mutex<LightDataCache>>,
+}
+
+impl InformantData for LightNodeInformantData {
+	fn executes_transactions(&self) -> bool { false }
+
+	fn is_major_importing(&self) -> bool {
+		self.sync.is_major_importing()
+	}
+
+	fn report(&self) -> Report {
+		let (client_report, queue_info, chain_info) =
+			(self.client.report(), self.client.queue_info(), self.client.chain_info());
+
+		let mut cache_sizes = CacheSizes::default();
+		cache_sizes.insert("queue", queue_info.mem_used);
+		cache_sizes.insert("cache", self.cache.lock().mem_used());
+
+		let peer_numbers = self.sync.peer_numbers();
+		let sync_info = Some(SyncInfo {
+			last_imported_block_number: chain_info.best_block_number,
+			last_imported_old_block_number: None,
+			num_peers: peer_numbers.connected,
+			max_peers: peer_numbers.max as u32,
+		});
+
+		Report {
+			importing: self.sync.is_major_importing(),
 			chain_info,
 			client_report,
 			queue_info,
