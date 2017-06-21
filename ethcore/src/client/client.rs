@@ -851,7 +851,7 @@ impl Client {
 
 	/// Get the report.
 	pub fn report(&self) -> ClientReport {
-		let mut report = self.report.read().clone();
+		let mut report = ::std::mem::replace(&mut *self.report.write(), ClientReport::default());
 		report.state_db_mem = self.state_db.lock().mem_used();
 		report
 	}

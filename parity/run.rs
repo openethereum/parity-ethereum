@@ -33,7 +33,7 @@ use ethcore::verification::queue::VerifierSettings;
 use ethcore::ethstore::ethkey;
 use light::Cache as LightDataCache;
 use ethsync::SyncConfig;
-use informant::Informant;
+use informant::{Informant, FullNodeInformantData};
 use updater::{UpdatePolicy, Updater};
 use parity_reactor::EventLoop;
 use hash_fetch::fetch::{Fetch, Client as FetchClient};
@@ -677,9 +677,11 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 
 	// the informant
 	let informant = Arc::new(Informant::new(
-		service.client(),
-		Some(sync_provider.clone()),
-		Some(manage_network.clone()),
+		FullNodeInformantData {
+			client: service.client(),
+			sync: Some(sync_provider.clone()),
+			net: Some(manage_network.clone()),
+		},
 		Some(snapshot_service.clone()),
 		Some(rpc_stats.clone()),
 		cmd.logger_config.color,
