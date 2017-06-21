@@ -659,7 +659,7 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 				| Err(vm::Error::Wasm {..})
 				| Err(vm::Error::OutOfStack {..})
 				| Err(vm::Error::MutableCallInStaticContext)
-				| Err(evm::Error::OutOfBounds)
+				| Err(vm::Error::OutOfBounds)
 				| Ok(FinalizationResult { apply_state: false, .. }) => {
 					self.state.revert_to_checkpoint();
 			},

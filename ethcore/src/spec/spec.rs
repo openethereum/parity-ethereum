@@ -125,7 +125,7 @@ impl CommonParams {
 		schedule.have_static_call = block_number >= self.eip214_transition;
 		schedule.have_return_data = block_number >= self.eip211_transition;
 		if block_number >= self.eip210_transition {
-			schedule.blockhash_gas = 350;
+			schedule.blockhash_gas = 800;
 		}
 		if block_number >= self.dust_protection_transition {
 			schedule.kill_dust = match self.remove_dust_contracts {

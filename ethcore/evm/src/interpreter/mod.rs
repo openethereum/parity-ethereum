@@ -557,7 +557,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 					let size = stack.peek(2);
 					let return_data_len = U256::from(self.return_data.len());
 					if source_offset <= &return_data_len && source_offset.overflow_add(*size).0 <= return_data_len {
-						return Err(evm::Error::OutOfBounds);
+						return Err(vm::Error::OutOfBounds);
 					}
 				}
 				Self::copy_data_to_memory(&mut self.mem, stack, &*self.return_data);

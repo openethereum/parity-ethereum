@@ -59,7 +59,7 @@ impl<'a> From<&'a VmError> for Error {
 			VmError::Wasm { .. } => Error::Wasm,
 			VmError::Internal(_) => Error::Internal,
 			VmError::MutableCallInStaticContext => Error::MutableCallInStaticContext,
-			EvmError::OutOfBounds => Error::OutOfBounds,
+			VmError::OutOfBounds => Error::OutOfBounds,
 		}
 	}
 }
