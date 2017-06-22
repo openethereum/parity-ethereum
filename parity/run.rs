@@ -21,7 +21,6 @@ use fdlimit::raise_fd_limit;
 use parity_rpc::{NetworkSettings, informant, is_major_importing};
 use ethsync::NetworkConfiguration;
 use util::{Colour, version, Mutex, Condvar};
-use io::{MayPanic, ForwardPanic, PanicHandler};
 use ethcore_logger::{Config as LogConfig, RotatingLogger};
 use ethcore::miner::{StratumOptions, Stratum};
 use ethcore::client::{Client, Mode, DatabaseCompactionProfile, VMType, BlockChainClient};
@@ -167,8 +166,6 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 	use light::client as light_client;
 	use ethsync::{LightSyncParams, LightSync, ManageNetwork};
 	use util::RwLock;
-
-	let panic_handler = PanicHandler::new_in_arc();
 
 	// load spec
 	let spec = cmd.spec.spec()?;
@@ -332,7 +329,7 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 	});
 
 	// wait for ctrl-c.
-	Ok(wait_for_exit(panic_handler, None, None, can_restart))
+	Ok(wait_for_exit(None, None, can_restart))
 }
 
 pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> Result<(bool, Option<String>), String> {
@@ -351,9 +348,6 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	if cmd.light {
 		return execute_light(cmd, can_restart, logger);
 	}
-
-	// set up panic handler
-	let panic_handler = PanicHandler::new_in_arc();
 
 	// load spec
 	let spec = cmd.spec.spec()?;
@@ -516,9 +510,6 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 
 	// drop the spec to free up genesis state.
 	drop(spec);
-
-	// forward panics from service
-	panic_handler.forward_from(&service);
 
 	// take handle to client
 	let client = service.client();
@@ -731,7 +722,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	}
 
 	// Handle exit
-	let restart = wait_for_exit(panic_handler, Some(updater), Some(client), can_restart);
+	let restart = wait_for_exit(Some(updater), Some(client), can_restart);
 
 	info!("Finishing work, please wait...");
 
@@ -836,7 +827,6 @@ fn build_create_account_hint(spec: &SpecType, keys: &str) -> String {
 }
 
 fn wait_for_exit(
-	panic_handler: Arc<PanicHandler>,
 	updater: Option<Arc<Updater>>,
 	client: Option<Arc<Client>>,
 	can_restart: bool
@@ -846,10 +836,6 @@ fn wait_for_exit(
 	// Handle possible exits
 	let e = exit.clone();
 	CtrlC::set_handler(move || { e.1.notify_all(); });
-
-	// Handle panics
-	let e = exit.clone();
-	panic_handler.on_panic(move |_reason| { e.1.notify_all(); });
 
 	if can_restart {
 		if let Some(updater) = updater {
