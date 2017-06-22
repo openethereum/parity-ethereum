@@ -19,7 +19,7 @@
 use error::*;
 use hash::*;
 use hashdb::*;
-use kvdb::{KeyValueDB, DBTransaction};
+use kvdb::{KeyValueDB, KeyValueDBExt, DBTransaction};
 use memorydb::*;
 use rlp::*;
 use std::collections::HashMap;
@@ -100,14 +100,14 @@ impl OverlayDB {
 
 	/// Get the refs and value of the given key.
 	fn payload(&self, key: &H256) -> Option<(DBValue, u32)> {
-		self.backing.get(self.column, key)
-			.expect("Low-level database error. Some issue with your hard disk?")
-			.map(
-				|d| {
-					let r = Rlp::new(&d);
-					(DBValue::from_slice(r.at(1).data()), r.at(0).as_val())
-				},
-			)
+		self.backing.get_with(
+			self.column,
+			key,
+			|d| {
+				let r = Rlp::new(&d);
+				(DBValue::from_slice(r.at(1).data()), r.at(0).as_val())
+			},
+		).expect("Low-level database error. Some issue with your hard disk?")
 	}
 
 	/// Put the refs and value of the given key, possibly deleting it from the db.
@@ -141,7 +141,11 @@ impl HashDB for OverlayDB {
 		ret
 	}
 
-	fn get_exec(&self, key: &H256, f: &mut FnMut(&[u8])) {
+	fn get_exec<'this>(
+		&'this self,
+		key: &'this H256,
+		f: &'this mut for<'a: 'this> FnMut(&'a [u8]),
+	) {
 		// return ok if positive; if negative, check backing - might be enough
 		// references there to make it positive again.
 		let k = self.overlay.raw_ref(key);
@@ -157,17 +161,20 @@ impl HashDB for OverlayDB {
 			0
 		};
 
-		if let Some(d) = self.backing.get(self.column, key).expect(
-			"Low-level database error. Some issue with your hard disk?"
-		) {
-			let r = Rlp::new(&d);
+		let mut wrapper = |d: &[u8]| {
+			let r = Rlp::new(d);
 			let refcount: u32 = r.at(0).as_val();
 
-			if refcount as i32 + memrc.clone() > 0 {
-				f(r.at(1).data())
+			if refcount as i32 + memrc > 0 {
+				f(r.at(1).data());
 			}
-		}
+		};
+
+		self.backing.get_exec(self.column, key, &mut wrapper).expect(
+			"Low-level database error. Some issue with your hard disk?"
+		)
 	}
+
 	fn contains(&self, key: &H256) -> bool {
 		// return ok if positive; if negative, check backing - might be enough references there to make
 		// it positive again.

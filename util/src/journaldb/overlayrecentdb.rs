@@ -424,11 +424,12 @@ impl HashDB for OverlayRecentDB {
 
 		let journal_overlay = self.journal_overlay.read();
 		let short_key = to_short_key(key);
-		// This weird `&mut &mut FnMut(&[u8])` trick is necessary because the borrow checker
-		// complains that `f` has been moved into `get_with`. I don't know why right now and it's
-		// too hot for me to figure it out.
+
 		let backing_overlay_has_key =
-			journal_overlay.backing_overlay.get_with(&short_key, &mut f).is_some();
+			journal_overlay.backing_overlay.get_with(
+				&short_key,
+				|_| ()
+			).is_some();
 
 		if backing_overlay_has_key {
 			return;

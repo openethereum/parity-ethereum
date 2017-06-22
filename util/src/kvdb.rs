@@ -128,7 +128,7 @@ enum KeyState {
 	Delete,
 }
 
-pub trait KeyValueDBExt {
+pub trait KeyValueDBExt: KeyValueDB {
 	fn get_with<Out, F: FnOnce(&[u8]) -> Out>(
 		&self,
 		col: Option<u32>,
@@ -165,23 +165,7 @@ impl<T: KeyValueDB> KeyValueDBExt for T {
 	get_with_fn_def!{}
 }
 
-impl KeyValueDBExt for Box<KeyValueDB> {
-	get_with_fn_def!{}
-}
-
-impl<'any> KeyValueDBExt for &'any KeyValueDB {
-	get_with_fn_def!{}
-}
-
-impl<'any> KeyValueDBExt for &'any mut KeyValueDB {
-	get_with_fn_def!{}
-}
-
-impl KeyValueDBExt for ::std::rc::Rc<KeyValueDB> {
-	get_with_fn_def!{}
-}
-
-impl KeyValueDBExt for ::std::sync::Arc<KeyValueDB> {
+impl<'a> KeyValueDBExt for KeyValueDB + 'a {
 	get_with_fn_def!{}
 }
 
@@ -223,11 +207,13 @@ pub trait KeyValueDB: Sync + Send {
 		Ok(output)
 	}
 
-	fn get_exec(
-		&self,
+	// We explicitly write out the lifetime here since we don't need the `FnMut` to be able to take
+	// a slice of any lifetime.
+	fn get_exec<'this>(
+		&'this self,
 		col: Option<u32>,
-		key: &[u8],
-		f: &mut FnMut(&[u8]),
+		key: &'this [u8],
+		f: &'this mut for<'a: 'this> FnMut(&'a [u8]),
 	) -> Result<(), String>;
 
 	/// Get a value by partial key. Only works for flushed data.

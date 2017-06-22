@@ -86,7 +86,11 @@ impl HashDB for ArchiveDB {
 		ret
 	}
 
-	fn get_exec(&self, key: &H256, f: &mut FnMut(&[u8])) {
+	fn get_exec<'this>(
+		&'this self,
+		key: &'this H256,
+		mut f: &'this mut for<'a: 'this> FnMut(&'a [u8])
+	) {
 		let k = self.overlay.raw_ref(key);
 
 		if let Some((d, rc)) = k {

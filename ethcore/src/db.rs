@@ -19,7 +19,7 @@
 use std::ops::Deref;
 use std::hash::Hash;
 use std::collections::HashMap;
-use util::{DBTransaction, KeyValueDB, RwLock};
+use util::{DBTransaction, KeyValueDBExt, RwLock};
 
 use rlp;
 
@@ -216,20 +216,17 @@ impl Writable for DBTransaction {
 	}
 }
 
-impl<KVDB: KeyValueDB + ?Sized> Readable for KVDB {
+impl<KVDB: KeyValueDBExt + ?Sized> Readable for KVDB {
 	fn read<T, R>(&self, col: Option<u32>, key: &Key<T, Target = R>) -> Option<T> where T: rlp::Decodable, R: Deref<Target = [u8]> {
-		let result = self.get(col, &key.key());
+		let result = self.get_with(col, &key.key(), rlp::decode);
 
-		match result {
-			Ok(option) => option.map(|v| rlp::decode(&v)),
-			Err(err) => {
-				panic!("db get failed, key: {:?}, err: {:?}", &key.key() as &[u8], err);
-			}
-		}
+		result.unwrap_or_else(
+			|err| panic!("db get failed, key: {:?}, err: {:?}", &key.key() as &[u8], err)
+		)
 	}
 
 	fn exists<T, R>(&self, col: Option<u32>, key: &Key<T, Target = R>) -> bool where R: Deref<Target = [u8]> {
-		let result = self.get(col, &key.key());
+		let result = self.get_with(col, &key.key(), |_| ());
 
 		match result {
 			Ok(v) => v.is_some(),

@@ -186,7 +186,11 @@ impl HashDB for MemoryDB {
 		self.get_with(key, DBValue::from_slice)
 	}
 
-	fn get_exec(&self, key: &H256, f: &mut FnMut(&[u8])) {
+	fn get_exec<'this>(
+		&'this self,
+		key: &'this H256,
+		f: &'this mut for<'a: 'this> FnMut(&'a [u8])
+	) {
 		if key == &SHA3_NULL_RLP {
 			f(&NULL_RLP);
 			return;

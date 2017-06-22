@@ -280,10 +280,10 @@ impl EarlyMergeDB {
 	}
 
 	fn payload_exec(&self, key: &H256, f: &mut FnMut(&[u8])) {
-    // TODO: Fix this once `KeyValueDB` has a `get_exec` method
+		// TODO: Fix this once `KeyValueDB` has a `get_exec` method
 		if let Some(val) = self.payload(key) {
-      f(&val);
-    }
+			f(&val);
+		}
 	}
 
 	fn read_refs(db: &KeyValueDB, col: Option<u32>) -> (Option<u64>, HashMap<H256, RefInfo>) {
@@ -331,7 +331,11 @@ impl HashDB for EarlyMergeDB {
 		ret
 	}
 
-	fn get_exec(&self, key: &H256, f: &mut FnMut(&[u8])) {
+	fn get_exec<'this>(
+		&'this self,
+		key: &'this H256,
+		mut f: &'this mut for<'a: 'this> FnMut(&'a [u8])
+	) {
 		let k = self.overlay.raw_ref(key);
 
 		if let Some((d, rc)) = k {

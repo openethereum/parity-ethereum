@@ -30,7 +30,7 @@ pub trait HashDBExt {
 
 macro_rules! get_with_fn_def {
 	() => {
-		fn get_with<Out, F: FnOnce(&[u8]) -> Out>(
+		fn get_with<Out, F: for<'a> FnOnce(&'a [u8]) -> Out>(
 			&self,
 			key: &H256,
 			f: F,
@@ -113,7 +113,11 @@ pub trait HashDB: AsHashDB + Send + Sync {
 	/// default implementation of `get_with` will panic if `f` is called more than
 	/// once and in general there is no sensible behavior if `f` is called more
 	/// than once.
-	fn get_exec(&self, key: &H256, f: &mut FnMut(&[u8]));
+	fn get_exec<'this>(
+		&'this self,
+		key: &'this H256,
+		f: &'this mut for<'a: 'this> FnMut(&'a [u8])
+	);
 
 	/// Check for the existance of a hash-key.
 	///

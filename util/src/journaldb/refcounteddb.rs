@@ -81,10 +81,15 @@ impl RefCountedDB {
 
 impl HashDB for RefCountedDB {
 	fn keys(&self) -> HashMap<H256, i32> { self.forward.keys() }
-  fn get(&self, key: &H256) -> Option<DBValue> { self.forward.get(key) }
-	fn get_exec(&self, key: &H256, f: &mut FnMut(&[u8])) {
-    self.forward.get_exec(key, f);
-  }
+	fn get(&self, key: &H256) -> Option<DBValue> { self.forward.get(key) }
+	fn get_exec<'this>(
+		&'this self,
+		key: &'this H256,
+		mut f: &'this mut for<'a: 'this> FnMut(&'a [u8])
+	) {
+		self.forward.get_exec(key, f);
+	}
+
 	fn contains(&self, key: &H256) -> bool { self.forward.contains(key) }
 	fn insert(&mut self, value: &[u8]) -> H256 { let r = self.forward.insert(value); self.inserts.push(r.clone()); r }
 	fn emplace(&mut self, key: H256, value: DBValue) { self.inserts.push(key.clone()); self.forward.emplace(key, value); }

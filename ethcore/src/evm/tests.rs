@@ -895,7 +895,7 @@ fn test_signextend(factory: super::Factory) {
 
 #[test] // JIT just returns out of gas
 fn test_badinstruction_int() {
-	let factory = super::Factory::new(VMType::Interpreter, 1024 * 32);
+	let factory = super::Factory::new(VMType::Interpreter, None);
 	let code = "af".from_hex().unwrap();
 
 	let mut params = ActionParams::default();
