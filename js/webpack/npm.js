@@ -77,6 +77,7 @@ module.exports = {
     alias: {
       '~': path.resolve(__dirname, '../src'),
       'keythereum': 'empty-module',
+      'secp256k1': 'empty-module',
       'vertx': 'empty-module'
     },
     modules: [
