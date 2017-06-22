@@ -227,6 +227,16 @@ export default class DappsStore extends EventEmitter {
     return this.visibleApps.filter((app) => app.type === 'network');
   }
 
+  @action refreshDapps = () => {
+    this._api.parity.dappsRefresh()
+      .then((res) => {
+        if (res !== true){
+          console.log(res);
+        }
+        console.log(res);
+      });
+  }
+
   @action openModal = () => {
     this.modalOpen = true;
   }

@@ -92,6 +92,17 @@ class Dapps extends Component {
           buttons={ [
             <Button
               icon={ <VisibleIcon /> }
+              key='refresh'
+              label={
+                <FormattedMessage
+                  id='dapps.button.dapp.refresh'
+                  defaultMessage='refresh'
+                />
+              }
+              onClick={ this.store.refreshDapps }
+            />,
+            <Button
+              icon={ <VisibleIcon /> }
               key='edit'
               label={
                 <FormattedMessage

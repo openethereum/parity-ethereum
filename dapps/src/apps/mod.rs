@@ -84,6 +84,20 @@ pub fn all_endpoints<F: Fetch>(
 	Arc::new(RwLock::new(pages))
 }
 
+pub fn refresh_local_endpoints(endpoints: Arc<RwLock<BTreeMap<String, Box<Endpoint>>>>) {
+	let endpoints = endpoints.as_ref().map(|endpoints| endpoints.read());
+
+	let mut pages = fs::local_endpoints(dapps_path, ui_address.clone());
+
+	for (k, _) in pages {
+		if pages.contains_key(k) != false {
+			endpoints.insert()
+		}
+	}
+
+
+}
+
 fn insert<T : WebApp + Default + 'static>(pages: &mut BTreeMap<String, Box<Endpoint>>, id: &str, embed_at: Embeddable) {
 	pages.insert(id.to_owned(), Box::new(match embed_at {
 		Embeddable::Yes(address) => PageEndpoint::new_safe_to_embed(T::default(), address),

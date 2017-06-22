@@ -163,6 +163,17 @@ export default {
     }
   },
 
+  dappsRefresh: {
+    subdoc: SUBDOC_SET,
+    desc: 'Returns a boolean value upon success and error upon failure',
+    params: [],
+    returns: {
+      type: bool,
+      desc: 'True for success. error details for failure',
+      example: true
+    }
+  },
+
   dappsUrl: {
     section: SECTION_NODE,
     desc: 'Returns the hostname and the port of dapps/rpc server, error if not enabled.',

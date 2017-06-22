@@ -60,7 +60,8 @@ impl http::RequestMiddleware for Router {
 		let is_get_request = *req.method() == hyper::Method::Get;
 		let is_head_request = *req.method() == hyper::Method::Head;
 
-		info!(target: "dapps", "Routing request to {:?}. Details: {:?}", url, req);
+		// info!(target: "dapps", "Routing request to {:?}. Details: {:?}", url, req);
+
 		trace!(target: "dapps", "Routing request to {:?}. Details: {:?}", url, req);
 		let endpoints = self.endpoints.as_ref().map(|endpoints| endpoints.read());
 

@@ -294,6 +294,10 @@ impl Parity for ParityClient {
 		Ok(map)
 	}
 
+	fn dapps_refresh(&self) -> Result<bool, Error> {
+		Ok(true)
+	}
+
 	fn dapps_url(&self) -> Result<String, Error> {
 		helpers::to_url(&self.dapps_address)
 			.ok_or_else(|| errors::dapps_disabled())
