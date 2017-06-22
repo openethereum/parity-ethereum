@@ -80,7 +80,7 @@ impl<C, M> Traces for TracesClient<C, M> where C: MiningBlockChainClient + 'stat
 	}
 
 	fn call(&self, request: CallRequest, flags: Vec<String>, block: Trailing<BlockNumber>) -> Result<TraceResults, Error> {
-		let block = block.0;
+		let block = block.unwrap_or_default();
 
 		let request = CallRequest::into(request);
 		let signed = fake_sign::sign_call(&self.client, &self.miner, request)?;
@@ -91,7 +91,7 @@ impl<C, M> Traces for TracesClient<C, M> where C: MiningBlockChainClient + 'stat
 	}
 
 	fn raw_transaction(&self, raw_transaction: Bytes, flags: Vec<String>, block: Trailing<BlockNumber>) -> Result<TraceResults, Error> {
-		let block = block.0;
+		let block = block.unwrap_or_default();
 
 		let tx = UntrustedRlp::new(&raw_transaction.into_vec()).as_val().map_err(|e| errors::invalid_params("Transaction is not valid RLP", e))?;
 		let signed = SignedTransaction::new(tx).map_err(errors::from_transaction_error)?;
