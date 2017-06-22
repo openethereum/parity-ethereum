@@ -21,9 +21,6 @@ import Provider from './provider';
 
 export default class SecureProvider extends Provider {
   constructor (transport) {
-    if (!transport.isSecure) {
-      throw Error('Can`t provide secure API without secure transport!');
-    }
     super(transport);
     this._api = 'parity';
   }

@@ -48,10 +48,7 @@ export default class Api extends EventEmitter {
     this._provider = new Provider(transport);
     this._parityProvider = new ParityProvider(transport);
     this._ethProvider = new EthProvider(transport);
-
-    if (transport.isSecure) {
-      this._secureProvider = new SecureProvider(transport);
-    }
+    this._secureProvider = new SecureProvider(transport);
 
     if (allowSubscriptions) {
       this._subscriptions = new Subscriptions(this);
