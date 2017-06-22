@@ -80,7 +80,7 @@ pub const PROTOCOL_VERSIONS: &'static [u8] = &[1];
 pub const MAX_PROTOCOL_VERSION: u8 = 1;
 
 /// Packet count for PIP.
-pub const PACKET_COUNT: u8 = 5;
+pub const PACKET_COUNT: u8 = 9;
 
 // packet ID definitions.
 mod packet {
@@ -100,6 +100,10 @@ mod packet {
 
 	// relay transactions to peers.
 	pub const SEND_TRANSACTIONS: u8 = 0x06;
+
+	// request and respond with epoch transition proof
+	pub const REQUEST_EPOCH_PROOF: u8 = 0x07;
+	pub const EPOCH_PROOF: u8 = 0x08;
 }
 
 // timeouts for different kinds of requests. all values are in milliseconds.
@@ -523,6 +527,12 @@ impl LightProtocol {
 			packet::ACKNOWLEDGE_UPDATE => self.acknowledge_update(peer, io, rlp),
 
 			packet::SEND_TRANSACTIONS => self.relay_transactions(peer, io, rlp),
+
+			packet::REQUEST_EPOCH_PROOF | packet::EPOCH_PROOF => {
+				// ignore these for now, but leave them specified.
+				debug!(target: "pip", "Ignoring request/response for epoch proof");
+				Ok(())
+			}
 
 			other => {
 				Err(Error::UnrecognizedPacket(other))
