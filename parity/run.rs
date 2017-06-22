@@ -404,6 +404,8 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 
 	// display info about used pruning algorithm
 	info!("Starting {}", Colour::White.bold().paint(version()));
+	info!("Keys path {}", Colour::White.bold().paint(cmd.dirs.keys_path(&spec.name).to_string_lossy().into_owned()));
+	info!("DB path {}", Colour::White.bold().paint(db_dirs.db_root_path().to_string_lossy().into_owned()));
 	info!("State DB configuration: {}{}{}",
 		Colour::White.bold().paint(algorithm.as_str()),
 		match fat_db {
@@ -615,6 +617,8 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	let signer_service = Arc::new(signer::new_service(&cmd.ws_conf, &cmd.ui_conf));
 
 	// the dapps server
+	info!("Path to dapps {}", Colour::White.bold().paint(cmd.dapps_conf.dapps_path.to_string_lossy().into_owned()));
+
 	let dapps_deps = {
 		let (sync, client) = (sync_provider.clone(), client.clone());
 		let contract_client = Arc::new(::dapps::FullRegistrar { client: client.clone() });
