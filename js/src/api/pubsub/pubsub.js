@@ -14,20 +14,38 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { inAddress, inBlockNumber, inData, inHex, inNumber16, inOptions, inFilter } from '../format/input';
-import { outAccountInfo, outAddress, outBlock, outChainStatus, outHistogram, outHwAccountInfo, outNodeKind, outNumber, outPeers, outTransaction, outSyncing, outReceipt, outLog } from '../format/output';
+import { inAddress, inBlockNumber, inData, inHex, inNumber16, inOptions, inFilter, inDeriveHash, inDeriveIndex } from '../format/input';
+import { outAccountInfo, outAddress, outBlock, outChainStatus, outHistogram, outHwAccountInfo, outNodeKind, outNumber, outPeers, outTransaction, outSyncing, outReceipt, outLog, outAddresses, outRecentDapps, outVaultMeta } from '../format/output';
 
-import Provider from './provider';
+import PubsubBase from './pubsubBase';
 
-export default class ParityProvider extends Provider {
+export default class Pubsub extends PubsubBase {
   constructor (transport) {
     super(transport);
-    this._api = 'parity';
+    this._api = 'parity_subscribe';
   }
 
-  unsubscribe (...subscriptionIds) {
-    return this._removeListener('parity', subscriptionIds);
+  unsubscribe (subscriptionIds) {
+    return this.removeListener(subscriptionIds);
   }
+
+  // eth API
+  // `newHeads`, `logs`, `newPendingTransactions`, `syncing`
+  newHeads (callback) {
+    return this.addListener('eth_subscribe', 'newHeads', callback);
+  }
+  //
+  // logs (callback) {
+  //   throw Error('not supported yet');
+  // }
+  //
+  // newPendingTransactions (callback) {
+  //   throw Error('not supported yet');
+  // }
+  //
+  // syncing (callback) {
+  //   throw Error('not supported yet');
+  // }
 
   // parity API
   accountsInfo (callback) {
@@ -494,5 +512,94 @@ export default class ParityProvider extends Provider {
 
   listening (callback) {
     return this.addListener(this._api, 'net_listening', callback);
+  }
+
+  // parity accounts API (only secure API or configured to be exposed)
+  allAccountsInfo (callback) {
+    return this._addListener(this._api, 'parity_allAccountsInfo', (error, data) => {
+      error
+        ? callback(error)
+        : callback(null, outAccountInfo(data));
+    });
+  }
+
+  getDappAddresses (callback, dappId) {
+    return this._addListener(this._api, 'parity_getDappAddresses', (error, data) => {
+      error
+        ? callback(error)
+        : callback(null, outAddresses(data));
+    }, [dappId]);
+  }
+
+  getDappDefaultAddress (callback, dappId) {
+    return this._addListener(this._api, 'parity_getDappDefaultAddress', (error, data) => {
+      error
+        ? callback(error)
+        : callback(null, outAddress(data));
+    }, [dappId]);
+  }
+
+  getNewDappsAddresses (callback) {
+    return this._addListener(this._api, 'parity_getDappDefaultAddress', (error, addresses) => {
+      error
+        ? callback(error)
+        : callback(null, addresses ? addresses.map(outAddress) : null);
+    });
+  }
+
+  getNewDappsDefaultAddress (callback) {
+    return this._addListener(this._api, 'parity_getNewDappsDefaultAddress', (error, data) => {
+      error
+        ? callback(error)
+        : callback(null, outAddress(data));
+    });
+  }
+
+  listRecentDapps (callback) {
+    return this._addListener(this._api, 'parity_listRecentDapps', (error, data) => {
+      error
+        ? callback(error)
+        : callback(null, outRecentDapps(data));
+    });
+  }
+
+  listGethAccounts (callback) {
+    return this._addListener(this._api, 'parity_listGethAccounts', (error, data) => {
+      error
+        ? callback(error)
+        : callback(null, outAddresses(data));
+    });
+  }
+
+  listVaults (callback) {
+    return this._addListener(this._api, 'parity_listVaults', callback);
+  }
+
+  listOpenedVaults (callback) {
+    return this._addListener(this._api, 'parity_listOpenedVaults', callback);
+  }
+
+  getVaultMeta (callback, vaultName) {
+    return this._addListener(this._api, 'parity_getVaultMeta', (error, data) => {
+      error
+        ? callback(error)
+        : callback(null, outVaultMeta(data));
+    }, [vaultName]);
+  }
+
+  deriveAddressHash (callback, address, password, hash, shouldSave) {
+    return this._addListener(this._api, 'parity_deriveAddressHash', (error, data) => {
+      error
+        ? callback(error)
+        : callback(null, outAddress(data));
+    }, [inAddress(address), password, inDeriveHash(hash), !!shouldSave]);
+  }
+
+  deriveAddressIndex (callback, address, password, index, shouldSave) {
+    return this._addListener(this._api, 'parity_deriveAddressIndex', (error, data) => {
+      error
+        ? callback(error)
+        : callback(null, outAddress(data));
+    }, [inAddress(address), password, inDeriveIndex(index), !!shouldSave]);
   }
 }

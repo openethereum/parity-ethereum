@@ -13,7 +13,21 @@
 
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
-export Provider from './provider';
-export EthProvider from './ethProvider';
-export ParityProvider from './parityProvider';
-export SecureProvider from './secureProvider';
+
+export default class PubsubBase {
+  // Provider for websocket pubsub transport
+  constructor (transport) {
+    this._transport = transport;
+  }
+
+  addListener (module, eventName, callback, eventParams) {
+    return eventParams
+     ? this._transport.subscribe(module, callback, eventName, eventParams)
+     : this._transport.subscribe(module, callback, eventName, []);
+    // this._transport.subscribe(module, callback, eventName);  After Patch from tomac is merged to master! =>  eth_subscribe does not support empty array as params
+  }
+
+  removeListener (subscriptionIds) {
+    return this._transport.unsubscribe(subscriptionIds);
+  }
+}

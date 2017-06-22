@@ -19,9 +19,9 @@ import { TEST_WS_URL, mockWs } from '../../../test/mockRpc';
 import { isBigNumber } from '../../../test/types';
 
 import Ws from '../transport/ws';
-import ParityProvider from './parityProvider';
+import Pubsub from './pubsub';
 
-describe('api/provider/parityProvider', () => {
+describe('api/pubsub/Pubsub', () => {
   let scope;
   let instance;
   const address = '0x63Cf90D3f0410092FC0fca41846f596223979195';
@@ -39,7 +39,7 @@ describe('api/provider/parityProvider', () => {
           subscription: 2
         }
       } }]);
-      instance = new ParityProvider(new Ws(TEST_WS_URL));
+      instance = new Pubsub(new Ws(TEST_WS_URL));
     });
 
     afterEach(() => {
@@ -72,7 +72,7 @@ describe('api/provider/parityProvider', () => {
           subscription: 2
         }
       } }]);
-      instance = new ParityProvider(new Ws(TEST_WS_URL));
+      instance = new Pubsub(new Ws(TEST_WS_URL));
     });
 
     afterEach(() => {
@@ -99,7 +99,7 @@ describe('api/provider/parityProvider', () => {
           subscription: 2
         }
       } }]);
-      instance = new ParityProvider(new Ws(TEST_WS_URL));
+      instance = new Pubsub(new Ws(TEST_WS_URL));
     });
 
     afterEach(() => {
@@ -125,7 +125,7 @@ describe('api/provider/parityProvider', () => {
           subscription: 2
         }
       } }]);
-      instance = new ParityProvider(new Ws(TEST_WS_URL));
+      instance = new Pubsub(new Ws(TEST_WS_URL));
     });
 
     afterEach(() => {
@@ -151,7 +151,7 @@ describe('api/provider/parityProvider', () => {
           subscription: 2
         }
       } }]);
-      instance = new ParityProvider(new Ws(TEST_WS_URL));
+      instance = new Pubsub(new Ws(TEST_WS_URL));
     });
 
     afterEach(() => {
@@ -177,7 +177,7 @@ describe('api/provider/parityProvider', () => {
           subscription: 2
         }
       } }]);
-      instance = new ParityProvider(new Ws(TEST_WS_URL));
+      instance = new Pubsub(new Ws(TEST_WS_URL));
     });
 
     afterEach(() => {
@@ -204,7 +204,7 @@ describe('api/provider/parityProvider', () => {
           subscription: 2
         }
       } }]);
-      instance = new ParityProvider(new Ws(TEST_WS_URL));
+      instance = new Pubsub(new Ws(TEST_WS_URL));
     });
 
     afterEach(() => {
@@ -231,7 +231,7 @@ describe('api/provider/parityProvider', () => {
           subscription: 2
         }
       } }]);
-      instance = new ParityProvider(new Ws(TEST_WS_URL));
+      instance = new Pubsub(new Ws(TEST_WS_URL));
     });
 
     afterEach(() => {
@@ -247,6 +247,31 @@ describe('api/provider/parityProvider', () => {
     });
   });
 
+  describe.only('newHeads', () => {
+    beforeEach(() => {
+      scope = mockWs([{ method: 'eth_subscribe', reply: 2, subscription: {
+        method: 'eth_subscription',
+        params: {
+          result: '0x123456',
+          subscription: 2
+        }
+      } }]);
+      instance = new Pubsub(new Ws(TEST_WS_URL));
+    });
+
+    afterEach(() => {
+      scope.stop();
+    });
+
+    it('returns newHeads for eth_subscribe', (done) => {
+      instance.newHeads((error, blockNumber) => {
+        expect(error).to.be.null;
+        expect(blockNumber).to.equal('0x123456');
+        done();
+      });
+    });
+  });
+
   describe('blockNumber', () => {
     beforeEach(() => {
       scope = mockWs([{ method: 'parity_subscribe', reply: 2, subscription: {
@@ -256,7 +281,7 @@ describe('api/provider/parityProvider', () => {
           subscription: 2
         }
       } }]);
-      instance = new ParityProvider(new Ws(TEST_WS_URL));
+      instance = new Pubsub(new Ws(TEST_WS_URL));
     });
 
     afterEach(() => {
@@ -282,7 +307,7 @@ describe('api/provider/parityProvider', () => {
           subscription: 2
         }
       } }]);
-      instance = new ParityProvider(new Ws(TEST_WS_URL));
+      instance = new Pubsub(new Ws(TEST_WS_URL));
     });
 
     afterEach(() => {
@@ -315,7 +340,7 @@ describe('api/provider/parityProvider', () => {
           subscription: 2
         }
       } }]);
-      instance = new ParityProvider(new Ws(TEST_WS_URL));
+      instance = new Pubsub(new Ws(TEST_WS_URL));
     });
 
     afterEach(() => {
@@ -340,7 +365,7 @@ describe('api/provider/parityProvider', () => {
           subscription: 2
         }
       } }]);
-      instance = new ParityProvider(new Ws(TEST_WS_URL));
+      instance = new Pubsub(new Ws(TEST_WS_URL));
     });
 
     afterEach(() => {
@@ -374,7 +399,7 @@ describe('api/provider/parityProvider', () => {
           subscription: 2
         }
       } }]);
-      instance = new ParityProvider(new Ws(TEST_WS_URL));
+      instance = new Pubsub(new Ws(TEST_WS_URL));
     });
 
     afterEach(() => {
@@ -400,7 +425,7 @@ describe('api/provider/parityProvider', () => {
           subscription: 2
         }
       } }]);
-      instance = new ParityProvider(new Ws(TEST_WS_URL));
+      instance = new Pubsub(new Ws(TEST_WS_URL));
     });
 
     afterEach(() => {
@@ -442,7 +467,7 @@ describe('api/provider/parityProvider', () => {
           subscription: 2
         }
       } }]);
-      instance = new ParityProvider(new Ws(TEST_WS_URL));
+      instance = new Pubsub(new Ws(TEST_WS_URL));
     });
 
     afterEach(() => {
@@ -483,7 +508,7 @@ describe('api/provider/parityProvider', () => {
           subscription: 2
         }
       } }]);
-      instance = new ParityProvider(new Ws(TEST_WS_URL));
+      instance = new Pubsub(new Ws(TEST_WS_URL));
     });
 
     afterEach(() => {
@@ -532,7 +557,7 @@ describe('api/provider/parityProvider', () => {
           subscription: 2
         }
       } }]);
-      instance = new ParityProvider(new Ws(TEST_WS_URL));
+      instance = new Pubsub(new Ws(TEST_WS_URL));
     });
 
     afterEach(() => {

@@ -21,7 +21,7 @@ import Contract from './contract';
 
 import { Db, Eth, Parity, Net, Personal, Shh, Signer, Trace, Web3 } from './rpc';
 import Subscriptions from './subscriptions';
-import { Provider, EthProvider, ParityProvider, SecureProvider } from './provider';
+import { Pubsub } from './pubsub';
 import util from './util';
 import { isFunction } from './util/types';
 // import { LocalAccountsMiddleware } from './local';
@@ -45,15 +45,11 @@ export default class Api extends EventEmitter {
     this._signer = new Signer(transport);
     this._trace = new Trace(transport);
     this._web3 = new Web3(transport);
-    this._provider = new Provider(transport);
-    this._parityProvider = new ParityProvider(transport);
-    this._ethProvider = new EthProvider(transport);
-    this._secureProvider = new SecureProvider(transport);
+    this._pubsub = new Pubsub(transport);
 
     if (allowSubscriptions) {
       this._subscriptions = new Subscriptions(this);
     }
-
     // Doing a request here in test env would cause an error
     if (process.env.NODE_ENV !== 'test') {
       const middleware = this.parity
@@ -71,20 +67,8 @@ export default class Api extends EventEmitter {
     }
   }
 
-  get provider () {
-    return this._provider;
-  }
-
-  get ethProvider () {
-    return this._ethProvider;
-  }
-
-  get parityProvider () {
-    return this._parityProvider;
-  }
-
-  get secureProvider () {
-    return this._secureProvider;
+  get pubsub () {
+    return this._pubsub;
   }
 
   get db () {
