@@ -76,8 +76,9 @@ module.exports = {
   resolve: {
     alias: {
       '~': path.resolve(__dirname, '../src'),
-      'secp256k1': path.resolve(__dirname, '../node_modules/secp256k1/js'),
-      'keythereum': path.resolve(__dirname, '../node_modules/keythereum/dist/keythereum')
+      'keythereum': 'empty-module',
+      'secp256k1': 'empty-module',
+      'vertx': 'empty-module'
     },
     modules: [
       path.resolve('./src'),
