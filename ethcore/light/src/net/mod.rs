@@ -110,6 +110,7 @@ mod timeout {
 
 	// timeouts per request within packet.
 	pub const HEADERS: i64 = 250; // per header?
+	pub const TRANSACTION_INDEX: i64 = 100;
 	pub const BODY: i64 = 50;
 	pub const RECEIPT: i64 = 50;
 	pub const PROOF: i64 = 100; // state proof
@@ -867,6 +868,7 @@ impl LightProtocol {
 			match complete_req {
 				CompleteRequest::Headers(req) => self.provider.block_headers(req).map(Response::Headers),
 				CompleteRequest::HeaderProof(req) => self.provider.header_proof(req).map(Response::HeaderProof),
+				CompleteRequest::TransactionIndex(_) => None, // don't answer these yet, but leave them in protocol.
 				CompleteRequest::Body(req) => self.provider.block_body(req).map(Response::Body),
 				CompleteRequest::Receipts(req) => self.provider.block_receipts(req).map(Response::Receipts),
 				CompleteRequest::Account(req) => self.provider.account_proof(req).map(Response::Account),
