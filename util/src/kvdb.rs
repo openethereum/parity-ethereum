@@ -150,7 +150,12 @@ macro_rules! get_with_fn_def {
 
 			{
 				let mut wrapper = |key: &[u8]| {
-					output = Some((o_func.take().unwrap())(key));
+					output = Some(
+						(
+							o_func.take()
+								.expect("Broken `get_exec` implementation - see stack trace")
+						)(key)
+					);
 				};
 
 				self.get_exec(col, key, &mut wrapper)?;
@@ -494,7 +499,7 @@ pub struct DatabaseIterator<'a> {
 impl<'a> Iterator for DatabaseIterator<'a> {
 	type Item = (Box<[u8]>, Box<[u8]>);
 
-    fn next(&mut self) -> Option<Self::Item> {
+	fn next(&mut self) -> Option<Self::Item> {
 		self.iter.next()
 	}
 }

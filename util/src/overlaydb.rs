@@ -161,6 +161,8 @@ impl HashDB for OverlayDB {
 			0
 		};
 
+		// This type annotation is necessary, the inferred lifetime is too restrictive otherwise.
+		// Possible bug in the Rust compiler.
 		let mut wrapper = |d: &[u8]| {
 			let r = Rlp::new(d);
 			let refcount: u32 = r.at(0).as_val();

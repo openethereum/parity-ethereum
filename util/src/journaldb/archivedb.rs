@@ -59,15 +59,15 @@ impl ArchiveDB {
 
 	fn payload(&self, key: &H256) -> Option<DBValue> {
 		self.backing.get(self.column, key).expect(
-      "Low-level database error. Some issue with your hard disk?"
-    )
+			"Low-level database error. Some issue with your hard disk?"
+		)
 	}
 
 	fn payload_exec(&self, key: &H256, f: &mut FnMut(&[u8])) {
-    // TODO: Fix this once `KeyValueDB` has a `get_exec` method
+		// TODO: Fix this once `KeyValueDB` has a `get_exec` method
 		if let Some(val) = self.payload(key) {
-      f(&val);
-    }
+			f(&val);
+		}
 	}
 }
 
@@ -96,6 +96,7 @@ impl HashDB for ArchiveDB {
 		if let Some((d, rc)) = k {
 			if rc > 0 {
 				f(d.as_ref());
+				return;
 			}
 		}
 

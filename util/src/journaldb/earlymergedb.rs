@@ -340,9 +340,9 @@ impl HashDB for EarlyMergeDB {
 
 		if let Some((d, rc)) = k {
 			if rc > 0 {
-        f(d.as_ref());
-        return;
-      }
+				f(d.as_ref());
+				return;
+			}
 		}
 
 		self.payload_exec(key, f);
