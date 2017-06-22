@@ -70,7 +70,9 @@ module.exports = {
       }
     ]
   },
-
+  node: {
+    fs: 'empty'
+  },
   resolve: {
     alias: {
       '~': path.resolve(__dirname, '../src'),
