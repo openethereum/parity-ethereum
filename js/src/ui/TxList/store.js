@@ -127,16 +127,16 @@ export default class Store {
   }
 
   killTransaction = (txComponent, tx) => {
-    const { hash, gas, gasPrice, to, from } = tx;
+    const { hash, gasPrice, from } = tx;
 
     this._api.parity
       .removeTransaction(hash)
       .then(() => {
         return this._api.parity.postTransaction({
-          from,
+          from: from,
           to: from,                    // set to owner
           gas: new BigNumber(21000),   // set default gas
-          gasPrice: gasPrice.plus( gasPrice.times(0.25) ),   // must be a minimum of 10% growth to be recognized as a replacement by miners (incentive)
+          gasPrice: gasPrice.plus(gasPrice.times(0.25)),   // must be a minimum of 10% growth to be recognized as a replacement by miners (incentive)
           value: new BigNumber(0),     // zero out the value
           condition: null,             // ensure to post this instantly
           data: '0x'
