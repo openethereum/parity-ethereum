@@ -71,7 +71,7 @@ impl<C> EthPubSubClient<C> {
 	#[cfg(test)]
 	pub fn new_test(client: Arc<C>, remote: Remote) -> Self {
 		let client = Self::new(client, remote);
-		*client.heads_subscribers.lock() = Subscribers::new_test();
+		*client.heads_subscribers.write() = Subscribers::new_test();
 		client
 	}
 
