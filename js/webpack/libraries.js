@@ -42,7 +42,8 @@ module.exports = {
   resolve: {
     alias: {
       '~': path.resolve(__dirname, '../src'),
-      'keythereum': 'empty-module'
+      'keythereum': 'empty-module',
+      'vertx': 'empty-module'
     }
   },
 
