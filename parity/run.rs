@@ -44,7 +44,7 @@ use params::{
 };
 use helpers::{to_client_config, execute_upgrades, passwords_from_files};
 use upgrade::upgrade_key_location;
-use dir::Directories;
+use dir::{Directories, DatabaseDirectories};
 use cache::CacheConfig;
 use user_defaults::UserDefaults;
 use dapps;
@@ -196,7 +196,9 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 	// create dirs used by parity
 	cmd.dirs.create_dirs(cmd.dapps_conf.enabled, cmd.ui_conf.enabled, cmd.secretstore_conf.enabled)?;
 
-	info!("Starting {}", Colour::White.bold().paint(version()));
+	//print out running parity environment
+	print_running_environment(&spec.name, &cmd.dirs, &db_dirs, &cmd.dapps_conf);
+
 	info!("Running in experimental {} mode.", Colour::Blue.bold().paint("Light Client"));
 
 	// TODO: configurable cache size.
@@ -402,10 +404,10 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 		daemonize(pid_file)?;
 	}
 
+	//print out running parity environment
+	print_running_environment(&spec.name, &cmd.dirs, &db_dirs, &cmd.dapps_conf);
+
 	// display info about used pruning algorithm
-	info!("Starting {}", Colour::White.bold().paint(version()));
-	info!("Keys path {}", Colour::White.bold().paint(cmd.dirs.keys_path(&spec.name).to_string_lossy().into_owned()));
-	info!("DB path {}", Colour::White.bold().paint(db_dirs.db_root_path().to_string_lossy().into_owned()));
 	info!("State DB configuration: {}{}{}",
 		Colour::White.bold().paint(algorithm.as_str()),
 		match fat_db {
@@ -617,8 +619,6 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	let signer_service = Arc::new(signer::new_service(&cmd.ws_conf, &cmd.ui_conf));
 
 	// the dapps server
-	info!("Path to dapps {}", Colour::White.bold().paint(cmd.dapps_conf.dapps_path.to_string_lossy().into_owned()));
-
 	let dapps_deps = {
 		let (sync, client) = (sync_provider.clone(), client.clone());
 		let contract_client = Arc::new(::dapps::FullRegistrar { client: client.clone() });
@@ -769,6 +769,13 @@ fn daemonize(pid_file: String) -> Result<(), String> {
 #[cfg(windows)]
 fn daemonize(_pid_file: String) -> Result<(), String> {
 	Err("daemon is no supported on windows".into())
+}
+
+fn print_running_environment(spec_name: &String, dirs: &Directories, db_dirs: &DatabaseDirectories, dapps_conf: &dapps::Configuration) {
+	info!("Starting {}", Colour::White.bold().paint(version()));
+	info!("Keys path {}", Colour::White.bold().paint(dirs.keys_path(spec_name).to_string_lossy().into_owned()));
+	info!("DB path {}", Colour::White.bold().paint(db_dirs.db_root_path().to_string_lossy().into_owned()));
+	info!("Path to dapps {}", Colour::White.bold().paint(dapps_conf.dapps_path.to_string_lossy().into_owned()));
 }
 
 fn prepare_account_provider(spec: &SpecType, dirs: &Directories, data_dir: &str, cfg: AccountsConfig, passwords: &[String]) -> Result<AccountProvider, String> {
