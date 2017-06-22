@@ -148,6 +148,10 @@ module.exports = {
     unsafeCache: true
   },
 
+  node: {
+    fs: 'empty'
+  },
+
   plugins: (function () {
     const DappsHTMLInjection = DAPPS.filter((dapp) => !dapp.skipBuild).map((dapp) => {
       return new HtmlWebpackPlugin({
