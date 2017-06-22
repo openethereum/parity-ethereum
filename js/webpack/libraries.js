@@ -42,7 +42,7 @@ module.exports = {
   resolve: {
     alias: {
       '~': path.resolve(__dirname, '../src'),
-      'keythereum': path.resolve(__dirname, '../node_modules/keythereum/dist/keythereum')
+      'keythereum': 'empty-module'
     }
   },
 
