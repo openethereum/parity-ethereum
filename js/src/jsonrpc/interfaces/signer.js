@@ -30,7 +30,11 @@ export default {
 
   generateWebProxyAccessToken: {
     desc: 'Generates a new web proxy access token.',
-    params: [],
+    params: [{
+      type: String,
+      desc: 'Domain for which the token is valid. Only requests to this domain will be allowed.',
+      example: 'https://parity.io'
+    }],
     returns: {
       type: String,
       desc: 'The new web proxy access token.',
