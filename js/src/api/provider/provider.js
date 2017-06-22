@@ -20,22 +20,24 @@ export default class Provider {
     this._transport = transport;
   }
 
-  addListener (api, eventName, callback, ...eventParams) {
-    return this._addListener(api, eventName, callback, eventParams);
+  addListener (module, eventName, callback, eventParams) {
+    return this._addListener(module, eventName, callback, eventParams);
   }
 
-  removeListener (api, ...subscriptionIds) {
-    return this._removeListener(api, subscriptionIds);
+  removeListener (module, subscriptionIds) {
+    return this._removeListener(module, subscriptionIds);
   }
 
-  _addListener (api, eventName, callback, eventParams) {
-    // wait for PubSub update (allows call without empty array as params)
-    return (api === 'eth_subscribe' && eventParams.length <= 0)
-     ? this._transport.subscribe(api, callback, eventName)
-     : this._transport.subscribe(api, callback, eventName, eventParams);
+  _addListener (module, eventName, callback, eventParams) {
+    // eth_subscribe does not support empty array as params
+    return this._transport.subscribe(this._defineModule(module), callback, eventName, eventParams);
   }
 
-  _removeListener (api, subscriptionIds) {
-    return this._transport.unsubscribe(api, subscriptionIds);
+  _removeListener (module, subscriptionIds) {
+    return this._transport.unsubscribe(this._defineModule(module), subscriptionIds);
+  }
+
+  _defineModule (module) {
+    return module === 'eth' ? 'eth_subscribe' : 'parity_subscribe';
   }
 }

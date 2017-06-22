@@ -22,11 +22,11 @@ import Provider from './provider';
 export default class ParityProvider extends Provider {
   constructor (transport) {
     super(transport);
-    this._api = 'parity_subscribe';
+    this._api = 'parity';
   }
 
   unsubscribe (...subscriptionIds) {
-    return this._removeListener('parity_unsubscribe', subscriptionIds);
+    return this._removeListener('parity', subscriptionIds);
   }
 
   // parity API
@@ -159,11 +159,11 @@ export default class ParityProvider extends Provider {
       error
         ? callback(error)
         : callback(null, (data) => (data || []).map(outAddress));
-    }, count, inAddress(offset), inBlockNumber(blockNumber));
+    }, [count, inAddress(offset), inBlockNumber(blockNumber)]);
   }
 
   listStorageKeys (callback, address, count, hash = null, blockNumber = 'latest') {
-    return this.addListener(this._api, 'parity_listStorageKeys', callback, inAddress(address), count, inHex(hash), inBlockNumber(blockNumber));
+    return this.addListener(this._api, 'parity_listStorageKeys', callback, [inAddress(address), count, inHex(hash), inBlockNumber(blockNumber)]);
   }
 
   pendingTransactions (callback) {
@@ -214,7 +214,7 @@ export default class ParityProvider extends Provider {
       error
         ? callback(error)
         : callback(null, outNumber(data));
-    }, inAddress(account));
+    }, [inAddress(account)]);
   }
 
   mode (callback) {
@@ -262,11 +262,11 @@ export default class ParityProvider extends Provider {
       error
         ? callback(error)
         : callback(null, outBlock(data));
-    }, inBlockNumber(blockNumber));
+    }, [inBlockNumber(blockNumber)]);
   }
 
   cidV0 (callback, data) {
-    return this.addListener(this._api, 'parity_cidV0', callback, inData(data));
+    return this.addListener(this._api, 'parity_cidV0', callback, [inData(data)]);
   }
 
   //  eth API
@@ -332,11 +332,11 @@ export default class ParityProvider extends Provider {
       error
         ? callback(error)
         : callback(null, outNumber(data));
-    }, inAddress(address), inBlockNumber(blockNumber));
+    }, [inAddress(address), inBlockNumber(blockNumber)]);
   }
 
   getStorageAt (callback, address, index = 0, blockNumber = 'latest') {
-    return this.addListener(this._api, 'eth_getStorageAt', callback, inAddress(address), inNumber16(index), inBlockNumber(blockNumber));
+    return this.addListener(this._api, 'eth_getStorageAt', callback, [inAddress(address), inNumber16(index), inBlockNumber(blockNumber)]);
   }
 
   getBlockByHash (callback, hash, full = false) {
@@ -344,7 +344,7 @@ export default class ParityProvider extends Provider {
       error
         ? callback(error)
         : callback(null, outBlock(data));
-    }, inHex(hash), full);
+    }, [inHex(hash), full]);
   }
 
   getBlockByNumber (callback, blockNumber = 'latest', full = false) {
@@ -352,7 +352,7 @@ export default class ParityProvider extends Provider {
       error
         ? callback(error)
         : callback(null, outBlock(data));
-    }, inBlockNumber(blockNumber), full);
+    }, [inBlockNumber(blockNumber), full]);
   }
 
   getTransactionCount (callback, address, blockNumber = 'latest') {
@@ -360,7 +360,7 @@ export default class ParityProvider extends Provider {
       error
         ? callback(error)
         : callback(null, outNumber(data));
-    }, inAddress(address), inBlockNumber(blockNumber));
+    }, [inAddress(address), inBlockNumber(blockNumber)]);
   }
 
   getBlockTransactionCountByHash (callback, hash) {
@@ -368,7 +368,7 @@ export default class ParityProvider extends Provider {
       error
         ? callback(error)
         : callback(null, outNumber(data));
-    }, inHex(hash));
+    }, [inHex(hash)]);
   }
 
   getBlockTransactionCountByNumber (callback, blockNumber = 'latest') {
@@ -376,7 +376,7 @@ export default class ParityProvider extends Provider {
       error
         ? callback(error)
         : callback(null, outNumber(data));
-    }, inBlockNumber(blockNumber));
+    }, [inBlockNumber(blockNumber)]);
   }
 
   getUncleCountByBlockHash (callback, hash) {
@@ -384,7 +384,7 @@ export default class ParityProvider extends Provider {
       error
         ? callback(error)
         : callback(null, outNumber(data));
-    }, inHex(hash));
+    }, [inHex(hash)]);
   }
 
   getUncleCountByBlockNumber (callback, blockNumber = 'latest') {
@@ -392,23 +392,23 @@ export default class ParityProvider extends Provider {
       error
         ? callback(error)
         : callback(null, outNumber(data));
-    }, inBlockNumber(blockNumber));
+    }, [inBlockNumber(blockNumber)]);
   }
 
   getCode (callback, address, blockNumber = 'latest') {
-    return this.addListener(this._api, 'eth_getCode', callback, inAddress(address), inBlockNumber(blockNumber));
+    return this.addListener(this._api, 'eth_getCode', callback, [inAddress(address), inBlockNumber(blockNumber)]);
   }
 
   sendRawTransaction (callback, data) {
-    return this.addListener(this._api, 'eth_sendRawTransaction', callback, inData(data));
+    return this.addListener(this._api, 'eth_sendRawTransaction', callback, [inData(data)]);
   }
 
   submitTransaction (callback, data) {
-    return this.addListener(this._api, 'eth_submitTransaction', callback, inData(data));
+    return this.addListener(this._api, 'eth_submitTransaction', callback, [inData(data)]);
   }
 
   call (callback, options, blockNumber = 'latest') {
-    return this.addListener(this._api, 'eth_call', callback, inOptions(options), inBlockNumber(blockNumber));
+    return this.addListener(this._api, 'eth_call', callback, [inOptions(options), inBlockNumber(blockNumber)]);
   }
 
   estimateGas (callback, options) {
@@ -416,7 +416,7 @@ export default class ParityProvider extends Provider {
       error
         ? callback(error)
         : callback(null, outNumber(data));
-    }, inOptions(options));
+    }, [inOptions(options)]);
   }
 
   getTransactionByHash (callback, hash) {
@@ -424,7 +424,7 @@ export default class ParityProvider extends Provider {
       error
         ? callback(error)
         : callback(null, outTransaction(data));
-    }, inHex(hash));
+    }, [inHex(hash)]);
   }
 
   getTransactionByBlockHashAndIndex (callback, hash, index = 0) {
@@ -432,7 +432,7 @@ export default class ParityProvider extends Provider {
       error
         ? callback(error)
         : callback(null, outTransaction(data));
-    }, inHex(hash), inNumber16(index));
+    }, [inHex(hash), inNumber16(index)]);
   }
 
   getTransactionByBlockNumberAndIndex (callback, blockNumber = 'latest', index = 0) {
@@ -440,7 +440,7 @@ export default class ParityProvider extends Provider {
       error
         ? callback(error)
         : callback(null, outTransaction(data));
-    }, inBlockNumber(blockNumber), inNumber16(index));
+    }, [inBlockNumber(blockNumber), inNumber16(index)]);
   }
 
   getTransactionReceipt (callback, txhash) {
@@ -448,15 +448,15 @@ export default class ParityProvider extends Provider {
       error
         ? callback(error)
         : callback(null, outReceipt(data));
-    }, inHex(txhash));
+    }, [inHex(txhash)]);
   }
 
   getUncleByBlockHashAndIndex (callback, hash, index = 0) {
-    return this.addListener(this._api, 'eth_getUncleByBlockHashAndIndex', callback, inHex(hash), inNumber16(index));
+    return this.addListener(this._api, 'eth_getUncleByBlockHashAndIndex', callback, [inHex(hash), inNumber16(index)]);
   }
 
   getUncleByBlockNumberAndIndex (callback, blockNumber = 'latest', index = 0) {
-    return this.addListener(this._api, 'eth_getUncleByBlockNumberAndIndex', callback, inBlockNumber(blockNumber), inNumber16(index));
+    return this.addListener(this._api, 'eth_getUncleByBlockNumberAndIndex', callback, [inBlockNumber(blockNumber), inNumber16(index)]);
   }
 
   getLogs (callback, options) {
@@ -464,7 +464,7 @@ export default class ParityProvider extends Provider {
       error
         ? callback(error)
         : callback(null, (logs) => logs.map(outLog));
-    }, inFilter(options));
+    }, [inFilter(options)]);
   }
 
   getWork (callback) {
@@ -472,11 +472,11 @@ export default class ParityProvider extends Provider {
   }
 
   submitWork (callback, nonce, powHash, mixDigest) {
-    return this.addListener(this._api, 'eth_submitWork', callback, inNumber16(nonce), powHash, mixDigest);
+    return this.addListener(this._api, 'eth_submitWork', callback, [inNumber16(nonce), powHash, mixDigest]);
   }
 
   submitHashrate (callback, hashrate, clientId) {
-    return this.addListener(this._api, 'eth_submitHashrate', callback, inNumber16(hashrate), clientId);
+    return this.addListener(this._api, 'eth_submitHashrate', callback, [inNumber16(hashrate), clientId]);
   }
 
   // net API

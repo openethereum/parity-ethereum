@@ -19,11 +19,11 @@ import Provider from './provider';
 export default class EthProvider extends Provider {
   constructor (transport) {
     super(transport);
-    this._api = 'eth_subscribe';
+    this._api = 'eth';
   }
 
   unsubscribe (...subscriptionIds) {
-    return this._removeListener('eth_unsubscribe', subscriptionIds);
+    return this._removeListener('eth', subscriptionIds);
   }
 
   // `newHeads`, `logs`, `newPendingTransactions`, `syncing`

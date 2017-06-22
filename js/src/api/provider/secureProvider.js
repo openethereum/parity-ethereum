@@ -25,15 +25,14 @@ export default class SecureProvider extends Provider {
       throw Error('Can`t provide secure API without secure transport!');
     }
     super(transport);
-    this._api = 'parity_subscribe';
+    this._api = 'parity';
   }
 
   unsubscribe (...subscriptionIds) {
-    return this._removeListener('parity_unsubscribe', subscriptionIds);
+    return this._removeListener('parity', subscriptionIds);
   }
 
   // parity accounts API (only secure API)
-
   allAccountsInfo (callback) {
     return this._addListener(this._api, 'parity_allAccountsInfo', (error, data) => {
       error
@@ -47,7 +46,7 @@ export default class SecureProvider extends Provider {
       error
         ? callback(error)
         : callback(null, outAddresses(data));
-    }, dappId);
+    }, [dappId]);
   }
 
   getDappDefaultAddress (callback, dappId) {
@@ -55,7 +54,7 @@ export default class SecureProvider extends Provider {
       error
         ? callback(error)
         : callback(null, outAddress(data));
-    }, dappId);
+    }, [dappId]);
   }
 
   getNewDappsAddresses (callback) {
@@ -103,7 +102,7 @@ export default class SecureProvider extends Provider {
       error
         ? callback(error)
         : callback(null, outVaultMeta(data));
-    }, vaultName);
+    }, [vaultName]);
   }
 
   deriveAddressHash (callback, address, password, hash, shouldSave) {
@@ -111,7 +110,7 @@ export default class SecureProvider extends Provider {
       error
         ? callback(error)
         : callback(null, outAddress(data));
-    }, inAddress(address), password, inDeriveHash(hash), !!shouldSave);
+    }, [inAddress(address), password, inDeriveHash(hash), !!shouldSave]);
   }
 
   deriveAddressIndex (callback, address, password, index, shouldSave) {
@@ -119,7 +118,7 @@ export default class SecureProvider extends Provider {
       error
         ? callback(error)
         : callback(null, outAddress(data));
-    }, inAddress(address), password, inDeriveIndex(index), !!shouldSave);
+    }, [inAddress(address), password, inDeriveIndex(index), !!shouldSave]);
   }
 
   // Parity set API (not supported yet)
