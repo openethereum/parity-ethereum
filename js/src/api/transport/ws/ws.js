@@ -29,8 +29,7 @@ export default class Ws extends JsonRpcBase {
     this._url = url;
     this._token = token;
     this._messages = {};
-    this._eth_subscriptions = {};
-    this._parity_subscriptions = {};
+    this._subscriptions = { 'eth_subscription': [], 'parity_subscription': [] };
     this._sessionHash = null;
 
     this._connecting = false;
@@ -204,23 +203,24 @@ export default class Ws extends JsonRpcBase {
   }
 
   _extract = (result) => {
-    // subscription format
+    // initial pubsub ACK
     if (result.id && this._messages[result.id].subscription) {
-      // initial subscription : check if eth or parity subscription (avoid collidance of id's)
-      result.method === 'eth_subscribe'
-        ? this._eth_subscriptions[result.result] = result.id
-        : this._parity_subscriptions[result.result] = result.id;
-      // resolve promise with subscription id
-      this._messages[result.id].resolve(result.result);
+      this._messages[result.id].method === 'eth_subscribe'
+        ? this._subscriptions['eth_subscription'][result.result] = result.id
+        : this._subscriptions['parity_subscription'][result.result] = result.id;
+      // resolve promise with messageId because subId's can collide (eth/parity)
+      this._messages[result.id].resolve(result.id);
+      // save subId for unsubscribing later
+      this._messages[result.id]['subId'] = result.result;
       return this._messages[result.id];
-    // normal format
+    // normal message
     } else if (result.id) {
       return this._messages[result.id];
     // pubsub format
-    } else if (result.params) {
-      return result.method === 'eth_subscribe'
-        ? this._messages[this._eth_subscriptions[result.params.subscription]]
-        : this._messages[this._parity_subscriptions[result.params.subscription]];
+    } else if (result.method.includes('subscription')) {
+      return this._messages[this._subscriptions[result.method][result.params.subscription]];
+    } else {
+      throw Error(`Unknown message format: No ID or subscription ${JSON.stringify(result)}`);
     }
   }
 
@@ -296,20 +296,18 @@ export default class Ws extends JsonRpcBase {
     });
   }
 
-  unsubscribe (method, params) {
+  unsubscribe (messageId) {
     return new Promise(() => {
       const id = this.id;
-      const json = this.encode(method, params);
+      const { subId, method } = this._messages[messageId];
+      const params = [subId];
+      const uMethod = method === 'eth_subscribe' ? 'eth_unsubscribe' : 'parity_unsubscribe';
+      const json = this.encode(uMethod, params);
 
-      this._messages[id] = { id, method, params, json,
+      this._messages[id] = { id, 'method': uMethod, params, json,
         resolve: _ => {
-          if (method === 'eth_unsubscribe') {
-            delete this._messages[this._eth_subscriptions[params]];
-            delete this._eth_subscriptions[params];
-          } else {
-            delete this._messages[this._parity_subscriptions[params]];
-            delete this._parity_subscriptions[params];
-          }
+          delete this._messages[messageId];
+          method === 'eth_subscribe' ? delete this._subscriptions['eth_subscription'][subId] : delete this._subscriptions['parity_subscription'][subId];
         }, reject: e => {
           throw Error('Error unsubscribing.' + e);
         } };
