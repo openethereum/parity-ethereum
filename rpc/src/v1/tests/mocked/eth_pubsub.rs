@@ -108,7 +108,7 @@ fn should_subscribe_to_logs() {
 		}
 	]);
 
-	let pubsub = EthPubSubClient::new(Arc::new(client), el.remote());
+	let pubsub = EthPubSubClient::new_test(Arc::new(client), el.remote());
 	let handler = pubsub.handler();
 	let pubsub = pubsub.to_delegate();
 
@@ -121,7 +121,7 @@ fn should_subscribe_to_logs() {
 
 	// Subscribe
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_subscribe", "params": ["logs", {}], "id": 1}"#;
-	let response = r#"{"jsonrpc":"2.0","result":1,"id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"0x416d77337e24399d","id":1}"#;
 	assert_eq!(io.handle_request_sync(request, metadata.clone()), Some(response.to_owned()));
 
 	// Check notifications (enacted)
@@ -129,7 +129,7 @@ fn should_subscribe_to_logs() {
 	let (res, receiver) = receiver.into_future().wait().unwrap();
 	let response = r#"{"jsonrpc":"2.0","method":"eth_subscription","params":{"result":[{"address":"0x0000000000000000000000000000000000000005","blockHash":"0x3457d2fa2e3dd33c78ac681cf542e429becf718859053448748383af67e23218","blockNumber":"0x1","data":"0x","logIndex":"0x0","topics":["0x0000000000000000000000000000000000000000000000000000000000000001","0x0000000000000000000000000000000000000000000000000000000000000002","0x0000000000000000000000000000000000000000000000000000000000000000","0x0000000000000000000000000000000000000000000000000000000000000000"],"transactionHash":""#.to_owned()
 		+ &format!("0x{:?}", tx_hash)
-		+ r#"","transactionIndex":"0x0","transactionLogIndex":"0x0","type":"mined"}],"subscription":1}}"#;
+		+ r#"","transactionIndex":"0x0","transactionLogIndex":"0x0","type":"mined"}],"subscription":"0x416d77337e24399d"}}"#;
 	assert_eq!(res, Some(response.into()));
 
 	// Check notifications (retracted)
@@ -137,12 +137,12 @@ fn should_subscribe_to_logs() {
 	let (res, receiver) = receiver.into_future().wait().unwrap();
 	let response = r#"{"jsonrpc":"2.0","method":"eth_subscription","params":{"result":[{"address":"0x0000000000000000000000000000000000000005","blockHash":"0x3457d2fa2e3dd33c78ac681cf542e429becf718859053448748383af67e23218","blockNumber":"0x1","data":"0x","logIndex":"0x0","topics":["0x0000000000000000000000000000000000000000000000000000000000000001","0x0000000000000000000000000000000000000000000000000000000000000002","0x0000000000000000000000000000000000000000000000000000000000000000","0x0000000000000000000000000000000000000000000000000000000000000000"],"transactionHash":""#.to_owned()
 		+ &format!("0x{:?}", tx_hash)
-		+ r#"","transactionIndex":"0x0","transactionLogIndex":"0x0","type":"removed"}],"subscription":1}}"#;
+		+ r#"","transactionIndex":"0x0","transactionLogIndex":"0x0","type":"removed"}],"subscription":"0x416d77337e24399d"}}"#;
 	assert_eq!(res, Some(response.into()));
 
 
 	// And unsubscribe
-	let request = r#"{"jsonrpc": "2.0", "method": "eth_unsubscribe", "params": [1], "id": 1}"#;
+	let request = r#"{"jsonrpc": "2.0", "method": "eth_unsubscribe", "params": ["0x416d77337e24399d"], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
 	assert_eq!(io.handle_request_sync(request, metadata), Some(response.to_owned()));
 

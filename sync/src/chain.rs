@@ -521,7 +521,8 @@ impl ChainSync {
 					sn > fork_block &&
 					self.highest_block.map_or(true, |highest| highest >= sn && (highest - sn) <= SNAPSHOT_RESTORE_THRESHOLD)
 				))
-				.filter_map(|(p, peer)| peer.snapshot_hash.map(|hash| (p, hash.clone())));
+				.filter_map(|(p, peer)| peer.snapshot_hash.map(|hash| (p, hash.clone())))
+				.filter(|&(_, ref hash)| !self.snapshot.is_known_bad(hash));
 
 			let mut snapshot_peers = HashMap::new();
 			let mut max_peers: usize = 0;
@@ -1075,10 +1076,18 @@ impl ChainSync {
 		}
 
 		// check service status
-		match io.snapshot_service().status() {
+		let status = io.snapshot_service().status();
+		match status {
 			RestorationStatus::Inactive | RestorationStatus::Failed => {
 				trace!(target: "sync", "{}: Snapshot restoration aborted", peer_id);
 				self.state = SyncState::WaitingPeers;
+
+				// only note bad if restoration failed.
+				if let (Some(hash), RestorationStatus::Failed) = (self.snapshot.snapshot_hash(), status) {
+					trace!(target: "sync", "Noting snapshot hash {} as bad", hash);
+					self.snapshot.note_bad(hash);
+				}
+
 				self.snapshot.clear();
 				self.continue_sync(io);
 				return Ok(());

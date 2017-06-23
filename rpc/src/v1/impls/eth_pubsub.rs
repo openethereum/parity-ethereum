@@ -72,6 +72,7 @@ impl<C> EthPubSubClient<C> {
 	pub fn new_test(client: Arc<C>, remote: Remote) -> Self {
 		let client = Self::new(client, remote);
 		*client.heads_subscribers.write() = Subscribers::new_test();
+		*client.logs_subscribers.write() = Subscribers::new_test();
 		client
 	}
 
@@ -244,11 +245,11 @@ impl<C: Send + Sync + 'static> EthPubSub for EthPubSubClient<C> {
 		kind: pubsub::Kind,
 		params: Trailing<pubsub::Params>,
 	) {
-		match (kind, params.0) {
-			(pubsub::Kind::NewHeads, pubsub::Params::None) => {
+		match (kind, params.into()) {
+			(pubsub::Kind::NewHeads, None) => {
 				self.heads_subscribers.write().push(subscriber)
 			},
-			(pubsub::Kind::Logs, pubsub::Params::Logs(filter)) => {
+			(pubsub::Kind::Logs, Some(pubsub::Params::Logs(filter))) => {
 				self.logs_subscribers.write().push(subscriber, filter.into());
 			},
 			_ => {
