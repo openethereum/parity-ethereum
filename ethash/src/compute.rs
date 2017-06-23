@@ -95,7 +95,7 @@ pub struct Light {
 /// Light cache structure
 impl Light {
 	/// Create a new light cache for a given block number
-	pub fn new(cache_dir: &Path, block_number: u64) -> Light {
+	pub fn new<T: AsRef<Path>>(cache_dir: T, block_number: u64) -> Light {
 		light_new(cache_dir, block_number)
 	}
 
@@ -343,7 +343,7 @@ fn calculate_dag_item(node_index: u32, cache: &[Node]) -> Node {
 	}
 }
 
-fn light_new(cache_dir: &Path, block_number: u64) -> Light {
+fn light_new<T: AsRef<Path>>(cache_dir: T, block_number: u64) -> Light {
 	let seed_compute = SeedHashCompute::new();
 	let seedhash = seed_compute.get_seedhash(block_number);
 	let cache_size = get_cache_size(block_number);
@@ -373,7 +373,7 @@ fn light_new(cache_dir: &Path, block_number: u64) -> Light {
 
 	Light {
 		block_number,
-		cache_dir: cache_dir.to_path_buf(),
+		cache_dir: cache_dir.as_ref().to_path_buf(),
 		cache: nodes,
 		seed_compute: Mutex::new(seed_compute),
 	}
@@ -433,7 +433,7 @@ fn test_light_compute() {
 	let boundary = [0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x3e, 0x9b, 0x6c, 0x69, 0xbc, 0x2c, 0xe2, 0xa2, 0x4a, 0x8e, 0x95, 0x69, 0xef, 0xc7, 0xd7, 0x1b, 0x33, 0x35, 0xdf, 0x36, 0x8c, 0x9a, 0xe9, 0x7e, 0x53, 0x84];
 	let nonce = 0xd7b3ac70a301a249;
 	// difficulty = 0x085657254bd9u64;
-	let light = Light::new(486382);
+	let light = Light::new(&::std::env::temp_dir(), 486382);
 	let result = light_compute(&light, &hash, nonce);
 	assert_eq!(result.mix_hash[..], mix_hash[..]);
 	assert_eq!(result.value[..], boundary[..]);
@@ -472,15 +472,16 @@ fn test_seed_compute_after_newer() {
 
 #[test]
 fn test_drop_old_data() {
-	let first = Light::new(0).to_file().unwrap();
+	let path = ::std::env::temp_dir();
+	let first = Light::new(&path, 0).to_file().unwrap();
 
-	let second = Light::new(ETHASH_EPOCH_LENGTH).to_file().unwrap();
+	let second = Light::new(&path, ETHASH_EPOCH_LENGTH).to_file().unwrap();
 	assert!(fs::metadata(&first).is_ok());
 
-	let _ = Light::new(ETHASH_EPOCH_LENGTH * 2).to_file();
+	let _ = Light::new(&path, ETHASH_EPOCH_LENGTH * 2).to_file();
 	assert!(fs::metadata(&first).is_err());
 	assert!(fs::metadata(&second).is_ok());
 
-	let _ = Light::new(ETHASH_EPOCH_LENGTH * 3).to_file();
+	let _ = Light::new(&path, ETHASH_EPOCH_LENGTH * 3).to_file();
 	assert!(fs::metadata(&second).is_err());
 }

@@ -115,7 +115,7 @@ impl EthashManager {
 
 #[test]
 fn test_lru() {
-	let ethash = EthashManager::new();
+	let ethash = EthashManager::new(&::std::env::temp_dir());
 	let hash = [0u8; 32];
 	ethash.compute_light(1, &hash, 1);
 	ethash.compute_light(50000, &hash, 1);
