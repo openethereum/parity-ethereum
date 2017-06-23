@@ -21,6 +21,18 @@ pub struct AccountInfo {
 	pub name: String,
 }
 
+/// Extended account information (used by `parity_allAccountInfo`).
+#[derive(Debug, Default, Clone, PartialEq, Serialize)]
+pub struct ExtAccountInfo {
+	/// Account name
+	pub name: String,
+	/// Account meta JSON
+	pub meta: String,
+	/// Account UUID (`None` for address book entries)
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub uuid: Option<String>,
+}
+
 /// Hardware wallet information.
 #[derive(Debug, Default, Clone, PartialEq, Serialize)]
 pub struct HwAccountInfo {
@@ -29,3 +41,4 @@ pub struct HwAccountInfo {
 	/// Device manufacturer.
 	pub manufacturer: String,
 }
+
