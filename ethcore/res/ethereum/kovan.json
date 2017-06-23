@@ -21,7 +21,7 @@
               "0x00e4a10650e5a6D6001C38ff8E64F97016a1645c",
               "0x00a0a24b9f0e5ec7aa4c7389b8302fd0123194de"
             ] },
-            "1510000": { "contract": "0x3b328D8B3e8fD41B735d8d3d399d04864bd7510f" }
+            "2300000": { "contract": "0x3b328D8B3e8fD41B735d8d3d399d04864bd7510f" }
           }
         },
         "validateScoreTransition": 1000000,
