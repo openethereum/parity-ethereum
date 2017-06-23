@@ -23,7 +23,8 @@ import { Db, Eth, Parity, Net, Personal, Shh, Signer, Trace, Web3 } from './rpc'
 import Subscriptions from './subscriptions';
 import util from './util';
 import { isFunction } from './util/types';
-import { LocalAccountsMiddleware } from './local';
+
+import LocalAccountsMiddleware from '~/api/local';
 
 export default class Api extends EventEmitter {
   constructor (transport, allowSubscriptions = true) {
@@ -50,7 +51,7 @@ export default class Api extends EventEmitter {
     }
 
     // Doing a request here in test env would cause an error
-    if (process.env.NODE_ENV !== 'test') {
+    if (LocalAccountsMiddleware && process.env.NODE_ENV !== 'test') {
       const middleware = this.parity
         .nodeKind()
         .then((nodeKind) => {
