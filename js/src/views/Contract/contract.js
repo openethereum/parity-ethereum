@@ -26,6 +26,7 @@ import { setVisibleAccounts } from '~/redux/providers/personalActions';
 import { Actionbar, Button, Page, Portal } from '~/ui';
 import { CancelIcon, DeleteIcon, EditIcon, PlayIcon, VisibleIcon } from '~/ui/Icons';
 import Editor from '~/ui/Editor';
+import { getSender, loadSender } from '~/util/tx';
 
 import Header from '../Account/Header';
 import Delete from '../Address/Delete';
@@ -52,7 +53,7 @@ class Contract extends Component {
 
   state = {
     contract: null,
-    fromAddress: '',
+    fromAddress: getSender(),
     showDeleteDialog: false,
     showEditDialog: false,
     showExecuteDialog: false,
@@ -76,6 +77,13 @@ class Contract extends Component {
     api
       .subscribe('eth_blockNumber', this.queryContract)
       .then(blockSubscriptionId => this.setState({ blockSubscriptionId }));
+
+    loadSender(api)
+      .then((defaultAccount) => {
+        if (defaultAccount !== this.state.fromAddress) {
+          this.onFromAddressChange(null, defaultAccount);
+        }
+      });
   }
 
   componentWillReceiveProps (nextProps) {

@@ -69,6 +69,10 @@ fn verify_external(header: &Header, validators: &ValidatorSet) -> Result<(), Err
 	let sig = UntrustedRlp::new(&header.seal()[0]).as_val::<H520>()?;
 	let signer = public_to_address(&recover(&sig.into(), &header.bare_hash())?);
 
+	if *header.author() != signer {
+		return Err(EngineError::NotAuthorized(*header.author()).into())
+	}
+
 	match validators.contains(header.parent_hash(), &signer) {
 		false => Err(BlockError::InvalidSeal.into()),
 		true => Ok(())
@@ -216,6 +220,10 @@ impl Engine for BasicAuthority {
 	fn sign(&self, hash: H256) -> Result<Signature, Error> {
 		self.signer.sign(hash).map_err(Into::into)
 	}
+
+	fn snapshot_components(&self) -> Option<Box<::snapshot::SnapshotComponents>> {
+		Some(Box::new(::snapshot::PoaSnapshot))
+	}
 }
 
 #[cfg(test)]
@@ -225,7 +233,6 @@ mod tests {
 	use error::{BlockError, Error};
 	use tests::helpers::*;
 	use account_provider::AccountProvider;
-	use ethkey::Secret;
 	use header::Header;
 	use spec::Spec;
 	use engines::Seal;
@@ -277,7 +284,7 @@ mod tests {
 	#[test]
 	fn can_generate_seal() {
 		let tap = AccountProvider::transient_provider();
-		let addr = tap.insert_account(Secret::from_slice(&"".sha3()).unwrap(), "").unwrap();
+		let addr = tap.insert_account("".sha3().into(), "").unwrap();
 
 		let spec = new_test_authority();
 		let engine = &*spec.engine;
@@ -295,7 +302,7 @@ mod tests {
 	#[test]
 	fn seals_internally() {
 		let tap = AccountProvider::transient_provider();
-		let authority = tap.insert_account(Secret::from_slice(&"".sha3()).unwrap(), "").unwrap();
+		let authority = tap.insert_account("".sha3().into(), "").unwrap();
 
 		let engine = new_test_authority().engine;
 		assert!(!engine.seals_internally().unwrap());

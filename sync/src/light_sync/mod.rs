@@ -551,7 +551,7 @@ impl<L: AsLightClient> LightSync<L> {
 			peers: RwLock::new(HashMap::new()),
 			pending_reqs: Mutex::new(HashSet::new()),
 			client: client,
-			rng: Mutex::new(try!(OsRng::new())),
+			rng: Mutex::new(OsRng::new()?),
 			state: Mutex::new(SyncState::Idle),
 		})
 	}

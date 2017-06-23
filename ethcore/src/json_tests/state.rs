@@ -29,6 +29,7 @@ lazy_static! {
 	pub static ref HOMESTEAD: Spec = ethereum::new_homestead_test();
 	pub static ref EIP150: Spec = ethereum::new_eip150_test();
 	pub static ref EIP161: Spec = ethereum::new_eip161_test();
+	pub static ref _METROPOLIS: Spec = ethereum::new_metropolis_test();
 }
 
 pub fn json_chain_test(json_data: &[u8]) -> Vec<String> {
@@ -92,7 +93,6 @@ mod state_tests {
 	}
 
 	declare_test!{GeneralStateTest_stAttackTest, "GeneralStateTests/stAttackTest/"}
-	declare_test!{GeneralStateTest_stBlockHashTest, "GeneralStateTests/stBlockHashTest/"}
 	declare_test!{GeneralStateTest_stBoundsTest, "GeneralStateTests/stBoundsTest/"}
 	declare_test!{GeneralStateTest_stCallCodes, "GeneralStateTests/stCallCodes/"}
 	declare_test!{skip => [ "createJS_ExampleContract" ], GeneralStateTest_stCallCreateCallCodeTest, "GeneralStateTests/stCallCreateCallCodeTest/"}

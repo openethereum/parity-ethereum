@@ -31,6 +31,7 @@ pub struct Snapshot {
 	downloading_chunks: HashSet<H256>,
 	completed_chunks: HashSet<H256>,
 	snapshot_hash: Option<H256>,
+	bad_hashes: HashSet<H256>,
 }
 
 impl Snapshot {
@@ -42,6 +43,7 @@ impl Snapshot {
 			downloading_chunks: HashSet::new(),
 			completed_chunks: HashSet::new(),
 			snapshot_hash: None,
+			bad_hashes: HashSet::new(),
 		}
 	}
 
@@ -107,6 +109,16 @@ impl Snapshot {
 
 	pub fn clear_chunk_download(&mut self, hash: &H256) {
 		self.downloading_chunks.remove(hash);
+	}
+
+	// note snapshot hash as bad.
+	pub fn note_bad(&mut self, hash: H256) {
+		self.bad_hashes.insert(hash);
+	}
+
+	// whether snapshot hash is known to be bad.
+	pub fn is_known_bad(&self, hash: &H256) -> bool {
+		self.bad_hashes.contains(hash)
 	}
 
 	pub fn snapshot_hash(&self) -> Option<H256> {
@@ -204,6 +216,16 @@ mod test {
 		assert_eq!(snapshot.done_chunks(), 40);
 		assert_eq!(snapshot.done_chunks(), snapshot.total_chunks());
 		assert_eq!(snapshot.snapshot_hash(), Some(manifest.into_rlp().sha3()));
+	}
+
+	#[test]
+	fn tracks_known_bad() {
+		let mut snapshot = Snapshot::new();
+		let hash = H256::random();
+
+		assert_eq!(snapshot.is_known_bad(&hash), false);
+		snapshot.note_bad(hash);
+		assert_eq!(snapshot.is_known_bad(&hash), true);
 	}
 }
 

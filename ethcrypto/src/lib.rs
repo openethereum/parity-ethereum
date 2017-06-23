@@ -192,7 +192,7 @@ pub mod ecdh {
 		let sec = key::SecretKey::from_slice(context, &secret)?;
 		let shared = ecdh::SharedSecret::new_raw(context, &publ, &sec);
 
-		Secret::from_slice(&shared[0..32])
+		Secret::from_unsafe_slice(&shared[0..32])
 			.map_err(|_| Error::Secp(SecpError::InvalidSecretKey))
 	}
 }

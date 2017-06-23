@@ -53,9 +53,6 @@ module.exports = {
     'node-fetch': 'node-fetch'
   },
   module: {
-    noParse: [
-      /babel-polyfill/
-    ],
     rules: [
       {
         test: /(\.jsx|\.js)$/,
@@ -73,10 +70,15 @@ module.exports = {
       }
     ]
   },
-
+  node: {
+    fs: 'empty'
+  },
   resolve: {
     alias: {
-      '~': path.resolve(__dirname, '../src')
+      '~': path.resolve(__dirname, '../src'),
+      'keythereum': 'empty-module',
+      'secp256k1': 'empty-module',
+      'vertx': 'empty-module'
     },
     modules: [
       path.resolve('./src'),

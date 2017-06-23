@@ -56,7 +56,6 @@ pub struct ClientService {
 	io_service: Arc<IoService<ClientIoMessage>>,
 	client: Arc<Client>,
 	snapshot: Arc<SnapshotService>,
-	panic_handler: Arc<PanicHandler>,
 	database: Arc<Database>,
 	_stop_guard: ::devtools::StopGuard,
 }
@@ -72,9 +71,7 @@ impl ClientService {
 		miner: Arc<Miner>,
 		) -> Result<ClientService, Error>
 	{
-		let panic_handler = PanicHandler::new_in_arc();
 		let io_service = IoService::<ClientIoMessage>::start()?;
-		panic_handler.forward_from(&io_service);
 
 		info!("Configured for {} using {} engine", Colour::White.bold().paint(spec.name.clone()), Colour::Yellow.bold().paint(spec.engine.name()));
 
@@ -109,7 +106,6 @@ impl ClientService {
 		};
 		let snapshot = Arc::new(SnapshotService::new(snapshot_params)?);
 
-		panic_handler.forward_from(&*client);
 		let client_io = Arc::new(ClientIoHandler {
 			client: client.clone(),
 			snapshot: snapshot.clone(),
@@ -125,7 +121,6 @@ impl ClientService {
 			io_service: Arc::new(io_service),
 			client: client,
 			snapshot: snapshot,
-			panic_handler: panic_handler,
 			database: db,
 			_stop_guard: stop_guard,
 		})
@@ -158,12 +153,6 @@ impl ClientService {
 
 	/// Get a handle to the database.
 	pub fn db(&self) -> Arc<KeyValueDB> { self.database.clone() }
-}
-
-impl MayPanic for ClientService {
-	fn on_panic<F>(&self, closure: F) where F: OnPanicListener {
-		self.panic_handler.on_panic(closure);
-	}
 }
 
 /// IO interface for the Client handler

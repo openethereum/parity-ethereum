@@ -55,6 +55,7 @@ pub struct ContentFetcher<F: Fetch = FetchClient, R: URLHint + 'static = URLHint
 	embeddable_on: Option<(String, u16)>,
 	remote: Remote,
 	fetch: F,
+	only_content: bool,
 }
 
 impl<R: URLHint + 'static, F: Fetch> Drop for ContentFetcher<F, R> {
@@ -66,7 +67,12 @@ impl<R: URLHint + 'static, F: Fetch> Drop for ContentFetcher<F, R> {
 
 impl<R: URLHint + 'static, F: Fetch> ContentFetcher<F, R> {
 
-	pub fn new(resolver: R, sync_status: Arc<SyncStatus>, embeddable_on: Option<(String, u16)>, remote: Remote, fetch: F) -> Self {
+	pub fn new(
+		resolver: R,
+		sync_status: Arc<SyncStatus>,
+		remote: Remote,
+		fetch: F,
+	) -> Self {
 		let mut dapps_path = env::temp_dir();
 		dapps_path.push(random_filename());
 
@@ -75,10 +81,21 @@ impl<R: URLHint + 'static, F: Fetch> ContentFetcher<F, R> {
 			resolver: resolver,
 			sync: sync_status,
 			cache: Arc::new(Mutex::new(ContentCache::default())),
-			embeddable_on: embeddable_on,
+			embeddable_on: None,
 			remote: remote,
 			fetch: fetch,
+			only_content: true,
 		}
+	}
+
+	pub fn allow_dapps(mut self, dapps: bool) -> Self {
+		self.only_content = !dapps;
+		self
+	}
+
+	pub fn embeddable_on(mut self, embeddable_on: Option<(String, u16)>) -> Self {
+		self.embeddable_on = embeddable_on;
+		self
 	}
 
 	fn still_syncing(address: Option<(String, u16)>) -> Box<Handler> {
@@ -91,9 +108,29 @@ impl<R: URLHint + 'static, F: Fetch> ContentFetcher<F, R> {
 		))
 	}
 
+	fn dapps_disabled(address: Option<(String, u16)>) -> Box<Handler> {
+		Box::new(ContentHandler::error(
+			StatusCode::ServiceUnavailable,
+			"Network Dapps Not Available",
+			"This interface doesn't support network dapps for security reasons.",
+			None,
+			address,
+		))
+	}
+
 	#[cfg(test)]
 	fn set_status(&self, content_id: &str, status: ContentStatus) {
 		self.cache.lock().insert(content_id.to_owned(), status);
+	}
+
+	// resolve contract call synchronously.
+	// TODO: port to futures-based hyper and make it all async.
+	fn resolve(&self, content_id: Vec<u8>) -> Option<URLHintResult> {
+		use futures::Future;
+
+		self.resolver.resolve(content_id)
+			.wait()
+			.unwrap_or_else(|e| { warn!("Error resolving content-id: {}", e); None })
 	}
 }
 
@@ -108,10 +145,8 @@ impl<R: URLHint + 'static, F: Fetch> Fetcher for ContentFetcher<F, R> {
 		}
 		// fallback to resolver
 		if let Ok(content_id) = content_id.from_hex() {
-			// else try to resolve the app_id
-			let has_content = self.resolver.resolve(content_id).is_some();
 			// if there is content or we are syncing return true
-			has_content || self.sync.is_major_importing()
+			self.sync.is_major_importing() || self.resolve(content_id).is_some()
 		} else {
 			false
 		}
@@ -137,7 +172,7 @@ impl<R: URLHint + 'static, F: Fetch> Fetcher for ContentFetcher<F, R> {
 				_ => {
 					trace!(target: "dapps", "Content unavailable. Fetching... {:?}", content_id);
 					let content_hex = content_id.from_hex().expect("to_handler is called only when `contains` returns true.");
-					let content = self.resolver.resolve(content_hex);
+					let content = self.resolve(content_hex);
 
 					let cache = self.cache.clone();
 					let id = content_id.clone();
@@ -154,6 +189,9 @@ impl<R: URLHint + 'static, F: Fetch> Fetcher for ContentFetcher<F, R> {
 						// Don't serve dapps if we are still syncing (but serve content)
 						Some(URLHintResult::Dapp(_)) if self.sync.is_major_importing() => {
 							(None, Self::still_syncing(self.embeddable_on.clone()))
+						},
+						Some(URLHintResult::Dapp(_)) if self.only_content => {
+							(None, Self::dapps_disabled(self.embeddable_on.clone()))
 						},
 						Some(URLHintResult::Dapp(dapp)) => {
 							let handler = ContentFetcherHandler::new(
@@ -225,6 +263,7 @@ mod tests {
 	use std::sync::Arc;
 	use util::Bytes;
 	use fetch::{Fetch, Client};
+	use futures::{future, Future, BoxFuture};
 	use hash_fetch::urlhint::{URLHint, URLHintResult};
 	use parity_reactor::Remote;
 
@@ -236,8 +275,8 @@ mod tests {
 	#[derive(Clone)]
 	struct FakeResolver;
 	impl URLHint for FakeResolver {
-		fn resolve(&self, _id: Bytes) -> Option<URLHintResult> {
-			None
+		fn resolve(&self, _id: Bytes) -> BoxFuture<Option<URLHintResult>, String> {
+			future::ok(None).boxed()
 		}
 	}
 
@@ -245,7 +284,8 @@ mod tests {
 	fn should_true_if_contains_the_app() {
 		// given
 		let path = env::temp_dir();
-		let fetcher = ContentFetcher::new(FakeResolver, Arc::new(|| false), None, Remote::new_sync(), Client::new().unwrap());
+		let fetcher = ContentFetcher::new(FakeResolver, Arc::new(|| false), Remote::new_sync(), Client::new().unwrap())
+			.allow_dapps(true);
 		let handler = LocalPageEndpoint::new(path, EndpointInfo {
 			name: "fake".into(),
 			description: "".into(),

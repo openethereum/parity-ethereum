@@ -221,7 +221,7 @@ impl VMTracer for ExecutiveVMTracer {
 		}}
 	}
 
-	fn done_subtrace(&mut self, sub: Self) {
+	fn done_subtrace(&mut self, sub: Self, _is_successful: bool) {
 		self.data.subs.push(sub.data);
 	}
 

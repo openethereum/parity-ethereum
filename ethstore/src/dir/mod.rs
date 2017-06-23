@@ -90,7 +90,7 @@ pub trait VaultKeyDirectory: KeyDirectory {
 	fn set_meta(&self, meta: &str) -> Result<(), Error>;
 }
 
-pub use self::disk::RootDiskDirectory;
+pub use self::disk::{RootDiskDirectory, DiskKeyFileManager, KeyFileManager};
 pub use self::memory::MemoryDirectory;
 pub use self::vault::VaultDiskDirectory;
 

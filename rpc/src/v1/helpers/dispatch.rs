@@ -18,15 +18,15 @@
 
 use std::fmt::Debug;
 use std::ops::Deref;
-use std::sync::{Arc, Weak};
+use std::sync::Arc;
 
-use futures::{future, stream, Future, Stream, BoxFuture};
+use futures::{future, Future, BoxFuture};
 use light::cache::Cache as LightDataCache;
 use light::client::LightChainClient;
 use light::on_demand::{request, OnDemand};
 use light::TransactionQueue as LightTransactionQueue;
 use rlp;
-use util::{Address, H520, H256, U256, Uint, Bytes, Mutex, RwLock};
+use util::{Address, H520, H256, U256, Bytes, Mutex, RwLock};
 use util::sha3::Hashable;
 use stats::Corpus;
 
@@ -74,16 +74,16 @@ pub trait Dispatcher: Send + Sync + Clone {
 /// requests locally.
 #[derive(Debug)]
 pub struct FullDispatcher<C, M> {
-	client: Weak<C>,
-	miner: Weak<M>,
+	client: Arc<C>,
+	miner: Arc<M>,
 }
 
 impl<C, M> FullDispatcher<C, M> {
-	/// Create a `FullDispatcher` from weak references to a client and miner.
-	pub fn new(client: Weak<C>, miner: Weak<M>) -> Self {
+	/// Create a `FullDispatcher` from Arc references to a client and miner.
+	pub fn new(client: Arc<C>, miner: Arc<M>) -> Self {
 		FullDispatcher {
-			client: client,
-			miner: miner,
+			client,
+			miner,
 		}
 	}
 }
@@ -109,7 +109,7 @@ impl<C: MiningBlockChainClient, M: MinerService> Dispatcher for FullDispatcher<C
 	fn fill_optional_fields(&self, request: TransactionRequest, default_sender: Address, force_nonce: bool)
 		-> BoxFuture<FilledTransactionRequest, Error>
 	{
-		let (client, miner) = (take_weakf!(self.client), take_weakf!(self.miner));
+		let (client, miner) = (self.client.clone(), self.miner.clone());
 		let request = request;
 		let from = request.from.unwrap_or(default_sender);
 		let nonce = match force_nonce {
@@ -132,7 +132,7 @@ impl<C: MiningBlockChainClient, M: MinerService> Dispatcher for FullDispatcher<C
 	fn sign(&self, accounts: Arc<AccountProvider>, filled: FilledTransactionRequest, password: SignWith)
 		-> BoxFuture<WithToken<SignedTransaction>, Error>
 	{
-		let (client, miner) = (take_weakf!(self.client), take_weakf!(self.miner));
+		let (client, miner) = (self.client.clone(), self.miner.clone());
 		let network_id = client.signing_network_id();
 		let address = filled.from;
 		future::done({
@@ -161,7 +161,7 @@ impl<C: MiningBlockChainClient, M: MinerService> Dispatcher for FullDispatcher<C
 	fn dispatch_transaction(&self, signed_transaction: PendingTransaction) -> Result<H256, Error> {
 		let hash = signed_transaction.transaction.hash();
 
-		take_weak!(self.miner).import_own_transaction(&*take_weak!(self.client), signed_transaction)
+		self.miner.import_own_transaction(&*self.client, signed_transaction)
 			.map_err(errors::from_transaction_error)
 			.map(|_| hash)
 	}
@@ -185,25 +185,28 @@ pub fn fetch_gas_price_corpus(
 	let eventual_corpus = sync.with_context(|ctx| {
 		// get some recent headers with gas used,
 		// and request each of the blocks from the network.
-		let block_futures = client.ancestry_iter(BlockId::Latest)
+		let block_requests = client.ancestry_iter(BlockId::Latest)
 			.filter(|hdr| hdr.gas_used() != U256::default())
 			.take(GAS_PRICE_SAMPLE_SIZE)
-			.map(request::Body::new)
-			.map(|req| on_demand.block(ctx, req));
+			.map(|hdr| request::Body(hdr.into()))
+			.collect::<Vec<_>>();
 
-		// as the blocks come in, collect gas prices into a vector
-		stream::futures_unordered(block_futures)
-			.fold(Vec::new(), |mut v, block| {
-				for t in block.transaction_views().iter() {
-					v.push(t.gas_price())
-				}
+		// when the blocks come in, collect gas prices into a vector
+		on_demand.request(ctx, block_requests)
+			.expect("no back-references; therefore all back-references are valid; qed")
+			.map(|bodies| {
+				bodies.into_iter().fold(Vec::new(), |mut v, block| {
+					for t in block.transaction_views().iter() {
+						v.push(t.gas_price())
+					}
 
-				future::ok(v)
+					v
+				})
 			})
-			.map(move |v| {
+			.map(move |prices| {
 				// produce a corpus from the vector, cache it, and return
 				// the median as the intended gas price.
-				let corpus: ::stats::Corpus<_> = v.into();
+				let corpus: ::stats::Corpus<_> = prices.into();
 				cache.lock().set_gas_price_corpus(corpus.clone());
 				corpus
 			})
@@ -281,14 +284,15 @@ impl LightDispatcher {
 		}
 
 		let best_header = self.client.best_block_header();
-		let nonce_future = self.sync.with_context(|ctx| self.on_demand.account(ctx, request::Account {
-			header: best_header,
+		let account_start_nonce = self.client.engine().account_start_nonce();
+		let nonce_future = self.sync.with_context(|ctx| self.on_demand.request(ctx, request::Account {
+			header: best_header.into(),
 			address: addr,
-		}));
+		}).expect("no back-references; therefore all back-references valid; qed"));
 
 		match nonce_future {
 			Some(x) =>
-				x.map(|acc| acc.nonce)
+				x.map(move |acc| acc.map_or(account_start_nonce, |acc| acc.nonce))
 					.map_err(|_| errors::no_light_peers())
 					.boxed(),
 			None =>  future::err(errors::network_disabled()).boxed()

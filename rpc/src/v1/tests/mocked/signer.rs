@@ -16,11 +16,12 @@
 
 use std::sync::Arc;
 use std::str::FromStr;
-use util::{U256, Uint, Address, ToPretty};
+use util::{U256, Address, ToPretty};
 
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::TestBlockChainClient;
 use ethcore::transaction::{Transaction, Action, SignedTransaction};
+use parity_reactor::EventLoop;
 use rlp::encode;
 
 use serde_json;
@@ -37,9 +38,6 @@ struct SignerTester {
 	accounts: Arc<AccountProvider>,
 	io: IoHandler<Metadata>,
 	miner: Arc<TestMinerService>,
-	// these unused fields are necessary to keep the data alive
-	// as the handler has only weak pointers.
-	_client: Arc<TestBlockChainClient>,
 }
 
 fn blockchain_client() -> Arc<TestBlockChainClient> {
@@ -56,22 +54,22 @@ fn miner_service() -> Arc<TestMinerService> {
 }
 
 fn signer_tester() -> SignerTester {
-	let signer = Arc::new(SignerService::new_test(None));
+	let signer = Arc::new(SignerService::new_test(false));
 	let accounts = accounts_provider();
 	let opt_accounts = Some(accounts.clone());
 	let client = blockchain_client();
 	let miner = miner_service();
+	let event_loop = EventLoop::spawn();
 
-	let dispatcher = FullDispatcher::new(Arc::downgrade(&client), Arc::downgrade(&miner));
+	let dispatcher = FullDispatcher::new(client, miner.clone());
 	let mut io = IoHandler::default();
-	io.extend_with(SignerClient::new(&opt_accounts, dispatcher, &signer).to_delegate());
+	io.extend_with(SignerClient::new(&opt_accounts, dispatcher, &signer, event_loop.remote()).to_delegate());
 
 	SignerTester {
 		signer: signer,
 		accounts: accounts,
 		io: io,
 		miner: miner,
-		_client: client,
 	}
 }
 

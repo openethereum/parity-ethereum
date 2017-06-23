@@ -17,6 +17,8 @@
 import { Address, BlockNumber, Data, Hash, Quantity, CallRequest, TransactionRequest } from '../types';
 import { withPreamble, fromDecimal, withComment, Dummy } from '../helpers';
 
+const SUBDOC_PUBSUB = 'pubsub';
+
 export default withPreamble(`
 
 ## The default block parameter
@@ -552,7 +554,7 @@ The following options are possible for the \`defaultBlock\` parameter:
         blockNumber: fromDecimal(5599),
         transactionIndex: fromDecimal(1),
         from: '0x407d73d8a49eeb85d32cf465507dd71d507100c1',
-        to: '0x85h43d8a49eeb85d32cf465507dd71d507100c1',
+        to: '0x853f43d8a49eeb85d32cf465507dd71d507100c1',
         value: fromDecimal(520464),
         gas: fromDecimal(520464),
         gasPrice: '0x09184e72a000',
@@ -969,24 +971,24 @@ The following options are possible for the \`defaultBlock\` parameter:
   },
 
   sign: {
-    desc: 'Signs transaction hash with a given address.',
+    desc: 'The sign method calculates an Ethereum specific signature with: `sign(keccak256("\x19Ethereum Signed Message:\n" + len(message) + message)))`.',
     params: [
       {
         type: Address,
         desc: '20 Bytes - address.',
         format: 'inputAddressFormatter',
-        example: '0xd1ade25ccd3d550a7eb532ac759cac7be09c2719'
+        example: '0xcd2a3d9f938e13cd947ec05abc7fe734df8dd826'
       },
       {
         type: Data,
-        desc: 'Transaction hash to sign.',
+        desc: 'Data which hash to sign.',
         example: withComment('0x5363686f6f6c627573', 'Schoolbus')
       }
     ],
     returns: {
       type: Data,
       desc: 'Signed data.',
-      example: '0x2ac19db245478a06032e69cdbd2b54e648b78431d0a47bd1fbab18f79f820ba407466e37adbe9e84541cab97ab7d290f4a64a5825c876d22109f3bf813254e8628'
+      example: '0xb1092cb5b23c2aa55e5b5787729c6be812509376de99a52bea2b41e5a5f8601c5641e74d01e4493c17bf1ef8b179c49362b2c721222128d58422a539310c6ecd1b'
     }
   },
 
@@ -1068,7 +1070,7 @@ The following options are possible for the \`defaultBlock\` parameter:
           blockNumber: fromDecimal(5599),
           transactionIndex: fromDecimal(1),
           from: '0x407d73d8a49eeb85d32cf465507dd71d507100c1',
-          to: '0x85h43d8a49eeb85d32cf465507dd71d507100c1',
+          to: '0x853f43d8a49eeb85d32cf465507dd71d507100c1',
           value: fromDecimal(520464),
           gas: fromDecimal(520464),
           gasPrice: '0x09184e72a000',
@@ -1191,6 +1193,61 @@ The following options are possible for the \`defaultBlock\` parameter:
     returns: {
       type: Boolean,
       desc: 'whether the call was successful'
+    }
+  },
+
+  // Pub-Sub
+  subscribe: {
+    subdoc: SUBDOC_PUBSUB,
+    desc: `
+Starts a subscription (on WebSockets / IPC / TCP transports) to a particular event. For every event that
+matches the subscription a JSON-RPC notification with event details and subscription ID will be sent to a client.
+
+An example notification received by subscribing to \`newHeads\` event:
+\`\`\`
+{"jsonrpc":"2.0","method":"eth_subscription","params":{"subscription":"0x416d77337e24399d","result":{"difficulty":"0xd9263f42a87",<...>,
+"uncles":[]}}}
+\`\`\`
+
+You can unsubscribe using \`eth_unsubscribe\` RPC method. Subscriptions are also tied to a transport
+connection, disconnecting causes all subscriptions to be canceled.
+    `,
+    params: [
+      {
+        type: String,
+        desc: 'Subscription type: one of `newHeads`, `logs`',
+        example: 'newHeads'
+      },
+      {
+        type: Object,
+        desc: `
+Subscription type-specific parameters. It must be left empty for
+\`newHeads\` and must contain filter object for \`logs\`.
+        `,
+        example: {
+          fromBlock: 'latest',
+          toBlock: 'latest'
+        }
+      }
+    ],
+    returns: {
+      type: String,
+      desc: 'Assigned subscription ID',
+      example: '0x416d77337e24399d'
+    }
+  },
+  unsubscribe: {
+    subdoc: SUBDOC_PUBSUB,
+    desc: 'Unsubscribes from a subscription.',
+    params: [{
+      type: String,
+      desc: 'Subscription ID',
+      example: '0x416d77337e24399d'
+    }],
+    returns: {
+      type: Boolean,
+      desc: 'whether the call was successful',
+      example: true
     }
   }
 });

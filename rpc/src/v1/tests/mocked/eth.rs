@@ -22,7 +22,7 @@ use rustc_serialize::hex::{FromHex, ToHex};
 use time::get_time;
 use rlp;
 
-use util::{Uint, U256, Address, H256, Mutex};
+use util::{U256, Address, H256, Mutex};
 use ethkey::Secret;
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::{TestBlockChainClient, EachBlockWith, Executed, TransactionId};
@@ -92,7 +92,7 @@ impl EthTester {
 		let eth = EthClient::new(&client, &snapshot, &sync, &opt_ap, &miner, &external_miner, options).to_delegate();
 		let filter = EthFilterClient::new(client.clone(), miner.clone()).to_delegate();
 
-		let dispatcher = FullDispatcher::new(Arc::downgrade(&client), Arc::downgrade(&miner));
+		let dispatcher = FullDispatcher::new(client.clone(), miner.clone());
 		let sign = SigningUnsafeClient::new(&opt_ap, dispatcher).to_delegate();
 		let mut io: IoHandler<Metadata> = IoHandler::default();
 		io.extend_with(eth);
@@ -302,7 +302,7 @@ fn rpc_eth_submit_hashrate() {
 fn rpc_eth_sign() {
 	let tester = EthTester::default();
 
-	let account = tester.accounts_provider.insert_account(Secret::from_slice(&[69u8; 32]).unwrap(), "abcd").unwrap();
+	let account = tester.accounts_provider.insert_account(Secret::from_slice(&[69u8; 32]), "abcd").unwrap();
 	tester.accounts_provider.unlock_account_permanently(account, "abcd".into()).unwrap();
 	let _message = "0cc175b9c0f1b6a831c399e26977266192eb5ffee6ae2fec3ad71c777531578f".from_hex().unwrap();
 
