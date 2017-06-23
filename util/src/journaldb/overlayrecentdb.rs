@@ -460,12 +460,12 @@ impl HashDB for OverlayRecentDB {
 		};
 
 		let journal_overlay = self.journal_overlay.read();
-		let key = to_short_key(key);
+		let short_key = to_short_key(key);
 
-		journal_overlay.backing_overlay.get_exec(&key, &mut wrapper);
+		journal_overlay.backing_overlay.get_exec(&short_key, &mut wrapper);
 
 		if !was_called.get() {
-			if let Some(hash_val) = journal_overlay.pending_overlay.get(&key) {
+			if let Some(hash_val) = journal_overlay.pending_overlay.get(&short_key) {
 				wrapper(hash_val);
 			}
 		}

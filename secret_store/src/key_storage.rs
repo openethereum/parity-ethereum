@@ -18,7 +18,7 @@ use std::path::PathBuf;
 use std::collections::BTreeMap;
 use serde_json;
 use ethkey::{Secret, Public};
-use util::Database;
+use util::{Database, KeyValueDBExt};
 use types::all::{Error, ServiceConfiguration, DocumentAddress, NodeId};
 use serialization::{SerializablePublic, SerializableSecret};
 
@@ -97,7 +97,7 @@ impl KeyStorage for PersistentKeyStorage {
 				.map_err(|e| Error::Database(e.to_string()))
 		)
 			.map_err(Error::Database)?
-			.ok_or(Error::DocumentNotFound)
+			.ok_or(Error::DocumentNotFound)?
 			.map(Into::into)
 	}
 
