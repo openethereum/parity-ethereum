@@ -14,4 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+if (process.env.NODE_ENV !== 'test') {
+  process.browser = true;
+}
+
 export LocalAccountsMiddleware from './localAccountsMiddleware';

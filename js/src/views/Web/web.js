@@ -37,7 +37,6 @@ export default class Web extends Component {
 
   componentDidMount () {
     this.store.gotoUrl(this.props.params.url);
-    return this.store.generateToken();
   }
 
   componentWillReceiveProps (props) {

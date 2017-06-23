@@ -422,7 +422,6 @@ export default class TransferStore {
     const tokenBalance = this.getTokenBalance();
     const { eth, token } = this.getValues(gasTotal);
 
-    let totalEth = gasTotal;
     let totalError = null;
     let valueError = null;
 
@@ -446,7 +445,7 @@ export default class TransferStore {
       this.totalError = totalError;
       this.valueError = valueError;
       this.gasStore.setErrorTotal(totalError);
-      this.gasStore.setEthValue(totalEth);
+      this.gasStore.setEthValue(eth.sub(gasTotal));
 
       this.total = this.api.util.fromWei(eth).toFixed();
 

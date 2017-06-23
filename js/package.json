@@ -1,6 +1,6 @@
 {
   "name": "parity.js",
-  "version": "1.7.92",
+  "version": "1.7.94",
   "main": "release/index.js",
   "jsnext:main": "src/index.js",
   "author": "Parity Team <admin@parity.io>",
@@ -102,6 +102,7 @@
     "css-loader": "0.26.1",
     "ejs-loader": "0.3.0",
     "ejsify": "1.0.0",
+    "empty-module": "0.0.2",
     "enzyme": "2.7.1",
     "eslint": "3.16.1",
     "eslint-config-semistandard": "7.0.0",
