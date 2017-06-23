@@ -498,6 +498,9 @@ pub struct AccountDetails {
 
 /// Transactions with `gas > (gas_limit + gas_limit * Factor(in percents))` are not imported to the queue.
 const GAS_LIMIT_HYSTERESIS: usize = 200; // (100/GAS_LIMIT_HYSTERESIS) %
+/// Transaction with the same (sender, nonce) can be replaced only if
+/// `new_gas_price > old_gas_price + old_gas_price >> SHIFT`
+const GAS_PRICE_BUMP_SHIFT: usize = 3; // 2 = 25%, 3 = 12.5%, 4 = 6.25%
 
 /// Describes the strategy used to prioritize transactions in the queue.
 #[cfg_attr(feature="dev", allow(enum_variant_names))]
@@ -1364,16 +1367,19 @@ impl TransactionQueue {
 		// There was already transaction in queue. Let's check which one should stay
 		let old_hash = old.hash;
 		let new_hash = order.hash;
-		let old_fee = old.gas_price;
-		let new_fee = order.gas_price;
-		if old_fee.cmp(&new_fee) == Ordering::Greater {
+
+		let old_gas_price = old.gas_price;
+		let new_gas_price = order.gas_price;
+		let min_required_gas_price = old_gas_price + (old_gas_price >> GAS_PRICE_BUMP_SHIFT);
+
+		if min_required_gas_price > new_gas_price {
 			trace!(target: "txqueue", "Didn't insert transaction because gas price was too low: {:?} ({:?} stays in the queue)", order.hash, old.hash);
 			// Put back old transaction since it has greater priority (higher gas_price)
 			set.insert(address, nonce, old);
 			// and remove new one
 			let order = by_hash.remove(&order.hash).expect("The hash has been just inserted and no other line is altering `by_hash`.");
 			if order.origin.is_local() {
-				local.mark_replaced(order.transaction, old_fee, old_hash);
+				local.mark_replaced(order.transaction, old_gas_price, old_hash);
 			}
 			false
 		} else {
@@ -1381,7 +1387,7 @@ impl TransactionQueue {
 			// Make sure we remove old transaction entirely
 			let old = by_hash.remove(&old.hash).expect("The hash is coming from `future` so it has to be in `by_hash`.");
 			if old.origin.is_local() {
-				local.mark_replaced(old.transaction, new_fee, new_hash);
+				local.mark_replaced(old.transaction, new_gas_price, new_hash);
 			}
 			true
 		}
@@ -2486,16 +2492,42 @@ pub mod test {
 	}
 
 	#[test]
+	fn should_not_replace_same_transaction_if_the_fee_is_less_than_minimal_bump() {
+		use ethcore_logger::init_log;
+		init_log();
+		// given
+		let mut txq = TransactionQueue::default();
+		let keypair = Random.generate().unwrap();
+		let tx = new_unsigned_tx(123.into(), default_gas_val(), 20.into()).sign(keypair.secret(), None);
+		let tx2 = {
+			let mut tx2 = (**tx).clone();
+			tx2.gas_price = U256::from(21);
+			tx2.sign(keypair.secret(), None)
+		};
+
+		// when
+		txq.add(tx, TransactionOrigin::External, 0, None, &default_tx_provider()).unwrap();
+		let res = txq.add(tx2, TransactionOrigin::External, 0, None, &default_tx_provider());
+
+		// then
+		assert_eq!(unwrap_tx_err(res), TransactionError::TooCheapToReplace);
+		let stats = txq.status();
+		assert_eq!(stats.pending, 1);
+		assert_eq!(stats.future, 0);
+		assert_eq!(txq.top_transactions()[0].gas_price, U256::from(20));
+	}
+
+	#[test]
 	fn should_replace_same_transaction_when_has_higher_fee() {
 		use ethcore_logger::init_log;
 		init_log();
 		// given
 		let mut txq = TransactionQueue::default();
 		let keypair = Random.generate().unwrap();
-		let tx = new_unsigned_tx(123.into(), default_gas_val(), 1.into()).sign(keypair.secret(), None);
+		let tx = new_unsigned_tx(123.into(), default_gas_val(), 10.into()).sign(keypair.secret(), None);
 		let tx2 = {
 			let mut tx2 = (**tx).clone();
-			tx2.gas_price = U256::from(200);
+			tx2.gas_price = U256::from(20);
 			tx2.sign(keypair.secret(), None)
 		};
 
@@ -2507,7 +2539,7 @@ pub mod test {
 		let stats = txq.status();
 		assert_eq!(stats.pending, 1);
 		assert_eq!(stats.future, 0);
-		assert_eq!(txq.top_transactions()[0].gas_price, U256::from(200));
+		assert_eq!(txq.top_transactions()[0].gas_price, U256::from(20));
 	}
 
 	#[test]
