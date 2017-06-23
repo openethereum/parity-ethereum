@@ -231,8 +231,12 @@ export default class Ws extends JsonRpcBase {
 
       Logging.send(method, params, { json, result });
 
-      if (result.error) {
+      if (result.error || (result.params && result.params.error)) {
         this.error(event.data);
+
+        if (result.params.error) {
+          result[error] = result.params.error;
+        }
 
         // Don't print error if request rejected or not is not yet up...
         if (!/(rejected|not yet up)/.test(result.error.message)) {
