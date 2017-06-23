@@ -71,7 +71,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::collections::HashMap;
 
-use jsonrpc_http_server::{self as http, hyper};
+use jsonrpc_http_server::{self as http, hyper, Origin};
 
 use fetch::Fetch;
 use parity_reactor::Remote;
@@ -90,12 +90,12 @@ impl<F> SyncStatus for F where F: Fn() -> bool + Send + Sync {
 
 /// Validates Web Proxy tokens
 pub trait WebProxyTokens: Send + Sync {
-	/// Should return true if token is a valid web proxy access token.
-	fn is_web_proxy_token_valid(&self, token: &str) -> bool;
+	/// Should return a domain allowed to be accessed by this token or `None` if the token is not valid
+	fn domain(&self, token: &str) -> Option<Origin>;
 }
 
-impl<F> WebProxyTokens for F where F: Fn(String) -> bool + Send + Sync {
-	fn is_web_proxy_token_valid(&self, token: &str) -> bool { self(token.to_owned()) }
+impl<F> WebProxyTokens for F where F: Fn(String) -> Option<Origin> + Send + Sync {
+	fn domain(&self, token: &str) -> Option<Origin> { self(token.to_owned()) }
 }
 
 /// Current supported endpoints.

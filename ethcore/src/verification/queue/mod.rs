@@ -125,7 +125,6 @@ struct Sizes {
 /// A queue of items to be verified. Sits between network or other I/O and the `BlockChain`.
 /// Keeps them in the same order as inserted, minus invalid items.
 pub struct VerificationQueue<K: Kind> {
-	panic_handler: Arc<PanicHandler>,
 	engine: Arc<Engine>,
 	more_to_verify: Arc<SCondvar>,
 	verification: Arc<Verification<K>>,
@@ -221,7 +220,6 @@ impl<K: Kind> VerificationQueue<K> {
 			message_channel: Mutex::new(message_channel),
 		});
 		let empty = Arc::new(SCondvar::new());
-		let panic_handler = PanicHandler::new_in_arc();
 		let scale_verifiers = config.verifier_settings.scale_verifiers;
 
 		let num_cpus = ::num_cpus::get();
@@ -236,7 +234,6 @@ impl<K: Kind> VerificationQueue<K> {
 		for i in 0..max_verifiers {
 			debug!(target: "verification", "Adding verification thread #{}", i);
 
-			let panic_handler = panic_handler.clone();
 			let verification = verification.clone();
 			let engine = engine.clone();
 			let wait = more_to_verify.clone();
@@ -247,17 +244,15 @@ impl<K: Kind> VerificationQueue<K> {
 			let handle = thread::Builder::new()
 				.name(format!("Verifier #{}", i))
 				.spawn(move || {
-					panic_handler.catch_panic(move || {
-						VerificationQueue::verify(
-							verification,
-							engine,
-							wait,
-							ready,
-							empty,
-							state,
-							i,
-						)
-					}).unwrap()
+					VerificationQueue::verify(
+						verification,
+						engine,
+						wait,
+						ready,
+						empty,
+						state,
+						i,
+					)
 				})
 				.expect("Failed to create verifier thread.");
 			verifier_handles.push(handle);
@@ -265,7 +260,6 @@ impl<K: Kind> VerificationQueue<K> {
 
 		VerificationQueue {
 			engine: engine,
-			panic_handler: panic_handler,
 			ready_signal: ready_signal,
 			more_to_verify: more_to_verify,
 			verification: verification,
@@ -689,12 +683,6 @@ impl<K: Kind> VerificationQueue<K> {
 
 		*self.state.0.lock() = State::Work(target);
 		self.state.1.notify_all();
-	}
-}
-
-impl<K: Kind> MayPanic for VerificationQueue<K> {
-	fn on_panic<F>(&self, closure: F) where F: OnPanicListener {
-		self.panic_handler.on_panic(closure);
 	}
 }
 

@@ -24,12 +24,19 @@ import Api from './api';
 describe('api/Api', () => {
   describe('interface', () => {
     const api = new Api(new Api.Provider.Http(TEST_HTTP_URL, -1));
+    const ignored = [
+      'eth_subscribe', 'eth_unsubscribe',
+      'parity_subscribe', 'parity_unsubscribe',
+      'signer_subscribePending', 'signer_unsubscribePending'
+    ];
 
     Object.keys(ethereumRpc).sort().forEach((endpoint) => {
       describe(endpoint, () => {
-        Object.keys(ethereumRpc[endpoint]).sort().forEach((method) => {
-          endpointTest(api, endpoint, method);
-        });
+        Object.keys(ethereumRpc[endpoint]).sort()
+          .filter(method => ignored.indexOf(method) !== -1)
+          .forEach((method) => {
+            endpointTest(api, endpoint, method);
+          });
       });
     });
   });

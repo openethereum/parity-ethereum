@@ -312,7 +312,7 @@ fn should_encode_and_decode_base32() {
 #[test]
 fn should_stream_web_content() {
 	// given
-	let (server, fetch) = serve_with_fetch("token");
+	let (server, fetch) = serve_with_fetch("token", "https://parity.io");
 
 	// when
 	let response = request(server,
@@ -335,7 +335,7 @@ fn should_stream_web_content() {
 #[test]
 fn should_support_base32_encoded_web_urls() {
 	// given
-	let (server, fetch) = serve_with_fetch("token");
+	let (server, fetch) = serve_with_fetch("token", "https://parity.io");
 
 	// when
 	let response = request(server,
@@ -358,7 +358,7 @@ fn should_support_base32_encoded_web_urls() {
 #[test]
 fn should_correctly_handle_long_label_when_splitted() {
 	// given
-	let (server, fetch) = serve_with_fetch("xolrg9fePeQyKLnL");
+	let (server, fetch) = serve_with_fetch("xolrg9fePeQyKLnL", "https://contribution.melonport.com");
 
 	// when
 	let response = request(server,
@@ -382,7 +382,7 @@ fn should_correctly_handle_long_label_when_splitted() {
 #[test]
 fn should_support_base32_encoded_web_urls_as_path() {
 	// given
-	let (server, fetch) = serve_with_fetch("token");
+	let (server, fetch) = serve_with_fetch("token", "https://parity.io");
 
 	// when
 	let response = request(server,
@@ -403,9 +403,31 @@ fn should_support_base32_encoded_web_urls_as_path() {
 }
 
 #[test]
+fn should_return_error_on_non_whitelisted_domain() {
+	// given
+	let (server, fetch) = serve_with_fetch("token", "https://ethcore.io");
+
+	// when
+	let response = request(server,
+		"\
+			GET / HTTP/1.1\r\n\
+			Host: EHQPPSBE5DM78X3GECX2YBVGC5S6JX3S5SMPY.web.web3.site\r\n\
+			Connection: close\r\n\
+			\r\n\
+		"
+	);
+
+	// then
+	response.assert_status("HTTP/1.1 400 Bad Request");
+	assert_security_headers_for_embed(&response.headers);
+
+	fetch.assert_no_more_requests();
+}
+
+#[test]
 fn should_return_error_on_invalid_token() {
 	// given
-	let (server, fetch) = serve_with_fetch("test");
+	let (server, fetch) = serve_with_fetch("test", "https://parity.io");
 
 	// when
 	let response = request(server,
@@ -427,7 +449,7 @@ fn should_return_error_on_invalid_token() {
 #[test]
 fn should_return_error_on_invalid_protocol() {
 	// given
-	let (server, fetch) = serve_with_fetch("token");
+	let (server, fetch) = serve_with_fetch("token", "ftp://parity.io");
 
 	// when
 	let response = request(server,
@@ -449,7 +471,7 @@ fn should_return_error_on_invalid_protocol() {
 #[test]
 fn should_disallow_non_get_requests() {
 	// given
-	let (server, fetch) = serve_with_fetch("token");
+	let (server, fetch) = serve_with_fetch("token", "https://parity.io");
 
 	// when
 	let response = request(server,
@@ -474,7 +496,7 @@ fn should_disallow_non_get_requests() {
 #[test]
 fn should_fix_absolute_requests_based_on_referer() {
 	// given
-	let (server, fetch) = serve_with_fetch("token");
+	let (server, fetch) = serve_with_fetch("token", "https://parity.io");
 
 	// when
 	let response = request(server,
@@ -497,7 +519,7 @@ fn should_fix_absolute_requests_based_on_referer() {
 #[test]
 fn should_fix_absolute_requests_based_on_referer_in_url() {
 	// given
-	let (server, fetch) = serve_with_fetch("token");
+	let (server, fetch) = serve_with_fetch("token", "https://parity.io");
 
 	// when
 	let response = request(server,

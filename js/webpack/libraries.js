@@ -46,8 +46,14 @@ module.exports = {
       '~': path.resolve(__dirname, '../src'),
       '@parity/wordlist': path.resolve(__dirname, '../node_modules/@parity/wordlist'),
       '@parity': path.resolve(__dirname, '../src'),
-      'keythereum': path.resolve(__dirname, '../node_modules/keythereum/dist/keythereum')
+      'keythereum': 'empty-module',
+      'secp256k1': 'empty-module',
+      'vertx': 'empty-module'
     }
+  },
+
+  node: {
+    fs: 'empty'
   },
 
   module: {

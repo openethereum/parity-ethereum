@@ -46,7 +46,6 @@ pub struct NetworkService {
 	host_info: String,
 	host: RwLock<Option<Arc<Host>>>,
 	stats: Arc<NetworkStats>,
-	panic_handler: Arc<PanicHandler>,
 	host_handler: Arc<HostHandler>,
 	config: NetworkConfiguration,
 }
@@ -55,9 +54,7 @@ impl NetworkService {
 	/// Starts IO event loop
 	pub fn new(config: NetworkConfiguration) -> Result<NetworkService, NetworkError> {
 		let host_handler = Arc::new(HostHandler { public_url: RwLock::new(None) });
-		let panic_handler = PanicHandler::new_in_arc();
 		let io_service = IoService::<NetworkIoMessage>::start()?;
-		panic_handler.forward_from(&io_service);
 
 		let stats = Arc::new(NetworkStats::new());
 		let host_info = Host::client_version();
@@ -65,7 +62,6 @@ impl NetworkService {
 			io_service: io_service,
 			host_info: host_info,
 			stats: stats,
-			panic_handler: panic_handler,
 			host: RwLock::new(None),
 			config: config,
 			host_handler: host_handler,
@@ -190,11 +186,5 @@ impl NetworkService {
 		let io = IoContext::new(self.io_service.channel(), 0);
 		let host = self.host.read();
 		host.as_ref().map(|ref host| host.with_context_eval(protocol, &io, action))
-	}
-}
-
-impl MayPanic for NetworkService {
-	fn on_panic<F>(&self, closure: F) where F: OnPanicListener {
-		self.panic_handler.on_panic(closure);
 	}
 }
