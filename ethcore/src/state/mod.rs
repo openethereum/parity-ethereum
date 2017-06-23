@@ -111,7 +111,7 @@ impl AccountEntry {
 		self.state == AccountState::Dirty
 	}
 
-	fn is_null(&self) -> bool {
+	fn exists_and_is_null(&self) -> bool {
 		self.account.as_ref().map_or(false, |a| a.is_null())
 	}
 
@@ -573,7 +573,7 @@ impl<B: Backend> State<B> {
 	/// Subtract `decr` from the balance of account `a`.
 	pub fn sub_balance(&mut self, a: &Address, decr: &U256, cleanup_mode: &mut CleanupMode) -> trie::Result<()> {
 		trace!(target: "state", "sub_balance({}, {}): {}", a, decr, self.balance(a)?);
-		if !decr.is_zero() {
+		if !decr.is_zero() || !self.exists(a)? {
 			self.require(a, false)?.sub_balance(decr);
 		}
 		if let CleanupMode::TrackTouched(ref mut set) = *cleanup_mode {
@@ -712,8 +712,8 @@ impl<B: Backend> State<B> {
 	pub fn kill_garbage(&mut self, touched: &HashSet<Address>, remove_empty_touched: bool, min_balance: &Option<U256>, kill_contracts: bool) -> trie::Result<()> {
 		let to_kill: HashSet<_> = {
 			self.cache.borrow().iter().filter_map(|(address, ref entry)|
-			if touched.contains(address) && // Check any modified accounts and 0x3 additionally.
-				((remove_empty_touched && entry.is_null()) // Remove all empty touched accounts.
+			if touched.contains(address) && // Check all touched accounts
+				((remove_empty_touched && entry.exists_and_is_null()) // Remove all empty touched accounts.
 				|| min_balance.map_or(false, |ref balance| entry.account.as_ref().map_or(false, |account|
 					(account.is_basic() || kill_contracts) // Remove all basic and optionally contract accounts where balance has been decreased.
 					&& account.balance() < balance && entry.old_balance.as_ref().map_or(false, |b| account.balance() < b)))) {
