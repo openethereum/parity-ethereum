@@ -126,6 +126,8 @@ const MAX_NEW_HASHES: usize = 64;
 const MAX_TX_TO_IMPORT: usize = 512;
 const MAX_NEW_BLOCK_AGE: BlockNumber = 20;
 const MAX_TRANSACTION_SIZE: usize = 300*1024;
+// maximal packet size defined by the protocol (3-bytes size field).
+const MAX_PACKET_SIZE: usize = 16 * 1024 * 1024;
 // Maximal number of transactions in sent in single packet.
 const MAX_TRANSACTIONS_TO_PROPAGATE: usize = 64;
 // Min number of blocks to be behind for a snapshot sync
@@ -2044,7 +2046,7 @@ impl ChainSync {
 						// update stats
 						for hash in &all_transactions_hashes {
 							let id = io.peer_session_info(peer_id).and_then(|info| info.id);
-							stats.propagated(*hash, id, block_number);
+							stats.propagated(hash, id, block_number);
 						}
 						peer_info.last_sent_transactions = all_transactions_hashes.clone();
 						return Some((peer_id, all_transactions_hashes.len(), all_transactions_rlp.clone()));
@@ -2059,15 +2061,33 @@ impl ChainSync {
 						return None;
 					}
 
-					// Construct RLP
-					let mut packet = RlpStream::new_list(to_send.len());
-					for tx in &transactions {
-						if to_send.contains(&tx.transaction.hash()) {
-							packet.append(&tx.transaction);
-							// update stats
-							let id = io.peer_session_info(peer_id).and_then(|info| info.id);
-							stats.propagated(tx.transaction.hash(), id, block_number);
+
+					let mut to_send = to_send;
+					let mut packet;
+					loop {
+						// Construct RLP
+						packet = RlpStream::new_list(to_send.len());
+
+						for tx in &transactions {
+							if to_send.contains(&tx.transaction.hash()) {
+								packet.append(&tx.transaction);
+							}
 						}
+
+						let len = to_send.len() / 2;
+						if packet.len() < MAX_PACKET_SIZE || len < 2 {
+							break;
+						}
+
+						warn!("Transaction packet is oversized ({} > {}) Sampling smaller set of transactions to set.", packet.len(), MAX_PACKET_SIZE);
+						to_send = to_send.into_iter().take(len).collect();
+					}
+
+					// Update stats
+					let id = io.peer_session_info(peer_id).and_then(|info| info.id);
+					for hash in &to_send {
+						// update stats
+						stats.propagated(hash, id, block_number);
 					}
 
 					peer_info.last_sent_transactions = all_transactions_hashes
