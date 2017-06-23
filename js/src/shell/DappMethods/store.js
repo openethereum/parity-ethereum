@@ -15,16 +15,23 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { action, observable } from 'mobx';
+import store from 'store';
 
 import { sha3 } from '@parity/api/util/sha3';
 
 import filteredRequests from '../DappRequests/filteredRequests';
+
+const LS_PERMISSIONS = '_parity::dapps::methods';
 
 export default class Store {
   @observable filteredRequests = Object.keys(filteredRequests);
   @observable modalOpen = false;
   @observable permissions = {};
   @observable tokens = {};
+
+  constructor () {
+    this.permissions = store.get(LS_PERMISSIONS) || {};
+  }
 
   @action closeModal = () => {
     this.modalOpen = false;
@@ -50,6 +57,7 @@ export default class Store {
     this.permissions = Object.assign({}, this.permissions, {
       [id]: true
     });
+    this.savePermissions();
   }
 
   @action toggleAppPermission = (method, appId) => {
@@ -58,6 +66,7 @@ export default class Store {
     this.permissions = Object.assign({}, this.permissions, {
       [id]: !this.permissions[id]
     });
+    this.savePermissions();
   }
 
   hasTokenPermission = (method, token) => {
@@ -66,6 +75,10 @@ export default class Store {
 
   hasAppPermission = (method, appId) => {
     return this.permissions[`${method}:${appId}`] || false;
+  }
+
+  savePermissions = () => {
+    store.set(LS_PERMISSIONS, this.permissions);
   }
 
   static instance = null;
