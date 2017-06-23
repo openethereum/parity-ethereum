@@ -139,7 +139,8 @@ module.exports = {
   resolve: {
     alias: {
       '~/api/local': path.resolve(__dirname, '../src/api/local/localAccountsMiddleware.js'),
-      '~': path.resolve(__dirname, '../src')
+      '~': path.resolve(__dirname, '../src'),
+      'keythereum': path.resolve(__dirname, '../node_modules/keythereum/dist/keythereum')
     },
     modules: [
       path.join(__dirname, '../node_modules')
