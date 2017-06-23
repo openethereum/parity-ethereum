@@ -136,7 +136,7 @@ export default class Store {
           from: from,
           to: from,                    // set to owner
           gas: new BigNumber(21000),   // set default gas
-          gasPrice: gasPrice.plus(gasPrice.times(0.25)),   // must be a minimum of 10% growth to be recognized as a replacement by miners (incentive)
+          gasPrice: gasPrice.times(1.25),   // must be a minimum of 10% growth to be recognized as a replacement by miners (incentive)
           value: new BigNumber(0),     // zero out the value
           condition: null,             // ensure to post this instantly
           data: '0x'
