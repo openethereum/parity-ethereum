@@ -2075,7 +2075,7 @@ impl ChainSync {
 						}
 
 						let len = to_send.len() / 2;
-						if packet.len() < MAX_PACKET_SIZE || len < 2 {
+						if packet.len() < MAX_PACKET_SIZE || len == 0 {
 							break;
 						}
 
