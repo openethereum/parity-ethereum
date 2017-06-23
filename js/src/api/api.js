@@ -51,18 +51,18 @@ export default class Api extends EventEmitter {
 
     // Doing a request here in test env would cause an error
     if (process.env.NODE_ENV !== 'test') {
-      const middleware = this.parity
-        .nodeKind()
-        .then((nodeKind) => {
-          if (nodeKind.availability === 'public') {
-            return LocalAccountsMiddleware;
-          }
+      transport.addMiddleware(
+        this.parity
+          .nodeKind()
+          .then((nodeKind) => {
+            if (nodeKind.availability === 'public') {
+              return LocalAccountsMiddleware;
+            }
 
-          return null;
-        })
-        .catch(() => null);
-
-      transport.addMiddleware(middleware);
+            return null;
+          })
+          .catch(() => null)
+      );
     }
   }
 

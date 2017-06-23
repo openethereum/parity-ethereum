@@ -99,6 +99,8 @@ describe('api/transport/Ws', () => {
     beforeEach(() => {
       scope = mockWs([{ method: 'test_anyCall', reply: { error: { code: 1, message: 'TestError' } } }]);
       transport = new Ws(TEST_WS_URL);
+
+      return transport.connect();
     });
 
     afterEach(() => {

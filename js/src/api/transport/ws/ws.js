@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { keccak_256 } from 'js-sha3'; // eslint-disable-line camelcase
+import { isEqual } from 'lodash';
 
 import { Logging } from '../../subscriptions';
 import JsonRpcBase from '../jsonRpcBase';
@@ -132,7 +133,7 @@ export default class Ws extends JsonRpcBase {
     this._retries = 0;
 
     Object.keys(this._messages)
-      .filter((id) => this._messages[id].queued)
+      .filter((id) => this._messages[id].isQueued)
       .forEach(this._send);
 
     this._connectPromiseFunctions.resolve();
@@ -194,40 +195,72 @@ export default class Ws extends JsonRpcBase {
     }, 50);
   }
 
+  _sendResponse (id, result) {
+    const { isDuplicate, json, method, params, resolve, reject } = this._messages[id];
+
+    if (!isDuplicate) {
+      Logging.send(method, params, { json, result });
+    }
+
+    if (result.error) {
+      this.error(result);
+
+      // Don't print error if request rejected or not is not yet up...
+      if (!/(rejected|not yet up)/.test(result.error.message)) {
+        console.error(`${method}(${JSON.stringify(params)}): ${result.error.code}: ${result.error.message}`);
+      }
+
+      const error = new TransportError(method, result.error.code, result.error.message);
+
+      reject(error);
+      delete this._messages[id];
+
+      return;
+    }
+
+    resolve(result.result);
+    delete this._messages[id];
+  }
+
   _onMessage = (event) => {
     try {
       const result = JSON.parse(event.data);
-      const { method, params, json, resolve, reject } = this._messages[result.id];
+      const message = this._messages[result.id];
 
-      Logging.send(method, params, { json, result });
+      this._sendResponse(result.id, result);
 
-      if (result.error) {
-        this.error(event.data);
-
-        // Don't print error if request rejected or not is not yet up...
-        if (!/(rejected|not yet up)/.test(result.error.message)) {
-          console.error(`${method}(${JSON.stringify(params)}): ${result.error.code}: ${result.error.message}`);
-        }
-
-        const error = new TransportError(method, result.error.code, result.error.message);
-
-        reject(error);
-
-        delete this._messages[result.id];
-        return;
-      }
-
-      resolve(result.result);
-      delete this._messages[result.id];
+      message.duplicates.forEach((id) => {
+        this._sendResponse(id, result);
+      });
     } catch (e) {
       console.error('ws::_onMessage', event.data, e);
     }
   }
 
+  _queueRequest (message) {
+    const firstQueue = Object
+      .values(this._messages)
+      .find((queued) => {
+        return queued &&
+          queued.id !== message.id &&
+          queued.method === message.method &&
+          isEqual(queued.params, message.params);
+      });
+
+    if (firstQueue) {
+      message.isDuplicate = true;
+      firstQueue.duplicates.push(message.id);
+    } else {
+      message.isQueued = true;
+    }
+
+    message.timestamp = Date.now();
+  }
+
   _send = (id) => {
     const message = this._messages[id];
 
-    if (this._connected) {
+    if (this.isConnected) {
       if (process.env.NODE_ENV === 'development') {
         this._count++;
       }
@@ -235,8 +268,7 @@ export default class Ws extends JsonRpcBase {
       return this._ws.send(message.json);
     }
 
-    message.queued = !this._connected;
-    message.timestamp = Date.now();
+    this._queueRequest(message);
   }
 
   _execute (method, params) {
@@ -244,7 +276,7 @@ export default class Ws extends JsonRpcBase {
       const id = this.id;
       const json = this.encode(method, params);
 
-      this._messages[id] = { id, method, params, json, resolve, reject };
+      this._messages[id] = { id, method, params, json, resolve, reject, duplicates: [] };
       this._send(id);
     });
   }
