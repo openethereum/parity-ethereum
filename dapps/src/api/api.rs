@@ -26,15 +26,27 @@ use apps::fetcher::Fetcher;
 use handlers::extract_url;
 use endpoint::{Endpoint, Handler, EndpointPath};
 
+
+pub type PeerStatus = Fn() -> (usize, usize) + Send + Sync;
+pub type SyncStatus = Fn() -> bool + Send + Sync;
+
 #[derive(Clone)]
 pub struct RestApi {
 	fetcher: Arc<Fetcher>,
+	peer_status: Arc<PeerStatus>,
+	is_syncing: Arc<SyncStatus>,
 }
 
 impl RestApi {
-	pub fn new(fetcher: Arc<Fetcher>) -> Box<Endpoint> {
+	pub fn new(
+		fetcher: Arc<Fetcher>,
+		peer_status: Arc<PeerStatus>,
+		is_syncing: Arc<SyncStatus>,
+	) -> Box<Endpoint> {
 		Box::new(RestApi {
-			fetcher: fetcher,
+			fetcher,
+			peer_status,
+			is_syncing,
 		})
 	}
 }
@@ -75,6 +87,16 @@ impl RestApiRouter {
 			_ => None
 		}
 	}
+
+	fn health(&self) -> Box<Handler> {
+		trace!(target: "dapps", "Checking node health.");
+		// Check peers
+		let (connected, max) = (*self.api.peer_status)();
+		// Check sync
+		let is_syncing = (*self.api.is_syncing)();
+		// Check timediff
+		unimplemented!()
+	}
 }
 
 impl server::Handler<net::HttpStream> for RestApiRouter {
@@ -103,6 +125,7 @@ impl server::Handler<net::HttpStream> for RestApiRouter {
 
 		let handler = endpoint.and_then(|v| match v {
 			"ping" => Some(response::ping()),
+			"health" => Some(self.health()),
 			"content" => self.resolve_content(hash, path, control),
 			_ => None
 		});

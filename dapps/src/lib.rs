@@ -127,7 +127,7 @@ impl Middleware {
 	}
 
 	/// Creates new middleware for UI server.
-	pub fn ui<F: Fetch + Clone>(
+	pub fn ui<F: Fetch>(
 		remote: Remote,
 		registrar: Arc<ContractClient>,
 		sync_status: Arc<SyncStatus>,
@@ -160,7 +160,7 @@ impl Middleware {
 	}
 
 	/// Creates new Dapps server middleware.
-	pub fn dapps<F: Fetch + Clone>(
+	pub fn dapps<F: Fetch>(
 		remote: Remote,
 		ui_address: Option<(String, u16)>,
 		dapps_path: PathBuf,
