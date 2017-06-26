@@ -30,7 +30,11 @@ export default {
 
   generateWebProxyAccessToken: {
     desc: 'Generates a new web proxy access token.',
-    params: [],
+    params: [{
+      type: String,
+      desc: 'Domain for which the token is valid. Only requests to this domain will be allowed.',
+      example: 'https://parity.io'
+    }],
     returns: {
       type: String,
       desc: 'The new web proxy access token.',
@@ -192,6 +196,41 @@ export default {
     returns: {
       type: Boolean,
       desc: '`true` when enabled, `false` when disabled.',
+      example: true
+    }
+  },
+
+  // Pub-Sub
+  subscribePending: {
+    desc: `
+Starts a subscription for transactions in the confirmation queue.
+Each event contains all transactions currently in the queue.
+
+An example notification received by subscribing to this event:
+\`\`\`
+{"jsonrpc":"2.0","method":"signer_pending","params":{"subscription":"0x416d77337e24399d","result":[]}}
+\`\`\`
+
+You can unsubscribe using \`signer_unsubscribePending\` RPC method. Subscriptions are also tied to a transport
+connection, disconnecting causes all subscriptions to be canceled.
+    `,
+    params: [],
+    returns: {
+      type: String,
+      desc: 'Assigned subscription ID',
+      example: '0x416d77337e24399d'
+    }
+  },
+  unsubscribePending: {
+    desc: 'Unsubscribes from pending transactions subscription.',
+    params: [{
+      type: String,
+      desc: 'Subscription ID',
+      example: '0x416d77337e24399d'
+    }],
+    returns: {
+      type: Boolean,
+      desc: 'whether the call was successful',
       example: true
     }
   }
