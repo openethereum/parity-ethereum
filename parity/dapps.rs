@@ -35,6 +35,7 @@ use util::{Bytes, Address};
 #[derive(Debug, PartialEq, Clone)]
 pub struct Configuration {
 	pub enabled: bool,
+	pub time_api_url: String,
 	pub dapps_path: PathBuf,
 	pub extra_dapps: Vec<PathBuf>,
 }
@@ -44,6 +45,7 @@ impl Default for Configuration {
 		let data_dir = default_data_path();
 		Configuration {
 			enabled: true,
+			time_api_url: "https://time.parity.io/api".into(),
 			dapps_path: replace_home(&data_dir, "$BASE/dapps").into(),
 			extra_dapps: vec![],
 		}
@@ -152,20 +154,22 @@ pub fn new(configuration: Configuration, deps: Dependencies) -> Result<Option<Mi
 
 	server::dapps_middleware(
 		deps,
+		&configuration.time_api_url,
 		configuration.dapps_path,
 		configuration.extra_dapps,
-		rpc::DAPPS_DOMAIN.into(),
+		rpc::DAPPS_DOMAIN,
 	).map(Some)
 }
 
-pub fn new_ui(enabled: bool, deps: Dependencies) -> Result<Option<Middleware>, String> {
+pub fn new_ui(enabled: bool, time_api_url: &str, deps: Dependencies) -> Result<Option<Middleware>, String> {
 	if !enabled {
 		return Ok(None);
 	}
 
 	server::ui_middleware(
 		deps,
-		rpc::DAPPS_DOMAIN.into(),
+		time_api_url,
+		rpc::DAPPS_DOMAIN,
 	).map(Some)
 }
 
@@ -192,16 +196,18 @@ mod server {
 
 	pub fn dapps_middleware(
 		_deps: Dependencies,
+		_time_api_url: &str,
 		_dapps_path: PathBuf,
 		_extra_dapps: Vec<PathBuf>,
-		_dapps_domain: String,
+		_dapps_domain: &str,
 	) -> Result<Middleware, String> {
 		Err("Your Parity version has been compiled without WebApps support.".into())
 	}
 
 	pub fn ui_middleware(
 		_deps: Dependencies,
-		_dapps_domain: String,
+		_time_api_url: &str,
+		_dapps_domain: &str,
 	) -> Result<Middleware, String> {
 		Err("Your Parity version has been compiled without UI support.".into())
 	}
@@ -226,15 +232,17 @@ mod server {
 
 	pub fn dapps_middleware(
 		deps: Dependencies,
+		time_api_url: &str,
 		dapps_path: PathBuf,
 		extra_dapps: Vec<PathBuf>,
-		dapps_domain: String,
+		dapps_domain: &str,
 	) -> Result<Middleware, String> {
 		let signer = deps.signer;
 		let parity_remote = parity_reactor::Remote::new(deps.remote.clone());
 		let web_proxy_tokens = Arc::new(move |token| signer.web_proxy_access_token_domain(&token));
 
 		Ok(parity_dapps::Middleware::dapps(
+			time_api_url,
 			parity_remote,
 			deps.ui_address,
 			dapps_path,
@@ -249,15 +257,17 @@ mod server {
 
 	pub fn ui_middleware(
 		deps: Dependencies,
-		dapps_domain: String,
+		time_api_url: &str,
+		dapps_domain: &str,
 	) -> Result<Middleware, String> {
 		let parity_remote = parity_reactor::Remote::new(deps.remote.clone());
 		Ok(parity_dapps::Middleware::ui(
+			time_api_url,
 			parity_remote,
+			dapps_domain,
 			deps.contract_client,
 			deps.sync_status,
 			deps.fetch,
-			dapps_domain,
 		))
 	}
 

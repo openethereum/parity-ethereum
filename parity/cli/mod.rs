@@ -350,6 +350,8 @@ usage! {
 			or |c: &Config| otry!(c.vm).jit.clone(),
 
 		// -- Miscellaneous Options
+		flag_time_api: String = "https://time.parity.io/api",
+			or |c: &Config| otry!(c.misc).time_api.clone(),
 		flag_logging: Option<String> = None,
 			or |c: &Config| otry!(c.misc).logging.clone().map(Some),
 		flag_log_file: Option<String> = None,
@@ -584,6 +586,7 @@ struct VM {
 
 #[derive(Default, Debug, PartialEq, RustcDecodable)]
 struct Misc {
+	time_api: Option<String>,
 	logging: Option<String>,
 	log_file: Option<String>,
 	color: Option<bool>,

@@ -127,11 +127,12 @@ impl Middleware {
 
 	/// Creates new middleware for UI server.
 	pub fn ui<F: Fetch>(
+		time_api_url: &str,
 		remote: Remote,
+		dapps_domain: &str,
 		registrar: Arc<ContractClient>,
 		sync_status: Arc<SyncStatus>,
 		fetch: F,
-		dapps_domain: String,
 	) -> Self {
 		let content_fetcher = Arc::new(apps::fetcher::ContentFetcher::new(
 			hash_fetch::urlhint::URLHintContract::new(registrar),
@@ -141,6 +142,7 @@ impl Middleware {
 		).embeddable_on(None).allow_dapps(false));
 		let special = {
 			let mut special = special_endpoints(
+				time_api_url,
 				content_fetcher.clone(),
 				fetch.clone(),
 				remote.clone(),
@@ -154,7 +156,7 @@ impl Middleware {
 			None,
 			special,
 			None,
-			dapps_domain,
+			dapps_domain.to_owned(),
 		);
 
 		Middleware {
@@ -165,11 +167,12 @@ impl Middleware {
 
 	/// Creates new Dapps server middleware.
 	pub fn dapps<F: Fetch>(
+		time_api_url: &str,
 		remote: Remote,
 		ui_address: Option<(String, u16)>,
 		dapps_path: PathBuf,
 		extra_dapps: Vec<PathBuf>,
-		dapps_domain: String,
+		dapps_domain: &str,
 		registrar: Arc<ContractClient>,
 		sync_status: Arc<SyncStatus>,
 		web_proxy_tokens: Arc<WebProxyTokens>,
@@ -184,7 +187,7 @@ impl Middleware {
 		let endpoints = apps::all_endpoints(
 			dapps_path,
 			extra_dapps,
-			dapps_domain.clone(),
+			dapps_domain.to_owned(),
 			ui_address.clone(),
 			web_proxy_tokens,
 			remote.clone(),
@@ -193,6 +196,7 @@ impl Middleware {
 
 		let special = {
 			let mut special = special_endpoints(
+				time_api_url,
 				content_fetcher.clone(),
 				fetch.clone(),
 				remote.clone(),
@@ -207,7 +211,7 @@ impl Middleware {
 			Some(endpoints.clone()),
 			special,
 			ui_address,
-			dapps_domain,
+			dapps_domain.to_owned(),
 		);
 
 		Middleware {
@@ -224,6 +228,7 @@ impl http::RequestMiddleware for Middleware {
 }
 
 fn special_endpoints<F: Fetch>(
+	time_api_url: &str,
 	content_fetcher: Arc<apps::fetcher::Fetcher>,
 	fetch: F,
 	remote: Remote,
@@ -235,7 +240,7 @@ fn special_endpoints<F: Fetch>(
 	special.insert(router::SpecialEndpoint::Api, Some(api::RestApi::new(
 		content_fetcher,
 		sync_status,
-		api::TimeChecker::new("http://localhost:3001".into(), fetch),
+		api::TimeChecker::new(time_api_url.into(), fetch),
 		remote,
 	)));
 	special
