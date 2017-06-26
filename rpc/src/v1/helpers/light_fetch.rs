@@ -162,7 +162,7 @@ impl LightFetch {
 
 		let (sync, on_demand, client) = (self.sync.clone(), self.on_demand.clone(), self.client.clone());
 		let req: CallRequestHelper = req.into();
-		let id = num.0.into();
+		let id = num.unwrap_or_default().into();
 
 		let from = req.from.unwrap_or(Address::zero());
 		let nonce_fut = match req.nonce {

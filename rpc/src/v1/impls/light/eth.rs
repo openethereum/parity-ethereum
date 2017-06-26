@@ -270,7 +270,7 @@ impl Eth for EthClient {
 	}
 
 	fn balance(&self, address: RpcH160, num: Trailing<BlockNumber>) -> BoxFuture<RpcU256, Error> {
-		self.fetcher().account(address.into(), num.0.into())
+		self.fetcher().account(address.into(), num.unwrap_or_default().into())
 			.map(|acc| acc.map_or(0.into(), |a| a.balance).into()).boxed()
 	}
 
@@ -287,7 +287,7 @@ impl Eth for EthClient {
 	}
 
 	fn transaction_count(&self, address: RpcH160, num: Trailing<BlockNumber>) -> BoxFuture<RpcU256, Error> {
-		self.fetcher().account(address.into(), num.0.into())
+		self.fetcher().account(address.into(), num.unwrap_or_default().into())
 			.map(|acc| acc.map_or(0.into(), |a| a.nonce).into()).boxed()
 	}
 

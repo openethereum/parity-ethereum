@@ -16,7 +16,7 @@
 
 //! Account management (personal) rpc implementation
 use std::sync::Arc;
-use std::collections::BTreeMap;
+use std::collections::btree_map::{BTreeMap, Entry};
 use util::Address;
 
 use ethkey::{Brain, Generator, Secret};
@@ -27,7 +27,7 @@ use jsonrpc_core::Error;
 use v1::helpers::errors;
 use v1::helpers::accounts::unwrap_provider;
 use v1::traits::ParityAccounts;
-use v1::types::{H160 as RpcH160, H256 as RpcH256, H520 as RpcH520, DappId, Derive, DeriveHierarchical, DeriveHash};
+use v1::types::{H160 as RpcH160, H256 as RpcH256, H520 as RpcH520, DappId, Derive, DeriveHierarchical, DeriveHash, ExtAccountInfo};
 
 /// Account management (personal) rpc implementation.
 pub struct ParityAccountsClient {
@@ -50,26 +50,36 @@ impl ParityAccountsClient {
 }
 
 impl ParityAccounts for ParityAccountsClient {
-	fn all_accounts_info(&self) -> Result<BTreeMap<RpcH160, BTreeMap<String, String>>, Error> {
+	fn all_accounts_info(&self) -> Result<BTreeMap<RpcH160, ExtAccountInfo>, Error> {
 		let store = self.account_provider()?;
 		let info = store.accounts_info().map_err(|e| errors::account("Could not fetch account info.", e))?;
 		let other = store.addresses_info();
 
-		Ok(info
-		   .into_iter()
-		   .chain(other.into_iter())
-		   .map(|(address, v)| {
-			   let mut m = map![
-				   "name".to_owned() => v.name,
-				   "meta".to_owned() => v.meta
-			   ];
-			   if let &Some(ref uuid) = &v.uuid {
-				   m.insert("uuid".to_owned(), format!("{}", uuid));
-			   }
-			   (address.into(), m)
-		   })
-		   .collect()
-		)
+		let account_iter = info
+			.into_iter()
+			.chain(other.into_iter())
+			.map(|(address, v)| (address.into(), ExtAccountInfo {
+				name: v.name,
+				meta: v.meta,
+				uuid: v.uuid.map(|uuid| uuid.to_string())
+			}));
+
+		let mut accounts: BTreeMap<RpcH160, ExtAccountInfo> = BTreeMap::new();
+
+		for (address, account) in account_iter {
+			match accounts.entry(address) {
+				/// Insert only if occupied entry isn't already an account with UUID
+				Entry::Occupied(ref mut occupied) if occupied.get().uuid.is_none() => {
+					occupied.insert(account);
+				},
+				Entry::Vacant(vacant) => {
+					vacant.insert(account);
+				},
+				_ => {}
+			};
+		}
+
+		Ok(accounts)
 	}
 
 	fn new_account_from_phrase(&self, phrase: String, pass: String) -> Result<RpcH160, Error> {

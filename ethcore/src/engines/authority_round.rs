@@ -319,14 +319,20 @@ impl Engine for AuthorityRound {
 	/// This operation is synchronous and may (quite reasonably) not be available, in which `false` will
 	/// be returned.
 	fn generate_seal(&self, block: &ExecutedBlock) -> Seal {
+		// first check to avoid generating signature most of the time
+		// (but there's still a race to the `compare_and_swap`)
 		if self.proposed.load(AtomicOrdering::SeqCst) { return Seal::None; }
+
 		let header = block.header();
 		let step = self.step.load();
 		if self.is_step_proposer(header.parent_hash(), step, header.author()) {
 			if let Ok(signature) = self.signer.sign(header.bare_hash()) {
 				trace!(target: "engine", "generate_seal: Issuing a block for step {}.", step);
-				self.proposed.store(true, AtomicOrdering::SeqCst);
-				return Seal::Regular(vec![encode(&step).to_vec(), encode(&(&H520::from(signature) as &[u8])).to_vec()]);
+
+				// only issue the seal if we were the first to reach the compare_and_swap.
+				if !self.proposed.compare_and_swap(false, true, AtomicOrdering::SeqCst) {
+					return Seal::Regular(vec![encode(&step).to_vec(), encode(&(&H520::from(signature) as &[u8])).to_vec()]);
+				}
 			} else {
 				warn!(target: "engine", "generate_seal: FAIL: Accounts secret key unavailable.");
 			}

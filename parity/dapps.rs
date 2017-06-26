@@ -232,7 +232,7 @@ mod server {
 	) -> Result<Middleware, String> {
 		let signer = deps.signer;
 		let parity_remote = parity_reactor::Remote::new(deps.remote.clone());
-		let web_proxy_tokens = Arc::new(move |token| signer.is_valid_web_proxy_access_token(&token));
+		let web_proxy_tokens = Arc::new(move |token| signer.web_proxy_access_token_domain(&token));
 
 		Ok(parity_dapps::Middleware::dapps(
 			parity_remote,
