@@ -19,7 +19,7 @@ use std::net::{TcpListener};
 use ctrlc::CtrlC;
 use fdlimit::raise_fd_limit;
 use parity_rpc::{NetworkSettings, informant, is_major_importing};
-use ethsync::NetworkConfiguration;
+use ethsync::{self, NetworkConfiguration, SyncConfig};
 use util::{Colour, version, Mutex, Condvar};
 use io::{MayPanic, ForwardPanic, PanicHandler};
 use ethcore_logger::{Config as LogConfig, RotatingLogger};
@@ -32,7 +32,6 @@ use ethcore::snapshot;
 use ethcore::verification::queue::VerifierSettings;
 use ethcore::ethstore::ethkey;
 use light::Cache as LightDataCache;
-use ethsync::SyncConfig;
 use informant::Informant;
 use updater::{UpdatePolicy, Updater};
 use parity_reactor::EventLoop;
@@ -236,7 +235,7 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 		network_config: net_conf.into_basic().map_err(|e| format!("Failed to produce network config: {}", e))?,
 		client: Arc::new(provider),
 		network_id: cmd.network_id.unwrap_or(spec.network_id()),
-		subprotocol_name: ::ethsync::LIGHT_PROTOCOL,
+		subprotocol_name: ethsync::LIGHT_PROTOCOL,
 		handlers: vec![on_demand.clone()],
 	};
 	let light_sync = LightSync::new(sync_params).map_err(|e| format!("Error starting network: {}", e))?;
@@ -276,9 +275,17 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 			on_demand: on_demand.clone(),
 		});
 
-		let sync = light_sync.clone();
+		struct LightSyncStatus(Arc<LightSync>);
+		impl dapps::SyncStatus for LightSyncStatus {
+			fn is_major_importing(&self) -> bool { self.0.is_major_importing() }
+			fn peers(&self) -> (usize, usize) {
+				let peers = ethsync::LightSyncProvider::peer_numbers(&*self.0);
+				(peers.connected, peers.max)
+			}
+		}
+
 		dapps::Dependencies {
-			sync_status: Arc::new(move || sync.is_major_importing()),
+			sync_status: Arc::new(LightSyncStatus(light_sync.clone())),
 			contract_client: contract_client,
 			remote: event_loop.raw_remote(),
 			fetch: fetch.clone(),
@@ -575,7 +582,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	let (sync_provider, manage_network, chain_notify) = modules::sync(
 		&mut hypervisor,
 		sync_config,
-		net_conf.into(),
+		net_conf.clone().into(),
 		client.clone(),
 		snapshot_service.clone(),
 		client.clone(),
@@ -619,8 +626,19 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 		let (sync, client) = (sync_provider.clone(), client.clone());
 		let contract_client = Arc::new(::dapps::FullRegistrar { client: client.clone() });
 
+		struct SyncStatus(Arc<ethsync::SyncProvider>, Arc<Client>, ethsync::NetworkConfiguration);
+		impl dapps::SyncStatus for SyncStatus {
+			fn is_major_importing(&self) -> bool {
+				is_major_importing(Some(self.0.status().state), self.1.queue_info())
+			}
+			fn peers(&self) -> (usize, usize) {
+				let status = self.0.status();
+				(status.num_peers, status.current_max_peers(self.2.min_peers, self.2.max_peers) as usize)
+			}
+		}
+
 		dapps::Dependencies {
-			sync_status: Arc::new(move || is_major_importing(Some(sync.status().state), client.queue_info())),
+			sync_status: Arc::new(SyncStatus(sync, client, net_conf)),
 			contract_client: contract_client,
 			remote: event_loop.raw_remote(),
 			fetch: fetch.clone(),

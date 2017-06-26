@@ -82,10 +82,9 @@ pub use hash_fetch::urlhint::ContractClient;
 pub trait SyncStatus: Send + Sync {
 	/// Returns true if there is a major sync happening.
 	fn is_major_importing(&self) -> bool;
-}
 
-impl<F> SyncStatus for F where F: Fn() -> bool + Send + Sync {
-	fn is_major_importing(&self) -> bool { self() }
+	/// Returns number of connected and ideal peers.
+	fn peers(&self) -> (usize, usize);
 }
 
 /// Validates Web Proxy tokens
@@ -136,12 +135,17 @@ impl Middleware {
 	) -> Self {
 		let content_fetcher = Arc::new(apps::fetcher::ContentFetcher::new(
 			hash_fetch::urlhint::URLHintContract::new(registrar),
-			sync_status,
+			sync_status.clone(),
 			remote.clone(),
 			fetch.clone(),
 		).embeddable_on(None).allow_dapps(false));
 		let special = {
-			let mut special = special_endpoints(content_fetcher.clone());
+			let mut special = special_endpoints(
+				content_fetcher.clone(),
+				fetch.clone(),
+				remote.clone(),
+				sync_status.clone(),
+			);
 			special.insert(router::SpecialEndpoint::Home, Some(apps::ui()));
 			special
 		};
@@ -173,7 +177,7 @@ impl Middleware {
 	) -> Self {
 		let content_fetcher = Arc::new(apps::fetcher::ContentFetcher::new(
 			hash_fetch::urlhint::URLHintContract::new(registrar),
-			sync_status,
+			sync_status.clone(),
 			remote.clone(),
 			fetch.clone(),
 		).embeddable_on(ui_address.clone()).allow_dapps(true));
@@ -188,7 +192,12 @@ impl Middleware {
 		);
 
 		let special = {
-			let mut special = special_endpoints(content_fetcher.clone());
+			let mut special = special_endpoints(
+				content_fetcher.clone(),
+				fetch.clone(),
+				remote.clone(),
+				sync_status,
+			);
 			special.insert(router::SpecialEndpoint::Home, Some(apps::ui_redirection(ui_address.clone())));
 			special
 		};
@@ -214,11 +223,21 @@ impl http::RequestMiddleware for Middleware {
 	}
 }
 
-fn special_endpoints(content_fetcher: Arc<apps::fetcher::Fetcher>) -> HashMap<router::SpecialEndpoint, Option<Box<endpoint::Endpoint>>> {
+fn special_endpoints<F: Fetch>(
+	content_fetcher: Arc<apps::fetcher::Fetcher>,
+	fetch: F,
+	remote: Remote,
+	sync_status: Arc<SyncStatus>,
+) -> HashMap<router::SpecialEndpoint, Option<Box<endpoint::Endpoint>>> {
 	let mut special = HashMap::new();
 	special.insert(router::SpecialEndpoint::Rpc, None);
 	special.insert(router::SpecialEndpoint::Utils, Some(apps::utils()));
-	special.insert(router::SpecialEndpoint::Api, Some(api::RestApi::new(content_fetcher)));
+	special.insert(router::SpecialEndpoint::Api, Some(api::RestApi::new(
+		content_fetcher,
+		sync_status,
+		api::TimeChecker::new("http://localhost:3001".into(), fetch),
+		remote,
+	)));
 	special
 }
 

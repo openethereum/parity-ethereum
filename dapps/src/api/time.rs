@@ -20,75 +20,113 @@
 //! well).
 
 use std::io::{self, Read};
+use std::time;
 
-use time;
+use futures::{self, Future, BoxFuture};
 use fetch::{self, Fetch};
+use util::{Arc, RwLock};
 
 /// Time checker error.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Error {
 	/// The API returned unexpected status code.
 	UnexpectedResponse(&'static str, String),
 	/// Invalid response has been returned by the API.
 	InvalidTime(String),
 	/// There was an error when trying to reach the API.
-	Fetch(fetch::Error),
+	Fetch(String),
 	/// IO error when reading API response.
-	Io(io::Error),
+	Io(String),
 }
 
 impl From<io::Error> for Error {
-	fn from(err: io::Error) -> Self { Error::Io(err) }
+	fn from(err: io::Error) -> Self { Error::Io(format!("{:?}", err)) }
 }
 
 impl From<fetch::Error> for Error {
-	fn from(err: fetch::Error) -> Self { Error::Fetch(err) }
+	fn from(err: fetch::Error) -> Self { Error::Fetch(format!("{:?}", err)) }
 }
 
 fn utc_timestamp_millis() -> i64 {
-	let time = time::now_utc().to_timespec();
+	let time = ::time::now_utc().to_timespec();
 
 	1_000 * time.sec + time.nsec as i64 / 1_000_000
 }
 
-#[derive(Debug)]
+const UPDATE_TIMEOUT_SECS: u64 = 30;
+
+#[derive(Debug, Clone)]
 /// A time checker.
 pub struct TimeChecker<F> {
 	api_endpoint: String,
 	fetch: F,
+	last_result: Arc<RwLock<(time::Instant, Result<i64, Error>)>>,
 }
 
 impl<F: Fetch> TimeChecker<F> {
 
+	/// Creates new time checker given API endpoint URL and `Fetch` instance.
 	pub fn new(api_endpoint: String, fetch: F) -> Self {
+		let last_result = Arc::new(RwLock::new(
+			(time::Instant::now(), Err(Error::Fetch("API unavailable.".into())))
+		));
+
 		TimeChecker {
 			api_endpoint,
 			fetch,
+			last_result,
 		}
 	}
 
-	pub fn time_drift(&self) -> Result<i64, Error> {
+	/// Updates the time
+	pub fn update(&self) -> BoxFuture<i64, Error> {
+		let last_result = self.last_result.clone();
+		self.fetch_time().then(move |res| {
+			*last_result.write() = (time::Instant::now(), res.clone());
+			res
+		}).boxed()
+	}
+
+	fn fetch_time(&self) -> BoxFuture<i64, Error>{
 		let start = utc_timestamp_millis();
-		let mut response = self.fetch.fetch_sync(&self.api_endpoint)?;
-		let mut result = String::new();
-		response.read_to_string(&mut result)?;
 
-		if !response.is_success() {
-			let status = response.status().canonical_reason().unwrap_or("unknown");
-			return Err(Error::UnexpectedResponse(status, result));
-		}
+		self.fetch.process(self.fetch.fetch(&self.api_endpoint)
+			.map_err(|err| Error::Fetch(format!("{:?}", err)))
+			.and_then(move |mut response| {
+				let mut result = String::new();
+				response.read_to_string(&mut result)?;
 
-		let server_time: i64 = match result.parse() {
-			Ok(time) => time,
-			Err(err) => {
-				return Err(Error::InvalidTime(format!("{}", err)));
+				if !response.is_success() {
+					let status = response.status().canonical_reason().unwrap_or("unknown");
+					return Err(Error::UnexpectedResponse(status, result));
+				}
+
+				let server_time: i64 = match result.parse() {
+					Ok(time) => time,
+					Err(err) => {
+						return Err(Error::InvalidTime(format!("{}", err)));
+					}
+				};
+				let end = utc_timestamp_millis();
+				let rough_latency = (end - start) / 2;
+
+				let diff = server_time - start - rough_latency;
+
+				Ok(diff)
+			})
+		)
+	}
+
+	/// Returns a current time drift or error if last request to time API failed.
+	pub fn time_drift(&self) -> BoxFuture<i64, Error> {
+		// return cached result
+		{
+			let res = self.last_result.read();
+			if res.0.elapsed() < time::Duration::from_secs(UPDATE_TIMEOUT_SECS) {
+				return futures::done(res.1.clone()).boxed();
 			}
-		};
-		let end = utc_timestamp_millis();
-		let rough_latency = (end - start) / 2;
-
-		let diff = server_time - start - rough_latency;
-
-		return Ok(diff);
+		}
+		// or update and return result
+		self.update()
 	}
 }

@@ -30,11 +30,14 @@ pub struct ApiError {
 #[derive(Debug, PartialEq, Serialize)]
 pub enum HealthStatus {
 	/// Everything's OK.
+	#[serde(rename = "ok")]
 	Ok,
 	/// Node health need attention
 	/// (the issue is not critical, but may need investigation)
+	#[serde(rename = "needsAttention")]
 	NeedsAttention,
 	/// There is something bad detected with the node.
+	#[serde(rename = "bad")]
 	Bad
 }
 
@@ -60,5 +63,5 @@ pub struct Health {
 	/// Sync status.
 	pub sync: HealthInfo<bool>,
 	/// Time diff info.
-	pub time: HealthInfo<u64>,
+	pub time: HealthInfo<i64>,
 }

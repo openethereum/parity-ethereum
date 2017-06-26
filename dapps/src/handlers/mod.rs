@@ -16,12 +16,14 @@
 
 //! Hyper handlers implementations.
 
+mod async;
 mod content;
 mod echo;
 mod fetch;
 mod redirect;
 mod streaming;
 
+pub use self::async::AsyncHandler;
 pub use self::content::ContentHandler;
 pub use self::echo::EchoHandler;
 pub use self::fetch::{ContentFetcherHandler, ContentValidator, FetchControl, ValidatorResponse};

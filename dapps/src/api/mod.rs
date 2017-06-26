@@ -22,3 +22,4 @@ mod time;
 mod types;
 
 pub use self::api::RestApi;
+pub use self::time::TimeChecker;
