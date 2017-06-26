@@ -33,7 +33,7 @@ use std::sync::mpsc;
 use std::time::{self, Duration, SystemTime};
 
 use bigint::hash::{H256, H512};
-use network::{NetworkContext, NetworkError, NodeId, PeerId, TimerToken};
+use network::{HostInfo, NetworkContext, NetworkError, NodeId, PeerId, TimerToken};
 use parking_lot::{Mutex, RwLock};
 use rlp::{DecoderError, RlpStream, UntrustedRlp};
 use smallvec::SmallVec;
@@ -194,6 +194,7 @@ enum Error {
 	UnknownPeer(PeerId),
 	ProtocolVersionMismatch(usize),
 	UnexpectedMessage,
+	SameNodeKey,
 }
 
 impl From<DecoderError> for Error {
@@ -219,6 +220,7 @@ impl fmt::Display for Error {
 			Error::ProtocolVersionMismatch(ref proto) =>
 				write!(f, "Unknown protocol version: {}", proto),
 			Error::UnexpectedMessage => write!(f, "Unexpected message."),
+			Error::SameNodeKey => write!(f, "Peer and us have same node key."),
 		}
 	}
 }
@@ -348,6 +350,7 @@ pub struct Handler {
 	async_sender: Mutex<mpsc::Sender<Message>>,
 	messages: Mutex<Messages>,
 	peers: RwLock<HashMap<PeerId, Mutex<Peer>>>,
+	node_key: RwLock<NodeId>,
 }
 
 impl Handler {
@@ -422,19 +425,31 @@ impl Handler {
 		let proto: usize = status.as_val()?;
 		if proto != PROTOCOL_VERSION { return Err(Error::ProtocolVersionMismatch(proto)) }
 
-		// TODO: compare peer node ID to ours to determine who should begin
-		// rallying.
 		let peers = self.peers.read();
 		match peers.get(peer) {
-			Some(peer) =>
-				peer.lock().state = State::TheirTurn(SystemTime::now()),
+			Some(peer) => {
+				let mut peer = peer.lock();
+				let our_node_key = self.node_key.read().clone();
+
+				// handle this basically impossible edge case gracefully.
+				if peer.node_key == our_node_key {
+					return Err(Error::SameNodeKey);
+				}
+
+				// peer with lower node key begins the rally.
+				if peer.node_key > our_node_key {
+					peer.state = State::OurTurn;
+				} else {
+					peer.state = State::TheirTurn(SystemTime::now());
+				}
+
+				Ok(())
+			}
 			None => {
 				debug!(target: "whisper", "Received message from unknown peer.");
-				return Err(Error::UnknownPeer(*peer));
+				Err(Error::UnknownPeer(*peer))
 			}
 		}
-
-		Ok(())
 	}
 
 	fn on_messages(&self, peer: &PeerId, messages: UntrustedRlp)
@@ -528,10 +543,12 @@ impl Handler {
 }
 
 impl ::network::NetworkProtocolHandler for Handler {
-	fn initialize(&self, io: &NetworkContext) {
+	fn initialize(&self, io: &NetworkContext, host_info: &HostInfo) {
 		// set up broadcast timer (< 1s)
 		io.register_timer(RALLY_TOKEN, RALLY_TIMEOUT_MS)
 			.expect("Failed to initialize message rally timer");
+
+		*self.node_key.write() = host_info.id().clone();
 	}
 
 	fn read(&self, io: &NetworkContext, peer: &PeerId, packet_id: u8, data: &[u8]) {
