@@ -26,9 +26,8 @@ use account_provider::AccountProvider;
 use block::*;
 use spec::CommonParams;
 use engines::{Call, Engine, Seal, EngineError};
-use header::{Header, BlockNumber};
+use header::Header;
 use error::{Error, TransactionError, BlockError};
-use evm::Schedule;
 use ethjson;
 use io::{IoContext, IoHandler, TimerToken, IoService};
 use builtin::Builtin;
@@ -296,11 +295,6 @@ impl Engine for AuthorityRound {
 		]
 	}
 
-	fn schedule(&self, block_number: BlockNumber) -> Schedule {
-		let eip86 = block_number >= self.params.eip86_transition;
-		Schedule::new_post_eip150(usize::max_value(), true, true, true, eip86)
-	}
-
 	fn populate_from_parent(&self, header: &mut Header, parent: &Header, gas_floor_target: U256, _gas_ceil_target: U256) {
 		// Chain scoring: total weight is sqrt(U256::max_value())*height - step
 		let new_difficulty = U256::from(U128::max_value()) + header_step(parent).expect("Header has been verified; qed").into() - self.step.load().into();
@@ -325,14 +319,20 @@ impl Engine for AuthorityRound {
 	/// This operation is synchronous and may (quite reasonably) not be available, in which `false` will
 	/// be returned.
 	fn generate_seal(&self, block: &ExecutedBlock) -> Seal {
+		// first check to avoid generating signature most of the time
+		// (but there's still a race to the `compare_and_swap`)
 		if self.proposed.load(AtomicOrdering::SeqCst) { return Seal::None; }
+
 		let header = block.header();
 		let step = self.step.load();
 		if self.is_step_proposer(header.parent_hash(), step, header.author()) {
 			if let Ok(signature) = self.signer.sign(header.bare_hash()) {
 				trace!(target: "engine", "generate_seal: Issuing a block for step {}.", step);
-				self.proposed.store(true, AtomicOrdering::SeqCst);
-				return Seal::Regular(vec![encode(&step).to_vec(), encode(&(&H520::from(signature) as &[u8])).to_vec()]);
+
+				// only issue the seal if we were the first to reach the compare_and_swap.
+				if !self.proposed.compare_and_swap(false, true, AtomicOrdering::SeqCst) {
+					return Seal::Regular(vec![encode(&step).to_vec(), encode(&(&H520::from(signature) as &[u8])).to_vec()]);
+				}
 			} else {
 				warn!(target: "engine", "generate_seal: FAIL: Accounts secret key unavailable.");
 			}

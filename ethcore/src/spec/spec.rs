@@ -74,6 +74,8 @@ pub struct CommonParams {
 	pub eip210_contract_gas: U256,
 	/// Number of first block where EIP-211 (Metropolis: RETURNDATASIZE/RETURNDATACOPY) rules begin.
 	pub eip211_transition: BlockNumber,
+	/// Number of first block where EIP-214 rules begin.
+	pub eip214_transition: BlockNumber,
 }
 
 impl From<ethjson::spec::Params> for CommonParams {
@@ -97,6 +99,7 @@ impl From<ethjson::spec::Params> for CommonParams {
 				Into::into),
 			eip210_contract_gas: p.eip210_contract_gas.map_or(1000000.into(), Into::into),
 			eip211_transition: p.eip211_transition.map_or(BlockNumber::max_value(), Into::into),
+			eip214_transition: p.eip214_transition.map_or(BlockNumber::max_value(), Into::into),
 		}
 	}
 }

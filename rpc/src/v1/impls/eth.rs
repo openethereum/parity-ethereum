@@ -361,7 +361,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 	fn balance(&self, address: RpcH160, num: Trailing<BlockNumber>) -> BoxFuture<RpcU256, Error> {
 		let address = address.into();
 
-		let res = match num.0.clone() {
+		let res = match num.unwrap_or_default() {
 			BlockNumber::Pending => {
 				match self.miner.balance(&*self.client, &address) {
 					Some(balance) => Ok(balance.into()),
@@ -384,7 +384,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 		let address: Address = RpcH160::into(address);
 		let position: U256 = RpcU256::into(pos);
 
-		let res = match num.0.clone() {
+		let res = match num.unwrap_or_default() {
 			BlockNumber::Pending => {
 				match self.miner.storage_at(&*self.client, &address, &H256::from(position)) {
 					Some(s) => Ok(s.into()),
@@ -406,7 +406,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 	fn transaction_count(&self, address: RpcH160, num: Trailing<BlockNumber>) -> BoxFuture<RpcU256, Error> {
 		let address: Address = RpcH160::into(address);
 
-		let res = match num.0.clone() {
+		let res = match num.unwrap_or_default() {
 			BlockNumber::Pending if self.options.pending_nonce_from_queue => {
 				let nonce = self.miner.last_nonce(&address)
 					.map(|n| n + 1.into())
@@ -468,7 +468,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 	fn code_at(&self, address: RpcH160, num: Trailing<BlockNumber>) -> BoxFuture<Bytes, Error> {
 		let address: Address = RpcH160::into(address);
 
-		let res = match num.0.clone() {
+		let res = match num.unwrap_or_default() {
 			BlockNumber::Pending => {
 				match self.miner.code(&*self.client, &address) {
 					Some(code) => Ok(code.map_or_else(Bytes::default, Bytes::new)),
@@ -553,7 +553,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 	}
 
 	fn work(&self, no_new_work_timeout: Trailing<u64>) -> Result<Work, Error> {
-		let no_new_work_timeout = no_new_work_timeout.0;
+		let no_new_work_timeout = no_new_work_timeout.unwrap_or_default();
 
 		// check if we're still syncing and return empty strings in that case
 		{
@@ -638,7 +638,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 			Err(e) => return future::err(e).boxed(),
 		};
 
-		let result = match num.0 {
+		let result = match num.unwrap_or_default() {
 			BlockNumber::Pending => self.miner.call(&*self.client, &signed, Default::default()),
 			num => self.client.call(&signed, num.into(), Default::default()),
 		};
@@ -655,7 +655,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 			Ok(signed) => signed,
 			Err(e) => return future::err(e).boxed(),
 		};
-		future::done(self.client.estimate_gas(&signed, num.0.into())
+		future::done(self.client.estimate_gas(&signed, num.unwrap_or_default().into())
 			.map(Into::into)
 			.map_err(errors::from_call_error)
 		).boxed()

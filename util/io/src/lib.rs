@@ -66,7 +66,6 @@ extern crate parking_lot;
 
 mod service;
 mod worker;
-mod panics;
 
 use mio::{Token};
 use mio::deprecated::{EventLoop, NotifyError};
@@ -137,7 +136,6 @@ pub use service::IoService;
 pub use service::IoChannel;
 pub use service::IoManager;
 pub use service::TOKENS_PER_HANDLER;
-pub use panics::{PanicHandler, MayPanic, OnPanicListener, ForwardPanic};
 
 #[cfg(test)]
 mod tests {
@@ -171,5 +169,4 @@ mod tests {
 		let service = IoService::<MyMessage>::start().expect("Error creating network service");
 		service.register_handler(Arc::new(MyHandler)).unwrap();
 	}
-
 }

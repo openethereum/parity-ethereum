@@ -86,6 +86,8 @@ pub struct EthashParams {
 	pub ecip1010_pause_transition: u64,
 	/// Number of first block where ECIP-1010 ends.
 	pub ecip1010_continue_transition: u64,
+	/// Total block number for one ECIP-1017 era.
+	pub ecip1017_era_rounds: u64,
 	/// Maximum amount of code that can be deploying into a contract.
 	pub max_code_size: u64,
 	/// Number of first block where the max gas limit becomes effective.
@@ -124,6 +126,7 @@ impl From<ethjson::spec::EthashParams> for EthashParams {
 			eip161d_transition: p.eip161d_transition.map_or(u64::max_value(), Into::into),
 			ecip1010_pause_transition: p.ecip1010_pause_transition.map_or(u64::max_value(), Into::into),
 			ecip1010_continue_transition: p.ecip1010_continue_transition.map_or(u64::max_value(), Into::into),
+			ecip1017_era_rounds: p.ecip1017_era_rounds.map_or(u64::max_value(), Into::into),
 			max_code_size: p.max_code_size.map_or(u64::max_value(), Into::into),
 			max_gas_limit_transition: p.max_gas_limit_transition.map_or(u64::max_value(), Into::into),
 			max_gas_limit: p.max_gas_limit.map_or(U256::max_value(), Into::into),
@@ -196,13 +199,13 @@ impl Engine for Arc<Ethash> {
 		} else if block_number < self.ethash_params.eip150_transition {
 			Schedule::new_homestead()
 		} else {
-			Schedule::new_post_eip150(
+			let mut schedule = Schedule::new_post_eip150(
 				self.ethash_params.max_code_size as usize,
 				block_number >= self.ethash_params.eip160_transition,
 				block_number >= self.ethash_params.eip161abc_transition,
-				block_number >= self.ethash_params.eip161d_transition,
-				block_number >= self.params.eip86_transition
-			)
+				block_number >= self.ethash_params.eip161d_transition);
+			schedule.apply_params(block_number, self.params());
+			schedule
 		}
 	}
 
@@ -255,13 +258,13 @@ impl Engine for Arc<Ethash> {
 
 	fn on_new_block(&self, block: &mut ExecutedBlock, last_hashes: Arc<LastHashes>) -> Result<(), Error> {
 		let parent_hash = block.fields().header.parent_hash().clone();
-		try!(::engines::common::push_last_hash(block, last_hashes, self, &parent_hash));
+		::engines::common::push_last_hash(block, last_hashes, self, &parent_hash)?;
 		if block.fields().header.number() == self.ethash_params.dao_hardfork_transition {
 			let state = block.fields_mut().state;
 			for child in &self.ethash_params.dao_hardfork_accounts {
 				let beneficiary = &self.ethash_params.dao_hardfork_beneficiary;
-				try!(state.balance(child)
-					.and_then(|b| state.transfer_balance(child, beneficiary, &b, CleanupMode::NoEmpty)));
+				state.balance(child)
+					.and_then(|b| state.transfer_balance(child, beneficiary, &b, CleanupMode::NoEmpty))?;
 			}
 		}
 		Ok(())
@@ -272,6 +275,8 @@ impl Engine for Arc<Ethash> {
 	fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<(), Error> {
 		let reward = self.ethash_params.block_reward;
 		let fields = block.fields_mut();
+		let eras_rounds = self.ethash_params.ecip1017_era_rounds;
+		let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, reward, fields.header.number());
 
 		// Bestow block reward
 		fields.state.add_balance(
@@ -283,11 +288,19 @@ impl Engine for Arc<Ethash> {
 		// Bestow uncle rewards
 		let current_number = fields.header.number();
 		for u in fields.uncles.iter() {
-			fields.state.add_balance(
-				u.author(),
-				&(reward * U256::from(8 + u.number() - current_number) / U256::from(8)),
-				CleanupMode::NoEmpty
-			)?;
+			if eras == 0 {
+				fields.state.add_balance(
+					u.author(),
+					&(reward * U256::from(8 + u.number() - current_number) / U256::from(8)),
+					CleanupMode::NoEmpty
+				)
+			} else {
+				fields.state.add_balance(
+					u.author(),
+					&(reward / U256::from(32)),
+					CleanupMode::NoEmpty
+				)
+			}?;
 		}
 
 		// Commit state so that we can actually figure out the state root.
@@ -413,6 +426,18 @@ fn round_block_gas_limit(gas_limit: U256, lower_limit: U256, upper_limit: U256) 
 	}
 }
 
+fn ecip1017_eras_block_reward(era_rounds: u64, mut reward: U256, block_number:u64) -> (u64, U256){
+	let eras = if block_number != 0 && block_number % era_rounds == 0 {
+		block_number / era_rounds - 1
+	} else {
+		block_number / era_rounds
+	};
+	for _ in 0..eras {
+		reward = reward / U256::from(5) * U256::from(4);
+	}
+	(eras, reward)
+}
+
 #[cfg_attr(feature="dev", allow(wrong_self_convention))]
 impl Ethash {
 	fn calculate_difficulty(&self, header: &Header, parent: &Header) -> U256 {
@@ -524,7 +549,7 @@ mod tests {
 	use error::{BlockError, Error};
 	use header::Header;
 	use super::super::{new_morden, new_homestead_test};
-	use super::{Ethash, EthashParams, PARITY_GAS_LIMIT_DETERMINANT};
+	use super::{Ethash, EthashParams, PARITY_GAS_LIMIT_DETERMINANT, ecip1017_eras_block_reward};
 	use rlp;
 
 	#[test]
@@ -758,6 +783,42 @@ mod tests {
 
 		let difficulty = ethash.calculate_difficulty(&header, &parent_header);
 		assert_eq!(U256::from_str("1fc50f118efe").unwrap(), difficulty);
+	}
+
+	#[test]
+	fn has_valid_ecip1017_eras_block_reward() {
+		let ethparams = EthashParams {
+			// see ethcore/res/ethereum/classic.json
+			ecip1017_era_rounds: 5000000,
+			block_reward: U256::from_str("4563918244F40000").unwrap(),
+			..get_default_ethash_params()
+		};
+		let eras_rounds = ethparams.ecip1017_era_rounds;
+		let reward = ethparams.block_reward;
+		let block_number = 0;
+		let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, reward, block_number);
+		assert_eq!(0, eras);
+		assert_eq!(U256::from_str("4563918244F40000").unwrap(), reward);
+		let reward = ethparams.block_reward;
+		let block_number = 5000000;
+		let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, reward, block_number);
+		assert_eq!(0, eras);
+		assert_eq!(U256::from_str("4563918244F40000").unwrap(), reward);
+		let reward = ethparams.block_reward;
+		let block_number = 10000000;
+		let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, reward, block_number);
+		assert_eq!(1, eras);
+		assert_eq!(U256::from_str("3782DACE9D900000").unwrap(), reward);
+		let reward = ethparams.block_reward;
+		let block_number = 20000000;
+		let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, reward, block_number);
+		assert_eq!(3, eras);
+		assert_eq!(U256::from_str("2386F26FC1000000").unwrap(), reward);
+		let reward = ethparams.block_reward;
+		let block_number = 80000000;
+		let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, reward, block_number);
+		assert_eq!(15, eras);
+		assert_eq!(U256::from_str("271000000000000").unwrap(), reward);
 	}
 
 	#[test]

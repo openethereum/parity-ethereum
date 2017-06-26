@@ -46,7 +46,7 @@ mod work;
 
 pub mod pubsub;
 
-pub use self::account_info::{AccountInfo, HwAccountInfo};
+pub use self::account_info::{AccountInfo, ExtAccountInfo, HwAccountInfo};
 pub use self::bytes::Bytes;
 pub use self::block::{RichBlock, Block, BlockTransactions, Header, RichHeader, Rich};
 pub use self::block_number::BlockNumber;
