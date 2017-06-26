@@ -536,9 +536,9 @@ impl ApiSet {
 	}
 
 	pub fn list_apis(&self) -> HashSet<Api> {
-		let mut public_list = vec![
+		let mut public_list = [
 			Api::Web3, Api::Net, Api::Eth, Api::EthPubSub, Api::Parity, Api::Rpc, Api::SecretStore,
-		].into_iter().collect();
+		].into_iter().cloned().collect();
 		match *self {
 			ApiSet::List(ref apis) => apis.clone(),
 			ApiSet::PublicContext => public_list,
@@ -570,13 +570,13 @@ impl ApiSet {
 				public_list.insert(Api::Personal);
 				public_list
 			},
-			ApiSet::PubSub => vec![
+			ApiSet::PubSub => [
 				Api::Eth,
 				Api::Parity,
 				Api::ParityAccounts,
 				Api::ParitySet,
 				Api::Traces,
-			].into_iter().collect()
+			].into_iter().cloned().collect()
 		}
 	}
 }
