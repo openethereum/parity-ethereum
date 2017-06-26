@@ -58,6 +58,8 @@ fn empty() {
 //   logger.wasm writes all these provided fixed header fields to some arbitrary storage keys.
 #[test]
 fn logger() {
+	init_log();
+
 	let code = load_sample("logger.wasm");
 	let address: Address = "0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6".parse().unwrap();
 	let sender: Address = "0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d0d".parse().unwrap();
@@ -77,7 +79,8 @@ fn logger() {
 		test_finalize(interpreter.exec(params, &mut ext)).unwrap()
 	};
 
-	assert_eq!(gas_left, U256::from(99846));
+	println!("ext.store: {:?}", ext.store);
+	assert_eq!(gas_left, U256::from(99581));
 	let address_val: H256 = address.into();
 	assert_eq!(
 		ext.store.get(&"0100000000000000000000000000000000000000000000000000000000000000".parse().unwrap()).expect("storage key to exist"),
@@ -130,7 +133,7 @@ fn identity() {
 		}
 	};
 
-	assert_eq!(gas_left, U256::from(99_753));
+	assert_eq!(gas_left, U256::from(99_689));
 
 	assert_eq!(
 		Address::from_slice(&result),
@@ -166,7 +169,7 @@ fn dispersion() {
 		}
 	};
 
-	assert_eq!(gas_left, U256::from(99_419));
+	assert_eq!(gas_left, U256::from(99_402));
 
 	assert_eq!(
 		result,
@@ -197,7 +200,7 @@ fn suicide_not() {
 		}
 	};
 
-	assert_eq!(gas_left, U256::from(99_767));
+	assert_eq!(gas_left, U256::from(99_703));
 
 	assert_eq!(
 		result,
@@ -233,7 +236,7 @@ fn suicide() {
 		}
 	};
 
-	assert_eq!(gas_left, U256::from(99_790));
+	assert_eq!(gas_left, U256::from(99_747));
 	assert!(ext.suicides.contains(&refund));
 }
 
@@ -264,7 +267,7 @@ fn create() {
 	assert!(ext.calls.contains(
 		&FakeCall {
 			call_type: FakeCallType::Create,
-			gas: U256::from(99_859),
+			gas: U256::from(99_778),
 			sender_address: None,
 			receive_address: None,
 			value: Some(1_000_000_000.into()),
@@ -272,5 +275,5 @@ fn create() {
 			code_address: None,
 		}
 	));
-	assert_eq!(gas_left, U256::from(99_798));
+	assert_eq!(gas_left, U256::from(99_768));
 }
