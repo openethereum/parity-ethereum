@@ -218,7 +218,11 @@ export default class Ws extends JsonRpcBase {
       return this._messages[result.id];
     // pubsub format
     } else if (result.method.includes('subscription')) {
-      return this._messages[this._subscriptions[result.method][result.params.subscription]];
+      if (this._messages[this._subscriptions[result.method][result.params.subscription]]) {
+        return this._messages[this._subscriptions[result.method][result.params.subscription]];
+      } else {
+        throw Error(`Received Subscription which is already unsubscribed ${JSON.stringify(result)}`);
+      }
     } else {
       throw Error(`Unknown message format: No ID or subscription ${JSON.stringify(result)}`);
     }
