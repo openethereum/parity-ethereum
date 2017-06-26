@@ -18,7 +18,7 @@ use std::sync::Arc;
 use std::collections::{HashMap, BTreeMap};
 use std::io;
 use util::Bytes;
-use network::{NetworkProtocolHandler, NetworkService, NetworkContext, PeerId, ProtocolId,
+use network::{NetworkProtocolHandler, NetworkService, NetworkContext, HostInfo, PeerId, ProtocolId,
 	NetworkConfiguration as BasicNetworkConfiguration, NonReservedPeerMode, NetworkError,
 	AllowIP as NetworkAllowIP};
 use util::{U256, H256, H512};
@@ -307,7 +307,7 @@ struct SyncProtocolHandler {
 }
 
 impl NetworkProtocolHandler for SyncProtocolHandler {
-	fn initialize(&self, io: &NetworkContext) {
+	fn initialize(&self, io: &NetworkContext, _host_info: &HostInfo) {
 		if io.subprotocol_name() != WARP_SYNC_PROTOCOL_ID {
 			io.register_timer(0, 1000).expect("Error registering sync timer");
 		}

@@ -26,7 +26,7 @@
 //! struct MyHandler;
 //!
 //! impl NetworkProtocolHandler for MyHandler {
-//!		fn initialize(&self, io: &NetworkContext) {
+//!		fn initialize(&self, io: &NetworkContext, _host_info: &HostInfo) {
 //!			io.register_timer(0, 1000);
 //!		}
 //!
@@ -97,7 +97,7 @@ mod ip_utils;
 #[cfg(test)]
 mod tests;
 
-pub use host::{PeerId, PacketId, ProtocolId, NetworkContext, NetworkIoMessage, NetworkConfiguration};
+pub use host::{HostInfo, PeerId, PacketId, ProtocolId, NetworkContext, NetworkIoMessage, NetworkConfiguration};
 pub use service::NetworkService;
 pub use error::NetworkError;
 pub use stats::NetworkStats;
@@ -113,7 +113,7 @@ const PROTOCOL_VERSION: u32 = 4;
 /// `Message` is the type for message data.
 pub trait NetworkProtocolHandler: Sync + Send {
 	/// Initialize the handler
-	fn initialize(&self, _io: &NetworkContext) {}
+	fn initialize(&self, _io: &NetworkContext, _host_info: &HostInfo) {}
 	/// Called when new network packet received.
 	fn read(&self, io: &NetworkContext, peer: &PeerId, packet_id: u8, data: &[u8]);
 	/// Called when new peer is connected. Only called when peer supports the same protocol.
