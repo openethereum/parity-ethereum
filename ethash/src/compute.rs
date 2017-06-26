@@ -106,15 +106,15 @@ impl Light {
 		light_compute(self, header_hash, nonce)
 	}
 
-	pub fn file_path(cache_dir: &Path, seed_hash: H256) -> PathBuf {
-		let mut cache_dir = cache_dir.to_path_buf();
+	pub fn file_path<T: AsRef<Path>>(cache_dir: T, seed_hash: H256) -> PathBuf {
+		let mut cache_dir = cache_dir.as_ref().to_path_buf();
 		cache_dir.push(to_hex(&seed_hash));
 		cache_dir
 	}
 
-	pub fn from_file(cache_dir: &Path, block_number: u64) -> io::Result<Light> {
+	pub fn from_file<T: AsRef<Path>>(cache_dir: T, block_number: u64) -> io::Result<Light> {
 		let seed_compute = SeedHashCompute::new();
-		let path = Light::file_path(cache_dir, seed_compute.get_seedhash(block_number));
+		let path = Light::file_path(&cache_dir, seed_compute.get_seedhash(block_number));
 		let mut file = File::open(path)?;
 
 		let cache_size = get_cache_size(block_number);
@@ -128,7 +128,7 @@ impl Light {
 		file.read_exact(buf)?;
 		Ok(Light {
 			block_number,
-			cache_dir: cache_dir.to_path_buf(),
+			cache_dir: cache_dir.as_ref().to_path_buf(),
 			cache: nodes,
 			seed_compute: Mutex::new(seed_compute),
 		})

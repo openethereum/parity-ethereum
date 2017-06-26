@@ -148,8 +148,8 @@ pub struct Ethash {
 
 impl Ethash {
 	/// Create a new instance of Ethash engine
-	pub fn new(
-		cache_dir: &Path,
+	pub fn new<T: AsRef<Path>>(
+		cache_dir: T,
 		params: CommonParams,
 		ethash_params: EthashParams,
 		builtins: BTreeMap<Address, Builtin>,

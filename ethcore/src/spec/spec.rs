@@ -148,7 +148,7 @@ pub struct Spec {
 	genesis_state: PodState,
 }
 
-fn load_from(cache_dir: &Path, s: ethjson::spec::Spec) -> Result<Spec, Error> {
+fn load_from<T: AsRef<Path>>(cache_dir: T, s: ethjson::spec::Spec) -> Result<Spec, Error> {
 	let builtins = s.accounts.builtins().into_iter().map(|p| (p.0.into(), From::from(p.1))).collect();
 	let g = Genesis::from(s.genesis);
 	let GenericSeal(seal_rlp) = g.seal.into();
@@ -195,8 +195,8 @@ macro_rules! load_bundled {
 impl Spec {
 	/// Convert engine spec into a arc'd Engine of the right underlying type.
 	/// TODO avoid this hard-coded nastiness - use dynamic-linked plugin framework instead.
-	fn engine(
-		cache_dir: &Path,
+	fn engine<T: AsRef<Path>>(
+		cache_dir: T,
 		engine_spec: ethjson::spec::Engine,
 		params: CommonParams,
 		builtins: BTreeMap<Address, Builtin>,
@@ -395,7 +395,7 @@ impl Spec {
 
 	/// Loads spec from json file. Provide factories for executing contracts and ensuring
 	/// storage goes to the right place.
-	pub fn load<R>(cache_dir: &Path, reader: R) -> Result<Self, String> where R: Read {
+	pub fn load<T: AsRef<Path>, R>(cache_dir: T, reader: R) -> Result<Self, String> where R: Read {
 		fn fmt<F: ::std::fmt::Display>(f: F) -> String {
 			format!("Spec json is invalid: {}", f)
 		}

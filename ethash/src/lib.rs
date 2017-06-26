@@ -47,9 +47,9 @@ pub struct EthashManager {
 
 impl EthashManager {
 	/// Create a new new instance of ethash manager
-	pub fn new(cache_dir: &Path) -> EthashManager {
+	pub fn new<T: AsRef<Path>>(cache_dir: T) -> EthashManager {
 		EthashManager {
-			cache_dir: cache_dir.to_path_buf(),
+			cache_dir: cache_dir.as_ref().to_path_buf(),
 			cache: Mutex::new(LightCache {
 				recent_epoch: None,
 				recent: None,
