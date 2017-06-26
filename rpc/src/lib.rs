@@ -60,7 +60,7 @@ extern crate stats;
 
 #[macro_use]
 extern crate log;
-#[macro_use]
+#[cfg_attr(test, macro_use)]
 extern crate ethcore_util as util;
 #[macro_use]
 extern crate jsonrpc_macros;

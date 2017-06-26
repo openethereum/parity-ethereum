@@ -57,7 +57,7 @@ export default class Signer {
         this._updateSubscriptions('signer_requestsToConfirm', null, requests);
         nextTimeout();
       })
-      .catch(nextTimeout);
+      .catch(() => nextTimeout());
   }
 
   _postTransaction (data) {

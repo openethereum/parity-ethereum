@@ -25,19 +25,19 @@ linux-stable:
     - rustup default stable
     - cargo build -j $(nproc) --release --features final $CARGOFLAGS
     - cargo build -j $(nproc) --release -p evmbin
-    - cargo build -j $(nproc) --release -p ethstore
-    - cargo build -j $(nproc) --release -p ethkey
+    - cargo build -j $(nproc) --release -p ethstore-cli
+    - cargo build -j $(nproc) --release -p ethkey-cli
     - strip target/release/parity
     - strip target/release/parity-evm
-    - strip target/release/ethstore
-    - strip target/release/ethkey
+    - strip target/release/ethstore-cli
+    - strip target/release/ethkey-cli
     - export SHA3=$(target/release/parity tools hash target/release/parity)
     - md5sum target/release/parity > parity.md5
     - sh scripts/deb-build.sh amd64
     - cp target/release/parity deb/usr/bin/parity
     - cp target/release/parity-evm deb/usr/bin/parity-evm
-    - cp target/release/ethstore deb/usr/bin/ethstore
-    - cp target/release/ethkey deb/usr/bin/ethkey
+    - cp target/release/ethstore deb/usr/bin/ethstore-cli
+    - cp target/release/ethkey deb/usr/bin/ethkey-cli
     - export VER=$(grep -m 1 version Cargo.toml | awk '{print $3}' | tr -d '"' | tr -d "\n")
     - dpkg-deb -b deb "parity_"$VER"_amd64.deb"
     - md5sum "parity_"$VER"_amd64.deb" > "parity_"$VER"_amd64.deb.md5"
@@ -105,19 +105,19 @@ linux-stable-debian:
   script:
     - cargo build -j $(nproc) --release --features final $CARGOFLAGS
     - cargo build -j $(nproc) --release -p evmbin
-    - cargo build -j $(nproc) --release -p ethstore
-    - cargo build -j $(nproc) --release -p ethkey
+    - cargo build -j $(nproc) --release -p ethstore-cli
+    - cargo build -j $(nproc) --release -p ethkey-cli
     - strip target/release/parity
     - strip target/release/parity-evm
-    - strip target/release/ethstore
-    - strip target/release/ethkey
+    - strip target/release/ethstore-cli
+    - strip target/release/ethkey-cli
     - export SHA3=$(target/release/parity tools hash target/release/parity)
     - md5sum target/release/parity > parity.md5
     - sh scripts/deb-build.sh amd64
     - cp target/release/parity deb/usr/bin/parity
     - cp target/release/parity-evm deb/usr/bin/parity-evm
-    - cp target/release/ethstore deb/usr/bin/ethstore
-    - cp target/release/ethkey deb/usr/bin/ethkey
+    - cp target/release/ethstore deb/usr/bin/ethstore-cli
+    - cp target/release/ethkey deb/usr/bin/ethkey-cli
     - export VER=$(grep -m 1 version Cargo.toml | awk '{print $3}' | tr -d '"' | tr -d "\n")
     - dpkg-deb -b deb "parity_"$VER"_amd64.deb"
     - md5sum "parity_"$VER"_amd64.deb" > "parity_"$VER"_amd64.deb.md5"
@@ -437,7 +437,7 @@ darwin:
       export PLATFORM=x86_64-apple-darwin
       rustup default stable
       cargo build -j 8 --features final --release #$CARGOFLAGS
-      cargo build -j 8 --features final --release -p ethstore #$CARGOFLAGS
+      cargo build -j 8 --features final --release -p ethstore-cli #$CARGOFLAGS
       rm -rf parity.md5
       md5sum target/release/parity > parity.md5
       export SHA3=$(target/release/parity tools hash target/release/parity)
