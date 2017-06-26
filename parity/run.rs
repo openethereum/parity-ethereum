@@ -32,7 +32,6 @@ use ethsync::SyncConfig;
 use fdlimit::raise_fd_limit;
 use hash_fetch::fetch::{Fetch, Client as FetchClient};
 use informant::{Informant, LightNodeInformantData, FullNodeInformantData};
-use io::{MayPanic, ForwardPanic, PanicHandler};
 use light::Cache as LightDataCache;
 use parity_reactor::EventLoop;
 use parity_rpc::{NetworkSettings, informant, is_major_importing};
@@ -45,7 +44,7 @@ use params::{
 };
 use helpers::{to_client_config, execute_upgrades, passwords_from_files};
 use upgrade::upgrade_key_location;
-use dir::Directories;
+use dir::{Directories, DatabaseDirectories};
 use cache::CacheConfig;
 use user_defaults::UserDefaults;
 use dapps;
@@ -169,8 +168,6 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 	use ethsync::{LightSyncParams, LightSync, ManageNetwork};
 	use util::RwLock;
 
-	let panic_handler = PanicHandler::new_in_arc();
-
 	// load spec
 	let spec = cmd.spec.spec()?;
 
@@ -197,7 +194,9 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 	// create dirs used by parity
 	cmd.dirs.create_dirs(cmd.dapps_conf.enabled, cmd.ui_conf.enabled, cmd.secretstore_conf.enabled)?;
 
-	info!("Starting {}", Colour::White.bold().paint(version()));
+	//print out running parity environment
+	print_running_environment(&spec.name, &cmd.dirs, &db_dirs, &cmd.dapps_conf);
+
 	info!("Running in experimental {} mode.", Colour::Blue.bold().paint("Light Client"));
 
 	// TODO: configurable cache size.
@@ -339,7 +338,7 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 	service.register_handler(informant.clone()).map_err(|_| "Unable to register informant handler".to_owned())?;
 
 	// wait for ctrl-c and then shut down the informant.
-	let res = wait_for_exit(panic_handler, None, None, can_restart);
+	let res = wait_for_exit(None, None, can_restart);
 	informant.shutdown();
 
 	Ok(res)
@@ -361,9 +360,6 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	if cmd.light {
 		return execute_light(cmd, can_restart, logger);
 	}
-
-	// set up panic handler
-	let panic_handler = PanicHandler::new_in_arc();
 
 	// load spec
 	let spec = cmd.spec.spec()?;
@@ -412,8 +408,10 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 		daemonize(pid_file)?;
 	}
 
+	//print out running parity environment
+	print_running_environment(&spec.name, &cmd.dirs, &db_dirs, &cmd.dapps_conf);
+
 	// display info about used pruning algorithm
-	info!("Starting {}", Colour::White.bold().paint(version()));
 	info!("State DB configuration: {}{}{}",
 		Colour::White.bold().paint(algorithm.as_str()),
 		match fat_db {
@@ -526,9 +524,6 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 
 	// drop the spec to free up genesis state.
 	drop(spec);
-
-	// forward panics from service
-	panic_handler.forward_from(&service);
 
 	// take handle to client
 	let client = service.client();
@@ -743,7 +738,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	}
 
 	// Handle exit
-	let restart = wait_for_exit(panic_handler, Some(updater), Some(client), can_restart);
+	let restart = wait_for_exit(Some(updater), Some(client), can_restart);
 
 	info!("Finishing work, please wait...");
 
@@ -777,6 +772,13 @@ fn daemonize(pid_file: String) -> Result<(), String> {
 #[cfg(windows)]
 fn daemonize(_pid_file: String) -> Result<(), String> {
 	Err("daemon is no supported on windows".into())
+}
+
+fn print_running_environment(spec_name: &String, dirs: &Directories, db_dirs: &DatabaseDirectories, dapps_conf: &dapps::Configuration) {
+	info!("Starting {}", Colour::White.bold().paint(version()));
+	info!("Keys path {}", Colour::White.bold().paint(dirs.keys_path(spec_name).to_string_lossy().into_owned()));
+	info!("DB path {}", Colour::White.bold().paint(db_dirs.db_root_path().to_string_lossy().into_owned()));
+	info!("Path to dapps {}", Colour::White.bold().paint(dapps_conf.dapps_path.to_string_lossy().into_owned()));
 }
 
 fn prepare_account_provider(spec: &SpecType, dirs: &Directories, data_dir: &str, cfg: AccountsConfig, passwords: &[String]) -> Result<AccountProvider, String> {
@@ -848,7 +850,6 @@ fn build_create_account_hint(spec: &SpecType, keys: &str) -> String {
 }
 
 fn wait_for_exit(
-	panic_handler: Arc<PanicHandler>,
 	updater: Option<Arc<Updater>>,
 	client: Option<Arc<Client>>,
 	can_restart: bool
@@ -858,10 +859,6 @@ fn wait_for_exit(
 	// Handle possible exits
 	let e = exit.clone();
 	CtrlC::set_handler(move || { e.1.notify_all(); });
-
-	// Handle panics
-	let e = exit.clone();
-	panic_handler.on_panic(move |_reason| { e.1.notify_all(); });
 
 	if can_restart {
 		if let Some(updater) = updater {
