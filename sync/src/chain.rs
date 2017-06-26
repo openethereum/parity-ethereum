@@ -2062,38 +2062,43 @@ impl ChainSync {
 					}
 
 					// Construct RLP
-					let mut in_packet = HashSet::with_capacity(to_send.len());
-					let mut packet = RlpStream::new();
-					packet.begin_unbounded_list();
-					for tx in &transactions {
-						let hash = tx.transaction.hash();
-						if to_send.contains(&hash) {
-							let mut transaction = RlpStream::new();
-							tx.transaction.rlp_append(&mut transaction);
-							let appended = packet.append_raw_checked(&transaction.drain(), 1, MAX_TRANSACTION_PACKET_SIZE);
-							if !appended {
-								// Maximal packet size reached just proceed with sending
-								debug!("Transaction packet size limit reached. Sending incomplete set of {}/{} transactions.", in_packet.len(), to_send.len());
-								break;
+					let (packet, to_send) = {
+						let mut to_send = to_send;
+						let mut packet = RlpStream::new();
+						packet.begin_unbounded_list();
+						let mut pushed = 0;
+						for tx in &transactions {
+							let hash = tx.transaction.hash();
+							if to_send.contains(&hash) {
+								let mut transaction = RlpStream::new();
+								tx.transaction.rlp_append(&mut transaction);
+								let appended = packet.append_raw_checked(&transaction.drain(), 1, MAX_TRANSACTION_PACKET_SIZE);
+								if !appended {
+									// Maximal packet size reached just proceed with sending
+									debug!("Transaction packet size limit reached. Sending incomplete set of {}/{} transactions.", pushed, to_send.len());
+									to_send = to_send.into_iter().take(pushed).collect();
+									break;
+								}
+								pushed += 1;
 							}
-							in_packet.insert(hash);
 						}
-					}
-					packet.complete_unbounded_list();
+						packet.complete_unbounded_list();
+						(packet, to_send)
+					};
 
 					// Update stats
 					let id = io.peer_session_info(peer_id).and_then(|info| info.id);
-					for hash in &in_packet {
+					for hash in &to_send {
 						// update stats
 						stats.propagated(hash, id, block_number);
 					}
 
 					peer_info.last_sent_transactions = all_transactions_hashes
 						.intersection(&peer_info.last_sent_transactions)
-						.chain(&in_packet)
+						.chain(&to_send)
 						.cloned()
 						.collect();
-					Some((peer_id, in_packet.len(), packet.out()))
+					Some((peer_id, to_send.len(), packet.out()))
 				})
 				.collect::<Vec<_>>()
 		};

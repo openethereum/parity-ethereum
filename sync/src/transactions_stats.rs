@@ -101,9 +101,9 @@ mod tests {
 		let enodeid2 = 5.into();
 
 		// when
-		stats.propagated(hash, Some(enodeid1), 5);
-		stats.propagated(hash, Some(enodeid1), 10);
-		stats.propagated(hash, Some(enodeid2), 15);
+		stats.propagated(&hash, Some(enodeid1), 5);
+		stats.propagated(&hash, Some(enodeid1), 10);
+		stats.propagated(&hash, Some(enodeid2), 15);
 
 		// then
 		let stats = stats.get(&hash);
@@ -122,7 +122,7 @@ mod tests {
 		let mut stats = TransactionsStats::default();
 		let hash = 5.into();
 		let enodeid1 = 5.into();
-		stats.propagated(hash, Some(enodeid1), 10);
+		stats.propagated(&hash, Some(enodeid1), 10);
 
 		// when
 		stats.retain(&HashSet::new());
