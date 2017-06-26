@@ -18,6 +18,7 @@
 
 use jsonrpc_core::{Error, Value, Params};
 use jsonrpc_pubsub::SubscriptionId;
+use jsonrpc_macros::Trailing;
 use jsonrpc_macros::pubsub::Subscriber;
 use futures::BoxFuture;
 
@@ -29,7 +30,7 @@ build_rpc_trait! {
 		#[pubsub(name = "parity_subscription")] {
 			/// Subscribe to changes of any RPC method in Parity.
 			#[rpc(name = "parity_subscribe")]
-			fn parity_subscribe(&self, Self::Metadata, Subscriber<Value>, String, Params);
+			fn parity_subscribe(&self, Self::Metadata, Subscriber<Value>, String, Trailing<Params>);
 
 			/// Unsubscribe from existing Parity subscription.
 			#[rpc(name = "parity_unsubscribe")]

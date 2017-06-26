@@ -141,7 +141,6 @@ pub struct Client {
 	block_queue: BlockQueue,
 	report: RwLock<ClientReport>,
 	import_lock: Mutex<()>,
-	panic_handler: Arc<PanicHandler>,
 	verifier: Box<Verifier>,
 	miner: Arc<Miner>,
 	sleep_state: Mutex<SleepState>,
@@ -213,8 +212,6 @@ impl Client {
 		let engine = spec.engine.clone();
 
 		let block_queue = BlockQueue::new(config.queue.clone(), engine.clone(), message_channel.clone(), config.verifier_type.verifying_seal());
-		let panic_handler = PanicHandler::new_in_arc();
-		panic_handler.forward_from(&block_queue);
 
 		let awake = match config.mode { Mode::Dark(..) | Mode::Off => false, _ => true };
 
@@ -234,7 +231,6 @@ impl Client {
 			block_queue: block_queue,
 			report: RwLock::new(Default::default()),
 			import_lock: Mutex::new(()),
-			panic_handler: panic_handler,
 			miner: miner,
 			io_channel: Mutex::new(message_channel),
 			notify: RwLock::new(Vec::new()),
@@ -1720,12 +1716,6 @@ impl EngineClient for Client {
 
 	fn broadcast_consensus_message(&self, message: Bytes) {
 		self.notify(|notify| notify.broadcast(message.clone()));
-	}
-}
-
-impl MayPanic for Client {
-	fn on_panic<F>(&self, closure: F) where F: OnPanicListener {
-		self.panic_handler.on_panic(closure);
 	}
 }
 

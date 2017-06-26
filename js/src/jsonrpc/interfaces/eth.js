@@ -17,6 +17,8 @@
 import { Address, BlockNumber, Data, Hash, Quantity, CallRequest, TransactionRequest } from '../types';
 import { withPreamble, fromDecimal, withComment, Dummy } from '../helpers';
 
+const SUBDOC_PUBSUB = 'pubsub';
+
 export default withPreamble(`
 
 ## The default block parameter
@@ -1191,6 +1193,61 @@ The following options are possible for the \`defaultBlock\` parameter:
     returns: {
       type: Boolean,
       desc: 'whether the call was successful'
+    }
+  },
+
+  // Pub-Sub
+  subscribe: {
+    subdoc: SUBDOC_PUBSUB,
+    desc: `
+Starts a subscription (on WebSockets / IPC / TCP transports) to a particular event. For every event that
+matches the subscription a JSON-RPC notification with event details and subscription ID will be sent to a client.
+
+An example notification received by subscribing to \`newHeads\` event:
+\`\`\`
+{"jsonrpc":"2.0","method":"eth_subscription","params":{"subscription":"0x416d77337e24399d","result":{"difficulty":"0xd9263f42a87",<...>,
+"uncles":[]}}}
+\`\`\`
+
+You can unsubscribe using \`eth_unsubscribe\` RPC method. Subscriptions are also tied to a transport
+connection, disconnecting causes all subscriptions to be canceled.
+    `,
+    params: [
+      {
+        type: String,
+        desc: 'Subscription type: one of `newHeads`, `logs`',
+        example: 'newHeads'
+      },
+      {
+        type: Object,
+        desc: `
+Subscription type-specific parameters. It must be left empty for
+\`newHeads\` and must contain filter object for \`logs\`.
+        `,
+        example: {
+          fromBlock: 'latest',
+          toBlock: 'latest'
+        }
+      }
+    ],
+    returns: {
+      type: String,
+      desc: 'Assigned subscription ID',
+      example: '0x416d77337e24399d'
+    }
+  },
+  unsubscribe: {
+    subdoc: SUBDOC_PUBSUB,
+    desc: 'Unsubscribes from a subscription.',
+    params: [{
+      type: String,
+      desc: 'Subscription ID',
+      example: '0x416d77337e24399d'
+    }],
+    returns: {
+      type: Boolean,
+      desc: 'whether the call was successful',
+      example: true
     }
   }
 });
