@@ -1,5 +1,5 @@
 [root]
-name = "using_queue"
+name = "whisper"
 version = "0.1.0"
 
 [[package]]
@@ -2772,6 +2772,10 @@ dependencies = [
  "winapi 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "winapi-build 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
+
+[[package]]
+name = "using_queue"
+version = "0.1.0"
 
 [[package]]
 name = "utf8-ranges"

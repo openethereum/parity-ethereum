@@ -103,7 +103,7 @@ pub use error::NetworkError;
 pub use stats::NetworkStats;
 pub use session::SessionInfo;
 
-use io::TimerToken;
+pub use io::TimerToken;
 pub use node_table::{is_valid_node_url, NodeId};
 
 const PROTOCOL_VERSION: u32 = 4;

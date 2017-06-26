@@ -1,0 +1,10 @@
+[package]
+name = "whisper"
+version = "0.1.0"
+authors = ["Robert Habermeier <rphmeier@gmail.com>"]
+
+[dependencies]
+ethcore-bigint = { path = "../util/bigint" }
+ethcore-network = { path = "../util/network" }
+parking_lot = "0.4"
+rlp = { path = "../util/rlp" }
