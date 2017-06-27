@@ -20,6 +20,7 @@
 extern crate byteorder;
 extern crate ethcore_bigint as bigint;
 extern crate ethcore_network as network;
+extern crate ordered_float;
 extern crate parking_lot;
 extern crate rand;
 extern crate rlp;

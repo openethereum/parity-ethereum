@@ -16,16 +16,17 @@
 
 //! Whisper messaging system as a DevP2P subprotocol.
 
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{HashMap, HashSet};
+use std::cmp::Ordering;
 use std::fmt;
 use std::sync::mpsc;
 use std::time::{Duration, SystemTime};
 
 use bigint::hash::{H256, H512};
 use network::{HostInfo, NetworkContext, NetworkError, NodeId, PeerId, TimerToken};
+use ordered_float::OrderedFloat;
 use parking_lot::{Mutex, RwLock};
 use rlp::{DecoderError, RlpStream, UntrustedRlp};
-use smallvec::SmallVec;
 
 use message::{Message, Error as MessageError};
 
@@ -90,71 +91,127 @@ impl fmt::Display for Error {
 	}
 }
 
+// sorts by work proved, ascending.
+#[derive(PartialEq, Eq)]
+struct SortedEntry {
+	slab_id: usize,
+	work_proved: OrderedFloat<f64>,
+	expiry: SystemTime,
+}
+
+impl Ord for SortedEntry {
+	fn cmp(&self, other: &SortedEntry) -> Ordering {
+		self.work_proved.cmp(&other.work_proved).reverse()
+	}
+}
+
+impl PartialOrd for SortedEntry {
+	fn partial_cmp(&self, other: &SortedEntry) -> Option<Ordering> {
+		Some(self.cmp(other))
+	}
+}
+
 // stores messages by two metrics: expiry and PoW rating
 struct Messages {
 	slab: ::slab::Slab<Message>,
+	sorted: Vec<SortedEntry>,
 	known: HashSet<H256>,
-	by_expiry: BTreeMap<SystemTime, SmallVec<[usize; 8]>>,
+	cumulative_size: usize,
+	ideal_size: usize,
 }
 
 impl Messages {
-	fn new() -> Self {
+	fn new(ideal_size: usize) -> Self {
 		Messages {
 			slab: ::slab::Slab::with_capacity(0),
+			sorted: Vec::new(),
 			known: HashSet::new(),
-			by_expiry: BTreeMap::new(),
+			cumulative_size: 0,
+			ideal_size: ideal_size,
 		}
 	}
 
 	// reserve space for additional elements.
 	fn reserve(&mut self, additional: usize) {
 		self.slab.reserve_exact(additional);
+		self.sorted.reserve(additional);
 		self.known.reserve(additional);
 	}
 
 
 	// insert a message into the store. for best performance,
 	// call `reserve` before inserting a bunch.
+	//
+	// does not prune low PoW messages. Call `prune`
+	// to do that.
+	//
+	// TODO: consolidate insertion and pruning under-worked
+	// messages with an iterator returned from this method.
 	fn insert(&mut self, message: Message) {
 		if !self.known.insert(message.hash().clone()) { return }
 
 		let expiry = message.expiry();
-		let id = self.slab.insert(message).unwrap_or_else(|message| {
-			self.slab.reserve_exact(1);
-			self.slab.insert(message).expect("just reserved space; qed")
-		});
+		let work_proved = OrderedFloat(message.work_proved());
 
-		self.by_expiry.entry(expiry)
-			.or_insert_with(|| SmallVec::new())
-			.push(id);
+		self.cumulative_size += message.encoded_size();
+
+		if !self.slab.has_available() { self.slab.reserve_exact(1) }
+		let id = self.slab.insert(message).expect("just ensured enough space in slab; qed");
+
+		let sorted_entry = SortedEntry {
+			slab_id: id,
+			work_proved: work_proved,
+			expiry: expiry,
+		};
+
+		match self.sorted.binary_search(&sorted_entry) {
+			Ok(idx) | Err(idx) => self.sorted.insert(idx, sorted_entry),
+		}
 	}
 
-	// prune expired messages.
-	fn prune_expired(&mut self, now: &SystemTime) -> Vec<Message> {
-		let mut expired_times = Vec::new();
-		let mut expired_messages = Vec::new();
+	// prune expired messages, and then prune low proof-of-work messages
+	// until below ideal size.
+	fn prune(&mut self, now: SystemTime) -> Vec<Message> {
+		let mut messages = Vec::new();
 
 		{
-			let expired = self.by_expiry.iter()
-				.take_while(|&(time, _)| time <= now)
-				.flat_map(|(time, v)| {
-					expired_times.push(*time);
-					v.iter().cloned()
-				});
+			let slab = &mut self.slab;
+			let known = &mut self.known;
+			let cumulative_size = &mut self.cumulative_size;
+			let ideal_size = &self.ideal_size;
 
-			for expired_id in expired {
-				let message = self.slab.remove(expired_id).expect("only live ids are kept; qed");
-				self.known.remove(message.hash());
+			// first pass, we look just at expired entries.
+			let all_expired = self.sorted.iter()
+				.filter(|entry| entry.expiry <= now)
+				.map(|x| (true, x));
 
-				expired_messages.push(message);
+			// second pass, we look at entries which aren't expired but in order
+			let low_proof = self.sorted.iter()
+				.filter(|entry| entry.expiry > now)
+				.map(|x| (false, x));
+
+			for (is_expired, entry) in all_expired.chain(low_proof) {
+				// break once we've removed all expired entries
+				// or have taken enough low-work entries.
+				if !is_expired && *cumulative_size <= *ideal_size {
+					break
+				}
+
+				let message = slab.remove(entry.slab_id)
+					.expect("references to ID kept upon creation; only destroyed upon removal; qed");
+
+				known.remove(message.hash());
+
+				*cumulative_size -= message.encoded_size();
+				messages.push(message);
 			}
 		}
 
-		for expired_time in expired_times {
-			self.by_expiry.remove(&expired_time);
-		}
+		// clear all the sorted entries we removed from slab.
+		let slab = &self.slab;
+		self.sorted.retain(|entry| slab.contains(entry.slab_id));
 
-		expired_messages
+		messages
 	}
 
 	fn iter(&self) -> ::slab::Iter<Message, usize> {
@@ -221,13 +278,13 @@ pub struct Handler {
 // public API.
 impl Handler {
 	/// Create a new network handler.
-	pub fn new() -> Self {
+	pub fn new(messages_size_bytes: usize) -> Self {
 		let (tx, rx) = mpsc::channel();
 
 		Handler {
 			incoming: Mutex::new(rx),
 			async_sender: Mutex::new(tx),
-			messages: Mutex::new(Messages::new()),
+			messages: Mutex::new(Messages::new(messages_size_bytes)),
 			peers: RwLock::new(HashMap::new()),
 			node_key: RwLock::new(Default::default()),
 		}
@@ -255,7 +312,7 @@ impl Handler {
 		}
 
 		let now = SystemTime::now();
-		let pruned_messages = messages.prune_expired(&now);
+		let pruned_messages = messages.prune(now);
 
 		let peers = self.peers.read();
 

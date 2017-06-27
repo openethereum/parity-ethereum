@@ -8,6 +8,7 @@ byteorder = "1.0.0"
 ethcore-bigint = { path = "../util/bigint" }
 ethcore-network = { path = "../util/network" }
 log = "0.3"
+ordered-float = "0.5"
 parking_lot = "0.4"
 rand = "0.3"
 rlp = { path = "../util/rlp" }
