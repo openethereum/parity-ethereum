@@ -18,11 +18,24 @@ import BigNumber from 'bignumber.js';
 import { handleActions } from 'redux-actions';
 
 const DEFAULT_NETCHAIN = '(unknown)';
+const DEFAULT_STATUS = 'needsAttention';
 const initialState = {
   blockNumber: new BigNumber(0),
   blockTimestamp: new Date(),
   clientVersion: '',
   gasLimit: new BigNumber(0),
+  health: {
+    peers: {
+      status: DEFAULT_STATUS,
+    },
+    sync: {
+      status: DEFAULT_STATUS,
+    },
+    time: {
+      status: DEFAULT_STATUS,
+    },
+    overall: DEFAULT_STATUS
+  },
   netChain: DEFAULT_NETCHAIN,
   netPeers: {
     active: new BigNumber(0),

@@ -195,13 +195,16 @@ export default class Status {
 
     const statusPromises = [
       this._api.eth.syncing(),
-      this._api.parity.netPeers()
+      this._api.parity.netPeers(),
+      this._fetchHealth(),
     ];
 
     return Promise
       .all(statusPromises)
-      .then(([ syncing, netPeers ]) => {
-        const status = { netPeers, syncing };
+      .then(([ syncing, netPeers, health ]) => {
+        const status = { netPeers, syncing, health };
+
+        health.overall = this._overallStatus(health);
 
         if (!isEqual(status, this._status)) {
           this._store.dispatch(statusCollection(status));
@@ -214,6 +217,19 @@ export default class Status {
       .then(() => {
         nextTimeout();
       });
+  }
+
+  _overallStatus = (health) => {
+    const statuses = [health.peers, health.sync, health.time].map(x => x.status);
+    const bad = statuses.find(x => 'bad');
+    const needsAttention = statuses.find(x => 'needsAttention');
+
+    return bad || needsAttention || 'ok';
+  }
+
+  _fetchHealth = () => {
+    const uiUrl = this._api.transport.uiUrl || '';
+    return fetch(`${uiUrl}/api/health`).then(res => res.json());
   }
 
   /**
