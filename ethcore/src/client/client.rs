@@ -1702,6 +1702,32 @@ impl MiningBlockChainClient for Client {
 		open_block
 	}
 
+	fn reopen_block(&self, block: ClosedBlock) -> OpenBlock {
+		let engine = &*self.engine;
+		let mut block = block.reopen(engine);
+		let max_uncles = engine.maximum_uncle_count();
+		if block.uncles().len() < max_uncles {
+			let chain = self.chain.read();
+			let h = chain.best_block_hash();
+			// Add new uncles
+			let uncles = chain
+				.find_uncle_headers(&h, engine.maximum_uncle_age())
+				.unwrap_or_else(Vec::new);
+
+			for uncle in uncles {
+				if !block.uncles().iter().any(|header| header.hash() == uncle.hash()) {
+					block.push_uncle(uncle).expect("pushing up to maximum_uncle_count;
+												push_uncle is not ok only if more than maximum_uncle_count is pushed;
+												so all push_uncle are Ok;
+												qed");
+					if block.uncles().len() >= max_uncles { break }
+				}
+			}
+
+		}
+		block
+	}
+
 	fn vm_factory(&self) -> &EvmFactory {
 		&self.factories.vm
 	}
