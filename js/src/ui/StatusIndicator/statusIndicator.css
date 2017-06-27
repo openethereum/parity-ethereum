@@ -33,7 +33,7 @@
   background-image: radial-gradient(ellipse at top, rgba(255, 255, 255, 0.38) 0%, rgba(255, 255, 255, 0) 100%);
 
   &.ok {
-    background-color: #080;
+    background-color: #070;
   }
   &.bad {
     background-color: #c00;
