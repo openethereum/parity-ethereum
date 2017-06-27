@@ -35,8 +35,6 @@ use dir::Directories;
 use user_defaults::UserDefaults;
 use fdlimit;
 
-use io::PanicHandler;
-
 /// Kinds of snapshot commands.
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Kind {
@@ -133,10 +131,7 @@ fn restore_using<R: SnapshotReader>(snapshot: Arc<SnapshotService>, reader: &R, 
 
 impl SnapshotCommand {
 	// shared portion of snapshot commands: start the client service
-	fn start_service(self) -> Result<(ClientService, Arc<PanicHandler>), String> {
-		// Setup panic handler
-		let panic_handler = PanicHandler::new_in_arc();
-
+	fn start_service(self) -> Result<ClientService, String> {
 		// load spec file
 		let spec = self.spec.spec()?;
 
@@ -196,12 +191,12 @@ impl SnapshotCommand {
 			Arc::new(Miner::with_spec(&spec))
 		).map_err(|e| format!("Client service error: {:?}", e))?;
 
-		Ok((service, panic_handler))
+		Ok(service)
 	}
 	/// restore from a snapshot
 	pub fn restore(self) -> Result<(), String> {
 		let file = self.file_path.clone();
-		let (service, _panic_handler) = self.start_service()?;
+		let service = self.start_service()?;
 
 		warn!("Snapshot restoration is experimental and the format may be subject to change.");
 		warn!("On encountering an unexpected error, please ensure that you have a recent snapshot.");
@@ -236,7 +231,7 @@ impl SnapshotCommand {
 		let file_path = self.file_path.clone().ok_or("No file path provided.".to_owned())?;
 		let file_path: PathBuf = file_path.into();
 		let block_at = self.block_at;
-		let (service, _panic_handler) = self.start_service()?;
+		let service = self.start_service()?;
 
 		warn!("Snapshots are currently experimental. File formats may be subject to change.");
 

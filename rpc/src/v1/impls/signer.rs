@@ -245,8 +245,8 @@ impl<D: Dispatcher + 'static> Signer for SignerClient<D> {
 			.map_err(|e| errors::token(e))
 	}
 
-	fn generate_web_proxy_token(&self) -> Result<String, Error> {
-		Ok(self.signer.generate_web_proxy_access_token())
+	fn generate_web_proxy_token(&self, domain: String) -> Result<String, Error> {
+		Ok(self.signer.generate_web_proxy_access_token(domain.into()))
 	}
 
 	fn subscribe_pending(&self, _meta: Self::Metadata, sub: Subscriber<Vec<ConfirmationRequest>>) {

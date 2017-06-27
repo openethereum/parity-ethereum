@@ -62,15 +62,16 @@ describe('views/Web/Store', () => {
     describe('gotoUrl', () => {
       it('uses the nextUrl when none specified', () => {
         store.setNextUrl('https://parity.io');
-        store.gotoUrl();
 
-        expect(store.currentUrl).to.equal('https://parity.io');
+        return store.gotoUrl().then(() => {
+          expect(store.currentUrl).to.equal('https://parity.io');
+        });
       });
 
       it('adds https when no protocol', () => {
-        store.gotoUrl('google.com');
-
-        expect(store.currentUrl).to.equal('https://google.com');
+        return store.gotoUrl('google.com').then(() => {
+          expect(store.currentUrl).to.equal('https://google.com');
+        });
       });
     });
 
