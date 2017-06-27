@@ -167,7 +167,7 @@ impl HeapSizeOf for Cache {
 			+ self.bodies.current_size()
 			+ self.receipts.current_size()
 			+ self.chain_score.current_size()
-			// + corpus?
+			// TODO: + corpus
 	}
 }
 
