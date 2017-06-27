@@ -22,7 +22,7 @@ use std::time::{self, SystemTime, Duration};
 use bigint::hash::{H256, H512};
 use rlp::{self, DecoderError, RlpStream, UntrustedRlp};
 use smallvec::SmallVec;
-use tiny_keccak::keccak256;
+use tiny_keccak::Keccak;
 
 /// Work-factor proved. Takes 3 parameters: size of message, time to live,
 /// and hash.
@@ -34,7 +34,7 @@ pub fn work_factor_proved(size: u64, ttl: u64, hash: H256) -> f64 {
 	let leading_zeros = hash.0.iter().take_while(|&&x| x == 0).count();
 	let spacetime = size as f64 * ttl as f64;
 
-	(1u64 << ::std::cmp::min(leading_zeros, 64)) as f64 / spacetime
+	(1u64 << leading_zeros) as f64 / spacetime
 }
 
 /// A topic of a message.
@@ -122,13 +122,39 @@ impl fmt::Display for Error {
 }
 
 // Raw envelope struct.
-#[derive(Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Envelope {
 	expiry: u64,
 	ttl: u64,
 	topics: SmallVec<[Topic; 4]>,
 	data: Vec<u8>,
 	nonce: u64,
+}
+
+impl Envelope {
+	fn proving_hash(&self) -> H256 {
+		use byteorder::{BigEndian, ByteOrder};
+
+		let mut buf = [0; 32];
+
+		let mut stream = RlpStream::new_list(4);
+		stream.append(&self.expiry)
+			.append(&self.ttl)
+			.append_list(&self.topics)
+			.append(&self.data);
+
+		let mut digest = Keccak::new_keccak256();
+		digest.update(&*stream.drain());
+		digest.update(&{
+			let mut nonce_bytes = [0u8; 8];
+			BigEndian::write_u64(&mut nonce_bytes, self.nonce);
+
+			nonce_bytes
+		});
+
+		digest.finalize(&mut buf);
+		H256(buf)
+	}
 }
 
 impl rlp::Encodable for Envelope {
@@ -156,8 +182,21 @@ impl rlp::Decodable for Envelope {
 	}
 }
 
+/// Message creation parameters.
+/// Pass this to `Message::create` to make a message.
+pub struct CreateParams {
+	/// time-to-live in seconds.
+	pub ttl: u64,
+	/// payload data.
+	pub payload: Vec<u8>,
+	/// Topics.
+	pub topics: Vec<Topic>,
+	/// How many milliseconds to spend proving work.
+	pub work: u64,
+}
+
 /// A whisper message.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct Message {
 	envelope: Envelope,
 	bloom: H512,
@@ -166,18 +205,95 @@ pub struct Message {
 }
 
 impl Message {
+	/// Create a message from creation parameters.
+	/// Panics if TTL is 0.
+	pub fn create(params: CreateParams) -> Self {
+		use byteorder::{BigEndian, ByteOrder};
+		use rand::{Rng, SeedableRng, XorShiftRng};
+
+		let mut rng = {
+			let mut thread_rng = ::rand::thread_rng();
+
+			XorShiftRng::from_seed(thread_rng.gen::<[u32; 4]>())
+		};
+
+		assert!(params.ttl > 0);
+
+		let expiry = {
+			let after_mining = SystemTime::now() + Duration::from_millis(params.work);
+			let since_epoch = after_mining.duration_since(time::UNIX_EPOCH)
+				.expect("time after now is after unix epoch; qed");
+
+			// round up the sub-second to next whole second.
+			since_epoch.as_secs() + if since_epoch.subsec_nanos() == 0 { 0 } else { 1 }
+		};
+
+		let start_digest = {
+			let mut stream = RlpStream::new_list(4);
+			stream.append(&expiry)
+				.append(&params.ttl)
+				.append_list(&params.topics)
+				.append(&params.payload);
+
+			let mut digest = Keccak::new_keccak256();
+			digest.update(&*stream.drain());
+			digest
+		};
+
+		let mut buf = [0; 32];
+		let mut try_nonce = move |nonce: &[u8; 8]| {
+			let mut digest = start_digest.clone();
+			digest.update(&nonce[..]);
+			digest.finalize(&mut buf[..]);
+
+			buf.clone()
+		};
+
+		let mut nonce: [u8; 8] = rng.gen();
+		let mut best_found = try_nonce(&nonce);
+
+		let start = ::time::precise_time_ns();
+
+		while ::time::precise_time_ns() <= start + params.work * 1_000_000 {
+			let temp_nonce = rng.gen();
+			let hash = try_nonce(&temp_nonce);
+
+			if hash < best_found {
+				nonce = temp_nonce;
+				best_found = hash;
+			}
+		}
+
+		let envelope = Envelope {
+			expiry: expiry,
+			ttl: params.ttl,
+			topics: params.topics.into_iter().collect(),
+			data: params.payload,
+			nonce: BigEndian::read_u64(&nonce[..]),
+		};
+
+		debug_assert_eq!(H256(best_found.clone()), envelope.proving_hash());
+
+		let encoded = ::rlp::encode(&envelope);
+
+		Message::from_components(
+			envelope,
+			encoded.len(),
+			SystemTime::now(),
+		).expect("Message generated here known to be valid; qed")
+	}
+
 	/// Decode message from RLP and check for validity against system time.
 	pub fn decode(rlp: UntrustedRlp, now: SystemTime) -> Result<Self, Error> {
 		let envelope: Envelope = rlp.as_val()?;
-		let hash = H256(keccak256(rlp.as_raw()));
 		let encoded_size = rlp.as_raw().len();
 
-		Message::create(envelope, hash, encoded_size, now)
+		Message::from_components(envelope, encoded_size, now)
 	}
 
 	// create message from envelope, hash, and encoded size.
 	// does checks for validity.
-	fn create(envelope: Envelope, hash: H256, size: usize, now: SystemTime)
+	fn from_components(envelope: Envelope, size: usize, now: SystemTime)
 		-> Result<Self, Error>
 	{
 		const LEEWAY_SECONDS: u64 = 2;
@@ -196,10 +312,12 @@ impl Message {
 			topic.bloom_into(&mut bloom);
 		}
 
+		let proving_hash = envelope.proving_hash();
+
 		Ok(Message {
 			envelope: envelope,
 			bloom: bloom,
-			hash: hash,
+			hash: proving_hash,
 			encoded_size: size,
 		})
 	}
@@ -214,7 +332,8 @@ impl Message {
 		self.encoded_size
 	}
 
-	/// Get the hash of the envelope RLP.
+	/// Get a uniquely identifying hash for the message.
+	/// This is not equal to `sha3(rlp(message))
 	pub fn hash(&self) -> &H256 {
 		&self.hash
 	}
@@ -235,3 +354,91 @@ impl Message {
 	}
 }
 
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use std::time::{self, Duration, SystemTime};
+	use rlp::UntrustedRlp;
+
+	fn unix_time(x: u64) -> SystemTime {
+		time::UNIX_EPOCH + Duration::from_secs(x)
+	}
+
+	#[test]
+	fn create_message() {
+		let _ = Message::create(CreateParams {
+			ttl: 100,
+			payload: vec![1, 2, 3, 4],
+			topics: Vec::new(),
+			work: 50,
+		});
+	}
+
+	#[test]
+	fn round_trip() {
+		let envelope = Envelope {
+			expiry: 100_000,
+			ttl: 30,
+			data: vec![9; 256],
+			topics: Default::default(),
+			nonce: 1010101,
+		};
+
+		let encoded = ::rlp::encode(&envelope);
+		let decoded = ::rlp::decode(&encoded);
+
+		assert_eq!(envelope, decoded)
+	}
+
+	#[test]
+	fn passes_checks() {
+		let envelope = Envelope {
+			expiry: 100_000,
+			ttl: 30,
+			data: vec![9; 256],
+			topics: Default::default(),
+			nonce: 1010101,
+		};
+
+		let encoded = ::rlp::encode(&envelope);
+
+		for i in 0..30 {
+			let now = unix_time(100_000 - i);
+			Message::decode(UntrustedRlp::new(&*encoded), now).unwrap();
+		}
+	}
+
+	#[test]
+	#[should_panic]
+	fn future_message() {
+		let envelope = Envelope {
+			expiry: 100_000,
+			ttl: 30,
+			data: vec![9; 256],
+			topics: Default::default(),
+			nonce: 1010101,
+		};
+
+		let encoded = ::rlp::encode(&envelope);
+
+		let now = unix_time(100_000 - 1_000);
+		Message::decode(UntrustedRlp::new(&*encoded), now).unwrap();
+	}
+
+	#[test]
+	#[should_panic]
+	fn pre_epoch() {
+		let envelope = Envelope {
+			expiry: 100_000,
+			ttl: 200_000,
+			data: vec![9; 256],
+			topics: Default::default(),
+			nonce: 1010101,
+		};
+
+		let encoded = ::rlp::encode(&envelope);
+
+		let now = unix_time(95_000);
+		Message::decode(UntrustedRlp::new(&*encoded), now).unwrap();
+	}
+}

@@ -4,11 +4,14 @@ version = "0.1.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
+byteorder = "1.0.0"
 ethcore-bigint = { path = "../util/bigint" }
 ethcore-network = { path = "../util/network" }
 log = "0.3"
 parking_lot = "0.4"
+rand = "0.3"
 rlp = { path = "../util/rlp" }
 slab = "0.3"
 smallvec = "0.4"
+time = "0.1"
 tiny-keccak = "1.2.1"

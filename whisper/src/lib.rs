@@ -17,12 +17,15 @@
 //! Whisper P2P messaging system as a DevP2P subprotocol, with RPC and Rust
 //! interface.
 
+extern crate byteorder;
 extern crate ethcore_bigint as bigint;
 extern crate ethcore_network as network;
 extern crate parking_lot;
+extern crate rand;
 extern crate rlp;
 extern crate slab;
 extern crate smallvec;
+extern crate time;
 extern crate tiny_keccak;
 
 #[macro_use]
