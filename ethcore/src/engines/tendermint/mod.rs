@@ -493,8 +493,8 @@ impl Engine for Tendermint {
 		let seal_length = header.seal().len();
 		if seal_length == self.seal_fields() {
 			// Either proposal or commit.
-			if (header.seal()[1] == ::rlp::NULL_RLP.to_vec())
-				!= (header.seal()[2] == ::rlp::EMPTY_LIST_RLP.to_vec()) {
+			if (header.seal()[1] == ::rlp::NULL_RLP)
+				!= (header.seal()[2] == ::rlp::EMPTY_LIST_RLP) {
 				Ok(())
 			} else {
 				warn!(target: "engine", "verify_block_basic: Block is neither a Commit nor Proposal.");
