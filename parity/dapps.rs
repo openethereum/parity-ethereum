@@ -138,6 +138,7 @@ impl ContractClient for LightRegistrar {
 #[derive(Clone)]
 pub struct Dependencies {
 	pub sync_status: Arc<SyncStatus>,
+	pub peer_count: Arc<PeerCount>,
 	pub contract_client: Arc<ContractClient>,
 	pub remote: parity_reactor::TokioRemote,
 	pub fetch: FetchClient,
@@ -169,7 +170,7 @@ pub fn new_ui(enabled: bool, deps: Dependencies) -> Result<Option<Middleware>, S
 	).map(Some)
 }
 
-pub use self::server::{SyncStatus, Middleware, service};
+pub use self::server::{SyncStatus, Middleware, PeerCount, service};
 
 #[cfg(not(feature = "dapps"))]
 mod server {
@@ -180,6 +181,7 @@ mod server {
 	use rpc_apis;
 
 	pub type SyncStatus = Fn() -> bool;
+	pub type PeerCount = Fn() -> usize;
 
 	pub struct Middleware;
 	impl RequestMiddleware for Middleware {
@@ -222,6 +224,7 @@ mod server {
 	use parity_reactor;
 
 	pub use parity_dapps::Middleware;
+	pub use parity_dapps::PeerCount;
 	pub use parity_dapps::SyncStatus;
 
 	pub fn dapps_middleware(
@@ -242,6 +245,7 @@ mod server {
 			dapps_domain,
 			deps.contract_client,
 			deps.sync_status,
+			deps.peer_count,
 			web_proxy_tokens,
 			deps.fetch,
 		))
@@ -256,6 +260,7 @@ mod server {
 			parity_remote,
 			deps.contract_client,
 			deps.sync_status,
+			deps.peer_count,
 			deps.fetch,
 			dapps_domain,
 		))

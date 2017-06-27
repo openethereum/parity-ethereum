@@ -164,7 +164,7 @@ impl ::local_store::NodeInfo for FullNodeInfo {
 // helper for light execution.
 fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> Result<(bool, Option<String>), String> {
 	use light::client as light_client;
-	use ethsync::{LightSyncParams, LightSync, ManageNetwork};
+	use ethsync::{LightSyncParams, LightSyncProvider, LightSync, ManageNetwork};
 	use util::RwLock;
 
 	// load spec
@@ -275,9 +275,11 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 			on_demand: on_demand.clone(),
 		});
 
-		let sync = light_sync.clone();
+		let sync_s = light_sync.clone();
+		let sync_p = light_sync.clone();
 		dapps::Dependencies {
-			sync_status: Arc::new(move || sync.is_major_importing()),
+			sync_status: Arc::new(move || sync_s.is_major_importing()),
+			peer_count: Arc::new(move || sync_p.peers().len()),
 			contract_client: contract_client,
 			remote: event_loop.raw_remote(),
 			fetch: fetch.clone(),
@@ -611,11 +613,14 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 
 	// the dapps server
 	let dapps_deps = {
-		let (sync, client) = (sync_provider.clone(), client.clone());
+		let client = client.clone();
 		let contract_client = Arc::new(::dapps::FullRegistrar { client: client.clone() });
 
+		let sync_s = sync_provider.clone();
+		let sync_p = sync_provider.clone();
 		dapps::Dependencies {
-			sync_status: Arc::new(move || is_major_importing(Some(sync.status().state), client.queue_info())),
+			sync_status: Arc::new(move || is_major_importing(Some(sync_s.status().state), client.queue_info())),
+			peer_count: Arc::new(move || sync_p.peers().len()),
 			contract_client: contract_client,
 			remote: event_loop.raw_remote(),
 			fetch: fetch.clone(),
