@@ -103,6 +103,8 @@ fn insert<T : WebApp + Default + 'static>(pages: &mut BTreeMap<String, Box<Endpo
 		Embeddable::Yes(address) => PageEndpoint::new_safe_to_embed(T::default(), address),
 		Embeddable::No => PageEndpoint::new(T::default()),
 	}));
+
+	println!("pages: {:?}", pages);
 }
 
 enum Embeddable {
