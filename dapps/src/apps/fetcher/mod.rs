@@ -271,6 +271,7 @@ mod tests {
 	use endpoint::EndpointInfo;
 	use page::LocalPageEndpoint;
 	use super::{ContentFetcher, Fetcher};
+	use {SyncStatus};
 
 	#[derive(Clone)]
 	struct FakeResolver;
@@ -280,11 +281,17 @@ mod tests {
 		}
 	}
 
+	struct FakeSync(bool);
+	impl SyncStatus for FakeSync {
+		fn is_major_importing(&self) -> bool { self.0 }
+		fn peers(&self) -> (usize, usize) { (0, 5) }
+	}
+
 	#[test]
 	fn should_true_if_contains_the_app() {
 		// given
 		let path = env::temp_dir();
-		let fetcher = ContentFetcher::new(FakeResolver, Arc::new(|| false), Remote::new_sync(), Client::new().unwrap())
+		let fetcher = ContentFetcher::new(FakeResolver, Arc::new(FakeSync(false)), Remote::new_sync(), Client::new().unwrap())
 			.allow_dapps(true);
 		let handler = LocalPageEndpoint::new(path, EndpointInfo {
 			name: "fake".into(),
