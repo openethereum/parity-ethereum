@@ -1711,11 +1711,12 @@ impl MiningBlockChainClient for Client {
 			let h = chain.best_block_hash();
 			// Add new uncles
 			let uncles = chain
-				.find_uncle_headers(&h, engine.maximum_uncle_age())
+				.find_uncle_hashes(&h, engine.maximum_uncle_age())
 				.unwrap_or_else(Vec::new);
 
-			for uncle in uncles {
-				if !block.uncles().iter().any(|header| header.hash() == uncle.hash()) {
+			for h in uncles {
+				if !block.uncles().iter().any(|header| header.hash() == h) {
+					let uncle = chain.block_header(&h).expect("find_uncle_hashes only returns hashes for existing headers; qed");
 					block.push_uncle(uncle).expect("pushing up to maximum_uncle_count;
 												push_uncle is not ok only if more than maximum_uncle_count is pushed;
 												so all push_uncle are Ok;
