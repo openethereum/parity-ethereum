@@ -220,11 +220,15 @@ export default class Status {
   }
 
   _overallStatus = (health) => {
-    const statuses = [health.peers, health.sync, health.time].map(x => x.status);
-    const bad = statuses.find(x => 'bad');
-    const needsAttention = statuses.find(x => 'needsAttention');
+    const all = [health.peers, health.sync, health.time];
+    const statuses = all.map(x => x.status);
+    const bad = statuses.find(x => x === 'bad');
+    const needsAttention = statuses.find(x => x === 'needsAttention');
 
-    return bad || needsAttention || 'ok';
+    return {
+      status: bad || needsAttention || 'ok',
+      message: all.map(x => x.message).filter(x => x).join('\n')
+    };
   }
 
   _fetchHealth = () => {

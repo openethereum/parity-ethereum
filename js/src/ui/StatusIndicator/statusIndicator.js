@@ -40,14 +40,14 @@ export default class StatusIndicator extends Component {
     return (
       <span className={ styles.status }>
         <span className={ `${styles[type]} ${styles[status]}` }
-          data-tip
+          data-tip={ title }
           data-for={ `status-${id}` }
           data-effect='solid'
         >
           { type === 'signal' && statuses.map(this.renderBar) }
         </span>
         <ReactTooltip id={ `status-${id}` }>
-          { title || 'All OK' }
+          { title }
         </ReactTooltip>
       </span>
     );

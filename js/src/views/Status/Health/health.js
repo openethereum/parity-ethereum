@@ -103,6 +103,7 @@ class Health extends Component {
             </div>
             <div className={ grid.col4 }>
               <HealthItem
+                id='status.health.time'
                 title={<FormattedMessage
                   id='status.health.time'
                   defaultMessage='Time Synchronized'

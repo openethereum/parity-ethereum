@@ -19,6 +19,7 @@
   display: inline-block;
   vertical-align: middle;
 }
+
 .radial,.signal {
   display: inline-block;
   margin: .2em;
@@ -29,7 +30,6 @@
 .radial {
   border-radius: 100%;
   border-top: 1px solid rgba(255, 255, 255, 0.5);
-  box-shadow: 0 0 3px rgba(0, 0, 0, 0.8);
   background-image: radial-gradient(ellipse at top, rgba(255, 255, 255, 0.38) 0%, rgba(255, 255, 255, 0) 100%);
 
   &.ok {
@@ -46,6 +46,10 @@
 .signal {
   width: 2em;
   width: calc(.9em + 5px);
+  text-transform: initial;
+  vertical-align: bottom;
+  margin-top: -1em;
+
   > .bar {
     display: inline-block;
     border: 1px solid #444;
@@ -53,7 +57,8 @@
     width: .3em;
     height: 1em;
     opacity: 0.7;
-    background-color: #000;
+    background-color: rgba(0, 0, 0, 0.6);
+    vertical-align: bottom;
 
     &.active {
       opacity: 1.0;

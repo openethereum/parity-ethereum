@@ -26,6 +26,8 @@ import DappsStore from '../Dapps/dappsStore';
 import ExtensionStore from '../Application/Extension/store';
 import WebStore from '../Web/store';
 
+import Title from '../Title';
+
 import Accounts from './Accounts';
 import Dapps from './Dapps';
 import News from './News';
@@ -65,10 +67,12 @@ class Home extends Component {
       <Page
         className={ styles.body }
         title={
-          <FormattedMessage
-            id='home.title'
-            defaultMessage='Parity Home'
-          />
+          <Title>
+            <FormattedMessage
+              id='home.title'
+              defaultMessage='Parity Home'
+            />
+          </Title>
         }
       >
         <News />

@@ -29,6 +29,7 @@ import { Actionbar, ActionbarSearch, ActionbarSort, Button, Page, Tooltip } from
 import { AddIcon, KeyIcon, FileDownloadIcon } from '~/ui/Icons';
 import { setVisibleAccounts } from '~/redux/providers/personalActions';
 
+import Title from '../Title';
 import List from './List';
 import styles from './accounts.css';
 
@@ -43,6 +44,7 @@ class Accounts extends Component {
     accountsInfo: PropTypes.object.isRequired,
     availability: PropTypes.string.isRequired,
     hasAccounts: PropTypes.bool.isRequired,
+    health: PropTypes.object.isRequired,
     setVisibleAccounts: PropTypes.func.isRequired
   }
 
@@ -293,10 +295,12 @@ class Accounts extends Component {
       <Actionbar
         className={ styles.toolbar }
         title={
-          <FormattedMessage
-            id='accounts.title'
-            defaultMessage='Accounts Overview'
-          />
+          <Title>
+            <FormattedMessage
+              id='accounts.title'
+              defaultMessage='Accounts Overview'
+            />
+          </Title>
         }
         buttons={ buttons }
       >
@@ -496,12 +500,14 @@ class Accounts extends Component {
 function mapStateToProps (state) {
   const { accounts, accountsInfo, hasAccounts } = state.personal;
   const { availability = 'unknown' } = state.nodeStatus.nodeKind || {};
+  const { health } = state.nodeStatus;
 
   return {
     accounts,
     accountsInfo,
     availability,
-    hasAccounts
+    hasAccounts,
+    health
   };
 }
 

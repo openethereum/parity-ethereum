@@ -14,30 +14,38 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component } from 'react';
-import { FormattedMessage } from 'react-intl';
+import React, { PropTypes } from 'react';
+import { connect } from 'react-redux';
 
-import { Actionbar } from '~/ui';
-import RequestsPage from './containers/RequestsPage';
+import { StatusIndicator } from '~/ui';
 
-import Title from '../Title';
+import styles from './title.css';
 
-export default class Signer extends Component {
-  render () {
-    return (
-      <div>
-        <Actionbar
-          title={
-            <Title>
-              <FormattedMessage
-                id='signer.title'
-                defaultMessage='Trusted Signer'
-              />
-            </Title>
-          }
-        />
-        <RequestsPage />
-      </div>
-    );
-  }
+const Title = ({ health, children }) => (
+  <span className={ styles.title }>
+    <StatusIndicator
+      type='signal'
+      id='title.health'
+      status={ health.overall.status }
+      title={ health.overall.message }
+    />
+    { children  }
+  </span>
+);
+Title.propTypes = {
+  health: PropTypes.object.isRequired,
+  children: PropTypes.node.isRequired
+};
+
+function mapStateToProps (state) {
+  const { health } = state.nodeStatus;
+
+  return {
+    health
+  };
 }
+
+export default connect(
+  mapStateToProps,
+  null
+)(Title);

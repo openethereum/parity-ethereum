@@ -26,6 +26,8 @@ import PermissionStore from '~/modals/DappPermissions/store';
 import { Actionbar, Button, DappCard, Page, SectionList } from '~/ui';
 import { LockedIcon, VisibleIcon } from '~/ui/Icons';
 
+import Title from '../Title';
+
 import DappsStore from './dappsStore';
 
 import styles from './dapps.css';
@@ -84,10 +86,12 @@ class Dapps extends Component {
         <Actionbar
           className={ styles.toolbar }
           title={
-            <FormattedMessage
-              id='dapps.label'
-              defaultMessage='Decentralized Applications'
-            />
+            <Title>
+              <FormattedMessage
+                id='dapps.label'
+                defaultMessage='Decentralized Applications'
+              />
+            </Title>
           }
           buttons={ [
             <Button

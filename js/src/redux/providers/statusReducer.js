@@ -26,15 +26,17 @@ const initialState = {
   gasLimit: new BigNumber(0),
   health: {
     peers: {
-      status: DEFAULT_STATUS,
+      status: DEFAULT_STATUS
     },
     sync: {
-      status: DEFAULT_STATUS,
+      status: DEFAULT_STATUS
     },
     time: {
-      status: DEFAULT_STATUS,
+      status: DEFAULT_STATUS
     },
-    overall: DEFAULT_STATUS
+    overall: {
+      status: DEFAULT_STATUS
+    }
   },
   netChain: DEFAULT_NETCHAIN,
   netPeers: {

@@ -23,6 +23,7 @@ import ImageRemoveRedEye from 'material-ui/svg-icons/image/remove-red-eye';
 
 import { Actionbar, Page } from '~/ui';
 import imagesEthcoreBlock from '../../../assets/images/parity-logo-white-no-text.svg';
+import Title from '../Title';
 
 import styles from './settings.css';
 
@@ -50,7 +51,9 @@ export default class Settings extends Component {
         <Actionbar
           className={ styles.bar }
           title={
-            <FormattedMessage id='settings.label' />
+            <Title>
+              <FormattedMessage id='settings.label' />
+            </Title>
           }
         >
           <Tabs className={ styles.tabs } value={ hash }>
