@@ -19,8 +19,13 @@ import { FormattedMessage } from 'react-intl';
 import ReactMarkdown from 'react-markdown';
 import { Checkbox } from 'material-ui';
 
-import tnc from './tnc.md';
 import styles from '../firstRun.css';
+
+let tnc = '';
+
+if (process.env.NODE_ENV !== 'test') {
+  tnc = require('./tnc.md');
+}
 
 export default class TnC extends Component {
   static propTypes = {
