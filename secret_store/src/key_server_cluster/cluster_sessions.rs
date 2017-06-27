@@ -20,7 +20,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::collections::{VecDeque, BTreeSet, BTreeMap};
 use parking_lot::RwLock;
 use ethkey::{Public, Secret, Signature};
-use key_server_cluster::{Error, NodeId, SessionId, AclStorage, KeyStorage, EncryptedDocumentKeyShadow, SessionMeta};
+use key_server_cluster::{Error, NodeId, SessionId, AclStorage, KeyStorage, DocumentKeyShare, EncryptedDocumentKeyShadow, SessionMeta};
 use key_server_cluster::cluster::{Cluster, ClusterData, ClusterView, ClusterConfiguration};
 use key_server_cluster::message::{self, Message, GenerationMessage, EncryptionMessage, DecryptionMessage, SigningMessage};
 use key_server_cluster::generation_session::{Session as GenerationSession, SessionImpl as GenerationSessionImpl,
@@ -193,15 +193,7 @@ impl ClusterSessions {
 
 	/// Create new encryption session.
 	pub fn new_encryption_session(&self, master: NodeId, session_id: SessionId, cluster: Arc<ClusterView>) -> Result<Arc<EncryptionSessionImpl>, Error> {
-		// some of nodes, which were generating the key may be down
-		// => do not use these in encryption session
-		let mut encrypted_data = self.key_storage.get(&session_id).map_err(|e| Error::KeyStorage(e.into()))?;
-		let disconnected_nodes: BTreeSet<_> = encrypted_data.id_numbers.keys().cloned().collect();
-		let disconnected_nodes: BTreeSet<_> = disconnected_nodes.difference(&cluster.nodes()).cloned().collect();
-		for disconnected_node in disconnected_nodes {
-			encrypted_data.id_numbers.remove(&disconnected_node);
-		}
-
+		let encrypted_data = self.read_key_share(&session_id, &cluster)?;
 		self.encryption_sessions.insert(master, session_id, cluster.clone(), move || EncryptionSessionImpl::new(EncryptionSessionParams {
 			id: session_id.clone(),
 			self_node_id: self.self_node_id.clone(),
@@ -226,15 +218,7 @@ impl ClusterSessions {
 	/// Create new decryption session.
 	pub fn new_decryption_session(&self, master: NodeId, session_id: SessionId, sub_session_id: Secret, cluster: Arc<ClusterView>, requester_signature: Option<Signature>) -> Result<Arc<DecryptionSessionImpl>, Error> {
 		let session_id = DecryptionSessionId::new(session_id, sub_session_id);
-
-		// some of nodes, which were encrypting secret may be down
-		// => do not use these in decryption session
-		let mut encrypted_data = self.key_storage.get(&session_id.id).map_err(|e| Error::KeyStorage(e.into()))?;
-		let disconnected_nodes: BTreeSet<_> = encrypted_data.id_numbers.keys().cloned().collect();
-		let disconnected_nodes: BTreeSet<_> = disconnected_nodes.difference(&cluster.nodes()).cloned().collect();
-		for disconnected_node in disconnected_nodes {
-			encrypted_data.id_numbers.remove(&disconnected_node);
-		}
+		let encrypted_data = self.read_key_share(&session_id.id, &cluster)?;
 
 		self.decryption_sessions.insert(master, session_id.clone(), cluster.clone(), move || DecryptionSessionImpl::new(DecryptionSessionParams {
 			meta: SessionMeta {
@@ -271,15 +255,7 @@ impl ClusterSessions {
 	/// Create new signing session.
 	pub fn new_signing_session(&self, master: NodeId, session_id: SessionId, sub_session_id: Secret, cluster: Arc<ClusterView>, requester_signature: Option<Signature>) -> Result<Arc<SigningSessionImpl>, Error> {
 		let session_id = SigningSessionId::new(session_id, sub_session_id);
-
-		// some of nodes, which were encrypting secret may be down
-		// => do not use these in signing session
-		let mut encrypted_data = self.key_storage.get(&session_id.id).map_err(|e| Error::KeyStorage(e.into()))?;
-		let disconnected_nodes: BTreeSet<_> = encrypted_data.id_numbers.keys().cloned().collect();
-		let disconnected_nodes: BTreeSet<_> = disconnected_nodes.difference(&cluster.nodes()).cloned().collect();
-		for disconnected_node in disconnected_nodes {
-			encrypted_data.id_numbers.remove(&disconnected_node);
-		}
+		let encrypted_data = self.read_key_share(&session_id.id, &cluster)?;
 
 		self.signing_sessions.insert(master, session_id.clone(), cluster.clone(), move || SigningSessionImpl::new(SigningSessionParams {
 			meta: SessionMeta {
@@ -327,6 +303,19 @@ impl ClusterSessions {
 		self.encryption_sessions.on_connection_timeout(node_id);
 		self.decryption_sessions.on_connection_timeout(node_id);
 		self.signing_sessions.on_connection_timeout(node_id);
+	}
+
+	/// Read key share && remove disconnected nodes.
+	fn read_key_share(&self, key_id: &SessionId, cluster: &Arc<ClusterView>) -> Result<DocumentKeyShare, Error> {
+		let mut encrypted_data = self.key_storage.get(key_id).map_err(|e| Error::KeyStorage(e.into()))?;
+
+		// some of nodes, which were encrypting secret may be down
+		// => do not use these in session
+		let disconnected_nodes: BTreeSet<_> = encrypted_data.id_numbers.keys().cloned().collect();
+		for disconnected_node in disconnected_nodes.difference(&cluster.nodes()) {
+			encrypted_data.id_numbers.remove(&disconnected_node);
+		}
+		Ok(encrypted_data)
 	}
 }
 

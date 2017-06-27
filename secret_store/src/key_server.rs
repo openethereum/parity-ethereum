@@ -131,9 +131,9 @@ impl MessageSigner for KeyServerImpl {
 		let message_signature = signing_session.wait()?;
 
 		// compose two message signature components into single one
-		let mut combined_signature: Vec<u8> = Vec::with_capacity(64);
-		combined_signature.extend_from_slice(&**message_signature.0);
-		combined_signature.extend_from_slice(&**message_signature.1);
+		let mut combined_signature = [0; 64];
+		combined_signature[..32].clone_from_slice(&**message_signature.0);
+		combined_signature[32..].clone_from_slice(&**message_signature.1);
 
 		// encrypt combined signature with requestor public key
 		let message_signature = ethcrypto::ecies::encrypt(&public, &ethcrypto::DEFAULT_MAC, &combined_signature)
