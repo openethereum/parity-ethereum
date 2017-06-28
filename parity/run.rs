@@ -227,8 +227,7 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 	}
 
 	// start on_demand service.
-	let account_start_nonce = service.client().engine().account_start_nonce(0);
-	let on_demand = Arc::new(::light::on_demand::OnDemand::new(cache.clone(), account_start_nonce));
+	let on_demand = Arc::new(::light::on_demand::OnDemand::new(cache.clone()));
 
 	// set network path.
 	net_conf.net_config_path = Some(db_dirs.network_path().to_string_lossy().into_owned());
