@@ -68,7 +68,7 @@ class Status extends Component {
         <div>
           <FormattedMessage
             id='application.status.consensus.capable'
-            defaultMessage='Capable'
+            defaultMessage='Upgrade not required.'
           />
         </div>
       );
@@ -79,7 +79,7 @@ class Status extends Component {
         <div>
           <FormattedMessage
             id='application.status.consensus.capableUntil'
-            defaultMessage='Capable until #{blockNumber}'
+            defaultMessage='Upgrade required before #{blockNumber}'
             values={ {
               blockNumber: upgradeStore.consensusCapability.capableUntil
             } }
@@ -93,7 +93,7 @@ class Status extends Component {
         <div>
           <FormattedMessage
             id='application.status.consensus.incapableSince'
-            defaultMessage='Incapable since #{blockNumber}'
+            defaultMessage='Upgrade required since #{blockNumber}'
             values={ {
               blockNumber: upgradeStore.consensusCapability.incapableSince
             } }
@@ -106,7 +106,7 @@ class Status extends Component {
       <div>
         <FormattedMessage
           id='application.status.consensus.unknown'
-          defaultMessage='Unknown capability'
+          defaultMessage='Upgrade status is unknown.'
         />
       </div>
     );
