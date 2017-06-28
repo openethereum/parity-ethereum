@@ -123,7 +123,7 @@ impl Ext for FakeExt {
 			sender_address: None,
 			receive_address: None,
 			value: Some(*value),
-			data: code.to_vec(),
+			data: code.into_vec(),
 			code_address: None
 		});
 		ContractCreateResult::Failed
@@ -146,7 +146,7 @@ impl Ext for FakeExt {
 			sender_address: Some(sender_address.clone()),
 			receive_address: Some(receive_address.clone()),
 			value: value,
-			data: data.to_vec(),
+			data: data.into_vec(),
 			code_address: Some(code_address.clone())
 		});
 		MessageCallResult::Success(*gas, ReturnData::empty())
@@ -163,7 +163,7 @@ impl Ext for FakeExt {
 	fn log(&mut self, topics: Vec<H256>, data: &[u8]) -> evm::Result<()> {
 		self.logs.push(FakeLogEntry {
 			topics: topics,
-			data: data.to_vec()
+			data: data.into_vec()
 		});
 		Ok(())
 	}
@@ -463,7 +463,7 @@ fn test_blockhash_eip210(factory: super::Factory) {
 			value: ActionValue::Transfer(0.into()),
 			code: Some(blockhash_contract_code.clone()),
 			code_hash: blockhash_contract_code_hash,
-			data: Some(H256::from(i - 1).to_vec()),
+			data: Some(H256::from(i - 1).into_vec()),
 			call_type: CallType::Call,
 		};
 		let mut ex = Executive::new(&mut state, &env_info, &engine);

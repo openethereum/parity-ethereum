@@ -317,7 +317,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "elastic-array"
-version = "0.8.0"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "heapsize 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -635,7 +635,7 @@ version = "1.7.0"
 dependencies = [
  "ansi_term 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "clippy 0.0.103 (registry+https://github.com/rust-lang/crates.io-index)",
- "elastic-array 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "elastic-array 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "eth-secp256k1 0.5.6 (git+https://github.com/paritytech/rust-secp256k1)",
  "ethcore-bigint 0.1.3",
@@ -2129,7 +2129,7 @@ name = "rlp"
 version = "0.2.0"
 dependencies = [
  "byteorder 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "elastic-array 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "elastic-array 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore-bigint 0.1.3",
  "lazy_static 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2942,7 +2942,7 @@ dependencies = [
 "checksum docopt 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)" = "ab32ea6e284d87987066f21a9e809a73c14720571ef34516f0890b3d355ccfd8"
 "checksum dtoa 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "5edd69c67b2f8e0911629b7e6b8a34cb3956613cd7c6e6414966dee349c2db4f"
 "checksum either 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)" = "3d2b503c86dad62aaf414ecf2b8c527439abedb3f8d812537f0b12bfd6f32a91"
-"checksum elastic-array 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)" = "561b1b1bb58e6d9212b75a28cca442f8a87cceb35cb1b6d6f39f5df5346a9160"
+"checksum elastic-array 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)" = "258ff6a9a94f648d0379dbd79110e057edbb53eb85cc237e33eadf8e5a30df85"
 "checksum env_logger 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)" = "e3856f1697098606fc6cb97a93de88ca3f3bc35bb878c725920e6e82ecf05e83"
 "checksum eth-secp256k1 0.5.6 (git+https://github.com/paritytech/rust-secp256k1)" = "<none>"
 "checksum ethabi 1.0.5 (registry+https://github.com/rust-lang/crates.io-index)" = "65f71b9ac0b0f8e6230d32dbf5acf7c2c61334af1148175d0a7e72b14c3d475e"

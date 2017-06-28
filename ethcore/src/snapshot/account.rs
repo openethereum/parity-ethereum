@@ -121,7 +121,7 @@ pub fn to_fat_rlps(account_hash: &H256, acc: &BasicAccount, acct_db: &AccountDB,
 						let stream = ::std::mem::replace(&mut account_stream, RlpStream::new_list(2));
 						chunks.push(stream.out());
 						target_chunk_size = max_chunk_size;
-						leftover = Some(pair.to_vec());
+						leftover = Some(pair.into_vec());
 						break;
 					}
 				},
@@ -339,7 +339,7 @@ mod tests {
 		assert_eq!(acc, account2);
 
 		let (acc, maybe_code) = from_fat_rlp(&mut AccountDBMut::new(db.as_hashdb_mut(), &addr1), fat_rlp1, H256::zero()).unwrap();
-		assert_eq!(maybe_code, Some(b"this is definitely code".to_vec()));
+		assert_eq!(maybe_code, Some(b"this is definitely code".into_vec()));
 		assert_eq!(acc, account1);
 	}
 

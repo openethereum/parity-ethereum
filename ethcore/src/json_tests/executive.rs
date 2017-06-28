@@ -118,7 +118,7 @@ impl<'a, T: 'a, V: 'a, B: 'a, E: 'a> Ext for TestExt<'a, T, V, B, E>
 
 	fn create(&mut self, gas: &U256, value: &U256, code: &[u8], address: CreateContractAddress) -> ContractCreateResult {
 		self.callcreates.push(CallCreate {
-			data: code.to_vec(),
+			data: code.into_vec(),
 			destination: None,
 			gas_limit: *gas,
 			value: *value
@@ -138,7 +138,7 @@ impl<'a, T: 'a, V: 'a, B: 'a, E: 'a> Ext for TestExt<'a, T, V, B, E>
 		_call_type: CallType
 	) -> MessageCallResult {
 		self.callcreates.push(CallCreate {
-			data: data.to_vec(),
+			data: data.into_vec(),
 			destination: Some(receive_address.clone()),
 			gas_limit: *gas,
 			value: value.unwrap()

@@ -966,7 +966,7 @@ mod tests {
 				debug!("{:?} of 10000 stress tests done", test_i);
 			}
 			let x = StandardMap {
-				alphabet: Alphabet::Custom(b"@QWERTYUIOPASDFGHJKLZXCVBNM[/]^_".to_vec()),
+				alphabet: Alphabet::Custom(b"@QWERTYUIOPASDFGHJKLZXCVBNM[/]^_".into_vec()),
 				min_key: 5,
 				journal_key: 0,
 				value_mode: ValueMode::Index,
@@ -1026,14 +1026,14 @@ mod tests {
 		let mut memdb = MemoryDB::new();
 		let mut root = H256::new();
 		let mut t1 = TrieDBMut::new(&mut memdb, &mut root);
-		t1.insert(&[0x01, 0x23], &big_value.to_vec()).unwrap();
-		t1.insert(&[0x01, 0x34], &big_value.to_vec()).unwrap();
+		t1.insert(&[0x01, 0x23], &big_value.into_vec()).unwrap();
+		t1.insert(&[0x01, 0x34], &big_value.into_vec()).unwrap();
 		let mut memdb2 = MemoryDB::new();
 		let mut root2 = H256::new();
 		let mut t2 = TrieDBMut::new(&mut memdb2, &mut root2);
-		t2.insert(&[0x01], &big_value.to_vec()).unwrap();
-		t2.insert(&[0x01, 0x23], &big_value.to_vec()).unwrap();
-		t2.insert(&[0x01, 0x34], &big_value.to_vec()).unwrap();
+		t2.insert(&[0x01], &big_value.into_vec()).unwrap();
+		t2.insert(&[0x01, 0x23], &big_value.into_vec()).unwrap();
+		t2.insert(&[0x01, 0x34], &big_value.into_vec()).unwrap();
 		t2.remove(&[0x01]).unwrap();
 	}
 
@@ -1127,8 +1127,8 @@ mod tests {
 		t.insert(&[0x01u8, 0x23], big_value0).unwrap();
 		t.insert(&[0x11u8, 0x23], big_value1).unwrap();
 		assert_eq!(*t.root(), trie_root(vec![
-			(vec![0x01u8, 0x23], big_value0.to_vec()),
-			(vec![0x11u8, 0x23], big_value1.to_vec())
+			(vec![0x01u8, 0x23], big_value0.into_vec()),
+			(vec![0x11u8, 0x23], big_value1.into_vec())
 		]));
 	}
 
@@ -1142,8 +1142,8 @@ mod tests {
 		t.insert(&[0x01u8, 0x23], big_value).unwrap();
 		t.insert(&[0x11u8, 0x23], big_value).unwrap();
 		assert_eq!(*t.root(), trie_root(vec![
-			(vec![0x01u8, 0x23], big_value.to_vec()),
-			(vec![0x11u8, 0x23], big_value.to_vec())
+			(vec![0x01u8, 0x23], big_value.into_vec()),
+			(vec![0x11u8, 0x23], big_value.into_vec())
 		]));
 	}
 
@@ -1190,7 +1190,7 @@ mod tests {
 		let mut seed = H256::new();
 		for _ in 0..50 {
 			let x = StandardMap {
-				alphabet: Alphabet::Custom(b"@QWERTYUIOPASDFGHJKLZXCVBNM[/]^_".to_vec()),
+				alphabet: Alphabet::Custom(b"@QWERTYUIOPASDFGHJKLZXCVBNM[/]^_".into_vec()),
 				min_key: 5,
 				journal_key: 0,
 				value_mode: ValueMode::Index,
@@ -1241,7 +1241,7 @@ mod tests {
 	fn insert_empty() {
 		let mut seed = H256::new();
 		let x = StandardMap {
-				alphabet: Alphabet::Custom(b"@QWERTYUIOPASDFGHJKLZXCVBNM[/]^_".to_vec()),
+				alphabet: Alphabet::Custom(b"@QWERTYUIOPASDFGHJKLZXCVBNM[/]^_".into_vec()),
 				min_key: 5,
 				journal_key: 0,
 				value_mode: ValueMode::Index,
@@ -1269,7 +1269,7 @@ mod tests {
 	fn return_old_values() {
 		let mut seed = H256::new();
 		let x = StandardMap {
-				alphabet: Alphabet::Custom(b"@QWERTYUIOPASDFGHJKLZXCVBNM[/]^_".to_vec()),
+				alphabet: Alphabet::Custom(b"@QWERTYUIOPASDFGHJKLZXCVBNM[/]^_".into_vec()),
 				min_key: 5,
 				journal_key: 0,
 				value_mode: ValueMode::Index,

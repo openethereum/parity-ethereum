@@ -173,7 +173,7 @@ mod tests {
 			gas_price: U256::from(3000),
 			gas: U256::from(50_000),
 			value: U256::from(1),
-			data: b"Hello!".to_vec()
+			data: b"Hello!".into_vec()
 		}.fake_sign(Address::from(0x69));
 
 		let t2 = Transaction {
@@ -190,7 +190,7 @@ mod tests {
 
 		let receipts_root = b.header.receipts_root().clone();
 		b.header.set_transactions_root(::util::triehash::ordered_trie_root(
-			b.transactions.iter().map(::rlp::encode).map(|out| out.to_vec())
+			b.transactions.iter().map(::rlp::encode).map(|out| out.into_vec())
 		));
 
 		let encoded = encode_block(&b);

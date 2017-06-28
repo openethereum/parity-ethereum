@@ -48,7 +48,7 @@ pub fn ordered_trie_root<I>(input: I) -> H256
 		// optimize it later
 		.into_iter()
 		.enumerate()
-		.map(|(i, vec)| (rlp::encode(&i).to_vec(), vec))
+		.map(|(i, vec)| (rlp::encode(&i).into_vec(), vec))
 		.collect::<BTreeMap<_, _>>()
 		// then move them to a vector
 		.into_iter()
@@ -331,7 +331,7 @@ mod tests {
 	#[test]
 	fn simple_test() {
 		assert_eq!(trie_root(vec![
-			(b"A".to_vec(), b"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".to_vec())
+			(b"A".into_vec(), b"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".into_vec())
 		]), H256::from_str("d23786fb4a010da3ce639d66d5e904a11dbc02746d1ce25029e53290cabf28ab").unwrap());
 	}
 

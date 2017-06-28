@@ -382,11 +382,11 @@ impl<'x> OpenBlock<'x> {
 		if let Err(e) = s.block.state.commit() {
 			warn!("Encountered error on state commit: {}", e);
 		}
-		s.block.header.set_transactions_root(ordered_trie_root(s.block.transactions.iter().map(|e| e.rlp_bytes().to_vec())));
+		s.block.header.set_transactions_root(ordered_trie_root(s.block.transactions.iter().map(|e| e.rlp_bytes().into_vec())));
 		let uncle_bytes = s.block.uncles.iter().fold(RlpStream::new_list(s.block.uncles.len()), |mut s, u| {s.append_raw(&u.rlp(Seal::With), 1); s} ).out();
 		s.block.header.set_uncles_hash(uncle_bytes.sha3());
 		s.block.header.set_state_root(s.block.state.root().clone());
-		s.block.header.set_receipts_root(ordered_trie_root(s.block.receipts.iter().map(|r| r.rlp_bytes().to_vec())));
+		s.block.header.set_receipts_root(ordered_trie_root(s.block.receipts.iter().map(|r| r.rlp_bytes().into_vec())));
 		s.block.header.set_log_bloom(s.block.receipts.iter().fold(LogBloom::zero(), |mut b, r| {b = &b | &r.log_bloom; b})); //TODO: use |= operator
 		s.block.header.set_gas_used(s.block.receipts.last().map_or(U256::zero(), |r| r.gas_used));
 
@@ -410,14 +410,14 @@ impl<'x> OpenBlock<'x> {
 			warn!("Encountered error on state commit: {}", e);
 		}
 		if s.block.header.transactions_root().is_zero() || s.block.header.transactions_root() == &SHA3_NULL_RLP {
-			s.block.header.set_transactions_root(ordered_trie_root(s.block.transactions.iter().map(|e| e.rlp_bytes().to_vec())));
+			s.block.header.set_transactions_root(ordered_trie_root(s.block.transactions.iter().map(|e| e.rlp_bytes().into_vec())));
 		}
 		let uncle_bytes = s.block.uncles.iter().fold(RlpStream::new_list(s.block.uncles.len()), |mut s, u| {s.append_raw(&u.rlp(Seal::With), 1); s} ).out();
 		if s.block.header.uncles_hash().is_zero() {
 			s.block.header.set_uncles_hash(uncle_bytes.sha3());
 		}
 		if s.block.header.receipts_root().is_zero() || s.block.header.receipts_root() == &SHA3_NULL_RLP {
-			s.block.header.set_receipts_root(ordered_trie_root(s.block.receipts.iter().map(|r| r.rlp_bytes().to_vec())));
+			s.block.header.set_receipts_root(ordered_trie_root(s.block.receipts.iter().map(|r| r.rlp_bytes().into_vec())));
 		}
 
 		s.block.header.set_state_root(s.block.state.root().clone());
@@ -510,7 +510,7 @@ impl LockedBlock {
 		for receipt in &mut block.block.receipts {
 			receipt.state_root = None;
 		}
-		block.block.header.set_receipts_root(ordered_trie_root(block.block.receipts.iter().map(|r| r.rlp_bytes().to_vec())));
+		block.block.header.set_receipts_root(ordered_trie_root(block.block.receipts.iter().map(|r| r.rlp_bytes().into_vec())));
 		block
 	}
 }
@@ -746,9 +746,9 @@ mod tests {
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 		let mut open_block = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes.clone(), Address::zero(), (3141562.into(), 31415620.into()), vec![], false).unwrap();
 		let mut uncle1_header = Header::new();
-		uncle1_header.set_extra_data(b"uncle1".to_vec());
+		uncle1_header.set_extra_data(b"uncle1".into_vec());
 		let mut uncle2_header = Header::new();
-		uncle2_header.set_extra_data(b"uncle2".to_vec());
+		uncle2_header.set_extra_data(b"uncle2".into_vec());
 		open_block.push_uncle(uncle1_header).unwrap();
 		open_block.push_uncle(uncle2_header).unwrap();
 		let b = open_block.close_and_lock().seal(engine, vec![]).unwrap();

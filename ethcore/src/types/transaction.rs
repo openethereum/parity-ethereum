@@ -570,7 +570,7 @@ fn signing() {
 		gas_price: U256::from(3000),
 		gas: U256::from(50_000),
 		value: U256::from(1),
-		data: b"Hello!".to_vec()
+		data: b"Hello!".into_vec()
 	}.sign(&key.secret(), None);
 	assert_eq!(Address::from(key.public().sha3()), t.sender());
 	assert_eq!(t.network_id(), None);
@@ -584,7 +584,7 @@ fn fake_signing() {
 		gas_price: U256::from(3000),
 		gas: U256::from(50_000),
 		value: U256::from(1),
-		data: b"Hello!".to_vec()
+		data: b"Hello!".into_vec()
 	}.fake_sign(Address::from(0x69));
 	assert_eq!(Address::from(0x69), t.sender());
 	assert_eq!(t.network_id(), None);
@@ -604,7 +604,7 @@ fn should_recover_from_network_specific_signing() {
 		gas_price: U256::from(3000),
 		gas: U256::from(50_000),
 		value: U256::from(1),
-		data: b"Hello!".to_vec()
+		data: b"Hello!".into_vec()
 	}.sign(&key.secret(), Some(69));
 	assert_eq!(Address::from(key.public().sha3()), t.sender());
 	assert_eq!(t.network_id(), Some(69));

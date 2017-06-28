@@ -80,7 +80,7 @@ fn decode_first_proof(rlp: &UntrustedRlp) -> Result<(Header, Vec<DBValue>), ::er
 fn encode_proof(header: &Header, receipts: &[Receipt]) -> Bytes {
 	let mut stream = RlpStream::new_list(2);
 	stream.append(header).append_list(receipts);
-	stream.drain().to_vec()
+	stream.drain().into_vec()
 }
 
 fn decode_proof(rlp: &UntrustedRlp) -> Result<(Header, Vec<Receipt>), ::error::Error> {

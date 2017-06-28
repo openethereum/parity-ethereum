@@ -394,7 +394,7 @@ mod tests {
 	fn master_chain_basic() -> (H256, H256) {
 		let seed = H128::from_str("000102030405060708090a0b0c0d0e0f")
 			.expect("Seed should be valid H128")
-			.to_vec();
+			.into_vec();
 
 		derivation::seed_pair(&*seed)
 	}
@@ -475,7 +475,7 @@ mod tests {
 	fn test_seeds() {
 		let seed = H128::from_str("000102030405060708090a0b0c0d0e0f")
 			.expect("Seed should be valid H128")
-			.to_vec();
+			.into_vec();
 
 		/// private key from bitcoin test vector
 		/// xprv9wTYmMFdV23N2TdNG573QoEsfRrWKQgWeibmLntzniatZvR9BmLnvSxqu53Kw1UmYPxLgboyZQaXwTCg8MSY3H2EU4pWcQDnRnrVA1xe8fs

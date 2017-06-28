@@ -216,7 +216,7 @@ impl KeyValueDB for InMemory {
 			Some(map) =>
 				map.iter()
 					.find(|&(ref k ,_)| k.starts_with(prefix))
-					.map(|(_, v)| (&**v).to_vec().into_boxed_slice())
+					.map(|(_, v)| v.to_vec().into_boxed_slice())
 		}
 	}
 
@@ -227,7 +227,7 @@ impl KeyValueDB for InMemory {
 			match op {
 				DBOp::Insert { col, key, value } => {
 					if let Some(mut col) = columns.get_mut(&col) {
-						col.insert(key.to_vec(), value);
+						col.insert(key.into_vec(), value);
 					}
 				},
 				DBOp::InsertCompressed { col, key, value } => {
@@ -235,7 +235,7 @@ impl KeyValueDB for InMemory {
 						let compressed = UntrustedRlp::new(&value).compress(RlpType::Blocks);
 						let mut value = DBValue::new();
 						value.append_slice(&compressed);
-						col.insert(key.to_vec(), value);
+						col.insert(key.into_vec(), value);
 					}
 				},
 				DBOp::Delete { col, key } => {
@@ -253,7 +253,7 @@ impl KeyValueDB for InMemory {
 			Some(map) => Box::new( // TODO: worth optimizing at all?
 				map.clone()
 					.into_iter()
-					.map(|(k, v)| (k.into_boxed_slice(), v.to_vec().into_boxed_slice()))
+					.map(|(k, v)| (k.into_boxed_slice(), v.into_vec().into_boxed_slice()))
 			),
 			None => Box::new(None.into_iter()),
 		}
@@ -267,7 +267,7 @@ impl KeyValueDB for InMemory {
 				map.clone()
 					.into_iter()
 					.skip_while(move |&(ref k, _)| !k.starts_with(prefix))
-					.map(|(k, v)| (k.into_boxed_slice(), v.to_vec().into_boxed_slice()))
+					.map(|(k, v)| (k.into_boxed_slice(), v.into_vec().into_boxed_slice()))
 			),
 			None => Box::new(None.into_iter()),
 		}

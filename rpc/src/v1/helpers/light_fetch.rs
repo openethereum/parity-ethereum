@@ -192,7 +192,7 @@ impl LightFetch {
 			let action = req.to.map_or(Action::Create, Action::Call);
 			let gas = req.gas.unwrap_or(U256::from(10_000_000)); // better gas amount?
 			let value = req.value.unwrap_or_else(U256::zero);
-			let data = req.data.map_or_else(Vec::new, |d| d.to_vec());
+			let data = req.data.unwrap_or(Vec::new());
 
 			future::done(match nonce {
 				Some(n) => Ok(EthTransaction {

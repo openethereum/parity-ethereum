@@ -518,7 +518,7 @@ fn should_confirm_decrypt_with_phrase() {
 	), Origin::Unknown).unwrap();
 	assert_eq!(tester.signer.requests().len(), 1);
 
-	let decrypted = serde_json::to_string(&RpcBytes::new(b"phrase".to_vec())).unwrap();
+	let decrypted = serde_json::to_string(&RpcBytes::new(b"phrase".into_vec())).unwrap();
 
 	// when
 	let request = r#"{

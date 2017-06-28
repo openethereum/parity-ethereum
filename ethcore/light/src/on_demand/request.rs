@@ -738,7 +738,7 @@ impl BlockReceipts {
 	/// Check a response with receipts against the stored header.
 	pub fn check_response(&self, cache: &Mutex<::cache::Cache>, receipts: &[Receipt]) -> Result<Vec<Receipt>, Error> {
 		let receipts_root = self.0.as_ref()?.receipts_root();
-		let found_root = ::util::triehash::ordered_trie_root(receipts.iter().map(|r| ::rlp::encode(r).to_vec()));
+		let found_root = ::util::triehash::ordered_trie_root(receipts.iter().map(|r| ::rlp::encode(r).into_vec()));
 
 		match receipts_root == found_root {
 			true => {
@@ -900,9 +900,9 @@ mod tests {
 	fn check_header_by_hash() {
 		let mut header = Header::new();
 		header.set_number(10_000);
-		header.set_extra_data(b"test_header".to_vec());
+		header.set_extra_data(b"test_header".into_vec());
 		let hash = header.hash();
-		let raw_header = encoded::Header::new(::rlp::encode(&header).to_vec());
+		let raw_header = encoded::Header::new(::rlp::encode(&header).into_vec());
 
 		let cache = Mutex::new(make_cache());
 		assert!(HeaderByHash(hash.into()).check_response(&cache, &hash.into(), &[raw_header]).is_ok())
@@ -916,10 +916,10 @@ mod tests {
 		let mut body_stream = RlpStream::new_list(2);
 		body_stream.begin_list(0).begin_list(0);
 
-		let req = Body(encoded::Header::new(::rlp::encode(&header).to_vec()).into());
+		let req = Body(encoded::Header::new(::rlp::encode(&header).into_vec()).into());
 
 		let cache = Mutex::new(make_cache());
-		let response = encoded::Body::new(body_stream.drain().to_vec());
+		let response = encoded::Body::new(body_stream.drain().into_vec());
 		assert!(req.check_response(&cache, &response).is_ok())
 	}
 
@@ -934,12 +934,12 @@ mod tests {
 
 		let mut header = Header::new();
 		let receipts_root = ::util::triehash::ordered_trie_root(
-			receipts.iter().map(|x| ::rlp::encode(x).to_vec())
+			receipts.iter().map(|x| ::rlp::encode(x).into_vec())
 		);
 
 		header.set_receipts_root(receipts_root);
 
-		let req = BlockReceipts(encoded::Header::new(::rlp::encode(&header).to_vec()).into());
+		let req = BlockReceipts(encoded::Header::new(::rlp::encode(&header).into_vec()).into());
 
 		let cache = Mutex::new(make_cache());
 		assert!(req.check_response(&cache, &receipts).is_ok())
@@ -953,7 +953,7 @@ mod tests {
 		let mut db = MemoryDB::new();
 		let mut header = Header::new();
 		header.set_number(123_456);
-		header.set_extra_data(b"test_header".to_vec());
+		header.set_extra_data(b"test_header".into_vec());
 
 		let addr = Address::random();
 		let rand_acc = || {
@@ -987,7 +987,7 @@ mod tests {
 		header.set_state_root(root.clone());
 
 		let req = Account {
-			header: encoded::Header::new(::rlp::encode(&header).to_vec()).into(),
+			header: encoded::Header::new(::rlp::encode(&header).into_vec()).into(),
 			address: addr,
 		};
 
@@ -1001,7 +1001,7 @@ mod tests {
 		let code_hash = ::util::Hashable::sha3(&code);
 		let header = Header::new();
 		let req = Code {
-			header: encoded::Header::new(::rlp::encode(&header).to_vec()).into(),
+			header: encoded::Header::new(::rlp::encode(&header).into_vec()).into(),
 			code_hash: code_hash.into(),
 		};
 

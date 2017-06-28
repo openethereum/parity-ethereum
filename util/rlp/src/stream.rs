@@ -264,8 +264,8 @@ impl RlpStream {
 	/// panic! if stream is not finished.
 	pub fn out(self) -> Vec<u8> {
 		match self.is_finished() {
-			//true => self.encoder.out().to_vec(),
-			true => self.buffer.to_vec(),
+			//true => self.encoder.out().into_vec(),
+			true => self.buffer.into_vec(),
 			false => panic!()
 		}
 	}
