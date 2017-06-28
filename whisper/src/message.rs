@@ -22,7 +22,7 @@ use std::time::{self, SystemTime, Duration};
 use bigint::hash::{H256, H512};
 use rlp::{self, DecoderError, RlpStream, UntrustedRlp};
 use smallvec::SmallVec;
-use tiny_keccak::Keccak;
+use tiny_keccak::{keccak256, Keccak};
 
 /// Work-factor proved. Takes 3 parameters: size of message, time to live,
 /// and hash.
@@ -196,7 +196,7 @@ pub struct CreateParams {
 }
 
 /// A whisper message.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Message {
 	envelope: Envelope,
 	bloom: H512,
@@ -279,6 +279,7 @@ impl Message {
 		Message::from_components(
 			envelope,
 			encoded.len(),
+			H256(keccak256(&encoded)),
 			SystemTime::now(),
 		).expect("Message generated here known to be valid; qed")
 	}
@@ -287,13 +288,14 @@ impl Message {
 	pub fn decode(rlp: UntrustedRlp, now: SystemTime) -> Result<Self, Error> {
 		let envelope: Envelope = rlp.as_val()?;
 		let encoded_size = rlp.as_raw().len();
+		let hash = H256(keccak256(rlp.as_raw()));
 
-		Message::from_components(envelope, encoded_size, now)
+		Message::from_components(envelope, encoded_size, hash, now)
 	}
 
 	// create message from envelope, hash, and encoded size.
 	// does checks for validity.
-	fn from_components(envelope: Envelope, size: usize, now: SystemTime)
+	fn from_components(envelope: Envelope, size: usize, hash: H256, now: SystemTime)
 		-> Result<Self, Error>
 	{
 		const LEEWAY_SECONDS: u64 = 2;
@@ -312,12 +314,10 @@ impl Message {
 			topic.bloom_into(&mut bloom);
 		}
 
-		let proving_hash = envelope.proving_hash();
-
 		Ok(Message {
 			envelope: envelope,
 			bloom: bloom,
-			hash: proving_hash,
+			hash: hash,
 			encoded_size: size,
 		})
 	}
@@ -333,7 +333,6 @@ impl Message {
 	}
 
 	/// Get a uniquely identifying hash for the message.
-	/// This is not equal to `sha3(rlp(message))
 	pub fn hash(&self) -> &H256 {
 		&self.hash
 	}
@@ -345,7 +344,9 @@ impl Message {
 
 	/// Get the work proved by the hash.
 	pub fn work_proved(&self) -> f64 {
-		work_factor_proved(self.encoded_size as _, self.envelope.ttl, self.hash)
+		let proving_hash = self.envelope.proving_hash();
+
+		work_factor_proved(self.encoded_size as _, self.envelope.ttl, proving_hash)
 	}
 
 	/// Get the expiry time.

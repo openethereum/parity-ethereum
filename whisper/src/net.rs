@@ -44,6 +44,26 @@ mod packet {
 	pub const TOPIC_FILTER: u8 = 2;
 }
 
+/// Handles messages within a single packet.
+pub trait MessageHandler {
+	/// Evaluate the message and handle it.
+	///
+	/// The same message will not be passed twice.
+	/// Heavy handling should be done asynchronously.
+	/// If there is a significant overhead in this thread, then an attacker
+	/// can determine which kinds of messages we are listening for.
+	fn handle_message(&mut self, message: &Message);
+}
+
+/// Creates message handlers.
+pub trait CreateHandler: Send + Sync {
+	type Handler: MessageHandler;
+
+	/// Create a message handler which will process
+	/// messages for a single packet.
+	fn create_handler(&self) -> Self::Handler;
+}
+
 // errors in importing a whisper message.
 #[derive(Debug)]
 enum Error {
@@ -254,8 +274,10 @@ impl Peer {
 		!known && matches_bloom
 	}
 
-	fn note_known(&mut self, message: &Message) {
-		self.known_messages.insert(message.hash().clone());
+	// note a message as known. returns true if it was already
+	// known, false otherwise.
+	fn note_known(&mut self, message: &Message) -> bool {
+		self.known_messages.insert(message.hash().clone())
 	}
 
 	fn set_topic_filter(&mut self, topic: H512) {
@@ -271,24 +293,26 @@ impl Peer {
 }
 
 /// The whisper network protocol handler.
-pub struct Handler {
+pub struct Network<T> {
 	incoming: Mutex<mpsc::Receiver<Message>>,
 	async_sender: Mutex<mpsc::Sender<Message>>,
 	messages: RwLock<Messages>,
+	create_handler: T,
 	peers: RwLock<HashMap<PeerId, Mutex<Peer>>>,
 	node_key: RwLock<NodeId>,
 }
 
 // public API.
-impl Handler {
+impl<T> Network<T> {
 	/// Create a new network handler.
-	pub fn new(messages_size_bytes: usize) -> Self {
+	pub fn new(messages_size_bytes: usize, create_handler: T) -> Self {
 		let (tx, rx) = mpsc::channel();
 
-		Handler {
+		Network {
 			incoming: Mutex::new(rx),
 			async_sender: Mutex::new(tx),
 			messages: RwLock::new(Messages::new(messages_size_bytes)),
+			create_handler: create_handler,
 			peers: RwLock::new(HashMap::new()),
 			node_key: RwLock::new(Default::default()),
 		}
@@ -300,7 +324,7 @@ impl Handler {
 	}
 }
 
-impl Handler {
+impl<T: CreateHandler> Network<T> {
 	fn rally(&self, io: &NetworkContext) {
 		// cannot be greater than 16MB (protocol limitation)
 		const MAX_MESSAGES_PACKET_SIZE: usize = 8 * 1024 * 1024;
@@ -405,6 +429,7 @@ impl Handler {
 		// TODO: pinning thread-local data to each I/O worker would
 		// optimize this significantly.
 		let sender = self.message_sender();
+		let mut packet_handler = self.create_handler.create_handler();
 		let messages = self.messages.read();
 
 		let peers = self.peers.read();
@@ -425,18 +450,16 @@ impl Handler {
 		peer.state = State::OurTurn;
 
 		let now = SystemTime::now();
+
 		for message_rlp in message_packet.iter() {
 			let message = Message::decode(message_rlp, now)?;
-			peer.note_known(&message);
+			if !peer.note_known(&message) || messages.contains(&message) {
+				continue
+			}
 
-			if messages.contains(&message) { continue }
-
-			// TODO: check whether the message matches our local filter criteria
-			// and then pass it to handler.
-
+			packet_handler.handle_message(&message);
 			sender.send(message).expect("receiver always kept alive; qed");
 		}
-
 
 		Ok(())
 	}
@@ -495,7 +518,7 @@ impl Handler {
 	}
 }
 
-impl ::network::NetworkProtocolHandler for Handler {
+impl<T: CreateHandler> ::network::NetworkProtocolHandler for Network<T> {
 	fn initialize(&self, io: &NetworkContext, host_info: &HostInfo) {
 		// set up broadcast timer (< 1s)
 		io.register_timer(RALLY_TOKEN, RALLY_TIMEOUT_MS)
