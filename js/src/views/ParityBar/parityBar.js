@@ -224,6 +224,7 @@ class ParityBar extends Component {
           id='paritybar.health'
           status={ health.overall.status }
           title={ health.overall.message }
+          tooltipPlacement='right'
         />
         <Button
           className={ styles.iconButton }

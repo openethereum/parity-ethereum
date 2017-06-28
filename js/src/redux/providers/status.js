@@ -236,7 +236,8 @@ export default class Status {
   }
 
   _fetchHealth = () => {
-    const uiUrl = this._api.transport.uiUrl || '';
+    // Support Parity-Extension.
+    const uiUrl = this._api.transport.uiUrlWithProtocol || '';
 
     return fetch(`${uiUrl}/api/health`).then(res => res.json());
   }

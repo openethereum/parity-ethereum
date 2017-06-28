@@ -26,7 +26,8 @@ export default class StatusIndicator extends Component {
     type: PropTypes.oneOf(['radial', 'signal']),
     id: PropTypes.string.isRequired,
     status: PropTypes.oneOf(statuses).isRequired,
-    title: PropTypes.arrayOf(PropTypes.node)
+    title: PropTypes.arrayOf(PropTypes.node),
+    tooltipPlacement: PropType.oneOf(['left', 'top', 'bottom', 'right'])
   };
 
   static defaultProps = {
@@ -35,13 +36,14 @@ export default class StatusIndicator extends Component {
   };
 
   render () {
-    const { id, status, title, type } = this.props;
+    const { id, status, title, type, tooltipPlacement } = this.props;
 
     return (
       <span className={ styles.status }>
         <span className={ `${styles[type]} ${styles[status]}` }
-          data-tip={ title }
+          data-tip={ title.length }
           data-for={ `status-${id}` }
+          data-place={ tooltipPlacement }
           data-effect='solid'
         >
           { type === 'signal' && statuses.map(this.renderBar) }
