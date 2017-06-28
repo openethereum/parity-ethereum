@@ -23,8 +23,10 @@ use std::collections::HashMap;
 /// `HashDB` value type.
 pub type DBValue = ElasticArray128<u8>;
 
-// TODO: Should this include a generic version of `HashDB::insert`?
+/// Supplemental trait to `HashDB` supplying generic methods for trait objects, internally
+/// calling monomorphic forms of these methods.
 pub trait HashDBExt {
+	/// Get a reference, transform it, and return the result (prevents cloning).
 	fn get_with<Out, F: FnOnce(&[u8]) -> Out>(&self, _: &H256, _: F) -> Option<Out>;
 }
 
@@ -40,6 +42,8 @@ macro_rules! get_with_fn_def {
 
 			{
 				let mut wrapper = |key: &[u8]| {
+					// Unwrap here because `get_exec` is required to call the closure no more than
+					// once.
 					output = Some((o_func.take().unwrap())(key));
 				};
 

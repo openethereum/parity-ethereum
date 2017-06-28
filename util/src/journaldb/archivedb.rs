@@ -57,17 +57,10 @@ impl ArchiveDB {
 		Self::new(backing, None)
 	}
 
-	fn payload(&self, key: &H256) -> Option<DBValue> {
-		self.backing.get(self.column, key).expect(
+	fn payload_exec(&self, key: &H256, f: &mut FnMut(&[u8])) {
+		self.backing.get_exec(self.column, key, f).expect(
 			"Low-level database error. Some issue with your hard disk?"
 		)
-	}
-
-	fn payload_exec(&self, key: &H256, f: &mut FnMut(&[u8])) {
-		// TODO: Fix this once `KeyValueDB` has a `get_exec` method
-		if let Some(val) = self.payload(key) {
-			f(&val);
-		}
 	}
 }
 
