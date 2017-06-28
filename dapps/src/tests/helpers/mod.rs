@@ -28,7 +28,7 @@ use hash_fetch::urlhint::ContractClient;
 use fetch::{Fetch, Client as FetchClient};
 use parity_reactor::Remote;
 
-use {Middleware, SyncStatus, WebProxyTokens};
+use {Middleware, PeerCount, SyncStatus, WebProxyTokens};
 
 mod registrar;
 mod fetch;
@@ -135,6 +135,7 @@ pub struct ServerBuilder<T: Fetch = FetchClient> {
 	dapps_path: PathBuf,
 	registrar: Arc<ContractClient>,
 	sync_status: Arc<SyncStatus>,
+	peer_count: Arc<PeerCount>,
 	web_proxy_tokens: Arc<WebProxyTokens>,
 	signer_address: Option<(String, u16)>,
 	allowed_hosts: DomainsValidation<Host>,
@@ -149,6 +150,7 @@ impl ServerBuilder {
 			dapps_path: dapps_path.as_ref().to_owned(),
 			registrar: registrar,
 			sync_status: Arc::new(|| false),
+			peer_count: Arc::new(|| 42),
 			web_proxy_tokens: Arc::new(|_| None),
 			signer_address: None,
 			allowed_hosts: DomainsValidation::Disabled,
@@ -165,6 +167,7 @@ impl<T: Fetch> ServerBuilder<T> {
 			dapps_path: self.dapps_path,
 			registrar: self.registrar,
 			sync_status: self.sync_status,
+			peer_count: self.peer_count,
 			web_proxy_tokens: self.web_proxy_tokens,
 			signer_address: self.signer_address,
 			allowed_hosts: self.allowed_hosts,
@@ -212,6 +215,7 @@ impl<T: Fetch> ServerBuilder<T> {
 			vec![],
 			self.registrar,
 			self.sync_status,
+			self.peer_count,
 			self.web_proxy_tokens,
 			self.remote,
 			fetch,
@@ -243,6 +247,7 @@ impl Server {
 		extra_dapps: Vec<PathBuf>,
 		registrar: Arc<ContractClient>,
 		sync_status: Arc<SyncStatus>,
+		peer_count: Arc<PeerCount>,
 		web_proxy_tokens: Arc<WebProxyTokens>,
 		remote: Remote,
 		fetch: F,
@@ -255,6 +260,7 @@ impl Server {
 			DAPPS_DOMAIN.into(),
 			registrar,
 			sync_status,
+			peer_count,
 			web_proxy_tokens,
 			fetch,
 		);
@@ -290,4 +296,3 @@ impl Drop for Server {
 		self.server.take().unwrap().close()
 	}
 }
-

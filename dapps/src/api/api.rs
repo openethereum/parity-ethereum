@@ -26,15 +26,21 @@ use apps::fetcher::Fetcher;
 use handlers::extract_url;
 use endpoint::{Endpoint, Handler, EndpointPath};
 
+use {PeerCount, SyncStatus};
+
 #[derive(Clone)]
 pub struct RestApi {
 	fetcher: Arc<Fetcher>,
+	sync_status: Arc<SyncStatus>,
+	peer_count: Arc<PeerCount>,
 }
 
 impl RestApi {
-	pub fn new(fetcher: Arc<Fetcher>) -> Box<Endpoint> {
+	pub fn new(fetcher: Arc<Fetcher>, sync_status: Arc<SyncStatus>, peer_count: Arc<PeerCount>) -> Box<Endpoint> {
 		Box::new(RestApi {
 			fetcher: fetcher,
+			sync_status: sync_status,
+			peer_count: peer_count,
 		})
 	}
 }
@@ -50,6 +56,12 @@ struct RestApiRouter {
 	path: Option<EndpointPath>,
 	control: Option<Control>,
 	handler: Box<Handler>,
+}
+
+#[derive(Serialize)]
+struct ApiHealth {
+	synced: bool,
+	peers: usize,
 }
 
 impl RestApiRouter {
@@ -74,6 +86,15 @@ impl RestApiRouter {
 			},
 			_ => None
 		}
+	}
+
+	fn health(&self) -> Option<Box<Handler>> {
+		let health = ApiHealth {
+			synced: !self.api.sync_status.is_major_importing(),
+			peers: self.api.peer_count.get()
+		};
+
+		Some(response::as_json(&health))
 	}
 }
 
@@ -104,6 +125,7 @@ impl server::Handler<net::HttpStream> for RestApiRouter {
 		let handler = endpoint.and_then(|v| match v {
 			"ping" => Some(response::ping()),
 			"content" => self.resolve_content(hash, path, control),
+			"health" => self.health(),
 			_ => None
 		});
 

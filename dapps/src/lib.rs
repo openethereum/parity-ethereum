@@ -88,6 +88,16 @@ impl<F> SyncStatus for F where F: Fn() -> bool + Send + Sync {
 	fn is_major_importing(&self) -> bool { self() }
 }
 
+/// Indicates the number of peers
+pub trait PeerCount: Send + Sync {
+	/// Returns the number of peers.
+	fn get(&self) -> usize;
+}
+
+impl<F> PeerCount for F where F: Fn() -> usize + Send + Sync {
+	fn get(&self) -> usize { self() }
+}
+
 /// Validates Web Proxy tokens
 pub trait WebProxyTokens: Send + Sync {
 	/// Should return a domain allowed to be accessed by this token or `None` if the token is not valid
@@ -131,17 +141,18 @@ impl Middleware {
 		remote: Remote,
 		registrar: Arc<ContractClient>,
 		sync_status: Arc<SyncStatus>,
+		peer_count: Arc<PeerCount>,
 		fetch: F,
 		dapps_domain: String,
 	) -> Self {
 		let content_fetcher = Arc::new(apps::fetcher::ContentFetcher::new(
 			hash_fetch::urlhint::URLHintContract::new(registrar),
-			sync_status,
+			sync_status.clone(),
 			remote.clone(),
 			fetch.clone(),
 		).embeddable_on(None).allow_dapps(false));
 		let special = {
-			let mut special = special_endpoints(content_fetcher.clone());
+			let mut special = special_endpoints(content_fetcher.clone(), sync_status.clone(), peer_count);
 			special.insert(router::SpecialEndpoint::Home, Some(apps::ui()));
 			special
 		};
@@ -168,12 +179,13 @@ impl Middleware {
 		dapps_domain: String,
 		registrar: Arc<ContractClient>,
 		sync_status: Arc<SyncStatus>,
+		peer_count: Arc<PeerCount>,
 		web_proxy_tokens: Arc<WebProxyTokens>,
 		fetch: F,
 	) -> Self {
 		let content_fetcher = Arc::new(apps::fetcher::ContentFetcher::new(
 			hash_fetch::urlhint::URLHintContract::new(registrar),
-			sync_status,
+			sync_status.clone(),
 			remote.clone(),
 			fetch.clone(),
 		).embeddable_on(ui_address.clone()).allow_dapps(true));
@@ -188,7 +200,7 @@ impl Middleware {
 		);
 
 		let special = {
-			let mut special = special_endpoints(content_fetcher.clone());
+			let mut special = special_endpoints(content_fetcher.clone(), sync_status.clone(), peer_count);
 			special.insert(router::SpecialEndpoint::Home, Some(apps::ui_redirection(ui_address.clone())));
 			special
 		};
@@ -214,11 +226,11 @@ impl http::RequestMiddleware for Middleware {
 	}
 }
 
-fn special_endpoints(content_fetcher: Arc<apps::fetcher::Fetcher>) -> HashMap<router::SpecialEndpoint, Option<Box<endpoint::Endpoint>>> {
+fn special_endpoints(content_fetcher: Arc<apps::fetcher::Fetcher>, sync_status: Arc<SyncStatus>, peer_count: Arc<PeerCount>) -> HashMap<router::SpecialEndpoint, Option<Box<endpoint::Endpoint>>> {
 	let mut special = HashMap::new();
 	special.insert(router::SpecialEndpoint::Rpc, None);
 	special.insert(router::SpecialEndpoint::Utils, Some(apps::utils()));
-	special.insert(router::SpecialEndpoint::Api, Some(api::RestApi::new(content_fetcher)));
+	special.insert(router::SpecialEndpoint::Api, Some(api::RestApi::new(content_fetcher, sync_status, peer_count)));
 	special
 }
 

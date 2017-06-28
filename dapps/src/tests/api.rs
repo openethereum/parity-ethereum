@@ -62,6 +62,28 @@ fn should_handle_ping() {
 	assert_security_headers(&response.headers);
 }
 
+#[test]
+fn should_handle_health() {
+	// given
+	let server = serve();
+
+	// when
+	let response = request(server,
+						   "\
+		POST /api/health HTTP/1.1\r\n\
+		Host: home.parity\r\n\
+		Connection: close\r\n\
+		\r\n\
+		{}
+		"
+	);
+
+	// then
+	response.assert_status("HTTP/1.1 200 OK");
+	response.assert_header("Content-Type", "application/json");
+	assert_eq!(response.body, format!("1A\n{}\n0\n\n", r#"{"synced":true,"peers":42}"#));
+	assert_security_headers(&response.headers);
+}
 
 #[test]
 fn should_try_to_resolve_dapp() {
