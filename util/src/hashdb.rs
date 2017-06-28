@@ -96,11 +96,10 @@ pub trait HashDB: AsHashDB + Send + Sync {
 	/// }
 	/// ```
 	fn get(&self, key: &H256) -> Option<DBValue> {
-		let mut o_func = Some(DBValue::from_slice);
 		let mut output = None;
 
 		{
-			let mut wrapper = |key: &[u8]| { output = Some((o_func.take().unwrap())(key)); };
+			let mut wrapper = |key: &[u8]| { output = Some(DBValue::from_slice(key)); };
 
 			self.get_exec(key, &mut wrapper);
 		}

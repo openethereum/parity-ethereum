@@ -198,11 +198,10 @@ pub trait KeyValueDB: Sync + Send {
 
 	/// Get a value by key.
 	fn get(&self, col: Option<u32>, key: &[u8]) -> Result<Option<DBValue>, String> {
-		let mut o_func = Some(DBValue::from_slice);
 		let mut output = None;
 
 		{
-			let mut wrapper = |key: &[u8]| { output = Some((o_func.take().unwrap())(key)); };
+			let mut wrapper = |key: &[u8]| { output = Some(DBValue::from_slice(key)); };
 
 			if let Err(err) = self.get_exec(col, key, &mut wrapper) {
 				return Err(err);
