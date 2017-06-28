@@ -238,7 +238,7 @@ export default class Ws extends JsonRpcBase {
       if (result.error || (result.params && result.params.error)) {
         this.error(event.data);
 
-        if (result.params.error) {
+        if (result.params) {
           result[error] = result.params.error;
         }
 
