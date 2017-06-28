@@ -89,7 +89,7 @@ impl EvmTestClient {
 		-> Result<(U256, Vec<u8>), EvmTestError>
 	{
 		let genesis = self.spec.genesis_header();
-		let mut state = state::State::from_existing(self.state_db.boxed_clone(), *genesis.state_root(), self.spec.engine.account_start_nonce(), self.factories.clone())
+		let mut state = state::State::from_existing(self.state_db.boxed_clone(), *genesis.state_root(), self.spec.engine.account_start_nonce(0), self.factories.clone())
 			.map_err(EvmTestError::Trie)?;
 		let info = client::EnvInfo {
 			number: genesis.number(),

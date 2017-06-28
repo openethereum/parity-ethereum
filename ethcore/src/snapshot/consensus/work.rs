@@ -283,7 +283,7 @@ impl Rebuilder for PowRebuilder {
 	}
 
 	/// Glue together any disconnected chunks and check that the chain is complete.
-	fn finalize(&mut self, _: ::state_db::StateDB, _: &Engine) -> Result<(), ::error::Error> {
+	fn finalize(&mut self, _: &Engine) -> Result<(), ::error::Error> {
 		let mut batch = self.db.transaction();
 
 		for (first_num, first_hash) in self.disconnected.drain(..) {
@@ -299,12 +299,12 @@ impl Rebuilder for PowRebuilder {
 		}
 
 		let genesis_hash = self.chain.genesis_hash();
-		self.chain.insert_epoch_transition(&mut batch, 0, ::blockchain::EpochTransition {
+		self.chain.insert_epoch_transition(&mut batch, 0, ::engines::EpochTransition {
 			block_number: 0,
 			block_hash: genesis_hash,
 			proof: vec![],
-			state_proof: vec![],
 		});
+
 		self.db.write_buffered(batch);
 		Ok(())
 	}

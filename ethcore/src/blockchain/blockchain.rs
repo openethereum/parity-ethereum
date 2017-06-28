@@ -35,6 +35,7 @@ use blockchain::{CacheSize, ImportRoute, Config};
 use db::{self, Writable, Readable, CacheUpdatePolicy};
 use cache_manager::CacheManager;
 use encoded;
+use engines::epoch::{Transition as EpochTransition, PendingTransition as PendingEpochTransition};
 
 const LOG_BLOOMS_LEVELS: usize = 3;
 const LOG_BLOOMS_ELEMENTS_PER_INDEX: usize = 16;
@@ -143,6 +144,10 @@ pub trait BlockProvider {
 	/// Returns logs matching given filter.
 	fn logs<F>(&self, blocks: Vec<BlockNumber>, matches: F, limit: Option<usize>) -> Vec<LocalizedLogEntry>
 		where F: Fn(&LogEntry) -> bool, Self: Sized;
+}
+
+macro_rules! otry {
+	($e:expr) => { match $e { Some(x) => x, None => return None } }
 }
 
 #[derive(Debug, Hash, Eq, PartialEq, Clone)]
@@ -508,7 +513,7 @@ impl BlockChain {
 					number: header.number(),
 					total_difficulty: header.difficulty(),
 					parent: header.parent_hash(),
-					children: vec![]
+					children: vec![],
 				};
 
 				let mut batch = DBTransaction::new();
@@ -698,10 +703,6 @@ impl BlockChain {
 	/// If the tree route verges into pruned or unknown blocks,
 	/// `None` is returned.
 	pub fn tree_route(&self, from: H256, to: H256) -> Option<TreeRoute> {
-		macro_rules! otry {
-			($e:expr) => { match $e { Some(x) => x, None => return None } }
-		}
-
 		let mut from_branch = vec![];
 		let mut to_branch = vec![];
 
@@ -878,14 +879,58 @@ impl BlockChain {
 		}
 	}
 
-	/// Get a specific epoch transition by epoch number and provided block hash.
-	pub fn epoch_transition(&self, epoch_num: u64, block_hash: H256) -> Option<EpochTransition> {
-		trace!(target: "blockchain", "Loading epoch {} transition at block {}",
-			epoch_num, block_hash);
+	/// Get a specific epoch transition by block number and provided block hash.
+	pub fn epoch_transition(&self, block_num: u64, block_hash: H256) -> Option<EpochTransition> {
+		trace!(target: "blockchain", "Loading epoch transition at block {}, {}",
+			block_num, block_hash);
 
-		self.db.read(db::COL_EXTRA, &epoch_num).and_then(|transitions: EpochTransitions| {
+		self.db.read(db::COL_EXTRA, &block_num).and_then(|transitions: EpochTransitions| {
 			transitions.candidates.into_iter().find(|c| c.block_hash == block_hash)
 		})
+	}
+
+	/// Get the transition to the epoch the given parent hash is part of
+	/// or transitions to.
+	/// This will give the epoch that any children of this parent belong to.
+	///
+	/// The block corresponding the the parent hash must be stored already.
+	pub fn epoch_transition_for(&self, parent_hash: H256) -> Option<EpochTransition> {
+		// slow path: loop back block by block
+		for hash in otry!(self.ancestry_iter(parent_hash)) {
+			let details = otry!(self.block_details(&hash));
+
+			// look for transition in database.
+			if let Some(transition) = self.epoch_transition(details.number, hash) {
+				return Some(transition)
+			}
+
+			// canonical hash -> fast breakout:
+			// get the last epoch transition up to this block.
+			//
+			// if `block_hash` is canonical it will only return transitions up to
+			// the parent.
+			if otry!(self.block_hash(details.number)) == hash {
+				return self.epoch_transitions()
+					.map(|(_, t)| t)
+					.take_while(|t| t.block_number <= details.number)
+					.last()
+			}
+		}
+
+		// should never happen as the loop will encounter genesis before concluding.
+		None
+	}
+
+	/// Write a pending epoch transition by block hash.
+	pub fn insert_pending_transition(&self, batch: &mut DBTransaction, hash: H256, t: PendingEpochTransition) {
+		batch.write(db::COL_EXTRA, &hash, &t);
+	}
+
+	/// Get a pending epoch transition by block hash.
+	// TODO: implement removal safely: this can only be done upon finality of a block
+	// that _uses_ the pending transition.
+	pub fn get_pending_transition(&self, hash: H256) -> Option<PendingEpochTransition> {
+		self.db.read(db::COL_EXTRA, &hash)
 	}
 
 	/// Add a child to a given block. Assumes that the block hash is in
@@ -1165,12 +1210,12 @@ impl BlockChain {
 		let mut parent_details = self.block_details(&parent_hash).unwrap_or_else(|| panic!("Invalid parent hash: {:?}", parent_hash));
 		parent_details.children.push(info.hash.clone());
 
-		// create current block details
+		// create current block details.
 		let details = BlockDetails {
 			number: header.number(),
 			total_difficulty: info.total_difficulty,
 			parent: parent_hash.clone(),
-			children: vec![]
+			children: vec![],
 		};
 
 		// write to batch
@@ -2201,7 +2246,7 @@ mod tests {
 
 	#[test]
 	fn epoch_transitions_iter() {
-		use blockchain::extras::EpochTransition;
+		use ::engines::EpochTransition;
 
 		let mut canon_chain = ChainGenerator::default();
 		let mut finalizer = BlockFinalizer::default();
@@ -2223,7 +2268,6 @@ mod tests {
 					block_hash: hash,
 					block_number: i + 1,
 					proof: vec![],
-					state_proof: vec![],
 				});
 				bc.commit();
 			}
@@ -2236,7 +2280,6 @@ mod tests {
 				block_hash: hash,
 				block_number: 1,
 				proof: vec![],
-				state_proof: vec![]
 			});
 
 			db.write(batch).unwrap();
@@ -2251,5 +2294,86 @@ mod tests {
 
 		assert_eq!(bc.best_block_number(), 5);
 		assert_eq!(bc.epoch_transitions().map(|(i, _)| i).collect::<Vec<_>>(), vec![0, 1, 2, 3, 4]);
+	}
+
+	#[test]
+	fn epoch_transition_for() {
+		use ::engines::EpochTransition;
+
+		let mut canon_chain = ChainGenerator::default();
+		let mut finalizer = BlockFinalizer::default();
+		let genesis = canon_chain.generate(&mut finalizer).unwrap();
+
+		let db = new_db();
+
+		let bc = new_chain(&genesis, db.clone());
+
+		let mut batch = db.transaction();
+		bc.insert_epoch_transition(&mut batch, 0, EpochTransition {
+			block_hash: bc.genesis_hash(),
+			block_number: 0,
+			proof: vec![],
+		});
+		db.write(batch).unwrap();
+
+		// set up a chain where we have a canonical chain of 10 blocks
+		// and a non-canonical fork of 8 from genesis.
+		let fork_hash = {
+			let mut fork_chain = canon_chain.fork(1);
+			let mut fork_finalizer = finalizer.fork();
+
+			for _ in 0..7 {
+				let mut batch = db.transaction();
+				let fork_block = fork_chain.generate(&mut fork_finalizer).unwrap();
+
+				bc.insert_block(&mut batch, &fork_block, vec![]);
+				bc.commit();
+				db.write(batch).unwrap();
+			}
+
+			assert_eq!(bc.best_block_number(), 7);
+			bc.chain_info().best_block_hash
+		};
+
+		for _ in 0..10 {
+			let mut batch = db.transaction();
+			let canon_block = canon_chain.generate(&mut finalizer).unwrap();
+
+			bc.insert_block(&mut batch, &canon_block, vec![]);
+			bc.commit();
+
+			db.write(batch).unwrap();
+		}
+
+		assert_eq!(bc.best_block_number(), 10);
+
+		let mut batch = db.transaction();
+		bc.insert_epoch_transition(&mut batch, 4, EpochTransition {
+			block_hash: bc.block_hash(4).unwrap(),
+			block_number: 4,
+			proof: vec![],
+		});
+		db.write(batch).unwrap();
+
+		// blocks where the parent is one of the first 4 will be part of genesis epoch.
+		for i in 0..4 {
+			let hash = bc.block_hash(i).unwrap();
+			assert_eq!(bc.epoch_transition_for(hash).unwrap().block_number, 0);
+		}
+
+		// blocks where the parent is the transition at 4 or after will be
+		// part of that epoch.
+		for i in 4..11 {
+			let hash = bc.block_hash(i).unwrap();
+			assert_eq!(bc.epoch_transition_for(hash).unwrap().block_number, 4);
+		}
+
+		let fork_hashes = bc.ancestry_iter(fork_hash).unwrap().collect::<Vec<_>>();
+		assert_eq!(fork_hashes.len(), 8);
+
+		// non-canonical fork blocks should all have genesis transition
+		for fork_hash in fork_hashes {
+			assert_eq!(bc.epoch_transition_for(fork_hash).unwrap().block_number, 0);
+		}
 	}
 }

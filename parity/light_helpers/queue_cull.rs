@@ -67,7 +67,7 @@ impl IoHandler<ClientIoMessage> for QueueCull {
 
 		let (sync, on_demand, txq) = (self.sync.clone(), self.on_demand.clone(), self.txq.clone());
 		let best_header = self.client.best_block_header();
-		let start_nonce = self.client.engine().account_start_nonce();
+		let start_nonce = self.client.engine().account_start_nonce(best_header.number());
 
 		info!(target: "cull", "Attempting to cull queued transactions from {} senders.", senders.len());
 		self.remote.spawn_with_timeout(move || {

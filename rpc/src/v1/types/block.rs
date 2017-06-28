@@ -100,7 +100,7 @@ pub struct Block {
 }
 
 /// Block header representation.
-#[derive(Debug, Serialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub struct Header {
 	/// Hash of the block
 	pub hash: Option<H256>,
@@ -186,7 +186,7 @@ pub type RichBlock = Rich<Block>;
 pub type RichHeader = Rich<Header>;
 
 /// Value representation with additional info
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Rich<T> {
 	/// Standard value.
 	pub inner: T,

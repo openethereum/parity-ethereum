@@ -244,7 +244,7 @@ impl JournalDB for OverlayRecentDB {
 		let key = to_short_key(key);
 		journal_overlay.backing_overlay.get(&key).map(|v| v.to_vec())
 		.or_else(|| journal_overlay.pending_overlay.get(&key).map(|d| d.clone().to_vec()))
-		.or_else(|| self.backing.get_by_prefix(self.column, &key[0..DB_PREFIX_LEN]).map(|b| b.to_vec()))
+		.or_else(|| self.backing.get_by_prefix(self.column, &key[0..DB_PREFIX_LEN]).map(|b| b.into_vec()))
 	}
 
 	fn journal_under(&mut self, batch: &mut DBTransaction, now: u64, id: &H256) -> Result<u32, UtilError> {
