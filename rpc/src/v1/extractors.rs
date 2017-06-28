@@ -140,6 +140,9 @@ fn add_security_headers(res: &mut ws::ws::Response) {
 	headers.push(("X-Frame-Options".into(), b"SAMEORIGIN".to_vec()));
 	headers.push(("X-XSS-Protection".into(), b"1; mode=block".to_vec()));
 	headers.push(("X-Content-Type-Options".into(), b"nosniff".to_vec()));
+	headers.push(("Content-Security-Policy".into(),
+		b"default-src 'self';form-action 'none';block-all-mixed-content;sandbox allow-scripts;".to_vec()
+	));
 }
 
 fn auth_token_hash(codes_path: &Path, protocol: &str, save_file: bool) -> Option<H256> {
