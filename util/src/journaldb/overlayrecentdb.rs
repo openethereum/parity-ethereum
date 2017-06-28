@@ -434,10 +434,10 @@ impl HashDB for OverlayRecentDB {
 		v.or_else(|| self.payload(key))
 	}
 
-	fn get_exec<'this>(
-		&'this self,
-		key: &'this H256,
-		f: &'this mut for<'a: 'this> FnMut(&'a [u8]),
+	fn get_exec(
+		&self,
+		key: &H256,
+		f: &mut FnMut(&[u8]),
 	) {
 		use ::std::cell::Cell;
 

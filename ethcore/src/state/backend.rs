@@ -90,10 +90,10 @@ impl HashDB for ProofCheck {
 		self.0.get(key)
 	}
 
-	fn get_exec<'this>(
-		&'this self,
-		key: &'this H256,
-		f: &'this mut for<'a: 'this> FnMut(&'a [u8])
+	fn get_exec(
+		&self,
+		key: &H256,
+		f: &mut FnMut(&[u8])
 	) {
 		self.0.get_exec(key, f);
 	}
@@ -147,10 +147,10 @@ impl<H: AsHashDB + Send + Sync> HashDB for Proving<H> {
 		keys
 	}
 
-	fn get_exec<'this>(
-		&'this self,
-		key: &'this H256,
-		mut f: &'this mut for<'a: 'this> FnMut(&'a [u8])
+	fn get_exec(
+		&self,
+		key: &H256,
+		mut f: &mut FnMut(&[u8])
 	) {
 		let mut called = false;
 

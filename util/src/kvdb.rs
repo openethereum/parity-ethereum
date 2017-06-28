@@ -213,11 +213,11 @@ pub trait KeyValueDB: Sync + Send {
 
 	// We explicitly write out the lifetime here since we don't need the `FnMut` to be able to take
 	// a slice of any lifetime.
-	fn get_exec<'this>(
-		&'this self,
+	fn get_exec(
+		&self,
 		col: Option<u32>,
-		key: &'this [u8],
-		f: &'this mut for<'a: 'this> FnMut(&'a [u8]),
+		key: &[u8],
+		f: &mut FnMut(&[u8]),
 	) -> Result<(), String>;
 
 	/// Get a value by partial key. Only works for flushed data.

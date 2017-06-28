@@ -82,10 +82,10 @@ impl RefCountedDB {
 impl HashDB for RefCountedDB {
 	fn keys(&self) -> HashMap<H256, i32> { self.forward.keys() }
 	fn get(&self, key: &H256) -> Option<DBValue> { self.forward.get(key) }
-	fn get_exec<'this>(
-		&'this self,
-		key: &'this H256,
-		mut f: &'this mut for<'a: 'this> FnMut(&'a [u8])
+	fn get_exec(
+		&self,
+		key: &H256,
+		mut f: &mut FnMut(&[u8])
 	) {
 		self.forward.get_exec(key, f);
 	}

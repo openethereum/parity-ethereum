@@ -141,10 +141,10 @@ impl HashDB for OverlayDB {
 		ret
 	}
 
-	fn get_exec<'this>(
-		&'this self,
-		key: &'this H256,
-		f: &'this mut for<'a: 'this> FnMut(&'a [u8]),
+	fn get_exec(
+		&self,
+		key: &H256,
+		f: &mut FnMut(&[u8]),
 	) {
 		// return ok if positive; if negative, check backing - might be enough
 		// references there to make it positive again.
