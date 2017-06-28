@@ -452,6 +452,7 @@ darwin:
       export COMMIT=$(git rev-parse HEAD)
       export PLATFORM=x86_64-apple-darwin
       rustup default stable
+      cargo clean
       cargo build -j 8 --features final --release #$CARGOFLAGS
       cargo build -j 8 --release -p ethstore-cli #$CARGOFLAGS
       cargo build -j 8 --release -p ethkey-cli #$CARGOFLAGS
@@ -500,6 +501,7 @@ windows:
     - set RUST_BACKTRACE=1
     - set RUSTFLAGS=%RUSTFLAGS%
     - rustup default stable-x86_64-pc-windows-msvc
+    - cargo clean
     - cargo build --features final --release #%CARGOFLAGS%
     - cargo build --release -p ethstore-cli #%CARGOFLAGS%
     - cargo build --release -p ethkey-cli #%CARGOFLAGS%
