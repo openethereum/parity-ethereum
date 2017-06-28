@@ -2,6 +2,7 @@
 name = "whisper"
 version = "0.1.0"
 dependencies = [
+ "bitflags 0.9.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "byteorder 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore-bigint 0.1.3",
  "ethcore-network 1.7.0",

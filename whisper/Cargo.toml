@@ -4,6 +4,7 @@ version = "0.1.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
+bitflags = "0.9"
 byteorder = "1.0.0"
 ethcore-bigint = { path = "../util/bigint" }
 ethcore-network = { path = "../util/network" }

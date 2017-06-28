@@ -80,8 +80,8 @@ pub type Identity = HexEncode<H256>;
 /// Public key for ECIES, SECP256k1
 pub type Public = HexEncode<::ethkey::Public>;
 
-/// Private key for ECIES, SECP256k1
-pub type Secret = HexEncode<::ethkey::Secret>;
+/// Unvalidated private key for ECIES, SECP256k1
+pub type Private = HexEncode<H256>;
 
 /// Abridged topic is four bytes.
 pub type AbridgedTopic = HexEncode<H32>;
@@ -159,6 +159,20 @@ pub struct PostRequest {
 
 	/// Time-To-Live of the message in seconds.
 	pub ttl: u64,
+}
+
+/// Request for filter or subscription creation.
+#[derive(Deserialize)]
+pub struct FilterRequest {
+	/// ID of key used for decryption.
+	#[serde(rename = "decryptWith")]
+	pub decrypt_with: Option<Identity>,
+
+	/// Accept only messages signed by given identity.
+	pub from: Option<Identity>,
+
+	/// Possible topics.
+	pub topics: Vec<String>,
 }
 
 /// A message captured by a filter or subscription.

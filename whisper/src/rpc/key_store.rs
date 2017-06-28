@@ -19,15 +19,12 @@
 //! Can handle symmetric and asymmetric keys.
 //! Symmetric encryption is done via AES-256 in GCM mode.
 
-use bigint::hash::H256;
-use ethcrypto::{self, DEFAULT_MAC as DEFAULT_MAC_ECIES};
-use ethkey::{KeyPair, Public, Secret};
-use parking_lot::{RwLock, Mutex};
-use rand::{Rng, OsRng};
-use ring::Unspecified;
+use std::collections::HashMap;
 
-const KEY_LEN: usize = 32; // 256 bits
-const NONCE_LEN: usize = 12; // 96 bits.
+use bigint::hash::H256;
+use ethkey::{KeyPair, Public, Secret};
+use rand::{Rng, OsRng};
+use ring::error::Unspecified;
 
 /// A symmetric or asymmetric key used for encryption, decryption, and signing
 /// of payloads.
@@ -73,6 +70,7 @@ impl Key {
 
 /// Key store.
 pub struct KeyStore {
+	rng: OsRng,
 	identities: HashMap<H256, Key>,
 }
 
@@ -80,17 +78,15 @@ impl KeyStore {
 	/// Create the key store. Returns any error in accessing the system's secure
 	/// RNG.
 	pub fn new() -> Result<Self, ::std::io::Error> {
-		// create the RNG once so we can assume future creations will succeed.
-
-		let _rng = OsRng::new()?;
 		Ok(KeyStore {
-			identities: RwLock::new(HashMap::new()),
+			rng: OsRng::new()?,
+			identities: HashMap::new(),
 		})
 	}
 
 	/// Import a key, generating a random identity for it.
-	pub fn import(&mut self, key: Key) -> H256 {
-		let id: H256(self.rng().gen());
+	pub fn insert(&mut self, key: Key) -> H256 {
+		let id = H256(self.rng().gen());
 		self.identities.insert(id, key);
 
 		id
@@ -98,7 +94,17 @@ impl KeyStore {
 
 	/// Get a key by ID.
 	pub fn get<'a>(&'a self, id: &H256) -> Option<&'a Key> {
-		self.identities.get()
+		self.identities.get(id)
+	}
+
+	/// Get asymmetric ID's public key.
+	pub fn public<'a>(&'a self, id: &H256) -> Option<&'a Public> {
+		self.get(id).and_then(Key::public)
+	}
+
+	/// Get asymmetric ID's secret key.
+	pub fn secret<'a>(&'a self, id: &H256) -> Option<&'a Secret> {
+		self.get(id).and_then(Key::secret)
 	}
 
 	/// Whether the store contains a key by this ID.
@@ -112,8 +118,8 @@ impl KeyStore {
 	}
 
 	/// Get RNG.
-	pub fn rng(&self) -> OsRng {
-		OsRng::new().expect("Operating system RNG existence checked in constructor; qed")
+	pub fn rng(&mut self) -> &mut OsRng {
+		&mut self.rng
 	}
 }
 
@@ -122,12 +128,32 @@ mod tests {
 	use super::*;
 
 	#[test]
+	fn rejects_invalid_secret() {
+		let bad_secret = ::ethkey::Secret::from_slice(&[0xff; 32]);
+		assert!(Key::from_secret(bad_secret).is_err());
+	}
+
+	#[test]
+	fn generated_key_should_exist() {
+		let mut store = KeyStore::new().unwrap();
+		let key = Key::new_asymmetric(store.rng());
+
+		assert!(key.public().is_some());
+		assert!(key.secret().is_some());
+
+		let id = store.insert(key);
+
+		assert!(store.contains(&id));
+		assert!(store.get(&id).is_some());
+	}
+
+	#[test]
 	fn aes_key_len_should_be_equal_to_constant() {
-		assert_eq!(::ring::aead::AES_256_GCM.key_len(), KEY_LEN);
+		assert_eq!(::ring::aead::AES_256_GCM.key_len(), 32);
 	}
 
 	#[test]
 	fn aes_nonce_len_should_be_equal_to_constant() {
-		assert_eq!(::ring::aead::AES_256_GCM.nonce_len(), KEY_LEN);
+		assert_eq!(::ring::aead::AES_256_GCM.nonce_len(), 12);
 	}
 }

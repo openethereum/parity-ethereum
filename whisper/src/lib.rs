@@ -40,6 +40,9 @@ extern crate jsonrpc_core;
 extern crate jsonrpc_pubsub;
 
 #[macro_use]
+extern crate bitflags;
+
+#[macro_use]
 extern crate log;
 
 #[macro_use]
