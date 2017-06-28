@@ -211,7 +211,7 @@ fn make_tx_and_env(
 	use transaction::{Action, Transaction};
 
 	let transaction = Transaction {
-		nonce: engine.account_start_nonce(),
+		nonce: engine.account_start_nonce(header.number()),
 		action: Action::Call(addr),
 		gas: 50_000_000.into(),
 		gas_price: 0.into(),
@@ -469,7 +469,7 @@ impl Rebuilder for ChunkRebuilder {
 			let mut state = State::from_existing(
 				db.boxed_clone(),
 				self.manifest.state_root.clone(),
-				engine.account_start_nonce(),
+				engine.account_start_nonce(target_header.number()),
 				factories,
 			).map_err(|e| format!("State root mismatch: {}", e))?;
 

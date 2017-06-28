@@ -76,6 +76,12 @@ pub struct CommonParams {
 	pub eip211_transition: BlockNumber,
 	/// Number of first block where EIP-214 rules begin.
 	pub eip214_transition: BlockNumber,
+	/// Number of first block where dust cleanup rules (EIP-168 and EIP169) begin.
+	pub dust_protection_transition: BlockNumber,
+	/// Nonce cap increase per block. Nonce cap is only checked if dust protection is enabled.
+	pub nonce_cap_increment : u64,
+	/// Enable dust cleanup for contracts.
+	pub remove_dust_contracts : bool,
 }
 
 impl From<ethjson::spec::Params> for CommonParams {
@@ -100,6 +106,9 @@ impl From<ethjson::spec::Params> for CommonParams {
 			eip210_contract_gas: p.eip210_contract_gas.map_or(1000000.into(), Into::into),
 			eip211_transition: p.eip211_transition.map_or(BlockNumber::max_value(), Into::into),
 			eip214_transition: p.eip214_transition.map_or(BlockNumber::max_value(), Into::into),
+			dust_protection_transition: p.dust_protection_transition.map_or(BlockNumber::max_value(), Into::into),
+			nonce_cap_increment: p.nonce_cap_increment.map_or(64, Into::into),
+			remove_dust_contracts: p.remove_dust_contracts.unwrap_or(false),
 		}
 	}
 }
@@ -224,7 +233,7 @@ impl Spec {
 			);
 		}
 
-		let start_nonce = self.engine.account_start_nonce();
+		let start_nonce = self.engine.account_start_nonce(0);
 
 		let (root, db) = {
 			let mut state = State::from_existing(
@@ -460,7 +469,7 @@ mod tests {
 		::ethcore_logger::init_log();
 		let spec = Spec::new_test_constructor();
 		let db = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
-		let state = State::from_existing(db.boxed_clone(), spec.state_root(), spec.engine.account_start_nonce(), Default::default()).unwrap();
+		let state = State::from_existing(db.boxed_clone(), spec.state_root(), spec.engine.account_start_nonce(0), Default::default()).unwrap();
 		let expected = H256::from_str("0000000000000000000000000000000000000000000000000000000000000001").unwrap();
 		assert_eq!(state.storage_at(&Address::from_str("0000000000000000000000000000000000000005").unwrap(), &H256::zero()).unwrap(), expected);
 	}

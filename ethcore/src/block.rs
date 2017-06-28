@@ -261,7 +261,8 @@ impl<'x> OpenBlock<'x> {
 		gas_range_target: (U256, U256),
 		extra_data: Bytes,
 	) -> Result<Self, Error> {
-		let state = State::from_existing(db, parent.state_root().clone(), engine.account_start_nonce(), factories)?;
+		let number = parent.number() + 1;
+		let state = State::from_existing(db, parent.state_root().clone(), engine.account_start_nonce(number), factories)?;
 		let mut r = OpenBlock {
 			block: ExecutedBlock::new(state, tracing),
 			engine: engine,
@@ -269,7 +270,7 @@ impl<'x> OpenBlock<'x> {
 		};
 
 		r.block.header.set_parent_hash(parent.hash());
-		r.block.header.set_number(parent.number() + 1);
+		r.block.header.set_number(number);
 		r.block.header.set_author(author);
 		r.block.header.set_timestamp_now(parent.timestamp());
 		r.block.header.set_extra_data(extra_data);
@@ -556,7 +557,7 @@ pub fn enact(
 ) -> Result<LockedBlock, Error> {
 	{
 		if ::log::max_log_level() >= ::log::LogLevel::Trace {
-			let s = State::from_existing(db.boxed_clone(), parent.state_root().clone(), engine.account_start_nonce(), factories.clone())?;
+			let s = State::from_existing(db.boxed_clone(), parent.state_root().clone(), engine.account_start_nonce(parent.number() + 1), factories.clone())?;
 			trace!(target: "enact", "num={}, root={}, author={}, author_balance={}\n",
 				header.number(), s.root(), header.author(), s.balance(&header.author())?);
 		}

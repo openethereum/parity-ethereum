@@ -161,8 +161,14 @@ pub trait Engine : Sync + Send {
 	fn maximum_uncle_count(&self) -> usize { 2 }
 	/// The number of generations back that uncles can be.
 	fn maximum_uncle_age(&self) -> usize { 6 }
-	/// The nonce with which accounts begin.
-	fn account_start_nonce(&self) -> U256 { self.params().account_start_nonce }
+	/// The nonce with which accounts begin at given block.
+	fn account_start_nonce(&self, block: u64) -> U256 {
+		if block >= self.params().dust_protection_transition {
+			U256::from(self.params().nonce_cap_increment) * U256::from(block)
+		} else {
+			self.params().account_start_nonce
+		}
+	}
 
 	/// Block transformation functions, before the transactions.
 	fn on_new_block(&self, block: &mut ExecutedBlock, last_hashes: Arc<LastHashes>) -> Result<(), Error> {
