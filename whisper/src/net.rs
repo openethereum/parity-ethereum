@@ -138,6 +138,10 @@ impl Messages {
 		self.known.reserve(additional);
 	}
 
+	// whether a message is known.
+	fn contains(&self, message: &Message) -> bool {
+		self.known.contains(message.hash())
+	}
 
 	// insert a message into the store. for best performance,
 	// call `reserve` before inserting a bunch.
@@ -270,7 +274,7 @@ impl Peer {
 pub struct Handler {
 	incoming: Mutex<mpsc::Receiver<Message>>,
 	async_sender: Mutex<mpsc::Sender<Message>>,
-	messages: Mutex<Messages>,
+	messages: RwLock<Messages>,
 	peers: RwLock<HashMap<PeerId, Mutex<Peer>>>,
 	node_key: RwLock<NodeId>,
 }
@@ -284,7 +288,7 @@ impl Handler {
 		Handler {
 			incoming: Mutex::new(rx),
 			async_sender: Mutex::new(tx),
-			messages: Mutex::new(Messages::new(messages_size_bytes)),
+			messages: RwLock::new(Messages::new(messages_size_bytes)),
 			peers: RwLock::new(HashMap::new()),
 			node_key: RwLock::new(Default::default()),
 		}
@@ -303,7 +307,7 @@ impl Handler {
 
 		// accumulate incoming messages.
 		let incoming_messages: Vec<_> = self.incoming.lock().try_iter().collect();
-		let mut messages = self.messages.lock();
+		let mut messages = self.messages.write();
 
 		messages.reserve(incoming_messages.len());
 
@@ -395,12 +399,13 @@ impl Handler {
 		}
 	}
 
-	fn on_messages(&self, peer: &PeerId, messages: UntrustedRlp)
+	fn on_messages(&self, peer: &PeerId, message_packet: UntrustedRlp)
 		-> Result<(), Error>
 	{
 		// TODO: pinning thread-local data to each I/O worker would
 		// optimize this significantly.
 		let sender = self.message_sender();
+		let messages = self.messages.read();
 
 		let peers = self.peers.read();
 		let peer = match peers.get(peer) {
@@ -420,12 +425,14 @@ impl Handler {
 		peer.state = State::OurTurn;
 
 		let now = SystemTime::now();
-		for message_rlp in messages.iter() {
+		for message_rlp in message_packet.iter() {
 			let message = Message::decode(message_rlp, now)?;
 			peer.note_known(&message);
 
+			if messages.contains(&message) { continue }
+
 			// TODO: check whether the message matches our local filter criteria
-			// and pass payload to handler.
+			// and then pass it to handler.
 
 			sender.send(message).expect("receiver always kept alive; qed");
 		}
@@ -528,8 +535,4 @@ impl ::network::NetworkProtocolHandler for Handler {
 			other => debug!(target: "whisper", "Timout triggered on unknown token {}", other),
 		}
 	}
-}
-
-#[cfg(test)]
-mod tests {
 }

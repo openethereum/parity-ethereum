@@ -7,12 +7,24 @@ authors = ["Parity Technologies <admin@parity.io>"]
 byteorder = "1.0.0"
 ethcore-bigint = { path = "../util/bigint" }
 ethcore-network = { path = "../util/network" }
+ethcrypto = { path = "../ethcrypto" }
+ethkey = { path = "../ethkey" }
+futures = "0.1"
+hex = "0.2"
 log = "0.3"
 ordered-float = "0.5"
 parking_lot = "0.4"
 rand = "0.3"
+ring = "0.11"
 rlp = { path = "../util/rlp" }
+serde = "0.9"
+serde_derive = "0.9"
+serde_json = "0.9"
 slab = "0.3"
 smallvec = "0.4"
 time = "0.1"
 tiny-keccak = "1.2.1"
+
+jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
+jsonrpc-macros = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
+jsonrpc-pubsub = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
