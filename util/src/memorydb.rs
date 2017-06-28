@@ -82,6 +82,8 @@ impl MemoryDB {
 		}
 	}
 
+	/// Get a raw value by reference, ignoring refcounts. Returns `None` if the key has never been
+	/// added to the database. The data is not guaranteed to be useful if the refcount is 0.
 	pub fn raw_ref(&self, key: &H256) -> Option<(Cow<DBValue>, i32)> {
 		if key == &SHA3_NULL_RLP {
 			return Some(

@@ -128,7 +128,10 @@ enum KeyState {
 	Delete,
 }
 
+/// Supplemental trait to `KeyValueDB` supplying generic methods for trait objects, internally
+/// calling monomorphic forms of these methods.
 pub trait KeyValueDBExt: KeyValueDB {
+	/// Get a reference, transform it, and return the result (prevents cloning).
 	fn get_with<Out, F: FnOnce(&[u8]) -> Out>(
 		&self,
 		col: Option<u32>,
@@ -211,8 +214,11 @@ pub trait KeyValueDB: Sync + Send {
 		Ok(output)
 	}
 
-	// We explicitly write out the lifetime here since we don't need the `FnMut` to be able to take
-	// a slice of any lifetime.
+	/// Any implementation of this function should call `f` zero times if a value
+	/// for `key` is not found, and precisely once if a value is found. The
+	/// default implementation of `get_with` will panic if `f` is called more than
+	/// once and in general there is no sensible behavior if `f` is called more
+	/// than once.
 	fn get_exec(
 		&self,
 		col: Option<u32>,

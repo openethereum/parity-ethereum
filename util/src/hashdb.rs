@@ -42,9 +42,13 @@ macro_rules! get_with_fn_def {
 
 			{
 				let mut wrapper = |key: &[u8]| {
-					// Unwrap here because `get_exec` is required to call the closure no more than
-					// once.
-					output = Some((o_func.take().unwrap())(key));
+					output = Some(
+						(
+							o_func.take().expect(
+								"The implementation of `get_exec` called its argument twice - this \
+								 is a bug!"
+							)
+						)(key));
 				};
 
 				self.get_exec(key, &mut wrapper);
