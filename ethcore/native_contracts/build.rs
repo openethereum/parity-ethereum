@@ -28,7 +28,7 @@ const SECRETSTORE_ACL_STORAGE_ABI: &'static str = include_str!("res/secretstore_
 const VALIDATOR_SET_ABI: &'static str = include_str!("res/validator_set.json");
 const VALIDATOR_REPORT_ABI: &'static str = include_str!("res/validator_report.json");
 
-const TEST_VALIDATOR_SET_ABI: &'static str = r#"[{"constant":true,"inputs":[],"name":"transitionNonce","outputs":[{"name":"n","type":"uint256"}],"payable":false,"type":"function"},{"constant":false,"inputs":[{"name":"newValidators","type":"address[]"}],"name":"setValidators","outputs":[],"payable":false,"type":"function"},{"constant":true,"inputs":[],"name":"getValidators","outputs":[{"name":"vals","type":"address[]"}],"payable":false,"type":"function"},{"inputs":[],"payable":false,"type":"constructor"},{"anonymous":false,"inputs":[{"indexed":true,"name":"_parent_hash","type":"bytes32"},{"indexed":true,"name":"_nonce","type":"uint256"},{"indexed":false,"name":"_new_set","type":"address[]"}],"name":"ValidatorsChanged","type":"event"}]"#;
+const TEST_VALIDATOR_SET_ABI: &'static str = include_str!("res/test_validator_set.json");
 
 fn build_file(name: &str, abi: &str, filename: &str) {
 	let code = ::native_contract_generator::generate_module(name, abi).unwrap();

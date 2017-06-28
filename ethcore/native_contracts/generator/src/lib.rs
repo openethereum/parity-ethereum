@@ -108,7 +108,7 @@ fn generate_functions(contract: &Contract) -> Result<String, Error> {
 /// Outputs: {abi_outputs:?}
 pub fn {snake_name}<F, U>(&self, call: F, {params}) -> BoxFuture<{output_type}, String>
 	where
-	    F: Fn(util::Address, Vec<u8>) -> U,
+	    F: FnOnce(util::Address, Vec<u8>) -> U,
 	    U: IntoFuture<Item=Vec<u8>, Error=String>,
 		U::Future: Send + 'static
 {{

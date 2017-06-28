@@ -50,22 +50,26 @@ const MAX_HANDSHAKES: usize = 1024;
 
 const DEFAULT_PORT: u16 = 30303;
 
-// Tokens
-const TCP_ACCEPT: usize = SYS_TIMER + 1;
-const IDLE: usize = SYS_TIMER + 2;
-const DISCOVERY: usize = SYS_TIMER + 3;
-const DISCOVERY_REFRESH: usize = SYS_TIMER + 4;
-const DISCOVERY_ROUND: usize = SYS_TIMER + 5;
-const NODE_TABLE: usize = SYS_TIMER + 6;
-const FIRST_SESSION: usize = 0;
-const LAST_SESSION: usize = FIRST_SESSION + MAX_SESSIONS - 1;
-const USER_TIMER: usize = LAST_SESSION + 256;
-const SYS_TIMER: usize = LAST_SESSION + 1;
+// StreamToken/TimerToken
+const TCP_ACCEPT: StreamToken = SYS_TIMER + 1;
+const IDLE: TimerToken = SYS_TIMER + 2;
+const DISCOVERY: StreamToken = SYS_TIMER + 3;
+const DISCOVERY_REFRESH: TimerToken = SYS_TIMER + 4;
+const DISCOVERY_ROUND: TimerToken = SYS_TIMER + 5;
+const NODE_TABLE: TimerToken = SYS_TIMER + 6;
+const FIRST_SESSION: StreamToken = 0;
+const LAST_SESSION: StreamToken = FIRST_SESSION + MAX_SESSIONS - 1;
+const USER_TIMER: TimerToken = LAST_SESSION + 256;
+const SYS_TIMER: TimerToken = LAST_SESSION + 1;
 
 // Timeouts
+// for IDLE TimerToken
 const MAINTENANCE_TIMEOUT: u64 = 1000;
+// for DISCOVERY_REFRESH TimerToken
 const DISCOVERY_REFRESH_TIMEOUT: u64 = 60_000;
+// for DISCOVERY_ROUND TimerToken
 const DISCOVERY_ROUND_TIMEOUT: u64 = 300;
+// for NODE_TABLE TimerToken
 const NODE_TABLE_TIMEOUT: u64 = 300_000;
 
 #[derive(Debug, PartialEq, Clone)]

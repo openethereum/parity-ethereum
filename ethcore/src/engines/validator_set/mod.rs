@@ -37,7 +37,10 @@ use self::contract::ValidatorContract;
 use self::safe_contract::ValidatorSafeContract;
 use self::multi::Multi;
 
-use super::Call;
+use super::{Call, Engine};
+
+/// A system-calling closure. Enacts calls on a block's state from the system address.
+pub type SystemCall<'a> = FnMut(Address, Bytes) -> Result<Bytes, String> + 'a;
 
 /// Creates a validator set from spec.
 pub fn new_validator_set(spec: ValidatorSpec) -> Box<ValidatorSet> {
@@ -64,6 +67,7 @@ pub trait ValidatorSet: Send + Sync {
 		let default = self.default_caller(BlockId::Hash(*parent));
 		self.contains_with_caller(parent, address, &*default)
 	}
+
 	/// Draws an validator nonce modulo number of validators.
 	fn get(&self, parent: &H256, nonce: usize) -> Address {
 		let default = self.default_caller(BlockId::Hash(*parent));
@@ -76,48 +80,66 @@ pub trait ValidatorSet: Send + Sync {
 		self.count_with_caller(parent, &*default)
 	}
 
+	/// Signalling that a new epoch has begun.
+	///
+	/// All calls here will be from the `SYSTEM_ADDRESS`: 2^160 - 2
+	/// and will have an effect on the block's state.
+	/// The caller provided here may not generate proofs.
+	///
+	/// `first` is true if this is the first block in the set.
+	fn on_epoch_begin(&self, _first: bool, _header: &Header, _call: &mut SystemCall) -> Result<(), ::error::Error> {
+		Ok(())
+	}
+
+	/// Extract genesis epoch data from the genesis state and header.
+	fn genesis_epoch_data(&self, _header: &Header, _call: &Call) -> Result<Vec<u8>, String> { Ok(Vec::new()) }
+
 	/// Whether this block is the last one in its epoch.
-	/// Usually indicates that the validator set changed at the given block.
 	///
-	/// Should not inspect state! This is used in situations where
-	/// state is not generally available.
+	/// Indicates that the validator set changed at the given block in a manner
+	/// that doesn't require finality.
 	///
-	/// Return `Yes` or `No` indicating whether it changed at the given header,
-	/// or `Unsure` indicating a need for more information.
-	///
-	/// If block or receipts are provided, do not return `Unsure` indicating
-	/// need for them.
-	fn is_epoch_end(&self, header: &Header, block: Option<&[u8]>, receipts: Option<&[::receipt::Receipt]>)
-		-> super::EpochChange;
+	/// `first` is true if this is the first block in the set.
+	fn is_epoch_end(&self, first: bool, chain_head: &Header) -> Option<Vec<u8>>;
 
-	/// Generate epoch proof.
-	/// Must interact with state only through the given caller!
-	/// Otherwise, generated proofs may be wrong.
-	fn epoch_proof(&self, header: &Header, caller: &Call) -> Result<Vec<u8>, String>;
+	/// Whether the given block signals the end of an epoch, but change won't take effect
+	/// until finality.
+	///
+	/// Engine should set `first` only if the header is genesis. Multiplexing validator
+	/// sets can set `first` to internal changes.
+	fn signals_epoch_end(
+		&self,
+		first: bool,
+		header: &Header,
+		block: Option<&[u8]>,
+		receipts: Option<&[::receipt::Receipt]>,
+	) -> ::engines::EpochChange;
 
-	/// Recover the validator set for all
+	/// Recover the validator set from the given proof, the block number, and
+	/// whether this header is first in its set.
 	///
 	/// May fail if the given header doesn't kick off an epoch or
 	/// the proof is invalid.
 	///
-	/// Returns the epoch number and proof.
-	fn epoch_set(&self, header: &Header, proof: &[u8]) -> Result<(u64, SimpleList), ::error::Error>;
+	/// Returns the set, along with a flag indicating whether finality of a specific
+	/// hash should be proven.
+	fn epoch_set(&self, first: bool, engine: &Engine, number: BlockNumber, proof: &[u8])
+		-> Result<(SimpleList, Option<H256>), ::error::Error>;
 
 	/// Checks if a given address is a validator, with the given function
 	/// for executing synchronous calls to contracts.
 	fn contains_with_caller(&self, parent_block_hash: &H256, address: &Address, caller: &Call) -> bool;
 
 	/// Draws an validator nonce modulo number of validators.
-	///
 	fn get_with_caller(&self, parent_block_hash: &H256, nonce: usize, caller: &Call) -> Address;
 
 	/// Returns the current number of validators.
 	fn count_with_caller(&self, parent_block_hash: &H256, caller: &Call) -> usize;
 
 	/// Notifies about malicious behaviour.
-	fn report_malicious(&self, _validator: &Address, _block: BlockNumber, _proof: Bytes) {}
+	fn report_malicious(&self, _validator: &Address, _set_block: BlockNumber, _block: BlockNumber, _proof: Bytes) {}
 	/// Notifies about benign misbehaviour.
-	fn report_benign(&self, _validator: &Address, _block: BlockNumber) {}
+	fn report_benign(&self, _validator: &Address, _set_block: BlockNumber, _block: BlockNumber) {}
 	/// Allows blockchain state access.
 	fn register_contract(&self, _client: Weak<Client>) {}
 }

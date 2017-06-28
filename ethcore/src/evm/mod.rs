@@ -38,5 +38,5 @@ pub use self::ext::{Ext, ContractCreateResult, MessageCallResult, CreateContract
 pub use self::instructions::{InstructionInfo, INSTRUCTIONS, push_bytes};
 pub use self::vmtype::VMType;
 pub use self::factory::Factory;
-pub use self::schedule::Schedule;
+pub use self::schedule::{Schedule, CleanDustMode};
 pub use types::executed::CallType;
