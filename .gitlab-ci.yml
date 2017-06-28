@@ -25,8 +25,8 @@ linux-stable:
     - rustup default stable
     - cargo build -j $(nproc) --release --features final $CARGOFLAGS
     - cargo build -j $(nproc) --release -p evmbin
-    - cargo build -j $(nproc) --release -p ethstore
-    - cargo build -j $(nproc) --release -p ethkey
+    - cargo build -j $(nproc) --release -p ethstore-cli
+    - cargo build -j $(nproc) --release -p ethkey-cli
     - strip target/release/parity
     - strip target/release/parity-evm
     - strip target/release/ethstore
@@ -437,7 +437,7 @@ darwin:
       export PLATFORM=x86_64-apple-darwin
       rustup default stable
       cargo build -j 8 --features final --release #$CARGOFLAGS
-      cargo build -j 8 --features final --release -p ethstore #$CARGOFLAGS
+      cargo build -j 8 --features final --release -p ethstore-cli #$CARGOFLAGS
       rm -rf parity.md5
       md5sum target/release/parity > parity.md5
       export SHA3=$(target/release/parity tools hash target/release/parity)
