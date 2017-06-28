@@ -20,7 +20,7 @@
 //! well).
 
 use std::io::{self, Read};
-use std::time;
+use std::{fmt, time};
 
 use futures::{self, Future, BoxFuture};
 use fetch::{self, Fetch};
@@ -39,12 +39,25 @@ pub enum Error {
 	Io(String),
 }
 
+impl fmt::Display for Error {
+	fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+		use self::Error::*;
+
+		match *self {
+			UnexpectedResponse(ref code, ..) => write!(fmt, "Unexpected response with status code: {}", code),
+			InvalidTime(ref time) => write!(fmt, "Invalid time was returned: {}", time),
+			Fetch(ref err) => write!(fmt, "Fetch error: {}", err),
+			Io(ref err) => write!(fmt, "Connection Error: {}", err),
+		}
+	}
+}
+
 impl From<io::Error> for Error {
-	fn from(err: io::Error) -> Self { Error::Io(format!("{:?}", err)) }
+	fn from(err: io::Error) -> Self { Error::Io(format!("{}", err)) }
 }
 
 impl From<fetch::Error> for Error {
-	fn from(err: fetch::Error) -> Self { Error::Fetch(format!("{:?}", err)) }
+	fn from(err: fetch::Error) -> Self { Error::Fetch(format!("{}", err)) }
 }
 
 

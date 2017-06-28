@@ -204,6 +204,15 @@ pub enum Error {
 	Aborted,
 }
 
+impl fmt::Display for Error {
+	fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+		match *self {
+			Error::Aborted => write!(fmt, "The request has been aborted."),
+			Error::Fetch(ref err) => write!(fmt, "{}", err),
+		}
+	}
+}
+
 impl From<reqwest::Error> for Error {
 	fn from(error: reqwest::Error) -> Self {
 		Error::Fetch(error)

@@ -136,7 +136,7 @@ impl<F: Fetch> RestApiRouter<F> {
 					},
 					Ok(Err(err)) => {
 						(HealthStatus::NeedsAttention, format!(
-							"Unable to reach time API: {:?}. Make sure that your clock is synchronized.",
+							"Unable to reach time API: {}. Make sure that your clock is synchronized.",
 							err,
 						), 0)
 					},
