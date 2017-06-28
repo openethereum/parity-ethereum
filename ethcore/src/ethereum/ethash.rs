@@ -166,7 +166,6 @@ impl Ethash {
 // in the future, we might move the Ethash epoch
 // caching onto this mechanism as well.
 impl ::engines::EpochVerifier for Arc<Ethash> {
-	fn epoch_number(&self) -> u64 { 0 }
 	fn verify_light(&self, _header: &Header) -> Result<(), Error> { Ok(()) }
 	fn verify_heavy(&self, header: &Header) -> Result<(), Error> {
 		self.verify_block_unordered(header, None)
@@ -256,7 +255,12 @@ impl Engine for Arc<Ethash> {
 //		info!("ethash: populate_from_parent #{}: difficulty={} and gas_limit={}", header.number(), header.difficulty(), header.gas_limit());
 	}
 
-	fn on_new_block(&self, block: &mut ExecutedBlock, last_hashes: Arc<LastHashes>) -> Result<(), Error> {
+	fn on_new_block(
+		&self,
+		block: &mut ExecutedBlock,
+		last_hashes: Arc<LastHashes>,
+		_begins_epoch: bool,
+	) -> Result<(), Error> {
 		let parent_hash = block.fields().header.parent_hash().clone();
 		::engines::common::push_last_hash(block, last_hashes, self, &parent_hash)?;
 		if block.fields().header.number() == self.ethash_params.dao_hardfork_transition {
@@ -400,8 +404,8 @@ impl Engine for Arc<Ethash> {
 		Ok(())
 	}
 
-	fn epoch_verifier(&self, _header: &Header, _proof: &[u8]) -> Result<Box<::engines::EpochVerifier>, Error> {
-		Ok(Box::new(self.clone()))
+	fn epoch_verifier<'a>(&self, _header: &Header, _proof: &'a [u8]) -> ::engines::ConstructedVerifier<'a> {
+		::engines::ConstructedVerifier::Trusted(Box::new(self.clone()))
 	}
 
 	fn snapshot_components(&self) -> Option<Box<::snapshot::SnapshotComponents>> {
@@ -559,7 +563,7 @@ mod tests {
 		let genesis_header = spec.genesis_header();
 		let db = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
-		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, Address::zero(), (3141562.into(), 31415620.into()), vec![]).unwrap();
+		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, Address::zero(), (3141562.into(), 31415620.into()), vec![], false).unwrap();
 		let b = b.close();
 		assert_eq!(b.state().balance(&Address::zero()).unwrap(), U256::from_str("4563918244f40000").unwrap());
 	}
@@ -571,7 +575,7 @@ mod tests {
 		let genesis_header = spec.genesis_header();
 		let db = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
-		let mut b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, Address::zero(), (3141562.into(), 31415620.into()), vec![]).unwrap();
+		let mut b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, Address::zero(), (3141562.into(), 31415620.into()), vec![], false).unwrap();
 		let mut uncle = Header::new();
 		let uncle_author: Address = "ef2d6d194084c2de36e0dabfce45d046b37d1106".into();
 		uncle.set_author(uncle_author);

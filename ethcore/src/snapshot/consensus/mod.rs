@@ -93,7 +93,5 @@ pub trait Rebuilder: Send {
 	///
 	/// This should apply the necessary "glue" between chunks,
 	/// and verify against the restored state.
-	///
-	/// The database passed contains the state for the warp target block.
-	fn finalize(&mut self, db: ::state_db::StateDB, engine: &Engine) -> Result<(), ::error::Error>;
+	fn finalize(&mut self, engine: &Engine) -> Result<(), ::error::Error>;
 }

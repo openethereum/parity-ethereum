@@ -51,7 +51,6 @@ impl ToV9 {
 }
 
 impl Migration for ToV9 {
-
 	fn columns(&self) -> Option<u32> { Some(5) }
 
 	fn version(&self) -> u32 { 9 }
