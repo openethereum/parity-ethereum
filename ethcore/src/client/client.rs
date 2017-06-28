@@ -856,7 +856,7 @@ impl Client {
 			}
 
 			let root = header.state_root();
-			State::from_existing(db, root, self.engine.account_start_nonce(), self.factories.clone()).ok()
+			State::from_existing(db, root, self.engine.account_start_nonce(block_number), self.factories.clone()).ok()
 		})
 	}
 
@@ -881,7 +881,7 @@ impl Client {
 		State::from_existing(
 			self.state_db.lock().boxed_clone_canon(&header.hash()),
 			header.state_root(),
-			self.engine.account_start_nonce(),
+			self.engine.account_start_nonce(header.number()),
 			self.factories.clone())
 		.expect("State root of best block header always valid.")
 	}
@@ -1033,7 +1033,7 @@ impl Client {
 	fn contract_call_tx(&self, block_id: BlockId, address: Address, data: Bytes) -> SignedTransaction {
 		let from = Address::default();
 		Transaction {
-			nonce: self.nonce(&from, block_id).unwrap_or_else(|| self.engine.account_start_nonce()),
+			nonce: self.nonce(&from, block_id).unwrap_or_else(|| self.engine.account_start_nonce(0)),
 			action: Action::Call(address),
 			gas: U256::from(50_000_000),
 			gas_price: U256::default(),

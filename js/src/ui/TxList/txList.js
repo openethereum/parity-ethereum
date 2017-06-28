@@ -60,7 +60,7 @@ class TxList extends Component {
 
   renderRows () {
     const { address, netVersion, blockNumber } = this.props;
-    const { editTransaction, cancelTransaction } = this.store;
+    const { editTransaction, cancelTransaction, killTransaction } = this.store;
 
     return this.store.sortedHashes.map((txhash) => {
       const tx = this.store.transactions[txhash];
@@ -77,6 +77,7 @@ class TxList extends Component {
           netVersion={ netVersion }
           editTransaction={ editTransaction }
           cancelTransaction={ cancelTransaction }
+          killTransaction={ killTransaction }
         />
       );
     });

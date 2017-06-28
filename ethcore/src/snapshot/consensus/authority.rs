@@ -360,9 +360,9 @@ impl Rebuilder for ChunkRebuilder {
 		let mut lasts_reversed = self.last_epochs.iter().rev();
 		for &(ref header, ref finality_proof, hash) in self.unverified_firsts.iter().rev() {
 			let mut found = false;
-			while let Some(last) = lasts_reversed.next() {
-				if last.0.number() < header.number() {
-					if last.1.check_finality_proof(&finality_proof).map_or(true, |hashes| !hashes.contains(&hash)) {
+			while let Some(&(ref last_header, ref last_verifier)) = lasts_reversed.next() {
+				if last_header.number() < header.number() {
+					if last_verifier.check_finality_proof(&finality_proof).map_or(true, |hashes| !hashes.contains(&hash)) {
 						return Err(Error::BadEpochProof(header.number()).into());
 					}
 					found = true;

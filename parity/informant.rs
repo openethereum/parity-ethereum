@@ -158,7 +158,7 @@ impl Informant {
 				false => String::new(),
 			},
 			match (&sync_status, &network_config) {
-				(&Some(ref sync_info), &Some(ref net_config)) => format!("{}{}/{}/{} peers",
+				(&Some(ref sync_info), &Some(ref net_config)) => format!("{}{}/{} peers",
 					match importing {
 						true => format!("{}   ", paint(Green.bold(), format!("{:>8}", format!("#{}", sync_info.last_imported_block_number.unwrap_or(chain_info.best_block_number))))),
 						false => match sync_info.last_imported_old_block_number {
@@ -166,7 +166,6 @@ impl Informant {
 							None => String::new(),
 						}
 					},
-					paint(Cyan.bold(), format!("{:2}", sync_info.num_active_peers)),
 					paint(Cyan.bold(), format!("{:2}", sync_info.num_peers)),
 					paint(Cyan.bold(), format!("{:2}", sync_info.current_max_peers(net_config.min_peers, net_config.max_peers))),
 				),

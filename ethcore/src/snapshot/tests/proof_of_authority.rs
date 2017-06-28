@@ -117,7 +117,7 @@ fn make_chain(accounts: Arc<AccountProvider>, blocks_beyond: usize, transitions:
 		};
 
 		// execution callback for native contract: push transaction to be sealed.
-		let nonce = RefCell::new(client.engine().account_start_nonce());
+		let nonce = RefCell::new(client.engine().account_start_nonce(0));
 
 		// create useless transactions vector so we don't have to dig in
 		// and force sealing.

@@ -317,7 +317,7 @@ impl ValidatorSet for ValidatorSafeContract {
 			let addresses = self.provider.get_validators(move |a, d| {
 				let from = Address::default();
 				let tx = Transaction {
-					nonce: engine.account_start_nonce(),
+					nonce: engine.account_start_nonce(number),
 					action: Action::Call(a),
 					gas: PROVIDED_GAS.into(),
 					gas_price: U256::default(),
