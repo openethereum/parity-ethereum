@@ -23,7 +23,6 @@ import { EditMeta, AddAddress } from '~/modals';
 import { Actionbar, Button, Page } from '~/ui';
 import { AddIcon, DeleteIcon, EditIcon } from '~/ui/Icons';
 
-import Title from '../Title';
 import Header from '../Account/Header';
 import Transactions from '../Account/Transactions';
 import Delete from './Delete';
@@ -182,12 +181,10 @@ class Address extends Component {
     return (
       <Actionbar
         title={
-          <Title>
-            <FormattedMessage
-              id='address.title'
-              defaultMessage='Address Information'
-            />
-          </Title>
+          <FormattedMessage
+            id='address.title'
+            defaultMessage='Address Information'
+          />
         }
         buttons={
           !contact

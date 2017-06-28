@@ -30,7 +30,6 @@ import { fetchCertifiers, fetchCertifications } from '~/redux/providers/certific
 import { Actionbar, Button, ConfirmDialog, Input, Page, Portal } from '~/ui';
 import { DeleteIcon, DialIcon, EditIcon, LockedIcon, SendIcon, VerifyIcon, FileDownloadIcon } from '~/ui/Icons';
 
-import Title from '../Title';
 import DeleteAddress from '../Address/Delete';
 
 import Header from './Header';
@@ -280,12 +279,10 @@ class Account extends Component {
       <Actionbar
         buttons={ buttons }
         title={
-          <Title>
-            <FormattedMessage
-              id='account.title'
-              defaultMessage='Account Management'
-            />
-          </Title>
+          <FormattedMessage
+            id='account.title'
+            defaultMessage='Account Management'
+          />
         }
       />
     );

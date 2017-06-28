@@ -28,7 +28,6 @@ import { CancelIcon, DeleteIcon, EditIcon, PlayIcon, VisibleIcon } from '~/ui/Ic
 import Editor from '~/ui/Editor';
 import { getSender, loadSender } from '~/util/tx';
 
-import Title from '../Title';
 import Header from '../Account/Header';
 import Delete from '../Address/Delete';
 
@@ -306,12 +305,10 @@ class Contract extends Component {
     return (
       <Actionbar
         title={
-          <Title>
-            <FormattedMessage
-              id='contract.title'
-              defaultMessage='Contract Information'
-            />
-          </Title>
+          <FormattedMessage
+            id='contract.title'
+            defaultMessage='Contract Information'
+          />
         }
         buttons={ !account ? [] : buttons }
       />

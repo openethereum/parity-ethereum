@@ -29,7 +29,6 @@ import { Actionbar, ActionbarSearch, ActionbarSort, Button, Page, Tooltip } from
 import { AddIcon, KeyIcon, FileDownloadIcon } from '~/ui/Icons';
 import { setVisibleAccounts } from '~/redux/providers/personalActions';
 
-import Title from '../Title';
 import List from './List';
 import styles from './accounts.css';
 
@@ -295,12 +294,10 @@ class Accounts extends Component {
       <Actionbar
         className={ styles.toolbar }
         title={
-          <Title>
-            <FormattedMessage
-              id='accounts.title'
-              defaultMessage='Accounts Overview'
-            />
-          </Title>
+          <FormattedMessage
+            id='accounts.title'
+            defaultMessage='Accounts Overview'
+          />
         }
         buttons={ buttons }
       >

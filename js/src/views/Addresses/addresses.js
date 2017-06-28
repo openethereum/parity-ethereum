@@ -21,7 +21,6 @@ import { bindActionCreators } from 'redux';
 import ContentAdd from 'material-ui/svg-icons/content/add';
 import { uniq, isEqual } from 'lodash';
 
-import Title from '../Title';
 import List from '../Accounts/List';
 import Summary from '../Accounts/Summary';
 import { AddAddress } from '~/modals';
@@ -163,12 +162,10 @@ class Addresses extends Component {
       <Actionbar
         className={ styles.toolbar }
         title={
-          <Title>
-            <FormattedMessage
-              id='addresses.title'
-              defaultMessage='Saved Addresses'
-            />
-          </Title>
+          <FormattedMessage
+            id='addresses.title'
+            defaultMessage='Saved Addresses'
+          />
         }
         buttons={ buttons }
       />

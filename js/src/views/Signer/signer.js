@@ -20,20 +20,16 @@ import { FormattedMessage } from 'react-intl';
 import { Actionbar } from '~/ui';
 import RequestsPage from './containers/RequestsPage';
 
-import Title from '../Title';
-
 export default class Signer extends Component {
   render () {
     return (
       <div>
         <Actionbar
           title={
-            <Title>
-              <FormattedMessage
-                id='signer.title'
-                defaultMessage='Trusted Signer'
-              />
-            </Title>
+            <FormattedMessage
+              id='signer.title'
+              defaultMessage='Trusted Signer'
+            />
           }
         />
         <RequestsPage />

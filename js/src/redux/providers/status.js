@@ -25,6 +25,10 @@ import { statusBlockNumber, statusCollection } from './statusActions';
 const log = getLogger(LOG_KEYS.Signer);
 let instance = null;
 
+const STATUS_OK = 'ok';
+const STATUS_WARN = 'needsAttention';
+const STATUS_BAD = 'bad';
+
 export default class Status {
   _apiStatus = {};
   _status = {};
@@ -222,12 +226,12 @@ export default class Status {
   _overallStatus = (health) => {
     const all = [health.peers, health.sync, health.time];
     const statuses = all.map(x => x.status);
-    const bad = statuses.find(x => x === 'bad');
-    const needsAttention = statuses.find(x => x === 'needsAttention');
+    const bad = statuses.find(x => x === STATUS_BAD);
+    const needsAttention = statuses.find(x => x === STATUS_WARN);
 
     return {
-      status: bad || needsAttention || 'ok',
-      message: all.map(x => x.message).filter(x => x).join('\n')
+      status: bad || needsAttention || STATUS_OK,
+      message: all.map(x => x.message).filter(x => x)
     };
   }
 

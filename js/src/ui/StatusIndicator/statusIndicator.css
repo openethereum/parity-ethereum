@@ -1,4 +1,3 @@
-
 /* Copyright 2015-2017 Parity Technologies (UK) Ltd.
 /* This file is part of Parity.
 /*
@@ -17,7 +16,6 @@
 */
 .status {
   display: inline-block;
-  vertical-align: middle;
 }
 
 .radial,.signal {
@@ -70,7 +68,7 @@
       border-right: 0;
     }
     &.needsAttention {
-      height: .7em;
+      height: .6em;
       border-right: 0;
     }
     &.ok {

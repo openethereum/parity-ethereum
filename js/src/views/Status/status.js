@@ -19,8 +19,6 @@ import { FormattedMessage } from 'react-intl';
 
 import { Page } from '~/ui';
 
-import Title from '../Title';
-
 import Debug from './Debug';
 import Health from './Health';
 import Peers from './Peers';
@@ -31,12 +29,10 @@ import styles from './status.css';
 export default () => (
   <Page
     title={
-      <Title>
-        <FormattedMessage
-          id='status.title'
-          defaultMessage='Status'
-        />
-      </Title>
+      <FormattedMessage
+        id='status.title'
+        defaultMessage='Status'
+      />
     }
   >
     <div className={ styles.body }>

@@ -26,12 +26,12 @@ export default class StatusIndicator extends Component {
     type: PropTypes.oneOf(['radial', 'signal']),
     id: PropTypes.string.isRequired,
     status: PropTypes.oneOf(statuses).isRequired,
-    title: PropTypes.string
+    title: PropTypes.arrayOf(PropTypes.node)
   };
 
   static defaultProps = {
     type: 'signal',
-    title: ''
+    title: []
   };
 
   render () {
@@ -47,7 +47,7 @@ export default class StatusIndicator extends Component {
           { type === 'signal' && statuses.map(this.renderBar) }
         </span>
         <ReactTooltip id={ `status-${id}` }>
-          { title }
+          { title.map(x => (<div key={ x }>{ x }</div>)) }
         </ReactTooltip>
       </span>
     );
@@ -59,7 +59,7 @@ export default class StatusIndicator extends Component {
     const activeClass = isActive ? styles.active : '';
 
     return (
-      <span className={ `${styles.bar} ${styles[signal]} ${activeClass}` } />
+      <span key={ signal } className={ `${styles.bar} ${styles[signal]} ${activeClass}` } />
     );
   }
 }

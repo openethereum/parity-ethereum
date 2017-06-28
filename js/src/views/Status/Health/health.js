@@ -30,7 +30,9 @@ const HealthItem = (props) => {
       <h3>
         <StatusIndicator
           id={ props.id }
-          title={ props.item.message }
+          title={ [
+            (<div>{ props.item.message }</div>)
+          ] }
           status={ status }
         />
         { props.title }
@@ -45,8 +47,11 @@ const HealthItem = (props) => {
 
 HealthItem.propTypes = {
   id: PropTypes.string.isRequired,
-  title: PropTypes.string.isRequired,
-  details: PropTypes.string.isRequired,
+  title: PropTypes.node.isRequired,
+  details: PropTypes.oneOfType([
+    PropTypes.string,
+    PropTypes.node
+  ]).isRequired,
   item: PropTypes.object.isRequired
 };
 

@@ -35,7 +35,9 @@ const initialState = {
       status: DEFAULT_STATUS
     },
     overall: {
-      status: DEFAULT_STATUS
+      isReady: false,
+      status: DEFAULT_STATUS,
+      message: []
     }
   },
   netChain: DEFAULT_NETCHAIN,

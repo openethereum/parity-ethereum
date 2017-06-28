@@ -26,7 +26,6 @@ import { setVisibleAccounts } from '~/redux/providers/personalActions';
 import { Actionbar, ActionbarSearch, ActionbarSort, Button, Page } from '~/ui';
 import { AddIcon, DevelopIcon } from '~/ui/Icons';
 
-import Title from '../Title';
 import List from '../Accounts/List';
 
 const META_SORT = [
@@ -194,12 +193,10 @@ class Contracts extends Component {
     return (
       <Actionbar
         title={
-          <Title>
-            <FormattedMessage
-              id='contracts.title'
-              defaultMessage='Contracts'
-            />
-          </Title>
+          <FormattedMessage
+            id='contracts.title'
+            defaultMessage='Contracts'
+          />
         }
         buttons={ buttons }
       />

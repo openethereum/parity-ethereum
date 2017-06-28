@@ -100,10 +100,12 @@ impl<F: Fetch> RestApiRouter<F> {
 			// Check peers
 			let peers = {
 				let (connected, max) = sync_status.peers();
-				let (status, message) = if connected == 0 {
-					(HealthStatus::Bad, "You are not connected to any peers. There is most likely some network issue. Fix connectivity.".into())
-				} else {
-					(HealthStatus::Ok, "".into())
+				let (status, message) = match connected {
+					0 => {
+						(HealthStatus::Bad, "You are not connected to any peers. There is most likely some network issue. Fix connectivity.".into())
+					},
+					1 => (HealthStatus::NeedsAttention, "You are connected to only one peer. Your node might not be reliable. Check your network connection.".into()),
+					_ => (HealthStatus::Ok, "".into()),
 				};
 				HealthInfo { status, message, details: (connected, max) }
 			};
