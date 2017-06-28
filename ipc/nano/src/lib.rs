@@ -284,7 +284,7 @@ mod service_tests {
 			self.methods_stack.write().unwrap().push(
 				TestInvoke {
 					method_num: method_num,
-					params: buf.into_vec(),
+					params: buf.to_vec(),
 				});
 			vec![]
 		}

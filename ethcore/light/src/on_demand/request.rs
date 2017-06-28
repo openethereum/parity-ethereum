@@ -900,7 +900,7 @@ mod tests {
 	fn check_header_by_hash() {
 		let mut header = Header::new();
 		header.set_number(10_000);
-		header.set_extra_data(b"test_header".into_vec());
+		header.set_extra_data(b"test_header".to_vec());
 		let hash = header.hash();
 		let raw_header = encoded::Header::new(::rlp::encode(&header).into_vec());
 
@@ -953,7 +953,7 @@ mod tests {
 		let mut db = MemoryDB::new();
 		let mut header = Header::new();
 		header.set_number(123_456);
-		header.set_extra_data(b"test_header".into_vec());
+		header.set_extra_data(b"test_header".to_vec());
 
 		let addr = Address::random();
 		let rand_acc = || {

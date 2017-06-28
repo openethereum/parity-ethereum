@@ -339,7 +339,7 @@ mod tests {
 		assert_eq!(acc, account2);
 
 		let (acc, maybe_code) = from_fat_rlp(&mut AccountDBMut::new(db.as_hashdb_mut(), &addr1), fat_rlp1, H256::zero()).unwrap();
-		assert_eq!(maybe_code, Some(b"this is definitely code".into_vec()));
+		assert_eq!(maybe_code, Some(b"this is definitely code".to_vec()));
 		assert_eq!(acc, account1);
 	}
 

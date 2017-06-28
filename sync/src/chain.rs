@@ -2361,14 +2361,14 @@ mod tests {
 			rlp.out()
 		}
 		fn to_header_vec(rlp: ::chain::RlpResponseResult) -> Vec<Bytes> {
-			Rlp::new(&rlp.unwrap().unwrap().1.out()).iter().map(|r| r.as_raw().into_vec()).collect()
+			Rlp::new(&rlp.unwrap().unwrap().1.out()).iter().map(|r| r.as_raw().to_vec()).collect()
 		}
 
 		let mut client = TestBlockChainClient::new();
 		client.add_blocks(100, EachBlockWith::Nothing);
 		let blocks: Vec<_> = (0 .. 100)
 			.map(|i| (&client as &BlockChainClient).block(BlockId::Number(i as BlockNumber)).map(|b| b.into_inner()).unwrap()).collect();
-		let headers: Vec<_> = blocks.iter().map(|b| Rlp::new(b).at(0).as_raw().into_vec()).collect();
+		let headers: Vec<_> = blocks.iter().map(|b| Rlp::new(b).at(0).as_raw().to_vec()).collect();
 		let hashes: Vec<_> = headers.iter().map(|h| HeaderView::new(h).sha3()).collect();
 
 		let queue = RwLock::new(VecDeque::new());

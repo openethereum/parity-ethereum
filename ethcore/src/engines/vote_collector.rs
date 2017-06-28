@@ -185,7 +185,7 @@ impl <M: Message + Default + Encodable + Debug> VoteCollector<M> {
 		guard
 			.iter()
 			.take_while(|&(r, _)| r <= round)
-			.map(|(_, c)| c.messages.iter().filter(|m| m.is_broadcastable()).map(|m| ::rlp::encode(m).into_vec()).collect::<Vec<_>>())
+			.map(|(_, c)| c.messages.iter().filter(|m| m.is_broadcastable()).map(|m| ::rlp::encode(m).to_vec()).collect::<Vec<_>>())
 			.fold(Vec::new(), |mut acc, mut messages| { acc.append(&mut messages); acc })
 	}
 
@@ -279,7 +279,7 @@ mod tests {
 		// Wrong round, same signature.
 		random_vote(&collector, signatures[1].clone(), 7, bh.clone());
 
-		assert_eq!(signatures[0..1].into_vec(), collector.round_signatures(&propose_round, &bh.unwrap()));
+		assert_eq!(signatures[0..1].to_vec(), collector.round_signatures(&propose_round, &bh.unwrap()));
 		assert_eq!(signatures[1..3].iter().collect::<HashSet<_>>(), collector.round_signatures(&commit_round, &bh.unwrap()).iter().collect::<HashSet<_>>());
 	}
 

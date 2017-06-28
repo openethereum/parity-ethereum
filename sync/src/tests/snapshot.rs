@@ -44,8 +44,8 @@ impl TestSnapshotService {
 	pub fn new_with_snapshot(num_chunks: usize, block_hash: H256, block_number: BlockNumber) -> TestSnapshotService {
 		let num_state_chunks = num_chunks / 2;
 		let num_block_chunks = num_chunks - num_state_chunks;
-		let state_chunks: Vec<Bytes> = (0..num_state_chunks).map(|_| H256::random().into_vec()).collect();
-		let block_chunks: Vec<Bytes> = (0..num_block_chunks).map(|_| H256::random().into_vec()).collect();
+		let state_chunks: Vec<Bytes> = (0..num_state_chunks).map(|_| H256::random().to_vec()).collect();
+		let block_chunks: Vec<Bytes> = (0..num_block_chunks).map(|_| H256::random().to_vec()).collect();
 		let manifest = ManifestData {
 			version: 2,
 			state_hashes: state_chunks.iter().map(|data| data.sha3()).collect(),

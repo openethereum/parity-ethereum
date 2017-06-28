@@ -698,7 +698,7 @@ mod tests {
 		vec![
 			::rlp::encode(&view).into_vec(),
 			::rlp::encode(&H520::from(signature)).into_vec(),
-			::rlp::EMPTY_LIST_RLP.into_vec()
+			::rlp::EMPTY_LIST_RLP.to_vec()
 		]
 	}
 
@@ -812,7 +812,7 @@ mod tests {
 		let vote_info = message_info_rlp(&VoteStep::new(2, 0, Step::Precommit), Some(header.bare_hash()));
 		let signature1 = tap.sign(proposer, None, vote_info.sha3()).unwrap();
 
-		seal[1] = ::rlp::NULL_RLP.into_vec();
+		seal[1] = ::rlp::NULL_RLP.to_vec();
 		seal[2] = ::rlp::encode_list(&vec![H520::from(signature1.clone())]).into_vec();
 		header.set_seal(seal.clone());
 

@@ -36,6 +36,6 @@ pub fn sign_call<B: MiningBlockChainClient, M: MinerService>(
 		gas: request.gas.unwrap_or(50_000_000.into()),
 		gas_price: request.gas_price.unwrap_or_else(|| default_gas_price(&**client, &**miner)),
 		value: request.value.unwrap_or(0.into()),
-		data: request.data.unwrap_or(Vec::new())
+		data: request.data.unwrap_or_default(),
 	}.fake_sign(from))
 }

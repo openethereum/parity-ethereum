@@ -173,7 +173,7 @@ mod tests {
 			gas_price: U256::from(3000),
 			gas: U256::from(50_000),
 			value: U256::from(1),
-			data: b"Hello!".into_vec()
+			data: b"Hello!".to_vec()
 		}.fake_sign(Address::from(0x69));
 
 		let t2 = Transaction {

@@ -338,7 +338,7 @@ mod tests {
 
 		fn block_header_data(&self, hash: &H256) -> Option<encoded::Header> {
 			self.block(hash)
-				.map(|b| b.header_view().rlp().as_raw().into_vec())
+				.map(|b| b.header_view().rlp().as_raw().to_vec())
 				.map(encoded::Header::new)
 		}
 
