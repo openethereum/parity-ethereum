@@ -29,9 +29,10 @@ const Title = ({ health, children }) => (
       status={ health.overall.status }
       title={ health.overall.message }
     />
-    { children  }
+    { children }
   </span>
 );
+
 Title.propTypes = {
   health: PropTypes.object.isRequired,
   children: PropTypes.node.isRequired

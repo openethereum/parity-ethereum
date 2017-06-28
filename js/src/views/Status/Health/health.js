@@ -24,6 +24,7 @@ import grid from '../NodeStatus/nodeStatus.css';
 
 const HealthItem = (props) => {
   const status = props.item.status || 'needsAttention';
+
   return (
     <div>
       <h3>
@@ -36,11 +37,18 @@ const HealthItem = (props) => {
         <small>&nbsp;({ props.details })</small>
       </h3>
       <p>
-        { status != 'ok' ? props.item.message : '' }
+        { status !== 'ok' ? props.item.message : '' }
       </p>
     </div>
   );
-}
+};
+
+HealthItem.propTypes = {
+  id: PropTypes.string.isRequired,
+  title: PropTypes.string.isRequired,
+  details: PropTypes.string.isRequired,
+  item: PropTypes.object.isRequired
+};
 
 class Health extends Component {
   static contextTypes = {
@@ -57,13 +65,17 @@ class Health extends Component {
 
   render () {
     const { peers, sync, time } = this.props;
-    const [yes, no] = [(<FormattedMessage
+    const [yes, no] = [(
+      <FormattedMessage
         id='status.health.yes'
         defaultMessage='yes'
-      />), (<FormattedMessage
+      />
+    ), (
+      <FormattedMessage
         id='status.health.no'
         defaultMessage='no'
-      />)];
+      />
+    )];
 
     return (
       <Container>
@@ -82,10 +94,12 @@ class Health extends Component {
             <div className={ grid.col4 }>
               <HealthItem
                 id='status.health.sync'
-                title={<FormattedMessage
-                  id='status.health.sync'
-                  defaultMessage='Chain Synchronized'
-                />}
+                title={
+                  <FormattedMessage
+                    id='status.health.sync'
+                    defaultMessage='Chain Synchronized'
+                  />
+                }
                 details={ !sync.details ? yes : no }
                 item={ sync }
               />
@@ -93,10 +107,12 @@ class Health extends Component {
             <div className={ grid.col4 }>
               <HealthItem
                 id='status.health.peers'
-                title={<FormattedMessage
-                  id='status.health.peers'
-                  defaultMessage='Connected Peers'
-                />}
+                title={
+                  <FormattedMessage
+                    id='status.health.peers'
+                    defaultMessage='Connected Peers'
+                  />
+                }
                 details={ (peers.details || []).join('/') }
                 item={ peers }
               />
@@ -104,10 +120,12 @@ class Health extends Component {
             <div className={ grid.col4 }>
               <HealthItem
                 id='status.health.time'
-                title={<FormattedMessage
-                  id='status.health.time'
-                  defaultMessage='Time Synchronized'
-                />}
+                title={
+                  <FormattedMessage
+                    id='status.health.time'
+                    defaultMessage='Time Synchronized'
+                  />
+                }
                 details={ `${time.details || 0} ms` }
                 item={ time }
               />

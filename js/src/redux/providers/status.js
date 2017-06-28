@@ -196,7 +196,7 @@ export default class Status {
     const statusPromises = [
       this._api.eth.syncing(),
       this._api.parity.netPeers(),
-      this._fetchHealth(),
+      this._fetchHealth()
     ];
 
     return Promise
@@ -233,6 +233,7 @@ export default class Status {
 
   _fetchHealth = () => {
     const uiUrl = this._api.transport.uiUrl || '';
+
     return fetch(`${uiUrl}/api/health`).then(res => res.json());
   }
 

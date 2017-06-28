@@ -19,7 +19,6 @@ import ReactTooltip from 'react-tooltip';
 
 import styles from './statusIndicator.css';
 
-
 const statuses = ['bad', 'needsAttention', 'ok'];
 
 export default class StatusIndicator extends Component {
@@ -37,6 +36,7 @@ export default class StatusIndicator extends Component {
 
   render () {
     const { id, status, title, type } = this.props;
+
     return (
       <span className={ styles.status }>
         <span className={ `${styles[type]} ${styles[status]}` }
