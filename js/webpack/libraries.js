@@ -45,10 +45,7 @@ module.exports = {
     alias: {
       '~': path.resolve(__dirname, '../src'),
       '@parity/wordlist': path.resolve(__dirname, '../node_modules/@parity/wordlist'),
-      '@parity': path.resolve(__dirname, '../src'),
-      'keythereum': 'empty-module',
-      'secp256k1': 'empty-module',
-      'vertx': 'empty-module'
+      '@parity': path.resolve(__dirname, '../src')
     }
   },
 

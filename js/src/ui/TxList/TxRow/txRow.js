@@ -47,7 +47,8 @@ class TxRow extends Component {
     className: PropTypes.string,
     cancelTransaction: PropTypes.func,
     editTransaction: PropTypes.func,
-    historic: PropTypes.bool
+    historic: PropTypes.bool,
+    killTransaction: PropTypes.func
   };
 
   static defaultProps = {
@@ -368,8 +369,21 @@ class TxRow extends Component {
     return 'pending';
   }
 
+  killTx = () => {
+    const { killTransaction, tx } = this.props;
+
+    killTransaction(this, tx);
+  }
+
   cancelTx = () => {
     const { cancelTransaction, tx } = this.props;
+    const pendingStatus = this.getCondition();
+    const isPending = pendingStatus === 'pending';
+
+    if (isPending) {
+      this.killTx();
+      return;
+    }
 
     cancelTransaction(this, tx);
   }
