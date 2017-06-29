@@ -257,7 +257,7 @@ impl Account {
 		match db.get(&self.code_hash) {
 			Some(x) => {
 				self.code_size = Some(x.len());
-				self.code_cache = Arc::new(x.to_vec());
+				self.code_cache = Arc::new(x.into_vec());
 				Some(self.code_cache.clone())
 			},
 			_ => {
@@ -476,10 +476,10 @@ mod tests {
 	fn account_compress() {
 		let raw = Account::new_basic(2.into(), 4.into()).rlp();
 		let rlp = UntrustedRlp::new(&raw);
-		let compact_vec = rlp.compress(RlpType::Snapshot).to_vec();
+		let compact_vec = rlp.compress(RlpType::Snapshot).into_vec();
 		assert!(raw.len() > compact_vec.len());
 		let again_raw = UntrustedRlp::new(&compact_vec).decompress(RlpType::Snapshot);
-		assert_eq!(raw, again_raw.to_vec());
+		assert_eq!(raw, again_raw.into_vec());
     }
 
 	#[test]

@@ -177,7 +177,7 @@ mod tests {
 
 			parent_hash = Some(header.hash());
 
-			encoded::Header::new(::rlp::encode(&header).to_vec())
+			encoded::Header::new(::rlp::encode(&header).into_vec())
 		}).collect();
 
 		assert!(verify(&headers, &request).is_ok());
@@ -203,7 +203,7 @@ mod tests {
 
 			parent_hash = Some(header.hash());
 
-			encoded::Header::new(::rlp::encode(&header).to_vec())
+			encoded::Header::new(::rlp::encode(&header).into_vec())
 		}).collect();
 
 		assert!(verify(&headers, &request).is_ok());
@@ -229,7 +229,7 @@ mod tests {
 
 			parent_hash = Some(header.hash());
 
-			encoded::Header::new(::rlp::encode(&header).to_vec())
+			encoded::Header::new(::rlp::encode(&header).into_vec())
 		}).collect();
 
 		assert_eq!(verify(&headers, &request), Err(BasicError::TooManyHeaders(20, 25)));
@@ -248,7 +248,7 @@ mod tests {
 			let mut header = Header::default();
 			header.set_number(x);
 
-			encoded::Header::new(::rlp::encode(&header).to_vec())
+			encoded::Header::new(::rlp::encode(&header).into_vec())
 		}).collect();
 
 		assert_eq!(verify(&headers, &request), Err(BasicError::WrongSkip(5, Some(2))));
