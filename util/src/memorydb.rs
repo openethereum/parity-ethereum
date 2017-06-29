@@ -74,6 +74,10 @@ pub struct MemoryDB {
 	data: H256FastMap<(DBValue, i32)>,
 }
 
+lazy_static! {
+	static ref NULL_VALUE: DBValue = DBValue::from_slice(&NULL_RLP);
+}
+
 impl MemoryDB {
 	/// Create a new instance of the memory DB.
 	pub fn new() -> MemoryDB {
@@ -138,6 +142,17 @@ impl MemoryDB {
 		self.raw_ref(key).map(|(val, refcount)| (val.into_owned(), refcount))
 	}
 
+	/// Returns a reference to the inner data
+	pub fn get_ref(&self, key: &H256) -> Option<&DBValue> {
+		if key == &SHA3_NULL_RLP {
+			Some(&*NULL_VALUE)
+		} else {
+			self.data.get(key).and_then(
+				|&(ref d, rc)| if rc > 0 { Some(d) } else { None }
+			)
+		}
+	}
+
 	/// Returns the size of allocated heap memory
 	pub fn mem_used(&self) -> usize {
 		self.data.heap_size_of_children()
@@ -185,7 +200,7 @@ impl MemoryDB {
 
 impl HashDB for MemoryDB {
 	fn get(&self, key: &H256) -> Option<DBValue> {
-		self.get_with(key, DBValue::from_slice)
+		self.get_ref(key).map(Clone::clone)
 	}
 
 	fn get_exec(
@@ -193,14 +208,8 @@ impl HashDB for MemoryDB {
 		key: &H256,
 		f: &mut FnMut(&[u8])
 	) {
-		if key == &SHA3_NULL_RLP {
-			f(&NULL_RLP);
-			return;
-		}
-
-		match self.data.get(key) {
-			Some(&(ref d, rc)) if rc > 0 => f(d),
-			_ => { },
+		if let Some(ref val) = self.get_ref(key) {
+			f(val)
 		}
 	}
 

@@ -38,6 +38,8 @@ pub struct ArchiveDB {
 	column: Option<u32>,
 }
 
+static PANIC_MESSAGE: &str = "Low-level database error. Some issue with your hard disk?";
+
 impl ArchiveDB {
 	/// Create a new instance from a key-value db.
 	pub fn new(backing: Arc<KeyValueDB>, col: Option<u32>) -> ArchiveDB {
@@ -57,10 +59,12 @@ impl ArchiveDB {
 		Self::new(backing, None)
 	}
 
+	fn payload(&self, key: &H256) -> Option<DBValue> {
+		self.backing.get(self.column, key).expect(PANIC_MESSAGE)
+	}
+
 	fn payload_exec(&self, key: &H256, f: &mut FnMut(&[u8])) {
-		self.backing.get_exec(self.column, key, f).expect(
-			"Low-level database error. Some issue with your hard disk?"
-		)
+		self.backing.get_exec(self.column, key, f).expect(PANIC_MESSAGE)
 	}
 }
 
@@ -79,21 +83,22 @@ impl HashDB for ArchiveDB {
 		ret
 	}
 
+	fn get(&self, key: &H256) -> Option<DBValue> {
+		self.overlay.get(key).or_else(|| self.payload(key))
+	}
+
 	fn get_exec(
 		&self,
 		key: &H256,
 		mut f: &mut FnMut(&[u8])
 	) {
-		let k = self.overlay.raw_ref(key);
+		let k = self.overlay.get_ref(key);
 
-		if let Some((d, rc)) = k {
-			if rc > 0 {
-				f(d.as_ref());
-				return;
-			}
+		if let Some(d) = k {
+			f(d.as_ref());
+		} else {
+			self.payload_exec(key, f);
 		}
-
-		self.payload_exec(key, f);
 	}
 
 	fn contains(&self, key: &H256) -> bool {
