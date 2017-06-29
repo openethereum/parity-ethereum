@@ -104,12 +104,12 @@ pub struct Decoded<'a> {
 }
 
 /// Encode using provided parameters.
-pub fn encode(params: EncodeParams) -> Result<Vec<u8>, String> {
+pub fn encode(params: EncodeParams) -> Result<Vec<u8>, &'static str> {
 	const VEC_WRITE_INFALLIBLE: &'static str = "writing to a Vec<u8> can never fail; qed";
 
 	let padding_len = params.padding.map_or(0, |x| x.len());
 	let padding_len_bytes = num_padding_length_bytes(padding_len)
-		.ok_or_else(|| "padding size too long".to_string())?;
+		.ok_or_else(|| "padding size too long")?;
 
 	let signature = params.sign_with.map(|secret| {
 		let hash = H256(keccak256(params.message));
@@ -118,7 +118,7 @@ pub fn encode(params: EncodeParams) -> Result<Vec<u8>, String> {
 
 	let signature = match signature {
 		Some(Ok(sig)) => Some(sig),
-		Some(Err(_)) => return Err("invalid signing key provided".into()),
+		Some(Err(_)) => return Err("invalid signing key provided"),
 		None => None,
 	};
 
@@ -166,7 +166,7 @@ pub fn encode(params: EncodeParams) -> Result<Vec<u8>, String> {
 }
 
 /// Decode using provided parameters
-pub fn decode(payload: &[u8]) -> Result<Decoded, String> {
+pub fn decode(payload: &[u8]) -> Result<Decoded, &'static str> {
 	let mut offset = 0;
 
 	let (padding, signature) = {
@@ -180,13 +180,13 @@ pub fn decode(payload: &[u8]) -> Result<Decoded, String> {
 
 				Ok(slice)
 			} else {
-				return Err("unexpected end of payload".to_string())
+				return Err("unexpected end of payload")
 			}
 		};
 
 
 		if next_slice(1)?[0] != STANDARD_PAYLOAD_VERSION {
-			return Err("unknown payload version.".to_string());
+			return Err("unknown payload version.");
 		}
 
 		let flags = Flags::from_bits_truncate(next_slice(1)?[0]);
@@ -215,7 +215,7 @@ pub fn decode(payload: &[u8]) -> Result<Decoded, String> {
 				|| signature.v() != slice[64];
 
 			if not_rsv {
-				return Err("signature not in RSV format".to_string());
+				return Err("signature not in RSV format");
 			} else {
 				Some(signature)
 			}
@@ -233,7 +233,7 @@ pub fn decode(payload: &[u8]) -> Result<Decoded, String> {
 		None => None,
 		Some(sig) => {
 			let hash = H256(keccak256(message));
-			Some(::ethkey::recover(&sig, &hash).map_err(|_| "invalid signature".to_string())?)
+			Some(::ethkey::recover(&sig, &hash).map_err(|_| "invalid signature")?)
 		}
 	};
 

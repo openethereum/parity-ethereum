@@ -40,6 +40,7 @@ pub mod math;
 pub use self::brain::Brain;
 pub use self::error::Error;
 pub use self::keypair::{KeyPair, public_to_address};
+pub use self::math::public_is_valid;
 pub use self::prefix::Prefix;
 pub use self::random::Random;
 pub use self::signature::{sign, verify_public, verify_address, recover, Signature};

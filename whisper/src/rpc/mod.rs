@@ -33,6 +33,7 @@ use self::types::HexEncode;
 
 use message::Message;
 
+mod crypto;
 mod key_store;
 mod payload;
 mod types;

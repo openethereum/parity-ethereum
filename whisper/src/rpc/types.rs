@@ -138,7 +138,7 @@ pub struct PostRequest {
 	/// If present, the payload will be encrypted
 	/// using this identity.
 	#[serde(skip_serializing_if = "Option::is_none")]
-	pub to: Option<Identity>,
+	pub to: Option<Public>,
 
 	/// Sender of the message.
 	///

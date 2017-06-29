@@ -34,7 +34,6 @@ pub enum Key {
 	Asymmetric(KeyPair),
 	// TODO: (requires a "metadata" to deal with IVs).
 	// AES-256 GCM mode. Suitable for encryption, decryption, but not signing.
-	// (the two types actually wrap the same key.),
 }
 
 impl Key {
@@ -145,15 +144,5 @@ mod tests {
 
 		assert!(store.contains(&id));
 		assert!(store.get(&id).is_some());
-	}
-
-	#[test]
-	fn aes_key_len_should_be_equal_to_constant() {
-		assert_eq!(::ring::aead::AES_256_GCM.key_len(), 32);
-	}
-
-	#[test]
-	fn aes_nonce_len_should_be_equal_to_constant() {
-		assert_eq!(::ring::aead::AES_256_GCM.nonce_len(), 12);
 	}
 }
