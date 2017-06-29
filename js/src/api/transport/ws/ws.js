@@ -91,7 +91,7 @@ export default class Ws extends JsonRpcBase {
 
       this._sessionHash = sha3;
       this._ws = new WebSocket(this._url, hash);
-    // pubsub API
+    // non-secure API
     } else {
       this._ws = new WebSocket(this._url);
     }
@@ -203,35 +203,43 @@ export default class Ws extends JsonRpcBase {
   }
 
   _extract = (result) => {
+    const { result: res, id, method, params } = result;
+    const msg = this._messages[id];
+
     // initial pubsub ACK
-    if (result.id && this._messages[result.id].subscription) {
-      this._messages[result.id].method === 'eth_subscribe'
-        ? this._subscriptions['eth_subscription'][result.result] = result.id
-        : this._subscriptions['parity_subscription'][result.result] = result.id;
+    if (id && msg.subscription) {
+      // save subscription to map subId -> messageId
+      this._subscriptions[msg.subscription][res] = id;
       // resolve promise with messageId because subId's can collide (eth/parity)
-      this._messages[result.id].resolve(result.id);
+      msg.resolve(id);
       // save subId for unsubscribing later
-      this._messages[result.id]['subId'] = result.result;
-      return this._messages[result.id];
+      msg.subId = res;
+      return msg;
+    }
+
     // normal message
-    } else if (result.id) {
-      return this._messages[result.id];
+    if (id) {
+      return msg;
+    }
+
     // pubsub format
-    } else if (result.method.includes('subscription')) {
-      if (this._messages[this._subscriptions[result.method][result.params.subscription]]) {
-        return this._messages[this._subscriptions[result.method][result.params.subscription]];
+    if (method.includes('subscription')) {
+      const messageId = this._messages[this._subscriptions[method][params.subscription]];
+
+      if (messageId) {
+        return messageId;
       } else {
         throw Error(`Received Subscription which is already unsubscribed ${JSON.stringify(result)}`);
       }
-    } else {
-      throw Error(`Unknown message format: No ID or subscription ${JSON.stringify(result)}`);
     }
+
+    throw Error(`Unknown message format: No ID or subscription ${JSON.stringify(result)}`);
   }
 
   _onMessage = (event) => {
     try {
       const result = JSON.parse(event.data);
-      const { method, params, json, resolve, reject, callback } = this._extract(result);
+      const { method, params, json, resolve, reject, callback, subscription } = this._extract(result);
 
       Logging.send(method, params, { json, result });
 
@@ -249,14 +257,18 @@ export default class Ws extends JsonRpcBase {
 
         const error = new TransportError(method, result.error.code, result.error.message);
 
-        result.id ? reject(error) : callback(error);
+        if (result.id) {
+          reject(error);
+        } else {
+          callback(error);
+        }
 
         delete this._messages[result.id];
         return;
       }
 
       // if not initial subscription message resolve & delete
-      if (result.id && !this._messages[result.id].subscription) {
+      if (result.id && !subscription) {
         resolve(result.result);
         delete this._messages[result.id];
       } else if (result.params) {
@@ -292,13 +304,21 @@ export default class Ws extends JsonRpcBase {
     });
   }
 
-  subscribe (method, callback, ...params) {
+  _methodsFromApi (api) {
+    const method = `${api}_subscribe`;
+    const uMethod = `${api}_unsubscribe`;
+    const subscription = `${api}_subscription`;
+
+    return { method, uMethod, subscription };
+  }
+
+  subscribe (api, callback, ...params) {
     return new Promise((resolve, reject) => {
       const id = this.id;
+      const { method, uMethod, subscription } = this._methodsFromApi(api);
       const json = this.encode(method, params);
-      const subscription = true;
 
-      this._messages[id] = { id, method, params, json, resolve, reject, callback, subscription };
+      this._messages[id] = { id, method, uMethod, params, json, resolve, reject, callback, subscription };
 
       this._send(id);
     });
@@ -307,19 +327,19 @@ export default class Ws extends JsonRpcBase {
   unsubscribe (messageId) {
     return new Promise(() => {
       const id = this.id;
-      const { subId, method } = this._messages[messageId];
+      const { subId, uMethod, subscription } = this._messages[messageId];
       const params = [subId];
-      const uMethod = method === 'eth_subscribe' ? 'eth_unsubscribe' : 'parity_unsubscribe';
       const json = this.encode(uMethod, params);
+      const resolve = () => {
+        delete this._messages[messageId];
+        delete this._subscriptions[subscription][subId];
+        return true;
+      };
+      const reject = () => {
+        return false;
+      };
 
-      this._messages[id] = { id, 'method': uMethod, params, json,
-        resolve: _ => {
-          delete this._messages[messageId];
-          method === 'eth_subscribe' ? delete this._subscriptions['eth_subscription'][subId] : delete this._subscriptions['parity_subscription'][subId];
-        }, reject: e => {
-          throw Error('Error unsubscribing.' + e);
-        } };
-
+      this._messages[id] = { id, 'method': uMethod, params, json, resolve, reject };
       this._send(id);
     });
   }

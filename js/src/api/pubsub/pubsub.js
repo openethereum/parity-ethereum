@@ -22,7 +22,7 @@ import PubsubBase from './pubsubBase';
 export default class Pubsub extends PubsubBase {
   constructor (transport) {
     super(transport);
-    this._api = 'parity_subscribe';
+    this._api = 'parity';
   }
 
   unsubscribe (subscriptionIds) {
@@ -32,7 +32,7 @@ export default class Pubsub extends PubsubBase {
   // eth API
   // `newHeads`, `logs`, `newPendingTransactions`, `syncing`
   newHeads (callback) {
-    return this.addListener('eth_subscribe', 'newHeads', callback);
+    return this.addListener('eth', 'newHeads', callback);
   }
   //
   // logs (callback) {
@@ -417,14 +417,6 @@ export default class Pubsub extends PubsubBase {
     return this.addListener(this._api, 'eth_getCode', callback, [inAddress(address), inBlockNumber(blockNumber)]);
   }
 
-  sendRawTransaction (callback, data) {
-    return this.addListener(this._api, 'eth_sendRawTransaction', callback, [inData(data)]);
-  }
-
-  submitTransaction (callback, data) {
-    return this.addListener(this._api, 'eth_submitTransaction', callback, [inData(data)]);
-  }
-
   call (callback, options, blockNumber = 'latest') {
     return this.addListener(this._api, 'eth_call', callback, [inOptions(options), inBlockNumber(blockNumber)]);
   }
@@ -487,14 +479,6 @@ export default class Pubsub extends PubsubBase {
 
   getWork (callback) {
     return this.addListener(this._api, 'eth_getWork', callback);
-  }
-
-  submitWork (callback, nonce, powHash, mixDigest) {
-    return this.addListener(this._api, 'eth_submitWork', callback, [inNumber16(nonce), powHash, mixDigest]);
-  }
-
-  submitHashrate (callback, hashrate, clientId) {
-    return this.addListener(this._api, 'eth_submitHashrate', callback, [inNumber16(hashrate), clientId]);
   }
 
   // net API
