@@ -885,6 +885,7 @@ mod tests {
 			flag_dapps_apis_all: None,
 
 			// -- Miscellaneous Options
+			flag_time_api: "https://time.parity.io/api".into(),
 			flag_version: false,
 			flag_logging: Some("own_tx=trace".into()),
 			flag_log_file: Some("/var/log/parity.log".into()),
@@ -1059,6 +1060,7 @@ mod tests {
 				jit: Some(false),
 			}),
 			misc: Some(Misc {
+				time_api: Some("https://time.parity.io/".into()),
 				logging: Some("own_tx=trace".into()),
 				log_file: Some("/var/log/parity.log".into()),
 				color: Some(true),
