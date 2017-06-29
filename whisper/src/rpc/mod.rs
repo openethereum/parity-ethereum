@@ -21,17 +21,19 @@
 //!
 //! Provides an interface for using whisper to transmit data securely.
 
-use futures_cpupool::CpuPool;
+use std::sync::Arc;
 
 use jsonrpc_core::{Error, ErrorCode};
 use parking_lot::RwLock;
 
+use self::filter::Filter;
 use self::key_store::{Key, KeyStore};
 use self::types::HexEncode;
 
 use message::{CreateParams, Message, Topic};
 
 mod crypto;
+mod filter;
 mod key_store;
 mod payload;
 mod types;
@@ -102,7 +104,6 @@ impl MessageSender for ::net::MessagePoster {
 /// Implementation of whisper RPC.
 pub struct WhisperClient<S> {
 	store: RwLock<key_store::KeyStore>,
-	pool: CpuPool,
 	sender: S,
 }
 
@@ -113,14 +114,8 @@ impl<S> WhisperClient<S> {
 	/// asynchronous work like performing PoW on messages or handling
 	/// subscriptions.
 	pub fn new(sender: S) -> ::std::io::Result<Self> {
-		WhisperClient::with_pool(sender, CpuPool::new(1))
-	}
-
-	/// Create a new whisper client with the given CPU pool.
-	pub fn with_pool(sender: S, pool: CpuPool) -> ::std::io::Result<Self> {
 		Ok(WhisperClient {
 			store: RwLock::new(KeyStore::new()?),
-			pool: pool,
 			sender: sender,
 		})
 	}

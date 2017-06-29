@@ -173,7 +173,7 @@ pub struct FilterRequest {
 	///
 	/// If this identity is removed, then no further messages will be returned.
 	#[serde(rename = "decryptWith")]
-	pub decrypt_with: Option<Identity>,
+	pub decrypt_with: Identity,
 
 	/// Accept only messages signed by given identity.
 	pub from: Option<Public>,
@@ -183,15 +183,14 @@ pub struct FilterRequest {
 }
 
 /// A message captured by a filter or subscription.
-#[derive(Serialize)]
-pub struct Message {
+#[derive(Serialize, Clone)]
+pub struct FilterItem {
 	/// Public key that signed this message.
 	#[serde(skip_serializing_if = "Option::is_none")]
 	pub from: Option<Public>,
 
-	/// Public key of recipient.
-	#[serde(skip_serializing_if = "Option::is_none")]
-	pub recipient: Option<Public>,
+	/// Identity of recipient
+	pub recipient: Identity,
 
 	/// Time to live in seconds.
 	pub ttl: u64,
@@ -204,6 +203,10 @@ pub struct Message {
 
 	/// Decrypted/Interpreted payload.
 	pub payload: Bytes,
+
+	/// Optional padding data.
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub padding: Option<Bytes>,
 }
 
 #[cfg(test)]

@@ -26,6 +26,8 @@ use ethkey::{KeyPair, Public, Secret};
 use rand::{Rng, OsRng};
 use ring::error::Unspecified;
 
+use rpc::crypto::DecryptionInstance;
+
 /// A symmetric or asymmetric key used for encryption, decryption, and signing
 /// of payloads.
 pub enum Key {
@@ -104,6 +106,15 @@ impl KeyStore {
 	/// Get asymmetric ID's secret key.
 	pub fn secret<'a>(&'a self, id: &H256) -> Option<&'a Secret> {
 		self.get(id).and_then(Key::secret)
+	}
+
+	/// Get decryption instance for identity.
+	/// If the identity is known, always succeeds.
+	pub fn decryption_instance(&self, id: &H256) -> Option<DecryptionInstance> {
+		self.get(id).map(|key| match key {
+			&Key::Asymmetric(ref pair) => DecryptionInstance::ecies(pair.secret().clone())
+				.expect("all keys stored are valid; qed"),
+		})
 	}
 
 	/// Whether the store contains a key by this ID.

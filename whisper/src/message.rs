@@ -48,11 +48,11 @@ impl From<[u8; 4]> for Topic {
 }
 
 impl Topic {
-	// set up to three bits in the 64-byte bloom passed.
-	//
-	// this takes 3 sets of 9 bits, treating each as an index in the range
-	// 0..512 into the bloom and setting the corresponding bit in the bloom to 1.
-	fn bloom_into(&self, bloom: &mut H512) {
+	/// set up to three bits in the 64-byte bloom passed.
+	///
+	/// this takes 3 sets of 9 bits, treating each as an index in the range
+	/// 0..512 into the bloom and setting the corresponding bit in the bloom to 1.
+	pub fn bloom_into(&self, bloom: &mut H512) {
 		let mut set_bit = |idx: usize| {
 			let idx = idx & 511;
 			bloom[idx / 8] |= 1 << idx % 8;
@@ -70,6 +70,13 @@ impl Topic {
 		set_bit(combined);
 		set_bit(combined >> 9);
 		set_bit(combined >> 18);
+	}
+
+	/// Get bloom for single topic.
+	pub fn bloom(&self) -> H512 {
+		let mut bloom = Default::default();
+		self.bloom_into(&mut bloom);
+		bloom
 	}
 }
 
@@ -93,6 +100,15 @@ impl rlp::Decodable for Topic {
 			}
 		})
 	}
+}
+
+/// Calculate union of blooms for given topics.
+pub fn bloom_topics(topics: &[Topic]) -> H512 {
+	let mut bloom = H512::default();
+	for topic in topics {
+		topic.bloom_into(&mut bloom);
+	}
+	bloom
 }
 
 /// Message errors.
@@ -124,11 +140,16 @@ impl fmt::Display for Error {
 // Raw envelope struct.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Envelope {
-	expiry: u64,
-	ttl: u64,
-	topics: SmallVec<[Topic; 4]>,
-	data: Vec<u8>,
-	nonce: u64,
+	/// Expiry timestamp
+	pub expiry: u64,
+	/// Time-to-live in seconds
+	pub ttl: u64,
+	/// series of 4-byte topics.
+	pub topics: SmallVec<[Topic; 4]>,
+	/// The message contained within.
+	pub data: Vec<u8>,
+	/// Arbitrary value used to target lower PoW hash.
+	pub nonce: u64,
 }
 
 impl Envelope {
@@ -195,7 +216,7 @@ pub struct CreateParams {
 	pub work: u64,
 }
 
-/// A whisper message.
+/// A whisper message. This is a checked message carrying around metadata.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Message {
 	envelope: Envelope,
@@ -309,10 +330,7 @@ impl Message {
 		}
 
 		// other validity checks?
-		let mut bloom = H512::default();
-		for topic in &envelope.topics {
-			topic.bloom_into(&mut bloom);
-		}
+		let bloom = bloom_topics(&envelope.topics);
 
 		Ok(Message {
 			envelope: envelope,
@@ -352,6 +370,16 @@ impl Message {
 	/// Get the expiry time.
 	pub fn expiry(&self) -> SystemTime {
 		time::UNIX_EPOCH + Duration::from_secs(self.envelope.expiry)
+	}
+
+	/// Get the topics.
+	pub fn topics(&self) -> &[Topic] {
+		&self.envelope.topics
+	}
+
+	/// Get the message data.
+	pub fn data(&self) -> &[u8] {
+		&self.envelope.data
 	}
 }
 

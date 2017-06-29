@@ -23,7 +23,6 @@ extern crate ethcore_network as network;
 extern crate ethcrypto;
 extern crate ethkey;
 extern crate futures;
-extern crate futures_cpupool;
 extern crate hex;
 extern crate ordered_float;
 extern crate parking_lot;
