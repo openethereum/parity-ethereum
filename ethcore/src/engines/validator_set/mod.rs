@@ -37,17 +37,25 @@ use self::contract::ValidatorContract;
 use self::safe_contract::ValidatorSafeContract;
 use self::multi::Multi;
 
-use super::Call;
+use super::{Activation, Ancestry, Call, RequestedBlockData};
+
+pub type EpochChange = super::EpochChange<Activation>;
 
 /// Creates a validator set from spec.
 pub fn new_validator_set(spec: ValidatorSpec) -> Box<ValidatorSet> {
+	new_validator_set_inner(spec, true);
+}
+
+// create an inner validator set, disallowing nested multi-sets.
+fn new_validator_set_inner(spec: ValidatorSpec, top_level: bool) -> Box<ValidatorSet> {
 	match spec {
 		ValidatorSpec::List(list) => Box::new(SimpleList::new(list.into_iter().map(Into::into).collect())),
 		ValidatorSpec::SafeContract(address) => Box::new(ValidatorSafeContract::new(address.into())),
 		ValidatorSpec::Contract(address) => Box::new(ValidatorContract::new(address.into())),
-		ValidatorSpec::Multi(sequence) => Box::new(
-			Multi::new(sequence.into_iter().map(|(block, set)| (block.into(), new_validator_set(set))).collect())
+		ValidatorSpec::Multi(sequence) if top_level => Box::new(
+			Multi::new(sequence.into_iter().map(|(block, set)| (block.into(), new_validator_set_inner(set, false))).collect())
 		),
+		ValidatorSpec::Multi(_) => panic!("Invalid spec: nested multi-sets are disallowed."),
 	}
 }
 
@@ -83,12 +91,9 @@ pub trait ValidatorSet: Send + Sync {
 	/// state is not generally available.
 	///
 	/// Return `Yes` or `No` indicating whether it changed at the given header,
-	/// or `Unsure` indicating a need for more information.
-	///
-	/// If block or receipts are provided, do not return `Unsure` indicating
-	/// need for them.
-	fn is_epoch_end(&self, header: &Header, block: Option<&[u8]>, receipts: Option<&[::receipt::Receipt]>)
-		-> super::EpochChange;
+	/// or `Unsure` indicating a need for more information on specific blocks, along with
+	/// a closure for checking that block data.
+	fn is_epoch_end(&self, header: &Header, Ancestry) -> EpochChange;
 
 	/// Generate epoch proof.
 	/// Must interact with state only through the given caller!

@@ -34,6 +34,10 @@ pub trait EpochVerifier: Send + Sync {
 	fn verify_heavy(&self, header: &Header) -> Result<(), Error> {
 		self.verify_light(header)
 	}
+
+	/// Check if the header is the end of an epoch.
+	fn is_epoch_end(&self, header: &Header, Ancestry) -> EpochChange;
+
 }
 
 /// Special "no-op" verifier for stateless, epoch-less engines.

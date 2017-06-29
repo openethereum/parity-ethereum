@@ -24,7 +24,7 @@
 use futures_cpupool::CpuPool;
 
 use jsonrpc_core::{Error, ErrorCode};
-use parking_lot::{Mutex, RwLock};
+use parking_lot::RwLock;
 
 use self::key_store::{Key, KeyStore};
 use self::types::HexEncode;
@@ -48,11 +48,11 @@ fn whisper_error<T: Into<String>>(message: T) -> Error {
 }
 
 // abridge topic using first four bytes of hash.
-fn abridge_topic(topic: &[u8]) -> [u8; 4] {
+fn abridge_topic(topic: &[u8]) -> Topic {
 	let mut abridged = [0; 4];
 	let hash = ::tiny_keccak::keccak256(topic);
 	abridged.copy_from_slice(&hash[..4]);
-	abridged
+	abridged.into()
 }
 
 build_rpc_trait! {
@@ -194,10 +194,7 @@ impl<S: MessageSender + 'static> Whisper for WhisperClient<S> {
 		let message = Message::create(CreateParams {
 			ttl: req.ttl,
 			payload: encrypted,
-			topics: req.topics.into_iter()
-				.map(|x| abridge_topic(&x.into_inner()))
-				.map(Topic::from)
-				.collect(),
+			topics: req.topics.into_iter().map(|x| abridge_topic(&x.into_inner())).collect(),
 			work: req.priority,
 		});
 

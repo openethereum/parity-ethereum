@@ -176,7 +176,7 @@ pub struct FilterRequest {
 	pub decrypt_with: Option<Identity>,
 
 	/// Accept only messages signed by given identity.
-	pub from: Option<Identity>,
+	pub from: Option<Public>,
 
 	/// Possible topics.
 	pub topics: Vec<String>,

@@ -15,3 +15,19 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Abstraction over filters which works
+
+use bigint::hash::H512;
+use ethkey::Public;
+use parking_lot::RwLock;
+
+use message::{Message, Topic};
+use rpc::types::Message as FilterItem;
+
+pub struct Filter {
+	push: Box<Fn(FilterItem)>,
+	full_topics: Vec<Vec<u8>>,
+	abridged_topics: Vec<Topic>,
+	from: Option<Public>,
+	bloom: H512,
+}
+
