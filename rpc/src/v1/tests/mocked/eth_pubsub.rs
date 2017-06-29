@@ -79,6 +79,78 @@ fn should_subscribe_to_new_heads() {
 }
 
 #[test]
+fn should_subscribe_to_logs() {
+	use ethcore::log_entry::{LocalizedLogEntry, LogEntry};
+	use ethcore::ids::BlockId;
+	use ethcore::client::BlockChainClient;
+
+	// given
+	let el = EventLoop::spawn();
+	let mut client = TestBlockChainClient::new();
+	// Insert some blocks
+	client.add_blocks(1, EachBlockWith::Transaction);
+	let h1 = client.block_hash_delta_minus(1);
+	let block = client.block(BlockId::Hash(h1)).unwrap();
+	let tx_hash = block.transactions()[0].hash();
+	client.set_logs(vec![
+		LocalizedLogEntry {
+			entry: LogEntry {
+				address: 5.into(),
+				topics: vec![1.into(), 2.into(), 0.into(), 0.into()],
+				data: vec![],
+			},
+			block_hash: h1,
+			block_number: block.header().number(),
+			transaction_hash: tx_hash,
+			transaction_index: 0,
+			log_index: 0,
+			transaction_log_index: 0,
+		}
+	]);
+
+	let pubsub = EthPubSubClient::new_test(Arc::new(client), el.remote());
+	let handler = pubsub.handler();
+	let pubsub = pubsub.to_delegate();
+
+	let mut io = MetaIoHandler::default();
+	io.extend_with(pubsub);
+
+	let mut metadata = Metadata::default();
+	let (sender, receiver) = futures::sync::mpsc::channel(8);
+	metadata.session = Some(Arc::new(Session::new(sender)));
+
+	// Subscribe
+	let request = r#"{"jsonrpc": "2.0", "method": "eth_subscribe", "params": ["logs", {}], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"0x416d77337e24399d","id":1}"#;
+	assert_eq!(io.handle_request_sync(request, metadata.clone()), Some(response.to_owned()));
+
+	// Check notifications (enacted)
+	handler.new_blocks(vec![], vec![], vec![h1], vec![], vec![], vec![], 0);
+	let (res, receiver) = receiver.into_future().wait().unwrap();
+	let response = r#"{"jsonrpc":"2.0","method":"eth_subscription","params":{"result":[{"address":"0x0000000000000000000000000000000000000005","blockHash":"0x3457d2fa2e3dd33c78ac681cf542e429becf718859053448748383af67e23218","blockNumber":"0x1","data":"0x","logIndex":"0x0","topics":["0x0000000000000000000000000000000000000000000000000000000000000001","0x0000000000000000000000000000000000000000000000000000000000000002","0x0000000000000000000000000000000000000000000000000000000000000000","0x0000000000000000000000000000000000000000000000000000000000000000"],"transactionHash":""#.to_owned()
+		+ &format!("0x{:?}", tx_hash)
+		+ r#"","transactionIndex":"0x0","transactionLogIndex":"0x0","type":"mined"}],"subscription":"0x416d77337e24399d"}}"#;
+	assert_eq!(res, Some(response.into()));
+
+	// Check notifications (retracted)
+	handler.new_blocks(vec![], vec![], vec![], vec![h1], vec![], vec![], 0);
+	let (res, receiver) = receiver.into_future().wait().unwrap();
+	let response = r#"{"jsonrpc":"2.0","method":"eth_subscription","params":{"result":[{"address":"0x0000000000000000000000000000000000000005","blockHash":"0x3457d2fa2e3dd33c78ac681cf542e429becf718859053448748383af67e23218","blockNumber":"0x1","data":"0x","logIndex":"0x0","topics":["0x0000000000000000000000000000000000000000000000000000000000000001","0x0000000000000000000000000000000000000000000000000000000000000002","0x0000000000000000000000000000000000000000000000000000000000000000","0x0000000000000000000000000000000000000000000000000000000000000000"],"transactionHash":""#.to_owned()
+		+ &format!("0x{:?}", tx_hash)
+		+ r#"","transactionIndex":"0x0","transactionLogIndex":"0x0","type":"removed"}],"subscription":"0x416d77337e24399d"}}"#;
+	assert_eq!(res, Some(response.into()));
+
+
+	// And unsubscribe
+	let request = r#"{"jsonrpc": "2.0", "method": "eth_unsubscribe", "params": ["0x416d77337e24399d"], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
+	assert_eq!(io.handle_request_sync(request, metadata), Some(response.to_owned()));
+
+	let (res, _receiver) = receiver.into_future().wait().unwrap();
+	assert_eq!(res, None);
+}
+
+#[test]
 fn should_return_unimplemented() {
 	// given
 	let el = EventLoop::spawn();
@@ -96,8 +168,6 @@ fn should_return_unimplemented() {
 	// Subscribe
 	let response = r#"{"jsonrpc":"2.0","error":{"code":-32000,"message":"This request is not implemented yet. Please create an issue on Github repo."},"id":1}"#;
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_subscribe", "params": ["newPendingTransactions"], "id": 1}"#;
-	assert_eq!(io.handle_request_sync(request, metadata.clone()), Some(response.to_owned()));
-	let request = r#"{"jsonrpc": "2.0", "method": "eth_subscribe", "params": ["logs"], "id": 1}"#;
 	assert_eq!(io.handle_request_sync(request, metadata.clone()), Some(response.to_owned()));
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_subscribe", "params": ["syncing"], "id": 1}"#;
 	assert_eq!(io.handle_request_sync(request, metadata.clone()), Some(response.to_owned()));

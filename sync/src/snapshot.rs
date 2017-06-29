@@ -92,14 +92,10 @@ impl Snapshot {
 	/// Find a chunk to download
 	pub fn needed_chunk(&mut self) -> Option<H256> {
 		// check state chunks first
-		let mut chunk = self.pending_state_chunks.iter()
+		let chunk = self.pending_state_chunks.iter()
+			.chain(self.pending_block_chunks.iter())
 			.find(|&h| !self.downloading_chunks.contains(h) && !self.completed_chunks.contains(h))
 			.cloned();
-		if chunk.is_none() {
-			chunk = self.pending_block_chunks.iter()
-				.find(|&h| !self.downloading_chunks.contains(h) && !self.completed_chunks.contains(h))
-				.cloned();
-		}
 
 		if let Some(hash) = chunk {
 			self.downloading_chunks.insert(hash.clone());

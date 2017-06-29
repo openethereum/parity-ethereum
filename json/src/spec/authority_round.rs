@@ -49,6 +49,9 @@ pub struct AuthorityRoundParams {
 	/// Block from which monotonic steps start.
 	#[serde(rename="validateStepTransition")]
 	pub validate_step_transition: Option<Uint>,
+	/// Whether transitions should be immediate.
+	#[serde(rename="immediateTransitions")]
+	pub immediate_transitions: Option<bool>,
 }
 
 /// Authority engine deserialization.
@@ -92,5 +95,6 @@ mod tests {
 		assert!(deserialized.params.registrar.is_none());
 		assert_eq!(deserialized.params.start_step, Some(Uint(U256::from(24))));
 		assert_eq!(deserialized.params.eip155_transition, Some(Uint(U256::from(0x42))));
+		assert_eq!(deserialized.params.immediate_transitions, None);
 	}
 }

@@ -1104,11 +1104,11 @@ impl TransactionQueue {
 
 	/// Returns top transactions from the queue ordered by priority.
 	pub fn top_transactions(&self) -> Vec<SignedTransaction> {
-		self.top_transactions_at(BlockNumber::max_value(), u64::max_value())
+		self.top_transactions_at(BlockNumber::max_value(), u64::max_value(), None)
 
 	}
 
-	fn filter_pending_transaction<F>(&self, best_block: BlockNumber, best_timestamp: u64, mut f: F)
+	fn filter_pending_transaction<F>(&self, best_block: BlockNumber, best_timestamp: u64, nonce_cap: Option<U256>, mut f: F)
 		where F: FnMut(&VerifiedTransaction) {
 
 		let mut delayed = HashSet::new();
@@ -1117,6 +1117,11 @@ impl TransactionQueue {
 			let sender = tx.sender();
 			if delayed.contains(&sender) {
 				continue;
+			}
+			if let Some(max_nonce) = nonce_cap {
+				if tx.nonce() >= max_nonce {
+					continue;
+				}
 			}
 			let delay = match tx.condition {
 				Some(Condition::Number(n)) => n > best_block,
@@ -1132,16 +1137,16 @@ impl TransactionQueue {
 	}
 
 	/// Returns top transactions from the queue ordered by priority.
-	pub fn top_transactions_at(&self, best_block: BlockNumber, best_timestamp: u64) -> Vec<SignedTransaction> {
+	pub fn top_transactions_at(&self, best_block: BlockNumber, best_timestamp: u64, nonce_cap: Option<U256>) -> Vec<SignedTransaction> {
 		let mut r = Vec::new();
-		self.filter_pending_transaction(best_block, best_timestamp, |tx| r.push(tx.transaction.clone()));
+		self.filter_pending_transaction(best_block, best_timestamp, nonce_cap, |tx| r.push(tx.transaction.clone()));
 		r
 	}
 
 	/// Return all ready transactions.
 	pub fn pending_transactions(&self, best_block: BlockNumber, best_timestamp: u64) -> Vec<PendingTransaction> {
 		let mut r = Vec::new();
-		self.filter_pending_transaction(best_block, best_timestamp, |tx| r.push(PendingTransaction::new(tx.transaction.clone(), tx.condition.clone())));
+		self.filter_pending_transaction(best_block, best_timestamp, None, |tx| r.push(PendingTransaction::new(tx.transaction.clone(), tx.condition.clone())));
 		r
 	}
 
@@ -2228,9 +2233,9 @@ pub mod test {
 		// then
 		assert_eq!(res1, TransactionImportResult::Current);
 		assert_eq!(res2, TransactionImportResult::Current);
-		let top = txq.top_transactions_at(0, 0);
+		let top = txq.top_transactions_at(0, 0, None);
 		assert_eq!(top.len(), 0);
-		let top = txq.top_transactions_at(1, 0);
+		let top = txq.top_transactions_at(1, 0, None);
 		assert_eq!(top.len(), 2);
 	}
 
@@ -2875,5 +2880,20 @@ pub mod test {
 		// then
 		assert_eq!(txq.top_transactions()[0], tx1);
 		assert_eq!(txq.top_transactions().len(), 2);
+	}
+
+	#[test]
+	fn should_not_return_transactions_over_nonce_cap() {
+		// given
+		let keypair = Random.generate().unwrap();
+		let mut txq = TransactionQueue::default();
+		// when
+		for nonce in 123..130 {
+			let tx = new_unsigned_tx(nonce.into(), default_gas_val(), default_gas_price()).sign(keypair.secret(), None);
+			txq.add(tx, TransactionOrigin::External, 0, None, &default_tx_provider()).unwrap();
+		}
+
+		// then
+		assert_eq!(txq.top_transactions_at(BlockNumber::max_value(), u64::max_value(), Some(127.into())).len(), 4);
 	}
 }

@@ -89,6 +89,18 @@ cargo install --git https://github.com/paritytech/parity.git parity
 
 ----
 
+## Install from the snap store
+
+In any of the [supported Linux distros](https://snapcraft.io/docs/core/install):
+
+```bash
+sudo snap install parity --edge
+```
+
+(Note that this is an experimental and unstable release, at the moment)
+
+----
+
 ## Build from source
 
 ```bash

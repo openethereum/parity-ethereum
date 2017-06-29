@@ -8,7 +8,8 @@
 				"startStep": 2,
 				"validators": {
 					"contract": "0x0000000000000000000000000000000000000005"
-				}
+				},
+				"immediateTransitions": true
 			}
 		}
 	},

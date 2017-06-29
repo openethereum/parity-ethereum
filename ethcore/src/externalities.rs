@@ -17,7 +17,7 @@
 //! Transaction Execution environment.
 use util::*;
 use action_params::{ActionParams, ActionValue};
-use state::{Backend as StateBackend, State, Substate};
+use state::{Backend as StateBackend, State, Substate, CleanupMode};
 use engines::Engine;
 use env_info::EnvInfo;
 use executive::*;
@@ -347,7 +347,7 @@ impl<'a, T: 'a, V: 'a, B: 'a, E: 'a> Ext for Externalities<'a, T, V, B, E>
 		let balance = self.balance(&address)?;
 		if &address == refund_address {
 			// TODO [todr] To be consistent with CPP client we set balance to 0 in that case.
-			self.state.sub_balance(&address, &balance)?;
+			self.state.sub_balance(&address, &balance, &mut CleanupMode::NoEmpty)?;
 		} else {
 			trace!(target: "ext", "Suiciding {} -> {} (xfer: {})", address, refund_address, balance);
 			self.state.transfer_balance(
