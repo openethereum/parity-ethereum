@@ -260,6 +260,7 @@ impl<'x> OpenBlock<'x> {
 		author: Address,
 		gas_range_target: (U256, U256),
 		extra_data: Bytes,
+		is_epoch_begin: bool,
 	) -> Result<Self, Error> {
 		let number = parent.number() + 1;
 		let state = State::from_existing(db, parent.state_root().clone(), engine.account_start_nonce(number), factories)?;
@@ -279,7 +280,8 @@ impl<'x> OpenBlock<'x> {
 		let gas_floor_target = cmp::max(gas_range_target.0, engine.params().min_gas_limit);
 		let gas_ceil_target = cmp::max(gas_range_target.1, gas_floor_target);
 		engine.populate_from_parent(&mut r.block.header, parent, gas_floor_target, gas_ceil_target);
-		engine.on_new_block(&mut r.block, last_hashes)?;
+		engine.on_new_block(&mut r.block, last_hashes, is_epoch_begin)?;
+
 		Ok(r)
 	}
 
@@ -380,11 +382,11 @@ impl<'x> OpenBlock<'x> {
 		if let Err(e) = s.block.state.commit() {
 			warn!("Encountered error on state commit: {}", e);
 		}
-		s.block.header.set_transactions_root(ordered_trie_root(s.block.transactions.iter().map(|e| e.rlp_bytes().to_vec())));
+		s.block.header.set_transactions_root(ordered_trie_root(s.block.transactions.iter().map(|e| e.rlp_bytes().into_vec())));
 		let uncle_bytes = s.block.uncles.iter().fold(RlpStream::new_list(s.block.uncles.len()), |mut s, u| {s.append_raw(&u.rlp(Seal::With), 1); s} ).out();
 		s.block.header.set_uncles_hash(uncle_bytes.sha3());
 		s.block.header.set_state_root(s.block.state.root().clone());
-		s.block.header.set_receipts_root(ordered_trie_root(s.block.receipts.iter().map(|r| r.rlp_bytes().to_vec())));
+		s.block.header.set_receipts_root(ordered_trie_root(s.block.receipts.iter().map(|r| r.rlp_bytes().into_vec())));
 		s.block.header.set_log_bloom(s.block.receipts.iter().fold(LogBloom::zero(), |mut b, r| {b = &b | &r.log_bloom; b})); //TODO: use |= operator
 		s.block.header.set_gas_used(s.block.receipts.last().map_or(U256::zero(), |r| r.gas_used));
 
@@ -408,14 +410,14 @@ impl<'x> OpenBlock<'x> {
 			warn!("Encountered error on state commit: {}", e);
 		}
 		if s.block.header.transactions_root().is_zero() || s.block.header.transactions_root() == &SHA3_NULL_RLP {
-			s.block.header.set_transactions_root(ordered_trie_root(s.block.transactions.iter().map(|e| e.rlp_bytes().to_vec())));
+			s.block.header.set_transactions_root(ordered_trie_root(s.block.transactions.iter().map(|e| e.rlp_bytes().into_vec())));
 		}
 		let uncle_bytes = s.block.uncles.iter().fold(RlpStream::new_list(s.block.uncles.len()), |mut s, u| {s.append_raw(&u.rlp(Seal::With), 1); s} ).out();
 		if s.block.header.uncles_hash().is_zero() {
 			s.block.header.set_uncles_hash(uncle_bytes.sha3());
 		}
 		if s.block.header.receipts_root().is_zero() || s.block.header.receipts_root() == &SHA3_NULL_RLP {
-			s.block.header.set_receipts_root(ordered_trie_root(s.block.receipts.iter().map(|r| r.rlp_bytes().to_vec())));
+			s.block.header.set_receipts_root(ordered_trie_root(s.block.receipts.iter().map(|r| r.rlp_bytes().into_vec())));
 		}
 
 		s.block.header.set_state_root(s.block.state.root().clone());
@@ -430,7 +432,7 @@ impl<'x> OpenBlock<'x> {
 
 	#[cfg(test)]
 	/// Return mutable block reference. To be used in tests only.
-	pub fn block_mut (&mut self) -> &mut ExecutedBlock { &mut self.block }
+	pub fn block_mut(&mut self) -> &mut ExecutedBlock { &mut self.block }
 }
 
 impl<'x> IsBlock for OpenBlock<'x> {
@@ -508,7 +510,7 @@ impl LockedBlock {
 		for receipt in &mut block.block.receipts {
 			receipt.state_root = None;
 		}
-		block.block.header.set_receipts_root(ordered_trie_root(block.block.receipts.iter().map(|r| r.rlp_bytes().to_vec())));
+		block.block.header.set_receipts_root(ordered_trie_root(block.block.receipts.iter().map(|r| r.rlp_bytes().into_vec())));
 		block
 	}
 }
@@ -554,6 +556,7 @@ pub fn enact(
 	parent: &Header,
 	last_hashes: Arc<LastHashes>,
 	factories: Factories,
+	is_epoch_begin: bool,
 ) -> Result<LockedBlock, Error> {
 	{
 		if ::log::max_log_level() >= ::log::LogLevel::Trace {
@@ -563,7 +566,19 @@ pub fn enact(
 		}
 	}
 
-	let mut b = OpenBlock::new(engine, factories, tracing, db, parent, last_hashes, Address::new(), (3141562.into(), 31415620.into()), vec![])?;
+	let mut b = OpenBlock::new(
+		engine,
+		factories,
+		tracing,
+		db,
+		parent,
+		last_hashes,
+		Address::new(),
+		(3141562.into(), 31415620.into()),
+		vec![],
+		is_epoch_begin,
+	)?;
+
 	b.set_difficulty(*header.difficulty());
 	b.set_gas_limit(*header.gas_limit());
 	b.set_timestamp(header.timestamp());
@@ -618,9 +633,22 @@ pub fn enact_verified(
 	parent: &Header,
 	last_hashes: Arc<LastHashes>,
 	factories: Factories,
+	is_epoch_begin: bool,
 ) -> Result<LockedBlock, Error> {
 	let view = BlockView::new(&block.bytes);
-	enact(&block.header, &block.transactions, &view.uncles(), engine, tracing, db, parent, last_hashes, factories)
+
+	enact(
+		&block.header,
+		&block.transactions,
+		&view.uncles(),
+		engine,
+		tracing,
+		db,
+		parent,
+		last_hashes,
+		factories,
+		is_epoch_begin,
+	)
 }
 
 #[cfg(test)]
@@ -653,7 +681,7 @@ mod tests {
 		let header = block.header();
 		let transactions: Result<Vec<_>, Error> = block.transactions().into_iter().map(SignedTransaction::new).collect();
 		let transactions = transactions?;
-		enact(&header, &transactions, &block.uncles(), engine, tracing, db, parent, last_hashes, factories)
+		enact(&header, &transactions, &block.uncles(), engine, tracing, db, parent, last_hashes, factories, false)
 	}
 
 	/// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header. Seal the block aferwards
@@ -678,7 +706,7 @@ mod tests {
 		let genesis_header = spec.genesis_header();
 		let db = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
-		let b = OpenBlock::new(&*spec.engine, Default::default(), false, db, &genesis_header, last_hashes, Address::zero(), (3141562.into(), 31415620.into()), vec![]).unwrap();
+		let b = OpenBlock::new(&*spec.engine, Default::default(), false, db, &genesis_header, last_hashes, Address::zero(), (3141562.into(), 31415620.into()), vec![], false).unwrap();
 		let b = b.close_and_lock();
 		let _ = b.seal(&*spec.engine, vec![]);
 	}
@@ -692,7 +720,7 @@ mod tests {
 
 		let db = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
-		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes.clone(), Address::zero(), (3141562.into(), 31415620.into()), vec![]).unwrap()
+		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes.clone(), Address::zero(), (3141562.into(), 31415620.into()), vec![], false).unwrap()
 			.close_and_lock().seal(engine, vec![]).unwrap();
 		let orig_bytes = b.rlp_bytes();
 		let orig_db = b.drain();
@@ -716,7 +744,7 @@ mod tests {
 
 		let db = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
-		let mut open_block = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes.clone(), Address::zero(), (3141562.into(), 31415620.into()), vec![]).unwrap();
+		let mut open_block = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes.clone(), Address::zero(), (3141562.into(), 31415620.into()), vec![], false).unwrap();
 		let mut uncle1_header = Header::new();
 		uncle1_header.set_extra_data(b"uncle1".to_vec());
 		let mut uncle2_header = Header::new();

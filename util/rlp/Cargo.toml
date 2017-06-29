@@ -7,7 +7,7 @@ version = "0.2.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
-elastic-array = "0.8"
+elastic-array = "0.9"
 ethcore-bigint = { path = "../bigint" }
 lazy_static = "0.2"
 rustc-serialize = "0.3"

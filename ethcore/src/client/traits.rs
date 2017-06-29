@@ -311,6 +311,13 @@ pub trait EngineClient: MiningBlockChainClient {
 
 	/// Broadcast a consensus message to the network.
 	fn broadcast_consensus_message(&self, message: Bytes);
+
+	/// Get the transition to the epoch the given parent hash is part of
+	/// or transitions to.
+	/// This will give the epoch that any children of this parent belong to.
+	///
+	/// The block corresponding the the parent hash must be stored already.
+	fn epoch_transition_for(&self, parent_hash: H256) -> Option<::engines::EpochTransition>;
 }
 
 /// Extended client interface for providing proofs of the state.

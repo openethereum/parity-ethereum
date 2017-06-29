@@ -98,7 +98,7 @@ pub fn decode_list<T>(bytes: &[u8]) -> Vec<T> where T: Decodable {
 ///
 /// fn main () {
 /// 	let animal = "cat";
-/// 	let out = rlp::encode(&animal).to_vec();
+/// 	let out = rlp::encode(&animal).into_vec();
 /// 	assert_eq!(out, vec![0x83, b'c', b'a', b't']);
 /// }
 /// ```

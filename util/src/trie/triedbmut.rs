@@ -1026,14 +1026,14 @@ mod tests {
 		let mut memdb = MemoryDB::new();
 		let mut root = H256::new();
 		let mut t1 = TrieDBMut::new(&mut memdb, &mut root);
-		t1.insert(&[0x01, 0x23], &big_value.to_vec()).unwrap();
-		t1.insert(&[0x01, 0x34], &big_value.to_vec()).unwrap();
+		t1.insert(&[0x01, 0x23], big_value).unwrap();
+		t1.insert(&[0x01, 0x34], big_value).unwrap();
 		let mut memdb2 = MemoryDB::new();
 		let mut root2 = H256::new();
 		let mut t2 = TrieDBMut::new(&mut memdb2, &mut root2);
-		t2.insert(&[0x01], &big_value.to_vec()).unwrap();
-		t2.insert(&[0x01, 0x23], &big_value.to_vec()).unwrap();
-		t2.insert(&[0x01, 0x34], &big_value.to_vec()).unwrap();
+		t2.insert(&[0x01], big_value).unwrap();
+		t2.insert(&[0x01, 0x23], big_value).unwrap();
+		t2.insert(&[0x01, 0x34], big_value).unwrap();
 		t2.remove(&[0x01]).unwrap();
 	}
 

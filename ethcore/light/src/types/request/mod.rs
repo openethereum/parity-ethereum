@@ -1673,7 +1673,7 @@ mod tests {
 		let full_req = Request::Headers(req.clone());
 		let res = HeadersResponse {
 			headers: vec![
-				::ethcore::encoded::Header::new(::rlp::encode(&Header::default()).to_vec())
+				::ethcore::encoded::Header::new(::rlp::encode(&Header::default()).into_vec())
 			]
 		};
 		let full_res = Response::Headers(res.clone());
