@@ -21,10 +21,10 @@
 //!
 //! Provides an interface for using whisper to transmit data securely.
 
-use std::sync::mpsc::Sender;
 
 use futures::{future, BoxFuture};
-use futures::sync::oneshot;
+use futures::sync::mpsc::UnboundedSender;
+
 use jsonrpc_core::{Error, ErrorCode};
 use parking_lot::{Mutex, RwLock};
 
@@ -84,14 +84,12 @@ build_rpc_trait! {
 /// Something which can send messages to the network.
 pub trait MessageSender: Send {
 	/// Give message to the whisper network for relay.
-	///
-	/// On failure, return a string describing why.
-	fn relay(&self, message: Message) -> Result<(), String>;
+	fn relay(&self, message: Message);
 }
 
-impl MessageSender for Sender<Message> {
-	fn relay(&self, message: Message) -> Result<(), String> {
-		self.send(message).map_err(|_| "No handle to network".into())
+impl MessageSender for ::net::MessagePoster {
+	fn relay(&self, message: Message) {
+		self.post_message(message)
 	}
 }
 

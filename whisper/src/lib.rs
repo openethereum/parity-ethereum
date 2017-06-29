@@ -52,7 +52,7 @@ extern crate jsonrpc_macros;
 extern crate serde_derive;
 
 pub use self::message::Message;
-pub use self::net::{Network, CreateHandler, MessageHandler};
+pub use self::net::{Network, MessageHandler};
 
 pub mod message;
 pub mod net;

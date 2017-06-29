@@ -19,8 +19,11 @@
 use std::collections::{HashMap, HashSet};
 use std::cmp::Ordering;
 use std::fmt;
-use std::sync::mpsc;
 use std::time::{Duration, SystemTime};
+use std::sync::Arc;
+
+use futures::{Async, Stream};
+use futures::sync::mpsc;
 
 use bigint::hash::{H256, H512};
 use network::{HostInfo, NetworkContext, NetworkError, NodeId, PeerId, TimerToken};
@@ -45,23 +48,14 @@ mod packet {
 }
 
 /// Handles messages within a single packet.
-pub trait MessageHandler {
+pub trait MessageHandler: Send + Sync {
 	/// Evaluate the message and handle it.
 	///
 	/// The same message will not be passed twice.
 	/// Heavy handling should be done asynchronously.
 	/// If there is a significant overhead in this thread, then an attacker
 	/// can determine which kinds of messages we are listening for.
-	fn handle_message(&mut self, message: &Message);
-}
-
-/// Creates message handlers.
-pub trait CreateHandler: Send + Sync {
-	type Handler: MessageHandler;
-
-	/// Create a message handler which will process
-	/// messages for a single packet.
-	fn create_handler(&self) -> Self::Handler;
+	fn handle_messages(&self, message: &[Message]);
 }
 
 // errors in importing a whisper message.
@@ -292,12 +286,22 @@ impl Peer {
 	}
 }
 
+/// Struct for posting messages.
+pub struct MessagePoster {
+	messages: Arc<RwLock<Messages>>,
+}
+
+impl MessagePoster {
+	/// Post a message to the whisper network to be relayed.
+	pub fn post_message(&self, message: Message) {
+		self.messages.write().insert(message)
+	}
+}
+
 /// The whisper network protocol handler.
 pub struct Network<T> {
-	incoming: Mutex<mpsc::Receiver<Message>>,
-	async_sender: Mutex<mpsc::Sender<Message>>,
-	messages: RwLock<Messages>,
-	create_handler: T,
+	messages: Arc<RwLock<Messages>>,
+	handler: T,
 	peers: RwLock<HashMap<PeerId, Mutex<Peer>>>,
 	node_key: RwLock<NodeId>,
 }
@@ -305,43 +309,32 @@ pub struct Network<T> {
 // public API.
 impl<T> Network<T> {
 	/// Create a new network handler.
-	pub fn new(messages_size_bytes: usize, create_handler: T) -> Self {
-		let (tx, rx) = mpsc::channel();
-
+	pub fn new(messages_size_bytes: usize, handler: T) -> Self {
 		Network {
-			incoming: Mutex::new(rx),
-			async_sender: Mutex::new(tx),
-			messages: RwLock::new(Messages::new(messages_size_bytes)),
-			create_handler: create_handler,
+			messages: Arc::new(RwLock::new(Messages::new(messages_size_bytes))),
+			handler: handler,
 			peers: RwLock::new(HashMap::new()),
 			node_key: RwLock::new(Default::default()),
 		}
 	}
 
-	/// Acquire a sender to asynchronously feed messages.
-	pub fn message_sender(&self) -> mpsc::Sender<Message> {
-		self.async_sender.lock().clone()
+	/// Acquire a sender to asynchronously feed messages to the whisper
+	/// network.
+	pub fn message_poster(&self) -> MessagePoster {
+		MessagePoster { messages: self.messages.clone() }
 	}
 }
 
-impl<T: CreateHandler> Network<T> {
+impl<T: MessageHandler> Network<T> {
 	fn rally(&self, io: &NetworkContext) {
 		// cannot be greater than 16MB (protocol limitation)
 		const MAX_MESSAGES_PACKET_SIZE: usize = 8 * 1024 * 1024;
 
-		// accumulate incoming messages.
-		let incoming_messages: Vec<_> = self.incoming.lock().try_iter().collect();
-		let mut messages = self.messages.write();
-
-		messages.reserve(incoming_messages.len());
-
-		for message in incoming_messages {
-			messages.insert(message);
-		}
-
+		// prune messages.
 		let now = SystemTime::now();
-		let pruned_messages = messages.prune(now);
+		let pruned_messages = self.messages.write().prune(now);
 
+		let messages = self.messages.read();
 		let peers = self.peers.read();
 
 		// send each peer a packet with new messages it may find relevant.
@@ -379,6 +372,7 @@ impl<T: CreateHandler> Network<T> {
 				peer_data.note_known(message);
 				stream.append(message.envelope());
 			}
+
 			stream.complete_unbounded_list();
 
 			peer_data.state = State::TheirTurn(SystemTime::now());
@@ -426,39 +420,43 @@ impl<T: CreateHandler> Network<T> {
 	fn on_messages(&self, peer: &PeerId, message_packet: UntrustedRlp)
 		-> Result<(), Error>
 	{
-		// TODO: pinning thread-local data to each I/O worker would
-		// optimize this significantly.
-		let sender = self.message_sender();
-		let mut packet_handler = self.create_handler.create_handler();
-		let messages = self.messages.read();
+		let mut messages_vec = {
+			let peers = self.peers.read();
+			let peer = match peers.get(peer) {
+				Some(peer) => peer,
+				None => {
+					debug!(target: "whisper", "Received message from unknown peer.");
+					return Err(Error::UnknownPeer(*peer));
+				}
+			};
 
-		let peers = self.peers.read();
-		let peer = match peers.get(peer) {
-			Some(peer) => peer,
-			None => {
-				debug!(target: "whisper", "Received message from unknown peer.");
-				return Err(Error::UnknownPeer(*peer));
+			let mut peer = peer.lock();
+
+			if !peer.can_send_messages() {
+				return Err(Error::UnexpectedMessage);
 			}
+
+			peer.state = State::OurTurn;
+
+			let now = SystemTime::now();
+			let mut messages_vec = message_packet.iter().map(|rlp| Message::decode(rlp, now))
+				.collect::<Result<Vec<_>, _>>()?;
+
+			// disallow duplicates in packet.
+			messages_vec.retain(|message| peer.note_known(&message));
+			messages_vec
 		};
 
-		let mut peer = peer.lock();
+		// import for relaying.
+		let mut messages = self.messages.write();
 
-		if !peer.can_send_messages() {
-			return Err(Error::UnexpectedMessage);
-		}
+		messages_vec.retain(|message| !messages.contains(&message));
+		messages.reserve(messages_vec.len());
 
-		peer.state = State::OurTurn;
+		self.handler.handle_messages(&messages_vec);
 
-		let now = SystemTime::now();
-
-		for message_rlp in message_packet.iter() {
-			let message = Message::decode(message_rlp, now)?;
-			if !peer.note_known(&message) || messages.contains(&message) {
-				continue
-			}
-
-			packet_handler.handle_message(&message);
-			sender.send(message).expect("receiver always kept alive; qed");
+		for message in messages_vec {
+			messages.insert(message);
 		}
 
 		Ok(())
@@ -518,7 +516,7 @@ impl<T: CreateHandler> Network<T> {
 	}
 }
 
-impl<T: CreateHandler> ::network::NetworkProtocolHandler for Network<T> {
+impl<T: MessageHandler> ::network::NetworkProtocolHandler for Network<T> {
 	fn initialize(&self, io: &NetworkContext, host_info: &HostInfo) {
 		// set up broadcast timer (< 1s)
 		io.register_timer(RALLY_TOKEN, RALLY_TIMEOUT_MS)
