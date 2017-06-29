@@ -164,11 +164,10 @@ impl Restoration {
 		}
 
 		// check for missing code.
-		let db = self.state.finalize(self.manifest.block_number, self.manifest.block_hash)?;
-		let db = ::state_db::StateDB::new(db, 0);
+		self.state.finalize(self.manifest.block_number, self.manifest.block_hash)?;
 
 		// connect out-of-order chunks and verify chain integrity.
-		self.secondary.finalize(db, engine)?;
+		self.secondary.finalize(engine)?;
 
 		if let Some(writer) = self.writer {
 			writer.finish(self.manifest)?;

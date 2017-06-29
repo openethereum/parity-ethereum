@@ -25,8 +25,8 @@ linux-stable:
     - rustup default stable
     - cargo build -j $(nproc) --release --features final $CARGOFLAGS
     - cargo build -j $(nproc) --release -p evmbin
-    - cargo build -j $(nproc) --release -p ethstore
-    - cargo build -j $(nproc) --release -p ethkey
+    - cargo build -j $(nproc) --release -p ethstore-cli
+    - cargo build -j $(nproc) --release -p ethkey-cli
     - strip target/release/parity
     - strip target/release/parity-evm
     - strip target/release/ethstore
@@ -105,8 +105,8 @@ linux-stable-debian:
   script:
     - cargo build -j $(nproc) --release --features final $CARGOFLAGS
     - cargo build -j $(nproc) --release -p evmbin
-    - cargo build -j $(nproc) --release -p ethstore
-    - cargo build -j $(nproc) --release -p ethkey
+    - cargo build -j $(nproc) --release -p ethstore-cli
+    - cargo build -j $(nproc) --release -p ethkey-cli
     - strip target/release/parity
     - strip target/release/parity-evm
     - strip target/release/ethstore
@@ -191,8 +191,17 @@ linux-centos:
     - export CC="gcc"
     - export PLATFORM=x86_64-unknown-centos-gnu
     - cargo build -j $(nproc) --release --features final $CARGOFLAGS
+    - cargo build -j $(nproc) --release -p evmbin
+    - cargo build -j $(nproc) --release -p ethstore-cli
+    - cargo build -j $(nproc) --release -p ethkey-cli
     - strip target/release/parity
+    - strip target/release/parity-evm
+    - strip target/release/ethstore
+    - strip target/release/ethkey
     - md5sum target/release/parity > parity.md5
+    - md5sum target/release/parity-evm > parity-evm.md5
+    - md5sum target/release/ethstore > ethstore.md5
+    - md5sum target/release/ethkey > ethkey.md5
     - export SHA3=$(target/release/parity tools hash target/release/parity)
     - aws configure set aws_access_key_id $s3_key
     - aws configure set aws_secret_access_key $s3_secret
@@ -200,6 +209,12 @@ linux-centos:
     - aws s3 rm --recursive s3://$S3_BUCKET/$CI_BUILD_REF_NAME/x86_64-unknown-centos-gnu
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-centos-gnu/parity --body target/release/parity
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-centos-gnu/parity.md5 --body parity.md5
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-centos-gnu/parity-evm --body target/release/parity-evm
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-centos-gnu/parity-evm.md5 --body parity-evm.md5
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-centos-gnu/ethstore --body target/release/ethstore
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-centos-gnu/ethstore.md5 --body ethstore.md5
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-centos-gnu/ethkey --body target/release/ethkey
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-centos-gnu/ethkey.md5 --body ethkey.md5
     - curl --data "commit=$CI_BUILD_REF&sha3=$SHA3&filename=parity&secret=$RELEASES_SECRET" http://update.parity.io:1337/push-build/$CI_BUILD_REF_NAME/$PLATFORM
     - curl --data "commit=$CI_BUILD_REF&sha3=$SHA3&filename=parity&secret=$RELEASES_SECRET" http://update.parity.io:1338/push-build/$CI_BUILD_REF_NAME/$PLATFORM
   tags:
@@ -222,12 +237,22 @@ linux-i686:
     - export HOST_CXX=g++
     - export COMMIT=$(git rev-parse HEAD)
     - export PLATFORM=i686-unknown-linux-gnu
-    - cargo build -j $(nproc) --target i686-unknown-linux-gnu --features final --release $CARGOFLAGS
+    - cargo build -j $(nproc) --target $PLATFORM --features final --release $CARGOFLAGS
+    - cargo build -j $(nproc) --target $PLATFORM --release -p evmbin
+    - cargo build -j $(nproc) --target $PLATFORM --release -p ethstore-cli
+    - cargo build -j $(nproc) --target $PLATFORM --release -p ethkey-cli
+    - strip target/$PLATFORM/release/parity
+    - strip target/$PLATFORM/release/parity-evm
+    - strip target/$PLATFORM/release/ethstore
+    - strip target/$PLATFORM/release/ethkey   
     - strip target/$PLATFORM/release/parity
     - md5sum target/$PLATFORM/release/parity > parity.md5
     - export SHA3=$(target/$PLATFORM/release/parity tools hash target/$PLATFORM/release/parity)
     - sh scripts/deb-build.sh i386
     - cp target/$PLATFORM/release/parity deb/usr/bin/parity
+    - cp target/$PLATFORM/release/parity-evm deb/usr/bin/parity-evm
+    - cp target/$PLATFORM/release/ethstore deb/usr/bin/ethstore
+    - cp target/$PLATFORM/release/ethkey deb/usr/bin/ethkey
     - export VER=$(grep -m 1 version Cargo.toml | awk '{print $3}' | tr -d '"' | tr -d "\n")
     - dpkg-deb -b deb "parity_"$VER"_i386.deb"
     - md5sum "parity_"$VER"_i386.deb" > "parity_"$VER"_i386.deb.md5"
@@ -269,11 +294,23 @@ linux-armv7:
     - echo "linker= \"arm-linux-gnueabihf-gcc\"" >> .cargo/config
     - cat .cargo/config
     - cargo build -j $(nproc) --target $PLATFORM --features final --release $CARGOFLAGS
+    - cargo build -j $(nproc) --target $PLATFORM --release -p evmbin
+    - cargo build -j $(nproc) --target $PLATFORM --release -p ethstore-cli
+    - cargo build -j $(nproc) --target $PLATFORM --release -p ethkey-cli
+    - md5sum target/$PLATFORM/release/parity > parity.md5
+    - export SHA3=$(target/$PLATFORM/release/parity tools hash target/$PLATFORM/release/parity)
+    - sh scripts/deb-build.sh i386
     - arm-linux-gnueabihf-strip target/$PLATFORM/release/parity
+    - arm-linux-gnueabihf-strip target/$PLATFORM/release/parity-evm
+    - arm-linux-gnueabihf-strip target/$PLATFORM/release/ethstore
+    - arm-linux-gnueabihf-strip target/$PLATFORM/release/ethkey
     - export SHA3=$(rhash --sha3-256 target/$PLATFORM/release/parity -p %h)
     - md5sum target/$PLATFORM/release/parity > parity.md5
     - sh scripts/deb-build.sh armhf
     - cp target/$PLATFORM/release/parity deb/usr/bin/parity
+    - cp target/$PLATFORM/release/parity-evm deb/usr/bin/parity-evm
+    - cp target/$PLATFORM/release/ethstore deb/usr/bin/ethstore
+    - cp target/$PLATFORM/release/ethkey deb/usr/bin/ethkey
     - export VER=$(grep -m 1 version Cargo.toml | awk '{print $3}' | tr -d '"' | tr -d "\n")
     - dpkg-deb -b deb "parity_"$VER"_armhf.deb"
     - md5sum "parity_"$VER"_armhf.deb" > "parity_"$VER"_armhf.deb.md5"
@@ -315,11 +352,20 @@ linux-arm:
     - echo "linker= \"arm-linux-gnueabihf-gcc\"" >> .cargo/config
     - cat .cargo/config
     - cargo build -j $(nproc) --target $PLATFORM --features final --release $CARGOFLAGS
+    - cargo build -j $(nproc) --target $PLATFORM --release -p evmbin
+    - cargo build -j $(nproc) --target $PLATFORM --release -p ethstore-cli
+    - cargo build -j $(nproc) --target $PLATFORM --release -p ethkey-cli
     - arm-linux-gnueabihf-strip target/$PLATFORM/release/parity
+    - arm-linux-gnueabihf-strip target/$PLATFORM/release/parity-evm
+    - arm-linux-gnueabihf-strip target/$PLATFORM/release/ethstore
+    - arm-linux-gnueabihf-strip target/$PLATFORM/release/ethkey
     - export SHA3=$(rhash --sha3-256 target/$PLATFORM/release/parity -p %h)
     - md5sum target/$PLATFORM/release/parity > parity.md5
     - sh scripts/deb-build.sh armhf
     - cp target/$PLATFORM/release/parity deb/usr/bin/parity
+    - cp target/$PLATFORM/release/parity-evm deb/usr/bin/parity-evm
+    - cp target/$PLATFORM/release/ethstore deb/usr/bin/ethstore
+    - cp target/$PLATFORM/release/ethkey deb/usr/bin/ethkey
     - export VER=$(grep -m 1 version Cargo.toml | awk '{print $3}' | tr -d '"' | tr -d "\n")
     - dpkg-deb -b deb "parity_"$VER"_armhf.deb"
     - md5sum "parity_"$VER"_armhf.deb" > "parity_"$VER"_armhf.deb.md5"
@@ -341,45 +387,6 @@ linux-arm:
     - target/arm-unknown-linux-gnueabihf/release/parity
     name: "arm-unknown-linux-gnueabihf_parity"
   allow_failure: true
-linux-armv6:
-  stage: build
-  image: ethcore/rust-armv6:latest
-  only:
-    - beta
-#    - tags
-#    - stable
-#    - triggers
-  script:
-    - export CC=arm-linux-gnueabi-gcc
-    - export CXX=arm-linux-gnueabi-g++
-    - export HOST_CC=gcc
-    - export HOST_CXX=g++
-    - export PLATFORM=arm-unknown-linux-gnueabi
-    - rm -rf .cargo
-    - mkdir -p .cargo
-    - echo "[target.$PLATFORM]" >> .cargo/config
-    - echo "linker= \"arm-linux-gnueabi-gcc\"" >> .cargo/config
-    - cat .cargo/config
-    - cargo build -j $(nproc) --target $PLATFORM --features final --release $CARGOFLAGS
-    - arm-linux-gnueabi-strip target/$PLATFORM/release/parity
-    - export SHA3=$(rhash --sha3-256 target/$PLATFORM/release/parity -p %h)
-    - md5sum target/$PLATFORM/release/parity > parity.md5
-    - aws configure set aws_access_key_id $s3_key
-    - aws configure set aws_secret_access_key $s3_secret
-    - if [[ $CI_BUILD_REF_NAME =~ ^(master|beta|stable|nightly)$ ]]; then export S3_BUCKET=builds-parity-published; else export S3_BUCKET=builds-parity; fi
-    - aws s3 rm --recursive s3://$S3_BUCKET/$CI_BUILD_REF_NAME/$PLATFORM
-    - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$PLATFORM/parity --body target/$PLATFORM/release/parity
-    - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/$PLATFORM/parity.md5 --body parity.md5
-    - curl --data "commit=$CI_BUILD_REF&sha3=$SHA3&filename=parity&secret=$RELEASES_SECRET" http://update.parity.io:1337/push-build/$CI_BUILD_REF_NAME/$PLATFORM
-    - curl --data "commit=$CI_BUILD_REF&sha3=$SHA3&filename=parity&secret=$RELEASES_SECRET" http://update.parity.io:1338/push-build/$CI_BUILD_REF_NAME/$PLATFORM
-  tags:
-    - rust
-    - rust-arm
-  artifacts:
-    paths:
-    - target/arm-unknown-linux-gnueabi/release/parity
-    name: "arm-unknown-linux-gnueabi_parity"
-  allow_failure: true
 linux-aarch64:
   stage: build
   image: parity/rust-arm64:gitlab-ci
@@ -400,11 +407,20 @@ linux-aarch64:
     - echo "linker= \"aarch64-linux-gnu-gcc\"" >> .cargo/config
     - cat .cargo/config
     - cargo build -j $(nproc) --target $PLATFORM --features final --release $CARGOFLAGS
+    - cargo build -j $(nproc) --target $PLATFORM --release -p evmbin
+    - cargo build -j $(nproc) --target $PLATFORM --release -p ethstore-cli
+    - cargo build -j $(nproc) --target $PLATFORM --release -p ethkey-cli
     - aarch64-linux-gnu-strip target/$PLATFORM/release/parity
+    - aarch64-linux-gnu-strip target/$PLATFORM/release/parity-evm
+    - aarch64-linux-gnu-strip target/$PLATFORM/release/ethstore
+    - aarch64-linux-gnu-strip target/$PLATFORM/release/ethkey
     - export SHA3=$(rhash --sha3-256 target/$PLATFORM/release/parity -p %h)
     - md5sum target/$PLATFORM/release/parity > parity.md5
     - sh scripts/deb-build.sh arm64
     - cp target/$PLATFORM/release/parity deb/usr/bin/parity
+    - cp target/$PLATFORM/release/parity-evm deb/usr/bin/parity-evm
+    - cp target/$PLATFORM/release/ethstore deb/usr/bin/ethstore
+    - cp target/$PLATFORM/release/ethkey deb/usr/bin/ethkey
     - export VER=$(grep -m 1 version Cargo.toml | awk '{print $3}' | tr -d '"' | tr -d "\n")
     - dpkg-deb -b deb "parity_"$VER"_arm64.deb"
     - md5sum "parity_"$VER"_arm64.deb" > "parity_"$VER"_arm64.deb.md5"
@@ -436,8 +452,11 @@ darwin:
       export COMMIT=$(git rev-parse HEAD)
       export PLATFORM=x86_64-apple-darwin
       rustup default stable
+      cargo clean
       cargo build -j 8 --features final --release #$CARGOFLAGS
-      cargo build -j 8 --features final --release -p ethstore #$CARGOFLAGS
+      cargo build -j 8 --release -p ethstore-cli #$CARGOFLAGS
+      cargo build -j 8 --release -p ethkey-cli #$CARGOFLAGS
+      cargo build -j 8 --release -p evmbin #$CARGOFLAGS
       rm -rf parity.md5
       md5sum target/release/parity > parity.md5
       export SHA3=$(target/release/parity tools hash target/release/parity)
@@ -482,7 +501,11 @@ windows:
     - set RUST_BACKTRACE=1
     - set RUSTFLAGS=%RUSTFLAGS%
     - rustup default stable-x86_64-pc-windows-msvc
+    - cargo clean
     - cargo build --features final --release #%CARGOFLAGS%
+    - cargo build --release -p ethstore-cli #%CARGOFLAGS%
+    - cargo build --release -p ethkey-cli #%CARGOFLAGS%
+    - cargo build --release -p evmbin #%CARGOFLAGS%
     - signtool sign /f %keyfile% /p %certpass% target\release\parity.exe
     - target\release\parity.exe tools hash target\release\parity.exe > parity.sha3
     - set /P SHA3=<parity.sha3

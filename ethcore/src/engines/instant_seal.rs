@@ -79,7 +79,7 @@ mod tests {
 		let db = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
 		let genesis_header = spec.genesis_header();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
-		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, Address::default(), (3141562.into(), 31415620.into()), vec![]).unwrap();
+		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, Address::default(), (3141562.into(), 31415620.into()), vec![], false).unwrap();
 		let b = b.close_and_lock();
 		if let Seal::Regular(seal) = engine.generate_seal(b.block()) {
 			assert!(b.try_seal(engine, seal).is_ok());
@@ -93,7 +93,7 @@ mod tests {
 
 		assert!(engine.verify_block_basic(&header, None).is_ok());
 
-		header.set_seal(vec![::rlp::encode(&H520::default()).to_vec()]);
+		header.set_seal(vec![::rlp::encode(&H520::default()).into_vec()]);
 
 		assert!(engine.verify_block_unordered(&header, None).is_ok());
 	}

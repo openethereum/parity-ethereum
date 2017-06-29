@@ -95,7 +95,7 @@ secretstore = ["ethcore-secretstore"]
 path = "parity/main.rs"
 name = "parity"
 
-[profile.debug]
+[profile.dev]
 panic = "abort"
 
 [profile.release]

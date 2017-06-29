@@ -179,7 +179,7 @@ pub struct FilterRequest {
 	pub from: Option<Public>,
 
 	/// Possible topics.
-	pub topics: Vec<String>,
+	pub topics: Vec<Bytes>,
 }
 
 /// A message captured by a filter or subscription.

@@ -18,8 +18,8 @@
 
 use std::sync::Arc;
 
-use engines::{Engine, EpochVerifier, EpochChange};
-use error::Error;
+use blockchain::BlockChain;
+use engines::{Engine, EpochVerifier};
 use header::Header;
 
 use rand::Rng;
@@ -46,21 +46,21 @@ impl AncientVerifier {
 
 	/// Verify the next block header, randomly choosing whether to do heavy or light
 	/// verification. If the block is the end of an epoch, updates the epoch verifier.
-	pub fn verify<R: Rng, F: Fn(u64) -> Result<Box<EpochVerifier>, Error>>(
+	pub fn verify<R: Rng>(
 		&self,
 		rng: &mut R,
 		header: &Header,
-		block: &[u8],
-		receipts: &[::receipt::Receipt],
-		load_verifier: F,
+		chain: &BlockChain,
 	) -> Result<(), ::error::Error> {
 		match rng.gen::<f32>() <= HEAVY_VERIFY_RATE {
 			true => self.cur_verifier.read().verify_heavy(header)?,
 			false => self.cur_verifier.read().verify_light(header)?,
 		}
 
-		if let EpochChange::Yes(num) = self.engine.is_epoch_end(header, Some(block), Some(receipts)) {
-			*self.cur_verifier.write() = load_verifier(num)?;
+		// ancient import will only use transitions obtained from the snapshot.
+		if let Some(transition) = chain.epoch_transition(header.number(), header.hash()) {
+			let v = self.engine.epoch_verifier(&header, &transition.proof).known_confirmed()?;
+			*self.cur_verifier.write() = v;
 		}
 
 		Ok(())
