@@ -266,7 +266,7 @@ impl BlockProvider for BlockChain {
 
 		let result = match opt {
 			Some(b) => {
-				let bytes: Bytes = UntrustedRlp::new(&b).decompress(RlpType::Blocks).to_vec();
+				let bytes: Bytes = UntrustedRlp::new(&b).decompress(RlpType::Blocks).into_vec();
 				let mut write = self.block_headers.write();
 				write.insert(hash.clone(), bytes.clone());
 				Some(encoded::Header::new(bytes))
@@ -302,7 +302,7 @@ impl BlockProvider for BlockChain {
 
 		let result = match opt {
 			Some(b) => {
-				let bytes: Bytes = UntrustedRlp::new(&b).decompress(RlpType::Blocks).to_vec();
+				let bytes: Bytes = UntrustedRlp::new(&b).decompress(RlpType::Blocks).into_vec();
 				let mut write = self.block_bodies.write();
 				write.insert(hash.clone(), bytes.clone());
 				Some(encoded::Body::new(bytes))
@@ -536,7 +536,7 @@ impl BlockChain {
 			let best_block_rlp = bc.block(&best_block_hash).unwrap().into_inner();
 			let best_block_timestamp = BlockView::new(&best_block_rlp).header().timestamp();
 
-			let raw_first = bc.db.get(db::COL_EXTRA, b"first").unwrap().map(|v| v.to_vec());
+			let raw_first = bc.db.get(db::COL_EXTRA, b"first").unwrap().map(|v| v.into_vec());
 			let mut best_ancient = bc.db.get(db::COL_EXTRA, b"ancient").unwrap().map(|h| H256::from_slice(&h));
 			let best_ancient_number;
 			if best_ancient.is_none() && best_block_number > 1 && bc.block_hash(1).is_none() {

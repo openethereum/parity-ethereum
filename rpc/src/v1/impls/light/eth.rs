@@ -154,7 +154,7 @@ impl EthClient {
 						true => BlockTransactions::Full(block.view().localized_transactions().into_iter().map(|t| Transaction::from_localized(t, eip86_transition)).collect()),
 						_ => BlockTransactions::Hashes(block.transaction_hashes().into_iter().map(Into::into).collect()),
 					},
-					extra_data: Bytes::new(header.extra_data().to_vec()),
+					extra_data: Bytes::new(header.extra_data().clone()),
 				},
 				extra_info: extra_info
 			}

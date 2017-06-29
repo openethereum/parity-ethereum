@@ -1826,14 +1826,14 @@ mod tests {
 			let mut state = get_temp_state();
 			state.require_or_from(&a, false, ||Account::new_contract(42.into(), 0.into()), |_|{}).unwrap();
 			state.init_code(&a, vec![1, 2, 3]).unwrap();
-			assert_eq!(state.code(&a).unwrap(), Some(Arc::new([1u8, 2, 3].to_vec())));
+			assert_eq!(state.code(&a).unwrap(), Some(Arc::new(vec![1u8, 2, 3])));
 			state.commit().unwrap();
-			assert_eq!(state.code(&a).unwrap(), Some(Arc::new([1u8, 2, 3].to_vec())));
+			assert_eq!(state.code(&a).unwrap(), Some(Arc::new(vec![1u8, 2, 3])));
 			state.drop()
 		};
 
 		let state = State::from_existing(db, root, U256::from(0u8), Default::default()).unwrap();
-		assert_eq!(state.code(&a).unwrap(), Some(Arc::new([1u8, 2, 3].to_vec())));
+		assert_eq!(state.code(&a).unwrap(), Some(Arc::new(vec![1u8, 2, 3])));
 	}
 
 	#[test]

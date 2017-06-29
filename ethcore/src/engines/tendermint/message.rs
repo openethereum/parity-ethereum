@@ -228,7 +228,7 @@ mod tests {
 			},
 			block_hash: Some("1".sha3())
 		};
-		let raw_rlp = ::rlp::encode(&message).to_vec();
+		let raw_rlp = ::rlp::encode(&message).into_vec();
 		let rlp = Rlp::new(&raw_rlp);
 		assert_eq!(message, rlp.as_val());
 
@@ -265,8 +265,8 @@ mod tests {
 	fn proposal_message() {
 		let mut header = Header::default();
 		let seal = vec![
-			::rlp::encode(&0u8).to_vec(),
-			::rlp::encode(&H520::default()).to_vec(),
+			::rlp::encode(&0u8).into_vec(),
+			::rlp::encode(&H520::default()).into_vec(),
 			Vec::new()
 		];
 

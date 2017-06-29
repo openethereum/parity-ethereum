@@ -93,7 +93,7 @@ impl KeyStorage for PersistentKeyStorage {
 		self.db.get(None, document)
 			.map_err(Error::Database)?
 			.ok_or(Error::DocumentNotFound)
-			.map(|key| key.to_vec())
+			.map(|key| key.into_vec())
 			.and_then(|key| serde_json::from_slice::<SerializableDocumentKeyShare>(&key).map_err(|e| Error::Database(e.to_string())))
 			.map(Into::into)
 	}
