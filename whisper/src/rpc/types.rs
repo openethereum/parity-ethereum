@@ -138,7 +138,9 @@ pub struct PostRequest {
 	/// If present, the payload will be encrypted
 	/// using this identity.
 	#[serde(skip_serializing_if = "Option::is_none")]
-	pub to: Option<Public>,
+	pub to: Public,
+
+	// TODO: to_symmetric
 
 	/// Sender of the message.
 	///
@@ -154,6 +156,9 @@ pub struct PostRequest {
 	/// Payload of the message
 	pub payload: Bytes,
 
+	/// Optional padding of the message. No larger than 2^24 - 1.
+	pub padding: Option<Bytes>,
+
 	/// Priority of the message: how many milliseconds to spend doing PoW
 	pub priority: u64,
 
@@ -165,6 +170,8 @@ pub struct PostRequest {
 #[derive(Deserialize)]
 pub struct FilterRequest {
 	/// ID of key used for decryption.
+	///
+	/// If this identity is removed, then no further messages will be returned.
 	#[serde(rename = "decryptWith")]
 	pub decrypt_with: Option<Identity>,
 

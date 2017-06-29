@@ -21,9 +21,7 @@
 //!
 //! Provides an interface for using whisper to transmit data securely.
 
-
-use futures::{future, BoxFuture};
-use futures::sync::mpsc::UnboundedSender;
+use futures_cpupool::CpuPool;
 
 use jsonrpc_core::{Error, ErrorCode};
 use parking_lot::{Mutex, RwLock};
@@ -31,7 +29,7 @@ use parking_lot::{Mutex, RwLock};
 use self::key_store::{Key, KeyStore};
 use self::types::HexEncode;
 
-use message::Message;
+use message::{CreateParams, Message, Topic};
 
 mod crypto;
 mod key_store;
@@ -47,6 +45,14 @@ fn whisper_error<T: Into<String>>(message: T) -> Error {
 		message: message.into(),
 		data: None,
 	}
+}
+
+// abridge topic using first four bytes of hash.
+fn abridge_topic(topic: &[u8]) -> [u8; 4] {
+	let mut abridged = [0; 4];
+	let hash = ::tiny_keccak::keccak256(topic);
+	abridged.copy_from_slice(&hash[..4]);
+	abridged
 }
 
 build_rpc_trait! {
@@ -76,13 +82,13 @@ build_rpc_trait! {
 		fn remove_key(&self, types::Identity) -> Result<bool, Error>;
 
 		/// Post a message to the network with given parameters.
-		#[rpc(async, name = "shh_post")]
-		fn post(&self, types::PostRequest) -> BoxFuture<bool, Error>;
+		#[rpc(name = "shh_post")]
+		fn post(&self, types::PostRequest) -> Result<bool, Error>;
 	}
 }
 
 /// Something which can send messages to the network.
-pub trait MessageSender: Send {
+pub trait MessageSender: Send + Sync {
 	/// Give message to the whisper network for relay.
 	fn relay(&self, message: Message);
 }
@@ -96,16 +102,26 @@ impl MessageSender for ::net::MessagePoster {
 /// Implementation of whisper RPC.
 pub struct WhisperClient<S> {
 	store: RwLock<key_store::KeyStore>,
-	sender: Mutex<S>,
+	pool: CpuPool,
+	sender: S,
 }
 
 impl<S> WhisperClient<S> {
-	/// Create a new whisper client. This spawns a thread for processing
-	/// of incoming messages which match the topic.
-	pub fn new(sender: S) -> Result<Self, ::std::io::Error> {
+	/// Create a new whisper client.
+	///
+	/// This spawns a thread for handling
+	/// asynchronous work like performing PoW on messages or handling
+	/// subscriptions.
+	pub fn new(sender: S) -> ::std::io::Result<Self> {
+		WhisperClient::with_pool(sender, CpuPool::new(1))
+	}
+
+	/// Create a new whisper client with the given CPU pool.
+	pub fn with_pool(sender: S, pool: CpuPool) -> ::std::io::Result<Self> {
 		Ok(WhisperClient {
 			store: RwLock::new(KeyStore::new()?),
-			sender: Mutex::new(sender),
+			pool: pool,
+			sender: sender,
 		})
 	}
 }
@@ -143,11 +159,51 @@ impl<S: MessageSender + 'static> Whisper for WhisperClient<S> {
 		Ok(self.store.write().remove(&id.into_inner()))
 	}
 
-	fn post(&self, _req: types::PostRequest) -> BoxFuture<bool, Error> {
-		// 1. construct payload
-		// 2. mine message
-		// 3. relay to network.
-		Box::new(future::err(whisper_error("unimplemented")))
+	fn post(&self, req: types::PostRequest) -> Result<bool, Error> {
+		use self::crypto::EncryptionInstance;
+
+		let encryption = EncryptionInstance::ecies(req.to.into_inner())
+			.map_err(whisper_error)?;
+
+		let sign_with = match req.from {
+			Some(from) => {
+				Some(
+					self.store.read().secret(&from.into_inner())
+						.cloned()
+						.ok_or_else(|| whisper_error("Unknown identity `from`"))?
+				)
+			}
+			None => None,
+		};
+
+		let encrypted = {
+			let payload = payload::encode(payload::EncodeParams {
+				message: &req.payload.into_inner(),
+				padding: req.padding.map(|p| p.into_inner()).as_ref().map(|x| &x[..]),
+				sign_with: sign_with.as_ref(),
+			}).map_err(whisper_error)?;
+
+			encryption.encrypt(&payload)
+		};
+
+		// mining the packet is the heaviest item of work by far.
+		// there may be a benefit to dispatching this onto the CPU pool
+		// and returning a future. but then things get _less_ efficient
+		//
+		// if the server infrastructure has more threads than the CPU pool.
+		let message = Message::create(CreateParams {
+			ttl: req.ttl,
+			payload: encrypted,
+			topics: req.topics.into_iter()
+				.map(|x| abridge_topic(&x.into_inner()))
+				.map(Topic::from)
+				.collect(),
+			work: req.priority,
+		});
+
+		self.sender.relay(message);
+
+		Ok(true)
 	}
 }
 

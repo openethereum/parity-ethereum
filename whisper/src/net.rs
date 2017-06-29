@@ -22,9 +22,6 @@ use std::fmt;
 use std::time::{Duration, SystemTime};
 use std::sync::Arc;
 
-use futures::{Async, Stream};
-use futures::sync::mpsc;
-
 use bigint::hash::{H256, H512};
 use network::{HostInfo, NetworkContext, NetworkError, NodeId, PeerId, TimerToken};
 use ordered_float::OrderedFloat;
