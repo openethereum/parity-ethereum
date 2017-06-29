@@ -133,7 +133,7 @@ impl Args {
 				spec::Spec::load(file)?
 			},
 			None => {
-				spec::Spec::new_instant()
+				ethcore::ethereum::new_foundation()
 			},
 		})
 	}
