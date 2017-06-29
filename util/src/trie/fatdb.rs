@@ -95,7 +95,7 @@ impl<'db> Iterator for FatDBIterator<'db> {
 			.map(|res|
 				res.map(|(hash, value)| {
 					let aux_hash = hash.sha3();
-					(self.trie.db().get(&aux_hash).expect("Missing fatdb hash").to_vec(), value)
+					(self.trie.db().get(&aux_hash).expect("Missing fatdb hash").into_vec(), value)
 				})
 			)
 	}

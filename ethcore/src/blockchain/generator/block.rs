@@ -67,6 +67,6 @@ impl WithTransaction for Block {
 impl CompleteBlock for Block {
 	fn complete(mut self, parent_hash: H256) -> Bytes {
 		self.header.set_parent_hash(parent_hash);
-		encode(&self).to_vec()
+		encode(&self).into_vec()
 	}
 }
