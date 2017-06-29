@@ -16,16 +16,14 @@
 
 //! Bloom upgrade
 
-use std::sync::Arc;
+use bloom_journal::Bloom;
 use db::{COL_EXTRA, COL_HEADERS, COL_STATE};
 use state_db::{ACCOUNT_BLOOM_SPACE, DEFAULT_ACCOUNT_PRESET, StateDB};
+use std::sync::Arc;
+use util::{journaldb, H256, Trie, Database, DBTransaction};
+use util::migration::{Error, Migration, Progress, Batch, Config};
 use util::trie::TrieDB;
 use views::HeaderView;
-use bloom_journal::Bloom;
-use util::migration::{Error, Migration, Progress, Batch, Config};
-use util::journaldb;
-use util::{H256, Trie};
-use util::{Database, DBTransaction};
 
 /// Account bloom upgrade routine. If bloom already present, does nothing.
 /// If database empty (no best block), does nothing.

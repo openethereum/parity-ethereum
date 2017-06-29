@@ -128,6 +128,55 @@ enum KeyState {
 	Delete,
 }
 
+/// Supplemental trait to `KeyValueDB` supplying generic methods for trait objects, internally
+/// calling monomorphic forms of these methods.
+pub trait KeyValueDBExt: KeyValueDB {
+	/// Get a reference, transform it, and return the result (prevents cloning).
+	fn get_with<Out, F: FnOnce(&[u8]) -> Out>(
+		&self,
+		col: Option<u32>,
+		key: &[u8],
+		f: F,
+	) -> Result<Option<Out>, String>;
+}
+
+macro_rules! get_with_fn_def {
+	() => {
+		fn get_with<Out, F: FnOnce(&[u8]) -> Out>(
+			&self,
+			col: Option<u32>,
+			key: &[u8],
+			f: F,
+		) -> Result<Option<Out>, String> {
+			let mut o_func: Option<F>   = Some(f);
+			let mut output: Option<Out> = None;
+
+			{
+				let mut wrapper = |key: &[u8]| {
+					output = Some(
+						(
+							o_func.take()
+								.expect("Broken `get_exec` implementation - see stack trace")
+						)(key)
+					);
+				};
+
+				self.get_exec(col, key, &mut wrapper)?;
+			}
+
+			Ok(output)
+		}
+	}
+}
+
+impl<T: KeyValueDB> KeyValueDBExt for T {
+	get_with_fn_def!{}
+}
+
+impl<'a> KeyValueDBExt for KeyValueDB + 'a {
+	get_with_fn_def!{}
+}
+
 /// Generic key-value database.
 ///
 /// This makes a distinction between "buffered" and "flushed" values. Values which have been
@@ -151,7 +200,31 @@ pub trait KeyValueDB: Sync + Send {
 	fn transaction(&self) -> DBTransaction { DBTransaction::new() }
 
 	/// Get a value by key.
-	fn get(&self, col: Option<u32>, key: &[u8]) -> Result<Option<DBValue>, String>;
+	fn get(&self, col: Option<u32>, key: &[u8]) -> Result<Option<DBValue>, String> {
+		let mut output = None;
+
+		{
+			let mut wrapper = |key: &[u8]| { output = Some(DBValue::from_slice(key)); };
+
+			if let Err(err) = self.get_exec(col, key, &mut wrapper) {
+				return Err(err);
+			}
+		}
+
+		Ok(output)
+	}
+
+	/// Any implementation of this function should call `f` zero times if a value
+	/// for `key` is not found, and precisely once if a value is found. The
+	/// default implementation of `get_with` will panic if `f` is called more than
+	/// once and in general there is no sensible behavior if `f` is called more
+	/// than once.
+	fn get_exec(
+		&self,
+		col: Option<u32>,
+		key: &[u8],
+		f: &mut FnMut(&[u8]),
+	) -> Result<(), String>;
 
 	/// Get a value by partial key. Only works for flushed data.
 	fn get_by_prefix(&self, col: Option<u32>, prefix: &[u8]) -> Option<Box<[u8]>>;
@@ -195,17 +268,26 @@ pub fn in_memory(num_cols: u32) -> InMemory {
 		cols.insert(Some(idx), BTreeMap::new());
 	}
 
-	InMemory {
-		columns: RwLock::new(cols)
-	}
+	InMemory { columns: RwLock::new(cols) }
 }
 
 impl KeyValueDB for InMemory {
-	fn get(&self, col: Option<u32>, key: &[u8]) -> Result<Option<DBValue>, String> {
+	fn get_exec(
+		&self,
+		col: Option<u32>,
+		key: &[u8],
+		f: &mut FnMut(&[u8]),
+	) -> Result<(), String> {
 		let columns = self.columns.read();
 		match columns.get(&col) {
 			None => Err(format!("No such column family: {:?}", col)),
-			Some(map) => Ok(map.get(key).cloned()),
+			Some(map) => {
+				if let Some(val) = map.get(key) {
+					f(val);
+				}
+
+				Ok(())
+			}
 		}
 	}
 
@@ -422,7 +504,7 @@ pub struct DatabaseIterator<'a> {
 impl<'a> Iterator for DatabaseIterator<'a> {
 	type Item = (Box<[u8]>, Box<[u8]>);
 
-    fn next(&mut self) -> Option<Self::Item> {
+	fn next(&mut self) -> Option<Self::Item> {
 		self.iter.next()
 	}
 }
@@ -571,33 +653,11 @@ impl Database {
 		DBTransaction::new()
 	}
 
-
 	fn to_overlay_column(col: Option<u32>) -> usize {
 		col.map_or(0, |c| (c + 1) as usize)
 	}
 
 	/// Commit transaction to database.
-	pub fn write_buffered(&self, tr: DBTransaction) {
-		let mut overlay = self.overlay.write();
-		let ops = tr.ops;
-		for op in ops {
-			match op {
-				DBOp::Insert { col, key, value } => {
-					let c = Self::to_overlay_column(col);
-					overlay[c].insert(key, KeyState::Insert(value));
-				},
-				DBOp::InsertCompressed { col, key, value } => {
-					let c = Self::to_overlay_column(col);
-					overlay[c].insert(key, KeyState::InsertCompressed(value));
-				},
-				DBOp::Delete { col, key } => {
-					let c = Self::to_overlay_column(col);
-					overlay[c].insert(key, KeyState::Delete);
-				},
-			}
-		};
-	}
-
 	/// Commit buffered changes to database. Must be called under `flush_lock`
 	fn write_flushing_with_lock(&self, _lock: &mut MutexGuard<bool>) -> Result<(), String> {
 		match *self.db.read() {
@@ -767,47 +827,6 @@ impl Database {
 		self.flushing.write().clear();
 	}
 
-	/// Restore the database from a copy at given path.
-	pub fn restore(&self, new_db: &str) -> Result<(), UtilError> {
-		self.close();
-
-		let mut backup_db = PathBuf::from(&self.path);
-		backup_db.pop();
-		backup_db.push("backup_db");
-
-		let existed = match fs::rename(&self.path, &backup_db) {
-			Ok(_) => true,
-			Err(e) => if let ErrorKind::NotFound = e.kind() {
-				false
-			} else {
-				return Err(e.into());
-			}
-		};
-
-		match fs::rename(&new_db, &self.path) {
-			Ok(_) => {
-				// clean up the backup.
-				if existed {
-					fs::remove_dir_all(&backup_db)?;
-				}
-			}
-			Err(e) => {
-				// restore the backup.
-				if existed {
-					fs::rename(&backup_db, &self.path)?;
-				}
-				return Err(e.into())
-			}
-		}
-
-		// reopen the database and steal handles into self
-		let db = Self::open(&self.config, &self.path)?;
-		*self.db.write() = mem::replace(&mut *db.db.write(), None);
-		*self.overlay.write() = mem::replace(&mut *db.overlay.write(), Vec::new());
-		*self.flushing.write() = mem::replace(&mut *db.flushing.write(), Vec::new());
-		Ok(())
-	}
-
 	/// The number of non-default column families.
 	pub fn num_columns(&self) -> u32 {
 		self.db.read().as_ref()
@@ -848,40 +867,211 @@ impl Database {
 // duplicate declaration of methods here to avoid trait import in certain existing cases
 // at time of addition.
 impl KeyValueDB for Database {
-	fn get(&self, col: Option<u32>, key: &[u8]) -> Result<Option<DBValue>, String> {
-		Database::get(self, col, key)
+	/// Get value by key.
+	fn get_exec(
+		&self,
+		col: Option<u32>,
+		key: &[u8],
+		f: &mut FnMut(&[u8]),
+	) -> Result<(), String> {
+		match *self.db.read() {
+			Some(DBAndColumns { ref db, ref cfs }) => {
+				let overlay = &self.overlay.read()[Self::to_overlay_column(col)];
+				match overlay.get(key) {
+					Some(&KeyState::Insert(ref value)) |
+					Some(&KeyState::InsertCompressed(ref value)) => {
+						f(value);
+
+						Ok(())
+					}
+					Some(&KeyState::Delete) => Ok(()),
+					None => {
+						let flushing = &self.flushing.read()[Self::to_overlay_column(col)];
+						match flushing.get(key) {
+							Some(&KeyState::Insert(ref value)) |
+							Some(&KeyState::InsertCompressed(ref value)) => {
+								f(value);
+
+								Ok(())
+							}
+							Some(&KeyState::Delete) => Ok(()),
+							None => {
+								// We don't use `map_or_else` here because it would require two
+								// seperate closures owning `f`
+								col.map(
+										|c| {
+											db.get_cf_opt(cfs[c as usize], key, &self.read_opts)
+												.map(
+													|r| if let Some(val) = r {
+														f(&val);
+													},
+												)
+										},
+									)
+									.unwrap_or_else(
+										|| {
+											db.get_opt(key, &self.read_opts)
+												.map(
+													|r| if let Some(val) = r {
+														f(&val);
+													},
+												)
+										},
+									)
+							}
+						}
+					}
+				}
+			}
+			None => Ok(()),
+		}
 	}
 
+	/// Get value by partial key. Prefix size should match configured prefix size. Only searches
+	/// flushed values.
+	// TODO: support prefix seek for unflushed data
 	fn get_by_prefix(&self, col: Option<u32>, prefix: &[u8]) -> Option<Box<[u8]>> {
-		Database::get_by_prefix(self, col, prefix)
+		self.iter_from_prefix(col, prefix)
+			.and_then(
+				|mut iter| {
+					match iter.next() {
+						// TODO: use prefix_same_as_start read option (not availabele in C API
+						// currently)
+						Some((k, v)) => if k[0..prefix.len()] == prefix[..] {
+							Some(v)
+						} else {
+							None
+						},
+						_ => None,
+					}
+				},
+			)
 	}
 
-	fn write_buffered(&self, transaction: DBTransaction) {
-		Database::write_buffered(self, transaction)
+	fn write_buffered(&self, tr: DBTransaction) {
+		let mut overlay = self.overlay.write();
+		let ops = tr.ops;
+		for op in ops {
+			match op {
+				DBOp::Insert { col, key, value } => {
+					let c = Self::to_overlay_column(col);
+					overlay[c].insert(key, KeyState::Insert(value));
+				}
+				DBOp::InsertCompressed { col, key, value } => {
+					let c = Self::to_overlay_column(col);
+					overlay[c].insert(key, KeyState::InsertCompressed(value));
+				}
+				DBOp::Delete { col, key } => {
+					let c = Self::to_overlay_column(col);
+					overlay[c].insert(key, KeyState::Delete);
+				}
+			}
+		}
 	}
 
-	fn write(&self, transaction: DBTransaction) -> Result<(), String> {
-		Database::write(self, transaction)
-	}
-
+	/// Commit buffered changes to database.
 	fn flush(&self) -> Result<(), String> {
-		Database::flush(self)
+		let mut lock = self.flushing_lock.lock();
+		// If RocksDB batch allocation fails the thread gets terminated and the lock is released.
+		// The value inside the lock is used to detect that.
+		if *lock {
+			// This can only happen if another flushing thread is terminated unexpectedly.
+			return Err("Database write failure. Running low on memory perhaps?".to_owned());
+		}
+		*lock = true;
+		let result = self.write_flushing_with_lock(&mut lock);
+		*lock = false;
+		result
 	}
 
-	fn iter<'a>(&'a self, col: Option<u32>) -> Box<Iterator<Item=(Box<[u8]>, Box<[u8]>)> + 'a> {
+	/// Commit transaction to database.
+	fn write(&self, tr: DBTransaction) -> Result<(), String> {
+		match *self.db.read() {
+			Some(DBAndColumns { ref db, ref cfs }) => {
+				let batch = WriteBatch::new();
+				let ops = tr.ops;
+				for op in ops {
+					match op {
+						DBOp::Insert { col, key, value } => {
+							col.map_or_else(
+									|| batch.put(&key, &value),
+									|c| batch.put_cf(cfs[c as usize], &key, &value),
+								)?
+						}
+						DBOp::InsertCompressed { col, key, value } => {
+							let compressed = UntrustedRlp::new(&value).compress(RlpType::Blocks);
+							col.map_or_else(
+									|| batch.put(&key, &compressed),
+									|c| batch.put_cf(cfs[c as usize], &key, &compressed),
+								)?
+						}
+						DBOp::Delete { col, key } => {
+							col.map_or_else(
+									|| batch.delete(&key),
+									|c| batch.delete_cf(cfs[c as usize], &key),
+								)?
+						}
+					}
+				}
+				db.write_opt(batch, &self.write_opts)
+			}
+			None => Err("Database is closed".to_owned()),
+		}
+	}
+
+	fn iter<'a>(&'a self, col: Option<u32>) -> Box<Iterator<Item = (Box<[u8]>, Box<[u8]>)> + 'a> {
 		let unboxed = Database::iter(self, col);
 		Box::new(unboxed.into_iter().flat_map(|inner| inner))
 	}
 
-	fn iter_from_prefix<'a>(&'a self, col: Option<u32>, prefix: &'a [u8])
-		-> Box<Iterator<Item=(Box<[u8]>, Box<[u8]>)> + 'a>
-	{
+	fn iter_from_prefix<'a>(
+		&'a self,
+		col: Option<u32>,
+		prefix: &'a [u8],
+	) -> Box<Iterator<Item = (Box<[u8]>, Box<[u8]>)> + 'a> {
 		let unboxed = Database::iter_from_prefix(self, col, prefix);
 		Box::new(unboxed.into_iter().flat_map(|inner| inner))
 	}
 
+	/// Restore the database from a copy at given path.
 	fn restore(&self, new_db: &str) -> Result<(), UtilError> {
-		Database::restore(self, new_db)
+		self.close();
+
+		let mut backup_db = PathBuf::from(&self.path);
+		backup_db.pop();
+		backup_db.push("backup_db");
+
+		let existed = match fs::rename(&self.path, &backup_db) {
+			Ok(_) => true,
+			Err(e) => if let ErrorKind::NotFound = e.kind() {
+				false
+			} else {
+				return Err(e.into());
+			},
+		};
+
+		match fs::rename(&new_db, &self.path) {
+			Ok(_) => {
+				// clean up the backup.
+				if existed {
+					fs::remove_dir_all(&backup_db)?;
+				}
+			}
+			Err(e) => {
+				// restore the backup.
+				if existed {
+					fs::rename(&backup_db, &self.path)?;
+				}
+				return Err(e.into());
+			}
+		}
+
+		// reopen the database and steal handles into self
+		let db = Self::open(&self.config, &self.path)?;
+		*self.db.write() = mem::replace(&mut *db.db.write(), None);
+		*self.overlay.write() = mem::replace(&mut *db.overlay.write(), Vec::new());
+		*self.flushing.write() = mem::replace(&mut *db.flushing.write(), Vec::new());
+		Ok(())
 	}
 }
 

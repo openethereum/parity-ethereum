@@ -24,6 +24,7 @@ use heapsize::*;
 use std::mem;
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
+use std::borrow::Cow;
 
 /// Reference-counted memory-based `HashDB` implementation.
 ///
@@ -73,12 +74,33 @@ pub struct MemoryDB {
 	data: H256FastMap<(DBValue, i32)>,
 }
 
+lazy_static! {
+	static ref NULL_VALUE: DBValue = DBValue::from_slice(&NULL_RLP);
+}
+
 impl MemoryDB {
 	/// Create a new instance of the memory DB.
 	pub fn new() -> MemoryDB {
 		MemoryDB {
 			data: H256FastMap::default(),
 		}
+	}
+
+	/// Get a raw value by reference, ignoring refcounts. Returns `None` if the key has never been
+	/// added to the database. The data is not guaranteed to be useful if the refcount is 0.
+	pub fn raw_ref(&self, key: &H256) -> Option<(Cow<DBValue>, i32)> {
+		if key == &SHA3_NULL_RLP {
+			return Some(
+				(
+					Cow::Owned(DBValue::from_slice(&NULL_RLP)),
+					1,
+				)
+			);
+		}
+
+		self.data.get(key).map(
+			|&(ref val, refcount)| (Cow::Borrowed(val), refcount)
+		)
 	}
 
 	/// Clear all data from the database.
@@ -117,10 +139,18 @@ impl MemoryDB {
 	/// Even when Some is returned, the data is only guaranteed to be useful
 	/// when the refs > 0.
 	pub fn raw(&self, key: &H256) -> Option<(DBValue, i32)> {
+		self.raw_ref(key).map(|(val, refcount)| (val.into_owned(), refcount))
+	}
+
+	/// Returns a reference to the inner data
+	pub fn get_ref(&self, key: &H256) -> Option<&DBValue> {
 		if key == &SHA3_NULL_RLP {
-			return Some((DBValue::from_slice(&NULL_RLP), 1));
+			Some(&*NULL_VALUE)
+		} else {
+			self.data.get(key).and_then(
+				|&(ref d, rc)| if rc > 0 { Some(d) } else { None }
+			)
 		}
-		self.data.get(key).cloned()
 	}
 
 	/// Returns the size of allocated heap memory
@@ -170,13 +200,16 @@ impl MemoryDB {
 
 impl HashDB for MemoryDB {
 	fn get(&self, key: &H256) -> Option<DBValue> {
-		if key == &SHA3_NULL_RLP {
-			return Some(DBValue::from_slice(&NULL_RLP));
-		}
+		self.get_ref(key).map(Clone::clone)
+	}
 
-		match self.data.get(key) {
-			Some(&(ref d, rc)) if rc > 0 => Some(d.clone()),
-			_ => None
+	fn get_exec(
+		&self,
+		key: &H256,
+		f: &mut FnMut(&[u8])
+	) {
+		if let Some(ref val) = self.get_ref(key) {
+			f(val)
 		}
 	}
 

@@ -18,12 +18,12 @@
 
 use error::*;
 use hash::*;
-use rlp::*;
 use hashdb::*;
+use kvdb::{KeyValueDB, KeyValueDBExt, DBTransaction};
 use memorydb::*;
-use std::sync::*;
+use rlp::*;
 use std::collections::HashMap;
-use kvdb::{KeyValueDB, DBTransaction};
+use std::sync::*;
 
 /// Implementation of the `HashDB` trait for a disk-backed database with a memory overlay.
 ///
@@ -100,12 +100,14 @@ impl OverlayDB {
 
 	/// Get the refs and value of the given key.
 	fn payload(&self, key: &H256) -> Option<(DBValue, u32)> {
-		self.backing.get(self.column, key)
-			.expect("Low-level database error. Some issue with your hard disk?")
-			.map(|d| {
+		self.backing.get_with(
+			self.column,
+			key,
+			|d| {
 				let r = Rlp::new(&d);
 				(DBValue::from_slice(r.at(1).data()), r.at(0).as_val())
-			})
+			},
+		).expect("Low-level database error. Some issue with your hard disk?")
 	}
 
 	/// Put the refs and value of the given key, possibly deleting it from the db.
@@ -138,33 +140,43 @@ impl HashDB for OverlayDB {
 		}
 		ret
 	}
-	fn get(&self, key: &H256) -> Option<DBValue> {
-		// return ok if positive; if negative, check backing - might be enough references there to make
-		// it positive again.
-		let k = self.overlay.raw(key);
-		let memrc = {
-			if let Some((d, rc)) = k {
-				if rc > 0 { return Some(d); }
-				rc
-			} else {
-				0
+
+	fn get_exec(
+		&self,
+		key: &H256,
+		f: &mut FnMut(&[u8]),
+	) {
+		// return ok if positive; if negative, check backing - might be enough
+		// references there to make it positive again.
+		let k = self.overlay.raw_ref(key);
+
+		let memrc = if let Some((d, rc)) = k {
+			if rc > 0 {
+				f(d.as_ref());
+				return;
+			}
+
+			rc
+		} else {
+			0
+		};
+
+		// This type annotation is necessary, the inferred lifetime is too restrictive otherwise.
+		// Possible bug in the Rust compiler.
+		let mut wrapper = |d: &[u8]| {
+			let r = Rlp::new(d);
+			let refcount: u32 = r.at(0).as_val();
+
+			if refcount as i32 + memrc > 0 {
+				f(r.at(1).data());
 			}
 		};
-		match self.payload(key) {
-			Some(x) => {
-				let (d, rc) = x;
-				if rc as i32 + memrc > 0 {
-					Some(d)
-				}
-				else {
-					None
-				}
-			}
-			// Replace above match arm with this once https://github.com/rust-lang/rust/issues/15287 is done.
-			//Some((d, rc)) if rc + memrc > 0 => Some(d),
-			_ => None,
-		}
+
+		self.backing.get_exec(self.column, key, &mut wrapper).expect(
+			"Low-level database error. Some issue with your hard disk?"
+		)
 	}
+
 	fn contains(&self, key: &H256) -> bool {
 		// return ok if positive; if negative, check backing - might be enough references there to make
 		// it positive again.

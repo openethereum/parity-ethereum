@@ -95,11 +95,17 @@ impl<'db> HashDB for AccountDB<'db>{
 		unimplemented!()
 	}
 
-	fn get(&self, key: &H256) -> Option<DBValue> {
+	fn get_exec(
+		&self,
+		key: &H256,
+		f: &mut FnMut(&[u8]),
+	) {
 		if key == &SHA3_NULL_RLP {
-			return Some(DBValue::from_slice(&NULL_RLP));
+			f(&NULL_RLP);
+			return;
 		}
-		self.db.get(&combine_key(&self.address_hash, key))
+
+		self.db.get_exec(&combine_key(&self.address_hash, key), f);
 	}
 
 	fn contains(&self, key: &H256) -> bool {
@@ -154,11 +160,17 @@ impl<'db> HashDB for AccountDBMut<'db>{
 		unimplemented!()
 	}
 
-	fn get(&self, key: &H256) -> Option<DBValue> {
+	fn get_exec(
+		&self,
+		key: &H256,
+		f: &mut FnMut(&[u8])
+	) {
 		if key == &SHA3_NULL_RLP {
-			return Some(DBValue::from_slice(&NULL_RLP));
+			f(&NULL_RLP);
+			return;
 		}
-		self.db.get(&combine_key(&self.address_hash, key))
+
+		self.db.get_exec(&combine_key(&self.address_hash, key), f);
 	}
 
 	fn contains(&self, key: &H256) -> bool {
@@ -202,11 +214,17 @@ impl<'db> HashDB for Wrapping<'db> {
 		unimplemented!()
 	}
 
-	fn get(&self, key: &H256) -> Option<DBValue> {
+	fn get_exec(
+		&self,
+		key: &H256,
+		f: &mut FnMut(&[u8])
+	) {
 		if key == &SHA3_NULL_RLP {
-			return Some(DBValue::from_slice(&NULL_RLP));
+			f(&NULL_RLP);
+			return;
 		}
-		self.0.get(key)
+
+		self.0.get_exec(key, f);
 	}
 
 	fn contains(&self, key: &H256) -> bool {
@@ -236,11 +254,13 @@ impl<'db> HashDB for WrappingMut<'db>{
 		unimplemented!()
 	}
 
-	fn get(&self, key: &H256) -> Option<DBValue> {
+	fn get_exec(&self, key: &H256, f: &mut FnMut(&[u8])) {
 		if key == &SHA3_NULL_RLP {
-			return Some(DBValue::from_slice(&NULL_RLP));
+			f(&NULL_RLP);
+			return;
 		}
-		self.0.get(key)
+
+		self.0.get_exec(key, f);
 	}
 
 	fn contains(&self, key: &H256) -> bool {

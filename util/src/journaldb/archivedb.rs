@@ -22,7 +22,7 @@ use hashdb::*;
 use memorydb::*;
 use super::{DB_PREFIX_LEN, LATEST_ERA_KEY};
 use super::traits::JournalDB;
-use kvdb::{KeyValueDB, DBTransaction};
+use kvdb::{KeyValueDB, KeyValueDBExt, DBTransaction};
 
 /// Implementation of the `HashDB` trait for a disk-backed database with a memory overlay
 /// and latent-removal semantics.
@@ -37,6 +37,8 @@ pub struct ArchiveDB {
 	latest_era: Option<u64>,
 	column: Option<u32>,
 }
+
+static PANIC_MESSAGE: &str = "Low-level database error. Some issue with your hard disk?";
 
 impl ArchiveDB {
 	/// Create a new instance from a key-value db.
@@ -58,7 +60,11 @@ impl ArchiveDB {
 	}
 
 	fn payload(&self, key: &H256) -> Option<DBValue> {
-		self.backing.get(self.column, key).expect("Low-level database error. Some issue with your hard disk?")
+		self.backing.get(self.column, key).expect(PANIC_MESSAGE)
+	}
+
+	fn payload_exec(&self, key: &H256, f: &mut FnMut(&[u8])) {
+		self.backing.get_exec(self.column, key, f).expect(PANIC_MESSAGE)
 	}
 }
 
@@ -78,15 +84,25 @@ impl HashDB for ArchiveDB {
 	}
 
 	fn get(&self, key: &H256) -> Option<DBValue> {
-		let k = self.overlay.raw(key);
-		if let Some((d, rc)) = k {
-			if rc > 0 { return Some(d); }
+		self.overlay.get(key).or_else(|| self.payload(key))
+	}
+
+	fn get_exec(
+		&self,
+		key: &H256,
+		mut f: &mut FnMut(&[u8])
+	) {
+		let k = self.overlay.get_ref(key);
+
+		if let Some(d) = k {
+			f(d.as_ref());
+		} else {
+			self.payload_exec(key, f);
 		}
-		self.payload(key)
 	}
 
 	fn contains(&self, key: &H256) -> bool {
-		self.get(key).is_some()
+		self.get_with(key, |_| ()).is_some()
 	}
 
 	fn insert(&mut self, value: &[u8]) -> H256 {
@@ -155,7 +171,7 @@ impl JournalDB for ArchiveDB {
 		for i in self.overlay.drain() {
 			let (key, (value, rc)) = i;
 			if rc > 0 {
-				if self.backing.get(self.column, &key)?.is_some() {
+				if self.backing.get_with(self.column, &key, |_| ())?.is_some() {
 					return Err(BaseDataError::AlreadyExists(key).into());
 				}
 				batch.put(self.column, &key, &value);
@@ -163,7 +179,7 @@ impl JournalDB for ArchiveDB {
 			}
 			if rc < 0 {
 				assert!(rc == -1);
-				if self.backing.get(self.column, &key)?.is_none() {
+				if self.backing.get_with(self.column, &key, |_| ())?.is_none() {
 					return Err(BaseDataError::NegativelyReferencedHash(key).into());
 				}
 				batch.delete(self.column, &key);

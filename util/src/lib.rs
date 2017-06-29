@@ -110,6 +110,9 @@ extern crate itertools;
 extern crate ethcore_logger;
 
 #[macro_use]
+extern crate lazy_static;
+
+#[macro_use]
 extern crate log as rlog;
 
 pub extern crate using_queue;

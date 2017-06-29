@@ -117,6 +117,12 @@ impl OverlayRecentDB {
 		Self::new(backing, None)
 	}
 
+	fn payload(&self, key: &H256) -> Option<DBValue> {
+		self.backing
+			.get(self.column, key)
+			.expect("Low-level database error. Some issue with your hard disk?")
+	}
+
 	#[cfg(test)]
 	fn can_reconstruct_refs(&self) -> bool {
 		let reconstructed = Self::read_overlay(&*self.backing, self.column);
@@ -126,10 +132,6 @@ impl OverlayRecentDB {
 		journal_overlay.journal == reconstructed.journal &&
 		journal_overlay.latest_era == reconstructed.latest_era &&
 		journal_overlay.cumulative_size == reconstructed.cumulative_size
-	}
-
-	fn payload(&self, key: &H256) -> Option<DBValue> {
-		self.backing.get(self.column, key).expect("Low-level database error. Some issue with your hard disk?")
 	}
 
 	fn read_overlay(db: &KeyValueDB, col: Option<u32>) -> JournalOverlay {
@@ -417,10 +419,12 @@ impl HashDB for OverlayRecentDB {
 	}
 
 	fn get(&self, key: &H256) -> Option<DBValue> {
-		let k = self.transaction_overlay.raw(key);
+		let k = self.transaction_overlay.raw_ref(key);
+
 		if let Some((d, rc)) = k {
-			if rc > 0 { return Some(d) }
+			if rc > 0 { return Some(d.into_owned()) }
 		}
+
 		let v = {
 			let journal_overlay = self.journal_overlay.read();
 			let key = to_short_key(key);
@@ -430,8 +434,51 @@ impl HashDB for OverlayRecentDB {
 		v.or_else(|| self.payload(key))
 	}
 
+	fn get_exec(
+		&self,
+		key: &H256,
+		f: &mut FnMut(&[u8]),
+	) {
+		use ::std::cell::Cell;
+
+		let k = self.transaction_overlay.raw_ref(key);
+
+		if let Some((d, rc)) = k {
+			if rc > 0 {
+				f(d.as_ref());
+				return;
+			}
+		}
+
+		let was_called = Cell::new(false);
+
+		// This type annotation is necessary, the inferred lifetime is too restrictive otherwise.
+		// Possible bug in the Rust compiler.
+		let mut wrapper = |d: &[u8]| {
+			was_called.set(true);
+			f(d);
+		};
+
+		let journal_overlay = self.journal_overlay.read();
+		let short_key = to_short_key(key);
+
+		journal_overlay.backing_overlay.get_exec(&short_key, &mut wrapper);
+
+		if !was_called.get() {
+			if let Some(hash_val) = journal_overlay.pending_overlay.get(&short_key) {
+				wrapper(hash_val);
+			}
+		}
+
+		if !was_called.get() {
+			self.backing
+				.get_exec(self.column, &key, &mut wrapper)
+				.expect("Low-level database error. Some issue with your hard disk?")
+		}
+	}
+
 	fn contains(&self, key: &H256) -> bool {
-		self.get(key).is_some()
+		self.get_with(key, |_| ()).is_some()
 	}
 
 	fn insert(&mut self, value: &[u8]) -> H256 {

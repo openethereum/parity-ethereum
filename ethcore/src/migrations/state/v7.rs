@@ -17,16 +17,14 @@
 //! This migration migrates the state db to use an accountdb which ensures uniqueness
 //! using an address' hash as opposed to the address itself.
 
+use rlp::{decode, Rlp, RlpStream};
 use std::collections::HashMap;
+use std::sync::Arc;
 
-use util::Bytes;
-use util::{Address, H256};
+use util::{Bytes, Address, H256};
 use util::kvdb::Database;
 use util::migration::{Batch, Config, Error, Migration, SimpleMigration, Progress};
 use util::sha3::Hashable;
-use std::sync::Arc;
-
-use rlp::{decode, Rlp, RlpStream};
 
 // attempt to migrate a key, value pair. None if migration not possible.
 fn attempt_migrate(mut key_h: H256, val: &[u8]) -> Option<H256> {

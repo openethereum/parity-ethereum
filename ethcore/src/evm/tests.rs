@@ -222,7 +222,7 @@ fn test_stack_underflow() {
 
 evm_test!{test_add: test_add_jit, test_add_int}
 fn test_add(factory: super::Factory) {
-  let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
+	let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
 	let code = "7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff01600055".from_hex().unwrap();
 
 	let mut params = ActionParams::default();
@@ -895,7 +895,7 @@ fn test_signextend(factory: super::Factory) {
 
 #[test] // JIT just returns out of gas
 fn test_badinstruction_int() {
-	let factory = super::Factory::new(VMType::Interpreter, 1024 * 32);
+	let factory = super::Factory::new(VMType::Interpreter, None);
 	let code = "af".from_hex().unwrap();
 
 	let mut params = ActionParams::default();

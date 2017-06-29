@@ -18,7 +18,7 @@ use std::collections::{VecDeque, HashSet};
 use lru_cache::LruCache;
 use util::cache::MemoryLruCache;
 use util::journaldb::JournalDB;
-use util::kvdb::KeyValueDB;
+use util::kvdb::{KeyValueDB, KeyValueDBExt};
 use util::hash::{H256};
 use util::hashdb::HashDB;
 use state::{self, Account};
@@ -141,24 +141,30 @@ impl StateDB {
 	/// Loads accounts bloom from the database
 	/// This bloom is used to handle request for the non-existant account fast
 	pub fn load_bloom(db: &KeyValueDB) -> Bloom {
-		let hash_count_entry = db.get(COL_ACCOUNT_BLOOM, ACCOUNT_BLOOM_HASHCOUNT_KEY)
-			.expect("Low-level database error");
+		let opt_count = db.get_with(
+			COL_ACCOUNT_BLOOM,
+			ACCOUNT_BLOOM_HASHCOUNT_KEY,
+			|hash_count_bytes| {
+				assert_eq!(hash_count_bytes.len(), 1);
+				hash_count_bytes[0]
+			},
+		).expect("Low-level database error");
 
-		let hash_count_bytes = match hash_count_entry {
-			Some(bytes) => bytes,
-			None => return Bloom::new(ACCOUNT_BLOOM_SPACE, DEFAULT_ACCOUNT_PRESET),
+		let hash_count = if let Some(c) = opt_count {
+			c
+		} else {
+			return Bloom::new(ACCOUNT_BLOOM_SPACE, DEFAULT_ACCOUNT_PRESET);
 		};
-
-		assert_eq!(hash_count_bytes.len(), 1);
-		let hash_count = hash_count_bytes[0];
 
 		let mut bloom_parts = vec![0u64; ACCOUNT_BLOOM_SPACE / 8];
 		let mut key = [0u8; 8];
 		for i in 0..ACCOUNT_BLOOM_SPACE / 8 {
 			LittleEndian::write_u64(&mut key, i as u64);
-			bloom_parts[i] = db.get(COL_ACCOUNT_BLOOM, &key).expect("low-level database error")
-				.and_then(|val| Some(LittleEndian::read_u64(&val[..])))
-				.unwrap_or(0u64);
+			bloom_parts[i] = db.get_with(
+				COL_ACCOUNT_BLOOM,
+				&key,
+				LittleEndian::read_u64,
+			).expect("low-level database error").unwrap_or(0u64);
 		}
 
 		let bloom = Bloom::from_parts(&bloom_parts, hash_count as u32);

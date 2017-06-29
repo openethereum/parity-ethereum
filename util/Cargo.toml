@@ -36,6 +36,7 @@ ethcore-bloom-journal = { path = "bloom" }
 regex = "0.2"
 lru-cache = "0.1.0"
 ethcore-logger = { path = "../logger" }
+lazy_static = "0.2.8"
 
 [features]
 default = []
