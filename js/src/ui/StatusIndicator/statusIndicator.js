@@ -27,7 +27,7 @@ export default class StatusIndicator extends Component {
     id: PropTypes.string.isRequired,
     status: PropTypes.oneOf(statuses).isRequired,
     title: PropTypes.arrayOf(PropTypes.node),
-    tooltipPlacement: PropType.oneOf(['left', 'top', 'bottom', 'right'])
+    tooltipPlacement: PropTypes.oneOf(['left', 'top', 'bottom', 'right'])
   };
 
   static defaultProps = {
