@@ -29,7 +29,17 @@ use futures::sync::oneshot::{self, Sender, Receiver, Canceled};
 use network::PeerId;
 use util::{RwLock, Mutex};
 
-use net::{self, Handler, Status, Capabilities, Announcement, EventContext, BasicContext, ReqId};
+use net::{
+	self,
+	Handler,
+	PeerStatus,
+	Status,
+	Capabilities,
+	Announcement,
+	EventContext,
+	BasicContext,
+	ReqId,
+};
 use cache::Cache;
 use request::{self as basic_request, Request as NetworkRequest};
 use self::request::CheckedRequest;
@@ -402,9 +412,18 @@ impl OnDemand {
 }
 
 impl Handler for OnDemand {
-	fn on_connect(&self, ctx: &EventContext, status: &Status, capabilities: &Capabilities) {
-		self.peers.write().insert(ctx.peer(), Peer { status: status.clone(), capabilities: capabilities.clone() });
+	fn on_connect(
+		&self,
+		ctx: &EventContext,
+		status: &Status,
+		capabilities: &Capabilities
+	) -> PeerStatus {
+		self.peers.write().insert(
+			ctx.peer(),
+			Peer { status: status.clone(), capabilities: capabilities.clone() }
+		);
 		self.attempt_dispatch(ctx.as_basic());
+		PeerStatus::Kept
 	}
 
 	fn on_disconnect(&self, ctx: &EventContext, unfulfilled: &[ReqId]) {
