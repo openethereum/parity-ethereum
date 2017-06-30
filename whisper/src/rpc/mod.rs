@@ -23,7 +23,12 @@
 
 use std::sync::Arc;
 
-use jsonrpc_core::{Error, ErrorCode};
+use jsonrpc_core::{Error, ErrorCode, Metadata};
+use jsonrpc_pubsub::{Session, PubSubMetadata, SubscriptionId};
+use jsonrpc_macros::pubsub;
+
+use bigint::hash::H256;
+use futures::{future, BoxFuture};
 use parking_lot::{Mutex, RwLock};
 use rand::{Rng, SeedableRng, XorShiftRng};
 
@@ -102,6 +107,24 @@ build_rpc_trait! {
 	}
 }
 
+build_rpc_trait! {
+	/// Whisper RPC pubsub.
+	pub trait WhisperPubSub {
+		type Metadata;
+
+		#[pubsub(name = "hello")] {
+			/// Subscribe to messages matching the filter.
+			#[rpc(name = "ssh_subscribe")]
+			fn subscribe(&self, Self::Metadata, pubsub::Subscriber<types::FilterItem>, types::FilterRequest);
+
+			/// Unsubscribe from filter matching given ID. Return
+			/// true on success, error otherwise.
+			#[rpc(name = "shh_unsubscribe")]
+			fn unsubscribe(&self, SubscriptionId) -> BoxFuture<bool, Error>;
+		}
+	}
+}
+
 /// Something which can send messages to the network.
 pub trait MessageSender: Send + Sync {
 	/// Give message to the whisper network for relay.
@@ -114,15 +137,42 @@ impl MessageSender for ::net::MessagePoster {
 	}
 }
 
+/// Default, simple metadata implementation.
+#[derive(Clone, Default)]
+pub struct Meta {
+	session: Option<Arc<Session>>,
+}
+
+impl Metadata for Meta {}
+impl PubSubMetadata for Meta {
+	fn session(&self) -> Option<Arc<Session>> {
+		self.session.clone()
+	}
+}
+
 /// Implementation of whisper RPC.
-pub struct WhisperClient<S> {
+pub struct WhisperClient<S, M = Meta> {
 	store: RwLock<key_store::KeyStore>,
 	sender: S,
 	filter_manager: Arc<filter::Manager>,
 	filter_ids_rng: Mutex<XorShiftRng>,
+	_meta: ::std::marker::PhantomData<M>,
 }
 
 impl<S> WhisperClient<S> {
+	/// Create a new whisper client with basic metadata.
+	///
+	/// This spawns a thread for handling
+	/// asynchronous work like performing PoW on messages or handling
+	/// subscriptions.
+	pub fn with_simple_meta(sender: S, filter_manager: Arc<filter::Manager>)
+		-> ::std::io::Result<Self>
+	{
+		WhisperClient::new(sender, filter_manager)
+	}
+}
+
+impl<S, M> WhisperClient<S, M> {
 	/// Create a new whisper client.
 	///
 	/// This spawns a thread for handling
@@ -139,11 +189,22 @@ impl<S> WhisperClient<S> {
 			sender: sender,
 			filter_manager: filter_manager,
 			filter_ids_rng: Mutex::new(filter_ids_rng),
+			_meta: ::std::marker::PhantomData,
 		})
+	}
+
+	fn delete_filter_kind(&self, id: H256, kind: filter::Kind) -> bool {
+		match self.filter_manager.kind(&id) {
+			Some(k) if k == kind => {
+				self.filter_manager.remove(&id);
+				true
+			}
+			None | Some(_) => false,
+		}
 	}
 }
 
-impl<S: MessageSender + 'static> Whisper for WhisperClient<S> {
+impl<S: MessageSender + 'static, M: Send + Sync + 'static> Whisper for WhisperClient<S, M> {
 	fn new_key_pair(&self) -> Result<types::Identity, Error> {
 		let mut store = self.store.write();
 		let key_pair = Key::new_asymmetric(store.rng());
@@ -240,15 +301,41 @@ impl<S: MessageSender + 'static> Whisper for WhisperClient<S> {
 	}
 
 	fn delete_filter(&self, id: types::Identity) -> Result<bool, Error> {
-		let id = id.into_inner();
-		Ok(match self.filter_manager.kind(&id) {
-			Some(filter::Kind::Poll) => {
-				self.filter_manager.remove(&id);
-				true
-			}
-			None | Some(_) => false,
-		})
+		Ok(self.delete_filter_kind(id.into_inner(), filter::Kind::Poll))
 	}
 }
 
-// TODO: pub-sub in a way that keeps it easy to integrate with main Parity RPC.
+impl<S: MessageSender + 'static, M: Send + Sync + PubSubMetadata> WhisperPubSub for WhisperClient<S, M> {
+	type Metadata = M;
+
+	fn subscribe(
+		&self,
+		_meta: Self::Metadata,
+		subscriber: pubsub::Subscriber<types::FilterItem>,
+		req: types::FilterRequest,
+	) {
+		match Filter::new(req) {
+			Ok(filter) => {
+				let id: H256 = self.filter_ids_rng.lock().gen();
+
+				if let Ok(sink) = subscriber.assign_id(SubscriptionId::String(id.hex())) {
+					self.filter_manager.insert_subscription(id, filter, sink);
+				}
+			}
+			Err(reason) => { let _ = subscriber.reject(whisper_error(reason)); }
+		}
+	}
+
+	fn unsubscribe(&self, id: SubscriptionId) -> BoxFuture<bool, Error> {
+		use std::str::FromStr;
+
+		let res = match id {
+			SubscriptionId::String(s) => H256::from_str(&s)
+				.map_err(|_| "unrecognized ID")
+				.map(|id| self.delete_filter_kind(id, filter::Kind::Subscription)),
+			SubscriptionId::Number(_) => Err("unrecognized ID"),
+		};
+
+		Box::new(future::done(res.map_err(whisper_error)))
+	}
+}

@@ -30,7 +30,7 @@ use super::key_store::KeyStore;
 use super::types::{self, FilterItem, HexEncode};
 
 /// Kinds of filters,
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Clone, Copy)]
 pub enum Kind {
 	/// Polled filter only returns data upon request
 	Poll,
