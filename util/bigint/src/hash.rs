@@ -14,7 +14,7 @@ use std::ops::{Deref, DerefMut, BitXor, BitAnd, BitOr, IndexMut, Index};
 use std::hash::{Hash, Hasher, BuildHasherDefault};
 use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
-use rand::Rng;
+use rand::{Rand, Rng};
 use rand::os::OsRng;
 use rustc_serialize::hex::{FromHex, FromHexError};
 use bigint::U256;
@@ -92,7 +92,7 @@ macro_rules! impl_hash {
 			/// Assign self have a cryptographically random value.
 			pub fn randomize(&mut self) {
 				let mut rng = OsRng::new().unwrap();
-				rng.fill_bytes(&mut self.0);
+				*self= $from::rand(&mut rng);
 			}
 
 			/// Get the size of this object in bytes.
@@ -359,6 +359,14 @@ macro_rules! impl_hash {
 		impl<'a> From<&'a [u8]> for $from {
 			fn from(s: &'a [u8]) -> $from {
 				$from::from_slice(s)
+			}
+		}
+
+		impl Rand for $from {
+			fn rand<R: Rng>(r: &mut R) -> Self {
+				let mut hash = $from::new();
+				r.fill_bytes(&mut hash.0);
+				hash
 			}
 		}
 	}
