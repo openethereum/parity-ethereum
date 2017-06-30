@@ -462,7 +462,7 @@ fn test_blockhash_eip210(factory: super::Factory) {
 			gas_price: 0.into(),
 			value: ActionValue::Transfer(0.into()),
 			code: Some(blockhash_contract_code.clone()),
-			code_hash: blockhash_contract_code_hash,
+			code_hash: Some(blockhash_contract_code_hash),
 			data: Some(H256::from(i - 1).to_vec()),
 			call_type: CallType::Call,
 		};
@@ -484,7 +484,7 @@ fn test_blockhash_eip210(factory: super::Factory) {
 		gas_price: 0.into(),
 		value: ActionValue::Transfer(0.into()),
 		code: Some(get_prev_hash_code),
-		code_hash: get_prev_hash_code_hash,
+		code_hash: Some(get_prev_hash_code_hash),
 		data: None,
 		call_type: CallType::Call,
 	};
