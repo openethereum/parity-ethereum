@@ -14,10 +14,22 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Checks node's time drift.
-//! Fires an API call to a service returning server's UTC time (in millis).
-//! Then we compare the value of local clock setting with the server one (trying to account for network latency as
-//! well).
+//! Periodically checks node's time drift using [SNTP](https://tools.ietf.org/html/rfc1769).
+//!
+//! An NTP packet is sent to the server with a local timestamp, the server then completes the packet, yielding the
+//! following timestamps:
+//!
+//!    Timestamp Name          ID   When Generated
+//!   ------------------------------------------------------------
+//!    Originate Timestamp     T1   time request sent by client
+//!    Receive Timestamp       T2   time request received at server
+//!    Transmit Timestamp      T3   time reply sent by server
+//!    Destination Timestamp   T4   time reply received at client
+//!
+//! The drift is defined as:
+//!
+//! drift = ((T2 - T1) + (T3 - T4)) / 2.
+//!
 
 use std::io;
 use std::{fmt, time};
