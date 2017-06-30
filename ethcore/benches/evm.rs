@@ -20,6 +20,9 @@ extern crate test;
 extern crate ethcore_util as util;
 extern crate rand;
 extern crate bn;
+extern crate crypto;
+extern crate rustc_serialize;
+extern crate ethkey;
 
 use self::test::{Bencher};
 use rand::{StdRng};
@@ -52,6 +55,43 @@ fn bn_128_mul(b: &mut Bencher) {
 
 	b.iter(|| {
 		let _ = AffineG1::from_jacobian(p * fr);
+	});
+}
+
+#[bench]
+fn sha256(b: &mut Bencher) {
+	use crypto::sha2::Sha256;
+	use crypto::digest::Digest;
+
+	let mut input: [u8; 256] = [0; 256];
+	let mut out = [0; 32];
+
+	b.iter(|| {
+		let mut sha = Sha256::new();
+		sha.input(&input);
+		sha.result(&mut input[0..32]);
+	});
+}
+
+#[bench]
+fn ecrecover(b: &mut Bencher) {
+	use rustc_serialize::hex::FromHex;
+	use ethkey::{Signature, recover as ec_recover};
+	use util::H256;
+	let input = FromHex::from_hex("47173285a8d7341e5e972fc677286384f802f8ef42a5ec5f03bbfa254cb01fad000000000000000000000000000000000000000000000000000000000000001b650acf9d3f5f0a2c799776a1254355d5f4061762a237396a99a0e0e3fc2bcd6729514a0dacb2e623ac4abd157cb18163ff942280db4d5caad66ddf941ba12e03").unwrap();
+	let hash = H256::from_slice(&input[0..32]);
+	let v = H256::from_slice(&input[32..64]);
+	let r = H256::from_slice(&input[64..96]);
+	let s = H256::from_slice(&input[96..128]);
+
+	let bit = match v[31] {
+		27 | 28 if &v.0[..31] == &[0; 31] => v[31] - 27,
+		_ => { return; },
+	};
+
+	let s = Signature::from_rsv(&r, &s, bit);
+	b.iter(|| {
+		let _ = ec_recover(&s, &hash);
 	});
 }
 
