@@ -30,15 +30,8 @@ use network::PeerId;
 use util::{RwLock, Mutex};
 
 use net::{
-	self,
-	Handler,
-	PeerStatus,
-	Status,
-	Capabilities,
-	Announcement,
-	EventContext,
-	BasicContext,
-	ReqId,
+	self, Handler, PeerStatus, Status, Capabilities,
+	Announcement, EventContext, BasicContext, ReqId,
 };
 use cache::Cache;
 use request::{self as basic_request, Request as NetworkRequest};

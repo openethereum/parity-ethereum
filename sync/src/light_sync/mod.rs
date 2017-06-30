@@ -236,6 +236,8 @@ impl<L: AsLightClient + Send + Sync> Handler for LightSync<L> {
 		status: &Status,
 		capabilities: &Capabilities
 	) -> PeerStatus {
+		use std::cmp;
+
 		if capabilities.serve_headers {
 			let chain_info = ChainInfo {
 				head_td: status.head_td,
@@ -245,7 +247,7 @@ impl<L: AsLightClient + Send + Sync> Handler for LightSync<L> {
 
 			{
 				let mut best = self.best_seen.lock();
-				*best = ::std::cmp::max(best.clone(), Some(chain_info.clone()));
+				*best = cmp::max(best.clone(), Some(chain_info.clone()));
 			}
 
 			self.peers.write().insert(ctx.peer(), Mutex::new(Peer::new(chain_info)));
@@ -253,9 +255,6 @@ impl<L: AsLightClient + Send + Sync> Handler for LightSync<L> {
 
 			PeerStatus::Kept
 		} else {
-			trace!(target: "sync", "Disconnecting irrelevant peer: {}", ctx.peer());
-			ctx.disconnect_peer(ctx.peer());
-
 			PeerStatus::Unkept
 		}
 	}

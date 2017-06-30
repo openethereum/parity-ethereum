@@ -821,12 +821,15 @@ impl LightProtocol {
 		}));
 
 		let any_kept = self.handlers.iter().map(
-			|handler|
-			handler.on_connect(&Ctx {
-				peer: *peer,
-				io: io,
-				proto: self,
-			}, &status, &capabilities)
+			|handler| handler.on_connect(
+				&Ctx {
+					peer: *peer,
+					io: io,
+					proto: self,
+				},
+				&status,
+				&capabilities
+			)
 		).fold(PeerStatus::Kept, PeerStatus::bitor);
 
 		if any_kept == PeerStatus::Unkept {
