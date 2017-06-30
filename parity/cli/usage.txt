@@ -176,9 +176,12 @@ API and Console Options:
                                    is additional security against some attack
                                    vectors. Special options: "all", "none",
                                    (default: {flag_jsonrpc_hosts}).
-  --jsonrpc-threads THREADS        Enables experimental faster implementation of JSON-RPC server.
+  --jsonrpc-server-threads NUM     Enables experimental faster implementation of JSON-RPC server.
                                    Requires Dapps server to be disabled
-                                   using --no-dapps. (default: {flag_jsonrpc_threads:?})
+                                   using --no-dapps. (default: {flag_jsonrpc_server_threads:?})
+  --jsonrpc-threads THREADS        Turn on additional processing threads in all RPC servers.
+                                   Setting this to non-zero value allows parallel cpu-heavy queries
+                                   execution. (default: {flag_jsonrpc_threads})
 
   --no-ws                          Disable the WebSockets server. (default: {flag_no_ws})
   --ws-port PORT                   Specify the port portion of the WebSockets server

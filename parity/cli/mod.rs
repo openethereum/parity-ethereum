@@ -180,8 +180,10 @@ usage! {
 			or |c: &Config| otry!(c.rpc).apis.as_ref().map(|vec| vec.join(",")),
 		flag_jsonrpc_hosts: String = "none",
 			or |c: &Config| otry!(c.rpc).hosts.as_ref().map(|vec| vec.join(",")),
-		flag_jsonrpc_threads: Option<usize> = None,
-			or |c: &Config| otry!(c.rpc).threads.map(Some),
+		flag_jsonrpc_server_threads: Option<usize> = None,
+			or |c: &Config| otry!(c.rpc).server_threads.map(Some),
+		flag_jsonrpc_threads: usize = 0usize,
+			or |c: &Config| otry!(c.rpc).processing_threads,
 
 		// WS
 		flag_no_ws: bool = false,
@@ -466,7 +468,8 @@ struct Rpc {
 	cors: Option<String>,
 	apis: Option<Vec<String>>,
 	hosts: Option<Vec<String>>,
-	threads: Option<usize>,
+	server_threads: Option<usize>,
+	processing_threads: Option<usize>,
 }
 
 #[derive(Default, Debug, PartialEq, RustcDecodable)]

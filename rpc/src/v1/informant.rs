@@ -26,6 +26,8 @@ use jsonrpc_core as rpc;
 use order_stat;
 use util::RwLock;
 
+pub use self::pool::CpuPool;
+
 const RATE_SECONDS: usize = 10;
 const STATS_SAMPLES: usize = 60;
 
@@ -185,16 +187,16 @@ pub trait ActivityNotifier: Send + Sync + 'static {
 pub struct Middleware<T: ActivityNotifier = ClientNotifier> {
 	stats: Arc<RpcStats>,
 	notifier: T,
-	pool: pool::CpuPool,
+	pool: Option<CpuPool>,
 }
 
 impl<T: ActivityNotifier> Middleware<T> {
 	/// Create new Middleware with stats counter and activity notifier.
-	pub fn new(stats: Arc<RpcStats>, notifier: T) -> Self {
+	pub fn new(stats: Arc<RpcStats>, notifier: T, pool: Option<CpuPool>) -> Self {
 		Middleware {
-			stats: stats,
-			notifier: notifier,
-			pool: pool::CpuPool::new(4),
+			stats,
+			notifier,
+			pool,
 		}
 	}
 
@@ -205,18 +207,23 @@ impl<T: ActivityNotifier> Middleware<T> {
 
 impl<M: rpc::Metadata, T: ActivityNotifier> rpc::Middleware<M> for Middleware<T> {
 	fn on_request<F>(&self, request: rpc::Request, meta: M, process: F) -> rpc::FutureResponse where
-		F: FnOnce(rpc::Request, M) -> rpc::FutureResponse,
+		F: FnOnce(rpc::Request, M) -> rpc::FutureResponse + Send,
 	{
 		let start = time::Instant::now();
-		let response = process(request, meta);
 
 		self.notifier.active();
+		self.stats.count_request();
+
 		let stats = self.stats.clone();
-		stats.count_request();
-		self.pool.spawn(response.map(move |res| {
+		let future = process(request, meta).map(move |res| {
 			stats.add_roundtrip(Self::as_micro(start.elapsed()));
 			res
-		})).boxed()
+		});
+
+		match self.pool {
+			Some(ref pool) => pool.spawn(future).boxed(),
+			None => future.boxed(),
+		}
 	}
 }
 
