@@ -19,23 +19,21 @@
 //! Then we compare the value of local clock setting with the server one (trying to account for network latency as
 //! well).
 
-use std::io::{self, Read};
+use std::io;
 use std::{fmt, time};
 
 use futures::{self, Future, BoxFuture};
-use fetch::{self, Fetch};
+use futures_cpupool::{CpuPool, CpuFuture};
+use ntp;
+use time::{Duration, Timespec};
 use util::{Arc, RwLock};
 
 /// Time checker error.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Error {
-	/// The API returned unexpected status code.
-	UnexpectedResponse(&'static str, String),
-	/// Invalid response has been returned by the API.
-	InvalidTime(String),
-	/// There was an error when trying to reach the API.
-	Fetch(String),
-	/// IO error when reading API response.
+	/// There was an error when trying to reach the NTP server.
+	Ntp(String),
+	/// IO error when reading NTP response.
 	Io(String),
 }
 
@@ -44,9 +42,7 @@ impl fmt::Display for Error {
 		use self::Error::*;
 
 		match *self {
-			UnexpectedResponse(ref code, ..) => write!(fmt, "Unexpected response with status code: {}", code),
-			InvalidTime(ref time) => write!(fmt, "Invalid time was returned: {}", time),
-			Fetch(ref err) => write!(fmt, "Fetch error: {}", err),
+			Ntp(ref err) => write!(fmt, "NTP error: {}", err),
 			Io(ref err) => write!(fmt, "Connection Error: {}", err),
 		}
 	}
@@ -56,27 +52,64 @@ impl From<io::Error> for Error {
 	fn from(err: io::Error) -> Self { Error::Io(format!("{}", err)) }
 }
 
-impl From<fetch::Error> for Error {
-	fn from(err: fetch::Error) -> Self { Error::Fetch(format!("{}", err)) }
+impl From<ntp::errors::Error> for Error {
+	fn from(err: ntp::errors::Error) -> Self { Error::Ntp(format!("{}", err)) }
 }
-
 
 /// Time provider.
 pub trait TimeProvider: Clone + Send + 'static {
 	/// Returns an instance of this provider.
 	fn new() -> Self where Self: Sized;
-	/// Returns current time in milliseconds.
-	fn utc_timestamp_millis(&self) -> i64;
+	/// Returns current time.
+	fn now(&self) -> Timespec;
 }
 /// Default system time provider.
 #[derive(Clone)]
 pub struct StdTimeProvider;
 impl TimeProvider for StdTimeProvider {
 	fn new() -> Self where Self: Sized { StdTimeProvider }
-	fn utc_timestamp_millis(&self) -> i64 {
-		let time = ::time::now_utc().to_timespec();
+	fn now(&self) -> Timespec {
+		::time::now_utc().to_timespec()
+	}
+}
 
-		1_000 * time.sec + time.nsec as i64 / 1_000_000
+/// NTP client using the SNTP algorithm for calculating drift.
+#[derive(Clone)]
+struct Ntp<T> {
+	address: Arc<String>,
+	time_provider: T,
+	pool: CpuPool,
+}
+
+impl<T> fmt::Debug for Ntp<T> {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		write!(f, "Ntp {{ address: {} }}", self.address)
+	}
+}
+
+impl<T: TimeProvider> Ntp<T> {
+	fn new(address: &str, time_provider: T) -> Ntp<T> {
+		Ntp {
+			address: Arc::new(address.to_owned()),
+			time_provider: time_provider,
+			pool: CpuPool::new(4),
+		}
+	}
+
+	fn drift(&self) -> CpuFuture<Duration, Error> {
+		let address = self.address.clone();
+		let time_provider = self.time_provider.clone();
+		self.pool.spawn_fn(move || {
+			let packet = ntp::request(&*address)?;
+			let dest_time = time_provider.now();
+			let orig_time = Timespec::from(packet.orig_time);
+			let recv_time = Timespec::from(packet.recv_time);
+			let transmit_time = Timespec::from(packet.transmit_time);
+
+			let drift = ((recv_time - orig_time) + (transmit_time - dest_time)) / 2;
+
+			Ok(drift)
+		})
 	}
 }
 
@@ -85,73 +118,42 @@ const UPDATE_TIMEOUT_ERR_SECS: u64 = 2;
 
 #[derive(Debug, Clone)]
 /// A time checker.
-pub struct TimeChecker<F, T: TimeProvider = StdTimeProvider> {
-	api_endpoint: String,
-	fetch: F,
+pub struct TimeChecker<T: TimeProvider = StdTimeProvider> {
+	ntp: Ntp<T>,
 	last_result: Arc<RwLock<(time::Instant, Result<i64, Error>)>>,
-	time: T,
 }
 
-impl<F: Fetch, T: TimeProvider> TimeChecker<F, T> {
+impl<T: TimeProvider> TimeChecker<T> {
 
-	/// Creates new time checker given API endpoint URL and `Fetch` instance.
-	pub fn new(api_endpoint: String, fetch: F) -> Self {
+	/// Creates new time checker given the NTP server address.
+	pub fn new(ntp_address: String) -> Self {
 		let last_result = Arc::new(RwLock::new(
-			(time::Instant::now(), Err(Error::Fetch("API unavailable.".into())))
+			(time::Instant::now(), Err(Error::Ntp("NTP server unavailable.".into())))
 		));
 
+		let ntp = Ntp::new(&ntp_address, T::new());
+
 		TimeChecker {
-			api_endpoint,
-			fetch,
+			ntp,
 			last_result,
-			time: T::new(),
 		}
 	}
 
 	/// Updates the time
 	pub fn update(&self) -> BoxFuture<i64, Error> {
 		let last_result = self.last_result.clone();
-		self.fetch_time().then(move |res| {
+		self.ntp.drift().then(move |res| {
 			let valid_till = time::Instant::now() + time::Duration::from_secs(
 				if res.is_ok() { UPDATE_TIMEOUT_OK_SECS } else { UPDATE_TIMEOUT_ERR_SECS }
 			);
 
+			let res = res.map(|d| d.num_milliseconds());
 			*last_result.write() = (valid_till, res.clone());
 			res
 		}).boxed()
 	}
 
-	fn fetch_time(&self) -> BoxFuture<i64, Error>{
-		let start = self.time.utc_timestamp_millis();
-		let time = self.time.clone();
-		self.fetch.process(self.fetch.fetch(&self.api_endpoint)
-			.map_err(|err| Error::Fetch(format!("{:?}", err)))
-			.and_then(move |mut response| {
-				let mut result = String::new();
-				response.read_to_string(&mut result)?;
-
-				if !response.is_success() {
-					let status = response.status().canonical_reason().unwrap_or("unknown");
-					return Err(Error::UnexpectedResponse(status, result));
-				}
-
-				let server_time: i64 = match result.parse() {
-					Ok(time) => time,
-					Err(err) => {
-						return Err(Error::InvalidTime(format!("{}", err)));
-					}
-				};
-				let end = time.utc_timestamp_millis();
-				let rough_latency = (end - start) / 2;
-
-				let diff = server_time - start - rough_latency;
-
-				Ok(diff)
-			})
-		)
-	}
-
-	/// Returns a current time drift or error if last request to time API failed.
+	/// Returns a current time drift or error if last request to NTP server failed.
 	pub fn time_drift(&self) -> BoxFuture<i64, Error> {
 		// return cached result
 		{

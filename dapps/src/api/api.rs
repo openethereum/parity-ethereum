@@ -16,7 +16,6 @@
 
 use std::sync::Arc;
 
-use fetch::Fetch;
 use hyper::{server, net, Decoder, Encoder, Next, Control};
 use hyper::method::Method;
 use hyper::status::StatusCode;
@@ -30,18 +29,18 @@ use parity_reactor::Remote;
 use {SyncStatus};
 
 #[derive(Clone)]
-pub struct RestApi<F> {
+pub struct RestApi {
 	fetcher: Arc<Fetcher>,
 	sync_status: Arc<SyncStatus>,
-	time: TimeChecker<F>,
+	time: TimeChecker,
 	remote: Remote,
 }
 
-impl<F: Fetch> RestApi<F> {
+impl RestApi {
 	pub fn new(
 		fetcher: Arc<Fetcher>,
 		sync_status: Arc<SyncStatus>,
-		time: TimeChecker<F>,
+		time: TimeChecker,
 		remote: Remote,
 	) -> Box<Endpoint> {
 		Box::new(RestApi {
@@ -53,21 +52,21 @@ impl<F: Fetch> RestApi<F> {
 	}
 }
 
-impl<F: Fetch> Endpoint for RestApi<F> {
+impl Endpoint for RestApi {
 	fn to_async_handler(&self, path: EndpointPath, control: Control) -> Box<Handler> {
 		Box::new(RestApiRouter::new((*self).clone(), path, control))
 	}
 }
 
-struct RestApiRouter<F> {
-	api: RestApi<F>,
+struct RestApiRouter {
+	api: RestApi,
 	path: Option<EndpointPath>,
 	control: Option<Control>,
 	handler: Box<Handler>,
 }
 
-impl<F: Fetch> RestApiRouter<F> {
-	fn new(api: RestApi<F>, path: EndpointPath, control: Control) -> Self {
+impl RestApiRouter {
+	fn new(api: RestApi, path: EndpointPath, control: Control) -> Self {
 		RestApiRouter {
 			path: Some(path),
 			control: Some(control),
@@ -163,7 +162,7 @@ impl<F: Fetch> RestApiRouter<F> {
 	}
 }
 
-impl<F: Fetch> server::Handler<net::HttpStream> for RestApiRouter<F> {
+impl server::Handler<net::HttpStream> for RestApiRouter {
 	fn on_request(&mut self, request: server::Request<net::HttpStream>) -> Next {
 		if let Method::Options = *request.method() {
 			self.handler = response::empty();
