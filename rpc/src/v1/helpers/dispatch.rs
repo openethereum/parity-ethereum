@@ -284,7 +284,7 @@ impl LightDispatcher {
 		}
 
 		let best_header = self.client.best_block_header();
-		let account_start_nonce = self.client.engine().account_start_nonce();
+		let account_start_nonce = self.client.engine().account_start_nonce(best_header.number());
 		let nonce_future = self.sync.with_context(|ctx| self.on_demand.request(ctx, request::Account {
 			header: best_header.into(),
 			address: addr,

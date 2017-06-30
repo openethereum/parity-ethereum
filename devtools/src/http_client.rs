@@ -121,4 +121,8 @@ pub fn assert_security_headers_present(headers: &[String], port: Option<u16>) {
 		headers.iter().find(|header|  header.as_str() == "X-Content-Type-Options: nosniff").is_some(),
 		"X-Content-Type-Options missing: {:?}", headers
 	);
+	assert!(
+		headers.iter().find(|header| header.starts_with("Content-Security-Policy: ")).is_some(),
+		"Content-Security-Policy missing: {:?}", headers
+	)
 }

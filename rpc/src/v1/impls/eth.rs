@@ -607,7 +607,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 		let mix_hash: H256 = mix_hash.into();
 		trace!(target: "miner", "submit_work: Decoded: nonce={}, pow_hash={}, mix_hash={}", nonce, pow_hash, mix_hash);
 
-		let seal = vec![rlp::encode(&mix_hash).to_vec(), rlp::encode(&nonce).to_vec()];
+		let seal = vec![rlp::encode(&mix_hash).into_vec(), rlp::encode(&nonce).into_vec()];
 		Ok(self.miner.submit_seal(&*self.client, pow_hash, seal).is_ok())
 	}
 

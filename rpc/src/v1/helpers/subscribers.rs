@@ -95,13 +95,24 @@ impl<T> Subscribers<T> {
 	}
 }
 
-impl <T> Subscribers<Sink<T>> {
+impl<T> Subscribers<Sink<T>> {
 	/// Assigns id and adds a subscriber to the list.
 	pub fn push(&mut self, sub: Subscriber<T>) {
 		let id = self.next_id();
 		if let Ok(sink) = sub.assign_id(SubscriptionId::String(id.as_string())) {
 			debug!(target: "pubsub", "Adding subscription id={:?}", id);
 			self.subscriptions.insert(id, sink);
+		}
+	}
+}
+
+impl<T, V> Subscribers<(Sink<T>, V)> {
+	/// Assigns id and adds a subscriber to the list.
+	pub fn push(&mut self, sub: Subscriber<T>, val: V) {
+		let id = self.next_id();
+		if let Ok(sink) = sub.assign_id(SubscriptionId::String(id.as_string())) {
+			debug!(target: "pubsub", "Adding subscription id={:?}", id);
+			self.subscriptions.insert(id, (sink, val));
 		}
 	}
 }

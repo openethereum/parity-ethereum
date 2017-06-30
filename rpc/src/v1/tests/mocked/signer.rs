@@ -563,7 +563,7 @@ fn should_generate_new_web_proxy_token() {
 	let request = r#"{
 		"jsonrpc":"2.0",
 		"method":"signer_generateWebProxyAccessToken",
-		"params":[],
+		"params":["https://parity.io"],
 		"id":1
 	}"#;
 	let response = tester.io.handle_request_sync(&request).unwrap();
