@@ -551,7 +551,7 @@ impl Configuration {
 	fn ui_config(&self) -> UiConfiguration {
 		UiConfiguration {
 			enabled: self.ui_enabled(),
-			time_api_url: self.args.flag_time_api.clone(),
+			ntp_server: self.args.flag_ntp_server.clone(),
 			interface: self.ui_interface(),
 			port: self.args.flag_ports_shift + self.args.flag_ui_port,
 			hosts: self.ui_hosts(),
@@ -561,7 +561,7 @@ impl Configuration {
 	fn dapps_config(&self) -> DappsConfiguration {
 		DappsConfiguration {
 			enabled: self.dapps_enabled(),
-			time_api_url: self.args.flag_time_api.clone(),
+			ntp_server: self.args.flag_ntp_server.clone(),
 			dapps_path: PathBuf::from(self.directories().dapps),
 			extra_dapps: if self.args.cmd_dapp {
 				self.args.arg_path.iter().map(|path| PathBuf::from(path)).collect()
@@ -1254,7 +1254,7 @@ mod tests {
 			support_token_api: true
 		}, UiConfiguration {
 			enabled: true,
-			time_api_url: "https://time.parity.io/api".into(),
+			ntp_server: "pool.ntp.org:123".into(),
 			interface: "127.0.0.1".into(),
 			port: 8180,
 			hosts: Some(vec![]),
@@ -1488,7 +1488,7 @@ mod tests {
 		assert_eq!(conf0.directories().signer, "signer".to_owned());
 		assert_eq!(conf0.ui_config(), UiConfiguration {
 			enabled: true,
-			time_api_url: "https://time.parity.io/api".into(),
+			ntp_server: "pool.ntp.org:123".into(),
 			interface: "127.0.0.1".into(),
 			port: 8180,
 			hosts: Some(vec![]),
@@ -1497,7 +1497,7 @@ mod tests {
 		assert_eq!(conf1.directories().signer, "signer".to_owned());
 		assert_eq!(conf1.ui_config(), UiConfiguration {
 			enabled: true,
-			time_api_url: "https://time.parity.io/api".into(),
+			ntp_server: "pool.ntp.org:123".into(),
 			interface: "127.0.0.1".into(),
 			port: 8180,
 			hosts: Some(vec![]),
@@ -1506,7 +1506,7 @@ mod tests {
 		assert_eq!(conf2.directories().signer, "signer".to_owned());
 		assert_eq!(conf2.ui_config(), UiConfiguration {
 			enabled: true,
-			time_api_url: "https://time.parity.io/api".into(),
+			ntp_server: "pool.ntp.org:123".into(),
 			interface: "127.0.0.1".into(),
 			port: 3123,
 			hosts: Some(vec![]),
@@ -1515,7 +1515,7 @@ mod tests {
 		assert_eq!(conf3.directories().signer, "signer".to_owned());
 		assert_eq!(conf3.ui_config(), UiConfiguration {
 			enabled: true,
-			time_api_url: "https://time.parity.io/api".into(),
+			ntp_server: "pool.ntp.org:123".into(),
 			interface: "test".into(),
 			port: 8180,
 			hosts: Some(vec![]),
