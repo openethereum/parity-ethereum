@@ -87,7 +87,7 @@ impl KeyStore {
 
 	/// Import a key, generating a random identity for it.
 	pub fn insert(&mut self, key: Key) -> H256 {
-		let id = H256(self.rng().gen());
+		let id = self.rng().gen();
 		self.identities.insert(id, key);
 
 		id

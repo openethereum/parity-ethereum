@@ -25,7 +25,7 @@ use ethkey::Public;
 use jsonrpc_macros::pubsub::Sink;
 use parking_lot::{Mutex, RwLock};
 
-use message::{self, Message, Topic};
+use message::{Message, Topic};
 use super::key_store::KeyStore;
 use super::types::{self, FilterItem, HexEncode};
 
@@ -86,19 +86,26 @@ impl Manager {
 	}
 
 	/// Add a new polled filter.
-	pub fn insert_polled(&self, id: H256, filter: Filter) -> ItemBuffer {
+	pub fn insert_polled(&self, id: H256, filter: Filter) {
 		let buffer = Arc::new(Mutex::new(Vec::new()));
-		let entry = FilterEntry::Poll(Arc::new(filter), buffer.clone());
+		let entry = FilterEntry::Poll(Arc::new(filter), buffer);
 
 		self.filters.write().insert(id, entry);
-
-		buffer
 	}
 
 	/// Add a new subscription filter.
 	pub fn insert_subscription(&self, id: H256, filter: Filter, sink: Sink<FilterItem>) {
 		let entry = FilterEntry::Subscription(Arc::new(filter), sink);
 		self.filters.write().insert(id, entry);
+	}
+
+	/// Poll changes on filter identified by ID.
+	pub fn poll_changes(&self, id: &H256) -> Option<Vec<FilterItem>> {
+		self.filters.read().get(id).and_then(|filter| match *filter {
+			FilterEntry::Subscription(_, _) => None,
+			FilterEntry::Poll(_, ref changes)
+				=> Some(::std::mem::replace(&mut *changes.lock(), Vec::new())),
+		})
 	}
 }
 

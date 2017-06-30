@@ -24,7 +24,8 @@
 use std::sync::Arc;
 
 use jsonrpc_core::{Error, ErrorCode};
-use parking_lot::RwLock;
+use parking_lot::{Mutex, RwLock};
+use rand::{Rng, SeedableRng, XorShiftRng};
 
 use self::filter::Filter;
 use self::key_store::{Key, KeyStore};
@@ -86,6 +87,18 @@ build_rpc_trait! {
 		/// Post a message to the network with given parameters.
 		#[rpc(name = "shh_post")]
 		fn post(&self, types::PostRequest) -> Result<bool, Error>;
+
+		/// Create a new polled filter.
+		#[rpc(name = "shh_newMessageFilter")]
+		fn new_filter(&self, types::FilterRequest) -> Result<types::Identity, Error>;
+
+		/// Poll changes on a polled filter.
+		#[rpc(name = "shh_getFilterMessages")]
+		fn poll_changes(&self, types::Identity) -> Result<Vec<types::FilterItem>, Error>;
+
+		/// Delete polled filter. Return bool indicating success.
+		#[rpc(name = "shh_deleteMessageFilter")]
+		fn delete_filter(&self, types::Identity) -> Result<bool, Error>;
 	}
 }
 
@@ -105,6 +118,8 @@ impl MessageSender for ::net::MessagePoster {
 pub struct WhisperClient<S> {
 	store: RwLock<key_store::KeyStore>,
 	sender: S,
+	filter_manager: Arc<filter::Manager>,
+	filter_ids_rng: Mutex<XorShiftRng>,
 }
 
 impl<S> WhisperClient<S> {
@@ -113,10 +128,17 @@ impl<S> WhisperClient<S> {
 	/// This spawns a thread for handling
 	/// asynchronous work like performing PoW on messages or handling
 	/// subscriptions.
-	pub fn new(sender: S) -> ::std::io::Result<Self> {
+	pub fn new(sender: S, filter_manager: Arc<filter::Manager>) -> ::std::io::Result<Self> {
+		let filter_ids_rng = {
+			let mut rng = ::rand::thread_rng();
+			XorShiftRng::from_seed(rng.gen())
+		};
+
 		Ok(WhisperClient {
 			store: RwLock::new(KeyStore::new()?),
 			sender: sender,
+			filter_manager: filter_manager,
+			filter_ids_rng: Mutex::new(filter_ids_rng),
 		})
 	}
 }
@@ -196,6 +218,32 @@ impl<S: MessageSender + 'static> Whisper for WhisperClient<S> {
 		self.sender.relay(message);
 
 		Ok(true)
+	}
+
+	fn new_filter(&self, req: types::FilterRequest) -> Result<types::Identity, Error> {
+		let filter = Filter::new(req).map_err(whisper_error)?;
+		let id = self.filter_ids_rng.lock().gen();
+
+		self.filter_manager.insert_polled(id, filter);
+		Ok(HexEncode(id))
+	}
+
+	fn poll_changes(&self, id: types::Identity) -> Result<Vec<types::FilterItem>, Error> {
+		match self.filter_manager.poll_changes(&id.into_inner()) {
+			None => Err(whisper_error("no such message filter")),
+			Some(items) => Ok(items),
+		}
+	}
+
+	fn delete_filter(&self, id: types::Identity) -> Result<bool, Error> {
+		let id = id.into_inner();
+		Ok(match self.filter_manager.kind(&id) {
+			Some(filter::Kind::Poll) => {
+				self.filter_manager.remove(&id);
+				true
+			}
+			None | Some(_) => false,
+		})
 	}
 }
 
