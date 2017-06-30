@@ -17,7 +17,8 @@
 import { randomPhrase } from '@parity/wordlist';
 import { phraseToAddress, phraseToWallet } from './';
 
-describe('api/local/ethkey', () => {
+// TODO: Skipping until Node.js 8.0 comes out and we can test WebAssembly
+describe.skip('api/local/ethkey', () => {
   describe('phraseToAddress', function () {
     this.timeout(30000);
 

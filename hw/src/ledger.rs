@@ -24,7 +24,7 @@ use std::str::FromStr;
 use std::time::Duration;
 use super::WalletInfo;
 use ethkey::{Address, Signature};
-use ethcore_bigint::hash::H256;
+use bigint::hash::H256;
 
 const LEDGER_VID: u16 = 0x2c97;
 const LEDGER_PIDS: [u16; 2] = [0x0000, 0x0001]; // Nano S and Blue

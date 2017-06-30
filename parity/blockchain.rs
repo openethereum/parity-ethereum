@@ -21,8 +21,7 @@ use std::time::{Instant, Duration};
 use std::thread::sleep;
 use std::sync::Arc;
 use rustc_serialize::hex::FromHex;
-use io::{PanicHandler, ForwardPanic};
-use util::{ToPretty, Uint, U256, H256, Address, Hashable};
+use util::{ToPretty, U256, H256, Address, Hashable};
 use rlp::PayloadInfo;
 use ethcore::service::ClientService;
 use ethcore::client::{Mode, DatabaseCompactionProfile, VMType, BlockImportError, BlockChainClient, BlockId};
@@ -148,9 +147,6 @@ pub fn execute(cmd: BlockchainCmd) -> Result<(), String> {
 fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {
 	let timer = Instant::now();
 
-	// Setup panic handler
-	let panic_handler = PanicHandler::new_in_arc();
-
 	// load spec file
 	let spec = cmd.spec.spec()?;
 
@@ -219,7 +215,6 @@ fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {
 	// free up the spec in memory.
 	drop(spec);
 
-	panic_handler.forward_from(&service);
 	let client = service.client();
 
 	let mut instream: Box<io::Read> = match cmd.file_path {
@@ -320,7 +315,8 @@ fn start_client(
 	fat_db: Switch,
 	compaction: DatabaseCompactionProfile,
 	wal: bool,
-	cache_config: CacheConfig
+	cache_config: CacheConfig,
+	require_fat_db: bool,
 ) -> Result<ClientService, String> {
 
 	// load spec file
@@ -348,6 +344,9 @@ fn start_client(
 
 	// check if fatdb is on
 	let fat_db = fatdb_switch_to_bool(fat_db, &user_defaults, algorithm)?;
+	if !fat_db && require_fat_db {
+		return Err("This command requires Parity to be synced with --fat-db on.".to_owned());
+	}
 
 	// prepare client and snapshot paths.
 	let client_path = db_dirs.client_path(algorithm);
@@ -390,7 +389,6 @@ fn start_client(
 }
 
 fn execute_export(cmd: ExportBlockchain) -> Result<(), String> {
-	// Setup panic handler
 	let service = start_client(
 		cmd.dirs,
 		cmd.spec,
@@ -401,12 +399,11 @@ fn execute_export(cmd: ExportBlockchain) -> Result<(), String> {
 		cmd.fat_db,
 		cmd.compaction,
 		cmd.wal,
-		cmd.cache_config
+		cmd.cache_config,
+		false,
 	)?;
-	let panic_handler = PanicHandler::new_in_arc();
 	let format = cmd.format.unwrap_or_default();
 
-	panic_handler.forward_from(&service);
 	let client = service.client();
 
 	let mut out: Box<io::Write> = match cmd.file_path {
@@ -433,7 +430,6 @@ fn execute_export(cmd: ExportBlockchain) -> Result<(), String> {
 }
 
 fn execute_export_state(cmd: ExportState) -> Result<(), String> {
-	// Setup panic handler
 	let service = start_client(
 		cmd.dirs,
 		cmd.spec,
@@ -444,12 +440,10 @@ fn execute_export_state(cmd: ExportState) -> Result<(), String> {
 		cmd.fat_db,
 		cmd.compaction,
 		cmd.wal,
-		cmd.cache_config
+		cmd.cache_config,
+		true
 	)?;
 
-	let panic_handler = PanicHandler::new_in_arc();
-
-	panic_handler.forward_from(&service);
 	let client = service.client();
 
 	let mut out: Box<io::Write> = match cmd.file_path {

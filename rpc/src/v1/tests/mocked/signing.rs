@@ -28,7 +28,7 @@ use v1::types::ConfirmationResponse;
 use v1::tests::helpers::TestMinerService;
 use v1::tests::mocked::parity;
 
-use util::{Address, Uint, U256, ToPretty};
+use util::{Address, U256, ToPretty};
 use ethkey::Secret;
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::TestBlockChainClient;
@@ -47,14 +47,14 @@ struct SigningTester {
 
 impl Default for SigningTester {
 	fn default() -> Self {
-		let signer = Arc::new(SignerService::new_test(None));
+		let signer = Arc::new(SignerService::new_test(false));
 		let client = Arc::new(TestBlockChainClient::default());
 		let miner = Arc::new(TestMinerService::default());
 		let accounts = Arc::new(AccountProvider::transient_provider());
 		let opt_accounts = Some(accounts.clone());
 		let mut io = IoHandler::default();
 
-		let dispatcher = FullDispatcher::new(Arc::downgrade(&client), Arc::downgrade(&miner));
+		let dispatcher = FullDispatcher::new(client.clone(), miner.clone());
 
 		let rpc = SigningQueueClient::new(&signer, dispatcher.clone(), &opt_accounts);
 		io.extend_with(EthSigning::to_delegate(rpc));
@@ -200,7 +200,7 @@ fn should_sign_if_account_is_unlocked() {
 	// given
 	let tester = eth_signing();
 	let data = vec![5u8];
-	let acc = tester.accounts.insert_account(Secret::from_slice(&[69u8; 32]).unwrap(), "test").unwrap();
+	let acc = tester.accounts.insert_account(Secret::from_slice(&[69u8; 32]), "test").unwrap();
 	tester.accounts.unlock_account_permanently(acc, "test".into()).unwrap();
 
 	// when
@@ -420,7 +420,6 @@ fn should_add_decryption_to_the_queue() {
 	}"#;
 	let response = r#"{"jsonrpc":"2.0","result":"0x0102","id":1}"#;
 
-
 	// then
 	let promise = tester.io.handle_request(&request);
 
@@ -432,7 +431,7 @@ fn should_add_decryption_to_the_queue() {
 			signer.request_confirmed(1.into(), Ok(ConfirmationResponse::Decrypt(vec![0x1, 0x2].into())));
 			break
 		}
-		::std::thread::sleep(Duration::from_millis(100))
+		::std::thread::sleep(Duration::from_millis(10))
 	});
 
 	// check response: will deadlock if unsuccessful.

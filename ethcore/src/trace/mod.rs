@@ -97,8 +97,8 @@ pub trait VMTracer: Send {
 	/// Spawn subtracer which will be used to trace deeper levels of execution.
 	fn prepare_subtrace(&self, code: &[u8]) -> Self where Self: Sized;
 
-	/// Spawn subtracer which will be used to trace deeper levels of execution.
-	fn done_subtrace(&mut self, sub: Self) where Self: Sized;
+	/// Finalize subtracer.
+	fn done_subtrace(&mut self, sub: Self, is_successful: bool) where Self: Sized;
 
 	/// Consumes self and returns the VM trace.
 	fn drain(self) -> Option<VMTrace>;

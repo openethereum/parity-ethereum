@@ -101,7 +101,7 @@ export default class SignerStore {
 
         this.setLocalHashes(keys);
       })
-      .then(nextTimeout)
-      .catch(nextTimeout);
+      .then(() => nextTimeout())
+      .catch(() => nextTimeout());
   }
 }

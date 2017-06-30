@@ -14,23 +14,25 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::sync::{Arc, Weak};
 use std::fs;
 use std::io::Write;
 use std::path::{PathBuf};
-use target_info::Target;
-use util::misc;
-use ipc_common_types::{VersionInfo, ReleaseTrack};
-use path::restrict_permissions_owner;
-use util::{Address, H160, H256, Mutex, Bytes};
-use ethsync::{SyncProvider};
+use std::sync::{Arc, Weak};
+
 use ethcore::client::{BlockId, BlockChainClient, ChainNotify};
+use ethsync::{SyncProvider};
+use futures::{future, Future, BoxFuture};
 use hash_fetch::{self as fetch, HashFetch};
 use hash_fetch::fetch::Client as FetchService;
+use ipc_common_types::{VersionInfo, ReleaseTrack};
 use operations::Operations;
 use parity_reactor::Remote;
+use path::restrict_permissions_owner;
 use service::{Service};
+use target_info::Target;
 use types::all::{ReleaseInfo, OperationsInfo, CapState};
+use util::{Address, H160, H256, Mutex, Bytes};
+use util::misc;
 
 /// Filter for releases.
 #[derive(Debug, Eq, PartialEq, Clone)]
@@ -338,9 +340,12 @@ impl fetch::urlhint::ContractClient for Updater {
 			.ok_or_else(|| "Registrar not available".into())
 	}
 
-	fn call(&self, address: Address, data: Bytes) -> Result<Bytes, String> {
-		self.client.upgrade().ok_or_else(|| "Client not available".to_owned())?
-			.call_contract(BlockId::Latest, address, data)
+	fn call(&self, address: Address, data: Bytes) -> BoxFuture<Bytes, String> {
+		future::done(
+			self.client.upgrade()
+				.ok_or_else(|| "Client not available".into())
+				.and_then(move |c| c.call_contract(BlockId::Latest, address, data))
+		).boxed()
 	}
 }
 

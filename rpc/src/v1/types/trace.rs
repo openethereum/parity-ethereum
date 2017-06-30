@@ -23,7 +23,6 @@ use ethcore::state_diff;
 use ethcore::account_diff;
 use ethcore::executed;
 use ethcore::client::Executed;
-use util::Uint;
 use v1::types::{Bytes, H160, H256, U256};
 
 #[derive(Debug, Serialize)]
@@ -252,6 +251,9 @@ pub enum CallType {
 	/// Delegate call
 	#[serde(rename="delegatecall")]
 	DelegateCall,
+	/// Static call
+	#[serde(rename="staticcall")]
+	StaticCall,
 }
 
 impl From<executed::CallType> for CallType {
@@ -261,6 +263,7 @@ impl From<executed::CallType> for CallType {
 			executed::CallType::Call => CallType::Call,
 			executed::CallType::CallCode => CallType::CallCode,
 			executed::CallType::DelegateCall => CallType::DelegateCall,
+			executed::CallType::StaticCall => CallType::StaticCall,
 		}
 	}
 }

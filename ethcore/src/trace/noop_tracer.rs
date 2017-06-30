@@ -81,7 +81,7 @@ impl VMTracer for NoopVMTracer {
 	fn prepare_subtrace(&self, _code: &[u8]) -> Self { NoopVMTracer }
 
 	/// Spawn subtracer which will be used to trace deeper levels of execution.
-	fn done_subtrace(&mut self, _sub: Self) {}
+	fn done_subtrace(&mut self, _sub: Self, _is_successful: bool) {}
 
 	/// Consumes self and returns all VM traces.
 	fn drain(self) -> Option<VMTrace> { None }

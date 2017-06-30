@@ -27,7 +27,7 @@ use devtools::*;
 use miner::Miner;
 use spec::Spec;
 use views::BlockView;
-use ethkey::{KeyPair, Secret};
+use ethkey::KeyPair;
 use transaction::{PendingTransaction, Transaction, Action, Condition};
 use miner::MinerService;
 
@@ -296,7 +296,7 @@ fn change_history_size() {
 
 #[test]
 fn does_not_propagate_delayed_transactions() {
-	let key = KeyPair::from_secret(Secret::from_slice(&"test".sha3()).unwrap()).unwrap();
+	let key = KeyPair::from_secret("test".sha3().into()).unwrap();
 	let secret = key.secret();
 	let tx0 = PendingTransaction::new(Transaction {
 		nonce: 0.into(),
@@ -358,7 +358,7 @@ fn transaction_proof() {
 	let root = client.best_block_header().state_root();
 
 	let mut state = State::from_existing(backend, root, 0.into(), factories.clone()).unwrap();
-	Executive::new(&mut state, &client.latest_env_info(), &*test_spec.engine, &factories.vm)
+	Executive::new(&mut state, &client.latest_env_info(), &*test_spec.engine)
 		.transact(&transaction, Default::default()).unwrap();
 
 	assert_eq!(state.balance(&Address::default()).unwrap(), 5.into());

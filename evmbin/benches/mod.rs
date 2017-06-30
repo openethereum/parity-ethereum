@@ -32,7 +32,7 @@ use self::test::{Bencher, black_box};
 
 use evm::run_vm;
 use ethcore::action_params::ActionParams;
-use ethcore_util::{U256, Uint};
+use ethcore_util::U256;
 use rustc_serialize::hex::FromHex;
 
 #[bench]

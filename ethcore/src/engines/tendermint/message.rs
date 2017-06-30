@@ -200,7 +200,6 @@ pub fn message_hash(vote_step: VoteStep, block_hash: H256) -> H256 {
 mod tests {
 	use util::*;
 	use rlp::*;
-	use ethkey::Secret;
 	use account_provider::AccountProvider;
 	use header::Header;
 	use super::super::Step;
@@ -229,7 +228,7 @@ mod tests {
 			},
 			block_hash: Some("1".sha3())
 		};
-		let raw_rlp = ::rlp::encode(&message).to_vec();
+		let raw_rlp = ::rlp::encode(&message).into_vec();
 		let rlp = Rlp::new(&raw_rlp);
 		assert_eq!(message, rlp.as_val());
 
@@ -250,7 +249,7 @@ mod tests {
 	#[test]
 	fn generate_and_verify() {
 		let tap = Arc::new(AccountProvider::transient_provider());
-		let addr = tap.insert_account(Secret::from_slice(&"0".sha3()).unwrap(), "0").unwrap();
+		let addr = tap.insert_account("0".sha3().into(), "0").unwrap();
 		tap.unlock_account_permanently(addr, "0".into()).unwrap();
 
 		let mi = message_info_rlp(&VoteStep::new(123, 2, Step::Precommit), Some(H256::default()));
@@ -266,8 +265,8 @@ mod tests {
 	fn proposal_message() {
 		let mut header = Header::default();
 		let seal = vec![
-			::rlp::encode(&0u8).to_vec(),
-			::rlp::encode(&H520::default()).to_vec(),
+			::rlp::encode(&0u8).into_vec(),
+			::rlp::encode(&H520::default()).into_vec(),
 			Vec::new()
 		];
 

@@ -17,14 +17,15 @@
 //! Generic poll manager for Pub-Sub.
 
 use std::sync::Arc;
-use std::collections::HashMap;
 use util::Mutex;
 
 use jsonrpc_core::futures::future::{self, Either};
 use jsonrpc_core::futures::sync::mpsc;
 use jsonrpc_core::futures::{Sink, Future, BoxFuture};
 use jsonrpc_core::{self as core, MetaIoHandler};
+use jsonrpc_pubsub::SubscriptionId;
 
+use v1::helpers::Subscribers;
 use v1::metadata::Metadata;
 
 #[derive(Debug)]
@@ -40,8 +41,7 @@ struct Subscription {
 /// TODO [ToDr] Depending on the method decide on poll interval.
 /// For most of the methods it will be enough to poll on new block instead of time-interval.
 pub struct GenericPollManager<S: core::Middleware<Metadata>> {
-	next_id: usize,
-	poll_subscriptions: HashMap<usize, Subscription>,
+	subscribers: Subscribers<Subscription>,
 	rpc: MetaIoHandler<Metadata, S>,
 }
 
@@ -49,21 +49,24 @@ impl<S: core::Middleware<Metadata>> GenericPollManager<S> {
 	/// Creates new poll manager
 	pub fn new(rpc: MetaIoHandler<Metadata, S>) -> Self {
 		GenericPollManager {
-			next_id: 1,
-			poll_subscriptions: Default::default(),
+			subscribers: Default::default(),
 			rpc: rpc,
 		}
 	}
 
+	/// Creates new poll manager with deterministic ids.
+	#[cfg(test)]
+	pub fn new_test(rpc: MetaIoHandler<Metadata, S>) -> Self {
+		let mut manager = Self::new(rpc);
+		manager.subscribers = Subscribers::new_test();
+		manager
+	}
+
 	/// Subscribes to update from polling given method.
 	pub fn subscribe(&mut self, metadata: Metadata, method: String, params: core::Params)
-		-> (usize, mpsc::Receiver<Result<core::Value, core::Error>>)
+		-> (SubscriptionId, mpsc::Receiver<Result<core::Value, core::Error>>)
 	{
-		let id = self.next_id;
-		self.next_id += 1;
-
 		let (sink, stream) = mpsc::channel(1);
-
 		let subscription = Subscription {
 			metadata: metadata,
 			method: method,
@@ -71,24 +74,22 @@ impl<S: core::Middleware<Metadata>> GenericPollManager<S> {
 			sink: sink,
 			last_result: Default::default(),
 		};
-
-		debug!(target: "pubsub", "Adding subscription id={:?}, {:?}", id, subscription);
-		self.poll_subscriptions.insert(id, subscription);
+		let id = self.subscribers.insert(subscription);
 		(id, stream)
 	}
 
-	pub fn unsubscribe(&mut self, id: usize) -> bool {
+	pub fn unsubscribe(&mut self, id: &SubscriptionId) -> bool {
 		debug!(target: "pubsub", "Removing subscription: {:?}", id);
-		self.poll_subscriptions.remove(&id).is_some()
+		self.subscribers.remove(id).is_some()
 	}
 
 	pub fn tick(&self) -> BoxFuture<(), ()> {
 		let mut futures = Vec::new();
 		// poll all subscriptions
-		for (id, subscription) in self.poll_subscriptions.iter() {
+		for (id, subscription) in self.subscribers.iter() {
 			let call = core::MethodCall {
 				jsonrpc: Some(core::Version::V2),
-				id: core::Id::Num(*id as u64),
+				id: core::Id::Str(id.as_string()),
 				method: subscription.method.clone(),
 				params: Some(subscription.params.clone()),
 			};
@@ -130,6 +131,7 @@ mod tests {
 
 	use jsonrpc_core::{MetaIoHandler, NoopMiddleware, Value, Params};
 	use jsonrpc_core::futures::{Future, Stream};
+	use jsonrpc_pubsub::SubscriptionId;
 	use http::tokio_core::reactor;
 
 	use super::GenericPollManager;
@@ -145,7 +147,7 @@ mod tests {
 				Ok(Value::String("world".into()))
 			}
 		});
-		GenericPollManager::new(io)
+		GenericPollManager::new_test(io)
 	}
 
 	#[test]
@@ -154,7 +156,7 @@ mod tests {
 		let mut el = reactor::Core::new().unwrap();
 		let mut poll_manager = poll_manager();
 		let (id, rx) = poll_manager.subscribe(Default::default(), "hello".into(), Params::None);
-		assert_eq!(id, 1);
+		assert_eq!(id, SubscriptionId::String("0x416d77337e24399d".into()));
 
 		// then
 		poll_manager.tick().wait().unwrap();
@@ -169,7 +171,7 @@ mod tests {
 		// and no more notifications
 		poll_manager.tick().wait().unwrap();
 		// we need to unsubscribe otherwise the future will never finish.
-		poll_manager.unsubscribe(1);
+		poll_manager.unsubscribe(&id);
 		assert_eq!(el.run(rx.into_future()).unwrap().0, None);
 	}
 }

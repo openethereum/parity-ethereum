@@ -16,10 +16,6 @@
 
 //! RPC Error codes and error objects
 
-macro_rules! rpc_unimplemented {
-	() => (Err(::v1::helpers::errors::unimplemented(None)))
-}
-
 use std::fmt;
 use rlp::DecoderError;
 use ethcore::error::{Error as EthcoreError, CallError, TransactionError};
@@ -205,6 +201,14 @@ pub fn dapps_disabled() -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::UNSUPPORTED_REQUEST),
 		message: "Dapps Server is disabled. This API is not available.".into(),
+		data: None,
+	}
+}
+
+pub fn ws_disabled() -> Error {
+	Error {
+		code: ErrorCode::ServerError(codes::UNSUPPORTED_REQUEST),
+		message: "WebSockets Server is disabled. This API is not available.".into(),
 		data: None,
 	}
 }

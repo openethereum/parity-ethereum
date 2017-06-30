@@ -25,7 +25,8 @@ use block::{OpenBlock, Drain};
 use blockchain::{BlockChain, Config as BlockChainConfig};
 use builtin::Builtin;
 use state::*;
-use evm::Schedule;
+use evm::{Schedule, Factory as EvmFactory};
+use factory::Factories;
 use engines::Engine;
 use ethereum;
 use ethereum::ethash::EthashParams;
@@ -56,6 +57,13 @@ impl TestEngine {
 			max_depth: max_depth,
 		}
 	}
+
+	pub fn new_metropolis() -> TestEngine {
+		TestEngine {
+			engine: ethereum::new_metropolis_test().engine,
+			max_depth: 0,
+		}
+	}
 }
 
 impl Engine for TestEngine {
@@ -72,7 +80,7 @@ impl Engine for TestEngine {
 	}
 
 	fn schedule(&self, _block_number: u64) -> Schedule {
-		let mut schedule = Schedule::new_frontier();
+		let mut schedule = self.engine.schedule(0);
 		schedule.max_depth = self.max_depth;
 		schedule
 	}
@@ -125,7 +133,7 @@ pub fn create_test_block_with_data(header: &Header, transactions: &[SignedTransa
 	rlp.append(header);
 	rlp.begin_list(transactions.len());
 	for t in transactions {
-		rlp.append_raw(&rlp::encode(t).to_vec(), 1);
+		rlp.append_raw(&rlp::encode(t).into_vec(), 1);
 	}
 	rlp.append_list(&uncles);
 	rlp.out()
@@ -185,7 +193,8 @@ pub fn generate_dummy_client_with_spec_accounts_and_data<F>(get_test_spec: F, ac
 			Arc::new(last_hashes.clone()),
 			author.clone(),
 			(3141562.into(), 31415620.into()),
-			vec![]
+			vec![],
+			false,
 		).unwrap();
 		b.set_difficulty(U256::from(0x20000));
 		rolling_timestamp += 10;
@@ -311,6 +320,13 @@ pub fn get_temp_state() -> State<::state_db::StateDB> {
 	State::new(journal_db, U256::from(0), Default::default())
 }
 
+pub fn get_temp_state_with_factory(factory: EvmFactory) -> State<::state_db::StateDB> {
+	let journal_db = get_temp_state_db();
+	let mut factories = Factories::default();
+	factories.vm = factory;
+	State::new(journal_db, U256::from(0), factories)
+}
+
 pub fn get_temp_state_db() -> StateDB {
 	let db = new_db();
 	let journal_db = journaldb::new(db, journaldb::Algorithm::EarlyMerge, ::db::COL_STATE);
@@ -403,6 +419,7 @@ pub fn get_default_ethash_params() -> EthashParams{
 		eip161d_transition: u64::max_value(),
 		ecip1010_pause_transition: u64::max_value(),
 		ecip1010_continue_transition: u64::max_value(),
+		ecip1017_era_rounds: u64::max_value(),
 		max_code_size: u64::max_value(),
 		max_gas_limit_transition: u64::max_value(),
 		max_gas_limit: U256::max_value(),

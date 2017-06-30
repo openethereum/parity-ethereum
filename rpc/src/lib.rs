@@ -14,14 +14,19 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Ethcore rpc.
-#![warn(missing_docs)]
-#![cfg_attr(feature="nightly", feature(plugin))]
-#![cfg_attr(feature="nightly", plugin(clippy))]
+//! Parity RPC.
 
+#![warn(missing_docs)]
+#![cfg_attr(feature="dev", feature(plugin))]
+#![cfg_attr(feature="dev", plugin(clippy))]
+
+extern crate cid;
+extern crate crypto as rust_crypto;
 extern crate futures;
 extern crate futures_cpupool;
+extern crate multihash;
 extern crate order_stat;
+extern crate rand;
 extern crate rustc_serialize;
 extern crate semver;
 extern crate serde;
@@ -29,10 +34,6 @@ extern crate serde_json;
 extern crate time;
 extern crate tokio_timer;
 extern crate transient_hashmap;
-extern crate cid;
-extern crate multihash;
-extern crate crypto as rust_crypto;
-extern crate rand;
 
 extern crate jsonrpc_core;
 extern crate jsonrpc_http_server as http;
@@ -42,6 +43,7 @@ extern crate jsonrpc_pubsub;
 
 extern crate ethash;
 extern crate ethcore;
+extern crate ethcore_devtools as devtools;
 extern crate ethcore_io as io;
 extern crate ethcore_ipc;
 extern crate ethcore_light as light;
@@ -58,7 +60,7 @@ extern crate stats;
 
 #[macro_use]
 extern crate log;
-#[macro_use]
+#[cfg_attr(test, macro_use)]
 extern crate ethcore_util as util;
 #[macro_use]
 extern crate jsonrpc_macros;
@@ -67,8 +69,6 @@ extern crate serde_derive;
 
 #[cfg(test)]
 extern crate ethjson;
-#[cfg(test)]
-extern crate ethcore_devtools as devtools;
 
 #[cfg(test)]
 #[macro_use]
@@ -76,8 +76,11 @@ extern crate pretty_assertions;
 
 pub extern crate jsonrpc_ws_server as ws;
 
-mod metadata;
+mod authcodes;
+mod http_common;
 pub mod v1;
+
+pub mod tests;
 
 pub use jsonrpc_pubsub::Session as PubSubSession;
 pub use ipc::{Server as IpcServer, MetaExtractor as IpcMetaExtractor, RequestContext as IpcRequestContext};
@@ -87,8 +90,11 @@ pub use http::{
 	AccessControlAllowOrigin, Host, DomainsValidation
 };
 
-pub use v1::{SigningQueue, SignerService, ConfirmationsQueue, NetworkSettings, Metadata, Origin, informant, dispatch};
+pub use v1::{NetworkSettings, Metadata, Origin, informant, dispatch, signer, dapps};
 pub use v1::block_import::is_major_importing;
+pub use v1::extractors::{RpcExtractor, WsExtractor, WsStats, WsDispatcher};
+pub use authcodes::{AuthCodes, TimeProvider};
+pub use http_common::HttpMetaExtractor;
 
 use std::net::SocketAddr;
 use http::tokio_core;
@@ -99,6 +105,16 @@ pub enum HttpServer {
 	Mini(minihttp::Server),
 	/// Hyper variant
 	Hyper(http::Server),
+}
+
+impl HttpServer {
+	/// Returns current listening address.
+	pub fn address(&self) -> &SocketAddr {
+		match *self {
+			HttpServer::Mini(ref s) => s.address(),
+			HttpServer::Hyper(ref s) => &s.addrs()[0],
+		}
+	}
 }
 
 /// RPC HTTP Server error
@@ -129,14 +145,6 @@ impl From<minihttp::Error> for HttpServerError {
 	}
 }
 
-/// HTTP RPC server impl-independent metadata extractor
-pub trait HttpMetaExtractor: Send + Sync + 'static {
-	/// Type of Metadata
-	type Metadata: jsonrpc_core::Metadata;
-	/// Extracts metadata from given params.
-	fn read_metadata(&self, origin: String, dapps_origin: Option<String>) -> Self::Metadata;
-}
-
 /// HTTP server implementation-specific settings.
 pub enum HttpSettings<R: RequestMiddleware> {
 	/// Enable fast minihttp server with given number of threads.
@@ -165,7 +173,7 @@ pub fn start_http<M, S, H, T, R>(
 		HttpSettings::Dapps(middleware) => {
 			let mut builder = http::ServerBuilder::new(handler)
 				.event_loop_remote(remote)
-				.meta_extractor(metadata::HyperMetaExtractor::new(extractor))
+				.meta_extractor(http_common::HyperMetaExtractor::new(extractor))
 				.cors(cors_domains.into())
 				.allowed_hosts(allowed_hosts.into());
 
@@ -178,7 +186,7 @@ pub fn start_http<M, S, H, T, R>(
 		HttpSettings::Threads(threads) => {
 			minihttp::ServerBuilder::new(handler)
 				.threads(threads)
-				.meta_extractor(metadata::MiniMetaExtractor::new(extractor))
+				.meta_extractor(http_common::MiniMetaExtractor::new(extractor))
 				.cors(cors_domains.into())
 				.allowed_hosts(allowed_hosts.into())
 				.start_http(addr)
@@ -206,13 +214,14 @@ pub fn start_ipc<M, S, H, T>(
 }
 
 /// Start WS server and return `Server` handle.
-pub fn start_ws<M, S, H, T, U>(
+pub fn start_ws<M, S, H, T, U, V>(
 	addr: &SocketAddr,
 	handler: H,
 	remote: tokio_core::reactor::Remote,
 	allowed_origins: ws::DomainsValidation<ws::Origin>,
 	allowed_hosts: ws::DomainsValidation<ws::Host>,
 	extractor: T,
+	middleware: V,
 	stats: U,
 ) -> Result<ws::Server, ws::Error> where
 	M: jsonrpc_core::Metadata,
@@ -220,9 +229,11 @@ pub fn start_ws<M, S, H, T, U>(
 	H: Into<jsonrpc_core::MetaIoHandler<M, S>>,
 	T: ws::MetaExtractor<M>,
 	U: ws::SessionStats,
+	V: ws::RequestMiddleware,
 {
 	ws::ServerBuilder::new(handler)
 		.event_loop_remote(remote)
+		.request_middleware(middleware)
 		.allowed_origins(allowed_origins)
 		.allowed_hosts(allowed_hosts)
 		.session_meta_extractor(extractor)

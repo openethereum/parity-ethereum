@@ -51,7 +51,6 @@ extern crate ethcore_ipc_hypervisor as hypervisor;
 extern crate ethcore_ipc_nano as nanoipc;
 extern crate ethcore_light as light;
 extern crate ethcore_logger;
-extern crate ethcore_signer;
 extern crate ethcore_util as util;
 extern crate ethkey;
 extern crate ethsync;
@@ -83,18 +82,6 @@ extern crate pretty_assertions;
 #[cfg(windows)] extern crate ws2_32;
 #[cfg(windows)] extern crate winapi;
 
-macro_rules! dependency {
-	($dep_ty:ident, $url:expr) => {
-		{
-			let dep = boot::dependency::<$dep_ty<_>>($url)
-				.unwrap_or_else(|e| panic!("Fatal: error connecting service ({:?})", e));
-			dep.handshake()
-				.unwrap_or_else(|e| panic!("Fatal: error in connected service ({:?})", e));
-			dep
-		}
-	}
-}
-
 mod account;
 mod blockchain;
 mod cache;
@@ -114,9 +101,9 @@ mod presale;
 mod rpc;
 mod rpc_apis;
 mod run;
+mod secretstore;
 mod signer;
 mod snapshot;
-mod secretstore;
 mod upgrade;
 mod url;
 mod user_defaults;
@@ -170,7 +157,7 @@ fn execute(command: Execute, can_restart: bool) -> Result<PostExecutionAction, S
 		Cmd::Account(account_cmd) => account::execute(account_cmd).map(|s| PostExecutionAction::Print(s)),
 		Cmd::ImportPresaleWallet(presale_cmd) => presale::execute(presale_cmd).map(|s| PostExecutionAction::Print(s)),
 		Cmd::Blockchain(blockchain_cmd) => blockchain::execute(blockchain_cmd).map(|_| PostExecutionAction::Quit),
-		Cmd::SignerToken(signer_cmd) => signer::execute(signer_cmd).map(|s| PostExecutionAction::Print(s)),
+		Cmd::SignerToken(ws_conf, ui_conf) => signer::execute(ws_conf, ui_conf).map(|s| PostExecutionAction::Print(s)),
 		Cmd::SignerSign { id, pwfile, port, authfile } => rpc_cli::signer_sign(id, pwfile, port, authfile).map(|s| PostExecutionAction::Print(s)),
 		Cmd::SignerList { port, authfile } => rpc_cli::signer_list(port, authfile).map(|s| PostExecutionAction::Print(s)),
 		Cmd::SignerReject { id, port, authfile } => rpc_cli::signer_reject(id, port, authfile).map(|s| PostExecutionAction::Print(s)),

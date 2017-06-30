@@ -165,10 +165,14 @@ pub enum BlockError {
 	InvalidNumber(Mismatch<BlockNumber>),
 	/// Block number isn't sensible.
 	RidiculousNumber(OutOfBounds<BlockNumber>),
+	/// Too many transactions from a particular address.
+	TooManyTransactions(Address),
 	/// Parent given is unknown.
 	UnknownParent(H256),
 	/// Uncle parent given is unknown.
 	UnknownUncleParent(H256),
+	/// No transition to epoch number.
+	UnknownEpochTransition(u64),
 }
 
 impl fmt::Display for BlockError {
@@ -202,6 +206,8 @@ impl fmt::Display for BlockError {
 			RidiculousNumber(ref oob) => format!("Implausible block number. {}", oob),
 			UnknownParent(ref hash) => format!("Unknown parent: {}", hash),
 			UnknownUncleParent(ref hash) => format!("Unknown uncle parent: {}", hash),
+			UnknownEpochTransition(ref num) => format!("Unknown transition to epoch number: {}", num),
+			TooManyTransactions(ref address) => format!("Too many transactions from: {}", address),
 		};
 
 		f.write_fmt(format_args!("Block error ({})", msg))

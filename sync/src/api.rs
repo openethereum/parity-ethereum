@@ -195,20 +195,32 @@ pub struct EthSync {
 impl EthSync {
 	/// Creates and register protocol with the network service
 	pub fn new(params: Params) -> Result<Arc<EthSync>, NetworkError> {
+		const MAX_LIGHTSERV_LOAD: f64 = 0.5;
+
 		let pruning_info = params.chain.pruning_info();
 		let light_proto = match params.config.serve_light {
 			false => None,
 			true => Some({
-				let light_params = LightParams {
+				let sample_store = params.network_config.net_config_path
+					.clone()
+					.map(::std::path::PathBuf::from)
+					.map(|mut p| { p.push("request_timings"); light_net::FileStore(p) })
+					.map(|store| Box::new(store) as Box<_>);
+
+				let mut light_params = LightParams {
 					network_id: params.config.network_id,
-					flow_params: Default::default(),
+					config: Default::default(),
 					capabilities: Capabilities {
 						serve_headers: true,
 						serve_chain_since: Some(pruning_info.earliest_chain),
 						serve_state_since: Some(pruning_info.earliest_state),
 						tx_relay: true,
 					},
+					sample_store: sample_store,
 				};
+
+				let max_peers = ::std::cmp::min(params.network_config.max_peers, 1);
+				light_params.config.load_share = MAX_LIGHTSERV_LOAD / max_peers as f64;
 
 				let mut light_proto = LightProtocol::new(params.provider, light_params);
 				light_proto.add_handler(Arc::new(TxRelay(params.chain.clone())));
@@ -415,7 +427,7 @@ struct TxRelay(Arc<BlockChainClient>);
 impl LightHandler for TxRelay {
 	fn on_transactions(&self, ctx: &EventContext, relay: &[::ethcore::transaction::UnverifiedTransaction]) {
 		trace!(target: "pip", "Relaying {} transactions from peer {}", relay.len(), ctx.peer());
-		self.0.queue_transactions(relay.iter().map(|tx| ::rlp::encode(tx).to_vec()).collect(), ctx.peer())
+		self.0.queue_transactions(relay.iter().map(|tx| ::rlp::encode(tx).into_vec()).collect(), ctx.peer())
 	}
 }
 
@@ -686,17 +698,18 @@ impl LightSync {
 		let (sync, light_proto) = {
 			let light_params = LightParams {
 				network_id: params.network_id,
-				flow_params: Default::default(), // or `None`?
+				config: Default::default(),
 				capabilities: Capabilities {
 					serve_headers: false,
 					serve_chain_since: None,
 					serve_state_since: None,
 					tx_relay: false,
 				},
+				sample_store: None,
 			};
 
 			let mut light_proto = LightProtocol::new(params.client.clone(), light_params);
-			let sync_handler = Arc::new(try!(SyncHandler::new(params.client.clone())));
+			let sync_handler = Arc::new(SyncHandler::new(params.client.clone())?);
 			light_proto.add_handler(sync_handler.clone());
 
 			for handler in params.handlers {
@@ -706,7 +719,7 @@ impl LightSync {
 			(sync_handler, Arc::new(light_proto))
 		};
 
-		let service = try!(NetworkService::new(params.network_config));
+		let service = NetworkService::new(params.network_config)?;
 
 		Ok(LightSync {
 			proto: light_proto,

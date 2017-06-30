@@ -13,7 +13,7 @@ use util::{Hashable, Mutex};
 use url::Url;
 use std::fs::File;
 
-use ws::{
+use ws::ws::{
 	self,
 	Request,
 	Handler,
@@ -204,6 +204,7 @@ impl Rpc {
 		let rpc = Self::connect(url, authpath).map(|rpc| rpc).wait()?;
 		rpc
 	}
+
 	/// Non-blocking, returns a future
 	pub fn connect(
 		url: &str, authpath: &PathBuf
@@ -241,6 +242,7 @@ impl Rpc {
 			}
 		}
 	}
+
 	/// Non-blocking, returns a future of the request response
 	pub fn request<T>(
 		&mut self, method: &'static str, params: Vec<JsonValue>

@@ -75,6 +75,9 @@ pub fn new_transition_test() -> Spec { load(include_bytes!("../../res/ethereum/t
 /// Create a new Foundation Mainnet chain spec without genesis accounts.
 pub fn new_mainnet_like() -> Spec { load(include_bytes!("../../res/ethereum/frontier_like_test.json")) }
 
+/// Create a new Foundation Metropolis era spec.
+pub fn new_metropolis_test() -> Spec { load(include_bytes!("../../res/ethereum/metropolis_test.json")) }
+
 /// Create a new Foundation Ropsten chain spec.
 pub fn new_ropsten() -> Spec { load(include_bytes!("../../res/ethereum/ropsten.json")) }
 
@@ -95,8 +98,7 @@ mod tests {
 		let engine = &spec.engine;
 		let genesis_header = spec.genesis_header();
 		let db = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
-
-		let s = State::from_existing(db, genesis_header.state_root().clone(), engine.account_start_nonce(), Default::default()).unwrap();
+		let s = State::from_existing(db, genesis_header.state_root().clone(), engine.account_start_nonce(0), Default::default()).unwrap();
 		assert_eq!(s.balance(&"0000000000000000000000000000000000000001".into()).unwrap(), 1u64.into());
 		assert_eq!(s.balance(&"0000000000000000000000000000000000000002".into()).unwrap(), 1u64.into());
 		assert_eq!(s.balance(&"0000000000000000000000000000000000000003".into()).unwrap(), 1u64.into());

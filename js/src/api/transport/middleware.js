@@ -21,6 +21,10 @@ export default class Middleware {
   }
 
   register (method, handler) {
+    if (method in this._handlers) {
+      throw new Error(`${method} is already defined in the middleware!`);
+    }
+
     this._handlers[method] = handler;
   }
 

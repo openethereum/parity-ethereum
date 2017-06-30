@@ -41,6 +41,7 @@ class Accounts extends Component {
   static propTypes = {
     accounts: PropTypes.object.isRequired,
     accountsInfo: PropTypes.object.isRequired,
+    availability: PropTypes.string.isRequired,
     hasAccounts: PropTypes.bool.isRequired,
     setVisibleAccounts: PropTypes.func.isRequired
   }
@@ -53,6 +54,7 @@ class Accounts extends Component {
     newDialog: false,
     newWalletDialog: false,
     newExportDialog: false,
+    restoreDialog: false,
     sortOrder: '',
     searchValues: [],
     searchTokens: [],
@@ -96,6 +98,7 @@ class Accounts extends Component {
     return (
       <div>
         { this.renderNewDialog() }
+        { this.renderRestoreDialog() }
         { this.renderNewWalletDialog() }
         { this.renderNewExportDialog() }
         { this.renderActionbar() }
@@ -247,21 +250,7 @@ class Accounts extends Component {
 
   renderActionbar () {
     const buttons = [
-      <Link
-        to='/vaults'
-        key='vaults'
-      >
-        <Button
-          icon={ <KeyIcon /> }
-          label={
-            <FormattedMessage
-              id='accounts.button.vaults'
-              defaultMessage='vaults'
-            />
-          }
-          onClick={ this.onVaultsClick }
-        />
-      </Link>,
+      this.renderVaultsButton(),
       <Button
         key='newAccount'
         icon={ <AddIcon /> }
@@ -273,16 +262,17 @@ class Accounts extends Component {
         }
         onClick={ this.onNewAccountClick }
       />,
+      this.renderNewWalletButton(),
       <Button
-        key='newWallet'
+        key='restoreAccount'
         icon={ <AddIcon /> }
         label={
           <FormattedMessage
-            id='accounts.button.newWallet'
-            defaultMessage='wallet'
+            id='accounts.button.restoreAccount'
+            defaultMessage='restore'
           />
         }
-        onClick={ this.onNewWalletClick }
+        onClick={ this.onRestoreAccountClick }
       />,
       <Button
         key='newExport'
@@ -336,7 +326,67 @@ class Accounts extends Component {
       <CreateAccount
         accounts={ accounts }
         onClose={ this.onNewAccountClose }
-        onUpdate={ this.onNewAccountUpdate }
+      />
+    );
+  }
+
+  renderRestoreDialog () {
+    const { accounts } = this.props;
+    const { restoreDialog } = this.state;
+
+    if (!restoreDialog) {
+      return null;
+    }
+
+    return (
+      <CreateAccount
+        accounts={ accounts }
+        onClose={ this.onRestoreAccountClose }
+        restore
+      />
+    );
+  }
+
+  renderVaultsButton () {
+    if (this.props.availability !== 'personal') {
+      return null;
+    }
+
+    return (
+      <Link
+        to='/vaults'
+        key='vaults'
+      >
+        <Button
+          icon={ <KeyIcon /> }
+          label={
+            <FormattedMessage
+              id='accounts.button.vaults'
+              defaultMessage='vaults'
+            />
+          }
+          onClick={ this.onVaultsClick }
+        />
+      </Link>
+    );
+  }
+
+  renderNewWalletButton () {
+    if (this.props.availability !== 'personal') {
+      return null;
+    }
+
+    return (
+      <Button
+        key='newWallet'
+        icon={ <AddIcon /> }
+        label={
+          <FormattedMessage
+            id='accounts.button.newWallet'
+            defaultMessage='wallet'
+          />
+        }
+        onClick={ this.onNewWalletClick }
       />
     );
   }
@@ -384,6 +434,12 @@ class Accounts extends Component {
     });
   }
 
+  onRestoreAccountClick = () => {
+    this.setState({
+      restoreDialog: true
+    });
+  }
+
   onNewWalletClick = () => {
     this.setState({
       newWalletDialog: true
@@ -402,6 +458,12 @@ class Accounts extends Component {
     });
   }
 
+  onRestoreAccountClose = () => {
+    this.setState({
+      restoreDialog: false
+    });
+  }
+
   onNewWalletClose = () => {
     this.setState({
       newWalletDialog: false
@@ -412,9 +474,6 @@ class Accounts extends Component {
     this.setState({
       newExportDialog: false
     });
-  }
-
-  onNewAccountUpdate = () => {
   }
 
   onHardwareChange = () => {
@@ -436,10 +495,12 @@ class Accounts extends Component {
 
 function mapStateToProps (state) {
   const { accounts, accountsInfo, hasAccounts } = state.personal;
+  const { availability = 'unknown' } = state.nodeStatus.nodeKind || {};
 
   return {
     accounts,
     accountsInfo,
+    availability,
     hasAccounts
   };
 }

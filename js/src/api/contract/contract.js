@@ -177,19 +177,26 @@ export default class Contract {
           return null;
         }
 
-        const decoded = event.decodeLog(log.topics, log.data);
+        try {
+          const decoded = event.decodeLog(log.topics, log.data);
 
-        log.params = {};
-        log.event = event.name;
+          log.params = {};
+          log.event = event.name;
 
-        decoded.params.forEach((param, index) => {
-          const { type, value } = param.token;
-          const key = param.name || index;
+          decoded.params.forEach((param, index) => {
+            const { type, value } = param.token;
+            const key = param.name || index;
 
-          log.params[key] = { type, value };
-        });
+            log.params[key] = { type, value };
+          });
 
-        return log;
+          return log;
+        } catch (error) {
+          console.warn('Error decoding log', log);
+          console.warn(error);
+
+          return null;
+        }
       })
       .filter((log) => log);
   }

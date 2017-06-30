@@ -39,8 +39,7 @@ impl SimpleMigration for ToV6 {
 
 	fn version(&self) -> u32 { 6 }
 
-	fn simple_migrate(&mut self, key: Vec<u8>, value: Vec<u8>) -> Option<(Vec<u8>, Vec<u8>)> {
-
+	fn simple_migrate(&mut self, mut key: Vec<u8>, value: Vec<u8>) -> Option<(Vec<u8>, Vec<u8>)> {
 		//// at this version all extras keys are 33 bytes long.
 		if key.len() == 33 {
 			// block details key changes:
@@ -72,19 +71,21 @@ impl SimpleMigration for ToV6 {
 			// - index is moved to the front
 			// - index is changed 4 -> 3
 			if key[32] == 4 {
+				key.reverse();
 				// i have no idea why it was reversed
-				let reverse = key.into_iter().rev().collect::<Vec<_>>();
-				let mut result = [0u8; 6];
-				// new extras index is 3
-				result[0] = 3;
-				// 9th (+ prefix) byte was the level. Now it's second.
-				result[1] = reverse[9];
-				result[2] = reverse[4];
-				result[3] = reverse[3];
-				result[4] = reverse[2];
-				result[5] = reverse[1];
+				let reverse = key;
+				let result = vec![
+					// new extras index is 3
+					3,
+					// 9th (+ prefix) byte was the level. Now it's second.
+					reverse[9],
+					reverse[4],
+					reverse[3],
+					reverse[2],
+					reverse[1],
+				];
 
-				return Some((result.to_vec(), value));
+				return Some((result, value));
 			}
 
 			// blocks receipts key changes:

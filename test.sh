@@ -13,6 +13,10 @@ case $1 in
 	OPTIONS=""
 	shift
 	;;
+	--no-run)
+	OPTIONS="--no-run"
+	shift
+	;;
     *)
             # unknown option
     ;;

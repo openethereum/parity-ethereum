@@ -15,8 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Account management (personal) rpc implementation
-use std::sync::{Arc, Weak};
-use std::collections::BTreeMap;
+use std::sync::Arc;
+use std::collections::btree_map::{BTreeMap, Entry};
 use util::Address;
 
 use ethkey::{Brain, Generator, Secret};
@@ -27,49 +27,59 @@ use jsonrpc_core::Error;
 use v1::helpers::errors;
 use v1::helpers::accounts::unwrap_provider;
 use v1::traits::ParityAccounts;
-use v1::types::{H160 as RpcH160, H256 as RpcH256, H520 as RpcH520, DappId, Derive, DeriveHierarchical, DeriveHash};
+use v1::types::{H160 as RpcH160, H256 as RpcH256, H520 as RpcH520, DappId, Derive, DeriveHierarchical, DeriveHash, ExtAccountInfo};
 
 /// Account management (personal) rpc implementation.
 pub struct ParityAccountsClient {
-	accounts: Option<Weak<AccountProvider>>,
+	accounts: Option<Arc<AccountProvider>>,
 }
 
 impl ParityAccountsClient {
 	/// Creates new PersonalClient
 	pub fn new(store: &Option<Arc<AccountProvider>>) -> Self {
 		ParityAccountsClient {
-			accounts: store.as_ref().map(Arc::downgrade),
+			accounts: store.clone(),
 		}
 	}
 
 	/// Attempt to get the `Arc<AccountProvider>`, errors if provider was not
-	/// set, or if upgrading the weak reference failed.
+	/// set.
 	fn account_provider(&self) -> Result<Arc<AccountProvider>, Error> {
 		unwrap_provider(&self.accounts)
 	}
 }
 
 impl ParityAccounts for ParityAccountsClient {
-	fn all_accounts_info(&self) -> Result<BTreeMap<RpcH160, BTreeMap<String, String>>, Error> {
+	fn all_accounts_info(&self) -> Result<BTreeMap<RpcH160, ExtAccountInfo>, Error> {
 		let store = self.account_provider()?;
 		let info = store.accounts_info().map_err(|e| errors::account("Could not fetch account info.", e))?;
 		let other = store.addresses_info();
 
-		Ok(info
-		   .into_iter()
-		   .chain(other.into_iter())
-		   .map(|(address, v)| {
-			   let mut m = map![
-				   "name".to_owned() => v.name,
-				   "meta".to_owned() => v.meta
-			   ];
-			   if let &Some(ref uuid) = &v.uuid {
-				   m.insert("uuid".to_owned(), format!("{}", uuid));
-			   }
-			   (address.into(), m)
-		   })
-		   .collect()
-		)
+		let account_iter = info
+			.into_iter()
+			.chain(other.into_iter())
+			.map(|(address, v)| (address.into(), ExtAccountInfo {
+				name: v.name,
+				meta: v.meta,
+				uuid: v.uuid.map(|uuid| uuid.to_string())
+			}));
+
+		let mut accounts: BTreeMap<RpcH160, ExtAccountInfo> = BTreeMap::new();
+
+		for (address, account) in account_iter {
+			match accounts.entry(address) {
+				/// Insert only if occupied entry isn't already an account with UUID
+				Entry::Occupied(ref mut occupied) if occupied.get().uuid.is_none() => {
+					occupied.insert(account);
+				},
+				Entry::Vacant(vacant) => {
+					vacant.insert(account);
+				},
+				_ => {}
+			};
+		}
+
+		Ok(accounts)
 	}
 
 	fn new_account_from_phrase(&self, phrase: String, pass: String) -> Result<RpcH160, Error> {
@@ -93,7 +103,7 @@ impl ParityAccounts for ParityAccountsClient {
 	fn new_account_from_secret(&self, secret: RpcH256, pass: String) -> Result<RpcH160, Error> {
 		let store = self.account_provider()?;
 
-		let secret = Secret::from_slice(&secret.0)
+		let secret = Secret::from_unsafe_slice(&secret.0)
 			.map_err(|e| errors::account("Could not create account.", e))?;
 		store.insert_account(secret, &pass)
 			.map(Into::into)

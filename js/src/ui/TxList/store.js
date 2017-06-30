@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { action, observable } from 'mobx';
+import BigNumber from 'bignumber.js';
 
 export default class Store {
   @observable blocks = {};
@@ -119,6 +120,30 @@ export default class Store {
       .removeTransaction(hash)
       .then(() => {
         txComponent.setState({ canceled: true });
+      })
+      .catch((err) => {
+        this._onNewError({ message: err });
+      });
+  }
+
+  killTransaction = (txComponent, tx) => {
+    const { hash, gasPrice, from } = tx;
+
+    this._api.parity
+      .removeTransaction(hash)
+      .then(() => {
+        return this._api.parity.postTransaction({
+          from: from,
+          to: from,                    // set to owner
+          gas: new BigNumber(21000),   // set default gas
+          gasPrice: gasPrice.times(1.25),   // must be a minimum of 10% growth to be recognized as a replacement by miners (incentive)
+          value: new BigNumber(0),     // zero out the value
+          condition: null,             // ensure to post this instantly
+          data: '0x'
+        });
+      })
+      .then(() => {
+        tx.Component.setState({ canceled: true });
       })
       .catch((err) => {
         this._onNewError({ message: err });

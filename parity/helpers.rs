@@ -18,7 +18,7 @@ use std::{io, env};
 use std::io::{Write, BufReader, BufRead};
 use std::time::Duration;
 use std::fs::File;
-use util::{clean_0x, U256, Uint, Address, CompactionProfile};
+use util::{clean_0x, U256, Address, CompactionProfile};
 use util::journaldb::Algorithm;
 use ethcore::client::{Mode, BlockId, VMType, DatabaseCompactionProfile, ClientConfig, VerifierType};
 use ethcore::miner::{PendingSet, GasLimit, PrioritizationStrategy};
@@ -166,13 +166,12 @@ pub fn geth_ipc_path(testnet: bool) -> String {
 }
 
 /// Formats and returns parity ipc path.
-pub fn parity_ipc_path(base: &str, s: &str) -> String {
-	// Windows path should not be hardcoded here.
-	if cfg!(windows) {
-		return r"\\.\pipe\parity.jsonrpc".to_owned();
+pub fn parity_ipc_path(base: &str, path: &str, shift: u16) -> String {
+	let mut path = path.to_owned();
+	if shift != 0 {
+		path = path.replace("jsonrpc.ipc", &format!("jsonrpc-{}.ipc", shift));
 	}
-
-	replace_home(base, s)
+	replace_home(base, &path)
 }
 
 /// Validates and formats bootnodes option.

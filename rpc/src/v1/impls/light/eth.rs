@@ -39,7 +39,7 @@ use ethcore::transaction::{Action, SignedTransaction, Transaction as EthTransact
 use ethsync::LightSync;
 use rlp::UntrustedRlp;
 use util::sha3::{SHA3_NULL_RLP, SHA3_EMPTY_LIST_RLP};
-use util::{RwLock, Mutex, Uint, U256};
+use util::{RwLock, Mutex, U256};
 
 use futures::{future, Future, BoxFuture, IntoFuture};
 use futures::sync::oneshot;
@@ -58,6 +58,8 @@ use v1::types::{
 use v1::metadata::Metadata;
 
 use util::Address;
+
+const NO_INVALID_BACK_REFS: &'static str = "Fails only on invalid back-references; back-references here known to be valid; qed";
 
 /// Light client `ETH` (and filter) RPC.
 pub struct EthClient {
@@ -115,12 +117,11 @@ impl EthClient {
 			on_demand: self.on_demand.clone(),
 			sync: self.sync.clone(),
 			cache: self.cache.clone(),
-
 		}
 	}
 
-	// get a "rich" block structure
-	fn rich_block(&self, id: BlockId, include_txs: bool) -> BoxFuture<Option<RichBlock>, Error> {
+	// get a "rich" block structure. Fails on unknown block.
+	fn rich_block(&self, id: BlockId, include_txs: bool) -> BoxFuture<RichBlock, Error> {
 		let (on_demand, sync) = (self.on_demand.clone(), self.sync.clone());
 		let (client, engine) = (self.client.clone(), self.client.engine().clone());
 		let eip86_transition = self.client.eip86_transition();
@@ -153,56 +154,53 @@ impl EthClient {
 						true => BlockTransactions::Full(block.view().localized_transactions().into_iter().map(|t| Transaction::from_localized(t, eip86_transition)).collect()),
 						_ => BlockTransactions::Hashes(block.transaction_hashes().into_iter().map(Into::into).collect()),
 					},
-					extra_data: Bytes::new(header.extra_data().to_vec()),
+					extra_data: Bytes::new(header.extra_data().clone()),
 				},
 				extra_info: extra_info
 			}
 		};
 
 		// get the block itself.
-		self.fetcher().block(id).and_then(move |block| match block {
-			None => return future::ok(None).boxed(),
-			Some(block) => {
-				// then fetch the total difficulty (this is much easier after getting the block).
-				match client.score(id) {
-					Some(score) => future::ok(fill_rich(block, Some(score))).map(Some).boxed(),
-					None => {
-						// make a CHT request to fetch the chain score.
-						let req = cht::block_to_cht_number(block.number())
-							.and_then(|num| client.cht_root(num as usize))
-							.and_then(|root| request::HeaderProof::new(block.number(), root));
+		self.fetcher().block(id).and_then(move |block| {
+			// then fetch the total difficulty (this is much easier after getting the block).
+			match client.score(id) {
+				Some(score) => future::ok(fill_rich(block, Some(score))).boxed(),
+				None => {
+					// make a CHT request to fetch the chain score.
+					let req = cht::block_to_cht_number(block.number())
+						.and_then(|num| client.cht_root(num as usize))
+						.and_then(|root| request::HeaderProof::new(block.number(), root));
 
+					let req = match req {
+						Some(req) => req,
+						None => {
+							// somehow the genesis block slipped past other checks.
+							// return it now.
+							let score = client.block_header(BlockId::Number(0))
+								.expect("genesis always stored; qed")
+								.difficulty();
 
-						let req = match req {
-							Some(req) => req,
-							None => {
-								// somehow the genesis block slipped past other checks.
-								// return it now.
-								let score = client.block_header(BlockId::Number(0))
-									.expect("genesis always stored; qed")
-									.difficulty();
-
-								return future::ok(fill_rich(block, Some(score))).map(Some).boxed()
-							}
-						};
-
-						// three possible outcomes:
-						//   - network is down.
-						//   - we get a score, but our hash is non-canonical.
-						//   - we get ascore, and our hash is canonical.
-						let maybe_fut = sync.with_context(move |ctx| on_demand.hash_and_score_by_number(ctx, req));
-						match maybe_fut {
-							Some(fut) => fut.map(move |(hash, score)| {
-									let score = if hash == block.hash() {
-										Some(score)
-									} else {
-										None
-									};
-
-									Some(fill_rich(block, score))
-								}).map_err(errors::on_demand_cancel).boxed(),
-							None => return future::err(errors::network_disabled()).boxed(),
+							return future::ok(fill_rich(block, Some(score))).boxed()
 						}
+					};
+
+					// three possible outcomes:
+					//   - network is down.
+					//   - we get a score, but our hash is non-canonical.
+					//   - we get a score, and our hash is canonical.
+					let maybe_fut = sync.with_context(move |ctx| on_demand.request(ctx, req).expect(NO_INVALID_BACK_REFS));
+					match maybe_fut {
+						Some(fut) => fut
+							.map(move |(hash, score)| {
+								let score = if hash == block.hash() {
+									Some(score)
+								} else {
+									None
+								};
+
+							fill_rich(block, score)
+							}).map_err(errors::on_demand_cancel).boxed(),
+						None => return future::err(errors::network_disabled()).boxed(),
 					}
 				}
 			}
@@ -272,7 +270,7 @@ impl Eth for EthClient {
 	}
 
 	fn balance(&self, address: RpcH160, num: Trailing<BlockNumber>) -> BoxFuture<RpcU256, Error> {
-		self.fetcher().account(address.into(), num.0.into())
+		self.fetcher().account(address.into(), num.unwrap_or_default().into())
 			.map(|acc| acc.map_or(0.into(), |a| a.balance).into()).boxed()
 	}
 
@@ -281,15 +279,15 @@ impl Eth for EthClient {
 	}
 
 	fn block_by_hash(&self, hash: RpcH256, include_txs: bool) -> BoxFuture<Option<RichBlock>, Error> {
-		self.rich_block(BlockId::Hash(hash.into()), include_txs)
+		self.rich_block(BlockId::Hash(hash.into()), include_txs).map(Some).boxed()
 	}
 
 	fn block_by_number(&self, num: BlockNumber, include_txs: bool) -> BoxFuture<Option<RichBlock>, Error> {
-		self.rich_block(num.into(), include_txs)
+		self.rich_block(num.into(), include_txs).map(Some).boxed()
 	}
 
 	fn transaction_count(&self, address: RpcH160, num: Trailing<BlockNumber>) -> BoxFuture<RpcU256, Error> {
-		self.fetcher().account(address.into(), num.0.into())
+		self.fetcher().account(address.into(), num.unwrap_or_default().into())
 			.map(|acc| acc.map_or(0.into(), |a| a.nonce).into()).boxed()
 	}
 
@@ -297,15 +295,11 @@ impl Eth for EthClient {
 		let (sync, on_demand) = (self.sync.clone(), self.on_demand.clone());
 
 		self.fetcher().header(BlockId::Hash(hash.into())).and_then(move |hdr| {
-			let hdr = match hdr {
-				None => return future::ok(None).boxed(),
-				Some(hdr) => hdr,
-			};
-
 			if hdr.transactions_root() == SHA3_NULL_RLP {
 				future::ok(Some(U256::from(0).into())).boxed()
 			} else {
-				sync.with_context(|ctx| on_demand.block(ctx, request::Body::new(hdr)))
+				sync.with_context(|ctx| on_demand.request(ctx, request::Body(hdr.into())))
+					.map(|x| x.expect(NO_INVALID_BACK_REFS))
 					.map(|x| x.map(|b| Some(U256::from(b.transactions_count()).into())))
 					.map(|x| x.map_err(errors::on_demand_cancel).boxed())
 					.unwrap_or_else(|| future::err(errors::network_disabled()).boxed())
@@ -317,15 +311,11 @@ impl Eth for EthClient {
 		let (sync, on_demand) = (self.sync.clone(), self.on_demand.clone());
 
 		self.fetcher().header(num.into()).and_then(move |hdr| {
-			let hdr = match hdr {
-				None => return future::ok(None).boxed(),
-				Some(hdr) => hdr,
-			};
-
 			if hdr.transactions_root() == SHA3_NULL_RLP {
 				future::ok(Some(U256::from(0).into())).boxed()
 			} else {
-				sync.with_context(|ctx| on_demand.block(ctx, request::Body::new(hdr)))
+				sync.with_context(|ctx| on_demand.request(ctx, request::Body(hdr.into())))
+					.map(|x| x.expect(NO_INVALID_BACK_REFS))
 					.map(|x| x.map(|b| Some(U256::from(b.transactions_count()).into())))
 					.map(|x| x.map_err(errors::on_demand_cancel).boxed())
 					.unwrap_or_else(|| future::err(errors::network_disabled()).boxed())
@@ -337,15 +327,11 @@ impl Eth for EthClient {
 		let (sync, on_demand) = (self.sync.clone(), self.on_demand.clone());
 
 		self.fetcher().header(BlockId::Hash(hash.into())).and_then(move |hdr| {
-			let hdr = match hdr {
-				None => return future::ok(None).boxed(),
-				Some(hdr) => hdr,
-			};
-
 			if hdr.uncles_hash() == SHA3_EMPTY_LIST_RLP {
 				future::ok(Some(U256::from(0).into())).boxed()
 			} else {
-				sync.with_context(|ctx| on_demand.block(ctx, request::Body::new(hdr)))
+				sync.with_context(|ctx| on_demand.request(ctx, request::Body(hdr.into())))
+					.map(|x| x.expect(NO_INVALID_BACK_REFS))
 					.map(|x| x.map(|b| Some(U256::from(b.uncles_count()).into())))
 					.map(|x| x.map_err(errors::on_demand_cancel).boxed())
 					.unwrap_or_else(|| future::err(errors::network_disabled()).boxed())
@@ -357,15 +343,11 @@ impl Eth for EthClient {
 		let (sync, on_demand) = (self.sync.clone(), self.on_demand.clone());
 
 		self.fetcher().header(num.into()).and_then(move |hdr| {
-			let hdr = match hdr {
-				None => return future::ok(None).boxed(),
-				Some(hdr) => hdr,
-			};
-
 			if hdr.uncles_hash() == SHA3_EMPTY_LIST_RLP {
 				future::ok(Some(U256::from(0).into())).boxed()
 			} else {
-				sync.with_context(|ctx| on_demand.block(ctx, request::Body::new(hdr)))
+				sync.with_context(|ctx| on_demand.request(ctx, request::Body(hdr.into())))
+					.map(|x| x.expect(NO_INVALID_BACK_REFS))
 					.map(|x| x.map(|b| Some(U256::from(b.uncles_count()).into())))
 					.map(|x| x.map_err(errors::on_demand_cancel).boxed())
 					.unwrap_or_else(|| future::err(errors::network_disabled()).boxed())
@@ -495,60 +477,7 @@ impl Filterable for EthClient {
 	}
 
 	fn logs(&self, filter: EthcoreFilter) -> BoxFuture<Vec<Log>, Error> {
-		use std::collections::BTreeMap;
-
-		use futures::stream::{self, Stream};
-		use util::H2048;
-
-		// early exit for "to" block before "from" block.
-		let best_number = self.client.chain_info().best_block_number;
-		let block_number = |id| match id {
-			BlockId::Earliest => Some(0),
-			BlockId::Latest | BlockId::Pending => Some(best_number),
-			BlockId::Hash(h) => self.client.block_header(BlockId::Hash(h)).map(|hdr| hdr.number()),
-			BlockId::Number(x) => Some(x),
-		};
-
-		match (block_number(filter.to_block), block_number(filter.from_block)) {
-			(Some(to), Some(from)) if to < from => return future::ok(Vec::new()).boxed(),
-			(Some(_), Some(_)) => {},
-			_ => return future::err(errors::unknown_block()).boxed(),
-		}
-
-		let maybe_future = self.sync.with_context(move |ctx| {
-			// find all headers which match the filter, and fetch the receipts for each one.
-			// match them with their numbers for easy sorting later.
-			let bit_combos = filter.bloom_possibilities();
-			let receipts_futures: Vec<_> = self.client.ancestry_iter(filter.to_block)
-				.take_while(|ref hdr| BlockId::Number(hdr.number()) != filter.from_block)
-				.take_while(|ref hdr| BlockId::Hash(hdr.hash()) != filter.from_block)
-				.filter(|ref hdr| {
-					let hdr_bloom = hdr.log_bloom();
-					bit_combos.iter().find(|&bloom| hdr_bloom & *bloom == *bloom).is_some()
-				})
-				.map(|hdr| (hdr.number(), request::BlockReceipts(hdr)))
-				.map(|(num, req)| self.on_demand.block_receipts(ctx, req).map(move |x| (num, x)))
-				.collect();
-
-			// as the receipts come in, find logs within them which match the filter.
-			// insert them into a BTreeMap to maintain order by number and block index.
-			stream::futures_unordered(receipts_futures)
-				.fold(BTreeMap::new(), move |mut matches, (num, receipts)| {
-					for (block_index, log) in receipts.into_iter().flat_map(|r| r.logs).enumerate() {
-						if filter.matches(&log) {
-							matches.insert((num, block_index), log.into());
-						}
-					}
-					future::ok(matches)
-				}) // and then collect them into a vector.
-				.map(|matches| matches.into_iter().map(|(_, v)| v).collect())
-				.map_err(errors::on_demand_cancel)
-		});
-
-		match maybe_future {
-			Some(fut) => fut.boxed(),
-			None => future::err(errors::network_disabled()).boxed(),
-		}
+		self.fetcher().logs(filter)
 	}
 
 	fn pending_logs(&self, _block_number: u64, _filter: &EthcoreFilter) -> Vec<Log> {

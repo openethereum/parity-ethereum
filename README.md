@@ -53,7 +53,7 @@ below to build from source.
 
 ## Build dependencies
 
-**Parity requires Rust version 1.16.0 to build**
+**Parity requires Rust version 1.18.0 to build**
 
 We recommend installing Rust through [rustup](https://www.rustup.rs/). If you don't already have rustup, you can install it like this:
 
@@ -86,6 +86,18 @@ Once you have rustup, install parity or download and build from source
 ```bash
 cargo install --git https://github.com/paritytech/parity.git parity
 ```
+
+----
+
+## Install from the snap store
+
+In any of the [supported Linux distros](https://snapcraft.io/docs/core/install):
+
+```bash
+sudo snap install parity --edge
+```
+
+(Note that this is an experimental and unstable release, at the moment)
 
 ----
 

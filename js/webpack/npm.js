@@ -53,9 +53,6 @@ module.exports = {
     'node-fetch': 'node-fetch'
   },
   module: {
-    noParse: [
-      /babel-polyfill/
-    ],
     rules: [
       {
         test: /(\.jsx|\.js)$/,
@@ -73,7 +70,9 @@ module.exports = {
       }
     ]
   },
-
+  node: {
+    fs: 'empty'
+  },
   resolve: {
     alias: {
       '~': path.resolve(__dirname, '../src')

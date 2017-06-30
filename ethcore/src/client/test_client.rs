@@ -55,7 +55,7 @@ pub struct TestBlockChainClient {
 	/// Blocks.
 	pub blocks: RwLock<HashMap<H256, Bytes>>,
 	/// Mapping of numbers to hashes.
- 	pub numbers: RwLock<HashMap<usize, H256>>,
+	pub numbers: RwLock<HashMap<usize, H256>>,
 	/// Genesis block hash.
 	pub genesis_hash: H256,
 	/// Last block hash.
@@ -353,7 +353,7 @@ pub fn get_temp_state_db() -> GuardedTempResult<StateDB> {
 
 impl MiningBlockChainClient for TestBlockChainClient {
 	fn latest_schedule(&self) -> Schedule {
-		Schedule::new_post_eip150(24576, true, true, true, true)
+		Schedule::new_post_eip150(24576, true, true, true)
 	}
 
 	fn prepare_open_block(&self, author: Address, gas_range_target: (U256, U256), extra_data: Bytes) -> OpenBlock {
@@ -372,7 +372,8 @@ impl MiningBlockChainClient for TestBlockChainClient {
 			Arc::new(last_hashes),
 			author,
 			gas_range_target,
-			extra_data
+			extra_data,
+			false,
 		).expect("Opening block for tests will not fail.");
 		// TODO [todr] Override timestamp for predictability (set_timestamp_now kind of sucks)
 		open_block.set_timestamp(*self.latest_block_timestamp.read());
@@ -413,7 +414,7 @@ impl BlockChainClient for TestBlockChainClient {
 
 	fn nonce(&self, address: &Address, id: BlockId) -> Option<U256> {
 		match id {
-			BlockId::Latest => Some(self.nonces.read().get(address).cloned().unwrap_or(self.spec.params.account_start_nonce)),
+			BlockId::Latest => Some(self.nonces.read().get(address).cloned().unwrap_or(self.spec.params().account_start_nonce)),
 			_ => None,
 		}
 	}
@@ -747,7 +748,7 @@ impl BlockChainClient for TestBlockChainClient {
 			value: U256::default(),
 			data: data,
 		};
-		let network_id = Some(self.spec.params.network_id);
+		let network_id = Some(self.spec.params().network_id);
 		let sig = self.spec.engine.sign(transaction.hash(network_id)).unwrap();
 		let signed = SignedTransaction::new(transaction.with_signature(sig, network_id)).unwrap();
 		self.miner.import_own_transaction(self, signed.into())
@@ -786,4 +787,8 @@ impl EngineClient for TestBlockChainClient {
 	}
 
 	fn broadcast_consensus_message(&self, _message: Bytes) {}
+
+	fn epoch_transition_for(&self, _block_hash: H256) -> Option<::engines::EpochTransition> {
+		None
+	}
 }

@@ -24,6 +24,7 @@ mod bytes;
 mod call_request;
 mod confirmations;
 mod consensus_status;
+mod dapps;
 mod derivation;
 mod filter;
 mod hash;
@@ -43,7 +44,9 @@ mod transaction_condition;
 mod uint;
 mod work;
 
-pub use self::account_info::{AccountInfo, HwAccountInfo};
+pub mod pubsub;
+
+pub use self::account_info::{AccountInfo, ExtAccountInfo, HwAccountInfo};
 pub use self::bytes::Bytes;
 pub use self::block::{RichBlock, Block, BlockTransactions, Header, RichHeader, Rich};
 pub use self::block_number::BlockNumber;
@@ -53,6 +56,7 @@ pub use self::confirmations::{
 	TransactionModification, SignRequest, DecryptRequest, Either
 };
 pub use self::consensus_status::*;
+pub use self::dapps::LocalDapp;
 pub use self::derivation::{DeriveHash, DeriveHierarchical, Derive};
 pub use self::filter::{Filter, FilterChanges};
 pub use self::hash::{H64, H160, H256, H512, H520, H2048};

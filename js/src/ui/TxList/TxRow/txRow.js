@@ -47,7 +47,8 @@ class TxRow extends Component {
     className: PropTypes.string,
     cancelTransaction: PropTypes.func,
     editTransaction: PropTypes.func,
-    historic: PropTypes.bool
+    historic: PropTypes.bool,
+    killTransaction: PropTypes.func
   };
 
   static defaultProps = {
@@ -210,31 +211,36 @@ class TxRow extends Component {
 
     if (!isCancelOpen && !isEditOpen) {
       const pendingStatus = this.getCondition();
+      const isPending = pendingStatus === 'pending';
 
-      if (pendingStatus === 'submitting') {
-        return (
-          <div className={ styles.pending }>
-            <div />
-            <div className={ styles.uppercase }>
-              <FormattedMessage
-                id='ui.txList.txRow.submitting'
-                defaultMessage='Submitting'
-              />
-            </div>
-          </div>
-        );
-      }
       return (
         <div className={ styles.pending }>
-          <span>
-            { pendingStatus }
-          </span>
-          <div className={ styles.uppercase }>
-            <FormattedMessage
-              id='ui.txList.txRow.scheduled'
-              defaultMessage='Scheduled'
-            />
-          </div>
+          {
+            isPending
+            ? (
+              <div className={ styles.pending }>
+                <div />
+                <div className={ styles.uppercase }>
+                  <FormattedMessage
+                    id='ui.txList.txRow.submitting'
+                    defaultMessage='Pending'
+                  />
+                </div>
+              </div>
+            ) : (
+              <div>
+                <span>
+                  { pendingStatus }
+                </span>
+                <div className={ styles.uppercase }>
+                  <FormattedMessage
+                    id='ui.txList.txRow.scheduled'
+                    defaultMessage='Scheduled'
+                  />
+                </div>
+              </div>
+            )
+          }
           <a onClick={ this.setEdit } className={ styles.uppercase }>
             <FormattedMessage
               id='ui.txList.txRow.edit'
@@ -248,6 +254,16 @@ class TxRow extends Component {
               defaultMessage='Cancel'
             />
           </a>
+          { isPending
+            ? (
+              <div>
+                <FormattedMessage
+                  id='ui.txList.txRow.cancelWarning'
+                  defaultMessage='Warning: Editing or Canceling the transaction may not succeed!'
+                />
+              </div>
+            ) : null
+          }
         </div>
       );
     }
@@ -319,11 +335,10 @@ class TxRow extends Component {
 
   getCondition = () => {
     const { blockNumber, tx } = this.props;
-    let { time, block } = tx.condition;
+    let { time, block = 0 } = tx.condition || {};
 
     if (time) {
       if ((time.getTime() - Date.now()) >= 0) {
-        // return `${dateDifference(new Date(), time, { compact: true })} left`;
         return (
           <FormattedMessage
             id='ui.txList.txRow.pendingStatus.time'
@@ -333,14 +348,11 @@ class TxRow extends Component {
             } }
           />
         );
-      } else {
-        return 'submitting';
       }
-    } else if (blockNumber) {
+    }
+
+    if (blockNumber) {
       block = blockNumber.minus(block);
-      // return (block.toNumber() < 0)
-      //   ? block.abs().toFormat(0) + ' blocks left'
-      //   : 'submitting';
       if (block.toNumber() < 0) {
         return (
           <FormattedMessage
@@ -351,14 +363,27 @@ class TxRow extends Component {
             } }
           />
         );
-      } else {
-        return 'submitting';
       }
     }
+
+    return 'pending';
+  }
+
+  killTx = () => {
+    const { killTransaction, tx } = this.props;
+
+    killTransaction(this, tx);
   }
 
   cancelTx = () => {
     const { cancelTransaction, tx } = this.props;
+    const pendingStatus = this.getCondition();
+    const isPending = pendingStatus === 'pending';
+
+    if (isPending) {
+      this.killTx();
+      return;
+    }
 
     cancelTransaction(this, tx);
   }

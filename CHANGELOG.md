@@ -1,3 +1,69 @@
+## Parity [v1.6.8](https://github.com/paritytech/parity/releases/tag/v1.6.8) (2017-06-08)
+
+This release addresses:
+
+- a rare condition where quickly creating a new account was generating an account not matching the recovery phrase.
+- compressed RLP strings caused wrong/empty transaction receipts on Classic network.
+- blacklisting the _empty phrase_ account from UI and RPC on non-development chains. See also [this blog post](https://blog.parity.io/restoring-blank-seed-phrase/).
+- canceling transactions that didn't have a condition.
+- the updated Expanse fork block and chain ID.
+
+Full changelog:
+
+- Backporting to beta [#5791](https://github.com/paritytech/parity/pull/5791)
+  - Bump to v1.6.8
+  - Update expanse json with fork at block 600000 [#5351](https://github.com/paritytech/parity/pull/5351)
+    - Update expanse json with fork at block 600000
+    - Update exp chainID to 2
+  - Bumped mio [#5763](https://github.com/paritytech/parity/pull/5763)
+  - Fixed default UI port for mac installer [#5782](https://github.com/paritytech/parity/pull/5782)
+  - Blacklist empty phrase account. [#5730](https://github.com/paritytech/parity/pull/5730)
+  - Update Cid/multihash/ring/tinykeccak [#5785](https://github.com/paritytech/parity/pull/5785)
+    - Updating ring,multihash,tiny-keccak
+    - Updating CID in ipfs.
+  - Disable compression for RLP strings [#5786](https://github.com/paritytech/parity/pull/5786)
+- Beta Backports [#5789](https://github.com/paritytech/parity/pull/5789)
+  - Fix local transactions without condition. [#5716](https://github.com/paritytech/parity/pull/5716)
+  - Block invalid account name creation [#5784](https://github.com/paritytech/parity/pull/5784)
+    - Additional non-empty phrase check (fromNew)
+    - Explicit canCreate check in create (not only on UI)
+    - BN instance check (fixes Geth imports)
+    - Fixup tests after better checks
+  - Recover from empty phrase in dev mode [#5698](https://github.com/paritytech/parity/pull/5698)
+    - Add dev chain to isTest
+    - Fix signer
+    - Fix no condition transactions
+    - Fix case: old parity
+    - Fix propTypes.
+
+## Parity [v1.6.7](https://github.com/paritytech/parity/releases/tag/v1.6.7) (2017-05-18)
+
+This release addresses:
+
+- potential usability issues with [import and recovery of existing accounts](https://blog.parity.io/restoring-blank-seed-phrase/).
+- canceling scheduled transactions via RPC or UI.
+- warp sync issues with the Kovan network.
+
+Full changelog:
+
+- Backporting to beta [#5657](https://github.com/paritytech/parity/pull/5657)
+  - Add CHANGELOG.md [#5513](https://github.com/paritytech/parity/pull/5513)
+  - Reorg into blocks before minimum history [#5558](https://github.com/paritytech/parity/pull/5558)
+  - Bump to v1.6.7
+- Cancel Transaction [#5656](https://github.com/paritytech/parity/pull/5656)
+  - option to disable persistent txqueue [#5544](https://github.com/paritytech/parity/pull/5544)
+  - Remove transaction RPC [#4949](https://github.com/paritytech/parity/pull/4949)
+  - Cancel tx JS [#4958](https://github.com/paritytech/parity/pull/4958)
+  - Updating documentation for RPCs [#5392](https://github.com/paritytech/parity/pull/5392)
+- Backport Recover button [#5654](https://github.com/paritytech/parity/pull/5654)
+  - Backport [#5645](https://github.com/paritytech/parity/pull/5645)
+- Add monotonic step to Kovan [#5630](https://github.com/paritytech/parity/pull/5630)
+  - Add monotonic transition to kovan [#5587](https://github.com/paritytech/parity/pull/5587)
+- Fix ethsign [#5600](https://github.com/paritytech/parity/pull/5600)
+- Registry backports [#5445](https://github.com/paritytech/parity/pull/5445)
+  - Fixes to the Registry dapp [#4984](https://github.com/paritytech/parity/pull/4984)
+  - Fix references to api outside of `parity.js` [#4981](https://github.com/paritytech/parity/pull/4981)
+
 ## Parity [v1.6.6](https://github.com/paritytech/parity/releases/tag/v1.6.6) (2017-04-11)
 
 This release brings warp sync support for kovan network.

@@ -27,7 +27,7 @@ use light::client::Client;
 use light::on_demand::{request, OnDemand};
 use light::TransactionQueue;
 
-use futures::{future, stream, Future, Stream};
+use futures::{future, Future};
 
 use parity_reactor::Remote;
 
@@ -67,30 +67,38 @@ impl IoHandler<ClientIoMessage> for QueueCull {
 
 		let (sync, on_demand, txq) = (self.sync.clone(), self.on_demand.clone(), self.txq.clone());
 		let best_header = self.client.best_block_header();
+		let start_nonce = self.client.engine().account_start_nonce(best_header.number());
 
 		info!(target: "cull", "Attempting to cull queued transactions from {} senders.", senders.len());
 		self.remote.spawn_with_timeout(move || {
 			let maybe_fetching = sync.with_context(move |ctx| {
 				// fetch the nonce of each sender in the queue.
-				let nonce_futures = senders.iter()
-					.map(|&address| request::Account { header: best_header.clone(), address: address })
-					.map(|request| on_demand.account(ctx, request).map(|acc| acc.nonce))
-					.zip(senders.iter())
-					.map(|(fut, &addr)| fut.map(move |nonce| (addr, nonce)));
+				let nonce_reqs = senders.iter()
+					.map(|&address| request::Account { header: best_header.clone().into(), address: address })
+					.collect::<Vec<_>>();
 
-				// as they come in, update each sender to the new nonce.
-				stream::futures_unordered(nonce_futures)
-					.fold(txq, |txq, (address, nonce)| {
-						txq.write().cull(address, nonce);
-						future::ok(txq)
+				// when they come in, update each sender to the new nonce.
+				on_demand.request(ctx, nonce_reqs)
+					.expect("No back-references; therefore all back-references are valid; qed")
+					.map(move |accs| {
+						let txq = txq.write();
+						let _ = accs.into_iter()
+							.map(|maybe_acc| maybe_acc.map_or(start_nonce, |acc| acc.nonce))
+							.zip(senders)
+							.fold(txq, |mut txq, (nonce, addr)| {
+								txq.cull(addr, nonce);
+								txq
+							});
 					})
-					.map(|_| ()) // finally, discard the txq handle and log errors.
 					.map_err(|_| debug!(target: "cull", "OnDemand prematurely closed channel."))
 			});
 
 			match maybe_fetching {
 				Some(fut) => fut.boxed(),
-				None => future::ok(()).boxed(),
+				None => {
+					debug!(target: "cull", "Unable to acquire network context; qed");
+					future::ok(()).boxed()
+				}
 			}
 		}, Duration::from_millis(PURGE_TIMEOUT_MS), || {})
 	}
