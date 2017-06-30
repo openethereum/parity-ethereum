@@ -1,0 +1,14 @@
+[package]
+name = "ethkey-cli"
+version = "0.1.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+
+[dependencies]
+ethkey = { path = "../" }
+rustc-serialize = "0.3"
+docopt = "0.7"
+
+[[bin]]
+name = "ethkey"
+path = "src/main.rs"
+doc = false

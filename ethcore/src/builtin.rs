@@ -111,7 +111,7 @@ impl Builtin {
 	pub fn cost(&self, input: &[u8]) -> U256 { self.pricer.cost(input) }
 
 	/// Simple forwarder for execute.
-	pub fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), Error> { 
+	pub fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), Error> {
 		self.native.execute(input, output)
 	}
 
@@ -288,9 +288,11 @@ impl Impl for ModexpImpl {
 		let exp = read_num(exp_len);
 		let modulus = read_num(mod_len);
 
-		// calculate modexp: exponentiation by squaring.
+		// calculate modexp: exponentiation by squaring. the `num` crate has pow, but not modular.
 		fn modexp(mut base: BigUint, mut exp: BigUint, modulus: BigUint) -> BigUint {
-			match (base == BigUint::zero(), exp == BigUint::zero()) {
+			use num::Integer;
+
+			match (base.is_zero(), exp.is_zero()) {
 				(_, true) => return BigUint::one(), // n^0 % m
 				(true, false) => return BigUint::zero(), // 0^n % m, n>0
 				(false, false) if modulus <= BigUint::one() => return BigUint::zero(), // a^b % 1 = 0.
@@ -301,10 +303,9 @@ impl Impl for ModexpImpl {
 			base = base % &modulus;
 
 			// fast path for base divisible by modulus.
-			if base == BigUint::zero() { return result }
-			while exp != BigUint::zero() {
-				// exp has to be on the right here to avoid move.
-				if BigUint::one() & &exp == BigUint::one() {
+			if base.is_zero() { return result }
+			while !exp.is_zero() {
+				if exp.is_odd() {
 					result = (result * &base) % &modulus;
 				}
 
@@ -331,22 +332,22 @@ impl Impl for ModexpImpl {
 
 fn read_fr(reader: &mut io::Chain<&[u8], io::Repeat>) -> Result<::bn::Fr, Error> {
 	let mut buf = [0u8; 32];
-	
+
 	reader.read_exact(&mut buf[..]).expect("reading from zero-extended memory cannot fail; qed");
 	::bn::Fr::from_slice(&buf[0..32]).map_err(|_| Error::from("Invalid field element"))
 }
 
 fn read_point(reader: &mut io::Chain<&[u8], io::Repeat>) -> Result<::bn::G1, Error> {
 	use bn::{Fq, AffineG1, G1, Group};
-	
+
 	let mut buf = [0u8; 32];
-	
+
 	reader.read_exact(&mut buf[..]).expect("reading from zero-extended memory cannot fail; qed");
 	let px = Fq::from_slice(&buf[0..32]).map_err(|_| Error::from("Invalid point x coordinate"))?;
 
 	reader.read_exact(&mut buf[..]).expect("reading from zero-extended memory cannot fail; qed");
 	let py = Fq::from_slice(&buf[0..32]).map_err(|_| Error::from("Invalid point x coordinate"))?;
-	
+
 	Ok(
 		if px == Fq::zero() && py == Fq::zero() {
 			G1::zero()
@@ -374,7 +375,7 @@ impl Impl for Bn128AddImpl {
 		output.write(0, &write_buf);
 
 		Ok(())
-	}	
+	}
 }
 
 impl Impl for Bn128MulImpl {
@@ -394,7 +395,7 @@ impl Impl for Bn128MulImpl {
 		}
 		output.write(0, &write_buf);
 		Ok(())
-	}	
+	}
 }
 
 mod bn128_gen {
@@ -420,13 +421,13 @@ mod bn128_gen {
 					.expect("a valid field element"),
 				Fq::from_str("4082367875863433681332203403145435568316851327593401208105741076214120093531")
 					.expect("a valid field element"),
-			),			
+			),
 		).expect("the generator P2(10857046999023057135944570762232829481370756359578518086990519993285655852781 + 11559732032986387107991004021392285783925812861821192530917403151452391805634i, 8495653923123431417604973247489272438418190587263600148770280649306958101930 + 4082367875863433681332203403145435568316851327593401208105741076214120093531i) is a valid curve point"));
-	}	
+	}
 
 	lazy_static! {
 		pub static ref P1_P2_PAIRING: Gt = pairing(P1.clone(), P2.clone());
-	}		
+	}
 }
 
 impl Impl for Bn128PairingImpl {
@@ -438,8 +439,8 @@ impl Impl for Bn128PairingImpl {
 		use bn::{AffineG1, AffineG2, Fq, Fq2, pairing, G1, G2, Gt};
 
 		let elements = input.len() / 192; // (a, b_a, b_b - each 64-byte affine coordinates)
-		if input.len() % 192 != 0 { 
-			return Err("Invalid input length, must be multiple of 192 (3 * (32*2))".into()) 
+		if input.len() % 192 != 0 {
+			return Err("Invalid input length, must be multiple of 192 (3 * (32*2))".into())
 		}
 		let ret_val = if input.len() == 0 {
 			U256::one()
@@ -459,11 +460,11 @@ impl Impl for Bn128PairingImpl {
 					.map_err(|_| Error::from("Invalid b argument imaginary coeff y coordinate"))?;
 
 				let b_a_x = Fq::from_slice(&input[idx*192+128..idx*192+160])
-					.map_err(|_| Error::from("Invalid b argument real coeff x coordinate"))?;					
+					.map_err(|_| Error::from("Invalid b argument real coeff x coordinate"))?;
 
 				let b_a_y = Fq::from_slice(&input[idx*192+160..idx*192+192])
-					.map_err(|_| Error::from("Invalid b argument real coeff y coordinate"))?;					
-				
+					.map_err(|_| Error::from("Invalid b argument real coeff y coordinate"))?;
+
 				vals.push((
 					G1::from(
 						AffineG1::new(a_x, a_y).map_err(|_| Error::from("Invalid a argument - not on curve"))?
@@ -719,7 +720,7 @@ mod tests {
 			pricer: Box::new(Linear { base: 0, word: 0 }),
 			native: ethereum_builtin("bn128_add"),
 			activate_at: 0,
-		};		
+		};
 
 		// zero-points additions
 		{
@@ -738,7 +739,7 @@ mod tests {
 
 			f.execute(&input[..], &mut BytesRef::Fixed(&mut output[..])).expect("Builtin should not fail");
 			assert_eq!(output, expected);
-		}		
+		}
 
 
 		// no input, should not fail
@@ -754,7 +755,7 @@ mod tests {
 
 			f.execute(&input[..], &mut BytesRef::Fixed(&mut output[..])).expect("Builtin should not fail");
 			assert_eq!(output, expected);
-		}				
+		}
 
 		// should fail - point not on curve
 		{
@@ -769,7 +770,7 @@ mod tests {
 
 			let res = f.execute(&input[..], &mut BytesRef::Fixed(&mut output[..]));
 			assert!(res.is_err(), "There should be built-in error here");
-		}		
+		}
 	}
 
 
@@ -781,7 +782,7 @@ mod tests {
 			pricer: Box::new(Linear { base: 0, word: 0 }),
 			native: ethereum_builtin("bn128_mul"),
 			activate_at: 0,
-		};		
+		};
 
 		// zero-point multiplication
 		{
@@ -799,7 +800,7 @@ mod tests {
 
 			f.execute(&input[..], &mut BytesRef::Fixed(&mut output[..])).expect("Builtin should not fail");
 			assert_eq!(output, expected);
-		}		
+		}
 
 		// should fail - point not on curve
 		{
@@ -813,7 +814,7 @@ mod tests {
 
 			let res = f.execute(&input[..], &mut BytesRef::Fixed(&mut output[..]));
 			assert!(res.is_err(), "There should be built-in error here");
-		}		
+		}
 	}
 
 	fn builtin_pairing() -> Builtin {
@@ -826,12 +827,12 @@ mod tests {
 
 	fn empty_test(f: Builtin, expected: Vec<u8>) {
 		let mut empty = [0u8; 0];
-		let input = BytesRef::Fixed(&mut empty);		
+		let input = BytesRef::Fixed(&mut empty);
 
 		let mut output = vec![0u8; expected.len()];
 
 		f.execute(&input[..], &mut BytesRef::Fixed(&mut output[..])).expect("Builtin should not fail");
-		assert_eq!(output, expected);		
+		assert_eq!(output, expected);
 	}
 
 	fn error_test(f: Builtin, input: &[u8], msg_contains: Option<&str>) {
@@ -851,12 +852,12 @@ mod tests {
 	fn bytes(s: &'static str) -> Vec<u8> {
 		FromHex::from_hex(s).expect("static str should contain valid hex bytes")
 	}
-	
+
 	#[test]
 	fn bn128_pairing_empty() {
 		// should not fail, because empty input is a valid input of 0 elements
 		empty_test(
-			builtin_pairing(), 
+			builtin_pairing(),
 			bytes("0000000000000000000000000000000000000000000000000000000000000001"),
 		);
 	}
@@ -890,7 +891,7 @@ mod tests {
 			),
 			Some("Invalid input length"),
 		);
-	}	
+	}
 
 	#[test]
 	#[should_panic]

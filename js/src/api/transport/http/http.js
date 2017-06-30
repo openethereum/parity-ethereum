@@ -93,8 +93,8 @@ export default class Http extends JsonRpcBase {
 
     this
       .execute('net_listening')
-      .then(nextTimeout)
-      .catch(nextTimeout);
+      .then(() => nextTimeout())
+      .catch(() => nextTimeout());
   }
 
   set url (url) {

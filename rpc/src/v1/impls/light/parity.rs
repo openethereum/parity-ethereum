@@ -98,7 +98,7 @@ impl Parity for ParityClient {
 	type Metadata = Metadata;
 
 	fn accounts_info(&self, dapp: Trailing<DappId>) -> Result<BTreeMap<H160, AccountInfo>, Error> {
-		let dapp = dapp.0;
+		let dapp = dapp.unwrap_or_default();
 
 		let store = &self.accounts;
 		let dapp_accounts = store
@@ -383,7 +383,7 @@ impl Parity for ParityClient {
 			}
 		};
 
-		self.fetcher().header(number.0.into()).map(from_encoded).boxed()
+		self.fetcher().header(number.unwrap_or_default().into()).map(from_encoded).boxed()
 	}
 
 	fn ipfs_cid(&self, content: Bytes) -> Result<String, Error> {

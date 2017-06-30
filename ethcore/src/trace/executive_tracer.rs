@@ -192,7 +192,7 @@ impl ExecutiveVMTracer {
 }
 
 impl VMTracer for ExecutiveVMTracer {
-	fn trace_prepare_execute(&mut self, pc: usize, instruction: u8, _stack_pop: usize, gas_cost: &U256) -> bool {
+	fn trace_prepare_execute(&mut self, pc: usize, instruction: u8, gas_cost: &U256) -> bool {
 		self.data.operations.push(VMOperation {
 			pc: pc,
 			instruction: instruction,
@@ -221,7 +221,7 @@ impl VMTracer for ExecutiveVMTracer {
 		}}
 	}
 
-	fn done_subtrace(&mut self, sub: Self) {
+	fn done_subtrace(&mut self, sub: Self, _is_successful: bool) {
 		self.data.subs.push(sub.data);
 	}
 

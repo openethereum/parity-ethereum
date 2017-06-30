@@ -22,6 +22,7 @@ use util::RwLock;
 
 use futures::{self, BoxFuture, Future, Stream, Sink};
 use jsonrpc_core::{self as core, Error, MetaIoHandler};
+use jsonrpc_macros::Trailing;
 use jsonrpc_macros::pubsub::Subscriber;
 use jsonrpc_pubsub::SubscriptionId;
 use tokio_timer;
@@ -55,16 +56,27 @@ impl<S: core::Middleware<Metadata>> PubSubClient<S> {
 		);
 
 		PubSubClient {
-			poll_manager: poll_manager,
-			remote: remote,
+			poll_manager,
+			remote,
 		}
+	}
+}
+
+impl PubSubClient<core::NoopMiddleware> {
+	/// Creates new `PubSubClient` with deterministic ids.
+	#[cfg(test)]
+	pub fn new_test(rpc: MetaIoHandler<Metadata, core::NoopMiddleware>, remote: Remote) -> Self {
+		let client = Self::new(MetaIoHandler::with_middleware(Default::default()), remote);
+		*client.poll_manager.write() = GenericPollManager::new_test(rpc);
+		client
 	}
 }
 
 impl<S: core::Middleware<Metadata>> PubSub for PubSubClient<S> {
 	type Metadata = Metadata;
 
-	fn parity_subscribe(&self, mut meta: Metadata, subscriber: Subscriber<core::Value>, method: String, params: core::Params) {
+	fn parity_subscribe(&self, mut meta: Metadata, subscriber: Subscriber<core::Value>, method: String, params: Trailing<core::Params>) {
+		let params = params.unwrap_or(core::Params::Array(vec![]));
 		// Make sure to get rid of PubSub session otherwise it will never be dropped.
 		meta.session = None;
 
@@ -72,13 +84,7 @@ impl<S: core::Middleware<Metadata>> PubSub for PubSubClient<S> {
 		let (id, receiver) = poll_manager.subscribe(meta, method, params);
 		match subscriber.assign_id(id.clone()) {
 			Ok(sink) => {
-				self.remote.spawn(receiver.map(|res| match res {
-					Ok(val) => val,
-					Err(error) => {
-						warn!(target: "pubsub", "Subscription error: {:?}", error);
-						core::Value::Null
-					},
-				}).forward(sink.sink_map_err(|e| {
+				self.remote.spawn(receiver.forward(sink.sink_map_err(|e| {
 					warn!("Cannot send notification: {:?}", e);
 				})).map(|_| ()));
 			},

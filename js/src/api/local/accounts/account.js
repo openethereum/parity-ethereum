@@ -17,9 +17,9 @@
 import { createKeyObject, decryptPrivateKey } from '../ethkey';
 
 export default class Account {
-  constructor (persist, data) {
+  constructor (persist, data = {}) {
     const {
-      keyObject,
+      keyObject = null,
       meta = {},
       name = ''
     } = data;
@@ -39,6 +39,15 @@ export default class Account {
 
         return true;
       });
+  }
+
+  export () {
+    const exported = Object.assign({}, this._keyObject);
+
+    exported.meta = JSON.stringify(this._meta);
+    exported.name = this._name;
+
+    return exported;
   }
 
   get address () {
@@ -66,6 +75,10 @@ export default class Account {
   }
 
   get uuid () {
+    if (!this._keyObject) {
+      return null;
+    }
+
     return this._keyObject.id;
   }
 

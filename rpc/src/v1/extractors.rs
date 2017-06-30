@@ -51,10 +51,10 @@ impl HttpMetaExtractor for RpcExtractor {
 }
 
 impl ipc::MetaExtractor<Metadata> for RpcExtractor {
-	fn extract(&self, _req: &ipc::RequestContext) -> Metadata {
+	fn extract(&self, req: &ipc::RequestContext) -> Metadata {
 		let mut metadata = Metadata::default();
-		// TODO [ToDr] Extract proper session id when it's available in context.
-		metadata.origin = Origin::Ipc(1.into());
+		metadata.origin = Origin::Ipc(req.session_id.into());
+		metadata.session = Some(Arc::new(Session::new(req.sender.clone())));
 		metadata
 	}
 }
@@ -77,11 +77,11 @@ impl ws::MetaExtractor<Metadata> for WsExtractor {
 	fn extract(&self, req: &ws::RequestContext) -> Metadata {
 		let mut metadata = Metadata::default();
 		let id = req.session_id as u64;
-		// TODO [ToDr] Extract dapp from Origin
-		let dapp = "".into();
+
+		let dapp = req.origin.as_ref().map(|origin| (&**origin).into()).unwrap_or_default();
 		metadata.origin = match self.authcodes_path {
 			Some(ref path) => {
-				let authorization = req.protocols.get(0).and_then(|p| auth_token_hash(&path, p));
+				let authorization = req.protocols.get(0).and_then(|p| auth_token_hash(&path, p, true));
 				match authorization {
 					Some(id) => Origin::Signer { session: id.into(), dapp: dapp },
 					None => Origin::Ws { session: id.into(), dapp: dapp },
@@ -117,7 +117,7 @@ impl ws::RequestMiddleware for WsExtractor {
 		let protocols = req.protocols().ok().unwrap_or_else(Vec::new);
 		if let Some(ref path) = self.authcodes_path {
 			if protocols.len() == 1 {
-				let authorization = auth_token_hash(&path, protocols[0]);
+				let authorization = auth_token_hash(&path, protocols[0], false);
 				if authorization.is_none() {
 					warn!(
 						"Blocked connection from {} using invalid token.",
@@ -140,9 +140,12 @@ fn add_security_headers(res: &mut ws::ws::Response) {
 	headers.push(("X-Frame-Options".into(), b"SAMEORIGIN".to_vec()));
 	headers.push(("X-XSS-Protection".into(), b"1; mode=block".to_vec()));
 	headers.push(("X-Content-Type-Options".into(), b"nosniff".to_vec()));
+	headers.push(("Content-Security-Policy".into(),
+		b"default-src 'self';form-action 'none';block-all-mixed-content;sandbox allow-scripts;".to_vec()
+	));
 }
 
-fn auth_token_hash(codes_path: &Path, protocol: &str) -> Option<H256> {
+fn auth_token_hash(codes_path: &Path, protocol: &str, save_file: bool) -> Option<H256> {
 	let mut split = protocol.split('_');
 	let auth = split.next().and_then(|v| v.parse().ok());
 	let time = split.next().and_then(|v| u64::from_str_radix(v, 10).ok());
@@ -156,9 +159,12 @@ fn auth_token_hash(codes_path: &Path, protocol: &str) -> Option<H256> {
 				codes.clear_garbage();
 
 				let res = codes.is_valid(&auth, time);
-				// make sure to save back authcodes - it might have been modified
-				if codes.to_file(codes_path).is_err() {
-					warn!(target: "signer", "Couldn't save authorization codes to file.");
+
+				if save_file {
+					// make sure to save back authcodes - it might have been modified
+					if codes.to_file(codes_path).is_err() {
+						warn!(target: "signer", "Couldn't save authorization codes to file.");
+					}
 				}
 
 				if res {

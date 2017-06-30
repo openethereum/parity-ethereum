@@ -47,7 +47,7 @@ impl From<DecoderError> for BasicError {
 
 impl fmt::Display for BasicError {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		try!(write!(f, "Header response verification error: "));
+		write!(f, "Header response verification error: ")?;
 
 		match *self {
 			BasicError::WrongSkip(ref exp, ref got)
@@ -78,13 +78,13 @@ pub fn verify(headers: &[encoded::Header], request: &HeadersRequest) -> Result<V
 
 	let reverse = request.reverse;
 
-	try!(Max(request.max as usize).verify(&headers, reverse));
+	Max(request.max as usize).verify(&headers, reverse)?;
 	match request.start {
-		HashOrNumber::Number(ref num) => try!(StartsAtNumber(*num).verify(&headers, reverse)),
-		HashOrNumber::Hash(ref hash) => try!(StartsAtHash(*hash).verify(&headers, reverse)),
+		HashOrNumber::Number(ref num) => StartsAtNumber(*num).verify(&headers, reverse)?,
+		HashOrNumber::Hash(ref hash) => StartsAtHash(*hash).verify(&headers, reverse)?,
 	}
 
-	try!(SkipsBetween(request.skip).verify(&headers, reverse));
+	SkipsBetween(request.skip).verify(&headers, reverse)?;
 
 	Ok(headers)
 }
@@ -177,7 +177,7 @@ mod tests {
 
 			parent_hash = Some(header.hash());
 
-			encoded::Header::new(::rlp::encode(&header).to_vec())
+			encoded::Header::new(::rlp::encode(&header).into_vec())
 		}).collect();
 
 		assert!(verify(&headers, &request).is_ok());
@@ -203,7 +203,7 @@ mod tests {
 
 			parent_hash = Some(header.hash());
 
-			encoded::Header::new(::rlp::encode(&header).to_vec())
+			encoded::Header::new(::rlp::encode(&header).into_vec())
 		}).collect();
 
 		assert!(verify(&headers, &request).is_ok());
@@ -229,7 +229,7 @@ mod tests {
 
 			parent_hash = Some(header.hash());
 
-			encoded::Header::new(::rlp::encode(&header).to_vec())
+			encoded::Header::new(::rlp::encode(&header).into_vec())
 		}).collect();
 
 		assert_eq!(verify(&headers, &request), Err(BasicError::TooManyHeaders(20, 25)));
@@ -248,7 +248,7 @@ mod tests {
 			let mut header = Header::default();
 			header.set_number(x);
 
-			encoded::Header::new(::rlp::encode(&header).to_vec())
+			encoded::Header::new(::rlp::encode(&header).into_vec())
 		}).collect();
 
 		assert_eq!(verify(&headers, &request), Err(BasicError::WrongSkip(5, Some(2))));

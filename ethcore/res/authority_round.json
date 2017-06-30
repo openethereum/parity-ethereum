@@ -11,7 +11,8 @@
 						"0x7d577a597b2742b498cb5cf0c26cdcd726d39e6e",
 						"0x82a978b3f5962a5b0957d9ee9eef472ee55b42f1"
 					]
-				}
+				},
+				"immediateTransitions": true
 			}
 		}
 	},

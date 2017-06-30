@@ -138,8 +138,8 @@ module.exports = {
 
   resolve: {
     alias: {
+      '~/api/local': path.resolve(__dirname, '../src/api/local/localAccountsMiddleware.js'),
       '~': path.resolve(__dirname, '../src'),
-      'secp256k1': path.resolve(__dirname, '../node_modules/secp256k1/js'),
       'keythereum': path.resolve(__dirname, '../node_modules/keythereum/dist/keythereum')
     },
     modules: [
@@ -147,6 +147,10 @@ module.exports = {
     ],
     extensions: ['.json', '.js', '.jsx'],
     unsafeCache: true
+  },
+
+  node: {
+    fs: 'empty'
   },
 
   plugins: (function () {

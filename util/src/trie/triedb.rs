@@ -378,7 +378,7 @@ fn iterator() {
 	}
 
 	let t = TrieDB::new(&memdb, &root).unwrap();
-	assert_eq!(d.iter().map(|i| i.clone().to_vec()).collect::<Vec<_>>(), t.iter().unwrap().map(|x| x.unwrap().0).collect::<Vec<_>>());
+	assert_eq!(d.iter().map(|i| i.clone().into_vec()).collect::<Vec<_>>(), t.iter().unwrap().map(|x| x.unwrap().0).collect::<Vec<_>>());
 	assert_eq!(d, t.iter().unwrap().map(|x| x.unwrap().1).collect::<Vec<_>>());
 }
 

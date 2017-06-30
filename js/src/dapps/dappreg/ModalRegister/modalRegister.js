@@ -50,7 +50,7 @@ export default class ModalRegister extends Component {
         secondary
       >
         <div className={ styles.section }>
-          You are about to register a new distributed application on the network, the details of
+          You are about to register a new decentralized application on the network, the details of
           this application is given below. This will require a non-refundable fee
           of { api.util.fromWei(this.dappsStore.fee).toFormat(3) } <small>ETH</small>
         </div>

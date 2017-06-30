@@ -42,9 +42,9 @@ export default class Signer {
       .execute('signer_generateAuthorizationToken');
   }
 
-  generateWebProxyAccessToken () {
+  generateWebProxyAccessToken (domain) {
     return this._transport
-      .execute('signer_generateWebProxyAccessToken');
+      .execute('signer_generateWebProxyAccessToken', domain);
   }
 
   rejectRequest (requestId) {

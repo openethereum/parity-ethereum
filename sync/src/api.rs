@@ -427,7 +427,7 @@ struct TxRelay(Arc<BlockChainClient>);
 impl LightHandler for TxRelay {
 	fn on_transactions(&self, ctx: &EventContext, relay: &[::ethcore::transaction::UnverifiedTransaction]) {
 		trace!(target: "pip", "Relaying {} transactions from peer {}", relay.len(), ctx.peer());
-		self.0.queue_transactions(relay.iter().map(|tx| ::rlp::encode(tx).to_vec()).collect(), ctx.peer())
+		self.0.queue_transactions(relay.iter().map(|tx| ::rlp::encode(tx).into_vec()).collect(), ctx.peer())
 	}
 }
 
@@ -709,7 +709,7 @@ impl LightSync {
 			};
 
 			let mut light_proto = LightProtocol::new(params.client.clone(), light_params);
-			let sync_handler = Arc::new(try!(SyncHandler::new(params.client.clone())));
+			let sync_handler = Arc::new(SyncHandler::new(params.client.clone())?);
 			light_proto.add_handler(sync_handler.clone());
 
 			for handler in params.handlers {
@@ -719,7 +719,7 @@ impl LightSync {
 			(sync_handler, Arc::new(light_proto))
 		};
 
-		let service = try!(NetworkService::new(params.network_config));
+		let service = NetworkService::new(params.network_config)?;
 
 		Ok(LightSync {
 			proto: light_proto,

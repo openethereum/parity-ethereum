@@ -75,6 +75,20 @@ pub struct Params {
 	/// See `CommonParams` docs.
 	#[serde(rename="eip210ContractGas")]
 	pub eip210_contract_gas: Option<Uint>,
+	/// See `CommonParams` docs.
+	#[serde(rename="eip211Transition")]
+	pub eip211_transition: Option<Uint>,
+	/// See `CommonParams` docs.
+	#[serde(rename="eip214Transition")]
+	pub eip214_transition: Option<Uint>,
+	/// See `CommonParams` docs.
+	#[serde(rename="dustProtectionTransition")]
+	pub dust_protection_transition: Option<Uint>,
+	/// See `CommonParams` docs.
+	#[serde(rename="nonceCapIncrement")]
+	pub nonce_cap_increment: Option<Uint>,
+	/// See `CommonParams` docs.
+	pub remove_dust_contracts : Option<bool>,
 }
 
 #[cfg(test)]

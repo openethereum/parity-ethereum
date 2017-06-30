@@ -18,8 +18,6 @@
 use util::*;
 use rlp::NULL_RLP;
 
-static NULL_RLP_STATIC: [u8; 1] = [0x80; 1];
-
 // combines a key with an address hash to ensure uniqueness.
 // leaves the first 96 bits untouched in order to support partial key lookup.
 #[inline]
@@ -99,7 +97,7 @@ impl<'db> HashDB for AccountDB<'db>{
 
 	fn get(&self, key: &H256) -> Option<DBValue> {
 		if key == &SHA3_NULL_RLP {
-			return Some(DBValue::from_slice(&NULL_RLP_STATIC));
+			return Some(DBValue::from_slice(&NULL_RLP));
 		}
 		self.db.get(&combine_key(&self.address_hash, key))
 	}
@@ -158,7 +156,7 @@ impl<'db> HashDB for AccountDBMut<'db>{
 
 	fn get(&self, key: &H256) -> Option<DBValue> {
 		if key == &SHA3_NULL_RLP {
-			return Some(DBValue::from_slice(&NULL_RLP_STATIC));
+			return Some(DBValue::from_slice(&NULL_RLP));
 		}
 		self.db.get(&combine_key(&self.address_hash, key))
 	}
@@ -206,7 +204,7 @@ impl<'db> HashDB for Wrapping<'db> {
 
 	fn get(&self, key: &H256) -> Option<DBValue> {
 		if key == &SHA3_NULL_RLP {
-			return Some(DBValue::from_slice(&NULL_RLP_STATIC));
+			return Some(DBValue::from_slice(&NULL_RLP));
 		}
 		self.0.get(key)
 	}
@@ -240,7 +238,7 @@ impl<'db> HashDB for WrappingMut<'db>{
 
 	fn get(&self, key: &H256) -> Option<DBValue> {
 		if key == &SHA3_NULL_RLP {
-			return Some(DBValue::from_slice(&NULL_RLP_STATIC));
+			return Some(DBValue::from_slice(&NULL_RLP));
 		}
 		self.0.get(key)
 	}

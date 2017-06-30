@@ -22,7 +22,7 @@ use engines::Engine;
 use types::executed::CallType;
 use env_info::EnvInfo;
 use error::ExecutionError;
-use evm::{self, Ext, Finalize, CreateContractAddress, FinalizationResult};
+use evm::{self, Ext, Finalize, CreateContractAddress, FinalizationResult, ReturnData, CleanDustMode};
 use externalities::*;
 use trace::{FlatTrace, Tracer, NoopTracer, ExecutiveTracer, VMTrace, VMTracer, ExecutiveVMTracer, NoopVMTracer};
 use transaction::{Action, SignedTransaction};
@@ -76,6 +76,7 @@ pub struct Executive<'a, B: 'a + StateBackend, E: 'a + Engine + ?Sized> {
 	info: &'a EnvInfo,
 	engine: &'a E,
 	depth: usize,
+	static_flag: bool,
 }
 
 impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
@@ -86,16 +87,18 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 			info: info,
 			engine: engine,
 			depth: 0,
+			static_flag: false,
 		}
 	}
 
 	/// Populates executive from parent properties. Increments executive depth.
-	pub fn from_parent(state: &'a mut State<B>, info: &'a EnvInfo, engine: &'a E, parent_depth: usize) -> Self {
+	pub fn from_parent(state: &'a mut State<B>, info: &'a EnvInfo, engine: &'a E, parent_depth: usize, static_flag: bool) -> Self {
 		Executive {
 			state: state,
 			info: info,
 			engine: engine,
 			depth: parent_depth + 1,
+			static_flag: static_flag,
 		}
 	}
 
@@ -106,9 +109,11 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 		substate: &'any mut Substate,
 		output: OutputPolicy<'any, 'any>,
 		tracer: &'any mut T,
-		vm_tracer: &'any mut V
+		vm_tracer: &'any mut V,
+		static_call: bool,
 	) -> Externalities<'any, T, V, B, E> where T: Tracer, V: VMTracer {
-		Externalities::new(self.state, self.info, self.engine, self.depth, origin_info, substate, output, tracer, vm_tracer)
+		let is_static = self.static_flag || static_call;
+		Externalities::new(self.state, self.info, self.engine, self.depth, origin_info, substate, output, tracer, vm_tracer, is_static)
 	}
 
 	/// This function should be used to execute transaction.
@@ -159,6 +164,10 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 			return Err(From::from(ExecutionError::NotEnoughBaseGas { required: base_gas_required, got: t.gas }));
 		}
 
+		if !t.is_unsigned() && check_nonce && schedule.kill_dust != CleanDustMode::Off && !self.state.exists(&sender)? {
+			return Err(From::from(ExecutionError::SenderMustExist));
+		}
+
 		let init_gas = t.gas - base_gas_required;
 
 		// validate transaction nonce
@@ -186,15 +195,15 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 			return Err(From::from(ExecutionError::NotEnoughCash { required: total_cost, got: balance512 }));
 		}
 
+		let mut substate = Substate::new();
+
 		// NOTE: there can be no invalid transactions from this point.
 		if !t.is_unsigned() {
 			self.state.inc_nonce(&sender)?;
 		}
-		self.state.sub_balance(&sender, &U256::from(gas_cost))?;
+		self.state.sub_balance(&sender, &U256::from(gas_cost), &mut substate.to_cleanup_mode(&schedule))?;
 
-		let mut substate = Substate::new();
-
-		let (gas_left, output) = match t.action {
+		let (result, output) = match t.action {
 			Action::Create => {
 				let code_hash = t.data.sha3();
 				let new_address = contract_address(self.engine.create_address_scheme(self.info.number), &sender, &nonce, &code_hash);
@@ -233,7 +242,7 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 		};
 
 		// finalize here!
-		Ok(self.finalize(t, substate, gas_left, output, tracer.traces(), vm_tracer.drain())?)
+		Ok(self.finalize(t, substate, result, output, tracer.traces(), vm_tracer.drain())?)
 	}
 
 	fn exec_vm<T, V>(
@@ -246,11 +255,12 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 	) -> evm::Result<FinalizationResult> where T: Tracer, V: VMTracer {
 
 		let depth_threshold = ::io::LOCAL_STACK_SIZE.with(|sz| sz.get() / STACK_SIZE_PER_DEPTH);
+		let static_call = params.call_type == CallType::StaticCall;
 
 		// Ordinary execution - keep VM in same thread
 		if (self.depth + 1) % depth_threshold != 0 {
 			let vm_factory = self.state.vm_factory();
-			let mut ext = self.as_externalities(OriginInfo::from(&params), unconfirmed_substate, output_policy, tracer, vm_tracer);
+			let mut ext = self.as_externalities(OriginInfo::from(&params), unconfirmed_substate, output_policy, tracer, vm_tracer, static_call);
 			trace!(target: "executive", "ext.schedule.have_delegate_call: {}", ext.schedule().have_delegate_call);
 			return vm_factory.create(params.gas).exec(params, &mut ext).finalize(ext);
 		}
@@ -260,7 +270,7 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 		// https://github.com/aturon/crossbeam/issues/16
 		crossbeam::scope(|scope| {
 			let vm_factory = self.state.vm_factory();
-			let mut ext = self.as_externalities(OriginInfo::from(&params), unconfirmed_substate, output_policy, tracer, vm_tracer);
+			let mut ext = self.as_externalities(OriginInfo::from(&params), unconfirmed_substate, output_policy, tracer, vm_tracer, static_call);
 
 			scope.spawn(move || {
 				vm_factory.create(params.gas).exec(params, &mut ext).finalize(ext)
@@ -279,7 +289,16 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 		mut output: BytesRef,
 		tracer: &mut T,
 		vm_tracer: &mut V
-	) -> evm::Result<U256> where T: Tracer, V: VMTracer {
+	) -> evm::Result<(U256, ReturnData)> where T: Tracer, V: VMTracer {
+
+		trace!("Executive::call(params={:?}) self.env_info={:?}", params, self.info);
+		if (params.call_type == CallType::StaticCall ||
+				((params.call_type == CallType::Call || params.call_type == CallType::DelegateCall) &&
+				 self.static_flag))
+			&& params.value.value() > 0.into() {
+			return Err(evm::Error::MutableCallInStaticContext);
+		}
+
 		// backup used in case of running out of gas
 		self.state.checkpoint();
 
@@ -289,7 +308,6 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 		if let ActionValue::Transfer(val) = params.value {
 			self.state.transfer_balance(&params.sender, &params.address, &val, substate.to_cleanup_mode(&schedule))?;
 		}
-		trace!("Executive::call(params={:?}) self.env_info={:?}", params, self.info);
 
 		// if destination is builtin, try to execute it
 		if let Some(builtin) = self.engine.builtin(&params.code_address, self.info.number) {
@@ -329,7 +347,7 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 						);
 					}
 
-					Ok(params.gas - cost)
+					Ok((params.gas - cost, ReturnData::empty()))
 				}
 			} else {
 				// just drain the whole gas
@@ -357,7 +375,7 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 					self.exec_vm(params, &mut unconfirmed_substate, OutputPolicy::Return(output, trace_output.as_mut()), &mut subtracer, &mut subvmtracer)
 				};
 
-				vm_tracer.done_subtrace(subvmtracer);
+				vm_tracer.done_subtrace(subvmtracer, res.is_ok());
 
 				trace!(target: "executive", "res={:?}", res);
 
@@ -376,13 +394,13 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 
 				self.enact_result(&res, substate, unconfirmed_substate);
 				trace!(target: "executive", "enacted: substate={:?}\n", substate);
-				res.map(|r| r.gas_left)
+				res.map(|r| (r.gas_left, r.return_data))
 			} else {
 				// otherwise it's just a basic transaction, only do tracing, if necessary.
 				self.state.discard_checkpoint();
 
 				tracer.trace_call(trace_info, U256::zero(), trace_output, vec![]);
-				Ok(params.gas)
+				Ok((params.gas, ReturnData::empty()))
 			}
 		}
 	}
@@ -396,11 +414,17 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 		substate: &mut Substate,
 		tracer: &mut T,
 		vm_tracer: &mut V,
-	) -> evm::Result<U256> where T: Tracer, V: VMTracer {
+	) -> evm::Result<(U256, ReturnData)> where T: Tracer, V: VMTracer {
 
 		let scheme = self.engine.create_address_scheme(self.info.number);
 		if scheme != CreateContractAddress::FromSenderAndNonce && self.state.exists_and_has_code(&params.address)? {
 			return Err(evm::Error::OutOfGas);
+		}
+
+		if params.call_type == CallType::StaticCall || self.static_flag {
+			let trace_info = tracer.prepare_trace_create(&params);
+			tracer.trace_failed_create(trace_info, vec![], evm::Error::MutableCallInStaticContext.into());
+			return Err(evm::Error::MutableCallInStaticContext);
 		}
 
 		// backup used in case of running out of gas
@@ -414,7 +438,7 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 		let nonce_offset = if schedule.no_empty {1} else {0}.into();
 		let prev_bal = self.state.balance(&params.address)?;
 		if let ActionValue::Transfer(val) = params.value {
-			self.state.sub_balance(&params.sender, &val)?;
+			self.state.sub_balance(&params.sender, &val, &mut substate.to_cleanup_mode(&schedule))?;
 			self.state.new_contract(&params.address, val + prev_bal, nonce_offset);
 		} else {
 			self.state.new_contract(&params.address, prev_bal, nonce_offset);
@@ -432,7 +456,7 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 			self.exec_vm(params, &mut unconfirmed_substate, OutputPolicy::InitContract(trace_output.as_mut()), &mut subtracer, &mut subvmtracer)
 		};
 
-		vm_tracer.done_subtrace(subvmtracer);
+		vm_tracer.done_subtrace(subvmtracer, res.is_ok());
 
 		match res {
 			Ok(ref res) => tracer.trace_create(
@@ -446,7 +470,7 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 		};
 
 		self.enact_result(&res, substate, unconfirmed_substate);
-		res.map(|r| r.gas_left)
+		res.map(|r| (r.gas_left, r.return_data))
 	}
 
 	/// Finalizes the transaction (does refunds and suicides).
@@ -454,7 +478,7 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 		&mut self,
 		t: &SignedTransaction,
 		mut substate: Substate,
-		result: evm::Result<U256>,
+		result: evm::Result<(U256, ReturnData)>,
 		output: Bytes,
 		trace: Vec<FlatTrace>,
 		vm_trace: Option<VMTrace>
@@ -468,7 +492,7 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 		let refunds_bound = sstore_refunds + suicide_refunds;
 
 		// real ammount to refund
-		let gas_left_prerefund = match result { Ok(x) => x, _ => 0.into() };
+		let gas_left_prerefund = match result { Ok((x, _)) => x, _ => 0.into() };
 		let refunded = cmp::min(refunds_bound, (t.gas - gas_left_prerefund) >> 1);
 		let gas_left = gas_left_prerefund + refunded;
 
@@ -492,11 +516,8 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 		}
 
 		// perform garbage-collection
-		for address in &substate.garbage {
-			if self.state.exists(address)? && !self.state.exists_and_not_null(address)? {
-				self.state.kill_account(address);
-			}
-		}
+		let min_balance = if schedule.kill_dust != CleanDustMode::Off { Some(U256::from(schedule.tx_gas) * t.gas_price) } else { None };
+		self.state.kill_garbage(&substate.touched, schedule.kill_empty, &min_balance, schedule.kill_dust == CleanDustMode::WithCodeAndStorage)?;
 
 		match result {
 			Err(evm::Error::Internal(msg)) => Err(ExecutionError::Internal(msg)),
@@ -541,6 +562,7 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 				| Err(evm::Error::StackUnderflow {..})
 				| Err(evm::Error::BuiltIn {..})
 				| Err(evm::Error::OutOfStack {..})
+				| Err(evm::Error::MutableCallInStaticContext)
 				| Ok(FinalizationResult { apply_state: false, .. }) => {
 					self.state.revert_to_checkpoint();
 			},
@@ -597,7 +619,7 @@ mod tests {
 		let engine = TestEngine::new(0);
 		let mut substate = Substate::new();
 
-		let gas_left = {
+		let (gas_left, _) = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
 			ex.create(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer).unwrap()
 		};
@@ -655,7 +677,7 @@ mod tests {
 		let engine = TestEngine::new(0);
 		let mut substate = Substate::new();
 
-		let gas_left = {
+		let (gas_left, _) = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
 			ex.create(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer).unwrap()
 		};
@@ -713,7 +735,7 @@ mod tests {
 		let mut tracer = ExecutiveTracer::default();
 		let mut vm_tracer = ExecutiveVMTracer::toplevel();
 
-		let gas_left = {
+		let (gas_left, _) = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
 			let output = BytesRef::Fixed(&mut[0u8;0]);
 			ex.call(params, &mut substate, output, &mut tracer, &mut vm_tracer).unwrap()
@@ -822,7 +844,7 @@ mod tests {
 		let mut tracer = ExecutiveTracer::default();
 		let mut vm_tracer = ExecutiveVMTracer::toplevel();
 
-		let gas_left = {
+		let (gas_left, _) = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
 			ex.create(params.clone(), &mut substate, &mut tracer, &mut vm_tracer).unwrap()
 		};
@@ -907,7 +929,7 @@ mod tests {
 		let engine = TestEngine::new(0);
 		let mut substate = Substate::new();
 
-		let gas_left = {
+		let (gas_left, _) = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
 			ex.create(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer).unwrap()
 		};
@@ -1018,7 +1040,7 @@ mod tests {
 		let engine = TestEngine::new(0);
 		let mut substate = Substate::new();
 
-		let gas_left = {
+		let (gas_left, _) = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
 			ex.call(params, &mut substate, BytesRef::Fixed(&mut []), &mut NoopTracer, &mut NoopVMTracer).unwrap()
 		};
@@ -1062,7 +1084,7 @@ mod tests {
 		let engine = TestEngine::new(0);
 		let mut substate = Substate::new();
 
-		let gas_left = {
+		let (gas_left, _) = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
 			ex.call(params, &mut substate, BytesRef::Fixed(&mut []), &mut NoopTracer, &mut NoopVMTracer).unwrap()
 		};
@@ -1267,7 +1289,7 @@ mod tests {
 		let mut substate = Substate::new();
 
 		let mut output = [0u8; 14];
-		let result = {
+		let (result, _) = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
 			ex.call(params, &mut substate, BytesRef::Fixed(&mut output), &mut NoopTracer, &mut NoopVMTracer).unwrap()
 		};

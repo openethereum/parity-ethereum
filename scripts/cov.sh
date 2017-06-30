@@ -21,7 +21,7 @@ if ! type $KCOV > /dev/null; then
 fi
 
 . ./scripts/targets.sh
-cargo test $TARGETS --no-run || exit $?
+RUSTFLAGS="-C link-dead-code" cargo test $TARGETS --no-run || exit $?
 
 
 KCOV_TARGET="target/cov"
@@ -31,14 +31,7 @@ EXCLUDE="/usr/lib,\
 $HOME/.cargo,\
 $HOME/.multirust,\
 rocksdb,\
-secp256k1,\
-util/json-tests,\
-util/src/network/tests,\
-ethcore/src/evm/tests,\
-ethstore/tests,\
-target/debug/build,\
-target/release/build,\
-*.db
+secp256k1
 "
 
 rm -rf $KCOV_TARGET

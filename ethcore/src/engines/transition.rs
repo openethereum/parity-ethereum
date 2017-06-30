@@ -36,7 +36,7 @@ pub struct TransitionHandler<S: Sync + Send + Clone>  {
 	timeouts: Box<Timeouts<S>>,
 }
 
-impl <S> TransitionHandler<S> where S: Sync + Send + Clone {
+impl<S> TransitionHandler<S> where S: Sync + Send + Clone {
 	/// New step caller by timeouts.
 	pub fn new(engine: Weak<Engine>, timeouts: Box<Timeouts<S>>) -> Self {
 		TransitionHandler {
@@ -54,7 +54,7 @@ fn set_timeout<S: Sync + Send + Clone>(io: &IoContext<S>, timeout: Duration) {
 		.unwrap_or_else(|e| warn!(target: "engine", "Failed to set consensus step timeout: {}.", e))
 }
 
-impl <S> IoHandler<S> for TransitionHandler<S> where S: Sync + Send + Clone + 'static {
+impl<S> IoHandler<S> for TransitionHandler<S> where S: Sync + Send + Clone + 'static {
 	fn initialize(&self, io: &IoContext<S>) {
 		let initial = self.timeouts.initial();
 		trace!(target: "engine", "Setting the initial timeout to {}.", initial);

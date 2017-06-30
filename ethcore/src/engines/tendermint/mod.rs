@@ -38,7 +38,6 @@ use account_provider::AccountProvider;
 use block::*;
 use spec::CommonParams;
 use engines::{Engine, Seal, EngineError};
-use evm::Schedule;
 use state::CleanupMode;
 use io::IoService;
 use super::signer::EngineSigner;
@@ -343,9 +342,9 @@ impl Tendermint {
 						let precommits = self.votes.round_signatures(vote_step, &bh);
 						trace!(target: "engine", "Collected seal: {:?}", precommits);
 						let seal = vec![
-							::rlp::encode(&vote_step.view).to_vec(),
+							::rlp::encode(&vote_step.view).into_vec(),
 							::rlp::NULL_RLP.to_vec(),
-							::rlp::encode_list(&precommits).to_vec()
+							::rlp::encode_list(&precommits).into_vec()
 						];
 						self.submit_seal(bh, seal);
 						self.votes.throw_out_old(&vote_step);
@@ -404,11 +403,6 @@ impl Engine for Tendermint {
 		]
 	}
 
-	fn schedule(&self, block_number: BlockNumber) -> Schedule {
-		let eip86 = block_number >= self.params.eip86_transition;
-		Schedule::new_post_eip150(usize::max_value(), true, true, true, eip86)
-	}
-
 	fn populate_from_parent(&self, header: &mut Header, parent: &Header, gas_floor_target: U256, _gas_ceil_target: U256) {
 		// Chain scoring: total weight is sqrt(U256::max_value())*height - view
 		let new_difficulty = U256::from(U128::max_value()) + consensus_view(parent).expect("Header has been verified; qed").into() - self.view.load(AtomicOrdering::SeqCst).into();
@@ -452,8 +446,8 @@ impl Engine for Tendermint {
 			*self.proposal.write() = bh;
 			*self.proposal_parent.write() = header.parent_hash().clone();
 			Seal::Proposal(vec![
-				::rlp::encode(&view).to_vec(),
-				::rlp::encode(&signature).to_vec(),
+				::rlp::encode(&view).into_vec(),
+				::rlp::encode(&signature).into_vec(),
 				::rlp::EMPTY_LIST_RLP.to_vec()
 			])
 		} else {
@@ -472,7 +466,8 @@ impl Engine for Tendermint {
 			}
 			self.broadcast_message(rlp.as_raw().to_vec());
 			if let Some(double) = self.votes.vote(message.clone(), &sender) {
-				self.validators.report_malicious(&sender, message.vote_step.height as BlockNumber, ::rlp::encode(&double).to_vec());
+				let height = message.vote_step.height as BlockNumber;
+				self.validators.report_malicious(&sender, height, height, ::rlp::encode(&double).into_vec());
 				return Err(EngineError::DoubleVote(sender).into());
 			}
 			trace!(target: "engine", "Handling a valid {:?} from {}.", message, sender);
@@ -499,8 +494,8 @@ impl Engine for Tendermint {
 		let seal_length = header.seal().len();
 		if seal_length == self.seal_fields() {
 			// Either proposal or commit.
-			if (header.seal()[1] == ::rlp::NULL_RLP.to_vec())
-				!= (header.seal()[2] == ::rlp::EMPTY_LIST_RLP.to_vec()) {
+			if (header.seal()[1] == ::rlp::NULL_RLP)
+				!= (header.seal()[2] == ::rlp::EMPTY_LIST_RLP) {
 				Ok(())
 			} else {
 				warn!(target: "engine", "verify_block_basic: Block is neither a Commit nor Proposal.");
@@ -561,7 +556,7 @@ impl Engine for Tendermint {
 		let min_gas = parent.gas_limit().clone() - parent.gas_limit().clone() / gas_limit_divisor;
 		let max_gas = parent.gas_limit().clone() + parent.gas_limit().clone() / gas_limit_divisor;
 		if header.gas_limit() <= &min_gas || header.gas_limit() >= &max_gas {
-			self.validators.report_malicious(header.author(), header.number(), Default::default());
+			self.validators.report_malicious(header.author(), header.number(), header.number(), Default::default());
 			return Err(BlockError::InvalidGasLimit(OutOfBounds { min: Some(min_gas), max: Some(max_gas), found: header.gas_limit().clone() }).into());
 		}
 
@@ -613,7 +608,7 @@ impl Engine for Tendermint {
 					// Report the proposer if no proposal was received.
 					let height = self.height.load(AtomicOrdering::SeqCst);
 					let current_proposer = self.view_proposer(&*self.proposal_parent.read(), height, self.view.load(AtomicOrdering::SeqCst));
-					self.validators.report_benign(&current_proposer, height as BlockNumber);
+					self.validators.report_benign(&current_proposer, height as BlockNumber, height as BlockNumber);
 				}
 				Step::Prevote
 			},
@@ -680,7 +675,7 @@ mod tests {
 		let db = spec.ensure_db_good(db, &Default::default()).unwrap();
 		let genesis_header = spec.genesis_header();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
-		let b = OpenBlock::new(spec.engine.as_ref(), Default::default(), false, db.boxed_clone(), &genesis_header, last_hashes, proposer, (3141562.into(), 31415620.into()), vec![]).unwrap();
+		let b = OpenBlock::new(spec.engine.as_ref(), Default::default(), false, db.boxed_clone(), &genesis_header, last_hashes, proposer, (3141562.into(), 31415620.into()), vec![], false).unwrap();
 		let b = b.close();
 		if let Seal::Proposal(seal) = spec.engine.generate_seal(b.block()) {
 			(b, seal)
@@ -701,8 +696,8 @@ mod tests {
 		let vote_info = message_info_rlp(&VoteStep::new(header.number() as Height, view, Step::Propose), Some(header.bare_hash()));
 		let signature = tap.sign(*author, None, vote_info.sha3()).unwrap();
 		vec![
-			::rlp::encode(&view).to_vec(),
-			::rlp::encode(&H520::from(signature)).to_vec(),
+			::rlp::encode(&view).into_vec(),
+			::rlp::encode(&H520::from(signature)).into_vec(),
 			::rlp::EMPTY_LIST_RLP.to_vec()
 		]
 	}
@@ -818,7 +813,7 @@ mod tests {
 		let signature1 = tap.sign(proposer, None, vote_info.sha3()).unwrap();
 
 		seal[1] = ::rlp::NULL_RLP.to_vec();
-		seal[2] = ::rlp::encode_list(&vec![H520::from(signature1.clone())]).to_vec();
+		seal[2] = ::rlp::encode_list(&vec![H520::from(signature1.clone())]).into_vec();
 		header.set_seal(seal.clone());
 
 		// One good signature is not enough.
@@ -830,7 +825,7 @@ mod tests {
 		let voter = insert_and_unlock(&tap, "0");
 		let signature0 = tap.sign(voter, None, vote_info.sha3()).unwrap();
 
-		seal[2] = ::rlp::encode_list(&vec![H520::from(signature1.clone()), H520::from(signature0.clone())]).to_vec();
+		seal[2] = ::rlp::encode_list(&vec![H520::from(signature1.clone()), H520::from(signature0.clone())]).into_vec();
 		header.set_seal(seal.clone());
 
 		assert!(engine.verify_block_family(&header, &parent_header, None).is_ok());
@@ -838,7 +833,7 @@ mod tests {
 		let bad_voter = insert_and_unlock(&tap, "101");
 		let bad_signature = tap.sign(bad_voter, None, vote_info.sha3()).unwrap();
 
-		seal[2] = ::rlp::encode_list(&vec![H520::from(signature1), H520::from(bad_signature)]).to_vec();
+		seal[2] = ::rlp::encode_list(&vec![H520::from(signature1), H520::from(bad_signature)]).into_vec();
 		header.set_seal(seal);
 
 		// One good and one bad signature.

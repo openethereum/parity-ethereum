@@ -16,14 +16,18 @@
 
 //! Pub-Sub types.
 
-use serde::{Serialize, Serializer};
-use v1::types::{RichHeader, Filter};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::de::Error;
+use serde_json::{Value, from_value};
+use v1::types::{RichHeader, Filter, Log};
 
 /// Subscription result.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Result {
 	/// New block header.
 	Header(RichHeader),
+	/// Logs
+	Logs(Vec<Log>),
 }
 
 impl Serialize for Result {
@@ -32,6 +36,7 @@ impl Serialize for Result {
 	{
 		match *self {
 			Result::Header(ref header) => header.serialize(serializer),
+			Result::Logs(ref logs) => logs.serialize(serializer),
 		}
 	}
 }
@@ -55,8 +60,7 @@ pub enum Kind {
 }
 
 /// Subscription kind.
-#[derive(Debug, Deserialize, PartialEq, Eq, Hash, Clone)]
-#[serde(deny_unknown_fields)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub enum Params {
 	/// No parameters passed.
 	None,
@@ -70,11 +74,26 @@ impl Default for Params {
 	}
 }
 
+impl Deserialize for Params {
+	fn deserialize<D>(deserializer: D) -> ::std::result::Result<Params, D::Error>
+	where D: Deserializer {
+		let v: Value = Deserialize::deserialize(deserializer)?;
+
+		if v.is_null() {
+			return Ok(Params::None);
+		}
+
+		from_value(v.clone()).map(Params::Logs)
+			.map_err(|_| D::Error::custom("Invalid type."))
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use serde_json;
-	use super::{Result, Kind};
-	use v1::types::{RichHeader, Header};
+	use super::{Result, Kind, Params};
+	use v1::types::{RichHeader, Header, Filter};
+	use v1::types::filter::VariadicValue;
 
 	#[test]
 	fn should_deserialize_kind() {
@@ -82,6 +101,41 @@ mod tests {
 		assert_eq!(serde_json::from_str::<Kind>(r#""logs""#).unwrap(), Kind::Logs);
 		assert_eq!(serde_json::from_str::<Kind>(r#""newPendingTransactions""#).unwrap(), Kind::NewPendingTransactions);
 		assert_eq!(serde_json::from_str::<Kind>(r#""syncing""#).unwrap(), Kind::Syncing);
+	}
+
+	#[test]
+	fn should_deserialize_logs() {
+		let none = serde_json::from_str::<Params>(r#"null"#).unwrap();
+		assert_eq!(none, Params::None);
+
+		let logs1 = serde_json::from_str::<Params>(r#"{}"#).unwrap();
+		let logs2 = serde_json::from_str::<Params>(r#"{"limit":10}"#).unwrap();
+		let logs3 = serde_json::from_str::<Params>(
+			r#"{"topics":["0x000000000000000000000000a94f5374fce5edbc8e2a8697c15331677e6ebf0b"]}"#
+		).unwrap();
+		assert_eq!(logs1, Params::Logs(Filter {
+			from_block: None,
+			to_block: None,
+			address: None,
+			topics: None,
+			limit: None,
+		}));
+		assert_eq!(logs2, Params::Logs(Filter {
+			from_block: None,
+			to_block: None,
+			address: None,
+			topics: None,
+			limit: Some(10),
+		}));
+		assert_eq!(logs3, Params::Logs(Filter {
+			from_block: None,
+			to_block: None,
+			address: None,
+			topics: Some(vec![
+				VariadicValue::Single("000000000000000000000000a94f5374fce5edbc8e2a8697c15331677e6ebf0b".parse().unwrap()
+			)]),
+			limit: None,
+		}));
 	}
 
 	#[test]
