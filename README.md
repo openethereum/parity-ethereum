@@ -69,6 +69,7 @@ We recommend installing Rust through [rustup](https://www.rustup.rs/). If you do
 	```
 
 	`clang` is required. It comes with Xcode command line tools or can be installed with homebrew.
+	
 - Windows
 
     Make sure you have Visual Studio 2015 with C++ support installed. Next, download and run the rustup installer from
@@ -82,6 +83,8 @@ Once you have rustup, install parity or download and build from source
 ----
 
 ## Quick build and install
+
+If you don't have cargo, you must install it before proceeding. The nightly build is availible [here](https://crates.io/install). Then do:
 
 ```bash
 cargo install --git https://github.com/paritytech/parity.git parity
