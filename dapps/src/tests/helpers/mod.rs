@@ -254,7 +254,7 @@ impl Server {
 		fetch: F,
 	) -> Result<Server, http::Error> {
 		let middleware = Middleware::dapps(
-			"https://time.parity.io/api",
+			"pool.ntp.org:123",
 			remote,
 			signer_address,
 			dapps_path,
@@ -297,4 +297,3 @@ impl Drop for Server {
 		self.server.take().unwrap().close()
 	}
 }
-
