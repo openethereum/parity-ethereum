@@ -26,7 +26,7 @@ use ethkey::{KeyPair, Public, Secret};
 use rand::{Rng, OsRng};
 use ring::error::Unspecified;
 
-use rpc::crypto::DecryptionInstance;
+use rpc::crypto::{AES_KEY_LEN, EncryptionInstance, DecryptionInstance};
 
 /// A symmetric or asymmetric key used for encryption, decryption, and signing
 /// of payloads.
@@ -34,8 +34,8 @@ pub enum Key {
 	/// ECIES key pair for Secp2561k curve. Suitable for encryption, decryption,
 	/// and signing.
 	Asymmetric(KeyPair),
-	// TODO: (requires a "metadata" to deal with IVs).
-	// AES-256 GCM mode. Suitable for encryption, decryption, but not signing.
+	/// AES-256 GCM mode. Suitable for encryption, decryption, but not signing.
+	Symmetric([u8; AES_KEY_LEN]),
 }
 
 impl Key {
@@ -58,6 +58,7 @@ impl Key {
 	pub fn public(&self) -> Option<&Public> {
 		match *self {
 			Key::Asymmetric(ref pair) => Some(pair.public()),
+			Key::Symmetric(_) => None,
 		}
 	}
 
@@ -65,6 +66,15 @@ impl Key {
 	pub fn secret(&self) -> Option<&Secret> {
 		match *self {
 			Key::Asymmetric(ref pair) => Some(pair.secret()),
+			Key::Symmetric(_) => None,
+		}
+	}
+
+	/// Get a handle to the symmetric key.
+	pub fn symmetric(&self) -> Option<&[u8; AES_KEY_LEN]>  {
+		match *self {
+			Key::Asymmetric(_) => None,
+			Key::Symmetric(ref key) => Some(key),
 		}
 	}
 }
@@ -108,12 +118,30 @@ impl KeyStore {
 		self.get(id).and_then(Key::secret)
 	}
 
+	/// Get symmetric ID's key.
+	pub fn symmetric<'a>(&'a self, id: &H256) -> Option<&'a [u8; AES_KEY_LEN]> {
+		self.get(id).and_then(Key::symmetric)
+	}
+
+	/// Get encryption instance for identity.
+	pub fn encryption_instance(&self, id: &H256) -> Result<EncryptionInstance, &'static str> {
+		self.get(id).ok_or("no such identity").and_then(|key| match *key {
+			Key::Asymmetric(ref pair) => EncryptionInstance::ecies(pair.public().clone())
+				.map_err(|_| "could not create encryption instance for id"),
+			Key::Symmetric(ref key) =>
+				 OsRng::new()
+					.map(|mut rng| EncryptionInstance::aes(key.clone(), rng.gen()))
+				 	.map_err(|_| "unable to get secure randomness")
+		})
+	}
+
 	/// Get decryption instance for identity.
 	/// If the identity is known, always succeeds.
 	pub fn decryption_instance(&self, id: &H256) -> Option<DecryptionInstance> {
-		self.get(id).map(|key| match key {
-			&Key::Asymmetric(ref pair) => DecryptionInstance::ecies(pair.secret().clone())
+		self.get(id).map(|key| match *key {
+			Key::Asymmetric(ref pair) => DecryptionInstance::ecies(pair.secret().clone())
 				.expect("all keys stored are valid; qed"),
+			Key::Symmetric(ref key) => DecryptionInstance::aes(key.clone()),
 		})
 	}
 

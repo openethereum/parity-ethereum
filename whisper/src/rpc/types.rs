@@ -130,17 +130,24 @@ impl<T: HexEncodable> Visitor for HexEncodeVisitor<T> {
 	}
 }
 
+/// Receiver of a message. Either a public key or an identity.
+#[derive(Deserialize)]
+pub enum Receiver {
+	#[serde(rename="public")]
+	Public(Public),
+	#[serde(rename="identity")]
+	Identity(Identity),
+}
+
 /// A request to post a message to the whisper network.
 #[derive(Deserialize)]
 pub struct PostRequest {
-	/// Receiver of the message.
+	/// Receiver of the message. Either a public key or
+	/// an identity. If the identity is symmetric, it will
+	/// encrypt to that identity.
 	///
-	/// If present, the payload will be encrypted
-	/// using this identity.
-	#[serde(skip_serializing_if = "Option::is_none")]
-	pub to: Public,
-
-	// TODO: to_symmetric
+	// TODO: optional receiver?
+	pub to: Receiver,
 
 	/// Sender of the message.
 	///

@@ -179,8 +179,12 @@ impl<S: MessageSender + 'static> Whisper for WhisperClient<S> {
 	fn post(&self, req: types::PostRequest) -> Result<bool, Error> {
 		use self::crypto::EncryptionInstance;
 
-		let encryption = EncryptionInstance::ecies(req.to.into_inner())
-			.map_err(whisper_error)?;
+		let encryption = match req.to {
+			types::Receiver::Public(public) => EncryptionInstance::ecies(public.into_inner())
+				.map_err(whisper_error)?,
+			types::Receiver::Identity(id) => self.store.read().encryption_instance(&id.into_inner())
+				.map_err(whisper_error)?,
+		};
 
 		let sign_with = match req.from {
 			Some(from) => {
