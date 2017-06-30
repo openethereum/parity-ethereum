@@ -86,6 +86,9 @@ pub type Private = HexEncode<H256>;
 /// Abridged topic is four bytes.
 pub type AbridgedTopic = HexEncode<H32>;
 
+/// 32-byte AES key.
+pub type Symmetric = HexEncode<H256>;
+
 impl<T: HexEncodable> Serialize for HexEncode<T> {
 	fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
 		let data = &self.0[..];

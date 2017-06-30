@@ -47,11 +47,21 @@ impl Key {
 		}
 	}
 
+	/// Generate a random symmetric key with the given cryptographic RNG.
+	pub fn new_symmetric(rng: &mut OsRng) -> Self {
+		Key::Symmetric(rng.gen())
+	}
+
 	/// From secret asymmetric key. Fails if secret is invalid.
 	pub fn from_secret(secret: Secret) -> Result<Self, Unspecified> {
 		KeyPair::from_secret(secret)
 			.map(Key::Asymmetric)
 			.map_err(|_| Unspecified)
+	}
+
+	/// From raw symmetric key.
+	pub fn from_raw_symmetric(key: [u8; AES_KEY_LEN]) -> Self {
+		Key::Symmetric(key)
 	}
 
 	/// Get a handle to the public key if this is an asymmetric key.

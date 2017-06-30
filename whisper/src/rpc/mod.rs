@@ -74,6 +74,14 @@ build_rpc_trait! {
 		#[rpc(name = "shh_addPrivateKey")]
 		fn add_private_key(&self, types::Private) -> Result<types::Identity, Error>;
 
+		/// Generate a new symmetric key and return an identity.
+		#[rpc(name = "shh_newSymKey")]
+		fn new_sym_key(&self) -> Result<types::Identity, Error>;
+
+		/// Import the given symmetric key and return an identity.
+		#[rpc(name = "shh_addSymKey")]
+		fn add_sym_key(&self, types::Symmetric) -> Result<types::Identity, Error>;
+
 		/// Get public key. Succeeds if identity is stored and asymmetric.
 		#[rpc(name = "shh_getPublicKey")]
 		fn get_public(&self, types::Identity) -> Result<types::Public, Error>;
@@ -81,6 +89,9 @@ build_rpc_trait! {
 		/// Get private key. Succeeds if identity is stored and asymmetric.
 		#[rpc(name = "shh_getPrivateKey")]
 		fn get_private(&self, types::Identity) -> Result<types::Private, Error>;
+
+		#[rpc(name = "shh_getSymKey")]
+		fn get_symmetric(&self, types::Identity) -> Result<types::Symmetric, Error>;
 
 		/// Delete key pair denoted by given identity.
 		///
@@ -219,6 +230,20 @@ impl<S: MessageSender + 'static, M: Send + Sync + 'static> Whisper for WhisperCl
 		Ok(HexEncode(self.store.write().insert(key_pair)))
 	}
 
+	fn new_sym_key(&self) -> Result<types::Identity, Error> {
+		let mut store = self.store.write();
+		let key = Key::new_symmetric(store.rng());
+
+		Ok(HexEncode(store.insert(key)))
+	}
+
+	fn add_sym_key(&self, raw_key: types::Symmetric) -> Result<types::Identity, Error> {
+		let raw_key = raw_key.into_inner().0;
+		let key = Key::from_raw_symmetric(raw_key);
+
+		Ok(HexEncode(self.store.write().insert(key)))
+	}
+
 	fn get_public(&self, id: types::Identity) -> Result<types::Public, Error> {
 		self.store.read().public(&id.into_inner())
 			.cloned()
@@ -229,6 +254,14 @@ impl<S: MessageSender + 'static, M: Send + Sync + 'static> Whisper for WhisperCl
 	fn get_private(&self, id: types::Identity) -> Result<types::Private, Error> {
 		self.store.read().secret(&id.into_inner())
 			.map(|x| (&**x).clone())
+			.map(HexEncode)
+			.ok_or_else(|| whisper_error("Unknown identity"))
+	}
+
+	fn get_symmetric(&self, id: types::Identity) -> Result<types::Symmetric, Error> {
+		self.store.read().symmetric(&id.into_inner())
+			.cloned()
+			.map(H256)
 			.map(HexEncode)
 			.ok_or_else(|| whisper_error("Unknown identity"))
 	}

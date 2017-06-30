@@ -123,7 +123,7 @@ impl ::net::MessageHandler for Arc<Manager> {
 			// blocking the network thread for long.
 			let failed_send = match *filter {
 				FilterEntry::Poll(ref filter, _) | FilterEntry::Subscription(ref filter, _)
-					if !filter.bloom_matches(message) => None,
+					if !filter.basic_matches(message) => None,
 				FilterEntry::Poll(ref filter, ref buffer) => {
 					let (message, key_store) = (message.clone(), self.key_store.clone());
 					let (filter, buffer) = (filter.clone(), buffer.clone());
@@ -197,16 +197,18 @@ impl Filter {
 		})
 	}
 
+	// does basic matching:
 	// whether the given message matches at least one of the topics of the
 	// filter.
-	fn bloom_matches(&self, message: &Message) -> bool {
+	// TODO: minimum PoW heuristic.
+	fn basic_matches(&self, message: &Message) -> bool {
 		self.topics.iter().any(|&(_, ref bloom, _)| {
 			&(bloom & message.bloom()) == bloom
 		})
 	}
 
 	// handle a message that matches the bloom.
-	fn handle_message<F: Fn(FilterItem) + Send + Sync>(
+	fn handle_message<F: Fn(FilterItem)>(
 		&self,
 		message: &Message,
 		store: &RwLock<KeyStore>,
@@ -260,5 +262,115 @@ impl Filter {
 				trace!(target: "whisper", "Bad payload in decrypted message with {} topics: {}",
 					matched_topics.len(), reason),
 		}
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use message::{CreateParams, Message};
+	use rpc::types::{FilterRequest, HexEncode};
+	use rpc::abridge_topic;
+	use super::*;
+
+	#[test]
+	fn rejects_empty_topics() {
+		let req = FilterRequest {
+			decrypt_with: Default::default(),
+			from: None,
+			topics: Vec::new(),
+		};
+
+		assert!(Filter::new(req).is_err());
+	}
+
+	#[test]
+	fn basic_match() {
+		let topics = vec![vec![1, 2, 3], vec![4, 5, 6]];
+		let req = FilterRequest {
+			decrypt_with: Default::default(),
+			from: None,
+			topics: topics.iter().cloned().map(HexEncode).collect(),
+		};
+
+		let filter = Filter::new(req).unwrap();
+		let message = Message::create(CreateParams {
+			ttl: 100,
+			payload: vec![1, 3, 5, 7, 9],
+			topics: topics.iter().map(|x| abridge_topic(&x)).collect(),
+			work: 0,
+		});
+
+		assert!(filter.basic_matches(&message));
+
+		let message = Message::create(CreateParams {
+			ttl: 100,
+			payload: vec![1, 3, 5, 7, 9],
+			topics: topics.iter().take(1).map(|x| abridge_topic(&x)).collect(),
+			work: 0,
+		});
+
+		assert!(filter.basic_matches(&message));
+
+		let message = Message::create(CreateParams {
+			ttl: 100,
+			payload: vec![1, 3, 5, 7, 9],
+			topics: Vec::new(),
+			work: 0,
+		});
+
+		assert!(!filter.basic_matches(&message));
+	}
+
+	#[test]
+	fn decrypt_and_decode() {
+		use rpc::payload::{self, EncodeParams};
+		use rpc::key_store::{Key, KeyStore};
+
+		let mut store = KeyStore::new().unwrap();
+		let signing_pair = Key::new_asymmetric(store.rng());
+		let encrypting_key = Key::new_symmetric(store.rng());
+
+		let decrypt_id = store.insert(encrypting_key);
+		let encryption_instance = store.encryption_instance(&decrypt_id).unwrap();
+
+		let store = ::parking_lot::RwLock::new(store);
+
+		let payload = payload::encode(EncodeParams {
+			message: &[1, 2, 3],
+			padding: Some(&[4, 5, 4, 5]),
+			sign_with: Some(signing_pair.secret().unwrap())
+		}).unwrap();
+
+		let encrypted = encryption_instance.encrypt(&payload);
+
+		let message = Message::create(CreateParams {
+			ttl: 100,
+			payload: encrypted,
+			topics: vec![abridge_topic(&[9; 32])],
+			work: 0,
+		});
+
+		let message2 = Message::create(CreateParams {
+			ttl: 100,
+			payload: vec![3, 5, 7, 9],
+			topics: vec![abridge_topic(&[9; 32])],
+			work: 0,
+		});
+
+		let filter = Filter::new(FilterRequest {
+			decrypt_with: HexEncode(decrypt_id),
+			from: Some(HexEncode(signing_pair.public().unwrap().clone())),
+			topics: vec![HexEncode(vec![9; 32])],
+		}).unwrap();
+
+		assert!(filter.basic_matches(&message));
+
+		let items = ::std::cell::Cell::new(0);
+		let on_match = |_| { items.set(items.get() + 1); };
+
+		filter.handle_message(&message, &store, &on_match);
+		filter.handle_message(&message2, &store, &on_match);
+
+		assert_eq!(items.get(), 1);
 	}
 }
