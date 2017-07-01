@@ -31,7 +31,6 @@ use rpc_apis::{self, ApiSet};
 pub use parity_rpc::{IpcServer, HttpServer, RequestMiddleware};
 pub use parity_rpc::ws::Server as WsServer;
 
-
 pub const DAPPS_DOMAIN: &'static str = "web3.site";
 
 #[derive(Debug, Clone, PartialEq)]
@@ -162,7 +161,6 @@ impl Default for WsConfiguration {
 	}
 }
 
-
 impl WsConfiguration {
 	pub fn address(&self) -> Option<(String, u16)> {
 		match self.enabled {
@@ -190,7 +188,6 @@ pub fn new_ws<D: rpc_apis::Dependencies>(
 	let ws_address = (conf.interface, conf.port);
 	let url = format!("{}:{}", ws_address.0, ws_address.1);
 	let addr = url.parse().map_err(|_| format!("Invalid WebSockets listen host/port given: {}", url))?;
-
 
 	let full_handler = setup_apis(rpc_apis::ApiSet::SafeContext, deps);
 	let handler = {
