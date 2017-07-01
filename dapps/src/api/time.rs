@@ -68,23 +68,6 @@ impl From<ntp::errors::Error> for Error {
 	fn from(err: ntp::errors::Error) -> Self { Error::Ntp(format!("{}", err)) }
 }
 
-/// Time provider.
-pub trait TimeProvider: Clone + Send + 'static {
-	/// Returns an instance of this provider.
-	fn new() -> Self where Self: Sized;
-	/// Returns current time.
-	fn now(&self) -> Timespec;
-}
-/// Default system time provider.
-#[derive(Clone)]
-pub struct StdTimeProvider;
-impl TimeProvider for StdTimeProvider {
-	fn new() -> Self where Self: Sized { StdTimeProvider }
-	fn now(&self) -> Timespec {
-		::time::now_utc().to_timespec()
-	}
-}
-
 /// NTP time drift checker.
 pub trait Ntp {
 	/// Returns the current time drift.
@@ -93,35 +76,32 @@ pub trait Ntp {
 
 /// NTP client using the SNTP algorithm for calculating drift.
 #[derive(Clone)]
-pub struct SimpleNtp<T> {
+pub struct SimpleNtp {
 	address: Arc<String>,
-	time_provider: T,
 	pool: CpuPool,
 }
 
-impl<T> fmt::Debug for SimpleNtp<T> {
+impl fmt::Debug for SimpleNtp {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		write!(f, "Ntp {{ address: {} }}", self.address)
 	}
 }
 
-impl<T: TimeProvider> SimpleNtp<T> {
-	fn new(address: &str, time_provider: T) -> SimpleNtp<T> {
+impl SimpleNtp {
+	fn new(address: &str) -> SimpleNtp {
 		SimpleNtp {
 			address: Arc::new(address.to_owned()),
-			time_provider: time_provider,
 			pool: CpuPool::new(4),
 		}
 	}
 }
 
-impl<T: TimeProvider> Ntp for SimpleNtp<T> {
+impl Ntp for SimpleNtp {
 	fn drift(&self) -> BoxFuture<Duration, Error> {
 		let address = self.address.clone();
-		let time_provider = self.time_provider.clone();
 		self.pool.spawn_fn(move || {
 			let packet = ntp::request(&*address)?;
-			let dest_time = time_provider.now();
+			let dest_time = ::time::now_utc().to_timespec();
 			let orig_time = Timespec::from(packet.orig_time);
 			let recv_time = Timespec::from(packet.recv_time);
 			let transmit_time = Timespec::from(packet.transmit_time);
@@ -138,19 +118,19 @@ const UPDATE_TIMEOUT_ERR_SECS: u64 = 2;
 
 #[derive(Debug, Clone)]
 /// A time checker.
-pub struct TimeChecker<N: Ntp = SimpleNtp<StdTimeProvider>> {
+pub struct TimeChecker<N: Ntp = SimpleNtp> {
 	ntp: N,
 	last_result: Arc<RwLock<(time::Instant, Result<i64, Error>)>>,
 }
 
-impl TimeChecker<SimpleNtp<StdTimeProvider>> {
+impl TimeChecker<SimpleNtp> {
 	/// Creates new time checker given the NTP server address.
 	pub fn new(ntp_address: String) -> Self {
 		let last_result = Arc::new(RwLock::new(
 			(time::Instant::now(), Err(Error::Ntp("NTP server unavailable.".into())))
 		));
 
-		let ntp = SimpleNtp::new(&ntp_address, StdTimeProvider::new());
+		let ntp = SimpleNtp::new(&ntp_address);
 
 		TimeChecker {
 			ntp,
