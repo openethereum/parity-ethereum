@@ -35,8 +35,14 @@ const RALLY_TIMEOUT_MS: u64 = 750; // supposed to be at least once per second.
 
 const PROTOCOL_VERSION: usize = 2;
 
+/// Supported protocol versions.
+pub const SUPPORTED_VERSIONS: &'static [u8] = &[PROTOCOL_VERSION as u8];
+
 // maximum tolerated delay between messages packets.
 const MAX_TOLERATED_DELAY_MS: u64 = 2000;
+
+/// Number of packets.
+pub const PACKET_COUNT: u8 = 3;
 
 mod packet {
 	pub const STATUS: u8 = 0;

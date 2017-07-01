@@ -22,8 +22,9 @@ use std::thread;
 
 use bigint::hash::{H32, H256, H512};
 use ethkey::Public;
-use jsonrpc_macros::pubsub::Sink;
+use jsonrpc_macros::pubsub::{Subscriber, Sink};
 use parking_lot::{Mutex, RwLock};
+use rand::{Rng, OsRng};
 
 use message::{Message, Topic};
 use super::key_store::KeyStore;
@@ -45,7 +46,8 @@ enum FilterEntry {
 	Subscription(Arc<Filter>, Sink<FilterItem>),
 }
 
-/// Filter manager. Handles filters as well as a thread for
+/// Filter manager. Handles filters as well as a thread for doing decryption
+/// and payload decoding.
 pub struct Manager {
 	key_store: Arc<RwLock<KeyStore>>,
 	filters: RwLock<HashMap<H256, FilterEntry>>,
@@ -55,21 +57,24 @@ pub struct Manager {
 
 impl Manager {
 	/// Create a new filter manager that will dispatch decryption tasks onto
-	/// the given thread pool and use given key store for key management.
-	pub fn new(key_store: Arc<RwLock<KeyStore>>) ->
-		::std::io::Result<Self>
-	{
+	/// the given thread pool.
+	pub fn new() -> ::std::io::Result<Self> {
 		let (tx, rx) = mpsc::channel::<Box<Fn() + Send>>();
 		let join_handle = thread::Builder::new()
 			.name("Whisper Decryption Worker".to_string())
 			.spawn(move || for item in rx { (item)() })?;
 
 		Ok(Manager {
-			key_store: key_store,
+			key_store: Arc::new(RwLock::new(KeyStore::new()?)),
 			filters: RwLock::new(HashMap::new()),
 			tx: Mutex::new(tx),
 			join: Some(join_handle),
 		})
+	}
+
+	/// Get a handle to the key store.
+	pub fn key_store(&self) -> Arc<RwLock<KeyStore>> {
+		self.key_store.clone()
 	}
 
 	/// Get filter kind if it's known.
@@ -86,17 +91,32 @@ impl Manager {
 	}
 
 	/// Add a new polled filter.
-	pub fn insert_polled(&self, id: H256, filter: Filter) {
+	pub fn insert_polled(&self, filter: Filter) -> Result<H256, &'static str> {
 		let buffer = Arc::new(Mutex::new(Vec::new()));
 		let entry = FilterEntry::Poll(Arc::new(filter), buffer);
+		let id = OsRng::new()
+			.map_err(|_| "unable to acquire secure randomness")?
+			.gen();
 
 		self.filters.write().insert(id, entry);
+		Ok(id)
 	}
 
-	/// Add a new subscription filter.
-	pub fn insert_subscription(&self, id: H256, filter: Filter, sink: Sink<FilterItem>) {
-		let entry = FilterEntry::Subscription(Arc::new(filter), sink);
-		self.filters.write().insert(id, entry);
+	/// Insert new subscription filter. Generates a secure ID and sends it to
+	/// the
+	pub fn insert_subscription(&self, filter: Filter, sub: Subscriber<FilterItem>)
+		-> Result<(), &'static str>
+	{
+		let id: H256 = OsRng::new()
+			.map_err(|_| "unable to acquire secure randomness")?
+			.gen();
+
+		sub.assign_id(::jsonrpc_pubsub::SubscriptionId::String(id.hex()))
+			.map(move |sink| {
+				let entry = FilterEntry::Subscription(Arc::new(filter), sink);
+				self.filters.write().insert(id, entry);
+			})
+			.map_err(|_| "subscriber disconnected")
 	}
 
 	/// Poll changes on filter identified by ID.

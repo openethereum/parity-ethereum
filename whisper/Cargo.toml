@@ -1,7 +1,8 @@
 [package]
-name = "whisper"
+name = "parity-whisper"
 version = "0.1.0"
 authors = ["Parity Technologies <admin@parity.io>"]
+description = "Whisper Protocol implementation for Parity"
 
 [dependencies]
 bitflags = "0.9"
@@ -16,7 +17,7 @@ log = "0.3"
 ordered-float = "0.5"
 parking_lot = "0.4"
 rand = "0.3"
-ring = "0.11"
+ring = "0.9.5"
 rlp = { path = "../util/rlp" }
 serde = "0.9"
 serde_derive = "0.9"

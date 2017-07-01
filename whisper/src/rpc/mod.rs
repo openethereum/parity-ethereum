@@ -29,8 +29,7 @@ use jsonrpc_macros::pubsub;
 
 use bigint::hash::H256;
 use futures::{future, BoxFuture};
-use parking_lot::{Mutex, RwLock};
-use rand::{Rng, SeedableRng, XorShiftRng};
+use parking_lot::RwLock;
 
 use self::filter::Filter;
 use self::key_store::{Key, KeyStore};
@@ -43,6 +42,8 @@ mod filter;
 mod key_store;
 mod payload;
 mod types;
+
+pub use self::filter::Manager as FilterManager;
 
 // create whisper RPC error.
 fn whisper_error<T: Into<String>>(message: T) -> Error {
@@ -163,45 +164,28 @@ impl PubSubMetadata for Meta {
 
 /// Implementation of whisper RPC.
 pub struct WhisperClient<S, M = Meta> {
-	store: RwLock<key_store::KeyStore>,
+	store: Arc<RwLock<KeyStore>>,
 	sender: S,
 	filter_manager: Arc<filter::Manager>,
-	filter_ids_rng: Mutex<XorShiftRng>,
 	_meta: ::std::marker::PhantomData<M>,
 }
 
 impl<S> WhisperClient<S> {
 	/// Create a new whisper client with basic metadata.
-	///
-	/// This spawns a thread for handling
-	/// asynchronous work like performing PoW on messages or handling
-	/// subscriptions.
-	pub fn with_simple_meta(sender: S, filter_manager: Arc<filter::Manager>)
-		-> ::std::io::Result<Self>
-	{
+	pub fn with_simple_meta(sender: S, filter_manager: Arc<filter::Manager>) -> Self {
 		WhisperClient::new(sender, filter_manager)
 	}
 }
 
 impl<S, M> WhisperClient<S, M> {
 	/// Create a new whisper client.
-	///
-	/// This spawns a thread for handling
-	/// asynchronous work like performing PoW on messages or handling
-	/// subscriptions.
-	pub fn new(sender: S, filter_manager: Arc<filter::Manager>) -> ::std::io::Result<Self> {
-		let filter_ids_rng = {
-			let mut rng = ::rand::thread_rng();
-			XorShiftRng::from_seed(rng.gen())
-		};
-
-		Ok(WhisperClient {
-			store: RwLock::new(KeyStore::new()?),
+	pub fn new(sender: S, filter_manager: Arc<filter::Manager>) -> Self {
+		WhisperClient {
+			store: filter_manager.key_store(),
 			sender: sender,
 			filter_manager: filter_manager,
-			filter_ids_rng: Mutex::new(filter_ids_rng),
 			_meta: ::std::marker::PhantomData,
-		})
+		}
 	}
 
 	fn delete_filter_kind(&self, id: H256, kind: filter::Kind) -> bool {
@@ -320,10 +304,10 @@ impl<S: MessageSender + 'static, M: Send + Sync + 'static> Whisper for WhisperCl
 
 	fn new_filter(&self, req: types::FilterRequest) -> Result<types::Identity, Error> {
 		let filter = Filter::new(req).map_err(whisper_error)?;
-		let id = self.filter_ids_rng.lock().gen();
 
-		self.filter_manager.insert_polled(id, filter);
-		Ok(HexEncode(id))
+		self.filter_manager.insert_polled(filter)
+			.map(HexEncode)
+			.map_err(whisper_error)
 	}
 
 	fn poll_changes(&self, id: types::Identity) -> Result<Vec<types::FilterItem>, Error> {
@@ -349,10 +333,8 @@ impl<S: MessageSender + 'static, M: Send + Sync + PubSubMetadata> WhisperPubSub 
 	) {
 		match Filter::new(req) {
 			Ok(filter) => {
-				let id: H256 = self.filter_ids_rng.lock().gen();
-
-				if let Ok(sink) = subscriber.assign_id(SubscriptionId::String(id.hex())) {
-					self.filter_manager.insert_subscription(id, filter, sink);
+				if let Err(e) = self.filter_manager.insert_subscription(filter, subscriber) {
+					debug!(target: "whisper", "Failed to add subscription: {}", e);
 				}
 			}
 			Err(reason) => { let _ = subscriber.reject(whisper_error(reason)); }
