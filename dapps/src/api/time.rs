@@ -171,28 +171,27 @@ impl<N: Ntp> TimeChecker<N> {
 #[cfg(test)]
 mod tests {
 	use std::sync::Arc;
-	use std::cell::RefCell;
+	use std::cell::{Cell, RefCell};
 	use std::time::Instant;
 	use time::Duration;
 	use futures::{self, BoxFuture, Future};
 	use super::{Ntp, TimeChecker, Error};
-	use util::{Mutex, RwLock};
+	use util::RwLock;
 
 	#[derive(Clone)]
-	struct FakeNtp(RefCell<Vec<Duration>>, Arc<Mutex<u64>>);
+	struct FakeNtp(RefCell<Vec<Duration>>, Cell<u64>);
 	impl FakeNtp {
 		fn new() -> FakeNtp {
 			FakeNtp(
 				RefCell::new(vec![Duration::milliseconds(150)]),
-				Arc::new(Mutex::new(0)))
+				Cell::new(0))
 		}
 	}
 
 	impl Ntp for FakeNtp {
 		fn drift(&self) -> BoxFuture<Duration, Error> {
-			let mut val = self.1.lock();
-			*val = *val + 1;
-			futures::future::ok(self.0.borrow_mut().pop().expect("Expecting only one call to now().")).boxed()
+			self.1.set(self.1.get() + 1);
+			futures::future::ok(self.0.borrow_mut().pop().expect("Unexpected call to drift().")).boxed()
 		}
 	}
 
@@ -217,7 +216,7 @@ mod tests {
 
 		// then
 		assert_eq!(diff, 150);
-		assert_eq!(*time.ntp.1.lock(), 1);
+		assert_eq!(time.ntp.1.get(), 1);
 	}
 
 	#[test]
@@ -232,6 +231,6 @@ mod tests {
 		// then
 		assert_eq!(diff1, 150);
 		assert_eq!(diff2, 150);
-		assert_eq!(*time.ntp.1.lock(), 1);
+		assert_eq!(time.ntp.1.get(), 1);
 	}
 }
