@@ -515,6 +515,10 @@ impl Configuration {
 	}
 
 	fn miner_options(&self, reseal_min_period: u64) -> Result<MinerOptions, String> {
+		if self.args.flag_force_sealing && reseal_min_period == 0 {
+			return Err("Force sealing can't be used with reseal_min_period = 0".into());
+		}
+
 		let reseal = self.args.flag_reseal_on_txs.parse::<ResealPolicy>()?;
 
 		let options = MinerOptions {
@@ -1332,6 +1336,13 @@ mod tests {
 		assert_eq!(conf2.miner_options(min_period).unwrap(), mining_options);
 		mining_options.tx_queue_strategy = PrioritizationStrategy::GasAndGasPrice;
 		assert_eq!(conf3.miner_options(min_period).unwrap(), mining_options);
+	}
+
+	#[test]
+	fn should_fail_on_force_reseal_and_reseal_min_period() {
+		let conf = parse(&["parity", "--chain", "dev", "--force-sealing"]);
+
+		assert!(conf.miner_options(0).is_err());
 	}
 
 	#[test]
