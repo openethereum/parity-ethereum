@@ -70,9 +70,11 @@ mod tests;
 
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::collections::HashMap;
+use std::collections::{HashMap, BTreeMap};
 
 use jsonrpc_http_server::{self as http, hyper, Origin};
+
+use parking_lot::RwLock;
 
 use fetch::Fetch;
 use parity_reactor::Remote;
@@ -100,6 +102,7 @@ impl<F> WebProxyTokens for F where F: Fn(String) -> Option<Origin> + Send + Sync
 }
 
 /// Current supported endpoints.
+#[derive(Default, Clone)]
 pub struct Endpoints {
 	endpoints: endpoint::Endpoints,
 }
@@ -111,20 +114,32 @@ impl Endpoints {
 			e.info().map(|ref info| apps::App::from_info(k, info))
 		}).collect()
 	}
+
+	pub fn refresh_local_dapps(&self, dapps_path: PathBuf, ui_address: Option<(String, u16)>) -> Endpoints {
+		// pub type Endpoints = Arc<RwLock<BTreeMap<String, Box<Endpoint>>>>;
+		// pages: &mut BTreeMap<String, Box<Endpoint>>
+		Endpoints {
+			endpoints: apps::refresh_local_endpoints(
+				&mut Arc::try_unwrap(self.endpoints).unwrap().into_inner(),
+				dapps_path,
+				ui_address
+			)
+		}
+	}
 }
 
 /// Dapps server as `jsonrpc-http-server` request middleware.
 pub struct Middleware {
+	dapps_path: PathBuf,
+	endpoints: Endpoints,
 	router: router::Router,
-	endpoints: endpoint::Endpoints,
+	ui_address: Option<(String, u16)>,
 }
 
 impl Middleware {
 	/// Get local endpoints handle.
 	pub fn endpoints(&self) -> Endpoints {
-		Endpoints {
-			endpoints: self.endpoints.clone(),
-		}
+		self.endpoints.clone()
 	}
 
 	/// Creates new middleware for UI server.
@@ -155,8 +170,10 @@ impl Middleware {
 		);
 
 		Middleware {
-			router: router,
+			dapps_path: Default::default(),
 			endpoints: Default::default(),
+			router: router,
+			ui_address: Default::default(),
 		}
 	}
 
@@ -178,15 +195,17 @@ impl Middleware {
 			remote.clone(),
 			fetch.clone(),
 		).embeddable_on(ui_address.clone()).allow_dapps(true));
-		let endpoints = apps::all_endpoints(
-			dapps_path,
-			extra_dapps,
-			dapps_domain.clone(),
-			ui_address.clone(),
-			web_proxy_tokens,
-			remote.clone(),
-			fetch.clone(),
-		);
+		let endpoints = Endpoints {
+			endpoints: apps::all_endpoints(
+				dapps_path,
+				extra_dapps,
+				dapps_domain.clone(),
+				ui_address.clone(),
+				web_proxy_tokens,
+				remote.clone(),
+				fetch.clone(),
+			)
+		};
 
 		let special = {
 			let mut special = special_endpoints(content_fetcher.clone());
@@ -196,16 +215,23 @@ impl Middleware {
 
 		let router = router::Router::new(
 			content_fetcher,
-			Some(endpoints.clone()),
+			Some(endpoints.endpoints.clone()),
 			special,
 			ui_address,
 			dapps_domain,
 		);
 
 		Middleware {
-			router: router,
-			endpoints: endpoints,
+			dapps_path: dapps_path.clone(),
+			endpoints,
+			router,
+			ui_address: ui_address.clone(),
 		}
+	}
+
+	pub fn refresh_local_dapps(&self) -> bool {
+		self.endpoints = self.endpoints.refresh_local_dapps(self.dapps_path, self.ui_address);
+		true
 	}
 }
 

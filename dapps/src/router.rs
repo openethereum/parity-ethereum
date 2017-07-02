@@ -63,7 +63,7 @@ impl http::RequestMiddleware for Router {
 		// info!(target: "dapps", "Routing request to {:?}. Details: {:?}", url, req);
 
 		trace!(target: "dapps", "Routing request to {:?}. Details: {:?}", url, req);
-		let endpoints = self.endpoints.as_ref().map(|endpoints| endpoints.read());
+		let endpoints = self.endpoints.as_ref().map(|endpoint| endpoint.read());
 
 		let control = control.clone();
 		debug!(target: "dapps", "Handling endpoint request: {:?}", endpoint);

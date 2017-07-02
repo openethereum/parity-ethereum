@@ -285,5 +285,9 @@ mod server {
 				})
 				.collect()
 		}
+
+		fn refresh_local_dapps(&self) -> bool {
+			self.endpoints.refresh_local_dapps()
+		}
 	}
 }
