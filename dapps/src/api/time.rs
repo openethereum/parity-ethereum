@@ -88,10 +88,10 @@ impl fmt::Debug for SimpleNtp {
 }
 
 impl SimpleNtp {
-	fn new(address: &str) -> SimpleNtp {
+	fn new(address: &str, pool: CpuPool) -> SimpleNtp {
 		SimpleNtp {
 			address: Arc::new(address.to_owned()),
-			pool: CpuPool::new(4),
+			pool: pool,
 		}
 	}
 }
@@ -125,12 +125,12 @@ pub struct TimeChecker<N: Ntp = SimpleNtp> {
 
 impl TimeChecker<SimpleNtp> {
 	/// Creates new time checker given the NTP server address.
-	pub fn new(ntp_address: String) -> Self {
+	pub fn new(ntp_address: String, pool: CpuPool) -> Self {
 		let last_result = Arc::new(RwLock::new(
 			(time::Instant::now(), Err(Error::Ntp("NTP server unavailable.".into())))
 		));
 
-		let ntp = SimpleNtp::new(&ntp_address);
+		let ntp = SimpleNtp::new(&ntp_address, pool);
 
 		TimeChecker {
 			ntp,

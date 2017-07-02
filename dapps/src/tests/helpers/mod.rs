@@ -26,6 +26,7 @@ use jsonrpc_http_server::{self as http, Host, DomainsValidation};
 use devtools::http_client;
 use hash_fetch::urlhint::ContractClient;
 use fetch::{Fetch, Client as FetchClient};
+use futures_cpupool::CpuPool;
 use parity_reactor::Remote;
 
 use {Middleware, SyncStatus, WebProxyTokens};
@@ -255,6 +256,7 @@ impl Server {
 	) -> Result<Server, http::Error> {
 		let middleware = Middleware::dapps(
 			"pool.ntp.org:123",
+			CpuPool::new(4),
 			remote,
 			signer_address,
 			dapps_path,

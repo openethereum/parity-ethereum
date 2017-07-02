@@ -29,6 +29,7 @@ extern crate docopt;
 extern crate env_logger;
 extern crate fdlimit;
 extern crate futures;
+extern crate futures_cpupool;
 extern crate isatty;
 extern crate jsonrpc_core;
 extern crate num_cpus;

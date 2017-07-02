@@ -22,6 +22,7 @@ use ethcore::client::{Client, BlockChainClient, BlockId};
 use ethcore::transaction::{Transaction, Action};
 use ethsync::LightSync;
 use futures::{future, IntoFuture, Future, BoxFuture};
+use futures_cpupool::CpuPool;
 use hash_fetch::fetch::Client as FetchClient;
 use hash_fetch::urlhint::ContractClient;
 use helpers::replace_home;
@@ -142,6 +143,7 @@ pub struct Dependencies {
 	pub sync_status: Arc<SyncStatus>,
 	pub contract_client: Arc<ContractClient>,
 	pub remote: parity_reactor::TokioRemote,
+	pub pool: CpuPool,
 	pub fetch: FetchClient,
 	pub signer: Arc<SignerService>,
 	pub ui_address: Option<(String, u16)>,
@@ -243,6 +245,7 @@ mod server {
 
 		Ok(parity_dapps::Middleware::dapps(
 			ntp_server,
+			deps.pool,
 			parity_remote,
 			deps.ui_address,
 			dapps_path,
@@ -263,6 +266,7 @@ mod server {
 		let parity_remote = parity_reactor::Remote::new(deps.remote.clone());
 		Ok(parity_dapps::Middleware::ui(
 			ntp_server,
+			deps.pool,
 			parity_remote,
 			dapps_domain,
 			deps.contract_client,

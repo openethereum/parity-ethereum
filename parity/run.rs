@@ -285,6 +285,7 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 
 		dapps::Dependencies {
 			sync_status: Arc::new(LightSyncStatus(light_sync.clone())),
+			pool: fetch.pool(),
 			contract_client: contract_client,
 			remote: event_loop.raw_remote(),
 			fetch: fetch.clone(),
@@ -634,6 +635,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 
 		dapps::Dependencies {
 			sync_status: Arc::new(SyncStatus(sync, client, net_conf)),
+			pool: fetch.pool(),
 			contract_client: contract_client,
 			remote: event_loop.raw_remote(),
 			fetch: fetch.clone(),
