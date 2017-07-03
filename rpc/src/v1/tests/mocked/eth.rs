@@ -963,7 +963,7 @@ fn rpc_eth_send_raw_transaction() {
 	let signature = tester.accounts_provider.sign(address, None, t.hash(None)).unwrap();
 	let t = t.with_signature(signature, None);
 
-	let rlp = rlp::encode(&t).to_vec().to_hex();
+	let rlp = rlp::encode(&t).into_vec().to_hex();
 
 	let req = r#"{
 		"jsonrpc": "2.0",

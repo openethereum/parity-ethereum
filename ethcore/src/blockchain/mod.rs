@@ -31,6 +31,5 @@ pub mod generator;
 pub use self::blockchain::{BlockProvider, BlockChain};
 pub use self::cache::CacheSize;
 pub use self::config::Config;
-pub use self::extras::EpochTransition;
 pub use types::tree_route::TreeRoute;
 pub use self::import_route::ImportRoute;

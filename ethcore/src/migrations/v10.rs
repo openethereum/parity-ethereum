@@ -104,7 +104,7 @@ impl Migration for ToV10 {
 		let mut batch = Batch::new(config, col);
 		for (key, value) in source.iter(col).into_iter().flat_map(|inner| inner) {
 			self.progress.tick();
-			batch.insert(key.to_vec(), value.to_vec(), dest)?;
+			batch.insert(key.into_vec(), value.into_vec(), dest)?;
 		}
 		batch.commit(dest)?;
 

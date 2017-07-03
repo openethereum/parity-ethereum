@@ -18,8 +18,8 @@
 
 use util::{H256, Address, HeapSizeOf};
 
-use engines::Call;
-use header::Header;
+use engines::{Call, Engine};
+use header::{BlockNumber, Header};
 use super::ValidatorSet;
 
 /// Validator set containing a known set of addresses.
@@ -42,6 +42,20 @@ impl SimpleList {
 	}
 }
 
+impl ::std::ops::Deref for SimpleList {
+	type Target = [Address];
+
+	fn deref(&self) -> &[Address] { &self.validators }
+}
+
+impl From<Vec<Address>> for SimpleList {
+	fn from(validators: Vec<Address>) -> Self {
+		SimpleList {
+			validators: validators,
+		}
+	}
+}
+
 impl HeapSizeOf for SimpleList {
 	fn heap_size_of_children(&self) -> usize {
 		self.validators.heap_size_of_children()
@@ -53,18 +67,21 @@ impl ValidatorSet for SimpleList {
 		Box::new(|_, _| Err("Simple list doesn't require calls.".into()))
 	}
 
-	fn is_epoch_end(&self, _header: &Header, _block: Option<&[u8]>, _receipts: Option<&[::receipt::Receipt]>)
+	fn is_epoch_end(&self, first: bool, _chain_head: &Header) -> Option<Vec<u8>> {
+		match first {
+			true => Some(Vec::new()), // allow transition to fixed list, and instantly
+			false => None,
+		}
+	}
+
+	fn signals_epoch_end(&self, _: bool, _: &Header, _: Option<&[u8]>, _: Option<&[::receipt::Receipt]>)
 		-> ::engines::EpochChange
 	{
 		::engines::EpochChange::No
 	}
 
-	fn epoch_proof(&self, _header: &Header, _caller: &Call) -> Result<Vec<u8>, String> {
-		Ok(Vec::new())
-	}
-
-	fn epoch_set(&self, _header: &Header, _: &[u8]) -> Result<(u64, SimpleList), ::error::Error> {
-		Ok((0, self.clone()))
+	fn epoch_set(&self, _first: bool, _: &Engine, _: BlockNumber, _: &[u8]) -> Result<(SimpleList, Option<H256>), ::error::Error> {
+		Ok((self.clone(), None))
 	}
 
 	fn contains_with_caller(&self, _bh: &H256, address: &Address, _: &Call) -> bool {
@@ -73,6 +90,11 @@ impl ValidatorSet for SimpleList {
 
 	fn get_with_caller(&self, _bh: &H256, nonce: usize, _: &Call) -> Address {
 		let validator_n = self.validators.len();
+
+		if validator_n == 0 {
+			panic!("Cannot operate with an empty validator set.");
+		}
+
 		self.validators.get(nonce % validator_n).expect("There are validator_n authorities; taking number modulo validator_n gives number in validator_n range; qed").clone()
 	}
 
