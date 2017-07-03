@@ -27,6 +27,7 @@
     "keycode": "^2.1.9",
     "lodash": "4.17.2",
     "moment": "2.17.0",
+    "qrcode-generator": "1.2.0",
     "react-ace": "4.1.0",
     "react-copy-to-clipboard": "4.2.3",
     "react-datetime": "2.8.10",
