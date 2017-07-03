@@ -32,6 +32,11 @@ pub use self::header_proof::{
 	Incomplete as IncompleteHeaderProofRequest,
 	Response as HeaderProofResponse
 };
+pub use self::transaction_index::{
+	Complete as CompleteTransactionIndexRequest,
+	Incomplete as IncompleteTransactionIndexRequest,
+	Response as TransactionIndexResponse
+};
 pub use self::block_body::{
 	Complete as CompleteBodyRequest,
 	Incomplete as IncompleteBodyRequest,
@@ -242,7 +247,8 @@ pub enum Request {
 	Headers(IncompleteHeadersRequest),
 	/// A request for a header proof (from a CHT)
 	HeaderProof(IncompleteHeaderProofRequest),
-	// TransactionIndex,
+	/// A request for a transaction index by hash.
+	TransactionIndex(IncompleteTransactionIndexRequest),
 	/// A request for a block's receipts.
 	Receipts(IncompleteReceiptsRequest),
 	/// A request for a block body.
@@ -264,7 +270,8 @@ pub enum CompleteRequest {
 	Headers(CompleteHeadersRequest),
 	/// A request for a header proof (from a CHT)
 	HeaderProof(CompleteHeaderProofRequest),
-	// TransactionIndex,
+	/// A request for a transaction index by hash.
+	TransactionIndex(CompleteTransactionIndexRequest),
 	/// A request for a block's receipts.
 	Receipts(CompleteReceiptsRequest),
 	/// A request for a block body.
@@ -285,6 +292,7 @@ impl CompleteRequest {
 		match *self {
 			CompleteRequest::Headers(_) => Kind::Headers,
 			CompleteRequest::HeaderProof(_) => Kind::HeaderProof,
+			CompleteRequest::TransactionIndex(_) => Kind::TransactionIndex,
 			CompleteRequest::Receipts(_) => Kind::Receipts,
 			CompleteRequest::Body(_) => Kind::Body,
 			CompleteRequest::Account(_) => Kind::Account,
@@ -301,6 +309,7 @@ impl Request {
 		match *self {
 			Request::Headers(_) => Kind::Headers,
 			Request::HeaderProof(_) => Kind::HeaderProof,
+			Request::TransactionIndex(_) => Kind::TransactionIndex,
 			Request::Receipts(_) => Kind::Receipts,
 			Request::Body(_) => Kind::Body,
 			Request::Account(_) => Kind::Account,
@@ -316,6 +325,7 @@ impl Decodable for Request {
 		match rlp.val_at::<Kind>(0)? {
 			Kind::Headers => Ok(Request::Headers(rlp.val_at(1)?)),
 			Kind::HeaderProof => Ok(Request::HeaderProof(rlp.val_at(1)?)),
+			Kind::TransactionIndex => Ok(Request::TransactionIndex(rlp.val_at(1)?)),
 			Kind::Receipts => Ok(Request::Receipts(rlp.val_at(1)?)),
 			Kind::Body => Ok(Request::Body(rlp.val_at(1)?)),
 			Kind::Account => Ok(Request::Account(rlp.val_at(1)?)),
@@ -336,6 +346,7 @@ impl Encodable for Request {
 		match *self {
 			Request::Headers(ref req) => s.append(req),
 			Request::HeaderProof(ref req) => s.append(req),
+			Request::TransactionIndex(ref req) => s.append(req),
 			Request::Receipts(ref req) => s.append(req),
 			Request::Body(ref req) => s.append(req),
 			Request::Account(ref req) => s.append(req),
@@ -356,6 +367,7 @@ impl IncompleteRequest for Request {
 		match *self {
 			Request::Headers(ref req) => req.check_outputs(f),
 			Request::HeaderProof(ref req) => req.check_outputs(f),
+			Request::TransactionIndex(ref req) => req.check_outputs(f),
 			Request::Receipts(ref req) => req.check_outputs(f),
 			Request::Body(ref req) => req.check_outputs(f),
 			Request::Account(ref req) => req.check_outputs(f),
@@ -369,6 +381,7 @@ impl IncompleteRequest for Request {
 		match *self {
 			Request::Headers(ref req) => req.note_outputs(f),
 			Request::HeaderProof(ref req) => req.note_outputs(f),
+			Request::TransactionIndex(ref req) => req.note_outputs(f),
 			Request::Receipts(ref req) => req.note_outputs(f),
 			Request::Body(ref req) => req.note_outputs(f),
 			Request::Account(ref req) => req.note_outputs(f),
@@ -382,6 +395,7 @@ impl IncompleteRequest for Request {
 		match *self {
 			Request::Headers(ref mut req) => req.fill(oracle),
 			Request::HeaderProof(ref mut req) => req.fill(oracle),
+			Request::TransactionIndex(ref mut req) => req.fill(oracle),
 			Request::Receipts(ref mut req) => req.fill(oracle),
 			Request::Body(ref mut req) => req.fill(oracle),
 			Request::Account(ref mut req) => req.fill(oracle),
@@ -395,6 +409,7 @@ impl IncompleteRequest for Request {
 		match self {
 			Request::Headers(req) => req.complete().map(CompleteRequest::Headers),
 			Request::HeaderProof(req) => req.complete().map(CompleteRequest::HeaderProof),
+			Request::TransactionIndex(req) => req.complete().map(CompleteRequest::TransactionIndex),
 			Request::Receipts(req) => req.complete().map(CompleteRequest::Receipts),
 			Request::Body(req) => req.complete().map(CompleteRequest::Body),
 			Request::Account(req) => req.complete().map(CompleteRequest::Account),
@@ -408,6 +423,7 @@ impl IncompleteRequest for Request {
 		match *self {
 			Request::Headers(ref mut req) => req.adjust_refs(mapping),
 			Request::HeaderProof(ref mut req) => req.adjust_refs(mapping),
+			Request::TransactionIndex(ref mut req) => req.adjust_refs(mapping),
 			Request::Receipts(ref mut req) => req.adjust_refs(mapping),
 			Request::Body(ref mut req) => req.adjust_refs(mapping),
 			Request::Account(ref mut req) => req.adjust_refs(mapping),
@@ -441,7 +457,8 @@ pub enum Kind {
 	Headers = 0,
 	/// A request for a header proof.
 	HeaderProof = 1,
-	// TransactionIndex = 2,
+	/// A request for a transaction index.
+	TransactionIndex = 2,
 	/// A request for block receipts.
 	Receipts = 3,
 	/// A request for a block body.
@@ -461,7 +478,7 @@ impl Decodable for Kind {
 		match rlp.as_val::<u8>()? {
 			0 => Ok(Kind::Headers),
 			1 => Ok(Kind::HeaderProof),
-			// 2 => Ok(Kind::TransactionIndex),
+			2 => Ok(Kind::TransactionIndex),
 			3 => Ok(Kind::Receipts),
 			4 => Ok(Kind::Body),
 			5 => Ok(Kind::Account),
@@ -486,7 +503,8 @@ pub enum Response {
 	Headers(HeadersResponse),
 	/// A response for a header proof (from a CHT)
 	HeaderProof(HeaderProofResponse),
-	// TransactionIndex,
+	/// A response for a transaction index.
+	TransactionIndex(TransactionIndexResponse),
 	/// A response for a block's receipts.
 	Receipts(ReceiptsResponse),
 	/// A response for a block body.
@@ -507,6 +525,7 @@ impl ResponseLike for Response {
 		match *self {
 			Response::Headers(ref res) => res.fill_outputs(f),
 			Response::HeaderProof(ref res) => res.fill_outputs(f),
+			Response::TransactionIndex(ref res) => res.fill_outputs(f),
 			Response::Receipts(ref res) => res.fill_outputs(f),
 			Response::Body(ref res) => res.fill_outputs(f),
 			Response::Account(ref res) => res.fill_outputs(f),
@@ -523,6 +542,7 @@ impl Response {
 		match *self {
 			Response::Headers(_) => Kind::Headers,
 			Response::HeaderProof(_) => Kind::HeaderProof,
+			Response::TransactionIndex(_) => Kind::TransactionIndex,
 			Response::Receipts(_) => Kind::Receipts,
 			Response::Body(_) => Kind::Body,
 			Response::Account(_) => Kind::Account,
@@ -538,6 +558,7 @@ impl Decodable for Response {
 		match rlp.val_at::<Kind>(0)? {
 			Kind::Headers => Ok(Response::Headers(rlp.val_at(1)?)),
 			Kind::HeaderProof => Ok(Response::HeaderProof(rlp.val_at(1)?)),
+			Kind::TransactionIndex => Ok(Response::TransactionIndex(rlp.val_at(1)?)),
 			Kind::Receipts => Ok(Response::Receipts(rlp.val_at(1)?)),
 			Kind::Body => Ok(Response::Body(rlp.val_at(1)?)),
 			Kind::Account => Ok(Response::Account(rlp.val_at(1)?)),
@@ -558,6 +579,7 @@ impl Encodable for Response {
 		match *self {
 			Response::Headers(ref res) => s.append(res),
 			Response::HeaderProof(ref res) => s.append(res),
+			Response::TransactionIndex(ref res) => s.append(res),
 			Response::Receipts(ref res) => s.append(res),
 			Response::Body(ref res) => s.append(res),
 			Response::Account(ref res) => s.append(res),
@@ -860,6 +882,117 @@ pub mod header_proof {
 				.append_list::<Vec<u8>,_>(&self.proof[..])
 				.append(&self.hash)
 				.append(&self.td);
+		}
+	}
+}
+
+/// Request and response for transaction index.
+pub mod transaction_index {
+	use super::{Field, NoSuchOutput, OutputKind, Output};
+	use rlp::{Encodable, Decodable, DecoderError, RlpStream, UntrustedRlp};
+	use util::H256;
+
+	/// Potentially incomplete transaction index request.
+	#[derive(Debug, Clone, PartialEq, Eq)]
+	pub struct Incomplete {
+		/// Transaction hash to get index for.
+		pub hash: Field<H256>,
+	}
+
+	impl Decodable for Incomplete {
+		fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+			Ok(Incomplete {
+				hash: rlp.val_at(0)?,
+			})
+		}
+	}
+
+	impl Encodable for Incomplete {
+		fn rlp_append(&self, s: &mut RlpStream) {
+			s.begin_list(1).append(&self.hash);
+		}
+	}
+
+	impl super::IncompleteRequest for Incomplete {
+		type Complete = Complete;
+		type Response = Response;
+
+		fn check_outputs<F>(&self, mut f: F) -> Result<(), NoSuchOutput>
+			where F: FnMut(usize, usize, OutputKind) -> Result<(), NoSuchOutput>
+		{
+			match self.hash {
+				Field::Scalar(_) => Ok(()),
+				Field::BackReference(req, idx) => f(req, idx, OutputKind::Hash),
+			}
+		}
+
+		fn note_outputs<F>(&self, mut f: F) where F: FnMut(usize, OutputKind) {
+			f(0, OutputKind::Number);
+			f(1, OutputKind::Hash);
+		}
+
+		fn fill<F>(&mut self, oracle: F) where F: Fn(usize, usize) -> Result<Output, NoSuchOutput> {
+			if let Field::BackReference(req, idx) = self.hash {
+				self.hash = match oracle(req, idx) {
+					Ok(Output::Number(hash)) => Field::Scalar(hash.into()),
+					_ => Field::BackReference(req, idx),
+				}
+			}
+		}
+
+		fn complete(self) -> Result<Self::Complete, NoSuchOutput> {
+			Ok(Complete {
+				hash: self.hash.into_scalar()?,
+			})
+		}
+
+		fn adjust_refs<F>(&mut self, mapping: F) where F: FnMut(usize) -> usize {
+			self.hash.adjust_req(mapping)
+		}
+	}
+
+	/// A complete transaction index request.
+	#[derive(Debug, Clone, PartialEq, Eq)]
+	pub struct Complete {
+		/// The transaction hash to get index for.
+		pub hash: H256,
+	}
+
+	/// The output of a request for transaction index.
+	#[derive(Debug, Clone, PartialEq, Eq)]
+	pub struct Response {
+		/// Block number.
+		pub num: u64,
+		/// Block hash
+		pub hash: H256,
+		/// Index in block.
+		pub index: u64,
+	}
+
+	impl super::ResponseLike for Response {
+		/// Fill reusable outputs by providing them to the function.
+		fn fill_outputs<F>(&self, mut f: F) where F: FnMut(usize, Output) {
+			f(0, Output::Number(self.num));
+			f(1, Output::Hash(self.hash));
+		}
+	}
+
+	impl Decodable for Response {
+		fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+			Ok(Response {
+				num: rlp.val_at(0)?,
+				hash: rlp.val_at(1)?,
+				index: rlp.val_at(2)?,
+			})
+		}
+	}
+
+	impl Encodable for Response {
+		fn rlp_append(&self, s: &mut RlpStream) {
+			s.begin_list(3)
+				.append(&self.num)
+				.append(&self.hash)
+				.append(&self.index);
 		}
 	}
 }
@@ -1697,6 +1830,26 @@ mod tests {
 			td: 100.into(),
 		};
 		let full_res = Response::HeaderProof(res.clone());
+
+		check_roundtrip(req);
+		check_roundtrip(full_req);
+		check_roundtrip(res);
+		check_roundtrip(full_res);
+	}
+
+	#[test]
+	fn transaction_index_roundtrip() {
+		let req = IncompleteTransactionIndexRequest {
+			hash: Field::Scalar(Default::default()),
+		};
+
+		let full_req = Request::TransactionIndex(req.clone());
+		let res = TransactionIndexResponse {
+			num: 1000,
+			hash: ::util::H256::random(),
+			index: 4,
+		};
+		let full_res = Response::TransactionIndex(res.clone());
 
 		check_roundtrip(req);
 		check_roundtrip(full_req);

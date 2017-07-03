@@ -80,7 +80,7 @@ pub const PROTOCOL_VERSIONS: &'static [u8] = &[1];
 pub const MAX_PROTOCOL_VERSION: u8 = 1;
 
 /// Packet count for PIP.
-pub const PACKET_COUNT: u8 = 5;
+pub const PACKET_COUNT: u8 = 9;
 
 // packet ID definitions.
 mod packet {
@@ -100,6 +100,10 @@ mod packet {
 
 	// relay transactions to peers.
 	pub const SEND_TRANSACTIONS: u8 = 0x06;
+
+	// request and respond with epoch transition proof
+	pub const REQUEST_EPOCH_PROOF: u8 = 0x07;
+	pub const EPOCH_PROOF: u8 = 0x08;
 }
 
 // timeouts for different kinds of requests. all values are in milliseconds.
@@ -110,6 +114,7 @@ mod timeout {
 
 	// timeouts per request within packet.
 	pub const HEADERS: i64 = 250; // per header?
+	pub const TRANSACTION_INDEX: i64 = 100;
 	pub const BODY: i64 = 50;
 	pub const RECEIPT: i64 = 50;
 	pub const PROOF: i64 = 100; // state proof
@@ -523,6 +528,12 @@ impl LightProtocol {
 
 			packet::SEND_TRANSACTIONS => self.relay_transactions(peer, io, rlp),
 
+			packet::REQUEST_EPOCH_PROOF | packet::EPOCH_PROOF => {
+				// ignore these for now, but leave them specified.
+				debug!(target: "pip", "Ignoring request/response for epoch proof");
+				Ok(())
+			}
+
 			other => {
 				Err(Error::UnrecognizedPacket(other))
 			}
@@ -867,6 +878,7 @@ impl LightProtocol {
 			match complete_req {
 				CompleteRequest::Headers(req) => self.provider.block_headers(req).map(Response::Headers),
 				CompleteRequest::HeaderProof(req) => self.provider.header_proof(req).map(Response::HeaderProof),
+				CompleteRequest::TransactionIndex(_) => None, // don't answer these yet, but leave them in protocol.
 				CompleteRequest::Body(req) => self.provider.block_body(req).map(Response::Body),
 				CompleteRequest::Receipts(req) => self.provider.block_receipts(req).map(Response::Receipts),
 				CompleteRequest::Account(req) => self.provider.account_proof(req).map(Response::Account),
