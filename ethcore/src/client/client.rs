@@ -648,6 +648,17 @@ impl Client {
 		// TODO: Prove it with a test.
 		let mut state = block.drain();
 
+		// check epoch end signal, potentially generating a proof on the current
+		// state.
+		self.check_epoch_end_signal(
+			&header,
+			block_data,
+			&receipts,
+			&state,
+			&chain,
+			&mut batch
+		);
+
 		state.journal_under(&mut batch, number, hash).expect("DB commit failed");
 		let route = chain.insert_block(&mut batch, block_data, receipts.clone());
 
@@ -665,10 +676,7 @@ impl Client {
 		self.db.read().write_buffered(batch);
 		chain.commit();
 
-		// check for epoch end. do this after writing first batch so we can prove
-		// transactions on the block's state.
-		// TODO: work these changes into the existing DBTransaction.
-		self.check_epoch_end_signal(&header, block_data, &receipts, &chain);
+
 		self.check_epoch_end(&header, &chain);
 
 		self.update_last_hashes(&parent, hash);
@@ -682,38 +690,82 @@ impl Client {
 
 	// check for epoch end signal and write pending transition if it occurs.
 	// state for the given block must be available.
-	fn check_epoch_end_signal(&self, header: &Header, block: &[u8], receipts: &[Receipt], chain: &BlockChain) {
+	fn check_epoch_end_signal(
+		&self,
+		header: &Header,
+		block_bytes: &[u8],
+		receipts: &[Receipt],
+		state_db: &StateDB,
+		chain: &BlockChain,
+		batch: &mut DBTransaction,
+	) {
 		use engines::EpochChange;
 
 		let hash = header.hash();
-		match self.engine.signals_epoch_end(header, Some(block), Some(&receipts)) {
+		match self.engine.signals_epoch_end(header, Some(block_bytes), Some(&receipts)) {
 			EpochChange::Yes(proof) => {
 				use engines::epoch::PendingTransition;
 				use engines::Proof;
 
 				let proof = match proof {
 					Proof::Known(proof) => proof,
-					Proof::WithState(with_state) =>
-						match self.with_proving_caller(BlockId::Hash(hash), move |c| with_state(c)) {
+					Proof::WithState(with_state) => {
+						let env_info = EnvInfo {
+							number: header.number(),
+							author: header.author().clone(),
+							timestamp: header.timestamp(),
+							difficulty: header.difficulty().clone(),
+							last_hashes: self.build_last_hashes(header.parent_hash().clone()),
+							gas_used: U256::default(),
+							gas_limit: u64::max_value().into(),
+						};
+
+						let call = move |addr, data| {
+							let mut state_db = state_db.boxed_clone();
+							let backend = ::state::backend::Proving::new(state_db.as_hashdb_mut());
+
+							let transaction =
+								self.contract_call_tx(BlockId::Hash(*header.parent_hash()), addr, data);
+
+							let mut state = State::from_existing(
+								backend,
+								header.state_root().clone(),
+								self.engine.account_start_nonce(header.number()),
+								self.factories.clone(),
+							).expect("state known to be available for just-imported block; qed");
+
+							let options = TransactOptions { tracing: false, vm_tracing: false, check_nonce: false };
+							let res = Executive::new(&mut state, &env_info, &*self.engine)
+								.transact(&transaction, options);
+
+							let res = match res {
+								Err(ExecutionError::Internal(e)) =>
+									Err(format!("Internal error: {}", e)),
+								Err(e) => {
+									trace!(target: "client", "Proved call failed: {}", e);
+									Ok((Vec::new(), state.drop().1.extract_proof()))
+								}
+								Ok(res) => Ok((res.output, state.drop().1.extract_proof())),
+							};
+
+							res.map(|(output, proof)| (output, proof.into_iter().map(|x| x.into_vec()).collect()))
+						};
+
+						match (with_state)(&call) {
 							Ok(proof) => proof,
 							Err(e) => {
 								warn!(target: "client", "Failed to generate transition proof for block {}: {}", hash, e);
 								warn!(target: "client", "Snapshots produced by this client may be incomplete");
-
 								Vec::new()
 							}
-						},
+						}
+					}
 				};
 
 				debug!(target: "client", "Block {} signals epoch end.", hash);
 
-				// write pending transition to DB.
-				let mut batch = DBTransaction::new();
-
 				let pending = PendingTransition { proof: proof };
-				chain.insert_pending_transition(&mut batch, hash, pending);
-
-				self.db.read().write_buffered(batch);
+				chain.insert_pending_transition(batch, hash, pending);
 			},
 			EpochChange::No => {},
 			EpochChange::Unsure(_) => {
