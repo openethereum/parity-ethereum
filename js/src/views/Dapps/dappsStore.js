@@ -233,7 +233,7 @@ export default class DappsStore extends EventEmitter {
     self._api.parity.dappsRefresh()
       .then((res) => {
         console.log(res);
-        if (res == true){
+        if (res === true) {
           self.loadAllApps();
         }
       })

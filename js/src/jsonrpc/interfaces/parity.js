@@ -169,7 +169,7 @@ export default {
     desc: 'Returns a boolean value upon success and error upon failure',
     params: [],
     returns: {
-      type: bool,
+      type: Boolean,
       desc: 'True for success. error details for failure',
       example: true
     }
