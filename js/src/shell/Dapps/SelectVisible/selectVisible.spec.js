@@ -17,19 +17,15 @@
 import { shallow } from 'enzyme';
 import React from 'react';
 
-import DappAccounts from './';
+import DappsVisible from './';
 
-let component;
-
-function renderShallow (permissionStore = {}) {
-  component = shallow(
-    <DappAccounts permissionStore={ permissionStore } />
+function renderShallow (store = {}) {
+  return shallow(
+    <DappsVisible store={ store } />
   );
-
-  return component;
 }
 
-describe('shell/DappAccounts', () => {
+describe('shell/Dapps/SelectVisible', () => {
   describe('rendering', () => {
     it('renders defaults', () => {
       expect(renderShallow()).to.be.ok;
@@ -43,7 +39,7 @@ describe('shell/DappAccounts', () => {
 
     it('does render the modal with modalOpen = true', () => {
       expect(
-        renderShallow({ modalOpen: true, accounts: [] }).find('Portal')
+        renderShallow({ modalOpen: true }).find('Portal')
       ).to.have.length(1);
     });
   });

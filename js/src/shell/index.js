@@ -42,7 +42,7 @@ import SecureApi from '~/secureApi';
 import Application from './Application';
 import Dapp from './Dapp';
 import { setupProviderFilters } from './DappRequests';
-import DappMethodsStore from './DappMethods/store';
+import DappMethodsStore from './Dapps/SelectMethods/store';
 import Dapps from './Dapps';
 
 injectTapEventPlugin();

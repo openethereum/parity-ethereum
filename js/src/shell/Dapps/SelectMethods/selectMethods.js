@@ -21,10 +21,10 @@ import { FormattedMessage } from 'react-intl';
 import { Portal } from '@parity/ui';
 
 import MethodCheck from './MethodCheck';
-import styles from './dappMethods.css';
+import styles from './selectMethods.css';
 
 @observer
-export default class DappsMethods extends Component {
+export default class SelectMethods extends Component {
   static propTypes = {
     methodsStore: PropTypes.object.isRequired,
     visibleStore: PropTypes.object.isRequired

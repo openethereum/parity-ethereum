@@ -21,7 +21,7 @@ import { FormattedMessage } from 'react-intl';
 import { AccountCard, Portal, SelectionList } from '@parity/ui';
 
 @observer
-export default class DappAccounts extends Component {
+export default class SelectAccounts extends Component {
   static propTypes = {
     permissionStore: PropTypes.object.isRequired
   };

@@ -18,13 +18,16 @@
 .requests {
   background: #f80;
   color: white;
-  bottom: 0;
   position: fixed;
   left: 0;
   right: 0;
+  top: 0;
   z-index: 760; /* sits above requests */
 
   .request {
+    align-items: center;
+    display: flex;
+    justify-content: flex-end;
     padding: 0.5em;
 
     > span {
