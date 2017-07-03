@@ -31,6 +31,7 @@ use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::ops::{BitOr, BitAnd, Not};
 
 use provider::Provider;
 use request::{Request, NetworkRequests as Requests, Response};
@@ -162,6 +163,54 @@ pub struct Peer {
 	awaiting_acknowledge: Option<(SteadyTime, Arc<FlowParams>)>,
 }
 
+/// Whether or not a peer was kept by a handler
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PeerStatus {
+	/// The peer was kept
+	Kept,
+	/// The peer was not kept
+	Unkept,
+}
+
+impl Not for PeerStatus {
+	type Output = Self;
+
+	fn not(self) -> Self {
+		use self::PeerStatus::*;
+
+		match self {
+			Kept => Unkept,
+			Unkept => Kept,
+		}
+	}
+}
+
+impl BitAnd for PeerStatus {
+	type Output = Self;
+
+	fn bitand(self, other: Self) -> Self {
+		use self::PeerStatus::*;
+
+		match (self, other) {
+			(Kept, Kept) => Kept,
+			_ => Unkept,
+		}
+	}
+}
+
+impl BitOr for PeerStatus {
+	type Output = Self;
+
+	fn bitor(self, other: Self) -> Self {
+		use self::PeerStatus::*;
+
+		match (self, other) {
+			(_, Kept) | (Kept, _) => Kept,
+			_ => Unkept,
+		}
+	}
+}
+
 /// A light protocol event handler.
 ///
 /// Each handler function takes a context which describes the relevant peer
@@ -173,7 +222,12 @@ pub struct Peer {
 /// that relevant data will be stored by interested handlers.
 pub trait Handler: Send + Sync {
 	/// Called when a peer connects.
-	fn on_connect(&self, _ctx: &EventContext, _status: &Status, _capabilities: &Capabilities) { }
+	fn on_connect(
+		&self,
+		_ctx: &EventContext,
+		_status: &Status,
+		_capabilities: &Capabilities
+	) -> PeerStatus { PeerStatus::Kept }
 	/// Called when a peer disconnects, with a list of unfulfilled request IDs as
 	/// of yet.
 	fn on_disconnect(&self, _ctx: &EventContext, _unfulfilled: &[ReqId]) { }
@@ -777,15 +831,23 @@ impl LightProtocol {
 			awaiting_acknowledge: None,
 		}));
 
-		for handler in &self.handlers {
-			handler.on_connect(&Ctx {
-				peer: *peer,
-				io: io,
-				proto: self,
-			}, &status, &capabilities)
-		}
+		let any_kept = self.handlers.iter().map(
+			|handler| handler.on_connect(
+				&Ctx {
+					peer: *peer,
+					io: io,
+					proto: self,
+				},
+				&status,
+				&capabilities
+			)
+		).fold(PeerStatus::Kept, PeerStatus::bitor);
 
-		Ok(())
+		if any_kept == PeerStatus::Unkept {
+			Err(Error::RejectedByHandlers)
+		} else {
+			Ok(())
+		}
 	}
 
 	// Handle an announcement.
