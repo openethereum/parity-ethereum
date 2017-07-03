@@ -1158,8 +1158,7 @@ impl MinerService for Miner {
 	fn chain_new_blocks(&self, chain: &MiningBlockChainClient, imported: &[H256], _invalid: &[H256], enacted: &[H256], retracted: &[H256]) {
 		trace!(target: "miner", "chain_new_blocks");
 
-		// 1. We ignore blocks that were `imported` (because it means that they are not in canon-chain, and transactions
-		//	  should be still available in the queue.
+		// 1. We ignore blocks that were `imported` unless resealing on new uncles is enabled.
 		// 2. We ignore blocks that are `invalid` because it doesn't have any meaning in terms of the transactions that
 		//    are in those blocks
 
