@@ -18,7 +18,7 @@ import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { Button, Form, Input, IdentityIcon, Loading, RadioButtons } from '@parity/ui';
+import { Button, Form, Input, IdentityIcon, Loading } from '@parity/ui';
 import PasswordStrength from '@parity/ui/Form/PasswordStrength';
 import { RefreshIcon } from '@parity/ui/Icons';
 
@@ -127,39 +127,13 @@ export default class CreateAccount extends Component {
           createStore={ this.props.createStore }
           vaultStore={ this.props.vaultStore }
         />
-        { this.renderIdentitySelector() }
         { this.renderIdentities() }
       </Form>
     );
   }
 
-  renderIdentitySelector () {
-    const { accounts, selectedAddress } = this.state;
-
-    if (!accounts) {
-      return null;
-    }
-
-    return (
-      <RadioButtons
-        className={ styles.selector }
-        name='identitySelector'
-        onChange={ this.onChangeIdentity }
-        value={ selectedAddress }
-        values={
-          Object.keys(accounts).map((address) => {
-            return {
-              key: address,
-              label: address
-            };
-          })
-        }
-      />
-    );
-  }
-
   renderIdentities () {
-    const { accounts } = this.state;
+    const { accounts, selectedAddress } = this.state;
 
     if (!accounts) {
       return (
@@ -173,11 +147,20 @@ export default class CreateAccount extends Component {
           Object
             .keys(accounts)
             .map((address) => {
+              const _onSelect = (event) => this.onChangeIdentity(event, address);
+
               return (
                 <div
-                  className={ styles.identity }
+                  className={
+                    [
+                      styles.identity,
+                      selectedAddress === address
+                        ? styles.selected
+                        : styles.unselected
+                    ].join(' ')
+                  }
                   key={ address }
-                  onTouchTap={ this.onChangeIdentity }
+                  onTouchTap={ _onSelect }
                 >
                   <IdentityIcon
                     address={ address }
