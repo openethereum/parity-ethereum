@@ -21,8 +21,10 @@
 
 extern crate base32;
 extern crate futures;
+extern crate futures_cpupool;
 extern crate linked_hash_map;
 extern crate mime_guess;
+extern crate ntp;
 extern crate rand;
 extern crate rustc_serialize;
 extern crate serde;
@@ -74,6 +76,7 @@ use std::collections::HashMap;
 use jsonrpc_http_server::{self as http, hyper, Origin};
 
 use fetch::Fetch;
+use futures_cpupool::CpuPool;
 use parity_reactor::Remote;
 
 pub use hash_fetch::urlhint::ContractClient;
@@ -127,7 +130,8 @@ impl Middleware {
 
 	/// Creates new middleware for UI server.
 	pub fn ui<F: Fetch>(
-		time_api_url: &str,
+		ntp_server: &str,
+		pool: CpuPool,
 		remote: Remote,
 		dapps_domain: &str,
 		registrar: Arc<ContractClient>,
@@ -142,9 +146,9 @@ impl Middleware {
 		).embeddable_on(None).allow_dapps(false));
 		let special = {
 			let mut special = special_endpoints(
-				time_api_url,
+				ntp_server,
+				pool,
 				content_fetcher.clone(),
-				fetch.clone(),
 				remote.clone(),
 				sync_status.clone(),
 			);
@@ -167,7 +171,8 @@ impl Middleware {
 
 	/// Creates new Dapps server middleware.
 	pub fn dapps<F: Fetch>(
-		time_api_url: &str,
+		ntp_server: &str,
+		pool: CpuPool,
 		remote: Remote,
 		ui_address: Option<(String, u16)>,
 		dapps_path: PathBuf,
@@ -196,9 +201,9 @@ impl Middleware {
 
 		let special = {
 			let mut special = special_endpoints(
-				time_api_url,
+				ntp_server,
+				pool,
 				content_fetcher.clone(),
-				fetch.clone(),
 				remote.clone(),
 				sync_status,
 			);
@@ -227,10 +232,10 @@ impl http::RequestMiddleware for Middleware {
 	}
 }
 
-fn special_endpoints<F: Fetch>(
-	time_api_url: &str,
+fn special_endpoints(
+	ntp_server: &str,
+	pool: CpuPool,
 	content_fetcher: Arc<apps::fetcher::Fetcher>,
-	fetch: F,
 	remote: Remote,
 	sync_status: Arc<SyncStatus>,
 ) -> HashMap<router::SpecialEndpoint, Option<Box<endpoint::Endpoint>>> {
@@ -240,7 +245,7 @@ fn special_endpoints<F: Fetch>(
 	special.insert(router::SpecialEndpoint::Api, Some(api::RestApi::new(
 		content_fetcher,
 		sync_status,
-		api::TimeChecker::new(time_api_url.into(), fetch),
+		api::TimeChecker::new(ntp_server.into(), pool),
 		remote,
 	)));
 	special

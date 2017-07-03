@@ -350,8 +350,8 @@ usage! {
 			or |c: &Config| otry!(c.vm).jit.clone(),
 
 		// -- Miscellaneous Options
-		flag_time_api: String = "https://time.parity.io/api",
-			or |c: &Config| otry!(c.misc).time_api.clone(),
+		flag_ntp_server: String = "pool.ntp.org:123",
+			or |c: &Config| otry!(c.misc).ntp_server.clone(),
 		flag_logging: Option<String> = None,
 			or |c: &Config| otry!(c.misc).logging.clone().map(Some),
 		flag_log_file: Option<String> = None,
@@ -586,7 +586,7 @@ struct VM {
 
 #[derive(Default, Debug, PartialEq, RustcDecodable)]
 struct Misc {
-	time_api: Option<String>,
+	ntp_server: Option<String>,
 	logging: Option<String>,
 	log_file: Option<String>,
 	color: Option<bool>,
@@ -885,7 +885,7 @@ mod tests {
 			flag_dapps_apis_all: None,
 
 			// -- Miscellaneous Options
-			flag_time_api: "https://time.parity.io/api".into(),
+			flag_ntp_server: "pool.ntp.org:123".into(),
 			flag_version: false,
 			flag_logging: Some("own_tx=trace".into()),
 			flag_log_file: Some("/var/log/parity.log".into()),
@@ -1060,7 +1060,7 @@ mod tests {
 				jit: Some(false),
 			}),
 			misc: Some(Misc {
-				time_api: Some("https://time.parity.io/".into()),
+				ntp_server: Some("pool.ntp.org:123".into()),
 				logging: Some("own_tx=trace".into()),
 				log_file: Some("/var/log/parity.log".into()),
 				color: Some(true),

@@ -71,7 +71,7 @@ impl Default for HttpConfiguration {
 #[derive(Debug, PartialEq, Clone)]
 pub struct UiConfiguration {
 	pub enabled: bool,
-	pub time_api_url: String,
+	pub ntp_server: String,
 	pub interface: String,
 	pub port: u16,
 	pub hosts: Option<Vec<String>>,
@@ -104,7 +104,7 @@ impl Default for UiConfiguration {
 	fn default() -> Self {
 		UiConfiguration {
 			enabled: true && cfg!(feature = "ui-enabled"),
-			time_api_url: "https://time.parity.io/api".into(),
+			ntp_server: "pool.ntp.org:123".into(),
 			port: 8180,
 			interface: "127.0.0.1".into(),
 			hosts: Some(vec![]),

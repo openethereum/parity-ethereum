@@ -37,6 +37,11 @@ export default class StatusIndicator extends Component {
 
   render () {
     const { id, status, title, type, tooltipPlacement } = this.props;
+    const tooltip = title.find(x => !x.isEmpty) ? (
+      <ReactTooltip id={ `status-${id}` }>
+        { title.map(x => (<div key={ x }>{ x }</div>)) }
+      </ReactTooltip>
+    ) : null;
 
     return (
       <span className={ styles.status }>
@@ -48,9 +53,7 @@ export default class StatusIndicator extends Component {
         >
           { type === 'signal' && statuses.map(this.renderBar) }
         </span>
-        <ReactTooltip id={ `status-${id}` }>
-          { title.map(x => (<div key={ x }>{ x }</div>)) }
-        </ReactTooltip>
+        {tooltip}
       </span>
     );
   }

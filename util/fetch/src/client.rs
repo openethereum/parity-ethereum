@@ -126,6 +126,10 @@ impl Client {
 		*self.client.write() = (time::Instant::now(), client.clone());
 		Ok(client)
 	}
+
+	pub fn pool(&self) -> CpuPool {
+		self.pool.clone()
+	}
 }
 
 impl Fetch for Client {

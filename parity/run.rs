@@ -285,6 +285,7 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 
 		dapps::Dependencies {
 			sync_status: Arc::new(LightSyncStatus(light_sync.clone())),
+			pool: fetch.pool(),
 			contract_client: contract_client,
 			remote: event_loop.raw_remote(),
 			fetch: fetch.clone(),
@@ -294,7 +295,7 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 	};
 
 	let dapps_middleware = dapps::new(cmd.dapps_conf.clone(), dapps_deps.clone())?;
-	let ui_middleware = dapps::new_ui(cmd.ui_conf.enabled, &cmd.ui_conf.time_api_url, dapps_deps)?;
+	let ui_middleware = dapps::new_ui(cmd.ui_conf.enabled, &cmd.ui_conf.ntp_server, dapps_deps)?;
 
 	// start RPCs
 	let dapps_service = dapps::service(&dapps_middleware);
@@ -634,6 +635,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 
 		dapps::Dependencies {
 			sync_status: Arc::new(SyncStatus(sync, client, net_conf)),
+			pool: fetch.pool(),
 			contract_client: contract_client,
 			remote: event_loop.raw_remote(),
 			fetch: fetch.clone(),
@@ -642,7 +644,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 		}
 	};
 	let dapps_middleware = dapps::new(cmd.dapps_conf.clone(), dapps_deps.clone())?;
-	let ui_middleware = dapps::new_ui(cmd.ui_conf.enabled, &cmd.ui_conf.time_api_url, dapps_deps)?;
+	let ui_middleware = dapps::new_ui(cmd.ui_conf.enabled, &cmd.ui_conf.ntp_server, dapps_deps)?;
 
 	let dapps_service = dapps::service(&dapps_middleware);
 	let deps_for_rpc_apis = Arc::new(rpc_apis::FullDependencies {

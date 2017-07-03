@@ -14,28 +14,38 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Checks node's time drift.
-//! Fires an API call to a service returning server's UTC time (in millis).
-//! Then we compare the value of local clock setting with the server one (trying to account for network latency as
-//! well).
+//! Periodically checks node's time drift using [SNTP](https://tools.ietf.org/html/rfc1769).
+//!
+//! An NTP packet is sent to the server with a local timestamp, the server then completes the packet, yielding the
+//! following timestamps:
+//!
+//!    Timestamp Name          ID   When Generated
+//!   ------------------------------------------------------------
+//!    Originate Timestamp     T1   time request sent by client
+//!    Receive Timestamp       T2   time request received at server
+//!    Transmit Timestamp      T3   time reply sent by server
+//!    Destination Timestamp   T4   time reply received at client
+//!
+//! The drift is defined as:
+//!
+//! drift = ((T2 - T1) + (T3 - T4)) / 2.
+//!
 
-use std::io::{self, Read};
+use std::io;
 use std::{fmt, time};
 
 use futures::{self, Future, BoxFuture};
-use fetch::{self, Fetch};
+use futures_cpupool::CpuPool;
+use ntp;
+use time::{Duration, Timespec};
 use util::{Arc, RwLock};
 
 /// Time checker error.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Error {
-	/// The API returned unexpected status code.
-	UnexpectedResponse(&'static str, String),
-	/// Invalid response has been returned by the API.
-	InvalidTime(String),
-	/// There was an error when trying to reach the API.
-	Fetch(String),
-	/// IO error when reading API response.
+	/// There was an error when trying to reach the NTP server.
+	Ntp(String),
+	/// IO error when reading NTP response.
 	Io(String),
 }
 
@@ -44,9 +54,7 @@ impl fmt::Display for Error {
 		use self::Error::*;
 
 		match *self {
-			UnexpectedResponse(ref code, ..) => write!(fmt, "Unexpected response with status code: {}", code),
-			InvalidTime(ref time) => write!(fmt, "Invalid time was returned: {}", time),
-			Fetch(ref err) => write!(fmt, "Fetch error: {}", err),
+			Ntp(ref err) => write!(fmt, "NTP error: {}", err),
 			Io(ref err) => write!(fmt, "Connection Error: {}", err),
 		}
 	}
@@ -56,27 +64,52 @@ impl From<io::Error> for Error {
 	fn from(err: io::Error) -> Self { Error::Io(format!("{}", err)) }
 }
 
-impl From<fetch::Error> for Error {
-	fn from(err: fetch::Error) -> Self { Error::Fetch(format!("{}", err)) }
+impl From<ntp::errors::Error> for Error {
+	fn from(err: ntp::errors::Error) -> Self { Error::Ntp(format!("{}", err)) }
 }
 
-
-/// Time provider.
-pub trait TimeProvider: Clone + Send + 'static {
-	/// Returns an instance of this provider.
-	fn new() -> Self where Self: Sized;
-	/// Returns current time in milliseconds.
-	fn utc_timestamp_millis(&self) -> i64;
+/// NTP time drift checker.
+pub trait Ntp {
+	/// Returns the current time drift.
+	fn drift(&self) -> BoxFuture<Duration, Error>;
 }
-/// Default system time provider.
+
+/// NTP client using the SNTP algorithm for calculating drift.
 #[derive(Clone)]
-pub struct StdTimeProvider;
-impl TimeProvider for StdTimeProvider {
-	fn new() -> Self where Self: Sized { StdTimeProvider }
-	fn utc_timestamp_millis(&self) -> i64 {
-		let time = ::time::now_utc().to_timespec();
+pub struct SimpleNtp {
+	address: Arc<String>,
+	pool: CpuPool,
+}
 
-		1_000 * time.sec + time.nsec as i64 / 1_000_000
+impl fmt::Debug for SimpleNtp {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		write!(f, "Ntp {{ address: {} }}", self.address)
+	}
+}
+
+impl SimpleNtp {
+	fn new(address: &str, pool: CpuPool) -> SimpleNtp {
+		SimpleNtp {
+			address: Arc::new(address.to_owned()),
+			pool: pool,
+		}
+	}
+}
+
+impl Ntp for SimpleNtp {
+	fn drift(&self) -> BoxFuture<Duration, Error> {
+		let address = self.address.clone();
+		self.pool.spawn_fn(move || {
+			let packet = ntp::request(&*address)?;
+			let dest_time = ::time::now_utc().to_timespec();
+			let orig_time = Timespec::from(packet.orig_time);
+			let recv_time = Timespec::from(packet.recv_time);
+			let transmit_time = Timespec::from(packet.transmit_time);
+
+			let drift = ((recv_time - orig_time) + (transmit_time - dest_time)) / 2;
+
+			Ok(drift)
+		}).boxed()
 	}
 }
 
@@ -85,73 +118,43 @@ const UPDATE_TIMEOUT_ERR_SECS: u64 = 2;
 
 #[derive(Debug, Clone)]
 /// A time checker.
-pub struct TimeChecker<F, T: TimeProvider = StdTimeProvider> {
-	api_endpoint: String,
-	fetch: F,
+pub struct TimeChecker<N: Ntp = SimpleNtp> {
+	ntp: N,
 	last_result: Arc<RwLock<(time::Instant, Result<i64, Error>)>>,
-	time: T,
 }
 
-impl<F: Fetch, T: TimeProvider> TimeChecker<F, T> {
-
-	/// Creates new time checker given API endpoint URL and `Fetch` instance.
-	pub fn new(api_endpoint: String, fetch: F) -> Self {
+impl TimeChecker<SimpleNtp> {
+	/// Creates new time checker given the NTP server address.
+	pub fn new(ntp_address: String, pool: CpuPool) -> Self {
 		let last_result = Arc::new(RwLock::new(
-			(time::Instant::now(), Err(Error::Fetch("API unavailable.".into())))
+			(time::Instant::now(), Err(Error::Ntp("NTP server unavailable.".into())))
 		));
 
+		let ntp = SimpleNtp::new(&ntp_address, pool);
+
 		TimeChecker {
-			api_endpoint,
-			fetch,
+			ntp,
 			last_result,
-			time: T::new(),
 		}
 	}
+}
 
+impl<N: Ntp> TimeChecker<N> {
 	/// Updates the time
 	pub fn update(&self) -> BoxFuture<i64, Error> {
 		let last_result = self.last_result.clone();
-		self.fetch_time().then(move |res| {
+		self.ntp.drift().then(move |res| {
 			let valid_till = time::Instant::now() + time::Duration::from_secs(
 				if res.is_ok() { UPDATE_TIMEOUT_OK_SECS } else { UPDATE_TIMEOUT_ERR_SECS }
 			);
 
+			let res = res.map(|d| d.num_milliseconds());
 			*last_result.write() = (valid_till, res.clone());
 			res
 		}).boxed()
 	}
 
-	fn fetch_time(&self) -> BoxFuture<i64, Error>{
-		let start = self.time.utc_timestamp_millis();
-		let time = self.time.clone();
-		self.fetch.process(self.fetch.fetch(&self.api_endpoint)
-			.map_err(|err| Error::Fetch(format!("{:?}", err)))
-			.and_then(move |mut response| {
-				let mut result = String::new();
-				response.read_to_string(&mut result)?;
-
-				if !response.is_success() {
-					let status = response.status().canonical_reason().unwrap_or("unknown");
-					return Err(Error::UnexpectedResponse(status, result));
-				}
-
-				let server_time: i64 = match result.parse() {
-					Ok(time) => time,
-					Err(err) => {
-						return Err(Error::InvalidTime(format!("{}", err)));
-					}
-				};
-				let end = time.utc_timestamp_millis();
-				let rough_latency = (end - start) / 2;
-
-				let diff = server_time - start - rough_latency;
-
-				Ok(diff)
-			})
-		)
-	}
-
-	/// Returns a current time drift or error if last request to time API failed.
+	/// Returns a current time drift or error if last request to NTP server failed.
 	pub fn time_drift(&self) -> BoxFuture<i64, Error> {
 		// return cached result
 		{
@@ -168,41 +171,39 @@ impl<F: Fetch, T: TimeProvider> TimeChecker<F, T> {
 #[cfg(test)]
 mod tests {
 	use std::sync::Arc;
-	use std::cell::RefCell;
-	use fetch::{self, Fetch};
-	use futures::{self, Future};
-	use futures::future::FutureResult;
-	use super::{TimeProvider, TimeChecker, Error};
-	use util::Mutex;
+	use std::cell::{Cell, RefCell};
+	use std::time::Instant;
+	use time::Duration;
+	use futures::{self, BoxFuture, Future};
+	use super::{Ntp, TimeChecker, Error};
+	use util::RwLock;
 
 	#[derive(Clone)]
-	struct FakeFetch(bool, Arc<Mutex<u64>>);
-	impl Fetch for FakeFetch {
-		type Result = FutureResult<fetch::Response, fetch::Error>;
-		fn new() -> Result<Self, fetch::Error> where Self: Sized { Ok(FakeFetch(false, Default::default())) }
-		fn fetch_with_abort(&self, url: &str, _abort: fetch::Abort) -> Self::Result {
-			assert_eq!(url, "https://time.parity.io/api");
-			let mut val = self.1.lock();
-			*val = *val + 1;
-			if self.0 {
-				futures::future::ok(fetch::Response::not_found())
-			} else {
-				let data = ::std::io::Cursor::new(b"1".to_vec());
-				futures::future::ok(fetch::Response::from_reader(data))
-			}
-		}
-	}
-	#[derive(Clone)]
-	struct FakeTime(RefCell<Vec<i64>>);
-	impl TimeProvider for FakeTime {
-		fn new() -> Self where Self: Sized { FakeTime(RefCell::new(vec![150, 0])) }
-		fn utc_timestamp_millis(&self) -> i64 {
-			self.0.borrow_mut().pop().expect("Expecting only two calls to utc_timestamp_millis.")
+	struct FakeNtp(RefCell<Vec<Duration>>, Cell<u64>);
+	impl FakeNtp {
+		fn new() -> FakeNtp {
+			FakeNtp(
+				RefCell::new(vec![Duration::milliseconds(150)]),
+				Cell::new(0))
 		}
 	}
 
-	fn time_checker() -> TimeChecker<FakeFetch, FakeTime> {
-		TimeChecker::new("https://time.parity.io/api".into(), FakeFetch::new().unwrap())
+	impl Ntp for FakeNtp {
+		fn drift(&self) -> BoxFuture<Duration, Error> {
+			self.1.set(self.1.get() + 1);
+			futures::future::ok(self.0.borrow_mut().pop().expect("Unexpected call to drift().")).boxed()
+		}
+	}
+
+	fn time_checker() -> TimeChecker<FakeNtp> {
+		let last_result = Arc::new(RwLock::new(
+			(Instant::now(), Err(Error::Ntp("NTP server unavailable.".into())))
+		));
+
+		TimeChecker {
+			ntp: FakeNtp::new(),
+			last_result: last_result,
+		}
 	}
 
 	#[test]
@@ -214,8 +215,8 @@ mod tests {
 		let diff = time.time_drift().wait().unwrap();
 
 		// then
-		assert_eq!(diff, 1 - 150 / 2);
-		assert_eq!(*time.fetch.1.lock(), 1);
+		assert_eq!(diff, 150);
+		assert_eq!(time.ntp.1.get(), 1);
 	}
 
 	#[test]
@@ -228,23 +229,8 @@ mod tests {
 		let diff2 = time.time_drift().wait().unwrap();
 
 		// then
-		assert_eq!(diff1, 1 - 150 / 2);
-		assert_eq!(diff2, 1 - 150 / 2);
-		assert_eq!(*time.fetch.1.lock(), 1);
+		assert_eq!(diff1, 150);
+		assert_eq!(diff2, 150);
+		assert_eq!(time.ntp.1.get(), 1);
 	}
-
-	#[test]
-	fn should_return_error_if_response_is_invalid() {
-		// given
-		let mut time = time_checker();
-		time.fetch.0 = true;
-
-		// when
-		let err = time.time_drift().wait();
-
-		// then
-		assert_eq!(err, Err(Error::UnexpectedResponse("Not Found", "".to_owned())));
-		assert_eq!(*time.fetch.1.lock(), 1);
-	}
-
 }
