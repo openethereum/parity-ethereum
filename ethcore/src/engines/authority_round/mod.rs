@@ -613,12 +613,12 @@ impl Engine for AuthorityRound {
 			self.validators.report_malicious(header.author(), header.number(), header.number(), Default::default());
 			Err(EngineError::DoubleVote(header.author().clone()))?;
 		}
-		// Report skipped primaries.
-		if step > parent_step + 1 {
+		// Report skipped primaries, but only if last step wasn't the genesis.
+		if step > parent_step + 1 && header.number() != 1 {
 			// TODO: use epochmanager to get correct validator set for reporting?
 			// or just rely on the fact that in general these will be the same
 			// and some reports might go missing?
-			trace!(target: "engine", "Author {} built block with step gap. current step: {}, parent step: {}",
+			debug!(target: "engine", "Author {} built block with step gap. current step: {}, parent step: {}",
 				header.author(), step, parent_step);
 
 			for s in parent_step + 1..step {

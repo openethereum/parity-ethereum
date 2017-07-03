@@ -656,7 +656,7 @@ impl Client {
 			&receipts,
 			&state,
 			&chain,
-			&mut batch
+			&mut batch,
 		);
 
 		state.journal_under(&mut batch, number, hash).expect("DB commit failed");
@@ -675,7 +675,6 @@ impl Client {
 		// Final commit to the DB
 		self.db.read().write_buffered(batch);
 		chain.commit();
-
 
 		self.check_epoch_end(&header, &chain);
 
