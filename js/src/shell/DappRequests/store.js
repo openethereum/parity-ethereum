@@ -17,7 +17,7 @@
 import { action, computed, observable } from 'mobx';
 
 import filteredRequests from './filteredRequests';
-import MethodsStore from '../DappMethods/store';
+import MethodsStore from '../Dapps/SelectMethods/store';
 
 let nextQueueId = 0;
 

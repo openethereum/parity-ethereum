@@ -19,7 +19,7 @@ import store from 'store';
 
 import { sha3 } from '@parity/api/util/sha3';
 
-import filteredRequests from '../DappRequests/filteredRequests';
+import filteredRequests from '../../DappRequests/filteredRequests';
 
 const LS_PERMISSIONS = '_parity::dapps::methods';
 

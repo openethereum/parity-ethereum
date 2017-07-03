@@ -23,11 +23,11 @@ import { connect } from 'react-redux';
 import { Actionbar, Button, Checkbox, DappCard, Page, SectionList } from '@parity/ui';
 import { LockedIcon, MethodsIcon, VisibleIcon } from '@parity/ui/Icons';
 
-import DappAccounts from '../DappAccounts';
-import PermissionStore from '../DappAccounts/store';
-import DappMethods from '../DappMethods';
-import MethodsStore from '../DappMethods/store';
-import DappsVisible from '../DappsVisible';
+import SelectAccounts from './SelectAccounts';
+import PermissionStore from './SelectAccounts/store';
+import DappSelectMethods from './SelectMethods';
+import MethodsStore from './SelectMethods/store';
+import SelectVisible from './SelectVisible';
 
 import DappsStore from './dappsStore';
 
@@ -83,12 +83,12 @@ class Dapps extends Component {
 
     return (
       <div>
-        <DappAccounts permissionStore={ this.permissionStore } />
-        <DappMethods
+        <SelectAccounts permissionStore={ this.permissionStore } />
+        <DappSelectMethods
           methodsStore={ this.methodsStore }
           visibleStore={ this.store }
         />
-        <DappsVisible store={ this.store } />
+        <SelectVisible store={ this.store } />
         <Actionbar
           className={ styles.toolbar }
           title={
