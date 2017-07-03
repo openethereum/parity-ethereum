@@ -19,11 +19,15 @@ export default {
   'parity_allAccountsInfo': {},
   'parity_changeVault': {},
   'parity_changeVaultPassword': {},
+  'parity_consensusCapability': {},
+  'parity_checkRequest': {},
   'parity_closeVault': {},
+  'parity_executeUpgrade': {},
   'parity_generateSecretPhrase': {},
   'parity_getVaultMeta': {},
   'parity_hashContent': {},
   'parity_importGethAccounts': {},
+  'parity_localTransactions': {},
   'parity_listGethAccounts': {},
   'parity_listVaults': {},
   'parity_listOpenedVaults': {},
@@ -35,5 +39,7 @@ export default {
   'parity_phraseToAddress': {},
   'parity_setAccountMeta': {},
   'parity_setAccountName': {},
-  'parity_setVaultMeta': {}
+  'parity_setVaultMeta': {},
+  'parity_upgradeReady': {},
+  'parity_versionInfo': {}
 };
