@@ -127,6 +127,7 @@ impl Client {
 		Ok(client)
 	}
 
+	/// Returns a handle to underlying CpuPool of this client.
 	pub fn pool(&self) -> CpuPool {
 		self.pool.clone()
 	}
