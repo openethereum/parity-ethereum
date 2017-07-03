@@ -133,7 +133,7 @@ pub fn create_test_block_with_data(header: &Header, transactions: &[SignedTransa
 	rlp.append(header);
 	rlp.begin_list(transactions.len());
 	for t in transactions {
-		rlp.append_raw(&rlp::encode(t).to_vec(), 1);
+		rlp.append_raw(&rlp::encode(t).into_vec(), 1);
 	}
 	rlp.append_list(&uncles);
 	rlp.out()
@@ -193,7 +193,8 @@ pub fn generate_dummy_client_with_spec_accounts_and_data<F>(get_test_spec: F, ac
 			Arc::new(last_hashes.clone()),
 			author.clone(),
 			(3141562.into(), 31415620.into()),
-			vec![]
+			vec![],
+			false,
 		).unwrap();
 		b.set_difficulty(U256::from(0x20000));
 		rolling_timestamp += 10;

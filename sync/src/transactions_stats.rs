@@ -56,9 +56,9 @@ pub struct TransactionsStats {
 
 impl TransactionsStats {
 	/// Increases number of propagations to given `enodeid`.
-	pub fn propagated(&mut self, hash: H256, enode_id: Option<NodeId>, current_block_num: BlockNumber) {
+	pub fn propagated(&mut self, hash: &H256, enode_id: Option<NodeId>, current_block_num: BlockNumber) {
 		let enode_id = enode_id.unwrap_or_default();
-		let mut stats = self.pending_transactions.entry(hash).or_insert_with(|| Stats::new(current_block_num));
+		let mut stats = self.pending_transactions.entry(*hash).or_insert_with(|| Stats::new(current_block_num));
 		let mut count = stats.propagated_to.entry(enode_id).or_insert(0);
 		*count = count.saturating_add(1);
 	}
@@ -101,9 +101,9 @@ mod tests {
 		let enodeid2 = 5.into();
 
 		// when
-		stats.propagated(hash, Some(enodeid1), 5);
-		stats.propagated(hash, Some(enodeid1), 10);
-		stats.propagated(hash, Some(enodeid2), 15);
+		stats.propagated(&hash, Some(enodeid1), 5);
+		stats.propagated(&hash, Some(enodeid1), 10);
+		stats.propagated(&hash, Some(enodeid2), 15);
 
 		// then
 		let stats = stats.get(&hash);
@@ -122,7 +122,7 @@ mod tests {
 		let mut stats = TransactionsStats::default();
 		let hash = 5.into();
 		let enodeid1 = 5.into();
-		stats.propagated(hash, Some(enodeid1), 10);
+		stats.propagated(&hash, Some(enodeid1), 10);
 
 		// when
 		stats.retain(&HashSet::new());

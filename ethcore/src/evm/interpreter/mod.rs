@@ -113,7 +113,7 @@ impl<Cost: CostType> evm::Evm for Interpreter<Cost> {
 		let mut informant = informant::EvmInformant::new(ext.depth());
 
 		let code = &params.code.as_ref().expect("exec always called with code; qed");
-		let valid_jump_destinations = self.cache.jump_destinations(&params.code_hash, code);
+		let mut valid_jump_destinations = None;
 
 		let mut gasometer = Gasometer::<Cost>::new(Cost::from_u256(params.gas)?);
 		let mut stack = VecStack::with_capacity(ext.schedule().stack_limit, U256::zero());
@@ -162,7 +162,11 @@ impl<Cost: CostType> evm::Evm for Interpreter<Cost> {
 			// Advance
 			match result {
 				InstructionResult::JumpToPosition(position) => {
-					let pos = self.verify_jump(position, &valid_jump_destinations)?;
+					if valid_jump_destinations.is_none() {
+						valid_jump_destinations = Some(self.cache.jump_destinations(&params.code_hash, code));
+					}
+					let jump_destinations = valid_jump_destinations.as_ref().expect("jump_destinations are initialized on first jump; qed");
+					let pos = self.verify_jump(position, jump_destinations)?;
 					reader.position = pos;
 				},
 				InstructionResult::StopExecutionNeedsReturn {gas, init_off, init_size, apply} => {

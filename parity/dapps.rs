@@ -107,7 +107,7 @@ impl ContractClient for LightRegistrar {
 			self.on_demand
 				.request(ctx, on_demand::request::TransactionProof {
 					tx: Transaction {
-						nonce: self.client.engine().account_start_nonce(),
+						nonce: self.client.engine().account_start_nonce(header.number()),
 						action: Action::Call(address),
 						gas: 50_000_000.into(),
 						gas_price: 0.into(),
