@@ -17,5 +17,23 @@
 export default {
   'parity_accountsInfo': {},
   'parity_allAccountsInfo': {},
-  'parity_hashContent': {}
+  'parity_changeVault': {},
+  'parity_changeVaultPassword': {},
+  'parity_closeVault': {},
+  'parity_generateSecretPhrase': {},
+  'parity_getVaultMeta': {},
+  'parity_hashContent': {},
+  'parity_importGethAccounts': {},
+  'parity_listGethAccounts': {},
+  'parity_listVaults': {},
+  'parity_listOpenedVaults': {},
+  'parity_newAccountFromPhrase': {},
+  'parity_newAccountFromSecret': {},
+  'parity_newAccountFromWallet': {},
+  'parity_newVault': {},
+  'parity_openVault': {},
+  'parity_phraseToAddress': {},
+  'parity_setAccountMeta': {},
+  'parity_setAccountName': {},
+  'parity_setVaultMeta': {}
 };
