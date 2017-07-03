@@ -242,8 +242,8 @@ impl JournalDB for OverlayRecentDB {
 	fn state(&self, key: &H256) -> Option<Bytes> {
 		let journal_overlay = self.journal_overlay.read();
 		let key = to_short_key(key);
-		journal_overlay.backing_overlay.get(&key).map(|v| v.to_vec())
-		.or_else(|| journal_overlay.pending_overlay.get(&key).map(|d| d.clone().to_vec()))
+		journal_overlay.backing_overlay.get(&key).map(|v| v.into_vec())
+		.or_else(|| journal_overlay.pending_overlay.get(&key).map(|d| d.clone().into_vec()))
 		.or_else(|| self.backing.get_by_prefix(self.column, &key[0..DB_PREFIX_LEN]).map(|b| b.into_vec()))
 	}
 
@@ -288,7 +288,7 @@ impl JournalDB for OverlayRecentDB {
 		batch.put_vec(self.column, &k.drain(), r.out());
 		if journal_overlay.latest_era.map_or(true, |e| now > e) {
 			trace!(target: "journaldb", "Set latest era to {}", now);
-			batch.put_vec(self.column, &LATEST_ERA_KEY, encode(&now).to_vec());
+			batch.put_vec(self.column, &LATEST_ERA_KEY, encode(&now).into_vec());
 			journal_overlay.latest_era = Some(now);
 		}
 
