@@ -16,7 +16,7 @@ time = "0.1.34"
 rocksdb = { git = "https://github.com/paritytech/rust-rocksdb" }
 eth-secp256k1 = { git = "https://github.com/paritytech/rust-secp256k1" }
 rust-crypto = "0.2.34"
-elastic-array = "0.8"
+elastic-array = "0.9"
 rlp = { path = "rlp" }
 heapsize = "0.4"
 itertools = "0.5"

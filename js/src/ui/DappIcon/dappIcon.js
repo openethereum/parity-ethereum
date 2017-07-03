@@ -29,7 +29,7 @@ export default function DappIcon ({ app, className, small }, { api }) {
       src={
         app.type === 'local'
           ? `${dappsUrl}/${app.id}/${app.iconUrl}`
-          : `${dappsUrl}${app.image}`
+          : `${app.image}`
       }
     />
   );

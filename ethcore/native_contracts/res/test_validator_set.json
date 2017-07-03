@@ -1,0 +1,8 @@
+[
+	{"constant":false,"inputs":[{"name":"_validators","type":"address[]"}],"name":"setValidators","outputs":[],"payable":false,"type":"function"},
+	{"constant":false,"inputs":[{"name":"","type":"address"},{"name":"","type":"bytes"}],"name":"reportMalicious","outputs":[],"payable":false,"type":"function"},
+	{"constant":false,"inputs":[],"name":"finalizeChange","outputs":[],"payable":false,"type":"function"},
+	{"constant":true,"inputs":[],"name":"getValidators","outputs":[{"name":"_validators","type":"address[]"}],"payable":false,"type":"function"},
+	{"constant":false,"inputs":[{"name":"","type":"address"}],"name":"reportBenign","outputs":[],"payable":false,"type":"function"},
+	{"anonymous":false,"inputs":[{"indexed":true,"name":"_parent_hash","type":"bytes32"},{"indexed":false,"name":"_new_set","type":"address[]"}],"name":"InitiateChange","type":"event"}
+]

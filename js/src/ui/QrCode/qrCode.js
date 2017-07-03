@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import qrcode from 'qrcode-generator/js/qrcode';
+import qrcode from 'qrcode-generator';
 import React, { Component, PropTypes } from 'react';
 
 import { calculateType } from './qrSize';

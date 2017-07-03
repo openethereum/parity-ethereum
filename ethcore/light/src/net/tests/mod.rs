@@ -137,7 +137,7 @@ impl Provider for TestProvider {
 
 	fn storage_proof(&self, req: request::CompleteStorageRequest) -> Option<request::StorageResponse> {
 		Some(StorageResponse {
-			proof: vec![::rlp::encode(&req.key_hash).to_vec()],
+			proof: vec![::rlp::encode(&req.key_hash).into_vec()],
 			value: req.key_hash | req.address_hash,
 		})
 	}

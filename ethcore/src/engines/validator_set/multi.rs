@@ -18,12 +18,12 @@
 
 use std::collections::BTreeMap;
 use std::sync::Weak;
-use engines::{Call, EpochChange};
+use engines::{Call, Engine};
 use util::{Bytes, H256, Address, RwLock};
 use ids::BlockId;
 use header::{BlockNumber, Header};
 use client::{Client, BlockChainClient};
-use super::ValidatorSet;
+use super::{SystemCall, ValidatorSet};
 
 type BlockNumberLookup = Box<Fn(BlockId) -> Result<BlockNumber, String> + Send + Sync + 'static>;
 
@@ -72,49 +72,38 @@ impl ValidatorSet for Multi {
 			.unwrap_or(Box::new(|_, _| Err("No validator set for given ID.".into())))
 	}
 
-	fn is_epoch_end(&self, header: &Header, block: Option<&[u8]>, receipts: Option<&[::receipt::Receipt]>)
-		-> EpochChange
+	fn on_epoch_begin(&self, _first: bool, header: &Header, call: &mut SystemCall) -> Result<(), ::error::Error> {
+		let (set_block, set) = self.correct_set_by_number(header.number());
+		let first = set_block == header.number();
+
+		set.on_epoch_begin(first, header, call)
+	}
+
+	fn genesis_epoch_data(&self, header: &Header, call: &Call) -> Result<Vec<u8>, String> {
+		self.correct_set_by_number(0).1.genesis_epoch_data(header, call)
+	}
+
+	fn is_epoch_end(&self, _first: bool, chain_head: &Header) -> Option<Vec<u8>> {
+		let (set_block, set) = self.correct_set_by_number(chain_head.number());
+		let first = set_block == chain_head.number();
+
+		set.is_epoch_end(first, chain_head)
+	}
+
+	fn signals_epoch_end(&self, _first: bool, header: &Header, block: Option<&[u8]>, receipts: Option<&[::receipt::Receipt]>)
+		-> ::engines::EpochChange
 	{
 		let (set_block, set) = self.correct_set_by_number(header.number());
-		let (next_set_block, _) = self.correct_set_by_number(header.number() + 1);
+		let first = set_block == header.number();
 
-		// multi-set transitions require epoch changes.
-		if next_set_block != set_block {
-			return EpochChange::Yes(next_set_block);
-		}
-
-		match set.is_epoch_end(header, block, receipts) {
-			EpochChange::Yes(num) => EpochChange::Yes(set_block + num),
-			other => other,
-		}
+		set.signals_epoch_end(first, header, block, receipts)
 	}
 
-	fn epoch_proof(&self, header: &Header, caller: &Call) -> Result<Vec<u8>, String> {
-		let (set_block, set) = self.correct_set_by_number(header.number());
-		let (next_set_block, next_set) = self.correct_set_by_number(header.number() + 1);
+	fn epoch_set(&self, _first: bool, engine: &Engine, number: BlockNumber, proof: &[u8]) -> Result<(super::SimpleList, Option<H256>), ::error::Error> {
+		let (set_block, set) = self.correct_set_by_number(number);
+		let first = set_block == number;
 
-		if next_set_block != set_block {
-			return next_set.epoch_proof(header, caller);
-		}
-
-		set.epoch_proof(header, caller)
-	}
-
-	fn epoch_set(&self, header: &Header, proof: &[u8]) -> Result<(u64, super::SimpleList), ::error::Error> {
-		// "multi" epoch is the inner set's epoch plus the transition block to that set.
-		// ensures epoch increases monotonically.
-		let (set_block, set) = self.correct_set_by_number(header.number());
-		let (next_set_block, next_set) = self.correct_set_by_number(header.number() + 1);
-
-		// this block kicks off a new validator set -- get the validator set
-		// starting there.
-		if next_set_block != set_block {
-			let (inner_epoch, list) = next_set.epoch_set(header, proof)?;
-			Ok((next_set_block + inner_epoch, list))
-		} else {
-			let (inner_epoch, list) = set.epoch_set(header, proof)?;
-			Ok((set_block + inner_epoch, list))
-		}
+		set.epoch_set(first, engine, number, proof)
 	}
 
 	fn contains_with_caller(&self, bh: &H256, address: &Address, caller: &Call) -> bool {
@@ -132,12 +121,12 @@ impl ValidatorSet for Multi {
 			.map_or_else(usize::max_value, |set| set.count_with_caller(bh, caller))
 	}
 
-	fn report_malicious(&self, validator: &Address, block: BlockNumber, proof: Bytes) {
-		self.correct_set_by_number(block).1.report_malicious(validator, block, proof);
+	fn report_malicious(&self, validator: &Address, set_block: BlockNumber, block: BlockNumber, proof: Bytes) {
+		self.correct_set_by_number(set_block).1.report_malicious(validator, set_block, block, proof);
 	}
 
-	fn report_benign(&self, validator: &Address, block: BlockNumber) {
-		self.correct_set_by_number(block).1.report_benign(validator, block);
+	fn report_benign(&self, validator: &Address, set_block: BlockNumber, block: BlockNumber) {
+		self.correct_set_by_number(set_block).1.report_benign(validator, set_block, block);
 	}
 
 	fn register_contract(&self, client: Weak<Client>) {
@@ -153,18 +142,24 @@ impl ValidatorSet for Multi {
 
 #[cfg(test)]
 mod tests {
-	use util::*;
-	use types::ids::BlockId;
-	use spec::Spec;
 	use account_provider::AccountProvider;
 	use client::{BlockChainClient, EngineClient};
+	use engines::EpochChange;
+	use engines::validator_set::ValidatorSet;
 	use ethkey::Secret;
+	use header::Header;
 	use miner::MinerService;
+	use spec::Spec;
 	use tests::helpers::{generate_dummy_client_with_spec_and_accounts, generate_dummy_client_with_spec_and_data};
+	use types::ids::BlockId;
+	use util::*;
+
+	use super::Multi;
 
 	#[test]
 	fn uses_current_set() {
-		::env_logger::init().unwrap();
+		let _ = ::env_logger::init();
+
 		let tap = Arc::new(AccountProvider::transient_provider());
 		let s0: Secret = "0".sha3().into();
 		let v0 = tap.insert_account(s0.clone(), "").unwrap();
@@ -204,5 +199,40 @@ mod tests {
 		}
 		sync_client.flush_queue();
 		assert_eq!(sync_client.chain_info().best_block_number, 3);
+	}
+
+	#[test]
+	fn transition_to_fixed_list_instant() {
+		use super::super::SimpleList;
+
+		let mut map: BTreeMap<_, Box<ValidatorSet>> = BTreeMap::new();
+		let list1: Vec<_> = (0..10).map(|_| Address::random()).collect();
+		let list2 = {
+			let mut list = list1.clone();
+			list.push(Address::random());
+			list
+		};
+
+		map.insert(0, Box::new(SimpleList::new(list1)));
+		map.insert(500, Box::new(SimpleList::new(list2)));
+
+		let multi = Multi::new(map);
+
+		let mut header = Header::new();
+		header.set_number(499);
+
+		match multi.signals_epoch_end(false, &header, None, None) {
+			EpochChange::No => {},
+			_ => panic!("Expected no epoch signal change."),
+		}
+		assert!(multi.is_epoch_end(false, &header).is_none());
+
+		header.set_number(500);
+
+		match multi.signals_epoch_end(false, &header, None, None) {
+			EpochChange::No => {},
+			_ => panic!("Expected no epoch signal change."),
+		}
+		assert!(multi.is_epoch_end(false, &header).is_some());
 	}
 }

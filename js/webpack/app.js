@@ -146,11 +146,10 @@ module.exports = {
 
   resolve: {
     alias: {
+      '~/api/local': path.resolve(__dirname, '../src/api/local/localAccountsMiddleware.js'),
       '~': path.resolve(__dirname, '../src'),
       '@parity/wordlist': path.resolve(__dirname, '../node_modules/@parity/wordlist'),
-      '@parity': path.resolve(__dirname, '../src'),
-      'keythereum': path.resolve(__dirname, '../node_modules/keythereum/dist/keythereum'),
-      'vertx': 'empty-module'
+      '@parity': path.resolve(__dirname, '../src')
     },
     modules: [
       path.join(__dirname, '../node_modules')

@@ -563,7 +563,7 @@ fn should_generate_new_web_proxy_token() {
 	let request = r#"{
 		"jsonrpc":"2.0",
 		"method":"signer_generateWebProxyAccessToken",
-		"params":[],
+		"params":["https://parity.io"],
 		"id":1
 	}"#;
 	let response = tester.io.handle_request_sync(&request).unwrap();
@@ -571,7 +571,7 @@ fn should_generate_new_web_proxy_token() {
 
 	if let Response::Single(Output::Success(ref success)) = result {
 		if let Value::String(ref token) = success.result {
-			assert!(tester.signer.is_valid_web_proxy_access_token(&token), "It should return valid web proxy token.");
+			assert_eq!(tester.signer.web_proxy_access_token_domain(&token), Some("https://parity.io".into()));
 			return;
 		}
 	}
