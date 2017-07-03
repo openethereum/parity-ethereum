@@ -38,33 +38,35 @@ export default function Request ({ appId, className, approveRequest, denyRequest
           method
         } }
       />
-      <Button
-        label={
-          <FormattedMessage
-            id='dappRequests.request.buttons.approve'
-            defaultMessage='Approve'
-          />
-        }
-        onClick={ _onApprove }
-      />
-      <Button
-        label={
-          <FormattedMessage
-            id='dappRequests.request.buttons.approveAll'
-            defaultMessage='Approve All'
-          />
-        }
-        onClick={ _onApproveAll }
-      />
-      <Button
-        label={
-          <FormattedMessage
-            id='dappRequests.request.buttons.reject'
-            defaultMessage='Reject'
-          />
-        }
-        onClick={ _onReject }
-      />
+      <div>
+        <Button
+          label={
+            <FormattedMessage
+              id='dappRequests.request.buttons.approve'
+              defaultMessage='Approve'
+            />
+          }
+          onClick={ _onApprove }
+        />
+        <Button
+          label={
+            <FormattedMessage
+              id='dappRequests.request.buttons.approveAll'
+              defaultMessage='Approve All'
+            />
+          }
+          onClick={ _onApproveAll }
+        />
+        <Button
+          label={
+            <FormattedMessage
+              id='dappRequests.request.buttons.reject'
+              defaultMessage='Reject'
+            />
+          }
+          onClick={ _onReject }
+        />
+      </div>
     </div>
   );
 }
