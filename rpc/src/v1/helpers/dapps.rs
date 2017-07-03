@@ -27,9 +27,12 @@ pub trait DappsService: Send + Sync + 'static {
 }
 
 impl<F> DappsService for F where
-	F: Fn() -> Vec<LocalDapp> + Send + Sync + 'static
+	F: Fn(bool) -> (Vec<LocalDapp>, bool) + Send + Sync + 'static
 {
 	fn list_dapps(&self) -> Vec<LocalDapp> {
-		(*self)()
+		(*self)(true).0
 	}
+    fn refresh_local_dapps(&self) -> bool {
+        (*self)(true).1
+    }
 }

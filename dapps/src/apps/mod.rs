@@ -85,14 +85,8 @@ pub fn all_endpoints<F: Fetch>(
 }
 
 pub fn refresh_local_endpoints(pages: Arc<RwLock<BTreeMap<String, Box<Endpoint>>>>, dapps_path: PathBuf, ui_address: Option<(String, u16)>) {
-	let new_pages = fs::local_endpoints(dapps_path, ui_address.clone());
+	let new_pages = fs::local_endpoints(dapps_path, ui_address);
 
-	// the dapp no longer exsists
-	for (k, _) in pages.read().iter() {
-		if new_pages.contains_key(k) != true {
-			pages.write().remove(k);
-		}
-	}
 	// new dapps to be added
 	for (k, v) in new_pages {
 		if pages.read().contains_key(&k) != true {
