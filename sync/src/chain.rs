@@ -126,6 +126,8 @@ const MAX_NEW_HASHES: usize = 64;
 const MAX_TX_TO_IMPORT: usize = 512;
 const MAX_NEW_BLOCK_AGE: BlockNumber = 20;
 const MAX_TRANSACTION_SIZE: usize = 300*1024;
+// maximal packet size with transactions (cannot be greater than 16MB - protocol limitation).
+const MAX_TRANSACTION_PACKET_SIZE: usize = 8 * 1024 * 1024;
 // Maximal number of transactions in sent in single packet.
 const MAX_TRANSACTIONS_TO_PROPAGATE: usize = 64;
 // Min number of blocks to be behind for a snapshot sync
@@ -2044,7 +2046,7 @@ impl ChainSync {
 						// update stats
 						for hash in &all_transactions_hashes {
 							let id = io.peer_session_info(peer_id).and_then(|info| info.id);
-							stats.propagated(*hash, id, block_number);
+							stats.propagated(hash, id, block_number);
 						}
 						peer_info.last_sent_transactions = all_transactions_hashes.clone();
 						return Some((peer_id, all_transactions_hashes.len(), all_transactions_rlp.clone()));
@@ -2060,14 +2062,35 @@ impl ChainSync {
 					}
 
 					// Construct RLP
-					let mut packet = RlpStream::new_list(to_send.len());
-					for tx in &transactions {
-						if to_send.contains(&tx.transaction.hash()) {
-							packet.append(&tx.transaction);
-							// update stats
-							let id = io.peer_session_info(peer_id).and_then(|info| info.id);
-							stats.propagated(tx.transaction.hash(), id, block_number);
+					let (packet, to_send) = {
+						let mut to_send = to_send;
+						let mut packet = RlpStream::new();
+						packet.begin_unbounded_list();
+						let mut pushed = 0;
+						for tx in &transactions {
+							let hash = tx.transaction.hash();
+							if to_send.contains(&hash) {
+								let mut transaction = RlpStream::new();
+								tx.transaction.rlp_append(&mut transaction);
+								let appended = packet.append_raw_checked(&transaction.drain(), 1, MAX_TRANSACTION_PACKET_SIZE);
+								if !appended {
+									// Maximal packet size reached just proceed with sending
+									debug!("Transaction packet size limit reached. Sending incomplete set of {}/{} transactions.", pushed, to_send.len());
+									to_send = to_send.into_iter().take(pushed).collect();
+									break;
+								}
+								pushed += 1;
+							}
 						}
+						packet.complete_unbounded_list();
+						(packet, to_send)
+					};
+
+					// Update stats
+					let id = io.peer_session_info(peer_id).and_then(|info| info.id);
+					for hash in &to_send {
+						// update stats
+						stats.propagated(hash, id, block_number);
 					}
 
 					peer_info.last_sent_transactions = all_transactions_hashes

@@ -517,7 +517,7 @@ impl Engine for AuthorityRound {
 
 				// only issue the seal if we were the first to reach the compare_and_swap.
 				if !self.proposed.compare_and_swap(false, true, AtomicOrdering::SeqCst) {
-					return Seal::Regular(vec![encode(&step).to_vec(), encode(&(&H520::from(signature) as &[u8])).to_vec()]);
+					return Seal::Regular(vec![encode(&step).into_vec(), encode(&(&H520::from(signature) as &[u8])).into_vec()]);
 				}
 			} else {
 				warn!(target: "engine", "generate_seal: FAIL: Accounts secret key unavailable.");
@@ -880,7 +880,7 @@ mod tests {
 	fn can_do_signature_verification_fail() {
 		let engine = Spec::new_test_round().engine;
 		let mut header: Header = Header::default();
-		header.set_seal(vec![encode(&H520::default()).to_vec()]);
+		header.set_seal(vec![encode(&H520::default()).into_vec()]);
 
 		let verify_result = engine.verify_block_external(&header, None);
 		assert!(verify_result.is_err());
@@ -923,7 +923,7 @@ mod tests {
 		let tap = AccountProvider::transient_provider();
 		let addr = tap.insert_account("0".sha3().into(), "0").unwrap();
 		let mut parent_header: Header = Header::default();
-		parent_header.set_seal(vec![encode(&0usize).to_vec()]);
+		parent_header.set_seal(vec![encode(&0usize).into_vec()]);
 		parent_header.set_gas_limit(U256::from_str("222222").unwrap());
 		let mut header: Header = Header::default();
 		header.set_number(1);
@@ -935,10 +935,10 @@ mod tests {
 		let signature = tap.sign(addr, Some("0".into()), header.bare_hash()).unwrap();
 		// Two validators.
 		// Spec starts with step 2.
-		header.set_seal(vec![encode(&2usize).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
+		header.set_seal(vec![encode(&2usize).into_vec(), encode(&(&*signature as &[u8])).into_vec()]);
 		assert!(engine.verify_block_family(&header, &parent_header, None).is_ok());
 		assert!(engine.verify_block_external(&header, None).is_err());
-		header.set_seal(vec![encode(&1usize).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
+		header.set_seal(vec![encode(&1usize).into_vec(), encode(&(&*signature as &[u8])).into_vec()]);
 		assert!(engine.verify_block_family(&header, &parent_header, None).is_ok());
 		assert!(engine.verify_block_external(&header, None).is_ok());
 	}
@@ -949,7 +949,7 @@ mod tests {
 		let addr = tap.insert_account("0".sha3().into(), "0").unwrap();
 
 		let mut parent_header: Header = Header::default();
-		parent_header.set_seal(vec![encode(&0usize).to_vec()]);
+		parent_header.set_seal(vec![encode(&0usize).into_vec()]);
 		parent_header.set_gas_limit(U256::from_str("222222").unwrap());
 		let mut header: Header = Header::default();
 		header.set_number(1);
@@ -961,10 +961,10 @@ mod tests {
 		let signature = tap.sign(addr, Some("0".into()), header.bare_hash()).unwrap();
 		// Two validators.
 		// Spec starts with step 2.
-		header.set_seal(vec![encode(&1usize).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
+		header.set_seal(vec![encode(&1usize).into_vec(), encode(&(&*signature as &[u8])).into_vec()]);
 		assert!(engine.verify_block_family(&header, &parent_header, None).is_ok());
 		assert!(engine.verify_block_external(&header, None).is_ok());
-		header.set_seal(vec![encode(&5usize).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
+		header.set_seal(vec![encode(&5usize).into_vec(), encode(&(&*signature as &[u8])).into_vec()]);
 		assert!(engine.verify_block_family(&header, &parent_header, None).is_ok());
 		assert!(engine.verify_block_external(&header, None).is_err());
 	}
@@ -975,7 +975,7 @@ mod tests {
 		let addr = tap.insert_account("0".sha3().into(), "0").unwrap();
 
 		let mut parent_header: Header = Header::default();
-		parent_header.set_seal(vec![encode(&4usize).to_vec()]);
+		parent_header.set_seal(vec![encode(&4usize).into_vec()]);
 		parent_header.set_gas_limit(U256::from_str("222222").unwrap());
 		let mut header: Header = Header::default();
 		header.set_number(1);
@@ -987,9 +987,9 @@ mod tests {
 		let signature = tap.sign(addr, Some("0".into()), header.bare_hash()).unwrap();
 		// Two validators.
 		// Spec starts with step 2.
-		header.set_seal(vec![encode(&5usize).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
+		header.set_seal(vec![encode(&5usize).into_vec(), encode(&(&*signature as &[u8])).into_vec()]);
 		assert!(engine.verify_block_family(&header, &parent_header, None).is_ok());
-		header.set_seal(vec![encode(&3usize).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
+		header.set_seal(vec![encode(&3usize).into_vec(), encode(&(&*signature as &[u8])).into_vec()]);
 		assert!(engine.verify_block_family(&header, &parent_header, None).is_err());
 	}
 
@@ -1011,12 +1011,12 @@ mod tests {
 		let aura = AuthorityRound::new(Default::default(), params, Default::default()).unwrap();
 
 		let mut parent_header: Header = Header::default();
-		parent_header.set_seal(vec![encode(&1usize).to_vec()]);
+		parent_header.set_seal(vec![encode(&1usize).into_vec()]);
 		parent_header.set_gas_limit(U256::from_str("222222").unwrap());
 		let mut header: Header = Header::default();
 		header.set_number(1);
 		header.set_gas_limit(U256::from_str("222222").unwrap());
-		header.set_seal(vec![encode(&3usize).to_vec()]);
+		header.set_seal(vec![encode(&3usize).into_vec()]);
 
 		assert!(aura.verify_block_family(&header, &parent_header, None).is_ok());
 		assert_eq!(last_benign.load(AtomicOrdering::SeqCst), 1);

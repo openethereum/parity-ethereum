@@ -111,7 +111,7 @@ impl StandardMap {
 			let v = match self.value_mode {
 				ValueMode::Mirror => k.clone(),
 				ValueMode::Random => Self::random_value(seed),
-				ValueMode::Index => encode(&index).to_vec(),
+				ValueMode::Index => encode(&index).into_vec(),
 			};
 			d.push((k, v))
 		}
