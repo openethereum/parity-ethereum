@@ -116,9 +116,13 @@ export default class Store {
   }
 
   receiveMessage = ({ data, origin, source }) => {
+    if (!data) {
+      return;
+    }
+
     const { from, method, token } = data;
 
-    if (from === 'shell' || from !== token) {
+    if (!from || from === 'shell' || from !== token) {
       return;
     }
 
