@@ -79,21 +79,26 @@
   }
 }
 
-.identities,
-.selector>div {
+.identities {
   display: flex;
-}
 
-.selector>div {
-  margin-top: 1.5em;
-}
+  .identity {
+    border: 1px solid transparent;
+    cursor: pointer;
+    flex: 0 1 12.5%;
+    padding: 0.75em 0;
+    text-align: center;
+    width: 12.5% !important;
 
-.identities .identity,
-.selector>div>div {
-  flex: 0 1 12.5%;
-  width: 12.5% !important;
-  text-align: center;
-  cursor: pointer;
+    &.selected {
+      border-color: #2185D0;
+      border-radius: 8px;
+      background: rgba(200, 200, 225, 0.5);
+    }
+
+    &.unselected {
+    }
+  }
 }
 
 .refresh {
