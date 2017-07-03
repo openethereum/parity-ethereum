@@ -108,7 +108,7 @@ impl fmt::Display for Error {
 	}
 }
 
-// sorts by work proved, ascending.
+// sorts by work proved, descending.
 #[derive(PartialEq, Eq)]
 struct SortedEntry {
 	slab_id: usize,
@@ -118,7 +118,7 @@ struct SortedEntry {
 
 impl Ord for SortedEntry {
 	fn cmp(&self, other: &SortedEntry) -> Ordering {
-		self.work_proved.cmp(&other.work_proved).reverse()
+		self.work_proved.cmp(&other.work_proved)
 	}
 }
 
@@ -129,10 +129,12 @@ impl PartialOrd for SortedEntry {
 }
 
 // stores messages by two metrics: expiry and PoW rating
+// when full, will accept messages above the minimum stored.
 struct Messages {
 	slab: ::slab::Slab<Message>,
 	sorted: Vec<SortedEntry>,
 	known: HashSet<H256>,
+	removed_hashes: Vec<H256>,
 	cumulative_size: usize,
 	ideal_size: usize,
 }
@@ -143,6 +145,7 @@ impl Messages {
 			slab: ::slab::Slab::with_capacity(0),
 			sorted: Vec::new(),
 			known: HashSet::new(),
+			removed_hashes: Vec::new(),
 			cumulative_size: 0,
 			ideal_size: ideal_size,
 		}
@@ -155,24 +158,58 @@ impl Messages {
 		self.known.reserve(additional);
 	}
 
-	// whether a message is known.
-	fn contains(&self, message: &Message) -> bool {
-		self.known.contains(message.hash())
+	// whether a message is known or within the bounds of PoW.
+	fn may_accept(&self, message: &Message) -> bool {
+		!self.known.contains(message.hash()) && {
+			self.sorted.last().map_or(true, |entry| {
+				let work_proved = OrderedFloat(message.work_proved());
+				OrderedFloat(self.slab[entry.slab_id].work_proved()) < work_proved
+			})
+		}
 	}
 
 	// insert a message into the store. for best performance,
 	// call `reserve` before inserting a bunch.
 	//
-	// does not prune low PoW messages. Call `prune`
-	// to do that.
-	//
-	// TODO: consolidate insertion and pruning under-worked
-	// messages with an iterator returned from this method.
-	fn insert(&mut self, message: Message) {
-		if !self.known.insert(message.hash().clone()) { return }
+	fn insert(&mut self, message: Message) -> bool {
+		if !self.known.insert(message.hash().clone()) { return false }
+
+		let work_proved = OrderedFloat(message.work_proved());
+
+		// pop off entries by low PoW until we have enough space for the higher
+		// PoW message being inserted.
+		let size_upon_insertion = self.cumulative_size + message.encoded_size();
+		if size_upon_insertion >= self.ideal_size {
+			let diff = size_upon_insertion - self.ideal_size;
+			let mut found_diff = 0;
+			for entry in self.sorted.iter().rev() {
+				if found_diff >= diff { break }
+
+				// if we encounter a message with at least the PoW we're looking
+				// at, don't push that message out.
+				if entry.work_proved >= work_proved { return false }
+				found_diff += self.slab[entry.slab_id].encoded_size();
+			}
+
+			// message larger than ideal size.
+			if found_diff < diff { return false }
+
+			while found_diff > 0 {
+				let entry = self.sorted.pop()
+					.expect("found_diff built by traversing entries; therefore that many entries exist; qed");
+
+				let message = self.slab.remove(entry.slab_id)
+					.expect("sorted entry slab IDs always filled; qed");
+
+				found_diff -= message.encoded_size();
+
+				self.cumulative_size -= message.encoded_size();
+				self.known.remove(message.hash());
+				self.removed_hashes.push(message.hash().clone());
+			}
+		}
 
 		let expiry = message.expiry();
-		let work_proved = OrderedFloat(message.work_proved());
 
 		self.cumulative_size += message.encoded_size();
 
@@ -188,18 +225,19 @@ impl Messages {
 		match self.sorted.binary_search(&sorted_entry) {
 			Ok(idx) | Err(idx) => self.sorted.insert(idx, sorted_entry),
 		}
+
+		true
 	}
 
 	// prune expired messages, and then prune low proof-of-work messages
 	// until below ideal size.
-	fn prune(&mut self, now: SystemTime) -> Vec<Message> {
-		let mut messages = Vec::new();
-
+	fn prune(&mut self, now: SystemTime) -> Vec<H256> {
 		{
 			let slab = &mut self.slab;
 			let known = &mut self.known;
 			let cumulative_size = &mut self.cumulative_size;
 			let ideal_size = &self.ideal_size;
+			let removed = &mut self.removed_hashes;
 
 			// first pass, we look just at expired entries.
 			let all_expired = self.sorted.iter()
@@ -207,7 +245,8 @@ impl Messages {
 				.map(|x| (true, x));
 
 			// second pass, we look at entries which aren't expired but in order
-			let low_proof = self.sorted.iter()
+			// by PoW
+			let low_proof = self.sorted.iter().rev()
 				.filter(|entry| entry.expiry > now)
 				.map(|x| (false, x));
 
@@ -222,9 +261,9 @@ impl Messages {
 					.expect("references to ID kept upon creation; only destroyed upon removal; qed");
 
 				known.remove(message.hash());
+				removed.push(message.hash().clone());
 
 				*cumulative_size -= message.encoded_size();
-				messages.push(message);
 			}
 		}
 
@@ -232,7 +271,7 @@ impl Messages {
 		let slab = &self.slab;
 		self.sorted.retain(|entry| slab.contains(entry.slab_id));
 
-		messages
+		::std::mem::replace(&mut self.removed_hashes, Vec::new())
 	}
 
 	fn iter(&self) -> ::slab::Iter<Message, usize> {
@@ -255,9 +294,9 @@ struct Peer {
 
 impl Peer {
 	// note that a message has been evicted from the queue.
-	fn note_evicted(&mut self, messages: &[Message]) {
-		for message in messages {
-			self.known_messages.remove(message.hash());
+	fn note_evicted(&mut self, messages: &[H256]) {
+		for message_hash in messages {
+			self.known_messages.remove(message_hash);
 		}
 	}
 
@@ -296,7 +335,7 @@ pub struct MessagePoster {
 
 impl MessagePoster {
 	/// Post a message to the whisper network to be relayed.
-	pub fn post_message(&self, message: Message) {
+	pub fn post_message(&self, message: Message) -> bool {
 		self.messages.write().insert(message)
 	}
 }
@@ -335,7 +374,7 @@ impl<T: MessageHandler> Network<T> {
 
 		// prune messages.
 		let now = SystemTime::now();
-		let pruned_messages = self.messages.write().prune(now);
+		let pruned_hashes = self.messages.write().prune(now);
 
 		let messages = self.messages.read();
 		let peers = self.peers.read();
@@ -343,7 +382,7 @@ impl<T: MessageHandler> Network<T> {
 		// send each peer a packet with new messages it may find relevant.
 		for (peer_id, peer) in peers.iter() {
 			let mut peer_data = peer.lock();
-			peer_data.note_evicted(&pruned_messages);
+			peer_data.note_evicted(&pruned_hashes);
 
 			let punish_timeout = |last_activity: &SystemTime| {
 				if *last_activity + Duration::from_millis(MAX_TOLERATED_DELAY_MS) <= now {
@@ -453,7 +492,7 @@ impl<T: MessageHandler> Network<T> {
 		// import for relaying.
 		let mut messages = self.messages.write();
 
-		messages_vec.retain(|message| !messages.contains(&message));
+		messages_vec.retain(|message| messages.may_accept(&message));
 		messages.reserve(messages_vec.len());
 
 		self.handler.handle_messages(&messages_vec);

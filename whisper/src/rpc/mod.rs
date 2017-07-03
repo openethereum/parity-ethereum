@@ -140,11 +140,12 @@ build_rpc_trait! {
 /// Something which can send messages to the network.
 pub trait MessageSender: Send + Sync {
 	/// Give message to the whisper network for relay.
-	fn relay(&self, message: Message);
+	/// Returns false if PoW too low.
+	fn relay(&self, message: Message) -> bool;
 }
 
 impl MessageSender for ::net::MessagePoster {
-	fn relay(&self, message: Message) {
+	fn relay(&self, message: Message) -> bool {
 		self.post_message(message)
 	}
 }
@@ -297,9 +298,11 @@ impl<S: MessageSender + 'static, M: Send + Sync + 'static> Whisper for WhisperCl
 			work: req.priority,
 		});
 
-		self.sender.relay(message);
-
-		Ok(true)
+		if !self.sender.relay(message) {
+			Err(whisper_error("PoW too low to compete with other messages"))
+		} else {
+			Ok(true)
+		}
 	}
 
 	fn new_filter(&self, req: types::FilterRequest) -> Result<types::Identity, Error> {
