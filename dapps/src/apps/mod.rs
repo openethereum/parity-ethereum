@@ -84,23 +84,21 @@ pub fn all_endpoints<F: Fetch>(
 	Arc::new(RwLock::new(pages))
 }
 
-pub fn refresh_local_endpoints(pages: &mut BTreeMap<String, Box<Endpoint>>, dapps_path: PathBuf, ui_address: Option<(String, u16)>) -> Arc<RwLock<BTreeMap<String, Box<Endpoint>>>> {
-	let mut new_pages = fs::local_endpoints(dapps_path, ui_address.clone());
+pub fn refresh_local_endpoints(pages: Arc<RwLock<BTreeMap<String, Box<Endpoint>>>>, dapps_path: PathBuf, ui_address: Option<(String, u16)>) {
+	let new_pages = fs::local_endpoints(dapps_path, ui_address.clone());
 
-	// new dapps to be added
-	for (k, v) in new_pages {
-		if pages.contains_key(&k) != true {
-			pages.insert(k, v);
+	// the dapp no longer exsists
+	for (k, _) in pages.read().iter() {
+		if new_pages.contains_key(k) != true {
+			pages.write().remove(k);
 		}
 	}
-	// // the dapp no longer exsists
-	// for (k, _) in pages {
-	// 	if new_pages.contains_key(k) != true {
-	// 		pages.remove(k);
-	// 	}
-	// }
-
-	Arc::new(RwLock::new(pages.clone()))
+	// new dapps to be added
+	for (k, v) in new_pages {
+		if pages.read().contains_key(&k) != true {
+			pages.write().insert(k, v);
+		}
+	}
 }
 
 fn insert<T : WebApp + Default + 'static>(pages: &mut BTreeMap<String, Box<Endpoint>>, id: &str, embed_at: Embeddable) {

@@ -70,11 +70,9 @@ mod tests;
 
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::collections::{HashMap, BTreeMap};
+use std::collections::HashMap;
 
 use jsonrpc_http_server::{self as http, hyper, Origin};
-
-use parking_lot::RwLock;
 
 use fetch::Fetch;
 use parity_reactor::Remote;
@@ -105,6 +103,8 @@ impl<F> WebProxyTokens for F where F: Fn(String) -> Option<Origin> + Send + Sync
 #[derive(Default, Clone)]
 pub struct Endpoints {
 	endpoints: endpoint::Endpoints,
+	dapps_path: PathBuf,
+	ui_address: Option<(String, u16)>,
 }
 
 impl Endpoints {
@@ -114,26 +114,20 @@ impl Endpoints {
 			e.info().map(|ref info| apps::App::from_info(k, info))
 		}).collect()
 	}
-
-	pub fn refresh_local_dapps(&self, dapps_path: PathBuf, ui_address: Option<(String, u16)>) -> Endpoints {
-		// pub type Endpoints = Arc<RwLock<BTreeMap<String, Box<Endpoint>>>>;
-		// pages: &mut BTreeMap<String, Box<Endpoint>>
-		Endpoints {
-			endpoints: apps::refresh_local_endpoints(
-				&mut Arc::try_unwrap(self.endpoints).unwrap().into_inner(),
-				dapps_path,
-				ui_address
-			)
-		}
+	/// Check for any changes in the local dapps folder and update.
+	pub fn refresh_local_dapps(&self) {
+		apps::refresh_local_endpoints(
+			self.endpoints.clone(),
+			self.dapps_path.clone(),
+			self.ui_address.clone()
+		);
 	}
 }
 
 /// Dapps server as `jsonrpc-http-server` request middleware.
 pub struct Middleware {
-	dapps_path: PathBuf,
 	endpoints: Endpoints,
 	router: router::Router,
-	ui_address: Option<(String, u16)>,
 }
 
 impl Middleware {
@@ -170,10 +164,8 @@ impl Middleware {
 		);
 
 		Middleware {
-			dapps_path: Default::default(),
 			endpoints: Default::default(),
 			router: router,
-			ui_address: Default::default(),
 		}
 	}
 
@@ -197,14 +189,16 @@ impl Middleware {
 		).embeddable_on(ui_address.clone()).allow_dapps(true));
 		let endpoints = Endpoints {
 			endpoints: apps::all_endpoints(
-				dapps_path,
+				dapps_path.clone(),
 				extra_dapps,
 				dapps_domain.clone(),
 				ui_address.clone(),
 				web_proxy_tokens,
 				remote.clone(),
 				fetch.clone(),
-			)
+			),
+			dapps_path: dapps_path.clone(),
+			ui_address: ui_address.clone(),
 		};
 
 		let special = {
@@ -217,21 +211,14 @@ impl Middleware {
 			content_fetcher,
 			Some(endpoints.endpoints.clone()),
 			special,
-			ui_address,
+			ui_address.clone(),
 			dapps_domain,
 		);
 
 		Middleware {
-			dapps_path: dapps_path.clone(),
 			endpoints,
 			router,
-			ui_address: ui_address.clone(),
 		}
-	}
-
-	pub fn refresh_local_dapps(&self) -> bool {
-		self.endpoints = self.endpoints.refresh_local_dapps(self.dapps_path, self.ui_address);
-		true
 	}
 }
 

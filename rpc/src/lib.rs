@@ -40,7 +40,6 @@ extern crate jsonrpc_ipc_server as ipc;
 extern crate jsonrpc_minihttp_server as minihttp;
 extern crate jsonrpc_pubsub;
 
-extern crate parity_dapps;
 extern crate ethash;
 extern crate ethcore;
 extern crate ethcore_devtools as devtools;

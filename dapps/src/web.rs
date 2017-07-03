@@ -238,5 +238,3 @@ impl<F: Fetch> server::Handler<net::HttpStream> for WebHandler<F> {
 		}
 	}
 }
-
-

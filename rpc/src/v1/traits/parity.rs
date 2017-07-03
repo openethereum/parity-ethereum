@@ -151,10 +151,6 @@ build_rpc_trait! {
 		#[rpc(name = "parity_localTransactions")]
 		fn local_transactions(&self) -> Result<BTreeMap<H256, LocalTransactionStatus>, Error>;
 
-		/// Returns true if refresh successful, error if unsuccessful or server is disabled.
-		#[rpc(name = "parity_dappsRefresh")]
-		fn dapps_refresh(&self) -> Result<bool, Error>;
-
 		/// Returns current Dapps Server interface and port or an error if dapps server is disabled.
 		#[rpc(name = "parity_dappsUrl")]
 		fn dapps_url(&self) -> Result<String, Error>;

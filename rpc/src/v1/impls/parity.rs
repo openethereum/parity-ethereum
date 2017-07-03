@@ -25,7 +25,6 @@ use util::Address;
 use util::misc::version_data;
 
 use crypto::ecies;
-use parity_dapps::Endpoints;
 use ethkey::{Brain, Generator};
 use ethstore::random_phrase;
 use ethsync::{SyncProvider, ManageNetwork};
@@ -320,10 +319,6 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 		   .map(|(hash, status)| (hash.into(), LocalTransactionStatus::from(status, block_number, self.eip86_transition)))
 		   .collect()
 		)
-	}
-
-	fn dapps_refresh(&self) -> Result<bool, Error> {
-		Ok(true)
 	}
 
 	fn dapps_url(&self) -> Result<String, Error> {
