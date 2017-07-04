@@ -1018,6 +1018,12 @@ mod tests {
 		header.set_gas_limit(U256::from_str("222222").unwrap());
 		header.set_seal(vec![encode(&3usize).into_vec()]);
 
+		// Do not report when signer not present.
+		assert!(aura.verify_block_family(&header, &parent_header, None).is_ok());
+		assert_eq!(last_benign.load(AtomicOrdering::SeqCst), 0);
+
+		aura.set_signer(Arc::new(AccountProvider::transient_provider()), Default::default(), Default::default());
+
 		assert!(aura.verify_block_family(&header, &parent_header, None).is_ok());
 		assert_eq!(last_benign.load(AtomicOrdering::SeqCst), 1);
 	}
