@@ -74,7 +74,7 @@ impl Client {
 	}
 
 	pub fn get<F: Fn(PriceInfo) + Sync + Send + 'static>(&self, set_price: F) {
-		self.fetch.process(self.fetch.fetch(&self.api_endpoint)
+		self.fetch.forget(self.fetch.fetch(&self.api_endpoint)
 			.map_err(|err| Error::Fetch(format!("{:?}", err)))
 			.and_then(move |mut response| {
 				let mut result = String::new();

@@ -131,6 +131,16 @@ impl Client {
 	pub fn pool(&self) -> CpuPool {
 		self.pool.clone()
 	}
+
+	/// Spawn the future in context of this `Fetch` thread pool as "fire and forget", i.e. dropping this future without
+	///	canceling the underlying future.
+	pub fn forget<F, I, E>(&self, f: F) where
+		F: Future<Item=I, Error=E> + Send + 'static,
+		I: Send + 'static,
+		E: Send + 'static,
+	{
+		self.pool.spawn(f).forget()
+	}
 }
 
 impl Fetch for Client {
