@@ -87,8 +87,21 @@ pub fn all_endpoints<F: Fetch>(
 pub fn refresh_local_endpoints(pages: Arc<RwLock<BTreeMap<String, Box<Endpoint>>>>, dapps_path: PathBuf, ui_address: Option<(String, u16)>) {
 	let new_pages = fs::local_endpoints(dapps_path, ui_address);
 
+	// dapps that no longer exist
+	// for (k, _) in pages.read().iter() {
+	// 	println!("k: {:?}", k);
+	// 	if k == "ui" || k == "proxy" || k == WEB_PATH {
+	// 		println!("{:?} continue", k);
+	// 		continue;
+	// 	} else if new_pages.contains_key(k) != true {
+	// 		println!("{:?} remove", k);
+	// 		pages.write().remove(k);
+	// 	}
+	// }
+
 	// new dapps to be added
 	for (k, v) in new_pages {
+		println!("k2: {:?}", k);
 		if pages.read().contains_key(&k) != true {
 			pages.write().insert(k, v);
 		}

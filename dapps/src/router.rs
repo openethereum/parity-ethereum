@@ -60,8 +60,6 @@ impl http::RequestMiddleware for Router {
 		let is_get_request = *req.method() == hyper::Method::Get;
 		let is_head_request = *req.method() == hyper::Method::Head;
 
-		// info!(target: "dapps", "Routing request to {:?}. Details: {:?}", url, req);
-
 		trace!(target: "dapps", "Routing request to {:?}. Details: {:?}", url, req);
 		let endpoints = self.endpoints.as_ref().map(|endpoint| endpoint.read());
 
@@ -112,6 +110,7 @@ impl http::RequestMiddleware for Router {
 				=>
 			{
 				trace!(target: "dapps", "Resolving to 404.");
+				// self.endpoints.refresh_local_dapps();
 				Some(Box::new(handlers::ContentHandler::error(
 					hyper::StatusCode::NotFound,
 					"404 Not Found",
