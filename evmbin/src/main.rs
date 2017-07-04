@@ -20,7 +20,9 @@
 #![allow(dead_code)]
 extern crate ethcore;
 extern crate rustc_hex;
-extern crate rustc_serialize;
+extern crate serde;
+#[macro_use]
+extern crate serde_derive;
 extern crate docopt;
 extern crate ethcore_util as util;
 
@@ -60,7 +62,7 @@ General options:
 
 
 fn main() {
-	let args: Args = Docopt::new(USAGE).and_then(|d| d.decode()).unwrap_or_else(|e| e.exit());
+	let args: Args = Docopt::new(USAGE).and_then(|d| d.deserialize()).unwrap_or_else(|e| e.exit());
 
 	if args.flag_json {
 		run(args, display::json::Informant::default())
@@ -88,7 +90,7 @@ fn run<T: Informant>(args: Args, mut informant: T) {
 	informant.finish(result);
 }
 
-#[derive(Debug, RustcDecodable)]
+#[derive(Debug, Deserialize)]
 struct Args {
 	cmd_stats: bool,
 	flag_from: Option<String>,
