@@ -222,7 +222,7 @@ pub struct AuthorityRound {
 	step: Arc<Step>,
 	proposed: AtomicBool,
 	client: RwLock<Option<Weak<EngineClient>>>,
-	signer: EngineSigner,
+	signer: RwLock<EngineSigner>,
 	validators: Box<ValidatorSet>,
 	validate_score_transition: u64,
 	eip155_transition: u64,
@@ -471,7 +471,7 @@ impl Engine for AuthorityRound {
 	}
 
 	fn seals_internally(&self) -> Option<bool> {
-		Some(self.signer.address() != Address::default())
+		Some(self.signer.read().is_some())
 	}
 
 	/// Attempt to seal the block internally.
@@ -512,7 +512,7 @@ impl Engine for AuthorityRound {
 		};
 
 		if is_step_proposer(validators, header.parent_hash(), step, header.author()) {
-			if let Ok(signature) = self.signer.sign(header.bare_hash()) {
+			if let Ok(signature) = self.sign(header.bare_hash()) {
 				trace!(target: "engine", "generate_seal: Issuing a block for step {}.", step);
 
 				// only issue the seal if we were the first to reach the compare_and_swap.
@@ -614,7 +614,7 @@ impl Engine for AuthorityRound {
 			Err(EngineError::DoubleVote(header.author().clone()))?;
 		}
 		// Report skipped primaries.
-		if step > parent_step + 1 {
+		if self.signer.read().is_some() && step > parent_step + 1 {
 			// TODO: use epochmanager to get correct validator set for reporting?
 			// or just rely on the fact that in general these will be the same
 			// and some reports might go missing?
@@ -816,11 +816,11 @@ impl Engine for AuthorityRound {
 	}
 
 	fn set_signer(&self, ap: Arc<AccountProvider>, address: Address, password: String) {
-		self.signer.set(ap, address, password);
+		self.signer.write().set(ap, address, password);
 	}
 
 	fn sign(&self, hash: H256) -> Result<Signature, Error> {
-		self.signer.sign(hash).map_err(Into::into)
+		self.signer.read().sign(hash).map_err(Into::into)
 	}
 
 	fn snapshot_components(&self) -> Option<Box<::snapshot::SnapshotComponents>> {

@@ -82,7 +82,7 @@ pub struct BasicAuthority {
 	params: CommonParams,
 	gas_limit_bound_divisor: U256,
 	builtins: BTreeMap<Address, Builtin>,
-	signer: EngineSigner,
+	signer: RwLock<EngineSigner>,
 	validators: Box<ValidatorSet>,
 }
 
@@ -129,7 +129,7 @@ impl Engine for BasicAuthority {
 	}
 
 	fn seals_internally(&self) -> Option<bool> {
-		Some(self.signer.address() != Address::default())
+		Some(self.signer.read().is_some())
 	}
 
 	/// Attempt to seal the block internally.
@@ -138,7 +138,7 @@ impl Engine for BasicAuthority {
 		let author = header.author();
 		if self.validators.contains(header.parent_hash(), author) {
 			// account should be pernamently unlocked, otherwise sealing will fail
-			if let Ok(signature) = self.signer.sign(header.bare_hash()) {
+			if let Ok(signature) = self.sign(header.bare_hash()) {
 				return Seal::Regular(vec![::rlp::encode(&(&H520::from(signature) as &[u8])).into_vec()]);
 			} else {
 				trace!(target: "basicauthority", "generate_seal: FAIL: accounts secret key unavailable");
@@ -240,11 +240,11 @@ impl Engine for BasicAuthority {
 	}
 
 	fn set_signer(&self, ap: Arc<AccountProvider>, address: Address, password: String) {
-		self.signer.set(ap, address, password);
+		self.signer.write().set(ap, address, password);
 	}
 
 	fn sign(&self, hash: H256) -> Result<Signature, Error> {
-		self.signer.sign(hash).map_err(Into::into)
+		self.signer.read().sign(hash).map_err(Into::into)
 	}
 
 	fn snapshot_components(&self) -> Option<Box<::snapshot::SnapshotComponents>> {

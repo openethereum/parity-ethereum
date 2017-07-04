@@ -86,7 +86,7 @@ pub struct Tendermint {
 	/// Vote accumulator.
 	votes: VoteCollector<ConsensusMessage>,
 	/// Used to sign messages and proposals.
-	signer: EngineSigner,
+	signer: RwLock<EngineSigner>,
 	/// Message for the last PoLC.
 	lock_change: RwLock<Option<ConsensusMessage>>,
 	/// Last lock view.
@@ -159,19 +159,22 @@ impl Tendermint {
 		let r = self.view.load(AtomicOrdering::SeqCst);
 		let s = *self.step.read();
 		let vote_info = message_info_rlp(&VoteStep::new(h, r, s), block_hash);
-		match self.signer.sign(vote_info.sha3()).map(Into::into) {
-			Ok(signature) => {
+		match (self.signer.read().address(), self.sign(vote_info.sha3()).map(Into::into)) {
+			(Some(validator), Ok(signature)) => {
 				let message_rlp = message_full_rlp(&signature, &vote_info);
 				let message = ConsensusMessage::new(signature, h, r, s, block_hash);
-				let validator = self.signer.address();
 				self.votes.vote(message.clone(), &validator);
 				debug!(target: "engine", "Generated {:?} as {}.", message, validator);
 				self.handle_valid_message(&message);
 
 				Some(message_rlp)
 			},
-			Err(e) => {
-				trace!(target: "engine", "Could not sign the message {}", e);
+			(None, _) => {
+				trace!(target: "engine", "No message, since there is no engine signer.");
+				None
+			},
+			(Some(v), Err(e)) => {
+				trace!(target: "engine", "{} could not sign the message {}", v, e);
 				None
 			},
 		}
@@ -272,7 +275,7 @@ impl Tendermint {
 	/// Check if current signer is the current proposer.
 	fn is_signer_proposer(&self, bh: &H256) -> bool {
 		let proposer = self.view_proposer(bh, self.height.load(AtomicOrdering::SeqCst), self.view.load(AtomicOrdering::SeqCst));
-		self.signer.is_address(&proposer)
+		self.signer.read().is_address(&proposer)
 	}
 
 	fn is_height(&self, message: &ConsensusMessage) -> bool {
@@ -420,7 +423,7 @@ impl Engine for Tendermint {
 
 	/// Should this node participate.
 	fn seals_internally(&self) -> Option<bool> {
-		Some(self.signer.address() != Address::default())
+		Some(self.signer.read().is_some())
 	}
 
 	/// Attempt to seal generate a proposal seal.
@@ -436,7 +439,7 @@ impl Engine for Tendermint {
 		let view = self.view.load(AtomicOrdering::SeqCst);
 		let bh = Some(header.bare_hash());
 		let vote_info = message_info_rlp(&VoteStep::new(height, view, Step::Propose), bh.clone());
-		if let Ok(signature) = self.signer.sign(vote_info.sha3()).map(Into::into) {
+		if let Ok(signature) = self.sign(vote_info.sha3()).map(Into::into) {
 			// Insert Propose vote.
 			debug!(target: "engine", "Submitting proposal {} at height {} view {}.", header.bare_hash(), height, view);
 			self.votes.vote(ConsensusMessage::new(signature, height, view, Step::Propose, bh), author);
@@ -565,13 +568,13 @@ impl Engine for Tendermint {
 
 	fn set_signer(&self, ap: Arc<AccountProvider>, address: Address, password: String) {
 		{
-			self.signer.set(ap, address, password);
+			self.signer.write().set(ap, address, password);
 		}
 		self.to_step(Step::Propose);
 	}
 
 	fn sign(&self, hash: H256) -> Result<Signature, Error> {
-		self.signer.sign(hash).map_err(Into::into)
+		self.signer.read().sign(hash).map_err(Into::into)
 	}
 
 	fn stop(&self) {
