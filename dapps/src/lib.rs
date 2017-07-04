@@ -209,7 +209,7 @@ impl Middleware {
 
 		let router = router::Router::new(
 			content_fetcher,
-			Some(endpoints.endpoints.clone()),
+			Some(endpoints.clone()),
 			special,
 			ui_address.clone(),
 			dapps_domain,
