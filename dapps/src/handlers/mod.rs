@@ -30,20 +30,15 @@ pub use self::streaming::StreamingHandler;
 
 use url::Url;
 use hyper::{server, header, net, uri};
-use address;
+use {apps, address, Embeddable};
 
 /// Adds security-related headers to the Response.
-pub fn add_security_headers(headers: &mut header::Headers, embeddable_on: Option<(String, u16)>) {
+pub fn add_security_headers(headers: &mut header::Headers, embeddable_on: Embeddable) {
 	headers.set_raw("X-XSS-Protection", vec![b"1; mode=block".to_vec()]);
 	headers.set_raw("X-Content-Type-Options", vec![b"nosniff".to_vec()]);
 
 	// Embedding header:
-	if let Some(ref embeddable_on) = embeddable_on {
-		headers.set_raw("X-Frame-Options", vec![
-			format!("ALLOW-FROM http://{}", address(embeddable_on)).into_bytes()
-		]);
-	} else {
-		// TODO [ToDr] Should we be more strict here (DENY?)?
+	if let None = embeddable_on {
 		headers.set_raw("X-Frame-Options",  vec![b"SAMEORIGIN".to_vec()]);
 	}
 
@@ -60,7 +55,7 @@ pub fn add_security_headers(headers: &mut header::Headers, embeddable_on: Option
 		b"child-src 'self' http: https:;".to_vec(),
 		// We allow data: blob: and HTTP(s) images.
 		// We could get rid of wildcarding HTTP and only allow RPC server URL.
-		// (http require for local dapps icons)
+		// (http required for local dapps icons)
 		b"img-src 'self' 'unsafe-inline' data: blob: http: https:;".to_vec(),
 		// Allow style from data: blob: and HTTPS.
 		b"style-src 'self' 'unsafe-inline' data: blob: https:;".to_vec(),
@@ -78,10 +73,27 @@ pub fn add_security_headers(headers: &mut header::Headers, embeddable_on: Option
 		b"block-all-mixed-content;".to_vec(),
 		// Specify if the site can be embedded.
 		match embeddable_on {
-			Some((ref host, ref port)) if host == "127.0.0.1" => {
-				format!("frame-ancestors {} {};", address(&(host.to_owned(), *port)), address(&("localhost".to_owned(), *port)))
+			Some(ref embed) => {
+				let std = address(&embed.host, embed.port);
+				let proxy = format!("{}.{}", apps::HOME_PAGE, embed.dapps_domain);
+				let domain = format!("*.{}:{}", embed.dapps_domain, embed.port);
+
+				if embed.host == "127.0.0.1" {
+					let localhost = address("localhost", embed.port);
+					format!("frame-ancestors {} {} {} {};",
+						std,
+						localhost,
+						domain,
+						proxy,
+					)
+				} else {
+					format!("frame-ancestors {} {} {};",
+						std,
+						domain,
+						proxy,
+					)
+				}
 			},
-			Some(ref embed) => format!("frame-ancestors {};", address(embed)),
 			None => format!("frame-ancestors 'self';"),
 		}.into_bytes(),
 	]);
