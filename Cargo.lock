@@ -464,6 +464,7 @@ dependencies = [
  "ethkey 0.2.0",
  "ethstore 0.1.0",
  "evm 0.1.0",
+ "fetch 0.1.0",
  "futures 0.1.11 (registry+https://github.com/rust-lang/crates.io-index)",
  "hardware-wallet 1.7.0",
  "hyper 0.10.0-a.0 (git+https://github.com/paritytech/hyper)",

@@ -33,6 +33,7 @@ ethjson = { path = "../json" }
 ethkey = { path = "../ethkey" }
 ethstore = { path = "../ethstore" }
 evm = { path = "evm" }
+fetch = { path = "../util/fetch" }
 futures = "0.1"
 hardware-wallet = { path = "../hw" }
 hyper = { git = "https://github.com/paritytech/hyper", default-features = false }
