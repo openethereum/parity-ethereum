@@ -66,6 +66,7 @@ impl RollingFinality {
 
 				let entry = self.sign_count.entry(signer);
 				if let (true, &Entry::Vacant(_)) = (would_be_finalized, &entry) {
+					trace!(target: "finality", "Encountered already finalized block {}", hash);
 					break
 				}
 
@@ -75,6 +76,7 @@ impl RollingFinality {
 			self.headers.push_front((hash, signer));
 		}
 
+		trace!(target: "finality", "Rolling finality state: {:?}", self.headers);
 		Ok(())
 	}
 
@@ -127,6 +129,8 @@ impl RollingFinality {
 				Entry::Vacant(_) => panic!("all hashes in `header` should have an entry in `sign_count` for their signer; qed"),
 			}
 		}
+
+		trace!(target: "finality", "Blocks finalized by {:?}: {:?}", head, newly_finalized);
 
 		Ok(newly_finalized)
 	}

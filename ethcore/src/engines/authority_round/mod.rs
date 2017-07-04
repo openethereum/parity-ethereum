@@ -723,6 +723,9 @@ impl Engine for AuthorityRound {
 		if epoch_manager.finality_checker.subchain_head() != Some(*chain_head.parent_hash()) {
 			// build new finality checker from ancestry of chain head,
 			// not including chain head itself yet.
+			trace!(target: "finality", "Building finality up to parent of {} ({})",
+				chain_head.hash(), chain_head.parent_hash());
+
 			let mut hash = chain_head.parent_hash().clone();
 			let epoch_transition_hash = epoch_manager.epoch_transition_hash;
 
@@ -734,6 +737,8 @@ impl Engine for AuthorityRound {
 					if header.number() == 0 { return None }
 
 					let res = (hash, header.author().clone());
+					trace!(target: "finality", "Ancestry iteration: yielding {:?}", res);
+
 					hash = header.parent_hash().clone();
 					Some(res)
 				})
@@ -766,6 +771,7 @@ impl Engine for AuthorityRound {
 						let finality_proof = ::rlp::encode_list(&finality_proof);
 						epoch_manager.note_new_epoch();
 
+						info!(target: "engine", "Applying validator set change signalled at block {}", signal_number);
 						return Some(combine_proofs(signal_number, &pending.proof, &*finality_proof));
 					}
 				}

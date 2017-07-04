@@ -521,7 +521,7 @@ impl Client {
 					} else {
 						imported_blocks.push(header.hash());
 
-						let route = self.commit_block(closed_block, &header.hash(), &block.bytes);
+						let route = self.commit_block(closed_block, &header, &block.bytes);
 						import_results.push(route);
 
 						self.report.write().accrue_block(&block);
@@ -626,10 +626,14 @@ impl Client {
 		Ok(hash)
 	}
 
-	fn commit_block<B>(&self, block: B, hash: &H256, block_data: &[u8]) -> ImportRoute where B: IsBlock + Drain {
-		let number = block.header().number();
-		let parent = block.header().parent_hash().clone();
-		let header = block.header().clone(); // TODO: optimize and avoid copy.
+	// NOTE: the header of the block passed here is not necessarily sealed, as
+	// it is for reconstructing the state transition.
+	//
+	// The header passed is from the original block data and is sealed.
+	fn commit_block<B>(&self, block: B, header: &Header, block_data: &[u8]) -> ImportRoute where B: IsBlock + Drain {
+		let hash = &header.hash();
+		let number = header.number();
+		let parent = header.parent_hash();
 		let chain = self.chain.read();
 
 		// Commit results
@@ -638,6 +642,8 @@ impl Client {
 		let traces: Vec<FlatTransactionTraces> = traces.into_iter()
 			.map(Into::into)
 			.collect();
+
+		assert_eq!(header.hash(), BlockView::new(block_data).header_view().sha3());
 
 		//let traces = From::from(block.traces().clone().unwrap_or_else(Vec::new));
 
@@ -1781,7 +1787,9 @@ impl MiningBlockChainClient for Client {
 
 			let number = block.header().number();
 			let block_data = block.rlp_bytes();
-			let route = self.commit_block(block, &h, &block_data);
+			let header = block.header().clone();
+
+			let route = self.commit_block(block, &header, &block_data);
 			trace!(target: "client", "Imported sealed block #{} ({})", number, h);
 			self.state_db.lock().sync_cache(&route.enacted, &route.retracted, false);
 			route
