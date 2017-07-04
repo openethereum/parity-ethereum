@@ -30,4 +30,8 @@ export default class PubsubBase {
   removeListener (subscriptionIds) {
     return this._transport.unsubscribe(subscriptionIds);
   }
+
+  unsubscribe (subscriptionIds) {
+    return this.removeListener(subscriptionIds);
+  }
 }

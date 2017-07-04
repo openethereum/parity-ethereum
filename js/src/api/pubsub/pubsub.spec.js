@@ -47,7 +47,7 @@ describe('api/pubsub/Pubsub', () => {
     });
 
     it('retrieves the available account info', (done) => {
-      instance.accountsInfo((error, result) => {
+      instance.parity.accountsInfo((error, result) => {
         expect(error).to.be.null;
         expect(result).to.deep.equal({
           '0x63Cf90D3f0410092FC0fca41846f596223979195': {
@@ -80,7 +80,7 @@ describe('api/pubsub/Pubsub', () => {
     });
 
     it('retrieves the chain status', (done) => {
-      instance.chainStatus((error, result) => {
+      instance.parity.chainStatus((error, result) => {
         expect(error).to.be.null;
         expect(result).to.deep.equal({
           'blockGap': [new BigNumber(0x123), new BigNumber(0x456)]
@@ -107,7 +107,7 @@ describe('api/pubsub/Pubsub', () => {
     });
 
     it('returns the gasfloor, formatted', (done) => {
-      instance.gasFloorTarget((error, result) => {
+      instance.parity.gasFloorTarget((error, result) => {
         expect(error).to.be.null;
         expect(isBigNumber(result)).to.be.true;
         expect(result.eq(0x123456)).to.be.true;
@@ -133,7 +133,7 @@ describe('api/pubsub/Pubsub', () => {
     });
 
     it('returns the tx limit, formatted', (done) => {
-      instance.transactionsLimit((error, result) => {
+      instance.parity.transactionsLimit((error, result) => {
         expect(error).to.be.null;
         expect(isBigNumber(result)).to.be.true;
         expect(result.eq(1024)).to.be.true;
@@ -159,7 +159,7 @@ describe('api/pubsub/Pubsub', () => {
     });
 
     it('returns the min gasprice, formatted', (done) => {
-      instance.minGasPrice((error, result) => {
+      instance.parity.minGasPrice((error, result) => {
         expect(error).to.be.null;
         expect(isBigNumber(result)).to.be.true;
         expect(result.eq(0x123456)).to.be.true;
@@ -185,7 +185,7 @@ describe('api/pubsub/Pubsub', () => {
     });
 
     it('returns the peer structure, formatted', (done) => {
-      instance.netPeers((error, peers) => {
+      instance.parity.netPeers((error, peers) => {
         expect(error).to.be.null;
         expect(peers.active.eq(123)).to.be.true;
         expect(peers.connected.eq(456)).to.be.true;
@@ -212,7 +212,7 @@ describe('api/pubsub/Pubsub', () => {
     });
 
     it('returns the connected port, formatted', (done) => {
-      instance.netPort((error, count) => {
+      instance.parity.netPort((error, count) => {
         expect(error).to.be.null;
         expect(isBigNumber(count)).to.be.true;
         expect(count.eq(33030)).to.be.true;
@@ -239,7 +239,7 @@ describe('api/pubsub/Pubsub', () => {
     });
 
     it('returns a list of accounts, formatted', (done) => {
-      instance.accounts((error, accounts) => {
+      instance.eth.accounts((error, accounts) => {
         expect(error).to.be.null;
         expect(accounts).to.deep.equal([address]);
         done();
@@ -247,7 +247,7 @@ describe('api/pubsub/Pubsub', () => {
     });
   });
 
-  describe.only('newHeads', () => {
+  describe('newHeads', () => {
     beforeEach(() => {
       scope = mockWs([{ method: 'eth_subscribe', reply: 2, subscription: {
         method: 'eth_subscription',
@@ -264,7 +264,7 @@ describe('api/pubsub/Pubsub', () => {
     });
 
     it('returns newHeads for eth_subscribe', (done) => {
-      instance.newHeads((error, blockNumber) => {
+      instance.eth.newHeads((error, blockNumber) => {
         expect(error).to.be.null;
         expect(blockNumber).to.equal('0x123456');
         done();
@@ -289,7 +289,7 @@ describe('api/pubsub/Pubsub', () => {
     });
 
     it('returns the current blockNumber, formatted', (done) => {
-      instance.blockNumber((error, blockNumber) => {
+      instance.eth.blockNumber((error, blockNumber) => {
         expect(error).to.be.null;
         expect(isBigNumber(blockNumber)).to.be.true;
         expect(blockNumber.toString(16)).to.equal('123456');
@@ -315,7 +315,7 @@ describe('api/pubsub/Pubsub', () => {
     });
 
     it('formats the input options & blockNumber', (done) => {
-      instance.call((error) => {
+      instance.eth.call((error) => {
         expect(error).to.be.null;
         expect(scope.body.parity_subscribe.params).to.deep.equal(['eth_call', [{ data: '0x12345678' }, 'earliest']]);
         done();
@@ -323,7 +323,7 @@ describe('api/pubsub/Pubsub', () => {
     });
 
     it('provides a latest blockNumber when not specified', (done) => {
-      instance.call((error) => {
+      instance.eth.call((error) => {
         expect(error).to.be.null;
         expect(scope.body.parity_subscribe.params).to.deep.equal(['eth_call', [{ data: '0x12345678' }, 'latest']]);
         done();
@@ -348,7 +348,7 @@ describe('api/pubsub/Pubsub', () => {
     });
 
     it('returns the coinbase, formatted', (done) => {
-      instance.coinbase((error, account) => {
+      instance.eth.coinbase((error, account) => {
         expect(error).to.be.null;
         expect(account).to.deep.equal(address);
         done();
@@ -373,7 +373,7 @@ describe('api/pubsub/Pubsub', () => {
     });
 
     it('converts the options correctly', (done) => {
-      instance.estimateGas((error) => {
+      instance.eth.estimateGas((error) => {
         expect(error).to.be.null;
         expect(scope.body.parity_subscribe.params).to.deep.equal(['eth_estimateGas', [{ gas: '0x5208' }]]);
         done();
@@ -381,7 +381,7 @@ describe('api/pubsub/Pubsub', () => {
     });
 
     it('returns the gas used, formatted', (done) => {
-      instance.estimateGas((error, gas) => {
+      instance.eth.estimateGas((error, gas) => {
         expect(error).to.be.null;
         expect(isBigNumber(gas)).to.be.true;
         expect(gas.toString(16)).to.deep.equal('123');
@@ -407,7 +407,7 @@ describe('api/pubsub/Pubsub', () => {
     });
 
     it('returns the gas price, formatted', (done) => {
-      instance.gasPrice((error, price) => {
+      instance.eth.gasPrice((error, price) => {
         expect(error).to.be.null;
         expect(isBigNumber(price)).to.be.true;
         expect(price.toString(16)).to.deep.equal('123');
@@ -433,7 +433,7 @@ describe('api/pubsub/Pubsub', () => {
     });
 
     it('passes in the address (default blockNumber)', (done) => {
-      instance.getBalance((error) => {
+      instance.eth.getBalance((error) => {
         expect(error).to.be.null;
         expect(scope.body.parity_subscribe.params).to.deep.equal(['eth_getBalance', [address.toLowerCase(), 'latest']]);
         done();
@@ -441,7 +441,7 @@ describe('api/pubsub/Pubsub', () => {
     });
 
     it('passes in the address & blockNumber', (done) => {
-      instance.getBalance((error) => {
+      instance.eth.getBalance((error) => {
         expect(error).to.be.null;
         expect(scope.body.parity_subscribe.params).to.deep.equal(['eth_getBalance', [address.toLowerCase(), '0x456']]);
         done();
@@ -449,7 +449,7 @@ describe('api/pubsub/Pubsub', () => {
     });
 
     it('returns the balance', (done) => {
-      instance.getBalance((error, balance) => {
+      instance.eth.getBalance((error, balance) => {
         expect(error).to.be.null;
         expect(isBigNumber(balance)).to.be.true;
         expect(balance.toString(16)).to.deep.equal('123');
@@ -475,7 +475,7 @@ describe('api/pubsub/Pubsub', () => {
     });
 
     it('formats the input hash as a hash, default full', (done) => {
-      instance.getBlockByHash((error) => {
+      instance.eth.getBlockByHash((error) => {
         expect(error).to.be.null;
         expect(scope.body.parity_subscribe.params).to.deep.equal(['eth_getBlockByHash', ['0x1234', false]]);
         done();
@@ -483,7 +483,7 @@ describe('api/pubsub/Pubsub', () => {
     });
 
     it('formats the input hash as a hash, full true', (done) => {
-      instance.getBlockByHash((error) => {
+      instance.eth.getBlockByHash((error) => {
         expect(error).to.be.null;
         expect(scope.body.parity_subscribe.params).to.deep.equal(['eth_getBlockByHash', ['0x1234', true]]);
         done();
@@ -491,7 +491,7 @@ describe('api/pubsub/Pubsub', () => {
     });
 
     it('formats the output into block', (done) => {
-      instance.getBlockByHash((error, block) => {
+      instance.eth.getBlockByHash((error, block) => {
         expect(error).to.be.null;
         expect(block.miner).to.equal(address);
         done();
@@ -516,7 +516,7 @@ describe('api/pubsub/Pubsub', () => {
     });
 
     it('assumes blockNumber latest & full false', (done) => {
-      instance.getBlockByNumber((error) => {
+      instance.eth.getBlockByNumber((error) => {
         expect(error).to.be.null;
         expect(scope.body.parity_subscribe.params).to.deep.equal(['eth_getBlockByNumber', ['latest', false]]);
         done();
@@ -524,7 +524,7 @@ describe('api/pubsub/Pubsub', () => {
     });
 
     it('uses input blockNumber & full false', (done) => {
-      instance.getBlockByNumber((error) => {
+      instance.eth.getBlockByNumber((error) => {
         expect(error).to.be.null;
         expect(scope.body.parity_subscribe.params).to.deep.equal(['eth_getBlockByNumber', ['0x1234', false]]);
         done();
@@ -532,7 +532,7 @@ describe('api/pubsub/Pubsub', () => {
     });
 
     it('formats the input blockNumber, full true', (done) => {
-      instance.getBlockByNumber((error) => {
+      instance.eth.getBlockByNumber((error) => {
         expect(error).to.be.null;
         expect(scope.body.parity_subscribe.params).to.deep.equal(['eth_getBlockByNumber', ['0x1234', true]]);
         done();
@@ -540,7 +540,7 @@ describe('api/pubsub/Pubsub', () => {
     });
 
     it('formats the output into block', (done) => {
-      instance.getBlockByNumber((error, block) => {
+      instance.eth.getBlockByNumber((error, block) => {
         expect(error).to.be.null;
         expect(block.miner).to.equal(address);
         done();
@@ -565,7 +565,7 @@ describe('api/pubsub/Pubsub', () => {
     });
 
     it('passes in the address (default blockNumber)', (done) => {
-      instance.getTransactionCount((error) => {
+      instance.eth.getTransactionCount((error) => {
         expect(error).to.be.null;
         expect(scope.body.parity_subscribe.params).to.deep.equal(['eth_getTransactionCount', [address.toLowerCase(), 'latest']]);
         done();
@@ -573,7 +573,7 @@ describe('api/pubsub/Pubsub', () => {
     });
 
     it('passes in the address & blockNumber', (done) => {
-      instance.getTransactionCount((error) => {
+      instance.eth.getTransactionCount((error) => {
         expect(error).to.be.null;
         expect(scope.body.parity_subscribe.params).to.deep.equal(['eth_getTransactionCount', [address.toLowerCase(), '0x456']]);
         done();
@@ -581,7 +581,7 @@ describe('api/pubsub/Pubsub', () => {
     });
 
     it('returns the count, formatted', (done) => {
-      instance.getTransactionCount((error, count) => {
+      instance.eth.getTransactionCount((error, count) => {
         expect(error).to.be.null;
         expect(isBigNumber(count)).to.be.true;
         expect(count.toString(16)).to.equal('123');

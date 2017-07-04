@@ -13,4 +13,30 @@
 
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
-export default from './pubsub';
+import PubsubBase from '../pubsubBase';
+
+import { outNumber } from '../../format/output';
+
+export default class Net extends PubsubBase {
+  constructor (transport) {
+    super(transport);
+    this._api = 'parity';
+  }
+
+  // net API
+  version (callback) {
+    return this.addListener(this._api, 'net_version', callback);
+  }
+
+  peerCount (callback) {
+    return this.addListener(this._api, 'net_peerCount', (error, data) => {
+      error
+        ? callback(error)
+        : callback(null, outNumber(data));
+    });
+  }
+
+  listening (callback) {
+    return this.addListener(this._api, 'net_listening', callback);
+  }
+}

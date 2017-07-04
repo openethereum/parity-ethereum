@@ -229,7 +229,7 @@ export default class Ws extends JsonRpcBase {
       if (messageId) {
         return messageId;
       } else {
-        throw Error(`Received Subscription which is already unsubscribed ${JSON.stringify(result)}`);
+        console.error(`Received Subscription which is already unsubscribed ${JSON.stringify(result)}`);
       }
     }
 

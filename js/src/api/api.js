@@ -21,7 +21,7 @@ import Contract from './contract';
 
 import { Db, Eth, Parity, Net, Personal, Shh, Signer, Trace, Web3 } from './rpc';
 import Subscriptions from './subscriptions';
-import { Pubsub } from './pubsub';
+import Pubsub from './pubsub';
 import util from './util';
 import { isFunction } from './util/types';
 // import { LocalAccountsMiddleware } from './local';
@@ -45,7 +45,10 @@ export default class Api extends EventEmitter {
     this._signer = new Signer(transport);
     this._trace = new Trace(transport);
     this._web3 = new Web3(transport);
-    this._pubsub = new Pubsub(transport);
+
+    if (isFunction(transport.subscribe)) {
+      this._pubsub = new Pubsub(transport);
+    }
 
     if (allowSubscriptions) {
       this._subscriptions = new Subscriptions(this);
@@ -68,6 +71,9 @@ export default class Api extends EventEmitter {
   }
 
   get pubsub () {
+    if (!this._pubsub) {
+      throw Error('Pubsub is only available with a subscribing-supported transport injected!');
+    }
     return this._pubsub;
   }
 
