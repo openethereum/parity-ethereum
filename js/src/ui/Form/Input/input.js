@@ -117,6 +117,8 @@ export default class Input extends Component {
       ? value
       : defaultValue;
 
+    console.log('Input', displayValue, parseI18NString(this.context, `${displayValue}`));
+
     return (
       <LabelWrapper
         className={ `${styles.container} ${className}` }
@@ -144,10 +146,12 @@ export default class Input extends Component {
           step={ step }
           style={ style }
           tabIndex={ tabIndex }
-          value={ parseI18NString(this.context, `${displayValue}`) }
         >
           { this.renderCopyButton() }
-          <input type={ type } />
+          <input
+            type={ type }
+            value={ parseI18NString(this.context, `${displayValue}`) }
+          />
           { children }
         </SemanticInput>
       </LabelWrapper>

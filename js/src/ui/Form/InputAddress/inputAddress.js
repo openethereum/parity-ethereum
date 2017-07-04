@@ -66,7 +66,16 @@ class InputAddress extends Component {
     classes.push(!icon ? styles.inputEmpty : styles.input);
 
     const containerClasses = [ styles.container ];
-    const nullName = (disabled || readOnly) && isNullAddress(value) ? 'null' : null;
+    const nullName = (disabled || readOnly) && isNullAddress(value)
+      ? 'null'
+      : null;
+
+    // FIXME: The is not advisable, fixes the display issue, however the name should come from
+    // a common component.
+    //    account.name || (value ? 'UNNAMED' : value)
+    const displayValue = text && account
+      ? (account.name || (value ? 'UNNAMED' : value))
+      : (nullName || value);
 
     if (small) {
       containerClasses.push(styles.small);
@@ -78,9 +87,6 @@ class InputAddress extends Component {
       props.focused = focused;
     }
 
-    // FIXME: The is not advisable, fixes the display issue, however the name should come from
-    // a common component.
-    //    account.name || (value ? 'UNNAMED' : value)
     return (
       <div className={ containerClasses.join(' ') }>
         <Input
@@ -98,11 +104,7 @@ class InputAddress extends Component {
           onSubmit={ this.onSubmit }
           readOnly={ readOnly }
           tabIndex={ tabIndex }
-          value={
-            text && account
-              ? (account.name || (value ? 'UNNAMED' : value))
-              : (nullName || value)
-          }
+          value={ displayValue }
           { ...props }
         />
         { icon }
