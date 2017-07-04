@@ -56,10 +56,14 @@ fn whisper_error<T: Into<String>>(message: T) -> Error {
 	}
 }
 
+fn topic_hash(topic: &[u8]) -> H256 {
+	H256(::tiny_keccak::keccak256(topic))
+}
+
 // abridge topic using first four bytes of hash.
 fn abridge_topic(topic: &[u8]) -> Topic {
 	let mut abridged = [0; 4];
-	let hash = ::tiny_keccak::keccak256(topic);
+	let hash = topic_hash(topic).0;
 	abridged.copy_from_slice(&hash[..4]);
 	abridged.into()
 }
@@ -259,10 +263,28 @@ impl<S: MessageSender + 'static, M: Send + Sync + 'static> Whisper for WhisperCl
 		use self::crypto::EncryptionInstance;
 
 		let encryption = match req.to {
-			types::Receiver::Public(public) => EncryptionInstance::ecies(public.into_inner())
+			Some(types::Receiver::Public(public)) => EncryptionInstance::ecies(public.into_inner())
 				.map_err(whisper_error)?,
-			types::Receiver::Identity(id) => self.store.read().encryption_instance(&id.into_inner())
+			Some(types::Receiver::Identity(id)) => self.store.read().encryption_instance(&id.into_inner())
 				.map_err(whisper_error)?,
+			None => {
+				use rand::{Rng, OsRng};
+
+				// broadcast mode: use fixed nonce and fresh key each time.
+
+				let mut rng = OsRng::new()
+					.map_err(|_| whisper_error("unable to acquire secure randomness"))?;
+
+				let key = rng.gen();
+				if req.topics.is_empty() {
+					return Err(whisper_error("must supply at least one topic for broadcast message"));
+				}
+
+				EncryptionInstance::broadcast(
+					key,
+					req.topics.iter().map(|x| topic_hash(&x)).collect()
+				)
+			}
 		};
 
 		let sign_with = match req.from {

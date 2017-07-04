@@ -16,6 +16,7 @@
 
 //! Encryption schemes supported by RPC layer.
 
+use bigint::hash::H256;
 use ethkey::{self, Public, Secret};
 use ring::aead::{self, AES_256_GCM, SealingKey, OpeningKey};
 
@@ -24,8 +25,17 @@ pub const AES_KEY_LEN: usize = 32;
 /// Length of AES nonce (IV)
 pub const AES_NONCE_LEN: usize = 12;
 
+// nonce used for encryption when broadcasting
+const BROADCAST_IV: [u8; AES_NONCE_LEN] = [0xff; AES_NONCE_LEN];
+
+// how to encode aes key/nonce.
+enum AesEncode {
+	AppendedNonce, // receiver known, random nonce appended.
+	OnTopics(Vec<H256>), // receiver knows topics but not key. nonce global.
+}
+
 enum EncryptionInner {
-	AES([u8; AES_KEY_LEN], [u8; AES_NONCE_LEN]),
+	AES([u8; AES_KEY_LEN], [u8; AES_NONCE_LEN], AesEncode),
 	ECIES(Public),
 }
 
@@ -48,33 +58,63 @@ impl EncryptionInstance {
 	/// If generating nonces with a secure RNG, limit uses such that
 	/// the chance of collision is negligible.
 	pub fn aes(key: [u8; AES_KEY_LEN], nonce: [u8; AES_NONCE_LEN]) -> Self {
-		EncryptionInstance(EncryptionInner::AES(key, nonce))
+		EncryptionInstance(EncryptionInner::AES(key, nonce, AesEncode::AppendedNonce))
+	}
+
+	/// Broadcast encryption for the message based on the given topics.
+	///
+	/// Key reuse here is extremely dangerous. It should be randomly generated
+	/// with a secure RNG.
+	pub fn broadcast(key: [u8; AES_KEY_LEN], topics: Vec<H256>) -> Self {
+		EncryptionInstance(EncryptionInner::AES(key, BROADCAST_IV, AesEncode::OnTopics(topics)))
 	}
 
 	/// Encrypt the supplied plaintext
 	pub fn encrypt(self, plain: &[u8]) -> Vec<u8> {
 		match self.0 {
-			EncryptionInner::AES(key, nonce) => {
+			EncryptionInner::AES(key, nonce, encode) => {
 				let sealing_key = SealingKey::new(&AES_256_GCM, &key)
 					.expect("key is of correct len; qed");
 
-				let out_suffix_capacity = AES_256_GCM.tag_len();
-				let mut buf = plain.to_vec();
-				buf.resize(plain.len() + out_suffix_capacity, 0);
+				let encrypt_plain = move |buf: &mut Vec<u8>| {
+					let out_suffix_capacity = AES_256_GCM.tag_len();
 
-				let out_size = aead::seal_in_place(
-					&sealing_key,
-					&nonce,
-					&[], // no authenticated data.
-					&mut buf,
-					out_suffix_capacity,
-				).expect("key, nonce, buf are valid and out suffix large enough; qed");
+					let prepend_len = buf.len();
+					buf.extend(plain);
 
-				// truncate to the output size and append the nonce.
-				buf.truncate(out_size);
-				buf.extend(&nonce[..]);
+					buf.resize(prepend_len + plain.len() + out_suffix_capacity, 0);
 
-				buf
+					let out_size = aead::seal_in_place(
+						&sealing_key,
+						&nonce,
+						&[], // no authenticated data.
+						&mut buf[prepend_len..],
+						out_suffix_capacity,
+					).expect("key, nonce, buf are valid and out suffix large enough; qed");
+
+					// truncate to the output size and return.
+					buf.truncate(prepend_len + out_size);
+				};
+
+				match encode {
+					AesEncode::AppendedNonce => {
+						let mut buf = Vec::new();
+						encrypt_plain(&mut buf);
+						buf.extend(&nonce[..]);
+						buf
+					}
+					AesEncode::OnTopics(topics) => {
+						let mut buf = Vec::new();
+						let key = H256(key);
+
+						for topic in topics {
+							buf.extend(&*(topic ^ key));
+						}
+
+						encrypt_plain(&mut buf);
+						buf
+					}
+				}
 			}
 			EncryptionInner::ECIES(valid_public) => {
 				::ethcrypto::ecies::encrypt(&valid_public, &[], plain)
@@ -84,8 +124,13 @@ impl EncryptionInstance {
 	}
 }
 
+enum AesExtract {
+	AppendedNonce([u8; AES_KEY_LEN]), // extract appended nonce.
+	OnTopics(usize, usize, H256), // number of topics, index we know, topic we know.
+}
+
 enum DecryptionInner {
-	AES([u8; AES_KEY_LEN]),
+	AES(AesExtract),
 	ECIES(Secret),
 }
 
@@ -100,40 +145,71 @@ impl DecryptionInstance {
 		Ok(DecryptionInstance(DecryptionInner::ECIES(secret)))
 	}
 
-	/// 256-bit AES GCM decryption.
+	/// 256-bit AES GCM decryption with appended nonce.
 	pub fn aes(key: [u8; AES_KEY_LEN]) -> Self {
-		DecryptionInstance(DecryptionInner::AES(key))
+		DecryptionInstance(DecryptionInner::AES(AesExtract::AppendedNonce(key)))
+	}
+
+	/// Decode broadcast based on number of topics and known topic.
+	/// Known topic index may not be larger than num topics - 1.
+	pub fn broadcast(num_topics: usize, topic_idx: usize, known_topic: H256) -> Result<Self, &'static str> {
+		if topic_idx >= num_topics { return Err("topic index out of bounds") }
+
+		Ok(DecryptionInstance(DecryptionInner::AES(AesExtract::OnTopics(num_topics, topic_idx, known_topic))))
 	}
 
 	/// Decrypt ciphertext. Fails if it's an invalid message.
 	pub fn decrypt(self, ciphertext: &[u8]) -> Option<Vec<u8>> {
 		match self.0 {
-			DecryptionInner::AES(key) => {
-				let min_size = AES_NONCE_LEN + AES_256_GCM.tag_len();
-				if ciphertext.len() < min_size { return None }
+			DecryptionInner::AES(extract) => {
+				let decrypt = |
+					key: [u8; AES_KEY_LEN],
+					nonce: [u8; AES_NONCE_LEN],
+					ciphertext: &[u8]
+				| {
+					if ciphertext.len() < AES_256_GCM.tag_len() { return None }
 
-				let opening_key = OpeningKey::new(&AES_256_GCM, &key)
-					.expect("key length is valid for mode; qed");
+					let opening_key = OpeningKey::new(&AES_256_GCM, &key)
+						.expect("key length is valid for mode; qed");
 
-				// nonce is the suffix of ciphertext.
-				let mut nonce = [0; AES_NONCE_LEN];
-				let nonce_offset = ciphertext.len() - AES_NONCE_LEN;
+					let mut buf = ciphertext.to_vec();
 
-				nonce.copy_from_slice(&ciphertext[nonce_offset..]);
+					// decrypted plaintext always ends up at the
+					// front of the buffer.
+					let maybe_decrypted = aead::open_in_place(
+						&opening_key,
+						&nonce,
+						&[], // no authenticated data
+						0, // no header.
+						&mut buf,
+					).ok().map(|plain_slice| plain_slice.len());
 
-				let mut buf = ciphertext[..nonce_offset].to_vec();
+					maybe_decrypted.map(move |len| { buf.truncate(len); buf })
+				};
 
-				// decrypted plaintext always ends up at the
-				// front of the buffer.
-				let maybe_decrypted = aead::open_in_place(
-					&opening_key,
-					&nonce,
-					&[], // no authenticated data
-					0, // no header.
-					&mut buf,
-				).ok().map(|plain_slice| plain_slice.len());
+				match extract {
+					AesExtract::AppendedNonce(key) => {
+						if ciphertext.len() < AES_NONCE_LEN { return None }
 
-				maybe_decrypted.map(move |len| { buf.truncate(len); buf })
+						// nonce is the suffix of ciphertext.
+						let mut nonce = [0; AES_NONCE_LEN];
+						let nonce_offset = ciphertext.len() - AES_NONCE_LEN;
+
+						nonce.copy_from_slice(&ciphertext[nonce_offset..]);
+						decrypt(key, nonce, &ciphertext[..nonce_offset])
+					}
+					AesExtract::OnTopics(num_topics, known_index, known_topic) => {
+						if ciphertext.len() < num_topics * 32 { return None }
+
+						let mut salted_topic = H256::new();
+						salted_topic.copy_from_slice(&ciphertext[(known_index * 32)..][..32]);
+
+						let key = (salted_topic ^ known_topic).0;
+
+						let offset = num_topics * 32;
+						decrypt(key, BROADCAST_IV, &ciphertext[offset..])
+					}
+				}
 			}
 			DecryptionInner::ECIES(secret) => {
 				// secret is checked for validity, so only fails on invalid message.
@@ -197,6 +273,37 @@ mod tests {
 			}
 
 			let instance = DecryptionInstance::aes(key);
+			let decrypted = instance.decrypt(&ciphertext).unwrap();
+
+			assert_eq!(message, &decrypted[..])
+		};
+
+		test_message(&[1, 2, 3, 4, 5]);
+		test_message(&[]);
+		test_message(&[255; 512]);
+	}
+
+	#[test]
+	fn encrypt_broadcast() {
+		use rand::{Rng, OsRng};
+
+		let mut rng = OsRng::new().unwrap();
+
+		let mut test_message = move |message: &[u8]| {
+			let all_topics = (0..5).map(|_| rng.gen()).collect::<Vec<_>>();
+			let known_idx = 2;
+			let known_topic = all_topics[2];
+			let key = rng.gen();
+
+			let instance = EncryptionInstance::broadcast(key, all_topics);
+			let ciphertext = instance.encrypt(message);
+
+			if !message.is_empty() {
+				assert!(&ciphertext[..message.len()] != message)
+			}
+
+			let instance = DecryptionInstance::broadcast(5, known_idx, known_topic).unwrap();
+
 			let decrypted = instance.decrypt(&ciphertext).unwrap();
 
 			assert_eq!(message, &decrypted[..])

@@ -17,6 +17,7 @@
 //! Types for Whisper RPC.
 
 use std::fmt;
+use std::ops::Deref;
 
 use bigint::hash::*;
 use hex::{ToHex, FromHex};
@@ -71,6 +72,12 @@ impl<T> HexEncode<T> {
 	pub fn into_inner(self) -> T { self.0 }
 }
 
+impl<T> Deref for HexEncode<T> {
+	type Target = T;
+
+	fn deref(&self) -> &T { &self.0 }
+}
+
 /// Hex-encoded arbitrary-byte vector.
 pub type Bytes = HexEncode<Vec<u8>>;
 
@@ -84,6 +91,8 @@ pub type Public = HexEncode<::ethkey::Public>;
 pub type Private = HexEncode<H256>;
 
 /// Abridged topic is four bytes.
+// only used in tests for now.
+#[cfg(test)]
 pub type AbridgedTopic = HexEncode<H32>;
 
 /// 32-byte AES key.
@@ -133,7 +142,8 @@ impl<T: HexEncodable> Visitor for HexEncodeVisitor<T> {
 	}
 }
 
-/// Receiver of a message. Either a public key or an identity.
+/// Receiver of a message. Either a public key, identity (presumably symmetric),
+/// or broadcast over the topics.
 #[derive(Deserialize)]
 pub enum Receiver {
 	#[serde(rename="public")]
@@ -149,8 +159,8 @@ pub struct PostRequest {
 	/// an identity. If the identity is symmetric, it will
 	/// encrypt to that identity.
 	///
-	// TODO: optional receiver?
-	pub to: Receiver,
+	/// If the receiver is missing, this will be a broadcast message.
+	pub to: Option<Receiver>,
 
 	/// Sender of the message.
 	///
@@ -161,6 +171,8 @@ pub struct PostRequest {
 	pub from: Option<Identity>,
 
 	/// Full topics to identify a message by.
+	/// At least one topic must be specified if the receiver is
+	/// not specified.
 	pub topics: Vec<Bytes>,
 
 	/// Payload of the message
@@ -182,13 +194,15 @@ pub struct FilterRequest {
 	/// ID of key used for decryption.
 	///
 	/// If this identity is removed, then no further messages will be returned.
+	///
+	/// If optional, this will listen for broadcast messages.
 	#[serde(rename = "decryptWith")]
-	pub decrypt_with: Identity,
+	pub decrypt_with: Option<Identity>,
 
-	/// Accept only messages signed by given identity.
+	/// Accept only messages signed by given public key.
 	pub from: Option<Public>,
 
-	/// Possible topics.
+	/// Possible topics. Cannot be empty if the identity is `None`
 	pub topics: Vec<Bytes>,
 }
 
@@ -199,14 +213,16 @@ pub struct FilterItem {
 	#[serde(skip_serializing_if = "Option::is_none")]
 	pub from: Option<Public>,
 
-	/// Identity of recipient
-	pub recipient: Identity,
+	/// Identity of recipient. If the filter wasn't registered with a
+	/// recipient, this will be `None`.
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub recipient: Option<Identity>,
 
 	/// Time to live in seconds.
 	pub ttl: u64,
 
-	/// Abridged topics.
-	pub topics: Vec<AbridgedTopic>,
+	/// Abridged topics that matched the filter.
+	pub topics: Vec<Bytes>,
 
 	/// Unix timestamp of the message generation.
 	pub timestamp: u64,

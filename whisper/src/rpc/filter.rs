@@ -20,7 +20,7 @@ use std::collections::HashMap;
 use std::sync::{mpsc, Arc};
 use std::thread;
 
-use bigint::hash::{H32, H256, H512};
+use bigint::hash::{H256, H512};
 use ethkey::Public;
 use jsonrpc_macros::pubsub::{Subscriber, Sink};
 use parking_lot::{Mutex, RwLock};
@@ -190,7 +190,7 @@ impl Drop for Manager {
 pub struct Filter {
 	topics: Vec<(Vec<u8>, H512, Topic)>,
 	from: Option<Public>,
-	decrypt_with: H256,
+	decrypt_with: Option<H256>,
 }
 
 impl Filter {
@@ -213,7 +213,7 @@ impl Filter {
 		Ok(Filter {
 			topics: topics,
 			from: params.from.map(|x| x.into_inner()),
-			decrypt_with: params.decrypt_with.into_inner(),
+			decrypt_with: params.decrypt_with.map(|x| x.into_inner()),
 		})
 	}
 
@@ -234,23 +234,37 @@ impl Filter {
 		store: &RwLock<KeyStore>,
 		on_match: F,
 	) {
-		let matched_topics: Vec<_> = self.topics.iter()
-			.filter_map(|&(_, ref bloom, ref abridged)| {
+		use rpc::crypto::DecryptionInstance;
+		use tiny_keccak::keccak256;
+
+		let matched_indices: Vec<_> = self.topics.iter()
+			.enumerate()
+			.filter_map(|(i, &(_, ref bloom, ref abridged))| {
 				let contains_topic = &(bloom & message.bloom()) == bloom
 					&& message.topics().contains(abridged);
 
-				if contains_topic { Some(HexEncode(H32(abridged.0))) } else { None }
+				if contains_topic { Some(i) } else { None }
 			})
 			.collect();
 
-		if matched_topics.is_empty() { return }
-		let decrypt = match store.read().decryption_instance(&self.decrypt_with) {
-			Some(d) => d,
-			None => {
-				warn!(target: "whisper", "Filter attempted to decrypt with destroyed identity {}",
-					self.decrypt_with);
+		if matched_indices.is_empty() { return }
 
-				return
+		let decrypt = match self.decrypt_with {
+			Some(ref id) => match store.read().decryption_instance(id) {
+				Some(d) => d,
+				None => {
+					warn!(target: "whisper", "Filter attempted to decrypt with destroyed identity {}",
+						id);
+
+					return
+				}
+			},
+			None => {
+				let known_idx = matched_indices[0];
+				let known_topic = H256(keccak256(&self.topics[0].0));
+
+				DecryptionInstance::broadcast(message.topics().len(), known_idx, known_topic)
+					.expect("known idx is within the range 0..message.topics.len(); qed")
 			}
 		};
 
@@ -258,7 +272,7 @@ impl Filter {
 			Some(d) => d,
 			None => {
 				trace!(target: "whisper", "Failed to decrypt message with {} matching topics",
-					matched_topics.len());
+					matched_indices.len());
 
 				return
 			}
@@ -268,9 +282,15 @@ impl Filter {
 			Ok(decoded) => {
 				if decoded.from != self.from { return }
 
+				let matched_topics = matched_indices
+					.into_iter()
+					.map(|i| self.topics[i].0.clone())
+					.map(HexEncode)
+					.collect();
+
 				on_match(FilterItem {
 					from: decoded.from.map(HexEncode),
-					recipient: HexEncode(self.decrypt_with),
+					recipient: self.decrypt_with.map(HexEncode),
 					ttl: message.envelope().ttl,
 					topics: matched_topics,
 					timestamp: message.envelope().expiry - message.envelope().ttl,
@@ -280,7 +300,7 @@ impl Filter {
 			}
 			Err(reason) =>
 				trace!(target: "whisper", "Bad payload in decrypted message with {} topics: {}",
-					matched_topics.len(), reason),
+					matched_indices.len(), reason),
 		}
 	}
 }
@@ -378,7 +398,7 @@ mod tests {
 		});
 
 		let filter = Filter::new(FilterRequest {
-			decrypt_with: HexEncode(decrypt_id),
+			decrypt_with: Some(HexEncode(decrypt_id)),
 			from: Some(HexEncode(signing_pair.public().unwrap().clone())),
 			topics: vec![HexEncode(vec![9; 32])],
 		}).unwrap();
