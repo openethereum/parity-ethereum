@@ -17,7 +17,7 @@
 //! URLHint Contract
 
 use std::sync::Arc;
-use rustc_serialize::hex::ToHex;
+use rustc_hex::ToHex;
 use mime::Mime;
 use mime_guess;
 
@@ -209,7 +209,7 @@ fn guess_mime_type(url: &str) -> Option<Mime> {
 pub mod tests {
 	use std::sync::Arc;
 	use std::str::FromStr;
-	use rustc_serialize::hex::FromHex;
+	use rustc_hex::FromHex;
 
 	use futures::{BoxFuture, Future, IntoFuture};
 

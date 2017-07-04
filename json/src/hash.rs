@@ -20,7 +20,7 @@ use std::str::FromStr;
 use std::fmt;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde::de::{Error, Visitor};
-use rustc_serialize::hex::ToHex;
+use rustc_hex::ToHex;
 use util::hash::{H64 as Hash64, H160 as Hash160, H256 as Hash256, H520 as Hash520, H2048 as Hash2048};
 
 

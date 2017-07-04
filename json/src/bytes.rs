@@ -19,7 +19,7 @@
 use std::fmt;
 use std::str::FromStr;
 use std::ops::Deref;
-use rustc_serialize::hex::FromHex;
+use rustc_hex::FromHex;
 use serde::{Deserialize, Deserializer};
 use serde::de::{Error, Visitor};
 

@@ -331,7 +331,7 @@ impl Handshake {
 #[cfg(test)]
 mod test {
 	use std::sync::Arc;
-	use rustc_serialize::hex::FromHex;
+	use rustc_hex::FromHex;
 	use super::*;
 	use util::hash::H256;
 	use io::*;

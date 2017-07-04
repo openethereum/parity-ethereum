@@ -17,7 +17,7 @@
 use std::str;
 use std::sync::Arc;
 use std::collections::HashMap;
-use rustc_serialize::hex::FromHex;
+use rustc_hex::FromHex;
 
 use hash_fetch::urlhint::ContractClient;
 use util::{Bytes, Address, Mutex, H256, ToPretty};

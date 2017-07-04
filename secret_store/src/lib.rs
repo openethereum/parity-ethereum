@@ -22,7 +22,7 @@ extern crate futures;
 extern crate futures_cpupool;
 extern crate hyper;
 extern crate parking_lot;
-extern crate rustc_serialize;
+extern crate rustc_hex;
 extern crate serde;
 extern crate serde_json;
 #[macro_use]

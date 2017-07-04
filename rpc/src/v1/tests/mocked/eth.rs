@@ -18,7 +18,7 @@ use std::str::FromStr;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Instant, Duration};
-use rustc_serialize::hex::{FromHex, ToHex};
+use rustc_hex::{FromHex, ToHex};
 use time::get_time;
 use rlp;
 

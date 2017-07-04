@@ -8,7 +8,7 @@ rand = "0.3.14"
 lazy_static = "0.2"
 tiny-keccak = "1.2"
 eth-secp256k1 = { git = "https://github.com/paritytech/rust-secp256k1" }
-rustc-serialize = "0.3"
+rustc-hex = "1.0"
 ethcore-bigint = { path = "../util/bigint" }
 rust-crypto = "0.2"
 byteorder = "1.0"

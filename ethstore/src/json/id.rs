@@ -16,7 +16,7 @@
 
 //! Universaly unique identifier.
 use std::{fmt, str};
-use rustc_serialize::hex::{ToHex, FromHex};
+use rustc_hex::{ToHex, FromHex};
 use serde::{Deserialize, Serialize, Deserializer, Serializer};
 use serde::de::{Visitor, Error as SerdeError};
 use super::Error;

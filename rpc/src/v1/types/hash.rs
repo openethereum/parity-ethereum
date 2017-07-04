@@ -19,7 +19,7 @@ use std::str::FromStr;
 use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};
 use serde;
-use rustc_serialize::hex::{ToHex, FromHex};
+use rustc_hex::{ToHex, FromHex};
 use util::{H64 as Eth64, H160 as Eth160, H256 as Eth256, H520 as Eth520, H512 as Eth512, H2048 as Eth2048};
 
 macro_rules! impl_hash {

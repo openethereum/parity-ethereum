@@ -46,6 +46,7 @@ num_cpus = "1.2"
 rand = "0.3"
 rlp = { path = "../util/rlp" }
 rust-crypto = "0.2.34"
+rustc-hex = "1.0"
 rustc-serialize = "0.3"
 semver = "0.6"
 stats = { path = "../util/stats" }

@@ -13,7 +13,7 @@ log = "0.3"
 mime = "0.2"
 mime_guess = "1.6.1"
 rand = "0.3"
-rustc-serialize = "0.3"
+rustc-hex = "1.0"
 fetch = { path = "../util/fetch" }
 ethcore-util = { path = "../util" }
 parity-reactor = { path = "../util/reactor" }
