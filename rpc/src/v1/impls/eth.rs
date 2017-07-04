@@ -365,7 +365,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 			BlockNumber::Pending => {
 				match self.miner.balance(&*self.client, &address) {
 					Some(balance) => Ok(balance.into()),
-					None => Err(errors::database_error("latest balance missing"))
+					None => Err(errors::database("latest balance missing"))
 				}
 			}
 			id => {
@@ -388,7 +388,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 			BlockNumber::Pending => {
 				match self.miner.storage_at(&*self.client, &address, &H256::from(position)) {
 					Some(s) => Ok(s.into()),
-					None => Err(errors::database_error("latest storage missing"))
+					None => Err(errors::database("latest storage missing"))
 				}
 			}
 			id => {
@@ -413,13 +413,13 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 					.or_else(|| self.miner.nonce(&*self.client, &address));
 				match nonce {
 					Some(nonce) => Ok(nonce.into()),
-					None => Err(errors::database_error("latest nonce missing"))
+					None => Err(errors::database("latest nonce missing"))
 				}
 			}
 			BlockNumber::Pending => {
 				match self.miner.nonce(&*self.client, &address) {
 					Some(nonce) => Ok(nonce.into()),
-					None => Err(errors::database_error("latest nonce missing"))
+					None => Err(errors::database("latest nonce missing"))
 				}
 			}
 			id => {
@@ -472,7 +472,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 			BlockNumber::Pending => {
 				match self.miner.code(&*self.client, &address) {
 					Some(code) => Ok(code.map_or_else(Bytes::default, Bytes::new)),
-					None => Err(errors::database_error("latest code missing"))
+					None => Err(errors::database("latest code missing"))
 				}
 			}
 			id => {
@@ -618,8 +618,8 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 
 	fn send_raw_transaction(&self, raw: Bytes) -> Result<RpcH256, Error> {
 		UntrustedRlp::new(&raw.into_vec()).as_val()
-			.map_err(errors::from_rlp_error)
-			.and_then(|tx| SignedTransaction::new(tx).map_err(errors::from_transaction_error))
+			.map_err(errors::rlp)
+			.and_then(|tx| SignedTransaction::new(tx).map_err(errors::transaction))
 			.and_then(|signed_transaction| {
 				FullDispatcher::new(self.client.clone(), self.miner.clone())
 					.dispatch_transaction(signed_transaction.into())
@@ -645,7 +645,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 
 		future::done(result
 			.map(|b| b.output.into())
-			.map_err(errors::from_call_error)
+			.map_err(errors::call)
 		).boxed()
 	}
 
@@ -657,7 +657,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 		};
 		future::done(self.client.estimate_gas(&signed, num.unwrap_or_default().into())
 			.map(Into::into)
-			.map_err(errors::from_call_error)
+			.map_err(errors::call)
 		).boxed()
 	}
 
