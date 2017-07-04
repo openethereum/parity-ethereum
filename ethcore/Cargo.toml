@@ -18,7 +18,7 @@ byteorder = "1.0"
 clippy = { version = "0.0.103", optional = true}
 crossbeam = "0.2.9"
 env_logger = "0.4"
-ethabi = "1.0"
+ethabi = "2.0"
 ethash = { path = "../ethash" }
 ethcore-bloom-journal = { path = "../util/bloom" }
 ethcore-devtools = { path = "../devtools" }
