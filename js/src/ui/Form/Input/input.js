@@ -113,6 +113,9 @@ export default class Input extends Component {
   render () {
     const { children, className, defaultValue, disabled, error, hint, label, max, min, onClick, readOnly, step, style, tabIndex, type } = this.props;
     const { value } = this.state;
+    const displayValue = typeof value !== 'undefined'
+      ? value
+      : defaultValue;
 
     return (
       <LabelWrapper
@@ -141,12 +144,10 @@ export default class Input extends Component {
           step={ step }
           style={ style }
           tabIndex={ tabIndex }
-          value={ parseI18NString(this.context, value || defaultValue) }
+          value={ parseI18NString(this.context, `${displayValue}`) }
         >
           { this.renderCopyButton() }
-          <input
-            type={ type }
-          />
+          <input type={ type } />
           { children }
         </SemanticInput>
       </LabelWrapper>
