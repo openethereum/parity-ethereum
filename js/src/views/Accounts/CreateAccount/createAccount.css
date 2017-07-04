@@ -80,6 +80,7 @@
 }
 
 .identities {
+  align-items: center;
   display: flex;
 
   .identity {
@@ -91,9 +92,9 @@
     width: 12.5% !important;
 
     &.selected {
+      background: rgba(200, 200, 225, 0.5);
       border-color: #2185D0;
       border-radius: 8px;
-      background: rgba(200, 200, 225, 0.5);
     }
 
     &.unselected {
