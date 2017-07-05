@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { flatten } from 'lodash';
 import { action, observable } from 'mobx';
 import store from 'store';
 
@@ -24,7 +25,9 @@ import filteredRequests from '../../DappRequests/filteredRequests';
 const LS_PERMISSIONS = '_parity::dapps::methods';
 
 export default class Store {
-  @observable filteredRequests = Object.keys(filteredRequests);
+  @observable filteredRequests = flatten(
+    Object.keys(filteredRequests).map((key) => filteredRequests[key].methods)
+  );
   @observable modalOpen = false;
   @observable permissions = {};
   @observable tokens = {};

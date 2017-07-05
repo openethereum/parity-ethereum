@@ -15,31 +15,55 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 export default {
-  'parity_accountsInfo': {},
-  'parity_allAccountsInfo': {},
-  'parity_changeVault': {},
-  'parity_changeVaultPassword': {},
-  'parity_consensusCapability': {},
-  'parity_checkRequest': {},
-  'parity_closeVault': {},
-  'parity_executeUpgrade': {},
-  'parity_generateSecretPhrase': {},
-  'parity_getVaultMeta': {},
-  'parity_hashContent': {},
-  'parity_importGethAccounts': {},
-  'parity_localTransactions': {},
-  'parity_listGethAccounts': {},
-  'parity_listVaults': {},
-  'parity_listOpenedVaults': {},
-  'parity_newAccountFromPhrase': {},
-  'parity_newAccountFromSecret': {},
-  'parity_newAccountFromWallet': {},
-  'parity_newVault': {},
-  'parity_openVault': {},
-  'parity_phraseToAddress': {},
-  'parity_setAccountMeta': {},
-  'parity_setAccountName': {},
-  'parity_setVaultMeta': {},
-  'parity_upgradeReady': {},
-  'parity_versionInfo': {}
+  accountsView: {
+    methods: [
+      'parity_accountsInfo',
+      'parity_allAccountsInfo'
+    ]
+  },
+  accountsCreate: {
+    methods: [
+      'parity_generateSecretPhrase',
+      'parity_importGethAccounts',
+      'parity_listGethAccounts',
+      'parity_newAccountFromPhrase',
+      'parity_newAccountFromSecret',
+      'parity_newAccountFromWallet',
+      'parity_phraseToAddress'
+    ]
+  },
+  accountsEdit: {
+    methods: [
+      'parity_setAccountName',
+      'parity_setAccountMeta'
+    ]
+  },
+  upgrade: {
+    methods: [
+      'parity_consensusCapability',
+      'parity_executeUpgrade',
+      'parity_upgradeReady',
+      'parity_versionInfo'
+    ]
+  },
+  vaults: {
+    methods: [
+      'parity_changeVault',
+      'parity_changeVaultPassword',
+      'parity_closeVault',
+      'parity_getVaultMeta',
+      'parity_listVaults',
+      'parity_listOpenedVaults',
+      'parity_newVault',
+      'parity_openVault',
+      'parity_setVaultMeta'
+    ]
+  },
+  other: {
+    methods: [
+      'parity_checkRequest',
+      'parity_hashContent',
+      'parity_localTransactions'
+    ]
+  }
 };
