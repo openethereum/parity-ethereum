@@ -206,8 +206,11 @@ impl<T: ActivityNotifier> Middleware<T> {
 }
 
 impl<M: rpc::Metadata, T: ActivityNotifier> rpc::Middleware<M> for Middleware<T> {
-	fn on_request<F>(&self, request: rpc::Request, meta: M, process: F) -> rpc::FutureResponse where
-		F: FnOnce(rpc::Request, M) -> rpc::FutureResponse + Send,
+	type Future = rpc::FutureResponse;
+
+	fn on_request<F, X>(&self, request: rpc::Request, meta: M, process: F) -> rpc::FutureResponse where
+		F: FnOnce(rpc::Request, Metadata) -> X,
+		X: rpc::futures::Future<Item=Option<rpc::Response>, Error=()> + Send + 'static,
 	{
 		let start = time::Instant::now();
 
