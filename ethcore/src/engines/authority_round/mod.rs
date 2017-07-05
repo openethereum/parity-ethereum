@@ -614,16 +614,20 @@ impl Engine for AuthorityRound {
 			Err(EngineError::DoubleVote(header.author().clone()))?;
 		}
 		// Report skipped primaries.
-		if self.signer.read().is_some() && step > parent_step + 1 {
+		if let (Some(me), true) = (self.signer.read().address(), step > parent_step + 1) {
 			// TODO: use epochmanager to get correct validator set for reporting?
 			// or just rely on the fact that in general these will be the same
 			// and some reports might go missing?
 			trace!(target: "engine", "Author {} built block with step gap. current step: {}, parent step: {}",
 				header.author(), step, parent_step);
 
+			let mut reported = HashSet::new();
 			for s in parent_step + 1..step {
 				let skipped_primary = step_proposer(&*self.validators, &parent.hash(), s);
-				self.validators.report_benign(&skipped_primary, header.number(), header.number());
+				if skipped_primary != me {
+					self.validators.report_benign(&skipped_primary, header.number(), header.number());
+				}
+				if !reported.insert(skipped_primary) { break; }
 			}
 		}
 
