@@ -27,21 +27,12 @@ export default class Eth extends PubsubBase {
   newHeads (callback) {
     return this.addListener('eth', 'newHeads', callback);
   }
-  //
-  // logs (callback) {
-  //   throw Error('not supported yet');
-  // }
-  //
-  // newPendingTransactions (callback) {
-  //   throw Error('not supported yet');
-  // }
-  //
-  // syncing (callback) {
-  //   throw Error('not supported yet');
-  // }
+
+  logs (callback) {
+    throw Error('not supported yet');
+  }
 
   //  eth API
-
   protocolVersion (callback) {
     return this.addListener(this._api, 'eth_protocolVersion', callback);
   }

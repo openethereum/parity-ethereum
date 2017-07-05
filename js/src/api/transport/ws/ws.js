@@ -325,21 +325,18 @@ export default class Ws extends JsonRpcBase {
   }
 
   unsubscribe (messageId) {
-    return new Promise(() => {
+    return new Promise((resolve, reject) => {
       const id = this.id;
       const { subId, uMethod, subscription } = this._messages[messageId];
       const params = [subId];
       const json = this.encode(uMethod, params);
-      const resolve = () => {
+      const uResolve = (v) => {
         delete this._messages[messageId];
         delete this._subscriptions[subscription][subId];
-        return true;
-      };
-      const reject = () => {
-        return false;
+        resolve(v);
       };
 
-      this._messages[id] = { id, 'method': uMethod, params, json, resolve, reject };
+      this._messages[id] = { id, method: uMethod, params, json, resolve: uResolve, reject };
       this._send(id);
     });
   }
