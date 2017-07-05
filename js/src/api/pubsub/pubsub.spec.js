@@ -61,6 +61,27 @@ describe('api/pubsub/Pubsub', () => {
     });
   });
 
+  describe('Unsubscribe', () => {
+    beforeEach(() => {
+      scope = mockWs([{ method: 'parity_subscribe', reply: 2 },
+                      { method: 'parity_unsubscribe', reply: true }]);
+      instance = new Pubsub(new Ws(TEST_WS_URL));
+    });
+
+    afterEach(() => {
+      scope.stop();
+    });
+
+    it('Promise gets resolved on success.', (done) => {
+      instance.parity.accountsInfo().then(s => {
+        instance.parity.unsubscribe(s).then(b => {
+          expect(b).to.be.true;
+        });
+      });
+      done();
+    });
+  });
+
   describe('chainStatus', () => {
     beforeEach(() => {
       scope = mockWs([{ method: 'parity_subscribe', reply: 2, subscription: {

@@ -71,7 +71,7 @@ export function mockWs (requests) {
 
     mockServer.send(JSON.stringify(response));
 
-    if (request.method.match('subscribe')) {
+    if (request.method.match('subscribe') && request.subscription) {
       mockServer.send(JSON.stringify(request.subscription));
     }
   });
