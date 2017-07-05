@@ -166,7 +166,7 @@ export default function TnC ({ hasAccepted, onAccept }) {
           />
         }
         checked={ hasAccepted }
-        onClict={ onAccept }
+        onClick={ onAccept }
       />
     </div>
   );
