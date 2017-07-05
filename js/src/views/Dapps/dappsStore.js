@@ -291,7 +291,7 @@ export default class DappsStore extends EventEmitter {
 
       this.apps = this.apps
         .filter((app) => !app.id || !newAppsIds.includes(app.id))
-        .filter((app) => { // check local dapps
+        .filter((app) => { // check local dapp changes
           if (app.type === 'local' && _local && apps.indexOf(app) === -1) {
             return false;
           }
