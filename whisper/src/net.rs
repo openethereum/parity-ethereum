@@ -277,6 +277,23 @@ impl Messages {
 	fn iter(&self) -> ::slab::Iter<Message, usize> {
 		self.slab.iter()
 	}
+
+	fn is_full(&self) -> bool {
+		self.cumulative_size >= self.ideal_size
+	}
+
+	fn status(&self) -> PoolStatus {
+		PoolStatus {
+			required_pow: if self.is_full() {
+				self.sorted.last().map(|entry| entry.work_proved.0)
+			} else {
+				None
+			},
+			message_count: self.sorted.len(),
+			cumulative_size: self.cumulative_size,
+			target_size: self.ideal_size,
+		}
+	}
 }
 
 enum State {
@@ -328,15 +345,33 @@ impl Peer {
 	}
 }
 
-/// Struct for posting messages.
-pub struct MessagePoster {
+/// Pool status.
+pub struct PoolStatus {
+	/// Required PoW to be accepted into the pool
+	pub required_pow: Option<f64>,
+	/// Number of messages in the pool.
+	pub message_count: usize,
+	/// Cumulative size of the messages in the pool
+	pub cumulative_size: usize,
+	/// Target size of the pool.
+	pub target_size: usize,
+}
+
+/// Handle to the pool, for posting messages or getting info.
+#[derive(Clone)]
+pub struct PoolHandle {
 	messages: Arc<RwLock<Messages>>,
 }
 
-impl MessagePoster {
+impl PoolHandle {
 	/// Post a message to the whisper network to be relayed.
 	pub fn post_message(&self, message: Message) -> bool {
 		self.messages.write().insert(message)
+	}
+
+	/// Get number of messages and amount of memory used by them.
+	pub fn pool_status(&self) -> PoolStatus {
+		self.messages.read().status()
 	}
 }
 
@@ -362,8 +397,8 @@ impl<T> Network<T> {
 
 	/// Acquire a sender to asynchronously feed messages to the whisper
 	/// network.
-	pub fn message_poster(&self) -> MessagePoster {
-		MessagePoster { messages: self.messages.clone() }
+	pub fn handle(&self) -> PoolHandle {
+		PoolHandle { messages: self.messages.clone() }
 	}
 }
 
@@ -483,6 +518,8 @@ impl<T: MessageHandler> Network<T> {
 			let now = SystemTime::now();
 			let mut messages_vec = message_packet.iter().map(|rlp| Message::decode(rlp, now))
 				.collect::<Result<Vec<_>, _>>()?;
+
+			if messages_vec.is_empty() { return Ok(()) }
 
 			// disallow duplicates in packet.
 			messages_vec.retain(|message| peer.note_known(&message));

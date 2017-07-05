@@ -235,6 +235,25 @@ pub struct FilterItem {
 	pub padding: Option<Bytes>,
 }
 
+/// Whisper node info.
+#[derive(Serialize)]
+pub struct NodeInfo {
+	/// min PoW to be accepted into the local pool.
+	#[serde(skip_serializing_if = "Option::is_none")]
+	#[serde(rename = "minPow")]
+	pub required_pow: Option<f64>,
+
+	/// Number of messages in the pool.
+	pub messages: usize,
+
+	/// Memory used by messages in the pool.
+	pub memory: usize,
+
+	/// Target memory of the pool.
+	#[serde(rename = "targetMemory")]
+	pub target_memory: usize,
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;

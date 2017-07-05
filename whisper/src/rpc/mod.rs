@@ -71,6 +71,10 @@ fn abridge_topic(topic: &[u8]) -> Topic {
 build_rpc_trait! {
 	/// Whisper RPC interface.
 	pub trait Whisper {
+		/// Info about the node.
+		#[rpc(name = "shh_info")]
+		fn info(&self) -> Result<types::NodeInfo, Error>;
+
 		/// Generate a new asymmetric key pair and return an identity.
 		#[rpc(name = "shh_newKeyPair")]
 		fn new_key_pair(&self) -> Result<types::Identity, Error>;
@@ -142,15 +146,22 @@ build_rpc_trait! {
 }
 
 /// Something which can send messages to the network.
-pub trait MessageSender: Send + Sync {
+pub trait PoolHandle: Send + Sync {
 	/// Give message to the whisper network for relay.
 	/// Returns false if PoW too low.
 	fn relay(&self, message: Message) -> bool;
+
+	/// Number of messages and memory used by resident messages.
+	fn pool_status(&self) -> ::net::PoolStatus;
 }
 
-impl MessageSender for ::net::MessagePoster {
+impl PoolHandle for ::net::PoolHandle {
 	fn relay(&self, message: Message) -> bool {
 		self.post_message(message)
+	}
+
+	fn pool_status(&self) -> ::net::PoolStatus {
+		::net::PoolHandle::pool_status(self)
 	}
 }
 
@@ -168,26 +179,26 @@ impl PubSubMetadata for Meta {
 }
 
 /// Implementation of whisper RPC.
-pub struct WhisperClient<S, M = Meta> {
+pub struct WhisperClient<P, M = Meta> {
 	store: Arc<RwLock<KeyStore>>,
-	sender: S,
+	pool: P,
 	filter_manager: Arc<filter::Manager>,
 	_meta: ::std::marker::PhantomData<M>,
 }
 
-impl<S> WhisperClient<S> {
+impl<P> WhisperClient<P> {
 	/// Create a new whisper client with basic metadata.
-	pub fn with_simple_meta(sender: S, filter_manager: Arc<filter::Manager>) -> Self {
-		WhisperClient::new(sender, filter_manager)
+	pub fn with_simple_meta(pool: P, filter_manager: Arc<filter::Manager>) -> Self {
+		WhisperClient::new(pool, filter_manager)
 	}
 }
 
-impl<S, M> WhisperClient<S, M> {
+impl<P, M> WhisperClient<P, M> {
 	/// Create a new whisper client.
-	pub fn new(sender: S, filter_manager: Arc<filter::Manager>) -> Self {
+	pub fn new(pool: P, filter_manager: Arc<filter::Manager>) -> Self {
 		WhisperClient {
 			store: filter_manager.key_store(),
-			sender: sender,
+			pool: pool,
 			filter_manager: filter_manager,
 			_meta: ::std::marker::PhantomData,
 		}
@@ -204,7 +215,18 @@ impl<S, M> WhisperClient<S, M> {
 	}
 }
 
-impl<S: MessageSender + 'static, M: Send + Sync + 'static> Whisper for WhisperClient<S, M> {
+impl<P: PoolHandle + 'static, M: Send + Sync + 'static> Whisper for WhisperClient<P, M> {
+	fn info(&self) -> Result<types::NodeInfo, Error> {
+		let status = self.pool.pool_status();
+
+		Ok(types::NodeInfo {
+			required_pow: status.required_pow,
+			messages: status.message_count,
+			memory: status.cumulative_size,
+			target_memory: status.target_size,
+		})
+	}
+
 	fn new_key_pair(&self) -> Result<types::Identity, Error> {
 		let mut store = self.store.write();
 		let key_pair = Key::new_asymmetric(store.rng());
@@ -311,7 +333,6 @@ impl<S: MessageSender + 'static, M: Send + Sync + 'static> Whisper for WhisperCl
 		// mining the packet is the heaviest item of work by far.
 		// there may be a benefit to dispatching this onto the CPU pool
 		// and returning a future. but then things get _less_ efficient
-		//
 		// if the server infrastructure has more threads than the CPU pool.
 		let message = Message::create(CreateParams {
 			ttl: req.ttl,
@@ -320,7 +341,7 @@ impl<S: MessageSender + 'static, M: Send + Sync + 'static> Whisper for WhisperCl
 			work: req.priority,
 		});
 
-		if !self.sender.relay(message) {
+		if !self.pool.relay(message) {
 			Err(whisper_error("PoW too low to compete with other messages"))
 		} else {
 			Ok(true)
@@ -347,7 +368,7 @@ impl<S: MessageSender + 'static, M: Send + Sync + 'static> Whisper for WhisperCl
 	}
 }
 
-impl<S: MessageSender + 'static, M: Send + Sync + PubSubMetadata> WhisperPubSub for WhisperClient<S, M> {
+impl<P: PoolHandle + 'static, M: Send + Sync + PubSubMetadata> WhisperPubSub for WhisperClient<P, M> {
 	type Metadata = M;
 
 	fn subscribe(
