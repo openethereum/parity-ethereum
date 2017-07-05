@@ -16,8 +16,10 @@
 
 import EventEmitter from 'eventemitter3';
 import { action, computed, observable, transaction } from 'mobx';
+import extend from 'extend';
 import store from 'store';
 
+import web3UrlImg from '~/../assets/images/web3_link.png';
 import Contracts from '~/contracts';
 import {
   fetchBuiltinApps, fetchLocalApps,
@@ -28,6 +30,7 @@ import {
 const LS_KEY_DISPLAY = 'displayApps';
 const LS_KEY_EXTERNAL_ACCEPT = 'acceptExternal';
 const BUILTIN_APPS_KEY = 'BUILTIN_APPS_KEY';
+const FAVORITES_STORE = '_parity::favorites';
 
 let instance = null;
 
@@ -211,6 +214,10 @@ export default class DappsStore extends EventEmitter {
     return this.apps.filter((app) => app.type === 'network');
   }
 
+  @computed get sortedWebHook () {
+    return this.apps.filter((app) => app.type === 'web url');
+  }
+
   @computed get visibleApps () {
     return this.apps.filter((app) => this.displayApps[app.id] && this.displayApps[app.id].visible);
   }
@@ -225,6 +232,11 @@ export default class DappsStore extends EventEmitter {
 
   @computed get visibleNetwork () {
     return this.visibleApps.filter((app) => app.type === 'network');
+  }
+
+  @computed get visibleWebHook () {
+    let web = this.visibleApps.filter((app) => app.type === 'web url');
+    return web;
   }
 
   @action openModal = () => {
@@ -255,7 +267,27 @@ export default class DappsStore extends EventEmitter {
   }
 
   @action readDisplayApps = () => {
+    let browserFavorites = store.get(FAVORITES_STORE) || {};
+
+    browserFavorites = Object.keys(browserFavorites).map((fav) => {
+      return {
+        url: 'web',
+        author: '',
+        name: fav.replace('https://',''),
+        location: fav.replace('https://',''),
+        description: 'Web Browser Link',
+        image: web3UrlImg,
+        id: 'web_url_fav',
+        type: 'web url',
+        version: '',
+        visible: true
+      }
+    });
+
     this.displayApps = store.get(LS_KEY_DISPLAY) || {};
+    this.displayApps = extend(this.displayApps, browserFavorites);
+
+    this.addApps(browserFavorites);
   }
 
   @action writeDisplayApps = () => {

@@ -22,6 +22,7 @@ import { encodePath, encodeUrl } from '~/util/dapplink';
 
 const DEFAULT_URL = 'https://oasisdex.com';
 const LS_LAST_ADDRESS = '_parity::webLastAddress';
+const FAVORITES_STORE = '_parity::favorites';
 
 const hasProtocol = /^https?:\/\//;
 
@@ -30,8 +31,10 @@ let instance = null;
 export default class Store {
   @observable counter = Date.now();
   @observable currentUrl = null;
+  @observable favorites = null;
   @observable history = [];
   @observable isLoading = false;
+  @observable isFavorited = false;
   @observable parsedUrl = null;
   @observable nextUrl = null;
   @observable token = null;
@@ -39,7 +42,9 @@ export default class Store {
   constructor (api) {
     this._api = api;
 
+    this.favorites = localStore.get(FAVORITES_STORE) || {};
     this.nextUrl = this.currentUrl = this.loadLastUrl();
+    this.isFavorited = this.favorites[this.currentUrl];
   }
 
   @computed get encodedPath () {
@@ -71,6 +76,16 @@ export default class Store {
         this.setCurrentUrl(this.nextUrl);
       });
     });
+  }
+
+  @action favoriteUrl = () => {
+    (this.favorites[this.currentUrl])
+      ? delete this.favorites[this.currentUrl]
+      : this.favorites[this.currentUrl] = true;
+
+    this.isFavorited = this.favorites[this.currentUrl];
+
+    localStore.set(FAVORITES_STORE, this.favorites);
   }
 
   @action reload = () => {
@@ -125,6 +140,7 @@ export default class Store {
     transaction(() => {
       this.currentUrl = url;
       this.parsedUrl = parseUrl(url);
+      this.isFavorited = this.favorites[this.currentUrl];
 
       this.saveLastUrl();
 

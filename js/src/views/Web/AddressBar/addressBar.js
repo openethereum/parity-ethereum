@@ -19,7 +19,7 @@ import React, { Component, PropTypes } from 'react';
 import Subdirectory from 'material-ui/svg-icons/navigation/subdirectory-arrow-left';
 
 import { Button, DappUrlInput } from '~/ui';
-import { CloseIcon, RefreshIcon } from '~/ui/Icons';
+import { CloseIcon, RefreshIcon, StarIcon, StarOutlineIcon } from '~/ui/Icons';
 
 @observer
 export default class AddressBar extends Component {
@@ -29,7 +29,7 @@ export default class AddressBar extends Component {
   };
 
   render () {
-    const { isLoading, isPristine, nextUrl } = this.props.store;
+    const { isLoading, isPristine, isFavorited, nextUrl } = this.props.store;
 
     return (
       <div className={ this.props.className }>
@@ -47,6 +47,14 @@ export default class AddressBar extends Component {
           onGoto={ this.onGotoUrl }
           onRestore={ this.onRestoreUrl }
           url={ nextUrl }
+        />
+        <Button
+          onClick={ this.onFavoriteUrl }
+          icon={
+            isFavorited
+              ? <StarIcon />
+              : <StarOutlineIcon color="rgba(255, 255, 255, 0.3)" />
+          }
         />
         <Button
           disabled={ isPristine }
@@ -67,6 +75,10 @@ export default class AddressBar extends Component {
 
   onGotoUrl = () => {
     this.props.store.gotoUrl();
+  }
+
+  onFavoriteUrl = () => {
+    this.props.store.favoriteUrl();
   }
 
   onRestoreUrl = () => {
