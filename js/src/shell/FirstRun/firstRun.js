@@ -314,7 +314,7 @@ class FirstRun extends Component {
   }
 
   skipAccountCreation = () => {
-    this.setState({ stage: this.state.stage + 2 });
+    this.setState({ stage: this.state.stage + 3 });
   }
 
   printPhrase = () => {
