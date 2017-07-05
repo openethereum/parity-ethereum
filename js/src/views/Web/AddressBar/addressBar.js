@@ -53,7 +53,7 @@ export default class AddressBar extends Component {
           icon={
             isFavorited
               ? <StarIcon />
-              : <StarOutlineIcon color="rgba(255, 255, 255, 0.3)" />
+              : <StarOutlineIcon color='rgba(255, 255, 255, 0.3)' />
           }
         />
         <Button

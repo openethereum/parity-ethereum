@@ -236,6 +236,7 @@ export default class DappsStore extends EventEmitter {
 
   @computed get visibleWebHook () {
     let web = this.visibleApps.filter((app) => app.type === 'web url');
+
     return web;
   }
 
@@ -273,15 +274,15 @@ export default class DappsStore extends EventEmitter {
       return {
         url: 'web',
         author: '',
-        name: fav.replace('https://',''),
-        location: fav.replace('https://',''),
+        name: fav.replace('https://', ''),
+        location: fav.replace('https://', ''),
         description: 'Web Browser Link',
         image: web3UrlImg,
         id: 'web_url_fav',
         type: 'web url',
         version: '',
         visible: true
-      }
+      };
     });
 
     this.displayApps = store.get(LS_KEY_DISPLAY) || {};

@@ -54,7 +54,7 @@ export default class DappCard extends Component {
             {
               (!app.author.length && !app.version)
                 ? ''
-                : `${ app.author }, v${ app.version }`
+                : `${app.author}, v${app.version}`
             }
           </div>
         }
