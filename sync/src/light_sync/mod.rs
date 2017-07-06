@@ -39,8 +39,9 @@ use std::sync::Arc;
 use ethcore::encoded;
 use light::client::{AsLightClient, LightChainClient};
 use light::net::{
-	Announcement, Handler, BasicContext, EventContext,
-	Capabilities, ReqId, Status, Error as NetError,
+	PeerStatus, Announcement, Handler, BasicContext,
+	EventContext, Capabilities, ReqId, Status,
+	Error as NetError,
 };
 use light::request::{self, CompleteHeadersRequest as HeadersRequest};
 use network::PeerId;
@@ -229,26 +230,33 @@ pub struct LightSync<L: AsLightClient> {
 }
 
 impl<L: AsLightClient + Send + Sync> Handler for LightSync<L> {
-	fn on_connect(&self, ctx: &EventContext, status: &Status, capabilities: &Capabilities) {
-		if !capabilities.serve_headers {
-			trace!(target: "sync", "Disconnecting irrelevant peer: {}", ctx.peer());
-			ctx.disconnect_peer(ctx.peer());
-			return;
+	fn on_connect(
+		&self,
+		ctx: &EventContext,
+		status: &Status,
+		capabilities: &Capabilities
+	) -> PeerStatus {
+		use std::cmp;
+
+		if capabilities.serve_headers {
+			let chain_info = ChainInfo {
+				head_td: status.head_td,
+				head_hash: status.head_hash,
+				head_num: status.head_num,
+			};
+
+			{
+				let mut best = self.best_seen.lock();
+				*best = cmp::max(best.clone(), Some(chain_info.clone()));
+			}
+
+			self.peers.write().insert(ctx.peer(), Mutex::new(Peer::new(chain_info)));
+			self.maintain_sync(ctx.as_basic());
+
+			PeerStatus::Kept
+		} else {
+			PeerStatus::Unkept
 		}
-
-		let chain_info = ChainInfo {
-			head_td: status.head_td,
-			head_hash: status.head_hash,
-			head_num: status.head_num,
-		};
-
-		{
-			let mut best = self.best_seen.lock();
-			*best = ::std::cmp::max(best.clone(), Some(chain_info.clone()));
-		}
-
-		self.peers.write().insert(ctx.peer(), Mutex::new(Peer::new(chain_info)));
-		self.maintain_sync(ctx.as_basic());
 	}
 
 	fn on_disconnect(&self, ctx: &EventContext, unfulfilled: &[ReqId]) {
