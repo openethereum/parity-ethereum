@@ -382,6 +382,7 @@ usage! {
 
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct Config {
 	parity: Option<Operating>,
 	account: Option<Account>,
@@ -647,7 +648,7 @@ mod tests {
 	#[test]
 	fn should_parse_full_config() {
 		// given
-		let config = toml::decode_str(include_str!("./config.full.toml")).unwrap();
+		let config = toml::from_str(include_str!("./config.full.toml")).unwrap();
 
 		// when
 		let args = Args::parse_with_config(&["parity", "--chain", "xyz"], config).unwrap();
@@ -897,7 +898,7 @@ mod tests {
 		let config3 = Args::parse_config(include_str!("./config.invalid3.toml"));
 
 		match (config1, config2, config3) {
-			(Err(ArgsError::Parsing(_)), Err(ArgsError::Decode(_)), Err(ArgsError::UnknownFields(_))) => {},
+			(Err(ArgsError::Decode(_)), Err(ArgsError::Decode(_)), Err(ArgsError::Decode(_))) => {},
 			(a, b, c) => {
 				assert!(false, "Got invalid error types: {:?}, {:?}, {:?}", a, b, c);
 			}
@@ -906,7 +907,7 @@ mod tests {
 
 	#[test]
 	fn should_deserialize_toml_file() {
-		let config: Config = toml::decode_str(include_str!("./config.toml")).unwrap();
+		let config: Config = toml::from_str(include_str!("./config.toml")).unwrap();
 
 		assert_eq!(config, Config {
 			parity: Some(Operating {
