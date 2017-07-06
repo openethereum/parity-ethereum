@@ -21,8 +21,8 @@ use std::path::Path;
 use std::collections::BTreeMap;
 use std::time::Duration;
 use serde::{Serialize, Serializer, Deserialize, Deserializer};
-use serde::de::{Error, Visitor, MapVisitor};
-use serde::de::impls::BTreeMapVisitor;
+use serde::de::{Error, Visitor, MapAccess};
+use serde::de::value::MapAccessDeserializer;
 use serde_json::Value;
 use serde_json::de::from_reader;
 use serde_json::ser::to_string;
@@ -65,22 +65,22 @@ impl Serialize for UserDefaults {
 
 struct UserDefaultsVisitor;
 
-impl Deserialize for UserDefaults {
+impl<'a> Deserialize<'a> for UserDefaults {
 	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-	where D: Deserializer {
-		deserializer.deserialize(UserDefaultsVisitor)
+	where D: Deserializer<'a> {
+		deserializer.deserialize_any(UserDefaultsVisitor)
 	}
 }
 
-impl Visitor for UserDefaultsVisitor {
+impl<'a> Visitor<'a> for UserDefaultsVisitor {
 	type Value = UserDefaults;
 
 	fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
 		write!(formatter, "a valid UserDefaults object")
 	}
 
-	fn visit_map<V>(self, visitor: V) -> Result<Self::Value, V::Error> where V: MapVisitor {
-		let mut map: BTreeMap<String, Value> = BTreeMapVisitor::new().visit_map(visitor)?;
+	fn visit_map<V>(self, visitor: V) -> Result<Self::Value, V::Error> where V: MapAccess<'a> {
+		let mut map: BTreeMap<String, Value> = Deserialize::deserialize(MapAccessDeserializer::new(visitor))?;
 		let pruning: Value = map.remove("pruning").ok_or_else(|| Error::custom("missing pruning"))?;
 		let pruning = pruning.as_str().ok_or_else(|| Error::custom("invalid pruning value"))?;
 		let pruning = pruning.parse().map_err(|_| Error::custom("invalid pruning method"))?;

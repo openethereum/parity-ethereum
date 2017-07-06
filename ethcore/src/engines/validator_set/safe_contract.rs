@@ -200,7 +200,7 @@ impl ValidatorSafeContract {
 
 				// decode log manually until the native contract generator is
 				// good enough to do it for us.
-				let &(_, _, ref validators_token) = &matched_event.params[1];
+				let validators_token = &matched_event[1].value;
 
 				let validators = validators_token.clone().to_array()
 					.and_then(|a| a.into_iter()

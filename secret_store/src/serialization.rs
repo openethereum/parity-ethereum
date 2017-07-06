@@ -69,9 +69,9 @@ impl Serialize for SerializableBytes {
 	}
 }
 
-impl Deserialize for SerializableBytes {
+impl<'a> Deserialize<'a> for SerializableBytes {
 	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-		where D: Deserializer
+		where D: Deserializer<'a>
 	{
 		let s = String::deserialize(deserializer)?;
 		if s.len() >= 2 && &s[0..2] == "0x" && s.len() & 1 == 0 {
@@ -115,11 +115,11 @@ impl Serialize for SerializableSignature {
 	}
 }
 
-impl Deserialize for SerializableSignature {
-	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: Deserializer {
+impl<'a> Deserialize<'a> for SerializableSignature {
+	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: Deserializer<'a> {
 		struct HashVisitor;
 
-		impl Visitor for HashVisitor {
+		impl<'b> Visitor<'b> for HashVisitor {
 			type Value = SerializableSignature;
 
 			fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -139,7 +139,7 @@ impl Deserialize for SerializableSignature {
 			}
 		}
 
-		deserializer.deserialize(HashVisitor)
+		deserializer.deserialize_any(HashVisitor)
 	}
 }
 
@@ -175,11 +175,11 @@ impl Serialize for SerializableH256 {
 	}
 }
 
-impl Deserialize for SerializableH256 {
-	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: Deserializer {
+impl<'a> Deserialize<'a> for SerializableH256 {
+	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: Deserializer<'a> {
 		struct HashVisitor;
 
-		impl Visitor for HashVisitor {
+		impl<'b> Visitor<'b> for HashVisitor {
 			type Value = SerializableH256;
 
 			fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -199,7 +199,7 @@ impl Deserialize for SerializableH256 {
 			}
 		}
 
-		deserializer.deserialize(HashVisitor)
+		deserializer.deserialize_any(HashVisitor)
 	}
 }
 
@@ -235,11 +235,11 @@ impl Serialize for SerializableSecret {
 	}
 }
 
-impl Deserialize for SerializableSecret {
-	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: Deserializer {
+impl<'a> Deserialize<'a> for SerializableSecret {
+	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: Deserializer<'a> {
 		struct HashVisitor;
 
-		impl Visitor for HashVisitor {
+		impl<'b> Visitor<'b> for HashVisitor {
 			type Value = SerializableSecret;
 
 			fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -259,7 +259,7 @@ impl Deserialize for SerializableSecret {
 			}
 		}
 
-		deserializer.deserialize(HashVisitor)
+		deserializer.deserialize_any(HashVisitor)
 	}
 }
 
@@ -315,11 +315,11 @@ impl Serialize for SerializablePublic {
 	}
 }
 
-impl Deserialize for SerializablePublic {
-	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: Deserializer {
+impl<'a> Deserialize<'a> for SerializablePublic {
+	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: Deserializer<'a> {
 		struct HashVisitor;
 
-		impl Visitor for HashVisitor {
+		impl<'b> Visitor<'b> for HashVisitor {
 			type Value = SerializablePublic;
 
 			fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -339,7 +339,7 @@ impl Deserialize for SerializablePublic {
 			}
 		}
 
-		deserializer.deserialize(HashVisitor)
+		deserializer.deserialize_any(HashVisitor)
 	}
 }
 

@@ -33,16 +33,16 @@ impl Serialize for CipherSer {
 	}
 }
 
-impl Deserialize for CipherSer {
+impl<'a> Deserialize<'a> for CipherSer {
 	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-	where D: Deserializer {
-		deserializer.deserialize(CipherSerVisitor)
+	where D: Deserializer<'a> {
+		deserializer.deserialize_any(CipherSerVisitor)
 	}
 }
 
 struct CipherSerVisitor;
 
-impl Visitor for CipherSerVisitor {
+impl<'a> Visitor<'a> for CipherSerVisitor {
 	type Value = CipherSer;
 
 	fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -80,9 +80,9 @@ impl Serialize for CipherSerParams {
 	}
 }
 
-impl Deserialize for CipherSerParams {
+impl<'a> Deserialize<'a> for CipherSerParams {
 	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-	where D: Deserializer {
+	where D: Deserializer<'a> {
 		Aes128Ctr::deserialize(deserializer)
 			.map(CipherSerParams::Aes128Ctr)
 			.map_err(|_| Error::InvalidCipherParams)

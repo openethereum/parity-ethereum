@@ -1130,7 +1130,7 @@ fn rpc_get_work_should_timeout() {
 	assert_eq!(eth_tester.io.handle_request_sync(request), Some(work_response.to_owned()));
 
 	// Request with timeout of 0 seconds. This should work since we're disabling timeout.
-	let request = r#"{"jsonrpc": "2.0", "method": "eth_getWork", "params": ["0"], "id": 1}"#;
+	let request = r#"{"jsonrpc": "2.0", "method": "eth_getWork", "params": [0], "id": 1}"#;
 	let work_response = format!(
 		r#"{{"jsonrpc":"2.0","result":["0x{:?}","0x0000000000000000000000000000000000000000000000000000000000000000","0x0000800000000000000000000000000000000000000000000000000000000000","0x1"],"id":1}}"#,
 		hash,
@@ -1138,11 +1138,11 @@ fn rpc_get_work_should_timeout() {
 	assert_eq!(eth_tester.io.handle_request_sync(request), Some(work_response.to_owned()));
 
 	// Request with timeout of 10K seconds. This should work.
-	let request = r#"{"jsonrpc": "2.0", "method": "eth_getWork", "params": ["10000"], "id": 1}"#;
+	let request = r#"{"jsonrpc": "2.0", "method": "eth_getWork", "params": [10000], "id": 1}"#;
 	assert_eq!(eth_tester.io.handle_request_sync(request), Some(work_response.to_owned()));
 
 	// Request with timeout of 10 seconds. This should fail.
-	let request = r#"{"jsonrpc": "2.0", "method": "eth_getWork", "params": ["10"], "id": 1}"#;
+	let request = r#"{"jsonrpc": "2.0", "method": "eth_getWork", "params": [10], "id": 1}"#;
 	let err_response = r#"{"jsonrpc":"2.0","error":{"code":-32003,"message":"Work has not changed."},"id":1}"#;
 	assert_eq!(eth_tester.io.handle_request_sync(request), Some(err_response.to_owned()));
 }

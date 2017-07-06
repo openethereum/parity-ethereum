@@ -10,8 +10,9 @@ path = "./src/main.rs"
 
 [dependencies]
 rustc-hex = "1.0"
-rustc-serialize = "0.3"
-docopt = { version = "0.7" }
+docopt = "0.8"
+serde = "1.0"
+serde_derive = "1.0"
 ethcore = { path = "../ethcore" }
 ethcore-util = { path = "../util" }
 

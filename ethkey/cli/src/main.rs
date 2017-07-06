@@ -16,6 +16,9 @@
 
 extern crate docopt;
 extern crate rustc_hex;
+extern crate serde;
+#[macro_use]
+extern crate serde_derive;
 extern crate ethkey;
 
 use std::{env, fmt, process};
@@ -54,7 +57,7 @@ Commands:
     verify             Verify signer of the signature.
 "#;
 
-#[derive(Debug, RustcDecodable)]
+#[derive(Debug, Deserialize)]
 struct Args {
 	cmd_info: bool,
 	cmd_generate: bool,
@@ -83,6 +86,7 @@ enum Error {
 	Ethkey(EthkeyError),
 	FromHex(FromHexError),
 	ParseInt(ParseIntError),
+	Docopt(docopt::Error),
 }
 
 impl From<EthkeyError> for Error {
@@ -103,12 +107,19 @@ impl From<ParseIntError> for Error {
 	}
 }
 
+impl From<docopt::Error> for Error {
+	fn from(err: docopt::Error) -> Self {
+		Error::Docopt(err)
+	}
+}
+
 impl fmt::Display for Error {
 	fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
 		match *self {
 			Error::Ethkey(ref e) => write!(f, "{}", e),
 			Error::FromHex(ref e) => write!(f, "{}", e),
 			Error::ParseInt(ref e) => write!(f, "{}", e),
+			Error::Docopt(ref e) => write!(f, "{}", e),
 		}
 	}
 }
@@ -155,8 +166,7 @@ fn display(keypair: KeyPair, mode: DisplayMode) -> String {
 
 fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item=S>, S: AsRef<str> {
 	let args: Args = Docopt::new(USAGE)
-		.and_then(|d| d.argv(command).decode())
-		.unwrap_or_else(|e| e.exit());
+		.and_then(|d| d.argv(command).deserialize())?;
 
 	return if args.cmd_info {
 		let display_mode = DisplayMode::new(&args);
