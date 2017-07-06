@@ -380,7 +380,6 @@ usage! {
 	}
 }
 
-
 #[derive(Default, Debug, PartialEq, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Config {
