@@ -107,14 +107,14 @@ impl ValidatorSet for ValidatorContract {
 	fn report_malicious(&self, address: &Address, _set_block: BlockNumber, block: BlockNumber, proof: Bytes) {
 		match self.provider.report_malicious(&*self.transact(), *address, block.into(), proof).wait() {
 			Ok(_) => warn!(target: "engine", "Reported malicious validator {}", address),
-			Err(s) => warn!(target: "engine", "Validator {} could not be reported {}", address, s),
+			Err(_) => {} // warn!(target: "engine", "Validator {} could not be reported {}", address, s),
 		}
 	}
 
 	fn report_benign(&self, address: &Address, _set_block: BlockNumber, block: BlockNumber) {
 		match self.provider.report_benign(&*self.transact(), *address, block.into()).wait() {
 			Ok(_) => warn!(target: "engine", "Reported benign validator misbehaviour {}", address),
-			Err(s) => warn!(target: "engine", "Validator {} could not be reported {}", address, s),
+			Err(_) => {} //warn!(target: "engine", "Validator {} could not be reported {}", address, s),
 		}
 	}
 
