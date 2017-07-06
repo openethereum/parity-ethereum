@@ -1422,6 +1422,7 @@ fn check_if_removed(sender: &Address, nonce: &U256, dropped: Option<HashMap<Addr
 
 #[cfg(test)]
 pub mod test {
+	use rustc_hex::FromHex;
 	use util::table::*;
 	use util::*;
 	use ethkey::{Random, Generator};

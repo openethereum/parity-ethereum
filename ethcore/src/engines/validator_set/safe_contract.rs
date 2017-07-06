@@ -420,6 +420,7 @@ impl ValidatorSet for ValidatorSafeContract {
 
 #[cfg(test)]
 mod tests {
+	use rustc_hex::FromHex;
 	use util::*;
 	use types::ids::BlockId;
 	use spec::Spec;
