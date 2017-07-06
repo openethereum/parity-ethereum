@@ -578,9 +578,10 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 #[allow(dead_code)]
 mod tests {
 	use std::sync::Arc;
+	use rustc_hex::FromHex;
 	use ethkey::{Generator, Random};
 	use super::*;
-	use util::{H256, U256, U512, Address, FromHex, FromStr};
+	use util::{H256, U256, U512, Address, FromStr};
 	use util::bytes::BytesRef;
 	use action_params::{ActionParams, ActionValue};
 	use env_info::EnvInfo;
