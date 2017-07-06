@@ -86,13 +86,13 @@ fn decrypt_with_shadow_coefficients(mut decrypted_shadow: Public, mut common_sha
 	let mut shadow_coefficients_sum = shadow_coefficients[0].clone();
 	for shadow_coefficient in shadow_coefficients.iter().skip(1) {
 		shadow_coefficients_sum.add(shadow_coefficient)
-			.map_err(errors::encryption_error)?;
+			.map_err(errors::encryption)?;
 	}
 
 	math::public_mul_secret(&mut common_shadow_point, &shadow_coefficients_sum)
-		.map_err(errors::encryption_error)?;
+		.map_err(errors::encryption)?;
 	math::public_add(&mut decrypted_shadow, &common_shadow_point)
-		.map_err(errors::encryption_error)?;
+		.map_err(errors::encryption)?;
 	Ok(decrypted_shadow)
 }
 

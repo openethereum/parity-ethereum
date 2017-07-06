@@ -545,6 +545,39 @@ The following options are possible for the \`defaultBlock\` parameter:
         input: {
           type: Data,
           desc: 'the data send along with the transaction.'
+        },
+        v: {
+          type: Quantity,
+          desc: 'the standardised V field of the signature.'
+        },
+        standard_v: {
+          type: Quantity,
+          desc: 'the standardised V field of the signature (0 or 1).'
+        },
+        r: {
+          type: Quantity,
+          desc: 'the R field of the signature.'
+        },
+        raw: {
+          type: Data,
+          desc: 'raw transaction data'
+        },
+        publicKey: {
+          type: Hash,
+          desc: 'public key of the signer.'
+        },
+        networkId: {
+          type: Quantity,
+          desc: 'the network id of the transaction, if any.'
+        },
+        creates: {
+          type: Hash,
+          desc: 'creates contract hash'
+        },
+        condition: {
+          type: Object,
+          optional: true,
+          desc: 'conditional submission, Block number in `block` or timestamp in `time` or `null`. (parity-feature)'
         }
       },
       example: {
@@ -1057,6 +1090,39 @@ The following options are possible for the \`defaultBlock\` parameter:
             input: {
               type: Data,
               desc: 'the data send along with the transaction.'
+            },
+            v: {
+              type: Quantity,
+              desc: 'the standardised V field of the signature.'
+            },
+            standard_v: {
+              type: Quantity,
+              desc: 'the standardised V field of the signature (0 or 1).'
+            },
+            r: {
+              type: Quantity,
+              desc: 'the R field of the signature.'
+            },
+            raw: {
+              type: Data,
+              desc: 'raw transaction data'
+            },
+            publicKey: {
+              type: Hash,
+              desc: 'public key of the signer.'
+            },
+            networkId: {
+              type: Quantity,
+              desc: 'the network id of the transaction, if any.'
+            },
+            creates: {
+              type: Hash,
+              desc: 'creates contract hash'
+            },
+            condition: {
+              type: Object,
+              optional: true,
+              desc: 'conditional submission, Block number in `block` or timestamp in `time` or `null`. (parity-feature)'
             }
           }
         }
