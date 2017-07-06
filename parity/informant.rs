@@ -217,6 +217,7 @@ pub struct Informant<T> {
 	skipped: AtomicUsize,
 	skipped_txs: AtomicUsize,
 	in_shutdown: AtomicBool,
+	last_report: Mutex<ClientReport>,
 }
 
 impl<T: InformantData> Informant<T> {
@@ -237,6 +238,7 @@ impl<T: InformantData> Informant<T> {
 			skipped: AtomicUsize::new(0),
 			skipped_txs: AtomicUsize::new(0),
 			in_shutdown: AtomicBool::new(false),
+			last_report: Mutex::new(Default::default()),
 		}
 	}
 
@@ -260,6 +262,13 @@ impl<T: InformantData> Informant<T> {
 			cache_sizes,
 			sync_info,
 		} = self.target.report();
+
+		let client_report = {
+			let mut last_report = self.last_report.lock();
+			let diffed = client_report.clone() - &*last_report;
+			*last_report = client_report.clone();
+			diffed
+		};
 
 		let rpc_stats = self.rpc_stats.as_ref();
 

@@ -210,6 +210,7 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 		db_cache_size: Some(cmd.cache_config.blockchain() as usize * 1024 * 1024),
 		db_compaction: compaction,
 		db_wal: cmd.wal,
+		verify_full: true,
 	};
 
 	config.queue.max_mem_use = cmd.cache_config.queue() as usize * 1024 * 1024;
