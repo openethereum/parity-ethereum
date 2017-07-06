@@ -1051,7 +1051,7 @@ impl MinerService for Miner {
 								Action::Call(_) => None,
 								Action::Create => {
 									let sender = tx.sender();
-									Some(contract_address(self.engine.create_address_scheme(pending.header().number()), &sender, &tx.nonce, &tx.data.sha3()))
+									Some(contract_address(self.engine.create_address_scheme(pending.header().number()), &sender, &tx.nonce, &tx.data).0)
 								}
 							},
 							logs: receipt.logs.clone(),
