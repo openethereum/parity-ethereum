@@ -127,9 +127,9 @@ impl<F: Fetch> ParitySet for ParitySetClient<F> {
 	fn hash_content(&self, url: String) -> BoxFuture<H256, Error> {
 		self.fetch.process(self.fetch.fetch(&url).then(move |result| {
 			result
-				.map_err(errors::from_fetch_error)
+				.map_err(errors::fetch)
 				.and_then(|response| {
-					sha3(&mut io::BufReader::new(response)).map_err(errors::from_fetch_error)
+					sha3(&mut io::BufReader::new(response)).map_err(errors::fetch)
 				})
 				.map(Into::into)
 		}))

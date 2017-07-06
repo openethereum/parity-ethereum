@@ -66,6 +66,7 @@ extern crate crypto as rcrypto;
 extern crate rand;
 extern crate time;
 extern crate ansi_term; //TODO: remove this
+extern crate rustc_hex;
 extern crate rustc_serialize;
 extern crate igd;
 extern crate libc;

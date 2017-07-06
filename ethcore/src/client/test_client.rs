@@ -17,6 +17,7 @@
 //! Test client.
 
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrder};
+use rustc_hex::FromHex;
 use util::*;
 use rlp::*;
 use ethkey::{Generator, Random};

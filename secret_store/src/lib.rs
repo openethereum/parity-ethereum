@@ -22,7 +22,7 @@ extern crate futures;
 extern crate futures_cpupool;
 extern crate hyper;
 extern crate parking_lot;
-extern crate rustc_serialize;
+extern crate rustc_hex;
 extern crate serde;
 extern crate serde_json;
 #[macro_use]
@@ -60,7 +60,7 @@ mod serialization;
 use std::sync::Arc;
 use ethcore::client::Client;
 
-pub use types::all::{DocumentAddress, DocumentKey, DocumentEncryptedKey, RequestSignature, Public,
+pub use types::all::{ServerKeyId, EncryptedDocumentKey, RequestSignature, Public,
 	Error, NodeAddress, ServiceConfiguration, ClusterConfiguration};
 pub use traits::{KeyServer};
 

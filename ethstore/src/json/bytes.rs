@@ -17,7 +17,7 @@
 use std::{ops, str};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde::de::Error;
-use rustc_serialize::hex::{ToHex, FromHex, FromHexError};
+use rustc_hex::{ToHex, FromHex, FromHexError};
 
 #[derive(Debug, PartialEq)]
 pub struct Bytes(Vec<u8>);

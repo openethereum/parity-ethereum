@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::{ops, fmt, str};
-use rustc_serialize::hex::{FromHex, ToHex};
+use rustc_hex::{FromHex, ToHex};
 use serde::{Serialize, Serializer, Deserialize, Deserializer};
 use serde::de::{Visitor, Error as SerdeError};
 use super::Error;

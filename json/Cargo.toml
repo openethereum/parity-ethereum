@@ -5,7 +5,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 ethcore-util = { path = "../util" }
-rustc-serialize = "0.3"
+rustc-hex = "1.0"
 serde = "0.9"
 serde_json = "0.9"
 serde_derive = "0.9"

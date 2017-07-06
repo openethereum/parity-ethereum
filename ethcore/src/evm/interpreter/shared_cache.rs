@@ -92,7 +92,7 @@ impl Default for SharedCache {
 
 #[test]
 fn test_find_jump_destinations() {
-	use util::FromHex;
+	use rustc_hex::FromHex;
 	// given
 	let code = "7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff5b01600055".from_hex().unwrap();
 

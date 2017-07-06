@@ -17,15 +17,18 @@
 use std::fmt;
 use std::cmp::{Ord, PartialOrd, Ordering};
 use std::ops::Deref;
-use rustc_serialize::hex::{ToHex, FromHex};
+use rustc_hex::{ToHex, FromHex};
 use serde::{Serialize, Deserialize, Serializer, Deserializer};
 use serde::de::{Visitor, Error as SerdeError};
 use ethkey::{Public, Secret, Signature};
 use util::{H256, Bytes};
 
+/// Serializable message hash.
+pub type SerializableMessageHash = SerializableH256;
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 /// Serializable shadow decryption result.
-pub struct SerializableDocumentEncryptedKeyShadow {
+pub struct SerializableEncryptedDocumentKeyShadow {
 	/// Decrypted secret point. It is partially decrypted if shadow decrpytion was requested.
 	pub decrypted_secret: SerializablePublic,
 	/// Shared common point.
