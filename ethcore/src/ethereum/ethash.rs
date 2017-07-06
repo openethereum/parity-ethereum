@@ -453,11 +453,14 @@ impl Ethash {
 		let parent_has_uncles = parent.uncles_hash() != &sha3::SHA3_EMPTY_LIST_RLP;
 
 		let min_difficulty = self.ethash_params.minimum_difficulty;
+
 		let difficulty_hardfork = header.number() >= self.ethash_params.difficulty_hardfork_transition;
-		let difficulty_bound_divisor = match difficulty_hardfork {
-			true => self.ethash_params.difficulty_hardfork_bound_divisor,
-			false => self.ethash_params.difficulty_bound_divisor,
+		let difficulty_bound_divisor = if difficulty_hardfork {
+			self.ethash_params.difficulty_hardfork_bound_divisor
+		} else {
+			self.ethash_params.difficulty_bound_divisor
 		};
+
 		let duration_limit = self.ethash_params.duration_limit;
 		let frontier_limit = self.ethash_params.homestead_transition;
 
@@ -483,7 +486,10 @@ impl Ethash {
 			if diff_inc <= threshold {
 				*parent.difficulty() + *parent.difficulty() / difficulty_bound_divisor * (threshold - diff_inc).into()
 			} else {
-				*parent.difficulty() - *parent.difficulty() / difficulty_bound_divisor * min(diff_inc - threshold, 99).into()
+				let multiplier = min(diff_inc - threshold, 99).into();
+				parent.difficulty().saturating_sub(
+					*parent.difficulty() / difficulty_bound_divisor * multiplier
+				)
 			}
 		};
 		target = max(min_difficulty, target);
