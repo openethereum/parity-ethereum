@@ -271,11 +271,13 @@ export default class DappsStore extends EventEmitter {
     let browserFavorites = store.get(FAVORITES_STORE) || {};
 
     browserFavorites = Object.keys(browserFavorites).map((fav) => {
+      let location = fav.replace('https://', '').replace('http://', '');
+      
       return {
         url: 'web',
         author: '',
-        name: fav.replace('https://', ''),
-        location: fav.replace('https://', ''),
+        name: location,
+        location: location,
         description: 'Web Browser Link',
         image: web3UrlImg,
         id: 'web_url_fav',
