@@ -19,7 +19,7 @@ use std::io;
 
 use ethsync::AttachedProtocol;
 use parity_rpc::Metadata;
-use parity_whisper::net::{self as whisper_net, MessagePoster, Network as WhisperNetwork};
+use parity_whisper::net::{self as whisper_net, PoolHandle, Network as WhisperNetwork};
 use parity_whisper::rpc::{WhisperClient, FilterManager};
 
 /// Whisper config.
@@ -45,8 +45,8 @@ pub struct RpcFactory {
 }
 
 impl RpcFactory {
-	pub fn make_handler(&self) -> WhisperClient<MessagePoster, Metadata> {
-		WhisperClient::new(self.net.message_poster(), self.manager.clone())
+	pub fn make_handler(&self) -> WhisperClient<PoolHandle, Metadata> {
+		WhisperClient::new(self.net.handle(), self.manager.clone())
 	}
 }
 
