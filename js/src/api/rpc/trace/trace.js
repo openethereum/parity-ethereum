@@ -28,9 +28,9 @@ export default class Trace {
       .then(outTraces);
   }
 
-  call (options, blockNumber = 'latest', whatTrace = ['trace']) {
-    return this._provider
-      .send('trace_call', inOptions(options), inBlockNumber(blockNumber), inTraceType(whatTrace))
+  call (options, whatTrace = ['trace'], blockNumber = 'latest') {
+    return this._transport
+      .execute('trace_call', inOptions(options), inTraceType(whatTrace), inBlockNumber(blockNumber))
       .then(outTraceReplay);
   }
 

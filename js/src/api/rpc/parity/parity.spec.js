@@ -110,7 +110,7 @@ describe('api/rpc/parity', () => {
     });
   });
 
-  describe('newPeers', () => {
+  describe('netPeers', () => {
     it('returns the peer structure, formatted', () => {
       mockHttp([{ method: 'parity_netPeers', reply: { result: { active: 123, connected: 456, max: 789, peers: [] } } }]);
 

@@ -22,6 +22,7 @@ import { Http as HttpTransport, WsSecure as WsSecureTransport } from './transpor
 
 import { Db, Eth, Parity, Net, Personal, Shh, Signer, Trace, Web3 } from './rpc';
 import Subscriptions from './subscriptions';
+import Pubsub from './pubsub';
 import util from './util';
 import { isFunction } from './util/types';
 
@@ -32,7 +33,13 @@ export default class Api extends EventEmitter {
     super();
 
     if (!provider || !isFunction(provider.send)) {
+      console.log(provider);
       console.warn(new Error('deprecated: Api needs provider with send() function, old-style Transport found instead'));
+    }
+
+    // does use new provider interface (not promiseProvider)
+    if (provider && isFunction(provider.subscribe)) {
+      this._pubsub = new Pubsub(provider);
     }
 
     this._provider = new PromiseProvider(provider);
@@ -50,7 +57,6 @@ export default class Api extends EventEmitter {
     if (allowSubscriptions) {
       this._subscriptions = new Subscriptions(this);
     }
-
     // Doing a request here in test env would cause an error
     if (LocalAccountsMiddleware && process.env.NODE_ENV !== 'test') {
       const middleware = this.parity
@@ -66,6 +72,13 @@ export default class Api extends EventEmitter {
 
       provider.addMiddleware(middleware);
     }
+  }
+
+  get pubsub () {
+    if (!this._pubsub) {
+      throw Error('Pubsub is only available with a subscribing-supported transport injected!');
+    }
+    return this._pubsub;
   }
 
   get db () {
