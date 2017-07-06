@@ -614,19 +614,17 @@ impl Engine for AuthorityRound {
 			Err(EngineError::DoubleVote(header.author().clone()))?;
 		}
 		// Report skipped primaries.
-		if let (Some(me), true) = (self.signer.read().address(), step > parent_step + 1) {
-			// TODO: use epochmanager to get correct validator set for reporting?
-			// or just rely on the fact that in general these will be the same
-			// and some reports might go missing?
-			trace!(target: "engine", "Author {} built block with step gap. current step: {}, parent step: {}",
+		if let (true, Some(me)) = (step > parent_step + 1, self.signer.read().address()) {
+			debug!(target: "engine", "Author {} built block with step gap. current step: {}, parent step: {}",
 				header.author(), step, parent_step);
-
 			let mut reported = HashSet::new();
 			for s in parent_step + 1..step {
 				let skipped_primary = step_proposer(&*self.validators, &parent.hash(), s);
+				// Do not report this signer.
 				if skipped_primary != me {
 					self.validators.report_benign(&skipped_primary, header.number(), header.number());
 				}
+				// Stop reporting once validators start repeating.
 				if !reported.insert(skipped_primary) { break; }
 			}
 		}
@@ -727,6 +725,9 @@ impl Engine for AuthorityRound {
 		if epoch_manager.finality_checker.subchain_head() != Some(*chain_head.parent_hash()) {
 			// build new finality checker from ancestry of chain head,
 			// not including chain head itself yet.
+			trace!(target: "finality", "Building finality up to parent of {} ({})",
+				chain_head.hash(), chain_head.parent_hash());
+
 			let mut hash = chain_head.parent_hash().clone();
 			let epoch_transition_hash = epoch_manager.epoch_transition_hash;
 
@@ -738,6 +739,8 @@ impl Engine for AuthorityRound {
 					if header.number() == 0 { return None }
 
 					let res = (hash, header.author().clone());
+					trace!(target: "finality", "Ancestry iteration: yielding {:?}", res);
+
 					hash = header.parent_hash().clone();
 					Some(res)
 				})
@@ -770,6 +773,7 @@ impl Engine for AuthorityRound {
 						let finality_proof = ::rlp::encode_list(&finality_proof);
 						epoch_manager.note_new_epoch();
 
+						info!(target: "engine", "Applying validator set change signalled at block {}", signal_number);
 						return Some(combine_proofs(signal_number, &pending.proof, &*finality_proof));
 					}
 				}
