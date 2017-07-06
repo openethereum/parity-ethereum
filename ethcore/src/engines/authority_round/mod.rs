@@ -220,7 +220,7 @@ pub struct AuthorityRound {
 	builtins: BTreeMap<Address, Builtin>,
 	transition_service: IoService<()>,
 	step: Arc<Step>,
-	proposed: AtomicBool,
+	can_propose: AtomicBool,
 	client: RwLock<Option<Weak<EngineClient>>>,
 	signer: RwLock<EngineSigner>,
 	validators: Box<ValidatorSet>,
@@ -372,7 +372,7 @@ impl AuthorityRound {
 					calibrate: our_params.start_step.is_none(),
 					duration: our_params.step_duration,
 				}),
-				proposed: AtomicBool::new(false),
+				can_propose: AtomicBool::new(true),
 				client: RwLock::new(None),
 				signer: Default::default(),
 				validators: our_params.validators,
@@ -439,7 +439,7 @@ impl Engine for AuthorityRound {
 
 	fn step(&self) {
 		self.step.increment();
-		self.proposed.store(false, AtomicOrdering::SeqCst);
+		self.can_propose.store(true, AtomicOrdering::SeqCst);
 		if let Some(ref weak) = *self.client.read() {
 			if let Some(c) = weak.upgrade() {
 				c.update_sealing();
@@ -481,7 +481,7 @@ impl Engine for AuthorityRound {
 	fn generate_seal(&self, block: &ExecutedBlock) -> Seal {
 		// first check to avoid generating signature most of the time
 		// (but there's still a race to the `compare_and_swap`)
-		if self.proposed.load(AtomicOrdering::SeqCst) { return Seal::None; }
+		if !self.can_propose.load(AtomicOrdering::SeqCst) { return Seal::None; }
 
 		let header = block.header();
 		let step = self.step.load();
@@ -516,7 +516,7 @@ impl Engine for AuthorityRound {
 				trace!(target: "engine", "generate_seal: Issuing a block for step {}.", step);
 
 				// only issue the seal if we were the first to reach the compare_and_swap.
-				if !self.proposed.compare_and_swap(false, true, AtomicOrdering::SeqCst) {
+				if self.can_propose.compare_and_swap(true, false, AtomicOrdering::SeqCst) {
 					return Seal::Regular(vec![encode(&step).into_vec(), encode(&(&H520::from(signature) as &[u8])).into_vec()]);
 				}
 			} else {
@@ -774,6 +774,15 @@ impl Engine for AuthorityRound {
 						epoch_manager.note_new_epoch();
 
 						info!(target: "engine", "Applying validator set change signalled at block {}", signal_number);
+
+						// We turn off can_propose here because upon validator set change there can
+						// be two valid proposers for a single step: one from the old set and
+						// one from the new.
+						//
+						// This way, upon encountering an epoch change, the proposer from the
+						// new set will be forced to wait until the next step to avoid sealing a
+						// block that breaks the invariant that the parent's step < the block's step.
+						self.can_propose.store(false, Ordering::SeqCst);
 						return Some(combine_proofs(signal_number, &pending.proof, &*finality_proof));
 					}
 				}
