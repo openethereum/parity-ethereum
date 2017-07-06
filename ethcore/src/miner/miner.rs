@@ -1261,10 +1261,11 @@ mod tests {
 
 	use std::sync::Arc;
 	use std::time::Duration;
+	use rustc_hex::FromHex;
 	use super::super::{MinerService, PrioritizationStrategy};
 	use super::*;
 	use block::IsBlock;
-	use util::{U256, FromHex};
+	use util::U256;
 	use ethkey::{Generator, Random};
 	use client::{BlockChainClient, TestBlockChainClient, EachBlockWith, TransactionImportResult};
 	use header::BlockNumber;

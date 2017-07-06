@@ -18,7 +18,7 @@ use std::str::FromStr;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Instant, Duration};
-use rustc_serialize::hex::{FromHex, ToHex};
+use rustc_hex::{FromHex, ToHex};
 use time::get_time;
 use rlp;
 
@@ -536,7 +536,7 @@ fn rpc_eth_transaction_count_by_number_pending() {
 
 #[test]
 fn rpc_eth_pending_transaction_by_hash() {
-	use util::{H256, FromHex};
+	use util::H256;
 	use rlp;
 	use ethcore::transaction::SignedTransaction;
 

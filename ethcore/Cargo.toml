@@ -18,7 +18,7 @@ byteorder = "1.0"
 clippy = { version = "0.0.103", optional = true}
 crossbeam = "0.2.9"
 env_logger = "0.4"
-ethabi = "1.0"
+ethabi = "2.0"
 ethash = { path = "../ethash" }
 ethcore-bloom-journal = { path = "../util/bloom" }
 ethcore-devtools = { path = "../devtools" }
@@ -46,6 +46,7 @@ num_cpus = "1.2"
 rand = "0.3"
 rlp = { path = "../util/rlp" }
 rust-crypto = "0.2.34"
+rustc-hex = "1.0"
 rustc-serialize = "0.3"
 semver = "0.6"
 stats = { path = "../util/stats" }
