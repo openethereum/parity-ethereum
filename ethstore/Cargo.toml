@@ -11,7 +11,7 @@ ethkey = { path = "../ethkey" }
 serde = "0.9"
 serde_json = "0.9"
 serde_derive = "0.9"
-rustc-serialize = "0.3"
+rustc-hex = "1.0"
 rust-crypto = "0.2.36"
 tiny-keccak = "1.0"
 time = "0.1.34"

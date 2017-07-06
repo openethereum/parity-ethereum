@@ -19,6 +19,7 @@
 #![warn(missing_docs)]
 #![allow(dead_code)]
 extern crate ethcore;
+extern crate rustc_hex;
 extern crate rustc_serialize;
 extern crate docopt;
 extern crate ethcore_util as util;
@@ -26,7 +27,8 @@ extern crate ethcore_util as util;
 use std::sync::Arc;
 use std::{fmt, fs};
 use docopt::Docopt;
-use util::{U256, FromHex, Bytes, Address};
+use rustc_hex::FromHex;
+use util::{U256, Bytes, Address};
 use ethcore::spec;
 use ethcore::action_params::ActionParams;
 

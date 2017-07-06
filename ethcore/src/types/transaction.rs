@@ -546,7 +546,7 @@ impl From<SignedTransaction> for PendingTransaction {
 
 #[test]
 fn sender_test() {
-	let t: UnverifiedTransaction = decode(&::rustc_serialize::hex::FromHex::from_hex("f85f800182520894095e7baea6a6c7c4c2dfeb977efac326af552d870a801ba048b55bfa915ac795c431978d8a6a992b628d557da5ff759b307d495a36649353a0efffd310ac743f371de3b9f7f9cb56c0b28ad43601b4ab949f53faa07bd2c804").unwrap());
+	let t: UnverifiedTransaction = decode(&::rustc_hex::FromHex::from_hex("f85f800182520894095e7baea6a6c7c4c2dfeb977efac326af552d870a801ba048b55bfa915ac795c431978d8a6a992b628d557da5ff759b307d495a36649353a0efffd310ac743f371de3b9f7f9cb56c0b28ad43601b4ab949f53faa07bd2c804").unwrap());
 	assert_eq!(t.data, b"");
 	assert_eq!(t.gas, U256::from(0x5208u64));
 	assert_eq!(t.gas_price, U256::from(0x01u64));
@@ -612,7 +612,7 @@ fn should_recover_from_network_specific_signing() {
 
 #[test]
 fn should_agree_with_vitalik() {
-	use rustc_serialize::hex::FromHex;
+	use rustc_hex::FromHex;
 
 	let test_vector = |tx_data: &str, address: &'static str| {
 		let signed = decode(&FromHex::from_hex(tx_data).unwrap());

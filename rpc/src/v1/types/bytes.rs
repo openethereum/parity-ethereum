@@ -17,10 +17,9 @@
 //! Serializable wrapper around vector of bytes
 
 use std::fmt;
-use rustc_serialize::hex::ToHex;
+use rustc_hex::{ToHex, FromHex};
 use serde::{Serialize, Serializer, Deserialize, Deserializer};
 use serde::de::{Error, Visitor};
-use util::common::FromHex;
 
 /// Wrapper structure around vector of bytes.
 #[derive(Debug, PartialEq, Eq, Default, Hash, Clone)]
@@ -98,7 +97,7 @@ impl Visitor for BytesVisitor {
 mod tests {
 	use super::*;
 	use serde_json;
-	use rustc_serialize::hex::FromHex;
+	use rustc_hex::FromHex;
 
 	#[test]
 	fn test_bytes_serialize() {

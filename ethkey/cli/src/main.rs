@@ -15,13 +15,13 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 extern crate docopt;
-extern crate rustc_serialize;
+extern crate rustc_hex;
 extern crate ethkey;
 
 use std::{env, fmt, process};
 use std::num::ParseIntError;
 use docopt::Docopt;
-use rustc_serialize::hex::{FromHex, FromHexError};
+use rustc_hex::{FromHex, FromHexError};
 use ethkey::{KeyPair, Random, Brain, Prefix, Error as EthkeyError, Generator, sign, verify_public, verify_address};
 
 pub const USAGE: &'static str = r#"

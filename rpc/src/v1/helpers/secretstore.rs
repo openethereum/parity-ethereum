@@ -99,7 +99,7 @@ fn decrypt_with_shadow_coefficients(mut decrypted_shadow: Public, mut common_sha
 #[cfg(test)]
 mod tests {
 	use util::Bytes;
-	use rustc_serialize::hex::FromHex;
+	use rustc_hex::FromHex;
 	use super::{encrypt_document, decrypt_document, decrypt_document_with_shadow};
 
 	#[test]

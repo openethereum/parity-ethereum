@@ -16,6 +16,7 @@
 
 //! Parameters for a block chain.
 
+use rustc_hex::FromHex;
 use super::genesis::Genesis;
 use super::seal::Generic as GenericSeal;
 
