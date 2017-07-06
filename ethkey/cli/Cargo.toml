@@ -7,8 +7,8 @@ authors = ["Parity Technologies <admin@parity.io>"]
 ethkey = { path = "../" }
 serde = "1.0"
 serde_derive = "1.0"
-docopt = "0.8"
 rustc-hex = "1.0"
+docopt = "0.8"
 
 [[bin]]
 name = "ethkey"
