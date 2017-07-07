@@ -264,8 +264,6 @@ mod server {
 	pub fn service(middleware: &Option<Middleware>) -> Option<Arc<rpc_apis::DappsService>> {
 		middleware.as_ref().map(|m| Arc::new(DappsServiceWrapper {
 			endpoints: m.endpoints(),
-			// dapps_path: Default::default(),
-			// ui_address: Default::default(),
 		}) as Arc<rpc_apis::DappsService>)
 	}
 
@@ -289,7 +287,7 @@ mod server {
 		}
 
 		fn refresh_local_dapps(&self) -> bool {
-			self.endpoints.refresh_local_dapps();
+			self.endpoints.clone().refresh_local_dapps();
 			true
 		}
 	}

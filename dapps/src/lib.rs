@@ -70,7 +70,7 @@ mod tests;
 
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::collections::{HashMap, BTreeMap};
+use std::collections::HashMap;
 
 use jsonrpc_http_server::{self as http, hyper, Origin};
 
@@ -104,6 +104,7 @@ impl<F> WebProxyTokens for F where F: Fn(String) -> Option<Origin> + Send + Sync
 pub struct Endpoints {
 	endpoints: endpoint::Endpoints,
 	dapps_path: PathBuf,
+	local_endpoints: Vec<String>,
 	ui_address: Option<(String, u16)>,
 }
 
@@ -115,15 +116,17 @@ impl Endpoints {
 		}).collect()
 	}
 	/// Check for any changes in the local dapps folder and update.
-	pub fn refresh_local_dapps(&self) {
-		let new_pages = apps::fs::local_endpoints(self.dapps_path.clone(), self.ui_address.clone());
+	pub fn refresh_local_dapps(&mut self) {
+		let new_local = apps::fs::local_endpoints(self.dapps_path.clone(), self.ui_address.clone());
+		let (local_endpoints, to_remove) = self.local_endpoints.clone().into_iter().partition(|k| new_local.contains_key(&k.clone()));
+		self.local_endpoints = local_endpoints;
 		let mut pages = self.endpoints.write();
 		// remove the dead dapps
-		for k in to_remove.iter() {
+		for k in to_remove {
 			pages.remove(&k);
-     	}
+		}
 		// new dapps to be added
-		for (k, v) in new_pages {
+		for (k, v) in new_local {
 			if pages.contains_key(&k) != true {
 				pages.insert(k, v);
 			}
@@ -194,17 +197,19 @@ impl Middleware {
 			remote.clone(),
 			fetch.clone(),
 		).embeddable_on(ui_address.clone()).allow_dapps(true));
+		let (local_endpoints, endpoints) = apps::all_endpoints(
+			dapps_path.clone(),
+			extra_dapps,
+			dapps_domain.clone(),
+			ui_address.clone(),
+			web_proxy_tokens,
+			remote.clone(),
+			fetch.clone(),
+		);
 		let endpoints = Endpoints {
-			endpoints: apps::all_endpoints(
-				dapps_path.clone(),
-				extra_dapps,
-				dapps_domain.clone(),
-				ui_address.clone(),
-				web_proxy_tokens,
-				remote.clone(),
-				fetch.clone(),
-			),
-			dapps_path: dapps_path.clone(),
+			endpoints,
+			dapps_path,
+			local_endpoints,
 			ui_address: ui_address.clone(),
 		};
 

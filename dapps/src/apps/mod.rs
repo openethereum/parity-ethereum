@@ -65,9 +65,11 @@ pub fn all_endpoints<F: Fetch>(
 	web_proxy_tokens: Arc<WebProxyTokens>,
 	remote: Remote,
 	fetch: F,
-) -> Endpoints {
+) -> (Vec<String>, Endpoints) {
 	// fetch fs dapps at first to avoid overwriting builtins
-	let mut pages = fs::local_endpoints(dapps_path, ui_address.clone());
+	let mut pages = fs::local_endpoints(dapps_path.clone(), ui_address.clone());
+	let local_endpoints: Vec<String> = pages.iter().map(|(k,_)| k.clone()).collect();
+	// local_endpoints.iter().map(|(k, v)| pages.insert(k.clone(), *v.clone()));
 	for path in extra_dapps {
 		if let Some((id, endpoint)) = fs::local_endpoint(path.clone(), ui_address.clone()) {
 			pages.insert(id, endpoint);
@@ -81,7 +83,7 @@ pub fn all_endpoints<F: Fetch>(
 	pages.insert("proxy".into(), ProxyPac::boxed(ui_address.clone(), dapps_domain));
 	pages.insert(WEB_PATH.into(), Web::boxed(ui_address.clone(), web_proxy_tokens.clone(), remote.clone(), fetch.clone()));
 
-	Arc::new(RwLock::new(pages))
+	(local_endpoints, Arc::new(RwLock::new(pages)))
 }
 
 fn insert<T : WebApp + Default + 'static>(pages: &mut BTreeMap<String, Box<Endpoint>>, id: &str, embed_at: Embeddable) {
