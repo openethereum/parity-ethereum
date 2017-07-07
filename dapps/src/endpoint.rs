@@ -17,7 +17,7 @@
 //! URL Endpoint traits
 
 use std::sync::Arc;
-use parking_lot::RwLock;
+use util::RwLock;
 use std::collections::BTreeMap;
 
 use hyper::{self, server, net};

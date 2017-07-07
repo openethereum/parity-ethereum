@@ -17,7 +17,7 @@
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::sync::Arc;
-use parking_lot::RwLock;
+use util::RwLock;
 
 use endpoint::{Endpoints, Endpoint};
 use page::PageEndpoint;
@@ -69,7 +69,6 @@ pub fn all_endpoints<F: Fetch>(
 	// fetch fs dapps at first to avoid overwriting builtins
 	let mut pages = fs::local_endpoints(dapps_path.clone(), ui_address.clone());
 	let local_endpoints: Vec<String> = pages.iter().map(|(k,_)| k.clone()).collect();
-	// local_endpoints.iter().map(|(k, v)| pages.insert(k.clone(), *v.clone()));
 	for path in extra_dapps {
 		if let Some((id, endpoint)) = fs::local_endpoint(path.clone(), ui_address.clone()) {
 			pages.insert(id, endpoint);

@@ -1654,7 +1654,6 @@ dependencies = [
  "parity-hash-fetch 1.7.0",
  "parity-reactor 0.1.0",
  "parity-ui 1.7.0",
- "parking_lot 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 0.9.6 (registry+https://github.com/rust-lang/crates.io-index)",

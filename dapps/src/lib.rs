@@ -41,7 +41,6 @@ extern crate parity_dapps_glue as parity_dapps;
 extern crate parity_hash_fetch as hash_fetch;
 extern crate parity_reactor;
 extern crate parity_ui;
-extern crate parking_lot;
 
 #[macro_use]
 extern crate log;
