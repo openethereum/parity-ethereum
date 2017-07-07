@@ -22,7 +22,6 @@ use endpoint::{Endpoint, Handler, EndpointPath};
 use {address, handlers};
 
 /// Redirection to UI server.
-#[derive(Clone)]
 pub struct Redirection {
 	signer_address: Option<(String, u16)>,
 }

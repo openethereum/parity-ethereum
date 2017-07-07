@@ -31,8 +31,8 @@ use {WebProxyTokens};
 
 mod app;
 mod cache;
-mod fs;
 mod ui;
+pub mod fs;
 pub mod fetcher;
 pub mod manifest;
 
@@ -82,33 +82,6 @@ pub fn all_endpoints<F: Fetch>(
 	pages.insert(WEB_PATH.into(), Web::boxed(ui_address.clone(), web_proxy_tokens.clone(), remote.clone(), fetch.clone()));
 
 	Arc::new(RwLock::new(pages))
-}
-
-pub fn refresh_local_endpoints(
-	pages: Arc<RwLock<BTreeMap<String, Box<Endpoint>>>>,
-	dapps_path: PathBuf,
-	ui_address: Option<(String, u16)>
-) {
-	let new_pages = fs::local_endpoints(dapps_path, ui_address);
-	let mut v = Vec::new();
-	// accumulate the dead dapps
-	for (k, _) in pages.read().iter() {
-		if k == "ui" || k == "proxy" || k == WEB_PATH {
-			continue;
-		} else if new_pages.contains_key(k) != true {
-			v.push(k.clone());
-		}
-	}
-	// remove those dead dapps
-	for k in v.iter() {
-        pages.write().remove(k.as_str());
-    }
-	// new dapps to be added
-	for (k, v) in new_pages {
-		if pages.read().contains_key(&k) != true {
-			pages.write().insert(k, v);
-		}
-	}
 }
 
 fn insert<T : WebApp + Default + 'static>(pages: &mut BTreeMap<String, Box<Endpoint>>, id: &str, embed_at: Embeddable) {

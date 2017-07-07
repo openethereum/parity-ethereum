@@ -70,7 +70,7 @@ mod tests;
 
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::collections::HashMap;
+use std::collections::{HashMap, BTreeMap};
 
 use jsonrpc_http_server::{self as http, hyper, Origin};
 
@@ -116,11 +116,18 @@ impl Endpoints {
 	}
 	/// Check for any changes in the local dapps folder and update.
 	pub fn refresh_local_dapps(&self) {
-		apps::refresh_local_endpoints(
-			self.endpoints.clone(),
-			self.dapps_path.clone(),
-			self.ui_address.clone()
-		);
+		let new_pages = apps::fs::local_endpoints(self.dapps_path.clone(), self.ui_address.clone());
+		let mut pages = self.endpoints.write();
+		// remove the dead dapps
+		for k in to_remove.iter() {
+			pages.remove(&k);
+     	}
+		// new dapps to be added
+		for (k, v) in new_pages {
+			if pages.contains_key(&k) != true {
+				pages.insert(k, v);
+			}
+		}
 	}
 }
 
