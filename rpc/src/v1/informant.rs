@@ -206,12 +206,17 @@ impl<T: ActivityNotifier> Middleware<T> {
 }
 
 impl<M: rpc::Metadata, T: ActivityNotifier> rpc::Middleware<M> for Middleware<T> {
-	type Future = rpc::FutureResponse;
+	type Future = rpc::futures::future::Either<
+		pool::CpuFuture<Option<rpc::Response>, ()>,
+		rpc::FutureResponse,
+	>;
 
-	fn on_request<F, X>(&self, request: rpc::Request, meta: M, process: F) -> rpc::FutureResponse where
-		F: FnOnce(rpc::Request, Metadata) -> X,
+	fn on_request<F, X>(&self, request: rpc::Request, meta: M, process: F) -> Self::Future where
+		F: FnOnce(rpc::Request, M) -> X,
 		X: rpc::futures::Future<Item=Option<rpc::Response>, Error=()> + Send + 'static,
 	{
+		use self::rpc::futures::future::Either::{A, B};
+
 		let start = time::Instant::now();
 
 		self.notifier.active();
@@ -224,8 +229,8 @@ impl<M: rpc::Metadata, T: ActivityNotifier> rpc::Middleware<M> for Middleware<T>
 		});
 
 		match self.pool {
-			Some(ref pool) => pool.spawn(future).boxed(),
-			None => future.boxed(),
+			Some(ref pool) => A(pool.spawn(future)),
+			None => B(future.boxed()),
 		}
 	}
 }
