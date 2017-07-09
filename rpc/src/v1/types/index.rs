@@ -29,16 +29,16 @@ impl Index {
 	}
 }
 
-impl Deserialize for Index {
+impl<'a> Deserialize<'a> for Index {
 	fn deserialize<D>(deserializer: D) -> Result<Index, D::Error>
-	where D: Deserializer {
-		deserializer.deserialize(IndexVisitor)
+	where D: Deserializer<'a> {
+		deserializer.deserialize_any(IndexVisitor)
 	}
 }
 
 struct IndexVisitor;
 
-impl Visitor for IndexVisitor {
+impl<'a> Visitor<'a> for IndexVisitor {
 	type Value = Index;
 
 	fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {

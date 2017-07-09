@@ -340,7 +340,7 @@ impl Manager {
 
 #[test]
 fn smoke() {
-	use rustc_serialize::hex::FromHex;
+	use rustc_hex::FromHex;
 	let mut manager = Manager::new().unwrap();
 	manager.update_devices().unwrap();
 	for d in &manager.devices {

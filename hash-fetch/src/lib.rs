@@ -30,7 +30,7 @@ extern crate mime_guess;
 extern crate native_contracts;
 extern crate parity_reactor;
 extern crate rand;
-extern crate rustc_serialize;
+extern crate rustc_hex;
 
 pub extern crate fetch;
 

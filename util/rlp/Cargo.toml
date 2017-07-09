@@ -10,5 +10,5 @@ authors = ["Parity Technologies <admin@parity.io>"]
 elastic-array = "0.9"
 ethcore-bigint = { path = "../bigint" }
 lazy_static = "0.2"
-rustc-serialize = "0.3"
+rustc-hex = "1.0"
 byteorder = "1.0"

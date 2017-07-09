@@ -380,8 +380,8 @@ usage! {
 	}
 }
 
-
-#[derive(Default, Debug, PartialEq, RustcDecodable)]
+#[derive(Default, Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct Config {
 	parity: Option<Operating>,
 	account: Option<Account>,
@@ -401,7 +401,7 @@ struct Config {
 	stratum: Option<Stratum>,
 }
 
-#[derive(Default, Debug, PartialEq, RustcDecodable)]
+#[derive(Default, Debug, PartialEq, Deserialize)]
 struct Operating {
 	mode: Option<String>,
 	mode_timeout: Option<u64>,
@@ -420,7 +420,7 @@ struct Operating {
 	no_persistent_txqueue: Option<bool>,
 }
 
-#[derive(Default, Debug, PartialEq, RustcDecodable)]
+#[derive(Default, Debug, PartialEq, Deserialize)]
 struct Account {
 	unlock: Option<Vec<String>>,
 	password: Option<Vec<String>>,
@@ -429,7 +429,7 @@ struct Account {
 	fast_unlock: Option<bool>,
 }
 
-#[derive(Default, Debug, PartialEq, RustcDecodable)]
+#[derive(Default, Debug, PartialEq, Deserialize)]
 struct Ui {
 	force: Option<bool>,
 	disable: Option<bool>,
@@ -439,7 +439,7 @@ struct Ui {
 	path: Option<String>,
 }
 
-#[derive(Default, Debug, PartialEq, RustcDecodable)]
+#[derive(Default, Debug, PartialEq, Deserialize)]
 struct Network {
 	warp: Option<bool>,
 	port: Option<u16>,
@@ -458,7 +458,7 @@ struct Network {
 	no_serve_light: Option<bool>,
 }
 
-#[derive(Default, Debug, PartialEq, RustcDecodable)]
+#[derive(Default, Debug, PartialEq, Deserialize)]
 struct Rpc {
 	disable: Option<bool>,
 	port: Option<u16>,
@@ -469,7 +469,7 @@ struct Rpc {
 	threads: Option<usize>,
 }
 
-#[derive(Default, Debug, PartialEq, RustcDecodable)]
+#[derive(Default, Debug, PartialEq, Deserialize)]
 struct Ws {
 	disable: Option<bool>,
 	port: Option<u16>,
@@ -479,14 +479,14 @@ struct Ws {
 	hosts: Option<Vec<String>>,
 }
 
-#[derive(Default, Debug, PartialEq, RustcDecodable)]
+#[derive(Default, Debug, PartialEq, Deserialize)]
 struct Ipc {
 	disable: Option<bool>,
 	path: Option<String>,
 	apis: Option<Vec<String>>,
 }
 
-#[derive(Default, Debug, PartialEq, RustcDecodable)]
+#[derive(Default, Debug, PartialEq, Deserialize)]
 struct Dapps {
 	disable: Option<bool>,
 	port: Option<u16>,
@@ -498,7 +498,7 @@ struct Dapps {
 	pass: Option<String>,
 }
 
-#[derive(Default, Debug, PartialEq, RustcDecodable)]
+#[derive(Default, Debug, PartialEq, Deserialize)]
 struct SecretStore {
 	disable: Option<bool>,
 	self_secret: Option<String>,
@@ -510,7 +510,7 @@ struct SecretStore {
 	path: Option<String>,
 }
 
-#[derive(Default, Debug, PartialEq, RustcDecodable)]
+#[derive(Default, Debug, PartialEq, Deserialize)]
 struct Ipfs {
 	enable: Option<bool>,
 	port: Option<u16>,
@@ -519,7 +519,7 @@ struct Ipfs {
 	hosts: Option<Vec<String>>,
 }
 
-#[derive(Default, Debug, PartialEq, RustcDecodable)]
+#[derive(Default, Debug, PartialEq, Deserialize)]
 struct Mining {
 	author: Option<String>,
 	engine_signer: Option<String>,
@@ -547,14 +547,14 @@ struct Mining {
 	refuse_service_transactions: Option<bool>,
 }
 
-#[derive(Default, Debug, PartialEq, RustcDecodable)]
+#[derive(Default, Debug, PartialEq, Deserialize)]
 struct Stratum {
 	interface: Option<String>,
 	port: Option<u16>,
 	secret: Option<String>,
 }
 
-#[derive(Default, Debug, PartialEq, RustcDecodable)]
+#[derive(Default, Debug, PartialEq, Deserialize)]
 struct Footprint {
 	tracing: Option<String>,
 	pruning: Option<String>,
@@ -572,17 +572,17 @@ struct Footprint {
 	num_verifiers: Option<usize>,
 }
 
-#[derive(Default, Debug, PartialEq, RustcDecodable)]
+#[derive(Default, Debug, PartialEq, Deserialize)]
 struct Snapshots {
 	disable_periodic: Option<bool>,
 }
 
-#[derive(Default, Debug, PartialEq, RustcDecodable)]
+#[derive(Default, Debug, PartialEq, Deserialize)]
 struct VM {
 	jit: Option<bool>,
 }
 
-#[derive(Default, Debug, PartialEq, RustcDecodable)]
+#[derive(Default, Debug, PartialEq, Deserialize)]
 struct Misc {
 	logging: Option<String>,
 	log_file: Option<String>,
@@ -647,7 +647,7 @@ mod tests {
 	#[test]
 	fn should_parse_full_config() {
 		// given
-		let config = toml::decode_str(include_str!("./config.full.toml")).unwrap();
+		let config = toml::from_str(include_str!("./config.full.toml")).unwrap();
 
 		// when
 		let args = Args::parse_with_config(&["parity", "--chain", "xyz"], config).unwrap();
@@ -897,7 +897,7 @@ mod tests {
 		let config3 = Args::parse_config(include_str!("./config.invalid3.toml"));
 
 		match (config1, config2, config3) {
-			(Err(ArgsError::Parsing(_)), Err(ArgsError::Decode(_)), Err(ArgsError::UnknownFields(_))) => {},
+			(Err(ArgsError::Decode(_)), Err(ArgsError::Decode(_)), Err(ArgsError::Decode(_))) => {},
 			(a, b, c) => {
 				assert!(false, "Got invalid error types: {:?}, {:?}, {:?}", a, b, c);
 			}
@@ -906,7 +906,7 @@ mod tests {
 
 	#[test]
 	fn should_deserialize_toml_file() {
-		let config: Config = toml::decode_str(include_str!("./config.toml")).unwrap();
+		let config: Config = toml::from_str(include_str!("./config.toml")).unwrap();
 
 		assert_eq!(config, Config {
 			parity: Some(Operating {

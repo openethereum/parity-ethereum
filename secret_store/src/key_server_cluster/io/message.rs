@@ -25,7 +25,8 @@ use ethkey::{Public, Secret, KeyPair};
 use ethkey::math::curve_order;
 use util::{H256, U256};
 use key_server_cluster::Error;
-use key_server_cluster::message::{Message, ClusterMessage, EncryptionMessage, DecryptionMessage};
+use key_server_cluster::message::{Message, ClusterMessage, GenerationMessage, EncryptionMessage,
+	DecryptionMessage, SigningMessage};
 
 /// Size of serialized header.
 pub const MESSAGE_HEADER_SIZE: usize = 4;
@@ -67,20 +68,30 @@ pub fn serialize_message(message: Message) -> Result<SerializedMessage, Error> {
 		Message::Cluster(ClusterMessage::KeepAlive(payload))								=> (3, serde_json::to_vec(&payload)),
 		Message::Cluster(ClusterMessage::KeepAliveResponse(payload))						=> (4, serde_json::to_vec(&payload)),
 
-		Message::Encryption(EncryptionMessage::InitializeSession(payload))					=> (50, serde_json::to_vec(&payload)),
-		Message::Encryption(EncryptionMessage::ConfirmInitialization(payload))				=> (51, serde_json::to_vec(&payload)),
-		Message::Encryption(EncryptionMessage::CompleteInitialization(payload))				=> (52, serde_json::to_vec(&payload)),
-		Message::Encryption(EncryptionMessage::KeysDissemination(payload))					=> (53, serde_json::to_vec(&payload)),
-		Message::Encryption(EncryptionMessage::PublicKeyShare(payload))						=> (54, serde_json::to_vec(&payload)),
-		Message::Encryption(EncryptionMessage::SessionError(payload))						=> (55, serde_json::to_vec(&payload)),
-		Message::Encryption(EncryptionMessage::SessionCompleted(payload))					=> (56, serde_json::to_vec(&payload)),
+		Message::Generation(GenerationMessage::InitializeSession(payload))					=> (50, serde_json::to_vec(&payload)),
+		Message::Generation(GenerationMessage::ConfirmInitialization(payload))				=> (51, serde_json::to_vec(&payload)),
+		Message::Generation(GenerationMessage::CompleteInitialization(payload))				=> (52, serde_json::to_vec(&payload)),
+		Message::Generation(GenerationMessage::KeysDissemination(payload))					=> (53, serde_json::to_vec(&payload)),
+		Message::Generation(GenerationMessage::PublicKeyShare(payload))						=> (54, serde_json::to_vec(&payload)),
+		Message::Generation(GenerationMessage::SessionError(payload))						=> (55, serde_json::to_vec(&payload)),
+		Message::Generation(GenerationMessage::SessionCompleted(payload))					=> (56, serde_json::to_vec(&payload)),
 
-		Message::Decryption(DecryptionMessage::InitializeDecryptionSession(payload))		=> (100, serde_json::to_vec(&payload)),
-		Message::Decryption(DecryptionMessage::ConfirmDecryptionInitialization(payload))	=> (101, serde_json::to_vec(&payload)),
-		Message::Decryption(DecryptionMessage::RequestPartialDecryption(payload))			=> (102, serde_json::to_vec(&payload)),
-		Message::Decryption(DecryptionMessage::PartialDecryption(payload))					=> (103, serde_json::to_vec(&payload)),
-		Message::Decryption(DecryptionMessage::DecryptionSessionError(payload))				=> (104, serde_json::to_vec(&payload)),
-		Message::Decryption(DecryptionMessage::DecryptionSessionCompleted(payload))			=> (105, serde_json::to_vec(&payload)),
+		Message::Encryption(EncryptionMessage::InitializeEncryptionSession(payload))		=> (100, serde_json::to_vec(&payload)),
+		Message::Encryption(EncryptionMessage::ConfirmEncryptionInitialization(payload))	=> (101, serde_json::to_vec(&payload)),
+		Message::Encryption(EncryptionMessage::EncryptionSessionError(payload))				=> (102, serde_json::to_vec(&payload)),
+
+		Message::Decryption(DecryptionMessage::DecryptionConsensusMessage(payload))			=> (150, serde_json::to_vec(&payload)),
+		Message::Decryption(DecryptionMessage::RequestPartialDecryption(payload))			=> (151, serde_json::to_vec(&payload)),
+		Message::Decryption(DecryptionMessage::PartialDecryption(payload))					=> (152, serde_json::to_vec(&payload)),
+		Message::Decryption(DecryptionMessage::DecryptionSessionError(payload))				=> (153, serde_json::to_vec(&payload)),
+		Message::Decryption(DecryptionMessage::DecryptionSessionCompleted(payload))			=> (154, serde_json::to_vec(&payload)),
+
+		Message::Signing(SigningMessage::SigningConsensusMessage(payload))					=> (200, serde_json::to_vec(&payload)),
+		Message::Signing(SigningMessage::SigningGenerationMessage(payload))					=> (201, serde_json::to_vec(&payload)),
+		Message::Signing(SigningMessage::RequestPartialSignature(payload))					=> (202, serde_json::to_vec(&payload)),
+		Message::Signing(SigningMessage::PartialSignature(payload))							=> (203, serde_json::to_vec(&payload)),
+		Message::Signing(SigningMessage::SigningSessionError(payload))						=> (204, serde_json::to_vec(&payload)),
+		Message::Signing(SigningMessage::SigningSessionCompleted(payload))					=> (205, serde_json::to_vec(&payload)),
 	};
 
 	let payload = payload.map_err(|err| Error::Serde(err.to_string()))?;
@@ -99,20 +110,30 @@ pub fn deserialize_message(header: &MessageHeader, payload: Vec<u8>) -> Result<M
 		3	=> Message::Cluster(ClusterMessage::KeepAlive(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
 		4	=> Message::Cluster(ClusterMessage::KeepAliveResponse(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
 
-		50	=> Message::Encryption(EncryptionMessage::InitializeSession(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
-		51	=> Message::Encryption(EncryptionMessage::ConfirmInitialization(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
-		52	=> Message::Encryption(EncryptionMessage::CompleteInitialization(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
-		53	=> Message::Encryption(EncryptionMessage::KeysDissemination(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
-		54	=> Message::Encryption(EncryptionMessage::PublicKeyShare(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
-		55	=> Message::Encryption(EncryptionMessage::SessionError(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
-		56	=> Message::Encryption(EncryptionMessage::SessionCompleted(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		50	=> Message::Generation(GenerationMessage::InitializeSession(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		51	=> Message::Generation(GenerationMessage::ConfirmInitialization(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		52	=> Message::Generation(GenerationMessage::CompleteInitialization(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		53	=> Message::Generation(GenerationMessage::KeysDissemination(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		54	=> Message::Generation(GenerationMessage::PublicKeyShare(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		55	=> Message::Generation(GenerationMessage::SessionError(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		56	=> Message::Generation(GenerationMessage::SessionCompleted(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
 
-		100	=> Message::Decryption(DecryptionMessage::InitializeDecryptionSession(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
-		101	=> Message::Decryption(DecryptionMessage::ConfirmDecryptionInitialization(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
-		102	=> Message::Decryption(DecryptionMessage::RequestPartialDecryption(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
-		103	=> Message::Decryption(DecryptionMessage::PartialDecryption(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
-		104	=> Message::Decryption(DecryptionMessage::DecryptionSessionError(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
-		105	=> Message::Decryption(DecryptionMessage::DecryptionSessionCompleted(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		100	=> Message::Encryption(EncryptionMessage::InitializeEncryptionSession(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		101	=> Message::Encryption(EncryptionMessage::ConfirmEncryptionInitialization(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		102	=> Message::Encryption(EncryptionMessage::EncryptionSessionError(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+
+		150	=> Message::Decryption(DecryptionMessage::DecryptionConsensusMessage(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		151	=> Message::Decryption(DecryptionMessage::RequestPartialDecryption(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		152	=> Message::Decryption(DecryptionMessage::PartialDecryption(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		153	=> Message::Decryption(DecryptionMessage::DecryptionSessionError(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		154	=> Message::Decryption(DecryptionMessage::DecryptionSessionCompleted(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+
+		200	=> Message::Signing(SigningMessage::SigningConsensusMessage(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		201	=> Message::Signing(SigningMessage::SigningGenerationMessage(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		202	=> Message::Signing(SigningMessage::RequestPartialSignature(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		203	=> Message::Signing(SigningMessage::PartialSignature(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		204	=> Message::Signing(SigningMessage::SigningSessionError(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		205	=> Message::Signing(SigningMessage::SigningSessionCompleted(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
 
 		_ => return Err(Error::Serde(format!("unknown message type {}", header.kind))),
 	})

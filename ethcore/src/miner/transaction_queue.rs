@@ -27,13 +27,13 @@
 //! extern crate ethcore_util as util;
 //! extern crate ethcore;
 //! extern crate ethkey;
-//! extern crate rustc_serialize;
+//! extern crate rustc_hex;
 //!
 //! use util::{U256, Address};
 //! use ethkey::{Random, Generator};
 //!	use ethcore::miner::{TransactionQueue, RemovalReason, TransactionQueueDetailsProvider, AccountDetails, TransactionOrigin};
 //!	use ethcore::transaction::*;
-//!	use rustc_serialize::hex::FromHex;
+//!	use rustc_hex::FromHex;
 //!
 //!	#[derive(Default)]
 //! struct DummyTransactionDetailsProvider;
@@ -1422,7 +1422,7 @@ fn check_if_removed(sender: &Address, nonce: &U256, dropped: Option<HashMap<Addr
 
 #[cfg(test)]
 pub mod test {
-	extern crate rustc_serialize;
+	use rustc_hex::FromHex;
 	use util::table::*;
 	use util::*;
 	use ethkey::{Random, Generator};

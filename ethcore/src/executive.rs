@@ -35,7 +35,7 @@ pub use types::executed::{Executed, ExecutionResult};
 const STACK_SIZE_PER_DEPTH: usize = 24*1024;
 
 /// Returns new address created from address, nonce, and code hash
-pub fn contract_address(address_scheme: CreateContractAddress, sender: &Address, nonce: &U256, code_hash: &H256) -> Address {
+pub fn contract_address(address_scheme: CreateContractAddress, sender: &Address, nonce: &U256, code: &[u8]) -> (Address, Option<H256>) {
 	use rlp::RlpStream;
 
 	match address_scheme {
@@ -43,18 +43,20 @@ pub fn contract_address(address_scheme: CreateContractAddress, sender: &Address,
 			let mut stream = RlpStream::new_list(2);
 			stream.append(sender);
 			stream.append(nonce);
-			From::from(stream.as_raw().sha3())
+			(From::from(stream.as_raw().sha3()), None)
 		},
 		CreateContractAddress::FromCodeHash => {
+			let code_hash = code.sha3();
 			let mut buffer = [0xffu8; 20 + 32];
 			&mut buffer[20..].copy_from_slice(&code_hash[..]);
-			From::from((&buffer[..]).sha3())
+			(From::from((&buffer[..]).sha3()), Some(code_hash))
 		},
 		CreateContractAddress::FromSenderAndCodeHash => {
+			let code_hash = code.sha3();
 			let mut buffer = [0u8; 20 + 32];
 			&mut buffer[..20].copy_from_slice(&sender[..]);
 			&mut buffer[20..].copy_from_slice(&code_hash[..]);
-			From::from((&buffer[..]).sha3())
+			(From::from((&buffer[..]).sha3()), Some(code_hash))
 		},
 	}
 }
@@ -205,8 +207,7 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 
 		let (result, output) = match t.action {
 			Action::Create => {
-				let code_hash = t.data.sha3();
-				let new_address = contract_address(self.engine.create_address_scheme(self.info.number), &sender, &nonce, &code_hash);
+				let (new_address, code_hash) = contract_address(self.engine.create_address_scheme(self.info.number), &sender, &nonce, &t.data);
 				let params = ActionParams {
 					code_address: new_address.clone(),
 					code_hash: code_hash,
@@ -232,7 +233,7 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 					gas_price: t.gas_price,
 					value: ActionValue::Transfer(t.value),
 					code: self.state.code(address)?,
-					code_hash: self.state.code_hash(address)?,
+					code_hash: Some(self.state.code_hash(address)?),
 					data: Some(t.data.clone()),
 					call_type: CallType::Call,
 				};
@@ -578,9 +579,10 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 #[allow(dead_code)]
 mod tests {
 	use std::sync::Arc;
+	use rustc_hex::FromHex;
 	use ethkey::{Generator, Random};
 	use super::*;
-	use util::{H256, U256, U512, Address, FromHex, FromStr};
+	use util::{H256, U256, U512, Address, FromStr};
 	use util::bytes::BytesRef;
 	use action_params::{ActionParams, ActionValue};
 	use env_info::EnvInfo;
@@ -599,14 +601,14 @@ mod tests {
 	fn test_contract_address() {
 		let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
 		let expected_address = Address::from_str("3f09c73a5ed19289fb9bdc72f1742566df146f56").unwrap();
-		assert_eq!(expected_address, contract_address(CreateContractAddress::FromSenderAndNonce, &address, &U256::from(88), &H256::default()));
+		assert_eq!(expected_address, contract_address(CreateContractAddress::FromSenderAndNonce, &address, &U256::from(88), &[]).0);
 	}
 
 	// TODO: replace params with transactions!
 	evm_test!{test_sender_balance: test_sender_balance_jit, test_sender_balance_int}
 	fn test_sender_balance(factory: Factory) {
 		let sender = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
-		let address = contract_address(CreateContractAddress::FromSenderAndNonce, &sender, &U256::zero(), &H256::default());
+		let address = contract_address(CreateContractAddress::FromSenderAndNonce, &sender, &U256::zero(), &[]).0;
 		let mut params = ActionParams::default();
 		params.address = address.clone();
 		params.sender = sender.clone();
@@ -661,7 +663,7 @@ mod tests {
 		let code = "7c601080600c6000396000f3006000355415600957005b60203560003555600052601d60036017f0600055".from_hex().unwrap();
 
 		let sender = Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap();
-		let address = contract_address(CreateContractAddress::FromSenderAndNonce, &sender, &U256::zero(), &H256::default());
+		let address = contract_address(CreateContractAddress::FromSenderAndNonce, &sender, &U256::zero(), &[]).0;
 		// TODO: add tests for 'callcreate'
 		//let next_address = contract_address(&address, &U256::zero());
 		let mut params = ActionParams::default();
@@ -715,7 +717,7 @@ mod tests {
 		let code = "7c601080600c6000396000f3006000355415600957005b60203560003555600052601d60036017f0600055".from_hex().unwrap();
 
 		let sender = Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap();
-		let address = contract_address(CreateContractAddress::FromSenderAndNonce, &sender, &U256::zero(), &H256::default());
+		let address = contract_address(CreateContractAddress::FromSenderAndNonce, &sender, &U256::zero(), &[]).0;
 		// TODO: add tests for 'callcreate'
 		//let next_address = contract_address(&address, &U256::zero());
 		let mut params = ActionParams::default();
@@ -826,7 +828,7 @@ mod tests {
 		let code = "601080600c6000396000f3006000355415600957005b60203560003555".from_hex().unwrap();
 
 		let sender = Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap();
-		let address = contract_address(CreateContractAddress::FromSenderAndNonce, &sender, &U256::zero(), &H256::default());
+		let address = contract_address(CreateContractAddress::FromSenderAndNonce, &sender, &U256::zero(), &[]).0;
 		// TODO: add tests for 'callcreate'
 		//let next_address = contract_address(&address, &U256::zero());
 		let mut params = ActionParams::default();
@@ -913,7 +915,7 @@ mod tests {
 		let code = "7c601080600c6000396000f3006000355415600957005b60203560003555600052601d600360e6f0600055".from_hex().unwrap();
 
 		let sender = Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap();
-		let address = contract_address(CreateContractAddress::FromSenderAndNonce, &sender, &U256::zero(), &H256::default());
+		let address = contract_address(CreateContractAddress::FromSenderAndNonce, &sender, &U256::zero(), &[]).0;
 		// TODO: add tests for 'callcreate'
 		//let next_address = contract_address(&address, &U256::zero());
 		let mut params = ActionParams::default();
@@ -965,8 +967,8 @@ mod tests {
 		let code = "7c601080600c6000396000f3006000355415600957005b60203560003555600052601d60036017f0".from_hex().unwrap();
 
 		let sender = Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap();
-		let address = contract_address(CreateContractAddress::FromSenderAndNonce, &sender, &U256::zero(), &H256::default());
-		let next_address = contract_address(CreateContractAddress::FromSenderAndNonce, &address, &U256::zero(), &H256::default());
+		let address = contract_address(CreateContractAddress::FromSenderAndNonce, &sender, &U256::zero(), &[]).0;
+		let next_address = contract_address(CreateContractAddress::FromSenderAndNonce, &address, &U256::zero(), &[]).0;
 		let mut params = ActionParams::default();
 		params.address = address.clone();
 		params.sender = sender.clone();
@@ -1073,7 +1075,7 @@ mod tests {
 		// 55 - sstore
 		let sender = Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap();
 		let code = "600160005401600055600060006000600060003060e05a03f1600155".from_hex().unwrap();
-		let address = contract_address(CreateContractAddress::FromSenderAndNonce, &sender, &U256::zero(), &H256::default());
+		let address = contract_address(CreateContractAddress::FromSenderAndNonce, &sender, &U256::zero(), &[]).0;
 		let mut params = ActionParams::default();
 		params.address = address.clone();
 		params.gas = U256::from(100_000);
@@ -1108,7 +1110,7 @@ mod tests {
 			nonce: U256::zero()
 		}.sign(keypair.secret(), None);
 		let sender = t.sender();
-		let contract = contract_address(CreateContractAddress::FromSenderAndNonce, &sender, &U256::zero(), &H256::default());
+		let contract = contract_address(CreateContractAddress::FromSenderAndNonce, &sender, &U256::zero(), &[]).0;
 
 		let mut state = get_temp_state_with_factory(factory);
 		state.add_balance(&sender, &U256::from(18), CleanupMode::NoEmpty).unwrap();
@@ -1237,7 +1239,7 @@ mod tests {
 		let code = "6064640fffffffff20600055".from_hex().unwrap();
 
 		let sender = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
-		let address = contract_address(CreateContractAddress::FromSenderAndNonce, &sender, &U256::zero(), &H256::default());
+		let address = contract_address(CreateContractAddress::FromSenderAndNonce, &sender, &U256::zero(), &[]).0;
 		// TODO: add tests for 'callcreate'
 		//let next_address = contract_address(&address, &U256::zero());
 		let mut params = ActionParams::default();
