@@ -16,7 +16,7 @@
 
 //! General error types for use in ethcore.
 
-use rustc_serialize::hex::FromHexError;
+use rustc_hex::FromHexError;
 use rlp::DecoderError;
 use std::fmt;
 use hash::H256;

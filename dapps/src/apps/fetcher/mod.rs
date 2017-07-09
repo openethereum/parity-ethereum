@@ -23,7 +23,7 @@ mod installers;
 use std::{fs, env};
 use std::path::PathBuf;
 use std::sync::Arc;
-use rustc_serialize::hex::FromHex;
+use rustc_hex::FromHex;
 use fetch::{Client as FetchClient, Fetch};
 use hash_fetch::urlhint::{URLHintContract, URLHint, URLHintResult};
 use parity_reactor::Remote;

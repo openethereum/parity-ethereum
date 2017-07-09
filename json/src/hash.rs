@@ -20,7 +20,7 @@ use std::str::FromStr;
 use std::fmt;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde::de::{Error, Visitor};
-use rustc_serialize::hex::ToHex;
+use rustc_hex::ToHex;
 use util::hash::{H64 as Hash64, H160 as Hash160, H256 as Hash256, H520 as Hash520, H2048 as Hash2048};
 
 
@@ -42,13 +42,13 @@ macro_rules! impl_hash {
 			}
 		}
 
-		impl Deserialize for $name {
+		impl<'a> Deserialize<'a> for $name {
 			fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-				where D: Deserializer {
+				where D: Deserializer<'a> {
 
 				struct HashVisitor;
 
-				impl Visitor for HashVisitor {
+				impl<'b> Visitor<'b> for HashVisitor {
 					type Value = $name;
 
 					fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -75,7 +75,7 @@ macro_rules! impl_hash {
 					}
 				}
 
-				deserializer.deserialize(HashVisitor)
+				deserializer.deserialize_any(HashVisitor)
 			}
 		}
 

@@ -16,7 +16,7 @@
 
 //! Universaly unique identifier.
 use std::{fmt, str};
-use rustc_serialize::hex::{ToHex, FromHex};
+use rustc_hex::{ToHex, FromHex};
 use serde::{Deserialize, Serialize, Deserializer, Serializer};
 use serde::de::{Visitor, Error as SerdeError};
 use super::Error;
@@ -108,16 +108,16 @@ impl Serialize for Uuid {
 	}
 }
 
-impl Deserialize for Uuid {
+impl<'a> Deserialize<'a> for Uuid {
 	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-	where D: Deserializer {
-		deserializer.deserialize(UuidVisitor)
+	where D: Deserializer<'a> {
+		deserializer.deserialize_any(UuidVisitor)
 	}
 }
 
 struct UuidVisitor;
 
-impl Visitor for UuidVisitor {
+impl<'a> Visitor<'a> for UuidVisitor {
 	type Value = Uuid;
 
 	fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {

@@ -38,9 +38,9 @@ impl Default for BlockNumber {
 	}
 }
 
-impl Deserialize for BlockNumber {
-	fn deserialize<D>(deserializer: D) -> Result<BlockNumber, D::Error> where D: Deserializer {
-		deserializer.deserialize(BlockNumberVisitor)
+impl<'a> Deserialize<'a> for BlockNumber {
+	fn deserialize<D>(deserializer: D) -> Result<BlockNumber, D::Error> where D: Deserializer<'a> {
+		deserializer.deserialize_any(BlockNumberVisitor)
 	}
 }
 
@@ -67,7 +67,7 @@ impl Serialize for BlockNumber {
 
 struct BlockNumberVisitor;
 
-impl Visitor for BlockNumberVisitor {
+impl<'a> Visitor<'a> for BlockNumberVisitor {
 	type Value = BlockNumber;
 
 	fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {

@@ -133,7 +133,7 @@ impl<D: Dispatcher + 'static> SignerClient<D> {
 	fn verify_transaction<F>(bytes: Bytes, request: FilledTransactionRequest, process: F) -> Result<ConfirmationResponse, Error> where
 		F: FnOnce(PendingTransaction) -> Result<ConfirmationResponse, Error>,
 	{
-		let signed_transaction = UntrustedRlp::new(&bytes.0).as_val().map_err(errors::from_rlp_error)?;
+		let signed_transaction = UntrustedRlp::new(&bytes.0).as_val().map_err(errors::rlp)?;
 		let signed_transaction = SignedTransaction::new(signed_transaction).map_err(|e| errors::invalid_params("Invalid signature.", e))?;
 		let sender = signed_transaction.sender();
 

@@ -16,7 +16,6 @@
 
 use serde::{Serialize, Serializer};
 use serde::ser::SerializeStruct;
-use util::Hashable;
 use ethcore::miner;
 use ethcore::{contract_address, CreateContractAddress};
 use ethcore::transaction::{LocalizedTransaction, Action, PendingTransaction, SignedTransaction};
@@ -192,7 +191,7 @@ impl Transaction {
 			gas: t.gas.into(),
 			input: Bytes::new(t.data.clone()),
 			creates: match t.action {
-				Action::Create => Some(contract_address(scheme, &t.sender(), &t.nonce, &t.data.sha3()).into()),
+				Action::Create => Some(contract_address(scheme, &t.sender(), &t.nonce, &t.data).0.into()),
 				Action::Call(_) => None,
 			},
 			raw: ::rlp::encode(&t.signed).into_vec().into(),
@@ -226,7 +225,7 @@ impl Transaction {
 			gas: t.gas.into(),
 			input: Bytes::new(t.data.clone()),
 			creates: match t.action {
-				Action::Create => Some(contract_address(scheme, &t.sender(), &t.nonce, &t.data.sha3()).into()),
+				Action::Create => Some(contract_address(scheme, &t.sender(), &t.nonce, &t.data).0.into()),
 				Action::Call(_) => None,
 			},
 			raw: ::rlp::encode(&t).into_vec().into(),

@@ -16,7 +16,7 @@
 
 use std::sync::Arc;
 use std::str::FromStr;
-use rustc_serialize::hex::FromHex;
+use rustc_hex::FromHex;
 use util::{U256, Address};
 
 use ethcore::miner::MinerService;
