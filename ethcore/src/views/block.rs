@@ -163,7 +163,7 @@ impl<'a> Hashable for BlockView<'a> {
 #[cfg(test)]
 mod tests {
 	use std::str::FromStr;
-	use rustc_serialize::hex::FromHex;
+	use rustc_hex::FromHex;
 	use util::H256;
 	use super::BlockView;
 

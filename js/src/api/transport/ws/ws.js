@@ -22,12 +22,14 @@ import TransportError from '../error';
 
 /* global WebSocket */
 export default class Ws extends JsonRpcBase {
-  constructor (url, token, autoconnect = true) {
+  // token is optional (secure API)
+  constructor (url, token = null, autoconnect = true) {
     super();
 
     this._url = url;
     this._token = token;
     this._messages = {};
+    this._subscriptions = { 'eth_subscription': [], 'parity_subscription': [] };
     this._sessionHash = null;
 
     this._connecting = false;
@@ -68,10 +70,6 @@ export default class Ws extends JsonRpcBase {
       this._reconnectTimeoutId = null;
     }
 
-    const time = parseInt(new Date().getTime() / 1000, 10);
-    const sha3 = keccak_256(`${this._token}:${time}`);
-    const hash = `${sha3}_${time}`;
-
     if (this._ws) {
       this._ws.onerror = null;
       this._ws.onopen = null;
@@ -81,13 +79,23 @@ export default class Ws extends JsonRpcBase {
       this._ws = null;
       this._sessionHash = null;
     }
-
     this._connecting = true;
     this._connected = false;
     this._lastError = null;
 
-    this._sessionHash = sha3;
-    this._ws = new WebSocket(this._url, hash);
+    // rpc secure API
+    if (this._token) {
+      const time = parseInt(new Date().getTime() / 1000, 10);
+      const sha3 = keccak_256(`${this._token}:${time}`);
+      const hash = `${sha3}_${time}`;
+
+      this._sessionHash = sha3;
+      this._ws = new WebSocket(this._url, hash);
+    // non-secure API
+    } else {
+      this._ws = new WebSocket(this._url);
+    }
+
     this._ws.onerror = this._onError;
     this._ws.onopen = this._onOpen;
     this._ws.onclose = this._onClose;
@@ -194,13 +202,48 @@ export default class Ws extends JsonRpcBase {
     }, 50);
   }
 
+  _extract = (result) => {
+    const { result: res, id, method, params } = result;
+    const msg = this._messages[id];
+
+    // initial pubsub ACK
+    if (id && msg.subscription) {
+      // save subscription to map subId -> messageId
+      this._subscriptions[msg.subscription][res] = id;
+      // resolve promise with messageId because subId's can collide (eth/parity)
+      msg.resolve(id);
+      // save subId for unsubscribing later
+      msg.subId = res;
+      return msg;
+    }
+
+    // normal message
+    if (id) {
+      return msg;
+    }
+
+    // pubsub format
+    if (method.includes('subscription')) {
+      const messageId = this._messages[this._subscriptions[method][params.subscription]];
+
+      if (messageId) {
+        return messageId;
+      } else {
+        throw Error(`Received Subscription which is already unsubscribed ${JSON.stringify(result)}`);
+      }
+    }
+
+    throw Error(`Unknown message format: No ID or subscription ${JSON.stringify(result)}`);
+  }
+
   _onMessage = (event) => {
     try {
       const result = JSON.parse(event.data);
-      const { method, params, json, resolve, reject } = this._messages[result.id];
+      const { method, params, json, resolve, reject, callback, subscription } = this._extract(result);
 
       Logging.send(method, params, { json, result });
 
+      result.error = (result.params && result.params.error) || result.error;
       if (result.error) {
         this.error(event.data);
 
@@ -211,14 +254,23 @@ export default class Ws extends JsonRpcBase {
 
         const error = new TransportError(method, result.error.code, result.error.message);
 
-        reject(error);
+        if (result.id) {
+          reject(error);
+        } else {
+          callback(error);
+        }
 
         delete this._messages[result.id];
         return;
       }
 
-      resolve(result.result);
-      delete this._messages[result.id];
+      // if not initial subscription message resolve & delete
+      if (result.id && !subscription) {
+        resolve(result.result);
+        delete this._messages[result.id];
+      } else if (result.params) {
+        callback(null, result.params.result);
+      }
     } catch (e) {
       console.error('ws::_onMessage', event.data, e);
     }
@@ -245,6 +297,43 @@ export default class Ws extends JsonRpcBase {
       const json = this.encode(method, params);
 
       this._messages[id] = { id, method, params, json, resolve, reject };
+      this._send(id);
+    });
+  }
+
+  _methodsFromApi (api) {
+    const method = `${api}_subscribe`;
+    const uMethod = `${api}_unsubscribe`;
+    const subscription = `${api}_subscription`;
+
+    return { method, uMethod, subscription };
+  }
+
+  subscribe (api, callback, ...params) {
+    return new Promise((resolve, reject) => {
+      const id = this.id;
+      const { method, uMethod, subscription } = this._methodsFromApi(api);
+      const json = this.encode(method, params);
+
+      this._messages[id] = { id, method, uMethod, params, json, resolve, reject, callback, subscription };
+
+      this._send(id);
+    });
+  }
+
+  unsubscribe (messageId) {
+    return new Promise((resolve, reject) => {
+      const id = this.id;
+      const { subId, uMethod, subscription } = this._messages[messageId];
+      const params = [subId];
+      const json = this.encode(uMethod, params);
+      const uResolve = (v) => {
+        delete this._messages[messageId];
+        delete this._subscriptions[subscription][subId];
+        resolve(v);
+      };
+
+      this._messages[id] = { id, method: uMethod, params, json, resolve: uResolve, reject };
       this._send(id);
     });
   }

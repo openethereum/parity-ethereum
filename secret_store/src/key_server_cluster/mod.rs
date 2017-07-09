@@ -18,13 +18,14 @@ use std::fmt;
 use std::io::Error as IoError;
 use ethkey;
 use ethcrypto;
-use super::types::all::DocumentAddress;
+use super::types::all::ServerKeyId;
 
-pub use super::types::all::{NodeId, DocumentEncryptedKeyShadow};
+pub use super::types::all::{NodeId, EncryptedDocumentKeyShadow};
 pub use super::acl_storage::AclStorage;
 pub use super::key_storage::{KeyStorage, DocumentKeyShare};
-pub use super::serialization::{SerializableSignature, SerializableH256, SerializableSecret, SerializablePublic};
+pub use super::serialization::{SerializableSignature, SerializableH256, SerializableSecret, SerializablePublic, SerializableMessageHash};
 pub use self::cluster::{ClusterCore, ClusterConfiguration, ClusterClient};
+pub use self::generation_session::Session as GenerationSession;
 pub use self::encryption_session::Session as EncryptionSession;
 pub use self::decryption_session::Session as DecryptionSession;
 
@@ -33,7 +34,20 @@ pub use super::key_storage::tests::DummyKeyStorage;
 #[cfg(test)]
 pub use super::acl_storage::tests::DummyAclStorage;
 
-pub type SessionId = DocumentAddress;
+pub type SessionId = ServerKeyId;
+
+#[derive(Debug, Clone)]
+/// Session metadata.
+pub struct SessionMeta {
+	/// Key id.
+	pub id: SessionId,
+	/// Id of node, which has started this session.
+	pub master_node_id: NodeId,
+	/// Id of node, on which this session is running.
+	pub self_node_id: NodeId,
+	/// Session threshold.
+	pub threshold: usize,
+}
 
 #[derive(Clone, Debug, PartialEq)]
 /// Errors which can occur during encryption/decryption session
@@ -44,6 +58,10 @@ pub enum Error {
 	InvalidNodeId,
 	/// Session with the given id already exists.
 	DuplicateSessionId,
+	/// Session with the same id already completed.
+	CompletedSessionId,
+	/// Session is not ready to start yet (required data is not ready).
+	NotStartedSessionId,
 	/// Session with the given id is unknown.
 	InvalidSessionId,
 	/// Invalid number of nodes.
@@ -61,6 +79,8 @@ pub enum Error {
 	/// Current state of encryption/decryption session does not allow to proceed request.
 	/// This means that either there is some comm-failure or node is misbehaving/cheating.
 	InvalidStateForRequest,
+	/// Request cannot be sent/received from this node.
+	InvalidNodeForRequest,
 	/// Message or some data in the message was recognized as invalid.
 	/// This means that node is misbehaving/cheating.
 	InvalidMessage,
@@ -74,6 +94,8 @@ pub enum Error {
 	Serde(String),
 	/// Key storage error.
 	KeyStorage(String),
+	/// Consensus is unreachable.
+	ConsensusUnreachable,
 	/// Acl storage error.
 	AccessDenied,
 }
@@ -102,18 +124,22 @@ impl fmt::Display for Error {
 			Error::InvalidNodeAddress => write!(f, "invalid node address has been passed"),
 			Error::InvalidNodeId => write!(f, "invalid node id has been passed"),
 			Error::DuplicateSessionId => write!(f, "session with the same id is already registered"),
+			Error::CompletedSessionId => write!(f, "session with the same id is already completed"),
+			Error::NotStartedSessionId => write!(f, "not enough data to start session with the given id"),
 			Error::InvalidSessionId => write!(f, "invalid session id has been passed"),
 			Error::InvalidNodesCount => write!(f, "invalid nodes count"),
 			Error::InvalidNodesConfiguration => write!(f, "invalid nodes configuration"),
 			Error::InvalidThreshold => write!(f, "invalid threshold value has been passed"),
 			Error::TooEarlyForRequest => write!(f, "session is not yet ready to process this request"),
 			Error::InvalidStateForRequest => write!(f, "session is in invalid state for processing this request"),
+			Error::InvalidNodeForRequest => write!(f, "invalid node for this request"),
 			Error::InvalidMessage => write!(f, "invalid message is received"),
 			Error::NodeDisconnected => write!(f, "node required for this operation is currently disconnected"),
 			Error::EthKey(ref e) => write!(f, "cryptographic error {}", e),
 			Error::Io(ref e) => write!(f, "i/o error {}", e),
 			Error::Serde(ref e) => write!(f, "serde error {}", e),
 			Error::KeyStorage(ref e) => write!(f, "key storage error {}", e),
+			Error::ConsensusUnreachable => write!(f, "Consensus unreachable"),
 			Error::AccessDenied => write!(f, "Access denied"),
 		}
 	}
@@ -126,9 +152,13 @@ impl Into<String> for Error {
 }
 
 mod cluster;
+mod cluster_sessions;
 mod decryption_session;
 mod encryption_session;
+mod generation_session;
 mod io;
-mod math;
+mod jobs;
+pub mod math;
 mod message;
+mod signing_session;
 mod net;
