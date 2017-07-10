@@ -158,7 +158,7 @@ pub struct Spec {
 	genesis_state: PodState,
 }
 
-fn load_from(s: ethjson::spec::Spec) -> Result<Spec, Error> {
+fn load_from<T: AsRef<Path>>(cache_dir: T, s: ethjson::spec::Spec) -> Result<Spec, Error> {
 	let builtins = s.accounts.builtins().into_iter().map(|p| (p.0.into(), From::from(p.1))).collect();
 	let g = Genesis::from(s.genesis);
 	let GenericSeal(seal_rlp) = g.seal.into();
@@ -166,7 +166,7 @@ fn load_from(s: ethjson::spec::Spec) -> Result<Spec, Error> {
 
 	let mut s = Spec {
 		name: s.name.clone().into(),
-		engine: Spec::engine(s.engine, params, builtins),
+		engine: Spec::engine(cache_dir, s.engine, params, builtins),
 		data_dir: s.data_dir.unwrap_or(s.name).into(),
 		nodes: s.nodes.unwrap_or_else(Vec::new),
 		parent_hash: g.parent_hash,
@@ -195,18 +195,26 @@ fn load_from(s: ethjson::spec::Spec) -> Result<Spec, Error> {
 
 macro_rules! load_bundled {
 	($e:expr) => {
-		Spec::load(include_bytes!(concat!("../../res/", $e, ".json")) as &[u8]).expect(concat!("Chain spec ", $e, " is invalid."))
+		Spec::load(
+			&::std::env::temp_dir(),
+			include_bytes!(concat!("../../res/", $e, ".json")) as &[u8]
+		).expect(concat!("Chain spec ", $e, " is invalid."))
 	};
 }
 
 impl Spec {
 	/// Convert engine spec into a arc'd Engine of the right underlying type.
 	/// TODO avoid this hard-coded nastiness - use dynamic-linked plugin framework instead.
-	fn engine(engine_spec: ethjson::spec::Engine, params: CommonParams, builtins: BTreeMap<Address, Builtin>) -> Arc<Engine> {
+	fn engine<T: AsRef<Path>>(
+		cache_dir: T,
+		engine_spec: ethjson::spec::Engine,
+		params: CommonParams,
+		builtins: BTreeMap<Address, Builtin>,
+	) -> Arc<Engine> {
 		match engine_spec {
 			ethjson::spec::Engine::Null => Arc::new(NullEngine::new(params, builtins)),
 			ethjson::spec::Engine::InstantSeal(instant) => Arc::new(InstantSeal::new(params, instant.params.registrar.map_or_else(Address::new, Into::into), builtins)),
-			ethjson::spec::Engine::Ethash(ethash) => Arc::new(ethereum::Ethash::new(params, From::from(ethash.params), builtins)),
+			ethjson::spec::Engine::Ethash(ethash) => Arc::new(ethereum::Ethash::new(cache_dir, params, From::from(ethash.params), builtins)),
 			ethjson::spec::Engine::BasicAuthority(basic_authority) => Arc::new(BasicAuthority::new(params, From::from(basic_authority.params), builtins)),
 			ethjson::spec::Engine::AuthorityRound(authority_round) => AuthorityRound::new(params, From::from(authority_round.params), builtins).expect("Failed to start AuthorityRound consensus engine."),
 			ethjson::spec::Engine::Tendermint(tendermint) => Tendermint::new(params, From::from(tendermint.params), builtins).expect("Failed to start the Tendermint consensus engine."),
@@ -397,13 +405,13 @@ impl Spec {
 
 	/// Loads spec from json file. Provide factories for executing contracts and ensuring
 	/// storage goes to the right place.
-	pub fn load<R>(reader: R) -> Result<Self, String> where R: Read {
+	pub fn load<T: AsRef<Path>, R>(cache_dir: T, reader: R) -> Result<Self, String> where R: Read {
 		fn fmt<F: ::std::fmt::Display>(f: F) -> String {
 			format!("Spec json is invalid: {}", f)
 		}
 
 		ethjson::spec::Spec::load(reader).map_err(fmt)
-			.and_then(|x| load_from(x).map_err(fmt))
+			.and_then(|x| load_from(cache_dir, x).map_err(fmt))
 	}
 
 	/// Create a new Spec which conforms to the Frontier-era Morden chain except that it's a NullEngine consensus.
@@ -453,7 +461,7 @@ mod tests {
 	// https://github.com/paritytech/parity/issues/1840
 	#[test]
 	fn test_load_empty() {
-		assert!(Spec::load(&[] as &[u8]).is_err());
+		assert!(Spec::load(::std::env::temp_dir(), &[] as &[u8]).is_err());
 	}
 
 	#[test]

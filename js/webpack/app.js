@@ -99,7 +99,19 @@ module.exports = {
           }
         ]
       },
-
+      {
+        test: /\.md$/,
+        use: [
+          {
+            loader: 'html-loader',
+            options: {}
+          },
+          {
+            loader: 'markdown-loader',
+            options: {}
+          }
+        ]
+      },
       {
         test: /\.css$/,
         include: [ /src/ ],

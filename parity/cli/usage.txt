@@ -262,6 +262,9 @@ Sealing/Mining Options:
                                    ext - reseal only on a new external transaction;
                                    all - reseal on all new transactions
                                    (default: {flag_reseal_on_txs}).
+  --reseal-on-uncle                Force the node to author new blocks when a new uncle
+                                   block is imported.
+                                   (default: {flag_reseal_on_uncle})
   --reseal-min-period MS           Specify the minimum time between reseals from
                                    incoming transactions. MS is time measured in
                                    milliseconds (default: {flag_reseal_min_period}).

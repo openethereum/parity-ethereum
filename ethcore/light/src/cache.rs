@@ -26,7 +26,7 @@ use ethcore::receipt::Receipt;
 
 use stats::Corpus;
 use time::{SteadyTime, Duration};
-use util::{U256, H256};
+use util::{U256, H256, HeapSizeOf};
 use util::cache::MemoryLruCache;
 
 /// Configuration for how much data to cache.
@@ -152,6 +152,22 @@ impl Cache {
 	/// Set the cached gas price corpus.
 	pub fn set_gas_price_corpus(&mut self, corpus: Corpus<U256>) {
 		self.corpus = Some((corpus, SteadyTime::now()))
+	}
+
+	/// Get the memory used.
+	pub fn mem_used(&self) -> usize {
+		self.heap_size_of_children()
+	}
+}
+
+impl HeapSizeOf for Cache {
+	fn heap_size_of_children(&self) -> usize {
+		self.headers.current_size()
+			+ self.canon_hashes.current_size()
+			+ self.bodies.current_size()
+			+ self.receipts.current_size()
+			+ self.chain_score.current_size()
+			// TODO: + corpus
 	}
 }
 

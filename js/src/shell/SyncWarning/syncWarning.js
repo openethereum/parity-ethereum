@@ -80,7 +80,7 @@ class SyncWarning extends Component {
                   />
                 }
                 checked={ dontShowAgain }
-                onCheck={ this.handleCheck }
+                onClick={ this.handleCheck }
               />
               <Button
                 label={
