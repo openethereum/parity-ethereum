@@ -29,7 +29,7 @@ use ethcore::error::ImportError;
 use ethcore::miner::Miner;
 use ethcore::verification::queue::VerifierSettings;
 use cache::CacheConfig;
-use informant::{Informant, MillisecondDuration};
+use informant::{Informant, FullNodeInformantData, MillisecondDuration};
 use params::{SpecType, Pruning, Switch, tracing_switch_to_bool, fatdb_switch_to_bool};
 use helpers::{to_client_config, execute_upgrades};
 use dir::Directories;
@@ -238,7 +238,17 @@ fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {
 		}
 	};
 
-	let informant = Arc::new(Informant::new(client.clone(), None, None, None, None, cmd.with_color));
+	let informant = Arc::new(Informant::new(
+		FullNodeInformantData {
+			client: client.clone(),
+			sync: None,
+			net: None,
+		},
+		None,
+		None,
+		cmd.with_color,
+	));
+
 	service.register_io_handler(informant).map_err(|_| "Unable to register informant handler".to_owned())?;
 
 	let do_import = |bytes| {

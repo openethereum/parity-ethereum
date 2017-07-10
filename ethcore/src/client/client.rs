@@ -112,6 +112,22 @@ impl ClientReport {
 	}
 }
 
+impl<'a> ::std::ops::Sub<&'a ClientReport> for ClientReport {
+	type Output = Self;
+
+	fn sub(mut self, other: &'a ClientReport) -> Self {
+		let higher_mem = ::std::cmp::max(self.state_db_mem, other.state_db_mem);
+		let lower_mem = ::std::cmp::min(self.state_db_mem, other.state_db_mem);
+
+		self.blocks_imported -= other.blocks_imported;
+		self.transactions_applied -= other.transactions_applied;
+		self.gas_processed = self.gas_processed - other.gas_processed;
+		self.state_db_mem  = higher_mem - lower_mem;
+
+		self
+	}
+}
+
 struct SleepState {
 	last_activity: Option<Instant>,
 	last_autosleep: Option<Instant>,
