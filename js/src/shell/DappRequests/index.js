@@ -16,8 +16,13 @@
 
 import Store from './store';
 
-export function setupProviderFilters (provider) {
+function setupProviderFilters (provider) {
   return Store.create(provider);
 }
 
 export default from './dappRequests';
+
+export {
+  Store,
+  setupProviderFilters
+};

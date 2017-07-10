@@ -19,6 +19,11 @@ export default class Shell {
     this._provider = provider;
   }
 
+  getApps () {
+    return this._provider
+      .send('shell_getApps');
+  }
+
   getFilteredMethods () {
     return this._provider
       .send('shell_getFilteredMethods');

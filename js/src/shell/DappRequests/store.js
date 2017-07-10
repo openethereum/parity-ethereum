@@ -20,6 +20,7 @@ import store from 'store';
 
 import { sha3 } from '@parity/api/util/sha3';
 
+import VisibleStore from '../Dapps/dappsStore';
 import filteredRequests from './filteredRequests';
 
 const LS_PERMISSIONS = '_parity::dapps::methods';
@@ -124,11 +125,12 @@ export default class Store {
   @action setPermissions = (_permissions) => {
     const permissions = {};
 
-    Object.keys(permissions).forEach((id) => {
+    Object.keys(_permissions).forEach((id) => {
       permissions[id] = !!_permissions[id];
     });
 
     this.permissions = Object.assign({}, this.permissions, permissions);
+    this.savePermissions();
 
     return true;
   }
@@ -171,9 +173,14 @@ export default class Store {
     const callback = this._methodCallbackPost(id, source, token);
 
     switch (method) {
+      case 'shell_getApps':
+        return callback(null, VisibleStore.get().visibleApps);
+
       case 'shell_getFilteredMethods':
         return callback(null, flatten(
-          Object.keys(filteredRequests).map((key) => filteredRequests[key].methods)
+          Object
+            .keys(filteredRequests)
+            .map((key) => filteredRequests[key].methods)
         ));
 
       case 'shell_getMethodPermissions':

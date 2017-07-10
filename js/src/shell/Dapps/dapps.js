@@ -21,12 +21,10 @@ import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 
 import { Actionbar, Button, Checkbox, DappCard, Page, SectionList } from '@parity/ui';
-import { LockedIcon, MethodsIcon, VisibleIcon } from '@parity/ui/Icons';
+import { LockedIcon, VisibleIcon } from '@parity/ui/Icons';
 
 import SelectAccounts from './SelectAccounts';
 import PermissionStore from './SelectAccounts/store';
-import DappSelectMethods from './SelectMethods';
-import MethodsStore from './SelectMethods/store';
 import SelectVisible from './SelectVisible';
 
 import DappsStore from './dappsStore';
@@ -45,7 +43,6 @@ class Dapps extends Component {
   };
 
   store = DappsStore.get(this.context.api);
-  methodsStore = new MethodsStore(this.context.api);
   permissionStore = new PermissionStore(this.context.api);
 
   componentWillMount () {
@@ -84,10 +81,6 @@ class Dapps extends Component {
     return (
       <div>
         <SelectAccounts permissionStore={ this.permissionStore } />
-        <DappSelectMethods
-          methodsStore={ this.methodsStore }
-          visibleStore={ this.store }
-        />
         <SelectVisible store={ this.store } />
         <Actionbar
           className={ styles.toolbar }
@@ -119,17 +112,6 @@ class Dapps extends Component {
                 />
               }
               onClick={ this.openPermissionsModal }
-            />,
-            <Button
-              icon={ <MethodsIcon /> }
-              key='methods'
-              label={
-                <FormattedMessage
-                  id='dapps.button.methods'
-                  defaultMessage='allowed methods'
-                />
-              }
-              onClick={ this.methodsStore.openModal }
             />
           ] }
         />

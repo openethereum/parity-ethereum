@@ -17,6 +17,8 @@
 export default {
   shell: {
     methods: [
+      'shell_getApps',
+      'shell_getFilteredMethods',
       'shell_getMethodPermissions',
       'shell_setMethodPermissions'
     ]

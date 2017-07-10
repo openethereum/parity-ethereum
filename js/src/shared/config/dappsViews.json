@@ -63,6 +63,16 @@
     "noselect": true
   },
   {
+    "id": "dappMethods",
+    "url": "dappMethods",
+    "src": "DappMethods",
+    "name": "Dapp Method Permissions",
+    "description": "Allow setting of dapp permissions on a per method level",
+    "author": "Parity Team <admin@ethcore.io>",
+    "version": "1.0.0",
+    "visible": true
+  },
+  {
     "id": "develop",
     "url": "develop",
     "src": "ContractDevelop",
