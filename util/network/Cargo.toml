@@ -9,7 +9,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [dependencies]
 log = "0.3"
 mio = "0.6.8"
-bytes = "0.3.0"
+bytes = "0.4"
 rand = "0.3.12"
 time = "0.1.34"
 tiny-keccak = "1.0"
@@ -20,6 +20,7 @@ igd = "0.6"
 libc = "0.2.7"
 parking_lot = "0.4"
 ansi_term = "0.9"
+rustc-hex = "1.0"
 rustc-serialize = "0.3"
 ethcore-io = { path = "../io" }
 ethcore-util = { path = ".." }

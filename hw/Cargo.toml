@@ -15,4 +15,4 @@ ethkey = { path = "../ethkey" }
 ethcore-bigint = { path = "../util/bigint" }
 
 [dev-dependencies]
-rustc-serialize = "0.3"
+rustc-hex = "1.0"

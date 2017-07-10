@@ -17,7 +17,7 @@
 use std::fmt;
 use std::io::{Read, Write};
 use serde::{Serialize, Serializer, Deserialize, Deserializer};
-use serde::de::{Error, Visitor, MapVisitor};
+use serde::de::{Error, Visitor, MapAccess, DeserializeOwned};
 use serde_json;
 use super::{Uuid, Version, Crypto, H160};
 
@@ -60,17 +60,17 @@ enum KeyFileField {
 	Meta,
 }
 
-impl Deserialize for KeyFileField {
+impl<'a> Deserialize<'a> for KeyFileField {
 	fn deserialize<D>(deserializer: D) -> Result<KeyFileField, D::Error>
-		where D: Deserializer
+		where D: Deserializer<'a>
 	{
-		deserializer.deserialize(KeyFileFieldVisitor)
+		deserializer.deserialize_any(KeyFileFieldVisitor)
 	}
 }
 
 struct KeyFileFieldVisitor;
 
-impl Visitor for KeyFileFieldVisitor {
+impl<'a> Visitor<'a> for KeyFileFieldVisitor {
 	type Value = KeyFileField;
 
 	fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -93,9 +93,9 @@ impl Visitor for KeyFileFieldVisitor {
 	}
 }
 
-impl Deserialize for KeyFile {
+impl<'a> Deserialize<'a> for KeyFile {
 	fn deserialize<D>(deserializer: D) -> Result<KeyFile, D::Error>
-		where D: Deserializer
+		where D: Deserializer<'a>
 	{
 		static FIELDS: &'static [&'static str] = &["id", "version", "crypto", "Crypto", "address"];
 		deserializer.deserialize_struct("KeyFile", FIELDS, KeyFileVisitor)
@@ -103,8 +103,8 @@ impl Deserialize for KeyFile {
 }
 
 
-fn none_if_empty<T>(v: Option<serde_json::Value>) -> Option<T> where
-	T: Deserialize,
+fn none_if_empty<'a, T>(v: Option<serde_json::Value>) -> Option<T> where
+	T: DeserializeOwned
 {
 	v.and_then(|v| if v.is_null() {
 		None
@@ -115,7 +115,7 @@ fn none_if_empty<T>(v: Option<serde_json::Value>) -> Option<T> where
 }
 
 struct KeyFileVisitor;
-impl Visitor for KeyFileVisitor {
+impl<'a> Visitor<'a> for KeyFileVisitor {
 	type Value = KeyFile;
 
 	fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -123,7 +123,7 @@ impl Visitor for KeyFileVisitor {
 	}
 
 	fn visit_map<V>(self, mut visitor: V) -> Result<Self::Value, V::Error>
-		where V: MapVisitor
+		where V: MapAccess<'a>
 	{
 		let mut id = None;
 		let mut version = None;
@@ -133,13 +133,13 @@ impl Visitor for KeyFileVisitor {
 		let mut meta = None;
 
 		loop {
-			match visitor.visit_key()? {
-				Some(KeyFileField::Id) => { id = Some(visitor.visit_value()?); }
-				Some(KeyFileField::Version) => { version = Some(visitor.visit_value()?); }
-				Some(KeyFileField::Crypto) => { crypto = Some(visitor.visit_value()?); }
-				Some(KeyFileField::Address) => { address = Some(visitor.visit_value()?); }
-				Some(KeyFileField::Name) => { name = none_if_empty(visitor.visit_value().ok()) }
-				Some(KeyFileField::Meta) => { meta = none_if_empty(visitor.visit_value().ok()) }
+			match visitor.next_key()? {
+				Some(KeyFileField::Id) => { id = Some(visitor.next_value()?); }
+				Some(KeyFileField::Version) => { version = Some(visitor.next_value()?); }
+				Some(KeyFileField::Crypto) => { crypto = Some(visitor.next_value()?); }
+				Some(KeyFileField::Address) => { address = Some(visitor.next_value()?); }
+				Some(KeyFileField::Name) => { name = none_if_empty(visitor.next_value().ok()) }
+				Some(KeyFileField::Meta) => { meta = none_if_empty(visitor.next_value().ok()) }
 				None => { break; }
 			}
 		}

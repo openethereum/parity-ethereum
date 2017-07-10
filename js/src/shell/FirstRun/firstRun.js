@@ -23,7 +23,7 @@ import { bindActionCreators } from 'redux';
 import { createIdentityImg } from '@parity/api/util/identity';
 import { newError } from '@parity/shared/redux/actions';
 import { Button, Portal } from '@parity/ui';
-import { CheckIcon, DoneIcon, NextIcon, PrintIcon } from '@parity/ui/Icons';
+import { CheckIcon, DoneIcon, NextIcon, PrintIcon, ReplayIcon } from '@parity/ui/Icons';
 
 import ParityLogo from '@parity/shared/assets/images/parity-logo-black-no-text.svg';
 
@@ -232,7 +232,18 @@ class FirstRun extends Component {
         ];
 
       case 4:
-        return (
+        return [
+          <Button
+            icon={ <ReplayIcon /> }
+            key='restart'
+            label={
+              <FormattedMessage
+                id='firstRun.button.restart'
+                defaultMessage='Start Over'
+              />
+            }
+            onClick={ this.onStartOver }
+          />,
           <Button
             icon={ <CheckIcon /> }
             key='create'
@@ -244,7 +255,7 @@ class FirstRun extends Component {
             }
             onClick={ this.onCreate }
           />
-        );
+        ];
 
       case 5:
         return (
@@ -281,6 +292,12 @@ class FirstRun extends Component {
 
     this.setState({
       stage: stage + 1
+    });
+  }
+
+  onStartOver = () => {
+    this.setState({
+      stage: 2
     });
   }
 

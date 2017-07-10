@@ -36,10 +36,12 @@ extern crate number_prefix;
 extern crate regex;
 extern crate rlp;
 extern crate rpassword;
-extern crate rustc_serialize;
+extern crate rustc_hex;
 extern crate semver;
 extern crate serde;
 extern crate serde_json;
+#[macro_use]
+extern crate serde_derive;
 extern crate time;
 extern crate toml;
 
@@ -361,3 +363,4 @@ fn main() {
 		process::exit(main_direct(can_restart));
 	}
 }
+

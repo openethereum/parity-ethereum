@@ -122,7 +122,7 @@ impl trace::VMTracer for Informant {
 	fn prepare_subtrace(&self, code: &[u8]) -> Self where Self: Sized {
 		let mut vm = Informant::default();
 		vm.depth = self.depth + 1;
-		vm.code = code.into_vec();
+		vm.code = code.to_vec();
 		vm.gas_used = self.gas_used;
 		vm
 	}

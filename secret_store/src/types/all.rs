@@ -24,12 +24,14 @@ use key_server_cluster;
 
 /// Node id.
 pub type NodeId = ethkey::Public;
-/// Document address type.
-pub type DocumentAddress = util::H256;
-/// Document key type.
-pub type DocumentKey = util::Bytes;
-/// Encrypted key type.
-pub type DocumentEncryptedKey = util::Bytes;
+/// Server key id. When key is used to encrypt document, it could be document contents hash.
+pub type ServerKeyId = util::H256;
+/// Encrypted document key type.
+pub type EncryptedDocumentKey = util::Bytes;
+/// Message hash.
+pub type MessageHash = util::H256;
+/// Message signature.
+pub type EncryptedMessageSignature = util::Bytes;
 /// Request signature type.
 pub type RequestSignature = ethkey::Signature;
 /// Public key type.
@@ -95,7 +97,7 @@ pub struct ClusterConfiguration {
 #[derive(Clone, Debug, PartialEq)]
 #[binary]
 /// Shadow decryption result.
-pub struct DocumentEncryptedKeyShadow {
+pub struct EncryptedDocumentKeyShadow {
 	/// Decrypted secret point. It is partially decrypted if shadow decrpytion was requested.
 	pub decrypted_secret: ethkey::Public,
 	/// Shared common point.

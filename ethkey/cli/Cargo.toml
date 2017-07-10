@@ -5,8 +5,10 @@ authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 ethkey = { path = "../" }
-rustc-serialize = "0.3"
-docopt = "0.7"
+serde = "1.0"
+serde_derive = "1.0"
+rustc-hex = "1.0"
+docopt = "0.8"
 
 [[bin]]
 name = "ethkey"

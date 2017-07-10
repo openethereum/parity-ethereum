@@ -241,7 +241,7 @@ impl Parity for ParityClient {
 
 	fn encrypt_message(&self, key: H512, phrase: Bytes) -> Result<Bytes, Error> {
 		ecies::encrypt(&key.into(), &DEFAULT_MAC, &phrase.0)
-			.map_err(errors::encryption_error)
+			.map_err(errors::encryption)
 			.map(Into::into)
 	}
 

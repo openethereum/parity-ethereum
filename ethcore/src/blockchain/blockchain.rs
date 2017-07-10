@@ -1460,7 +1460,7 @@ impl BlockChain {
 mod tests {
 	#![cfg_attr(feature="dev", allow(similar_names))]
 	use std::sync::Arc;
-	use rustc_serialize::hex::FromHex;
+	use rustc_hex::FromHex;
 	use util::kvdb::KeyValueDB;
 	use util::hash::*;
 	use util::sha3::Hashable;

@@ -14,12 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::fmt::Debug;
+use rustc_hex::FromHex;
 use util::*;
 use action_params::{ActionParams, ActionValue};
 use env_info::EnvInfo;
 use types::executed::CallType;
 use evm::{self, Ext, Schedule, Factory, GasLeft, VMType, ContractCreateResult, MessageCallResult, CreateContractAddress, ReturnData};
-use std::fmt::Debug;
 use tests::helpers::*;
 use types::transaction::SYSTEM_ADDRESS;
 use executive::Executive;
@@ -462,7 +463,7 @@ fn test_blockhash_eip210(factory: super::Factory) {
 			gas_price: 0.into(),
 			value: ActionValue::Transfer(0.into()),
 			code: Some(blockhash_contract_code.clone()),
-			code_hash: blockhash_contract_code_hash,
+			code_hash: Some(blockhash_contract_code_hash),
 			data: Some(H256::from(i - 1).to_vec()),
 			call_type: CallType::Call,
 		};
@@ -484,7 +485,7 @@ fn test_blockhash_eip210(factory: super::Factory) {
 		gas_price: 0.into(),
 		value: ActionValue::Transfer(0.into()),
 		code: Some(get_prev_hash_code),
-		code_hash: get_prev_hash_code_hash,
+		code_hash: Some(get_prev_hash_code_hash),
 		data: None,
 		call_type: CallType::Call,
 	};

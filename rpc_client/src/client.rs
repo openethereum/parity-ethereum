@@ -25,7 +25,7 @@ use ws::ws::{
 	Result as WsResult,
 };
 
-use serde::Deserialize;
+use serde::de::DeserializeOwned;
 use serde_json::{
 	self as json,
 	Value as JsonValue,
@@ -247,7 +247,7 @@ impl Rpc {
 	pub fn request<T>(
 		&mut self, method: &'static str, params: Vec<JsonValue>
 	) -> BoxFuture<Result<T, RpcError>, Canceled>
-		where T: Deserialize + Send + Sized {
+		where T: DeserializeOwned + Send + Sized {
 
 		let (c, p) = oneshot::<Result<JsonValue, RpcError>>();
 

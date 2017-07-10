@@ -11,10 +11,13 @@
 #![cfg_attr(asm_available, feature(asm))]
 
 extern crate rand;
-extern crate rustc_serialize;
+extern crate rustc_hex;
 extern crate bigint;
 extern crate libc;
-#[macro_use] extern crate heapsize;
+
+#[cfg(feature="heapsizeof")]
+#[macro_use]
+extern crate heapsize;
 
 pub mod hash;
 
