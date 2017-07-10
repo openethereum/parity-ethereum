@@ -26,7 +26,7 @@ extern crate linked_hash_map;
 extern crate mime_guess;
 extern crate ntp;
 extern crate rand;
-extern crate rustc_serialize;
+extern crate rustc_hex;
 extern crate serde;
 extern crate serde_json;
 extern crate time;

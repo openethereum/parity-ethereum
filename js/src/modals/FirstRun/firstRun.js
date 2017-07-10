@@ -24,7 +24,7 @@ import ParityLogo from '~/../assets/images/parity-logo-black-no-text.svg';
 import { createIdentityImg } from '~/api/util/identity';
 import { newError } from '~/redux/actions';
 import { Button, Portal } from '~/ui';
-import { CheckIcon, DoneIcon, NextIcon, PrintIcon } from '~/ui/Icons';
+import { CheckIcon, DoneIcon, NextIcon, PrintIcon, ReplayIcon } from '~/ui/Icons';
 
 import { NewAccount, AccountDetails } from '../CreateAccount';
 import print from '../CreateAccount/print';
@@ -230,7 +230,18 @@ class FirstRun extends Component {
         ];
 
       case 4:
-        return (
+        return [
+          <Button
+            icon={ <ReplayIcon /> }
+            key='restart'
+            label={
+              <FormattedMessage
+                id='firstRun.button.restart'
+                defaultMessage='Start Over'
+              />
+            }
+            onClick={ this.onStartOver }
+          />,
           <Button
             icon={ <CheckIcon /> }
             key='create'
@@ -242,7 +253,7 @@ class FirstRun extends Component {
             }
             onClick={ this.onCreate }
           />
-        );
+        ];
 
       case 5:
         return (
@@ -282,6 +293,12 @@ class FirstRun extends Component {
     });
   }
 
+  onStartOver = () => {
+    this.setState({
+      stage: 2
+    });
+  }
+
   onAcceptTnC = () => {
     this.setState({
       hasAcceptedTnc: !this.state.hasAcceptedTnc
@@ -312,7 +329,7 @@ class FirstRun extends Component {
   }
 
   skipAccountCreation = () => {
-    this.setState({ stage: this.state.stage + 2 });
+    this.setState({ stage: this.state.stage + 3 });
   }
 
   printPhrase = () => {

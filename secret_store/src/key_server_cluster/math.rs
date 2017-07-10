@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use ethkey::{Public, Secret, Random, Generator, math};
+use util::{U256, H256, Hashable};
 use key_server_cluster::Error;
 
 #[derive(Debug)]
@@ -36,6 +37,48 @@ pub fn generate_random_point() -> Result<Public, Error> {
 	Ok(Random.generate()?.public().clone())
 }
 
+/// Compute publics sum.
+pub fn compute_public_sum<'a, I>(mut publics: I) -> Result<Public, Error> where I: Iterator<Item=&'a Public> {
+	let mut sum = publics.next().expect("compute_public_sum is called when there's at least one public; qed").clone();
+	while let Some(public) = publics.next() {
+		math::public_add(&mut sum, &public)?;
+	}
+	Ok(sum)
+}
+
+/// Compute secrets sum.
+pub fn compute_secret_sum<'a, I>(mut secrets: I) -> Result<Secret, Error> where I: Iterator<Item=&'a Secret> {
+	let mut sum = secrets.next().expect("compute_secret_sum is called when there's at least one secret; qed").clone();
+	while let Some(secret) = secrets.next() {
+		sum.add(secret)?;
+	}
+	Ok(sum)
+}
+
+/// Compute secrets 'shadow' multiplication: coeff * multiplication(s[j] / (s[i] - s[j])) for every i != j
+pub fn compute_shadow_mul<'a, I>(coeff: &Secret, self_secret: &Secret, mut other_secrets: I) -> Result<Secret, Error> where I: Iterator<Item=&'a Secret> {
+	// when there are no other secrets, only coeff is left
+	let other_secret = match other_secrets.next() {
+		Some(other_secret) => other_secret,
+		None => return Ok(coeff.clone()),
+	};
+
+	let mut shadow_mul = self_secret.clone();
+	shadow_mul.sub(other_secret)?;
+	shadow_mul.inv()?;
+	shadow_mul.mul(other_secret)?;
+	while let Some(other_secret) = other_secrets.next() {
+		let mut shadow_mul_element = self_secret.clone();
+		shadow_mul_element.sub(other_secret)?;
+		shadow_mul_element.inv()?;
+		shadow_mul_element.mul(other_secret)?;
+		shadow_mul.mul(&shadow_mul_element)?;
+	}
+
+	shadow_mul.mul(coeff)?;
+	Ok(shadow_mul)
+}
+
 /// Update point by multiplying to random scalar
 pub fn update_random_point(point: &mut Public) -> Result<(), Error> {
 	Ok(math::public_mul_secret(point, &generate_random_scalar()?)?)
@@ -43,12 +86,9 @@ pub fn update_random_point(point: &mut Public) -> Result<(), Error> {
 
 /// Generate random polynom of threshold degree
 pub fn generate_random_polynom(threshold: usize) -> Result<Vec<Secret>, Error> {
-	let mut polynom: Vec<_> = Vec::with_capacity(threshold + 1);
-	for _ in 0..threshold + 1 {
-		polynom.push(generate_random_scalar()?);
-	}
-	debug_assert_eq!(polynom.len(), threshold + 1);
-	Ok(polynom)
+	(0..threshold + 1)
+		.map(|_| generate_random_scalar())
+		.collect()
 }
 
 /// Compute value of polynom, using `node_number` as argument
@@ -125,12 +165,8 @@ pub fn keys_verification(threshold: usize, derived_point: &Public, number_id: &S
 }
 
 /// Compute secret share.
-pub fn compute_secret_share<'a, I>(mut secret_values: I) -> Result<Secret, Error> where I: Iterator<Item=&'a Secret> {
-	let mut secret_share = secret_values.next().expect("compute_secret_share is called when cluster has at least one node; qed").clone();
-	while let Some(secret_value) = secret_values.next() {
-		secret_share.add(secret_value)?;
-	}
-	Ok(secret_share)
+pub fn compute_secret_share<'a, I>(secret_values: I) -> Result<Secret, Error> where I: Iterator<Item=&'a Secret> {
+	compute_secret_sum(secret_values)
 }
 
 /// Compute public key share.
@@ -141,22 +177,14 @@ pub fn compute_public_share(self_secret_value: &Secret) -> Result<Public, Error>
 }
 
 /// Compute joint public key.
-pub fn compute_joint_public<'a, I>(mut public_shares: I) -> Result<Public, Error> where I: Iterator<Item=&'a Public> {
-	let mut joint_public = public_shares.next().expect("compute_joint_public is called when cluster has at least one node; qed").clone();
-	while let Some(public_share) = public_shares.next() {
-		math::public_add(&mut joint_public, &public_share)?;
-	}
-	Ok(joint_public)
+pub fn compute_joint_public<'a, I>(public_shares: I) -> Result<Public, Error> where I: Iterator<Item=&'a Public> {
+	compute_public_sum(public_shares)
 }
 
 #[cfg(test)]
 /// Compute joint secret key.
-pub fn compute_joint_secret<'a, I>(mut secret_coeffs: I) -> Result<Secret, Error> where I: Iterator<Item=&'a Secret> {
-	let mut joint_secret = secret_coeffs.next().expect("compute_joint_private is called when cluster has at least one node; qed").clone();
-	while let Some(secret_coeff) = secret_coeffs.next() {
-		joint_secret.add(secret_coeff)?;
-	}
-	Ok(joint_secret)
+pub fn compute_joint_secret<'a, I>(secret_coeffs: I) -> Result<Secret, Error> where I: Iterator<Item=&'a Secret> {
+	compute_secret_sum(secret_coeffs)
 }
 
 /// Encrypt secret with joint public key.
@@ -180,26 +208,8 @@ pub fn encrypt_secret(secret: &Public, joint_public: &Public) -> Result<Encrypte
 }
 
 /// Compute shadow for the node.
-pub fn compute_node_shadow<'a, I>(node_number: &Secret, node_secret_share: &Secret, mut other_nodes_numbers: I) -> Result<Secret, Error> where I: Iterator<Item=&'a Secret> {
-	let other_node_number = match other_nodes_numbers.next() {
-		Some(other_node_number) => other_node_number,
-		None => return Ok(node_secret_share.clone()),
-	};
-
-	let mut shadow = node_number.clone();
-	shadow.sub(other_node_number)?;
-	shadow.inv()?;
-	shadow.mul(other_node_number)?;
-	while let Some(other_node_number) = other_nodes_numbers.next() {
-		let mut shadow_element = node_number.clone();
-		shadow_element.sub(other_node_number)?;
-		shadow_element.inv()?;
-		shadow_element.mul(other_node_number)?;
-		shadow.mul(&shadow_element)?;
-	}
-
-	shadow.mul(&node_secret_share)?;
-	Ok(shadow)
+pub fn compute_node_shadow<'a, I>(node_secret_share: &Secret, node_number: &Secret, other_nodes_numbers: I) -> Result<Secret, Error> where I: Iterator<Item=&'a Secret> {
+	compute_shadow_mul(node_secret_share, node_number, other_nodes_numbers)
 }
 
 /// Compute shadow point for the node.
@@ -224,21 +234,14 @@ pub fn compute_node_shadow_point(access_key: &Secret, common_point: &Public, nod
 }
 
 /// Compute joint shadow point.
-pub fn compute_joint_shadow_point<'a, I>(mut nodes_shadow_points: I) -> Result<Public, Error> where I: Iterator<Item=&'a Public> {
-	let mut joint_shadow_point = nodes_shadow_points.next().expect("compute_joint_shadow_point is called when at least two nodes are required to decrypt secret; qed").clone();
-	while let Some(node_shadow_point) = nodes_shadow_points.next() {
-		math::public_add(&mut joint_shadow_point, &node_shadow_point)?;
-	}
-	Ok(joint_shadow_point)
+pub fn compute_joint_shadow_point<'a, I>(nodes_shadow_points: I) -> Result<Public, Error> where I: Iterator<Item=&'a Public> {
+	compute_public_sum(nodes_shadow_points)
 }
 
 #[cfg(test)]
 /// Compute joint shadow point (version for tests).
-pub fn compute_joint_shadow_point_test<'a, I>(access_key: &Secret, common_point: &Public, mut nodes_shadows: I) -> Result<Public, Error> where I: Iterator<Item=&'a Secret> {
-	let mut joint_shadow = nodes_shadows.next().expect("compute_joint_shadow_point_test is called when at least two nodes are required to decrypt secret; qed").clone();
-	while let Some(node_shadow) = nodes_shadows.next() {
-		joint_shadow.add(node_shadow)?;
-	}
+pub fn compute_joint_shadow_point_test<'a, I>(access_key: &Secret, common_point: &Public, nodes_shadows: I) -> Result<Public, Error> where I: Iterator<Item=&'a Secret> {
+	let mut joint_shadow = compute_secret_sum(nodes_shadows)?;
 	joint_shadow.mul(access_key)?;
 
 	let mut joint_shadow_point = common_point.clone();
@@ -277,10 +280,7 @@ pub fn make_common_shadow_point(threshold: usize, mut common_point: Public) -> R
 #[cfg(test)]
 /// Decrypt shadow-encrypted secret.
 pub fn decrypt_with_shadow_coefficients(mut decrypted_shadow: Public, mut common_shadow_point: Public, shadow_coefficients: Vec<Secret>) -> Result<Public, Error> {
-	let mut shadow_coefficients_sum = shadow_coefficients[0].clone();
-	for shadow_coefficient in shadow_coefficients.iter().skip(1) {
-		shadow_coefficients_sum.add(shadow_coefficient)?;
-	}
+	let shadow_coefficients_sum = compute_secret_sum(shadow_coefficients.iter())?;
 	math::public_mul_secret(&mut common_shadow_point, &shadow_coefficients_sum)?;
 	math::public_add(&mut decrypted_shadow, &common_shadow_point)?;
 	Ok(decrypted_shadow)
@@ -298,10 +298,138 @@ pub fn decrypt_with_joint_secret(encrypted_point: &Public, common_point: &Public
 	Ok(decrypted_point)
 }
 
+/// Combine message hash with public key X coordinate.
+pub fn combine_message_hash_with_public(message_hash: &H256, public: &Public) -> Result<Secret, Error> {
+	// buffer is just [message_hash | public.x]
+	let mut buffer = [0; 64];
+	buffer[0..32].copy_from_slice(&message_hash[0..32]);
+	buffer[32..64].copy_from_slice(&public[0..32]);
+
+	// calculate hash of buffer
+	let hash = (&buffer[..]).sha3();
+
+	// map hash to EC finite field value
+	let hash: U256 = hash.into();
+	let hash: H256 = (hash % math::curve_order()).into();
+	let hash = Secret::from_slice(&*hash);
+	hash.check_validity()?;
+
+	Ok(hash)
+}
+
+/// Compute signature share.
+pub fn compute_signature_share<'a, I>(threshold: usize, combined_hash: &Secret, one_time_secret_coeff: &Secret, node_secret_share: &Secret, node_number: &Secret, other_nodes_numbers: I)
+	-> Result<Secret, Error> where I: Iterator<Item=&'a Secret> {
+	let mut sum = one_time_secret_coeff.clone();
+	let mut subtrahend = compute_shadow_mul(combined_hash, node_number, other_nodes_numbers)?;
+	subtrahend.mul(node_secret_share)?;
+	if threshold % 2 == 0 {
+		sum.sub(&subtrahend)?;
+	} else {
+		sum.add(&subtrahend)?;
+	}
+	Ok(sum)
+}
+
+/// Check signature share.
+pub fn _check_signature_share<'a, I>(_combined_hash: &Secret, _signature_share: &Secret, _public_share: &Public, _one_time_public_share: &Public, _node_numbers: I)
+	-> Result<bool, Error> where I: Iterator<Item=&'a Secret> {
+	// TODO: in paper partial signature is checked using comparison:
+	//    sig[i] * T                                  = r[i] - c * lagrange_coeff(i) * y[i]
+	// => (k[i] - c * lagrange_coeff(i) * s[i]) * T   = r[i] - c * lagrange_coeff(i) * y[i]
+	// => k[i] * T - c * lagrange_coeff(i) * s[i] * T = k[i] * T - c * lagrange_coeff(i) * y[i]
+	// => this means that y[i] = s[i] * T
+	// but when verifying signature (for t = 1), nonce public (r) is restored using following expression:
+	// r = (sig[0] + sig[1]) * T - c * y
+	// r = (k[0] - c * lagrange_coeff(0) * s[0] + k[1] - c * lagrange_coeff(1) * s[1]) * T - c * y
+	// r = (k[0] + k[1]) * T - c * (lagrange_coeff(0) * s[0] + lagrange_coeff(1) * s[1]) * T - c * y
+	// r = r - c * (lagrange_coeff(0) * s[0] + lagrange_coeff(1) * s[1]) * T - c * y
+	// => -c * y = c * (lagrange_coeff(0) * s[0] + lagrange_coeff(1) * s[1]) * T
+	// => -y = (lagrange_coeff(0) * s[0] + lagrange_coeff(1) * s[1]) * T
+	// => y[i] != s[i] * T
+	// => some other way is required
+	Ok(true)
+}
+
+/// Compute signature.
+pub fn compute_signature<'a, I>(signature_shares: I) -> Result<Secret, Error> where I: Iterator<Item=&'a Secret> {
+	compute_secret_sum(signature_shares)
+}
+
+#[cfg(test)]
+/// Locally compute Schnorr signature as described in https://en.wikipedia.org/wiki/Schnorr_signature#Signing.
+pub fn local_compute_signature(nonce: &Secret, secret: &Secret, message_hash: &Secret) -> Result<(Secret, Secret), Error> {
+	let mut nonce_public = math::generation_point();
+	math::public_mul_secret(&mut nonce_public, &nonce).unwrap();
+
+	let combined_hash = combine_message_hash_with_public(message_hash, &nonce_public)?;
+
+	let mut sig_subtrahend = combined_hash.clone();
+	sig_subtrahend.mul(secret)?;
+	let mut sig = nonce.clone();
+	sig.sub(&sig_subtrahend)?;
+
+	Ok((combined_hash, sig))
+}
+
+#[cfg(test)]
+/// Verify signature as described in https://en.wikipedia.org/wiki/Schnorr_signature#Verifying.
+pub fn verify_signature(public: &Public, signature: &(Secret, Secret), message_hash: &H256) -> Result<bool, Error> {
+	let mut addendum = math::generation_point();
+	math::public_mul_secret(&mut addendum, &signature.1)?;
+	let mut nonce_public = public.clone();
+	math::public_mul_secret(&mut nonce_public, &signature.0)?;
+	math::public_add(&mut nonce_public, &addendum)?;
+
+	let combined_hash = combine_message_hash_with_public(message_hash, &nonce_public)?;
+	Ok(combined_hash == signature.0)
+}
+
 #[cfg(test)]
 pub mod tests {
+	use std::iter::once;
 	use ethkey::KeyPair;
 	use super::*;
+
+	#[derive(Clone)]
+	struct KeyGenerationArtifacts {
+		id_numbers: Vec<Secret>,
+		polynoms1: Vec<Vec<Secret>>,
+		secrets1: Vec<Vec<Secret>>,
+		public_shares: Vec<Public>,
+		secret_shares: Vec<Secret>,
+		joint_public: Public,
+	}
+
+	fn run_key_generation(t: usize, n: usize, id_numbers: Option<Vec<Secret>>) -> KeyGenerationArtifacts {
+		// === PART1: DKG ===
+
+		// data, gathered during initialization
+		let id_numbers: Vec<_> = match id_numbers {
+			Some(id_numbers) => id_numbers,
+			None => (0..n).map(|_| generate_random_scalar().unwrap()).collect(),
+		};
+
+		// data, generated during keys dissemination
+		let polynoms1: Vec<_> = (0..n).map(|_| generate_random_polynom(t).unwrap()).collect();
+		let secrets1: Vec<_> = (0..n).map(|i| (0..n).map(|j| compute_polynom(&polynoms1[i], &id_numbers[j]).unwrap()).collect::<Vec<_>>()).collect();
+
+		// data, generated during keys generation
+		let public_shares: Vec<_> = (0..n).map(|i| compute_public_share(&polynoms1[i][0]).unwrap()).collect();
+		let secret_shares: Vec<_> = (0..n).map(|i| compute_secret_share(secrets1.iter().map(|s| &s[i])).unwrap()).collect();
+
+		// joint public key, as a result of DKG
+		let joint_public = compute_joint_public(public_shares.iter()).unwrap();
+
+		KeyGenerationArtifacts {
+			id_numbers: id_numbers,
+			polynoms1: polynoms1,
+			secrets1: secrets1,
+			public_shares: public_shares,
+			secret_shares: secret_shares,
+			joint_public: joint_public,
+		}
+	}
 
 	pub fn do_encryption_and_decryption(t: usize, joint_public: &Public, id_numbers: &[Secret], secret_shares: &[Secret], joint_secret: Option<&Secret>, document_secret_plain: Public) -> (Public, Public) {
 		// === PART2: encryption using joint public key ===
@@ -316,7 +444,7 @@ pub mod tests {
 
 		// use t + 1 nodes to compute joint shadow point
 		let nodes_shadows: Vec<_> = (0..t + 1).map(|i|
-			compute_node_shadow(&id_numbers[i], &secret_shares[i], id_numbers.iter()
+			compute_node_shadow(&secret_shares[i], &id_numbers[i], id_numbers.iter()
 				.enumerate()
 				.filter(|&(j, _)| j != i)
 				.take(t)
@@ -349,39 +477,108 @@ pub mod tests {
 		let test_cases = [(0, 2), (1, 2), (1, 3), (2, 3), (1, 4), (2, 4), (3, 4), (1, 5), (2, 5), (3, 5), (4, 5),
 			(1, 10), (2, 10), (3, 10), (4, 10), (5, 10), (6, 10), (7, 10), (8, 10), (9, 10)];
 		for &(t, n) in &test_cases {
-			// === PART1: DKG ===
-			
-			// data, gathered during initialization
-			let id_numbers: Vec<_> = (0..n).map(|_| generate_random_scalar().unwrap()).collect();
-
-			// data, generated during keys dissemination
-			let polynoms1: Vec<_> = (0..n).map(|_| generate_random_polynom(t).unwrap()).collect();
-			let secrets1: Vec<_> = (0..n).map(|i| (0..n).map(|j| compute_polynom(&polynoms1[i], &id_numbers[j]).unwrap()).collect::<Vec<_>>()).collect();
-
-			// data, generated during keys generation
-			let public_shares: Vec<_> = (0..n).map(|i| compute_public_share(&polynoms1[i][0]).unwrap()).collect();
-			let secret_shares: Vec<_> = (0..n).map(|i| compute_secret_share(secrets1.iter().map(|s| &s[i])).unwrap()).collect();
-
-			// joint public key, as a result of DKG
-			let joint_public = compute_joint_public(public_shares.iter()).unwrap();
+			let artifacts = run_key_generation(t, n, None);
 
 			// compute joint private key [just for test]
-			let joint_secret = compute_joint_secret(polynoms1.iter().map(|p| &p[0])).unwrap();
+			let joint_secret = compute_joint_secret(artifacts.polynoms1.iter().map(|p| &p[0])).unwrap();
 			let joint_key_pair = KeyPair::from_secret(joint_secret.clone()).unwrap();
-			assert_eq!(&joint_public, joint_key_pair.public());
+			assert_eq!(&artifacts.joint_public, joint_key_pair.public());
 
 			// check secret shares computation [just for test]
-			let secret_shares_polynom: Vec<_> = (0..t + 1).map(|k| compute_secret_share(polynoms1.iter().map(|p| &p[k])).unwrap()).collect();
-			let secret_shares_calculated_from_polynom: Vec<_> = id_numbers.iter().map(|id_number| compute_polynom(&*secret_shares_polynom, id_number).unwrap()).collect();
-			assert_eq!(secret_shares, secret_shares_calculated_from_polynom);
+			let secret_shares_polynom: Vec<_> = (0..t + 1).map(|k| compute_secret_share(artifacts.polynoms1.iter().map(|p| &p[k])).unwrap()).collect();
+			let secret_shares_calculated_from_polynom: Vec<_> = artifacts.id_numbers.iter().map(|id_number| compute_polynom(&*secret_shares_polynom, id_number).unwrap()).collect();
+			assert_eq!(artifacts.secret_shares, secret_shares_calculated_from_polynom);
 
 			// now encrypt and decrypt data
 			let document_secret_plain = generate_random_point().unwrap();
 			let (document_secret_decrypted, document_secret_decrypted_test) =
-				do_encryption_and_decryption(t, &joint_public, &id_numbers, &secret_shares, Some(&joint_secret), document_secret_plain.clone());
+				do_encryption_and_decryption(t, &artifacts.joint_public, &artifacts.id_numbers, &artifacts.secret_shares, Some(&joint_secret), document_secret_plain.clone());
 
 			assert_eq!(document_secret_plain, document_secret_decrypted_test);
 			assert_eq!(document_secret_plain, document_secret_decrypted);
+		}
+	}
+
+	#[test]
+	fn local_signature_works() {
+		let key_pair = Random.generate().unwrap();
+		let message_hash = "0000000000000000000000000000000000000000000000000000000000000042".parse().unwrap();
+		let nonce = generate_random_scalar().unwrap();
+		let signature = local_compute_signature(&nonce, key_pair.secret(), &message_hash).unwrap();
+		assert_eq!(verify_signature(key_pair.public(), &signature, &message_hash), Ok(true));
+	}
+
+	#[test]
+	fn full_signature_math_session() {
+		let test_cases = [(0, 1), (0, 2), (1, 2), (1, 3), (2, 3), (1, 4), (2, 4), (3, 4), (1, 5), (2, 5), (3, 5), (4, 5),
+			(1, 10), (2, 10), (3, 10), (4, 10), (5, 10), (6, 10), (7, 10), (8, 10), (9, 10)];
+		for &(t, n) in &test_cases {
+			// hash of the message to be signed
+			let message_hash: Secret = "0000000000000000000000000000000000000000000000000000000000000042".parse().unwrap();
+
+			// === MiDS-S algorithm ===
+			// setup: all nodes share master secret key && every node knows master public key
+			let artifacts = run_key_generation(t, n, None);
+
+			// in this gap (not related to math):
+			// master node should ask every other node if it is able to do a signing
+			// if there are < than t+1 nodes, able to sign => error
+			// select t+1 nodes for signing session
+			// all steps below are for this subset of nodes
+			let n = t + 1;
+
+			// step 1: run DKG to generate one-time secret key (nonce)
+			let id_numbers = artifacts.id_numbers.iter().cloned().take(n).collect();
+			let one_time_artifacts = run_key_generation(t, n, Some(id_numbers));
+
+			// step 2: message hash && x coordinate of one-time public value are combined
+			let combined_hash = combine_message_hash_with_public(&message_hash, &one_time_artifacts.joint_public).unwrap();
+
+			// step 3: compute signature shares
+			let partial_signatures: Vec<_> = (0..n)
+				.map(|i| compute_signature_share(
+					t,
+					&combined_hash,
+					&one_time_artifacts.polynoms1[i][0],
+					&artifacts.secret_shares[i],
+					&artifacts.id_numbers[i],
+					artifacts.id_numbers.iter()
+						.enumerate()
+						.filter(|&(j, _)| i != j)
+						.map(|(_, n)| n)
+						.take(t)
+				).unwrap())
+				.collect();
+
+			// step 4: receive and verify signatures shares from other nodes
+			let received_signatures: Vec<Vec<_>> = (0..n)
+				.map(|i| (0..n)
+					.filter(|j| i != *j)
+					.map(|j| {
+						let signature_share = partial_signatures[j].clone();
+						assert!(_check_signature_share(&combined_hash,
+							&signature_share,
+							&artifacts.public_shares[j],
+							&one_time_artifacts.public_shares[j],
+							artifacts.id_numbers.iter().take(t)).unwrap_or(false));
+						signature_share
+					})
+					.collect())
+				.collect();
+
+			// step 5: compute signature
+			let signatures: Vec<_> = (0..n)
+				.map(|i| (combined_hash.clone(), compute_signature(received_signatures[i].iter().chain(once(&partial_signatures[i]))).unwrap()))
+				.collect();
+
+			// === verify signature ===
+			let master_secret = compute_joint_secret(artifacts.polynoms1.iter().map(|p| &p[0])).unwrap();
+			let nonce = compute_joint_secret(one_time_artifacts.polynoms1.iter().map(|p| &p[0])).unwrap();
+			let local_signature = local_compute_signature(&nonce, &master_secret, &message_hash).unwrap();
+			for signature in &signatures {
+				assert_eq!(signature, &local_signature);
+				assert_eq!(verify_signature(&artifacts.joint_public, signature, &message_hash), Ok(true));
+			}
 		}
 	}
 }

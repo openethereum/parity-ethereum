@@ -305,7 +305,7 @@ impl HeapSizeOf for Header {
 
 #[cfg(test)]
 mod tests {
-	use rustc_serialize::hex::FromHex;
+	use rustc_hex::FromHex;
 	use rlp;
 	use super::Header;
 

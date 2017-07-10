@@ -16,7 +16,7 @@
 
 use std::fmt;
 use secp256k1::key;
-use rustc_serialize::hex::ToHex;
+use rustc_hex::ToHex;
 use keccak::Keccak256;
 use super::{Secret, Public, Address, SECP256K1, Error};
 

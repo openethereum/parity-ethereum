@@ -50,16 +50,16 @@ impl Into<u8> for Uint {
 	}
 }
 
-impl Deserialize for Uint {
+impl<'a> Deserialize<'a> for Uint {
 	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-		where D: Deserializer {
-		deserializer.deserialize(UintVisitor)
+		where D: Deserializer<'a> {
+		deserializer.deserialize_any(UintVisitor)
 	}
 }
 
 struct UintVisitor;
 
-impl Visitor for UintVisitor {
+impl<'a> Visitor<'a> for UintVisitor {
 	type Value = Uint;
 
 	fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {

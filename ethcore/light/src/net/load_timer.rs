@@ -55,6 +55,7 @@ fn hardcoded_serve_time(kind: Kind) -> u64 {
 	match kind {
 		Kind::Headers => 500_000,
 		Kind::HeaderProof => 500_000,
+		Kind::TransactionIndex => 500_000,
 		Kind::Receipts => 1_000_000,
 		Kind::Body => 1_000_000,
 		Kind::Account => 1_500_000,

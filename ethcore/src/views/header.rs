@@ -104,7 +104,7 @@ impl<'a> Hashable for HeaderView<'a> {
 #[cfg(test)]
 mod tests {
 	use std::str::FromStr;
-	use rustc_serialize::hex::FromHex;
+	use rustc_hex::FromHex;
 	use util::{H256, Address, H2048, U256};
 	use super::HeaderView;
 

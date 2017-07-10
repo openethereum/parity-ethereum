@@ -16,6 +16,7 @@
 
 //! Parameters for a block chain.
 
+use rustc_hex::FromHex;
 use super::genesis::Genesis;
 use super::seal::Generic as GenericSeal;
 
@@ -260,7 +261,7 @@ impl Spec {
 				trace!(target: "spec", "  .. root before = {}", state.root());
 				let params = ActionParams {
 					code_address: address.clone(),
-					code_hash: constructor.sha3(),
+					code_hash: Some(constructor.sha3()),
 					address: address.clone(),
 					sender: from.clone(),
 					origin: from.clone(),
