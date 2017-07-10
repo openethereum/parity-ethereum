@@ -43,11 +43,6 @@ export default class Eth {
       }, timeout);
     };
 
-    if (!this._api.transport.isConnected) {
-      nextTimeout(500);
-      return;
-    }
-
     return this._api.eth
       .blockNumber()
       .then((blockNumber) => {
