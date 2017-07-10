@@ -34,7 +34,7 @@ pub use types::executed::{Executed, ExecutionResult};
 /// Maybe something like here: `https://github.com/ethereum/libethereum/blob/4db169b8504f2b87f7d5a481819cfb959fc65f6c/libethereum/ExtVM.cpp`
 const STACK_SIZE_PER_DEPTH: usize = 24*1024;
 
-const WASM_MAGIC_NUMBER: [u8; 4] = b"\0asm";
+const WASM_MAGIC_NUMBER: &'static [u8; 4] = b"\0asm";
 
 /// Returns new address created from address, nonce, and code hash
 pub fn contract_address(address_scheme: CreateContractAddress, sender: &Address, nonce: &U256, code_hash: &H256) -> Address {
@@ -75,7 +75,7 @@ pub struct TransactOptions {
 pub fn executor<E>(engine: &E, vm_factory: &Factory, params: &ActionParams) 
 	-> Box<evm::Evm> where E: Engine + ?Sized
 {
-	if engine.supports_wasm() && params.code.as_ref().map_or(false, |code| code.len() > 4 && &code[0..4] == &WASM_MAGIC_NUMBER) {
+	if engine.supports_wasm() && params.code.as_ref().map_or(false, |code| code.len() > 4 && &code[0..4] == WASM_MAGIC_NUMBER) {
 		Box::new(
 			wasm::WasmInterpreter::new()
 				// prefer to fail fast
