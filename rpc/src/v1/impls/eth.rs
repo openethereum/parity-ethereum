@@ -608,6 +608,11 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 	}
 
 	fn submit_work(&self, nonce: RpcH64, pow_hash: RpcH256, mix_hash: RpcH256) -> Result<bool, Error> {
+		if !self.miner.engine_seals_internally() {
+			warn!(target: "miner", "Cannot submit work - engine seals internally.");
+			return Err(errors::no_work_required())
+		}
+
 		let nonce: H64 = nonce.into();
 		let pow_hash: H256 = pow_hash.into();
 		let mix_hash: H256 = mix_hash.into();
