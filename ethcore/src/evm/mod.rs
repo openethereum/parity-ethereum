@@ -22,6 +22,7 @@ pub mod interpreter;
 #[macro_use]
 pub mod factory;
 pub mod schedule;
+pub mod wasm;
 
 mod vmtype;
 mod instructions;

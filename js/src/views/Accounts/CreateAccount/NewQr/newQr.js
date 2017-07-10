@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
@@ -21,6 +22,7 @@ import { Form, Input, InputAddress, QrScan } from '@parity/ui';
 
 import ChangeVault from '../ChangeVault';
 
+@observer
 export default class NewQr extends Component {
   static propTypes = {
     createStore: PropTypes.object.isRequired,

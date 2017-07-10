@@ -22,7 +22,7 @@ use engines::Engine;
 use types::executed::CallType;
 use env_info::EnvInfo;
 use error::ExecutionError;
-use evm::{self, Ext, Finalize, CreateContractAddress, FinalizationResult, ReturnData, CleanDustMode};
+use evm::{self, wasm, Factory, Ext, Finalize, CreateContractAddress, FinalizationResult, ReturnData, CleanDustMode};
 use externalities::*;
 use trace::{FlatTrace, Tracer, NoopTracer, ExecutiveTracer, VMTrace, VMTracer, ExecutiveVMTracer, NoopVMTracer};
 use transaction::{Action, SignedTransaction};
@@ -33,6 +33,8 @@ pub use types::executed::{Executed, ExecutionResult};
 /// TODO [todr] We probably need some more sophisticated calculations here (limit on my machine 132)
 /// Maybe something like here: `https://github.com/ethereum/libethereum/blob/4db169b8504f2b87f7d5a481819cfb959fc65f6c/libethereum/ExtVM.cpp`
 const STACK_SIZE_PER_DEPTH: usize = 24*1024;
+
+const WASM_MAGIC_NUMBER: &'static [u8; 4] = b"\0asm";
 
 /// Returns new address created from address, nonce, and code hash
 pub fn contract_address(address_scheme: CreateContractAddress, sender: &Address, nonce: &U256, code: &[u8]) -> (Address, Option<H256>) {
@@ -70,6 +72,20 @@ pub struct TransactOptions {
 	pub vm_tracing: bool,
 	/// Check transaction nonce before execution.
 	pub check_nonce: bool,
+}
+
+pub fn executor<E>(engine: &E, vm_factory: &Factory, params: &ActionParams) 
+	-> Box<evm::Evm> where E: Engine + ?Sized
+{
+	if engine.supports_wasm() && params.code.as_ref().map_or(false, |code| code.len() > 4 && &code[0..4] == WASM_MAGIC_NUMBER) {
+		Box::new(
+			wasm::WasmInterpreter::new()
+				// prefer to fail fast
+				.expect("Failed to create wasm runtime")
+		)
+	} else {
+		vm_factory.create(params.gas)
+	}
 }
 
 /// Transaction executor.
@@ -263,18 +279,19 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 			let vm_factory = self.state.vm_factory();
 			let mut ext = self.as_externalities(OriginInfo::from(&params), unconfirmed_substate, output_policy, tracer, vm_tracer, static_call);
 			trace!(target: "executive", "ext.schedule.have_delegate_call: {}", ext.schedule().have_delegate_call);
-			return vm_factory.create(params.gas).exec(params, &mut ext).finalize(ext);
+			return executor(self.engine, &vm_factory, &params).exec(params, &mut ext).finalize(ext);
 		}
 
 		// Start in new thread to reset stack
 		// TODO [todr] No thread builder yet, so we need to reset once for a while
 		// https://github.com/aturon/crossbeam/issues/16
 		crossbeam::scope(|scope| {
+			let engine = self.engine;
 			let vm_factory = self.state.vm_factory();
 			let mut ext = self.as_externalities(OriginInfo::from(&params), unconfirmed_substate, output_policy, tracer, vm_tracer, static_call);
 
 			scope.spawn(move || {
-				vm_factory.create(params.gas).exec(params, &mut ext).finalize(ext)
+				executor(engine, &vm_factory, &params).exec(params, &mut ext).finalize(ext)
 			})
 		}).join()
 	}
@@ -562,6 +579,7 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 				| Err(evm::Error::BadInstruction {.. })
 				| Err(evm::Error::StackUnderflow {..})
 				| Err(evm::Error::BuiltIn {..})
+				| Err(evm::Error::Wasm {..})
 				| Err(evm::Error::OutOfStack {..})
 				| Err(evm::Error::MutableCallInStaticContext)
 				| Ok(FinalizationResult { apply_state: false, .. }) => {
