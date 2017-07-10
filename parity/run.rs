@@ -168,7 +168,7 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 	use util::RwLock;
 
 	// load spec
-	let spec = cmd.spec.spec()?;
+	let spec = cmd.spec.spec(&cmd.dirs.cache)?;
 
 	// load genesis hash
 	let genesis_hash = spec.genesis_header().hash();
@@ -352,7 +352,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	}
 
 	// load spec
-	let spec = cmd.spec.spec()?;
+	let spec = cmd.spec.spec(&cmd.dirs.cache)?;
 
 	// load genesis hash
 	let genesis_hash = spec.genesis_header().hash();

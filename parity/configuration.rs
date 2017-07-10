@@ -34,7 +34,7 @@ use rpc::{IpcConfiguration, HttpConfiguration, WsConfiguration, UiConfiguration}
 use rpc_apis::ApiSet;
 use parity_rpc::NetworkSettings;
 use cache::CacheConfig;
-use helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_price, replace_home, replace_home_for_db,
+use helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_price, replace_home, replace_home_and_local,
 geth_ipc_path, parity_ipc_path, to_bootnodes, to_addresses, to_address, to_gas_limit, to_queue_strategy};
 use params::{SpecType, ResealPolicy, AccountsConfig, GasPricerConfig, MinerExtras, Pruning, Switch};
 use ethcore_logger::Config as LogConfig;
@@ -893,14 +893,20 @@ impl Configuration {
 		let local_path = default_local_path();
 		let base_path = self.args.flag_base_path.as_ref().or_else(|| self.args.flag_datadir.as_ref()).map_or_else(|| default_data_path(), |s| s.clone());
 		let data_path = replace_home("", &base_path);
-		let base_db_path = if self.args.flag_base_path.is_some() && self.args.flag_db_path.is_none() {
-			// If base_path is set and db_path is not we default to base path subdir instead of LOCAL.
+		let is_using_base_path = self.args.flag_base_path.is_some();
+		// If base_path is set and db_path is not we default to base path subdir instead of LOCAL.
+		let base_db_path = if is_using_base_path && self.args.flag_db_path.is_none() {
 			"$BASE/chains"
 		} else {
 			self.args.flag_db_path.as_ref().map_or(dir::CHAINS_PATH, |s| &s)
 		};
+		let cache_path = if is_using_base_path {
+			"$BASE/cache".into()
+		} else {
+			replace_home_and_local(&data_path, &local_path, &dir::CACHE_PATH)
+		};
 
-		let db_path = replace_home_for_db(&data_path, &local_path, &base_db_path);
+		let db_path = replace_home_and_local(&data_path, &local_path, &base_db_path);
 		let keys_path = replace_home(&data_path, &self.args.flag_keys_path);
 		let dapps_path = replace_home(&data_path, &self.args.flag_dapps_path);
 		let secretstore_path = replace_home(&data_path, &self.args.flag_secretstore_path);
@@ -924,6 +930,7 @@ impl Configuration {
 		Directories {
 			keys: keys_path,
 			base: data_path,
+			cache: cache_path,
 			db: db_path,
 			dapps: dapps_path,
 			signer: ui_path,
