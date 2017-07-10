@@ -110,14 +110,7 @@ class Status extends Component {
       );
     }
 
-    return (
-      <div>
-        <FormattedMessage
-          id='application.status.consensus.unknown'
-          defaultMessage='Upgrade status is unknown.'
-        />
-      </div>
-    );
+    return;
   }
 
   renderUpgradeButton () {
