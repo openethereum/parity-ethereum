@@ -265,7 +265,7 @@ impl MinerService for TestMinerService {
 		self.last_nonces.read().get(address).cloned()
 	}
 
-	fn is_sealing(&self) -> bool {
+	fn is_currently_sealing(&self) -> bool {
 		false
 	}
 

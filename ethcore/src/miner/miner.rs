@@ -1111,7 +1111,7 @@ impl MinerService for Miner {
 		}
 	}
 
-	fn is_sealing(&self) -> bool {
+	fn is_currently_sealing(&self) -> bool {
 		self.sealing_work.lock().queue.is_in_use()
 	}
 

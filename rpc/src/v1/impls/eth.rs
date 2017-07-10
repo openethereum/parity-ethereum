@@ -332,7 +332,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 	}
 
 	fn is_mining(&self) -> Result<bool, Error> {
-		Ok(self.miner.is_sealing())
+		Ok(self.miner.is_currently_sealing())
 	}
 
 	fn hashrate(&self) -> Result<RpcU256, Error> {

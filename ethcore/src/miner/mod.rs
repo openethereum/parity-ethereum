@@ -176,7 +176,7 @@ pub trait MinerService : Send + Sync {
 	fn last_nonce(&self, address: &Address) -> Option<U256>;
 
 	/// Is it currently sealing?
-	fn is_sealing(&self) -> bool;
+	fn is_currently_sealing(&self) -> bool;
 
 	/// Suggested gas price.
 	fn sensible_gas_price(&self) -> U256;
