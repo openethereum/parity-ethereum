@@ -33,7 +33,7 @@ export default class SelectMethods extends Component {
   render () {
     const { methodsStore, visibleStore } = this.props;
 
-    if (!methodsStore.modalOpen) {
+    if (!methodsStore.isModalOpen) {
       return null;
     }
 
@@ -54,8 +54,8 @@ export default class SelectMethods extends Component {
             <tr>
               <th>&nbsp;</th>
               {
-                methodsStore.filteredRequests.map((method, requestIndex) => (
-                  <th key={ requestIndex }>
+                methodsStore.methods.map((method, methodIndex) => (
+                  <th key={ methodIndex }>
                     <div>
                       <span>{ method }</span>
                     </div>
@@ -70,10 +70,10 @@ export default class SelectMethods extends Component {
                 <tr key={ dappIndex }>
                   <td>{ name }</td>
                   {
-                    methodsStore.filteredRequests.map((method, requestIndex) => (
+                    methodsStore.methods.map((method, methodIndex) => (
                       <td
                         className={ styles.check }
-                        key={ `${dappIndex}_${requestIndex}` }
+                        key={ `${dappIndex}_${methodIndex}` }
                       >
                         <MethodCheck
                           checked={ methodsStore.hasAppPermission(method, id) }

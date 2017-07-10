@@ -14,53 +14,35 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { flatten } from 'lodash';
 import { action, observable } from 'mobx';
-import store from 'store';
-
-import { sha3 } from '@parity/api/util/sha3';
-
-import filteredRequests from '../../DappRequests/filteredRequests';
-
-const LS_PERMISSIONS = '_parity::dapps::methods';
 
 export default class Store {
-  @observable filteredRequests = flatten(
-    Object.keys(filteredRequests).map((key) => filteredRequests[key].methods)
-  );
-  @observable modalOpen = false;
+  @observable isModalOpen = false;
+  @observable methods = [];
   @observable permissions = {};
-  @observable tokens = {};
 
-  constructor () {
-    this.permissions = store.get(LS_PERMISSIONS) || {};
+  constructor (api) {
+    this._api = api;
+
+    this.loadPermissions();
   }
 
   @action closeModal = () => {
-    this.modalOpen = false;
+    this.isModalOpen = false;
+
+    this.savePermissions();
   }
 
   @action openModal = () => {
-    this.modalOpen = true;
+    this.isModalOpen = true;
   }
 
-  @action createToken = (appId) => {
-    const token = sha3(`${appId}:${Date.now()}`);
-
-    this.tokens = Object.assign({}, this.tokens, {
-      [token]: appId
-    });
-
-    return token;
+  @action setMethods = (methods) => {
+    this.methods = methods;
   }
 
-  @action addTokenPermission = (method, token) => {
-    const id = `${method}:${this.tokens[token]}`;
-
-    this.permissions = Object.assign({}, this.permissions, {
-      [id]: true
-    });
-    this.savePermissions();
+  @action setPermissions = (permissions) => {
+    this.permissions = permissions;
   }
 
   @action toggleAppPermission = (method, appId) => {
@@ -69,28 +51,25 @@ export default class Store {
     this.permissions = Object.assign({}, this.permissions, {
       [id]: !this.permissions[id]
     });
-    this.savePermissions();
-  }
-
-  hasTokenPermission = (method, token) => {
-    return this.hasAppPermission(method, this.tokens[token]);
   }
 
   hasAppPermission = (method, appId) => {
     return this.permissions[`${method}:${appId}`] || false;
   }
 
-  savePermissions = () => {
-    store.set(LS_PERMISSIONS, this.permissions);
+  loadPermissions = () => {
+    return Promise
+      .all([
+        this._api.shell.getMethodPermissions(),
+        this._api.shell.getFilteredMethods()
+      ])
+      .then(([permissions, methods]) => {
+        this.setPermissions(permissions);
+        this.setMethods(methods);
+      });
   }
 
-  static instance = null;
-
-  static get () {
-    if (!Store.instance) {
-      Store.instance = new Store();
-    }
-
-    return Store.instance;
+  savePermissions = () => {
+    this._api.shell.setMethodPermissions(this.permissions);
   }
 }
