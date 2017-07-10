@@ -1443,7 +1443,7 @@ impl BlockChainClient for Client {
 	}
 
 	fn block_receipts(&self, hash: &H256) -> Option<Bytes> {
-		self.chain.read().block_receipts(hash).map(|receipts| ::rlp::encode(&receipts).to_vec())
+		self.chain.read().block_receipts(hash).map(|receipts| ::rlp::encode(&receipts).into_vec())
 	}
 
 	fn import_block(&self, bytes: Bytes) -> Result<H256, BlockImportError> {
@@ -1841,7 +1841,7 @@ fn transaction_receipt(engine: &Engine, mut tx: LocalizedTransaction, mut receip
 		gas_used: receipt.gas_used - prior_gas_used,
 		contract_address: match tx.action {
 			Action::Call(_) => None,
-			Action::Create => Some(contract_address(engine.create_address_scheme(block_number), &sender, &tx.nonce, &tx.data.sha3()))
+			Action::Create => Some(contract_address(engine.create_address_scheme(block_number), &sender, &tx.nonce, &tx.data).0)
 		},
 		logs: receipt.logs.into_iter().enumerate().map(|(i, log)| LocalizedLogEntry {
 			entry: log,

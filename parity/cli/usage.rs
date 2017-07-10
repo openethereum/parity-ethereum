@@ -55,28 +55,18 @@ macro_rules! usage {
 		use util::version;
 		use docopt::{Docopt, Error as DocoptError};
 		use helpers::replace_home;
-		use rustc_serialize;
 
 		#[derive(Debug)]
 		pub enum ArgsError {
 			Docopt(DocoptError),
-			Parsing(Vec<toml::ParserError>),
-			Decode(toml::DecodeError),
+			Decode(toml::de::Error),
 			Config(String, io::Error),
-			UnknownFields(String),
 		}
 
 		impl ArgsError {
 			pub fn exit(self) -> ! {
 				match self {
 					ArgsError::Docopt(e) => e.exit(),
-					ArgsError::Parsing(errors) => {
-						println_stderr!("There is an error in config file.");
-						for e in &errors {
-							println_stderr!("{}", e);
-						}
-						process::exit(2)
-					},
 					ArgsError::Decode(e) => {
 						println_stderr!("You might have supplied invalid parameters in config file.");
 						println_stderr!("{}", e);
@@ -87,21 +77,20 @@ macro_rules! usage {
 						println_stderr!("{}", e);
 						process::exit(2)
 					},
-					ArgsError::UnknownFields(fields) => {
-						println_stderr!("You have some extra fields in your config file:");
-						println_stderr!("{}", fields);
-						process::exit(2)
-					}
 				}
 			}
 		}
 
 		impl From<DocoptError> for ArgsError {
-			fn from(e: DocoptError) -> Self { ArgsError::Docopt(e) }
+			fn from(e: DocoptError) -> Self {
+				ArgsError::Docopt(e)
+			}
 		}
 
-		impl From<toml::DecodeError> for ArgsError {
-			fn from(e: toml::DecodeError) -> Self { ArgsError::Decode(e) }
+		impl From<toml::de::Error> for ArgsError {
+			fn from(e: toml::de::Error) -> Self {
+				ArgsError::Decode(e)
+			}
 		}
 
 		#[derive(Debug, PartialEq)]
@@ -137,7 +126,7 @@ macro_rules! usage {
 			}
 		}
 
-		#[derive(Default, Debug, PartialEq, Clone, RustcDecodable)]
+		#[derive(Default, Debug, PartialEq, Clone, Deserialize)]
 		struct RawArgs {
 			$(
 				$field_a: $typ_a,
@@ -192,20 +181,7 @@ macro_rules! usage {
 			}
 
 			fn parse_config(config: &str) -> Result<Config, ArgsError> {
-				let mut value_parser = toml::Parser::new(&config);
-				match value_parser.parse() {
-					Some(value) => {
-						let mut decoder = toml::Decoder::new(toml::Value::Table(value));
-						let result = rustc_serialize::Decodable::decode(&mut decoder);
-
-						match (result, decoder.toml) {
-							(Err(e), _) => Err(e.into()),
-							(_, Some(toml)) => Err(ArgsError::UnknownFields(toml::encode_str(&toml))),
-							(Ok(config), None) => Ok(config),
-						}
-					},
-					None => Err(ArgsError::Parsing(value_parser.errors)),
-				}
+				Ok(toml::from_str(config)?)
 			}
 
 			pub fn print_version() -> String {
@@ -229,7 +205,7 @@ macro_rules! usage {
 			}
 
 			pub fn parse<S: AsRef<str>>(command: &[S]) -> Result<Self, DocoptError> {
-				Docopt::new(Self::usage()).and_then(|d| d.argv(command).decode())
+				Docopt::new(Self::usage()).and_then(|d| d.argv(command).deserialize())
 			}
 
 			fn usage() -> String {

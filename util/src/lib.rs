@@ -87,7 +87,7 @@
 //!   cargo build --release
 //!   ```
 
-extern crate rustc_serialize;
+extern crate rustc_hex;
 extern crate rand;
 extern crate rocksdb;
 extern crate env_logger;

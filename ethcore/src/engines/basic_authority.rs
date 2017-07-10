@@ -139,7 +139,7 @@ impl Engine for BasicAuthority {
 		if self.validators.contains(header.parent_hash(), author) {
 			// account should be pernamently unlocked, otherwise sealing will fail
 			if let Ok(signature) = self.signer.sign(header.bare_hash()) {
-				return Seal::Regular(vec![::rlp::encode(&(&H520::from(signature) as &[u8])).to_vec()]);
+				return Seal::Regular(vec![::rlp::encode(&(&H520::from(signature) as &[u8])).into_vec()]);
 			} else {
 				trace!(target: "basicauthority", "generate_seal: FAIL: accounts secret key unavailable");
 			}
@@ -301,7 +301,7 @@ mod tests {
 	fn can_do_signature_verification_fail() {
 		let engine = new_test_authority().engine;
 		let mut header: Header = Header::default();
-		header.set_seal(vec![::rlp::encode(&H520::default()).to_vec()]);
+		header.set_seal(vec![::rlp::encode(&H520::default()).into_vec()]);
 
 		let verify_result = engine.verify_block_family(&header, &Default::default(), None);
 		assert!(verify_result.is_err());

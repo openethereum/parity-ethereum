@@ -132,6 +132,7 @@ fn compute_timeout(reqs: &Requests) -> Duration {
 		tm + match *req {
 			Request::Headers(_) => timeout::HEADERS,
 			Request::HeaderProof(_) => timeout::HEADER_PROOF,
+			Request::TransactionIndex(_) => timeout::TRANSACTION_INDEX,
 			Request::Receipts(_) => timeout::RECEIPT,
 			Request::Body(_) => timeout::BODY,
 			Request::Account(_) => timeout::PROOF,

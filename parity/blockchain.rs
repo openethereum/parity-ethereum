@@ -20,7 +20,7 @@ use std::io::{BufReader, BufRead};
 use std::time::{Instant, Duration};
 use std::thread::sleep;
 use std::sync::Arc;
-use rustc_serialize::hex::FromHex;
+use rustc_hex::FromHex;
 use util::{ToPretty, U256, H256, Address, Hashable};
 use rlp::PayloadInfo;
 use ethcore::service::ClientService;

@@ -21,14 +21,23 @@ use hyper::method::Method as HttpMethod;
 use hyper::status::StatusCode as HttpStatusCode;
 use hyper::server::{Server as HttpServer, Request as HttpRequest, Response as HttpResponse, Handler as HttpHandler,
 	Listening as HttpListening};
+use serde::Serialize;
 use serde_json;
 use url::percent_encoding::percent_decode;
 
-use traits::KeyServer;
-use serialization::{SerializableDocumentEncryptedKeyShadow, SerializableBytes};
-use types::all::{Error, NodeAddress, RequestSignature, DocumentAddress, DocumentEncryptedKey, DocumentEncryptedKeyShadow};
+use traits::{ServerKeyGenerator, DocumentKeyServer, MessageSigner, KeyServer};
+use serialization::{SerializableEncryptedDocumentKeyShadow, SerializableBytes, SerializablePublic};
+use types::all::{Error, Public, MessageHash, EncryptedMessageSignature, NodeAddress, RequestSignature, ServerKeyId,
+	EncryptedDocumentKey, EncryptedDocumentKeyShadow};
 
-/// Key server http-requests listener
+/// Key server http-requests listener. Available requests:
+/// To generate server key:							POST		/shadow/{server_key_id}/{signature}/{threshold}
+/// To store pregenerated encrypted document key: 	POST		/shadow/{server_key_id}/{signature}/{common_point}/{encrypted_key} 
+/// To generate server && document key:				POST		/{server_key_id}/{signature}/{threshold} 
+/// To get document key:							GET			/{server_key_id}/{signature}
+/// To get document key shadow:						GET			/shadow/{server_key_id}/{signature} 
+/// To sign message with server key:				GET			/{server_key_id}/{signature}/{message_hash}
+
 pub struct KeyServerHttpListener<T: KeyServer + 'static> {
 	_http_server: HttpListening,
 	handler: Arc<KeyServerSharedHttpHandler<T>>,
@@ -39,12 +48,18 @@ pub struct KeyServerHttpListener<T: KeyServer + 'static> {
 enum Request {
 	/// Invalid request
 	Invalid,
+	/// Generate server key.
+	GenerateServerKey(ServerKeyId, RequestSignature, usize),
+	/// Store document key.
+	StoreDocumentKey(ServerKeyId, RequestSignature, Public, Public),
 	/// Generate encryption key.
-	GenerateDocumentKey(DocumentAddress, RequestSignature, usize),
+	GenerateDocumentKey(ServerKeyId, RequestSignature, usize),
 	/// Request encryption key of given document for given requestor.
-	GetDocumentKey(DocumentAddress, RequestSignature),
+	GetDocumentKey(ServerKeyId, RequestSignature),
 	/// Request shadow of encryption key of given document for given requestor.
-	GetDocumentKeyShadow(DocumentAddress, RequestSignature),
+	GetDocumentKeyShadow(ServerKeyId, RequestSignature),
+	/// Sign message.
+	SignMessage(ServerKeyId, RequestSignature, MessageHash),
 }
 
 /// Cloneable http handler
@@ -78,17 +93,35 @@ impl<T> KeyServerHttpListener<T> where T: KeyServer + 'static {
 	}
 }
 
-impl<T> KeyServer for KeyServerHttpListener<T> where T: KeyServer + 'static {
-	fn generate_document_key(&self, signature: &RequestSignature, document: &DocumentAddress, threshold: usize) -> Result<DocumentEncryptedKey, Error> {
-		self.handler.key_server.generate_document_key(signature, document, threshold)
+impl<T> KeyServer for KeyServerHttpListener<T> where T: KeyServer + 'static {}
+
+impl<T> ServerKeyGenerator for KeyServerHttpListener<T> where T: KeyServer + 'static {
+	fn generate_key(&self, key_id: &ServerKeyId, signature: &RequestSignature, threshold: usize) -> Result<Public, Error> {
+		self.handler.key_server.generate_key(key_id, signature, threshold)
+	}
+}
+
+impl<T> DocumentKeyServer for KeyServerHttpListener<T> where T: KeyServer + 'static {
+	fn store_document_key(&self, key_id: &ServerKeyId, signature: &RequestSignature, common_point: Public, encrypted_document_key: Public) -> Result<(), Error> {
+		self.handler.key_server.store_document_key(key_id, signature, common_point, encrypted_document_key)
 	}
 
-	fn document_key(&self, signature: &RequestSignature, document: &DocumentAddress) -> Result<DocumentEncryptedKey, Error> {
-		self.handler.key_server.document_key(signature, document)
+	fn generate_document_key(&self, key_id: &ServerKeyId, signature: &RequestSignature, threshold: usize) -> Result<EncryptedDocumentKey, Error> {
+		self.handler.key_server.generate_document_key(key_id, signature, threshold)
 	}
 
-	fn document_key_shadow(&self, signature: &RequestSignature, document: &DocumentAddress) -> Result<DocumentEncryptedKeyShadow, Error> {
-		self.handler.key_server.document_key_shadow(signature, document)
+	fn restore_document_key(&self, key_id: &ServerKeyId, signature: &RequestSignature) -> Result<EncryptedDocumentKey, Error> {
+		self.handler.key_server.restore_document_key(key_id, signature)
+	}
+
+	fn restore_document_key_shadow(&self, key_id: &ServerKeyId, signature: &RequestSignature) -> Result<EncryptedDocumentKeyShadow, Error> {
+		self.handler.key_server.restore_document_key_shadow(key_id, signature)
+	}
+}
+
+impl <T> MessageSigner for KeyServerHttpListener<T> where T: KeyServer + 'static {
+	fn sign_message(&self, key_id: &ServerKeyId, signature: &RequestSignature, message: MessageHash) -> Result<EncryptedMessageSignature, Error> {
+		self.handler.key_server.sign_message(key_id, signature, message)
 	}
 }
 
@@ -111,47 +144,47 @@ impl<T> HttpHandler for KeyServerHttpHandler<T> where T: KeyServer + 'static {
 		let req_uri = req.uri.clone();
 		match &req_uri {
 			&RequestUri::AbsolutePath(ref path) => match parse_request(&req_method, &path) {
+				Request::GenerateServerKey(document, signature, threshold) => {
+					return_server_public_key(req, res, self.handler.key_server.generate_key(&document, &signature, threshold)
+						.map_err(|err| {
+							warn!(target: "secretstore", "GenerateServerKey request {} has failed with: {}", req_uri, err);
+							err
+						}));
+				},
+				Request::StoreDocumentKey(document, signature, common_point, encrypted_document_key) => {
+					return_empty(req, res, self.handler.key_server.store_document_key(&document, &signature, common_point, encrypted_document_key)
+						.map_err(|err| {
+							warn!(target: "secretstore", "StoreDocumentKey request {} has failed with: {}", req_uri, err);
+							err
+						}));
+				},
 				Request::GenerateDocumentKey(document, signature, threshold) => {
-					return_document_key(req, res, self.handler.key_server.generate_document_key(&signature, &document, threshold)
+					return_document_key(req, res, self.handler.key_server.generate_document_key(&document, &signature, threshold)
 						.map_err(|err| {
 							warn!(target: "secretstore", "GenerateDocumentKey request {} has failed with: {}", req_uri, err);
 							err
 						}));
 				},
 				Request::GetDocumentKey(document, signature) => {
-					return_document_key(req, res, self.handler.key_server.document_key(&signature, &document)
+					return_document_key(req, res, self.handler.key_server.restore_document_key(&document, &signature)
 						.map_err(|err| {
 							warn!(target: "secretstore", "GetDocumentKey request {} has failed with: {}", req_uri, err);
 							err
 						}));
 				},
 				Request::GetDocumentKeyShadow(document, signature) => {
-					match self.handler.key_server.document_key_shadow(&signature, &document)
+					return_document_key_shadow(req, res, self.handler.key_server.restore_document_key_shadow(&document, &signature)
 						.map_err(|err| {
 							warn!(target: "secretstore", "GetDocumentKeyShadow request {} has failed with: {}", req_uri, err);
 							err
-						}) {
-						Ok(document_key_shadow) => {
-							let document_key_shadow = SerializableDocumentEncryptedKeyShadow {
-								decrypted_secret: document_key_shadow.decrypted_secret.into(),
-								common_point: document_key_shadow.common_point.expect("always filled when requesting document_key_shadow; qed").into(),
-								decrypt_shadows: document_key_shadow.decrypt_shadows.expect("always filled when requesting document_key_shadow; qed").into_iter().map(Into::into).collect(),
-							};
-							match serde_json::to_vec(&document_key_shadow) {
-								Ok(document_key) => {
-									res.headers_mut().set(header::ContentType::json());
-									if let Err(err) = res.send(&document_key) {
-										// nothing to do, but to log an error
-										warn!(target: "secretstore", "response to request {} has failed with: {}", req.uri, err);
-									}
-								},
-								Err(err) => {
-									warn!(target: "secretstore", "response to request {} has failed with: {}", req.uri, err);
-								}
-							}
-						},
-						Err(err) => return_error(res, err),
-					}
+						}));
+				},
+				Request::SignMessage(document, signature, message_hash) => {
+					return_message_signature(req, res, self.handler.key_server.sign_message(&document, &signature, message_hash)
+						.map_err(|err| {
+							warn!(target: "secretstore", "SignMessage request {} has failed with: {}", req_uri, err);
+							err
+						}));
 				},
 				Request::Invalid => {
 					warn!(target: "secretstore", "Ignoring invalid {}-request {}", req_method, req_uri);
@@ -166,17 +199,45 @@ impl<T> HttpHandler for KeyServerHttpHandler<T> where T: KeyServer + 'static {
 	}
 }
 
-fn return_document_key(req: HttpRequest, mut res: HttpResponse, document_key: Result<DocumentEncryptedKey, Error>) {
-	let document_key = document_key.
-		and_then(|k| serde_json::to_vec(&SerializableBytes(k)).map_err(|e| Error::Serde(e.to_string())));
-	match document_key {
-		Ok(document_key) => {
-			res.headers_mut().set(header::ContentType::plaintext());
-			if let Err(err) = res.send(&document_key) {
-				// nothing to do, but to log an error
+fn return_empty(req: HttpRequest, res: HttpResponse, empty: Result<(), Error>) {
+	return_bytes::<i32>(req, res, empty.map(|_| None))
+}
+
+fn return_server_public_key(req: HttpRequest, res: HttpResponse, server_public: Result<Public, Error>) {
+	return_bytes(req, res, server_public.map(|k| Some(SerializablePublic(k))))
+}
+
+fn return_message_signature(req: HttpRequest, res: HttpResponse, signature: Result<EncryptedDocumentKey, Error>) {
+	return_bytes(req, res, signature.map(|s| Some(SerializableBytes(s))))
+}
+
+fn return_document_key(req: HttpRequest, res: HttpResponse, document_key: Result<EncryptedDocumentKey, Error>) {
+	return_bytes(req, res, document_key.map(|k| Some(SerializableBytes(k))))
+}
+
+fn return_document_key_shadow(req: HttpRequest, res: HttpResponse, document_key_shadow: Result<EncryptedDocumentKeyShadow, Error>) {
+	return_bytes(req, res, document_key_shadow.map(|k| Some(SerializableEncryptedDocumentKeyShadow {
+		decrypted_secret: k.decrypted_secret.into(),
+		common_point: k.common_point.expect("always filled when requesting document_key_shadow; qed").into(),
+		decrypt_shadows: k.decrypt_shadows.expect("always filled when requesting document_key_shadow; qed").into_iter().map(Into::into).collect(),
+	})))
+}
+
+fn return_bytes<T: Serialize>(req: HttpRequest, mut res: HttpResponse, result: Result<Option<T>, Error>) {
+	match result {
+		Ok(Some(result)) => match serde_json::to_vec(&result) {
+			Ok(result) => {
+				res.headers_mut().set(header::ContentType::json());
+				if let Err(err) = res.send(&result) {
+					// nothing to do, but to log an error
+					warn!(target: "secretstore", "response to request {} has failed with: {}", req.uri, err);
+				}
+			},
+			Err(err) => {
 				warn!(target: "secretstore", "response to request {} has failed with: {}", req.uri, err);
 			}
 		},
+		Ok(None) => *res.status_mut() = HttpStatusCode::Ok,
 		Err(err) => return_error(res, err),
 	}
 }
@@ -190,6 +251,13 @@ fn return_error(mut res: HttpResponse, err: Error) {
 		Error::Database(_) => *res.status_mut() = HttpStatusCode::InternalServerError,
 		Error::Internal(_) => *res.status_mut() = HttpStatusCode::InternalServerError,
 	}
+
+	// return error text. ignore errors when returning error
+	let error_text = format!("\"{}\"", err);
+	if let Ok(error_text) = serde_json::to_vec(&error_text) {
+		res.headers_mut().set(header::ContentType::json());
+		let _ = res.send(&error_text);
+	}
 }
 
 fn parse_request(method: &HttpMethod, uri_path: &str) -> Request {
@@ -202,24 +270,39 @@ fn parse_request(method: &HttpMethod, uri_path: &str) -> Request {
 	if path.len() == 0 {
 		return Request::Invalid;
 	}
-	let (args_prefix, args_offset) = if &path[0] == "shadow" {
-		("shadow", 1)
-	} else {
-		("", 0)
-	};
 
-	if path.len() < 2 + args_offset || path[args_offset].is_empty() || path[args_offset + 1].is_empty() {
+	let (is_shadow_request, args_offset) = if &path[0] == "shadow" { (true, 1) } else { (false, 0) };
+	let args_count = path.len() - args_offset;
+	if args_count < 2 || path[args_offset].is_empty() || path[args_offset + 1].is_empty() {
 		return Request::Invalid;
 	}
 
-	let args_len = path.len();
-	let document = path[args_offset].parse();
-	let signature = path[args_offset + 1].parse();
-	let threshold = (if args_len > args_offset + 2 { &path[args_offset + 2] } else { "" }).parse();
-	match (args_prefix, args_len, method, document, signature, threshold) {
-		("",		3, &HttpMethod::Post, Ok(document), Ok(signature), Ok(threshold)) => Request::GenerateDocumentKey(document, signature, threshold),
-		("",		2, &HttpMethod::Get, Ok(document), Ok(signature), _) => Request::GetDocumentKey(document, signature),
-		("shadow",	3, &HttpMethod::Get, Ok(document), Ok(signature), _) => Request::GetDocumentKeyShadow(document, signature),
+	let document = match path[args_offset].parse() {
+		Ok(document) => document,
+		_ => return Request::Invalid,
+	};
+	let signature = match path[args_offset + 1].parse() {
+		Ok(signature) => signature,
+		_ => return Request::Invalid,
+	};
+
+	let threshold = path.get(args_offset + 2).map(|v| v.parse());
+	let message_hash = path.get(args_offset + 2).map(|v| v.parse());
+	let common_point = path.get(args_offset + 2).map(|v| v.parse());
+	let encrypted_key = path.get(args_offset + 3).map(|v| v.parse());
+	match (is_shadow_request, args_count, method, threshold, message_hash, common_point, encrypted_key) {
+		(true, 3, &HttpMethod::Post, Some(Ok(threshold)), _, _, _) =>
+			Request::GenerateServerKey(document, signature, threshold),
+		(true, 4, &HttpMethod::Post, _, _, Some(Ok(common_point)), Some(Ok(encrypted_key))) =>
+			Request::StoreDocumentKey(document, signature, common_point, encrypted_key),
+		(false, 3, &HttpMethod::Post, Some(Ok(threshold)), _, _, _) =>
+			Request::GenerateDocumentKey(document, signature, threshold),
+		(false, 2, &HttpMethod::Get, _, _, _, _) =>
+			Request::GetDocumentKey(document, signature),
+		(true, 2, &HttpMethod::Get, _, _, _, _) =>
+			Request::GetDocumentKeyShadow(document, signature),
+		(false, 3, &HttpMethod::Get, _, Some(Ok(message_hash)), _, _) =>
+			Request::SignMessage(document, signature, message_hash),
 		_ => Request::Invalid,
 	}
 }
@@ -241,19 +324,49 @@ mod tests {
 
 	#[test]
 	fn parse_request_successful() {
+		// POST		/shadow/{server_key_id}/{signature}/{threshold}						=> generate server key
+		assert_eq!(parse_request(&HttpMethod::Post, "/shadow/0000000000000000000000000000000000000000000000000000000000000001/a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01/2"),
+			Request::GenerateServerKey("0000000000000000000000000000000000000000000000000000000000000001".into(),
+				"a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01".parse().unwrap(),
+				2));
+		// POST		/shadow/{server_key_id}/{signature}/{common_point}/{encrypted_key}	=> store encrypted document key
+		assert_eq!(parse_request(&HttpMethod::Post, "/shadow/0000000000000000000000000000000000000000000000000000000000000001/a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01/b486d3840218837b035c66196ecb15e6b067ca20101e11bd5e626288ab6806ecc70b8307012626bd512bad1559112d11d21025cef48cc7a1d2f3976da08f36c8/1395568277679f7f583ab7c0992da35f26cde57149ee70e524e49bdae62db3e18eb96122501e7cbb798b784395d7bb5a499edead0706638ad056d886e56cf8fb"),
+			Request::StoreDocumentKey("0000000000000000000000000000000000000000000000000000000000000001".into(),
+				"a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01".parse().unwrap(),
+				"b486d3840218837b035c66196ecb15e6b067ca20101e11bd5e626288ab6806ecc70b8307012626bd512bad1559112d11d21025cef48cc7a1d2f3976da08f36c8".parse().unwrap(),
+				"1395568277679f7f583ab7c0992da35f26cde57149ee70e524e49bdae62db3e18eb96122501e7cbb798b784395d7bb5a499edead0706638ad056d886e56cf8fb".parse().unwrap()));
+		// POST		/{server_key_id}/{signature}/{threshold}							=> generate server && document key
+		assert_eq!(parse_request(&HttpMethod::Post, "/0000000000000000000000000000000000000000000000000000000000000001/a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01/2"),
+			Request::GenerateDocumentKey("0000000000000000000000000000000000000000000000000000000000000001".into(),
+				"a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01".parse().unwrap(),
+				2));
+		// GET		/{server_key_id}/{signature}										=> get document key
 		assert_eq!(parse_request(&HttpMethod::Get, "/0000000000000000000000000000000000000000000000000000000000000001/a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01"),
 			Request::GetDocumentKey("0000000000000000000000000000000000000000000000000000000000000001".into(),
 				"a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01".parse().unwrap()));
 		assert_eq!(parse_request(&HttpMethod::Get, "/%30000000000000000000000000000000000000000000000000000000000000001/a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01"),
 			Request::GetDocumentKey("0000000000000000000000000000000000000000000000000000000000000001".into(),
 				"a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01".parse().unwrap()));
+		// GET		/shadow/{server_key_id}/{signature}									=> get document key shadow
+		assert_eq!(parse_request(&HttpMethod::Get, "/shadow/0000000000000000000000000000000000000000000000000000000000000001/a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01"),
+			Request::GetDocumentKeyShadow("0000000000000000000000000000000000000000000000000000000000000001".into(),
+				"a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01".parse().unwrap()));
+		// GET		/{server_key_id}/{signature}/{message_hash}							=> sign message with server key
+		assert_eq!(parse_request(&HttpMethod::Get, "/0000000000000000000000000000000000000000000000000000000000000001/a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01/281b6bf43cb86d0dc7b98e1b7def4a80f3ce16d28d2308f934f116767306f06c"),
+			Request::SignMessage("0000000000000000000000000000000000000000000000000000000000000001".into(),
+				"a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01".parse().unwrap(),
+				"281b6bf43cb86d0dc7b98e1b7def4a80f3ce16d28d2308f934f116767306f06c".parse().unwrap()));
 	}
 
 	#[test]
 	fn parse_request_failed() {
+		assert_eq!(parse_request(&HttpMethod::Get, ""), Request::Invalid);
+		assert_eq!(parse_request(&HttpMethod::Get, "/shadow"), Request::Invalid);
+		assert_eq!(parse_request(&HttpMethod::Get, "///2"), Request::Invalid);
+		assert_eq!(parse_request(&HttpMethod::Get, "/shadow///2"), Request::Invalid);
 		assert_eq!(parse_request(&HttpMethod::Get, "/0000000000000000000000000000000000000000000000000000000000000001"), Request::Invalid);
 		assert_eq!(parse_request(&HttpMethod::Get, "/0000000000000000000000000000000000000000000000000000000000000001/"), Request::Invalid);
 		assert_eq!(parse_request(&HttpMethod::Get, "/a/b"), Request::Invalid);
-		assert_eq!(parse_request(&HttpMethod::Get, "/0000000000000000000000000000000000000000000000000000000000000001/a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01/0000000000000000000000000000000000000000000000000000000000000002"), Request::Invalid);
+		assert_eq!(parse_request(&HttpMethod::Get, "/0000000000000000000000000000000000000000000000000000000000000001/a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01/0000000000000000000000000000000000000000000000000000000000000002/0000000000000000000000000000000000000000000000000000000000000002"), Request::Invalid);
 	}
 }

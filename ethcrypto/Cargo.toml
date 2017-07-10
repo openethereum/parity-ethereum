@@ -9,4 +9,4 @@ tiny-keccak = "1.2"
 eth-secp256k1 = { git = "https://github.com/paritytech/rust-secp256k1" }
 ethkey = { path = "../ethkey" }
 ethcore-bigint = { path = "../util/bigint" }
-
+subtle = "0.1"

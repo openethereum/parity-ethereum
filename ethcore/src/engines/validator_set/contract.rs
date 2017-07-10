@@ -126,6 +126,7 @@ impl ValidatorSet for ValidatorContract {
 
 #[cfg(test)]
 mod tests {
+	use rustc_hex::FromHex;
 	use util::*;
 	use rlp::encode;
 	use spec::Spec;
@@ -161,7 +162,7 @@ mod tests {
 
 		client.miner().set_engine_signer(v1, "".into()).unwrap();
 		let mut header = Header::default();
-		let seal = vec![encode(&5u8).to_vec(), encode(&(&H520::default() as &[u8])).to_vec()];
+		let seal = vec![encode(&5u8).into_vec(), encode(&(&H520::default() as &[u8])).into_vec()];
 		header.set_seal(seal);
 		header.set_author(v1);
 		header.set_number(2);

@@ -80,7 +80,7 @@ fn decode_first_proof(rlp: &UntrustedRlp) -> Result<(Header, Vec<DBValue>), ::er
 fn encode_proof(header: &Header, receipts: &[Receipt]) -> Bytes {
 	let mut stream = RlpStream::new_list(2);
 	stream.append(header).append_list(receipts);
-	stream.drain().to_vec()
+	stream.drain().into_vec()
 }
 
 fn decode_proof(rlp: &UntrustedRlp) -> Result<(Header, Vec<Receipt>), ::error::Error> {
@@ -200,7 +200,7 @@ impl ValidatorSafeContract {
 
 				// decode log manually until the native contract generator is
 				// good enough to do it for us.
-				let &(_, _, ref validators_token) = &matched_event.params[1];
+				let validators_token = &matched_event[1].value;
 
 				let validators = validators_token.clone().to_array()
 					.and_then(|a| a.into_iter()
@@ -420,6 +420,7 @@ impl ValidatorSet for ValidatorSafeContract {
 
 #[cfg(test)]
 mod tests {
+	use rustc_hex::FromHex;
 	use util::*;
 	use types::ids::BlockId;
 	use spec::Spec;

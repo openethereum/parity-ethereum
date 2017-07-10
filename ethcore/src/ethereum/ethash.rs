@@ -459,11 +459,14 @@ impl Ethash {
 		let parent_has_uncles = parent.uncles_hash() != &sha3::SHA3_EMPTY_LIST_RLP;
 
 		let min_difficulty = self.ethash_params.minimum_difficulty;
+
 		let difficulty_hardfork = header.number() >= self.ethash_params.difficulty_hardfork_transition;
-		let difficulty_bound_divisor = match difficulty_hardfork {
-			true => self.ethash_params.difficulty_hardfork_bound_divisor,
-			false => self.ethash_params.difficulty_bound_divisor,
+		let difficulty_bound_divisor = if difficulty_hardfork {
+			self.ethash_params.difficulty_hardfork_bound_divisor
+		} else {
+			self.ethash_params.difficulty_bound_divisor
 		};
+
 		let duration_limit = self.ethash_params.duration_limit;
 		let frontier_limit = self.ethash_params.homestead_transition;
 
@@ -489,7 +492,10 @@ impl Ethash {
 			if diff_inc <= threshold {
 				*parent.difficulty() + *parent.difficulty() / difficulty_bound_divisor * (threshold - diff_inc).into()
 			} else {
-				*parent.difficulty() - *parent.difficulty() / difficulty_bound_divisor * min(diff_inc - threshold, 99).into()
+				let multiplier = min(diff_inc - threshold, 99).into();
+				parent.difficulty().saturating_sub(
+					*parent.difficulty() / difficulty_bound_divisor * multiplier
+				)
 			}
 		};
 		target = max(min_difficulty, target);
@@ -546,7 +552,7 @@ impl Header {
 
 	/// Set the nonce and mix hash fields of the header.
 	pub fn set_nonce_and_mix_hash(&mut self, nonce: &H64, mix_hash: &H256) {
-		self.set_seal(vec![rlp::encode(mix_hash).to_vec(), rlp::encode(nonce).to_vec()]);
+		self.set_seal(vec![rlp::encode(mix_hash).into_vec(), rlp::encode(nonce).into_vec()]);
 	}
 }
 
@@ -633,7 +639,7 @@ mod tests {
 	fn can_do_difficulty_verification_fail() {
 		let engine = test_spec().engine;
 		let mut header: Header = Header::default();
-		header.set_seal(vec![rlp::encode(&H256::zero()).to_vec(), rlp::encode(&H64::zero()).to_vec()]);
+		header.set_seal(vec![rlp::encode(&H256::zero()).into_vec(), rlp::encode(&H64::zero()).into_vec()]);
 
 		let verify_result = engine.verify_block_basic(&header, None);
 
@@ -648,7 +654,7 @@ mod tests {
 	fn can_do_proof_of_work_verification_fail() {
 		let engine = test_spec().engine;
 		let mut header: Header = Header::default();
-		header.set_seal(vec![rlp::encode(&H256::zero()).to_vec(), rlp::encode(&H64::zero()).to_vec()]);
+		header.set_seal(vec![rlp::encode(&H256::zero()).into_vec(), rlp::encode(&H64::zero()).into_vec()]);
 		header.set_difficulty(U256::from_str("ffffffffffffffffffffffffffffffffffffffffffffaaaaaaaaaaaaaaaaaaaa").unwrap());
 
 		let verify_result = engine.verify_block_basic(&header, None);
@@ -678,7 +684,7 @@ mod tests {
 	fn can_do_seal256_verification_fail() {
 		let engine = test_spec().engine;
 		let mut header: Header = Header::default();
-		header.set_seal(vec![rlp::encode(&H256::zero()).to_vec(), rlp::encode(&H64::zero()).to_vec()]);
+		header.set_seal(vec![rlp::encode(&H256::zero()).into_vec(), rlp::encode(&H64::zero()).into_vec()]);
 		let verify_result = engine.verify_block_unordered(&header, None);
 
 		match verify_result {
@@ -692,7 +698,7 @@ mod tests {
 	fn can_do_proof_of_work_unordered_verification_fail() {
 		let engine = test_spec().engine;
 		let mut header: Header = Header::default();
-		header.set_seal(vec![rlp::encode(&H256::from("b251bd2e0283d0658f2cadfdc8ca619b5de94eca5742725e2e757dd13ed7503d")).to_vec(), rlp::encode(&H64::zero()).to_vec()]);
+		header.set_seal(vec![rlp::encode(&H256::from("b251bd2e0283d0658f2cadfdc8ca619b5de94eca5742725e2e757dd13ed7503d")).into_vec(), rlp::encode(&H64::zero()).into_vec()]);
 		header.set_difficulty(U256::from_str("ffffffffffffffffffffffffffffffffffffffffffffaaaaaaaaaaaaaaaaaaaa").unwrap());
 
 		let verify_result = engine.verify_block_unordered(&header, None);

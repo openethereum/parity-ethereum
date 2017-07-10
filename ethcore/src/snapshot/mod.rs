@@ -462,7 +462,7 @@ fn rebuild_accounts(
 				}
 			}
 
-			::rlp::encode(&acc).to_vec()
+			::rlp::encode(&acc).into_vec()
 		};
 
 		*out = (hash, thin_rlp);

@@ -209,13 +209,14 @@ impl DerefMut for BanningTransactionQueue {
 #[cfg(test)]
 mod tests {
 	use std::time::Duration;
+	use rustc_hex::FromHex;
 	use super::{BanningTransactionQueue, Threshold};
 	use ethkey::{Random, Generator};
 	use transaction::{Transaction, SignedTransaction, Action};
 	use error::{Error, TransactionError};
 	use client::TransactionImportResult;
 	use miner::{TransactionQueue, TransactionOrigin};
-	use util::{U256, Address, FromHex, Hashable};
+	use util::{U256, Address, Hashable};
 	use miner::transaction_queue::test::DummyTransactionDetailsProvider;
 
 	fn queue() -> BanningTransactionQueue {

@@ -70,6 +70,10 @@ export function mockWs (requests) {
     scope.requests++;
 
     mockServer.send(JSON.stringify(response));
+
+    if (request.method.match('subscribe') && request.subscription) {
+      mockServer.send(JSON.stringify(request.subscription));
+    }
   });
 
   return scope;
