@@ -80,9 +80,11 @@ pub struct CommonParams {
 	/// Number of first block where dust cleanup rules (EIP-168 and EIP169) begin.
 	pub dust_protection_transition: BlockNumber,
 	/// Nonce cap increase per block. Nonce cap is only checked if dust protection is enabled.
-	pub nonce_cap_increment : u64,
+	pub nonce_cap_increment: u64,
 	/// Enable dust cleanup for contracts.
-	pub remove_dust_contracts : bool,
+	pub remove_dust_contracts: bool,
+	/// Wasm support
+	pub wasm: bool,
 }
 
 impl From<ethjson::spec::Params> for CommonParams {
@@ -110,6 +112,7 @@ impl From<ethjson::spec::Params> for CommonParams {
 			dust_protection_transition: p.dust_protection_transition.map_or(BlockNumber::max_value(), Into::into),
 			nonce_cap_increment: p.nonce_cap_increment.map_or(64, Into::into),
 			remove_dust_contracts: p.remove_dust_contracts.unwrap_or(false),
+			wasm: p.wasm.unwrap_or(false),
 		}
 	}
 }

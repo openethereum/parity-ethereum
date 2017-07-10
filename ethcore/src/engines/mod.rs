@@ -376,6 +376,11 @@ pub trait Engine : Sync + Send {
 		self.snapshot_components().is_some()
 	}
 
+	/// If this engine supports wasm contracts.
+	fn supports_wasm(&self) -> bool {
+		self.params().wasm
+	}
+
 	/// Returns new contract address generation scheme at given block number.
 	fn create_address_scheme(&self, number: BlockNumber) -> CreateContractAddress {
 		if number >= self.params().eip86_transition {
