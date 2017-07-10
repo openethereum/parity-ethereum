@@ -20,11 +20,7 @@ import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 
-import { Actionbar, Button, Checkbox, DappCard, Page, SectionList } from '@parity/ui';
-import { LockedIcon } from '@parity/ui/Icons';
-
-import SelectAccounts from './SelectAccounts';
-import PermissionStore from './SelectAccounts/store';
+import { Checkbox, DappCard, Page, SectionList } from '@parity/ui';
 
 import DappsStore from './dappsStore';
 
@@ -42,7 +38,6 @@ class Dapps extends Component {
   };
 
   store = DappsStore.get(this.context.api);
-  permissionStore = new PermissionStore(this.context.api);
 
   componentWillMount () {
     this.store.loadAllApps();
@@ -78,37 +73,19 @@ class Dapps extends Component {
     }
 
     return (
-      <div>
-        <SelectAccounts permissionStore={ this.permissionStore } />
-        <Actionbar
-          className={ styles.toolbar }
-          title={
-            <FormattedMessage
-              id='dapps.label'
-              defaultMessage='Decentralized Applications'
-            />
-          }
-          buttons={ [
-            <Button
-              icon={ <LockedIcon /> }
-              key='accounts'
-              label={
-                <FormattedMessage
-                  id='dapps.button.accounts'
-                  defaultMessage='allowed accounts'
-                />
-              }
-              onClick={ this.openPermissionsModal }
-            />
-          ] }
-        />
-        <Page>
-          <div>{ this.renderList(this.store.visibleViews) }</div>
-          <div>{ this.renderList(this.store.visibleLocal) }</div>
-          <div>{ this.renderList(this.store.visibleBuiltin) }</div>
-          <div>{ this.renderList(this.store.visibleNetwork, externalOverlay) }</div>
-        </Page>
-      </div>
+      <Page
+        title={
+          <FormattedMessage
+            id='dapps.label'
+            defaultMessage='Decentralized Applications'
+          />
+        }
+      >
+        <div>{ this.renderList(this.store.visibleViews) }</div>
+        <div>{ this.renderList(this.store.visibleLocal) }</div>
+        <div>{ this.renderList(this.store.visibleBuiltin) }</div>
+        <div>{ this.renderList(this.store.visibleNetwork, externalOverlay) }</div>
+      </Page>
     );
   }
 

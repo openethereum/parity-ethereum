@@ -25,40 +25,54 @@ export default class Store {
   constructor (api) {
     this._api = api;
 
-    this.loadWhitelist();
+    this.load();
   }
 
-  @action closeModal = () => {
-    transaction(() => {
-      const checkedAccounts = this.accounts.filter((account) => account.checked);
-      const defaultAddress = (this.accounts.find((account) => account.default) || {}).address;
-      const addresses = checkedAccounts.length === this.accounts.length
-        ? null
-        : checkedAccounts.map((account) => account.address);
+  save = () => {
+    const checkedAccounts = this.accounts.filter((account) => account.checked);
+    const defaultAddress = (this.accounts.find((account) => account.default) || {}).address;
+    const addresses = checkedAccounts.length === this.accounts.length
+      ? null
+      : checkedAccounts.map((account) => account.address);
 
-      this.modalOpen = false;
-      this.updateWhitelist(addresses, defaultAddress);
-    });
+    this.updateWhitelist(addresses, defaultAddress);
   }
 
-  @action openModal = (accounts) => {
+  // FIXME: Hardware accounts are not showing up here
+  @action setAccounts = (accounts) => {
     transaction(() => {
       this.accounts = Object
-        .values(accounts)
-        .map((account, index) => {
+        .keys(accounts)
+        .filter((address) => {
+          const account = accounts[address];
+
+          if (account.uuid) {
+            return true;
+          } else if (account.meta.hardware) {
+            account.hardware = true;
+            return true;
+          } else if (account.meta.external) {
+            account.external = true;
+            return true;
+          }
+
+          return false;
+        })
+        .map((address, index) => {
+          const account = accounts[address];
+
           return {
-            address: account.address,
+            address,
             checked: this.whitelist
-              ? this.whitelist.includes(account.address)
+              ? this.whitelist.includes(address)
               : true,
             default: this.whitelistDefault
-              ? this.whitelistDefault === account.address
+              ? this.whitelistDefault === address
               : index === 0,
             description: account.meta.description,
             name: account.name
           };
         });
-      this.modalOpen = true;
     });
   }
 
@@ -103,17 +117,19 @@ export default class Store {
     });
   }
 
-  loadWhitelist () {
+  load () {
     return Promise
       .all([
+        this._api.parity.allAccountsInfo(),
         this._api.parity.getNewDappsAddresses(),
         this._api.parity.getNewDappsDefaultAddress()
       ])
-      .then(([whitelist, whitelistDefault]) => {
+      .then(([accounts, whitelist, whitelistDefault]) => {
         this.setWhitelist(whitelist, whitelistDefault);
+        this.setAccounts(accounts);
       })
       .catch((error) => {
-        console.warn('loadWhitelist', error);
+        console.warn('load', error);
       });
   }
 
