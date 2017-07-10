@@ -662,7 +662,7 @@ impl Configuration {
 				let mut buffer = String::new();
 				let mut node_file = File::open(path).map_err(|e| format!("Error opening reserved nodes file: {}", e))?;
 				node_file.read_to_string(&mut buffer).map_err(|_| "Error reading reserved node file")?;
-				let lines = buffer.lines().map(|s| s.trim().to_owned()).filter(|s| !s.is_empty()).collect::<Vec<_>>();
+				let lines = buffer.lines().map(|s| s.trim().to_owned()).filter(|s| !s.is_empty() && !s.starts_with("#")).collect::<Vec<_>>();
 				if let Some(invalid) = lines.iter().find(|s| !is_valid_node_url(s)) {
 					return Err(format!("Invalid node address format given for a boot node: {}", invalid));
 				}
@@ -1559,6 +1559,19 @@ mod tests {
 		let args = vec!["parity", "--reserved-peers", &filename];
 		let conf = Configuration::parse(&args, None).unwrap();
 		assert!(conf.init_reserved_nodes().is_ok());
+	}
+
+	#[test]
+	fn should_ignore_comments_in_reserved_peers() {
+		let temp = RandomTempPath::new();
+		create_dir(temp.as_str().to_owned()).unwrap();
+		let filename = temp.as_str().to_owned() + "/peers_comments";
+		File::create(filename.clone()).unwrap().write_all(b"# Sample comment\nenode://6f8a80d14311c39f35f516fa664deaaaa13e85b2f7493f37f6144d86991ec012937307647bd3b9a82abe2974e1407241d54947bbb39763a4cac9f77166ad92a0@172.0.0.1:30303\n").unwrap();
+		let args = vec!["parity", "--reserved-peers", &filename];
+		let conf = Configuration::parse(&args, None).unwrap();
+		let reserved_nodes = conf.init_reserved_nodes();
+		assert!(reserved_nodes.is_ok());
+		assert_eq!(reserved_nodes.unwrap().len(), 1);
 	}
 
 	#[test]
