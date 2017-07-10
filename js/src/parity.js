@@ -23,11 +23,11 @@ import Api from './api';
 
 import './dev.parity.html';
 
-const web3Provider = new Api.Provider.Http('/rpc/');
-const api = new Api(web3Provider);
+const ethereumProvider = new Api.Provider.Http('/rpc/');
+const api = new Api(ethereumProvider);
 
 window.parity = {
   Api,
   api,
-  web3Provider
+  ethereumProvider
 };
