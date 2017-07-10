@@ -15,6 +15,12 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 export default {
+  shell: {
+    methods: [
+      'shell_getMethodPermissions',
+      'shell_setMethodPermissions'
+    ]
+  },
   accountsView: {
     methods: [
       'parity_accountsInfo',
