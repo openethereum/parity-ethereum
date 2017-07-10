@@ -19,9 +19,9 @@ export default class Shell {
     this._provider = provider;
   }
 
-  getApps () {
+  getApps (retrieveAll = false) {
     return this._provider
-      .send('shell_getApps');
+      .send('shell_getApps', retrieveAll);
   }
 
   getFilteredMethods () {
@@ -37,5 +37,10 @@ export default class Shell {
   setMethodPermissions (permissions) {
     return this._provider
       .send('shell_setMethodPermissions', permissions);
+  }
+
+  setAppVisibility (appId, state) {
+    return this._provider
+      .send('shell_setAppVisibility', appId, state);
   }
 }

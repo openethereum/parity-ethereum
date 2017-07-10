@@ -21,11 +21,10 @@ import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 
 import { Actionbar, Button, Checkbox, DappCard, Page, SectionList } from '@parity/ui';
-import { LockedIcon, VisibleIcon } from '@parity/ui/Icons';
+import { LockedIcon } from '@parity/ui/Icons';
 
 import SelectAccounts from './SelectAccounts';
 import PermissionStore from './SelectAccounts/store';
-import SelectVisible from './SelectVisible';
 
 import DappsStore from './dappsStore';
 
@@ -81,7 +80,6 @@ class Dapps extends Component {
     return (
       <div>
         <SelectAccounts permissionStore={ this.permissionStore } />
-        <SelectVisible store={ this.store } />
         <Actionbar
           className={ styles.toolbar }
           title={
@@ -91,17 +89,6 @@ class Dapps extends Component {
             />
           }
           buttons={ [
-            <Button
-              icon={ <VisibleIcon /> }
-              key='edit'
-              label={
-                <FormattedMessage
-                  id='dapps.button.edit'
-                  defaultMessage='edit applications'
-                />
-              }
-              onClick={ this.store.openModal }
-            />,
             <Button
               icon={ <LockedIcon /> }
               key='accounts'

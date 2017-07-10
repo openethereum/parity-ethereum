@@ -56,7 +56,7 @@ export default class Store {
   loadInitialise = () => {
     return Promise
       .all([
-        this._api.shell.getApps(),
+        this._api.shell.getApps(false),
         this._api.shell.getFilteredMethods(),
         this._api.shell.getMethodPermissions()
       ])

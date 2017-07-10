@@ -20,6 +20,7 @@ export default {
       'shell_getApps',
       'shell_getFilteredMethods',
       'shell_getMethodPermissions',
+      'shell_setAppVisibility',
       'shell_setMethodPermissions'
     ]
   },

@@ -14,33 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { shallow } from 'enzyme';
-import React from 'react';
+import Api from '@parity/api';
 
-import DappsVisible from './';
+const web3Provider = (window.parity && window.parity.web3Provider) || (window.parent && window.parent.web3Provider);
 
-function renderShallow (store = {}) {
-  return shallow(
-    <DappsVisible store={ store } />
-  );
-}
-
-describe('shell/Dapps/SelectVisible', () => {
-  describe('rendering', () => {
-    it('renders defaults', () => {
-      expect(renderShallow()).to.be.ok;
-    });
-
-    it('does not render the modal with modalOpen = false', () => {
-      expect(
-        renderShallow({ modalOpen: false }).find('Portal')
-      ).to.have.length(0);
-    });
-
-    it('does render the modal with modalOpen = true', () => {
-      expect(
-        renderShallow({ modalOpen: true }).find('Portal')
-      ).to.have.length(1);
-    });
-  });
-});
+export default new Api(web3Provider);

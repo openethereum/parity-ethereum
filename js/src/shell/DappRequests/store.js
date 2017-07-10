@@ -170,11 +170,17 @@ export default class Store {
   }
 
   executeMethodCall = ({ id, from, method, params, token }, source) => {
+    const visibleStore = VisibleStore.get();
     const callback = this._methodCallbackPost(id, source, token);
 
     switch (method) {
       case 'shell_getApps':
-        return callback(null, VisibleStore.get().visibleApps);
+        const [displayAll] = params;
+
+        return callback(null, displayAll
+          ? visibleStore.allApps.slice()
+          : visibleStore.visibleApps.slice()
+        );
 
       case 'shell_getFilteredMethods':
         return callback(null, flatten(
@@ -186,8 +192,18 @@ export default class Store {
       case 'shell_getMethodPermissions':
         return callback(null, this.permissions);
 
+      case 'shell_setAppVisibility':
+        const [appId, visibility] = params;
+
+        return callback(null, visibility
+          ? visibleStore.showApp(appId)
+          : visibleStore.hideApp(appId)
+        );
+
       case 'shell_setMethodPermissions':
-        return callback(null, this.setPermissions(params[0]));
+        const [permissions] = params;
+
+        return callback(null, this.setPermissions(permissions));
 
       default:
         return this.provider.send(method, params, callback);

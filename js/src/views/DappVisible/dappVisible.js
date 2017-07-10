@@ -18,28 +18,22 @@ import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { DappCard, Portal, SelectionList } from '@parity/ui';
+import { DappCard, Page, SelectionList } from '@parity/ui';
 
-import styles from './selectVisible.css';
+import Store from './store';
+import styles from './dappVisible.css';
 
 @observer
-export default class SelectVisible extends Component {
-  static propTypes = {
-    store: PropTypes.object.isRequired
+export default class DappVisible extends Component {
+  static contextTypes = {
+    api: PropTypes.object.isRequired
   };
 
+  store = new Store(this.context.api);
+
   render () {
-    const { store } = this.props;
-
-    if (!store.modalOpen) {
-      return null;
-    }
-
     return (
-      <Portal
-        className={ styles.modal }
-        onClose={ store.closeModal }
-        open
+      <Page
         title={
           <FormattedMessage
             id='dapps.add.label'
@@ -49,7 +43,7 @@ export default class SelectVisible extends Component {
       >
         <div className={ styles.warning } />
         {
-          this.renderList(store.sortedLocal, store.displayApps,
+          this.renderList(this.store.sortedLocal, this.store.displayApps,
             <FormattedMessage
               id='dapps.add.local.label'
               defaultMessage='Applications locally available'
@@ -61,7 +55,7 @@ export default class SelectVisible extends Component {
           )
         }
         {
-          this.renderList(store.sortedBuiltin, store.displayApps,
+          this.renderList(this.store.sortedBuiltin, this.store.displayApps,
             <FormattedMessage
               id='dapps.add.builtin.label'
               defaultMessage='Applications bundled with Parity'
@@ -73,7 +67,7 @@ export default class SelectVisible extends Component {
           )
         }
         {
-          this.renderList(store.sortedNetwork, store.displayApps,
+          this.renderList(this.store.sortedNetwork, this.store.displayApps,
             <FormattedMessage
               id='dapps.add.network.label'
               defaultMessage='Applications on the global network'
@@ -84,7 +78,7 @@ export default class SelectVisible extends Component {
             />
           )
         }
-      </Portal>
+      </Page>
     );
   }
 
@@ -120,18 +114,14 @@ export default class SelectVisible extends Component {
   }
 
   isVisible = (app) => {
-    const { store } = this.props;
-
-    return store.displayApps[app.id].visible;
+    return (this.store.displayApps[app.id] && this.store.displayApps[app.id].visible) || false;
   }
 
   onSelect = (app) => {
-    const { store } = this.props;
-
     if (this.isVisible(app)) {
-      store.hideApp(app.id);
+      this.store.hideApp(app.id);
     } else {
-      store.showApp(app.id);
+      this.store.showApp(app.id);
     }
   }
 }
