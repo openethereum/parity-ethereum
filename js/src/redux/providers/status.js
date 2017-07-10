@@ -224,16 +224,24 @@ export default class Status {
   }
 
   _overallStatus = (health) => {
-    const all = [health.peers, health.sync, health.time];
+    const all = [health.peers, health.sync, health.time].filter(x => x);
     const statuses = all.map(x => x.status);
     const bad = statuses.find(x => x === STATUS_BAD);
     const needsAttention = statuses.find(x => x === STATUS_WARN);
+    const message = all.map(x => x.message).filter(x => x);
+
+    if (all.length) {
+      return {
+        status: bad || needsAttention || STATUS_OK,
+        message
+      };
+    }
 
     return {
-      status: bad || needsAttention || STATUS_OK,
-      message: all.map(x => x.message).filter(x => x)
+      status: STATUS_BAD,
+      message: ['Unable to fetch node health.']
     };
-  }
+   }
 
   _fetchHealth = () => {
     // Support Parity-Extension.

@@ -45,18 +45,19 @@ class Status extends Component {
           { this.renderUpgradeButton() }
         </div>
         <div className={ styles.netinfo }>
-          <StatusIndicator
-            type='signal'
-            id='application.status.health'
-            status={ health.overall.status }
-            title={ health.overall.message }
-          />
-          <BlockStatus />
+          <div>
+            <StatusIndicator
+              type='signal'
+              id='application.status.health'
+              status={ health.overall.status }
+              title={ health.overall.message }
+            />
+          </div>
+          <span title={ `${ netPeers.connected.toFormat() }/${ netPeers.max.toFormat() } peers` }>
+            <BlockStatus />
+          </span>
           <div className={ `${styles.network} ${styles[isTest ? 'test' : 'live']}` }>
             { netChain }
-          </div>
-          <div className={ styles.peers }>
-            { netPeers.connected.toFormat() }/{ netPeers.max.toFormat() } peers
           </div>
         </div>
       </div>
