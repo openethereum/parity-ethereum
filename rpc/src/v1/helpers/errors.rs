@@ -28,6 +28,7 @@ mod codes {
 	pub const NO_WORK: i64 = -32001;
 	pub const NO_AUTHOR: i64 = -32002;
 	pub const NO_NEW_WORK: i64 = -32003;
+	pub const NO_WORK_REQUIRED: i64 = -32004;
 	pub const UNKNOWN_ERROR: i64 = -32009;
 	pub const TRANSACTION_ERROR: i64 = -32010;
 	pub const EXECUTION_ERROR: i64 = -32015;
@@ -169,6 +170,14 @@ pub fn no_author() -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::NO_AUTHOR),
 		message: "Author not configured. Run Parity with --author to configure.".into(),
+		data: None
+	}
+}
+
+pub fn no_work_required() -> Error {
+	Error {
+		code: ErrorCode::ServerError(codes::NO_WORK_REQUIRED),
+		message: "External work is only required for Ethash engines.".into(),
 		data: None
 	}
 }

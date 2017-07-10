@@ -553,6 +553,12 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 	}
 
 	fn work(&self, no_new_work_timeout: Trailing<u64>) -> Result<Work, Error> {
+
+		if !self.miner.engine_seals_internally() {
+			warn!(target: "miner", "Cannot give work package - engine seals internally.");
+			return Err(errors::no_work_required())
+		}
+
 		let no_new_work_timeout = no_new_work_timeout.unwrap_or_default();
 
 		// check if we're still syncing and return empty strings in that case

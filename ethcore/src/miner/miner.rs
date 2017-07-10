@@ -1083,6 +1083,11 @@ impl MinerService for Miner {
 		self.transaction_queue.read().last_nonce(address)
 	}
 
+	fn engine_seals_internally(&self) -> bool
+	{
+		self.engine.seals_internally().is_some()
+	}
+
 	/// Update sealing if required.
 	/// Prepare the block and work if the Engine does not seal internally.
 	fn update_sealing(&self, chain: &MiningBlockChainClient) {
