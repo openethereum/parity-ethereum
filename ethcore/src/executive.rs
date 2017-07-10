@@ -376,7 +376,7 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 					self.exec_vm(params, &mut unconfirmed_substate, OutputPolicy::Return(output, trace_output.as_mut()), &mut subtracer, &mut subvmtracer)
 				};
 
-				vm_tracer.done_subtrace(subvmtracer, res.is_ok());
+				vm_tracer.done_subtrace(subvmtracer);
 
 				trace!(target: "executive", "res={:?}", res);
 
@@ -457,7 +457,7 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 			self.exec_vm(params, &mut unconfirmed_substate, OutputPolicy::InitContract(trace_output.as_mut()), &mut subtracer, &mut subvmtracer)
 		};
 
-		vm_tracer.done_subtrace(subvmtracer, res.is_ok());
+		vm_tracer.done_subtrace(subvmtracer);
 
 		match res {
 			Ok(ref res) => tracer.trace_create(

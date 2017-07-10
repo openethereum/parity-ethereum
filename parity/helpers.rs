@@ -140,7 +140,7 @@ pub fn replace_home(base: &str, arg: &str) -> String {
 	r.replace("/", &::std::path::MAIN_SEPARATOR.to_string())
 }
 
-pub fn replace_home_for_db(base: &str, local: &str, arg: &str) -> String {
+pub fn replace_home_and_local(base: &str, local: &str, arg: &str) -> String {
 	let r = replace_home(base, arg);
 	r.replace("$LOCAL", local)
 }

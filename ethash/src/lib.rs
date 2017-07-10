@@ -25,6 +25,7 @@ extern crate log;
 mod compute;
 
 use std::mem;
+use std::path::{Path, PathBuf};
 use compute::Light;
 pub use compute::{ETHASH_EPOCH_LENGTH, H256, ProofOfWork, SeedHashCompute, quick_get_difficulty, slow_get_seedhash};
 
@@ -41,12 +42,14 @@ struct LightCache {
 /// Light/Full cache manager.
 pub struct EthashManager {
 	cache: Mutex<LightCache>,
+	cache_dir: PathBuf,
 }
 
 impl EthashManager {
 	/// Create a new new instance of ethash manager
-	pub fn new() -> EthashManager {
+	pub fn new<T: AsRef<Path>>(cache_dir: T) -> EthashManager {
 		EthashManager {
+			cache_dir: cache_dir.as_ref().to_path_buf(),
 			cache: Mutex::new(LightCache {
 				recent_epoch: None,
 				recent: None,
@@ -88,11 +91,11 @@ impl EthashManager {
 			};
 			match light {
 				None => {
-					let light = match Light::from_file(block_number) {
+					let light = match Light::from_file(&self.cache_dir, block_number) {
 						Ok(light) => Arc::new(light),
 						Err(e) => {
 							debug!("Light cache file not found for {}:{}", block_number, e);
-							let light = Light::new(block_number);
+							let light = Light::new(&self.cache_dir, block_number);
 							if let Err(e) = light.to_file() {
 								warn!("Light cache file write error: {}", e);
 							}
@@ -112,7 +115,7 @@ impl EthashManager {
 
 #[test]
 fn test_lru() {
-	let ethash = EthashManager::new();
+	let ethash = EthashManager::new(&::std::env::temp_dir());
 	let hash = [0u8; 32];
 	ethash.compute_light(1, &hash, 1);
 	ethash.compute_light(50000, &hash, 1);

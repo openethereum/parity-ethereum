@@ -112,6 +112,22 @@ impl ClientReport {
 	}
 }
 
+impl<'a> ::std::ops::Sub<&'a ClientReport> for ClientReport {
+	type Output = Self;
+
+	fn sub(mut self, other: &'a ClientReport) -> Self {
+		let higher_mem = ::std::cmp::max(self.state_db_mem, other.state_db_mem);
+		let lower_mem = ::std::cmp::min(self.state_db_mem, other.state_db_mem);
+
+		self.blocks_imported -= other.blocks_imported;
+		self.transactions_applied -= other.transactions_applied;
+		self.gas_processed = self.gas_processed - other.gas_processed;
+		self.state_db_mem  = higher_mem - lower_mem;
+
+		self
+	}
+}
+
 struct SleepState {
 	last_activity: Option<Instant>,
 	last_autosleep: Option<Instant>,
@@ -1700,6 +1716,33 @@ impl MiningBlockChainClient for Client {
 			});
 
 		open_block
+	}
+
+	fn reopen_block(&self, block: ClosedBlock) -> OpenBlock {
+		let engine = &*self.engine;
+		let mut block = block.reopen(engine);
+		let max_uncles = engine.maximum_uncle_count();
+		if block.uncles().len() < max_uncles {
+			let chain = self.chain.read();
+			let h = chain.best_block_hash();
+			// Add new uncles
+			let uncles = chain
+				.find_uncle_hashes(&h, engine.maximum_uncle_age())
+				.unwrap_or_else(Vec::new);
+
+			for h in uncles {
+				if !block.uncles().iter().any(|header| header.hash() == h) {
+					let uncle = chain.block_header(&h).expect("find_uncle_hashes only returns hashes for existing headers; qed");
+					block.push_uncle(uncle).expect("pushing up to maximum_uncle_count;
+												push_uncle is not ok only if more than maximum_uncle_count is pushed;
+												so all push_uncle are Ok;
+												qed");
+					if block.uncles().len() >= max_uncles { break }
+				}
+			}
+
+		}
+		block
 	}
 
 	fn vm_factory(&self) -> &EvmFactory {

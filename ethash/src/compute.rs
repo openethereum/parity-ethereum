@@ -25,7 +25,7 @@ use std::mem;
 use std::ptr;
 use sha3;
 use std::slice;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::io::{self, Read, Write};
 use std::fs::{self, File};
 
@@ -86,6 +86,7 @@ impl Node {
 pub type H256 = [u8; 32];
 
 pub struct Light {
+	cache_dir: PathBuf,
 	block_number: u64,
 	cache: Vec<Node>,
 	seed_compute: Mutex<SeedHashCompute>,
@@ -94,8 +95,8 @@ pub struct Light {
 /// Light cache structure
 impl Light {
 	/// Create a new light cache for a given block number
-	pub fn new(block_number: u64) -> Light {
-		light_new(block_number)
+	pub fn new<T: AsRef<Path>>(cache_dir: T, block_number: u64) -> Light {
+		light_new(cache_dir, block_number)
 	}
 
 	/// Calculate the light boundary data
@@ -105,17 +106,15 @@ impl Light {
 		light_compute(self, header_hash, nonce)
 	}
 
-	pub fn file_path(seed_hash: H256) -> PathBuf {
-		let mut home = ::std::env::home_dir().unwrap();
-		home.push(".ethash");
-		home.push("light");
-		home.push(to_hex(&seed_hash));
-		home
+	pub fn file_path<T: AsRef<Path>>(cache_dir: T, seed_hash: H256) -> PathBuf {
+		let mut cache_dir = cache_dir.as_ref().to_path_buf();
+		cache_dir.push(to_hex(&seed_hash));
+		cache_dir
 	}
 
-	pub fn from_file(block_number: u64) -> io::Result<Light> {
+	pub fn from_file<T: AsRef<Path>>(cache_dir: T, block_number: u64) -> io::Result<Light> {
 		let seed_compute = SeedHashCompute::new();
-		let path = Light::file_path(seed_compute.get_seedhash(block_number));
+		let path = Light::file_path(&cache_dir, seed_compute.get_seedhash(block_number));
 		let mut file = File::open(path)?;
 
 		let cache_size = get_cache_size(block_number);
@@ -128,19 +127,22 @@ impl Light {
 		let buf = unsafe { slice::from_raw_parts_mut(nodes.as_mut_ptr() as *mut u8, cache_size) };
 		file.read_exact(buf)?;
 		Ok(Light {
+			block_number,
+			cache_dir: cache_dir.as_ref().to_path_buf(),
 			cache: nodes,
-			block_number: block_number,
 			seed_compute: Mutex::new(seed_compute),
 		})
 	}
 
 	pub fn to_file(&self) -> io::Result<PathBuf> {
 		let seed_compute = self.seed_compute.lock();
-		let path = Light::file_path(seed_compute.get_seedhash(self.block_number));
+		let path = Light::file_path(&self.cache_dir, seed_compute.get_seedhash(self.block_number));
 
 		if self.block_number >= ETHASH_EPOCH_LENGTH * 2 {
 			let deprecated = Light::file_path(
-				seed_compute.get_seedhash(self.block_number - ETHASH_EPOCH_LENGTH * 2));
+				&self.cache_dir,
+				seed_compute.get_seedhash(self.block_number - ETHASH_EPOCH_LENGTH * 2)
+			);
 
 			if deprecated.exists() {
 				debug!(target: "ethash", "removing: {:?}", &deprecated);
@@ -341,14 +343,12 @@ fn calculate_dag_item(node_index: u32, cache: &[Node]) -> Node {
 	}
 }
 
-fn light_new(block_number: u64) -> Light {
+fn light_new<T: AsRef<Path>>(cache_dir: T, block_number: u64) -> Light {
 	let seed_compute = SeedHashCompute::new();
 	let seedhash = seed_compute.get_seedhash(block_number);
 	let cache_size = get_cache_size(block_number);
 
-	if cache_size % NODE_BYTES != 0 {
-		panic!("Unaligned cache size");
-	}
+	assert!(cache_size % NODE_BYTES == 0, "Unaligned cache size");
 	let num_nodes = cache_size / NODE_BYTES;
 
 	let mut nodes = Vec::with_capacity(num_nodes);
@@ -372,8 +372,9 @@ fn light_new(block_number: u64) -> Light {
 	}
 
 	Light {
+		block_number,
+		cache_dir: cache_dir.as_ref().to_path_buf(),
 		cache: nodes,
-		block_number: block_number,
 		seed_compute: Mutex::new(seed_compute),
 	}
 }
@@ -432,7 +433,7 @@ fn test_light_compute() {
 	let boundary = [0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x3e, 0x9b, 0x6c, 0x69, 0xbc, 0x2c, 0xe2, 0xa2, 0x4a, 0x8e, 0x95, 0x69, 0xef, 0xc7, 0xd7, 0x1b, 0x33, 0x35, 0xdf, 0x36, 0x8c, 0x9a, 0xe9, 0x7e, 0x53, 0x84];
 	let nonce = 0xd7b3ac70a301a249;
 	// difficulty = 0x085657254bd9u64;
-	let light = Light::new(486382);
+	let light = Light::new(&::std::env::temp_dir(), 486382);
 	let result = light_compute(&light, &hash, nonce);
 	assert_eq!(result.mix_hash[..], mix_hash[..]);
 	assert_eq!(result.value[..], boundary[..]);
@@ -471,15 +472,16 @@ fn test_seed_compute_after_newer() {
 
 #[test]
 fn test_drop_old_data() {
-	let first = Light::new(0).to_file().unwrap();
+	let path = ::std::env::temp_dir();
+	let first = Light::new(&path, 0).to_file().unwrap();
 
-	let second = Light::new(ETHASH_EPOCH_LENGTH).to_file().unwrap();
+	let second = Light::new(&path, ETHASH_EPOCH_LENGTH).to_file().unwrap();
 	assert!(fs::metadata(&first).is_ok());
 
-	let _ = Light::new(ETHASH_EPOCH_LENGTH * 2).to_file();
+	let _ = Light::new(&path, ETHASH_EPOCH_LENGTH * 2).to_file();
 	assert!(fs::metadata(&first).is_err());
 	assert!(fs::metadata(&second).is_ok());
 
-	let _ = Light::new(ETHASH_EPOCH_LENGTH * 3).to_file();
+	let _ = Light::new(&path, ETHASH_EPOCH_LENGTH * 3).to_file();
 	assert!(fs::metadata(&second).is_err());
 }
