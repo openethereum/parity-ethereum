@@ -20,7 +20,7 @@ import Contract from './contract';
 import { PromiseProvider, Http as HttpProvider, PostMessage as PostMessageProvider, WsSecure as WsSecureProvider } from './provider';
 import { Http as HttpTransport, WsSecure as WsSecureTransport } from './transport';
 
-import { Db, Eth, Parity, Net, Personal, Shh, Signer, Trace, Web3 } from './rpc';
+import { Db, Eth, Parity, Net, Personal, Shell, Shh, Signer, Trace, Web3 } from './rpc';
 import Subscriptions from './subscriptions';
 import Pubsub from './pubsub';
 import util from './util';
@@ -49,6 +49,7 @@ export default class Api extends EventEmitter {
     this._net = new Net(this._provider);
     this._parity = new Parity(this._provider);
     this._personal = new Personal(this._provider);
+    this._shell = new Shell(this._provider);
     this._shh = new Shh(this._provider);
     this._signer = new Signer(this._provider);
     this._trace = new Trace(this._provider);
@@ -103,6 +104,10 @@ export default class Api extends EventEmitter {
 
   get provider () {
     return this._provider.provider;
+  }
+
+  get shell () {
+    return this._shell;
   }
 
   get shh () {
