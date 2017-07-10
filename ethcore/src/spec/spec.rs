@@ -465,7 +465,7 @@ mod tests {
 	}
 
 	#[test]
-	fn load_specs() {
+	fn all_spec_files_valid() {
 		Spec::new_test();
 		Spec::new_null();
 		Spec::new_test_constructor();

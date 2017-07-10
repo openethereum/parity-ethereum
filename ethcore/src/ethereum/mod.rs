@@ -99,24 +99,6 @@ mod tests {
 	use views::BlockView;
 
 	#[test]
-	fn load_ethereum_specs() {
-		new_olympic();
-		new_foundation();
-		new_classic();
-		new_expanse();
-		new_kovan();
-		new_frontier_test();
-		new_homestead_test();
-		new_eip150_test();
-		new_eip161_test();
-		new_transition_test();
-		new_mainnet_like();
-		new_metropolis_test();
-		new_ropsten();
-		new_morden();
-	}
-
-	#[test]
 	fn ensure_db_good() {
 		let spec = new_morden(&::std::env::temp_dir());
 		let engine = &spec.engine;
