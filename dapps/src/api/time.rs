@@ -143,15 +143,12 @@ impl<N: Ntp> TimeChecker<N> {
 	/// Updates the time
 	pub fn update(&self) -> BoxFuture<i64, Error> {
 		let last_result = self.last_result.clone();
-		let req1 = self.ntp.drift();
-		let req2 = self.ntp.drift();
-
-		req1.select(req2).then(move |res| {
+		self.ntp.drift().then(move |res| {
 			let valid_till = time::Instant::now() + time::Duration::from_secs(
 				if res.is_ok() { UPDATE_TIMEOUT_OK_SECS } else { UPDATE_TIMEOUT_ERR_SECS }
 			);
 
-			let res = res.map(|d| d.0.num_milliseconds()).map_err(|err| err.0);
+			let res = res.map(|d| d.num_milliseconds());
 			*last_result.write() = (valid_till, res.clone());
 			res
 		}).boxed()
