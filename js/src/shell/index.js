@@ -79,7 +79,7 @@ const dappsHistory = HistoryStore.get('dapps');
 function onEnterDapp ({ params: { id } }) {
   const token = DappMethodsStore.get().createToken(id);
 
-  window.ethereumProvider = new Api.Provider.PostMessage(token, window);
+  window.ethereum = new Api.Provider.PostMessage(token, window);
 
   if (!dapps[id] || !dapps[id].skipHistory) {
     dappsHistory.add(id);

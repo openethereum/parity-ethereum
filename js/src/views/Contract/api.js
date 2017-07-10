@@ -16,6 +16,6 @@
 
 import Api from '@parity/api';
 
-const ethereumProvider = (window.parity && window.parity.ethereumProvider) || (window.parent && window.parent.ethereumProvider);
+const ethereumProvider = window.ethereum || window.parent.ethereum;
 
 export default new Api(ethereumProvider);
