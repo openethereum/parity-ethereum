@@ -151,7 +151,7 @@ impl evm::Evm for WasmInterpreter {
 	}
 }
 
-fn native_bindings(runtime: &mut Runtime) -> interpreter::UserFunctions {
+fn native_bindings<'a>(runtime: &'a mut Runtime) -> interpreter::UserFunctions<'a> {
 	interpreter::UserFunctions {
 		executor: runtime,
 		functions: ::std::borrow::Cow::from(env::SIGNATURES),
