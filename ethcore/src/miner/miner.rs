@@ -88,6 +88,8 @@ pub struct MinerOptions {
 	pub reseal_on_external_tx: bool,
 	/// Reseal on receipt of new local transactions.
 	pub reseal_on_own_tx: bool,
+	/// Reseal when new uncle block has been imported.
+	pub reseal_on_uncle: bool,
 	/// Minimum period between transaction-inspired reseals.
 	pub reseal_min_period: Duration,
 	/// Maximum period between blocks (enables force sealing after that).
@@ -119,6 +121,7 @@ impl Default for MinerOptions {
 			force_sealing: false,
 			reseal_on_external_tx: false,
 			reseal_on_own_tx: true,
+			reseal_on_uncle: false,
 			tx_gas_limit: !U256::zero(),
 			tx_queue_size: 1024,
 			tx_queue_gas_limit: GasLimit::Auto,
@@ -347,7 +350,7 @@ impl Miner {
 				Some(old_block) => {
 					trace!(target: "miner", "prepare_block: Already have previous work; updating and returning");
 					// add transactions to old_block
-					old_block.reopen(&*self.engine)
+					chain.reopen_block(old_block)
 				}
 				None => {
 					// block not found - create it.
@@ -366,7 +369,6 @@ impl Miner {
 		let mut transactions_to_penalize = HashSet::new();
 		let block_number = open_block.block().fields().header.number();
 
-		// TODO Push new uncles too.
 		let mut tx_count: usize = 0;
 		let tx_total = transactions.len();
 		for tx in transactions {
@@ -1153,11 +1155,10 @@ impl MinerService for Miner {
 		})
 	}
 
-	fn chain_new_blocks(&self, chain: &MiningBlockChainClient, _imported: &[H256], _invalid: &[H256], enacted: &[H256], retracted: &[H256]) {
+	fn chain_new_blocks(&self, chain: &MiningBlockChainClient, imported: &[H256], _invalid: &[H256], enacted: &[H256], retracted: &[H256]) {
 		trace!(target: "miner", "chain_new_blocks");
 
-		// 1. We ignore blocks that were `imported` (because it means that they are not in canon-chain, and transactions
-		//	  should be still available in the queue.
+		// 1. We ignore blocks that were `imported` unless resealing on new uncles is enabled.
 		// 2. We ignore blocks that are `invalid` because it doesn't have any meaning in terms of the transactions that
 		//    are in those blocks
 
@@ -1192,7 +1193,7 @@ impl MinerService for Miner {
 			transaction_queue.remove_old(&fetch_account, time);
 		}
 
-		if enacted.len() > 0 {
+		if enacted.len() > 0 || (imported.len() > 0 && self.options.reseal_on_uncle) {
 			// --------------------------------------------------------------------------
 			// | NOTE Code below requires transaction_queue and sealing_work locks.     |
 			// | Make sure to release the locks before calling that method.             |
@@ -1312,6 +1313,7 @@ mod tests {
 				force_sealing: false,
 				reseal_on_external_tx: false,
 				reseal_on_own_tx: true,
+				reseal_on_uncle: false,
 				reseal_min_period: Duration::from_secs(5),
 				reseal_max_period: Duration::from_secs(120),
 				tx_gas_limit: !U256::zero(),

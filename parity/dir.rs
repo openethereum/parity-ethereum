@@ -18,7 +18,7 @@ use std::fs;
 use std::path::{PathBuf, Path};
 use util::{H64, H256};
 use util::journaldb::Algorithm;
-use helpers::{replace_home, replace_home_for_db};
+use helpers::{replace_home, replace_home_and_local};
 use app_dirs::{AppInfo, get_app_root, AppDataType};
 
 #[cfg(target_os = "macos")] const AUTHOR: &'static str = "Parity";
@@ -34,6 +34,9 @@ use app_dirs::{AppInfo, get_app_root, AppDataType};
 #[cfg(target_os = "windows")] pub const CHAINS_PATH: &'static str = "$LOCAL/chains";
 #[cfg(not(target_os = "windows"))] pub const CHAINS_PATH: &'static str = "$BASE/chains";
 
+#[cfg(target_os = "windows")] pub const CACHE_PATH: &'static str = "$LOCAL/cache";
+#[cfg(not(target_os = "windows"))] pub const CACHE_PATH: &'static str = "$BASE/cache";
+
 // this const is irrelevent cause we do have migrations now,
 // but we still use it for backwards compatibility
 const LEGACY_CLIENT_DB_VER_STR: &'static str = "5.3";
@@ -42,6 +45,7 @@ const LEGACY_CLIENT_DB_VER_STR: &'static str = "5.3";
 pub struct Directories {
 	pub base: String,
 	pub db: String,
+	pub cache: String,
 	pub keys: String,
 	pub signer: String,
 	pub dapps: String,
@@ -54,7 +58,8 @@ impl Default for Directories {
 		let local_dir = default_local_path();
 		Directories {
 			base: replace_home(&data_dir, "$BASE"),
-			db: replace_home_for_db(&data_dir, &local_dir, CHAINS_PATH),
+			db: replace_home_and_local(&data_dir, &local_dir, CHAINS_PATH),
+			cache: replace_home_and_local(&data_dir, &local_dir, CACHE_PATH),
 			keys: replace_home(&data_dir, "$BASE/keys"),
 			signer: replace_home(&data_dir, "$BASE/signer"),
 			dapps: replace_home(&data_dir, "$BASE/dapps"),
@@ -67,6 +72,7 @@ impl Directories {
 	pub fn create_dirs(&self, dapps_enabled: bool, signer_enabled: bool, secretstore_enabled: bool) -> Result<(), String> {
 		fs::create_dir_all(&self.base).map_err(|e| e.to_string())?;
 		fs::create_dir_all(&self.db).map_err(|e| e.to_string())?;
+		fs::create_dir_all(&self.cache).map_err(|e| e.to_string())?;
 		fs::create_dir_all(&self.keys).map_err(|e| e.to_string())?;
 		if signer_enabled {
 			fs::create_dir_all(&self.signer).map_err(|e| e.to_string())?;
@@ -231,7 +237,7 @@ pub fn default_hypervisor_path() -> String {
 #[cfg(test)]
 mod tests {
 	use super::Directories;
-	use helpers::{replace_home, replace_home_for_db};
+	use helpers::{replace_home, replace_home_and_local};
 
 	#[test]
 	fn test_default_directories() {
@@ -239,9 +245,13 @@ mod tests {
 		let local_dir = super::default_local_path();
 		let expected = Directories {
 			base: replace_home(&data_dir, "$BASE"),
-			db: replace_home_for_db(&data_dir, &local_dir,
+			db: replace_home_and_local(&data_dir, &local_dir,
 				if cfg!(target_os = "windows") { "$LOCAL/chains" }
 				else { "$BASE/chains" }
+			),
+			cache: replace_home_and_local(&data_dir, &local_dir,
+				if cfg!(target_os = "windows") { "$LOCAL/cache" }
+				else { "$BASE/cache" }
 			),
 			keys: replace_home(&data_dir, "$BASE/keys"),
 			signer: replace_home(&data_dir, "$BASE/signer"),

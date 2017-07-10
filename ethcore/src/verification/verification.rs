@@ -132,10 +132,15 @@ pub fn verify_block_family(header: &Header, bytes: &[u8], engine: &Engine, bc: &
 			}
 		}
 
+		let mut verified = HashSet::new();
 		for uncle in UntrustedRlp::new(bytes).at(2)?.iter().map(|rlp| rlp.as_val::<Header>()) {
 			let uncle = uncle?;
 			if excluded.contains(&uncle.hash()) {
 				return Err(From::from(BlockError::UncleInChain(uncle.hash())))
+			}
+
+			if verified.contains(&uncle.hash()) {
+				return Err(From::from(BlockError::DuplicateUncle(uncle.hash())))
 			}
 
 			// m_currentBlock.number() - uncle.number()		m_cB.n - uP.n()
@@ -180,6 +185,7 @@ pub fn verify_block_family(header: &Header, bytes: &[u8], engine: &Engine, bc: &
 
 			verify_parent(&uncle, &uncle_parent)?;
 			engine.verify_block_family(&uncle, &uncle_parent, Some(bytes))?;
+			verified.insert(uncle.hash());
 		}
 	}
 	Ok(())
@@ -567,6 +573,11 @@ mod tests {
 		bad_uncles.push(good_uncle1.clone());
 		check_fail(family_test(&create_test_block_with_data(&header, &good_transactions, &bad_uncles), engine, &bc),
 			TooManyUncles(OutOfBounds { max: Some(engine.maximum_uncle_count()), min: None, found: bad_uncles.len() }));
+
+		header = good.clone();
+		bad_uncles = vec![ good_uncle1.clone(), good_uncle1.clone() ];
+		check_fail(family_test(&create_test_block_with_data(&header, &good_transactions, &bad_uncles), engine, &bc),
+			DuplicateUncle(good_uncle1.hash()));
 
 		// TODO: some additional uncle checks
 	}
