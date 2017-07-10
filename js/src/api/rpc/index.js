@@ -19,6 +19,7 @@ export Eth from './eth';
 export Parity from './parity';
 export Net from './net';
 export Personal from './personal';
+export Shell from './shell';
 export Shh from './shh';
 export Signer from './signer';
 export Trace from './trace';

@@ -63,6 +63,36 @@
     "noselect": true
   },
   {
+    "id": "dappAccounts",
+    "url": "dappAccounts",
+    "src": "DappAccounts",
+    "name": "Default dapp accounts",
+    "description": "Allow setting of accounts to use by default for dapps",
+    "author": "Parity Team <admin@ethcore.io>",
+    "version": "2.0.0",
+    "visible": true
+  },
+  {
+    "id": "dappMethods",
+    "url": "dappMethods",
+    "src": "DappMethods",
+    "name": "Dapp Method Permissions",
+    "description": "Allow setting of dapp permissions on a per method level",
+    "author": "Parity Team <admin@ethcore.io>",
+    "version": "2.0.0",
+    "visible": true
+  },
+  {
+    "id": "dappVisible",
+    "url": "dappVisible",
+    "src": "DappVisible",
+    "name": "Dapp Visibility",
+    "description": "Allow setting of visible dapps",
+    "author": "Parity Team <admin@ethcore.io>",
+    "version": "2.0.0",
+    "visible": true
+  },
+  {
     "id": "develop",
     "url": "develop",
     "src": "ContractDevelop",

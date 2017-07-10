@@ -14,15 +14,26 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import Store from './store';
+import ReactDOM from 'react-dom';
+import React from 'react';
+import { Route, Router, hashHistory } from 'react-router';
 
-function setupProviderFilters (provider) {
-  return Store.create(provider);
-}
+import injectTapEventPlugin from 'react-tap-event-plugin';
+injectTapEventPlugin();
 
-export default from './dappRequests';
+import { initStore } from '@parity/shared/redux';
+import ContextProvider from '@parity/ui/ContextProvider';
 
-export {
-  Store,
-  setupProviderFilters
-};
+import api from './api';
+import DappVisible from './dappVisible';
+
+const store = initStore(api, hashHistory);
+
+ReactDOM.render(
+  <ContextProvider api={ api } store={ store }>
+    <Router history={ hashHistory }>
+      <Route path='/' component={ DappVisible } />
+    </Router>
+  </ContextProvider>,
+  document.querySelector('#container')
+);

@@ -57,6 +57,10 @@ export default class DappsStore extends EventEmitter {
     return instance;
   }
 
+  @computed get allApps () {
+    return this.apps;
+  }
+
   @computed get sortedBuiltin () {
     return this.apps.filter((app) => app.type === 'builtin');
   }

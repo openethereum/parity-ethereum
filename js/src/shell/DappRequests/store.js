@@ -14,19 +14,27 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { flatten } from 'lodash';
 import { action, computed, observable } from 'mobx';
+import store from 'store';
 
+import { sha3 } from '@parity/api/util/sha3';
+
+import VisibleStore from '../Dapps/dappsStore';
 import filteredRequests from './filteredRequests';
-import MethodsStore from '../Dapps/SelectMethods/store';
+
+const LS_PERMISSIONS = '_parity::dapps::methods';
 
 let nextQueueId = 0;
 
 export default class Store {
-  @observable methodsStore = MethodsStore.get();
+  @observable permissions = {};
   @observable requests = [];
+  @observable tokens = {};
 
   constructor (provider) {
     this.provider = provider;
+    this.permissions = store.get(LS_PERMISSIONS) || {};
 
     window.addEventListener('message', this.receiveMessage, false);
   }
@@ -51,20 +59,39 @@ export default class Store {
     });
   }
 
+  @action createToken = (appId) => {
+    const token = sha3(`${appId}:${Date.now()}`);
+
+    this.tokens = Object.assign({}, this.tokens, {
+      [token]: appId
+    });
+
+    return token;
+  }
+
   @action removeRequest = (_queueId) => {
     this.requests = this.requests.filter(({ queueId }) => queueId !== _queueId);
   }
 
   @action queueRequest = (request) => {
-    const appId = this.methodsStore.tokens[request.data.from];
+    const appId = this.tokens[request.data.from];
     let queueId = ++nextQueueId;
 
     this.requests = this.requests.concat([{ appId, queueId, request }]);
   }
 
+  @action addTokenPermission = (method, token) => {
+    const id = `${method}:${this.tokens[token]}`;
+
+    this.permissions = Object.assign({}, this.permissions, {
+      [id]: true
+    });
+    this.savePermissions();
+  }
+
   @action approveSingleRequest = ({ queueId, request: { data, source } }) => {
     this.removeRequest(queueId);
-    this.executeOnProvider(data, source);
+    this.executeMethodCall(data, source);
   }
 
   @action approveRequest = (queueId, approveAll) => {
@@ -74,7 +101,7 @@ export default class Store {
       const { request: { data: { method, token } } } = queued;
 
       this.getFilteredSection(method).methods.forEach((m) => {
-        this.methodsStore.addTokenPermission(m, token);
+        this.addTokenPermission(m, token);
         this.findMatchingRequests(m, token).forEach(this.approveSingleRequest);
       });
     } else {
@@ -95,6 +122,31 @@ export default class Store {
     }, '*');
   }
 
+  @action setPermissions = (_permissions) => {
+    const permissions = {};
+
+    Object.keys(_permissions).forEach((id) => {
+      permissions[id] = !!_permissions[id];
+    });
+
+    this.permissions = Object.assign({}, this.permissions, permissions);
+    this.savePermissions();
+
+    return true;
+  }
+
+  hasTokenPermission = (method, token) => {
+    return this.hasAppPermission(method, this.tokens[token]);
+  }
+
+  hasAppPermission = (method, appId) => {
+    return this.permissions[`${method}:${appId}`] || false;
+  }
+
+  savePermissions = () => {
+    store.set(LS_PERMISSIONS, this.permissions);
+  }
+
   findRequest (_queueId) {
     return this.requests.find(({ queueId }) => queueId === _queueId);
   }
@@ -103,8 +155,8 @@ export default class Store {
     return this.requests.filter(({ request: { data: { method, token } } }) => method === _method && token === _token);
   }
 
-  executeOnProvider = ({ id, from, method, params, token }, source) => {
-    this.provider.send(method, params, (error, result) => {
+  _methodCallbackPost = (id, source, token) => {
+    return (error, result) => {
       source.postMessage({
         error: error
           ? error.message
@@ -114,7 +166,48 @@ export default class Store {
         result,
         token
       }, '*');
-    });
+    };
+  }
+
+  executeMethodCall = ({ id, from, method, params, token }, source) => {
+    const visibleStore = VisibleStore.get();
+    const callback = this._methodCallbackPost(id, source, token);
+
+    switch (method) {
+      case 'shell_getApps':
+        const [displayAll] = params;
+
+        return callback(null, displayAll
+          ? visibleStore.allApps.slice()
+          : visibleStore.visibleApps.slice()
+        );
+
+      case 'shell_getFilteredMethods':
+        return callback(null, flatten(
+          Object
+            .keys(filteredRequests)
+            .map((key) => filteredRequests[key].methods)
+        ));
+
+      case 'shell_getMethodPermissions':
+        return callback(null, this.permissions);
+
+      case 'shell_setAppVisibility':
+        const [appId, visibility] = params;
+
+        return callback(null, visibility
+          ? visibleStore.showApp(appId)
+          : visibleStore.hideApp(appId)
+        );
+
+      case 'shell_setMethodPermissions':
+        const [permissions] = params;
+
+        return callback(null, this.setPermissions(permissions));
+
+      default:
+        return this.provider.send(method, params, callback);
+    }
   }
 
   getFilteredSectionName = (method) => {
@@ -138,12 +231,12 @@ export default class Store {
       return;
     }
 
-    if (this.getFilteredSection(method) && !this.methodsStore.hasTokenPermission(method, token)) {
+    if (this.getFilteredSection(method) && !this.hasTokenPermission(method, token)) {
       this.queueRequest({ data, origin, source });
       return;
     }
 
-    this.executeOnProvider(data, source);
+    this.executeMethodCall(data, source);
   }
 
   static instance = null;

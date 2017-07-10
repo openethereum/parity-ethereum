@@ -14,4 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export default from './selectVisible';
+import Api from '@parity/api';
+
+const ethereumProvider = window.ethereum || window.parent.ethereum;
+
+export default new Api(ethereumProvider);

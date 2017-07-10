@@ -18,30 +18,25 @@ import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { Portal } from '@parity/ui';
+import { Page } from '@parity/ui';
+
+import Store from './store';
 
 import MethodCheck from './MethodCheck';
-import styles from './selectMethods.css';
+import styles from './dappMethods.css';
 
 @observer
 export default class SelectMethods extends Component {
-  static propTypes = {
-    methodsStore: PropTypes.object.isRequired,
-    visibleStore: PropTypes.object.isRequired
+  static contextTypes = {
+    api: PropTypes.object.isRequired
   };
 
+  store = new Store(this.context.api);
+
   render () {
-    const { methodsStore, visibleStore } = this.props;
-
-    if (!methodsStore.modalOpen) {
-      return null;
-    }
-
     return (
-      <Portal
-        className={ styles.modal }
-        onClose={ methodsStore.closeModal }
-        open
+      <Page
+        className={ styles.body }
         title={
           <FormattedMessage
             id='dapps.methods.label'
@@ -54,8 +49,8 @@ export default class SelectMethods extends Component {
             <tr>
               <th>&nbsp;</th>
               {
-                methodsStore.filteredRequests.map((method, requestIndex) => (
-                  <th key={ requestIndex }>
+                this.store.methods.map((method, methodIndex) => (
+                  <th key={ methodIndex }>
                     <div>
                       <span>{ method }</span>
                     </div>
@@ -66,20 +61,20 @@ export default class SelectMethods extends Component {
           </thead>
           <tbody>
             {
-              visibleStore.visibleApps.map(({ id, name }, dappIndex) => (
+              this.store.apps.map(({ id, name }, dappIndex) => (
                 <tr key={ dappIndex }>
                   <td>{ name }</td>
                   {
-                    methodsStore.filteredRequests.map((method, requestIndex) => (
+                    this.store.methods.map((method, methodIndex) => (
                       <td
                         className={ styles.check }
-                        key={ `${dappIndex}_${requestIndex}` }
+                        key={ `${dappIndex}_${methodIndex}` }
                       >
                         <MethodCheck
-                          checked={ methodsStore.hasAppPermission(method, id) }
+                          checked={ this.store.hasAppPermission(method, id) }
                           dappId={ id }
                           method={ method }
-                          onToggle={ methodsStore.toggleAppPermission }
+                          onToggle={ this.store.toggleAppPermission }
                         />
                       </td>
                     ))
@@ -89,7 +84,7 @@ export default class SelectMethods extends Component {
             }
           </tbody>
         </table>
-      </Portal>
+      </Page>
     );
   }
 }

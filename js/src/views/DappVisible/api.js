@@ -14,15 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import Store from './store';
+import Api from '@parity/api';
 
-function setupProviderFilters (provider) {
-  return Store.create(provider);
-}
+const ethereumProvider = window.ethereum || window.parent.ethereum;
 
-export default from './dappRequests';
-
-export {
-  Store,
-  setupProviderFilters
-};
+export default new Api(ethereumProvider);

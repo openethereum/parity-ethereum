@@ -18,25 +18,21 @@ import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { AccountCard, Portal, SelectionList } from '@parity/ui';
+import { AccountCard, Page, SelectionList } from '@parity/ui';
+
+import Store from './store';
 
 @observer
-export default class SelectAccounts extends Component {
-  static propTypes = {
-    permissionStore: PropTypes.object.isRequired
+export default class DappAccounts extends Component {
+  static contextTypes = {
+    api: PropTypes.object.isRequired
   };
 
+  store = new Store(this.context.api);
+
   render () {
-    const { permissionStore } = this.props;
-
-    if (!permissionStore.modalOpen) {
-      return null;
-    }
-
     return (
-      <Portal
-        onClose={ permissionStore.closeModal }
-        open
+      <Page
         title={
           <FormattedMessage
             id='dapps.accounts.label'
@@ -45,22 +41,22 @@ export default class SelectAccounts extends Component {
         }
       >
         <SelectionList
-          items={ permissionStore.accounts }
+          items={ this.store.accounts }
           noStretch
           onDefaultClick={ this.onMakeDefault }
           onSelectClick={ this.onSelect }
           renderItem={ this.renderAccount }
         />
-      </Portal>
+      </Page>
     );
   }
 
   onMakeDefault = (account) => {
-    this.props.permissionStore.setDefaultAccount(account.address);
+    this.store.setDefaultAccount(account.address);
   }
 
   onSelect = (account) => {
-    this.props.permissionStore.selectAccount(account.address);
+    this.store.selectAccount(account.address);
   }
 
   renderAccount = (account) => {

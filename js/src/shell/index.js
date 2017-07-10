@@ -41,8 +41,7 @@ import SecureApi from '~/secureApi';
 
 import Application from './Application';
 import Dapp from './Dapp';
-import { setupProviderFilters } from './DappRequests';
-import DappMethodsStore from './Dapps/SelectMethods/store';
+import { setupProviderFilters, Store as DappRequestsStore } from './DappRequests';
 import Dapps from './Dapps';
 
 injectTapEventPlugin();
@@ -77,7 +76,7 @@ const dapps = [].concat(viewsDapps, builtinDapps);
 const dappsHistory = HistoryStore.get('dapps');
 
 function onEnterDapp ({ params: { id } }) {
-  const token = DappMethodsStore.get().createToken(id);
+  const token = DappRequestsStore.get().createToken(id);
 
   window.ethereum = new Api.Provider.PostMessage(token, window);
 

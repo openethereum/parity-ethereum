@@ -14,4 +14,26 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export default from './selectAccounts';
+import ReactDOM from 'react-dom';
+import React from 'react';
+import { Route, Router, hashHistory } from 'react-router';
+
+import injectTapEventPlugin from 'react-tap-event-plugin';
+injectTapEventPlugin();
+
+import { initStore } from '@parity/shared/redux';
+import ContextProvider from '@parity/ui/ContextProvider';
+
+import api from './api';
+import DappAccounts from './dappAccounts';
+
+const store = initStore(api, hashHistory);
+
+ReactDOM.render(
+  <ContextProvider api={ api } store={ store }>
+    <Router history={ hashHistory }>
+      <Route path='/' component={ DappAccounts } />
+    </Router>
+  </ContextProvider>,
+  document.querySelector('#container')
+);

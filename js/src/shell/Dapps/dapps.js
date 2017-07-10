@@ -20,14 +20,7 @@ import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 
-import { Actionbar, Button, Checkbox, DappCard, Page, SectionList } from '@parity/ui';
-import { LockedIcon, MethodsIcon, VisibleIcon } from '@parity/ui/Icons';
-
-import SelectAccounts from './SelectAccounts';
-import PermissionStore from './SelectAccounts/store';
-import DappSelectMethods from './SelectMethods';
-import MethodsStore from './SelectMethods/store';
-import SelectVisible from './SelectVisible';
+import { Checkbox, DappCard, Page, SectionList } from '@parity/ui';
 
 import DappsStore from './dappsStore';
 
@@ -45,8 +38,6 @@ class Dapps extends Component {
   };
 
   store = DappsStore.get(this.context.api);
-  methodsStore = MethodsStore.get();
-  permissionStore = new PermissionStore(this.context.api);
 
   componentWillMount () {
     this.store.loadAllApps();
@@ -82,64 +73,19 @@ class Dapps extends Component {
     }
 
     return (
-      <div>
-        <SelectAccounts permissionStore={ this.permissionStore } />
-        <DappSelectMethods
-          methodsStore={ this.methodsStore }
-          visibleStore={ this.store }
-        />
-        <SelectVisible store={ this.store } />
-        <Actionbar
-          className={ styles.toolbar }
-          title={
-            <FormattedMessage
-              id='dapps.label'
-              defaultMessage='Decentralized Applications'
-            />
-          }
-          buttons={ [
-            <Button
-              icon={ <VisibleIcon /> }
-              key='edit'
-              label={
-                <FormattedMessage
-                  id='dapps.button.edit'
-                  defaultMessage='edit applications'
-                />
-              }
-              onClick={ this.store.openModal }
-            />,
-            <Button
-              icon={ <LockedIcon /> }
-              key='accounts'
-              label={
-                <FormattedMessage
-                  id='dapps.button.accounts'
-                  defaultMessage='allowed accounts'
-                />
-              }
-              onClick={ this.openPermissionsModal }
-            />,
-            <Button
-              icon={ <MethodsIcon /> }
-              key='methods'
-              label={
-                <FormattedMessage
-                  id='dapps.button.methods'
-                  defaultMessage='allowed methods'
-                />
-              }
-              onClick={ this.methodsStore.openModal }
-            />
-          ] }
-        />
-        <Page>
-          <div>{ this.renderList(this.store.visibleViews) }</div>
-          <div>{ this.renderList(this.store.visibleLocal) }</div>
-          <div>{ this.renderList(this.store.visibleBuiltin) }</div>
-          <div>{ this.renderList(this.store.visibleNetwork, externalOverlay) }</div>
-        </Page>
-      </div>
+      <Page
+        title={
+          <FormattedMessage
+            id='dapps.label'
+            defaultMessage='Decentralized Applications'
+          />
+        }
+      >
+        <div>{ this.renderList(this.store.visibleViews) }</div>
+        <div>{ this.renderList(this.store.visibleLocal) }</div>
+        <div>{ this.renderList(this.store.visibleBuiltin) }</div>
+        <div>{ this.renderList(this.store.visibleNetwork, externalOverlay) }</div>
+      </Page>
     );
   }
 

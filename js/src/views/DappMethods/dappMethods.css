@@ -17,7 +17,7 @@
 
 $border: 1px solid #ccc;
 
-.modal {
+.body {
   td {
     border-bottom: $border;
     border-right: $border;

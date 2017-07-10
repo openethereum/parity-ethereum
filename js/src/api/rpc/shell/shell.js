@@ -14,33 +14,33 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { shallow } from 'enzyme';
-import React from 'react';
+export default class Shell {
+  constructor (provider) {
+    this._provider = provider;
+  }
 
-import DappsVisible from './';
+  getApps (retrieveAll = false) {
+    return this._provider
+      .send('shell_getApps', retrieveAll);
+  }
 
-function renderShallow (store = {}) {
-  return shallow(
-    <DappsVisible store={ store } />
-  );
+  getFilteredMethods () {
+    return this._provider
+      .send('shell_getFilteredMethods');
+  }
+
+  getMethodPermissions () {
+    return this._provider
+      .send('shell_getMethodPermissions');
+  }
+
+  setMethodPermissions (permissions) {
+    return this._provider
+      .send('shell_setMethodPermissions', permissions);
+  }
+
+  setAppVisibility (appId, state) {
+    return this._provider
+      .send('shell_setAppVisibility', appId, state);
+  }
 }
-
-describe('shell/Dapps/SelectVisible', () => {
-  describe('rendering', () => {
-    it('renders defaults', () => {
-      expect(renderShallow()).to.be.ok;
-    });
-
-    it('does not render the modal with modalOpen = false', () => {
-      expect(
-        renderShallow({ modalOpen: false }).find('Portal')
-      ).to.have.length(0);
-    });
-
-    it('does render the modal with modalOpen = true', () => {
-      expect(
-        renderShallow({ modalOpen: true }).find('Portal')
-      ).to.have.length(1);
-    });
-  });
-});
