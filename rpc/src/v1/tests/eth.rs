@@ -58,6 +58,7 @@ fn miner_service(spec: &Spec, accounts: Arc<AccountProvider>) -> Arc<Miner> {
 			force_sealing: true,
 			reseal_on_external_tx: true,
 			reseal_on_own_tx: true,
+			reseal_on_uncle: false,
 			tx_queue_size: 1024,
 			tx_gas_limit: !U256::zero(),
 			tx_queue_strategy: PrioritizationStrategy::GasPriceOnly,

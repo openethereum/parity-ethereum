@@ -526,6 +526,7 @@ impl Configuration {
 			force_sealing: self.args.flag_force_sealing,
 			reseal_on_external_tx: reseal.external,
 			reseal_on_own_tx: reseal.own,
+			reseal_on_uncle: self.args.flag_reseal_on_uncle,
 			tx_gas_limit: match self.args.flag_tx_gas_limit {
 				Some(ref d) => to_u256(d)?,
 				None => U256::max_value(),
