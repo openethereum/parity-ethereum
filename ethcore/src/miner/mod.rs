@@ -136,8 +136,8 @@ pub trait MinerService : Send + Sync {
 	/// Called when blocks are imported to chain, updates transactions queue.
 	fn chain_new_blocks(&self, chain: &MiningBlockChainClient, imported: &[H256], invalid: &[H256], enacted: &[H256], retracted: &[H256]);
 
-	/// Engine seals internally - no external input required (ie. not an Ethash chain)
-	fn engine_seals_internally(&self) -> bool;
+	/// PoW chain - can produce work package
+	fn can_produce_work_package(&self) -> bool;
 
 	/// New chain head event. Restart mining operation.
 	fn update_sealing(&self, chain: &MiningBlockChainClient);

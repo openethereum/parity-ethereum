@@ -1083,9 +1083,8 @@ impl MinerService for Miner {
 		self.transaction_queue.read().last_nonce(address)
 	}
 
-	fn engine_seals_internally(&self) -> bool
-	{
-		self.engine.seals_internally().is_some()
+	fn can_produce_work_package(&self) -> bool {
+		self.engine.seals_internally().is_none()
 	}
 
 	/// Update sealing if required.

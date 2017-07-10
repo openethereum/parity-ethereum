@@ -177,7 +177,7 @@ pub fn no_author() -> Error {
 pub fn no_work_required() -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::NO_WORK_REQUIRED),
-		message: "External work is only required for Ethash engines.".into(),
+		message: "External work is only required for Proof of Work engines.".into(),
 		data: None
 	}
 }
