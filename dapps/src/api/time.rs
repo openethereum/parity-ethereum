@@ -32,8 +32,9 @@
 //!
 
 use std::io;
-use std::{fmt, time};
+use std::{fmt, mem, time};
 
+use std::collections::VecDeque;
 use futures::{self, Future, BoxFuture};
 use futures_cpupool::CpuPool;
 use ntp;
@@ -113,6 +114,7 @@ impl Ntp for SimpleNtp {
 	}
 }
 
+const MAX_RESULTS: usize = 4;
 const UPDATE_TIMEOUT_OK_SECS: u64 = 30;
 const UPDATE_TIMEOUT_ERR_SECS: u64 = 2;
 
@@ -120,14 +122,15 @@ const UPDATE_TIMEOUT_ERR_SECS: u64 = 2;
 /// A time checker.
 pub struct TimeChecker<N: Ntp = SimpleNtp> {
 	ntp: N,
-	last_result: Arc<RwLock<(time::Instant, Result<i64, Error>)>>,
+	last_result: Arc<RwLock<(time::Instant, VecDeque<Result<i64, Error>>)>>,
 }
 
 impl TimeChecker<SimpleNtp> {
 	/// Creates new time checker given the NTP server address.
 	pub fn new(ntp_address: String, pool: CpuPool) -> Self {
 		let last_result = Arc::new(RwLock::new(
-			(time::Instant::now(), Err(Error::Ntp("NTP server unavailable.".into())))
+			// Assume everything is ok at the very beginning.
+			(time::Instant::now(), vec![Ok(0)].into())
 		));
 
 		let ntp = SimpleNtp::new(&ntp_address, pool);
@@ -144,12 +147,24 @@ impl<N: Ntp> TimeChecker<N> {
 	pub fn update(&self) -> BoxFuture<i64, Error> {
 		let last_result = self.last_result.clone();
 		self.ntp.drift().then(move |res| {
+			let mut results = mem::replace(&mut last_result.write().1, VecDeque::new());
 			let valid_till = time::Instant::now() + time::Duration::from_secs(
-				if res.is_ok() { UPDATE_TIMEOUT_OK_SECS } else { UPDATE_TIMEOUT_ERR_SECS }
+				if res.is_ok() && results.len() == MAX_RESULTS {
+					UPDATE_TIMEOUT_OK_SECS
+				} else {
+					UPDATE_TIMEOUT_ERR_SECS
+				}
 			);
 
-			let res = res.map(|d| d.num_milliseconds());
-			*last_result.write() = (valid_till, res.clone());
+			// Push the result.
+			results.push_back(res.map(|d| d.num_milliseconds()));
+			while results.len() > MAX_RESULTS {
+				results.pop_front();
+			}
+
+			// Select a response and update last result.
+			let res = select_result(results.iter());
+			*last_result.write() = (valid_till, results);
 			res
 		}).boxed()
 	}
@@ -160,12 +175,25 @@ impl<N: Ntp> TimeChecker<N> {
 		{
 			let res = self.last_result.read();
 			if res.0 > time::Instant::now() {
-				return futures::done(res.1.clone()).boxed();
+				return futures::done(select_result(res.1.iter())).boxed();
 			}
 		}
 		// or update and return result
 		self.update()
 	}
+}
+
+fn select_result<'a, T: Iterator<Item=&'a Result<i64, Error>>>(results: T) -> Result<i64, Error> {
+	let mut min = None;
+	for res in results {
+		min = Some(match (min.take(), res) {
+			(Some(Ok(min)), &Ok(ref new)) => Ok(::std::cmp::min(min, *new)),
+			(Some(Ok(old)), &Err(_)) => Ok(old),
+			(_, ref new) => (*new).clone(),
+		})
+	}
+
+	min.unwrap_or_else(|| Err(Error::Ntp("NTP server unavailable.".into())))
 }
 
 #[cfg(test)]
