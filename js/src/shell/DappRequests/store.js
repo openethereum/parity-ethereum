@@ -39,7 +39,8 @@ export default class Store {
     const duplicates = {};
 
     return this.requests.filter(({ request: { data: { method, token } } }) => {
-      const id = `${token}:${method}`;
+      const section = this.getFilteredSectionName(method);
+      const id = `${token}:${section}`;
 
       if (!duplicates[id]) {
         duplicates[id] = true;
@@ -71,10 +72,11 @@ export default class Store {
 
     if (approveAll) {
       const { request: { data: { method, token } } } = queued;
-      const requests = this.findMatchingRequests(method, token);
 
-      this.methodsStore.addTokenPermission(method, token);
-      requests.forEach(this.approveSingleRequest);
+      this.getFilteredSection(method).methods.forEach((m) => {
+        this.methodsStore.addTokenPermission(m, token);
+        this.findMatchingRequests(m, token).forEach(this.approveSingleRequest);
+      });
     } else {
       this.approveSingleRequest(queued);
     }
@@ -115,6 +117,16 @@ export default class Store {
     });
   }
 
+  getFilteredSectionName = (method) => {
+    return Object.keys(filteredRequests).find((key) => {
+      return filteredRequests[key].methods.includes(method);
+    });
+  }
+
+  getFilteredSection = (method) => {
+    return filteredRequests[this.getFilteredSectionName(method)];
+  }
+
   receiveMessage = ({ data, origin, source }) => {
     if (!data) {
       return;
@@ -126,7 +138,7 @@ export default class Store {
       return;
     }
 
-    if (filteredRequests[method] && !this.methodsStore.hasTokenPermission(method, token)) {
+    if (this.getFilteredSection(method) && !this.methodsStore.hasTokenPermission(method, token)) {
       this.queueRequest({ data, origin, source });
       return;
     }

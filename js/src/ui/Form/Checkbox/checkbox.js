@@ -19,7 +19,7 @@ import { Checkbox as SemanticCheckbox } from 'semantic-ui-react';
 
 import { nodeOrStringProptype } from '@parity/shared/util/proptypes';
 
-import LabelWrapper from '../LabelWrapper';
+import Label from '../Label';
 
 export default function Checkbox ({ checked = false, className, label, onClick, style }) {
   return (
@@ -27,7 +27,7 @@ export default function Checkbox ({ checked = false, className, label, onClick, 
       checked={ checked }
       className={ className }
       label={
-        <LabelWrapper label={ label } />
+        <Label label={ label } />
       }
       onClick={ onClick }
       style={ style }

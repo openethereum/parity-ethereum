@@ -39,29 +39,6 @@ import styles from './wallet.css';
 
 const accountsHistory = HistoryStore.get('accounts');
 
-class WalletContainer extends Component {
-  static propTypes = {
-    netVersion: PropTypes.string.isRequired
-  };
-
-  render () {
-    const { netVersion, ...others } = this.props;
-
-    if (netVersion === '0') {
-      return (
-        <Loading size='large' />
-      );
-    }
-
-    return (
-      <Wallet
-        netVersion={ netVersion }
-        { ...others }
-      />
-    );
-  }
-}
-
 class Wallet extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
@@ -422,4 +399,4 @@ function mapDispatchToProps (dispatch) {
 export default connect(
   mapStateToProps,
   mapDispatchToProps
-)(WalletContainer);
+)(Wallet);

@@ -53,11 +53,6 @@ export default class Personal {
       }
     };
 
-    if (!this._api.transport.isConnected) {
-      nextTimeout(500);
-      return;
-    }
-
     return this._api.parity
       .defaultAccount()
       .then((defaultAccount) => {
