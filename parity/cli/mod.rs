@@ -749,7 +749,8 @@ mod tests {
 			flag_jsonrpc_cors: Some("null".into()),
 			flag_jsonrpc_apis: "web3,eth,net,parity,traces,rpc,secretstore".into(),
 			flag_jsonrpc_hosts: "none".into(),
-			flag_jsonrpc_threads: None,
+			flag_jsonrpc_server_threads: None,
+			flag_jsonrpc_threads: 0,
 
 			// WS
 			flag_no_ws: false,
@@ -976,7 +977,8 @@ mod tests {
 				cors: None,
 				apis: None,
 				hosts: None,
-				threads: None,
+				server_threads: None,
+				processing_threads: None,
 			}),
 			ipc: Some(Ipc {
 				disable: None,
