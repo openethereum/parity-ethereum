@@ -17,8 +17,8 @@
 import Web3 from 'web3';
 import Api from '@parity/api';
 
-const web3Provider = (window.parity && window.parity.web3Provider) || (window.parent && window.parent.web3Provider);
-const api = new Api(web3Provider);
+const ethereumProvider = window.ethereum || window.parent.ethereum;
+const api = new Api(ethereumProvider);
 
 let web3;
 
