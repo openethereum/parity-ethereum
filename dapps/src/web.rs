@@ -31,9 +31,7 @@ use handlers::{
 	StreamingHandler, extract_url,
 };
 use url::Url;
-use WebProxyTokens;
-
-pub type Embeddable = Option<(String, u16)>;
+use {Embeddable, WebProxyTokens};
 
 pub struct Web<F> {
 	embeddable_on: Embeddable,
@@ -43,12 +41,17 @@ pub struct Web<F> {
 }
 
 impl<F: Fetch> Web<F> {
-	pub fn boxed(embeddable_on: Embeddable, web_proxy_tokens: Arc<WebProxyTokens>, remote: Remote, fetch: F) -> Box<Endpoint> {
+	pub fn boxed(
+		embeddable_on: Embeddable,
+		web_proxy_tokens: Arc<WebProxyTokens>,
+		remote: Remote,
+		fetch: F,
+	) -> Box<Endpoint> {
 		Box::new(Web {
-			embeddable_on: embeddable_on,
-			web_proxy_tokens: web_proxy_tokens,
-			remote: remote,
-			fetch: fetch,
+			embeddable_on,
+			web_proxy_tokens,
+			remote,
+			fetch,
 		})
 	}
 }

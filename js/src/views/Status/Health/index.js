@@ -14,12 +14,4 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! REST API
-
-mod api;
-mod response;
-mod time;
-mod types;
-
-pub use self::api::RestApi;
-pub use self::time::TimeChecker;
+export default from './health';
