@@ -44,7 +44,7 @@ mod header_chain;
 mod service;
 
 /// Configuration for the light client.
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Clone)]
 pub struct Config {
 	/// Verification queue config.
 	pub queue: queue::Config,
@@ -56,6 +56,21 @@ pub struct Config {
 	pub db_compaction: CompactionProfile,
 	/// Should db have WAL enabled?
 	pub db_wal: bool,
+	/// Should it do full verification of blocks?
+	pub verify_full: bool,
+}
+
+impl Default for Config {
+	fn default() -> Config {
+		Config {
+			queue: Default::default(),
+			chain_column: None,
+			db_cache_size: None,
+			db_compaction: CompactionProfile::default(),
+			db_wal: true,
+			verify_full: true,
+		}
+	}
 }
 
 /// Trait for interacting with the header chain abstractly.
@@ -109,6 +124,9 @@ pub trait LightChainClient: Send + Sync {
 
 	/// Get the EIP-86 transition block number.
 	fn eip86_transition(&self) -> u64;
+
+	/// Get a report of import activity since the last call.
+	fn report(&self) -> ClientReport;
 }
 
 /// An actor listening to light chain events.
@@ -141,6 +159,7 @@ pub struct Client {
 	import_lock: Mutex<()>,
 	db: Arc<KeyValueDB>,
 	listeners: RwLock<Vec<Weak<LightChainNotify>>>,
+	verify_full: bool,
 }
 
 impl Client {
@@ -156,6 +175,7 @@ impl Client {
 			import_lock: Mutex::new(()),
 			db: db,
 			listeners: RwLock::new(vec![]),
+			verify_full: config.verify_full,
 		})
 	}
 
@@ -263,6 +283,14 @@ impl Client {
 		for verified_header in self.queue.drain(MAX) {
 			let (num, hash) = (verified_header.number(), verified_header.hash());
 
+			if self.verify_full && !self.check_header(&mut bad, &verified_header) {
+				continue
+			}
+
+			// TODO: `epoch_end_signal`, `is_epoch_end`.
+			// proofs we get from the network would be _complete_, whereas we need
+			// _incomplete_ signals
+
 			let mut tx = self.db.transaction();
 			let pending = match self.chain.insert(&mut tx, verified_header) {
 				Ok(pending) => {
@@ -273,14 +301,16 @@ impl Client {
 				Err(e) => {
 					debug!(target: "client", "Error importing header {:?}: {}", (num, hash), e);
 					bad.push(hash);
-					break;
+					continue;
 				}
 			};
+
 			self.db.write_buffered(tx);
 			self.chain.apply_pending(pending);
-			if let Err(e) = self.db.flush() {
-				panic!("Database flush failed: {}. Check disk health and space.", e);
-			}
+		}
+
+		if let Err(e) = self.db.flush() {
+			panic!("Database flush failed: {}. Check disk health and space.", e);
 		}
 
 		self.queue.mark_as_bad(&bad);
@@ -291,7 +321,7 @@ impl Client {
 
 	/// Get a report about blocks imported.
 	pub fn report(&self) -> ClientReport {
-		::std::mem::replace(&mut *self.report.write(), ClientReport::default())
+		self.report.read().clone()
 	}
 
 	/// Get blockchain mem usage in bytes.
@@ -349,6 +379,37 @@ impl Client {
 				f(&*listener)
 			}
 		}
+	}
+
+	// return true if should skip, false otherwise. may push onto bad if
+	// should skip.
+	fn check_header(&self, bad: &mut Vec<H256>, verified_header: &Header) -> bool {
+		let hash = verified_header.hash();
+		let parent_header = match self.chain.block_header(BlockId::Hash(*verified_header.parent_hash())) {
+			Some(header) => header,
+			None => return false, // skip import of block with missing parent.
+		};
+
+		// Verify Block Family
+		let verify_family_result = self.engine.verify_block_family(&verified_header, &parent_header.decode(), None);
+		if let Err(e) = verify_family_result {
+			warn!(target: "client", "Stage 3 block verification failed for #{} ({})\nError: {:?}",
+				verified_header.number(), verified_header.hash(), e);
+			bad.push(hash);
+			return false;
+		};
+
+		// "external" verification.
+		let verify_external_result = self.engine.verify_block_external(&verified_header, None);
+		if let Err(e) = verify_external_result {
+			warn!(target: "client", "Stage 4 block verification failed for #{} ({})\nError: {:?}",
+				verified_header.number(), verified_header.hash(), e);
+
+			bad.push(hash);
+			return false;
+		};
+
+		true
 	}
 }
 
@@ -413,5 +474,9 @@ impl LightChainClient for Client {
 
 	fn eip86_transition(&self) -> u64 {
 		self.engine().params().eip86_transition
+	}
+
+	fn report(&self) -> ClientReport {
+		Client::report(self)
 	}
 }

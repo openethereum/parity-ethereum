@@ -40,10 +40,6 @@ impl ContentHandler {
 		Self::new(StatusCode::Ok, content, mimetype)
 	}
 
-	pub fn not_found(content: String, mimetype: Mime) -> Self {
-		Self::new(StatusCode::NotFound, content, mimetype)
-	}
-
 	pub fn html(code: StatusCode, content: String, embeddable_on: Embeddable) -> Self {
 		Self::new_embeddable(code, content, mime!(Text/Html), embeddable_on)
 	}

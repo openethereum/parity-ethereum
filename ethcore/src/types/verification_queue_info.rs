@@ -17,7 +17,7 @@
 //! Verification queue info types
 
 /// Verification queue status
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 #[cfg_attr(feature = "ipc", binary)]
 pub struct VerificationQueueInfo {
 	/// Number of queued items pending verification

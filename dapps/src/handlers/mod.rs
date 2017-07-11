@@ -16,17 +16,22 @@
 
 //! Hyper handlers implementations.
 
+mod async;
 mod content;
 mod echo;
 mod fetch;
 mod redirect;
 mod streaming;
 
+pub use self::async::AsyncHandler;
 pub use self::content::ContentHandler;
 pub use self::echo::EchoHandler;
 pub use self::fetch::{ContentFetcherHandler, ContentValidator, FetchControl, ValidatorResponse};
 pub use self::redirect::Redirection;
 pub use self::streaming::StreamingHandler;
+
+use std::iter;
+use util::Itertools;
 
 use url::Url;
 use hyper::{server, header, net, uri};
@@ -78,21 +83,21 @@ pub fn add_security_headers(headers: &mut header::Headers, embeddable_on: Embedd
 				let proxy = format!("{}.{}", apps::HOME_PAGE, embed.dapps_domain);
 				let domain = format!("*.{}:{}", embed.dapps_domain, embed.port);
 
-				if embed.host == "127.0.0.1" {
+				let mut ancestors = vec![std, domain, proxy]
+					.into_iter()
+					.chain(embed.extra_embed_on
+						.iter()
+						.map(|&(ref host, port)| format!("{}:{}", host, port))
+					);
+
+				let ancestors = if embed.host == "127.0.0.1" {
 					let localhost = address("localhost", embed.port);
-					format!("frame-ancestors {} {} {} {};",
-						std,
-						localhost,
-						domain,
-						proxy,
-					)
+					ancestors.chain(iter::once(localhost)).join(" ")
 				} else {
-					format!("frame-ancestors {} {} {};",
-						std,
-						domain,
-						proxy,
-					)
-				}
+					ancestors.join(" ")
+				};
+
+				format!("frame-ancestors {};", ancestors)
 			},
 			None => format!("frame-ancestors 'self';"),
 		}.into_bytes(),

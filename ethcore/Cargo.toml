@@ -52,6 +52,8 @@ semver = "0.6"
 stats = { path = "../util/stats" }
 time = "0.1"
 transient-hashmap = "0.4"
+parity-wasm = "0.12"
+wasm-utils = { git = "https://github.com/paritytech/wasm-utils" }
 
 [dev-dependencies]
 native-contracts = { path = "native_contracts", features = ["test_contracts"] }

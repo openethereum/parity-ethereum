@@ -18,23 +18,36 @@ use std::sync::Arc;
 
 use hyper::{server, net, Decoder, Encoder, Next, Control};
 use hyper::method::Method;
+use hyper::status::StatusCode;
 
-use api::types::ApiError;
-use api::response;
+use api::{response, types};
+use api::time::TimeChecker;
 use apps::fetcher::Fetcher;
-
-use handlers::extract_url;
+use handlers::{self, extract_url};
 use endpoint::{Endpoint, Handler, EndpointPath};
+use parity_reactor::Remote;
+use {SyncStatus};
 
 #[derive(Clone)]
 pub struct RestApi {
 	fetcher: Arc<Fetcher>,
+	sync_status: Arc<SyncStatus>,
+	time: TimeChecker,
+	remote: Remote,
 }
 
 impl RestApi {
-	pub fn new(fetcher: Arc<Fetcher>) -> Box<Endpoint> {
+	pub fn new(
+		fetcher: Arc<Fetcher>,
+		sync_status: Arc<SyncStatus>,
+		time: TimeChecker,
+		remote: Remote,
+	) -> Box<Endpoint> {
 		Box::new(RestApi {
-			fetcher: fetcher,
+			fetcher,
+			sync_status,
+			time,
+			remote,
 		})
 	}
 }
@@ -58,11 +71,11 @@ impl RestApiRouter {
 			path: Some(path),
 			control: Some(control),
 			api: api,
-			handler: response::as_json_error(&ApiError {
+			handler: Box::new(response::as_json_error(StatusCode::NotFound, &types::ApiError {
 				code: "404".into(),
 				title: "Not Found".into(),
 				detail: "Resource you requested has not been found.".into(),
-			}),
+			})),
 		}
 	}
 
@@ -74,6 +87,78 @@ impl RestApiRouter {
 			},
 			_ => None
 		}
+	}
+
+	fn health(&self, control: Control) -> Box<Handler> {
+		use self::types::{HealthInfo, HealthStatus, Health};
+
+		trace!(target: "dapps", "Checking node health.");
+		// Check timediff
+		let sync_status = self.api.sync_status.clone();
+		let map = move |time| {
+			// Check peers
+			let peers = {
+				let (connected, max) = sync_status.peers();
+				let (status, message) = match connected {
+					0 => {
+						(HealthStatus::Bad, "You are not connected to any peers. There is most likely some network issue. Fix connectivity.".into())
+					},
+					1 => (HealthStatus::NeedsAttention, "You are connected to only one peer. Your node might not be reliable. Check your network connection.".into()),
+					_ => (HealthStatus::Ok, "".into()),
+				};
+				HealthInfo { status, message, details: (connected, max) }
+			};
+
+			// Check sync
+			let sync = {
+				let is_syncing = sync_status.is_major_importing();
+				let (status, message) = if is_syncing {
+					(HealthStatus::NeedsAttention, "Your node is still syncing, the values you see might be outdated. Wait until it's fully synced.".into())
+				} else {
+					(HealthStatus::Ok, "".into())
+				};
+				HealthInfo { status, message, details: is_syncing }
+			};
+
+			// Check time
+			let time = {
+				const MAX_DRIFT: i64 = 500;
+				let (status, message, details) = match time {
+					Ok(Ok(diff)) if diff < MAX_DRIFT && diff > -MAX_DRIFT => {
+						(HealthStatus::Ok, "".into(), diff)
+					},
+					Ok(Ok(diff)) => {
+						(HealthStatus::Bad, format!(
+							"Your clock is not in sync. Detected difference is too big for the protocol to work: {}ms. Synchronize your clock.",
+							diff,
+						), diff)
+					},
+					Ok(Err(err)) => {
+						(HealthStatus::NeedsAttention, format!(
+							"Unable to reach time API: {}. Make sure that your clock is synchronized.",
+							err,
+						), 0)
+					},
+					Err(_) => {
+						(HealthStatus::NeedsAttention, "Time API request timed out. Make sure that the clock is synchronized.".into(), 0)
+					},
+				};
+
+				HealthInfo { status, message, details, }
+			};
+
+			let status = if [&peers.status, &sync.status, &time.status].iter().any(|x| *x != &HealthStatus::Ok) {
+				StatusCode::PreconditionFailed // HTTP 412
+			} else {
+				StatusCode::Ok // HTTP 200
+			};
+
+			response::as_json(status, &Health { peers, sync, time })
+		};
+
+		let time = self.api.time.time_drift();
+		let remote = self.api.remote.clone();
+		Box::new(handlers::AsyncHandler::new(time, map, remote, control))
 	}
 }
 
@@ -103,6 +188,7 @@ impl server::Handler<net::HttpStream> for RestApiRouter {
 
 		let handler = endpoint.and_then(|v| match v {
 			"ping" => Some(response::ping()),
+			"health" => Some(self.health(control)),
 			"content" => self.resolve_content(hash, path, control),
 			_ => None
 		});

@@ -34,7 +34,7 @@ use rpc::{IpcConfiguration, HttpConfiguration, WsConfiguration, UiConfiguration}
 use rpc_apis::ApiSet;
 use parity_rpc::NetworkSettings;
 use cache::CacheConfig;
-use helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_price, replace_home, replace_home_for_db,
+use helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_price, replace_home, replace_home_and_local,
 geth_ipc_path, parity_ipc_path, to_bootnodes, to_addresses, to_address, to_gas_limit, to_queue_strategy};
 use params::{SpecType, ResealPolicy, AccountsConfig, GasPricerConfig, MinerExtras, Pruning, Switch};
 use ethcore_logger::Config as LogConfig;
@@ -137,7 +137,7 @@ impl Configuration {
 		let secretstore_conf = self.secretstore_config()?;
 		let format = self.format()?;
 
-		if self.args.flag_jsonrpc_threads.is_some() && dapps_conf.enabled {
+		if self.args.flag_jsonrpc_server_threads.is_some() && dapps_conf.enabled {
 			dapps_conf.enabled = false;
 			writeln!(&mut stderr(), "Warning: Disabling Dapps server because fast RPC server was enabled.").expect("Error writing to stderr.")
 		}
@@ -526,6 +526,7 @@ impl Configuration {
 			force_sealing: self.args.flag_force_sealing,
 			reseal_on_external_tx: reseal.external,
 			reseal_on_own_tx: reseal.own,
+			reseal_on_uncle: self.args.flag_reseal_on_uncle,
 			tx_gas_limit: match self.args.flag_tx_gas_limit {
 				Some(ref d) => to_u256(d)?,
 				None => U256::max_value(),
@@ -555,6 +556,7 @@ impl Configuration {
 	fn ui_config(&self) -> UiConfiguration {
 		UiConfiguration {
 			enabled: self.ui_enabled(),
+			ntp_server: self.args.flag_ntp_server.clone(),
 			interface: self.ui_interface(),
 			port: self.args.flag_ports_shift + self.args.flag_ui_port,
 			hosts: self.ui_hosts(),
@@ -564,9 +566,15 @@ impl Configuration {
 	fn dapps_config(&self) -> DappsConfiguration {
 		DappsConfiguration {
 			enabled: self.dapps_enabled(),
+			ntp_server: self.args.flag_ntp_server.clone(),
 			dapps_path: PathBuf::from(self.directories().dapps),
 			extra_dapps: if self.args.cmd_dapp {
 				self.args.arg_path.iter().map(|path| PathBuf::from(path)).collect()
+			} else {
+				vec![]
+			},
+			extra_embed_on: if self.args.flag_ui_no_validation {
+				vec![("localhost".to_owned(), 3000)]
 			} else {
 				vec![]
 			},
@@ -662,7 +670,7 @@ impl Configuration {
 				let mut buffer = String::new();
 				let mut node_file = File::open(path).map_err(|e| format!("Error opening reserved nodes file: {}", e))?;
 				node_file.read_to_string(&mut buffer).map_err(|_| "Error reading reserved node file")?;
-				let lines = buffer.lines().map(|s| s.trim().to_owned()).filter(|s| !s.is_empty()).collect::<Vec<_>>();
+				let lines = buffer.lines().map(|s| s.trim().to_owned()).filter(|s| !s.is_empty() && !s.starts_with("#")).collect::<Vec<_>>();
 				if let Some(invalid) = lines.iter().find(|s| !is_valid_node_url(s)) {
 					return Err(format!("Invalid node address format given for a boot node: {}", invalid));
 				}
@@ -824,11 +832,12 @@ impl Configuration {
 			},
 			hosts: self.rpc_hosts(),
 			cors: self.rpc_cors(),
-			threads: match self.args.flag_jsonrpc_threads {
+			server_threads: match self.args.flag_jsonrpc_server_threads {
 				Some(threads) if threads > 0 => Some(threads),
 				None => None,
-				_ => return Err("--jsonrpc-threads number needs to be positive.".into()),
-			}
+				_ => return Err("--jsonrpc-server-threads number needs to be positive.".into()),
+			},
+			processing_threads: self.args.flag_jsonrpc_threads,
 		};
 
 		Ok(conf)
@@ -893,14 +902,20 @@ impl Configuration {
 		let local_path = default_local_path();
 		let base_path = self.args.flag_base_path.as_ref().or_else(|| self.args.flag_datadir.as_ref()).map_or_else(|| default_data_path(), |s| s.clone());
 		let data_path = replace_home("", &base_path);
-		let base_db_path = if self.args.flag_base_path.is_some() && self.args.flag_db_path.is_none() {
-			// If base_path is set and db_path is not we default to base path subdir instead of LOCAL.
+		let is_using_base_path = self.args.flag_base_path.is_some();
+		// If base_path is set and db_path is not we default to base path subdir instead of LOCAL.
+		let base_db_path = if is_using_base_path && self.args.flag_db_path.is_none() {
 			"$BASE/chains"
 		} else {
 			self.args.flag_db_path.as_ref().map_or(dir::CHAINS_PATH, |s| &s)
 		};
+		let cache_path = if is_using_base_path {
+			"$BASE/cache".into()
+		} else {
+			replace_home_and_local(&data_path, &local_path, &dir::CACHE_PATH)
+		};
 
-		let db_path = replace_home_for_db(&data_path, &local_path, &base_db_path);
+		let db_path = replace_home_and_local(&data_path, &local_path, &base_db_path);
 		let keys_path = replace_home(&data_path, &self.args.flag_keys_path);
 		let dapps_path = replace_home(&data_path, &self.args.flag_dapps_path);
 		let secretstore_path = replace_home(&data_path, &self.args.flag_secretstore_path);
@@ -924,6 +939,7 @@ impl Configuration {
 		Directories {
 			keys: keys_path,
 			base: data_path,
+			cache: cache_path,
 			db: db_path,
 			dapps: dapps_path,
 			signer: ui_path,
@@ -1256,6 +1272,7 @@ mod tests {
 			support_token_api: true
 		}, UiConfiguration {
 			enabled: true,
+			ntp_server: "pool.ntp.org:123".into(),
 			interface: "127.0.0.1".into(),
 			port: 8180,
 			hosts: Some(vec![]),
@@ -1496,6 +1513,7 @@ mod tests {
 		assert_eq!(conf0.directories().signer, "signer".to_owned());
 		assert_eq!(conf0.ui_config(), UiConfiguration {
 			enabled: true,
+			ntp_server: "pool.ntp.org:123".into(),
 			interface: "127.0.0.1".into(),
 			port: 8180,
 			hosts: Some(vec![]),
@@ -1504,14 +1522,17 @@ mod tests {
 		assert_eq!(conf1.directories().signer, "signer".to_owned());
 		assert_eq!(conf1.ui_config(), UiConfiguration {
 			enabled: true,
+			ntp_server: "pool.ntp.org:123".into(),
 			interface: "127.0.0.1".into(),
 			port: 8180,
 			hosts: Some(vec![]),
 		});
+		assert_eq!(conf1.dapps_config().extra_embed_on, vec![("localhost".to_owned(), 3000)]);
 		assert_eq!(conf1.ws_config().unwrap().hosts, None);
 		assert_eq!(conf2.directories().signer, "signer".to_owned());
 		assert_eq!(conf2.ui_config(), UiConfiguration {
 			enabled: true,
+			ntp_server: "pool.ntp.org:123".into(),
 			interface: "127.0.0.1".into(),
 			port: 3123,
 			hosts: Some(vec![]),
@@ -1520,6 +1541,7 @@ mod tests {
 		assert_eq!(conf3.directories().signer, "signer".to_owned());
 		assert_eq!(conf3.ui_config(), UiConfiguration {
 			enabled: true,
+			ntp_server: "pool.ntp.org:123".into(),
 			interface: "test".into(),
 			port: 8180,
 			hosts: Some(vec![]),
@@ -1552,6 +1574,19 @@ mod tests {
 		let args = vec!["parity", "--reserved-peers", &filename];
 		let conf = Configuration::parse(&args, None).unwrap();
 		assert!(conf.init_reserved_nodes().is_ok());
+	}
+
+	#[test]
+	fn should_ignore_comments_in_reserved_peers() {
+		let temp = RandomTempPath::new();
+		create_dir(temp.as_str().to_owned()).unwrap();
+		let filename = temp.as_str().to_owned() + "/peers_comments";
+		File::create(filename.clone()).unwrap().write_all(b"# Sample comment\nenode://6f8a80d14311c39f35f516fa664deaaaa13e85b2f7493f37f6144d86991ec012937307647bd3b9a82abe2974e1407241d54947bbb39763a4cac9f77166ad92a0@172.0.0.1:30303\n").unwrap();
+		let args = vec!["parity", "--reserved-peers", &filename];
+		let conf = Configuration::parse(&args, None).unwrap();
+		let reserved_nodes = conf.init_reserved_nodes();
+		assert!(reserved_nodes.is_ok());
+		assert_eq!(reserved_nodes.unwrap().len(), 1);
 	}
 
 	#[test]

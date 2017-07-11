@@ -44,6 +44,6 @@ impl vm::Informant for Informant {
 
 impl trace::VMTracer for Informant {
 	fn prepare_subtrace(&self, _code: &[u8]) -> Self where Self: Sized { Default::default() }
-	fn done_subtrace(&mut self, _sub: Self, _is_successful: bool) where Self: Sized {}
+	fn done_subtrace(&mut self, _sub: Self) {}
 	fn drain(self) -> Option<trace::VMTrace> { None }
 }
