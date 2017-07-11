@@ -81,6 +81,16 @@
   white-space: nowrap;
 }
 
+.indicatorTab {
+  font-size: 1.5rem;
+  flex: 0;
+}
+
+.indicator {
+  padding: 20px 12px 0;
+  opacity: 0.8;
+}
+
 .first {
   margin-left: -24px;
 }

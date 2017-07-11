@@ -126,6 +126,11 @@ impl Client {
 		*self.client.write() = (time::Instant::now(), client.clone());
 		Ok(client)
 	}
+
+	/// Returns a handle to underlying CpuPool of this client.
+	pub fn pool(&self) -> CpuPool {
+		self.pool.clone()
+	}
 }
 
 impl Fetch for Client {
@@ -202,6 +207,15 @@ pub enum Error {
 	Fetch(reqwest::Error),
 	/// Request aborted
 	Aborted,
+}
+
+impl fmt::Display for Error {
+	fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+		match *self {
+			Error::Aborted => write!(fmt, "The request has been aborted."),
+			Error::Fetch(ref err) => write!(fmt, "{}", err),
+		}
+	}
 }
 
 impl From<reqwest::Error> for Error {

@@ -467,6 +467,8 @@ Internal Options:
   --can-restart                    Executable will auto-restart if exiting with 69.
 
 Miscellaneous Options:
+  --ntp-server HOST                NTP server to provide current time (host:port). Used to verify node health.
+                                   (default: {flag_ntp_server})
   -l --logging LOGGING             Specify the logging level. Must conform to the same
                                    format as RUST_LOG. (default: {flag_logging:?})
   --log-file FILENAME              Specify a filename into which logging should be

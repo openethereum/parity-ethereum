@@ -27,8 +27,7 @@ use ethcore::miner::{StratumOptions, Stratum};
 use ethcore::service::ClientService;
 use ethcore::snapshot;
 use ethcore::verification::queue::VerifierSettings;
-use ethsync::NetworkConfiguration;
-use ethsync::SyncConfig;
+use ethsync::{self, SyncConfig};
 use fdlimit::raise_fd_limit;
 use hash_fetch::fetch::{Fetch, Client as FetchClient};
 use informant::{Informant, LightNodeInformantData, FullNodeInformantData};
@@ -84,7 +83,7 @@ pub struct RunCmd {
 	pub ws_conf: rpc::WsConfiguration,
 	pub http_conf: rpc::HttpConfiguration,
 	pub ipc_conf: rpc::IpcConfiguration,
-	pub net_conf: NetworkConfiguration,
+	pub net_conf: ethsync::NetworkConfiguration,
 	pub network_id: Option<u64>,
 	pub warp_sync: bool,
 	pub public_node: bool,
@@ -237,7 +236,7 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 		network_config: net_conf.into_basic().map_err(|e| format!("Failed to produce network config: {}", e))?,
 		client: Arc::new(provider),
 		network_id: cmd.network_id.unwrap_or(spec.network_id()),
-		subprotocol_name: ::ethsync::LIGHT_PROTOCOL,
+		subprotocol_name: ethsync::LIGHT_PROTOCOL,
 		handlers: vec![on_demand.clone()],
 	};
 	let light_sync = LightSync::new(sync_params).map_err(|e| format!("Error starting network: {}", e))?;
@@ -277,9 +276,18 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 			on_demand: on_demand.clone(),
 		});
 
-		let sync = light_sync.clone();
+		struct LightSyncStatus(Arc<LightSync>);
+		impl dapps::SyncStatus for LightSyncStatus {
+			fn is_major_importing(&self) -> bool { self.0.is_major_importing() }
+			fn peers(&self) -> (usize, usize) {
+				let peers = ethsync::LightSyncProvider::peer_numbers(&*self.0);
+				(peers.connected, peers.max)
+			}
+		}
+
 		dapps::Dependencies {
-			sync_status: Arc::new(move || sync.is_major_importing()),
+			sync_status: Arc::new(LightSyncStatus(light_sync.clone())),
+			pool: fetch.pool(),
 			contract_client: contract_client,
 			remote: event_loop.raw_remote(),
 			fetch: fetch.clone(),
@@ -289,7 +297,7 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 	};
 
 	let dapps_middleware = dapps::new(cmd.dapps_conf.clone(), dapps_deps.clone())?;
-	let ui_middleware = dapps::new_ui(cmd.ui_conf.enabled, dapps_deps)?;
+	let ui_middleware = dapps::new_ui(cmd.ui_conf.enabled, &cmd.ui_conf.ntp_server, dapps_deps)?;
 
 	// start RPCs
 	let dapps_service = dapps::service(&dapps_middleware);
@@ -586,7 +594,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	let (sync_provider, manage_network, chain_notify) = modules::sync(
 		&mut hypervisor,
 		sync_config,
-		net_conf.into(),
+		net_conf.clone().into(),
 		client.clone(),
 		snapshot_service.clone(),
 		client.clone(),
@@ -630,8 +638,20 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 		let (sync, client) = (sync_provider.clone(), client.clone());
 		let contract_client = Arc::new(::dapps::FullRegistrar { client: client.clone() });
 
+		struct SyncStatus(Arc<ethsync::SyncProvider>, Arc<Client>, ethsync::NetworkConfiguration);
+		impl dapps::SyncStatus for SyncStatus {
+			fn is_major_importing(&self) -> bool {
+				is_major_importing(Some(self.0.status().state), self.1.queue_info())
+			}
+			fn peers(&self) -> (usize, usize) {
+				let status = self.0.status();
+				(status.num_peers, status.current_max_peers(self.2.min_peers, self.2.max_peers) as usize)
+			}
+		}
+
 		dapps::Dependencies {
-			sync_status: Arc::new(move || is_major_importing(Some(sync.status().state), client.queue_info())),
+			sync_status: Arc::new(SyncStatus(sync, client, net_conf)),
+			pool: fetch.pool(),
 			contract_client: contract_client,
 			remote: event_loop.raw_remote(),
 			fetch: fetch.clone(),
@@ -640,7 +660,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 		}
 	};
 	let dapps_middleware = dapps::new(cmd.dapps_conf.clone(), dapps_deps.clone())?;
-	let ui_middleware = dapps::new_ui(cmd.ui_conf.enabled, dapps_deps)?;
+	let ui_middleware = dapps::new_ui(cmd.ui_conf.enabled, &cmd.ui_conf.ntp_server, dapps_deps)?;
 
 	let dapps_service = dapps::service(&dapps_middleware);
 	let deps_for_rpc_apis = Arc::new(rpc_apis::FullDependencies {
