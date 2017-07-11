@@ -19,6 +19,8 @@
 #![cfg_attr(feature="dev", feature(plugin))]
 #![cfg_attr(feature="dev", plugin(clippy))]
 
+//! A simple client to get the current ETH price using an external API.
+
 extern crate fetch;
 extern crate futures;
 extern crate serde_json;

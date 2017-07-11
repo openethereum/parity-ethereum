@@ -26,8 +26,10 @@ use futures::Future;
 use serde_json;
 use serde_json::Value;
 
+/// Current ETH price information.
 #[derive(Debug)]
 pub struct PriceInfo {
+	/// Current ETH price in USD.
 	pub ethusd: f32,
 }
 
@@ -50,6 +52,7 @@ impl From<fetch::Error> for Error {
 	fn from(err: fetch::Error) -> Self { Error::Fetch(err) }
 }
 
+/// A client to get the current ETH price using an external API.
 pub struct Client {
 	api_endpoint: String,
 	fetch: FetchClient,
@@ -70,11 +73,13 @@ impl cmp::PartialEq for Client {
 }
 
 impl Client {
+	/// Creates a new instance of the `Client` given a `fetch::Client`.
 	pub fn new(fetch: FetchClient) -> Client {
 		let api_endpoint = "http://api.etherscan.io/api?module=stats&action=ethprice".to_owned();
 		Client { api_endpoint, fetch }
 	}
 
+	/// Gets the current ETH price and calls `set_price` with the result.
 	pub fn get<F: Fn(PriceInfo) + Sync + Send + 'static>(&self, set_price: F) {
 		self.fetch.forget(self.fetch.fetch(&self.api_endpoint)
 			.map_err(|err| Error::Fetch(err))
