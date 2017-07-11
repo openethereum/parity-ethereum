@@ -241,7 +241,7 @@ export default class Status {
       status: STATUS_BAD,
       message: ['Unable to fetch node health.']
     };
-   }
+  }
 
   _fetchHealth = () => {
     // Support Parity-Extension.

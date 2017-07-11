@@ -53,7 +53,7 @@ class Status extends Component {
               title={ health.overall.message }
             />
           </div>
-          <span title={ `${ netPeers.connected.toFormat() }/${ netPeers.max.toFormat() } peers` }>
+          <span title={ `${netPeers.connected.toFormat()}/${netPeers.max.toFormat()} peers` }>
             <BlockStatus />
           </span>
           <div className={ `${styles.network} ${styles[isTest ? 'test' : 'live']}` }>
