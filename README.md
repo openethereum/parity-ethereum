@@ -81,14 +81,6 @@ Once you have rustup, install parity or download and build from source
 
 ----
 
-## Quick build and install
-
-```bash
-cargo install --git https://github.com/paritytech/parity.git parity
-```
-
-----
-
 ## Install from the snap store
 
 In any of the [supported Linux distros](https://snapcraft.io/docs/core/install):
