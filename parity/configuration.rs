@@ -783,15 +783,11 @@ impl Configuration {
 	}
 
 	fn ws_hosts(&self) -> Option<Vec<String>> {
-		if self.args.flag_ui_no_validation {
-			return None;
-		}
-
 		self.hosts(&self.args.flag_ws_hosts, &self.ws_interface())
 	}
 
 	fn ws_origins(&self) -> Option<Vec<String>> {
-		if self.args.flag_unsafe_expose {
+		if self.args.flag_unsafe_expose || self.args.flag_ui_no_validation {
 			return None;
 		}
 
@@ -1528,7 +1524,7 @@ mod tests {
 			hosts: Some(vec![]),
 		});
 		assert_eq!(conf1.dapps_config().extra_embed_on, vec![("localhost".to_owned(), 3000)]);
-		assert_eq!(conf1.ws_config().unwrap().hosts, None);
+		assert_eq!(conf1.ws_config().unwrap().origins, None);
 		assert_eq!(conf2.directories().signer, "signer".to_owned());
 		assert_eq!(conf2.ui_config(), UiConfiguration {
 			enabled: true,
