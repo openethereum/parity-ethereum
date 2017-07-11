@@ -39,13 +39,13 @@ pub enum FakeCallType {
 
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub struct FakeCall {
-	call_type: FakeCallType,
-	gas: U256,
-	sender_address: Option<Address>,
-	receive_address: Option<Address>,
-	value: Option<U256>,
-	data: Bytes,
-	code_address: Option<Address>,
+	pub call_type: FakeCallType,
+	pub gas: U256,
+	pub sender_address: Option<Address>,
+	pub receive_address: Option<Address>,
+	pub value: Option<U256>,
+	pub data: Bytes,
+	pub code_address: Option<Address>,
 }
 
 /// Fake externalities test structure.
@@ -53,17 +53,17 @@ pub struct FakeCall {
 /// Can't do recursive calls.
 #[derive(Default)]
 pub struct FakeExt {
+	pub store: HashMap<H256, H256>,
+	pub suicides: HashSet<Address>,
+	pub calls: HashSet<FakeCall>,
 	sstore_clears: usize,
 	depth: usize,
-	store: HashMap<H256, H256>,
 	blockhashes: HashMap<U256, H256>,
 	codes: HashMap<Address, Arc<Bytes>>,
 	logs: Vec<FakeLogEntry>,
-	_suicides: HashSet<Address>,
 	info: EnvInfo,
 	schedule: Schedule,
 	balances: HashMap<Address, U256>,
-	calls: HashSet<FakeCall>,
 }
 
 // similar to the normal `finalize` function, but ignoring NeedsReturn.
@@ -173,8 +173,9 @@ impl Ext for FakeExt {
 		unimplemented!();
 	}
 
-	fn suicide(&mut self, _refund_address: &Address) -> evm::Result<()> {
-		unimplemented!();
+	fn suicide(&mut self, refund_address: &Address) -> evm::Result<()> {
+		self.suicides.insert(refund_address.clone());
+		Ok(())
 	}
 
 	fn schedule(&self) -> &Schedule {

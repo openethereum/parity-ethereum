@@ -200,7 +200,7 @@ pub fn new_ws<D: rpc_apis::Dependencies>(
 			rpc::WsDispatcher::new(full_handler),
 			Middleware::new(deps.stats.clone(), deps.apis.activity_notifier())
 		));
-		let apis = conf.apis.list_apis().into_iter().collect::<Vec<_>>();
+		let apis = conf.apis.list_apis();
 		deps.apis.extend_with_set(&mut handler, &apis);
 
 		handler
@@ -326,7 +326,7 @@ fn setup_apis<D>(apis: ApiSet, deps: &Dependencies<D>) -> MetaIoHandler<Metadata
 	let mut handler = MetaIoHandler::with_middleware(
 		Middleware::new(deps.stats.clone(), deps.apis.activity_notifier())
 	);
-	let apis = apis.list_apis().into_iter().collect::<Vec<_>>();
+	let apis = apis.list_apis();
 	deps.apis.extend_with_set(&mut handler, &apis);
 
 	handler
