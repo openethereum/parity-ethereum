@@ -16,7 +16,7 @@
 
 use std::collections::BTreeMap;
 
-use block::{OpenBlock, SealedBlock};
+use block::{OpenBlock, SealedBlock, ClosedBlock};
 use blockchain::TreeRoute;
 use encoded;
 use evm::env_info::LastHashes;
@@ -289,6 +289,9 @@ pub trait MiningBlockChainClient: BlockChainClient {
 		gas_range_target: (U256, U256),
 		extra_data: Bytes
 	) -> OpenBlock;
+
+	/// Reopens an OpenBlock and updates uncles.
+	fn reopen_block(&self, block: ClosedBlock) -> OpenBlock;
 
 	/// Returns EvmFactory.
 	fn vm_factory(&self) -> &EvmFactory;

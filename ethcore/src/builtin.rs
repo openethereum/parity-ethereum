@@ -506,7 +506,7 @@ mod tests {
 	use super::{Builtin, Linear, ethereum_builtin, Pricer, Modexp};
 	use ethjson;
 	use util::{U256, BytesRef};
-	use rustc_serialize::hex::FromHex;
+	use rustc_hex::FromHex;
 
 	#[test]
 	fn identity() {
@@ -530,7 +530,6 @@ mod tests {
 
 	#[test]
 	fn sha256() {
-		use rustc_serialize::hex::FromHex;
 		let f = ethereum_builtin("sha256");
 
 		let i = [0u8; 0];
@@ -554,7 +553,6 @@ mod tests {
 
 	#[test]
 	fn ripemd160() {
-		use rustc_serialize::hex::FromHex;
 		let f = ethereum_builtin("ripemd160");
 
 		let i = [0u8; 0];
@@ -574,7 +572,6 @@ mod tests {
 
 	#[test]
 	fn ecrecover() {
-		use rustc_serialize::hex::FromHex;
 		/*let k = KeyPair::from_secret(b"test".sha3()).unwrap();
 		let a: Address = From::from(k.public().sha3());
 		println!("Address: {}", a);
@@ -633,7 +630,6 @@ mod tests {
 
 	#[test]
 	fn modexp() {
-		use rustc_serialize::hex::FromHex;
 
 		let f = Builtin {
 			pricer: Box::new(Modexp { divisor: 20 }),
@@ -720,7 +716,6 @@ mod tests {
 
 	#[test]
 	fn bn128_add() {
-		use rustc_serialize::hex::FromHex;
 
 		let f = Builtin {
 			pricer: Box::new(Linear { base: 0, word: 0 }),
@@ -782,7 +777,6 @@ mod tests {
 
 	#[test]
 	fn bn128_mul() {
-		use rustc_serialize::hex::FromHex;
 
 		let f = Builtin {
 			pricer: Box::new(Linear { base: 0, word: 0 }),

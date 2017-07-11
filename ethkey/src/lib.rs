@@ -19,7 +19,7 @@ extern crate rand;
 extern crate lazy_static;
 extern crate tiny_keccak;
 extern crate secp256k1;
-extern crate rustc_serialize;
+extern crate rustc_hex;
 extern crate ethcore_bigint as bigint;
 extern crate crypto as rcrypto;
 extern crate byteorder;

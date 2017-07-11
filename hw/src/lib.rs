@@ -22,7 +22,7 @@ extern crate libusb;
 extern crate ethkey;
 extern crate ethcore_bigint as bigint;
 #[macro_use] extern crate log;
-#[cfg(test)] extern crate rustc_serialize;
+#[cfg(test)] extern crate rustc_hex;
 
 mod ledger;
 

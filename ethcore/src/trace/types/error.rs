@@ -41,6 +41,8 @@ pub enum Error {
 	Internal,
 	/// When execution tries to modify the state in static context
 	MutableCallInStaticContext,
+	/// Wasm error
+	Wasm,
 }
 
 impl<'a> From<&'a EvmError> for Error {
@@ -52,6 +54,7 @@ impl<'a> From<&'a EvmError> for Error {
 			EvmError::StackUnderflow { .. } => Error::StackUnderflow,
 			EvmError::OutOfStack { .. } => Error::OutOfStack,
 			EvmError::BuiltIn { .. } => Error::BuiltIn,
+			EvmError::Wasm { .. } => Error::Wasm,
 			EvmError::Internal(_) => Error::Internal,
 			EvmError::MutableCallInStaticContext => Error::MutableCallInStaticContext,
 		}
@@ -74,6 +77,7 @@ impl fmt::Display for Error {
 			StackUnderflow => "Stack underflow",
 			OutOfStack => "Out of stack",
 			BuiltIn => "Built-in failed",
+			Wasm => "Wasm runtime error",
 			Internal => "Internal error",
 			MutableCallInStaticContext => "Mutable Call In Static Context",
 		};
@@ -93,6 +97,7 @@ impl Encodable for Error {
 			Internal => 5,
 			BuiltIn => 6,
 			MutableCallInStaticContext => 7,
+			Wasm => 8,
 		};
 
 		s.append_internal(&value);
@@ -112,6 +117,7 @@ impl Decodable for Error {
 			5 => Ok(Internal),
 			6 => Ok(BuiltIn),
 			7 => Ok(MutableCallInStaticContext),
+			8 => Ok(Wasm),
 			_ => Err(DecoderError::Custom("Invalid error type")),
 		}
 	}

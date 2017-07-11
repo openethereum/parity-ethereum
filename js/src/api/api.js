@@ -21,6 +21,7 @@ import Contract from './contract';
 
 import { Db, Eth, Parity, Net, Personal, Shh, Signer, Trace, Web3 } from './rpc';
 import Subscriptions from './subscriptions';
+import Pubsub from './pubsub';
 import util from './util';
 import { isFunction } from './util/types';
 
@@ -46,10 +47,13 @@ export default class Api extends EventEmitter {
     this._trace = new Trace(transport);
     this._web3 = new Web3(transport);
 
+    if (isFunction(transport.subscribe)) {
+      this._pubsub = new Pubsub(transport);
+    }
+
     if (allowSubscriptions) {
       this._subscriptions = new Subscriptions(this);
     }
-
     // Doing a request here in test env would cause an error
     if (LocalAccountsMiddleware && process.env.NODE_ENV !== 'test') {
       const middleware = this.parity
@@ -65,6 +69,13 @@ export default class Api extends EventEmitter {
 
       transport.addMiddleware(middleware);
     }
+  }
+
+  get pubsub () {
+    if (!this._pubsub) {
+      throw Error('Pubsub is only available with a subscribing-supported transport injected!');
+    }
+    return this._pubsub;
   }
 
   get db () {

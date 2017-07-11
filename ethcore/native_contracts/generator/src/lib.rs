@@ -112,7 +112,7 @@ pub fn {snake_name}<F, U>(&self, call: F, {params}) -> BoxFuture<{output_type}, 
 	    U: IntoFuture<Item=Vec<u8>, Error=String>,
 		U::Future: Send + 'static
 {{
-	let function = self.contract.function(r#"{abi_name}"#.to_string())
+	let function = self.contract.function(r#"{abi_name}"#)
 		.expect("function existence checked at compile-time; qed");
 	let call_addr = self.address;
 

@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use devtools::http_client;
-use rustc_serialize::hex::FromHex;
+use rustc_hex::FromHex;
 use tests::helpers::{
 	serve_with_registrar, serve_with_registrar_and_sync, serve_with_fetch,
 	serve_with_registrar_and_fetch, serve_with_registrar_and_fetch_and_threads,

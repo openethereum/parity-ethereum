@@ -363,18 +363,18 @@ impl Eth for EthClient {
 		let best_header = self.client.best_block_header().decode();
 
 		UntrustedRlp::new(&raw.into_vec()).as_val()
-			.map_err(errors::from_rlp_error)
+			.map_err(errors::rlp)
 			.and_then(|tx| {
 				self.client.engine().verify_transaction_basic(&tx, &best_header)
-					.map_err(errors::from_transaction_error)?;
+					.map_err(errors::transaction)?;
 
-				let signed = SignedTransaction::new(tx).map_err(errors::from_transaction_error)?;
+				let signed = SignedTransaction::new(tx).map_err(errors::transaction)?;
 				let hash = signed.hash();
 
 				self.transaction_queue.write().import(signed.into())
 					.map(|_| hash)
 					.map_err(Into::into)
-					.map_err(errors::from_transaction_error)
+					.map_err(errors::transaction)
 			})
 			.map(Into::into)
 	}

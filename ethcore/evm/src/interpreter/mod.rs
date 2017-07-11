@@ -23,18 +23,17 @@ mod stack;
 mod memory;
 mod shared_cache;
 
-use {evm, ext};
 use self::gasometer::Gasometer;
 use self::stack::{Stack, VecStack};
 use self::memory::Memory;
-
 pub use self::shared_cache::SharedCache;
 
 use std::marker::PhantomData;
 use action_params::{ActionParams, ActionValue};
 use call_type::CallType;
 use instructions::{self, Instruction, InstructionInfo};
-use {MessageCallResult, ContractCreateResult, GasLeft, CostType, CreateContractAddress, ReturnData};
+use evm::{self, GasLeft, CostType, ReturnData};
+use ext::{self, MessageCallResult, ContractCreateResult, CreateContractAddress};
 use bit_set::BitSet;
 
 use util::*;
@@ -113,6 +112,7 @@ impl<Cost: CostType> evm::Evm for Interpreter<Cost> {
 		self.mem.clear();
 
 		let mut informant = informant::EvmInformant::new(ext.depth());
+		let mut do_trace = true;
 
 		let code = &params.code.as_ref().expect("exec always called with code; qed");
 		let mut valid_jump_destinations = None;
@@ -126,13 +126,17 @@ impl<Cost: CostType> evm::Evm for Interpreter<Cost> {
 			let instruction = code[reader.position];
 			reader.position += 1;
 
+			// TODO: make compile-time removable if too much of a performance hit.
+			do_trace = do_trace && ext.trace_next_instruction(reader.position - 1, instruction);
+
 			let info = &infos[instruction as usize];
 			self.verify_instruction(ext, instruction, info, &stack)?;
 
 			// Calculate gas cost
 			let requirements = gasometer.requirements(ext, instruction, info, &stack, self.mem.size())?;
-			// TODO: make compile-time removable if too much of a performance hit.
-			let trace_executed = ext.trace_prepare_execute(reader.position - 1, instruction, &requirements.gas_cost.as_u256());
+			if do_trace {
+				ext.trace_prepare_execute(reader.position - 1, instruction, requirements.gas_cost.as_u256());
+			}
 
 			gasometer.verify_gas(&requirements.gas_cost)?;
 			self.mem.expand(requirements.memory_required_size);
@@ -141,7 +145,7 @@ impl<Cost: CostType> evm::Evm for Interpreter<Cost> {
 
 			evm_debug!({ informant.before_instruction(reader.position, instruction, info, &gasometer.current_gas, &stack) });
 
-			let (mem_written, store_written) = match trace_executed {
+			let (mem_written, store_written) = match do_trace {
 				true => (Self::mem_written(instruction, &stack), Self::store_written(instruction, &stack)),
 				false => (None, None),
 			};
@@ -157,7 +161,7 @@ impl<Cost: CostType> evm::Evm for Interpreter<Cost> {
 				gasometer.current_gas = gasometer.current_gas + *gas;
 			}
 
-			if trace_executed {
+			if do_trace {
 				ext.trace_executed(gasometer.current_gas.as_u256(), stack.peek_top(info.ret), mem_written.map(|(o, s)| (o, &(self.mem[o..(o + s)]))), store_written);
 			}
 
@@ -165,7 +169,8 @@ impl<Cost: CostType> evm::Evm for Interpreter<Cost> {
 			match result {
 				InstructionResult::JumpToPosition(position) => {
 					if valid_jump_destinations.is_none() {
-						valid_jump_destinations = Some(self.cache.jump_destinations(&params.code_hash, code));
+						let code_hash = params.code_hash.clone().unwrap_or_else(|| code.sha3());
+						valid_jump_destinations = Some(self.cache.jump_destinations(&code_hash, code));
 					}
 					let jump_destinations = valid_jump_destinations.as_ref().expect("jump_destinations are initialized on first jump; qed");
 					let pos = self.verify_jump(position, jump_destinations)?;

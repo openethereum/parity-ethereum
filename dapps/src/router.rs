@@ -30,6 +30,7 @@ use apps;
 use apps::fetcher::Fetcher;
 use endpoint::{Endpoint, Endpoints, EndpointPath, Handler};
 use handlers;
+use Embeddable;
 
 /// Special endpoints are accessible on every domain (every dapp)
 #[derive(Debug, PartialEq, Hash, Eq)]
@@ -45,7 +46,7 @@ pub struct Router {
 	endpoints: Option<Endpoints>,
 	fetch: Arc<Fetcher>,
 	special: HashMap<SpecialEndpoint, Option<Box<Endpoint>>>,
-	embeddable_on: Option<(String, u16)>,
+	embeddable_on: Embeddable,
 	dapps_domain: String,
 }
 
@@ -148,7 +149,7 @@ impl Router {
 		content_fetcher: Arc<Fetcher>,
 		endpoints: Option<Endpoints>,
 		special: HashMap<SpecialEndpoint, Option<Box<Endpoint>>>,
-		embeddable_on: Option<(String, u16)>,
+		embeddable_on: Embeddable,
 		dapps_domain: String,
 	) -> Self {
 		Router {

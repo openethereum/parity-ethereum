@@ -217,18 +217,26 @@ impl<M: core::Middleware<Metadata>> WsDispatcher<M> {
 }
 
 impl<M: core::Middleware<Metadata>> core::Middleware<Metadata> for WsDispatcher<M> {
-	fn on_request<F>(&self, request: core::Request, meta: Metadata, process: F) -> core::FutureResponse where
-		F: FnOnce(core::Request, Metadata) -> core::FutureResponse,
+	type Future = core::futures::future::Either<
+		M::Future,
+		core::FutureResponse,
+	>;
+
+	fn on_request<F, X>(&self, request: core::Request, meta: Metadata, process: F) -> Self::Future where
+		F: FnOnce(core::Request, Metadata) -> X,
+		X: core::futures::Future<Item=Option<core::Response>, Error=()> + Send + 'static,
 	{
+		use self::core::futures::future::Either::{A, B};
+
 		let use_full = match &meta.origin {
 			&Origin::Signer { .. } => true,
 			_ => false,
 		};
 
 		if use_full {
-			self.full_handler.handle_rpc_request(request, meta)
+			A(self.full_handler.handle_rpc_request(request, meta))
 		} else {
-			process(request, meta)
+			B(process(request, meta).boxed())
 		}
 	}
 }

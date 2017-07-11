@@ -21,7 +21,7 @@ extern crate ethjson;
 extern crate rlp;
 
 #[cfg(test)]
-extern crate rustc_serialize;
+extern crate rustc_hex;
 
 pub mod account_diff;
 pub mod basic_account;

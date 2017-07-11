@@ -651,6 +651,7 @@ impl Engine for Tendermint {
 
 #[cfg(test)]
 mod tests {
+	use rustc_hex::FromHex;
 	use util::*;
 	use block::*;
 	use error::{Error, BlockError};

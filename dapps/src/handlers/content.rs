@@ -24,6 +24,7 @@ use hyper::status::StatusCode;
 use util::version;
 
 use handlers::add_security_headers;
+use Embeddable;
 
 #[derive(Clone)]
 pub struct ContentHandler {
@@ -31,7 +32,7 @@ pub struct ContentHandler {
 	content: String,
 	mimetype: Mime,
 	write_pos: usize,
-	safe_to_embed_on: Option<(String, u16)>,
+	safe_to_embed_on: Embeddable,
 }
 
 impl ContentHandler {
@@ -39,15 +40,17 @@ impl ContentHandler {
 		Self::new(StatusCode::Ok, content, mimetype)
 	}
 
-	pub fn not_found(content: String, mimetype: Mime) -> Self {
-		Self::new(StatusCode::NotFound, content, mimetype)
-	}
-
-	pub fn html(code: StatusCode, content: String, embeddable_on: Option<(String, u16)>) -> Self {
+	pub fn html(code: StatusCode, content: String, embeddable_on: Embeddable) -> Self {
 		Self::new_embeddable(code, content, mime!(Text/Html), embeddable_on)
 	}
 
-	pub fn error(code: StatusCode, title: &str, message: &str, details: Option<&str>, embeddable_on: Option<(String, u16)>) -> Self {
+	pub fn error(
+		code: StatusCode,
+		title: &str,
+		message: &str,
+		details: Option<&str>,
+		embeddable_on: Embeddable,
+	) -> Self {
 		Self::html(code, format!(
 			include_str!("../error_tpl.html"),
 			title=title,
@@ -61,13 +64,18 @@ impl ContentHandler {
 		Self::new_embeddable(code, content, mimetype, None)
 	}
 
-	pub fn new_embeddable(code: StatusCode, content: String, mimetype: Mime, embeddable_on: Option<(String, u16)>) -> Self {
+	pub fn new_embeddable(
+		code: StatusCode,
+		content: String,
+		mimetype: Mime,
+		safe_to_embed_on: Embeddable,
+	) -> Self {
 		ContentHandler {
-			code: code,
-			content: content,
-			mimetype: mimetype,
+			code,
+			content,
+			mimetype,
 			write_pos: 0,
-			safe_to_embed_on: embeddable_on,
+			safe_to_embed_on,
 		}
 	}
 }
@@ -84,7 +92,7 @@ impl server::Handler<HttpStream> for ContentHandler {
 	fn on_response(&mut self, res: &mut server::Response) -> Next {
 		res.set_status(self.code);
 		res.headers_mut().set(header::ContentType(self.mimetype.clone()));
-		add_security_headers(&mut res.headers_mut(), self.safe_to_embed_on.clone());
+		add_security_headers(&mut res.headers_mut(), self.safe_to_embed_on.take());
 		Next::write()
 	}
 

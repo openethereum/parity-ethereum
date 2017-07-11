@@ -16,17 +16,26 @@
 
 //! Ethereum virtual machine.
 
+extern crate byteorder;
 extern crate bit_set;
 extern crate common_types as types;
 extern crate ethcore_util as util;
 extern crate ethjson;
 extern crate rlp;
+extern crate parity_wasm;
+extern crate wasm_utils;
 
 #[macro_use]
 extern crate lazy_static;
 
+#[macro_use]
+extern crate log;
+
 #[cfg(feature = "jit")]
 extern crate evmjit;
+
+#[cfg(test)]
+extern crate rustc_hex;
 
 pub mod action_params;
 pub mod call_type;
@@ -35,10 +44,10 @@ pub mod ext;
 pub mod evm;
 pub mod interpreter;
 pub mod schedule;
+pub mod wasm;
 
 #[macro_use]
 pub mod factory;
-
 mod vmtype;
 mod instructions;
 

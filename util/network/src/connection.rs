@@ -35,7 +35,7 @@ use rcrypto::aessafe::*;
 use rcrypto::symmetriccipher::*;
 use rcrypto::buffer::*;
 use tiny_keccak::Keccak;
-use bytes::{Buf, MutBuf};
+use bytes::{Buf, BufMut};
 use crypto;
 
 const ENCRYPTED_HEADER_LEN: usize = 32;
@@ -83,9 +83,9 @@ impl<Socket: GenericSocket> GenericConnection<Socket> {
 		let sock_ref = <Socket as Read>::by_ref(&mut self.socket);
 		loop {
 			let max = self.rec_size - self.rec_buf.len();
-			match sock_ref.take(max as u64).try_read(unsafe { self.rec_buf.mut_bytes() }) {
+			match sock_ref.take(max as u64).try_read(unsafe { self.rec_buf.bytes_mut() }) {
 				Ok(Some(size)) if size != 0  => {
-					unsafe { self.rec_buf.advance(size); }
+					unsafe { self.rec_buf.advance_mut(size); }
 					self.stats.inc_recv(size);
 					trace!(target:"network", "{}: Read {} of {} bytes", self.token, self.rec_buf.len(), self.rec_size);
 					if self.rec_size != 0 && self.rec_buf.len() == self.rec_size {
@@ -136,8 +136,8 @@ impl<Socket: GenericSocket> GenericConnection<Socket> {
 				warn!(target:"net", "Unexpected connection data");
 				return Ok(WriteStatus::Complete)
 			}
-			let buf = buf as &mut Buf;
-			match self.socket.try_write(buf.bytes()) {
+
+			match self.socket.try_write(Buf::bytes(&buf)) {
 				Ok(Some(size)) if (pos + size) < send_size => {
 					buf.advance(size);
 					self.stats.inc_send(size);

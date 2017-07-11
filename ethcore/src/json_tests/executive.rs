@@ -123,7 +123,7 @@ impl<'a, T: 'a, V: 'a, B: 'a, E: 'a> Ext for TestExt<'a, T, V, B, E>
 			gas_limit: *gas,
 			value: *value
 		});
-		let contract_address = contract_address(address, &self.sender, &self.nonce, &code.sha3());
+		let contract_address = contract_address(address, &self.sender, &self.nonce, &code).0;
 		ContractCreateResult::Created(contract_address, *gas)
 	}
 

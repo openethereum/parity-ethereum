@@ -211,8 +211,12 @@ impl TestNet<Peer> {
 	pub fn light(n_light: usize, n_full: usize) -> Self {
 		let mut peers = Vec::with_capacity(n_light + n_full);
 		for _ in 0..n_light {
+			let mut config = ::light::client::Config::default();
+
+			// skip full verification because the blocks are bad.
+			config.verify_full = false;
 			let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::hours(6))));
-			let client = LightClient::in_memory(Default::default(), &Spec::new_test(), IoChannel::disconnected(), cache);
+			let client = LightClient::in_memory(config, &Spec::new_test(), IoChannel::disconnected(), cache);
 			peers.push(Arc::new(Peer::new_light(Arc::new(client))))
 		}
 

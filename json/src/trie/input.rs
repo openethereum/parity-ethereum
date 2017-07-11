@@ -21,7 +21,7 @@ use std::collections::BTreeMap;
 use std::str::FromStr;
 use bytes::Bytes;
 use serde::{Deserialize, Deserializer};
-use serde::de::{Error as ErrorTrait, Visitor, MapVisitor, SeqVisitor};
+use serde::de::{Error as ErrorTrait, Visitor, MapAccess, SeqAccess};
 
 /// Trie test input.
 #[derive(Debug, PartialEq)]
@@ -30,35 +30,35 @@ pub struct Input {
 	pub data: BTreeMap<Bytes, Option<Bytes>>,
 }
 
-impl Deserialize for Input {
+impl<'a> Deserialize<'a> for Input {
 	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-		where D: Deserializer
+		where D: Deserializer<'a>
 	{
-		deserializer.deserialize(InputVisitor)
+		deserializer.deserialize_any(InputVisitor)
 	}
 }
 
 struct InputVisitor;
 
-impl Visitor for InputVisitor {
+impl<'a> Visitor<'a> for InputVisitor {
 	type Value = Input;
 
 	fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
 		write!(formatter, "a map of bytes into bytes")
 	}
 
-	fn visit_map<V>(self, mut visitor: V) -> Result<Self::Value, V::Error> where V: MapVisitor {
+	fn visit_map<V>(self, mut visitor: V) -> Result<Self::Value, V::Error> where V: MapAccess<'a> {
 		let mut result = BTreeMap::new();
 
 		loop {
-			let key_str: Option<String> = visitor.visit_key()?;
+			let key_str: Option<String> = visitor.next_key()?;
 			let key = match key_str {
 				Some(ref k) if k.starts_with("0x") => Bytes::from_str(k).map_err(V::Error::custom)?,
 				Some(k) => Bytes::new(k.into_bytes()),
 				None => { break; }
 			};
 
-			let val_str: Option<String> = visitor.visit_value()?;
+			let val_str: Option<String> = visitor.next_value()?;
 			let val = match val_str {
 				Some(ref v) if v.starts_with("0x") => Some(Bytes::from_str(v).map_err(V::Error::custom)?),
 				Some(v) => Some(Bytes::new(v.into_bytes())),
@@ -75,11 +75,11 @@ impl Visitor for InputVisitor {
 		Ok(input)
 	}
 
-	fn visit_seq<V>(self, mut visitor: V) -> Result<Self::Value, V::Error> where V: SeqVisitor {
+	fn visit_seq<V>(self, mut visitor: V) -> Result<Self::Value, V::Error> where V: SeqAccess<'a> {
 		let mut result = BTreeMap::new();
 
 		loop {
-			let keyval: Option<Vec<Option<String>>> = visitor.visit()?;
+			let keyval: Option<Vec<Option<String>>> = visitor.next_element()?;
 			let keyval = match keyval {
 				Some(k) => k,
 				_ => { break; },

@@ -21,6 +21,7 @@ use std::path::{Path, PathBuf};
 use page::handler::{self, PageCache, PageHandlerWaiting};
 use endpoint::{Endpoint, EndpointInfo, EndpointPath, Handler};
 use mime::Mime;
+use Embeddable;
 
 #[derive(Debug, Clone)]
 pub struct LocalPageEndpoint {
@@ -28,11 +29,11 @@ pub struct LocalPageEndpoint {
 	mime: Option<Mime>,
 	info: Option<EndpointInfo>,
 	cache: PageCache,
-	embeddable_on: Option<(String, u16)>,
+	embeddable_on: Embeddable,
 }
 
 impl LocalPageEndpoint {
-	pub fn new(path: PathBuf, info: EndpointInfo, cache: PageCache, embeddable_on: Option<(String, u16)>) -> Self {
+	pub fn new(path: PathBuf, info: EndpointInfo, cache: PageCache, embeddable_on: Embeddable) -> Self {
 		LocalPageEndpoint {
 			path: path,
 			mime: None,

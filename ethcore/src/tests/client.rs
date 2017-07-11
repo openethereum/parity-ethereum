@@ -52,7 +52,7 @@ fn imports_from_empty() {
 #[test]
 fn should_return_registrar() {
 	let dir = RandomTempPath::new();
-	let spec = ethereum::new_morden();
+	let spec = ethereum::new_morden(&dir);
 	let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
 	let client_db = Arc::new(Database::open(&db_config, dir.as_path().to_str().unwrap()).unwrap());
 

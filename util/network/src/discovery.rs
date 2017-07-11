@@ -559,7 +559,7 @@ mod tests {
 	use node_table::{Node, NodeId, NodeEndpoint};
 
 	use std::str::FromStr;
-	use rustc_serialize::hex::FromHex;
+	use rustc_hex::FromHex;
 	use ethkey::{Random, Generator};
 	use AllowIP;
 

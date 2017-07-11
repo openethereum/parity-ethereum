@@ -17,10 +17,10 @@
 //! Interface for Evm externalities.
 
 use util::*;
+use call_type::CallType;
+use env_info::EnvInfo;
 use schedule::Schedule;
 use evm::{self, ReturnData};
-use env_info::EnvInfo;
-use call_type::CallType;
 
 /// Result of externalities create function.
 pub enum ContractCreateResult {
@@ -130,8 +130,11 @@ pub trait Ext {
 	/// Increments sstore refunds count by 1.
 	fn inc_sstore_clears(&mut self);
 
+	/// Decide if any more operations should be traced. Passthrough for the VM trace.
+	fn trace_next_instruction(&mut self, _pc: usize, _instruction: u8) -> bool { false }
+
 	/// Prepare to trace an operation. Passthrough for the VM trace.
-	fn trace_prepare_execute(&mut self, _pc: usize, _instruction: u8, _gas_cost: &U256) -> bool { false }
+	fn trace_prepare_execute(&mut self, _pc: usize, _instruction: u8, _gas_cost: U256) {}
 
 	/// Trace the finalised execution of a single instruction.
 	fn trace_executed(&mut self, _gas_used: U256, _stack_push: &[U256], _mem_diff: Option<(usize, &[u8])>, _store_diff: Option<(U256, U256)>) {}

@@ -157,7 +157,7 @@ impl<'a, T: 'a, V: 'a, B: 'a, E: 'a> Ext for Externalities<'a, T, V, B, E>
 				gas: self.engine.params().eip210_contract_gas,
 				gas_price: 0.into(),
 				code: code,
-				code_hash: code_hash,
+				code_hash: Some(code_hash),
 				data: Some(H256::from(number).to_vec()),
 				call_type: CallType::Call,
 			};
@@ -187,9 +187,8 @@ impl<'a, T: 'a, V: 'a, B: 'a, E: 'a> Ext for Externalities<'a, T, V, B, E>
 
 	fn create(&mut self, gas: &U256, value: &U256, code: &[u8], address_scheme: CreateContractAddress) -> ContractCreateResult {
 		// create new contract address
-		let code_hash = code.sha3();
-		let address = match self.state.nonce(&self.origin_info.address) {
-			Ok(nonce) => contract_address(address_scheme, &self.origin_info.address, &nonce, &code_hash),
+		let (address, code_hash) = match self.state.nonce(&self.origin_info.address) {
+			Ok(nonce) => contract_address(address_scheme, &self.origin_info.address, &nonce, &code),
 			Err(e) => {
 				debug!(target: "ext", "Database corruption encountered: {:?}", e);
 				return ContractCreateResult::Failed
@@ -258,7 +257,7 @@ impl<'a, T: 'a, V: 'a, B: 'a, E: 'a> Ext for Externalities<'a, T, V, B, E>
 			gas: *gas,
 			gas_price: self.origin_info.gas_price,
 			code: code,
-			code_hash: code_hash,
+			code_hash: Some(code_hash),
 			data: Some(data.to_vec()),
 			call_type: call_type,
 		};
@@ -380,7 +379,11 @@ impl<'a, T: 'a, V: 'a, B: 'a, E: 'a> Ext for Externalities<'a, T, V, B, E>
 		self.substate.sstore_clears_count = self.substate.sstore_clears_count + U256::one();
 	}
 
-	fn trace_prepare_execute(&mut self, pc: usize, instruction: u8, gas_cost: &U256) -> bool {
+	fn trace_next_instruction(&mut self, pc: usize, instruction: u8) -> bool {
+		self.vm_tracer.trace_next_instruction(pc, instruction)
+	}
+
+	fn trace_prepare_execute(&mut self, pc: usize, instruction: u8, gas_cost: U256) {
 		self.vm_tracer.trace_prepare_execute(pc, instruction, gas_cost)
 	}
 

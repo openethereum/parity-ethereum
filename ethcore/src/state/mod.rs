@@ -977,7 +977,7 @@ mod tests {
 
 	use std::sync::Arc;
 	use std::str::FromStr;
-	use rustc_serialize::hex::FromHex;
+	use rustc_hex::FromHex;
 	use super::*;
 	use ethkey::Secret;
 	use util::{U256, H256, Address, Hashable};
