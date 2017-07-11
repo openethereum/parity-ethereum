@@ -81,11 +81,16 @@ impl vm::Informant for Informant {
 }
 
 impl trace::VMTracer for Informant {
-	fn trace_prepare_execute(&mut self, pc: usize, instruction: u8, gas_cost: &U256) -> bool {
+	fn trace_next_instruction(&mut self, pc: usize, instruction: u8) -> bool {
 		self.pc = pc;
 		self.instruction = instruction;
-		self.gas_cost = *gas_cost;
 		true
+	}
+
+	fn trace_prepare_execute(&mut self, pc: usize, instruction: u8, gas_cost: U256) {
+		self.pc = pc;
+		self.instruction = instruction;
+		self.gas_cost = gas_cost;
 	}
 
 	fn trace_executed(&mut self, gas_used: U256, stack_push: &[U256], mem_diff: Option<(usize, &[u8])>, store_diff: Option<(U256, U256)>) {
@@ -127,17 +132,9 @@ impl trace::VMTracer for Informant {
 		vm
 	}
 
-	fn done_subtrace(&mut self, mut sub: Self, is_successful: bool) where Self: Sized {
+	fn done_subtrace(&mut self, mut sub: Self) {
 		if sub.depth == 1 {
 			// print last line with final state:
-			if is_successful {
-				sub.pc += 1;
-				sub.instruction = 0;
-			} else {
-				let push_bytes = evm::push_bytes(sub.instruction);
-				sub.pc += if push_bytes > 0 { push_bytes + 1 } else { 0 };
-				sub.instruction = if sub.pc < sub.code.len() { sub.code[sub.pc] } else { 0 };
-			}
 			sub.gas_cost = 0.into();
 			let gas_used = sub.gas_used;
 			trace::VMTracer::trace_executed(&mut sub, gas_used, &[], None, None);
