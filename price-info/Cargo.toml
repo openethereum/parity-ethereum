@@ -11,3 +11,7 @@ fetch = { path = "../util/fetch" }
 futures = "0.1"
 log = "0.3"
 rustc-serialize = "0.3"
+
+[dev-dependencies]
+ethcore-logger = { path = "../logger" }
+ethcore-util = { path = "../util" }

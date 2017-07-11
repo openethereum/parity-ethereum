@@ -108,21 +108,31 @@ impl Client {
 	}
 }
 
-#[test] #[ignore]
-fn should_get_price_info() {
+#[cfg(test)]
+mod test {
+	extern crate ethcore_logger;
+	extern crate ethcore_util as util;
+
+	use self::ethcore_logger::init_log;
+	use self::util::{Condvar, Mutex};
 	use std::sync::Arc;
 	use std::time::Duration;
-	use ethcore_logger::init_log;
-	use util::{Condvar, Mutex};
+	use fetch::{Client as FetchClient, Fetch};
+	use price_info::{Client, PriceInfo};
 
-	init_log();
-	let done = Arc::new((Mutex::new(PriceInfo { ethusd: 0f32 }), Condvar::new()));
-	let rdone = done.clone();
-	let price_info = Client::new();
+	#[test] #[ignore]
+	fn should_get_price_info() {
 
-	price_info.get(move |price| { let mut p = rdone.0.lock(); *p = price; rdone.1.notify_one(); });
-	let mut p = done.0.lock();
-	let t = done.1.wait_for(&mut p, Duration::from_millis(10000));
-	assert!(!t.timed_out());
-	assert!(p.ethusd != 0f32);
+		init_log();
+		let fetch = FetchClient::new().unwrap();
+		let done = Arc::new((Mutex::new(PriceInfo { ethusd: 0f32 }), Condvar::new()));
+		let rdone = done.clone();
+		let price_info = Client::new(fetch);
+
+		price_info.get(move |price| { let mut p = rdone.0.lock(); *p = price; rdone.1.notify_one(); });
+		let mut p = done.0.lock();
+		let t = done.1.wait_for(&mut p, Duration::from_millis(10000));
+		assert!(!t.timed_out());
+		assert!(p.ethusd != 0f32);
+	}
 }
