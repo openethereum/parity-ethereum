@@ -316,6 +316,11 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 		apis: deps_for_rpc_apis.clone(),
 		remote: event_loop.raw_remote(),
 		stats: rpc_stats.clone(),
+		pool: if cmd.http_conf.processing_threads > 0 {
+			Some(rpc::CpuPool::new(cmd.http_conf.processing_threads))
+		} else {
+			None
+		},
 	};
 
 	// start rpc servers
@@ -663,6 +668,12 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 		apis: deps_for_rpc_apis.clone(),
 		remote: event_loop.raw_remote(),
 		stats: rpc_stats.clone(),
+		pool: if cmd.http_conf.processing_threads > 0 {
+			Some(rpc::CpuPool::new(cmd.http_conf.processing_threads))
+		} else {
+			None
+		},
+
 	};
 
 	// start rpc servers

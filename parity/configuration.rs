@@ -137,7 +137,7 @@ impl Configuration {
 		let secretstore_conf = self.secretstore_config()?;
 		let format = self.format()?;
 
-		if self.args.flag_jsonrpc_threads.is_some() && dapps_conf.enabled {
+		if self.args.flag_jsonrpc_server_threads.is_some() && dapps_conf.enabled {
 			dapps_conf.enabled = false;
 			writeln!(&mut stderr(), "Warning: Disabling Dapps server because fast RPC server was enabled.").expect("Error writing to stderr.")
 		}
@@ -825,11 +825,12 @@ impl Configuration {
 			},
 			hosts: self.rpc_hosts(),
 			cors: self.rpc_cors(),
-			threads: match self.args.flag_jsonrpc_threads {
+			server_threads: match self.args.flag_jsonrpc_server_threads {
 				Some(threads) if threads > 0 => Some(threads),
 				None => None,
-				_ => return Err("--jsonrpc-threads number needs to be positive.".into()),
-			}
+				_ => return Err("--jsonrpc-server-threads number needs to be positive.".into()),
+			},
+			processing_threads: self.args.flag_jsonrpc_threads,
 		};
 
 		Ok(conf)
