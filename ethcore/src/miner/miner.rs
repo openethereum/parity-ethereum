@@ -34,9 +34,9 @@ use miner::{MinerService, MinerStatus, TransactionQueue, RemovalReason, Transact
 	AccountDetails, TransactionOrigin};
 use miner::banning_queue::{BanningTransactionQueue, Threshold};
 use miner::work_notify::{WorkPoster, NotifyWork};
-use miner::price_info::{Client as PriceInfoClient, PriceInfo};
 use miner::local_transactions::{Status as LocalTransactionStatus};
 use miner::service_transaction_checker::ServiceTransactionChecker;
+use price_info::{Client as PriceInfoClient, PriceInfo};
 use header::BlockNumber;
 
 /// Different possible definitions for pending transaction set.

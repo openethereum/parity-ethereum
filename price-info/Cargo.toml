@@ -1,0 +1,13 @@
+[package]
+description = "Fetch current ETH price"
+homepage = "http://parity.io"
+license = "GPL-3.0"
+name = "price-info"
+version = "1.7.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+
+[dependencies]
+fetch = { path = "../util/fetch" }
+futures = "0.1"
+log = "0.3"
+rustc-serialize = "0.3"
