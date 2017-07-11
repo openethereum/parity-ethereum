@@ -37,6 +37,12 @@ function createStore () {
         nodeStatus: {
           nodeKind: {
             'availability': 'personal'
+          },
+          health: {
+            overall: {
+              status: 'ok',
+              message: []
+            }
           }
         }
       };

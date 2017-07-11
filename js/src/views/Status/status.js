@@ -20,6 +20,7 @@ import { FormattedMessage } from 'react-intl';
 import { Page } from '@parity/ui';
 
 import Debug from './Debug';
+import Health from './Health';
 import Node from './Node';
 import Peers from './Peers';
 
@@ -36,6 +37,7 @@ export default function Status () {
       }
     >
       <div className={ styles.body }>
+        <Health />
         <Node />
         <Peers />
         <Debug />

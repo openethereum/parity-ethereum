@@ -19,7 +19,7 @@ import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import store from 'store';
 
-import { Button, Checkbox } from '@parity/ui';
+import { Button, Checkbox, StatusIndicator } from '@parity/ui';
 
 import styles from './syncWarning.css';
 
@@ -37,7 +37,8 @@ export const showSyncWarning = () => {
 
 class SyncWarning extends Component {
   static propTypes = {
-    isSyncing: PropTypes.bool
+    isOk: PropTypes.bool.isRequired,
+    health: PropTypes.object.isRequired
   };
 
   state = {
@@ -46,10 +47,10 @@ class SyncWarning extends Component {
   };
 
   render () {
-    const { isSyncing } = this.props;
+    const { isOk, health } = this.props;
     const { dontShowAgain, show } = this.state;
 
-    if (!isSyncing || isSyncing === null || !show) {
+    if (isOk || !show) {
       return null;
     }
 
@@ -58,18 +59,19 @@ class SyncWarning extends Component {
         <div className={ styles.overlay } />
         <div className={ styles.modal }>
           <div className={ styles.body }>
-            <FormattedMessage
-              id='syncWarning.message.line1'
-              defaultMessage={ `
-                Your Parity node is still syncing to the chain.
-              ` }
-            />
-            <FormattedMessage
-              id='syncWarning.message.line2'
-              defaultMessage={ `
-                Some of the shown information might be out-of-date.
-              ` }
-            />
+            <div className={ styles.status }>
+              <StatusIndicator
+                type='signal'
+                id='healthWarning.indicator'
+                status={ health.overall.status }
+              />
+            </div>
+
+            {
+              health.overall.message.map(message => (
+                <p key={ message }>{ message }</p>
+              ))
+            }
 
             <div className={ styles.button }>
               <Checkbox
@@ -112,14 +114,13 @@ class SyncWarning extends Component {
 }
 
 function mapStateToProps (state) {
-  const { syncing } = state.nodeStatus;
-  // syncing could be an Object, false, or null
-  const isSyncing = syncing
-    ? true
-    : syncing;
+  const { health } = state.nodeStatus;
+  const isNotAvailableYet = health.overall.isReady;
+  const isOk = isNotAvailableYet || health.overall.status === 'ok';
 
   return {
-    isSyncing
+    isOk,
+    health
   };
 }
 

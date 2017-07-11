@@ -23,7 +23,7 @@ import { Link } from 'react-router';
 import { connect } from 'react-redux';
 import store from 'store';
 
-import { AccountCard, Badge, Button, ContainerTitle, IdentityIcon, SelectionList } from '@parity/ui';
+import { AccountCard, Badge, Button, ContainerTitle, IdentityIcon, SelectionList, StatusIndicator } from '@parity/ui';
 import { CancelIcon, FingerprintIcon } from '@parity/ui/Icons';
 
 import imagesEthcoreBlock from '@parity/shared/assets/images/parity-logo-white-no-text.svg';
@@ -52,7 +52,8 @@ class ParityBar extends Component {
   static propTypes = {
     dapp: PropTypes.bool,
     externalLink: PropTypes.string,
-    pending: PropTypes.array
+    pending: PropTypes.array,
+    health: PropTypes.object
   };
 
   state = {
@@ -212,7 +213,7 @@ class ParityBar extends Component {
   }
 
   renderBar () {
-    const { dapp } = this.props;
+    const { dapp, health } = this.props;
 
     if (!dapp) {
       return null;
@@ -220,6 +221,13 @@ class ParityBar extends Component {
 
     return (
       <div className={ styles.cornercolor }>
+        <StatusIndicator
+          type='signal'
+          id='paritybar.health'
+          status={ health.overall.status }
+          title={ health.overall.message }
+          tooltipPlacement='right'
+        />
         <Button
           className={ styles.iconButton }
           icon={
@@ -701,9 +709,11 @@ class ParityBar extends Component {
 
 function mapStateToProps (state) {
   const { pending } = state.signer;
+  const { health } = state.nodeStatus;
 
   return {
-    pending
+    pending,
+    health
   };
 }
 

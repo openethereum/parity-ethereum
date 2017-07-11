@@ -37,6 +37,14 @@ function createRedux (state = {}) {
       },
       signer: {
         pending: []
+      },
+      nodeStatus: {
+        health: {
+          overall: {
+            status: 'ok',
+            message: []
+          }
+        }
       }
     }, state)
   };

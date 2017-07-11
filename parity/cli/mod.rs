@@ -180,8 +180,10 @@ usage! {
 			or |c: &Config| otry!(c.rpc).apis.as_ref().map(|vec| vec.join(",")),
 		flag_jsonrpc_hosts: String = "none",
 			or |c: &Config| otry!(c.rpc).hosts.as_ref().map(|vec| vec.join(",")),
-		flag_jsonrpc_threads: Option<usize> = None,
-			or |c: &Config| otry!(c.rpc).threads.map(Some),
+		flag_jsonrpc_server_threads: Option<usize> = None,
+			or |c: &Config| otry!(c.rpc).server_threads.map(Some),
+		flag_jsonrpc_threads: usize = 0usize,
+			or |c: &Config| otry!(c.rpc).processing_threads,
 
 		// WS
 		flag_no_ws: bool = false,
@@ -352,6 +354,8 @@ usage! {
 			or |c: &Config| otry!(c.vm).jit.clone(),
 
 		// -- Miscellaneous Options
+		flag_ntp_server: String = "pool.ntp.org:123",
+			or |c: &Config| otry!(c.misc).ntp_server.clone(),
 		flag_logging: Option<String> = None,
 			or |c: &Config| otry!(c.misc).logging.clone().map(Some),
 		flag_log_file: Option<String> = None,
@@ -468,7 +472,8 @@ struct Rpc {
 	cors: Option<String>,
 	apis: Option<Vec<String>>,
 	hosts: Option<Vec<String>>,
-	threads: Option<usize>,
+	server_threads: Option<usize>,
+	processing_threads: Option<usize>,
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
@@ -587,6 +592,7 @@ struct VM {
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
 struct Misc {
+	ntp_server: Option<String>,
 	logging: Option<String>,
 	log_file: Option<String>,
 	color: Option<bool>,
@@ -749,7 +755,8 @@ mod tests {
 			flag_jsonrpc_cors: Some("null".into()),
 			flag_jsonrpc_apis: "web3,eth,net,parity,traces,rpc,secretstore".into(),
 			flag_jsonrpc_hosts: "none".into(),
-			flag_jsonrpc_threads: None,
+			flag_jsonrpc_server_threads: None,
+			flag_jsonrpc_threads: 0,
 
 			// WS
 			flag_no_ws: false,
@@ -886,6 +893,7 @@ mod tests {
 			flag_dapps_apis_all: None,
 
 			// -- Miscellaneous Options
+			flag_ntp_server: "pool.ntp.org:123".into(),
 			flag_version: false,
 			flag_logging: Some("own_tx=trace".into()),
 			flag_log_file: Some("/var/log/parity.log".into()),
@@ -977,7 +985,8 @@ mod tests {
 				cors: None,
 				apis: None,
 				hosts: None,
-				threads: None,
+				server_threads: None,
+				processing_threads: None,
 			}),
 			ipc: Some(Ipc {
 				disable: None,
@@ -1061,6 +1070,7 @@ mod tests {
 				jit: Some(false),
 			}),
 			misc: Some(Misc {
+				ntp_server: Some("pool.ntp.org:123".into()),
 				logging: Some("own_tx=trace".into()),
 				log_file: Some("/var/log/parity.log".into()),
 				color: Some(true),

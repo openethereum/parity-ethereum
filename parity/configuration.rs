@@ -137,7 +137,7 @@ impl Configuration {
 		let secretstore_conf = self.secretstore_config()?;
 		let format = self.format()?;
 
-		if self.args.flag_jsonrpc_threads.is_some() && dapps_conf.enabled {
+		if self.args.flag_jsonrpc_server_threads.is_some() && dapps_conf.enabled {
 			dapps_conf.enabled = false;
 			writeln!(&mut stderr(), "Warning: Disabling Dapps server because fast RPC server was enabled.").expect("Error writing to stderr.")
 		}
@@ -556,6 +556,7 @@ impl Configuration {
 	fn ui_config(&self) -> UiConfiguration {
 		UiConfiguration {
 			enabled: self.ui_enabled(),
+			ntp_server: self.args.flag_ntp_server.clone(),
 			interface: self.ui_interface(),
 			port: self.args.flag_ports_shift + self.args.flag_ui_port,
 			hosts: self.ui_hosts(),
@@ -565,6 +566,7 @@ impl Configuration {
 	fn dapps_config(&self) -> DappsConfiguration {
 		DappsConfiguration {
 			enabled: self.dapps_enabled(),
+			ntp_server: self.args.flag_ntp_server.clone(),
 			dapps_path: PathBuf::from(self.directories().dapps),
 			extra_dapps: if self.args.cmd_dapp {
 				self.args.arg_path.iter().map(|path| PathBuf::from(path)).collect()
@@ -825,11 +827,12 @@ impl Configuration {
 			},
 			hosts: self.rpc_hosts(),
 			cors: self.rpc_cors(),
-			threads: match self.args.flag_jsonrpc_threads {
+			server_threads: match self.args.flag_jsonrpc_server_threads {
 				Some(threads) if threads > 0 => Some(threads),
 				None => None,
-				_ => return Err("--jsonrpc-threads number needs to be positive.".into()),
-			}
+				_ => return Err("--jsonrpc-server-threads number needs to be positive.".into()),
+			},
+			processing_threads: self.args.flag_jsonrpc_threads,
 		};
 
 		Ok(conf)
@@ -1264,6 +1267,7 @@ mod tests {
 			support_token_api: true
 		}, UiConfiguration {
 			enabled: true,
+			ntp_server: "pool.ntp.org:123".into(),
 			interface: "127.0.0.1".into(),
 			port: 8180,
 			hosts: Some(vec![]),
@@ -1504,6 +1508,7 @@ mod tests {
 		assert_eq!(conf0.directories().signer, "signer".to_owned());
 		assert_eq!(conf0.ui_config(), UiConfiguration {
 			enabled: true,
+			ntp_server: "pool.ntp.org:123".into(),
 			interface: "127.0.0.1".into(),
 			port: 8180,
 			hosts: Some(vec![]),
@@ -1512,6 +1517,7 @@ mod tests {
 		assert_eq!(conf1.directories().signer, "signer".to_owned());
 		assert_eq!(conf1.ui_config(), UiConfiguration {
 			enabled: true,
+			ntp_server: "pool.ntp.org:123".into(),
 			interface: "127.0.0.1".into(),
 			port: 8180,
 			hosts: Some(vec![]),
@@ -1520,6 +1526,7 @@ mod tests {
 		assert_eq!(conf2.directories().signer, "signer".to_owned());
 		assert_eq!(conf2.ui_config(), UiConfiguration {
 			enabled: true,
+			ntp_server: "pool.ntp.org:123".into(),
 			interface: "127.0.0.1".into(),
 			port: 3123,
 			hosts: Some(vec![]),
@@ -1528,6 +1535,7 @@ mod tests {
 		assert_eq!(conf3.directories().signer, "signer".to_owned());
 		assert_eq!(conf3.ui_config(), UiConfiguration {
 			enabled: true,
+			ntp_server: "pool.ntp.org:123".into(),
 			interface: "test".into(),
 			port: 8180,
 			hosts: Some(vec![]),

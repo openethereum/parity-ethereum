@@ -26,6 +26,10 @@ import { statusBlockNumber, statusCollection } from './statusActions';
 const log = getLogger(LOG_KEYS.Signer);
 let instance = null;
 
+const STATUS_OK = 'ok';
+const STATUS_WARN = 'needsAttention';
+const STATUS_BAD = 'bad';
+
 export default class Status {
   _apiStatus = {};
   _status = {};
@@ -200,13 +204,16 @@ export default class Status {
 
     const statusPromises = [
       this._api.eth.syncing(),
-      this._api.parity.netPeers()
+      this._api.parity.netPeers(),
+      this._fetchHealth()
     ];
 
     return Promise
       .all(statusPromises)
-      .then(([ syncing, netPeers ]) => {
-        const status = { netPeers, syncing };
+      .then(([ syncing, netPeers, health ]) => {
+        const status = { netPeers, syncing, health };
+
+        health.overall = this._overallStatus(health);
 
         if (!isEqual(status, this._status)) {
           this._store.dispatch(statusCollection(status));
@@ -219,6 +226,33 @@ export default class Status {
       .then(() => {
         nextTimeout();
       });
+  }
+
+  _overallStatus = (health) => {
+    const all = [health.peers, health.sync, health.time].filter(x => x);
+    const statuses = all.map(x => x.status);
+    const bad = statuses.find(x => x === STATUS_BAD);
+    const needsAttention = statuses.find(x => x === STATUS_WARN);
+    const message = all.map(x => x.message).filter(x => x);
+
+    if (all.length) {
+      return {
+        status: bad || needsAttention || STATUS_OK,
+        message
+      };
+    }
+
+    return {
+      status: STATUS_BAD,
+      message: ['Unable to fetch node health.']
+    };
+  }
+
+  _fetchHealth = () => {
+    // Support Parity-Extension.
+    const uiUrl = this._api.transport.uiUrlWithProtocol || '';
+
+    return fetch(`${uiUrl}/api/health`).then(res => res.json());
   }
 
   /**

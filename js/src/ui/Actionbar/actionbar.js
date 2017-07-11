@@ -20,7 +20,7 @@ import { nodeOrStringProptype } from '@parity/shared/util/proptypes';
 
 import styles from './actionbar.css';
 
-export default function Actionbar ({ buttons, children, className, title }) {
+export default function Actionbar ({ buttons, children, className, health, title }) {
   if (!buttons && !title) {
     return null;
   }
@@ -44,5 +44,6 @@ Actionbar.propTypes = {
   title: nodeOrStringProptype(),
   buttons: PropTypes.array,
   children: PropTypes.node,
-  className: PropTypes.string
+  className: PropTypes.string,
+  health: PropTypes.node
 };
