@@ -24,9 +24,9 @@ const DEST = process.env.BUILD_DEST || '.build';
 
 let modules = [
   'bignumber.js',
-  'blockies',
   'brace',
   'browserify-aes',
+  'ethereum-blockies',
   'ethereumjs-tx',
   'lodash',
   'material-ui',
