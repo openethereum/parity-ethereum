@@ -126,7 +126,7 @@ impl Default for MinerOptions {
 			reseal_on_uncle: false,
 			tx_gas_limit: !U256::zero(),
 			tx_queue_size: 8192,
-			tx_queue_memory_limit: Some(15 * 1024 * 1024),
+			tx_queue_memory_limit: Some(2 * 1024 * 1024),
 			tx_queue_gas_limit: GasLimit::None,
 			tx_queue_strategy: PrioritizationStrategy::GasPriceOnly,
 			pending_set: PendingSet::AlwaysQueue,
