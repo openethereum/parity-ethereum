@@ -803,8 +803,11 @@ impl MinerService for Miner {
 				// --------------------------------------------------------------------------
 				self.engine.set_signer(ap.clone(), address, password);
 			}
+			Ok(())
+		} else {
+			warn!(target: "miner", "Cannot set engine signer on a PoW chain.");
+			Err(AccountError::InappropriateChain)
 		}
-		Ok(())
 	}
 
 	fn set_extra_data(&self, extra_data: Bytes) {
