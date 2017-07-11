@@ -804,8 +804,11 @@ impl MinerService for Miner {
 				// | Make sure to release the locks before calling that method.             |
 				// --------------------------------------------------------------------------
 				self.engine.set_signer(ap.clone(), address, password);
+				Ok(())
+			} else {
+				warn!(target: "miner", "No account provider");
+				Err(AccountError::NotFound)
 			}
-			Ok(())
 		} else {
 			warn!(target: "miner", "Cannot set engine signer on a PoW chain.");
 			Err(AccountError::InappropriateChain)
@@ -1279,7 +1282,7 @@ mod tests {
 	use header::BlockNumber;
 	use types::transaction::{SignedTransaction, Transaction, PendingTransaction, Action};
 	use spec::Spec;
-	use tests::helpers::{generate_dummy_client};
+	use tests::helpers::{generate_dummy_client, generate_dummy_client_with_spec_and_accounts};
 
 	#[test]
 	fn should_prepare_block_to_seal() {
@@ -1446,5 +1449,23 @@ mod tests {
 		client.flush_queue();
 		assert!(miner.pending_block().is_none());
 		assert_eq!(client.chain_info().best_block_number, 4 as BlockNumber);
+	}
+
+	#[test]
+	fn should_fail_setting_engine_signer_on_pow() {
+		let spec = Spec::new_pow_test_spec;
+		let tap = Arc::new(AccountProvider::transient_provider());
+		let addr = tap.insert_account("1".sha3().into(), "").unwrap();
+		let client = generate_dummy_client_with_spec_and_accounts(spec, Some(tap.clone()));
+		assert!(match client.miner().set_engine_signer(addr, "".into()) { Err(AccountError::InappropriateChain) => true, _ => false })
+	}
+
+	#[test]
+	fn should_fail_setting_engine_signer_without_account_provider() {
+		let spec = Spec::new_instant;
+		let tap = Arc::new(AccountProvider::transient_provider());
+		let addr = tap.insert_account("1".sha3().into(), "").unwrap();
+		let client = generate_dummy_client_with_spec_and_accounts(spec, None);
+		assert!(match client.miner().set_engine_signer(addr, "".into()) { Err(AccountError::NotFound) => true, _ => false });
 	}
 }
