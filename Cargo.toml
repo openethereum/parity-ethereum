@@ -42,6 +42,7 @@ ethcore-light = { path = "ethcore/light" }
 ethcore-logger = { path = "logger" }
 ethcore-stratum = { path = "stratum" }
 ethkey = { path = "ethkey" }
+fetch = { path = "util/fetch" }
 rlp = { path = "util/rlp" }
 rpc-cli = { path = "rpc_cli" }
 parity-hash-fetch = { path = "hash-fetch" }

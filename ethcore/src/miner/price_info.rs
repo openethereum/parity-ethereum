@@ -69,9 +69,8 @@ impl cmp::PartialEq for Client {
 }
 
 impl Client {
-	pub fn new() -> Client {
+	pub fn new(fetch: FetchClient) -> Client {
 		let api_endpoint = "http://api.etherscan.io/api?module=stats&action=ethprice".to_owned();
-		let fetch = FetchClient::new().expect("Error starting fetch client");
 		Client { api_endpoint, fetch }
 	}
 

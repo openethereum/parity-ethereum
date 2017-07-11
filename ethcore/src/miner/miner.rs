@@ -29,6 +29,7 @@ use transaction::{Action, UnverifiedTransaction, PendingTransaction, SignedTrans
 use receipt::{Receipt, RichReceipt};
 use spec::Spec;
 use engines::{Engine, Seal};
+use fetch::Client as FetchClient;
 use miner::{MinerService, MinerStatus, TransactionQueue, RemovalReason, TransactionQueueDetailsProvider, PrioritizationStrategy,
 	AccountDetails, TransactionOrigin};
 use miner::banning_queue::{BanningTransactionQueue, Threshold};
@@ -187,11 +188,11 @@ pub enum GasPricer {
 
 impl GasPricer {
 	/// Create a new Calibrated `GasPricer`.
-	pub fn new_calibrated(options: GasPriceCalibratorOptions) -> GasPricer {
+	pub fn new_calibrated(options: GasPriceCalibratorOptions, fetch: FetchClient) -> GasPricer {
 		GasPricer::Calibrated(GasPriceCalibrator {
 			options: options,
 			next_calibration: Instant::now(),
-			price_info: PriceInfoClient::new(),
+			price_info: PriceInfoClient::new(fetch),
 		})
 	}
 
