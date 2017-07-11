@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use serde::de::Error;
+use serde::de::{Error, DeserializeOwned};
 use serde_json::{Value, from_value};
 use ethcore::filter::Filter as EthFilter;
 use ethcore::client::BlockId;
@@ -23,7 +23,7 @@ use v1::types::{BlockNumber, H160, H256, Log};
 
 /// Variadic value
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
-pub enum VariadicValue<T> where T: Deserialize {
+pub enum VariadicValue<T> where T: DeserializeOwned {
 	/// Single
 	Single(T),
 	/// List
@@ -32,9 +32,9 @@ pub enum VariadicValue<T> where T: Deserialize {
 	Null,
 }
 
-impl<T> Deserialize for VariadicValue<T> where T: Deserialize {
+impl<'a, T> Deserialize<'a> for VariadicValue<T> where T: DeserializeOwned {
 	fn deserialize<D>(deserializer: D) -> Result<VariadicValue<T>, D::Error>
-	where D: Deserializer {
+	where D: Deserializer<'a> {
 		let v: Value = Deserialize::deserialize(deserializer)?;
 
 		if v.is_null() {

@@ -89,6 +89,8 @@ pub struct Params {
 	pub nonce_cap_increment: Option<Uint>,
 	/// See `CommonParams` docs.
 	pub remove_dust_contracts : Option<bool>,
+	/// Wasm support flag
+	pub wasm: Option<bool>,
 }
 
 #[cfg(test)]

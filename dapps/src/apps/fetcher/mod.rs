@@ -48,7 +48,7 @@ pub trait Fetcher: Send + Sync + 'static {
 }
 
 pub struct ContentFetcher<F: Fetch = FetchClient, R: URLHint + 'static = URLHintContract> {
-	dapps_path: PathBuf,
+	cache_path: PathBuf,
 	resolver: R,
 	cache: Arc<Mutex<ContentCache>>,
 	sync: Arc<SyncStatus>,
@@ -61,7 +61,7 @@ pub struct ContentFetcher<F: Fetch = FetchClient, R: URLHint + 'static = URLHint
 impl<R: URLHint + 'static, F: Fetch> Drop for ContentFetcher<F, R> {
 	fn drop(&mut self) {
 		// Clear cache path
-		let _ = fs::remove_dir_all(&self.dapps_path);
+		let _ = fs::remove_dir_all(&self.cache_path);
 	}
 }
 
@@ -73,11 +73,11 @@ impl<R: URLHint + 'static, F: Fetch> ContentFetcher<F, R> {
 		remote: Remote,
 		fetch: F,
 	) -> Self {
-		let mut dapps_path = env::temp_dir();
-		dapps_path.push(random_filename());
+		let mut cache_path = env::temp_dir();
+		cache_path.push(random_filename());
 
 		ContentFetcher {
-			dapps_path: dapps_path,
+			cache_path: cache_path,
 			resolver: resolver,
 			sync: sync_status,
 			cache: Arc::new(Mutex::new(ContentCache::default())),
@@ -200,7 +200,7 @@ impl<R: URLHint + 'static, F: Fetch> Fetcher for ContentFetcher<F, R> {
 								control,
 								installers::Dapp::new(
 									content_id.clone(),
-									self.dapps_path.clone(),
+									self.cache_path.clone(),
 									Box::new(on_done),
 									self.embeddable_on.clone(),
 								),
@@ -219,7 +219,7 @@ impl<R: URLHint + 'static, F: Fetch> Fetcher for ContentFetcher<F, R> {
 								installers::Content::new(
 									content_id.clone(),
 									content.mime,
-									self.dapps_path.clone(),
+									self.cache_path.clone(),
 									Box::new(on_done),
 								),
 								self.embeddable_on.clone(),
@@ -271,6 +271,7 @@ mod tests {
 	use endpoint::EndpointInfo;
 	use page::LocalPageEndpoint;
 	use super::{ContentFetcher, Fetcher};
+	use {SyncStatus};
 
 	#[derive(Clone)]
 	struct FakeResolver;
@@ -280,11 +281,17 @@ mod tests {
 		}
 	}
 
+	struct FakeSync(bool);
+	impl SyncStatus for FakeSync {
+		fn is_major_importing(&self) -> bool { self.0 }
+		fn peers(&self) -> (usize, usize) { (0, 5) }
+	}
+
 	#[test]
 	fn should_true_if_contains_the_app() {
 		// given
 		let path = env::temp_dir();
-		let fetcher = ContentFetcher::new(FakeResolver, Arc::new(|| false), Remote::new_sync(), Client::new().unwrap())
+		let fetcher = ContentFetcher::new(FakeResolver, Arc::new(FakeSync(false)), Remote::new_sync(), Client::new().unwrap())
 			.allow_dapps(true);
 		let handler = LocalPageEndpoint::new(path, EndpointInfo {
 			name: "fake".into(),

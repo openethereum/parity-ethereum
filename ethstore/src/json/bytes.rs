@@ -30,9 +30,9 @@ impl ops::Deref for Bytes {
 	}
 }
 
-impl Deserialize for Bytes {
+impl<'a> Deserialize<'a> for Bytes {
 	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-		where D: Deserializer
+		where D: Deserializer<'a>
 	{
 		let s = String::deserialize(deserializer)?;
 		let data = s.from_hex().map_err(|e| Error::custom(format!("Invalid hex value {}", e)))?;

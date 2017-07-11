@@ -19,7 +19,7 @@ use util::{U256, Address, H256, H2048, Bytes, Itertools};
 use util::hashdb::DBValue;
 use blockchain::TreeRoute;
 use verification::queue::QueueInfo as BlockQueueInfo;
-use block::{OpenBlock, SealedBlock};
+use block::{OpenBlock, SealedBlock, ClosedBlock};
 use header::{BlockNumber};
 use transaction::{LocalizedTransaction, PendingTransaction, SignedTransaction};
 use transaction_import::TransactionImportResult;
@@ -287,6 +287,9 @@ pub trait MiningBlockChainClient: BlockChainClient {
 		gas_range_target: (U256, U256),
 		extra_data: Bytes
 	) -> OpenBlock;
+
+	/// Reopens an OpenBlock and updates uncles.
+	fn reopen_block(&self, block: ClosedBlock) -> OpenBlock;
 
 	/// Returns EvmFactory.
 	fn vm_factory(&self) -> &EvmFactory;

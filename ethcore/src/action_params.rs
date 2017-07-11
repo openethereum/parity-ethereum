@@ -39,6 +39,16 @@ impl ActionValue {
 			ActionValue::Transfer(x) | ActionValue::Apparent(x) => x
 		}
 	}
+
+	/// Returns the transfer action value of the U256-convertable raw value
+	pub fn transfer<T: Into<U256>>(transfer_value: T) -> ActionValue {
+		ActionValue::Transfer(transfer_value.into())
+	}
+
+	/// Returns the apparent action value of the U256-convertable raw value
+	pub fn apparent<T: Into<U256>>(apparent_value: T) -> ActionValue {
+		ActionValue::Apparent(apparent_value.into())		
+	}
 }
 
 // TODO: should be a trait, possible to avoid cloning everything from a Transaction(/View).
@@ -48,7 +58,7 @@ pub struct ActionParams {
 	/// Address of currently executed code.
 	pub code_address: Address,
 	/// Hash of currently executed code.
-	pub code_hash: H256,
+	pub code_hash: Option<H256>,
 	/// Receive address. Usually equal to code_address,
 	/// except when called using CALLCODE.
 	pub address: Address,
@@ -76,7 +86,7 @@ impl Default for ActionParams {
 	fn default() -> ActionParams {
 		ActionParams {
 			code_address: Address::new(),
-			code_hash: SHA3_EMPTY,
+			code_hash: Some(SHA3_EMPTY),
 			address: Address::new(),
 			sender: Address::new(),
 			origin: Address::new(),
@@ -95,7 +105,7 @@ impl From<ethjson::vm::Transaction> for ActionParams {
 		let address: Address = t.address.into();
 		ActionParams {
 			code_address: Address::new(),
-			code_hash: (&*t.code).sha3(),
+			code_hash: Some((&*t.code).sha3()),
 			address: address,
 			sender: t.sender.into(),
 			origin: t.origin.into(),

@@ -107,18 +107,18 @@ impl<T: HexEncodable> Serialize for HexEncode<T> {
 	}
 }
 
-impl<T: HexEncodable> Deserialize for HexEncode<T> {
+impl<'a, T: 'a + HexEncodable> Deserialize<'a> for HexEncode<T> {
 	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-		where D: Deserializer
+		where D: Deserializer<'a>
 	{
-		deserializer.deserialize(HexEncodeVisitor::<T>(::std::marker::PhantomData))
+		deserializer.deserialize_any(HexEncodeVisitor::<T>(::std::marker::PhantomData))
 	}
 }
 
 // helper type for decoding anything from hex.
 struct HexEncodeVisitor<T>(::std::marker::PhantomData<T>);
 
-impl<T: HexEncodable> Visitor for HexEncodeVisitor<T> {
+impl<'a, T: HexEncodable> Visitor<'a> for HexEncodeVisitor<T> {
 	type Value = HexEncode<T>;
 
 	fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {

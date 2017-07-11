@@ -4,8 +4,7 @@
 use std::fmt;
 use std::marker::PhantomData;
 use serde::{Deserialize, Deserializer};
-use serde::de::{Error, Visitor};
-use serde::de::value::ValueDeserializer;
+use serde::de::{Error, Visitor, IntoDeserializer};
 
 /// Deserializer of empty string values into optionals.
 #[derive(Debug, PartialEq, Clone)]
@@ -16,10 +15,10 @@ pub enum MaybeEmpty<T> {
 	None,
 }
 
-impl<T> Deserialize for MaybeEmpty<T> where T: Deserialize {
+impl<'a, T> Deserialize<'a> for MaybeEmpty<T> where T: Deserialize<'a> {
 	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-		where D: Deserializer {
-		deserializer.deserialize(MaybeEmptyVisitor::new())
+		where D: Deserializer<'a> {
+		deserializer.deserialize_any(MaybeEmptyVisitor::new())
 	}
 }
 
@@ -35,7 +34,7 @@ impl<T> MaybeEmptyVisitor<T> {
 	}
 }
 
-impl<T> Visitor for MaybeEmptyVisitor<T> where T: Deserialize {
+impl<'a, T> Visitor<'a> for MaybeEmptyVisitor<T> where T: Deserialize<'a> {
 	type Value = MaybeEmpty<T>;
 
 	fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {

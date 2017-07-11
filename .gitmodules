@@ -2,3 +2,6 @@
 	path = ethcore/res/ethereum/tests
 	url = https://github.com/ethereum/tests.git
 	branch = develop
+[submodule "ethcore/res/wasm-tests"]
+	path = ethcore/res/wasm-tests
+	url = https://github.com/paritytech/wasm-tests

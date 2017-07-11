@@ -20,6 +20,7 @@ import { FormattedMessage } from 'react-intl';
 import { Page } from '~/ui';
 
 import Debug from './Debug';
+import Health from './Health';
 import Peers from './Peers';
 import NodeStatus from './NodeStatus';
 
@@ -35,6 +36,7 @@ export default () => (
     }
   >
     <div className={ styles.body }>
+      <Health />
       <NodeStatus />
       <Peers />
       <Debug />

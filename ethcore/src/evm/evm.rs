@@ -21,6 +21,7 @@ use util::{U128, U256, U512, trie};
 use action_params::ActionParams;
 use evm::Ext;
 use builtin;
+use super::wasm;
 
 /// Evm errors.
 #[derive(Debug, Clone, PartialEq)]
@@ -66,6 +67,8 @@ pub enum Error {
 	MutableCallInStaticContext,
 	/// Likely to cause consensus issues.
 	Internal(String),
+	/// Wasm runtime error
+	Wasm(String),
 }
 
 impl From<Box<trie::TrieError>> for Error {
@@ -77,6 +80,12 @@ impl From<Box<trie::TrieError>> for Error {
 impl From<builtin::Error> for Error {
 	fn from(err: builtin::Error) -> Self {
 		Error::BuiltIn(err.0)
+	}
+}
+
+impl From<wasm::RuntimeError> for Error {
+	fn from(err: wasm::RuntimeError) -> Self {
+		Error::Wasm(format!("Runtime error: {:?}", err))
 	}
 }
 
@@ -92,6 +101,7 @@ impl fmt::Display for Error {
 			BuiltIn(name) => write!(f, "Built-in failed: {}", name),
 			Internal(ref msg) => write!(f, "Internal error: {}", msg),
 			MutableCallInStaticContext => write!(f, "Mutable call in static context"),
+			Wasm(ref msg) => write!(f, "Internal error: {}", msg),
 		}
 	}
 }

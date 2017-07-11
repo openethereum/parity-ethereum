@@ -42,13 +42,13 @@ macro_rules! impl_hash {
 			}
 		}
 
-		impl Deserialize for $name {
+		impl<'a> Deserialize<'a> for $name {
 			fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-				where D: Deserializer {
+				where D: Deserializer<'a> {
 
 				struct HashVisitor;
 
-				impl Visitor for HashVisitor {
+				impl<'b> Visitor<'b> for HashVisitor {
 					type Value = $name;
 
 					fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -75,7 +75,7 @@ macro_rules! impl_hash {
 					}
 				}
 
-				deserializer.deserialize(HashVisitor)
+				deserializer.deserialize_any(HashVisitor)
 			}
 		}
 

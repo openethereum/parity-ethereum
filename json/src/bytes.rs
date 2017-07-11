@@ -67,16 +67,16 @@ impl FromStr for Bytes {
 	}
 }
 
-impl Deserialize for Bytes {
+impl<'a> Deserialize<'a> for Bytes {
 	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-		where D: Deserializer {
-		deserializer.deserialize(BytesVisitor)
+		where D: Deserializer<'a> {
+		deserializer.deserialize_any(BytesVisitor)
 	}
 }
 
 struct BytesVisitor;
 
-impl Visitor for BytesVisitor {
+impl<'a> Visitor<'a> for BytesVisitor {
 	type Value = Bytes;
 
 	fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {

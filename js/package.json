@@ -1,6 +1,6 @@
 {
   "name": "parity.js",
-  "version": "1.7.97",
+  "version": "1.7.99",
   "main": "release/index.js",
   "jsnext:main": "src/index.js",
   "author": "Parity Team <admin@parity.io>",
@@ -124,6 +124,7 @@
     "istanbul": "1.0.0-alpha.2",
     "jsdom": "9.11.0",
     "json-loader": "0.5.4",
+    "markdown-loader": "2.0.0",
     "mocha": "3.2.0",
     "mock-local-storage": "1.0.2",
     "mock-socket": "6.0.4",
