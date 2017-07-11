@@ -134,7 +134,7 @@ pub fn state_pruned() -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::UNSUPPORTED_REQUEST),
 		message: "This request is not supported because your node is running with state pruning. Run with --pruning=archive.".into(),
-		data: None
+		data: None,
 	}
 }
 
@@ -146,7 +146,7 @@ pub fn exceptional() -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::EXCEPTION_ERROR),
 		message: "The execution failed due to an exception.".into(),
-		data: None
+		data: None,
 	}
 }
 
@@ -154,7 +154,7 @@ pub fn no_work() -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::NO_WORK),
 		message: "Still syncing.".into(),
-		data: None
+		data: None,
 	}
 }
 
@@ -162,7 +162,7 @@ pub fn no_new_work() -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::NO_NEW_WORK),
 		message: "Work has not changed.".into(),
-		data: None
+		data: None,
 	}
 }
 
@@ -170,7 +170,7 @@ pub fn no_author() -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::NO_AUTHOR),
 		message: "Author not configured. Run Parity with --author to configure.".into(),
-		data: None
+		data: None,
 	}
 }
 
@@ -178,7 +178,7 @@ pub fn no_work_required() -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::NO_WORK_REQUIRED),
 		message: "External work is only required for Proof of Work engines.".into(),
-		data: None
+		data: None,
 	}
 }
 

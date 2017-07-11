@@ -66,7 +66,7 @@ pub enum SignError {
 	/// Low-level error from store
 	SStore(SSError),
 	/// Inappropriate chain
-	InappropriateChain
+	InappropriateChain,
 }
 
 impl fmt::Display for SignError {
@@ -76,7 +76,7 @@ impl fmt::Display for SignError {
 			SignError::NotFound => write!(f, "Account does not exist"),
 			SignError::Hardware(ref e) => write!(f, "{}", e),
 			SignError::SStore(ref e) => write!(f, "{}", e),
-			SignError::InappropriateChain => write!(f, "Inappropriate chain")
+			SignError::InappropriateChain => write!(f, "Inappropriate chain"),
 		}
 	}
 }

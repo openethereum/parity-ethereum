@@ -553,7 +553,6 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 	}
 
 	fn work(&self, no_new_work_timeout: Trailing<u64>) -> Result<Work, Error> {
-
 		if !self.miner.can_produce_work_package() {
 			warn!(target: "miner", "Cannot give work package - engine seals internally.");
 			return Err(errors::no_work_required())
