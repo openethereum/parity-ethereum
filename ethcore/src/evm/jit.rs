@@ -18,7 +18,7 @@
 use util::*;
 use evmjit;
 use evm::{self, GasLeft};
-use types::executed::CallType;
+use executed::CallType;
 
 /// Should be used to convert jit types to ethcore
 trait FromJit<T>: Sized {

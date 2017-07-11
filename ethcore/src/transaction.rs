@@ -32,9 +32,8 @@ pub const UNSIGNED_SENDER: Address = ::util::H160([0xff; 20]);
 /// System sender address for internal state updates.
 pub const SYSTEM_ADDRESS: Address = ::util::H160([0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,0xff, 0xff, 0xff, 0xff,0xff, 0xff, 0xff, 0xff,0xff, 0xff, 0xff, 0xfe]);
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "ipc", binary)]
 /// Transaction action type.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Action {
 	/// Create creates new contract.
 	Create,
@@ -59,7 +58,6 @@ impl Decodable for Action {
 
 /// Transaction activation condition.
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "ipc", binary)]
 pub enum Condition {
 	/// Valid at this block number or later.
 	Number(BlockNumber),
@@ -70,7 +68,6 @@ pub enum Condition {
 /// A set of information describing an externally-originating message call
 /// or contract creation operation.
 #[derive(Default, Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "ipc", binary)]
 pub struct Transaction {
 	/// Nonce.
 	pub nonce: U256,
@@ -241,9 +238,8 @@ impl Transaction {
 	}
 }
 
-/// Signed transaction information.
+/// Signed transaction information without verified signature.
 #[derive(Debug, Clone, Eq, PartialEq)]
-#[cfg_attr(feature = "ipc", binary)]
 pub struct UnverifiedTransaction {
 	/// Plain Transaction.
 	unsigned: Transaction,
@@ -470,7 +466,6 @@ impl SignedTransaction {
 
 /// Signed Transaction that is a part of canon blockchain.
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "ipc", binary)]
 pub struct LocalizedTransaction {
 	/// Signed part.
 	pub signed: UnverifiedTransaction,
@@ -511,7 +506,6 @@ impl Deref for LocalizedTransaction {
 
 /// Queued transaction with additional information.
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "ipc", binary)]
 pub struct PendingTransaction {
 	/// Signed transaction data.
 	pub transaction: SignedTransaction,
@@ -544,91 +538,97 @@ impl From<SignedTransaction> for PendingTransaction {
 	}
 }
 
-#[test]
-fn sender_test() {
-	let t: UnverifiedTransaction = decode(&::rustc_serialize::hex::FromHex::from_hex("f85f800182520894095e7baea6a6c7c4c2dfeb977efac326af552d870a801ba048b55bfa915ac795c431978d8a6a992b628d557da5ff759b307d495a36649353a0efffd310ac743f371de3b9f7f9cb56c0b28ad43601b4ab949f53faa07bd2c804").unwrap());
-	assert_eq!(t.data, b"");
-	assert_eq!(t.gas, U256::from(0x5208u64));
-	assert_eq!(t.gas_price, U256::from(0x01u64));
-	assert_eq!(t.nonce, U256::from(0x00u64));
-	if let Action::Call(ref to) = t.action {
-		assert_eq!(*to, "095e7baea6a6c7c4c2dfeb977efac326af552d87".into());
-	} else { panic!(); }
-	assert_eq!(t.value, U256::from(0x0au64));
-	assert_eq!(public_to_address(&t.recover_public().unwrap()), "0f65fe9276bc9a24ae7083ae28e2660ef72df99e".into());
-	assert_eq!(t.network_id(), None);
-}
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use util::{Hashable, U256};
 
-#[test]
-fn signing() {
-	use ethkey::{Random, Generator};
+	#[test]
+	fn sender_test() {
+		let t: UnverifiedTransaction = decode(&::rustc_serialize::hex::FromHex::from_hex("f85f800182520894095e7baea6a6c7c4c2dfeb977efac326af552d870a801ba048b55bfa915ac795c431978d8a6a992b628d557da5ff759b307d495a36649353a0efffd310ac743f371de3b9f7f9cb56c0b28ad43601b4ab949f53faa07bd2c804").unwrap());
+		assert_eq!(t.data, b"");
+		assert_eq!(t.gas, U256::from(0x5208u64));
+		assert_eq!(t.gas_price, U256::from(0x01u64));
+		assert_eq!(t.nonce, U256::from(0x00u64));
+		if let Action::Call(ref to) = t.action {
+			assert_eq!(*to, "095e7baea6a6c7c4c2dfeb977efac326af552d87".into());
+		} else { panic!(); }
+		assert_eq!(t.value, U256::from(0x0au64));
+		assert_eq!(public_to_address(&t.recover_public().unwrap()), "0f65fe9276bc9a24ae7083ae28e2660ef72df99e".into());
+		assert_eq!(t.network_id(), None);
+	}
 
-	let key = Random.generate().unwrap();
-	let t = Transaction {
-		action: Action::Create,
-		nonce: U256::from(42),
-		gas_price: U256::from(3000),
-		gas: U256::from(50_000),
-		value: U256::from(1),
-		data: b"Hello!".to_vec()
-	}.sign(&key.secret(), None);
-	assert_eq!(Address::from(key.public().sha3()), t.sender());
-	assert_eq!(t.network_id(), None);
-}
+	#[test]
+	fn signing() {
+		use ethkey::{Random, Generator};
 
-#[test]
-fn fake_signing() {
-	let t = Transaction {
-		action: Action::Create,
-		nonce: U256::from(42),
-		gas_price: U256::from(3000),
-		gas: U256::from(50_000),
-		value: U256::from(1),
-		data: b"Hello!".to_vec()
-	}.fake_sign(Address::from(0x69));
-	assert_eq!(Address::from(0x69), t.sender());
-	assert_eq!(t.network_id(), None);
+		let key = Random.generate().unwrap();
+		let t = Transaction {
+			action: Action::Create,
+			nonce: U256::from(42),
+			gas_price: U256::from(3000),
+			gas: U256::from(50_000),
+			value: U256::from(1),
+			data: b"Hello!".to_vec()
+		}.sign(&key.secret(), None);
+		assert_eq!(Address::from(key.public().sha3()), t.sender());
+		assert_eq!(t.network_id(), None);
+	}
 
-	let t = t.clone();
-	assert_eq!(Address::from(0x69), t.sender());
-	assert_eq!(t.network_id(), None);
-}
+	#[test]
+	fn fake_signing() {
+		let t = Transaction {
+			action: Action::Create,
+			nonce: U256::from(42),
+			gas_price: U256::from(3000),
+			gas: U256::from(50_000),
+			value: U256::from(1),
+			data: b"Hello!".to_vec()
+		}.fake_sign(Address::from(0x69));
+		assert_eq!(Address::from(0x69), t.sender());
+		assert_eq!(t.network_id(), None);
 
-#[test]
-fn should_recover_from_network_specific_signing() {
-	use ethkey::{Random, Generator};
-	let key = Random.generate().unwrap();
-	let t = Transaction {
-		action: Action::Create,
-		nonce: U256::from(42),
-		gas_price: U256::from(3000),
-		gas: U256::from(50_000),
-		value: U256::from(1),
-		data: b"Hello!".to_vec()
-	}.sign(&key.secret(), Some(69));
-	assert_eq!(Address::from(key.public().sha3()), t.sender());
-	assert_eq!(t.network_id(), Some(69));
-}
+		let t = t.clone();
+		assert_eq!(Address::from(0x69), t.sender());
+		assert_eq!(t.network_id(), None);
+	}
 
-#[test]
-fn should_agree_with_vitalik() {
-	use rustc_serialize::hex::FromHex;
+	#[test]
+	fn should_recover_from_network_specific_signing() {
+		use ethkey::{Random, Generator};
+		let key = Random.generate().unwrap();
+		let t = Transaction {
+			action: Action::Create,
+			nonce: U256::from(42),
+			gas_price: U256::from(3000),
+			gas: U256::from(50_000),
+			value: U256::from(1),
+			data: b"Hello!".to_vec()
+		}.sign(&key.secret(), Some(69));
+		assert_eq!(Address::from(key.public().sha3()), t.sender());
+		assert_eq!(t.network_id(), Some(69));
+	}
 
-	let test_vector = |tx_data: &str, address: &'static str| {
-		let signed = decode(&FromHex::from_hex(tx_data).unwrap());
-		let signed = SignedTransaction::new(signed).unwrap();
-		assert_eq!(signed.sender(), address.into());
-		flushln!("networkid: {:?}", signed.network_id());
-	};
+	#[test]
+	fn should_agree_with_vitalik() {
+		use rustc_serialize::hex::FromHex;
 
-	test_vector("f864808504a817c800825208943535353535353535353535353535353535353535808025a0044852b2a670ade5407e78fb2863c51de9fcb96542a07186fe3aeda6bb8a116da0044852b2a670ade5407e78fb2863c51de9fcb96542a07186fe3aeda6bb8a116d", "0xf0f6f18bca1b28cd68e4357452947e021241e9ce");
-	test_vector("f864018504a817c80182a410943535353535353535353535353535353535353535018025a0489efdaa54c0f20c7adf612882df0950f5a951637e0307cdcb4c672f298b8bcaa0489efdaa54c0f20c7adf612882df0950f5a951637e0307cdcb4c672f298b8bc6", "0x23ef145a395ea3fa3deb533b8a9e1b4c6c25d112");
-	test_vector("f864028504a817c80282f618943535353535353535353535353535353535353535088025a02d7c5bef027816a800da1736444fb58a807ef4c9603b7848673f7e3a68eb14a5a02d7c5bef027816a800da1736444fb58a807ef4c9603b7848673f7e3a68eb14a5", "0x2e485e0c23b4c3c542628a5f672eeab0ad4888be");
-	test_vector("f865038504a817c803830148209435353535353535353535353535353535353535351b8025a02a80e1ef1d7842f27f2e6be0972bb708b9a135c38860dbe73c27c3486c34f4e0a02a80e1ef1d7842f27f2e6be0972bb708b9a135c38860dbe73c27c3486c34f4de", "0x82a88539669a3fd524d669e858935de5e5410cf0");
-	test_vector("f865048504a817c80483019a28943535353535353535353535353535353535353535408025a013600b294191fc92924bb3ce4b969c1e7e2bab8f4c93c3fc6d0a51733df3c063a013600b294191fc92924bb3ce4b969c1e7e2bab8f4c93c3fc6d0a51733df3c060", "0xf9358f2538fd5ccfeb848b64a96b743fcc930554");
-	test_vector("f865058504a817c8058301ec309435353535353535353535353535353535353535357d8025a04eebf77a833b30520287ddd9478ff51abbdffa30aa90a8d655dba0e8a79ce0c1a04eebf77a833b30520287ddd9478ff51abbdffa30aa90a8d655dba0e8a79ce0c1", "0xa8f7aba377317440bc5b26198a363ad22af1f3a4");
-	test_vector("f866068504a817c80683023e3894353535353535353535353535353535353535353581d88025a06455bf8ea6e7463a1046a0b52804526e119b4bf5136279614e0b1e8e296a4e2fa06455bf8ea6e7463a1046a0b52804526e119b4bf5136279614e0b1e8e296a4e2d", "0xf1f571dc362a0e5b2696b8e775f8491d3e50de35");
-	test_vector("f867078504a817c807830290409435353535353535353535353535353535353535358201578025a052f1a9b320cab38e5da8a8f97989383aab0a49165fc91c737310e4f7e9821021a052f1a9b320cab38e5da8a8f97989383aab0a49165fc91c737310e4f7e9821021", "0xd37922162ab7cea97c97a87551ed02c9a38b7332");
-	test_vector("f867088504a817c8088302e2489435353535353535353535353535353535353535358202008025a064b1702d9298fee62dfeccc57d322a463ad55ca201256d01f62b45b2e1c21c12a064b1702d9298fee62dfeccc57d322a463ad55ca201256d01f62b45b2e1c21c10", "0x9bddad43f934d313c2b79ca28a432dd2b7281029");
-	test_vector("f867098504a817c809830334509435353535353535353535353535353535353535358202d98025a052f8f61201b2b11a78d6e866abc9c3db2ae8631fa656bfe5cb53668255367afba052f8f61201b2b11a78d6e866abc9c3db2ae8631fa656bfe5cb53668255367afb", "0x3c24d7329e92f84f08556ceb6df1cdb0104ca49f");
+		let test_vector = |tx_data: &str, address: &'static str| {
+			let signed = decode(&FromHex::from_hex(tx_data).unwrap());
+			let signed = SignedTransaction::new(signed).unwrap();
+			assert_eq!(signed.sender(), address.into());
+			flushln!("networkid: {:?}", signed.network_id());
+		};
+
+		test_vector("f864808504a817c800825208943535353535353535353535353535353535353535808025a0044852b2a670ade5407e78fb2863c51de9fcb96542a07186fe3aeda6bb8a116da0044852b2a670ade5407e78fb2863c51de9fcb96542a07186fe3aeda6bb8a116d", "0xf0f6f18bca1b28cd68e4357452947e021241e9ce");
+		test_vector("f864018504a817c80182a410943535353535353535353535353535353535353535018025a0489efdaa54c0f20c7adf612882df0950f5a951637e0307cdcb4c672f298b8bcaa0489efdaa54c0f20c7adf612882df0950f5a951637e0307cdcb4c672f298b8bc6", "0x23ef145a395ea3fa3deb533b8a9e1b4c6c25d112");
+		test_vector("f864028504a817c80282f618943535353535353535353535353535353535353535088025a02d7c5bef027816a800da1736444fb58a807ef4c9603b7848673f7e3a68eb14a5a02d7c5bef027816a800da1736444fb58a807ef4c9603b7848673f7e3a68eb14a5", "0x2e485e0c23b4c3c542628a5f672eeab0ad4888be");
+		test_vector("f865038504a817c803830148209435353535353535353535353535353535353535351b8025a02a80e1ef1d7842f27f2e6be0972bb708b9a135c38860dbe73c27c3486c34f4e0a02a80e1ef1d7842f27f2e6be0972bb708b9a135c38860dbe73c27c3486c34f4de", "0x82a88539669a3fd524d669e858935de5e5410cf0");
+		test_vector("f865048504a817c80483019a28943535353535353535353535353535353535353535408025a013600b294191fc92924bb3ce4b969c1e7e2bab8f4c93c3fc6d0a51733df3c063a013600b294191fc92924bb3ce4b969c1e7e2bab8f4c93c3fc6d0a51733df3c060", "0xf9358f2538fd5ccfeb848b64a96b743fcc930554");
+		test_vector("f865058504a817c8058301ec309435353535353535353535353535353535353535357d8025a04eebf77a833b30520287ddd9478ff51abbdffa30aa90a8d655dba0e8a79ce0c1a04eebf77a833b30520287ddd9478ff51abbdffa30aa90a8d655dba0e8a79ce0c1", "0xa8f7aba377317440bc5b26198a363ad22af1f3a4");
+		test_vector("f866068504a817c80683023e3894353535353535353535353535353535353535353581d88025a06455bf8ea6e7463a1046a0b52804526e119b4bf5136279614e0b1e8e296a4e2fa06455bf8ea6e7463a1046a0b52804526e119b4bf5136279614e0b1e8e296a4e2d", "0xf1f571dc362a0e5b2696b8e775f8491d3e50de35");
+		test_vector("f867078504a817c807830290409435353535353535353535353535353535353535358201578025a052f1a9b320cab38e5da8a8f97989383aab0a49165fc91c737310e4f7e9821021a052f1a9b320cab38e5da8a8f97989383aab0a49165fc91c737310e4f7e9821021", "0xd37922162ab7cea97c97a87551ed02c9a38b7332");
+		test_vector("f867088504a817c8088302e2489435353535353535353535353535353535353535358202008025a064b1702d9298fee62dfeccc57d322a463ad55ca201256d01f62b45b2e1c21c12a064b1702d9298fee62dfeccc57d322a463ad55ca201256d01f62b45b2e1c21c10", "0x9bddad43f934d313c2b79ca28a432dd2b7281029");
+		test_vector("f867098504a817c809830334509435353535353535353535353535353535353535358202d98025a052f8f61201b2b11a78d6e866abc9c3db2ae8631fa656bfe5cb53668255367afba052f8f61201b2b11a78d6e866abc9c3db2ae8631fa656bfe5cb53668255367afb", "0x3c24d7329e92f84f08556ceb6df1cdb0104ca49f");
+	}
 }

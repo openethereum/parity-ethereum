@@ -23,7 +23,7 @@ use rlp::*;
 
 use action_params::ActionParams;
 use basic_types::LogBloom;
-use types::executed::CallType;
+use executed::CallType;
 use super::error::Error;
 
 /// `Call` result.

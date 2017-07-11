@@ -22,10 +22,9 @@ use std::collections::BTreeMap;
 use util::Address;
 use account_diff::*;
 
-#[derive(Debug, PartialEq, Eq, Clone)]
-#[cfg_attr(feature = "ipc", binary)]
 /// Expression for the delta between two system states. Encoded the
 /// delta of every altered account.
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct StateDiff {
 	/// Raw diff key-value
 	pub raw: BTreeMap<Address, AccountDiff>

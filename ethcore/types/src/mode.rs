@@ -14,12 +14,19 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Types used in the public api
+//! Mode type
 
-#![cfg_attr(feature = "ipc", allow(dead_code, unused_assignments, unused_variables))] // codegen issues
+pub use std::time::Duration;
 
-#[cfg(feature = "ipc")]
-include!(concat!(env!("OUT_DIR"), "/mod.rs.in"));
-
-#[cfg(not(feature = "ipc"))]
-include!("mod.rs.in");
+/// IPC-capable shadow-type for `client::config::Mode`
+#[derive(Clone, Debug)]
+pub enum Mode {
+	/// Same as `ClientMode::Off`.
+	Off,
+	/// Same as `ClientMode::Dark`; values in seconds.
+	Dark(u64),
+	/// Same as `ClientMode::Passive`; values in seconds.
+	Passive(u64, u64),
+	/// Same as `ClientMode::Active`.
+	Active,
+}

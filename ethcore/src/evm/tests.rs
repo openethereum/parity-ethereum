@@ -17,11 +17,11 @@
 use util::*;
 use action_params::{ActionParams, ActionValue};
 use env_info::EnvInfo;
-use types::executed::CallType;
+use executed::CallType;
 use evm::{self, Ext, Schedule, Factory, GasLeft, VMType, ContractCreateResult, MessageCallResult, CreateContractAddress, ReturnData};
 use std::fmt::Debug;
 use tests::helpers::*;
-use types::transaction::SYSTEM_ADDRESS;
+use transaction::SYSTEM_ADDRESS;
 use executive::Executive;
 use state::Substate;
 use trace::{NoopVMTracer, NoopTracer};

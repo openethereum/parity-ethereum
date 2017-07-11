@@ -32,7 +32,7 @@ use trace::FlatTrace;
 use pod_account::*;
 use pod_state::{self, PodState};
 use types::basic_account::BasicAccount;
-use types::executed::{Executed, ExecutionError};
+use executed::{Executed, ExecutionError};
 use types::state_diff::StateDiff;
 use transaction::SignedTransaction;
 use state_db::StateDB;
@@ -987,7 +987,7 @@ mod tests {
 	use transaction::*;
 	use ethcore_logger::init_log;
 	use trace::{FlatTrace, TraceError, trace};
-	use types::executed::CallType;
+	use executed::CallType;
 
 	fn secret() -> Secret {
 		"".sha3().into()

@@ -39,4 +39,4 @@ pub use self::instructions::{InstructionInfo, INSTRUCTIONS, push_bytes};
 pub use self::vmtype::VMType;
 pub use self::factory::Factory;
 pub use self::schedule::{Schedule, CleanDustMode};
-pub use types::executed::CallType;
+pub use executed::CallType;

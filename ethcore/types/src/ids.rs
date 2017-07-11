@@ -17,11 +17,10 @@
 //! Unique identifiers.
 
 use util::hash::H256;
-use header::BlockNumber;
+use {BlockNumber};
 
 /// Uniquely identifies block.
 #[derive(Debug, PartialEq, Copy, Clone, Hash, Eq)]
-#[cfg_attr(feature = "ipc", binary)]
 pub enum BlockId {
 	/// Block's sha3.
 	/// Querying by hash is always faster.
@@ -38,7 +37,6 @@ pub enum BlockId {
 
 /// Uniquely identifies transaction.
 #[derive(Debug, PartialEq, Clone, Hash, Eq)]
-#[cfg_attr(feature = "ipc", binary)]
 pub enum TransactionId {
 	/// Transaction's sha3.
 	Hash(H256),
@@ -48,7 +46,6 @@ pub enum TransactionId {
 }
 
 /// Uniquely identifies Trace.
-#[cfg_attr(feature = "ipc", binary)]
 pub struct TraceId {
 	/// Transaction
 	pub transaction: TransactionId,
@@ -58,7 +55,6 @@ pub struct TraceId {
 
 /// Uniquely identifies Uncle.
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
-#[cfg_attr(feature = "ipc", binary)]
 pub struct UncleId {
 	/// Block id.
 	pub block: BlockId,

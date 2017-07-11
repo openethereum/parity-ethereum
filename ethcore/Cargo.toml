@@ -16,6 +16,7 @@ bloomchain = "0.1"
 bn = { git = "https://github.com/paritytech/bn" }
 byteorder = "1.0"
 clippy = { version = "0.0.103", optional = true}
+common-types = { path = "types" }
 crossbeam = "0.2.9"
 env_logger = "0.4"
 ethabi = "1.0"

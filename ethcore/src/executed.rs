@@ -20,13 +20,13 @@ use util::{Bytes, U256, Address, U512, trie};
 use rlp::*;
 use evm;
 use trace::{VMTrace, FlatTrace};
-use types::log_entry::LogEntry;
-use types::state_diff::StateDiff;
+use log_entry::LogEntry;
+use state_diff::StateDiff;
+
 use std::fmt;
 
 /// The type of the call-like instruction.
 #[derive(Debug, PartialEq, Clone)]
-#[cfg_attr(feature = "ipc", binary)]
 pub enum CallType {
 	/// Not a CALL.
 	None,
@@ -68,7 +68,6 @@ impl Decodable for CallType {
 
 /// Transaction execution receipt.
 #[derive(Debug, PartialEq, Clone)]
-#[cfg_attr(feature = "ipc", binary)]
 pub struct Executed {
 	/// True if the outer call/create resulted in an exceptional exit.
 	pub exception: Option<evm::Error>,
@@ -112,7 +111,6 @@ pub struct Executed {
 
 /// Result of executing the transaction.
 #[derive(PartialEq, Debug, Clone)]
-#[cfg_attr(feature = "ipc", binary)]
 pub enum ExecutionError {
 	/// Returned when there gas paid for transaction execution is
 	/// lower than base gas required.
@@ -192,7 +190,6 @@ impl fmt::Display for ExecutionError {
 
 /// Result of executing the transaction.
 #[derive(PartialEq, Debug, Clone)]
-#[cfg_attr(feature = "ipc", binary)]
 pub enum CallError {
 	/// Couldn't find the transaction in the chain.
 	TransactionNotFound,

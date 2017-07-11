@@ -14,19 +14,25 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Tree route info type definition
+//! Restoration status type definition
 
-use util::H256;
-
-/// Represents a tree route between `from` block and `to` block:
-#[derive(Debug)]
-#[cfg_attr(feature = "ipc", binary)]
-pub struct TreeRoute {
-	/// A vector of hashes of all blocks, ordered from `from` to `to`.
-	pub blocks: Vec<H256>,
-	/// Best common ancestor of these blocks.
-	pub ancestor: H256,
-	/// An index where best common ancestor would be.
-	pub index: usize,
+/// Statuses for restorations.
+#[derive(PartialEq, Eq, Clone, Copy, Debug)]
+pub enum RestorationStatus {
+	///	No restoration.
+	Inactive,
+	/// Ongoing restoration.
+	Ongoing {
+		/// Total number of state chunks.
+		state_chunks: u32,
+		/// Total number of block chunks.
+		block_chunks: u32,
+		/// Number of state chunks completed.
+		state_chunks_done: u32,
+		/// Number of block chunks completed.
+		block_chunks_done: u32,
+	},
+	/// Failed restoration.
+	Failed,
 }
 

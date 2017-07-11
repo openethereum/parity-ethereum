@@ -19,7 +19,7 @@ use util::{Address, Bytes, U256};
 use util::hash::{H256};
 use util::sha3::{Hashable, SHA3_EMPTY};
 use ethjson;
-use types::executed::CallType;
+use executed::CallType;
 
 use std::sync::Arc;
 

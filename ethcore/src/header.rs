@@ -25,8 +25,7 @@ use std::cell::RefCell;
 
 pub use basic_types::Seal;
 
-/// Type for Block number
-pub type BlockNumber = u64;
+pub use types::BlockNumber;
 
 /// A block header.
 ///

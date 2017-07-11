@@ -16,13 +16,14 @@
 
 //! Blockhain info type definition
 
+use std::fmt;
+
 use util::{U256, H256};
-use header::BlockNumber;
-use types::security_level::SecurityLevel;
+use security_level::SecurityLevel;
+use {BlockNumber};
 
 /// Information about the blockchain gathered together.
 #[derive(Clone, Debug)]
-#[cfg_attr(feature = "ipc", binary)]
 pub struct BlockChainInfo {
 	/// Blockchain difficulty.
 	pub total_difficulty: U256,
@@ -55,5 +56,11 @@ impl BlockChainInfo {
 		} else {
 			SecurityLevel::PartialProofOfWork(self.best_block_number - self.first_block_number.expect("Guard condition means this is not none"))
 		}
+	}
+}
+
+impl fmt::Display for BlockChainInfo {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		write!(f, "#{}.{}", self.best_block_number, self.best_block_hash)
 	}
 }

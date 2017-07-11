@@ -18,12 +18,11 @@
 
 use util::{Address, H256, Hashable, H2048};
 use util::bloom::Bloomable;
-use client::BlockId;
+use ids::BlockId;
 use log_entry::LogEntry;
 
 /// Blockchain Filter.
 #[derive(Debug, PartialEq)]
-#[cfg_attr(feature = "ipc", binary)]
 pub struct Filter {
 	/// Blockchain will be searched from this block.
 	pub from_block: BlockId,
@@ -114,7 +113,7 @@ impl Filter {
 #[cfg(test)]
 mod tests {
 	use filter::Filter;
-	use client::BlockId;
+	use ids::BlockId;
 	use log_entry::LogEntry;
 
 	#[test]

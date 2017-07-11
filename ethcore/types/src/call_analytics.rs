@@ -14,19 +14,15 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Trace filter related types
+//! Call analytics related types
 
-use std::ops::Range;
-use util::{Address};
-use types::ids::BlockId;
-
-/// Easy to use trace filter.
-#[cfg_attr(feature = "ipc", binary)]
-pub struct Filter {
-	/// Range of filtering.
-	pub range: Range<BlockId>,
-	/// From address.
-	pub from_address: Vec<Address>,
-	/// To address.
-	pub to_address: Vec<Address>,
+/// Options concerning what analytics we run on the call.
+#[derive(Eq, PartialEq, Default, Clone, Copy, Debug)]
+pub struct CallAnalytics {
+	/// Make a transaction trace.
+	pub transaction_tracing: bool,
+	/// Make a VM trace.
+	pub vm_tracing: bool,
+	/// Make a diff.
+	pub state_diffing: bool,
 }

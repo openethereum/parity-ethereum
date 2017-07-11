@@ -14,16 +14,33 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Call analytics related types
+//! Types used in the public API
 
-/// Options concerning what analytics we run on the call.
-#[derive(Eq, PartialEq, Default, Clone, Copy, Debug)]
-#[cfg_attr(feature = "ipc", binary)]
-pub struct CallAnalytics {
-	/// Make a transaction trace.
-	pub transaction_tracing: bool,
-	/// Make a VM trace.
-	pub vm_tracing: bool,
-	/// Make a diff.
-	pub state_diffing: bool,
-}
+extern crate ethcore_util as util;
+extern crate ethjson;
+extern crate rlp;
+
+#[cfg(test)]
+extern crate rustc_serialize;
+
+pub mod account_diff;
+pub mod basic_account;
+pub mod block_status;
+pub mod blockchain_info;
+pub mod call_analytics;
+pub mod filter;
+pub mod ids;
+pub mod log_entry;
+pub mod mode;
+pub mod pruning_info;
+pub mod receipt;
+pub mod restoration_status;
+pub mod security_level;
+pub mod snapshot_manifest;
+pub mod state_diff;
+pub mod trace_filter;
+pub mod tree_route;
+pub mod verification_queue_info;
+
+/// Type for block number.
+pub type BlockNumber = u64;

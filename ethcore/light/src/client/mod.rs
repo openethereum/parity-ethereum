@@ -18,10 +18,10 @@
 
 use std::sync::{Weak, Arc};
 
-use ethcore::block_import_error::BlockImportError;
 use ethcore::block_status::BlockStatus;
 use ethcore::client::{ClientReport, EnvInfo};
 use ethcore::engines::Engine;
+use ethcore::error::BlockImportError;
 use ethcore::ids::BlockId;
 use ethcore::header::Header;
 use ethcore::verification::queue::{self, HeaderQueue};

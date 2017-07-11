@@ -22,8 +22,8 @@ use engines::Engine;
 use env_info::EnvInfo;
 use executive::*;
 use evm::{self, Schedule, Ext, ContractCreateResult, MessageCallResult, CreateContractAddress, ReturnData};
-use types::executed::CallType;
-use types::transaction::UNSIGNED_SENDER;
+use executed::CallType;
+use transaction::UNSIGNED_SENDER;
 use trace::{Tracer, VMTracer};
 
 /// Policy for handling output data on `RETURN` opcode.
@@ -399,7 +399,7 @@ mod tests {
 	use tests::helpers::*;
 	use super::*;
 	use trace::{NoopTracer, NoopVMTracer};
-	use types::executed::CallType;
+	use executed::CallType;
 
 	fn get_test_origin() -> OriginInfo {
 		OriginInfo {

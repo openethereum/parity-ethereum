@@ -22,7 +22,6 @@ use util::Bytes;
 
 /// Manifest data.
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "ipc", binary)]
 pub struct ManifestData {
 	/// Snapshot format version.
 	pub version: u64,

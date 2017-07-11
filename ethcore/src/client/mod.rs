@@ -42,9 +42,7 @@ pub use types::call_analytics::CallAnalytics;
 pub use executive::{Executed, Executive, TransactOptions};
 pub use env_info::{LastHashes, EnvInfo};
 
-pub use block_import_error::BlockImportError;
-pub use transaction_import::TransactionImportResult;
-pub use transaction_import::TransactionImportError;
+pub use error::{BlockImportError, TransactionImportError, TransactionImportResult};
 pub use verification::VerifierType;
 
 /// IPC interfaces

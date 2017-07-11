@@ -23,13 +23,12 @@ use util::sha3::Hashable;
 use util::bloom::Bloomable;
 use basic_types::LogBloom;
 use trace::flat::FlatTrace;
-use types::trace_types::trace::{Action, Res};
+use super::trace::{Action, Res};
 
 /// Addresses filter.
 ///
 /// Used to create bloom possibilities and match filters.
 #[derive(Debug)]
-#[cfg_attr(feature = "ipc", binary)]
 pub struct AddressesFilter {
 	list: Vec<Address>
 }
@@ -76,7 +75,6 @@ impl AddressesFilter {
 }
 
 #[derive(Debug)]
-#[cfg_attr(feature = "ipc", binary)]
 /// Traces filter.
 pub struct Filter {
 	/// Block range.
@@ -143,7 +141,7 @@ mod tests {
 	use trace::trace::{Action, Call, Res, Create, CreateResult, Suicide};
 	use trace::flat::FlatTrace;
 	use trace::{Filter, AddressesFilter, TraceError};
-	use types::executed::CallType;
+	use executed::CallType;
 
 	#[test]
 	fn empty_trace_filter_bloom_possibilities() {

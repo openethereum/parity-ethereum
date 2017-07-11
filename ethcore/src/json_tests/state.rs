@@ -21,7 +21,7 @@ use ethereum;
 use spec::Spec;
 use ethjson;
 use ethjson::state::test::ForkSpec;
-use types::transaction::SignedTransaction;
+use transaction::SignedTransaction;
 use env_info::EnvInfo;
 
 lazy_static! {

@@ -35,7 +35,7 @@ use state_db::StateDB;
 use state::{Backend, State, Substate};
 use state::backend::Basic as BasicBackend;
 use trace::{NoopTracer, NoopVMTracer};
-use types::executed::CallType;
+use executed::CallType;
 use util::*;
 
 /// Parameters common to all engines.

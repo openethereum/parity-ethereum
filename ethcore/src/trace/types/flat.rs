@@ -26,7 +26,6 @@ use super::trace::{Action, Res};
 ///
 /// Parent and children indexes refer to positions in this vector.
 #[derive(Debug, PartialEq, Clone)]
-#[cfg_attr(feature = "ipc", binary)]
 pub struct FlatTrace {
 	/// Type of action performed by a transaction.
 	pub action: Action,
@@ -164,7 +163,7 @@ mod tests {
 	use rlp::*;
 	use super::{FlatBlockTraces, FlatTransactionTraces, FlatTrace};
 	use trace::trace::{Action, Res, CallResult, Call, Suicide};
-	use types::executed::CallType;
+	use executed::CallType;
 
 	#[test]
 	fn encode_flat_transaction_traces() {

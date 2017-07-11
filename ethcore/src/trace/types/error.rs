@@ -22,7 +22,6 @@ use evm::Error as EvmError;
 
 /// Trace evm errors.
 #[derive(Debug, PartialEq, Clone)]
-#[cfg_attr(feature = "ipc", binary)]
 pub enum Error {
 	/// `OutOfGas` is returned when transaction execution runs out of gas.
 	OutOfGas,
@@ -34,7 +33,7 @@ pub enum Error {
 	/// `StackUnderflow` when there is not enough stack elements to execute instruction
 	StackUnderflow,
 	/// When execution would exceed defined Stack Limit
-	OutOfStack,	
+	OutOfStack,
 	/// When builtin contract failed on input data
 	BuiltIn,
 	/// Returned on evm internal error. Should never be ignored during development.

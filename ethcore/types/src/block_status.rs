@@ -14,12 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Block status description module
-use verification::queue::Status as QueueStatus;
-
 /// General block status
 #[derive(Debug, Eq, PartialEq)]
-#[cfg_attr(feature = "ipc", binary)]
 pub enum BlockStatus {
 	/// Part of the blockchain.
 	InChain,
@@ -29,14 +25,4 @@ pub enum BlockStatus {
 	Bad,
 	/// Unknown.
 	Unknown,
-}
-
-impl From<QueueStatus> for BlockStatus {
-	fn from(status: QueueStatus) -> Self {
-		match status {
-			QueueStatus::Queued => BlockStatus::Queued,
-			QueueStatus::Bad => BlockStatus::Bad,
-			QueueStatus::Unknown => BlockStatus::Unknown,
-		}
-	}
 }

@@ -23,7 +23,7 @@ use env_info::EnvInfo;
 use evm;
 use evm::{Schedule, Ext, Finalize, VMType, ContractCreateResult, MessageCallResult, CreateContractAddress, ReturnData};
 use externalities::*;
-use types::executed::CallType;
+use executed::CallType;
 use tests::helpers::*;
 use ethjson;
 use trace::{Tracer, NoopTracer};

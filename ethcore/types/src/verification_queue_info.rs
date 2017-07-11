@@ -18,7 +18,6 @@
 
 /// Verification queue status
 #[derive(Debug)]
-#[cfg_attr(feature = "ipc", binary)]
 pub struct VerificationQueueInfo {
 	/// Number of queued items pending verification
 	pub unverified_queue_size: usize,

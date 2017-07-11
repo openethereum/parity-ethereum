@@ -19,7 +19,7 @@ use util::*;
 use action_params::{ActionParams, ActionValue};
 use state::{Backend as StateBackend, State, Substate, CleanupMode};
 use engines::Engine;
-use types::executed::CallType;
+use executed::CallType;
 use env_info::EnvInfo;
 use error::ExecutionError;
 use evm::{self, Ext, Finalize, CreateContractAddress, FinalizationResult, ReturnData, CleanDustMode};
@@ -27,7 +27,7 @@ use externalities::*;
 use trace::{FlatTrace, Tracer, NoopTracer, ExecutiveTracer, VMTrace, VMTracer, ExecutiveVMTracer, NoopVMTracer};
 use transaction::{Action, SignedTransaction};
 use crossbeam;
-pub use types::executed::{Executed, ExecutionResult};
+pub use executed::{Executed, ExecutionResult};
 
 /// Roughly estimate what stack size each level of evm depth will use
 /// TODO [todr] We probably need some more sophisticated calculations here (limit on my machine 132)
@@ -593,7 +593,7 @@ mod tests {
 	use trace::{VMTrace, VMOperation, VMExecutedOperation, MemoryDiff, StorageDiff, VMTracer, NoopVMTracer, ExecutiveVMTracer};
 	use transaction::{Action, Transaction};
 
-	use types::executed::CallType;
+	use executed::CallType;
 
 	#[test]
 	fn test_contract_address() {

@@ -394,7 +394,7 @@ pub mod common {
 	use error::Error;
 	use transaction::SYSTEM_ADDRESS;
 	use executive::Executive;
-	use types::executed::CallType;
+	use executed::CallType;
 	use action_params::{ActionParams, ActionValue};
 	use trace::{NoopTracer, NoopVMTracer};
 	use state::Substate;

@@ -20,12 +20,10 @@ use std::cmp::*;
 use std::fmt;
 use std::collections::BTreeMap;
 use util::{U256, H256, Bytes};
-use ipc::binary::BinaryConvertable;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-#[cfg_attr(feature = "ipc", binary)]
 /// Diff type for specifying a change (or not).
-pub enum Diff<T> where T: Eq + BinaryConvertable {
+pub enum Diff<T> where T: Eq {
 	/// Both sides are the same.
 	Same,
 	/// Left (pre, source) side doesn't include value, right side (post, destination) does.
@@ -36,7 +34,7 @@ pub enum Diff<T> where T: Eq + BinaryConvertable {
 	Died(T),
 }
 
-impl<T> Diff<T> where T: Eq + BinaryConvertable {
+impl<T> Diff<T> where T: Eq {
 	/// Construct new object with given `pre` and `post`.
 	pub fn new(pre: T, post: T) -> Self { if pre == post { Diff::Same } else { Diff::Changed(pre, post) } }
 

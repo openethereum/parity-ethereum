@@ -17,7 +17,6 @@
 use std::collections::{HashSet, HashMap, BTreeMap, VecDeque};
 use std::str::FromStr;
 use std::sync::{Arc, Weak};
-use std::fmt;
 use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
 use std::time::{Instant};
 use time::precise_time_ns;
@@ -83,12 +82,6 @@ pub use verification::queue::QueueInfo as BlockQueueInfo;
 const MAX_TX_QUEUE_SIZE: usize = 4096;
 const MAX_QUEUE_SIZE_TO_SLEEP_ON: usize = 2;
 const MIN_HISTORY_SIZE: u64 = 8;
-
-impl fmt::Display for BlockChainInfo {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		write!(f, "#{}.{}", self.best_block_number, self.best_block_hash)
-	}
-}
 
 /// Report on the status of a client.
 #[derive(Default, Clone, Debug, Eq, PartialEq)]

@@ -14,29 +14,18 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Block import error related types
+//! Trace filter related types
 
-use error::{ImportError, BlockError, Error};
-use std::convert::From;
+use std::ops::Range;
+use util::{Address};
+use ids::BlockId;
 
-/// Error dedicated to import block function
-#[derive(Debug)]
-#[cfg_attr(feature = "ipc", binary)]
-pub enum BlockImportError {
-	/// Import error
-	Import(ImportError),
-	/// Block error
-	Block(BlockError),
-	/// Other error
-	Other(String),
-}
-
-impl From<Error> for BlockImportError {
-	fn from(e: Error) -> Self {
-		match e {
-			Error::Block(block_error) => BlockImportError::Block(block_error),
-			Error::Import(import_error) => BlockImportError::Import(import_error),
-			_ => BlockImportError::Other(format!("other block import error: {:?}", e)),
-		}
-	}
+/// Easy to use trace filter.
+pub struct Filter {
+	/// Range of filtering.
+	pub range: Range<BlockId>,
+	/// From address.
+	pub from_address: Vec<Address>,
+	/// To address.
+	pub to_address: Vec<Address>,
 }

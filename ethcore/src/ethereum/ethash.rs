@@ -1009,7 +1009,7 @@ mod tests {
 	#[test]
 	fn rejects_transactions_below_min_gas_price() {
 		use ethkey::{Generator, Random};
-		use types::transaction::{Transaction, Action};
+		use transaction::{Transaction, Action};
 
 		let spec = new_homestead_test();
 		let mut ethparams = get_default_ethash_params();
