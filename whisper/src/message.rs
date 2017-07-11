@@ -31,7 +31,10 @@ use tiny_keccak::{keccak256, Keccak};
 pub fn work_factor_proved(size: u64, ttl: u64, hash: H256) -> f64 {
 	assert!(size != 0 && ttl != 0);
 
-	let leading_zeros = hash.0.iter().take_while(|&&x| x == 0).count();
+	let leading_zeros = {
+		let leading_zeros = hash.iter().take_while(|&&x| x == 0).count();
+		(leading_zeros * 8) + hash.get(leading_zeros + 1).map_or(0, |b| b.leading_zeros() as usize)
+	};
 	let spacetime = size as f64 * ttl as f64;
 
 	(1u64 << leading_zeros) as f64 / spacetime
