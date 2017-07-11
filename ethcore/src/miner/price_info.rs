@@ -56,7 +56,9 @@ pub struct Client {
 
 impl fmt::Debug for Client {
 	fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-		write!(fmt, "price_info::Client {{ api_endpoint: {} }}", self.api_endpoint)
+		fmt.debug_struct("price_info::Client")
+		   .field("api_endpoint", &self.api_endpoint)
+		   .finish()
 	}
 }
 
