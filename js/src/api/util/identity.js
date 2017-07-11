@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import blockies from 'blockies';
+import blockies from 'ethereum-blockies';
 
 // jsdom doesn't have all the browser features, blockies fail
 const TEST_ENV = process.env.NODE_ENV === 'test';
