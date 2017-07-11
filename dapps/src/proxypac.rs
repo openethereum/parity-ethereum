@@ -39,7 +39,7 @@ impl Endpoint for ProxyPac {
 	fn to_handler(&self, path: EndpointPath) -> Box<Handler> {
 		let signer = self.signer_address
 			.as_ref()
-			.map(address)
+			.map(|&(ref host, port)| address(host, port))
 			.unwrap_or_else(|| format!("{}:{}", path.host, path.port));
 
 		let content = format!(

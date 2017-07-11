@@ -26,7 +26,7 @@ use fetch::Fetch;
 use parity_dapps::WebApp;
 use parity_reactor::Remote;
 use parity_ui;
-use {WebProxyTokens};
+use {WebProxyTokens, ParentFrameSettings, as_embeddable};
 
 mod app;
 mod cache;
@@ -52,8 +52,8 @@ pub fn ui() -> Box<Endpoint> {
 	Box::new(PageEndpoint::with_fallback_to_index(parity_ui::App::default()))
 }
 
-pub fn ui_redirection(ui_address: Option<(String, u16)>) -> Box<Endpoint> {
-	Box::new(ui::Redirection::new(ui_address))
+pub fn ui_redirection(ui_address: Option<(String, u16)>, dapps_domain: String) -> Box<Endpoint> {
+	Box::new(ui::Redirection::new(as_embeddable(ui_address, dapps_domain)))
 }
 
 pub fn all_endpoints<F: Fetch>(
@@ -65,10 +65,11 @@ pub fn all_endpoints<F: Fetch>(
 	remote: Remote,
 	fetch: F,
 ) -> Endpoints {
+	let embeddable = as_embeddable(ui_address.clone(), dapps_domain.clone());
 	// fetch fs dapps at first to avoid overwriting builtins
-	let mut pages = fs::local_endpoints(dapps_path, ui_address.clone());
+	let mut pages = fs::local_endpoints(dapps_path, embeddable.clone());
 	for path in extra_dapps {
-		if let Some((id, endpoint)) = fs::local_endpoint(path.clone(), ui_address.clone()) {
+		if let Some((id, endpoint)) = fs::local_endpoint(path.clone(), embeddable.clone()) {
 			pages.insert(id, endpoint);
 		} else {
 			warn!(target: "dapps", "Ignoring invalid dapp at {}", path.display());
@@ -76,9 +77,9 @@ pub fn all_endpoints<F: Fetch>(
 	}
 
 	// NOTE [ToDr] Dapps will be currently embeded on 8180
-	insert::<parity_ui::App>(&mut pages, "ui", Embeddable::Yes(ui_address.clone()));
+	insert::<parity_ui::App>(&mut pages, "ui", Embeddable::Yes(embeddable.clone()));
 	pages.insert("proxy".into(), ProxyPac::boxed(ui_address.clone(), dapps_domain));
-	pages.insert(WEB_PATH.into(), Web::boxed(ui_address.clone(), web_proxy_tokens.clone(), remote.clone(), fetch.clone()));
+	pages.insert(WEB_PATH.into(), Web::boxed(embeddable.clone(), web_proxy_tokens.clone(), remote.clone(), fetch.clone()));
 
 	Arc::new(pages)
 }
@@ -91,7 +92,7 @@ fn insert<T : WebApp + Default + 'static>(pages: &mut BTreeMap<String, Box<Endpo
 }
 
 enum Embeddable {
-	Yes(Option<(String, u16)>),
+	Yes(Option<ParentFrameSettings>),
 	#[allow(dead_code)]
 	No,
 }
