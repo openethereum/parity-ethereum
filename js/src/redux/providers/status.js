@@ -209,6 +209,9 @@ export default class Status {
         const status = { netPeers, syncing, health };
 
         health.overall = this._overallStatus(health);
+        health.peers = health.peers || {};
+        health.sync = health.sync || {};
+        health.time = health.time || {};
 
         if (!isEqual(status, this._status)) {
           this._store.dispatch(statusCollection(status));
