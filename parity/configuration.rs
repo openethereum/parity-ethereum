@@ -407,7 +407,6 @@ impl Configuration {
 			extra_data: self.extra_data()?,
 			gas_floor_target: to_u256(&self.args.flag_gas_floor_target)?,
 			gas_ceil_target: to_u256(&self.args.flag_gas_cap)?,
-			transactions_limit: self.args.flag_tx_queue_size,
 			engine_signer: self.engine_signer()?,
 		};
 
@@ -532,6 +531,9 @@ impl Configuration {
 				None => U256::max_value(),
 			},
 			tx_queue_size: self.args.flag_tx_queue_size,
+			tx_queue_memory_limit: if self.args.flag_tx_queue_mem_limit > 0 {
+				Some(self.args.flag_tx_queue_mem_limit as usize * 1024 * 1024)
+			} else { None },
 			tx_queue_gas_limit: to_gas_limit(&self.args.flag_tx_queue_gas)?,
 			tx_queue_strategy: to_queue_strategy(&self.args.flag_tx_queue_strategy)?,
 			pending_set: to_pending_set(&self.args.flag_relay_set)?,
