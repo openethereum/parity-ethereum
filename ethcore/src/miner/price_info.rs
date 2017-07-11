@@ -31,22 +31,22 @@ pub struct PriceInfo {
 }
 
 /// Price info error.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub enum Error {
 	/// The API returned an unexpected status code or content.
 	UnexpectedResponse(&'static str, String),
 	/// There was an error when trying to reach the API.
-	Fetch(String),
+	Fetch(fetch::Error),
 	/// IO error when reading API response.
-	Io(String),
+	Io(io::Error),
 }
 
 impl From<io::Error> for Error {
-	fn from(err: io::Error) -> Self { Error::Io(format!("{:?}", err)) }
+	fn from(err: io::Error) -> Self { Error::Io(err) }
 }
 
 impl From<fetch::Error> for Error {
-	fn from(err: fetch::Error) -> Self { Error::Fetch(format!("{:?}", err)) }
+	fn from(err: fetch::Error) -> Self { Error::Fetch(err) }
 }
 
 pub struct Client {
@@ -75,7 +75,7 @@ impl Client {
 
 	pub fn get<F: Fn(PriceInfo) + Sync + Send + 'static>(&self, set_price: F) {
 		self.fetch.forget(self.fetch.fetch(&self.api_endpoint)
-			.map_err(|err| Error::Fetch(format!("{:?}", err)))
+			.map_err(|err| Error::Fetch(err))
 			.and_then(move |mut response| {
 				let mut result = String::new();
 				response.read_to_string(&mut result)?;
