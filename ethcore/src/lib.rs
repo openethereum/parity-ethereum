@@ -103,7 +103,6 @@ extern crate price_info;
 extern crate rand;
 extern crate rlp;
 extern crate rustc_hex;
-extern crate rustc_serialize;
 extern crate semver;
 extern crate stats;
 extern crate time;
