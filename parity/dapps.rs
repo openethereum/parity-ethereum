@@ -39,6 +39,7 @@ pub struct Configuration {
 	pub ntp_server: String,
 	pub dapps_path: PathBuf,
 	pub extra_dapps: Vec<PathBuf>,
+	pub extra_embed_on: Vec<(String, u16)>,
 }
 
 impl Default for Configuration {
@@ -49,6 +50,7 @@ impl Default for Configuration {
 			ntp_server: "pool.ntp.org:123".into(),
 			dapps_path: replace_home(&data_dir, "$BASE/dapps").into(),
 			extra_dapps: vec![],
+			extra_embed_on: vec![],
 		}
 	}
 }
@@ -160,6 +162,7 @@ pub fn new(configuration: Configuration, deps: Dependencies) -> Result<Option<Mi
 		configuration.dapps_path,
 		configuration.extra_dapps,
 		rpc::DAPPS_DOMAIN,
+		configuration.extra_embed_on,
 	).map(Some)
 }
 
@@ -202,6 +205,7 @@ mod server {
 		_dapps_path: PathBuf,
 		_extra_dapps: Vec<PathBuf>,
 		_dapps_domain: &str,
+		_extra_embed_on: Vec<(String, u16)>,
 	) -> Result<Middleware, String> {
 		Err("Your Parity version has been compiled without WebApps support.".into())
 	}
@@ -238,6 +242,7 @@ mod server {
 		dapps_path: PathBuf,
 		extra_dapps: Vec<PathBuf>,
 		dapps_domain: &str,
+		extra_embed_on: Vec<(String, u16)>,
 	) -> Result<Middleware, String> {
 		let signer = deps.signer;
 		let parity_remote = parity_reactor::Remote::new(deps.remote.clone());
@@ -248,6 +253,7 @@ mod server {
 			deps.pool,
 			parity_remote,
 			deps.ui_address,
+			extra_embed_on,
 			dapps_path,
 			extra_dapps,
 			dapps_domain,

@@ -24,6 +24,7 @@ use hyper::mime::Mime;
 use hyper::status::StatusCode;
 
 use handlers::add_security_headers;
+use Embeddable;
 
 const BUFFER_SIZE: usize = 1024;
 
@@ -33,11 +34,11 @@ pub struct StreamingHandler<R: io::Read> {
 	status: StatusCode,
 	content: io::BufReader<R>,
 	mimetype: Mime,
-	safe_to_embed_on: Option<(String, u16)>,
+	safe_to_embed_on: Embeddable,
 }
 
 impl<R: io::Read> StreamingHandler<R> {
-	pub fn new(content: R, status: StatusCode, mimetype: Mime, embeddable_on: Option<(String, u16)>) -> Self {
+	pub fn new(content: R, status: StatusCode, mimetype: Mime, embeddable_on: Embeddable) -> Self {
 		StreamingHandler {
 			buffer: [0; BUFFER_SIZE],
 			buffer_leftover: 0,
@@ -68,7 +69,7 @@ impl<R: io::Read> server::Handler<HttpStream> for StreamingHandler<R> {
 	fn on_response(&mut self, res: &mut server::Response) -> Next {
 		res.set_status(self.status);
 		res.headers_mut().set(header::ContentType(self.mimetype.clone()));
-		add_security_headers(&mut res.headers_mut(), self.safe_to_embed_on.clone());
+		add_security_headers(&mut res.headers_mut(), self.safe_to_embed_on.take());
 		Next::write()
 	}
 

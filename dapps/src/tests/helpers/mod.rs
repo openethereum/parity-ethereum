@@ -259,6 +259,7 @@ impl Server {
 			CpuPool::new(4),
 			remote,
 			signer_address,
+			vec![],
 			dapps_path,
 			extra_dapps,
 			DAPPS_DOMAIN.into(),
