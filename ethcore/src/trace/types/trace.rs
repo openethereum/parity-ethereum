@@ -21,9 +21,9 @@ use util::sha3::Hashable;
 use util::bloom::Bloomable;
 use rlp::*;
 
-use action_params::ActionParams;
+use evm::action_params::ActionParams;
 use basic_types::LogBloom;
-use executed::CallType;
+use evm::CallType;
 use super::error::Error;
 
 /// `Call` result.

@@ -114,6 +114,8 @@ extern crate ethcore_util as util;
 extern crate lazy_static;
 #[macro_use]
 extern crate ethcore_ipc as ipc;
+#[cfg_attr(test, macro_use)]
+extern crate evm;
 
 #[cfg(feature = "jit" )]
 extern crate evmjit;
@@ -121,13 +123,11 @@ extern crate evmjit;
 pub extern crate ethstore;
 
 pub mod account_provider;
-pub mod action_params;
 pub mod block;
 pub mod client;
 pub mod db;
 pub mod encoded;
 pub mod engines;
-pub mod env_info;
 pub mod error;
 pub mod ethereum;
 pub mod executed;
@@ -143,7 +143,6 @@ pub mod trace;
 pub mod transaction;
 pub mod verification;
 pub mod views;
-#[macro_use] pub mod evm;
 
 mod cache_manager;
 mod blooms;

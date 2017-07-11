@@ -141,7 +141,7 @@ mod tests {
 	use trace::trace::{Action, Call, Res, Create, CreateResult, Suicide};
 	use trace::flat::FlatTrace;
 	use trace::{Filter, AddressesFilter, TraceError};
-	use executed::CallType;
+	use evm::CallType;
 
 	#[test]
 	fn empty_trace_filter_bloom_possibilities() {

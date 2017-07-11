@@ -18,6 +18,7 @@ ethcore-network = { path = "../../util/network" }
 ethcore-io = { path = "../../util/io" }
 ethcore-ipc = { path = "../../ipc/rpc", optional = true }
 ethcore-devtools = { path = "../../devtools" }
+evm = { path = "../evm" }
 rlp = { path = "../../util/rlp" }
 time = "0.1"
 smallvec = "0.4"

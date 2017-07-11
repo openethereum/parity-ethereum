@@ -18,7 +18,7 @@ use ethash::{quick_get_difficulty, slow_get_seedhash, EthashManager};
 use util::*;
 use block::*;
 use builtin::Builtin;
-use env_info::EnvInfo;
+use evm::env_info::EnvInfo;
 use error::{BlockError, Error, TransactionError};
 use header::{Header, BlockNumber};
 use state::CleanupMode;
@@ -28,7 +28,7 @@ use engines::Engine;
 use evm::Schedule;
 use ethjson;
 use rlp::{self, UntrustedRlp};
-use env_info::LastHashes;
+use evm::env_info::LastHashes;
 
 /// Parity tries to round block.gas_limit to multiple of this constant
 pub const PARITY_GAS_LIMIT_DETERMINANT: U256 = U256([37, 0, 0, 0]);
@@ -203,7 +203,8 @@ impl Engine for Arc<Ethash> {
 				block_number >= self.ethash_params.eip160_transition,
 				block_number >= self.ethash_params.eip161abc_transition,
 				block_number >= self.ethash_params.eip161d_transition);
-			schedule.apply_params(block_number, self.params());
+
+			self.params().update_schedule(block_number, &mut schedule);
 			schedule
 		}
 	}

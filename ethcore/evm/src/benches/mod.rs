@@ -25,7 +25,7 @@ extern crate test;
 use self::test::{Bencher, black_box};
 
 use util::*;
-use action_params::ActionParams;
+use evm::action_params::ActionParams;
 use evm::{self, Factory, VMType};
 use evm::tests::FakeExt;
 

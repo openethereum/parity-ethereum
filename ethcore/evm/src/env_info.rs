@@ -19,7 +19,7 @@
 use std::cmp;
 use std::sync::Arc;
 use util::{U256, Address, H256, Hashable};
-use header::BlockNumber;
+use types::BlockNumber;
 use ethjson;
 
 /// Simple vector of hashes, should be at most 256 items large, can be smaller if being used
@@ -76,15 +76,13 @@ impl From<ethjson::vm::Env> for EnvInfo {
 
 #[cfg(test)]
 mod tests {
-	extern crate rustc_serialize;
-
 	use std::str::FromStr;
 	use super::*;
 	use util::{U256, Address};
 	use ethjson;
 
 	#[test]
-	fn it_serializes_form_json() {
+	fn it_serializes_from_json() {
 		let env_info = EnvInfo::from(ethjson::vm::Env {
 			author: ethjson::hash::Address(Address::from_str("000000f00000000f000000000000f00000000f00").unwrap()),
 			number: ethjson::uint::Uint(U256::from(1_112_339)),

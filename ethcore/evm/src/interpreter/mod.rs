@@ -23,16 +23,18 @@ mod stack;
 mod memory;
 mod shared_cache;
 
+use {evm, ext};
 use self::gasometer::Gasometer;
 use self::stack::{Stack, VecStack};
 use self::memory::Memory;
+
 pub use self::shared_cache::SharedCache;
 
 use std::marker::PhantomData;
-use evm::action_params::{ActionParams, ActionValue};
-use evm::CallType;
-use evm::instructions::{self, Instruction, InstructionInfo};
-use evm::{self, MessageCallResult, ContractCreateResult, GasLeft, CostType, CreateContractAddress, ReturnData};
+use action_params::{ActionParams, ActionValue};
+use call_type::CallType;
+use instructions::{self, Instruction, InstructionInfo};
+use {MessageCallResult, ContractCreateResult, GasLeft, CostType, CreateContractAddress, ReturnData};
 use bit_set::BitSet;
 
 use util::*;
@@ -107,7 +109,7 @@ pub struct Interpreter<Cost: CostType> {
 }
 
 impl<Cost: CostType> evm::Evm for Interpreter<Cost> {
-	fn exec(&mut self, params: ActionParams, ext: &mut evm::Ext) -> evm::Result<GasLeft> {
+	fn exec(&mut self, params: ActionParams, ext: &mut ext::Ext) -> evm::Result<GasLeft> {
 		self.mem.clear();
 
 		let mut informant = informant::EvmInformant::new(ext.depth());
@@ -198,7 +200,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 		}
 	}
 
-	fn verify_instruction(&self, ext: &evm::Ext, instruction: Instruction, info: &InstructionInfo, stack: &Stack<U256>) -> evm::Result<()> {
+	fn verify_instruction(&self, ext: &ext::Ext, instruction: Instruction, info: &InstructionInfo, stack: &Stack<U256>) -> evm::Result<()> {
 		let schedule = ext.schedule();
 
 		if (instruction == instructions::DELEGATECALL && !schedule.have_delegate_call) ||
@@ -264,7 +266,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 		&mut self,
 		gas: Cost,
 		params: &ActionParams,
-		ext: &mut evm::Ext,
+		ext: &mut ext::Ext,
 		instruction: Instruction,
 		code: &mut CodeReader,
 		stack: &mut Stack<U256>,

@@ -16,10 +16,11 @@
 
 use util::*;
 use super::u256_to_address;
-use evm::{self, CostType};
-use evm::instructions::{self, Instruction, InstructionInfo};
-use evm::interpreter::stack::Stack;
-use evm::schedule::Schedule;
+
+use {evm, ext};
+use instructions::{self, Instruction, InstructionInfo};
+use interpreter::stack::Stack;
+use schedule::Schedule;
 
 macro_rules! overflowing {
 	($x: expr) => {{
@@ -30,26 +31,26 @@ macro_rules! overflowing {
 }
 
 #[cfg_attr(feature="dev", allow(enum_variant_names))]
-enum Request<Cost: CostType> {
+enum Request<Cost: ::evm::CostType> {
 	Gas(Cost),
 	GasMem(Cost, Cost),
 	GasMemProvide(Cost, Cost, Option<U256>),
 	GasMemCopy(Cost, Cost, Cost)
 }
 
-pub struct InstructionRequirements<Cost: CostType> {
+pub struct InstructionRequirements<Cost> {
 	pub gas_cost: Cost,
 	pub provide_gas: Option<Cost>,
 	pub memory_total_gas: Cost,
 	pub memory_required_size: usize,
 }
 
-pub struct Gasometer<Gas: CostType> {
+pub struct Gasometer<Gas> {
 	pub current_gas: Gas,
 	pub current_mem_gas: Gas,
 }
 
-impl<Gas: CostType> Gasometer<Gas> {
+impl<Gas: evm::CostType> Gasometer<Gas> {
 
 	pub fn new(current_gas: Gas) -> Self {
 		Gasometer {
@@ -106,7 +107,7 @@ impl<Gas: CostType> Gasometer<Gas> {
 	/// it will be the amount of gas that the current context provides to the child context.
 	pub fn requirements(
 		&mut self,
-		ext: &evm::Ext,
+		ext: &ext::Ext,
 		instruction: Instruction,
 		info: &InstructionInfo,
 		stack: &Stack<U256>,
@@ -290,7 +291,7 @@ impl<Gas: CostType> Gasometer<Gas> {
 		})
 	}
 
-	fn mem_gas_cost(&self, schedule: &evm::Schedule, current_mem_size: usize, mem_size: &Gas) -> evm::Result<(Gas, Gas, usize)> {
+	fn mem_gas_cost(&self, schedule: &Schedule, current_mem_size: usize, mem_size: &Gas) -> evm::Result<(Gas, Gas, usize)> {
 		let gas_for_mem = |mem_size: Gas| {
 			let s = mem_size >> 5;
 			// s * memory_gas + s * s / quad_coeff_div
@@ -318,12 +319,12 @@ impl<Gas: CostType> Gasometer<Gas> {
 
 
 #[inline]
-fn mem_needed_const<Gas: CostType>(mem: &U256, add: usize) -> evm::Result<Gas> {
+fn mem_needed_const<Gas: evm::CostType>(mem: &U256, add: usize) -> evm::Result<Gas> {
 	Gas::from_u256(overflowing!(mem.overflowing_add(U256::from(add))))
 }
 
 #[inline]
-fn mem_needed<Gas: CostType>(offset: &U256, size: &U256) -> evm::Result<Gas> {
+fn mem_needed<Gas: evm::CostType>(offset: &U256, size: &U256) -> evm::Result<Gas> {
 	if size.is_zero() {
 		return Ok(Gas::from(0));
 	}
@@ -332,7 +333,7 @@ fn mem_needed<Gas: CostType>(offset: &U256, size: &U256) -> evm::Result<Gas> {
 }
 
 #[inline]
-fn add_gas_usize<Gas: CostType>(value: Gas, num: usize) -> (Gas, bool) {
+fn add_gas_usize<Gas: evm::CostType>(value: Gas, num: usize) -> (Gas, bool) {
 	value.overflow_add(Gas::from(num))
 }
 
@@ -340,7 +341,7 @@ fn add_gas_usize<Gas: CostType>(value: Gas, num: usize) -> (Gas, bool) {
 fn test_mem_gas_cost() {
 	// given
 	let gasometer = Gasometer::<U256>::new(U256::zero());
-	let schedule = evm::Schedule::default();
+	let schedule = Schedule::default();
 	let current_mem_size = 5;
 	let mem_size = !U256::zero();
 
@@ -357,7 +358,7 @@ fn test_mem_gas_cost() {
 fn test_calculate_mem_cost() {
 	// given
 	let gasometer = Gasometer::<usize>::new(0);
-	let schedule = evm::Schedule::default();
+	let schedule = Schedule::default();
 	let current_mem_size = 0;
 	let mem_size = 5;
 

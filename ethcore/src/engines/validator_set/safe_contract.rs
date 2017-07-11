@@ -297,7 +297,7 @@ impl ValidatorSet for ValidatorSafeContract {
 			let (old_header, state_items) = decode_first_proof(&rlp)?;
 			let old_hash = old_header.hash();
 
-			let env_info = ::env_info::EnvInfo {
+			let env_info = ::evm::env_info::EnvInfo {
 				number: old_header.number(),
 				author: *old_header.author(),
 				difficulty: *old_header.difficulty(),

@@ -17,9 +17,10 @@
 //! Interface for Evm externalities.
 
 use util::*;
-use evm::{self, Schedule, ReturnData};
-use evm::env_info::*;
-use evm::CallType;
+use schedule::Schedule;
+use evm::{self, ReturnData};
+use env_info::EnvInfo;
+use call_type::CallType;
 
 /// Result of externalities create function.
 pub enum ContractCreateResult {

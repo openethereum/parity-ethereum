@@ -163,7 +163,7 @@ mod tests {
 	use rlp::*;
 	use super::{FlatBlockTraces, FlatTransactionTraces, FlatTrace};
 	use trace::trace::{Action, Res, CallResult, Call, Suicide};
-	use executed::CallType;
+	use evm::CallType;
 
 	#[test]
 	fn encode_flat_transaction_traces() {

@@ -22,13 +22,14 @@ extern crate ethcore;
 extern crate rustc_serialize;
 extern crate docopt;
 extern crate ethcore_util as util;
+extern crate evm;
 
 use std::sync::Arc;
 use std::{fmt, fs};
 use docopt::Docopt;
 use util::{U256, FromHex, Bytes, Address};
 use ethcore::spec;
-use ethcore::action_params::ActionParams;
+use evm::action_params::ActionParams;
 
 mod vm;
 mod display;

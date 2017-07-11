@@ -19,8 +19,7 @@
 use std::{ops, cmp, fmt};
 use util::{U128, U256, U512, trie};
 use action_params::ActionParams;
-use evm::Ext;
-use builtin;
+use {Ext};
 
 /// Evm errors.
 #[derive(Debug, Clone, PartialEq)]
@@ -74,12 +73,6 @@ impl From<Box<trie::TrieError>> for Error {
 	}
 }
 
-impl From<builtin::Error> for Error {
-	fn from(err: builtin::Error) -> Self {
-		Error::BuiltIn(err.0)
-	}
-}
-
 impl fmt::Display for Error {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		use self::Error::*;
@@ -98,7 +91,6 @@ impl fmt::Display for Error {
 
 /// A specialized version of Result over EVM errors.
 pub type Result<T> = ::std::result::Result<T, Error>;
-
 
 /// Return data buffer. Holds memory from a previous call and a slice into that memory.
 #[derive(Debug)]

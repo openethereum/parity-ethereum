@@ -17,7 +17,7 @@
 //! Simple executive tracer.
 
 use util::{Bytes, Address, U256};
-use action_params::ActionParams;
+use evm::action_params::ActionParams;
 use trace::trace::{Call, Create, Action, Res, CreateResult, CallResult, VMTrace, VMOperation, VMExecutedOperation, MemoryDiff, StorageDiff, Suicide};
 use trace::{Tracer, VMTracer, FlatTrace, TraceError};
 

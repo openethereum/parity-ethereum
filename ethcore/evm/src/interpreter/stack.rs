@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::fmt;
-use evm::instructions;
+use instructions;
 
 /// Stack trait with VM-friendly API
 pub trait Stack<T> {

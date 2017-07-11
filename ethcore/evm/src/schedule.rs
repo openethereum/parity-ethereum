@@ -15,7 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Cost schedule and other parameterisations for the EVM.
-use spec::CommonParams;
 
 /// Definition of the cost schedule and other parameterisations for the EVM.
 pub struct Schedule {
@@ -182,26 +181,6 @@ impl Schedule {
 			blockhash_gas: 20,
 			have_static_call: false,
 			kill_dust: CleanDustMode::Off,
-		}
-	}
-
-	/// Schedule for the post-EIP-150-era of the Ethereum main net.
-	pub fn from_params(block_number: u64, params: &CommonParams) -> Schedule {
-		let mut schedule = Schedule::new_post_eip150(usize::max_value(), true, true, true);
-		schedule.apply_params(block_number, params);
-		schedule
-	}
-
-	/// Apply common spec config parameters to the schedule.
- 	pub fn apply_params(&mut self, block_number: u64, params: &CommonParams) {
-		self.have_create2 = block_number >= params.eip86_transition;
-		self.have_revert = block_number >= params.eip140_transition;
-		self.have_static_call = block_number >= params.eip214_transition;
-		if block_number >= params.eip210_transition {
-			self.blockhash_gas = 350;
-		}
-		if block_number >= params.dust_protection_transition {
-			self.kill_dust = if params.remove_dust_contracts { CleanDustMode::WithCodeAndStorage } else { CleanDustMode::BasicOnly };
 		}
 	}
 

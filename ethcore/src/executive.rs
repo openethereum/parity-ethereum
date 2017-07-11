@@ -16,11 +16,11 @@
 
 //! Transaction Execution environment.
 use util::*;
-use action_params::{ActionParams, ActionValue};
+use evm::action_params::{ActionParams, ActionValue};
 use state::{Backend as StateBackend, State, Substate, CleanupMode};
 use engines::Engine;
-use executed::CallType;
-use env_info::EnvInfo;
+use evm::CallType;
+use evm::env_info::EnvInfo;
 use error::ExecutionError;
 use evm::{self, Ext, Finalize, CreateContractAddress, FinalizationResult, ReturnData, CleanDustMode};
 use externalities::*;
@@ -582,8 +582,8 @@ mod tests {
 	use super::*;
 	use util::{H256, U256, U512, Address, FromHex, FromStr};
 	use util::bytes::BytesRef;
-	use action_params::{ActionParams, ActionValue};
-	use env_info::EnvInfo;
+	use evm::action_params::{ActionParams, ActionValue};
+	use evm::env_info::EnvInfo;
 	use evm::{Factory, VMType, CreateContractAddress};
 	use error::ExecutionError;
 	use state::{Substate, CleanupMode};
@@ -593,7 +593,7 @@ mod tests {
 	use trace::{VMTrace, VMOperation, VMExecutedOperation, MemoryDiff, StorageDiff, VMTracer, NoopVMTracer, ExecutiveVMTracer};
 	use transaction::{Action, Transaction};
 
-	use executed::CallType;
+	use evm::CallType;
 
 	#[test]
 	fn test_contract_address() {

@@ -19,7 +19,7 @@ use std::collections::BTreeMap;
 use block::{OpenBlock, SealedBlock};
 use blockchain::TreeRoute;
 use encoded;
-use env_info::LastHashes;
+use evm::env_info::LastHashes;
 use error::{ImportResult, CallError, Error as EthcoreError};
 use error::{TransactionImportResult, BlockImportError};
 use evm::{Factory as EvmFactory, Schedule};

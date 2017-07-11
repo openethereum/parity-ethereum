@@ -1,0 +1,16 @@
+[package]
+name = "evm"
+version = "0.1.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+
+[dependencies]
+bit-set = "0.4"
+common-types = { path = "../types" }
+ethcore-util = { path = "../../util" }
+evmjit = { path = "../../evmjit", optional = true }
+ethjson = { path = "../../json" }
+lazy_static = "0.2"
+rlp = { path = "../../util/rlp" }
+
+[features]
+jit = ["evmjit"]

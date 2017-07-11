@@ -24,7 +24,7 @@ use std::collections::hash_map::Entry;
 
 use receipt::Receipt;
 use engines::Engine;
-use env_info::EnvInfo;
+use evm::env_info::EnvInfo;
 use error::Error;
 use executive::{Executive, TransactOptions};
 use factory::Factories;
@@ -982,12 +982,12 @@ mod tests {
 	use ethkey::Secret;
 	use util::{U256, H256, Address, Hashable};
 	use tests::helpers::*;
-	use env_info::EnvInfo;
+	use evm::env_info::EnvInfo;
 	use spec::*;
 	use transaction::*;
 	use ethcore_logger::init_log;
 	use trace::{FlatTrace, TraceError, trace};
-	use executed::CallType;
+	use evm::CallType;
 
 	fn secret() -> Secret {
 		"".sha3().into()
