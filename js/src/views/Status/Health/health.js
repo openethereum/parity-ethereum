@@ -20,7 +20,7 @@ import { connect } from 'react-redux';
 
 import { Container, ContainerTitle, StatusIndicator } from '~/ui';
 
-import grid from '../NodeStatus/nodeStatus.css';
+import grid from '../Node/node.css';
 
 const HealthItem = (props) => {
   const status = props.item.status || 'needsAttention';
