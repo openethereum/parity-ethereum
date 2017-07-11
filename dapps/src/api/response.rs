@@ -16,6 +16,8 @@
 
 use serde::Serialize;
 use serde_json;
+use hyper::status::StatusCode;
+
 use endpoint::Handler;
 use handlers::{ContentHandler, EchoHandler};
 
@@ -23,10 +25,16 @@ pub fn empty() -> Box<Handler> {
 	Box::new(ContentHandler::ok("".into(), mime!(Text/Plain)))
 }
 
-pub fn as_json_error<T: Serialize>(val: &T) -> Box<Handler> {
+pub fn as_json<T: Serialize>(status: StatusCode, val: &T) -> ContentHandler {
 	let json = serde_json::to_string(val)
 		.expect("serialization to string is infallible; qed");
-	Box::new(ContentHandler::not_found(json, mime!(Application/Json)))
+	ContentHandler::new(status, json, mime!(Application/Json))
+}
+
+pub fn as_json_error<T: Serialize>(status: StatusCode, val: &T) -> ContentHandler {
+	let json = serde_json::to_string(val)
+		.expect("serialization to string is infallible; qed");
+	ContentHandler::new(status, json, mime!(Application/Json))
 }
 
 pub fn ping() -> Box<Handler> {

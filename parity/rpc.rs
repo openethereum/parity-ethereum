@@ -30,6 +30,7 @@ use rpc_apis::{self, ApiSet};
 
 pub use parity_rpc::{IpcServer, HttpServer, RequestMiddleware};
 pub use parity_rpc::ws::Server as WsServer;
+pub use parity_rpc::informant::CpuPool;
 
 
 pub const DAPPS_DOMAIN: &'static str = "web3.site";
@@ -42,7 +43,8 @@ pub struct HttpConfiguration {
 	pub apis: ApiSet,
 	pub cors: Option<Vec<String>>,
 	pub hosts: Option<Vec<String>>,
-	pub threads: Option<usize>,
+	pub server_threads: Option<usize>,
+	pub processing_threads: usize,
 }
 
 impl HttpConfiguration {
@@ -63,7 +65,8 @@ impl Default for HttpConfiguration {
 			apis: ApiSet::UnsafeContext,
 			cors: None,
 			hosts: Some(Vec::new()),
-			threads: None,
+			server_threads: None,
+			processing_threads: 0,
 		}
 	}
 }
@@ -71,6 +74,7 @@ impl Default for HttpConfiguration {
 #[derive(Debug, PartialEq, Clone)]
 pub struct UiConfiguration {
 	pub enabled: bool,
+	pub ntp_server: String,
 	pub interface: String,
 	pub port: u16,
 	pub hosts: Option<Vec<String>>,
@@ -94,7 +98,8 @@ impl From<UiConfiguration> for HttpConfiguration {
 			apis: rpc_apis::ApiSet::SafeContext,
 			cors: None,
 			hosts: conf.hosts,
-			threads: None,
+			server_threads: None,
+			processing_threads: 0,
 		}
 	}
 }
@@ -103,6 +108,7 @@ impl Default for UiConfiguration {
 	fn default() -> Self {
 		UiConfiguration {
 			enabled: true && cfg!(feature = "ui-enabled"),
+			ntp_server: "pool.ntp.org:123".into(),
 			port: 8180,
 			interface: "127.0.0.1".into(),
 			hosts: Some(vec![]),
@@ -176,6 +182,7 @@ pub struct Dependencies<D: rpc_apis::Dependencies> {
 	pub apis: Arc<D>,
 	pub remote: TokioRemote,
 	pub stats: Arc<RpcStats>,
+	pub pool: Option<CpuPool>,
 }
 
 pub fn new_ws<D: rpc_apis::Dependencies>(
@@ -192,11 +199,12 @@ pub fn new_ws<D: rpc_apis::Dependencies>(
 	let addr = url.parse().map_err(|_| format!("Invalid WebSockets listen host/port given: {}", url))?;
 
 
-	let full_handler = setup_apis(rpc_apis::ApiSet::SafeContext, deps);
+	let pool = deps.pool.clone();
+	let full_handler = setup_apis(rpc_apis::ApiSet::SafeContext, deps, pool.clone());
 	let handler = {
 		let mut handler = MetaIoHandler::with_middleware((
 			rpc::WsDispatcher::new(full_handler),
-			Middleware::new(deps.stats.clone(), deps.apis.activity_notifier())
+			Middleware::new(deps.stats.clone(), deps.apis.activity_notifier(), pool)
 		));
 		let apis = conf.apis.list_apis();
 		deps.apis.extend_with_set(&mut handler, &apis);
@@ -252,7 +260,8 @@ pub fn new_http<D: rpc_apis::Dependencies>(
 	let http_address = (conf.interface, conf.port);
 	let url = format!("{}:{}", http_address.0, http_address.1);
 	let addr = url.parse().map_err(|_| format!("Invalid {} listen host/port given: {}", id, url))?;
-	let handler = setup_apis(conf.apis, deps);
+	let pool = deps.pool.clone();
+	let handler = setup_apis(conf.apis, deps, pool);
 	let remote = deps.remote.clone();
 
 	let cors_domains = into_domains(conf.cors);
@@ -265,7 +274,7 @@ pub fn new_http<D: rpc_apis::Dependencies>(
 		handler,
 		remote,
 		rpc::RpcExtractor,
-		match (conf.threads, middleware) {
+		match (conf.server_threads, middleware) {
 			(Some(threads), None) => rpc::HttpSettings::Threads(threads),
 			(None, middleware) => rpc::HttpSettings::Dapps(middleware),
 			(Some(_), Some(_)) => {
@@ -291,7 +300,8 @@ pub fn new_ipc<D: rpc_apis::Dependencies>(
 		return Ok(None);
 	}
 
-	let handler = setup_apis(conf.apis, dependencies);
+	let pool = dependencies.pool.clone();
+	let handler = setup_apis(conf.apis, dependencies, pool);
 	let remote = dependencies.remote.clone();
 	match rpc::start_ipc(&conf.socket_addr, handler, remote, rpc::RpcExtractor) {
 		Ok(server) => Ok(Some(server)),
@@ -318,11 +328,11 @@ fn with_domain(items: Option<Vec<String>>, domain: &str, addresses: &[Option<(St
 	})
 }
 
-fn setup_apis<D>(apis: ApiSet, deps: &Dependencies<D>) -> MetaIoHandler<Metadata, Middleware<D::Notifier>>
+fn setup_apis<D>(apis: ApiSet, deps: &Dependencies<D>, pool: Option<CpuPool>) -> MetaIoHandler<Metadata, Middleware<D::Notifier>>
 	where D: rpc_apis::Dependencies
 {
 	let mut handler = MetaIoHandler::with_middleware(
-		Middleware::new(deps.stats.clone(), deps.apis.activity_notifier())
+		Middleware::new(deps.stats.clone(), deps.apis.activity_notifier(), pool)
 	);
 	let apis = apis.list_apis();
 	deps.apis.extend_with_set(&mut handler, &apis);

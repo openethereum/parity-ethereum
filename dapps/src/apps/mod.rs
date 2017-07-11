@@ -26,7 +26,7 @@ use fetch::Fetch;
 use parity_dapps::WebApp;
 use parity_reactor::Remote;
 use parity_ui;
-use {WebProxyTokens, ParentFrameSettings, as_embeddable};
+use {WebProxyTokens, ParentFrameSettings};
 
 mod app;
 mod cache;
@@ -52,20 +52,19 @@ pub fn ui() -> Box<Endpoint> {
 	Box::new(PageEndpoint::with_fallback_to_index(parity_ui::App::default()))
 }
 
-pub fn ui_redirection(ui_address: Option<(String, u16)>, dapps_domain: String) -> Box<Endpoint> {
-	Box::new(ui::Redirection::new(as_embeddable(ui_address, dapps_domain)))
+pub fn ui_redirection(embeddable: Option<ParentFrameSettings>) -> Box<Endpoint> {
+	Box::new(ui::Redirection::new(embeddable))
 }
 
 pub fn all_endpoints<F: Fetch>(
 	dapps_path: PathBuf,
 	extra_dapps: Vec<PathBuf>,
-	dapps_domain: String,
-	ui_address: Option<(String, u16)>,
+	dapps_domain: &str,
+	embeddable: Option<ParentFrameSettings>,
 	web_proxy_tokens: Arc<WebProxyTokens>,
 	remote: Remote,
 	fetch: F,
 ) -> Endpoints {
-	let embeddable = as_embeddable(ui_address.clone(), dapps_domain.clone());
 	// fetch fs dapps at first to avoid overwriting builtins
 	let mut pages = fs::local_endpoints(dapps_path, embeddable.clone());
 	for path in extra_dapps {
@@ -78,7 +77,7 @@ pub fn all_endpoints<F: Fetch>(
 
 	// NOTE [ToDr] Dapps will be currently embeded on 8180
 	insert::<parity_ui::App>(&mut pages, "ui", Embeddable::Yes(embeddable.clone()));
-	pages.insert("proxy".into(), ProxyPac::boxed(ui_address.clone(), dapps_domain));
+	pages.insert("proxy".into(), ProxyPac::boxed(embeddable.clone(), dapps_domain.to_owned()));
 	pages.insert(WEB_PATH.into(), Web::boxed(embeddable.clone(), web_proxy_tokens.clone(), remote.clone(), fetch.clone()));
 
 	Arc::new(pages)

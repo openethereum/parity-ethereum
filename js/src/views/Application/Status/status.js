@@ -18,7 +18,7 @@ import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 
-import { BlockStatus } from '~/ui';
+import { BlockStatus, StatusIndicator } from '~/ui';
 
 import styles from './status.css';
 
@@ -28,11 +28,12 @@ class Status extends Component {
     isTest: PropTypes.bool,
     netChain: PropTypes.string,
     netPeers: PropTypes.object,
+    health: PropTypes.object,
     upgradeStore: PropTypes.object.isRequired
   }
 
   render () {
-    const { clientVersion, isTest, netChain, netPeers } = this.props;
+    const { clientVersion, isTest, netChain, netPeers, health } = this.props;
 
     return (
       <div className={ styles.status }>
@@ -44,12 +45,19 @@ class Status extends Component {
           { this.renderUpgradeButton() }
         </div>
         <div className={ styles.netinfo }>
-          <BlockStatus />
+          <div>
+            <StatusIndicator
+              type='signal'
+              id='application.status.health'
+              status={ health.overall.status }
+              title={ health.overall.message }
+            />
+          </div>
+          <span title={ `${netPeers.connected.toFormat()}/${netPeers.max.toFormat()} peers` }>
+            <BlockStatus />
+          </span>
           <div className={ `${styles.network} ${styles[isTest ? 'test' : 'live']}` }>
             { netChain }
-          </div>
-          <div className={ styles.peers }>
-            { netPeers.connected.toFormat() }/{ netPeers.max.toFormat() } peers
           </div>
         </div>
       </div>
@@ -102,14 +110,7 @@ class Status extends Component {
       );
     }
 
-    return (
-      <div>
-        <FormattedMessage
-          id='application.status.consensus.unknown'
-          defaultMessage='Upgrade status is unknown.'
-        />
-      </div>
-    );
+    return;
   }
 
   renderUpgradeButton () {
@@ -136,10 +137,11 @@ class Status extends Component {
 }
 
 function mapStateToProps (state) {
-  const { clientVersion, netPeers, netChain, isTest } = state.nodeStatus;
+  const { clientVersion, health, netPeers, netChain, isTest } = state.nodeStatus;
 
   return {
     clientVersion,
+    health,
     netPeers,
     netChain,
     isTest
