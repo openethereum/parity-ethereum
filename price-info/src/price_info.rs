@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use rustc_serialize::json::Json;
 use std::cmp;
 use std::fmt;
 use std::io;
@@ -24,6 +23,8 @@ use std::str::FromStr;
 use fetch;
 use fetch::{Client as FetchClient, Fetch};
 use futures::Future;
+use serde_json;
+use serde_json::Value;
 
 #[derive(Debug)]
 pub struct PriceInfo {
@@ -82,10 +83,11 @@ impl Client {
 				response.read_to_string(&mut result)?;
 
 				if response.is_success() {
-					if let Ok(json) = Json::from_str(&result) {
-						let obj = json.find_path(&["result", "ethusd"]).and_then(|obj| {
+					let value: Result<Value, _> = serde_json::from_str(&result);
+					if let Ok(v) = value {
+						let obj = v.pointer("/result/ethusd").and_then(|obj| {
 							match *obj {
-								Json::String(ref s) => FromStr::from_str(s).ok(),
+								Value::String(ref s) => FromStr::from_str(s).ok(),
 								_ => None,
 							}
 						});

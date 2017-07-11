@@ -21,7 +21,7 @@
 
 extern crate fetch;
 extern crate futures;
-extern crate rustc_serialize;
+extern crate serde_json;
 
 #[macro_use]
 extern crate log;

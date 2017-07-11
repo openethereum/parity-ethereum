@@ -10,7 +10,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 fetch = { path = "../util/fetch" }
 futures = "0.1"
 log = "0.3"
-rustc-serialize = "0.3"
+serde_json = "1.0"
 
 [dev-dependencies]
 ethcore-logger = { path = "../logger" }
