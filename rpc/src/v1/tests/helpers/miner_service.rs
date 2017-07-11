@@ -209,7 +209,7 @@ impl MinerService for TestMinerService {
 
 	/// PoW chain - can produce work package
 	fn can_produce_work_package(&self) -> bool {
-		self.engine.seals_internally().is_none()
+		true
 	}
 
 	/// New chain head event. Restart mining operation.
