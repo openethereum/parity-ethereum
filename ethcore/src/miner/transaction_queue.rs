@@ -370,7 +370,7 @@ struct TransactionSet {
 	by_address: Table<Address, U256, TransactionOrder>,
 	by_gas_price: GasPriceQueue,
 	limit: usize,
-	gas_limit: U256,
+	total_gas_limit: U256,
 }
 
 impl TransactionSet {
@@ -413,7 +413,7 @@ impl TransactionSet {
 					gas = r.0;
 					// Own and retracted transactions are allowed to go above all limits.
 					order.origin != TransactionOrigin::Local && order.origin != TransactionOrigin::RetractedBlock &&
-					(gas > self.gas_limit || count > self.limit)
+					(gas > self.total_gas_limit || count > self.limit)
 				})
 				.map(|order| by_hash.get(&order.hash)
 					.expect("All transactions in `self.by_priority` and `self.by_address` are kept in sync with `by_hash`."))
@@ -557,7 +557,7 @@ pub struct TransactionQueue {
 	/// The maximum amount of gas any individual transaction may use.
 	tx_gas_limit: U256,
 	/// Current gas limit (block gas limit * factor). Transactions above the limit will not be accepted (default to !0)
-	gas_limit: U256,
+	block_gas_limit: U256,
 	/// Maximal time transaction may occupy the queue.
 	/// When we reach `max_time_in_queue / 2^3` we re-validate
 	/// account balance.
@@ -589,31 +589,31 @@ impl TransactionQueue {
 	}
 
 	/// Create new instance of this Queue with specified limits
-	pub fn with_limits(strategy: PrioritizationStrategy, limit: usize, gas_limit: U256, tx_gas_limit: U256) -> Self {
+	pub fn with_limits(strategy: PrioritizationStrategy, limit: usize, total_gas_limit: U256, tx_gas_limit: U256) -> Self {
 		let current = TransactionSet {
 			by_priority: BTreeSet::new(),
 			by_address: Table::new(),
 			by_gas_price: Default::default(),
-			limit: limit,
-			gas_limit: gas_limit,
+			limit,
+			total_gas_limit,
 		};
 
 		let future = TransactionSet {
 			by_priority: BTreeSet::new(),
 			by_address: Table::new(),
 			by_gas_price: Default::default(),
-			limit: limit,
-			gas_limit: gas_limit,
+			limit,
+			total_gas_limit,
 		};
 
 		TransactionQueue {
-			strategy: strategy,
+			strategy,
 			minimal_gas_price: U256::zero(),
-			tx_gas_limit: tx_gas_limit,
-			gas_limit: !U256::zero(),
+			block_gas_limit: !U256::zero(),
+			tx_gas_limit,
 			max_time_in_queue: DEFAULT_QUEUING_PERIOD,
-			current: current,
-			future: future,
+			current,
+			future,
 			by_hash: HashMap::new(),
 			last_nonces: HashMap::new(),
 			local_transactions: LocalTransactionsList::default(),
@@ -657,16 +657,17 @@ impl TransactionQueue {
 	pub fn set_gas_limit(&mut self, gas_limit: U256) {
 		let extra = gas_limit / U256::from(GAS_LIMIT_HYSTERESIS);
 
-		self.gas_limit = match gas_limit.overflowing_add(extra) {
+		let block_gas_limit = match gas_limit.overflowing_add(extra) {
 			(_, true) => !U256::zero(),
 			(val, false) => val,
 		};
+		self.block_gas_limit = block_gas_limit;
 	}
 
 	/// Sets new total gas limit.
-	pub fn set_total_gas_limit(&mut self, gas_limit: U256) {
-		self.future.gas_limit = gas_limit;
-		self.current.gas_limit = gas_limit;
+	pub fn set_total_gas_limit(&mut self, total_gas_limit: U256) {
+		self.future.total_gas_limit = total_gas_limit;
+		self.current.total_gas_limit = total_gas_limit;
 		self.future.enforce_limit(&mut self.by_hash, &mut self.local_transactions);
 	}
 
@@ -796,16 +797,17 @@ impl TransactionQueue {
 			}));
 		}
 
-		if tx.gas > self.gas_limit || tx.gas > self.tx_gas_limit {
+		let gas_limit = cmp::min(self.tx_gas_limit, self.block_gas_limit);
+		if tx.gas > gas_limit {
 			trace!(target: "txqueue",
 				"Dropping transaction above gas limit: {:?} ({} > min({}, {}))",
 				tx.hash(),
 				tx.gas,
-				self.gas_limit,
+				self.block_gas_limit,
 				self.tx_gas_limit
 			);
 			return Err(Error::Transaction(TransactionError::GasLimitExceeded {
-				limit: self.gas_limit,
+				limit: gas_limit,
 				got: tx.gas,
 			}));
 		}
@@ -1631,7 +1633,7 @@ pub mod test {
 			by_address: Table::new(),
 			by_gas_price: Default::default(),
 			limit: 1,
-			gas_limit: !U256::zero(),
+			total_gas_limit: !U256::zero(),
 		};
 		let (tx1, tx2) = new_tx_pair_default(1.into(), 0.into());
 		let tx1 = VerifiedTransaction::new(tx1, TransactionOrigin::External, None, 0, 0);
@@ -1672,7 +1674,7 @@ pub mod test {
 			by_address: Table::new(),
 			by_gas_price: Default::default(),
 			limit: 1,
-			gas_limit: !U256::zero(),
+			total_gas_limit: !U256::zero(),
 		};
 		// Create two transactions with same nonce
 		// (same hash)
@@ -1721,7 +1723,7 @@ pub mod test {
 			by_address: Table::new(),
 			by_gas_price: Default::default(),
 			limit: 2,
-			gas_limit: !U256::zero(),
+			total_gas_limit: !U256::zero(),
 		};
 		let tx = new_tx_default();
 		let tx1 = VerifiedTransaction::new(tx.clone(), TransactionOrigin::External, None, 0, 0);
@@ -1739,7 +1741,7 @@ pub mod test {
 			by_address: Table::new(),
 			by_gas_price: Default::default(),
 			limit: 1,
-			gas_limit: !U256::zero(),
+			total_gas_limit: !U256::zero(),
 		};
 
 		assert_eq!(set.gas_price_entry_limit(), 0.into());
@@ -1884,17 +1886,17 @@ pub mod test {
 	}
 
 	#[test]
-	fn gas_limit_should_never_overflow() {
+	fn tx_gas_limit_should_never_overflow() {
 		// given
 		let mut txq = TransactionQueue::default();
 		txq.set_gas_limit(U256::zero());
-		assert_eq!(txq.gas_limit, U256::zero());
+		assert_eq!(txq.block_gas_limit, U256::zero());
 
 		// when
 		txq.set_gas_limit(!U256::zero());
 
 		// then
-		assert_eq!(txq.gas_limit, !U256::zero());
+		assert_eq!(txq.block_gas_limit, !U256::zero());
 	}
 
 	#[test]
