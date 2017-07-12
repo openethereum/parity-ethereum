@@ -16,14 +16,14 @@
 
 //! Transaction Execution environment.
 use util::*;
-use action_params::{ActionParams, ActionValue};
+use evm::action_params::{ActionParams, ActionValue};
 use state::{Backend as StateBackend, State, Substate, CleanupMode};
 use engines::Engine;
-use env_info::EnvInfo;
+use evm::env_info::EnvInfo;
 use executive::*;
 use evm::{self, Schedule, Ext, ContractCreateResult, MessageCallResult, CreateContractAddress, ReturnData};
-use types::executed::CallType;
-use types::transaction::UNSIGNED_SENDER;
+use evm::CallType;
+use transaction::UNSIGNED_SENDER;
 use trace::{Tracer, VMTracer};
 
 /// Policy for handling output data on `RETURN` opcode.
@@ -396,13 +396,13 @@ impl<'a, T: 'a, V: 'a, B: 'a, E: 'a> Ext for Externalities<'a, T, V, B, E>
 mod tests {
 	use util::*;
 	use engines::Engine;
-	use env_info::EnvInfo;
+	use evm::env_info::EnvInfo;
 	use evm::Ext;
 	use state::{State, Substate};
 	use tests::helpers::*;
 	use super::*;
 	use trace::{NoopTracer, NoopVMTracer};
-	use types::executed::CallType;
+	use evm::CallType;
 
 	fn get_test_origin() -> OriginInfo {
 		OriginInfo {

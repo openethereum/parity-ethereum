@@ -21,8 +21,8 @@ use ethcore::trace::{FlatTrace, LocalizedTrace as EthLocalizedTrace, trace, Trac
 use ethcore::trace as et;
 use ethcore::state_diff;
 use ethcore::account_diff;
-use ethcore::executed;
 use ethcore::client::Executed;
+use evm;
 use v1::types::{Bytes, H160, H256, U256};
 
 #[derive(Debug, Serialize)]
@@ -256,14 +256,14 @@ pub enum CallType {
 	StaticCall,
 }
 
-impl From<executed::CallType> for CallType {
-	fn from(c: executed::CallType) -> Self {
+impl From<evm::CallType> for CallType {
+	fn from(c: evm::CallType) -> Self {
 		match c {
-			executed::CallType::None => CallType::None,
-			executed::CallType::Call => CallType::Call,
-			executed::CallType::CallCode => CallType::CallCode,
-			executed::CallType::DelegateCall => CallType::DelegateCall,
-			executed::CallType::StaticCall => CallType::StaticCall,
+			evm::CallType::None => CallType::None,
+			evm::CallType::Call => CallType::Call,
+			evm::CallType::CallCode => CallType::CallCode,
+			evm::CallType::DelegateCall => CallType::DelegateCall,
+			evm::CallType::StaticCall => CallType::StaticCall,
 		}
 	}
 }

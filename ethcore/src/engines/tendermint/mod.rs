@@ -901,7 +901,7 @@ mod tests {
 	#[test]
 	fn seal_submission() {
 		use ethkey::{Generator, Random};
-		use types::transaction::{Transaction, Action};
+		use transaction::{Transaction, Action};
 		use client::BlockChainClient;
 
 		let tap = Arc::new(AccountProvider::transient_provider());
