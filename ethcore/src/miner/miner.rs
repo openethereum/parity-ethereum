@@ -29,7 +29,6 @@ use transaction::{Action, UnverifiedTransaction, PendingTransaction, SignedTrans
 use receipt::{Receipt, RichReceipt};
 use spec::Spec;
 use engines::{Engine, Seal};
-use fetch::Client as FetchClient;
 use miner::{MinerService, MinerStatus, TransactionQueue, RemovalReason, TransactionQueueDetailsProvider, PrioritizationStrategy,
 	AccountDetails, TransactionOrigin};
 use miner::banning_queue::{BanningTransactionQueue, Threshold};
@@ -37,6 +36,7 @@ use miner::work_notify::{WorkPoster, NotifyWork};
 use miner::local_transactions::{Status as LocalTransactionStatus};
 use miner::service_transaction_checker::ServiceTransactionChecker;
 use price_info::{Client as PriceInfoClient, PriceInfo};
+use price_info::fetch::Client as FetchClient;
 use header::BlockNumber;
 
 /// Different possible definitions for pending transaction set.

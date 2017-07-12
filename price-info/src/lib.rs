@@ -21,12 +21,13 @@
 
 //! A simple client to get the current ETH price using an external API.
 
-extern crate fetch;
 extern crate futures;
 extern crate serde_json;
 
 #[macro_use]
 extern crate log;
+
+pub extern crate fetch;
 
 mod price_info;
 

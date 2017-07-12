@@ -22,7 +22,7 @@ use ethcore::spec::Spec;
 use ethcore::ethereum;
 use ethcore::client::Mode;
 use ethcore::miner::{GasPricer, GasPriceCalibratorOptions};
-use fetch::Client as FetchClient;
+use hash_fetch::fetch::Client as FetchClient;
 use user_defaults::UserDefaults;
 
 #[derive(Debug, PartialEq)]
@@ -237,7 +237,8 @@ impl GasPricerConfig {
 						usd_per_tx: usd_per_tx,
 						recalibration_period: recalibration_period,
 					},
-					fetch)
+					fetch
+				)
 			}
 		}
 	}
