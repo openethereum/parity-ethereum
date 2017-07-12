@@ -688,12 +688,14 @@ mod tests {
 			cmd_hash: false,
 			cmd_db: false,
 			cmd_kill: false,
+			cmd_preset: false,
 
 			// Arguments
 			arg_pid_file: "".into(),
 			arg_file: None,
 			arg_id: None,
 			arg_path: vec![],
+			arg_preset: "".into(),
 
 			// -- Operating Options
 			flag_mode: "last".into(),
