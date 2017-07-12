@@ -107,10 +107,10 @@ impl Client {
 				let status = response.status().canonical_reason().unwrap_or("unknown");
 				Err(Error::UnexpectedResponse(status, result))
 			})
-		   .map_err(|err| {
-			   warn!("Failed to auto-update latest ETH price: {:?}", err);
-			   err
-		   })
+			.map_err(|err| {
+				warn!("Failed to auto-update latest ETH price: {:?}", err);
+				err
+			})
 		);
 	}
 }
