@@ -53,12 +53,12 @@ impl From<fetch::Error> for Error {
 }
 
 /// A client to get the current ETH price using an external API.
-pub struct Client {
+pub struct Client<F = FetchClient> {
 	api_endpoint: String,
-	fetch: FetchClient,
+	fetch: F,
 }
 
-impl fmt::Debug for Client {
+impl<F> fmt::Debug for Client<F> {
 	fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
 		fmt.debug_struct("price_info::Client")
 		   .field("api_endpoint", &self.api_endpoint)
@@ -66,21 +66,21 @@ impl fmt::Debug for Client {
 	}
 }
 
-impl cmp::PartialEq for Client {
-	fn eq(&self, other: &Client) -> bool {
+impl<F> cmp::PartialEq for Client<F> {
+	fn eq(&self, other: &Client<F>) -> bool {
 		self.api_endpoint == other.api_endpoint
 	}
 }
 
-impl Client {
+impl<F: Fetch> Client<F> {
 	/// Creates a new instance of the `Client` given a `fetch::Client`.
-	pub fn new(fetch: FetchClient) -> Client {
+	pub fn new(fetch: F) -> Client<F> {
 		let api_endpoint = "http://api.etherscan.io/api?module=stats&action=ethprice".to_owned();
 		Client { api_endpoint, fetch }
 	}
 
 	/// Gets the current ETH price and calls `set_price` with the result.
-	pub fn get<F: Fn(PriceInfo) + Sync + Send + 'static>(&self, set_price: F) {
+	pub fn get<G: Fn(PriceInfo) + Sync + Send + 'static>(&self, set_price: G) {
 		self.fetch.forget(self.fetch.fetch(&self.api_endpoint)
 			.map_err(|err| Error::Fetch(err))
 			.and_then(move |mut response| {
@@ -117,29 +117,106 @@ impl Client {
 
 #[cfg(test)]
 mod test {
-	extern crate ethcore_logger;
 	extern crate ethcore_util as util;
 
-	use self::ethcore_logger::init_log;
-	use self::util::{Condvar, Mutex};
+	use self::util::Mutex;
 	use std::sync::Arc;
-	use std::time::Duration;
-	use fetch::{Client as FetchClient, Fetch};
-	use price_info::{Client, PriceInfo};
+	use std::sync::atomic::{AtomicBool, Ordering};
+	use fetch;
+	use fetch::Fetch;
+	use futures;
+	use futures::future::{Future, FutureResult};
+	use price_info::Client;
 
-	#[test] #[ignore]
+	#[derive(Clone)]
+	struct FakeFetch(Option<String>, Arc<Mutex<u64>>);
+	impl Fetch for FakeFetch {
+		type Result = FutureResult<fetch::Response, fetch::Error>;
+		fn new() -> Result<Self, fetch::Error> where Self: Sized { Ok(FakeFetch(None, Default::default())) }
+		fn fetch_with_abort(&self, url: &str, _abort: fetch::Abort) -> Self::Result {
+			assert_eq!(url, "http://api.etherscan.io/api?module=stats&action=ethprice");
+			let mut val = self.1.lock();
+			*val = *val + 1;
+			if let Some(ref response) = self.0 {
+				let data = ::std::io::Cursor::new(response.clone());
+				futures::future::ok(fetch::Response::from_reader(data))
+			} else {
+				futures::future::ok(fetch::Response::not_found())
+			}
+		}
+
+		// this guarantees that the calls to price_info::Client::get will block for execution
+		fn forget<F, I, E>(&self, f: F) where
+			F: Future<Item=I, Error=E> + Send + 'static,
+			I: Send + 'static,
+			E: Send + 'static {
+			let _ = f.wait();
+		}
+	}
+
+	fn price_info_ok(response: &str) -> Client<FakeFetch> {
+		Client::new(FakeFetch(Some(response.to_owned()), Default::default()))
+	}
+
+	fn price_info_not_found() -> Client<FakeFetch> {
+		Client::new(FakeFetch::new().unwrap())
+	}
+
+	#[test]
 	fn should_get_price_info() {
+		// given
+		let response = r#"{
+			"status": "1",
+			"message": "OK",
+			"result": {
+				"ethbtc": "0.0891",
+				"ethbtc_timestamp": "1499894236",
+				"ethusd": "209.55",
+				"ethusd_timestamp": "1499894229"
+			}
+		}"#;
 
-		init_log();
-		let fetch = FetchClient::new().unwrap();
-		let done = Arc::new((Mutex::new(PriceInfo { ethusd: 0f32 }), Condvar::new()));
-		let rdone = done.clone();
-		let price_info = Client::new(fetch);
+		let price_info = price_info_ok(response);
 
-		price_info.get(move |price| { let mut p = rdone.0.lock(); *p = price; rdone.1.notify_one(); });
-		let mut p = done.0.lock();
-		let t = done.1.wait_for(&mut p, Duration::from_millis(10000));
-		assert!(!t.timed_out());
-		assert!(p.ethusd != 0f32);
+		// when
+		price_info.get(|price| {
+
+			// then
+			assert_eq!(price.ethusd, 209.55);
+		});
+	}
+
+	#[test]
+	fn should_not_call_set_price_if_response_is_malformed() {
+		// given
+		let response = "{}";
+
+		let price_info = price_info_ok(response);
+		let b = Arc::new(AtomicBool::new(false));
+
+		// when
+		let bb = b.clone();
+		price_info.get(move |_| {
+			bb.store(true, Ordering::Relaxed);
+		});
+
+		// then
+		assert_eq!(b.load(Ordering::Relaxed), false);
+	}
+
+	#[test]
+	fn should_not_call_set_price_if_response_is_invalid() {
+		// given
+		let price_info = price_info_not_found();
+		let b = Arc::new(AtomicBool::new(false));
+
+		// when
+		let bb = b.clone();
+		price_info.get(move |_| {
+			bb.store(true, Ordering::Relaxed);
+		});
+
+		// then
+		assert_eq!(b.load(Ordering::Relaxed), false);
 	}
 }
