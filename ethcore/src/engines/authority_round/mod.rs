@@ -311,7 +311,7 @@ fn verify_external<F: Fn(Report)>(header: &Header, validators: &ValidatorSet, st
 
 	// Give one step slack if step is lagging, double vote is still not possible.
 	if step.is_future(header_step) {
-		trace!(target: "engine", "verify_block_unordered: block from the future");
+		trace!(target: "engine", "verify_block_external: block from the future");
 		report(Report::Benign(*header.author(), header.number()));
 		Err(BlockError::InvalidSeal)?
 	} else {
@@ -321,7 +321,7 @@ fn verify_external<F: Fn(Report)>(header: &Header, validators: &ValidatorSet, st
 			!verify_address(&correct_proposer, &proposer_signature, &header.bare_hash())?;
 
 		if is_invalid_proposer {
-			trace!(target: "engine", "verify_block_unordered: bad proposer for step: {}", header_step);
+			trace!(target: "engine", "verify_block_external: bad proposer for step: {}", header_step);
 			Err(EngineError::NotProposer(Mismatch { expected: correct_proposer, found: header.author().clone() }))?
 		} else {
 			Ok(())

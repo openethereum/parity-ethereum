@@ -813,7 +813,11 @@ impl Client {
 				block_number: header.number(),
 				proof: proof,
 			});
-			self.db.read().write_buffered(batch);
+
+			// always write the batch directly since epoch transition proofs are
+			// fetched from a DB iterator and DB iterators are only available on
+			// flushed data.
+			self.db.read().write(batch).expect("DB flush failed");
 		}
 	}
 
