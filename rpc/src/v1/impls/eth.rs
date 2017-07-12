@@ -332,7 +332,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 	}
 
 	fn is_mining(&self) -> Result<bool, Error> {
-		Ok(self.miner.is_sealing())
+		Ok(self.miner.is_currently_sealing())
 	}
 
 	fn hashrate(&self) -> Result<RpcU256, Error> {
@@ -553,6 +553,11 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 	}
 
 	fn work(&self, no_new_work_timeout: Trailing<u64>) -> Result<Work, Error> {
+		if !self.miner.can_produce_work_package() {
+			warn!(target: "miner", "Cannot give work package - engine seals internally.");
+			return Err(errors::no_work_required())
+		}
+
 		let no_new_work_timeout = no_new_work_timeout.unwrap_or_default();
 
 		// check if we're still syncing and return empty strings in that case
@@ -602,6 +607,11 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 	}
 
 	fn submit_work(&self, nonce: RpcH64, pow_hash: RpcH256, mix_hash: RpcH256) -> Result<bool, Error> {
+		if !self.miner.can_produce_work_package() {
+			warn!(target: "miner", "Cannot submit work - engine seals internally.");
+			return Err(errors::no_work_required())
+		}
+
 		let nonce: H64 = nonce.into();
 		let pow_hash: H256 = pow_hash.into();
 		let mix_hash: H256 = mix_hash.into();
