@@ -72,6 +72,7 @@ mod tests;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::collections::HashMap;
+use util::RwLock;
 
 use jsonrpc_http_server::{self as http, hyper, Origin};
 
@@ -105,7 +106,7 @@ impl<F> WebProxyTokens for F where F: Fn(String) -> Option<Origin> + Send + Sync
 pub struct Endpoints {
 	endpoints: endpoint::Endpoints,
 	dapps_path: PathBuf,
-	local_endpoints: Vec<String>,
+	local_endpoints: Arc<RwLock<Vec<String>>>,
 	embeddable: Option<ParentFrameSettings>,
 }
 
@@ -117,19 +118,23 @@ impl Endpoints {
 		}).collect()
 	}
 	/// Check for any changes in the local dapps folder and update.
-	pub fn refresh_local_dapps(&mut self) {
-		let new_local = apps::fs::local_endpoints(self.dapps_path.clone(), self.embeddable.clone());
-		let (local_endpoints, to_remove) = self.local_endpoints.clone().into_iter().partition(|k| new_local.contains_key(&k.clone()));
-		self.local_endpoints = local_endpoints;
+	pub fn refresh_local_dapps(&self) {
 		let mut pages = self.endpoints.write();
+		let mut local = self.local_endpoints.write();
+		let new_local = apps::fs::local_endpoints(self.dapps_path.clone(), self.embeddable.clone());
+		let (_, to_remove): (Vec<String>, Vec<String>) = local.clone()
+			.into_iter()
+			.partition(|k| new_local.contains_key(&k.clone()));
 		// remove the dead dapps
 		for k in to_remove {
+			let index = local.iter().position(|x| *x == k).unwrap();
+			local.remove(index);
 			pages.remove(&k);
 		}
 		// new dapps to be added
 		for (k, v) in new_local {
 			if pages.contains_key(&k) != true {
-				self.local_endpoints.push(k.clone());
+				local.push(k.clone());
 				pages.insert(k, v);
 			}
 		}

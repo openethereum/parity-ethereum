@@ -25,15 +25,3 @@ pub trait DappsService: Send + Sync + 'static {
 	/// Refresh local dapps list
 	fn refresh_local_dapps(&self) -> bool;
 }
-
-/// TODO: Update this trait to a struct
-impl<F> DappsService for F where
-	F: Fn(bool) -> (Vec<LocalDapp>, bool) + Send + Sync + 'static
-{
-	fn list_dapps(&self) -> Vec<LocalDapp> {
-		(*self)(true).0
-	}
-    fn refresh_local_dapps(&self) -> bool {
-        (*self)(true).1
-    }
-}
