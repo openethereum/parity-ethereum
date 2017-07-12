@@ -23,10 +23,11 @@
 extern crate cid;
 extern crate crypto as rust_crypto;
 extern crate futures;
+extern crate futures_cpupool;
 extern crate multihash;
 extern crate order_stat;
 extern crate rand;
-extern crate rustc_serialize;
+extern crate rustc_hex;
 extern crate semver;
 extern crate serde;
 extern crate serde_json;

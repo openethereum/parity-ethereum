@@ -33,6 +33,7 @@ use hyper::status::StatusCode;
 use endpoint::EndpointPath;
 use handlers::{ContentHandler, StreamingHandler};
 use page::{LocalPageEndpoint, PageHandlerWaiting};
+use {Embeddable};
 
 const FETCH_TIMEOUT: u64 = 300;
 
@@ -179,7 +180,7 @@ impl server::Handler<HttpStream> for WaitingHandler {
 
 #[derive(Clone)]
 struct Errors {
-	embeddable_on: Option<(String, u16)>,
+	embeddable_on: Embeddable,
 }
 
 impl Errors {
@@ -241,20 +242,20 @@ impl<H: ContentValidator, F: Fetch> ContentFetcherHandler<H, F> {
 		path: EndpointPath,
 		control: Control,
 		installer: H,
-		embeddable_on: Option<(String, u16)>,
+		embeddable_on: Embeddable,
 		remote: Remote,
 		fetch: F,
 	) -> Self {
 		ContentFetcherHandler {
 			fetch_control: FetchControl::default(),
-			control: control,
-			remote: remote,
-			fetch: fetch,
+			control,
+			remote,
+			fetch,
 			status: FetchState::NotStarted(url),
 			installer: Some(installer),
-			path: path,
+			path,
 			errors: Errors {
-				embeddable_on: embeddable_on,
+				embeddable_on,
 			},
 		}
 	}

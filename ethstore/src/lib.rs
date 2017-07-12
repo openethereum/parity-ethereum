@@ -23,7 +23,7 @@ extern crate itertools;
 extern crate libc;
 extern crate parking_lot;
 extern crate rand;
-extern crate rustc_serialize;
+extern crate rustc_hex;
 extern crate serde;
 extern crate serde_json;
 extern crate smallvec;

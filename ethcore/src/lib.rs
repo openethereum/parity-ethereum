@@ -99,11 +99,14 @@ extern crate num_cpus;
 extern crate num;
 extern crate rand;
 extern crate rlp;
+extern crate rustc_hex;
 extern crate rustc_serialize;
 extern crate semver;
 extern crate stats;
 extern crate time;
 extern crate transient_hashmap;
+extern crate parity_wasm;
+extern crate wasm_utils;
 
 #[macro_use]
 extern crate log;

@@ -221,7 +221,7 @@ pub fn network_disabled() -> Error {
 	}
 }
 
-pub fn encryption_error<T: fmt::Debug>(error: T) -> Error {
+pub fn encryption<T: fmt::Debug>(error: T) -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::ENCRYPTION_ERROR),
 		message: "Encryption error.".into(),
@@ -229,7 +229,7 @@ pub fn encryption_error<T: fmt::Debug>(error: T) -> Error {
 	}
 }
 
-pub fn encoding_error<T: fmt::Debug>(error: T) -> Error {
+pub fn encoding<T: fmt::Debug>(error: T) -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::ENCODING_ERROR),
 		message: "Encoding error.".into(),
@@ -237,7 +237,7 @@ pub fn encoding_error<T: fmt::Debug>(error: T) -> Error {
 	}
 }
 
-pub fn database_error<T: fmt::Debug>(error: T) -> Error {
+pub fn database<T: fmt::Debug>(error: T) -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::DATABASE_ERROR),
 		message: "Database error.".into(),
@@ -245,7 +245,7 @@ pub fn database_error<T: fmt::Debug>(error: T) -> Error {
 	}
 }
 
-pub fn from_fetch_error<T: fmt::Debug>(error: T) -> Error {
+pub fn fetch<T: fmt::Debug>(error: T) -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::FETCH_ERROR),
 		message: "Error while fetching content.".into(),
@@ -253,7 +253,7 @@ pub fn from_fetch_error<T: fmt::Debug>(error: T) -> Error {
 	}
 }
 
-pub fn from_signing_error(error: AccountError) -> Error {
+pub fn signing(error: AccountError) -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::ACCOUNT_LOCKED),
 		message: "Your account is locked. Unlock the account via CLI, personal_unlockAccount or use Trusted Signer.".into(),
@@ -261,7 +261,7 @@ pub fn from_signing_error(error: AccountError) -> Error {
 	}
 }
 
-pub fn from_password_error(error: AccountError) -> Error {
+pub fn password(error: AccountError) -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::PASSWORD_INVALID),
 		message: "Account password is invalid or account does not exist.".into(),
@@ -301,7 +301,7 @@ pub fn transaction_message(error: TransactionError) -> String {
 	}
 }
 
-pub fn from_transaction_error(error: EthcoreError) -> Error {
+pub fn transaction(error: EthcoreError) -> Error {
 
 	if let EthcoreError::Transaction(e) = error {
 		Error {
@@ -318,7 +318,7 @@ pub fn from_transaction_error(error: EthcoreError) -> Error {
 	}
 }
 
-pub fn from_rlp_error(error: DecoderError) -> Error {
+pub fn rlp(error: DecoderError) -> Error {
 	Error {
 		code: ErrorCode::InvalidParams,
 		message: "Invalid RLP.".into(),
@@ -326,7 +326,7 @@ pub fn from_rlp_error(error: DecoderError) -> Error {
 	}
 }
 
-pub fn from_call_error(error: CallError) -> Error {
+pub fn call(error: CallError) -> Error {
 	match error {
 		CallError::StatePruned => state_pruned(),
 		CallError::StateCorrupt => state_corrupt(),
