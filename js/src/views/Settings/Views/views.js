@@ -114,17 +114,6 @@ class Views extends Component {
               )
             }
             {
-              this.renderView('status',
-                <FormattedMessage
-                  id='settings.views.status.label'
-                />,
-                <FormattedMessage
-                  id='settings.views.status.description'
-                  defaultMessage='See how the Parity node is performing in terms of connections to the network, logs from the actual running instance and details of mining (if enabled and configured).'
-                />
-              )
-            }
-            {
               this.renderView('signer',
                 <FormattedMessage
                   id='settings.views.signer.label'

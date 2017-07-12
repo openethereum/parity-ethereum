@@ -64,7 +64,9 @@ pub enum SignError {
 	/// Low-level hardware device error.
 	Hardware(HardwareError),
 	/// Low-level error from store
-	SStore(SSError)
+	SStore(SSError),
+	/// Inappropriate chain
+	InappropriateChain,
 }
 
 impl fmt::Display for SignError {
@@ -74,6 +76,7 @@ impl fmt::Display for SignError {
 			SignError::NotFound => write!(f, "Account does not exist"),
 			SignError::Hardware(ref e) => write!(f, "{}", e),
 			SignError::SStore(ref e) => write!(f, "{}", e),
+			SignError::InappropriateChain => write!(f, "Inappropriate chain"),
 		}
 	}
 }

@@ -31,7 +31,7 @@ use parity_reactor::Remote;
 use hyper;
 use hyper::status::StatusCode;
 
-use {SyncStatus, random_filename};
+use {Embeddable, SyncStatus, random_filename};
 use util::Mutex;
 use page::LocalPageEndpoint;
 use handlers::{ContentHandler, ContentFetcherHandler};
@@ -52,7 +52,7 @@ pub struct ContentFetcher<F: Fetch = FetchClient, R: URLHint + 'static = URLHint
 	resolver: R,
 	cache: Arc<Mutex<ContentCache>>,
 	sync: Arc<SyncStatus>,
-	embeddable_on: Option<(String, u16)>,
+	embeddable_on: Embeddable,
 	remote: Remote,
 	fetch: F,
 	only_content: bool,
@@ -93,22 +93,22 @@ impl<R: URLHint + 'static, F: Fetch> ContentFetcher<F, R> {
 		self
 	}
 
-	pub fn embeddable_on(mut self, embeddable_on: Option<(String, u16)>) -> Self {
+	pub fn embeddable_on(mut self, embeddable_on: Embeddable) -> Self {
 		self.embeddable_on = embeddable_on;
 		self
 	}
 
-	fn still_syncing(address: Option<(String, u16)>) -> Box<Handler> {
+	fn still_syncing(embeddable: Embeddable) -> Box<Handler> {
 		Box::new(ContentHandler::error(
 			StatusCode::ServiceUnavailable,
 			"Sync In Progress",
 			"Your node is still syncing. We cannot resolve any content before it's fully synced.",
 			Some("<a href=\"javascript:window.location.reload()\">Refresh</a>"),
-			address,
+			embeddable,
 		))
 	}
 
-	fn dapps_disabled(address: Option<(String, u16)>) -> Box<Handler> {
+	fn dapps_disabled(address: Embeddable) -> Box<Handler> {
 		Box::new(ContentHandler::error(
 			StatusCode::ServiceUnavailable,
 			"Network Dapps Not Available",
@@ -271,6 +271,7 @@ mod tests {
 	use endpoint::EndpointInfo;
 	use page::LocalPageEndpoint;
 	use super::{ContentFetcher, Fetcher};
+	use {SyncStatus};
 
 	#[derive(Clone)]
 	struct FakeResolver;
@@ -280,11 +281,17 @@ mod tests {
 		}
 	}
 
+	struct FakeSync(bool);
+	impl SyncStatus for FakeSync {
+		fn is_major_importing(&self) -> bool { self.0 }
+		fn peers(&self) -> (usize, usize) { (0, 5) }
+	}
+
 	#[test]
 	fn should_true_if_contains_the_app() {
 		// given
 		let path = env::temp_dir();
-		let fetcher = ContentFetcher::new(FakeResolver, Arc::new(|| false), Remote::new_sync(), Client::new().unwrap())
+		let fetcher = ContentFetcher::new(FakeResolver, Arc::new(FakeSync(false)), Remote::new_sync(), Client::new().unwrap())
 			.allow_dapps(true);
 		let handler = LocalPageEndpoint::new(path, EndpointInfo {
 			name: "fake".into(),

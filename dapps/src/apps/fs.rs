@@ -22,6 +22,7 @@ use std::path::{Path, PathBuf};
 use page::{LocalPageEndpoint, PageCache};
 use endpoint::{Endpoint, EndpointInfo};
 use apps::manifest::{MANIFEST_FILENAME, deserialize_manifest};
+use Embeddable;
 
 struct LocalDapp {
 	id: String,
@@ -60,14 +61,14 @@ fn read_manifest(name: &str, mut path: PathBuf) -> EndpointInfo {
 /// Returns Dapp Id and Local Dapp Endpoint for given filesystem path.
 /// Parses the path to extract last component (for name).
 /// `None` is returned when path is invalid or non-existent.
-pub fn local_endpoint<P: AsRef<Path>>(path: P, signer_address: Option<(String, u16)>) -> Option<(String, Box<LocalPageEndpoint>)> {
+pub fn local_endpoint<P: AsRef<Path>>(path: P, embeddable: Embeddable) -> Option<(String, Box<LocalPageEndpoint>)> {
 	let path = path.as_ref().to_owned();
 	path.canonicalize().ok().and_then(|path| {
 		let name = path.file_name().and_then(|name| name.to_str());
 		name.map(|name| {
 			let dapp = local_dapp(name.into(), path.clone());
 			(dapp.id, Box::new(LocalPageEndpoint::new(
-				dapp.path, dapp.info, PageCache::Disabled, signer_address.clone())
+				dapp.path, dapp.info, PageCache::Disabled, embeddable.clone())
 			))
 		})
 	})
@@ -86,12 +87,12 @@ fn local_dapp(name: String, path: PathBuf) -> LocalDapp {
 
 /// Returns endpoints for Local Dapps found for given filesystem path.
 /// Scans the directory and collects `LocalPageEndpoints`.
-pub fn local_endpoints<P: AsRef<Path>>(dapps_path: P, signer_address: Option<(String, u16)>) -> BTreeMap<String, Box<Endpoint>> {
+pub fn local_endpoints<P: AsRef<Path>>(dapps_path: P, embeddable: Embeddable) -> BTreeMap<String, Box<Endpoint>> {
 	let mut pages = BTreeMap::<String, Box<Endpoint>>::new();
 	for dapp in local_dapps(dapps_path.as_ref()) {
 		pages.insert(
 			dapp.id,
-			Box::new(LocalPageEndpoint::new(dapp.path, dapp.info, PageCache::Disabled, signer_address.clone()))
+			Box::new(LocalPageEndpoint::new(dapp.path, dapp.info, PageCache::Disabled, embeddable.clone()))
 		);
 	}
 	pages
