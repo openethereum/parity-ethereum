@@ -132,6 +132,7 @@ impl RollingFinality {
 
 		trace!(target: "finality", "Blocks finalized by {:?}: {:?}", head, newly_finalized);
 
+		self.last_pushed = Some(head);
 		Ok(newly_finalized)
 	}
 }
