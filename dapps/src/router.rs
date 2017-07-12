@@ -112,7 +112,6 @@ impl http::RequestMiddleware for Router {
 				=>
 			{
 				trace!(target: "dapps", "Resolving to 404.");
-				// self.endpoints.as_ref().map(|endpoints| endpoints.clone().refresh_local_dapps());
 				Some(Box::new(handlers::ContentHandler::error(
 					hyper::StatusCode::NotFound,
 					"404 Not Found",
