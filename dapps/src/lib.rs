@@ -129,6 +129,7 @@ impl Endpoints {
 		// new dapps to be added
 		for (k, v) in new_local {
 			if pages.contains_key(&k) != true {
+				self.local_endpoints.push(k.clone());
 				pages.insert(k, v);
 			}
 		}
