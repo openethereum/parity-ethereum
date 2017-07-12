@@ -20,6 +20,7 @@ Usage:
   parity restore [ <file> ] [options]
   parity tools hash <file>
   parity db kill [options]
+  parity preset <preset> [options]
 
 Operating Options:
   --mode MODE                      Set the operating mode. MODE can be one of:

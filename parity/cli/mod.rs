@@ -16,6 +16,7 @@
 
 #[macro_use]
 mod usage;
+mod presets;
 use dir;
 
 usage! {
@@ -42,12 +43,14 @@ usage! {
 		cmd_hash: bool,
 		cmd_kill: bool,
 		cmd_db: bool,
+		cmd_preset: bool,
 
 		// Arguments
 		arg_pid_file: String,
 		arg_file: Option<String>,
 		arg_path: Vec<String>,
 		arg_id: Option<usize>,
+		arg_preset: String,
 
 		// Flags
 		// -- Legacy Options

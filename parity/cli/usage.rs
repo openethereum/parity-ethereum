@@ -61,6 +61,7 @@ macro_rules! usage {
 			Docopt(DocoptError),
 			Decode(toml::de::Error),
 			Config(String, io::Error),
+			Preset(String),
 		}
 
 		impl ArgsError {
@@ -77,6 +78,10 @@ macro_rules! usage {
 						println_stderr!("{}", e);
 						process::exit(2)
 					},
+					ArgsError::Preset(a) => {
+						println_stderr!("Invalid preset argument: {}", a);
+						process::exit(2)
+					}
 				}
 			}
 		}
@@ -149,22 +154,29 @@ macro_rules! usage {
 					return Ok(raw_args.into_args(Config::default()));
 				}
 
-				let config_file = raw_args.flag_config.clone().unwrap_or_else(|| raw_args.clone().into_args(Config::default()).flag_config);
-				let config_file = replace_home(&::dir::default_data_path(), &config_file);
-				let config = match (fs::File::open(&config_file), raw_args.flag_config.is_some()) {
-					// Load config file
-					(Ok(mut file), _) => {
-						println_stderr!("Loading config file from {}", &config_file);
-						let mut config = String::new();
-						file.read_to_string(&mut config).map_err(|e| ArgsError::Config(config_file, e))?;
-						Self::parse_config(&config)?
-					},
-					// Don't display error in case default config cannot be loaded.
-					(Err(_), false) => Config::default(),
-					// Config set from CLI (fail with error)
-					(Err(e), true) => {
-						return Err(ArgsError::Config(config_file, e));
-					},
+				let config = if raw_args.cmd_preset {
+					match presets::preset_config_string(&raw_args.arg_preset) {
+						Ok(s) => Self::parse_config(&s)?,
+						Err(e) => return Err(ArgsError::Preset(e.to_string()))
+					}
+				} else {
+					let config_file = raw_args.flag_config.clone().unwrap_or_else(|| raw_args.clone().into_args(Config::default()).flag_config);
+					let config_file = replace_home(&::dir::default_data_path(), &config_file);
+					match (fs::File::open(&config_file), raw_args.flag_config.is_some()) {
+						// Load config file
+						(Ok(mut file), _) => {
+							println_stderr!("Loading config file from {}", &config_file);
+							let mut config = String::new();
+							file.read_to_string(&mut config).map_err(|e| ArgsError::Config(config_file, e))?;
+							Self::parse_config(&config)?
+						},
+						// Don't display error in case default config cannot be loaded.
+						(Err(_), false) => Config::default(),
+						// Config set from CLI (fail with error)
+						(Err(e), true) => {
+							return Err(ArgsError::Config(config_file, e));
+						},
+					}
 				};
 
 				Ok(raw_args.into_args(config))
