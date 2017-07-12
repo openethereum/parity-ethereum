@@ -133,7 +133,7 @@ impl SnapshotCommand {
 	// shared portion of snapshot commands: start the client service
 	fn start_service(self) -> Result<ClientService, String> {
 		// load spec file
-		let spec = self.spec.spec()?;
+		let spec = self.spec.spec(&self.dirs.cache)?;
 
 		// load genesis hash
 		let genesis_hash = spec.genesis_header().hash();

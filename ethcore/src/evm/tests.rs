@@ -14,12 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::fmt::Debug;
+use rustc_hex::FromHex;
 use util::*;
 use action_params::{ActionParams, ActionValue};
 use env_info::EnvInfo;
 use types::executed::CallType;
 use evm::{self, Ext, Schedule, Factory, GasLeft, VMType, ContractCreateResult, MessageCallResult, CreateContractAddress, ReturnData};
-use std::fmt::Debug;
 use tests::helpers::*;
 use types::transaction::SYSTEM_ADDRESS;
 use executive::Executive;
@@ -38,13 +39,13 @@ pub enum FakeCallType {
 
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub struct FakeCall {
-	call_type: FakeCallType,
-	gas: U256,
-	sender_address: Option<Address>,
-	receive_address: Option<Address>,
-	value: Option<U256>,
-	data: Bytes,
-	code_address: Option<Address>,
+	pub call_type: FakeCallType,
+	pub gas: U256,
+	pub sender_address: Option<Address>,
+	pub receive_address: Option<Address>,
+	pub value: Option<U256>,
+	pub data: Bytes,
+	pub code_address: Option<Address>,
 }
 
 /// Fake externalities test structure.
@@ -52,17 +53,17 @@ pub struct FakeCall {
 /// Can't do recursive calls.
 #[derive(Default)]
 pub struct FakeExt {
+	pub store: HashMap<H256, H256>,
+	pub suicides: HashSet<Address>,
+	pub calls: HashSet<FakeCall>,
 	sstore_clears: usize,
 	depth: usize,
-	store: HashMap<H256, H256>,
 	blockhashes: HashMap<U256, H256>,
 	codes: HashMap<Address, Arc<Bytes>>,
 	logs: Vec<FakeLogEntry>,
-	_suicides: HashSet<Address>,
 	info: EnvInfo,
 	schedule: Schedule,
 	balances: HashMap<Address, U256>,
-	calls: HashSet<FakeCall>,
 }
 
 // similar to the normal `finalize` function, but ignoring NeedsReturn.
@@ -172,8 +173,9 @@ impl Ext for FakeExt {
 		unimplemented!();
 	}
 
-	fn suicide(&mut self, _refund_address: &Address) -> evm::Result<()> {
-		unimplemented!();
+	fn suicide(&mut self, refund_address: &Address) -> evm::Result<()> {
+		self.suicides.insert(refund_address.clone());
+		Ok(())
 	}
 
 	fn schedule(&self) -> &Schedule {
@@ -462,7 +464,7 @@ fn test_blockhash_eip210(factory: super::Factory) {
 			gas_price: 0.into(),
 			value: ActionValue::Transfer(0.into()),
 			code: Some(blockhash_contract_code.clone()),
-			code_hash: blockhash_contract_code_hash,
+			code_hash: Some(blockhash_contract_code_hash),
 			data: Some(H256::from(i - 1).to_vec()),
 			call_type: CallType::Call,
 		};
@@ -484,7 +486,7 @@ fn test_blockhash_eip210(factory: super::Factory) {
 		gas_price: 0.into(),
 		value: ActionValue::Transfer(0.into()),
 		code: Some(get_prev_hash_code),
-		code_hash: get_prev_hash_code_hash,
+		code_hash: Some(get_prev_hash_code_hash),
 		data: None,
 		call_type: CallType::Call,
 	};

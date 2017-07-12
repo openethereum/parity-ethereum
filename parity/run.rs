@@ -16,26 +16,26 @@
 
 use std::sync::Arc;
 use std::net::{TcpListener};
+
 use ctrlc::CtrlC;
-use fdlimit::raise_fd_limit;
-use parity_rpc::{NetworkSettings, informant, is_major_importing};
-use ethsync::NetworkConfiguration;
-use util::{Colour, version, Mutex, Condvar};
 use ethcore_logger::{Config as LogConfig, RotatingLogger};
-use ethcore::miner::{StratumOptions, Stratum};
-use ethcore::client::{Client, Mode, DatabaseCompactionProfile, VMType, BlockChainClient};
-use ethcore::service::ClientService;
 use ethcore::account_provider::{AccountProvider, AccountProviderSettings};
+use ethcore::client::{Client, Mode, DatabaseCompactionProfile, VMType, BlockChainClient};
+use ethcore::ethstore::ethkey;
 use ethcore::miner::{Miner, MinerService, ExternalMiner, MinerOptions};
+use ethcore::miner::{StratumOptions, Stratum};
+use ethcore::service::ClientService;
 use ethcore::snapshot;
 use ethcore::verification::queue::VerifierSettings;
-use ethcore::ethstore::ethkey;
-use light::Cache as LightDataCache;
-use ethsync::SyncConfig;
-use informant::Informant;
-use updater::{UpdatePolicy, Updater};
-use parity_reactor::EventLoop;
+use ethsync::{self, SyncConfig};
+use fdlimit::raise_fd_limit;
 use hash_fetch::fetch::{Fetch, Client as FetchClient};
+use informant::{Informant, LightNodeInformantData, FullNodeInformantData};
+use light::Cache as LightDataCache;
+use parity_reactor::EventLoop;
+use parity_rpc::{NetworkSettings, informant, is_major_importing};
+use updater::{UpdatePolicy, Updater};
+use util::{Colour, version, Mutex, Condvar};
 
 use params::{
 	SpecType, Pruning, AccountsConfig, GasPricerConfig, MinerExtras, Switch,
@@ -83,7 +83,7 @@ pub struct RunCmd {
 	pub ws_conf: rpc::WsConfiguration,
 	pub http_conf: rpc::HttpConfiguration,
 	pub ipc_conf: rpc::IpcConfiguration,
-	pub net_conf: NetworkConfiguration,
+	pub net_conf: ethsync::NetworkConfiguration,
 	pub network_id: Option<u64>,
 	pub warp_sync: bool,
 	pub public_node: bool,
@@ -168,7 +168,7 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 	use util::RwLock;
 
 	// load spec
-	let spec = cmd.spec.spec()?;
+	let spec = cmd.spec.spec(&cmd.dirs.cache)?;
 
 	// load genesis hash
 	let genesis_hash = spec.genesis_header().hash();
@@ -209,6 +209,7 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 		db_cache_size: Some(cmd.cache_config.blockchain() as usize * 1024 * 1024),
 		db_compaction: compaction,
 		db_wal: cmd.wal,
+		verify_full: true,
 	};
 
 	config.queue.max_mem_use = cmd.cache_config.queue() as usize * 1024 * 1024;
@@ -235,7 +236,7 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 		network_config: net_conf.into_basic().map_err(|e| format!("Failed to produce network config: {}", e))?,
 		client: Arc::new(provider),
 		network_id: cmd.network_id.unwrap_or(spec.network_id()),
-		subprotocol_name: ::ethsync::LIGHT_PROTOCOL,
+		subprotocol_name: ethsync::LIGHT_PROTOCOL,
 		handlers: vec![on_demand.clone()],
 	};
 	let light_sync = LightSync::new(sync_params).map_err(|e| format!("Error starting network: {}", e))?;
@@ -275,9 +276,18 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 			on_demand: on_demand.clone(),
 		});
 
-		let sync = light_sync.clone();
+		struct LightSyncStatus(Arc<LightSync>);
+		impl dapps::SyncStatus for LightSyncStatus {
+			fn is_major_importing(&self) -> bool { self.0.is_major_importing() }
+			fn peers(&self) -> (usize, usize) {
+				let peers = ethsync::LightSyncProvider::peer_numbers(&*self.0);
+				(peers.connected, peers.max)
+			}
+		}
+
 		dapps::Dependencies {
-			sync_status: Arc::new(move || sync.is_major_importing()),
+			sync_status: Arc::new(LightSyncStatus(light_sync.clone())),
+			pool: fetch.pool(),
 			contract_client: contract_client,
 			remote: event_loop.raw_remote(),
 			fetch: fetch.clone(),
@@ -287,7 +297,7 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 	};
 
 	let dapps_middleware = dapps::new(cmd.dapps_conf.clone(), dapps_deps.clone())?;
-	let ui_middleware = dapps::new_ui(cmd.ui_conf.enabled, dapps_deps)?;
+	let ui_middleware = dapps::new_ui(cmd.ui_conf.enabled, &cmd.ui_conf.ntp_server, dapps_deps)?;
 
 	// start RPCs
 	let dapps_service = dapps::service(&dapps_middleware);
@@ -300,7 +310,7 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 		logger: logger,
 		settings: Arc::new(cmd.net_settings),
 		on_demand: on_demand,
-		cache: cache,
+		cache: cache.clone(),
 		transaction_queue: txq,
 		dapps_service: dapps_service,
 		dapps_address: cmd.dapps_conf.address(cmd.http_conf.address()),
@@ -314,6 +324,11 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 		apis: deps_for_rpc_apis.clone(),
 		remote: event_loop.raw_remote(),
 		stats: rpc_stats.clone(),
+		pool: if cmd.http_conf.processing_threads > 0 {
+			Some(rpc::CpuPool::new(cmd.http_conf.processing_threads))
+		} else {
+			None
+		},
 	};
 
 	// start rpc servers
@@ -322,16 +337,25 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 	let _ipc_server = rpc::new_ipc(cmd.ipc_conf, &dependencies)?;
 	let _ui_server = rpc::new_http("Parity Wallet (UI)", "ui", cmd.ui_conf.clone().into(), &dependencies, ui_middleware)?;
 
-	// minimal informant thread. Just prints block number every 5 seconds.
-	// TODO: integrate with informant.rs
-	let informant_client = service.client().clone();
-	::std::thread::spawn(move || loop {
-		info!("#{}", informant_client.best_block_header().number());
-		::std::thread::sleep(::std::time::Duration::from_secs(5));
-	});
+	// the informant
+	let informant = Arc::new(Informant::new(
+		LightNodeInformantData {
+			client: service.client().clone(),
+			sync: light_sync.clone(),
+			cache: cache,
+		},
+		None,
+		Some(rpc_stats),
+		cmd.logger_config.color,
+	));
 
-	// wait for ctrl-c.
-	Ok(wait_for_exit(None, None, can_restart))
+	service.register_handler(informant.clone()).map_err(|_| "Unable to register informant handler".to_owned())?;
+
+	// wait for ctrl-c and then shut down the informant.
+	let res = wait_for_exit(None, None, can_restart);
+	informant.shutdown();
+
+	Ok(res)
 }
 
 pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> Result<(bool, Option<String>), String> {
@@ -352,7 +376,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	}
 
 	// load spec
-	let spec = cmd.spec.spec()?;
+	let spec = cmd.spec.spec(&cmd.dirs.cache)?;
 
 	// load genesis hash
 	let genesis_hash = spec.genesis_header().hash();
@@ -570,7 +594,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	let (sync_provider, manage_network, chain_notify) = modules::sync(
 		&mut hypervisor,
 		sync_config,
-		net_conf.into(),
+		net_conf.clone().into(),
 		client.clone(),
 		snapshot_service.clone(),
 		client.clone(),
@@ -614,8 +638,20 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 		let (sync, client) = (sync_provider.clone(), client.clone());
 		let contract_client = Arc::new(::dapps::FullRegistrar { client: client.clone() });
 
+		struct SyncStatus(Arc<ethsync::SyncProvider>, Arc<Client>, ethsync::NetworkConfiguration);
+		impl dapps::SyncStatus for SyncStatus {
+			fn is_major_importing(&self) -> bool {
+				is_major_importing(Some(self.0.status().state), self.1.queue_info())
+			}
+			fn peers(&self) -> (usize, usize) {
+				let status = self.0.status();
+				(status.num_peers, status.current_max_peers(self.2.min_peers, self.2.max_peers) as usize)
+			}
+		}
+
 		dapps::Dependencies {
-			sync_status: Arc::new(move || is_major_importing(Some(sync.status().state), client.queue_info())),
+			sync_status: Arc::new(SyncStatus(sync, client, net_conf)),
+			pool: fetch.pool(),
 			contract_client: contract_client,
 			remote: event_loop.raw_remote(),
 			fetch: fetch.clone(),
@@ -624,7 +660,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 		}
 	};
 	let dapps_middleware = dapps::new(cmd.dapps_conf.clone(), dapps_deps.clone())?;
-	let ui_middleware = dapps::new_ui(cmd.ui_conf.enabled, dapps_deps)?;
+	let ui_middleware = dapps::new_ui(cmd.ui_conf.enabled, &cmd.ui_conf.ntp_server, dapps_deps)?;
 
 	let dapps_service = dapps::service(&dapps_middleware);
 	let deps_for_rpc_apis = Arc::new(rpc_apis::FullDependencies {
@@ -652,6 +688,12 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 		apis: deps_for_rpc_apis.clone(),
 		remote: event_loop.raw_remote(),
 		stats: rpc_stats.clone(),
+		pool: if cmd.http_conf.processing_threads > 0 {
+			Some(rpc::CpuPool::new(cmd.http_conf.processing_threads))
+		} else {
+			None
+		},
+
 	};
 
 	// start rpc servers
@@ -672,9 +714,11 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 
 	// the informant
 	let informant = Arc::new(Informant::new(
-		service.client(),
-		Some(sync_provider.clone()),
-		Some(manage_network.clone()),
+		FullNodeInformantData {
+			client: service.client(),
+			sync: Some(sync_provider.clone()),
+			net: Some(manage_network.clone()),
+		},
 		Some(snapshot_service.clone()),
 		Some(rpc_stats.clone()),
 		cmd.logger_config.color,

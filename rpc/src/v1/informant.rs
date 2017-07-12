@@ -21,9 +21,12 @@ use std::sync::Arc;
 use std::sync::atomic::{self, AtomicUsize};
 use std::time;
 use futures::Future;
+use futures_cpupool as pool;
 use jsonrpc_core as rpc;
 use order_stat;
 use util::RwLock;
+
+pub use self::pool::CpuPool;
 
 const RATE_SECONDS: usize = 10;
 const STATS_SAMPLES: usize = 60;
@@ -184,14 +187,16 @@ pub trait ActivityNotifier: Send + Sync + 'static {
 pub struct Middleware<T: ActivityNotifier = ClientNotifier> {
 	stats: Arc<RpcStats>,
 	notifier: T,
+	pool: Option<CpuPool>,
 }
 
 impl<T: ActivityNotifier> Middleware<T> {
 	/// Create new Middleware with stats counter and activity notifier.
-	pub fn new(stats: Arc<RpcStats>, notifier: T) -> Self {
+	pub fn new(stats: Arc<RpcStats>, notifier: T, pool: Option<CpuPool>) -> Self {
 		Middleware {
-			stats: stats,
-			notifier: notifier,
+			stats,
+			notifier,
+			pool,
 		}
 	}
 
@@ -201,19 +206,32 @@ impl<T: ActivityNotifier> Middleware<T> {
 }
 
 impl<M: rpc::Metadata, T: ActivityNotifier> rpc::Middleware<M> for Middleware<T> {
-	fn on_request<F>(&self, request: rpc::Request, meta: M, process: F) -> rpc::FutureResponse where
-		F: FnOnce(rpc::Request, M) -> rpc::FutureResponse,
+	type Future = rpc::futures::future::Either<
+		pool::CpuFuture<Option<rpc::Response>, ()>,
+		rpc::FutureResponse,
+	>;
+
+	fn on_request<F, X>(&self, request: rpc::Request, meta: M, process: F) -> Self::Future where
+		F: FnOnce(rpc::Request, M) -> X,
+		X: rpc::futures::Future<Item=Option<rpc::Response>, Error=()> + Send + 'static,
 	{
+		use self::rpc::futures::future::Either::{A, B};
+
 		let start = time::Instant::now();
-		let response = process(request, meta);
 
 		self.notifier.active();
+		self.stats.count_request();
+
 		let stats = self.stats.clone();
-		stats.count_request();
-		response.map(move |res| {
+		let future = process(request, meta).map(move |res| {
 			stats.add_roundtrip(Self::as_micro(start.elapsed()));
 			res
-		}).boxed()
+		});
+
+		match self.pool {
+			Some(ref pool) => A(pool.spawn(future)),
+			None => B(future.boxed()),
+		}
 	}
 }
 

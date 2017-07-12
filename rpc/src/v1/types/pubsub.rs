@@ -74,9 +74,9 @@ impl Default for Params {
 	}
 }
 
-impl Deserialize for Params {
+impl<'a> Deserialize<'a> for Params {
 	fn deserialize<D>(deserializer: D) -> ::std::result::Result<Params, D::Error>
-	where D: Deserializer {
+	where D: Deserializer<'a> {
 		let v: Value = Deserialize::deserialize(deserializer)?;
 
 		if v.is_null() {

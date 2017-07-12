@@ -20,14 +20,14 @@ use parking_lot::Mutex;
 use ethkey::public_to_address;
 use ethcore::client::{Client, BlockChainClient, BlockId};
 use native_contracts::SecretStoreAclStorage;
-use types::all::{Error, DocumentAddress, Public};
+use types::all::{Error, ServerKeyId, Public};
 
 const ACL_CHECKER_CONTRACT_REGISTRY_NAME: &'static str = "secretstore_acl_checker";
 
 /// ACL storage of Secret Store
 pub trait AclStorage: Send + Sync {
 	/// Check if requestor with `public` key can access document with hash `document`
-	fn check(&self, public: &Public, document: &DocumentAddress) -> Result<bool, Error>;
+	fn check(&self, public: &Public, document: &ServerKeyId) -> Result<bool, Error>;
 }
 
 /// On-chain ACL storage implementation.
@@ -48,7 +48,7 @@ impl OnChainAclStorage {
 }
 
 impl AclStorage for OnChainAclStorage {
-	fn check(&self, public: &Public, document: &DocumentAddress) -> Result<bool, Error> {
+	fn check(&self, public: &Public, document: &ServerKeyId) -> Result<bool, Error> {
 		let mut contract = self.contract.lock();
 		if !contract.is_some() {
 			*contract = self.client.registry_address(ACL_CHECKER_CONTRACT_REGISTRY_NAME.to_owned())
@@ -74,19 +74,19 @@ impl AclStorage for OnChainAclStorage {
 pub mod tests {
 	use std::collections::{HashMap, HashSet};
 	use parking_lot::RwLock;
-	use types::all::{Error, DocumentAddress, Public};
+	use types::all::{Error, ServerKeyId, Public};
 	use super::AclStorage;
 
 	#[derive(Default, Debug)]
 	/// Dummy ACL storage implementation
 	pub struct DummyAclStorage {
-		prohibited: RwLock<HashMap<Public, HashSet<DocumentAddress>>>,
+		prohibited: RwLock<HashMap<Public, HashSet<ServerKeyId>>>,
 	}
 
 	impl DummyAclStorage {
 		#[cfg(test)]
 		/// Prohibit given requestor access to given document
-		pub fn prohibit(&self, public: Public, document: DocumentAddress) {
+		pub fn prohibit(&self, public: Public, document: ServerKeyId) {
 			self.prohibited.write()
 				.entry(public)
 				.or_insert_with(Default::default)
@@ -95,7 +95,7 @@ pub mod tests {
 	}
 
 	impl AclStorage for DummyAclStorage {
-		fn check(&self, public: &Public, document: &DocumentAddress) -> Result<bool, Error> {
+		fn check(&self, public: &Public, document: &ServerKeyId) -> Result<bool, Error> {
 			Ok(self.prohibited.read()
 				.get(public)
 				.map(|docs| !docs.contains(document))

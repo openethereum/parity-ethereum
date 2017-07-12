@@ -129,6 +129,8 @@ pub enum BlockError {
 	UncleIsBrother(OutOfBounds<BlockNumber>),
 	/// An uncle is already in the chain.
 	UncleInChain(H256),
+	/// An uncle is included twice.
+	DuplicateUncle(H256),
 	/// An uncle has a parent not in the chain.
 	UncleParentNotInChain(H256),
 	/// State root header field is invalid.
@@ -188,6 +190,7 @@ impl fmt::Display for BlockError {
 			UncleTooOld(ref oob) => format!("Uncle block is too old. {}", oob),
 			UncleIsBrother(ref oob) => format!("Uncle from same generation as block. {}", oob),
 			UncleInChain(ref hash) => format!("Uncle {} already in chain", hash),
+			DuplicateUncle(ref hash) => format!("Uncle {} already in the header", hash),
 			UncleParentNotInChain(ref hash) => format!("Uncle {} has a parent not in the chain", hash),
 			InvalidStateRoot(ref mis) => format!("Invalid state root in header: {}", mis),
 			InvalidGasUsed(ref mis) => format!("Invalid gas used in header: {}", mis),

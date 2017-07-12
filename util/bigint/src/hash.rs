@@ -8,15 +8,14 @@
 
 //! General hash types, a fixed-size raw-data type used as the output of hash functions.
 
-use std::{ops, fmt, cmp};
+use std::{ops, fmt, cmp, str};
 use std::cmp::{min, Ordering};
 use std::ops::{Deref, DerefMut, BitXor, BitAnd, BitOr, IndexMut, Index};
 use std::hash::{Hash, Hasher, BuildHasherDefault};
 use std::collections::{HashMap, HashSet};
-use std::str::FromStr;
 use rand::Rng;
 use rand::os::OsRng;
-use rustc_serialize::hex::{FromHex, FromHexError};
+use rustc_hex::{FromHex, FromHexError};
 use bigint::U256;
 use libc::{c_void, memcmp};
 
@@ -141,7 +140,7 @@ macro_rules! impl_hash {
 			}
 		}
 
-		impl FromStr for $from {
+		impl str::FromStr for $from {
 			type Err = FromHexError;
 
 			fn from_str(s: &str) -> Result<$from, FromHexError> {
@@ -349,9 +348,9 @@ macro_rules! impl_hash {
 			fn from(s: &'static str) -> $from {
 				let s = clean_0x(s);
 				if s.len() % 2 == 1 {
-					$from::from_str(&("0".to_owned() + s)).unwrap()
+					("0".to_owned() + s).parse().unwrap()
 				} else {
-					$from::from_str(s).unwrap()
+					s.parse().unwrap()
 				}
 			}
 		}
@@ -435,6 +434,7 @@ impl_hash!(H520, 65);
 impl_hash!(H1024, 128);
 impl_hash!(H2048, 256);
 
+#[cfg(feature="heapsizeof")]
 known_heap_size!(0, H32, H64, H128, H160, H256, H264, H512, H520, H1024, H2048);
 // Specialized HashMap and HashSet
 

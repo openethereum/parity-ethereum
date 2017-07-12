@@ -24,6 +24,7 @@ use hyper::status::StatusCode;
 use hyper::{Decoder, Encoder, Next};
 use endpoint::EndpointPath;
 use handlers::{ContentHandler, add_security_headers};
+use {Embeddable};
 
 /// Represents a file that can be sent to client.
 /// Implementation should keep track of bytes already sent internally.
@@ -59,7 +60,7 @@ pub enum ServedFile<T: Dapp> {
 }
 
 impl<T: Dapp> ServedFile<T> {
-	pub fn new(embeddable_on: Option<(String, u16)>) -> Self {
+	pub fn new(embeddable_on: Embeddable) -> Self {
 		ServedFile::Error(ContentHandler::error(
 			StatusCode::NotFound,
 			"404 Not Found",
@@ -102,7 +103,7 @@ pub struct PageHandler<T: Dapp> {
 	/// Requested path.
 	pub path: EndpointPath,
 	/// Flag indicating if the file can be safely embeded (put in iframe).
-	pub safe_to_embed_on: Option<(String, u16)>,
+	pub safe_to_embed_on: Embeddable,
 	/// Cache settings for this page.
 	pub cache: PageCache,
 }
@@ -174,7 +175,7 @@ impl<T: Dapp> server::Handler<HttpStream> for PageHandler<T> {
 				}
 
 				// Security headers:
-				add_security_headers(&mut res.headers_mut(), self.safe_to_embed_on.clone());
+				add_security_headers(&mut res.headers_mut(), self.safe_to_embed_on.take());
 				Next::write()
 			},
 			ServedFile::Error(ref mut handler) => {

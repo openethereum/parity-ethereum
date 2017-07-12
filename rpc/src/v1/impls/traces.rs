@@ -87,23 +87,23 @@ impl<C, M> Traces for TracesClient<C, M> where C: MiningBlockChainClient + 'stat
 
 		self.client.call(&signed, block.into(), to_call_analytics(flags))
 			.map(TraceResults::from)
-			.map_err(errors::from_call_error)
+			.map_err(errors::call)
 	}
 
 	fn raw_transaction(&self, raw_transaction: Bytes, flags: Vec<String>, block: Trailing<BlockNumber>) -> Result<TraceResults, Error> {
 		let block = block.unwrap_or_default();
 
 		let tx = UntrustedRlp::new(&raw_transaction.into_vec()).as_val().map_err(|e| errors::invalid_params("Transaction is not valid RLP", e))?;
-		let signed = SignedTransaction::new(tx).map_err(errors::from_transaction_error)?;
+		let signed = SignedTransaction::new(tx).map_err(errors::transaction)?;
 
 		self.client.call(&signed, block.into(), to_call_analytics(flags))
 			.map(TraceResults::from)
-			.map_err(errors::from_call_error)
+			.map_err(errors::call)
 	}
 
 	fn replay_transaction(&self, transaction_hash: H256, flags: Vec<String>) -> Result<TraceResults, Error> {
 		self.client.replay(TransactionId::Hash(transaction_hash.into()), to_call_analytics(flags))
 			.map(TraceResults::from)
-			.map_err(errors::from_call_error)
+			.map_err(errors::call)
 	}
 }

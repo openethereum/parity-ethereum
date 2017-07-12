@@ -19,7 +19,7 @@ use std::str::FromStr;
 use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};
 use serde;
-use rustc_serialize::hex::{ToHex, FromHex};
+use rustc_hex::{ToHex, FromHex};
 use util::{H64 as Eth64, H160 as Eth160, H256 as Eth256, H520 as Eth520, H512 as Eth512, H2048 as Eth2048};
 
 macro_rules! impl_hash {
@@ -116,11 +116,11 @@ macro_rules! impl_hash {
 			}
 		}
 
-		impl serde::Deserialize for $name {
-			fn deserialize<D>(deserializer: D) -> Result<$name, D::Error> where D: serde::Deserializer {
+		impl<'a> serde::Deserialize<'a> for $name {
+			fn deserialize<D>(deserializer: D) -> Result<$name, D::Error> where D: serde::Deserializer<'a> {
 				struct HashVisitor;
 
-				impl serde::de::Visitor for HashVisitor {
+				impl<'b> serde::de::Visitor<'b> for HashVisitor {
 					type Value = $name;
 
 					fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -151,7 +151,7 @@ macro_rules! impl_hash {
 					}
 				}
 
-				deserializer.deserialize(HashVisitor)
+				deserializer.deserialize_any(HashVisitor)
 			}
 		}
 	}

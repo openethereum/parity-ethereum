@@ -376,6 +376,11 @@ pub trait Engine : Sync + Send {
 		self.snapshot_components().is_some()
 	}
 
+	/// If this engine supports wasm contracts.
+	fn supports_wasm(&self) -> bool {
+		self.params().wasm
+	}
+
 	/// Returns new contract address generation scheme at given block number.
 	fn create_address_scheme(&self, number: BlockNumber) -> CreateContractAddress {
 		if number >= self.params().eip86_transition {
@@ -385,7 +390,6 @@ pub trait Engine : Sync + Send {
 		}
 	}
 }
-
 
 /// Common engine utilities
 pub mod common {
@@ -434,7 +438,7 @@ pub mod common {
 			gas_price: 0.into(),
 			value: ActionValue::Transfer(0.into()),
 			code: state.code(&contract_address)?,
-			code_hash: state.code_hash(&contract_address)?,
+			code_hash: Some(state.code_hash(&contract_address)?),
 			data: data,
 			call_type: CallType::Call,
 		};

@@ -71,7 +71,7 @@ pub fn execute(cmd: AccountCmd) -> Result<String, String> {
 }
 
 fn keys_dir(path: String, spec: SpecType) -> Result<RootDiskDirectory, String> {
-	let spec = spec.spec()?;
+	let spec = spec.spec(&::std::env::temp_dir())?;
 	let mut path = PathBuf::from(&path);
 	path.push(spec.data_dir);
 	RootDiskDirectory::create(path).map_err(|e| format!("Could not open keys directory: {}", e))

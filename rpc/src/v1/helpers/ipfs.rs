@@ -32,7 +32,7 @@ pub fn cid(content: Bytes) -> Result<String, Error> {
 	let mut buf = Vec::with_capacity(len);
 	buf.resize(len, 0);
 	hasher.result(&mut buf);
-	let mh = multihash::encode(multihash::Hash::SHA2256, &buf).map_err(errors::encoding_error)?;
+	let mh = multihash::encode(multihash::Hash::SHA2256, &buf).map_err(errors::encoding)?;
 	let cid = Cid::new(Codec::DagProtobuf, Version::V0, &mh);
 	Ok(cid.to_string().into())
 }

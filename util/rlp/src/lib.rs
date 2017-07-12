@@ -41,7 +41,7 @@
 extern crate byteorder;
 extern crate ethcore_bigint as bigint;
 extern crate elastic_array;
-extern crate rustc_serialize;
+extern crate rustc_hex;
 
 #[macro_use]
 extern crate lazy_static;
