@@ -39,7 +39,7 @@ export const ERROR_CODES = {
   COMPILATION_ERROR: -32050,
   ENCRYPTION_ERROR: -32055,
   FETCH_ERROR: -32060,
-  INVALID_PARAMS: -32602,
+  INVALID_PARAMS: -32602
 };
 
 export default class TransportError extends ExtendableError {
