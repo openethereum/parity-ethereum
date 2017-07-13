@@ -1,0 +1,13 @@
+[package]
+name = "common-types"
+description = "Common types used throughout the codebase"
+version = "0.1.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+
+[dependencies]
+rlp = { path = "../../util/rlp" }
+ethcore-util = { path = "../../util" }
+ethjson = { path = "../../json" }
+
+[dev-dependencies]
+rustc-hex= "1.0"

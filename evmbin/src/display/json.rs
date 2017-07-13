@@ -16,7 +16,7 @@
 
 //! JSON VM output.
 
-use ethcore::{evm, trace};
+use ethcore::trace;
 use std::collections::HashMap;
 use util::{U256, H256, ToPretty};
 
@@ -94,7 +94,7 @@ impl trace::VMTracer for Informant {
 	}
 
 	fn trace_executed(&mut self, gas_used: U256, stack_push: &[U256], mem_diff: Option<(usize, &[u8])>, store_diff: Option<(U256, U256)>) {
-		let info = evm::INSTRUCTIONS[self.instruction as usize];
+		let info = ::evm::INSTRUCTIONS[self.instruction as usize];
 
 		println!(
 			"{{\"pc\":{pc},\"op\":{op},\"opName\":\"{name}\",\"gas\":{gas},\"gasCost\":{gas_cost},\"memory\":{memory},\"stack\":{stack},\"storage\":{storage},\"depth\":{depth}}}",

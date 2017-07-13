@@ -23,6 +23,7 @@
   margin: .2em;
   width: 1em;
   height: 1em;
+  white-space: nowrap;
 }
 
 .radial {

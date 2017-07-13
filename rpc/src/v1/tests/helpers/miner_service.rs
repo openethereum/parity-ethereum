@@ -207,6 +207,11 @@ impl MinerService for TestMinerService {
 		unimplemented!();
 	}
 
+	/// PoW chain - can produce work package
+	fn can_produce_work_package(&self) -> bool {
+		true
+	}
+
 	/// New chain head event. Restart mining operation.
 	fn update_sealing(&self, _chain: &MiningBlockChainClient) {
 		unimplemented!();
@@ -265,7 +270,7 @@ impl MinerService for TestMinerService {
 		self.last_nonces.read().get(address).cloned()
 	}
 
-	fn is_sealing(&self) -> bool {
+	fn is_currently_sealing(&self) -> bool {
 		false
 	}
 

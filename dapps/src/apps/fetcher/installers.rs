@@ -25,6 +25,7 @@ use util::sha3::sha3;
 use page::{LocalPageEndpoint, PageCache};
 use handlers::{ContentValidator, ValidatorResponse};
 use apps::manifest::{MANIFEST_FILENAME, deserialize_manifest, serialize_manifest, Manifest};
+use Embeddable;
 
 type OnDone = Box<Fn(Option<LocalPageEndpoint>) + Send>;
 
@@ -116,16 +117,16 @@ pub struct Dapp {
 	id: String,
 	dapps_path: PathBuf,
 	on_done: OnDone,
-	embeddable_on: Option<(String, u16)>,
+	embeddable_on: Embeddable,
 }
 
 impl Dapp {
-	pub fn new(id: String, dapps_path: PathBuf, on_done: OnDone, embeddable_on: Option<(String, u16)>) -> Self {
+	pub fn new(id: String, dapps_path: PathBuf, on_done: OnDone, embeddable_on: Embeddable) -> Self {
 		Dapp {
-			id: id,
-			dapps_path: dapps_path,
-			on_done: on_done,
-			embeddable_on: embeddable_on,
+			id,
+			dapps_path,
+			on_done,
+			embeddable_on,
 		}
 	}
 

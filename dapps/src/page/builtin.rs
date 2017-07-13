@@ -18,6 +18,7 @@ use page::{handler, PageCache};
 use std::sync::Arc;
 use endpoint::{Endpoint, EndpointInfo, EndpointPath, Handler};
 use parity_dapps::{WebApp, File, Info};
+use Embeddable;
 
 pub struct PageEndpoint<T : WebApp + 'static> {
 	/// Content of the files
@@ -25,7 +26,7 @@ pub struct PageEndpoint<T : WebApp + 'static> {
 	/// Prefix to strip from the path (when `None` deducted from `app_id`)
 	pub prefix: Option<String>,
 	/// Safe to be loaded in frame by other origin. (use wisely!)
-	safe_to_embed_on: Option<(String, u16)>,
+	safe_to_embed_on: Embeddable,
 	info: EndpointInfo,
 	fallback_to_index_html: bool,
 }
@@ -73,7 +74,7 @@ impl<T: WebApp + 'static> PageEndpoint<T> {
 	/// Creates new `PageEndpoint` which can be safely used in iframe
 	/// even from different origin. It might be dangerous (clickjacking).
 	/// Use wisely!
-	pub fn new_safe_to_embed(app: T, address: Option<(String, u16)>) -> Self {
+	pub fn new_safe_to_embed(app: T, address: Embeddable) -> Self {
 		let info = app.info();
 		PageEndpoint {
 			app: Arc::new(app),

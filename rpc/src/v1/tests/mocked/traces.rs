@@ -16,10 +16,12 @@
 
 use std::sync::Arc;
 
-use ethcore::executed::{CallType, Executed, CallError};
+use ethcore::executed::{Executed, CallError};
 use ethcore::trace::trace::{Action, Res, Call};
 use ethcore::trace::LocalizedTrace;
 use ethcore::client::TestBlockChainClient;
+
+use evm::CallType;
 
 use jsonrpc_core::IoHandler;
 use v1::tests::helpers::{TestMinerService};
