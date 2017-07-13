@@ -36,7 +36,7 @@ use parity_rpc::NetworkSettings;
 use cache::CacheConfig;
 use helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_price, replace_home, replace_home_and_local,
 geth_ipc_path, parity_ipc_path, to_bootnodes, to_addresses, to_address, to_gas_limit, to_queue_strategy};
-use params::{SpecType, ResealPolicy, AccountsConfig, GasPricerConfig, MinerExtras, Pruning, Switch};
+use params::{ResealPolicy, AccountsConfig, GasPricerConfig, MinerExtras, Pruning, Switch};
 use ethcore_logger::Config as LogConfig;
 use dir::{self, Directories, default_hypervisor_path, default_local_path, default_data_path};
 use dapps::Configuration as DappsConfiguration;
@@ -332,12 +332,6 @@ impl Configuration {
 
 			let verifier_settings = self.verifier_settings();
 
-			// Special presets are present for the dev chain.
-			let (gas_pricer, miner_options) = match spec {
-				SpecType::Dev => (GasPricerConfig::Fixed(0.into()), self.miner_options(0)?),
-				_ => (self.gas_pricer_config()?, self.miner_options(self.args.flag_reseal_min_period)?),
-			};
-
 			let run_cmd = RunCmd {
 				cache_config: cache_config,
 				dirs: dirs,
@@ -347,14 +341,14 @@ impl Configuration {
 				pruning_memory: self.args.flag_pruning_memory,
 				daemon: daemon,
 				logger_config: logger_config.clone(),
-				miner_options: miner_options,
+				miner_options: self.miner_options(self.args.flag_reseal_min_period)?,
 				ws_conf: ws_conf,
 				http_conf: http_conf,
 				ipc_conf: ipc_conf,
 				net_conf: net_conf,
 				network_id: network_id,
 				acc_conf: self.accounts_config()?,
-				gas_pricer: gas_pricer,
+				gas_pricer: self.gas_pricer_config()?,
 				miner_extras: self.miner_extras()?,
 				stratum: self.stratum_options()?,
 				update_policy: update_policy,
@@ -625,8 +619,10 @@ impl Configuration {
 			U256::from_dec_str(&format!("{:.0}", wei_per_gas)).unwrap()
 		}
 
-		if let Some(d) = self.args.flag_gasprice.as_ref() {
-			return Ok(GasPricerConfig::Fixed(to_u256(d)?));
+		if let Some(dec) = self.args.flag_gasprice.as_ref() {
+			return Ok(GasPricerConfig::Fixed(to_u256(dec)?));
+		} else if let Some(dec) = self.args.flag_min_gas_price.as_ref() {
+			return Ok(GasPricerConfig::Fixed(to_u256(dec)?));
 		}
 
 		let usd_per_tx = to_price(&self.args.flag_usd_per_tx)?;
@@ -1586,9 +1582,9 @@ mod tests {
 	}
 
 	#[test]
-	fn test_dev_chain() {
-		let args = vec!["parity", "--chain", "dev"];
-		let conf = parse(&args);
+	fn test_dev_preset() {
+		let args = vec!["parity", "preset", "dev"];
+		let conf = Configuration::parse(&args, None).unwrap();
 		match conf.into_command().unwrap().cmd {
 			Cmd::Run(c) => {
 				assert_eq!(c.gas_pricer, GasPricerConfig::Fixed(0.into()));

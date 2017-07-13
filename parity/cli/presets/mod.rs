@@ -16,8 +16,7 @@
 
 pub fn preset_config_string(arg: &str) -> Result<&'static str, &str> {
     match arg.to_lowercase().as_ref() {
-        "poa" => Ok(include_str!("./config.poa.toml")),
-        "pow" => Ok(include_str!("./config.pow.toml")),
+        "dev" => Ok(include_str!("./config.dev.toml")),
         _ => Err(arg.clone())
     }
 }

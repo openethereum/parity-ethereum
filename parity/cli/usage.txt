@@ -295,6 +295,10 @@ Sealing/Mining Options:
                                    means we relay nothing if not mining);
                                    lenient - Same as strict when mining, and cheap
                                    when not (default: {flag_relay_set}).
+  --min-gas-price STRING           Minimum amount of Wei per GAS to be paid for a
+                                   transaction to be accepted for mining. Overrides
+                                   --basic-tx-usd.
+                                   (default: {flag_min_gas_price:?})
   --usd-per-tx USD                 Amount of USD to be paid for a basic transaction
                                    (default: {flag_usd_per_tx}). The minimum gas price is set
                                    accordingly.
