@@ -110,6 +110,9 @@ fn prove_initial(provider: &Provider, header: &Header, caller: &Call) -> Result<
 		trace!(target: "engine", "obtained proof for initial set: {} validators, {} bytes",
 			validators.len(), proof.len());
 
+		info!(target: "engine", "Signal for switch to contract-based validator set.");
+		info!(target: "engine", "Initial contract validators: {:?}", validators);
+
 		proof
 	})
 }
@@ -231,9 +234,7 @@ impl ValidatorSet for ValidatorSafeContract {
 			.map(|out| (out, Vec::new()))) // generate no proofs in general
 	}
 
-	fn on_epoch_begin(&self, first: bool, _header: &Header, caller: &mut SystemCall) -> Result<(), ::error::Error> {
-		if first { return Ok(()) } // only signalled changes need to be noted.
-
+	fn on_epoch_begin(&self, _first: bool, _header: &Header, caller: &mut SystemCall) -> Result<(), ::error::Error> {
 		self.provider.finalize_change(caller)
 			.wait()
 			.map_err(::engines::EngineError::FailedSystemCall)
@@ -271,8 +272,9 @@ impl ValidatorSet for ValidatorSafeContract {
 			None => ::engines::EpochChange::Unsure(::engines::Unsure::NeedsReceipts),
 			Some(receipts) => match self.extract_from_event(bloom, header, receipts) {
 				None => ::engines::EpochChange::No,
-				Some(_) => {
-					debug!(target: "engine", "signalling transition within contract");
+				Some(list) => {
+					info!(target: "engine", "Signal for transition within contract. New list: {:?}",
+						&*list);
 
 					let proof = encode_proof(&header, receipts);
 					::engines::EpochChange::Yes(::engines::Proof::Known(proof))
@@ -297,7 +299,7 @@ impl ValidatorSet for ValidatorSafeContract {
 			let (old_header, state_items) = decode_first_proof(&rlp)?;
 			let old_hash = old_header.hash();
 
-			let env_info = ::env_info::EnvInfo {
+			let env_info = ::evm::env_info::EnvInfo {
 				number: old_header.number(),
 				author: *old_header.author(),
 				difficulty: *old_header.difficulty(),

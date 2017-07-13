@@ -20,10 +20,10 @@ use rustc_hex::FromHex;
 use super::genesis::Genesis;
 use super::seal::Generic as GenericSeal;
 
-use action_params::{ActionValue, ActionParams};
+use evm::action_params::{ActionValue, ActionParams};
 use builtin::Builtin;
 use engines::{Engine, NullEngine, InstantSeal, BasicAuthority, AuthorityRound, Tendermint, DEFAULT_BLOCKHASH_CONTRACT};
-use env_info::EnvInfo;
+use evm::env_info::EnvInfo;
 use error::Error;
 use ethereum;
 use ethjson;
@@ -36,7 +36,7 @@ use state_db::StateDB;
 use state::{Backend, State, Substate};
 use state::backend::Basic as BasicBackend;
 use trace::{NoopTracer, NoopVMTracer};
-use types::executed::CallType;
+use evm::CallType;
 use util::*;
 
 /// Parameters common to all engines.
@@ -85,6 +85,31 @@ pub struct CommonParams {
 	pub remove_dust_contracts: bool,
 	/// Wasm support
 	pub wasm: bool,
+}
+
+impl CommonParams {
+	/// Schedule for an EVM in the post-EIP-150-era of the Ethereum main net.
+	pub fn schedule(&self, block_number: u64) -> ::evm::Schedule {
+		let mut schedule = ::evm::Schedule::new_post_eip150(usize::max_value(), true, true, true);
+		self.update_schedule(block_number, &mut schedule);
+		schedule
+	}
+
+	/// Apply common spec config parameters to the schedule.
+ 	pub fn update_schedule(&self, block_number: u64, schedule: &mut ::evm::Schedule) {
+		schedule.have_create2 = block_number >= self.eip86_transition;
+		schedule.have_revert = block_number >= self.eip140_transition;
+		schedule.have_static_call = block_number >= self.eip214_transition;
+		if block_number >= self.eip210_transition {
+			schedule.blockhash_gas = 350;
+		}
+		if block_number >= self.dust_protection_transition {
+			schedule.kill_dust = match self.remove_dust_contracts {
+				true => ::evm::CleanDustMode::WithCodeAndStorage,
+				false => ::evm::CleanDustMode::BasicOnly,
+			};
+		}
+	}
 }
 
 impl From<ethjson::spec::Params> for CommonParams {

@@ -71,6 +71,7 @@ extern crate ethcore_io as io;
 extern crate ethcore_network as network;
 extern crate ethcore_util as util;
 extern crate ethcore;
+extern crate evm;
 extern crate futures;
 extern crate itertools;
 extern crate rand;

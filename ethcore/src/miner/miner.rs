@@ -1280,7 +1280,7 @@ mod tests {
 	use ethkey::{Generator, Random};
 	use client::{BlockChainClient, TestBlockChainClient, EachBlockWith, TransactionImportResult};
 	use header::BlockNumber;
-	use types::transaction::{SignedTransaction, Transaction, PendingTransaction, Action};
+	use transaction::{SignedTransaction, Transaction, PendingTransaction, Action};
 	use spec::Spec;
 	use tests::helpers::{generate_dummy_client, generate_dummy_client_with_spec_and_accounts};
 
