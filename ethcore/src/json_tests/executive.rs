@@ -15,15 +15,15 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use super::test_common::*;
-use action_params::ActionParams;
+use evm::action_params::ActionParams;
 use state::{Backend as StateBackend, State, Substate};
 use executive::*;
 use engines::Engine;
-use env_info::EnvInfo;
+use evm::env_info::EnvInfo;
 use evm;
 use evm::{Schedule, Ext, Finalize, VMType, ContractCreateResult, MessageCallResult, CreateContractAddress, ReturnData};
 use externalities::*;
-use types::executed::CallType;
+use evm::CallType;
 use tests::helpers::*;
 use ethjson;
 use trace::{Tracer, NoopTracer};

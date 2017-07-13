@@ -52,6 +52,7 @@ extern crate ethkey;
 extern crate ethstore;
 extern crate ethsync;
 extern crate ethcore_logger;
+extern crate evm;
 extern crate fetch;
 extern crate parity_reactor;
 extern crate parity_updater as updater;

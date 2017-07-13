@@ -16,21 +16,21 @@
 
 //! A signer used by Engines which need to sign messages.
 
-use util::{Arc, Mutex, RwLock, H256, Address};
+use util::{Arc, H256, Address};
 use ethkey::Signature;
 use account_provider::{self, AccountProvider};
 
 /// Everything that an Engine needs to sign messages.
 pub struct EngineSigner {
-	account_provider: Mutex<Arc<AccountProvider>>,
-	address: RwLock<Address>,
-	password: RwLock<Option<String>>,
+	account_provider: Arc<AccountProvider>,
+	address: Option<Address>,
+	password: Option<String>,
 }
 
 impl Default for EngineSigner {
 	fn default() -> Self {
 		EngineSigner {
-			account_provider: Mutex::new(Arc::new(AccountProvider::transient_provider())),
+			account_provider: Arc::new(AccountProvider::transient_provider()),
 			address: Default::default(),
 			password: Default::default(),
 		}
@@ -39,25 +39,30 @@ impl Default for EngineSigner {
 
 impl EngineSigner {
 	/// Set up the signer to sign with given address and password.
-	pub fn set(&self, ap: Arc<AccountProvider>, address: Address, password: String) {
-		*self.account_provider.lock() = ap;
-		*self.address.write()	= address;
-		*self.password.write() = Some(password);
+	pub fn set(&mut self, ap: Arc<AccountProvider>, address: Address, password: String) {
+		self.account_provider = ap;
+		self.address = Some(address);
+		self.password = Some(password);
 		debug!(target: "poa", "Setting Engine signer to {}", address);
 	}
 
 	/// Sign a consensus message hash.
 	pub fn sign(&self, hash: H256) -> Result<Signature, account_provider::SignError> {
-		self.account_provider.lock().sign(*self.address.read(), self.password.read().clone(), hash)
+		self.account_provider.sign(self.address.unwrap_or_else(Default::default), self.password.clone(), hash)
 	}
 
 	/// Signing address.
-	pub fn address(&self) -> Address {
-		self.address.read().clone()
+	pub fn address(&self) -> Option<Address> {
+		self.address.clone()
 	}
 
 	/// Check if the given address is the signing address.
 	pub fn is_address(&self, address: &Address) -> bool {
-		*self.address.read() == *address
+		self.address.map_or(false, |a| a == *address)
+	}
+
+	/// Check if the signing address was set.
+	pub fn is_some(&self) -> bool {
+		self.address.is_some()
 	}
 }

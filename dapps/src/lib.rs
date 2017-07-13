@@ -175,6 +175,7 @@ impl Middleware {
 		pool: CpuPool,
 		remote: Remote,
 		ui_address: Option<(String, u16)>,
+		extra_embed_on: Vec<(String, u16)>,
 		dapps_path: PathBuf,
 		extra_dapps: Vec<PathBuf>,
 		dapps_domain: &str,
@@ -183,17 +184,18 @@ impl Middleware {
 		web_proxy_tokens: Arc<WebProxyTokens>,
 		fetch: F,
 	) -> Self {
+		let embeddable = as_embeddable(ui_address, extra_embed_on, dapps_domain);
 		let content_fetcher = Arc::new(apps::fetcher::ContentFetcher::new(
 			hash_fetch::urlhint::URLHintContract::new(registrar),
 			sync_status.clone(),
 			remote.clone(),
 			fetch.clone(),
-		).embeddable_on(ui_address.clone()).allow_dapps(true));
+		).embeddable_on(embeddable.clone()).allow_dapps(true));
 		let endpoints = apps::all_endpoints(
 			dapps_path,
 			extra_dapps,
-			dapps_domain.to_owned(),
-			ui_address.clone(),
+			dapps_domain,
+			embeddable.clone(),
 			web_proxy_tokens,
 			remote.clone(),
 			fetch.clone(),
@@ -207,7 +209,10 @@ impl Middleware {
 				remote.clone(),
 				sync_status,
 			);
-			special.insert(router::SpecialEndpoint::Home, Some(apps::ui_redirection(ui_address.clone())));
+			special.insert(
+				router::SpecialEndpoint::Home,
+				Some(apps::ui_redirection(embeddable.clone())),
+			);
 			special
 		};
 
@@ -215,7 +220,7 @@ impl Middleware {
 			content_fetcher,
 			Some(endpoints.clone()),
 			special,
-			ui_address,
+			embeddable,
 			dapps_domain.to_owned(),
 		);
 
@@ -251,8 +256,21 @@ fn special_endpoints(
 	special
 }
 
-fn address(address: &(String, u16)) -> String {
-	format!("{}:{}", address.0, address.1)
+fn address(host: &str, port: u16) -> String {
+	format!("{}:{}", host, port)
+}
+
+fn as_embeddable(
+	ui_address: Option<(String, u16)>,
+	extra_embed_on: Vec<(String, u16)>,
+	dapps_domain: &str,
+) -> Option<ParentFrameSettings> {
+	ui_address.map(|(host, port)| ParentFrameSettings {
+		host,
+		port,
+		extra_embed_on,
+		dapps_domain: dapps_domain.to_owned(),
+	})
 }
 
 /// Random filename
@@ -260,4 +278,19 @@ fn random_filename() -> String {
 	use ::rand::Rng;
 	let mut rng = ::rand::OsRng::new().unwrap();
 	rng.gen_ascii_chars().take(12).collect()
+}
+
+type Embeddable = Option<ParentFrameSettings>;
+
+/// Parent frame host and port allowed to embed the content.
+#[derive(Debug, Clone)]
+pub struct ParentFrameSettings {
+	/// Hostname
+	pub host: String,
+	/// Port
+	pub port: u16,
+	/// Additional pages the pages can be embedded on.
+	pub extra_embed_on: Vec<(String, u16)>,
+	/// Dapps Domain (web3.site)
+	pub dapps_domain: String,
 }

@@ -43,7 +43,7 @@ use account_provider::AccountProvider;
 use block::ExecutedBlock;
 use builtin::Builtin;
 use client::Client;
-use env_info::{EnvInfo, LastHashes};
+use evm::env_info::{EnvInfo, LastHashes};
 use error::Error;
 use evm::Schedule;
 use header::{Header, BlockNumber};
@@ -193,7 +193,7 @@ pub trait Engine : Sync + Send {
 
 	/// Get the EVM schedule for the given `block_number`.
 	fn schedule(&self, block_number: BlockNumber) -> Schedule {
-		Schedule::from_params(block_number, self.params())
+		self.params().schedule(block_number)
 	}
 
 	/// Builtin-contracts we would like to see in the chain.
@@ -394,12 +394,12 @@ pub trait Engine : Sync + Send {
 /// Common engine utilities
 pub mod common {
 	use block::ExecutedBlock;
-	use env_info::{EnvInfo, LastHashes};
+	use evm::env_info::{EnvInfo, LastHashes};
 	use error::Error;
 	use transaction::SYSTEM_ADDRESS;
 	use executive::Executive;
-	use types::executed::CallType;
-	use action_params::{ActionParams, ActionValue};
+	use evm::CallType;
+	use evm::action_params::{ActionParams, ActionValue};
 	use trace::{NoopTracer, NoopVMTracer};
 	use state::Substate;
 
