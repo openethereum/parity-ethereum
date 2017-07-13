@@ -246,7 +246,6 @@ pub struct MinerExtras {
 	pub extra_data: Vec<u8>,
 	pub gas_floor_target: U256,
 	pub gas_ceil_target: U256,
-	pub transactions_limit: usize,
 	pub engine_signer: Address,
 }
 
@@ -257,7 +256,6 @@ impl Default for MinerExtras {
 			extra_data: version_data(),
 			gas_floor_target: U256::from(4_700_000),
 			gas_ceil_target: U256::from(6_283_184),
-			transactions_limit: 1024,
 			engine_signer: Default::default(),
 		}
 	}
