@@ -571,7 +571,7 @@ pub struct TransactionQueue {
 	/// The maximum amount of gas any individual transaction may use.
 	tx_gas_limit: U256,
 	/// Current gas limit (block gas limit * factor). Transactions above the limit will not be accepted (default to !0)
-	block_gas_limit: U256,
+	total_gas_limit: U256,
 	/// Maximal time transaction may occupy the queue.
 	/// When we reach `max_time_in_queue / 2^3` we re-validate
 	/// account balance.
@@ -631,7 +631,7 @@ impl TransactionQueue {
 		TransactionQueue {
 			strategy,
 			minimal_gas_price: U256::zero(),
-			block_gas_limit: !U256::zero(),
+			total_gas_limit: !U256::zero(),
 			tx_gas_limit,
 			max_time_in_queue: DEFAULT_QUEUING_PERIOD,
 			current,
@@ -679,11 +679,11 @@ impl TransactionQueue {
 	pub fn set_gas_limit(&mut self, gas_limit: U256) {
 		let extra = gas_limit / U256::from(GAS_LIMIT_HYSTERESIS);
 
-		let block_gas_limit = match gas_limit.overflowing_add(extra) {
+		let total_gas_limit = match gas_limit.overflowing_add(extra) {
 			(_, true) => !U256::zero(),
 			(val, false) => val,
 		};
-		self.block_gas_limit = block_gas_limit;
+		self.total_gas_limit = total_gas_limit;
 	}
 
 	/// Sets new total gas limit.
@@ -819,13 +819,13 @@ impl TransactionQueue {
 			}));
 		}
 
-		let gas_limit = cmp::min(self.tx_gas_limit, self.block_gas_limit);
+		let gas_limit = cmp::min(self.tx_gas_limit, self.total_gas_limit);
 		if tx.gas > gas_limit {
 			trace!(target: "txqueue",
 				"Dropping transaction above gas limit: {:?} ({} > min({}, {}))",
 				tx.hash(),
 				tx.gas,
-				self.block_gas_limit,
+				self.total_gas_limit,
 				self.tx_gas_limit
 			);
 			return Err(Error::Transaction(TransactionError::GasLimitExceeded {
@@ -1922,13 +1922,13 @@ pub mod test {
 		// given
 		let mut txq = TransactionQueue::default();
 		txq.set_gas_limit(U256::zero());
-		assert_eq!(txq.block_gas_limit, U256::zero());
+		assert_eq!(txq.total_gas_limit, U256::zero());
 
 		// when
 		txq.set_gas_limit(!U256::zero());
 
 		// then
-		assert_eq!(txq.block_gas_limit, !U256::zero());
+		assert_eq!(txq.total_gas_limit, !U256::zero());
 	}
 
 	#[test]
