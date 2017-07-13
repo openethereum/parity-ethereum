@@ -64,6 +64,7 @@ fn miner_service(spec: &Spec, accounts: Arc<AccountProvider>) -> Arc<Miner> {
 			tx_queue_strategy: PrioritizationStrategy::GasPriceOnly,
 			tx_queue_gas_limit: GasLimit::None,
 			tx_queue_banning: Banning::Disabled,
+			tx_queue_memory_limit: None,
 			pending_set: PendingSet::SealingOrElseQueue,
 			reseal_min_period: Duration::from_secs(0),
 			reseal_max_period: Duration::from_secs(120),
