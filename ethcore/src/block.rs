@@ -200,7 +200,7 @@ pub trait IsBlock {
 
 /// Trait for a object that has a state database.
 pub trait Drain {
-	/// Drop this object and return the underlieing database.
+	/// Drop this object and return the underlying database.
 	fn drain(self) -> StateDB;
 }
 
@@ -368,6 +368,22 @@ impl<'x> OpenBlock<'x> {
 			}
 			Err(x) => Err(From::from(x))
 		}
+	}
+
+	/// Push transactions onto the block.
+	pub fn push_transactions(&mut self, transactions: &[SignedTransaction]) -> Result<(), Error> {
+		push_transactions(self, transactions)
+	}
+
+	/// Populate self from a header.
+	pub fn populate_from(&mut self, header: &Header) {
+		self.set_difficulty(*header.difficulty());
+		self.set_gas_limit(*header.gas_limit());
+		self.set_timestamp(header.timestamp());
+		self.set_author(header.author().clone());
+		self.set_extra_data(header.extra_data().clone()).unwrap_or_else(|e| warn!("Couldn't set extradata: {}. Ignoring.", e));
+		self.set_uncles_hash(header.uncles_hash().clone());
+		self.set_transactions_root(header.transactions_root().clone());
 	}
 
 	/// Turn this into a `ClosedBlock`.
@@ -579,18 +595,13 @@ pub fn enact(
 		is_epoch_begin,
 	)?;
 
-	b.set_difficulty(*header.difficulty());
-	b.set_gas_limit(*header.gas_limit());
-	b.set_timestamp(header.timestamp());
-	b.set_author(header.author().clone());
-	b.set_extra_data(header.extra_data().clone()).unwrap_or_else(|e| warn!("Couldn't set extradata: {}. Ignoring.", e));
-	b.set_uncles_hash(header.uncles_hash().clone());
-	b.set_transactions_root(header.transactions_root().clone());
+	b.populate_from(header);
+	b.push_transactions(transactions)?;
 
-	push_transactions(&mut b, transactions)?;
 	for u in uncles {
 		b.push_uncle(u.clone())?;
 	}
+
 	Ok(b.close_and_lock())
 }
 
@@ -681,7 +692,36 @@ mod tests {
 		let header = block.header();
 		let transactions: Result<Vec<_>, Error> = block.transactions().into_iter().map(SignedTransaction::new).collect();
 		let transactions = transactions?;
-		enact(&header, &transactions, &block.uncles(), engine, tracing, db, parent, last_hashes, factories, false)
+
+		{
+			if ::log::max_log_level() >= ::log::LogLevel::Trace {
+				let s = State::from_existing(db.boxed_clone(), parent.state_root().clone(), engine.account_start_nonce(parent.number() + 1), factories.clone())?;
+				trace!(target: "enact", "num={}, root={}, author={}, author_balance={}\n",
+					header.number(), s.root(), header.author(), s.balance(&header.author())?);
+			}
+		}
+
+		let mut b = OpenBlock::new(
+			engine,
+			factories,
+			tracing,
+			db,
+			parent,
+			last_hashes,
+			Address::new(),
+			(3141562.into(), 31415620.into()),
+			vec![],
+			false,
+		)?;
+
+		b.populate_from(&header);
+		b.push_transactions(&transactions)?;
+
+		for u in &block.uncles() {
+			b.push_uncle(u.clone())?;
+		}
+
+		Ok(b.close_and_lock())
 	}
 
 	/// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header. Seal the block aferwards
