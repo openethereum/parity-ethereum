@@ -327,7 +327,10 @@ impl Message {
 		if envelope.expiry <= envelope.ttl { return Err(Error::LivesTooLong) }
 		if envelope.ttl == 0 { return Err(Error::ZeroTTL) }
 
-		let issue_time_adjusted = Duration::from_secs(envelope.expiry - envelope.ttl - LEEWAY_SECONDS);
+		let issue_time_adjusted = Duration::from_secs(
+			(envelope.expiry - envelope.ttl).saturating_sub(LEEWAY_SECONDS)
+		);
+
 		if time::UNIX_EPOCH + issue_time_adjusted > now {
 			return Err(Error::IssuedInFuture);
 		}

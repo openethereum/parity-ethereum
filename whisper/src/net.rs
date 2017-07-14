@@ -158,7 +158,7 @@ impl Messages {
 		self.known.reserve(additional);
 	}
 
-	// whether a message is known or within the bounds of PoW.
+	// whether a message is not known and within the bounds of PoW.
 	fn may_accept(&self, message: &Message) -> bool {
 		!self.known.contains(message.hash()) && {
 			self.sorted.last().map_or(true, |entry| {
