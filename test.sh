@@ -24,4 +24,11 @@ esac
 
 . ./scripts/targets.sh
 cargo test -j 8 $OPTIONS --features "$FEATURES" $TARGETS $1 \
+ls target/debug
+cp target/debug/parity-* target/debug/parity
+git clone https://github.com/paritytech/parity-import-tests
+cd /parity-import-tests/aura
+target/debug/parity import blocks.rlp --chain chain.json
+target/debug/parity restore snap --chain chain.json
+
 
