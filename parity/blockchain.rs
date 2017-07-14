@@ -319,7 +319,8 @@ fn start_client(
 	fat_db: Switch,
 	compaction: DatabaseCompactionProfile,
 	wal: bool,
-	cache_config: CacheConfig
+	cache_config: CacheConfig,
+	require_fat_db: bool,
 ) -> Result<ClientService, String> {
 
 	// load spec file
@@ -347,6 +348,9 @@ fn start_client(
 
 	// check if fatdb is on
 	let fat_db = fatdb_switch_to_bool(fat_db, &user_defaults, algorithm)?;
+	if !fat_db && require_fat_db {
+		return Err("This command requires Parity to be synced with --fat-db on.".to_owned());
+	}
 
 	// prepare client and snapshot paths.
 	let client_path = db_dirs.client_path(algorithm);
@@ -399,7 +403,8 @@ fn execute_export(cmd: ExportBlockchain) -> Result<(), String> {
 		cmd.fat_db,
 		cmd.compaction,
 		cmd.wal,
-		cmd.cache_config
+		cmd.cache_config,
+		false,
 	)?;
 	let panic_handler = PanicHandler::new_in_arc();
 	let format = cmd.format.unwrap_or_default();
@@ -442,7 +447,8 @@ fn execute_export_state(cmd: ExportState) -> Result<(), String> {
 		cmd.fat_db,
 		cmd.compaction,
 		cmd.wal,
-		cmd.cache_config
+		cmd.cache_config,
+		true
 	)?;
 
 	let panic_handler = PanicHandler::new_in_arc();
