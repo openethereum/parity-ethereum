@@ -621,8 +621,8 @@ impl Configuration {
 
 		if let Some(dec) = self.args.flag_gasprice.as_ref() {
 			return Ok(GasPricerConfig::Fixed(to_u256(dec)?));
-		} else if let Some(dec) = self.args.flag_min_gas_price.as_ref() {
-			return Ok(GasPricerConfig::Fixed(to_u256(dec)?));
+		} else if let Some(dec) = self.args.flag_min_gas_price {
+			return Ok(GasPricerConfig::Fixed(U256::from(dec)));
 		}
 
 		let usd_per_tx = to_price(&self.args.flag_usd_per_tx)?;
