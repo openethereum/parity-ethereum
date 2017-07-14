@@ -25,10 +25,13 @@ esac
 . ./scripts/targets.sh
 cargo test -j 8 $OPTIONS --features "$FEATURES" $TARGETS $1 \
 ls target/debug
-cp target/debug/parity-* target/debug/parity
 git clone https://github.com/paritytech/parity-import-tests
-cd /parity-import-tests/aura
-target/debug/parity import blocks.rlp --chain chain.json
-target/debug/parity restore snap --chain chain.json
+cp target/debug/parity-* parity-import-tests/aura.parity
+cd parity-import-tests/aura
+echo "start Aura test"
+parity import blocks.rlp --chain chain.json
+parity restore snap --chain chain.json
+ehco "Aura test complete"
+
 
 
