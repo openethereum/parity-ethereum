@@ -32,7 +32,6 @@ pub use parity_rpc::{IpcServer, HttpServer, RequestMiddleware};
 pub use parity_rpc::ws::Server as WsServer;
 pub use parity_rpc::informant::CpuPool;
 
-
 pub const DAPPS_DOMAIN: &'static str = "web3.site";
 
 #[derive(Debug, Clone, PartialEq)]
@@ -167,7 +166,6 @@ impl Default for WsConfiguration {
 		}
 	}
 }
-
 
 impl WsConfiguration {
 	pub fn address(&self) -> Option<(String, u16)> {

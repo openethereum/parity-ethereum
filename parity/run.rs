@@ -115,6 +115,7 @@ pub struct RunCmd {
 	pub serve_light: bool,
 	pub light: bool,
 	pub no_persistent_txqueue: bool,
+	pub whisper: ::whisper::Config
 }
 
 pub fn open_ui(ws_conf: &rpc::WsConfiguration, ui_conf: &rpc::UiConfiguration) -> Result<(), String> {
@@ -230,6 +231,17 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 	// start on_demand service.
 	let on_demand = Arc::new(::light::on_demand::OnDemand::new(cache.clone()));
 
+	let mut attached_protos = Vec::new();
+	let whisper_factory = if cmd.whisper.enabled {
+		let (whisper_net, whisper_factory) = ::whisper::setup(cmd.whisper.target_message_pool_size)
+			.map_err(|e| format!("Failed to initialize whisper: {}", e))?;
+
+		attached_protos.push(whisper_net);
+		whisper_factory
+	} else {
+		None
+	};
+
 	// set network path.
 	net_conf.net_config_path = Some(db_dirs.network_path().to_string_lossy().into_owned());
 	let sync_params = LightSyncParams {
@@ -238,6 +250,7 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 		network_id: cmd.network_id.unwrap_or(spec.network_id()),
 		subprotocol_name: ethsync::LIGHT_PROTOCOL,
 		handlers: vec![on_demand.clone()],
+		attached_protos: attached_protos,
 	};
 	let light_sync = LightSync::new(sync_params).map_err(|e| format!("Error starting network: {}", e))?;
 	let light_sync = Arc::new(light_sync);
@@ -318,6 +331,7 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 		fetch: fetch,
 		geth_compatibility: cmd.geth_compatibility,
 		remote: event_loop.remote(),
+		whisper_rpc: whisper_factory,
 	});
 
 	let dependencies = rpc::Dependencies {
@@ -589,6 +603,18 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 			.map_err(|e| format!("Stratum start error: {:?}", e))?;
 	}
 
+	let mut attached_protos = Vec::new();
+
+	let whisper_factory = if cmd.whisper.enabled {
+		let (whisper_net, whisper_factory) = ::whisper::setup(cmd.whisper.target_message_pool_size)
+			.map_err(|e| format!("Failed to initialize whisper: {}", e))?;
+
+		attached_protos.push(whisper_net);
+		whisper_factory
+	} else {
+		None
+	};
+
 	// create sync object
 	let (sync_provider, manage_network, chain_notify) = modules::sync(
 		&mut hypervisor,
@@ -598,6 +624,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 		snapshot_service.clone(),
 		client.clone(),
 		&cmd.logger_config,
+		attached_protos,
 	).map_err(|e| format!("Sync error: {}", e))?;
 
 	service.add_notify(chain_notify.clone());
@@ -681,6 +708,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 		ws_address: cmd.ws_conf.address(),
 		fetch: fetch.clone(),
 		remote: event_loop.remote(),
+		whisper_rpc: whisper_factory,
 	});
 
 	let dependencies = rpc::Dependencies {

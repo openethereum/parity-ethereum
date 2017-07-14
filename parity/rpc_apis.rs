@@ -67,6 +67,12 @@ pub enum Api {
 	Rpc,
 	/// SecretStore (Safe)
 	SecretStore,
+	/// Whisper (Safe)
+	// TODO: _if_ someone guesses someone else's key or filter IDs they can remove
+	// BUT these are all ephemeral so it seems fine.
+	Whisper,
+	/// Whisper Pub-Sub (Safe but same concerns as above).
+	WhisperPubSub,
 }
 
 impl FromStr for Api {
@@ -89,6 +95,8 @@ impl FromStr for Api {
 			"traces" => Ok(Traces),
 			"rpc" => Ok(Rpc),
 			"secretstore" => Ok(SecretStore),
+			"shh" => Ok(Whisper),
+			"shh_pubsub" => Ok(WhisperPubSub),
 			api => Err(format!("Unknown api: {}", api))
 		}
 	}
@@ -172,6 +180,8 @@ fn to_modules(apis: &HashSet<Api>) -> BTreeMap<String, String> {
 			Api::Traces => ("traces", "1.0"),
 			Api::Rpc => ("rpc", "1.0"),
 			Api::SecretStore => ("secretstore", "1.0"),
+			Api::Whisper => ("shh", "1.0"),
+			Api::WhisperPubSub => ("shh_pubsub", "1.0"),
 		};
 		modules.insert(name.into(), version.into());
 	}
@@ -213,6 +223,7 @@ pub struct FullDependencies {
 	pub ws_address: Option<(String, u16)>,
 	pub fetch: FetchClient,
 	pub remote: parity_reactor::Remote,
+	pub whisper_rpc: Option<::whisper::RpcFactory>,
 }
 
 impl FullDependencies {
@@ -335,6 +346,18 @@ impl FullDependencies {
 				Api::SecretStore => {
 					handler.extend_with(SecretStoreClient::new(&self.secret_store).to_delegate());
 				},
+				Api::Whisper => {
+					if let Some(ref whisper_rpc) = self.whisper_rpc {
+						let whisper = whisper_rpc.make_handler();
+						handler.extend_with(::parity_whisper::rpc::Whisper::to_delegate(whisper));
+					}
+				}
+				Api::WhisperPubSub => {
+					if let Some(ref whisper_rpc) = self.whisper_rpc {
+						let whisper = whisper_rpc.make_handler();
+						handler.extend_with(::parity_whisper::rpc::WhisperPubSub::to_delegate(whisper));
+					}
+				}
 			}
 		}
 	}
@@ -383,6 +406,7 @@ pub struct LightDependencies {
 	pub fetch: FetchClient,
 	pub geth_compatibility: bool,
 	pub remote: parity_reactor::Remote,
+	pub whisper_rpc: Option<::whisper::RpcFactory>,
 }
 
 impl LightDependencies {
@@ -516,6 +540,18 @@ impl LightDependencies {
 					let secret_store = Some(self.secret_store.clone());
 					handler.extend_with(SecretStoreClient::new(&secret_store).to_delegate());
 				},
+				Api::Whisper => {
+					if let Some(ref whisper_rpc) = self.whisper_rpc {
+						let whisper = whisper_rpc.make_handler();
+						handler.extend_with(::parity_whisper::rpc::Whisper::to_delegate(whisper));
+					}
+				}
+				Api::WhisperPubSub => {
+					if let Some(ref whisper_rpc) = self.whisper_rpc {
+						let whisper = whisper_rpc.make_handler();
+						handler.extend_with(::parity_whisper::rpc::WhisperPubSub::to_delegate(whisper));
+					}
+				}
 			}
 		}
 	}
@@ -543,8 +579,17 @@ impl ApiSet {
 
 	pub fn list_apis(&self) -> HashSet<Api> {
 		let mut public_list = [
-			Api::Web3, Api::Net, Api::Eth, Api::EthPubSub, Api::Parity, Api::Rpc, Api::SecretStore,
+			Api::Web3,
+			Api::Net,
+			Api::Eth,
+			Api::EthPubSub,
+			Api::Parity,
+			Api::Rpc,
+			Api::SecretStore,
+			Api::Whisper,
+			Api::WhisperPubSub,
 		].into_iter().cloned().collect();
+
 		match *self {
 			ApiSet::List(ref apis) => apis.clone(),
 			ApiSet::PublicContext => public_list,
@@ -605,6 +650,8 @@ mod test {
 		assert_eq!(Api::Traces, "traces".parse().unwrap());
 		assert_eq!(Api::Rpc, "rpc".parse().unwrap());
 		assert_eq!(Api::SecretStore, "secretstore".parse().unwrap());
+		assert_eq!(Api::Whisper, "shh".parse().unwrap());
+		assert_eq!(Api::WhisperPubSub, "shh_pubsub".parse().unwrap());
 		assert!("rp".parse::<Api>().is_err());
 	}
 
@@ -622,7 +669,7 @@ mod test {
 	fn test_api_set_unsafe_context() {
 		let expected = vec![
 			// make sure this list contains only SAFE methods
-			Api::Web3, Api::Net, Api::Eth, Api::EthPubSub, Api::Parity, Api::ParityPubSub, Api::Traces, Api::Rpc, Api::SecretStore
+			Api::Web3, Api::Net, Api::Eth, Api::EthPubSub, Api::Parity, Api::ParityPubSub, Api::Traces, Api::Rpc, Api::SecretStore, Api::Whisper, Api::WhisperPubSub,
 		].into_iter().collect();
 		assert_eq!(ApiSet::UnsafeContext.list_apis(), expected);
 	}
@@ -631,7 +678,7 @@ mod test {
 	fn test_api_set_ipc_context() {
 		let expected = vec![
 			// safe
-			Api::Web3, Api::Net, Api::Eth, Api::EthPubSub, Api::Parity, Api::ParityPubSub, Api::Traces, Api::Rpc, Api::SecretStore,
+			Api::Web3, Api::Net, Api::Eth, Api::EthPubSub, Api::Parity, Api::ParityPubSub, Api::Traces, Api::Rpc, Api::SecretStore, Api::Whisper, Api::WhisperPubSub,
 			// semi-safe
 			Api::ParityAccounts
 		].into_iter().collect();
@@ -642,7 +689,7 @@ mod test {
 	fn test_api_set_safe_context() {
 		let expected = vec![
 			// safe
-			Api::Web3, Api::Net, Api::Eth, Api::EthPubSub, Api::Parity, Api::ParityPubSub, Api::Traces, Api::Rpc, Api::SecretStore,
+			Api::Web3, Api::Net, Api::Eth, Api::EthPubSub, Api::Parity, Api::ParityPubSub, Api::Traces, Api::Rpc, Api::SecretStore, Api::Whisper, Api::WhisperPubSub,
 			// semi-safe
 			Api::ParityAccounts,
 			// Unsafe
@@ -654,7 +701,7 @@ mod test {
 	#[test]
 	fn test_all_apis() {
 		assert_eq!("all".parse::<ApiSet>().unwrap(), ApiSet::List(vec![
-			Api::Web3, Api::Net, Api::Eth, Api::EthPubSub, Api::Parity, Api::ParityPubSub, Api::Traces, Api::Rpc, Api::SecretStore,
+			Api::Web3, Api::Net, Api::Eth, Api::EthPubSub, Api::Parity, Api::ParityPubSub, Api::Traces, Api::Rpc, Api::SecretStore, Api::Whisper, Api::WhisperPubSub,
 			Api::ParityAccounts,
 			Api::ParitySet, Api::Signer,
 			Api::Personal
@@ -664,7 +711,7 @@ mod test {
 	#[test]
 	fn test_all_without_personal_apis() {
 		assert_eq!("personal,all,-personal".parse::<ApiSet>().unwrap(), ApiSet::List(vec![
-			Api::Web3, Api::Net, Api::Eth, Api::EthPubSub, Api::Parity, Api::ParityPubSub, Api::Traces, Api::Rpc, Api::SecretStore,
+			Api::Web3, Api::Net, Api::Eth, Api::EthPubSub, Api::Parity, Api::ParityPubSub, Api::Traces, Api::Rpc, Api::SecretStore, Api::Whisper, Api::WhisperPubSub,
 			Api::ParityAccounts,
 			Api::ParitySet, Api::Signer,
 		].into_iter().collect()));
@@ -673,7 +720,7 @@ mod test {
 	#[test]
 	fn test_safe_parsing() {
 		assert_eq!("safe".parse::<ApiSet>().unwrap(), ApiSet::List(vec![
-			Api::Web3, Api::Net, Api::Eth, Api::EthPubSub, Api::Parity, Api::ParityPubSub, Api::Traces, Api::Rpc, Api::SecretStore,
+			Api::Web3, Api::Net, Api::Eth, Api::EthPubSub, Api::Parity, Api::ParityPubSub, Api::Traces, Api::Rpc, Api::SecretStore, Api::Whisper, Api::WhisperPubSub,
 		].into_iter().collect()));
 	}
 }

@@ -15,14 +15,15 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 extern crate rand;
-#[macro_use]
-extern crate lazy_static;
 extern crate tiny_keccak;
 extern crate secp256k1;
 extern crate rustc_hex;
 extern crate ethcore_bigint as bigint;
 extern crate crypto as rcrypto;
 extern crate byteorder;
+
+#[macro_use]
+extern crate lazy_static;
 
 mod brain;
 mod error;
@@ -34,21 +35,12 @@ mod signature;
 mod secret;
 mod extended;
 
-lazy_static! {
-	pub static ref SECP256K1: secp256k1::Secp256k1 = secp256k1::Secp256k1::new();
-}
-
-/// Generates new keypair.
-pub trait Generator {
-	/// Should be called to generate new keypair.
-	fn generate(self) -> Result<KeyPair, Error>;
-}
-
 pub mod math;
 
 pub use self::brain::Brain;
 pub use self::error::Error;
 pub use self::keypair::{KeyPair, public_to_address};
+pub use self::math::public_is_valid;
 pub use self::prefix::Prefix;
 pub use self::random::Random;
 pub use self::signature::{sign, verify_public, verify_address, recover, Signature};
@@ -56,6 +48,22 @@ pub use self::secret::Secret;
 pub use self::extended::{ExtendedPublic, ExtendedSecret, ExtendedKeyPair, DerivationError, Derivation};
 
 use bigint::hash::{H160, H256, H512};
+
+lazy_static! {
+	pub static ref SECP256K1: secp256k1::Secp256k1 = secp256k1::Secp256k1::new();
+}
+
+/// Uninstantiatable error type for infallible generators.
+#[derive(Debug)]
+pub enum Void {}
+
+/// Generates new keypair.
+pub trait Generator {
+	type Error;
+
+	/// Should be called to generate new keypair.
+	fn generate(self) -> Result<KeyPair, Self::Error>;
+}
 
 pub type Address = H160;
 pub type Message = H256;
