@@ -17,6 +17,7 @@
 pub fn preset_config_string(arg: &str) -> Result<&'static str, &str> {
     match arg.to_lowercase().as_ref() {
         "dev" => Ok(include_str!("./config.dev.toml")),
+        "mining" => Ok(include_str!("./config.mining.toml")),
         _ => Err(arg.clone())
     }
 }

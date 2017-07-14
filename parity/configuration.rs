@@ -1595,6 +1595,28 @@ mod tests {
 	}
 
 	#[test]
+	fn test_mining_preset() {
+		let args = vec!["parity", "preset", "mining"];
+		let conf = Configuration::parse(&args, None).unwrap();
+		match conf.into_command().unwrap().cmd {
+			Cmd::Run(c) => {
+				assert_eq!(c.net_conf.min_peers, 50);
+				assert_eq!(c.net_conf.max_peers, 100);
+				assert_eq!(c.ipc_conf.enabled, false);
+				assert_eq!(c.dapps_conf.enabled, false);
+				assert_eq!(c.miner_options.force_sealing, true);
+				assert_eq!(c.miner_options.reseal_on_external_tx, true);
+				assert_eq!(c.miner_options.reseal_on_own_tx, true);
+				assert_eq!(c.miner_options.reseal_min_period, Duration::from_millis(4000));
+				assert_eq!(c.miner_options.tx_queue_size, 2048);
+				assert_eq!(c.cache_config, CacheConfig::new_with_total_cache_size(256));
+				assert_eq!(c.logger_config.mode.unwrap(), "miner=trace,own_tx=trace");
+			},
+			_ => panic!("Should be Cmd::Run"),
+		}
+	}
+
+	#[test]
 	fn should_apply_ports_shift() {
 		// given
 

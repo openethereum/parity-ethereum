@@ -1,7 +1,0 @@
-[parity]
-mode = "dark"
-chain = "kovan"
-
-[mining]
-force_sealing = true
-reseal_min_period = 2000
