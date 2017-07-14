@@ -1,0 +1,10 @@
+# This config should be placed in following path:
+#   $HOME/Library/Application Support/io.parity.ethereum/config.toml
+
+[network]
+# Parity will listen for connections on port 30305.
+port = 30305
+
+[rpc]
+# JSON-RPC over HTTP will be accessible on port 8645.
+port = 8645

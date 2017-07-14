@@ -1617,6 +1617,31 @@ mod tests {
 	}
 
 	#[test]
+	fn test_non_standard_ports_preset() {
+		let args = vec!["parity", "preset", "non-standard-ports"];
+		let conf = Configuration::parse(&args, None).unwrap();
+		match conf.into_command().unwrap().cmd {
+			Cmd::Run(c) => {
+				assert_eq!(c.net_settings.network_port, 30305);
+				assert_eq!(c.net_settings.rpc_port, 8645);
+			},
+			_ => panic!("Should be Cmd::Run"),
+		}
+	}
+
+	#[test]
+	fn test_override_preset() {
+		let args = vec!["parity", "preset", "mining", "--min-peers=99"];
+		let conf = Configuration::parse(&args, None).unwrap();
+		match conf.into_command().unwrap().cmd {
+			Cmd::Run(c) => {
+				assert_eq!(c.net_conf.min_peers, 99);
+			},
+			_ => panic!("Should be Cmd::Run"),
+		}
+	}
+
+	#[test]
 	fn should_apply_ports_shift() {
 		// given
 
