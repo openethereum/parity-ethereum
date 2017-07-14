@@ -299,22 +299,22 @@ impl<Executor, Transport> JobSession<Executor, Transport> where Executor: JobExe
 			return Err(Error::ConsensusUnreachable);
 		}
 
-		let active_data = self.data.active_data.as_mut()
-			.expect("we have checked that we are on master node; on master nodes active_data is filled during initialization; qed");
-		if active_data.rejects.contains(node) {
-			return Ok(());
-		}
-		if active_data.requests.remove(node) || active_data.responses.remove(node).is_some() {
-			active_data.rejects.insert(node.clone());
-			if self.data.state == JobSessionState::Finished && active_data.responses.len() < self.meta.threshold + 1 {
-				self.data.state = JobSessionState::Active;
-			}
-			if active_data.requests.len() + active_data.responses.len() >= self.meta.threshold + 1 {
+		if let Some(active_data) = self.data.active_data.as_mut() {
+			if active_data.rejects.contains(node) {
 				return Ok(());
 			}
+			if active_data.requests.remove(node) || active_data.responses.remove(node).is_some() {
+				active_data.rejects.insert(node.clone());
+				if self.data.state == JobSessionState::Finished && active_data.responses.len() < self.meta.threshold + 1 {
+					self.data.state = JobSessionState::Active;
+				}
+				if active_data.requests.len() + active_data.responses.len() >= self.meta.threshold + 1 {
+					return Ok(());
+				}
 
-			self.data.state = JobSessionState::Failed;
-			return Err(Error::ConsensusUnreachable);
+				self.data.state = JobSessionState::Failed;
+				return Err(Error::ConsensusUnreachable);
+			}
 		}
 
 		Ok(())
