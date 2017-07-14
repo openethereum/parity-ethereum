@@ -24,6 +24,7 @@ esac
 
 . ./scripts/targets.sh
 cargo test -j 8 $OPTIONS --features "$FEATURES" $TARGETS $1 \
+cd ..
 ls target/debug
 git clone https://github.com/paritytech/parity-import-tests
 cp target/debug/parity-* parity-import-tests/aura.parity
