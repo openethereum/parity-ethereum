@@ -132,7 +132,7 @@ impl Endpoints {
 		}
 		// new dapps to be added
 		for (k, v) in new_local {
-			if self.endpoints.write().contains_key(&k) != true {
+			if self.endpoints.read().contains_key(&k) != true {
 				local.push(k.clone());
 				self.endpoints.write().insert(k, v);
 			}
