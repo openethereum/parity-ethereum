@@ -36,6 +36,12 @@ impl From<&'static str> for Error {
 	}
 }
 
+impl Into<::evm::Error> for Error {
+	fn into(self) -> ::evm::Error {
+		::evm::Error::BuiltIn(self.0)
+	}
+}
+
 /// Native implementation of a built-in contract.
 pub trait Impl: Send + Sync {
 	/// execute this built-in on the given input, writing to the given output.

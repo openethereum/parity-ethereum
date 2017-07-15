@@ -410,7 +410,7 @@ mod tests {
 	use trace::{Filter, LocalizedTrace, AddressesFilter, TraceError};
 	use trace::trace::{Call, Action, Res};
 	use trace::flat::{FlatTrace, FlatBlockTraces, FlatTransactionTraces};
-	use types::executed::CallType;
+	use evm::CallType;
 
 	struct NoopExtras;
 

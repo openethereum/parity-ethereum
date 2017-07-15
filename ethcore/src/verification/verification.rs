@@ -585,7 +585,7 @@ mod tests {
 	#[test]
 	fn dust_protection() {
 		use ethkey::{Generator, Random};
-		use types::transaction::{Transaction, Action};
+		use transaction::{Transaction, Action};
 		use engines::NullEngine;
 
 		let mut params = CommonParams::default();

@@ -134,7 +134,7 @@ mod tests {
 	use views::BlockView;
 	use block::Block;
 	use super::AbridgedBlock;
-	use types::transaction::{Action, Transaction};
+	use transaction::{Action, Transaction};
 
 	use util::{Address, H256, U256, Bytes};
 

@@ -25,6 +25,7 @@ extern crate serde;
 extern crate serde_derive;
 extern crate docopt;
 extern crate ethcore_util as util;
+extern crate evm;
 
 use std::sync::Arc;
 use std::{fmt, fs};
@@ -32,7 +33,7 @@ use docopt::Docopt;
 use rustc_hex::FromHex;
 use util::{U256, Bytes, Address};
 use ethcore::spec;
-use ethcore::action_params::ActionParams;
+use evm::action_params::ActionParams;
 
 mod vm;
 mod display;

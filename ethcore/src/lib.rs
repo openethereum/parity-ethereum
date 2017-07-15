@@ -76,6 +76,7 @@ extern crate bloomchain;
 extern crate bn;
 extern crate byteorder;
 extern crate crossbeam;
+extern crate common_types as types;
 extern crate crypto;
 extern crate env_logger;
 extern crate ethabi;
@@ -105,8 +106,6 @@ extern crate semver;
 extern crate stats;
 extern crate time;
 extern crate transient_hashmap;
-extern crate parity_wasm;
-extern crate wasm_utils;
 
 #[macro_use]
 extern crate log;
@@ -116,6 +115,8 @@ extern crate ethcore_util as util;
 extern crate lazy_static;
 #[macro_use]
 extern crate ethcore_ipc as ipc;
+#[cfg_attr(test, macro_use)]
+extern crate evm;
 
 #[cfg(feature = "jit" )]
 extern crate evmjit;
@@ -123,26 +124,26 @@ extern crate evmjit;
 pub extern crate ethstore;
 
 pub mod account_provider;
-pub mod engines;
 pub mod block;
 pub mod client;
+pub mod db;
+pub mod encoded;
+pub mod engines;
 pub mod error;
 pub mod ethereum;
+pub mod executed;
 pub mod header;
-pub mod service;
-pub mod trace;
-pub mod spec;
-pub mod views;
-pub mod pod_state;
 pub mod migrations;
 pub mod miner;
+pub mod pod_state;
+pub mod service;
 pub mod snapshot;
-pub mod action_params;
-pub mod db;
-pub mod verification;
+pub mod spec;
 pub mod state;
-pub mod env_info;
-#[macro_use] pub mod evm;
+pub mod trace;
+pub mod transaction;
+pub mod verification;
+pub mod views;
 
 mod cache_manager;
 mod blooms;
@@ -154,7 +155,6 @@ mod builtin;
 mod executive;
 mod externalities;
 mod blockchain;
-mod types;
 mod factory;
 
 #[cfg(test)]

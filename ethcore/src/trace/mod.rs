@@ -22,21 +22,24 @@ mod db;
 mod executive_tracer;
 mod import;
 mod noop_tracer;
+mod types;
 
-pub use types::trace_types::{filter, flat, localized, trace};
-pub use types::trace_types::error::Error as TraceError;
 pub use self::config::Config;
 pub use self::db::TraceDB;
-pub use types::trace_types::trace::{VMTrace, VMOperation, VMExecutedOperation, MemoryDiff, StorageDiff};
-pub use types::trace_types::flat::{FlatTrace, FlatTransactionTraces, FlatBlockTraces};
 pub use self::noop_tracer::{NoopTracer, NoopVMTracer};
 pub use self::executive_tracer::{ExecutiveTracer, ExecutiveVMTracer};
-pub use types::trace_types::filter::{Filter, AddressesFilter};
 pub use self::import::ImportRequest;
 pub use self::localized::LocalizedTrace;
+
+pub use self::types::{filter, flat, localized, trace};
+pub use self::types::error::Error as TraceError;
+pub use self::types::trace::{VMTrace, VMOperation, VMExecutedOperation, MemoryDiff, StorageDiff};
+pub use self::types::flat::{FlatTrace, FlatTransactionTraces, FlatBlockTraces};
+pub use self::types::filter::{Filter, AddressesFilter};
+
 use util::{Bytes, Address, U256, H256, DBTransaction};
 use self::trace::{Call, Create};
-use action_params::ActionParams;
+use evm::action_params::ActionParams;
 use header::BlockNumber;
 
 /// This trait is used by executive to build traces.

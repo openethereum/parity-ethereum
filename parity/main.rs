@@ -63,6 +63,7 @@ extern crate parity_local_store as local_store;
 extern crate parity_reactor;
 extern crate parity_rpc;
 extern crate parity_updater as updater;
+extern crate parity_whisper;
 extern crate path;
 extern crate rpc_cli;
 
@@ -110,6 +111,7 @@ mod snapshot;
 mod upgrade;
 mod url;
 mod user_defaults;
+mod whisper;
 
 #[cfg(feature="ipc")]
 mod boot;

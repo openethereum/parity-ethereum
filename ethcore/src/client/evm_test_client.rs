@@ -23,7 +23,7 @@ use util::kvdb::{self, KeyValueDB};
 use {state, state_db, client, executive, trace, db, spec};
 use factory::Factories;
 use evm::{self, VMType};
-use action_params::ActionParams;
+use evm::action_params::ActionParams;
 
 /// EVM test Error.
 #[derive(Debug)]

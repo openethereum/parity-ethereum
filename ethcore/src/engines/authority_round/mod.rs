@@ -220,9 +220,9 @@ pub struct AuthorityRound {
 	builtins: BTreeMap<Address, Builtin>,
 	transition_service: IoService<()>,
 	step: Arc<Step>,
-	proposed: AtomicBool,
+	can_propose: AtomicBool,
 	client: RwLock<Option<Weak<EngineClient>>>,
-	signer: EngineSigner,
+	signer: RwLock<EngineSigner>,
 	validators: Box<ValidatorSet>,
 	validate_score_transition: u64,
 	eip155_transition: u64,
@@ -311,7 +311,7 @@ fn verify_external<F: Fn(Report)>(header: &Header, validators: &ValidatorSet, st
 
 	// Give one step slack if step is lagging, double vote is still not possible.
 	if step.is_future(header_step) {
-		trace!(target: "engine", "verify_block_unordered: block from the future");
+		trace!(target: "engine", "verify_block_external: block from the future");
 		report(Report::Benign(*header.author(), header.number()));
 		Err(BlockError::InvalidSeal)?
 	} else {
@@ -321,7 +321,7 @@ fn verify_external<F: Fn(Report)>(header: &Header, validators: &ValidatorSet, st
 			!verify_address(&correct_proposer, &proposer_signature, &header.bare_hash())?;
 
 		if is_invalid_proposer {
-			trace!(target: "engine", "verify_block_unordered: bad proposer for step: {}", header_step);
+			trace!(target: "engine", "verify_block_external: bad proposer for step: {}", header_step);
 			Err(EngineError::NotProposer(Mismatch { expected: correct_proposer, found: header.author().clone() }))?
 		} else {
 			Ok(())
@@ -372,7 +372,7 @@ impl AuthorityRound {
 					calibrate: our_params.start_step.is_none(),
 					duration: our_params.step_duration,
 				}),
-				proposed: AtomicBool::new(false),
+				can_propose: AtomicBool::new(true),
 				client: RwLock::new(None),
 				signer: Default::default(),
 				validators: our_params.validators,
@@ -439,7 +439,7 @@ impl Engine for AuthorityRound {
 
 	fn step(&self) {
 		self.step.increment();
-		self.proposed.store(false, AtomicOrdering::SeqCst);
+		self.can_propose.store(true, AtomicOrdering::SeqCst);
 		if let Some(ref weak) = *self.client.read() {
 			if let Some(c) = weak.upgrade() {
 				c.update_sealing();
@@ -471,7 +471,7 @@ impl Engine for AuthorityRound {
 	}
 
 	fn seals_internally(&self) -> Option<bool> {
-		Some(self.signer.address() != Address::default())
+		Some(self.signer.read().is_some())
 	}
 
 	/// Attempt to seal the block internally.
@@ -481,7 +481,7 @@ impl Engine for AuthorityRound {
 	fn generate_seal(&self, block: &ExecutedBlock) -> Seal {
 		// first check to avoid generating signature most of the time
 		// (but there's still a race to the `compare_and_swap`)
-		if self.proposed.load(AtomicOrdering::SeqCst) { return Seal::None; }
+		if !self.can_propose.load(AtomicOrdering::SeqCst) { return Seal::None; }
 
 		let header = block.header();
 		let step = self.step.load();
@@ -512,11 +512,11 @@ impl Engine for AuthorityRound {
 		};
 
 		if is_step_proposer(validators, header.parent_hash(), step, header.author()) {
-			if let Ok(signature) = self.signer.sign(header.bare_hash()) {
+			if let Ok(signature) = self.sign(header.bare_hash()) {
 				trace!(target: "engine", "generate_seal: Issuing a block for step {}.", step);
 
 				// only issue the seal if we were the first to reach the compare_and_swap.
-				if !self.proposed.compare_and_swap(false, true, AtomicOrdering::SeqCst) {
+				if self.can_propose.compare_and_swap(true, false, AtomicOrdering::SeqCst) {
 					return Seal::Regular(vec![encode(&step).into_vec(), encode(&(&H520::from(signature) as &[u8])).into_vec()]);
 				}
 			} else {
@@ -532,7 +532,7 @@ impl Engine for AuthorityRound {
 	fn on_new_block(
 		&self,
 		block: &mut ExecutedBlock,
-		last_hashes: Arc<::env_info::LastHashes>,
+		last_hashes: Arc<::evm::env_info::LastHashes>,
 		epoch_begin: bool,
 	) -> Result<(), Error> {
 		let parent_hash = block.fields().header.parent_hash().clone();
@@ -614,16 +614,18 @@ impl Engine for AuthorityRound {
 			Err(EngineError::DoubleVote(header.author().clone()))?;
 		}
 		// Report skipped primaries.
-		if step > parent_step + 1 {
-			// TODO: use epochmanager to get correct validator set for reporting?
-			// or just rely on the fact that in general these will be the same
-			// and some reports might go missing?
-			trace!(target: "engine", "Author {} built block with step gap. current step: {}, parent step: {}",
+		if let (true, Some(me)) = (step > parent_step + 1, self.signer.read().address()) {
+			debug!(target: "engine", "Author {} built block with step gap. current step: {}, parent step: {}",
 				header.author(), step, parent_step);
-
+			let mut reported = HashSet::new();
 			for s in parent_step + 1..step {
 				let skipped_primary = step_proposer(&*self.validators, &parent.hash(), s);
-				self.validators.report_benign(&skipped_primary, header.number(), header.number());
+				// Do not report this signer.
+				if skipped_primary != me {
+					self.validators.report_benign(&skipped_primary, header.number(), header.number());
+				}
+				// Stop reporting once validators start repeating.
+				if !reported.insert(skipped_primary) { break; }
 			}
 		}
 
@@ -723,6 +725,9 @@ impl Engine for AuthorityRound {
 		if epoch_manager.finality_checker.subchain_head() != Some(*chain_head.parent_hash()) {
 			// build new finality checker from ancestry of chain head,
 			// not including chain head itself yet.
+			trace!(target: "finality", "Building finality up to parent of {} ({})",
+				chain_head.hash(), chain_head.parent_hash());
+
 			let mut hash = chain_head.parent_hash().clone();
 			let epoch_transition_hash = epoch_manager.epoch_transition_hash;
 
@@ -734,6 +739,8 @@ impl Engine for AuthorityRound {
 					if header.number() == 0 { return None }
 
 					let res = (hash, header.author().clone());
+					trace!(target: "finality", "Ancestry iteration: yielding {:?}", res);
+
 					hash = header.parent_hash().clone();
 					Some(res)
 				})
@@ -766,6 +773,16 @@ impl Engine for AuthorityRound {
 						let finality_proof = ::rlp::encode_list(&finality_proof);
 						epoch_manager.note_new_epoch();
 
+						info!(target: "engine", "Applying validator set change signalled at block {}", signal_number);
+
+						// We turn off can_propose here because upon validator set change there can
+						// be two valid proposers for a single step: one from the old set and
+						// one from the new.
+						//
+						// This way, upon encountering an epoch change, the proposer from the
+						// new set will be forced to wait until the next step to avoid sealing a
+						// block that breaks the invariant that the parent's step < the block's step.
+						self.can_propose.store(false, AtomicOrdering::SeqCst);
 						return Some(combine_proofs(signal_number, &pending.proof, &*finality_proof));
 					}
 				}
@@ -816,11 +833,11 @@ impl Engine for AuthorityRound {
 	}
 
 	fn set_signer(&self, ap: Arc<AccountProvider>, address: Address, password: String) {
-		self.signer.set(ap, address, password);
+		self.signer.write().set(ap, address, password);
 	}
 
 	fn sign(&self, hash: H256) -> Result<Signature, Error> {
-		self.signer.sign(hash).map_err(Into::into)
+		self.signer.read().sign(hash).map_err(Into::into)
 	}
 
 	fn snapshot_components(&self) -> Option<Box<::snapshot::SnapshotComponents>> {
@@ -1017,6 +1034,12 @@ mod tests {
 		header.set_number(1);
 		header.set_gas_limit(U256::from_str("222222").unwrap());
 		header.set_seal(vec![encode(&3usize).into_vec()]);
+
+		// Do not report when signer not present.
+		assert!(aura.verify_block_family(&header, &parent_header, None).is_ok());
+		assert_eq!(last_benign.load(AtomicOrdering::SeqCst), 0);
+
+		aura.set_signer(Arc::new(AccountProvider::transient_provider()), Default::default(), Default::default());
 
 		assert!(aura.verify_block_family(&header, &parent_header, None).is_ok());
 		assert_eq!(last_benign.load(AtomicOrdering::SeqCst), 1);

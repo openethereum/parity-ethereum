@@ -98,6 +98,8 @@ pub struct MinerOptions {
 	pub tx_gas_limit: U256,
 	/// Maximum size of the transaction queue.
 	pub tx_queue_size: usize,
+	/// Maximum memory usage of transactions in the queue (current / future).
+	pub tx_queue_memory_limit: Option<usize>,
 	/// Strategy to use for prioritizing transactions in the queue.
 	pub tx_queue_strategy: PrioritizationStrategy,
 	/// Whether we should fallback to providing all the queue's transactions or just pending.
@@ -123,8 +125,9 @@ impl Default for MinerOptions {
 			reseal_on_own_tx: true,
 			reseal_on_uncle: false,
 			tx_gas_limit: !U256::zero(),
-			tx_queue_size: 1024,
-			tx_queue_gas_limit: GasLimit::Auto,
+			tx_queue_size: 8192,
+			tx_queue_memory_limit: Some(2 * 1024 * 1024),
+			tx_queue_gas_limit: GasLimit::None,
 			tx_queue_strategy: PrioritizationStrategy::GasPriceOnly,
 			pending_set: PendingSet::AlwaysQueue,
 			reseal_min_period: Duration::from_secs(2),
@@ -252,8 +255,15 @@ impl Miner {
 			GasLimit::Fixed(ref limit) => *limit,
 			_ => !U256::zero(),
 		};
+		let mem_limit = options.tx_queue_memory_limit.unwrap_or_else(usize::max_value);
 
-		let txq = TransactionQueue::with_limits(options.tx_queue_strategy, options.tx_queue_size, gas_limit, options.tx_gas_limit);
+		let txq = TransactionQueue::with_limits(
+			options.tx_queue_strategy,
+			options.tx_queue_size,
+			mem_limit,
+			gas_limit,
+			options.tx_gas_limit
+		);
 		let txq = match options.tx_queue_banning {
 			Banning::Disabled => BanningTransactionQueue::new(txq, Threshold::NeverBan, Duration::from_secs(180)),
 			Banning::Enabled { ban_duration, min_offends, .. } => BanningTransactionQueue::new(
@@ -804,9 +814,15 @@ impl MinerService for Miner {
 				// | Make sure to release the locks before calling that method.             |
 				// --------------------------------------------------------------------------
 				self.engine.set_signer(ap.clone(), address, password);
+				Ok(())
+			} else {
+				warn!(target: "miner", "No account provider");
+				Err(AccountError::NotFound)
 			}
+		} else {
+			warn!(target: "miner", "Cannot set engine signer on a PoW chain.");
+			Err(AccountError::InappropriateChain)
 		}
-		Ok(())
 	}
 
 	fn set_extra_data(&self, extra_data: Bytes) {
@@ -1085,6 +1101,10 @@ impl MinerService for Miner {
 		self.transaction_queue.read().last_nonce(address)
 	}
 
+	fn can_produce_work_package(&self) -> bool {
+		self.engine.seals_internally().is_none()
+	}
+
 	/// Update sealing if required.
 	/// Prepare the block and work if the Engine does not seal internally.
 	fn update_sealing(&self, chain: &MiningBlockChainClient) {
@@ -1113,7 +1133,7 @@ impl MinerService for Miner {
 		}
 	}
 
-	fn is_sealing(&self) -> bool {
+	fn is_currently_sealing(&self) -> bool {
 		self.sealing_work.lock().queue.is_in_use()
 	}
 
@@ -1270,9 +1290,9 @@ mod tests {
 	use ethkey::{Generator, Random};
 	use client::{BlockChainClient, TestBlockChainClient, EachBlockWith, TransactionImportResult};
 	use header::BlockNumber;
-	use types::transaction::{SignedTransaction, Transaction, PendingTransaction, Action};
+	use transaction::{SignedTransaction, Transaction, PendingTransaction, Action};
 	use spec::Spec;
-	use tests::helpers::{generate_dummy_client};
+	use tests::helpers::{generate_dummy_client, generate_dummy_client_with_spec_and_accounts};
 
 	#[test]
 	fn should_prepare_block_to_seal() {
@@ -1318,6 +1338,7 @@ mod tests {
 				reseal_max_period: Duration::from_secs(120),
 				tx_gas_limit: !U256::zero(),
 				tx_queue_size: 1024,
+				tx_queue_memory_limit: None,
 				tx_queue_gas_limit: GasLimit::None,
 				tx_queue_strategy: PrioritizationStrategy::GasFactorAndGasPrice,
 				pending_set: PendingSet::AlwaysSealing,
@@ -1439,5 +1460,23 @@ mod tests {
 		client.flush_queue();
 		assert!(miner.pending_block().is_none());
 		assert_eq!(client.chain_info().best_block_number, 4 as BlockNumber);
+	}
+
+	#[test]
+	fn should_fail_setting_engine_signer_on_pow() {
+		let spec = Spec::new_pow_test_spec;
+		let tap = Arc::new(AccountProvider::transient_provider());
+		let addr = tap.insert_account("1".sha3().into(), "").unwrap();
+		let client = generate_dummy_client_with_spec_and_accounts(spec, Some(tap.clone()));
+		assert!(match client.miner().set_engine_signer(addr, "".into()) { Err(AccountError::InappropriateChain) => true, _ => false })
+	}
+
+	#[test]
+	fn should_fail_setting_engine_signer_without_account_provider() {
+		let spec = Spec::new_instant;
+		let tap = Arc::new(AccountProvider::transient_provider());
+		let addr = tap.insert_account("1".sha3().into(), "").unwrap();
+		let client = generate_dummy_client_with_spec_and_accounts(spec, None);
+		assert!(match client.miner().set_engine_signer(addr, "".into()) { Err(AccountError::NotFound) => true, _ => false });
 	}
 }
