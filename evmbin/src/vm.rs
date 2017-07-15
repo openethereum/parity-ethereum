@@ -20,7 +20,7 @@ use std::time::{Instant, Duration};
 use util::U256;
 use ethcore::{trace, spec};
 use ethcore::client::{EvmTestClient, EvmTestError};
-use ethcore::action_params::ActionParams;
+use evm::action_params::ActionParams;
 
 /// VM execution informant
 pub trait Informant: trace::VMTracer {

@@ -3,7 +3,7 @@ description = "Ethcore library"
 homepage = "http://parity.io"
 license = "GPL-3.0"
 name = "ethcore"
-version = "1.7.0"
+version = "1.8.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 build = "build.rs"
 
@@ -16,6 +16,7 @@ bloomchain = "0.1"
 bn = { git = "https://github.com/paritytech/bn" }
 byteorder = "1.0"
 clippy = { version = "0.0.103", optional = true}
+common-types = { path = "types" }
 crossbeam = "0.2.9"
 env_logger = "0.4"
 ethabi = "2.0"
@@ -31,7 +32,7 @@ ethcore-util = { path = "../util" }
 ethjson = { path = "../json" }
 ethkey = { path = "../ethkey" }
 ethstore = { path = "../ethstore" }
-evmjit = { path = "../evmjit", optional = true }
+evm = { path = "evm" }
 futures = "0.1"
 hardware-wallet = { path = "../hw" }
 hyper = { git = "https://github.com/paritytech/hyper", default-features = false }
@@ -52,14 +53,12 @@ semver = "0.6"
 stats = { path = "../util/stats" }
 time = "0.1"
 transient-hashmap = "0.4"
-parity-wasm = "0.12"
-wasm-utils = { git = "https://github.com/paritytech/wasm-utils" }
 
 [dev-dependencies]
 native-contracts = { path = "native_contracts", features = ["test_contracts"] }
 
 [features]
-jit = ["evmjit"]
+jit = ["evm/jit"]
 evm-debug = ["slow-blocks"]
 evm-debug-tests = ["evm-debug"]
 slow-blocks = [] # Use SLOW_TX_DURATION="50" (compile time!) to track transactions over 50ms

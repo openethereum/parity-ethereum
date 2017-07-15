@@ -15,24 +15,27 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::BTreeMap;
-use util::{U256, Address, H256, H2048, Bytes, Itertools};
-use util::hashdb::DBValue;
-use blockchain::TreeRoute;
-use verification::queue::QueueInfo as BlockQueueInfo;
+
 use block::{OpenBlock, SealedBlock, ClosedBlock};
-use header::{BlockNumber};
-use transaction::{LocalizedTransaction, PendingTransaction, SignedTransaction};
-use transaction_import::TransactionImportResult;
-use log_entry::LocalizedLogEntry;
-use filter::Filter;
+use blockchain::TreeRoute;
+use encoded;
+use evm::env_info::LastHashes;
 use error::{ImportResult, CallError, Error as EthcoreError};
-use receipt::LocalizedReceipt;
-use trace::LocalizedTrace;
+use error::{TransactionImportResult, BlockImportError};
 use evm::{Factory as EvmFactory, Schedule};
 use executive::Executed;
-use env_info::LastHashes;
-use block_import_error::BlockImportError;
+use filter::Filter;
+use header::{BlockNumber};
 use ipc::IpcConfig;
+use log_entry::LocalizedLogEntry;
+use receipt::LocalizedReceipt;
+use trace::LocalizedTrace;
+use transaction::{LocalizedTransaction, PendingTransaction, SignedTransaction};
+use verification::queue::QueueInfo as BlockQueueInfo;
+
+use util::{U256, Address, H256, H2048, Bytes, Itertools};
+use util::hashdb::DBValue;
+
 use types::ids::*;
 use types::basic_account::BasicAccount;
 use types::trace_filter::Filter as TraceFilter;
@@ -41,7 +44,6 @@ use types::blockchain_info::BlockChainInfo;
 use types::block_status::BlockStatus;
 use types::mode::Mode;
 use types::pruning_info::PruningInfo;
-use encoded;
 
 #[ipc(client_ident="RemoteClient")]
 /// Blockchain database client. Owns and manages a blockchain and a block queue.
