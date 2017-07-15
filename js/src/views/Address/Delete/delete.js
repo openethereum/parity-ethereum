@@ -41,8 +41,13 @@ class Delete extends Component {
     newError: PropTypes.func
   };
 
+  state = {
+    isBusy: false
+  };
+
   render () {
     const { account, confirmMessage, visible } = this.props;
+    const { isBusy } = this.state;
 
     if (!visible) {
       return null;
@@ -50,6 +55,7 @@ class Delete extends Component {
 
     return (
       <ConfirmDialog
+        busy={ isBusy }
         className={ styles.delete }
         title={
           <FormattedMessage
@@ -99,13 +105,18 @@ class Delete extends Component {
     const { api, router } = this.context;
     const { account, route, newError } = this.props;
 
+    this.setState({ isBusy: true });
+    console.time('onDeleteConfirmed');
+
     api.parity
       .removeAddress(account.address)
       .then(() => {
+        console.timeEnd('onDeleteConfirmed');
         router.push(route);
         this.closeDeleteDialog();
       })
       .catch((error) => {
+        console.timeEnd('onDeleteConfirmed');
         console.error('onDeleteConfirmed', error);
         newError(new Error(`Deletion failed: ${error.message}`));
         this.closeDeleteDialog();
