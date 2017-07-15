@@ -68,6 +68,9 @@ pub fn add_security_headers(headers: &mut header::Headers, embeddable_on: Embedd
 		b"font-src 'self' data: https:;".to_vec(),
 		// Allow inline scripts and scripts eval (webpack/jsconsole)
 		b"script-src 'self' 'unsafe-inline' 'unsafe-eval';".to_vec(),
+		// Same restrictions as script-src (fallback) with additional
+		// blob: that is required for camera access (worker)
+		b"worker-src 'self' 'unsafe-inline' 'unsafe-eval' blob: ;".to_vec(),
 		// Restrict everything else to the same origin.
 		b"default-src 'self';".to_vec(),
 		// Run in sandbox mode (although it's not fully safe since we allow same-origin and script)
@@ -140,4 +143,3 @@ pub fn convert_uri_to_url(uri: &uri::RequestUri, host: Option<&header::Host>) ->
 		_ => None,
 	}
 }
-

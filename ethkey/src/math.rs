@@ -20,6 +20,12 @@ use secp256k1::constants::{GENERATOR_X, GENERATOR_Y, CURVE_ORDER};
 use bigint::prelude::U256;
 use bigint::hash::H256;
 
+/// Whether the public key is valid.
+pub fn public_is_valid(public: &Public) -> bool {
+	to_secp256k1_public(public).ok()
+		.map_or(false, |p| p.is_valid())
+}
+
 /// Inplace multiply public key by secret key (EC point * scalar)
 pub fn public_mul_secret(public: &mut Public, secret: &Secret) -> Result<(), Error> {
 	let key_secret = secret.to_secp256k1_secret()?;

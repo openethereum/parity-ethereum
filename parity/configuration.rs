@@ -338,6 +338,8 @@ impl Configuration {
 				_ => (self.gas_pricer_config()?, self.miner_options(self.args.flag_reseal_min_period)?),
 			};
 
+			let whisper_config = self.whisper_config();
+
 			let run_cmd = RunCmd {
 				cache_config: cache_config,
 				dirs: dirs,
@@ -383,6 +385,7 @@ impl Configuration {
 				serve_light: !self.args.flag_no_serve_light,
 				light: self.args.flag_light,
 				no_persistent_txqueue: self.args.flag_no_persistent_txqueue,
+				whisper: whisper_config,
 			};
 			Cmd::Run(run_cmd)
 		};
@@ -1068,6 +1071,13 @@ impl Configuration {
 
 		settings
 	}
+
+	fn whisper_config(&self) -> ::whisper::Config {
+		::whisper::Config {
+			enabled: self.args.flag_whisper,
+			target_message_pool_size: self.args.flag_whisper_pool_size * 1024 * 1024,
+		}
+	}
 }
 
 #[cfg(test)]
@@ -1326,6 +1336,7 @@ mod tests {
 			serve_light: true,
 			light: false,
 			no_persistent_txqueue: false,
+			whisper: Default::default(),
 		};
 		expected.secretstore_conf.enabled = cfg!(feature = "secretstore");
 		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Run(expected));

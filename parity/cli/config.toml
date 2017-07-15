@@ -84,3 +84,7 @@ log_file = "/var/log/parity.log"
 color = true
 ports_shift = 0
 unsafe_expose = false
+
+[whisper]
+enabled = true
+pool_size = 50

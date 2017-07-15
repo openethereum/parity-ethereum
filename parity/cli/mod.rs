@@ -176,7 +176,7 @@ usage! {
 			or |c: &Config| otry!(c.rpc).interface.clone(),
 		flag_jsonrpc_cors: Option<String> = None,
 			or |c: &Config| otry!(c.rpc).cors.clone().map(Some),
-		flag_jsonrpc_apis: String = "web3,eth,pubsub,net,parity,parity_pubsub,traces,rpc,secretstore",
+		flag_jsonrpc_apis: String = "web3,eth,pubsub,net,parity,parity_pubsub,traces,rpc,secretstore,shh,shh_pubsub",
 			or |c: &Config| otry!(c.rpc).apis.as_ref().map(|vec| vec.join(",")),
 		flag_jsonrpc_hosts: String = "none",
 			or |c: &Config| otry!(c.rpc).hosts.as_ref().map(|vec| vec.join(",")),
@@ -192,7 +192,7 @@ usage! {
 			or |c: &Config| otry!(c.websockets).port.clone(),
 		flag_ws_interface: String  = "local",
 			or |c: &Config| otry!(c.websockets).interface.clone(),
-		flag_ws_apis: String = "web3,eth,pubsub,net,parity,parity_pubsub,traces,rpc,secretstore",
+		flag_ws_apis: String = "web3,eth,pubsub,net,parity,parity_pubsub,traces,rpc,secretstore,shh,shh_pubsub",
 			or |c: &Config| otry!(c.websockets).apis.as_ref().map(|vec| vec.join(",")),
 		flag_ws_origins: String = "chrome-extension://*",
 			or |c: &Config| otry!(c.websockets).origins.as_ref().map(|vec| vec.join(",")),
@@ -204,7 +204,7 @@ usage! {
 			or |c: &Config| otry!(c.ipc).disable.clone(),
 		flag_ipc_path: String = if cfg!(windows) { r"\\.\pipe\jsonrpc.ipc" } else { "$BASE/jsonrpc.ipc" },
 			or |c: &Config| otry!(c.ipc).path.clone(),
-		flag_ipc_apis: String = "web3,eth,pubsub,net,parity,parity_pubsub,parity_accounts,traces,rpc,secretstore",
+		flag_ipc_apis: String = "web3,eth,pubsub,net,parity,parity_pubsub,parity_accounts,traces,rpc,secretstore,shh,shh_pubsub",
 			or |c: &Config| otry!(c.ipc).apis.as_ref().map(|vec| vec.join(",")),
 
 		// DAPPS
@@ -365,6 +365,12 @@ usage! {
 		flag_no_color: bool = false,
 			or |c: &Config| otry!(c.misc).color.map(|c| !c).clone(),
 
+		// -- Whisper options
+		flag_whisper: bool = false,
+			or |c: &Config| otry!(c.whisper).enabled,
+		flag_whisper_pool_size: usize = 10usize,
+			or |c: &Config| otry!(c.whisper).pool_size.clone(),
+
 		// -- Legacy Options supported in configs
 		flag_dapps_port: Option<u16> = None,
 			or |c: &Config| otry!(c.dapps).port.clone().map(Some),
@@ -407,6 +413,7 @@ struct Config {
 	vm: Option<VM>,
 	misc: Option<Misc>,
 	stratum: Option<Stratum>,
+	whisper: Option<Whisper>,
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
@@ -603,12 +610,18 @@ struct Misc {
 	unsafe_expose: Option<bool>,
 }
 
+#[derive(Default, Debug, PartialEq, Deserialize)]
+struct Whisper {
+	enabled: Option<bool>,
+	pool_size: Option<usize>,
+}
+
 #[cfg(test)]
 mod tests {
 	use super::{
 		Args, ArgsError,
 		Config, Operating, Account, Ui, Network, Ws, Rpc, Ipc, Dapps, Ipfs, Mining, Footprint,
-		Snapshots, VM, Misc, SecretStore,
+		Snapshots, VM, Misc, Whisper, SecretStore,
 	};
 	use toml;
 
@@ -860,6 +873,10 @@ mod tests {
 			// -- Virtual Machine Options
 			flag_jitvm: false,
 
+			// -- Whisper options.
+			flag_whisper: false,
+			flag_whisper_pool_size: 20,
+
 			// -- Legacy Options
 			flag_geth: false,
 			flag_testnet: false,
@@ -1081,6 +1098,10 @@ mod tests {
 				color: Some(true),
 				ports_shift: Some(0),
 				unsafe_expose: Some(false),
+			}),
+			whisper: Some(Whisper {
+				enabled: Some(true),
+				pool_size: Some(50),
 			}),
 			stratum: None,
 		});
