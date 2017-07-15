@@ -119,7 +119,6 @@ impl Endpoints {
 	}
 	/// Check for any changes in the local dapps folder and update.
 	pub fn refresh_local_dapps(&self) {
-		let mut pages = self.endpoints.write();
 		let mut local = self.local_endpoints.write();
 		let new_local = apps::fs::local_endpoints(self.dapps_path.clone(), self.embeddable.clone());
 		let (_, to_remove): (Vec<String>, Vec<String>) = local.clone()
@@ -129,13 +128,13 @@ impl Endpoints {
 		for k in to_remove {
 			let index = local.iter().position(|x| *x == k).unwrap();
 			local.remove(index);
-			pages.remove(&k);
+			self.endpoints.write().remove(&k);
 		}
 		// new dapps to be added
 		for (k, v) in new_local {
-			if pages.contains_key(&k) != true {
+			if self.endpoints.write().contains_key(&k) != true {
 				local.push(k.clone());
-				pages.insert(k, v);
+				self.endpoints.write().insert(k, v);
 			}
 		}
 	}
