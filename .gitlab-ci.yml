@@ -21,7 +21,7 @@ linux-stable:
     - stable
     - triggers
   script:
-    - cargo build -j $(nproc) --release --features final $CARGOFLAGS
+    - cargo build -j $(nproc) --release --no-default-features --features "final ui" $CARGOFLAGS
     - cargo build -j $(nproc) --release -p evmbin
     - cargo build -j $(nproc) --release -p ethstore
     - cargo build -j $(nproc) --release -p ethkey
@@ -101,7 +101,7 @@ linux-stable-debian:
     - stable
     - triggers
   script:
-    - cargo build -j $(nproc) --release --features final $CARGOFLAGS
+    - cargo build -j $(nproc) --release --no-default-features --features "final ui" $CARGOFLAGS
     - cargo build -j $(nproc) --release -p evmbin
     - cargo build -j $(nproc) --release -p ethstore
     - cargo build -j $(nproc) --release -p ethkey
@@ -186,7 +186,7 @@ linux-centos:
     - export CXX="g++"
     - export CC="gcc"
     - export PLATFORM=x86_64-unknown-centos-gnu
-    - cargo build -j $(nproc) --release --features final $CARGOFLAGS
+    - cargo build -j $(nproc) --release --no-default-features --features "final ui" $CARGOFLAGS
     - strip target/release/parity
     - md5sum target/release/parity > parity.md5
     - export SHA3=$(target/release/parity tools hash target/release/parity)
@@ -218,7 +218,7 @@ linux-i686:
     - export HOST_CXX=g++
     - export COMMIT=$(git rev-parse HEAD)
     - export PLATFORM=i686-unknown-linux-gnu
-    - cargo build -j $(nproc) --target i686-unknown-linux-gnu --features final --release $CARGOFLAGS
+    - cargo build -j $(nproc) --target i686-unknown-linux-gnu --no-default-features --features "final ui" --release $CARGOFLAGS
     - strip target/$PLATFORM/release/parity
     - md5sum target/$PLATFORM/release/parity > parity.md5
     - export SHA3=$(target/$PLATFORM/release/parity tools hash target/$PLATFORM/release/parity)
@@ -264,7 +264,7 @@ linux-armv7:
     - echo "[target.$PLATFORM]" >> .cargo/config
     - echo "linker= \"arm-linux-gnueabihf-gcc\"" >> .cargo/config
     - cat .cargo/config
-    - cargo build -j $(nproc) --target $PLATFORM --features final --release $CARGOFLAGS
+    - cargo build -j $(nproc) --target $PLATFORM --no-default-features --features "final ui" --release $CARGOFLAGS
     - arm-linux-gnueabihf-strip target/$PLATFORM/release/parity
     - export SHA3=$(rhash --sha3-256 ~/Core/parity/target/release/parity -p %h)
     - md5sum target/$PLATFORM/release/parity > parity.md5
@@ -310,7 +310,7 @@ linux-arm:
     - echo "[target.$PLATFORM]" >> .cargo/config
     - echo "linker= \"arm-linux-gnueabihf-gcc\"" >> .cargo/config
     - cat .cargo/config
-    - cargo build -j $(nproc) --target $PLATFORM --features final --release $CARGOFLAGS
+    - cargo build -j $(nproc) --target $PLATFORM --no-default-features --features "final ui" --release $CARGOFLAGS
     - arm-linux-gnueabihf-strip target/$PLATFORM/release/parity
     - export SHA3=$(rhash --sha3-256 ~/Core/parity/target/release/parity -p %h)
     - md5sum target/$PLATFORM/release/parity > parity.md5
@@ -356,7 +356,7 @@ linux-armv6:
     - echo "[target.$PLATFORM]" >> .cargo/config
     - echo "linker= \"arm-linux-gnueabi-gcc\"" >> .cargo/config
     - cat .cargo/config
-    - cargo build -j $(nproc) --target $PLATFORM --features final --release $CARGOFLAGS
+    - cargo build -j $(nproc) --target $PLATFORM --no-default-features --features "final ui" --release $CARGOFLAGS
     - arm-linux-gnueabi-strip target/$PLATFORM/release/parity
     - export SHA3=$(rhash --sha3-256 ~/Core/parity/target/release/parity -p %h)
     - md5sum target/$PLATFORM/release/parity > parity.md5
@@ -395,7 +395,7 @@ linux-aarch64:
     - echo "[target.$PLATFORM]" >> .cargo/config
     - echo "linker= \"aarch64-linux-gnu-gcc\"" >> .cargo/config
     - cat .cargo/config
-    - cargo build -j $(nproc) --target $PLATFORM --features final --release $CARGOFLAGS
+    - cargo build -j $(nproc) --target $PLATFORM --no-default-features --features "final ui" --release $CARGOFLAGS
     - aarch64-linux-gnu-strip target/$PLATFORM/release/parity
     - export SHA3=$(rhash --sha3-256 ~/Core/parity/target/release/parity -p %h)
     - md5sum target/$PLATFORM/release/parity > parity.md5
@@ -431,8 +431,8 @@ darwin:
   script: |
       export COMMIT=$(git rev-parse HEAD)
       export PLATFORM=x86_64-apple-darwin
-      cargo build -j 8 --features final --release #$CARGOFLAGS
-      cargo build -j 8 --features final --release -p ethstore #$CARGOFLAGS
+      cargo build -j 8 --no-default-features --features "final ui" --release #$CARGOFLAGS
+      cargo build -j 8 --no-default-features --features "final ui" --release -p ethstore #$CARGOFLAGS
       rm -rf parity.md5
       md5sum target/release/parity > parity.md5
       export SHA3=$(target/release/parity tools hash target/release/parity)
@@ -477,7 +477,7 @@ windows:
     - set RUST_BACKTRACE=1
     - set RUSTFLAGS=%RUSTFLAGS%
     - rustup default stable-x86_64-pc-windows-msvc
-    - cargo build --features final --release #%CARGOFLAGS%
+    - cargo build --no-default-features --features "final ui" --release #%CARGOFLAGS%
     - signtool sign /f %keyfile% /p %certpass% target\release\parity.exe
     - target\release\parity.exe tools hash target\release\parity.exe > parity.sha3
     - set /P SHA3=<parity.sha3
