@@ -106,17 +106,14 @@ class Delete extends Component {
     const { account, route, newError } = this.props;
 
     this.setState({ isBusy: true });
-    console.time('onDeleteConfirmed');
 
     api.parity
       .removeAddress(account.address)
       .then(() => {
-        console.timeEnd('onDeleteConfirmed');
         router.push(route);
         this.closeDeleteDialog();
       })
       .catch((error) => {
-        console.timeEnd('onDeleteConfirmed');
         console.error('onDeleteConfirmed', error);
         newError(new Error(`Deletion failed: ${error.message}`));
         this.closeDeleteDialog();
