@@ -199,7 +199,7 @@
     "redux-thunk": "2.1.0",
     "rlp": "2.0.0",
     "scryptsy": "2.0.0",
-    "solc": "ngotchac/solc-js",
+    "solc": "https://github.com/ngotchac/solc-js.git",
     "store": "1.3.20",
     "u2f-api": "0.0.9",
     "u2f-api-polyfill": "0.4.3",

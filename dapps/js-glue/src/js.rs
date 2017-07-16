@@ -61,6 +61,7 @@ pub fn build(path: &str, dest: &str) {
 	let child = platform::handle_fd(&mut Command::new(platform::NPM_CMD))
 		.arg("install")
 		.arg("--no-progress")
+		.arg("--ignore-scripts")
 		.current_dir(path)
 		.status()
 		.unwrap_or_else(|e| die("Installing node.js dependencies with npm", e));
