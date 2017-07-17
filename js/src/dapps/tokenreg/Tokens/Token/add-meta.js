@@ -14,9 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component, PropTypes } from 'react';
+import React, { Component } from 'react';
 import { Dialog, RaisedButton, FlatButton, SelectField, MenuItem } from 'material-ui';
 import AddIcon from 'material-ui/svg-icons/content/add';
+import PropTypes from 'prop-types';
 
 import InputText from '../../Inputs/Text';
 import { ADDRESS_TYPE, URL_TYPE } from '../../Inputs/validation';

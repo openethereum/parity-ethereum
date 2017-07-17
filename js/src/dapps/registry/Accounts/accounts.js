@@ -14,10 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component, PropTypes } from 'react';
+import React, { Component } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import AccountIcon from 'material-ui/svg-icons/action/account-circle';
+import PropTypes from 'prop-types';
 
 import { init } from './actions';
 import IdentityIcon from '../IdentityIcon';

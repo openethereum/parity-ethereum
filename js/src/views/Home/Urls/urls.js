@@ -16,7 +16,8 @@
 
 import { observer } from 'mobx-react';
 import moment from 'moment';
-import React, { Component, PropTypes } from 'react';
+import React, { Component } from 'react';
+import PropTypes from 'prop-types';
 import { FormattedMessage } from 'react-intl';
 
 import { Container, ContainerTitle, DappUrlInput, SectionList } from '@parity/ui';

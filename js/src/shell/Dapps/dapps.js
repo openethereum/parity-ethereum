@@ -16,9 +16,10 @@
 
 import { omitBy } from 'lodash';
 import { observer } from 'mobx-react';
-import React, { Component, PropTypes } from 'react';
+import React, { Component } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
+import PropTypes from 'prop-types';
 
 import { Checkbox, DappCard, Page, SectionList } from '@parity/ui';
 
