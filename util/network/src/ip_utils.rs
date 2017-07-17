@@ -28,6 +28,10 @@ pub trait SocketAddrExt {
 	fn is_unspecified_s(&self) -> bool;
 	/// Returns true if the address appears to be globally routable.
 	fn is_global_s(&self) -> bool;
+
+	fn is_other_private(&self) -> bool;
+	fn is_future_use(&self) -> bool;
+	fn is_reserved(&self) -> bool;
 }
 
 impl SocketAddrExt for Ipv4Addr {
@@ -38,6 +42,32 @@ impl SocketAddrExt for Ipv4Addr {
 	fn is_global_s(&self) -> bool {
 		!self.is_private() && !self.is_loopback() && !self.is_link_local() &&
 			!self.is_broadcast() && !self.is_documentation()
+	}
+
+	// Used for communications between a service provider and its subscribers when using a carrier-grade NAT 
+	// see: https://en.wikipedia.org/wiki/Reserved_IP_addresses
+	fn is_other_private(&self) -> bool {
+		self.octets()[0] == 100 &&
+		self.octets()[1] >= 64 &&
+		self.octets()[1] <= 127
+	}
+
+	// Reserved for future use
+	// see: https://en.wikipedia.org/wiki/Reserved_IP_addresses
+	fn is_future_use(&self) -> bool {
+		self.octets()[0] >= 240 &&
+		self.octets()[3] < 255
+	}
+
+	fn is_reserved(&self) -> bool {
+		self.is_unspecified_s() ||
+		self.is_private() ||
+		self.is_loopback() ||
+		self.is_link_local() ||
+		self.is_broadcast() ||
+		self.is_documentation() ||
+		self.is_other_private() ||
+		self.is_future_use()
 	}
 }
 
@@ -54,6 +84,15 @@ impl SocketAddrExt for Ipv6Addr {
             	!((self.segments()[0] & 0xffc0) == 0xfec0) && !((self.segments()[0] & 0xfe00) == 0xfc00)
 		}
 	}
+
+	fn is_other_private(&self) -> bool { false }
+	fn is_future_use(&self) -> bool { false }
+
+	fn is_reserved(&self) -> bool {
+		self.is_unspecified_s() ||
+		self.is_loopback() ||
+		self.is_global_s()
+	}
 }
 
 impl SocketAddrExt for IpAddr {
@@ -68,6 +107,26 @@ impl SocketAddrExt for IpAddr {
 		match *self {
 			IpAddr::V4(ref ip) => ip.is_global_s(),
 			IpAddr::V6(ref ip) => ip.is_global_s(),
+		}
+	}
+
+	fn is_other_private(&self) -> bool {
+		match *self {
+			IpAddr::V4(ref ip) => ip.is_other_private(),
+			IpAddr::V6(ref ip) => ip.is_other_private(),
+		}
+	}
+	fn is_future_use(&self) -> bool { 
+		match *self {
+			IpAddr::V4(ref ip) => ip.is_future_use(),
+			IpAddr::V6(ref ip) => ip.is_future_use(),
+		}
+	}
+
+	fn is_reserved(&self) -> bool {
+		match *self {
+			IpAddr::V4(ref ip) => ip.is_reserved(),
+			IpAddr::V6(ref ip) => ip.is_reserved(),
 		}
 	}
 }
@@ -262,6 +321,22 @@ fn ipv4_properties() {
 	check(&[224, 0, 0, 0],       false, false, false, false, true,  true,     false,  false);
 	check(&[239, 255, 255, 255], false, false, false, false, true,  true,     false,  false);
 	check(&[255, 255, 255, 255], false, false, false, false, false, false,    true,   false);
+}
+
+#[test]
+fn test_ipv4_other_private() {
+	assert!(Ipv4Addr::new(100, 64, 0, 0).is_other_private());
+	assert!(Ipv4Addr::new(100, 127, 255, 255).is_other_private());
+	assert!(!Ipv4Addr::new(100, 63, 255, 255).is_other_private());
+	assert!(!Ipv4Addr::new(100, 128, 0, 0).is_other_private());
+}
+
+#[test]
+fn test_ipv4_future_use() {
+	assert!(Ipv4Addr::new(240, 0, 0, 0).is_future_use());
+	assert!(Ipv4Addr::new(255, 255, 255, 254).is_future_use());
+	assert!(!Ipv4Addr::new(239, 255, 255, 255).is_future_use());
+	assert!(!Ipv4Addr::new(255, 255, 255, 255).is_future_use());
 }
 
 #[test]
