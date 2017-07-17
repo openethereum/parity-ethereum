@@ -1099,7 +1099,10 @@ impl IoHandler<NetworkIoMessage> for Host {
 			} => {
 				let h = handler.clone();
 				let reserved = self.reserved_nodes.read();
-				h.initialize(&NetworkContext::new(io, *protocol, None, self.sessions.clone(), &reserved));
+				h.initialize(
+					&NetworkContext::new(io, *protocol, None, self.sessions.clone(), &reserved),
+					&*self.info.read(),
+				);
 				self.handlers.write().insert(*protocol, h);
 				let mut info = self.info.write();
 				for v in versions {

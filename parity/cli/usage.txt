@@ -316,6 +316,9 @@ Sealing/Mining Options:
                                    block due to transaction volume (default: {flag_gas_cap}).
   --extra-data STRING              Specify a custom extra-data for authored blocks, no
                                    more than 32 characters. (default: {flag_extra_data:?})
+  --tx-queue-mem-limit MB          Maximum amount of memory that can be used by the
+                                   transaction queue. Setting this parameter to 0
+                                   disables limiting (default: {flag_tx_queue_mem_limit}).
   --tx-queue-size LIMIT            Maximum amount of transactions in the queue (waiting
                                    to be included in next block) (default: {flag_tx_queue_size}).
   --tx-queue-gas LIMIT             Maximum amount of total gas for external transactions in
@@ -426,6 +429,11 @@ Snapshot Options:
 
 Virtual Machine Options:
   --jitvm                          Enable the JIT VM. (default: {flag_jitvm})
+
+Whisper Options:
+  --whisper                        Enable the Whisper network. (default: {flag_whisper})
+  --whisper-pool-size MB           Target size of the whisper message pool in megabytes.
+                                   (default: {flag_whisper_pool_size})
 
 Legacy Options:
   --geth                           Run in Geth-compatibility mode. Sets the IPC path

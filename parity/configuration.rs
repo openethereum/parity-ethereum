@@ -331,6 +331,7 @@ impl Configuration {
 			};
 
 			let verifier_settings = self.verifier_settings();
+			let whisper_config = self.whisper_config();
 
 			let run_cmd = RunCmd {
 				cache_config: cache_config,
@@ -377,6 +378,7 @@ impl Configuration {
 				serve_light: !self.args.flag_no_serve_light,
 				light: self.args.flag_light,
 				no_persistent_txqueue: self.args.flag_no_persistent_txqueue,
+				whisper: whisper_config,
 			};
 			Cmd::Run(run_cmd)
 		};
@@ -401,7 +403,6 @@ impl Configuration {
 			extra_data: self.extra_data()?,
 			gas_floor_target: to_u256(&self.args.flag_gas_floor_target)?,
 			gas_ceil_target: to_u256(&self.args.flag_gas_cap)?,
-			transactions_limit: self.args.flag_tx_queue_size,
 			engine_signer: self.engine_signer()?,
 		};
 
@@ -526,6 +527,9 @@ impl Configuration {
 				None => U256::max_value(),
 			},
 			tx_queue_size: self.args.flag_tx_queue_size,
+			tx_queue_memory_limit: if self.args.flag_tx_queue_mem_limit > 0 {
+				Some(self.args.flag_tx_queue_mem_limit as usize * 1024 * 1024)
+			} else { None },
 			tx_queue_gas_limit: to_gas_limit(&self.args.flag_tx_queue_gas)?,
 			tx_queue_strategy: to_queue_strategy(&self.args.flag_tx_queue_strategy)?,
 			pending_set: to_pending_set(&self.args.flag_relay_set)?,
@@ -1062,6 +1066,13 @@ impl Configuration {
 
 		settings
 	}
+
+	fn whisper_config(&self) -> ::whisper::Config {
+		::whisper::Config {
+			enabled: self.args.flag_whisper,
+			target_message_pool_size: self.args.flag_whisper_pool_size * 1024 * 1024,
+		}
+	}
 }
 
 #[cfg(test)]
@@ -1293,7 +1304,7 @@ mod tests {
 			public_node: false,
 			warp_sync: true,
 			acc_conf: Default::default(),
-			gas_pricer: Default::default(),
+			gas_pricer_conf: Default::default(),
 			miner_extras: Default::default(),
 			update_policy: UpdatePolicy { enable_downloading: true, require_consensus: true, filter: UpdateFilter::Critical, track: ReleaseTrack::Unknown, path: default_hypervisor_path() },
 			mode: Default::default(),
@@ -1320,6 +1331,7 @@ mod tests {
 			serve_light: true,
 			light: false,
 			no_persistent_txqueue: false,
+			whisper: Default::default(),
 		};
 		expected.secretstore_conf.enabled = cfg!(feature = "secretstore");
 		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Run(expected));
@@ -1588,7 +1600,7 @@ mod tests {
 		match conf.into_command().unwrap().cmd {
 			Cmd::Run(c) => {
 				assert_eq!(c.net_settings.chain, "dev");
-				assert_eq!(c.gas_pricer, GasPricerConfig::Fixed(0.into()));
+				assert_eq!(c.gas_pricer_conf, GasPricerConfig::Fixed(0.into()));
 				assert_eq!(c.miner_options.reseal_min_period, Duration::from_millis(0));
 			},
 			_ => panic!("Should be Cmd::Run"),

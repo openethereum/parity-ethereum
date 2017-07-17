@@ -24,4 +24,3 @@ esac
 
 . ./scripts/targets.sh
 cargo test -j 8 $OPTIONS --features "$FEATURES" $TARGETS $1 \
-

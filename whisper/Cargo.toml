@@ -1,0 +1,32 @@
+[package]
+name = "parity-whisper"
+version = "0.1.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+description = "Whisper Protocol implementation for Parity"
+
+[dependencies]
+bitflags = "0.9"
+byteorder = "1.0.0"
+ethcore-bigint = { path = "../util/bigint" }
+ethcore-network = { path = "../util/network" }
+ethcrypto = { path = "../ethcrypto" }
+ethkey = { path = "../ethkey" }
+futures = "0.1"
+hex = "0.2"
+log = "0.3"
+ordered-float = "0.5"
+parking_lot = "0.4"
+rand = "0.3"
+ring = "0.9.5"
+rlp = { path = "../util/rlp" }
+serde = "1.0"
+serde_derive = "1.0"
+serde_json = "1.0"
+slab = "0.3"
+smallvec = "0.4"
+time = "0.1"
+tiny-keccak = "1.2.1"
+
+jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
+jsonrpc-macros = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
+jsonrpc-pubsub = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }

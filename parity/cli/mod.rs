@@ -179,7 +179,7 @@ usage! {
 			or |c: &Config| otry!(c.rpc).interface.clone(),
 		flag_jsonrpc_cors: Option<String> = None,
 			or |c: &Config| otry!(c.rpc).cors.clone().map(Some),
-		flag_jsonrpc_apis: String = "web3,eth,pubsub,net,parity,parity_pubsub,traces,rpc,secretstore",
+		flag_jsonrpc_apis: String = "web3,eth,pubsub,net,parity,parity_pubsub,traces,rpc,secretstore,shh,shh_pubsub",
 			or |c: &Config| otry!(c.rpc).apis.as_ref().map(|vec| vec.join(",")),
 		flag_jsonrpc_hosts: String = "none",
 			or |c: &Config| otry!(c.rpc).hosts.as_ref().map(|vec| vec.join(",")),
@@ -195,7 +195,7 @@ usage! {
 			or |c: &Config| otry!(c.websockets).port.clone(),
 		flag_ws_interface: String  = "local",
 			or |c: &Config| otry!(c.websockets).interface.clone(),
-		flag_ws_apis: String = "web3,eth,pubsub,net,parity,parity_pubsub,traces,rpc,secretstore",
+		flag_ws_apis: String = "web3,eth,pubsub,net,parity,parity_pubsub,traces,rpc,secretstore,shh,shh_pubsub",
 			or |c: &Config| otry!(c.websockets).apis.as_ref().map(|vec| vec.join(",")),
 		flag_ws_origins: String = "chrome-extension://*",
 			or |c: &Config| otry!(c.websockets).origins.as_ref().map(|vec| vec.join(",")),
@@ -207,7 +207,7 @@ usage! {
 			or |c: &Config| otry!(c.ipc).disable.clone(),
 		flag_ipc_path: String = if cfg!(windows) { r"\\.\pipe\jsonrpc.ipc" } else { "$BASE/jsonrpc.ipc" },
 			or |c: &Config| otry!(c.ipc).path.clone(),
-		flag_ipc_apis: String = "web3,eth,pubsub,net,parity,parity_pubsub,parity_accounts,traces,rpc,secretstore",
+		flag_ipc_apis: String = "web3,eth,pubsub,net,parity,parity_pubsub,parity_accounts,traces,rpc,secretstore,shh,shh_pubsub",
 			or |c: &Config| otry!(c.ipc).apis.as_ref().map(|vec| vec.join(",")),
 
 		// DAPPS
@@ -283,9 +283,11 @@ usage! {
 			or |c: &Config| otry!(c.mining).gas_cap.clone(),
 		flag_extra_data: Option<String> = None,
 			or |c: &Config| otry!(c.mining).extra_data.clone().map(Some),
-		flag_tx_queue_size: usize = 1024usize,
+		flag_tx_queue_size: usize = 8192usize,
 			or |c: &Config| otry!(c.mining).tx_queue_size.clone(),
-		flag_tx_queue_gas: String = "auto",
+		flag_tx_queue_mem_limit: u32 = 2u32,
+			or |c: &Config| otry!(c.mining).tx_queue_mem_limit.clone(),
+		flag_tx_queue_gas: String = "off",
 			or |c: &Config| otry!(c.mining).tx_queue_gas.clone(),
 		flag_tx_queue_strategy: String = "gas_price",
 			or |c: &Config| otry!(c.mining).tx_queue_strategy.clone(),
@@ -368,6 +370,12 @@ usage! {
 		flag_no_color: bool = false,
 			or |c: &Config| otry!(c.misc).color.map(|c| !c).clone(),
 
+		// -- Whisper options
+		flag_whisper: bool = false,
+			or |c: &Config| otry!(c.whisper).enabled,
+		flag_whisper_pool_size: usize = 10usize,
+			or |c: &Config| otry!(c.whisper).pool_size.clone(),
+
 		// -- Legacy Options supported in configs
 		flag_dapps_port: Option<u16> = None,
 			or |c: &Config| otry!(c.dapps).port.clone().map(Some),
@@ -410,6 +418,7 @@ struct Config {
 	vm: Option<VM>,
 	misc: Option<Misc>,
 	stratum: Option<Stratum>,
+	whisper: Option<Whisper>,
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
@@ -552,6 +561,7 @@ struct Mining {
 	gas_cap: Option<String>,
 	extra_data: Option<String>,
 	tx_queue_size: Option<usize>,
+	tx_queue_mem_limit: Option<u32>,
 	tx_queue_gas: Option<String>,
 	tx_queue_strategy: Option<String>,
 	tx_queue_ban_count: Option<u16>,
@@ -606,12 +616,18 @@ struct Misc {
 	unsafe_expose: Option<bool>,
 }
 
+#[derive(Default, Debug, PartialEq, Deserialize)]
+struct Whisper {
+	enabled: Option<bool>,
+	pool_size: Option<usize>,
+}
+
 #[cfg(test)]
 mod tests {
 	use super::{
 		Args, ArgsError,
 		Config, Operating, Account, Ui, Network, Ws, Rpc, Ipc, Dapps, Ipfs, Mining, Footprint,
-		Snapshots, VM, Misc, SecretStore,
+		Snapshots, VM, Misc, Whisper, SecretStore,
 	};
 	use toml;
 
@@ -818,8 +834,9 @@ mod tests {
 			flag_gas_floor_target: "4700000".into(),
 			flag_gas_cap: "6283184".into(),
 			flag_extra_data: Some("Parity".into()),
-			flag_tx_queue_size: 1024usize,
-			flag_tx_queue_gas: "auto".into(),
+			flag_tx_queue_size: 8192usize,
+			flag_tx_queue_mem_limit: 2u32,
+			flag_tx_queue_gas: "off".into(),
 			flag_tx_queue_strategy: "gas_factor".into(),
 			flag_tx_queue_ban_count: 1u16,
 			flag_tx_queue_ban_time: 180u16,
@@ -864,6 +881,10 @@ mod tests {
 
 			// -- Virtual Machine Options
 			flag_jitvm: false,
+
+			// -- Whisper options.
+			flag_whisper: false,
+			flag_whisper_pool_size: 20,
 
 			// -- Legacy Options
 			flag_geth: false,
@@ -1045,8 +1066,9 @@ mod tests {
 				price_update_period: Some("hourly".into()),
 				gas_floor_target: None,
 				gas_cap: None,
-				tx_queue_size: Some(1024),
-				tx_queue_gas: Some("auto".into()),
+				tx_queue_size: Some(8192),
+				tx_queue_mem_limit: None,
+				tx_queue_gas: Some("off".into()),
 				tx_queue_strategy: None,
 				tx_queue_ban_count: None,
 				tx_queue_ban_time: None,
@@ -1086,6 +1108,10 @@ mod tests {
 				color: Some(true),
 				ports_shift: Some(0),
 				unsafe_expose: Some(false),
+			}),
+			whisper: Some(Whisper {
+				enabled: Some(true),
+				pool_size: Some(50),
 			}),
 			stratum: None,
 		});

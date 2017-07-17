@@ -33,9 +33,10 @@ use miner::{MinerService, MinerStatus, TransactionQueue, RemovalReason, Transact
 	AccountDetails, TransactionOrigin};
 use miner::banning_queue::{BanningTransactionQueue, Threshold};
 use miner::work_notify::{WorkPoster, NotifyWork};
-use miner::price_info::PriceInfo;
 use miner::local_transactions::{Status as LocalTransactionStatus};
 use miner::service_transaction_checker::ServiceTransactionChecker;
+use price_info::{Client as PriceInfoClient, PriceInfo};
+use price_info::fetch::Client as FetchClient;
 use header::BlockNumber;
 
 /// Different possible definitions for pending transaction set.
@@ -98,6 +99,8 @@ pub struct MinerOptions {
 	pub tx_gas_limit: U256,
 	/// Maximum size of the transaction queue.
 	pub tx_queue_size: usize,
+	/// Maximum memory usage of transactions in the queue (current / future).
+	pub tx_queue_memory_limit: Option<usize>,
 	/// Strategy to use for prioritizing transactions in the queue.
 	pub tx_queue_strategy: PrioritizationStrategy,
 	/// Whether we should fallback to providing all the queue's transactions or just pending.
@@ -123,8 +126,9 @@ impl Default for MinerOptions {
 			reseal_on_own_tx: true,
 			reseal_on_uncle: false,
 			tx_gas_limit: !U256::zero(),
-			tx_queue_size: 1024,
-			tx_queue_gas_limit: GasLimit::Auto,
+			tx_queue_size: 8192,
+			tx_queue_memory_limit: Some(2 * 1024 * 1024),
+			tx_queue_gas_limit: GasLimit::None,
 			tx_queue_strategy: PrioritizationStrategy::GasPriceOnly,
 			pending_set: PendingSet::AlwaysQueue,
 			reseal_min_period: Duration::from_secs(2),
@@ -151,6 +155,7 @@ pub struct GasPriceCalibratorOptions {
 pub struct GasPriceCalibrator {
 	options: GasPriceCalibratorOptions,
 	next_calibration: Instant,
+	price_info: PriceInfoClient,
 }
 
 impl GasPriceCalibrator {
@@ -160,7 +165,7 @@ impl GasPriceCalibrator {
 			let usd_per_tx = self.options.usd_per_tx;
 			trace!(target: "miner", "Getting price info");
 
-			PriceInfo::get(move |price: PriceInfo| {
+			self.price_info.get(move |price: PriceInfo| {
 				trace!(target: "miner", "Price info arrived: {:?}", price);
 				let usd_per_eth = price.ethusd;
 				let wei_per_usd: f32 = 1.0e18 / usd_per_eth;
@@ -186,10 +191,11 @@ pub enum GasPricer {
 
 impl GasPricer {
 	/// Create a new Calibrated `GasPricer`.
-	pub fn new_calibrated(options: GasPriceCalibratorOptions) -> GasPricer {
+	pub fn new_calibrated(options: GasPriceCalibratorOptions, fetch: FetchClient) -> GasPricer {
 		GasPricer::Calibrated(GasPriceCalibrator {
 			options: options,
 			next_calibration: Instant::now(),
+			price_info: PriceInfoClient::new(fetch),
 		})
 	}
 
@@ -252,8 +258,15 @@ impl Miner {
 			GasLimit::Fixed(ref limit) => *limit,
 			_ => !U256::zero(),
 		};
+		let mem_limit = options.tx_queue_memory_limit.unwrap_or_else(usize::max_value);
 
-		let txq = TransactionQueue::with_limits(options.tx_queue_strategy, options.tx_queue_size, gas_limit, options.tx_gas_limit);
+		let txq = TransactionQueue::with_limits(
+			options.tx_queue_strategy,
+			options.tx_queue_size,
+			mem_limit,
+			gas_limit,
+			options.tx_gas_limit
+		);
 		let txq = match options.tx_queue_banning {
 			Banning::Disabled => BanningTransactionQueue::new(txq, Threshold::NeverBan, Duration::from_secs(180)),
 			Banning::Enabled { ban_duration, min_offends, .. } => BanningTransactionQueue::new(
@@ -1328,6 +1341,7 @@ mod tests {
 				reseal_max_period: Duration::from_secs(120),
 				tx_gas_limit: !U256::zero(),
 				tx_queue_size: 1024,
+				tx_queue_memory_limit: None,
 				tx_queue_gas_limit: GasLimit::None,
 				tx_queue_strategy: PrioritizationStrategy::GasFactorAndGasPrice,
 				pending_set: PendingSet::AlwaysSealing,

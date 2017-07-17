@@ -22,6 +22,7 @@ use ethcore::spec::Spec;
 use ethcore::ethereum;
 use ethcore::client::Mode;
 use ethcore::miner::{GasPricer, GasPriceCalibratorOptions};
+use hash_fetch::fetch::Client as FetchClient;
 use user_defaults::UserDefaults;
 
 #[derive(Debug, PartialEq)]
@@ -226,15 +227,18 @@ impl Default for GasPricerConfig {
 	}
 }
 
-impl Into<GasPricer> for GasPricerConfig {
-	fn into(self) -> GasPricer {
-		match self {
+impl GasPricerConfig {
+	pub fn to_gas_pricer(&self, fetch: FetchClient) -> GasPricer {
+		match *self {
 			GasPricerConfig::Fixed(u) => GasPricer::Fixed(u),
 			GasPricerConfig::Calibrated { usd_per_tx, recalibration_period, .. } => {
-				GasPricer::new_calibrated(GasPriceCalibratorOptions {
-					usd_per_tx: usd_per_tx,
-					recalibration_period: recalibration_period,
-				})
+				GasPricer::new_calibrated(
+					GasPriceCalibratorOptions {
+						usd_per_tx: usd_per_tx,
+						recalibration_period: recalibration_period,
+					},
+					fetch
+				)
 			}
 		}
 	}
@@ -246,7 +250,6 @@ pub struct MinerExtras {
 	pub extra_data: Vec<u8>,
 	pub gas_floor_target: U256,
 	pub gas_ceil_target: U256,
-	pub transactions_limit: usize,
 	pub engine_signer: Address,
 }
 
@@ -257,7 +260,6 @@ impl Default for MinerExtras {
 			extra_data: version_data(),
 			gas_floor_target: U256::from(4_700_000),
 			gas_ceil_target: U256::from(6_283_184),
-			transactions_limit: 1024,
 			engine_signer: Default::default(),
 		}
 	}

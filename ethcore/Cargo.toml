@@ -3,7 +3,7 @@ description = "Ethcore library"
 homepage = "http://parity.io"
 license = "GPL-3.0"
 name = "ethcore"
-version = "1.7.0"
+version = "1.8.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 build = "build.rs"
 
@@ -44,11 +44,11 @@ lru-cache = "0.1.0"
 native-contracts = { path = "native_contracts" }
 num = "0.1"
 num_cpus = "1.2"
+price-info = { path = "../price-info" }
 rand = "0.3"
 rlp = { path = "../util/rlp" }
 rust-crypto = "0.2.34"
 rustc-hex = "1.0"
-rustc-serialize = "0.3"
 semver = "0.6"
 stats = { path = "../util/stats" }
 time = "0.1"
