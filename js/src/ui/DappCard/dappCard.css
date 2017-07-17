@@ -29,9 +29,13 @@
 }
 
 .image {
-  left: 1.5em;
+  left: 1.5rem;
   position: absolute;
-  top: 1.5em;
+  top: 1.5rem;
+}
+
+i.image {
+  top: 3rem;
 }
 
 .author,

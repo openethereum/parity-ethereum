@@ -17,16 +17,23 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 
+import { createIcon } from '~/ui/Icons';
+
 import styles from './dappIcon.css';
 
 export default function DappIcon ({ app, className, small }, { api }) {
   const { dappsUrl } = api;
+  const classes = [
+    styles.icon, styles[small ? 'small' : 'normal'], className
+  ].join(' ');
+
+  if (app['semantic-icon']) {
+    return createIcon(app['semantic-icon'], { className: classes });
+  }
 
   return (
     <img
-      className={
-        [styles.icon, styles[small ? 'small' : 'normal'], className].join(' ')
-      }
+      className={ classes }
       src={
         app.type === 'local'
           ? `${dappsUrl}/${app.id}/${app.iconUrl}`
