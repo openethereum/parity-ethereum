@@ -8,7 +8,7 @@
 - DApps and RPC server merge
 - Cancel propagated transactions
 - Export accounts from the wallet
-- Fixes to PoA/Kovan
+- PoA/Kovan validator contract warp sync
 
 Full list of included changes:
 
