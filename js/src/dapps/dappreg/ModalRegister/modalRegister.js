@@ -14,8 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component, PropTypes } from 'react';
+import React, { Component } from 'react';
 import { observer } from 'mobx-react';
+import PropTypes from 'prop-types';
 
 import { api } from '../parity';
 import DappsStore from '../dappsStore';

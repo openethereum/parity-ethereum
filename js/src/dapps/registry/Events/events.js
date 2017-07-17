@@ -14,12 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component, PropTypes } from 'react';
+import React, { Component } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import { Card, CardHeader, CardActions, CardText } from 'material-ui/Card';
 import Toggle from 'material-ui/Toggle';
 import moment from 'moment';
+import PropTypes from 'prop-types';
 
 import { bytesToHex } from '../parity';
 import Hash from '../ui/hash';

@@ -14,9 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component, PropTypes } from 'react';
+import React, { Component } from 'react';
 import Paper from 'material-ui/Paper';
 import { RaisedButton, SelectField, MenuItem } from 'material-ui';
+import PropTypes from 'prop-types';
 
 import FindIcon from 'material-ui/svg-icons/action/find-in-page';
 import DeleteIcon from 'material-ui/svg-icons/action/delete';

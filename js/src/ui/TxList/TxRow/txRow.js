@@ -17,7 +17,8 @@
 import moment from 'moment';
 import dateDifference from 'date-difference';
 import { FormattedMessage } from 'react-intl';
-import React, { Component, PropTypes } from 'react';
+import React, { Component } from 'react';
+import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
 
 import { txLink } from '~/3rdparty/etherscan/links';

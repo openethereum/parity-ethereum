@@ -46,6 +46,8 @@ import Dapps from './Dapps';
 
 injectTapEventPlugin();
 
+console.log('UI version', process.env.UI_VERSION);
+
 if (process.env.NODE_ENV === 'development') {
   // Expose the React Performance Tools on the`window` object
   const Perf = require('react-addons-perf');

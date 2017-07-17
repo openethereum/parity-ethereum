@@ -16,9 +16,10 @@
 
 import { omitBy } from 'lodash';
 import { observer } from 'mobx-react';
-import React, { Component, PropTypes } from 'react';
+import React, { Component } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
+import PropTypes from 'prop-types';
 
 import { Checkbox, DappCard, Page, SectionList } from '@parity/ui';
 
@@ -81,10 +82,10 @@ class Dapps extends Component {
           />
         }
       >
-        <div>{ this.renderList(this.store.visibleViews) }</div>
-        <div>{ this.renderList(this.store.visibleLocal) }</div>
-        <div>{ this.renderList(this.store.visibleBuiltin) }</div>
-        <div>{ this.renderList(this.store.visibleNetwork, externalOverlay) }</div>
+        { this.renderList(this.store.visibleViews) }
+        { this.renderList(this.store.visibleLocal) }
+        { this.renderList(this.store.visibleBuiltin) }
+        { this.renderList(this.store.visibleNetwork, externalOverlay) }
       </Page>
     );
   }
@@ -93,6 +94,7 @@ class Dapps extends Component {
     return (
       <SectionList
         items={ items }
+        noStretch
         overlay={ overlay }
         renderItem={ this.renderApp }
       />

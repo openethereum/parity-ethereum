@@ -14,7 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component, PropTypes } from 'react';
+import React, { Component } from 'react';
+import PropTypes from 'prop-types';
 
 import Container, { Title as ContainerTitle } from '~/ui/Container';
 import DappIcon from '~/ui/DappIcon';
@@ -49,11 +50,6 @@ export default class DappCard extends Component {
         className={
           [styles.container, className].join(' ')
         }
-        hover={
-          <div className={ styles.author }>
-            { app.author }, v{ app.version }
-          </div>
-        }
         link={ this.getLink(app) }
         onClick={ onClick }
       >
@@ -79,6 +75,9 @@ export default class DappCard extends Component {
             title={ app.name }
             byline={ app.description }
           />
+          <div className={ styles.author }>
+            { app.author }, v{ app.version }
+          </div>
           { children }
         </div>
       </Container>

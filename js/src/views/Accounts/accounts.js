@@ -17,7 +17,8 @@
 import { observe } from 'mobx';
 import { observer } from 'mobx-react';
 import { uniq, isEqual, pickBy } from 'lodash';
-import React, { Component, PropTypes } from 'react';
+import React, { Component } from 'react';
+import PropTypes from 'prop-types';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';

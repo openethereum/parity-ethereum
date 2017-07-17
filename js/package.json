@@ -179,8 +179,9 @@
     "loglevel": "1.4.1",
     "moment": "2.17.0",
     "promise-worker": "1.1.1",
-    "react": "15.4.2",
-    "react-dom": "15.4.2",
+    "prop-types": "15.5.10",
+    "react": "15.6.1",
+    "react-dom": "15.6.1",
     "react-inspector": "paritytech/react-inspector",
     "react-intl": "2.1.5",
     "react-router": "3.0.0",
@@ -198,7 +199,6 @@
     "utf8": "2.1.2",
     "web3": "0.17.0-beta",
     "whatwg-fetch": "2.0.1",
-    "worker-loader": "^0.8.0",
-    "yarn": "^0.21.3"
+    "worker-loader": "^0.8.0"
   }
 }

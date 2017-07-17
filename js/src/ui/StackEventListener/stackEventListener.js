@@ -15,7 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import ReactEventListener from 'react-event-listener';
-import React, { Component, PropTypes } from 'react';
+import React, { Component } from 'react';
+import PropTypes from 'prop-types';
 
 let listenerId = 0;
 let listenerIds = [];

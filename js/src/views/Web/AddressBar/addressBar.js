@@ -15,7 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { observer } from 'mobx-react';
-import React, { Component, PropTypes } from 'react';
+import React, { Component } from 'react';
+import PropTypes from 'prop-types';
 
 import { Button, DappUrlInput } from '@parity/ui';
 import { CloseIcon, RefreshIcon, GotoIcon } from '@parity/ui/Icons';

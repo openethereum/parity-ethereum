@@ -23,9 +23,11 @@
 .normal {
   height: 56px;
   width: 56px;
+  font-size: 49px !important;
 }
 
 .small {
   height: 32px;
   width: 32px;
+  font-size: 28px !important;
 }

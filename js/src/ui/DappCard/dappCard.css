@@ -29,9 +29,14 @@
 }
 
 .image {
-  left: 1.5em;
+  color: rgba(0, 0, 0, 0.5);
+  left: 1.5rem;
   position: absolute;
-  top: 1.5em;
+  top: 1.5rem;
+}
+
+i.image {
+  top: 2.75rem;
 }
 
 .author,

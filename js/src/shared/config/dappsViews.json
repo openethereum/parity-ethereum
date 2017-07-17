@@ -7,7 +7,8 @@
     "description": "Display the accounts",
     "author": "Parity Team <admin@ethcore.io>",
     "version": "2.0.0",
-    "visible": true
+    "visible": true,
+    "semantic-icon": "address card"
   },
   {
     "id": "account",
@@ -28,7 +29,8 @@
     "description": "Display the accounts added to the addressbook",
     "author": "Parity Team <admin@ethcore.io>",
     "version": "2.0.0",
-    "visible": true
+    "visible": true,
+    "semantic-icon": "address book"
   },
   {
     "id": "address",
@@ -49,7 +51,8 @@
     "description": "Display the contracts added to the addressbook",
     "author": "Parity Team <admin@ethcore.io>",
     "version": "2.0.0",
-    "visible": true
+    "visible": true,
+    "semantic-icon": "puzzle"
   },
   {
     "id": "contract",
@@ -70,7 +73,8 @@
     "description": "Allow setting of accounts to use by default for dapps",
     "author": "Parity Team <admin@ethcore.io>",
     "version": "2.0.0",
-    "visible": true
+    "visible": true,
+    "semantic-icon": "users"
   },
   {
     "id": "dappMethods",
@@ -80,7 +84,8 @@
     "description": "Allow setting of dapp permissions on a per method level",
     "author": "Parity Team <admin@ethcore.io>",
     "version": "2.0.0",
-    "visible": true
+    "visible": true,
+    "semantic-icon": "map signs"
   },
   {
     "id": "dappVisible",
@@ -90,7 +95,8 @@
     "description": "Allow setting of visible dapps",
     "author": "Parity Team <admin@ethcore.io>",
     "version": "2.0.0",
-    "visible": true
+    "visible": true,
+    "semantic-icon": "hide"
   },
   {
     "id": "develop",
@@ -100,7 +106,8 @@
     "description": "Create new contracts",
     "author": "Parity Team <admin@ethcore.io>",
     "version": "2.0.0",
-    "visible": true
+    "visible": true,
+    "semantic-icon": "connectdevelop"
   },
   {
     "id": "home",
@@ -110,7 +117,8 @@
     "description": "Display the status of the node, recently accessed applications, accounts and news",
     "author": "Parity Team <admin@ethcore.io>",
     "version": "2.0.0",
-    "visible": true
+    "visible": true,
+    "semantic-icon": "home"
   },
   {
     "id": "playground",
@@ -131,7 +139,8 @@
     "description": "Display the current and historic Signer requests",
     "author": "Parity Team <admin@ethcore.io>",
     "version": "2.0.0",
-    "visible": true
+    "visible": true,
+    "semantic-icon": "exchange"
   },
   {
     "id": "settings",
@@ -141,7 +150,8 @@
     "description": "Allows the configuraion of all Parity & Parity-UI related options",
     "author": "Parity Team <admin@ethcore.io>",
     "version": "2.0.0",
-    "visible": true
+    "visible": true,
+    "semantic-icon": "settings"
   },
   {
     "id": "status",
@@ -151,7 +161,8 @@
     "description": "Displays an overview of the node including settings, logs and connections",
     "author": "Parity Team <admin@ethcore.io>",
     "version": "2.0.0",
-    "visible": true
+    "visible": true,
+    "semantic-icon": "feed"
   },
   {
     "id": "vaults",
@@ -161,7 +172,8 @@
     "description": "Allows the management of the Account Vaults, including creation, locking and account assignment",
     "author": "Parity Team <admin@ethcore.io>",
     "version": "2.0.0",
-    "visible": true
+    "visible": true,
+    "semantic-icon": "archive"
   },
   {
     "id": "wallet",

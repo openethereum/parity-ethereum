@@ -15,8 +15,9 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import keycode from 'keycode';
-import React, { Component, PropTypes } from 'react';
+import React, { Component } from 'react';
 import ReactDOM from 'react-dom';
+import PropTypes from 'prop-types';
 
 import Button from '../Button';
 

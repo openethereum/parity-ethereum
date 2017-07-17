@@ -16,7 +16,8 @@
 
 // TODO: This is a copy & paste for Deploy/Event -> render() different. Not very DRY
 import moment from 'moment';
-import React, { Component, PropTypes } from 'react';
+import React, { Component } from 'react';
+import PropTypes from 'prop-types';
 
 import { api } from '../../parity';
 import { txLink } from '../../services';
