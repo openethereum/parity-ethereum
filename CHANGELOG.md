@@ -1,3 +1,27 @@
+## Parity [v1.6.9](https://github.com/paritytech/parity/releases/tag/v1.6.9) (2017-07-16)
+
+This is a first stable release of 1.6 series. It contains a number of minor fixes and introduces the `--reseal-on-uncles` option for miners.
+
+Full list of changes:
+
+- Backports [#6061](https://github.com/paritytech/parity/pull/6061)
+  - Ethereum Classic Monetary Policy [#5741](https://github.com/paritytech/parity/pull/5741)
+    - Update rewards for uncle miners for ECIP1017
+    - Fix an off-by-one error in ECIP1017 era calculation
+    - `ecip1017_era_rounds` missing from EthashParams when run in build bot
+    - strip out ecip1017_eras_block_reward function and add unit test
+  - JS precompiled set to stable
+- Backports [#6060](https://github.com/paritytech/parity/pull/6060)
+  - --reseal-on-uncle [#5940](https://github.com/paritytech/parity/pull/5940)
+    - Optimized uncle check
+    - Additional uncle check
+    - Updated comment
+  - Bump to v1.6.9
+  - CLI: Export error message and less verbose peer counter. [#5870](https://github.com/paritytech/parity/pull/5870)
+    - Removed numbed of active connections from informant
+    - Print error message when fatdb is required
+    - Remove peers from UI
+
 ## Parity [v1.6.8](https://github.com/paritytech/parity/releases/tag/v1.6.8) (2017-06-08)
 
 This release addresses:
