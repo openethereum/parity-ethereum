@@ -82,10 +82,10 @@ class Dapps extends Component {
           />
         }
       >
-        <div>{ this.renderList(this.store.visibleViews) }</div>
-        <div>{ this.renderList(this.store.visibleLocal) }</div>
-        <div>{ this.renderList(this.store.visibleBuiltin) }</div>
-        <div>{ this.renderList(this.store.visibleNetwork, externalOverlay) }</div>
+        { this.renderList(this.store.visibleViews) }
+        { this.renderList(this.store.visibleLocal) }
+        { this.renderList(this.store.visibleBuiltin) }
+        { this.renderList(this.store.visibleNetwork, externalOverlay) }
       </Page>
     );
   }
@@ -94,6 +94,7 @@ class Dapps extends Component {
     return (
       <SectionList
         items={ items }
+        noStretch
         overlay={ overlay }
         renderItem={ this.renderApp }
       />

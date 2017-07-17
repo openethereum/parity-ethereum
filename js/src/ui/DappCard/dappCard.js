@@ -50,11 +50,6 @@ export default class DappCard extends Component {
         className={
           [styles.container, className].join(' ')
         }
-        hover={
-          <div className={ styles.author }>
-            { app.author }, v{ app.version }
-          </div>
-        }
         link={ this.getLink(app) }
         onClick={ onClick }
       >
@@ -80,6 +75,9 @@ export default class DappCard extends Component {
             title={ app.name }
             byline={ app.description }
           />
+          <div className={ styles.author }>
+            { app.author }, v{ app.version }
+          </div>
           { children }
         </div>
       </Container>
