@@ -16,9 +16,10 @@
 */
 
 $background: rgba(254, 254, 254, 1);
-$backgroundHover: rgba(250, 250, 250, 1);
+$backgroundHover: rgba(252, 252, 252, 1);
 $backgroundLight: rgba(18, 18, 18, 0.5);
 $borderColor: rgba(242, 242, 242, 1);
+$shadow: 0.25em 0.25em 0.25em rgba(0, 0, 0, 0.125);
 
 .container {
   background: $background;
@@ -42,16 +43,18 @@ $borderColor: rgba(242, 242, 242, 1);
     top: 100%;
     opacity: 0;
     z-index: 100;
+
   }
 
   &:hover {
     background: $backgroundHover;
+    box-shadow: $shadow;
 
     .hoverOverlay {
       background: $backgroundHover !important;
       border: 1px solid $borderColor;
       border-top: 1px solid transparent;
-      box-shadow: none !important;
+      box-shadow: $shadow;
       display: block;
       opacity: 1;
     }
