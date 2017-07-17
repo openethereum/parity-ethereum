@@ -34,7 +34,7 @@
     "react-dropzone": "3.7.3",
     "react-event-listener": "^0.4.0",
     "react-portal": "3.0.0",
-    "react-qr-reader": "1.0.3",
+    "react-qr-reader": "1.1.3",
     "recharts": "0.15.2",
     "semantic-ui-css": "2.2.10",
     "semantic-ui-react": "0.68.2",

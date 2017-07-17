@@ -425,6 +425,11 @@ Snapshot Options:
 Virtual Machine Options:
   --jitvm                          Enable the JIT VM. (default: {flag_jitvm})
 
+Whisper Options:
+  --whisper                        Enable the Whisper network. (default: {flag_whisper})
+  --whisper-pool-size MB           Target size of the whisper message pool in megabytes.
+                                   (default: {flag_whisper_pool_size})
+
 Legacy Options:
   --geth                           Run in Geth-compatibility mode. Sets the IPC path
                                    to be the same as Geth's. Overrides the --ipc-path

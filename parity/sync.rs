@@ -52,11 +52,12 @@ pub fn main() {
 	let remote_provider = dependency!(LightProviderClient, &service_urls::with_base(&service_config.io_path, service_urls::LIGHT_PROVIDER));
 
 	let sync = EthSync::new(Params {
-		config: service_config.sync, 
-		chain: remote_client.service().clone(), 
-		snapshot_service: remote_snapshot.service().clone(), 
+		config: service_config.sync,
+		chain: remote_client.service().clone(),
+		snapshot_service: remote_snapshot.service().clone(),
 		provider: remote_provider.service().clone(),
 		network_config: service_config.net
+		attached_protos: Vec::new(),
 	}).unwrap();
 
 	let _ = boot::main_thread();

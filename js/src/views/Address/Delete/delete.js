@@ -41,8 +41,13 @@ class Delete extends Component {
     newError: PropTypes.func
   };
 
+  state = {
+    isBusy: false
+  };
+
   render () {
     const { account, confirmMessage, visible } = this.props;
+    const { isBusy } = this.state;
 
     if (!visible) {
       return null;
@@ -50,6 +55,7 @@ class Delete extends Component {
 
     return (
       <ConfirmDialog
+        busy={ isBusy }
         className={ styles.delete }
         title={
           <FormattedMessage
@@ -98,6 +104,8 @@ class Delete extends Component {
   onDeleteConfirmed = () => {
     const { api, router } = this.context;
     const { account, route, newError } = this.props;
+
+    this.setState({ isBusy: true });
 
     api.parity
       .removeAddress(account.address)

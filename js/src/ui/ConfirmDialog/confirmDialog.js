@@ -47,14 +47,14 @@ export default function ConfirmDialog ({ busy, children, className, disabledConf
     <Portal
       buttons={ [
         <Button
-          disabled={ disabledDeny }
+          disabled={ disabledDeny || busy }
           icon={ iconDeny || <CancelIcon /> }
           key='deny'
           label={ labelDeny || DEFAULT_NO }
           onClick={ onDeny }
         />,
         <Button
-          disabled={ disabledConfirm }
+          disabled={ disabledConfirm || busy }
           icon={ iconConfirm || <CheckIcon /> }
           key='confirm'
           label={ labelConfirm || DEFAULT_YES }
