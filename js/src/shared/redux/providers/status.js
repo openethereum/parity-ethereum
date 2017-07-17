@@ -258,7 +258,7 @@ export default class Status {
     return fetch(`${uiUrl}/api/health`)
       .then((response) => {
         if (!response.ok) {
-          throw new Error(response.statusText);
+          return {};
         }
 
         return response.json();
