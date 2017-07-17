@@ -19,6 +19,8 @@ pub fn preset_config_string(arg: &str) -> Result<&'static str, &str> {
         "dev" => Ok(include_str!("./config.dev.toml")),
         "mining" => Ok(include_str!("./config.mining.toml")),
         "non-standard-ports" => Ok(include_str!("./config.non-standard-ports.toml")),
+        "insecure" => Ok(include_str!("./config.insecure.toml")),
+        "dev-insecure" => Ok(include_str!("./config.dev-insecure.toml")),
         _ => Err(arg.clone())
     }
 }

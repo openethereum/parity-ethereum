@@ -1587,6 +1587,7 @@ mod tests {
 		let conf = Configuration::parse(&args, None).unwrap();
 		match conf.into_command().unwrap().cmd {
 			Cmd::Run(c) => {
+				assert_eq!(c.net_settings.chain, "dev");
 				assert_eq!(c.gas_pricer, GasPricerConfig::Fixed(0.into()));
 				assert_eq!(c.miner_options.reseal_min_period, Duration::from_millis(0));
 			},
@@ -1624,6 +1625,49 @@ mod tests {
 			Cmd::Run(c) => {
 				assert_eq!(c.net_settings.network_port, 30305);
 				assert_eq!(c.net_settings.rpc_port, 8645);
+			},
+			_ => panic!("Should be Cmd::Run"),
+		}
+	}
+
+	#[test]
+	fn test_insecure_preset() {
+		let args = vec!["parity", "preset", "insecure"];
+		let conf = Configuration::parse(&args, None).unwrap();
+		match conf.into_command().unwrap().cmd {
+			Cmd::Run(c) => {
+				assert_eq!(c.update_policy.require_consensus, false);
+				assert_eq!(c.net_settings.rpc_interface, "0.0.0.0");
+				match c.http_conf.apis {
+					ApiSet::List(set) => assert_eq!(set, ApiSet::All.list_apis()),
+					_ => panic!("Incorrect rpc apis"),
+				}
+				// "web3,eth,net,personal,parity,parity_set,traces,rpc,parity_accounts");
+				assert_eq!(c.http_conf.hosts, None);
+				assert_eq!(c.ipfs_conf.hosts, None);
+			},
+			_ => panic!("Should be Cmd::Run"),
+		}
+	}
+
+	#[test]
+	fn test_dev_insecure_preset() {
+		let args = vec!["parity", "preset", "dev-insecure"];
+		let conf = Configuration::parse(&args, None).unwrap();
+		match conf.into_command().unwrap().cmd {
+			Cmd::Run(c) => {
+				assert_eq!(c.net_settings.chain, "dev");
+				assert_eq!(c.gas_pricer, GasPricerConfig::Fixed(0.into()));
+				assert_eq!(c.miner_options.reseal_min_period, Duration::from_millis(0));
+				assert_eq!(c.update_policy.require_consensus, false);
+				assert_eq!(c.net_settings.rpc_interface, "0.0.0.0");
+				match c.http_conf.apis {
+					ApiSet::List(set) => assert_eq!(set, ApiSet::All.list_apis()),
+					_ => panic!("Incorrect rpc apis"),
+				}
+				// "web3,eth,net,personal,parity,parity_set,traces,rpc,parity_accounts");
+				assert_eq!(c.http_conf.hosts, None);
+				assert_eq!(c.ipfs_conf.hosts, None);
 			},
 			_ => panic!("Should be Cmd::Run"),
 		}
