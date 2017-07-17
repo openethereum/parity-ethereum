@@ -254,13 +254,13 @@ module.exports = {
           messagesPattern: DEST_I18N + '/src/**/*.json',
           aggregateOutputDir: DEST_I18N + '/i18n/',
           aggregateFilename: 'en'
-        }),
-
-        new webpack.optimize.CommonsChunkPlugin({
-          filename: 'commons.[hash:10].js',
-          name: 'commons',
-          minChunks: 2
         })
+
+        // new webpack.optimize.CommonsChunkPlugin({
+        //   filename: 'commons.[hash:10].js',
+        //   name: 'commons',
+        //   minChunks: 2
+        // })
       );
     }
 

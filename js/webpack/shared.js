@@ -25,7 +25,19 @@ const postcssVars = require('postcss-simple-vars');
 const rucksack = require('rucksack-css');
 const CircularDependencyPlugin = require('circular-dependency-plugin');
 const ProgressBarPlugin = require('progress-bar-webpack-plugin');
+const PackageJson = require('../package.json');
 
+const UI_VERSION = PackageJson
+  .version
+  .split('.')
+  .map((part, index) => {
+    if (index !== 2) {
+      return part;
+    }
+
+    return `${parseInt(part, 10) + 1}`;
+  })
+  .join('.');
 const EMBED = process.env.EMBED;
 const ENV = process.env.NODE_ENV || 'development';
 const isProd = ENV === 'production';
@@ -113,7 +125,8 @@ function getPlugins (_isProd = isProd) {
           RPC_ADDRESS: JSON.stringify(process.env.RPC_ADDRESS),
           PARITY_URL: JSON.stringify(process.env.PARITY_URL),
           DAPPS_URL: JSON.stringify(process.env.DAPPS_URL),
-          LOGGING: JSON.stringify(!isProd)
+          LOGGING: JSON.stringify(!isProd),
+          UI_VERSION: JSON.stringify(UI_VERSION)
         }
       }),
 
@@ -125,26 +138,28 @@ function getPlugins (_isProd = isProd) {
           postcss: postcss,
           babel: getBabelrc()
         }
-      }),
+      })
+    ]);
 
+  if (_isProd) {
+    plugins.push(
       new webpack.optimize.OccurrenceOrderPlugin(!_isProd),
 
       new CircularDependencyPlugin({
         exclude: /node_modules/,
         failOnError: true
-      })
-    ]);
+      }),
 
-  if (_isProd) {
-    plugins.push(new webpack.optimize.UglifyJsPlugin({
-      screwIe8: true,
-      compress: {
-        warnings: false
-      },
-      output: {
-        comments: false
-      }
-    }));
+      new webpack.optimize.UglifyJsPlugin({
+        screwIe8: true,
+        compress: {
+          warnings: false
+        },
+        output: {
+          comments: false
+        }
+      })
+    );
   }
 
   return plugins;
