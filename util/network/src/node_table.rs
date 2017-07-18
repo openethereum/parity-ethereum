@@ -58,8 +58,8 @@ impl NodeEndpoint {
 	pub fn is_allowed(&self, filter: AllowIP) -> bool {
 		match filter {
 			AllowIP::All => true,
-			AllowIP::Private => !self.address.ip().is_global_s(),
-			AllowIP::Public => self.address.ip().is_global_s(),
+			AllowIP::Private => self.address.ip().is_usable_private(),
+			AllowIP::Public => self.address.ip().is_usable_public(),
 		}
 	}
 
@@ -101,8 +101,8 @@ impl NodeEndpoint {
 	pub fn is_valid(&self) -> bool {
 		self.udp_port != 0 && self.address.port() != 0 &&
 		match self.address {
-			SocketAddr::V4(a) => !a.ip().is_unspecified_s(),
-			SocketAddr::V6(a) => !a.ip().is_unspecified_s()
+			SocketAddr::V4(a) => !a.ip().is_unspecified(),
+			SocketAddr::V6(a) => !a.ip().is_unspecified()
 		}
 	}
 }
