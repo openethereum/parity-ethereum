@@ -573,6 +573,23 @@ impl Engine for Tendermint {
 		self.validators.signals_epoch_end(first, header, block, receipts)
 	}
 
+	fn is_epoch_end(
+		&self,
+		chain_head: &Header,
+		_chain: &super::Headers,
+		transition_store: &super::PendingTransitionStore,
+	) -> Option<Vec<u8>> {
+		let first = chain_head.number() == 0;
+
+		if let Some(change) = self.validators.is_epoch_end(first, chain_head) {
+			return Some(change)
+		} else if let Some(pending) = transition_store(chain_head.hash()) {
+			return Some(pending.proof)
+		}
+
+		None
+	}
+
 	fn set_signer(&self, ap: Arc<AccountProvider>, address: Address, password: String) {
 		{
 			self.signer.write().set(ap, address, password);
