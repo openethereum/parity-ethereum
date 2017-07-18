@@ -23,16 +23,19 @@ case $1 in
 esac
 
 . ./scripts/targets.sh
-cargo test -j 8 $OPTIONS --features "$FEATURES" $TARGETS $1 \
-cd ..
-ls target/debug
-git clone https://github.com/paritytech/parity-import-tests
-cp target/debug/parity-* parity-import-tests/aura.parity
-cd parity-import-tests/aura
-echo "start Aura test"
-parity import blocks.rlp --chain chain.json
-parity restore snap --chain chain.json
-ehco "Aura test complete"
 
+cargo test -j 8 $OPTIONS --features "$FEATURES" $TARGETS $1
 
+echo "Starting import tests"
+cargo run $OPTIONS -- \
+-d .test-parity \
+import ethcore/res/parity-import-tests/aura/blocks.rlp \
+--chain ethcore/res/parity-import-tests/aura/chain.json
 
+cargo run $OPTIONS -- \
+-d .test-parity \
+restore ethcore/res/parity-import-tests/aura/snap \
+--chain ethcore/res/parity-import-tests/aura/chain.json
+
+rm -rf .test-parity
+echo "Import tests finished"

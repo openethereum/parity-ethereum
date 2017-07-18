@@ -5,3 +5,6 @@
 [submodule "ethcore/res/wasm-tests"]
 	path = ethcore/res/wasm-tests
 	url = https://github.com/paritytech/wasm-tests
+[submodule "ethcore/res/parity-import-tests"]
+	path = ethcore/res/parity-import-tests
+	url = git@github.com:paritytech/parity-import-tests
