@@ -48,6 +48,7 @@ use error::Error;
 use evm::Schedule;
 use header::{Header, BlockNumber};
 use receipt::Receipt;
+use trace::FlatTrace;
 use snapshot::SnapshotComponents;
 use spec::CommonParams;
 use transaction::{UnverifiedTransaction, SignedTransaction};
@@ -79,6 +80,13 @@ pub enum EngineError {
 	FailedSystemCall(String),
 	/// Requires client ref, but none registered.
 	RequiresClient,
+}
+
+/// Used to return information about close block operation.
+#[derive(Debug)]
+pub struct CloseOutcome {
+	/// The trace for the closing block, if None if tracing is disabled.
+	pub trace: Option<Vec<FlatTrace>>,
 }
 
 impl fmt::Display for EngineError {
@@ -228,8 +236,8 @@ pub trait Engine : Sync + Send {
 	}
 
 	/// Block transformation functions, after the transactions.
-	fn on_close_block(&self, _block: &mut ExecutedBlock) -> Result<(), Error> {
-		Ok(())
+	fn on_close_block(&self, _block: &mut ExecutedBlock) -> Result<CloseOutcome, Error> {
+		Ok(CloseOutcome{trace: None})
 	}
 
 	/// None means that it requires external input (e.g. PoW) to seal a block.

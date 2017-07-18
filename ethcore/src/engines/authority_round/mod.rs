@@ -24,7 +24,9 @@ use account_provider::AccountProvider;
 use block::*;
 use builtin::Builtin;
 use client::{Client, EngineClient};
-use engines::{Call, Engine, Seal, EngineError, ConstructedVerifier};
+use engines::{Call, Engine, Seal, EngineError, ConstructedVerifier, CloseOutcome};
+use trace::{Tracer, ExecutiveTracer};
+use types::trace_types::trace::{RewardType};
 use error::{Error, TransactionError, BlockError};
 use ethjson;
 use header::{Header, BlockNumber};
@@ -543,18 +545,30 @@ impl Engine for AuthorityRound {
 	}
 
 	/// Apply the block reward on finalisation of the block.
-	fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<(), Error> {
+	fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<CloseOutcome, Error> {
 		let fields = block.fields_mut();
+		let mut tracer = ExecutiveTracer::default();
 		// Bestow block reward
 		let reward = self.params().block_reward;
 		let res = fields.state.add_balance(fields.header.author(), &reward, CleanupMode::NoEmpty)
 			.map_err(::error::Error::from)
 			.and_then(|_| fields.state.commit());
+
+		// Trace it
+		let block_miner = fields.header.author().clone();
+		tracer.trace_reward(block_miner, self.block_reward, RewardType::Block);
+
 		// Commit state so that we can actually figure out the state root.
 		if let Err(ref e) = res {
 			warn!("Encountered error on closing block: {}", e);
 		}
-		res
+		match res {
+			Ok(res) => match *fields.tracing_enabled {
+				true => Ok(CloseOutcome{trace: Some(tracer.traces())}),
+				false => Ok(CloseOutcome{trace: None})
+			},
+			Err(e) => Err(e)
+		}
 	}
 
 	/// Check the number of seal fields.

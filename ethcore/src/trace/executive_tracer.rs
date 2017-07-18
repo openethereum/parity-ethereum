@@ -18,7 +18,7 @@
 
 use util::{Bytes, Address, U256};
 use evm::action_params::ActionParams;
-use trace::trace::{Call, Create, Action, Res, CreateResult, CallResult, VMTrace, VMOperation, VMExecutedOperation, MemoryDiff, StorageDiff, Suicide};
+use trace::trace::{Call, Create, Action, Res, CreateResult, CallResult, VMTrace, VMOperation, VMExecutedOperation, MemoryDiff, StorageDiff, Suicide, Reward, RewardType};
 use trace::{Tracer, VMTracer, FlatTrace, TraceError};
 
 /// Simple executive tracer. Traces all calls and creates. Ignores delegatecalls.
@@ -160,6 +160,21 @@ impl Tracer for ExecutiveTracer {
 			trace_address: Default::default(),
 		};
 		debug!(target: "trace", "Traced failed suicide {:?}", trace);
+		self.traces.push(trace);
+	}
+	
+	fn trace_reward(&mut self, miner: Address, value: U256, reward_type: RewardType) {
+		let trace = FlatTrace {
+			subtraces: 0,
+			action: Action::Reward(Reward {
+				miner: miner,
+				value: value,
+				reward_type: reward_type,
+			}),
+			result: Res::None,
+			trace_address: Default::default(),
+		};
+		debug!(target: "trace", "Traced failed reward {:?}", trace);
 		self.traces.push(trace);
 	}
 

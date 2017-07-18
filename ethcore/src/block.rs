@@ -92,6 +92,7 @@ pub struct ExecutedBlock {
 	transactions_set: HashSet<H256>,
 	state: State<StateDB>,
 	traces: Option<Vec<Vec<FlatTrace>>>,
+	tracing_enabled: bool,
 }
 
 /// A set of references to `ExecutedBlock` fields that are publicly accessible.
@@ -108,6 +109,8 @@ pub struct BlockRefMut<'a> {
 	pub state: &'a mut State<StateDB>,
 	/// Traces.
 	pub traces: &'a Option<Vec<Vec<FlatTrace>>>,
+	/// Tracing enabled flag.
+	pub tracing_enabled: &'a mut bool,
 }
 
 /// A set of immutable references to `ExecutedBlock` fields that are publicly accessible.
@@ -124,6 +127,8 @@ pub struct BlockRef<'a> {
 	pub state: &'a State<StateDB>,
 	/// Traces.
 	pub traces: &'a Option<Vec<Vec<FlatTrace>>>,
+	/// Tracing enabled flag.
+	pub tracing_enabled: &'a bool,
 }
 
 impl ExecutedBlock {
@@ -137,6 +142,7 @@ impl ExecutedBlock {
 			transactions_set: Default::default(),
 			state: state,
 			traces: if tracing {Some(Vec::new())} else {None},
+			tracing_enabled: tracing,
 		}
 	}
 
@@ -149,6 +155,7 @@ impl ExecutedBlock {
 			state: &mut self.state,
 			receipts: &self.receipts,
 			traces: &self.traces,
+			tracing_enabled: &mut self.tracing_enabled,
 		}
 	}
 
@@ -161,6 +168,7 @@ impl ExecutedBlock {
 			state: &self.state,
 			receipts: &self.receipts,
 			traces: &self.traces,
+			tracing_enabled: &self.tracing_enabled,
 		}
 	}
 }
@@ -196,6 +204,9 @@ pub trait IsBlock {
 
 	/// Get all uncles in this block.
 	fn uncles(&self) -> &[Header] { &self.block().uncles }
+
+	/// Get tracing enabled flag for this block.
+	fn tracing_enabled(&self) -> &bool { &self.block().tracing_enabled }
 }
 
 /// Trait for a object that has a state database.
@@ -392,9 +403,16 @@ impl<'x> OpenBlock<'x> {
 
 		let unclosed_state = s.block.state.clone();
 
-		if let Err(e) = s.engine.on_close_block(&mut s.block) {
-			warn!("Encountered error on closing the block: {}", e);
+		match s.engine.on_close_block(&mut s.block) {
+			Ok(outcome) => {
+				let t = outcome.trace;
+				if t.is_some() {
+					s.block.traces.as_mut().map(|traces| traces.push(t.unwrap()));
+				}
+			}
+			Err(e) => warn!("Encountered error on closing the block: {}", e),
 		}
+		
 		if let Err(e) = s.block.state.commit() {
 			warn!("Encountered error on state commit: {}", e);
 		}
