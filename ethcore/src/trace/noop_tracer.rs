@@ -58,7 +58,7 @@ impl Tracer for NoopTracer {
 	fn trace_suicide(&mut self, _address: Address, _balance: U256, _refund_address: Address) {
 	}
 
-	fn trace_reward(&mut self, miner: Address, value: U256, reward_type: RewardType) {
+	fn trace_reward(&mut self, _: Address, _: U256, _: RewardType) {
 	}
 
 	fn subtracer(&self) -> Self {
