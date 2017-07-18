@@ -23,6 +23,8 @@ extern crate sha3;
 extern crate parking_lot;
 
 #[macro_use]
+extern crate crunchy;
+#[macro_use]
 extern crate log;
 mod compute;
 
