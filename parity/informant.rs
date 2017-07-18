@@ -254,21 +254,24 @@ impl<T: InformantData> Informant<T> {
 			return;
 		}
 
+		*self.last_tick.write() = Instant::now();
+
+		let (client_report, full_report) = {
+			let mut last_report = self.last_report.lock();
+			let full_report = self.target.report();
+			let diffed = full_report.client_report.clone() - &*last_report;
+			*last_report = full_report.client_report.clone();
+			(diffed, full_report)
+		};
+
 		let Report {
 			importing,
 			chain_info,
-			client_report,
 			queue_info,
 			cache_sizes,
 			sync_info,
-		} = self.target.report();
-
-		let client_report = {
-			let mut last_report = self.last_report.lock();
-			let diffed = client_report.clone() - &*last_report;
-			*last_report = client_report.clone();
-			diffed
-		};
+			..
+		} = full_report;
 
 		let rpc_stats = self.rpc_stats.as_ref();
 
@@ -283,8 +286,6 @@ impl<T: InformantData> Informant<T> {
 		if !importing && !snapshot_sync && elapsed < Duration::from_secs(30) {
 			return;
 		}
-
-		*self.last_tick.write() = Instant::now();
 
 		let paint = |c: Style, t: String| match self.with_color && stdout_isatty() {
 			true => format!("{}", c.paint(t)),
