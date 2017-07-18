@@ -152,7 +152,7 @@ impl InformantData for FullNodeInformantData {
 					max_peers: status.current_max_peers(net_config.min_peers, net_config.max_peers),
 				}))
 			}
-			_ => (is_major_importing(None, queue_info.clone()), None),
+			_ => (is_major_importing(self.sync.as_ref().map(|s| s.status().state), queue_info.clone()), None),
 		};
 
 		Report {
@@ -254,8 +254,6 @@ impl<T: InformantData> Informant<T> {
 			return;
 		}
 
-		*self.last_tick.write() = Instant::now();
-
 		let (client_report, full_report) = {
 			let mut last_report = self.last_report.lock();
 			let full_report = self.target.report();
@@ -286,6 +284,8 @@ impl<T: InformantData> Informant<T> {
 		if !importing && !snapshot_sync && elapsed < Duration::from_secs(30) {
 			return;
 		}
+
+		*self.last_tick.write() = Instant::now();
 
 		let paint = |c: Style, t: String| match self.with_color && stdout_isatty() {
 			true => format!("{}", c.paint(t)),
