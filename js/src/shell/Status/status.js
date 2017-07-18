@@ -16,18 +16,21 @@
 
 import React from 'react';
 import PropTypes from 'prop-types';
-import { connect } from 'react-redux';
+import { observer } from 'mobx-react';
 
 import { BlockStatus } from '@parity/ui';
 
 import Consensus from './Consensus';
+import Store from './Store';
 import Upgrade from './Upgrade';
 
 import styles from './status.css';
 
-function Status ({ clientVersion, isTest, netChain, netPeers, upgradeStore }) {
-  const [ clientName, , versionString, , ] = (clientVersion || '').split('/');
+function Status ({ upgradeStore }, { api }) {
+  const store = Store.get(api);
+  const [ clientName, , versionString, , ] = (store.clientVersion || '').split('/');
   const [ versionNumber, versionType, , versionDate ] = (versionString || '').split('-');
+  const { active, connected, max } = store.netPeers;
 
   return (
     <div className={ styles.status }>
@@ -40,37 +43,23 @@ function Status ({ clientVersion, isTest, netChain, netPeers, upgradeStore }) {
       </div>
       <div className={ styles.netinfo }>
         <BlockStatus />
-        <div className={ `${styles.network} ${styles[isTest ? 'test' : 'live']}` }>
-          { netChain }
+        <div className={ `${styles.network} ${styles[store.isTest ? 'test' : 'live']}` }>
+          { store.netChain }
         </div>
         <div className={ styles.peers }>
-          { netPeers.active.toFormat() }/{ netPeers.connected.toFormat() }/{ netPeers.max.toFormat() } peers
+          { active ? active.toFormat() : '0' }/{ connected ? connected.toFormat() : '0' }/{ max ? max.toFormat() : '0' } peers
         </div>
       </div>
     </div>
   );
 }
 
+Status.contextTypes = {
+  api: PropTypes.object.isRequired
+};
+
 Status.propTypes = {
-  clientVersion: PropTypes.string,
-  isTest: PropTypes.bool,
-  netChain: PropTypes.string,
-  netPeers: PropTypes.object,
   upgradeStore: PropTypes.object.isRequired
 };
 
-function mapStateToProps (state) {
-  const { clientVersion, netPeers, netChain, isTest } = state.nodeStatus;
-
-  return {
-    clientVersion,
-    netPeers,
-    netChain,
-    isTest
-  };
-}
-
-export default connect(
-  mapStateToProps,
-  null
-)(Status);
+export default observer(Status);
