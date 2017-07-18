@@ -296,7 +296,7 @@ impl Engine for Arc<Ethash> {
 		let current_number = fields.header.number();
 		for u in fields.uncles.iter() {
 			let uncle_miner = u.author().clone();
-			let mut result_uncle_reward: U256 = U256::from(0);
+			let result_uncle_reward: U256;
 
 			if eras == 0 {
 				result_uncle_reward = reward * U256::from(8 + u.number() - current_number) / U256::from(8);

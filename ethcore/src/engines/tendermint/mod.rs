@@ -558,7 +558,7 @@ impl Engine for Tendermint {
 			warn!("Encountered error on closing block: {}", e);
 		}
 		match res {
-			Ok(res) => match *fields.tracing_enabled {
+			Ok(_) => match *fields.tracing_enabled {
 				true => Ok(CloseOutcome{trace: Some(tracer.traces())}),
 				false => Ok(CloseOutcome{trace: None})
 			},
