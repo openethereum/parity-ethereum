@@ -77,7 +77,7 @@ linux-snap:
     - echo "Version:"$VER
     - snapcraft
     - ls
-   #- cp "parity_"$CI_BUILD"_REF_NAME_amd64.snap" "parity_"$VER"_amd64.snap"
+    - cp "parity_"$CI_BUILD"_REF_NAME_amd64.snap" "parity_"$VER"_amd64.snap"
     - md5sum "parity_"$VER"_amd64.snap" > "parity_"$VER"_amd64.snap.md5"
     - aws configure set aws_access_key_id $s3_key
     - aws configure set aws_secret_access_key $s3_secret
@@ -561,6 +561,7 @@ docker-build:
     - docker info
   script:
     - if [ "$CI_BUILD_REF_NAME" == "beta-release" ]; then DOCKER_TAG="latest"; else DOCKER_TAG=$CI_BUILD_REF_NAME; fi
+    - echo "Tag:" $DOCKER_TAG
     - docker login -u $Docker_Hub_User_Parity -p $Docker_Hub_Pass_Parity
     - sh scripts/docker-build.sh $DOCKER_TAG parity
     - docker logout
