@@ -147,7 +147,6 @@ mod benchmarks {
 	#[bench]
 	fn bench_seedhash(b: &mut Bencher) {
 		let seed_compute = SeedHashCompute::new();
-		let hash = [241, 175, 44, 134, 39, 121, 245, 239, 228, 236, 43, 160, 195, 152, 46, 7, 199, 5, 253, 147, 241, 206, 98, 43, 3, 104, 17, 40, 192, 79, 106, 162];
 
 		b.iter(|| seed_compute.get_seedhash(486382));
 	}
