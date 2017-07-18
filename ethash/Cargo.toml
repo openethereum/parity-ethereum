@@ -10,3 +10,6 @@ log = "0.3"
 sha3 = { path = "../util/sha3" }
 primal = "0.2.3"
 parking_lot = "0.4"
+
+[features]
+benches = []

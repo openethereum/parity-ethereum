@@ -1,3 +1,5 @@
+#![cfg_attr(feature = "benches", feature(test))]
+
 // Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
@@ -124,4 +126,29 @@ fn test_lru() {
 	ethash.compute_light(70000, &hash, 1);
 	assert_eq!(ethash.cache.lock().recent_epoch.unwrap(), 2);
 	assert_eq!(ethash.cache.lock().prev_epoch.unwrap(), 0);
+}
+
+#[cfg(feature = "benches")]
+mod benchmarks {
+	extern crate test;
+
+	use compute::{Light, light_compute, SeedHashCompute};
+	use self::test::Bencher;
+
+	#[bench]
+	fn bench_light_compute(b: &mut Bencher) {
+		let hash = [0xf5, 0x7e, 0x6f, 0x3a, 0xcf, 0xc0, 0xdd, 0x4b, 0x5b, 0xf2, 0xbe, 0xe4, 0x0a, 0xb3, 0x35, 0x8a, 0xa6, 0x87, 0x73, 0xa8, 0xd0, 0x9f, 0x5e, 0x59, 0x5e, 0xab, 0x55, 0x94, 0x05, 0x52, 0x7d, 0x72];
+		let nonce = 0xd7b3ac70a301a249;
+		let light = Light::new(486382);
+
+		b.iter(|| light_compute(&light, &hash, nonce));
+	}
+
+	#[bench]
+	fn bench_seedhash(b: &mut Bencher) {
+		let seed_compute = SeedHashCompute::new();
+		let hash = [241, 175, 44, 134, 39, 121, 245, 239, 228, 236, 43, 160, 195, 152, 46, 7, 199, 5, 253, 147, 241, 206, 98, 43, 3, 104, 17, 40, 192, 79, 106, 162];
+
+		b.iter(|| seed_compute.get_seedhash(486382));
+	}
 }
