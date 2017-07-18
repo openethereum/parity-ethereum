@@ -601,6 +601,10 @@ impl Engine for Tendermint {
 		self.signer.read().sign(hash).map_err(Into::into)
 	}
 
+	fn snapshot_components(&self) -> Option<Box<::snapshot::SnapshotComponents>> {
+		Some(Box::new(::snapshot::PoaSnapshot))
+	}
+
 	fn stop(&self) {
 		self.step_service.stop()
 	}
