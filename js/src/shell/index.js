@@ -37,12 +37,11 @@ import ContextProvider from '@parity/ui/ContextProvider';
 
 import '@parity/shared/environment';
 
-import SecureApi from '~/secureApi';
-
 import Application from './Application';
 import Dapp from './Dapp';
 import { setupProviderFilters, Store as DappRequestsStore } from './DappRequests';
 import Dapps from './Dapps';
+import SecureApi from './secureApi';
 
 injectTapEventPlugin();
 

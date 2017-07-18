@@ -25,15 +25,15 @@ import { AppContainer } from 'react-hot-loader';
 
 import injectTapEventPlugin from 'react-tap-event-plugin';
 
-import SecureApi from '~/secureApi';
 import ContractInstances from '~/contracts';
-
 import { initStore } from '~/redux';
 import ContextProvider from '~/ui/ContextProvider';
 import muiTheme from '~/ui/Theme';
 
 import { patchApi } from '~/util/tx';
 import { setApi } from '~/redux/providers/apiActions';
+
+import SecureApi from './secureApi';
 
 import '~/environment';
 
