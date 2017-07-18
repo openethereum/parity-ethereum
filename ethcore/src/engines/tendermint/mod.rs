@@ -566,6 +566,13 @@ impl Engine for Tendermint {
 		Ok(())
 	}
 
+	fn signals_epoch_end(&self, header: &Header, block: Option<&[u8]>, receipts: Option<&[::receipt::Receipt]>)
+		-> super::EpochChange
+	{
+		let first = header.number() == 0;
+		self.validators.signals_epoch_end(first, header, block, receipts)
+	}
+
 	fn set_signer(&self, ap: Arc<AccountProvider>, address: Address, password: String) {
 		{
 			self.signer.write().set(ap, address, password);
