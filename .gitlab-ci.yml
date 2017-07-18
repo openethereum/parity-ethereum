@@ -77,8 +77,10 @@ linux-snap:
     - echo "Version:"$VER
     - snapcraft
     - ls
-    - cp "parity_"$CI_BUILD"_amd64.snap" "parity_"$VER"_amd64.snap"
+    #- cp "parity_"$CI_BUILD"_amd64.snap" "parity_"$VER"_amd64.snap"
     - md5sum "parity_"$VER"_amd64.snap" > "parity_"$VER"_amd64.snap.md5"
+    - file "parity_"$VER"_amd64.snap.md5"
+    - cat "parity_"$VER"_amd64.snap.md5"
     - aws configure set aws_access_key_id $s3_key
     - aws configure set aws_secret_access_key $s3_secret
     - if [[ $CI_BUILD_REF_NAME =~ ^(master|beta|stable|nightly)$ ]]; then export S3_BUCKET=builds-parity-published; else export S3_BUCKET=builds-parity; fi
