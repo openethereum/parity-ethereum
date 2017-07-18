@@ -558,9 +558,9 @@ impl SnapshotService for Service {
 		self.reader.read().as_ref().map(|r| r.manifest().clone())
 	}
 
-	fn min_supported_version(&self) -> Option<u64> {
+	fn supported_versions(&self) -> Option<(u64, u64)> {
 		self.engine.snapshot_components()
-			.map(|c| c.min_supported_version())
+			.map(|c| (c.min_supported_version(), c.current_version()))
 	}
 
 	fn chunk(&self, hash: H256) -> Option<Bytes> {
