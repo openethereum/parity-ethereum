@@ -4,7 +4,7 @@ WORKDIR /build
 #ENV for build TAG
 ARG BUILD_TAG
 ENV BUILD_TAG ${BUILD_TAG:-master}
-RUN echo $BUILD_TAG
+RUN echo "Build tag:" $BUILD_TAG
 # install tools and dependencies
 RUN apt-get update && \
         apt-get install -y --force-yes --no-install-recommends \

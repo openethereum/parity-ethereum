@@ -563,7 +563,7 @@ docker-build:
     - if [ "$CI_BUILD_REF_NAME" == "beta-release" ]; then DOCKER_TAG="latest"; else DOCKER_TAG=$CI_BUILD_REF_NAME; fi
     - echo "Tag:" $DOCKER_TAG
     - docker login -u $Docker_Hub_User_Parity -p $Docker_Hub_Pass_Parity
-    - sh scripts/docker-build.sh $DOCKER_TAG parity
+    - sh scripts/docker-build.sh $DOCKER_TAG
     - docker logout
   tags:
     - docker
