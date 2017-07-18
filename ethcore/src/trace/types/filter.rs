@@ -128,6 +128,10 @@ impl Filter {
 				let from_matches = self.from_address.matches(&suicide.address);
 				let to_matches = self.to_address.matches(&suicide.refund_address);
 				from_matches && to_matches
+			},
+			Action::Reward(ref reward) => {
+				let to_matches = self.to_address.matches(&reward.miner);
+				to_matches
 			}
 		}
 	}

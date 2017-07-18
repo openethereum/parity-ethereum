@@ -299,6 +299,53 @@ impl From<trace::Call> for Call {
 	}
 }
 
+/// Reward type.
+#[derive(Debug, Serialize)]
+pub enum RewardType {
+	/// None
+	#[serde(rename="none")]
+	None,	
+	/// Block
+	#[serde(rename="block")]
+	Block,
+	/// Uncle
+	#[serde(rename="uncle")]
+	Uncle,
+}
+
+impl From<trace::RewardType> for RewardType {
+	fn from(c: trace::RewardType) -> Self {
+		match c {
+			trace::RewardType::None => RewardType::None,
+			trace::RewardType::Block => RewardType::Block,
+			trace::RewardType::Uncle => RewardType::Uncle,
+		}
+	}
+}
+
+
+/// Reward action
+#[derive(Debug, Serialize)]
+pub struct Reward {
+	/// Miner's address.
+	pub miner: H160,
+	/// Reward amount.
+	pub value: U256,
+	/// Reward type.
+	#[serde(rename="rewardType")]
+	pub reward_type: RewardType,
+}
+
+impl From<trace::Reward> for Reward {
+	fn from(r: trace::Reward) -> Self {
+		Reward {
+			miner: r.miner.into(),
+			value: r.value.into(),
+			reward_type: r.reward_type.into(),
+		}
+	}
+}
+
 /// Suicide
 #[derive(Debug, Serialize)]
 pub struct Suicide {
@@ -330,6 +377,8 @@ pub enum Action {
 	Create(Create),
 	/// Suicide
 	Suicide(Suicide),
+	/// Reward
+	Reward(Reward),	
 }
 
 impl From<trace::Action> for Action {
@@ -338,6 +387,7 @@ impl From<trace::Action> for Action {
 			trace::Action::Call(call) => Action::Call(call.into()),
 			trace::Action::Create(create) => Action::Create(create.into()),
 			trace::Action::Suicide(suicide) => Action::Suicide(suicide.into()),
+			trace::Action::Reward(reward) => Action::Reward(reward.into()),
 		}
 	}
 }
@@ -449,6 +499,10 @@ impl Serialize for LocalizedTrace {
 				struc.serialize_field("type", "suicide")?;
 				struc.serialize_field("action", suicide)?;
 			},
+			Action::Reward(ref reward) => {
+				struc.serialize_field("type", "reward")?;
+				struc.serialize_field("action", reward)?;
+			},
 		}
 
 		match self.result {
@@ -515,6 +569,10 @@ impl Serialize for Trace {
 			Action::Suicide(ref suicide) => {
 				struc.serialize_field("type", "suicide")?;
 				struc.serialize_field("action", suicide)?;
+			},
+			Action::Reward(ref reward) => {
+				struc.serialize_field("type", "reward")?;
+				struc.serialize_field("action", reward)?;
 			},
 		}
 

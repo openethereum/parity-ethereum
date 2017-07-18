@@ -21,11 +21,13 @@ use block::*;
 use builtin::Builtin;
 use evm::env_info::EnvInfo;
 use error::{BlockError, Error, TransactionError};
+use trace::{Tracer, ExecutiveTracer};
+use types::trace_types::trace::{RewardType};
 use header::{Header, BlockNumber};
 use state::CleanupMode;
 use spec::CommonParams;
 use transaction::UnverifiedTransaction;
-use engines::{self, Engine};
+use engines::{self, Engine, CloseOutcome};
 use evm::Schedule;
 use ethjson;
 use rlp::{self, UntrustedRlp};
@@ -283,40 +285,57 @@ impl Engine for Arc<Ethash> {
 
 	/// Apply the block reward on finalisation of the block.
 	/// This assumes that all uncles are valid uncles (i.e. of at least one generation before the current).
-	fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<(), Error> {
+	fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<CloseOutcome, Error> {
 		let reward = self.ethash_params.block_reward;
 		let fields = block.fields_mut();
 		let eras_rounds = self.ethash_params.ecip1017_era_rounds;
 		let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, reward, fields.header.number());
+		let mut tracer = ExecutiveTracer::default();
 
 		// Bestow block reward
+		let result_block_reward = reward + reward / U256::from(32) * U256::from(fields.uncles.len());
 		fields.state.add_balance(
 			fields.header.author(),
-			&(reward + reward / U256::from(32) * U256::from(fields.uncles.len())),
+			&result_block_reward,
 			CleanupMode::NoEmpty
 		)?;
+
+		// Trace it
+		let block_miner = fields.header.author().clone();
+		tracer.trace_reward(block_miner, result_block_reward, RewardType::Block);
 
 		// Bestow uncle rewards
 		let current_number = fields.header.number();
 		for u in fields.uncles.iter() {
+			let uncle_miner = u.author().clone();
+			let mut result_uncle_reward: U256 = U256::from(0);
+
 			if eras == 0 {
+				result_uncle_reward = reward * U256::from(8 + u.number() - current_number) / U256::from(8);
 				fields.state.add_balance(
 					u.author(),
-					&(reward * U256::from(8 + u.number() - current_number) / U256::from(8)),
+					&(result_uncle_reward),
 					CleanupMode::NoEmpty
-				)
+				)	
 			} else {
+				result_uncle_reward = reward / U256::from(32);
 				fields.state.add_balance(
 					u.author(),
-					&(reward / U256::from(32)),
+					&(result_uncle_reward),
 					CleanupMode::NoEmpty
 				)
 			}?;
+
+			// Trace uncle rewards
+			tracer.trace_reward(uncle_miner, result_uncle_reward, RewardType::Uncle);
 		}
 
 		// Commit state so that we can actually figure out the state root.
 		fields.state.commit()?;
-		Ok(())
+		match *fields.tracing_enabled {
+			true => Ok(CloseOutcome{trace: Some(tracer.traces())}),
+			false => Ok(CloseOutcome{trace: None})
+		}		
 	}
 
 	fn verify_block_basic(&self, header: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
