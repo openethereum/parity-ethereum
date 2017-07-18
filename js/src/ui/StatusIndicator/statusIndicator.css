@@ -46,8 +46,8 @@
   width: 2em;
   width: calc(.9em + 5px);
   text-transform: initial;
-  vertical-align: bottom;
-  margin-top: -1em;
+  vertical-align: middle;
+  margin-top: -0.5em;
 
   > .bar {
     display: inline-block;

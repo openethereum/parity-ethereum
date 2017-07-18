@@ -17,8 +17,9 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import { observer } from 'mobx-react';
+import { connect } from 'react-redux';
 
-import { BlockStatus } from '@parity/ui';
+import { BlockStatus, StatusIndicator } from '@parity/ui';
 
 import Consensus from './Consensus';
 import Store from './Store';
@@ -26,11 +27,11 @@ import Upgrade from './Upgrade';
 
 import styles from './status.css';
 
-function Status ({ upgradeStore }, { api }) {
+function Status ({ health, upgradeStore }, { api }) {
   const store = Store.get(api);
   const [ clientName, , versionString, , ] = (store.clientVersion || '').split('/');
   const [ versionNumber, versionType, , versionDate ] = (versionString || '').split('-');
-  const { active, connected, max } = store.netPeers;
+  const { connected, max } = store.netPeers;
 
   return (
     <div className={ styles.status }>
@@ -42,12 +43,18 @@ function Status ({ upgradeStore }, { api }) {
         <Upgrade upgradeStore={ upgradeStore } />
       </div>
       <div className={ styles.netinfo }>
+        <StatusIndicator
+          type='signal'
+          id='application.status.health'
+          status={ health.overall.status }
+          title={ health.overall.message }
+        />
         <BlockStatus />
+        <div className={ styles.peers }>
+          { connected ? connected.toFormat() : '0' }/{ max ? max.toFormat() : '0' } peers
+        </div>
         <div className={ `${styles.network} ${styles[store.isTest ? 'test' : 'live']}` }>
           { store.netChain }
-        </div>
-        <div className={ styles.peers }>
-          { active ? active.toFormat() : '0' }/{ connected ? connected.toFormat() : '0' }/{ max ? max.toFormat() : '0' } peers
         </div>
       </div>
     </div>
@@ -59,7 +66,19 @@ Status.contextTypes = {
 };
 
 Status.propTypes = {
+  health: PropTypes.object.isRequired,
   upgradeStore: PropTypes.object.isRequired
 };
 
-export default observer(Status);
+function mapStateToProps (state) {
+  const { health } = state.nodeStatus;
+
+  return {
+    health
+  };
+}
+
+export default connect(
+  mapStateToProps,
+  null
+)(observer(Status));
