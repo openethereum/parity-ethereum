@@ -31,6 +31,7 @@ pub trait SocketAddrExt {
 
 	fn is_other_private(&self) -> bool;
 	fn is_future_use(&self) -> bool;
+	fn is_special_purpose(&self) -> bool;
 	fn is_reserved(&self) -> bool;
 }
 
@@ -52,6 +53,14 @@ impl SocketAddrExt for Ipv4Addr {
 		self.octets()[1] <= 127
 	}
 
+	// Used for the IANA IPv4 Special Purpose Address Registry
+	// see: https://en.wikipedia.org/wiki/Reserved_IP_addresses
+	fn is_special_purpose(&self) -> bool {
+		self.octets()[0] == 192 &&
+		self.octets()[1] == 0 &&
+		self.octets()[2] == 0
+	}
+
 	// Reserved for future use
 	// see: https://en.wikipedia.org/wiki/Reserved_IP_addresses
 	fn is_future_use(&self) -> bool {
@@ -67,6 +76,7 @@ impl SocketAddrExt for Ipv4Addr {
 		self.is_broadcast() ||
 		self.is_documentation() ||
 		self.is_other_private() ||
+		self.is_special_purpose() ||
 		self.is_future_use()
 	}
 }
@@ -86,6 +96,7 @@ impl SocketAddrExt for Ipv6Addr {
 	}
 
 	fn is_other_private(&self) -> bool { false }
+	fn is_special_purpose(&self) -> bool { false }
 	fn is_future_use(&self) -> bool { false }
 
 	fn is_reserved(&self) -> bool {
@@ -120,6 +131,13 @@ impl SocketAddrExt for IpAddr {
 		match *self {
 			IpAddr::V4(ref ip) => ip.is_future_use(),
 			IpAddr::V6(ref ip) => ip.is_future_use(),
+		}
+	}
+
+	fn is_special_purpose(&self) -> bool {
+		match *self {
+			IpAddr::V4(ref ip) => ip.is_special_purpose(),
+			IpAddr::V6(ref ip) => ip.is_special_purpose(),
 		}
 	}
 
@@ -329,6 +347,14 @@ fn test_ipv4_other_private() {
 	assert!(Ipv4Addr::new(100, 127, 255, 255).is_other_private());
 	assert!(!Ipv4Addr::new(100, 63, 255, 255).is_other_private());
 	assert!(!Ipv4Addr::new(100, 128, 0, 0).is_other_private());
+}
+
+#[test]
+fn test_ipv4_special_purpose() {
+	assert!(Ipv4Addr::new(192, 0, 0, 0).is_special_purpose());
+	assert!(Ipv4Addr::new(192, 0, 0, 255).is_special_purpose());
+	assert!(!Ipv4Addr::new(191, 255, 255, 255).is_special_purpose());
+	assert!(!Ipv4Addr::new(192, 0, 1, 255).is_special_purpose());
 }
 
 #[test]
