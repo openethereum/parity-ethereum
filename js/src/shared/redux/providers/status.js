@@ -20,6 +20,8 @@ import { LOG_KEYS, getLogger } from '@parity/shared/config';
 
 import UpgradeStore from '~/shell/UpgradeParity/store';
 
+import { isTestnet } from '../../util/testnet';
+
 import BalancesProvider from './balances';
 import { statusBlockNumber, statusCollection } from './statusActions';
 
@@ -305,12 +307,7 @@ export default class Status {
     return Promise
       .all(statusPromises)
       .then(([nodeKind, netPeers, clientVersion, netVersion, netChain]) => {
-        const isTest = [
-          '2',  // morden
-          '3',  // ropsten,
-          '17', // devchain
-          '42'  // kovan
-        ].includes(netVersion);
+        const isTest = isTestnet(netVersion);
 
         const nodeKindFull = nodeKind &&
           nodeKind.availability === 'personal' &&
