@@ -16,7 +16,7 @@
 
 use std::sync::{Arc, Weak};
 use std::net::SocketAddr;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use futures::{future, Future};
 use parking_lot::Mutex;
 use ethcore::filter::Filter;
@@ -39,7 +39,7 @@ lazy_static! {
 /// Key Server set
 pub trait KeyServerSet: Send + Sync {
 	/// Get set of configured key servers
-	fn get(&self) -> HashMap<Public, SocketAddr>;
+	fn get(&self) -> BTreeMap<Public, SocketAddr>;
 }
 
 /// On-chain Key Server set implementation.
@@ -55,11 +55,11 @@ struct CachedContract {
 	/// Contract address.
 	contract_addr: Option<Address>,
 	/// Active set of key servers.
-	key_servers: HashMap<Public, SocketAddr>,
+	key_servers: BTreeMap<Public, SocketAddr>,
 }
 
 impl OnChainKeyServerSet {
-	pub fn new(client: &Arc<Client>, key_servers: HashMap<Public, SocketAddr>) -> Arc<Self> {
+	pub fn new(client: &Arc<Client>, key_servers: BTreeMap<Public, SocketAddr>) -> Arc<Self> {
 		let key_server_set = Arc::new(OnChainKeyServerSet {
 			contract: Mutex::new(CachedContract::new(client, key_servers)),
 		});
@@ -69,7 +69,7 @@ impl OnChainKeyServerSet {
 }
 
 impl KeyServerSet for OnChainKeyServerSet {
-	fn get(&self) -> HashMap<Public, SocketAddr> {
+	fn get(&self) -> BTreeMap<Public, SocketAddr> {
 		self.contract.lock().get()
 	}
 }
@@ -81,7 +81,7 @@ impl ChainNotify for OnChainKeyServerSet {
 }
 
 impl CachedContract {
-	pub fn new(client: &Arc<Client>, key_servers: HashMap<Public, SocketAddr>) -> Self {
+	pub fn new(client: &Arc<Client>, key_servers: BTreeMap<Public, SocketAddr>) -> Self {
 		CachedContract {
 			client: Arc::downgrade(client),
 			contract_addr: None,
@@ -102,7 +102,7 @@ println!("=== Installing contract from address: {:?}", new_contract_addr);
 					KeyServerSetContract::new(contract_addr)
 				})
 				.map(|contract| {
-					let mut key_servers = HashMap::new();
+					let mut key_servers = BTreeMap::new();
 					let do_call = |a, d| future::done(self.client.upgrade().ok_or("Calling contract without client".into()).and_then(|c| c.call_contract(BlockId::Latest, a, d)));
 					let key_servers_list = contract.get_key_servers(do_call).wait()
 						.map_err(|err| { trace!(target: "secretstore", "Error {} reading list of key servers from contract", err); err })
@@ -139,7 +139,7 @@ println!("=== Installing contract from address: {:?}", new_contract_addr);
 		}
 	}
 
-	fn get(&self) -> HashMap<Public, SocketAddr> {
+	fn get(&self) -> BTreeMap<Public, SocketAddr> {
 		self.key_servers.clone()
 	}
 }

@@ -158,9 +158,17 @@ pub struct ClusterConnections {
 	/// Self node id.
 	pub self_node_id: NodeId,
 	/// All known other key servers.
-	pub nodes: BTreeMap<NodeId, SocketAddr>,
+	pub key_server_set: Arc<KeyServerSet>,
+	/// Connections data.
+	pub data: RwLock<ClusterConnectionsData>,
+}
+
+/// Cluster connections data.
+pub struct ClusterConnectionsData {
+	/// Active key servers set.
+	pub nodes: BTreeMap<Public, SocketAddr>,
 	/// Active connections to key servers.
-	pub connections: RwLock<BTreeMap<NodeId, Arc<Connection>>>,
+	pub connections: BTreeMap<NodeId, Arc<Connection>>,
 }
 
 /// Cluster view core.
@@ -354,6 +362,7 @@ impl ClusterCore {
 
 	/// Try to connect to every disconnected node.
 	fn connect_disconnected_nodes(data: Arc<ClusterData>) {
+		data.connections.update_nodes_set();
 		for (node_id, node_address) in data.connections.disconnected_nodes() {
 			if data.config.allow_connecting_to_higher_nodes || data.self_key_pair.public() < &node_id {
 				ClusterCore::connect(data.clone(), node_address);
@@ -665,34 +674,29 @@ impl ClusterCore {
 
 impl ClusterConnections {
 	pub fn new(config: &ClusterConfiguration) -> Result<Self, Error> {
-		let mut connections = ClusterConnections {
+		Ok(ClusterConnections {
 			self_node_id: config.self_key_pair.public().clone(),
-			nodes: BTreeMap::new(),
-			connections: RwLock::new(BTreeMap::new()),
-		};
-
-		let nodes = config.key_server_set.get();
-		for (node_id, socket_address) in nodes.iter().filter(|&(node_id, _)| node_id != config.self_key_pair.public()) {
-			//let socket_address = make_socket_address(&node_addr, node_port)?;
-			connections.nodes.insert(node_id.clone(), socket_address.clone());
-		}
-
-		Ok(connections)
+			key_server_set: config.key_server_set.clone(),
+			data: RwLock::new(ClusterConnectionsData {
+				nodes: config.key_server_set.get(),
+				connections: BTreeMap::new(),
+			}),
+		})
 	}
 
 	pub fn cluster_state(&self) -> ClusterState {
 		ClusterState {
-			connected: self.connections.read().keys().cloned().collect(),
+			connected: self.data.read().connections.keys().cloned().collect(),
 		}
 	}
 
 	pub fn get(&self, node: &NodeId) -> Option<Arc<Connection>> {
-		self.connections.read().get(node).cloned()
+		self.data.read().connections.get(node).cloned()
 	}
 
 	pub fn insert(&self, connection: Arc<Connection>) -> bool {
-		let mut connections = self.connections.write();
-		if connections.contains_key(connection.node_id()) {
+		let mut data = self.data.write();
+		if data.connections.contains_key(connection.node_id()) {
 			// we have already connected to the same node
 			// the agreement is that node with lower id must establish connection to node with higher id
 			if (&self.self_node_id < connection.node_id() && connection.is_inbound())
@@ -702,13 +706,13 @@ impl ClusterConnections {
 		}
 
 		trace!(target: "secretstore_net", "{}: inserting connection to {} at {}", self.self_node_id, connection.node_id(), connection.node_address());
-		connections.insert(connection.node_id().clone(), connection);
+		data.connections.insert(connection.node_id().clone(), connection);
 		true
 	}
 
 	pub fn remove(&self, node: &NodeId, is_inbound: bool) {
-		let mut connections = self.connections.write();
-		if let Entry::Occupied(entry) = connections.entry(node.clone()) {
+		let mut data = self.data.write();
+		if let Entry::Occupied(entry) = data.connections.entry(node.clone()) {
 			if entry.get().is_inbound() != is_inbound {
 				return;
 			}
@@ -719,19 +723,33 @@ impl ClusterConnections {
 	}
 
 	pub fn connected_nodes(&self) -> BTreeSet<NodeId> {
-		self.connections.read().keys().cloned().collect()
+		self.data.read().connections.keys().cloned().collect()
 	}
 
 	pub fn active_connections(&self)-> Vec<Arc<Connection>> {
-		self.connections.read().values().cloned().collect()
+		self.data.read().connections.values().cloned().collect()
 	}
 
 	pub fn disconnected_nodes(&self) -> BTreeMap<NodeId, SocketAddr> {
-		let connections = self.connections.read();
-		self.nodes.iter()
-			.filter(|&(node_id, _)| !connections.contains_key(node_id))
+		let data = self.data.read();
+		data.nodes.iter()
+			.filter(|&(node_id, _)| !data.connections.contains_key(node_id))
 			.map(|(node_id, node_address)| (node_id.clone(), node_address.clone()))
 			.collect()
+	}
+
+	pub fn update_nodes_set(&self) {
+		let mut data = self.data.write();
+		let new_nodes = self.key_server_set.get();
+		for obsolete_node in data.nodes.keys().cloned().collect::<Vec<_>>() {
+			if !new_nodes.contains_key(&obsolete_node) {
+				data.nodes.remove(&obsolete_node);
+				data.connections.remove(&obsolete_node);
+			}
+		}
+		for (new_node_public, new_node_addr) in new_nodes {
+			data.nodes.insert(new_node_public, new_node_addr);
+		}
 	}
 }
 
