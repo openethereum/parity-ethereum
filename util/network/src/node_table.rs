@@ -236,6 +236,11 @@ impl NodeTable {
 		self.nodes.get_mut(id)
 	}
 
+	/// Check if a node exists in the table.
+	pub fn contains(&self, id: &NodeId) -> bool {
+		self.nodes.contains_key(id)
+	}
+
 	/// Apply table changes coming from discovery
 	pub fn update(&mut self, mut update: TableUpdates, reserved: &HashSet<NodeId>) {
 		for (_, node) in update.added.drain() {
