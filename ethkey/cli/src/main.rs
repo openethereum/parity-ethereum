@@ -26,6 +26,7 @@ use std::num::ParseIntError;
 use docopt::Docopt;
 use rustc_hex::{FromHex, FromHexError};
 use ethkey::{KeyPair, Random, Brain, Prefix, Error as EthkeyError, Generator, sign, verify_public, verify_address};
+use std::io;
 
 pub const USAGE: &'static str = r#"
 Ethereum keys generator.
@@ -87,6 +88,7 @@ enum Error {
 	FromHex(FromHexError),
 	ParseInt(ParseIntError),
 	Docopt(docopt::Error),
+	Io(io::Error),
 }
 
 impl From<EthkeyError> for Error {
@@ -113,6 +115,12 @@ impl From<docopt::Error> for Error {
 	}
 }
 
+impl From<io::Error> for Error {
+	fn from(err: io::Error) -> Self {
+		Error::Io(err)
+	}
+}
+
 impl fmt::Display for Error {
 	fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
 		match *self {
@@ -120,6 +128,7 @@ impl fmt::Display for Error {
 			Error::FromHex(ref e) => write!(f, "{}", e),
 			Error::ParseInt(ref e) => write!(f, "{}", e),
 			Error::Docopt(ref e) => write!(f, "{}", e),
+			Error::Io(ref e) => write!(f, "{}", e),
 		}
 	}
 }
@@ -176,17 +185,17 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 	} else if args.cmd_generate {
 		let display_mode = DisplayMode::new(&args);
 		let keypair = if args.cmd_random {
-			Random.generate()
+			Random.generate()?
 		} else if args.cmd_prefix {
 			let prefix = args.arg_prefix.from_hex()?;
 			let iterations = usize::from_str_radix(&args.arg_iterations, 10)?;
-			Prefix::new(prefix, iterations).generate()
+			Prefix::new(prefix, iterations).generate()?
 		} else if args.cmd_brain {
-			Brain::new(args.arg_seed).generate()
+			Brain::new(args.arg_seed).generate().expect("Brain wallet generator is infallible; qed")
 		} else {
 			unreachable!();
 		};
-		Ok(display(keypair?, display_mode))
+		Ok(display(keypair, display_mode))
 	} else if args.cmd_sign {
 		let secret = args.arg_secret.parse().map_err(|_| EthkeyError::InvalidSecret)?;
 		let message = args.arg_message.parse().map_err(|_| EthkeyError::InvalidMessage)?;
