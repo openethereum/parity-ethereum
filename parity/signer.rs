@@ -17,12 +17,13 @@
 use std::io;
 use std::path::{Path, PathBuf};
 
-use ansi_term::Colour;
+use ansi_term::Colour::White;
+use ethcore_logger::Config as LogConfig;
 use rpc;
 use rpc_apis;
 use parity_rpc;
 use path::restrict_permissions_owner;
-
+use util::Style;
 
 pub const CODES_FILENAME: &'static str = "authcodes";
 
@@ -48,13 +49,18 @@ pub fn codes_path(path: &Path) -> PathBuf {
 	p
 }
 
-pub fn execute(ws_conf: rpc::WsConfiguration, ui_conf: rpc::UiConfiguration) -> Result<String, String> {
-	Ok(generate_token_and_url(&ws_conf, &ui_conf)?.message)
+pub fn execute(ws_conf: rpc::WsConfiguration, ui_conf: rpc::UiConfiguration, logger_config: LogConfig) -> Result<String, String> {
+	Ok(generate_token_and_url(&ws_conf, &ui_conf, &logger_config)?.message)
 }
 
-pub fn generate_token_and_url(ws_conf: &rpc::WsConfiguration, ui_conf: &rpc::UiConfiguration) -> Result<NewToken, String> {
+pub fn generate_token_and_url(ws_conf: &rpc::WsConfiguration, ui_conf: &rpc::UiConfiguration, logger_config: &LogConfig) -> Result<NewToken, String> {
 	let code = generate_new_token(&ws_conf.signer_path).map_err(|err| format!("Error generating token: {:?}", err))?;
 	let auth_url = format!("http://{}:{}/#/auth?token={}", ui_conf.interface, ui_conf.port, code);
+	let paint = |c: Style, t: String| match &logger_config.color {
+		&true => format!("{}", c.paint(t)),
+		&false => t,
+	};
+
 	// And print in to the console
 	Ok(NewToken {
 		token: code.clone(),
@@ -65,7 +71,7 @@ Open: {}
 to authorize your browser.
 Or use the generated token:
 {}"#,
-			Colour::White.bold().paint(auth_url),
+			paint(White.bold(), auth_url),
 			code
 		)
 	})
@@ -77,6 +83,6 @@ fn generate_new_token(path: &Path) -> io::Result<String> {
 	codes.clear_garbage();
 	let code = codes.generate_new()?;
 	codes.to_file(&path)?;
-	trace!("New key code created: {}", Colour::White.bold().paint(&code[..]));
+	trace!("New key code created: {}", White.bold().paint(&code[..]));
 	Ok(code)
 }
