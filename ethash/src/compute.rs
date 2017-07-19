@@ -397,8 +397,12 @@ fn light_new(block_number: u64) -> Light {
 			for i in 0..num_nodes {
 				let idx = *nodes.get_unchecked_mut(i).as_words().get_unchecked(0) as usize % num_nodes;
 				let mut data = nodes.get_unchecked((num_nodes - 1 + i) % num_nodes).clone();
-				for w in 0..NODE_WORDS {
-					*data.as_words_mut().get_unchecked_mut(w) ^= *nodes.get_unchecked(idx).as_words().get_unchecked(w);
+
+				debug_assert_eq!(NODE_WORDS, 16);
+				unroll! {
+					for w in 0..16 {
+						*data.as_words_mut().get_unchecked_mut(w) ^= *nodes.get_unchecked(idx).as_words().get_unchecked(w);
+					}
 				}
 				sha3_512(&data.bytes, &mut nodes.get_unchecked_mut(i).bytes);
 			}
