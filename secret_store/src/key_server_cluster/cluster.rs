@@ -674,11 +674,14 @@ impl ClusterCore {
 
 impl ClusterConnections {
 	pub fn new(config: &ClusterConfiguration) -> Result<Self, Error> {
+		let mut nodes = config.key_server_set.get();
+		nodes.remove(config.self_key_pair.public());
+
 		Ok(ClusterConnections {
 			self_node_id: config.self_key_pair.public().clone(),
 			key_server_set: config.key_server_set.clone(),
 			data: RwLock::new(ClusterConnectionsData {
-				nodes: config.key_server_set.get(),
+				nodes: nodes,
 				connections: BTreeMap::new(),
 			}),
 		})
@@ -740,7 +743,9 @@ impl ClusterConnections {
 
 	pub fn update_nodes_set(&self) {
 		let mut data = self.data.write();
-		let new_nodes = self.key_server_set.get();
+		let mut new_nodes = self.key_server_set.get();
+		new_nodes.remove(&self.self_node_id);
+
 		for obsolete_node in data.nodes.keys().cloned().collect::<Vec<_>>() {
 			if !new_nodes.contains_key(&obsolete_node) {
 				data.nodes.remove(&obsolete_node);
