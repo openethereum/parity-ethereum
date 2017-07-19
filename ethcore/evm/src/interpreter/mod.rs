@@ -211,6 +211,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 		if (instruction == instructions::DELEGATECALL && !schedule.have_delegate_call) ||
 			(instruction == instructions::CREATE2 && !schedule.have_create2) ||
 			(instruction == instructions::STATICCALL && !schedule.have_static_call) ||
+			((instruction == instructions::RETURNDATACOPY || instruction == instructions::RETURNDATASIZE) && !schedule.have_return_data) ||
 			(instruction == instructions::REVERT && !schedule.have_revert) {
 
 			return Err(evm::Error::BadInstruction {
