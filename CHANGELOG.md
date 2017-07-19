@@ -1,14 +1,15 @@
-## Parity [v1.7.0](https://github.com/paritytech/parity/releases/tag/v1.7.0) (2017-07-17)
+## Parity [v1.7.0](https://github.com/paritytech/parity/releases/tag/v1.7.0) (2017-07-19)
 
-[WIP] @TODO Random list of new features
+Parity 1.7.0 is a major release introducing several important features:
 
-- Light client support
-- Public node support
-- Run contracts compiled in WASM
-- DApps and RPC server merge
-- Cancel propagated transactions
-- Export accounts from the wallet
-- PoA/Kovan validator contract warp sync
+- **Experimental [Light client](https://github.com/paritytech/parity/wiki/The-Parity-Light-Protocol-(PIP)) support**. Start Parity with `--light` to enable light mode.
+- **Experimental web wallet**. A hosted version of Parity that keeps the keys and signs transactions using your browser storage. Try it at https://wallet.parity.io or run your own with `--public-node`.
+- **WASM contract support**. Private networks can run contracts compiled into WASM bytecode. _More information and documentation to follow_.
+- **DApps and RPC server merge**. DApp and RPC are now available through a single API endpoint. DApp server related settings are deprecated.
+- **Export accounts from the wallet**. Backing up your keys can now simply be managed through the wallet interface.
+- **PoA/Kovan validator set contract**. PoA networks now support validator set management via a smart contract.
+- **PubSub API**. https://github.com/paritytech/parity/wiki/JSONRPC-Parity-Pub-Sub-module
+- **Signer apps for IOS and Android**.
 
 Full list of included changes:
 
