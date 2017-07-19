@@ -24,6 +24,7 @@ use ethcrypto;
 use ethkey;
 use super::acl_storage::AclStorage;
 use super::key_storage::KeyStorage;
+use super::key_server_set::KeyServerSet;
 use key_server_cluster::{math, ClusterCore};
 use traits::{ServerKeyGenerator, DocumentKeyServer, MessageSigner, KeyServer};
 use types::all::{Error, Public, RequestSignature, ServerKeyId, EncryptedDocumentKey, EncryptedDocumentKeyShadow,
@@ -44,9 +45,9 @@ pub struct KeyServerCore {
 
 impl KeyServerImpl {
 	/// Create new key server instance
-	pub fn new(config: &ClusterConfiguration, acl_storage: Arc<AclStorage>, key_storage: Arc<KeyStorage>) -> Result<Self, Error> {
+	pub fn new(config: &ClusterConfiguration, key_server_set: Arc<KeyServerSet>, acl_storage: Arc<AclStorage>, key_storage: Arc<KeyStorage>) -> Result<Self, Error> {
 		Ok(KeyServerImpl {
-			data: Arc::new(Mutex::new(KeyServerCore::new(config, acl_storage, key_storage)?)),
+			data: Arc::new(Mutex::new(KeyServerCore::new(config, key_server_set, acl_storage, key_storage)?)),
 		})
 	}
 
@@ -143,14 +144,12 @@ impl MessageSigner for KeyServerImpl {
 }
 
 impl KeyServerCore {
-	pub fn new(config: &ClusterConfiguration, acl_storage: Arc<AclStorage>, key_storage: Arc<KeyStorage>) -> Result<Self, Error> {
+	pub fn new(config: &ClusterConfiguration, key_server_set: Arc<KeyServerSet>, acl_storage: Arc<AclStorage>, key_storage: Arc<KeyStorage>) -> Result<Self, Error> {
 		let config = NetClusterConfiguration {
 			threads: config.threads,
 			self_key_pair: ethkey::KeyPair::from_secret_slice(&config.self_private)?,
 			listen_address: (config.listener_address.address.clone(), config.listener_address.port),
-			nodes: config.nodes.iter()
-				.map(|(node_id, node_address)| (node_id.clone(), (node_address.address.clone(), node_address.port)))
-				.collect(),
+			key_server_set: key_server_set,
 			allow_connecting_to_higher_nodes: config.allow_connecting_to_higher_nodes,
 			acl_storage: acl_storage,
 			key_storage: key_storage,

@@ -28,7 +28,7 @@ use tokio_core::reactor::{Handle, Remote, Interval};
 use tokio_core::net::{TcpListener, TcpStream};
 use ethkey::{Public, KeyPair, Signature, Random, Generator};
 use util::H256;
-use key_server_cluster::{Error, NodeId, SessionId, AclStorage, KeyStorage};
+use key_server_cluster::{Error, NodeId, SessionId, AclStorage, KeyStorage, KeyServerSet};
 use key_server_cluster::cluster_sessions::{ClusterSession, ClusterSessions, GenerationSessionWrapper, EncryptionSessionWrapper,
 	DecryptionSessionWrapper, SigningSessionWrapper};
 use key_server_cluster::message::{self, Message, ClusterMessage, GenerationMessage, EncryptionMessage, DecryptionMessage,
@@ -102,8 +102,8 @@ pub struct ClusterConfiguration {
 	pub self_key_pair: KeyPair,
 	/// Interface to listen to.
 	pub listen_address: (String, u16),
-	/// Cluster nodes.
-	pub nodes: BTreeMap<NodeId, (String, u16)>,
+	/// Cluster nodes set.
+	pub key_server_set: Arc<KeyServerSet>,
 	/// Reference to key storage
 	pub key_storage: Arc<KeyStorage>,
 	/// Reference to ACL storage
@@ -671,9 +671,10 @@ impl ClusterConnections {
 			connections: RwLock::new(BTreeMap::new()),
 		};
 
-		for (node_id, &(ref node_addr, node_port)) in config.nodes.iter().filter(|&(node_id, _)| node_id != config.self_key_pair.public()) {
-			let socket_address = make_socket_address(&node_addr, node_port)?;
-			connections.nodes.insert(node_id.clone(), socket_address);
+		let nodes = config.key_server_set.get();
+		for (node_id, socket_address) in nodes.iter().filter(|&(node_id, _)| node_id != config.self_key_pair.public()) {
+			//let socket_address = make_socket_address(&node_addr, node_port)?;
+			connections.nodes.insert(node_id.clone(), socket_address.clone());
 		}
 
 		Ok(connections)
