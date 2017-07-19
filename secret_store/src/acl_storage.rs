@@ -20,6 +20,7 @@ use parking_lot::Mutex;
 use ethkey::public_to_address;
 use ethcore::client::{Client, BlockChainClient, BlockId};
 use native_contracts::SecretStoreAclStorage;
+use util::{H256, Address};
 use types::all::{Error, ServerKeyId, Public};
 
 const ACL_CHECKER_CONTRACT_REGISTRY_NAME: &'static str = "secretstore_acl_checker";
@@ -32,33 +33,64 @@ pub trait AclStorage: Send + Sync {
 
 /// On-chain ACL storage implementation.
 pub struct OnChainAclStorage {
+	/// Cached on-chain contract.
+	contract: Mutex<CachedContract>,
+}
+
+/// Cached on-chain ACL storage contract.
+struct CachedContract {
 	/// Blockchain client.
 	client: Arc<Client>,
-	/// On-chain contract.
-	contract: Mutex<Option<SecretStoreAclStorage>>,
+	/// Hash of best block, when contract address has been read.
+	best_block_hash: Option<H256>,
+	/// Contract address.
+	contract_addr: Option<Address>,
+	/// Contract at given address.
+	contract: Option<SecretStoreAclStorage>,
 }
 
 impl OnChainAclStorage {
 	pub fn new(client: Arc<Client>) -> Self {
 		OnChainAclStorage {
-			client: client,
-			contract: Mutex::new(None),
+			contract: Mutex::new(CachedContract::new(client)),
 		}
 	}
 }
 
 impl AclStorage for OnChainAclStorage {
 	fn check(&self, public: &Public, document: &ServerKeyId) -> Result<bool, Error> {
-		let mut contract = self.contract.lock();
-		if !contract.is_some() {
-			*contract = self.client.registry_address(ACL_CHECKER_CONTRACT_REGISTRY_NAME.to_owned())
-				.and_then(|contract_addr| {
+		self.contract.lock().check(public, document)
+	}
+}
+
+impl CachedContract {
+	pub fn new(client: Arc<Client>) -> Self {
+		CachedContract {
+			client: client,
+			best_block_hash: None,
+			contract_addr: None,
+			contract: None,
+		}
+	}
+
+	pub fn check(&mut self, public: &Public, document: &ServerKeyId) -> Result<bool, Error> {
+		let new_best_block_hash = self.client.best_block_header().hash();
+		if self.best_block_hash.as_ref() != Some(&new_best_block_hash) {
+			let new_contract_addr = self.client.registry_address(ACL_CHECKER_CONTRACT_REGISTRY_NAME.to_owned());
+			if self.contract_addr.as_ref() != new_contract_addr.as_ref() {
+				self.contract = new_contract_addr.map(|contract_addr| {
 					trace!(target: "secretstore", "Configuring for ACL checker contract from {}", contract_addr);
 
-					Some(SecretStoreAclStorage::new(contract_addr))
-				})
+					SecretStoreAclStorage::new(contract_addr)
+				});
+
+				self.contract_addr = new_contract_addr;
+			}
+
+			self.best_block_hash = Some(new_best_block_hash);
 		}
-		if let Some(ref contract) = *contract {
+
+		if let Some(contract) = self.contract.as_ref() {
 			let address = public_to_address(&public);
 			let do_call = |a, d| future::done(self.client.call_contract(BlockId::Latest, a, d));
 			contract.check_permissions(do_call, address, document.clone())
