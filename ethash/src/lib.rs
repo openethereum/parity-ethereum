@@ -1,5 +1,3 @@
-#![cfg_attr(feature = "benches", feature(test))]
-
 // Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
@@ -15,6 +13,8 @@
 
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+
+#![cfg_attr(feature = "benches", feature(test))]
 
 //! Ethash implementation
 //! See https://github.com/ethereum/wiki/wiki/Ethash
