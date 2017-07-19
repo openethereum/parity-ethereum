@@ -12,6 +12,11 @@
 
 Full list of included changes:
 
+- Bump snap version and tweak importing detection logic ([#6079](https://github.com/paritytech/parity/pull/6079)) [#6081](https://github.com/paritytech/parity/pull/6081)
+  - bump last tick just before printing info and restore sync detection
+  - bump kovan snapshot version
+  - Fixed sync tests
+  - Fixed rpc tests
 - Acquire client report under lock in informant [#6071](https://github.com/paritytech/parity/pull/6071)
 - Show busy indicator on Address forget [#6069](https://github.com/paritytech/parity/pull/6069)
 - Add CSP for worker-src ([#6059](https://github.com/paritytech/parity/pull/6059)) [#6064](https://github.com/paritytech/parity/pull/6064)
