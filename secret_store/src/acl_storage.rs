@@ -64,8 +64,10 @@ impl AclStorage for OnChainAclStorage {
 }
 
 impl ChainNotify for OnChainAclStorage {
-	fn new_blocks(&self, _imported: Vec<H256>, _invalid: Vec<H256>, _enacted: Vec<H256>, _retracted: Vec<H256>, _sealed: Vec<H256>, _proposed: Vec<Bytes>, _duration: u64) {
-		self.contract.lock().update()
+	fn new_blocks(&self, _imported: Vec<H256>, _invalid: Vec<H256>, enacted: Vec<H256>, retracted: Vec<H256>, _sealed: Vec<H256>, _proposed: Vec<Bytes>, _duration: u64) {
+		if !enacted.is_empty() || !retracted.is_empty() {
+			self.contract.lock().update()
+		}
 	}
 }
 
