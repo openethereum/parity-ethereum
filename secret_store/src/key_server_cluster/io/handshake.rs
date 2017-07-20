@@ -173,7 +173,6 @@ impl<A> Future for Handshake<A> where A: AsyncRead + AsyncWrite {
 				};
 
 				if !self.trusted_nodes.as_ref().map(|tn| tn.contains(&*message.node_id)).unwrap_or(true) {
-println!("=== HANDSHAKE - INVALID NODE: self.trusted_nodes = {:?}, message.node_id = {:?}", self.trusted_nodes, message.node_id);
 					return Ok((stream, Err(Error::InvalidNodeId)).into());
 				}
 
