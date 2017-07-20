@@ -23,7 +23,7 @@ use ethcore::filter::Filter;
 use ethcore::client::{Client, BlockChainClient, BlockId, ChainNotify};
 use native_contracts::KeyServerSet as KeyServerSetContract;
 use util::{H256, Address, Bytes, Hashable};
-use types::all::Public;
+use types::all::{Error, Public, NodeAddress};
 
 const KEY_SERVER_SET_CONTRACT_REGISTRY_NAME: &'static str = "secretstore_server_set";
 
@@ -60,8 +60,8 @@ struct CachedContract {
 }
 
 impl OnChainKeyServerSet {
-	pub fn new(client: &Arc<Client>, key_servers: BTreeMap<Public, SocketAddr>) -> Arc<Self> {
-		let mut cached_contract = CachedContract::new(client, key_servers);
+	pub fn new(client: &Arc<Client>, key_servers: BTreeMap<Public, NodeAddress>) -> Result<Arc<Self>, Error> {
+		let mut cached_contract = CachedContract::new(client, key_servers)?;
 		let key_server_contract_address = client.registry_address(KEY_SERVER_SET_CONTRACT_REGISTRY_NAME.to_owned());
 		// only initialize from contract if it is installed. otherwise - use default nodes
 		// once the contract is installed, all default nodes are lost (if not in the contract' set)
@@ -73,7 +73,7 @@ impl OnChainKeyServerSet {
 			contract: Mutex::new(cached_contract),
 		});
 		client.add_notify(key_server_set.clone());
-		key_server_set
+		Ok(key_server_set)
 	}
 }
 
@@ -90,12 +90,18 @@ impl ChainNotify for OnChainKeyServerSet {
 }
 
 impl CachedContract {
-	pub fn new(client: &Arc<Client>, key_servers: BTreeMap<Public, SocketAddr>) -> Self {
-		CachedContract {
+	pub fn new(client: &Arc<Client>, key_servers: BTreeMap<Public, NodeAddress>) -> Result<Self, Error> {
+		Ok(CachedContract {
 			client: Arc::downgrade(client),
 			contract_addr: None,
-			key_servers: key_servers,
-		}
+			key_servers: key_servers.into_iter()
+				.map(|(p, addr)| {
+					let addr = format!("{}:{}", addr.address, addr.port).parse()
+						.map_err(|err| Error::Internal(format!("error parsing node address: {}", err)))?;
+					Ok((p, addr))
+				})
+				.collect::<Result<BTreeMap<_, _>, Error>>()?,
+		})
 	}
 
 	pub fn update(&mut self, enacted: Vec<H256>, retracted: Vec<H256>) {

@@ -72,9 +72,7 @@ pub fn start(client: Arc<Client>, config: ServiceConfiguration) -> Result<Box<Ke
 	use std::sync::Arc;
 
 	let acl_storage = acl_storage::OnChainAclStorage::new(&client);
-	let key_server_set = key_server_set::OnChainKeyServerSet::new(&client, config.cluster_config.nodes.clone()
-		.into_iter()
-		.map(|a| (a.0, format!("{}:{}", a.1.address, a.1.port).parse().unwrap())).collect()); // TODO: remove after switching to enode:///
+	let key_server_set = key_server_set::OnChainKeyServerSet::new(&client, config.cluster_config.nodes.clone())?;
 	let key_storage = Arc::new(key_storage::PersistentKeyStorage::new(&config)?);
 	let key_server = key_server::KeyServerImpl::new(&config.cluster_config, key_server_set, acl_storage, key_storage)?;
 	let listener = http_listener::KeyServerHttpListener::start(&config.listener_address, key_server)?;
