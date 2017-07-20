@@ -27,8 +27,9 @@ use types::all::Public;
 
 const KEY_SERVER_SET_CONTRACT_REGISTRY_NAME: &'static str = "secretstore_server_set";
 
-// TODO: ethabi should be able to generate this.
+/// Key server has been added to the set.
 const ADDED_EVENT_NAME: &'static [u8] = &*b"KeyServerAdded(address)";
+/// Key server has been removed from the set.
 const REMOVED_EVENT_NAME: &'static [u8] = &*b"KeyServerRemoved(address)";
 
 lazy_static! {
@@ -63,6 +64,7 @@ impl OnChainKeyServerSet {
 		let mut cached_contract = CachedContract::new(client, key_servers);
 		let key_server_contract_address = client.registry_address(KEY_SERVER_SET_CONTRACT_REGISTRY_NAME.to_owned());
 		// only initialize from contract if it is installed. otherwise - use default nodes
+		// once the contract is installed, all default nodes are lost (if not in the contract' set)
 		if key_server_contract_address.is_some() {
 			cached_contract.read_from_registry(&*client, key_server_contract_address);
 		}
@@ -100,7 +102,7 @@ impl CachedContract {
 		if let Some(client) = self.client.upgrade() {
 			let new_contract_addr = client.registry_address(KEY_SERVER_SET_CONTRACT_REGISTRY_NAME.to_owned());
 
-			// new contract installed
+			// new contract installed => read nodes set from the contract
 			if self.contract_addr.as_ref() != new_contract_addr.as_ref() {
 				self.read_from_registry(&*client, new_contract_addr);
 				return;
@@ -121,6 +123,7 @@ impl CachedContract {
 					],
 					limit: Some(1),
 				}).is_empty());
+			// to simplify processing - just re-read the whole nodes set from the contract
 			if is_set_changed {
 				self.read_from_registry(&*client, new_contract_addr);
 			}
@@ -150,8 +153,12 @@ impl CachedContract {
 				let key_server_ip = contract.get_key_server_address(
 					|a, d| future::done(client.call_contract(BlockId::Latest, a, d)), key_server).wait()
 					.and_then(|a| a.parse().map_err(|e| format!("Invalid ip address: {}", e)));
-				if let (Ok(key_server_public), Ok(key_server_ip)) = (key_server_public, key_server_ip) {
-					key_servers.insert(key_server_public, key_server_ip);
+
+				// only add successfully parsed nodes
+				match (key_server_public, key_server_ip) {
+					(Ok(key_server_public), Ok(key_server_ip)) => { key_servers.insert(key_server_public, key_server_ip); },
+					(Err(public_err), _) => warn!(target: "secretstore_net", "received invalid public from key server set contract: {}", public_err),
+					(_, Err(ip_err)) => warn!(target: "secretstore_net", "received invalid IP from key server set contract: {}", ip_err),
 				}
 			}
 			key_servers
