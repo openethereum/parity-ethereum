@@ -28,8 +28,8 @@ use types::all::Public;
 const KEY_SERVER_SET_CONTRACT_REGISTRY_NAME: &'static str = "secretstore_server_set";
 
 // TODO: ethabi should be able to generate this.
-const ADDED_EVENT_NAME: &'static [u8] = &*b"KeyServerAdded()";
-const REMOVED_EVENT_NAME: &'static [u8] = &*b"KeyServerRemoved()";
+const ADDED_EVENT_NAME: &'static [u8] = &*b"KeyServerAdded(address)";
+const REMOVED_EVENT_NAME: &'static [u8] = &*b"KeyServerRemoved(address)";
 
 lazy_static! {
 	static ref ADDED_EVENT_NAME_HASH: H256 = ADDED_EVENT_NAME.sha3();
@@ -83,7 +83,6 @@ impl KeyServerSet for OnChainKeyServerSet {
 
 impl ChainNotify for OnChainKeyServerSet {
 	fn new_blocks(&self, _imported: Vec<H256>, _invalid: Vec<H256>, enacted: Vec<H256>, retracted: Vec<H256>, _sealed: Vec<H256>, _proposed: Vec<Bytes>, _duration: u64) {
-println!("=== new_blocks: imported {}, invalid: {}, enactd: {}, retracted: {}, sealed: {}, proposed: {}", _imported.len(), _invalid.len(), enacted.len(), retracted.len(), _sealed.len(), _proposed.len());
 		self.contract.lock().update(enacted, retracted)
 	}
 }
@@ -97,26 +96,33 @@ impl CachedContract {
 		}
 	}
 
-	pub fn update(&mut self, enacted: Vec<H256>, _retracted: Vec<H256>) {
+	pub fn update(&mut self, enacted: Vec<H256>, retracted: Vec<H256>) {
 		if let Some(client) = self.client.upgrade() {
 			let new_contract_addr = client.registry_address(KEY_SERVER_SET_CONTRACT_REGISTRY_NAME.to_owned());
-println!("=== Registry address = {:?}", new_contract_addr);
+
 			// new contract installed
 			if self.contract_addr.as_ref() != new_contract_addr.as_ref() {
 				self.read_from_registry(&*client, new_contract_addr);
 				return;
 			}
 
-			// check for events
-			for enacted_hash in enacted {
-				let filter = Filter {
-					from_block: BlockId::Hash(enacted_hash.clone()),
-					to_block: BlockId::Hash(enacted_hash.clone()),
+			// check for contract events
+			let is_set_changed = self.contract_addr.is_some() && enacted.iter()
+				.chain(retracted.iter())
+				.any(|block_hash| !client.logs(Filter {
+					from_block: BlockId::Hash(block_hash.clone()),
+					to_block: BlockId::Hash(block_hash.clone()),
 					address: self.contract_addr.clone().map(|a| vec![a]),
-					topics: vec![Some(vec![*ADDED_EVENT_NAME_HASH]), Some(vec![*REMOVED_EVENT_NAME_HASH])],
-					limit: None,
-				};
-				println!("=== Number of filtered log entries: {}", client.logs(filter).len());
+					topics: vec![
+						Some(vec![*ADDED_EVENT_NAME_HASH, *REMOVED_EVENT_NAME_HASH]),
+						None,
+						None,
+						None,
+					],
+					limit: Some(1),
+				}).is_empty());
+			if is_set_changed {
+				self.read_from_registry(&*client, new_contract_addr);
 			}
 		}
 	}
@@ -126,7 +132,6 @@ println!("=== Registry address = {:?}", new_contract_addr);
 	}
 
 	fn read_from_registry(&mut self, client: &Client, new_contract_address: Option<Address>) {
-println!("=== Installing contract from address: {:?}", new_contract_address);
 		self.key_servers = new_contract_address.map(|contract_addr| {
 			trace!(target: "secretstore", "Configuring for key server set contract from {}", contract_addr);
 
@@ -146,10 +151,8 @@ println!("=== Installing contract from address: {:?}", new_contract_address);
 					|a, d| future::done(client.call_contract(BlockId::Latest, a, d)), key_server).wait()
 					.and_then(|a| a.parse().map_err(|e| format!("Invalid ip address: {}", e)));
 				if let (Ok(key_server_public), Ok(key_server_ip)) = (key_server_public, key_server_ip) {
-println!("=== PARSED {:?} {:?}", key_server_public, key_server_ip);
 					key_servers.insert(key_server_public, key_server_ip);
 				}
-else { println!("=== ERROR parsing"); }
 			}
 			key_servers
 		})

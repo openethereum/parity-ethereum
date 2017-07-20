@@ -289,8 +289,7 @@ impl ClusterCore {
 
 	/// Accept connection future.
 	fn accept_connection_future(handle: &Handle, data: Arc<ClusterData>, stream: TcpStream, node_address: SocketAddr) -> BoxedEmptyFuture {
-		let disconnected_nodes = data.connections.disconnected_nodes().keys().cloned().collect();
-		net_accept_connection(node_address, stream, handle, data.self_key_pair.clone(), disconnected_nodes)
+		net_accept_connection(node_address, stream, handle, data.self_key_pair.clone())
 			.then(move |result| ClusterCore::process_connection_result(data, true, result))
 			.then(|_| finished(()))
 			.boxed()
@@ -381,14 +380,16 @@ impl ClusterCore {
 					finished(Ok(())).boxed()
 				}
 			},
-			Ok(DeadlineStatus::Meet(Err(_))) => {
+			Ok(DeadlineStatus::Meet(Err(err))) => {
+				warn!(target: "secretstore_net", "{}: protocol error {} when establishind connection", data.self_key_pair.public(), err);
 				finished(Ok(())).boxed()
 			},
 			Ok(DeadlineStatus::Timeout) => {
+				warn!(target: "secretstore_net", "{}: timeout when establishind connection", data.self_key_pair.public());
 				finished(Ok(())).boxed()
 			},
-			Err(_) => {
-				// network error
+			Err(err) => {
+				warn!(target: "secretstore_net", "{}: network error {} when establishind connection", data.self_key_pair.public(), err);
 				finished(Ok(())).boxed()
 			},
 		}
@@ -699,6 +700,12 @@ impl ClusterConnections {
 
 	pub fn insert(&self, connection: Arc<Connection>) -> bool {
 		let mut data = self.data.write();
+		if !data.nodes.contains_key(connection.node_id()) {
+			// incoming connections are checked here
+			trace!(target: "secretstore_net", "{}: ignoring unknown connection from {} at {}", self.self_node_id, connection.node_id(), connection.node_address());
+			debug_assert!(connection.is_inbound());
+			return false;
+		}
 		if data.connections.contains_key(connection.node_id()) {
 			// we have already connected to the same node
 			// the agreement is that node with lower id must establish connection to node with higher id
@@ -746,14 +753,37 @@ impl ClusterConnections {
 		let mut new_nodes = self.key_server_set.get();
 		new_nodes.remove(&self.self_node_id);
 
+		let mut num_added_nodes = 0;
+		let mut num_removed_nodes = 0;
+		let mut num_changed_nodes = 0;
+
 		for obsolete_node in data.nodes.keys().cloned().collect::<Vec<_>>() {
 			if !new_nodes.contains_key(&obsolete_node) {
+				if let Entry::Occupied(entry) = data.connections.entry(obsolete_node) {
+					trace!(target: "secretstore_net", "{}: removing connection to {} at {}", self.self_node_id, entry.get().node_id(), entry.get().node_address());
+					entry.remove();
+				}
+
 				data.nodes.remove(&obsolete_node);
-				data.connections.remove(&obsolete_node);
+				num_removed_nodes += 1;
 			}
 		}
+
 		for (new_node_public, new_node_addr) in new_nodes {
-			data.nodes.insert(new_node_public, new_node_addr);
+			match data.nodes.insert(new_node_public, new_node_addr) {
+				None => num_added_nodes += 1,
+				Some(old_node_addr) => if new_node_addr != old_node_addr {
+					if let Entry::Occupied(entry) = data.connections.entry(new_node_public) {
+						trace!(target: "secretstore_net", "{}: removing connection to {} at {}", self.self_node_id, entry.get().node_id(), entry.get().node_address());
+						entry.remove();
+					}
+					num_changed_nodes += 1;
+				},
+			}
+		}
+
+		if num_added_nodes != 0 || num_removed_nodes != 0 || num_changed_nodes != 0 {
+			trace!(target: "secretstore_net", "{}: updated nodes set: removed {}, added {}, changed {}", self.self_node_id, num_removed_nodes, num_added_nodes, num_changed_nodes);
 		}
 	}
 }

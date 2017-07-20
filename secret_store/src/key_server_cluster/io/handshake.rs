@@ -45,7 +45,7 @@ pub fn handshake_with_plain_confirmation<A>(a: A, self_confirmation_plain: Resul
 		state: state,
 		self_key_pair: self_key_pair,
 		self_confirmation_plain: self_confirmation_plain.unwrap_or(Default::default()),
-		trusted_nodes: trusted_nodes,
+		trusted_nodes: Some(trusted_nodes),
 		other_node_id: None,
 		other_confirmation_plain: None,
 		shared_key: None,
@@ -53,7 +53,7 @@ pub fn handshake_with_plain_confirmation<A>(a: A, self_confirmation_plain: Resul
 }
 
 /// Wait for handshake procedure to be started by another node from the cluster.
-pub fn accept_handshake<A>(a: A, self_key_pair: KeyPair, trusted_nodes: BTreeSet<NodeId>) -> Handshake<A> where A: AsyncWrite + AsyncRead {
+pub fn accept_handshake<A>(a: A, self_key_pair: KeyPair) -> Handshake<A> where A: AsyncWrite + AsyncRead {
 	let self_confirmation_plain = Random.generate().map(|kp| *kp.secret().clone()).map_err(Into::into);
 	let (error, state) = match self_confirmation_plain.clone() {
 		Ok(_) => (None, HandshakeState::ReceivePublicKey(read_message(a))),
@@ -66,7 +66,7 @@ pub fn accept_handshake<A>(a: A, self_key_pair: KeyPair, trusted_nodes: BTreeSet
 		state: state,
 		self_key_pair: self_key_pair,
 		self_confirmation_plain: self_confirmation_plain.unwrap_or(Default::default()),
-		trusted_nodes: trusted_nodes,
+		trusted_nodes: None,
 		other_node_id: None,
 		other_confirmation_plain: None,
 		shared_key: None,
@@ -89,7 +89,7 @@ pub struct Handshake<A> {
 	state: HandshakeState<A>,
 	self_key_pair: KeyPair,
 	self_confirmation_plain: H256,
-	trusted_nodes: BTreeSet<NodeId>,
+	trusted_nodes: Option<BTreeSet<NodeId>>,
 	other_node_id: Option<NodeId>,
 	other_confirmation_plain: Option<H256>,
 	shared_key: Option<KeyPair>,
@@ -172,7 +172,8 @@ impl<A> Future for Handshake<A> where A: AsyncRead + AsyncWrite {
 					Err(err) => return Ok((stream, Err(err.into())).into()),
 				};
 
-				if !self.trusted_nodes.contains(&*message.node_id) {
+				if !self.trusted_nodes.as_ref().map(|tn| tn.contains(&*message.node_id)).unwrap_or(true) {
+println!("=== HANDSHAKE - INVALID NODE: self.trusted_nodes = {:?}, message.node_id = {:?}", self.trusted_nodes, message.node_id);
 					return Ok((stream, Err(Error::InvalidNodeId)).into());
 				}
 
@@ -300,7 +301,7 @@ mod tests {
 		let trusted_nodes: BTreeSet<_> = vec![io.peer_public().clone()].into_iter().collect();
 		let shared_key = compute_shared_key(self_key_pair.secret(), trusted_nodes.iter().nth(0).unwrap()).unwrap();
 
-		let mut handshake = accept_handshake(io, self_key_pair, trusted_nodes);
+		let mut handshake = accept_handshake(io, self_key_pair);
 		handshake.set_self_confirmation_plain(self_confirmation_plain);
 
 		let handshake_result = handshake.wait().unwrap();
