@@ -20,6 +20,7 @@ extern crate serde;
 #[macro_use]
 extern crate serde_derive;
 extern crate ethkey;
+extern crate panic_hook;
 
 use std::{env, fmt, process};
 use std::num::ParseIntError;
@@ -155,6 +156,8 @@ impl DisplayMode {
 }
 
 fn main() {
+	panic_hook::set();
+
 	match execute(env::args()) {
 		Ok(ok) => println!("{}", ok),
 		Err(err) => {
