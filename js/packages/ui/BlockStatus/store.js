@@ -24,6 +24,7 @@ export default class Store {
     this._api = api;
     this._api.on('connected', this.setupSubscriptions, this);
 
+    // Connected and/or events NOT available
     if (this._api.isConnected) {
       this.setupSubscriptions();
     }
