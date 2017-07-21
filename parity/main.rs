@@ -57,6 +57,7 @@ extern crate ethcore_logger;
 extern crate ethcore_util as util;
 extern crate ethkey;
 extern crate ethsync;
+extern crate panic_hook;
 extern crate parity_hash_fetch as hash_fetch;
 extern crate parity_ipfs_api;
 extern crate parity_local_store as local_store;
@@ -315,8 +316,7 @@ macro_rules! trace_main {
 }
 
 fn main() {
-	// Always print backtrace on panic.
-	env::set_var("RUST_BACKTRACE", "1");
+	panic_hook::set();
 
 	// assuming the user is not running with `--force-direct`, then:
 	// if argv[0] == "parity" and this executable != ~/.parity-updates/parity, run that instead.
