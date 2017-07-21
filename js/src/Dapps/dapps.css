@@ -22,7 +22,7 @@
   text-align: left;
   max-width: 980px;
 
-  &>div:first-child {
+  & > div:first-child {
     padding-bottom: 1em;
   }
 }

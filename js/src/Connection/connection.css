@@ -22,7 +22,7 @@
   bottom: 0;
   left: 0;
   background: rgba(255, 255, 255, 0.75);
-  z-index: 20000
+  z-index: 20000;
 }
 
 .modal {
@@ -31,7 +31,7 @@
   right: 0;
   bottom: 0;
   left: 0;
-  z-index: 20001
+  z-index: 20001;
 }
 
 .body {
@@ -41,16 +41,16 @@
   max-width: 40em;
   background: rgba(25, 25, 25, 0.75);
   color: rgb(208, 208, 208);
-  box-shadow: rgba(0, 0, 0, 0.25) 0px 14px 45px, rgba(0, 0, 0, 0.22) 0px 10px 18px
+  box-shadow: rgba(0, 0, 0, 0.25) 0 14px 45px, rgba(0, 0, 0, 0.22) 0 10px 18px;
 }
 
 .header {
-  fontSize: 1.25em
+  font-size: 1.25em;
 }
 
 .info {
   margin-top: 1em;
-  line-height: 1.618em
+  line-height: 1.618em;
 }
 
 .form {
@@ -83,9 +83,6 @@
   vertical-align: middle;
 }
 
-.iconName {
-}
-
 .icon i {
   font-size: 6em;
 }
@@ -106,9 +103,11 @@
   0% {
     fill: rgb(0, 200, 0);
   }
+
   50% {
     fill: rgb(150, 200, 150);
   }
+
   100% {
     fill: rgb(0, 200, 0);
   }

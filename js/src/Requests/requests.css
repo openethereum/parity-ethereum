@@ -61,7 +61,7 @@ $borderColor: rgba(0, 0, 0, 0.15);
   .container {
     display: flex;
     flex-direction: row;
-    padding: 1em 1em 0.5em 1em;
+    padding: 1em 1em 0.5em;
   }
 
   &:hover .container {

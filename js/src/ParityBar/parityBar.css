@@ -144,7 +144,7 @@ $modalZ: 10001;
   }
 }
 
-.link+.link {
+.link + .link {
   margin-left: 1em;
 }
 
