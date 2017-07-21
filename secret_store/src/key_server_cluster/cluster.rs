@@ -715,7 +715,8 @@ impl ClusterConnections {
 			}
 		}
 
-		trace!(target: "secretstore_net", "{}: inserting connection to {} at {}", self.self_node_id, connection.node_id(), connection.node_address());
+		trace!(target: "secretstore_net", "{}: inserting connection to {} at {}. Connected to {} of {} nodes",
+			self.self_node_id, connection.node_id(), connection.node_address(), data.connections.len() + 1, data.nodes.len());
 		data.connections.insert(connection.node_id().clone(), connection);
 		true
 	}
@@ -787,7 +788,8 @@ impl ClusterConnections {
 		}
 
 		if num_added_nodes != 0 || num_removed_nodes != 0 || num_changed_nodes != 0 {
-			trace!(target: "secretstore_net", "{}: updated nodes set: removed {}, added {}, changed {}", self.self_node_id, num_removed_nodes, num_added_nodes, num_changed_nodes);
+			trace!(target: "secretstore_net", "{}: updated nodes set: removed {}, added {}, changed {}. Connected to {} of {} nodes",
+				self.self_node_id, num_removed_nodes, num_added_nodes, num_changed_nodes, data.connections.len(), data.nodes.len());
 		}
 	}
 }
