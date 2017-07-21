@@ -27,12 +27,10 @@ import { Button, Portal } from '@parity/ui';
 import { CheckIcon, DoneIcon, NextIcon, PrintIcon, ReplayIcon } from '@parity/ui/Icons';
 
 import ParityLogo from '@parity/shared/assets/images/parity-logo-black-no-text.svg';
-
-// FIXME: These imports, while nice for re-using, breaks since the shell import
-import { NewAccount, AccountDetails } from '~/views/Accounts/CreateAccount';
-import print from '~/views/Accounts/CreateAccount/print';
-import recoveryPage from '~/views/Accounts/CreateAccount/recoveryPage.ejs';
-import CreateStore from '~/views/Accounts/CreateAccount/store';
+import { NewAccount, AccountDetails } from '@parity/views/Accounts/CreateAccount';
+import print from '@parity/views/Accounts/CreateAccount/print';
+import recoveryPage from '@parity/views/Accounts/CreateAccount/recoveryPage.ejs';
+import CreateStore from '@parity/views/Accounts/CreateAccount/store';
 
 import Completed from './Completed';
 import TnC from './TnC';

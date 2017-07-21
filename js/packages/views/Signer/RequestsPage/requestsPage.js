@@ -27,8 +27,8 @@ import { startConfirmRequest, startRejectRequest } from '@parity/shared/redux/pr
 import { Container, Page, TxList } from '@parity/ui';
 
 // FIXME: We should not be importing from shell!
-import Store from '~/Signer/store';
-import RequestPending from '~/Signer/components/RequestPending';
+import Store from '~/src/Signer/store';
+import RequestPending from '~/src/Signer/components/RequestPending';
 
 import styles from './requestsPage.css';
 

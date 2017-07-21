@@ -16,7 +16,9 @@
 
 import PromiseWorker from 'promise-worker';
 import runtime from 'serviceworker-webpack-plugin/lib/runtime';
-import WebWorker from 'worker-loader!~/webWorker.js';
+
+// FIXME: WebWorker here should be close, not in src
+import WebWorker from 'worker-loader!~/src/webWorker.js';
 
 import { setWorker } from './workerActions';
 

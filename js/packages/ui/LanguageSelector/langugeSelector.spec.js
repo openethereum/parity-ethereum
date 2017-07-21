@@ -18,7 +18,7 @@ import { shallow } from 'enzyme';
 import React from 'react';
 import sinon from 'sinon';
 
-import { LocaleStore } from '~/../i18n';
+import { LocaleStore } from '~/i18n';
 
 import LanguageSelector from './';
 

@@ -11,6 +11,6 @@ cp ./target/wasm32-unknown-emscripten/release/deps/parity_ethkey_wasm-*.wasm ./e
 node base64ify
 
 # Copy Base64-encoded JS version to src
-cp ./ethkey.wasm.js ../../src/api/local/ethkey/ethkey.wasm.js
+cp ./ethkey.wasm.js ../../packages/api/local/ethkey/ethkey.wasm.js
 
 # rm -f ./ethkey.wasm ./ethkey.opt.wasm ./ethkey.wasm.js
