@@ -19,9 +19,9 @@ import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 import { FormattedMessage } from 'react-intl';
 
-import Portal from '../../Portal';
-import SelectionList from '../../SelectionList';
-import VaultCard from '../../VaultCard';
+import Portal from '../../../Portal';
+import SelectionList from '../../../SelectionList';
+import VaultCard from '../../../VaultCard';
 
 @observer
 export default class VaultSelector extends Component {

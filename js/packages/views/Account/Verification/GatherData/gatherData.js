@@ -25,9 +25,9 @@ import { DoneIcon, ErrorIcon, InfoIcon } from '@parity/ui/Icons';
 import { nullableProptype } from '@parity/shared/util/proptypes';
 
 import smsTermsOfService from '../sms-verification/terms-of-service';
-import emailTermsOfService from './email-verification/terms-of-service';
-
+import emailTermsOfService from '../email-verification/terms-of-service';
 import { howSMSVerificationWorks, howEmailVerificationWorks } from '../how-it-works';
+
 import styles from './gatherData.css';
 
 const boolOfError = PropTypes.oneOfType([ PropTypes.bool, PropTypes.instanceOf(Error) ]);

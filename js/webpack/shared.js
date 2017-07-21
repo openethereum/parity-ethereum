@@ -171,11 +171,11 @@ function getDappsEntry () {
 
   return Object.assign(
     builtins.filter((dapp) => !dapp.skipBuild).reduce((_entry, dapp) => {
-      _entry[dapp.url] = './dapps/' + dapp.url + '/index.js';
+      _entry[dapp.url] = '../packages/dapps/' + dapp.url + '/index.js';
       return _entry;
     }, {}),
     views.reduce((_entry, dapp) => {
-      _entry[dapp.url] = './views/' + dapp.src + '/index.js';
+      _entry[dapp.url] = '../packages/views/' + dapp.src + '/index.js';
       return _entry;
     }, {})
   );
