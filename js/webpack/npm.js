@@ -37,7 +37,7 @@ const OUTPUT_PATH = path.join(__dirname, '../.npmjs', SRC);
 
 const TEST_CONTEXT = SRC === 'parity'
   ? '../npm/parity/test/'
-  : `../src/3rdparty/${SRC}/`;
+  : `../packages/${SRC}/`;
 
 console.log(`Building ${LIBRARY} from library.${SRC}.js to .npmjs/${SRC}`);
 

@@ -28,6 +28,7 @@ if (isNode) {
   global.fetch = require('node-fetch');
 }
 
-import ShapeShift from './3rdparty/shapeshift';
+import Abi from '../abi';
+import Api from './';
 
-export default ShapeShift;
+export { Api, Abi };

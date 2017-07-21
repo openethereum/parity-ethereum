@@ -16,7 +16,7 @@
 
 import { action, observable, transaction } from 'mobx';
 
-import initShapeshift from '~/3rdparty/shapeshift';
+import initShapeshift from '@parity/shapeshift';
 
 const STAGE_OPTIONS = 0;
 const STAGE_WAIT_DEPOSIT = 1;

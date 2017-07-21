@@ -2,7 +2,7 @@
 
 A thin, lightweight promise wrapper for the api.etherscan.io/apis service, exposing a common endpoint for use in JavaScript applications.
 
-[https://github.com/paritytech/parity/tree/master/js/src/3rdparty/etherscan](https://github.com/paritytech/parity/tree/master/js/src/3rdparty/etherscan)
+[https://github.com/paritytech/parity/tree/master/js/packages/3rdpartyetherscan](https://github.com/paritytech/parity/tree/master/js/packages/etherscan)
 
 ## usage
 

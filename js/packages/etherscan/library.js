@@ -28,7 +28,6 @@ if (isNode) {
   global.fetch = require('node-fetch');
 }
 
-import Abi from './abi';
-import Api from './api';
+import Etherscan from './';
 
-export { Api, Abi };
+export default Etherscan;

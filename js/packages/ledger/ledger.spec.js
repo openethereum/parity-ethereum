@@ -62,7 +62,7 @@ function create (error) {
   return ledger;
 }
 
-describe('3rdparty/ledger', () => {
+describe('packages/ledger', () => {
   beforeEach(() => {
     create();
 

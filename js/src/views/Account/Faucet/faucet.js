@@ -19,7 +19,7 @@ import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 import { FormattedMessage } from 'react-intl';
 
-import { txLink } from '~/3rdparty/etherscan/links';
+import { txLink } from '@parity/etherscan/links';
 import { Button, ModalBox, Portal, ShortenedHash } from '@parity/ui';
 import { CloseIcon, DialIcon, DoneIcon, ErrorIcon, SendIcon } from '@parity/ui/Icons';
 

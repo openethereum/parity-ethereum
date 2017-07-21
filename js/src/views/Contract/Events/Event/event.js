@@ -21,8 +21,7 @@ import PropTypes from 'prop-types';
 import { FormattedMessage } from 'react-intl';
 
 import { IdentityIcon, IdentityName, ShortenedHash, TypedInput } from '@parity/ui';
-
-import { txLink } from '~/3rdparty/etherscan/links';
+import { txLink } from '@parity/etherscan/links';
 
 import styles from '../../contract.css';
 
