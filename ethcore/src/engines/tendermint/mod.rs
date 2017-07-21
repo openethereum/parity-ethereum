@@ -101,6 +101,54 @@ pub struct Tendermint {
 	validators: Box<ValidatorSet>,
 }
 
+struct EpochVerifier {
+	subchain_validators: SimpleList,
+}
+
+fn combine_proofs(signal_number: BlockNumber, set_proof: &[u8]): -> Vec<u8> {
+	let mut stream = ::rlp::RlpStream::new_list(3);
+	stream
+		.append(&signal_number)
+		.append(&set_proof)
+		.out()
+}
+
+fn destructure_proofs(combined: &[u8]) -> Result<(BlockNumber, &[u8]), Error> {
+	let rlp = UntrustedRlp::new(combined);
+	Ok((
+		rlp.at(0)?.as_val()?,
+		rlp.at(1)?.data(),
+	))
+}
+
+impl super::EpochVerifier for EpochVerifier {
+	fn verify_light(&self, header: &Header) -> Result<(), Error> {
+		let mut signatures = HashSet::new();
+
+		let ref header_signatures_field = header.seal().get(2)?;
+		for rlp in UntrustedRlp::new(header_signatures_field).iter() {
+			let signature = rlp.as_val()?;
+			signatures.insert(signature);
+		}
+
+		let n = signatures.len();
+		let threshold = self.subchain_validators.len() * 2/3;
+		if n > threshold {
+			Ok(())
+		} else {
+			Err(EngineError::BadSealFieldSize(OutOfBounds {
+				min: Some(threshold),
+				max: None,
+				found: n
+			}))
+		}
+	}
+
+	fn check_finality_proof(&self, proof: &[u8]) -> Option<Vec<H256>> {
+		// TODO
+	}
+}
+
 impl Tendermint {
 	/// Create a new instance of Tendermint engine
 	pub fn new(params: CommonParams, our_params: TendermintParams, builtins: BTreeMap<Address, Builtin>) -> Result<Arc<Self>, Error> {
@@ -588,6 +636,24 @@ impl Engine for Tendermint {
 		}
 
 		None
+	}
+
+	fn epoch_verifier<'a>(&self, _header: &Header, proof: &'a [u8]) -> ConstructedVerifier<'a> {
+		let (signal_number, set_proof) = match destructure_proofs(proof) {
+			Ok(x) => x,
+			Err(e) => return ConstructedVerifier::Err(e),
+		};
+
+		let first = signal_number == 0;
+		match self.validators.epoch_set(first, self, signal_number, set_proof) {
+			Ok((list, _)) => {
+				// Tendermint blocks have instant finality, so no need to check finality proof
+				ConstructedVerifier::Trusted(Box::new(EpochVerifier {
+					subchain_validators: list,
+				}))
+			}
+			Err(e) => ConstructedVerifier::Err(e),
+		}
 	}
 
 	fn set_signer(&self, ap: Arc<AccountProvider>, address: Address, password: String) {
