@@ -29,12 +29,8 @@ const rulesEs6 = require('./rules/es6');
 const rulesParity = require('./rules/parity');
 const Shared = require('./shared');
 
-const DAPPS_BUILTIN = require('../packages/shared/config/dappsBuiltin.json').map((dapp) => {
-  dapp.srcPath = '../packages/dapps';
-  return dapp;
-});
+const DAPPS_BUILTIN = require('../packages/shared/config/dappsBuiltin.json');
 const DAPPS_VIEWS = require('../packages/shared/config/dappsViews.json').map((dapp) => {
-  dapp.srcPath = '../packages/views';
   dapp.commons = true;
   return dapp;
 });
@@ -182,7 +178,7 @@ module.exports = {
         return new HtmlWebpackPlugin({
           title: dapp.name,
           filename: dapp.url + '.html',
-          template: dapp.srcPath + '/index.ejs',
+          template: '../packages/dapps/index.ejs',
           favicon: FAVICON,
           secure: dapp.secure,
           chunks: [ !isProd || dapp.commons ? 'commons' : null, dapp.url ]

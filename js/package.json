@@ -169,7 +169,6 @@
     "@parity/shapeshift": "file:packages/shapeshift",
     "@parity/shared": "file:packages/shared",
     "@parity/ui": "file:packages/ui",
-    "@parity/views": "file:packages/views",
     "@parity/wordlist": "1.0.1",
     "es6-error": "4.0.0",
     "es6-promise": "4.0.5",
