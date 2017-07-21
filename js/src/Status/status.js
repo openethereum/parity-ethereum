@@ -22,8 +22,8 @@ import { connect } from 'react-redux';
 import { BlockStatus, StatusIndicator } from '@parity/ui';
 
 import Consensus from './Consensus';
-import Store from './Store';
 import Upgrade from './Upgrade';
+import Store from './store';
 
 import styles from './status.css';
 
