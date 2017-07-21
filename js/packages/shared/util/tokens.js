@@ -20,7 +20,7 @@ import BigNumber from 'bignumber.js';
 import { sha3 } from '@parity/api/util/sha3';
 import { IconCache } from '@parity/ui';
 
-import imagesEthereum from '~/shared/assets/images/contracts/ethereum-black-64x64.png';
+import imagesEthereum from '../assets/images/contracts/ethereum-black-64x64.png';
 
 const BALANCEOF_SIGNATURE = sha3('balanceOf(address)');
 const ADDRESS_PADDING = range(24).map(() => '0').join('');

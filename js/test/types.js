@@ -19,7 +19,7 @@ import BigNumber from 'bignumber.js';
 import { isInstanceOf } from '../src/api/util/types';
 
 export { isFunction, isInstanceOf } from '../src/api/util/types'; // eslint-disable-line no-duplicate-imports
-export { isAddress } from '../src/abi/util/address';
+export { isAddress } from '../packages/abi/util/address';
 
 const ZEROS = '000000000000000000000000000000000000000000000000000000000000';
 

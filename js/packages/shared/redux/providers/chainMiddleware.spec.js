@@ -20,7 +20,7 @@ import Contracts from '@parity/shared/contracts';
 
 import { initialState as defaultNodeStatusState } from './statusReducer';
 import ChainMiddleware from './chainMiddleware';
-import { createWsApi } from '~/../test/e2e/ethapi';
+import { createWsApi } from '../../../../test/e2e/ethapi';
 
 let middleware;
 let next;

@@ -55,7 +55,7 @@
     "lint:js": "eslint --ignore-path .gitignore ./src/",
     "lint:js:cached": "eslint --cache --ignore-path .gitignore ./src/",
     "lint:js:fix": "eslint --fix --ignore-path .gitignore ./src/",
-    "start": "npm run clean && npm install && npm run build:lib && npm run build:dll && npm run start:app",
+    "start": "npm run clean && npm install --no-progress && npm run build:lib && npm run build:dll && npm run start:app",
     "start:app": "node webpack/dev.server",
     "test": "NODE_ENV=test mocha --compilers ejs:ejsify 'src/**/*.spec.js'",
     "test:coverage": "NODE_ENV=test istanbul cover _mocha -- --compilers ejs:ejsify 'src/**/*.spec.js'",

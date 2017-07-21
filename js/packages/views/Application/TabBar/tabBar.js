@@ -22,7 +22,7 @@ import { Link } from 'react-router';
 import { Toolbar, ToolbarGroup } from 'material-ui/Toolbar';
 import { isEqual } from 'lodash';
 
-import { Tooltip, StatusIndicator } from '~/ui';
+import { Tooltip, StatusIndicator } from '@parity/ui';
 
 import Tab from './Tab';
 import styles from './tabBar.css';

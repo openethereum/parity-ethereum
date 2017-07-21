@@ -18,9 +18,9 @@ import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 import { FormattedMessage } from 'react-intl';
 
-import Button from '~/ui/Button';
-import InputChip from '~/ui/Form/InputChip';
-import { SearchIcon } from '~/ui/Icons';
+import Button from '../../Button';
+import InputChip from '../../Form/InputChip';
+import { SearchIcon } from '../../Icons';
 
 import styles from './search.css';
 

@@ -17,7 +17,7 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 
-import Progress from '~/ui/Progress';
+import Progress from '../../Progress';
 
 export default function Waiting ({ activeStep, busy, busySteps, className }) {
   const isWaiting = busy || (busySteps || []).includes(activeStep);

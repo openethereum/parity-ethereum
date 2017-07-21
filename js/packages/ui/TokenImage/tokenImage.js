@@ -18,7 +18,7 @@ import React from 'react';
 import PropTypes from 'prop-types';
 
 import unknownImage from '@parity/shared/assets/images/contracts/unknown-64x64.png';
-import IconCache from '~/ui/IconCache';
+import IconCache from '../IconCache';
 
 const iconCache = IconCache.get();
 

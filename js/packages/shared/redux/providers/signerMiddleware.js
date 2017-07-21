@@ -20,6 +20,7 @@ import { inHex } from '@parity/api/format/input';
 import HardwareStore from '@parity/shared/mobx/hardwareStore';
 import { Signer } from '@parity/shared/util/signer';
 
+// FIXME: We should not import from shell
 import { createSignedTx } from '~/Signer/utils/qrscan';
 
 export default class SignerMiddleware {

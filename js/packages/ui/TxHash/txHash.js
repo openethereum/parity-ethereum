@@ -23,9 +23,9 @@ import { connect } from 'react-redux';
 import { DEFAULT_GAS } from '@parity/shared/util/constants';
 import { txLink } from '@parity/etherscan/links';
 
-import Warning from '~/ui/Warning';
-import Progress from '~/ui/Progress';
-import ShortenedHash from '~/ui/ShortenedHash';
+import Warning from '../Warning';
+import Progress from '../Progress';
+import ShortenedHash from '../ShortenedHash';
 
 import styles from './txHash.css';
 

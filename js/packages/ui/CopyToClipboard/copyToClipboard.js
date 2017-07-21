@@ -23,7 +23,7 @@ import { bindActionCreators } from 'redux';
 
 import { showSnackbar } from '@parity/shared/redux/providers/snackbarActions';
 
-import { CopyIcon } from '~/ui/Icons';
+import { CopyIcon } from '../Icons';
 
 import styles from './copyToClipboard.css';
 

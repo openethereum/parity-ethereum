@@ -23,7 +23,7 @@ import { FormattedMessage } from 'react-intl';
 import HistoryStore from '@parity/shared/mobx/historyStore';
 import { Page } from '@parity/ui';
 
-import WebStore from '~/views/Web/store';
+import WebStore from '../Web/store';
 
 // FIXME: Don't really want to import from ~/
 import DappsStore from '~/Dapps/dappsStore';

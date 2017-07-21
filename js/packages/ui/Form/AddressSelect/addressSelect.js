@@ -27,12 +27,12 @@ import { nodeOrStringProptype } from '@parity/shared/util/proptypes';
 import { parseI18NString } from '@parity/shared/util/messages';
 import { validateAddress } from '@parity/shared/util/validation';
 
-import AccountCard from '~/ui/AccountCard';
-import CopyToClipboard from '~/ui/CopyToClipboard';
-import InputAddress from '~/ui/Form/InputAddress';
-import LabelWrapper from '~/ui/Form/LabelWrapper';
-import Loading from '~/ui/Loading';
-import Portal from '~/ui/Portal';
+import AccountCard from '../../AccountCard';
+import CopyToClipboard from '../../CopyToClipboard';
+import Loading from '../../Loading';
+import Portal from '../../Portal';
+import InputAddress from '../InputAddress';
+import LabelWrapper from '../LabelWrapper';
 
 import AddressSelectStore from './addressSelectStore';
 import styles from './addressSelect.css';

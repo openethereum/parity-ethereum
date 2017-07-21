@@ -17,8 +17,8 @@
 import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 
-import Title from '~/ui/Title';
-import IdentityIcon from '~/ui/IdentityIcon';
+import Title from '../../Title';
+import IdentityIcon from '../../IdentityIcon';
 
 import styles from './layout.css';
 

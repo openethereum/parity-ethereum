@@ -23,7 +23,7 @@ import { Input as SemanticInput } from 'semantic-ui-react';
 import { parseI18NString } from '@parity/shared/util/messages';
 import { arrayOrObjectProptype, nodeOrStringProptype } from '@parity/shared/util/proptypes';
 
-import LabelWrapper from '~/ui/Form/LabelWrapper';
+import LabelWrapper from '../../LabelWrapper';
 
 import Chip from './Chip';
 

@@ -19,7 +19,7 @@ import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 import { Bar, BarChart, ResponsiveContainer, Scatter, ScatterChart, Tooltip, XAxis, YAxis } from 'recharts';
 
-import Slider from '~/ui/Form/Slider';
+import Slider from '../Form/Slider';
 
 import CustomBar from './CustomBar';
 import CustomCursor from './CustomCursor';

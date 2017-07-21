@@ -17,7 +17,7 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 
-import IdentityIcon from '~/ui/IdentityIcon';
+import IdentityIcon from '../IdentityIcon';
 
 import styles from './vaultTag.css';
 

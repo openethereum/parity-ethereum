@@ -17,8 +17,8 @@
 import { observer } from 'mobx-react';
 import React, { Component } from 'react';
 
-import Checkbox from '~/ui/Form/Checkbox';
-import List from '~/ui/List';
+import Checkbox from '../Form/Checkbox';
+import List from '../List';
 
 import defaults, { MODES } from './defaults';
 import Store from './store';

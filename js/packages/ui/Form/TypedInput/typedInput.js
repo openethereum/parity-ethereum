@@ -24,13 +24,13 @@ import { bytesToHex } from '@parity/api/util/format';
 import { ABI_TYPES, parseAbiType } from '@parity/shared/util/abi';
 import { nodeOrStringProptype } from '@parity/shared/util/proptypes';
 
-import Button from '~/ui/Button';
-import Dropdown from '~/ui/Form/Dropdown';
-import Input from '~/ui/Form/Input';
-import InputAddressSelect from '~/ui/Form/InputAddressSelect';
-import LabelWrapper from '~/ui/Form/LabelWrapper';
-import Toggle from '~/ui/Form/Toggle';
-import { AddIcon, RemoveIcon } from '~/ui/Icons';
+import Button from '../../Button';
+import Dropdown from '../../Form/Dropdown';
+import Input from '../../Form/Input';
+import InputAddressSelect from '../../Form/InputAddressSelect';
+import LabelWrapper from '../../Form/LabelWrapper';
+import Toggle from '../../Form/Toggle';
+import { AddIcon, RemoveIcon } from '../../Icons';
 
 import styles from './typedInput.css';
 

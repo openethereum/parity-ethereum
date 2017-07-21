@@ -21,7 +21,7 @@ import PropTypes from 'prop-types';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 
-import IdentityIcon from '~/ui/IdentityIcon';
+import IdentityIcon from '../IdentityIcon';
 import { TypedInput, Label } from '../Form';
 import Loading from '../Loading';
 import MethodDecodingStore from './methodDecodingStore';

@@ -20,8 +20,8 @@ import PropTypes from 'prop-types';
 import { createIdentityImg } from '@parity/api/util/identity';
 import { isNullAddress } from '@parity/shared/util/validation';
 
-import IconCache from '~/ui/IconCache';
-import { CancelIcon, ContractIcon } from '~/ui/Icons';
+import IconCache from '../IconCache';
+import { CancelIcon, ContractIcon } from '../Icons';
 
 import styles from './identityIcon.css';
 

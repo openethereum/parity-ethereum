@@ -18,8 +18,8 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import { FormattedMessage } from 'react-intl';
 
-import DappLink from '~/ui/DappLink';
-import IdentityIcon from '~/ui/IdentityIcon';
+import DappLink from '../../DappLink';
+import IdentityIcon from '../../IdentityIcon';
 
 import styles from '../vaultCard.css';
 

@@ -20,10 +20,10 @@ import { FormattedMessage } from 'react-intl';
 
 import { nodeOrStringProptype } from '@parity/shared/util/proptypes';
 
-import Button from '~/ui/Button';
-import FileSelect from '~/ui/Form/FileSelect';
-import { CancelIcon, DoneIcon, FileUploadIcon } from '~/ui/Icons';
-import Portal from '~/ui/Portal';
+import Button from '../../Button';
+import FileSelect from '../../Form/FileSelect';
+import { CancelIcon, DoneIcon, FileUploadIcon } from '../../Icons';
+import Portal from '../../Portal';
 
 import styles from './import.css';
 

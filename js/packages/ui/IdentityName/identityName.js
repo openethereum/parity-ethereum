@@ -21,7 +21,7 @@ import { connect } from 'react-redux';
 
 import { isNullAddress } from '@parity/shared/util/validation';
 
-import ShortenedHash from '~/ui/ShortenedHash';
+import ShortenedHash from '../ShortenedHash';
 
 const defaultName = (
   <FormattedMessage

@@ -19,8 +19,8 @@ import PropTypes from 'prop-types';
 
 import { nodeOrStringProptype } from '@parity/shared/util/proptypes';
 
-import { Title as ContainerTitle } from '~/ui/Container';
-import Steps from '~/ui/Steps';
+import { Title as ContainerTitle } from '../Container';
+import Steps from '../Steps';
 
 import Waiting from './Waiting';
 

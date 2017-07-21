@@ -19,10 +19,10 @@ import PropTypes from 'prop-types';
 import { FormattedMessage } from 'react-intl';
 import { observer } from 'mobx-react';
 
-import Button from '~/ui/Button';
-import { SortIcon } from '~/ui/Icons';
-import List from '~/ui/List';
-import Popup from '~/ui/Popup';
+import Button from '../../Button';
+import { SortIcon } from '../../Icons';
+import List from '../../List';
+import Popup from '../../Popup';
 
 import SortStore from './sortStore';
 

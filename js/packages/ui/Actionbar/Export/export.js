@@ -20,8 +20,8 @@ import { FormattedMessage } from 'react-intl';
 
 import FileSaver from 'file-saver';
 
-import Button from '~/ui/Button';
-import { FileDownloadIcon } from '~/ui/Icons';
+import Button from '../../Button';
+import { FileDownloadIcon } from '../../Icons';
 
 export default class ActionbarExport extends Component {
   static propTypes = {

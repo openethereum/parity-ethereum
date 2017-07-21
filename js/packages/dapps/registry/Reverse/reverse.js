@@ -23,8 +23,8 @@ import {
 import PropTypes from 'prop-types';
 
 import { nullableProptype } from '@parity/shared/util/proptypes';
+import { AddIcon, CheckIcon } from '@parity/ui/Icons';
 
-import { AddIcon, CheckIcon } from '~/ui/Icons';
 import { clearError, confirm, propose } from './actions';
 import styles from './reverse.css';
 

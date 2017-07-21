@@ -16,8 +16,9 @@
 
 import React, { Component } from 'react';
 
-import { Button } from '~/ui';
-import PlaygroundExample from '~/views/Playground/playgroundExample';
+import PlaygroundExample from '@parity/views/Playground/playgroundExample';
+
+import Button from '../Button';
 
 import Portal from './portal';
 

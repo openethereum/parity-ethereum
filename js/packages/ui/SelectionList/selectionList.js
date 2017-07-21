@@ -20,8 +20,8 @@ import PropTypes from 'prop-types';
 
 import { arrayOrObjectProptype } from '@parity/shared/util/proptypes';
 
-import { StarIcon } from '~/ui/Icons';
-import SectionList from '~/ui/SectionList';
+import { StarIcon } from '../Icons';
+import SectionList from '../SectionList';
 
 import styles from './selectionList.css';
 

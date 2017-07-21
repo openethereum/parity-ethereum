@@ -22,7 +22,7 @@ module.exports = {
     alias: {
       '~': path.resolve(__dirname, '../src'),
       '@parity/wordlist': path.resolve(__dirname, '../node_modules/@parity/wordlist'),
-      '@parity': path.resolve(__dirname, '../src')
+      '@parity': path.resolve(__dirname, '../packages')
     }
   }
 };

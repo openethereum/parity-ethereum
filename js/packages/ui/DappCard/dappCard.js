@@ -17,9 +17,9 @@
 import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 
-import Container, { Title as ContainerTitle } from '~/ui/Container';
-import DappIcon from '~/ui/DappIcon';
-import Tags from '~/ui/Tags';
+import Container, { Title as ContainerTitle } from '../Container';
+import DappIcon from '../DappIcon';
+import Tags from '../Tags';
 
 import styles from './dappCard.css';
 

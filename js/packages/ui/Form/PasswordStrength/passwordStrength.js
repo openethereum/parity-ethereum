@@ -20,8 +20,8 @@ import { debounce } from 'lodash';
 import { FormattedMessage } from 'react-intl';
 import zxcvbn from 'zxcvbn';
 
-import LabelWrapper from '~/ui/Form/LabelWrapper';
-import Progress from '~/ui/Progress';
+import LabelWrapper from '../LabelWrapper';
+import Progress from '../../Progress';
 
 import styles from './passwordStrength.css';
 

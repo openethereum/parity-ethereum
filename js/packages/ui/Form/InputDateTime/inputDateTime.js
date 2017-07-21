@@ -20,7 +20,7 @@ import DateTime from 'react-datetime';
 
 import { parseI18NString } from '@parity/shared/util/messages';
 
-import LabelWrapper from '~/ui/Form/LabelWrapper';
+import LabelWrapper from '../LabelWrapper';
 
 import styles from './inputDateTime.css';
 

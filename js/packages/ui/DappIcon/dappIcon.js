@@ -17,7 +17,7 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 
-import { createIcon } from '~/ui/Icons';
+import { createIcon } from '../Icons';
 
 import styles from './dappIcon.css';
 

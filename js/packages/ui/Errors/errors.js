@@ -20,7 +20,7 @@ import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
-import { Snackbar } from '~/ui/Snackbar';
+import { Snackbar } from '../Snackbar';
 
 import { closeErrors } from './actions';
 

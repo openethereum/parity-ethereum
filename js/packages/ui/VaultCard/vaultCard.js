@@ -17,7 +17,7 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 
-import Container from '~/ui/Container';
+import Container from '../Container';
 
 import Accounts from './Accounts';
 import Buttons from './Buttons';

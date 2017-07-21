@@ -25,7 +25,7 @@ import { newError } from '@parity/shared/redux/actions';
 import { Button, Form, Input, InputChip, Portal, VaultSelect } from '@parity/ui';
 import { CancelIcon, SaveIcon } from '@parity/ui/Icons';
 
-import VaultStore from '~/views/Vaults/store';
+import VaultStore from '../../Vaults/store';
 
 import Store from './store';
 

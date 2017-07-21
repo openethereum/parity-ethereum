@@ -16,7 +16,8 @@
 
 import React, { Component } from 'react';
 
-import PlaygroundExample from '~/views/Playground/playgroundExample';
+import PlaygroundExample from '@parity/views/Playground/playgroundExample';
+
 import SectionList from './';
 
 const ITEM_STYLE = {

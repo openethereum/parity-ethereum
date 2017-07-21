@@ -19,11 +19,11 @@ import PropTypes from 'prop-types';
 import ReactDOM from 'react-dom';
 import keycode from 'keycode';
 
-import Balance from '~/ui/Balance';
-import Container from '~/ui/Container';
-import IdentityIcon from '~/ui/IdentityIcon';
-import IdentityName from '~/ui/IdentityName';
-import Tags from '~/ui/Tags';
+import Balance from '../Balance';
+import Container from '../Container';
+import IdentityIcon from '../IdentityIcon';
+import IdentityName from '../IdentityName';
+import Tags from '../Tags';
 
 import styles from './accountCard.css';
 

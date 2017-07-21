@@ -17,9 +17,9 @@
 import { debounce } from 'lodash';
 import lsstore from 'store';
 
-import Contracts from '~/shared/contracts';
-import registryABI from '~/shared/contracts/abi/registry.json';
-import subscribeToEvents from '~/shared/util/subscribe-to-events';
+import Contracts from '../../../contracts';
+import registryABI from '../../../contracts/abi/registry.json';
+import subscribeToEvents from '../../../util/subscribe-to-events';
 
 import { setReverse, startCachingReverses } from './actions';
 

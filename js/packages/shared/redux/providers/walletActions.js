@@ -21,9 +21,9 @@ import { ERROR_CODES } from '@parity/api/transport/error';
 import { bytesToHex, toHex } from '@parity/api/util/format';
 import { newError } from '@parity/ui/Errors/actions';
 
-import { wallet as WALLET_ABI } from '~/shared/contracts/abi';
-import { MAX_GAS_ESTIMATION } from '~/shared/util/constants';
-import WalletsUtils from '~/shared/util/wallets';
+import { wallet as WALLET_ABI } from '../../contracts/abi';
+import { MAX_GAS_ESTIMATION } from '../../util/constants';
+import WalletsUtils from '../../util/wallets';
 
 const UPDATE_OWNERS = 'owners';
 const UPDATE_REQUIRE = 'require';

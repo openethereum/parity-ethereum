@@ -19,7 +19,7 @@ import PropTypes from 'prop-types';
 
 import { nodeOrStringProptype } from '@parity/shared/util/proptypes';
 
-import { CloseIcon } from '~/ui/Icons';
+import { CloseIcon } from '../../../Icons';
 
 import styles from './chip.css';
 

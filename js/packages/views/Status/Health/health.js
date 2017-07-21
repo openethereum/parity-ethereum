@@ -19,7 +19,7 @@ import PropTypes from 'prop-types';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 
-import { Container, ContainerTitle, StatusIndicator } from '~/ui';
+import { Container, ContainerTitle, StatusIndicator } from '@parity/ui';
 
 import grid from '../Node/node.css';
 

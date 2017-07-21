@@ -19,7 +19,7 @@ import PropTypes from 'prop-types';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 
-import { BlockStatus, StatusIndicator } from '~/ui';
+import { BlockStatus, StatusIndicator } from '@parity/ui';
 
 import styles from './status.css';
 

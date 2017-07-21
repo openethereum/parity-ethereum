@@ -17,8 +17,8 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 
-import Button from '~/ui/Button';
-import { LockedIcon, UnlockedIcon } from '~/ui/Icons';
+import Button from '../../Button';
+import { LockedIcon, UnlockedIcon } from '../../Icons';
 
 import styles from '../vaultCard.css';
 

@@ -23,8 +23,8 @@ import { Input as SemanticInput } from 'semantic-ui-react';
 import { nodeOrStringProptype } from '@parity/shared/util/proptypes';
 import { parseI18NString } from '@parity/shared/util/messages';
 
-import CopyToClipboard from '~/ui/CopyToClipboard';
-import LabelWrapper from '~/ui/Form/LabelWrapper';
+import CopyToClipboard from '../../CopyToClipboard';
+import LabelWrapper from '../LabelWrapper';
 
 import styles from './input.css';
 

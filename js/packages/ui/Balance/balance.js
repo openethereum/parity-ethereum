@@ -20,7 +20,7 @@ import PropTypes from 'prop-types';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 
-import TokenImage from '~/ui/TokenImage';
+import TokenImage from '../TokenImage';
 
 import styles from './balance.css';
 

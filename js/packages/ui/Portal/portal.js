@@ -24,9 +24,9 @@ import { noop } from 'lodash';
 
 import { nodeOrStringProptype } from '@parity/shared/util/proptypes';
 
-import { CloseIcon } from '~/ui/Icons';
-import StackEventListener from '~/ui/StackEventListener';
-import Title from '~/ui/Title';
+import { CloseIcon } from '../Icons';
+import StackEventListener from '../StackEventListener';
+import Title from '../Title';
 
 import styles from './portal.css';
 

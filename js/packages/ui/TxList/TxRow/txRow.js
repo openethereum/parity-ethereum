@@ -23,11 +23,11 @@ import { connect } from 'react-redux';
 
 import { txLink } from '@parity/etherscan/links';
 
-import DappLink from '~/ui/DappLink';
-import IdentityIcon from '~/ui/IdentityIcon';
-import IdentityName from '~/ui/IdentityName';
-import MethodDecoding from '~/ui/MethodDecoding';
-import MethodDecodingStore from '~/ui/MethodDecoding/methodDecodingStore';
+import DappLink from '../../DappLink';
+import IdentityIcon from '../../IdentityIcon';
+import IdentityName from '../../IdentityName';
+import MethodDecoding from '../../MethodDecoding';
+import MethodDecodingStore from '../../MethodDecoding/methodDecodingStore';
 
 import styles from '../txList.css';
 
