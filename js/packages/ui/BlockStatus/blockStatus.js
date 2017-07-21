@@ -15,39 +15,43 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React from 'react';
-import PropTypes from 'prop-types';
 import { FormattedMessage } from 'react-intl';
-import { connect } from 'react-redux';
+import PropTypes from 'prop-types';
+import { observer } from 'mobx-react';
+
+import Store from './store';
 
 import styles from './blockStatus.css';
 
-function BlockStatus ({ blockNumber, syncing }) {
-  if (!blockNumber) {
+function BlockStatus ({}, { api }) { // eslint-disable-line no-empty-pattern
+  const store = Store.get(api);
+
+  if (!store.blockNumber) {
     return null;
   }
 
-  if (!syncing) {
+  if (!store.syncing) {
     return (
       <div className={ styles.blockNumber }>
         <FormattedMessage
           id='ui.blockStatus.bestBlock'
           defaultMessage='{blockNumber} best block'
           values={ {
-            blockNumber: blockNumber.toFormat()
+            blockNumber: store.blockNumber.toFormat()
           } }
         />
       </div>
     );
   }
 
-  if (syncing.warpChunksAmount && syncing.warpChunksProcessed && !syncing.warpChunksAmount.eq(syncing.warpChunksProcessed)) {
+  if (store.syncing.warpChunksAmount && store.syncing.warpChunksProcessed && !store.syncing.warpChunksAmount.eq(store.syncing.warpChunksProcessed)) {
     return (
       <div className={ styles.syncStatus }>
         <FormattedMessage
           id='ui.blockStatus.warpRestore'
           defaultMessage='{percentage}% warp restore'
           values={ {
-            percentage: syncing.warpChunksProcessed.mul(100).div(syncing.warpChunksAmount).toFormat(2)
+            percentage: store.syncing.warpChunksProcessed.mul(100).div(store.syncing.warpChunksAmount).toFormat(2)
           } }
         />
       </div>
@@ -57,23 +61,23 @@ function BlockStatus ({ blockNumber, syncing }) {
   let syncStatus = null;
   let warpStatus = null;
 
-  if (syncing.currentBlock && syncing.highestBlock) {
+  if (store.syncing.currentBlock && store.syncing.highestBlock) {
     syncStatus = (
       <span>
         <FormattedMessage
           id='ui.blockStatus.syncStatus'
           defaultMessage='{currentBlock}/{highestBlock} syncing'
           values={ {
-            currentBlock: syncing.currentBlock.toFormat(),
-            highestBlock: syncing.highestBlock.toFormat()
+            currentBlock: store.syncing.currentBlock.toFormat(),
+            highestBlock: store.syncing.highestBlock.toFormat()
           } }
         />
       </span>
     );
   }
 
-  if (syncing.blockGap) {
-    const [first, last] = syncing.blockGap;
+  if (store.syncing.blockGap) {
+    const [first, last] = store.syncing.blockGap;
 
     warpStatus = (
       <span>
@@ -96,24 +100,8 @@ function BlockStatus ({ blockNumber, syncing }) {
   );
 }
 
-BlockStatus.propTypes = {
-  blockNumber: PropTypes.object,
-  syncing: PropTypes.oneOfType([
-    PropTypes.bool,
-    PropTypes.object
-  ])
+BlockStatus.contextTypes = {
+  api: PropTypes.object.isRequired
 };
 
-function mapStateToProps (state) {
-  const { blockNumber, syncing } = state.nodeStatus;
-
-  return {
-    blockNumber,
-    syncing
-  };
-}
-
-export default connect(
-  mapStateToProps,
-  null
-)(BlockStatus);
+export default observer(BlockStatus);
