@@ -98,7 +98,7 @@ describe('views/Accounts/CreateAccount/NewAccount', () => {
       });
     });
 
-    describe('onEditPassword', () => {
+    describe.skip('onEditPassword', () => {
       beforeEach(() => {
         sinon.spy(store, 'setPassword');
         instance.onEditPassword(null, 'test');
@@ -113,7 +113,7 @@ describe('views/Accounts/CreateAccount/NewAccount', () => {
       });
     });
 
-    describe('onEditPasswordRepeat', () => {
+    describe.skip('onEditPasswordRepeat', () => {
       beforeEach(() => {
         sinon.spy(store, 'setPasswordRepeat');
         instance.onEditPasswordRepeat(null, 'test');
@@ -128,7 +128,7 @@ describe('views/Accounts/CreateAccount/NewAccount', () => {
       });
     });
 
-    describe('onEditPasswordHint', () => {
+    describe.skip('onEditPasswordHint', () => {
       beforeEach(() => {
         sinon.spy(store, 'setPasswordHint');
         instance.onEditPasswordHint(null, 'test');
@@ -143,7 +143,7 @@ describe('views/Accounts/CreateAccount/NewAccount', () => {
       });
     });
 
-    describe('onEditAccountName', () => {
+    describe.skip('onEditAccountName', () => {
       beforeEach(() => {
         sinon.spy(store, 'setName');
         instance.onEditAccountName(null, 'test');
