@@ -857,11 +857,16 @@ impl Host {
 							// Add it to the node table
 							if !s.info.originated {
 								if let Ok(address) = s.remote_addr() {
-									let entry = NodeEntry { id: id, endpoint: NodeEndpoint { address: address, udp_port: address.port() } };
-									self.nodes.write().add_node(Node::new(entry.id.clone(), entry.endpoint.clone()));
-									let mut discovery = self.discovery.lock();
-									if let Some(ref mut discovery) = *discovery {
-										discovery.add_node(entry);
+									// We can't know remote listening ports, so just assume defaults and hope for the best.
+									let endpoint = NodeEndpoint { address: SocketAddr::new(address.ip(), DEFAULT_PORT), udp_port: DEFAULT_PORT };
+									let entry = NodeEntry { id: id, endpoint: endpoint };
+									let mut nodes = self.nodes.write();
+									if !nodes.contains(&entry.id) {
+										nodes.add_node(Node::new(entry.id.clone(), entry.endpoint.clone()));
+										let mut discovery = self.discovery.lock();
+										if let Some(ref mut discovery) = *discovery {
+											discovery.add_node(entry);
+										}
 									}
 								}
 							}
