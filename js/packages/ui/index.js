@@ -61,6 +61,7 @@ export Snackbar from './Snackbar';
 export StatusIndicator from './StatusIndicator';
 export Tabs from './Tabs';
 export Tags from './Tags';
+export Theme from './Theme';
 export Title from './Title';
 export TokenImage from './TokenImage';
 export TxHash from './TxHash';
