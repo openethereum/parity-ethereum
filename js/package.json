@@ -160,13 +160,13 @@
     "yargs": "6.6.0"
   },
   "dependencies": {
-    "@parity/abi": "file:src/abi",
-    "@parity/api": "file:src/api",
+    "@parity/abi": "file:packages/abi",
+    "@parity/api": "file:packages/api",
     "@parity/dapps": "file:src/dapps",
-    "@parity/jsonrpc": "file:src/jsonrpc",
-    "@parity/shared": "file:src/shared",
+    "@parity/jsonrpc": "file:packages/jsonrpc",
+    "@parity/shared": "file:packages/shared",
     "@parity/shell": "file:src/shell",
-    "@parity/ui": "file:src/ui",
+    "@parity/ui": "file:packages/ui",
     "@parity/views": "file:src/views",
     "@parity/wordlist": "1.0.1",
     "es6-error": "4.0.0",
