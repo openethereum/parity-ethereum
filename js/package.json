@@ -162,7 +162,7 @@
   "dependencies": {
     "@parity/abi": "file:packages/abi",
     "@parity/api": "file:packages/api",
-    "@parity/dapps": "file:src/dapps",
+    "@parity/dapps": "file:packages/dapps",
     "@parity/etherscan": "file:packages/etherscan",
     "@parity/jsonrpc": "file:packages/jsonrpc",
     "@parity/ledger": "file:packages/ledger",
@@ -170,7 +170,7 @@
     "@parity/shared": "file:packages/shared",
     "@parity/shell": "file:src/shell",
     "@parity/ui": "file:packages/ui",
-    "@parity/views": "file:src/views",
+    "@parity/views": "file:packages/views",
     "@parity/wordlist": "1.0.1",
     "es6-error": "4.0.0",
     "es6-promise": "4.0.5",
