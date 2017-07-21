@@ -16,7 +16,7 @@
 
 import { action, observable, transaction } from 'mobx';
 
-import etherscan from '@parity/etherscan';
+import etherscan from '@parity/etherscan/index';
 
 export default class Store {
   @observable address = null;

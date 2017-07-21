@@ -28,6 +28,6 @@ if (isNode) {
   global.fetch = require('node-fetch');
 }
 
-import ShapeShift from './';
+import ShapeShift from './index';
 
 export default ShapeShift;

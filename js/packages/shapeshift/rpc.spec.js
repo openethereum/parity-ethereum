@@ -16,7 +16,7 @@
 
 const helpers = require('./helpers.spec.js');
 
-const ShapeShift = require('./');
+const ShapeShift = require('./index');
 const initShapeshift = (ShapeShift.default || ShapeShift);
 
 const mockget = helpers.mockget;

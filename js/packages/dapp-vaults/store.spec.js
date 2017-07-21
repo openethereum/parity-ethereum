@@ -18,7 +18,7 @@ import sinon from 'sinon';
 
 import Vaults from './vaults';
 
-import ERRORS from '../Accounts/CreateAccount/errors';
+import ERRORS from '../dapp-accounts/CreateAccount/errors';
 import { createApi, TEST_VAULTS_ALL, TEST_VAULTS_META, TEST_VAULTS_OPEN } from './vaults.test.js';
 
 let api;

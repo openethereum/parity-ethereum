@@ -15,8 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import initRpc from './rpc';
-import initShapeshift from './shapeshift';
+import _initShapeshift from './shapeshift';
 
-export default function (apikey) {
-  return initShapeshift(initRpc(apikey));
+export default function initShapeshift (apikey) {
+  return _initShapeshift(initRpc(apikey));
 }
