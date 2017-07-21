@@ -751,7 +751,11 @@ impl ClusterConnections {
 	pub fn update_nodes_set(&self) {
 		let mut data = self.data.write();
 		let mut new_nodes = self.key_server_set.get();
-		new_nodes.remove(&self.self_node_id);
+		// we do not need to connect to self
+		// + we do not need to try to connect to any other node if we are not the part of a cluster
+		if new_nodes.remove(&self.self_node_id).is_none() {
+			new_nodes.clear();
+		}
 
 		let mut num_added_nodes = 0;
 		let mut num_removed_nodes = 0;
