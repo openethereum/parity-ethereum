@@ -30,7 +30,7 @@ import { CancelIcon } from '@parity/ui/Icons';
 
 import DetailsStep from './DetailsStep';
 import ParametersStep from './ParametersStep';
-import Extras from '../../Account/Transfer/Extras';
+import Extras from '@parity/dapp-account/Transfer/Extras';
 
 const STEPS = {
   CONTRACT_DETAILS: {

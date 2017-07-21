@@ -176,7 +176,7 @@ function getDappsEntry () {
         views
       )
       .reduce((_entry, dapp) => {
-        _entry[dapp.url] = '../packages/dapp-' + dapp.src + '/index.js';
+        _entry[dapp.url] = '../packages/dapp-' + dapp.url + '/index.js';
         return _entry;
       }, {})
   );

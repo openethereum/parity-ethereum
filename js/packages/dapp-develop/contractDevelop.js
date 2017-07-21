@@ -25,7 +25,7 @@ import { Actionbar, ActionbarExport, ActionbarImport, Button, Dropdown, Input, L
 import { CancelIcon, ListIcon, SaveIcon, SendIcon, SettingsIcon } from '@parity/ui/Icons';
 import Editor from '@parity/ui/Editor';
 
-import DeployContract from '../Contracts/DeployContract';
+import DeployContract from '@parity/dapp-contracts/DeployContract';
 import LoadContract from './LoadContract';
 import SaveContract from './SaveContract';
 

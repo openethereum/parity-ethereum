@@ -132,10 +132,10 @@
     "noselect": true
   },
   {
-    "id": "requests",
-    "url": "requests",
+    "id": "signer",
+    "url": "signer",
     "src": "Signer",
-    "name": "Requests",
+    "name": "Signer Requests",
     "description": "Display the current and historic Signer requests",
     "author": "Parity Team <admin@ethcore.io>",
     "version": "2.0.0",

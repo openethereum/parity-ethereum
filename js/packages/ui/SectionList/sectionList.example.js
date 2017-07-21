@@ -16,7 +16,7 @@
 
 import React, { Component } from 'react';
 
-import PlaygroundExample from '@parity/dapps/Playground/playgroundExample';
+import PlaygroundExample from '@parity/dapp-playground/playgroundExample';
 
 import SectionList from './';
 

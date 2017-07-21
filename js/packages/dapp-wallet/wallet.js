@@ -27,10 +27,11 @@ import { nullableProptype } from '@parity/shared/util/proptypes';
 import { Actionbar, Button, Page, Loading } from '@parity/ui';
 import { DeleteIcon, EditIcon, SendIcon, SettingsIcon } from '@parity/ui/Icons';
 
-import EditMeta from '../Account/EditMeta';
-import Transfer from '../Account/Transfer';
-import Delete from '../Address/Delete';
-import Header from '../Account/Header';
+import EditMeta from '@parity/dapp-account/EditMeta';
+import Transfer from '@parity/dapp-account/Transfer';
+import Delete from '@parity/dapp-address/Delete';
+import Header from '@parity/dapp-account/Header';
+
 import WalletDetails from './Details';
 import WalletConfirmations from './Confirmations';
 import WalletTransactions from './Transactions';

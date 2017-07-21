@@ -28,7 +28,7 @@ import { CancelIcon, CheckIcon, DoneIcon, NextIcon, PrevIcon, PrintIcon } from '
 
 import ParityLogo from '@parity/shared/assets/images/parity-logo-black-no-text.svg';
 
-import VaultStore from '../../Vaults/store';
+import VaultStore from '@parity/dapp-vaults/store';
 
 import AccountDetails from './AccountDetails';
 import AccountDetailsGeth from './AccountDetailsGeth';

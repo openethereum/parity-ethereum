@@ -33,8 +33,8 @@ import shapeshiftBtn from '@parity/shared/assets/images/shapeshift-btn.png';
 
 import DeleteAccount from './DeleteAccount';
 import EditMeta from './EditMeta';
-import DeleteAddress from '../Address/Delete';
-import ExportStore from '../Accounts/ExportAccount/exportStore';
+import DeleteAddress from '@parity/dapp-address/Delete';
+import ExportStore from '@parity/dapp-accounts/ExportAccount/exportStore';
 import Faucet from './Faucet';
 import PasswordManager from './PasswordManager';
 import Shapeshift from './Shapeshift';

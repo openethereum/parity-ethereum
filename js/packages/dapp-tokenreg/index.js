@@ -27,7 +27,7 @@ import Container from './Container';
 
 import '@parity/shared/assets/fonts/Roboto/font.css';
 import '@parity/shared/assets/fonts/RobotoMono/font.css';
-import '../style.css';
+import '@parity/dapps/style.css';
 
 ReactDOM.render(
   <AppContainer>

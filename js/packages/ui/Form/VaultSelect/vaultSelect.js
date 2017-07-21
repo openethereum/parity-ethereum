@@ -18,7 +18,7 @@ import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 import { FormattedMessage } from 'react-intl';
 
-import VaultStore from '@parity/dapps/Vaults/store';
+import VaultStore from '@parity/dapp-vaults/store';
 
 import VaultSelector from './VaultSelector';
 import InputAddress from '../InputAddress';
