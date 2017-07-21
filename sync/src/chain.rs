@@ -159,6 +159,7 @@ pub const SNAPSHOT_SYNC_PACKET_COUNT: u8 = 0x16;
 const MAX_SNAPSHOT_CHUNKS_DOWNLOAD_AHEAD: usize = 3;
 
 const MIN_SUPPORTED_SNAPSHOT_MANIFEST_VERSION: u64 = 1;
+const MAX_SUPPORTED_SNAPSHOT_MANIFEST_VERSION: u64 = 2;
 
 const WAIT_PEERS_TIMEOUT_SEC: u64 = 5;
 const STATUS_TIMEOUT_SEC: u64 = 5;
@@ -523,7 +524,8 @@ impl ChainSync {
 					sn > fork_block &&
 					self.highest_block.map_or(true, |highest| highest >= sn && (highest - sn) <= SNAPSHOT_RESTORE_THRESHOLD)
 				))
-				.filter_map(|(p, peer)| peer.snapshot_hash.map(|hash| (p, hash.clone())));
+				.filter_map(|(p, peer)| peer.snapshot_hash.map(|hash| (p, hash.clone())))
+				.filter(|&(_, ref hash)| !self.snapshot.is_known_bad(hash));
 
 			let mut snapshot_peers = HashMap::new();
 			let mut max_peers: usize = 0;
@@ -1020,6 +1022,7 @@ impl ChainSync {
 			trace!(target: "sync", "Ignoring snapshot manifest from unconfirmed peer {}", peer_id);
 			return Ok(());
 		}
+
 		self.clear_peer_download(peer_id);
 		if !self.reset_peer_asking(peer_id, PeerAsking::SnapshotManifest) || self.state != SyncState::SnapshotManifest {
 			trace!(target: "sync", "{}: Ignored unexpected/expired manifest", peer_id);
@@ -1037,13 +1040,32 @@ impl ChainSync {
 			}
 			Ok(manifest) => manifest,
 		};
-		if manifest.version < MIN_SUPPORTED_SNAPSHOT_MANIFEST_VERSION {
-			trace!(target: "sync", "{}: Snapshot manifest version too low: {}", peer_id, manifest.version);
+
+		let manifest_hash = manifest_rlp.as_raw().sha3();
+		let is_usable_version = manifest.version >= MIN_SUPPORTED_SNAPSHOT_MANIFEST_VERSION
+			&& manifest.version <= MAX_SUPPORTED_SNAPSHOT_MANIFEST_VERSION;
+
+		if !self.peers.get(&peer_id).map_or(false, |peer| peer.snapshot_hash == Some(manifest_hash)) {
+			trace!(target: "sync", "{}: Snapshot manifest hash {} mismatched with advertised", peer_id, manifest_hash);
 			io.disable_peer(peer_id);
+			self.continue_sync(io);
+
+			return Ok(());
+		}
+
+		if !is_usable_version {
+			trace!(target: "sync", "{}: Snapshot manifest version incompatible: {}", peer_id, manifest.version);
+			self.snapshot.note_bad(manifest_hash);
+
+			// temporarily disable the peer while we tune our peer set to those
+			// with usable snapshots. we don't try and download any rejected manifest
+			// again, so when we reconnect we can still full sync.
+			io.disable_peer(peer_id);;
 			self.continue_sync(io);
 			return Ok(());
 		}
-		self.snapshot.reset_to(&manifest, &manifest_rlp.as_raw().sha3());
+
+		self.snapshot.reset_to(&manifest, &manifest_hash);
 		io.snapshot_service().begin_restore(manifest);
 		self.state = SyncState::SnapshotData;
 
@@ -1068,10 +1090,18 @@ impl ChainSync {
 		}
 
 		// check service status
-		match io.snapshot_service().status() {
+		let status = io.snapshot_service().status();
+		match status {
 			RestorationStatus::Inactive | RestorationStatus::Failed => {
 				trace!(target: "sync", "{}: Snapshot restoration aborted", peer_id);
 				self.state = SyncState::WaitingPeers;
+
+				// only note bad if restoration failed.
+				if let (Some(hash), RestorationStatus::Failed) = (self.snapshot.snapshot_hash(), status) {
+					trace!(target: "sync", "Noting snapshot hash {} as bad", hash);
+					self.snapshot.note_bad(hash);
+				}
+
 				self.snapshot.clear();
 				self.continue_sync(io);
 				return Ok(());
