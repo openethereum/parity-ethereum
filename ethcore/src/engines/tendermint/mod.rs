@@ -38,6 +38,7 @@ use account_provider::AccountProvider;
 use block::*;
 use spec::CommonParams;
 use engines::{Engine, Seal, EngineError, ConstructedVerifier};
+use engines::authority_round::{combine_proofs, destructure_proofs};
 use state::CleanupMode;
 use io::IoService;
 use super::signer::EngineSigner;
@@ -105,30 +106,23 @@ struct EpochVerifier {
 	subchain_validators: SimpleList,
 }
 
-fn combine_proofs(signal_number: BlockNumber, set_proof: &[u8]) -> Vec<u8> {
-	let mut stream = ::rlp::RlpStream::new_list(3);
-	stream.append(&signal_number).append(&set_proof);
-	stream.out()
-}
-
-fn destructure_proofs(combined: &[u8]) -> Result<(BlockNumber, &[u8]), Error> {
-	let rlp = UntrustedRlp::new(combined);
-	Ok((
-		rlp.at(0)?.as_val()?,
-		rlp.at(1)?.data()?,
-	))
-}
-
 impl super::EpochVerifier for EpochVerifier {
 	fn verify_light(&self, header: &Header) -> Result<(), Error> {
-		let mut signatures = HashSet::new();
+		let message = header.bare_hash();
+
+		let mut addresses = HashSet::new();
 		let ref header_signatures_field = header.seal().get(2).ok_or(BlockError::InvalidSeal)?;
 		for rlp in UntrustedRlp::new(header_signatures_field).iter() {
 			let signature: H520 = rlp.as_val()?;
-			signatures.insert(signature);
+			let address = public_to_address(&recover(&signature.into(), &message)?);
+
+			if !self.subchain_validators.contains(header.parent_hash(), &address) {
+				return Err(EngineError::NotAuthorized(address.to_owned()).into());
+			}
+			addresses.insert(address);
 		}
 
-		let n = signatures.len();
+		let n = addresses.len();
 		let threshold = self.subchain_validators.len() * 2/3;
 		if n > threshold {
 			Ok(())
@@ -141,8 +135,10 @@ impl super::EpochVerifier for EpochVerifier {
 		}
 	}
 
-	fn check_finality_proof(&self, _encoded_header: &[u8]) -> Option<Vec<H256>> {
-		panic!("Tendermint blocks have instant finality, so `check_finality_proof` should never get called.")
+	fn check_finality_proof(&self, proof: &[u8]) -> Option<Vec<H256>> {
+		let header: Header = ::rlp::decode(proof);
+		self.verify_light(&header); // TODO: in Ok case, return hashes which have finality proved
+		Some(vec![header.hash()])
 	}
 }
 
@@ -630,14 +626,16 @@ impl Engine for Tendermint {
 		if let Some(change) = self.validators.is_epoch_end(first, chain_head) {
 			return Some(change)
 		} else if let Some(pending) = transition_store(chain_head.hash()) {
-			return Some(pending.proof)
+			let signal_number = chain_head.number();
+			let finality_proof = ::rlp::encode(chain_head);
+			return Some(combine_proofs(signal_number, &pending.proof, &finality_proof))
 		}
 
 		None
 	}
 
 	fn epoch_verifier<'a>(&self, _header: &Header, proof: &'a [u8]) -> ConstructedVerifier<'a> {
-		let (signal_number, set_proof) = match destructure_proofs(proof) {
+		let (signal_number, set_proof, finality_proof) = match destructure_proofs(proof) {
 			Ok(x) => x,
 			Err(e) => return ConstructedVerifier::Err(e),
 		};
@@ -650,7 +648,7 @@ impl Engine for Tendermint {
 				});
 
 				match finalize {
-					Some(finalize) => ConstructedVerifier::Unconfirmed(verifier, set_proof, finalize),
+					Some(finalize) => ConstructedVerifier::Unconfirmed(verifier, finality_proof, finalize),
 					None => ConstructedVerifier::Trusted(verifier),
 				}
 			}
