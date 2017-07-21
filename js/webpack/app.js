@@ -29,17 +29,13 @@ const rulesEs6 = require('./rules/es6');
 const rulesParity = require('./rules/parity');
 const Shared = require('./shared');
 
-const DAPPS_BUILTIN = require('../src/shared/config/dappsBuiltin.json').map((dapp) => {
-  dapp.srcPath = './dapps';
-  return dapp;
-});
-const DAPPS_VIEWS = require('../src/shared/config/dappsViews.json').map((dapp) => {
-  dapp.srcPath = './views';
+const DAPPS_BUILTIN = require('../packages/shared/config/dappsBuiltin.json');
+const DAPPS_VIEWS = require('../packages/shared/config/dappsViews.json').map((dapp) => {
   dapp.commons = true;
   return dapp;
 });
 
-const FAVICON = path.resolve(__dirname, '../src/shared/assets/images/parity-logo-black-no-text.png');
+const FAVICON = path.resolve(__dirname, '../packages/shared/assets/images/parity-logo-black-no-text.png');
 
 const DEST = process.env.BUILD_DEST || '.build';
 const ENV = process.env.NODE_ENV || 'development';
@@ -51,10 +47,10 @@ const isAnalize = process.env.WPANALIZE === '1';
 
 const entry = isEmbed
   ? {
-    embed: './shell/embed.js'
+    embed: './embed.js'
   }
   : Object.assign({}, Shared.dappsEntry, {
-    index: './shell/index.js'
+    index: './index.js'
   });
 
 module.exports = {
@@ -114,8 +110,7 @@ module.exports = {
       },
       {
         test: /\.css$/,
-        include: [ /src/ ],
-        // exclude: [ /src\/dapps/ ],
+        include: [ /packages/, /src/ ],
         loader: (isProd && !isEmbed)
           ? ExtractTextPlugin.extract([
             // 'style-loader',
@@ -130,7 +125,7 @@ module.exports = {
 
       {
         test: /\.css$/,
-        exclude: [ /src/ ],
+        exclude: [ /packages/, /src/ ],
         use: [ 'style-loader', 'css-loader' ]
       },
       {
@@ -158,10 +153,10 @@ module.exports = {
 
   resolve: {
     alias: {
-      '~/api/local': path.resolve(__dirname, '../src/api/local/localAccountsMiddleware.js'),
-      '~': path.resolve(__dirname, '../src'),
+      '~/packages/api/local': path.resolve(__dirname, '../packages/api/local/localAccountsMiddleware.js'),
+      '~': path.resolve(__dirname, '..'),
       '@parity/wordlist': path.resolve(__dirname, '../node_modules/@parity/wordlist'),
-      '@parity': path.resolve(__dirname, '../src')
+      '@parity': path.resolve(__dirname, '../packages')
     },
     modules: [
       path.join(__dirname, '../node_modules')
@@ -182,7 +177,7 @@ module.exports = {
         return new HtmlWebpackPlugin({
           title: dapp.name,
           filename: dapp.url + '.html',
-          template: dapp.srcPath + '/index.ejs',
+          template: '../packages/dapps/index.ejs',
           favicon: FAVICON,
           secure: dapp.secure,
           chunks: [ !isProd || dapp.commons ? 'commons' : null, dapp.url ]
@@ -200,7 +195,7 @@ module.exports = {
         new HtmlWebpackPlugin({
           title: 'Parity',
           filename: 'index.html',
-          template: './shell/index.ejs',
+          template: './index.ejs',
           favicon: FAVICON,
           chunks: [
             isProd ? null : 'commons',
@@ -226,7 +221,7 @@ module.exports = {
 
         new CopyWebpackPlugin([
           { from: './error_pages.css', to: 'styles.css' },
-          { from: 'dapps/static' }
+          { from: '../packages/dapps/static' }
         ], {})
       );
     }
@@ -236,7 +231,7 @@ module.exports = {
         new HtmlWebpackPlugin({
           title: 'Parity Bar',
           filename: 'embed.html',
-          template: './shell/index.ejs',
+          template: './index.ejs',
           favicon: FAVICON,
           chunks: [
             isProd ? null : 'commons',
@@ -251,7 +246,7 @@ module.exports = {
 
       plugins.push(
         new ReactIntlAggregatePlugin({
-          messagesPattern: DEST_I18N + '/src/**/*.json',
+          messagesPattern: DEST_I18N + '/i18n/**/*.json',
           aggregateOutputDir: DEST_I18N + '/i18n/',
           aggregateFilename: 'en'
         }),

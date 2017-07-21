@@ -37,7 +37,7 @@ const OUTPUT_PATH = path.join(__dirname, '../.npmjs', SRC);
 
 const TEST_CONTEXT = SRC === 'parity'
   ? '../npm/parity/test/'
-  : `../src/3rdparty/${SRC}/`;
+  : `../packages/${SRC}/`;
 
 console.log(`Building ${LIBRARY} from library.${SRC}.js to .npmjs/${SRC}`);
 
@@ -75,9 +75,9 @@ module.exports = {
   },
   resolve: {
     alias: {
-      '~': path.resolve(__dirname, '../src'),
+      '~': path.resolve(__dirname, '..'),
       '@parity/wordlist': path.resolve(__dirname, '../node_modules/@parity/wordlist'),
-      '@parity': path.resolve(__dirname, '../src')
+      '@parity': path.resolve(__dirname, '../packages')
     },
     modules: [
       path.resolve('./src'),

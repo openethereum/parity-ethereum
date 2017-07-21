@@ -1,0 +1,24 @@
+{
+  "name": "@parity/ledger",
+  "description": "JS interface for Ledger Nano hardware",
+  "version": "0.0.0",
+  "main": "library.js",
+  "author": "Parity Team <admin@parity.io>",
+  "maintainers": [
+    "Jaco Greeff"
+  ],
+  "contributors": [],
+  "license": "GPL-3.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/paritytech/parity.git"
+  },
+  "keywords": [
+  ],
+  "scripts": {
+  },
+  "devDependencies": {
+  },
+  "dependencies": {
+  }
+}

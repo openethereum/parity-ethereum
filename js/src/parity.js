@@ -19,7 +19,7 @@ import 'whatwg-fetch';
 import es6Promise from 'es6-promise';
 es6Promise.polyfill();
 
-import Api from './api';
+import Api from '@parity/api';
 
 import './dev.parity.html';
 

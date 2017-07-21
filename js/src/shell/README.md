@@ -1,1 +1,0 @@
-# Parity shell & dapp launcher
