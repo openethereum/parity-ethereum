@@ -64,7 +64,7 @@ function create () {
   return store;
 }
 
-describe('shell/Dapps/DappStore', () => {
+describe('Dapps/DappStore', () => {
   beforeEach(() => {
     stubGlobals();
   });

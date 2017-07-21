@@ -25,9 +25,9 @@ import { Page } from '@parity/ui';
 
 import WebStore from '~/views/Web/store';
 
-// FIXME: Don't really want to import from ~/shell
-import DappsStore from '~/shell/Dapps/dappsStore';
-import ExtensionStore from '~/shell/Extension/store';
+// FIXME: Don't really want to import from ~/
+import DappsStore from '~/Dapps/dappsStore';
+import ExtensionStore from '~/Extension/store';
 
 import Accounts from './Accounts';
 import Dapps from './Dapps';

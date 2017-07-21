@@ -18,7 +18,7 @@ import { isEqual } from 'lodash';
 
 import { LOG_KEYS, getLogger } from '@parity/shared/config';
 
-import UpgradeStore from '~/shell/UpgradeParity/store';
+import UpgradeStore from '~/UpgradeParity/store';
 
 import { isTestnet } from '../../util/testnet';
 

@@ -30,7 +30,7 @@ function create () {
   return store;
 }
 
-describe('shell/ParityBar/AccountStore', () => {
+describe('ParityBar/AccountStore', () => {
   beforeEach(() => {
     create();
   });

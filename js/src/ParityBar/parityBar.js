@@ -29,8 +29,8 @@ import { CancelIcon, FingerprintIcon } from '@parity/ui/Icons';
 
 import imagesEthcoreBlock from '@parity/shared/assets/images/parity-logo-white-no-text.svg';
 
-import DappsStore from '~/shell/Dapps/dappsStore';
-import Signer from '~/shell/Signer/Embedded';
+import DappsStore from '../Dapps/dappsStore';
+import Signer from '../Signer/Embedded';
 
 import AccountStore from './accountStore';
 import styles from './parityBar.css';

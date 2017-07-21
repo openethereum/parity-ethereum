@@ -57,7 +57,7 @@ function render (store) {
   return component;
 }
 
-describe('shell/Connection', () => {
+describe('Connection', () => {
   it('renders defaults', () => {
     expect(render()).to.be.ok;
   });

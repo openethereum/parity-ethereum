@@ -19,7 +19,7 @@ import BigNumber from 'bignumber.js';
 import { outTransaction } from '@parity/api/format/output';
 import { trackRequest as trackRequestUtil, parseTransactionReceipt } from '@parity/shared/util/tx';
 
-import SavedRequests from '~/shell/Requests/savedRequests';
+import SavedRequests from '~/Requests/savedRequests';
 
 const savedRequests = new SavedRequests();
 

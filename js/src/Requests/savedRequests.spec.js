@@ -42,7 +42,7 @@ function createApi () {
   };
 }
 
-describe('shell/Requests/savedRequests', () => {
+describe('Requests/savedRequests', () => {
   beforeEach((done) => {
     store.set(LS_REQUESTS_KEY, {
       [DEFAULT_REQUEST.requestId]: DEFAULT_REQUEST,

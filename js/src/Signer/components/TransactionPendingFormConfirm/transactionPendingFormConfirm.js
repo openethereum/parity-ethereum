@@ -23,7 +23,7 @@ import ReactTooltip from 'react-tooltip';
 
 import { Button, Form, Input, IdentityIcon, QrCode, QrScan } from '@parity/ui';
 
-import { generateTxQr, generateDecryptQr, generateDataQr } from '~/shell/Signer/utils/qrscan';
+import { generateTxQr, generateDecryptQr, generateDataQr } from '../../../Signer/utils/qrscan';
 
 import styles from './transactionPendingFormConfirm.css';
 

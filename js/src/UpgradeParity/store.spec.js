@@ -18,7 +18,7 @@ import Store from './store';
 
 let store;
 
-describe('shell/UpgradeParity/store', () => {
+describe('UpgradeParity/store', () => {
   describe('@actions', () => {
     beforeEach(() => {
       store = new Store();

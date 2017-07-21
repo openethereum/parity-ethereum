@@ -47,7 +47,7 @@ function render (store) {
   return component;
 }
 
-describe('shell/SyncWarning', () => {
+describe('SyncWarning', () => {
   it('renders defaults', () => {
     expect(render()).to.be.ok;
   });

@@ -168,7 +168,6 @@
     "@parity/ledger": "file:packages/ledger",
     "@parity/shapeshift": "file:packages/shapeshift",
     "@parity/shared": "file:packages/shared",
-    "@parity/shell": "file:src/shell",
     "@parity/ui": "file:packages/ui",
     "@parity/views": "file:packages/views",
     "@parity/wordlist": "1.0.1",

@@ -67,7 +67,7 @@ function render (props = {}, state = {}) {
   return component;
 }
 
-describe('shell/ParityBar', () => {
+describe('ParityBar', () => {
   beforeEach(() => {
     render({ dapp: true });
   });
