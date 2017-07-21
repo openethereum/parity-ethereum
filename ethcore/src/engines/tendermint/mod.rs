@@ -137,8 +137,7 @@ impl super::EpochVerifier for EpochVerifier {
 
 	fn check_finality_proof(&self, proof: &[u8]) -> Option<Vec<H256>> {
 		let header: Header = ::rlp::decode(proof);
-		self.verify_light(&header); // TODO: in Ok case, return hashes which have finality proved
-		Some(vec![header.hash()])
+		self.verify_light(&header).ok().map(|_| vec![header.hash()])
 	}
 }
 
