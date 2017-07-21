@@ -37,11 +37,11 @@ use ethkey::{recover, public_to_address, Signature};
 use account_provider::AccountProvider;
 use block::*;
 use spec::CommonParams;
-use engines::{Engine, Seal, EngineError};
+use engines::{Engine, Seal, EngineError, ConstructedVerifier};
 use state::CleanupMode;
 use io::IoService;
 use super::signer::EngineSigner;
-use super::validator_set::ValidatorSet;
+use super::validator_set::{ValidatorSet, SimpleList};
 use super::transition::TransitionHandler;
 use super::vote_collector::VoteCollector;
 use self::message::*;
@@ -105,7 +105,7 @@ struct EpochVerifier {
 	subchain_validators: SimpleList,
 }
 
-fn combine_proofs(signal_number: BlockNumber, set_proof: &[u8]): -> Vec<u8> {
+fn combine_proofs(signal_number: BlockNumber, set_proof: &[u8]) -> Vec<u8> {
 	let mut stream = ::rlp::RlpStream::new_list(3);
 	stream
 		.append(&signal_number)
@@ -117,17 +117,16 @@ fn destructure_proofs(combined: &[u8]) -> Result<(BlockNumber, &[u8]), Error> {
 	let rlp = UntrustedRlp::new(combined);
 	Ok((
 		rlp.at(0)?.as_val()?,
-		rlp.at(1)?.data(),
+		rlp.at(1)?.data()?,
 	))
 }
 
 impl super::EpochVerifier for EpochVerifier {
 	fn verify_light(&self, header: &Header) -> Result<(), Error> {
 		let mut signatures = HashSet::new();
-
-		let ref header_signatures_field = header.seal().get(2)?;
+		let ref header_signatures_field = header.seal().get(2).ok_or(BlockError::InvalidSeal)?;
 		for rlp in UntrustedRlp::new(header_signatures_field).iter() {
-			let signature = rlp.as_val()?;
+			let signature = rlp.as_val()?; // TODO: why is `rlp` have type ()?
 			signatures.insert(signature);
 		}
 
@@ -140,12 +139,12 @@ impl super::EpochVerifier for EpochVerifier {
 				min: Some(threshold),
 				max: None,
 				found: n
-			}))
+			}).into())
 		}
 	}
 
 	fn check_finality_proof(&self, proof: &[u8]) -> Option<Vec<H256>> {
-		// TODO
+		panic!("Tendermint blocks have instant finality, so `check_finality_proof` should never get called.")
 	}
 }
 
