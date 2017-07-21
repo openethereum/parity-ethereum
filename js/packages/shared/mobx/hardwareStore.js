@@ -79,6 +79,10 @@ export default class HardwareStore {
   }
 
   scanParity () {
+    if (!this._api) {
+      return Promise.resolve({});
+    }
+
     return this._api.parity
       .hardwareAccountsInfo()
       .then((hwInfo) => {
