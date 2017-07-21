@@ -21,6 +21,7 @@ use std::io;
 use igd::{PortMappingProtocol, search_gateway_from_timeout};
 use std::time::Duration;
 use node_table::{NodeEndpoint};
+use ipnetwork::{IpNetwork};
 
 /// Socket address extension for rustc beta. To be replaces with now unstable API
 pub trait SocketAddrExt {
@@ -43,6 +44,8 @@ pub trait SocketAddrExt {
     fn is_reserved(&self) -> bool;
     fn is_usable_public(&self) -> bool;
     fn is_usable_private(&self) -> bool;
+
+    fn is_within(&self, ipnet: &IpNetwork) -> bool;
 }
 
 impl SocketAddrExt for Ipv4Addr {
@@ -101,8 +104,14 @@ impl SocketAddrExt for Ipv4Addr {
     }
     
     fn is_usable_private(&self) -> bool {
-        !self.is_reserved() &&
         self.is_private()
+    }
+
+    fn is_within(&self, ipnet: &IpNetwork) -> bool {
+        match ipnet {
+            &IpNetwork::V4(ipnet) => ipnet.contains(*self),
+            _ => false
+        }
     }
 }
 
@@ -155,6 +164,13 @@ impl SocketAddrExt for Ipv6Addr {
     fn is_usable_private(&self) -> bool {
         self.is_unique_local_s()
     }
+
+    fn is_within(&self, ipnet: &IpNetwork) -> bool {
+        match ipnet {
+            &IpNetwork::V6(ipnet) => ipnet.contains(*self),
+            _ => false
+        }
+    }
 }
 
 impl SocketAddrExt for IpAddr {
@@ -183,6 +199,13 @@ impl SocketAddrExt for IpAddr {
         match *self {
             IpAddr::V4(ref ip) => ip.is_usable_private(),
             IpAddr::V6(ref ip) => ip.is_usable_private(),
+        }
+    }
+
+    fn is_within(&self, ipnet: &IpNetwork) -> bool {
+        match *self {
+            IpAddr::V4(ref ip) => ip.is_within(ipnet),
+            IpAddr::V6(ref ip) => ip.is_within(ipnet)
         }
     }
 }

@@ -24,7 +24,7 @@ use cli::{Args, ArgsError};
 use util::{Hashable, H256, U256, Bytes, version_data, Address};
 use util::journaldb::Algorithm;
 use util::Colour;
-use ethsync::{NetworkConfiguration, is_valid_node_url, AllowIP};
+use ethsync::{NetworkConfiguration, is_valid_node_url};
 use ethcore::ethstore::ethkey::{Secret, Public};
 use ethcore::client::{VMType};
 use ethcore::miner::{MinerOptions, Banning, StratumOptions};
@@ -48,6 +48,7 @@ use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, KillBlockcha
 use presale::ImportWallet;
 use account::{AccountCmd, NewAccount, ListAccounts, ImportAccounts, ImportFromGethAccounts};
 use snapshot::{self, SnapshotCommand};
+use network::{IpFilter};
 
 #[derive(Debug, PartialEq)]
 pub enum Cmd {
@@ -460,12 +461,10 @@ impl Configuration {
 		max(self.min_peers(), peers)
 	}
 
-	fn allow_ips(&self) -> Result<AllowIP, String> {
-		match self.args.flag_allow_ips.as_str() {
-			"all" => Ok(AllowIP::All),
-			"public" => Ok(AllowIP::Public),
-			"private" => Ok(AllowIP::Private),
-			_ => Err("Invalid IP filter value".to_owned()),
+	fn ip_filter(&self) -> Result<IpFilter, String> {
+		match IpFilter::parse(self.args.flag_allow_ips.as_str()) {
+			Ok(allow_ip) => Ok(allow_ip),
+			Err(_) => Err("Invalid IP filter value".to_owned()),
 		}
 	}
 
@@ -711,7 +710,7 @@ impl Configuration {
 		ret.max_peers = self.max_peers();
 		ret.min_peers = self.min_peers();
 		ret.snapshot_peers = self.snapshot_peers();
-		ret.allow_ips = self.allow_ips()?;
+		ret.ip_filter = self.ip_filter()?;
 		ret.max_pending_peers = self.max_pending_peers();
 		let mut net_path = PathBuf::from(self.directories().base);
 		net_path.push("network");
@@ -966,7 +965,6 @@ impl Configuration {
 			x => x,
 		}.into()
 	}
-
 
 	fn ui_interface(&self) -> String {
 		self.interface(&self.args.flag_ui_interface)

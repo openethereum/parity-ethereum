@@ -77,6 +77,7 @@ extern crate rlp;
 extern crate bytes;
 extern crate path;
 extern crate ethcore_logger;
+extern crate ipnetwork;
 
 #[macro_use]
 extern crate log;
@@ -106,6 +107,8 @@ pub use session::SessionInfo;
 
 pub use io::TimerToken;
 pub use node_table::{is_valid_node_url, NodeId};
+use ipnetwork::{IpNetwork, IpNetworkError};
+use std::str::FromStr;
 
 const PROTOCOL_VERSION: u32 = 4;
 
@@ -145,8 +148,52 @@ impl NonReservedPeerMode {
 	}
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "ipc", binary)]
+pub struct IpFilter {
+    predefined: AllowIP,
+    custom_allow: Vec<IpNetwork>,
+    custom_block: Vec<IpNetwork>,
+} 
+
+impl IpFilter {
+    pub fn new() -> IpFilter {
+        IpFilter {
+            predefined: AllowIP::All,
+            custom_allow: vec![],
+            custom_block: vec![],
+        }
+    }
+
+    /// Attempt to parse the peer mode from a string.
+    pub fn parse(s: &str) -> Result<IpFilter, IpNetworkError> {
+        let mut filter = IpFilter::new();
+        for f in s.split_whitespace() {
+            match f {
+                "all" => filter.predefined = AllowIP::All,
+                "private" => filter.predefined = AllowIP::Private,
+                "public" => filter.predefined = AllowIP::Public,
+                custom => {
+                    if custom.starts_with("-") {
+                        match IpNetwork::from_str(&custom.to_owned().split_off(1)) {
+                            Ok(ipnet) => filter.custom_block.push(ipnet),
+                            Err(e) => { return Err(e); }
+                        }
+                    } else {
+                        match IpNetwork::from_str(custom) {
+                            Ok(ipnet) => filter.custom_allow.push(ipnet),
+                            Err(e) => { return Err(e); }
+                        }
+                    }
+                }
+            }
+        }
+        Ok(filter)
+    }
+}
+
 /// IP fiter
-#[derive(Clone, Debug, PartialEq, Eq, Copy)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum AllowIP {
 	/// Connect to any address
 	All,
