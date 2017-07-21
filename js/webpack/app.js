@@ -111,7 +111,6 @@ module.exports = {
       {
         test: /\.css$/,
         include: [ /packages/, /src/ ],
-        // exclude: [ /packages\/dapps/ ],
         loader: (isProd && !isEmbed)
           ? ExtractTextPlugin.extract([
             // 'style-loader',

@@ -170,14 +170,15 @@ function getDappsEntry () {
   const views = require('../packages/shared/config/dappsViews.json');
 
   return Object.assign(
-    builtins.filter((dapp) => !dapp.skipBuild).reduce((_entry, dapp) => {
-      _entry[dapp.url] = '../packages/dapps/' + dapp.url + '/index.js';
-      return _entry;
-    }, {}),
-    views.reduce((_entry, dapp) => {
-      _entry[dapp.url] = '../packages/views/' + dapp.src + '/index.js';
-      return _entry;
-    }, {})
+    []
+      .concat(
+        builtins.filter((dapp) => !dapp.skipBuild),
+        views
+      )
+      .reduce((_entry, dapp) => {
+        _entry[dapp.url] = '../packages/dapp-' + dapp.src + '/index.js';
+        return _entry;
+      }, {})
   );
 }
 
