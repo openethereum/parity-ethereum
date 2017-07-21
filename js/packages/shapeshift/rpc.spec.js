@@ -22,7 +22,7 @@ const initShapeshift = (ShapeShift.default || ShapeShift);
 const mockget = helpers.mockget;
 const mockpost = helpers.mockpost;
 
-describe('shapeshift/rpc', () => {
+describe.skip('shapeshift/rpc', () => {
   let rpc;
   let shapeshift;
 

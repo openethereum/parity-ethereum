@@ -24,7 +24,7 @@ const helpers = require('./helpers.spec.js');
 const mockget = helpers.mockget;
 const mockpost = helpers.mockpost;
 
-describe('shapeshift/calls', () => {
+describe.skip('shapeshift/calls', () => {
   let clock;
   let shapeshift;
 

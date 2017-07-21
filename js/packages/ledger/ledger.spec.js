@@ -62,7 +62,7 @@ function create (error) {
   return ledger;
 }
 
-describe('packages/ledger', () => {
+describe.skip('packages/ledger', () => {
   beforeEach(() => {
     create();
 
