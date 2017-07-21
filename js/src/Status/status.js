@@ -17,7 +17,6 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import { observer } from 'mobx-react';
-import { connect } from 'react-redux';
 
 import { BlockStatus, Chain, StatusIndicator } from '@parity/ui';
 
@@ -27,7 +26,7 @@ import Store from './store';
 
 import styles from './status.css';
 
-function Status ({ health, upgradeStore }, { api }) {
+function Status ({ upgradeStore }, { api }) {
   const store = Store.get(api);
   const [ clientName, , versionString, , ] = (store.clientVersion || '').split('/');
   const [ versionNumber, versionType, , versionDate ] = (versionString || '').split('-');
@@ -43,12 +42,7 @@ function Status ({ health, upgradeStore }, { api }) {
         <Upgrade upgradeStore={ upgradeStore } />
       </div>
       <div className={ styles.netinfo }>
-        <StatusIndicator
-          type='signal'
-          id='application.status.health'
-          status={ health.overall.status }
-          title={ health.overall.message }
-        />
+        <StatusIndicator id='application.status.health' />
         <BlockStatus />
         <div className={ styles.peers }>
           { connected ? connected.toFormat() : '0' }/{ max ? max.toFormat() : '0' } peers
@@ -64,19 +58,7 @@ Status.contextTypes = {
 };
 
 Status.propTypes = {
-  health: PropTypes.object.isRequired,
   upgradeStore: PropTypes.object.isRequired
 };
 
-function mapStateToProps (state) {
-  const { health } = state.nodeStatus;
-
-  return {
-    health
-  };
-}
-
-export default connect(
-  mapStateToProps,
-  null
-)(observer(Status));
+export default observer(Status);
