@@ -18,7 +18,8 @@ import 'brace';
 import 'brace/theme/solarized_dark';
 import 'brace/mode/json';
 
-import React, { PropTypes, Component } from 'react';
+import React, { Component } from 'react';
+import PropTypes from 'prop-types';
 import AceEditor from 'react-ace';
 import { noop } from 'lodash';
 
