@@ -107,10 +107,8 @@ struct EpochVerifier {
 
 fn combine_proofs(signal_number: BlockNumber, set_proof: &[u8]) -> Vec<u8> {
 	let mut stream = ::rlp::RlpStream::new_list(3);
-	stream
-		.append(&signal_number)
-		.append(&set_proof)
-		.out()
+	stream.append(&signal_number).append(&set_proof);
+	stream.out()
 }
 
 fn destructure_proofs(combined: &[u8]) -> Result<(BlockNumber, &[u8]), Error> {
@@ -126,7 +124,7 @@ impl super::EpochVerifier for EpochVerifier {
 		let mut signatures = HashSet::new();
 		let ref header_signatures_field = header.seal().get(2).ok_or(BlockError::InvalidSeal)?;
 		for rlp in UntrustedRlp::new(header_signatures_field).iter() {
-			let signature = rlp.as_val()?; // TODO: why is `rlp` have type ()?
+			let signature: H520 = rlp.as_val()?; // TODO: why is `rlp` have type ()?
 			signatures.insert(signature);
 		}
 
@@ -143,7 +141,7 @@ impl super::EpochVerifier for EpochVerifier {
 		}
 	}
 
-	fn check_finality_proof(&self, proof: &[u8]) -> Option<Vec<H256>> {
+	fn check_finality_proof(&self, _proof: &[u8]) -> Option<Vec<H256>> {
 		panic!("Tendermint blocks have instant finality, so `check_finality_proof` should never get called.")
 	}
 }
