@@ -21,7 +21,7 @@ import PropTypes from 'prop-types';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 
-import { Container, ContainerTitle, Input } from '@parity/ui';
+import { BlockStatus, Container, ContainerTitle, Input } from '@parity/ui';
 
 import MiningSettings from '../MiningSettings';
 import StatusStore from './store';
@@ -51,10 +51,10 @@ class Node extends Component {
   }
 
   render () {
-    const { blockNumber, blockTimestamp, netPeers } = this.props;
+    const { blockTimestamp, netPeers } = this.props;
     const { hashrate } = this.statusStore;
 
-    if (!netPeers || !blockNumber) {
+    if (!netPeers) {
       return null;
     }
 
@@ -76,7 +76,7 @@ class Node extends Component {
                   }
                 />
                 <div className={ styles.blockInfo }>
-                  #{ blockNumber.toFormat() }
+                  #<BlockStatus />
                 </div>
                 <div className={ styles.blockByline }>
                   { moment(blockTimestamp).calendar() }
@@ -281,15 +281,9 @@ class Node extends Component {
 }
 
 function mapStateToProps (state) {
-  const {
-    blockNumber,
-    blockTimestamp,
-    netChain,
-    netPeers
-  } = state.nodeStatus;
+  const { blockTimestamp, netChain, netPeers } = state.nodeStatus;
 
   return {
-    blockNumber,
     blockTimestamp,
     netChain,
     netPeers

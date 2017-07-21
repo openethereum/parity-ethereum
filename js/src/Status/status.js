@@ -17,6 +17,7 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import { observer } from 'mobx-react';
+import { FormattedMessage } from 'react-intl';
 
 import { BlockStatus, Chain, StatusIndicator } from '@parity/ui';
 
@@ -44,6 +45,10 @@ function Status ({ upgradeStore }, { api }) {
       <div className={ styles.netinfo }>
         <StatusIndicator id='application.status.health' />
         <BlockStatus />
+        <FormattedMessage
+          id='ui.blockStatus.bestBlock'
+          defaultMessage=' best block'
+        />
         <div className={ styles.peers }>
           { connected ? connected.toFormat() : '0' }/{ max ? max.toFormat() : '0' } peers
         </div>

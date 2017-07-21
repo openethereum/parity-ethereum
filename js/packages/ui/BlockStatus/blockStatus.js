@@ -23,23 +23,19 @@ import Store from './store';
 
 import styles from './blockStatus.css';
 
-function BlockStatus ({}, { api }) { // eslint-disable-line no-empty-pattern
+function BlockStatus ({ className }, { api }) { // eslint-disable-line no-empty-pattern
   const store = Store.get(api);
 
   if (!store.blockNumber) {
     return null;
   }
 
+  console.log('blockNumber', store.blockNumber.toFormat());
+
   if (!store.syncing) {
     return (
-      <div className={ styles.blockNumber }>
-        <FormattedMessage
-          id='ui.blockStatus.bestBlock'
-          defaultMessage='{blockNumber} best block'
-          values={ {
-            blockNumber: store.blockNumber.toFormat()
-          } }
-        />
+      <div className={ [styles.blockNumber, className].join(' ') }>
+        { store.blockNumber.toFormat() }
       </div>
     );
   }
@@ -99,6 +95,10 @@ function BlockStatus ({}, { api }) { // eslint-disable-line no-empty-pattern
     </div>
   );
 }
+
+BlockStatus.propTypes = {
+  className: PropTypes.string
+};
 
 BlockStatus.contextTypes = {
   api: PropTypes.object.isRequired
