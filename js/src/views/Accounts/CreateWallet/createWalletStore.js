@@ -183,6 +183,8 @@ export default class CreateWalletStore {
         return null; // exception when registry is not available
       })
       .then((address) => {
+        console.warn('WalletLibrary address in registry', address);
+
         if (!address || /^(0x)?0*$/.test(address)) {
           return null;
         }
