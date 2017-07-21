@@ -18,7 +18,7 @@ import { observer } from 'mobx-react';
 import React, { Component } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { LocaleStore } from '~/i18n';
+import { LocaleStore } from '~/../i18n';
 import { FeaturesStore, FEATURES } from '../Features';
 
 import Dropdown from '../Form/Dropdown';
