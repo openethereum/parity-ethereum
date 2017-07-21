@@ -19,7 +19,7 @@ import PropTypes from 'prop-types';
 import { observer } from 'mobx-react';
 import { connect } from 'react-redux';
 
-import { BlockStatus, StatusIndicator } from '@parity/ui';
+import { BlockStatus, Chain, StatusIndicator } from '@parity/ui';
 
 import Consensus from './Consensus';
 import Upgrade from './Upgrade';
@@ -53,9 +53,7 @@ function Status ({ health, upgradeStore }, { api }) {
         <div className={ styles.peers }>
           { connected ? connected.toFormat() : '0' }/{ max ? max.toFormat() : '0' } peers
         </div>
-        <div className={ `${styles.network} ${styles[store.isTest ? 'test' : 'live']}` }>
-          { store.netChain }
-        </div>
+        <Chain />
       </div>
     </div>
   );

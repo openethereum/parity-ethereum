@@ -14,11 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { action, observable } from 'mobx';
+import { action, computed, observable } from 'mobx';
+
+import { isTestnet } from '@parity/shared/util/testnet';
 
 export default class Store {
-  @observable clientVersion = '';
-  @observable netPeers = {};
+  @observable netChain = '';
+  @observable netVersion = 1;
 
   constructor (api) {
     this._api = api;
@@ -30,27 +32,27 @@ export default class Store {
   }
 
   setupSubscriptions = () => {
-    this._api.pubsub.parity.netPeers((error, netPeers) => {
+    this._api.pubsub.parity.netChain((error, netChain) => {
       if (!error) {
-        this.setNetPeers(netPeers);
+        this.setNetChain(netChain);
       }
-    });
 
-    this._api.web3
-      .clientVersion()
-      .then(this.setClientVersion);
+      this._api.net
+        .version()
+        .then(this.setNetVersion);
+    });
   }
 
-  @action setClientVersion = (clientVersion) => {
-    this.clientVersion = clientVersion;
+  @computed get isTest () {
+    return isTestnet(this.netVersion);
   }
 
   @action setNetChain = (netChain) => {
     this.netChain = netChain;
   }
 
-  @action setNetPeers = (netPeers) => {
-    this.netPeers = netPeers;
+  @action setNetVersion = (netVersion) => {
+    this.netVersion = netVersion;
   }
 
   static instance = null;
