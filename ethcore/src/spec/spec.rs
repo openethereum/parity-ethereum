@@ -100,6 +100,7 @@ impl CommonParams {
 		schedule.have_create2 = block_number >= self.eip86_transition;
 		schedule.have_revert = block_number >= self.eip140_transition;
 		schedule.have_static_call = block_number >= self.eip214_transition;
+		schedule.have_return_data = block_number >= self.eip211_transition;
 		if block_number >= self.eip210_transition {
 			schedule.blockhash_gas = 350;
 		}

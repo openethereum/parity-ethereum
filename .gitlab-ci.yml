@@ -561,11 +561,9 @@ docker-build:
     - docker info
   script:
     - if [ "$CI_BUILD_REF_NAME" == "beta-release" ]; then DOCKER_TAG="latest"; else DOCKER_TAG=$CI_BUILD_REF_NAME; fi
-    - docker login -u $Docker_Hub_User -p $Docker_Hub_Pass
-    - sh scripts/docker-build.sh $DOCKER_TAG ethcore
-    - docker logout
+    - echo "Tag:" $DOCKER_TAG
     - docker login -u $Docker_Hub_User_Parity -p $Docker_Hub_Pass_Parity
-    - sh scripts/docker-build.sh $DOCKER_TAG parity
+    - sh scripts/docker-build.sh $DOCKER_TAG
     - docker logout
   tags:
     - docker
@@ -613,11 +611,12 @@ test-rust-stable:
   image: parity/rust:gitlab-ci
   before_script:
     - git submodule update --init --recursive
-    - export RUST_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep -v -e ^js -e ^\\. -e ^LICENSE -e ^README.md -e ^appveyor.yml -e ^test.sh -e ^windows/ -e ^scripts/ -e^mac/ -e ^nsis/ | wc -l)
+    - export RUST_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep -v -e ^js -e ^\\. -e ^LICENSE -e ^README.md -e ^test.sh -e ^windows/ -e ^scripts/ -e^mac/ -e ^nsis/ | wc -l)
   script:
     - rustup show
     - export RUST_BACKTRACE=1
     - if [ $RUST_FILES_MODIFIED -eq 0 ]; then echo "Skipping Rust tests since no Rust files modified."; else ./test.sh $CARGOFLAGS; fi
+    - if [ "$CI_BUILD_REF_NAME" == "nightly" ]; then sh scripts/aura-test.sh; fi
   tags:
     - rust
     - rust-stable
