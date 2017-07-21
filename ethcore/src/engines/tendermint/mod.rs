@@ -124,7 +124,7 @@ impl super::EpochVerifier for EpochVerifier {
 		let mut signatures = HashSet::new();
 		let ref header_signatures_field = header.seal().get(2).ok_or(BlockError::InvalidSeal)?;
 		for rlp in UntrustedRlp::new(header_signatures_field).iter() {
-			let signature: H520 = rlp.as_val()?; // TODO: why is `rlp` have type ()?
+			let signature: H520 = rlp.as_val()?;
 			signatures.insert(signature);
 		}
 
@@ -141,10 +141,11 @@ impl super::EpochVerifier for EpochVerifier {
 		}
 	}
 
-	fn check_finality_proof(&self, _proof: &[u8]) -> Option<Vec<H256>> {
+	fn check_finality_proof(&self, _encoded_header: &[u8]) -> Option<Vec<H256>> {
 		panic!("Tendermint blocks have instant finality, so `check_finality_proof` should never get called.")
 	}
 }
+
 
 impl Tendermint {
 	/// Create a new instance of Tendermint engine
@@ -643,11 +644,15 @@ impl Engine for Tendermint {
 
 		let first = signal_number == 0;
 		match self.validators.epoch_set(first, self, signal_number, set_proof) {
-			Ok((list, _)) => {
-				// Tendermint blocks have instant finality, so no need to check finality proof
-				ConstructedVerifier::Trusted(Box::new(EpochVerifier {
+			Ok((list, finalize)) => {
+				let verifier = Box::new(EpochVerifier {
 					subchain_validators: list,
-				}))
+				});
+
+				match finalize {
+					Some(finalize) => ConstructedVerifier::Unconfirmed(verifier, set_proof, finalize),
+					None => ConstructedVerifier::Trusted(verifier),
+				}
 			}
 			Err(e) => ConstructedVerifier::Err(e),
 		}
