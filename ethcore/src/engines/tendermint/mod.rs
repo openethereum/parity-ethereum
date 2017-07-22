@@ -38,7 +38,6 @@ use account_provider::AccountProvider;
 use block::*;
 use spec::CommonParams;
 use engines::{Engine, Seal, EngineError, ConstructedVerifier};
-use engines::authority_round::{combine_proofs, destructure_proofs};
 use state::CleanupMode;
 use io::IoService;
 use super::signer::EngineSigner;
