@@ -329,13 +329,13 @@ fn verify_external<F: Fn(Report)>(header: &Header, validators: &ValidatorSet, st
 	}
 }
 
-pub fn combine_proofs(signal_number: BlockNumber, set_proof: &[u8], finality_proof: &[u8]) -> Vec<u8> {
+fn combine_proofs(signal_number: BlockNumber, set_proof: &[u8], finality_proof: &[u8]) -> Vec<u8> {
 	let mut stream = ::rlp::RlpStream::new_list(3);
 	stream.append(&signal_number).append(&set_proof).append(&finality_proof);
 	stream.out()
 }
 
-pub fn destructure_proofs(combined: &[u8]) -> Result<(BlockNumber, &[u8], &[u8]), Error> {
+fn destructure_proofs(combined: &[u8]) -> Result<(BlockNumber, &[u8], &[u8]), Error> {
 	let rlp = UntrustedRlp::new(combined);
 	Ok((
 		rlp.at(0)?.as_val()?,
