@@ -14,13 +14,15 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-pub fn preset_config_string(arg: &str) -> Result<&'static str, &str> {
+use std::io::{Error, ErrorKind};
+
+pub fn preset_config_string(arg: &str) -> Result<&'static str, Error> {
     match arg.to_lowercase().as_ref() {
         "dev" => Ok(include_str!("./config.dev.toml")),
         "mining" => Ok(include_str!("./config.mining.toml")),
         "non-standard-ports" => Ok(include_str!("./config.non-standard-ports.toml")),
         "insecure" => Ok(include_str!("./config.insecure.toml")),
         "dev-insecure" => Ok(include_str!("./config.dev-insecure.toml")),
-        _ => Err(arg.clone())
+        _ => Err(Error::new(ErrorKind::InvalidInput, arg.clone()))
     }
 }
