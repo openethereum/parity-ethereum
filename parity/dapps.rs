@@ -188,7 +188,10 @@ mod server {
 	use parity_rpc::{hyper, RequestMiddleware, RequestMiddlewareAction};
 	use rpc_apis;
 
-	pub type SyncStatus = Fn() -> bool;
+	pub trait SyncStatus {
+		fn is_major_importing(&self) -> bool;
+		fn peers(&self) -> (usize, usize);
+	}
 
 	pub struct Middleware;
 	impl RequestMiddleware for Middleware {
