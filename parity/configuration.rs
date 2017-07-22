@@ -1077,6 +1077,7 @@ impl Configuration {
 mod tests {
 	use std::io::Write;
 	use std::fs::{File, create_dir};
+	use std::str::FromStr;
 
 	use devtools::{RandomTempPath};
 	use ethcore::client::{VMType, BlockId};
@@ -1093,6 +1094,11 @@ mod tests {
 	use presale::ImportWallet;
 	use rpc::{WsConfiguration, UiConfiguration};
 	use run::RunCmd;
+
+	use network::{AllowIP, IpFilter};
+
+	extern crate ipnetwork;
+	use self::ipnetwork::IpNetwork;
 
 	use super::*;
 
@@ -1747,5 +1753,37 @@ mod tests {
 		assert_eq!(&conf0.secretstore_config().unwrap().http_interface, "0.0.0.0");
 		assert_eq!(&conf0.ipfs_config().interface, "0.0.0.0");
 		assert_eq!(conf0.ipfs_config().hosts, None);
+	}
+
+	#[test]
+	fn allow_ips() {
+		let all = parse(&["parity", "--allow-ips", "all"]);
+		let private = parse(&["parity", "--allow-ips", "private"]);
+		let block_custom = parse(&["parity", "--allow-ips", "-10.0.0.0/8"]);
+		let combo = parse(&["parity", "--allow-ips", "public 10.0.0.0/8 -1.0.0.0/8"]);
+
+		assert_eq!(all.ip_filter().unwrap(), IpFilter {
+			predefined: AllowIP::All,
+			custom_allow: vec![],
+			custom_block: vec![],
+		});
+
+		assert_eq!(private.ip_filter().unwrap(), IpFilter {
+			predefined: AllowIP::Private,
+			custom_allow: vec![],
+			custom_block: vec![],
+		});
+
+		assert_eq!(block_custom.ip_filter().unwrap(), IpFilter {
+			predefined: AllowIP::All,
+			custom_allow: vec![],
+			custom_block: vec![IpNetwork::from_str("10.0.0.0/8").unwrap()],
+		});
+
+		assert_eq!(combo.ip_filter().unwrap(), IpFilter {
+			predefined: AllowIP::Public,
+			custom_allow: vec![IpNetwork::from_str("10.0.0.0/8").unwrap()],
+			custom_block: vec![IpNetwork::from_str("1.0.0.0/8").unwrap()],
+		});
 	}
 }

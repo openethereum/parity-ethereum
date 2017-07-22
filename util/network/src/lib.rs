@@ -151,9 +151,9 @@ impl NonReservedPeerMode {
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "ipc", binary)]
 pub struct IpFilter {
-    predefined: AllowIP,
-    custom_allow: Vec<IpNetwork>,
-    custom_block: Vec<IpNetwork>,
+    pub predefined: AllowIP,
+    pub custom_allow: Vec<IpNetwork>,
+    pub custom_block: Vec<IpNetwork>,
 } 
 
 impl IpFilter {
@@ -173,6 +173,7 @@ impl IpFilter {
                 "all" => filter.predefined = AllowIP::All,
                 "private" => filter.predefined = AllowIP::Private,
                 "public" => filter.predefined = AllowIP::Public,
+                "none" => filter.predefined = AllowIP::Non,
                 custom => {
                     if custom.starts_with("-") {
                         match IpNetwork::from_str(&custom.to_owned().split_off(1)) {
@@ -201,5 +202,7 @@ pub enum AllowIP {
 	Private,
 	/// Connect to public network only
 	Public,
+
+    Non,
 }
 

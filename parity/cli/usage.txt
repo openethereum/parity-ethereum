@@ -151,9 +151,11 @@ Networking Options:
                                    private - connect to private network IP addresses only;
                                    public - connect to public network IP addresses only;
                                    all - connect to any IP address;
-                                   Or a list in the format: "ip_range1,-ip_range2,private,...".
-                                   Where "-ip_range2" means block ip_range2.
-                                   Later ranges in the list override earlier ranges.
+                                   none - block all (for use with a custom filter as follows);
+                                   Or a list in the format: "private,ip_range1,-ip_range2,...".
+                                   Where ip_range1 would be allowed and ip_range2 blocked;
+                                   Custom blocks ("-ip_range") override custom allows ("ip_range").
+                                   Latest predefined ("public, private, etc") in the list will be used.
                                    (default: {flag_allow_ips}).
   --max-pending-peers NUM          Allow up to NUM pending connections. (default: {flag_max_pending_peers})
   --no-ancient-blocks              Disable downloading old blocks after snapshot restoration

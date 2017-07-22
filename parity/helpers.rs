@@ -28,7 +28,6 @@ use upgrade::{upgrade, upgrade_data_paths};
 use migration::migrate;
 use ethsync::is_valid_node_url;
 use path;
-use network::IpFilter;
 
 pub fn to_duration(s: &str) -> Result<Duration, String> {
 	to_seconds(s).map(Duration::from_secs)
@@ -193,6 +192,7 @@ pub fn to_bootnodes(bootnodes: &Option<String>) -> Result<Vec<String>, String> {
 #[cfg(test)]
 pub fn default_network_config() -> ::ethsync::NetworkConfiguration {
 	use ethsync::{NetworkConfiguration};
+	use super::network::IpFilter;
 	NetworkConfiguration {
 		config_path: Some(replace_home(&::dir::default_data_path(), "$BASE/network")),
 		net_config_path: None,
