@@ -108,8 +108,8 @@ impl Light {
 
 	pub fn file_path<T: AsRef<Path>>(cache_dir: T, seed_hash: H256) -> PathBuf {
 		let mut cache_dir = cache_dir.as_ref().to_path_buf();
-		cache_dir.push(to_hex(&seed_hash));
-		cache_dir
+		home.push(unsafe { str::from_utf8_unchecked(&to_hex(&seed_hash)) });
+		home
 	}
 
 	pub fn from_file<T: AsRef<Path>>(cache_dir: T, block_number: u64) -> io::Result<Light> {
@@ -380,14 +380,35 @@ fn light_new<T: AsRef<Path>>(cache_dir: T, block_number: u64) -> Light {
 }
 
 static CHARS: &'static [u8] = b"0123456789abcdef";
-fn to_hex(bytes: &[u8]) -> String {
-	let mut v = Vec::with_capacity(bytes.len() * 2);
-	for &byte in bytes.iter() {
-		v.push(CHARS[(byte >> 4) as usize]);
-		v.push(CHARS[(byte & 0xf) as usize]);
-	}
+// TODO: Use SmallString here when `SmallVec::from_buf` lands?
+fn to_hex(bytes: &H256) -> [u8; 64] {
+	use std::ptr;
 
-	unsafe { String::from_utf8_unchecked(v) }
+	unsafe {
+		let mut out: [u8; 64] = mem::uninitialized();
+
+		// To ensure that this is safe
+		debug_assert!(bytes.len() * 2 == out.len());
+
+		let mut out_writer: *mut u8 = out.as_mut_ptr();
+
+		for byte in bytes {
+			ptr::write(out_writer, CHARS[(byte >> 4) as usize]);
+			ptr::write(out_writer.offset(1), CHARS[(byte & 0xf) as usize]);
+			out_writer = out_writer.offset(2);
+		}
+
+		out
+	}
+}
+
+#[test]
+fn test_to_hex() {
+	let bytes = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 255, 254, 243, 242, 251, 250,
+				 249, 248, 247, 246, 245, 244, 243, 242, 241, 240];
+	let bytes_hex_string = bytes.iter().map(|i| format!("{:02x}", i)).collect::<Vec<_>>().join("");
+
+	assert_eq!(bytes_hex_string, unsafe { ::std::str::from_utf8_unchecked(&to_hex(&bytes)) });
 }
 
 #[test]
