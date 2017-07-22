@@ -3,13 +3,13 @@ use {syn, quote};
 pub fn impl_encodable(ast: &syn::DeriveInput) -> quote::Tokens {
 	let body = match ast.body {
 		syn::Body::Struct(ref s) => s,
-		_ => panic!("#[derive(Encodable)] is only defined for structs."),
+		_ => panic!("#[derive(RlpEncodable)] is only defined for structs."),
 	};
 
 	let stmts: Vec<_> = match *body {
-		syn::VariantData::Struct(ref fields) => fields.iter().enumerate().map(encodable_field_map).collect(),
-		syn::VariantData::Tuple(ref fields) => fields.iter().enumerate().map(encodable_field_map).collect(),
-		syn::VariantData::Unit => panic!("#[derive(Encodable)] is not defined for Unit structs."),
+		syn::VariantData::Struct(ref fields) | syn::VariantData::Tuple(ref fields) =>
+			fields.iter().enumerate().map(encodable_field_map).collect(),
+		syn::VariantData::Unit => panic!("#[derive(RlpEncodable)] is not defined for Unit structs."),
 	};
 
 	let name = &ast.ident;
@@ -21,6 +21,44 @@ pub fn impl_encodable(ast: &syn::DeriveInput) -> quote::Tokens {
 			fn rlp_append(&self, stream: &mut rlp::RlpStream) {
 				stream.begin_list(#stmts_len);
 				#(#stmts)*
+			}
+		}
+	};
+
+	quote! {
+		#[allow(non_upper_case_globals, unused_attributes, unused_qualifications)]
+		const #dummy_const: () = {
+			extern crate rlp;
+			#impl_block
+		};
+	}
+}
+
+pub fn impl_encodable_wrapper(ast: &syn::DeriveInput) -> quote::Tokens {
+	let body = match ast.body {
+		syn::Body::Struct(ref s) => s,
+		_ => panic!("#[derive(RlpEncodableWrapper)] is only defined for structs."),
+	};
+
+	let stmt = match *body {
+		syn::VariantData::Struct(ref fields) | syn::VariantData::Tuple(ref fields) => {
+			if fields.len() == 1 {
+				let field = fields.first().expect("fields.len() == 1; qed");
+				encodable_field(0, field)
+			} else {
+				panic!("#[derive(RlpEncodableWrapper)] is only defined for structs with one field.")
+			}
+		},
+		syn::VariantData::Unit => panic!("#[derive(RlpEncodableWrapper)] is not defined for Unit structs."),
+	};
+
+	let name = &ast.ident;
+
+	let dummy_const = syn::Ident::new(format!("_IMPL_RLP_ENCODABLE_FOR_{}", name));
+	let impl_block = quote! {
+		impl rlp::Encodable for #name {
+			fn rlp_append(&self, stream: &mut rlp::RlpStream) {
+				#stmt
 			}
 		}
 	};
