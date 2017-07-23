@@ -33,7 +33,7 @@ use error::{Error, BlockError};
 use header::{Header, BlockNumber};
 use builtin::Builtin;
 use rlp::UntrustedRlp;
-use ethkey::{recover, public_to_address, Signature};
+use ethkey::{Message, public_to_address, recover, Signature};
 use account_provider::AccountProvider;
 use block::*;
 use spec::CommonParams;
@@ -103,6 +103,7 @@ pub struct Tendermint {
 
 struct EpochVerifier {
 	subchain_validators: SimpleList,
+	recover: Box<Fn(&Signature, &Message) -> Result<Address, Error> + Send + Sync>,
 }
 
 impl super::EpochVerifier for EpochVerifier {
@@ -113,7 +114,7 @@ impl super::EpochVerifier for EpochVerifier {
 		let ref header_signatures_field = header.seal().get(2).ok_or(BlockError::InvalidSeal)?;
 		for rlp in UntrustedRlp::new(header_signatures_field).iter() {
 			let signature: H520 = rlp.as_val()?;
-			let address = public_to_address(&recover(&signature.into(), &message)?);
+			let address = (self.recover)(&signature.into(), &message)?;
 
 			if !self.subchain_validators.contains(header.parent_hash(), &address) {
 				return Err(EngineError::NotAuthorized(address.to_owned()).into());
@@ -481,6 +482,9 @@ impl Engine for Tendermint {
 	}
 
 	/// Attempt to seal generate a proposal seal.
+	///
+	/// This operation is synchronous and may (quite reasonably) not be available, in which case
+	/// `Seal::None` will be returned.
 	fn generate_seal(&self, block: &ExecutedBlock) -> Seal {
 		let header = block.header();
 		let author = header.author();
@@ -657,6 +661,9 @@ impl Engine for Tendermint {
 			Ok((list, finalize)) => {
 				let verifier = Box::new(EpochVerifier {
 					subchain_validators: list,
+					recover: Box::new(|signature: &Signature, message: &Message| {
+						Ok(public_to_address(&::ethkey::recover(&signature, &message)?))
+					}),
 				});
 
 				match finalize {
