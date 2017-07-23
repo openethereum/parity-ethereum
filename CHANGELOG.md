@@ -1,15 +1,20 @@
-## Parity [v1.6.10](https://github.com/paritytech/parity/releases/tag/v1.6.10) (2017-07-20)
+## Parity [v1.6.10](https://github.com/paritytech/parity/releases/tag/v1.6.10) (2017-07-23)
 
 This is a hotfix release for the stable channel addressing the recent [multi-signature wallet vulnerability](https://blog.parity.io/security-alert-high-2/). Note, upgrading is not mandatory, and all future multi-sig wallets created by any version of Parity are secure.
 
 All Changes:
 
+- Backports for stable [#6116](https://github.com/paritytech/parity/pull/6116)
+  - Remove chunk to restore from pending set only upon successful import [#6112](https://github.com/paritytech/parity/pull/6112)
+  - Blacklist bad snapshot manifest hashes upon failure [#5874](https://github.com/paritytech/parity/pull/5874)
+  - Bump snap version and tweak importing detection logic [#6079](https://github.com/paritytech/parity/pull/6079) (modified to work)
+- Fix docker build for stable [#6118](https://github.com/paritytech/parity/pull/6118)
 - Backported wallet fix [#6104](https://github.com/paritytech/parity/pull/6104)
   - Fix initialisation bug. ([#6102](https://github.com/paritytech/parity/pull/6102))
   - Update wallet library modifiers ([#6103](https://github.com/paritytech/parity/pull/6103))
 - Bump to v1.6.10
 
-## Parity [v1.7.0](https://github.com/paritytech/parity/releases/tag/v1.7.0) (2017-07-20)
+## Parity [v1.7.0](https://github.com/paritytech/parity/releases/tag/v1.7.0) (2017-07-23)
 
 Parity 1.7.0 is a major release introducing several important features:
 
@@ -24,6 +29,8 @@ Parity 1.7.0 is a major release introducing several important features:
 
 Full list of included changes:
 
+- Check QR before lowercase ([#6119](https://github.com/paritytech/parity/pull/6119)) [#6120](https://github.com/paritytech/parity/pull/6120)
+- Remove chunk to restore from pending set only upon successful import [#6117](https://github.com/paritytech/parity/pull/6117)
 - Fixed node address detection on incoming connection [#6094](https://github.com/paritytech/parity/pull/6094)
 - Place RETURNDATA behind block number gate [#6095](https://github.com/paritytech/parity/pull/6095)
 - Backported wallet fix [#6105](https://github.com/paritytech/parity/pull/6105)
