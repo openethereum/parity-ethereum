@@ -175,3 +175,30 @@ impl CachedContract {
 		self.contract_addr = new_contract_address;
 	}
 }
+
+#[cfg(test)]
+pub mod tests {
+	use std::collections::BTreeMap;
+	use std::net::SocketAddr;
+	use ethkey::Public;
+	use super::KeyServerSet;
+
+	#[derive(Default)]
+	pub struct MapKeyServerSet {
+		nodes: BTreeMap<Public, SocketAddr>,
+	}
+
+	impl MapKeyServerSet {
+		pub fn new(nodes: BTreeMap<Public, SocketAddr>) -> Self {
+			MapKeyServerSet {
+				nodes: nodes,
+			}
+		}
+	}
+
+	impl KeyServerSet for MapKeyServerSet {
+		fn get(&self) -> BTreeMap<Public, SocketAddr> {
+			self.nodes.clone()
+		}
+	}
+}

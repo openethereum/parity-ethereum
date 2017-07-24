@@ -989,7 +989,7 @@ pub mod tests {
 	use parking_lot::Mutex;
 	use tokio_core::reactor::Core;
 	use ethkey::{Random, Generator, Public};
-	use key_server_cluster::{NodeId, SessionId, Error, DummyAclStorage, DummyKeyStorage};
+	use key_server_cluster::{NodeId, SessionId, Error, DummyAclStorage, DummyKeyStorage, MapKeyServerSet};
 	use key_server_cluster::message::Message;
 	use key_server_cluster::cluster::{Cluster, ClusterCore, ClusterConfiguration};
 	use key_server_cluster::generation_session::{Session as GenerationSession, SessionState as GenerationSessionState};
@@ -1059,7 +1059,7 @@ pub mod tests {
 	}
 
 	pub fn all_connections_established(cluster: &Arc<ClusterCore>) -> bool {
-		cluster.config().nodes.keys()
+		cluster.config().key_server_set.get().keys()
 			.filter(|p| *p != cluster.config().self_key_pair.public())
 			.all(|p| cluster.connection(p).is_some())
 	}
@@ -1070,9 +1070,9 @@ pub mod tests {
 			threads: 1,
 			self_key_pair: key_pairs[i].clone(),
 			listen_address: ("127.0.0.1".to_owned(), ports_begin + i as u16),
-			nodes: key_pairs.iter().enumerate()
-				.map(|(j, kp)| (kp.public().clone(), ("127.0.0.1".into(), ports_begin + j as u16)))
-				.collect(),
+			key_server_set: Arc::new(MapKeyServerSet::new(key_pairs.iter().enumerate()
+				.map(|(j, kp)| (kp.public().clone(), format!("127.0.0.1:{}", ports_begin + j as u16).parse().unwrap()))
+				.collect())),
 			allow_connecting_to_higher_nodes: false,
 			key_storage: Arc::new(DummyKeyStorage::default()),
 			acl_storage: Arc::new(DummyAclStorage::default()),

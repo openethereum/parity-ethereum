@@ -192,10 +192,13 @@ impl Drop for KeyServerCore {
 pub mod tests {
 	use std::time;
 	use std::sync::Arc;
+	use std::net::SocketAddr;
+	use std::collections::BTreeMap;
 	use ethcrypto;
 	use ethkey::{self, Secret, Random, Generator};
 	use acl_storage::tests::DummyAclStorage;
 	use key_storage::tests::DummyKeyStorage;
+	use key_server_set::tests::MapKeyServerSet;
 	use key_server_cluster::math;
 	use util::H256;
 	use types::all::{Error, Public, ClusterConfiguration, NodeAddress, RequestSignature, ServerKeyId,
@@ -253,8 +256,11 @@ pub mod tests {
 					})).collect(),
 				allow_connecting_to_higher_nodes: false,
 			}).collect();
+		let key_servers_set: BTreeMap<Public, SocketAddr> = configs[0].nodes.iter()
+			.map(|(k, a)| (k.clone(), format!("{}:{}", a.address, a.port).parse().unwrap()))
+			.collect();
 		let key_servers: Vec<_> = configs.into_iter().map(|cfg|
-			KeyServerImpl::new(&cfg, Arc::new(DummyAclStorage::default()), Arc::new(DummyKeyStorage::default())).unwrap()
+			KeyServerImpl::new(&cfg, Arc::new(MapKeyServerSet::new(key_servers_set.clone())), Arc::new(DummyAclStorage::default()), Arc::new(DummyKeyStorage::default())).unwrap()
 		).collect();
 
 		// wait until connections are established. It is fast => do not bother with events here
