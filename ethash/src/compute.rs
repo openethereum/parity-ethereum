@@ -19,7 +19,7 @@
 
 // TODO: fix endianess for big endian
 
-use primal::is_prime;
+use primal::Sieve;
 use std::cell::Cell;
 use std::mem;
 use std::ptr;
@@ -218,11 +218,40 @@ fn sha3_512(input: &[u8], output: &mut [u8]) {
 	unsafe { sha3::sha3_512(output.as_mut_ptr(), output.len(), input.as_ptr(), input.len()) };
 }
 
+fn cached_is_prime(n: usize) -> bool {
+	use std::cell::RefCell;
+
+	const INITIAL_SIEVE_SIZE: usize = 128;
+
+	thread_local! {
+		static SIEVE: RefCell<Sieve> = RefCell::new(Sieve::new(INITIAL_SIEVE_SIZE));
+	}
+
+	SIEVE.with(|sieve| {
+		let upper = sieve.borrow().upper_bound();
+		if upper < n {
+			let mut new = upper << 1;
+			while new < n {
+				if let Some(shifted) = new.checked_shl(1) {
+					new = shifted;
+				} else {
+					new = ::std::usize::MAX;
+					break;
+				}
+			}
+
+			*sieve.borrow_mut() = Sieve::new(new);
+		}
+
+		sieve.borrow().is_prime(n)
+	})
+}
+
 #[inline]
 fn get_cache_size(block_number: u64) -> usize {
 	let mut sz: u64 = CACHE_BYTES_INIT + CACHE_BYTES_GROWTH * (block_number / ETHASH_EPOCH_LENGTH);
 	sz = sz - NODE_BYTES as u64;
-	while !is_prime(sz / NODE_BYTES as u64) {
+	while !cached_is_prime(sz as usize / NODE_BYTES) {
 		sz = sz - 2 * NODE_BYTES as u64;
 	}
 	sz as usize
@@ -232,7 +261,7 @@ fn get_cache_size(block_number: u64) -> usize {
 fn get_data_size(block_number: u64) -> usize {
 	let mut sz: u64 = DATASET_BYTES_INIT + DATASET_BYTES_GROWTH * (block_number / ETHASH_EPOCH_LENGTH);
 	sz = sz - ETHASH_MIX_BYTES as u64;
-	while !is_prime(sz / ETHASH_MIX_BYTES as u64) {
+	while !cached_is_prime(sz as usize / ETHASH_MIX_BYTES) {
 		sz = sz - 2 * ETHASH_MIX_BYTES as u64;
 	}
 	sz as usize
