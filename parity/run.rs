@@ -88,7 +88,7 @@ pub struct RunCmd {
 	pub warp_sync: bool,
 	pub public_node: bool,
 	pub acc_conf: AccountsConfig,
-	pub gas_pricer: GasPricerConfig,
+	pub gas_pricer_conf: GasPricerConfig,
 	pub miner_extras: MinerExtras,
 	pub update_policy: UpdatePolicy,
 	pub mode: Option<Mode>,
@@ -480,9 +480,12 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	// prepare account provider
 	let account_provider = Arc::new(prepare_account_provider(&cmd.spec, &cmd.dirs, &spec.data_dir, cmd.acc_conf, &passwords)?);
 
+	// fetch service
+	let fetch = FetchClient::new().map_err(|e| format!("Error starting fetch client: {:?}", e))?;
+
 	// create miner
-	let initial_min_gas_price = cmd.gas_pricer.initial_min();
-	let miner = Miner::new(cmd.miner_options, cmd.gas_pricer.into(), &spec, Some(account_provider.clone()));
+	let initial_min_gas_price = cmd.gas_pricer_conf.initial_min();
+	let miner = Miner::new(cmd.miner_options, cmd.gas_pricer_conf.to_gas_pricer(fetch.clone()), &spec, Some(account_provider.clone()));
 	miner.set_author(cmd.miner_extras.author);
 	miner.set_gas_floor_target(cmd.miner_extras.gas_floor_target);
 	miner.set_gas_ceil_target(cmd.miner_extras.gas_ceil_target);
@@ -637,9 +640,6 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	// spin up event loop
 	let event_loop = EventLoop::spawn();
 
-	// fetch service
-	let fetch = FetchClient::new().map_err(|e| format!("Error starting fetch client: {:?}", e))?;
-
 	// the updater service
 	let updater = Updater::new(
 		Arc::downgrade(&(service.client() as Arc<BlockChainClient>)),
@@ -754,6 +754,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	service.register_io_handler(informant.clone()).map_err(|_| "Unable to register informant handler".to_owned())?;
 
 	// save user defaults
+	user_defaults.is_first_launch = false;
 	user_defaults.pruning = algorithm;
 	user_defaults.tracing = tracing;
 	user_defaults.fat_db = fat_db;

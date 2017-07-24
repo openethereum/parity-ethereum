@@ -26,6 +26,7 @@ extern crate serde_derive;
 extern crate docopt;
 extern crate ethcore_util as util;
 extern crate evm;
+extern crate panic_hook;
 
 use std::sync::Arc;
 use std::{fmt, fs};
@@ -63,6 +64,8 @@ General options:
 
 
 fn main() {
+	panic_hook::set();
+
 	let args: Args = Docopt::new(USAGE).and_then(|d| d.deserialize()).unwrap_or_else(|e| e.exit());
 
 	if args.flag_json {
