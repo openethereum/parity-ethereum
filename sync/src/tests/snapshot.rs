@@ -71,8 +71,8 @@ impl SnapshotService for TestSnapshotService {
 		self.manifest.as_ref().cloned()
 	}
 
-	fn min_supported_version(&self) -> Option<u64> {
-		Some(1)
+	fn supported_versions(&self) -> Option<(u64, u64)> {
+		Some((1, 2))
 	}
 
 	fn chunk(&self, hash: H256) -> Option<Bytes> {

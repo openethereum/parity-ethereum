@@ -166,18 +166,19 @@ function getPlugins (_isProd = isProd) {
 }
 
 function getDappsEntry () {
-  const builtins = require('../src/shared/config/dappsBuiltin.json');
-  const views = require('../src/shared/config/dappsViews.json');
+  const builtins = require('../packages/shared/config/dappsBuiltin.json');
+  const views = require('../packages/shared/config/dappsViews.json');
 
   return Object.assign(
-    builtins.filter((dapp) => !dapp.skipBuild).reduce((_entry, dapp) => {
-      _entry[dapp.url] = './dapps/' + dapp.url + '/index.js';
-      return _entry;
-    }, {}),
-    views.reduce((_entry, dapp) => {
-      _entry[dapp.url] = './views/' + dapp.src + '/index.js';
-      return _entry;
-    }, {})
+    []
+      .concat(
+        builtins.filter((dapp) => !dapp.skipBuild),
+        views
+      )
+      .reduce((_entry, dapp) => {
+        _entry[dapp.url] = '../packages/dapp-' + dapp.url + '/index.js';
+        return _entry;
+      }, {})
   );
 }
 

@@ -15,5 +15,5 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 require('babel-register')({
-  ignore: /node_modules\/(?!@parity\/(abi|api|dapps|jsonrpc|shared|shell|views|ui))/
+  ignore: /node_modules\/(?!@parity\/(abi|api|dapps|etherscan|jsonrpc|shared|shapeshift|ui))/
 });

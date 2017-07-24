@@ -20,6 +20,7 @@ extern crate serde;
 #[macro_use]
 extern crate serde_derive;
 extern crate ethstore;
+extern crate panic_hook;
 
 use std::{env, process, fs, fmt};
 use std::io::Read;
@@ -134,6 +135,8 @@ impl fmt::Display for Error {
 }
 
 fn main() {
+	panic_hook::set();
+
 	match execute(env::args()) {
 		Ok(result) => println!("{}", result),
 		Err(err) => {
