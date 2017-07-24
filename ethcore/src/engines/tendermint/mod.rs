@@ -101,12 +101,14 @@ pub struct Tendermint {
 	validators: Box<ValidatorSet>,
 }
 
-struct EpochVerifier {
+struct EpochVerifier<F>
+		where F: Fn(&Signature, &Message) -> Result<Address, Error> + Send + Sync {
 	subchain_validators: SimpleList,
-	recover: Box<Fn(&Signature, &Message) -> Result<Address, Error> + Send + Sync>,
+	recover: F
 }
 
-impl super::EpochVerifier for EpochVerifier {
+impl <F> super::EpochVerifier for EpochVerifier<F>
+		where F: Fn(&Signature, &Message) -> Result<Address, Error> + Send + Sync {
 	fn verify_light(&self, header: &Header) -> Result<(), Error> {
 		let message = header.bare_hash();
 
@@ -661,9 +663,9 @@ impl Engine for Tendermint {
 			Ok((list, finalize)) => {
 				let verifier = Box::new(EpochVerifier {
 					subchain_validators: list,
-					recover: Box::new(|signature: &Signature, message: &Message| {
+					recover: |signature: &Signature, message: &Message| {
 						Ok(public_to_address(&::ethkey::recover(&signature, &message)?))
-					}),
+					},
 				});
 
 				match finalize {
@@ -1093,7 +1095,7 @@ mod tests {
 
 		let epoch_verifier = super::EpochVerifier {
 			subchain_validators: SimpleList::new(vec![proposer.clone(), voter.clone()]),
-			recover: Box::new({
+			recover: {
 				let signature1 = signature1.clone();
 				let signature0 = signature0.clone();
 				let proposer = proposer.clone();
@@ -1107,7 +1109,7 @@ mod tests {
 						Err(Error::Ethkey(EthkeyError::InvalidSignature))
 					}
 				}
-			}),
+			},
 		};
 
 		// One good signature is not enough.
