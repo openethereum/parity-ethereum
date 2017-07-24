@@ -86,9 +86,20 @@ fn encodable_field(index: usize, field: &syn::Field) -> quote::Tokens {
 
 	match field.ty {
 		syn::Ty::Path(_, ref path) => {
-			let ident = &path.segments.first().expect("there must be at least 1 segment").ident;
+			let top_segment = path.segments.first().expect("there must be at least 1 segment");
+			let ident = &top_segment.ident;
 			if &ident.to_string() == "Vec" {
-				quote! { stream.append_list(&#id); }
+				let inner_ident = match top_segment.parameters {
+					syn::PathParameters::AngleBracketed(ref angle) => {
+						let ty = angle.types.first().expect("Vec has only one angle bracketed type; qed");
+						match *ty {
+							syn::Ty::Path(_, ref path) => &path.segments.first().expect("there must be at least 1 segment").ident,
+							_ => panic!("rlp_derive not supported"),
+						}
+					},
+					_ => unreachable!("Vec has only one angle bracketed type; qed"),
+				};
+				quote! { stream.append_list::<#inner_ident, _>(&#id); }
 			} else {
 				quote! { stream.append(&#id); }
 			}

@@ -20,6 +20,7 @@ ethcore-ipc = { path = "../../ipc/rpc", optional = true }
 ethcore-devtools = { path = "../../devtools" }
 evm = { path = "../evm" }
 rlp = { path = "../../util/rlp" }
+rlp_derive = { path = "../../util/rlp_derive" }
 time = "0.1"
 smallvec = "0.4"
 futures = "0.1"

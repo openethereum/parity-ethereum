@@ -19,6 +19,8 @@
 extern crate ethcore_util as util;
 extern crate ethjson;
 extern crate rlp;
+#[macro_use]
+extern crate rlp_derive;
 
 #[cfg(test)]
 extern crate rustc_hex;

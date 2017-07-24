@@ -101,6 +101,9 @@ extern crate num;
 extern crate price_info;
 extern crate rand;
 extern crate rlp;
+
+#[macro_use]
+extern crate rlp_derive;
 extern crate rustc_hex;
 extern crate semver;
 extern crate stats;
