@@ -878,6 +878,7 @@ dependencies = [
  "bit-set 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "byteorder 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "common-types 0.1.0",
+ "ethcore-logger 1.8.0",
  "ethcore-util 1.8.0",
  "ethjson 0.1.0",
  "evmjit 1.8.0",

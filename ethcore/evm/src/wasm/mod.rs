@@ -34,7 +34,7 @@ use wasm_utils;
 
 use evm::{self, GasLeft, ReturnData};
 use action_params::ActionParams;
-use self::runtime::Runtime;
+use self::runtime::{Runtime, RuntimeContext};
 
 pub use self::runtime::Error as RuntimeError;
 
@@ -82,6 +82,7 @@ impl evm::Evm for WasmInterpreter {
 			env_memory,
 			DEFAULT_STACK_SPACE,
 			params.gas.low_u64(),
+			RuntimeContext::new(params.address, params.sender),
 		);
 
 		let mut cursor = ::std::io::Cursor::new(&*code);

@@ -14,7 +14,9 @@ lazy_static = "0.2"
 log = "0.3"
 rlp = { path = "../../util/rlp" }
 parity-wasm = "0.12"
+ethcore-logger = { path = "../../logger" }
 wasm-utils = { git = "https://github.com/paritytech/wasm-utils" }
+
 
 [dev-dependencies]
 rustc-hex = "1.0"
