@@ -778,6 +778,7 @@ mod tests {
 	use account_provider::AccountProvider;
 	use spec::Spec;
 	use engines::{Engine, EngineError, Seal};
+	use engines::epoch::EpochVerifier;
 	use super::*;
 
 	/// Accounts inserted with "0" and "1" are validators. First proposer is "0".
@@ -1061,5 +1062,77 @@ mod tests {
 		// Last precommit.
 		vote(engine, |mh| tap.sign(v0, None, mh).map(H520::from), h, r, Step::Precommit, proposal);
 		assert_eq!(client.chain_info().best_block_number, 1);
+	}
+
+	#[test]
+	fn epoch_verifier_verify_light() {
+		use ethkey::Error as EthkeyError;
+
+		let (spec, tap) = setup();
+		let engine = spec.engine;
+
+		let mut parent_header: Header = Header::default();
+		parent_header.set_gas_limit(U256::from_str("222222").unwrap());
+
+		let mut header = Header::default();
+		header.set_number(2);
+		header.set_gas_limit(U256::from_str("222222").unwrap());
+		let proposer = insert_and_unlock(&tap, "1");
+		header.set_author(proposer);
+		let mut seal = proposal_seal(&tap, &header, 0);
+
+		let vote_info = message_info_rlp(&VoteStep::new(2, 0, Step::Precommit), Some(header.bare_hash()));
+		let signature1 = tap.sign(proposer, None, vote_info.sha3()).unwrap();
+
+		let voter = insert_and_unlock(&tap, "0");
+		let signature0 = tap.sign(voter, None, vote_info.sha3()).unwrap();
+
+		seal[1] = ::rlp::NULL_RLP.to_vec();
+		seal[2] = ::rlp::encode_list(&vec![H520::from(signature1.clone())]).into_vec();
+		header.set_seal(seal.clone());
+
+		let epoch_verifier = super::EpochVerifier {
+			subchain_validators: SimpleList::new(vec![proposer.clone(), voter.clone()]),
+			recover: Box::new({
+				let signature1 = signature1.clone();
+				let signature0 = signature0.clone();
+				let proposer = proposer.clone();
+				let voter = voter.clone();
+				move |s: &Signature, _: &Message| {
+					if *s == signature1 {
+						Ok(proposer)
+					} else if *s == signature0 {
+						Ok(voter)
+					} else {
+						Err(Error::Ethkey(EthkeyError::InvalidSignature))
+					}
+				}
+			}),
+		};
+
+		// One good signature is not enough.
+		match epoch_verifier.verify_light(&header) {
+			Err(Error::Engine(EngineError::BadSealFieldSize(_))) => {},
+			_ => panic!(),
+		}
+
+		seal[2] = ::rlp::encode_list(&vec![H520::from(signature1.clone()), H520::from(signature0.clone())]).into_vec();
+		header.set_seal(seal.clone());
+
+		assert!(epoch_verifier.verify_light(&header).is_ok());
+
+		let bad_voter = insert_and_unlock(&tap, "101");
+		let bad_signature = tap.sign(bad_voter, None, vote_info.sha3()).unwrap();
+
+		seal[2] = ::rlp::encode_list(&vec![H520::from(signature1), H520::from(bad_signature)]).into_vec();
+		header.set_seal(seal);
+
+		// One good and one bad signature.
+		match epoch_verifier.verify_light(&header) {
+			Err(Error::Ethkey(EthkeyError::InvalidSignature)) => {},
+			_ => panic!(),
+		};
+
+		engine.stop();
 	}
 }
