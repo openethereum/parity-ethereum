@@ -41,8 +41,6 @@ const SNAPSHOT_BLOCKS: u64 = 30000;
 /// Ethash params.
 #[derive(Debug, PartialEq)]
 pub struct EthashParams {
-	/// Gas limit divisor.
-	pub gas_limit_bound_divisor: U256,
 	/// Minimum difficulty.
 	pub minimum_difficulty: U256,
 	/// Difficulty bound divisor.
@@ -104,7 +102,6 @@ pub struct EthashParams {
 impl From<ethjson::spec::EthashParams> for EthashParams {
 	fn from(p: ethjson::spec::EthashParams) -> Self {
 		EthashParams {
-			gas_limit_bound_divisor: p.gas_limit_bound_divisor.into(),
 			minimum_difficulty: p.minimum_difficulty.into(),
 			difficulty_bound_divisor: p.difficulty_bound_divisor.into(),
 			difficulty_increment_divisor: p.difficulty_increment_divisor.map_or(10, Into::into),
@@ -231,7 +228,7 @@ impl Engine for Arc<Ethash> {
 		}
 		let gas_limit = {
 			let gas_limit = parent.gas_limit().clone();
-			let bound_divisor = self.ethash_params.gas_limit_bound_divisor;
+			let bound_divisor = self.params().gas_limit_bound_divisor;
 			let lower_limit = gas_limit - gas_limit / bound_divisor + 1.into();
 			let upper_limit = gas_limit + gas_limit / bound_divisor - 1.into();
 			let gas_limit = if gas_limit < gas_floor_target {
@@ -387,7 +384,7 @@ impl Engine for Arc<Ethash> {
 		if header.difficulty() != &expected_difficulty {
 			return Err(From::from(BlockError::InvalidDifficulty(Mismatch { expected: expected_difficulty, found: header.difficulty().clone() })))
 		}
-		let gas_limit_divisor = self.ethash_params.gas_limit_bound_divisor;
+		let gas_limit_divisor = self.params().gas_limit_bound_divisor;
 		let parent_gas_limit = *parent.gas_limit();
 		let min_gas = parent_gas_limit - parent_gas_limit / gas_limit_divisor;
 		let max_gas = parent_gas_limit + parent_gas_limit / gas_limit_divisor;

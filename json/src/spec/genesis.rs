@@ -60,10 +60,8 @@ mod tests {
 	use serde_json;
 	use bytes::Bytes;
 	use uint::Uint;
-	use util::U256;
+	use bigint::prelude::{U256, H160, H64 as Eth64, H256 as Eth256};
 	use hash::{H64, H256, Address};
-	use util::hash::H160;
-	use util::{H64 as Eth64, H256 as Eth256};
 	use spec::genesis::Genesis;
 	use spec::{Ethereum, Seal};
 	use std::str::FromStr;
