@@ -146,7 +146,7 @@ export function updateTokensFilter (_addresses, _tokens, options = {}) {
 
     Promise
       .all([
-        api.eth.blockNumber(),
+        api.eth.blockNumber()
       ].concat(promises))
       .then(([ block ]) => {
         const topicsFrom = [ TRANSFER_SIGNATURE, addresses, null ];
