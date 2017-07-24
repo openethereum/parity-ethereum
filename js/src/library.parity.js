@@ -14,21 +14,24 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export AddressSelect from './AddressSelect';
-export Checkbox from './Checkbox';
-export DappUrlInput from './DappUrlInput';
-export Dropdown from './Dropdown';
-export FileSelect from './FileSelect';
-export Input from './Input';
-export InputAddress from './InputAddress';
-export InputAddressSelect from './InputAddressSelect';
-export InputChip from './InputChip';
-export InputDateTime from './InputDateTime';
-export Label from './Label';
-export RadioButtons from './RadioButtons';
-export Toggle from './Toggle';
-export TypedInput from './TypedInput';
-export VaultSelect from './VaultSelect';
-export Tab from './Tab';
+import es6Promise from 'es6-promise';
+es6Promise.polyfill();
 
-export default from './form';
+const isNode = typeof global !== 'undefined' && typeof global !== 'undefined';
+const isBrowser = typeof self !== 'undefined' && typeof self.window !== 'undefined';
+
+if (isBrowser) {
+  require('whatwg-fetch');
+}
+
+if (isNode) {
+  global.fetch = require('node-fetch');
+}
+
+import Abi from '@parity/abi';
+import Api from '@parity/api';
+
+const Parity = { Api, Abi };
+
+export default Parity;
+export { Api, Abi };

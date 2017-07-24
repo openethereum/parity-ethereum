@@ -14,21 +14,29 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export AddressSelect from './AddressSelect';
-export Checkbox from './Checkbox';
-export DappUrlInput from './DappUrlInput';
-export Dropdown from './Dropdown';
-export FileSelect from './FileSelect';
-export Input from './Input';
-export InputAddress from './InputAddress';
-export InputAddressSelect from './InputAddressSelect';
-export InputChip from './InputChip';
-export InputDateTime from './InputDateTime';
-export Label from './Label';
-export RadioButtons from './RadioButtons';
-export Toggle from './Toggle';
-export TypedInput from './TypedInput';
-export VaultSelect from './VaultSelect';
-export Tab from './Tab';
+import React, { PropTypes } from 'react';
 
-export default from './form';
+import { Tab as SemanticTab } from 'semantic-ui-react';
+
+export default function Tab ({ activeIndex, as, defaultActiveIndex, menu, onTabChange, panes, label }) {
+  return (
+    <SemanticTab
+      activeIndex={ activeIndex }
+      as={ as }
+      defaultActiveIndex={ defaultActiveIndex }
+      menu={ menu }
+      onTabChange={ onTabChange }
+      panes={ panes }
+    />
+  );
+}
+
+Tab.propTypes = {
+  activeIndex: PropTypes.number || PropTypes.string,
+  as: PropTypes.any,
+  defaultActiveIndex: PropTypes.number || PropTypes.string,
+  menu: PropTypes.number,
+  onTabChange: PropTypes.func,
+  panes: PropTypes.array,
+  label: PropTypes.node
+};
