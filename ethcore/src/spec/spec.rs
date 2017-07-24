@@ -92,6 +92,12 @@ pub struct CommonParams {
 	pub remove_dust_contracts: bool,
 	/// Wasm support
 	pub wasm: bool,
+	/// Gas limit bound divisor (how much gas limit can change per block)
+	pub gas_limit_bound_divisor: U256,
+	/// Block reward in wei.
+	pub block_reward: U256,
+	/// Registrar contract address.
+	pub registrar: Address,
 }
 
 impl CommonParams {
@@ -121,15 +127,15 @@ impl CommonParams {
 
 	/// Whether these params contain any bug-fix hard forks.
 	pub fn contains_bugfix_hard_fork(&self) -> bool {
-		self.eip98_transition != U256::zero() &&
-			self.eip155_transition != U256::zero() &&
-			self.validate_receipts_transition != U256::zero() &&
-			self.eip86_transition != U256::zero() &&
-			self.eip140_transition != U256::zero() &&
-			self.eip210_transition != U256::zero() &&
-			self.eip211_transition != U256::zero() &&
-			self.eip214_transition != U256::zero() &&
-			self.dust_protection_transition != U256::zero()
+		self.eip98_transition != 0 &&
+			self.eip155_transition != 0 &&
+			self.validate_receipts_transition != 0 &&
+			self.eip86_transition != 0 &&
+			self.eip140_transition != 0 &&
+			self.eip210_transition != 0 &&
+			self.eip211_transition != 0 &&
+			self.eip214_transition != 0 &&
+			self.dust_protection_transition != 0
 	}
 }
 
@@ -266,7 +272,7 @@ impl Spec {
 	) -> Arc<Engine> {
 		match engine_spec {
 			ethjson::spec::Engine::Null => Arc::new(NullEngine::new(params, builtins)),
-			ethjson::spec::Engine::InstantSeal(instant) => Arc::new(InstantSeal::new(params, instant.params.registrar.map_or_else(Address::new, Into::into), builtins)),
+			ethjson::spec::Engine::InstantSeal => Arc::new(InstantSeal::new(params, builtins)),
 			ethjson::spec::Engine::Ethash(ethash) => Arc::new(ethereum::Ethash::new(cache_dir, params, From::from(ethash.params), builtins)),
 			ethjson::spec::Engine::BasicAuthority(basic_authority) => Arc::new(BasicAuthority::new(params, From::from(basic_authority.params), builtins)),
 			ethjson::spec::Engine::AuthorityRound(authority_round) => AuthorityRound::new(params, From::from(authority_round.params), builtins).expect("Failed to start AuthorityRound consensus engine."),

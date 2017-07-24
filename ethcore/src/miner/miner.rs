@@ -1125,8 +1125,8 @@ impl MinerService for Miner {
 
 			// refuse to seal the first block of the chain if it contains hard forks
 			// which should be on by default.
-			if block.header.number() == 1 && self.engine.contains_bugfix_hardfork() {
-				warn!(NO_NEW_CHAIN_WITH_FORKS);
+			if block.block().fields().header.number() == 1 && self.engine.params().contains_bugfix_hard_fork() {
+				warn!("{}", NO_NEW_CHAIN_WITH_FORKS);
 				return;
 			}
 

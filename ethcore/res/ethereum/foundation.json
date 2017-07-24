@@ -4,12 +4,9 @@
 	"engine": {
 		"Ethash": {
 			"params": {
-				"gasLimitBoundDivisor": "0x0400",
 				"minimumDifficulty": "0x020000",
 				"difficultyBoundDivisor": "0x0800",
 				"durationLimit": "0x0d",
-				"blockReward": "0x4563918244F40000",
-				"registrar" : "0xe3389675d0338462dC76C6f9A3e432550c36A142",
 				"homesteadTransition": "0x118c30",
 				"daoHardforkTransition": "0x1d4c00",
 				"daoHardforkBeneficiary": "0xbf4ed7b27f1d666546e30d74d50d173d20bca754",
@@ -132,7 +129,6 @@
 					"0x807640a13483f8ac783c557fcdf27be11ea4ac7a"
 				],
 				"eip150Transition": "0x259518",
-				"eip155Transition": 2675000,
 				"eip160Transition": 2675000,
 				"eip161abcTransition": 2675000,
 				"eip161dTransition": 2675000,
@@ -141,12 +137,17 @@
 		}
 	},
 	"params": {
+		"gasLimitBoundDivisor": "0x0400",
+		"blockReward": "0x4563918244F40000",
+		"registrar" : "0xe3389675d0338462dC76C6f9A3e432550c36A142",
 		"accountStartNonce": "0x00",
 		"maximumExtraDataSize": "0x20",
 		"minGasLimit": "0x1388",
 		"networkID" : "0x1",
 		"forkBlock": "0x1d4c00",
 		"forkCanonHash": "0x4985f5ca3d2afbec36529aa96f74de3cc10a2a4a6c44f2157a57d2c6059a11bb",
+		"eip155Transition": 2675000,
+
 		"eip98Transition": "0x7fffffffffffff",
 		"eip86Transition": "0x7fffffffffffff"
 	},

@@ -17,7 +17,6 @@
 //! Tendermint specific parameters.
 
 use ethjson;
-use util::{U256, Address};
 use time::Duration;
 use super::super::validator_set::{ValidatorSet, new_validator_set};
 use super::super::transition::Timeouts;
@@ -25,8 +24,6 @@ use super::Step;
 
 /// `Tendermint` params.
 pub struct TendermintParams {
-	/// Gas limit divisor.
-	pub gas_limit_bound_divisor: U256,
 	/// List of validators.
 	pub validators: Box<ValidatorSet>,
 	/// Timeout durations for different steps.

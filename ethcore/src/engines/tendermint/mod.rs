@@ -71,12 +71,9 @@ pub type BlockHash = H256;
 /// Engine using `Tendermint` consensus algorithm, suitable for EVM chain.
 pub struct Tendermint {
 	params: CommonParams,
-	gas_limit_bound_divisor: U256,
 	builtins: BTreeMap<Address, Builtin>,
 	step_service: IoService<Step>,
 	client: RwLock<Option<Weak<EngineClient>>>,
-	block_reward: U256,
-	registrar: Address,
 	/// Blockchain height.
 	height: AtomicUsize,
 	/// Consensus view.

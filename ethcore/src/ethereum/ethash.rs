@@ -51,10 +51,6 @@ pub struct EthashParams {
 	pub metropolis_difficulty_increment_divisor: u64,
 	/// Block duration.
 	pub duration_limit: u64,
-	/// Block reward.
-	pub block_reward: U256,
-	/// Namereg contract address.
-	pub registrar: Address,
 	/// Homestead transition block number.
 	pub homestead_transition: u64,
 	/// DAO hard-fork transition block (X).
@@ -73,8 +69,6 @@ pub struct EthashParams {
 	pub eip100b_transition: u64,
 	/// Number of first block where EIP-150 rules begin.
 	pub eip150_transition: u64,
-	/// Number of first block where EIP-155 rules begin.
-	pub eip155_transition: u64,
 	/// Number of first block where EIP-160 rules begin.
 	pub eip160_transition: u64,
 	/// Number of first block where EIP-161.abc begin.
@@ -107,8 +101,6 @@ impl From<ethjson::spec::EthashParams> for EthashParams {
 			difficulty_increment_divisor: p.difficulty_increment_divisor.map_or(10, Into::into),
 			metropolis_difficulty_increment_divisor: p.metropolis_difficulty_increment_divisor.map_or(9, Into::into),
 			duration_limit: p.duration_limit.map_or(0, Into::into),
-			block_reward: p.block_reward.into(),
-			registrar: p.registrar.map_or_else(Address::new, Into::into),
 			homestead_transition: p.homestead_transition.map_or(0, Into::into),
 			dao_hardfork_transition: p.dao_hardfork_transition.map_or(u64::max_value(), Into::into),
 			dao_hardfork_beneficiary: p.dao_hardfork_beneficiary.map_or_else(Address::new, Into::into),
@@ -118,7 +110,6 @@ impl From<ethjson::spec::EthashParams> for EthashParams {
 			bomb_defuse_transition: p.bomb_defuse_transition.map_or(u64::max_value(), Into::into),
 			eip100b_transition: p.eip100b_transition.map_or(u64::max_value(), Into::into),
 			eip150_transition: p.eip150_transition.map_or(0, Into::into),
-			eip155_transition: p.eip155_transition.map_or(0, Into::into),
 			eip160_transition: p.eip160_transition.map_or(0, Into::into),
 			eip161abc_transition: p.eip161abc_transition.map_or(0, Into::into),
 			eip161d_transition: p.eip161d_transition.map_or(u64::max_value(), Into::into),
@@ -182,7 +173,7 @@ impl Engine for Arc<Ethash> {
 	fn seal_fields(&self) -> usize { 2 }
 
 	fn params(&self) -> &CommonParams { &self.params }
-	fn additional_params(&self) -> HashMap<String, String> { hash_map!["registrar".to_owned() => self.ethash_params.registrar.hex()] }
+	fn additional_params(&self) -> HashMap<String, String> { hash_map!["registrar".to_owned() => self.params().registrar.hex()] }
 
 	fn builtins(&self) -> &BTreeMap<Address, Builtin> {
 		&self.builtins
@@ -213,7 +204,7 @@ impl Engine for Arc<Ethash> {
 	}
 
 	fn signing_network_id(&self, env_info: &EnvInfo) -> Option<u64> {
-		if env_info.number >= self.ethash_params.eip155_transition {
+		if env_info.number >= self.params().eip155_transition {
 			Some(self.params().chain_id)
 		} else {
 			None
@@ -281,7 +272,7 @@ impl Engine for Arc<Ethash> {
 	/// Apply the block reward on finalisation of the block.
 	/// This assumes that all uncles are valid uncles (i.e. of at least one generation before the current).
 	fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<(), Error> {
-		let reward = self.ethash_params.block_reward;
+		let reward = self.params().block_reward;
 		let fields = block.fields_mut();
 		let eras_rounds = self.ethash_params.ecip1017_era_rounds;
 		let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, reward, fields.header.number());
@@ -403,7 +394,7 @@ impl Engine for Arc<Ethash> {
 		}
 
 		let check_low_s = header.number() >= self.ethash_params.homestead_transition;
-		let network_id = if header.number() >= self.ethash_params.eip155_transition { Some(self.params().chain_id) } else { None };
+		let network_id = if header.number() >= self.params().eip155_transition { Some(self.params().chain_id) } else { None };
 		t.verify_basic(check_low_s, network_id, false)?;
 		Ok(())
 	}
@@ -806,36 +797,32 @@ mod tests {
 
 	#[test]
 	fn has_valid_ecip1017_eras_block_reward() {
-		let ethparams = EthashParams {
-			// see ethcore/res/ethereum/classic.json
-			ecip1017_era_rounds: 5000000,
-			block_reward: U256::from_str("4563918244F40000").unwrap(),
-			..get_default_ethash_params()
-		};
-		let eras_rounds = ethparams.ecip1017_era_rounds;
-		let reward = ethparams.block_reward;
+		let eras_rounds = 5000000;
+
+		let start_reward: U256 = "4563918244F40000".parse().unwrap();
+
 		let block_number = 0;
-		let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, reward, block_number);
+		let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, start_reward, block_number);
 		assert_eq!(0, eras);
 		assert_eq!(U256::from_str("4563918244F40000").unwrap(), reward);
-		let reward = ethparams.block_reward;
+
 		let block_number = 5000000;
-		let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, reward, block_number);
+		let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, start_reward, block_number);
 		assert_eq!(0, eras);
 		assert_eq!(U256::from_str("4563918244F40000").unwrap(), reward);
-		let reward = ethparams.block_reward;
+
 		let block_number = 10000000;
-		let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, reward, block_number);
+		let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, start_reward, block_number);
 		assert_eq!(1, eras);
 		assert_eq!(U256::from_str("3782DACE9D900000").unwrap(), reward);
-		let reward = ethparams.block_reward;
+
 		let block_number = 20000000;
-		let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, reward, block_number);
+		let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, start_reward, block_number);
 		assert_eq!(3, eras);
 		assert_eq!(U256::from_str("2386F26FC1000000").unwrap(), reward);
-		let reward = ethparams.block_reward;
+
 		let block_number = 80000000;
-		let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, reward, block_number);
+		let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, start_reward, block_number);
 		assert_eq!(15, eras);
 		assert_eq!(U256::from_str("271000000000000").unwrap(), reward);
 	}

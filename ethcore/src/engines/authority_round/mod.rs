@@ -1004,7 +1004,12 @@ mod tests {
 			validate_step_transition: 0,
 			immediate_transitions: true,
 		};
-		let aura = AuthorityRound::new(Default::default(), params, Default::default()).unwrap();
+
+		let aura = {
+			let mut c_params = ::spec::CommonParams::default();
+			c_params.gas_limit_bound_divisor = 5.into();
+			AuthorityRound::new(c_params, params, Default::default()).unwrap()
+		};
 
 		let mut parent_header: Header = Header::default();
 		parent_header.set_seal(vec![encode(&1usize).into_vec()]);
