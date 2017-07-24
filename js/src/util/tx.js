@@ -182,42 +182,35 @@ export function deploy (contract, options, values, skipGasEstimate = false) {
 }
 
 export function parseTransactionReceipt (api, options, receipt) {
-  const { metadata } = options;
-  const address = options.from;
-
   if (receipt.gasUsed.eq(options.gas)) {
     const error = new Error(`Contract not deployed, gasUsed == ${options.gas.toFixed(0)}`);
 
     return Promise.reject(error);
   }
 
-  const logs = WalletsUtils.parseLogs(api, receipt.logs || []);
+  // If regular contract creation, only validate the contract
+  if (receipt.contractAddress) {
+    return validateContract(api, receipt.contractAddress);
+  }
 
-  const confirmationLog = logs.find((log) => log.event === 'ConfirmationNeeded');
-  const transactionLog = logs.find((log) => log.event === 'SingleTransact');
+  // Otherwise, needs to check for a contract deployment
+  // from a multisig wallet
+  const walletResult = WalletsUtils.parseTransactionLogs(api, options, receipt.logs || []);
 
-  if (!confirmationLog && !transactionLog && !receipt.contractAddress) {
+  if (!walletResult) {
     const error = new Error('Something went wrong in the contract deployment...');
 
     return Promise.reject(error);
   }
 
-  // Confirmations are needed from the other owners
-  if (confirmationLog) {
-    const operationHash = api.util.bytesToHex(confirmationLog.params.operation.value);
-
-    // Add the contract to pending contracts
-    WalletsUtils.addPendingContract(address, operationHash, metadata);
+  if (walletResult.pending) {
     return Promise.resolve(null);
   }
 
-  if (transactionLog) {
-    // Set the contract address in the receipt
-    receipt.contractAddress = transactionLog.params.created.value;
-  }
+  return validateContract(api, walletResult.contractAddress);
+}
 
-  const contractAddress = receipt.contractAddress;
-
+function validateContract (api, contractAddress) {
   return api.eth
     .getCode(contractAddress)
     .then((code) => {

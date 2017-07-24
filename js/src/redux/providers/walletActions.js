@@ -97,14 +97,18 @@ export function attachWallets (_wallets) {
       return dispatch(updateWallets({ wallets: {}, walletsAddresses: [], filterSubId: null }));
     }
 
-    const filterOptions = {
-      fromBlock: 0,
-      toBlock: 'latest',
-      address: nextAddresses
-    };
-
+    // Filter the logs from the current block
     api.eth
-      .newFilter(filterOptions)
+      .blockNumber()
+      .then((block) => {
+        const filterOptions = {
+          fromBlock: block,
+          toBlock: 'latest',
+          address: nextAddresses
+        };
+
+        return api.eth.newFilter(filterOptions);
+      })
       .then((filterId) => {
         dispatch(updateWallets({ wallets: _wallets, walletsAddresses: nextAddresses, filterSubId: filterId }));
       })
@@ -298,7 +302,7 @@ function fetchWalletConfirmations (contract, _operations, _owners = null, _trans
 
   const owners = _owners || (wallet && wallet.owners) || null;
   const transactions = _transactions || (wallet && wallet.transactions) || null;
-  // Full load if no operations given, or if the one given aren't loaded yet
+  // Full load if no operations given, or if the one given isn't loaded yet
   const fullLoad = !Array.isArray(_operations) || _operations
     .filter((op) => !wallet.confirmations.find((conf) => conf.operation === op))
     .length > 0;
@@ -420,7 +424,7 @@ function fetchOperationConfirmations (contract, operation, owners = null) {
       return Promise
         .all(owners.map((owner) => walletInstance.hasConfirmed.call({}, [ operation, owner ])))
         .then((data) => {
-          return owners.filter((owner, index) => data[index]);
+          return owners.filter((_, index) => data[index]);
         });
     });
 }
