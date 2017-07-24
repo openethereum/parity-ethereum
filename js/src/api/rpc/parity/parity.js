@@ -249,6 +249,11 @@ export default class Parity {
       .then(outAddresses);
   }
 
+  keepkey(messageType, address, data) {
+    return this._transport
+      .execute('parity_keepkey', messageType, address, data);
+  }
+
   killAccount (account, password) {
     return this._transport
       .execute('parity_killAccount', inAddress(account), password);

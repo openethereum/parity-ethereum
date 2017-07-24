@@ -1,0 +1,137 @@
+message Initialize {
+
+}
+
+message Ping {
+  optional string message = 1;
+  optional bool button_protection = 2;
+  optional bool pin_protection = 3;
+  optional bool passphrase_protection = 4;
+}
+
+message Features {
+    optional string vendor = 1;
+    optional uint32 major_version = 2;
+    optional uint32 minor_version = 3;
+    optional uint32 patch_version = 4;
+    optional bool bootloader_mode = 5;
+    optional string device_id = 6;
+    optional bool pin_protection = 7;
+    optional bool passphrase_protection = 8;
+    optional string language = 9;
+    optional string label = 10;
+    repeated CoinType coins = 11;
+    optional bool initialized = 12;
+    optional bytes revision = 13;
+    optional bytes bootloader_hash = 14;
+    optional bool imported = 15;
+    optional bool pin_cached = 16;
+    optional bool passphrase_cached = 17;
+}
+
+message CoinType {
+    optional string coin_name = 1;
+    optional string coin_shortcut = 2;
+    optional uint32 address_type = 3 [default=0];
+    optional uint64 maxfee_kb = 4;
+    optional uint32 address_type_p2sh = 5 [default=5];
+}
+
+message GetAddress {
+  optional uint32 address_n = 1;
+  optional string coin_name = 2;
+  optional bool show_display = 3;
+  optional MultisigRedeemScriptType multisig = 4;
+}
+
+message MultisigRedeemScriptType {
+  repeated HDNodePathType pubkeys = 1;
+  repeated bytes signatures = 2;
+  optional uint32 m = 3;
+}
+
+message HDNodePathType {
+  required HDNodeType node = 1;
+  repeated uint32 address_n = 2;
+}
+
+message Address {
+  required string address = 1;
+}
+
+message GetPublicKey {
+  repeated uint32 address_n = 1;
+  optional string ecdsa_curve_name = 2;
+  optional bool show_display = 3;
+}
+
+message PublicKey {
+  required HDNodeType node = 1;
+  optional string xpub = 2;
+}
+
+message HDNodeType {
+  required uint32 depth = 1;
+  required uint32 fingerprint = 2;
+  required uint32 child_num = 3;
+  required bytes chain_code = 4;
+  optional bytes private_key = 5;
+  optional bytes public_key = 6;
+}
+
+message ButtonRequest {
+  optional ButtonRequestType code = 1;
+  optional string data = 2;
+  enum ButtonRequestType {
+    ButtonRequest_Other = 1;
+    ButtonRequest_FeeOverThreshold = 2;
+    ButtonRequest_ConfirmOutput = 3;
+    ButtonRequest_ResetDevice = 4;
+    ButtonRequest_ConfirmWord = 5;
+    ButtonRequest_WipeDevice = 6;
+    ButtonRequest_ProtectCall = 7;
+    ButtonRequest_SignTx = 8;
+    ButtonRequest_FirmwareCheck = 9;
+    ButtonRequest_Address = 10;
+    ButtonRequest_FirmwareErase = 11;
+    ButtonRequest_ConfirmTransferToAccount = 12;
+    ButtonRequest_ConfirmTransferToNodePath = 13;
+  }
+}
+
+message ButtonAck {}
+
+message PinMatrixRequest {
+  optional PinMatrixRequestType type = 1;
+  enum PinMatrixRequestType {
+    PinMatrixRequestType_Current = 1;
+    PinMatrixRequestType_NewFirst = 2;
+    PinMatrixRequestType_NewSecond = 3;
+  }
+}
+
+message PinMatrixAck {
+  required string pin = 1;
+}
+
+message Success {
+  optional string message = 1;
+}
+
+message Failure {
+  optional FailureType code = 1;
+  optional string message = 2;
+  enum FailureType {
+    Failure_UnexpectedMessage = 1;
+    Failure_ButtonExpected = 2;
+    Failure_SyntaxError = 3;
+    Failure_ActionCancelled = 4;
+    Failure_PinExpected = 5;
+    Failure_PinCancelled = 6;
+    Failure_InvalidSignature = 8;
+    Failure_Other = 9;
+    Failure_NotEnoughFunds = 10;
+    Failure_NotInitialized = 11;
+    Failure_FirmwareError = 99;
+  }
+}

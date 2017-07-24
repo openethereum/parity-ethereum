@@ -79,7 +79,7 @@ impl<C, M, S: ?Sized, U> ParityClient<C, M, S, U> where
 	U: UpdateService,
 {
 	/// Creates new `ParityClient`.
-	pub fn new(
+	pub fn new (
 		client: &Arc<C>,
 		miner: &Arc<M>,
 		sync: &Arc<S>,
@@ -389,6 +389,10 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 			availability: availability,
 			capability: Capability::Full,
 		})
+	}
+
+	fn keepkey(&self, message_type: String, address: Option<String>, data: Option<Bytes>) -> Result<String, Error> {
+		
 	}
 
 	fn block_header(&self, number: Trailing<BlockNumber>) -> BoxFuture<RichHeader, Error> {
