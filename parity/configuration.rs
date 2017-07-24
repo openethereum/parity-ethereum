@@ -1761,6 +1761,8 @@ mod tests {
 		let private = parse(&["parity", "--allow-ips", "private"]);
 		let block_custom = parse(&["parity", "--allow-ips", "-10.0.0.0/8"]);
 		let combo = parse(&["parity", "--allow-ips", "public 10.0.0.0/8 -1.0.0.0/8"]);
+		let ipv6_custom_public = parse(&["parity", "--allow-ips", "public fc00::/7"]);
+		let ipv6_custom_private = parse(&["parity", "--allow-ips", "private -fc00::/7"]);
 
 		assert_eq!(all.ip_filter().unwrap(), IpFilter {
 			predefined: AllowIP::All,
@@ -1784,6 +1786,18 @@ mod tests {
 			predefined: AllowIP::Public,
 			custom_allow: vec![IpNetwork::from_str("10.0.0.0/8").unwrap()],
 			custom_block: vec![IpNetwork::from_str("1.0.0.0/8").unwrap()],
+		});
+
+		assert_eq!(ipv6_custom_public.ip_filter().unwrap(), IpFilter {
+			predefined: AllowIP::Public,
+			custom_allow: vec![IpNetwork::from_str("fc00::/7").unwrap()],
+			custom_block: vec![],
+		});
+
+		assert_eq!(ipv6_custom_private.ip_filter().unwrap(), IpFilter {
+			predefined: AllowIP::Private,
+			custom_allow: vec![],
+			custom_block: vec![IpNetwork::from_str("fc00::/7").unwrap()],
 		});
 	}
 }

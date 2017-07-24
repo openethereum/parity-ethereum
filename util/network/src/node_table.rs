@@ -473,4 +473,26 @@ mod tests {
 		assert!(!NodeEndpoint::from_str("10.0.0.1:7770").unwrap().is_allowed(&filter));
 		assert!(!NodeEndpoint::from_str("1.0.0.55:5550").unwrap().is_allowed(&filter));
 	}
+
+	#[test]
+	fn custom_allow_ipv6() {
+		let filter = IpFilter {
+			predefined: AllowIP::Non,
+			custom_allow: vec![IpNetwork::from_str(&"fc00::/8").unwrap()],
+			custom_block: vec![],
+		};
+		assert!(NodeEndpoint::from_str("[fc00::]:5550").unwrap().is_allowed(&filter));
+		assert!(!NodeEndpoint::from_str("[fd00::]:5550").unwrap().is_allowed(&filter));
+	}
+
+	#[test]
+	fn custom_block_ipv6() {
+		let filter = IpFilter {
+			predefined: AllowIP::All,
+			custom_allow: vec![],
+			custom_block: vec![IpNetwork::from_str(&"fc00::/8").unwrap()],
+		};
+		assert!(!NodeEndpoint::from_str("[fc00::]:5550").unwrap().is_allowed(&filter));
+		assert!(NodeEndpoint::from_str("[fd00::]:5550").unwrap().is_allowed(&filter));
+	}
 }
