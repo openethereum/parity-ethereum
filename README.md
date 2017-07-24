@@ -3,7 +3,7 @@
 
 ### [Download latest release](https://github.com/paritytech/parity/releases)
 
-[![build status](https://gitlab.parity.io/parity/parity/badges/master/build.svg)](https://gitlab.parity.io/parity/parity/commits/master) [![Coverage Status][coveralls-image]][coveralls-url]  [![GPLv3][license-image]][license-url]
+[![build status](https://gitlab.parity.io/parity/parity/badges/master/build.svg)](https://gitlab.parity.io/parity/parity/commits/master) [![Coverage Status][coveralls-image]][coveralls-url]  [![GPLv3][license-image]][license-url] [![Snap Status](https://build.snapcraft.io/badge/paritytech/parity.svg)](https://build.snapcraft.io/user/paritytech/parity)
 
 ### Join the chat!
 
