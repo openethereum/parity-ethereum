@@ -27,6 +27,7 @@ import { IndexRoute, Redirect, Route, Router, hashHistory } from 'react-router';
 import qs from 'querystring';
 
 import Api from '@parity/api';
+import Abi from '@parity/abi';
 import builtinDapps from '@parity/shared/config/dappsBuiltin.json';
 import viewsDapps from '@parity/shared/config/dappsViews.json';
 import ContractInstances from '@parity/shared/contracts';
@@ -79,6 +80,13 @@ const dappsHistory = HistoryStore.get('dapps');
 
 function onEnterDapp ({ params: { id } }) {
   const token = DappRequestsStore.get().createToken(id);
+
+  // on app switch unsubscribe all subscriptions
+  if (window.ethereum) {
+    window.ethereum.unsubscribeAll();
+  }
+  // old API uses window.parity
+  window.parity = { Api, Abi };
 
   window.ethereum = new Api.Provider.PostMessage(token, window);
 

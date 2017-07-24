@@ -15,16 +15,16 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { TEST_WS_URL, mockWs } from '../../../../test/mockRpc';
-import WsSecure from './wsSecure';
+import Ws from './ws';
 
-describe('api/transport/WsSecure', () => {
+describe('api/transport/ws', () => {
   let transport;
   let scope;
 
   describe('transport emitter', () => {
     const connect = () => {
       const scope = mockWs();
-      const transport = new WsSecure(TEST_WS_URL);
+      const transport = new Ws(TEST_WS_URL);
 
       return { transport, scope };
     };
@@ -57,7 +57,7 @@ describe('api/transport/WsSecure', () => {
 
     beforeEach(() => {
       scope = mockWs([{ method: 'test_anyCall', reply: 'TestResult' }]);
-      transport = new WsSecure(TEST_WS_URL);
+      transport = new Ws(TEST_WS_URL);
 
       return transport
         .execute('test_anyCall', [1, 2, 3])
@@ -98,7 +98,7 @@ describe('api/transport/WsSecure', () => {
   describe('errors', () => {
     beforeEach(() => {
       scope = mockWs([{ method: 'test_anyCall', reply: { error: { code: 1, message: 'TestError' } } }]);
-      transport = new WsSecure(TEST_WS_URL);
+      transport = new Ws(TEST_WS_URL);
     });
 
     afterEach(() => {

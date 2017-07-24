@@ -17,8 +17,8 @@
 import EventEmitter from 'eventemitter3';
 
 import Contract from './contract';
-import { PromiseProvider, Http as HttpProvider, PostMessage as PostMessageProvider, WsSecure as WsSecureProvider } from './provider';
-import { Http as HttpTransport, WsSecure as WsSecureTransport } from './transport';
+import { PromiseProvider, Http as HttpProvider, PostMessage as PostMessageProvider, Ws as WsProvider } from './provider';
+import { Http as HttpTransport, Ws as WsTransport } from './transport';
 
 import { Db, Eth, Parity, Net, Personal, Shell, Shh, Signer, Trace, Web3 } from './rpc';
 import Subscriptions from './subscriptions';
@@ -36,7 +36,6 @@ export default class Api extends EventEmitter {
       console.log(provider);
       console.warn(new Error('deprecated: Api needs provider with send() function, old-style Transport found instead'));
     }
-
     // does use new provider interface (not promiseProvider)
     if (provider && isFunction(provider.subscribe)) {
       this._pubsub = new Pubsub(provider);
@@ -187,12 +186,12 @@ export default class Api extends EventEmitter {
   static Provider = {
     Http: HttpProvider,
     PostMessage: PostMessageProvider,
-    WsSecure: WsSecureProvider
+    Ws: WsProvider
   }
 
   // NOTE: kept for backwards compatibility
   static Transport = {
     Http: HttpTransport,
-    WsSecure: WsSecureTransport
+    Ws: WsTransport
   }
 }

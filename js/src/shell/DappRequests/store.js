@@ -91,16 +91,20 @@ export default class Store {
 
   @action approveSingleRequest = ({ queueId, request: { data, source } }) => {
     this.removeRequest(queueId);
-    this.executeMethodCall(data, source);
+    if (data.api) {
+      this.executePubsubCall(data, source);
+    } else {
+      this.executeMethodCall(data, source);
+    }
   }
 
   @action approveRequest = (queueId, approveAll) => {
     const queued = this.findRequest(queueId);
 
     if (approveAll) {
-      const { request: { data: { method, token } } } = queued;
+      const { request: { data: { method, token, params } } } = queued;
 
-      this.getFilteredSection(method).methods.forEach((m) => {
+      this.getFilteredSection(method || params[0]).methods.forEach((m) => {
         this.addTokenPermission(m, token);
         this.findMatchingRequests(m, token).forEach(this.approveSingleRequest);
       });
@@ -152,7 +156,7 @@ export default class Store {
   }
 
   findMatchingRequests (_method, _token) {
-    return this.requests.filter(({ request: { data: { method, token } } }) => method === _method && token === _token);
+    return this.requests.filter(({ request: { data: { method, token, params } } }) => (method === _method || (params && params[0] === _method)) && token === _token);
   }
 
   _methodCallbackPost = (id, source, token) => {
@@ -167,6 +171,16 @@ export default class Store {
         token
       }, '*');
     };
+  }
+
+  executePubsubCall = ({ api, id, token, params }, source) => {
+    const callback = this._methodCallbackPost(id, source, token);
+
+    // TODO: enable security pubsub
+    this.provider.subscribe(api, callback, params).then((v, e) => {
+      console.log('Error and result', v, e);
+      this._methodCallbackPost(id, source, token)(null, v);
+    });
   }
 
   executeMethodCall = ({ id, from, method, params, token }, source) => {
@@ -225,18 +239,27 @@ export default class Store {
       return;
     }
 
-    const { from, method, token } = data;
+    const { from, method, token, params, api, subId, id } = data;
 
     if (!from || from === 'shell' || from !== token) {
       return;
     }
 
-    if (this.getFilteredSection(method) && !this.hasTokenPermission(method, token)) {
+    if ((method && this.getFilteredSection(method) && !this.hasTokenPermission(method, token)) ||
+        (api && this.getFilteredSection(params[0]) && !this.hasTokenPermission(method, token))) {
       this.queueRequest({ data, origin, source });
       return;
     }
-
-    this.executeMethodCall(data, source);
+    if (api) {
+      console.log('apiCall', data);
+      this.executePubsubCall(data, source);
+    } else if (subId) {
+      subId === '*'
+        ? this.provider.unsubscribeAll().then(v => this._methodCallbackPost(id, source, token)(null, v))
+        : this.provider.unsubscribe(subId).then(v => this._methodCallbackPost(id, source, token)(null, v));
+    } else {
+      this.executeMethodCall(data, source);
+    }
   }
 
   static instance = null;
