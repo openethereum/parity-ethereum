@@ -22,12 +22,19 @@ use ethkey::{Secret, Public};
 use helpers::replace_home;
 
 #[derive(Debug, PartialEq, Clone)]
+/// This node secret key.
+pub enum NodeSecretKey {
+	/// Stored as plain text in configuration file.
+	Plain(Secret),
+}
+
+#[derive(Debug, PartialEq, Clone)]
 /// Secret store configuration
 pub struct Configuration {
 	/// Is secret store functionality enabled?
 	pub enabled: bool,
 	/// This node secret.
-	pub self_secret: Option<Secret>,
+	pub self_secret: Option<NodeSecretKey>,
 	/// Other nodes IDs + addresses.
 	pub nodes: BTreeMap<Public, (String, u16)>,
 	/// Interface to listen to
@@ -66,9 +73,9 @@ mod server {
 #[cfg(feature="secretstore")]
 mod server {
 	use std::sync::Arc;
-	use ethcore_secretstore;
+	use ethcore_secretstore::{self, NodeKeyPair};
 	use ethkey::KeyPair;
-	use super::{Configuration, Dependencies};
+	use super::{Configuration, Dependencies, NodeSecretKey};
 
 	/// Key server
 	pub struct KeyServer {
@@ -77,8 +84,13 @@ mod server {
 
 	impl KeyServer {
 		/// Create new key server
-		pub fn new(conf: Configuration, deps: Dependencies) -> Result<Self, String> {
-			let self_secret = conf.self_secret.ok_or("self secret is required when using secretstore")?;
+		pub fn new(mut conf: Configuration, deps: Dependencies) -> Result<Self, String> {
+			let self_secret = match conf.self_secret.take() {
+				Some(NodeSecretKey::Plain(secret)) => Arc::new(ethcore_secretstore::PlainNodeKeyPair::new(
+					KeyPair::from_secret(secret).map_err(|e| format!("invalid secret: {}", e))?)),
+				None => return Err("self secret is required when using secretstore".into()),
+			};
+
 			let mut conf = ethcore_secretstore::ServiceConfiguration {
 				listener_address: ethcore_secretstore::NodeAddress {
 					address: conf.http_interface.clone(),
@@ -99,12 +111,9 @@ mod server {
 				},
 			};
 
-			let self_key_pair = KeyPair::from_secret(self_secret.clone())
-				.map_err(|e| format!("valid secret is required when using secretstore. Error: {}", e))?;
-			conf.cluster_config.nodes.insert(self_key_pair.public().clone(), conf.cluster_config.listener_address.clone());
+			conf.cluster_config.nodes.insert(self_secret.public().clone(), conf.cluster_config.listener_address.clone());
 
-			let node_key_pair = Arc::new(ethcore_secretstore::PlainNodeKeyPair::new(self_key_pair));
-			let key_server = ethcore_secretstore::start(deps.client, node_key_pair, conf)
+			let key_server = ethcore_secretstore::start(deps.client, self_secret, conf)
 				.map_err(Into::<String>::into)?;
 
 			Ok(KeyServer {

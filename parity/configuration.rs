@@ -41,7 +41,7 @@ use ethcore_logger::Config as LogConfig;
 use dir::{self, Directories, default_hypervisor_path, default_local_path, default_data_path};
 use dapps::Configuration as DappsConfiguration;
 use ipfs::Configuration as IpfsConfiguration;
-use secretstore::Configuration as SecretStoreConfiguration;
+use secretstore::{Configuration as SecretStoreConfiguration, NodeSecretKey};
 use updater::{UpdatePolicy, UpdateFilter, ReleaseTrack};
 use run::RunCmd;
 use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, KillBlockchain, ExportState, DataFormat};
@@ -995,10 +995,10 @@ impl Configuration {
 		self.interface(&self.args.flag_secretstore_http_interface)
 	}
 
-	fn secretstore_self_secret(&self) -> Result<Option<Secret>, String> {
+	fn secretstore_self_secret(&self) -> Result<Option<NodeSecretKey>, String> {
 		match self.args.flag_secretstore_secret {
-			Some(ref s) => Ok(Some(s.parse()
-				.map_err(|e| format!("Invalid secret store secret: {}. Error: {:?}", s, e))?)),
+			Some(ref s) => Ok(Some(NodeSecretKey::Plain(s.parse()
+				.map_err(|e| format!("Invalid secret store secret: {}. Error: {:?}", s, e))?))),
 			None => Ok(None),
 		}
 	}
