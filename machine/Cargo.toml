@@ -1,0 +1,7 @@
+[package]
+name = "parity-machine"
+version = "0.1.0"
+description = "Generalization of a state machine for consensus engines"
+authors = ["Parity Technologies <admin@parity.io>"]
+
+[dependencies]
