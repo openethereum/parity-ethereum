@@ -245,7 +245,6 @@ pub mod tests {
 		let key_pairs: Vec<_> = (0..num_nodes).map(|_| Random.generate().unwrap()).collect();
 		let configs: Vec<_> = (0..num_nodes).map(|i| ClusterConfiguration {
 				threads: 1,
-//				self_key_pair: Arc::new(PlainNodeKeyPair::new(key_pairs[i].clone())),
 				listener_address: NodeAddress {
 					address: "127.0.0.1".into(),
 					port: start_port + (i as u16),

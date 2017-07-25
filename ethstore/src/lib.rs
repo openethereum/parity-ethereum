@@ -35,6 +35,7 @@ extern crate ethcore_bigint as bigint;
 extern crate ethcrypto as crypto;
 extern crate ethkey as _ethkey;
 extern crate parity_wordlist;
+extern crate ethcore_util as util;
 
 #[macro_use]
 extern crate log;

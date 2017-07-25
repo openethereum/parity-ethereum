@@ -77,7 +77,8 @@ impl NodeKeyPair for KeyStoreNodeKeyPair {
 			.map_err(|e| EthKeyError::Custom(format!("{}", e)))
 	}
 
-	fn compute_shared_key(&self, _peer_public: &Public) -> Result<KeyPair, EthKeyError> {
-		unimplemented!()
+	fn compute_shared_key(&self, peer_public: &Public) -> Result<KeyPair, EthKeyError> {
+		KeyPair::from_secret(self.account_provider.agree(self.address.clone(), Some(self.password.clone()), peer_public)
+			.map_err(|e| EthKeyError::Custom(format!("{}", e)))?)
 	}
 }

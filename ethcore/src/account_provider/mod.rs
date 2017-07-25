@@ -702,6 +702,13 @@ impl AccountProvider {
 		Ok(self.sstore.decrypt(&account, &password, shared_mac, message)?)
 	}
 
+	/// Agree on shared key.
+	pub fn agree(&self, address: Address, password: Option<String>, other_public: &Public) -> Result<Secret, SignError> {
+		let account = self.sstore.account_ref(&address)?;
+		let password = password.map(Ok).unwrap_or_else(|| self.password(&account))?;
+		Ok(self.sstore.agree(&account, &password, other_public)?)
+	}
+
 	/// Returns the underlying `SecretStore` reference if one exists.
 	pub fn list_geth_accounts(&self, testnet: bool) -> Vec<Address> {
 		self.sstore.list_geth_accounts(testnet).into_iter().map(|a| Address::from(a).into()).collect()

@@ -97,6 +97,10 @@ impl SimpleSecretStore for EthStore {
 		self.store.sign_derived(account_ref, password, derivation, message)
 	}
 
+	fn agree(&self, account: &StoreAccountRef, password: &str, other: &Public) -> Result<Secret, Error> {
+		self.store.agree(account, password, other)
+	}
+
 	fn decrypt(&self, account: &StoreAccountRef, password: &str, shared_mac: &[u8], message: &[u8]) -> Result<Vec<u8>, Error> {
 		let account = self.get(account)?;
 		account.decrypt(password, shared_mac, message)
@@ -505,6 +509,14 @@ impl SimpleSecretStore for EthMultiStore {
 		let accounts = self.get_matching(account, password)?;
 		for account in accounts {
 			return account.decrypt(password, shared_mac, message);
+		}
+		Err(Error::InvalidPassword)
+	}
+
+	fn agree(&self, account: &StoreAccountRef, password: &str, other: &Public) -> Result<Secret, Error> {
+		let accounts = self.get_matching(account, password)?;
+		for account in accounts {
+			return account.agree(password, other);
 		}
 		Err(Error::InvalidPassword)
 	}

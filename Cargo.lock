@@ -794,6 +794,7 @@ name = "ethstore"
 version = "0.1.0"
 dependencies = [
  "ethcore-bigint 0.1.3",
+ "ethcore-util 1.8.0",
  "ethcrypto 0.1.0",
  "ethkey 0.2.0",
  "itertools 0.5.9 (registry+https://github.com/rust-lang/crates.io-index)",
