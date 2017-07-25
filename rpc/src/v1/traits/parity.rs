@@ -195,10 +195,6 @@ build_rpc_trait! {
 		#[rpc(name = "parity_nodeKind")]
 		fn node_kind(&self) -> Result<::v1::types::NodeKind, Error>;
 
-		/// Communicate with the keepkey
-		#[rpc(name = "parity_keepkey")]
-		fn keepkey(&self, String, Option<String>, Option<Bytes>) -> Result<String, Error>;
-
 		/// Get block header.
 		/// Same as `eth_getBlockByNumber` but without uncles and transactions.
 		#[rpc(async, name = "parity_getBlockHeaderByNumber")]

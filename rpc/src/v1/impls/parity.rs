@@ -391,10 +391,6 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 		})
 	}
 
-	fn keepkey(&self, message_type: String, address: Option<String>, data: Option<Bytes>) -> Result<String, Error> {
-		
-	}
-
 	fn block_header(&self, number: Trailing<BlockNumber>) -> BoxFuture<RichHeader, Error> {
 		const EXTRA_INFO_PROOF: &'static str = "Object exists in in blockchain (fetched earlier), extra_info is always available if object exists; qed";
 

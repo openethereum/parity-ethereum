@@ -127,9 +127,8 @@ impl libusb::Hotplug for EventHandler {
 impl HardwareWalletManager {
 	pub fn new() -> Result<HardwareWalletManager, Error> {
 		let usb_context = Arc::new(libusb::Context::new()?);
-		let keepkey = Arc::new(Mutex::new(keepkey::Manager::new()));
 		let ledger = Arc::new(Mutex::new(ledger::Manager::new()?));
-		usb_context.register_callback(None, None, None, Box::new(EventHandler { keepkey: Arc::downgrade(&keepkey), ledger: Arc::downgrade(&ledger) }))?;
+		usb_context.register_callback(None, None, None, Box::new(EventHandler { ledger: Arc::downgrade(&ledger) }))?;
 		let exiting = Arc::new(AtomicBool::new(false));
 		let thread_exiting = exiting.clone();
 		let l = ledger.clone();
