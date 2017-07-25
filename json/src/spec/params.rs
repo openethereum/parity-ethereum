@@ -91,6 +91,9 @@ pub struct Params {
 	pub remove_dust_contracts : Option<bool>,
 	/// Wasm support flag
 	pub wasm: Option<bool>,
+	/// Apply reward flag
+	#[serde(rename="applyReward")]
+	pub apply_reward: Option<bool>,
 }
 
 #[cfg(test)]
