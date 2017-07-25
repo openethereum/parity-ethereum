@@ -1,0 +1,29 @@
+
+[package]
+name = "rlp-fuzz"
+version = "0.0.1"
+authors = ["Automatically generated"]
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+rand = "0.3"
+
+[dependencies.rlp]
+path = ".."
+[dependencies.libfuzzer-sys]
+git = "https://github.com/rust-fuzz/libfuzzer-sys.git"
+
+# Prevent this from interfering with workspaces
+[workspace]
+members = ["."]
+
+[[bin]]
+name = "untrusted"
+path = "fuzz_targets/untrusted.rs"
+
+[[bin]]
+name = "append_raw"
+path = "fuzz_targets/append_raw.rs"
