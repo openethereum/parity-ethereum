@@ -79,7 +79,7 @@ impl<C, M, S: ?Sized, U> ParityClient<C, M, S, U> where
 	U: UpdateService,
 {
 	/// Creates new `ParityClient`.
-	pub fn new (
+	pub fn new(
 		client: &Arc<C>,
 		miner: &Arc<M>,
 		sync: &Arc<S>,
