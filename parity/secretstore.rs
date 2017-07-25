@@ -65,6 +65,7 @@ mod server {
 
 #[cfg(feature="secretstore")]
 mod server {
+	use std::sync::Arc;
 	use ethcore_secretstore;
 	use ethkey::KeyPair;
 	use super::{Configuration, Dependencies};
@@ -86,7 +87,6 @@ mod server {
 				data_path: conf.data_path.clone(),
 				cluster_config: ethcore_secretstore::ClusterConfiguration {
 					threads: 4,
-					self_private: (**self_secret).into(),
 					listener_address: ethcore_secretstore::NodeAddress {
 						address: conf.interface.clone(),
 						port: conf.port,
@@ -103,7 +103,8 @@ mod server {
 				.map_err(|e| format!("valid secret is required when using secretstore. Error: {}", e))?;
 			conf.cluster_config.nodes.insert(self_key_pair.public().clone(), conf.cluster_config.listener_address.clone());
 
-			let key_server = ethcore_secretstore::start(deps.client, conf)
+			let node_key_pair = Arc::new(ethcore_secretstore::PlainNodeKeyPair::new(self_key_pair));
+			let key_server = ethcore_secretstore::start(deps.client, node_key_pair, conf)
 				.map_err(Into::<String>::into)?;
 
 			Ok(KeyServer {
