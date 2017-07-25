@@ -219,6 +219,8 @@ fn sha3_512(input: &[u8], output: &mut [u8]) {
 }
 
 fn sha3_512_inplace(input: &mut [u8]) {
+	// This is safe since `sha3_*` uses an internal buffer and copies the result to the output. This
+	// means that we can reuse the input buffer for both input and output.
 	unsafe { sha3::sha3_512(input.as_mut_ptr(), input.len(), input.as_ptr(), input.len()) };
 }
 
