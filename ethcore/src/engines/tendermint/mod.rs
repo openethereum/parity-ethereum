@@ -102,13 +102,15 @@ pub struct Tendermint {
 }
 
 struct EpochVerifier<F>
-		where F: Fn(&Signature, &Message) -> Result<Address, Error> + Send + Sync {
+	where F: Fn(&Signature, &Message) -> Result<Address, Error> + Send + Sync
+{
 	subchain_validators: SimpleList,
 	recover: F
 }
 
 impl <F> super::EpochVerifier for EpochVerifier<F>
-		where F: Fn(&Signature, &Message) -> Result<Address, Error> + Send + Sync {
+	where F: Fn(&Signature, &Message) -> Result<Address, Error> + Send + Sync
+{
 	fn verify_light(&self, header: &Header) -> Result<(), Error> {
 		let message = header.bare_hash();
 
