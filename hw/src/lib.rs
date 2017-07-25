@@ -25,7 +25,6 @@ extern crate ethcore_bigint as bigint;
 #[cfg(test)] extern crate rustc_hex;
 
 mod ledger;
-mod keepkey;
 
 use std::fmt;
 use std::thread;
@@ -91,12 +90,10 @@ impl From<libusb::Error> for Error {
 pub struct HardwareWalletManager {
 	update_thread: Option<thread::JoinHandle<()>>,
 	exiting: Arc<AtomicBool>,
-	keepkey: Arc<Mutex<keepkey::Manager>>,
 	ledger: Arc<Mutex<ledger::Manager>>,
 }
 
 struct EventHandler {
-	keepkey: Weak<Mutex<keepkey::Manager>>,
 	ledger: Weak<Mutex<ledger::Manager>>,
 }
 
@@ -115,29 +112,12 @@ impl libusb::Hotplug for EventHandler {
 				thread::sleep(Duration::from_millis(200));
 			}
 		}
-		if let Some(k) = self.keepkey.upgrade() {
-			for _ in 0..10 {
-				// The device might not be visible right away. Try a few times.
-				if k.lock().update_devices().unwrap_or_else(|e| {
-					debug!("Error enumerating Ledger devices: {}", e);
-					0
-				}) > 0 {
-					break;
-				}
-				thread::sleep(Duration::from_millis(200));
-			}
-		}
 	}
 
 	fn device_left(&mut self, _device: libusb::Device) {
 		debug!("USB Device lost");
 		if let Some(l) = self.ledger.upgrade() {
 			if let Err(e) = l.lock().update_devices() {
-				debug!("Error enumerating Ledger devices: {}", e);
-			}
-		}
-		if let Some(k) = self.keepkey.upgrade() {
-			if let Err(e) = k.lock().update_devices() {
 				debug!("Error enumerating Ledger devices: {}", e);
 			}
 		}
@@ -152,14 +132,10 @@ impl HardwareWalletManager {
 		usb_context.register_callback(None, None, None, Box::new(EventHandler { keepkey: Arc::downgrade(&keepkey), ledger: Arc::downgrade(&ledger) }))?;
 		let exiting = Arc::new(AtomicBool::new(false));
 		let thread_exiting = exiting.clone();
-		let k = keepkey.clone();
 		let l = ledger.clone();
 		let thread = thread::Builder::new().name("hw_wallet".to_string()).spawn(move || {
 			if let Err(e) = l.lock().update_devices() {
 				debug!("Error updating ledger devices: {}", e);
-			}
-			if let Err(e) = k.lock().update_devices() {
-				debug!("Error updating keepkey devices: {}", e);
 			}
 			loop {
 				usb_context.handle_events(Some(Duration::from_millis(500))).unwrap_or_else(|e| debug!("Error processing USB events: {}", e));
@@ -171,7 +147,6 @@ impl HardwareWalletManager {
 		Ok(HardwareWalletManager {
 			update_thread: thread,
 			exiting: exiting,
-			keepkey: keepkey,
 			ledger: ledger,
 		})
 	}
