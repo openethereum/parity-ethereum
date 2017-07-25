@@ -7,7 +7,7 @@ Parity 1.7.0 is a major release introducing several important features:
 - **WASM contract support**. Private networks can run contracts compiled into WASM bytecode. _More information and documentation to follow_.
 - **DApps and RPC server merge**. DApp and RPC are now available through a single API endpoint. DApp server related settings are deprecated.
 - **Export accounts from the wallet**. Backing up your keys can now simply be managed through the wallet interface.
-- **PoA/Kovan validator set contract**. The PoA network validator-set management via smart contract is now supported by warp and light sync.
+- **PoA/Kovan validator set contract**. The PoA network validator-set management via smart contract is now supported by warp and, in the near future, light sync.
 - **PubSub API**. https://github.com/paritytech/parity/wiki/JSONRPC-Parity-Pub-Sub-module
 - **Signer apps for IOS and Android**.
 
