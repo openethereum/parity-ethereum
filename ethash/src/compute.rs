@@ -319,6 +319,9 @@ fn hash_compute(light: &Light, full_size: usize, header_hash: &H256, nonce: u64)
 	let mut buf: MixBuf = MixBuf {
 		half_mix: unsafe {
 			// Pack `header_hash` and `nonce` together
+			// We explicitly write the first 40 bytes, leaving the last 24 as uninitialized. Then
+			// `sha3_512` reads the first 40 bytes (4th parameter) and overwrites the entire array,
+			// leaving it fully initialized.
 			let mut out: [u8; NODE_BYTES] = mem::uninitialized();
 
 			ptr::copy_nonoverlapping(
@@ -337,11 +340,12 @@ fn hash_compute(light: &Light, full_size: usize, header_hash: &H256, nonce: u64)
 				out.as_mut_ptr(),
 				NODE_BYTES,
 				out.as_ptr(),
-				40
+				header_hash.len() + mem::size_of::<u64>()
 			);
 
 			Node { bytes: out }
 		},
+		// This is fully initialized before being read, see `let mut compress = ...` below
 		compress_bytes: unsafe { mem::uninitialized() },
 	};
 
@@ -358,6 +362,8 @@ fn hash_compute(light: &Light, full_size: usize, header_hash: &H256, nonce: u64)
 
 	for i in 0..ETHASH_ACCESSES as u32 {
 		let index = {
+			// This is trivially safe, but does not work on big-endian. The safety of this is
+			// asserted in debug builds (see the definition of `make_const_array!`).
 			let mix_words: &mut [u32; MIX_WORDS] = unsafe {
 				make_const_array!(MIX_WORDS, &mut mix)
 			};
@@ -393,6 +399,10 @@ fn hash_compute(light: &Light, full_size: usize, header_hash: &H256, nonce: u64)
 	let mix_words: [u32; MIX_WORDS] = unsafe { mem::transmute(mix) };
 
 	{
+		// This is an uninitialized buffer to begin with, but we iterate precisely `compress.len()`
+		// times and set each index, leaving the array fully initialized. THIS ONLY WORKS ON LITTLE-
+		// ENDIAN MACHINES. See a future PR to make this and the rest of the code work correctly on
+		// big-endian arches like mips.
 		let mut compress: &mut [u32; MIX_WORDS / 4] = unsafe {
 			make_const_array!(MIX_WORDS / 4, &mut buf.compress_bytes)
 		};
@@ -415,7 +425,10 @@ fn hash_compute(light: &Light, full_size: usize, header_hash: &H256, nonce: u64)
 	let mix_hash = buf.compress_bytes;
 
 	let value: H256 = unsafe {
+		// We can interpret the buffer as an array of `u8`s, since it's `repr(C)`.
 		let read_ptr: *const u8 = mem::transmute(&buf);
+		// We overwrite the second half since `sha3_256` has an internal buffer and so allows
+		// overlapping arrays as input.
 		let write_ptr: *mut u8 = mem::transmute(&mut buf.compress_bytes);
 		sha3::sha3_256(
 			write_ptr,
