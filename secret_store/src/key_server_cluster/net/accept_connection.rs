@@ -15,18 +15,18 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::io;
+use std::sync::Arc;
 use std::net::SocketAddr;
 use std::time::Duration;
 use futures::{Future, Poll};
 use tokio_core::reactor::Handle;
 use tokio_core::net::TcpStream;
-use ethkey::KeyPair;
-use key_server_cluster::Error;
+use key_server_cluster::{Error, NodeKeyPair};
 use key_server_cluster::io::{accept_handshake, Handshake, Deadline, deadline};
 use key_server_cluster::net::Connection;
 
 /// Create future for accepting incoming connection.
-pub fn accept_connection(address: SocketAddr, stream: TcpStream, handle: &Handle, self_key_pair: KeyPair) -> Deadline<AcceptConnection> {
+pub fn accept_connection(address: SocketAddr, stream: TcpStream, handle: &Handle, self_key_pair: Arc<NodeKeyPair>) -> Deadline<AcceptConnection> {
 	let accept = AcceptConnection {
 		handshake: accept_handshake(stream, self_key_pair),
 		address: address,

@@ -241,7 +241,7 @@ pub mod tests {
 			data_path: path.as_str().to_owned(),
 			cluster_config: ClusterConfiguration {
 				threads: 1,
-				self_private: (**Random.generate().unwrap().secret().clone()).into(),
+				//self_private: (**Random.generate().unwrap().secret().clone()).into(),
 				listener_address: NodeAddress {
 					address: "0.0.0.0".to_owned(),
 					port: 8083,
