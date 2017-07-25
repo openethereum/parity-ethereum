@@ -77,8 +77,10 @@ Operating Options:
                                    subcommands (default: {flag_light}).
 
 Convenience Options:
-  -c --config CONFIG               Specify a filename containing a configuration file.
-                                   (default: {flag_config})
+-c --config CONFIG                 Specify a configuration. CONFIG may be either a
+                                   configuration file or a preset: dev, insecure, dev-insecure, 
+                                   mining, or non-standard-ports.
+                                   (default: {flag_config}).
   --ports-shift SHIFT              Add SHIFT to all port numbers Parity is listening on.
                                    Includes network port and all servers (RPC, WebSockets, UI, IPFS, SecretStore).
                                    (default: {flag_ports_shift})
