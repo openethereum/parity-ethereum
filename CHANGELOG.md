@@ -1,4 +1,4 @@
-## Parity [v1.6.10](https://github.com/paritytech/parity/releases/tag/v1.6.10) (2017-07-23)
+## Parity [v1.6.10](https://github.com/paritytech/parity/releases/tag/v1.6.10) (2017-07-25)
 
 This is a hotfix release for the stable channel addressing the recent [multi-signature wallet vulnerability](https://blog.parity.io/security-alert-high-2/). Note, upgrading is not mandatory, and all future multi-sig wallets created by any version of Parity are secure.
 
@@ -15,7 +15,7 @@ All Changes:
   - Update wallet library modifiers ([#6103](https://github.com/paritytech/parity/pull/6103))
 - Bump to v1.6.10
 
-## Parity [v1.7.0](https://github.com/paritytech/parity/releases/tag/v1.7.0) (2017-07-23)
+## Parity [v1.7.0](https://github.com/paritytech/parity/releases/tag/v1.7.0) (2017-07-26)
 
 Parity 1.7.0 is a major release introducing several important features:
 
@@ -30,13 +30,17 @@ Parity 1.7.0 is a major release introducing several important features:
 
 Full list of included changes:
 
+- Fix QR scanner returning null on confirm [#6122](https://github.com/paritytech/parity/pull/6122)
 - Check QR before lowercase ([#6119](https://github.com/paritytech/parity/pull/6119)) [#6120](https://github.com/paritytech/parity/pull/6120)
 - Remove chunk to restore from pending set only upon successful import [#6117](https://github.com/paritytech/parity/pull/6117)
 - Fixed node address detection on incoming connection [#6094](https://github.com/paritytech/parity/pull/6094)
 - Place RETURNDATA behind block number gate [#6095](https://github.com/paritytech/parity/pull/6095)
+- Update wallet library binaries [#6108](https://github.com/paritytech/parity/pull/6108)
 - Backported wallet fix [#6105](https://github.com/paritytech/parity/pull/6105)
   - Fix initialisation bug. ([#6102](https://github.com/paritytech/parity/pull/6102))
   - Update wallet library modifiers ([#6103](https://github.com/paritytech/parity/pull/6103))
+- Place RETURNDATA behind block number gate [#6095](https://github.com/paritytech/parity/pull/6095)
+- Fixed node address detection on incoming connection [#6094](https://github.com/paritytech/parity/pull/6094)
 - Bump snap version and tweak importing detection logic ([#6079](https://github.com/paritytech/parity/pull/6079)) [#6081](https://github.com/paritytech/parity/pull/6081)
   - bump last tick just before printing info and restore sync detection
   - bump kovan snapshot version
