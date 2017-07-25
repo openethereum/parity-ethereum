@@ -2,7 +2,7 @@
 [package]
 name = "rlp-fuzz"
 version = "0.0.1"
-authors = ["Automatically generated"]
+authors = ["Parity Technologies <admin@parity.io>"]
 publish = false
 
 [package.metadata]
