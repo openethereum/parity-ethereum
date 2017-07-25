@@ -147,13 +147,7 @@ impl RestApiRouter {
 				HealthInfo { status, message, details, }
 			};
 
-			let status = if [&peers.status, &sync.status, &time.status].iter().any(|x| *x != &HealthStatus::Ok) {
-				StatusCode::PreconditionFailed // HTTP 412
-			} else {
-				StatusCode::Ok // HTTP 200
-			};
-
-			response::as_json(status, &Health { peers, sync, time })
+			response::as_json(StatusCode::Ok, &Health { peers, sync, time })
 		};
 
 		let time = self.api.time.time_drift();

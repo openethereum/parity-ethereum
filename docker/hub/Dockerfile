@@ -4,7 +4,7 @@ WORKDIR /build
 #ENV for build TAG
 ARG BUILD_TAG
 ENV BUILD_TAG ${BUILD_TAG:-master}
-RUN echo $BUILD_TAG
+RUN echo "Build tag:" $BUILD_TAG
 # install tools and dependencies
 RUN apt-get update && \
         apt-get install -y --force-yes --no-install-recommends \
@@ -48,7 +48,7 @@ RUN apt-get update && \
 # show backtraces
  RUST_BACKTRACE=1 && \
 # build parity
- cd /build&&git clone https://github.com/paritytech/parity && \
+cd /build&&git clone https://github.com/paritytech/parity && \
         cd parity && \
 	git pull&& \
 	git checkout $BUILD_TAG && \

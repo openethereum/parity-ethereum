@@ -504,7 +504,7 @@ impl ChainSync {
 	}
 
 	fn maybe_start_snapshot_sync(&mut self, io: &mut SyncIo) {
-		if !self.enable_warp_sync || io.snapshot_service().min_supported_version().is_none() {
+		if !self.enable_warp_sync || io.snapshot_service().supported_versions().is_none() {
 			return;
 		}
 		if self.state != SyncState::WaitingPeers && self.state != SyncState::Blocks && self.state != SyncState::Waiting {
@@ -1044,11 +1044,11 @@ impl ChainSync {
 			Ok(manifest) => manifest,
 		};
 
-		let is_supported_version = io.snapshot_service().min_supported_version()
-			.map_or(false, |v| manifest.version >= v);
+		let is_supported_version = io.snapshot_service().supported_versions()
+			.map_or(false, |(l, h)| manifest.version >= l && manifest.version <= h);
 
 		if !is_supported_version {
-			trace!(target: "sync", "{}: Snapshot manifest version too low: {}", peer_id, manifest.version);
+			trace!(target: "sync", "{}: Snapshot manifest version not supported: {}", peer_id, manifest.version);
 			io.disable_peer(peer_id);
 			self.continue_sync(io);
 			return Ok(());

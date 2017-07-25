@@ -33,9 +33,10 @@ use miner::{MinerService, MinerStatus, TransactionQueue, RemovalReason, Transact
 	AccountDetails, TransactionOrigin};
 use miner::banning_queue::{BanningTransactionQueue, Threshold};
 use miner::work_notify::{WorkPoster, NotifyWork};
-use miner::price_info::PriceInfo;
 use miner::local_transactions::{Status as LocalTransactionStatus};
 use miner::service_transaction_checker::ServiceTransactionChecker;
+use price_info::{Client as PriceInfoClient, PriceInfo};
+use price_info::fetch::Client as FetchClient;
 use header::BlockNumber;
 
 /// Different possible definitions for pending transaction set.
@@ -154,6 +155,7 @@ pub struct GasPriceCalibratorOptions {
 pub struct GasPriceCalibrator {
 	options: GasPriceCalibratorOptions,
 	next_calibration: Instant,
+	price_info: PriceInfoClient,
 }
 
 impl GasPriceCalibrator {
@@ -163,7 +165,7 @@ impl GasPriceCalibrator {
 			let usd_per_tx = self.options.usd_per_tx;
 			trace!(target: "miner", "Getting price info");
 
-			PriceInfo::get(move |price: PriceInfo| {
+			self.price_info.get(move |price: PriceInfo| {
 				trace!(target: "miner", "Price info arrived: {:?}", price);
 				let usd_per_eth = price.ethusd;
 				let wei_per_usd: f32 = 1.0e18 / usd_per_eth;
@@ -189,10 +191,11 @@ pub enum GasPricer {
 
 impl GasPricer {
 	/// Create a new Calibrated `GasPricer`.
-	pub fn new_calibrated(options: GasPriceCalibratorOptions) -> GasPricer {
+	pub fn new_calibrated(options: GasPriceCalibratorOptions, fetch: FetchClient) -> GasPricer {
 		GasPricer::Calibrated(GasPriceCalibrator {
 			options: options,
 			next_calibration: Instant::now(),
+			price_info: PriceInfoClient::new(fetch),
 		})
 	}
 

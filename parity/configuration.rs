@@ -333,7 +333,7 @@ impl Configuration {
 			let verifier_settings = self.verifier_settings();
 
 			// Special presets are present for the dev chain.
-			let (gas_pricer, miner_options) = match spec {
+			let (gas_pricer_conf, miner_options) = match spec {
 				SpecType::Dev => (GasPricerConfig::Fixed(0.into()), self.miner_options(0)?),
 				_ => (self.gas_pricer_config()?, self.miner_options(self.args.flag_reseal_min_period)?),
 			};
@@ -356,7 +356,7 @@ impl Configuration {
 				net_conf: net_conf,
 				network_id: network_id,
 				acc_conf: self.accounts_config()?,
-				gas_pricer: gas_pricer,
+				gas_pricer_conf: gas_pricer_conf,
 				miner_extras: self.miner_extras()?,
 				stratum: self.stratum_options()?,
 				update_policy: update_policy,
@@ -1309,7 +1309,7 @@ mod tests {
 			public_node: false,
 			warp_sync: true,
 			acc_conf: Default::default(),
-			gas_pricer: Default::default(),
+			gas_pricer_conf: Default::default(),
 			miner_extras: Default::default(),
 			update_policy: UpdatePolicy { enable_downloading: true, require_consensus: true, filter: UpdateFilter::Critical, track: ReleaseTrack::Unknown, path: default_hypervisor_path() },
 			mode: Default::default(),
@@ -1604,7 +1604,7 @@ mod tests {
 		let conf = parse(&args);
 		match conf.into_command().unwrap().cmd {
 			Cmd::Run(c) => {
-				assert_eq!(c.gas_pricer, GasPricerConfig::Fixed(0.into()));
+				assert_eq!(c.gas_pricer_conf, GasPricerConfig::Fixed(0.into()));
 				assert_eq!(c.miner_options.reseal_min_period, Duration::from_millis(0));
 			},
 			_ => panic!("Should be Cmd::Run"),
