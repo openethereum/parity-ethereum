@@ -123,7 +123,9 @@ impl Light {
 		}
 		let num_nodes = cache_size / NODE_BYTES;
 		let mut nodes: Vec<Node> = Vec::with_capacity(num_nodes);
-		nodes.resize(num_nodes, unsafe { mem::uninitialized() });
+
+		unsafe { nodes.set_len(num_nodes) };
+
 		let buf = unsafe { slice::from_raw_parts_mut(nodes.as_mut_ptr() as *mut u8, cache_size) };
 		file.read_exact(buf)?;
 		Ok(Light {
@@ -269,57 +271,81 @@ pub fn light_compute(light: &Light, header_hash: &H256, nonce: u64) -> ProofOfWo
 }
 
 fn hash_compute(light: &Light, full_size: usize, header_hash: &H256, nonce: u64) -> ProofOfWork {
+	macro_rules! make_const_array {
+		($n:expr, $value:expr) => {{
+			// We use explicit lifetimes to ensure that val's borrow is invalidated until the
+			// transmuted val dies.
+			unsafe fn make_const_array<'a, T, U>(val: &'a mut [T]) -> &'a mut [U; $n] {
+				use ::std::mem;
+
+				debug_assert_eq!(val.len() * mem::size_of::<T>(), $n * mem::size_of::<U>());
+				mem::transmute(val.as_mut_ptr())
+			}
+
+			make_const_array($value)
+		}}
+	}
+
 	if full_size % MIX_WORDS != 0 {
 		panic!("Unaligned full size");
 	}
-	// pack hash and nonce together into first 40 bytes of s_mix
-	let mut s_mix: [Node; MIX_NODES + 1] = [Node::default(), Node::default(), Node::default()];
-	unsafe { ptr::copy_nonoverlapping(header_hash.as_ptr(), s_mix.get_unchecked_mut(0).bytes.as_mut_ptr(), 32) };
-	unsafe { ptr::copy_nonoverlapping(mem::transmute(&nonce), s_mix.get_unchecked_mut(0).bytes[32..].as_mut_ptr(), 8) };
 
-	// compute sha3-512 hash and replicate across mix
 	unsafe {
+		// pack hash and nonce together into first 40 bytes of s_mix
+		let mut s_mix: [Node; MIX_NODES + 1] = mem::uninitialized();
+
+		ptr::copy_nonoverlapping(
+			header_hash.as_ptr(),
+			s_mix.get_unchecked_mut(0).bytes.as_mut_ptr(),
+			32,
+		);
+		ptr::copy_nonoverlapping(
+			mem::transmute(&nonce),
+			s_mix.get_unchecked_mut(0).bytes[32..].as_mut_ptr(),
+			8
+		);
+
+		// compute sha3-512 hash and replicate across mix
 		sha3::sha3_512(s_mix.get_unchecked_mut(0).bytes.as_mut_ptr(), NODE_BYTES, s_mix.get_unchecked(0).bytes.as_ptr(), 40);
-		let (f_mix, mut mix) = s_mix.split_at_mut(1);
+		let (f_mix, mix) = s_mix.split_at_mut(1);
+		let mix_words: &mut [u32; MIX_WORDS] = make_const_array!(MIX_WORDS, mix);
+
 		for w in 0..MIX_WORDS {
-			*mix.get_unchecked_mut(0).as_words_mut().get_unchecked_mut(w) = *f_mix.get_unchecked(0).as_words().get_unchecked(w % NODE_WORDS);
+			*mix_words.get_unchecked_mut(w) =
+				*f_mix.get_unchecked(0).as_words().get_unchecked(w % NODE_WORDS);
 		}
 
 		let page_size = 4 * MIX_WORDS;
 		let num_full_pages = (full_size / page_size) as u32;
 		let cache: &[Node] = &light.cache;  // deref once for better performance
 
-		debug_assert_eq!(ETHASH_ACCESSES, 64);
 		debug_assert_eq!(MIX_NODES, 2);
 		debug_assert_eq!(NODE_WORDS, 16);
 
-		unroll! {
-			// ETHASH_ACCESSES
-			for i_usize in 0..64 {
-				let i = i_usize as u32;
+		for i in 0..ETHASH_ACCESSES as u32 {
+			let index = fnv_hash(
+				f_mix.get_unchecked(0).as_words().get_unchecked(0) ^ i,
+				*mix_words.get_unchecked(i as usize % MIX_WORDS)
+			) % num_full_pages;
 
-				let index = fnv_hash(
-					f_mix.get_unchecked(0).as_words().get_unchecked(0) ^ i,
-					*mix.get_unchecked(0).as_words().get_unchecked(i as usize % MIX_WORDS)
-				) % num_full_pages;
+			let mix: &mut [Node; MIX_NODES] = make_const_array!(MIX_NODES, mix_words);
 
-				unroll! {
-					// MIX_NODES
-					for n in 0..2 {
-						let tmp_node = calculate_dag_item(
-							index * MIX_NODES as u32 + n as u32,
-							cache,
-						);
+			unroll! {
+				// MIX_NODES
+				for n in 0..2 {
+					let tmp_node = calculate_dag_item(
+						index * MIX_NODES as u32 + n as u32,
+						cache,
+					);
 
-						unroll! {
-							// NODE_WORDS
-							for w in 0..16 {
-								*mix.get_unchecked_mut(n).as_words_mut().get_unchecked_mut(w) =
-									fnv_hash(
-										*mix.get_unchecked(n).as_words().get_unchecked(w),
-										*tmp_node.as_words().get_unchecked(w),
-									);
-							}
+					unroll! {
+						// NODE_WORDS
+						for w in 0..16 {
+							*mix.get_unchecked_mut(n).as_words_mut().get_unchecked_mut(w) =
+								fnv_hash(
+									*mix.get_unchecked(n).as_words().get_unchecked(w),
+									*tmp_node.as_words().get_unchecked(w),
+								);
 						}
 					}
 				}
@@ -332,21 +358,38 @@ fn hash_compute(light: &Light, full_size: usize, header_hash: &H256, nonce: u64)
 		unroll! {
 			for i in 0..8 {
 				let w = i * 4;
-				let mut reduction = *mix.get_unchecked(0).as_words().get_unchecked(w + 0);
-				reduction = reduction.wrapping_mul(FNV_PRIME) ^ *mix.get_unchecked(0).as_words().get_unchecked(w + 1);
-				reduction = reduction.wrapping_mul(FNV_PRIME) ^ *mix.get_unchecked(0).as_words().get_unchecked(w + 2);
-				reduction = reduction.wrapping_mul(FNV_PRIME) ^ *mix.get_unchecked(0).as_words().get_unchecked(w + 3);
-				*mix.get_unchecked_mut(0).as_words_mut().get_unchecked_mut(i) = reduction;
+				let mut reduction = *mix_words.get_unchecked(w + 0);
+				reduction = reduction.wrapping_mul(FNV_PRIME) ^ *mix_words.get_unchecked(w + 1);
+				reduction = reduction.wrapping_mul(FNV_PRIME) ^ *mix_words.get_unchecked(w + 2);
+				reduction = reduction.wrapping_mul(FNV_PRIME) ^ *mix_words.get_unchecked(w + 3);
+				*mix_words.get_unchecked_mut(i) = reduction;
 			}
 		}
 
-		let mut mix_hash = [0u8; 32];
-		let mut buf = [0u8; 32 + 64];
-		ptr::copy_nonoverlapping(f_mix.get_unchecked_mut(0).bytes.as_ptr(), buf.as_mut_ptr(), 64);
-		ptr::copy_nonoverlapping(mix.get_unchecked_mut(0).bytes.as_ptr(), buf[64..].as_mut_ptr(), 32);
-		ptr::copy_nonoverlapping(mix.get_unchecked_mut(0).bytes.as_ptr(), mix_hash.as_mut_ptr(), 32);
-		let mut value: H256 = [0u8; 32];
+		let mix: &mut [Node; MIX_NODES] = make_const_array!(MIX_NODES, mix_words);
+
+		// Explicit use of uninit so we don't have to rely on the optimizer
+		let mut mix_hash: [u8; 32] = mem::uninitialized();
+		let mut buf: [u8; 32 + 64] = mem::uninitialized();
+		ptr::copy_nonoverlapping(
+			f_mix.get_unchecked_mut(0).bytes.as_ptr(),
+			buf.as_mut_ptr(),
+			64,
+		);
+		ptr::copy_nonoverlapping(
+			mix.get_unchecked_mut(0).bytes.as_ptr(),
+			buf[64..].as_mut_ptr(),
+			32,
+		);
+		ptr::copy_nonoverlapping(
+			mix.get_unchecked_mut(0).bytes.as_ptr(),
+			mix_hash.as_mut_ptr(),
+			32,
+		);
+
+		let mut value: H256 = mem::uninitialized();
 		sha3::sha3_256(value.as_mut_ptr(), value.len(), buf.as_ptr(), buf.len());
+
 		ProofOfWork {
 			mix_hash: mix_hash,
 			value: value,
@@ -391,9 +434,11 @@ fn light_new<T: AsRef<Path>>(cache_dir: T, block_number: u64) -> Light {
 	assert!(cache_size % NODE_BYTES == 0, "Unaligned cache size");
 	let num_nodes = cache_size / NODE_BYTES;
 
-	let mut nodes = Vec::with_capacity(num_nodes);
-	nodes.resize(num_nodes, Node::default());
+	let mut nodes: Vec<Node> = Vec::with_capacity(num_nodes);
 	unsafe {
+		// Use uninit instead of unnecessarily writing `size_of::<Node>() * num_nodes` 0s
+		nodes.set_len(num_nodes);
+
 		sha3_512(&seedhash[0..32], &mut nodes.get_unchecked_mut(0).bytes);
 		for i in 1..num_nodes {
 			sha3::sha3_512(nodes.get_unchecked_mut(i).bytes.as_mut_ptr(), NODE_BYTES, nodes.get_unchecked(i - 1).bytes.as_ptr(), NODE_BYTES);
