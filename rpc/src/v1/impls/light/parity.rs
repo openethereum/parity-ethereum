@@ -352,6 +352,10 @@ impl Parity for ParityClient {
 		})
 	}
 
+	fn keepkey(&self, message_type: String, address: Option<String>, data: Option<Bytes>) -> Result<String, Error> {
+		Ok("ok".to_string())
+	}
+
 	fn block_header(&self, number: Trailing<BlockNumber>) -> BoxFuture<RichHeader, Error> {
 		use ethcore::encoded;
 

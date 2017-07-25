@@ -115,11 +115,13 @@ impl libusb::Hotplug for EventHandler {
 				thread::sleep(Duration::from_millis(200));
 			}
 		}
+		println!("DEVICE?!");
 		if let Some(k) = self.keepkey.upgrade() {
 			for _ in 0..10 {
+				println!("KEEP KEY COMIN IN");
 				// The device might not be visible right away. Try a few times.
 				if k.lock().update_devices().unwrap_or_else(|e| {
-					debug!("Error enumerating Ledger devices: {}", e);
+					debug!("Error enumerating Keepkey devices");
 					0
 				}) > 0 {
 					break;
@@ -138,7 +140,7 @@ impl libusb::Hotplug for EventHandler {
 		}
 		if let Some(k) = self.keepkey.upgrade() {
 			if let Err(e) = k.lock().update_devices() {
-				debug!("Error enumerating Ledger devices: {}", e);
+				debug!("Error enumerating Keepkey devices");
 			}
 		}
 	}
@@ -146,6 +148,7 @@ impl libusb::Hotplug for EventHandler {
 
 impl HardwareWalletManager {
 	pub fn new() -> Result<HardwareWalletManager, Error> {
+		println!("HardwareWalletManager");
 		let usb_context = Arc::new(libusb::Context::new()?);
 		let keepkey = Arc::new(Mutex::new(keepkey::Manager::new()));
 		let ledger = Arc::new(Mutex::new(ledger::Manager::new()?));
@@ -159,7 +162,7 @@ impl HardwareWalletManager {
 				debug!("Error updating ledger devices: {}", e);
 			}
 			if let Err(e) = k.lock().update_devices() {
-				debug!("Error updating keepkey devices: {}", e);
+				debug!("Error updating keepkey devices");
 			}
 			loop {
 				usb_context.handle_events(Some(Duration::from_millis(500))).unwrap_or_else(|e| debug!("Error processing USB events: {}", e));
@@ -179,6 +182,7 @@ impl HardwareWalletManager {
 	/// Select key derivation path for a chain.
 	pub fn set_key_path(&self, key_path: KeyPath) {
 		self.ledger.lock().set_key_path(key_path);
+		self.keepkey.lock().set_key_path(key_path);
 	}
 
 	/// List connected wallets. This only returns wallets that are ready to be used.

@@ -8,17 +8,16 @@ extern crate quick_protobuf;
 extern crate byteorder;
 use keepkey::byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 
-use std::io::{self, BufRead};
+use std::io::{self, BufRead, Cursor};
 use std::mem::transmute;
+use std::borrow::Cow;
+use std::sync::{Arc, Mutex};
 use keepkey::quick_protobuf::{BytesReader, Writer};
 use self::protobuf::{
     Address, ButtonAck, ButtonRequest, Failure, Features,
     GetAddress, GetPublicKey, Initialize, Ping, PinMatrixAck,
     PinMatrixRequest, PublicKey, Success,
 };
-use std::borrow::Cow;
-use std::sync::{Arc, Mutex};
-use std::io::Cursor;
 
 /// Hardware waller error.
 #[derive(Debug)]
@@ -122,13 +121,13 @@ impl Manager {
     pub fn update_devices(&mut self) -> Result<usize, Error> {
         let api  = self.api.lock().unwrap();
         let mut num_new_devices = 0;
+        println!("UPDATE DEVICES");
         // get list of connected devices. If there is a keepkey, add it to the list.
-        for device in &api.lock().unwrap().devices() {
+        for device in api.devices() {
             if device.vendor_id == 11044
                 && device.product_id == 1
-                && !devices.contains() // device doesn't already exist doesn't exist
             {
-                self.devices.push(Device::new(api.clone(), device.path.clone().to_string()));
+                self.devices.push(Device::new(self.api.clone(), device.path.clone().to_string()));
                 num_new_devices += 1;
             }
         }
