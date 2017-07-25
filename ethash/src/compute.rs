@@ -289,24 +289,55 @@ fn hash_compute(light: &Light, full_size: usize, header_hash: &H256, nonce: u64)
 		let num_full_pages = (full_size / page_size) as u32;
 		let cache: &[Node] = &light.cache;  // deref once for better performance
 
-		for i in 0..(ETHASH_ACCESSES as u32) {
-			let index = fnv_hash(f_mix.get_unchecked(0).as_words().get_unchecked(0) ^ i, *mix.get_unchecked(0).as_words().get_unchecked((i as usize) % MIX_WORDS)) % num_full_pages;
-			for n in 0..MIX_NODES {
-				let tmp_node = calculate_dag_item(index * MIX_NODES as u32 + n as u32, cache);
-				for w in 0..NODE_WORDS {
-					*mix.get_unchecked_mut(n).as_words_mut().get_unchecked_mut(w) = fnv_hash(*mix.get_unchecked(n).as_words().get_unchecked(w), *tmp_node.as_words().get_unchecked(w));
+		debug_assert_eq!(ETHASH_ACCESSES, 64);
+		debug_assert_eq!(MIX_NODES, 2);
+		debug_assert_eq!(NODE_WORDS, 16);
+
+		unroll! {
+			// ETHASH_ACCESSES
+			for i_usize in 0..64 {
+				let i = i_usize as u32;
+
+				let index = fnv_hash(
+					f_mix.get_unchecked(0).as_words().get_unchecked(0) ^ i,
+					*mix.get_unchecked(0).as_words().get_unchecked(i as usize % MIX_WORDS)
+				) % num_full_pages;
+
+				unroll! {
+					// MIX_NODES
+					for n in 0..2 {
+						let tmp_node = calculate_dag_item(
+							index * MIX_NODES as u32 + n as u32,
+							cache,
+						);
+
+						unroll! {
+							// NODE_WORDS
+							for w in 0..16 {
+								*mix.get_unchecked_mut(n).as_words_mut().get_unchecked_mut(w) =
+									fnv_hash(
+										*mix.get_unchecked(n).as_words().get_unchecked(w),
+										*tmp_node.as_words().get_unchecked(w),
+									);
+							}
+						}
+					}
 				}
 			}
 		}
 
+		debug_assert_eq!(MIX_WORDS / 4, 8);
+
 		// compress mix
-		for i in 0..(MIX_WORDS / 4) {
-			let w = i * 4;
-			let mut reduction = *mix.get_unchecked(0).as_words().get_unchecked(w + 0);
-			reduction = reduction.wrapping_mul(FNV_PRIME) ^ *mix.get_unchecked(0).as_words().get_unchecked(w + 1);
-			reduction = reduction.wrapping_mul(FNV_PRIME) ^ *mix.get_unchecked(0).as_words().get_unchecked(w + 2);
-			reduction = reduction.wrapping_mul(FNV_PRIME) ^ *mix.get_unchecked(0).as_words().get_unchecked(w + 3);
-			*mix.get_unchecked_mut(0).as_words_mut().get_unchecked_mut(i) = reduction;
+		unroll! {
+			for i in 0..8 {
+				let w = i * 4;
+				let mut reduction = *mix.get_unchecked(0).as_words().get_unchecked(w + 0);
+				reduction = reduction.wrapping_mul(FNV_PRIME) ^ *mix.get_unchecked(0).as_words().get_unchecked(w + 1);
+				reduction = reduction.wrapping_mul(FNV_PRIME) ^ *mix.get_unchecked(0).as_words().get_unchecked(w + 2);
+				reduction = reduction.wrapping_mul(FNV_PRIME) ^ *mix.get_unchecked(0).as_words().get_unchecked(w + 3);
+				*mix.get_unchecked_mut(0).as_words_mut().get_unchecked_mut(i) = reduction;
+			}
 		}
 
 		let mut mix_hash = [0u8; 32];
@@ -331,13 +362,22 @@ fn calculate_dag_item(node_index: u32, cache: &[Node]) -> Node {
 		*ret.as_words_mut().get_unchecked_mut(0) ^= node_index;
 		sha3::sha3_512(ret.bytes.as_mut_ptr(), ret.bytes.len(), ret.bytes.as_ptr(), ret.bytes.len());
 
-		for i in 0..ETHASH_DATASET_PARENTS {
+		debug_assert_eq!(NODE_WORDS, 16);
+		for i in 0..ETHASH_DATASET_PARENTS as u32 {
 			let parent_index = fnv_hash(node_index ^ i, *ret.as_words().get_unchecked(i as usize % NODE_WORDS)) % num_parent_nodes as u32;
 			let parent = cache.get_unchecked(parent_index as usize);
-			for w in 0..NODE_WORDS {
-				*ret.as_words_mut().get_unchecked_mut(w) = fnv_hash(*ret.as_words().get_unchecked(w), *parent.as_words().get_unchecked(w));
+
+			unroll! {
+				for w in 0..16 {
+					*ret.as_words_mut().get_unchecked_mut(w) =
+						fnv_hash(
+							*ret.as_words().get_unchecked(w),
+							*parent.as_words().get_unchecked(w)
+						);
+				}
 			}
 		}
+
 		sha3::sha3_512(ret.bytes.as_mut_ptr(), ret.bytes.len(), ret.bytes.as_ptr(), ret.bytes.len());
 		ret
 	}
@@ -359,13 +399,20 @@ fn light_new<T: AsRef<Path>>(cache_dir: T, block_number: u64) -> Light {
 			sha3::sha3_512(nodes.get_unchecked_mut(i).bytes.as_mut_ptr(), NODE_BYTES, nodes.get_unchecked(i - 1).bytes.as_ptr(), NODE_BYTES);
 		}
 
+		debug_assert_eq!(NODE_WORDS, 16);
+
+		// This _should_ get unrolled by the compiler, since it's not using the loop variable.
 		for _ in 0..ETHASH_CACHE_ROUNDS {
 			for i in 0..num_nodes {
 				let idx = *nodes.get_unchecked_mut(i).as_words().get_unchecked(0) as usize % num_nodes;
 				let mut data = nodes.get_unchecked((num_nodes - 1 + i) % num_nodes).clone();
-				for w in 0..NODE_WORDS {
-					*data.as_words_mut().get_unchecked_mut(w) ^= *nodes.get_unchecked(idx).as_words().get_unchecked(w);
+
+				unroll! {
+					for w in 0..16 {
+						*data.as_words_mut().get_unchecked_mut(w) ^= *nodes.get_unchecked(idx).as_words().get_unchecked(w);
+					}
 				}
+
 				sha3_512(&data.bytes, &mut nodes.get_unchecked_mut(i).bytes);
 			}
 		}

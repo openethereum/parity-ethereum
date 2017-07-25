@@ -144,34 +144,37 @@ export function updateTokensFilter (_addresses, _tokens, options = {}) {
       promises.push(api.eth.uninstallFilter(tokensFilter.filterToId));
     }
 
-    const promise = Promise.all(promises);
+    Promise
+      .all([
+        api.eth.blockNumber()
+      ].concat(promises))
+      .then(([ block ]) => {
+        const topicsFrom = [ TRANSFER_SIGNATURE, addresses, null ];
+        const topicsTo = [ TRANSFER_SIGNATURE, null, addresses ];
 
-    const topicsFrom = [ TRANSFER_SIGNATURE, addresses, null ];
-    const topicsTo = [ TRANSFER_SIGNATURE, null, addresses ];
+        const filterOptions = {
+          fromBlock: block,
+          toBlock: 'pending',
+          address: tokenAddresses
+        };
 
-    const filterOptions = {
-      fromBlock: 0,
-      toBlock: 'pending',
-      address: tokenAddresses
-    };
+        const optionsFrom = {
+          ...filterOptions,
+          topics: topicsFrom
+        };
 
-    const optionsFrom = {
-      ...filterOptions,
-      topics: topicsFrom
-    };
+        const optionsTo = {
+          ...filterOptions,
+          topics: topicsTo
+        };
 
-    const optionsTo = {
-      ...filterOptions,
-      topics: topicsTo
-    };
+        const newFilters = Promise.all([
+          api.eth.newFilter(optionsFrom),
+          api.eth.newFilter(optionsTo)
+        ]);
 
-    const newFilters = Promise.all([
-      api.eth.newFilter(optionsFrom),
-      api.eth.newFilter(optionsTo)
-    ]);
-
-    promise
-      .then(() => newFilters)
+        return newFilters;
+      })
       .then(([ filterFromId, filterToId ]) => {
         const nextTokensFilter = {
           filterFromId, filterToId,
