@@ -20,6 +20,10 @@ import { action, observable, transaction } from 'mobx';
 export default class StatusStore {
   @observable defaultExtraData = '';
   @observable enode = '';
+  @observable blockNumber = new BigNumber(0);
+  @observable blockTimestamp = new Date();
+  @observable chain = '';
+  @observable netPeers = new BigNumber(0);
   @observable hashrate = new BigNumber(0);
   @observable netPort = new BigNumber(0);
   @observable nodeName = '';
@@ -37,37 +41,62 @@ export default class StatusStore {
     this.api = api;
   }
 
-  @action setLongStatus ({ defaultExtraData, enode, netPort, rpcSettings }) {
-    transaction(() => {
-      this.defaultExtraData = defaultExtraData;
-      this.enode = enode;
-      this.netPort = netPort;
-      this.rpcSettings = rpcSettings;
-    });
-  }
-
-  @action setStatus ({ hashrate }) {
-    transaction(() => {
-      this.hashrate = hashrate;
-    });
+  @action setStatuses ({ chain, defaultExtraData, enode, netPeers, netPort, rpcSettings, hashrate }) {
+    this.chain = chain;
+    this.defaultExtraData = defaultExtraData;
+    this.enode = enode;
+    this.netPeers = netPeers;
+    this.netPort = netPort;
+    this.rpcSettings = rpcSettings;
+    this.hashrate = hashrate;
   }
 
   @action setMinerSettings ({ coinbase, extraData, gasFloorTarget, minGasPrice }) {
-    transaction(() => {
-      this.coinbase = coinbase;
-      this.extraData = extraData;
-      this.gasFloorTarget = gasFloorTarget;
-      this.minGasPrice = minGasPrice;
-    });
+    this.coinbase = coinbase;
+    this.extraData = extraData;
+    this.gasFloorTarget = gasFloorTarget;
+    this.minGasPrice = minGasPrice;
   }
 
   startPolling () {
-    this._pollStatus();
-    this._pollLongStatus();
+    this._startPolling();
   }
 
   stopPolling () {
-    Object.keys(this._timeoutIds).forEach((key) => clearTimeout(this._timeoutIds[key]));
+    if (this.subscriptionId) {
+      this.api.pubsub.unsubscribe(this.subscriptionId);
+    }
+  }
+
+  _startPolling () {
+    this.api.pubsub.parity.getBlockHeaderByNumber((err, block) => {
+      this.blockNumber = block.number;
+      this.blockTimestamp = block.timestamp;
+      this._pollMinerSettings();
+      return Promise
+        .all([
+          this.api.parity.chain(),
+          this.api.parity.defaultExtraData(),
+          this.api.parity.enode().then((enode) => enode).catch(() => '-'),
+          this.api.parity.netPeers(),
+          this.api.parity.netPort(),
+          this.api.parity.rpcSettings(),
+          this.api.eth.hashrate(),
+        ])
+        .then(([
+          chain, defaultExtraData, enode, netPeers, netPort, rpcSettings, hashrate
+        ]) => {
+          this.setStatuses({
+            chain, defaultExtraData, enode, netPeers, netPort, rpcSettings, hashrate
+          });
+        })
+        .catch((error) => {
+          console.error('_pollStatuses', error);
+        })
+    })
+    .then((subscriptionId) => {
+      this.subscriptionId = subscriptionId;
+    });
   }
 
   /**
@@ -97,60 +126,6 @@ export default class StatusStore {
       })
       .catch((error) => {
         console.error('_pollMinerSettings', error);
-      });
-  }
-
-  _pollStatus () {
-    const nextTimeout = (timeout = 1000) => {
-      clearTimeout(this._timeoutIds.short);
-      this._timeoutIds.short = setTimeout(() => this._pollStatus(), timeout);
-    };
-
-    return Promise
-      .all([
-        this.api.eth.hashrate()
-      ])
-      .then(([
-        hashrate
-      ]) => {
-        this.setStatus({
-          hashrate
-        });
-      })
-      .catch((error) => {
-        console.error('_pollStatus', error);
-      })
-      .then(() => {
-        nextTimeout();
-      });
-  }
-
-  _pollLongStatus () {
-    const nextTimeout = (timeout = 30000) => {
-      clearTimeout(this._timeoutIds.long);
-      this._timeoutIds.long = setTimeout(() => this._pollLongStatus(), timeout);
-    };
-
-    this._pollMinerSettings();
-    return Promise
-      .all([
-        this.api.parity.defaultExtraData(),
-        this.api.parity.enode().then((enode) => enode).catch(() => '-'),
-        this.api.parity.netPort(),
-        this.api.parity.rpcSettings()
-      ])
-      .then(([
-        defaultExtraData, enode, netPort, rpcSettings
-      ]) => {
-        this.setLongStatus({
-          defaultExtraData, enode, netPort, rpcSettings
-        });
-      })
-      .catch((error) => {
-        console.error('_pollLongStatus', error);
-      })
-      .then(() => {
-        nextTimeout();
       });
   }
 

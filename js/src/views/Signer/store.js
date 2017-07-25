@@ -49,8 +49,8 @@ export default class SignerStore {
   }
 
   @action unsubscribe () {
-    if (this._timeoutId) {
-      clearTimeout(this._timeoutId);
+    if (this.subscriptionId) {
+      this._api.pubsub.unsubscribe(this.subscriptionId);
     }
   }
 
@@ -88,20 +88,15 @@ export default class SignerStore {
   }
 
   fetchLocalTransactions = () => {
-    const nextTimeout = () => {
-      this._timeoutId = setTimeout(this.fetchLocalTransactions, 1500);
-    };
+    this._api.pubsub.parity.localTransactions((err, transactions) => {
+      const keys = Object
+        .keys(transactions)
+        .filter((key) => transactions[key].status !== 'canceled');
 
-    this._api.parity
-      .localTransactions()
-      .then((localTransactions) => {
-        const keys = Object
-          .keys(localTransactions)
-          .filter((key) => localTransactions[key].status !== 'canceled');
-
-        this.setLocalHashes(keys);
-      })
-      .then(() => nextTimeout())
-      .catch(() => nextTimeout());
+      this.setLocalHashes(keys);
+    })
+    .then((subscriptionId) => {
+      this.subscriptionId = subscriptionId;
+    });
   }
 }
