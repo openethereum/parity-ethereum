@@ -34,3 +34,8 @@ path = "fuzz_targets/untrusted.rs"
 [[bin]]
 name = "append_raw"
 path = "fuzz_targets/append_raw.rs"
+
+[[bin]]
+name = "untrusted_data"
+path = "fuzz_targets/untrusted_data.rs"
+
