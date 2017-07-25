@@ -21,7 +21,7 @@ import Contract from '~/api/contract';
 import { bytesToHex, toHex } from '~/api/util/format';
 import { validateAddress } from '~/util/validation';
 
-import WalletAbi from '~/contracts/abi/wallet.json';
+import WalletAbi from '~/contracts/abi/foundation-multisig-wallet.json';
 import OldWalletAbi from '~/contracts/abi/old-wallet.json';
 
 import PendingContracts from './pending-contracts';

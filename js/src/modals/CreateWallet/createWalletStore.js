@@ -21,7 +21,7 @@ import { FormattedMessage } from 'react-intl';
 
 import Contract from '~/api/contract';
 import Contracts from '~/contracts';
-import { wallet as walletAbi } from '~/contracts/abi';
+import { foundationWallet as walletAbi } from '~/contracts/abi';
 import { wallet as walletCode, walletLibrary as walletLibraryCode, walletLibraryRegKey, fullWalletCode } from '~/contracts/code/wallet';
 
 import { validateUint, validateAddress, validateName } from '~/util/validation';

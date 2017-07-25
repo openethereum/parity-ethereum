@@ -19,7 +19,7 @@ import { isEqual, uniq } from 'lodash';
 import Contract from '~/api/contract';
 import { bytesToHex, toHex } from '~/api/util/format';
 import { ERROR_CODES } from '~/api/transport/error';
-import { wallet as WALLET_ABI } from '~/contracts/abi';
+import { foundationWallet as WALLET_ABI } from '~/contracts/abi';
 import { MAX_GAS_ESTIMATION } from '~/util/constants';
 import WalletsUtils from '~/util/wallets';
 
