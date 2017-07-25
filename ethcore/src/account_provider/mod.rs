@@ -519,6 +519,11 @@ impl AccountProvider {
 		}
 	}
 
+	/// Returns account public key.
+	pub fn account_public(&self, address: Address, password: &str) -> Result<Public, Error> {
+		self.sstore.public(&self.sstore.account_ref(&address)?, password)
+	}
+
 	/// Returns each account along with name and meta.
 	pub fn set_account_name(&self, address: Address, name: String) -> Result<(), Error> {
 		self.sstore.set_name(&self.sstore.account_ref(&address)?, name)?;

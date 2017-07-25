@@ -997,8 +997,11 @@ impl Configuration {
 
 	fn secretstore_self_secret(&self) -> Result<Option<NodeSecretKey>, String> {
 		match self.args.flag_secretstore_secret {
-			Some(ref s) => Ok(Some(NodeSecretKey::Plain(s.parse()
+			Some(ref s) if s.len() == 64 => Ok(Some(NodeSecretKey::Plain(s.parse()
 				.map_err(|e| format!("Invalid secret store secret: {}. Error: {:?}", s, e))?))),
+			Some(ref s) if s.len() == 40 => Ok(Some(NodeSecretKey::KeyStore(s.parse()
+				.map_err(|e| format!("Invalid secret store secret address: {}. Error: {:?}", s, e))?))),
+			Some(_) => Err(format!("Invalid secret store secret. Must be either existing account address, or hex-encoded private key")),
 			None => Ok(None),
 		}
 	}

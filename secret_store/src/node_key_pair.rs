@@ -18,7 +18,7 @@ use std::sync::Arc;
 use ethcrypto::ecdh::agree;
 use ethkey::{KeyPair, Public, Signature, Error as EthKeyError, sign};
 use ethcore::account_provider::AccountProvider;
-use util::H256;
+use util::{Address, H256};
 use traits::NodeKeyPair;
 
 pub struct PlainNodeKeyPair {
@@ -26,7 +26,10 @@ pub struct PlainNodeKeyPair {
 }
 
 pub struct KeyStoreNodeKeyPair {
-	_account_provider: Arc<AccountProvider>,
+	account_provider: Arc<AccountProvider>,
+	address: Address,
+	public: Public,
+	password: String,
 }
 
 impl PlainNodeKeyPair {
@@ -52,13 +55,26 @@ impl NodeKeyPair for PlainNodeKeyPair {
 	}
 }
 
+impl KeyStoreNodeKeyPair {
+	pub fn new(account_provider: Arc<AccountProvider>, address: Address, password: String) -> Result<Self, EthKeyError> {
+		let public = account_provider.account_public(address.clone(), &password).map_err(|e| EthKeyError::Custom(format!("{}", e)))?;
+		Ok(KeyStoreNodeKeyPair {
+			account_provider: account_provider,
+			address: address,
+			public: public,
+			password: password,
+		})
+	}
+}
+
 impl NodeKeyPair for KeyStoreNodeKeyPair {
 	fn public(&self) -> &Public {
-		unimplemented!()
+		&self.public
 	}
 
-	fn sign(&self, _data: &H256) -> Result<Signature, EthKeyError> {
-		unimplemented!()
+	fn sign(&self, data: &H256) -> Result<Signature, EthKeyError> {
+		self.account_provider.sign(self.address.clone(), Some(self.password.clone()), data.clone())
+			.map_err(|e| EthKeyError::Custom(format!("{}", e)))
 	}
 
 	fn compute_shared_key(&self, _peer_public: &Public) -> Result<KeyPair, EthKeyError> {
