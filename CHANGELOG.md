@@ -9,6 +9,7 @@ All Changes:
   - Blacklist bad snapshot manifest hashes upon failure [#5874](https://github.com/paritytech/parity/pull/5874)
   - Bump snap version and tweak importing detection logic [#6079](https://github.com/paritytech/parity/pull/6079) (modified to work)
 - Fix docker build for stable [#6118](https://github.com/paritytech/parity/pull/6118)
+- Update wallet library binaries [#6108](https://github.com/paritytech/parity/pull/6108)
 - Backported wallet fix [#6104](https://github.com/paritytech/parity/pull/6104)
   - Fix initialisation bug. ([#6102](https://github.com/paritytech/parity/pull/6102))
   - Update wallet library modifiers ([#6103](https://github.com/paritytech/parity/pull/6103))
