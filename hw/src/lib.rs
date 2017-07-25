@@ -148,7 +148,7 @@ impl libusb::Hotplug for EventHandler {
 
 impl HardwareWalletManager {
 	pub fn new() -> Result<HardwareWalletManager, Error> {
-		println!("HardwareWalletManager");
+		println!("NEW HardwareWalletManager");
 		let usb_context = Arc::new(libusb::Context::new()?);
 		let keepkey = Arc::new(Mutex::new(keepkey::Manager::new()));
 		let ledger = Arc::new(Mutex::new(ledger::Manager::new()?));
@@ -182,7 +182,6 @@ impl HardwareWalletManager {
 	/// Select key derivation path for a chain.
 	pub fn set_key_path(&self, key_path: KeyPath) {
 		self.ledger.lock().set_key_path(key_path);
-		self.keepkey.lock().set_key_path(key_path);
 	}
 
 	/// List connected wallets. This only returns wallets that are ready to be used.

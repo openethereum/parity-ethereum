@@ -249,7 +249,7 @@ export default class Parity {
       .then(outAddresses);
   }
 
-  keepkey(messageType, address, data) {
+  keepkey (messageType, address, data) {
     return this._transport
       .execute('parity_keepkey', messageType, address, data);
   }

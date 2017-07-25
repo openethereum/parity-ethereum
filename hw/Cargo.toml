@@ -13,6 +13,7 @@ byteorder = "1.0.0"
 quick-protobuf = "0.4.0"
 hidapi = { git = "https://github.com/paritytech/hidapi-rs" }
 libusb = { git = "https://github.com/paritytech/libusb-rs" }
+parity-rpc = { path = "../rpc" }
 ethkey = { path = "../ethkey" }
 ethcore-bigint = { path = "../util/bigint" }
 

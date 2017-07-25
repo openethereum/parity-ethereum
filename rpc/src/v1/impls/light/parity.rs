@@ -352,7 +352,7 @@ impl Parity for ParityClient {
 		})
 	}
 
-	fn keepkey(&self, message_type: String, address: Option<String>, data: Option<Bytes>) -> Result<String, Error> {
+	fn keepkey(&self, message_type: String, path: Option<String>, data: Option<Bytes>) -> Result<String, Error> {
 		Ok("ok".to_string())
 	}
 

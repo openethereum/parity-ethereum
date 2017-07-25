@@ -98,6 +98,7 @@ struct Device {
 impl Manager {
 	/// Create a new instance.
 	pub fn new() -> Result<Manager, Error> {
+		println!("NEW MANAGER LEDGER");
 		let manager = Manager {
 			usb: hidapi::HidApi::new()?,
 			devices: Vec::new(),
@@ -108,6 +109,7 @@ impl Manager {
 
 	/// Re-populate device list. Only those devices that have Ethereum app open will be added.
 	pub fn update_devices(&mut self) -> Result<usize, Error> {
+		println!("UPDATE DEVICES LEDGER");
 		self.usb.refresh_devices();
 		let devices = self.usb.devices();
 		let mut new_devices = Vec::new();

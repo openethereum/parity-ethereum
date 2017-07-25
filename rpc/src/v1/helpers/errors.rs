@@ -214,6 +214,14 @@ pub fn dapps_disabled() -> Error {
 	}
 }
 
+pub fn keepkey_disabled() -> Error {
+	Error {
+		code: ErrorCode::ServerError(codes::UNSUPPORTED_REQUEST),
+		message: "Hardware Wallet is disabled. This API is not available.".into(),
+		data: None,
+	}
+}
+
 pub fn ws_disabled() -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::UNSUPPORTED_REQUEST),

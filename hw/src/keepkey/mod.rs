@@ -6,6 +6,7 @@ extern crate libusb;
 extern crate hidapi;
 extern crate quick_protobuf;
 extern crate byteorder;
+extern crate parity_rpc;
 use keepkey::byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 
 use std::io::{self, BufRead, Cursor};
@@ -18,6 +19,7 @@ use self::protobuf::{
     GetAddress, GetPublicKey, Initialize, Ping, PinMatrixAck,
     PinMatrixRequest, PublicKey, Success,
 };
+use parity_rpc::keepkey::KeepkeyService;
 
 /// Hardware waller error.
 #[derive(Debug)]
@@ -104,6 +106,7 @@ pub struct Manager {
 }
 impl Manager {
     pub fn new() -> Manager {
+        println!("NEW KEEPKEY MANAGER");
         let api  = Arc::new(Mutex::new(hidapi::HidApi::new().unwrap()));
         let mut list = Vec::new();
         // get list of connected devices. If there is a keepkey, add it.
@@ -121,7 +124,7 @@ impl Manager {
     pub fn update_devices(&mut self) -> Result<usize, Error> {
         let api  = self.api.lock().unwrap();
         let mut num_new_devices = 0;
-        println!("UPDATE DEVICES");
+        println!("UPDATE DEVICES KEEPKEY");
         // get list of connected devices. If there is a keepkey, add it to the list.
         for device in api.devices() {
             if device.vendor_id == 11044
@@ -132,6 +135,12 @@ impl Manager {
             }
         }
         Ok(num_new_devices)
+    }
+}
+
+impl KeepkeyService for Manager {
+    fn message(&self, message_type: String, path: Option<String>, data: Option<Bytes>) -> String {
+        "OK!".as_string();
     }
 }
 
