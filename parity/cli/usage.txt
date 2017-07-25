@@ -470,9 +470,7 @@ Legacy Options:
   --ipc-off                        Equivalent to --no-ipc.
   --ipcapi APIS                    Equivalent to --ipc-apis APIS.
   --ipcpath PATH                   Equivalent to --ipc-path PATH.
-  --gasprice WEI                   Minimum amount of Wei per GAS to be paid for a
-                                   transaction to be accepted for mining. Overrides
-                                   --basic-tx-usd.
+  --gasprice WEI                   Equivalent to --min-gas-price WEI.
   --etherbase ADDRESS              Equivalent to --author ADDRESS.
   --extradata STRING               Equivalent to --extra-data STRING.
   --cache MB                       Equivalent to --cache-size MB.
