@@ -58,6 +58,25 @@ const WalletSignatures = {
 };
 
 export default class FoundationWalletUtils {
+  static fetchConfirmations (walletContract, operation, _owners = null) {
+    const ownersPromise = _owners
+      ? Promise.resolve(_owners)
+      : FoundationWalletUtils.fetchOwners(walletContract);
+
+    return ownersPromise
+      .then((owners) => {
+        const promises = owners.map((owner) => {
+          return walletContract.instance.hasConfirmed.call({}, [ operation, owner ]);
+        });
+
+        return Promise
+          .all(promises)
+          .then((data) => {
+            return owners.filter((_, index) => data[index]);
+          });
+      });
+  }
+
   static fetchDailylimit (walletContract) {
     const walletInstance = walletContract.instance;
 
@@ -96,12 +115,8 @@ export default class FoundationWalletUtils {
       });
   }
 
-  static fetchRequire (wallet) {
-    return wallet.instance.m_required.call();
-  }
-
-  static fetchConfirmations (walletContract, cache = {}) {
-    const { transactions } = cache;
+  static fetchPendingTransactions (walletContract, cache = {}) {
+    const { owners, transactions } = cache;
 
     return walletContract
       .instance
@@ -131,9 +146,9 @@ export default class FoundationWalletUtils {
           return logA.transactionIndex.comparedTo(logB.transactionIndex);
         });
       })
-      .then((confirmations) => {
-        if (confirmations.length === 0) {
-          return confirmations;
+      .then((pendingTxs) => {
+        if (pendingTxs.length === 0) {
+          return pendingTxs;
         }
 
         // Only fetch confirmations for operations not
@@ -143,13 +158,30 @@ export default class FoundationWalletUtils {
             .filter((t) => t.operation)
             .map((t) => t.operation);
 
-          return confirmations.filter((confirmation) => {
-            return !operations.includes(confirmation.operation);
+          return pendingTxs.filter((pendingTx) => {
+            return !operations.includes(pendingTx.operation);
           });
         }
 
-        return confirmations;
+        return pendingTxs;
+      })
+      .then((pendingTxs) => {
+        const promises = pendingTxs.map((tx) => {
+          return FoundationWalletUtils
+            .fetchConfirmations(walletContract, tx.operation, owners)
+            .then((confirmedBy) => {
+              tx.confirmedBy = confirmedBy;
+
+              return tx;
+            });
+        });
+
+        return Promise.all(promises);
       });
+  }
+
+  static fetchRequire (wallet) {
+    return wallet.instance.m_required.call();
   }
 
   static fetchTransactions (walletContract) {

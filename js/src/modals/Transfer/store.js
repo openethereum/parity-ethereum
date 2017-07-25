@@ -18,12 +18,12 @@ import { noop } from 'lodash';
 import { observable, computed, action, transaction } from 'mobx';
 import BigNumber from 'bignumber.js';
 
-import { eip20 as tokenAbi, wallet as walletAbi } from '~/contracts/abi';
+import { eip20 as tokenAbi } from '~/contracts/abi';
 import { fromWei } from '~/api/util/wei';
-import Contract from '~/api/contract';
 import ERRORS from './errors';
-import { DEFAULT_GAS, DEFAULT_GASPRICE, MAX_GAS_ESTIMATION } from '~/util/constants';
+import { DEFAULT_GAS } from '~/util/constants';
 import { ETH_TOKEN } from '~/util/tokens';
+import { getTxOptions } from '~/util/tx';
 import GasPriceStore from '~/ui/GasPriceEditor/store';
 import { getLogger, LOG_KEYS } from '~/config';
 
@@ -92,7 +92,6 @@ export default class TransferStore {
 
     if (this.isWallet) {
       this.wallet = props.wallet;
-      this.walletContract = new Contract(this.api, walletAbi);
     }
 
     if (senders) {
@@ -115,19 +114,13 @@ export default class TransferStore {
   @computed get isValid () {
     const detailsValid = !this.recipientError && !this.valueError && !this.totalError && !this.senderError;
     const extrasValid = !this.gasStore.errorGas && !this.gasStore.errorPrice && !this.gasStore.conditionBlockError && !this.totalError;
-    const verifyValid = !this.passwordError;
 
     switch (this.stage) {
       case 0:
         return detailsValid;
 
       case 1:
-        return this.extras
-          ? extrasValid
-          : verifyValid;
-
-      case 2:
-        return verifyValid;
+        return extrasValid;
     }
   }
 
@@ -263,16 +256,21 @@ export default class TransferStore {
 
     if (this.isWallet && !valueError) {
       const { last, limit, spent } = this.wallet.dailylimit;
-      const remains = fromWei(limit.minus(spent));
-      const today = Math.round(Date.now() / (24 * 3600 * 1000));
-      const isResetable = last.lt(today);
 
-      if ((!isResetable && remains.lt(value)) || fromWei(limit).lt(value)) {
-        // already spent too much today
-        this.walletWarning = WALLET_WARNING_SPENT_TODAY_LIMIT;
-      } else if (this.walletWarning) {
-        // all ok
-        this.walletWarning = null;
+      // Don't show a warning if the limit is 0
+      // (will always need confirmations)
+      if (limit.gt(0)) {
+        const remains = fromWei(limit.minus(spent));
+        const today = Math.round(Date.now() / (24 * 3600 * 1000));
+        const willResetLimit = last.lt(today);
+
+        if ((!willResetLimit && remains.lt(value)) || fromWei(limit).lt(value)) {
+          // already spent too much today
+          this.walletWarning = WALLET_WARNING_SPENT_TODAY_LIMIT;
+        } else if (this.walletWarning) {
+          // all ok
+          this.walletWarning = null;
+        }
       }
     }
 
@@ -312,24 +310,16 @@ export default class TransferStore {
       });
   }
 
-  getBalance (forceSender = false) {
-    if (this.isWallet && !forceSender) {
-      return this.balance;
-    }
-
-    const balance = this.senders
-      ? this.sendersBalances[this.sender]
-      : this.balance;
-
-    return balance;
-  }
-
   /**
    * Return the balance of the selected token
    * (in WEI for ETH, without formating for other tokens)
    */
-  getTokenBalance (token = this.token, forceSender = false) {
-    return new BigNumber(this.balance[token.id] || 0);
+  getTokenBalance (token = this.token, address = this.account.address) {
+    const balance = address === this.account.address
+      ? this.balance
+      : this.sendersBalances[address];
+
+    return new BigNumber(balance[token.id] || 0);
   }
 
   getTokenValue (token = this.token, value = this.value, inverse = false) {
@@ -348,54 +338,30 @@ export default class TransferStore {
     return _value.mul(token.format);
   }
 
-  getValues (_gasTotal) {
-    const gasTotal = new BigNumber(_gasTotal || 0);
+  getValue () {
     const { valueAll, isEth, isWallet } = this;
-
-    log.debug('@getValues', 'gas', gasTotal.toFormat());
 
     if (!valueAll) {
       const value = this.getTokenValue();
 
-      // If it's a token or a wallet, eth is the estimated gas,
-      // and value is the user input
-      if (!isEth || isWallet) {
-        return {
-          eth: gasTotal,
-          token: value
-        };
-      }
-
-      // Otherwise, eth is the sum of the gas and the user input
-      const totalEthValue = gasTotal.plus(value);
-
-      return {
-        eth: totalEthValue,
-        token: value
-      };
+      return value;
     }
 
-    // If it's the total balance that needs to be sent, send the total balance
-    // if it's not a proper ETH transfer
+    const balance = this.getTokenBalance();
+
     if (!isEth || isWallet) {
-      const tokenBalance = this.getTokenBalance();
-
-      return {
-        eth: gasTotal,
-        token: tokenBalance
-      };
+      return balance;
     }
 
-    // Otherwise, substract the gas estimate
-    const availableEth = this.getTokenBalance(ETH_TOKEN);
-    const totalEthValue = availableEth.gt(gasTotal)
-      ? availableEth.minus(gasTotal)
+    // substract the gas estimate
+    const gasTotal = new BigNumber(this.gasStore.price || 0)
+      .mul(new BigNumber(this.gasStore.gas || 0));
+
+    const totalEthValue = balance.gt(gasTotal)
+      ? balance.minus(gasTotal)
       : new BigNumber(0);
 
-    return {
-      eth: totalEthValue.plus(gasTotal),
-      token: totalEthValue
-    };
+    return totalEthValue;
   }
 
   getFormattedTokenValue (tokenValue) {
@@ -403,160 +369,125 @@ export default class TransferStore {
   }
 
   @action recalculate = (redo = false) => {
-    const { account } = this;
+    const { account, balance } = this;
 
-    if (!account || !this.balance) {
+    if (!account || !balance) {
       return;
     }
 
-    const balance = this.getBalance();
+    return this.getTransactionOptions()
+      .then((options) => {
+        const gasTotal = options.gas.mul(options.gasPrice);
 
-    if (!balance) {
-      return;
-    }
+        const tokenValue = this.getValue();
+        const ethValue = options.value.add(gasTotal);
 
-    const gasTotal = new BigNumber(this.gasStore.price || 0).mul(new BigNumber(this.gasStore.gas || 0));
+        const tokenBalance = this.getTokenBalance();
+        const ethBalance = this.getTokenBalance(ETH_TOKEN, options.from);
 
-    const ethBalance = this.getTokenBalance(ETH_TOKEN, true);
-    const tokenBalance = this.getTokenBalance();
-    const { eth, token } = this.getValues(gasTotal);
+        let totalError = null;
+        let valueError = null;
 
-    let totalError = null;
-    let valueError = null;
+        if (tokenValue.gt(tokenBalance)) {
+          valueError = ERRORS.largeAmount;
+        }
 
-    if (eth.gt(ethBalance)) {
-      totalError = ERRORS.largeAmount;
-    }
+        if (ethValue.gt(ethBalance)) {
+          totalError = ERRORS.largeAmount;
+        }
 
-    if (token && token.gt(tokenBalance)) {
-      valueError = ERRORS.largeAmount;
-    }
+        log.debug('@recalculate', {
+          eth: ethValue.toFormat(),
+          token: tokenValue.toFormat(),
+          ethBalance: ethBalance.toFormat(),
+          tokenBalance: tokenBalance.toFormat(),
+          gasTotal: gasTotal.toFormat()
+        });
 
-    log.debug('@recalculate', {
-      eth: eth.toFormat(),
-      token: token.toFormat(),
-      ethBalance: ethBalance.toFormat(),
-      tokenBalance: tokenBalance.toFormat(),
-      gasTotal: gasTotal.toFormat()
-    });
+        transaction(() => {
+          this.totalError = totalError;
+          this.valueError = valueError;
+          this.gasStore.setErrorTotal(totalError);
+          this.gasStore.setEthValue(options.value);
 
-    transaction(() => {
-      this.totalError = totalError;
-      this.valueError = valueError;
-      this.gasStore.setErrorTotal(totalError);
-      this.gasStore.setEthValue(eth.sub(gasTotal));
+          this.total = fromWei(ethValue).toFixed();
 
-      this.total = this.api.util.fromWei(eth).toFixed();
+          const nextValue = this.getFormattedTokenValue(tokenValue);
+          let prevValue;
 
-      const nextValue = this.getFormattedTokenValue(token);
-      let prevValue;
+          try {
+            prevValue = new BigNumber(this.value || 0);
+          } catch (error) {
+            prevValue = new BigNumber(0);
+          }
 
-      try {
-        prevValue = new BigNumber(this.value || 0);
-      } catch (error) {
-        prevValue = new BigNumber(0);
-      }
+          // Change the input only if necessary
+          if (!nextValue.eq(prevValue)) {
+            this.value = nextValue.toString();
+          }
 
-      // Change the input only if necessary
-      if (!nextValue.eq(prevValue)) {
-        this.value = nextValue.toString();
-      }
-
-      // Re Calculate gas once more to be sure
-      if (redo) {
-        return this.recalculateGas(false);
-      }
-    });
-  }
-
-  send () {
-    const { options, values } = this._getTransferParams();
-
-    log.debug('@send', 'transfer value', options.value && options.value.toFormat());
-
-    return this._getTransferMethod().postTransaction(options, values);
-  }
-
-  _estimateGas (forceToken = false) {
-    const { options, values } = this._getTransferParams(true, forceToken);
-
-    return this._getTransferMethod(true, forceToken).estimateGas(options, values);
+          // Re Calculate gas once more to be sure
+          if (redo) {
+            return this.recalculateGas(false);
+          }
+        });
+      });
   }
 
   estimateGas () {
-    return this._estimateGas();
+    return this.getTransactionOptions()
+      .then((options) => {
+        return this.api.eth.estimateGas(options);
+      });
   }
 
-  _getTransferMethod (gas = false, forceToken = false) {
-    const { isEth, isWallet } = this;
+  send () {
+    return this.getTransactionOptions()
+      .then((options) => {
+        log.debug('@send', 'transfer value', options.value && options.value.toFormat());
 
-    if (isEth && !isWallet && !forceToken) {
-      return gas ? this.api.eth : this.api.parity;
-    }
-
-    if (isWallet && !forceToken) {
-      return this.wallet.instance.execute;
-    }
-
-    return this.tokenContract.at(this.token.address).instance.transfer;
+        return this.api.parity.postTransaction(options);
+      });
   }
 
-  _getData (gas = false) {
-    const { isEth, isWallet } = this;
+  getTransactionOptions () {
+    const [ func, options, values ] = this._getTransactionArgs();
 
-    if (!isWallet || isEth) {
-      return this.data && this.data.length ? this.data : '';
-    }
-
-    const func = this._getTransferMethod(gas, true);
-    const { options, values } = this._getTransferParams(gas, true);
-
-    return this.tokenContract.at(this.token.address).getCallData(func, options, values);
+    return getTxOptions(this.api, func, options, values)
+      .then((_options) => {
+        delete _options.sender;
+        return _options;
+      });
   }
 
-  _getTransferParams (gas = false, forceToken = false) {
-    const { isEth, isWallet } = this;
+  _getTransactionArgs () {
+    const { isEth } = this;
 
-    const to = (isEth && !isWallet) ? this.recipient
-      : (this.isWallet ? this.wallet.address : this.token.address);
-
+    const value = this.getValue();
     const options = this.gasStore.overrideTransaction({
-      from: this.sender || this.account.address,
-      to
+      from: this.account.address,
+      sender: this.sender
     });
 
-    if (gas) {
-      options.gas = MAX_GAS_ESTIMATION;
+    // A simple ETH transfer
+    if (isEth) {
+      options.value = value;
+      options.data = this.data || '';
+      options.to = this.recipient;
+
+      return [ null, options ];
     }
 
-    const gasTotal = new BigNumber(options.gas || DEFAULT_GAS).mul(options.gasPrice || DEFAULT_GASPRICE);
-    const { token } = this.getValues(gasTotal);
-
-    if (isEth && !isWallet && !forceToken) {
-      options.value = token;
-      options.data = this._getData(gas);
-
-      return { options, values: [] };
-    }
-
-    if (isWallet && !forceToken) {
-      const to = isEth ? this.recipient : this.token.address;
-      const value = isEth ? token : new BigNumber(0);
-
-      const values = [
-        to, value,
-        this._getData(gas)
-      ];
-
-      return { options, values };
-    }
-
+    // A token transfer
+    const tokenContract = this.tokenContract.at(this.token.address);
     const values = [
       this.recipient,
-      token.toFixed(0)
+      value
     ];
 
-    return { options, values };
+    options.to = this.token.address;
+
+    return [ tokenContract.instance.transfer, options, values ];
   }
 
   _validatePositiveNumber (num) {

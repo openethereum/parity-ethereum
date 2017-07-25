@@ -18,7 +18,7 @@ import BigNumber from 'bignumber.js';
 
 import Abi from '~/abi';
 import Contract from '~/api/contract';
-import { toHex } from '~/api/util/format';
+import { bytesToHex, toHex } from '~/api/util/format';
 
 import WalletAbi from '~/contracts/abi/consensys-multisig-wallet.json';
 
@@ -31,7 +31,8 @@ const walletEvents = walletAbi.events.reduce((events, event) => {
 
 const WalletSignatures = {
   Deposit: toHex(walletEvents.Deposit.signature),
-  Execution: toHex(walletEvents.Execution.signature)
+  Execution: toHex(walletEvents.Execution.signature),
+  Submission: toHex(walletEvents.Submission.signature)
 };
 
 export default class ConsensysWalletUtils {
@@ -41,6 +42,91 @@ export default class ConsensysWalletUtils {
     return wallet.instance.getOwners.call()
       .then((owners) => {
         return owners.map((token) => token.value);
+      });
+  }
+
+  static fetchPendingTransactions (inWallet) {
+    const wallet = new Contract(inWallet.api, WalletAbi).at(inWallet.address);
+
+    let transactions;
+    let txIds;
+
+    // Get pending and not exectued transactions
+    return wallet.instance.getTransactionCount
+      .call({}, [ true, false ])
+      .then((txCount) => {
+        // Get all the pending transactions
+        const fromId = 0;
+        const toId = txCount;
+
+        return wallet.instance.getTransactionIds
+          .call({}, [ fromId, toId, true, false ]);
+      })
+      .then((_txIds) => {
+        txIds = _txIds.map((token) => token.value);
+
+        const promises = txIds.map((txId) => {
+          return wallet.instance.transactions
+            .call({}, [ txId ]);
+        });
+
+        return Promise.all(promises);
+      })
+      .then((transactions) => {
+        return transactions.map((transaction, index) => {
+          const [ destination, value, data ] = transaction;
+          const id = txIds[index];
+
+          return {
+            to: destination,
+            data,
+            value,
+            operation: id
+          };
+        });
+      })
+      .then((_transactions) => {
+        transactions = _transactions;
+
+        return wallet
+          .getAllLogs({
+            topics: [
+              WalletSignatures.Submission,
+              txIds.map((txId) => toHex(txId))
+            ]
+          });
+      })
+      .then((logs) => {
+        transactions.forEach((tx) => {
+          const log = logs
+            .find((log) => log.params.transactionId.value.eq(tx.operation));
+
+          if (!log) {
+            console.warn('could not find a Submission log for this operation', tx);
+            return;
+          }
+
+          tx.transactionIndex = log.transactionIndex;
+          tx.transactionHash = log.transactionHash;
+          tx.blockNumber = log.blockNumber;
+        });
+
+        const confirmationsPromises = transactions.map((tx) => {
+          return wallet.instance.getConfirmations
+            .call({}, [ tx.operation ])
+            .then((owners) => {
+              return owners.map((token) => token.value);
+            });
+        });
+
+        return Promise.all(confirmationsPromises);
+      })
+      .then((confirmations) => {
+        transactions.forEach((tx, index) => {
+          tx.confirmedBy = confirmations[index];
+        });
+
+        return transactions;
       });
   }
 

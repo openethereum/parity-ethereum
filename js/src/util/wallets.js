@@ -64,11 +64,11 @@ export default class WalletsUtils {
       .delegateCall(api, walletContract.address, 'fetchRequire', [ walletContract ]);
   }
 
-  static fetchPendingTransactions (walletContract) {
+  static fetchPendingTransactions (walletContract, cache) {
     const { api } = walletContract;
 
     return WalletsUtils
-      .delegateCall(api, walletContract.address, 'fetchPendingTransactions', [ walletContract ]);
+      .delegateCall(api, walletContract.address, 'fetchPendingTransactions', [ walletContract, cache ]);
   }
 
   static fetchTransactions (walletContract) {
@@ -111,7 +111,7 @@ export default class WalletsUtils {
         const nextValues = [ to, value, data ];
         const nextOptions = {
           ..._options,
-          from: ownerAddress,
+          from: options.sender || ownerAddress,
           to: walletAddress,
           value: new BigNumber(0)
         };

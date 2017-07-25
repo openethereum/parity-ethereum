@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import BigNumber from 'bignumber.js';
+
 import WalletsUtils from '~/util/wallets';
 
 /**
@@ -71,9 +73,8 @@ const isValidReceipt = (receipt) => {
   return receipt && receipt.blockNumber && receipt.blockNumber.gt(0);
 };
 
-function getTxArgs (func, options, values = []) {
-  const { contract } = func;
-  const { api } = contract;
+export function getTxOptions (api, func, _options, values = []) {
+  const options = { ..._options };
   const address = options.from;
 
   if (!address) {
@@ -87,8 +88,12 @@ function getTxArgs (func, options, values = []) {
         return { func, options, values };
       }
 
-      options.data = contract.getCallData(func, options, values);
-      options.to = options.to || contract.address;
+      if (func && func.contract) {
+        const { contract } = func;
+
+        options.data = contract.getCallData(func, options, values);
+        options.to = options.to || contract.address;
+      }
 
       if (!options.to) {
         return { func, options, values };
@@ -103,24 +108,35 @@ function getTxArgs (func, options, values = []) {
 
           return callArgs;
         });
+    })
+    .then(({ func, options, values }) => {
+      if (func) {
+        options.data = func.contract.getCallData(func, options, values);
+      }
+
+      if (!options.value) {
+        options.value = new BigNumber(0);
+      }
+
+      return options;
     });
 }
 
 export function estimateGas (_func, _options, _values = []) {
-  return getTxArgs(_func, _options, _values)
-    .then((callArgs) => {
-      const { func, options, values } = callArgs;
+  const { api } = _func.contract;
 
-      return func._estimateGas(options, values);
+  return getTxOptions(api, _func, _options, _values)
+    .then((options) => {
+      return api.eth.estimateGas(options);
     });
 }
 
 export function postTransaction (_func, _options, _values = []) {
-  return getTxArgs(_func, _options, _values)
-    .then((callArgs) => {
-      const { func, options, values } = callArgs;
+  const { api } = _func.contract;
 
-      return func._postTransaction(options, values);
+  return getTxOptions(api, _func, _options, _values)
+    .then((options) => {
+      return api.parity.postTransaction(options);
     });
 }
 
