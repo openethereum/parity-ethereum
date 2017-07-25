@@ -13,7 +13,7 @@ fn main() {
         }
         Channel::Nightly => {
             println!("cargo:rustc-cfg=RUSTC_IS_NIGHTLY");
-            println!("cargo:rustc-cfg=nightly")
+            println!("cargo:rustc-cfg=feature=\"nightly\"")
         }
         Channel::Dev => {
             println!("cargo:rustc-cfg=RUSTC_IS_DEV");

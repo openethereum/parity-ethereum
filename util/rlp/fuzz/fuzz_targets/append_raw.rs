@@ -1,6 +1,6 @@
 #![no_main]
+#![cfg(feature = "nightly")]
 #[macro_use] extern crate libfuzzer_sys;
-#[cfg(feature = "nightly")]
 extern crate rlp;
 extern crate rand;
 
