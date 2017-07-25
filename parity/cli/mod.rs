@@ -43,14 +43,12 @@ usage! {
 		cmd_hash: bool,
 		cmd_kill: bool,
 		cmd_db: bool,
-		cmd_preset: bool,
 
 		// Arguments
 		arg_pid_file: String,
 		arg_file: Option<String>,
 		arg_path: Vec<String>,
 		arg_id: Option<usize>,
-		arg_preset: String,
 
 		// Flags
 		// -- Legacy Options
@@ -707,14 +705,12 @@ mod tests {
 			cmd_hash: false,
 			cmd_db: false,
 			cmd_kill: false,
-			cmd_preset: false,
 
 			// Arguments
 			arg_pid_file: "".into(),
 			arg_file: None,
 			arg_id: None,
 			arg_path: vec![],
-			arg_preset: "".into(),
 
 			// -- Operating Options
 			flag_mode: "last".into(),

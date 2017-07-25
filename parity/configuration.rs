@@ -1599,7 +1599,7 @@ mod tests {
 
 	#[test]
 	fn test_dev_preset() {
-		let args = vec!["parity", "preset", "dev"];
+		let args = vec!["parity", "--config", "dev"];
 		let conf = Configuration::parse(&args, None).unwrap();
 		match conf.into_command().unwrap().cmd {
 			Cmd::Run(c) => {
@@ -1613,7 +1613,7 @@ mod tests {
 
 	#[test]
 	fn test_mining_preset() {
-		let args = vec!["parity", "preset", "mining"];
+		let args = vec!["parity", "--config", "mining"];
 		let conf = Configuration::parse(&args, None).unwrap();
 		match conf.into_command().unwrap().cmd {
 			Cmd::Run(c) => {
@@ -1635,7 +1635,7 @@ mod tests {
 
 	#[test]
 	fn test_non_standard_ports_preset() {
-		let args = vec!["parity", "preset", "non-standard-ports"];
+		let args = vec!["parity", "--config", "non-standard-ports"];
 		let conf = Configuration::parse(&args, None).unwrap();
 		match conf.into_command().unwrap().cmd {
 			Cmd::Run(c) => {
@@ -1648,7 +1648,7 @@ mod tests {
 
 	#[test]
 	fn test_insecure_preset() {
-		let args = vec!["parity", "preset", "insecure"];
+		let args = vec!["parity", "--config", "insecure"];
 		let conf = Configuration::parse(&args, None).unwrap();
 		match conf.into_command().unwrap().cmd {
 			Cmd::Run(c) => {
@@ -1668,7 +1668,7 @@ mod tests {
 
 	#[test]
 	fn test_dev_insecure_preset() {
-		let args = vec!["parity", "preset", "dev-insecure"];
+		let args = vec!["parity", "--config", "dev-insecure"];
 		let conf = Configuration::parse(&args, None).unwrap();
 		match conf.into_command().unwrap().cmd {
 			Cmd::Run(c) => {
@@ -1691,7 +1691,7 @@ mod tests {
 
 	#[test]
 	fn test_override_preset() {
-		let args = vec!["parity", "preset", "mining", "--min-peers=99"];
+		let args = vec!["parity", "--config", "mining", "--min-peers=99"];
 		let conf = Configuration::parse(&args, None).unwrap();
 		match conf.into_command().unwrap().cmd {
 			Cmd::Run(c) => {
