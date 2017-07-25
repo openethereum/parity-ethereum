@@ -1,6 +1,6 @@
 #![no_main]
+#[cfg(feature = "nightly")
 #[macro_use] extern crate libfuzzer_sys;
-#[cfg(feature = "nightly"])
 extern crate rlp;
 extern crate rand;
 
@@ -16,3 +16,4 @@ fuzz_target!(|data: &[u8]| {
 
     let _ = rls.append_raw(data, rand_item_count);
 });
+]
