@@ -16,6 +16,7 @@
 
 #[macro_use]
 mod usage;
+mod presets;
 use dir;
 
 usage! {
@@ -266,6 +267,8 @@ usage! {
 			or |c: &Config| otry!(c.mining).tx_time_limit.clone().map(Some),
 		flag_relay_set: String = "cheap",
 			or |c: &Config| otry!(c.mining).relay_set.clone(),
+		flag_min_gas_price: Option<u64> = None,
+			or |c: &Config| otry!(c.mining).min_gas_price.clone().map(Some),
 		flag_usd_per_tx: String = "0.0025",
 			or |c: &Config| otry!(c.mining).usd_per_tx.clone(),
 		flag_usd_per_eth: String = "auto",
@@ -548,6 +551,7 @@ struct Mining {
 	tx_gas_limit: Option<String>,
 	tx_time_limit: Option<u64>,
 	relay_set: Option<String>,
+	min_gas_price: Option<u64>,
 	usd_per_tx: Option<String>,
 	usd_per_eth: Option<String>,
 	price_update_period: Option<String>,
@@ -819,6 +823,7 @@ mod tests {
 			flag_tx_gas_limit: Some("6283184".into()),
 			flag_tx_time_limit: Some(100u64),
 			flag_relay_set: "cheap".into(),
+			flag_min_gas_price: Some(0u64),
 			flag_usd_per_tx: "0.0025".into(),
 			flag_usd_per_eth: "auto".into(),
 			flag_price_update_period: "hourly".into(),
@@ -1051,6 +1056,7 @@ mod tests {
 				reseal_max_period: Some(60000),
 				work_queue_size: None,
 				relay_set: None,
+				min_gas_price: None,
 				usd_per_tx: None,
 				usd_per_eth: None,
 				price_update_period: Some("hourly".into()),
