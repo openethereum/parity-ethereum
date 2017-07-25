@@ -4,9 +4,13 @@ name = "rlp-fuzz"
 version = "0.0.1"
 authors = ["Parity Technologies <admin@parity.io>"]
 publish = false
+build = "build.rs"
 
 [package.metadata]
 cargo-fuzz = true
+
+[features]
+nightly = []
 
 [dependencies]
 rand = "0.3"
