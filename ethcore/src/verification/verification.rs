@@ -591,6 +591,7 @@ mod tests {
 		let mut params = CommonParams::default();
 		params.dust_protection_transition = 0;
 		params.nonce_cap_increment = 2;
+		params.apply_reward = false;
 
 		let mut header = Header::default();
 		header.set_number(1);

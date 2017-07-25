@@ -215,8 +215,7 @@ impl<T> TraceDB<T> where T: DatabaseExtras {
 		block_number: BlockNumber,
 		tx_number: usize
 	) -> Vec<LocalizedTrace> {
-		let tx_hash = self.extras.transaction_hash(block_number, tx_number)
-			.expect("Expected to find transaction hash. Database is probably corrupted");
+		let tx_hash = self.extras.transaction_hash(block_number, tx_number);
 
 		let flat_traces: Vec<FlatTrace> = traces.into();
 		flat_traces.into_iter()
@@ -228,7 +227,11 @@ impl<T> TraceDB<T> where T: DatabaseExtras {
 						subtraces: trace.subtraces,
 						trace_address: trace.trace_address.into_iter().collect(),
 						transaction_number: tx_number,
-						transaction_hash: tx_hash.clone(),
+						transaction_hash: match tx_hash {
+							Some(hash) => hash.clone(),
+							/// None tx hash means non transaction's trace
+							None => 0.into(),
+						},
 						block_number: block_number,
 						block_hash: block_hash
 					}),

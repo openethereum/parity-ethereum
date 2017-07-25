@@ -17,10 +17,16 @@
 use std::collections::BTreeMap;
 use util::Address;
 use builtin::Builtin;
-use engines::Engine;
+use block::*;
+use util::*;
+use engines::{Engine, CloseOutcome};
 use spec::CommonParams;
 use evm::Schedule;
 use header::BlockNumber;
+use error::Error;
+use state::CleanupMode;
+use trace::{Tracer, ExecutiveTracer};
+use types::trace_types::trace::{RewardType};
 
 /// An engine which does not provide any consensus mechanism and does not seal blocks.
 pub struct NullEngine {
@@ -63,5 +69,30 @@ impl Engine for NullEngine {
 
 	fn snapshot_components(&self) -> Option<Box<::snapshot::SnapshotComponents>> {
 		Some(Box::new(::snapshot::PowSnapshot(10000)))
+	}
+
+	fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<CloseOutcome, Error> {
+		if !self.params.apply_reward {
+			return Ok(CloseOutcome{trace: None});
+		}
+
+		let fields = block.fields_mut();		
+		let mut tracer = ExecutiveTracer::default();
+
+		let result_block_reward = U256::from(1000000000);
+		fields.state.add_balance(
+			fields.header.author(),
+			&result_block_reward,
+			CleanupMode::NoEmpty
+		)?;
+
+		let block_miner = fields.header.author().clone();
+		tracer.trace_reward(block_miner, result_block_reward, RewardType::Block);
+
+		fields.state.commit()?;
+		match *fields.tracing_enabled {
+			true => Ok(CloseOutcome{trace: Some(tracer.traces())}),
+			false => Ok(CloseOutcome{trace: None})
+		}
 	}
 }

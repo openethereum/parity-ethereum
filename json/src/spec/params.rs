@@ -102,6 +102,9 @@ pub struct Params {
 	pub block_reward: Option<Uint>,
 	/// See `CommonParams` docs.
 	pub registrar: Option<Address>,
+	/// Apply reward flag
+	#[serde(rename="applyReward")]
+	pub apply_reward: Option<bool>,
 }
 
 #[cfg(test)]
