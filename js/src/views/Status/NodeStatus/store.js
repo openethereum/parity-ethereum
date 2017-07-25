@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import BigNumber from 'bignumber.js';
-import { action, observable, transaction } from 'mobx';
+import { action, observable } from 'mobx';
 
 export default class StatusStore {
   @observable defaultExtraData = '';
@@ -70,6 +70,9 @@ export default class StatusStore {
 
   _startPolling () {
     this.api.pubsub.parity.getBlockHeaderByNumber((err, block) => {
+      if (err) {
+        return;
+      }
       this.blockNumber = block.number;
       this.blockTimestamp = block.timestamp;
       this._pollMinerSettings();
@@ -81,7 +84,7 @@ export default class StatusStore {
           this.api.parity.netPeers(),
           this.api.parity.netPort(),
           this.api.parity.rpcSettings(),
-          this.api.eth.hashrate(),
+          this.api.eth.hashrate()
         ])
         .then(([
           chain, defaultExtraData, enode, netPeers, netPort, rpcSettings, hashrate
@@ -92,7 +95,7 @@ export default class StatusStore {
         })
         .catch((error) => {
           console.error('_pollStatuses', error);
-        })
+        });
     })
     .then((subscriptionId) => {
       this.subscriptionId = subscriptionId;

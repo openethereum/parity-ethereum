@@ -18,7 +18,6 @@ import bytes from 'bytes';
 import moment from 'moment';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
-import { connect } from 'react-redux';
 import { observer } from 'mobx-react';
 
 import { Container, ContainerTitle, Input } from '~/ui';

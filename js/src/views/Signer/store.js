@@ -89,6 +89,9 @@ export default class SignerStore {
 
   fetchLocalTransactions = () => {
     this._api.pubsub.parity.localTransactions((err, transactions) => {
+      if (err) {
+        return;
+      }
       const keys = Object
         .keys(transactions)
         .filter((key) => transactions[key].status !== 'canceled');
