@@ -285,6 +285,13 @@ impl<L: AsLightClient + Send + Sync> Handler for LightSync<L> {
 			best.clone()
 		};
 
+		{
+			let mut pending_reqs = self.pending_reqs.lock();
+			for unfulfilled in unfulfilled {
+				pending_reqs.remove(&unfulfilled);
+			}
+		}
+
 		if new_best.is_none() {
 			debug!(target: "sync", "No peers remain. Reverting to idle");
 			*self.state.lock() = SyncState::Idle;
