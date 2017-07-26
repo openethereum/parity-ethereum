@@ -21,7 +21,21 @@ es6Promise.polyfill();
 
 import Api from '@parity/api';
 
-const ethereum = new Api.Provider.Http('/rpc/');
+const parts = window.location.split('/');
+const appId = parts[parts.length - 2];
+const ethereum = new Api.Provider.PostMessage(appId);
+
+console.log('location', parts, appId);
+
+ethereum
+  .requestNewToken()
+  .then((tokenId) => {
+    console.log(`Received new communications token ${tokenId}`);
+  })
+  .catch((error) => {
+    console.error('Unable to retrieve communications token', error);
+  });
+
 const api = new Api(ethereum);
 
 window.ethereum = ethereum;

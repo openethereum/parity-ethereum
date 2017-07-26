@@ -79,15 +79,16 @@ const dappsHistory = HistoryStore.get('dapps');
 
 function onEnterDapp ({ params: { id } }) {
   const token = DappRequestsStore.get().createToken(id);
+  const ethereum = new Api.Provider.PostMessage(id, window);
 
-  // on app switch unsubscribe all subscriptions
+  ethereum.setToken(token);
+
   if (window.ethereum) {
     window.ethereum.unsubscribeAll();
   }
 
-  // old API uses window.parity
+  window.ethereum = ethereum;
   window.parity = { Api, Abi };
-  window.ethereum = new Api.Provider.PostMessage(token, window);
 
   if (!dapps[id] || !dapps[id].skipHistory) {
     dappsHistory.add(id);
