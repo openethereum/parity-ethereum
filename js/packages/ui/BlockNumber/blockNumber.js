@@ -30,8 +30,6 @@ function BlockNumber ({ className }, { api }) {
     return null;
   }
 
-  console.log('blockNumber', store.blockNumber.toFormat());
-
   if (!store.syncing) {
     return (
       <div className={ [styles.blockNumber, className].join(' ') }>
