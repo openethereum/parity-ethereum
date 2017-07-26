@@ -21,7 +21,7 @@ import JsonRpcBase from '../jsonRpcBase';
 import TransportError from '../error';
 
 /* global WebSocket */
-export default class WsSecure extends JsonRpcBase {
+export default class Ws extends JsonRpcBase {
   // token is optional (secure API)
   constructor (url, token = null, autoconnect = true) {
     super();
@@ -318,6 +318,16 @@ export default class WsSecure extends JsonRpcBase {
       this._messages[id] = { id, method, uMethod, params, json, resolve, reject, callback, subscription };
 
       this._send(id);
+    });
+  }
+
+  unsubscribeAll () {
+    return new Promise((resolve, reject) => {
+      var unsubscribed = 0;
+      let keys = Object.keys(this._messages);
+
+      keys.forEach(i => this._messages[i].subscription ? this.unsubscribe(this._messages[i].subId).then(_ => unsubscribed++, reject) : null);
+      resolve(unsubscribed);
     });
   }
 

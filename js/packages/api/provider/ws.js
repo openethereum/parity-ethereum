@@ -14,4 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export default from './wsSecure';
+import { Ws as Transport } from '../transport';
+
+export default class Ws extends Transport {
+  send = (method, params, callback) => {
+    this
+      ._execute(method, params)
+      .then((result) => callback(null, result))
+      .catch((error) => callback(error));
+  }
+}

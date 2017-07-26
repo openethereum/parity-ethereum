@@ -14,8 +14,29 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export PromiseProvider from './promise';
+import React, { PropTypes } from 'react';
 
-export Http from './http';
-export PostMessage from './postMessage';
-export Ws from './ws';
+import { Tab as SemanticTab } from 'semantic-ui-react';
+
+export default function Tab ({ activeIndex, as, defaultActiveIndex, menu, onTabChange, panes, label }) {
+  return (
+    <SemanticTab
+      activeIndex={ activeIndex }
+      as={ as }
+      defaultActiveIndex={ defaultActiveIndex }
+      menu={ menu }
+      onTabChange={ onTabChange }
+      panes={ panes }
+    />
+  );
+}
+
+Tab.propTypes = {
+  activeIndex: PropTypes.number || PropTypes.string,
+  as: PropTypes.any,
+  defaultActiveIndex: PropTypes.number || PropTypes.string,
+  menu: PropTypes.number,
+  onTabChange: PropTypes.func,
+  panes: PropTypes.array,
+  label: PropTypes.node
+};

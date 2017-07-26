@@ -16,7 +16,7 @@
 
 export default class PostMessage {
   id = 0;
-  _callbacks = {};
+  _messages = {};
 
   constructor (token, destination) {
     this._token = token;
@@ -28,17 +28,55 @@ export default class PostMessage {
   addMiddleware () {
   }
 
+  _send (data) {
+    this._destination.postMessage(data, '*');
+  }
+
   send = (method, params, callback) => {
     const id = ++this.id;
 
-    this._callbacks[id] = callback;
-    this._destination.postMessage({
+    this._messages[id] = { callback };
+    this._send({
       id,
       from: this._token,
       method,
       params,
       token: this._token
-    }, '*');
+    });
+  }
+
+  subscribe = (api, callback, params) => {
+    console.log('paritySubscribe', JSON.stringify(params), api, callback);
+    return new Promise((resolve, reject) => {
+      const id = ++this.id;
+
+      this._messages[id] = { callback, resolve, reject, subscription: true, initial: true };
+      this._send({
+        id,
+        from: this._token,
+        api,
+        params,
+        token: this._token
+      });
+    });
+  }
+
+  unsubscribe = (subId) => {
+    return new Promise((resolve, reject) => {
+      const id = ++this.id;
+
+      this._messages[id] = { callback: (e, v) => e ? reject(e) : resolve(v) };
+      this._send({
+        id,
+        from: this._token,
+        subId,
+        token: this._token
+      });
+    });
+  }
+
+  unsubscribeAll () {
+    return this.unsubscribe('*');
   }
 
   receiveMessage = ({ data: { id, error, from, token, result }, origin, source }) => {
@@ -50,7 +88,13 @@ export default class PostMessage {
       console.error(from, error);
     }
 
-    this._callbacks[id](error && new Error(error), result);
-    this._callbacks[id] = null;
+    if (this._messages[id].subscription) {
+      console.log('subscription', result, 'initial?', this._messages[id].initial);
+      this._messages[id].initial ? this._messages[id].resolve(result) : this._messages[id].callback(error && new Error(error), result);
+      this._messages[id].initial = false;
+    } else {
+      this._messages[id].callback(error && new Error(error), result);
+      this._messages[id] = null;
+    }
   }
 }

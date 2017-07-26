@@ -29,5 +29,6 @@ export RadioButtons from './RadioButtons';
 export Toggle from './Toggle';
 export TypedInput from './TypedInput';
 export VaultSelect from './VaultSelect';
+export Tab from './Tab';
 
 export default from './form';

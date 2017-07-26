@@ -14,8 +14,16 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export PromiseProvider from './promise';
+import Ws from './ws';
 
-export Http from './http';
-export PostMessage from './postMessage';
-export Ws from './ws';
+const ws = new Ws('ws://localhost:8546/');
+
+describe('transport/WsSecure', () => {
+  it('connects and makes a call to web3_clientVersion', () => {
+    return ws.execute('web3_clientVersion').then((version) => {
+      const [client] = version.split('/');
+
+      expect(client === 'Geth' || client === 'Parity').to.be.ok;
+    });
+  });
+});

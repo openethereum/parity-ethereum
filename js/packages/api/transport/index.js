@@ -15,6 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 export Http from './http';
-export WsSecure from './wsSecure';
+export Ws from './ws';
 export TransportError from './error';
 export Middleware from './middleware';

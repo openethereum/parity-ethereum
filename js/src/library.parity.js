@@ -14,13 +14,24 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { WsSecure as Transport } from '../transport';
+import es6Promise from 'es6-promise';
+es6Promise.polyfill();
 
-export default class WsSecure extends Transport {
-  send = (method, params, callback) => {
-    this
-      ._execute(method, params)
-      .then((result) => callback(null, result))
-      .catch((error) => callback(error));
-  }
+const isNode = typeof global !== 'undefined' && typeof global !== 'undefined';
+const isBrowser = typeof self !== 'undefined' && typeof self.window !== 'undefined';
+
+if (isBrowser) {
+  require('whatwg-fetch');
 }
+
+if (isNode) {
+  global.fetch = require('node-fetch');
+}
+
+import Abi from '@parity/abi';
+import Api from '@parity/api';
+
+const Parity = { Api, Abi };
+
+export default Parity;
+export { Api, Abi };

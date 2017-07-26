@@ -20,11 +20,11 @@ export default class PubsubBase {
     this._provider = provider;
   }
 
-  addListener (module, eventName, callback, eventParams) {
+  addListener (module, eventName, handler, eventParams) {
     return eventParams
-     ? this._provider.subscribe(module, callback, [eventName, eventParams])
-     : this._provider.subscribe(module, callback, [eventName, []]);
-    // this._transport.subscribe(module, callback, eventName);  After Patch from tomac is merged to master! =>  eth_subscribe does not support empty array as params
+     ? this._provider.subscribe(module, handler, [eventName, eventParams])
+     : this._provider.subscribe(module, handler, [eventName, []]);
+    // this._transport.subscribe(module, handler, eventName);  After Patch from tomac is merged to master! =>  eth_subscribe does not support empty array as params
   }
 
   removeListener (subscriptionIds) {
