@@ -32,6 +32,11 @@ pub struct MemoryLruCache<K: Eq + Hash, V: HeapSizeOf> {
 	max_size: usize,
 }
 
+// amount of memory used when the item will be put on the heap.
+fn heap_size_of<T: HeapSizeOf>(val: &T) -> usize {
+	::std::mem::size_of::<T>() + val.heap_size_of_children()
+}
+
 impl<K: Eq + Hash, V: HeapSizeOf> MemoryLruCache<K, V> {
 	/// Create a new cache with a maximum size in bytes.
 	pub fn new(max_size: usize) -> Self {
@@ -52,15 +57,17 @@ impl<K: Eq + Hash, V: HeapSizeOf> MemoryLruCache<K, V> {
 			self.inner.set_capacity(cap * 2);
 		}
 
+		self.cur_size += heap_size_of(&val);
+
 		// account for any element displaced from the cache.
 		if let Some(lru) = self.inner.insert(key, val) {
-			self.cur_size -= lru.heap_size_of_children();
+			self.cur_size -= heap_size_of(&lru);
 		}
 
 		// remove elements until we are below the memory target.
 		while self.cur_size > self.max_size {
 			match self.inner.remove_lru() {
-				Some((_, v)) => self.cur_size -= v.heap_size_of_children(),
+				Some((_, v)) => self.cur_size -= heap_size_of(&v),
 				_ => break,
 			}
 		}
@@ -75,5 +82,29 @@ impl<K: Eq + Hash, V: HeapSizeOf> MemoryLruCache<K, V> {
 	/// Currently-used size of values in bytes.
 	pub fn current_size(&self) -> usize {
 		self.cur_size
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn it_works() {
+		let mut cache = MemoryLruCache::new(256);
+		let val1 = vec![0u8; 100];
+		let size1 = heap_size_of(&val1);
+		cache.insert("hello", val1);
+
+		assert_eq!(cache.current_size(), size1);
+
+		let val2 = vec![0u8; 210];
+		let size2 = heap_size_of(&val2);
+		cache.insert("world", val2);
+
+		assert!(cache.get_mut(&"hello").is_none());
+		assert!(cache.get_mut(&"world").is_some());
+
+		assert_eq!(cache.current_size(), size2);
 	}
 }
