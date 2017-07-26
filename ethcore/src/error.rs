@@ -79,6 +79,14 @@ pub enum TransactionError {
 	CodeBanned,
 	/// Invalid network ID given.
 	InvalidNetworkId,
+	/// Transaction hash is reserved/under-construction
+	ReservedHash,
+	/// Transaction hash was not reserved
+	UnreservedHash,
+	/// Reservation didn't match transaction
+	MismatchedReservation,
+	/// Poisoned lock
+	PoisonedLock,
 }
 
 impl fmt::Display for TransactionError {
@@ -103,6 +111,10 @@ impl fmt::Display for TransactionError {
 			RecipientBanned => "Recipient is temporarily banned.".into(),
 			CodeBanned => "Contract code is temporarily banned.".into(),
 			InvalidNetworkId => "Transaction of this network ID is not allowed on this chain.".into(),
+			ReservedHash => "Tried to reserve a place in transaction queue that is already taken.".into(),
+			UnreservedHash => "Tried to add a transaction to queue without first reserving its place.".into(),
+			MismatchedReservation => "Tried to add a transaction with a mismatched reservation.".into(),
+			PoisonedLock => "Lock on transaction queue was poisoned.".into(),
 		};
 
 		f.write_fmt(format_args!("Transaction error ({})", msg))
@@ -265,7 +277,9 @@ pub enum TransactionImportResult {
 	/// Transaction was imported to current queue.
 	Current,
 	/// Transaction was imported to future queue.
-	Future
+	Future,
+	/// Transaction was or is being imported by another thread to unknown queue.
+	ThreadUnknown,
 }
 
 /// Api-level error for transaction import
