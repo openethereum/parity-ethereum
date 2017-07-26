@@ -453,7 +453,7 @@ impl<'x> OpenBlock<'x> {
 			s.block.header.set_transactions_root(ordered_trie_root(s.block.transactions.iter().map(|e| e.rlp_bytes().into_vec())));
 		}
 		let uncle_bytes = s.block.uncles.iter().fold(RlpStream::new_list(s.block.uncles.len()), |mut s, u| {s.append_raw(&u.rlp(Seal::With), 1); s} ).out();
-		if s.block.header.uncles_hash().is_zero() {
+		if s.block.header.uncles_hash().is_zero() || s.block.header.receipts_root() == &SHA3_NULL_RLP {
 			s.block.header.set_uncles_hash(uncle_bytes.sha3());
 		}
 		if s.block.header.receipts_root().is_zero() || s.block.header.receipts_root() == &SHA3_NULL_RLP {
