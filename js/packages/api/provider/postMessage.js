@@ -14,16 +14,27 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export default class PostMessage {
+import EventEmitter from 'eventemitter3';
+
+export default class PostMessage extends EventEmitter {
   id = 0;
   _messages = {};
 
-  constructor (appId, token, destination) {
+  constructor (appId, destination) {
+    super();
+
     this._appId = appId;
-    this._token = token;
     this._destination = destination || window.parent;
 
     window.addEventListener('message', this.receiveMessage, false);
+  }
+
+  setToken (token) {
+    if (token) {
+      this._token = token;
+      this.emit('initialisedToken');
+      this.sendQueued();
+    }
   }
 
   addMiddleware () {
@@ -35,7 +46,7 @@ export default class PostMessage {
         if (error) {
           reject(error);
         } else {
-          this._token = token;
+          this.setToken(token);
           resolve(token);
         }
       });
@@ -49,7 +60,8 @@ export default class PostMessage {
   send = (method, params, callback) => {
     const id = ++this.id;
 
-    this._messages[id] = { callback };
+    this._messages[id] = { callback, method, params, queued: !this._token };
+
     this._send({
       id,
       from: this._appId,
@@ -58,6 +70,29 @@ export default class PostMessage {
       to: 'shell',
       token: this._token
     });
+  }
+
+  sendQueued () {
+    Object
+      .keys(this._messages)
+      .forEach((id) => {
+        const message = this._messages[id];
+
+        if (!message || !message.queued) {
+          return;
+        }
+
+        this._send({
+          id,
+          from: this._appId,
+          method: message.method,
+          params: message.params,
+          to: 'shell',
+          token: this._token
+        });
+
+        message.queued = false;
+      });
   }
 
   subscribe = (api, callback, params) => {
