@@ -22,16 +22,29 @@ import { toHex } from '~/api/util/format';
 
 import WalletAbi from '~/contracts/abi/consensys-multisig-wallet.json';
 
-const walletAbi = new Abi(WalletAbi);
+import {
+  UPDATE_OWNERS,
+  UPDATE_REQUIRE,
+  UPDATE_TRANSACTIONS,
+  UPDATE_CONFIRMATIONS
+} from './updates';
 
-const walletEvents = walletAbi.events.reduce((events, event) => {
+const WALLET_CONTRACT = new Contract({}, WalletAbi);
+const WALLET_ABI = new Abi(WalletAbi);
+
+const walletEvents = WALLET_ABI.events.reduce((events, event) => {
   events[event.name] = event;
   return events;
 }, {});
 
 const WalletSignatures = {
+  Confirmation: toHex(walletEvents.Confirmation.signature),
+  Revocation: toHex(walletEvents.Revocation.signature),
   Deposit: toHex(walletEvents.Deposit.signature),
   Execution: toHex(walletEvents.Execution.signature),
+  OwnerAddition: toHex(walletEvents.OwnerAddition.signature),
+  OwnerRemoval: toHex(walletEvents.OwnerRemoval.signature),
+  RequirementChange: toHex(walletEvents.RequirementChange.signature),
   Submission: toHex(walletEvents.Submission.signature)
 };
 
@@ -75,7 +88,7 @@ export default class ConsensysWalletUtils {
       .then((transactions) => {
         return transactions.map((transaction, index) => {
           const [ destination, value, data ] = transaction;
-          const id = txIds[index];
+          const id = toHex(txIds[index]);
 
           return {
             to: destination,
@@ -99,7 +112,11 @@ export default class ConsensysWalletUtils {
       .then((logs) => {
         transactions.forEach((tx) => {
           const log = logs
-            .find((log) => log.params.transactionId.value.eq(tx.operation));
+            .find((log) => {
+              const id = toHex(log.params.transactionId.value);
+
+              return id === tx.operation;
+            });
 
           if (!log) {
             console.warn('could not find a Submission log for this operation', tx);
@@ -165,7 +182,7 @@ export default class ConsensysWalletUtils {
       .then((transactions) => {
         return transactions.map((transaction, index) => {
           const [ destination, value, data, executed ] = transaction;
-          const id = txIds[index];
+          const id = toHex(txIds[index]);
 
           return {
             destination, value, data, executed, id
@@ -203,19 +220,55 @@ export default class ConsensysWalletUtils {
             transaction.value = log.params.value.value;
             transaction.to = wallet.address;
           } else {
-            const txId = log.params.transactionId.value;
-            const tx = transactions.find((tx) => tx.id.eq(txId));
+            const txId = toHex(log.params.transactionId.value);
+            const tx = transactions.find((tx) => tx.id === txId);
 
             transaction.from = wallet.address;
             transaction.to = tx.destination;
             transaction.value = tx.value;
             transaction.data = tx.data;
-            transaction.operation = tx.id;
+            transaction.operation = toHex(tx.id);
           }
 
           return transaction;
         });
       });
+  }
+
+  static getChangeMethod (api, address, change) {
+    const wallet = new Contract(api, WalletAbi).at(address);
+    const walletInstance = wallet.instance;
+
+    let data = '';
+
+    if (change.type === 'require') {
+      const func = walletInstance.changeRequirement;
+
+      data = wallet.getCallData(func, {}, [ change.value ]);
+    }
+
+    if (change.type === 'add_owner') {
+      const func = walletInstance.addOwner;
+
+      data = wallet.getCallData(func, {}, [ change.value ]);
+    }
+
+    if (change.type === 'change_owner') {
+      const func = walletInstance.replaceOwner;
+
+      data = wallet.getCallData(func, {}, [ change.value.from, change.value.to ]);
+    }
+
+    if (change.type === 'remove_owner') {
+      const func = walletInstance.removeOwner;
+
+      data = wallet.getCallData(func, {}, [ change.value ]);
+    }
+
+    const method = walletInstance.submitTransaction;
+    const values = [ address, 0, data ];
+
+    return { method, values };
   }
 
   static getModifyOperationMethod (modification) {
@@ -262,6 +315,34 @@ export default class ConsensysWalletUtils {
 
         return true;
       });
+  }
+
+  static logToUpdate (log) {
+    const eventSignature = toHex(log.topics[0]);
+
+    switch (eventSignature) {
+      case WalletSignatures.OwnerAddition:
+      case WalletSignatures.OwnerRemoval:
+        return { [ UPDATE_OWNERS ]: true };
+
+      case WalletSignatures.RequirementChange:
+        return { [ UPDATE_REQUIRE ]: true };
+
+      case WalletSignatures.Deposit:
+      case WalletSignatures.Execution:
+        return { [ UPDATE_TRANSACTIONS ]: true };
+
+      case WalletSignatures.Submission:
+      case WalletSignatures.Confirmation:
+      case WalletSignatures.Revocation:
+        const parsedLog = WALLET_CONTRACT.parseEventLogs([ log ])[0];
+        const operation = toHex(parsedLog.params.transactionId.value);
+
+        return { [ UPDATE_CONFIRMATIONS ]: operation };
+
+      default:
+        return {};
+    }
   }
 
   /**

@@ -140,6 +140,11 @@ export default class WalletsUtils {
       });
   }
 
+  static getChangeMethod (api, address, change) {
+    return WalletsUtils
+      .delegateCall(api, address, 'getChangeMethod', [ api, address, change ]);
+  }
+
   static getDeployArgs (contract, options, values) {
     const { api } = contract;
     const func = contract.constructors[0];
@@ -165,14 +170,6 @@ export default class WalletsUtils {
       .then((walletContract) => {
         return walletContract.at(address);
       });
-  }
-
-  static getWalletSignatures () {
-    return Object.assign(
-      {},
-      ConsensysWalletUtils.getWalletSignatures(),
-      FoundationWalletUtils.getWalletSignatures()
-    );
   }
 
   static getWalletType (api, address) {
@@ -226,6 +223,11 @@ export default class WalletsUtils {
     return _cachedWalletLookup[address];
   }
 
+  static logToUpdate (api, address, log) {
+    return WalletsUtils
+      .delegateCall(api, address, 'logToUpdate', [ log ]);
+  }
+
   static parseTransactionLogs (api, options, rawLogs) {
     return WalletsUtils
       .delegateCall(api, options.from, 'parseTransactionLogs', [ api, options, rawLogs ]);
@@ -246,7 +248,7 @@ export default class WalletsUtils {
         return wallet.instance[method]
           .estimateGas(options, values)
           .then((gas) => {
-            options.gas = gas.mul(1.2);
+            options.gas = gas.mul(1.5);
             return wallet.instance[method].postTransaction(options, values);
           });
       });

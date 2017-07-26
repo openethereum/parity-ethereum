@@ -25,16 +25,23 @@ import WalletAbi from '~/contracts/abi/foundation-multisig-wallet.json';
 import OldWalletAbi from '~/contracts/abi/old-wallet.json';
 
 import PendingContracts from './pending-contracts';
+import {
+  UPDATE_OWNERS,
+  UPDATE_REQUIRE,
+  UPDATE_TRANSACTIONS,
+  UPDATE_CONFIRMATIONS
+} from './updates';
 
-const walletAbi = new Abi(WalletAbi);
-const oldWalletAbi = new Abi(OldWalletAbi);
+const WALLET_CONTRACT = new Contract({}, WalletAbi);
+const WALLET_ABI = new Abi(WalletAbi);
+const OLD_WALLET_ABI = new Abi(OldWalletAbi);
 
-const walletEvents = walletAbi.events.reduce((events, event) => {
+const walletEvents = WALLET_ABI.events.reduce((events, event) => {
   events[event.name] = event;
   return events;
 }, {});
 
-const oldWalletEvents = oldWalletAbi.events.reduce((events, event) => {
+const oldWalletEvents = OLD_WALLET_ABI.events.reduce((events, event) => {
   events[event.name] = event;
   return events;
 }, {});
@@ -237,6 +244,46 @@ export default class FoundationWalletUtils {
       });
   }
 
+  static getChangeMethod (api, address, change) {
+    const wallet = new Contract(api, WalletAbi).at(address);
+    const walletInstance = wallet.instance;
+
+    if (change.type === 'require') {
+      return {
+        method: walletInstance.changeRequirement,
+        values: [ change.value ]
+      };
+    }
+
+    if (change.type === 'dailylimit') {
+      return {
+        method: walletInstance.setDailyLimit,
+        values: [ change.value ]
+      };
+    }
+
+    if (change.type === 'add_owner') {
+      return {
+        method: walletInstance.addOwner,
+        values: [ change.value ]
+      };
+    }
+
+    if (change.type === 'change_owner') {
+      return {
+        method: walletInstance.changeOwner,
+        values: [ change.value.from, change.value.to ]
+      };
+    }
+
+    if (change.type === 'remove_owner') {
+      return {
+        method: walletInstance.removeOwner,
+        values: [ change.value ]
+      };
+    }
+  }
+
   static getModifyOperationMethod (modification) {
     switch (modification) {
       case 'confirm':
@@ -277,6 +324,38 @@ export default class FoundationWalletUtils {
 
         return true;
       });
+  }
+
+  static logToUpdate (log) {
+    const eventSignature = toHex(log.topics[0]);
+
+    switch (eventSignature) {
+      case WalletSignatures.OwnerChanged:
+      case WalletSignatures.OwnerAdded:
+      case WalletSignatures.OwnerRemoved:
+        return { [ UPDATE_OWNERS ]: true };
+
+      case WalletSignatures.RequirementChanged:
+        return { [ UPDATE_REQUIRE ]: true };
+
+      case WalletSignatures.ConfirmationNeeded:
+      case WalletSignatures.Confirmation:
+      case WalletSignatures.Revoke:
+        const parsedLog = WALLET_CONTRACT.parseEventLogs([ log ])[0];
+        const operation = bytesToHex(parsedLog.params.operation.value);
+
+        return { [ UPDATE_CONFIRMATIONS ]: operation };
+
+      case WalletSignatures.Deposit:
+      case WalletSignatures.SingleTransact:
+      case WalletSignatures.MultiTransact:
+      case WalletSignatures.Old.SingleTransact:
+      case WalletSignatures.Old.MultiTransact:
+        return { [ UPDATE_TRANSACTIONS ]: true };
+
+      default:
+        return {};
+    }
   }
 
   static parseLogs (api, logs = []) {

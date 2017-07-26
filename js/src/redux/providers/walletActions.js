@@ -17,18 +17,17 @@
 import { isEqual, uniq } from 'lodash';
 
 import Contract from '~/api/contract';
-import { bytesToHex, toHex } from '~/api/util/format';
 import { ERROR_CODES } from '~/api/transport/error';
 import { foundationWallet as WALLET_ABI } from '~/contracts/abi';
 import WalletsUtils from '~/util/wallets';
-
 import { newError } from '~/ui/Errors/actions';
-
-const UPDATE_OWNERS = 'owners';
-const UPDATE_REQUIRE = 'require';
-const UPDATE_DAILYLIMIT = 'dailylimit';
-const UPDATE_TRANSACTIONS = 'transactions';
-const UPDATE_CONFIRMATIONS = 'confirmations';
+import {
+  UPDATE_OWNERS,
+  UPDATE_REQUIRE,
+  UPDATE_DAILYLIMIT,
+  UPDATE_TRANSACTIONS,
+  UPDATE_CONFIRMATIONS
+} from '~/util/wallets/updates';
 
 export function confirmOperation (address, owner, operation) {
   return modifyOperation('confirm', address, owner, operation);
@@ -129,7 +128,6 @@ export function load (api) {
 
       api.eth
         .getFilterChanges(filterSubId)
-        .then((logs) => contract.parseEventLogs(logs))
         .then((logs) => {
           parseLogs(logs)(dispatch, getState);
         })
@@ -287,18 +285,9 @@ function fetchWalletConfirmations (contract, _operations, _owners = null, _trans
 
   return WalletsUtils.fetchPendingTransactions(contract, cache)
     .then((confirmations) => {
-      const prevConfirmations = wallet.confirmations || [];
-      const nextConfirmations = prevConfirmations
-        .filter((conA) => !confirmations.find((conB) => conB.operation === conA.operation))
-        .concat(confirmations)
-        .map((conf) => ({
-          ...conf,
-          pending: false
-        }));
-
       return {
         key: UPDATE_CONFIRMATIONS,
-        value: nextConfirmations
+        value: confirmations
       };
     });
 }
@@ -309,63 +298,36 @@ function parseLogs (logs) {
       return;
     }
 
-    const WalletSignatures = WalletsUtils.getWalletSignatures();
-
+    const { api } = getState();
     const updates = {};
 
-    logs.forEach((log) => {
-      const { address, topics } = log;
-      const eventSignature = toHex(topics[0]);
-      const prev = updates[address] || {
-        [ UPDATE_DAILYLIMIT ]: true,
-        address
-      };
+    const promises = logs.map((log) => {
+      const { address } = log;
 
-      switch (eventSignature) {
-        case WalletSignatures.OwnerChanged:
-        case WalletSignatures.OwnerAdded:
-        case WalletSignatures.OwnerRemoved:
-          updates[address] = {
-            ...prev,
-            [ UPDATE_OWNERS ]: true
+      return WalletsUtils.logToUpdate(api, address, log)
+        .then((update) => {
+          const prev = updates[address] || {
+            [ UPDATE_DAILYLIMIT ]: true,
+            address
           };
-          return;
 
-        case WalletSignatures.RequirementChanged:
-          updates[address] = {
-            ...prev,
-            [ UPDATE_REQUIRE ]: true
-          };
-          return;
+          if (update[UPDATE_CONFIRMATIONS]) {
+            const operations = (prev[UPDATE_CONFIRMATIONS] || []).concat(update[UPDATE_CONFIRMATIONS]);
 
-        case WalletSignatures.ConfirmationNeeded:
-        case WalletSignatures.Confirmation:
-        case WalletSignatures.Revoke:
-          const operation = bytesToHex(log.params.operation.value);
+            update[UPDATE_CONFIRMATIONS] = uniq(operations);
+          }
 
           updates[address] = {
             ...prev,
-            [ UPDATE_CONFIRMATIONS ]: uniq(
-              (prev[UPDATE_CONFIRMATIONS] || []).concat(operation)
-            )
+            ...update
           };
-
-          return;
-
-        case WalletSignatures.Deposit:
-        case WalletSignatures.SingleTransact:
-        case WalletSignatures.MultiTransact:
-        case WalletSignatures.Old.SingleTransact:
-        case WalletSignatures.Old.MultiTransact:
-          updates[address] = {
-            ...prev,
-            [ UPDATE_TRANSACTIONS ]: true
-          };
-          return;
-      }
+        });
     });
 
-    fetchWalletsInfo(updates)(dispatch, getState);
+    return Promise.all(promises)
+      .then(() => {
+        fetchWalletsInfo(updates)(dispatch, getState);
+      });
   };
 }
 
