@@ -14,7 +14,15 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import Ws from './ws';
+
 export Http from './http';
-export Ws from './ws';
 export TransportError from './error';
 export Middleware from './middleware';
+
+const WsSecure = Ws;
+
+export {
+  Ws,
+  WsSecure
+};
