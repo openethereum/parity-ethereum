@@ -17,8 +17,6 @@
 import Web3 from 'web3';
 import web3extensions from './web3.extensions';
 
-import './dev.web3.html';
-
 const http = new Web3.providers.HttpProvider('/rpc/');
 const web3 = new Web3(http);
 

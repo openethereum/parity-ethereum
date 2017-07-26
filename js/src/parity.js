@@ -21,13 +21,11 @@ es6Promise.polyfill();
 
 import Api from '@parity/api';
 
-import './dev.parity.html';
+const ethereum = new Api.Provider.Http('/rpc/');
+const api = new Api(ethereum);
 
-const ethereumProvider = new Api.Provider.Http('/rpc/');
-const api = new Api(ethereumProvider);
-
+window.ethereum = ethereum;
 window.parity = {
   Api,
-  api,
-  ethereumProvider
+  api
 };
