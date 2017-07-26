@@ -1,5 +1,5 @@
 {
-  "name": "@parity/view-contracts",
+  "name": "@parity/dapp-contracts",
   "description": "Parity contracts views",
   "version": "0.0.0",
   "main": "index.js",

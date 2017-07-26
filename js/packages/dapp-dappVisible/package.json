@@ -1,5 +1,5 @@
 {
-  "name": "@parity/view-dapp-visible",
+  "name": "@parity/dapp-dapp-visible",
   "description": "Parity default dapp visibility selection",
   "version": "0.0.0",
   "main": "index.js",

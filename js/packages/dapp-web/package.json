@@ -1,5 +1,5 @@
 {
-  "name": "@parity/view-web",
+  "name": "@parity/dapp-web",
   "description": "Parity web application view",
   "version": "0.0.0",
   "main": "index.js",

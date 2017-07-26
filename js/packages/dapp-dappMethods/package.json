@@ -1,5 +1,5 @@
 {
-  "name": "@parity/view-dapp-methods",
+  "name": "@parity/dapp-dapp-methods",
   "description": "Parity default dapp method selection",
   "version": "0.0.0",
   "main": "index.js",

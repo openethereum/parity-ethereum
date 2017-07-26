@@ -1,5 +1,5 @@
 {
-  "name": "@parity/view-addresses",
+  "name": "@parity/dapp-addresses",
   "description": "Parity default accounts list view",
   "version": "0.0.0",
   "main": "index.js",

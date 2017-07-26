@@ -1,5 +1,5 @@
 {
-  "name": "@parity/view-settings",
+  "name": "@parity/dapp-settings",
   "description": "Parity settings view",
   "version": "0.0.0",
   "main": "index.js",

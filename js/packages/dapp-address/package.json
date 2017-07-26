@@ -1,5 +1,5 @@
 {
-  "name": "@parity/view-address",
+  "name": "@parity/dapp-address",
   "description": "Parity default address view",
   "version": "0.0.0",
   "main": "index.js",

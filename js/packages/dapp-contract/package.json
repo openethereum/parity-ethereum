@@ -1,6 +1,6 @@
 {
-  "name": "@parity/view-address",
-  "description": "Parity default address view",
+  "name": "@parity/dapp-contract",
+  "description": "Parity default contract view",
   "version": "0.0.0",
   "main": "index.js",
   "author": "Parity Team <admin@parity.io>",

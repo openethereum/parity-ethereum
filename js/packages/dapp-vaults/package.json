@@ -1,5 +1,5 @@
 {
-  "name": "@parity/view-vaults",
+  "name": "@parity/dapp-vaults",
   "description": "Parity default Vaults view",
   "version": "0.0.0",
   "main": "index.js",

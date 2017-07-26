@@ -1,6 +1,6 @@
 {
-  "name": "@parity/dapp-status",
-  "description": "Parity default Status view",
+  "name": "@parity/dapp-githubhint",
+  "description": "Parity dapps",
   "version": "0.0.0",
   "main": "index.js",
   "author": "Parity Team <admin@parity.io>",
@@ -14,6 +14,7 @@
   "keywords": [],
   "scripts": {},
   "devDependencies": {},
-  "dependencies": {},
+  "dependencies": {
+  },
   "peerDependencies": {}
 }

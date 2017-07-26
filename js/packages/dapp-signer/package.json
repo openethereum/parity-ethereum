@@ -1,5 +1,5 @@
 {
-  "name": "@parity/view-signer",
+  "name": "@parity/dapp-signer",
   "description": "Parity signer views, embedded and requests",
   "version": "0.0.0",
   "main": "index.js",

@@ -1,5 +1,5 @@
 {
-  "name": "@parity/view-wallet",
+  "name": "@parity/dapp-wallet",
   "description": "Parity default wallet view",
   "version": "0.0.0",
   "main": "index.js",
