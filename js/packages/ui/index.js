@@ -60,7 +60,6 @@ export ScrollableText from './ScrollableText';
 export SectionList from './SectionList';
 export SelectionList from './SelectionList';
 export ShortenedHash from './ShortenedHash';
-export SignerIcon from './SignerIcon';
 export Snackbar from './Snackbar';
 export StatusIndicator from './StatusIndicator';
 export Tabs from './Tabs';
