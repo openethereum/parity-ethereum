@@ -20,7 +20,6 @@ import Contract from '~/api/contract';
 import { bytesToHex, toHex } from '~/api/util/format';
 import { ERROR_CODES } from '~/api/transport/error';
 import { foundationWallet as WALLET_ABI } from '~/contracts/abi';
-import { MAX_GAS_ESTIMATION } from '~/util/constants';
 import WalletsUtils from '~/util/wallets';
 
 import { newError } from '~/ui/Errors/actions';
@@ -39,41 +38,25 @@ export function revokeOperation (address, owner, operation) {
   return modifyOperation('revoke', address, owner, operation);
 }
 
-function modifyOperation (method, address, owner, operation) {
+function modifyOperation (modification, address, owner, operation) {
   return (dispatch, getState) => {
     const { api } = getState();
-    const contract = new Contract(api, WALLET_ABI).at(address);
-
-    const options = {
-      from: owner,
-      gas: MAX_GAS_ESTIMATION
-    };
-
-    const values = [ operation ];
 
     dispatch(setOperationPendingState(address, operation, true));
 
-    contract.instance[method]
-      .estimateGas(options, values)
-      .then((gas) => {
-        options.gas = gas.mul(1.2);
-        return contract.instance[method].postTransaction(options, values);
-      })
+    WalletsUtils.postModifyOperation(api, address, modification, owner, operation)
       .then((requestId) => {
-        return api
-          .pollMethod('parity_checkRequest', requestId)
-          .catch((e) => {
-            dispatch(setOperationPendingState(address, operation, false));
-            if (e.code === ERROR_CODES.REQUEST_REJECTED) {
-              return;
-            }
-
-            throw e;
-          });
+        return api.pollMethod('parity_checkRequest', requestId);
       })
       .catch((error) => {
-        dispatch(setOperationPendingState(address, operation, false));
+        if (error.code === ERROR_CODES.REQUEST_REJECTED) {
+          return;
+        }
+
         dispatch(newError(error));
+      })
+      .then(() => {
+        dispatch(setOperationPendingState(address, operation, false));
       });
   };
 }

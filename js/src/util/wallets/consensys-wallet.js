@@ -153,7 +153,7 @@ export default class ConsensysWalletUtils {
           .call({}, [ fromId, toId, false, true ]);
       })
       .then((_txIds) => {
-        txIds = _txIds;
+        txIds = _txIds.map((token) => token.value);
 
         const promises = txIds.map((txId) => {
           return wallet.instance.transactions
@@ -204,18 +204,31 @@ export default class ConsensysWalletUtils {
             transaction.to = wallet.address;
           } else {
             const txId = log.params.transactionId.value;
-            const transaction = transactions.find((tx) => tx.id === txId);
+            const tx = transactions.find((tx) => tx.id.eq(txId));
 
             transaction.from = wallet.address;
-            transaction.to = transaction.destination;
-            transaction.value = transaction.value;
-            transaction.data = transaction.data;
-            transaction.operation = transaction.id;
+            transaction.to = tx.destination;
+            transaction.value = tx.value;
+            transaction.data = tx.data;
+            transaction.operation = tx.id;
           }
 
           return transaction;
         });
       });
+  }
+
+  static getModifyOperationMethod (modification) {
+    switch (modification) {
+      case 'confirm':
+        return 'confirmTransaction';
+
+      case 'revoke':
+        return 'revokeConfirmation';
+
+      default:
+        return '';
+    }
   }
 
   static getSubmitMethod () {

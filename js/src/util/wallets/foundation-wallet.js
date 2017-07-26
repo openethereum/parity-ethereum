@@ -198,17 +198,6 @@ export default class FoundationWalletUtils {
         ] ]
       })
       .then((logs) => {
-        return logs.sort((logA, logB) => {
-          const comp = logB.blockNumber.comparedTo(logA.blockNumber);
-
-          if (comp !== 0) {
-            return comp;
-          }
-
-          return logB.transactionIndex.comparedTo(logA.transactionIndex);
-        });
-      })
-      .then((logs) => {
         const transactions = logs.map((log) => {
           const signature = toHex(log.topics[0]);
 
@@ -246,6 +235,19 @@ export default class FoundationWalletUtils {
 
         return transactions;
       });
+  }
+
+  static getModifyOperationMethod (modification) {
+    switch (modification) {
+      case 'confirm':
+        return 'confirm';
+
+      case 'revoke':
+        return 'revoke';
+
+      default:
+        return '';
+    }
   }
 
   static getSubmitMethod () {

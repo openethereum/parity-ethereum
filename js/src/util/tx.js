@@ -77,6 +77,10 @@ export function getTxOptions (api, func, _options, values = []) {
   const options = { ..._options };
   const address = options.from;
 
+  if (func && func.contract) {
+    options.to = options.to || func.contract.address;
+  }
+
   if (!address) {
     return Promise.resolve({ func, options, values });
   }
@@ -89,10 +93,7 @@ export function getTxOptions (api, func, _options, values = []) {
       }
 
       if (func && func.contract) {
-        const { contract } = func;
-
-        options.data = contract.getCallData(func, options, values);
-        options.to = options.to || contract.address;
+        options.data = func.contract.getCallData(func, options, values);
       }
 
       if (!options.to) {

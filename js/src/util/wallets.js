@@ -17,6 +17,8 @@
 import BigNumber from 'bignumber.js';
 import { intersection } from 'lodash';
 
+import { MAX_GAS_ESTIMATION } from '~/util/constants';
+
 import ConsensysWalletUtils from './wallets/consensys-wallet';
 import FoundationWalletUtils from './wallets/foundation-wallet';
 
@@ -75,7 +77,18 @@ export default class WalletsUtils {
     const { api } = walletContract;
 
     return WalletsUtils
-      .delegateCall(api, walletContract.address, 'fetchTransactions', [ walletContract ]);
+      .delegateCall(api, walletContract.address, 'fetchTransactions', [ walletContract ])
+      .then((transactions) => {
+        return transactions.sort((txA, txB) => {
+          const comp = txB.blockNumber.comparedTo(txA.blockNumber);
+
+          if (comp !== 0) {
+            return comp;
+          }
+
+          return txB.transactionIndex.comparedTo(txA.transactionIndex);
+        });
+      });
   }
 
   static getCallArgs (api, options, values = []) {
@@ -92,7 +105,7 @@ export default class WalletsUtils {
         walletContract = _walletContract;
         submitMethod = _submitMethod;
 
-        return WalletsUtils.fetchOwners(walletContract.at(walletAddress));
+        return WalletsUtils.fetchOwners(walletContract);
       })
       .then((owners) => {
         const addresses = Object.keys(_cachedAccounts);
@@ -150,7 +163,10 @@ export default class WalletsUtils {
 
   static getWalletContract (api, address) {
     return WalletsUtils
-      .delegateCall(api, address, 'getWalletContract', [ api ]);
+      .delegateCall(api, address, 'getWalletContract', [ api ])
+      .then((walletContract) => {
+        return walletContract.at(address);
+      });
   }
 
   static getWalletSignatures () {
@@ -215,5 +231,26 @@ export default class WalletsUtils {
   static parseTransactionLogs (api, options, rawLogs) {
     return WalletsUtils
       .delegateCall(api, options.from, 'parseTransactionLogs', [ api, options, rawLogs ]);
+  }
+
+  static postModifyOperation (api, walletAddress, modification, owner, operation) {
+    const options = { from: owner };
+    const values = [ operation ];
+
+    return Promise
+      .all([
+        WalletsUtils
+          .getWalletContract(api, walletAddress),
+        WalletsUtils
+          .delegateCall(api, walletAddress, 'getModifyOperationMethod', [ modification ])
+      ])
+      .then(([ wallet, method ]) => {
+        return wallet.instance[method]
+          .estimateGas(options, values)
+          .then((gas) => {
+            options.gas = gas.mul(1.2);
+            return wallet.instance[method].postTransaction(options, values);
+          });
+      });
   }
 }
