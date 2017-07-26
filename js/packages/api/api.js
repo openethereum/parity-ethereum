@@ -74,10 +74,17 @@ export default class Api extends EventEmitter {
     }
   }
 
+  get isConnected () {
+    const isConnected = this.provider.isConnected;
+
+    return isConnected || typeof isConnected === 'undefined';
+  }
+
   get pubsub () {
     if (!this._pubsub) {
       throw Error('Pubsub is only available with a subscribing-supported transport injected!');
     }
+
     return this._pubsub;
   }
 
