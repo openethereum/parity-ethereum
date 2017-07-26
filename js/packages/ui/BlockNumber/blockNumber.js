@@ -21,9 +21,9 @@ import { observer } from 'mobx-react';
 
 import Store from './store';
 
-import styles from './blockStatus.css';
+import styles from './blockNumber.css';
 
-function BlockStatus ({ className }, { api }) { // eslint-disable-line no-empty-pattern
+function BlockNumber ({ className }, { api }) {
   const store = Store.get(api);
 
   if (!store.blockNumber) {
@@ -96,12 +96,12 @@ function BlockStatus ({ className }, { api }) { // eslint-disable-line no-empty-
   );
 }
 
-BlockStatus.propTypes = {
+BlockNumber.propTypes = {
   className: PropTypes.string
 };
 
-BlockStatus.contextTypes = {
+BlockNumber.contextTypes = {
   api: PropTypes.object.isRequired
 };
 
-export default observer(BlockStatus);
+export default observer(BlockNumber);

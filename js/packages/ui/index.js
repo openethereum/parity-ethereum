@@ -20,7 +20,7 @@ export AccountCard from './AccountCard';
 export Actionbar, { Export as ActionbarExport, Import as ActionbarImport, Search as ActionbarSearch, Sort as ActionbarSort } from './Actionbar';
 export Badge from './Badge';
 export Balance from './Balance';
-export BlockStatus from './BlockStatus';
+export BlockNumber from './BlockNumber';
 export Button from './Button';
 export Certifications from './Certifications';
 export Chain from './Chain';

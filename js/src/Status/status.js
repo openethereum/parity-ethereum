@@ -19,7 +19,7 @@ import PropTypes from 'prop-types';
 import { observer } from 'mobx-react';
 import { FormattedMessage } from 'react-intl';
 
-import { BlockStatus, Chain, StatusIndicator } from '@parity/ui';
+import { BlockNumber, Chain, StatusIndicator } from '@parity/ui';
 
 import Consensus from './Consensus';
 import Upgrade from './Upgrade';
@@ -44,7 +44,7 @@ function Status ({ upgradeStore }, { api }) {
       </div>
       <div className={ styles.netinfo }>
         <StatusIndicator id='application.status.health' />
-        <BlockStatus />
+        <BlockNumber />
         <FormattedMessage
           id='ui.blockStatus.bestBlock'
           defaultMessage=' best block'

@@ -21,7 +21,7 @@ import PropTypes from 'prop-types';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 
-import { BlockStatus, Container, ContainerTitle, Input } from '@parity/ui';
+import { BlockNumber, Container, ContainerTitle, Input } from '@parity/ui';
 
 import MiningSettings from '../MiningSettings';
 import StatusStore from './store';
@@ -76,7 +76,7 @@ class Node extends Component {
                   }
                 />
                 <div className={ styles.blockInfo }>
-                  #<BlockStatus />
+                  #<BlockNumber />
                 </div>
                 <div className={ styles.blockByline }>
                   { moment(blockTimestamp).calendar() }
