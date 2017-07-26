@@ -58,6 +58,8 @@ pub struct Config {
 	pub db_wal: bool,
 	/// Should it do full verification of blocks?
 	pub verify_full: bool,
+	/// Should it check the seal of blocks?
+	pub check_seal: bool,
 }
 
 impl Default for Config {
@@ -69,6 +71,7 @@ impl Default for Config {
 			db_compaction: CompactionProfile::default(),
 			db_wal: true,
 			verify_full: true,
+			check_seal: true,
 		}
 	}
 }
@@ -168,7 +171,7 @@ impl Client {
 		let gh = ::rlp::encode(&spec.genesis_header());
 
 		Ok(Client {
-			queue: HeaderQueue::new(config.queue, spec.engine.clone(), io_channel, true),
+			queue: HeaderQueue::new(config.queue, spec.engine.clone(), io_channel, config.check_seal),
 			engine: spec.engine.clone(),
 			chain: HeaderChain::new(db.clone(), chain_col, &gh, cache)?,
 			report: RwLock::new(ClientReport::default()),
