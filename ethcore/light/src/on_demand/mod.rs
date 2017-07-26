@@ -266,7 +266,6 @@ impl OnDemand {
 		-> Result<Receiver<Vec<Response>>, basic_request::NoSuchOutput>
 	{
 		let (sender, receiver) = oneshot::channel();
-
 		if requests.is_empty() {
 			assert!(sender.send(Vec::new()).is_ok(), "receiver still in scope; qed");
 			return Ok(receiver);
@@ -378,6 +377,7 @@ impl OnDemand {
 
 					match ctx.request_from(*peer_id, pending.net_requests.clone()) {
 						Ok(req_id) => {
+							trace!(target: "on_demand", "Dispatched request {} to peer {}", req_id, peer_id);
 							self.in_transit.write().insert(req_id, pending);
 							return None
 						}
@@ -385,6 +385,9 @@ impl OnDemand {
 						Err(e) => debug!(target: "on_demand", "Error dispatching request to peer: {}", e),
 					}
 				}
+
+				// TODO: maximum number of failures _when we have peers_.
+				trace!(target: "pip", "No peer can serve request");
 				Some(pending)
 			})
 			.collect(); // `pending` now contains all requests we couldn't dispatch.
@@ -395,6 +398,8 @@ impl OnDemand {
 	fn submit_pending(&self, ctx: &BasicContext, mut pending: Pending) {
 		// answer as many requests from cache as we can, and schedule for dispatch
 		// if incomplete.
+		trace!(target: "on_demand", "submitting pending requests.");
+
 		pending.answer_from_cache(&*self.cache);
 		if let Some(mut pending) = pending.try_complete() {
 			pending.update_net_requests();
