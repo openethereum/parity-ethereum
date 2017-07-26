@@ -40,6 +40,8 @@ NetChain.contextTypes = {
   api: PropTypes.object.isRequired
 };
 
-NetChain.Store = Store;
+const ObserverComponent = observer(NetChain);
 
-export default observer(NetChain);
+ObserverComponent.Store = Store;
+
+export default ObserverComponent;

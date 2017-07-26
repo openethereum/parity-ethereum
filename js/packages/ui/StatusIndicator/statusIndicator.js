@@ -92,4 +92,8 @@ StatusIndicator.contextTypes = {
   api: PropTypes.object.isRequired
 };
 
-export default observer(StatusIndicator);
+const ObserverComponent = observer(StatusIndicator);
+
+ObserverComponent.Store = Store;
+
+export default ObserverComponent;

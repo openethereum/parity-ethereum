@@ -45,6 +45,8 @@ BlockTimestamp.contextTypes = {
   api: PropTypes.object.isRequired
 };
 
-BlockTimestamp.Store = Store;
+const ObserverComponent = observer(BlockTimestamp);
 
-export default observer(BlockTimestamp);
+ObserverComponent.Store = Store;
+
+export default ObserverComponent;

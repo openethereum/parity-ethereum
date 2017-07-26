@@ -103,6 +103,8 @@ BlockNumber.contextTypes = {
   api: PropTypes.object.isRequired
 };
 
-BlockNumber.Store = Store;
+const ObserverComponent = observer(BlockNumber);
 
-export default observer(BlockNumber);
+ObserverComponent.Store = Store;
+
+export default ObserverComponent;

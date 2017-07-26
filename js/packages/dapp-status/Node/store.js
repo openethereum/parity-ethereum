@@ -19,6 +19,8 @@ import { action, computed, observable, transaction } from 'mobx';
 
 import { NetChain } from '@parity/ui';
 
+console.log('NetChain', NetChain, NetChain.Store);
+
 export default class StatusStore {
   @observable defaultExtraData = '';
   @observable enode = '';
@@ -37,16 +39,12 @@ export default class StatusStore {
 
   constructor (api) {
     this.api = api;
-    console.log('NetChain.Store', NetChain.Store);
-    // this.chainStore = NetChain.Store.get(api);
-
-    console.log('this.chainStore', this.chainStore);
+    this.chainStore = NetChain.Store.get(api);
 
     this.startPolling();
   }
 
   @computed get netChain () {
-    console.log('netChain', this.chainStore.netChain);
     return this.chainStore.netChain;
   }
 

@@ -47,6 +47,8 @@ NetPeers.contextTypes = {
   api: PropTypes.object.isRequired
 };
 
-NetPeers.Store = Store;
+const ObserverComponent = observer(NetPeers);
 
-export default observer(NetPeers);
+ObserverComponent.Store = Store;
+
+export default ObserverComponent;

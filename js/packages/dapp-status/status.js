@@ -26,6 +26,8 @@ import Peers from './Peers';
 
 import styles from './status.css';
 
+console.log('Node', Node);
+
 export default function Status () {
   return (
     <Page

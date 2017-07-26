@@ -28,7 +28,7 @@ import StatusStore from './store';
 import styles from './node.css';
 
 @observer
-export class Node extends Component {
+export default class Node extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
   };
@@ -38,10 +38,6 @@ export class Node extends Component {
   render () {
     const { hashrate } = this.statusStore;
     const hashrateValue = bytes(hashrate.toNumber()) || 0;
-
-    console.log('this.statusStore.netChain', this.statusStore.netChain);
-
-    return null;
 
     return (
       <Container>
