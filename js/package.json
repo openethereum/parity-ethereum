@@ -151,7 +151,7 @@
     "to-source": "2.0.3",
     "uglify-js": "2.8.22",
     "url-loader": "0.5.7",
-    "webpack": "2.2.1",
+    "webpack": "2.4.1",
     "webpack-bundle-size-analyzer": "2.5.0",
     "webpack-dev-middleware": "1.10.1",
     "webpack-error-notification": "0.1.6",
