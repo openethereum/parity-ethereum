@@ -20,33 +20,33 @@ import { observer } from 'mobx-react';
 
 import Store from './store';
 
-import styles from './netPeers.css';
+import styles from './clientVersion.css';
 
-function NetPeers ({ className, message }, { api }) {
+function ClientVersion ({ className }, { api }) {
   const store = Store.get(api);
 
-  if (!store.netPeers) {
+  if (!store.clientVersion) {
     return null;
   }
 
-  const { max, connected } = store.netPeers;
+  const [ clientName, , versionString, , ] = store.clientVersion.split('/');
+  const [ versionNumber, versionType, , versionDate ] = (versionString || '').split('-');
 
   return (
-    <div className={ [styles.peers, className].join(' ') }>
-      { connected ? connected.toFormat() : '0' }/{ max ? max.toFormat() : '0' }{ message }
+    <div className={ [styles.clientVersion, className].join(' ') }>
+      { clientName } { versionNumber }-{ versionDate } { versionType }
     </div>
   );
 }
 
-NetPeers.propTypes = {
-  className: PropTypes.string,
-  message: PropTypes.node
+ClientVersion.propTypes = {
+  className: PropTypes.string
 };
 
-NetPeers.contextTypes = {
+ClientVersion.contextTypes = {
   api: PropTypes.object.isRequired
 };
 
-NetPeers.Store = Store;
+ClientVersion.Store = Store;
 
-export default observer(NetPeers);
+export default observer(ClientVersion);

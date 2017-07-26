@@ -20,9 +20,9 @@ import { observer } from 'mobx-react';
 
 import Store from './store';
 
-import styles from './chain.css';
+import styles from './netChain.css';
 
-function Chain ({ className }, { api }) {
+function NetChain ({ className }, { api }) {
   const store = Store.get(api);
 
   return (
@@ -32,12 +32,14 @@ function Chain ({ className }, { api }) {
   );
 }
 
-Chain.propTypes = {
+NetChain.propTypes = {
   className: PropTypes.string
 };
 
-Chain.contextTypes = {
+NetChain.contextTypes = {
   api: PropTypes.object.isRequired
 };
 
-export default observer(Chain);
+NetChain.Store = Store;
+
+export default observer(NetChain);

@@ -19,24 +19,17 @@ import PropTypes from 'prop-types';
 import { observer } from 'mobx-react';
 import { FormattedMessage } from 'react-intl';
 
-import { BlockNumber, Chain, NetPeers, StatusIndicator } from '@parity/ui';
+import { BlockNumber, ClientVersion, NetChain, NetPeers, StatusIndicator } from '@parity/ui';
 
 import Consensus from './Consensus';
 import Upgrade from './Upgrade';
-import Store from './store';
 
 import styles from './status.css';
 
-function Status ({ upgradeStore }, { api }) {
-  const store = Store.get(api);
-  const [ clientName, , versionString, , ] = (store.clientVersion || '').split('/');
-  const [ versionNumber, versionType, , versionDate ] = (versionString || '').split('-');
-
+function Status ({ className = '', upgradeStore }, { api }) {
   return (
-    <div className={ styles.status }>
-      <div className={ styles.version }>
-        { clientName } { versionNumber }-{ versionDate } { versionType }
-      </div>
+    <div className={ [styles.status, className].join(' ') }>
+      <ClientVersion className={ styles.version } />
       <div className={ styles.upgrade }>
         <Consensus upgradeStore={ upgradeStore } />
         <Upgrade upgradeStore={ upgradeStore } />
@@ -61,7 +54,7 @@ function Status ({ upgradeStore }, { api }) {
             />
           }
         />
-        <Chain />
+        <NetChain />
       </div>
     </div>
   );
@@ -72,6 +65,7 @@ Status.contextTypes = {
 };
 
 Status.propTypes = {
+  className: PropTypes.string,
   upgradeStore: PropTypes.object.isRequired
 };
 

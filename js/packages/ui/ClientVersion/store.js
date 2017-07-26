@@ -18,7 +18,6 @@ import { action, observable } from 'mobx';
 
 export default class Store {
   @observable clientVersion = '';
-  @observable netPeers = {};
 
   constructor (api) {
     this._api = api;
@@ -30,12 +29,6 @@ export default class Store {
   }
 
   setupSubscriptions = () => {
-    this._api.pubsub.parity.netPeers((error, netPeers) => {
-      if (!error) {
-        this.setNetPeers(netPeers);
-      }
-    });
-
     this._api.web3
       .clientVersion()
       .then(this.setClientVersion);
@@ -43,14 +36,6 @@ export default class Store {
 
   @action setClientVersion = (clientVersion) => {
     this.clientVersion = clientVersion;
-  }
-
-  @action setNetChain = (netChain) => {
-    this.netChain = netChain;
-  }
-
-  @action setNetPeers = (netPeers) => {
-    this.netPeers = netPeers;
   }
 
   static instance = null;

@@ -103,4 +103,6 @@ BlockNumber.contextTypes = {
   api: PropTypes.object.isRequired
 };
 
+BlockNumber.Store = Store;
+
 export default observer(BlockNumber);

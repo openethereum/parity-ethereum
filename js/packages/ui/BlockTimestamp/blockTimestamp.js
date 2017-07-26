@@ -17,36 +17,34 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import { observer } from 'mobx-react';
+import moment from 'moment';
 
-import Store from './store';
+import Store from '../BlockNumber/store';
 
-import styles from './netPeers.css';
+import styles from './blockTimestamp.css';
 
-function NetPeers ({ className, message }, { api }) {
+function BlockTimestamp ({ className }, { api }) {
   const store = Store.get(api);
 
-  if (!store.netPeers) {
+  if (!store.blockTimestamp) {
     return null;
   }
 
-  const { max, connected } = store.netPeers;
-
   return (
-    <div className={ [styles.peers, className].join(' ') }>
-      { connected ? connected.toFormat() : '0' }/{ max ? max.toFormat() : '0' }{ message }
+    <div className={ [styles.blockTimestamp, className].join(' ') }>
+      { moment(store.blockTimestamp).calendar() }
     </div>
   );
 }
 
-NetPeers.propTypes = {
-  className: PropTypes.string,
-  message: PropTypes.node
+BlockTimestamp.propTypes = {
+  className: PropTypes.string
 };
 
-NetPeers.contextTypes = {
+BlockTimestamp.contextTypes = {
   api: PropTypes.object.isRequired
 };
 
-NetPeers.Store = Store;
+BlockTimestamp.Store = Store;
 
-export default observer(NetPeers);
+export default observer(BlockTimestamp);

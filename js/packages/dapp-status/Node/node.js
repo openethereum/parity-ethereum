@@ -15,44 +15,33 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import bytes from 'bytes';
-import moment from 'moment';
 import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 import { FormattedMessage } from 'react-intl';
-import { connect } from 'react-redux';
+import { observer } from 'mobx-react';
 
-import { BlockNumber, Container, ContainerTitle, Input, NetPeers } from '@parity/ui';
+import { BlockNumber, BlockTimestamp, Container, ContainerTitle, Input, NetPeers } from '@parity/ui';
 
 import MiningSettings from '../MiningSettings';
 import StatusStore from './store';
 
 import styles from './node.css';
 
-class Node extends Component {
+@observer
+export class Node extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
   };
 
-  static propTypes = {
-    blockTimestamp: PropTypes.object,
-    netChain: PropTypes.string
-  };
-
   statusStore = new StatusStore(this.context.api);
 
-  componentWillMount () {
-    this.statusStore.startPolling();
-  }
-
-  componentWillUnmount () {
-    this.statusStore.stopPolling();
-  }
-
   render () {
-    const { blockTimestamp } = this.props;
     const { hashrate } = this.statusStore;
-
     const hashrateValue = bytes(hashrate.toNumber()) || 0;
+
+    console.log('this.statusStore.netChain', this.statusStore.netChain);
+
+    return null;
 
     return (
       <Container>
@@ -72,7 +61,7 @@ class Node extends Component {
                   #<BlockNumber />
                 </div>
                 <div className={ styles.blockByline }>
-                  { moment(blockTimestamp).calendar() }
+                  <BlockTimestamp />
                 </div>
               </div>
               <div className={ `${styles.col12} ${styles.padBottom}` }>
@@ -151,7 +140,6 @@ class Node extends Component {
   }
 
   renderSettings () {
-    const { netChain } = this.props;
     const { enode, rpcSettings, netPort = '' } = this.statusStore;
 
     if (!rpcSettings) {
@@ -179,7 +167,7 @@ class Node extends Component {
               defaultMessage='chain'
             />
           }
-          value={ netChain }
+          value={ this.statusStore.netChain }
         />
         <div className={ styles.row }>
           <div className={ styles.col6 }>
@@ -272,17 +260,3 @@ class Node extends Component {
     );
   }
 }
-
-function mapStateToProps (state) {
-  const { blockTimestamp, netChain } = state.nodeStatus;
-
-  return {
-    blockTimestamp,
-    netChain
-  };
-}
-
-export default connect(
-  mapStateToProps,
-  null
-)(Node);

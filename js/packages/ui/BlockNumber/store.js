@@ -18,6 +18,7 @@ import { action, observable } from 'mobx';
 
 export default class Store {
   @observable blockNumber = null;
+  @observable blockTimestamp = null;
   @observable syncing = null;
 
   constructor (api) {
@@ -41,11 +42,25 @@ export default class Store {
       if (!error) {
         this.setBlockNumber(blockNumber);
       }
+
+      this._api.parity
+        .getBlockHeaderByNumber(blockNumber)
+        .then((block) => {
+          if (!block) {
+            return;
+          }
+
+          this.setBlockTimestamp(block.timestamp);
+        });
     });
   }
 
   @action setBlockNumber = (blockNumber) => {
     this.blockNumber = blockNumber;
+  }
+
+  @action setBlockTimestamp = (blockTimestamp) => {
+    this.blockTimestamp = blockTimestamp;
   }
 
   @action setSyncing = (syncing) => {
