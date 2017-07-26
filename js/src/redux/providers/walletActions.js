@@ -296,8 +296,6 @@ function fetchWalletDailylimit (contract) {
 }
 
 function fetchWalletConfirmations (contract, _operations, _owners = null, _transactions = null, getState) {
-  const walletInstance = contract.instance;
-
   const wallet = getState().wallet.wallets[contract.address];
 
   const owners = _owners || (wallet && wallet.owners) || null;

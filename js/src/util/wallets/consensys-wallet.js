@@ -18,7 +18,7 @@ import BigNumber from 'bignumber.js';
 
 import Abi from '~/abi';
 import Contract from '~/api/contract';
-import { bytesToHex, toHex } from '~/api/util/format';
+import { toHex } from '~/api/util/format';
 
 import WalletAbi from '~/contracts/abi/consensys-multisig-wallet.json';
 
