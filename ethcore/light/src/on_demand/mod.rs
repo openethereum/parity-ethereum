@@ -392,7 +392,7 @@ impl OnDemand {
 							self.in_transit.write().insert(req_id, pending);
 							return None
 						}
-						Err(net::Error::NoCredits) => {}
+						Err(net::Error::NoCredits) | Err(net::Error::NotServer) => {}
 						Err(e) => debug!(target: "on_demand", "Error dispatching request to peer: {}", e),
 					}
 				}
