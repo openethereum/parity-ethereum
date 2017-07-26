@@ -36,7 +36,7 @@ use parity_rpc::NetworkSettings;
 use cache::CacheConfig;
 use helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_price, replace_home, replace_home_and_local,
 geth_ipc_path, parity_ipc_path, to_bootnodes, to_addresses, to_address, to_gas_limit, to_queue_strategy};
-use params::{SpecType, ResealPolicy, AccountsConfig, GasPricerConfig, MinerExtras, Pruning, Switch};
+use params::{ResealPolicy, AccountsConfig, GasPricerConfig, MinerExtras, Pruning, Switch};
 use ethcore_logger::Config as LogConfig;
 use dir::{self, Directories, default_hypervisor_path, default_local_path, default_data_path};
 use dapps::Configuration as DappsConfiguration;
@@ -331,13 +331,6 @@ impl Configuration {
 			};
 
 			let verifier_settings = self.verifier_settings();
-
-			// Special presets are present for the dev chain.
-			let (gas_pricer_conf, miner_options) = match spec {
-				SpecType::Dev => (GasPricerConfig::Fixed(0.into()), self.miner_options(0)?),
-				_ => (self.gas_pricer_config()?, self.miner_options(self.args.flag_reseal_min_period)?),
-			};
-
 			let whisper_config = self.whisper_config();
 
 			let run_cmd = RunCmd {
@@ -349,14 +342,14 @@ impl Configuration {
 				pruning_memory: self.args.flag_pruning_memory,
 				daemon: daemon,
 				logger_config: logger_config.clone(),
-				miner_options: miner_options,
+				miner_options: self.miner_options(self.args.flag_reseal_min_period)?,
 				ws_conf: ws_conf,
 				http_conf: http_conf,
 				ipc_conf: ipc_conf,
 				net_conf: net_conf,
 				network_id: network_id,
 				acc_conf: self.accounts_config()?,
-				gas_pricer_conf: gas_pricer_conf,
+				gas_pricer_conf: self.gas_pricer_config()?,
 				miner_extras: self.miner_extras()?,
 				stratum: self.stratum_options()?,
 				update_policy: update_policy,
@@ -630,8 +623,10 @@ impl Configuration {
 			U256::from_dec_str(&format!("{:.0}", wei_per_gas)).unwrap()
 		}
 
-		if let Some(d) = self.args.flag_gasprice.as_ref() {
-			return Ok(GasPricerConfig::Fixed(to_u256(d)?));
+		if let Some(dec) = self.args.flag_gasprice.as_ref() {
+			return Ok(GasPricerConfig::Fixed(to_u256(dec)?));
+		} else if let Some(dec) = self.args.flag_min_gas_price {
+			return Ok(GasPricerConfig::Fixed(U256::from(dec)));
 		}
 
 		let usd_per_tx = to_price(&self.args.flag_usd_per_tx)?;
@@ -1599,13 +1594,104 @@ mod tests {
 	}
 
 	#[test]
-	fn test_dev_chain() {
-		let args = vec!["parity", "--chain", "dev"];
-		let conf = parse(&args);
+	fn test_dev_preset() {
+		let args = vec!["parity", "--config", "dev"];
+		let conf = Configuration::parse(&args, None).unwrap();
 		match conf.into_command().unwrap().cmd {
 			Cmd::Run(c) => {
+				assert_eq!(c.net_settings.chain, "dev");
 				assert_eq!(c.gas_pricer_conf, GasPricerConfig::Fixed(0.into()));
 				assert_eq!(c.miner_options.reseal_min_period, Duration::from_millis(0));
+			},
+			_ => panic!("Should be Cmd::Run"),
+		}
+	}
+
+	#[test]
+	fn test_mining_preset() {
+		let args = vec!["parity", "--config", "mining"];
+		let conf = Configuration::parse(&args, None).unwrap();
+		match conf.into_command().unwrap().cmd {
+			Cmd::Run(c) => {
+				assert_eq!(c.net_conf.min_peers, 50);
+				assert_eq!(c.net_conf.max_peers, 100);
+				assert_eq!(c.ipc_conf.enabled, false);
+				assert_eq!(c.dapps_conf.enabled, false);
+				assert_eq!(c.miner_options.force_sealing, true);
+				assert_eq!(c.miner_options.reseal_on_external_tx, true);
+				assert_eq!(c.miner_options.reseal_on_own_tx, true);
+				assert_eq!(c.miner_options.reseal_min_period, Duration::from_millis(4000));
+				assert_eq!(c.miner_options.tx_queue_size, 2048);
+				assert_eq!(c.cache_config, CacheConfig::new_with_total_cache_size(256));
+				assert_eq!(c.logger_config.mode.unwrap(), "miner=trace,own_tx=trace");
+			},
+			_ => panic!("Should be Cmd::Run"),
+		}
+	}
+
+	#[test]
+	fn test_non_standard_ports_preset() {
+		let args = vec!["parity", "--config", "non-standard-ports"];
+		let conf = Configuration::parse(&args, None).unwrap();
+		match conf.into_command().unwrap().cmd {
+			Cmd::Run(c) => {
+				assert_eq!(c.net_settings.network_port, 30305);
+				assert_eq!(c.net_settings.rpc_port, 8645);
+			},
+			_ => panic!("Should be Cmd::Run"),
+		}
+	}
+
+	#[test]
+	fn test_insecure_preset() {
+		let args = vec!["parity", "--config", "insecure"];
+		let conf = Configuration::parse(&args, None).unwrap();
+		match conf.into_command().unwrap().cmd {
+			Cmd::Run(c) => {
+				assert_eq!(c.update_policy.require_consensus, false);
+				assert_eq!(c.net_settings.rpc_interface, "0.0.0.0");
+				match c.http_conf.apis {
+					ApiSet::List(set) => assert_eq!(set, ApiSet::All.list_apis()),
+					_ => panic!("Incorrect rpc apis"),
+				}
+				// "web3,eth,net,personal,parity,parity_set,traces,rpc,parity_accounts");
+				assert_eq!(c.http_conf.hosts, None);
+				assert_eq!(c.ipfs_conf.hosts, None);
+			},
+			_ => panic!("Should be Cmd::Run"),
+		}
+	}
+
+	#[test]
+	fn test_dev_insecure_preset() {
+		let args = vec!["parity", "--config", "dev-insecure"];
+		let conf = Configuration::parse(&args, None).unwrap();
+		match conf.into_command().unwrap().cmd {
+			Cmd::Run(c) => {
+				assert_eq!(c.net_settings.chain, "dev");
+				assert_eq!(c.gas_pricer_conf, GasPricerConfig::Fixed(0.into()));
+				assert_eq!(c.miner_options.reseal_min_period, Duration::from_millis(0));
+				assert_eq!(c.update_policy.require_consensus, false);
+				assert_eq!(c.net_settings.rpc_interface, "0.0.0.0");
+				match c.http_conf.apis {
+					ApiSet::List(set) => assert_eq!(set, ApiSet::All.list_apis()),
+					_ => panic!("Incorrect rpc apis"),
+				}
+				// "web3,eth,net,personal,parity,parity_set,traces,rpc,parity_accounts");
+				assert_eq!(c.http_conf.hosts, None);
+				assert_eq!(c.ipfs_conf.hosts, None);
+			},
+			_ => panic!("Should be Cmd::Run"),
+		}
+	}
+
+	#[test]
+	fn test_override_preset() {
+		let args = vec!["parity", "--config", "mining", "--min-peers=99"];
+		let conf = Configuration::parse(&args, None).unwrap();
+		match conf.into_command().unwrap().cmd {
+			Cmd::Run(c) => {
+				assert_eq!(c.net_conf.min_peers, 99);
 			},
 			_ => panic!("Should be Cmd::Run"),
 		}
