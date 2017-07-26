@@ -18,41 +18,37 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import { observer } from 'mobx-react';
 
-import Store from '../NetChain/store';
+import Store from './store';
 
-const SYMBOL_ETC = 'ETC';
-const SYMBOL_ETH = 'ETH';
-const SYMBOL_EXP = 'EXP';
+import styles from './netPeers.css';
 
-function renderSymbol (netChain) {
-  switch (netChain) {
-    case 'classic':
-      return SYMBOL_ETC;
-
-    case 'expanse':
-      return SYMBOL_EXP;
-
-    default:
-      return SYMBOL_ETH;
-  }
-}
-
-function CurrencySymbol ({ className }, { api }) {
+function NetPeers ({ className, message }, { api }) {
   const store = Store.get(api);
 
+  if (!store.netPeers) {
+    return null;
+  }
+
+  const { max, connected } = store.netPeers;
+
   return (
-    <span className={ className }>
-      { renderSymbol(store.netChain) }
-    </span>
+    <div className={ [styles.peers, className].join(' ') }>
+      { connected ? connected.toFormat() : '0' }/{ max ? max.toFormat() : '0' }{ message }
+    </div>
   );
 }
 
-CurrencySymbol.propTypes = {
-  className: PropTypes.string
+NetPeers.propTypes = {
+  className: PropTypes.string,
+  message: PropTypes.node
 };
 
-CurrencySymbol.contextTypes = {
+NetPeers.contextTypes = {
   api: PropTypes.object.isRequired
 };
 
-export default observer(CurrencySymbol);
+const ObserverComponent = observer(NetPeers);
+
+ObserverComponent.Store = Store;
+
+export default ObserverComponent;

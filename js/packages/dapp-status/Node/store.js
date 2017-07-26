@@ -15,7 +15,11 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import BigNumber from 'bignumber.js';
-import { action, observable, transaction } from 'mobx';
+import { action, computed, observable, transaction } from 'mobx';
+
+import { NetChain } from '@parity/ui';
+
+console.log('NetChain', NetChain, NetChain.Store);
 
 export default class StatusStore {
   @observable defaultExtraData = '';
@@ -35,6 +39,13 @@ export default class StatusStore {
 
   constructor (api) {
     this.api = api;
+    this.chainStore = NetChain.Store.get(api);
+
+    this.startPolling();
+  }
+
+  @computed get netChain () {
+    return this.chainStore.netChain;
   }
 
   @action setLongStatus ({ defaultExtraData, enode, netPort, rpcSettings }) {

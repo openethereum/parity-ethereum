@@ -15,51 +15,29 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import bytes from 'bytes';
-import moment from 'moment';
 import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 import { FormattedMessage } from 'react-intl';
-import { connect } from 'react-redux';
+import { observer } from 'mobx-react';
 
-import { Container, ContainerTitle, Input } from '@parity/ui';
+import { BlockNumber, BlockTimestamp, Container, ContainerTitle, Input, NetPeers } from '@parity/ui';
 
 import MiningSettings from '../MiningSettings';
 import StatusStore from './store';
 
 import styles from './node.css';
 
-class Node extends Component {
+@observer
+export default class Node extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
   };
 
-  static propTypes = {
-    blockNumber: PropTypes.object,
-    blockTimestamp: PropTypes.object,
-    netChain: PropTypes.string,
-    netPeers: PropTypes.object
-  };
-
   statusStore = new StatusStore(this.context.api);
 
-  componentWillMount () {
-    this.statusStore.startPolling();
-  }
-
-  componentWillUnmount () {
-    this.statusStore.stopPolling();
-  }
-
   render () {
-    const { blockNumber, blockTimestamp, netPeers } = this.props;
     const { hashrate } = this.statusStore;
-
-    if (!netPeers || !blockNumber) {
-      return null;
-    }
-
     const hashrateValue = bytes(hashrate.toNumber()) || 0;
-    const peers = `${netPeers.active}/${netPeers.connected}/${netPeers.max}`;
 
     return (
       <Container>
@@ -76,10 +54,10 @@ class Node extends Component {
                   }
                 />
                 <div className={ styles.blockInfo }>
-                  #{ blockNumber.toFormat() }
+                  #<BlockNumber />
                 </div>
                 <div className={ styles.blockByline }>
-                  { moment(blockTimestamp).calendar() }
+                  <BlockTimestamp />
                 </div>
               </div>
               <div className={ `${styles.col12} ${styles.padBottom}` }>
@@ -92,7 +70,7 @@ class Node extends Component {
                   }
                 />
                 <div className={ styles.blockInfo }>
-                  { peers }
+                  <NetPeers />
                 </div>
               </div>
               <div className={ `${styles.col12} ${styles.padBottom}` }>
@@ -158,7 +136,6 @@ class Node extends Component {
   }
 
   renderSettings () {
-    const { netChain } = this.props;
     const { enode, rpcSettings, netPort = '' } = this.statusStore;
 
     if (!rpcSettings) {
@@ -186,7 +163,7 @@ class Node extends Component {
               defaultMessage='chain'
             />
           }
-          value={ netChain }
+          value={ this.statusStore.netChain }
         />
         <div className={ styles.row }>
           <div className={ styles.col6 }>
@@ -279,24 +256,3 @@ class Node extends Component {
     );
   }
 }
-
-function mapStateToProps (state) {
-  const {
-    blockNumber,
-    blockTimestamp,
-    netChain,
-    netPeers
-  } = state.nodeStatus;
-
-  return {
-    blockNumber,
-    blockTimestamp,
-    netChain,
-    netPeers
-  };
-}
-
-export default connect(
-  mapStateToProps,
-  null
-)(Node);

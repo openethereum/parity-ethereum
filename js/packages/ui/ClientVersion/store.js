@@ -14,15 +14,37 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import Ws from './ws';
+import { action, observable } from 'mobx';
 
-export Http from './http';
-export PostMessage from './postMessage';
-export PromiseProvider from './promise';
+export default class Store {
+  @observable clientVersion = '';
 
-const WsSecure = Ws;
+  constructor (api) {
+    this._api = api;
+    this._api.on('connected', this.setupSubscriptions, this);
 
-export {
-  Ws,
-  WsSecure
-};
+    if (this._api.isConnected) {
+      this.setupSubscriptions();
+    }
+  }
+
+  setupSubscriptions = () => {
+    this._api.web3
+      .clientVersion()
+      .then(this.setClientVersion);
+  }
+
+  @action setClientVersion = (clientVersion) => {
+    this.clientVersion = clientVersion;
+  }
+
+  static instance = null;
+
+  static get (api) {
+    if (!Store.instance) {
+      Store.instance = new Store(api);
+    }
+
+    return Store.instance;
+  }
+}
