@@ -1,8 +1,8 @@
-## Parity [v1.7.0](https://github.com/paritytech/parity/releases/tag/v1.7.0) (2017-07-25)
+## Parity [v1.7.0](https://github.com/paritytech/parity/releases/tag/v1.7.0) (2017-07-27)
 
 Parity 1.7.0 is a major release introducing several important features:
 
-- **Experimental [Light client](https://github.com/paritytech/parity/wiki/The-Parity-Light-Protocol-(PIP)) support**. Start Parity with `--light` to enable light mode.
+- **Experimental [Light client](https://github.com/paritytech/parity/wiki/The-Parity-Light-Protocol-(PIP)) support**. Start Parity with `--light` to enable light mode. Please, note: The wallet UI integration for the light client is not included, yet.
 - **Experimental web wallet**. A hosted version of Parity that keeps the keys and signs transactions using your browser storage. Try it at https://wallet.parity.io or run your own with `--public-node`.
 - **WASM contract support**. Private networks can run contracts compiled into WASM bytecode. _More information and documentation to follow_.
 - **DApps and RPC server merge**. DApp and RPC are now available through a single API endpoint. DApp server related settings are deprecated.
@@ -13,6 +13,10 @@ Parity 1.7.0 is a major release introducing several important features:
 
 Full list of included changes:
 
+- Light client fixes ([#6148](https://github.com/paritytech/parity/pull/6148)) [#6151](https://github.com/paritytech/parity/pull/6151)
+   - Light client fixes
+   - Fix memory-lru-cache
+   - Clear pending reqs on disconnect
 - Filter tokens logs from current block, not genesis ([#6128](https://github.com/paritytech/parity/pull/6128)) [#6141](https://github.com/paritytech/parity/pull/6141)
 - Fix QR scanner returning null on confirm [#6122](https://github.com/paritytech/parity/pull/6122)
 - Check QR before lowercase ([#6119](https://github.com/paritytech/parity/pull/6119)) [#6120](https://github.com/paritytech/parity/pull/6120)
