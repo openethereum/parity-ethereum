@@ -18,41 +18,35 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import { observer } from 'mobx-react';
 
-import Store from '../NetChain/store';
+import Store from './store';
 
-const SYMBOL_ETC = 'ETC';
-const SYMBOL_ETH = 'ETH';
-const SYMBOL_EXP = 'EXP';
+import styles from './clientVersion.css';
 
-function renderSymbol (netChain) {
-  switch (netChain) {
-    case 'classic':
-      return SYMBOL_ETC;
-
-    case 'expanse':
-      return SYMBOL_EXP;
-
-    default:
-      return SYMBOL_ETH;
-  }
-}
-
-function CurrencySymbol ({ className }, { api }) {
+function ClientVersion ({ className }, { api }) {
   const store = Store.get(api);
 
+  if (!store.clientVersion) {
+    return null;
+  }
+
+  const [ clientName, , versionString, , ] = store.clientVersion.split('/');
+  const [ versionNumber, versionType, , versionDate ] = (versionString || '').split('-');
+
   return (
-    <span className={ className }>
-      { renderSymbol(store.netChain) }
-    </span>
+    <div className={ [styles.clientVersion, className].join(' ') }>
+      { clientName } { versionNumber }-{ versionDate } { versionType }
+    </div>
   );
 }
 
-CurrencySymbol.propTypes = {
+ClientVersion.propTypes = {
   className: PropTypes.string
 };
 
-CurrencySymbol.contextTypes = {
+ClientVersion.contextTypes = {
   api: PropTypes.object.isRequired
 };
 
-export default observer(CurrencySymbol);
+ClientVersion.Store = Store;
+
+export default observer(ClientVersion);

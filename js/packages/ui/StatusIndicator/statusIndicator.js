@@ -14,58 +14,86 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component } from 'react';
+import React from 'react';
 import PropTypes from 'prop-types';
 import ReactTooltip from 'react-tooltip';
+import { observer } from 'mobx-react';
+
+import Store from './store';
 
 import styles from './statusIndicator.css';
 
 const statuses = ['bad', 'needsAttention', 'ok'];
 
-export default class StatusIndicator extends Component {
-  static propTypes = {
-    type: PropTypes.oneOf(['radial', 'signal']),
-    id: PropTypes.string.isRequired,
-    status: PropTypes.oneOf(statuses).isRequired,
-    title: PropTypes.arrayOf(PropTypes.node),
-    tooltipPlacement: PropTypes.oneOf(['left', 'top', 'bottom', 'right'])
-  };
+function StatusIndicator ({ id, status, title = [], tooltipPlacement, type = 'signal' }, { api }) {
+  const store = Store.get(api);
+  const checkStatus = status || store.overall.status;
+  const message = title.length
+    ? title
+    : store.overall.message;
 
-  static defaultProps = {
-    type: 'signal',
-    title: []
-  };
+  return (
+    <span className={ styles.status }>
+      <span
+        className={ `${styles[type]} ${styles[checkStatus]}` }
+        data-tip={ message.length }
+        data-for={ `status-${id}` }
+        data-place={ tooltipPlacement }
+        data-effect='solid'
+      >
+        {
+          type === 'signal'
+            ? statuses.map((signal) => {
+              const index = statuses.indexOf(checkStatus);
+              const isActive = statuses.indexOf(signal) <= index;
 
-  render () {
-    const { id, status, title, type, tooltipPlacement } = this.props;
-    const tooltip = title.find(x => !x.isEmpty) ? (
-      <ReactTooltip id={ `status-${id}` }>
-        { title.map(x => (<div key={ x }>{ x }</div>)) }
-      </ReactTooltip>
-    ) : null;
-
-    return (
-      <span className={ styles.status }>
-        <span className={ `${styles[type]} ${styles[status]}` }
-          data-tip={ title.length }
-          data-for={ `status-${id}` }
-          data-place={ tooltipPlacement }
-          data-effect='solid'
-        >
-          { type === 'signal' && statuses.map(this.renderBar) }
-        </span>
-        {tooltip}
+              return (
+                <span
+                  key={ signal }
+                  className={ `${styles.bar} ${styles[signal]} ${isActive ? styles.active : ''}` }
+                />
+              );
+            })
+            : null
+        }
       </span>
-    );
-  }
-
-  renderBar = (signal) => {
-    const idx = statuses.indexOf(this.props.status);
-    const isActive = statuses.indexOf(signal) <= idx;
-    const activeClass = isActive ? styles.active : '';
-
-    return (
-      <span key={ signal } className={ `${styles.bar} ${styles[signal]} ${activeClass}` } />
-    );
-  }
+      {
+        message.find((x) => !x.isEmpty)
+          ? (
+            <ReactTooltip id={ `status-${id}` }>
+              {
+                message.map((x) => (
+                  <div key={ x }>
+                    { x }
+                  </div>)
+                )
+              }
+            </ReactTooltip>
+          )
+          : null
+      }
+    </span>
+  );
 }
+
+StatusIndicator.propTypes = {
+  type: PropTypes.oneOf([
+    'radial', 'signal'
+  ]),
+  id: PropTypes.string.isRequired,
+  status: PropTypes.oneOf(statuses),
+  title: PropTypes.arrayOf(PropTypes.node),
+  tooltipPlacement: PropTypes.oneOf([
+    'left', 'top', 'bottom', 'right'
+  ])
+};
+
+StatusIndicator.contextTypes = {
+  api: PropTypes.object.isRequired
+};
+
+const ObserverComponent = observer(StatusIndicator);
+
+ObserverComponent.Store = Store;
+
+export default ObserverComponent;

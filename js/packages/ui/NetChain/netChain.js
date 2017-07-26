@@ -14,15 +14,34 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import Ws from './ws';
+import React from 'react';
+import PropTypes from 'prop-types';
+import { observer } from 'mobx-react';
 
-export Http from './http';
-export PostMessage from './postMessage';
-export PromiseProvider from './promise';
+import Store from './store';
 
-const WsSecure = Ws;
+import styles from './netChain.css';
 
-export {
-  Ws,
-  WsSecure
+function NetChain ({ className }, { api }) {
+  const store = Store.get(api);
+
+  return (
+    <div className={ `${styles.chain} ${styles[store.isTest ? 'test' : 'live']} ${className || ''}` }>
+      { store.netChain }
+    </div>
+  );
+}
+
+NetChain.propTypes = {
+  className: PropTypes.string
 };
+
+NetChain.contextTypes = {
+  api: PropTypes.object.isRequired
+};
+
+const ObserverComponent = observer(NetChain);
+
+ObserverComponent.Store = Store;
+
+export default ObserverComponent;

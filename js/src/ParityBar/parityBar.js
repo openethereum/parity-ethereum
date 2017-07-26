@@ -53,8 +53,7 @@ class ParityBar extends Component {
   static propTypes = {
     dapp: PropTypes.bool,
     externalLink: PropTypes.string,
-    pending: PropTypes.array,
-    health: PropTypes.object
+    pending: PropTypes.array
   };
 
   state = {
@@ -214,7 +213,7 @@ class ParityBar extends Component {
   }
 
   renderBar () {
-    const { dapp, health } = this.props;
+    const { dapp } = this.props;
 
     if (!dapp) {
       return null;
@@ -223,10 +222,7 @@ class ParityBar extends Component {
     return (
       <div className={ styles.cornercolor }>
         <StatusIndicator
-          type='signal'
           id='paritybar.health'
-          status={ health.overall.status }
-          title={ health.overall.message }
           tooltipPlacement='right'
         />
         <Button
@@ -710,11 +706,9 @@ class ParityBar extends Component {
 
 function mapStateToProps (state) {
   const { pending } = state.signer;
-  const { health } = state.nodeStatus;
 
   return {
-    pending,
-    health
+    pending
   };
 }
 

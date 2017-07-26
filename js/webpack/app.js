@@ -242,7 +242,7 @@ module.exports = {
     }
 
     if (!isAnalize && !isProd) {
-      const DEST_I18N = path.join(__dirname, '..', DEST, 'i18n');
+      // const DEST_I18N = path.join(__dirname, '..', DEST, 'i18n');
 
       plugins.push(
         // new ReactIntlAggregatePlugin({

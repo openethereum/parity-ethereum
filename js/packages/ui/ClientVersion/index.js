@@ -14,15 +14,4 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import Ws from './ws';
-
-export Http from './http';
-export PostMessage from './postMessage';
-export PromiseProvider from './promise';
-
-const WsSecure = Ws;
-
-export {
-  Ws,
-  WsSecure
-};
+export default from './clientVersion';

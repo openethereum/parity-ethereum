@@ -17,42 +17,36 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import { observer } from 'mobx-react';
+import moment from 'moment';
 
-import Store from '../NetChain/store';
+import Store from '../BlockNumber/store';
 
-const SYMBOL_ETC = 'ETC';
-const SYMBOL_ETH = 'ETH';
-const SYMBOL_EXP = 'EXP';
+import styles from './blockTimestamp.css';
 
-function renderSymbol (netChain) {
-  switch (netChain) {
-    case 'classic':
-      return SYMBOL_ETC;
-
-    case 'expanse':
-      return SYMBOL_EXP;
-
-    default:
-      return SYMBOL_ETH;
-  }
-}
-
-function CurrencySymbol ({ className }, { api }) {
+function BlockTimestamp ({ className }, { api }) {
   const store = Store.get(api);
 
+  if (!store.blockTimestamp) {
+    return null;
+  }
+
   return (
-    <span className={ className }>
-      { renderSymbol(store.netChain) }
-    </span>
+    <div className={ [styles.blockTimestamp, className].join(' ') }>
+      { moment(store.blockTimestamp).calendar() }
+    </div>
   );
 }
 
-CurrencySymbol.propTypes = {
+BlockTimestamp.propTypes = {
   className: PropTypes.string
 };
 
-CurrencySymbol.contextTypes = {
+BlockTimestamp.contextTypes = {
   api: PropTypes.object.isRequired
 };
 
-export default observer(CurrencySymbol);
+const ObserverComponent = observer(BlockTimestamp);
+
+ObserverComponent.Store = Store;
+
+export default ObserverComponent;

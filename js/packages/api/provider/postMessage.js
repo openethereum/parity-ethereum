@@ -46,7 +46,7 @@ export default class PostMessage {
   }
 
   subscribe = (api, callback, params) => {
-    console.log('paritySubscribe', JSON.stringify(params), api, callback);
+    // console.log('paritySubscribe', JSON.stringify(params), api, callback);
     return new Promise((resolve, reject) => {
       const id = ++this.id;
 
@@ -89,8 +89,10 @@ export default class PostMessage {
     }
 
     if (this._messages[id].subscription) {
-      console.log('subscription', result, 'initial?', this._messages[id].initial);
-      this._messages[id].initial ? this._messages[id].resolve(result) : this._messages[id].callback(error && new Error(error), result);
+      // console.log('subscription', result, 'initial?', this._messages[id].initial);
+      this._messages[id].initial
+        ? this._messages[id].resolve(result)
+        : this._messages[id].callback(error && new Error(error), result);
       this._messages[id].initial = false;
     } else {
       this._messages[id].callback(error && new Error(error), result);

@@ -68,10 +68,12 @@
       height: .4em;
       border-right: 0;
     }
+
     &.needsAttention {
       height: .6em;
       border-right: 0;
     }
+
     &.ok {
       height: 1em;
     }
@@ -80,9 +82,11 @@
   &.bad > .bar.active {
     background-color: #c00;
   }
+
   &.ok > .bar.active {
     background-color: #080;
   }
+
   &.needsAttention > .bar.active {
     background-color: #dc0;
   }

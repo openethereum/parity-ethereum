@@ -17,45 +17,44 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import { observer } from 'mobx-react';
-import { connect } from 'react-redux';
+import { FormattedMessage } from 'react-intl';
 
-import { BlockStatus, StatusIndicator } from '@parity/ui';
+import { BlockNumber, ClientVersion, NetChain, NetPeers, StatusIndicator } from '@parity/ui';
 
 import Consensus from './Consensus';
 import Upgrade from './Upgrade';
-import Store from './store';
 
 import styles from './status.css';
 
-function Status ({ health, upgradeStore }, { api }) {
-  const store = Store.get(api);
-  const [ clientName, , versionString, , ] = (store.clientVersion || '').split('/');
-  const [ versionNumber, versionType, , versionDate ] = (versionString || '').split('-');
-  const { connected, max } = store.netPeers;
-
+function Status ({ className = '', upgradeStore }, { api }) {
   return (
-    <div className={ styles.status }>
-      <div className={ styles.version }>
-        { clientName } { versionNumber }-{ versionDate } { versionType }
-      </div>
+    <div className={ [styles.status, className].join(' ') }>
+      <ClientVersion className={ styles.version } />
       <div className={ styles.upgrade }>
         <Consensus upgradeStore={ upgradeStore } />
         <Upgrade upgradeStore={ upgradeStore } />
       </div>
       <div className={ styles.netinfo }>
-        <StatusIndicator
-          type='signal'
-          id='application.status.health'
-          status={ health.overall.status }
-          title={ health.overall.message }
+        <StatusIndicator id='application.status.health' />
+        <BlockNumber
+          className={ styles.blockNumber }
+          message={
+            <FormattedMessage
+              id='ui.blockStatus.bestBlock'
+              defaultMessage=' best block'
+            />
+          }
         />
-        <BlockStatus />
-        <div className={ styles.peers }>
-          { connected ? connected.toFormat() : '0' }/{ max ? max.toFormat() : '0' } peers
-        </div>
-        <div className={ `${styles.network} ${styles[store.isTest ? 'test' : 'live']}` }>
-          { store.netChain }
-        </div>
+        <NetPeers
+          className={ styles.peers }
+          message={
+            <FormattedMessage
+              id='ui.netPeers.peers'
+              defaultMessage=' peers'
+            />
+          }
+        />
+        <NetChain />
       </div>
     </div>
   );
@@ -66,19 +65,8 @@ Status.contextTypes = {
 };
 
 Status.propTypes = {
-  health: PropTypes.object.isRequired,
+  className: PropTypes.string,
   upgradeStore: PropTypes.object.isRequired
 };
 
-function mapStateToProps (state) {
-  const { health } = state.nodeStatus;
-
-  return {
-    health
-  };
-}
-
-export default connect(
-  mapStateToProps,
-  null
-)(observer(Status));
+export default observer(Status);
