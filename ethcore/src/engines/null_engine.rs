@@ -76,6 +76,7 @@ impl Engine for NullEngine {
 			return Ok(CloseOutcome{trace: None});
 		}
 
+		/// Block reward
 		let fields = block.fields_mut();		
 		let mut tracer = ExecutiveTracer::default();
 
@@ -88,6 +89,18 @@ impl Engine for NullEngine {
 
 		let block_miner = fields.header.author().clone();
 		tracer.trace_reward(block_miner, result_block_reward, RewardType::Block);
+
+		/// Uncle rewards
+		let result_uncle_reward = U256::from(10000000);
+		for u in fields.uncles.iter() {
+			let uncle_miner = u.author().clone();
+			fields.state.add_balance(
+				u.author(),
+				&(result_uncle_reward),
+				CleanupMode::NoEmpty
+			)?;
+			tracer.trace_reward(uncle_miner, result_uncle_reward, RewardType::Uncle);
+		}
 
 		fields.state.commit()?;
 		match *fields.tracing_enabled {
