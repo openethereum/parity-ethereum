@@ -163,11 +163,11 @@ export default class CreateWalletStore {
         WalletsUtils.fetchOwners(walletContract),
         WalletsUtils.fetchDailylimit(walletContract)
       ])
-      .then(([ require, owners, dailylimit ]) => {
+      .then(([ require, owners, daylimit ]) => {
         transaction(() => {
           this.wallet.owners = owners;
           this.wallet.required = require.toNumber();
-          this.wallet.dailylimit = dailylimit.limit;
+          this.wallet.daylimit = daylimit.limit;
 
           this.wallet = this.getWalletWithMeta(this.wallet);
         });
