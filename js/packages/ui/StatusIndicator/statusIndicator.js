@@ -25,8 +25,9 @@ import styles from './statusIndicator.css';
 
 const statuses = ['bad', 'needsAttention', 'ok'];
 
-function StatusIndicator ({ id, status, title, tooltipPlacement, type }, { api }) {
+function StatusIndicator ({ id, status, title = [], tooltipPlacement, type = 'signal' }, { api }) {
   const store = Store.get(api);
+  const checkStatus = status || store.overall.status;
   const message = title.length
     ? title
     : store.overall.message;
@@ -34,7 +35,7 @@ function StatusIndicator ({ id, status, title, tooltipPlacement, type }, { api }
   return (
     <span className={ styles.status }>
       <span
-        className={ `${styles[type]} ${styles[status]}` }
+        className={ `${styles[type]} ${styles[checkStatus]}` }
         data-tip={ message.length }
         data-for={ `status-${id}` }
         data-place={ tooltipPlacement }
@@ -43,8 +44,10 @@ function StatusIndicator ({ id, status, title, tooltipPlacement, type }, { api }
         {
           type === 'signal'
             ? statuses.map((signal) => {
-              const index = statuses.indexOf(status || store.overall.status);
+              const index = statuses.indexOf(checkStatus);
               const isActive = statuses.indexOf(signal) <= index;
+
+              console.log('signal', signal, checkStatus, index, isActive);
 
               return (
                 <span
@@ -89,11 +92,6 @@ StatusIndicator.propTypes = {
 
 StatusIndicator.contextTypes = {
   api: PropTypes.object.isRequired
-};
-
-StatusIndicator.defaultProps = {
-  type: 'signal',
-  title: []
 };
 
 export default observer(StatusIndicator);

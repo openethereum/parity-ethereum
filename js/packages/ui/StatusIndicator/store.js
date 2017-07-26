@@ -14,21 +14,32 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { action, observable } from 'mobx';
+import { action, computed, observable } from 'mobx';
 
 const STATUS_OK = 'ok';
 const STATUS_WARN = 'needsAttention';
 const STATUS_BAD = 'bad';
-const EMPTY_OVERALL = { message: [] };
+const EMPTY_OVERALL = { message: [], status: STATUS_BAD };
 
 export default class Store {
-  @observable health = {};
-  @observable overall = EMPTY_OVERALL;
+  @observable _health = null;
 
   constructor (api) {
     this._api = api;
 
     setInterval(this.fetchHealth, 2500);
+  }
+
+  @computed get health () {
+    return this._health
+      ? this._health
+      : {};
+  }
+
+  @computed get overall () {
+    return this._health
+      ? this._health.overall
+      : EMPTY_OVERALL;
   }
 
   fetchHealth = () => {
@@ -71,17 +82,16 @@ export default class Store {
 
   @action setHealth = (health) => {
     if (!health) {
-      this.health = {};
-      this.overall = EMPTY_OVERALL;
+      this._health = null;
       return;
     }
 
     health.peers = health.peers || {};
     health.sync = health.sync || {};
     health.time = health.time || {};
-
-    this.health = health;
     health.overall = this._overallStatus(health);
+
+    this._health = health;
   }
 
   static instance = null;
