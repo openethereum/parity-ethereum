@@ -17,8 +17,6 @@
 import BigNumber from 'bignumber.js';
 import { intersection } from 'lodash';
 
-import { MAX_GAS_ESTIMATION } from '~/util/constants';
-
 import ConsensysWalletUtils from './wallets/consensys-wallet';
 import FoundationWalletUtils from './wallets/foundation-wallet';
 
