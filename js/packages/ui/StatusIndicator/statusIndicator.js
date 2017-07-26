@@ -47,8 +47,6 @@ function StatusIndicator ({ id, status, title = [], tooltipPlacement, type = 'si
               const index = statuses.indexOf(checkStatus);
               const isActive = statuses.indexOf(signal) <= index;
 
-              console.log('signal', signal, checkStatus, index, isActive);
-
               return (
                 <span
                   key={ signal }

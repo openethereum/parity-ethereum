@@ -47,6 +47,7 @@ export Loading from './Loading';
 export MethodDecoding from './MethodDecoding';
 export { Busy as BusyStep, Completed as CompletedStep } from './Modal';
 export ModalBox from './ModalBox';
+export NetPeers from './NetPeers';
 export Page from './Page';
 export Popup from './Popup';
 export Portal from './Portal';

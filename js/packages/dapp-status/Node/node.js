@@ -21,7 +21,7 @@ import PropTypes from 'prop-types';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 
-import { BlockNumber, Container, ContainerTitle, Input } from '@parity/ui';
+import { BlockNumber, Container, ContainerTitle, Input, NetPeers } from '@parity/ui';
 
 import MiningSettings from '../MiningSettings';
 import StatusStore from './store';
@@ -34,10 +34,8 @@ class Node extends Component {
   };
 
   static propTypes = {
-    blockNumber: PropTypes.object,
     blockTimestamp: PropTypes.object,
-    netChain: PropTypes.string,
-    netPeers: PropTypes.object
+    netChain: PropTypes.string
   };
 
   statusStore = new StatusStore(this.context.api);
@@ -51,15 +49,10 @@ class Node extends Component {
   }
 
   render () {
-    const { blockTimestamp, netPeers } = this.props;
+    const { blockTimestamp } = this.props;
     const { hashrate } = this.statusStore;
 
-    if (!netPeers) {
-      return null;
-    }
-
     const hashrateValue = bytes(hashrate.toNumber()) || 0;
-    const peers = `${netPeers.active}/${netPeers.connected}/${netPeers.max}`;
 
     return (
       <Container>
@@ -92,7 +85,7 @@ class Node extends Component {
                   }
                 />
                 <div className={ styles.blockInfo }>
-                  { peers }
+                  <NetPeers />
                 </div>
               </div>
               <div className={ `${styles.col12} ${styles.padBottom}` }>
@@ -281,12 +274,11 @@ class Node extends Component {
 }
 
 function mapStateToProps (state) {
-  const { blockTimestamp, netChain, netPeers } = state.nodeStatus;
+  const { blockTimestamp, netChain } = state.nodeStatus;
 
   return {
     blockTimestamp,
-    netChain,
-    netPeers
+    netChain
   };
 }
 

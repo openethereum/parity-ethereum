@@ -19,7 +19,7 @@ import PropTypes from 'prop-types';
 import { observer } from 'mobx-react';
 import { FormattedMessage } from 'react-intl';
 
-import { BlockNumber, Chain, StatusIndicator } from '@parity/ui';
+import { BlockNumber, Chain, NetPeers, StatusIndicator } from '@parity/ui';
 
 import Consensus from './Consensus';
 import Upgrade from './Upgrade';
@@ -31,7 +31,6 @@ function Status ({ upgradeStore }, { api }) {
   const store = Store.get(api);
   const [ clientName, , versionString, , ] = (store.clientVersion || '').split('/');
   const [ versionNumber, versionType, , versionDate ] = (versionString || '').split('-');
-  const { connected, max } = store.netPeers;
 
   return (
     <div className={ styles.status }>
@@ -44,14 +43,24 @@ function Status ({ upgradeStore }, { api }) {
       </div>
       <div className={ styles.netinfo }>
         <StatusIndicator id='application.status.health' />
-        <BlockNumber />
-        <FormattedMessage
-          id='ui.blockStatus.bestBlock'
-          defaultMessage=' best block'
+        <BlockNumber
+          className={ styles.blockNumber }
+          message={
+            <FormattedMessage
+              id='ui.blockStatus.bestBlock'
+              defaultMessage=' best block'
+            />
+          }
         />
-        <div className={ styles.peers }>
-          { connected ? connected.toFormat() : '0' }/{ max ? max.toFormat() : '0' } peers
-        </div>
+        <NetPeers
+          className={ styles.peers }
+          message={
+            <FormattedMessage
+              id='ui.netPeers.peers'
+              defaultMessage=' peers'
+            />
+          }
+        />
         <Chain />
       </div>
     </div>

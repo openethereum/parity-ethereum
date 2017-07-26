@@ -23,7 +23,7 @@ import Store from './store';
 
 import styles from './blockNumber.css';
 
-function BlockNumber ({ className }, { api }) {
+function BlockNumber ({ className, message }, { api }) {
   const store = Store.get(api);
 
   if (!store.blockNumber) {
@@ -33,7 +33,7 @@ function BlockNumber ({ className }, { api }) {
   if (!store.syncing) {
     return (
       <div className={ [styles.blockNumber, className].join(' ') }>
-        { store.blockNumber.toFormat() }
+        { store.blockNumber.toFormat() }{ message }
       </div>
     );
   }
@@ -95,7 +95,8 @@ function BlockNumber ({ className }, { api }) {
 }
 
 BlockNumber.propTypes = {
-  className: PropTypes.string
+  className: PropTypes.string,
+  message: PropTypes.node
 };
 
 BlockNumber.contextTypes = {
