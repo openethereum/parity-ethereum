@@ -1,4 +1,4 @@
-  // Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -22,7 +22,7 @@ import { connect } from 'react-redux';
 import moment from 'moment';
 import { throttle } from 'lodash';
 
-import { Actionbar, ActionbarExport, ActionbarImport, Button, Dropdown, Input, Loading, Page, Toggle } from '@parity/ui';
+import { Actionbar, ActionbarExport, ActionbarImport, Button, Dropdown, Input, Loading, Page, Toggle, Tab } from '@parity/ui';
 import { CancelIcon, ListIcon, SaveIcon, SendIcon, SettingsIcon } from '@parity/ui/Icons';
 import Editor from '@parity/ui/Editor';
 
@@ -32,6 +32,12 @@ import SaveContract from './SaveContract';
 
 import ContractDevelopStore from './store';
 import styles from './contractDevelop.css';
+
+import { Debugger, TransactButton, Contract, DropdownBond } from 'parity-reactive-ui';
+import { Bond } from 'oo7';
+import { bonds } from 'oo7-parity';
+
+const traceOptions = [{ text: 'trace', value: 'trace' }, { text: 'vmTrace', value: 'vmTrace' }, { text: 'stateDiff', value: 'stateDiff' }];
 
 @observer
 class ContractDevelop extends Component {
@@ -48,13 +54,14 @@ class ContractDevelop extends Component {
     size: 65
   };
 
+  debugDeploy = this.debugDeploy.bind(this);
+
   componentWillMount () {
     const { worker } = this.props;
 
     if (worker !== undefined) {
       this.store.setWorker(worker);
     }
-
     this.throttledResize = throttle(this.applyResize, 100, { leading: true });
   }
 
@@ -83,12 +90,23 @@ class ContractDevelop extends Component {
   }
 
   render () {
+    console.log('render contractDevelopment');
     const { sourcecode } = this.store;
     const { size, resizing } = this.state;
 
     const annotations = this.store.annotations
       .slice()
       .filter((a) => a.contract === '');
+
+    const panes = [
+      { menuItem: 'Parameters', render: () => <div>
+        { this.renderParameters() }
+      </div> },
+      { menuItem: 'Debugger', render: () => <Tab panes={ [ { menuItem: 'Trace', render: () => this.renderDebugger() },
+                                                           { menuItem: 'ShowTrace', render: () => <Debugger txBond={ this.store.contract.trace } /> } ] }
+                                            />
+      }
+    ];
 
     return (
       <div className={ styles.outer }>
@@ -99,9 +117,6 @@ class ContractDevelop extends Component {
         <Page className={ styles.page }>
           <div
             className={ `${styles.container} ${resizing ? styles.resizing : ''}` }
-            onMouseMove={ this.handleResize }
-            onMouseUp={ this.handleStopResize }
-            onMouseLeave={ this.handleStopResize }
           >
             <div
               className={ styles.editor }
@@ -130,13 +145,7 @@ class ContractDevelop extends Component {
               className={ styles.parameters }
               style={ { flex: `${100 - size}%` } }
             >
-              <h2>
-                <FormattedMessage
-                  id='writeContract.title.parameters'
-                  defaultMessage='Parameters'
-                />
-              </h2>
-              { this.renderParameters() }
+              <Tab panes={ panes } />
             </div>
           </div>
         </Page>
@@ -181,6 +190,68 @@ class ContractDevelop extends Component {
         </span>
       </span>
     );
+  }
+
+  debugDeploy (contract) {
+    const { contracts, contractIndex } = this.store;
+
+    const bytecode = contract.bytecode;
+    const abi = contract.interface;
+
+    if (!contract.deployed) {
+      let tx = bonds.deployContract(bytecode, JSON.parse(abi));
+
+      tx.done(s => {
+        console.log('txDone!');
+        // address is undefined from s (How to become ? => TuT) , error because of triggering while triggering => can makeContract call? between here and next printout
+        let address = s.deployed.address;
+
+        contract.deployed = bonds.makeContract(address, JSON.parse(abi), [], true);
+        contract.address = address;
+        contract.trace = new Bond();
+        contract.trace.tie(v => {
+          console.log('TIED to BOND', v);
+          // v.then(console.log);
+        });
+        contracts[contractIndex] = contract;
+        console.log('New Contract', contract, 'index', contractIndex);
+      });
+
+      return tx;
+    } else {
+      return null;
+    }
+  }
+
+  renderDebugger () {
+    const { contracts, compiled } = this.store;
+    let traceMode = new Bond();
+
+    const contractKeys = Object.keys(contracts);
+
+    return (<div>
+      {compiled ? <div>
+        <DropdownBond bond={ traceMode } options={ traceOptions } fluid multiple />
+        {contractKeys.map((name, i) => {
+          let c = contracts[name];
+
+          console.log('contract', c, 'index', i, 'name', name);
+
+          return (
+            <div key={ i }>
+              { c.deployed
+                ? <Contract
+                  contract={ c.deployed ? c.deployed : null }
+                  trace={ c.trace }
+                  traceMode={ traceMode }
+                  contractName={ `Contract ${name} ${c.address}` }
+                  />
+                : <TransactButton content={ `Debug ${name}` } tx={ () => this.debugDeploy(c) } statusText disabled={ c.deployed } />}
+            </div>
+          );
+        })}
+      </div> : null}
+    </div>);
   }
 
   renderActionBar () {
@@ -346,21 +417,24 @@ class ContractDevelop extends Component {
           {
             contract
               ? (
-                <Button
-                  disabled={ compiling || !this.store.isPristine }
-                  icon={ <SendIcon /> }
-                  label={
-                    <FormattedMessage
-                      id='writeContract.buttons.deploy'
-                      defaultMessage='Deploy'
-                    />
-                  }
-                  onClick={ this.store.handleOpenDeployModal }
-                  primary={ false }
-                />
-              )
-              : null
+                <span>
+                  <Button
+                    disabled={ compiling || !this.store.isPristine }
+                    icon={ <SendIcon /> }
+                    label={
+                      <FormattedMessage
+                        id='writeContract.buttons.deploy'
+                        defaultMessage='Deploy'
+                      />
+                    }
+                    onClick={ this.store.handleOpenDeployModal }
+                    primary={ false }
+                  />
+                </span>
+            )
+            : null
           }
+
         </div>
         <div className={ styles.toggles }>
           <div>
@@ -721,6 +795,6 @@ function mapStateToProps (state) {
 }
 
 export default connect(
-  mapStateToProps,
-  null
+mapStateToProps,
+null
 )(ContractDevelop);
