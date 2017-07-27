@@ -37,6 +37,8 @@ pub enum NodeSecretKey {
 pub struct Configuration {
 	/// Is secret store functionality enabled?
 	pub enabled: bool,
+	/// Is HTTP API enabled?
+	pub http_enabled: bool,
 	/// This node secret.
 	pub self_secret: Option<NodeSecretKey>,
 	/// Other nodes IDs + addresses.
@@ -119,10 +121,10 @@ mod server {
 
 			let key_server_name = format!("{}:{}", conf.interface, conf.port);
 			let mut cconf = ethcore_secretstore::ServiceConfiguration {
-				listener_address: ethcore_secretstore::NodeAddress {
+				listener_address: if conf.http_enabled { Some(ethcore_secretstore::NodeAddress {
 					address: conf.http_interface.clone(),
 					port: conf.http_port,
-				},
+				}) } else { None },
 				data_path: conf.data_path.clone(),
 				cluster_config: ethcore_secretstore::ClusterConfiguration {
 					threads: 4,
@@ -157,6 +159,7 @@ impl Default for Configuration {
 		let data_dir = default_data_path();
 		Configuration {
 			enabled: true,
+			http_enabled: true,
 			self_secret: None,
 			nodes: BTreeMap::new(),
 			interface: "127.0.0.1".to_owned(),

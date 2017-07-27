@@ -76,8 +76,9 @@ path = "$HOME/.parity/dapps"
 user = "test_user"
 pass = "test_pass"
 
-[secretstore]
+[secretstore]	
 disable = false
+disable_http = false
 nodes = []
 http_interface = "local"
 http_port = 8082

@@ -69,8 +69,8 @@ pub struct NodeAddress {
 #[binary]
 /// Secret store configuration
 pub struct ServiceConfiguration {
-	/// HTTP listener address.
-	pub listener_address: NodeAddress,
+	/// HTTP listener address. If None, HTTP API is disabled.
+	pub listener_address: Option<NodeAddress>,
 	/// Data directory path for secret store
 	pub data_path: String,
 	/// Cluster configuration.

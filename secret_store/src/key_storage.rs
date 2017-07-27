@@ -234,10 +234,7 @@ pub mod tests {
 	fn persistent_key_storage() {
 		let path = RandomTempPath::create_dir();
 		let config = ServiceConfiguration {
-			listener_address: NodeAddress {
-				address: "0.0.0.0".to_owned(),
-				port: 8082,
-			},
+			listener_address: None,
 			data_path: path.as_str().to_owned(),
 			cluster_config: ClusterConfiguration {
 				threads: 1,

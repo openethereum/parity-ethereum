@@ -216,6 +216,8 @@ usage! {
 		// Secret Store
 		flag_no_secretstore: bool = false,
 			or |c: &Config| otry!(c.secretstore).disable.clone(),
+		flag_no_secretstore_http: bool = false,
+			or |c: &Config| otry!(c.secretstore).disable_http.clone(),
 		flag_secretstore_secret: Option<String> = None,
 			or |c: &Config| otry!(c.secretstore).self_secret.clone().map(Some),
 		flag_secretstore_nodes: String = "",
@@ -510,6 +512,7 @@ struct Dapps {
 #[derive(Default, Debug, PartialEq, Deserialize)]
 struct SecretStore {
 	disable: Option<bool>,
+	disable_http: Option<bool>,
 	self_secret: Option<String>,
 	nodes: Option<Vec<String>>,
 	interface: Option<String>,
@@ -779,6 +782,7 @@ mod tests {
 			flag_no_dapps: false,
 
 			flag_no_secretstore: false,
+			flag_no_secretstore_http: false,
 			flag_secretstore_secret: None,
 			flag_secretstore_nodes: "".into(),
 			flag_secretstore_interface: "local".into(),
@@ -1009,6 +1013,7 @@ mod tests {
 			}),
 			secretstore: Some(SecretStore {
 				disable: None,
+				disable_http: None,
 				self_secret: None,
 				nodes: None,
 				interface: None,
