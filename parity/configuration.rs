@@ -243,6 +243,7 @@ impl Configuration {
 				check_seal: !self.args.flag_no_seal_check,
 				with_color: logger_config.color,
 				verifier_settings: self.verifier_settings(),
+				light: self.args.flag_light,
 			};
 			Cmd::Blockchain(BlockchainCmd::Import(import_cmd))
 		} else if self.args.cmd_export {
@@ -1184,6 +1185,7 @@ mod tests {
 			check_seal: true,
 			with_color: !cfg!(windows),
 			verifier_settings: Default::default(),
+			light: false,
 		})));
 	}
 
