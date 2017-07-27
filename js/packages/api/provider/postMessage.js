@@ -19,6 +19,7 @@ import EventEmitter from 'eventemitter3';
 export default class PostMessage extends EventEmitter {
   id = 0;
   _messages = {};
+  _queued = [];
 
   constructor (appId, destination) {
     super();
@@ -33,7 +34,7 @@ export default class PostMessage extends EventEmitter {
     if (token) {
       this._token = token;
       this.emit('initialisedToken');
-      this.sendQueued();
+      this._sendQueued();
     }
   }
 
@@ -42,7 +43,7 @@ export default class PostMessage extends EventEmitter {
 
   requestNewToken () {
     return new Promise((resolve, reject) => {
-      this.send('shell_requestNewToken', [this._appId], (error, token) => {
+      this.send('shell_requestNewToken', [], (error, token) => {
         if (error) {
           reject(error);
         } else {
@@ -53,76 +54,78 @@ export default class PostMessage extends EventEmitter {
     });
   }
 
-  _send (data) {
-    this._destination.postMessage(data, '*');
+  _send = (message) => {
+    if (!this._token) {
+      this._queued.push(message);
+
+      return;
+    }
+
+    const id = ++this.id;
+    const postMessage = Object.assign({}, message.data, {
+      id,
+      to: 'shell',
+      from: this._appId,
+      token: this._token
+    });
+
+    this._messages[id] = Object.assign({}, postMessage, message.options);
+    this._destination.postMessage(postMessage, '*');
   }
 
   send = (method, params, callback) => {
-    const id = ++this.id;
-
-    this._messages[id] = { callback, method, params, queued: !this._token };
-
     this._send({
-      id,
-      from: this._appId,
-      method,
-      params,
-      to: 'shell',
-      token: this._token
+      data: {
+        method,
+        params
+      },
+      options: {
+        callback
+      }
     });
   }
 
-  sendQueued () {
-    Object
-      .keys(this._messages)
-      .forEach((id) => {
-        const message = this._messages[id];
+  _sendQueued () {
+    if (!this._token) {
+      return;
+    }
 
-        if (!message || !message.queued) {
-          return;
-        }
-
-        this._send({
-          id,
-          from: this._appId,
-          method: message.method,
-          params: message.params,
-          to: 'shell',
-          token: this._token
-        });
-
-        message.queued = false;
-      });
+    this._queued.forEach(this._send);
+    this._queued = [];
   }
 
   subscribe = (api, callback, params) => {
     // console.log('paritySubscribe', JSON.stringify(params), api, callback);
     return new Promise((resolve, reject) => {
-      const id = ++this.id;
-
-      this._messages[id] = { callback, resolve, reject, subscription: true, initial: true };
       this._send({
-        id,
-        from: this._appId,
-        api,
-        params,
-        to: 'shell',
-        token: this._token
+        data: {
+          api,
+          params
+        },
+        options: {
+          callback,
+          resolve,
+          reject,
+          subscription: true,
+          initial: true
+        }
       });
     });
   }
 
   unsubscribe = (subId) => {
     return new Promise((resolve, reject) => {
-      const id = ++this.id;
-
-      this._messages[id] = { callback: (e, v) => e ? reject(e) : resolve(v) };
       this._send({
-        id,
-        from: this._appId,
-        subId,
-        to: 'shell',
-        token: this._token
+        data: {
+          subId
+        },
+        options: {
+          callback: (error, result) => {
+            error
+              ? reject(error)
+              : resolve(result);
+          }
+        }
       });
     });
   }
@@ -134,7 +137,7 @@ export default class PostMessage extends EventEmitter {
   receiveMessage = ({ data: { id, error, from, to, token, result }, origin, source }) => {
     const isTokenValid = token
       ? token === this._token
-      : to === this._appId;
+      : true;
 
     if (from !== 'shell' || to !== this._appId || !isTokenValid) {
       return;
