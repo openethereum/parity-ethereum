@@ -200,14 +200,11 @@ function addProxies (app) {
   }));
 
   app.use('/parity-utils', proxy({
-    // target: 'http://127.0.0.1:3000',
-    // changeOrigin: true,
-    // pathRewrite: {
-    //   '^/parity-utils': ''
-    // }
-    target: 'http://127.0.0.1:8180',
+    target: 'http://127.0.0.1:3000',
     changeOrigin: true,
-    autoRewrite: true
+    pathRewrite: {
+      '^/parity-utils': ''
+    }
   }));
 
   app.use('/rpc', proxy({

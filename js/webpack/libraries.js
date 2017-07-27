@@ -29,7 +29,9 @@ const isProd = ENV === 'production';
 module.exports = {
   context: path.join(__dirname, '../src'),
   entry: {
-    'inject': ['./inject.js']
+    'inject': ['./inject.js'],
+    'parity': ['./inject.js'],
+    'web3': ['./inject.js']
   },
   output: {
     path: path.join(__dirname, '../', DEST),
