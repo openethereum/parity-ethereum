@@ -211,6 +211,7 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 		db_compaction: compaction,
 		db_wal: cmd.wal,
 		verify_full: true,
+		check_seal: cmd.check_seal,
 	};
 
 	config.queue.max_mem_use = cmd.cache_config.queue() as usize * 1024 * 1024;
