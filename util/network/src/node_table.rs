@@ -293,7 +293,7 @@ impl NodeTable {
 			let mut json = String::new();
 			json.push_str("{\n");
 			json.push_str("\"nodes\": [\n");
-			let node_ids = self.nodes(IpFilter::new());
+			let node_ids = self.nodes(IpFilter::default());
 			for i in 0 .. node_ids.len() {
 				let node = self.nodes.get(&node_ids[i]).expect("self.nodes() only returns node IDs from self.nodes");
 				json.push_str(&format!("\t{{ \"url\": \"{}\", \"failures\": {} }}{}\n", node, node.failures, if i == node_ids.len() - 1 {""} else {","}))
@@ -422,7 +422,7 @@ mod tests {
 		table.note_failure(&id1);
 		table.note_failure(&id2);
 
-		let r = table.nodes(IpFilter::new());
+		let r = table.nodes(IpFilter::default());
 		assert_eq!(r[0][..], id3[..]);
 		assert_eq!(r[1][..], id2[..]);
 		assert_eq!(r[2][..], id1[..]);
@@ -444,7 +444,7 @@ mod tests {
 
 		{
 			let table = NodeTable::new(Some(temp_path.as_path().to_str().unwrap().to_owned()));
-			let r = table.nodes(IpFilter::new());
+			let r = table.nodes(IpFilter::default());
 			assert_eq!(r[0][..], id1[..]);
 			assert_eq!(r[1][..], id2[..]);
 		}

@@ -132,7 +132,7 @@ impl NetworkConfiguration {
 			max_peers: 50,
 			max_handshakes: 64,
 			reserved_protocols: HashMap::new(),
-			ip_filter: IpFilter::new(),
+			ip_filter: IpFilter::default(),
 			reserved_nodes: Vec::new(),
 			non_reserved_mode: NonReservedPeerMode::Accept,
 		}

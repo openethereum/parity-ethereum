@@ -207,7 +207,7 @@ pub fn default_network_config() -> ::ethsync::NetworkConfiguration {
 		min_peers: 25,
 		snapshot_peers: 0,
 		max_pending_peers: 64,
-		ip_filter: IpFilter::new(),
+		ip_filter: IpFilter::default(),
 		reserved_nodes: Vec::new(),
 		allow_non_reserved: true,
 	}

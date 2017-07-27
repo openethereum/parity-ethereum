@@ -156,18 +156,20 @@ pub struct IpFilter {
     pub custom_block: Vec<IpNetwork>,
 } 
 
-impl IpFilter {
-    pub fn new() -> IpFilter {
+impl Default for IpFilter {
+    fn default() -> Self {
         IpFilter {
             predefined: AllowIP::All,
             custom_allow: vec![],
             custom_block: vec![],
         }
     }
+}
 
+impl IpFilter {
     /// Attempt to parse the peer mode from a string.
     pub fn parse(s: &str) -> Result<IpFilter, IpNetworkError> {
-        let mut filter = IpFilter::new();
+        let mut filter = IpFilter::default();
         for f in s.split_whitespace() {
             match f {
                 "all" => filter.predefined = AllowIP::All,
