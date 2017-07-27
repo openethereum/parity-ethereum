@@ -33,9 +33,11 @@
 
 use std::io;
 use std::{fmt, mem, time};
-
 use std::collections::VecDeque;
+use std::sync::atomic::{self, AtomicUsize};
+
 use futures::{self, Future, BoxFuture};
+use futures::future::IntoFuture;
 use futures_cpupool::CpuPool;
 use ntp;
 use time::{Duration, Timespec};
@@ -44,6 +46,8 @@ use util::{Arc, RwLock};
 /// Time checker error.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Error {
+	/// No servers are currently available for a query.
+	NoServersAvailable,
 	/// There was an error when trying to reach the NTP server.
 	Ntp(String),
 	/// IO error when reading NTP response.
@@ -55,6 +59,7 @@ impl fmt::Display for Error {
 		use self::Error::*;
 
 		match *self {
+			NoServersAvailable => write!(fmt, "No NTP servers available"),
 			Ntp(ref err) => write!(fmt, "NTP error: {}", err),
 			Io(ref err) => write!(fmt, "Connection Error: {}", err),
 		}
@@ -71,52 +76,115 @@ impl From<ntp::errors::Error> for Error {
 
 /// NTP time drift checker.
 pub trait Ntp {
+	/// Returned Future.
+	type Future: IntoFuture<Item=Duration, Error=Error>;
+
 	/// Returns the current time drift.
-	fn drift(&self) -> BoxFuture<Duration, Error>;
+	fn drift(&self) -> Self::Future;
+}
+
+const SERVER_MAX_POLL_INTERVAL_SECS: u64 = 60;
+
+#[derive(Debug)]
+struct Server {
+	pub address: String,
+	next_call: RwLock<time::Instant>,
+	failures: AtomicUsize,
+}
+
+impl Server {
+	pub fn is_available(&self) -> bool {
+		*self.next_call.read() < time::Instant::now()
+	}
+
+	pub fn report_success(&self) {
+		self.failures.store(0, atomic::Ordering::SeqCst);
+		self.update_next_call(1)
+	}
+
+	pub fn report_failure(&self) {
+		let errors = self.failures.fetch_add(1, atomic::Ordering::SeqCst);
+		self.update_next_call(1 << errors)
+	}
+
+	fn update_next_call(&self, delay: usize) {
+		*self.next_call.write() = time::Instant::now() + time::Duration::from_secs(delay as u64 * SERVER_MAX_POLL_INTERVAL_SECS);
+	}
+}
+
+impl<T: AsRef<str>> From<T> for Server {
+	fn from(t: T) -> Self {
+		Server {
+			address: t.as_ref().to_owned(),
+			next_call: RwLock::new(time::Instant::now()),
+			failures: Default::default(),
+		}
+	}
 }
 
 /// NTP client using the SNTP algorithm for calculating drift.
 #[derive(Clone)]
 pub struct SimpleNtp {
-	address: Arc<String>,
+	addresses: Vec<Arc<Server>>,
 	pool: CpuPool,
 }
 
 impl fmt::Debug for SimpleNtp {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		write!(f, "Ntp {{ address: {} }}", self.address)
+		f
+			.debug_struct("SimpleNtp")
+			.field("addresses", &self.addresses)
+			.finish()
 	}
 }
 
 impl SimpleNtp {
-	fn new(address: &str, pool: CpuPool) -> SimpleNtp {
+	fn new<T: AsRef<str>>(addresses: &[T], pool: CpuPool) -> SimpleNtp {
 		SimpleNtp {
-			address: Arc::new(address.to_owned()),
+			addresses: addresses.iter().map(Server::from).map(Arc::new).collect(),
 			pool: pool,
 		}
 	}
 }
 
 impl Ntp for SimpleNtp {
-	fn drift(&self) -> BoxFuture<Duration, Error> {
-		let address = self.address.clone();
-		self.pool.spawn_fn(move || {
-			let packet = ntp::request(&*address)?;
-			let dest_time = ::time::now_utc().to_timespec();
-			let orig_time = Timespec::from(packet.orig_time);
-			let recv_time = Timespec::from(packet.recv_time);
-			let transmit_time = Timespec::from(packet.transmit_time);
+	type Future = BoxFuture<Duration, Error>;
 
-			let drift = ((recv_time - orig_time) + (transmit_time - dest_time)) / 2;
+	fn drift(&self) -> Self::Future {
+		let server = self.addresses.iter().find(|server| server.is_available());
 
-			Ok(drift)
-		}).boxed()
+		if let Some(server) = server {
+			let server = server.clone();
+			self.pool.spawn_fn(move || {
+				debug!(target: "dapps", "Fetching time from {}.", server.address);
+				match ntp::request(&server.address) {
+					Ok(packet) => {
+						let dest_time = ::time::now_utc().to_timespec();
+						let orig_time = Timespec::from(packet.orig_time);
+						let recv_time = Timespec::from(packet.recv_time);
+						let transmit_time = Timespec::from(packet.transmit_time);
+
+						let drift = ((recv_time - orig_time) + (transmit_time - dest_time)) / 2;
+
+						server.report_success();
+						Ok(drift)
+					},
+					Err(err) => {
+						server.report_failure();
+						Err(err.into())
+					},
+				}
+			}).boxed()
+		} else {
+			// No server available.
+			futures::future::err(Error::NoServersAvailable).boxed()
+		}
 	}
 }
 
 // NOTE In a positive scenario first results will be seen after:
-// MAX_RESULTS * UPDATE_TIMEOUT_OK_SECS seconds.
-const MAX_RESULTS: usize = 7;
+// MAX_RESULTS * UPDATE_TIMEOUT_ERR_SECS seconds.
+const MAX_RESULTS: usize = 4;
 const UPDATE_TIMEOUT_OK_SECS: u64 = 30;
 const UPDATE_TIMEOUT_ERR_SECS: u64 = 2;
 
@@ -129,13 +197,13 @@ pub struct TimeChecker<N: Ntp = SimpleNtp> {
 
 impl TimeChecker<SimpleNtp> {
 	/// Creates new time checker given the NTP server address.
-	pub fn new(ntp_address: String, pool: CpuPool) -> Self {
+	pub fn new<T: AsRef<str>>(ntp_addresses: &[T], pool: CpuPool) -> Self {
 		let last_result = Arc::new(RwLock::new(
 			// Assume everything is ok at the very beginning.
 			(time::Instant::now(), vec![Ok(0)].into())
 		));
 
-		let ntp = SimpleNtp::new(&ntp_address, pool);
+		let ntp = SimpleNtp::new(ntp_addresses, pool);
 
 		TimeChecker {
 			ntp,
@@ -144,11 +212,20 @@ impl TimeChecker<SimpleNtp> {
 	}
 }
 
-impl<N: Ntp> TimeChecker<N> {
+impl<N: Ntp> TimeChecker<N> where <N::Future as IntoFuture>::Future: Send + 'static {
 	/// Updates the time
 	pub fn update(&self) -> BoxFuture<i64, Error> {
+		trace!(target: "dapps", "Updating time from NTP.");
 		let last_result = self.last_result.clone();
-		self.ntp.drift().then(move |res| {
+		self.ntp.drift().into_future().then(move |res| {
+			let res = res.map(|d| d.num_milliseconds());
+
+			if let Err(Error::NoServersAvailable) = res {
+				debug!(target: "dapps", "No NTP servers available. Selecting an older result.");
+				return select_result(last_result.read().1.iter());
+			}
+
+			// Update the results.
 			let mut results = mem::replace(&mut last_result.write().1, VecDeque::new());
 			let valid_till = time::Instant::now() + time::Duration::from_secs(
 				if res.is_ok() && results.len() == MAX_RESULTS {
@@ -158,8 +235,9 @@ impl<N: Ntp> TimeChecker<N> {
 				}
 			);
 
+			trace!(target: "dapps", "New time drift received: {:?}", res);
 			// Push the result.
-			results.push_back(res.map(|d| d.num_milliseconds()));
+			results.push_back(res);
 			while results.len() > MAX_RESULTS {
 				results.pop_front();
 			}
@@ -219,9 +297,11 @@ mod tests {
 	}
 
 	impl Ntp for FakeNtp {
-		fn drift(&self) -> BoxFuture<Duration, Error> {
+		type Future = futures::future::FutureResult<Duration, Error>;
+
+		fn drift(&self) -> Self::Future {
 			self.1.set(self.1.get() + 1);
-			futures::future::ok(self.0.borrow_mut().pop().expect("Unexpected call to drift().")).boxed()
+			futures::future::ok(self.0.borrow_mut().pop().expect("Unexpected call to drift()."))
 		}
 	}
 
