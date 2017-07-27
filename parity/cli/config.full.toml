@@ -79,6 +79,7 @@ pass = "test_pass"
 [secretstore]	
 disable = false
 disable_http = false
+disable_acl_check = false
 nodes = []
 http_interface = "local"
 http_port = 8082

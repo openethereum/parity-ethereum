@@ -235,6 +235,7 @@ pub mod tests {
 		let path = RandomTempPath::create_dir();
 		let config = ServiceConfiguration {
 			listener_address: None,
+			acl_check_enabled: true,
 			data_path: path.as_str().to_owned(),
 			cluster_config: ClusterConfiguration {
 				threads: 1,

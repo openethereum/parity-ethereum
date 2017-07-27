@@ -39,6 +39,8 @@ pub struct Configuration {
 	pub enabled: bool,
 	/// Is HTTP API enabled?
 	pub http_enabled: bool,
+	/// Is ACL check enabled.
+	pub acl_check_enabled: bool,
 	/// This node secret.
 	pub self_secret: Option<NodeSecretKey>,
 	/// Other nodes IDs + addresses.
@@ -126,6 +128,7 @@ mod server {
 					port: conf.http_port,
 				}) } else { None },
 				data_path: conf.data_path.clone(),
+				acl_check_enabled: conf.acl_check_enabled,
 				cluster_config: ethcore_secretstore::ClusterConfiguration {
 					threads: 4,
 					listener_address: ethcore_secretstore::NodeAddress {
@@ -160,6 +163,7 @@ impl Default for Configuration {
 		Configuration {
 			enabled: true,
 			http_enabled: true,
+			acl_check_enabled: true,
 			self_secret: None,
 			nodes: BTreeMap::new(),
 			interface: "127.0.0.1".to_owned(),

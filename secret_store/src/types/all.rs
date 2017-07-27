@@ -71,6 +71,8 @@ pub struct NodeAddress {
 pub struct ServiceConfiguration {
 	/// HTTP listener address. If None, HTTP API is disabled.
 	pub listener_address: Option<NodeAddress>,
+	/// Is ACL check enabled. If false, everyone has access to all keys. Useful for tests only.
+	pub acl_check_enabled: bool,
 	/// Data directory path for secret store
 	pub data_path: String,
 	/// Cluster configuration.
