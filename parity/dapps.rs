@@ -47,7 +47,7 @@ impl Default for Configuration {
 		let data_dir = default_data_path();
 		Configuration {
 			enabled: true,
-			ntp_server: "pool.ntp.org:123".into(),
+			ntp_server: "none".into(),
 			dapps_path: replace_home(&data_dir, "$BASE/dapps").into(),
 			extra_dapps: vec![],
 			extra_embed_on: vec![],

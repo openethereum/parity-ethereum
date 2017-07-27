@@ -100,6 +100,10 @@ impl SimpleNtp {
 impl Ntp for SimpleNtp {
 	fn drift(&self) -> BoxFuture<Duration, Error> {
 		let address = self.address.clone();
+		if &*address == "none" {
+			return futures::future::err(Error::Ntp("NTP server is not provided.".into())).boxed();
+		}
+
 		self.pool.spawn_fn(move || {
 			let packet = ntp::request(&*address)?;
 			let dest_time = ::time::now_utc().to_timespec();
@@ -227,7 +231,7 @@ mod tests {
 
 	fn time_checker() -> TimeChecker<FakeNtp> {
 		let last_result = Arc::new(RwLock::new(
-			(Instant::now(), vec![Err(Error::Ntp("NTP server unavailable.".into()))].into())
+			(Instant::now(), vec![Err(Error::Ntp("NTP server unavailable".into()))].into())
 		));
 
 		TimeChecker {

@@ -359,7 +359,7 @@ usage! {
 			or |c: &Config| otry!(c.vm).jit.clone(),
 
 		// -- Miscellaneous Options
-		flag_ntp_server: String = "pool.ntp.org:123",
+		flag_ntp_server: String = "none",
 			or |c: &Config| otry!(c.misc).ntp_server.clone(),
 		flag_logging: Option<String> = None,
 			or |c: &Config| otry!(c.misc).logging.clone().map(Some),
@@ -919,7 +919,7 @@ mod tests {
 			flag_dapps_apis_all: None,
 
 			// -- Miscellaneous Options
-			flag_ntp_server: "pool.ntp.org:123".into(),
+			flag_ntp_server: "none".into(),
 			flag_version: false,
 			flag_logging: Some("own_tx=trace".into()),
 			flag_log_file: Some("/var/log/parity.log".into()),
