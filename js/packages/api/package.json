@@ -27,7 +27,7 @@
   },
   "dependencies": {
     "@parity/abi": "file:../abi",
-    "@parity/jsonrpc": "file:../jsonrpc",
+    "@parity/jsonrpc": "paritytech/js-jsonrpc#ac545573880212a27cf4cc6bb32a37fdab6dc26d",
     "bignumber.js": "3.0.1",
     "blockies": "0.0.2",
     "es6-error": "4.0.0",

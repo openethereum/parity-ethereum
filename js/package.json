@@ -164,7 +164,6 @@
     "@parity/api": "file:packages/api",
     "@parity/dapps": "file:packages/dapps",
     "@parity/etherscan": "file:packages/etherscan",
-    "@parity/jsonrpc": "file:packages/jsonrpc",
     "@parity/ledger": "file:packages/ledger",
     "@parity/shapeshift": "file:packages/shapeshift",
     "@parity/shared": "file:packages/shared",
