@@ -110,7 +110,7 @@ module.exports = {
       },
       {
         test: /\.css$/,
-        include: [ /packages/, /src/ ],
+        include: [ /packages/, /src/, /@parity/ ],
         loader: (isProd && !isEmbed)
           ? ExtractTextPlugin.extract([
             // 'style-loader',

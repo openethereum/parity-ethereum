@@ -27,7 +27,6 @@ import { IndexRoute, Redirect, Route, Router, hashHistory } from 'react-router';
 import qs from 'querystring';
 
 import Api from '@parity/api';
-import Abi from '@parity/abi';
 import builtinDapps from '@parity/shared/config/dappsBuiltin.json';
 import viewsDapps from '@parity/shared/config/dappsViews.json';
 import ContractInstances from '@parity/shared/contracts';
@@ -40,7 +39,7 @@ import '@parity/shared/environment';
 
 import Application from './Application';
 import Dapp from './Dapp';
-import { setupProviderFilters, Store as DappRequestsStore } from './DappRequests';
+import { setupProviderFilters } from './DappRequests';
 import Dapps from './Dapps';
 import SecureApi from './secureApi';
 
@@ -82,18 +81,6 @@ const dapps = [].concat(viewsDapps, builtinDapps).map((app) => {
 const dappsHistory = HistoryStore.get('dapps');
 
 function onEnterDapp ({ params: { id } }) {
-  const token = DappRequestsStore.get().createToken(id);
-  const ethereum = new Api.Provider.PostMessage(id, window);
-
-  ethereum.setToken(token);
-
-  if (window.ethereum) {
-    window.ethereum.unsubscribeAll();
-  }
-
-  window.ethereum = ethereum;
-  window.parity = { Api, Abi };
-
   if (!dapps[id] || !dapps[id].skipHistory) {
     dappsHistory.add(id);
   }
