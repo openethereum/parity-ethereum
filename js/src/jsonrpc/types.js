@@ -22,6 +22,8 @@ export class Hash {}
 
 export class Integer {}
 
+export class Float {}
+
 export class Quantity {}
 
 export class BlockNumber {
