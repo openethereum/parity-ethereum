@@ -258,8 +258,6 @@ export default class Store {
 
     const { from, method, to, token, params, api, subId, id } = data;
 
-    console.log('receiveMessage', data);
-
     if (to !== 'shell' || !from || from === 'shell') {
       return;
     }
@@ -268,8 +266,6 @@ export default class Store {
       this.rejectMessage(source, data);
       return;
     }
-
-    console.log('receiveMessage valid token', method, from, token);
 
     if ((method && this.getFilteredSection(method) && !this.hasTokenPermission(method, token)) ||
         (api && this.getFilteredSection(params[0]) && !this.hasTokenPermission(method, token))) {
