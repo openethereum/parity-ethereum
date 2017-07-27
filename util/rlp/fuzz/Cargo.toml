@@ -13,6 +13,7 @@ cargo-fuzz = true
 nightly = []
 
 [dependencies]
+ethcore-bigint = { path = "../../bigint" }
 rand = "0.3"
 
 [build-dependencies]
@@ -39,3 +40,6 @@ path = "fuzz_targets/append_raw.rs"
 name = "untrusted_data"
 path = "fuzz_targets/untrusted_data.rs"
 
+[[bin]]
+name = "gen_untrusted_corpus"
+path = "gen_untrusted_corpus.rs"
