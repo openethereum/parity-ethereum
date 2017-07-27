@@ -14,58 +14,78 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export default class Personal {
-  constructor (provider) {
-    this._provider = provider;
+export default class Shh {
+  constructor (transport) {
+    this._transport = transport;
   }
 
-  addToGroup (identity) {
-    return this._provider
-      .send('shh_addToGroup', identity);
+  info () {
+    return this._transport
+      .execute('shh_info');
   }
 
-  getFilterChanges (filterId) {
-    return this._provider
-      .send('shh_getFilterChanges', filterId);
+  newKeyPair () {
+    return this._transport
+      .execute('shh_newKeyPair');
   }
 
-  getMessages (filterId) {
-    return this._provider
-      .send('shh_getMessages', filterId);
+  addPrivateKey (privKey) {
+    return this._transport
+      .execute('shh_addPrivateKey', privKey);
   }
 
-  hasIdentity (identity) {
-    return this._provider
-      .send('shh_hasIdentity', identity);
+  newSymKey () {
+    return this._transport
+      .execute('shh_newSymKey');
   }
 
-  newFilter (options) {
-    return this._provider
-      .send('shh_newFilter', options);
+  getPublicKey (identity) {
+    return this._transport
+      .execute('shh_getPublicKey', identity);
   }
 
-  newGroup () {
-    return this._provider
-      .send('shh_newGroup');
+  getPrivateKey (identity) {
+    return this._transport
+      .execute('shh_getPrivateKey', identity);
   }
 
-  newIdentity () {
-    return this._provider
-      .send('shh_newIdentity');
+  getSymKey (identity) {
+    return this._transport
+      .execute('shh_getSymKey', identity);
   }
 
-  post (options) {
-    return this._provider
-      .send('shh_post', options);
+  deleteKey (identity) {
+    return this._transport
+      .execute('shh_deleteKey', identity);
   }
 
-  uninstallFilter (filterId) {
-    return this._provider
-      .send('shh_uninstallFilter', filterId);
+  post (messageObj) {
+    return this._transport
+      .execute('shh_post', messageObj);
   }
 
-  version () {
-    return this._provider
-      .send('shh_version');
+  newMessageFilter (filterObj) {
+    return this._transport
+      .execute('shh_newMessageFilter', filterObj);
+  }
+
+  getFilterMessages (filterId) {
+    return this._transport
+      .execute('shh_getFilterMessages', filterId);
+  }
+
+  deleteMessageFilter (filterId) {
+    return this._transport
+      .execute('shh_deleteMessageFilter', filterId);
+  }
+
+  subscribe (filterObj, callback) {
+    return this._transport
+      .subscribe('shh', callback, filterObj);
+  }
+
+  unsubscribe (subscriptionId) {
+    return this._transport
+      .unsubscribe(subscriptionId);
   }
 }
