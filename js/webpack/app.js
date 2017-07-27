@@ -155,6 +155,7 @@ module.exports = {
     alias: {
       '~/packages/api/local': path.resolve(__dirname, '../packages/api/local/localAccountsMiddleware.js'),
       '~': path.resolve(__dirname, '..'),
+      '@parity/jsonrpc': path.resolve(__dirname, '../node_modules/@parity/jsonrpc'),
       '@parity/wordlist': path.resolve(__dirname, '../node_modules/@parity/wordlist'),
       '@parity': path.resolve(__dirname, '../packages')
     },
