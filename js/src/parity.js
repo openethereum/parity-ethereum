@@ -21,11 +21,10 @@ es6Promise.polyfill();
 
 import Api from '@parity/api';
 
-const parts = window.location.split('/');
-const appId = parts[parts.length - 2];
+const [appId] = window.location.pathname.split('/');
 const ethereum = new Api.Provider.PostMessage(appId);
 
-console.log('location', parts, appId);
+console.log('location', window.location.pathname.split('/'), appId);
 
 ethereum
   .requestNewToken()
