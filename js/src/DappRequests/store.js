@@ -74,7 +74,7 @@ export default class Store {
   }
 
   @action queueRequest = (request) => {
-    const appId = this.tokens[request.data.from];
+    const appId = this.tokens[request.data.token];
     let queueId = ++nextQueueId;
 
     this.requests = this.requests.concat([{ appId, queueId, request }]);
