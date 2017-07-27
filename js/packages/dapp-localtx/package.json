@@ -9,7 +9,7 @@
   "license": "GPL-3.0",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/paritytech/parity.git"
+    "url": "git+https://github.com/paritytech/dapp-localtx.git"
   },
   "keywords": [],
   "scripts": {},
