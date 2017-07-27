@@ -29,10 +29,7 @@ const isProd = ENV === 'production';
 module.exports = {
   context: path.join(__dirname, '../src'),
   entry: {
-    // library
-    'inject': ['./inject.js'],
-    'web3': ['./web3.js'],
-    'parity': ['./parity.js']
+    'inject': ['./inject.js']
   },
   output: {
     path: path.join(__dirname, '../', DEST),

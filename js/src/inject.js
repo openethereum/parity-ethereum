@@ -48,10 +48,12 @@ function initProvider () {
       console.error('Unable to retrieve communications token', error);
     });
 
-  global.ethereum = ethereum;
+  window.ethereum = ethereum;
+
+  return ethereum;
 }
 
-function initWeb3 () {
+function initWeb3 (ethereum) {
   // FIXME: Use standard provider for web3
   const http = new Web3.providers.HttpProvider('/rpc/');
   const web3 = new Web3(http);
@@ -67,18 +69,19 @@ function initWeb3 () {
 
   web3extensions(web3).map((extension) => web3._extend(extension));
 
-  global.web3 = web3;
+  window.web3 = web3;
 }
 
-function initParity () {
-  const api = new Api(global.ethereum);
+function initParity (ethereum) {
+  const api = new Api(ethereum);
 
-  global.parity = {
+  window.parity = {
     Api,
     api
   };
 }
 
-initProvider();
-initWeb3();
-initParity();
+const ethereum = initProvider();
+
+initWeb3(ethereum);
+initParity(ethereum);
