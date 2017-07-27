@@ -69,9 +69,9 @@ export default class Shh {
       .execute('shh_newMessageFilter', filterObj);
   }
 
-  getFilterChanges (identity) {
+  getFilterMessages (filterId) {
     return this._transport
-      .execute('shh_getFilterChanges', identity);
+      .execute('shh_getFilterMessages', filterId);
   }
 
   deleteMessageFilter (filterId) {
@@ -79,13 +79,13 @@ export default class Shh {
       .execute('shh_deleteMessageFilter', filterId);
   }
 
-  subscribe (filterObj) {
+  subscribe (filterObj, callback) {
     return this._transport
-      .execute('shh_subscribe', filterObj);
+      .subscribe('shh', callback, filterObj);
   }
 
   unsubscribe (subscriptionId) {
     return this._transport
-      .execute('shh_unsubscribe', subscriptionId);
+      .unsubscribe(subscriptionId);
   }
 }
