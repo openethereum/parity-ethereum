@@ -45,8 +45,7 @@ ETBD1Q==
 
 Important Legal Information:
 
-The bug bounty program is an experimental and discretionary rewards program for the Parity community to reward those who are helping to improve the Parity software. 
-Awards are at the sole discretion of Parity Technologies Ltd.. 
+Your submission might be eligible for a bug bounty. The bug bounty program is an experimental and discretionary rewards program for the Parity community to reward those who are helping to improve the Parity software. Rewards are at the sole discretion of Parity Technologies Ltd.. 
 
 We are not able to issue rewards to individuals who are on sanctions lists or who are in countries on sanctions lists (e.g. North Korea, Iran, etc). 
 
