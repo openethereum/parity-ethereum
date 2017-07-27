@@ -17,6 +17,11 @@
 import Api from '@parity/api';
 
 const ethereumProvider = window.ethereum || window.parent.ethereum;
+
+if (!ethereumProvider) {
+  throw new Error('Unable to locate EthereumProvider, object not attached');
+}
+
 const api = new Api(ethereumProvider);
 
 function trackRequest (signerRequestId, statusCallback) {
