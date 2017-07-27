@@ -100,5 +100,25 @@ pub const SIGNATURES: &'static [UserFunctionDescriptor] = &[
 		"___syscall6",
 		&[I32; 2],
 		Some(I32),
-	)
+	),
+	Static(
+		"___syscall140",
+		&[I32; 2],
+		Some(I32)
+	),
+	Static(
+		"___syscall146",
+		&[I32; 2],
+		Some(I32)
+	),
+	Static(
+		"___syscall54",
+		&[I32; 2],
+		Some(I32)
+	),
+	Static(
+		"_llvm_trap",
+		&[I32; 0],
+		None
+	),
 ];
