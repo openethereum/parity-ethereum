@@ -1,7 +1,7 @@
 {
   "name": "@parity/ledger",
   "description": "JS interface for Ledger Nano hardware",
-  "version": "0.0.0",
+  "version": "1.99.99",
   "main": "library.js",
   "author": "Parity Team <admin@parity.io>",
   "maintainers": [
