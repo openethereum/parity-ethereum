@@ -69,7 +69,7 @@ impl NodeEndpoint {
 			&AllowIP::All => true,
 			&AllowIP::Private => self.address.ip().is_usable_private(),
 			&AllowIP::Public => self.address.ip().is_usable_public(),
-			&AllowIP::Non => false,
+			&AllowIP::None => false,
 		}
 	}
 
@@ -453,7 +453,7 @@ mod tests {
 	#[test]
 	fn custom_allow() {
 		let filter = IpFilter {
-			predefined: AllowIP::Non,
+			predefined: AllowIP::None,
 			custom_allow: vec![IpNetwork::from_str(&"10.0.0.0/8").unwrap(), IpNetwork::from_str(&"1.0.0.0/8").unwrap()],
 			custom_block: vec![],
 		};
@@ -477,7 +477,7 @@ mod tests {
 	#[test]
 	fn custom_allow_ipv6() {
 		let filter = IpFilter {
-			predefined: AllowIP::Non,
+			predefined: AllowIP::None,
 			custom_allow: vec![IpNetwork::from_str(&"fc00::/8").unwrap()],
 			custom_block: vec![],
 		};

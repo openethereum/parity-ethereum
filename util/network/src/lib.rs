@@ -175,18 +175,12 @@ impl IpFilter {
                 "all" => filter.predefined = AllowIP::All,
                 "private" => filter.predefined = AllowIP::Private,
                 "public" => filter.predefined = AllowIP::Public,
-                "none" => filter.predefined = AllowIP::Non,
+                "none" => filter.predefined = AllowIP::None,
                 custom => {
                     if custom.starts_with("-") {
-                        match IpNetwork::from_str(&custom.to_owned().split_off(1)) {
-                            Ok(ipnet) => filter.custom_block.push(ipnet),
-                            Err(e) => { return Err(e); }
-                        }
+                        filter.custom_block.push(IpNetwork::from_str(&custom.to_owned().split_off(1))?)
                     } else {
-                        match IpNetwork::from_str(custom) {
-                            Ok(ipnet) => filter.custom_allow.push(ipnet),
-                            Err(e) => { return Err(e); }
-                        }
+                        filter.custom_allow.push(IpNetwork::from_str(custom)?)
                     }
                 }
             }
@@ -204,7 +198,7 @@ pub enum AllowIP {
 	Private,
 	/// Connect to public network only
 	Public,
-
-    Non,
+    /// Block all addresses
+    None,
 }
 
