@@ -117,7 +117,8 @@ mod server {
 				None => return Err("self secret is required when using secretstore".into()),
 			};
 
-			let mut conf = ethcore_secretstore::ServiceConfiguration {
+			let key_server_name = format!("{}:{}", conf.interface, conf.port);
+			let mut cconf = ethcore_secretstore::ServiceConfiguration {
 				listener_address: ethcore_secretstore::NodeAddress {
 					address: conf.http_interface.clone(),
 					port: conf.http_port,
@@ -137,10 +138,10 @@ mod server {
 				},
 			};
 
-			conf.cluster_config.nodes.insert(self_secret.public().clone(), conf.cluster_config.listener_address.clone());
+			cconf.cluster_config.nodes.insert(self_secret.public().clone(), cconf.cluster_config.listener_address.clone());
 
-			let key_server = ethcore_secretstore::start(deps.client, self_secret, conf)
-				.map_err(Into::<String>::into)?;
+			let key_server = ethcore_secretstore::start(deps.client, self_secret, cconf)
+				.map_err(|e| format!("Error starting KeyServer {}: {}", key_server_name, e))?;
 
 			Ok(KeyServer {
 				_key_server: key_server,
