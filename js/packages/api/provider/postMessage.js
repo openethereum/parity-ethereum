@@ -35,7 +35,7 @@ export default class PostMessage extends EventEmitter {
   setToken (token) {
     if (token) {
       this._token = token;
-      this.emit('initialisedToken');
+      this.emit('connected');
       this._sendQueued();
     }
   }
@@ -46,8 +46,6 @@ export default class PostMessage extends EventEmitter {
   requestNewToken () {
     return new Promise((resolve, reject) => {
       this.send(METHOD_REQUEST_TOKEN, [], (error, token) => {
-        console.log('requestNewToken', error, token);
-
         if (error) {
           reject(error);
         } else {
@@ -59,10 +57,7 @@ export default class PostMessage extends EventEmitter {
   }
 
   _send = (message) => {
-    console.log('posteMessage::_send', message.data.method);
-
     if (!this._token && message.data.method !== METHOD_REQUEST_TOKEN) {
-      console.log('postMessage::_send queued', message.data.method);
       this._queued.push(message);
 
       return;
@@ -75,8 +70,6 @@ export default class PostMessage extends EventEmitter {
       from: this._appId,
       token: this._token
     });
-
-    console.log('postMessage::_send sending', postMessage, message.options);
 
     this._messages[id] = Object.assign({}, postMessage, message.options);
     this._destination.postMessage(postMessage, '*');
@@ -151,10 +144,6 @@ export default class PostMessage extends EventEmitter {
 
     if (from !== 'shell' || to !== this._appId || !isTokenValid) {
       return;
-    }
-
-    if (error) {
-      console.error(from, error);
     }
 
     if (this._messages[id].subscription) {
