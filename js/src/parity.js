@@ -28,6 +28,13 @@ if (appId.indexOf('.html') !== -1) {
 }
 
 const ethereum = new Api.Provider.PostMessage(appId);
+const api = new Api(ethereum);
+
+window.ethereum = ethereum;
+window.parity = {
+  Api,
+  api
+};
 
 console.log(`Requesting communications token for ${appId}`);
 
@@ -39,11 +46,3 @@ ethereum
   .catch((error) => {
     console.error('Unable to retrieve communications token', error);
   });
-
-const api = new Api(ethereum);
-
-window.ethereum = ethereum;
-window.parity = {
-  Api,
-  api
-};

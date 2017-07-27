@@ -46,6 +46,8 @@ export default class PostMessage extends EventEmitter {
   requestNewToken () {
     return new Promise((resolve, reject) => {
       this.send(METHOD_REQUEST_TOKEN, [], (error, token) => {
+        console.log('requestNewToken', error, token);
+
         if (error) {
           reject(error);
         } else {
@@ -57,7 +59,10 @@ export default class PostMessage extends EventEmitter {
   }
 
   _send = (message) => {
+    console.log('posteMessage::_send', message.method);
+
     if (!this._token && message.method !== METHOD_REQUEST_TOKEN) {
+      console.log('postMessage::_send queued', message.method);
       this._queued.push(message);
 
       return;
@@ -70,6 +75,8 @@ export default class PostMessage extends EventEmitter {
       from: this._appId,
       token: this._token
     });
+
+    console.log('postMessage::_send sending', postMessage, message.options);
 
     this._messages[id] = Object.assign({}, postMessage, message.options);
     this._destination.postMessage(postMessage, '*');
