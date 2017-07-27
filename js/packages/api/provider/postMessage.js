@@ -16,6 +16,8 @@
 
 import EventEmitter from 'eventemitter3';
 
+const METHOD_REQUEST_TOKEN = 'shell_requestNewToken';
+
 export default class PostMessage extends EventEmitter {
   id = 0;
   _messages = {};
@@ -43,7 +45,7 @@ export default class PostMessage extends EventEmitter {
 
   requestNewToken () {
     return new Promise((resolve, reject) => {
-      this.send('shell_requestNewToken', [], (error, token) => {
+      this.send(METHOD_REQUEST_TOKEN, [], (error, token) => {
         if (error) {
           reject(error);
         } else {
@@ -55,7 +57,7 @@ export default class PostMessage extends EventEmitter {
   }
 
   _send = (message) => {
-    if (!this._token) {
+    if (!this._token && message.method !== METHOD_REQUEST_TOKEN) {
       this._queued.push(message);
 
       return;
@@ -113,6 +115,7 @@ export default class PostMessage extends EventEmitter {
     });
   }
 
+  // FIXME: Should return callback, not promise
   unsubscribe = (subId) => {
     return new Promise((resolve, reject) => {
       this._send({

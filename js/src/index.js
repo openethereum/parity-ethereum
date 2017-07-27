@@ -46,8 +46,6 @@ import SecureApi from './secureApi';
 
 injectTapEventPlugin();
 
-console.log('UI version', process.env.UI_VERSION);
-
 if (process.env.NODE_ENV === 'development') {
   // Expose the React Performance Tools on the`window` object
   const Perf = require('react-addons-perf');
@@ -73,7 +71,13 @@ setupProviderFilters(api.provider);
 
 const store = initStore(api, hashHistory);
 
-const dapps = [].concat(viewsDapps, builtinDapps);
+const dapps = [].concat(viewsDapps, builtinDapps).map((app) => {
+  if (app.id && app.id.substr(0, 2) !== '0x') {
+    app.id = Api.util.sha3(app.id);
+  }
+
+  return app;
+});
 
 const dappsHistory = HistoryStore.get('dapps');
 
@@ -94,6 +98,9 @@ function onEnterDapp ({ params: { id } }) {
     dappsHistory.add(id);
   }
 }
+
+console.log('UI version', process.env.UI_VERSION);
+console.log('Loaded dapps', dapps);
 
 ReactDOM.render(
   <ContextProvider api={ api } store={ store }>
