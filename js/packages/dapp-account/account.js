@@ -41,7 +41,8 @@ import Shapeshift from './Shapeshift';
 import Transfer from './Transfer';
 import Verification from './Verification';
 
-import Header from './Header';
+import { AccountCard } from 'parity-reactive-ui';
+
 import Store from './store';
 import Transactions from './Transactions';
 import styles from './account.css';
@@ -136,10 +137,7 @@ class Account extends Component {
         { this.renderVerificationDialog() }
         { this.renderActionbar(account) }
         <Page padded>
-          <Header
-            account={ account }
-            disabled={ !isAvailable }
-          />
+          <AccountCard account={ account } disabled={ !isAvailable } />
           <Transactions
             address={ address }
           />
