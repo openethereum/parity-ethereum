@@ -25,8 +25,7 @@ use evm::Schedule;
 use header::BlockNumber;
 use error::Error;
 use state::CleanupMode;
-use trace::{Tracer, ExecutiveTracer};
-use types::trace_types::trace::{RewardType};
+use trace::{Tracer, ExecutiveTracer, RewardType};
 
 /// An engine which does not provide any consensus mechanism and does not seal blocks.
 pub struct NullEngine {

@@ -31,9 +31,8 @@ use header::Header;
 use miner::Miner;
 use transaction::{Action, Transaction};
 use views::BlockView;
-use types::trace_types::trace::RewardType;
-use types::trace_types::trace::Action::Reward;
-use types::trace_types::localized::LocalizedTrace;
+use trace::{RewardType, LocalizedTrace};
+use trace::trace::Action::Reward;
 
 #[test]
 fn can_trace_block_and_uncle_reward() {

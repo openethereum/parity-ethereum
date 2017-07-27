@@ -143,9 +143,8 @@ mod tests {
 	use util::sha3::Hashable;
 	use util::bloom::Bloomable;
 	use trace::trace::{Action, Call, Res, Create, CreateResult, Suicide, Reward};
-	use types::trace_types::trace::RewardType;
 	use trace::flat::FlatTrace;
-	use trace::{Filter, AddressesFilter, TraceError};
+	use trace::{Filter, AddressesFilter, TraceError, RewardType};
 	use evm::CallType;
 
 	#[test]
