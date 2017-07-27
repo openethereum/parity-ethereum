@@ -139,6 +139,7 @@ pub mod db;
 pub mod verification;
 pub mod state;
 pub mod env_info;
+pub mod builtin;
 #[macro_use] pub mod evm;
 
 mod cache_manager;
@@ -147,7 +148,6 @@ mod basic_types;
 mod pod_account;
 mod state_db;
 mod account_db;
-mod builtin;
 mod executive;
 mod externalities;
 mod blockchain;

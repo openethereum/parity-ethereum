@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+//! Standard bult-in contracts.
+
 use std::cmp::{max, min};
 use std::io::{self, Read};
 
@@ -28,6 +30,7 @@ use ethkey::{Signature, recover as ec_recover};
 use ethjson;
 
 #[derive(Debug)]
+/// Execution error.
 pub struct Error(pub &'static str);
 
 impl From<&'static str> for Error {
@@ -148,8 +151,8 @@ impl From<ethjson::spec::Builtin> for Builtin {
 	}
 }
 
-// Ethereum builtin creator.
-fn ethereum_builtin(name: &str) -> Box<Impl> {
+/// Ethereum builtin factory.
+pub fn ethereum_builtin(name: &str) -> Box<Impl> {
 	match name {
 		"identity" => Box::new(Identity) as Box<Impl>,
 		"ecrecover" => Box::new(EcRecover) as Box<Impl>,
