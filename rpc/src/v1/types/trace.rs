@@ -764,6 +764,26 @@ mod tests {
 	}
 
 	#[test]
+	fn test_trace_reward_serialize() {
+		let t = LocalizedTrace {
+			action: Action::Reward(Reward {
+				miner: 4.into(),
+				value: 6.into(),
+				reward_type: RewardType::Block,
+			}),
+			result: Res::None,
+			trace_address: vec![10],
+			subtraces: 1,
+			transaction_position: 11,
+			transaction_hash: 12.into(),
+			block_number: 13,
+			block_hash: 14.into(),
+		};
+		let serialized = serde_json::to_string(&t).unwrap();
+		assert_eq!(serialized, r#"{"type":"reward","action":{"miner":"0x0000000000000000000000000000000000000004","value":"0x0000000000000000000000000000000000000006","rewardType":"block"},"result":null,"traceAddress":[10],"subtraces":1,"transactionPosition":11,"transactionHash":"0x000000000000000000000000000000000000000000000000000000000000000c","blockNumber":13,"blockHash":"0x000000000000000000000000000000000000000000000000000000000000000e"}"#);
+	}
+
+	#[test]
 	fn test_vmtrace_serialize() {
 		let t = VMTrace {
 			code: vec![0, 1, 2, 3].into(),

@@ -273,7 +273,7 @@ impl Reward {
 
 impl Encodable for Reward {
 	fn rlp_append(&self, s: &mut RlpStream) {
-		s.begin_list(2);
+		s.begin_list(3);
 		s.append(&self.miner);
 		s.append(&self.value);
 		s.append(&self.reward_type);
