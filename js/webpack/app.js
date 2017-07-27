@@ -29,13 +29,13 @@ const rulesEs6 = require('./rules/es6');
 const rulesParity = require('./rules/parity');
 const Shared = require('./shared');
 
-const DAPPS_BUILTIN = require('../packages/shared/config/dappsBuiltin.json');
-const DAPPS_VIEWS = require('../packages/shared/config/dappsViews.json').map((dapp) => {
+const DAPPS_BUILTIN = require('@parity/shared/config/dappsBuiltin.json');
+const DAPPS_VIEWS = require('@parity/shared/config/dappsViews.json').map((dapp) => {
   dapp.commons = true;
   return dapp;
 });
 
-const FAVICON = path.resolve(__dirname, '../packages/shared/assets/images/parity-logo-black-no-text.png');
+const FAVICON = path.resolve(__dirname, '../node_modules/@parity/shared/assets/images/parity-logo-black-no-text.png');
 
 const DEST = process.env.BUILD_DEST || '.build';
 const ENV = process.env.NODE_ENV || 'development';

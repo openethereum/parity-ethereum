@@ -166,8 +166,8 @@ function getPlugins (_isProd = isProd) {
 }
 
 function getDappsEntry () {
-  const builtins = require('../packages/shared/config/dappsBuiltin.json');
-  const views = require('../packages/shared/config/dappsViews.json');
+  const builtins = require('@parity/shared/config/dappsBuiltin.json');
+  const views = require('@parity/shared/config/dappsViews.json');
 
   return Object.assign(
     []
