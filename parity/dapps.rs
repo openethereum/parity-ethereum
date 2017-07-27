@@ -114,7 +114,7 @@ impl ContractClient for LightRegistrar {
 					tx: Transaction {
 						nonce: self.client.engine().account_start_nonce(header.number()),
 						action: Action::Call(address),
-						gas: 50_000_000.into(),
+						gas: 50_000.into(), // should be enough for all registry lookups. TODO: exponential backoff
 						gas_price: 0.into(),
 						value: 0.into(),
 						data: data,
