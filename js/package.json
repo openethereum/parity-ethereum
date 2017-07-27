@@ -162,6 +162,8 @@
   "dependencies": {
     "@parity/abi": "file:packages/abi",
     "@parity/api": "file:packages/api",
+    "@parity/dapp-account": "file:packages/dapp-account",
+    "@parity/dapp-develop": "file:packages/dapp-develop",
     "@parity/dapps": "file:packages/dapps",
     "@parity/etherscan": "file:packages/etherscan",
     "@parity/jsonrpc": "file:packages/jsonrpc",
