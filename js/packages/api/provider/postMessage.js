@@ -59,10 +59,10 @@ export default class PostMessage extends EventEmitter {
   }
 
   _send = (message) => {
-    console.log('posteMessage::_send', message.method);
+    console.log('posteMessage::_send', message.data.method);
 
-    if (!this._token && message.method !== METHOD_REQUEST_TOKEN) {
-      console.log('postMessage::_send queued', message.method);
+    if (!this._token && message.data.method !== METHOD_REQUEST_TOKEN) {
+      console.log('postMessage::_send queued', message.data.method);
       this._queued.push(message);
 
       return;
