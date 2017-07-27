@@ -21,6 +21,7 @@ module.exports = {
   resolve: {
     alias: {
       '~': path.resolve(__dirname, '..'),
+      '@parity/abi': path.resolve(__dirname, '../node_modules/@parity/abi'),
       '@parity/jsonrpc': path.resolve(__dirname, '../node_modules/@parity/jsonrpc'),
       '@parity/wordlist': path.resolve(__dirname, '../node_modules/@parity/wordlist'),
       '@parity': path.resolve(__dirname, '../packages')

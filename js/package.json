@@ -160,7 +160,6 @@
     "yargs": "6.6.0"
   },
   "dependencies": {
-    "@parity/abi": "file:packages/abi",
     "@parity/api": "file:packages/api",
     "@parity/dapps": "file:packages/dapps",
     "@parity/etherscan": "file:packages/etherscan",

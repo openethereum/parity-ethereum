@@ -26,7 +26,7 @@
   "devDependencies": {
   },
   "dependencies": {
-    "@parity/abi": "file:../abi",
+    "@parity/abi": "js-abi#a1021ca5b7550e1e24e4767a22ef3f0d95ead19a",
     "@parity/jsonrpc": "paritytech/js-jsonrpc#ac545573880212a27cf4cc6bb32a37fdab6dc26d",
     "bignumber.js": "3.0.1",
     "blockies": "0.0.2",
