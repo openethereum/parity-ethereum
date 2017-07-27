@@ -42,3 +42,14 @@ ETBD1Q==
 =K9Qw
 -----END PGP PUBLIC KEY BLOCK-----
 ```
+
+Important Legal Information:
+
+The bug bounty program is an experimental and discretionary rewards program for the Parity community to reward those who are helping to improve the Parity software. 
+Awards are at the sole discretion of Parity Technologies Ltd.. 
+
+We are not able to issue rewards to individuals who are on sanctions lists or who are in countries on sanctions lists (e.g. North Korea, Iran, etc). 
+
+You are responsible for all taxes. All rewards are subject to applicable law. 
+
+Finally, your testing must not violate any law or compromise any data that is not yours.
