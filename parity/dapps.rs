@@ -47,7 +47,7 @@ impl Default for Configuration {
 		let data_dir = default_data_path();
 		Configuration {
 			enabled: true,
-			ntp_server: "pool.ntp.org:123".into(),
+			ntp_server: "none".into(),
 			dapps_path: replace_home(&data_dir, "$BASE/dapps").into(),
 			extra_dapps: vec![],
 			extra_embed_on: vec![],
@@ -114,7 +114,7 @@ impl ContractClient for LightRegistrar {
 					tx: Transaction {
 						nonce: self.client.engine().account_start_nonce(header.number()),
 						action: Action::Call(address),
-						gas: 50_000_000.into(),
+						gas: 50_000.into(), // should be enough for all registry lookups. TODO: exponential backoff
 						gas_price: 0.into(),
 						value: 0.into(),
 						data: data,
