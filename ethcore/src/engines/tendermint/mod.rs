@@ -33,15 +33,15 @@ use error::{Error, BlockError};
 use header::{Header, BlockNumber};
 use builtin::Builtin;
 use rlp::UntrustedRlp;
-use ethkey::{recover, public_to_address, Signature};
+use ethkey::{Message, public_to_address, recover, Signature};
 use account_provider::AccountProvider;
 use block::*;
 use spec::CommonParams;
-use engines::{Engine, Seal, EngineError};
+use engines::{Engine, Seal, EngineError, ConstructedVerifier};
 use state::CleanupMode;
 use io::IoService;
 use super::signer::EngineSigner;
-use super::validator_set::ValidatorSet;
+use super::validator_set::{ValidatorSet, SimpleList};
 use super::transition::TransitionHandler;
 use super::vote_collector::VoteCollector;
 use self::message::*;
@@ -99,6 +99,65 @@ pub struct Tendermint {
 	last_proposed: RwLock<H256>,
 	/// Set used to determine the current validators.
 	validators: Box<ValidatorSet>,
+}
+
+struct EpochVerifier<F>
+	where F: Fn(&Signature, &Message) -> Result<Address, Error> + Send + Sync
+{
+	subchain_validators: SimpleList,
+	recover: F
+}
+
+impl <F> super::EpochVerifier for EpochVerifier<F>
+	where F: Fn(&Signature, &Message) -> Result<Address, Error> + Send + Sync
+{
+	fn verify_light(&self, header: &Header) -> Result<(), Error> {
+		let message = header.bare_hash();
+
+		let mut addresses = HashSet::new();
+		let ref header_signatures_field = header.seal().get(2).ok_or(BlockError::InvalidSeal)?;
+		for rlp in UntrustedRlp::new(header_signatures_field).iter() {
+			let signature: H520 = rlp.as_val()?;
+			let address = (self.recover)(&signature.into(), &message)?;
+
+			if !self.subchain_validators.contains(header.parent_hash(), &address) {
+				return Err(EngineError::NotAuthorized(address.to_owned()).into());
+			}
+			addresses.insert(address);
+		}
+
+		let n = addresses.len();
+		let threshold = self.subchain_validators.len() * 2/3;
+		if n > threshold {
+			Ok(())
+		} else {
+			Err(EngineError::BadSealFieldSize(OutOfBounds {
+				min: Some(threshold),
+				max: None,
+				found: n
+			}).into())
+		}
+	}
+
+	fn check_finality_proof(&self, proof: &[u8]) -> Option<Vec<H256>> {
+		let header: Header = ::rlp::decode(proof);
+		self.verify_light(&header).ok().map(|_| vec![header.hash()])
+	}
+}
+
+fn combine_proofs(signal_number: BlockNumber, set_proof: &[u8], finality_proof: &[u8]) -> Vec<u8> {
+	let mut stream = ::rlp::RlpStream::new_list(3);
+	stream.append(&signal_number).append(&set_proof).append(&finality_proof);
+	stream.out()
+}
+
+fn destructure_proofs(combined: &[u8]) -> Result<(BlockNumber, &[u8], &[u8]), Error> {
+	let rlp = UntrustedRlp::new(combined);
+	Ok((
+		rlp.at(0)?.as_val()?,
+		rlp.at(1)?.data()?,
+		rlp.at(2)?.data()?,
+	))
 }
 
 impl Tendermint {
@@ -427,6 +486,9 @@ impl Engine for Tendermint {
 	}
 
 	/// Attempt to seal generate a proposal seal.
+	///
+	/// This operation is synchronous and may (quite reasonably) not be available, in which case
+	/// `Seal::None` will be returned.
 	fn generate_seal(&self, block: &ExecutedBlock) -> Seal {
 		let header = block.header();
 		let author = header.author();
@@ -566,6 +628,57 @@ impl Engine for Tendermint {
 		Ok(())
 	}
 
+	fn signals_epoch_end(&self, header: &Header, block: Option<&[u8]>, receipts: Option<&[::receipt::Receipt]>)
+		-> super::EpochChange
+	{
+		let first = header.number() == 0;
+		self.validators.signals_epoch_end(first, header, block, receipts)
+	}
+
+	fn is_epoch_end(
+		&self,
+		chain_head: &Header,
+		_chain: &super::Headers,
+		transition_store: &super::PendingTransitionStore,
+	) -> Option<Vec<u8>> {
+		let first = chain_head.number() == 0;
+
+		if let Some(change) = self.validators.is_epoch_end(first, chain_head) {
+			return Some(change)
+		} else if let Some(pending) = transition_store(chain_head.hash()) {
+			let signal_number = chain_head.number();
+			let finality_proof = ::rlp::encode(chain_head);
+			return Some(combine_proofs(signal_number, &pending.proof, &finality_proof))
+		}
+
+		None
+	}
+
+	fn epoch_verifier<'a>(&self, _header: &Header, proof: &'a [u8]) -> ConstructedVerifier<'a> {
+		let (signal_number, set_proof, finality_proof) = match destructure_proofs(proof) {
+			Ok(x) => x,
+			Err(e) => return ConstructedVerifier::Err(e),
+		};
+
+		let first = signal_number == 0;
+		match self.validators.epoch_set(first, self, signal_number, set_proof) {
+			Ok((list, finalize)) => {
+				let verifier = Box::new(EpochVerifier {
+					subchain_validators: list,
+					recover: |signature: &Signature, message: &Message| {
+						Ok(public_to_address(&::ethkey::recover(&signature, &message)?))
+					},
+				});
+
+				match finalize {
+					Some(finalize) => ConstructedVerifier::Unconfirmed(verifier, finality_proof, finalize),
+					None => ConstructedVerifier::Trusted(verifier),
+				}
+			}
+			Err(e) => ConstructedVerifier::Err(e),
+		}
+	}
+
 	fn set_signer(&self, ap: Arc<AccountProvider>, address: Address, password: String) {
 		{
 			self.signer.write().set(ap, address, password);
@@ -575,6 +688,10 @@ impl Engine for Tendermint {
 
 	fn sign(&self, hash: H256) -> Result<Signature, Error> {
 		self.signer.read().sign(hash).map_err(Into::into)
+	}
+
+	fn snapshot_components(&self) -> Option<Box<::snapshot::SnapshotComponents>> {
+		Some(Box::new(::snapshot::PoaSnapshot))
 	}
 
 	fn stop(&self) {
@@ -665,6 +782,7 @@ mod tests {
 	use account_provider::AccountProvider;
 	use spec::Spec;
 	use engines::{Engine, EngineError, Seal};
+	use engines::epoch::EpochVerifier;
 	use super::*;
 
 	/// Accounts inserted with "0" and "1" are validators. First proposer is "0".
@@ -948,5 +1066,77 @@ mod tests {
 		// Last precommit.
 		vote(engine, |mh| tap.sign(v0, None, mh).map(H520::from), h, r, Step::Precommit, proposal);
 		assert_eq!(client.chain_info().best_block_number, 1);
+	}
+
+	#[test]
+	fn epoch_verifier_verify_light() {
+		use ethkey::Error as EthkeyError;
+
+		let (spec, tap) = setup();
+		let engine = spec.engine;
+
+		let mut parent_header: Header = Header::default();
+		parent_header.set_gas_limit(U256::from_str("222222").unwrap());
+
+		let mut header = Header::default();
+		header.set_number(2);
+		header.set_gas_limit(U256::from_str("222222").unwrap());
+		let proposer = insert_and_unlock(&tap, "1");
+		header.set_author(proposer);
+		let mut seal = proposal_seal(&tap, &header, 0);
+
+		let vote_info = message_info_rlp(&VoteStep::new(2, 0, Step::Precommit), Some(header.bare_hash()));
+		let signature1 = tap.sign(proposer, None, vote_info.sha3()).unwrap();
+
+		let voter = insert_and_unlock(&tap, "0");
+		let signature0 = tap.sign(voter, None, vote_info.sha3()).unwrap();
+
+		seal[1] = ::rlp::NULL_RLP.to_vec();
+		seal[2] = ::rlp::encode_list(&vec![H520::from(signature1.clone())]).into_vec();
+		header.set_seal(seal.clone());
+
+		let epoch_verifier = super::EpochVerifier {
+			subchain_validators: SimpleList::new(vec![proposer.clone(), voter.clone()]),
+			recover: {
+				let signature1 = signature1.clone();
+				let signature0 = signature0.clone();
+				let proposer = proposer.clone();
+				let voter = voter.clone();
+				move |s: &Signature, _: &Message| {
+					if *s == signature1 {
+						Ok(proposer)
+					} else if *s == signature0 {
+						Ok(voter)
+					} else {
+						Err(Error::Ethkey(EthkeyError::InvalidSignature))
+					}
+				}
+			},
+		};
+
+		// One good signature is not enough.
+		match epoch_verifier.verify_light(&header) {
+			Err(Error::Engine(EngineError::BadSealFieldSize(_))) => {},
+			_ => panic!(),
+		}
+
+		seal[2] = ::rlp::encode_list(&vec![H520::from(signature1.clone()), H520::from(signature0.clone())]).into_vec();
+		header.set_seal(seal.clone());
+
+		assert!(epoch_verifier.verify_light(&header).is_ok());
+
+		let bad_voter = insert_and_unlock(&tap, "101");
+		let bad_signature = tap.sign(bad_voter, None, vote_info.sha3()).unwrap();
+
+		seal[2] = ::rlp::encode_list(&vec![H520::from(signature1), H520::from(bad_signature)]).into_vec();
+		header.set_seal(seal);
+
+		// One good and one bad signature.
+		match epoch_verifier.verify_light(&header) {
+			Err(Error::Ethkey(EthkeyError::InvalidSignature)) => {},
+			_ => panic!(),
+		};
+
+		engine.stop();
 	}
 }

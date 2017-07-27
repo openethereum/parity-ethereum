@@ -476,8 +476,8 @@ impl Engine for AuthorityRound {
 
 	/// Attempt to seal the block internally.
 	///
-	/// This operation is synchronous and may (quite reasonably) not be available, in which `false` will
-	/// be returned.
+	/// This operation is synchronous and may (quite reasonably) not be available, in which case
+	/// `Seal::None` will be returned.
 	fn generate_seal(&self, block: &ExecutedBlock) -> Seal {
 		// first check to avoid generating signature most of the time
 		// (but there's still a race to the `compare_and_swap`)
