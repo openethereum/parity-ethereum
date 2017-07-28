@@ -20,6 +20,7 @@ use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 use std::collections::BTreeMap;
 use std::cmp::max;
+use std::str::FromStr;
 use cli::{Args, ArgsError};
 use util::{Hashable, H256, U256, Bytes, version_data, Address};
 use util::journaldb::Algorithm;
@@ -552,17 +553,24 @@ impl Configuration {
 		Ok(options)
 	}
 
+	fn ui_port(&self) -> u16 {
+		self.args.flag_ports_shift + self.args.flag_ui_port
+	}
+
 	fn ui_config(&self) -> UiConfiguration {
 		UiConfiguration {
 			enabled: self.ui_enabled(),
 			ntp_server: self.args.flag_ntp_server.clone(),
 			interface: self.ui_interface(),
-			port: self.args.flag_ports_shift + self.args.flag_ui_port,
+			port: self.ui_port(),
 			hosts: self.ui_hosts(),
 		}
 	}
 
 	fn dapps_config(&self) -> DappsConfiguration {
+		let dev_ui = if self.args.flag_ui_no_validation { vec![("localhost".to_owned(), 3000)] } else { vec![] };
+		let ui_port = self.ui_port();
+
 		DappsConfiguration {
 			enabled: self.dapps_enabled(),
 			ntp_server: self.args.flag_ntp_server.clone(),
@@ -572,11 +580,26 @@ impl Configuration {
 			} else {
 				vec![]
 			},
-			extra_embed_on: if self.args.flag_ui_no_validation {
-				vec![("localhost".to_owned(), 3000)]
-			} else {
-				vec![]
+			extra_embed_on: {
+				let mut extra_embed = dev_ui.clone();
+				match self.ui_hosts() {
+					// In case host validation is disabled allow all frame ancestors
+					None => extra_embed.push(("*".to_owned(), ui_port)),
+					Some(hosts) => extra_embed.extend(hosts.into_iter().filter_map(|host| {
+						let mut it = host.split(":");
+						let host = it.next();
+						let port = it.next().and_then(|v| u16::from_str(v).ok());
+
+						match (host, port) {
+							(Some(host), Some(port)) => Some((host.into(), port)),
+							(Some(host), None) => Some((host.into(), ui_port)),
+							_ => None,
+						}
+					})),
+				}
+				extra_embed
 			},
+			extra_script_src: dev_ui,
 		}
 	}
 
