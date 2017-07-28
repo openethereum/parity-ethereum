@@ -1,6 +1,16 @@
 [root]
-name = "using_queue"
+name = "vm"
 version = "0.1.0"
+dependencies = [
+ "byteorder 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "common-types 0.1.0",
+ "ethcore-util 1.8.0",
+ "ethjson 0.1.0",
+ "evmjit 1.8.0",
+ "lazy_static 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
+ "log 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rlp 0.2.0",
+]
 
 [[package]]
 name = "advapi32-sys"
@@ -504,6 +514,7 @@ dependencies = [
  "stats 0.1.0",
  "time 0.1.35 (registry+https://github.com/rust-lang/crates.io-index)",
  "transient-hashmap 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "vm 0.1.0",
 ]
 
 [[package]]
@@ -3034,6 +3045,10 @@ dependencies = [
  "winapi 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "winapi-build 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
+
+[[package]]
+name = "using_queue"
+version = "0.1.0"
 
 [[package]]
 name = "utf8-ranges"
