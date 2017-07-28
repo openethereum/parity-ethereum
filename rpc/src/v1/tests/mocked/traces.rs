@@ -47,8 +47,8 @@ fn io() -> Tester {
 		result: Res::None,
 		subtraces: 0,
 		trace_address: vec![0],
-		transaction_number: 0,
-		transaction_hash: 5.into(),
+		transaction_number: Some(0),
+		transaction_hash: Some(5.into()),
 		block_number: 10,
 		block_hash: 10.into(),
 	}]);
