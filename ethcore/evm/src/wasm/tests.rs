@@ -366,3 +366,28 @@ fn call_static() {
 	let res = LittleEndian::read_u32(&result[..]);
 	assert_eq!(res, 317632590);
 }
+
+// Realloc test
+#[test]
+fn realloc() {
+		::ethcore_logger::init_log();
+        let code = load_sample!("realloc.wasm");
+
+        let mut params = ActionParams::default();
+        params.gas = U256::from(100_000);
+        params.code = Some(Arc::new(code));
+        params.data = Some(vec![0u8]);
+        let mut ext = FakeExt::new();
+
+        let (gas_left, result) = {
+                let mut interpreter = wasm_interpreter();
+                let result = interpreter.exec(params, &mut ext).expect("Interpreter to execute without any errors");
+                match result {
+                        GasLeft::Known(_) => { panic!("Realloc should return payload"); },
+                        GasLeft::NeedsReturn { gas_left: gas, data: result, apply_state: _apply } => (gas, result.to_vec()),
+                }
+        };
+		assert_eq!(gas_left, U256::from(98326));
+		assert_eq!(result, vec![0u8; 2]);
+
+}

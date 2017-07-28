@@ -121,4 +121,14 @@ pub const SIGNATURES: &'static [UserFunctionDescriptor] = &[
 		&[I32; 0],
 		None
 	),
+	Static(
+		"abortOnCannotGrowMemory",
+		&[I32; 0],
+		Some(I32)
+	),
+	Static(
+		"___setErrNo",
+		&[I32; 1],
+		None
+	),
 ];
