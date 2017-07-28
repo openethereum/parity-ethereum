@@ -15,9 +15,11 @@
   "scripts": {},
   "devDependencies": {},
   "dependencies": {
+    "@parity/parity.js": "1.8.7",
     "oo7": "0.5.3",
     "oo7-parity": "0.6.8",
-    "oo7-react": "0.4.5"
+    "oo7-react": "0.4.5",
+    "parity-reactive-ui": "0.4.5"
   },
   "peerDependencies": {}
 }

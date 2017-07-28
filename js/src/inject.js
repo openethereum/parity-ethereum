@@ -37,12 +37,12 @@ function initProvider () {
 
   const ethereum = new Api.Provider.PostMessage(appId);
 
-  console.log(`Requesting communications token for ${appId}`);
+  console.log(`Requesting API communications token for ${appId}`);
 
   ethereum
     .requestNewToken()
     .then((tokenId) => {
-      console.log(`Received new communications token ${tokenId}`);
+      console.log(`Received API communications token ${tokenId}`);
     })
     .catch((error) => {
       console.error('Unable to retrieve communications token', error);
@@ -85,3 +85,5 @@ const ethereum = initProvider();
 
 initWeb3(ethereum);
 initParity(ethereum);
+
+console.warn('Deprecation: Dapps should only used the exposed EthereumProvider on `window.ethereum`, the use of `window.parity` and `window.web3` will be removed in future versions of this injector');
