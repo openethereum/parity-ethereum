@@ -43,19 +43,21 @@ impl Default for Threshold {
 }
 
 /// Transaction queue with banlist.
-pub struct BanningList {
+pub struct BanningTransactionQueue {
+	queue: TransactionQueue,
 	ban_threshold: Threshold,
 	senders_bans: TransientHashMap<Address, Count>,
 	recipients_bans: TransientHashMap<Address, Count>,
 	codes_bans: TransientHashMap<H256, Count>,
 }
 
-impl BanningList {
+impl BanningTransactionQueue {
 	/// Creates new banlisting transaction queue
-	pub fn new(ban_threshold: Threshold, ban_lifetime: Duration) -> Self {
+	pub fn new(queue: TransactionQueue, ban_threshold: Threshold, ban_lifetime: Duration) -> Self {
 		let ban_lifetime_sec = ban_lifetime.as_secs() as u32;
 		assert!(ban_lifetime_sec > 0, "Lifetime has to be specified in seconds.");
-		BanningList {
+		BanningTransactionQueue {
+			queue: queue,
 			ban_threshold: ban_threshold,
 			senders_bans: TransientHashMap::new(ban_lifetime_sec),
 			recipients_bans: TransientHashMap::new(ban_lifetime_sec),
@@ -63,23 +65,22 @@ impl BanningList {
 		}
 	}
 
-	// /// Borrows internal queue.
-	// /// NOTE: you can insert transactions to the queue even
-	// /// if they would be rejected because of ban otherwise.
-	// /// But probably you shouldn't.
-	// pub fn queue(&mut self) -> &mut TransactionQueue {
-	// 	&mut self.queue
-	// }
+	/// Borrows internal queue.
+	/// NOTE: you can insert transactions to the queue even
+	/// if they would be rejected because of ban otherwise.
+	/// But probably you shouldn't.
+	pub fn queue(&mut self) -> &mut TransactionQueue {
+		&mut self.queue
+	}
 
 	/// Add to the queue taking bans into consideration.
 	/// May reject transaction because of the banlist.
 	pub fn add_with_banlist(
 		&mut self,
-		queue: &mut TransactionQueue,
+		reservation: TransactionQueueReservation,
 		transaction: SignedTransaction,
 		time: QueuingInstant,
 		details_provider: &TransactionQueueDetailsProvider,
-		reservation: TransactionQueueReservation,
 	) -> Result<TransactionImportResult, Error> {
 		if let Threshold::BanAfter(threshold) = self.ban_threshold {
 			// NOTE In all checks use direct query to avoid increasing ban timeout.
@@ -111,20 +112,20 @@ impl BanningList {
 				}
 			}
 		}
-		queue.add(transaction, TransactionOrigin::External, time, None, details_provider, reservation)
+		self.queue.add(reservation, transaction, TransactionOrigin::External, time, None, details_provider)
 	}
 
 	/// Ban transaction with given hash.
 	/// Transaction has to be in the queue.
 	///
 	/// Bans sender and recipient/code and returns `true` when any ban has reached threshold.
-	pub fn ban_transaction(&mut self, queue: &mut TransactionQueue, hash: &H256) -> bool {
-		let transaction = queue.find(hash);
+	pub fn ban_transaction(&mut self, hash: &H256) -> bool {
+		let transaction = self.queue.find(hash);
 		match transaction {
 			Some(transaction) => {
 				let sender = transaction.sender();
 				// Ban sender
-				let sender_banned = self.ban_sender(queue, sender);
+				let sender_banned = self.ban_sender(sender);
 				// Ban recipient and codehash
 				let recipient_or_code_banned = match transaction.action {
 					Action::Call(recipient) => {
@@ -144,7 +145,7 @@ impl BanningList {
 	/// If bans threshold is reached all subsequent transactions from this sender will be rejected.
 	/// Reaching bans threshold also removes all existsing transaction from this sender that are already in the
 	/// queue.
-	fn ban_sender(&mut self, queue: &mut TransactionQueue, address: Address) -> bool {
+	fn ban_sender(&mut self, address: Address) -> bool {
 		let count = {
 			let mut count = self.senders_bans.entry(address).or_insert_with(|| 0);
 			*count = count.saturating_add(1);
@@ -154,7 +155,7 @@ impl BanningList {
 			Threshold::BanAfter(threshold) if count > threshold => {
 				// Banlist the sender.
 				// Remove all transactions from the queue.
-				queue.cull(address, !U256::zero());
+				self.cull(address, !U256::zero());
 				true
 			},
 			_ => false
@@ -193,18 +194,18 @@ impl BanningList {
 	}
 }
 
-// impl Deref for BanningTransactionQueue {
-// 	type Target = TransactionQueue;
+impl Deref for BanningTransactionQueue {
+	type Target = TransactionQueue;
 
-// 	fn deref(&self) -> &Self::Target {
-// 		&self.queue
-// 	}
-// }
-// impl DerefMut for BanningTransactionQueue {
-// 	fn deref_mut(&mut self) -> &mut Self::Target {
-// 		self.queue()
-// 	}
-// }
+	fn deref(&self) -> &Self::Target {
+		&self.queue
+	}
+}
+impl DerefMut for BanningTransactionQueue {
+	fn deref_mut(&mut self) -> &mut Self::Target {
+		self.queue()
+	}
+}
 
 #[cfg(test)]
 mod tests {

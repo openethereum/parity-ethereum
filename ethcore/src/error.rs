@@ -85,8 +85,8 @@ pub enum TransactionError {
 	UnreservedHash,
 	/// Reservation didn't match transaction
 	MismatchedReservation,
-	/// Poisoned lock
-	PoisonedLock,
+	/// Reservation not yet ready to be filled
+	ReservationNotReady,
 }
 
 impl fmt::Display for TransactionError {
@@ -114,7 +114,7 @@ impl fmt::Display for TransactionError {
 			ReservedHash => "Tried to reserve a place in transaction queue that is already taken.".into(),
 			UnreservedHash => "Tried to add a transaction to queue without first reserving its place.".into(),
 			MismatchedReservation => "Tried to add a transaction with a mismatched reservation.".into(),
-			PoisonedLock => "Lock on transaction queue was poisoned.".into(),
+			ReservationNotReady => "Tried to add a transaction that was not ready to be filled.".into(),
 		};
 
 		f.write_fmt(format_args!("Transaction error ({})", msg))

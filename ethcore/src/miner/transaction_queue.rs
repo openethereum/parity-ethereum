@@ -103,9 +103,8 @@
 use std::ops::Deref;
 use std::cmp::Ordering;
 use std::cmp;
-use std::collections::{HashSet, HashMap, BTreeSet, BTreeMap};
+use std::collections::{HashSet, HashMap, BTreeSet, BTreeMap, VecDeque};
 use std::sync::{Arc};
-use util::{RwLock};
 use linked_hash_map::LinkedHashMap;
 use util::{Address, H256, U256, HeapSizeOf};
 use util::table::Table;
@@ -565,12 +564,29 @@ pub trait TransactionDetailsProvider {
 }
 
 pub struct TransactionQueueReservation {
-    tx_queue: Arc<RwLock<TransactionQueue>>,
+    // tx_queue: Arc<RwLock<TransactionQueue>>,
     tx_hash: H256,
-    pub tx: UnverifiedTransaction,
 }
 
 impl TransactionQueueReservation {
+	/// Attempt to issue a queue reservation for a given transaction hash
+	pub fn new(
+		hash: H256,
+	) -> TransactionQueueReservation {
+		TransactionQueueReservation {
+			// tx_queue: queue,
+			tx_hash: hash,
+		}
+	}
+
+	/// Block thread until this reservation is the oldest, then fill
+	pub fn fill(
+		&mut self,
+		reservation: TransactionQueueReservation,
+	) -> () {
+
+	}
+
     // pub fn fill(
     //     self,
     //     transaction: SignedTransaction,
@@ -628,7 +644,7 @@ pub struct TransactionQueue {
 	/// Next id that should be assigned to a transaction imported to the queue.
 	next_transaction_id: u64,
 	// Reserved hashes of transactions currently under-construction
-	reserved: HashMap<H256, i32>,
+	reserved: VecDeque<H256>,
 }
 
 impl Default for TransactionQueue {
@@ -681,7 +697,7 @@ impl TransactionQueue {
 			last_nonces: HashMap::new(),
 			local_transactions: LocalTransactionsList::default(),
 			next_transaction_id: 0,
-			reserved: HashMap::new(),
+			reserved: VecDeque::new(),
 		}
 	}
 
@@ -749,10 +765,12 @@ impl TransactionQueue {
 		}
 	}
 
-	/// Attempt to issue a queue reservation for a given transaction hash
-	pub fn reserve(&mut self, tx: UnverifiedTransaction, shared: Arc<RwLock<Self>>) -> Result<TransactionQueueReservation, TransactionError> {
-		let hash = tx.hash();
-		if self.reserved.contains_key(&hash) {
+	/// Add transaction hash to reserved and issue a ticket
+	fn reserve(
+		&mut self,
+		hash: H256,
+	) -> Result<TransactionQueueReservation, TransactionError> {
+		if self.reserved.contains(&hash) {
 			// Hash already reserved
 			Err(TransactionError::ReservedHash)
 		} else if self.by_hash.contains_key(&hash) {
@@ -760,20 +778,24 @@ impl TransactionQueue {
 			Err(TransactionError::AlreadyImported)
 		} else {
 			// Issue reservation
-			self.reserved.insert(hash, 1);
-			Ok(TransactionQueueReservation {
-				tx_queue: shared,
-				tx_hash: hash,
-				tx: tx
-			})
+			self.reserved.push_back(hash.clone());
+			Ok(TransactionQueueReservation::new(hash))
 		}
 	}
 
-	/// Return successful reservations; ignore others
-	pub fn reserve_many(&mut self, txs: Vec<UnverifiedTransaction>, shared: Arc<RwLock<Self>>) -> Vec<TransactionQueueReservation> {
-		txs.into_iter().filter_map(|tx| {
-			if let Ok(r) = self.reserve(tx, shared.clone()) { Some(r) } else { None }
+	/// Return successful reservations; ignore others (already in queue/reserved)
+	pub fn reserve_batch(
+		&mut self, 
+		transactions: Vec<UnverifiedTransaction>,
+	) -> Vec<(TransactionQueueReservation, UnverifiedTransaction)> {
+		transactions.into_iter().filter_map(|tx| {
+			if let Ok(r) = self.reserve(tx.hash()) { Some((r, tx)) } else { None }
 		}).collect()
+	}
+
+	pub fn is_ready_to_fill(&self, reservation: &TransactionQueueReservation) -> bool {
+		if let Some(&x) = self.reserved.front() { x == reservation.tx_hash }
+		else { false }
 	}
 
 	/// Add signed transaction to queue to be verified and imported.
@@ -782,25 +804,25 @@ impl TransactionQueue {
 	/// otherwise it might open up an attack vector.
 	pub fn add(
 		&mut self,
-		tx: SignedTransaction,
+		reservation: TransactionQueueReservation,
+		transaction: SignedTransaction,
 		origin: TransactionOrigin,
 		time: QueuingInstant,
 		condition: Option<Condition>,
 		details_provider: &TransactionDetailsProvider,
-		reservation: TransactionQueueReservation,
 	) -> Result<TransactionImportResult, Error> {
-		let hash = tx.hash();
+		let hash = transaction.hash();
 		if reservation.tx_hash != hash {
 			Err(Error::Transaction(TransactionError::MismatchedReservation))
-		} else if !self.reserved.contains_key(&hash) {
-			Err(Error::Transaction(TransactionError::UnreservedHash))
+		}  else if !self.is_ready_to_fill(&reservation) {
+			Err(Error::Transaction(TransactionError::ReservationNotReady))
 		} else {
-			// Reservation has been filled
-			self.reserved.remove(&hash);
+			// Fill reservation
+			let _ = self.reserved.pop_front();
 			// Continue with adding transaction
 			if origin == TransactionOrigin::Local {
-				let cloned_tx = tx.clone();
-				let result = self.add_internal(tx, origin, time, condition, details_provider);
+				let cloned_tx = transaction.clone();
+				let result = self.add_internal(transaction, origin, time, condition, details_provider);
 				match result {
 					Ok(TransactionImportResult::Current) => {
 						self.local_transactions.mark_pending(hash);
@@ -824,7 +846,7 @@ impl TransactionQueue {
 				}
 				result
 			} else {
-				self.add_internal(tx, origin, time, condition, details_provider)
+				self.add_internal(transaction, origin, time, condition, details_provider)
 			}
 		}
 	}
@@ -879,9 +901,9 @@ impl TransactionQueue {
 
 			if !is_service_transaction_accepted {
 				return Err(Error::Transaction(TransactionError::InsufficientGasPrice {
-						minimal: self.minimal_gas_price,
-						got: tx.gas_price,
-					}));
+					minimal: self.minimal_gas_price,
+					got: tx.gas_price,
+				}));
 			}
 		}
 

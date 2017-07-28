@@ -310,7 +310,7 @@ pub fn transaction_message(error: TransactionError) -> String {
 		ReservedHash => "Tried to reserve a place in transaction queue that is already taken.".into(),
 		UnreservedHash => "Tried to add a transaction to queue without first reserving its place.".into(),
 		MismatchedReservation => "Tried to add a transaction with a mismatched reservation.".into(),
-		PoisonedLock => "Lock on transaction queue was poisoned.".into(),
+		ReservationNotReady => "Tried to add a transaction that was not ready to be filled.".into(),
 	}
 }
 
