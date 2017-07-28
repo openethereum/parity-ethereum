@@ -1,8 +1,8 @@
-## Parity [v1.7.0](https://github.com/paritytech/parity/releases/tag/v1.7.0) (2017-07-25)
+## Parity [v1.7.0](https://github.com/paritytech/parity/releases/tag/v1.7.0) (2017-07-28)
 
 Parity 1.7.0 is a major release introducing several important features:
 
-- **Experimental [Light client](https://github.com/paritytech/parity/wiki/The-Parity-Light-Protocol-(PIP)) support**. Start Parity with `--light` to enable light mode.
+- **Experimental [Light client](https://github.com/paritytech/parity/wiki/The-Parity-Light-Protocol-(PIP)) support**. Start Parity with `--light` to enable light mode. Please, note: The wallet UI integration for the light client is not included, yet.
 - **Experimental web wallet**. A hosted version of Parity that keeps the keys and signs transactions using your browser storage. Try it at https://wallet.parity.io or run your own with `--public-node`.
 - **WASM contract support**. Private networks can run contracts compiled into WASM bytecode. _More information and documentation to follow_.
 - **DApps and RPC server merge**. DApp and RPC are now available through a single API endpoint. DApp server related settings are deprecated.
@@ -24,7 +24,7 @@ Full list of included changes:
   - Don't display an overlay in case the time sync check fails. ([#6164](https://github.com/paritytech/parity/pull/6164))
     - Small improvements to time estimation.
     - Temporarily disable NTP time check by default.
-- Light client fixes ([#6148](https://github.com/paritytech/parity/pull/6148)) ([#6151](https://github.com/paritytech/parity/pull/6151))
+- Light client fixes ([#6148](https://github.com/paritytech/parity/pull/6148)) [#6151](https://github.com/paritytech/parity/pull/6151)
   - Light client fixes
   - Fix memory-lru-cache
   - Clear pending reqs on disconnect
