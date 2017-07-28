@@ -307,7 +307,7 @@ mod tests {
 
 	fn time_checker() -> TimeChecker<FakeNtp> {
 		let last_result = Arc::new(RwLock::new(
-			(Instant::now(), vec![Err(Error::Ntp("NTP server unavailable.".into()))].into())
+			(Instant::now(), vec![Err(Error::Ntp("NTP server unavailable".into()))].into())
 		));
 
 		TimeChecker {
