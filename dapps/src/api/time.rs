@@ -37,8 +37,8 @@ use std::collections::VecDeque;
 use std::sync::atomic::{self, AtomicUsize};
 
 use futures::{self, Future, BoxFuture};
-use futures::future::IntoFuture;
-use futures_cpupool::CpuPool;
+use futures::future::{self, IntoFuture};
+use futures_cpupool::{CpuPool, CpuFuture};
 use ntp;
 use time::{Duration, Timespec};
 use util::{Arc, RwLock};
@@ -84,7 +84,6 @@ pub trait Ntp {
 }
 
 const SERVER_MAX_POLL_INTERVAL_SECS: u64 = 60;
-
 #[derive(Debug)]
 struct Server {
 	pub address: String,
@@ -148,15 +147,20 @@ impl SimpleNtp {
 }
 
 impl Ntp for SimpleNtp {
-	type Future = BoxFuture<Duration, Error>;
+	type Future = future::Either<
+		CpuFuture<Duration, Error>,
+		future::FutureResult<Duration, Error>,
+	>;
 
 	fn drift(&self) -> Self::Future {
-		let server = self.addresses.iter().find(|server| server.is_available());
+		use self::future::Either::{A, B};
 
-		if let Some(server) = server {
+		let server = self.addresses.iter().find(|server| server.is_available());
+		server.map(|server| {
 			let server = server.clone();
-			self.pool.spawn_fn(move || {
+			A(self.pool.spawn_fn(move || {
 				debug!(target: "dapps", "Fetching time from {}.", server.address);
+
 				match ntp::request(&server.address) {
 					Ok(packet) => {
 						let dest_time = ::time::now_utc().to_timespec();
@@ -174,19 +178,16 @@ impl Ntp for SimpleNtp {
 						Err(err.into())
 					},
 				}
-			}).boxed()
-		} else {
-			// No server available.
-			futures::future::err(Error::NoServersAvailable).boxed()
-		}
+			}))
+		}).unwrap_or_else(|| B(future::err(Error::NoServersAvailable)))
 	}
 }
 
 // NOTE In a positive scenario first results will be seen after:
 // MAX_RESULTS * UPDATE_TIMEOUT_ERR_SECS seconds.
 const MAX_RESULTS: usize = 4;
-const UPDATE_TIMEOUT_OK_SECS: u64 = 30;
-const UPDATE_TIMEOUT_ERR_SECS: u64 = 2;
+const UPDATE_TIMEOUT_OK_SECS: u64 = 60;
+const UPDATE_TIMEOUT_ERR_SECS: u64 = 10;
 
 #[derive(Debug, Clone)]
 /// A time checker.
@@ -297,11 +298,11 @@ mod tests {
 	}
 
 	impl Ntp for FakeNtp {
-		type Future = futures::future::FutureResult<Duration, Error>;
+		type Future = future::FutureResult<Duration, Error>;
 
 		fn drift(&self) -> Self::Future {
 			self.1.set(self.1.get() + 1);
-			futures::future::ok(self.0.borrow_mut().pop().expect("Unexpected call to drift()."))
+			future::ok(self.0.borrow_mut().pop().expect("Unexpected call to drift()."))
 		}
 	}
 
