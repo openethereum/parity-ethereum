@@ -15,6 +15,8 @@
   "scripts": {},
   "devDependencies": {},
   "dependencies": {
+    "@parity/dapp-account": "file:../dapp-account",
+    "@parity/dapp-develop": "file:../dapp-develop",
     "base32.js": "0.1.0",
     "bytes": "2.4.0",
     "format-number": "2.0.1",
