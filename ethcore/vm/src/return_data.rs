@@ -12,7 +12,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Return data structure
+//! Return data structures
+
+use util::U256;
 
 /// Return data buffer. Holds memory from a previous call and a slice into that memory.
 #[derive(Debug)]
@@ -46,4 +48,21 @@ impl ReturnData {
 			size: size,
 		}
 	}
+}
+
+/// Gas Left: either it is a known value, or it needs to be computed by processing
+/// a return instruction.
+#[derive(Debug)]
+pub enum GasLeft {
+	/// Known gas left
+	Known(U256),
+	/// Return or Revert instruction must be processed.
+	NeedsReturn {
+		/// Amount of gas left.
+		gas_left: U256,
+		/// Return data buffer.
+		data: ReturnData,
+		/// Apply or revert state changes on revert.
+		apply_state: bool
+	},
 }

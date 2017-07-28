@@ -19,6 +19,7 @@ use util::*;
 use evmjit;
 use evm::{self, GasLeft};
 use evm::CallType;
+use vm::{self, Vm};
 
 /// Should be used to convert jit types to ethcore
 trait FromJit<T>: Sized {
@@ -318,7 +319,7 @@ pub struct JitEvm {
 	context: Option<evmjit::ContextHandle>,
 }
 
-impl evm::Evm for JitEvm {
+impl vm::Vm for JitEvm {
 	fn exec(&mut self, params: ActionParams, ext: &mut evm::Ext) -> evm::Result<GasLeft> {
 		// Dirty hack. This is unsafe, but we interact with ffi, so it's justified.
 		let ext_adapter: ExtAdapter<'static> = unsafe { ::std::mem::transmute(ExtAdapter::new(ext, params.address.clone())) };

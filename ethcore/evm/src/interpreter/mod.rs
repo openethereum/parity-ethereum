@@ -25,9 +25,12 @@ mod shared_cache;
 
 use std::marker::PhantomData;
 
-use vm::{self, ActionParams, ActionValue, CallType, MessageCallResult, ContractCreateResult, CreateContractAddress, ReturnData};
+use vm::{
+	self, ActionParams, ActionValue, CallType, MessageCallResult,
+	ContractCreateResult, CreateContractAddress, ReturnData, GasLeft
+};
 
-use evm::{self, GasLeft, CostType};
+use evm::CostType;
 use instructions::{self, Instruction, InstructionInfo};
 
 use self::gasometer::Gasometer;
@@ -108,7 +111,7 @@ pub struct Interpreter<Cost: CostType> {
 	_type: PhantomData<Cost>,
 }
 
-impl<Cost: CostType> evm::Evm for Interpreter<Cost> {
+impl<Cost: CostType> vm::Vm for Interpreter<Cost> {
 	fn exec(&mut self, params: ActionParams, ext: &mut vm::Ext) -> vm::Result<GasLeft> {
 		self.mem.clear();
 

@@ -34,5 +34,13 @@ pub use call_type::CallType;
 pub use env_info::EnvInfo;
 pub use schedule::{Schedule, CleanDustMode};
 pub use ext::{Ext, MessageCallResult, ContractCreateResult, CreateContractAddress};
-pub use return_data::ReturnData;
+pub use return_data::{ReturnData, GasLeft};
 pub use error::{Error, Result};
+
+/// Virtual Machine interface
+pub trait Vm {
+	/// This function should be used to execute transaction.
+	/// It returns either an error, a known amount of gas left, or parameters to be used
+	/// to compute the final gas left.
+	fn exec(&mut self, params: ActionParams, ext: &mut Ext) -> Result<GasLeft>;
+}

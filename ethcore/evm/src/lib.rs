@@ -53,8 +53,12 @@ mod tests;
 #[cfg(all(feature="benches", test))]
 mod benches;
 
-pub use vm::{Schedule, CleanDustMode, EnvInfo, CallType, ActionParams, Ext, ContractCreateResult, MessageCallResult, CreateContractAddress};
-pub use self::evm::{Evm, Finalize, FinalizationResult, GasLeft, CostType};
+pub use vm::{
+    Schedule, CleanDustMode, EnvInfo, CallType, ActionParams, Ext,
+    ContractCreateResult, MessageCallResult, CreateContractAddress,
+    GasLeft, ReturnData
+};
+pub use self::evm::{Finalize, FinalizationResult, CostType};
 pub use self::instructions::{InstructionInfo, INSTRUCTIONS, push_bytes};
 pub use self::vmtype::VMType;
 pub use self::factory::Factory;

@@ -18,24 +18,7 @@
 
 use std::{ops, cmp, fmt};
 use util::{U128, U256, U512};
-use vm::{Ext, ActionParams, Result, ReturnData, Error};
-
-/// Gas Left: either it is a known value, or it needs to be computed by processing
-/// a return instruction.
-#[derive(Debug)]
-pub enum GasLeft {
-	/// Known gas left
-	Known(U256),
-	/// Return or Revert instruction must be processed.
-	NeedsReturn {
-		/// Amount of gas left.
-		gas_left: U256,
-		/// Return data buffer.
-		data: ReturnData,
-		/// Apply or revert state changes on revert.
-		apply_state: bool
-	},
-}
+use vm::{Ext, Result, ReturnData, GasLeft, Error};
 
 /// Finalization result. Gas Left: either it is a known value, or it needs to be computed by processing
 /// a return instruction.
@@ -162,15 +145,6 @@ impl CostType for usize {
 		let overflow = overflow | (parts[0] > result as u64);
 		(result, overflow)
 	}
-}
-
-/// Evm interface
-pub trait Evm {
-	/// This function should be used to execute transaction.
-	///
-	/// It returns either an error, a known amount of gas left, or parameters to be used
-	/// to compute the final gas left.
-	fn exec(&mut self, params: ActionParams, ext: &mut Ext) -> Result<GasLeft>;
 }
 
 #[cfg(test)]
