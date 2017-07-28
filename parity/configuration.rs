@@ -1277,7 +1277,7 @@ mod tests {
 			support_token_api: true
 		}, UiConfiguration {
 			enabled: true,
-			ntp_server: "pool.ntp.org:123".into(),
+			ntp_server: "none".into(),
 			interface: "127.0.0.1".into(),
 			port: 8180,
 			hosts: Some(vec![]),
@@ -1519,7 +1519,7 @@ mod tests {
 		assert_eq!(conf0.directories().signer, "signer".to_owned());
 		assert_eq!(conf0.ui_config(), UiConfiguration {
 			enabled: true,
-			ntp_server: "pool.ntp.org:123".into(),
+			ntp_server: "none".into(),
 			interface: "127.0.0.1".into(),
 			port: 8180,
 			hosts: Some(vec![]),
@@ -1528,7 +1528,7 @@ mod tests {
 		assert_eq!(conf1.directories().signer, "signer".to_owned());
 		assert_eq!(conf1.ui_config(), UiConfiguration {
 			enabled: true,
-			ntp_server: "pool.ntp.org:123".into(),
+			ntp_server: "none".into(),
 			interface: "127.0.0.1".into(),
 			port: 8180,
 			hosts: Some(vec![]),
@@ -1538,7 +1538,7 @@ mod tests {
 		assert_eq!(conf2.directories().signer, "signer".to_owned());
 		assert_eq!(conf2.ui_config(), UiConfiguration {
 			enabled: true,
-			ntp_server: "pool.ntp.org:123".into(),
+			ntp_server: "none".into(),
 			interface: "127.0.0.1".into(),
 			port: 3123,
 			hosts: Some(vec![]),
@@ -1547,7 +1547,7 @@ mod tests {
 		assert_eq!(conf3.directories().signer, "signer".to_owned());
 		assert_eq!(conf3.ui_config(), UiConfiguration {
 			enabled: true,
-			ntp_server: "pool.ntp.org:123".into(),
+			ntp_server: "none".into(),
 			interface: "test".into(),
 			port: 8180,
 			hosts: Some(vec![]),
