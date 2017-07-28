@@ -1,15 +1,13 @@
 [root]
-name = "vm"
+name = "wasm"
 version = "0.1.0"
 dependencies = [
  "byteorder 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "common-types 0.1.0",
  "ethcore-util 1.8.0",
- "ethjson 0.1.0",
- "evmjit 1.8.0",
- "lazy_static 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)",
- "rlp 0.2.0",
+ "parity-wasm 0.12.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "vm 0.1.0",
+ "wasm-utils 0.1.0 (git+https://github.com/paritytech/wasm-utils)",
 ]
 
 [[package]]
@@ -515,6 +513,7 @@ dependencies = [
  "time 0.1.35 (registry+https://github.com/rust-lang/crates.io-index)",
  "transient-hashmap 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "vm 0.1.0",
+ "wasm 0.1.0",
 ]
 
 [[package]]
@@ -3077,6 +3076,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "blastfig 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "time 0.1.35 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "vm"
+version = "0.1.0"
+dependencies = [
+ "byteorder 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "common-types 0.1.0",
+ "ethcore-util 1.8.0",
+ "ethjson 0.1.0",
+ "evmjit 1.8.0",
+ "lazy_static 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
+ "log 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rlp 0.2.0",
 ]
 
 [[package]]

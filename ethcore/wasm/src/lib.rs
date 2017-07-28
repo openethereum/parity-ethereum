@@ -16,6 +16,13 @@
 
 //! Wasm Interpreter
 
+extern crate vm;
+extern crate ethcore_util as util;
+#[macro_use] extern crate log;
+extern crate byteorder;
+extern crate parity_wasm;
+extern crate wasm_utils;
+
 mod runtime;
 mod ptr;
 mod call_args;
@@ -30,10 +37,8 @@ const DEFAULT_STACK_SPACE: u32 = 5 * 1024 * 1024;
 
 use parity_wasm::{interpreter, elements};
 use parity_wasm::interpreter::ModuleInstanceInterface;
-use wasm_utils;
 
-use evm::{self, GasLeft, ReturnData};
-use action_params::ActionParams;
+use vm::{GasLeft, ReturnData, ActionParams};
 use self::runtime::Runtime;
 
 pub use self::runtime::Error as RuntimeError;
@@ -56,9 +61,9 @@ impl WasmInterpreter {
 	}
 }
 
-impl evm::Evm for WasmInterpreter {
+impl vm::Vm for WasmInterpreter {
 
-	fn exec(&mut self, params: ActionParams, ext: &mut ::ext::Ext) -> evm::Result<GasLeft> {
+	fn exec(&mut self, params: ActionParams, ext: &mut vm::Ext) -> vm::Result<GasLeft> {
 		use parity_wasm::elements::Deserialize;
 
 		let code = params.code.expect("exec is only called on contract with code; qed");
@@ -74,7 +79,7 @@ impl evm::Evm for WasmInterpreter {
 			.expect("Linear memory to exist in wasm runtime");
 
 		if params.gas > ::std::u64::MAX.into() {
-			return Err(evm::Error::Wasm("Wasm interpreter cannot run contracts with gas >= 2^64".to_owned()));
+			return Err(vm::Error::Wasm("Wasm interpreter cannot run contracts with gas >= 2^64".to_owned()));
 		}
 
 		let mut runtime = Runtime::with_params(
@@ -90,7 +95,7 @@ impl evm::Evm for WasmInterpreter {
 			elements::Module::deserialize(
 				&mut cursor
 			).map_err(|err| {
-				evm::Error::Wasm(format!("Error deserializing contract code ({:?})", err))
+				vm::Error::Wasm(format!("Error deserializing contract code ({:?})", err))
 			})?
 		);
 
@@ -111,7 +116,7 @@ impl evm::Evm for WasmInterpreter {
 					interpreter::env_native_module(env_instance, native_bindings(&mut runtime))
 						.map_err(|err| {
 							// todo: prefer explicit panic here also?
-							evm::Error::Wasm(format!("Error instantiating native bindings: {:?}", err))
+							vm::Error::Wasm(format!("Error instantiating native bindings: {:?}", err))
 						})?
 				)
 			).add_argument(interpreter::RuntimeValue::I32(d_ptr.as_raw() as i32));
@@ -119,13 +124,13 @@ impl evm::Evm for WasmInterpreter {
 			let module_instance = self.program.add_module("contract", contract_module, Some(&execution_params.externals))
 				.map_err(|err| {
 					trace!(target: "wasm", "Error adding contract module: {:?}", err);
-					evm::Error::from(RuntimeError::Interpreter(err))
+					vm::Error::from(RuntimeError::Interpreter(err))
 				})?;
 
 			module_instance.execute_export("_call", execution_params)
 				.map_err(|err| {
 					trace!(target: "wasm", "Error executing contract: {:?}", err);
-					evm::Error::from(RuntimeError::Interpreter(err))
+					vm::Error::from(RuntimeError::Interpreter(err))
 				})?;
 		}
 
@@ -155,5 +160,11 @@ fn native_bindings<'a>(runtime: &'a mut Runtime) -> interpreter::UserFunctions<'
 	interpreter::UserFunctions {
 		executor: runtime,
 		functions: ::std::borrow::Cow::from(env::SIGNATURES),
+	}
+}
+
+impl From<runtime::Error> for vm::Error {
+	fn from(err: runtime::Error) -> vm::Error {
+		vm::Error::Wasm(format!("WASM runtime-error: {:?}", err))
 	}
 }
