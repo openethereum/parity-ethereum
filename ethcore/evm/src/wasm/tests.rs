@@ -25,7 +25,7 @@ use byteorder::{LittleEndian, ByteOrder};
 
 macro_rules! load_sample {
 	($name: expr) => {
-		include_bytes!(concat!("../../../../../wasm-tests/compiled/", $name)).to_vec()
+		include_bytes!(concat!("../../../res/wasm-tests/compiled/", $name)).to_vec()
 	}
 }
 
