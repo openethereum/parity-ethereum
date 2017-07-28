@@ -18,6 +18,11 @@ import Web3 from 'web3';
 import Api from '@parity/api';
 
 const ethereumProvider = window.ethereum || window.parent.ethereum;
+
+if (!ethereumProvider) {
+  throw new Error('Unable to locate EthereumProvider, object not attached');
+}
+
 const api = new Api(ethereumProvider);
 
 let web3;

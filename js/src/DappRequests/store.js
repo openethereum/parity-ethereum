@@ -74,7 +74,7 @@ export default class Store {
   }
 
   @action queueRequest = (request) => {
-    const appId = this.tokens[request.data.from];
+    const appId = this.tokens[request.data.token];
     let queueId = ++nextQueueId;
 
     this.requests = this.requests.concat([{ appId, queueId, request }]);
@@ -114,14 +114,19 @@ export default class Store {
   }
 
   @action rejectRequest = (queueId) => {
-    const { request: { data: { id, method, token }, source } } = this.findRequest(queueId);
+    const { request } = this.findRequest(queueId);
 
     this.removeRequest(queueId);
+    this.rejectMessage(request);
+  }
+
+  @action rejectMessage = (source, { id, from, method, token }) => {
     source.postMessage({
       error: `Method ${method} not allowed`,
       id,
       from: 'shell',
       result: null,
+      to: from,
       token
     }, '*');
   }
@@ -137,6 +142,14 @@ export default class Store {
     this.savePermissions();
 
     return true;
+  }
+
+  hasValidToken = (method, appId, token) => {
+    if (!token) {
+      return method === 'shell_requestNewToken';
+    }
+
+    return this.tokens[token] === appId;
   }
 
   hasTokenPermission = (method, token) => {
@@ -159,7 +172,7 @@ export default class Store {
     return this.requests.filter(({ request: { data: { method, token, params } } }) => (method === _method || (params && params[0] === _method)) && token === _token);
   }
 
-  _methodCallbackPost = (id, source, token) => {
+  _methodCallbackPost = (id, from, source, token) => {
     return (error, result) => {
       source.postMessage({
         error: error
@@ -167,25 +180,26 @@ export default class Store {
           : null,
         id,
         from: 'shell',
+        to: from,
         result,
         token
       }, '*');
     };
   }
 
-  executePubsubCall = ({ api, id, token, params }, source) => {
-    const callback = this._methodCallbackPost(id, source, token);
+  executePubsubCall = ({ api, id, from, token, params }, source) => {
+    const callback = this._methodCallbackPost(id, from, source, token);
 
     // TODO: enable security pubsub
     this.provider.subscribe(api, callback, params).then((v, e) => {
       console.log('Error and result', v, e);
-      this._methodCallbackPost(id, source, token)(null, v);
+      this._methodCallbackPost(id, from, source, token)(null, v);
     });
   }
 
-  executeMethodCall = ({ id, from, method, params, token }, source) => {
+  executeMethodCall = ({ appId, id, from, method, params, token }, source) => {
     const visibleStore = VisibleStore.get();
-    const callback = this._methodCallbackPost(id, source, token);
+    const callback = this._methodCallbackPost(id, from, source, token);
 
     switch (method) {
       case 'shell_getApps':
@@ -205,6 +219,9 @@ export default class Store {
 
       case 'shell_getMethodPermissions':
         return callback(null, this.permissions);
+
+      case 'shell_requestNewToken':
+        return callback(null, this.createToken(from));
 
       case 'shell_setAppVisibility':
         const [appId, visibility] = params;
@@ -239,9 +256,14 @@ export default class Store {
       return;
     }
 
-    const { from, method, token, params, api, subId, id } = data;
+    const { from, method, to, token, params, api, subId, id } = data;
 
-    if (!from || from === 'shell' || from !== token) {
+    if (to !== 'shell' || !from || from === 'shell') {
+      return;
+    }
+
+    if (!this.hasValidToken(method, from, token)) {
+      this.rejectMessage(source, data);
       return;
     }
 
@@ -250,13 +272,13 @@ export default class Store {
       this.queueRequest({ data, origin, source });
       return;
     }
+
     if (api) {
-      console.log('apiCall', data);
       this.executePubsubCall(data, source);
     } else if (subId) {
       subId === '*'
-        ? this.provider.unsubscribeAll().then(v => this._methodCallbackPost(id, source, token)(null, v))
-        : this.provider.unsubscribe(subId).then(v => this._methodCallbackPost(id, source, token)(null, v));
+        ? this.provider.unsubscribeAll().then(v => this._methodCallbackPost(id, from, source, token)(null, v))
+        : this.provider.unsubscribe(subId).then(v => this._methodCallbackPost(id, from, source, token)(null, v));
     } else {
       this.executeMethodCall(data, source);
     }

@@ -29,13 +29,13 @@ const rulesEs6 = require('./rules/es6');
 const rulesParity = require('./rules/parity');
 const Shared = require('./shared');
 
-const DAPPS_BUILTIN = require('../packages/shared/config/dappsBuiltin.json');
-const DAPPS_VIEWS = require('../packages/shared/config/dappsViews.json').map((dapp) => {
+const DAPPS_BUILTIN = require('@parity/shared/config/dappsBuiltin.json');
+const DAPPS_VIEWS = require('@parity/shared/config/dappsViews.json').map((dapp) => {
   dapp.commons = true;
   return dapp;
 });
 
-const FAVICON = path.resolve(__dirname, '../packages/shared/assets/images/parity-logo-black-no-text.png');
+const FAVICON = path.resolve(__dirname, '../node_modules/@parity/shared/assets/images/parity-logo-black-no-text.png');
 
 const DEST = process.env.BUILD_DEST || '.build';
 const ENV = process.env.NODE_ENV || 'development';
@@ -110,7 +110,7 @@ module.exports = {
       },
       {
         test: /\.css$/,
-        include: [ /packages/, /src/ ],
+        include: [ /packages/, /src/, /@parity/ ],
         loader: (isProd && !isEmbed)
           ? ExtractTextPlugin.extract([
             // 'style-loader',
@@ -153,8 +153,13 @@ module.exports = {
 
   resolve: {
     alias: {
-      '~/packages/api/local': path.resolve(__dirname, '../packages/api/local/localAccountsMiddleware.js'),
+      '~/packages/api/local': path.resolve(__dirname, '../node_modules/@parity/api/local/localAccountsMiddleware.js'),
       '~': path.resolve(__dirname, '..'),
+      '@parity/abi': path.resolve(__dirname, '../node_modules/@parity/abi'),
+      '@parity/api': path.resolve(__dirname, '../node_modules/@parity/api'),
+      '@parity/jsonrpc': path.resolve(__dirname, '../node_modules/@parity/jsonrpc'),
+      '@parity/shared': path.resolve(__dirname, '../node_modules/@parity/shared'),
+      '@parity/ui': path.resolve(__dirname, '../node_modules/@parity/ui'),
       '@parity/wordlist': path.resolve(__dirname, '../node_modules/@parity/wordlist'),
       '@parity': path.resolve(__dirname, '../packages')
     },

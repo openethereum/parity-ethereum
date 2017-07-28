@@ -1,7 +1,7 @@
 {
   "name": "@parity/etherscan",
   "description": "The Parity Promise-based library for interfacing with Etherscan over HTTP",
-  "version": "0.0.0",
+  "version": "1.99.99",
   "main": "library.js",
   "author": "Parity Team <admin@parity.io>",
   "maintainers": [
@@ -11,7 +11,7 @@
   "license": "GPL-3.0",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/paritytech/parity.git"
+    "url": "git+https://github.com/paritytech/js-etherscan.git"
   },
   "keywords": [
     "Ethereum",

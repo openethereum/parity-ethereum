@@ -1,6 +1,6 @@
 {
-  "name": "@parity/dapp-addresses",
-  "description": "Parity default addressbook view",
+  "name": "@parity/dapp-tokenreg",
+  "description": "Parity Token Registration",
   "version": "1.99.99",
   "main": "index.js",
   "author": "Parity Team <admin@parity.io>",
@@ -9,11 +9,12 @@
   "license": "GPL-3.0",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/paritytech/dapp-addresses.git"
+    "url": "git+https://github.com/paritytech/dapp-tokenreg.git"
   },
   "keywords": [],
   "scripts": {},
   "devDependencies": {},
-  "dependencies": {},
+  "dependencies": {
+  },
   "peerDependencies": {}
 }

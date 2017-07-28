@@ -1,1 +1,0 @@
-# Parity UI component library

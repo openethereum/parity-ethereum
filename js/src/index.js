@@ -27,7 +27,6 @@ import { IndexRoute, Redirect, Route, Router, hashHistory } from 'react-router';
 import qs from 'querystring';
 
 import Api from '@parity/api';
-import Abi from '@parity/abi';
 import builtinDapps from '@parity/shared/config/dappsBuiltin.json';
 import viewsDapps from '@parity/shared/config/dappsViews.json';
 import ContractInstances from '@parity/shared/contracts';
@@ -40,13 +39,11 @@ import '@parity/shared/environment';
 
 import Application from './Application';
 import Dapp from './Dapp';
-import { setupProviderFilters, Store as DappRequestsStore } from './DappRequests';
+import { setupProviderFilters } from './DappRequests';
 import Dapps from './Dapps';
 import SecureApi from './secureApi';
 
 injectTapEventPlugin();
-
-console.log('UI version', process.env.UI_VERSION);
 
 if (process.env.NODE_ENV === 'development') {
   // Expose the React Performance Tools on the`window` object
@@ -73,26 +70,24 @@ setupProviderFilters(api.provider);
 
 const store = initStore(api, hashHistory);
 
-const dapps = [].concat(viewsDapps, builtinDapps);
+const dapps = [].concat(viewsDapps, builtinDapps).map((app) => {
+  if (app.id && app.id.substr(0, 2) !== '0x') {
+    app.id = Api.util.sha3(app.id);
+  }
+
+  return app;
+});
 
 const dappsHistory = HistoryStore.get('dapps');
 
 function onEnterDapp ({ params: { id } }) {
-  const token = DappRequestsStore.get().createToken(id);
-
-  // on app switch unsubscribe all subscriptions
-  if (window.ethereum) {
-    window.ethereum.unsubscribeAll();
-  }
-
-  // old API uses window.parity
-  window.parity = { Api, Abi };
-  window.ethereum = new Api.Provider.PostMessage(token, window);
-
   if (!dapps[id] || !dapps[id].skipHistory) {
     dappsHistory.add(id);
   }
 }
+
+console.log('UI version', process.env.UI_VERSION);
+console.log('Loaded dapps', dapps);
 
 ReactDOM.render(
   <ContextProvider api={ api } store={ store }>

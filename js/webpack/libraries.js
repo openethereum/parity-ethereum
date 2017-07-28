@@ -29,10 +29,9 @@ const isProd = ENV === 'production';
 module.exports = {
   context: path.join(__dirname, '../src'),
   entry: {
-    // library
     'inject': ['./inject.js'],
-    'web3': ['./web3.js'],
-    'parity': ['./parity.js']
+    'parity': ['./inject.js'],
+    'web3': ['./inject.js']
   },
   output: {
     path: path.join(__dirname, '../', DEST),
@@ -43,7 +42,13 @@ module.exports = {
 
   resolve: {
     alias: {
+      '~/packages/api/local': path.resolve(__dirname, '../node_modules/@parity/api/local/index.js'),
       '~': path.resolve(__dirname, '..'),
+      '@parity/abi': path.resolve(__dirname, '../node_modules/@parity/abi'),
+      '@parity/api': path.resolve(__dirname, '../node_modules/@parity/api'),
+      '@parity/jsonrpc': path.resolve(__dirname, '../node_modules/@parity/jsonrpc'),
+      '@parity/shared': path.resolve(__dirname, '../node_modules/@parity/shared'),
+      '@parity/ui': path.resolve(__dirname, '../node_modules/@parity/ui'),
       '@parity/wordlist': path.resolve(__dirname, '../node_modules/@parity/wordlist'),
       '@parity': path.resolve(__dirname, '../packages')
     }

@@ -14,5 +14,74 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import './parity';
-import './web3';
+import 'whatwg-fetch';
+
+import es6Promise from 'es6-promise';
+es6Promise.polyfill();
+
+import Api from '@parity/api';
+import Web3 from 'web3';
+
+import web3extensions from './web3.extensions';
+
+function initProvider () {
+  let [, appId] = window.location.pathname.split('/');
+
+  if (appId.indexOf('.html') !== -1) {
+    appId = appId.replace('.html', '');
+  }
+
+  if (appId.substr(0, 2) !== '0x') {
+    appId = Api.util.sha3(appId);
+  }
+
+  const ethereum = new Api.Provider.PostMessage(appId);
+
+  console.log(`Requesting communications token for ${appId}`);
+
+  ethereum
+    .requestNewToken()
+    .then((tokenId) => {
+      console.log(`Received new communications token ${tokenId}`);
+    })
+    .catch((error) => {
+      console.error('Unable to retrieve communications token', error);
+    });
+
+  window.ethereum = ethereum;
+
+  return ethereum;
+}
+
+function initWeb3 (ethereum) {
+  // FIXME: Use standard provider for web3
+  const http = new Web3.providers.HttpProvider('/rpc/');
+  const web3 = new Web3(http);
+
+  // set default account
+  web3.eth.getAccounts((error, accounts) => {
+    if (error || !accounts || !accounts[0]) {
+      return;
+    }
+
+    web3.eth.defaultAccount = accounts[0];
+  });
+
+  web3extensions(web3).map((extension) => web3._extend(extension));
+
+  window.web3 = web3;
+}
+
+function initParity (ethereum) {
+  const api = new Api(ethereum);
+
+  window.parity = {
+    Api,
+    api
+  };
+}
+
+const ethereum = initProvider();
+
+initWeb3(ethereum);
+initParity(ethereum);

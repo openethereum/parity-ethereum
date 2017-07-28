@@ -1,7 +1,7 @@
 {
-  "name": "@parity/view-status",
+  "name": "@parity/dapp-status",
   "description": "Parity default Status view",
-  "version": "0.0.0",
+  "version": "1.99.99",
   "main": "index.js",
   "author": "Parity Team <admin@parity.io>",
   "maintainers": [],
@@ -9,7 +9,7 @@
   "license": "GPL-3.0",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/paritytech/parity.git"
+    "url": "git+https://github.com/paritytech/dapp-status.git"
   },
   "keywords": [],
   "scripts": {},
