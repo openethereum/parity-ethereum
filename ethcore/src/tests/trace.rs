@@ -40,7 +40,7 @@ fn can_trace_block_and_uncle_reward() {
     let spec = Spec::new_test_with_reward();
     let engine = &*spec.engine;
 
-	/// Create client
+	// Create client
 	let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
 	let mut client_config = ClientConfig::default();
 	client_config.tracing.enabled = true;
@@ -53,7 +53,15 @@ fn can_trace_block_and_uncle_reward() {
 		IoChannel::disconnected(),
 	).unwrap();
 
-	/// Create test data
+	// Create test data:
+	// genesis
+	//    |
+	// root_block
+	//    |
+	// parent_block
+	//    |
+	// block with transaction and uncle
+
     let genesis_header = spec.genesis_header();    
     let mut db = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
 	let mut rolling_timestamp = 40;
@@ -64,7 +72,7 @@ fn can_trace_block_and_uncle_reward() {
 	let kp = KeyPair::from_secret_slice(&"".sha3()).unwrap();
 	let author = kp.address();
 
-	/// Add root block first
+	// Add root block first
 	let mut root_block = OpenBlock::new(
 			engine,
 			Default::default(),
@@ -93,7 +101,7 @@ fn can_trace_block_and_uncle_reward() {
 
 	last_hashes.push(last_header.hash());
 
-	/// Add parent block
+	// Add parent block
 	let mut parent_block = OpenBlock::new(
 			engine,
 			Default::default(),
@@ -121,7 +129,7 @@ fn can_trace_block_and_uncle_reward() {
 
 	last_hashes.push(last_header.hash());
 
-	/// Add testing block with transactions and uncles
+	// Add testing block with transaction and uncle
     let mut block = OpenBlock::new(
 		engine, 
 		Default::default(), 
@@ -172,7 +180,7 @@ fn can_trace_block_and_uncle_reward() {
 	client.flush_queue();
 	client.import_verified_blocks();
 
-    /// Filter the resuliting data
+    // Test0. Check overall filter
 	let filter = TraceFilter {
 			range: (BlockId::Number(1)..BlockId::Number(3)),
 			from_address: vec![],
@@ -180,7 +188,7 @@ fn can_trace_block_and_uncle_reward() {
 		};
 
     let traces = client.filter_traces(filter);
-	assert!(traces.is_some(), "Traces should be present");
+	assert!(traces.is_some(), "Filtered traces should be present");
 	let traces_vec = traces.unwrap();
 	let block_reward_traces: Vec<LocalizedTrace> = traces_vec.clone().into_iter().filter(|trace| match (trace).action {
 		Reward(ref a) => a.reward_type == RewardType::Block,
@@ -192,4 +200,8 @@ fn can_trace_block_and_uncle_reward() {
 		_ => false,
 	}).collect();
 	assert_eq!(uncle_reward_traces.len(), 1);
+
+	// Test1. Check block filter
+	let traces = client.block_traces(BlockId::Number(3));
+	assert_eq!(traces.unwrap().len(), 3);	
 }

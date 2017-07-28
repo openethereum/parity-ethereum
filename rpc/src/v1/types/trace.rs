@@ -472,9 +472,9 @@ pub struct LocalizedTrace {
 	/// Subtraces
 	subtraces: usize,
 	/// Transaction position
-	transaction_position: usize,
+	transaction_position: Option<usize>,
 	/// Transaction hash
-	transaction_hash: H256,
+	transaction_hash: Option<H256>,
 	/// Block Number
 	block_number: u64,
 	/// Block Hash
@@ -531,8 +531,8 @@ impl From<EthLocalizedTrace> for LocalizedTrace {
 			result: t.result.into(),
 			trace_address: t.trace_address.into_iter().map(Into::into).collect(),
 			subtraces: t.subtraces.into(),
-			transaction_position: t.transaction_number.into(),
-			transaction_hash: t.transaction_hash.into(),
+			transaction_position: t.transaction_number.map(Into::into),
+			transaction_hash: t.transaction_hash.map(Into::into),
 			block_number: t.block_number.into(),
 			block_hash: t.block_hash.into(),
 		}
@@ -665,8 +665,8 @@ mod tests {
 			}),
 			trace_address: vec![10],
 			subtraces: 1,
-			transaction_position: 11,
-			transaction_hash: 12.into(),
+			transaction_position: Some(11),
+			transaction_hash: Some(12.into()),
 			block_number: 13,
 			block_hash: 14.into(),
 		};
@@ -688,8 +688,8 @@ mod tests {
 			result: Res::FailedCall(TraceError::OutOfGas),
 			trace_address: vec![10],
 			subtraces: 1,
-			transaction_position: 11,
-			transaction_hash: 12.into(),
+			transaction_position: Some(11),
+			transaction_hash: Some(12.into()),
 			block_number: 13,
 			block_hash: 14.into(),
 		};
@@ -713,8 +713,8 @@ mod tests {
 			}),
 			trace_address: vec![10],
 			subtraces: 1,
-			transaction_position: 11,
-			transaction_hash: 12.into(),
+			transaction_position: Some(11),
+			transaction_hash: Some(12.into()),
 			block_number: 13,
 			block_hash: 14.into(),
 		};
@@ -734,8 +734,8 @@ mod tests {
 			result: Res::FailedCreate(TraceError::OutOfGas),
 			trace_address: vec![10],
 			subtraces: 1,
-			transaction_position: 11,
-			transaction_hash: 12.into(),
+			transaction_position: Some(11),
+			transaction_hash: Some(12.into()),
 			block_number: 13,
 			block_hash: 14.into(),
 		};
@@ -754,8 +754,8 @@ mod tests {
 			result: Res::None,
 			trace_address: vec![10],
 			subtraces: 1,
-			transaction_position: 11,
-			transaction_hash: 12.into(),
+			transaction_position: Some(11),
+			transaction_hash: Some(12.into()),
 			block_number: 13,
 			block_hash: 14.into(),
 		};
@@ -774,13 +774,13 @@ mod tests {
 			result: Res::None,
 			trace_address: vec![10],
 			subtraces: 1,
-			transaction_position: 11,
-			transaction_hash: 12.into(),
+			transaction_position: None,
+			transaction_hash: None,
 			block_number: 13,
 			block_hash: 14.into(),
 		};
 		let serialized = serde_json::to_string(&t).unwrap();
-		assert_eq!(serialized, r#"{"type":"reward","action":{"miner":"0x0000000000000000000000000000000000000004","value":"0x6","rewardType":"block"},"result":null,"traceAddress":[10],"subtraces":1,"transactionPosition":11,"transactionHash":"0x000000000000000000000000000000000000000000000000000000000000000c","blockNumber":13,"blockHash":"0x000000000000000000000000000000000000000000000000000000000000000e"}"#);
+		assert_eq!(serialized, r#"{"type":"reward","action":{"miner":"0x0000000000000000000000000000000000000004","value":"0x6","rewardType":"block"},"result":null,"traceAddress":[10],"subtraces":1,"transactionPosition":null,"transactionHash":null,"blockNumber":13,"blockHash":"0x000000000000000000000000000000000000000000000000000000000000000e"}"#);
 	}
 
 	#[test]
