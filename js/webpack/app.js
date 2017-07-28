@@ -157,6 +157,7 @@ module.exports = {
       '@parity/abi': path.resolve(__dirname, '../node_modules/@parity/abi'),
       '@parity/api': path.resolve(__dirname, '../node_modules/@parity/api'),
       '@parity/jsonrpc': path.resolve(__dirname, '../node_modules/@parity/jsonrpc'),
+      '@parity/parity.js': path.resolve(__dirname, '../node_modules/@parity/parity.js'),
       '@parity/shared': path.resolve(__dirname, '../node_modules/@parity/shared'),
       '@parity/ui': path.resolve(__dirname, '../node_modules/@parity/ui'),
       '@parity/wordlist': path.resolve(__dirname, '../node_modules/@parity/wordlist'),
