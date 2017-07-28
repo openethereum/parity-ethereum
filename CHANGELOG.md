@@ -13,6 +13,21 @@ Parity 1.7.0 is a major release introducing several important features:
 
 Full list of included changes:
 
+- Backports [#6163](https://github.com/paritytech/parity/pull/6163)
+  - Light client improvements ([#6156](https://github.com/paritytech/parity/pull/6156))
+    - No seal checking
+    - Import command and --no-seal-check for light client
+    - Fix eth_call
+    - Tweak registry dapps lookup
+    - Ignore failed requests to non-server peers
+  - Fix connecting to wildcard addresses. ([#6167](https://github.com/paritytech/parity/pull/6167))
+  - Don't display an overlay in case the time sync check fails. ([#6164](https://github.com/paritytech/parity/pull/6164))
+    - Small improvements to time estimation.
+    - Temporarily disable NTP time check by default.
+- Light client fixes ([#6148](https://github.com/paritytech/parity/pull/6148)) ([#6151](https://github.com/paritytech/parity/pull/6151))
+  - Light client fixes
+  - Fix memory-lru-cache
+  - Clear pending reqs on disconnect
 - Filter tokens logs from current block, not genesis ([#6128](https://github.com/paritytech/parity/pull/6128)) [#6141](https://github.com/paritytech/parity/pull/6141)
 - Fix QR scanner returning null on confirm [#6122](https://github.com/paritytech/parity/pull/6122)
 - Check QR before lowercase ([#6119](https://github.com/paritytech/parity/pull/6119)) [#6120](https://github.com/paritytech/parity/pull/6120)
