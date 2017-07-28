@@ -93,7 +93,7 @@ impl PayloadInfo {
 
 /// Data-oriented view onto rlp-slice.
 ///
-/// This is immutable structere. No operations change it.
+/// This is an immutable structure. No operations change it.
 ///
 /// Should be used in places where, error handling is required,
 /// eg. on input

@@ -177,7 +177,7 @@ pub fn fetch_gas_price_corpus(
 ) -> BoxFuture<Corpus<U256>, Error> {
 	const GAS_PRICE_SAMPLE_SIZE: usize = 100;
 
-	if let Some(cached) = cache.lock().gas_price_corpus() {
+	if let Some(cached) = { cache.lock().gas_price_corpus() } {
 		return future::ok(cached).boxed()
 	}
 
