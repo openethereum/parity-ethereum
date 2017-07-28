@@ -44,6 +44,29 @@ lazy_static! {
 	static ref EVENT_NAME_HASH: H256 = EVENT_NAME.sha3();
 }
 
+// state-dependent proofs for the safe contract:
+// only "first" proofs are such.
+struct StateProof {
+	header: Header,
+	provider: Provider,
+}
+
+impl ::engines::StateDependentProof for StateProof {
+	fn generate_proof(&self, caller: &Call) -> Result<Vec<u8>, String> {
+		prove_initial(&self.provider, &self.header, caller)
+	}
+
+	fn check_proof(&self, engine: &Engine, proof: &[u8]) -> Result<(), String> {
+		let (header, state_items) = decode_first_proof(&UntrustedRlp::new(proof))
+			.map_err(|e| format!("proof incorrectly encoded: {}", e))?;
+		if header != self.header {
+			return Err("wrong header in proof".into());
+		}
+
+		check_first_proof(engine, &self.provider, header, &state_items).map(|_| ())
+	}
+}
+
 /// The validator contract should have the following interface:
 pub struct ValidatorSafeContract {
 	pub address: Address,
@@ -61,6 +84,59 @@ fn encode_first_proof(header: &Header, state_items: &[Vec<u8>]) -> Bytes {
 	}
 
 	stream.out()
+}
+
+// check a first proof: fetch the validator set at the given block.
+fn check_first_proof(engine: &Engine, provider: &Provider, old_header: Header, state_items: &[DBValue])
+	-> Result<Vec<Address>, String>
+{
+	use transaction::{Action, Transaction};
+
+	// TODO: match client contract_call_tx more cleanly without duplication.
+	const PROVIDED_GAS: u64 = 50_000_000;
+
+	let env_info = ::evm::env_info::EnvInfo {
+		number: old_header.number(),
+		author: *old_header.author(),
+		difficulty: *old_header.difficulty(),
+		gas_limit: PROVIDED_GAS.into(),
+		timestamp: old_header.timestamp(),
+		last_hashes: {
+			// this will break if we don't inclue all 256 last hashes.
+			let mut last_hashes: Vec<_> = (0..256).map(|_| H256::default()).collect();
+			last_hashes[255] = *old_header.parent_hash();
+			Arc::new(last_hashes)
+		},
+		gas_used: 0.into(),
+	};
+
+	// check state proof using given engine.
+	let number = old_header.number();
+	provider.get_validators(move |a, d| {
+		let from = Address::default();
+		let tx = Transaction {
+			nonce: engine.account_start_nonce(number),
+			action: Action::Call(a),
+			gas: PROVIDED_GAS.into(),
+			gas_price: U256::default(),
+			value: U256::default(),
+			data: d,
+		}.fake_sign(from);
+
+		let res = ::state::check_proof(
+			state_items,
+			*old_header.state_root(),
+			&tx,
+			engine,
+			&env_info,
+		);
+
+		match res {
+			::state::ProvedExecution::BadProof => Err("Bad proof".into()),
+			::state::ProvedExecution::Failed(e) => Err(format!("Failed call: {}", e)),
+			::state::ProvedExecution::Complete(e) => Ok(e.output),
+		}
+	}).wait()
 }
 
 fn decode_first_proof(rlp: &UntrustedRlp) -> Result<(Header, Vec<DBValue>), ::error::Error> {
@@ -100,8 +176,7 @@ fn prove_initial(provider: &Provider, header: &Header, caller: &Call) -> Result<
 			Ok(result)
 		};
 
-		provider.get_validators(caller)
-			.wait()
+		provider.get_validators(caller).wait()
 	};
 
 	res.map(|validators| {
@@ -255,9 +330,11 @@ impl ValidatorSet for ValidatorSafeContract {
 		// transition to the first block of a contract requires finality but has no log event.
 		if first {
 			debug!(target: "engine", "signalling transition to fresh contract.");
-			let (provider, header) = (self.provider.clone(), header.clone());
-			let with_caller: Box<Fn(&Call) -> _> = Box::new(move |caller| prove_initial(&provider, &header, caller));
-			return ::engines::EpochChange::Yes(::engines::Proof::WithState(with_caller))
+			let state_proof = Box::new(StateProof {
+				header: header.clone(),
+				provider: self.provider.clone(),
+			});
+			return ::engines::EpochChange::Yes(::engines::Proof::WithState(state_proof as Box<_>));
 		}
 
 		// otherwise, we're checking for logs.
@@ -286,61 +363,16 @@ impl ValidatorSet for ValidatorSafeContract {
 	fn epoch_set(&self, first: bool, engine: &Engine, _number: ::header::BlockNumber, proof: &[u8])
 		-> Result<(SimpleList, Option<H256>), ::error::Error>
 	{
-		use transaction::{Action, Transaction};
-
 		let rlp = UntrustedRlp::new(proof);
 
 		if first {
 			trace!(target: "engine", "Recovering initial epoch set");
 
-			// TODO: match client contract_call_tx more cleanly without duplication.
-			const PROVIDED_GAS: u64 = 50_000_000;
-
 			let (old_header, state_items) = decode_first_proof(&rlp)?;
-			let old_hash = old_header.hash();
-
-			let env_info = ::evm::env_info::EnvInfo {
-				number: old_header.number(),
-				author: *old_header.author(),
-				difficulty: *old_header.difficulty(),
-				gas_limit: PROVIDED_GAS.into(),
-				timestamp: old_header.timestamp(),
-				last_hashes: {
-					// this will break if we don't inclue all 256 last hashes.
-					let mut last_hashes: Vec<_> = (0..256).map(|_| H256::default()).collect();
-					last_hashes[255] = *old_header.parent_hash();
-					Arc::new(last_hashes)
-				},
-				gas_used: 0.into(),
-			};
-
-			// check state proof using given engine.
 			let number = old_header.number();
-			let addresses = self.provider.get_validators(move |a, d| {
-				let from = Address::default();
-				let tx = Transaction {
-					nonce: engine.account_start_nonce(number),
-					action: Action::Call(a),
-					gas: PROVIDED_GAS.into(),
-					gas_price: U256::default(),
-					value: U256::default(),
-					data: d,
-				}.fake_sign(from);
-
-				let res = ::state::check_proof(
-					&state_items,
-					*old_header.state_root(),
-					&tx,
-					engine,
-					&env_info,
-				);
-
-				match res {
-					::state::ProvedExecution::BadProof => Err("Bad proof".into()),
-					::state::ProvedExecution::Failed(e) => Err(format!("Failed call: {}", e)),
-					::state::ProvedExecution::Complete(e) => Ok(e.output),
-				}
-			}).wait().map_err(::engines::EngineError::InsufficientProof)?;
+			let old_hash = old_header.hash();
+			let addresses = check_first_proof(engine, &self.provider, old_header, &state_items)
+				.map_err(::engines::EngineError::InsufficientProof)?;
 
 			trace!(target: "engine", "extracted epoch set at #{}: {} addresses",
 				number, addresses.len());

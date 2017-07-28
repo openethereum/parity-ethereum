@@ -765,7 +765,7 @@ impl Client {
 							res.map(|(output, proof)| (output, proof.into_iter().map(|x| x.into_vec()).collect()))
 						};
 
-						match (with_state)(&call) {
+						match with_state.generate_proof(&call) {
 							Ok(proof) => proof,
 							Err(e) => {
 								warn!(target: "client", "Failed to generate transition proof for block {}: {}", hash, e);

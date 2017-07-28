@@ -120,12 +120,22 @@ pub type Headers<'a> = Fn(H256) -> Option<Header> + 'a;
 /// Type alias for a function we can query pending transitions by block hash through.
 pub type PendingTransitionStore<'a> = Fn(H256) -> Option<PendingTransition> + 'a;
 
+/// Proof dependent on state.
+pub trait StateDependentProof {
+	/// Generate a proof, given the state.
+	fn generate_proof(&self, caller: &Call) -> Result<Vec<u8>, String>;
+	/// Check a proof generated elsewhere (potentially by a peer).
+	// `engine` needed to check state proofs, while really this should
+	// just be state machine params.
+	fn check_proof(&self, engine: &Engine, proof: &[u8]) -> Result<(), String>;
+}
+
 /// Proof generated on epoch change.
 pub enum Proof {
 	/// Known proof (exctracted from signal)
 	Known(Vec<u8>),
-	/// Extract proof from caller.
-	WithState(Box<Fn(&Call) -> Result<Vec<u8>, String>>),
+	/// State dependent proof.
+	WithState(Box<StateDependentProof>),
 }
 
 /// Generated epoch verifier.
