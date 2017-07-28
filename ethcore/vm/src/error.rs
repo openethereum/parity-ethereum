@@ -16,6 +16,9 @@
 
 //! VM errors module
 
+use util::trie;
+use std::fmt;
+
 /// VM errors.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Error {
@@ -62,6 +65,36 @@ pub enum Error {
 	Internal(String),
 	/// Wasm runtime error
 	Wasm(String),
+}
+
+
+impl From<Box<trie::TrieError>> for Error {
+	fn from(err: Box<trie::TrieError>) -> Self {
+		Error::Internal(format!("Internal error: {}", err))
+	}
+}
+
+// impl From<wasm::RuntimeError> for Error {
+// 	fn from(err: wasm::RuntimeError) -> Self {
+// 		Error::Wasm(format!("Runtime error: {:?}", err))
+// 	}
+// }
+
+impl fmt::Display for Error {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		use self::Error::*;
+		match *self {
+			OutOfGas => write!(f, "Out of gas"),
+			BadJumpDestination { destination } => write!(f, "Bad jump destination {:x}", destination),
+			BadInstruction { instruction } => write!(f, "Bad instruction {:x}",  instruction),
+			StackUnderflow { instruction, wanted, on_stack } => write!(f, "Stack underflow {} {}/{}", instruction, wanted, on_stack),
+			OutOfStack { instruction, wanted, limit } => write!(f, "Out of stack {} {}/{}", instruction, wanted, limit),
+			BuiltIn(name) => write!(f, "Built-in failed: {}", name),
+			Internal(ref msg) => write!(f, "Internal error: {}", msg),
+			MutableCallInStaticContext => write!(f, "Mutable call in static context"),
+			Wasm(ref msg) => write!(f, "Internal error: {}", msg),
+		}
+	}
 }
 
 pub type Result<T> = ::std::result::Result<T, Error>;

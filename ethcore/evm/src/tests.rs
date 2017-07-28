@@ -17,12 +17,12 @@
 use std::fmt::Debug;
 use rustc_hex::FromHex;
 use util::*;
-use action_params::{ActionParams, ActionValue};
-use env_info::EnvInfo;
-use call_type::CallType;
-use schedule::Schedule;
-use evm::{self, GasLeft, ReturnData};
-use ext::{Ext, ContractCreateResult, MessageCallResult, CreateContractAddress};
+use evm::{self, GasLeft};
+use vm::{
+	self, CallType, Schedule, EnvInfo, ActionParams, ActionValue,
+	ReturnData, Ext, ContractCreateResult, MessageCallResult,
+	CreateContractAddress,
+};
 use factory::Factory;
 use vmtype::VMType;
 
@@ -66,7 +66,7 @@ pub struct FakeExt {
 }
 
 // similar to the normal `finalize` function, but ignoring NeedsReturn.
-fn test_finalize(res: Result<GasLeft, evm::Error>) -> Result<U256, evm::Error> {
+fn test_finalize(res: Result<GasLeft, vm::Error>) -> Result<U256, vm::Error> {
 	match res {
 		Ok(GasLeft::Known(gas)) => Ok(gas),
 		Ok(GasLeft::NeedsReturn{..}) => unimplemented!(), // since ret is unimplemented.
@@ -80,35 +80,29 @@ impl FakeExt {
 	}
 }
 
-impl Default for Schedule {
-	fn default() -> Self {
-		Schedule::new_frontier()
-	}
-}
-
 impl Ext for FakeExt {
-	fn storage_at(&self, key: &H256) -> evm::Result<H256> {
+	fn storage_at(&self, key: &H256) -> vm::Result<H256> {
 		Ok(self.store.get(key).unwrap_or(&H256::new()).clone())
 	}
 
-	fn set_storage(&mut self, key: H256, value: H256) -> evm::Result<()> {
+	fn set_storage(&mut self, key: H256, value: H256) -> vm::Result<()> {
 		self.store.insert(key, value);
 		Ok(())
 	}
 
-	fn exists(&self, address: &Address) -> evm::Result<bool> {
+	fn exists(&self, address: &Address) -> vm::Result<bool> {
 		Ok(self.balances.contains_key(address))
 	}
 
-	fn exists_and_not_null(&self, address: &Address) -> evm::Result<bool> {
+	fn exists_and_not_null(&self, address: &Address) -> vm::Result<bool> {
 		Ok(self.balances.get(address).map_or(false, |b| !b.is_zero()))
 	}
 
-	fn origin_balance(&self) -> evm::Result<U256> {
+	fn origin_balance(&self) -> vm::Result<U256> {
 		unimplemented!()
 	}
 
-	fn balance(&self, address: &Address) -> evm::Result<U256> {
+	fn balance(&self, address: &Address) -> vm::Result<U256> {
 		Ok(self.balances[address])
 	}
 
@@ -152,15 +146,15 @@ impl Ext for FakeExt {
 		MessageCallResult::Success(*gas, ReturnData::empty())
 	}
 
-	fn extcode(&self, address: &Address) -> evm::Result<Arc<Bytes>> {
+	fn extcode(&self, address: &Address) -> vm::Result<Arc<Bytes>> {
 		Ok(self.codes.get(address).unwrap_or(&Arc::new(Bytes::new())).clone())
 	}
 
-	fn extcodesize(&self, address: &Address) -> evm::Result<usize> {
+	fn extcodesize(&self, address: &Address) -> vm::Result<usize> {
 		Ok(self.codes.get(address).map_or(0, |c| c.len()))
 	}
 
-	fn log(&mut self, topics: Vec<H256>, data: &[u8]) -> evm::Result<()> {
+	fn log(&mut self, topics: Vec<H256>, data: &[u8]) -> vm::Result<()> {
 		self.logs.push(FakeLogEntry {
 			topics: topics,
 			data: data.to_vec()
@@ -168,11 +162,11 @@ impl Ext for FakeExt {
 		Ok(())
 	}
 
-	fn ret(self, _gas: &U256, _data: &ReturnData) -> evm::Result<U256> {
+	fn ret(self, _gas: &U256, _data: &ReturnData) -> vm::Result<U256> {
 		unimplemented!();
 	}
 
-	fn suicide(&mut self, refund_address: &Address) -> evm::Result<()> {
+	fn suicide(&mut self, refund_address: &Address) -> vm::Result<()> {
 		self.suicides.insert(refund_address.clone());
 		Ok(())
 	}
@@ -211,7 +205,7 @@ fn test_stack_underflow() {
 	};
 
 	match err {
-		evm::Error::StackUnderflow {wanted, on_stack, ..} => {
+		vm::Error::StackUnderflow {wanted, on_stack, ..} => {
 			assert_eq!(wanted, 2);
 			assert_eq!(on_stack, 0);
 		}
@@ -849,7 +843,7 @@ fn test_badinstruction_int() {
 	};
 
 	match err {
-		evm::Error::BadInstruction { instruction: 0xaf } => (),
+		vm::Error::BadInstruction { instruction: 0xaf } => (),
 		_ => assert!(false, "Expected bad instruction")
 	}
 }

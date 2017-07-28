@@ -29,10 +29,10 @@ mod ext;
 mod return_data;
 mod error;
 
-pub use action_params::ActionParams;
+pub use action_params::{ActionParams, ActionValue};
 pub use call_type::CallType;
 pub use env_info::EnvInfo;
-pub use schedule::Schedule;
-pub use ext::Ext;
+pub use schedule::{Schedule, CleanDustMode};
+pub use ext::{Ext, MessageCallResult, ContractCreateResult, CreateContractAddress};
 pub use return_data::ReturnData;
 pub use error::{Error, Result};

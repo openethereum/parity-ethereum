@@ -897,6 +897,7 @@ dependencies = [
  "parity-wasm 0.12.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlp 0.2.0",
  "rustc-hex 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "vm 0.1.0",
  "wasm-utils 0.1.0 (git+https://github.com/paritytech/wasm-utils)",
 ]
 
