@@ -162,11 +162,11 @@
   "dependencies": {
     "@parity/api": "paritytech/js-api#1c7cc5561c4e8db0d0b58f22d8bc8baa243909a5",
     "@parity/dapps": "file:packages/dapps",
-    "@parity/etherscan": "file:packages/etherscan",
+    "@parity/etherscan": "paritytech/js-etherscan#efe859ac7d2a8a3cc05e01c689b7fa58f47f8b87",
     "@parity/ledger": "file:packages/ledger",
     "@parity/shapeshift": "file:packages/shapeshift",
     "@parity/shared": "paritytech/js-shared#a83c71946d30d5b3bf976860a676add29c48ee24",
-    "@parity/ui": "paritytech/js-ui#315bec33a621184db1bd235f115f8f24e8c63192",
+    "@parity/ui": "paritytech/js-ui#73b6241d727afe6b1bc04d7b093093a5d542c5c8",
     "@parity/wordlist": "1.0.1",
     "es6-error": "4.0.0",
     "es6-promise": "4.0.5",
