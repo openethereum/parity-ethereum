@@ -160,7 +160,7 @@
     "yargs": "6.6.0"
   },
   "dependencies": {
-    "@parity/api": "paritytech/js-api#418ee49849a5361ad3c416b224fd9bb6dbabc1d1",
+    "@parity/api": "paritytech/js-api#1c7cc5561c4e8db0d0b58f22d8bc8baa243909a5",
     "@parity/dapps": "file:packages/dapps",
     "@parity/etherscan": "file:packages/etherscan",
     "@parity/ledger": "file:packages/ledger",

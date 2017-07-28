@@ -42,7 +42,6 @@ module.exports = {
 
   resolve: {
     alias: {
-      '~/packages/api/local': path.resolve(__dirname, '../node_modules/@parity/api/local/index.js'),
       '~': path.resolve(__dirname, '..'),
       '@parity/abi': path.resolve(__dirname, '../node_modules/@parity/abi'),
       '@parity/api': path.resolve(__dirname, '../node_modules/@parity/api'),
