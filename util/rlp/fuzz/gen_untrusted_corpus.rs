@@ -4,13 +4,13 @@ extern crate ethcore_bigint;
 use std::env;
 use std::error::Error;
 use std::io::prelude::*;
-use std::path::Path;
+use std::path::PathBuf;
 use std::fs::File;
 use rlp::RlpStream;
 use ethcore_bigint::prelude::{U128, U256, H64, H128, H160, H256, H512, H520, H2048};
 
-fn create_file(path: &Path) -> File {
-    match File::create(&path) {
+fn create_file(path: &PathBuf) -> File {
+    match File::create(path.as_path()) {
         Err(why) => panic!("couldn't create {}: {}",
                            path.display(),
                            why.description()),
@@ -18,7 +18,7 @@ fn create_file(path: &Path) -> File {
     } 
 }
 
-fn write_to_file(f: &File, rlp: RlpStream) {
+fn write_to_file(f: &File, rlp: &RlpStream) {
     let mut g = f.clone();
     match g.write_all(rlp.as_raw()) {
         Err(why) => {
@@ -27,6 +27,17 @@ fn write_to_file(f: &File, rlp: RlpStream) {
         Ok(_) => println!("successfully wrote to file")
     }
 
+}
+
+fn write_corpus(corpdir: &str, rlp: &RlpStream) {
+    // Read in base path to fuzzing corpus directory from `RLPCORPUS` environment var
+    let corp = env::var("RLPCORPUS").unwrap();
+    let mut path = PathBuf::from(corp);
+    path.push(corpdir);
+
+    // Write RLP Stream to corpus file
+    let f = create_file(&path);
+    write_to_file(&f, rlp);
 }
 
 fn create_uint_stream() {
@@ -47,14 +58,7 @@ fn create_uint_stream() {
     rlp.append(&u128b);
     rlp.append(&u256b);
 
-    // Read in base path to fuzzing corpus directory from `RLPCORPUS` environment var
-    let corp = env::var("RLPCORPUS").unwrap();
-    let fp = format!("{}{}", corp, "/untrusted_data/well-formed-list-uint");
-    let path = Path::new(&fp);
-
-    // Write RLP Stream to corpus file
-    let f = create_file(&path);
-    write_to_file(&f, rlp);
+    write_corpus("untrusted_data/well-formed-list-uint", &rlp);
 }
 
 fn create_hash_stream() {
@@ -78,14 +82,7 @@ fn create_hash_stream() {
     rlp.append(&h520);
     rlp.append(&h2048);
 
-    // Read in base path to fuzzing corpus directory from `RLPCORPUS` environment var
-    let corp = env::var("RLPCORPUS").unwrap();
-    let fp = format!("{}{}", corp, "/untrusted_data/well-formed-list-hash");
-    let path = Path::new(&fp);
-
-    // Write RLP Stream to corpus file
-    let f = create_file(&path);
-    write_to_file(&f, rlp);
+    write_corpus(&"untrusted_data/well-formed-list-hash", &rlp);
 }
 
 fn main() {
