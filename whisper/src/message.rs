@@ -24,6 +24,9 @@ use rlp::{self, DecoderError, RlpStream, UntrustedRlp};
 use smallvec::SmallVec;
 use tiny_keccak::{keccak256, Keccak};
 
+/// Version of the envelope.
+pub const ENVELOPE_VERSION: usize = ::net::PROTOCOL_VERSION;
+
 /// Work-factor proved. Takes 3 parameters: size of message, time to live,
 /// and hash.
 ///
@@ -56,23 +59,18 @@ impl Topic {
 	/// this takes 3 sets of 9 bits, treating each as an index in the range
 	/// 0..512 into the bloom and setting the corresponding bit in the bloom to 1.
 	pub fn bloom_into(&self, bloom: &mut H512) {
-		let mut set_bit = |idx: usize| {
-			let idx = idx & 511;
-			bloom[idx / 8] |= 1 << idx % 8;
-		};
 
 		let data = &self.0;
-		let mut combined = ((data[0] as usize) << 24) |
-			((data[1] as usize) << 16) |
-			((data[2] as usize) << 8) |
-			data[3] as usize;
+		for i in 0..3 {
+			let mut idx = data[i] as usize;
 
-		// take off the last 5 bits as we only use 27.
-		combined >>= 5;
+			if data[3] & (1 << i) != 0 {
+				idx += 256;
+			}
 
-		set_bit(combined);
-		set_bit(combined >> 9);
-		set_bit(combined >> 18);
+			debug_assert!(idx <= 511);
+			bloom[idx / 8] |= 1 << (7 - idx % 8);
+		}
 	}
 
 	/// Get bloom for single topic.
@@ -118,6 +116,7 @@ pub fn bloom_topics(topics: &[Topic]) -> H512 {
 #[derive(Debug)]
 pub enum Error {
 	Decoder(DecoderError),
+	EmptyTopics,
 	LivesTooLong,
 	IssuedInFuture,
 	ZeroTTL,
@@ -136,13 +135,32 @@ impl fmt::Display for Error {
 			Error::LivesTooLong => write!(f, "Message claims to be issued before the unix epoch."),
 			Error::IssuedInFuture => write!(f, "Message issued in future."),
 			Error::ZeroTTL => write!(f, "Message live for zero time."),
+			Error::EmptyTopics => write!(f, "Message has no topics."),
 		}
+	}
+}
+
+fn append_topics<'a>(s: &'a mut RlpStream, topics: &[Topic]) -> &'a mut RlpStream {
+	if topics.len() == 1 {
+		s.append(&topics[0])
+	} else {
+		s.append_list(&topics)
+	}
+}
+
+fn decode_topics(rlp: UntrustedRlp) -> Result<SmallVec<[Topic; 4]>, DecoderError> {
+	if rlp.is_list() {
+		rlp.iter().map(|r| r.as_val::<Topic>()).collect()
+	} else {
+		rlp.as_val().map(|t| SmallVec::from_slice(&[t]))
 	}
 }
 
 // Raw envelope struct.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Envelope {
+	/// Version number.
+	pub version: usize,
 	/// Expiry timestamp
 	pub expiry: u64,
 	/// Time-to-live in seconds
@@ -156,15 +174,20 @@ pub struct Envelope {
 }
 
 impl Envelope {
+	/// Whether the message is multi-topic. Only relay these to Parity peers.
+	pub fn is_multitopic(&self) -> bool {
+		self.topics.len() != 1
+	}
+
 	fn proving_hash(&self) -> H256 {
 		use byteorder::{BigEndian, ByteOrder};
 
 		let mut buf = [0; 32];
 
-		let mut stream = RlpStream::new_list(4);
-		stream.append(&self.expiry)
-			.append(&self.ttl)
-			.append_list(&self.topics)
+		let mut stream = RlpStream::new_list(5);
+		stream.append(&self.version).append(&self.expiry).append(&self.ttl);
+
+		append_topics(&mut stream, &self.topics)
 			.append(&self.data);
 
 		let mut digest = Keccak::new_keccak256();
@@ -183,10 +206,12 @@ impl Envelope {
 
 impl rlp::Encodable for Envelope {
 	fn rlp_append(&self, s: &mut RlpStream) {
-		s.begin_list(5)
+		s.begin_list(6)
+			.append(&self.version)
 			.append(&self.expiry)
-			.append(&self.ttl)
-			.append_list(&self.topics)
+			.append(&self.ttl);
+
+		append_topics(s, &self.topics)
 			.append(&self.data)
 			.append(&self.nonce);
 	}
@@ -194,17 +219,26 @@ impl rlp::Encodable for Envelope {
 
 impl rlp::Decodable for Envelope {
 	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
-		if rlp.item_count()? != 5 { return Err(DecoderError::RlpIncorrectListLen) }
+		if rlp.item_count()? != 6 { return Err(DecoderError::RlpIncorrectListLen) }
 
+		let version: usize = rlp.val_at(0)?;
+		if version != ENVELOPE_VERSION {
+			return Err(DecoderError::Custom("unknown envelope version"));
+		}
 		Ok(Envelope {
-			expiry: rlp.val_at(0)?,
-			ttl: rlp.val_at(1)?,
-			topics: rlp.at(2)?.iter().map(|x| x.as_val()).collect::<Result<_, _>>()?,
-			data: rlp.val_at(3)?,
-			nonce: rlp.val_at(4)?,
+			version: version,
+			expiry: rlp.val_at(1)?,
+			ttl: rlp.val_at(2)?,
+			topics: decode_topics(rlp.at(3)?)?,
+			data: rlp.val_at(4)?,
+			nonce: rlp.val_at(5)?,
 		})
 	}
 }
+
+/// Error indicating no topics.
+#[derive(Debug, Copy, Clone)]
+pub struct EmptyTopics;
 
 /// Message creation parameters.
 /// Pass this to `Message::create` to make a message.
@@ -213,7 +247,7 @@ pub struct CreateParams {
 	pub ttl: u64,
 	/// payload data.
 	pub payload: Vec<u8>,
-	/// Topics.
+	/// Topics. May not be empty.
 	pub topics: Vec<Topic>,
 	/// How many milliseconds to spend proving work.
 	pub work: u64,
@@ -231,15 +265,19 @@ pub struct Message {
 impl Message {
 	/// Create a message from creation parameters.
 	/// Panics if TTL is 0.
-	pub fn create(params: CreateParams) -> Self {
+	pub fn create(params: CreateParams) -> Result<Self, EmptyTopics> {
 		use byteorder::{BigEndian, ByteOrder};
 		use rand::{Rng, SeedableRng, XorShiftRng};
+
+		if params.topics.is_empty() { return Err(EmptyTopics) }
 
 		let mut rng = {
 			let mut thread_rng = ::rand::thread_rng();
 
 			XorShiftRng::from_seed(thread_rng.gen::<[u32; 4]>())
 		};
+
+		let version = ENVELOPE_VERSION;
 
 		assert!(params.ttl > 0);
 
@@ -253,11 +291,9 @@ impl Message {
 		};
 
 		let start_digest = {
-			let mut stream = RlpStream::new_list(4);
-			stream.append(&expiry)
-				.append(&params.ttl)
-				.append_list(&params.topics)
-				.append(&params.payload);
+			let mut stream = RlpStream::new_list(5);
+			stream.append(&version).append(&expiry).append(&params.ttl);
+			append_topics(&mut stream, &params.topics).append(&params.payload);
 
 			let mut digest = Keccak::new_keccak256();
 			digest.update(&*stream.drain());
@@ -289,6 +325,7 @@ impl Message {
 		}
 
 		let envelope = Envelope {
+			version: version,
 			expiry: expiry,
 			ttl: params.ttl,
 			topics: params.topics.into_iter().collect(),
@@ -300,12 +337,12 @@ impl Message {
 
 		let encoded = ::rlp::encode(&envelope);
 
-		Message::from_components(
+		Ok(Message::from_components(
 			envelope,
 			encoded.len(),
 			H256(keccak256(&encoded)),
 			SystemTime::now(),
-		).expect("Message generated here known to be valid; qed")
+		).expect("Message generated here known to be valid; qed"))
 	}
 
 	/// Decode message from RLP and check for validity against system time.
@@ -326,6 +363,8 @@ impl Message {
 
 		if envelope.expiry <= envelope.ttl { return Err(Error::LivesTooLong) }
 		if envelope.ttl == 0 { return Err(Error::ZeroTTL) }
+
+		if envelope.topics.is_empty() { return Err(Error::EmptyTopics) }
 
 		let issue_time_adjusted = Duration::from_secs(
 			(envelope.expiry - envelope.ttl).saturating_sub(LEEWAY_SECONDS)
@@ -394,6 +433,7 @@ mod tests {
 	use super::*;
 	use std::time::{self, Duration, SystemTime};
 	use rlp::UntrustedRlp;
+	use smallvec::SmallVec;
 
 	fn unix_time(x: u64) -> SystemTime {
 		time::UNIX_EPOCH + Duration::from_secs(x)
@@ -401,21 +441,39 @@ mod tests {
 
 	#[test]
 	fn create_message() {
-		let _ = Message::create(CreateParams {
+		assert!(Message::create(CreateParams {
 			ttl: 100,
 			payload: vec![1, 2, 3, 4],
-			topics: Vec::new(),
+			topics: vec![Topic([1, 2, 1, 2])],
 			work: 50,
-		});
+		}).is_ok());
 	}
 
 	#[test]
 	fn round_trip() {
 		let envelope = Envelope {
+			version: ENVELOPE_VERSION,
 			expiry: 100_000,
 			ttl: 30,
 			data: vec![9; 256],
-			topics: Default::default(),
+			topics: SmallVec::from_slice(&[Default::default()]),
+			nonce: 1010101,
+		};
+
+		let encoded = ::rlp::encode(&envelope);
+		let decoded = ::rlp::decode(&encoded);
+
+		assert_eq!(envelope, decoded)
+	}
+
+	#[test]
+	fn round_trip_multitopic() {
+		let envelope = Envelope {
+			version: ENVELOPE_VERSION,
+			expiry: 100_000,
+			ttl: 30,
+			data: vec![9; 256],
+			topics: SmallVec::from_slice(&[Default::default(), Topic([1, 2, 3, 4])]),
 			nonce: 1010101,
 		};
 
@@ -428,10 +486,11 @@ mod tests {
 	#[test]
 	fn passes_checks() {
 		let envelope = Envelope {
+			version: ENVELOPE_VERSION,
 			expiry: 100_000,
 			ttl: 30,
 			data: vec![9; 256],
-			topics: Default::default(),
+			topics: SmallVec::from_slice(&[Default::default()]),
 			nonce: 1010101,
 		};
 
@@ -447,10 +506,11 @@ mod tests {
 	#[should_panic]
 	fn future_message() {
 		let envelope = Envelope {
+			version: ENVELOPE_VERSION,
 			expiry: 100_000,
 			ttl: 30,
 			data: vec![9; 256],
-			topics: Default::default(),
+			topics: SmallVec::from_slice(&[Default::default()]),
 			nonce: 1010101,
 		};
 
@@ -464,10 +524,11 @@ mod tests {
 	#[should_panic]
 	fn pre_epoch() {
 		let envelope = Envelope {
+			version: ENVELOPE_VERSION,
 			expiry: 100_000,
 			ttl: 200_000,
 			data: vec![9; 256],
-			topics: Default::default(),
+			topics: SmallVec::from_slice(&[Default::default()]),
 			nonce: 1010101,
 		};
 
