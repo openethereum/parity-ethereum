@@ -37,7 +37,7 @@ use miner::local_transactions::{Status as LocalTransactionStatus};
 use miner::service_transaction_checker::ServiceTransactionChecker;
 use price_info::{Client as PriceInfoClient, PriceInfo};
 use price_info::fetch::Client as FetchClient;
-use header::BlockNumber;
+use header::{Header, BlockNumber};
 
 /// Different possible definitions for pending transaction set.
 #[derive(Debug, PartialEq)]
@@ -329,13 +329,28 @@ impl Miner {
 	}
 
 	/// Get `Some` `clone()` of the current pending block's state or `None` if we're not sealing.
-	pub fn pending_state(&self) -> Option<State<::state_db::StateDB>> {
-		self.sealing_work.lock().queue.peek_last_ref().map(|b| b.block().fields().state.clone())
+	pub fn pending_state(&self, latest_block_number: BlockNumber) -> Option<State<::state_db::StateDB>> {
+		self.map_pending_block(|b| b.state().clone(), latest_block_number)
 	}
 
 	/// Get `Some` `clone()` of the current pending block or `None` if we're not sealing.
-	pub fn pending_block(&self) -> Option<Block> {
-		self.sealing_work.lock().queue.peek_last_ref().map(|b| b.to_base())
+	pub fn pending_block(&self, latest_block_number: BlockNumber) -> Option<Block> {
+		self.map_pending_block(|b| b.to_base(), latest_block_number)
+	}
+
+	/// Get `Some` `clone()` of the current pending block header or `None` if we're not sealing.
+	pub fn pending_block_header(&self, latest_block_number: BlockNumber) -> Option<Header> {
+		self.map_pending_block(|b| b.header().clone(), latest_block_number)
+	}
+
+	fn map_pending_block<F, T>(&self, f: F, latest_block_number: BlockNumber) -> Option<T> where
+		F: FnOnce(&ClosedBlock) -> T,
+	{
+		self.from_pending_block(
+			latest_block_number,
+			|| None,
+			|block| Some(f(block)),
+		)
 	}
 
 	#[cfg_attr(feature="dev", allow(match_same_arms))]
@@ -677,7 +692,7 @@ impl Miner {
 	#[cfg_attr(feature="dev", allow(wrong_self_convention))]
 	#[cfg_attr(feature="dev", allow(redundant_closure))]
 	fn from_pending_block<H, F, G>(&self, latest_block_number: BlockNumber, from_chain: F, map_block: G) -> H
-		where F: Fn() -> H, G: Fn(&ClosedBlock) -> H {
+		where F: Fn() -> H, G: FnOnce(&ClosedBlock) -> H {
 		let sealing_work = self.sealing_work.lock();
 		sealing_work.queue.peek_last_ref().map_or_else(
 			|| from_chain(),
@@ -757,40 +772,6 @@ impl MinerService for Miner {
 			},
 			None => client.call(t, BlockId::Latest, analytics)
 		}
-	}
-
-	// TODO: The `chain.latest_x` actually aren't infallible, they just panic on corruption.
-	// TODO: return trie::Result<T> here, or other.
-	fn balance(&self, chain: &MiningBlockChainClient, address: &Address) -> Option<U256> {
-		self.from_pending_block(
-			chain.chain_info().best_block_number,
-			|| Some(chain.latest_balance(address)),
-			|b| b.block().fields().state.balance(address).ok(),
-		)
-	}
-
-	fn storage_at(&self, chain: &MiningBlockChainClient, address: &Address, position: &H256) -> Option<H256> {
-		self.from_pending_block(
-			chain.chain_info().best_block_number,
-			|| Some(chain.latest_storage_at(address, position)),
-			|b| b.block().fields().state.storage_at(address, position).ok(),
-		)
-	}
-
-	fn nonce(&self, chain: &MiningBlockChainClient, address: &Address) -> Option<U256> {
-		self.from_pending_block(
-			chain.chain_info().best_block_number,
-			|| Some(chain.latest_nonce(address)),
-			|b| b.block().fields().state.nonce(address).ok(),
-		)
-	}
-
-	fn code(&self, chain: &MiningBlockChainClient, address: &Address) -> Option<Option<Bytes>> {
-		self.from_pending_block(
-			chain.chain_info().best_block_number,
-			|| Some(chain.latest_code(address)),
-			|b| b.block().fields().state.code(address).ok().map(|c| c.map(|c| (&*c).clone()))
-		)
 	}
 
 	fn set_author(&self, author: Address) {
@@ -1454,14 +1435,14 @@ mod tests {
 
 		miner.update_sealing(&*client);
 		client.flush_queue();
-		assert!(miner.pending_block().is_none());
+		assert!(miner.pending_block(0).is_none());
 		assert_eq!(client.chain_info().best_block_number, 3 as BlockNumber);
 
 		assert_eq!(miner.import_own_transaction(&*client, PendingTransaction::new(transaction_with_network_id(spec.network_id()).into(), None)).unwrap(), TransactionImportResult::Current);
 
 		miner.update_sealing(&*client);
 		client.flush_queue();
-		assert!(miner.pending_block().is_none());
+		assert!(miner.pending_block(0).is_none());
 		assert_eq!(client.chain_info().best_block_number, 4 as BlockNumber);
 	}
 

@@ -265,7 +265,7 @@ impl BlockDownloader {
 				BlockStatus::Bad => {
 					return Err(BlockDownloaderImportError::Invalid);
 				},
-				BlockStatus::Unknown => {
+				BlockStatus::Unknown | BlockStatus::Pending => {
 					headers.push(hdr.as_raw().to_vec());
 					hashes.push(hash);
 				}

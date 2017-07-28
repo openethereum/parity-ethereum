@@ -419,7 +419,7 @@ impl BlockChainClient for TestBlockChainClient {
 
 	fn nonce(&self, address: &Address, id: BlockId) -> Option<U256> {
 		match id {
-			BlockId::Latest => Some(self.nonces.read().get(address).cloned().unwrap_or(self.spec.params().account_start_nonce)),
+			BlockId::Latest | BlockId::Pending => Some(self.nonces.read().get(address).cloned().unwrap_or(self.spec.params().account_start_nonce)),
 			_ => None,
 		}
 	}
@@ -434,16 +434,15 @@ impl BlockChainClient for TestBlockChainClient {
 
 	fn code(&self, address: &Address, id: BlockId) -> Option<Option<Bytes>> {
 		match id {
-			BlockId::Latest => Some(self.code.read().get(address).cloned()),
+			BlockId::Latest | BlockId::Pending => Some(self.code.read().get(address).cloned()),
 			_ => None,
 		}
 	}
 
 	fn balance(&self, address: &Address, id: BlockId) -> Option<U256> {
-		if let BlockId::Latest = id {
-			Some(self.balances.read().get(address).cloned().unwrap_or_else(U256::zero))
-		} else {
-			None
+		match id {
+			BlockId::Latest | BlockId::Pending => Some(self.balances.read().get(address).cloned().unwrap_or_else(U256::zero)),
+			_ => None,
 		}
 	}
 
@@ -452,10 +451,9 @@ impl BlockChainClient for TestBlockChainClient {
 	}
 
 	fn storage_at(&self, address: &Address, position: &H256, id: BlockId) -> Option<H256> {
-		if let BlockId::Latest = id {
-			Some(self.storage.read().get(&(address.clone(), position.clone())).cloned().unwrap_or_else(H256::new))
-		} else {
-			None
+		match id {
+			BlockId::Latest | BlockId::Pending => Some(self.storage.read().get(&(address.clone(), position.clone())).cloned().unwrap_or_else(H256::new)),
+			_ => None,
 		}
 	}
 
@@ -544,7 +542,8 @@ impl BlockChainClient for TestBlockChainClient {
 		match id {
 			BlockId::Number(number) if (number as usize) < self.blocks.read().len() => BlockStatus::InChain,
 			BlockId::Hash(ref hash) if self.blocks.read().get(hash).is_some() => BlockStatus::InChain,
-			BlockId::Latest | BlockId::Pending | BlockId::Earliest => BlockStatus::InChain,
+			BlockId::Latest | BlockId::Earliest => BlockStatus::InChain,
+			BlockId::Pending => BlockStatus::Pending,
 			_ => BlockStatus::Unknown,
 		}
 	}
