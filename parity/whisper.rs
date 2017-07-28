@@ -96,7 +96,7 @@ pub fn setup(target_pool_size: usize, protos: &mut Vec<AttachedProtocol>)
 
 	// parity-only extensions to whisper.
 	protos.push(AttachedProtocol {
-		handler: net.clone() as Arc<_>,
+		handler: Arc::new(whisper_net::ParityExtensions),
 		packet_count: whisper_net::PACKET_COUNT,
 		versions: whisper_net::SUPPORTED_VERSIONS,
 		protocol_id: whisper_net::PARITY_PROTOCOL_ID,

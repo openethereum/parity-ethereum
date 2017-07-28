@@ -706,3 +706,19 @@ impl<T: MessageHandler> ::network::NetworkProtocolHandler for Network<T> {
 		}
 	}
 }
+
+/// Dummy subprotocol used for parity extensions.
+#[derive(Debug, Copy, Clone)]
+pub struct ParityExtensions;
+
+impl ::network::NetworkProtocolHandler for ParityExtensions {
+	fn initialize(&self, _io: &NetworkContext, _host_info: &HostInfo) { }
+
+	fn read(&self, _io: &NetworkContext, _peer: &PeerId, _id: u8, _msg: &[u8]) { }
+
+	fn connected(&self, _io: &NetworkContext, _peer: &PeerId) { }
+
+	fn disconnected(&self, _io: &NetworkContext, _peer: &PeerId) { }
+
+	fn timeout(&self, _io: &NetworkContext, _timer: TimerToken) { }
+}
