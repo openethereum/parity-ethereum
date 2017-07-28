@@ -28,7 +28,7 @@ macro_rules! load_sample {
 	}
 }
 
-fn test_finalize(res: Result<GasLeft, evm::Error>) -> Result<U256, evm::Error> {
+fn test_finalize(res: Result<GasLeft, vm::Error>) -> Result<U256, vm::Error> {
 	match res {
 		Ok(GasLeft::Known(gas)) => Ok(gas),
 		Ok(GasLeft::NeedsReturn{..}) => unimplemented!(), // since ret is unimplemented.

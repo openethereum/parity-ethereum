@@ -371,8 +371,8 @@ impl vm::Vm for JitEvm {
 				ext.suicide(&Address::from_jit(&context.suicide_refund_address()));
 				Ok(GasLeft::Known(U256::from(context.gas_left())))
 			},
-			evmjit::ReturnCode::OutOfGas => Err(evm::Error::OutOfGas),
-			_err => Err(evm::Error::Internal)
+			evmjit::ReturnCode::OutOfGas => Err(vm::Error::OutOfGas),
+			_err => Err(vm::Error::Internal)
 		}
 	}
 }
