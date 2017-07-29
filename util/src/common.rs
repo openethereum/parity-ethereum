@@ -16,6 +16,7 @@
 
 //! Utils common types and macros global reexport.
 
+use std::io;
 pub use standard::*;
 pub use error::*;
 pub use bytes::*;
@@ -100,8 +101,8 @@ macro_rules! flushln {
 
 #[doc(hidden)]
 pub fn flush(s: String) {
-	let _ = ::std::io::stdout().write(s.as_bytes());
-	let _ = ::std::io::stdout().flush();
+	let _ = io::Write::write(&mut io::stdout(), s.as_bytes());
+	let _ = io::Write::flush(&mut io::stdout());
 }
 
 #[test]

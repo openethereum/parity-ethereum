@@ -16,6 +16,8 @@
 
 //! Parameters for a block chain.
 
+use std::io::Read;
+use std::collections::BTreeMap;
 use rustc_hex::FromHex;
 use super::genesis::Genesis;
 use super::seal::Generic as GenericSeal;
@@ -484,6 +486,7 @@ impl Spec {
 
 #[cfg(test)]
 mod tests {
+	use std::str::FromStr;
 	use util::*;
 	use views::*;
 	use tests::helpers::get_temp_state_db;

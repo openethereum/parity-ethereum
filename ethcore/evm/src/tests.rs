@@ -15,6 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::fmt::Debug;
+use std::str::FromStr;
+use std::collections::{HashMap, HashSet};
 use rustc_hex::FromHex;
 use util::*;
 use action_params::{ActionParams, ActionValue};

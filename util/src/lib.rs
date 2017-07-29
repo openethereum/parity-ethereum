@@ -112,10 +112,6 @@ extern crate ethcore_logger;
 #[macro_use]
 extern crate log as rlog;
 
-pub extern crate using_queue;
-pub extern crate table;
-
-pub mod bloom;
 pub mod standard;
 #[macro_use]
 pub mod common;
@@ -147,7 +143,6 @@ pub use overlaydb::*;
 pub use journaldb::JournalDB;
 pub use triehash::*;
 pub use trie::{Trie, TrieMut, TrieDB, TrieDBMut, TrieFactory, TrieError, SecTrieDB, SecTrieDBMut};
-pub use nibbleslice::*;
 pub use semantic_version::*;
 pub use kvdb::*;
 pub use timer::*;

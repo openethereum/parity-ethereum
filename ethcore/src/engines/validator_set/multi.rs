@@ -142,6 +142,7 @@ impl ValidatorSet for Multi {
 
 #[cfg(test)]
 mod tests {
+	use std::collections::BTreeMap;
 	use account_provider::AccountProvider;
 	use client::{BlockChainClient, EngineClient};
 	use engines::EpochChange;

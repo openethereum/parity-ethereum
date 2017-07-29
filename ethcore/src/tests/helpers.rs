@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::collections::BTreeMap;
 use ethkey::KeyPair;
 use io::*;
 use client::{BlockChainClient, Client, ClientConfig};
@@ -347,7 +348,7 @@ pub fn get_good_dummy_block_fork_seq(start_number: usize, count: usize, parent_h
 	for i in start_number .. start_number + count + 1 {
 		let mut block_header = Header::new();
 		block_header.set_gas_limit(test_engine.params().min_gas_limit);
-		block_header.set_difficulty(U256::from(i).mul(U256([0, 1, 0, 0])));
+		block_header.set_difficulty(U256::from(i) * U256([0, 1, 0, 0]));
 		block_header.set_timestamp(rolling_timestamp);
 		block_header.set_number(i as u64);
 		block_header.set_parent_hash(parent);

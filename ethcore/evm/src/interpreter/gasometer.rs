@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::cmp;
 use util::*;
 use super::u256_to_address;
 
@@ -82,7 +83,7 @@ impl<Gas: evm::CostType> Gasometer<Gas> {
 				};
 
 				if let Some(Ok(r)) = requested {
-					Ok(min(r, max_gas_provided))
+					Ok(cmp::min(r, max_gas_provided))
 				} else {
 					Ok(max_gas_provided)
 				}

@@ -16,6 +16,8 @@
 
 //! Key-Value store abstraction with `RocksDB` backend.
 
+use std::{mem, fs};
+use std::collections::{HashMap, BTreeMap};
 use std::io::ErrorKind;
 use std::marker::PhantomData;
 use std::path::PathBuf;

@@ -16,6 +16,7 @@
 
 //! `JournalDB` over in-memory overlay
 
+use std::collections::HashMap;
 use common::*;
 use rlp::*;
 use hashdb::*;

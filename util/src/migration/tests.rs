@@ -18,6 +18,7 @@
 //! A random temp directory is created. A database is created within it, and migrations
 //! are performed in temp sub-directories.
 
+use std::collections::BTreeMap;
 use common::*;
 use migration::{Batch, Config, Error, SimpleMigration, Migration, Manager};
 use kvdb::Database;

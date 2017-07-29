@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Transaction Execution environment.
+use std::cmp;
 use util::*;
 use evm::action_params::{ActionParams, ActionValue};
 use state::{Backend as StateBackend, State, Substate, CleanupMode};
@@ -74,7 +75,7 @@ pub struct TransactOptions {
 	pub check_nonce: bool,
 }
 
-pub fn executor<E>(engine: &E, vm_factory: &Factory, params: &ActionParams) 
+pub fn executor<E>(engine: &E, vm_factory: &Factory, params: &ActionParams)
 	-> Box<evm::Evm> where E: Engine + ?Sized
 {
 	if engine.supports_wasm() && params.code.as_ref().map_or(false, |code| code.len() > 4 && &code[0..4] == WASM_MAGIC_NUMBER) {
@@ -597,10 +598,11 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 #[allow(dead_code)]
 mod tests {
 	use std::sync::Arc;
+	use std::str::FromStr;
 	use rustc_hex::FromHex;
 	use ethkey::{Generator, Random};
 	use super::*;
-	use util::{H256, U256, U512, Address, FromStr};
+	use util::{H256, U256, U512, Address};
 	use util::bytes::BytesRef;
 	use evm::action_params::{ActionParams, ActionValue};
 	use evm::env_info::EnvInfo;

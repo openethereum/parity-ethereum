@@ -19,6 +19,8 @@
 use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
 use std::sync::Weak;
 use std::time::{UNIX_EPOCH, Duration};
+use std::collections::{BTreeMap, HashSet, HashMap};
+use std::cmp;
 
 use account_provider::AccountProvider;
 use block::*;
@@ -463,9 +465,9 @@ impl Engine for AuthorityRound {
 			let gas_limit = parent.gas_limit().clone();
 			let bound_divisor = self.gas_limit_bound_divisor;
 			if gas_limit < gas_floor_target {
-				min(gas_floor_target, gas_limit + gas_limit / bound_divisor - 1.into())
+				cmp::min(gas_floor_target, gas_limit + gas_limit / bound_divisor - 1.into())
 			} else {
-				max(gas_floor_target, gas_limit - gas_limit / bound_divisor + 1.into())
+				cmp::max(gas_floor_target, gas_limit - gas_limit / bound_divisor + 1.into())
 			}
 		});
 	}
@@ -815,7 +817,7 @@ impl Engine for AuthorityRound {
 		}
 	}
 
-	fn verify_transaction_basic(&self, t: &UnverifiedTransaction, header: &Header) -> result::Result<(), Error> {
+	fn verify_transaction_basic(&self, t: &UnverifiedTransaction, header: &Header) -> Result<(), Error> {
 		t.check_low_s()?;
 
 		if let Some(n) = t.network_id() {
@@ -852,6 +854,7 @@ impl Engine for AuthorityRound {
 #[cfg(test)]
 mod tests {
 	use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
+	use std::str::FromStr;
 	use util::*;
 	use header::Header;
 	use error::{Error, BlockError};

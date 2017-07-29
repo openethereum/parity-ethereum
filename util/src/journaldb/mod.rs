@@ -16,6 +16,7 @@
 
 //! `JournalDB` interface and implementation.
 
+use std::{fmt, str};
 use common::*;
 
 /// Export the journaldb module.
@@ -59,7 +60,7 @@ impl Default for Algorithm {
 	fn default() -> Algorithm { Algorithm::OverlayRecent }
 }
 
-impl FromStr for Algorithm {
+impl str::FromStr for Algorithm {
 	type Err = String;
 
 	fn from_str(s: &str) -> Result<Self, Self::Err> {

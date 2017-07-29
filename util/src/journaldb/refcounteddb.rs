@@ -16,6 +16,7 @@
 
 //! Disk-backed, ref-counted `JournalDB` implementation.
 
+use std::collections::HashMap;
 use common::*;
 use rlp::*;
 use hashdb::*;

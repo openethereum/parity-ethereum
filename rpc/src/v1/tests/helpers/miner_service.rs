@@ -16,6 +16,7 @@
 
 //! Test implementation of miner service.
 
+use std::collections::{BTreeMap, HashMap};
 use std::collections::hash_map::Entry;
 use util::{Address, H256, Bytes, U256};
 use util::standard::*;

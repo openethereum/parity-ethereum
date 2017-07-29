@@ -16,6 +16,7 @@
 
 //! Disk-backed `HashDB` implementation.
 
+use std::collections::HashMap;
 use common::*;
 use rlp::*;
 use hashdb::*;

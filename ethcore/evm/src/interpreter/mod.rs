@@ -23,12 +23,13 @@ mod stack;
 mod memory;
 mod shared_cache;
 
+use std::marker::PhantomData;
+use std::{cmp, mem};
 use self::gasometer::Gasometer;
 use self::stack::{Stack, VecStack};
 use self::memory::Memory;
 pub use self::shared_cache::SharedCache;
 
-use std::marker::PhantomData;
 use action_params::{ActionParams, ActionValue};
 use call_type::CallType;
 use instructions::{self, Instruction, InstructionInfo};

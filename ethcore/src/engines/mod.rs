@@ -36,6 +36,8 @@ pub use self::null_engine::NullEngine;
 pub use self::tendermint::Tendermint;
 
 use std::sync::Weak;
+use std::collections::{BTreeMap, HashMap};
+use std::fmt;
 
 use self::epoch::PendingTransition;
 

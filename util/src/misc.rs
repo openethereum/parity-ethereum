@@ -60,9 +60,9 @@ pub fn version() -> String {
 pub fn version_data() -> Bytes {
 	let mut s = RlpStream::new_list(4);
 	let v =
-		(u32::from_str(env!("CARGO_PKG_VERSION_MAJOR")).expect("Environment variables are known to be valid; qed") << 16) +
-		(u32::from_str(env!("CARGO_PKG_VERSION_MINOR")).expect("Environment variables are known to be valid; qed") << 8) +
-		u32::from_str(env!("CARGO_PKG_VERSION_PATCH")).expect("Environment variables are known to be valid; qed");
+		(env!("CARGO_PKG_VERSION_MAJOR").parse::<u32>().expect("Environment variables are known to be valid; qed") << 16) +
+		(env!("CARGO_PKG_VERSION_MINOR").parse::<u32>().expect("Environment variables are known to be valid; qed") << 8) +
+		env!("CARGO_PKG_VERSION_PATCH").parse::<u32>().expect("Environment variables are known to be valid; qed");
 	s.append(&v);
 	s.append(&"Parity");
 	s.append(&rustc_version());

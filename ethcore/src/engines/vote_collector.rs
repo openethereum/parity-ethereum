@@ -17,6 +17,7 @@
 //! Collects votes on hashes at each Message::Round.
 
 use std::fmt::Debug;
+use std::collections::{BTreeMap, HashSet, HashMap};
 use util::*;
 use rlp::{Encodable, RlpStream};
 
