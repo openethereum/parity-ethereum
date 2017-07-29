@@ -16,6 +16,7 @@
 
 //! Transaction Execution environment.
 use std::cmp;
+use std::sync::Arc;
 use util::*;
 use evm::action_params::{ActionParams, ActionValue};
 use state::{Backend as StateBackend, State, Substate, CleanupMode};

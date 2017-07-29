@@ -16,7 +16,7 @@
 
 /// Validator set maintained in a contract, updated using `getValidators` method.
 
-use std::sync::Weak;
+use std::sync::{Weak, Arc};
 use futures::Future;
 use native_contracts::ValidatorSet as Provider;
 
@@ -422,6 +422,7 @@ impl ValidatorSet for ValidatorSafeContract {
 
 #[cfg(test)]
 mod tests {
+	use std::sync::Arc;
 	use rustc_hex::FromHex;
 	use util::*;
 	use types::ids::BlockId;

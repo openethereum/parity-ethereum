@@ -19,7 +19,7 @@
 use rustc_hex::FromHexError;
 use rlp::DecoderError;
 use std::fmt;
-use hash::H256;
+use bigint::hash::H256;
 
 #[derive(Debug)]
 /// Error in database subsystem.

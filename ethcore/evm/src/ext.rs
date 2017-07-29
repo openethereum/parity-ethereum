@@ -16,6 +16,7 @@
 
 //! Interface for Evm externalities.
 
+use std::sync::Arc;
 use util::*;
 use call_type::CallType;
 use env_info::EnvInfo;

@@ -17,6 +17,7 @@
 use std::path::Path;
 use std::cmp;
 use std::collections::{BTreeMap, HashMap};
+use std::sync::Arc;
 use ethash::{quick_get_difficulty, slow_get_seedhash, EthashManager};
 use util::*;
 use block::*;
@@ -563,6 +564,7 @@ impl Header {
 mod tests {
 	use std::str::FromStr;
 	use std::collections::BTreeMap;
+	use std::sync::Arc;
 	use util::*;
 	use block::*;
 	use tests::helpers::*;

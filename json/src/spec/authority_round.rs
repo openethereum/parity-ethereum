@@ -63,11 +63,10 @@ pub struct AuthorityRound {
 
 #[cfg(test)]
 mod tests {
+	use util::{H160, U256};
 	use uint::Uint;
-	use util::U256;
-	use util::H160;
-	use serde_json;
 	use hash::Address;
+	use serde_json;
 	use spec::validator_set::ValidatorSet;
 	use spec::authority_round::AuthorityRound;
 

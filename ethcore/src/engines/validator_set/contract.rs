@@ -126,6 +126,7 @@ impl ValidatorSet for ValidatorContract {
 
 #[cfg(test)]
 mod tests {
+	use std::sync::Arc;
 	use rustc_hex::FromHex;
 	use util::*;
 	use rlp::encode;

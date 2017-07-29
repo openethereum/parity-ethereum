@@ -17,6 +17,7 @@
 //! Test client.
 
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrder};
+use std::sync::Arc;
 use std::collections::{HashMap, BTreeMap};
 use std::mem;
 use rustc_hex::FromHex;

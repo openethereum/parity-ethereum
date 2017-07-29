@@ -65,6 +65,7 @@ impl Engine for InstantSeal {
 
 #[cfg(test)]
 mod tests {
+	use std::sync::Arc;
 	use util::*;
 	use tests::helpers::*;
 	use spec::Spec;

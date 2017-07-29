@@ -17,6 +17,7 @@
 //! Single account in the system.
 
 use std::fmt;
+use std::sync::Arc;
 use std::collections::HashMap;
 use util::*;
 use pod_account::*;

@@ -16,7 +16,7 @@
 
 //! A blockchain engine that supports a basic, non-BFT proof-of-authority.
 
-use std::sync::Weak;
+use std::sync::{Weak, Arc};
 use std::collections::BTreeMap;
 use std::cmp;
 use util::*;
@@ -256,6 +256,7 @@ impl Engine for BasicAuthority {
 
 #[cfg(test)]
 mod tests {
+	use std::sync::Arc;
 	use util::*;
 	use block::*;
 	use error::{BlockError, Error};

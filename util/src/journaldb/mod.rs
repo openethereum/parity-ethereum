@@ -17,7 +17,7 @@
 //! `JournalDB` interface and implementation.
 
 use std::{fmt, str};
-use common::*;
+use std::sync::Arc;
 
 /// Export the journaldb module.
 pub mod traits;

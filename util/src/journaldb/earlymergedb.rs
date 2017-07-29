@@ -18,13 +18,17 @@
 
 use std::fmt;
 use std::collections::HashMap;
-use common::*;
+use std::sync::Arc;
+use parking_lot::RwLock;
+use heapsize::HeapSizeOf;
+use itertools::Itertools;
 use rlp::*;
 use hashdb::*;
 use memorydb::*;
 use super::{DB_PREFIX_LEN, LATEST_ERA_KEY};
 use super::traits::JournalDB;
 use kvdb::{KeyValueDB, DBTransaction};
+use {H256, BaseDataError, UtilError, Bytes};
 
 #[derive(Clone, PartialEq, Eq)]
 struct RefInfo {
@@ -551,12 +555,13 @@ mod tests {
 	#![cfg_attr(feature="dev", allow(blacklisted_name))]
 	#![cfg_attr(feature="dev", allow(similar_names))]
 
-	use common::*;
+	use std::path::Path;
 	use hashdb::{HashDB, DBValue};
 	use super::*;
 	use super::super::traits::JournalDB;
 	use ethcore_logger::init_log;
 	use kvdb::{DatabaseConfig};
+	use {Hashable, H32};
 
 	#[test]
 	fn insert_same_in_fork() {

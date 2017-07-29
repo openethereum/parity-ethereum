@@ -25,6 +25,7 @@ mod shared_cache;
 
 use std::marker::PhantomData;
 use std::{cmp, mem};
+use std::sync::Arc;
 use self::gasometer::Gasometer;
 use self::stack::{Stack, VecStack};
 use self::memory::Memory;

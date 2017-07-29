@@ -15,13 +15,14 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::fmt;
-use common::*;
+use itertools::Itertools;
 use hashdb::*;
 use nibbleslice::*;
 use rlp::*;
 use super::node::{Node, OwnedNode};
 use super::lookup::Lookup;
 use super::{Trie, TrieItem, TrieError, TrieIterator, Query};
+use {ToPretty, Bytes, H256};
 
 /// A `Trie` implementation using a generic `HashDB` backing database.
 ///

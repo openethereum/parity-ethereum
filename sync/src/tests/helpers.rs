@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::{VecDeque, HashSet, HashMap};
+use std::sync::Arc;
 use util::*;
 use network::*;
 use tests::snapshot::*;

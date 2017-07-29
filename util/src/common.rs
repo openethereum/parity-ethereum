@@ -17,13 +17,6 @@
 //! Utils common types and macros global reexport.
 
 use std::io;
-pub use standard::*;
-pub use error::*;
-pub use bytes::*;
-pub use vector::*;
-pub use sha3::*;
-pub use bigint::prelude::*;
-pub use bigint::hash;
 
 #[macro_export]
 macro_rules! vec_into {
@@ -89,8 +82,8 @@ macro_rules! map_into {
 
 #[macro_export]
 macro_rules! flush {
-	($arg:expr) => ($crate::flush($arg.into()));
-	($($arg:tt)*) => ($crate::flush(format!("{}", format_args!($($arg)*))));
+	($arg:expr) => ($crate::common::flush($arg.into()));
+	($($arg:tt)*) => ($crate::common::flush(format!("{}", format_args!($($arg)*))));
 }
 
 #[macro_export]

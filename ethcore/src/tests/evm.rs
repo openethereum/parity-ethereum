@@ -1,5 +1,6 @@
 //! Tests of EVM integration with transaction execution.
 
+use std::sync::Arc;
 use evm::action_params::{ActionParams, ActionValue};
 use evm::env_info::EnvInfo;
 use evm::{Factory, VMType};

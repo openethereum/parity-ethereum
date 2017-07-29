@@ -17,6 +17,7 @@
 //! Blockchain database.
 
 use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 use std::mem;
 use bloomchain as bc;
 use util::*;

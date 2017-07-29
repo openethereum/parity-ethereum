@@ -25,7 +25,7 @@
 mod message;
 mod params;
 
-use std::sync::Weak;
+use std::sync::{Weak, Arc};
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
 use std::collections::{HashSet, BTreeMap, HashMap};
 use std::cmp;

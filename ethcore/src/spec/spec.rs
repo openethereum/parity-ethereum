@@ -18,6 +18,8 @@
 
 use std::io::Read;
 use std::collections::BTreeMap;
+use std::path::Path;
+use std::sync::Arc;
 use rustc_hex::FromHex;
 use super::genesis::Genesis;
 use super::seal::Generic as GenericSeal;

@@ -20,14 +20,17 @@ use std::{mem, fs};
 use std::collections::{HashMap, BTreeMap};
 use std::io::ErrorKind;
 use std::marker::PhantomData;
-use std::path::PathBuf;
+use std::path::{PathBuf, Path};
+use parking_lot::{Mutex, MutexGuard, RwLock};
 
-use common::*;
 use elastic_array::*;
 use hashdb::DBValue;
 use rlp::{UntrustedRlp, RlpType, Compressible};
 use rocksdb::{DB, Writable, WriteBatch, WriteOptions, IteratorMode, DBIterator,
 	Options, DBCompactionStyle, BlockBasedOptions, Direction, Cache, Column, ReadOptions};
+use {UtilError, Bytes};
+
+
 #[cfg(target_os = "linux")]
 use regex::Regex;
 #[cfg(target_os = "linux")]

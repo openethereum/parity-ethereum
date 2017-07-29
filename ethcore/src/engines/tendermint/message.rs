@@ -199,6 +199,7 @@ pub fn message_hash(vote_step: VoteStep, block_hash: H256) -> H256 {
 
 #[cfg(test)]
 mod tests {
+	use std::sync::Arc;
 	use util::*;
 	use rlp::*;
 	use account_provider::AccountProvider;

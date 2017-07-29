@@ -18,6 +18,7 @@
 
 use std::fmt::Debug;
 use std::collections::{BTreeMap, HashSet, HashMap};
+use std::hash::Hash;
 use util::*;
 use rlp::{Encodable, RlpStream};
 

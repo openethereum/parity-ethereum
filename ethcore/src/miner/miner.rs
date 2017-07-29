@@ -16,6 +16,7 @@
 
 use std::time::{Instant, Duration};
 use std::collections::{BTreeMap, HashSet};
+use std::sync::Arc;
 
 use util::*;
 use using_queue::{UsingQueue, GetAction};

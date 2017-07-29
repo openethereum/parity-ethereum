@@ -16,6 +16,8 @@
 
 use std::fmt::Debug;
 use std::str::FromStr;
+use std::hash::Hash;
+use std::sync::Arc;
 use std::collections::{HashMap, HashSet};
 use rustc_hex::FromHex;
 use util::*;
