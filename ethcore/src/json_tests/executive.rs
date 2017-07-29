@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::sync::Arc;
 use super::test_common::*;
 use evm::action_params::ActionParams;
 use state::{Backend as StateBackend, State, Substate};
