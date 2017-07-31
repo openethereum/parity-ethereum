@@ -169,12 +169,16 @@ impl From<ethjson::spec::Params> for CommonParams {
 			remove_dust_contracts: p.remove_dust_contracts.unwrap_or(false),
 			wasm: p.wasm.unwrap_or(false),
 <<<<<<< HEAD
+<<<<<<< HEAD
 			gas_limit_bound_divisor: p.gas_limit_bound_divisor.into(),
 			block_reward: p.block_reward.map_or_else(U256::zero, Into::into),
 			registrar: p.registrar.map_or_else(Address::new, Into::into),
 =======
 			apply_reward: p.apply_reward.unwrap_or(true),
 >>>>>>> 7312803... Working test with block reward added
+=======
+			apply_reward: p.apply_reward.unwrap_or(true),
+>>>>>>> bb043ba2fdcc2b5d049ca8c5f5db233cc5f82aaf
 		}
 	}
 }
