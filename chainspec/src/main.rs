@@ -28,8 +28,8 @@ fn main() {
 	let mut unused = BTreeSet::new();
 	let mut deserializer = serde_json::Deserializer::from_reader(file);
 
-	let spec: Result<Spec, _> = serde_ignored::deserialize(&mut deserializer, |path| {
-		unused.insert(path.to_string());
+	let spec: Result<Spec, _> = serde_ignored::deserialize(&mut deserializer, |field| {
+		unused.insert(field.to_string());
 	});
 
 	if let Err(err) = spec {
@@ -38,7 +38,7 @@ fn main() {
 
 	if !unused.is_empty() {
 		let err = unused.into_iter()
-			.map(|key| format!("{} contains unexpected key: {}", path, key))
+			.map(|field| format!("{} unexpected field `{}`", path, field))
 			.collect::<Vec<_>>()
 			.join("\n");
 		quit(err);
