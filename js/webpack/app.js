@@ -15,24 +15,23 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-const webpack = require('webpack');
 const path = require('path');
 // const ReactIntlAggregatePlugin = require('react-intl-aggregate-webpack-plugin');
+const ExtractTextPlugin = require('extract-text-webpack-plugin');
 const WebpackErrorNotificationPlugin = require('webpack-error-notification');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const ServiceWorkerWebpackPlugin = require('serviceworker-webpack-plugin');
-const ScriptExtHtmlWebpackPlugin = require('script-ext-html-webpack-plugin');
 
 const rulesEs6 = require('./rules/es6');
 const rulesParity = require('./rules/parity');
 const Shared = require('./shared');
 
-const DAPPS_BUILTIN = require('@parity/shared/config/dappsBuiltin.json');
-const DAPPS_VIEWS = require('@parity/shared/config/dappsViews.json').map((dapp) => {
-  dapp.commons = true;
-  return dapp;
-});
+const DAPPS_BUILTIN = []; // require('@parity/shared/config/dappsBuiltin.json');
+const DAPPS_VIEWS = []; // require('@parity/shared/config/dappsViews.json').map((dapp) => {
+//   dapp.commons = true;
+//   return dapp;
+// });
 
 const FAVICON = path.resolve(__dirname, '../node_modules/@parity/shared/assets/images/parity-logo-black-no-text.png');
 
@@ -59,9 +58,8 @@ module.exports = {
   context: path.join(__dirname, '../src'),
   entry: entry,
   output: {
-    // publicPath: '/',
     path: path.join(__dirname, '../', DEST),
-    filename: '[name].[hash:10].js'
+    filename: '[name].js'
   },
 
   module: {
@@ -106,30 +104,23 @@ module.exports = {
       },
       {
         test: /\.css$/,
-        include: [ /packages/, /src/, /@parity/ ],
         use: [
           'style-loader',
           {
             loader: 'css-loader',
             options: {
-              importLoaders: 1,
-              localIdentName: '[name]_[local]_[hash:base64:5]'
+              importLoaders: 1
             }
           },
           {
             loader: 'postcss-loader',
             options: {
               'postcss-import': {},
-              'postcss-nested': {},
+              'postcss-neted': {},
               'postcss-simple-vars': {}
             }
           }
         ]
-      },
-      {
-        test: /\.css$/,
-        exclude: [ /packages/, /src/, /@parity/ ],
-        use: [ 'style-loader', 'css-loader' ]
       },
       {
         test: /\.(png|jpg)$/,
@@ -204,12 +195,16 @@ module.exports = {
           template: '../packages/dapps/index.ejs',
           favicon: FAVICON,
           secure: dapp.secure,
-          chunks: [ !isProd || dapp.commons ? 'commons' : null, dapp.url ]
+          chunks: [ dapp.url ]
         });
       });
 
     let plugins = Shared.getPlugins().concat(
-      new WebpackErrorNotificationPlugin()
+      new WebpackErrorNotificationPlugin(),
+      new ExtractTextPlugin({
+        filename: 'styles/[name].[hash:10].css',
+        allChunks: true
+      })
     );
 
     if (!isEmbed) {
@@ -221,10 +216,7 @@ module.exports = {
           filename: 'index.html',
           template: './index.ejs',
           favicon: FAVICON,
-          chunks: [
-            isProd ? null : 'commons',
-            'index'
-          ]
+          chunks: [ 'index' ]
         }),
 
         new ServiceWorkerWebpackPlugin({
@@ -232,16 +224,6 @@ module.exports = {
         }),
 
         DappsHTMLInjection,
-
-        new webpack.DllReferencePlugin({
-          context: '.',
-          manifest: require(`../${DEST}/vendor-manifest.json`)
-        }),
-
-        new ScriptExtHtmlWebpackPlugin({
-          sync: [ 'commons', 'vendor.js' ],
-          defaultAttribute: 'defer'
-        }),
 
         new CopyWebpackPlugin([
           { from: './error_pages.css', to: 'styles.css' },
@@ -257,10 +239,7 @@ module.exports = {
           filename: 'embed.html',
           template: './index.ejs',
           favicon: FAVICON,
-          chunks: [
-            isProd ? null : 'commons',
-            'embed'
-          ]
+          chunks: [ 'embed' ]
         })
       );
     }
@@ -273,12 +252,6 @@ module.exports = {
     //       messagesPattern: DEST_I18N + '/i18n/**/*.json',
     //       aggregateOutputDir: DEST_I18N + '/i18n/',
     //       aggregateFilename: 'en'
-    //     }),
-    //
-    //     new webpack.optimize.CommonsChunkPlugin({
-    //       filename: 'commons.[hash:10].js',
-    //       name: 'commons',
-    //       minChunks: 2
     //     })
     //   );
     // }

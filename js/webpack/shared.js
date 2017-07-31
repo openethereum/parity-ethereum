@@ -19,7 +19,6 @@ const path = require('path');
 const fs = require('fs');
 
 const CircularDependencyPlugin = require('circular-dependency-plugin');
-const ProgressBarPlugin = require('progress-bar-webpack-plugin');
 const PackageJson = require('../package.json');
 
 const UI_VERSION = PackageJson
@@ -36,7 +35,6 @@ const UI_VERSION = PackageJson
 const EMBED = process.env.EMBED;
 const ENV = process.env.NODE_ENV || 'development';
 const isProd = ENV === 'production';
-const isAnalize = process.env.WPANALIZE === '1';
 
 function getBabelrc () {
   const babelrc = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../.babelrc')));
@@ -73,34 +71,19 @@ function getBabelrc () {
 }
 
 function getPlugins (_isProd = isProd) {
-  const plugins = (isAnalize
-    ? []
-    : [
-      new ProgressBarPlugin({
-        format: '[:msg] [:bar] ' + ':percent' + ' (:elapsed seconds)'
-      })
-    ]).concat([
-      new webpack.DefinePlugin({
-        'process.env': {
-          EMBED: JSON.stringify(EMBED),
-          NODE_ENV: JSON.stringify(ENV),
-          RPC_ADDRESS: JSON.stringify(process.env.RPC_ADDRESS),
-          PARITY_URL: JSON.stringify(process.env.PARITY_URL),
-          DAPPS_URL: JSON.stringify(process.env.DAPPS_URL),
-          LOGGING: JSON.stringify(!isProd),
-          UI_VERSION: JSON.stringify(UI_VERSION)
-        }
-      }),
-
-      new webpack.LoaderOptionsPlugin({
-        minimize: isProd,
-        debug: !isProd,
-        options: {
-          context: path.join(__dirname, '../src'),
-          babel: getBabelrc()
-        }
-      })
-    ]);
+  const plugins = [
+    new webpack.DefinePlugin({
+      'process.env': {
+        EMBED: JSON.stringify(EMBED),
+        NODE_ENV: JSON.stringify(ENV),
+        RPC_ADDRESS: JSON.stringify(process.env.RPC_ADDRESS),
+        PARITY_URL: JSON.stringify(process.env.PARITY_URL),
+        DAPPS_URL: JSON.stringify(process.env.DAPPS_URL),
+        LOGGING: JSON.stringify(!isProd),
+        UI_VERSION: JSON.stringify(UI_VERSION)
+      }
+    })
+  ];
 
   if (_isProd) {
     plugins.push(
@@ -129,6 +112,8 @@ function getPlugins (_isProd = isProd) {
 function getDappsEntry () {
   const builtins = require('@parity/shared/config/dappsBuiltin.json');
   const views = require('@parity/shared/config/dappsViews.json');
+
+  return {};
 
   return Object.assign(
     []
