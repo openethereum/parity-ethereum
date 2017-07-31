@@ -184,10 +184,15 @@ impl Ntp for SimpleNtp {
 }
 
 // NOTE In a positive scenario first results will be seen after:
-// MAX_RESULTS * UPDATE_TIMEOUT_ERR_SECS seconds.
+// MAX_RESULTS * UPDATE_TIMEOUT_INCOMPLETE_SECS seconds.
 const MAX_RESULTS: usize = 4;
-const UPDATE_TIMEOUT_OK_SECS: u64 = 60;
-const UPDATE_TIMEOUT_ERR_SECS: u64 = 10;
+const UPDATE_TIMEOUT_OK_SECS: u64 = 3600;
+const UPDATE_TIMEOUT_WARN_SECS: u64 = 120;
+const UPDATE_TIMEOUT_ERR_SECS: u64 = 60;
+const UPDATE_TIMEOUT_INCOMPLETE_SECS: u64 = 10;
+
+/// Maximal valid time drift.
+pub const MAX_DRIFT: i64 = 500;
 
 #[derive(Debug, Clone)]
 /// A time checker.
@@ -228,11 +233,13 @@ impl<N: Ntp> TimeChecker<N> where <N::Future as IntoFuture>::Future: Send + 'sta
 
 			// Update the results.
 			let mut results = mem::replace(&mut last_result.write().1, VecDeque::new());
+			let has_all_results = results.len() >= MAX_RESULTS;
 			let valid_till = time::Instant::now() + time::Duration::from_secs(
-				if res.is_ok() && results.len() == MAX_RESULTS {
-					UPDATE_TIMEOUT_OK_SECS
-				} else {
-					UPDATE_TIMEOUT_ERR_SECS
+				match res {
+					Ok(time) if has_all_results && time < MAX_DRIFT => UPDATE_TIMEOUT_OK_SECS,
+					Ok(_) if has_all_results => UPDATE_TIMEOUT_WARN_SECS,
+					Err(_) if has_all_results => UPDATE_TIMEOUT_ERR_SECS,
+					_ => UPDATE_TIMEOUT_INCOMPLETE_SECS,
 				}
 			);
 
@@ -283,7 +290,7 @@ mod tests {
 	use std::cell::{Cell, RefCell};
 	use std::time::Instant;
 	use time::Duration;
-	use futures::{self, BoxFuture, Future};
+	use futures::{future, Future};
 	use super::{Ntp, TimeChecker, Error};
 	use util::RwLock;
 
