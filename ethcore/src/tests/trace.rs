@@ -37,15 +37,15 @@ use trace::trace::Action::Reward;
 #[test]
 fn can_trace_block_and_uncle_reward() {
 	let dir = RandomTempPath::new();
-    let spec = Spec::new_test_with_reward();
-    let engine = &*spec.engine;
+	let spec = Spec::new_test_with_reward();
+	let engine = &*spec.engine;
 
 	// Create client
 	let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
 	let mut client_config = ClientConfig::default();
 	client_config.tracing.enabled = true;
-    let client_db = Arc::new(Database::open(&db_config, dir.as_path().to_str().unwrap()).unwrap());
-    let client = Client::new(
+	let client_db = Arc::new(Database::open(&db_config, dir.as_path().to_str().unwrap()).unwrap());
+	let client = Client::new(
 		client_config,
 		&spec,
 		client_db,
@@ -62,8 +62,8 @@ fn can_trace_block_and_uncle_reward() {
 	//    |
 	// block with transaction and uncle
 
-    let genesis_header = spec.genesis_header();    
-    let mut db = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
+	let genesis_header = spec.genesis_header();    
+	let mut db = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
 	let mut rolling_timestamp = 40;
 	let mut last_hashes = vec![];
 	let mut last_header = genesis_header.clone();
@@ -130,7 +130,7 @@ fn can_trace_block_and_uncle_reward() {
 	last_hashes.push(last_header.hash());
 
 	// Add testing block with transaction and uncle
-    let mut block = OpenBlock::new(
+	let mut block = OpenBlock::new(
 		engine, 
 		Default::default(), 
 		true, 
@@ -159,35 +159,34 @@ fn can_trace_block_and_uncle_reward() {
 		n += 1;
 	}
 
-    let mut uncle = Header::new();
-    let uncle_author: Address = "ef2d6d194084c2de36e0dabfce45d046b37d1106".into();
-    uncle.set_author(uncle_author);
+	let mut uncle = Header::new();
+	let uncle_author: Address = "ef2d6d194084c2de36e0dabfce45d046b37d1106".into();
+	uncle.set_author(uncle_author);
 	uncle.set_parent_hash(root_header.hash());
 	uncle.set_gas_limit(U256::from(50_000));
 	uncle.set_number(root_header.number() + 1);
 	uncle.set_timestamp(rolling_timestamp);
-    block.push_uncle(uncle).unwrap();
+	block.push_uncle(uncle).unwrap();
 
-    let block = block.close_and_lock().seal(engine, vec![]).unwrap();
+	let block = block.close_and_lock().seal(engine, vec![]).unwrap();
 
 	let res = client.import_block(block.rlp_bytes());
-    if res.is_err() {
+	if res.is_err() {
 		panic!("error importing block: {:#?}", res.err().unwrap());        
 	}
 
 	block.drain();
-    
 	client.flush_queue();
 	client.import_verified_blocks();
 
-    // Test0. Check overall filter
+	// Test0. Check overall filter
 	let filter = TraceFilter {
 			range: (BlockId::Number(1)..BlockId::Number(3)),
 			from_address: vec![],
 			to_address: vec![],
 		};
 
-    let traces = client.filter_traces(filter);
+	let traces = client.filter_traces(filter);
 	assert!(traces.is_some(), "Filtered traces should be present");
 	let traces_vec = traces.unwrap();
 	let block_reward_traces: Vec<LocalizedTrace> = traces_vec.clone().into_iter().filter(|trace| match (trace).action {
