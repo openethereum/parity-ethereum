@@ -27,8 +27,6 @@ import DappsStore from './dappsStore';
 
 import styles from './dapps.css';
 
-console.log('styles', styles);
-
 @observer
 class Dapps extends Component {
   static contextTypes = {

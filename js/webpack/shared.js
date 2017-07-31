@@ -113,8 +113,6 @@ function getDappsEntry () {
   const builtins = require('@parity/shared/config/dappsBuiltin.json');
   const views = require('@parity/shared/config/dappsViews.json');
 
-  return {};
-
   return Object.assign(
     []
       .concat(
