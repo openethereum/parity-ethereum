@@ -24,7 +24,7 @@ use cli::{Args, ArgsError};
 use util::{Hashable, H256, U256, Bytes, version_data, Address};
 use util::journaldb::Algorithm;
 use util::Colour;
-use ethsync::{NetworkConfiguration, is_valid_node_url, AllowIP};
+use ethsync::{NetworkConfiguration, is_valid_node_url};
 use ethcore::ethstore::ethkey::{Secret, Public};
 use ethcore::client::{VMType};
 use ethcore::miner::{MinerOptions, Banning, StratumOptions};
@@ -36,7 +36,7 @@ use parity_rpc::NetworkSettings;
 use cache::CacheConfig;
 use helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_price, replace_home, replace_home_and_local,
 geth_ipc_path, parity_ipc_path, to_bootnodes, to_addresses, to_address, to_gas_limit, to_queue_strategy};
-use params::{SpecType, ResealPolicy, AccountsConfig, GasPricerConfig, MinerExtras, Pruning, Switch};
+use params::{ResealPolicy, AccountsConfig, GasPricerConfig, MinerExtras, Pruning, Switch};
 use ethcore_logger::Config as LogConfig;
 use dir::{self, Directories, default_hypervisor_path, default_local_path, default_data_path};
 use dapps::Configuration as DappsConfiguration;
@@ -48,6 +48,7 @@ use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, KillBlockcha
 use presale::ImportWallet;
 use account::{AccountCmd, NewAccount, ListAccounts, ImportAccounts, ImportFromGethAccounts};
 use snapshot::{self, SnapshotCommand};
+use network::{IpFilter};
 
 #[derive(Debug, PartialEq)]
 pub enum Cmd {
@@ -56,7 +57,7 @@ pub enum Cmd {
 	Account(AccountCmd),
 	ImportPresaleWallet(ImportWallet),
 	Blockchain(BlockchainCmd),
-	SignerToken(WsConfiguration, UiConfiguration),
+	SignerToken(WsConfiguration, UiConfiguration, LogConfig),
 	SignerSign {
 		id: Option<usize>,
 		pwfile: Option<PathBuf>,
@@ -148,7 +149,7 @@ impl Configuration {
 			let authfile = ::signer::codes_path(&ws_conf.signer_path);
 
 			if self.args.cmd_new_token {
-				Cmd::SignerToken(ws_conf, ui_conf)
+				Cmd::SignerToken(ws_conf, ui_conf, logger_config.clone())
 			} else if self.args.cmd_sign {
 				let pwfile = self.args.flag_password.get(0).map(|pwfile| {
 					PathBuf::from(pwfile)
@@ -243,6 +244,7 @@ impl Configuration {
 				check_seal: !self.args.flag_no_seal_check,
 				with_color: logger_config.color,
 				verifier_settings: self.verifier_settings(),
+				light: self.args.flag_light,
 			};
 			Cmd::Blockchain(BlockchainCmd::Import(import_cmd))
 		} else if self.args.cmd_export {
@@ -331,13 +333,6 @@ impl Configuration {
 			};
 
 			let verifier_settings = self.verifier_settings();
-
-			// Special presets are present for the dev chain.
-			let (gas_pricer_conf, miner_options) = match spec {
-				SpecType::Dev => (GasPricerConfig::Fixed(0.into()), self.miner_options(0)?),
-				_ => (self.gas_pricer_config()?, self.miner_options(self.args.flag_reseal_min_period)?),
-			};
-
 			let whisper_config = self.whisper_config();
 
 			let run_cmd = RunCmd {
@@ -349,14 +344,14 @@ impl Configuration {
 				pruning_memory: self.args.flag_pruning_memory,
 				daemon: daemon,
 				logger_config: logger_config.clone(),
-				miner_options: miner_options,
+				miner_options: self.miner_options(self.args.flag_reseal_min_period)?,
 				ws_conf: ws_conf,
 				http_conf: http_conf,
 				ipc_conf: ipc_conf,
 				net_conf: net_conf,
 				network_id: network_id,
 				acc_conf: self.accounts_config()?,
-				gas_pricer_conf: gas_pricer_conf,
+				gas_pricer_conf: self.gas_pricer_config()?,
 				miner_extras: self.miner_extras()?,
 				stratum: self.stratum_options()?,
 				update_policy: update_policy,
@@ -467,12 +462,10 @@ impl Configuration {
 		max(self.min_peers(), peers)
 	}
 
-	fn allow_ips(&self) -> Result<AllowIP, String> {
-		match self.args.flag_allow_ips.as_str() {
-			"all" => Ok(AllowIP::All),
-			"public" => Ok(AllowIP::Public),
-			"private" => Ok(AllowIP::Private),
-			_ => Err("Invalid IP filter value".to_owned()),
+	fn ip_filter(&self) -> Result<IpFilter, String> {
+		match IpFilter::parse(self.args.flag_allow_ips.as_str()) {
+			Ok(allow_ip) => Ok(allow_ip),
+			Err(_) => Err("Invalid IP filter value".to_owned()),
 		}
 	}
 
@@ -630,8 +623,10 @@ impl Configuration {
 			U256::from_dec_str(&format!("{:.0}", wei_per_gas)).unwrap()
 		}
 
-		if let Some(d) = self.args.flag_gasprice.as_ref() {
-			return Ok(GasPricerConfig::Fixed(to_u256(d)?));
+		if let Some(dec) = self.args.flag_gasprice.as_ref() {
+			return Ok(GasPricerConfig::Fixed(to_u256(dec)?));
+		} else if let Some(dec) = self.args.flag_min_gas_price {
+			return Ok(GasPricerConfig::Fixed(U256::from(dec)));
 		}
 
 		let usd_per_tx = to_price(&self.args.flag_usd_per_tx)?;
@@ -716,7 +711,7 @@ impl Configuration {
 		ret.max_peers = self.max_peers();
 		ret.min_peers = self.min_peers();
 		ret.snapshot_peers = self.snapshot_peers();
-		ret.allow_ips = self.allow_ips()?;
+		ret.ip_filter = self.ip_filter()?;
 		ret.max_pending_peers = self.max_pending_peers();
 		let mut net_path = PathBuf::from(self.directories().base);
 		net_path.push("network");
@@ -972,7 +967,6 @@ impl Configuration {
 		}.into()
 	}
 
-
 	fn ui_interface(&self) -> String {
 		self.interface(&self.args.flag_ui_interface)
 	}
@@ -1084,6 +1078,7 @@ impl Configuration {
 mod tests {
 	use std::io::Write;
 	use std::fs::{File, create_dir};
+	use std::str::FromStr;
 
 	use devtools::{RandomTempPath};
 	use ethcore::client::{VMType, BlockId};
@@ -1100,6 +1095,11 @@ mod tests {
 	use presale::ImportWallet;
 	use rpc::{WsConfiguration, UiConfiguration};
 	use run::RunCmd;
+
+	use network::{AllowIP, IpFilter};
+
+	extern crate ipnetwork;
+	use self::ipnetwork::IpNetwork;
 
 	use super::*;
 
@@ -1189,6 +1189,7 @@ mod tests {
 			check_seal: true,
 			with_color: !cfg!(windows),
 			verifier_settings: Default::default(),
+			light: false,
 		})));
 	}
 
@@ -1280,11 +1281,15 @@ mod tests {
 			support_token_api: true
 		}, UiConfiguration {
 			enabled: true,
-			ntp_server: "pool.ntp.org:123".into(),
+			ntp_server: "none".into(),
 			interface: "127.0.0.1".into(),
 			port: 8180,
 			hosts: Some(vec![]),
-		}));
+		}, LogConfig {
+            color: true,
+            mode: None,
+            file: None,
+        } ));
 	}
 
 	#[test]
@@ -1522,7 +1527,7 @@ mod tests {
 		assert_eq!(conf0.directories().signer, "signer".to_owned());
 		assert_eq!(conf0.ui_config(), UiConfiguration {
 			enabled: true,
-			ntp_server: "pool.ntp.org:123".into(),
+			ntp_server: "none".into(),
 			interface: "127.0.0.1".into(),
 			port: 8180,
 			hosts: Some(vec![]),
@@ -1531,7 +1536,7 @@ mod tests {
 		assert_eq!(conf1.directories().signer, "signer".to_owned());
 		assert_eq!(conf1.ui_config(), UiConfiguration {
 			enabled: true,
-			ntp_server: "pool.ntp.org:123".into(),
+			ntp_server: "none".into(),
 			interface: "127.0.0.1".into(),
 			port: 8180,
 			hosts: Some(vec![]),
@@ -1541,7 +1546,7 @@ mod tests {
 		assert_eq!(conf2.directories().signer, "signer".to_owned());
 		assert_eq!(conf2.ui_config(), UiConfiguration {
 			enabled: true,
-			ntp_server: "pool.ntp.org:123".into(),
+			ntp_server: "none".into(),
 			interface: "127.0.0.1".into(),
 			port: 3123,
 			hosts: Some(vec![]),
@@ -1550,7 +1555,7 @@ mod tests {
 		assert_eq!(conf3.directories().signer, "signer".to_owned());
 		assert_eq!(conf3.ui_config(), UiConfiguration {
 			enabled: true,
-			ntp_server: "pool.ntp.org:123".into(),
+			ntp_server: "none".into(),
 			interface: "test".into(),
 			port: 8180,
 			hosts: Some(vec![]),
@@ -1599,13 +1604,104 @@ mod tests {
 	}
 
 	#[test]
-	fn test_dev_chain() {
-		let args = vec!["parity", "--chain", "dev"];
-		let conf = parse(&args);
+	fn test_dev_preset() {
+		let args = vec!["parity", "--config", "dev"];
+		let conf = Configuration::parse(&args, None).unwrap();
 		match conf.into_command().unwrap().cmd {
 			Cmd::Run(c) => {
+				assert_eq!(c.net_settings.chain, "dev");
 				assert_eq!(c.gas_pricer_conf, GasPricerConfig::Fixed(0.into()));
 				assert_eq!(c.miner_options.reseal_min_period, Duration::from_millis(0));
+			},
+			_ => panic!("Should be Cmd::Run"),
+		}
+	}
+
+	#[test]
+	fn test_mining_preset() {
+		let args = vec!["parity", "--config", "mining"];
+		let conf = Configuration::parse(&args, None).unwrap();
+		match conf.into_command().unwrap().cmd {
+			Cmd::Run(c) => {
+				assert_eq!(c.net_conf.min_peers, 50);
+				assert_eq!(c.net_conf.max_peers, 100);
+				assert_eq!(c.ipc_conf.enabled, false);
+				assert_eq!(c.dapps_conf.enabled, false);
+				assert_eq!(c.miner_options.force_sealing, true);
+				assert_eq!(c.miner_options.reseal_on_external_tx, true);
+				assert_eq!(c.miner_options.reseal_on_own_tx, true);
+				assert_eq!(c.miner_options.reseal_min_period, Duration::from_millis(4000));
+				assert_eq!(c.miner_options.tx_queue_size, 2048);
+				assert_eq!(c.cache_config, CacheConfig::new_with_total_cache_size(256));
+				assert_eq!(c.logger_config.mode.unwrap(), "miner=trace,own_tx=trace");
+			},
+			_ => panic!("Should be Cmd::Run"),
+		}
+	}
+
+	#[test]
+	fn test_non_standard_ports_preset() {
+		let args = vec!["parity", "--config", "non-standard-ports"];
+		let conf = Configuration::parse(&args, None).unwrap();
+		match conf.into_command().unwrap().cmd {
+			Cmd::Run(c) => {
+				assert_eq!(c.net_settings.network_port, 30305);
+				assert_eq!(c.net_settings.rpc_port, 8645);
+			},
+			_ => panic!("Should be Cmd::Run"),
+		}
+	}
+
+	#[test]
+	fn test_insecure_preset() {
+		let args = vec!["parity", "--config", "insecure"];
+		let conf = Configuration::parse(&args, None).unwrap();
+		match conf.into_command().unwrap().cmd {
+			Cmd::Run(c) => {
+				assert_eq!(c.update_policy.require_consensus, false);
+				assert_eq!(c.net_settings.rpc_interface, "0.0.0.0");
+				match c.http_conf.apis {
+					ApiSet::List(set) => assert_eq!(set, ApiSet::All.list_apis()),
+					_ => panic!("Incorrect rpc apis"),
+				}
+				// "web3,eth,net,personal,parity,parity_set,traces,rpc,parity_accounts");
+				assert_eq!(c.http_conf.hosts, None);
+				assert_eq!(c.ipfs_conf.hosts, None);
+			},
+			_ => panic!("Should be Cmd::Run"),
+		}
+	}
+
+	#[test]
+	fn test_dev_insecure_preset() {
+		let args = vec!["parity", "--config", "dev-insecure"];
+		let conf = Configuration::parse(&args, None).unwrap();
+		match conf.into_command().unwrap().cmd {
+			Cmd::Run(c) => {
+				assert_eq!(c.net_settings.chain, "dev");
+				assert_eq!(c.gas_pricer_conf, GasPricerConfig::Fixed(0.into()));
+				assert_eq!(c.miner_options.reseal_min_period, Duration::from_millis(0));
+				assert_eq!(c.update_policy.require_consensus, false);
+				assert_eq!(c.net_settings.rpc_interface, "0.0.0.0");
+				match c.http_conf.apis {
+					ApiSet::List(set) => assert_eq!(set, ApiSet::All.list_apis()),
+					_ => panic!("Incorrect rpc apis"),
+				}
+				// "web3,eth,net,personal,parity,parity_set,traces,rpc,parity_accounts");
+				assert_eq!(c.http_conf.hosts, None);
+				assert_eq!(c.ipfs_conf.hosts, None);
+			},
+			_ => panic!("Should be Cmd::Run"),
+		}
+	}
+
+	#[test]
+	fn test_override_preset() {
+		let args = vec!["parity", "--config", "mining", "--min-peers=99"];
+		let conf = Configuration::parse(&args, None).unwrap();
+		match conf.into_command().unwrap().cmd {
+			Cmd::Run(c) => {
+				assert_eq!(c.net_conf.min_peers, 99);
 			},
 			_ => panic!("Should be Cmd::Run"),
 		}
@@ -1663,5 +1759,51 @@ mod tests {
 		assert_eq!(&conf0.secretstore_config().unwrap().http_interface, "0.0.0.0");
 		assert_eq!(&conf0.ipfs_config().interface, "0.0.0.0");
 		assert_eq!(conf0.ipfs_config().hosts, None);
+	}
+
+	#[test]
+	fn allow_ips() {
+		let all = parse(&["parity", "--allow-ips", "all"]);
+		let private = parse(&["parity", "--allow-ips", "private"]);
+		let block_custom = parse(&["parity", "--allow-ips", "-10.0.0.0/8"]);
+		let combo = parse(&["parity", "--allow-ips", "public 10.0.0.0/8 -1.0.0.0/8"]);
+		let ipv6_custom_public = parse(&["parity", "--allow-ips", "public fc00::/7"]);
+		let ipv6_custom_private = parse(&["parity", "--allow-ips", "private -fc00::/7"]);
+
+		assert_eq!(all.ip_filter().unwrap(), IpFilter {
+			predefined: AllowIP::All,
+			custom_allow: vec![],
+			custom_block: vec![],
+		});
+
+		assert_eq!(private.ip_filter().unwrap(), IpFilter {
+			predefined: AllowIP::Private,
+			custom_allow: vec![],
+			custom_block: vec![],
+		});
+
+		assert_eq!(block_custom.ip_filter().unwrap(), IpFilter {
+			predefined: AllowIP::All,
+			custom_allow: vec![],
+			custom_block: vec![IpNetwork::from_str("10.0.0.0/8").unwrap()],
+		});
+
+		assert_eq!(combo.ip_filter().unwrap(), IpFilter {
+			predefined: AllowIP::Public,
+			custom_allow: vec![IpNetwork::from_str("10.0.0.0/8").unwrap()],
+			custom_block: vec![IpNetwork::from_str("1.0.0.0/8").unwrap()],
+		});
+
+		assert_eq!(ipv6_custom_public.ip_filter().unwrap(), IpFilter {
+			predefined: AllowIP::Public,
+			custom_allow: vec![IpNetwork::from_str("fc00::/7").unwrap()],
+			custom_block: vec![],
+		});
+
+		assert_eq!(ipv6_custom_private.ip_filter().unwrap(), IpFilter {
+			predefined: AllowIP::Private,
+			custom_allow: vec![],
+			custom_block: vec![IpNetwork::from_str("fc00::/7").unwrap()],
+		});
 	}
 }

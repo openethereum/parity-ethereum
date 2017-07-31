@@ -3,7 +3,6 @@
 	"engine": {
 		"basicAuthority": {
 			"params": {
-				"gasLimitBoundDivisor": "0x0400",
 				"durationLimit": "0x0d",
 				"validators": {
 					"list": ["0x9cce34f7ab185c7aba1b7c8140d620b4bda941d6"]
@@ -12,6 +11,7 @@
 		}
 	},
 	"params": {
+		"gasLimitBoundDivisor": "0x0400",
 		"accountStartNonce": "0x0100000",
 		"maximumExtraDataSize": "0x20",
 		"minGasLimit": "0x1388",

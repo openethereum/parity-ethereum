@@ -227,12 +227,9 @@ const TRANSACTION_COUNT_SPEC: &'static [u8] = br#"{
 	"engine": {
 		"Ethash": {
 			"params": {
-				"gasLimitBoundDivisor": "0x0400",
 				"minimumDifficulty": "0x020000",
 				"difficultyBoundDivisor": "0x0800",
 				"durationLimit": "0x0d",
-				"blockReward": "0x4563918244F40000",
-				"registrar" : "0xc6d9d2cd449a754c494264e1809c50e34d64562b",
 				"homesteadTransition": "0xffffffffffffffff",
 				"daoHardforkTransition": "0xffffffffffffffff",
 				"daoHardforkBeneficiary": "0x0000000000000000000000000000000000000000",
@@ -241,6 +238,9 @@ const TRANSACTION_COUNT_SPEC: &'static [u8] = br#"{
 		}
 	},
 	"params": {
+		"gasLimitBoundDivisor": "0x0400",
+		"blockReward": "0x4563918244F40000",
+		"registrar" : "0xc6d9d2cd449a754c494264e1809c50e34d64562b",
 		"accountStartNonce": "0x00",
 		"maximumExtraDataSize": "0x20",
 		"minGasLimit": "0x50000",
@@ -275,12 +275,9 @@ const POSITIVE_NONCE_SPEC: &'static [u8] = br#"{
 	"engine": {
 		"Ethash": {
 			"params": {
-				"gasLimitBoundDivisor": "0x0400",
 				"minimumDifficulty": "0x020000",
 				"difficultyBoundDivisor": "0x0800",
 				"durationLimit": "0x0d",
-				"blockReward": "0x4563918244F40000",
-				"registrar" : "0xc6d9d2cd449a754c494264e1809c50e34d64562b",
 				"homesteadTransition": "0xffffffffffffffff",
 				"daoHardforkTransition": "0xffffffffffffffff",
 				"daoHardforkBeneficiary": "0x0000000000000000000000000000000000000000",
@@ -289,6 +286,9 @@ const POSITIVE_NONCE_SPEC: &'static [u8] = br#"{
 		}
 	},
 	"params": {
+		"gasLimitBoundDivisor": "0x0400",
+		"blockReward": "0x4563918244F40000",
+		"registrar" : "0xc6d9d2cd449a754c494264e1809c50e34d64562b",
 		"accountStartNonce": "0x0100",
 		"maximumExtraDataSize": "0x20",
 		"minGasLimit": "0x50000",

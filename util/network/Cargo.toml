@@ -30,6 +30,7 @@ ethcrypto = { path = "../../ethcrypto" }
 rlp = { path = "../rlp" }
 path = { path = "../path" }
 ethcore-logger = { path ="../../logger" }
+ipnetwork = "0.12.6"
 
 [features]
 default = []

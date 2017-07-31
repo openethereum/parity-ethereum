@@ -3,7 +3,6 @@
 	"engine": {
 		"authorityRound": {
 			"params": {
-				"gasLimitBoundDivisor": "0x0400",
 				"stepDuration": 1,
 				"startStep": 2,
 				"validators": {
@@ -14,6 +13,7 @@
 		}
 	},
 	"params": {
+		"gasLimitBoundDivisor": "0x0400",
 		"accountStartNonce": "0x0",
 		"maximumExtraDataSize": "0x20",
 		"minGasLimit": "0x1388",

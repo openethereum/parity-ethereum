@@ -282,9 +282,11 @@ impl FullDependencies {
 					}
 				},
 				Api::EthPubSub => {
-					let client = EthPubSubClient::new(self.client.clone(), self.remote.clone());
-					self.client.add_notify(client.handler());
-					handler.extend_with(client.to_delegate());
+					if !for_generic_pubsub {
+						let client = EthPubSubClient::new(self.client.clone(), self.remote.clone());
+						self.client.add_notify(client.handler());
+						handler.extend_with(client.to_delegate());
+					}
 				},
 				Api::Personal => {
 					handler.extend_with(PersonalClient::new(&self.secret_store, dispatcher.clone(), self.geth_compatibility).to_delegate());
@@ -353,9 +355,13 @@ impl FullDependencies {
 					}
 				}
 				Api::WhisperPubSub => {
-					if let Some(ref whisper_rpc) = self.whisper_rpc {
-						let whisper = whisper_rpc.make_handler();
-						handler.extend_with(::parity_whisper::rpc::WhisperPubSub::to_delegate(whisper));
+					if !for_generic_pubsub {
+						if let Some(ref whisper_rpc) = self.whisper_rpc {
+							let whisper = whisper_rpc.make_handler();
+							handler.extend_with(
+								::parity_whisper::rpc::WhisperPubSub::to_delegate(whisper)
+							);
+						}
 					}
 				}
 			}

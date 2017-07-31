@@ -132,9 +132,9 @@ build_rpc_trait! {
 	pub trait WhisperPubSub {
 		type Metadata;
 
-		#[pubsub(name = "hello")] {
+		#[pubsub(name = "shh_subscription")] {
 			/// Subscribe to messages matching the filter.
-			#[rpc(name = "ssh_subscribe")]
+			#[rpc(name = "shh_subscribe")]
 			fn subscribe(&self, Self::Metadata, pubsub::Subscriber<types::FilterItem>, types::FilterRequest);
 
 			/// Unsubscribe from filter matching given ID. Return

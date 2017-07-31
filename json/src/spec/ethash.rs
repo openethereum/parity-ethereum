@@ -23,9 +23,6 @@ use hash::Address;
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct EthashParams {
 	/// See main EthashParams docs.
-	#[serde(rename="gasLimitBoundDivisor")]
-	pub gas_limit_bound_divisor: Uint,
-	/// See main EthashParams docs.
 	#[serde(rename="minimumDifficulty")]
 	pub minimum_difficulty: Uint,
 	/// See main EthashParams docs.
@@ -40,11 +37,6 @@ pub struct EthashParams {
 	/// See main EthashParams docs.
 	#[serde(rename="durationLimit")]
 	pub duration_limit: Option<Uint>,
-	/// See main EthashParams docs.
-	#[serde(rename="blockReward")]
-	pub block_reward: Uint,
-	/// See main EthashParams docs.
-	pub registrar: Option<Address>,
 
 	/// See main EthashParams docs.
 	#[serde(rename="homesteadTransition")]
@@ -77,10 +69,6 @@ pub struct EthashParams {
 	/// See main EthashParams docs.
 	#[serde(rename="eip150Transition")]
 	pub eip150_transition: Option<Uint>,
-
-	/// See main EthashParams docs.
-	#[serde(rename="eip155Transition")]
-	pub eip155_transition: Option<Uint>,
 
 	/// See main EthashParams docs.
 	#[serde(rename="eip160Transition")]
@@ -136,21 +124,17 @@ pub struct Ethash {
 mod tests {
 	use serde_json;
 	use uint::Uint;
-	use util::U256;
+	use bigint::prelude::{H160, U256};
 	use hash::Address;
-	use util::hash::H160;
 	use spec::ethash::{Ethash, EthashParams};
 
 	#[test]
 	fn ethash_deserialization() {
 		let s = r#"{
 			"params": {
-				"gasLimitBoundDivisor": "0x0400",
 				"minimumDifficulty": "0x020000",
 				"difficultyBoundDivisor": "0x0800",
 				"durationLimit": "0x0d",
-				"blockReward": "0x4563918244F40000",
-				"registrar": "0xc6d9d2cd449a754c494264e1809c50e34d64562b",
 				"homesteadTransition": "0x42",
 				"daoHardforkTransition": "0x08",
 				"daoHardforkBeneficiary": "0xabcabcabcabcabcabcabcabcabcabcabcabcabca",
@@ -181,7 +165,6 @@ mod tests {
 				"bombDefuseTransition": "0x41",
 				"eip100bTransition": "0x42",
 				"eip150Transition": "0x43",
-				"eip155Transition": "0x44",
 				"eip160Transition": "0x45",
 				"eip161abcTransition": "0x46",
 				"eip161dTransition": "0x47"
@@ -190,16 +173,13 @@ mod tests {
 
 		let deserialized: Ethash = serde_json::from_str(s).unwrap();
 
-		assert_eq!(deserialized, Ethash{
+		assert_eq!(deserialized, Ethash {
 			params: EthashParams{
-				gas_limit_bound_divisor: Uint(U256::from(0x0400)),
 				minimum_difficulty: Uint(U256::from(0x020000)),
 				difficulty_bound_divisor: Uint(U256::from(0x0800)),
 				difficulty_increment_divisor: None,
 				metropolis_difficulty_increment_divisor: None,
 				duration_limit: Some(Uint(U256::from(0x0d))),
-				block_reward: Uint(U256::from(0x4563918244F40000u64)),
-				registrar: Some(Address(H160::from("0xc6d9d2cd449a754c494264e1809c50e34d64562b"))),
 				homestead_transition: Some(Uint(U256::from(0x42))),
 				dao_hardfork_transition: Some(Uint(U256::from(0x08))),
 				dao_hardfork_beneficiary: Some(Address(H160::from("0xabcabcabcabcabcabcabcabcabcabcabcabcabca"))),
@@ -230,7 +210,6 @@ mod tests {
 				bomb_defuse_transition: Some(Uint(U256::from(0x41))),
 				eip100b_transition: Some(Uint(U256::from(0x42))),
 				eip150_transition: Some(Uint(U256::from(0x43))),
-				eip155_transition: Some(Uint(U256::from(0x44))),
 				eip160_transition: Some(Uint(U256::from(0x45))),
 				eip161abc_transition: Some(Uint(U256::from(0x46))),
 				eip161d_transition: Some(Uint(U256::from(0x47))),
@@ -250,24 +229,19 @@ mod tests {
 	fn ethash_deserialization_missing_optionals() {
 		let s = r#"{
 			"params": {
-				"gasLimitBoundDivisor": "0x0400",
-				"minimumDifficulty": "0x020000",
 				"difficultyBoundDivisor": "0x0800",
-				"blockReward": "0x4563918244F40000"
+				"minimumDifficulty": "0x020000"
 			}
 		}"#;
 
 		let deserialized: Ethash = serde_json::from_str(s).unwrap();
-		assert_eq!(deserialized, Ethash{
-			params: EthashParams{
-				gas_limit_bound_divisor: Uint(U256::from(0x0400)),
+		assert_eq!(deserialized, Ethash {
+			params: EthashParams {
 				minimum_difficulty: Uint(U256::from(0x020000)),
 				difficulty_bound_divisor: Uint(U256::from(0x0800)),
 				difficulty_increment_divisor: None,
 				metropolis_difficulty_increment_divisor: None,
 				duration_limit: None,
-				block_reward: Uint(U256::from(0x4563918244F40000u64)),
-				registrar: None,
 				homestead_transition: None,
 				dao_hardfork_transition: None,
 				dao_hardfork_beneficiary: None,
@@ -277,7 +251,6 @@ mod tests {
 				bomb_defuse_transition: None,
 				eip100b_transition: None,
 				eip150_transition: None,
-				eip155_transition: None,
 				eip160_transition: None,
 				eip161abc_transition: None,
 				eip161d_transition: None,

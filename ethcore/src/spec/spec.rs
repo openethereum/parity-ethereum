@@ -39,7 +39,12 @@ use trace::{NoopTracer, NoopVMTracer};
 use evm::CallType;
 use util::*;
 
-/// Parameters common to all engines.
+/// Parameters common to ethereum-like blockchains.
+/// NOTE: when adding bugfix hard-fork parameters,
+/// add to `contains_bugfix_hard_fork`
+///
+/// we define a "bugfix" hard fork as any hard fork which
+/// you would put on-by-default in a new chain.
 #[derive(Debug, PartialEq, Default)]
 #[cfg_attr(test, derive(Clone))]
 pub struct CommonParams {
@@ -59,8 +64,10 @@ pub struct CommonParams {
 	pub fork_block: Option<(BlockNumber, H256)>,
 	/// Number of first block where EIP-98 rules begin.
 	pub eip98_transition: BlockNumber,
+	/// Number of first block where EIP-155 rules begin.
+	pub eip155_transition: BlockNumber,
 	/// Validate block receipts root.
-	pub validate_receipts_transition: u64,
+	pub validate_receipts_transition: BlockNumber,
 	/// Number of first block where EIP-86 (Metropolis) rules begin.
 	pub eip86_transition: BlockNumber,
 	/// Number of first block where EIP-140 (Metropolis: REVERT opcode) rules begin.
@@ -85,6 +92,12 @@ pub struct CommonParams {
 	pub remove_dust_contracts: bool,
 	/// Wasm support
 	pub wasm: bool,
+	/// Gas limit bound divisor (how much gas limit can change per block)
+	pub gas_limit_bound_divisor: U256,
+	/// Block reward in wei.
+	pub block_reward: U256,
+	/// Registrar contract address.
+	pub registrar: Address,
 }
 
 impl CommonParams {
@@ -111,6 +124,19 @@ impl CommonParams {
 			};
 		}
 	}
+
+	/// Whether these params contain any bug-fix hard forks.
+	pub fn contains_bugfix_hard_fork(&self) -> bool {
+		self.eip98_transition != 0 &&
+			self.eip155_transition != 0 &&
+			self.validate_receipts_transition != 0 &&
+			self.eip86_transition != 0 &&
+			self.eip140_transition != 0 &&
+			self.eip210_transition != 0 &&
+			self.eip211_transition != 0 &&
+			self.eip214_transition != 0 &&
+			self.dust_protection_transition != 0
+	}
 }
 
 impl From<ethjson::spec::Params> for CommonParams {
@@ -124,6 +150,7 @@ impl From<ethjson::spec::Params> for CommonParams {
 			min_gas_limit: p.min_gas_limit.into(),
 			fork_block: if let (Some(n), Some(h)) = (p.fork_block, p.fork_hash) { Some((n.into(), h.into())) } else { None },
 			eip98_transition: p.eip98_transition.map_or(0, Into::into),
+			eip155_transition: p.eip155_transition.map_or(0, Into::into),
 			validate_receipts_transition: p.validate_receipts_transition.map_or(0, Into::into),
 			eip86_transition: p.eip86_transition.map_or(BlockNumber::max_value(), Into::into),
 			eip140_transition: p.eip140_transition.map_or(BlockNumber::max_value(), Into::into),
@@ -139,6 +166,9 @@ impl From<ethjson::spec::Params> for CommonParams {
 			nonce_cap_increment: p.nonce_cap_increment.map_or(64, Into::into),
 			remove_dust_contracts: p.remove_dust_contracts.unwrap_or(false),
 			wasm: p.wasm.unwrap_or(false),
+			gas_limit_bound_divisor: p.gas_limit_bound_divisor.into(),
+			block_reward: p.block_reward.map_or_else(U256::zero, Into::into),
+			registrar: p.registrar.map_or_else(Address::new, Into::into),
 		}
 	}
 }
@@ -242,7 +272,7 @@ impl Spec {
 	) -> Arc<Engine> {
 		match engine_spec {
 			ethjson::spec::Engine::Null => Arc::new(NullEngine::new(params, builtins)),
-			ethjson::spec::Engine::InstantSeal(instant) => Arc::new(InstantSeal::new(params, instant.params.registrar.map_or_else(Address::new, Into::into), builtins)),
+			ethjson::spec::Engine::InstantSeal => Arc::new(InstantSeal::new(params, builtins)),
 			ethjson::spec::Engine::Ethash(ethash) => Arc::new(ethereum::Ethash::new(cache_dir, params, From::from(ethash.params), builtins)),
 			ethjson::spec::Engine::BasicAuthority(basic_authority) => Arc::new(BasicAuthority::new(params, From::from(basic_authority.params), builtins)),
 			ethjson::spec::Engine::AuthorityRound(authority_round) => AuthorityRound::new(params, From::from(authority_round.params), builtins).expect("Failed to start AuthorityRound consensus engine."),

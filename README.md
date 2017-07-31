@@ -3,7 +3,7 @@
 
 ### [Download latest release](https://github.com/paritytech/parity/releases)
 
-[![build status](https://gitlab.parity.io/parity/parity/badges/master/build.svg)](https://gitlab.parity.io/parity/parity/commits/master) [![Coverage Status][coveralls-image]][coveralls-url]  [![GPLv3][license-image]][license-url]
+[![build status](https://gitlab.parity.io/parity/parity/badges/master/build.svg)](https://gitlab.parity.io/parity/parity/commits/master) [![Coverage Status][coveralls-image]][coveralls-url]  [![GPLv3][license-image]][license-url] [![Snap Status](https://build.snapcraft.io/badge/paritytech/parity.svg)](https://build.snapcraft.io/user/paritytech/parity)
 
 ### Join the chat!
 
@@ -45,6 +45,8 @@ of RPC APIs.
 
 If you run into an issue while using parity, feel free to file one in this repository
 or hop on our [gitter chat room][gitter-url] to ask a question. We are glad to help!
+
+**For security-critical issues**, please refer to the security policy outlined in `SECURITY.MD`.
 
 Parity's current release is 1.6. You can download it at https://github.com/paritytech/parity/releases or follow the instructions
 below to build from source.
