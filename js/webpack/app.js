@@ -21,7 +21,6 @@ const path = require('path');
 const WebpackErrorNotificationPlugin = require('webpack-error-notification');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
-const ExtractTextPlugin = require('extract-text-webpack-plugin');
 const ServiceWorkerWebpackPlugin = require('serviceworker-webpack-plugin');
 const ScriptExtHtmlWebpackPlugin = require('script-ext-html-webpack-plugin');
 
@@ -43,7 +42,7 @@ const EMBED = process.env.EMBED;
 
 const isProd = ENV === 'production';
 const isEmbed = EMBED === '1' || EMBED === 'true';
-const isAnalize = process.env.WPANALIZE === '1';
+// const isAnalize = process.env.WPANALIZE === '1';
 
 const entry = isEmbed
   ? {
@@ -266,30 +265,23 @@ module.exports = {
       );
     }
 
-    if (!isAnalize && !isProd) {
-      // const DEST_I18N = path.join(__dirname, '..', DEST, 'i18n');
-
-      plugins.push(
-        // new ReactIntlAggregatePlugin({
-        //   messagesPattern: DEST_I18N + '/i18n/**/*.json',
-        //   aggregateOutputDir: DEST_I18N + '/i18n/',
-        //   aggregateFilename: 'en'
-        // }),
-
-        new webpack.optimize.CommonsChunkPlugin({
-          filename: 'commons.[hash:10].js',
-          name: 'commons',
-          minChunks: 2
-        })
-      );
-    }
-
-    if (isProd) {
-      plugins.push(new ExtractTextPlugin({
-        filename: 'styles/[name].[hash:10].css',
-        allChunks: true
-      }));
-    }
+    // if (!isAnalize && !isProd) {
+    //   const DEST_I18N = path.join(__dirname, '..', DEST, 'i18n');
+    //
+    //   plugins.push(
+    //     new ReactIntlAggregatePlugin({
+    //       messagesPattern: DEST_I18N + '/i18n/**/*.json',
+    //       aggregateOutputDir: DEST_I18N + '/i18n/',
+    //       aggregateFilename: 'en'
+    //     }),
+    //
+    //     new webpack.optimize.CommonsChunkPlugin({
+    //       filename: 'commons.[hash:10].js',
+    //       name: 'commons',
+    //       minChunks: 2
+    //     })
+    //   );
+    // }
 
     return plugins;
   }())
