@@ -8,7 +8,7 @@
 		"maximumExtraDataSize": "0x20",
 		"minGasLimit": "0x1388",
 		"networkID" : "0x2",
-                "applyReward": false
+		"applyReward": false
 	},
 	"genesis": {
 		"seal": {
