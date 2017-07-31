@@ -311,6 +311,7 @@ pub fn transaction_message(error: TransactionError) -> String {
 		UnreservedHash => "Tried to add a transaction to queue without first reserving its place.".into(),
 		MismatchedReservation => "Tried to add a transaction with a mismatched reservation.".into(),
 		ReservationNotReady => "Tried to add a transaction that was not ready to be filled.".into(),
+		DroppedReservation => "A dropped older transaction on another thread invalidated this one.".into(),
 	}
 }
 

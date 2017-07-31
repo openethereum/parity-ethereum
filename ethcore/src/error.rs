@@ -87,6 +87,8 @@ pub enum TransactionError {
 	MismatchedReservation,
 	/// Reservation not yet ready to be filled
 	ReservationNotReady,
+	/// Another thread dropped a reserved transaction older than this one
+	DroppedReservation,
 }
 
 impl fmt::Display for TransactionError {
@@ -115,6 +117,7 @@ impl fmt::Display for TransactionError {
 			UnreservedHash => "Tried to add a transaction to queue without first reserving its place.".into(),
 			MismatchedReservation => "Tried to add a transaction with a mismatched reservation.".into(),
 			ReservationNotReady => "Tried to add a transaction that was not ready to be filled.".into(),
+			DroppedReservation => "A dropped older transaction on another thread invalidated this one.".into(),
 		};
 
 		f.write_fmt(format_args!("Transaction error ({})", msg))
@@ -278,7 +281,7 @@ pub enum TransactionImportResult {
 	Current,
 	/// Transaction was imported to future queue.
 	Future,
-	/// Transaction was or is being imported by another thread to unknown queue.
+	/// Transaction was or is being imported by another thread.
 	ThreadUnknown,
 }
 
