@@ -148,11 +148,15 @@ Networking Options:
                                    These nodes will always have a reserved slot on top
                                    of the normal maximum peers. (default: {flag_reserved_peers:?})
   --reserved-only                  Connect only to reserved nodes. (default: {flag_reserved_only})
-  --allow-ips FILTER               Filter outbound connections. Must be one of:
+  --allow-ips FILTER               Filter outbound connections. FILTER can be one of:
                                    private - connect to private network IP addresses only;
                                    public - connect to public network IP addresses only;
-                                   all - connect to any IP address.
-                                   (default: {flag_allow_ips})
+                                   all - connect to any IP address;
+                                   none - block all (for use with a custom filter as below);
+                                   a custom filter list in the format: "private ip_range1 -ip_range2 ...".
+                                   Where ip_range1 would be allowed and ip_range2 blocked;
+                                   Custom blocks ("-ip_range") override custom allows ("ip_range");
+                                   (default: {flag_allow_ips}).
   --max-pending-peers NUM          Allow up to NUM pending connections. (default: {flag_max_pending_peers})
   --no-ancient-blocks              Disable downloading old blocks after snapshot restoration
                                    or warp sync. (default: {flag_no_ancient_blocks})
