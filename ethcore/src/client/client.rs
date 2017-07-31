@@ -1144,6 +1144,17 @@ impl BlockChainClient for Client {
 		let mut state = self.state_at(block).ok_or(CallError::StatePruned)?;
 		let original_state = if analytics.state_diffing { Some(state.clone()) } else { None };
 
+		// give the sender a sufficient balance (if calling in pending block)
+		if let BlockId::Pending = block {
+			let sender = t.sender();
+			let balance = state.balance(&sender).map_err(ExecutionError::from)?;
+			let needed_balance = t.value + t.gas * t.gas_price;
+			if balance < needed_balance {
+				state.add_balance(&sender, &(needed_balance - balance), state::CleanupMode::NoEmpty)
+					.map_err(ExecutionError::from)?;
+			}
+		}
+
 		let options = TransactOptions { tracing: analytics.transaction_tracing, vm_tracing: analytics.vm_tracing, check_nonce: false };
 		let mut ret = Executive::new(&mut state, &env_info, &*self.engine).transact_virtual(t, options)?;
 
@@ -1304,8 +1315,14 @@ impl BlockChainClient for Client {
 	}
 
 	fn block_header(&self, id: BlockId) -> Option<::encoded::Header> {
-
 		let chain = self.chain.read();
+
+		if let BlockId::Pending = id {
+			if let Some(block) = self.miner.pending_block(chain.best_block_number()) {
+				return Some(encoded::Header::new(block.header.rlp(Seal::Without)));
+			}
+		}
+
 		Self::block_hash(&chain, &self.miner, id).and_then(|hash| chain.block_header_data(&hash))
 	}
 
@@ -1314,7 +1331,8 @@ impl BlockChainClient for Client {
 			BlockId::Number(number) => Some(number),
 			BlockId::Hash(ref hash) => self.chain.read().block_number(hash),
 			BlockId::Earliest => Some(0),
-			BlockId::Latest | BlockId::Pending => Some(self.chain.read().best_block_number()),
+			BlockId::Latest => Some(self.chain.read().best_block_number()),
+			BlockId::Pending => Some(self.chain.read().best_block_number() + 1),
 		}
 	}
 
@@ -1545,7 +1563,8 @@ impl BlockChainClient for Client {
 			if self.chain.read().is_known(&unverified.hash()) {
 				return Err(BlockImportError::Import(ImportError::AlreadyInChain));
 			}
-			if self.block_status(BlockId::Hash(unverified.parent_hash())) == BlockStatus::Unknown {
+			let status = self.block_status(BlockId::Hash(unverified.parent_hash()));
+			if status == BlockStatus::Unknown || status == BlockStatus::Pending {
 				return Err(BlockImportError::Block(BlockError::UnknownParent(unverified.parent_hash())));
 			}
 		}
@@ -1559,7 +1578,8 @@ impl BlockChainClient for Client {
 			if self.chain.read().is_known(&header.hash()) {
 				return Err(BlockImportError::Import(ImportError::AlreadyInChain));
 			}
-			if self.block_status(BlockId::Hash(header.parent_hash())) == BlockStatus::Unknown {
+			let status = self.block_status(BlockId::Hash(header.parent_hash()));
+			if  status == BlockStatus::Unknown || status == BlockStatus::Pending {
 				return Err(BlockImportError::Block(BlockError::UnknownParent(header.parent_hash())));
 			}
 		}

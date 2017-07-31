@@ -19,8 +19,8 @@ use std::time::{Instant, Duration};
 use util::*;
 use util::using_queue::{UsingQueue, GetAction};
 use account_provider::{AccountProvider, SignError as AccountError};
-use state::{State, CleanupMode};
-use client::{MiningBlockChainClient, Executive, Executed, EnvInfo, TransactOptions, BlockId, CallAnalytics, TransactionId};
+use state::State;
+use client::{MiningBlockChainClient, BlockId, TransactionId};
 use client::TransactionImportResult;
 use executive::contract_address;
 use block::{ClosedBlock, IsBlock, Block};
@@ -727,50 +727,6 @@ impl MinerService for Miner {
 			transactions_in_pending_queue: status.pending,
 			transactions_in_future_queue: status.future,
 			transactions_in_pending_block: sealing_work.queue.peek_last_ref().map_or(0, |b| b.transactions().len()),
-		}
-	}
-
-	fn call(&self, client: &MiningBlockChainClient, t: &SignedTransaction, analytics: CallAnalytics) -> Result<Executed, CallError> {
-		let sealing_work = self.sealing_work.lock();
-		match sealing_work.queue.peek_last_ref() {
-			Some(work) => {
-				let block = work.block();
-
-				// TODO: merge this code with client.rs's fn call somwhow.
-				let header = block.header();
-				let last_hashes = Arc::new(client.last_hashes());
-				let env_info = EnvInfo {
-					number: header.number(),
-					author: *header.author(),
-					timestamp: header.timestamp(),
-					difficulty: *header.difficulty(),
-					last_hashes: last_hashes,
-					gas_used: U256::zero(),
-					gas_limit: U256::max_value(),
-				};
-				// that's just a copy of the state.
-				let mut state = block.state().clone();
-				let original_state = if analytics.state_diffing { Some(state.clone()) } else { None };
-
-				let sender = t.sender();
-				let balance = state.balance(&sender).map_err(ExecutionError::from)?;
-				let needed_balance = t.value + t.gas * t.gas_price;
-				if balance < needed_balance {
-					// give the sender a sufficient balance
-					state.add_balance(&sender, &(needed_balance - balance), CleanupMode::NoEmpty)
-						.map_err(ExecutionError::from)?;
-				}
-				let options = TransactOptions { tracing: analytics.transaction_tracing, vm_tracing: analytics.vm_tracing, check_nonce: false };
-				let mut ret = Executive::new(&mut state, &env_info, &*self.engine).transact(t, options)?;
-
-				// TODO gav move this into Executive.
-				if let Some(original) = original_state {
-					ret.state_diff = Some(state.diff_from(original).map_err(ExecutionError::from)?);
-				}
-
-				Ok(ret)
-			},
-			None => client.call(t, BlockId::Latest, analytics)
 		}
 	}
 

@@ -62,12 +62,12 @@ pub use self::stratum::{Stratum, Error as StratumError, Options as StratumOption
 
 use std::collections::BTreeMap;
 use util::{H256, U256, Address, Bytes};
-use client::{MiningBlockChainClient, Executed, CallAnalytics};
+use client::{MiningBlockChainClient};
 use block::ClosedBlock;
 use header::BlockNumber;
 use receipt::{RichReceipt, Receipt};
-use error::{Error, CallError};
-use transaction::{UnverifiedTransaction, PendingTransaction, SignedTransaction};
+use error::{Error};
+use transaction::{UnverifiedTransaction, PendingTransaction};
 
 /// Miner client API
 pub trait MinerService : Send + Sync {
@@ -185,9 +185,6 @@ pub trait MinerService : Send + Sync {
 
 	/// Suggested gas limit.
 	fn sensible_gas_limit(&self) -> U256 { 21000.into() }
-
-	/// Call into contract code using pending state.
-	fn call(&self, chain: &MiningBlockChainClient, t: &SignedTransaction, analytics: CallAnalytics) -> Result<Executed, CallError>;
 }
 
 /// Mining status

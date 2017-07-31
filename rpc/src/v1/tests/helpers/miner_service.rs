@@ -19,8 +19,8 @@
 use std::collections::hash_map::Entry;
 use util::{Address, H256, Bytes, U256};
 use util::standard::*;
-use ethcore::error::{Error, CallError};
-use ethcore::client::{MiningBlockChainClient, Executed, CallAnalytics};
+use ethcore::error::Error;
+use ethcore::client::MiningBlockChainClient;
 use ethcore::block::ClosedBlock;
 use ethcore::header::BlockNumber;
 use ethcore::transaction::{UnverifiedTransaction, SignedTransaction, PendingTransaction};
@@ -277,10 +277,6 @@ impl MinerService for TestMinerService {
 	/// Submit `seal` as a valid solution for the header of `pow_hash`.
 	/// Will check the seal, but not actually insert the block into the chain.
 	fn submit_seal(&self, _chain: &MiningBlockChainClient, _pow_hash: H256, _seal: Vec<Bytes>) -> Result<(), Error> {
-		unimplemented!();
-	}
-
-	fn call(&self, _chain: &MiningBlockChainClient, _t: &SignedTransaction, _analytics: CallAnalytics) -> Result<Executed, CallError> {
 		unimplemented!();
 	}
 

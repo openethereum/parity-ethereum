@@ -619,10 +619,8 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 			Err(e) => return future::err(e).boxed(),
 		};
 
-		let result = match num.unwrap_or_default() {
-			BlockNumber::Pending => self.miner.call(&*self.client, &signed, Default::default()),
-			num => self.client.call(&signed, num.into(), Default::default()),
-		};
+		let num = num.unwrap_or_default();
+		let result = self.client.call(&signed, num.into(), Default::default());
 
 		future::done(result
 			.map(|b| b.output.into())
