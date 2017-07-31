@@ -555,7 +555,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 		self.miner.map_sealing_work(&*self.client, |b| {
 			let pow_hash = b.hash();
 			let target = Ethash::difficulty_to_boundary(b.block().header().difficulty());
-			let seed_hash = self.seed_compute.lock().get_seedhash(b.block().header().number());
+			let seed_hash = self.seed_compute.lock().hash_block_number(b.block().header().number());
 
 			if no_new_work_timeout > 0 && b.block().header().timestamp() + no_new_work_timeout < get_time().sec as u64 {
 				Err(errors::no_new_work())

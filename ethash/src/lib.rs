@@ -165,6 +165,6 @@ mod benchmarks {
 	fn bench_seedhash(b: &mut Bencher) {
 		let seed_compute = SeedHashCompute::new();
 
-		b.iter(|| seed_compute.get_seedhash(486382));
+		b.iter(|| seed_compute.hash_block_number(486382));
 	}
 }

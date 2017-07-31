@@ -19,7 +19,7 @@ use std::cmp;
 use std::collections::{BTreeMap, HashMap};
 use std::sync::{Arc, Weak};
 use hash::{KECCAK_EMPTY_LIST_RLP};
-use ethash::{quick_get_difficulty, slow_get_seedhash, EthashManager};
+use ethash::{quick_get_difficulty, slow_hash_block_number, EthashManager};
 use bigint::prelude::U256;
 use bigint::hash::{H256, H64};
 use util::*;
@@ -416,7 +416,7 @@ impl Engine for Arc<Ethash> {
 		let result = self.pow.compute_light(header.number() as u64, &header.bare_hash().0, header.nonce().low_u64());
 		let mix = H256(result.mix_hash);
 		let difficulty = Ethash::boundary_to_difficulty(&H256(result.value));
-		trace!(target: "miner", "num: {}, seed: {}, h: {}, non: {}, mix: {}, res: {}" , header.number() as u64, H256(slow_get_seedhash(header.number() as u64)), header.bare_hash(), header.nonce().low_u64(), H256(result.mix_hash), H256(result.value));
+		trace!(target: "miner", "num: {}, seed: {}, h: {}, non: {}, mix: {}, res: {}" , header.number() as u64, H256(slow_hash_block_number(header.number() as u64)), header.bare_hash(), header.nonce().low_u64(), H256(result.mix_hash), H256(result.value));
 		if mix != header.mix_hash() {
 			return Err(From::from(BlockError::MismatchedH256SealElement(Mismatch { expected: mix, found: header.mix_hash() })));
 		}
