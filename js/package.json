@@ -26,7 +26,7 @@
     "Promise"
   ],
   "scripts": {
-    "build": "npm run build:lib && npm run build:app && npm run build:embed",
+    "build": "npm run build:lib && npm run build:app",
     "build:app": "parallel-webpack -p=4 --config webpack/app",
     "build:lib": "parallel-webpack -p=4 --config webpack/libraries",
     "build:markdown": "babel-node ./scripts/build-rpc-markdown.js",
