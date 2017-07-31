@@ -22,4 +22,4 @@ case $1 in
     ;;
 esac
 
-cargo test -j 8 $OPTIONS --features "$FEATURES" --all --exclude ipfs --exclude evmjit $1 \
+cargo test -j 8 $OPTIONS --features "$FEATURES" --all --exclude parity-ipfs-api --exclude evmjit $1
