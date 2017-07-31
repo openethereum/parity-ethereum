@@ -51,7 +51,11 @@ export default class DappCard extends Component {
         }
         hover={
           <div className={ styles.author }>
-            { app.author }, v{ app.version }
+            {
+              (!app.author.length && !app.version)
+                ? ''
+                : `${app.author}, v${app.version}`
+            }
           </div>
         }
         link={ this.getLink(app) }
@@ -93,7 +97,9 @@ export default class DappCard extends Component {
     }
 
     return app.url === 'web'
-      ? '/web'
+      ? (app.location)
+        ? `/web/${app.location}`
+        : '/web'
       : `/app/${app.id}`;
   }
 }
