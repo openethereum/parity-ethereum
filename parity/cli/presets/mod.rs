@@ -14,20 +14,15 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-extern crate rustc_hex;
-extern crate serde;
-extern crate serde_json;
-extern crate ethcore_bigint as bigint;
-#[macro_use] extern crate serde_derive;
+use std::io::{Error, ErrorKind};
 
-pub mod hash;
-pub mod uint;
-pub mod bytes;
-pub mod blockchain;
-pub mod spec;
-pub mod trie;
-pub mod vm;
-pub mod maybe;
-pub mod state;
-pub mod transaction;
-pub mod misc;
+pub fn preset_config_string(arg: &str) -> Result<&'static str, Error> {
+    match arg.to_lowercase().as_ref() {
+        "dev" => Ok(include_str!("./config.dev.toml")),
+        "mining" => Ok(include_str!("./config.mining.toml")),
+        "non-standard-ports" => Ok(include_str!("./config.non-standard-ports.toml")),
+        "insecure" => Ok(include_str!("./config.insecure.toml")),
+        "dev-insecure" => Ok(include_str!("./config.dev-insecure.toml")),
+        _ => Err(Error::new(ErrorKind::InvalidInput, "Config doesn't match any presets [dev, mining, non-standard-ports, insecure, dev-insecure]"))
+    }
+}

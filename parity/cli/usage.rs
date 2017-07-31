@@ -151,23 +151,24 @@ macro_rules! usage {
 
 				let config_file = raw_args.flag_config.clone().unwrap_or_else(|| raw_args.clone().into_args(Config::default()).flag_config);
 				let config_file = replace_home(&::dir::default_data_path(), &config_file);
-				let config = match (fs::File::open(&config_file), raw_args.flag_config.is_some()) {
+				match (fs::File::open(&config_file), raw_args.flag_config.clone()) {
 					// Load config file
 					(Ok(mut file), _) => {
 						println_stderr!("Loading config file from {}", &config_file);
 						let mut config = String::new();
 						file.read_to_string(&mut config).map_err(|e| ArgsError::Config(config_file, e))?;
-						Self::parse_config(&config)?
+						Ok(raw_args.into_args(Self::parse_config(&config)?))
 					},
 					// Don't display error in case default config cannot be loaded.
-					(Err(_), false) => Config::default(),
+					(Err(_), None) => Ok(raw_args.into_args(Config::default())),
 					// Config set from CLI (fail with error)
-					(Err(e), true) => {
-						return Err(ArgsError::Config(config_file, e));
+					(Err(_), Some(ref config_arg)) => {
+						match presets::preset_config_string(config_arg) {
+							Ok(s) => Ok(raw_args.into_args(Self::parse_config(&s)?)),
+							Err(e) => Err(ArgsError::Config(config_file, e))
+						}
 					},
-				};
-
-				Ok(raw_args.into_args(config))
+				}
 			}
 
 			#[cfg(test)]

@@ -35,7 +35,7 @@ const initialState = {
       status: DEFAULT_STATUS
     },
     overall: {
-      isReady: false,
+      isNotReady: true,
       status: DEFAULT_STATUS,
       message: []
     }
