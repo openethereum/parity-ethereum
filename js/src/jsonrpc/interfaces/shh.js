@@ -268,7 +268,10 @@ export default {
   },
   subscribe: {
     desc: 'Open a subscription to a filter.',
-    params: 'See [shh_newMessageFilter](#shh_newmessagefilter)',
+    params: [{
+      type: Data,
+      desc: 'See [shh_newMessageFilter](#shh_newmessagefilter)'
+    }],
     returns: {
       type: Quantity,
       desc: 'Unique subscription identifier'
