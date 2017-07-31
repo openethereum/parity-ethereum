@@ -82,7 +82,7 @@ pub trait Tracer: Send {
 	fn trace_suicide(&mut self, address: Address, balance: U256, refund_address: Address);
 
 	/// Stores reward info.
-	fn trace_reward(&mut self, miner: Address, value: U256, reward_type: RewardType);
+	fn trace_reward(&mut self, author: Address, value: U256, reward_type: RewardType);
 
 	/// Spawn subtracer which will be used to trace deeper levels of execution.
 	fn subtracer(&self) -> Self where Self: Sized;

@@ -327,8 +327,8 @@ impl From<trace::RewardType> for RewardType {
 /// Reward action
 #[derive(Debug, Serialize)]
 pub struct Reward {
-	/// Miner's address.
-	pub miner: H160,
+	/// Author's address.
+	pub author: H160,
 	/// Reward amount.
 	pub value: U256,
 	/// Reward type.
@@ -339,7 +339,7 @@ pub struct Reward {
 impl From<trace::Reward> for Reward {
 	fn from(r: trace::Reward) -> Self {
 		Reward {
-			miner: r.miner.into(),
+			author: r.author.into(),
 			value: r.value.into(),
 			reward_type: r.reward_type.into(),
 		}
@@ -767,7 +767,7 @@ mod tests {
 	fn test_trace_reward_serialize() {
 		let t = LocalizedTrace {
 			action: Action::Reward(Reward {
-				miner: 4.into(),
+				author: 4.into(),
 				value: 6.into(),
 				reward_type: RewardType::Block,
 			}),
@@ -780,7 +780,7 @@ mod tests {
 			block_hash: 14.into(),
 		};
 		let serialized = serde_json::to_string(&t).unwrap();
-		assert_eq!(serialized, r#"{"type":"reward","action":{"miner":"0x0000000000000000000000000000000000000004","value":"0x6","rewardType":"block"},"result":null,"traceAddress":[10],"subtraces":1,"transactionPosition":null,"transactionHash":null,"blockNumber":13,"blockHash":"0x000000000000000000000000000000000000000000000000000000000000000e"}"#);
+		assert_eq!(serialized, r#"{"type":"reward","action":{"author":"0x0000000000000000000000000000000000000004","value":"0x6","rewardType":"block"},"result":null,"traceAddress":[10],"subtraces":1,"transactionPosition":null,"transactionHash":null,"blockNumber":13,"blockHash":"0x000000000000000000000000000000000000000000000000000000000000000e"}"#);
 	}
 
 	#[test]

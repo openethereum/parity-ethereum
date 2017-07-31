@@ -241,7 +241,7 @@ mod tests {
 
 		let flat_trace3 = FlatTrace {
 			action: Action::Reward(Reward {
-				miner: "412fda7643b37d436cb40628f6dbbb80a07267ed".parse().unwrap(),
+				author: "412fda7643b37d436cb40628f6dbbb80a07267ed".parse().unwrap(),
 				value: 10.into(),
 				reward_type: RewardType::Uncle,
 			}),
@@ -252,7 +252,7 @@ mod tests {
 
 		let flat_trace4 = FlatTrace {
 			action: Action::Reward(Reward {
-				miner: "412fda7643b37d436cb40628f6dbbb80a07267ed".parse().unwrap(),
+				author: "412fda7643b37d436cb40628f6dbbb80a07267ed".parse().unwrap(),
 				value: 10.into(),
 				reward_type: RewardType::Block,
 			}),
