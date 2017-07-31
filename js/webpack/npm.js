@@ -22,9 +22,6 @@ const rulesEs6 = require('./rules/es6');
 const rulesParity = require('./rules/parity');
 const Shared = require('./shared');
 
-const ENV = process.env.NODE_ENV || 'development';
-const isProd = ENV === 'production';
-
 const LIBRARY = process.env.LIBRARY;
 
 if (!LIBRARY) {
