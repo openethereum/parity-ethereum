@@ -1343,6 +1343,8 @@ impl BlockChainClient for Client {
 			if let Some(block) = self.miner.pending_block(chain.best_block_number()) {
 				return Some(encoded::Header::new(block.header.rlp(Seal::Without)));
 			}
+			// fall back to latest
+			return self.block_header(BlockId::Latest);
 		}
 
 		Self::block_hash(&chain, &self.miner, id).and_then(|hash| chain.block_header_data(&hash))
@@ -1365,6 +1367,8 @@ impl BlockChainClient for Client {
 			if let Some(block) = self.miner.pending_block(chain.best_block_number()) {
 				return Some(encoded::Body::new(BlockChain::block_to_body(&block.rlp_bytes(Seal::Without))));
 			}
+			// fall back to latest
+			return self.block_body(BlockId::Latest);
 		}
 
 		Self::block_hash(&chain, &self.miner, id).and_then(|hash| chain.block_body(&hash))
@@ -1377,6 +1381,8 @@ impl BlockChainClient for Client {
 			if let Some(block) = self.miner.pending_block(chain.best_block_number()) {
 				return Some(encoded::Block::new(block.rlp_bytes(Seal::Without)));
 			}
+			// fall back to latest
+			return self.block(BlockId::Latest);
 		}
 
 		Self::block_hash(&chain, &self.miner, id).and_then(|hash| {
@@ -1398,15 +1404,17 @@ impl BlockChainClient for Client {
 	}
 
 	fn block_total_difficulty(&self, id: BlockId) -> Option<U256> {
+		let chain = self.chain.read();
 		if let BlockId::Pending = id {
-			// NOTE Watch out for deadlock here.
-			let pending_difficulty = self.miner.pending_block_header(self.chain.read().best_block_number()).map(|header| *header.difficulty());
+			let latest_difficulty = self.block_total_difficulty(BlockId::Latest).expect("blocks in chain have details; qed");
+			let pending_difficulty = self.miner.pending_block_header(chain.best_block_number()).map(|header| *header.difficulty());
 			if let Some(difficulty) = pending_difficulty {
-				return Some(difficulty + self.block_total_difficulty(BlockId::Latest).expect("blocks in chain have details; qed"));
+				return Some(difficulty + latest_difficulty);
 			}
+			// fall back to latest
+			return Some(latest_difficulty);
 		}
 
-		let chain = self.chain.read();
 		Self::block_hash(&chain, &self.miner, id).and_then(|hash| chain.block_details(&hash)).map(|d| d.total_difficulty)
 	}
 
