@@ -206,7 +206,7 @@ pub trait IsBlock {
 	fn uncles(&self) -> &[Header] { &self.block().uncles }
 
 	/// Get tracing enabled flag for this block.
-	fn tracing_enabled(&self) -> &bool { &self.block().tracing_enabled }
+	fn tracing_enabled(&self) -> bool { self.block().tracing_enabled }
 }
 
 /// Trait for a object that has a state database.

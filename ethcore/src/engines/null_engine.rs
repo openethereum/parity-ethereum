@@ -17,8 +17,8 @@
 use std::collections::BTreeMap;
 use util::Address;
 use builtin::Builtin;
-use block::*;
-use util::*;
+use block::{ExecutedBlock, };
+use util::U256;
 use engines::{Engine, CloseOutcome};
 use spec::CommonParams;
 use evm::Schedule;

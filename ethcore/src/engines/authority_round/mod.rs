@@ -555,7 +555,7 @@ impl Engine for AuthorityRound {
 
 		// Trace it
 		let block_miner = fields.header.author().clone();
-		tracer.trace_reward(block_miner, self.block_reward, RewardType::Block);
+		tracer.trace_reward(block_miner, self.params().block_reward, RewardType::Block);
 
 		// Commit state so that we can actually figure out the state root.
 		if let Err(ref e) = res {

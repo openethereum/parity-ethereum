@@ -301,14 +301,14 @@ impl Engine for Arc<Ethash> {
 				result_uncle_reward = reward * U256::from(8 + u.number() - current_number) / U256::from(8);
 				fields.state.add_balance(
 					u.author(),
-					&(result_uncle_reward),
+					&result_uncle_reward,
 					CleanupMode::NoEmpty
 				)	
 			} else {
 				result_uncle_reward = reward / U256::from(32);
 				fields.state.add_balance(
 					u.author(),
-					&(result_uncle_reward),
+					&result_uncle_reward,
 					CleanupMode::NoEmpty
 				)
 			}?;
