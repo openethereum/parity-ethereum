@@ -397,8 +397,16 @@ impl MiningBlockChainClient for TestBlockChainClient {
 }
 
 impl BlockChainClient for TestBlockChainClient {
-	fn call(&self, _t: &SignedTransaction, _block: BlockId, _analytics: CallAnalytics) -> Result<Executed, CallError> {
+	fn call(&self, _t: &SignedTransaction, _analytics: CallAnalytics, _block: BlockId) -> Result<Executed, CallError> {
 		self.execution_result.read().clone().unwrap()
+	}
+
+	fn call_many(&self, txs: &[(SignedTransaction, CallAnalytics)], block: BlockId) -> Result<Vec<Executed>, CallError> {
+		let mut res = Vec::with_capacity(txs.len());
+		for &(ref tx, analytics) in txs {
+			res.push(self.call(tx, analytics, block)?);
+		}
+		Ok(res)
 	}
 
 	fn estimate_gas(&self, _t: &SignedTransaction, _block: BlockId) -> Result<U256, CallError> {

@@ -182,7 +182,11 @@ pub trait BlockChainClient : Sync + Send {
 	fn logs(&self, filter: Filter) -> Vec<LocalizedLogEntry>;
 
 	/// Makes a non-persistent transaction call.
-	fn call(&self, t: &SignedTransaction, block: BlockId, analytics: CallAnalytics) -> Result<Executed, CallError>;
+	fn call(&self, tx: &SignedTransaction, analytics: CallAnalytics, block: BlockId) -> Result<Executed, CallError>;
+
+	/// Makes multiple non-persistent but dependent transaction calls.
+	/// Returns a vector of successes or a failure if any of the transaction fails.
+	fn call_many(&self, txs: &[(SignedTransaction, CallAnalytics)], block: BlockId) -> Result<Vec<Executed>, CallError>;
 
 	/// Estimates how much gas will be necessary for a call.
 	fn estimate_gas(&self, t: &SignedTransaction, block: BlockId) -> Result<U256, CallError>;

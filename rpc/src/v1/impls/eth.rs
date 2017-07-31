@@ -620,7 +620,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 		};
 
 		let num = num.unwrap_or_default();
-		let result = self.client.call(&signed, num.into(), Default::default());
+		let result = self.client.call(&signed, Default::default(), num.into());
 
 		future::done(result
 			.map(|b| b.output.into())

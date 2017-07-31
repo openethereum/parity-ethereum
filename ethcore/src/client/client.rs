@@ -1112,6 +1112,31 @@ impl Client {
 			data: data,
 		}.fake_sign(from)
 	}
+
+	fn do_call(&self, env_info: &EnvInfo, state: &mut State<StateDB>, increase_balance: bool, t: &SignedTransaction, analytics: CallAnalytics) -> Result<Executed, CallError> {
+		let original_state = if analytics.state_diffing { Some(state.clone()) } else { None };
+
+		// give the sender a sufficient balance (if calling in pending block)
+		if increase_balance {
+			let sender = t.sender();
+			let balance = state.balance(&sender).map_err(ExecutionError::from)?;
+			let needed_balance = t.value + t.gas * t.gas_price;
+			if balance < needed_balance {
+				state.add_balance(&sender, &(needed_balance - balance), state::CleanupMode::NoEmpty)
+					.map_err(ExecutionError::from)?;
+			}
+		}
+
+		let options = TransactOptions { tracing: analytics.transaction_tracing, vm_tracing: analytics.vm_tracing, check_nonce: false };
+		let mut ret = Executive::new(state, env_info, &*self.engine).transact_virtual(t, options)?;
+
+		// TODO gav move this into Executive.
+		if let Some(original) = original_state {
+			ret.state_diff = Some(state.diff_from(original).map_err(ExecutionError::from)?);
+		}
+
+		Ok(ret)
+	}
 }
 
 impl snapshot::DatabaseRestore for Client {
@@ -1136,34 +1161,31 @@ impl snapshot::DatabaseRestore for Client {
 }
 
 impl BlockChainClient for Client {
-	fn call(&self, t: &SignedTransaction, block: BlockId, analytics: CallAnalytics) -> Result<Executed, CallError> {
+	fn call(&self, transaction: &SignedTransaction, analytics: CallAnalytics, block: BlockId) -> Result<Executed, CallError> {
 		let mut env_info = self.env_info(block).ok_or(CallError::StatePruned)?;
 		env_info.gas_limit = U256::max_value();
 
 		// that's just a copy of the state.
 		let mut state = self.state_at(block).ok_or(CallError::StatePruned)?;
-		let original_state = if analytics.state_diffing { Some(state.clone()) } else { None };
 
-		// give the sender a sufficient balance (if calling in pending block)
-		if let BlockId::Pending = block {
-			let sender = t.sender();
-			let balance = state.balance(&sender).map_err(ExecutionError::from)?;
-			let needed_balance = t.value + t.gas * t.gas_price;
-			if balance < needed_balance {
-				state.add_balance(&sender, &(needed_balance - balance), state::CleanupMode::NoEmpty)
-					.map_err(ExecutionError::from)?;
-			}
+		self.do_call(&env_info, &mut state, block == BlockId::Pending, transaction, analytics)
+	}
+
+	fn call_many(&self, transactions: &[(SignedTransaction, CallAnalytics)], block: BlockId) -> Result<Vec<Executed>, CallError> {
+		let mut env_info = self.env_info(block).ok_or(CallError::StatePruned)?;
+		env_info.gas_limit = U256::max_value();
+
+		// that's just a copy of the state.
+		let mut state = self.state_at(block).ok_or(CallError::StatePruned)?;
+		let mut results = Vec::with_capacity(transactions.len());
+
+		for &(ref t, analytics) in transactions {
+			let ret = self.do_call(&env_info, &mut state, block == BlockId::Pending, t, analytics)?;
+			env_info.gas_used = ret.cumulative_gas_used;
+			results.push(ret);
 		}
 
-		let options = TransactOptions { tracing: analytics.transaction_tracing, vm_tracing: analytics.vm_tracing, check_nonce: false };
-		let mut ret = Executive::new(&mut state, &env_info, &*self.engine).transact_virtual(t, options)?;
-
-		// TODO gav move this into Executive.
-		if let Some(original) = original_state {
-			ret.state_diff = Some(state.diff_from(original).map_err(ExecutionError::from)?);
-		}
-
-		Ok(ret)
+		Ok(results)
 	}
 
 	fn estimate_gas(&self, t: &SignedTransaction, block: BlockId) -> Result<U256, CallError> {
@@ -1725,7 +1747,7 @@ impl BlockChainClient for Client {
 	fn call_contract(&self, block_id: BlockId, address: Address, data: Bytes) -> Result<Bytes, String> {
 		let transaction = self.contract_call_tx(block_id, address, data);
 
-		self.call(&transaction, block_id, Default::default())
+		self.call(&transaction, Default::default(), block_id)
 			.map_err(|e| format!("{:?}", e))
 			.map(|executed| {
 				executed.output
