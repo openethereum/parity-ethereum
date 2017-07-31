@@ -19,8 +19,6 @@
 @import '../_utils.css';
 
 .button {
-  composes: bezier-transform;
-
   background: $blue;
   border: none;
   border-radius: 0.25em;

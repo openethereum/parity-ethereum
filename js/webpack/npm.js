@@ -61,11 +61,7 @@ module.exports = {
       rulesEs6,
       {
         test: /(\.jsx|\.js)$/,
-        // use: [ 'happypack/loader?id=js' ],
-        use: isProd ? ['babel-loader'] : [
-          // 'react-hot-loader',
-          'babel-loader?cacheDirectory=true'
-        ],
+        use: [ 'babel-loader' ],
         exclude: /node_modules/
       }
     ]

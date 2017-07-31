@@ -24,8 +24,6 @@ $imgSize: 6rem;
 }
 
 .card {
-  composes: bezier-transform;
-
   align-items: center;
   background-color: rgba(240, 240, 240, 0.75);
   display: flex;

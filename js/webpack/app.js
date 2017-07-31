@@ -72,7 +72,7 @@ module.exports = {
       {
         test: /\.js$/,
         exclude: /(node_modules)/,
-        use: [ 'happypack/loader?id=babel-js' ]
+        use: [ 'babel-loader' ]
       },
       {
         test: /\.json$/,
@@ -85,7 +85,13 @@ module.exports = {
       {
         test: /\.html$/,
         use: [
-          'file-loader?name=[name].[ext]!extract-loader',
+          {
+            loader: 'file-loader',
+            options: {
+              name: '[name].[ext]'
+            }
+          },
+          'extract-loader',
           {
             loader: 'html-loader',
             options: {
@@ -97,44 +103,52 @@ module.exports = {
       },
       {
         test: /\.md$/,
+        use: [ 'html-loader', 'markdown-loader' ]
+      },
+      {
+        test: /\.css$/,
+        include: [ /packages/, /src/, /@parity/ ],
         use: [
+          'style-loader',
           {
-            loader: 'html-loader',
-            options: {}
+            loader: 'css-loader',
+            options: {
+              importLoaders: 1,
+              localIdentName: '[name]_[local]_[hash:base64:5]'
+            }
           },
           {
-            loader: 'markdown-loader',
-            options: {}
+            loader: 'postcss-loader',
+            options: {
+              'postcss-import': {},
+              'postcss-nested': {},
+              'postcss-simple-vars': {}
+            }
           }
         ]
       },
       {
         test: /\.css$/,
-        include: [ /packages/, /src/, /@parity/ ],
-        loader: (isProd && !isEmbed)
-          ? ExtractTextPlugin.extract([
-            // 'style-loader',
-            'css-loader?modules&sourceMap&importLoaders=1&localIdentName=[name]__[local]___[hash:base64:5]',
-            'postcss-loader'
-          ])
-          : undefined,
-        use: (isProd && !isEmbed)
-          ? undefined
-          : [ 'happypack/loader?id=css' ]
-      },
-
-      {
-        test: /\.css$/,
-        exclude: [ /packages/, /src/ ],
+        exclude: [ /packages/, /src/, /@parity/ ],
         use: [ 'style-loader', 'css-loader' ]
       },
       {
         test: /\.(png|jpg)$/,
-        use: [ 'file-loader?&name=assets/[name].[hash:10].[ext]' ]
+        use: [ {
+          loader: 'file-loader',
+          options: {
+            name: 'assets/[name].[hash:10].[ext]'
+          }
+        } ]
       },
       {
         test: /\.(woff|woff2|ttf|eot|otf)(\?v=[0-9]\.[0-9]\.[0-9])?$/,
-        use: [ 'file-loader?name=fonts/[name][hash:10].[ext]' ]
+        use: [ {
+          loader: 'file-loader',
+          options: {
+            name: 'fonts/[name][hash:10].[ext]'
+          }
+        } ]
       },
       {
         test: /parity-logo-white-no-text\.svg/,
@@ -143,7 +157,12 @@ module.exports = {
       {
         test: /\.svg(\?v=[0-9]\.[0-9]\.[0-9])?$/,
         exclude: [ /parity-logo-white-no-text\.svg/ ],
-        use: [ 'file-loader?name=assets/[name].[hash:10].[ext]' ]
+        use: [ {
+          loader: 'file-loader',
+          options: {
+            name: 'assets/[name].[hash:10].[ext]'
+          }
+        } ]
       }
     ],
     noParse: [

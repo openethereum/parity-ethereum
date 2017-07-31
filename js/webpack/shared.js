@@ -17,12 +17,7 @@
 const webpack = require('webpack');
 const path = require('path');
 const fs = require('fs');
-const HappyPack = require('happypack');
 
-const postcssImport = require('postcss-import');
-const postcssNested = require('postcss-nested');
-const postcssVars = require('postcss-simple-vars');
-const rucksack = require('rucksack-css');
 const CircularDependencyPlugin = require('circular-dependency-plugin');
 const ProgressBarPlugin = require('progress-bar-webpack-plugin');
 const PackageJson = require('../package.json');
@@ -78,21 +73,6 @@ function getBabelrc () {
 }
 
 function getPlugins (_isProd = isProd) {
-  const postcss = [
-    postcssImport({
-      addDependencyTo: webpack
-    }),
-    postcssNested({}),
-    postcssVars({
-      unknown: function (node, name, result) {
-        node.warn(result, `Unknown variable ${name}`);
-      }
-    }),
-    rucksack({
-      autoprefixer: true
-    })
-  ];
-
   const plugins = (isAnalize
     ? []
     : [
@@ -100,24 +80,6 @@ function getPlugins (_isProd = isProd) {
         format: '[:msg] [:bar] ' + ':percent' + ' (:elapsed seconds)'
       })
     ]).concat([
-      new HappyPack({
-        id: 'css',
-        threads: 4,
-        loaders: [
-          'style-loader',
-          'css-loader?modules&sourceMap&importLoaders=1&localIdentName=[name]__[local]___[hash:base64:5]',
-          'postcss-loader'
-        ],
-        verbose: !isAnalize
-      }),
-
-      new HappyPack({
-        id: 'babel-js',
-        threads: 4,
-        loaders: [ isProd ? 'babel-loader' : 'babel-loader?cacheDirectory=true' ],
-        verbose: !isAnalize
-      }),
-
       new webpack.DefinePlugin({
         'process.env': {
           EMBED: JSON.stringify(EMBED),
@@ -135,7 +97,6 @@ function getPlugins (_isProd = isProd) {
         debug: !isProd,
         options: {
           context: path.join(__dirname, '../src'),
-          postcss: postcss,
           babel: getBabelrc()
         }
       })

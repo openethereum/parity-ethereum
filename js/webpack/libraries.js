@@ -23,8 +23,6 @@ const rulesParity = require('./rules/parity');
 const Shared = require('./shared');
 
 const DEST = process.env.BUILD_DEST || '.build';
-const ENV = process.env.NODE_ENV || 'development';
-const isProd = ENV === 'production';
 
 module.exports = {
   context: path.join(__dirname, '../src'),
@@ -65,11 +63,7 @@ module.exports = {
       {
         test: /\.js$/,
         exclude: /node_modules/,
-        // use: [ 'happypack/loader?id=js' ]
-        use: isProd ? ['babel-loader'] : [
-          // 'react-hot-loader',
-          'babel-loader?cacheDirectory=true'
-        ]
+        use: [ 'babel-loader' ]
       },
       {
         test: /\.json$/,
@@ -77,7 +71,12 @@ module.exports = {
       },
       {
         test: /\.html$/,
-        use: [ 'file-loader?name=[name].[ext]' ]
+        use: [ {
+          loader: 'file-loader',
+          options: {
+            name: '[name].[ext]'
+          }
+        } ]
       }
     ]
   },
