@@ -22,5 +22,9 @@ case $1 in
     ;;
 esac
 
+set -e
+
+./scripts/validate_chainspecs.sh
+
 . ./scripts/targets.sh
-cargo test -j 8 $OPTIONS --features "$FEATURES" $TARGETS $1 \
+cargo test -j 8 $OPTIONS --features "$FEATURES" $TARGETS $1
