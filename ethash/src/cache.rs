@@ -76,7 +76,9 @@ impl NodeCacheBuilder {
 
 		let cache_size = get_cache_size(block_number);
 
-		assert!(cache_size % NODE_BYTES == 0, "Unaligned cache size");
+		// We use `debug_assert` since it is impossible for `get_cache_size` to return an unaligned
+		// value with the current implementation. If the implementation changes, CI will catch it.
+		debug_assert!(cache_size % NODE_BYTES == 0, "Unaligned cache size");
 		let num_nodes = cache_size / NODE_BYTES;
 
 		let nodes = make_memmapped_cache(&cache_path(cache_dir.as_ref(), &ident), num_nodes, &ident)
