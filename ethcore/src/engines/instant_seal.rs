@@ -24,16 +24,14 @@ use block::ExecutedBlock;
 /// An engine which does not provide any consensus mechanism, just seals blocks internally.
 pub struct InstantSeal {
 	params: CommonParams,
-	registrar: Address,
 	builtins: BTreeMap<Address, Builtin>,
 }
 
 impl InstantSeal {
 	/// Returns new instance of InstantSeal with default VM Factory
-	pub fn new(params: CommonParams, registrar: Address, builtins: BTreeMap<Address, Builtin>) -> Self {
+	pub fn new(params: CommonParams, builtins: BTreeMap<Address, Builtin>) -> Self {
 		InstantSeal {
 			params: params,
-			registrar: registrar,
 			builtins: builtins,
 		}
 	}
@@ -49,7 +47,7 @@ impl Engine for InstantSeal {
 	}
 
 	fn additional_params(&self) -> HashMap<String, String> {
-		hash_map!["registrar".to_owned() => self.registrar.hex()]
+		hash_map!["registrar".to_owned() => self.params().registrar.hex()]
 	}
 
 	fn builtins(&self) -> &BTreeMap<Address, Builtin> {
