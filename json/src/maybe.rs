@@ -68,7 +68,7 @@ impl<T> Into<Option<T>> for MaybeEmpty<T> {
 mod tests {
 	use std::str::FromStr;
 	use serde_json;
-	use util::hash;
+	use bigint::hash;
 	use hash::H256;
 	use maybe::MaybeEmpty;
 

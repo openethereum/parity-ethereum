@@ -4,7 +4,7 @@ version = "0.1.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
-ethcore-util = { path = "../util" }
+ethcore-bigint = { path = "../util/bigint" }
 rustc-hex = "1.0"
 serde = "1.0"
 serde_json = "1.0"

@@ -71,12 +71,9 @@ pub type BlockHash = H256;
 /// Engine using `Tendermint` consensus algorithm, suitable for EVM chain.
 pub struct Tendermint {
 	params: CommonParams,
-	gas_limit_bound_divisor: U256,
 	builtins: BTreeMap<Address, Builtin>,
 	step_service: IoService<Step>,
 	client: RwLock<Option<Weak<EngineClient>>>,
-	block_reward: U256,
-	registrar: Address,
 	/// Blockchain height.
 	height: AtomicUsize,
 	/// Consensus view.
@@ -166,12 +163,9 @@ impl Tendermint {
 		let engine = Arc::new(
 			Tendermint {
 				params: params,
-				gas_limit_bound_divisor: our_params.gas_limit_bound_divisor,
 				builtins: builtins,
 				client: RwLock::new(None),
 				step_service: IoService::<Step>::start()?,
-				block_reward: our_params.block_reward,
-				registrar: our_params.registrar,
 				height: AtomicUsize::new(1),
 				view: AtomicUsize::new(0),
 				step: RwLock::new(Step::Propose),
@@ -446,7 +440,9 @@ impl Engine for Tendermint {
 
 	fn params(&self) -> &CommonParams { &self.params }
 
-	fn additional_params(&self) -> HashMap<String, String> { hash_map!["registrar".to_owned() => self.registrar.hex()] }
+	fn additional_params(&self) -> HashMap<String, String> {
+		hash_map!["registrar".to_owned() => self.params().registrar.hex()]
+	}
 
 	fn builtins(&self) -> &BTreeMap<Address, Builtin> { &self.builtins }
 
@@ -471,7 +467,7 @@ impl Engine for Tendermint {
 		header.set_difficulty(new_difficulty);
 		header.set_gas_limit({
 			let gas_limit = parent.gas_limit().clone();
-			let bound_divisor = self.gas_limit_bound_divisor;
+			let bound_divisor = self.params().gas_limit_bound_divisor;
 			if gas_limit < gas_floor_target {
 				min(gas_floor_target, gas_limit + gas_limit / bound_divisor - 1.into())
 			} else {
@@ -545,7 +541,8 @@ impl Engine for Tendermint {
 	fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<(), Error>{
 		let fields = block.fields_mut();
 		// Bestow block reward
-		let res = fields.state.add_balance(fields.header.author(), &self.block_reward, CleanupMode::NoEmpty)
+		let reward = self.params().block_reward;
+		let res = fields.state.add_balance(fields.header.author(), &reward, CleanupMode::NoEmpty)
 			.map_err(::error::Error::from)
 			.and_then(|_| fields.state.commit());
 		// Commit state so that we can actually figure out the state root.
@@ -617,7 +614,7 @@ impl Engine for Tendermint {
 			self.check_above_threshold(origins.len())?
 		}
 
-		let gas_limit_divisor = self.gas_limit_bound_divisor;
+		let gas_limit_divisor = self.params().gas_limit_bound_divisor;
 		let min_gas = parent.gas_limit().clone() - parent.gas_limit().clone() / gas_limit_divisor;
 		let max_gas = parent.gas_limit().clone() + parent.gas_limit().clone() / gas_limit_divisor;
 		if header.gas_limit() <= &min_gas || header.gas_limit() >= &max_gas {

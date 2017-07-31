@@ -24,7 +24,7 @@ use cli::{Args, ArgsError};
 use util::{Hashable, H256, U256, Bytes, version_data, Address};
 use util::journaldb::Algorithm;
 use util::Colour;
-use ethsync::{NetworkConfiguration, is_valid_node_url, AllowIP};
+use ethsync::{NetworkConfiguration, is_valid_node_url};
 use ethcore::ethstore::ethkey::{Secret, Public};
 use ethcore::client::{VMType};
 use ethcore::miner::{MinerOptions, Banning, StratumOptions};
@@ -48,6 +48,7 @@ use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, KillBlockcha
 use presale::ImportWallet;
 use account::{AccountCmd, NewAccount, ListAccounts, ImportAccounts, ImportFromGethAccounts};
 use snapshot::{self, SnapshotCommand};
+use network::{IpFilter};
 
 #[derive(Debug, PartialEq)]
 pub enum Cmd {
@@ -56,7 +57,7 @@ pub enum Cmd {
 	Account(AccountCmd),
 	ImportPresaleWallet(ImportWallet),
 	Blockchain(BlockchainCmd),
-	SignerToken(WsConfiguration, UiConfiguration),
+	SignerToken(WsConfiguration, UiConfiguration, LogConfig),
 	SignerSign {
 		id: Option<usize>,
 		pwfile: Option<PathBuf>,
@@ -148,7 +149,7 @@ impl Configuration {
 			let authfile = ::signer::codes_path(&ws_conf.signer_path);
 
 			if self.args.cmd_new_token {
-				Cmd::SignerToken(ws_conf, ui_conf)
+				Cmd::SignerToken(ws_conf, ui_conf, logger_config.clone())
 			} else if self.args.cmd_sign {
 				let pwfile = self.args.flag_password.get(0).map(|pwfile| {
 					PathBuf::from(pwfile)
@@ -461,12 +462,10 @@ impl Configuration {
 		max(self.min_peers(), peers)
 	}
 
-	fn allow_ips(&self) -> Result<AllowIP, String> {
-		match self.args.flag_allow_ips.as_str() {
-			"all" => Ok(AllowIP::All),
-			"public" => Ok(AllowIP::Public),
-			"private" => Ok(AllowIP::Private),
-			_ => Err("Invalid IP filter value".to_owned()),
+	fn ip_filter(&self) -> Result<IpFilter, String> {
+		match IpFilter::parse(self.args.flag_allow_ips.as_str()) {
+			Ok(allow_ip) => Ok(allow_ip),
+			Err(_) => Err("Invalid IP filter value".to_owned()),
 		}
 	}
 
@@ -712,7 +711,7 @@ impl Configuration {
 		ret.max_peers = self.max_peers();
 		ret.min_peers = self.min_peers();
 		ret.snapshot_peers = self.snapshot_peers();
-		ret.allow_ips = self.allow_ips()?;
+		ret.ip_filter = self.ip_filter()?;
 		ret.max_pending_peers = self.max_pending_peers();
 		let mut net_path = PathBuf::from(self.directories().base);
 		net_path.push("network");
@@ -968,7 +967,6 @@ impl Configuration {
 		}.into()
 	}
 
-
 	fn ui_interface(&self) -> String {
 		self.interface(&self.args.flag_ui_interface)
 	}
@@ -1080,6 +1078,7 @@ impl Configuration {
 mod tests {
 	use std::io::Write;
 	use std::fs::{File, create_dir};
+	use std::str::FromStr;
 
 	use devtools::{RandomTempPath};
 	use ethcore::client::{VMType, BlockId};
@@ -1096,6 +1095,11 @@ mod tests {
 	use presale::ImportWallet;
 	use rpc::{WsConfiguration, UiConfiguration};
 	use run::RunCmd;
+
+	use network::{AllowIP, IpFilter};
+
+	extern crate ipnetwork;
+	use self::ipnetwork::IpNetwork;
 
 	use super::*;
 
@@ -1281,7 +1285,11 @@ mod tests {
 			interface: "127.0.0.1".into(),
 			port: 8180,
 			hosts: Some(vec![]),
-		}));
+		}, LogConfig {
+            color: true,
+            mode: None,
+            file: None,
+        } ));
 	}
 
 	#[test]
@@ -1751,5 +1759,51 @@ mod tests {
 		assert_eq!(&conf0.secretstore_config().unwrap().http_interface, "0.0.0.0");
 		assert_eq!(&conf0.ipfs_config().interface, "0.0.0.0");
 		assert_eq!(conf0.ipfs_config().hosts, None);
+	}
+
+	#[test]
+	fn allow_ips() {
+		let all = parse(&["parity", "--allow-ips", "all"]);
+		let private = parse(&["parity", "--allow-ips", "private"]);
+		let block_custom = parse(&["parity", "--allow-ips", "-10.0.0.0/8"]);
+		let combo = parse(&["parity", "--allow-ips", "public 10.0.0.0/8 -1.0.0.0/8"]);
+		let ipv6_custom_public = parse(&["parity", "--allow-ips", "public fc00::/7"]);
+		let ipv6_custom_private = parse(&["parity", "--allow-ips", "private -fc00::/7"]);
+
+		assert_eq!(all.ip_filter().unwrap(), IpFilter {
+			predefined: AllowIP::All,
+			custom_allow: vec![],
+			custom_block: vec![],
+		});
+
+		assert_eq!(private.ip_filter().unwrap(), IpFilter {
+			predefined: AllowIP::Private,
+			custom_allow: vec![],
+			custom_block: vec![],
+		});
+
+		assert_eq!(block_custom.ip_filter().unwrap(), IpFilter {
+			predefined: AllowIP::All,
+			custom_allow: vec![],
+			custom_block: vec![IpNetwork::from_str("10.0.0.0/8").unwrap()],
+		});
+
+		assert_eq!(combo.ip_filter().unwrap(), IpFilter {
+			predefined: AllowIP::Public,
+			custom_allow: vec![IpNetwork::from_str("10.0.0.0/8").unwrap()],
+			custom_block: vec![IpNetwork::from_str("1.0.0.0/8").unwrap()],
+		});
+
+		assert_eq!(ipv6_custom_public.ip_filter().unwrap(), IpFilter {
+			predefined: AllowIP::Public,
+			custom_allow: vec![IpNetwork::from_str("fc00::/7").unwrap()],
+			custom_block: vec![],
+		});
+
+		assert_eq!(ipv6_custom_private.ip_filter().unwrap(), IpFilter {
+			predefined: AllowIP::Private,
+			custom_allow: vec![],
+			custom_block: vec![IpNetwork::from_str("fc00::/7").unwrap()],
+		});
 	}
 }
