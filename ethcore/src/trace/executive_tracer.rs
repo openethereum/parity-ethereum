@@ -163,11 +163,11 @@ impl Tracer for ExecutiveTracer {
 		self.traces.push(trace);
 	}
 	
-	fn trace_reward(&mut self, miner: Address, value: U256, reward_type: RewardType) {
+	fn trace_reward(&mut self, author: Address, value: U256, reward_type: RewardType) {
 		let trace = FlatTrace {
 			subtraces: 0,
 			action: Action::Reward(Reward {
-				miner: miner,
+				author: author,
 				value: value,
 				reward_type: reward_type,
 			}),

@@ -256,8 +256,8 @@ impl Decodable for RewardType {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "ipc", binary)]
 pub struct Reward {
-	/// Miner's address.
-	pub miner: Address,
+	/// Author's address.
+	pub author: Address,
 	/// Reward amount.
 	pub value: U256,
 	/// Reward type.
@@ -267,14 +267,14 @@ pub struct Reward {
 impl Reward {
 	/// Return reward action bloom.
 	pub fn bloom(&self) -> LogBloom {
-		LogBloom::from_bloomed(&self.miner.sha3())
+		LogBloom::from_bloomed(&self.author.sha3())
 	}
 }
 
 impl Encodable for Reward {
 	fn rlp_append(&self, s: &mut RlpStream) {
 		s.begin_list(3);
-		s.append(&self.miner);
+		s.append(&self.author);
 		s.append(&self.value);
 		s.append(&self.reward_type);
 	}
@@ -283,7 +283,7 @@ impl Encodable for Reward {
 impl Decodable for Reward {
 	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
 		let res = Reward {
-			miner: rlp.val_at(0)?,
+			author: rlp.val_at(0)?,
 			value: rlp.val_at(1)?,
 			reward_type: rlp.val_at(2)?,
 		};

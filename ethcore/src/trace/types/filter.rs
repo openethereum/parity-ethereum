@@ -130,7 +130,7 @@ impl Filter {
 				from_matches && to_matches
 			},
 			Action::Reward(ref reward) => {
-				let to_matches = self.to_address.matches(&reward.miner);
+				let to_matches = self.to_address.matches(&reward.author);
 				to_matches
 			}
 		}
@@ -348,7 +348,7 @@ mod tests {
 
 		let trace = FlatTrace {
 			action: Action::Reward(Reward {
-				miner: 2.into(),
+				author: 2.into(),
 				value: 100.into(),
 				reward_type: RewardType::Block,
 			}),
