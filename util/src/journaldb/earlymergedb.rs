@@ -555,6 +555,7 @@ mod tests {
 	#![cfg_attr(feature="dev", allow(blacklisted_name))]
 	#![cfg_attr(feature="dev", allow(similar_names))]
 
+	extern crate tempdir;
 	use std::path::Path;
 	use hashdb::{HashDB, DBValue};
 	use super::*;
@@ -562,6 +563,7 @@ mod tests {
 	use ethcore_logger::init_log;
 	use kvdb::{DatabaseConfig};
 	use {Hashable, H32};
+	use self::tempdir::TempDir;
 
 	#[test]
 	fn insert_same_in_fork() {
@@ -826,8 +828,8 @@ mod tests {
 
 	#[test]
 	fn reopen() {
-		let mut dir = ::std::env::temp_dir();
-		dir.push(H32::random().hex());
+		let temp_path = TempDir::new("").unwrap();
+		let dir = temp_path.path().join(H32::random().hex());
 		let bar = H256::random();
 
 		let foo = {
@@ -997,8 +999,8 @@ mod tests {
 	fn reopen_remove_three() {
 		init_log();
 
-		let mut dir = ::std::env::temp_dir();
-		dir.push(H32::random().hex());
+		let temp_path = TempDir::new("").unwrap();
+		let dir = temp_path.path().join(H32::random().hex());
 
 		let foo = b"foo".sha3();
 
@@ -1052,8 +1054,8 @@ mod tests {
 
 	#[test]
 	fn reopen_fork() {
-		let mut dir = ::std::env::temp_dir();
-		dir.push(H32::random().hex());
+		let temp_path = TempDir::new("").unwrap();
+		let dir = temp_path.path().join(H32::random().hex());
 		let (foo, bar, baz) = {
 			let mut jdb = new_db(&dir);
 			// history is 1

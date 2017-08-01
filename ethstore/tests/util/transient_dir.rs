@@ -14,17 +14,18 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+extern crate tempdir;
 use std::path::PathBuf;
-use std::{env, fs};
+use std::fs;
 use rand::{Rng, OsRng};
 use ethstore::dir::{KeyDirectory, RootDiskDirectory};
 use ethstore::{Error, SafeAccount};
+use self::tempdir::TempDir;
 
 pub fn random_dir() -> PathBuf {
 	let mut rng = OsRng::new().unwrap();
-	let mut dir = env::temp_dir();
-	dir.push(format!("{:x}-{:x}", rng.next_u64(), rng.next_u64()));
-	dir
+    let temp_path = TempDir::new("").unwrap();
+    temp_path.path().join(format!("{:x}-{:x}", rng.next_u64(), rng.next_u64()))
 }
 
 pub struct TransientDir {

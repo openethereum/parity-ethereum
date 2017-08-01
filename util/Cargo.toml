@@ -35,6 +35,9 @@ regex = "0.2"
 lru-cache = "0.1.0"
 ethcore-logger = { path = "../logger" }
 
+[dev-dependencies]
+tempdir = "0.3.5"
+
 [features]
 default = []
 dev = ["clippy"]

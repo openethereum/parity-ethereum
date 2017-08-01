@@ -118,20 +118,27 @@ impl EthashManager {
 	}
 }
 
-#[test]
-fn test_lru() {
-	let ethash = EthashManager::new(&::std::env::temp_dir());
-	let hash = [0u8; 32];
-	ethash.compute_light(1, &hash, 1);
-	ethash.compute_light(50000, &hash, 1);
-	assert_eq!(ethash.cache.lock().recent_epoch.unwrap(), 1);
-	assert_eq!(ethash.cache.lock().prev_epoch.unwrap(), 0);
-	ethash.compute_light(1, &hash, 1);
-	assert_eq!(ethash.cache.lock().recent_epoch.unwrap(), 0);
-	assert_eq!(ethash.cache.lock().prev_epoch.unwrap(), 1);
-	ethash.compute_light(70000, &hash, 1);
-	assert_eq!(ethash.cache.lock().recent_epoch.unwrap(), 2);
-	assert_eq!(ethash.cache.lock().prev_epoch.unwrap(), 0);
+#[cfg(test)]
+mod test {
+	extern crate tempdir;
+	use self::tempdir::TempDir;
+	use super::EthashManager;
+
+	#[test]
+	fn test_lru() {
+		let ethash = EthashManager::new(&TempDir::new("").unwrap());
+		let hash = [0u8; 32];
+		ethash.compute_light(1, &hash, 1);
+		ethash.compute_light(50000, &hash, 1);
+		assert_eq!(ethash.cache.lock().recent_epoch.unwrap(), 1);
+		assert_eq!(ethash.cache.lock().prev_epoch.unwrap(), 0);
+		ethash.compute_light(1, &hash, 1);
+		assert_eq!(ethash.cache.lock().recent_epoch.unwrap(), 0);
+		assert_eq!(ethash.cache.lock().prev_epoch.unwrap(), 1);
+		ethash.compute_light(70000, &hash, 1);
+		assert_eq!(ethash.cache.lock().recent_epoch.unwrap(), 2);
+		assert_eq!(ethash.cache.lock().prev_epoch.unwrap(), 0);
+	}
 }
 
 #[cfg(feature = "benches")]
