@@ -156,6 +156,7 @@
     "@parity/dapp-account": "paritytech/dapp-account",
     "@parity/dapp-accounts": "paritytech/dapp-accounts",
     "@parity/dapp-address": "paritytech/dapp-address",
+    "@parity/dapp-addresses": "paritytech/dapp-addresses",
     "@parity/dapp-githubhint": "paritytech/dapp-githubhint",
     "@parity/shared": "paritytech/js-shared",
     "@parity/ui": "paritytech/js-ui",
