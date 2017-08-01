@@ -514,7 +514,7 @@ impl Engine for AuthorityRound {
 	fn on_new_block(
 		&self,
 		block: &mut ExecutedBlock,
-		last_hashes: Arc<::evm::env_info::LastHashes>,
+		last_hashes: Arc<::vm::LastHashes>,
 		epoch_begin: bool,
 	) -> Result<(), Error> {
 		let parent_hash = block.fields().header.parent_hash().clone();

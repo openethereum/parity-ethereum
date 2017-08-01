@@ -31,7 +31,7 @@ extern crate rustc_hex;
 use self::test::{Bencher, black_box};
 
 use evm::run_vm;
-use ethcore::evm::action_params::ActionParams;
+use ethcore::vm::ActionParams;
 use ethcore_util::U256;
 use rustc_hex::FromHex;
 
