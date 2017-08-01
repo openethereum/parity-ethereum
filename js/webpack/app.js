@@ -16,6 +16,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 const Api = require('@parity/api');
+const fs = require('fs');
 const path = require('path');
 const flatten = require('lodash.flatten');
 // const ReactIntlAggregatePlugin = require('react-intl-aggregate-webpack-plugin');
@@ -202,26 +203,34 @@ module.exports = {
         new CopyWebpackPlugin(
           flatten([
             {
-              from: './error_pages.css',
+              from: path.join(__dirname, '../src/error_pages.css'),
               to: 'styles.css'
             },
             flatten(
-              DAPPS_ALL.map((dapp) => {
-                const destination = Api.util.isHex(dapp.id)
-                  ? dapp.id
-                  : Api.util.sha3(dapp.url);
+              DAPPS_ALL
+                .map((dapp) => {
+                  const dir = path.join(__dirname, '../node_modules', dapp.package);
 
-                return [
-                  {
-                    from: `../node_modules/${dapp.package}/dist`,
-                    to: `dapps/${destination}/dist/`
-                  },
-                  {
-                    from: `../node_modules/${dapp.package}/index.html`,
-                    to: `dapps/${destination}/`
+                  if (!fs.existsSync(path.join(dir, 'dist'))) {
+                    return null;
                   }
-                ];
-              })
+
+                  const destination = Api.util.isHex(dapp.id)
+                    ? dapp.id
+                    : Api.util.sha3(dapp.url);
+
+                  return [
+                    {
+                      from: path.join(dir, 'dist'),
+                      to: `dapps/${destination}/dist/`
+                    },
+                    {
+                      from: path.join(dir, 'index.html'),
+                      to: `dapps/${destination}/`
+                    }
+                  ];
+                })
+                .filter((copy) => copy)
             )
           ]),
           {}

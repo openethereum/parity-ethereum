@@ -152,10 +152,13 @@
     "yargs": "6.6.0"
   },
   "dependencies": {
-    "@parity/api": "paritytech/js-api#ade4a6750292a2918676039ea53eea20c4c728bc",
-    "@parity/dapp-accounts": "paritytech/dapp-accounts#c5f44ddc22427fc27ed919a93d3a7c362f250c61",
-    "@parity/shared": "paritytech/js-shared#32d6709cb2ee267553aa4292a482cd787af3df81",
-    "@parity/ui": "paritytech/js-ui#037782bd16e8abf1c169143aa61749a44b94489b",
+    "@parity/api": "paritytech/js-api",
+    "@parity/dapp-account": "paritytech/dapp-account",
+    "@parity/dapp-accounts": "paritytech/dapp-accounts",
+    "@parity/dapp-address": "paritytech/dapp-address",
+    "@parity/dapp-githubhint": "paritytech/dapp-githubhint",
+    "@parity/shared": "paritytech/js-shared",
+    "@parity/ui": "paritytech/js-ui",
     "es6-error": "4.0.0",
     "es6-promise": "4.0.5",
     "flat": "2.0.1",
