@@ -186,8 +186,8 @@ impl Ntp for SimpleNtp {
 // NOTE In a positive scenario first results will be seen after:
 // MAX_RESULTS * UPDATE_TIMEOUT_INCOMPLETE_SECS seconds.
 const MAX_RESULTS: usize = 4;
-const UPDATE_TIMEOUT_OK_SECS: u64 = 3600;
-const UPDATE_TIMEOUT_WARN_SECS: u64 = 120;
+const UPDATE_TIMEOUT_OK_SECS: u64 = 6 * 60 * 60;
+const UPDATE_TIMEOUT_WARN_SECS: u64 = 15 * 60;
 const UPDATE_TIMEOUT_ERR_SECS: u64 = 60;
 const UPDATE_TIMEOUT_INCOMPLETE_SECS: u64 = 10;
 
