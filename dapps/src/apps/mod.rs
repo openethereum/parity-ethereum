@@ -14,10 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::sync::Arc;
-use util::RwLock;
 
 use endpoint::{Endpoints, Endpoint};
 use page::PageEndpoint;
@@ -65,7 +63,7 @@ pub fn all_endpoints<F: Fetch>(
 	web_proxy_tokens: Arc<WebProxyTokens>,
 	remote: Remote,
 	fetch: F,
-) -> (Arc<RwLock<Vec<String>>>, Endpoints) {
+) -> (Vec<String>, Endpoints) {
 	// fetch fs dapps at first to avoid overwriting builtins
 	let mut pages = fs::local_endpoints(dapps_path.clone(), embeddable.clone());
 	let local_endpoints: Vec<String> = pages.keys().cloned().collect();
@@ -82,10 +80,10 @@ pub fn all_endpoints<F: Fetch>(
 	pages.insert("proxy".into(), ProxyPac::boxed(embeddable.clone(), dapps_domain.to_owned()));
 	pages.insert(WEB_PATH.into(), Web::boxed(embeddable.clone(), web_proxy_tokens.clone(), remote.clone(), fetch.clone()));
 
-	(Arc::new(RwLock::new(local_endpoints)), Arc::new(RwLock::new(pages)))
+	(local_endpoints, pages)
 }
 
-fn insert<T : WebApp + Default + 'static>(pages: &mut BTreeMap<String, Box<Endpoint>>, id: &str, embed_at: Embeddable) {
+fn insert<T : WebApp + Default + 'static>(pages: &mut Endpoints, id: &str, embed_at: Embeddable) {
 	pages.insert(id.to_owned(), Box::new(match embed_at {
 		Embeddable::Yes(address) => PageEndpoint::new_safe_to_embed(T::default(), address),
 		Embeddable::No => PageEndpoint::new(T::default()),
