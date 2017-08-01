@@ -21,10 +21,8 @@
 
 extern crate base32;
 extern crate futures;
-extern crate futures_cpupool;
 extern crate linked_hash_map;
 extern crate mime_guess;
-extern crate ntp;
 extern crate rand;
 extern crate rustc_hex;
 extern crate serde;
@@ -39,6 +37,7 @@ extern crate jsonrpc_http_server;
 
 extern crate ethcore_util as util;
 extern crate fetch;
+extern crate node_health;
 extern crate parity_dapps_glue as parity_dapps;
 extern crate parity_hash_fetch as hash_fetch;
 extern crate parity_reactor;
@@ -76,19 +75,12 @@ use std::collections::HashMap;
 use jsonrpc_http_server::{self as http, hyper, Origin};
 
 use fetch::Fetch;
-use futures_cpupool::CpuPool;
+use node_health::{NodeHealth, CpuPool, TimeChecker};
 use parity_reactor::Remote;
 
 pub use hash_fetch::urlhint::ContractClient;
+pub use node_health::SyncStatus;
 
-/// Indicates sync status
-pub trait SyncStatus: Send + Sync {
-	/// Returns true if there is a major sync happening.
-	fn is_major_importing(&self) -> bool;
-
-	/// Returns number of connected and ideal peers.
-	fn peers(&self) -> (usize, usize);
-}
 
 /// Validates Web Proxy tokens
 pub trait WebProxyTokens: Send + Sync {
@@ -249,8 +241,7 @@ fn special_endpoints<T: AsRef<str>>(
 	special.insert(router::SpecialEndpoint::Utils, Some(apps::utils()));
 	special.insert(router::SpecialEndpoint::Api, Some(api::RestApi::new(
 		content_fetcher,
-		sync_status,
-		api::TimeChecker::new(ntp_servers, pool),
+		NodeHealth::new(sync_status, TimeChecker::new(ntp_servers, pool), remote.clone()),
 		remote,
 	)));
 	special
