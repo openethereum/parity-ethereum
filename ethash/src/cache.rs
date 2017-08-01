@@ -168,13 +168,11 @@ fn consume_cache<P: AsRef<Path>>(cache: &mut Cache, path: &P) -> io::Result<()> 
 				slice::from_raw_parts_mut(vec.as_mut_ptr() as *mut u8, vec.len() * NODE_BYTES)
 			};
 
-			println!("Writing...");
 			file.write(buf).map(|_| ())?;
 
 			file
 		}
 		Either::Right(ref mmap) => {
-			println!("Flushing...");
 			mmap.flush()?;
 
 			return Ok(());
