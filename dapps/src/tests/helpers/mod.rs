@@ -26,7 +26,7 @@ use jsonrpc_http_server::{self as http, Host, DomainsValidation};
 use devtools::http_client;
 use hash_fetch::urlhint::ContractClient;
 use fetch::{Fetch, Client as FetchClient};
-use futures_cpupool::CpuPool;
+use node_health::{NodeHealth, TimeChecker, CpuPool};
 use parity_reactor::Remote;
 
 use {Middleware, SyncStatus, WebProxyTokens};
@@ -39,6 +39,7 @@ use self::fetch::FakeFetch;
 
 const SIGNER_PORT: u16 = 18180;
 
+#[derive(Debug)]
 struct FakeSync(bool);
 impl SyncStatus for FakeSync {
 	fn is_major_importing(&self) -> bool { self.0 }
@@ -254,9 +255,13 @@ impl Server {
 		remote: Remote,
 		fetch: F,
 	) -> Result<Server, http::Error> {
+		let health = NodeHealth::new(
+			sync_status.clone(),
+			TimeChecker::new::<String>(&[], CpuPool::new(1)),
+			remote.clone(),
+		);
 		let middleware = Middleware::dapps(
-			&["0.pool.ntp.org:123".into(), "1.pool.ntp.org:123".into()],
-			CpuPool::new(4),
+			health,
 			remote,
 			signer_address,
 			vec![],

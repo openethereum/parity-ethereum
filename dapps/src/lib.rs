@@ -55,7 +55,6 @@ extern crate ethcore_devtools as devtools;
 #[cfg(test)]
 extern crate env_logger;
 
-
 mod endpoint;
 mod apps;
 mod page;
@@ -75,7 +74,7 @@ use std::collections::HashMap;
 use jsonrpc_http_server::{self as http, hyper, Origin};
 
 use fetch::Fetch;
-use node_health::{NodeHealth, CpuPool, TimeChecker};
+use node_health::NodeHealth;
 use parity_reactor::Remote;
 
 pub use hash_fetch::urlhint::ContractClient;
@@ -122,8 +121,7 @@ impl Middleware {
 
 	/// Creates new middleware for UI server.
 	pub fn ui<F: Fetch>(
-		ntp_servers: &[String],
-		pool: CpuPool,
+		health: NodeHealth,
 		remote: Remote,
 		dapps_domain: &str,
 		registrar: Arc<ContractClient>,
@@ -138,11 +136,9 @@ impl Middleware {
 		).embeddable_on(None).allow_dapps(false));
 		let special = {
 			let mut special = special_endpoints(
-				ntp_servers,
-				pool,
+				health,
 				content_fetcher.clone(),
 				remote.clone(),
-				sync_status.clone(),
 			);
 			special.insert(router::SpecialEndpoint::Home, Some(apps::ui()));
 			special
@@ -163,8 +159,7 @@ impl Middleware {
 
 	/// Creates new Dapps server middleware.
 	pub fn dapps<F: Fetch>(
-		ntp_servers: &[String],
-		pool: CpuPool,
+		health: NodeHealth,
 		remote: Remote,
 		ui_address: Option<(String, u16)>,
 		extra_embed_on: Vec<(String, u16)>,
@@ -195,11 +190,9 @@ impl Middleware {
 
 		let special = {
 			let mut special = special_endpoints(
-				ntp_servers,
-				pool,
+				health,
 				content_fetcher.clone(),
 				remote.clone(),
-				sync_status,
 			);
 			special.insert(
 				router::SpecialEndpoint::Home,
@@ -229,19 +222,17 @@ impl http::RequestMiddleware for Middleware {
 	}
 }
 
-fn special_endpoints<T: AsRef<str>>(
-	ntp_servers: &[T],
-	pool: CpuPool,
+fn special_endpoints(
+	health: NodeHealth,
 	content_fetcher: Arc<apps::fetcher::Fetcher>,
 	remote: Remote,
-	sync_status: Arc<SyncStatus>,
 ) -> HashMap<router::SpecialEndpoint, Option<Box<endpoint::Endpoint>>> {
 	let mut special = HashMap::new();
 	special.insert(router::SpecialEndpoint::Rpc, None);
 	special.insert(router::SpecialEndpoint::Utils, Some(apps::utils()));
 	special.insert(router::SpecialEndpoint::Api, Some(api::RestApi::new(
 		content_fetcher,
-		NodeHealth::new(sync_status, TimeChecker::new(ntp_servers, pool), remote.clone()),
+		health,
 		remote,
 	)));
 	special
