@@ -20,6 +20,7 @@ import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import PropTypes from 'prop-types';
 
+import UpgradeStore from '@parity/shared/mobx/upgradeParity';
 import { Errors } from '@parity/ui';
 
 import Connection from '../Connection';
@@ -31,7 +32,6 @@ import Requests from '../Requests';
 import Snackbar from '../Snackbar';
 import Status from '../Status';
 import UpgradeParity from '../UpgradeParity';
-import UpgradeStore from '../UpgradeParity/store';
 import SyncWarning, { showSyncWarning } from '../SyncWarning';
 
 import Store from './store';

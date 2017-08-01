@@ -102,12 +102,14 @@ export default class Dapp extends Component {
       case 'local':
         src = `${dappsUrl}/${app.id}/`;
         break;
+
       case 'network':
         src = `${dappsUrl}/${app.contentHash}/`;
         break;
+
       default:
         let dapphost = process.env.DAPPS_URL || (
-          process.env.NODE_ENV === 'production' && !app.secure
+          process.env.NODE_ENV === 'production'
             ? `${dappsUrl}/ui`
             : ''
         );
@@ -116,7 +118,11 @@ export default class Dapp extends Component {
           dapphost = '';
         }
 
-        src = `${dapphost}/${app.url}.html`;
+        const appId = this.context.api.util.isHex(app.id)
+          ? app.id
+          : this.context.api.sha3(app.url);
+
+        src = `${dapphost}/dapps/${appId}/index.html`;
         break;
     }
 

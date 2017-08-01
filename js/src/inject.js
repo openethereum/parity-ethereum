@@ -27,11 +27,9 @@ import web3extensions from './web3.extensions';
 function initProvider () {
   let [, appId] = window.location.pathname.split('/');
 
-  if (appId.indexOf('.html') !== -1) {
-    appId = appId.replace('.html', '');
-  }
+  console.log('window.location.pathname', window.location.pathname, appId);
 
-  if (appId.substr(0, 2) !== '0x') {
+  if (!Api.util.isHex(appId)) {
     appId = Api.util.sha3(appId);
   }
 

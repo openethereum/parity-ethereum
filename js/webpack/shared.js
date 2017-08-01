@@ -115,23 +115,6 @@ function getPlugins (_isProd = isProd) {
   return plugins;
 }
 
-function getDappsEntry () {
-  const builtins = require('@parity/shared/config/dappsBuiltin.json');
-  const views = require('@parity/shared/config/dappsViews.json');
-
-  return Object.assign(
-    []
-      .concat(
-        builtins.filter((dapp) => !dapp.skipBuild),
-        views
-      )
-      .reduce((_entry, dapp) => {
-        _entry[dapp.url] = '../packages/dapp-' + dapp.url + '/index.js';
-        return _entry;
-      }, {})
-  );
-}
-
 function addProxies (app) {
   const proxy = require('http-proxy-middleware');
 
@@ -166,6 +149,5 @@ function addProxies (app) {
 module.exports = {
   getBabelrc: getBabelrc,
   getPlugins: getPlugins,
-  dappsEntry: getDappsEntry(),
   addProxies: addProxies
 };

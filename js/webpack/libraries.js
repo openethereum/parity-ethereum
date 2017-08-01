@@ -24,61 +24,53 @@ const Shared = require('./shared');
 
 const DEST = process.env.BUILD_DEST || '.build';
 
-module.exports = ['inject', 'parity', 'web3'].map((entryName) => {
-  return {
-    context: path.join(__dirname, '../src'),
-    entry: {
-      [entryName]: ['./inject.js']
-    },
-    output: {
-      path: path.join(__dirname, '../', DEST),
-      filename: '[name].js',
-      library: '[name].js',
-      libraryTarget: 'umd'
-    },
+module.exports = {
+  context: path.join(__dirname, '../src'),
+  entry: {
+    inject: ['./inject.js'],
+    parity: ['./inject.js'],
+    web3: ['./inject.js']
+  },
+  output: {
+    path: path.join(__dirname, '../', DEST),
+    filename: '[name].js',
+    library: '[name].js',
+    libraryTarget: 'umd'
+  },
 
-    resolve: {
-      alias: {
-        '~': path.resolve(__dirname, '..'),
-        '@parity/abi': path.resolve(__dirname, '../node_modules/@parity/abi'),
-        '@parity/api': path.resolve(__dirname, '../node_modules/@parity/api'),
-        '@parity/etherscan': path.resolve(__dirname, '../node_modules/@parity/etherscan'),
-        '@parity/jsonrpc': path.resolve(__dirname, '../node_modules/@parity/jsonrpc'),
-        '@parity/shared': path.resolve(__dirname, '../node_modules/@parity/shared'),
-        '@parity/ui': path.resolve(__dirname, '../node_modules/@parity/ui'),
-        '@parity/wordlist': path.resolve(__dirname, '../node_modules/@parity/wordlist'),
-        '@parity': path.resolve(__dirname, '../packages')
+  resolve: {
+    alias: {
+      '~': path.resolve(__dirname, '..')
+    }
+  },
+
+  node: {
+    fs: 'empty'
+  },
+
+  module: {
+    rules: [
+      rulesParity,
+      rulesEs6,
+      {
+        test: /\.js$/,
+        exclude: /node_modules/,
+        use: [ 'babel-loader' ]
+      },
+      {
+        test: /\.json$/,
+        use: [ 'json-loader' ]
+      },
+      {
+        test: /\.html$/,
+        use: [ {
+          loader: 'file-loader',
+          options: {
+            name: '[name].[ext]'
+          }
+        } ]
       }
-    },
-
-    node: {
-      fs: 'empty'
-    },
-
-    module: {
-      rules: [
-        rulesParity,
-        rulesEs6,
-        {
-          test: /\.js$/,
-          exclude: /node_modules/,
-          use: [ 'babel-loader' ]
-        },
-        {
-          test: /\.json$/,
-          use: [ 'json-loader' ]
-        },
-        {
-          test: /\.html$/,
-          use: [ {
-            loader: 'file-loader',
-            options: {
-              name: '[name].[ext]'
-            }
-          } ]
-        }
-      ]
-    },
-    plugins: Shared.getPlugins()
-  };
-});
+    ]
+  },
+  plugins: Shared.getPlugins()
+};
