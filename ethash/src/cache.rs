@@ -1,3 +1,19 @@
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// This file is part of Parity.
+
+// Parity is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// Parity is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+
 // TODO: Mmap failing to build is transparent, we want to add a possibility to use RAM over a mmap
 //       for maximum speed (since the OS needs to zero the file when we do `set_len` - although I
 //       think it can occasionally prevent that from happening - and it has to page the data into
@@ -168,6 +184,11 @@ fn consume_cache<P: AsRef<Path>>(cache: &mut Cache, path: &P) -> io::Result<()> 
 				slice::from_raw_parts_mut(vec.as_mut_ptr() as *mut u8, vec.len() * NODE_BYTES)
 			};
 
+			// Return early if this fails. We only use this for writing to the memmap. I would do
+			// this more explicitly but I need to return it from this scope to fix lifetime issues.
+			// If you're seeing this comment in the future when we have non-lexical lifetimes then
+			// refactor this to use a `match` or something, like below. Maybe you even have monads,
+			// future time-traveller, that would make this significantly cleaner.
 			file.write(buf).map(|_| ())?;
 
 			file
