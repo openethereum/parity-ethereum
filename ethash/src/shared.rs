@@ -83,21 +83,25 @@ impl Clone for Node {
 }
 
 impl Node {
+	#[inline(always)]
 	pub fn as_words(&self) -> &[u32; NODE_WORDS] {
 		debug_assert_eq!(mem::size_of::<Self>(), mem::size_of::<[u32; NODE_WORDS]>());
 		unsafe { mem::transmute(&self.bytes) }
 	}
 
+	#[inline(always)]
 	pub fn as_words_mut(&mut self) -> &mut [u32; NODE_WORDS] {
 		debug_assert_eq!(mem::size_of::<Self>(), mem::size_of::<[u32; NODE_WORDS]>());
 		unsafe { mem::transmute(&mut self.bytes) }
 	}
 
+	#[inline(always)]
 	pub fn as_dwords(&self) -> &[u64; NODE_DWORDS] {
 		debug_assert_eq!(mem::size_of::<Self>(), mem::size_of::<[u64; NODE_DWORDS]>());
 		unsafe { mem::transmute(&self.bytes) }
 	}
 
+	#[inline(always)]
 	pub fn as_dwords_mut(&mut self) -> &mut [u64; NODE_DWORDS] {
 		debug_assert_eq!(mem::size_of::<Self>(), mem::size_of::<[u64; NODE_DWORDS]>());
 		unsafe { mem::transmute(&mut self.bytes) }
