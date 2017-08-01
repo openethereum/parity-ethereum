@@ -21,9 +21,8 @@ import ReactDOM from 'react-dom';
 import { FormattedMessage } from 'react-intl';
 import ReactTooltip from 'react-tooltip';
 
+import { generateTxQr, generateDecryptQr, generateDataQr } from '@parity/shared/util/qrscan';
 import { Button, Form, Input, IdentityIcon, QrCode, QrScan } from '@parity/ui';
-
-import { generateTxQr, generateDecryptQr, generateDataQr } from '../../../Signer/utils/qrscan';
 
 import styles from './transactionPendingFormConfirm.css';
 

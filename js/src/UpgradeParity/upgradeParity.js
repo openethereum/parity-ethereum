@@ -19,10 +19,10 @@ import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 import { FormattedMessage } from 'react-intl';
 
+import { STEP_COMPLETED, STEP_ERROR, STEP_INFO, STEP_UPDATING } from '@parity/shared/mobx/upgradeParity';
 import { Button, Portal } from '@parity/ui';
 import { CancelIcon, DoneIcon, ErrorIcon, NextIcon, UpdateIcon, UpdateWaitIcon } from '@parity/ui/Icons';
 
-import { STEP_COMPLETED, STEP_ERROR, STEP_INFO, STEP_UPDATING } from './store';
 import styles from './upgradeParity.css';
 
 @observer
