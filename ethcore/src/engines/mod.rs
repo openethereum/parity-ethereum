@@ -43,15 +43,13 @@ use account_provider::AccountProvider;
 use block::ExecutedBlock;
 use builtin::Builtin;
 use client::Client;
-use evm::env_info::{EnvInfo, LastHashes};
+use vm::{EnvInfo, LastHashes, Schedule, CreateContractAddress};
 use error::Error;
-use evm::Schedule;
 use header::{Header, BlockNumber};
 use receipt::Receipt;
 use snapshot::SnapshotComponents;
 use spec::CommonParams;
 use transaction::{UnverifiedTransaction, SignedTransaction};
-use evm::CreateContractAddress;
 
 use ethkey::Signature;
 use util::*;
@@ -394,12 +392,10 @@ pub trait Engine : Sync + Send {
 /// Common engine utilities
 pub mod common {
 	use block::ExecutedBlock;
-	use evm::env_info::{EnvInfo, LastHashes};
 	use error::Error;
 	use transaction::SYSTEM_ADDRESS;
 	use executive::Executive;
-	use evm::CallType;
-	use evm::action_params::{ActionParams, ActionValue};
+	use vm::{CallType, ActionParams, ActionValue, EnvInfo, LastHashes};
 	use trace::{NoopTracer, NoopVMTracer};
 	use state::Substate;
 

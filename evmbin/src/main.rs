@@ -34,7 +34,7 @@ use docopt::Docopt;
 use rustc_hex::FromHex;
 use util::{U256, Bytes, Address};
 use ethcore::spec;
-use evm::action_params::ActionParams;
+use vm::ActionParams;
 
 mod vm;
 mod display;

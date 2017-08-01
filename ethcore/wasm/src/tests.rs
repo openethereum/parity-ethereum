@@ -18,18 +18,18 @@ use std::sync::Arc;
 
 use super::super::tests::{FakeExt, FakeCall, FakeCallType};
 use super::WasmInterpreter;
-use evm::{self, Evm, GasLeft};
+use vm::{self, Vm, GasLeft};
 use action_params::{ActionParams, ActionValue};
 use util::{U256, H256, Address};
 use byteorder::{LittleEndian, ByteOrder};
 
 macro_rules! load_sample {
 	($name: expr) => {
-		include_bytes!(concat!("../../../res/wasm-tests/compiled/", $name)).to_vec()
+		include_bytes!(concat!("../../res/wasm-tests/compiled/", $name)).to_vec()
 	}
 }
 
-fn test_finalize(res: Result<GasLeft, evm::Error>) -> Result<U256, evm::Error> {
+fn test_finalize(res: Result<GasLeft, vm::Error>) -> Result<U256, vm::Error> {
 	match res {
 		Ok(GasLeft::Known(gas)) => Ok(gas),
 		Ok(GasLeft::NeedsReturn{..}) => unimplemented!(), // since ret is unimplemented.
@@ -365,4 +365,27 @@ fn call_static() {
 	// siphash result
 	let res = LittleEndian::read_u32(&result[..]);
 	assert_eq!(res, 317632590);
+}
+
+// Realloc test
+#[test]
+fn realloc() {
+	let code = load_sample!("realloc.wasm");
+
+	let mut params = ActionParams::default();
+	params.gas = U256::from(100_000);
+	params.code = Some(Arc::new(code));
+	params.data = Some(vec![0u8]);
+	let mut ext = FakeExt::new();
+
+	let (gas_left, result) = {
+			let mut interpreter = wasm_interpreter();
+			let result = interpreter.exec(params, &mut ext).expect("Interpreter to execute without any errors");
+			match result {
+					GasLeft::Known(_) => { panic!("Realloc should return payload"); },
+					GasLeft::NeedsReturn { gas_left: gas, data: result, apply_state: _apply } => (gas, result.to_vec()),
+			}
+	};
+	assert_eq!(gas_left, U256::from(98326));
+	assert_eq!(result, vec![0u8; 2]);
 }

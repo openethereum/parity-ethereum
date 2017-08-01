@@ -20,12 +20,11 @@ use std::sync::Arc;
 
 use byteorder::{LittleEndian, ByteOrder};
 
-use ext;
-
+use vm;
 use parity_wasm::interpreter;
 use util::{Address, H256, U256};
 
-use call_type::CallType;
+use vm::CallType;
 use super::ptr::{WasmPtr, Error as PtrError};
 use super::call_args::CallArgs;
 
@@ -77,7 +76,7 @@ pub struct Runtime<'a> {
 	gas_counter: u64,
 	gas_limit: u64,
 	dynamic_top: u32,
-	ext: &'a mut ext::Ext,
+	ext: &'a mut vm::Ext,
 	memory: Arc<interpreter::MemoryInstance>,
 	context: RuntimeContext,
 }
@@ -85,7 +84,7 @@ pub struct Runtime<'a> {
 impl<'a> Runtime<'a> {
 	/// New runtime for wasm contract with specified params
 	pub fn with_params<'b>(
-		ext: &'b mut ext::Ext,
+		ext: &'b mut vm::Ext,
 		memory: Arc<interpreter::MemoryInstance>,
 		stack_space: u32,
 		gas_limit: u64,
@@ -171,14 +170,14 @@ impl<'a> Runtime<'a> {
 			.map_err(|_| interpreter::Error::Trap("Gas state error".to_owned()))?
 			.into();
 
-		match self.ext.create(&gas_left, &endowment, &code, ext::CreateContractAddress::FromSenderAndCodeHash) {
-			ext::ContractCreateResult::Created(address, gas_left) => {
+		match self.ext.create(&gas_left, &endowment, &code, vm::CreateContractAddress::FromSenderAndCodeHash) {
+			vm::ContractCreateResult::Created(address, gas_left) => {
 				self.memory.set(result_ptr, &*address)?;
 				self.gas_counter = self.gas_limit - gas_left.low_u64();
 				trace!(target: "wasm", "runtime: create contract success (@{:?})", address);
 				Ok(Some(0i32.into()))
 			},
-			ext::ContractCreateResult::Failed => {
+			vm::ContractCreateResult::Failed => {
 				trace!(target: "wasm", "runtime: create contract fail");
 				Ok(Some((-1i32).into()))
 			}
@@ -279,12 +278,12 @@ impl<'a> Runtime<'a> {
 		);
 
 		match call_result {
-			ext::MessageCallResult::Success(gas_left, _) => {
+			vm::MessageCallResult::Success(gas_left, _) => {
 				self.gas_counter = self.gas_limit - gas_left.low_u64();
 				self.memory.set(result_ptr, &result)?;
 				Ok(Some(0i32.into()))
 			},
-			ext::MessageCallResult::Failed  => {
+			vm::MessageCallResult::Failed  => {
 				Ok(Some((-1i32).into()))
 			}
 		}

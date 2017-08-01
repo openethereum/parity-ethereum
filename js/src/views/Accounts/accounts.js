@@ -373,10 +373,6 @@ class Accounts extends Component {
   }
 
   renderNewWalletButton () {
-    if (this.props.availability !== 'personal') {
-      return null;
-    }
-
     return (
       <Button
         key='newWallet'

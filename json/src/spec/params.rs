@@ -55,6 +55,9 @@ pub struct Params {
 	#[serde(rename="eip98Transition")]
 	pub eip98_transition: Option<Uint>,
 	/// See `CommonParams` docs.
+	#[serde(rename="eip155Transition")]
+	pub eip155_transition: Option<Uint>,
+	/// See `CommonParams` docs.
 	#[serde(rename="validateReceiptsTransition")]
 	pub validate_receipts_transition: Option<Uint>,
 	/// See `CommonParams` docs.
@@ -91,13 +94,21 @@ pub struct Params {
 	pub remove_dust_contracts : Option<bool>,
 	/// Wasm support flag
 	pub wasm: Option<bool>,
+	/// See `CommonParams` docs.
+	#[serde(rename="gasLimitBoundDivisor")]
+	pub gas_limit_bound_divisor: Uint,
+	/// See `CommonParams` docs.
+	#[serde(rename="blockReward")]
+	pub block_reward: Option<Uint>,
+	/// See `CommonParams` docs.
+	pub registrar: Option<Address>,
 }
 
 #[cfg(test)]
 mod tests {
 	use serde_json;
 	use uint::Uint;
-	use util::U256;
+	use bigint::prelude::U256;
 	use spec::params::Params;
 
 	#[test]
@@ -108,7 +119,8 @@ mod tests {
 			"chainID" : "0x15",
 			"subprotocolName" : "exp",
 			"minGasLimit": "0x1388",
-			"accountStartNonce": "0x01"
+			"accountStartNonce": "0x01",
+			"gasLimitBoundDivisor": "0x20"
 		}"#;
 
 		let deserialized: Params = serde_json::from_str(s).unwrap();
@@ -118,5 +130,6 @@ mod tests {
 		assert_eq!(deserialized.subprotocol_name, Some("exp".to_owned()));
 		assert_eq!(deserialized.min_gas_limit, Uint(U256::from(0x1388)));
 		assert_eq!(deserialized.account_start_nonce, Some(Uint(U256::from(0x01))));
+		assert_eq!(deserialized.gas_limit_bound_divisor, Uint(U256::from(0x20)));
 	}
 }

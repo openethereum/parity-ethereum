@@ -1,9 +1,7 @@
 //! Tests of EVM integration with transaction execution.
 
-use evm::action_params::{ActionParams, ActionValue};
-use evm::env_info::EnvInfo;
+use vm::{EnvInfo, ActionParams, ActionValue, CallType};
 use evm::{Factory, VMType};
-use evm::call_type::CallType;
 use executive::Executive;
 use state::Substate;
 use tests::helpers::*;

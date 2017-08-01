@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Wasm env module bindings 
+//! Wasm env module bindings
 
 use parity_wasm::elements::ValueType::*;
 use parity_wasm::interpreter::UserFunctionDescriptor;
@@ -87,6 +87,20 @@ pub const SIGNATURES: &'static [UserFunctionDescriptor] = &[
 		None,
 	),
 	Static(
+		"abortOnCannotGrowMemory",
+		&[I32; 0],
+		Some(I32)
+	),
+
+	/*
+		THIS IS EXPERIMENTAL RUST-ONLY RUNTIME EXTERNS, THEY ARE SUBJECT TO CHANGE
+
+		AVOID YOUR WASM CONTAINS ANY OF THESE OTHERWISE
+			EITHER FACE THE NEED OF HARDFORK
+			OR YOU CAN STUCK ON SPECIFIC RUST VERSION FOR WASM COMPILATION
+	*/
+
+	Static(
 		"_rust_begin_unwind",
 		&[I32; 4],
 		None,
@@ -119,6 +133,11 @@ pub const SIGNATURES: &'static [UserFunctionDescriptor] = &[
 	Static(
 		"_llvm_trap",
 		&[I32; 0],
+		None
+	),
+	Static(
+		"___setErrNo",
+		&[I32; 1],
 		None
 	),
 ];
