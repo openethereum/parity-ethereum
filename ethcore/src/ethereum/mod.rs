@@ -134,23 +134,4 @@ mod tests {
 
 		let _ = frontier.engine;
 	}
-
-	#[test]
-	fn all_spec_files_valid() {
-		let tmp = ::std::env::temp_dir();
-		new_olympic(&tmp);
-		new_foundation(&tmp);
-		new_classic(&tmp);
-		new_expanse(&tmp);
-		new_kovan(&tmp);
-		new_ropsten(&tmp);
-		new_morden(&tmp);
-		new_frontier_test();
-		new_homestead_test();
-		new_eip150_test();
-		new_eip161_test();
-		new_transition_test();
-		new_mainnet_like();
-		new_metropolis_test();
-	}
 }
