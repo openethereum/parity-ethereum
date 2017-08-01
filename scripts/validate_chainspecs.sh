@@ -3,14 +3,12 @@
 ERR=0
 cargo build --release -p chainspec
 
-for spec in `ls ethcore/res/*.json`; do
-    ./target/release/chainspec $spec
-    if [ $? -ne "0" ]; then ERR=1; fi
+for spec in ethcore/res/*.json; do
+    if ! ./target/release/chainspec "$spec"; then ERR=1; fi
 done
 
-for spec in `ls ethcore/res/ethereum/*.json`; do
-    ./target/release/chainspec $spec
-    if [ $? -ne "0" ]; then ERR=1; fi
+for spec in ethcore/res/ethereum/*.json; do
+    if ! ./target/release/chainspec "$spec"; then ERR=1; fi
 done
 
 exit $ERR
