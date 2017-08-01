@@ -12,3 +12,4 @@ for spec in ethcore/res/ethereum/*.json; do
 done
 
 exit $ERR
+
