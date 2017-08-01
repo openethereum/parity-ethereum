@@ -53,6 +53,9 @@ semver = "0.6"
 stats = { path = "../util/stats" }
 time = "0.1"
 transient-hashmap = "0.4"
+using_queue = { path = "../util/using_queue" }
+table = { path = "../util/table" }
+bloomable = { path = "../util/bloomable" }
 vm = { path = "vm" }
 wasm = { path = "wasm" }
 

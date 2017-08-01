@@ -15,6 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Transaction Execution environment.
+use std::cmp;
+use std::sync::Arc;
 use util::*;
 use state::{Backend as StateBackend, State, Substate, CleanupMode};
 use engines::Engine;
@@ -469,7 +471,7 @@ mod tests {
 
 		let mut ext = Externalities::new(state, &setup.env_info, &*setup.engine, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract(None), &mut tracer, &mut vm_tracer, false);
 
-		let hash = ext.blockhash(&U256::from_str("0000000000000000000000000000000000000000000000000000000000120000").unwrap());
+		let hash = ext.blockhash(&"0000000000000000000000000000000000000000000000000000000000120000".parse::<U256>().unwrap());
 
 		assert_eq!(hash, H256::zero());
 	}
@@ -493,7 +495,7 @@ mod tests {
 
 		let mut ext = Externalities::new(state, &setup.env_info, &*setup.engine, 0, get_test_origin(), &mut setup.sub_state, OutputPolicy::InitContract(None), &mut tracer, &mut vm_tracer, false);
 
-		let hash = ext.blockhash(&U256::from_str("0000000000000000000000000000000000000000000000000000000000120000").unwrap());
+		let hash = ext.blockhash(&"0000000000000000000000000000000000000000000000000000000000120000".parse::<U256>().unwrap());
 
 		assert_eq!(test_hash, hash);
 	}
@@ -512,10 +514,10 @@ mod tests {
 
 		// this should panic because we have no balance on any account
 		ext.call(
-			&U256::from_str("0000000000000000000000000000000000000000000000000000000000120000").unwrap(),
+			&"0000000000000000000000000000000000000000000000000000000000120000".parse::<U256>().unwrap(),
 			&Address::new(),
 			&Address::new(),
-			Some(U256::from_str("0000000000000000000000000000000000000000000000000000000000150000").unwrap()),
+			Some("0000000000000000000000000000000000000000000000000000000000150000".parse::<U256>().unwrap()),
 			&[],
 			&Address::new(),
 			&mut output,

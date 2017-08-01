@@ -24,6 +24,8 @@ mod memory;
 mod shared_cache;
 
 use std::marker::PhantomData;
+use std::{cmp, mem};
+use std::sync::Arc;
 
 use vm::{
 	self, ActionParams, ActionValue, CallType, MessageCallResult,

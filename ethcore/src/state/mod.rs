@@ -21,6 +21,9 @@
 
 use std::cell::{RefCell, RefMut};
 use std::collections::hash_map::Entry;
+use std::collections::{HashMap, BTreeMap, HashSet};
+use std::fmt;
+use std::sync::Arc;
 
 use receipt::Receipt;
 use engines::Engine;

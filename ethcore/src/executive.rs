@@ -15,6 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Transaction Execution environment.
+use std::cmp;
+use std::sync::Arc;
 use util::*;
 use state::{Backend as StateBackend, State, Substate, CleanupMode};
 use engines::Engine;
@@ -597,10 +599,11 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 #[allow(dead_code)]
 mod tests {
 	use std::sync::Arc;
+	use std::str::FromStr;
 	use rustc_hex::FromHex;
 	use ethkey::{Generator, Random};
 	use super::*;
-	use util::{H256, U256, U512, Address, FromStr};
+	use util::{H256, U256, U512, Address};
 	use util::bytes::BytesRef;
 	use vm::{ActionParams, ActionValue, CallType, EnvInfo, CreateContractAddress};
 	use evm::{Factory, VMType};

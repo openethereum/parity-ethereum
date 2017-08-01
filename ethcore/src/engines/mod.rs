@@ -35,7 +35,9 @@ pub use self::instant_seal::InstantSeal;
 pub use self::null_engine::NullEngine;
 pub use self::tendermint::Tendermint;
 
-use std::sync::Weak;
+use std::sync::{Weak, Arc};
+use std::collections::{BTreeMap, HashMap};
+use std::fmt;
 
 use self::epoch::PendingTransition;
 
@@ -391,6 +393,7 @@ pub trait Engine : Sync + Send {
 
 /// Common engine utilities
 pub mod common {
+	use std::sync::Arc;
 	use block::ExecutedBlock;
 	use error::Error;
 	use transaction::SYSTEM_ADDRESS;
