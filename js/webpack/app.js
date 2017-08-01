@@ -100,12 +100,12 @@ module.exports = {
       },
       {
         test: /\.css$/,
-        include: /node_modules\/(?!@parity)*/,
+        include: /semantic-ui-css/,
         use: [ 'style-loader', 'css-loader' ]
       },
       {
         test: /\.css$/,
-        exclude: /node_modules\/(?!@parity)*/,
+        exclude: /semantic-ui-css/,
         use: [
           'style-loader',
           {
