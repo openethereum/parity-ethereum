@@ -153,7 +153,7 @@
   },
   "dependencies": {
     "@parity/api": "paritytech/js-api#ade4a6750292a2918676039ea53eea20c4c728bc",
-    "@parity/dapp-accounts": "paritytech/dapp-accounts#3b75c86f1a6e2486f9934089fa214c419923812d",
+    "@parity/dapp-accounts": "paritytech/dapp-accounts#c5f44ddc22427fc27ed919a93d3a7c362f250c61",
     "@parity/shared": "paritytech/js-shared#32d6709cb2ee267553aa4292a482cd787af3df81",
     "@parity/ui": "paritytech/js-ui#037782bd16e8abf1c169143aa61749a44b94489b",
     "es6-error": "4.0.0",
