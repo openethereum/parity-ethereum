@@ -163,7 +163,8 @@ fn test_lru() {
 mod benchmarks {
 	extern crate test;
 
-	use compute::{Light, light_compute, SeedHashCompute};
+	use seed_compute::SeedHashCompute;
+	use compute::{Light, light_compute};
 	use self::test::Bencher;
 
 	#[bench]
