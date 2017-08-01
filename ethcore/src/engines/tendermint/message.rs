@@ -16,6 +16,7 @@
 
 //! Tendermint message handling.
 
+use std::cmp;
 use util::*;
 use super::{Height, View, BlockHash, Step};
 use error::Error;
@@ -110,13 +111,13 @@ impl Default for VoteStep {
 }
 
 impl PartialOrd for VoteStep {
-	fn partial_cmp(&self, m: &VoteStep) -> Option<Ordering> {
+	fn partial_cmp(&self, m: &VoteStep) -> Option<cmp::Ordering> {
 		Some(self.cmp(m))
 	}
 }
 
 impl Ord for VoteStep {
-	fn cmp(&self, m: &VoteStep) -> Ordering {
+	fn cmp(&self, m: &VoteStep) -> cmp::Ordering {
 		if self.height != m.height {
 			self.height.cmp(&m.height)
 		} else if self.view != m.view {
@@ -198,6 +199,7 @@ pub fn message_hash(vote_step: VoteStep, block_hash: H256) -> H256 {
 
 #[cfg(test)]
 mod tests {
+	use std::sync::Arc;
 	use util::*;
 	use rlp::*;
 	use account_provider::AccountProvider;

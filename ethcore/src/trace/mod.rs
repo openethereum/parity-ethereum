@@ -39,7 +39,7 @@ pub use self::types::filter::{Filter, AddressesFilter};
 
 use util::{Bytes, Address, U256, H256, DBTransaction};
 use self::trace::{Call, Create};
-use evm::action_params::ActionParams;
+use vm::ActionParams;
 use header::BlockNumber;
 
 /// This trait is used by executive to build traces.

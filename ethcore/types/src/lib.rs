@@ -19,6 +19,7 @@
 extern crate ethcore_util as util;
 extern crate ethjson;
 extern crate rlp;
+extern crate bloomable;
 
 #[cfg(test)]
 extern crate rustc_hex;

@@ -16,6 +16,8 @@
 
 //! Blockchain DB extras.
 
+use std::ops;
+use std::io::Write;
 use bloomchain;
 use blooms::{GroupPosition, BloomGroup};
 use db::Key;
@@ -56,7 +58,7 @@ fn with_index(hash: &H256, i: ExtrasIndex) -> H264 {
 
 pub struct BlockNumberKey([u8; 5]);
 
-impl Deref for BlockNumberKey {
+impl ops::Deref for BlockNumberKey {
 	type Target = [u8];
 
 	fn deref(&self) -> &Self::Target {
@@ -88,7 +90,7 @@ impl Key<BlockDetails> for H256 {
 
 pub struct LogGroupKey([u8; 6]);
 
-impl Deref for LogGroupKey {
+impl ops::Deref for LogGroupKey {
 	type Target = [u8];
 
 	fn deref(&self) -> &Self::Target {
@@ -160,7 +162,8 @@ pub const EPOCH_KEY_PREFIX: &'static [u8; DB_PREFIX_LEN] = &[
 ];
 
 pub struct EpochTransitionsKey([u8; EPOCH_KEY_LEN]);
-impl Deref for EpochTransitionsKey {
+
+impl ops::Deref for EpochTransitionsKey {
 	type Target = [u8];
 
 	fn deref(&self) -> &[u8] { &self.0[..] }

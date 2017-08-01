@@ -20,7 +20,7 @@ use util::hash::{H256};
 use util::sha3::{Hashable, SHA3_EMPTY};
 use ethjson;
 
-use {CallType};
+use call_type::CallType;
 
 use std::sync::Arc;
 
@@ -48,7 +48,7 @@ impl ActionValue {
 
 	/// Returns the apparent action value of the U256-convertable raw value
 	pub fn apparent<T: Into<U256>>(apparent_value: T) -> ActionValue {
-		ActionValue::Apparent(apparent_value.into())		
+		ActionValue::Apparent(apparent_value.into())
 	}
 }
 

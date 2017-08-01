@@ -26,5 +26,4 @@ set -e
 
 ./scripts/validate_chainspecs.sh
 
-. ./scripts/targets.sh
-cargo test -j 8 $OPTIONS --features "$FEATURES" $TARGETS $1
+cargo test -j 8 $OPTIONS --features "$FEATURES" --all --exclude parity-ipfs-api --exclude evmjit $1
