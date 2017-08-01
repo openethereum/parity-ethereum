@@ -17,5 +17,5 @@
 module.exports = {
   test: /\.js$/,
   include: /node_modules\/@parity\//,
-  use: [ 'babel-loader' ]
+  use: [ 'happypack/loader?id=babel' ]
 };

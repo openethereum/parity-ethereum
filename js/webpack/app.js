@@ -66,11 +66,11 @@ module.exports = {
       {
         test: /\.js$/,
         exclude: /(node_modules)/,
-        use: [ 'babel-loader' ]
+        use: [ 'happypack/loader?id=babel' ]
       },
       {
         test: /\.json$/,
-        use: [ 'json-loader' ]
+        use: ['json-loader']
       },
       {
         test: /\.ejs$/,
@@ -97,7 +97,7 @@ module.exports = {
       },
       {
         test: /\.md$/,
-        use: [ 'html-loader', 'markdown-loader' ]
+        use: ['html-loader', 'markdown-loader']
       },
       {
         test: /\.css$/,
@@ -121,7 +121,8 @@ module.exports = {
           {
             loader: 'postcss-loader',
             options: {
-              plugins: (loader) => [
+              sourceMap: true,
+              plugins: [
                 require('postcss-import'),
                 require('postcss-nested'),
                 require('postcss-simple-vars')

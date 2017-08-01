@@ -18,7 +18,7 @@ const webpack = require('webpack');
 const path = require('path');
 const fs = require('fs');
 
-// const HappyPack = require('happypack');
+const HappyPack = require('happypack');
 const CircularDependencyPlugin = require('circular-dependency-plugin');
 const PackageJson = require('../package.json');
 
@@ -83,12 +83,12 @@ function getPlugins (_isProd = isProd) {
         LOGGING: JSON.stringify(!isProd),
         UI_VERSION: JSON.stringify(UI_VERSION)
       }
+    }),
+    new HappyPack({
+      id: 'babel',
+      threads: 4,
+      loaders: ['babel-loader']
     })
-    // new HappyPack({
-    //   id: 'babel',
-    //   threads: 4,
-    //   loaders: [ 'babel-loader' ]
-    // })
   ];
 
   if (_isProd) {
