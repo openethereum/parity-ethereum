@@ -82,28 +82,37 @@ impl Clone for Node {
 	}
 }
 
+// Type aliases to make absolutely, super paranoid-sure that we don't get the debug asserts wrong
+type NodeWords = [u32; NODE_WORDS];
+type NodeDwords = [u64; NODE_DWORDS];
+
+// We use `inline(always)` because I was experiencing an 100% slowdown and `perf` showed that these
+// calls were taking up ~30% of the runtime. Adding these annotations fixes the issue. Remove at
+// your peril, if and only if you have benchmarks to prove that this doesn't reintroduce the
+// performance regression. It's not caused by the `debug_assert_eq!` either, your guess is as good
+// as mine.
 impl Node {
 	#[inline(always)]
-	pub fn as_words(&self) -> &[u32; NODE_WORDS] {
-		debug_assert_eq!(mem::size_of::<Self>(), mem::size_of::<[u32; NODE_WORDS]>());
+	pub fn as_words(&self) -> &NodeWords {
+		debug_assert_eq!(mem::size_of::<Self>(), mem::size_of::<NodeWords>());
 		unsafe { mem::transmute(&self.bytes) }
 	}
 
 	#[inline(always)]
-	pub fn as_words_mut(&mut self) -> &mut [u32; NODE_WORDS] {
-		debug_assert_eq!(mem::size_of::<Self>(), mem::size_of::<[u32; NODE_WORDS]>());
+	pub fn as_words_mut(&mut self) -> &mut NodeWords {
+		debug_assert_eq!(mem::size_of::<Self>(), mem::size_of::<NodeWords>());
 		unsafe { mem::transmute(&mut self.bytes) }
 	}
 
 	#[inline(always)]
-	pub fn as_dwords(&self) -> &[u64; NODE_DWORDS] {
-		debug_assert_eq!(mem::size_of::<Self>(), mem::size_of::<[u64; NODE_DWORDS]>());
+	pub fn as_dwords(&self) -> &NodeDwords {
+		debug_assert_eq!(mem::size_of::<Self>(), mem::size_of::<NodeDwords>());
 		unsafe { mem::transmute(&self.bytes) }
 	}
 
 	#[inline(always)]
-	pub fn as_dwords_mut(&mut self) -> &mut [u64; NODE_DWORDS] {
-		debug_assert_eq!(mem::size_of::<Self>(), mem::size_of::<[u64; NODE_DWORDS]>());
+	pub fn as_dwords_mut(&mut self) -> &mut NodeDwords {
+		debug_assert_eq!(mem::size_of::<Self>(), mem::size_of::<NodeDwords>());
 		unsafe { mem::transmute(&mut self.bytes) }
 	}
 }
