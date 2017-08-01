@@ -38,7 +38,7 @@ use miner::service_transaction_checker::ServiceTransactionChecker;
 use price_info::{Client as PriceInfoClient, PriceInfo};
 use price_info::fetch::Client as FetchClient;
 use header::BlockNumber;
-use miner::queue_reservation::{QueueReservationStatus};
+use miner::queue_reservation::{QueueReservation, QueueReservationStatus};
 
 /// Different possible definitions for pending transaction set.
 #[derive(Debug, PartialEq)]
@@ -629,6 +629,71 @@ impl Miner {
 		prepare_new
 	}
 
+	fn reserve_transaction(
+		&self,
+		hash: H256,
+	) -> Result<QueueReservation, TransactionError> {
+		let mut queue = self.transaction_queue.write();
+		let res = queue.reserve(self.transaction_queue.clone(), self.reservation_check.clone(), hash);
+		res
+	}
+
+	fn wait_to_update_queue(
+		&self,
+		reservation: QueueReservation,
+		transaction: SignedTransaction,
+		origin: TransactionOrigin,
+		condition: Option<TransactionCondition>,
+		insertion_time: BlockNumber,
+		details_provider: TransactionDetailsProvider,
+	) -> Result<TransactionImportResult, Error> {
+		// Acquire read lock on transaction queue
+		// Check that reserved hash is ready for queue (ie. is the oldest issued)
+		// If it is not oldest: wait for the oldest to be filled, then check again
+		let &(ref mutex, ref cvar) = &*self.reservation_check;
+		let mut might_be_ready = mutex.lock();
+		'wait_in_line: loop {
+			let ready = {
+				let queue = self.transaction_queue.read();
+				let ready = queue.is_ready_to_fill(&reservation);
+				ready
+			};
+			match ready {
+				QueueReservationStatus::Ready => {
+					// Acquire write lock on transaction queue
+					// Add transaction / fill reservation 
+					// Notify other threads that the oldest reservation has been filled
+					let result = match origin {
+						TransactionOrigin::Local | TransactionOrigin::RetractedBlock => {
+							self.transaction_queue.write().add_reserved(
+								&reservation, 
+								transaction, 
+								origin, 
+								insertion_time, 
+								condition, 
+								&details_provider)
+						},
+						TransactionOrigin::External => {
+							self.transaction_queue.write().add_reserved_with_banlist(
+								&reservation, 
+								transaction, 
+								insertion_time, 
+								&details_provider)
+						},
+					};
+					cvar.notify_all();
+					return result;
+				} 
+				QueueReservationStatus::Dropped => {
+					return Err(Error::Transaction(TransactionError::DroppedReservation));
+				}
+				QueueReservationStatus::NotReady => {
+					cvar.wait(&mut might_be_ready);
+				}
+			}
+		}
+	}
+
 	fn add_transactions_to_queue(
 		&self,
 		client: &MiningBlockChainClient,
@@ -643,17 +708,16 @@ impl Miner {
 		let best_block_header = client.best_block_header().decode();
 		let insertion_time = client.chain_info().best_block_number;
 
-		// Reserve hashes in transaction queue and release lock immediately
-		{ 
-			let mut queue = self.transaction_queue.write();
-			let res = queue.reserve_batch(self.transaction_queue.clone(), self.reservation_check.clone(), transactions);
-			res
-		}
-		.into_iter()
-			.map(|x| {
-				match x {
-					Ok((reservation, transaction)) => {
-						let hash = transaction.hash();
+		// Reserve place in transaction queue
+		// Threads will only attempt to verify and add transactions 
+		// that have not already been reserved by other threads.
+		transactions.into_iter()
+			.map(|transaction| {
+				let hash = transaction.hash();
+				let res = self.reserve_transaction(hash.clone());
+				match res {
+					// Transaction is free for this thread
+					Ok(reservation) => {
 						if client.transaction_block(TransactionId::Hash(hash)).is_some() {
 							debug!(target: "miner", "Rejected tx {:?}: already in the blockchain", hash);
 							return Err(Error::Transaction(TransactionError::AlreadyImported));
@@ -678,60 +742,21 @@ impl Miner {
 
 								let details_provider = TransactionDetailsProvider::new(client, &self.service_transaction_action);
 
-								// Acquire read lock on transaction queue
-								// Check that reserved hash is ready for queue (ie. is the oldest issued)
-								// If it is not oldest: wait for the oldest to be filled, then check again
-								let &(ref mutex, ref cvar) = &*self.reservation_check;
-								let mut might_be_ready = mutex.lock();
-
-								'wait_in_line: loop {
-
-									let ready = {
-										let queue = self.transaction_queue.read();
-										let ready = queue.is_ready_to_fill(&reservation);
-										ready
-									};
-
-									match ready {
-										QueueReservationStatus::Ready => {
-											// Acquire write lock on transaction queue
-											// Add transaction / fill reservation 
-											// Notify other threads that the oldest reservation has been filled
-											let result = match origin {
-												TransactionOrigin::Local | TransactionOrigin::RetractedBlock => {
-													self.transaction_queue.write().add_reserved(
-														&reservation, 
-														transaction, 
-														origin, 
-														insertion_time, 
-														condition.clone(), 
-														&details_provider)
-												},
-												TransactionOrigin::External => {
-													self.transaction_queue.write().add_reserved_with_banlist(
-														&reservation, 
-														transaction, 
-														insertion_time, 
-														&details_provider)
-												},
-											};
-											cvar.notify_all();
-											return result;
-										} 
-										QueueReservationStatus::Dropped => {
-											return Err(Error::Transaction(TransactionError::DroppedReservation));
-										}
-										QueueReservationStatus::NotReady => {
-											cvar.wait(&mut might_be_ready);
-										}
-									}
-								}
+								self.wait_to_update_queue(
+									reservation,
+									transaction,
+									origin,
+									condition.clone(),
+									insertion_time,
+									details_provider)
 							},
 						}
 					}
+					// Transaction is under construction by another thread
 					Err(TransactionError::ReservedHash) => {
 						Ok(TransactionImportResult::ThreadUnknown)
 					}
+					// Unexpected error
 					Err(e) => Err(Error::Transaction(e))
 				}
 			})
@@ -1480,26 +1505,80 @@ mod tests {
 	}
 
 	#[test]
-	fn no_race() {
+	fn should_not_reserve_transaction_twice() {
 		let options = miner_options();
 		let txq = Arc::new(RwLock::new(queue(&options)));
 
-		let client_a = TestBlockChainClient::default();	
+		// let client_a = TestBlockChainClient::default();	
 		let miner_a = miner_with_queue_and_options(txq.clone(), options);
-		let tx = transaction();
+		let tx: UnverifiedTransaction = PendingTransaction::new(transaction(), None).transaction.into();
 
 		let tx_clone = tx.clone();
 		let child = thread::spawn(move || {
-			let client_b = TestBlockChainClient::default();
+			// let client_b = TestBlockChainClient::default();
 			let miner_b = miner_with_queue_and_options(txq, miner_options());
-			miner_b.import_own_transaction(&client_b, PendingTransaction::new(tx_clone, None))
+			miner_b.reserve_transaction(tx_clone.hash())
 		});
 
-		let res_a = miner_a.import_own_transaction(&client_a, PendingTransaction::new(tx, None)).unwrap();
-		let res_b = child.join().unwrap().unwrap();
+		let res_a = miner_a.reserve_transaction(tx.hash());
+		let res_b = child.join().unwrap();
 
-		assert!(res_a != res_b);
-		assert!(res_a == TransactionImportResult::ThreadUnknown || res_b == TransactionImportResult::ThreadUnknown);
+		assert!(res_a.is_ok() || res_b.is_ok());
+		assert!(res_a.is_err() || res_b.is_err());
+	}
+
+	#[test]
+	fn should_add_many_transactions() {
+
+		let ntx = 50;
+		let nthread = 5;
+
+		let options = miner_options();
+		let txq = Arc::new(RwLock::new(queue(&options)));
+
+		let txs: Vec<UnverifiedTransaction> = (0..ntx).map(|_| {
+			PendingTransaction::new(transaction(), None).transaction.into()
+		}).collect();
+
+		let miner = Arc::new(miner_with_queue_and_options(txq.clone(), options));
+
+		let children = (0..nthread)
+		.map(|_| {
+			(miner.clone(), txs.clone())
+		})
+		.map(|(miner, txs)| {
+			thread::spawn(move || {
+				let client = TestBlockChainClient::default();
+				miner.add_transactions_to_queue(
+					&client,
+					txs,
+					TransactionOrigin::Local, 
+					None)
+			})
+		}).collect::<Vec<thread::JoinHandle<Vec<Result<TransactionImportResult, Error>>>>>();
+
+		let results = children.into_iter().map(|child| {
+			child.join().unwrap()
+		}).collect::<Vec<Vec<Result<TransactionImportResult, Error>>>>();
+
+		let unused_threads = results.iter().any(|res| {
+			res.len() == 0
+		});
+
+		assert!(!unused_threads);
+
+		let added_count = results.into_iter().flat_map(|res| {
+			res.into_iter()
+		}).filter(|res| {
+			match res {
+				&Ok(x) => x != TransactionImportResult::ThreadUnknown,
+				_ => false
+			}
+		}).count();
+
+		assert!(added_count == ntx);
+
+		assert!(txq.read().local_transactions().len() == ntx);
 	}
 
 	#[test]

@@ -715,7 +715,7 @@ impl TransactionQueue {
 	}
 
 	/// Add transaction hash to reserved and issue a reservation
-	fn reserve(
+	pub fn reserve(
 		&mut self,
 		queue: Arc<RwLock<BanningTransactionQueue>>,
 		reservation_check: Arc<(Mutex<()>, Condvar)>,
