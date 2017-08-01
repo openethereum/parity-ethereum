@@ -108,7 +108,8 @@ impl NodeCache {
 			cache_path(self.cache_dir.as_ref(), &self.builder.epoch_to_ident(ep))
 		})
 		{
-			fs::remove_file(last)?;
+			fs::remove_file(last)
+				.unwrap_or_else(|error| warn!("Error removing stale DAG cache: {:?}", error));
 		}
 
 		consume_cache(&mut self.cache, &path)
@@ -187,7 +188,7 @@ fn consume_cache<P: AsRef<Path>>(cache: &mut Cache, path: &P) -> io::Result<()> 
 		Ok(memmap) => {
 			*cache = Either::Right(memmap);
 			Ok(())
-		},
+		}
 		Err(err) => Err(err),
 	}
 }
@@ -231,7 +232,10 @@ impl AsRef<[Node]> for NodeCache {
 			Either::Left(ref vec) => vec,
 			Either::Right(ref mmap) => unsafe {
 				let bytes = mmap.ptr();
-				assert_eq!(mmap.len() % NODE_BYTES, 0);
+				// This isn't a safety issue, so we can keep this a debug lint. We don't care about
+				// people manually messing with the files unless it can cause unsafety, but if we're
+				// generating incorrect files then we want to catch that in CI.
+				debug_assert_eq!(mmap.len() % NODE_BYTES, 0);
 				slice::from_raw_parts(bytes as _, mmap.len() / NODE_BYTES)
 			},
 		}
