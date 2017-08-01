@@ -16,6 +16,7 @@ serde_derive = "1.0"
 ethcore = { path = "../ethcore" }
 ethcore-util = { path = "../util" }
 evm = { path = "../ethcore/evm" }
+vm = { path = "../ethcore/vm" }
 panic_hook = { path = "../panic_hook" }
 
 [features]
