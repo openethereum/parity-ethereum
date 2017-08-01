@@ -6,8 +6,8 @@ use std::collections::BTreeSet;
 use std::{fs, env, process};
 use ethjson::spec::Spec;
 
-fn quit<S: AsRef<str>>(s: S) -> ! {
-	println!("{}", s.as_ref());
+fn quit(s: &str) -> ! {
+	println!("{}", s);
 	process::exit(1);
 }
 
@@ -22,7 +22,7 @@ fn main() {
 	let path = args.nth(1).expect("args.len() == 2; qed");
 	let file = match fs::File::open(&path) {
 		Ok(file) => file,
-		Err(_) => quit(format!("{} could not be opened", path)),
+		Err(_) => quit(&format!("{} could not be opened", path)),
 	};
 
 	let mut unused = BTreeSet::new();
@@ -33,7 +33,7 @@ fn main() {
 	});
 
 	if let Err(err) = spec {
-		quit(format!("{} {}", path, err.to_string()));
+		quit(&format!("{} {}", path, err.to_string()));
 	}
 
 	if !unused.is_empty() {
@@ -41,7 +41,7 @@ fn main() {
 			.map(|field| format!("{} unexpected field `{}`", path, field))
 			.collect::<Vec<_>>()
 			.join("\n");
-		quit(err);
+		quit(&err);
 	}
 
 	println!("{} is valid", path);
