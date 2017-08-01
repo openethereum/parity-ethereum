@@ -19,6 +19,7 @@
 extern crate vm;
 extern crate ethcore_util as util;
 #[macro_use] extern crate log;
+extern crate ethcore_logger;
 extern crate byteorder;
 extern crate parity_wasm;
 extern crate wasm_utils;
@@ -39,7 +40,7 @@ use parity_wasm::{interpreter, elements};
 use parity_wasm::interpreter::ModuleInstanceInterface;
 
 use vm::{GasLeft, ReturnData, ActionParams};
-use self::runtime::Runtime;
+use self::runtime::{Runtime, RuntimeContext};
 
 pub use self::runtime::Error as RuntimeError;
 
@@ -87,6 +88,7 @@ impl vm::Vm for WasmInterpreter {
 			env_memory,
 			DEFAULT_STACK_SPACE,
 			params.gas.low_u64(),
+			RuntimeContext::new(params.address, params.sender),
 		);
 
 		let mut cursor = ::std::io::Cursor::new(&*code);

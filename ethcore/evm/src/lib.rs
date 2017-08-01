@@ -24,6 +24,7 @@ extern crate ethjson;
 extern crate rlp;
 extern crate parity_wasm;
 extern crate wasm_utils;
+extern crate ethcore_logger;
 extern crate vm;
 
 #[macro_use]

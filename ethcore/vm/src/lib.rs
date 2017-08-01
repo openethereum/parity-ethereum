@@ -29,6 +29,8 @@ mod ext;
 mod return_data;
 mod error;
 
+pub mod tests;
+
 pub use action_params::{ActionParams, ActionValue};
 pub use call_type::CallType;
 pub use env_info::{EnvInfo, LastHashes};

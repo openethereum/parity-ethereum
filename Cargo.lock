@@ -3,6 +3,7 @@ name = "wasm"
 version = "0.1.0"
 dependencies = [
  "byteorder 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethcore-logger 1.8.0",
  "ethcore-util 1.8.0",
  "log 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-wasm 0.12.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -891,6 +892,7 @@ dependencies = [
  "bit-set 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "byteorder 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "common-types 0.1.0",
+ "ethcore-logger 1.8.0",
  "ethcore-util 1.8.0",
  "ethjson 0.1.0",
  "evmjit 1.8.0",
@@ -3110,7 +3112,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "wasm-utils"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/wasm-utils#fee06b6d5826c2dc1fc1aa183b0c2c75e3e140c3"
+source = "git+https://github.com/paritytech/wasm-utils#9462bcc0680f0ec2c876abdf75bae981dd4344a5"
 dependencies = [
  "clap 2.24.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",

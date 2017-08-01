@@ -10,3 +10,4 @@ log = "0.3"
 parity-wasm = "0.12"
 wasm-utils = { git = "https://github.com/paritytech/wasm-utils" }
 vm = { path = "../vm" }
+ethcore-logger = { path = "../../logger" }
