@@ -300,7 +300,7 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 				write!(fmt, "Light Sync Status")
 			}
 		}
-		impl dapps::SyncStatus for LightSyncStatus {
+		impl node_health::SyncStatus for LightSyncStatus {
 			fn is_major_importing(&self) -> bool { self.0.is_major_importing() }
 			fn peers(&self) -> (usize, usize) {
 				let peers = ethsync::LightSyncProvider::peer_numbers(&*self.0);
@@ -688,7 +688,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 				write!(fmt, "Dapps Sync Status")
 			}
 		}
-		impl dapps::SyncStatus for SyncStatus {
+		impl node_health::SyncStatus for SyncStatus {
 			fn is_major_importing(&self) -> bool {
 				is_major_importing(Some(self.0.status().state), self.1.queue_info())
 			}

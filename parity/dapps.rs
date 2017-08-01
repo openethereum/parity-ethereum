@@ -27,7 +27,7 @@ use hash_fetch::urlhint::ContractClient;
 use helpers::replace_home;
 use light::client::Client as LightClient;
 use light::on_demand::{self, OnDemand};
-use node_health::NodeHealth;
+use node_health::{SyncStatus, NodeHealth};
 use rpc;
 use rpc_apis::SignerService;
 use parity_reactor;
@@ -174,7 +174,7 @@ pub fn new_ui(enabled: bool, deps: Dependencies) -> Result<Option<Middleware>, S
 	).map(Some)
 }
 
-pub use self::server::{SyncStatus, Middleware, service};
+pub use self::server::{Middleware, service};
 
 #[cfg(not(feature = "dapps"))]
 mod server {
@@ -183,11 +183,6 @@ mod server {
 	use std::path::PathBuf;
 	use parity_rpc::{hyper, RequestMiddleware, RequestMiddlewareAction};
 	use rpc_apis;
-
-	pub trait SyncStatus {
-		fn is_major_importing(&self) -> bool;
-		fn peers(&self) -> (usize, usize);
-	}
 
 	pub struct Middleware;
 	impl RequestMiddleware for Middleware {
@@ -198,7 +193,6 @@ mod server {
 		}
 	}
 
-	// TODO [ToDr] Updateme!
 	pub fn dapps_middleware(
 		_deps: Dependencies,
 		_dapps_path: PathBuf,
@@ -232,7 +226,6 @@ mod server {
 	use parity_reactor;
 
 	pub use parity_dapps::Middleware;
-	pub use parity_dapps::SyncStatus;
 
 	pub fn dapps_middleware(
 		deps: Dependencies,
