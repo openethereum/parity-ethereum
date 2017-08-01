@@ -22,7 +22,7 @@ use spec::Spec;
 use ethjson;
 use ethjson::state::test::ForkSpec;
 use transaction::SignedTransaction;
-use evm::env_info::EnvInfo;
+use vm::EnvInfo;
 
 lazy_static! {
 	pub static ref FRONTIER: Spec = ethereum::new_frontier_test();

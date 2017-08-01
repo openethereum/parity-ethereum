@@ -56,6 +56,8 @@ transient-hashmap = "0.4"
 using_queue = { path = "../util/using_queue" }
 table = { path = "../util/table" }
 bloomable = { path = "../util/bloomable" }
+vm = { path = "vm" }
+wasm = { path = "wasm" }
 
 [dev-dependencies]
 native-contracts = { path = "native_contracts", features = ["test_contracts"] }

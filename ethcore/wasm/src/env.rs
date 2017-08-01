@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Wasm env module bindings 
+//! Wasm env module bindings
 
 use parity_wasm::elements::ValueType::*;
 use parity_wasm::interpreter::UserFunctionDescriptor;
@@ -62,6 +62,21 @@ pub const SIGNATURES: &'static [UserFunctionDescriptor] = &[
 		Some(I32),
 	),
 	Static(
+		"_ccall",
+		&[I32; 6],
+		Some(I32),
+	),
+	Static(
+		"_dcall",
+		&[I32; 5],
+		Some(I32),
+	),
+	Static(
+		"_scall",
+		&[I32; 5],
+		Some(I32),
+	),
+	Static(
 		"abort",
 		&[I32],
 		None,
@@ -72,48 +87,57 @@ pub const SIGNATURES: &'static [UserFunctionDescriptor] = &[
 		None,
 	),
 	Static(
-		"invoke_vii",
-		&[I32; 3],
-		None,
+		"abortOnCannotGrowMemory",
+		&[I32; 0],
+		Some(I32)
 	),
-	Static(
-		"invoke_vi",
-		&[I32; 2],
-		None,
-	),
-	Static(
-		"invoke_v",
-		&[I32],
-		None,
-	),
-	Static(
-		"invoke_iii",
-		&[I32; 3],
-		Some(I32),
-	),
-	Static(
-		"___resumeException",
-		&[I32],
-		None,
-	),
+
+	/*
+		THIS IS EXPERIMENTAL RUST-ONLY RUNTIME EXTERNS, THEY ARE SUBJECT TO CHANGE
+
+		AVOID YOUR WASM CONTAINS ANY OF THESE OTHERWISE
+			EITHER FACE THE NEED OF HARDFORK
+			OR YOU CAN STUCK ON SPECIFIC RUST VERSION FOR WASM COMPILATION
+	*/
+
 	Static(
 		"_rust_begin_unwind",
 		&[I32; 4],
 		None,
 	),
 	Static(
-		"___cxa_find_matching_catch_2",
-		&[],
-		Some(I32),
-	),
-	Static(
-		"___gxx_personality_v0",
-		&[I32; 6],
-		Some(I32),
-	),
-	Static(
 		"_emscripten_memcpy_big",
 		&[I32; 3],
 		Some(I32),
-	)
+	),
+	Static(
+		"___syscall6",
+		&[I32; 2],
+		Some(I32),
+	),
+	Static(
+		"___syscall140",
+		&[I32; 2],
+		Some(I32)
+	),
+	Static(
+		"___syscall146",
+		&[I32; 2],
+		Some(I32)
+	),
+	Static(
+		"___syscall54",
+		&[I32; 2],
+		Some(I32)
+	),
+	Static(
+		"_llvm_trap",
+		&[I32; 0],
+		None
+	),
+	Static(
+		"___setErrNo",
+		&[I32; 1],
+		None
+	),
 ];

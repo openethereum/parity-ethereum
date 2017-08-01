@@ -109,6 +109,8 @@ extern crate transient_hashmap;
 extern crate using_queue;
 extern crate table;
 extern crate bloomable;
+extern crate vm;
+extern crate wasm;
 
 #[macro_use]
 extern crate log;

@@ -27,7 +27,7 @@ use std::sync::Arc;
 
 use receipt::Receipt;
 use engines::Engine;
-use evm::env_info::EnvInfo;
+use vm::EnvInfo;
 use error::Error;
 use executive::{Executive, TransactOptions};
 use factory::Factories;
@@ -985,7 +985,7 @@ mod tests {
 	use ethkey::Secret;
 	use util::{U256, H256, Address, Hashable};
 	use tests::helpers::*;
-	use evm::env_info::EnvInfo;
+	use vm::EnvInfo;
 	use spec::*;
 	use transaction::*;
 	use ethcore_logger::init_log;

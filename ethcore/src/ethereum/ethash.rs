@@ -22,7 +22,7 @@ use ethash::{quick_get_difficulty, slow_get_seedhash, EthashManager};
 use util::*;
 use block::*;
 use builtin::Builtin;
-use evm::env_info::EnvInfo;
+use vm::EnvInfo;
 use error::{BlockError, Error, TransactionError};
 use header::{Header, BlockNumber};
 use state::CleanupMode;
@@ -32,7 +32,7 @@ use engines::{self, Engine};
 use evm::Schedule;
 use ethjson;
 use rlp::{self, UntrustedRlp};
-use evm::env_info::LastHashes;
+use vm::LastHashes;
 
 /// Parity tries to round block.gas_limit to multiple of this constant
 pub const PARITY_GAS_LIMIT_DETERMINANT: U256 = U256([37, 0, 0, 0]);
