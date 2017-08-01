@@ -22,7 +22,6 @@ const flatten = require('lodash.flatten');
 const WebpackErrorNotificationPlugin = require('webpack-error-notification');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
-const ServiceWorkerWebpackPlugin = require('serviceworker-webpack-plugin');
 
 const rulesEs6 = require('./rules/es6');
 const rulesParity = require('./rules/parity');
@@ -198,10 +197,6 @@ module.exports = {
           template: './index.ejs',
           favicon: FAVICON,
           chunks: [ 'index' ]
-        }),
-
-        new ServiceWorkerWebpackPlugin({
-          entry: path.join(__dirname, '../node_modules/@parity/shared/serviceWorker.js')
         }),
 
         new CopyWebpackPlugin(
