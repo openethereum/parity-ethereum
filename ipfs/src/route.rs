@@ -119,8 +119,7 @@ mod tests {
 	use ethcore::client::TestBlockChainClient;
 
 	fn get_mocked_handler() -> IpfsHandler {
-		//IpfsHandler::new(None, None, Arc::new(TestBlockChainClient::new()))
-		unimplemented!();
+		IpfsHandler::new(None, None, Arc::new(TestBlockChainClient::new()))
 	}
 
 	#[test]
