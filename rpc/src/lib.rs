@@ -54,6 +54,7 @@ extern crate ethsync;
 extern crate ethcore_logger;
 extern crate vm;
 extern crate fetch;
+extern crate node_health;
 extern crate parity_reactor;
 extern crate parity_updater as updater;
 extern crate rlp;

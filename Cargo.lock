@@ -1995,6 +1995,7 @@ dependencies = [
  "jsonrpc-ws-server 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)",
  "log 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "multihash 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "node-health 0.1.0",
  "order-stat 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-reactor 0.1.0",
  "parity-updater 1.8.0",
