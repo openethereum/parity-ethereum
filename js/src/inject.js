@@ -25,11 +25,12 @@ import Web3 from 'web3';
 import web3extensions from './web3.extensions';
 
 function initProvider () {
-  let [, appId] = window.location.pathname.split('/');
+  const parts = window.location.pathname.split('/');
+  let appId = parts[1];
 
-  console.log('window.location.pathname', window.location.pathname, appId);
-
-  if (!Api.util.isHex(appId)) {
+  if (appId === 'dapps') {
+    appId = parts[2];
+  } else if (!Api.util.isHex(appId)) {
     appId = Api.util.sha3(appId);
   }
 
