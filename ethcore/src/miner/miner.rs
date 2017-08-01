@@ -1112,6 +1112,8 @@ impl MinerService for Miner {
 	/// Prepare the block and work if the Engine does not seal internally.
 	fn update_sealing(&self, chain: &MiningBlockChainClient) {
 		trace!(target: "miner", "update_sealing");
+		const NO_NEW_CHAIN_WITH_FORKS: &str = "Your chain specification contains one or more hard forks which are required to be \
+			on by default. Please remove these forks and start your chain again.";
 
 		if self.requires_reseal(chain.chain_info().best_block_number) {
 			// --------------------------------------------------------------------------
@@ -1120,6 +1122,14 @@ impl MinerService for Miner {
 			// --------------------------------------------------------------------------
 			trace!(target: "miner", "update_sealing: preparing a block");
 			let (block, original_work_hash) = self.prepare_block(chain);
+
+			// refuse to seal the first block of the chain if it contains hard forks
+			// which should be on by default.
+			if block.block().fields().header.number() == 1 && self.engine.params().contains_bugfix_hard_fork() {
+				warn!("{}", NO_NEW_CHAIN_WITH_FORKS);
+				return;
+			}
+
 			match self.engine.seals_internally() {
 				Some(true) => {
 					trace!(target: "miner", "update_sealing: engine indicates internal sealing");
@@ -1127,11 +1137,11 @@ impl MinerService for Miner {
 						trace!(target: "miner", "update_sealing: imported internally sealed block");
 					}
 				},
+				Some(false) => trace!(target: "miner", "update_sealing: engine is not keen to seal internally right now"),
 				None => {
 					trace!(target: "miner", "update_sealing: engine does not seal internally, preparing work");
 					self.prepare_work(block, original_work_hash)
 				},
-				_ => trace!(target: "miner", "update_sealing: engine is not keen to seal internally right now")
 			}
 		}
 	}

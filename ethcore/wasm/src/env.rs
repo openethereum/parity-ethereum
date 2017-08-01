@@ -115,5 +115,40 @@ pub const SIGNATURES: &'static [UserFunctionDescriptor] = &[
 		"_emscripten_memcpy_big",
 		&[I32; 3],
 		Some(I32),
-	)
+	),
+	Static(
+		"___syscall140",
+		&[I32; 2],
+		Some(I32)
+	),
+	Static(
+		"___syscall146",
+		&[I32; 2],
+		Some(I32)
+	),
+	Static(
+		"___syscall54",
+		&[I32; 2],
+		Some(I32)
+	),
+	Static(
+		"___syscall6",
+		&[I32; 2],
+		Some(I32)
+	),
+	Static(
+		"_llvm_trap",
+		&[I32; 0],
+		None
+	),
+	Static(
+		"abortOnCannotGrowMemory",
+		&[I32; 0],
+		Some(I32)
+	),
+	Static(
+		"___setErrNo",
+		&[I32; 1],
+		None
+	),
 ];

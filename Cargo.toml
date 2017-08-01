@@ -41,6 +41,7 @@ ethcore-ipc-hypervisor = { path = "ipc/hypervisor" }
 ethcore-light = { path = "ethcore/light" }
 ethcore-logger = { path = "logger" }
 ethcore-stratum = { path = "stratum" }
+ethcore-network = { path = "util/network" }
 ethkey = { path = "ethkey" }
 rlp = { path = "util/rlp" }
 rpc-cli = { path = "rpc_cli" }
@@ -65,6 +66,7 @@ rustc_version = "0.2"
 [dev-dependencies]
 ethcore-ipc-tests = { path = "ipc/tests" }
 pretty_assertions = "0.1"
+ipnetwork = "0.12.6"
 
 [target.'cfg(windows)'.dependencies]
 winapi = "0.2"

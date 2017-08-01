@@ -55,6 +55,7 @@ extern crate ethcore_ipc_nano as nanoipc;
 extern crate ethcore_light as light;
 extern crate ethcore_logger;
 extern crate ethcore_util as util;
+extern crate ethcore_network as network;
 extern crate ethkey;
 extern crate ethsync;
 extern crate panic_hook;
@@ -163,7 +164,7 @@ fn execute(command: Execute, can_restart: bool) -> Result<PostExecutionAction, S
 		Cmd::Account(account_cmd) => account::execute(account_cmd).map(|s| PostExecutionAction::Print(s)),
 		Cmd::ImportPresaleWallet(presale_cmd) => presale::execute(presale_cmd).map(|s| PostExecutionAction::Print(s)),
 		Cmd::Blockchain(blockchain_cmd) => blockchain::execute(blockchain_cmd).map(|_| PostExecutionAction::Quit),
-		Cmd::SignerToken(ws_conf, ui_conf) => signer::execute(ws_conf, ui_conf).map(|s| PostExecutionAction::Print(s)),
+		Cmd::SignerToken(ws_conf, ui_conf, logger_config) => signer::execute(ws_conf, ui_conf, logger_config).map(|s| PostExecutionAction::Print(s)),
 		Cmd::SignerSign { id, pwfile, port, authfile } => rpc_cli::signer_sign(id, pwfile, port, authfile).map(|s| PostExecutionAction::Print(s)),
 		Cmd::SignerList { port, authfile } => rpc_cli::signer_list(port, authfile).map(|s| PostExecutionAction::Print(s)),
 		Cmd::SignerReject { id, port, authfile } => rpc_cli::signer_reject(id, port, authfile).map(|s| PostExecutionAction::Print(s)),

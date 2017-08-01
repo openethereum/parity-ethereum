@@ -19,8 +19,7 @@ use std::collections::{HashMap, BTreeMap};
 use std::io;
 use util::Bytes;
 use network::{NetworkProtocolHandler, NetworkService, NetworkContext, HostInfo, PeerId, ProtocolId,
-	NetworkConfiguration as BasicNetworkConfiguration, NonReservedPeerMode, NetworkError,
-	AllowIP as NetworkAllowIP};
+	NetworkConfiguration as BasicNetworkConfiguration, NonReservedPeerMode, NetworkError};
 use util::{U256, H256, H512};
 use io::{TimerToken};
 use ethcore::ethstore::ethkey::Secret;
@@ -37,6 +36,7 @@ use chain::{ETH_PACKET_COUNT, SNAPSHOT_SYNC_PACKET_COUNT};
 use light::client::AsLightClient;
 use light::Provider;
 use light::net::{self as light_net, LightProtocol, Params as LightParams, Capabilities, Handler as LightHandler, EventContext};
+use network::IpFilter;
 
 /// Parity sync protocol
 pub const WARP_SYNC_PROTOCOL_ID: ProtocolId = *b"par";
@@ -539,30 +539,6 @@ impl ManageNetwork for EthSync {
 	}
 }
 
-/// IP fiter
-#[derive(Clone, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "ipc", binary)]
-pub enum AllowIP {
-	/// Connect to any address
-	All,
-	/// Connect to private network only
-	Private,
-	/// Connect to public network only
-	Public,
-}
-
-impl AllowIP {
-	/// Attempt to parse the peer mode from a string.
-	pub fn parse(s: &str) -> Option<Self> {
-		match s {
-			"all" => Some(AllowIP::All),
-			"private" => Some(AllowIP::Private),
-			"public" => Some(AllowIP::Public),
-			_ => None,
-		}
-	}
-}
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "ipc", binary)]
 /// Network service configuration
@@ -598,7 +574,7 @@ pub struct NetworkConfiguration {
 	/// The non-reserved peer mode.
 	pub allow_non_reserved: bool,
 	/// IP Filtering
-	pub allow_ips: AllowIP,
+	pub ip_filter: IpFilter,
 }
 
 impl NetworkConfiguration {
@@ -629,11 +605,7 @@ impl NetworkConfiguration {
 			max_handshakes: self.max_pending_peers,
 			reserved_protocols: hash_map![WARP_SYNC_PROTOCOL_ID => self.snapshot_peers],
 			reserved_nodes: self.reserved_nodes,
-			allow_ips: match self.allow_ips {
-				AllowIP::All => NetworkAllowIP::All,
-				AllowIP::Private => NetworkAllowIP::Private,
-				AllowIP::Public => NetworkAllowIP::Public,
-			},
+			ip_filter: self.ip_filter,
 			non_reserved_mode: if self.allow_non_reserved { NonReservedPeerMode::Accept } else { NonReservedPeerMode::Deny },
 		})
 	}
@@ -656,11 +628,7 @@ impl From<BasicNetworkConfiguration> for NetworkConfiguration {
 			max_pending_peers: other.max_handshakes,
 			snapshot_peers: *other.reserved_protocols.get(&WARP_SYNC_PROTOCOL_ID).unwrap_or(&0),
 			reserved_nodes: other.reserved_nodes,
-			allow_ips: match other.allow_ips {
-				NetworkAllowIP::All => AllowIP::All,
-				NetworkAllowIP::Private => AllowIP::Private,
-				NetworkAllowIP::Public => AllowIP::Public,
-			},
+			ip_filter: other.ip_filter,
 			allow_non_reserved: match other.non_reserved_mode { NonReservedPeerMode::Accept => true, _ => false } ,
 		}
 	}

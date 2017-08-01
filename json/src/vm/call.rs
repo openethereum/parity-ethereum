@@ -39,7 +39,7 @@ pub struct Call {
 mod tests {
 	use serde_json;
 	use vm::Call;
-	use util::{U256, H160 as Hash160};
+	use bigint::prelude::{U256, H160 as Hash160};
 	use uint::Uint;
 	use hash::Address;
 	use maybe::MaybeEmpty;

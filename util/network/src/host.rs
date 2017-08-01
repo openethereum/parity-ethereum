@@ -35,7 +35,7 @@ use rlp::*;
 use session::{Session, SessionInfo, SessionData};
 use error::*;
 use io::*;
-use {NetworkProtocolHandler, NonReservedPeerMode, AllowIP, PROTOCOL_VERSION};
+use {NetworkProtocolHandler, NonReservedPeerMode, PROTOCOL_VERSION, IpFilter};
 use node_table::*;
 use stats::NetworkStats;
 use discovery::{Discovery, TableUpdates, NodeEntry};
@@ -106,7 +106,7 @@ pub struct NetworkConfiguration {
 	/// The non-reserved peer mode.
 	pub non_reserved_mode: NonReservedPeerMode,
 	/// IP filter
-	pub allow_ips: AllowIP,
+	pub ip_filter: IpFilter,
 }
 
 impl Default for NetworkConfiguration {
@@ -132,7 +132,7 @@ impl NetworkConfiguration {
 			max_peers: 50,
 			max_handshakes: 64,
 			reserved_protocols: HashMap::new(),
-			allow_ips: AllowIP::All,
+			ip_filter: IpFilter::default(),
 			reserved_nodes: Vec::new(),
 			non_reserved_mode: NonReservedPeerMode::Accept,
 		}
@@ -566,7 +566,7 @@ impl Host {
 		}
 		let local_endpoint = self.info.read().local_endpoint.clone();
 		let public_address = self.info.read().config.public_address.clone();
-		let allow_ips = self.info.read().config.allow_ips;
+		let allow_ips = self.info.read().config.ip_filter.clone();
 		let public_endpoint = match public_address {
 			None => {
 				let public_address = select_public_address(local_endpoint.address.port());
@@ -660,7 +660,7 @@ impl Host {
 			}
 			let config = &info.config;
 
-			(config.min_peers, config.non_reserved_mode == NonReservedPeerMode::Deny, config.max_handshakes as usize, config.allow_ips, info.id().clone())
+			(config.min_peers, config.non_reserved_mode == NonReservedPeerMode::Deny, config.max_handshakes as usize, config.ip_filter.clone(), info.id().clone())
 		};
 
 		let session_count = self.session_count();
