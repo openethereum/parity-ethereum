@@ -81,9 +81,10 @@ impl NodeCacheBuilder {
 		debug_assert!(cache_size % NODE_BYTES == 0, "Unaligned cache size");
 		let num_nodes = cache_size / NODE_BYTES;
 
-		let nodes = make_memmapped_cache(&cache_path(cache_dir.as_ref(), &ident), num_nodes, &ident)
-			.map(Either::Right)
-			.unwrap_or_else(|_| Either::Left(make_memory_cache(num_nodes, &ident)));
+		let nodes =
+			make_memmapped_cache(&cache_path(cache_dir.as_ref(), &ident), num_nodes, &ident)
+				.map(Either::Right)
+				.unwrap_or_else(|_| Either::Left(make_memory_cache(num_nodes, &ident)));
 
 		NodeCache {
 			builder: self.clone(),
@@ -182,10 +183,13 @@ fn consume_cache<P: AsRef<Path>>(cache: &mut Cache, path: &P) -> io::Result<()> 
 	// If creating the memmap fails, we keep the `Vec` and try again next time `flush` is called.
 	// This means that it's possible to use this on a system that doesn't support memory mapping at
 	// all, at the cost of higher RAM.
-	let memmap = Mmap::open(&new_cache, Protection::ReadWrite)?;
-	*cache = Either::Right(memmap);
-
-	Ok(())
+	match Mmap::open(&new_cache, Protection::ReadWrite) {
+		Ok(memmap) => {
+			*cache = Either::Right(memmap);
+			Ok(())
+		},
+		Err(err) => Err(err),
+	}
 }
 
 fn cache_from_path<P: AsRef<Path>>(path: &P) -> io::Result<Cache> {
@@ -201,8 +205,13 @@ fn read_from_path<P: AsRef<Path>>(path: &P) -> io::Result<Vec<Node>> {
 	let mut file = File::open(path)?;
 
 	let mut nodes: Vec<u8> =
-		Vec::with_capacity(file.metadata().map(|m| m.len() as _).unwrap_or(1_000_000));
+		Vec::with_capacity(file.metadata().map(|m| m.len() as _).unwrap_or(NODE_BYTES * 1_000_000));
 	file.read_to_end(&mut nodes)?;
+
+	nodes.shrink_to_fit();
+	assert_eq!(nodes.capacity() % NODE_BYTES, 0);
+	assert_eq!(nodes.len() % NODE_BYTES, 0);
+
 	let out: Vec<Node> = unsafe {
 		Vec::from_raw_parts(
 			nodes.as_mut_ptr() as *mut _,
@@ -222,6 +231,7 @@ impl AsRef<[Node]> for NodeCache {
 			Either::Left(ref vec) => vec,
 			Either::Right(ref mmap) => unsafe {
 				let bytes = mmap.ptr();
+				assert_eq!(mmap.len() % NODE_BYTES, 0);
 				slice::from_raw_parts(bytes as _, mmap.len() / NODE_BYTES)
 			},
 		}
