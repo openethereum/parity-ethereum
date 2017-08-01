@@ -24,7 +24,7 @@ use api::{response, types};
 use apps::fetcher::Fetcher;
 use handlers::{self, extract_url};
 use endpoint::{Endpoint, Handler, EndpointPath};
-use node_health::NodeHealth;
+use node_health::{NodeHealth, HealthStatus, Health};
 use parity_reactor::Remote;
 
 #[derive(Clone)]
@@ -86,8 +86,19 @@ impl RestApiRouter {
 	}
 
 	fn health(&self, control: Control) -> Box<Handler> {
-		let map = move |health| {
-			response::as_json(StatusCode::Ok, &health)
+		let map = move |health: Result<Result<Health, ()>, ()>| {
+			let status = match health {
+				Ok(Ok(ref health)) => {
+					if [&health.peers.status, &health.sync.status].iter().any(|x| *x != &HealthStatus::Ok) {
+						StatusCode::PreconditionFailed // HTTP 412
+					} else {
+						StatusCode::Ok // HTTP 200
+					}
+				},
+				_ => StatusCode::ServiceUnavailable, // HTTP 503
+			};
+
+			response::as_json(status, &health)
 		};
 		let health = self.api.health.health();
 		let remote = self.api.remote.clone();

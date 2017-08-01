@@ -200,7 +200,7 @@ export default class Status {
     const statusPromises = [
       this._api.eth.syncing(),
       this._api.parity.netPeers(),
-      this._fetchHealth()
+      this._api.parity.nodeHealth()
     ];
 
     return Promise
@@ -245,13 +245,6 @@ export default class Status {
       status: STATUS_BAD,
       message: ['Unable to fetch node health.']
     };
-  }
-
-  _fetchHealth = () => {
-    // Support Parity-Extension.
-    const uiUrl = this._api.transport.uiUrlWithProtocol || '';
-
-    return fetch(`${uiUrl}/api/health`).then(res => res.json());
   }
 
   /**

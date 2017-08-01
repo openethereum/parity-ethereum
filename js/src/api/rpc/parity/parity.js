@@ -380,6 +380,11 @@ export default class Parity {
       .then(outNumber);
   }
 
+  nodeHealth () {
+    return this._transport
+      .execute('parity_nodeHealth');
+  }
+
   nodeName () {
     return this._transport
       .execute('parity_nodeName');
