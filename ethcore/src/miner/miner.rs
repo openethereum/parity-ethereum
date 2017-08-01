@@ -1528,7 +1528,7 @@ mod tests {
 	}
 
 	#[test]
-	fn should_add_many_transactions() {
+	fn should_add_many_reserved_transactions() {
 
 		let ntx = 50;
 		let nthread = 5;

@@ -794,16 +794,16 @@ impl TransactionQueue {
 	/// otherwise it might open up an attack vector.
 	pub fn add(
 		&mut self,
-		transaction: SignedTransaction,
+		tx: SignedTransaction,
 		origin: TransactionOrigin,
 		time: QueuingInstant,
 		condition: Option<Condition>,
 		details_provider: &TransactionDetailsProvider,
 	) -> Result<TransactionImportResult, Error> {
-		let hash = transaction.hash();
 		if origin == TransactionOrigin::Local {
-			let cloned_tx = transaction.clone();
-			let result = self.add_internal(transaction, origin, time, condition, details_provider);
+			let hash = tx.hash();
+			let cloned_tx = tx.clone();
+			let result = self.add_internal(tx, origin, time, condition, details_provider);
 			match result {
 				Ok(TransactionImportResult::Current) => {
 					self.local_transactions.mark_pending(hash);
@@ -827,7 +827,7 @@ impl TransactionQueue {
 			}
 			result
 		} else {
-			self.add_internal(transaction, origin, time, condition, details_provider)
+			self.add_internal(tx, origin, time, condition, details_provider)
 		}
 	}
 
