@@ -304,6 +304,7 @@ impl Default for CompactionProfile {
 /// Given output of df command return Linux rotational flag file path.
 #[cfg(target_os = "linux")]
 pub fn rotational_from_df_output(df_out: Vec<u8>) -> Option<PathBuf> {
+	use std::str;
 	str::from_utf8(df_out.as_slice())
 		.ok()
 		// Get the drive name.
@@ -324,6 +325,7 @@ impl CompactionProfile {
 	/// Attempt to determine the best profile automatically, only Linux for now.
 	#[cfg(target_os = "linux")]
 	pub fn auto(db_path: &Path) -> CompactionProfile {
+		use std::io::Read;
 		let hdd_check_file = db_path
 			.to_str()
 			.and_then(|path_str| Command::new("df").arg(path_str).output().ok())
