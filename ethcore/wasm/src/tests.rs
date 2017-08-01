@@ -15,13 +15,12 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
-
-use super::super::tests::{FakeExt, FakeCall, FakeCallType};
-use super::WasmInterpreter;
-use vm::{self, Vm, GasLeft};
-use action_params::{ActionParams, ActionValue};
-use util::{U256, H256, Address};
 use byteorder::{LittleEndian, ByteOrder};
+use util::{U256, H256, Address};
+
+use super::WasmInterpreter;
+use vm::{self, Vm, GasLeft, ActionParams, ActionValue};
+use vm::tests::{FakeCall, FakeExt, FakeCallType};
 
 macro_rules! load_sample {
 	($name: expr) => {
