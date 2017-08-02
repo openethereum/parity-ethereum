@@ -35,7 +35,9 @@ pub use self::instant_seal::InstantSeal;
 pub use self::null_engine::NullEngine;
 pub use self::tendermint::Tendermint;
 
-use std::sync::Weak;
+use std::sync::{Weak, Arc};
+use std::collections::{BTreeMap, HashMap};
+use std::fmt;
 
 use self::epoch::PendingTransition;
 
@@ -43,16 +45,14 @@ use account_provider::AccountProvider;
 use block::ExecutedBlock;
 use builtin::Builtin;
 use client::Client;
-use evm::env_info::{EnvInfo, LastHashes};
+use vm::{EnvInfo, LastHashes, Schedule, CreateContractAddress};
 use error::Error;
-use evm::Schedule;
 use header::{Header, BlockNumber};
 use receipt::Receipt;
 use trace::FlatTrace;
 use snapshot::SnapshotComponents;
 use spec::CommonParams;
 use transaction::{UnverifiedTransaction, SignedTransaction};
-use evm::CreateContractAddress;
 
 use ethkey::Signature;
 use util::*;
@@ -401,13 +401,12 @@ pub trait Engine : Sync + Send {
 
 /// Common engine utilities
 pub mod common {
+	use std::sync::Arc;
 	use block::ExecutedBlock;
-	use evm::env_info::{EnvInfo, LastHashes};
 	use error::Error;
 	use transaction::SYSTEM_ADDRESS;
 	use executive::Executive;
-	use evm::CallType;
-	use evm::action_params::{ActionParams, ActionValue};
+	use vm::{CallType, ActionParams, ActionValue, EnvInfo, LastHashes};
 	use trace::{NoopTracer, NoopVMTracer};
 	use state::Substate;
 

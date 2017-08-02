@@ -206,6 +206,10 @@ export default class LocalAccountsMiddleware extends Middleware {
       return accounts.remove(address, password);
     });
 
+    register('parity_removeAddress', ([address]) => {
+      return accounts.remove(address, null);
+    });
+
     register('parity_testPassword', ([address, password]) => {
       const account = accounts.get(address);
 

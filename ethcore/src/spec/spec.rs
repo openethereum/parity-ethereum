@@ -16,14 +16,17 @@
 
 //! Parameters for a block chain.
 
+use std::io::Read;
+use std::collections::BTreeMap;
+use std::path::Path;
+use std::sync::Arc;
 use rustc_hex::FromHex;
 use super::genesis::Genesis;
 use super::seal::Generic as GenericSeal;
 
-use evm::action_params::{ActionValue, ActionParams};
 use builtin::Builtin;
 use engines::{Engine, NullEngine, InstantSeal, BasicAuthority, AuthorityRound, Tendermint, DEFAULT_BLOCKHASH_CONTRACT};
-use evm::env_info::EnvInfo;
+use vm::{EnvInfo, CallType, ActionValue, ActionParams};
 use error::Error;
 use ethereum;
 use ethjson;
@@ -36,7 +39,6 @@ use state_db::StateDB;
 use state::{Backend, State, Substate};
 use state::backend::Basic as BasicBackend;
 use trace::{NoopTracer, NoopVMTracer};
-use evm::CallType;
 use util::*;
 
 /// Parameters common to ethereum-like blockchains.
@@ -102,14 +104,14 @@ pub struct CommonParams {
 
 impl CommonParams {
 	/// Schedule for an EVM in the post-EIP-150-era of the Ethereum main net.
-	pub fn schedule(&self, block_number: u64) -> ::evm::Schedule {
-		let mut schedule = ::evm::Schedule::new_post_eip150(usize::max_value(), true, true, true);
+	pub fn schedule(&self, block_number: u64) -> ::vm::Schedule {
+		let mut schedule = ::vm::Schedule::new_post_eip150(usize::max_value(), true, true, true);
 		self.update_schedule(block_number, &mut schedule);
 		schedule
 	}
 
 	/// Apply common spec config parameters to the schedule.
- 	pub fn update_schedule(&self, block_number: u64, schedule: &mut ::evm::Schedule) {
+ 	pub fn update_schedule(&self, block_number: u64, schedule: &mut ::vm::Schedule) {
 		schedule.have_create2 = block_number >= self.eip86_transition;
 		schedule.have_revert = block_number >= self.eip140_transition;
 		schedule.have_static_call = block_number >= self.eip214_transition;
@@ -119,8 +121,8 @@ impl CommonParams {
 		}
 		if block_number >= self.dust_protection_transition {
 			schedule.kill_dust = match self.remove_dust_contracts {
-				true => ::evm::CleanDustMode::WithCodeAndStorage,
-				false => ::evm::CleanDustMode::BasicOnly,
+				true => ::vm::CleanDustMode::WithCodeAndStorage,
+				false => ::vm::CleanDustMode::BasicOnly,
 			};
 		}
 	}
@@ -517,6 +519,7 @@ impl Spec {
 
 #[cfg(test)]
 mod tests {
+	use std::str::FromStr;
 	use util::*;
 	use views::*;
 	use tests::helpers::get_temp_state_db;
@@ -527,19 +530,6 @@ mod tests {
 	#[test]
 	fn test_load_empty() {
 		assert!(Spec::load(::std::env::temp_dir(), &[] as &[u8]).is_err());
-	}
-
-	#[test]
-	fn all_spec_files_valid() {
-		Spec::new_test();
-		Spec::new_null();
-		Spec::new_test_constructor();
-		Spec::new_instant();
-		Spec::new_test_round();
-		Spec::new_test_tendermint();
-		Spec::new_validator_safe_contract();
-		Spec::new_validator_contract();
-		Spec::new_validator_multi();
 	}
 
 	#[test]

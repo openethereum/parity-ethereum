@@ -42,9 +42,8 @@ use client::{
 };
 use encoded;
 use engines::{Engine, EpochTransition};
-use evm::env_info::EnvInfo;
-use evm::env_info::LastHashes;
 use error::{ImportError, ExecutionError, CallError, BlockError, ImportResult, Error as EthcoreError};
+use vm::{EnvInfo, LastHashes};
 use evm::{Factory as EvmFactory, Schedule};
 use executive::{Executive, Executed, TransactOptions, contract_address};
 use factory::Factories;

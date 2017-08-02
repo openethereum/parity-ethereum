@@ -31,6 +31,10 @@ export default class Account {
   }
 
   isValidPassword (password) {
+    if (!this._keyObject) {
+      return false;
+    }
+
     return decryptPrivateKey(this._keyObject, password)
       .then((privateKey) => {
         if (!privateKey) {

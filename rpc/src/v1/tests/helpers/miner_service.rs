@@ -16,9 +16,9 @@
 
 //! Test implementation of miner service.
 
+use std::collections::{BTreeMap, HashMap};
 use std::collections::hash_map::Entry;
-use util::{Address, H256, Bytes, U256};
-use util::standard::*;
+use util::{Address, H256, Bytes, U256, RwLock, Mutex};
 use ethcore::error::{Error, CallError};
 use ethcore::client::{MiningBlockChainClient, Executed, CallAnalytics};
 use ethcore::block::{ClosedBlock, IsBlock};

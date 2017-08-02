@@ -20,11 +20,11 @@ use std::sync::Arc;
 
 use byteorder::{LittleEndian, ByteOrder};
 
-use ext;
-
+use vm;
 use parity_wasm::interpreter;
 use util::{Address, H256, U256};
 
+use vm::CallType;
 use super::ptr::{WasmPtr, Error as PtrError};
 use super::call_args::CallArgs;
 
@@ -57,22 +57,38 @@ impl From<PtrError> for Error {
 	}
 }
 
+pub struct RuntimeContext {
+	address: Address,
+	sender: Address,
+}
+
+impl RuntimeContext {
+	pub fn new(address: Address, sender: Address) -> Self {
+		RuntimeContext {
+			address: address,
+			sender: sender,
+		}
+	}
+}
+
 /// Runtime enviroment data for wasm contract execution
 pub struct Runtime<'a> {
 	gas_counter: u64,
 	gas_limit: u64,
 	dynamic_top: u32,
-	ext: &'a mut ext::Ext,
+	ext: &'a mut vm::Ext,
 	memory: Arc<interpreter::MemoryInstance>,
+	context: RuntimeContext,
 }
 
 impl<'a> Runtime<'a> {
 	/// New runtime for wasm contract with specified params
 	pub fn with_params<'b>(
-		ext: &'b mut ext::Ext,
+		ext: &'b mut vm::Ext,
 		memory: Arc<interpreter::MemoryInstance>,
 		stack_space: u32,
 		gas_limit: u64,
+		context: RuntimeContext,
 	) -> Runtime<'b> {
 		Runtime {
 			gas_counter: 0,
@@ -80,6 +96,7 @@ impl<'a> Runtime<'a> {
 			dynamic_top: stack_space,
 			memory: memory,
 			ext: ext,
+			context: context,
 		}
 	}
 
@@ -139,13 +156,13 @@ impl<'a> Runtime<'a> {
 		trace!(target: "wasm", "runtime: create contract");
 		let mut context = context;
 		let result_ptr = context.value_stack.pop_as::<i32>()? as u32;
-		trace!(target: "wasm", "    result_ptr: {:?}", result_ptr);
+		trace!(target: "wasm", "result_ptr: {:?}", result_ptr);
 		let code_len = context.value_stack.pop_as::<i32>()? as u32;
-		trace!(target: "wasm", "    code_len: {:?}", code_len);
+		trace!(target: "wasm", "  code_len: {:?}", code_len);
 		let code_ptr = context.value_stack.pop_as::<i32>()? as u32;
-		trace!(target: "wasm", "    code_ptr: {:?}", code_ptr);
+		trace!(target: "wasm", "  code_ptr: {:?}", code_ptr);
 		let endowment = self.pop_u256(&mut context)?;
-		trace!(target: "wasm", "    val: {:?}", endowment);
+		trace!(target: "wasm", "       val: {:?}", endowment);
 
 		let code = self.memory.get(code_ptr, code_len as usize)?;
 
@@ -153,19 +170,140 @@ impl<'a> Runtime<'a> {
 			.map_err(|_| interpreter::Error::Trap("Gas state error".to_owned()))?
 			.into();
 
-		match self.ext.create(&gas_left, &endowment, &code, ext::CreateContractAddress::FromSenderAndCodeHash) {
-			ext::ContractCreateResult::Created(address, gas_left) => {
+		match self.ext.create(&gas_left, &endowment, &code, vm::CreateContractAddress::FromSenderAndCodeHash) {
+			vm::ContractCreateResult::Created(address, gas_left) => {
 				self.memory.set(result_ptr, &*address)?;
 				self.gas_counter = self.gas_limit - gas_left.low_u64();
 				trace!(target: "wasm", "runtime: create contract success (@{:?})", address);
 				Ok(Some(0i32.into()))
 			},
-			ext::ContractCreateResult::Failed => {
+			vm::ContractCreateResult::Failed => {
 				trace!(target: "wasm", "runtime: create contract fail");
 				Ok(Some((-1i32).into()))
 			}
 		}
 	}
+
+	pub fn call(&mut self, context: interpreter::CallerContext)
+		-> Result<Option<interpreter::RuntimeValue>, interpreter::Error>
+	{
+		//
+		// method signature:
+		// fn (
+		// 	address: *const u8,
+		// 	val_ptr: *const u8,
+		// 	input_ptr: *const u8,
+		// 	input_len: u32,
+		// 	result_ptr: *mut u8,
+		// 	result_len: u32,
+		// ) -> i32
+
+		self.do_call(true, CallType::Call, context)
+	}
+
+
+	fn call_code(&mut self, context: interpreter::CallerContext)
+		-> Result<Option<interpreter::RuntimeValue>, interpreter::Error>
+	{
+		//
+		// signature (same as static call):
+		// fn (
+		// 	address: *const u8,
+		// 	input_ptr: *const u8,
+		// 	input_len: u32,
+		// 	result_ptr: *mut u8,
+		// 	result_len: u32,
+		// ) -> i32
+
+		self.do_call(false, CallType::CallCode, context)
+	}
+
+	fn do_call(
+		&mut self,
+		use_val: bool,
+		call_type: CallType,
+		context: interpreter::CallerContext,
+	)
+		-> Result<Option<interpreter::RuntimeValue>, interpreter::Error>
+	{
+
+		trace!(target: "wasm", "runtime: call code");
+		let mut context = context;
+		let result_alloc_len = context.value_stack.pop_as::<i32>()? as u32;
+		trace!(target: "wasm", "    result_len: {:?}", result_alloc_len);
+
+		let result_ptr = context.value_stack.pop_as::<i32>()? as u32;
+		trace!(target: "wasm", "    result_ptr: {:?}", result_ptr);
+
+		let input_len = context.value_stack.pop_as::<i32>()? as u32;
+		trace!(target: "wasm", "     input_len: {:?}", input_len);
+
+		let input_ptr = context.value_stack.pop_as::<i32>()? as u32;
+		trace!(target: "wasm", "     input_ptr: {:?}", input_ptr);
+
+		let val = if use_val { Some(self.pop_u256(&mut context)?) }
+		else { None };
+		trace!(target: "wasm", "           val: {:?}", val);
+
+		let address = self.pop_address(&mut context)?;
+		trace!(target: "wasm", "       address: {:?}", address);
+
+		if let Some(ref val) = val {
+			let address_balance = self.ext.balance(&self.context.address)
+				.map_err(|_| interpreter::Error::Trap("Gas state error".to_owned()))?;
+
+			if &address_balance < val {
+				trace!(target: "wasm", "runtime: call failed due to balance check");
+				return Ok(Some((-1i32).into()));
+			}
+		}
+
+		let mut result = Vec::with_capacity(result_alloc_len as usize);
+		result.resize(result_alloc_len as usize, 0);
+		let gas = self.gas_left()
+			.map_err(|_| interpreter::Error::Trap("Gas state error".to_owned()))?
+			.into();
+		// todo: optimize to use memory views once it's in
+		let payload = self.memory.get(input_ptr, input_len as usize)?;
+
+		let call_result = self.ext.call(
+			&gas,
+			&self.context.sender,
+			&self.context.address,
+			val,
+			&payload,
+			&address,
+			&mut result[..],
+			call_type,
+		);
+
+		match call_result {
+			vm::MessageCallResult::Success(gas_left, _) => {
+				self.gas_counter = self.gas_limit - gas_left.low_u64();
+				self.memory.set(result_ptr, &result)?;
+				Ok(Some(0i32.into()))
+			},
+			vm::MessageCallResult::Failed  => {
+				Ok(Some((-1i32).into()))
+			}
+		}
+	}
+
+	pub fn static_call(&mut self, context: interpreter::CallerContext)
+		-> Result<Option<interpreter::RuntimeValue>, interpreter::Error>
+	{
+		// signature (same as code call):
+		// fn (
+		// 	address: *const u8,
+		// 	input_ptr: *const u8,
+		// 	input_len: u32,
+		// 	result_ptr: *mut u8,
+		// 	result_len: u32,
+		// ) -> i32
+
+		self.do_call(false, CallType::StaticCall, context)
+	}
+
 
 	/// Allocate memory using the wasm stack params
 	pub fn malloc(&mut self, context: interpreter::CallerContext)
@@ -338,6 +476,15 @@ impl<'a> interpreter::UserFunctionExecutor for Runtime<'a> {
 			"_create" => {
 				self.create(context)
 			},
+			"_ccall" => {
+				self.call(context)
+			},
+			"_dcall" => {
+				self.call_code(context)
+			},
+			"_scall" => {
+			 	self.static_call(context)
+			},
 			"_debug" => {
 				self.debug_log(context)
 			},
@@ -348,7 +495,7 @@ impl<'a> interpreter::UserFunctionExecutor for Runtime<'a> {
 				self.mem_copy(context)
 			},
 			_ => {
-				trace!("Unknown env func: '{}'", name);
+				trace!(target: "wasm", "Trapped due to unhandled function: '{}'", name);
 				self.user_trap(context)
 			}
 		}

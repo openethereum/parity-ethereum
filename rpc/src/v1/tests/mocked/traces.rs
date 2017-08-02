@@ -21,7 +21,7 @@ use ethcore::trace::trace::{Action, Res, Call};
 use ethcore::trace::LocalizedTrace;
 use ethcore::client::TestBlockChainClient;
 
-use evm::CallType;
+use vm::CallType;
 
 use jsonrpc_core::IoHandler;
 use v1::tests::helpers::{TestMinerService};

@@ -17,8 +17,10 @@
 //! A blockchain engine that supports a non-instant BFT proof-of-authority.
 
 use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
-use std::sync::Weak;
+use std::sync::{Weak, Arc};
 use std::time::{UNIX_EPOCH, Duration};
+use std::collections::{BTreeMap, HashSet, HashMap};
+use std::cmp;
 
 use account_provider::AccountProvider;
 use block::*;
@@ -446,9 +448,9 @@ impl Engine for AuthorityRound {
 			let gas_limit = parent.gas_limit().clone();
 			let bound_divisor = self.params().gas_limit_bound_divisor;
 			if gas_limit < gas_floor_target {
-				min(gas_floor_target, gas_limit + gas_limit / bound_divisor - 1.into())
+				cmp::min(gas_floor_target, gas_limit + gas_limit / bound_divisor - 1.into())
 			} else {
-				max(gas_floor_target, gas_limit - gas_limit / bound_divisor + 1.into())
+				cmp::max(gas_floor_target, gas_limit - gas_limit / bound_divisor + 1.into())
 			}
 		});
 	}
@@ -515,7 +517,7 @@ impl Engine for AuthorityRound {
 	fn on_new_block(
 		&self,
 		block: &mut ExecutedBlock,
-		last_hashes: Arc<::evm::env_info::LastHashes>,
+		last_hashes: Arc<::vm::LastHashes>,
 		epoch_begin: bool,
 	) -> Result<(), Error> {
 		let parent_hash = block.fields().header.parent_hash().clone();
@@ -813,7 +815,7 @@ impl Engine for AuthorityRound {
 		}
 	}
 
-	fn verify_transaction_basic(&self, t: &UnverifiedTransaction, header: &Header) -> result::Result<(), Error> {
+	fn verify_transaction_basic(&self, t: &UnverifiedTransaction, header: &Header) -> Result<(), Error> {
 		t.check_low_s()?;
 
 		if let Some(n) = t.network_id() {
@@ -849,6 +851,7 @@ impl Engine for AuthorityRound {
 
 #[cfg(test)]
 mod tests {
+	use std::sync::Arc;
 	use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
 	use util::*;
 	use header::Header;
@@ -939,10 +942,10 @@ mod tests {
 		let addr = tap.insert_account("0".sha3().into(), "0").unwrap();
 		let mut parent_header: Header = Header::default();
 		parent_header.set_seal(vec![encode(&0usize).into_vec()]);
-		parent_header.set_gas_limit(U256::from_str("222222").unwrap());
+		parent_header.set_gas_limit("222222".parse::<U256>().unwrap());
 		let mut header: Header = Header::default();
 		header.set_number(1);
-		header.set_gas_limit(U256::from_str("222222").unwrap());
+		header.set_gas_limit("222222".parse::<U256>().unwrap());
 		header.set_author(addr);
 
 		let engine = Spec::new_test_round().engine;
@@ -965,10 +968,10 @@ mod tests {
 
 		let mut parent_header: Header = Header::default();
 		parent_header.set_seal(vec![encode(&0usize).into_vec()]);
-		parent_header.set_gas_limit(U256::from_str("222222").unwrap());
+		parent_header.set_gas_limit("222222".parse::<U256>().unwrap());
 		let mut header: Header = Header::default();
 		header.set_number(1);
-		header.set_gas_limit(U256::from_str("222222").unwrap());
+		header.set_gas_limit("222222".parse::<U256>().unwrap());
 		header.set_author(addr);
 
 		let engine = Spec::new_test_round().engine;
@@ -991,10 +994,10 @@ mod tests {
 
 		let mut parent_header: Header = Header::default();
 		parent_header.set_seal(vec![encode(&4usize).into_vec()]);
-		parent_header.set_gas_limit(U256::from_str("222222").unwrap());
+		parent_header.set_gas_limit("222222".parse::<U256>().unwrap());
 		let mut header: Header = Header::default();
 		header.set_number(1);
-		header.set_gas_limit(U256::from_str("222222").unwrap());
+		header.set_gas_limit("222222".parse::<U256>().unwrap());
 		header.set_author(addr);
 
 		let engine = Spec::new_test_round().engine;
@@ -1028,10 +1031,10 @@ mod tests {
 
 		let mut parent_header: Header = Header::default();
 		parent_header.set_seal(vec![encode(&1usize).into_vec()]);
-		parent_header.set_gas_limit(U256::from_str("222222").unwrap());
+		parent_header.set_gas_limit("222222".parse::<U256>().unwrap());
 		let mut header: Header = Header::default();
 		header.set_number(1);
-		header.set_gas_limit(U256::from_str("222222").unwrap());
+		header.set_gas_limit("222222".parse::<U256>().unwrap());
 		header.set_seal(vec![encode(&3usize).into_vec()]);
 
 		// Do not report when signer not present.
