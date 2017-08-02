@@ -111,6 +111,7 @@ impl Default for UiConfiguration {
 				"0.parity.pool.ntp.org:123".into(),
 				"1.parity.pool.ntp.org:123".into(),
 				"2.parity.pool.ntp.org:123".into(),
+				"3.parity.pool.ntp.org:123".into(),
 			],
 			port: 8180,
 			interface: "127.0.0.1".into(),

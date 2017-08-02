@@ -1284,7 +1284,8 @@ mod tests {
 			ntp_servers: vec![
 				"0.parity.pool.ntp.org:123".into(),
 				"1.parity.pool.ntp.org:123".into(),
-				"2.parity.pool.ntp.org:123".into()
+				"2.parity.pool.ntp.org:123".into(),
+				"3.parity.pool.ntp.org:123".into(),
 			],
 			interface: "127.0.0.1".into(),
 			port: 8180,
@@ -1528,6 +1529,7 @@ mod tests {
 			"0.parity.pool.ntp.org:123".into(),
 			"1.parity.pool.ntp.org:123".into(),
 			"2.parity.pool.ntp.org:123".into(),
+			"3.parity.pool.ntp.org:123".into(),
 		];
 		assert_eq!(conf0.directories().signer, "signer".to_owned());
 		assert_eq!(conf0.ui_config(), UiConfiguration {
