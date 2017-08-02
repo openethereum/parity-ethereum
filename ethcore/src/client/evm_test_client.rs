@@ -23,7 +23,7 @@ use util::kvdb::{self, KeyValueDB};
 use {state, state_db, client, executive, trace, db, spec};
 use factory::Factories;
 use evm::{self, VMType};
-use evm::action_params::ActionParams;
+use vm::{self, ActionParams};
 
 /// EVM test Error.
 #[derive(Debug)]
@@ -31,7 +31,7 @@ pub enum EvmTestError {
 	/// Trie integrity error.
 	Trie(util::TrieError),
 	/// EVM error.
-	Evm(evm::Error),
+	Evm(vm::Error),
 	/// Initialization error.
 	Initialization(::error::Error),
 	/// Low-level database error.

@@ -17,7 +17,7 @@
 //! Blockchain filter
 
 use util::{Address, H256, Hashable, H2048};
-use util::bloom::Bloomable;
+use bloomable::Bloomable;
 use ids::BlockId;
 use log_entry::LogEntry;
 

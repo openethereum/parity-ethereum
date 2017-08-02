@@ -17,6 +17,9 @@
 //! Test client.
 
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrder};
+use std::sync::Arc;
+use std::collections::{HashMap, BTreeMap};
+use std::mem;
 use rustc_hex::FromHex;
 use util::*;
 use rlp::*;
@@ -36,7 +39,8 @@ use log_entry::LocalizedLogEntry;
 use receipt::{Receipt, LocalizedReceipt};
 use blockchain::extras::BlockReceipts;
 use error::{ImportResult, Error as EthcoreError};
-use evm::{Factory as EvmFactory, VMType, Schedule};
+use evm::{Factory as EvmFactory, VMType};
+use vm::Schedule;
 use miner::{Miner, MinerService, TransactionImportResult};
 use spec::Spec;
 use types::basic_account::BasicAccount;

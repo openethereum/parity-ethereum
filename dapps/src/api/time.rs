@@ -33,13 +33,14 @@
 
 use std::io;
 use std::{fmt, mem, time};
-
+use std::sync::Arc;
 use std::collections::VecDeque;
+
 use futures::{self, Future, BoxFuture};
 use futures_cpupool::CpuPool;
 use ntp;
 use time::{Duration, Timespec};
-use util::{Arc, RwLock};
+use util::RwLock;
 
 /// Time checker error.
 #[derive(Debug, Clone, PartialEq)]

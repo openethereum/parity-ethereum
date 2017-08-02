@@ -16,12 +16,13 @@
 
 //! Test implementation of miner service.
 
+use std::collections::{BTreeMap, HashMap};
 use std::collections::hash_map::Entry;
-use util::{Address, H256, Bytes, U256};
-use util::standard::*;
+use util::{Address, H256, Bytes, U256, RwLock, Mutex};
 use ethcore::error::Error;
 use ethcore::client::MiningBlockChainClient;
 use ethcore::block::ClosedBlock;
+use ethcore::block::{ClosedBlock, IsBlock};
 use ethcore::header::BlockNumber;
 use ethcore::transaction::{UnverifiedTransaction, SignedTransaction, PendingTransaction};
 use ethcore::receipt::{Receipt, RichReceipt};

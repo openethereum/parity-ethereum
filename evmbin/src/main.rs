@@ -25,6 +25,7 @@ extern crate serde;
 extern crate serde_derive;
 extern crate docopt;
 extern crate ethcore_util as util;
+extern crate vm;
 extern crate evm;
 extern crate panic_hook;
 
@@ -34,12 +35,12 @@ use docopt::Docopt;
 use rustc_hex::FromHex;
 use util::{U256, Bytes, Address};
 use ethcore::spec;
-use evm::action_params::ActionParams;
+use vm::ActionParams;
 
-mod vm;
+mod info;
 mod display;
 
-use vm::Informant;
+use info::Informant;
 
 const USAGE: &'static str = r#"
 EVM implementation for Parity.
@@ -90,7 +91,7 @@ fn run<T: Informant>(args: Args, mut informant: T) {
 	params.data = data;
 
 	informant.set_gas(gas);
-	let result = vm::run(&mut informant, spec, params);
+	let result = info::run(&mut informant, spec, params);
 	informant.finish(result);
 }
 
