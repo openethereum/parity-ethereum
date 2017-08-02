@@ -33,13 +33,14 @@
 
 use std::io;
 use std::{fmt, mem, time};
-
+use std::sync::Arc;
 use std::collections::VecDeque;
+
 use futures::{self, Future, BoxFuture};
 use futures_cpupool::CpuPool;
 use ntp;
 use time::{Duration, Timespec};
-use util::{Arc, RwLock};
+use util::RwLock;
 
 /// Time checker error.
 #[derive(Debug, Clone, PartialEq)]
@@ -100,6 +101,10 @@ impl SimpleNtp {
 impl Ntp for SimpleNtp {
 	fn drift(&self) -> BoxFuture<Duration, Error> {
 		let address = self.address.clone();
+		if &*address == "none" {
+			return futures::future::err(Error::Ntp("NTP server is not provided.".into())).boxed();
+		}
+
 		self.pool.spawn_fn(move || {
 			let packet = ntp::request(&*address)?;
 			let dest_time = ::time::now_utc().to_timespec();
@@ -114,7 +119,9 @@ impl Ntp for SimpleNtp {
 	}
 }
 
-const MAX_RESULTS: usize = 4;
+// NOTE In a positive scenario first results will be seen after:
+// MAX_RESULTS * UPDATE_TIMEOUT_OK_SECS seconds.
+const MAX_RESULTS: usize = 7;
 const UPDATE_TIMEOUT_OK_SECS: u64 = 30;
 const UPDATE_TIMEOUT_ERR_SECS: u64 = 2;
 
@@ -225,7 +232,7 @@ mod tests {
 
 	fn time_checker() -> TimeChecker<FakeNtp> {
 		let last_result = Arc::new(RwLock::new(
-			(Instant::now(), vec![Err(Error::Ntp("NTP server unavailable.".into()))].into())
+			(Instant::now(), vec![Err(Error::Ntp("NTP server unavailable".into()))].into())
 		));
 
 		TimeChecker {

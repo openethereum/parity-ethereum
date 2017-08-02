@@ -123,7 +123,9 @@ impl Light {
 		}
 		let num_nodes = cache_size / NODE_BYTES;
 		let mut nodes: Vec<Node> = Vec::with_capacity(num_nodes);
-		nodes.resize(num_nodes, unsafe { mem::uninitialized() });
+
+		unsafe { nodes.set_len(num_nodes) };
+
 		let buf = unsafe { slice::from_raw_parts_mut(nodes.as_mut_ptr() as *mut u8, cache_size) };
 		file.read_exact(buf)?;
 		Ok(Light {
@@ -208,17 +210,20 @@ pub fn slow_get_seedhash(block_number: u64) -> H256 {
 	SeedHashCompute::resume_compute_seedhash([0u8; 32], 0, block_number / ETHASH_EPOCH_LENGTH)
 }
 
-#[inline]
 fn fnv_hash(x: u32, y: u32) -> u32 {
 	return x.wrapping_mul(FNV_PRIME) ^ y;
 }
 
-#[inline]
 fn sha3_512(input: &[u8], output: &mut [u8]) {
 	unsafe { sha3::sha3_512(output.as_mut_ptr(), output.len(), input.as_ptr(), input.len()) };
 }
 
-#[inline]
+fn sha3_512_inplace(input: &mut [u8]) {
+	// This is safe since `sha3_*` uses an internal buffer and copies the result to the output. This
+	// means that we can reuse the input buffer for both input and output.
+	unsafe { sha3::sha3_512(input.as_mut_ptr(), input.len(), input.as_ptr(), input.len()) };
+}
+
 fn get_cache_size(block_number: u64) -> usize {
 	let mut sz: u64 = CACHE_BYTES_INIT + CACHE_BYTES_GROWTH * (block_number / ETHASH_EPOCH_LENGTH);
 	sz = sz - NODE_BYTES as u64;
@@ -228,7 +233,6 @@ fn get_cache_size(block_number: u64) -> usize {
 	sz as usize
 }
 
-#[inline]
 fn get_data_size(block_number: u64) -> usize {
 	let mut sz: u64 = DATASET_BYTES_INIT + DATASET_BYTES_GROWTH * (block_number / ETHASH_EPOCH_LENGTH);
 	sz = sz - ETHASH_MIX_BYTES as u64;
@@ -238,7 +242,6 @@ fn get_data_size(block_number: u64) -> usize {
 	sz as usize
 }
 
-
 /// Difficulty quick check for POW preverification
 ///
 /// `header_hash`      The hash of the header
@@ -246,17 +249,27 @@ fn get_data_size(block_number: u64) -> usize {
 /// `mix_hash`         The mix digest hash
 /// Boundary recovered from mix hash
 pub fn quick_get_difficulty(header_hash: &H256, nonce: u64, mix_hash: &H256) -> H256 {
-	let mut buf = [0u8; 64 + 32];
-	unsafe { ptr::copy_nonoverlapping(header_hash.as_ptr(), buf.as_mut_ptr(), 32) };
-	unsafe { ptr::copy_nonoverlapping(mem::transmute(&nonce), buf[32..].as_mut_ptr(), 8) };
+	unsafe {
+		// This is safe - the `sha3_512` call below reads the first 40 bytes (which we explicitly set
+		// with two `copy_nonoverlapping` calls) but writes the first 64, and then we explicitly write
+		// the next 32 bytes before we read the whole thing with `sha3_256`.
+		//
+		// This cannot be elided by the compiler as it doesn't know the implementation of
+		// `sha3_512`.
+		let mut buf: [u8; 64 + 32] = mem::uninitialized();
 
-	unsafe { sha3::sha3_512(buf.as_mut_ptr(), 64, buf.as_ptr(), 40) };
-	unsafe { ptr::copy_nonoverlapping(mix_hash.as_ptr(), buf[64..].as_mut_ptr(), 32) };
+		ptr::copy_nonoverlapping(header_hash.as_ptr(), buf.as_mut_ptr(), 32);
+		ptr::copy_nonoverlapping(mem::transmute(&nonce), buf[32..].as_mut_ptr(), 8);
 
-	let mut hash = [0u8; 32];
-	unsafe { sha3::sha3_256(hash.as_mut_ptr(), hash.len(), buf.as_ptr(), buf.len()) };
-	hash.as_mut_ptr();
-	hash
+		sha3::sha3_512(buf.as_mut_ptr(), 64, buf.as_ptr(), 40);
+		ptr::copy_nonoverlapping(mix_hash.as_ptr(), buf[64..].as_mut_ptr(), 32);
+
+		// This is initialized in `sha3_256`
+		let mut hash: [u8; 32] = mem::uninitialized();
+		sha3::sha3_256(hash.as_mut_ptr(), hash.len(), buf.as_ptr(), buf.len());
+
+		hash
+	}
 }
 
 /// Calculate the light client data
@@ -269,78 +282,194 @@ pub fn light_compute(light: &Light, header_hash: &H256, nonce: u64) -> ProofOfWo
 }
 
 fn hash_compute(light: &Light, full_size: usize, header_hash: &H256, nonce: u64) -> ProofOfWork {
+	macro_rules! make_const_array {
+		($n:expr, $value:expr) => {{
+			// We use explicit lifetimes to ensure that val's borrow is invalidated until the
+			// transmuted val dies.
+			unsafe fn make_const_array<'a, T, U>(val: &'a mut [T]) -> &'a mut [U; $n] {
+				use ::std::mem;
+
+				debug_assert_eq!(val.len() * mem::size_of::<T>(), $n * mem::size_of::<U>());
+				mem::transmute(val.as_mut_ptr())
+			}
+
+			make_const_array($value)
+		}}
+	}
+
+	#[repr(C)]
+	struct MixBuf {
+		half_mix: Node,
+		compress_bytes: [u8; MIX_WORDS],
+	};
+
 	if full_size % MIX_WORDS != 0 {
 		panic!("Unaligned full size");
 	}
-	// pack hash and nonce together into first 40 bytes of s_mix
-	let mut s_mix: [Node; MIX_NODES + 1] = [Node::default(), Node::default(), Node::default()];
-	unsafe { ptr::copy_nonoverlapping(header_hash.as_ptr(), s_mix.get_unchecked_mut(0).bytes.as_mut_ptr(), 32) };
-	unsafe { ptr::copy_nonoverlapping(mem::transmute(&nonce), s_mix.get_unchecked_mut(0).bytes[32..].as_mut_ptr(), 8) };
 
-	// compute sha3-512 hash and replicate across mix
-	unsafe {
-		sha3::sha3_512(s_mix.get_unchecked_mut(0).bytes.as_mut_ptr(), NODE_BYTES, s_mix.get_unchecked(0).bytes.as_ptr(), 40);
-		let (f_mix, mut mix) = s_mix.split_at_mut(1);
-		for w in 0..MIX_WORDS {
-			*mix.get_unchecked_mut(0).as_words_mut().get_unchecked_mut(w) = *f_mix.get_unchecked(0).as_words().get_unchecked(w % NODE_WORDS);
-		}
+	// You may be asking yourself: what in the name of Crypto Jesus is going on here? So: we need
+	// `half_mix` and `compress_bytes` in a single array later down in the code (we hash them
+	// together to create `value`) so that we can hash the full array. However, we do a bunch of
+	// reading and writing to these variables first. We originally allocated two arrays and then
+	// stuck them together with `ptr::copy_nonoverlapping` at the end, but this method is
+	// _significantly_ faster - by my benchmarks, a consistent 3-5%. This is the most ridiculous
+	// optimization I have ever done and I am so sorry. I can only chalk it up to cache locality
+	// improvements, since I can't imagine that 3-5% of our runtime is taken up by catting two
+	// arrays together.
+	let mut buf: MixBuf = MixBuf {
+		half_mix: unsafe {
+			// Pack `header_hash` and `nonce` together
+			// We explicitly write the first 40 bytes, leaving the last 24 as uninitialized. Then
+			// `sha3_512` reads the first 40 bytes (4th parameter) and overwrites the entire array,
+			// leaving it fully initialized.
+			let mut out: [u8; NODE_BYTES] = mem::uninitialized();
 
-		let page_size = 4 * MIX_WORDS;
-		let num_full_pages = (full_size / page_size) as u32;
-		let cache: &[Node] = &light.cache;  // deref once for better performance
+			ptr::copy_nonoverlapping(
+				header_hash.as_ptr(),
+				out.as_mut_ptr(),
+				header_hash.len(),
+			);
+			ptr::copy_nonoverlapping(
+				mem::transmute(&nonce),
+				out[header_hash.len()..].as_mut_ptr(),
+				mem::size_of::<u64>(),
+			);
 
-		for i in 0..(ETHASH_ACCESSES as u32) {
-			let index = fnv_hash(f_mix.get_unchecked(0).as_words().get_unchecked(0) ^ i, *mix.get_unchecked(0).as_words().get_unchecked((i as usize) % MIX_WORDS)) % num_full_pages;
-			for n in 0..MIX_NODES {
-				let tmp_node = calculate_dag_item(index * MIX_NODES as u32 + n as u32, cache);
-				for w in 0..NODE_WORDS {
-					*mix.get_unchecked_mut(n).as_words_mut().get_unchecked_mut(w) = fnv_hash(*mix.get_unchecked(n).as_words().get_unchecked(w), *tmp_node.as_words().get_unchecked(w));
+			// compute sha3-512 hash and replicate across mix
+			sha3::sha3_512(
+				out.as_mut_ptr(),
+				NODE_BYTES,
+				out.as_ptr(),
+				header_hash.len() + mem::size_of::<u64>()
+			);
+
+			Node { bytes: out }
+		},
+		// This is fully initialized before being read, see `let mut compress = ...` below
+		compress_bytes: unsafe { mem::uninitialized() },
+	};
+
+	let mut mix: [_; MIX_NODES] = [buf.half_mix.clone(), buf.half_mix.clone()];
+
+	let page_size = 4 * MIX_WORDS;
+	let num_full_pages = (full_size / page_size) as u32;
+	// deref once for better performance
+	let cache: &[Node] = &light.cache;
+	let first_val = buf.half_mix.as_words()[0];
+
+	debug_assert_eq!(MIX_NODES, 2);
+	debug_assert_eq!(NODE_WORDS, 16);
+
+	for i in 0..ETHASH_ACCESSES as u32 {
+		let index = {
+			// This is trivially safe, but does not work on big-endian. The safety of this is
+			// asserted in debug builds (see the definition of `make_const_array!`).
+			let mix_words: &mut [u32; MIX_WORDS] = unsafe {
+				make_const_array!(MIX_WORDS, &mut mix)
+			};
+
+			fnv_hash(
+				first_val ^ i,
+				mix_words[i as usize % MIX_WORDS]
+			) % num_full_pages
+		};
+
+		unroll! {
+			// MIX_NODES
+			for n in 0..2 {
+				let tmp_node = calculate_dag_item(
+					index * MIX_NODES as u32 + n as u32,
+					cache,
+				);
+
+				unroll! {
+					// NODE_WORDS
+					for w in 0..16 {
+						mix[n].as_words_mut()[w] =
+							fnv_hash(
+								mix[n].as_words()[w],
+								tmp_node.as_words()[w],
+							);
+					}
 				}
 			}
 		}
+	}
 
-		// compress mix
-		for i in 0..(MIX_WORDS / 4) {
-			let w = i * 4;
-			let mut reduction = *mix.get_unchecked(0).as_words().get_unchecked(w + 0);
-			reduction = reduction.wrapping_mul(FNV_PRIME) ^ *mix.get_unchecked(0).as_words().get_unchecked(w + 1);
-			reduction = reduction.wrapping_mul(FNV_PRIME) ^ *mix.get_unchecked(0).as_words().get_unchecked(w + 2);
-			reduction = reduction.wrapping_mul(FNV_PRIME) ^ *mix.get_unchecked(0).as_words().get_unchecked(w + 3);
-			*mix.get_unchecked_mut(0).as_words_mut().get_unchecked_mut(i) = reduction;
-		}
+	let mix_words: [u32; MIX_WORDS] = unsafe { mem::transmute(mix) };
 
-		let mut mix_hash = [0u8; 32];
-		let mut buf = [0u8; 32 + 64];
-		ptr::copy_nonoverlapping(f_mix.get_unchecked_mut(0).bytes.as_ptr(), buf.as_mut_ptr(), 64);
-		ptr::copy_nonoverlapping(mix.get_unchecked_mut(0).bytes.as_ptr(), buf[64..].as_mut_ptr(), 32);
-		ptr::copy_nonoverlapping(mix.get_unchecked_mut(0).bytes.as_ptr(), mix_hash.as_mut_ptr(), 32);
-		let mut value: H256 = [0u8; 32];
-		sha3::sha3_256(value.as_mut_ptr(), value.len(), buf.as_ptr(), buf.len());
-		ProofOfWork {
-			mix_hash: mix_hash,
-			value: value,
+	{
+		// This is an uninitialized buffer to begin with, but we iterate precisely `compress.len()`
+		// times and set each index, leaving the array fully initialized. THIS ONLY WORKS ON LITTLE-
+		// ENDIAN MACHINES. See a future PR to make this and the rest of the code work correctly on
+		// big-endian arches like mips.
+		let mut compress: &mut [u32; MIX_WORDS / 4] = unsafe {
+			make_const_array!(MIX_WORDS / 4, &mut buf.compress_bytes)
+		};
+
+		// Compress mix
+		debug_assert_eq!(MIX_WORDS / 4, 8);
+		unroll! {
+			for i in 0..8 {
+				let w = i * 4;
+
+				let mut reduction = mix_words[w + 0];
+				reduction = reduction.wrapping_mul(FNV_PRIME) ^ mix_words[w + 1];
+				reduction = reduction.wrapping_mul(FNV_PRIME) ^ mix_words[w + 2];
+				reduction = reduction.wrapping_mul(FNV_PRIME) ^ mix_words[w + 3];
+				compress[i] = reduction;
+			}
 		}
+	}
+
+	let mix_hash = buf.compress_bytes;
+
+	let value: H256 = unsafe {
+		// We can interpret the buffer as an array of `u8`s, since it's `repr(C)`.
+		let read_ptr: *const u8 = mem::transmute(&buf);
+		// We overwrite the second half since `sha3_256` has an internal buffer and so allows
+		// overlapping arrays as input.
+		let write_ptr: *mut u8 = mem::transmute(&mut buf.compress_bytes);
+		sha3::sha3_256(
+			write_ptr,
+			buf.compress_bytes.len(),
+			read_ptr,
+			buf.half_mix.bytes.len() + buf.compress_bytes.len(),
+		);
+		buf.compress_bytes
+	};
+
+	ProofOfWork {
+		mix_hash: mix_hash,
+		value: value,
 	}
 }
 
 fn calculate_dag_item(node_index: u32, cache: &[Node]) -> Node {
-	unsafe {
-		let num_parent_nodes = cache.len();
-		let init = cache.get_unchecked(node_index as usize % num_parent_nodes);
-		let mut ret = init.clone();
-		*ret.as_words_mut().get_unchecked_mut(0) ^= node_index;
-		sha3::sha3_512(ret.bytes.as_mut_ptr(), ret.bytes.len(), ret.bytes.as_ptr(), ret.bytes.len());
+	let num_parent_nodes = cache.len();
+	let mut ret = cache[node_index as usize % num_parent_nodes].clone();
+	ret.as_words_mut()[0] ^= node_index;
 
-		for i in 0..ETHASH_DATASET_PARENTS {
-			let parent_index = fnv_hash(node_index ^ i, *ret.as_words().get_unchecked(i as usize % NODE_WORDS)) % num_parent_nodes as u32;
-			let parent = cache.get_unchecked(parent_index as usize);
-			for w in 0..NODE_WORDS {
-				*ret.as_words_mut().get_unchecked_mut(w) = fnv_hash(*ret.as_words().get_unchecked(w), *parent.as_words().get_unchecked(w));
+	sha3_512_inplace(&mut ret.bytes);
+
+	debug_assert_eq!(NODE_WORDS, 16);
+	for i in 0..ETHASH_DATASET_PARENTS as u32 {
+		let parent_index = fnv_hash(
+			node_index ^ i,
+			ret.as_words()[i as usize % NODE_WORDS],
+		) % num_parent_nodes as u32;
+		let parent = &cache[parent_index as usize];
+
+		unroll! {
+			for w in 0..16 {
+				ret.as_words_mut()[w] = fnv_hash(ret.as_words()[w], parent.as_words()[w]);
 			}
 		}
-		sha3::sha3_512(ret.bytes.as_mut_ptr(), ret.bytes.len(), ret.bytes.as_ptr(), ret.bytes.len());
-		ret
 	}
+
+	sha3_512_inplace(&mut ret.bytes);
+
+	ret
 }
 
 fn light_new<T: AsRef<Path>>(cache_dir: T, block_number: u64) -> Light {
@@ -351,21 +480,30 @@ fn light_new<T: AsRef<Path>>(cache_dir: T, block_number: u64) -> Light {
 	assert!(cache_size % NODE_BYTES == 0, "Unaligned cache size");
 	let num_nodes = cache_size / NODE_BYTES;
 
-	let mut nodes = Vec::with_capacity(num_nodes);
-	nodes.resize(num_nodes, Node::default());
+	let mut nodes: Vec<Node> = Vec::with_capacity(num_nodes);
 	unsafe {
+		// Use uninit instead of unnecessarily writing `size_of::<Node>() * num_nodes` 0s
+		nodes.set_len(num_nodes);
+
 		sha3_512(&seedhash[0..32], &mut nodes.get_unchecked_mut(0).bytes);
 		for i in 1..num_nodes {
 			sha3::sha3_512(nodes.get_unchecked_mut(i).bytes.as_mut_ptr(), NODE_BYTES, nodes.get_unchecked(i - 1).bytes.as_ptr(), NODE_BYTES);
 		}
 
+		debug_assert_eq!(NODE_WORDS, 16);
+
+		// This _should_ get unrolled by the compiler, since it's not using the loop variable.
 		for _ in 0..ETHASH_CACHE_ROUNDS {
 			for i in 0..num_nodes {
 				let idx = *nodes.get_unchecked_mut(i).as_words().get_unchecked(0) as usize % num_nodes;
 				let mut data = nodes.get_unchecked((num_nodes - 1 + i) % num_nodes).clone();
-				for w in 0..NODE_WORDS {
-					*data.as_words_mut().get_unchecked_mut(w) ^= *nodes.get_unchecked(idx).as_words().get_unchecked(w);
+
+				unroll! {
+					for w in 0..16 {
+						*data.as_words_mut().get_unchecked_mut(w) ^= *nodes.get_unchecked(idx).as_words().get_unchecked(w);
+					}
 				}
+
 				sha3_512(&data.bytes, &mut nodes.get_unchecked_mut(i).bytes);
 			}
 		}

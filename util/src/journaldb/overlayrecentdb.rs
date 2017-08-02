@@ -16,13 +16,17 @@
 
 //! `JournalDB` over in-memory overlay
 
-use common::*;
+use std::collections::HashMap;
+use std::sync::Arc;
+use parking_lot::RwLock;
+use heapsize::HeapSizeOf;
 use rlp::*;
 use hashdb::*;
 use memorydb::*;
 use super::{DB_PREFIX_LEN, LATEST_ERA_KEY};
 use kvdb::{KeyValueDB, DBTransaction};
 use super::JournalDB;
+use {H256, BaseDataError, UtilError, Bytes, H256FastMap};
 
 /// Implementation of the `JournalDB` trait for a disk-backed database with a memory overlay
 /// and, possibly, latent-removal semantics.
@@ -450,12 +454,13 @@ mod tests {
 	#![cfg_attr(feature="dev", allow(blacklisted_name))]
 	#![cfg_attr(feature="dev", allow(similar_names))]
 
-	use common::*;
+	use std::path::Path;
 	use super::*;
 	use hashdb::{HashDB, DBValue};
 	use ethcore_logger::init_log;
 	use journaldb::JournalDB;
 	use kvdb::Database;
+	use {H32, Hashable};
 
 	fn new_db(path: &Path) -> OverlayRecentDB {
 		let backing = Arc::new(Database::open_default(path.to_str().unwrap()).unwrap());

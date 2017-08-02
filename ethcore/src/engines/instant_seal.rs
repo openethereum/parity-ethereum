@@ -14,8 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::collections::BTreeMap;
-use util::{Address, HashMap};
+use std::collections::{BTreeMap, HashMap};
+use util::Address;
 use builtin::Builtin;
 use engines::{Engine, Seal};
 use spec::CommonParams;
@@ -24,16 +24,14 @@ use block::ExecutedBlock;
 /// An engine which does not provide any consensus mechanism, just seals blocks internally.
 pub struct InstantSeal {
 	params: CommonParams,
-	registrar: Address,
 	builtins: BTreeMap<Address, Builtin>,
 }
 
 impl InstantSeal {
 	/// Returns new instance of InstantSeal with default VM Factory
-	pub fn new(params: CommonParams, registrar: Address, builtins: BTreeMap<Address, Builtin>) -> Self {
+	pub fn new(params: CommonParams, builtins: BTreeMap<Address, Builtin>) -> Self {
 		InstantSeal {
 			params: params,
-			registrar: registrar,
 			builtins: builtins,
 		}
 	}
@@ -49,7 +47,7 @@ impl Engine for InstantSeal {
 	}
 
 	fn additional_params(&self) -> HashMap<String, String> {
-		hash_map!["registrar".to_owned() => self.registrar.hex()]
+		hash_map!["registrar".to_owned() => self.params().registrar.hex()]
 	}
 
 	fn builtins(&self) -> &BTreeMap<Address, Builtin> {
@@ -65,6 +63,7 @@ impl Engine for InstantSeal {
 
 #[cfg(test)]
 mod tests {
+	use std::sync::Arc;
 	use util::*;
 	use tests::helpers::*;
 	use spec::Spec;

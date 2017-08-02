@@ -18,12 +18,12 @@
 //! A random temp directory is created. A database is created within it, and migrations
 //! are performed in temp sub-directories.
 
-use common::*;
+use std::collections::BTreeMap;
+use std::sync::Arc;
+use std::path::{Path, PathBuf};
 use migration::{Batch, Config, Error, SimpleMigration, Migration, Manager};
 use kvdb::Database;
-
 use devtools::RandomTempPath;
-use std::path::PathBuf;
 
 fn db_path(path: &Path) -> PathBuf {
 	let mut p = path.to_owned();
