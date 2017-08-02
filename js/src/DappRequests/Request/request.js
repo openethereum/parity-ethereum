@@ -20,7 +20,7 @@ import { FormattedMessage } from 'react-intl';
 
 import { Button } from '@parity/ui';
 
-import DappsStore from '../../Dapps/dappsStore';
+import DappsStore from '@parity/shared/mobx/dappsStore';
 
 export default function Request ({ appId, className, approveRequest, denyRequest, queueId, request: { from, method } }) {
   const _onApprove = () => approveRequest(queueId, false);

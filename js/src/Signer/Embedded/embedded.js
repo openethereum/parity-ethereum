@@ -23,10 +23,9 @@ import { bindActionCreators } from 'redux';
 
 import * as RequestsActions from '@parity/shared/redux/providers/signerActions';
 import { Container } from '@parity/ui';
+import RequestPending from '@parity/ui/Signer/RequestPending';
 
-import Store from '../store';
-
-import RequestPending from '../components/RequestPending';
+import Store from '@parity/shared/mobx/signerStore';
 
 import styles from './embedded.css';
 

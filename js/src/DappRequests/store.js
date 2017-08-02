@@ -20,7 +20,7 @@ import store from 'store';
 
 import { sha3 } from '@parity/api/util/sha3';
 
-import VisibleStore from '../Dapps/dappsStore';
+import VisibleStore from '@parity/shared/mobx/dappsStore';
 import filteredRequests from './filteredRequests';
 
 const LS_PERMISSIONS = '_parity::dapps::methods';

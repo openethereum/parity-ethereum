@@ -29,7 +29,7 @@ import { CancelIcon, FingerprintIcon } from '@parity/ui/Icons';
 
 import imagesEthcoreBlock from '@parity/shared/assets/images/parity-logo-white-no-text.svg';
 
-import DappsStore from '../Dapps/dappsStore';
+import DappsStore from '@parity/shared/mobx/dappsStore';
 import Signer from '../Signer/Embedded';
 
 import AccountStore from './accountStore';

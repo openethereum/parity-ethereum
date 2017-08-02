@@ -19,7 +19,7 @@ import { observer } from 'mobx-react';
 import { FormattedMessage } from 'react-intl';
 import PropTypes from 'prop-types';
 
-import DappsStore from '../Dapps/dappsStore';
+import DappsStore from '@parity/shared/mobx/dappsStore';
 
 import styles from './dapp.css';
 

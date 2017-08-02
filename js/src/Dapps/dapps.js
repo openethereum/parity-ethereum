@@ -23,7 +23,7 @@ import PropTypes from 'prop-types';
 
 import { Checkbox, DappCard, Page, SectionList } from '@parity/ui';
 
-import DappsStore from './dappsStore';
+import DappsStore from '@parity/shared/mobx/dappsStore';
 
 import styles from './dapps.css';
 

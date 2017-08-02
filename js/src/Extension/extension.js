@@ -21,7 +21,7 @@ import { FormattedMessage } from 'react-intl';
 import { Button } from '@parity/ui';
 import { CloseIcon, CheckIcon } from '@parity/ui/Icons';
 
-import Store from './store';
+import Store from '@parity/shared/mobx/extensionStore';
 import styles from './extension.css';
 
 @observer
