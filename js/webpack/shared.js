@@ -15,13 +15,13 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 const webpack = require('webpack');
-const path = require('path');
-const fs = require('fs');
 
 const HappyPack = require('happypack');
-const CircularDependencyPlugin = require('circular-dependency-plugin');
 const PackageJson = require('../package.json');
 
+const EMBED = process.env.EMBED;
+const ENV = process.env.NODE_ENV || 'development';
+const isProd = ENV === 'production';
 const UI_VERSION = PackageJson
   .version
   .split('.')
@@ -33,43 +33,6 @@ const UI_VERSION = PackageJson
     return `${parseInt(part, 10) + 1}`;
   })
   .join('.');
-const EMBED = process.env.EMBED;
-const ENV = process.env.NODE_ENV || 'development';
-const isProd = ENV === 'production';
-
-function getBabelrc () {
-  const babelrc = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../.babelrc')));
-
-  const es2015Index = babelrc.presets.findIndex((p) => p === 'es2015');
-
-  // [ "es2015", { "modules": false } ]
-  babelrc.presets[es2015Index] = [ 'es2015', { modules: false } ];
-  babelrc['babelrc'] = false;
-
-  const BABEL_PRESET_ENV = process.env.BABEL_PRESET_ENV;
-  const npmStart = process.env.npm_lifecycle_event === 'start';
-  const npmStartApp = process.env.npm_lifecycle_event === 'start:app';
-
-  if (BABEL_PRESET_ENV && (npmStart || npmStartApp)) {
-    console.log('using babel-preset-env');
-
-    babelrc.presets = [
-      // 'es2017',
-      'stage-0', 'react',
-      [
-        'env',
-        {
-          targets: { browsers: ['last 2 Chrome versions'] },
-          modules: false,
-          loose: true,
-          useBuiltIns: true
-        }
-      ]
-    ];
-  }
-
-  return babelrc;
-}
 
 function getPlugins (_isProd = isProd) {
   const plugins = [
@@ -93,13 +56,6 @@ function getPlugins (_isProd = isProd) {
 
   if (_isProd) {
     plugins.push(
-      new webpack.optimize.OccurrenceOrderPlugin(!_isProd),
-
-      new CircularDependencyPlugin({
-        exclude: /node_modules/,
-        failOnError: true
-      }),
-
       new webpack.optimize.UglifyJsPlugin({
         screwIe8: true,
         compress: {
@@ -147,7 +103,6 @@ function addProxies (app) {
 }
 
 module.exports = {
-  getBabelrc: getBabelrc,
-  getPlugins: getPlugins,
-  addProxies: addProxies
+  getPlugins,
+  addProxies
 };

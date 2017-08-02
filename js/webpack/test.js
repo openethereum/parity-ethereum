@@ -20,15 +20,7 @@ module.exports = {
   context: path.join(__dirname, '../src'),
   resolve: {
     alias: {
-      '~': path.resolve(__dirname, '..'),
-      '@parity/abi': path.resolve(__dirname, '../node_modules/@parity/abi'),
-      '@parity/api': path.resolve(__dirname, '../node_modules/@parity/api'),
-      '@parity/etherscan': path.resolve(__dirname, '../node_modules/@parity/etherscan'),
-      '@parity/jsonrpc': path.resolve(__dirname, '../node_modules/@parity/jsonrpc'),
-      '@parity/shared': path.resolve(__dirname, '../node_modules/@parity/shared'),
-      '@parity/ui': path.resolve(__dirname, '../node_modules/@parity/ui'),
-      '@parity/wordlist': path.resolve(__dirname, '../node_modules/@parity/wordlist'),
-      '@parity': path.resolve(__dirname, '../packages')
+      '~': path.resolve(__dirname, '..')
     }
   }
 };
