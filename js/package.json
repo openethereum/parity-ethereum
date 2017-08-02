@@ -159,6 +159,7 @@
     "@parity/dapp-addresses": "paritytech/dapp-addresses",
     "@parity/dapp-develop": "paritytech/dapp-develop",
     "@parity/dapp-githubhint": "paritytech/dapp-githubhint",
+    "@parity/dapp-vaults": "paritytech/dapp-vaults",
     "@parity/shared": "paritytech/js-shared",
     "@parity/ui": "paritytech/js-ui",
     "es6-error": "4.0.0",

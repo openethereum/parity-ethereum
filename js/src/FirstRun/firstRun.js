@@ -27,10 +27,10 @@ import { Button, Portal } from '@parity/ui';
 import { CheckIcon, DoneIcon, NextIcon, PrintIcon, ReplayIcon } from '@parity/ui/Icons';
 
 import ParityLogo from '@parity/shared/assets/images/parity-logo-black-no-text.svg';
-import { NewAccount, AccountDetails } from '@parity/dapp-accounts/CreateAccount';
-import print from '@parity/dapp-accounts/CreateAccount/print';
-import recoveryPage from '@parity/dapp-accounts/CreateAccount/recoveryPage.ejs';
-import CreateStore from '@parity/dapp-accounts/CreateAccount/store';
+import { NewAccount, AccountDetails } from '@parity/dapp-accounts/src/CreateAccount';
+import print from '@parity/dapp-accounts/src/CreateAccount/print';
+import recoveryPage from '@parity/dapp-accounts/src/CreateAccount/recoveryPage.ejs';
+import CreateStore from '@parity/dapp-accounts/src/CreateAccount/store';
 
 import Completed from './Completed';
 import TnC from './TnC';
