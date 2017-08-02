@@ -763,6 +763,61 @@ impl Miner {
 			.collect()
 	}
 
+	fn add_transactions_to_queue_no_reservations(
+			&self,
+			client: &MiningBlockChainClient,
+			transactions: Vec<UnverifiedTransaction>,
+			default_origin: TransactionOrigin,
+			condition: Option<TransactionCondition>,
+			transaction_queue: &mut BanningTransactionQueue,
+	) -> Vec<Result<TransactionImportResult, Error>> {
+		let accounts = self.accounts.as_ref()
+			.and_then(|provider| provider.accounts().ok())
+			.map(|accounts| accounts.into_iter().collect::<HashSet<_>>());
+
+		let best_block_header = client.best_block_header().decode();
+		let insertion_time = client.chain_info().best_block_number;
+
+		transactions.into_iter()
+			.map(|tx| {
+				let hash = tx.hash();
+				if client.transaction_block(TransactionId::Hash(hash)).is_some() {
+					debug!(target: "miner", "Rejected tx {:?}: already in the blockchain", hash);
+					return Err(Error::Transaction(TransactionError::AlreadyImported));
+				}
+				match self.engine.verify_transaction_basic(&tx, &best_block_header)
+					.and_then(|_| self.engine.verify_transaction(tx, &best_block_header))
+				{
+					Err(e) => {
+						debug!(target: "miner", "Rejected tx {:?} with invalid signature: {:?}", hash, e);
+						Err(e)
+					},
+					Ok(transaction) => {
+						let origin = accounts.as_ref().and_then(|accounts| {
+							match accounts.contains(&transaction.sender()) {
+								true => Some(TransactionOrigin::Local),
+								false => None,
+							}
+						}).unwrap_or(default_origin);
+
+						// try to install service transaction checker before appending transactions
+						self.service_transaction_action.update_from_chain_client(client);
+
+						let details_provider = TransactionDetailsProvider::new(client, &self.service_transaction_action);
+						match origin {
+							TransactionOrigin::Local | TransactionOrigin::RetractedBlock => {
+								transaction_queue.add(transaction, origin, insertion_time, condition.clone(), &details_provider)
+							},
+							TransactionOrigin::External => {
+								transaction_queue.add_with_banlist(transaction, insertion_time, &details_provider)
+							},
+						}
+					},
+				}
+			})
+			.collect()
+	}
+
 	/// Are we allowed to do a non-mandatory reseal?
 	fn tx_reseal_allowed(&self) -> bool { Instant::now() > *self.next_allowed_reseal.lock() }
 
@@ -988,10 +1043,7 @@ impl MinerService for Miner {
 		transactions: Vec<UnverifiedTransaction>
 	) -> Vec<Result<TransactionImportResult, Error>> {
 		trace!(target: "external_tx", "Importing external transactions");
-		let results = {
-			// Reserve slots in queue and release lock immediately
-			self.add_transactions_to_queue(chain, transactions, TransactionOrigin::External, None)
-		};
+		let results = self.add_transactions_to_queue(chain, transactions, TransactionOrigin::External, None);
 
 		if !results.is_empty() && self.options.reseal_on_external_tx &&	self.tx_reseal_allowed() {
 			// --------------------------------------------------------------------------
@@ -1372,9 +1424,11 @@ impl<'a> TransactionQueueDetailsProvider for TransactionDetailsProvider<'a> {
 	}
 }
 
+#[cfg(feature="benches")]
 #[cfg(test)]
 mod tests {
-
+	extern crate test;
+	use self::test::Bencher;
 	use std::sync::Arc;
 	use std::time::Duration;
 	use rustc_hex::FromHex;
@@ -1528,7 +1582,7 @@ mod tests {
 	}
 
 	#[test]
-	fn should_add_many_reserved_transactions() {
+	fn should_add_many_transactions() {
 
 		let ntx = 50;
 		let nthread = 5;
@@ -1561,22 +1615,24 @@ mod tests {
 			child.join().unwrap()
 		}).collect::<Vec<Vec<Result<TransactionImportResult, Error>>>>();
 
-		let unused_threads = results.iter().any(|res| {
-			res.len() == 0
-		});
+		let added_counts = results.iter().map(|res| {
+			res.iter().filter(|&x| {
+				match x {
+					&Ok(x) => x != TransactionImportResult::ThreadUnknown,
+					_ => false
+				}
+			}).count()
+		}).collect::<Vec<usize>>();
 
-		assert!(!unused_threads);
-
-		let added_count = results.into_iter().flat_map(|res| {
-			res.into_iter()
-		}).filter(|res| {
-			match res {
-				&Ok(x) => x != TransactionImportResult::ThreadUnknown,
-				_ => false
-			}
+		let unused_count = added_counts.iter().filter(|&&x| {
+			x == 0
 		}).count();
 
-		assert!(added_count == ntx);
+		assert!(unused_count == 0);
+
+		let added_total = added_counts.iter().sum::<usize>();
+
+		assert!(added_total == ntx);
 
 		assert!(txq.read().local_transactions().len() == ntx);
 	}
@@ -1690,5 +1746,89 @@ mod tests {
 		let addr = tap.insert_account("1".sha3().into(), "").unwrap();
 		let client = generate_dummy_client_with_spec_and_accounts(spec, None);
 		assert!(match client.miner().set_engine_signer(addr, "".into()) { Err(AccountError::NotFound) => true, _ => false });
+	}
+
+	fn setup_benches(ntx: usize, nthread: usize) -> Vec<(Arc<Miner>, Vec<UnverifiedTransaction>)> {
+		let options = miner_options();
+		let txq = Arc::new(RwLock::new(queue(&options)));
+
+		let txs: Vec<UnverifiedTransaction> = (0..ntx).map(|_| {
+			PendingTransaction::new(transaction(), None).transaction.into()
+		}).collect();
+
+		let miner = Arc::new(miner_with_queue_and_options(txq.clone(), options));
+		(0..nthread)
+		.map(|_| {
+			(miner.clone(), txs.clone())
+		}).collect::<_>()
+	}
+
+	fn add_transactions_without_reservations(ntx: usize, nthread: usize, b: &mut Bencher) {
+		let miners_and_txs = setup_benches(ntx, nthread);
+		b.iter(|| {
+			miners_and_txs.clone().into_iter().map(|(miner, txs)| {
+				thread::spawn(move || {
+					let client = TestBlockChainClient::default();
+					let transaction_queue = &mut miner.transaction_queue.write();
+					let res = miner.add_transactions_to_queue_no_reservations(
+						&client,
+						txs,
+						TransactionOrigin::Local, 
+						None,
+						transaction_queue);
+					res
+				}).join().unwrap()
+			}).collect::<Vec<Vec<Result<TransactionImportResult, Error>>>>();
+		});
+	}
+
+	fn add_transactions_with_reservations(ntx: usize, nthread: usize, b: &mut Bencher) {
+		let miners_and_txs = setup_benches(ntx, nthread);
+		b.iter(|| {
+			miners_and_txs.clone().into_iter().map(|(miner, txs)| {
+				thread::spawn(move || {
+					let client = TestBlockChainClient::default();
+					miner.add_transactions_to_queue(
+						&client,
+						txs,
+						TransactionOrigin::Local, 
+						None)
+				}).join().unwrap()
+			}).collect::<Vec<Vec<Result<TransactionImportResult, Error>>>>();
+		});
+	}
+
+	#[bench]
+	fn add_transactions_without_reservations_10tx_1thd(b: &mut Bencher) {
+		add_transactions_without_reservations(10, 1, b);
+	}
+	#[bench]
+	fn add_transactions_without_reservations_1000tx_1thd(b: &mut Bencher) {
+		add_transactions_without_reservations(1000, 1, b);
+	}
+	// #[bench]
+	// fn add_transactions_without_reservations_10tx_10thd(b: &mut Bencher) { 
+	// 	add_transactions_without_reservations(10, 10, b);
+	// }
+	// #[bench]
+	// fn add_transactions_without_reservations_1000tx_10thd(b: &mut Bencher) { 
+	// 	add_transactions_without_reservations(1000, 10, b);
+	// }
+
+	#[bench]
+	fn add_transactions_with_reservations_10tx_1thd(b: &mut Bencher) {
+		add_transactions_with_reservations(10, 1, b);
+	}
+	#[bench]
+	fn add_transactions_with_reservations_1000tx_1thd(b: &mut Bencher) {
+		add_transactions_with_reservations(1000, 1, b);
+	}
+	#[bench]
+	fn add_transactions_with_reservations_10tx_10thd(b: &mut Bencher) { 
+		add_transactions_with_reservations(10, 10, b);
+	}
+	#[bench]
+	fn add_transactions_with_reservations_1000tx_10thd(b: &mut Bencher) { 
+		add_transactions_with_reservations(1000, 10, b);
 	}
 }
