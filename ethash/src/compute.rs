@@ -26,7 +26,7 @@ use seed_compute::SeedHashCompute;
 
 use std::mem;
 use std::ptr;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::io;
 
 const MIX_WORDS: usize = ETHASH_MIX_BYTES / 4;
@@ -50,7 +50,13 @@ pub struct Light {
 impl Light {
 	/// Create a new light cache for a given block number
 	pub fn new<T: AsRef<Path>>(cache_dir: T, block_number: u64) -> Light {
-		light_new(cache_dir, block_number)
+		let builder = NodeCacheBuilder::new();
+		let cache = builder.new_cache(cache_dir.as_ref().to_path_buf(), block_number);
+
+		Light {
+			block_number: block_number,
+			cache: cache,
+		}
 	}
 
 	/// Calculate the light boundary data
@@ -69,7 +75,7 @@ impl Light {
 		})
 	}
 
-	pub fn to_file(&mut self) -> io::Result<PathBuf> {
+	pub fn to_file(&mut self) -> io::Result<&Path> {
 		self.cache.flush()?;
 		Ok(self.cache.cache_path())
 	}
@@ -286,6 +292,7 @@ fn hash_compute(light: &Light, full_size: usize, header_hash: &H256, nonce: u64)
 	}
 }
 
+// TODO: Use the `simd` crate
 fn calculate_dag_item(node_index: u32, cache: &[Node]) -> Node {
 	let num_parent_nodes = cache.len();
 	let mut ret = cache[node_index as usize % num_parent_nodes].clone();
@@ -311,16 +318,6 @@ fn calculate_dag_item(node_index: u32, cache: &[Node]) -> Node {
 	keccak_512::inplace(&mut ret.bytes);
 
 	ret
-}
-
-fn light_new<T: AsRef<Path>>(cache_dir: T, block_number: u64) -> Light {
-	let builder = NodeCacheBuilder::new();
-	let cache = builder.new_cache(cache_dir.as_ref().to_path_buf(), block_number);
-
-	Light {
-		block_number: block_number,
-		cache: cache,
-	}
 }
 
 #[cfg(test)]
@@ -380,9 +377,9 @@ mod test {
 	#[test]
 	fn test_drop_old_data() {
 		let path = ::std::env::temp_dir();
-		let first = Light::new(&path, 0).to_file().unwrap();
+		let first = Light::new(&path, 0).to_file().unwrap().to_owned();
 
-		let second = Light::new(&path, ETHASH_EPOCH_LENGTH).to_file().unwrap();
+		let second = Light::new(&path, ETHASH_EPOCH_LENGTH).to_file().unwrap().to_owned();
 		assert!(fs::metadata(&first).is_ok());
 
 		let _ = Light::new(&path, ETHASH_EPOCH_LENGTH * 2).to_file();

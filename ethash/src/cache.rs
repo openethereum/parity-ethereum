@@ -20,7 +20,9 @@
 //       the page cache from disk). I suggest an `OptimizeFor` struct that gets passed into an
 //       `open_mmap` function which then returns an `Err` if `OptimizeFor` is `CPU`. Then we can
 //       pass that down based on either explicit user config, OS-reported RAM size, or just whether
-//       we're running as a light client.
+//       we're running as a light client. Using the memmap is never more than 20% slower than
+//       reading from RAM though, so I think it's a good default since it will make us better
+//       citizens on lower-resource devices.
 
 use either::Either;
 use keccak::{keccak_512, H256};
@@ -28,12 +30,12 @@ use memmap::{Mmap, Protection};
 use parking_lot::Mutex;
 use seed_compute::SeedHashCompute;
 
-use shared::*;
+use shared::{get_cache_size, epoch, to_hex, Node, NODE_BYTES, NODE_DWORDS, ETHASH_CACHE_ROUNDS};
 
-use std::borrow::{Cow, Borrow};
+use std::borrow::Cow;
 use std::fs;
 use std::io::{self, Read, Write};
-use std::path::{PathBuf, Path};
+use std::path::{Path, PathBuf};
 use std::slice;
 use std::sync::Arc;
 
@@ -45,7 +47,7 @@ pub struct NodeCacheBuilder(Arc<Mutex<SeedHashCompute>>);
 pub struct NodeCache {
 	builder: NodeCacheBuilder,
 	cache_dir: Cow<'static, Path>,
-	ident: H256,
+	cache_path: PathBuf,
 	epoch: u64,
 	cache: Cache,
 }
@@ -72,13 +74,14 @@ impl NodeCacheBuilder {
 		let ident = self.block_number_to_ident(block_number);
 
 		let path = cache_path(cache_dir.as_ref(), &ident);
+		let cache = cache_from_path(&path)?;
 
 		Ok(NodeCache {
 			builder: self.clone(),
-			ident: ident,
 			epoch: epoch(block_number),
 			cache_dir: cache_dir,
-			cache: cache_from_path(&path)?,
+			cache_path: path,
+			cache: cache,
 		})
 	}
 
@@ -97,29 +100,28 @@ impl NodeCacheBuilder {
 		debug_assert!(cache_size % NODE_BYTES == 0, "Unaligned cache size");
 		let num_nodes = cache_size / NODE_BYTES;
 
+		let path = cache_path(cache_dir.as_ref(), &ident);
 		let nodes =
-			make_memmapped_cache(&cache_path(cache_dir.as_ref(), &ident), num_nodes, &ident)
+			make_memmapped_cache(&path, num_nodes, &ident)
 				.map(Either::Right)
 				.unwrap_or_else(|_| Either::Left(make_memory_cache(num_nodes, &ident)));
 
 		NodeCache {
 			builder: self.clone(),
 			cache_dir: cache_dir.into(),
+			cache_path: path,
 			epoch: epoch(block_number),
-			ident: ident,
 			cache: nodes,
 		}
 	}
 }
 
 impl NodeCache {
-	pub fn cache_path(&self) -> PathBuf {
-		cache_path(self.cache_dir.as_ref(), &self.ident)
+	pub fn cache_path(&self) -> &Path {
+		&self.cache_path
 	}
 
 	pub fn flush(&mut self) -> io::Result<()> {
-		let path = self.cache_path();
-
 		if let Some(last) = self.epoch.checked_sub(2).map(|ep| {
 			cache_path(self.cache_dir.as_ref(), &self.builder.epoch_to_ident(ep))
 		})
@@ -128,15 +130,11 @@ impl NodeCache {
 				.unwrap_or_else(|error| warn!("Error removing stale DAG cache: {:?}", error));
 		}
 
-		consume_cache(&mut self.cache, &path)
+		consume_cache(&mut self.cache, &self.cache_path)
 	}
 }
 
-fn make_memmapped_cache<P: AsRef<Path>>(
-	path: &P,
-	num_nodes: usize,
-	ident: &H256,
-) -> io::Result<Mmap> {
+fn make_memmapped_cache(path: &Path, num_nodes: usize, ident: &H256) -> io::Result<Mmap> {
 	use std::fs::OpenOptions;
 
 	debug_assert_eq!(ident.len(), 32);
@@ -164,16 +162,13 @@ fn make_memory_cache(num_nodes: usize, ident: &H256) -> Vec<Node> {
 	nodes
 }
 
-fn cache_path<P: ToOwned<Owned = PathBuf> + ?Sized>(path: &P, ident: &H256) -> PathBuf
-where
-	PathBuf: Borrow<P>,
-{
-	let mut buf = path.to_owned();
+fn cache_path<'a, P: Into<Cow<'a, Path>>>(path: P, ident: &H256) -> PathBuf {
+	let mut buf = path.into().into_owned();
 	buf.push(to_hex(ident));
 	buf
 }
 
-fn consume_cache<P: AsRef<Path>>(cache: &mut Cache, path: &P) -> io::Result<()> {
+fn consume_cache(cache: &mut Cache, path: &Path) -> io::Result<()> {
 	use std::fs::OpenOptions;
 
 	let new_cache = match *cache {
@@ -212,13 +207,13 @@ fn consume_cache<P: AsRef<Path>>(cache: &mut Cache, path: &P) -> io::Result<()> 
 	}
 }
 
-fn cache_from_path<P: AsRef<Path>>(path: &P) -> io::Result<Cache> {
+fn cache_from_path(path: &Path) -> io::Result<Cache> {
 	Mmap::open_path(path, Protection::ReadWrite)
 		.map(Either::Right)
 		.or_else(|_| read_from_path(path).map(Either::Left))
 }
 
-fn read_from_path<P: AsRef<Path>>(path: &P) -> io::Result<Vec<Node>> {
+fn read_from_path(path: &Path) -> io::Result<Vec<Node>> {
 	use std::fs::File;
 	use std::mem;
 
