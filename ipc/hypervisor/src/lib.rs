@@ -260,7 +260,7 @@ mod tests {
 
 			let client = nanoipc::fast_client::<HypervisorServiceClient<_>>(url).unwrap();
 			client.handshake().unwrap();
-			client.module_ready(test_module_id);
+			client.module_ready(test_module_id, url.to_owned());
 		});
 
 		let hypervisor = Hypervisor::with_url(url).local_module(test_module_id);

@@ -73,8 +73,7 @@ mod tests {
 	use hash::*;
 	use bytes::Bytes;
 	use uint::Uint;
-	use util::U256;
-	use util::{H64 as Eth64, H256 as Eth256, H520 as Eth520};
+	use bigint::prelude::{U256, H64 as Eth64, H256 as Eth256, H520 as Eth520};
 	use spec::{Ethereum, AuthorityRoundSeal, TendermintSeal, Seal};
 
 	#[test]

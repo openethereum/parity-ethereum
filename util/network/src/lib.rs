@@ -77,6 +77,7 @@ extern crate rlp;
 extern crate bytes;
 extern crate path;
 extern crate ethcore_logger;
+extern crate ipnetwork;
 
 #[macro_use]
 extern crate log;
@@ -106,6 +107,8 @@ pub use session::SessionInfo;
 
 pub use io::TimerToken;
 pub use node_table::{is_valid_node_url, NodeId};
+use ipnetwork::{IpNetwork, IpNetworkError};
+use std::str::FromStr;
 
 const PROTOCOL_VERSION: u32 = 4;
 
@@ -145,8 +148,49 @@ impl NonReservedPeerMode {
 	}
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "ipc", binary)]
+pub struct IpFilter {
+    pub predefined: AllowIP,
+    pub custom_allow: Vec<IpNetwork>,
+    pub custom_block: Vec<IpNetwork>,
+} 
+
+impl Default for IpFilter {
+    fn default() -> Self {
+        IpFilter {
+            predefined: AllowIP::All,
+            custom_allow: vec![],
+            custom_block: vec![],
+        }
+    }
+}
+
+impl IpFilter {
+    /// Attempt to parse the peer mode from a string.
+    pub fn parse(s: &str) -> Result<IpFilter, IpNetworkError> {
+        let mut filter = IpFilter::default();
+        for f in s.split_whitespace() {
+            match f {
+                "all" => filter.predefined = AllowIP::All,
+                "private" => filter.predefined = AllowIP::Private,
+                "public" => filter.predefined = AllowIP::Public,
+                "none" => filter.predefined = AllowIP::None,
+                custom => {
+                    if custom.starts_with("-") {
+                        filter.custom_block.push(IpNetwork::from_str(&custom.to_owned().split_off(1))?)
+                    } else {
+                        filter.custom_allow.push(IpNetwork::from_str(custom)?)
+                    }
+                }
+            }
+        }
+        Ok(filter)
+    }
+}
+
 /// IP fiter
-#[derive(Clone, Debug, PartialEq, Eq, Copy)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum AllowIP {
 	/// Connect to any address
 	All,
@@ -154,5 +198,7 @@ pub enum AllowIP {
 	Private,
 	/// Connect to public network only
 	Public,
+    /// Block all addresses
+    None,
 }
 

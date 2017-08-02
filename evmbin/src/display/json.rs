@@ -21,7 +21,7 @@ use std::collections::HashMap;
 use util::{U256, H256, ToPretty};
 
 use display;
-use vm;
+use info as vm;
 
 /// JSON formatting informant.
 #[derive(Default)]
