@@ -15,211 +15,16 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::fmt::Debug;
+use std::str::FromStr;
+use std::hash::Hash;
+use std::sync::Arc;
+use std::collections::{HashMap, HashSet};
 use rustc_hex::FromHex;
 use util::*;
-use action_params::{ActionParams, ActionValue};
-use env_info::EnvInfo;
-use call_type::CallType;
-use schedule::Schedule;
-use evm::{self, GasLeft, ReturnData};
-use ext::{Ext, ContractCreateResult, MessageCallResult, CreateContractAddress};
+use vm::{self, ActionParams, ActionValue};
+use vm::tests::{FakeExt, FakeCall, FakeCallType, test_finalize};
 use factory::Factory;
 use vmtype::VMType;
-
-pub struct FakeLogEntry {
-	topics: Vec<H256>,
-	data: Bytes
-}
-
-#[derive(PartialEq, Eq, Hash, Debug)]
-pub enum FakeCallType {
-	Call, Create
-}
-
-#[derive(PartialEq, Eq, Hash, Debug)]
-pub struct FakeCall {
-	pub call_type: FakeCallType,
-	pub gas: U256,
-	pub sender_address: Option<Address>,
-	pub receive_address: Option<Address>,
-	pub value: Option<U256>,
-	pub data: Bytes,
-	pub code_address: Option<Address>,
-}
-
-/// Fake externalities test structure.
-///
-/// Can't do recursive calls.
-#[derive(Default)]
-pub struct FakeExt {
-	pub store: HashMap<H256, H256>,
-	pub suicides: HashSet<Address>,
-	pub calls: HashSet<FakeCall>,
-	sstore_clears: usize,
-	depth: usize,
-	blockhashes: HashMap<U256, H256>,
-	codes: HashMap<Address, Arc<Bytes>>,
-	logs: Vec<FakeLogEntry>,
-	info: EnvInfo,
-	schedule: Schedule,
-	balances: HashMap<Address, U256>,
-}
-
-// similar to the normal `finalize` function, but ignoring NeedsReturn.
-fn test_finalize(res: Result<GasLeft, evm::Error>) -> Result<U256, evm::Error> {
-	match res {
-		Ok(GasLeft::Known(gas)) => Ok(gas),
-		Ok(GasLeft::NeedsReturn{..}) => unimplemented!(), // since ret is unimplemented.
-		Err(e) => Err(e),
-	}
-}
-
-impl FakeExt {
-	pub fn new() -> Self {
-		FakeExt::default()
-	}
-}
-
-impl Default for Schedule {
-	fn default() -> Self {
-		Schedule::new_frontier()
-	}
-}
-
-impl Ext for FakeExt {
-	fn storage_at(&self, key: &H256) -> evm::Result<H256> {
-		Ok(self.store.get(key).unwrap_or(&H256::new()).clone())
-	}
-
-	fn set_storage(&mut self, key: H256, value: H256) -> evm::Result<()> {
-		self.store.insert(key, value);
-		Ok(())
-	}
-
-	fn exists(&self, address: &Address) -> evm::Result<bool> {
-		Ok(self.balances.contains_key(address))
-	}
-
-	fn exists_and_not_null(&self, address: &Address) -> evm::Result<bool> {
-		Ok(self.balances.get(address).map_or(false, |b| !b.is_zero()))
-	}
-
-	fn origin_balance(&self) -> evm::Result<U256> {
-		unimplemented!()
-	}
-
-	fn balance(&self, address: &Address) -> evm::Result<U256> {
-		Ok(self.balances[address])
-	}
-
-	fn blockhash(&mut self, number: &U256) -> H256 {
-		self.blockhashes.get(number).unwrap_or(&H256::new()).clone()
-	}
-
-	fn create(&mut self, gas: &U256, value: &U256, code: &[u8], _address: CreateContractAddress) -> ContractCreateResult {
-		self.calls.insert(FakeCall {
-			call_type: FakeCallType::Create,
-			gas: *gas,
-			sender_address: None,
-			receive_address: None,
-			value: Some(*value),
-			data: code.to_vec(),
-			code_address: None
-		});
-		ContractCreateResult::Failed
-	}
-
-	fn call(&mut self,
-			gas: &U256,
-			sender_address: &Address,
-			receive_address: &Address,
-			value: Option<U256>,
-			data: &[u8],
-			code_address: &Address,
-			_output: &mut [u8],
-			_call_type: CallType
-		) -> MessageCallResult {
-
-		self.calls.insert(FakeCall {
-			call_type: FakeCallType::Call,
-			gas: *gas,
-			sender_address: Some(sender_address.clone()),
-			receive_address: Some(receive_address.clone()),
-			value: value,
-			data: data.to_vec(),
-			code_address: Some(code_address.clone())
-		});
-		MessageCallResult::Success(*gas, ReturnData::empty())
-	}
-
-	fn extcode(&self, address: &Address) -> evm::Result<Arc<Bytes>> {
-		Ok(self.codes.get(address).unwrap_or(&Arc::new(Bytes::new())).clone())
-	}
-
-	fn extcodesize(&self, address: &Address) -> evm::Result<usize> {
-		Ok(self.codes.get(address).map_or(0, |c| c.len()))
-	}
-
-	fn log(&mut self, topics: Vec<H256>, data: &[u8]) -> evm::Result<()> {
-		self.logs.push(FakeLogEntry {
-			topics: topics,
-			data: data.to_vec()
-		});
-		Ok(())
-	}
-
-	fn ret(self, _gas: &U256, _data: &ReturnData) -> evm::Result<U256> {
-		unimplemented!();
-	}
-
-	fn suicide(&mut self, refund_address: &Address) -> evm::Result<()> {
-		self.suicides.insert(refund_address.clone());
-		Ok(())
-	}
-
-	fn schedule(&self) -> &Schedule {
-		&self.schedule
-	}
-
-	fn env_info(&self) -> &EnvInfo {
-		&self.info
-	}
-
-	fn depth(&self) -> usize {
-		self.depth
-	}
-
-	fn inc_sstore_clears(&mut self) {
-		self.sstore_clears += 1;
-	}
-}
-
-#[test]
-fn test_stack_underflow() {
-	let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
-	let code = "01600055".from_hex().unwrap();
-
-	let mut params = ActionParams::default();
-	params.address = address.clone();
-	params.gas = U256::from(100_000);
-	params.code = Some(Arc::new(code));
-	let mut ext = FakeExt::new();
-
-	let err = {
-		let mut vm : Box<evm::Evm> = Box::new(super::interpreter::Interpreter::<usize>::new(Arc::new(super::interpreter::SharedCache::default())));
-		test_finalize(vm.exec(params, &mut ext)).unwrap_err()
-	};
-
-	match err {
-		evm::Error::StackUnderflow {wanted, on_stack, ..} => {
-			assert_eq!(wanted, 2);
-			assert_eq!(on_stack, 0);
-		}
-		_ => {
-			assert!(false, "Expected StackUndeflow")
-		}
-	};
-}
 
 evm_test!{test_add: test_add_jit, test_add_int}
 fn test_add(factory: super::Factory) {
@@ -849,7 +654,7 @@ fn test_badinstruction_int() {
 	};
 
 	match err {
-		evm::Error::BadInstruction { instruction: 0xaf } => (),
+		vm::Error::BadInstruction { instruction: 0xaf } => (),
 		_ => assert!(false, "Expected bad instruction")
 	}
 }

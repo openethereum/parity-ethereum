@@ -107,8 +107,8 @@ use std::collections::{HashSet, HashMap, BTreeSet, BTreeMap, VecDeque};
 use std::sync::{Arc};
 use linked_hash_map::LinkedHashMap;
 use util::{Address, H256, U256, HeapSizeOf};
-use util::table::Table;
 use util::{RwLock, Mutex, Condvar};
+use table::Table;
 use transaction::*;
 use error::{Error, TransactionError};
 use client::TransactionImportResult;
@@ -1531,7 +1531,7 @@ fn check_if_removed(sender: &Address, nonce: &U256, dropped: Option<HashMap<Addr
 #[cfg(test)]
 pub mod test {
 	use rustc_hex::FromHex;
-	use util::table::*;
+	use table::Table;
 	use util::*;
 	use ethkey::{Random, Generator};
 	use error::{Error, TransactionError};

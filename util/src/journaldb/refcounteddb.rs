@@ -16,7 +16,9 @@
 
 //! Disk-backed, ref-counted `JournalDB` implementation.
 
-use common::*;
+use std::collections::HashMap;
+use std::sync::Arc;
+use heapsize::HeapSizeOf;
 use rlp::*;
 use hashdb::*;
 use overlaydb::OverlayDB;
@@ -24,6 +26,7 @@ use memorydb::MemoryDB;
 use super::{DB_PREFIX_LEN, LATEST_ERA_KEY};
 use super::traits::JournalDB;
 use kvdb::{KeyValueDB, DBTransaction};
+use {UtilError, H256, Bytes};
 
 /// Implementation of the `HashDB` trait for a disk-backed database with a memory overlay
 /// and latent-removal semantics.
@@ -210,10 +213,10 @@ mod tests {
 	#![cfg_attr(feature="dev", allow(blacklisted_name))]
 	#![cfg_attr(feature="dev", allow(similar_names))]
 
-	use common::*;
 	use hashdb::{HashDB, DBValue};
 	use super::*;
 	use super::super::traits::JournalDB;
+	use {Hashable};
 
 	#[test]
 	fn long_history() {

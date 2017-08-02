@@ -36,9 +36,9 @@ impl From<&'static str> for Error {
 	}
 }
 
-impl Into<::evm::Error> for Error {
-	fn into(self) -> ::evm::Error {
-		::evm::Error::BuiltIn(self.0)
+impl Into<::vm::Error> for Error {
+	fn into(self) -> ::vm::Error {
+		::vm::Error::BuiltIn(self.0)
 	}
 }
 

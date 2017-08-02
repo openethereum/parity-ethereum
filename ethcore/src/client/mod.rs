@@ -40,7 +40,7 @@ pub use types::pruning_info::PruningInfo;
 pub use types::call_analytics::CallAnalytics;
 
 pub use executive::{Executed, Executive, TransactOptions};
-pub use evm::env_info::{LastHashes, EnvInfo};
+pub use vm::{LastHashes, EnvInfo};
 
 pub use error::{BlockImportError, TransactionImportError, TransactionImportResult};
 pub use verification::VerifierType;

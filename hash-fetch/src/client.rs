@@ -188,8 +188,9 @@ fn random_temp_path() -> PathBuf {
 
 #[cfg(test)]
 mod tests {
+	use rustc_hex::FromHex;
 	use std::sync::{Arc, mpsc};
-	use util::{Mutex, FromHex};
+	use util::Mutex;
 	use futures::future;
 	use fetch::{self, Fetch};
 	use parity_reactor::Remote;

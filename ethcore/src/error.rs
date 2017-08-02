@@ -16,6 +16,7 @@
 
 //! General error types for use in ethcore.
 
+use std::fmt;
 use util::*;
 use io::*;
 use header::BlockNumber;

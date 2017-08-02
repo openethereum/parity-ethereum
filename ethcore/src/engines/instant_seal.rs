@@ -14,8 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::collections::BTreeMap;
-use util::{Address, HashMap};
+use std::collections::{BTreeMap, HashMap};
+use util::Address;
 use builtin::Builtin;
 use engines::{Engine, Seal};
 use spec::CommonParams;
@@ -63,6 +63,7 @@ impl Engine for InstantSeal {
 
 #[cfg(test)]
 mod tests {
+	use std::sync::Arc;
 	use util::*;
 	use tests::helpers::*;
 	use spec::Spec;
