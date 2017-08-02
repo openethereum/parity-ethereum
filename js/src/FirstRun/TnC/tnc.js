@@ -19,7 +19,7 @@ import PropTypes from 'prop-types';
 import { FormattedMessage } from 'react-intl';
 import ReactMarkdown from 'react-markdown';
 
-import { Checkbox } from '@parity/ui';
+import Checkbox from '@parity/ui/Form/Checkbox';
 
 import styles from '../firstRun.css';
 

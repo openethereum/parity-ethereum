@@ -20,7 +20,9 @@ import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import store from 'store';
 
-import { Button, Checkbox, StatusIndicator } from '@parity/ui';
+import Button from '@parity/ui/Button';
+import Checkbox from '@parity/ui/Form/Checkbox';
+import StatusIndicator from '@parity/ui/StatusIndicator';
 
 import styles from './syncWarning.css';
 

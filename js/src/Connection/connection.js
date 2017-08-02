@@ -19,7 +19,7 @@ import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import PropTypes from 'prop-types';
 
-import { Input } from '@parity/ui';
+import Input from '@parity/ui/Form/Input';
 import { CompareIcon, ComputerIcon, DashboardIcon, VpnIcon } from '@parity/ui/Icons';
 
 import styles from './connection.css';

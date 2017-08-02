@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import 'whatwg-fetch';
+// import 'semantic-ui-css/semantic.css';
 
 import es6Promise from 'es6-promise';
 es6Promise.polyfill();
@@ -32,7 +33,6 @@ import viewsDapps from '@parity/shared/config/dappsViews.json';
 import ContractInstances from '@parity/shared/contracts';
 import HistoryStore from '@parity/shared/mobx/historyStore';
 import { initStore } from '@parity/shared/redux';
-import { patchApi } from '@parity/shared/util/tx';
 import ContextProvider from '@parity/ui/ContextProvider';
 
 import '@parity/shared/environment';
@@ -63,7 +63,6 @@ if (window.location.hash && window.location.hash.indexOf(AUTH_HASH) === 0) {
 const uiUrl = window.location.host;
 const api = new SecureApi(uiUrl, token);
 
-patchApi(api);
 ContractInstances.get(api);
 
 setupProviderFilters(api.provider);

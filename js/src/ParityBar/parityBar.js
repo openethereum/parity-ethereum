@@ -24,7 +24,13 @@ import { Link } from 'react-router';
 import { connect } from 'react-redux';
 import store from 'store';
 
-import { AccountCard, Badge, Button, ContainerTitle, IdentityIcon, SelectionList, StatusIndicator } from '@parity/ui';
+import AccountCard from '@parity/ui/AccountCard';
+import Badge from '@parity/ui/Badge';
+import Button from '@parity/ui/Button';
+import ContainerTitle from '@parity/ui/Container/Title';
+import IdentityIcon from '@parity/ui/IdentityIcon';
+import SelectionList from '@parity/ui/SectionList';
+import StatusIndicator from '@parity/ui/StatusIndicator';
 import { CancelIcon, FingerprintIcon } from '@parity/ui/Icons';
 
 import imagesEthcoreBlock from '@parity/shared/assets/images/parity-logo-white-no-text.svg';

@@ -20,7 +20,8 @@ import PropTypes from 'prop-types';
 import { FormattedMessage } from 'react-intl';
 
 import { STEP_COMPLETED, STEP_ERROR, STEP_INFO, STEP_UPDATING } from '@parity/shared/mobx/upgradeParity';
-import { Button, Portal } from '@parity/ui';
+import Button from '@parity/ui/Button';
+import Portal from '@parity/ui/Portal';
 import { CancelIcon, DoneIcon, ErrorIcon, NextIcon, UpdateIcon, UpdateWaitIcon } from '@parity/ui/Icons';
 
 import styles from './upgradeParity.css';

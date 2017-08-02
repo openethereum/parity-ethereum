@@ -20,7 +20,7 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
 import { closeSnackbar } from '@parity/shared/redux/providers/snackbarActions';
-import { Snackbar as SnackbarUI } from '@parity/ui';
+import SnackbarUI from '@parity/ui/Snackbar';
 
 function Snackbar ({ closeSnackbar, cooldown = 3500, message, open = false }) {
   return (

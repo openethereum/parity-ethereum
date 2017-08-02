@@ -23,7 +23,8 @@ import { bindActionCreators } from 'redux';
 
 import { createIdentityImg } from '@parity/api/util/identity';
 import { newError } from '@parity/shared/redux/actions';
-import { Button, Portal } from '@parity/ui';
+import Button from '@parity/ui/Button';
+import Portal from '@parity/ui/Portal';
 import { CheckIcon, DoneIcon, NextIcon, PrintIcon, ReplayIcon } from '@parity/ui/Icons';
 
 import ParityLogo from '@parity/shared/assets/images/parity-logo-black-no-text.svg';

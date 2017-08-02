@@ -18,7 +18,7 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import { FormattedMessage } from 'react-intl';
 
-import { Button } from '@parity/ui';
+import Button from '@parity/ui/Button';
 
 import DappsStore from '@parity/shared/mobx/dappsStore';
 

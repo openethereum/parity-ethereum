@@ -19,7 +19,11 @@ import PropTypes from 'prop-types';
 import { observer } from 'mobx-react';
 import { FormattedMessage } from 'react-intl';
 
-import { BlockNumber, ClientVersion, NetChain, NetPeers, StatusIndicator } from '@parity/ui';
+import BlockNumber from '@parity/ui/BlockNumber';
+import ClientVersion from '@parity/ui/ClientVersion';
+import NetChain from '@parity/ui/NetChain';
+import NetPeers from '@parity/ui/NetPeers';
+import StatusIndicator from '@parity/ui/StatusIndicator';
 
 import Consensus from './Consensus';
 import Upgrade from './Upgrade';

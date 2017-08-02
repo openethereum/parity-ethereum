@@ -21,7 +21,10 @@ import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import PropTypes from 'prop-types';
 
-import { Checkbox, DappCard, Page, SectionList } from '@parity/ui';
+import DappCard from '@parity/ui/DappCard';
+import Checkbox from '@parity/ui/Form/Checkbox';
+import Page from '@parity/ui/Page';
+import SectionList from '@parity/ui/SectionList';
 
 import DappsStore from '@parity/shared/mobx/dappsStore';
 

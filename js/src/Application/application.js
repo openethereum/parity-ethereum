@@ -21,7 +21,7 @@ import { connect } from 'react-redux';
 import PropTypes from 'prop-types';
 
 import UpgradeStore from '@parity/shared/mobx/upgradeParity';
-import { Errors } from '@parity/ui';
+import Errors from '@parity/ui/Errors';
 
 import Connection from '../Connection';
 import DappRequests from '../DappRequests';
