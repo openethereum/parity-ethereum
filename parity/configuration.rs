@@ -905,13 +905,10 @@ impl Configuration {
 		} else {
 			self.args.flag_db_path.as_ref().map_or(dir::CHAINS_PATH, |s| &s)
 		};
-		let cache_path = if is_using_base_path {
-			"$BASE/cache".into()
-		} else {
-			replace_home_and_local(&data_path, &local_path, &dir::CACHE_PATH)
-		};
+		let cache_path = if is_using_base_path { "$BASE/cache" } else { dir::CACHE_PATH };
 
 		let db_path = replace_home_and_local(&data_path, &local_path, &base_db_path);
+		let cache_path = replace_home_and_local(&data_path, &local_path, cache_path);
 		let keys_path = replace_home(&data_path, &self.args.flag_keys_path);
 		let dapps_path = replace_home(&data_path, &self.args.flag_dapps_path);
 		let secretstore_path = replace_home(&data_path, &self.args.flag_secretstore_path);
@@ -1805,5 +1802,16 @@ mod tests {
 			custom_allow: vec![],
 			custom_block: vec![IpNetwork::from_str("fc00::/7").unwrap()],
 		});
+	}
+
+	#[test]
+	fn should_use_correct_cache_path_if_base_is_set() {
+		let std = parse(&["parity"]);
+		let base = parse(&["parity", "--base-path", "/test"]);
+
+		let base_path = ::dir::default_data_path();
+		let local_path = ::dir::default_local_path();
+		assert_eq!(std.directories().cache, ::helpers::replace_home_and_local(&base_path, &local_path, ::dir::CACHE_PATH));
+		assert_eq!(base.directories().cache, "/test/cache");
 	}
 }
