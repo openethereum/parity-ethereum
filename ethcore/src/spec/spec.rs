@@ -530,19 +530,6 @@ mod tests {
 	}
 
 	#[test]
-	fn all_spec_files_valid() {
-		Spec::new_test();
-		Spec::new_null();
-		Spec::new_test_constructor();
-		Spec::new_instant();
-		Spec::new_test_round();
-		Spec::new_test_tendermint();
-		Spec::new_validator_safe_contract();
-		Spec::new_validator_contract();
-		Spec::new_validator_multi();
-	}
-
-	#[test]
 	fn test_chain() {
 		let test_spec = Spec::new_test();
 
