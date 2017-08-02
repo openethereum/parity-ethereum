@@ -35,7 +35,10 @@ export default function Request ({ appId, className, approveRequest, denyRequest
         id='dappRequests.request.info'
         defaultMessage='Received request for {method} from {appName}'
         values={ {
-          appName: app.name,
+          appName:
+            app
+              ? app.name
+              : appId,
           method
         } }
       />

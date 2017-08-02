@@ -32,6 +32,8 @@ export default class Store {
   @observable requests = [];
   @observable tokens = {};
 
+  sources = {};
+
   constructor (provider) {
     this.provider = provider;
     this.permissions = store.get(LS_PERMISSIONS) || {};
@@ -71,13 +73,24 @@ export default class Store {
 
   @action removeRequest = (_queueId) => {
     this.requests = this.requests.filter(({ queueId }) => queueId !== _queueId);
+    delete this.sources[_queueId];
   }
 
   @action queueRequest = (request) => {
-    const appId = this.tokens[request.data.token];
+    const { data, origin, source } = request;
+    const appId = this.tokens[data.token];
+
     let queueId = ++nextQueueId;
 
-    this.requests = this.requests.concat([{ appId, queueId, request }]);
+    this.sources[queueId] = source;
+    this.requests = this.requests.concat([{
+      appId,
+      queueId,
+      request: {
+        data,
+        origin
+      }
+    }]);
   }
 
   @action addTokenPermission = (method, token) => {
@@ -89,8 +102,11 @@ export default class Store {
     this.savePermissions();
   }
 
-  @action approveSingleRequest = ({ queueId, request: { data, source } }) => {
+  @action approveSingleRequest = ({ queueId, request: { data } }) => {
+    const source = this.sources[queueId];
+
     this.removeRequest(queueId);
+
     if (data.api) {
       this.executePubsubCall(data, source);
     } else {
@@ -114,10 +130,11 @@ export default class Store {
   }
 
   @action rejectRequest = (queueId) => {
-    const { request } = this.findRequest(queueId);
+    const { request: { data } } = this.findRequest(queueId);
+    const source = this.sources[queueId];
 
     this.removeRequest(queueId);
-    this.rejectMessage(request);
+    this.rejectMessage(source, data);
   }
 
   @action rejectMessage = (source, { id, from, method, token }) => {
