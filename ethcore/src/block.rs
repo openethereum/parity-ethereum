@@ -21,7 +21,7 @@ use std::sync::Arc;
 use std::collections::HashSet;
 
 use rlp::{UntrustedRlp, RlpStream, Encodable, Decodable, DecoderError};
-use util::{Bytes, Address, Hashable, U256, H256, ordered_trie_root, SHA3_NULL_RLP};
+use util::{Bytes, Address, Hashable, U256, H256, ordered_trie_root, SHA3_NULL_RLP, SHA3_EMPTY_LIST_RLP};
 use util::error::{Mismatch, OutOfBounds};
 
 use basic_types::{LogBloom, Seal};
@@ -91,8 +91,7 @@ pub struct ExecutedBlock {
 	receipts: Vec<Receipt>,
 	transactions_set: HashSet<H256>,
 	state: State<StateDB>,
-	traces: Option<Vec<Vec<FlatTrace>>>,
-	tracing_enabled: bool,
+	traces: Option<Vec<Vec<FlatTrace>>>
 }
 
 /// A set of references to `ExecutedBlock` fields that are publicly accessible.
@@ -109,8 +108,6 @@ pub struct BlockRefMut<'a> {
 	pub state: &'a mut State<StateDB>,
 	/// Traces.
 	pub traces: &'a Option<Vec<Vec<FlatTrace>>>,
-	/// Tracing enabled flag.
-	pub tracing_enabled: &'a mut bool,
 }
 
 /// A set of immutable references to `ExecutedBlock` fields that are publicly accessible.
@@ -127,8 +124,6 @@ pub struct BlockRef<'a> {
 	pub state: &'a State<StateDB>,
 	/// Traces.
 	pub traces: &'a Option<Vec<Vec<FlatTrace>>>,
-	/// Tracing enabled flag.
-	pub tracing_enabled: &'a bool,
 }
 
 impl ExecutedBlock {
@@ -142,7 +137,6 @@ impl ExecutedBlock {
 			transactions_set: Default::default(),
 			state: state,
 			traces: if tracing {Some(Vec::new())} else {None},
-			tracing_enabled: tracing,
 		}
 	}
 
@@ -155,7 +149,6 @@ impl ExecutedBlock {
 			state: &mut self.state,
 			receipts: &self.receipts,
 			traces: &self.traces,
-			tracing_enabled: &mut self.tracing_enabled,
 		}
 	}
 
@@ -168,7 +161,6 @@ impl ExecutedBlock {
 			state: &self.state,
 			receipts: &self.receipts,
 			traces: &self.traces,
-			tracing_enabled: &self.tracing_enabled,
 		}
 	}
 }
@@ -206,7 +198,7 @@ pub trait IsBlock {
 	fn uncles(&self) -> &[Header] { &self.block().uncles }
 
 	/// Get tracing enabled flag for this block.
-	fn tracing_enabled(&self) -> bool { self.block().tracing_enabled }
+	fn tracing_enabled(&self) -> bool { self.block().traces.is_some() }
 }
 
 /// Trait for a object that has a state database.
@@ -404,11 +396,8 @@ impl<'x> OpenBlock<'x> {
 		let unclosed_state = s.block.state.clone();
 
 		match s.engine.on_close_block(&mut s.block) {
-			Ok(outcome) => match outcome.trace {
-				Some(t) => {
-					s.block.traces.as_mut().map(|traces| traces.push(t));
-				},
-				None => {},
+			Ok(outcome) => if let Some(t) = outcome.trace {
+				s.block.traces.as_mut().map(|traces| traces.push(t));
 			},
 			Err(e) => warn!("Encountered error on closing the block: {}", e),
 		}
@@ -453,7 +442,7 @@ impl<'x> OpenBlock<'x> {
 			s.block.header.set_transactions_root(ordered_trie_root(s.block.transactions.iter().map(|e| e.rlp_bytes().into_vec())));
 		}
 		let uncle_bytes = s.block.uncles.iter().fold(RlpStream::new_list(s.block.uncles.len()), |mut s, u| {s.append_raw(&u.rlp(Seal::With), 1); s} ).out();
-		if s.block.header.uncles_hash().is_zero() || s.block.header.receipts_root() == &SHA3_NULL_RLP {
+		if s.block.header.uncles_hash().is_zero() || s.block.header.uncles_hash() == &SHA3_EMPTY_LIST_RLP {
 			s.block.header.set_uncles_hash(uncle_bytes.sha3());
 		}
 		if s.block.header.receipts_root().is_zero() || s.block.header.receipts_root() == &SHA3_NULL_RLP {

@@ -274,6 +274,7 @@ impl Engine for Arc<Ethash> {
 	/// This assumes that all uncles are valid uncles (i.e. of at least one generation before the current).
 	fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<CloseOutcome, Error> {
 		let reward = self.params().block_reward;
+		let tracing_enabled = block.tracing_enabled();
 		let fields = block.fields_mut();
 		let eras_rounds = self.ethash_params.ecip1017_era_rounds;
 		let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, reward, fields.header.number());
@@ -287,14 +288,15 @@ impl Engine for Arc<Ethash> {
 			CleanupMode::NoEmpty
 		)?;
 
-		// Trace it
-		let block_miner = fields.header.author().clone();
-		tracer.trace_reward(block_miner, result_block_reward, RewardType::Block);
+		if tracing_enabled {
+			let block_author = fields.header.author().clone();
+			tracer.trace_reward(block_author, result_block_reward, RewardType::Block);
+		}
 
 		// Bestow uncle rewards
 		let current_number = fields.header.number();
 		for u in fields.uncles.iter() {
-			let uncle_miner = u.author().clone();
+			let uncle_author = u.author().clone();
 			let result_uncle_reward: U256;
 
 			if eras == 0 {
@@ -314,14 +316,16 @@ impl Engine for Arc<Ethash> {
 			}?;
 
 			// Trace uncle rewards
-			tracer.trace_reward(uncle_miner, result_uncle_reward, RewardType::Uncle);
+			if tracing_enabled {
+				tracer.trace_reward(uncle_author, result_uncle_reward, RewardType::Uncle);
+			}			
 		}
 
 		// Commit state so that we can actually figure out the state root.
 		fields.state.commit()?;
-		match *fields.tracing_enabled {
-			true => Ok(CloseOutcome{trace: Some(tracer.traces())}),
-			false => Ok(CloseOutcome{trace: None})
+		match tracing_enabled {
+			true => Ok(CloseOutcome { trace: Some(tracer.traces()) } ),
+			false => Ok(CloseOutcome { trace: None } )
 		}		
 	}
 

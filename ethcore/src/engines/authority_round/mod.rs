@@ -545,6 +545,7 @@ impl Engine for AuthorityRound {
 
 	/// Apply the block reward on finalisation of the block.
 	fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<CloseOutcome, Error> {
+		let tracing_enabled = block.tracing_enabled();
 		let fields = block.fields_mut();
 		let mut tracer = ExecutiveTracer::default();
 		// Bestow block reward
@@ -553,18 +554,19 @@ impl Engine for AuthorityRound {
 			.map_err(::error::Error::from)
 			.and_then(|_| fields.state.commit());
 
-		// Trace it
-		let block_miner = fields.header.author().clone();
-		tracer.trace_reward(block_miner, self.params().block_reward, RewardType::Block);
+		if tracing_enabled {
+			let block_author = fields.header.author().clone();
+			tracer.trace_reward(block_author, self.params().block_reward, RewardType::Block);
+		}
 
 		// Commit state so that we can actually figure out the state root.
 		if let Err(ref e) = res {
 			warn!("Encountered error on closing block: {}", e);
 		}
 		match res {
-			Ok(_) => match *fields.tracing_enabled {
-				true => Ok(CloseOutcome{trace: Some(tracer.traces())}),
-				false => Ok(CloseOutcome{trace: None})
+			Ok(_) => match tracing_enabled {
+				true => Ok(CloseOutcome { trace: Some(tracer.traces()) } ),
+				false => Ok(CloseOutcome { trace: None } )
 			},
 			Err(e) => Err(e)
 		}

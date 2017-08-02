@@ -17,7 +17,7 @@
 use std::collections::BTreeMap;
 use util::Address;
 use builtin::Builtin;
-use block::{ExecutedBlock, };
+use block::{ExecutedBlock, IsBlock};
 use util::U256;
 use engines::{Engine, CloseOutcome};
 use spec::CommonParams;
@@ -71,11 +71,12 @@ impl Engine for NullEngine {
 	}
 
 	fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<CloseOutcome, Error> {
-		if !self.params.apply_reward {
+		if self.params.block_reward == U256::zero() {
 			return Ok(CloseOutcome{trace: None});
 		}
 
 		/// Block reward
+		let tracing_enabled = block.tracing_enabled();
 		let fields = block.fields_mut();		
 		let mut tracer = ExecutiveTracer::default();
 
@@ -86,25 +87,27 @@ impl Engine for NullEngine {
 			CleanupMode::NoEmpty
 		)?;
 
-		let block_miner = fields.header.author().clone();
-		tracer.trace_reward(block_miner, result_block_reward, RewardType::Block);
+		if tracing_enabled {
+			let block_author = fields.header.author().clone();
+			tracer.trace_reward(block_author, result_block_reward, RewardType::Block);
+		}
 
 		/// Uncle rewards
 		let result_uncle_reward = U256::from(10000000);
 		for u in fields.uncles.iter() {
-			let uncle_miner = u.author().clone();
+			let uncle_author = u.author().clone();
 			fields.state.add_balance(
 				u.author(),
 				&(result_uncle_reward),
 				CleanupMode::NoEmpty
 			)?;
-			tracer.trace_reward(uncle_miner, result_uncle_reward, RewardType::Uncle);
+			tracer.trace_reward(uncle_author, result_uncle_reward, RewardType::Uncle);
 		}
 
 		fields.state.commit()?;
-		match *fields.tracing_enabled {
-			true => Ok(CloseOutcome{trace: Some(tracer.traces())}),
-			false => Ok(CloseOutcome{trace: None})
+		match tracing_enabled {
+			true => Ok(CloseOutcome { trace: Some(tracer.traces()) } ),
+			false => Ok(CloseOutcome { trace: None } )
 		}
 	}
 }

@@ -159,7 +159,7 @@ impl Tracer for ExecutiveTracer {
 			result: Res::None,
 			trace_address: Default::default(),
 		};
-		debug!(target: "trace", "Traced failed suicide {:?}", trace);
+		debug!(target: "trace", "Traced suicide {:?}", trace);
 		self.traces.push(trace);
 	}
 	
@@ -174,7 +174,7 @@ impl Tracer for ExecutiveTracer {
 			result: Res::None,
 			trace_address: Default::default(),
 		};
-		debug!(target: "trace", "Traced failed reward {:?}", trace);
+		debug!(target: "trace", "Traced reward {:?}", trace);
 		self.traces.push(trace);
 	}
 

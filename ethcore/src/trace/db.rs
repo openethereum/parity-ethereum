@@ -215,20 +215,11 @@ impl<T> TraceDB<T> where T: DatabaseExtras {
 		block_number: BlockNumber,
 		tx_number: usize
 	) -> Vec<LocalizedTrace> {
-		let trace_tx_number;
-		let trace_tx_hash;
-
-		match self.extras.transaction_hash(block_number, tx_number) {
-			Some(hash) => {
-				trace_tx_hash = Some(hash.clone());
-				trace_tx_number = Some(tx_number);
-			},
-			None => {
-				//None means trace without transaction (reward)
-				trace_tx_hash = None;
-				trace_tx_number = None;				
-			}
-		}
+		let (trace_tx_number, trace_tx_hash) = match self.extras.transaction_hash(block_number, tx_number) {
+			Some(hash) => (Some(tx_number), Some(hash.clone())),
+			//None means trace without transaction (reward)
+			None => (None, None),
+		};
 
 		let flat_traces: Vec<FlatTrace> = traces.into();
 		flat_traces.into_iter()
@@ -375,20 +366,11 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 						.map(Into::<Vec<FlatTrace>>::into)
 						.enumerate()
 						.flat_map(|(tx_position, traces)| {
-							let trace_tx_number;
-							let trace_tx_hash;
-
-							match self.extras.transaction_hash(block_number, tx_position) {
-								Some(hash) => {
-									trace_tx_hash = Some(hash.clone());
-									trace_tx_number = Some(tx_position);
-								},
-								None => {
-									//None means trace without transaction (reward)
-									trace_tx_hash = None;
-									trace_tx_number = None;				
-								}
-							}
+							let (trace_tx_number, trace_tx_hash) = match self.extras.transaction_hash(block_number, tx_position) {
+								Some(hash) => (Some(tx_position), Some(hash.clone())),
+								//None means trace without transaction (reward)
+								None => (None, None),
+							};
 
 							traces.into_iter()
 								.map(|trace| LocalizedTrace {

@@ -98,8 +98,6 @@ pub struct CommonParams {
 	pub block_reward: U256,
 	/// Registrar contract address.
 	pub registrar: Address,
-	/// Apply reward
-	pub apply_reward: bool,
 }
 
 impl CommonParams {
@@ -170,8 +168,7 @@ impl From<ethjson::spec::Params> for CommonParams {
 			wasm: p.wasm.unwrap_or(false),
 			gas_limit_bound_divisor: p.gas_limit_bound_divisor.into(),
 			block_reward: p.block_reward.map_or_else(U256::zero, Into::into),
-			registrar: p.registrar.map_or_else(Address::new, Into::into),
-			apply_reward: p.apply_reward.unwrap_or(true),
+			registrar: p.registrar.map_or_else(Address::new, Into::into)
 		}
 	}
 }
