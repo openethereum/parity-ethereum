@@ -118,7 +118,7 @@ impl BanningTransactionQueue {
 		time: QueuingInstant,
 		details_provider: &TransactionQueueDetailsProvider,
 	) -> Result<TransactionImportResult, Error> {
-		self.check_banlist(&transaction).and(
+		self.check_banlist(&transaction).and_then(|_| 
 			self.queue.add_reserved(reservation, transaction, TransactionOrigin::External, time, None, details_provider))
 	}
 
@@ -130,7 +130,7 @@ impl BanningTransactionQueue {
 		time: QueuingInstant,
 		details_provider: &TransactionQueueDetailsProvider,
 	) -> Result<TransactionImportResult, Error> {
-		self.check_banlist(&transaction).and(
+		self.check_banlist(&transaction).and_then(|_| 
 			self.queue.add(transaction, TransactionOrigin::External, time, None, details_provider))
 	}
 
