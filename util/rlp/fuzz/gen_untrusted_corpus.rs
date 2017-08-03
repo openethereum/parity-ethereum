@@ -72,6 +72,15 @@ fn create_uint_slice_stream() {
     write_corpus("untrusted_data/well-formed-list-byte-slice", &rlp);
 }
 
+fn create_u8_vec_stream() {
+    let v8: Vec<u8> = vec![41 as u8];
+    
+    let mut rlp = RlpStream::new();
+    rlp.append(&v8);
+
+    write_corpus("untrusted_data/well-formed-list-byte-vector", &rlp);
+}
+
 fn create_hash_stream() {
     // Create RLP Stream to encode values
     let mut rlp = RlpStream::new();
@@ -100,4 +109,5 @@ fn main() {
     create_uint_stream();
     create_uint_slice_stream();
     create_hash_stream();
+    create_u8_vec_stream();
 }

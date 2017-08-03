@@ -36,3 +36,5 @@ While still in the crate's root directory, run the following:
   - `cargo fuzz run -j <num-jobs> <test-name>` for parallell jobs
 
 Examples and detailed information on libfuzzer output can be found [here](https://rust-fuzz.github.io/book/cargo-fuzz/tutorial.html)
+
+Efficient fuzzing tips from Google: [efficient fuzzing](https://chromium.googlesource.com/chromium/src/+/master/testing/libfuzzer/efficient_fuzzer.md)
