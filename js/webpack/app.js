@@ -20,6 +20,7 @@ const fs = require('fs');
 const path = require('path');
 const flatten = require('lodash.flatten');
 // const ReactIntlAggregatePlugin = require('react-intl-aggregate-webpack-plugin');
+const ExtractTextPlugin = require('extract-text-webpack-plugin');
 const WebpackErrorNotificationPlugin = require('webpack-error-notification');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
@@ -83,50 +84,56 @@ module.exports = {
       {
         test: /\.css$/,
         include: /semantic-ui-css/,
-        use: [
-          'style-loader',
-          {
-            loader: 'css-loader',
-            options: {
-              minimize: true
+        use: ExtractTextPlugin.extract({
+          fallback: 'style-loader',
+          use: [
+            {
+              loader: 'css-loader',
+              options: {
+                minimize: true
+              }
             }
-          }
-        ]
+          ]
+        })
       },
       {
         test: /\.css$/,
         exclude: /semantic-ui-css/,
-        use: [
-          'style-loader',
-          {
-            loader: 'css-loader',
-            options: {
-              importLoaders: 1,
-              localIdentName: '[name]_[local]_[hash:base64:10]',
-              minimize: true,
-              modules: true
+        use: ExtractTextPlugin.extract({
+          fallback: 'style-loader',
+          use: [
+            {
+              loader: 'css-loader',
+              options: {
+                importLoaders: 1,
+                localIdentName: '[name]_[local]_[hash:base64:10]',
+                minimize: true,
+                modules: true
+              }
+            },
+            {
+              loader: 'postcss-loader',
+              options: {
+                sourceMap: true,
+                plugins: [
+                  require('postcss-import'),
+                  require('postcss-nested'),
+                  require('postcss-simple-vars')
+                ]
+              }
             }
-          },
-          {
-            loader: 'postcss-loader',
-            options: {
-              sourceMap: true,
-              plugins: [
-                require('postcss-import'),
-                require('postcss-nested'),
-                require('postcss-simple-vars')
-              ]
-            }
-          }
-        ]
+          ]
+        })
       },
       {
         test: /\.(png|jpg|svg|woff|woff2|ttf|eot|otf)(\?.*)?$/,
         use: {
           loader: 'file-loader',
           options: {
-            name: '[name].[hash:base64:10].[ext]',
-            useRelativePath: true
+            name: '[name].[hash:10].[ext]',
+            outputPath: '',
+            publicPath: '',
+            useRelativePath: false
           }
         }
       }
@@ -153,7 +160,10 @@ module.exports = {
 
   plugins: (function () {
     let plugins = Shared.getPlugins().concat(
-      new WebpackErrorNotificationPlugin()
+      new WebpackErrorNotificationPlugin(),
+      new ExtractTextPlugin({
+        filename: `${isEmbed ? 'embed' : 'bundle'}.css`
+      }),
     );
 
     if (!isEmbed) {
@@ -187,16 +197,13 @@ module.exports = {
                     ? dapp.id
                     : Api.util.sha3(dapp.url);
 
-                  return [
-                    {
-                      from: path.join(dir, 'dist'),
-                      to: `dapps/${destination}/dist/`
-                    },
-                    {
-                      from: path.join(dir, 'index.html'),
-                      to: `dapps/${destination}/`
-                    }
-                  ];
+                  return ['index.html', 'dist.css', 'dist.css.map', 'dist.js', 'dist.js.map'].map((file) => ({
+                    from: path.join(dir, file),
+                    to: `dapps/${destination}/`
+                  })).concat({
+                    from: path.join(dir, 'dist'),
+                    to: `dapps/${destination}/dist/`
+                  });
                 })
                 .filter((copy) => copy)
             )
