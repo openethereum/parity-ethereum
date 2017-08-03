@@ -92,7 +92,7 @@ export default class SignerStore {
 
   subscribeLocalTransactions = () => {
     this._api.pubsub.parity.localTransactions((err, transactions) => {
-      if (err) {
+      if (error) {
         console.warn('subscribeLocalTransactions', error);
         return;
       }
@@ -108,6 +108,6 @@ export default class SignerStore {
     })
     .catch((error) => {
       console.warn('subscribeLocalTransactions_subscription', error);
-    });;
+    });
   }
 }

@@ -73,7 +73,7 @@ export default class StatusStore {
 
   _startPolling () {
     this.api.pubsub.parity.getBlockHeaderByNumber((err, block) => {
-      if (err) {
+      if (error) {
         console.warn('_startPolling', error);
         return;
       }
