@@ -122,7 +122,7 @@ export default class Dapp extends Component {
           ? app.id
           : this.context.api.sha3(app.url);
 
-        src = `${dapphost}/dapps/${appId}/index.html`;
+        src = `${dapphost}/dapps/${appId}/`;
         break;
     }
 

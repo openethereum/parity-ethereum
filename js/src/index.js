@@ -15,7 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import 'whatwg-fetch';
-// import 'semantic-ui-css/semantic.css';
 
 import es6Promise from 'es6-promise';
 es6Promise.polyfill();

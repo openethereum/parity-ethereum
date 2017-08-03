@@ -46,7 +46,7 @@ const isEmbed = EMBED === '1' || EMBED === 'true';
 
 const entry = isEmbed
   ? { embed: './embed.js' }
-  : { index: './index.js' };
+  : { bundle: './index.js' };
 
 module.exports = {
   cache: !isProd,
@@ -66,7 +66,7 @@ module.exports = {
       {
         test: /\.js$/,
         exclude: /(node_modules)/,
-        use: [ 'happypack/loader?id=babel' ]
+        use: ['happypack/loader?id=babel']
       },
       {
         test: /\.json$/,
@@ -74,26 +74,7 @@ module.exports = {
       },
       {
         test: /\.ejs$/,
-        use: [ 'ejs-loader' ]
-      },
-      {
-        test: /\.html$/,
-        use: [
-          {
-            loader: 'file-loader',
-            options: {
-              name: '[name].[ext]'
-            }
-          },
-          'extract-loader',
-          {
-            loader: 'html-loader',
-            options: {
-              root: path.resolve(__dirname, '../assets/images'),
-              attrs: ['img:src', 'link:href']
-            }
-          }
-        ]
+        use: ['ejs-loader']
       },
       {
         test: /\.md$/,
@@ -102,7 +83,15 @@ module.exports = {
       {
         test: /\.css$/,
         include: /semantic-ui-css/,
-        use: [ 'style-loader', 'css-loader' ]
+        use: [
+          'style-loader',
+          {
+            loader: 'css-loader',
+            options: {
+              minimize: true
+            }
+          }
+        ]
       },
       {
         test: /\.css$/,
@@ -132,36 +121,14 @@ module.exports = {
         ]
       },
       {
-        test: /\.(png|jpg)$/,
-        use: [ {
+        test: /\.(png|jpg|svg|woff|woff2|ttf|eot|otf)(\?.*)?$/,
+        use: {
           loader: 'file-loader',
           options: {
-            name: 'assets/[name].[hash].[ext]'
+            name: '[name].[hash:base64:10].[ext]',
+            useRelativePath: true
           }
-        } ]
-      },
-      {
-        test: /\.(woff|woff2|ttf|eot|otf)(\?v=[0-9]\.[0-9]\.[0-9])?$/,
-        use: [ {
-          loader: 'file-loader',
-          options: {
-            name: 'fonts/[name][hash].[ext]'
-          }
-        } ]
-      },
-      {
-        test: /parity-logo-white-no-text\.svg/,
-        use: [ 'url-loader' ]
-      },
-      {
-        test: /\.svg(\?v=[0-9]\.[0-9]\.[0-9])?$/,
-        exclude: [ /parity-logo-white-no-text\.svg/ ],
-        use: [ {
-          loader: 'file-loader',
-          options: {
-            name: 'assets/[name].[hash].[ext]'
-          }
-        } ]
+        }
       }
     ],
     noParse: [
@@ -198,7 +165,7 @@ module.exports = {
           filename: 'index.html',
           template: './index.ejs',
           favicon: FAVICON,
-          chunks: [ 'index' ]
+          chunks: ['bundle']
         }),
 
         new CopyWebpackPlugin(
@@ -246,7 +213,7 @@ module.exports = {
           filename: 'embed.html',
           template: './index.ejs',
           favicon: FAVICON,
-          chunks: [ 'embed' ]
+          chunks: ['embed']
         })
       );
     }
