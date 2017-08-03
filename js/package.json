@@ -221,7 +221,6 @@
     "redux-thunk": "2.1.0",
     "rlp": "2.0.0",
     "scryptsy": "2.0.0",
-    "sntp": "2.0.2",
     "solc": "ngotchac/solc-js",
     "store": "1.3.20",
     "sw-toolbox": "^3.6.0",

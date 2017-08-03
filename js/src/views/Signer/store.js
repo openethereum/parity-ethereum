@@ -29,7 +29,7 @@ export default class SignerStore {
     this.externalLink = externalLink;
 
     if (withLocalTransactions) {
-      this.fetchLocalTransactions();
+      this.subscribeLocalTransactions();
     }
   }
 
@@ -49,7 +49,10 @@ export default class SignerStore {
   }
 
   @action unsubscribe () {
-    if (this.subscriptionId) {
+    if (this.subscribed) {
+      while (!this.subscriptionId) {
+        setTimeout(null, 150);
+      }
       this._api.pubsub.unsubscribe(this.subscriptionId);
     }
   }
@@ -87,11 +90,13 @@ export default class SignerStore {
       });
   }
 
-  fetchLocalTransactions = () => {
+  subscribeLocalTransactions = () => {
     this._api.pubsub.parity.localTransactions((err, transactions) => {
       if (err) {
+        console.warn('subscribeLocalTransactions', error);
         return;
       }
+      this.subscribed = true;
       const keys = Object
         .keys(transactions)
         .filter((key) => transactions[key].status !== 'canceled');
@@ -100,6 +105,9 @@ export default class SignerStore {
     })
     .then((subscriptionId) => {
       this.subscriptionId = subscriptionId;
-    });
+    })
+    .catch((error) => {
+      console.warn('subscribeLocalTransactions_subscription', error);
+    });;
   }
 }

@@ -63,7 +63,10 @@ export default class StatusStore {
   }
 
   stopPolling () {
-    if (this.subscriptionId) {
+    if (this.subscribed) {
+      while (!this.subscriptionId) {
+        setTimeout(null, 150);
+      }
       this.api.pubsub.unsubscribe(this.subscriptionId);
     }
   }
@@ -71,12 +74,14 @@ export default class StatusStore {
   _startPolling () {
     this.api.pubsub.parity.getBlockHeaderByNumber((err, block) => {
       if (err) {
+        console.warn('_startPolling', error);
         return;
       }
+      this.subscribed = true;
       this.blockNumber = block.number;
       this.blockTimestamp = block.timestamp;
       this._pollMinerSettings();
-      return Promise
+      Promise
         .all([
           this.api.parity.chain(),
           this.api.parity.defaultExtraData(),
@@ -95,10 +100,14 @@ export default class StatusStore {
         })
         .catch((error) => {
           console.error('_pollStatuses', error);
+          return;
         });
     })
     .then((subscriptionId) => {
       this.subscriptionId = subscriptionId;
+    })
+    .catch((error) => {
+      console.warn('_startPolling_subscription', error);
     });
   }
 
