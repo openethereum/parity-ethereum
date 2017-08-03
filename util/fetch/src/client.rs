@@ -61,6 +61,14 @@ pub trait Fetch: Clone + Send + Sync + 'static {
 		f.boxed()
 	}
 
+	/// Spawn the future in context of this `Fetch` thread pool as "fire and forget", i.e. dropping this future without
+	/// canceling the underlying future.
+	/// Implementation is optional.
+	fn forget<F, I, E>(&self, _: F) where
+		F: Future<Item=I, Error=E> + Send + 'static,
+		I: Send + 'static,
+		E: Send + 'static {}
+
 	/// Fetch URL and get a future for the result.
 	/// Supports aborting the request in the middle of execution.
 	fn fetch_with_abort(&self, url: &str, abort: Abort) -> Self::Result;
@@ -126,6 +134,11 @@ impl Client {
 		*self.client.write() = (time::Instant::now(), client.clone());
 		Ok(client)
 	}
+
+	/// Returns a handle to underlying CpuPool of this client.
+	pub fn pool(&self) -> CpuPool {
+		self.pool.clone()
+	}
 }
 
 impl Fetch for Client {
@@ -142,6 +155,14 @@ impl Fetch for Client {
 		E: Send + 'static,
 	{
 		self.pool.spawn(f).boxed()
+	}
+
+	fn forget<F, I, E>(&self, f: F) where
+		F: Future<Item=I, Error=E> + Send + 'static,
+		I: Send + 'static,
+		E: Send + 'static,
+	{
+		self.pool.spawn(f).forget()
 	}
 
 	fn fetch_with_abort(&self, url: &str, abort: Abort) -> Self::Result {
@@ -202,6 +223,15 @@ pub enum Error {
 	Fetch(reqwest::Error),
 	/// Request aborted
 	Aborted,
+}
+
+impl fmt::Display for Error {
+	fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+		match *self {
+			Error::Aborted => write!(fmt, "The request has been aborted."),
+			Error::Fetch(ref err) => write!(fmt, "{}", err),
+		}
+	}
 }
 
 impl From<reqwest::Error> for Error {

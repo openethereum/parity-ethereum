@@ -43,6 +43,7 @@ class Accounts extends Component {
     accountsInfo: PropTypes.object.isRequired,
     availability: PropTypes.string.isRequired,
     hasAccounts: PropTypes.bool.isRequired,
+    health: PropTypes.object.isRequired,
     setVisibleAccounts: PropTypes.func.isRequired
   }
 
@@ -372,10 +373,6 @@ class Accounts extends Component {
   }
 
   renderNewWalletButton () {
-    if (this.props.availability !== 'personal') {
-      return null;
-    }
-
     return (
       <Button
         key='newWallet'
@@ -496,12 +493,14 @@ class Accounts extends Component {
 function mapStateToProps (state) {
   const { accounts, accountsInfo, hasAccounts } = state.personal;
   const { availability = 'unknown' } = state.nodeStatus.nodeKind || {};
+  const { health } = state.nodeStatus;
 
   return {
     accounts,
     accountsInfo,
     availability,
-    hasAccounts
+    hasAccounts,
+    health
   };
 }
 

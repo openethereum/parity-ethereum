@@ -46,6 +46,9 @@ struct Guard(bool, PathBuf);
 impl Guard {
 	fn new(path: PathBuf) -> Self { Guard(true, path) }
 
+	#[cfg(test)]
+	fn benign() -> Self { Guard(false, PathBuf::default()) }
+
 	fn disarm(mut self) { self.0 = false }
 }
 
@@ -123,7 +126,7 @@ impl Restoration {
 
 	// feeds a state chunk, aborts early if `flag` becomes false.
 	fn feed_state(&mut self, hash: H256, chunk: &[u8], flag: &AtomicBool) -> Result<(), Error> {
-		if self.state_chunks_left.remove(&hash) {
+		if self.state_chunks_left.contains(&hash) {
 			let len = snappy::decompress_into(chunk, &mut self.snappy_buffer)?;
 
 			self.state.feed(&self.snappy_buffer[..len], flag)?;
@@ -131,6 +134,8 @@ impl Restoration {
 			if let Some(ref mut writer) = self.writer.as_mut() {
 				writer.write_state_chunk(hash, chunk)?;
 			}
+
+			self.state_chunks_left.remove(&hash);
 		}
 
 		Ok(())
@@ -138,13 +143,15 @@ impl Restoration {
 
 	// feeds a block chunk
 	fn feed_blocks(&mut self, hash: H256, chunk: &[u8], engine: &Engine, flag: &AtomicBool) -> Result<(), Error> {
-		if self.block_chunks_left.remove(&hash) {
+		if self.block_chunks_left.contains(&hash) {
 			let len = snappy::decompress_into(chunk, &mut self.snappy_buffer)?;
 
 			self.secondary.feed(&self.snappy_buffer[..len], engine, flag)?;
 			if let Some(ref mut writer) = self.writer.as_mut() {
 				 writer.write_block_chunk(hash, chunk)?;
 			}
+
+			self.block_chunks_left.remove(&hash);
 		}
 
 		Ok(())
@@ -558,9 +565,9 @@ impl SnapshotService for Service {
 		self.reader.read().as_ref().map(|r| r.manifest().clone())
 	}
 
-	fn min_supported_version(&self) -> Option<u64> {
+	fn supported_versions(&self) -> Option<(u64, u64)> {
 		self.engine.snapshot_components()
-			.map(|c| c.min_supported_version())
+			.map(|c| (c.min_supported_version(), c.current_version()))
 	}
 
 	fn chunk(&self, hash: H256) -> Option<Bytes> {
@@ -667,5 +674,51 @@ mod tests {
 		service.abort_restore();
 		service.restore_state_chunk(Default::default(), vec![]);
 		service.restore_block_chunk(Default::default(), vec![]);
+	}
+
+	#[test]
+	fn cannot_finish_with_invalid_chunks() {
+		use util::H256;
+		use util::kvdb::DatabaseConfig;
+
+		let spec = get_test_spec();
+		let dir = RandomTempPath::new();
+
+		let state_hashes: Vec<_> = (0..5).map(|_| H256::random()).collect();
+		let block_hashes: Vec<_> = (0..5).map(|_| H256::random()).collect();
+		let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
+		let gb = spec.genesis_block();
+		let flag = ::std::sync::atomic::AtomicBool::new(true);
+
+		let params = RestorationParams {
+			manifest: ManifestData {
+				version: 2,
+				state_hashes: state_hashes.clone(),
+				block_hashes: block_hashes.clone(),
+				state_root: H256::default(),
+				block_number: 100000,
+				block_hash: H256::default(),
+			},
+			pruning: Algorithm::Archive,
+			db_path: dir.as_path().to_owned(),
+			db_config: &db_config,
+			writer: None,
+			genesis: &gb,
+			guard: Guard::benign(),
+			engine: &*spec.engine.clone(),
+		};
+
+		let mut restoration = Restoration::new(params).unwrap();
+		let definitely_bad_chunk = [1, 2, 3, 4, 5];
+
+		for hash in state_hashes {
+			assert!(restoration.feed_state(hash, &definitely_bad_chunk, &flag).is_err());
+			assert!(!restoration.is_done());
+		}
+
+		for hash in block_hashes {
+			assert!(restoration.feed_blocks(hash, &definitely_bad_chunk, &*spec.engine, &flag).is_err());
+			assert!(!restoration.is_done());
+		}
 	}
 }

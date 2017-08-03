@@ -32,7 +32,7 @@
 //! use ethcore::miner::{Miner, MinerService};
 //!
 //! fn main() {
-//!		let miner: Miner = Miner::with_spec(&ethereum::new_foundation());
+//!		let miner: Miner = Miner::with_spec(&ethereum::new_foundation(&env::temp_dir()));
 //!		// get status
 //!		assert_eq!(miner.status().transactions_in_pending_queue, 0);
 //!
@@ -45,7 +45,6 @@ mod banning_queue;
 mod external;
 mod local_transactions;
 mod miner;
-mod price_info;
 mod service_transaction_checker;
 mod transaction_queue;
 mod work_notify;
@@ -136,6 +135,9 @@ pub trait MinerService : Send + Sync {
 	/// Called when blocks are imported to chain, updates transactions queue.
 	fn chain_new_blocks(&self, chain: &MiningBlockChainClient, imported: &[H256], invalid: &[H256], enacted: &[H256], retracted: &[H256]);
 
+	/// PoW chain - can produce work package
+	fn can_produce_work_package(&self) -> bool;
+
 	/// New chain head event. Restart mining operation.
 	fn update_sealing(&self, chain: &MiningBlockChainClient);
 
@@ -176,7 +178,7 @@ pub trait MinerService : Send + Sync {
 	fn last_nonce(&self, address: &Address) -> Option<U256>;
 
 	/// Is it currently sealing?
-	fn is_sealing(&self) -> bool;
+	fn is_currently_sealing(&self) -> bool;
 
 	/// Suggested gas price.
 	fn sensible_gas_price(&self) -> U256;

@@ -16,7 +16,7 @@
 
 /// Validator set maintained in a contract, updated using `getValidators` method.
 
-use std::sync::Weak;
+use std::sync::{Weak, Arc};
 use futures::Future;
 use native_contracts::ValidatorSet as Provider;
 
@@ -109,6 +109,9 @@ fn prove_initial(provider: &Provider, header: &Header, caller: &Call) -> Result<
 
 		trace!(target: "engine", "obtained proof for initial set: {} validators, {} bytes",
 			validators.len(), proof.len());
+
+		info!(target: "engine", "Signal for switch to contract-based validator set.");
+		info!(target: "engine", "Initial contract validators: {:?}", validators);
 
 		proof
 	})
@@ -231,9 +234,7 @@ impl ValidatorSet for ValidatorSafeContract {
 			.map(|out| (out, Vec::new()))) // generate no proofs in general
 	}
 
-	fn on_epoch_begin(&self, first: bool, _header: &Header, caller: &mut SystemCall) -> Result<(), ::error::Error> {
-		if first { return Ok(()) } // only signalled changes need to be noted.
-
+	fn on_epoch_begin(&self, _first: bool, _header: &Header, caller: &mut SystemCall) -> Result<(), ::error::Error> {
 		self.provider.finalize_change(caller)
 			.wait()
 			.map_err(::engines::EngineError::FailedSystemCall)
@@ -271,8 +272,9 @@ impl ValidatorSet for ValidatorSafeContract {
 			None => ::engines::EpochChange::Unsure(::engines::Unsure::NeedsReceipts),
 			Some(receipts) => match self.extract_from_event(bloom, header, receipts) {
 				None => ::engines::EpochChange::No,
-				Some(_) => {
-					debug!(target: "engine", "signalling transition within contract");
+				Some(list) => {
+					info!(target: "engine", "Signal for transition within contract. New list: {:?}",
+						&*list);
 
 					let proof = encode_proof(&header, receipts);
 					::engines::EpochChange::Yes(::engines::Proof::Known(proof))
@@ -297,7 +299,7 @@ impl ValidatorSet for ValidatorSafeContract {
 			let (old_header, state_items) = decode_first_proof(&rlp)?;
 			let old_hash = old_header.hash();
 
-			let env_info = ::env_info::EnvInfo {
+			let env_info = ::vm::EnvInfo {
 				number: old_header.number(),
 				author: *old_header.author(),
 				difficulty: *old_header.difficulty(),
@@ -420,6 +422,7 @@ impl ValidatorSet for ValidatorSafeContract {
 
 #[cfg(test)]
 mod tests {
+	use std::sync::Arc;
 	use rustc_hex::FromHex;
 	use util::*;
 	use types::ids::BlockId;
@@ -436,11 +439,11 @@ mod tests {
 	#[test]
 	fn fetches_validators() {
 		let client = generate_dummy_client_with_spec_and_accounts(Spec::new_validator_safe_contract, None);
-		let vc = Arc::new(ValidatorSafeContract::new(Address::from_str("0000000000000000000000000000000000000005").unwrap()));
+		let vc = Arc::new(ValidatorSafeContract::new("0000000000000000000000000000000000000005".parse::<Address>().unwrap()));
 		vc.register_contract(Arc::downgrade(&client));
 		let last_hash = client.best_block_header().hash();
-		assert!(vc.contains(&last_hash, &Address::from_str("7d577a597b2742b498cb5cf0c26cdcd726d39e6e").unwrap()));
-		assert!(vc.contains(&last_hash, &Address::from_str("82a978b3f5962a5b0957d9ee9eef472ee55b42f1").unwrap()));
+		assert!(vc.contains(&last_hash, &"7d577a597b2742b498cb5cf0c26cdcd726d39e6e".parse::<Address>().unwrap()));
+		assert!(vc.contains(&last_hash, &"82a978b3f5962a5b0957d9ee9eef472ee55b42f1".parse::<Address>().unwrap()));
 	}
 
 	#[test]
@@ -452,7 +455,7 @@ mod tests {
 		let network_id = Spec::new_validator_safe_contract().network_id();
 		let client = generate_dummy_client_with_spec_and_accounts(Spec::new_validator_safe_contract, Some(tap));
 		client.engine().register_client(Arc::downgrade(&client));
-		let validator_contract = Address::from_str("0000000000000000000000000000000000000005").unwrap();
+		let validator_contract = "0000000000000000000000000000000000000005".parse::<Address>().unwrap();
 
 		client.miner().set_engine_signer(v1, "".into()).unwrap();
 		// Remove "1" validator.
@@ -518,7 +521,7 @@ mod tests {
 
 		let client = generate_dummy_client_with_spec_and_accounts(Spec::new_validator_safe_contract, None);
 		let engine = client.engine().clone();
-		let validator_contract = Address::from_str("0000000000000000000000000000000000000005").unwrap();
+		let validator_contract = "0000000000000000000000000000000000000005".parse::<Address>().unwrap();
 
 		let last_hash = client.best_block_header().hash();
 		let mut new_header = Header::default();

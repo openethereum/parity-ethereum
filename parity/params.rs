@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::{str, fs, fmt};
+use std::{str, fs, fmt, path};
 use std::time::Duration;
 use util::{Address, U256, version_data};
 use util::journaldb::Algorithm;
@@ -22,6 +22,7 @@ use ethcore::spec::Spec;
 use ethcore::ethereum;
 use ethcore::client::Mode;
 use ethcore::miner::{GasPricer, GasPriceCalibratorOptions};
+use hash_fetch::fetch::Client as FetchClient;
 use user_defaults::UserDefaults;
 
 #[derive(Debug, PartialEq)]
@@ -79,19 +80,20 @@ impl fmt::Display for SpecType {
 }
 
 impl SpecType {
-	pub fn spec(&self) -> Result<Spec, String> {
+	pub fn spec<T: AsRef<path::Path>>(&self, cache_dir: T) -> Result<Spec, String> {
+		let cache_dir = cache_dir.as_ref();
 		match *self {
-			SpecType::Foundation => Ok(ethereum::new_foundation()),
-			SpecType::Morden => Ok(ethereum::new_morden()),
-			SpecType::Ropsten => Ok(ethereum::new_ropsten()),
-			SpecType::Olympic => Ok(ethereum::new_olympic()),
-			SpecType::Classic => Ok(ethereum::new_classic()),
-			SpecType::Expanse => Ok(ethereum::new_expanse()),
-			SpecType::Kovan => Ok(ethereum::new_kovan()),
+			SpecType::Foundation => Ok(ethereum::new_foundation(cache_dir)),
+			SpecType::Morden => Ok(ethereum::new_morden(cache_dir)),
+			SpecType::Ropsten => Ok(ethereum::new_ropsten(cache_dir)),
+			SpecType::Olympic => Ok(ethereum::new_olympic(cache_dir)),
+			SpecType::Classic => Ok(ethereum::new_classic(cache_dir)),
+			SpecType::Expanse => Ok(ethereum::new_expanse(cache_dir)),
+			SpecType::Kovan => Ok(ethereum::new_kovan(cache_dir)),
 			SpecType::Dev => Ok(Spec::new_instant()),
 			SpecType::Custom(ref filename) => {
-				let file = fs::File::open(filename).map_err(|_| "Could not load specification file.")?;
-				Spec::load(file)
+				let file = fs::File::open(filename).map_err(|e| format!("Could not load specification file at {}: {}", filename, e))?;
+				Spec::load(cache_dir, file)
 			}
 		}
 	}
@@ -225,15 +227,18 @@ impl Default for GasPricerConfig {
 	}
 }
 
-impl Into<GasPricer> for GasPricerConfig {
-	fn into(self) -> GasPricer {
-		match self {
+impl GasPricerConfig {
+	pub fn to_gas_pricer(&self, fetch: FetchClient) -> GasPricer {
+		match *self {
 			GasPricerConfig::Fixed(u) => GasPricer::Fixed(u),
 			GasPricerConfig::Calibrated { usd_per_tx, recalibration_period, .. } => {
-				GasPricer::new_calibrated(GasPriceCalibratorOptions {
-					usd_per_tx: usd_per_tx,
-					recalibration_period: recalibration_period,
-				})
+				GasPricer::new_calibrated(
+					GasPriceCalibratorOptions {
+						usd_per_tx: usd_per_tx,
+						recalibration_period: recalibration_period,
+					},
+					fetch
+				)
 			}
 		}
 	}
@@ -245,7 +250,6 @@ pub struct MinerExtras {
 	pub extra_data: Vec<u8>,
 	pub gas_floor_target: U256,
 	pub gas_ceil_target: U256,
-	pub transactions_limit: usize,
 	pub engine_signer: Address,
 }
 
@@ -256,7 +260,6 @@ impl Default for MinerExtras {
 			extra_data: version_data(),
 			gas_floor_target: U256::from(4_700_000),
 			gas_ceil_target: U256::from(6_283_184),
-			transactions_limit: 1024,
 			engine_signer: Default::default(),
 		}
 	}

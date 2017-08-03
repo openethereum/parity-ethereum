@@ -26,7 +26,12 @@ function createRedux (syncing = null) {
     getState: () => {
       return {
         nodeStatus: {
-          syncing
+          health: {
+            overall: {
+              status: syncing ? 'needsAttention' : 'ok',
+              message: []
+            }
+          }
         }
       };
     }

@@ -31,7 +31,8 @@ export default class Actionbar extends Component {
     title: nodeOrStringProptype(),
     buttons: PropTypes.array,
     children: PropTypes.node,
-    className: PropTypes.string
+    className: PropTypes.string,
+    health: PropTypes.node
   };
 
   static defaultProps = {

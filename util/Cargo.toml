@@ -3,7 +3,7 @@ description = "Ethcore utility library"
 homepage = "http://parity.io"
 license = "GPL-3.0"
 name = "ethcore-util"
-version = "1.7.0"
+version = "1.8.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 build = "build.rs"
 
@@ -28,8 +28,6 @@ vergen = "0.1"
 target_info = "0.1"
 ethcore-bigint = { path = "bigint", features = ["heapsizeof"] }
 parking_lot = "0.4"
-using_queue = { path = "using_queue" }
-table = { path = "table" }
 ansi_term = "0.9"
 tiny-keccak= "1.0"
 ethcore-bloom-journal = { path = "bloom" }

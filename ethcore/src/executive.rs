@@ -15,24 +15,28 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Transaction Execution environment.
+use std::cmp;
+use std::sync::Arc;
 use util::*;
-use action_params::{ActionParams, ActionValue};
 use state::{Backend as StateBackend, State, Substate, CleanupMode};
 use engines::Engine;
-use types::executed::CallType;
-use env_info::EnvInfo;
+use vm::EnvInfo;
 use error::ExecutionError;
-use evm::{self, Ext, Finalize, CreateContractAddress, FinalizationResult, ReturnData, CleanDustMode};
+use evm::{CallType, Factory, Finalize, FinalizationResult};
+use vm::{self, Ext, CreateContractAddress, ReturnData, CleanDustMode, ActionParams, ActionValue};
+use wasm;
 use externalities::*;
 use trace::{FlatTrace, Tracer, NoopTracer, ExecutiveTracer, VMTrace, VMTracer, ExecutiveVMTracer, NoopVMTracer};
 use transaction::{Action, SignedTransaction};
 use crossbeam;
-pub use types::executed::{Executed, ExecutionResult};
+pub use executed::{Executed, ExecutionResult};
 
 /// Roughly estimate what stack size each level of evm depth will use
 /// TODO [todr] We probably need some more sophisticated calculations here (limit on my machine 132)
 /// Maybe something like here: `https://github.com/ethereum/libethereum/blob/4db169b8504f2b87f7d5a481819cfb959fc65f6c/libethereum/ExtVM.cpp`
 const STACK_SIZE_PER_DEPTH: usize = 24*1024;
+
+const WASM_MAGIC_NUMBER: &'static [u8; 4] = b"\0asm";
 
 /// Returns new address created from address, nonce, and code hash
 pub fn contract_address(address_scheme: CreateContractAddress, sender: &Address, nonce: &U256, code: &[u8]) -> (Address, Option<H256>) {
@@ -70,6 +74,20 @@ pub struct TransactOptions {
 	pub vm_tracing: bool,
 	/// Check transaction nonce before execution.
 	pub check_nonce: bool,
+}
+
+pub fn executor<E>(engine: &E, vm_factory: &Factory, params: &ActionParams)
+	-> Box<vm::Vm> where E: Engine + ?Sized
+{
+	if engine.supports_wasm() && params.code.as_ref().map_or(false, |code| code.len() > 4 && &code[0..4] == WASM_MAGIC_NUMBER) {
+		Box::new(
+			wasm::WasmInterpreter::new()
+				// prefer to fail fast
+				.expect("Failed to create wasm runtime")
+		)
+	} else {
+		vm_factory.create(params.gas)
+	}
 }
 
 /// Transaction executor.
@@ -253,7 +271,7 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 		output_policy: OutputPolicy,
 		tracer: &mut T,
 		vm_tracer: &mut V
-	) -> evm::Result<FinalizationResult> where T: Tracer, V: VMTracer {
+	) -> vm::Result<FinalizationResult> where T: Tracer, V: VMTracer {
 
 		let depth_threshold = ::io::LOCAL_STACK_SIZE.with(|sz| sz.get() / STACK_SIZE_PER_DEPTH);
 		let static_call = params.call_type == CallType::StaticCall;
@@ -263,18 +281,19 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 			let vm_factory = self.state.vm_factory();
 			let mut ext = self.as_externalities(OriginInfo::from(&params), unconfirmed_substate, output_policy, tracer, vm_tracer, static_call);
 			trace!(target: "executive", "ext.schedule.have_delegate_call: {}", ext.schedule().have_delegate_call);
-			return vm_factory.create(params.gas).exec(params, &mut ext).finalize(ext);
+			return executor(self.engine, &vm_factory, &params).exec(params, &mut ext).finalize(ext);
 		}
 
 		// Start in new thread to reset stack
 		// TODO [todr] No thread builder yet, so we need to reset once for a while
 		// https://github.com/aturon/crossbeam/issues/16
 		crossbeam::scope(|scope| {
+			let engine = self.engine;
 			let vm_factory = self.state.vm_factory();
 			let mut ext = self.as_externalities(OriginInfo::from(&params), unconfirmed_substate, output_policy, tracer, vm_tracer, static_call);
 
 			scope.spawn(move || {
-				vm_factory.create(params.gas).exec(params, &mut ext).finalize(ext)
+				executor(engine, &vm_factory, &params).exec(params, &mut ext).finalize(ext)
 			})
 		}).join()
 	}
@@ -282,7 +301,7 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 	/// Calls contract function with given contract params.
 	/// NOTE. It does not finalize the transaction (doesn't do refunds, nor suicides).
 	/// Modifies the substate and the output.
-	/// Returns either gas_left or `evm::Error`.
+	/// Returns either gas_left or `vm::Error`.
 	pub fn call<T, V>(
 		&mut self,
 		params: ActionParams,
@@ -290,14 +309,14 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 		mut output: BytesRef,
 		tracer: &mut T,
 		vm_tracer: &mut V
-	) -> evm::Result<(U256, ReturnData)> where T: Tracer, V: VMTracer {
+	) -> vm::Result<(U256, ReturnData)> where T: Tracer, V: VMTracer {
 
 		trace!("Executive::call(params={:?}) self.env_info={:?}", params, self.info);
 		if (params.call_type == CallType::StaticCall ||
 				((params.call_type == CallType::Call || params.call_type == CallType::DelegateCall) &&
 				 self.static_flag))
 			&& params.value.value() > 0.into() {
-			return Err(evm::Error::MutableCallInStaticContext);
+			return Err(vm::Error::MutableCallInStaticContext);
 		}
 
 		// backup used in case of running out of gas
@@ -327,7 +346,7 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 			if cost <= params.gas {
 				if let Err(e) = builtin.execute(data, &mut output) {
 					self.state.revert_to_checkpoint();
-					let evm_err: evm::evm::Error = e.into();
+					let evm_err: vm::Error = e.into();
 					tracer.trace_failed_call(trace_info, vec![], evm_err.clone().into());
 					Err(evm_err)
 				} else {
@@ -354,9 +373,9 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 				// just drain the whole gas
 				self.state.revert_to_checkpoint();
 
-				tracer.trace_failed_call(trace_info, vec![], evm::Error::OutOfGas.into());
+				tracer.trace_failed_call(trace_info, vec![], vm::Error::OutOfGas.into());
 
-				Err(evm::Error::OutOfGas)
+				Err(vm::Error::OutOfGas)
 			}
 		} else {
 			let trace_info = tracer.prepare_trace_call(&params);
@@ -376,7 +395,7 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 					self.exec_vm(params, &mut unconfirmed_substate, OutputPolicy::Return(output, trace_output.as_mut()), &mut subtracer, &mut subvmtracer)
 				};
 
-				vm_tracer.done_subtrace(subvmtracer, res.is_ok());
+				vm_tracer.done_subtrace(subvmtracer);
 
 				trace!(target: "executive", "res={:?}", res);
 
@@ -415,17 +434,17 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 		substate: &mut Substate,
 		tracer: &mut T,
 		vm_tracer: &mut V,
-	) -> evm::Result<(U256, ReturnData)> where T: Tracer, V: VMTracer {
+	) -> vm::Result<(U256, ReturnData)> where T: Tracer, V: VMTracer {
 
 		let scheme = self.engine.create_address_scheme(self.info.number);
 		if scheme != CreateContractAddress::FromSenderAndNonce && self.state.exists_and_has_code(&params.address)? {
-			return Err(evm::Error::OutOfGas);
+			return Err(vm::Error::OutOfGas);
 		}
 
 		if params.call_type == CallType::StaticCall || self.static_flag {
 			let trace_info = tracer.prepare_trace_create(&params);
-			tracer.trace_failed_create(trace_info, vec![], evm::Error::MutableCallInStaticContext.into());
-			return Err(evm::Error::MutableCallInStaticContext);
+			tracer.trace_failed_create(trace_info, vec![], vm::Error::MutableCallInStaticContext.into());
+			return Err(vm::Error::MutableCallInStaticContext);
 		}
 
 		// backup used in case of running out of gas
@@ -457,7 +476,7 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 			self.exec_vm(params, &mut unconfirmed_substate, OutputPolicy::InitContract(trace_output.as_mut()), &mut subtracer, &mut subvmtracer)
 		};
 
-		vm_tracer.done_subtrace(subvmtracer, res.is_ok());
+		vm_tracer.done_subtrace(subvmtracer);
 
 		match res {
 			Ok(ref res) => tracer.trace_create(
@@ -479,7 +498,7 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 		&mut self,
 		t: &SignedTransaction,
 		mut substate: Substate,
-		result: evm::Result<(U256, ReturnData)>,
+		result: vm::Result<(U256, ReturnData)>,
 		output: Bytes,
 		trace: Vec<FlatTrace>,
 		vm_trace: Option<VMTrace>
@@ -521,7 +540,7 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 		self.state.kill_garbage(&substate.touched, schedule.kill_empty, &min_balance, schedule.kill_dust == CleanDustMode::WithCodeAndStorage)?;
 
 		match result {
-			Err(evm::Error::Internal(msg)) => Err(ExecutionError::Internal(msg)),
+			Err(vm::Error::Internal(msg)) => Err(ExecutionError::Internal(msg)),
 			Err(exception) => {
 				Ok(Executed {
 					exception: Some(exception),
@@ -555,19 +574,20 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 		}
 	}
 
-	fn enact_result(&mut self, result: &evm::Result<FinalizationResult>, substate: &mut Substate, un_substate: Substate) {
+	fn enact_result(&mut self, result: &vm::Result<FinalizationResult>, substate: &mut Substate, un_substate: Substate) {
 		match *result {
-			Err(evm::Error::OutOfGas)
-				| Err(evm::Error::BadJumpDestination {..})
-				| Err(evm::Error::BadInstruction {.. })
-				| Err(evm::Error::StackUnderflow {..})
-				| Err(evm::Error::BuiltIn {..})
-				| Err(evm::Error::OutOfStack {..})
-				| Err(evm::Error::MutableCallInStaticContext)
+			Err(vm::Error::OutOfGas)
+				| Err(vm::Error::BadJumpDestination {..})
+				| Err(vm::Error::BadInstruction {.. })
+				| Err(vm::Error::StackUnderflow {..})
+				| Err(vm::Error::BuiltIn {..})
+				| Err(vm::Error::Wasm {..})
+				| Err(vm::Error::OutOfStack {..})
+				| Err(vm::Error::MutableCallInStaticContext)
 				| Ok(FinalizationResult { apply_state: false, .. }) => {
 					self.state.revert_to_checkpoint();
 			},
-			Ok(_) | Err(evm::Error::Internal(_)) => {
+			Ok(_) | Err(vm::Error::Internal(_)) => {
 				self.state.discard_checkpoint();
 				substate.accrue(un_substate);
 			}
@@ -579,14 +599,14 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 #[allow(dead_code)]
 mod tests {
 	use std::sync::Arc;
+	use std::str::FromStr;
 	use rustc_hex::FromHex;
 	use ethkey::{Generator, Random};
 	use super::*;
-	use util::{H256, U256, U512, Address, FromStr};
+	use util::{H256, U256, U512, Address};
 	use util::bytes::BytesRef;
-	use action_params::{ActionParams, ActionValue};
-	use env_info::EnvInfo;
-	use evm::{Factory, VMType, CreateContractAddress};
+	use vm::{ActionParams, ActionValue, CallType, EnvInfo, CreateContractAddress};
+	use evm::{Factory, VMType};
 	use error::ExecutionError;
 	use state::{Substate, CleanupMode};
 	use tests::helpers::*;
@@ -594,8 +614,6 @@ mod tests {
 	use trace::{FlatTrace, Tracer, NoopTracer, ExecutiveTracer};
 	use trace::{VMTrace, VMOperation, VMExecutedOperation, MemoryDiff, StorageDiff, VMTracer, NoopVMTracer, ExecutiveVMTracer};
 	use transaction::{Action, Transaction};
-
-	use types::executed::CallType;
 
 	#[test]
 	fn test_contract_address() {

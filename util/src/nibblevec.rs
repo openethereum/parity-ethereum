@@ -17,7 +17,7 @@
 
 //! An owning, nibble-oriented byte vector.
 
-use ::NibbleSlice;
+use nibbleslice::NibbleSlice;
 use elastic_array::ElasticArray36;
 
 /// Owning, nibble-oriented byte vector. Counterpart to `NibbleSlice`.

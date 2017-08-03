@@ -56,8 +56,8 @@ reseal_on_txs = "all"
 reseal_min_period = 4000
 reseal_max_period = 60000
 price_update_period = "hourly"
-tx_queue_size = 1024
-tx_queue_gas = "auto"
+tx_queue_size = 8192
+tx_queue_gas = "off"
 
 [footprint]
 tracing = "on"
@@ -78,8 +78,13 @@ disable_periodic = true
 jit = false
 
 [misc]
+ntp_server = "pool.ntp.org:123"
 logging = "own_tx=trace"
 log_file = "/var/log/parity.log"
 color = true
 ports_shift = 0
 unsafe_expose = false
+
+[whisper]
+enabled = true
+pool_size = 50

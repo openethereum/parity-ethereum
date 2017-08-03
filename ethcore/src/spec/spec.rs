@@ -16,14 +16,17 @@
 
 //! Parameters for a block chain.
 
+use std::io::Read;
+use std::collections::BTreeMap;
+use std::path::Path;
+use std::sync::Arc;
 use rustc_hex::FromHex;
 use super::genesis::Genesis;
 use super::seal::Generic as GenericSeal;
 
-use action_params::{ActionValue, ActionParams};
 use builtin::Builtin;
 use engines::{Engine, NullEngine, InstantSeal, BasicAuthority, AuthorityRound, Tendermint, DEFAULT_BLOCKHASH_CONTRACT};
-use env_info::EnvInfo;
+use vm::{EnvInfo, CallType, ActionValue, ActionParams};
 use error::Error;
 use ethereum;
 use ethjson;
@@ -36,10 +39,14 @@ use state_db::StateDB;
 use state::{Backend, State, Substate};
 use state::backend::Basic as BasicBackend;
 use trace::{NoopTracer, NoopVMTracer};
-use types::executed::CallType;
 use util::*;
 
-/// Parameters common to all engines.
+/// Parameters common to ethereum-like blockchains.
+/// NOTE: when adding bugfix hard-fork parameters,
+/// add to `contains_bugfix_hard_fork`
+///
+/// we define a "bugfix" hard fork as any hard fork which
+/// you would put on-by-default in a new chain.
 #[derive(Debug, PartialEq, Default)]
 #[cfg_attr(test, derive(Clone))]
 pub struct CommonParams {
@@ -59,8 +66,10 @@ pub struct CommonParams {
 	pub fork_block: Option<(BlockNumber, H256)>,
 	/// Number of first block where EIP-98 rules begin.
 	pub eip98_transition: BlockNumber,
+	/// Number of first block where EIP-155 rules begin.
+	pub eip155_transition: BlockNumber,
 	/// Validate block receipts root.
-	pub validate_receipts_transition: u64,
+	pub validate_receipts_transition: BlockNumber,
 	/// Number of first block where EIP-86 (Metropolis) rules begin.
 	pub eip86_transition: BlockNumber,
 	/// Number of first block where EIP-140 (Metropolis: REVERT opcode) rules begin.
@@ -80,9 +89,56 @@ pub struct CommonParams {
 	/// Number of first block where dust cleanup rules (EIP-168 and EIP169) begin.
 	pub dust_protection_transition: BlockNumber,
 	/// Nonce cap increase per block. Nonce cap is only checked if dust protection is enabled.
-	pub nonce_cap_increment : u64,
+	pub nonce_cap_increment: u64,
 	/// Enable dust cleanup for contracts.
-	pub remove_dust_contracts : bool,
+	pub remove_dust_contracts: bool,
+	/// Wasm support
+	pub wasm: bool,
+	/// Gas limit bound divisor (how much gas limit can change per block)
+	pub gas_limit_bound_divisor: U256,
+	/// Block reward in wei.
+	pub block_reward: U256,
+	/// Registrar contract address.
+	pub registrar: Address,
+}
+
+impl CommonParams {
+	/// Schedule for an EVM in the post-EIP-150-era of the Ethereum main net.
+	pub fn schedule(&self, block_number: u64) -> ::vm::Schedule {
+		let mut schedule = ::vm::Schedule::new_post_eip150(usize::max_value(), true, true, true);
+		self.update_schedule(block_number, &mut schedule);
+		schedule
+	}
+
+	/// Apply common spec config parameters to the schedule.
+ 	pub fn update_schedule(&self, block_number: u64, schedule: &mut ::vm::Schedule) {
+		schedule.have_create2 = block_number >= self.eip86_transition;
+		schedule.have_revert = block_number >= self.eip140_transition;
+		schedule.have_static_call = block_number >= self.eip214_transition;
+		schedule.have_return_data = block_number >= self.eip211_transition;
+		if block_number >= self.eip210_transition {
+			schedule.blockhash_gas = 350;
+		}
+		if block_number >= self.dust_protection_transition {
+			schedule.kill_dust = match self.remove_dust_contracts {
+				true => ::vm::CleanDustMode::WithCodeAndStorage,
+				false => ::vm::CleanDustMode::BasicOnly,
+			};
+		}
+	}
+
+	/// Whether these params contain any bug-fix hard forks.
+	pub fn contains_bugfix_hard_fork(&self) -> bool {
+		self.eip98_transition != 0 &&
+			self.eip155_transition != 0 &&
+			self.validate_receipts_transition != 0 &&
+			self.eip86_transition != 0 &&
+			self.eip140_transition != 0 &&
+			self.eip210_transition != 0 &&
+			self.eip211_transition != 0 &&
+			self.eip214_transition != 0 &&
+			self.dust_protection_transition != 0
+	}
 }
 
 impl From<ethjson::spec::Params> for CommonParams {
@@ -96,6 +152,7 @@ impl From<ethjson::spec::Params> for CommonParams {
 			min_gas_limit: p.min_gas_limit.into(),
 			fork_block: if let (Some(n), Some(h)) = (p.fork_block, p.fork_hash) { Some((n.into(), h.into())) } else { None },
 			eip98_transition: p.eip98_transition.map_or(0, Into::into),
+			eip155_transition: p.eip155_transition.map_or(0, Into::into),
 			validate_receipts_transition: p.validate_receipts_transition.map_or(0, Into::into),
 			eip86_transition: p.eip86_transition.map_or(BlockNumber::max_value(), Into::into),
 			eip140_transition: p.eip140_transition.map_or(BlockNumber::max_value(), Into::into),
@@ -110,6 +167,10 @@ impl From<ethjson::spec::Params> for CommonParams {
 			dust_protection_transition: p.dust_protection_transition.map_or(BlockNumber::max_value(), Into::into),
 			nonce_cap_increment: p.nonce_cap_increment.map_or(64, Into::into),
 			remove_dust_contracts: p.remove_dust_contracts.unwrap_or(false),
+			wasm: p.wasm.unwrap_or(false),
+			gas_limit_bound_divisor: p.gas_limit_bound_divisor.into(),
+			block_reward: p.block_reward.map_or_else(U256::zero, Into::into),
+			registrar: p.registrar.map_or_else(Address::new, Into::into),
 		}
 	}
 }
@@ -158,7 +219,7 @@ pub struct Spec {
 	genesis_state: PodState,
 }
 
-fn load_from(s: ethjson::spec::Spec) -> Result<Spec, Error> {
+fn load_from<T: AsRef<Path>>(cache_dir: T, s: ethjson::spec::Spec) -> Result<Spec, Error> {
 	let builtins = s.accounts.builtins().into_iter().map(|p| (p.0.into(), From::from(p.1))).collect();
 	let g = Genesis::from(s.genesis);
 	let GenericSeal(seal_rlp) = g.seal.into();
@@ -166,7 +227,7 @@ fn load_from(s: ethjson::spec::Spec) -> Result<Spec, Error> {
 
 	let mut s = Spec {
 		name: s.name.clone().into(),
-		engine: Spec::engine(s.engine, params, builtins),
+		engine: Spec::engine(cache_dir, s.engine, params, builtins),
 		data_dir: s.data_dir.unwrap_or(s.name).into(),
 		nodes: s.nodes.unwrap_or_else(Vec::new),
 		parent_hash: g.parent_hash,
@@ -195,18 +256,26 @@ fn load_from(s: ethjson::spec::Spec) -> Result<Spec, Error> {
 
 macro_rules! load_bundled {
 	($e:expr) => {
-		Spec::load(include_bytes!(concat!("../../res/", $e, ".json")) as &[u8]).expect(concat!("Chain spec ", $e, " is invalid."))
+		Spec::load(
+			&::std::env::temp_dir(),
+			include_bytes!(concat!("../../res/", $e, ".json")) as &[u8]
+		).expect(concat!("Chain spec ", $e, " is invalid."))
 	};
 }
 
 impl Spec {
 	/// Convert engine spec into a arc'd Engine of the right underlying type.
 	/// TODO avoid this hard-coded nastiness - use dynamic-linked plugin framework instead.
-	fn engine(engine_spec: ethjson::spec::Engine, params: CommonParams, builtins: BTreeMap<Address, Builtin>) -> Arc<Engine> {
+	fn engine<T: AsRef<Path>>(
+		cache_dir: T,
+		engine_spec: ethjson::spec::Engine,
+		params: CommonParams,
+		builtins: BTreeMap<Address, Builtin>,
+	) -> Arc<Engine> {
 		match engine_spec {
 			ethjson::spec::Engine::Null => Arc::new(NullEngine::new(params, builtins)),
-			ethjson::spec::Engine::InstantSeal(instant) => Arc::new(InstantSeal::new(params, instant.params.registrar.map_or_else(Address::new, Into::into), builtins)),
-			ethjson::spec::Engine::Ethash(ethash) => Arc::new(ethereum::Ethash::new(params, From::from(ethash.params), builtins)),
+			ethjson::spec::Engine::InstantSeal => Arc::new(InstantSeal::new(params, builtins)),
+			ethjson::spec::Engine::Ethash(ethash) => Arc::new(ethereum::Ethash::new(cache_dir, params, From::from(ethash.params), builtins)),
 			ethjson::spec::Engine::BasicAuthority(basic_authority) => Arc::new(BasicAuthority::new(params, From::from(basic_authority.params), builtins)),
 			ethjson::spec::Engine::AuthorityRound(authority_round) => AuthorityRound::new(params, From::from(authority_round.params), builtins).expect("Failed to start AuthorityRound consensus engine."),
 			ethjson::spec::Engine::Tendermint(tendermint) => Tendermint::new(params, From::from(tendermint.params), builtins).expect("Failed to start the Tendermint consensus engine."),
@@ -397,13 +466,13 @@ impl Spec {
 
 	/// Loads spec from json file. Provide factories for executing contracts and ensuring
 	/// storage goes to the right place.
-	pub fn load<R>(reader: R) -> Result<Self, String> where R: Read {
+	pub fn load<T: AsRef<Path>, R>(cache_dir: T, reader: R) -> Result<Self, String> where R: Read {
 		fn fmt<F: ::std::fmt::Display>(f: F) -> String {
 			format!("Spec json is invalid: {}", f)
 		}
 
 		ethjson::spec::Spec::load(reader).map_err(fmt)
-			.and_then(|x| load_from(x).map_err(fmt))
+			.and_then(|x| load_from(cache_dir, x).map_err(fmt))
 	}
 
 	/// Create a new Spec which conforms to the Frontier-era Morden chain except that it's a NullEngine consensus.
@@ -440,10 +509,14 @@ impl Spec {
 	/// Create a new Spec with BasicAuthority which uses multiple validator sets changing with height.
 	/// Account with secrets "0".sha3() is the validator for block 1 and with "1".sha3() onwards.
 	pub fn new_validator_multi() -> Self { load_bundled!("validator_multi") }
+
+	/// Create a new spec for a PoW chain
+	pub fn new_pow_test_spec() -> Self { load_bundled!("ethereum/olympic") }
 }
 
 #[cfg(test)]
 mod tests {
+	use std::str::FromStr;
 	use util::*;
 	use views::*;
 	use tests::helpers::get_temp_state_db;
@@ -453,7 +526,7 @@ mod tests {
 	// https://github.com/paritytech/parity/issues/1840
 	#[test]
 	fn test_load_empty() {
-		assert!(Spec::load(&[] as &[u8]).is_err());
+		assert!(Spec::load(::std::env::temp_dir(), &[] as &[u8]).is_err());
 	}
 
 	#[test]

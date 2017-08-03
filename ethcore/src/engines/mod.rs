@@ -35,7 +35,9 @@ pub use self::instant_seal::InstantSeal;
 pub use self::null_engine::NullEngine;
 pub use self::tendermint::Tendermint;
 
-use std::sync::Weak;
+use std::sync::{Weak, Arc};
+use std::collections::{BTreeMap, HashMap};
+use std::fmt;
 
 use self::epoch::PendingTransition;
 
@@ -43,15 +45,13 @@ use account_provider::AccountProvider;
 use block::ExecutedBlock;
 use builtin::Builtin;
 use client::Client;
-use env_info::{EnvInfo, LastHashes};
+use vm::{EnvInfo, LastHashes, Schedule, CreateContractAddress};
 use error::Error;
-use evm::Schedule;
 use header::{Header, BlockNumber};
 use receipt::Receipt;
 use snapshot::SnapshotComponents;
 use spec::CommonParams;
 use transaction::{UnverifiedTransaction, SignedTransaction};
-use evm::CreateContractAddress;
 
 use ethkey::Signature;
 use util::*;
@@ -193,7 +193,7 @@ pub trait Engine : Sync + Send {
 
 	/// Get the EVM schedule for the given `block_number`.
 	fn schedule(&self, block_number: BlockNumber) -> Schedule {
-		Schedule::from_params(block_number, self.params())
+		self.params().schedule(block_number)
 	}
 
 	/// Builtin-contracts we would like to see in the chain.
@@ -376,6 +376,11 @@ pub trait Engine : Sync + Send {
 		self.snapshot_components().is_some()
 	}
 
+	/// If this engine supports wasm contracts.
+	fn supports_wasm(&self) -> bool {
+		self.params().wasm
+	}
+
 	/// Returns new contract address generation scheme at given block number.
 	fn create_address_scheme(&self, number: BlockNumber) -> CreateContractAddress {
 		if number >= self.params().eip86_transition {
@@ -386,16 +391,14 @@ pub trait Engine : Sync + Send {
 	}
 }
 
-
 /// Common engine utilities
 pub mod common {
+	use std::sync::Arc;
 	use block::ExecutedBlock;
-	use env_info::{EnvInfo, LastHashes};
 	use error::Error;
 	use transaction::SYSTEM_ADDRESS;
 	use executive::Executive;
-	use types::executed::CallType;
-	use action_params::{ActionParams, ActionValue};
+	use vm::{CallType, ActionParams, ActionValue, EnvInfo, LastHashes};
 	use trace::{NoopTracer, NoopVMTracer};
 	use state::Substate;
 

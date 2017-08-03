@@ -16,19 +16,19 @@
 
 //! General error types for use in ethcore.
 
+use std::fmt;
 use util::*;
 use io::*;
 use header::BlockNumber;
 use basic_types::LogBloom;
 use client::Error as ClientError;
 use ipc::binary::{BinaryConvertError, BinaryConvertable};
-use types::block_import_error::BlockImportError;
 use snapshot::Error as SnapshotError;
 use engines::EngineError;
 use ethkey::Error as EthkeyError;
 use account_provider::SignError as AccountsError;
 
-pub use types::executed::{ExecutionError, CallError};
+pub use executed::{ExecutionError, CallError};
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 /// Errors concerning transaction processing.
@@ -129,6 +129,8 @@ pub enum BlockError {
 	UncleIsBrother(OutOfBounds<BlockNumber>),
 	/// An uncle is already in the chain.
 	UncleInChain(H256),
+	/// An uncle is included twice.
+	DuplicateUncle(H256),
 	/// An uncle has a parent not in the chain.
 	UncleParentNotInChain(H256),
 	/// State root header field is invalid.
@@ -188,6 +190,7 @@ impl fmt::Display for BlockError {
 			UncleTooOld(ref oob) => format!("Uncle block is too old. {}", oob),
 			UncleIsBrother(ref oob) => format!("Uncle from same generation as block. {}", oob),
 			UncleInChain(ref hash) => format!("Uncle {} already in chain", hash),
+			DuplicateUncle(ref hash) => format!("Uncle {} already in the header", hash),
 			UncleParentNotInChain(ref hash) => format!("Uncle {} has a parent not in the chain", hash),
 			InvalidStateRoot(ref mis) => format!("Invalid state root in header: {}", mis),
 			InvalidGasUsed(ref mis) => format!("Invalid gas used in header: {}", mis),
@@ -234,6 +237,53 @@ impl fmt::Display for ImportError {
 		};
 
 		f.write_fmt(format_args!("Block import error ({})", msg))
+	}
+}
+/// Error dedicated to import block function
+#[derive(Debug)]
+pub enum BlockImportError {
+	/// Import error
+	Import(ImportError),
+	/// Block error
+	Block(BlockError),
+	/// Other error
+	Other(String),
+}
+
+impl From<Error> for BlockImportError {
+	fn from(e: Error) -> Self {
+		match e {
+			Error::Block(block_error) => BlockImportError::Block(block_error),
+			Error::Import(import_error) => BlockImportError::Import(import_error),
+			_ => BlockImportError::Other(format!("other block import error: {:?}", e)),
+		}
+	}
+}
+
+/// Represents the result of importing transaction.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum TransactionImportResult {
+	/// Transaction was imported to current queue.
+	Current,
+	/// Transaction was imported to future queue.
+	Future
+}
+
+/// Api-level error for transaction import
+#[derive(Debug, Clone)]
+pub enum TransactionImportError {
+	/// Transaction error
+	Transaction(TransactionError),
+	/// Other error
+	Other(String),
+}
+
+impl From<Error> for TransactionImportError {
+	fn from(e: Error) -> Self {
+		match e {
+			Error::Transaction(transaction_error) => TransactionImportError::Transaction(transaction_error),
+			_ => TransactionImportError::Other(format!("other block import error: {:?}", e)),
+		}
 	}
 }
 

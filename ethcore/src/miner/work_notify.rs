@@ -16,6 +16,7 @@
 
 extern crate hyper;
 
+use std::io::Write;
 use hyper::header::ContentType;
 use hyper::method::Method;
 use hyper::client::{Request, Response, Client};

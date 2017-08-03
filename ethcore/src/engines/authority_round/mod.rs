@@ -17,8 +17,10 @@
 //! A blockchain engine that supports a non-instant BFT proof-of-authority.
 
 use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
-use std::sync::Weak;
+use std::sync::{Weak, Arc};
 use std::time::{UNIX_EPOCH, Duration};
+use std::collections::{BTreeMap, HashSet, HashMap};
+use std::cmp;
 
 use account_provider::AccountProvider;
 use block::*;
@@ -47,22 +49,14 @@ mod finality;
 
 /// `AuthorityRound` params.
 pub struct AuthorityRoundParams {
-	/// Gas limit divisor.
-	pub gas_limit_bound_divisor: U256,
 	/// Time to wait before next block or authority switching.
 	pub step_duration: Duration,
-	/// Block reward.
-	pub block_reward: U256,
-	/// Namereg contract address.
-	pub registrar: Address,
 	/// Starting step,
 	pub start_step: Option<u64>,
 	/// Valid validators.
 	pub validators: Box<ValidatorSet>,
 	/// Chain score validation transition block.
 	pub validate_score_transition: u64,
-	/// Number of first block where EIP-155 rules are validated.
-	pub eip155_transition: u64,
 	/// Monotonic step validation transition block.
 	pub validate_step_transition: u64,
 	/// Immediate transitions.
@@ -72,14 +66,10 @@ pub struct AuthorityRoundParams {
 impl From<ethjson::spec::AuthorityRoundParams> for AuthorityRoundParams {
 	fn from(p: ethjson::spec::AuthorityRoundParams) -> Self {
 		AuthorityRoundParams {
-			gas_limit_bound_divisor: p.gas_limit_bound_divisor.into(),
 			step_duration: Duration::from_secs(p.step_duration.into()),
 			validators: new_validator_set(p.validators),
-			block_reward: p.block_reward.map_or_else(U256::zero, Into::into),
-			registrar: p.registrar.map_or_else(Address::new, Into::into),
 			start_step: p.start_step.map(Into::into),
 			validate_score_transition: p.validate_score_transition.map_or(0, Into::into),
-			eip155_transition: p.eip155_transition.map_or(0, Into::into),
 			validate_step_transition: p.validate_step_transition.map_or(0, Into::into),
 			immediate_transitions: p.immediate_transitions.unwrap_or(false),
 		}
@@ -214,18 +204,14 @@ impl EpochManager {
 /// Engine using `AuthorityRound` proof-of-authority BFT consensus.
 pub struct AuthorityRound {
 	params: CommonParams,
-	gas_limit_bound_divisor: U256,
-	block_reward: U256,
-	registrar: Address,
 	builtins: BTreeMap<Address, Builtin>,
 	transition_service: IoService<()>,
 	step: Arc<Step>,
-	proposed: AtomicBool,
+	can_propose: AtomicBool,
 	client: RwLock<Option<Weak<EngineClient>>>,
-	signer: EngineSigner,
+	signer: RwLock<EngineSigner>,
 	validators: Box<ValidatorSet>,
 	validate_score_transition: u64,
-	eip155_transition: u64,
 	validate_step_transition: u64,
 	epoch_manager: Mutex<EpochManager>,
 	immediate_transitions: bool,
@@ -311,7 +297,7 @@ fn verify_external<F: Fn(Report)>(header: &Header, validators: &ValidatorSet, st
 
 	// Give one step slack if step is lagging, double vote is still not possible.
 	if step.is_future(header_step) {
-		trace!(target: "engine", "verify_block_unordered: block from the future");
+		trace!(target: "engine", "verify_block_external: block from the future");
 		report(Report::Benign(*header.author(), header.number()));
 		Err(BlockError::InvalidSeal)?
 	} else {
@@ -321,7 +307,7 @@ fn verify_external<F: Fn(Report)>(header: &Header, validators: &ValidatorSet, st
 			!verify_address(&correct_proposer, &proposer_signature, &header.bare_hash())?;
 
 		if is_invalid_proposer {
-			trace!(target: "engine", "verify_block_unordered: bad proposer for step: {}", header_step);
+			trace!(target: "engine", "verify_block_external: bad proposer for step: {}", header_step);
 			Err(EngineError::NotProposer(Mismatch { expected: correct_proposer, found: header.author().clone() }))?
 		} else {
 			Ok(())
@@ -362,9 +348,6 @@ impl AuthorityRound {
 		let engine = Arc::new(
 			AuthorityRound {
 				params: params,
-				gas_limit_bound_divisor: our_params.gas_limit_bound_divisor,
-				block_reward: our_params.block_reward,
-				registrar: our_params.registrar,
 				builtins: builtins,
 				transition_service: IoService::<()>::start()?,
 				step: Arc::new(Step {
@@ -372,12 +355,11 @@ impl AuthorityRound {
 					calibrate: our_params.start_step.is_none(),
 					duration: our_params.step_duration,
 				}),
-				proposed: AtomicBool::new(false),
+				can_propose: AtomicBool::new(true),
 				client: RwLock::new(None),
 				signer: Default::default(),
 				validators: our_params.validators,
 				validate_score_transition: our_params.validate_score_transition,
-				eip155_transition: our_params.eip155_transition,
 				validate_step_transition: our_params.validate_step_transition,
 				epoch_manager: Mutex::new(EpochManager::blank()),
 				immediate_transitions: our_params.immediate_transitions,
@@ -433,13 +415,15 @@ impl Engine for AuthorityRound {
 
 	fn params(&self) -> &CommonParams { &self.params }
 
-	fn additional_params(&self) -> HashMap<String, String> { hash_map!["registrar".to_owned() => self.registrar.hex()] }
+	fn additional_params(&self) -> HashMap<String, String> {
+		hash_map!["registrar".to_owned() => self.params().registrar.hex()]
+	}
 
 	fn builtins(&self) -> &BTreeMap<Address, Builtin> { &self.builtins }
 
 	fn step(&self) {
 		self.step.increment();
-		self.proposed.store(false, AtomicOrdering::SeqCst);
+		self.can_propose.store(true, AtomicOrdering::SeqCst);
 		if let Some(ref weak) = *self.client.read() {
 			if let Some(c) = weak.upgrade() {
 				c.update_sealing();
@@ -461,27 +445,27 @@ impl Engine for AuthorityRound {
 		header.set_difficulty(new_difficulty);
 		header.set_gas_limit({
 			let gas_limit = parent.gas_limit().clone();
-			let bound_divisor = self.gas_limit_bound_divisor;
+			let bound_divisor = self.params().gas_limit_bound_divisor;
 			if gas_limit < gas_floor_target {
-				min(gas_floor_target, gas_limit + gas_limit / bound_divisor - 1.into())
+				cmp::min(gas_floor_target, gas_limit + gas_limit / bound_divisor - 1.into())
 			} else {
-				max(gas_floor_target, gas_limit - gas_limit / bound_divisor + 1.into())
+				cmp::max(gas_floor_target, gas_limit - gas_limit / bound_divisor + 1.into())
 			}
 		});
 	}
 
 	fn seals_internally(&self) -> Option<bool> {
-		Some(self.signer.address() != Address::default())
+		Some(self.signer.read().is_some())
 	}
 
 	/// Attempt to seal the block internally.
 	///
-	/// This operation is synchronous and may (quite reasonably) not be available, in which `false` will
-	/// be returned.
+	/// This operation is synchronous and may (quite reasonably) not be available, in which case
+	/// `Seal::None` will be returned.
 	fn generate_seal(&self, block: &ExecutedBlock) -> Seal {
 		// first check to avoid generating signature most of the time
 		// (but there's still a race to the `compare_and_swap`)
-		if self.proposed.load(AtomicOrdering::SeqCst) { return Seal::None; }
+		if !self.can_propose.load(AtomicOrdering::SeqCst) { return Seal::None; }
 
 		let header = block.header();
 		let step = self.step.load();
@@ -512,11 +496,11 @@ impl Engine for AuthorityRound {
 		};
 
 		if is_step_proposer(validators, header.parent_hash(), step, header.author()) {
-			if let Ok(signature) = self.signer.sign(header.bare_hash()) {
+			if let Ok(signature) = self.sign(header.bare_hash()) {
 				trace!(target: "engine", "generate_seal: Issuing a block for step {}.", step);
 
 				// only issue the seal if we were the first to reach the compare_and_swap.
-				if !self.proposed.compare_and_swap(false, true, AtomicOrdering::SeqCst) {
+				if self.can_propose.compare_and_swap(true, false, AtomicOrdering::SeqCst) {
 					return Seal::Regular(vec![encode(&step).into_vec(), encode(&(&H520::from(signature) as &[u8])).into_vec()]);
 				}
 			} else {
@@ -532,7 +516,7 @@ impl Engine for AuthorityRound {
 	fn on_new_block(
 		&self,
 		block: &mut ExecutedBlock,
-		last_hashes: Arc<::env_info::LastHashes>,
+		last_hashes: Arc<::vm::LastHashes>,
 		epoch_begin: bool,
 	) -> Result<(), Error> {
 		let parent_hash = block.fields().header.parent_hash().clone();
@@ -564,7 +548,8 @@ impl Engine for AuthorityRound {
 	fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<(), Error> {
 		let fields = block.fields_mut();
 		// Bestow block reward
-		let res = fields.state.add_balance(fields.header.author(), &self.block_reward, CleanupMode::NoEmpty)
+		let reward = self.params().block_reward;
+		let res = fields.state.add_balance(fields.header.author(), &reward, CleanupMode::NoEmpty)
 			.map_err(::error::Error::from)
 			.and_then(|_| fields.state.commit());
 		// Commit state so that we can actually figure out the state root.
@@ -614,20 +599,22 @@ impl Engine for AuthorityRound {
 			Err(EngineError::DoubleVote(header.author().clone()))?;
 		}
 		// Report skipped primaries.
-		if step > parent_step + 1 {
-			// TODO: use epochmanager to get correct validator set for reporting?
-			// or just rely on the fact that in general these will be the same
-			// and some reports might go missing?
-			trace!(target: "engine", "Author {} built block with step gap. current step: {}, parent step: {}",
+		if let (true, Some(me)) = (step > parent_step + 1, self.signer.read().address()) {
+			debug!(target: "engine", "Author {} built block with step gap. current step: {}, parent step: {}",
 				header.author(), step, parent_step);
-
+			let mut reported = HashSet::new();
 			for s in parent_step + 1..step {
 				let skipped_primary = step_proposer(&*self.validators, &parent.hash(), s);
-				self.validators.report_benign(&skipped_primary, header.number(), header.number());
+				// Do not report this signer.
+				if skipped_primary != me {
+					self.validators.report_benign(&skipped_primary, header.number(), header.number());
+				}
+				// Stop reporting once validators start repeating.
+				if !reported.insert(skipped_primary) { break; }
 			}
 		}
 
-		let gas_limit_divisor = self.gas_limit_bound_divisor;
+		let gas_limit_divisor = self.params().gas_limit_bound_divisor;
 		let min_gas = parent.gas_limit().clone() - parent.gas_limit().clone() / gas_limit_divisor;
 		let max_gas = parent.gas_limit().clone() + parent.gas_limit().clone() / gas_limit_divisor;
 		if header.gas_limit() <= &min_gas || header.gas_limit() >= &max_gas {
@@ -723,6 +710,9 @@ impl Engine for AuthorityRound {
 		if epoch_manager.finality_checker.subchain_head() != Some(*chain_head.parent_hash()) {
 			// build new finality checker from ancestry of chain head,
 			// not including chain head itself yet.
+			trace!(target: "finality", "Building finality up to parent of {} ({})",
+				chain_head.hash(), chain_head.parent_hash());
+
 			let mut hash = chain_head.parent_hash().clone();
 			let epoch_transition_hash = epoch_manager.epoch_transition_hash;
 
@@ -734,6 +724,8 @@ impl Engine for AuthorityRound {
 					if header.number() == 0 { return None }
 
 					let res = (hash, header.author().clone());
+					trace!(target: "finality", "Ancestry iteration: yielding {:?}", res);
+
 					hash = header.parent_hash().clone();
 					Some(res)
 				})
@@ -766,6 +758,16 @@ impl Engine for AuthorityRound {
 						let finality_proof = ::rlp::encode_list(&finality_proof);
 						epoch_manager.note_new_epoch();
 
+						info!(target: "engine", "Applying validator set change signalled at block {}", signal_number);
+
+						// We turn off can_propose here because upon validator set change there can
+						// be two valid proposers for a single step: one from the old set and
+						// one from the new.
+						//
+						// This way, upon encountering an epoch change, the proposer from the
+						// new set will be forced to wait until the next step to avoid sealing a
+						// block that breaks the invariant that the parent's step < the block's step.
+						self.can_propose.store(false, AtomicOrdering::SeqCst);
 						return Some(combine_proofs(signal_number, &pending.proof, &*finality_proof));
 					}
 				}
@@ -798,11 +800,11 @@ impl Engine for AuthorityRound {
 		}
 	}
 
-	fn verify_transaction_basic(&self, t: &UnverifiedTransaction, header: &Header) -> result::Result<(), Error> {
+	fn verify_transaction_basic(&self, t: &UnverifiedTransaction, header: &Header) -> Result<(), Error> {
 		t.check_low_s()?;
 
 		if let Some(n) = t.network_id() {
-			if header.number() >= self.eip155_transition && n != self.params().chain_id {
+			if header.number() >= self.params().eip155_transition && n != self.params().chain_id {
 				return Err(TransactionError::InvalidNetworkId.into());
 			}
 		}
@@ -816,11 +818,11 @@ impl Engine for AuthorityRound {
 	}
 
 	fn set_signer(&self, ap: Arc<AccountProvider>, address: Address, password: String) {
-		self.signer.set(ap, address, password);
+		self.signer.write().set(ap, address, password);
 	}
 
 	fn sign(&self, hash: H256) -> Result<Signature, Error> {
-		self.signer.sign(hash).map_err(Into::into)
+		self.signer.read().sign(hash).map_err(Into::into)
 	}
 
 	fn snapshot_components(&self) -> Option<Box<::snapshot::SnapshotComponents>> {
@@ -834,6 +836,7 @@ impl Engine for AuthorityRound {
 
 #[cfg(test)]
 mod tests {
+	use std::sync::Arc;
 	use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
 	use util::*;
 	use header::Header;
@@ -924,10 +927,10 @@ mod tests {
 		let addr = tap.insert_account("0".sha3().into(), "0").unwrap();
 		let mut parent_header: Header = Header::default();
 		parent_header.set_seal(vec![encode(&0usize).into_vec()]);
-		parent_header.set_gas_limit(U256::from_str("222222").unwrap());
+		parent_header.set_gas_limit("222222".parse::<U256>().unwrap());
 		let mut header: Header = Header::default();
 		header.set_number(1);
-		header.set_gas_limit(U256::from_str("222222").unwrap());
+		header.set_gas_limit("222222".parse::<U256>().unwrap());
 		header.set_author(addr);
 
 		let engine = Spec::new_test_round().engine;
@@ -950,10 +953,10 @@ mod tests {
 
 		let mut parent_header: Header = Header::default();
 		parent_header.set_seal(vec![encode(&0usize).into_vec()]);
-		parent_header.set_gas_limit(U256::from_str("222222").unwrap());
+		parent_header.set_gas_limit("222222".parse::<U256>().unwrap());
 		let mut header: Header = Header::default();
 		header.set_number(1);
-		header.set_gas_limit(U256::from_str("222222").unwrap());
+		header.set_gas_limit("222222".parse::<U256>().unwrap());
 		header.set_author(addr);
 
 		let engine = Spec::new_test_round().engine;
@@ -976,10 +979,10 @@ mod tests {
 
 		let mut parent_header: Header = Header::default();
 		parent_header.set_seal(vec![encode(&4usize).into_vec()]);
-		parent_header.set_gas_limit(U256::from_str("222222").unwrap());
+		parent_header.set_gas_limit("222222".parse::<U256>().unwrap());
 		let mut header: Header = Header::default();
 		header.set_number(1);
-		header.set_gas_limit(U256::from_str("222222").unwrap());
+		header.set_gas_limit("222222".parse::<U256>().unwrap());
 		header.set_author(addr);
 
 		let engine = Spec::new_test_round().engine;
@@ -997,26 +1000,33 @@ mod tests {
 	fn reports_skipped() {
 		let last_benign = Arc::new(AtomicUsize::new(0));
 		let params = AuthorityRoundParams {
-			gas_limit_bound_divisor: U256::from_str("400").unwrap(),
 			step_duration: Default::default(),
-			block_reward: Default::default(),
-			registrar: Default::default(),
 			start_step: Some(1),
 			validators: Box::new(TestSet::new(Default::default(), last_benign.clone())),
 			validate_score_transition: 0,
 			validate_step_transition: 0,
-			eip155_transition: 0,
 			immediate_transitions: true,
 		};
-		let aura = AuthorityRound::new(Default::default(), params, Default::default()).unwrap();
+
+		let aura = {
+			let mut c_params = ::spec::CommonParams::default();
+			c_params.gas_limit_bound_divisor = 5.into();
+			AuthorityRound::new(c_params, params, Default::default()).unwrap()
+		};
 
 		let mut parent_header: Header = Header::default();
 		parent_header.set_seal(vec![encode(&1usize).into_vec()]);
-		parent_header.set_gas_limit(U256::from_str("222222").unwrap());
+		parent_header.set_gas_limit("222222".parse::<U256>().unwrap());
 		let mut header: Header = Header::default();
 		header.set_number(1);
-		header.set_gas_limit(U256::from_str("222222").unwrap());
+		header.set_gas_limit("222222".parse::<U256>().unwrap());
 		header.set_seal(vec![encode(&3usize).into_vec()]);
+
+		// Do not report when signer not present.
+		assert!(aura.verify_block_family(&header, &parent_header, None).is_ok());
+		assert_eq!(last_benign.load(AtomicOrdering::SeqCst), 0);
+
+		aura.set_signer(Arc::new(AccountProvider::transient_provider()), Default::default(), Default::default());
 
 		assert!(aura.verify_block_family(&header, &parent_header, None).is_ok());
 		assert_eq!(last_benign.load(AtomicOrdering::SeqCst), 1);

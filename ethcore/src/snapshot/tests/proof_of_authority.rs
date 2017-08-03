@@ -59,7 +59,7 @@ lazy_static! {
 /// `native_contracts::test_contracts::ValidatorSet` provides a native wrapper for the ABi.
 fn spec_fixed_to_contract() -> Spec {
 	let data = include_bytes!("test_validator_contract.json");
-	Spec::load(&data[..]).unwrap()
+	Spec::load(&::std::env::temp_dir(), &data[..]).unwrap()
 }
 
 // creates an account provider, filling it with accounts from all the given

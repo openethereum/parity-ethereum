@@ -140,7 +140,7 @@ pub fn replace_home(base: &str, arg: &str) -> String {
 	r.replace("/", &::std::path::MAIN_SEPARATOR.to_string())
 }
 
-pub fn replace_home_for_db(base: &str, local: &str, arg: &str) -> String {
+pub fn replace_home_and_local(base: &str, local: &str, arg: &str) -> String {
 	let r = replace_home(base, arg);
 	r.replace("$LOCAL", local)
 }
@@ -191,7 +191,8 @@ pub fn to_bootnodes(bootnodes: &Option<String>) -> Result<Vec<String>, String> {
 
 #[cfg(test)]
 pub fn default_network_config() -> ::ethsync::NetworkConfiguration {
-	use ethsync::{NetworkConfiguration, AllowIP};
+	use ethsync::{NetworkConfiguration};
+	use super::network::IpFilter;
 	NetworkConfiguration {
 		config_path: Some(replace_home(&::dir::default_data_path(), "$BASE/network")),
 		net_config_path: None,
@@ -206,7 +207,7 @@ pub fn default_network_config() -> ::ethsync::NetworkConfiguration {
 		min_peers: 25,
 		snapshot_peers: 0,
 		max_pending_peers: 64,
-		allow_ips: AllowIP::All,
+		ip_filter: IpFilter::default(),
 		reserved_nodes: Vec::new(),
 		allow_non_reserved: true,
 	}

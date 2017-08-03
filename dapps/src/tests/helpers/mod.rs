@@ -26,6 +26,7 @@ use jsonrpc_http_server::{self as http, Host, DomainsValidation};
 use devtools::http_client;
 use hash_fetch::urlhint::ContractClient;
 use fetch::{Fetch, Client as FetchClient};
+use futures_cpupool::CpuPool;
 use parity_reactor::Remote;
 
 use {Middleware, SyncStatus, WebProxyTokens};
@@ -37,6 +38,12 @@ use self::registrar::FakeRegistrar;
 use self::fetch::FakeFetch;
 
 const SIGNER_PORT: u16 = 18180;
+
+struct FakeSync(bool);
+impl SyncStatus for FakeSync {
+	fn is_major_importing(&self) -> bool { self.0 }
+	fn peers(&self) -> (usize, usize) { (0, 5) }
+}
 
 fn init_logger() {
 	// Initialize logger
@@ -82,7 +89,7 @@ pub fn serve_with_registrar() -> (Server, Arc<FakeRegistrar>) {
 
 pub fn serve_with_registrar_and_sync() -> (Server, Arc<FakeRegistrar>) {
 	init_server(|builder| {
-		builder.sync_status(Arc::new(|| true))
+		builder.sync_status(Arc::new(FakeSync(true)))
 	}, Default::default(), Remote::new_sync())
 }
 
@@ -148,7 +155,7 @@ impl ServerBuilder {
 		ServerBuilder {
 			dapps_path: dapps_path.as_ref().to_owned(),
 			registrar: registrar,
-			sync_status: Arc::new(|| false),
+			sync_status: Arc::new(FakeSync(false)),
 			web_proxy_tokens: Arc::new(|_| None),
 			signer_address: None,
 			allowed_hosts: DomainsValidation::Disabled,
@@ -248,8 +255,11 @@ impl Server {
 		fetch: F,
 	) -> Result<Server, http::Error> {
 		let middleware = Middleware::dapps(
+			"pool.ntp.org:123",
+			CpuPool::new(4),
 			remote,
 			signer_address,
+			vec![],
 			dapps_path,
 			extra_dapps,
 			DAPPS_DOMAIN.into(),
@@ -290,4 +300,3 @@ impl Drop for Server {
 		self.server.take().unwrap().close()
 	}
 }
-

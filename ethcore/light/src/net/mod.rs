@@ -21,7 +21,7 @@
 use ethcore::transaction::UnverifiedTransaction;
 
 use io::TimerToken;
-use network::{NetworkProtocolHandler, NetworkContext, PeerId};
+use network::{HostInfo, NetworkProtocolHandler, NetworkContext, PeerId};
 use rlp::{RlpStream, UntrustedRlp};
 use util::hash::H256;
 use util::{DBValue, Mutex, RwLock, U256};
@@ -806,6 +806,9 @@ impl LightProtocol {
 		trace!(target: "pip", "Connected peer with chain head {:?}", (status.head_hash, status.head_num));
 
 		if (status.network_id, status.genesis_hash) != (self.network_id, self.genesis_hash) {
+			trace!(target: "pip", "peer {} wrong network: network_id is {} vs our {}, gh is {} vs our {}",
+				peer, status.network_id, self.network_id, status.genesis_hash, self.genesis_hash);
+
 			return Err(Error::WrongNetwork);
 		}
 
@@ -1074,7 +1077,7 @@ fn punish(peer: PeerId, io: &IoContext, e: Error) {
 }
 
 impl NetworkProtocolHandler for LightProtocol {
-	fn initialize(&self, io: &NetworkContext) {
+	fn initialize(&self, io: &NetworkContext, _host_info: &HostInfo) {
 		io.register_timer(TIMEOUT, TIMEOUT_INTERVAL_MS)
 			.expect("Error registering sync timer.");
 		io.register_timer(TICK_TIMEOUT, TICK_TIMEOUT_INTERVAL_MS)

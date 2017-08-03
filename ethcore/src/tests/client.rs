@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::str::FromStr;
+use std::sync::Arc;
 use io::IoChannel;
 use client::{BlockChainClient, MiningBlockChainClient, Client, ClientConfig, BlockId};
 use state::{self, State, CleanupMode};
@@ -52,7 +54,7 @@ fn imports_from_empty() {
 #[test]
 fn should_return_registrar() {
 	let dir = RandomTempPath::new();
-	let spec = ethereum::new_morden();
+	let spec = ethereum::new_morden(&dir);
 	let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
 	let client_db = Arc::new(Database::open(&db_config, dir.as_path().to_str().unwrap()).unwrap());
 

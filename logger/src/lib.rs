@@ -67,10 +67,11 @@ pub fn setup_log(config: &Config) -> Result<Arc<RotatingLogger>, String> {
 
 	let mut levels = String::new();
 	let mut builder = LogBuilder::new();
-	// Disable ws info logging by default.
+	// Disable info logging by default for some modules:
 	builder.filter(Some("ws"), LogLevelFilter::Warn);
-	// Disable rustls info logging by default.
+	builder.filter(Some("reqwest"), LogLevelFilter::Warn);
 	builder.filter(Some("rustls"), LogLevelFilter::Warn);
+	// Enable info for others.
 	builder.filter(None, LogLevelFilter::Info);
 
 	if let Ok(lvl) = env::var("RUST_LOG") {

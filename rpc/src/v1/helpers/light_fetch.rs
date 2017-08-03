@@ -26,6 +26,7 @@ use ethcore::filter::Filter as EthcoreFilter;
 use ethcore::transaction::{Action, Transaction as EthTransaction};
 
 use futures::{future, Future, BoxFuture};
+use futures::future::Either;
 use jsonrpc_core::Error;
 use jsonrpc_macros::Trailing;
 
@@ -159,7 +160,9 @@ impl LightFetch {
 
 	/// helper for getting proved execution.
 	pub fn proved_execution(&self, req: CallRequest, num: Trailing<BlockNumber>) -> BoxFuture<ExecutionResult, Error> {
-		const DEFAULT_GAS_PRICE: U256 = U256([0, 0, 0, 21_000_000]);
+		const DEFAULT_GAS_PRICE: u64 = 21_000;
+		// starting gas when gas not provided.
+		const START_GAS: u64 = 50_000;
 
 		let (sync, on_demand, client) = (self.sync.clone(), self.on_demand.clone(), self.client.clone());
 		let req: CallRequestHelper = req.into();
@@ -167,21 +170,21 @@ impl LightFetch {
 
 		let from = req.from.unwrap_or(Address::zero());
 		let nonce_fut = match req.nonce {
-			Some(nonce) => future::ok(Some(nonce)).boxed(),
-			None => self.account(from, id).map(|acc| acc.map(|a| a.nonce)).boxed(),
+			Some(nonce) => Either::A(future::ok(Some(nonce))),
+			None => Either::B(self.account(from, id).map(|acc| acc.map(|a| a.nonce))),
 		};
 
 		let gas_price_fut = match req.gas_price {
-			Some(price) => future::ok(price).boxed(),
-			None => dispatch::fetch_gas_price_corpus(
+			Some(price) => Either::A(future::ok(price)),
+			None => Either::B(dispatch::fetch_gas_price_corpus(
 				self.sync.clone(),
 				self.client.clone(),
 				self.on_demand.clone(),
 				self.cache.clone(),
 			).map(|corp| match corp.median() {
 				Some(median) => *median,
-				None => DEFAULT_GAS_PRICE,
-			}).boxed()
+				None => DEFAULT_GAS_PRICE.into(),
+			}))
 		};
 
 		// if nonce resolves, this should too since it'll be in the LRU-cache.
@@ -190,22 +193,29 @@ impl LightFetch {
 		// fetch missing transaction fields from the network.
 		nonce_fut.join(gas_price_fut).and_then(move |(nonce, gas_price)| {
 			let action = req.to.map_or(Action::Create, Action::Call);
-			let gas = req.gas.unwrap_or(U256::from(10_000_000)); // better gas amount?
 			let value = req.value.unwrap_or_else(U256::zero);
 			let data = req.data.unwrap_or_default();
 
-			future::done(match nonce {
-				Some(n) => Ok(EthTransaction {
+			future::done(match (nonce, req.gas) {
+				(Some(n), Some(gas)) => Ok((true, EthTransaction {
 					nonce: n,
 					action: action,
 					gas: gas,
 					gas_price: gas_price,
 					value: value,
 					data: data,
-				}.fake_sign(from)),
-				None => Err(errors::unknown_block()),
+				})),
+				(Some(n), None) => Ok((false, EthTransaction {
+					nonce: n,
+					action: action,
+					gas: START_GAS.into(),
+					gas_price: gas_price,
+					value: value,
+					data: data,
+				})),
+				(None, _) => Err(errors::unknown_block()),
 			})
-		}).join(header_fut).and_then(move |(tx, hdr)| {
+		}).join(header_fut).and_then(move |((gas_known, tx), hdr)| {
 			// then request proved execution.
 			// TODO: get last-hashes from network.
 			let env_info = match client.env_info(id) {
@@ -213,24 +223,15 @@ impl LightFetch {
 				_ => return future::err(errors::unknown_block()).boxed(),
 			};
 
-			let request = request::TransactionProof {
+			execute_tx(gas_known, ExecuteParams {
+				from: from,
 				tx: tx,
-				header: hdr.into(),
+				hdr: hdr,
 				env_info: env_info,
 				engine: client.engine().clone(),
-			};
-
-			let proved_future = sync.with_context(move |ctx| {
-				on_demand
-					.request(ctx, request)
-					.expect("no back-references; therefore all back-refs valid; qed")
-					.map_err(errors::on_demand_cancel).boxed()
-			});
-
-			match proved_future {
-				Some(fut) => fut.boxed(),
-				None => future::err(errors::network_disabled()).boxed(),
-			}
+				on_demand: on_demand,
+				sync: sync,
+			})
 		}).boxed()
 	}
 
@@ -315,6 +316,69 @@ impl LightFetch {
 		});
 
 		match maybe_future {
+			Some(fut) => fut.boxed(),
+			None => future::err(errors::network_disabled()).boxed(),
+		}
+	}
+}
+
+#[derive(Clone)]
+struct ExecuteParams {
+	from: Address,
+	tx: EthTransaction,
+	hdr: encoded::Header,
+	env_info: ::vm::EnvInfo,
+	engine: Arc<::ethcore::engines::Engine>,
+	on_demand: Arc<OnDemand>,
+	sync: Arc<LightSync>,
+}
+
+// has a peer execute the transaction with given params. If `gas_known` is false,
+// this will double the gas on each `OutOfGas` error.
+fn execute_tx(gas_known: bool, params: ExecuteParams) -> BoxFuture<ExecutionResult, Error> {
+	if !gas_known {
+		future::loop_fn(params, |mut params| {
+			execute_tx(true, params.clone()).and_then(move |res| {
+				match res {
+					Ok(executed) => {
+						// TODO: how to distinguish between actual OOG and
+						// exception?
+						if executed.exception.is_some() {
+							let old_gas = params.tx.gas;
+							params.tx.gas = params.tx.gas * 2.into();
+							if params.tx.gas > params.hdr.gas_limit() {
+								params.tx.gas = old_gas;
+							} else {
+								return Ok(future::Loop::Continue(params))
+							}
+						}
+
+						Ok(future::Loop::Break(Ok(executed)))
+					}
+					failed => Ok(future::Loop::Break(failed)),
+				}
+			})
+		}).boxed()
+	} else {
+		trace!(target: "light_fetch", "Placing execution request for {} gas in on_demand",
+			params.tx.gas);
+
+		let request = request::TransactionProof {
+			tx: params.tx.fake_sign(params.from),
+			header: params.hdr.into(),
+			env_info: params.env_info,
+			engine: params.engine,
+		};
+
+		let on_demand = params.on_demand;
+		let proved_future = params.sync.with_context(move |ctx| {
+			on_demand
+				.request(ctx, request)
+				.expect("no back-references; therefore all back-refs valid; qed")
+				.map_err(errors::on_demand_cancel)
+		});
+
+		match proved_future {
 			Some(fut) => fut.boxed(),
 			None => future::err(errors::network_disabled()).boxed(),
 		}

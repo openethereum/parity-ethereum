@@ -17,6 +17,9 @@
 //! Test client.
 
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrder};
+use std::sync::Arc;
+use std::collections::{HashMap, BTreeMap};
+use std::mem;
 use rustc_hex::FromHex;
 use util::*;
 use rlp::*;
@@ -36,7 +39,8 @@ use log_entry::LocalizedLogEntry;
 use receipt::{Receipt, LocalizedReceipt};
 use blockchain::extras::BlockReceipts;
 use error::{ImportResult, Error as EthcoreError};
-use evm::{Factory as EvmFactory, VMType, Schedule};
+use evm::{Factory as EvmFactory, VMType};
+use vm::Schedule;
 use miner::{Miner, MinerService, TransactionImportResult};
 use spec::Spec;
 use types::basic_account::BasicAccount;
@@ -44,7 +48,7 @@ use types::mode::Mode;
 use types::pruning_info::PruningInfo;
 
 use verification::queue::QueueInfo;
-use block::{OpenBlock, SealedBlock};
+use block::{OpenBlock, SealedBlock, ClosedBlock};
 use executive::Executed;
 use error::CallError;
 use trace::LocalizedTrace;
@@ -379,6 +383,10 @@ impl MiningBlockChainClient for TestBlockChainClient {
 		// TODO [todr] Override timestamp for predictability (set_timestamp_now kind of sucks)
 		open_block.set_timestamp(*self.latest_block_timestamp.read());
 		open_block
+	}
+
+	fn reopen_block(&self, block: ClosedBlock) -> OpenBlock {
+		block.reopen(&*self.spec.engine)
 	}
 
 	fn vm_factory(&self) -> &EvmFactory {

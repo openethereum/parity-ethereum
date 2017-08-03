@@ -3,7 +3,7 @@ description = "Ethcore network library"
 homepage = "http://parity.io"
 license = "GPL-3.0"
 name = "ethcore-network"
-version = "1.7.0"
+version = "1.8.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
@@ -30,6 +30,7 @@ ethcrypto = { path = "../../ethcrypto" }
 rlp = { path = "../rlp" }
 path = { path = "../path" }
 ethcore-logger = { path ="../../logger" }
+ipnetwork = "0.12.6"
 
 [features]
 default = []
