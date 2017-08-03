@@ -43,3 +43,7 @@ path = "fuzz_targets/untrusted_data.rs"
 [[bin]]
 name = "gen_untrusted_corpus"
 path = "gen_untrusted_corpus.rs"
+
+[[bin]]
+name = "untrusted_std"
+path = "fuzz_targets/untrusted_std.rs"

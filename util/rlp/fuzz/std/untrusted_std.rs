@@ -1,0 +1,9 @@
+extern crate rlp;
+
+use rlp::{DecoderError, UntrustedRlp};
+
+fn main() {
+    let bs = [0xbf, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xe5]; 
+    let rlp = UntrustedRlp::new(&bs);
+    let _: Result<u8, DecoderError> = rlp.as_val(); 
+} 
