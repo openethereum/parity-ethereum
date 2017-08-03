@@ -371,7 +371,8 @@ impl<'a> BasicDecoder<'a> {
 				}
 				let len = decode_usize(&bytes[1..begin_of_value])?;
 
-				let last_index_of_value = begin_of_value + len;
+				let last_index_of_value = begin_of_value.overflowing_add(len)
+					.ok_or(DecoderError::RlpInvalidLength)?;
 				if bytes.len() < last_index_of_value {
 					return Err(DecoderError::RlpInconsistentLengthAndData);
 				}
