@@ -49,11 +49,13 @@ export default class SignerStore {
   }
 
   @action unsubscribe () {
-    if (this.subscribed) {
-      while (!this.subscriptionId) {
-        setTimeout(null, 150);
+    const self = this;
+
+    if (self.subscribed) {
+      if (!self.subscriptionId) {
+        setTimeout(self.unsubscribe(), 150);
       }
-      this._api.pubsub.unsubscribe(this.subscriptionId);
+      self._api.pubsub.unsubscribe(self.subscriptionId);
     }
   }
 
@@ -107,6 +109,7 @@ export default class SignerStore {
       this.subscriptionId = subscriptionId;
     })
     .catch((error) => {
+      this.subscribed = false;
       console.warn('subscribeLocalTransactions_subscription', error);
     });
   }

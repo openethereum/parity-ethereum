@@ -63,11 +63,13 @@ export default class StatusStore {
   }
 
   stopPolling () {
-    if (this.subscribed) {
-      while (!this.subscriptionId) {
-        setTimeout(null, 150);
+    const self = this;
+
+    if (self.subscribed) {
+      if (!self.subscriptionId) {
+        setTimeout(self.stopPolling, 150);
       }
-      this.api.pubsub.unsubscribe(this.subscriptionId);
+      self.api.pubsub.unsubscribe(self.subscriptionId);
     }
   }
 
@@ -107,6 +109,7 @@ export default class StatusStore {
       this.subscriptionId = subscriptionId;
     })
     .catch((error) => {
+      this.subscribed = false;
       console.warn('_startPolling_subscription', error);
     });
   }
