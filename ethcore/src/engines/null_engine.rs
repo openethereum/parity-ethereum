@@ -19,7 +19,7 @@ use util::Address;
 use builtin::Builtin;
 use block::{ExecutedBlock, IsBlock};
 use util::U256;
-use engines::{Engine, CloseOutcome};
+use engines::Engine;
 use spec::CommonParams;
 use evm::Schedule;
 use header::BlockNumber;
@@ -70,9 +70,9 @@ impl Engine for NullEngine {
 		Some(Box::new(::snapshot::PowSnapshot(10000)))
 	}
 
-	fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<CloseOutcome, Error> {
+	fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<(), Error> {
 		if self.params.block_reward == U256::zero() {
-			return Ok(CloseOutcome{trace: None});
+			return Ok(())
 		}
 
 		/// Block reward
@@ -105,9 +105,9 @@ impl Engine for NullEngine {
 		}
 
 		fields.state.commit()?;
-		match tracing_enabled {
-			true => Ok(CloseOutcome { trace: Some(tracer.traces()) } ),
-			false => Ok(CloseOutcome { trace: None } )
+		if tracing_enabled {
+			fields.traces.as_mut().map(|mut traces| traces.push(tracer.traces()));
 		}
+		Ok(())
 	}
 }

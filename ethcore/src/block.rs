@@ -107,7 +107,7 @@ pub struct BlockRefMut<'a> {
 	/// State.
 	pub state: &'a mut State<StateDB>,
 	/// Traces.
-	pub traces: &'a Option<Vec<Vec<FlatTrace>>>,
+	pub traces: &'a mut Option<Vec<Vec<FlatTrace>>>,
 }
 
 /// A set of immutable references to `ExecutedBlock` fields that are publicly accessible.
@@ -148,7 +148,7 @@ impl ExecutedBlock {
 			uncles: &self.uncles,
 			state: &mut self.state,
 			receipts: &self.receipts,
-			traces: &self.traces,
+			traces: &mut self.traces,
 		}
 	}
 
@@ -395,11 +395,8 @@ impl<'x> OpenBlock<'x> {
 
 		let unclosed_state = s.block.state.clone();
 
-		match s.engine.on_close_block(&mut s.block) {
-			Ok(outcome) => if let Some(t) = outcome.trace {
-				s.block.traces.as_mut().map(|traces| traces.push(t));
-			},
-			Err(e) => warn!("Encountered error on closing the block: {}", e),
+		if let Err(e) = s.engine.on_close_block(&mut s.block) {
+ 			warn!("Encountered error on closing the block: {}", e);
 		}
 		
 		if let Err(e) = s.block.state.commit() {
@@ -425,14 +422,8 @@ impl<'x> OpenBlock<'x> {
 	pub fn close_and_lock(self) -> LockedBlock {
 		let mut s = self;
 
-		match s.engine.on_close_block(&mut s.block) {
-			Ok(outcome) => match outcome.trace {
-				Some(t) => {
-					s.block.traces.as_mut().map(|traces| traces.push(t));
-				},
-				None => {},
-			},
-			Err(e) => warn!("Encountered error on closing the block: {}", e),
+		if let Err(e) = s.engine.on_close_block(&mut s.block) {
+ 			warn!("Encountered error on closing the block: {}", e);
 		}
 
 		if let Err(e) = s.block.state.commit() {

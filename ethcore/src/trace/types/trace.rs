@@ -222,8 +222,6 @@ impl Create {
 #[derive(Debug, PartialEq, Clone)]
 #[cfg_attr(feature = "ipc", binary)]
 pub enum RewardType {
-	/// None
-	None,
 	/// Block
 	Block,
 	/// Uncle
@@ -233,9 +231,8 @@ pub enum RewardType {
 impl Encodable for RewardType {
 	fn rlp_append(&self, s: &mut RlpStream) {
 		let v = match *self {
-			RewardType::None => 0u32,
-			RewardType::Block => 1,
-			RewardType::Uncle => 2,
+			RewardType::Block => 0u32,
+			RewardType::Uncle => 1,
 		};
 		Encodable::rlp_append(&v, s);
 	}
@@ -244,9 +241,8 @@ impl Encodable for RewardType {
 impl Decodable for RewardType {
 	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
 		rlp.as_val().and_then(|v| Ok(match v {
-			0u32 => RewardType::None,
-			1 => RewardType::Block,
-			2 => RewardType::Uncle,
+			0u32 => RewardType::Block,
+			1 => RewardType::Uncle,
 			_ => return Err(DecoderError::Custom("Invalid value of RewardType item")),
 		}))
 	}

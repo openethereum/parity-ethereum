@@ -151,11 +151,7 @@ impl Tracer for ExecutiveTracer {
 	fn trace_suicide(&mut self, address: Address, balance: U256, refund_address: Address) {
 		let trace = FlatTrace {
 			subtraces: 0,
-			action: Action::Suicide(Suicide {
-				address: address,
-				refund_address: refund_address,
-				balance: balance,
-			}),
+			action: Action::Suicide(Suicide { address, refund_address, balance } ),
 			result: Res::None,
 			trace_address: Default::default(),
 		};
@@ -166,11 +162,7 @@ impl Tracer for ExecutiveTracer {
 	fn trace_reward(&mut self, author: Address, value: U256, reward_type: RewardType) {
 		let trace = FlatTrace {
 			subtraces: 0,
-			action: Action::Reward(Reward {
-				author: author,
-				value: value,
-				reward_type: reward_type,
-			}),
+			action: Action::Reward(Reward { author, value, reward_type } ),
 			result: Res::None,
 			trace_address: Default::default(),
 		};

@@ -302,9 +302,6 @@ impl From<trace::Call> for Call {
 /// Reward type.
 #[derive(Debug, Serialize)]
 pub enum RewardType {
-	/// None
-	#[serde(rename="none")]
-	None,	
 	/// Block
 	#[serde(rename="block")]
 	Block,
@@ -316,7 +313,6 @@ pub enum RewardType {
 impl From<trace::RewardType> for RewardType {
 	fn from(c: trace::RewardType) -> Self {
 		match c {
-			trace::RewardType::None => RewardType::None,
 			trace::RewardType::Block => RewardType::Block,
 			trace::RewardType::Uncle => RewardType::Uncle,
 		}

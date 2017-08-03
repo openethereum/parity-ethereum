@@ -39,7 +39,7 @@ use ethkey::{Message, public_to_address, recover, Signature};
 use account_provider::AccountProvider;
 use block::*;
 use spec::CommonParams;
-use engines::{Engine, Seal, EngineError, CloseOutcome, ConstructedVerifier};
+use engines::{Engine, Seal, EngineError, ConstructedVerifier};
 use trace::{Tracer, ExecutiveTracer, RewardType};
 use state::CleanupMode;
 use io::IoService;
@@ -541,7 +541,7 @@ impl Engine for Tendermint {
 	}
 
 	/// Apply the block reward on finalisation of the block.
-	fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<CloseOutcome, Error>{
+	fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<(), Error>{
 		let tracing_enabled = block.tracing_enabled();
 		let fields = block.fields_mut();
 		let mut tracer = ExecutiveTracer::default();
@@ -554,19 +554,14 @@ impl Engine for Tendermint {
 		if tracing_enabled {
 			let block_author = fields.header.author().clone();
 			tracer.trace_reward(block_author, self.params().block_reward, RewardType::Block);
+			fields.traces.as_mut().map(|mut traces| traces.push(tracer.traces()));
 		}
 
 		// Commit state so that we can actually figure out the state root.
 		if let Err(ref e) = res {
 			warn!("Encountered error on closing block: {}", e);
 		}
-		match res {
-			Ok(_) => match tracing_enabled {
-				true => Ok(CloseOutcome { trace: Some(tracer.traces()) } ),
-				false => Ok(CloseOutcome { trace: None } )
-			},
-			Err(e) => Err(e)
-		}
+		res
 	}
 
 	fn verify_block_basic(&self, header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {

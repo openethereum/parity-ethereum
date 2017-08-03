@@ -29,7 +29,7 @@ use header::{Header, BlockNumber};
 use state::CleanupMode;
 use spec::CommonParams;
 use transaction::UnverifiedTransaction;
-use engines::{self, Engine, CloseOutcome};
+use engines::{self, Engine};
 use evm::Schedule;
 use ethjson;
 use rlp::{self, UntrustedRlp};
@@ -275,7 +275,8 @@ impl Engine for Arc<Ethash> {
 
 	/// Apply the block reward on finalisation of the block.
 	/// This assumes that all uncles are valid uncles (i.e. of at least one generation before the current).
-	fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<CloseOutcome, Error> {
+	fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<(), Error> {
+		use std::ops::Shr;
 		let reward = self.params().block_reward;
 		let tracing_enabled = block.tracing_enabled();
 		let fields = block.fields_mut();
@@ -284,7 +285,7 @@ impl Engine for Arc<Ethash> {
 		let mut tracer = ExecutiveTracer::default();
 
 		// Bestow block reward
-		let result_block_reward = reward + reward / U256::from(32) * U256::from(fields.uncles.len());
+		let result_block_reward = reward + reward.shr(5) * U256::from(fields.uncles.len());
 		fields.state.add_balance(
 			fields.header.author(),
 			&result_block_reward,
@@ -303,14 +304,14 @@ impl Engine for Arc<Ethash> {
 			let result_uncle_reward: U256;
 
 			if eras == 0 {
-				result_uncle_reward = reward * U256::from(8 + u.number() - current_number) / U256::from(8);
+				result_uncle_reward = (reward * U256::from(8 + u.number() - current_number)).shr(3);
 				fields.state.add_balance(
 					u.author(),
 					&result_uncle_reward,
 					CleanupMode::NoEmpty
 				)	
 			} else {
-				result_uncle_reward = reward / U256::from(32);
+				result_uncle_reward = reward.shr(5);
 				fields.state.add_balance(
 					u.author(),
 					&result_uncle_reward,
@@ -326,10 +327,10 @@ impl Engine for Arc<Ethash> {
 
 		// Commit state so that we can actually figure out the state root.
 		fields.state.commit()?;
-		match tracing_enabled {
-			true => Ok(CloseOutcome { trace: Some(tracer.traces()) } ),
-			false => Ok(CloseOutcome { trace: None } )
-		}		
+		if tracing_enabled {
+			fields.traces.as_mut().map(|mut traces| traces.push(tracer.traces()));
+		}
+		Ok(())
 	}
 
 	fn verify_block_basic(&self, header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
