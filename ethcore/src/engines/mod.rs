@@ -132,7 +132,7 @@ pub trait StateDependentProof {
 
 /// Proof generated on epoch change.
 pub enum Proof {
-	/// Known proof (exctracted from signal)
+	/// Known proof (extracted from signal)
 	Known(Vec<u8>),
 	/// State dependent proof.
 	WithState(Box<StateDependentProof>),

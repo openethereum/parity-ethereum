@@ -666,6 +666,8 @@ impl Engine for AuthorityRound {
 			(&active_set as &_, epoch_manager.epoch_transition_number)
 		};
 
+		// always report with "self.validators" so that the report actually gets
+		// to the contract.
 		let report = |report| match report {
 			Report::Benign(address, block_number) =>
 				self.validators.report_benign(&address, set_number, block_number),
