@@ -91,7 +91,7 @@ export default class SignerStore {
   }
 
   subscribeLocalTransactions = () => {
-    this._api.pubsub.parity.localTransactions((err, transactions) => {
+    this._api.pubsub.parity.localTransactions((error, transactions) => {
       if (error) {
         console.warn('subscribeLocalTransactions', error);
         return;
