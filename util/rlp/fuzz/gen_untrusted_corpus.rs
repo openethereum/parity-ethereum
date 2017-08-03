@@ -61,6 +61,17 @@ fn create_uint_stream() {
     write_corpus("untrusted_data/well-formed-list-uint", &rlp);
 }
 
+fn create_uint_slice_stream() {
+    let s0 = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
+    let s1 = String::from("second string");
+
+    let mut rlp = RlpStream::new();
+    rlp.append(&s0);
+    rlp.append(&s1.as_bytes());
+
+    write_corpus("untrusted_data/well-formed-list-byte-slice", &rlp);
+}
+
 fn create_hash_stream() {
     // Create RLP Stream to encode values
     let mut rlp = RlpStream::new();
@@ -87,5 +98,6 @@ fn create_hash_stream() {
 
 fn main() {
     create_uint_stream();
+    create_uint_slice_stream();
     create_hash_stream();
 }
