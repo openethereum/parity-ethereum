@@ -30,7 +30,6 @@ use std::cmp;
 use std::fmt;
 use std::io;
 use std::io::Read;
-use std::str::FromStr;
 
 use fetch::{Client as FetchClient, Fetch};
 use futures::Future;
@@ -46,8 +45,10 @@ pub struct PriceInfo {
 /// Price info error.
 #[derive(Debug)]
 pub enum Error {
-	/// The API returned an unexpected status code or content.
-	UnexpectedResponse(&'static str, String),
+	/// The API returned an unexpected status code.
+	StatusCode(&'static str),
+	/// The API returned an unexpected status content.
+	UnexpectedResponse(String),
 	/// There was an error when trying to reach the API.
 	Fetch(fetch::Error),
 	/// IO error when reading API response.
@@ -94,28 +95,27 @@ impl<F: Fetch> Client<F> {
 		self.fetch.forget(self.fetch.fetch(&self.api_endpoint)
 			.map_err(|err| Error::Fetch(err))
 			.and_then(move |mut response| {
+				if !response.is_success() {
+					return Err(Error::StatusCode(response.status().canonical_reason().unwrap_or("unknown")));
+				}
 				let mut result = String::new();
 				response.read_to_string(&mut result)?;
 
-				if response.is_success() {
-					let value: Result<Value, _> = serde_json::from_str(&result);
-					if let Ok(v) = value {
-						let obj = v.pointer("/result/ethusd").and_then(|obj| {
-							match *obj {
-								Value::String(ref s) => FromStr::from_str(s).ok(),
-								_ => None,
-							}
-						});
+				let value: Option<Value> = serde_json::from_str(&result).ok();
 
-						if let Some(ethusd) = obj {
-							set_price(PriceInfo { ethusd });
-							return Ok(());
-						}
-					}
+				let ethusd = value
+					.as_ref()
+					.and_then(|value| value.pointer("/result/ethusd"))
+					.and_then(|obj| obj.as_str())
+					.and_then(|s| s.parse().ok());
+
+				match ethusd {
+					Some(ethusd) => {
+						set_price(PriceInfo { ethusd });
+						Ok(())
+					},
+					None => Err(Error::UnexpectedResponse(result)),
 				}
-
-				let status = response.status().canonical_reason().unwrap_or("unknown");
-				Err(Error::UnexpectedResponse(status, result))
 			})
 			.map_err(|err| {
 				warn!("Failed to auto-update latest ETH price: {:?}", err);

@@ -297,7 +297,7 @@ impl Response {
 
 	/// Returns `true` if response status code is successful.
 	pub fn is_success(&self) -> bool {
-		self.status() == reqwest::StatusCode::Ok
+		self.status().is_success()
 	}
 
 	/// Returns `true` if content type of this response is `text/html`
