@@ -51,8 +51,9 @@ const entry = isEmbed
 
 module.exports = {
   cache: !isProd,
-  devtool: isProd ? '#hidden-source-map' : '#source-map',
-
+  devtool: isProd
+    ? '#source-map'
+    : '#cheap-eval',
   context: path.join(__dirname, '../src'),
   entry,
   output: {
