@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { flatten } from 'lodash';
+import flatten from 'lodash.flatten';
 import { action, computed, observable } from 'mobx';
 import store from 'store';
 

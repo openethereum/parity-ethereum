@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { omitBy } from 'lodash';
+import omitBy from 'lodash.omitby';
 import { observer } from 'mobx-react';
 import React, { Component } from 'react';
 import { FormattedMessage } from 'react-intl';

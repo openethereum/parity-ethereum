@@ -7,10 +7,7 @@
     "transform-decorators-legacy",
     "transform-class-properties",
     "transform-object-rest-spread",
-    "transform-es2015-modules-commonjs",
-    "transform-runtime",
-    "lodash",
-    "recharts"
+    "transform-es2015-modules-commonjs"
   ],
   "retainLines": true,
   "env": {
