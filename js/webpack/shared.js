@@ -56,7 +56,9 @@ function getPlugins (_isProd = isProd) {
 
   if (_isProd) {
     plugins.push(
+      new webpack.optimize.ModuleConcatenationPlugin(),
       new webpack.optimize.UglifyJsPlugin({
+        sourceMap: true,
         screwIe8: true,
         compress: {
           warnings: false

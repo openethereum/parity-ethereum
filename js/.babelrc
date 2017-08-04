@@ -21,13 +21,13 @@
     },
     "development": {
       "plugins": [
-        [ "react-intl", { "messagesDir": "./.build/i18n/" } ],
+        ["react-intl", { "messagesDir": "./.build/i18n/" }],
         "react-hot-loader/babel"
       ]
     },
     "test": {
       "plugins": [
-        [ "babel-plugin-webpack-alias", { "config": "webpack/test.js" } ]
+        ["babel-plugin-webpack-alias", { "config": "webpack/test.js" }]
       ]
     }
   }
