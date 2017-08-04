@@ -49,9 +49,9 @@ mod service_transaction_checker;
 mod transaction_queue;
 mod work_notify;
 mod stratum;
+mod queue_reservation;
 
 pub use self::external::{ExternalMiner, ExternalMinerService};
-
 pub use self::miner::{Miner, MinerOptions, Banning, PendingSet, GasPricer, GasPriceCalibratorOptions, GasLimit};
 pub use self::transaction_queue::{TransactionQueue, RemovalReason, TransactionDetailsProvider as TransactionQueueDetailsProvider,
 	PrioritizationStrategy, AccountDetails, TransactionOrigin};

@@ -103,15 +103,19 @@
 use std::ops::Deref;
 use std::cmp::Ordering;
 use std::cmp;
-use std::collections::{HashSet, HashMap, BTreeSet, BTreeMap};
+use std::collections::{HashSet, HashMap, BTreeSet, BTreeMap, VecDeque};
+use std::sync::{Arc};
 use linked_hash_map::LinkedHashMap;
 use util::{Address, H256, U256, HeapSizeOf};
+use util::{RwLock, Mutex, Condvar};
 use table::Table;
 use transaction::*;
 use error::{Error, TransactionError};
 use client::TransactionImportResult;
 use header::BlockNumber;
 use miner::local_transactions::{LocalTransactionsList, Status as LocalTransactionStatus};
+use miner::banning_queue::BanningTransactionQueue;
+use miner::queue_reservation::{QueueReservation, QueueReservationStatus};
 
 /// Transaction origin
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -588,6 +592,8 @@ pub struct TransactionQueue {
 	local_transactions: LocalTransactionsList,
 	/// Next id that should be assigned to a transaction imported to the queue.
 	next_transaction_id: u64,
+	// Reserved hashes of transactions currently under-construction
+	reserved: VecDeque<H256>,
 }
 
 impl Default for TransactionQueue {
@@ -640,6 +646,7 @@ impl TransactionQueue {
 			last_nonces: HashMap::new(),
 			local_transactions: LocalTransactionsList::default(),
 			next_transaction_id: 0,
+			reserved: VecDeque::new(),
 		}
 	}
 
@@ -707,6 +714,80 @@ impl TransactionQueue {
 		}
 	}
 
+	/// Add transaction hash to reserved and issue a reservation
+	pub fn reserve(
+		&mut self,
+		queue: Arc<RwLock<BanningTransactionQueue>>,
+		reservation_check: Arc<(Mutex<()>, Condvar)>,
+		hash: H256,
+	) -> Result<QueueReservation, TransactionError> {
+		if self.reserved.contains(&hash) {
+			// Hash already reserved
+			Err(TransactionError::ReservedHash)
+		} else if self.by_hash.contains_key(&hash) {
+			// Hash already in queue
+			Err(TransactionError::AlreadyImported)
+		} else {
+			// Issue reservation
+			self.reserved.push_back(hash.clone());
+			Ok(QueueReservation::new(queue, reservation_check, hash))
+		}
+	}
+
+	/// Attempt to reserve transaction hashes for later addition to queue
+	pub fn reserve_batch(
+		&mut self, 
+		queue: Arc<RwLock<BanningTransactionQueue>>,
+		reservation_check: Arc<(Mutex<()>, Condvar)>,
+		transactions: Vec<UnverifiedTransaction>,
+	) -> Vec<Result<(QueueReservation, UnverifiedTransaction), TransactionError>> {
+		transactions.into_iter().map(|tx| {
+			self.reserve(queue.clone(), reservation_check.clone(), tx.hash()).map(|r| (r, tx))
+		}).collect()
+	}
+
+	/// Transaction queue reservation status
+	/// - Ready if reservation is the oldest;
+	/// - Dropped if hash no longer reserved;
+	/// - NotReady otherwise
+	pub fn is_ready_to_fill(&self, reservation: &QueueReservation) -> QueueReservationStatus {
+		if let Some(&x) = self.reserved.front() { if x == reservation.hash() { return QueueReservationStatus::Ready; } }
+		if !self.reserved.contains(&reservation.hash()) { QueueReservationStatus::Dropped }
+		else { QueueReservationStatus::NotReady }
+	}
+
+	/// Drop all reservations newer than `hash`
+	/// Newer reservations are now invalid since `hash` will not be added
+	pub fn drop_reserved(
+		&mut self,
+		hash: &H256) {
+		if let Some(idx) = self.reserved.iter().position(|x| *x == *hash) {
+			self.reserved.drain(idx..);
+		}
+	}
+
+	/// Add previously reserved transaction to queue
+	pub fn add_reserved(
+		&mut self,
+		reservation: &QueueReservation,
+		transaction: SignedTransaction,
+		origin: TransactionOrigin,
+		time: QueuingInstant,
+		condition: Option<Condition>,
+		details_provider: &TransactionDetailsProvider,
+	) -> Result<TransactionImportResult, Error> {
+		let hash = transaction.hash();
+		if reservation.hash() != hash {
+			Err(Error::Transaction(TransactionError::MismatchedReservation))
+		}  else if self.is_ready_to_fill(&reservation) != QueueReservationStatus::Ready {
+			Err(Error::Transaction(TransactionError::ReservationNotReady))
+		} else {
+			// Fill reservation
+			let _ = self.reserved.pop_front();
+			self.add(transaction, origin, time, condition, details_provider)
+		}
+	}
+
 	/// Add signed transaction to queue to be verified and imported.
 	///
 	/// NOTE details_provider methods should be cheap to compute
@@ -722,7 +803,6 @@ impl TransactionQueue {
 		if origin == TransactionOrigin::Local {
 			let hash = tx.hash();
 			let cloned_tx = tx.clone();
-
 			let result = self.add_internal(tx, origin, time, condition, details_provider);
 			match result {
 				Ok(TransactionImportResult::Current) => {
@@ -730,6 +810,9 @@ impl TransactionQueue {
 				},
 				Ok(TransactionImportResult::Future) => {
 					self.local_transactions.mark_future(hash);
+				},
+				Ok(TransactionImportResult::ThreadUnknown) => {
+					// Should not be found here
 				},
 				Err(Error::Transaction(ref err)) => {
 					// Sometimes transactions are re-imported, so
@@ -798,9 +881,9 @@ impl TransactionQueue {
 
 			if !is_service_transaction_accepted {
 				return Err(Error::Transaction(TransactionError::InsufficientGasPrice {
-						minimal: self.minimal_gas_price,
-						got: tx.gas_price,
-					}));
+					minimal: self.minimal_gas_price,
+					got: tx.gas_price,
+				}));
 			}
 		}
 
@@ -865,6 +948,7 @@ impl TransactionQueue {
 			}));
 		}
 		tx.check_low_s()?;
+
 		// No invalid transactions beyond this point.
 		let id = self.next_transaction_id;
 		self.next_transaction_id += 1;

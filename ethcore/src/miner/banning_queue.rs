@@ -23,6 +23,7 @@ use transaction::{SignedTransaction, Action};
 use transient_hashmap::TransientHashMap;
 use miner::{TransactionQueue, TransactionQueueDetailsProvider, TransactionImportResult, TransactionOrigin};
 use miner::transaction_queue::QueuingInstant;
+use miner::queue_reservation::{QueueReservation};
 use error::{Error, TransactionError};
 use util::{U256, H256, Address, Hashable};
 
@@ -73,14 +74,10 @@ impl BanningTransactionQueue {
 		&mut self.queue
 	}
 
-	/// Add to the queue taking bans into consideration.
-	/// May reject transaction because of the banlist.
-	pub fn add_with_banlist(
+	fn check_banlist(
 		&mut self,
-		transaction: SignedTransaction,
-		time: QueuingInstant,
-		details_provider: &TransactionQueueDetailsProvider,
-	) -> Result<TransactionImportResult, Error> {
+		transaction: &SignedTransaction,
+	) -> Result<(), Error> {
 		if let Threshold::BanAfter(threshold) = self.ban_threshold {
 			// NOTE In all checks use direct query to avoid increasing ban timeout.
 
@@ -111,7 +108,30 @@ impl BanningTransactionQueue {
 				}
 			}
 		}
-		self.queue.add(transaction, TransactionOrigin::External, time, None, details_provider)
+		Ok(())
+	}
+
+	pub fn add_reserved_with_banlist(
+		&mut self,
+		reservation: &QueueReservation,
+		transaction: SignedTransaction,
+		time: QueuingInstant,
+		details_provider: &TransactionQueueDetailsProvider,
+	) -> Result<TransactionImportResult, Error> {
+		self.check_banlist(&transaction).and_then(|_| 
+			self.queue.add_reserved(reservation, transaction, TransactionOrigin::External, time, None, details_provider))
+	}
+
+	/// Add to the queue taking bans into consideration.
+	/// May reject transaction because of the banlist.
+	pub fn add_with_banlist(
+		&mut self,
+		transaction: SignedTransaction,
+		time: QueuingInstant,
+		details_provider: &TransactionQueueDetailsProvider,
+	) -> Result<TransactionImportResult, Error> {
+		self.check_banlist(&transaction).and_then(|_| 
+			self.queue.add(transaction, TransactionOrigin::External, time, None, details_provider))
 	}
 
 	/// Ban transaction with given hash.
@@ -266,6 +286,7 @@ mod tests {
 		// given
 		let tx = transaction(Action::Create);
 		let mut txq = queue();
+
 		// Banlist once (threshold not reached)
 		let banlist1 = txq.ban_sender(tx.sender());
 		assert!(!banlist1, "Threshold not reached yet.");
