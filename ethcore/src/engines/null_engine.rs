@@ -72,6 +72,7 @@ impl Engine for NullEngine {
 
 	fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<(), Error> {
 		if self.params.block_reward == U256::zero() {
+			// we don't have to apply reward in this case
 			return Ok(())
 		}
 

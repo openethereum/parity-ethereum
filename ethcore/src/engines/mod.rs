@@ -394,13 +394,14 @@ pub trait Engine : Sync + Send {
 /// Common engine utilities
 pub mod common {
 	use std::sync::Arc;
-	use block::ExecutedBlock;
+	use block::{ExecutedBlock, IsBlock};
 	use error::Error;
 	use transaction::SYSTEM_ADDRESS;
 	use executive::Executive;
 	use vm::{CallType, ActionParams, ActionValue, EnvInfo, LastHashes};
-	use trace::{NoopTracer, NoopVMTracer};
+	use trace::{NoopTracer, NoopVMTracer, Tracer, ExecutiveTracer, RewardType};
 	use state::Substate;
+	use state::CleanupMode;
 
 	use util::*;
 	use super::Engine;
@@ -468,5 +469,29 @@ pub mod common {
 			)?;
 		}
 		Ok(())
+	}
+
+	/// Trace rewards on closing block
+	pub fn bestow_block_reward<E: Engine + ?Sized>(block: &mut ExecutedBlock, engine: &E) -> Result<(), Error> {
+		let tracing_enabled = block.tracing_enabled();
+		let fields = block.fields_mut();
+		let mut tracer = ExecutiveTracer::default();
+		// Bestow block reward
+		let reward = engine.params().block_reward;
+		let res = fields.state.add_balance(fields.header.author(), &reward, CleanupMode::NoEmpty)
+			.map_err(::error::Error::from)
+			.and_then(|_| fields.state.commit());
+
+		if tracing_enabled {
+			let block_author = fields.header.author().clone();
+			tracer.trace_reward(block_author, engine.params().block_reward, RewardType::Block);
+			fields.traces.as_mut().map(|mut traces| traces.push(tracer.traces()));
+		}
+
+		// Commit state so that we can actually figure out the state root.
+		if let Err(ref e) = res {
+			warn!("Encountered error on bestowing reward: {}", e);
+		}
+		res
 	}
 }

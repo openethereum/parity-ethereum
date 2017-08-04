@@ -40,8 +40,6 @@ use account_provider::AccountProvider;
 use block::*;
 use spec::CommonParams;
 use engines::{Engine, Seal, EngineError, ConstructedVerifier};
-use trace::{Tracer, ExecutiveTracer, RewardType};
-use state::CleanupMode;
 use io::IoService;
 use super::signer::EngineSigner;
 use super::validator_set::{ValidatorSet, SimpleList};
@@ -542,26 +540,7 @@ impl Engine for Tendermint {
 
 	/// Apply the block reward on finalisation of the block.
 	fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<(), Error>{
-		let tracing_enabled = block.tracing_enabled();
-		let fields = block.fields_mut();
-		let mut tracer = ExecutiveTracer::default();
-		// Bestow block reward
-		let reward = self.params().block_reward;
-		let res = fields.state.add_balance(fields.header.author(), &reward, CleanupMode::NoEmpty)
-			.map_err(::error::Error::from)
-			.and_then(|_| fields.state.commit());
-
-		if tracing_enabled {
-			let block_author = fields.header.author().clone();
-			tracer.trace_reward(block_author, self.params().block_reward, RewardType::Block);
-			fields.traces.as_mut().map(|mut traces| traces.push(tracer.traces()));
-		}
-
-		// Commit state so that we can actually figure out the state root.
-		if let Err(ref e) = res {
-			warn!("Encountered error on closing block: {}", e);
-		}
-		res
+		::engines::common::bestow_block_reward(block, self)
 	}
 
 	fn verify_block_basic(&self, header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
