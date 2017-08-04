@@ -102,7 +102,9 @@ impl Engine for NullEngine {
 				&(result_uncle_reward),
 				CleanupMode::NoEmpty
 			)?;
-			tracer.trace_reward(uncle_author, result_uncle_reward, RewardType::Uncle);
+			if tracing_enabled {
+				tracer.trace_reward(uncle_author, result_uncle_reward, RewardType::Uncle);
+			}			
 		}
 
 		fields.state.commit()?;
