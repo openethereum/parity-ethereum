@@ -995,7 +995,7 @@ impl ChainSync {
 				BlockStatus::Queued => {
 					trace!(target: "sync", "New hash block already queued {:?}", hash);
 				},
-				BlockStatus::Unknown => {
+				BlockStatus::Unknown | BlockStatus::Pending => {
 					new_hashes.push(hash.clone());
 					if number > max_height {
 						trace!(target: "sync", "New unknown block hash {:?}", hash);

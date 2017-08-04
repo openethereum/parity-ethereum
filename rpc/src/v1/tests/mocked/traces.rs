@@ -171,6 +171,16 @@ fn rpc_trace_call() {
 }
 
 #[test]
+fn rpc_trace_multi_call() {
+	let tester = io();
+
+	let request = r#"{"jsonrpc":"2.0","method":"trace_callMany","params":[[[{}, ["stateDiff", "vmTrace", "trace"]]]],"id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":[{"output":"0x010203","stateDiff":null,"trace":[],"vmTrace":null}],"id":1}"#;
+
+	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
+}
+
+#[test]
 fn rpc_trace_call_state_pruned() {
 	let tester = io();
 	*tester.client.execution_result.write() = Some(Err(CallError::StatePruned));

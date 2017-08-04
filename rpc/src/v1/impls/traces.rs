@@ -27,9 +27,9 @@ use jsonrpc_core::Error;
 use jsonrpc_macros::Trailing;
 use v1::traits::Traces;
 use v1::helpers::{errors, fake_sign};
-use v1::types::{TraceFilter, LocalizedTrace, BlockNumber, Index, CallRequest, Bytes, TraceResults, H256};
+use v1::types::{TraceFilter, LocalizedTrace, BlockNumber, Index, CallRequest, Bytes, TraceResults, TraceOptions, H256};
 
-fn to_call_analytics(flags: Vec<String>) -> CallAnalytics {
+fn to_call_analytics(flags: TraceOptions) -> CallAnalytics {
 	CallAnalytics {
 		transaction_tracing: flags.contains(&("trace".to_owned())),
 		vm_tracing: flags.contains(&("vmTrace".to_owned())),
@@ -79,29 +79,45 @@ impl<C, M> Traces for TracesClient<C, M> where C: MiningBlockChainClient + 'stat
 			.map(LocalizedTrace::from))
 	}
 
-	fn call(&self, request: CallRequest, flags: Vec<String>, block: Trailing<BlockNumber>) -> Result<TraceResults, Error> {
+	fn call(&self, request: CallRequest, flags: TraceOptions, block: Trailing<BlockNumber>) -> Result<TraceResults, Error> {
 		let block = block.unwrap_or_default();
 
 		let request = CallRequest::into(request);
 		let signed = fake_sign::sign_call(&self.client, &self.miner, request)?;
 
-		self.client.call(&signed, block.into(), to_call_analytics(flags))
+		self.client.call(&signed, to_call_analytics(flags), block.into())
 			.map(TraceResults::from)
 			.map_err(errors::call)
 	}
 
-	fn raw_transaction(&self, raw_transaction: Bytes, flags: Vec<String>, block: Trailing<BlockNumber>) -> Result<TraceResults, Error> {
+	fn call_many(&self, requests: Vec<(CallRequest, TraceOptions)>, block: Trailing<BlockNumber>) -> Result<Vec<TraceResults>, Error> {
+		let block = block.unwrap_or_default();
+
+		let requests = requests.into_iter()
+			.map(|(request, flags)| {
+				let request = CallRequest::into(request);
+				let signed = fake_sign::sign_call(&self.client, &self.miner, request)?;
+				Ok((signed, to_call_analytics(flags)))
+			})
+			.collect::<Result<Vec<_>, _>>()?;
+
+		self.client.call_many(&requests, block.into())
+			.map(|results| results.into_iter().map(TraceResults::from).collect())
+			.map_err(errors::call)
+	}
+
+	fn raw_transaction(&self, raw_transaction: Bytes, flags: TraceOptions, block: Trailing<BlockNumber>) -> Result<TraceResults, Error> {
 		let block = block.unwrap_or_default();
 
 		let tx = UntrustedRlp::new(&raw_transaction.into_vec()).as_val().map_err(|e| errors::invalid_params("Transaction is not valid RLP", e))?;
 		let signed = SignedTransaction::new(tx).map_err(errors::transaction)?;
 
-		self.client.call(&signed, block.into(), to_call_analytics(flags))
+		self.client.call(&signed, to_call_analytics(flags), block.into())
 			.map(TraceResults::from)
 			.map_err(errors::call)
 	}
 
-	fn replay_transaction(&self, transaction_hash: H256, flags: Vec<String>) -> Result<TraceResults, Error> {
+	fn replay_transaction(&self, transaction_hash: H256, flags: TraceOptions) -> Result<TraceResults, Error> {
 		self.client.replay(TransactionId::Hash(transaction_hash.into()), to_call_analytics(flags))
 			.map(TraceResults::from)
 			.map_err(errors::call)
