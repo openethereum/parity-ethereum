@@ -17,5 +17,10 @@
 module.exports = {
   test: /\.js$/,
   include: /node_modules\/(get-own-enumerable-property-symbols|ethereumjs-tx|stringify-object)/,
-  use: [ 'happypack/loader?id=babel' ]
+  use: [ {
+    loader: 'happypack/loader',
+    options: {
+      id: 'babel'
+    }
+  } ]
 };

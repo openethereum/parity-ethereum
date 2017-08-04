@@ -68,7 +68,12 @@ module.exports = {
       {
         test: /\.js$/,
         exclude: /node_modules/,
-        use: ['happypack/loader?id=babel']
+        use: [ {
+          loader: 'happypack/loader',
+          options: {
+            id: 'babel'
+          }
+        } ]
       },
       {
         test: /\.json$/,
@@ -91,7 +96,7 @@ module.exports = {
             {
               loader: 'css-loader',
               options: {
-                minimize: true
+                minimize: isProd
               }
             }
           ]
@@ -108,14 +113,14 @@ module.exports = {
               options: {
                 importLoaders: 1,
                 localIdentName: '[name]_[local]_[hash:base64:10]',
-                minimize: true,
+                minimize: isProd,
                 modules: true
               }
             },
             {
               loader: 'postcss-loader',
               options: {
-                sourceMap: true,
+                sourceMap: isProd,
                 plugins: [
                   require('postcss-import'),
                   require('postcss-nested'),

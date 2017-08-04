@@ -44,7 +44,7 @@ module.exports = {
 
   resolve: {
     alias: {
-      '~': path.resolve(__dirname, '..')
+
     }
   },
 
@@ -59,7 +59,12 @@ module.exports = {
       {
         test: /\.js$/,
         exclude: /node_modules/,
-        use: [ 'happypack/loader?id=babel' ]
+        use: [ {
+          loader: 'happypack/loader',
+          options: {
+            id: 'babel'
+          }
+        } ]
       },
       {
         test: /\.json$/,
