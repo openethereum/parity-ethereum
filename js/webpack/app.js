@@ -67,7 +67,7 @@ module.exports = {
       rulesEs6,
       {
         test: /\.js$/,
-        exclude: /(node_modules)/,
+        exclude: /node_modules/,
         use: ['happypack/loader?id=babel']
       },
       {
@@ -145,12 +145,6 @@ module.exports = {
   },
 
   resolve: {
-    alias: {
-      '~': path.resolve(__dirname, '..')
-    },
-    modules: [
-      path.join(__dirname, '../node_modules')
-    ],
     extensions: ['.json', '.js', '.jsx'],
     unsafeCache: true
   },
