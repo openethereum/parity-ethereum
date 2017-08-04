@@ -53,7 +53,7 @@ module.exports = {
   cache: !isProd,
   devtool: isProd
     ? '#source-map'
-    : '#cheap-eval',
+    : '#eval',
   context: path.join(__dirname, '../src'),
   entry,
   output: {

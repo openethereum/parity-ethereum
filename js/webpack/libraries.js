@@ -22,10 +22,14 @@ const rulesEs6 = require('./rules/es6');
 const rulesParity = require('./rules/parity');
 const Shared = require('./shared');
 
+const isProd = process.env.NODE_ENV === 'production';
 const DEST = process.env.BUILD_DEST || '.build';
 
 module.exports = {
   context: path.join(__dirname, '../src'),
+  devtool: isProd
+    ? '#source-map'
+    : '#eval',
   entry: {
     inject: ['./inject.js'],
     parity: ['./inject.js'],
