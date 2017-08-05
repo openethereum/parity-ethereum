@@ -192,7 +192,7 @@ export default class Token extends Component {
   }
 
   renderTotalSupply (totalSupply, base, tla) {
-    const balance = Math.round((totalSupply / base) * 100) / 100;
+    const balance = Math.floor((totalSupply / base) * 100) / 100;
 
     return (
       <Chip
