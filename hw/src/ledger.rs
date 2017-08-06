@@ -22,9 +22,11 @@ use std::fmt;
 use std::cmp::min;
 use std::str::FromStr;
 use std::time::Duration;
+use std::sync::{Arc, Weak};
 use super::WalletInfo;
 use ethkey::{Address, Signature};
 use bigint::hash::H256;
+use parking_lot::Mutex;
 
 const LEDGER_VID: u16 = 0x2c97;
 const LEDGER_PIDS: [u16; 2] = [0x0000, 0x0001]; // Nano S and Blue
@@ -84,7 +86,7 @@ impl From<hidapi::HidError> for Error {
 
 /// Ledger device manager.
 pub struct Manager {
-	usb: hidapi::HidApi,
+	usb: Arc<Mutex<hidapi::HidApi>>,
 	devices: Vec<Device>,
 	key_path: KeyPath,
 }
@@ -97,25 +99,25 @@ struct Device {
 
 impl Manager {
 	/// Create a new instance.
-	pub fn new() -> Result<Manager, Error> {
-		println!("NEW MANAGER LEDGER");
-		let manager = Manager {
-			usb: hidapi::HidApi::new()?,
+	pub fn new(hidapi: Arc<Mutex<hidapi::HidApi>>) -> Manager {
+		Manager {
+			usb: hidapi,
 			devices: Vec::new(),
 			key_path: KeyPath::Ethereum,
-		};
-		Ok(manager)
+		}
 	}
 
 	/// Re-populate device list. Only those devices that have Ethereum app open will be added.
 	pub fn update_devices(&mut self) -> Result<usize, Error> {
-		println!("UPDATE DEVICES LEDGER");
-		self.usb.refresh_devices();
-		let devices = self.usb.devices();
+		println!("ledger update");
+		let mut usb = self.usb.lock();
+		println!("ledger update2");
+		usb.refresh_devices();
+		let devices = usb.devices();
 		let mut new_devices = Vec::new();
 		let mut num_new_devices = 0;
 		for device in devices {
-			trace!("Checking device: {:?}", device);
+			debug!("Checking device: {:?}", device);
 			if device.vendor_id != LEDGER_VID || !LEDGER_PIDS.contains(&device.product_id) {
 				continue;
 			}
@@ -132,6 +134,7 @@ impl Manager {
 			};
 		}
 		self.devices = new_devices;
+		println!("ledger update unlock!");
 		Ok(num_new_devices)
 	}
 
@@ -241,13 +244,15 @@ impl Manager {
 	fn open_path(&self, path: &str) -> Result<hidapi::HidDevice, Error> {
 		let mut err = Error::KeyNotFound;
 		/// Try to open device a few times.
-		for _ in 0..10 {
-			match self.usb.open_path(&path) {
-				Ok(handle) => return Ok(handle),
-				Err(e) => err = From::from(e),
-			}
-			::std::thread::sleep(Duration::from_millis(200));
-		}
+		// for _ in 0..10 {
+		// 	let api = self.api.lock();
+		// 	let lock = self.api.lock();
+		// 	match lock.open_path(&path) {
+		// 		Ok(h) => return Ok(h),
+		// 		Err(e) => err = From::from(e),
+		// 	}
+		// 	::std::thread::sleep(Duration::from_millis(200));
+		// }
 		Err(err)
 	}
 

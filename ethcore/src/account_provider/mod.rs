@@ -288,6 +288,15 @@ impl AccountProvider {
 		Ok(accounts.into_iter().map(|a| a.address).collect())
 	}
 
+	/// Keepkey_message
+	pub fn keepkey_message(&self, message_type: String, path: Option<String>, message: Option<String>) -> Result<String, SignError> {
+		match self.hardware_store.as_ref().map(|h| h.keepkey_message(message_type, path, message)) {
+			None => Err(SignError::NotFound),
+			Some(Err(e)) => Err(SignError::Hardware(e)),
+			Some(Ok(s)) => Ok(s),
+		}
+	}
+
 	/// Sets addresses of accounts exposed for unknown dapps.
 	/// `None` means that all accounts will be visible.
 	/// If not `None` or empty it will also override default account.

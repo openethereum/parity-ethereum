@@ -21,6 +21,8 @@ extern crate hidapi;
 extern crate libusb;
 extern crate ethkey;
 extern crate ethcore_bigint as bigint;
+#[macro_use] extern crate serde_json;
+#[macro_use] extern crate serde_derive;
 #[macro_use] extern crate log;
 #[cfg(test)] extern crate rustc_hex;
 
@@ -43,6 +45,8 @@ pub use ledger::KeyPath;
 pub enum Error {
 	/// Ledger device error.
 	LedgerDevice(ledger::Error),
+	/// Keekey device error.
+	KeepkeyDevice(keepkey::Error),
 	/// USB error.
 	Usb(libusb::Error),
 	/// Hardware wallet not found for specified key.
@@ -67,6 +71,7 @@ impl fmt::Display for Error {
 		match *self {
 			Error::KeyNotFound => write!(f, "Key not found for given address."),
 			Error::LedgerDevice(ref e) => write!(f, "{}", e),
+			Error::KeepkeyDevice(ref e) => write!(f, "{}", e),
 			Error::Usb(ref e) => write!(f, "{}", e),
 		}
 	}
@@ -78,6 +83,12 @@ impl From<ledger::Error> for Error {
 			ledger::Error::KeyNotFound => Error::KeyNotFound,
 			_ => Error::LedgerDevice(err),
 		}
+	}
+}
+
+impl From<keepkey::Error> for Error {
+	fn from(err: keepkey::Error) -> Error {
+		Error::KeepkeyDevice(err)
 	}
 }
 
@@ -103,25 +114,19 @@ struct EventHandler {
 impl libusb::Hotplug for EventHandler {
 	fn device_arrived(&mut self, _device: libusb::Device) {
 		debug!("USB Device arrived");
-		if let Some(l) = self.ledger.upgrade() {
+		let l = self.ledger.upgrade();
+		let k = self.keepkey.upgrade();
+
+		if l.is_some() && k.is_some() {
+			let l = l.unwrap();
+			let k = k.unwrap();
 			for _ in 0..10 {
 				// The device might not be visible right away. Try a few times.
 				if l.lock().update_devices().unwrap_or_else(|e| {
 					debug!("Error enumerating Ledger devices: {}", e);
 					0
-				}) > 0 {
-					break;
-				}
-				thread::sleep(Duration::from_millis(200));
-			}
-		}
-		println!("DEVICE?!");
-		if let Some(k) = self.keepkey.upgrade() {
-			for _ in 0..10 {
-				println!("KEEP KEY COMIN IN");
-				// The device might not be visible right away. Try a few times.
-				if k.lock().update_devices().unwrap_or_else(|e| {
-					debug!("Error enumerating Keepkey devices");
+				}) + k.lock().update_devices().unwrap_or_else(|e| {
+					println!("Error enumerating Keepkey devices: {:?}", e);
 					0
 				}) > 0 {
 					break;
@@ -139,8 +144,9 @@ impl libusb::Hotplug for EventHandler {
 			}
 		}
 		if let Some(k) = self.keepkey.upgrade() {
+			println!("DEVICE_LEFT");
 			if let Err(e) = k.lock().update_devices() {
-				debug!("Error enumerating Keepkey devices");
+				println!("Error enumerating Keepkey devices: {}", e);
 			}
 		}
 	}
@@ -148,10 +154,10 @@ impl libusb::Hotplug for EventHandler {
 
 impl HardwareWalletManager {
 	pub fn new() -> Result<HardwareWalletManager, Error> {
-		println!("NEW HardwareWalletManager");
 		let usb_context = Arc::new(libusb::Context::new()?);
-		let keepkey = Arc::new(Mutex::new(keepkey::Manager::new()));
-		let ledger = Arc::new(Mutex::new(ledger::Manager::new()?));
+		let hidapi = Arc::new(Mutex::new(hidapi::HidApi::new().unwrap()));
+		let keepkey = Arc::new(Mutex::new(keepkey::Manager::new(hidapi.clone())));
+		let ledger = Arc::new(Mutex::new(ledger::Manager::new(hidapi.clone())));
 		usb_context.register_callback(None, None, None, Box::new(EventHandler { keepkey: Arc::downgrade(&keepkey), ledger: Arc::downgrade(&ledger) }))?;
 		let exiting = Arc::new(AtomicBool::new(false));
 		let thread_exiting = exiting.clone();
@@ -159,13 +165,13 @@ impl HardwareWalletManager {
 		let l = ledger.clone();
 		let thread = thread::Builder::new().name("hw_wallet".to_string()).spawn(move || {
 			if let Err(e) = l.lock().update_devices() {
-				debug!("Error updating ledger devices: {}", e);
+				println!("Error updating ledger devices: {}", e);
 			}
 			if let Err(e) = k.lock().update_devices() {
-				debug!("Error updating keepkey devices");
+				println!("Error updating keepkey devices: {}", e);
 			}
 			loop {
-				usb_context.handle_events(Some(Duration::from_millis(500))).unwrap_or_else(|e| debug!("Error processing USB events: {}", e));
+				usb_context.handle_events(Some(Duration::from_millis(500))).unwrap_or_else(|e| println!("Error processing USB events: {}", e));
 				if thread_exiting.load(atomic::Ordering::Acquire) {
 					break;
 				}
@@ -197,6 +203,11 @@ impl HardwareWalletManager {
 	/// Sign transaction data with wallet managing `address`.
 	pub fn sign_transaction(&self, address: &Address, data: &[u8]) -> Result<Signature, Error> {
 		Ok(self.ledger.lock().sign_transaction(address, data)?)
+	}
+
+	/// Keepkey message.
+	pub fn keepkey_message(&self, message_type: String, path: Option<String>, message: Option<String>) -> Result<String, Error> {
+		Ok(self.keepkey.lock().message(message_type, path, message)?)
 	}
 }
 

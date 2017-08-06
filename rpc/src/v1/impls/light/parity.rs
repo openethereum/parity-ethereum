@@ -129,6 +129,11 @@ impl Parity for ParityClient {
 		)
 	}
 
+	fn keepkey(&self, message_type: String, path: Option<String>, message: Option<String>) -> Result<String, Error> {
+		let store = &self.accounts;
+		Ok(store.keepkey_message(message_type, path, message).map_err(|e| errors::account("Could not fetch keepkey.", e))?)
+	}
+
 	fn default_account(&self, meta: Self::Metadata) -> BoxFuture<H160, Error> {
 		let dapp_id = meta.dapp_id();
 		future::ok(self.accounts
@@ -350,10 +355,6 @@ impl Parity for ParityClient {
 			availability: Availability::Personal,
 			capability: Capability::Light,
 		})
-	}
-
-	fn keepkey(&self, message_type: String, path: Option<String>, data: Option<Bytes>) -> Result<String, Error> {
-		Ok("ok".to_string())
 	}
 
 	fn block_header(&self, number: Trailing<BlockNumber>) -> BoxFuture<RichHeader, Error> {

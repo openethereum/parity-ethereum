@@ -25,7 +25,6 @@ pub mod fake_sign;
 pub mod light_fetch;
 pub mod oneshot;
 pub mod ipfs;
-pub mod keepkey;
 pub mod secretstore;
 
 mod network_settings;

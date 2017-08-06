@@ -14,12 +14,4 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Keepkey Service
-
-use v1::types::KeepKey;
-
-/// functions for the Keepkey
-pub trait KeepkeyService: Send + Sync + 'static {
-	/// List available local dapps.
-	fn message(&self, message_type: String, path: Option<String>, data: Option<Bytes>) -> Result<String, Err>;
-}
+export default from './keepkey';

@@ -197,7 +197,7 @@ build_rpc_trait! {
 
 		/// Communicate with the keepkey
 		#[rpc(name = "parity_keepkey")]
-		fn keepkey(&self, String, Option<String>, Option<Bytes>) -> Result<String, Error>;
+		fn keepkey(&self, String, Option<String>, Option<String>) -> Result<String, Error>;
 
 		/// Get block header.
 		/// Same as `eth_getBlockByNumber` but without uncles and transactions.

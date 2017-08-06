@@ -94,6 +94,7 @@ class List extends Component {
     return (
       <Summary
         account={ account }
+        name={ account.name }
         disabled={ isDisabled }
         handleAddSearchToken={ handleAddSearchToken }
         link={ link }

@@ -249,9 +249,9 @@ export default class Parity {
       .then(outAddresses);
   }
 
-  keepkey (messageType, address, data) {
+  keepkey (messageType, address, message) {
     return this._transport
-      .execute('parity_keepkey', messageType, address, data);
+      .execute('parity_keepkey', messageType, address, message);
   }
 
   killAccount (account, password) {

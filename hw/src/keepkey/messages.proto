@@ -1,137 +1,565 @@
+////////////////////
+//  Enumerations  //
+////////////////////
+
+/**
+ * Type of script which will be used for transaction output
+ * @used_in TxOutputType
+ */
+enum OutputScriptType {
+	PAYTOADDRESS = 0;	    // used for all addresses (bitcoin, p2sh, witness)
+	PAYTOSCRIPTHASH = 1;	// p2sh address (deprecated; use PAYTOADDRESS)
+	PAYTOMULTISIG = 2;	  // only for change output
+	PAYTOOPRETURN = 3;	  // op_return
+	PAYTOWITNESS = 4;	    // only for change output
+	PAYTOP2SHWITNESS = 5;	// only for change output
+}
+
+/**
+ * Type of ouput address specify in transaction
+ * @used_in TxOutputType
+ */
+enum OutputAddressType {
+  SPEND = 0;
+  TRANSFER = 1;
+  CHANGE = 2;
+  EXCHANGE = 3;
+}
+
+/**
+ * Type of information required by transaction signing process
+ * @used_in TxRequest
+ */
+enum RequestType {
+	TXINPUT = 0;
+	TXOUTPUT = 1;
+	TXMETA = 2;
+	TXFINISHED = 3;
+	TXEXTRADATA = 4;
+}
+
+/**
+ * Type of PIN request
+ * @used_in PinMatrixRequest
+ */
+enum PinMatrixRequestType {
+	PinMatrixRequestType_Current = 1;
+	PinMatrixRequestType_NewFirst = 2;
+	PinMatrixRequestType_NewSecond = 3;
+}
+
+/**
+ * Type of button request
+ * @used_in ButtonRequest
+ */
+enum ButtonRequestType {
+	ButtonRequest_Other = 1;
+	ButtonRequest_FeeOverThreshold = 2;
+	ButtonRequest_ConfirmOutput = 3;
+	ButtonRequest_ResetDevice = 4;
+	ButtonRequest_ConfirmWord = 5;
+	ButtonRequest_WipeDevice = 6;
+	ButtonRequest_ProtectCall = 7;
+	ButtonRequest_SignTx = 8;
+	ButtonRequest_FirmwareCheck = 9;
+	ButtonRequest_Address = 10;
+	ButtonRequest_FirmwareErase = 11;
+	ButtonRequest_ConfirmTransferToAccount = 12;
+	ButtonRequest_ConfirmTransferToNodePath = 13;  /* Deprecated!*/
+	ButtonRequest_ChangeLabel = 14;
+	ButtonRequest_ChangeLanguage = 15;
+	ButtonRequest_EnablePassphrase = 16;
+	ButtonRequest_DisablePassphrase = 17;
+	ButtonRequest_EncryptAndSignMessage = 18;
+	ButtonRequest_EncryptMessage = 19;
+	ButtonRequest_ImportPrivateKey = 20;
+	ButtonRequest_ImportRecoverySentence = 21;
+	ButtonRequest_SignIdentity = 22;
+	ButtonRequest_Ping = 23;
+	ButtonRequest_RemovePin = 24;
+	ButtonRequest_ChangePin = 25;
+	ButtonRequest_CreatePin = 26;
+	ButtonRequest_GetEntropy = 27;
+	ButtonRequest_SignMessage = 28;
+	ButtonRequest_ApplyPolicies = 29;
+	ButtonRequest_SignExchange = 30;
+}
+
+/**
+ * Type of failures returned by Failure message
+ * @used_in Failure
+ */
+enum FailureType {
+	Failure_UnexpectedMessage = 1;
+	Failure_ButtonExpected = 2;
+	Failure_SyntaxError = 3;
+	Failure_ActionCancelled = 4;
+	Failure_PinExpected = 5;
+	Failure_PinCancelled = 6;
+	Failure_PinInvalid = 7;
+	Failure_InvalidSignature = 8;
+	Failure_Other = 9;
+	Failure_NotEnoughFunds = 10;
+	Failure_NotInitialized = 11;
+	Failure_FirmwareError = 99;
+}
+
+/**
+ * Type of script which will be used for transaction output
+ * @used_in TxInputType
+ */
+enum InputScriptType {
+	SPENDADDRESS = 0;		  // standard p2pkh address
+	SPENDMULTISIG = 1;		// p2sh multisig address
+	EXTERNAL = 2;			    // reserved for external inputs (coinjoin)
+	SPENDWITNESS = 3;		  // native segwit
+	SPENDP2SHWITNESS = 4; // segwit over p2sh (backward compatible)
+}
+
+/**
+ * Mapping between KeepKey wire identifier (uint) and a protobuf message
+ */
+enum MessageType {
+	MessageType_Initialize = 0;
+	MessageType_Ping = 1;
+	MessageType_Success = 2;
+	MessageType_Failure = 3;
+	MessageType_ChangePin = 4;
+	MessageType_WipeDevice = 5;
+	MessageType_FirmwareErase = 6;
+	MessageType_FirmwareUpload = 7;
+	MessageType_GetEntropy = 9;
+	MessageType_Entropy = 10;
+	MessageType_GetPublicKey = 11;
+	MessageType_PublicKey = 12;
+	MessageType_LoadDevice = 13;
+	MessageType_ResetDevice = 14;
+	MessageType_SignTx = 15;
+	MessageType_SimpleSignTx = 16;
+	MessageType_Features = 17;
+	MessageType_PinMatrixRequest = 18;
+	MessageType_PinMatrixAck = 19;
+	MessageType_Cancel = 20;
+	MessageType_TxRequest = 21;
+	MessageType_TxAck = 22;
+	MessageType_CipherKeyValue = 23;
+	MessageType_ClearSession = 24;
+	MessageType_ApplySettings = 25;
+	MessageType_ButtonRequest = 26;
+	MessageType_ButtonAck = 27;
+	MessageType_GetAddress = 29;
+	MessageType_Address = 30;
+	MessageType_EntropyRequest = 35;
+	MessageType_EntropyAck = 36;
+	MessageType_SignMessage = 38;
+	MessageType_VerifyMessage = 39;
+	MessageType_MessageSignature = 40;
+	MessageType_PassphraseRequest = 41;
+	MessageType_PassphraseAck = 42;
+	MessageType_EstimateTxSize = 43;
+	MessageType_TxSize = 44;
+	MessageType_RecoveryDevice = 45;
+	MessageType_WordRequest = 46;
+	MessageType_WordAck = 47;
+	MessageType_CipheredKeyValue = 48;
+	MessageType_EncryptMessage = 49;
+	MessageType_EncryptedMessage = 50;
+	MessageType_DecryptMessage = 51;
+	MessageType_DecryptedMessage = 52;
+	MessageType_SignIdentity = 53;
+	MessageType_SignedIdentity = 54;
+	MessageType_GetFeatures = 55;
+	MessageType_EthereumGetAddress = 56;
+	MessageType_EthereumAddress = 57;
+	MessageType_EthereumSignTx = 58;
+	MessageType_EthereumTxRequest = 59;
+	MessageType_EthereumTxAck = 60;
+ 	MessageType_CharacterRequest = 80;
+ 	MessageType_CharacterAck = 81;
+ 	MessageType_RawTxAck = 82;
+ 	MessageType_ApplyPolicies = 83;
+	MessageType_DebugLinkDecision = 100;
+	MessageType_DebugLinkGetState = 101;
+	MessageType_DebugLinkState = 102;
+	MessageType_DebugLinkStop = 103;
+	MessageType_DebugLinkLog = 104;
+	MessageType_DebugLinkFillConfig = 105;
+}
+
+////////////////////
+// Basic messages //
+////////////////////
+
+/**
+ * Request: Reset device to default state and ask for device details
+ * @next Features
+ */
 message Initialize {
-
 }
 
-message Ping {
-  optional string message = 1;
-  optional bool button_protection = 2;
-  optional bool pin_protection = 3;
-  optional bool passphrase_protection = 4;
+/**
+ * Request: Ask for device details (no device reset)
+ * @next Features
+ */
+message GetFeatures {
 }
 
+/**
+ * Response: Reports various information about the device
+ * @prev Initialize
+ * @prev GetFeatures
+ */
 message Features {
-    optional string vendor = 1;
-    optional uint32 major_version = 2;
-    optional uint32 minor_version = 3;
-    optional uint32 patch_version = 4;
-    optional bool bootloader_mode = 5;
-    optional string device_id = 6;
-    optional bool pin_protection = 7;
-    optional bool passphrase_protection = 8;
-    optional string language = 9;
-    optional string label = 10;
-    repeated CoinType coins = 11;
-    optional bool initialized = 12;
-    optional bytes revision = 13;
-    optional bytes bootloader_hash = 14;
-    optional bool imported = 15;
-    optional bool pin_cached = 16;
-    optional bool passphrase_cached = 17;
+	optional string vendor = 1;			         // name of the manufacturer, e.g. "bitcointrezor.com"
+	optional uint32 major_version = 2;		   // major version of the device, e.g. 1
+	optional uint32 minor_version = 3;		   // minor version of the device, e.g. 0
+	optional uint32 patch_version = 4;		   // patch version of the device, e.g. 0
+	optional bool bootloader_mode = 5;		   // is device in bootloader mode?
+	optional string device_id = 6;			     // device's unique identifier
+	optional bool pin_protection = 7;		     // is device protected by PIN?
+	optional bool passphrase_protection = 8; // is node/mnemonic encrypted using passphrase?
+	optional string language = 9;			       // device language
+	optional string label = 10;			         // device description label
+	repeated CoinType coins = 11;			       // supported coins
+	optional bool initialized = 12;		     	 // does device contain seed?
+	optional bytes revision = 13;			       // SCM revision of firmware
+	optional bytes bootloader_hash = 14;		 // hash of the bootloader
+	optional bool imported = 15;			       // was storage imported from an external source?
+	optional bool pin_cached = 16;			     // is PIN already cached in session?
+	optional bool passphrase_cached = 17;	 	 // is passphrase already cached in session?
+	repeated PolicyType policies = 18;			 // policies
 }
 
+/**
+ * Structure representing policy data
+ * @used_in ApplyPolicy
+ */
+message PolicyType {
+	optional string policy_name = 1;	// name of policy
+	optional bool enabled = 2;				// status of policy
+}
+
+/**
+ * Request: clear session (removes cached PIN, passphrase, etc).
+ * @next Success
+ */
+message ClearSession {
+}
+
+/**
+ * Request: Test if the device is alive, device sends back the message in Success response
+ * @next Success
+ */
+message Ping {
+	optional string message = 1;			        // message to send back in Success message
+	optional bool button_protection = 2;		  // ask for button press
+	optional bool pin_protection = 3;		      // ask for PIN if set in device
+	optional bool passphrase_protection = 4;	// ask for passphrase if set in device
+}
+
+/**
+ * Response: Success of the previous request
+ */
+message Success {
+	optional string message = 1;	// human readable description of action or request-specific payload
+}
+
+/**
+ * Response: Failure of the previous request
+ */
+message Failure {
+	optional FailureType code = 1; // computer-readable definition of the error state
+	optional string message = 2;	 // human-readable message of the error state
+}
+
+/**
+ * Response: Device is waiting for HW button press.
+ * @next ButtonAck
+ * @next Cancel
+ */
+message ButtonRequest {
+	optional ButtonRequestType code = 1;
+	optional string data = 2;
+}
+
+/**
+ * Request: Computer agrees to wait for HW button press
+ * @prev ButtonRequest
+ */
+message ButtonAck {
+}
+
+/**
+ * Response: Device is asking computer to show PIN matrix and awaits PIN encoded using this matrix scheme
+ * @next PinMatrixAck
+ * @next Cancel
+ */
+message PinMatrixRequest {
+	optional PinMatrixRequestType type = 1;
+}
+
+/**
+ * Request: Computer responds with encoded PIN
+ * @prev PinMatrixRequest
+ */
+message PinMatrixAck {
+	required string pin = 1;		// matrix encoded PIN entered by user
+}
+
+/**
+ * Request: Abort last operation that required user interaction
+ * @prev ButtonRequest
+ * @prev PinMatrixRequest
+ * @prev PassphraseRequest
+ */
+message Cancel {
+}
+
+/**
+ * Response: Device awaits encryption passphrase
+ * @next PassphraseAck
+ * @next Cancel
+ */
+message PassphraseRequest {
+}
+
+/**
+ * Request: Send passphrase back
+ * @prev PassphraseRequest
+ */
+message PassphraseAck {
+	required string passphrase = 1;
+}
+
+/**
+ * Request: Ask device for public key corresponding to address_n path
+ * @next PassphraseRequest
+ * @next PublicKey
+ * @next Failure
+ */
+message GetPublicKey {
+	repeated uint32 address_n = 1;		    // BIP-32 path to derive the key from master node
+	optional string ecdsa_curve_name = 2;	// ECDSA curve name to use
+	optional bool show_display = 3;		    // optionally show on display before sending the result
+}
+
+/**
+ * Response: Contains public key derived from device private seed
+ * @prev GetPublicKey
+ */
+message PublicKey {
+	required HDNodeType node = 1;		// BIP32 public node
+	optional string xpub = 2;		    // serialized form of public node
+}
+
+/**
+ * Request: Ask device for Ethereum address corresponding to address_n path
+ * @next PassphraseRequest
+ * @next EthereumAddress
+ * @next Failure
+ */
+message EthereumGetAddress {
+	repeated uint32 address_n = 1;  // BIP-32 path to derive the key from master node
+	optional bool show_display = 2; // optionally show on display before sending the result
+}
+
+/**
+ * Response: Contains an Ethereum address derived from device private seed
+ * @prev EthereumGetAddress
+ */
+message EthereumAddress {
+	required bytes address = 1;		// Coin address as an Ethereum 160 bit hash
+}
+
+/**
+ * Request: Load seed and related internal settings from the computer
+ * @next ButtonRequest
+ * @next Success
+ * @next Failure
+ */
+message LoadDevice {
+	optional string mnemonic = 1;			               	// seed encoded as BIP-39 mnemonic (12, 18 or 24 words)
+	optional HDNodeType node = 2;			              	// BIP-32 node
+	optional string pin = 3;				                  // set PIN protection
+	optional bool passphrase_protection = 4;	       	// enable master node encryption using passphrase
+	optional string language = 5 [default='english'];	// device language
+	optional string label = 6;				                // device label
+	optional bool skip_checksum = 7;			            // do not test mnemonic for valid BIP-39 checksum
+}
+
+//////////////////////////////////
+// Transaction signing messages //
+//////////////////////////////////
+
+/**
+ * Request: Ask device to sign transaction
+ * All fields are optional from the protocol's point of view. Each field defaults to value `0` if missing.
+ * Note: the first at most 1024 bytes of data MUST be transmitted as part of this message.
+ * @next PassphraseRequest
+ * @next PinMatrixRequest
+ * @next EthereumTxRequest
+ * @next Failure
+ */
+message EthereumSignTx {
+	repeated uint32 address_n = 1;			          // BIP-32 path to derive the key from master node
+	optional bytes nonce = 2;		      	          // <=256 bit unsigned big endian
+	optional bytes gas_price = 3;		      	      // <=256 bit unsigned big endian (in wei)
+	optional bytes gas_limit = 4;		      	      // <=256 bit unsigned big endian
+	optional bytes to = 5;			          	      // 160 bit address hash
+	optional bytes value = 6;			                // <=256 bit unsigned big endian (in wei)
+	optional bytes data_initial_chunk = 7;        // The initial data chunk (<= 1024 bytes)
+	optional uint32 data_length = 8;		          // Length of transaction payload
+	repeated uint32 to_address_n = 9;             // BIP-32 path to derive key for fund transfer
+	optional OutputAddressType address_type = 10; // output address type
+	optional ExchangeType exchange_type = 11;     // exchange type data
+	optional uint32 chain_id = 12;			          // Chain Id for EIP 155
+}
+
+/**
+ * Structure representing exchange data
+ * @used_in TxOutputType
+ */
+message ExchangeType {
+	optional SignedExchangeResponse signed_exchange_response = 1;   // exchange response
+	optional string withdrawal_coin_name = 2 [default='Bitcoin']; 	// coin type of the received funds
+	repeated uint32 withdrawal_address_n = 3;			    	            // BIP-32 path for received funds
+	repeated uint32 return_address_n = 4;			    	                // BIP-32 path for return address, assumed to be the
+	                                                                // same as the coin_name of the transaction
+}
+
+message SignedExchangeResponse {
+  optional ExchangeResponse response = 1; /* deprecated - latest firmware version throws error if this field is used */
+  optional bytes signature = 2;
+  optional ExchangeResponseV2 responseV2 = 3;
+}
+
+/**
+ * Structure representing exchange response version 1 (deprecated)
+ */
+message ExchangeResponse {
+    optional ExchangeAddress deposit_address = 1;
+    optional uint64 deposit_amount = 2;
+    optional int64  expiration = 3;
+    optional uint64 quoted_rate = 4;
+    optional ExchangeAddress withdrawal_address = 5;
+    optional uint64 withdrawal_amount = 6;
+    optional ExchangeAddress return_address = 7;
+    optional bytes api_key = 8;
+    optional uint64 miner_fee = 9;
+    optional bytes order_id = 10;
+}
+
+/**
+ * Structure representing exchange response version 2
+ */
+message ExchangeResponseV2 {
+    optional ExchangeAddress deposit_address = 1;
+    optional bytes deposit_amount = 2;
+    optional int64  expiration = 3;
+    optional bytes quoted_rate = 4;
+    optional ExchangeAddress withdrawal_address = 5;
+    optional bytes withdrawal_amount = 6;
+    optional ExchangeAddress return_address = 7;
+    optional bytes api_key = 8;
+    optional bytes miner_fee = 9;
+    optional bytes order_id = 10;
+}
+
+/**
+ * Structure representing address for various coin types (BTC, LTC, and etc).
+ * @used in ExchangeResponse
+ */
+message ExchangeAddress {
+  optional string coin_type = 1;
+  optional string address = 2;
+  optional string dest_tag = 3;
+  optional string rs_address = 4;
+}
+
+/**
+ * Response: Device asks for more data from transaction payload, or returns the signature.
+ * If data_length is set, device awaits that many more bytes of payload.
+ * Otherwise, the signature_* fields contain the computed transaction signature. All three fields will be present.
+ * @prev EthereumSignTx
+ * @next EthereumTxAck
+ */
+message EthereumTxRequest {
+	optional uint32 data_length = 1;  // Number of bytes being requested (<= 1024)
+	optional uint32 signature_v = 2;  // Computed signature (recovery parameter, limited to 27 or 28)
+	optional bytes signature_r = 3;	  // Computed signature R component (256 bit)
+	optional bytes signature_s = 4;	  // Computed signature S component (256 bit)
+	optional bytes hash = 5;	        // Computed hash using SHA3 (keccak_ctx)
+  optional bytes signature_der = 6; // Computed signature in DER format
+}
+
+/**
+ * Request: Transaction payload data.
+ * @prev EthereumTxRequest
+ * @next EthereumTxRequest
+ */
+message EthereumTxAck {
+	optional bytes data_chunk = 1;			// Bytes from transaction payload (<= 1024 bytes)
+}
+
+///////////////////////
+// Identity messages //
+///////////////////////
+
+/**
+ * Structure representing Coin
+ * @used_in Features
+ */
 message CoinType {
-    optional string coin_name = 1;
-    optional string coin_shortcut = 2;
-    optional uint32 address_type = 3 [default=0];
-    optional uint64 maxfee_kb = 4;
-    optional uint32 address_type_p2sh = 5 [default=5];
+	optional string coin_name = 1;
+	optional string coin_shortcut = 2;
+	optional uint32 address_type = 3 [default=0];
+	optional uint64 maxfee_kb = 4;
+	optional uint32 address_type_p2sh = 5 [default=5];
+	optional uint32 address_type_p2wpkh = 6 [default=6];
+	optional uint32 address_type_p2wsh = 7 [default=10];
+	optional string signed_message_header = 8;
+	optional uint32 bip44_account_path = 9;
 }
 
-message GetAddress {
-  optional uint32 address_n = 1;
-  optional string coin_name = 2;
-  optional bool show_display = 3;
-  optional MultisigRedeemScriptType multisig = 4;
-}
-
-message MultisigRedeemScriptType {
-  repeated HDNodePathType pubkeys = 1;
-  repeated bytes signatures = 2;
-  optional uint32 m = 3;
+/**
+ * Structure representing BIP32 (hierarchical deterministic) node
+ * Used for imports of private key into the device and exporting public key out of device
+ * @used_in PublicKey
+ * @used_in LoadDevice
+ * @used_in DebugLinkState
+ * @used_in Storage
+ */
+message HDNodeType {
+	required uint32 depth = 1;
+	required uint32 fingerprint = 2;
+	required uint32 child_num = 3;
+	required bytes chain_code = 4;
+	optional bytes private_key = 5;
+	optional bytes public_key = 6;
 }
 
 message HDNodePathType {
-  required HDNodeType node = 1;
-  repeated uint32 address_n = 2;
+	required HDNodeType node = 1;	 // BIP-32 node in deserialized form
+	repeated uint32 address_n = 2; // BIP-32 path to derive the key from node
 }
 
-message Address {
-  required string address = 1;
+/**
+ * Structure representing request details
+ * @used_in TxRequest
+ */
+message TxRequestDetailsType {
+	optional uint32 request_index = 1;	    // device expects TxAck message from the computer
+	optional bytes tx_hash = 2;		          // tx_hash of requested transaction
+	optional uint32 extra_data_len = 3;	    // length of requested extra data
+	optional uint32 extra_data_offset = 4;	// offset of requested extra data
 }
 
-message GetPublicKey {
-  repeated uint32 address_n = 1;
-  optional string ecdsa_curve_name = 2;
-  optional bool show_display = 3;
-}
-
-message PublicKey {
-  required HDNodeType node = 1;
-  optional string xpub = 2;
-}
-
-message HDNodeType {
-  required uint32 depth = 1;
-  required uint32 fingerprint = 2;
-  required uint32 child_num = 3;
-  required bytes chain_code = 4;
-  optional bytes private_key = 5;
-  optional bytes public_key = 6;
-}
-
-message ButtonRequest {
-  optional ButtonRequestType code = 1;
-  optional string data = 2;
-  enum ButtonRequestType {
-    ButtonRequest_Other = 1;
-    ButtonRequest_FeeOverThreshold = 2;
-    ButtonRequest_ConfirmOutput = 3;
-    ButtonRequest_ResetDevice = 4;
-    ButtonRequest_ConfirmWord = 5;
-    ButtonRequest_WipeDevice = 6;
-    ButtonRequest_ProtectCall = 7;
-    ButtonRequest_SignTx = 8;
-    ButtonRequest_FirmwareCheck = 9;
-    ButtonRequest_Address = 10;
-    ButtonRequest_FirmwareErase = 11;
-    ButtonRequest_ConfirmTransferToAccount = 12;
-    ButtonRequest_ConfirmTransferToNodePath = 13;
-  }
-}
-
-message ButtonAck {}
-
-message PinMatrixRequest {
-  optional PinMatrixRequestType type = 1;
-  enum PinMatrixRequestType {
-    PinMatrixRequestType_Current = 1;
-    PinMatrixRequestType_NewFirst = 2;
-    PinMatrixRequestType_NewSecond = 3;
-  }
-}
-
-message PinMatrixAck {
-  required string pin = 1;
-}
-
-message Success {
-  optional string message = 1;
-}
-
-message Failure {
-  optional FailureType code = 1;
-  optional string message = 2;
-  enum FailureType {
-    Failure_UnexpectedMessage = 1;
-    Failure_ButtonExpected = 2;
-    Failure_SyntaxError = 3;
-    Failure_ActionCancelled = 4;
-    Failure_PinExpected = 5;
-    Failure_PinCancelled = 6;
-    Failure_InvalidSignature = 8;
-    Failure_Other = 9;
-    Failure_NotEnoughFunds = 10;
-    Failure_NotInitialized = 11;
-    Failure_FirmwareError = 99;
-  }
+/**
+ * Structure representing serialized data
+ * @used_in TxRequest
+ */
+message TxRequestSerializedType {
+	optional uint32 signature_index = 1;	// 'signature' field contains signed input of this index
+	optional bytes signature = 2;		      // signature of the signature_index input
+	optional bytes serialized_tx = 3;	    // part of serialized and signed transaction
 }

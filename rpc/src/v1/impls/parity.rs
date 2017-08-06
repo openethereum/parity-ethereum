@@ -40,7 +40,6 @@ use jsonrpc_core::Error;
 use jsonrpc_macros::Trailing;
 use v1::helpers::{self, errors, ipfs, SigningQueue, SignerService, NetworkSettings};
 use v1::helpers::accounts::unwrap_provider;
-use v1::helpers::keepkey::KeepkeyService;
 use v1::metadata::Metadata;
 use v1::traits::Parity;
 use v1::types::{
@@ -68,7 +67,6 @@ pub struct ParityClient<C, M, S: ?Sized, U> where
 	logger: Arc<RotatingLogger>,
 	settings: Arc<NetworkSettings>,
 	signer: Option<Arc<SignerService>>,
-	keepkey: Option<Arc<KeepkeyService>>,
 	dapps_address: Option<(String, u16)>,
 	ws_address: Option<(String, u16)>,
 	eip86_transition: u64,
@@ -155,6 +153,11 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 			.map(|(a, v)| (H160::from(a), HwAccountInfo { name: v.name, manufacturer: v.meta }))
 			.collect()
 		)
+	}
+
+	fn keepkey(&self, message_type: String, path: Option<String>, message: Option<String>) -> Result<String, Error> {
+		let store = self.account_provider()?;
+		Ok(store.keepkey_message(message_type, path, message).map_err(|e| errors::account("Could not fetch keepkey: {}", e))?)
 	}
 
 	fn default_account(&self, meta: Self::Metadata) -> BoxFuture<H160, Error> {
@@ -391,10 +394,6 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 			availability: availability,
 			capability: Capability::Full,
 		})
-	}
-
-	fn keepkey(&self, message_type: String, path: Option<String>, data: Option<Bytes>) -> Result<String, Error> {
-		self.keepkey.as_ref().map(|keepkey| keepkey.message(message_type, path, data)).ok_or_else(errors::keepkey_disabled)
 	}
 
 	fn block_header(&self, number: Trailing<BlockNumber>) -> BoxFuture<RichHeader, Error> {

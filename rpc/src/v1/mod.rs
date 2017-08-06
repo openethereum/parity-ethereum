@@ -59,8 +59,3 @@ pub mod dapps {
 	pub use super::helpers::dapps::DappsService;
 	pub use super::types::LocalDapp;
 }
-
-/// Keepkey integration utilities
-pub mod keepkey {
-	pub use super::helpers::keepkey::KeepkeyService;
-}
