@@ -69,11 +69,14 @@ class Accounts extends Component {
     }, 100);
 
     this.setVisibleAccounts();
-    this.hwstore.initKeepkey();
 
     this.setState({
       _observeCancel: observe(this.hwstore, 'wallets', this.onHardwareChange, true)
     });
+  }
+
+  componntDidMount () {
+    this.hwstore.initKeepkey();
   }
 
   componentWillReceiveProps (nextProps) {

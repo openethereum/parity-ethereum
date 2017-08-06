@@ -61,7 +61,11 @@ export default class HardwareStore {
                 devices[path] = _.assign(devices[path], {
                   address: '0x' + message,
                   name: devices[path].info.label,
-                  manufacturer: 'Keepkey'
+                  manufacturer: 'Keepkey',
+                  meta: {
+                    description: `${devices[path].major_version}.${devices[path].minor_version}.${devices[path].patch_version}`,
+                    tags: ['hardware', 'keepkey']
+                  }
                 });
                 this.keepkeys['0x' + message] = devices[path];
               }

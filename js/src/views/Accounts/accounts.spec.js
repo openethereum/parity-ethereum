@@ -27,7 +27,11 @@ let instance;
 let redux;
 
 function createApi () {
-  api = {};
+  api = {
+    parity: {
+      keepkey: () => Promise.resolve([])
+    }
+  };
 
   return api;
 }
@@ -39,7 +43,8 @@ function createHwStore (walletAddress = '0x456') {
         address: walletAddress
       }
     },
-    createAccountInfo: sinon.stub()
+    createAccountInfo: sinon.stub(),
+    initKeepkey: sinon.stub()
   };
 
   return hwstore;
