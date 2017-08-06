@@ -97,7 +97,7 @@ class Accounts extends Component {
   }
 
   render () {
-    const { pin_matrix_request } = this.hwstore;
+    const { pinMatrixRequest } = this.hwstore;
 
     return (
       <div>
@@ -123,7 +123,7 @@ class Accounts extends Component {
           { this.renderAccounts() }
         </Page>
 
-        { (pin_matrix_request.length) ? <Keepkey device={pin_matrix_request[0]} store={this.hwstore} /> : null }
+        { (pinMatrixRequest.length) ? <Keepkey device={ pinMatrixRequest[0] } store={ this.hwstore } /> : null }
       </div>
     );
   }

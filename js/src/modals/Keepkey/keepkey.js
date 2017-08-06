@@ -15,22 +15,22 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import { FormattedMessage } from 'react-intl';
+// import { FormattedMessage } from 'react-intl';
 
 import styles from './keepkey.css';
 
 export default class Keepkey extends Component {
   static propTypes = {
     store: PropTypes.object.isRequired,
-    device: PropTypes.object.isRequired,
+    device: PropTypes.object.isRequired
   }
 
-  constructor() {
+  constructor () {
     super();
 
     this.state = {
       passcode: '',
-      failureMessage: '',
+      failureMessage: ''
     };
 
     this.pinMatrix = [7, 8, 9, 4, 5, 6, 1, 2, 3];
@@ -39,6 +39,7 @@ export default class Keepkey extends Component {
   render () {
     const { failureMessage, passcode } = this.state;
     const { device } = this.props;
+
     return (
       <div className={ styles.keepkey }>
 
@@ -57,7 +58,7 @@ export default class Keepkey extends Component {
               {passcode.replace(/./g, '*')}
               {
                 (passcode.length)
-                  ? <div id={ styles.clearThik } onClick={ this.removeDigit }></div>
+                  ? <div id={ styles.clearThik } onClick={ this.removeDigit } />
                   : null
               }
             </div>

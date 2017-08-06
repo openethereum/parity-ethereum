@@ -371,7 +371,7 @@ export default {
     returns: {
       type: String,
       desc: 'keepkey response message as a string or JSON string.',
-      example: 'pin_matrix_request'
+      example: 'pinMatrixRequest'
     }
   },
 

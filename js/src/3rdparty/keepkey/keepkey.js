@@ -15,28 +15,28 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 export default class Keepkey {
-  constructor(api) {
+  constructor (api) {
     this._api = api;
   }
 
-  cancel(device_path) {
+  cancel (devicePath) {
     return this._api.parity
-      .keepkey("cancel", device_path)
-      .then((message) => { return message })
-      .catch((err) => { return err });
+      .keepkey('cancel', devicePath)
+      .then((message) => { return message; })
+      .catch((err) => { return err; });
   }
 
-  getDevices() {
+  getDevices () {
     const self = this;
     let devices = {};
+
     // get standard information from each device
     return self._api.parity
-      .keepkey("init")
+      .keepkey('init')
       .then((message) => {
         message = JSON.parse(message);
-        console.log("MESSAGE", message);
         message.forEach((device) => {
-          devices[device.device_path] = {
+          devices[device.devicePath] = {
             info: device.device_info
           };
         });
@@ -47,12 +47,11 @@ export default class Keepkey {
       });
   }
 
-  pinMatrixAck(device_path, pin) {
+  pinMatrixAck (devicePath, pin) {
     return this._api.parity
-      .keepkey("pin_matrix_ack", device_path, pin)
+      .keepkey('pin_matrix_ack', devicePath, pin)
       .then((message) => {
         // Address is returned
-        console.log("MESSAGE3", message);
         return message;
       })
       .catch((err) => {
@@ -60,9 +59,9 @@ export default class Keepkey {
       });
   }
 
-  getAddress(device_path) {
+  getAddress (devicePath) {
     return this._api.parity
-      .keepkey("get_address", device_path)
+      .keepkey('get_address', devicePath)
       .then((message) => {
         return message;
       })
@@ -71,14 +70,14 @@ export default class Keepkey {
       });
   }
 
-  signTransaction(device, transaction) {
+  signTransaction (device, transaction) {
     return this._api.parity
-      .keepkey("sign_transaction", this.devices[device])
+      .keepkey('sign_transaction', this.devices[device])
       .then((message) => {
 
       })
       .catch((err) => {
-
+        return err;
       });
   }
 }
