@@ -17,7 +17,7 @@
 //! Nonoperative tracer.
 
 use util::{Bytes, Address, U256};
-use evm::action_params::ActionParams;
+use vm::ActionParams;
 use trace::{Tracer, VMTracer, FlatTrace, TraceError};
 use trace::trace::{Call, Create, VMTrace};
 

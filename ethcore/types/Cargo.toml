@@ -8,6 +8,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 rlp = { path = "../../util/rlp" }
 ethcore-util = { path = "../../util" }
 ethjson = { path = "../../json" }
+bloomable = { path = "../../util/bloomable" }
 
 [dev-dependencies]
 rustc-hex= "1.0"

@@ -21,7 +21,7 @@ use ethcore::trace::trace::{Action, Res, Call};
 use ethcore::trace::LocalizedTrace;
 use ethcore::client::TestBlockChainClient;
 
-use evm::CallType;
+use vm::CallType;
 
 use jsonrpc_core::IoHandler;
 use v1::tests::helpers::{TestMinerService};
@@ -166,6 +166,16 @@ fn rpc_trace_call() {
 
 	let request = r#"{"jsonrpc":"2.0","method":"trace_call","params":[{}, ["stateDiff", "vmTrace", "trace"]],"id":1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":{"output":"0x010203","stateDiff":null,"trace":[],"vmTrace":null},"id":1}"#;
+
+	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
+}
+
+#[test]
+fn rpc_trace_multi_call() {
+	let tester = io();
+
+	let request = r#"{"jsonrpc":"2.0","method":"trace_callMany","params":[[[{}, ["stateDiff", "vmTrace", "trace"]]]],"id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":[{"output":"0x010203","stateDiff":null,"trace":[],"vmTrace":null}],"id":1}"#;
 
 	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 }

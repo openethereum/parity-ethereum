@@ -285,6 +285,13 @@ impl<L: AsLightClient + Send + Sync> Handler for LightSync<L> {
 			best.clone()
 		};
 
+		{
+			let mut pending_reqs = self.pending_reqs.lock();
+			for unfulfilled in unfulfilled {
+				pending_reqs.remove(&unfulfilled);
+			}
+		}
+
 		if new_best.is_none() {
 			debug!(target: "sync", "No peers remain. Reverting to idle");
 			*self.state.lock() = SyncState::Idle;
@@ -503,10 +510,12 @@ impl<L: AsLightClient> LightSync<L> {
 					None
 				}
 			}).collect();
+
 			let mut rng = self.rng.lock();
+			let mut requested_from = HashSet::new();
 
 			// naive request dispatcher: just give to any peer which says it will
-			// give us responses.
+			// give us responses. but only one request per peer per state transition.
 			let dispatcher = move |req: HeadersRequest| {
 				rng.shuffle(&mut peer_ids);
 
@@ -521,9 +530,12 @@ impl<L: AsLightClient> LightSync<L> {
 					builder.build()
 				};
 				for peer in &peer_ids {
+					if requested_from.contains(peer) { continue }
 					match ctx.request_from(*peer, request.clone()) {
 						Ok(id) => {
 							self.pending_reqs.lock().insert(id.clone());
+							requested_from.insert(peer.clone());
+
 							return Some(id)
 						}
 						Err(NetError::NoCredits) => {}

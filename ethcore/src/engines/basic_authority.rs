@@ -16,7 +16,9 @@
 
 //! A blockchain engine that supports a basic, non-BFT proof-of-authority.
 
-use std::sync::Weak;
+use std::sync::{Weak, Arc};
+use std::collections::BTreeMap;
+use std::cmp;
 use util::*;
 use ethkey::{recover, public_to_address, Signature};
 use account_provider::AccountProvider;
@@ -35,8 +37,6 @@ use super::validator_set::{ValidatorSet, SimpleList, new_validator_set};
 /// `BasicAuthority` params.
 #[derive(Debug, PartialEq)]
 pub struct BasicAuthorityParams {
-	/// Gas limit divisor.
-	pub gas_limit_bound_divisor: U256,
 	/// Valid signatories.
 	pub validators: ethjson::spec::ValidatorSet,
 }
@@ -44,7 +44,6 @@ pub struct BasicAuthorityParams {
 impl From<ethjson::spec::BasicAuthorityParams> for BasicAuthorityParams {
 	fn from(p: ethjson::spec::BasicAuthorityParams) -> Self {
 		BasicAuthorityParams {
-			gas_limit_bound_divisor: p.gas_limit_bound_divisor.into(),
 			validators: p.validators,
 		}
 	}
@@ -80,7 +79,6 @@ fn verify_external(header: &Header, validators: &ValidatorSet) -> Result<(), Err
 /// Engine using `BasicAuthority`, trivial proof-of-authority consensus.
 pub struct BasicAuthority {
 	params: CommonParams,
-	gas_limit_bound_divisor: U256,
 	builtins: BTreeMap<Address, Builtin>,
 	signer: RwLock<EngineSigner>,
 	validators: Box<ValidatorSet>,
@@ -91,7 +89,6 @@ impl BasicAuthority {
 	pub fn new(params: CommonParams, our_params: BasicAuthorityParams, builtins: BTreeMap<Address, Builtin>) -> Self {
 		BasicAuthority {
 			params: params,
-			gas_limit_bound_divisor: our_params.gas_limit_bound_divisor,
 			builtins: builtins,
 			validators: new_validator_set(our_params.validators),
 			signer: Default::default(),
@@ -119,11 +116,11 @@ impl Engine for BasicAuthority {
 		header.set_difficulty(parent.difficulty().clone());
 		header.set_gas_limit({
 			let gas_limit = parent.gas_limit().clone();
-			let bound_divisor = self.gas_limit_bound_divisor;
+			let bound_divisor = self.params().gas_limit_bound_divisor;
 			if gas_limit < gas_floor_target {
-				min(gas_floor_target, gas_limit + gas_limit / bound_divisor - 1.into())
+				cmp::min(gas_floor_target, gas_limit + gas_limit / bound_divisor - 1.into())
 			} else {
-				max(gas_floor_target, gas_limit - gas_limit / bound_divisor + 1.into())
+				cmp::max(gas_floor_target, gas_limit - gas_limit / bound_divisor + 1.into())
 			}
 		});
 	}
@@ -147,7 +144,7 @@ impl Engine for BasicAuthority {
 		Seal::None
 	}
 
-	fn verify_block_basic(&self, header: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
+	fn verify_block_basic(&self, header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
 		// check the seal fields.
 		// TODO: pull this out into common code.
 		if header.seal().len() != self.seal_fields() {
@@ -158,11 +155,11 @@ impl Engine for BasicAuthority {
 		Ok(())
 	}
 
-	fn verify_block_unordered(&self, _header: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
+	fn verify_block_unordered(&self, _header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
 		Ok(())
 	}
 
-	fn verify_block_family(&self, header: &Header, parent: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
+	fn verify_block_family(&self, header: &Header, parent: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
 		// Do not calculate difficulty for genesis blocks.
 		if header.number() == 0 {
 			return Err(From::from(BlockError::RidiculousNumber(OutOfBounds { min: Some(1), max: None, found: header.number() })));
@@ -172,7 +169,7 @@ impl Engine for BasicAuthority {
 		if header.difficulty() != parent.difficulty() {
 			return Err(From::from(BlockError::InvalidDifficulty(Mismatch { expected: *parent.difficulty(), found: *header.difficulty() })))
 		}
-		let gas_limit_divisor = self.gas_limit_bound_divisor;
+		let gas_limit_divisor = self.params().gas_limit_bound_divisor;
 		let min_gas = parent.gas_limit().clone() - parent.gas_limit().clone() / gas_limit_divisor;
 		let max_gas = parent.gas_limit().clone() + parent.gas_limit().clone() / gas_limit_divisor;
 		if header.gas_limit() <= &min_gas || header.gas_limit() >= &max_gas {
@@ -254,6 +251,7 @@ impl Engine for BasicAuthority {
 
 #[cfg(test)]
 mod tests {
+	use std::sync::Arc;
 	use util::*;
 	use block::*;
 	use error::{BlockError, Error};

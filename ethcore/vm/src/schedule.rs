@@ -250,6 +250,12 @@ impl Schedule {
 	}
 }
 
+impl Default for Schedule {
+	fn default() -> Self {
+		Schedule::new_frontier()
+	}
+}
+
 #[test]
 #[cfg(test)]
 fn schedule_evm_assumptions() {
@@ -260,3 +266,4 @@ fn schedule_evm_assumptions() {
 	assert_eq!(s1.quad_coeff_div, 512);
 	assert_eq!(s2.quad_coeff_div, 512);
 }
+

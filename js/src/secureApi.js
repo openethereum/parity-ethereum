@@ -101,13 +101,7 @@ export default class SecureApi extends Api {
       return 'dapps.parity';
     }
 
-    const { host } = this._dappsAddress;
-
-    if (!host || host === '0.0.0.0') {
-      return window.location.hostname;
-    }
-
-    return host;
+    return this._dappsAddress.host;
   }
 
   get isConnecting () {
@@ -171,6 +165,25 @@ export default class SecureApi extends Api {
         this.emit('disconnected');
         console.error('unhandled error in secureApi', error);
       });
+  }
+
+  /**
+   * Resolves a wildcard address to `window.location.hostname`;
+   */
+  _resolveHost (url) {
+    const parts = url ? url.split(':') : [];
+    const port = parts[1];
+    let host = parts[0];
+
+    if (!host) {
+      return host;
+    }
+
+    if (host === '0.0.0.0') {
+      host = window.location.hostname;
+    }
+
+    return port ? `${host}:${port}` : host;
   }
 
   /**
@@ -316,8 +329,8 @@ export default class SecureApi extends Api {
         this._uiApi.parity.wsUrl()
       ])
       .then(([dappsUrl, wsUrl]) => {
-        this._dappsUrl = dappsUrl;
-        this._wsUrl = wsUrl;
+        this._dappsUrl = this._resolveHost(dappsUrl);
+        this._wsUrl = this._resolveHost(wsUrl);
       });
   }
 

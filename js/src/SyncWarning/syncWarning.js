@@ -118,7 +118,7 @@ class SyncWarning extends Component {
 
 function mapStateToProps (state) {
   const { health } = state.nodeStatus;
-  const isNotAvailableYet = health.overall.isReady;
+  const isNotAvailableYet = health.overall.isNotReady;
   const isOk = isNotAvailableYet || health.overall.status === 'ok';
 
   return {

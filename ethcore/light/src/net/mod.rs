@@ -806,6 +806,9 @@ impl LightProtocol {
 		trace!(target: "pip", "Connected peer with chain head {:?}", (status.head_hash, status.head_num));
 
 		if (status.network_id, status.genesis_hash) != (self.network_id, self.genesis_hash) {
+			trace!(target: "pip", "peer {} wrong network: network_id is {} vs our {}, gh is {} vs our {}",
+				peer, status.network_id, self.network_id, status.genesis_hash, self.genesis_hash);
+
 			return Err(Error::WrongNetwork);
 		}
 

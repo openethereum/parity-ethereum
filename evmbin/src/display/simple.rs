@@ -20,7 +20,7 @@ use ethcore::trace;
 use util::ToPretty;
 
 use display;
-use vm;
+use info as vm;
 
 /// Simple formatting informant.
 #[derive(Default)]

@@ -31,6 +31,7 @@ ethcore-ipc-nano = { path = "../ipc/nano" }
 ethcore-devtools = { path = "../devtools" }
 ethkey = { path = "../ethkey" }
 parking_lot = "0.4"
+ipnetwork = "0.12.6"
 
 [features]
 default = []
