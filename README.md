@@ -4,7 +4,7 @@
 [![Snap Status](https://build.snapcraft.io/badge/paritytech/parity.svg)](https://build.snapcraft.io/user/paritytech/parity)
 [![GPLv3](https://img.shields.io/badge/license-GPL%20v3-green.svg)](https://www.gnu.org/licenses/gpl-3.0.en.html)
 
-[Download latest release here.](https://github.com/paritytech/parity/releases)
+- [Download the latest release here.](https://github.com/paritytech/parity/releases)
 
 ### Join the chat!
 
@@ -16,32 +16,26 @@ Get in touch with us on Gitter:
 
 Be sure to check out [our wiki](https://github.com/paritytech/parity/wiki) and the [internal documentation](https://paritytech.github.io/parity/ethcore/index.html) for more information.
 
-
 ----
-
 
 ## About Parity
 
-Parity's goal is to be the fastest, lightest, and most secure Ethereum client. We are developing Parity using the sophisticated and
-cutting-edge Rust programming language. Parity is licensed under the GPLv3, and can be used for all your Ethereum needs.
+Parity's goal is to be the fastest, lightest, and most secure Ethereum client. We are developing Parity using the sophisticated and cutting-edge Rust programming language. Parity is licensed under the GPLv3, and can be used for all your Ethereum needs.
 
-Parity comes with a built-in wallet. To access [Parity Wallet](http://web3.site/) simply go to http://web3.site/ (if you don't have access to the internet, but still want to use the service, you can also use http://127.0.0.1:8180/). It
-includes various functionality allowing you to:
+Parity comes with a built-in wallet. To access [Parity Wallet](http://web3.site/) simply go to http://web3.site/ (if you don't have access to the internet, but still want to use the service, you can also use http://127.0.0.1:8180/). It includes various functionality allowing you to:
+
 - create and manage your Ethereum accounts;
 - manage your Ether and any Ethereum tokens;
 - create and register your own tokens;
 - and much more.
 
-By default, Parity will also run a JSONRPC server on `127.0.0.1:8545`. This is fully configurable and supports a number
-of RPC APIs.
+By default, Parity will also run a JSONRPC server on `127.0.0.1:8545`. This is fully configurable and supports a number of RPC APIs.
 
-If you run into an issue while using parity, feel free to file one in this repository
-or hop on our [gitter chat room](https://gitter.im/paritytech/parity) to ask a question. We are glad to help!
+If you run into an issue while using parity, feel free to file one in this repository or hop on our [gitter chat room](https://gitter.im/paritytech/parity) to ask a question. We are glad to help!
 
 **For security-critical issues**, please refer to the security policy outlined in `SECURITY.MD`.
 
-Parity's current release is 1.6. You can download it at https://github.com/paritytech/parity/releases or follow the instructions
-below to build from source.
+Parity's current release is 1.7. You can download it at https://github.com/paritytech/parity/releases or follow the instructions below to build from source.
 
 ----
 
