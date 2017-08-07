@@ -36,9 +36,9 @@ impl From<&'static str> for Error {
 	}
 }
 
-impl Into<::evm::Error> for Error {
-	fn into(self) -> ::evm::Error {
-		::evm::Error::BuiltIn(self.0)
+impl Into<::vm::Error> for Error {
+	fn into(self) -> ::vm::Error {
+		::vm::Error::BuiltIn(self.0)
 	}
 }
 
@@ -352,7 +352,7 @@ fn read_point(reader: &mut io::Chain<&[u8], io::Repeat>) -> Result<::bn::G1, Err
 	let px = Fq::from_slice(&buf[0..32]).map_err(|_| Error::from("Invalid point x coordinate"))?;
 
 	reader.read_exact(&mut buf[..]).expect("reading from zero-extended memory cannot fail; qed");
-	let py = Fq::from_slice(&buf[0..32]).map_err(|_| Error::from("Invalid point x coordinate"))?;
+	let py = Fq::from_slice(&buf[0..32]).map_err(|_| Error::from("Invalid point y coordinate"))?;
 
 	Ok(
 		if px == Fq::zero() && py == Fq::zero() {

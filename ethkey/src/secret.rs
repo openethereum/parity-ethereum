@@ -17,6 +17,7 @@
 use std::fmt;
 use std::ops::Deref;
 use std::str::FromStr;
+use rustc_hex::ToHex;
 use secp256k1::key;
 use bigint::hash::H256;
 use {Error, SECP256K1};
@@ -24,6 +25,12 @@ use {Error, SECP256K1};
 #[derive(Clone, PartialEq, Eq)]
 pub struct Secret {
 	inner: H256,
+}
+
+impl ToHex for Secret {
+	fn to_hex(&self) -> String {
+		self.inner.to_hex()
+	}
 }
 
 impl fmt::Debug for Secret {

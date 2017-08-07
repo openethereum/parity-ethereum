@@ -20,12 +20,14 @@ extern crate serde;
 #[macro_use]
 extern crate serde_derive;
 extern crate ethkey;
+extern crate panic_hook;
 
 use std::{env, fmt, process};
 use std::num::ParseIntError;
 use docopt::Docopt;
-use rustc_hex::{FromHex, FromHexError};
+use rustc_hex::{ToHex, FromHex, FromHexError};
 use ethkey::{KeyPair, Random, Brain, Prefix, Error as EthkeyError, Generator, sign, verify_public, verify_address};
+use std::io;
 
 pub const USAGE: &'static str = r#"
 Ethereum keys generator.
@@ -87,6 +89,7 @@ enum Error {
 	FromHex(FromHexError),
 	ParseInt(ParseIntError),
 	Docopt(docopt::Error),
+	Io(io::Error),
 }
 
 impl From<EthkeyError> for Error {
@@ -113,6 +116,12 @@ impl From<docopt::Error> for Error {
 	}
 }
 
+impl From<io::Error> for Error {
+	fn from(err: io::Error) -> Self {
+		Error::Io(err)
+	}
+}
+
 impl fmt::Display for Error {
 	fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
 		match *self {
@@ -120,6 +129,7 @@ impl fmt::Display for Error {
 			Error::FromHex(ref e) => write!(f, "{}", e),
 			Error::ParseInt(ref e) => write!(f, "{}", e),
 			Error::Docopt(ref e) => write!(f, "{}", e),
+			Error::Io(ref e) => write!(f, "{}", e),
 		}
 	}
 }
@@ -146,6 +156,8 @@ impl DisplayMode {
 }
 
 fn main() {
+	panic_hook::set();
+
 	match execute(env::args()) {
 		Ok(ok) => println!("{}", ok),
 		Err(err) => {
@@ -158,7 +170,7 @@ fn main() {
 fn display(keypair: KeyPair, mode: DisplayMode) -> String {
 	match mode {
 		DisplayMode::KeyPair => format!("{}", keypair),
-		DisplayMode::Secret => format!("{:?}", keypair.secret()),
+		DisplayMode::Secret => format!("{}", keypair.secret().to_hex()),
 		DisplayMode::Public => format!("{:?}", keypair.public()),
 		DisplayMode::Address => format!("{:?}", keypair.address()),
 	}
@@ -176,17 +188,17 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 	} else if args.cmd_generate {
 		let display_mode = DisplayMode::new(&args);
 		let keypair = if args.cmd_random {
-			Random.generate()
+			Random.generate()?
 		} else if args.cmd_prefix {
 			let prefix = args.arg_prefix.from_hex()?;
 			let iterations = usize::from_str_radix(&args.arg_iterations, 10)?;
-			Prefix::new(prefix, iterations).generate()
+			Prefix::new(prefix, iterations).generate()?
 		} else if args.cmd_brain {
-			Brain::new(args.arg_seed).generate()
+			Brain::new(args.arg_seed).generate().expect("Brain wallet generator is infallible; qed")
 		} else {
 			unreachable!();
 		};
-		Ok(display(keypair?, display_mode))
+		Ok(display(keypair, display_mode))
 	} else if args.cmd_sign {
 		let secret = args.arg_secret.parse().map_err(|_| EthkeyError::InvalidSecret)?;
 		let message = args.arg_message.parse().map_err(|_| EthkeyError::InvalidMessage)?;
@@ -236,9 +248,9 @@ address: 26d1ec50b4e62c1d1a40d16e7cacc6a6580757d5".to_owned();
 			.collect::<Vec<String>>();
 
 		let expected =
-"secret:  17d08f5fe8c77af811caa0c9a187e668ce3b74a99acc3f6d976f075fa8e0be55
-public:  689268c0ff57a20cd299fa60d3fb374862aff565b20b5f1767906a99e6e09f3ff04ca2b2a5cd22f62941db103c0356df1a8ed20ce322cab2483db67685afd124
-address: 26d1ec50b4e62c1d1a40d16e7cacc6a6580757d5".to_owned();
+"secret:  aa22b54c0cb43ee30a014afe5ef3664b1cde299feabca46cd3167a85a57c39f2
+public:  c4c5398da6843632c123f543d714d2d2277716c11ff612b2a2f23c6bda4d6f0327c31cd58c55a9572c3cc141dade0c32747a13b7ef34c241b26c84adbb28fcf4
+address: 006e27b6a72e1f34c626762f3c4761547aff1421".to_owned();
 		assert_eq!(execute(command).unwrap(), expected);
 	}
 
@@ -249,7 +261,7 @@ address: 26d1ec50b4e62c1d1a40d16e7cacc6a6580757d5".to_owned();
 			.map(Into::into)
 			.collect::<Vec<String>>();
 
-		let expected = "17d08f5fe8c77af811caa0c9a187e668ce3b74a99acc3f6d976f075fa8e0be55".to_owned();
+		let expected = "aa22b54c0cb43ee30a014afe5ef3664b1cde299feabca46cd3167a85a57c39f2".to_owned();
 		assert_eq!(execute(command).unwrap(), expected);
 	}
 
@@ -260,7 +272,7 @@ address: 26d1ec50b4e62c1d1a40d16e7cacc6a6580757d5".to_owned();
 			.map(Into::into)
 			.collect::<Vec<String>>();
 
-		let expected = "689268c0ff57a20cd299fa60d3fb374862aff565b20b5f1767906a99e6e09f3ff04ca2b2a5cd22f62941db103c0356df1a8ed20ce322cab2483db67685afd124".to_owned();
+		let expected = "c4c5398da6843632c123f543d714d2d2277716c11ff612b2a2f23c6bda4d6f0327c31cd58c55a9572c3cc141dade0c32747a13b7ef34c241b26c84adbb28fcf4".to_owned();
 		assert_eq!(execute(command).unwrap(), expected);
 	}
 
@@ -271,7 +283,7 @@ address: 26d1ec50b4e62c1d1a40d16e7cacc6a6580757d5".to_owned();
 			.map(Into::into)
 			.collect::<Vec<String>>();
 
-		let expected = "26d1ec50b4e62c1d1a40d16e7cacc6a6580757d5".to_owned();
+		let expected = "006e27b6a72e1f34c626762f3c4761547aff1421".to_owned();
 		assert_eq!(execute(command).unwrap(), expected);
 	}
 

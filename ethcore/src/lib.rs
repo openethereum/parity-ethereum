@@ -98,14 +98,19 @@ extern crate lru_cache;
 extern crate native_contracts;
 extern crate num_cpus;
 extern crate num;
+extern crate price_info;
 extern crate rand;
 extern crate rlp;
 extern crate rustc_hex;
-extern crate rustc_serialize;
 extern crate semver;
 extern crate stats;
 extern crate time;
 extern crate transient_hashmap;
+extern crate using_queue;
+extern crate table;
+extern crate bloomable;
+extern crate vm;
+extern crate wasm;
 
 #[macro_use]
 extern crate log;

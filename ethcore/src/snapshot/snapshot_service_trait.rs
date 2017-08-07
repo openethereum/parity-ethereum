@@ -27,9 +27,9 @@ pub trait SnapshotService : Sync + Send {
 	/// Query the most recent manifest data.
 	fn manifest(&self) -> Option<ManifestData>;
 
-	/// Get the minimum supported snapshot version number.
+	/// Get the supported range of snapshot version numbers.
 	/// `None` indicates warp sync isn't supported by the consensus engine.
-	fn min_supported_version(&self) -> Option<u64>;
+	fn supported_versions(&self) -> Option<(u64, u64)>;
 
 	/// Get raw chunk for a given hash.
 	fn chunk(&self, hash: H256) -> Option<Bytes>;

@@ -20,7 +20,7 @@ use std::ops::Range;
 use bloomchain::{Filter as BloomFilter, Bloom, Number};
 use util::Address;
 use util::sha3::Hashable;
-use util::bloom::Bloomable;
+use bloomable::Bloomable;
 use basic_types::LogBloom;
 use trace::flat::FlatTrace;
 use super::trace::{Action, Res};
@@ -137,7 +137,7 @@ impl Filter {
 mod tests {
 	use util::Address;
 	use util::sha3::Hashable;
-	use util::bloom::Bloomable;
+	use bloomable::Bloomable;
 	use trace::trace::{Action, Call, Res, Create, CreateResult, Suicide};
 	use trace::flat::FlatTrace;
 	use trace::{Filter, AddressesFilter, TraceError};

@@ -14,21 +14,37 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { Data, Quantity } from '../types';
+import { Data, Quantity, Float } from '../types';
 
 export default {
-  version: {
-    nodoc: 'Not present in Rust code',
+  info: {
     desc: 'Returns the current whisper protocol version.',
     params: [],
     returns: {
-      type: String,
-      desc: 'The current whisper protocol version'
+      type: Object,
+      desc: 'The current whisper protocol version',
+      details: {
+        minPow: {
+          type: Float,
+          desc: 'required PoW threshold for a message to be accepted into the local pool, or null if there is empty space in the pool.'
+        },
+        messages: {
+          type: Quantity,
+          desc: 'Number of messages in the pool.'
+        },
+        memory: {
+          type: Quantity,
+          desc: 'Amount of memory used by messages in the pool.'
+        },
+        targetMemory: {
+          type: Quantity,
+          desc: 'Target amount of memory for the pool.'
+        }
+      }
     }
   },
 
   post: {
-    nodoc: 'Not present in Rust code',
     desc: 'Sends a whisper message.',
     params: [
       {
@@ -63,79 +79,122 @@ export default {
     }
   },
 
-  newIdentity: {
-    nodoc: 'Not present in Rust code',
-    desc: 'Creates new whisper identity in the client.',
+  newKeyPair: {
+    desc: 'Generate a new key pair (identity) for asymmetric encryption.',
     params: [],
     returns: {
       type: Data,
-      desc: '60 Bytes - the address of the new identiy'
+      desc: '32 Bytes - the address of the new identiy'
     }
   },
 
-  hasIdentity: {
-    nodoc: 'Not present in Rust code',
-    desc: 'Checks if the client hold the private keys for a given identity.',
+  addPrivateKey: {
+    desc: 'Import a private key to use for asymmetric decryption.',
     params: [
       {
         type: Data,
-        desc: '60 Bytes - The identity address to check'
+        desc: '32 Bytes - The private key to import'
       }
     ],
     returns: {
-      type: Boolean,
-      desc: '`true` if the client holds the privatekey for that identity, otherwise `false`'
+      type: Data,
+      desc: '`32 Bytes`  A unique identity to refer to this keypair by.'
     }
   },
 
-  newGroup: {
-    nodoc: 'Not present in Rust code',
-    desc: '(?)',
+  newSymKey: {
+    desc: 'Generate a key pair(identity) for symmetric encryption.',
     params: [],
     returns: {
-      type: Data, desc: '60 Bytes - the address of the new group. (?)'
+      type: Data,
+      desc: '32 Bytes - the address of the new identiy'
     }
   },
 
-  addToGroup: {
-    nodoc: 'Not present in Rust code',
-    desc: '(?)',
+  getPublicKey: {
+    desc: 'Get the public key associated with an asymmetric identity.',
     params: [
       {
         type: Data,
-        desc: '60 Bytes - The identity address to add to a group (?)'
+        desc: '32 Bytes - The identity to fetch the public key for.'
       }
     ],
     returns: {
-      type: Boolean,
-      desc: '`true` if the identity was successfully added to the group, otherwise `false` (?)'
+      type: Data,
+      desc: '`64 Bytes` - The public key of the asymmetric identity.'
     }
   },
 
-  newFilter: {
-    nodoc: 'Not present in Rust code',
-    desc: 'Creates filter to notify, when client receives whisper message matching the filter options.',
+  getPrivateKey: {
+    desc: 'Get the private key associated with an asymmetric identity.',
+    params: [
+      {
+        type: Data,
+        desc: '32 Bytes - The identity to fetch the private key for.'
+      }
+    ],
+    returns: {
+      type: Data,
+      desc: '`32 Bytes` - The private key of the asymmetric identity.'
+    }
+  },
+
+  getSymKey: {
+    desc: 'Get the key associated with a symmetric identity.',
+    params: [
+      {
+        type: Data,
+        desc: '`32 Bytes` - The identity to fetch the key for.'
+      }
+    ],
+    returns: {
+      type: Data,
+      desc: '`64 Bytes` - The key of the asymmetric identity.'
+    }
+  },
+
+  deleteKey: {
+    desc: 'Delete the key or key pair denoted by the given identity.',
+    params: [
+      {
+        type: Data,
+        desc: '`32 Bytes` - The identity to remove.'
+      }
+    ],
+    returns: {
+      type: Data,
+      desc: '`true` on successful removal, `false` on unkown identity'
+    }
+  },
+
+  newMessageFilter: {
+    desc: 'Create a new polled filter for messages.',
     params: [
       {
         type: Object, desc: 'The filter options:',
         details: {
-          to: {
-            type: Data, desc: '60 Bytes - Identity of the receiver. *When present it will try to decrypt any incoming message if the client holds the private key to this identity.*',
+          decryptWith: {
+            type: Data,
+            desc: '`32 bytes` - Identity of key used for description. null if listening for broadcasts.'
+          },
+          from: {
+            type: Data, desc: '`32 Bytes` - if present, only accept messages signed by this key.',
             optional: true
           },
           topics: {
-            type: Array, desc: 'Array of `Data` topics which the incoming message\'s topics should match.  You can use the following combinations'
+            type: Array,
+            desc: 'Array of `Data`. Only accept messages matching these topics. Should be non-empty.'
           }
         }
       }
     ],
     returns: {
-      type: Quantity,
-      desc: 'The newly created filter'
+      type: Data,
+      desc: '`32 bytes` - Unique identity for this filter.'
     }
   },
 
-  uninstallFilter: {
+  getFilterMesssages: {
     nodoc: 'Not present in Rust code',
     desc: 'Uninstalls a filter with given id. Should always be called when watch is no longer needed.\nAdditonally Filters timeout when they aren\'t requested with [shh_getFilterChanges](#shh_getfilterchanges) for a period of time.',
     params: [
@@ -150,30 +209,83 @@ export default {
     }
   },
 
-  getFilterChanges: {
-    nodoc: 'Not present in Rust code',
+  getFilterMessages: {
     desc: 'Polling method for whisper filters. Returns new messages since the last call of this method.\n**Note** calling the [shh_getMessages](#shh_getmessages) method, will reset the buffer for this method, so that you won\'t receive duplicate messages.',
     params: [
       {
-        type: Quantity,
-        desc: 'The filter id'
+        type: Data,
+        desc: '`32 bytes` - Unique identity to fetch changes for.'
       }
     ],
     returns: {
       type: Array,
-      desc: 'Array of messages received since last poll'
+      desc: 'Array of `messages` received since last poll',
+      details: {
+        from: {
+          type: Data,
+          desc: '`64 bytes` - Public key that signed this message or null'
+        },
+        recipient: {
+          type: Data,
+          desc: '`32 bytes` - local identity which decrypted this message, or null if broadcast.'
+        },
+        ttl: {
+          type: Quantity,
+          desc: 'time to live of the message in seconds.'
+        },
+        topics: {
+          type: Array,
+          desc: 'Array of `Data` - Topics which matched the filter'
+        },
+        timestamp: {
+          type: Quantity,
+          desc: 'Unix timestamp of the message'
+        },
+        payload: {
+          type: Data,
+          desc: 'The message body'
+        },
+        padding: {
+          type: Data,
+          desc: 'Optional padding which was decoded.'
+        }
+      }
     }
   },
 
-  getMessages: {
-    nodoc: 'Not present in Rust code',
-    desc: 'Get all messages matching a filter. Unlike `shh_getFilterChanges` this returns all messages.',
+  deleteMessageFilter: {
+    desc: 'Delete a message filter by identifier',
     params: [
       {
-        type: Quantity,
-        desc: 'The filter id'
+        type: Data,
+        desc: '`32 bytes` - The identity of the filter to delete.'
       }
     ],
-    returns: 'See [shh_getFilterChanges](#shh_getfilterchanges)'
+    returns: {
+      type: Boolean,
+      desc: '`true` on deletion, `false` on unrecognized ID.'
+    }
+  },
+  subscribe: {
+    desc: 'Open a subscription to a filter.',
+    params: [{
+      type: Data,
+      desc: 'See [shh_newMessageFilter](#shh_newmessagefilter)'
+    }],
+    returns: {
+      type: Quantity,
+      desc: 'Unique subscription identifier'
+    }
+  },
+  unsubscribe: {
+    desc: 'Close a subscribed filter',
+    params: [{
+      type: Quantity,
+      desc: 'Unique subscription identifier'
+    }],
+    returns: {
+      type: Boolean,
+      desc: '`true` on success, `false` on unkown subscription ID.'
+    }
   }
 };

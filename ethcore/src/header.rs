@@ -16,12 +16,12 @@
 
 //! Block header.
 
+use std::cmp;
+use std::cell::RefCell;
 use util::*;
 use basic_types::{LogBloom, ZERO_LOGBLOOM};
 use time::get_time;
 use rlp::*;
-
-use std::cell::RefCell;
 
 pub use basic_types::Seal;
 
@@ -175,7 +175,7 @@ impl Header {
 	/// Set the timestamp field of the header.
 	pub fn set_timestamp(&mut self, a: u64) { self.timestamp = a; self.note_dirty(); }
 	/// Set the timestamp field of the header to the current time.
-	pub fn set_timestamp_now(&mut self, but_later_than: u64) { self.timestamp = max(get_time().sec as u64, but_later_than + 1); self.note_dirty(); }
+	pub fn set_timestamp_now(&mut self, but_later_than: u64) { self.timestamp = cmp::max(get_time().sec as u64, but_later_than + 1); self.note_dirty(); }
 	/// Set the number field of the header.
 	pub fn set_number(&mut self, a: BlockNumber) { self.number = a; self.note_dirty(); }
 	/// Set the author field of the header.
@@ -275,7 +275,7 @@ impl Decodable for Header {
 			number: r.val_at(8)?,
 			gas_limit: r.val_at(9)?,
 			gas_used: r.val_at(10)?,
-			timestamp: min(r.val_at::<U256>(11)?, u64::max_value().into()).as_u64(),
+			timestamp: cmp::min(r.val_at::<U256>(11)?, u64::max_value().into()).as_u64(),
 			extra_data: r.val_at(12)?,
 			seal: vec![],
 			hash: RefCell::new(Some(r.as_raw().sha3())),

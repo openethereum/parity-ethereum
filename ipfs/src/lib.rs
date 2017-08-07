@@ -233,7 +233,7 @@ mod tests {
 
 		let _ = write_chunk(&mut transport, &mut progress, b"foobar");
 
-		assert_eq!(b"foobar".into_vec(), transport);
+		assert_eq!(b"foobar".to_vec(), transport);
 		assert_eq!(6, progress);
 	}
 
@@ -244,7 +244,7 @@ mod tests {
 
 		let _ = write_chunk(&mut transport, &mut progress, b"foobar");
 
-		assert_eq!(b"bar".into_vec(), transport);
+		assert_eq!(b"bar".to_vec(), transport);
 		assert_eq!(6, progress);
 	}
 

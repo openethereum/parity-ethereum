@@ -15,18 +15,30 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use rand::os::OsRng;
-use super::{Generator, KeyPair, Error, SECP256K1};
+use super::{Generator, KeyPair, SECP256K1};
 
-/// Randomly generates new keypair.
+/// Randomly generates new keypair, instantiating the RNG each time.
 pub struct Random;
 
 impl Generator for Random {
-	fn generate(self) -> Result<KeyPair, Error> {
-		let context = &SECP256K1;
+	type Error = ::std::io::Error;
+
+	fn generate(self) -> Result<KeyPair, Self::Error> {
 		let mut rng = OsRng::new()?;
-		let (sec, publ) = context.generate_keypair(&mut rng)?;
+		match rng.generate() {
+			Ok(pair) => Ok(pair),
+			Err(void) => match void {}, // LLVM unreachable
+		}
+	}
+}
+
+impl<'a> Generator for &'a mut OsRng {
+	type Error = ::Void;
+
+	fn generate(self) -> Result<KeyPair, Self::Error> {
+		let (sec, publ) = SECP256K1.generate_keypair(self)
+			.expect("context always created with full capabilities; qed");
 
 		Ok(KeyPair::from_keypair(sec, publ))
 	}
 }
-

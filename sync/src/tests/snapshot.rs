@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::collections::HashMap;
+use std::sync::Arc;
 use util::*;
 use ethcore::snapshot::{SnapshotService, ManifestData, RestorationStatus};
 use ethcore::header::BlockNumber;
@@ -71,8 +73,8 @@ impl SnapshotService for TestSnapshotService {
 		self.manifest.as_ref().cloned()
 	}
 
-	fn min_supported_version(&self) -> Option<u64> {
-		Some(1)
+	fn supported_versions(&self) -> Option<(u64, u64)> {
+		Some((1, 2))
 	}
 
 	fn chunk(&self, hash: H256) -> Option<Bytes> {

@@ -432,10 +432,7 @@ fn rpc_eth_balance_pending() {
 		"id": 1
 	}"#;
 
-	// the TestMinerService doesn't communicate with the the TestBlockChainClient in any way.
-	// if this returns zero, we know that the "pending" call is being properly forwarded to the
-	// miner.
-	let response = r#"{"jsonrpc":"2.0","result":"0x0","id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"0x5","id":1}"#;
 
 	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 }

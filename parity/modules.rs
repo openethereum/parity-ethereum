@@ -19,7 +19,7 @@ use std::path::Path;
 
 use ethcore::client::BlockChainClient;
 use hypervisor::Hypervisor;
-use ethsync::{SyncConfig, NetworkConfiguration, NetworkError, Params};
+use ethsync::{AttachedProtocol, SyncConfig, NetworkConfiguration, NetworkError, Params};
 use ethcore::snapshot::SnapshotService;
 use light::Provider;
 
@@ -151,6 +151,7 @@ pub fn sync(
 	_snapshot_service: Arc<SnapshotService>,
 	_provider: Arc<Provider>,
 	log_settings: &LogConfig,
+	_attached_protos: Vec<AttachedProtocol>,
 ) -> Result<SyncModules, NetworkError> {
 	let mut hypervisor = hypervisor_ref.take().expect("There should be hypervisor for ipc configuration");
 	let args = sync_arguments(&hypervisor.io_path, sync_cfg, net_cfg, log_settings);
@@ -181,6 +182,7 @@ pub fn sync(
 	snapshot_service: Arc<SnapshotService>,
 	provider: Arc<Provider>,
 	_log_settings: &LogConfig,
+	attached_protos: Vec<AttachedProtocol>,
 ) -> Result<SyncModules, NetworkError> {
 	let eth_sync = EthSync::new(Params {
 		config: sync_cfg,
@@ -188,6 +190,7 @@ pub fn sync(
 		provider: provider,
 		snapshot_service: snapshot_service,
 		network_config: net_cfg,
+		attached_protos: attached_protos,
 	})?;
 
 	Ok((eth_sync.clone() as Arc<SyncProvider>, eth_sync.clone() as Arc<ManageNetwork>, eth_sync.clone() as Arc<ChainNotify>))

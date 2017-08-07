@@ -107,6 +107,8 @@ pub struct Schedule {
 	pub blockhash_gas: usize,
 	/// Static Call opcode enabled.
 	pub have_static_call: bool,
+	/// RETURNDATA and RETURNDATASIZE opcodes enabled.
+	pub have_return_data: bool,
 	/// Kill basic accounts below this balance if touched.
 	pub kill_dust: CleanDustMode,
 }
@@ -140,6 +142,7 @@ impl Schedule {
 			have_delegate_call: true,
 			have_create2: false,
 			have_revert: false,
+			have_return_data: false,
 			stack_limit: 1024,
 			max_depth: 1024,
 			tier_step_gas: [0, 2, 3, 5, 8, 10, 20, 0],
@@ -190,6 +193,7 @@ impl Schedule {
 		schedule.have_create2 = true;
 		schedule.have_revert = true;
 		schedule.have_static_call = true;
+		schedule.have_return_data = true;
 		schedule.blockhash_gas = 350;
 		schedule
 	}
@@ -200,6 +204,7 @@ impl Schedule {
 			have_delegate_call: hdc,
 			have_create2: false,
 			have_revert: false,
+			have_return_data: false,
 			stack_limit: 1024,
 			max_depth: 1024,
 			tier_step_gas: [0, 2, 3, 5, 8, 10, 20, 0],
@@ -245,6 +250,12 @@ impl Schedule {
 	}
 }
 
+impl Default for Schedule {
+	fn default() -> Self {
+		Schedule::new_frontier()
+	}
+}
+
 #[test]
 #[cfg(test)]
 fn schedule_evm_assumptions() {
@@ -255,3 +266,4 @@ fn schedule_evm_assumptions() {
 	assert_eq!(s1.quad_coeff_div, 512);
 	assert_eq!(s2.quad_coeff_div, 512);
 }
+
