@@ -48,8 +48,6 @@ export default class SignerStore {
   }
 
   @action unsubscribe () {
-    const self = this;
-
     this.subscription.then(id => this._api.pubsub.unsubscribe([id]));
   }
 
