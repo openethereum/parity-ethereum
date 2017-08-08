@@ -378,12 +378,12 @@ fn realloc() {
 	let mut ext = FakeExt::new();
 
 	let (gas_left, result) = {
-			let mut interpreter = wasm_interpreter();
-			let result = interpreter.exec(params, &mut ext).expect("Interpreter to execute without any errors");
-			match result {
-					GasLeft::Known(_) => { panic!("Realloc should return payload"); },
-					GasLeft::NeedsReturn { gas_left: gas, data: result, apply_state: _apply } => (gas, result.to_vec()),
-			}
+		let mut interpreter = wasm_interpreter();
+		let result = interpreter.exec(params, &mut ext).expect("Interpreter to execute without any errors");
+		match result {
+				GasLeft::Known(_) => { panic!("Realloc should return payload"); },
+				GasLeft::NeedsReturn { gas_left: gas, data: result, apply_state: _apply } => (gas, result.to_vec()),
+		}
 	};
 	assert_eq!(gas_left, U256::from(98326));
 	assert_eq!(result, vec![0u8; 2]);
@@ -401,12 +401,12 @@ fn storage_read() {
 	ext.store.insert("0100000000000000000000000000000000000000000000000000000000000000".into(), address.into());
 
 	let (gas_left, result) = {
-			let mut interpreter = wasm_interpreter();
-			let result = interpreter.exec(params, &mut ext).expect("Interpreter to execute without any errors");
-			match result {
-					GasLeft::Known(_) => { panic!("storage_read should return payload"); },
-					GasLeft::NeedsReturn { gas_left: gas, data: result, apply_state: _apply } => (gas, result.to_vec()),
-			}
+		let mut interpreter = wasm_interpreter();
+		let result = interpreter.exec(params, &mut ext).expect("Interpreter to execute without any errors");
+		match result {
+				GasLeft::Known(_) => { panic!("storage_read should return payload"); },
+				GasLeft::NeedsReturn { gas_left: gas, data: result, apply_state: _apply } => (gas, result.to_vec()),
+		}
 	};
 
 	assert_eq!(gas_left, U256::from(99752));
