@@ -88,7 +88,7 @@ pub struct RunCmd {
 	pub warp_sync: bool,
 	pub public_node: bool,
 	pub acc_conf: AccountsConfig,
-	pub gas_pricer: GasPricerConfig,
+	pub gas_pricer_conf: GasPricerConfig,
 	pub miner_extras: MinerExtras,
 	pub update_policy: UpdatePolicy,
 	pub mode: Option<Mode>,
@@ -118,12 +118,12 @@ pub struct RunCmd {
 	pub whisper: ::whisper::Config
 }
 
-pub fn open_ui(ws_conf: &rpc::WsConfiguration, ui_conf: &rpc::UiConfiguration) -> Result<(), String> {
+pub fn open_ui(ws_conf: &rpc::WsConfiguration, ui_conf: &rpc::UiConfiguration, logger_config: &LogConfig) -> Result<(), String> {
 	if !ui_conf.enabled {
 		return Err("Cannot use UI command with UI turned off.".into())
 	}
 
-	let token = signer::generate_token_and_url(ws_conf, ui_conf)?;
+	let token = signer::generate_token_and_url(ws_conf, ui_conf, logger_config)?;
 	// Open a browser
 	url::open(&token.url);
 	// Print a message
@@ -211,6 +211,7 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 		db_compaction: compaction,
 		db_wal: cmd.wal,
 		verify_full: true,
+		check_seal: cmd.check_seal,
 	};
 
 	config.queue.max_mem_use = cmd.cache_config.queue() as usize * 1024 * 1024;
@@ -281,7 +282,7 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 	let rpc_stats = Arc::new(informant::RpcStats::default());
 
 	// the dapps server
-	let signer_service = Arc::new(signer::new_service(&cmd.ws_conf, &cmd.ui_conf));
+	let signer_service = Arc::new(signer::new_service(&cmd.ws_conf, &cmd.ui_conf, &cmd.logger_config));
 	let dapps_deps = {
 		let contract_client = Arc::new(::dapps::LightRegistrar {
 			client: service.client().clone(),
@@ -377,7 +378,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 		// Check if Parity is already running
 		let addr = format!("{}:{}", cmd.ui_conf.interface, cmd.ui_conf.port);
 		if !TcpListener::bind(&addr as &str).is_ok() {
-			return open_ui(&cmd.ws_conf, &cmd.ui_conf).map(|_| (false, None));
+			return open_ui(&cmd.ws_conf, &cmd.ui_conf, &cmd.logger_config).map(|_| (false, None));
 		}
 	}
 
@@ -480,9 +481,12 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	// prepare account provider
 	let account_provider = Arc::new(prepare_account_provider(&cmd.spec, &cmd.dirs, &spec.data_dir, cmd.acc_conf, &passwords)?);
 
+	// fetch service
+	let fetch = FetchClient::new().map_err(|e| format!("Error starting fetch client: {:?}", e))?;
+
 	// create miner
-	let initial_min_gas_price = cmd.gas_pricer.initial_min();
-	let miner = Miner::new(cmd.miner_options, cmd.gas_pricer.into(), &spec, Some(account_provider.clone()));
+	let initial_min_gas_price = cmd.gas_pricer_conf.initial_min();
+	let miner = Miner::new(cmd.miner_options, cmd.gas_pricer_conf.to_gas_pricer(fetch.clone()), &spec, Some(account_provider.clone()));
 	miner.set_author(cmd.miner_extras.author);
 	miner.set_gas_floor_target(cmd.miner_extras.gas_floor_target);
 	miner.set_gas_ceil_target(cmd.miner_extras.gas_ceil_target);
@@ -637,9 +641,6 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	// spin up event loop
 	let event_loop = EventLoop::spawn();
 
-	// fetch service
-	let fetch = FetchClient::new().map_err(|e| format!("Error starting fetch client: {:?}", e))?;
-
 	// the updater service
 	let updater = Updater::new(
 		Arc::downgrade(&(service.client() as Arc<BlockChainClient>)),
@@ -657,7 +658,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 		false => Some(account_provider.clone())
 	};
 
-	let signer_service = Arc::new(signer::new_service(&cmd.ws_conf, &cmd.ui_conf));
+	let signer_service = Arc::new(signer::new_service(&cmd.ws_conf, &cmd.ui_conf, &cmd.logger_config));
 
 	// the dapps server
 	let dapps_deps = {
@@ -754,6 +755,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	service.register_io_handler(informant.clone()).map_err(|_| "Unable to register informant handler".to_owned())?;
 
 	// save user defaults
+	user_defaults.is_first_launch = false;
 	user_defaults.pruning = algorithm;
 	user_defaults.tracing = tracing;
 	user_defaults.fat_db = fat_db;
@@ -789,7 +791,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 
 	// start ui
 	if cmd.ui {
-		open_ui(&cmd.ws_conf, &cmd.ui_conf)?;
+		open_ui(&cmd.ws_conf, &cmd.ui_conf, &cmd.logger_config)?;
 	}
 
 	if let Some(dapp) = cmd.dapp {

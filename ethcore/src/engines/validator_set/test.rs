@@ -17,8 +17,9 @@
 /// Used for Engine testing.
 
 use std::str::FromStr;
+use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
-use util::{Arc, Bytes, H256, Address, HeapSizeOf};
+use util::{Bytes, H256, Address, HeapSizeOf};
 
 use engines::{Call, Engine};
 use header::{Header, BlockNumber};

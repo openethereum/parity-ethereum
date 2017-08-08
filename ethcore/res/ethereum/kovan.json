@@ -4,10 +4,7 @@
   "engine": {
     "authorityRound": {
       "params": {
-        "gasLimitBoundDivisor": "0x400",
-        "registrar" : "0xfAb104398BBefbd47752E7702D9fE23047E1Bca3",
         "stepDuration": "4",
-        "blockReward": "0x4563918244F40000",
         "validators" : {
           "list": [
             "0x00D6Cc1BA9cf89BD2e58009741f4F7325BAdc0ED",
@@ -25,16 +22,19 @@
           ]
         },
         "validateScoreTransition": 1000000,
-        "eip155Transition": 1000000,
         "validateStepTransition": 1500000
       }
     }
   },
   "params": {
-    "maximumExtraDataSize": "0x20",
+    "gasLimitBoundDivisor": "0x400",
+    "registrar" : "0xfAb104398BBefbd47752E7702D9fE23047E1Bca3",
+    "blockReward": "0x4563918244F40000",
+	"maximumExtraDataSize": "0x20",
     "minGasLimit": "0x1388",
     "networkID" : "0x2A",
-    "validateReceiptsTransition" : 1000000
+    "validateReceiptsTransition" : 1000000,
+    "eip155Transition": 1000000
   },
   "genesis": {
     "seal": {

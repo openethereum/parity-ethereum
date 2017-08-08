@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! DB backend wrapper for Account trie
+use std::collections::HashMap;
 use util::*;
 use rlp::NULL_RLP;
 

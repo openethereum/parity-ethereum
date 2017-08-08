@@ -152,7 +152,7 @@ impl InformantData for FullNodeInformantData {
 					max_peers: status.current_max_peers(net_config.min_peers, net_config.max_peers),
 				}))
 			}
-			_ => (is_major_importing(None, queue_info.clone()), None),
+			_ => (is_major_importing(self.sync.as_ref().map(|s| s.status().state), queue_info.clone()), None),
 		};
 
 		Report {
@@ -254,21 +254,22 @@ impl<T: InformantData> Informant<T> {
 			return;
 		}
 
+		let (client_report, full_report) = {
+			let mut last_report = self.last_report.lock();
+			let full_report = self.target.report();
+			let diffed = full_report.client_report.clone() - &*last_report;
+			*last_report = full_report.client_report.clone();
+			(diffed, full_report)
+		};
+
 		let Report {
 			importing,
 			chain_info,
-			client_report,
 			queue_info,
 			cache_sizes,
 			sync_info,
-		} = self.target.report();
-
-		let client_report = {
-			let mut last_report = self.last_report.lock();
-			let diffed = client_report.clone() - &*last_report;
-			*last_report = client_report.clone();
-			diffed
-		};
+			..
+		} = full_report;
 
 		let rpc_stats = self.rpc_stats.as_ref();
 
