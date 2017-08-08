@@ -389,6 +389,8 @@ fn realloc() {
 	assert_eq!(result, vec![0u8; 2]);
 }
 
+// Tests that contract's ability to read from a storage
+// Test prepopulates address into storage, than executes a contract which read that address from storage and write this address into result
 #[test]
 fn storage_read() {
 	let code = load_sample!("storage_read.wasm");
