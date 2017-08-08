@@ -14,6 +14,7 @@ use std::io::{Cursor};
 use std::mem::transmute;
 use std::borrow::Cow;
 use std::sync::{Arc};
+use std::time::Duration;
 use parking_lot;
 use parking_lot::Mutex;
 use serde_json;
@@ -32,7 +33,7 @@ pub enum Error {
 	/// Keepkey device error.
 	KeepkeyDevice,
 	/// USB error.
-	Usb(libusb::Error),
+	Usb(hidapi::HidError),
 	/// Hardware wallet not found for specified key.
 	PathNotFound,
     /// Message is unusable
@@ -53,6 +54,12 @@ impl fmt::Display for Error {
             Error::BadStartCode => write!(f, "The device is not responding properly"),
 			Error::SerdeError(ref s) => write!(f, "Serde derive failure: {}", s),
 		}
+	}
+}
+
+impl From<hidapi::HidError> for Error {
+	fn from(err: hidapi::HidError) -> Error {
+		Error::Usb(err)
 	}
 }
 
@@ -197,7 +204,6 @@ impl Manager {
         println!("message_type: {}", message_type);
         match message_type.as_ref() {
             "init" => {
-                println!("INIT!");
                 let devices: Vec<DeviceDetails> = self.devices.iter()
                     .map(|device| DeviceDetails {
                         device_info: device.info.clone(),
@@ -324,17 +330,19 @@ impl Device {
         self._write(&mut msg)
     }
 
-    // fn open_path(&self, api: parking_lot::MutexGuard<hidapi::HidApi>) -> Result<hidapi::HidDevice, Error> {
-    //     let mut err = Error::PathNotFound;
-    //     for _ in 0..10 {
-	// 		match api.open_path(&self.path) {
-	// 			Ok(h) => return Ok(h),
-	// 			Err(e) => (),
-	// 		}
-	// 		::std::thread::sleep(::std::time::Duration::from_millis(200));
-	// 	}
-    //     Err(err)
-    // }
+    fn open_path<R, F>(&self, f: F) -> Result<R, Error>
+    where F: Fn() -> Result<R, &'static str> {
+    	let mut err = Error::PathNotFound;
+    	/// Try to open device a few times.
+    	for _ in 0..10 {
+    		match f() {
+    			Ok(h) => return Ok(h),
+    			Err(e) => err = From::from(e),
+    		}
+    		::std::thread::sleep(Duration::from_millis(200));
+    	}
+        Err(err)
+    }
 
     fn _write(&mut self, msg_in: &[u8]) -> Result<String, Error> {
         // Read data from device
@@ -342,24 +350,8 @@ impl Device {
         let mut buf = [0u8; 64];
         let msg_type: u16;
         {
-            println!("LOCK__WRITE");
             let api = self.api.lock();
-            println!("LOCKED__WRITE");
-            // let handle = api.open_path(&self.path)?;
-            let mut handle: Result<hidapi::HidDevice, Error> = Err(Error::KeepkeyDevice);
-            {
-                for _ in 0..10 {
-        			match api.open_path(&self.path) {
-        				Ok(h) => {
-                            handle = Ok(h);
-                            break;
-                        },
-        				Err(_) => (),
-        			};
-                    ::std::thread::sleep(::std::time::Duration::from_millis(200));
-        		}
-            }
-            let handle = handle.unwrap();
+            let handle = self.open_path(|| api.open_path(&self.path))?;
             handle.write(&msg_in).unwrap();
             handle.read(&mut buf[..]).unwrap();
             msg_type        = Cursor::new(&buf[3..5]).read_u16::<BigEndian>().unwrap();

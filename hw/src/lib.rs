@@ -21,7 +21,7 @@ extern crate hidapi;
 extern crate libusb;
 extern crate ethkey;
 extern crate ethcore_bigint as bigint;
-#[macro_use] extern crate serde_json;
+extern crate serde_json;
 #[macro_use] extern crate serde_derive;
 #[macro_use] extern crate log;
 #[cfg(test)] extern crate rustc_hex;

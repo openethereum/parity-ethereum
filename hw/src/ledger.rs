@@ -22,7 +22,7 @@ use std::fmt;
 use std::cmp::min;
 use std::str::FromStr;
 use std::time::Duration;
-use std::sync::{Arc, Weak};
+use std::sync::Arc;
 use super::WalletInfo;
 use ethkey::{Address, Signature};
 use bigint::hash::H256;
@@ -144,7 +144,8 @@ impl Manager {
 	}
 
 	fn read_device_info(&self, dev_info: &hidapi::HidDeviceInfo) -> Result<Device, Error> {
-		let mut handle = self.open_path(&dev_info.path)?;
+		let api = self.usb.lock();
+		let mut handle = self.open_path(|| api.open_path(&dev_info.path))?;
 		let address = Self::read_wallet_address(&mut handle, self.key_path)?;
 		let manufacturer = dev_info.manufacturer_string.clone().unwrap_or("Unknown".to_owned());
 		let name = dev_info.product_string.clone().unwrap_or("Unknown".to_owned());
@@ -205,7 +206,8 @@ impl Manager {
 		let device = self.devices.iter().find(|d| &d.info.address == address)
 			.ok_or(Error::KeyNotFound)?;
 
-		let handle = self.open_path(&device.path)?;
+		let api = self.usb.lock();
+		let handle = self.open_path(|| api.open_path(&device.path))?;
 
 		let eth_path = &ETH_DERIVATION_PATH_BE[..];
 		let etc_path = &ETC_DERIVATION_PATH_BE[..];
@@ -241,20 +243,19 @@ impl Manager {
 		Ok(Signature::from_rsv(&r, &s, v))
 	}
 
-	fn open_path(&self, path: &str) -> Result<hidapi::HidDevice, Error> {
-		let mut err = Error::KeyNotFound;
-		/// Try to open device a few times.
-		// for _ in 0..10 {
-		// 	let api = self.api.lock();
-		// 	let lock = self.api.lock();
-		// 	match lock.open_path(&path) {
-		// 		Ok(h) => return Ok(h),
-		// 		Err(e) => err = From::from(e),
-		// 	}
-		// 	::std::thread::sleep(Duration::from_millis(200));
-		// }
-		Err(err)
-	}
+	fn open_path<R, F>(&self, f: F) -> Result<R, Error>
+    where F: Fn() -> Result<R, &'static str> {
+    	let mut err = Error::KeyNotFound;
+    	/// Try to open device a few times.
+    	for _ in 0..10 {
+    		match f() {
+    			Ok(h) => return Ok(h),
+    			Err(e) => err = From::from(e),
+    		}
+    		::std::thread::sleep(Duration::from_millis(200));
+    	}
+        Err(err)
+    }
 
 	fn send_apdu(handle: &hidapi::HidDevice, command: u8, p1: u8, p2: u8, data: &[u8]) -> Result<Vec<u8>, Error> {
 		const HID_PACKET_SIZE: usize = 64 + HID_PREFIX_ZERO;

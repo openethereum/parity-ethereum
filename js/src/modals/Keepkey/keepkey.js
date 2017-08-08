@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-// import { FormattedMessage } from 'react-intl';
+import { FormattedMessage } from 'react-intl';
 
 import styles from './keepkey.css';
 
@@ -48,7 +48,17 @@ export default class Keepkey extends Component {
         <div className={ styles.modal }>
           <div className={ styles.body }>
             <div id={ styles.title }>
-              Please enter the <i>pin</i> for your keepkey device <span className={ styles.bold }>{device.label}</span>
+              <FormattedMessage
+                id='keepkey.enterPin'
+                defaultMessage='{enterPin}'
+                values={ {
+                  enterPin: (
+                    <span>
+                      Please enter the <i>pin</i> for your keepkey device <span className={ styles.bold }>{device.label}</span>
+                    </span>
+                  )
+                } }
+              />
             </div>
             <div id={ styles.passcodeBoxes }>
               {this.renderPasscodeBox()}
@@ -129,7 +139,12 @@ export default class Keepkey extends Component {
         if (!status) {
           this.setState({
             passcode: '',
-            failureMessage: 'Wrong pin, try again.'
+            failureMessage: (
+              <FormattedMessage
+                id='keepkey.label.failureMessage'
+                defaultMessage='Wrong pin, try again.'
+              />
+            )
           });
         } else {
           this.setState({
