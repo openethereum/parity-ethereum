@@ -172,7 +172,7 @@ impl Ethash {
 			params,
 			ethash_params,
 			builtins,
-			pow: EthashManager::new(cache_dir),
+			pow: EthashManager::new(cache_dir.as_ref(), None),
 		})
 	}
 }

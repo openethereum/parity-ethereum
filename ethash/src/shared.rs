@@ -66,25 +66,35 @@ pub fn get_data_size(block_number: u64) -> usize {
 	sz as usize
 }
 
+// `repr(C)` to ensure that transmuting `Node` to an array of integers is sound
+#[repr(C)]
 pub struct Node {
+	// This forces `Node` to have 8-byte alignment, so we can transmute to an array of `u64`s
+	pub force_align: [u64; 0],
 	pub bytes: [u8; NODE_BYTES],
 }
 
 impl Default for Node {
 	fn default() -> Self {
-		Node { bytes: [0u8; NODE_BYTES] }
+		Node { force_align: [], bytes: [0u8; NODE_BYTES] }
 	}
 }
 
 impl Clone for Node {
 	fn clone(&self) -> Self {
-		Node { bytes: *&self.bytes }
+		Node { force_align: [], bytes: *&self.bytes }
 	}
 }
 
 // Type aliases to make absolutely, super paranoid-sure that we don't get the debug asserts wrong
 type NodeWords = [u32; NODE_WORDS];
 type NodeDwords = [u64; NODE_DWORDS];
+
+#[inline(always)]
+fn assert_node_layout<T>() {
+	debug_assert_eq!(mem::size_of::<Node>(), mem::size_of::<T>());
+	debug_assert!(mem::align_of::<Node>() >= mem::align_of::<T>());
+}
 
 // We use `inline(always)` because I was experiencing an 100% slowdown and `perf` showed that these
 // calls were taking up ~30% of the runtime. Adding these annotations fixes the issue. Remove at
@@ -94,25 +104,25 @@ type NodeDwords = [u64; NODE_DWORDS];
 impl Node {
 	#[inline(always)]
 	pub fn as_words(&self) -> &NodeWords {
-		debug_assert_eq!(mem::size_of::<Self>(), mem::size_of::<NodeWords>());
-		unsafe { mem::transmute(&self.bytes) }
+		assert_node_layout::<NodeWords>();
+		unsafe { mem::transmute(self) }
 	}
 
 	#[inline(always)]
 	pub fn as_words_mut(&mut self) -> &mut NodeWords {
-		debug_assert_eq!(mem::size_of::<Self>(), mem::size_of::<NodeWords>());
-		unsafe { mem::transmute(&mut self.bytes) }
+		assert_node_layout::<NodeWords>();
+		unsafe { mem::transmute(self) }
 	}
 
 	#[inline(always)]
 	pub fn as_dwords(&self) -> &NodeDwords {
-		debug_assert_eq!(mem::size_of::<Self>(), mem::size_of::<NodeDwords>());
-		unsafe { mem::transmute(&self.bytes) }
+		assert_node_layout::<NodeDwords>();
+		unsafe { mem::transmute(self) }
 	}
 
 	#[inline(always)]
 	pub fn as_dwords_mut(&mut self) -> &mut NodeDwords {
-		debug_assert_eq!(mem::size_of::<Self>(), mem::size_of::<NodeDwords>());
-		unsafe { mem::transmute(&mut self.bytes) }
+		assert_node_layout::<NodeDwords>();
+		unsafe { mem::transmute(self) }
 	}
 }

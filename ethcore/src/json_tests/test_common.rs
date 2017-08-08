@@ -52,7 +52,8 @@ pub fn run_test_file(path: &Path, runner: fn (json_data: &[u8]) -> Vec<String>) 
 	let mut file = File::open(&path).expect("Error opening test file");
 	file.read_to_end(&mut data).expect("Error reading test file");
 	let results = runner(&data);
-	assert!(results.is_empty());
+	let empty: [String; 0] = [];
+	assert_eq!(results, empty);
 }
 
 macro_rules! test {

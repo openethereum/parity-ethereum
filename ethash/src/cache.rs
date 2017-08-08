@@ -41,9 +41,44 @@ use std::sync::Arc;
 
 type Cache = Either<Vec<Node>, Mmap>;
 
-#[derive(Clone)]
-pub struct NodeCacheBuilder(Arc<Mutex<SeedHashCompute>>);
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+pub enum OptimizeFor {
+	Cpu,
+	Memory,
+}
 
+impl Default for OptimizeFor {
+	fn default() -> Self {
+		OptimizeFor::Cpu
+	}
+}
+
+fn byte_size(cache: &Cache) -> usize {
+	use self::Either::{Left, Right};
+
+	match *cache {
+		Left(ref vec) => vec.len() * NODE_BYTES,
+		Right(ref mmap) => mmap.len(),
+	}
+}
+
+fn new_buffer(path: &Path, num_nodes: usize, ident: &H256, optimize_for: OptimizeFor) -> Cache {
+	let memmap = match optimize_for {
+		OptimizeFor::Cpu => None,
+		OptimizeFor::Memory => make_memmapped_cache(path, num_nodes, ident).ok(),
+	};
+
+	memmap.map(Either::Right).unwrap_or_else(|| Either::Left(make_memory_cache(num_nodes, ident)))
+}
+
+#[derive(Clone)]
+pub struct NodeCacheBuilder {
+	// TODO: Remove this locking and just use an `Rc`?
+	seedhash: Arc<Mutex<SeedHashCompute>>,
+	optimize_for: OptimizeFor,
+}
+
+// TODO: Abstract the "optimize for" logic
 pub struct NodeCache {
 	builder: NodeCacheBuilder,
 	cache_dir: Cow<'static, Path>,
@@ -53,16 +88,19 @@ pub struct NodeCache {
 }
 
 impl NodeCacheBuilder {
-	pub fn new() -> Self {
-		NodeCacheBuilder(Arc::new(Mutex::new(SeedHashCompute::new())))
+	pub fn new<T: Into<Option<OptimizeFor>>>(optimize_for: T) -> Self {
+		NodeCacheBuilder {
+			seedhash: Arc::new(Mutex::new(SeedHashCompute::new())),
+			optimize_for: optimize_for.into().unwrap_or_default(),
+		}
 	}
 
 	fn block_number_to_ident(&self, block_number: u64) -> H256 {
-		self.0.lock().hash_block_number(block_number)
+		self.seedhash.lock().hash_block_number(block_number)
 	}
 
 	fn epoch_to_ident(&self, epoch: u64) -> H256 {
-		self.0.lock().hash_epoch(epoch)
+		self.seedhash.lock().hash_epoch(epoch)
 	}
 
 	pub fn from_file<P: Into<Cow<'static, Path>>>(
@@ -74,7 +112,11 @@ impl NodeCacheBuilder {
 		let ident = self.block_number_to_ident(block_number);
 
 		let path = cache_path(cache_dir.as_ref(), &ident);
-		let cache = cache_from_path(&path)?;
+
+		let cache = cache_from_path(&path, self.optimize_for)?;
+		let expected_cache_size = get_cache_size(block_number);
+
+		assert_eq!(byte_size(&cache), expected_cache_size);
 
 		Ok(NodeCache {
 			builder: self.clone(),
@@ -101,16 +143,13 @@ impl NodeCacheBuilder {
 		let num_nodes = cache_size / NODE_BYTES;
 
 		let path = cache_path(cache_dir.as_ref(), &ident);
-		let nodes =
-			make_memmapped_cache(&path, num_nodes, &ident)
-				.map(Either::Right)
-				.unwrap_or_else(|_| Either::Left(make_memory_cache(num_nodes, &ident)));
+		let nodes = new_buffer(&path, num_nodes, &ident, self.optimize_for);
 
 		NodeCache {
 			builder: self.clone(),
+			epoch: epoch(block_number),
 			cache_dir: cache_dir.into(),
 			cache_path: path,
-			epoch: epoch(block_number),
 			cache: nodes,
 		}
 	}
@@ -137,16 +176,12 @@ impl NodeCache {
 fn make_memmapped_cache(path: &Path, num_nodes: usize, ident: &H256) -> io::Result<Mmap> {
 	use std::fs::OpenOptions;
 
-	debug_assert_eq!(ident.len(), 32);
-
 	let file = OpenOptions::new().read(true).write(true).create(true).open(&path)?;
 	file.set_len((num_nodes * NODE_BYTES) as _)?;
 
 	let mut memmap = Mmap::open(&file, Protection::ReadWrite)?;
 
-	unsafe {
-		initialize_memory(memmap.mut_ptr() as *mut Node, num_nodes, ident);
-	}
+	unsafe { initialize_memory(memmap.mut_ptr() as *mut Node, num_nodes, ident) };
 
 	Ok(memmap)
 }
@@ -171,7 +206,7 @@ fn cache_path<'a, P: Into<Cow<'a, Path>>>(path: P, ident: &H256) -> PathBuf {
 fn consume_cache(cache: &mut Cache, path: &Path) -> io::Result<()> {
 	use std::fs::OpenOptions;
 
-	let new_cache = match *cache {
+	match *cache {
 		Either::Left(ref mut vec) => {
 			let mut file = OpenOptions::new().read(true).write(true).create(true).open(&path)?;
 
@@ -185,32 +220,22 @@ fn consume_cache(cache: &mut Cache, path: &Path) -> io::Result<()> {
 			// refactor this to use a `match` or something, like below. Maybe you even have monads,
 			// future time-traveller, that would make this significantly cleaner.
 			file.write(buf).map(|_| ())?;
-
-			file
 		}
 		Either::Right(ref mmap) => {
 			mmap.flush()?;
-
-			return Ok(());
 		}
-	};
-
-	// If creating the memmap fails, we keep the `Vec` and try again next time `flush` is called.
-	// This means that it's possible to use this on a system that doesn't support memory mapping at
-	// all, at the cost of higher RAM.
-	match Mmap::open(&new_cache, Protection::ReadWrite) {
-		Ok(memmap) => {
-			*cache = Either::Right(memmap);
-			Ok(())
-		}
-		Err(err) => Err(err),
 	}
+
+	Ok(())
 }
 
-fn cache_from_path(path: &Path) -> io::Result<Cache> {
-	Mmap::open_path(path, Protection::ReadWrite)
-		.map(Either::Right)
-		.or_else(|_| read_from_path(path).map(Either::Left))
+fn cache_from_path(path: &Path, optimize_for: OptimizeFor) -> io::Result<Cache> {
+	let memmap = match optimize_for {
+		OptimizeFor::Cpu => None,
+		OptimizeFor::Memory => Mmap::open_path(path, Protection::ReadWrite).ok(),
+	};
+
+	memmap.map(Either::Right).ok_or(()).or_else(|_| read_from_path(path).map(Either::Left))
 }
 
 fn read_from_path(path: &Path) -> io::Result<Vec<Node>> {

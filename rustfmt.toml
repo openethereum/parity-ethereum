@@ -1,8 +1,8 @@
 verbose=false
-max_width=1000
-comment_width=1000
+max_width=100
+comment_width=100
 tab_spaces=4
-fn_call_width=1000
+fn_call_width=100
 struct_lit_width=32
 fn_call_style="Visual"
 single_line_if_else_max_width=100
@@ -13,3 +13,4 @@ reorder_imports=true
 format_strings=false
 hard_tabs=true
 wrap_match_arms=false
+error_on_line_overflow=false
