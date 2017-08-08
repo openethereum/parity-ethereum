@@ -690,6 +690,7 @@ impl Engine for AuthorityRound {
 
 		// apply immediate transitions.
 		if let Some(change) = self.validators.is_epoch_end(first, chain_head) {
+			let change = combine_proofs(chain_head.number(), &change, &[]);
 			return Some(change)
 		}
 
