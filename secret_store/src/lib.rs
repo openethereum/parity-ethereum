@@ -21,6 +21,8 @@ extern crate log;
 extern crate futures;
 extern crate futures_cpupool;
 extern crate hyper;
+#[macro_use]
+extern crate lazy_static;
 extern crate parking_lot;
 extern crate rustc_hex;
 extern crate serde;
@@ -56,6 +58,7 @@ mod http_listener;
 mod key_server;
 mod key_storage;
 mod serialization;
+mod key_server_set;
 
 use std::sync::Arc;
 use ethcore::client::Client;
@@ -68,9 +71,10 @@ pub use traits::{KeyServer};
 pub fn start(client: Arc<Client>, config: ServiceConfiguration) -> Result<Box<KeyServer>, Error> {
 	use std::sync::Arc;
 
-	let acl_storage = Arc::new(acl_storage::OnChainAclStorage::new(client));
+	let acl_storage = acl_storage::OnChainAclStorage::new(&client);
+	let key_server_set = key_server_set::OnChainKeyServerSet::new(&client, config.cluster_config.nodes.clone())?;
 	let key_storage = Arc::new(key_storage::PersistentKeyStorage::new(&config)?);
-	let key_server = key_server::KeyServerImpl::new(&config.cluster_config, acl_storage, key_storage)?;
+	let key_server = key_server::KeyServerImpl::new(&config.cluster_config, key_server_set, acl_storage, key_storage)?;
 	let listener = http_listener::KeyServerHttpListener::start(&config.listener_address, key_server)?;
 	Ok(Box::new(listener))
 }
