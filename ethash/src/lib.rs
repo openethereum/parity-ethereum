@@ -51,7 +51,7 @@ mod cache;
 mod keccak;
 mod shared;
 
-use cache::{NodeCacheBuilder, OptimizeFor};
+pub use cache::{NodeCacheBuilder, OptimizeFor};
 pub use compute::{ProofOfWork, quick_get_difficulty, slow_hash_block_number};
 use compute::Light;
 use hash::H256;

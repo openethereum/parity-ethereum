@@ -19,7 +19,7 @@ use std::cmp;
 use std::collections::{BTreeMap, HashMap};
 use std::sync::{Arc, Weak};
 use hash::{KECCAK_EMPTY_LIST_RLP};
-use ethash::{quick_get_difficulty, slow_hash_block_number, EthashManager};
+use ethash::{quick_get_difficulty, slow_hash_block_number, EthashManager, OptimizeFor};
 use bigint::prelude::U256;
 use bigint::hash::{H256, H64};
 use util::*;
@@ -161,18 +161,19 @@ pub struct Ethash {
 
 impl Ethash {
 	/// Create a new instance of Ethash engine
-	pub fn new<T: AsRef<Path>>(
-		cache_dir: T,
+	pub fn new<T: Into<Option<OptimizeFor>>>(
+		cache_dir: &Path,
 		params: CommonParams,
 		ethash_params: EthashParams,
 		builtins: BTreeMap<Address, Builtin>,
+		optimize_for: T,
 	) -> Arc<Self> {
 		Arc::new(Ethash {
 			tx_filter: TransactionFilter::from_params(&params),
 			params,
 			ethash_params,
 			builtins,
-			pow: EthashManager::new(cache_dir.as_ref(), None),
+			pow: EthashManager::new(cache_dir.as_ref(), optimize_for.into()),
 		})
 	}
 }

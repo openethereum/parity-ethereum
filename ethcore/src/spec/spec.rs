@@ -26,9 +26,10 @@ use super::genesis::Genesis;
 use super::seal::Generic as GenericSeal;
 
 use builtin::Builtin;
-use engines::{Engine, NullEngine, InstantSeal, BasicAuthority, AuthorityRound, Tendermint, DEFAULT_BLOCKHASH_CONTRACT};
-use vm::{EnvInfo, CallType, ActionValue, ActionParams};
+use engines::{Engine, NullEngine, InstantSeal, BasicAuthority, AuthorityRound, Tendermint,
+              DEFAULT_BLOCKHASH_CONTRACT};
 use error::Error;
+use ethash::OptimizeFor;
 use ethereum;
 use ethjson;
 use executive::Executive;
@@ -36,14 +37,21 @@ use factory::Factories;
 use header::{BlockNumber, Header};
 use pod_state::*;
 use rlp::{Rlp, RlpStream};
+use rustc_hex::FromHex;
 use state::{Backend, State, Substate};
 use state::backend::Basic as BasicBackend;
+use state_db::StateDB;
+use std::collections::BTreeMap;
+use std::io::Read;
+use std::path::Path;
+use std::sync::Arc;
 use trace::{NoopTracer, NoopVMTracer};
 use bigint::prelude::U256;
 use bigint::hash::{H256, H2048};
 use parking_lot::RwLock;
 use util::*;
 use bytes::Bytes;
+use vm::{EnvInfo, CallType, ActionValue, ActionParams};
 
 /// Parameters common to ethereum-like blockchains.
 /// NOTE: when adding bugfix hard-fork parameters,
@@ -121,7 +129,7 @@ impl CommonParams {
 	}
 
 	/// Apply common spec config parameters to the schedule.
- 	pub fn update_schedule(&self, block_number: u64, schedule: &mut ::vm::Schedule) {
+	pub fn update_schedule(&self, block_number: u64, schedule: &mut ::vm::Schedule) {
 		schedule.have_create2 = block_number >= self.eip86_transition;
 		schedule.have_revert = block_number >= self.eip140_transition;
 		schedule.have_static_call = block_number >= self.eip214_transition;
@@ -188,6 +196,41 @@ impl From<ethjson::spec::Params> for CommonParams {
 	}
 }
 
+/// Runtime parameters for the spec that are related to how the software should run the chain,
+/// rather than integral properties of the chain itself.
+#[derive(Debug, Clone, Copy)]
+pub struct SpecParams<'a> {
+	/// The path to the folder used to cache nodes. This is typically /tmp/ on Unix-like systems
+	pub cache_dir: &'a Path,
+	/// Whether to run slower at the expense of better memory usage, or run faster while using more
+	/// memory. This may get more fine-grained in the future but for now is simply a binary option.
+	pub optimization_setting: Option<OptimizeFor>,
+}
+
+impl<'a> SpecParams<'a> {
+	/// Create from a cache path, with null values for the other fields
+	pub fn from_path(path: &'a Path) -> Self {
+		SpecParams {
+			cache_dir: path,
+			optimization_setting: None,
+		}
+	}
+
+	/// Create from a cache path and an optimization setting
+	pub fn new(path: &'a Path, optimization: OptimizeFor) -> Self {
+		SpecParams {
+			cache_dir: path,
+			optimization_setting: Some(optimization),
+		}
+	}
+}
+
+impl<'a, T: AsRef<Path>> From<&'a T> for SpecParams<'a> {
+	fn from(path: &'a T) -> Self {
+		Self::from_path(path.as_ref())
+	}
+}
+
 /// Parameters for a block chain; includes both those intrinsic to the design of the
 /// chain and those to be interpreted by the active chain engine.
 pub struct Spec {
@@ -232,6 +275,7 @@ pub struct Spec {
 	genesis_state: PodState,
 }
 
+<<<<<<< HEAD
 #[cfg(test)]
 impl Clone for Spec {
 	fn clone(&self) -> Spec {
@@ -260,13 +304,18 @@ impl Clone for Spec {
 /// Load from JSON object.
 pub fn load_from<T: AsRef<Path>>(cache_dir: T, s: ethjson::spec::Spec) -> Result<Spec, Error> {
 	let builtins = s.accounts.builtins().into_iter().map(|p| (p.0.into(), From::from(p.1))).collect();
+=======
+fn load_from(spec_params: SpecParams, s: ethjson::spec::Spec) -> Result<Spec, Error> {
+	let builtins =
+		s.accounts.builtins().into_iter().map(|p| (p.0.into(), From::from(p.1))).collect();
+>>>>>>> Flag ethash to use less memory when running light client
 	let g = Genesis::from(s.genesis);
 	let GenericSeal(seal_rlp) = g.seal.into();
 	let params = CommonParams::from(s.params);
 
 	let mut s = Spec {
 		name: s.name.clone().into(),
-		engine: Spec::engine(cache_dir, s.engine, params, builtins),
+		engine: Spec::engine(spec_params, s.engine, params, builtins),
 		data_dir: s.data_dir.unwrap_or(s.name).into(),
 		nodes: s.nodes.unwrap_or_else(Vec::new),
 		parent_hash: g.parent_hash,
@@ -279,7 +328,11 @@ pub fn load_from<T: AsRef<Path>>(cache_dir: T, s: ethjson::spec::Spec) -> Result
 		timestamp: g.timestamp,
 		extra_data: g.extra_data,
 		seal_rlp: seal_rlp,
-		constructors: s.accounts.constructors().into_iter().map(|(a, c)| (a.into(), c.into())).collect(),
+		constructors: s.accounts
+		               .constructors()
+		               .into_iter()
+		               .map(|(a, c)| (a.into(), c.into()))
+		               .collect(),
 		state_root_memo: RwLock::new(Default::default()), // will be overwritten right after.
 		genesis_state: s.accounts.into(),
 	};
@@ -305,8 +358,8 @@ macro_rules! load_bundled {
 impl Spec {
 	/// Convert engine spec into a arc'd Engine of the right underlying type.
 	/// TODO avoid this hard-coded nastiness - use dynamic-linked plugin framework instead.
-	fn engine<T: AsRef<Path>>(
-		cache_dir: T,
+	fn engine(
+		spec_params: SpecParams,
 		engine_spec: ethjson::spec::Engine,
 		params: CommonParams,
 		builtins: BTreeMap<Address, Builtin>,
@@ -314,10 +367,22 @@ impl Spec {
 		match engine_spec {
 			ethjson::spec::Engine::Null => Arc::new(NullEngine::new(params, builtins)),
 			ethjson::spec::Engine::InstantSeal => Arc::new(InstantSeal::new(params, builtins)),
-			ethjson::spec::Engine::Ethash(ethash) => Arc::new(ethereum::Ethash::new(cache_dir, params, From::from(ethash.params), builtins)),
-			ethjson::spec::Engine::BasicAuthority(basic_authority) => Arc::new(BasicAuthority::new(params, From::from(basic_authority.params), builtins)),
-			ethjson::spec::Engine::AuthorityRound(authority_round) => AuthorityRound::new(params, From::from(authority_round.params), builtins).expect("Failed to start AuthorityRound consensus engine."),
-			ethjson::spec::Engine::Tendermint(tendermint) => Tendermint::new(params, From::from(tendermint.params), builtins).expect("Failed to start the Tendermint consensus engine."),
+			ethjson::spec::Engine::Ethash(ethash) =>
+				Arc::new(ethereum::Ethash::new(
+					spec_params.cache_dir,
+					params,
+					From::from(ethash.params),
+					builtins,
+					spec_params.optimization_setting,
+				)),
+			ethjson::spec::Engine::BasicAuthority(basic_authority) =>
+				Arc::new(BasicAuthority::new(params, From::from(basic_authority.params), builtins)),
+			ethjson::spec::Engine::AuthorityRound(authority_round) =>
+				AuthorityRound::new(params, From::from(authority_round.params), builtins)
+					.expect("Failed to start AuthorityRound consensus engine."),
+			ethjson::spec::Engine::Tendermint(tendermint) =>
+				Tendermint::new(params, From::from(tendermint.params), builtins)
+					.expect("Failed to start the Tendermint consensus engine."),
 		}
 	}
 

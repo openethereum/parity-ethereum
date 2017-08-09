@@ -175,7 +175,7 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 	use parking_lot::{Mutex, RwLock};
 
 	// load spec
-	let spec = cmd.spec.spec(&cmd.dirs.cache)?;
+	let spec = cmd.spec.spec(SpecParams::new(&cmd.dirs.cache, OptimizeFor::Memory))?;
 
 	// load genesis hash
 	let genesis_hash = spec.genesis_header().hash();
