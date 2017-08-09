@@ -67,9 +67,7 @@ module.exports = {
     fs: 'empty'
   },
   resolve: {
-    alias: {
-      '~': path.resolve(__dirname, '..')
-    },
+    alias: {},
     modules: [
       path.join(__dirname, '../node_modules')
     ],
