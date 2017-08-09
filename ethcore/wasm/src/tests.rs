@@ -378,13 +378,39 @@ fn realloc() {
 	let mut ext = FakeExt::new();
 
 	let (gas_left, result) = {
-			let mut interpreter = wasm_interpreter();
-			let result = interpreter.exec(params, &mut ext).expect("Interpreter to execute without any errors");
-			match result {
-					GasLeft::Known(_) => { panic!("Realloc should return payload"); },
-					GasLeft::NeedsReturn { gas_left: gas, data: result, apply_state: _apply } => (gas, result.to_vec()),
-			}
+		let mut interpreter = wasm_interpreter();
+		let result = interpreter.exec(params, &mut ext).expect("Interpreter to execute without any errors");
+		match result {
+				GasLeft::Known(_) => { panic!("Realloc should return payload"); },
+				GasLeft::NeedsReturn { gas_left: gas, data: result, apply_state: _apply } => (gas, result.to_vec()),
+		}
 	};
 	assert_eq!(gas_left, U256::from(98326));
 	assert_eq!(result, vec![0u8; 2]);
+}
+
+// Tests that contract's ability to read from a storage
+// Test prepopulates address into storage, than executes a contract which read that address from storage and write this address into result
+#[test]
+fn storage_read() {
+	let code = load_sample!("storage_read.wasm");
+	let address: Address = "0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6".parse().unwrap();
+	
+	let mut params = ActionParams::default();
+	params.gas = U256::from(100_000);
+	params.code = Some(Arc::new(code));
+	let mut ext = FakeExt::new();
+	ext.store.insert("0100000000000000000000000000000000000000000000000000000000000000".into(), address.into());
+
+	let (gas_left, result) = {
+		let mut interpreter = wasm_interpreter();
+		let result = interpreter.exec(params, &mut ext).expect("Interpreter to execute without any errors");
+		match result {
+				GasLeft::Known(_) => { panic!("storage_read should return payload"); },
+				GasLeft::NeedsReturn { gas_left: gas, data: result, apply_state: _apply } => (gas, result.to_vec()),
+		}
+	};
+
+	assert_eq!(gas_left, U256::from(99752));
+	assert_eq!(Address::from(&result[12..32]), address);
 }
