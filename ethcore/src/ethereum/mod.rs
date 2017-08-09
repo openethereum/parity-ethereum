@@ -46,25 +46,39 @@ fn load<'a, T: Into<Option<SpecParams<'a>>>>(params: T, b: &[u8]) -> Spec {
 }
 
 /// Create a new Foundation Olympic chain spec.
-pub fn new_olympic(params: SpecParams) -> Spec { load(params, include_bytes!("../../res/ethereum/olympic.json")) }
+pub fn new_olympic<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
+	load(params.into(), include_bytes!("../../res/ethereum/olympic.json"))
+}
 
 /// Create a new Foundation Mainnet chain spec.
-pub fn new_foundation(params: SpecParams) -> Spec { load(params, include_bytes!("../../res/ethereum/foundation.json")) }
+pub fn new_foundation<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
+	load(params.into(), include_bytes!("../../res/ethereum/foundation.json"))
+}
 
 /// Create a new Classic Mainnet chain spec without the DAO hardfork.
-pub fn new_classic(params: SpecParams) -> Spec { load(params, include_bytes!("../../res/ethereum/classic.json")) }
+pub fn new_classic<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
+	load(params.into(), include_bytes!("../../res/ethereum/classic.json"))
+}
 
 /// Create a new Expanse mainnet chain spec.
-pub fn new_expanse(params: SpecParams) -> Spec { load(params, include_bytes!("../../res/ethereum/expanse.json")) }
+pub fn new_expanse<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
+	load(params.into(), include_bytes!("../../res/ethereum/expanse.json"))
+}
 
 /// Create a new Kovan testnet chain spec.
-pub fn new_kovan(params: SpecParams) -> Spec { load(params, include_bytes!("../../res/ethereum/kovan.json")) }
+pub fn new_kovan<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
+	load(params.into(), include_bytes!("../../res/ethereum/kovan.json"))
+}
 
 /// Create a new Foundation Ropsten chain spec.
-pub fn new_ropsten(params: SpecParams) -> Spec { load(params, include_bytes!("../../res/ethereum/ropsten.json")) }
+pub fn new_ropsten<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
+	load(params.into(), include_bytes!("../../res/ethereum/ropsten.json"))
+}
 
 /// Create a new Morden chain spec.
-pub fn new_morden(params: SpecParams) -> Spec { load(params, include_bytes!("../../res/ethereum/morden.json")) }
+pub fn new_morden<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
+	load(params.into(), include_bytes!("../../res/ethereum/morden.json"))
+}
 
 // For tests
 

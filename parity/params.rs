@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::{str, fs, fmt, path};
+use std::{str, fs, fmt};
 use std::time::Duration;
 use bigint::prelude::U256;
 use util::{Address, version_data};
@@ -82,7 +82,6 @@ impl fmt::Display for SpecType {
 
 impl SpecType {
 	pub fn spec<'a, T: Into<SpecParams<'a>>>(&self, params: T) -> Result<Spec, String> {
-		let cache_dir = cache_dir.as_ref();
 		let params = params.into();
 		match *self {
 			SpecType::Foundation => Ok(ethereum::new_foundation(params)),

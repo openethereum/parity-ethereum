@@ -29,7 +29,7 @@ use builtin::Builtin;
 use engines::{Engine, NullEngine, InstantSeal, BasicAuthority, AuthorityRound, Tendermint,
               DEFAULT_BLOCKHASH_CONTRACT};
 use error::Error;
-use ethash::OptimizeFor;
+pub use ethash::OptimizeFor;
 use ethereum;
 use ethjson;
 use executive::Executive;
@@ -572,13 +572,13 @@ impl Spec {
 
 	/// Loads spec from json file. Provide factories for executing contracts and ensuring
 	/// storage goes to the right place.
-	pub fn load<T: AsRef<Path>, R>(cache_dir: T, reader: R) -> Result<Self, String> where R: Read {
+	pub fn load<'a, T: Into<SpecParams<'a>>, R>(params: T, reader: R) -> Result<Self, String> where R: Read {
 		fn fmt<F: ::std::fmt::Display>(f: F) -> String {
 			format!("Spec json is invalid: {}", f)
 		}
 
 		ethjson::spec::Spec::load(reader).map_err(fmt)
-			.and_then(|x| load_from(cache_dir, x).map_err(fmt))
+			.and_then(|x| load_from(params.into(), x).map_err(fmt))
 	}
 
 	/// initialize genesis epoch data, using in-memory database for
@@ -692,7 +692,7 @@ mod tests {
 	// https://github.com/paritytech/parity/issues/1840
 	#[test]
 	fn test_load_empty() {
-		assert!(Spec::load(::std::env::temp_dir(), &[] as &[u8]).is_err());
+		assert!(Spec::load(&::std::env::temp_dir(), &[] as &[u8]).is_err());
 	}
 
 	#[test]

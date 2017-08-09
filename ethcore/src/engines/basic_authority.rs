@@ -270,7 +270,7 @@ mod tests {
 	/// Create a new test chain spec with `BasicAuthority` consensus engine.
 	fn new_test_authority() -> Spec {
 		let bytes: &[u8] = include_bytes!("../../res/basic_authority.json");
-		Spec::load(::std::env::temp_dir(), bytes).expect("invalid chain spec")
+		Spec::load(&::std::env::temp_dir(), bytes).expect("invalid chain spec")
 	}
 
 	#[test]
