@@ -15,9 +15,12 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import Store from './store';
+import shellMiddleware from '../shellMiddleware';
 
 function setupProviderFilters (provider) {
-  return Store.create(provider);
+  const store = Store.create(provider, [shellMiddleware]);
+
+  return store;
 }
 
 export default from './dappRequests';

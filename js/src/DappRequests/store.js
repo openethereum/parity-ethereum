@@ -14,13 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import flatten from 'lodash.flatten';
 import { action, computed, observable } from 'mobx';
 import store from 'store';
 
 import { sha3 } from '@parity/api/util/sha3';
 
-import VisibleStore from '@parity/shared/mobx/dappsStore';
 import filteredRequests from './filteredRequests';
 
 const LS_PERMISSIONS = '_parity::dapps::methods';
@@ -32,11 +30,13 @@ export default class Store {
   @observable requests = [];
   @observable tokens = {};
 
+  middleware = [];
   sources = {};
 
-  constructor (provider) {
+  constructor (provider, middleware = []) {
     this.provider = provider;
     this.permissions = store.get(LS_PERMISSIONS) || {};
+    this.middleware = middleware;
 
     window.addEventListener('message', this.receiveMessage, false);
   }
@@ -161,6 +161,10 @@ export default class Store {
     return true;
   }
 
+  addMiddleware (middleware) {
+    this.middleware.push(middleware);
+  }
+
   hasValidToken = (method, appId, token) => {
     if (!token) {
       return method === 'shell_requestNewToken';
@@ -214,58 +218,12 @@ export default class Store {
     });
   }
 
-  executeMethodCall = ({ appId, id, from, method, params, token }, source) => {
-    const visibleStore = VisibleStore.get();
+  executeMethodCall = ({ id, from, method, params, token }, source) => {
     const callback = this._methodCallbackPost(id, from, source, token);
+    const isHandled = this.middleware.find((middleware) => middleware(from, method, params, callback));
 
-    switch (method) {
-      case 'shell_getApps':
-        const [displayAll] = params;
-
-        return callback(null, displayAll
-          ? visibleStore.allApps.slice()
-          : visibleStore.visibleApps.slice()
-        );
-
-      case 'shell_getFilteredMethods':
-        return callback(null, flatten(
-          Object
-            .keys(filteredRequests)
-            .map((key) => filteredRequests[key].methods)
-        ));
-
-      case 'shell_getMethodPermissions':
-        return callback(null, this.permissions);
-
-      case 'shell_loadApp':
-        const [_loadId, loadParams] = params;
-        const loadId = _loadId.substr(0, 2) !== '0x'
-          ? sha3(_loadId)
-          : _loadId;
-        const loadUrl = `/${loadId}/${loadParams || ''}`;
-
-        window.location.hash = loadUrl;
-
-        return callback(null, true);
-
-      case 'shell_requestNewToken':
-        return callback(null, this.createToken(from));
-
-      case 'shell_setAppVisibility':
-        const [changeId, visibility] = params;
-
-        return callback(null, visibility
-          ? visibleStore.showApp(changeId)
-          : visibleStore.hideApp(changeId)
-        );
-
-      case 'shell_setMethodPermissions':
-        const [permissions] = params;
-
-        return callback(null, this.setPermissions(permissions));
-
-      default:
-        return this.provider.send(method, params, callback);
+    if (!isHandled) {
+      this.provider.send(method, params, callback);
     }
   }
 
@@ -314,9 +272,9 @@ export default class Store {
 
   static instance = null;
 
-  static create (provider) {
+  static create (provider, middleware) {
     if (!Store.instance) {
-      Store.instance = new Store(provider, {});
+      Store.instance = new Store(provider, middleware);
     }
 
     return Store.instance;
