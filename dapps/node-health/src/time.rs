@@ -32,7 +32,6 @@
 //!
 
 use std::io;
-use std::sync::Arc;
 use std::{fmt, mem, time};
 use std::collections::VecDeque;
 use std::sync::atomic::{self, AtomicUsize};

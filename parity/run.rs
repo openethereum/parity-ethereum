@@ -286,7 +286,6 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 
 	// the dapps server
 	let signer_service = Arc::new(signer::new_service(&cmd.ws_conf, &cmd.ui_conf, &cmd.logger_config));
-	let dapps_deps = {
 	let (node_health, dapps_deps) = {
 		let contract_client = Arc::new(::dapps::LightRegistrar {
 			client: service.client().clone(),

@@ -1309,6 +1309,7 @@ mod tests {
 				"0.parity.pool.ntp.org:123".into(),
 				"1.parity.pool.ntp.org:123".into(),
 				"2.parity.pool.ntp.org:123".into(),
+				"3.parity.pool.ntp.org:123".into(),
 			],
 			ws_conf: Default::default(),
 			http_conf: Default::default(),

@@ -33,7 +33,6 @@ use ethcore::ids::BlockId;
 use ethcore::miner::MinerService;
 use ethcore::mode::Mode;
 use ethcore::transaction::SignedTransaction;
-use ethcore::account_provider::AccountProvider;
 use ethcore_logger::RotatingLogger;
 use node_health::{NodeHealth, Health};
 use updater::{Service as UpdateService};

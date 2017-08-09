@@ -15,16 +15,15 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
-use ethcore_logger::RotatingLogger;
-use util::Address;
-use ethsync::ManageNetwork;
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::{TestBlockChainClient, Executed};
 use ethcore::miner::LocalTransactionStatus;
 use ethcore_logger::RotatingLogger;
 use ethstore::ethkey::{Generator, Random};
+use ethsync::ManageNetwork;
 use node_health::{self, NodeHealth};
 use parity_reactor;
+use util::Address;
 
 use jsonrpc_core::IoHandler;
 use v1::{Parity, ParityClient};
@@ -561,6 +560,7 @@ fn rpc_parity_call() {
 	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
 }
 
+#[test]
 fn rpc_parity_node_health() {
 	let deps = Dependencies::new();
 	let io = deps.default_client();
