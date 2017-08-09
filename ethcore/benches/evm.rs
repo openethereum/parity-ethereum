@@ -48,6 +48,19 @@ fn bn_128_pairing(b: &mut Bencher) {
 }
 
 #[bench]
+fn bn_128_add(b: &mut Bencher) {
+	use bn::{AffineG1, G1, Group};
+
+	let mut rng = StdRng::new().unwrap();
+	let p1: G1 = G1::random(&mut rng);
+	let p2: G1 = G1::random(&mut rng);
+
+	b.iter(|| {
+		let _ = AffineG1::from_jacobian(p1 + p2);
+	});
+}
+
+#[bench]
 fn bn_128_mul(b: &mut Bencher) {
 	use bn::{AffineG1, G1, Fr, Group};
 
