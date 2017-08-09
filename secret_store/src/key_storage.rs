@@ -200,7 +200,7 @@ pub mod tests {
 	use devtools::RandomTempPath;
 	use ethkey::{Random, Generator, Public, Secret};
 	use util::Database;
-	use super::super::types::all::{Error, NodeAddress, ServiceConfiguration, ClusterConfiguration, ServerKeyId};
+	use types::all::{Error, NodeAddress, ServiceConfiguration, ClusterConfiguration, ServerKeyId};
 	use super::{DB_META_KEY_VERSION, KeyStorage, PersistentKeyStorage, DocumentKeyShare,
 		SerializableDocumentKeyShareV0, SerializableDocumentKeyShareV1, upgrade_db};
 

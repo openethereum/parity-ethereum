@@ -87,6 +87,7 @@ mod server {
 	use std::sync::Arc;
 	use ethcore_secretstore;
 	use ethkey::KeyPair;
+	use ansi_term::Colour::Red;
 	use super::{Configuration, Dependencies, NodeSecretKey};
 
 	/// Key server
@@ -97,6 +98,10 @@ mod server {
 	impl KeyServer {
 		/// Create new key server
 		pub fn new(mut conf: Configuration, deps: Dependencies) -> Result<Self, String> {
+			if !conf.acl_check_enabled {
+				warn!("Running SecretStore with disabled ACL check: {}", Red.bold().paint("everyone has access to stored keys"));
+			}
+
 			let self_secret: Arc<ethcore_secretstore::NodeKeyPair> = match conf.self_secret.take() {
 				Some(NodeSecretKey::Plain(secret)) => Arc::new(ethcore_secretstore::PlainNodeKeyPair::new(
 					KeyPair::from_secret(secret).map_err(|e| format!("invalid secret: {}", e))?)),

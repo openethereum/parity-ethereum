@@ -78,9 +78,6 @@ impl<T> KeyServerHttpListener<T> where T: KeyServer + 'static {
 		let shared_handler = Arc::new(KeyServerSharedHttpHandler {
 			key_server: key_server,
 		});
-		/*let handler = KeyServerHttpHandler {
-			handler: shared_handler.clone(),
-		};*/
 
 		let http_server = listener_address
 			.map(|listener_address| format!("{}:{}", listener_address.address, listener_address.port))
@@ -89,9 +86,6 @@ impl<T> KeyServerHttpListener<T> where T: KeyServer + 'static {
 				handler: shared_handler.clone(),
 			}).expect("cannot start HttpServer"));
 
-		/*let listener_addr: &str = &format!("{}:{}", listener_address.address, listener_address.port);
-		let http_server = HttpServer::http(&listener_addr).expect("cannot start HttpServer");
-		let http_server = http_server.handle(handler).expect("cannot start HttpServer");*/
 		let listener = KeyServerHttpListener {
 			http_server: http_server,
 			handler: shared_handler,
