@@ -405,6 +405,7 @@ impl HeaderChain {
 
 		match id {
 			BlockId::Earliest | BlockId::Number(0) => Some(self.genesis_header.clone()),
+			BlockId::Hash(hash) if hash == self.genesis_hash() => { Some(self.genesis_header.clone()) }
 			BlockId::Hash(hash) => load_from_db(hash),
 			BlockId::Number(num) => {
 				if self.best_block.read().number < num { return None }
@@ -780,5 +781,19 @@ mod tests {
 		let chain = HeaderChain::new(db.clone(), None, &::rlp::encode(&genesis_header), cache.clone()).unwrap();
 		assert_eq!(chain.block_header(BlockId::Latest).unwrap().number(), 10);
 		assert!(chain.candidates.read().get(&100).is_some())
+	}
+
+	#[test]
+	fn genesis_header_available() {
+		let spec = Spec::new_test();
+		let genesis_header = spec.genesis_header();
+		let db = make_db();
+		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::hours(6))));
+
+		let chain = HeaderChain::new(db.clone(), None, &::rlp::encode(&genesis_header), cache.clone()).unwrap();
+
+		assert!(chain.block_header(BlockId::Earliest).is_some());
+		assert!(chain.block_header(BlockId::Number(0)).is_some());
+		assert!(chain.block_header(BlockId::Hash(genesis_header.hash())).is_some());
 	}
 }

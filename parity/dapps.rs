@@ -36,7 +36,7 @@ use util::{Bytes, Address};
 #[derive(Debug, PartialEq, Clone)]
 pub struct Configuration {
 	pub enabled: bool,
-	pub ntp_server: String,
+	pub ntp_servers: Vec<String>,
 	pub dapps_path: PathBuf,
 	pub extra_dapps: Vec<PathBuf>,
 	pub extra_embed_on: Vec<(String, u16)>,
@@ -47,7 +47,12 @@ impl Default for Configuration {
 		let data_dir = default_data_path();
 		Configuration {
 			enabled: true,
-			ntp_server: "pool.ntp.org:123".into(),
+			ntp_servers: vec![
+				"0.parity.pool.ntp.org:123".into(),
+				"1.parity.pool.ntp.org:123".into(),
+				"2.parity.pool.ntp.org:123".into(),
+				"3.parity.pool.ntp.org:123".into(),
+			],
 			dapps_path: replace_home(&data_dir, "$BASE/dapps").into(),
 			extra_dapps: vec![],
 			extra_embed_on: vec![],
@@ -114,7 +119,7 @@ impl ContractClient for LightRegistrar {
 					tx: Transaction {
 						nonce: self.client.engine().account_start_nonce(header.number()),
 						action: Action::Call(address),
-						gas: 50_000_000.into(),
+						gas: 50_000.into(), // should be enough for all registry lookups. TODO: exponential backoff
 						gas_price: 0.into(),
 						value: 0.into(),
 						data: data,
@@ -158,7 +163,7 @@ pub fn new(configuration: Configuration, deps: Dependencies) -> Result<Option<Mi
 
 	server::dapps_middleware(
 		deps,
-		&configuration.ntp_server,
+		&configuration.ntp_servers,
 		configuration.dapps_path,
 		configuration.extra_dapps,
 		rpc::DAPPS_DOMAIN,
@@ -166,14 +171,14 @@ pub fn new(configuration: Configuration, deps: Dependencies) -> Result<Option<Mi
 	).map(Some)
 }
 
-pub fn new_ui(enabled: bool, ntp_server: &str, deps: Dependencies) -> Result<Option<Middleware>, String> {
+pub fn new_ui(enabled: bool, ntp_servers: &[String], deps: Dependencies) -> Result<Option<Middleware>, String> {
 	if !enabled {
 		return Ok(None);
 	}
 
 	server::ui_middleware(
 		deps,
-		ntp_server,
+		ntp_servers,
 		rpc::DAPPS_DOMAIN,
 	).map(Some)
 }
@@ -188,7 +193,10 @@ mod server {
 	use parity_rpc::{hyper, RequestMiddleware, RequestMiddlewareAction};
 	use rpc_apis;
 
-	pub type SyncStatus = Fn() -> bool;
+	pub trait SyncStatus {
+		fn is_major_importing(&self) -> bool;
+		fn peers(&self) -> (usize, usize);
+	}
 
 	pub struct Middleware;
 	impl RequestMiddleware for Middleware {
@@ -201,7 +209,7 @@ mod server {
 
 	pub fn dapps_middleware(
 		_deps: Dependencies,
-		_ntp_server: &str,
+		_ntp_servers: &[String],
 		_dapps_path: PathBuf,
 		_extra_dapps: Vec<PathBuf>,
 		_dapps_domain: &str,
@@ -212,7 +220,7 @@ mod server {
 
 	pub fn ui_middleware(
 		_deps: Dependencies,
-		_ntp_server: &str,
+		_ntp_servers: &[String],
 		_dapps_domain: &str,
 	) -> Result<Middleware, String> {
 		Err("Your Parity version has been compiled without UI support.".into())
@@ -238,7 +246,7 @@ mod server {
 
 	pub fn dapps_middleware(
 		deps: Dependencies,
-		ntp_server: &str,
+		ntp_servers: &[String],
 		dapps_path: PathBuf,
 		extra_dapps: Vec<PathBuf>,
 		dapps_domain: &str,
@@ -249,7 +257,7 @@ mod server {
 		let web_proxy_tokens = Arc::new(move |token| signer.web_proxy_access_token_domain(&token));
 
 		Ok(parity_dapps::Middleware::dapps(
-			ntp_server,
+			ntp_servers,
 			deps.pool,
 			parity_remote,
 			deps.ui_address,
@@ -266,12 +274,12 @@ mod server {
 
 	pub fn ui_middleware(
 		deps: Dependencies,
-		ntp_server: &str,
+		ntp_servers: &[String],
 		dapps_domain: &str,
 	) -> Result<Middleware, String> {
 		let parity_remote = parity_reactor::Remote::new(deps.remote.clone());
 		Ok(parity_dapps::Middleware::ui(
-			ntp_server,
+			ntp_servers,
 			deps.pool,
 			parity_remote,
 			dapps_domain,

@@ -30,6 +30,8 @@ pub enum DecoderError {
 	RlpInvalidIndirection,
 	/// Declared length is inconsistent with data specified after.
 	RlpInconsistentLengthAndData,
+	/// Declared length is invalid and results in overflow
+	RlpInvalidLength,
 	/// Custom rlp decoding error.
 	Custom(&'static str),
 }

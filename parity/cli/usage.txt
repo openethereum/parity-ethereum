@@ -77,8 +77,10 @@ Operating Options:
                                    subcommands (default: {flag_light}).
 
 Convenience Options:
-  -c --config CONFIG               Specify a filename containing a configuration file.
-                                   (default: {flag_config})
+-c --config CONFIG                 Specify a configuration. CONFIG may be either a
+                                   configuration file or a preset: dev, insecure, dev-insecure,
+                                   mining, or non-standard-ports.
+                                   (default: {flag_config}).
   --ports-shift SHIFT              Add SHIFT to all port numbers Parity is listening on.
                                    Includes network port and all servers (RPC, WebSockets, UI, IPFS, SecretStore).
                                    (default: {flag_ports_shift})
@@ -146,11 +148,15 @@ Networking Options:
                                    These nodes will always have a reserved slot on top
                                    of the normal maximum peers. (default: {flag_reserved_peers:?})
   --reserved-only                  Connect only to reserved nodes. (default: {flag_reserved_only})
-  --allow-ips FILTER               Filter outbound connections. Must be one of:
+  --allow-ips FILTER               Filter outbound connections. FILTER can be one of:
                                    private - connect to private network IP addresses only;
                                    public - connect to public network IP addresses only;
-                                   all - connect to any IP address.
-                                   (default: {flag_allow_ips})
+                                   all - connect to any IP address;
+                                   none - block all (for use with a custom filter as below);
+                                   a custom filter list in the format: "private ip_range1 -ip_range2 ...".
+                                   Where ip_range1 would be allowed and ip_range2 blocked;
+                                   Custom blocks ("-ip_range") override custom allows ("ip_range");
+                                   (default: {flag_allow_ips}).
   --max-pending-peers NUM          Allow up to NUM pending connections. (default: {flag_max_pending_peers})
   --no-ancient-blocks              Disable downloading old blocks after snapshot restoration
                                    or warp sync. (default: {flag_no_ancient_blocks})
@@ -296,6 +302,10 @@ Sealing/Mining Options:
                                    means we relay nothing if not mining);
                                    lenient - Same as strict when mining, and cheap
                                    when not (default: {flag_relay_set}).
+  --min-gas-price WEI              Minimum amount of Wei per GAS to be paid for a
+                                   transaction to be accepted for mining. Overrides
+                                   --basic-tx-usd.
+                                   (default: {flag_min_gas_price:?})
   --usd-per-tx USD                 Amount of USD to be paid for a basic transaction
                                    (default: {flag_usd_per_tx}). The minimum gas price is set
                                    accordingly.
@@ -427,6 +437,11 @@ Snapshot Options:
 Virtual Machine Options:
   --jitvm                          Enable the JIT VM. (default: {flag_jitvm})
 
+Whisper Options:
+  --whisper                        Enable the Whisper network. (default: {flag_whisper})
+  --whisper-pool-size MB           Target size of the whisper message pool in megabytes.
+                                   (default: {flag_whisper_pool_size})
+
 Legacy Options:
   --geth                           Run in Geth-compatibility mode. Sets the IPC path
                                    to be the same as Geth's. Overrides the --ipc-path
@@ -461,9 +476,7 @@ Legacy Options:
   --ipc-off                        Equivalent to --no-ipc.
   --ipcapi APIS                    Equivalent to --ipc-apis APIS.
   --ipcpath PATH                   Equivalent to --ipc-path PATH.
-  --gasprice WEI                   Minimum amount of Wei per GAS to be paid for a
-                                   transaction to be accepted for mining. Overrides
-                                   --basic-tx-usd.
+  --gasprice WEI                   Equivalent to --min-gas-price WEI.
   --etherbase ADDRESS              Equivalent to --author ADDRESS.
   --extradata STRING               Equivalent to --extra-data STRING.
   --cache MB                       Equivalent to --cache-size MB.
@@ -472,8 +485,10 @@ Internal Options:
   --can-restart                    Executable will auto-restart if exiting with 69.
 
 Miscellaneous Options:
-  --ntp-server HOST                NTP server to provide current time (host:port). Used to verify node health.
-                                   (default: {flag_ntp_server})
+  --ntp-servers HOSTS              Comma separated list of NTP servers to provide current time (host:port).
+                                   Used to verify node health. Parity uses pool.ntp.org NTP servers,
+                                   consider joining the pool: http://www.pool.ntp.org/join.html
+                                   (default: {flag_ntp_servers})
   -l --logging LOGGING             Specify the logging level. Must conform to the same
                                    format as RUST_LOG. (default: {flag_logging:?})
   --log-file FILENAME              Specify a filename into which logging should be

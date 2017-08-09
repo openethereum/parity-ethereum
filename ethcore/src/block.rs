@@ -25,7 +25,7 @@ use util::{Bytes, Address, Hashable, U256, H256, ordered_trie_root, SHA3_NULL_RL
 use util::error::{Mismatch, OutOfBounds};
 
 use basic_types::{LogBloom, Seal};
-use evm::env_info::{EnvInfo, LastHashes};
+use vm::{EnvInfo, LastHashes};
 use engines::Engine;
 use error::{Error, BlockError, TransactionError};
 use factory::Factories;
@@ -667,7 +667,7 @@ mod tests {
 	use tests::helpers::*;
 	use super::*;
 	use engines::Engine;
-	use evm::env_info::LastHashes;
+	use vm::LastHashes;
 	use error::Error;
 	use header::Header;
 	use factory::Factories;

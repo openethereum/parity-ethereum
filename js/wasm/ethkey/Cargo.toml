@@ -9,7 +9,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 members = []
 
 [dependencies]
-tiny-keccak = "1.0"
+tiny-keccak = "1.3"
 tiny-secp256k1 = "0.1"
 libc = { version = "0.2.14", default-features = false }
 

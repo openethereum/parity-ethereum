@@ -16,9 +16,11 @@
 
 //! Bloom operations.
 
+extern crate ethcore_bigint;
+
 use std::mem;
 use std::ops::DerefMut;
-use {H64, H160, H256, H512, H520, H2048};
+use ethcore_bigint::hash::{H64, H160, H256, H512, H520, H2048};
 
 /// Returns log2.
 pub fn log2(x: usize) -> u32 {
@@ -115,31 +117,3 @@ impl_bloomable_for_hash!(H256, 32);
 impl_bloomable_for_hash!(H512, 64);
 impl_bloomable_for_hash!(H520, 65);
 impl_bloomable_for_hash!(H2048, 256);
-
-#[cfg(test)]
-mod tests {
-	use {H160, H256, H2048};
-	use sha3::Hashable;
-	use super::Bloomable;
-
-	#[test]
-	fn shift_bloomed() {
-		let bloom: H2048 = "00000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002020000000000000000000000000000000000000000000008000000001000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000".into();
-		let address: H160 = "ef2d6d194084c2de36e0dabfce45d046b37d1106".into();
-		let topic: H256 = "02c69be41d0b7e40352fc85be1cd65eb03d40ef8427a0ca4596b1ead9a00e9fc".into();
-
-		let mut my_bloom = H2048::default();
-		assert!(!my_bloom.contains_bloomed(&address.sha3()));
-		assert!(!my_bloom.contains_bloomed(&topic.sha3()));
-
-		my_bloom.shift_bloomed(&address.sha3());
-		assert!(my_bloom.contains_bloomed(&address.sha3()));
-		assert!(!my_bloom.contains_bloomed(&topic.sha3()));
-
-		my_bloom.shift_bloomed(&topic.sha3());
-		assert_eq!(my_bloom, bloom);
-		assert!(my_bloom.contains_bloomed(&address.sha3()));
-		assert!(my_bloom.contains_bloomed(&topic.sha3()));
-	}
-}
-

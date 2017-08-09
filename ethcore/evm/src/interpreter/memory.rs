@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use util::U256;
-use {ReturnData};
+use vm::ReturnData;
 
 const MAX_RETURN_WASTE_BYTES: usize = 16384;
 

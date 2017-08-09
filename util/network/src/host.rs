@@ -35,7 +35,7 @@ use rlp::*;
 use session::{Session, SessionInfo, SessionData};
 use error::*;
 use io::*;
-use {NetworkProtocolHandler, NonReservedPeerMode, AllowIP, PROTOCOL_VERSION};
+use {NetworkProtocolHandler, NonReservedPeerMode, PROTOCOL_VERSION, IpFilter};
 use node_table::*;
 use stats::NetworkStats;
 use discovery::{Discovery, TableUpdates, NodeEntry};
@@ -106,7 +106,7 @@ pub struct NetworkConfiguration {
 	/// The non-reserved peer mode.
 	pub non_reserved_mode: NonReservedPeerMode,
 	/// IP filter
-	pub allow_ips: AllowIP,
+	pub ip_filter: IpFilter,
 }
 
 impl Default for NetworkConfiguration {
@@ -132,7 +132,7 @@ impl NetworkConfiguration {
 			max_peers: 50,
 			max_handshakes: 64,
 			reserved_protocols: HashMap::new(),
-			allow_ips: AllowIP::All,
+			ip_filter: IpFilter::default(),
 			reserved_nodes: Vec::new(),
 			non_reserved_mode: NonReservedPeerMode::Accept,
 		}
@@ -566,7 +566,7 @@ impl Host {
 		}
 		let local_endpoint = self.info.read().local_endpoint.clone();
 		let public_address = self.info.read().config.public_address.clone();
-		let allow_ips = self.info.read().config.allow_ips;
+		let allow_ips = self.info.read().config.ip_filter.clone();
 		let public_endpoint = match public_address {
 			None => {
 				let public_address = select_public_address(local_endpoint.address.port());
@@ -660,7 +660,7 @@ impl Host {
 			}
 			let config = &info.config;
 
-			(config.min_peers, config.non_reserved_mode == NonReservedPeerMode::Deny, config.max_handshakes as usize, config.allow_ips, info.id().clone())
+			(config.min_peers, config.non_reserved_mode == NonReservedPeerMode::Deny, config.max_handshakes as usize, config.ip_filter.clone(), info.id().clone())
 		};
 
 		let session_count = self.session_count();
@@ -857,11 +857,16 @@ impl Host {
 							// Add it to the node table
 							if !s.info.originated {
 								if let Ok(address) = s.remote_addr() {
-									let entry = NodeEntry { id: id, endpoint: NodeEndpoint { address: address, udp_port: address.port() } };
-									self.nodes.write().add_node(Node::new(entry.id.clone(), entry.endpoint.clone()));
-									let mut discovery = self.discovery.lock();
-									if let Some(ref mut discovery) = *discovery {
-										discovery.add_node(entry);
+									// We can't know remote listening ports, so just assume defaults and hope for the best.
+									let endpoint = NodeEndpoint { address: SocketAddr::new(address.ip(), DEFAULT_PORT), udp_port: DEFAULT_PORT };
+									let entry = NodeEntry { id: id, endpoint: endpoint };
+									let mut nodes = self.nodes.write();
+									if !nodes.contains(&entry.id) {
+										nodes.add_node(Node::new(entry.id.clone(), entry.endpoint.clone()));
+										let mut discovery = self.discovery.lock();
+										if let Some(ref mut discovery) = *discovery {
+											discovery.add_node(entry);
+										}
 									}
 								}
 							}
@@ -1099,7 +1104,10 @@ impl IoHandler<NetworkIoMessage> for Host {
 			} => {
 				let h = handler.clone();
 				let reserved = self.reserved_nodes.read();
-				h.initialize(&NetworkContext::new(io, *protocol, None, self.sessions.clone(), &reserved));
+				h.initialize(
+					&NetworkContext::new(io, *protocol, None, self.sessions.clone(), &reserved),
+					&*self.info.read(),
+				);
 				self.handlers.write().insert(*protocol, h);
 				let mut info = self.info.write();
 				for v in versions {

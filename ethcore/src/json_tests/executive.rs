@@ -14,16 +14,18 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::sync::Arc;
 use super::test_common::*;
-use evm::action_params::ActionParams;
 use state::{Backend as StateBackend, State, Substate};
 use executive::*;
 use engines::Engine;
-use evm::env_info::EnvInfo;
-use evm;
-use evm::{Schedule, Ext, Finalize, VMType, ContractCreateResult, MessageCallResult, CreateContractAddress, ReturnData};
+use evm::{VMType, Finalize};
+use vm::{
+	self, ActionParams, CallType, Schedule, Ext,
+	ContractCreateResult, EnvInfo, MessageCallResult,
+	CreateContractAddress, ReturnData,
+};
 use externalities::*;
-use evm::CallType;
 use tests::helpers::*;
 use ethjson;
 use trace::{Tracer, NoopTracer};
@@ -88,27 +90,27 @@ impl<'a, T: 'a, V: 'a, B: 'a, E: 'a> TestExt<'a, T, V, B, E>
 impl<'a, T: 'a, V: 'a, B: 'a, E: 'a> Ext for TestExt<'a, T, V, B, E>
 	where T: Tracer, V: VMTracer, B: StateBackend, E: Engine + ?Sized
 {
-	fn storage_at(&self, key: &H256) -> evm::Result<H256> {
+	fn storage_at(&self, key: &H256) -> vm::Result<H256> {
 		self.ext.storage_at(key)
 	}
 
-	fn set_storage(&mut self, key: H256, value: H256) -> evm::Result<()> {
+	fn set_storage(&mut self, key: H256, value: H256) -> vm::Result<()> {
 		self.ext.set_storage(key, value)
 	}
 
-	fn exists(&self, address: &Address) -> evm::Result<bool> {
+	fn exists(&self, address: &Address) -> vm::Result<bool> {
 		self.ext.exists(address)
 	}
 
-	fn exists_and_not_null(&self, address: &Address) -> evm::Result<bool> {
+	fn exists_and_not_null(&self, address: &Address) -> vm::Result<bool> {
 		self.ext.exists_and_not_null(address)
 	}
 
-	fn balance(&self, address: &Address) -> evm::Result<U256> {
+	fn balance(&self, address: &Address) -> vm::Result<U256> {
 		self.ext.balance(address)
 	}
 
-	fn origin_balance(&self) -> evm::Result<U256> {
+	fn origin_balance(&self) -> vm::Result<U256> {
 		self.ext.origin_balance()
 	}
 
@@ -146,23 +148,23 @@ impl<'a, T: 'a, V: 'a, B: 'a, E: 'a> Ext for TestExt<'a, T, V, B, E>
 		MessageCallResult::Success(*gas, ReturnData::empty())
 	}
 
-	fn extcode(&self, address: &Address) -> evm::Result<Arc<Bytes>>  {
+	fn extcode(&self, address: &Address) -> vm::Result<Arc<Bytes>>  {
 		self.ext.extcode(address)
 	}
 
-	fn extcodesize(&self, address: &Address) -> evm::Result<usize> {
+	fn extcodesize(&self, address: &Address) -> vm::Result<usize> {
 		self.ext.extcodesize(address)
 	}
 
-	fn log(&mut self, topics: Vec<H256>, data: &[u8]) -> evm::Result<()> {
+	fn log(&mut self, topics: Vec<H256>, data: &[u8]) -> vm::Result<()> {
 		self.ext.log(topics, data)
 	}
 
-	fn ret(self, gas: &U256, data: &ReturnData) -> Result<U256, evm::Error> {
+	fn ret(self, gas: &U256, data: &ReturnData) -> Result<U256, vm::Error> {
 		self.ext.ret(gas, data)
 	}
 
-	fn suicide(&mut self, refund_address: &Address) -> evm::Result<()> {
+	fn suicide(&mut self, refund_address: &Address) -> vm::Result<()> {
 		self.ext.suicide(refund_address)
 	}
 

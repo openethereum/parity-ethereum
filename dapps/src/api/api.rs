@@ -21,7 +21,7 @@ use hyper::method::Method;
 use hyper::status::StatusCode;
 
 use api::{response, types};
-use api::time::TimeChecker;
+use api::time::{TimeChecker, MAX_DRIFT};
 use apps::fetcher::Fetcher;
 use handlers::{self, extract_url};
 use endpoint::{Endpoint, Handler, EndpointPath};
@@ -122,7 +122,6 @@ impl RestApiRouter {
 
 			// Check time
 			let time = {
-				const MAX_DRIFT: i64 = 500;
 				let (status, message, details) = match time {
 					Ok(Ok(diff)) if diff < MAX_DRIFT && diff > -MAX_DRIFT => {
 						(HealthStatus::Ok, "".into(), diff)
@@ -147,13 +146,7 @@ impl RestApiRouter {
 				HealthInfo { status, message, details, }
 			};
 
-			let status = if [&peers.status, &sync.status, &time.status].iter().any(|x| *x != &HealthStatus::Ok) {
-				StatusCode::PreconditionFailed // HTTP 412
-			} else {
-				StatusCode::Ok // HTTP 200
-			};
-
-			response::as_json(status, &Health { peers, sync, time })
+			response::as_json(StatusCode::Ok, &Health { peers, sync, time })
 		};
 
 		let time = self.api.time.time_drift();

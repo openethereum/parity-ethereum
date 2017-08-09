@@ -16,6 +16,7 @@
 
 #[macro_use]
 mod usage;
+mod presets;
 use dir;
 
 usage! {
@@ -176,7 +177,7 @@ usage! {
 			or |c: &Config| otry!(c.rpc).interface.clone(),
 		flag_jsonrpc_cors: Option<String> = None,
 			or |c: &Config| otry!(c.rpc).cors.clone().map(Some),
-		flag_jsonrpc_apis: String = "web3,eth,pubsub,net,parity,parity_pubsub,traces,rpc,secretstore",
+		flag_jsonrpc_apis: String = "web3,eth,pubsub,net,parity,parity_pubsub,traces,rpc,secretstore,shh,shh_pubsub",
 			or |c: &Config| otry!(c.rpc).apis.as_ref().map(|vec| vec.join(",")),
 		flag_jsonrpc_hosts: String = "none",
 			or |c: &Config| otry!(c.rpc).hosts.as_ref().map(|vec| vec.join(",")),
@@ -192,7 +193,7 @@ usage! {
 			or |c: &Config| otry!(c.websockets).port.clone(),
 		flag_ws_interface: String  = "local",
 			or |c: &Config| otry!(c.websockets).interface.clone(),
-		flag_ws_apis: String = "web3,eth,pubsub,net,parity,parity_pubsub,traces,rpc,secretstore",
+		flag_ws_apis: String = "web3,eth,pubsub,net,parity,parity_pubsub,traces,rpc,secretstore,shh,shh_pubsub",
 			or |c: &Config| otry!(c.websockets).apis.as_ref().map(|vec| vec.join(",")),
 		flag_ws_origins: String = "chrome-extension://*",
 			or |c: &Config| otry!(c.websockets).origins.as_ref().map(|vec| vec.join(",")),
@@ -204,7 +205,7 @@ usage! {
 			or |c: &Config| otry!(c.ipc).disable.clone(),
 		flag_ipc_path: String = if cfg!(windows) { r"\\.\pipe\jsonrpc.ipc" } else { "$BASE/jsonrpc.ipc" },
 			or |c: &Config| otry!(c.ipc).path.clone(),
-		flag_ipc_apis: String = "web3,eth,pubsub,net,parity,parity_pubsub,parity_accounts,traces,rpc,secretstore",
+		flag_ipc_apis: String = "web3,eth,pubsub,net,parity,parity_pubsub,parity_accounts,traces,rpc,secretstore,shh,shh_pubsub",
 			or |c: &Config| otry!(c.ipc).apis.as_ref().map(|vec| vec.join(",")),
 
 		// DAPPS
@@ -270,6 +271,8 @@ usage! {
 			or |c: &Config| otry!(c.mining).tx_time_limit.clone().map(Some),
 		flag_relay_set: String = "cheap",
 			or |c: &Config| otry!(c.mining).relay_set.clone(),
+		flag_min_gas_price: Option<u64> = None,
+			or |c: &Config| otry!(c.mining).min_gas_price.clone().map(Some),
 		flag_usd_per_tx: String = "0.0025",
 			or |c: &Config| otry!(c.mining).usd_per_tx.clone(),
 		flag_usd_per_eth: String = "auto",
@@ -360,14 +363,20 @@ usage! {
 			or |c: &Config| otry!(c.vm).jit.clone(),
 
 		// -- Miscellaneous Options
-		flag_ntp_server: String = "pool.ntp.org:123",
-			or |c: &Config| otry!(c.misc).ntp_server.clone(),
+		flag_ntp_servers: String = "0.parity.pool.ntp.org:123,1.parity.pool.ntp.org:123,2.parity.pool.ntp.org:123,3.parity.pool.ntp.org:123",
+			or |c: &Config| otry!(c.misc).ntp_servers.clone().map(|vec| vec.join(",")),
 		flag_logging: Option<String> = None,
 			or |c: &Config| otry!(c.misc).logging.clone().map(Some),
 		flag_log_file: Option<String> = None,
 			or |c: &Config| otry!(c.misc).log_file.clone().map(Some),
 		flag_no_color: bool = false,
 			or |c: &Config| otry!(c.misc).color.map(|c| !c).clone(),
+
+		// -- Whisper options
+		flag_whisper: bool = false,
+			or |c: &Config| otry!(c.whisper).enabled,
+		flag_whisper_pool_size: usize = 10usize,
+			or |c: &Config| otry!(c.whisper).pool_size.clone(),
 
 		// -- Legacy Options supported in configs
 		flag_dapps_port: Option<u16> = None,
@@ -411,6 +420,7 @@ struct Config {
 	vm: Option<VM>,
 	misc: Option<Misc>,
 	stratum: Option<Stratum>,
+	whisper: Option<Whisper>,
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
@@ -547,6 +557,7 @@ struct Mining {
 	tx_gas_limit: Option<String>,
 	tx_time_limit: Option<u64>,
 	relay_set: Option<String>,
+	min_gas_price: Option<u64>,
 	usd_per_tx: Option<String>,
 	usd_per_eth: Option<String>,
 	price_update_period: Option<String>,
@@ -601,7 +612,7 @@ struct VM {
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
 struct Misc {
-	ntp_server: Option<String>,
+	ntp_servers: Option<Vec<String>>,
 	logging: Option<String>,
 	log_file: Option<String>,
 	color: Option<bool>,
@@ -609,12 +620,18 @@ struct Misc {
 	unsafe_expose: Option<bool>,
 }
 
+#[derive(Default, Debug, PartialEq, Deserialize)]
+struct Whisper {
+	enabled: Option<bool>,
+	pool_size: Option<usize>,
+}
+
 #[cfg(test)]
 mod tests {
 	use super::{
 		Args, ArgsError,
 		Config, Operating, Account, Ui, Network, Ws, Rpc, Ipc, Dapps, Ipfs, Mining, Footprint,
-		Snapshots, VM, Misc, SecretStore,
+		Snapshots, VM, Misc, Whisper, SecretStore,
 	};
 	use toml;
 
@@ -814,6 +831,7 @@ mod tests {
 			flag_tx_gas_limit: Some("6283184".into()),
 			flag_tx_time_limit: Some(100u64),
 			flag_relay_set: "cheap".into(),
+			flag_min_gas_price: Some(0u64),
 			flag_usd_per_tx: "0.0025".into(),
 			flag_usd_per_eth: "auto".into(),
 			flag_price_update_period: "hourly".into(),
@@ -868,6 +886,10 @@ mod tests {
 			// -- Virtual Machine Options
 			flag_jitvm: false,
 
+			// -- Whisper options.
+			flag_whisper: false,
+			flag_whisper_pool_size: 20,
+
 			// -- Legacy Options
 			flag_geth: false,
 			flag_testnet: false,
@@ -905,7 +927,7 @@ mod tests {
 			flag_dapps_apis_all: None,
 
 			// -- Miscellaneous Options
-			flag_ntp_server: "pool.ntp.org:123".into(),
+			flag_ntp_servers: "0.parity.pool.ntp.org:123,1.parity.pool.ntp.org:123,2.parity.pool.ntp.org:123,3.parity.pool.ntp.org:123".into(),
 			flag_version: false,
 			flag_logging: Some("own_tx=trace".into()),
 			flag_log_file: Some("/var/log/parity.log".into()),
@@ -1044,6 +1066,7 @@ mod tests {
 				reseal_max_period: Some(60000),
 				work_queue_size: None,
 				relay_set: None,
+				min_gas_price: None,
 				usd_per_tx: None,
 				usd_per_eth: None,
 				price_update_period: Some("hourly".into()),
@@ -1085,12 +1108,16 @@ mod tests {
 				jit: Some(false),
 			}),
 			misc: Some(Misc {
-				ntp_server: Some("pool.ntp.org:123".into()),
+				ntp_servers: Some(vec!["0.parity.pool.ntp.org:123".into()]),
 				logging: Some("own_tx=trace".into()),
 				log_file: Some("/var/log/parity.log".into()),
 				color: Some(true),
 				ports_shift: Some(0),
 				unsafe_expose: Some(false),
+			}),
+			whisper: Some(Whisper {
+				enabled: Some(true),
+				pool_size: Some(50),
 			}),
 			stratum: None,
 		});

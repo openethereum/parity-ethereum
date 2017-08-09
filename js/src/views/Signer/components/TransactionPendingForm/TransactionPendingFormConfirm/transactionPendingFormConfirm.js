@@ -407,7 +407,11 @@ export default class TransactionPendingFormConfirm extends Component {
   onScan = (signature) => {
     const { chainId, rlp, tx, data, decrypt } = this.state.qr;
 
-    if (signature && signature.substr(0, 2) !== '0x') {
+    if (!signature) {
+      return;
+    }
+
+    if (signature.substr(0, 2) !== '0x') {
       signature = `0x${signature}`;
     }
 
