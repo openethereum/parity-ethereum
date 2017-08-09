@@ -252,11 +252,11 @@ export default class Store {
         return callback(null, this.createToken(from));
 
       case 'shell_setAppVisibility':
-        const [appId, visibility] = params;
+        const [changeId, visibility] = params;
 
         return callback(null, visibility
-          ? visibleStore.showApp(appId)
-          : visibleStore.hideApp(appId)
+          ? visibleStore.showApp(changeId)
+          : visibleStore.hideApp(changeId)
         );
 
       case 'shell_setMethodPermissions':
