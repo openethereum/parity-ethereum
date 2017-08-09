@@ -1,58 +1,47 @@
-# [Parity](https://ethcore.io/parity.html)
-### Fast, light, and robust Ethereum implementation
+# [Parity](https://parity.io/parity.html) - fast, light, and robust Ethereum client
 
-[![build status](https://gitlab.ethcore.io/parity/parity/badges/master/build.svg)](https://gitlab.ethcore.io/parity/parity/commits/master) [![Coverage Status][coveralls-image]][coveralls-url]  [![GPLv3][license-image]][license-url]
+[![build status](https://gitlab.parity.io/parity/parity/badges/master/build.svg)](https://gitlab.parity.io/parity/parity/commits/master)
+[![Snap Status](https://build.snapcraft.io/badge/paritytech/parity.svg)](https://build.snapcraft.io/user/paritytech/parity)
+[![GPLv3](https://img.shields.io/badge/license-GPL%20v3-green.svg)](https://www.gnu.org/licenses/gpl-3.0.en.html)
+
+- [Download the latest release here.](https://github.com/paritytech/parity/releases)
 
 ### Join the chat!
 
-Parity [![Join the chat at https://gitter.im/ethcore/parity][gitter-image]][gitter-url] and
-parity.js [![Join the chat at https://gitter.im/ethcore/parity.js](https://badges.gitter.im/ethcore/parity.js.svg)](https://gitter.im/ethcore/parity.js?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+Get in touch with us on Gitter:
+[![Gitter: Parity](https://img.shields.io/badge/gitter-parity-4AB495.svg)](https://gitter.im/paritytech/parity)
+[![Gitter: Parity.js](https://img.shields.io/badge/gitter-parity.js-4AB495.svg)](https://gitter.im/paritytech/parity.js)
+[![Gitter: Parity/Miners](https://img.shields.io/badge/gitter-parity/miners-4AB495.svg)](https://gitter.im/paritytech/parity/miners)
+[![Gitter: Parity-PoA](https://img.shields.io/badge/gitter-parity--poa-4AB495.svg)](https://gitter.im/paritytech/parity-poa)
 
-[Internal Documentation][doc-url]
-
-
-Be sure to check out [our wiki][wiki-url] for more information.
-
-[coveralls-image]: https://coveralls.io/repos/github/ethcore/parity/badge.svg?branch=master
-[coveralls-url]: https://coveralls.io/github/ethcore/parity?branch=master
-[gitter-image]: https://badges.gitter.im/Join%20Chat.svg
-[gitter-url]: https://gitter.im/ethcore/parity?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge
-[license-image]: https://img.shields.io/badge/license-GPL%20v3-green.svg
-[license-url]: https://www.gnu.org/licenses/gpl-3.0.en.html
-[doc-url]: https://ethcore.github.io/parity/ethcore/index.html
-[wiki-url]: https://github.com/ethcore/parity/wiki
-
-**Parity requires Rust version 1.15.0 to build**
+Be sure to check out [our wiki](https://github.com/paritytech/parity/wiki) and the [internal documentation](https://paritytech.github.io/parity/ethcore/index.html) for more information.
 
 ----
 
-
 ## About Parity
 
-Parity's goal is to be the fastest, lightest, and most secure Ethereum client. We are developing Parity using the sophisticated and
-cutting-edge Rust programming language. Parity is licensed under the GPLv3, and can be used for all your Ethereum needs.
+Parity's goal is to be the fastest, lightest, and most secure Ethereum client. We are developing Parity using the sophisticated and cutting-edge Rust programming language. Parity is licensed under the GPLv3, and can be used for all your Ethereum needs.
 
-Parity comes with a built-in wallet. To access [Parity Wallet](http://127.0.0.1:8080/) simply go to http://127.0.0.1:8080/. It
-includes various functionality allowing you to:
+Parity comes with a built-in wallet. To access [Parity Wallet](http://web3.site/) simply go to http://web3.site/ (if you don't have access to the internet, but still want to use the service, you can also use http://127.0.0.1:8180/). It includes various functionality allowing you to:
+
 - create and manage your Ethereum accounts;
 - manage your Ether and any Ethereum tokens;
 - create and register your own tokens;
-- and much more.    
+- and much more.
 
-By default, Parity will also run a JSONRPC server on `127.0.0.1:8545`. This is fully configurable and supports a number
-of RPC APIs.
+By default, Parity will also run a JSONRPC server on `127.0.0.1:8545`. This is fully configurable and supports a number of RPC APIs.
 
-If you run into an issue while using parity, feel free to file one in this repository
-or hop on our [gitter chat room][gitter-url] to ask a question. We are glad to help!
+If you run into an issue while using parity, feel free to file one in this repository or hop on our [gitter chat room](https://gitter.im/paritytech/parity) to ask a question. We are glad to help!
 
-Parity's current release is 1.5. You can download it at https://ethcore.io/parity.html or follow the instructions
-below to build from source.
+**For security-critical issues**, please refer to the security policy outlined in `SECURITY.MD`.
+
+Parity's current release is 1.7. You can download it at https://github.com/paritytech/parity/releases or follow the instructions below to build from source.
 
 ----
 
 ## Build dependencies
 
-Parity is fully compatible with Stable Rust.
+**Parity requires Rust version 1.18.0 to build**, Parity versions 1.6.x do not build with Rust 1.17.0 or 1.19.0!
 
 We recommend installing Rust through [rustup](https://www.rustup.rs/). If you don't already have rustup, you can install it like this:
 
@@ -60,7 +49,7 @@ We recommend installing Rust through [rustup](https://www.rustup.rs/). If you do
 	```bash
 	$ curl https://sh.rustup.rs -sSf | sh
 	```
-	
+
 	Parity also requires `gcc`, `g++`, `libssl-dev`/`openssl`, `libudev-dev` and `pkg-config` packages to be installed.
 - OSX:
 	```bash
@@ -80,11 +69,15 @@ Once you have rustup, install parity or download and build from source
 
 ----
 
-## Quick install
+## Install from the snap store
+
+In any of the [supported Linux distros](https://snapcraft.io/docs/core/install):
 
 ```bash
-cargo install --git https://github.com/ethcore/parity.git parity
+sudo snap install parity --edge
 ```
+
+(Note that this is an experimental and unstable release, at the moment)
 
 ----
 
@@ -92,7 +85,7 @@ cargo install --git https://github.com/ethcore/parity.git parity
 
 ```bash
 # download Parity code
-$ git clone https://github.com/ethcore/parity
+$ git clone https://github.com/paritytech/parity
 $ cd parity
 
 # build in release mode
