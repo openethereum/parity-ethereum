@@ -78,7 +78,7 @@ disable_periodic = true
 jit = false
 
 [misc]
-ntp_server = "pool.ntp.org:123"
+ntp_servers = ["0.parity.pool.ntp.org:123"]
 logging = "own_tx=trace"
 log_file = "/var/log/parity.log"
 color = true

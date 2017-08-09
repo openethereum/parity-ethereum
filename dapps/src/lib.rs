@@ -130,7 +130,7 @@ impl Middleware {
 
 	/// Creates new middleware for UI server.
 	pub fn ui<F: Fetch>(
-		ntp_server: &str,
+		ntp_servers: &[String],
 		pool: CpuPool,
 		remote: Remote,
 		dapps_domain: &str,
@@ -146,7 +146,7 @@ impl Middleware {
 		).embeddable_on(None).allow_dapps(false));
 		let special = {
 			let mut special = special_endpoints(
-				ntp_server,
+				ntp_servers,
 				pool,
 				content_fetcher.clone(),
 				remote.clone(),
@@ -171,7 +171,7 @@ impl Middleware {
 
 	/// Creates new Dapps server middleware.
 	pub fn dapps<F: Fetch>(
-		ntp_server: &str,
+		ntp_servers: &[String],
 		pool: CpuPool,
 		remote: Remote,
 		ui_address: Option<(String, u16)>,
@@ -203,7 +203,7 @@ impl Middleware {
 
 		let special = {
 			let mut special = special_endpoints(
-				ntp_server,
+				ntp_servers,
 				pool,
 				content_fetcher.clone(),
 				remote.clone(),
@@ -237,8 +237,8 @@ impl http::RequestMiddleware for Middleware {
 	}
 }
 
-fn special_endpoints(
-	ntp_server: &str,
+fn special_endpoints<T: AsRef<str>>(
+	ntp_servers: &[T],
 	pool: CpuPool,
 	content_fetcher: Arc<apps::fetcher::Fetcher>,
 	remote: Remote,
@@ -250,7 +250,7 @@ fn special_endpoints(
 	special.insert(router::SpecialEndpoint::Api, Some(api::RestApi::new(
 		content_fetcher,
 		sync_status,
-		api::TimeChecker::new(ntp_server.into(), pool),
+		api::TimeChecker::new(ntp_servers, pool),
 		remote,
 	)));
 	special
