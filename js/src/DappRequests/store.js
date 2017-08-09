@@ -237,6 +237,17 @@ export default class Store {
       case 'shell_getMethodPermissions':
         return callback(null, this.permissions);
 
+      case 'shell_loadApp':
+        const [_loadId, loadParams] = params;
+        const loadId = _loadId.substr(0, 2) !== '0x'
+          ? sha3(_loadId)
+          : _loadId;
+        const loadUrl = `/${loadId}/${loadParams || ''}`;
+
+        window.location.hash = loadUrl;
+
+        return callback(null, true);
+
       case 'shell_requestNewToken':
         return callback(null, this.createToken(from));
 
