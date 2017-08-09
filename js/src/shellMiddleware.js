@@ -22,7 +22,7 @@ import VisibleStore from '@parity/shared/mobx/dappsStore';
 import RequestStore from './DappRequests/store';
 import filteredRequests from './DappRequests/filteredRequests';
 
-export function execute (appId, method, params, callback) {
+export default function execute (appId, method, params, callback) {
   const visibleStore = VisibleStore.get();
   const requestStore = RequestStore.get();
 
