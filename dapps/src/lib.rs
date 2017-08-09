@@ -69,9 +69,11 @@ mod web;
 #[cfg(test)]
 mod tests;
 
+use std::collections::HashMap;
+use std::mem;
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::collections::HashMap;
+use util::RwLock;
 
 use jsonrpc_http_server::{self as http, hyper, Origin};
 
@@ -101,31 +103,54 @@ impl<F> WebProxyTokens for F where F: Fn(String) -> Option<Origin> + Send + Sync
 }
 
 /// Current supported endpoints.
+#[derive(Default, Clone)]
 pub struct Endpoints {
-	endpoints: endpoint::Endpoints,
+	local_endpoints: Arc<RwLock<Vec<String>>>,
+	endpoints: Arc<RwLock<endpoint::Endpoints>>,
+	dapps_path: PathBuf,
+	embeddable: Option<ParentFrameSettings>,
 }
 
 impl Endpoints {
 	/// Returns a current list of app endpoints.
 	pub fn list(&self) -> Vec<apps::App> {
-		self.endpoints.iter().filter_map(|(ref k, ref e)| {
+		self.endpoints.read().iter().filter_map(|(ref k, ref e)| {
 			e.info().map(|ref info| apps::App::from_info(k, info))
 		}).collect()
+	}
+
+	/// Check for any changes in the local dapps folder and update.
+	pub fn refresh_local_dapps(&self) {
+		let new_local = apps::fs::local_endpoints(&self.dapps_path, self.embeddable.clone());
+		let old_local = mem::replace(&mut *self.local_endpoints.write(), new_local.keys().cloned().collect());
+		let (_, to_remove): (_, Vec<_>) = old_local
+			.into_iter()
+			.partition(|k| new_local.contains_key(&k.clone()));
+
+		let mut endpoints = self.endpoints.write();
+		// remove the dead dapps
+		for k in to_remove {
+			endpoints.remove(&k);
+		}
+		// new dapps to be added
+		for (k, v) in new_local {
+			if !endpoints.contains_key(&k) {
+				endpoints.insert(k, v);
+			}
+		}
 	}
 }
 
 /// Dapps server as `jsonrpc-http-server` request middleware.
 pub struct Middleware {
+	endpoints: Endpoints,
 	router: router::Router,
-	endpoints: endpoint::Endpoints,
 }
 
 impl Middleware {
 	/// Get local endpoints handle.
-	pub fn endpoints(&self) -> Endpoints {
-		Endpoints {
-			endpoints: self.endpoints.clone(),
-		}
+	pub fn endpoints(&self) -> &Endpoints {
+		&self.endpoints
 	}
 
 	/// Creates new middleware for UI server.
@@ -164,8 +189,8 @@ impl Middleware {
 		);
 
 		Middleware {
-			router: router,
 			endpoints: Default::default(),
+			router: router,
 		}
 	}
 
@@ -191,8 +216,8 @@ impl Middleware {
 			remote.clone(),
 			fetch.clone(),
 		).embeddable_on(embeddable.clone()).allow_dapps(true));
-		let endpoints = apps::all_endpoints(
-			dapps_path,
+		let (local_endpoints, endpoints) = apps::all_endpoints(
+			dapps_path.clone(),
 			extra_dapps,
 			dapps_domain,
 			embeddable.clone(),
@@ -200,6 +225,12 @@ impl Middleware {
 			remote.clone(),
 			fetch.clone(),
 		);
+		let endpoints = Endpoints {
+			endpoints: Arc::new(RwLock::new(endpoints)),
+			dapps_path,
+			local_endpoints: Arc::new(RwLock::new(local_endpoints)),
+			embeddable: embeddable.clone(),
+		};
 
 		let special = {
 			let mut special = special_endpoints(
@@ -225,8 +256,8 @@ impl Middleware {
 		);
 
 		Middleware {
-			router: router,
-			endpoints: endpoints,
+			endpoints,
+			router,
 		}
 	}
 }

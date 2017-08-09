@@ -28,7 +28,8 @@ use jsonrpc_http_server as http;
 
 use apps;
 use apps::fetcher::Fetcher;
-use endpoint::{Endpoint, Endpoints, EndpointPath, Handler};
+use endpoint::{Endpoint, EndpointPath, Handler};
+use Endpoints;
 use handlers;
 use Embeddable;
 
@@ -50,26 +51,27 @@ pub struct Router {
 	dapps_domain: String,
 }
 
-impl http::RequestMiddleware for Router {
-	fn on_request(&self, req: &server::Request<HttpStream>, control: &Control) -> http::RequestMiddlewareAction {
+impl Router {
+	fn resolve_request(&self, req: &server::Request<HttpStream>, control: Control, refresh_dapps: bool) -> (bool, Option<Box<Handler>>) {
 		// Choose proper handler depending on path / domain
 		let url = handlers::extract_url(req);
 		let endpoint = extract_endpoint(&url, &self.dapps_domain);
 		let referer = extract_referer_endpoint(req, &self.dapps_domain);
 		let is_utils = endpoint.1 == SpecialEndpoint::Utils;
-		let is_origin_set = req.headers().get::<header::Origin>().is_some();
 		let is_get_request = *req.method() == hyper::Method::Get;
 		let is_head_request = *req.method() == hyper::Method::Head;
+		let has_dapp = |dapp: &str| self.endpoints
+			.as_ref()
+			.map_or(false, |endpoints| endpoints.endpoints.read().contains_key(dapp));
 
 		trace!(target: "dapps", "Routing request to {:?}. Details: {:?}", url, req);
-
-		let control = control.clone();
 		debug!(target: "dapps", "Handling endpoint request: {:?}", endpoint);
-		let handler: Option<Box<Handler>> = match (endpoint.0, endpoint.1, referer) {
+
+		(is_utils, match (endpoint.0, endpoint.1, referer) {
 			// Handle invalid web requests that we can recover from
 			(ref path, SpecialEndpoint::None, Some((ref referer, ref referer_url)))
 				if referer.app_id == apps::WEB_PATH
-					&& self.endpoints.as_ref().map(|ep| ep.contains_key(apps::WEB_PATH)).unwrap_or(false)
+					&& has_dapp(apps::WEB_PATH)
 					&& !is_web_endpoint(path)
 				=>
 			{
@@ -88,11 +90,13 @@ impl http::RequestMiddleware for Router {
 					.map(|special| special.to_async_handler(path.clone().unwrap_or_default(), control))
 			},
 			// Then delegate to dapp
-			(Some(ref path), _, _) if self.endpoints.as_ref().map(|ep| ep.contains_key(&path.app_id)).unwrap_or(false) => {
+			(Some(ref path), _, _) if has_dapp(&path.app_id) => {
 				trace!(target: "dapps", "Resolving to local/builtin dapp.");
 				Some(self.endpoints
 					.as_ref()
 					.expect("endpoints known to be set; qed")
+					.endpoints
+					.read()
 					.get(&path.app_id)
 					.expect("endpoints known to contain key; qed")
 					.to_async_handler(path.clone(), control))
@@ -110,13 +114,19 @@ impl http::RequestMiddleware for Router {
 				=>
 			{
 				trace!(target: "dapps", "Resolving to 404.");
-				Some(Box::new(handlers::ContentHandler::error(
-					hyper::StatusCode::NotFound,
-					"404 Not Found",
-					"Requested content was not found.",
-					None,
-					self.embeddable_on.clone(),
-				)))
+				if refresh_dapps {
+					debug!(target: "dapps", "Refreshing dapps and re-trying.");
+					self.endpoints.as_ref().map(|endpoints| endpoints.refresh_local_dapps());
+					return self.resolve_request(req, control, false)
+				} else {
+					Some(Box::new(handlers::ContentHandler::error(
+						hyper::StatusCode::NotFound,
+						"404 Not Found",
+						"Requested content was not found.",
+						None,
+						self.embeddable_on.clone(),
+					)))
+				}
 			},
 			// Any other GET|HEAD requests to home page.
 			_ if (is_get_request || is_head_request) && self.special.contains_key(&SpecialEndpoint::Home) => {
@@ -130,8 +140,15 @@ impl http::RequestMiddleware for Router {
 				trace!(target: "dapps", "Resolving to RPC call.");
 				None
 			}
-		};
+		})
+	}
+}
 
+impl http::RequestMiddleware for Router {
+	fn on_request(&self, req: &server::Request<HttpStream>, control: &Control) -> http::RequestMiddlewareAction {
+		let control = control.clone();
+		let is_origin_set = req.headers().get::<header::Origin>().is_some();
+		let (is_utils, handler) = self.resolve_request(req, control, self.endpoints.is_some());
 		match handler {
 			Some(handler) => http::RequestMiddlewareAction::Respond {
 				should_validate_hosts: !is_utils,
