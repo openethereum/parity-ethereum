@@ -20,6 +20,7 @@ use ethkey;
 use ethcrypto;
 use super::types::all::ServerKeyId;
 
+pub use super::traits::NodeKeyPair;
 pub use super::types::all::{NodeId, EncryptedDocumentKeyShadow};
 pub use super::acl_storage::AclStorage;
 pub use super::key_storage::{KeyStorage, DocumentKeyShare};
@@ -30,6 +31,8 @@ pub use self::generation_session::Session as GenerationSession;
 pub use self::encryption_session::Session as EncryptionSession;
 pub use self::decryption_session::Session as DecryptionSession;
 
+#[cfg(test)]
+pub use super::node_key_pair::PlainNodeKeyPair;
 #[cfg(test)]
 pub use super::key_storage::tests::DummyKeyStorage;
 #[cfg(test)]

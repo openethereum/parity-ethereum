@@ -19,9 +19,8 @@ use std::u16;
 use std::ops::Deref;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use serde_json;
-use ethcrypto::ecdh::agree;
 use ethcrypto::ecies::{encrypt_single_message, decrypt_single_message};
-use ethkey::{Public, Secret, KeyPair};
+use ethkey::{Secret, KeyPair};
 use ethkey::math::curve_order;
 use util::{H256, U256};
 use key_server_cluster::Error;
@@ -154,12 +153,11 @@ pub fn decrypt_message(key: &KeyPair, payload: Vec<u8>) -> Result<Vec<u8>, Error
 	Ok(decrypt_single_message(key.secret(), &payload)?)
 }
 
-/// Compute shared encryption key.
-pub fn compute_shared_key(self_secret: &Secret, other_public: &Public) -> Result<KeyPair, Error> {
+/// Fix shared encryption key.
+pub fn fix_shared_key(shared_secret: &Secret) -> Result<KeyPair, Error> {
 	// secret key created in agree function is invalid, as it is not calculated mod EC.field.n
 	// => let's do it manually
-	let shared_secret = agree(self_secret, other_public)?;
-	let shared_secret: H256 = (*shared_secret).into();
+	let shared_secret: H256 = (**shared_secret).into();
 	let shared_secret: U256 = shared_secret.into();
 	let shared_secret: H256 = (shared_secret % curve_order()).into();
 	let shared_key_pair = KeyPair::from_secret_slice(&*shared_secret)?;
@@ -204,8 +202,9 @@ pub mod tests {
 	use futures::Poll;
 	use tokio_io::{AsyncRead, AsyncWrite};
 	use ethkey::{KeyPair, Public};
+	use ethcrypto::ecdh::agree;
 	use key_server_cluster::message::Message;
-	use super::{MESSAGE_HEADER_SIZE, MessageHeader, compute_shared_key, encrypt_message, serialize_message,
+	use super::{MESSAGE_HEADER_SIZE, MessageHeader, fix_shared_key, encrypt_message, serialize_message,
 		serialize_header, deserialize_header};
 
 	pub struct TestIo {
@@ -217,7 +216,7 @@ pub mod tests {
 
 	impl TestIo {
 		pub fn new(self_key_pair: KeyPair, peer_public: Public) -> Self {
-			let shared_key_pair = compute_shared_key(self_key_pair.secret(), &peer_public).unwrap();
+			let shared_key_pair = fix_shared_key(&agree(self_key_pair.secret(), &peer_public).unwrap()).unwrap();
 			TestIo {
 				self_key_pair: self_key_pair,
 				peer_public: peer_public,
