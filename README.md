@@ -35,13 +35,13 @@ If you run into an issue while using parity, feel free to file one in this repos
 
 **For security-critical issues**, please refer to the security policy outlined in `SECURITY.MD`.
 
-Parity's current release is 1.7. You can download it at https://github.com/paritytech/parity/releases or follow the instructions below to build from source.
+Parity's current stable-release is 1.6. You can download it at https://github.com/paritytech/parity/releases or follow the instructions below to build from source.
 
 ----
 
 ## Build dependencies
 
-**Parity requires Rust version 1.18.0 to build**, Parity versions 1.6.x do not build with Rust 1.17.0 or 1.19.0!
+**Parity 1.6.x-stable requires Rust version 1.18.0 to build**, and does not build with Rust 1.17.0 or 1.19.0!
 
 We recommend installing Rust through [rustup](https://www.rustup.rs/). If you don't already have rustup, you can install it like this:
 
