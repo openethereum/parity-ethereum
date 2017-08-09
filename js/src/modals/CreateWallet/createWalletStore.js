@@ -21,7 +21,7 @@ import { FormattedMessage } from 'react-intl';
 
 import Contract from '~/api/contract';
 import Contracts from '~/contracts';
-import { wallet as walletAbi } from '~/contracts/abi';
+import { foundationWallet as walletAbi } from '~/contracts/abi';
 import { wallet as walletCode, walletLibrary as walletLibraryCode, walletLibraryRegKey, fullWalletCode } from '~/contracts/code/wallet';
 
 import { validateUint, validateAddress, validateName } from '~/util/validation';
@@ -163,11 +163,11 @@ export default class CreateWalletStore {
         WalletsUtils.fetchOwners(walletContract),
         WalletsUtils.fetchDailylimit(walletContract)
       ])
-      .then(([ require, owners, dailylimit ]) => {
+      .then(([ require, owners, daylimit ]) => {
         transaction(() => {
           this.wallet.owners = owners;
           this.wallet.required = require.toNumber();
-          this.wallet.dailylimit = dailylimit.limit;
+          this.wallet.daylimit = daylimit.limit;
 
           this.wallet = this.getWalletWithMeta(this.wallet);
         });

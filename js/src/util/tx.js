@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import BigNumber from 'bignumber.js';
+
 import WalletsUtils from '~/util/wallets';
 
 /**
@@ -71,10 +73,13 @@ const isValidReceipt = (receipt) => {
   return receipt && receipt.blockNumber && receipt.blockNumber.gt(0);
 };
 
-function getTxArgs (func, options, values = []) {
-  const { contract } = func;
-  const { api } = contract;
+export function getTxOptions (api, func, _options, values = []) {
+  const options = { ..._options };
   const address = options.from;
+
+  if (func && func.contract) {
+    options.to = options.to || func.contract.address;
+  }
 
   if (!address) {
     return Promise.resolve({ func, options, values });
@@ -87,8 +92,9 @@ function getTxArgs (func, options, values = []) {
         return { func, options, values };
       }
 
-      options.data = contract.getCallData(func, options, values);
-      options.to = options.to || contract.address;
+      if (func && func.contract) {
+        options.data = func.contract.getCallData(func, options, values);
+      }
 
       if (!options.to) {
         return { func, options, values };
@@ -103,24 +109,35 @@ function getTxArgs (func, options, values = []) {
 
           return callArgs;
         });
+    })
+    .then(({ func, options, values }) => {
+      if (func) {
+        options.data = func.contract.getCallData(func, options, values);
+      }
+
+      if (!options.value) {
+        options.value = new BigNumber(0);
+      }
+
+      return options;
     });
 }
 
 export function estimateGas (_func, _options, _values = []) {
-  return getTxArgs(_func, _options, _values)
-    .then((callArgs) => {
-      const { func, options, values } = callArgs;
+  const { api } = _func.contract;
 
-      return func._estimateGas(options, values);
+  return getTxOptions(api, _func, _options, _values)
+    .then((options) => {
+      return api.eth.estimateGas(options);
     });
 }
 
 export function postTransaction (_func, _options, _values = []) {
-  return getTxArgs(_func, _options, _values)
-    .then((callArgs) => {
-      const { func, options, values } = callArgs;
+  const { api } = _func.contract;
 
-      return func._postTransaction(options, values);
+  return getTxOptions(api, _func, _options, _values)
+    .then((options) => {
+      return api.parity.postTransaction(options);
     });
 }
 
@@ -182,42 +199,35 @@ export function deploy (contract, options, values, skipGasEstimate = false) {
 }
 
 export function parseTransactionReceipt (api, options, receipt) {
-  const { metadata } = options;
-  const address = options.from;
-
   if (receipt.gasUsed.eq(options.gas)) {
     const error = new Error(`Contract not deployed, gasUsed == ${options.gas.toFixed(0)}`);
 
     return Promise.reject(error);
   }
 
-  const logs = WalletsUtils.parseLogs(api, receipt.logs || []);
+  // If regular contract creation, only validate the contract
+  if (receipt.contractAddress) {
+    return validateContract(api, receipt.contractAddress);
+  }
 
-  const confirmationLog = logs.find((log) => log.event === 'ConfirmationNeeded');
-  const transactionLog = logs.find((log) => log.event === 'SingleTransact');
+  // Otherwise, needs to check for a contract deployment
+  // from a multisig wallet
+  const walletResult = WalletsUtils.parseTransactionLogs(api, options, receipt.logs || []);
 
-  if (!confirmationLog && !transactionLog && !receipt.contractAddress) {
+  if (!walletResult) {
     const error = new Error('Something went wrong in the contract deployment...');
 
     return Promise.reject(error);
   }
 
-  // Confirmations are needed from the other owners
-  if (confirmationLog) {
-    const operationHash = api.util.bytesToHex(confirmationLog.params.operation.value);
-
-    // Add the contract to pending contracts
-    WalletsUtils.addPendingContract(address, operationHash, metadata);
+  if (walletResult.pending) {
     return Promise.resolve(null);
   }
 
-  if (transactionLog) {
-    // Set the contract address in the receipt
-    receipt.contractAddress = transactionLog.params.created.value;
-  }
+  return validateContract(api, walletResult.contractAddress);
+}
 
-  const contractAddress = receipt.contractAddress;
-
+function validateContract (api, contractAddress) {
   return api.eth
     .getCode(contractAddress)
     .then((code) => {
