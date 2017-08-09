@@ -703,7 +703,7 @@ impl BlockChainClient for TestBlockChainClient {
 		}
 	}
 
-	fn filter_traces(&self, _filter: TraceFilter) -> Option<Vec<LocalizedTrace>> {
+	fn filter_traces(&self, _filter: TraceFilter, _after: Option<&LocalizedTrace>, _count: Option<u64>) -> Option<Vec<LocalizedTrace>> {
 		self.traces.read().clone()
 	}
 

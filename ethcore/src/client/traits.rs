@@ -196,7 +196,7 @@ pub trait BlockChainClient : Sync + Send {
 	fn replay(&self, t: TransactionId, analytics: CallAnalytics) -> Result<Executed, CallError>;
 
 	/// Returns traces matching given filter.
-	fn filter_traces(&self, filter: TraceFilter) -> Option<Vec<LocalizedTrace>>;
+	fn filter_traces(&self, filter: TraceFilter, after: Option<&LocalizedTrace>, count: Option<u64>) -> Option<Vec<LocalizedTrace>>;
 
 	/// Returns trace with given id.
 	fn trace(&self, trace: TraceId) -> Option<LocalizedTrace>;

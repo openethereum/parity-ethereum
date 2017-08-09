@@ -59,7 +59,7 @@ impl<C, M> Traces for TracesClient<C, M> where C: MiningBlockChainClient + 'stat
 	type Metadata = Metadata;
 
 	fn filter(&self, filter: TraceFilter) -> Result<Option<Vec<LocalizedTrace>>, Error> {
-		Ok(self.client.filter_traces(filter.into())
+		Ok(self.client.filter_traces(filter.into(), None, None)
 			.map(|traces| traces.into_iter().map(LocalizedTrace::from).collect()))
 	}
 
