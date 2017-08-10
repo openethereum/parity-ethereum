@@ -21,10 +21,39 @@
   width: 100%;
 }
 
+:root .warningClose {
+  text-align: right;
+  a {
+    color: #fff;
+    text-decoration: underline;
+  }
+}
+
+.warning {
+  color: #fff;
+  background: #f80;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 50%;
+  padding: 1.5em;
+  z-index: 100;
+  animation: fadein 0.3s;
+}
+
+@keyframes fadein {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 .loading {
   text-align: center;
   margin-top: 5em;
-  color: #999;
+  color: #444;
   font-size: 2em;
 }
 
