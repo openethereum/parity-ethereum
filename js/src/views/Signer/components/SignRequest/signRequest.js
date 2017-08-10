@@ -70,12 +70,36 @@ class SignRequest extends Component {
     }
   };
 
+  state = {
+    hashToSign: null
+  };
+
   hardwareStore = HardwareStore.get(this.context.api);
 
   componentWillMount () {
     const { address, signerStore } = this.props;
 
     signerStore.fetchBalance(address);
+  }
+
+  componentDidMount () {
+    this.computeHashToSign(this.props.data);
+  }
+
+  componentWillReceiveProps (nextProps) {
+    if (this.props.data !== nextProps.data) {
+      this.computeHashToSign(nextProps.data);
+    }
+  }
+
+  computeHashToSign (data) {
+    console.log(this.context)
+    const { sha3, hexToBytes, asciiToHex } = this.context.api.util;
+    const bytes = hexToBytes(data);
+    const message = hexToBytes(asciiToHex(`\x19Ethereum Signed Message:\n${bytes.length}`));
+    const hashToSign = sha3(message.concat(bytes));
+
+    this.setState({ hashToSign });
   }
 
   render () {
@@ -113,6 +137,7 @@ class SignRequest extends Component {
   renderDetails () {
     const { api } = this.context;
     const { address, data, netVersion, origin, signerStore } = this.props;
+    const { hashToSign } = this.state;
     const { balances, externalLink } = signerStore;
 
     const balance = balances[address];
@@ -133,7 +158,7 @@ class SignRequest extends Component {
           />
           <RequestOrigin origin={ origin } />
         </div>
-        <div className={ styles.info } title={ api.util.sha3(data) }>
+        <div className={ styles.info } title={ hashToSign }>
           <p>
             <FormattedMessage
               id='signer.signRequest.request'
