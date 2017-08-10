@@ -20,8 +20,7 @@ if ! type $KCOV > /dev/null; then
 	exit 1
 fi
 
-. ./scripts/targets.sh
-RUSTFLAGS="-C link-dead-code" cargo test $TARGETS --no-run || exit $?
+RUSTFLAGS="-C link-dead-code" cargo test --all --exclude parity-ipfs-api --exclude evmjit --no-run || exit $?
 
 
 KCOV_TARGET="target/cov"

@@ -34,4 +34,8 @@ impl DappsService for TestDappsService {
 			icon_url: "title.png".into(),
 		}]
 	}
+
+	fn refresh_local_dapps(&self) -> bool {
+		true
+	}
 }

@@ -151,7 +151,7 @@ export default class Application extends Component {
 
     if (!transactions.length) {
       return (
-        <h3>The queue seems is empty.</h3>
+        <h3>The queue seems empty.</h3>
       );
     }
 

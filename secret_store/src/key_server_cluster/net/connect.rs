@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::sync::Arc;
 use std::collections::BTreeSet;
 use std::io;
 use std::time::Duration;
@@ -21,13 +22,12 @@ use std::net::SocketAddr;
 use futures::{Future, Poll, Async};
 use tokio_core::reactor::Handle;
 use tokio_core::net::{TcpStream, TcpStreamNew};
-use ethkey::KeyPair;
-use key_server_cluster::{Error, NodeId};
+use key_server_cluster::{Error, NodeId, NodeKeyPair};
 use key_server_cluster::io::{handshake, Handshake, Deadline, deadline};
 use key_server_cluster::net::Connection;
 
 /// Create future for connecting to other node.
-pub fn connect(address: &SocketAddr, handle: &Handle, self_key_pair: KeyPair, trusted_nodes: BTreeSet<NodeId>) -> Deadline<Connect> {
+pub fn connect(address: &SocketAddr, handle: &Handle, self_key_pair: Arc<NodeKeyPair>, trusted_nodes: BTreeSet<NodeId>) -> Deadline<Connect> {
 	let connect = Connect {
 		state: ConnectState::TcpConnect(TcpStream::connect(address, handle)),
 		address: address.clone(),
@@ -48,7 +48,7 @@ enum ConnectState {
 pub struct Connect {
 	state: ConnectState,
 	address: SocketAddr,
-	self_key_pair: KeyPair,
+	self_key_pair: Arc<NodeKeyPair>,
 	trusted_nodes: BTreeSet<NodeId>,
 }
 

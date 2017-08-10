@@ -36,7 +36,7 @@ use util::{Bytes, Address};
 #[derive(Debug, PartialEq, Clone)]
 pub struct Configuration {
 	pub enabled: bool,
-	pub ntp_server: String,
+	pub ntp_servers: Vec<String>,
 	pub dapps_path: PathBuf,
 	pub extra_dapps: Vec<PathBuf>,
 	pub extra_embed_on: Vec<(String, u16)>,
@@ -48,7 +48,12 @@ impl Default for Configuration {
 		let data_dir = default_data_path();
 		Configuration {
 			enabled: true,
-			ntp_server: "none".into(),
+			ntp_servers: vec![
+				"0.parity.pool.ntp.org:123".into(),
+				"1.parity.pool.ntp.org:123".into(),
+				"2.parity.pool.ntp.org:123".into(),
+				"3.parity.pool.ntp.org:123".into(),
+			],
 			dapps_path: replace_home(&data_dir, "$BASE/dapps").into(),
 			extra_dapps: vec![],
 			extra_embed_on: vec![],
@@ -160,7 +165,7 @@ pub fn new(configuration: Configuration, deps: Dependencies) -> Result<Option<Mi
 
 	server::dapps_middleware(
 		deps,
-		&configuration.ntp_server,
+		&configuration.ntp_servers,
 		configuration.dapps_path,
 		configuration.extra_dapps,
 		rpc::DAPPS_DOMAIN,
@@ -169,14 +174,14 @@ pub fn new(configuration: Configuration, deps: Dependencies) -> Result<Option<Mi
 	).map(Some)
 }
 
-pub fn new_ui(enabled: bool, ntp_server: &str, deps: Dependencies) -> Result<Option<Middleware>, String> {
+pub fn new_ui(enabled: bool, ntp_servers: &[String], deps: Dependencies) -> Result<Option<Middleware>, String> {
 	if !enabled {
 		return Ok(None);
 	}
 
 	server::ui_middleware(
 		deps,
-		ntp_server,
+		ntp_servers,
 		rpc::DAPPS_DOMAIN,
 	).map(Some)
 }
@@ -207,7 +212,7 @@ mod server {
 
 	pub fn dapps_middleware(
 		_deps: Dependencies,
-		_ntp_server: &str,
+		_ntp_servers: &[String],
 		_dapps_path: PathBuf,
 		_extra_dapps: Vec<PathBuf>,
 		_dapps_domain: &str,
@@ -219,7 +224,7 @@ mod server {
 
 	pub fn ui_middleware(
 		_deps: Dependencies,
-		_ntp_server: &str,
+		_ntp_servers: &[String],
 		_dapps_domain: &str,
 	) -> Result<Middleware, String> {
 		Err("Your Parity version has been compiled without UI support.".into())
@@ -245,7 +250,7 @@ mod server {
 
 	pub fn dapps_middleware(
 		deps: Dependencies,
-		ntp_server: &str,
+		ntp_servers: &[String],
 		dapps_path: PathBuf,
 		extra_dapps: Vec<PathBuf>,
 		dapps_domain: &str,
@@ -257,7 +262,7 @@ mod server {
 		let web_proxy_tokens = Arc::new(move |token| signer.web_proxy_access_token_domain(&token));
 
 		Ok(parity_dapps::Middleware::dapps(
-			ntp_server,
+			ntp_servers,
 			deps.pool,
 			parity_remote,
 			deps.ui_address,
@@ -275,12 +280,12 @@ mod server {
 
 	pub fn ui_middleware(
 		deps: Dependencies,
-		ntp_server: &str,
+		ntp_servers: &[String],
 		dapps_domain: &str,
 	) -> Result<Middleware, String> {
 		let parity_remote = parity_reactor::Remote::new(deps.remote.clone());
 		Ok(parity_dapps::Middleware::ui(
-			ntp_server,
+			ntp_servers,
 			deps.pool,
 			parity_remote,
 			dapps_domain,
@@ -292,7 +297,7 @@ mod server {
 
 	pub fn service(middleware: &Option<Middleware>) -> Option<Arc<rpc_apis::DappsService>> {
 		middleware.as_ref().map(|m| Arc::new(DappsServiceWrapper {
-			endpoints: m.endpoints()
+			endpoints: m.endpoints().clone(),
 		}) as Arc<rpc_apis::DappsService>)
 	}
 
@@ -313,6 +318,11 @@ mod server {
 					icon_url: app.icon_url,
 				})
 				.collect()
+		}
+
+		fn refresh_local_dapps(&self) -> bool {
+			self.endpoints.refresh_local_dapps();
+			true
 		}
 	}
 }

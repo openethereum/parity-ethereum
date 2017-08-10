@@ -39,7 +39,7 @@ fn should_resolve_dapp() {
 
 	// then
 	response.assert_status("HTTP/1.1 404 Not Found");
-	assert_eq!(registrar.calls.lock().len(), 2);
+	assert_eq!(registrar.calls.lock().len(), 4);
 	assert_security_headers_for_embed(&response.headers);
 }
 

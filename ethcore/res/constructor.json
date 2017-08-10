@@ -11,7 +11,6 @@
 		"networkID" : "0x2"
 	},
 	"genesis": {
-		"gasLimitBoundDivisor": "0x0400",
 		"seal": {
 			"generic": "0x"
 		},

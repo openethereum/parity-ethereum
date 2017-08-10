@@ -14,32 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Std lib global reexports.
+#![allow(unused_mut, unused_variables, unused_imports)]
 
-pub use std::io;
-pub use std::fs;
-pub use std::str;
-pub use std::fmt;
-pub use std::cmp;
-pub use std::ptr;
-pub use std::mem;
-pub use std::ops;
-pub use std::slice;
-pub use std::result;
-pub use std::option;
+//! Secret store Key Server set contract.
 
-pub use std::path::Path;
-pub use std::str::{FromStr};
-pub use std::io::{Read,Write};
-pub use std::hash::{Hash, Hasher};
-pub use std::error::Error as StdError;
-
-pub use std::ops::*;
-pub use std::cmp::*;
-pub use std::sync::Arc;
-pub use std::collections::*;
-
-pub use heapsize::HeapSizeOf;
-pub use itertools::Itertools;
-
-pub use parking_lot::{Condvar, Mutex, MutexGuard, RwLock, RwLockReadGuard, RwLockWriteGuard};
+include!(concat!(env!("OUT_DIR"), "/key_server_set.rs"));

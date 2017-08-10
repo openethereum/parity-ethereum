@@ -42,7 +42,7 @@ use ethcore_logger::Config as LogConfig;
 use dir::{self, Directories, default_hypervisor_path, default_local_path, default_data_path};
 use dapps::Configuration as DappsConfiguration;
 use ipfs::Configuration as IpfsConfiguration;
-use secretstore::Configuration as SecretStoreConfiguration;
+use secretstore::{Configuration as SecretStoreConfiguration, NodeSecretKey};
 use updater::{UpdatePolicy, UpdateFilter, ReleaseTrack};
 use run::RunCmd;
 use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, KillBlockchain, ExportState, DataFormat};
@@ -556,10 +556,14 @@ impl Configuration {
 		self.args.flag_ports_shift + self.args.flag_ui_port
 	}
 
+	fn ntp_servers(&self) -> Vec<String> {
+		self.args.flag_ntp_servers.split(",").map(str::to_owned).collect()
+	}
+
 	fn ui_config(&self) -> UiConfiguration {
 		UiConfiguration {
 			enabled: self.ui_enabled(),
-			ntp_server: self.args.flag_ntp_server.clone(),
+			ntp_servers: self.ntp_servers(),
 			interface: self.ui_interface(),
 			port: self.ui_port(),
 			hosts: self.ui_hosts(),
@@ -572,7 +576,7 @@ impl Configuration {
 
 		DappsConfiguration {
 			enabled: self.dapps_enabled(),
-			ntp_server: self.args.flag_ntp_server.clone(),
+			ntp_servers: self.ntp_servers(),
 			dapps_path: PathBuf::from(self.directories().dapps),
 			extra_dapps: if self.args.cmd_dapp {
 				self.args.arg_path.iter().map(|path| PathBuf::from(path)).collect()
@@ -928,13 +932,10 @@ impl Configuration {
 		} else {
 			self.args.flag_db_path.as_ref().map_or(dir::CHAINS_PATH, |s| &s)
 		};
-		let cache_path = if is_using_base_path {
-			"$BASE/cache".into()
-		} else {
-			replace_home_and_local(&data_path, &local_path, &dir::CACHE_PATH)
-		};
+		let cache_path = if is_using_base_path { "$BASE/cache" } else { dir::CACHE_PATH };
 
 		let db_path = replace_home_and_local(&data_path, &local_path, &base_db_path);
+		let cache_path = replace_home_and_local(&data_path, &local_path, cache_path);
 		let keys_path = replace_home(&data_path, &self.args.flag_keys_path);
 		let dapps_path = replace_home(&data_path, &self.args.flag_dapps_path);
 		let secretstore_path = replace_home(&data_path, &self.args.flag_secretstore_path);
@@ -1015,10 +1016,13 @@ impl Configuration {
 		self.interface(&self.args.flag_secretstore_http_interface)
 	}
 
-	fn secretstore_self_secret(&self) -> Result<Option<Secret>, String> {
+	fn secretstore_self_secret(&self) -> Result<Option<NodeSecretKey>, String> {
 		match self.args.flag_secretstore_secret {
-			Some(ref s) => Ok(Some(s.parse()
-				.map_err(|e| format!("Invalid secret store secret: {}. Error: {:?}", s, e))?)),
+			Some(ref s) if s.len() == 64 => Ok(Some(NodeSecretKey::Plain(s.parse()
+				.map_err(|e| format!("Invalid secret store secret: {}. Error: {:?}", s, e))?))),
+			Some(ref s) if s.len() == 40 => Ok(Some(NodeSecretKey::KeyStore(s.parse()
+				.map_err(|e| format!("Invalid secret store secret address: {}. Error: {:?}", s, e))?))),
+			Some(_) => Err(format!("Invalid secret store secret. Must be either existing account address, or hex-encoded private key")),
 			None => Ok(None),
 		}
 	}
@@ -1304,7 +1308,12 @@ mod tests {
 			support_token_api: true
 		}, UiConfiguration {
 			enabled: true,
-			ntp_server: "none".into(),
+			ntp_servers: vec![
+				"0.parity.pool.ntp.org:123".into(),
+				"1.parity.pool.ntp.org:123".into(),
+				"2.parity.pool.ntp.org:123".into(),
+				"3.parity.pool.ntp.org:123".into(),
+			],
 			interface: "127.0.0.1".into(),
 			port: 8180,
 			hosts: Some(vec![]),
@@ -1547,10 +1556,16 @@ mod tests {
 		let conf3 = parse(&["parity", "--ui-path", "signer", "--ui-interface", "test"]);
 
 		// then
+		let ntp_servers = vec![
+			"0.parity.pool.ntp.org:123".into(),
+			"1.parity.pool.ntp.org:123".into(),
+			"2.parity.pool.ntp.org:123".into(),
+			"3.parity.pool.ntp.org:123".into(),
+		];
 		assert_eq!(conf0.directories().signer, "signer".to_owned());
 		assert_eq!(conf0.ui_config(), UiConfiguration {
 			enabled: true,
-			ntp_server: "none".into(),
+			ntp_servers: ntp_servers.clone(),
 			interface: "127.0.0.1".into(),
 			port: 8180,
 			hosts: Some(vec![]),
@@ -1559,7 +1574,7 @@ mod tests {
 		assert_eq!(conf1.directories().signer, "signer".to_owned());
 		assert_eq!(conf1.ui_config(), UiConfiguration {
 			enabled: true,
-			ntp_server: "none".into(),
+			ntp_servers: ntp_servers.clone(),
 			interface: "127.0.0.1".into(),
 			port: 8180,
 			hosts: Some(vec![]),
@@ -1569,7 +1584,7 @@ mod tests {
 		assert_eq!(conf2.directories().signer, "signer".to_owned());
 		assert_eq!(conf2.ui_config(), UiConfiguration {
 			enabled: true,
-			ntp_server: "none".into(),
+			ntp_servers: ntp_servers.clone(),
 			interface: "127.0.0.1".into(),
 			port: 3123,
 			hosts: Some(vec![]),
@@ -1578,7 +1593,7 @@ mod tests {
 		assert_eq!(conf3.directories().signer, "signer".to_owned());
 		assert_eq!(conf3.ui_config(), UiConfiguration {
 			enabled: true,
-			ntp_server: "none".into(),
+			ntp_servers: ntp_servers.clone(),
 			interface: "test".into(),
 			port: 8180,
 			hosts: Some(vec![]),
@@ -1828,5 +1843,16 @@ mod tests {
 			custom_allow: vec![],
 			custom_block: vec![IpNetwork::from_str("fc00::/7").unwrap()],
 		});
+	}
+
+	#[test]
+	fn should_use_correct_cache_path_if_base_is_set() {
+		let std = parse(&["parity"]);
+		let base = parse(&["parity", "--base-path", "/test"]);
+
+		let base_path = ::dir::default_data_path();
+		let local_path = ::dir::default_local_path();
+		assert_eq!(std.directories().cache, ::helpers::replace_home_and_local(&base_path, &local_path, ::dir::CACHE_PATH));
+		assert_eq!(base.directories().cache, "/test/cache");
 	}
 }

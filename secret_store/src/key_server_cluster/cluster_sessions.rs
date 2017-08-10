@@ -135,7 +135,7 @@ impl ClusterSessions {
 	pub fn new(config: &ClusterConfiguration) -> Self {
 		ClusterSessions {
 			self_node_id: config.self_key_pair.public().clone(),
-			nodes: config.nodes.keys().cloned().collect(),
+			nodes: config.key_server_set.get().keys().cloned().collect(),
 			acl_storage: config.acl_storage.clone(),
 			key_storage: config.key_storage.clone(),
 			generation_sessions: ClusterSessionsContainer::new(),
