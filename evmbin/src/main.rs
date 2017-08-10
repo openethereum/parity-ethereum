@@ -35,7 +35,7 @@ use docopt::Docopt;
 use rustc_hex::FromHex;
 use util::{U256, Bytes, Address};
 use ethcore::spec;
-use vm::ActionParams;
+use vm::{ActionParams, CallType};
 
 mod info;
 mod display;
@@ -53,9 +53,11 @@ Usage:
 
 Transaction options:
     --code CODE        Contract code as hex (without 0x).
+    --to ADDRESS       Recipient address (without 0x).
     --from ADDRESS     Sender address (without 0x).
     --input DATA       Input data as hex (without 0x).
     --gas GAS          Supplied gas as hex (without 0x).
+    --gas-price WEI    Supplied gas price as hex (without 0x).
 
 General options:
     --json             Display verbose results in JSON.
@@ -78,16 +80,26 @@ fn main() {
 
 fn run<T: Informant>(args: Args, mut informant: T) {
 	let from = arg(args.from(), "--from");
+	let to = arg(args.to(), "--to");
 	let code = arg(args.code(), "--code");
 	let spec = arg(args.spec(), "--chain");
 	let gas = arg(args.gas(), "--gas");
+	let gas_price = arg(args.gas(), "--gas-price");
 	let data = arg(args.data(), "--input");
 
+	if code.is_none() && to == Address::default() {
+		die("Either --code or --to is required.");
+	}
+
 	let mut params = ActionParams::default();
+	params.call_type = if code.is_none() { CallType::Call } else { CallType::None };
+	params.code_address = to;
+	params.address = to;
 	params.sender = from;
 	params.origin = from;
 	params.gas = gas;
-	params.code = Some(Arc::new(code));
+	params.gas_price = gas_price;
+	params.code = code.map(Arc::new);
 	params.data = data;
 
 	informant.set_gas(gas);
@@ -99,8 +111,10 @@ fn run<T: Informant>(args: Args, mut informant: T) {
 struct Args {
 	cmd_stats: bool,
 	flag_from: Option<String>,
+	flag_to: Option<String>,
 	flag_code: Option<String>,
 	flag_gas: Option<String>,
+	flag_gas_price: Option<String>,
 	flag_input: Option<String>,
 	flag_spec: Option<String>,
 	flag_json: bool,
@@ -114,6 +128,13 @@ impl Args {
 		}
 	}
 
+	pub fn gas_price(&self) -> Result<U256, String> {
+		match self.flag_gas_price {
+			Some(ref gas_price) => gas_price.parse().map_err(to_string),
+			None => Ok(U256::zero()),
+		}
+	}
+
 	pub fn from(&self) -> Result<Address, String> {
 		match self.flag_from {
 			Some(ref from) => from.parse().map_err(to_string),
@@ -121,10 +142,17 @@ impl Args {
 		}
 	}
 
-	pub fn code(&self) -> Result<Bytes, String> {
+	pub fn to(&self) -> Result<Address, String> {
+		match self.flag_to {
+			Some(ref to) => to.parse().map_err(to_string),
+			None => Ok(Address::default()),
+		}
+	}
+
+	pub fn code(&self) -> Result<Option<Bytes>, String> {
 		match self.flag_code {
-			Some(ref code) => code.from_hex().map_err(to_string),
-			None => Err("Code is required!".into()),
+			Some(ref code) => code.from_hex().map(Some).map_err(to_string),
+			None => Ok(None),
 		}
 	}
 
