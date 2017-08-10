@@ -14,16 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-// TODO: Mmap failing to build is transparent, we want to add a possibility to use RAM over a mmap
-//       for maximum speed (since the OS needs to zero the file when we do `set_len` - although I
-//       think it can occasionally prevent that from happening - and it has to page the data into
-//       the page cache from disk). I suggest an `OptimizeFor` struct that gets passed into an
-//       `open_mmap` function which then returns an `Err` if `OptimizeFor` is `CPU`. Then we can
-//       pass that down based on either explicit user config, OS-reported RAM size, or just whether
-//       we're running as a light client. Using the memmap is never more than 20% slower than
-//       reading from RAM though, so I think it's a good default since it will make us better
-//       citizens on lower-resource devices.
-
 use either::Either;
 use keccak::{keccak_512, H256};
 use memmap::{Mmap, Protection};
