@@ -32,7 +32,7 @@ use v1::helpers::{SignerService, NetworkSettings};
 use v1::tests::helpers::{TestSyncProvider, Config, TestMinerService, TestUpdater};
 use super::manage_network::TestManageNetwork;
 
-pub type TestParityClient = ParityClient;
+pub type TestParityClient = ParityClient<TestBlockChainClient, TestMinerService, TestUpdater>;
 
 pub struct Dependencies {
 	pub miner: Arc<TestMinerService>,

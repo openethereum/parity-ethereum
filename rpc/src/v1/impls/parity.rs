@@ -53,11 +53,11 @@ use v1::types::{
 };
 
 /// Parity implementation.
-pub struct ParityClient {
-	client: Arc<MiningBlockChainClient>,
-	miner: Arc<MinerService>,
+pub struct ParityClient<C, M, U>  {
+	client: Arc<C>,
+	miner: Arc<M>,
+	updater: Arc<U>,
 	sync: Arc<SyncProvider>,
-	updater: Arc<UpdateService>,
 	net: Arc<ManageNetwork>,
 	health: NodeHealth,
 	accounts: Option<Arc<AccountProvider>>,
@@ -69,13 +69,15 @@ pub struct ParityClient {
 	eip86_transition: u64,
 }
 
-impl ParityClient {
+impl<C, M, U> ParityClient<C, M, U> where
+	C: MiningBlockChainClient,
+{
 	/// Creates new `ParityClient`.
 	pub fn new(
-		client: Arc<MiningBlockChainClient>,
-		miner: Arc<MinerService>,
+		client: Arc<C>,
+		miner: Arc<M>,
 		sync: Arc<SyncProvider>,
-		updater: Arc<UpdateService>,
+		updater: Arc<U>,
 		net: Arc<ManageNetwork>,
 		health: NodeHealth,
 		accounts: Option<Arc<AccountProvider>>,
@@ -110,7 +112,11 @@ impl ParityClient {
 	}
 }
 
-impl Parity for ParityClient {
+impl<C, M, U> Parity for ParityClient<C, M, U> where
+	C: MiningBlockChainClient + 'static,
+	M: MinerService + 'static,
+	U: UpdateService + 'static,
+{
 	type Metadata = Metadata;
 
 	fn accounts_info(&self, dapp: Trailing<DappId>) -> Result<BTreeMap<H160, AccountInfo>, Error> {
