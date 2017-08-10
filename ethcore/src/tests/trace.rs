@@ -74,17 +74,17 @@ fn can_trace_block_and_uncle_reward() {
 
 	// Add root block first
 	let mut root_block = OpenBlock::new(
-			engine,
-			Default::default(),
-			false,
-			db,
-			&last_header,
-			Arc::new(last_hashes.clone()),
-			author.clone(),
-			(3141562.into(), 31415620.into()),
-			vec![],
-			false,
-		).unwrap();
+		engine,
+		Default::default(),
+		false,
+		db,
+		&last_header,
+		Arc::new(last_hashes.clone()),
+		author.clone(),
+		(3141562.into(), 31415620.into()),
+		vec![],
+		false,
+	).unwrap();
 	root_block.set_difficulty(U256::from(0x20000));
 	rolling_timestamp += 10;
 	root_block.set_timestamp(rolling_timestamp);
@@ -103,17 +103,17 @@ fn can_trace_block_and_uncle_reward() {
 
 	// Add parent block
 	let mut parent_block = OpenBlock::new(
-			engine,
-			Default::default(),
-			false,
-			db,
-			&last_header,
-			Arc::new(last_hashes.clone()),
-			author.clone(),
-			(3141562.into(), 31415620.into()),
-			vec![],
-			false,
-		).unwrap();
+		engine,
+		Default::default(),
+		false,
+		db,
+		&last_header,
+		Arc::new(last_hashes.clone()),
+		author.clone(),
+		(3141562.into(), 31415620.into()),
+		vec![],
+		false,
+	).unwrap();
 	parent_block.set_difficulty(U256::from(0x20000));
 	rolling_timestamp += 10;
 	parent_block.set_timestamp(rolling_timestamp);
@@ -181,10 +181,10 @@ fn can_trace_block_and_uncle_reward() {
 
 	// Test0. Check overall filter
 	let filter = TraceFilter {
-			range: (BlockId::Number(1)..BlockId::Number(3)),
-			from_address: vec![],
-			to_address: vec![],
-		};
+		range: (BlockId::Number(1)..BlockId::Number(3)),
+		from_address: vec![],
+		to_address: vec![],
+	};
 
 	let traces = client.filter_traces(filter);
 	assert!(traces.is_some(), "Filtered traces should be present");

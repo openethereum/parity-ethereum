@@ -229,7 +229,7 @@ pub trait Engine : Sync + Send {
 
 	/// Block transformation functions, after the transactions.
 	fn on_close_block(&self, _block: &mut ExecutedBlock) -> Result<(), Error> {
- 		Ok(())
+		Ok(())
 	}
 
 	/// None means that it requires external input (e.g. PoW) to seal a block.

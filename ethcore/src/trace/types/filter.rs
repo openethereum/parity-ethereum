@@ -130,8 +130,7 @@ impl Filter {
 				from_matches && to_matches
 			},
 			Action::Reward(ref reward) => {
-				let to_matches = self.to_address.matches(&reward.author);
-				to_matches
+				self.to_address.matches(&reward.author)
 			}
 		}
 	}

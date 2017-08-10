@@ -164,7 +164,7 @@ mod tests {
 	use super::{FlatBlockTraces, FlatTransactionTraces, FlatTrace};
 	use trace::trace::{Action, Res, CallResult, Call, Suicide, Reward};
 	use evm::CallType;
-    use trace::RewardType;
+	use trace::RewardType;
 
 	#[test]
 	fn encode_flat_transaction_traces() {

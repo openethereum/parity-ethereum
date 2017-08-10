@@ -91,7 +91,7 @@ pub struct ExecutedBlock {
 	receipts: Vec<Receipt>,
 	transactions_set: HashSet<H256>,
 	state: State<StateDB>,
-	traces: Option<Vec<Vec<FlatTrace>>>
+	traces: Option<Vec<Vec<FlatTrace>>>,
 }
 
 /// A set of references to `ExecutedBlock` fields that are publicly accessible.
@@ -396,7 +396,7 @@ impl<'x> OpenBlock<'x> {
 		let unclosed_state = s.block.state.clone();
 
 		if let Err(e) = s.engine.on_close_block(&mut s.block) {
- 			warn!("Encountered error on closing the block: {}", e);
+			warn!("Encountered error on closing the block: {}", e);
 		}
 		
 		if let Err(e) = s.block.state.commit() {
@@ -423,7 +423,7 @@ impl<'x> OpenBlock<'x> {
 		let mut s = self;
 
 		if let Err(e) = s.engine.on_close_block(&mut s.block) {
- 			warn!("Encountered error on closing the block: {}", e);
+			warn!("Encountered error on closing the block: {}", e);
 		}
 
 		if let Err(e) = s.block.state.commit() {

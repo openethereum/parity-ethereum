@@ -24,7 +24,7 @@ use block::*;
 use builtin::Builtin;
 use vm::EnvInfo;
 use error::{BlockError, Error, TransactionError};
-use trace::{Tracer, ExecutiveTracer,RewardType};
+use trace::{Tracer, ExecutiveTracer, RewardType};
 use header::{Header, BlockNumber};
 use state::CleanupMode;
 use spec::CommonParams;
@@ -309,7 +309,7 @@ impl Engine for Arc<Ethash> {
 					u.author(),
 					&result_uncle_reward,
 					CleanupMode::NoEmpty
-				)	
+				)
 			} else {
 				result_uncle_reward = reward.shr(5);
 				fields.state.add_balance(
@@ -322,7 +322,7 @@ impl Engine for Arc<Ethash> {
 			// Trace uncle rewards
 			if tracing_enabled {
 				tracer.trace_reward(uncle_author, result_uncle_reward, RewardType::Uncle);
-			}			
+			}
 		}
 
 		// Commit state so that we can actually figure out the state root.
