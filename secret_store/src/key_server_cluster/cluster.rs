@@ -28,7 +28,7 @@ use tokio_core::reactor::{Handle, Remote, Interval};
 use tokio_core::net::{TcpListener, TcpStream};
 use ethkey::{Public, KeyPair, Signature, Random, Generator};
 use util::H256;
-use key_server_cluster::{Error, NodeId, SessionId, AclStorage, KeyStorage, KeyServerSet};
+use key_server_cluster::{Error, NodeId, SessionId, AclStorage, KeyStorage, KeyServerSet, NodeKeyPair};
 use key_server_cluster::cluster_sessions::{ClusterSession, ClusterSessions, GenerationSessionWrapper, EncryptionSessionWrapper,
 	DecryptionSessionWrapper, SigningSessionWrapper};
 use key_server_cluster::message::{self, Message, ClusterMessage, GenerationMessage, EncryptionMessage, DecryptionMessage,
@@ -99,7 +99,7 @@ pub struct ClusterConfiguration {
 	/// Allow connecting to 'higher' nodes.
 	pub allow_connecting_to_higher_nodes: bool,
 	/// KeyPair this node holds.
-	pub self_key_pair: KeyPair,
+	pub self_key_pair: Arc<NodeKeyPair>,
 	/// Interface to listen to.
 	pub listen_address: (String, u16),
 	/// Cluster nodes set.
@@ -146,7 +146,7 @@ pub struct ClusterData {
 	/// Handle to the cpu thread pool.
 	pool: CpuPool,
 	/// KeyPair this node holds.
-	self_key_pair: KeyPair,
+	self_key_pair: Arc<NodeKeyPair>,
 	/// Connections data.
 	connections: ClusterConnections,
 	/// Active sessions data.
@@ -989,7 +989,7 @@ pub mod tests {
 	use parking_lot::Mutex;
 	use tokio_core::reactor::Core;
 	use ethkey::{Random, Generator, Public};
-	use key_server_cluster::{NodeId, SessionId, Error, DummyAclStorage, DummyKeyStorage, MapKeyServerSet};
+	use key_server_cluster::{NodeId, SessionId, Error, DummyAclStorage, DummyKeyStorage, MapKeyServerSet, PlainNodeKeyPair};
 	use key_server_cluster::message::Message;
 	use key_server_cluster::cluster::{Cluster, ClusterCore, ClusterConfiguration};
 	use key_server_cluster::generation_session::{Session as GenerationSession, SessionState as GenerationSessionState};
@@ -1068,7 +1068,7 @@ pub mod tests {
 		let key_pairs: Vec<_> = (0..num_nodes).map(|_| Random.generate().unwrap()).collect();
 		let cluster_params: Vec<_> = (0..num_nodes).map(|i| ClusterConfiguration {
 			threads: 1,
-			self_key_pair: key_pairs[i].clone(),
+			self_key_pair: Arc::new(PlainNodeKeyPair::new(key_pairs[i].clone())),
 			listen_address: ("127.0.0.1".to_owned(), ports_begin + i as u16),
 			key_server_set: Arc::new(MapKeyServerSet::new(key_pairs.iter().enumerate()
 				.map(|(j, kp)| (kp.public().clone(), format!("127.0.0.1:{}", ports_begin + j as u16).parse().unwrap()))

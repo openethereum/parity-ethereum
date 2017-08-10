@@ -14,14 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Dapps Service
-
-use v1::types::LocalDapp;
-
-/// Dapps Server service.
-pub trait DappsService: Send + Sync + 'static {
-	/// List available local dapps.
-	fn list_dapps(&self) -> Vec<LocalDapp>;
-	/// Refresh local dapps list
-	fn refresh_local_dapps(&self) -> bool;
-}
+export const UPDATE_OWNERS = 'owners';
+export const UPDATE_REQUIRE = 'require';
+export const UPDATE_DAILYLIMIT = 'dailylimit';
+export const UPDATE_TRANSACTIONS = 'transactions';
+export const UPDATE_CONFIRMATIONS = 'confirmations';
