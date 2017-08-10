@@ -47,6 +47,7 @@
         color: rgb(0, 151, 167);
         overflow: hidden;
         text-overflow: ellipsis;
+        cursor: pointer;
       }
 
       .timestamp {
