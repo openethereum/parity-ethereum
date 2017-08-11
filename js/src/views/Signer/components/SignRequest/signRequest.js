@@ -18,6 +18,7 @@ import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
+import ReactTooltip from 'react-tooltip';
 
 import HardwareStore from '~/mobx/hardwareStore';
 
@@ -93,7 +94,6 @@ class SignRequest extends Component {
   }
 
   computeHashToSign (data) {
-    console.log(this.context)
     const { sha3, hexToBytes, asciiToHex } = this.context.api.util;
     const bytes = hexToBytes(data);
     const message = hexToBytes(asciiToHex(`\x19Ethereum Signed Message:\n${bytes.length}`));
@@ -146,6 +146,20 @@ class SignRequest extends Component {
       return <div />;
     }
 
+    const tooltip = [
+      <FormattedMessage
+        id='signer.signRequest.tooltip.hash'
+        defaultMessage='Hash to be signed: {hashToSign}'
+        values={ { hashToSign } }
+      />,
+      <br />,
+      <FormattedMessage
+        id='signer.signRequest.tooltip.data'
+        defaultMessage='Data: {data}'
+        values={ { data } }
+      />
+    ];
+
     return (
       <div className={ styles.signDetails }>
         <div className={ styles.address }>
@@ -158,7 +172,16 @@ class SignRequest extends Component {
           />
           <RequestOrigin origin={ origin } />
         </div>
-        <div className={ styles.info } title={ hashToSign }>
+        <ReactTooltip id={ `signRequest-${hashToSign}` }>
+          { tooltip }
+        </ReactTooltip>
+        <div
+          className={ styles.info }
+          data-effect='solid'
+          data-for={ `signRequest-${hashToSign}` }
+          data-place='top'
+          data-tip
+        >
           <p>
             <FormattedMessage
               id='signer.signRequest.request'
