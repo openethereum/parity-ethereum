@@ -201,6 +201,7 @@ impl Middleware {
 		remote: Remote,
 		ui_address: Option<(String, u16)>,
 		extra_embed_on: Vec<(String, u16)>,
+		extra_script_src: Vec<(String, u16)>,
 		dapps_path: PathBuf,
 		extra_dapps: Vec<PathBuf>,
 		dapps_domain: &str,
@@ -209,7 +210,7 @@ impl Middleware {
 		web_proxy_tokens: Arc<WebProxyTokens>,
 		fetch: F,
 	) -> Self {
-		let embeddable = as_embeddable(ui_address, extra_embed_on, dapps_domain);
+		let embeddable = as_embeddable(ui_address, extra_embed_on, extra_script_src, dapps_domain);
 		let content_fetcher = Arc::new(apps::fetcher::ContentFetcher::new(
 			hash_fetch::urlhint::URLHintContract::new(registrar),
 			sync_status.clone(),
@@ -294,12 +295,14 @@ fn address(host: &str, port: u16) -> String {
 fn as_embeddable(
 	ui_address: Option<(String, u16)>,
 	extra_embed_on: Vec<(String, u16)>,
+	extra_script_src: Vec<(String, u16)>,
 	dapps_domain: &str,
 ) -> Option<ParentFrameSettings> {
 	ui_address.map(|(host, port)| ParentFrameSettings {
 		host,
 		port,
 		extra_embed_on,
+		extra_script_src,
 		dapps_domain: dapps_domain.to_owned(),
 	})
 }
@@ -320,8 +323,10 @@ pub struct ParentFrameSettings {
 	pub host: String,
 	/// Port
 	pub port: u16,
-	/// Additional pages the pages can be embedded on.
+	/// Additional URLs the dapps can be embedded on.
 	pub extra_embed_on: Vec<(String, u16)>,
+	/// Additional URLs the dapp scripts can be loaded from.
+	pub extra_script_src: Vec<(String, u16)>,
 	/// Dapps Domain (web3.site)
 	pub dapps_domain: String,
 }
