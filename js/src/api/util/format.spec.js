@@ -67,6 +67,7 @@ describe('api/util/format', () => {
 
     it('correctly converts a non-empty string', () => {
       expect(asciiToHex('abc')).to.equal('0x616263');
+      expect(asciiToHex('a\nb')).to.equal('0x610a62');
     });
   });
 

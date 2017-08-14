@@ -1301,7 +1301,7 @@ mod tests {
 			interface: "127.0.0.1".into(),
 			port: 8546,
 			apis: ApiSet::UnsafeContext,
-			origins: Some(vec!["chrome-extension://*".into()]),
+			origins: Some(vec!["chrome-extension://*".into(), "moz-extension://*".into()]),
 			hosts: Some(vec![]),
 			signer_path: expected.into(),
 			ui_address: Some(("127.0.0.1".to_owned(), 8180)),
