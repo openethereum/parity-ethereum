@@ -1884,27 +1884,23 @@ impl ProvingBlockChainClient for Client {
 	}
 
 	fn prove_transaction(&self, transaction: SignedTransaction, id: BlockId) -> Option<(Bytes, Vec<DBValue>)> {
-		let (state, mut env_info) = match (self.state_at(id), self.env_info(id)) {
+		let (header, mut env_info) = match (self.block_header(id), self.env_info(id)) {
 			(Some(s), Some(e)) => (s, e),
 			_ => return None,
 		};
 
 		env_info.gas_limit = transaction.gas.clone();
 		let mut jdb = self.state_db.lock().journal_db().boxed_clone();
-		let backend = state::backend::Proving::new(jdb.as_hashdb_mut());
 
-		let mut state = state.replace_backend(backend);
-		let options = TransactOptions { tracing: false, vm_tracing: false, check_nonce: false };
-		let res = Executive::new(&mut state, &env_info, &*self.engine).transact(&transaction, options);
-
-		match res {
-			Err(ExecutionError::Internal(_)) => None,
-			Err(e) => {
-				trace!(target: "client", "Proved call failed: {}", e);
-				Some((Vec::new(), state.drop().1.extract_proof()))
-			}
-			Ok(res) => Some((res.output, state.drop().1.extract_proof())),
-		}
+		state::prove_transaction(
+			jdb.as_hashdb_mut(),
+			header.state_root().clone(),
+			&transaction,
+			&*self.engine,
+			&env_info,
+			self.factories.clone(),
+			false,
+		)
 	}
 }
 

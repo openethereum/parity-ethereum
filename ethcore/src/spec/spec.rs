@@ -32,7 +32,6 @@ use factory::Factories;
 use header::{BlockNumber, Header};
 use pod_state::*;
 use rlp::{Rlp, RlpStream};
-use state_db::StateDB;
 use state::{Backend, State, Substate};
 use state::backend::Basic as BasicBackend;
 use trace::{NoopTracer, NoopVMTracer};
@@ -421,7 +420,7 @@ impl Spec {
 	}
 
 	/// Ensure that the given state DB has the trie nodes in for the genesis state.
-	pub fn ensure_db_good(&self, db: StateDB, factories: &Factories) -> Result<StateDB, Error> {
+	pub fn ensure_db_good<T: Backend>(&self, db: T, factories: &Factories) -> Result<T, Error> {
 		if db.as_hashdb().contains(&self.state_root()) {
 			return Ok(db)
 		}
