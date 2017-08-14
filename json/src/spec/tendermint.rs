@@ -49,6 +49,7 @@ pub struct Tendermint {
 mod tests {
 	use serde_json;
 	use bigint::prelude::H160;
+	use hash::Address;
 	use spec::tendermint::Tendermint;
 	use spec::validator_set::ValidatorSet;
 

@@ -25,8 +25,10 @@
 mod message;
 mod params;
 
-use std::sync::Weak;
+use std::sync::{Weak, Arc};
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
+use std::collections::{HashSet, BTreeMap, HashMap};
+use std::cmp;
 use util::*;
 use client::{Client, EngineClient};
 use error::{Error, BlockError};
@@ -469,9 +471,9 @@ impl Engine for Tendermint {
 			let gas_limit = parent.gas_limit().clone();
 			let bound_divisor = self.params().gas_limit_bound_divisor;
 			if gas_limit < gas_floor_target {
-				min(gas_floor_target, gas_limit + gas_limit / bound_divisor - 1.into())
+				cmp::min(gas_floor_target, gas_limit + gas_limit / bound_divisor - 1.into())
 			} else {
-				max(gas_floor_target, gas_limit - gas_limit / bound_divisor + 1.into())
+				cmp::max(gas_floor_target, gas_limit - gas_limit / bound_divisor + 1.into())
 			}
 		});
 	}
@@ -641,6 +643,7 @@ impl Engine for Tendermint {
 		let first = chain_head.number() == 0;
 
 		if let Some(change) = self.validators.is_epoch_end(first, chain_head) {
+			let change = combine_proofs(chain_head.number(), &change, &[]);
 			return Some(change)
 		} else if let Some(pending) = transition_store(chain_head.hash()) {
 			let signal_number = chain_head.number();
@@ -768,6 +771,7 @@ impl Engine for Tendermint {
 
 #[cfg(test)]
 mod tests {
+	use std::str::FromStr;
 	use rustc_hex::FromHex;
 	use util::*;
 	use block::*;
@@ -1047,7 +1051,7 @@ mod tests {
 		client.miner().import_own_transaction(client.as_ref(), transaction.into()).unwrap();
 
 		// Propose
-		let proposal = Some(client.miner().pending_block().unwrap().header.bare_hash());
+		let proposal = Some(client.miner().pending_block(0).unwrap().header.bare_hash());
 		// Propose timeout
 		engine.step();
 

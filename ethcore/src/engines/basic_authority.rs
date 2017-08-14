@@ -16,7 +16,9 @@
 
 //! A blockchain engine that supports a basic, non-BFT proof-of-authority.
 
-use std::sync::Weak;
+use std::sync::{Weak, Arc};
+use std::collections::BTreeMap;
+use std::cmp;
 use util::*;
 use ethkey::{recover, public_to_address, Signature};
 use account_provider::AccountProvider;
@@ -116,9 +118,9 @@ impl Engine for BasicAuthority {
 			let gas_limit = parent.gas_limit().clone();
 			let bound_divisor = self.params().gas_limit_bound_divisor;
 			if gas_limit < gas_floor_target {
-				min(gas_floor_target, gas_limit + gas_limit / bound_divisor - 1.into())
+				cmp::min(gas_floor_target, gas_limit + gas_limit / bound_divisor - 1.into())
 			} else {
-				max(gas_floor_target, gas_limit - gas_limit / bound_divisor + 1.into())
+				cmp::max(gas_floor_target, gas_limit - gas_limit / bound_divisor + 1.into())
 			}
 		});
 	}
@@ -142,7 +144,7 @@ impl Engine for BasicAuthority {
 		Seal::None
 	}
 
-	fn verify_block_basic(&self, header: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
+	fn verify_block_basic(&self, header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
 		// check the seal fields.
 		// TODO: pull this out into common code.
 		if header.seal().len() != self.seal_fields() {
@@ -153,11 +155,11 @@ impl Engine for BasicAuthority {
 		Ok(())
 	}
 
-	fn verify_block_unordered(&self, _header: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
+	fn verify_block_unordered(&self, _header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
 		Ok(())
 	}
 
-	fn verify_block_family(&self, header: &Header, parent: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
+	fn verify_block_family(&self, header: &Header, parent: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
 		// Do not calculate difficulty for genesis blocks.
 		if header.number() == 0 {
 			return Err(From::from(BlockError::RidiculousNumber(OutOfBounds { min: Some(1), max: None, found: header.number() })));
@@ -249,6 +251,7 @@ impl Engine for BasicAuthority {
 
 #[cfg(test)]
 mod tests {
+	use std::sync::Arc;
 	use util::*;
 	use block::*;
 	use error::{BlockError, Error};

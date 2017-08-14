@@ -24,11 +24,12 @@ extern crate ethjson;
 extern crate rlp;
 extern crate parity_wasm;
 extern crate wasm_utils;
+extern crate ethcore_logger;
+extern crate vm;
 
 #[macro_use]
 extern crate lazy_static;
 
-#[macro_use]
 extern crate log;
 
 #[cfg(feature = "jit")]
@@ -37,14 +38,8 @@ extern crate evmjit;
 #[cfg(test)]
 extern crate rustc_hex;
 
-pub mod action_params;
-pub mod call_type;
-pub mod env_info;
-pub mod ext;
 pub mod evm;
 pub mod interpreter;
-pub mod schedule;
-pub mod wasm;
 
 #[macro_use]
 pub mod factory;
@@ -59,12 +54,12 @@ mod tests;
 #[cfg(all(feature="benches", test))]
 mod benches;
 
-pub use self::action_params::ActionParams;
-pub use self::call_type::CallType;
-pub use self::env_info::EnvInfo;
-pub use self::evm::{Evm, Error, Finalize, FinalizationResult, GasLeft, Result, CostType, ReturnData};
-pub use self::ext::{Ext, ContractCreateResult, MessageCallResult, CreateContractAddress};
+pub use vm::{
+    Schedule, CleanDustMode, EnvInfo, CallType, ActionParams, Ext,
+    ContractCreateResult, MessageCallResult, CreateContractAddress,
+    GasLeft, ReturnData
+};
+pub use self::evm::{Finalize, FinalizationResult, CostType};
 pub use self::instructions::{InstructionInfo, INSTRUCTIONS, push_bytes};
 pub use self::vmtype::VMType;
 pub use self::factory::Factory;
-pub use self::schedule::{Schedule, CleanDustMode};

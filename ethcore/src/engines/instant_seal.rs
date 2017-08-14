@@ -14,12 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::collections::BTreeMap;
-use util::{Address, HashMap};
+use std::collections::{BTreeMap, HashMap};
+use util::Address;
 use builtin::Builtin;
 use engines::{Engine, Seal};
 use spec::CommonParams;
-use block::ExecutedBlock;
+use block::{ExecutedBlock, IsBlock};
 
 /// An engine which does not provide any consensus mechanism, just seals blocks internally.
 pub struct InstantSeal {
@@ -56,13 +56,14 @@ impl Engine for InstantSeal {
 
 	fn seals_internally(&self) -> Option<bool> { Some(true) }
 
-	fn generate_seal(&self, _block: &ExecutedBlock) -> Seal {
-		Seal::Regular(Vec::new())
+	fn generate_seal(&self, block: &ExecutedBlock) -> Seal {
+		if block.transactions().is_empty() { Seal::None } else { Seal::Regular(Vec::new()) }
 	}
 }
 
 #[cfg(test)]
 mod tests {
+	use std::sync::Arc;
 	use util::*;
 	use tests::helpers::*;
 	use spec::Spec;

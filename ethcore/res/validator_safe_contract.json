@@ -3,7 +3,6 @@
 	"engine": {
 		"basicAuthority": {
 			"params": {
-				"gasLimitBoundDivisor": "0x0400",
 				"durationLimit": "0x0d",
 				"validators": {
 					"safeContract": "0x0000000000000000000000000000000000000005"

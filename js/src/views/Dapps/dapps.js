@@ -24,7 +24,7 @@ import { connect } from 'react-redux';
 import { DappPermissions, DappsVisible } from '~/modals';
 import PermissionStore from '~/modals/DappPermissions/store';
 import { Actionbar, Button, DappCard, Page, SectionList } from '~/ui';
-import { LockedIcon, VisibleIcon } from '~/ui/Icons';
+import { LockedIcon, RefreshIcon, VisibleIcon } from '~/ui/Icons';
 
 import DappsStore from './dappsStore';
 
@@ -90,6 +90,17 @@ class Dapps extends Component {
             />
           }
           buttons={ [
+            <Button
+              icon={ <RefreshIcon /> }
+              key='refresh'
+              label={
+                <FormattedMessage
+                  id='dapps.button.dapp.refresh'
+                  defaultMessage='refresh'
+                />
+              }
+              onClick={ this.store.refreshDapps }
+            />,
             <Button
               icon={ <VisibleIcon /> }
               key='edit'

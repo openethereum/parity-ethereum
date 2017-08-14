@@ -17,7 +17,7 @@
 import { isAddress as isAddressValid, toChecksumAddress } from '../../abi/util/address';
 import { abiDecode, decodeCallData, decodeMethodInput, methodToAbi } from './decode';
 import { abiEncode, abiUnencode, abiSignature, encodeMethodCallAbi } from './encode';
-import { bytesToHex, hexToAscii, asciiToHex, cleanupValue } from './format';
+import { bytesToHex, hexToAscii, hexToBytes, asciiToHex, cleanupValue } from './format';
 import { fromWei, toWei } from './wei';
 import { sha3 } from './sha3';
 import { isArray, isFunction, isHex, isInstanceOf, isString } from './types';
@@ -37,6 +37,7 @@ export default {
   isString,
   bytesToHex,
   hexToAscii,
+  hexToBytes,
   asciiToHex,
   createIdentityImg,
   decodeCallData,
