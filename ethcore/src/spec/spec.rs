@@ -329,10 +329,10 @@ fn load_from(spec_params: SpecParams, s: ethjson::spec::Spec) -> Result<Spec, Er
 		extra_data: g.extra_data,
 		seal_rlp: seal_rlp,
 		constructors: s.accounts
-		               .constructors()
-		               .into_iter()
-		               .map(|(a, c)| (a.into(), c.into()))
-		               .collect(),
+			.constructors()
+			.into_iter()
+			.map(|(a, c)| (a.into(), c.into()))
+			.collect(),
 		state_root_memo: RwLock::new(Default::default()), // will be overwritten right after.
 		genesis_state: s.accounts.into(),
 	};
