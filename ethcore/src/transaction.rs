@@ -59,8 +59,8 @@ impl Decodable for Action {
 impl Encodable for Action {
 	fn rlp_append(&self, s: &mut RlpStream) {
 		match *self {
-			Action::Create => s.append_empty_data(),
-			Action::Call(ref addr) => s.append(addr),
+			Action::Create => s.append_internal(&""),
+			Action::Call(ref addr) => s.append_internal(addr),
 		};
 	}
 }
