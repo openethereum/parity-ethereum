@@ -265,6 +265,7 @@ impl Server {
 			remote,
 			signer_address,
 			vec![],
+			vec![],
 			dapps_path,
 			extra_dapps,
 			DAPPS_DOMAIN.into(),

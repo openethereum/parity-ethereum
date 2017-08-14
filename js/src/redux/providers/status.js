@@ -227,12 +227,12 @@ export default class Status {
   }
 
   _overallStatus = (health) => {
-    const all = [health.peers, health.sync, health.time].filter(x => x);
-    const allNoTime = [health.peers, health.sync].filter(x => x);
+    const allWithTime = [health.peers, health.sync, health.time].filter(x => x);
+    const all = [health.peers, health.sync].filter(x => x);
     const statuses = all.map(x => x.status);
     const bad = statuses.find(x => x === STATUS_BAD);
-    const needsAttention = allNoTime.map(x => x.status).find(x => x === STATUS_WARN);
-    const message = all.map(x => x.message).filter(x => x);
+    const needsAttention = statuses.find(x => x === STATUS_WARN);
+    const message = allWithTime.map(x => x.message).filter(x => x);
 
     if (all.length) {
       return {
