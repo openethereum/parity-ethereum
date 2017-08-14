@@ -1,7 +1,6 @@
 extern crate rlp;
 extern crate ethcore_bigint;
 
-use std::env;
 use std::error::Error;
 use std::io::prelude::*;
 use std::path::PathBuf;
@@ -31,7 +30,7 @@ fn write_to_file(f: &File, rlp: &RlpStream) {
 
 fn write_corpus(corpdir: &str, rlp: &RlpStream) {
     // Read in base path to fuzzing corpus directory from `RLPCORPUS` environment var
-    let corp = env::var("RLPCORPUS").unwrap();
+    let corp = "./corpus";
     let mut path = PathBuf::from(corp);
     path.push(corpdir);
 
