@@ -94,7 +94,7 @@ impl From<UiConfiguration> for HttpConfiguration {
 			enabled: conf.enabled,
 			interface: conf.interface,
 			port: conf.port,
-			apis: rpc_apis::ApiSet::SafeContext,
+			apis: rpc_apis::ApiSet::UnsafeContext,
 			cors: None,
 			hosts: conf.hosts,
 			server_threads: None,
