@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::mem;
 use primal::is_prime;
 
 pub const DATASET_BYTES_INIT: u64 = 1 << 30;
@@ -66,34 +65,20 @@ pub fn get_data_size(block_number: u64) -> usize {
 	sz as usize
 }
 
-// `repr(C)` to ensure that transmuting `Node` to an array of integers is sound
-#[repr(C)]
-pub struct Node {
-	// This forces `Node` to have 8-byte alignment, so we can transmute to an array of `u64`s
-	pub force_align: [u64; 0],
-	pub bytes: [u8; NODE_BYTES],
-}
+pub type NodeBytes = [u8; NODE_BYTES];
+pub type NodeWords = [u32; NODE_WORDS];
+pub type NodeDwords = [u64; NODE_DWORDS];
 
-impl Default for Node {
-	fn default() -> Self {
-		Node { force_align: [], bytes: [0u8; NODE_BYTES] }
-	}
+pub union Node {
+	pub dwords: NodeDwords,
+	pub words: NodeWords,
+	pub bytes: NodeBytes,
 }
 
 impl Clone for Node {
 	fn clone(&self) -> Self {
-		Node { force_align: [], bytes: *&self.bytes }
+		unsafe { Node { bytes: *&self.bytes } }
 	}
-}
-
-// Type aliases to make absolutely, super paranoid-sure that we don't get the debug asserts wrong
-type NodeWords = [u32; NODE_WORDS];
-type NodeDwords = [u64; NODE_DWORDS];
-
-#[inline(always)]
-fn assert_node_layout<T>() {
-	debug_assert_eq!(mem::size_of::<Node>(), mem::size_of::<T>());
-	debug_assert!(mem::align_of::<Node>() >= mem::align_of::<T>());
 }
 
 // We use `inline(always)` because I was experiencing an 100% slowdown and `perf` showed that these
@@ -103,26 +88,32 @@ fn assert_node_layout<T>() {
 // as mine.
 impl Node {
 	#[inline(always)]
+	pub fn as_bytes(&self) -> &NodeBytes {
+		unsafe { &self.bytes }
+	}
+
+	#[inline(always)]
+	pub fn as_bytes_mut(&mut self) -> &mut NodeBytes {
+		unsafe { &mut self.bytes }
+	}
+
+	#[inline(always)]
 	pub fn as_words(&self) -> &NodeWords {
-		assert_node_layout::<NodeWords>();
-		unsafe { mem::transmute(self) }
+		unsafe { &self.words }
 	}
 
 	#[inline(always)]
 	pub fn as_words_mut(&mut self) -> &mut NodeWords {
-		assert_node_layout::<NodeWords>();
-		unsafe { mem::transmute(self) }
+		unsafe { &mut self.words }
 	}
 
 	#[inline(always)]
 	pub fn as_dwords(&self) -> &NodeDwords {
-		assert_node_layout::<NodeDwords>();
-		unsafe { mem::transmute(self) }
+		unsafe { &self.dwords }
 	}
 
 	#[inline(always)]
 	pub fn as_dwords_mut(&mut self) -> &mut NodeDwords {
-		assert_node_layout::<NodeDwords>();
-		unsafe { mem::transmute(self) }
+		unsafe { &mut self.dwords }
 	}
 }

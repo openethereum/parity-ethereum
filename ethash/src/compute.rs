@@ -199,7 +199,7 @@ fn hash_compute(light: &Light, full_size: usize, header_hash: &H256, nonce: u64)
 				header_hash.len() + mem::size_of::<u64>(),
 			);
 
-			Node { force_align: [], bytes: out }
+			Node { bytes: out }
 		},
 		// This is fully initialized before being read, see `let mut compress = ...` below
 		compress_bytes: unsafe { mem::uninitialized() },
