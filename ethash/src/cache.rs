@@ -106,15 +106,17 @@ impl NodeCacheBuilder {
 		let cache = cache_from_path(&path, self.optimize_for)?;
 		let expected_cache_size = get_cache_size(block_number);
 
-		assert_eq!(byte_size(&cache), expected_cache_size);
-
-		Ok(NodeCache {
-			builder: self.clone(),
-			epoch: epoch(block_number),
-			cache_dir: cache_dir,
-			cache_path: path,
-			cache: cache,
-		})
+		if byte_size(&cache) == expected_cache_size {
+			Ok(NodeCache {
+				builder: self.clone(),
+				epoch: epoch(block_number),
+				cache_dir: cache_dir,
+				cache_path: path,
+				cache: cache,
+			})
+		} else {
+			Err(io::Error::new(io::ErrorKind::InvalidData, "Node cache is of incorrect size"))
+		}
 	}
 
 	pub fn new_cache<P: Into<Cow<'static, Path>>>(
