@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { inBlockNumber, inData, inHex, inNumber16, inOptions, inTraceFilter, inTraceType } from '../../format/input';
+import { inBlockNumber, inData, inHex, inNumber16, inOptions, inTraceFilter, inTraceType, InTraceIndex } from '../../format/input';
 import { outTraces, outTraceReplay } from '../../format/output';
 
 export default class Trace {
@@ -34,9 +34,9 @@ export default class Trace {
       .then(outTraceReplay);
   }
 
-  filter (filterObj) {
+  filter (filterObj, offset = null, count = null) {
     return this._transport
-      .execute('trace_filter', inTraceFilter(filterObj))
+      .execute('trace_filter', inTraceFilter(filterObj), inTraceIndex(offset), count)
       .then(outTraces);
   }
 

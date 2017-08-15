@@ -73,6 +73,23 @@ export function inTopics (_topics) {
   return topics;
 }
 
+export function inTraceIndex (trace) {
+  if (trace) {
+    Object.keys(trace).forEach((key) => {
+      switch (key) {
+        case 'blockHash':
+          trace[key] = inHex(trace[key]);
+          break;
+        case 'transactionNumber':
+          trace[key] = inNumber(trace[key]);
+          break;
+      }
+    });
+  }
+  
+  return trace;
+}
+
 export function inFilter (options) {
   if (options) {
     Object.keys(options).forEach((key) => {

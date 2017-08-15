@@ -29,7 +29,7 @@ use jsonrpc_macros::Trailing;
 use v1::Metadata;
 use v1::traits::Traces;
 use v1::helpers::{errors, fake_sign};
-use v1::types::{TraceFilter, LocalizedTrace, BlockNumber, Index, CallRequest, Bytes, TraceResults, TraceOptions, H256};
+use v1::types::{TraceFilter, LocalizedTrace, TraceIndex, BlockNumber, Index, CallRequest, Bytes, TraceResults, TraceOptions, H256};
 
 fn to_call_analytics(flags: TraceOptions) -> CallAnalytics {
 	CallAnalytics {
@@ -58,8 +58,8 @@ impl<C, M> TracesClient<C, M> {
 impl<C, M> Traces for TracesClient<C, M> where C: MiningBlockChainClient + 'static, M: MinerService + 'static {
 	type Metadata = Metadata;
 
-	fn filter(&self, filter: TraceFilter) -> Result<Option<Vec<LocalizedTrace>>, Error> {
-		Ok(self.client.filter_traces(filter.into(), None, None)
+	fn filter(&self, filter: TraceFilter, offset: Option<TraceIndex>, count: Option<u64>) -> Result<Option<Vec<LocalizedTrace>>, Error> {
+		Ok(self.client.filter_traces(filter.into(), offset.map(Into::into).as_ref(), count)
 			.map(|traces| traces.into_iter().map(LocalizedTrace::from).collect()))
 	}
 

@@ -21,7 +21,7 @@ use ethcore::trace::{FlatTrace, LocalizedTrace as EthLocalizedTrace, trace, Trac
 use ethcore::trace as et;
 use ethcore::state_diff;
 use ethcore::account_diff;
-use ethcore::client::Executed;
+use ethcore::client::{Executed, TraceId, TransactionId, BlockId};
 use vm;
 use v1::types::{Bytes, H160, H256, U256};
 
@@ -171,6 +171,26 @@ impl<T, U> From<account_diff::Diff<T>> for Diff<U> where T: Eq + ::ethcore_ipc::
 			account_diff::Diff::Born(t) => Diff::Born(t.into()),
 			account_diff::Diff::Died(t) => Diff::Died(t.into()),
 			account_diff::Diff::Changed(t, u) => Diff::Changed(ChangedType{from: t.into(), to: u.into()}),
+		}
+	}
+}
+
+/// Trace index
+#[derive(Debug, PartialEq, Deserialize)]
+pub struct TraceIndex {
+	/// Block hash
+	#[serde(rename="blockHash")]
+	pub block_hash: H256,
+	/// Transaction number within block
+	#[serde(rename="transactionNumber")]
+	pub transaction_number: usize,
+}
+
+impl Into<TraceId> for TraceIndex {
+	fn into(self) -> TraceId {
+		TraceId {
+			transaction: TransactionId::Location(BlockId::Hash(self.block_hash.into()), self.transaction_number),
+			address: Vec::new(),
 		}
 	}
 }

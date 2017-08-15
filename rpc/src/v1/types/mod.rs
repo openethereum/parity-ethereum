@@ -71,7 +71,7 @@ pub use self::sync::{
 	SyncStatus, SyncInfo, Peers, PeerInfo, PeerNetworkInfo, PeerProtocolsInfo,
 	TransactionStats, ChainStatus, EthProtocolInfo, PipProtocolInfo,
 };
-pub use self::trace::{LocalizedTrace, TraceResults};
+pub use self::trace::{LocalizedTrace, TraceResults, TraceIndex};
 pub use self::trace_filter::TraceFilter;
 pub use self::transaction::{Transaction, RichRawTransaction, LocalTransactionStatus};
 pub use self::transaction_request::TransactionRequest;

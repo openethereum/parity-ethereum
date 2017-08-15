@@ -19,7 +19,7 @@
 use jsonrpc_core::Error;
 use jsonrpc_core::futures::BoxFuture;
 use jsonrpc_macros::Trailing;
-use v1::types::{TraceFilter, LocalizedTrace, BlockNumber, Index, CallRequest, Bytes, TraceResults, H256, TraceOptions};
+use v1::types::{TraceFilter, LocalizedTrace, TraceIndex, BlockNumber, Index, CallRequest, Bytes, TraceResults, H256, TraceOptions};
 
 build_rpc_trait! {
 	/// Traces specific rpc interface.
@@ -28,7 +28,7 @@ build_rpc_trait! {
 
 		/// Returns traces matching given filter.
 		#[rpc(name = "trace_filter")]
-		fn filter(&self, TraceFilter) -> Result<Option<Vec<LocalizedTrace>>, Error>;
+		fn filter(&self, TraceFilter, Option<TraceIndex>, Option<u64>) -> Result<Option<Vec<LocalizedTrace>>, Error>;
 
 		/// Returns transaction trace at given index.
 		#[rpc(name = "trace_get")]

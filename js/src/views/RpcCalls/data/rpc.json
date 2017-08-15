@@ -1052,7 +1052,9 @@
       "name": "trace_filter",
       "desc": "Returns traces matching given filter",
       "params": [
-        "`OBJECT` - The filter object"
+        "`OBJECT` - The filter object",
+        "`OBJECT` - (optional) The offset trace for output",
+        "`INTEGER` - (optional) Amount of traces to output"
       ],
       "returns": "`ARRAY` - Traces matching given filter",
       "inputFormatters": [],

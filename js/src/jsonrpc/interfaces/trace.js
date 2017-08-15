@@ -141,6 +141,31 @@ then it should look something like:
           toBlock: fromDecimal(3068200),
           toAddress: ['0x8bbB73BCB5d553B5A556358d27625323Fd781D37']
         }
+      },
+      {
+        type: Object,
+        desc: 'The offset trace index',
+        details: {
+          blockHash: {
+            type: Hash,
+            desc: 'Hash of the block.'
+          },
+          transactionNumber: {
+            type: Quantity,
+            desc: 'Transaction number in the block.'
+          }
+        },
+        optional: true,
+        example: {
+          blockHash: '0x86df301bcdd8248d982dbf039f09faf792684e1aeee99d5b58b77d620008b80f',
+          transactionNumber: fromDecimal(3)
+        }
+      },
+      {
+        type: Quantity,
+        desc: 'Integer number of traces to display in a batch.',
+        example: 5,
+        optional: true
       }
     ],
     returns: {
