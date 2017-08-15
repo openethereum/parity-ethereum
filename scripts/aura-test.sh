@@ -1,5 +1,4 @@
 #!/bin/bash
-rm -rf parity-import-tests
 rm -rf /tmp/aura-test-data
 cargo build -j $(nproc) --release
 target/release/parity -v
