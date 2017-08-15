@@ -293,7 +293,7 @@ mod tests {
 	use time::Duration;
 	use futures::{future, Future};
 	use super::{Ntp, TimeChecker, Error};
-	use util::RwLock;
+	use parking_lot::RwLock;
 
 	#[derive(Clone)]
 	struct FakeNtp(RefCell<Vec<Duration>>, Cell<u64>);
