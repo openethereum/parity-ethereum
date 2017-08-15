@@ -205,7 +205,7 @@ build_rpc_trait! {
 		fn ipfs_cid(&self, Bytes) -> Result<String, Error>;
 
 		/// Call contract, returning the output data.
-		#[rpc(async, name = "parity_call")]
-		fn call(&self, Vec<CallRequest>, Trailing<BlockNumber>) -> BoxFuture<Vec<Bytes>, Error>;
+		#[rpc(meta, name = "parity_call")]
+		fn call(&self, Self::Metadata, Vec<CallRequest>, Trailing<BlockNumber>) -> BoxFuture<Vec<Bytes>, Error>;
 	}
 }
