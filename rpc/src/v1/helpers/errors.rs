@@ -71,6 +71,14 @@ pub fn public_unsupported(details: Option<String>) -> Error {
 	}
 }
 
+pub fn unsupported<T: Into<String>>(msg: T, details: Option<T>) -> Error {
+	Error {
+		code: ErrorCode::ServerError(codes::UNSUPPORTED_REQUEST),
+		message: msg.into(),
+		data: details.map(Into::into).map(Value::String),
+	}
+}
+
 pub fn request_not_found() -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::REQUEST_NOT_FOUND),
