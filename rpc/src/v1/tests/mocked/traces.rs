@@ -81,7 +81,7 @@ fn io() -> Tester {
 fn rpc_trace_filter() {
 	let tester = io();
 
-	let request = r#"{"jsonrpc":"2.0","method":"trace_filter","params": [{}],"id":1}"#;
+	let request = r#"{"jsonrpc":"2.0","method":"trace_filter","params": [{}, null, null],"id":1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":[{"action":{"callType":"call","from":"0x000000000000000000000000000000000000000f","gas":"0x100","input":"0x010203","to":"0x0000000000000000000000000000000000000010","value":"0x1"},"blockHash":"0x000000000000000000000000000000000000000000000000000000000000000a","blockNumber":10,"result":null,"subtraces":0,"traceAddress":[0],"transactionHash":"0x0000000000000000000000000000000000000000000000000000000000000005","transactionPosition":0,"type":"call"}],"id":1}"#;
 
 	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
@@ -92,7 +92,7 @@ fn rpc_trace_filter_missing_trace() {
 	let tester = io();
 	*tester.client.traces.write() = None;
 
-	let request = r#"{"jsonrpc":"2.0","method":"trace_filter","params": [{}],"id":1}"#;
+	let request = r#"{"jsonrpc":"2.0","method":"trace_filter","params": [{}, null, null],"id":1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":null,"id":1}"#;
 
 	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
