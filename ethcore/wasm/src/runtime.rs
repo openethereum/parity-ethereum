@@ -72,24 +72,26 @@ impl RuntimeContext {
 }
 
 /// Runtime enviroment data for wasm contract execution
-pub struct Runtime<'a> {
+pub struct Runtime<'a, 'b> {
 	gas_counter: u64,
 	gas_limit: u64,
 	dynamic_top: u32,
 	ext: &'a mut vm::Ext,
 	memory: Arc<interpreter::MemoryInstance>,
 	context: RuntimeContext,
+	instance: &'b interpreter::ProgramInstance,
 }
 
-impl<'a> Runtime<'a> {
+impl<'a, 'b> Runtime<'a, 'b> {
 	/// New runtime for wasm contract with specified params
-	pub fn with_params<'b>(
-		ext: &'b mut vm::Ext,
+	pub fn with_params<'c, 'd>(
+		ext: &'c mut vm::Ext,
 		memory: Arc<interpreter::MemoryInstance>,
 		stack_space: u32,
 		gas_limit: u64,
 		context: RuntimeContext,
-	) -> Runtime<'b> {
+		program_instance: &'d interpreter::ProgramInstance,
+	) -> Runtime<'c, 'd> {
 		Runtime {
 			gas_counter: 0,
 			gas_limit: gas_limit,
@@ -97,6 +99,7 @@ impl<'a> Runtime<'a> {
 			memory: memory,
 			ext: ext,
 			context: context,
+			instance: program_instance,
 		}
 	}
 
@@ -449,9 +452,67 @@ impl<'a> Runtime<'a> {
 
 		Ok(Some(0i32.into()))
 	}
+
+	fn bswap_i32(x: i32) -> i32 {
+		// conversions to force signed/unsigned shifts
+		let ux = x as u32;
+    	let ur =
+			((ux & 0xff) << 24) |
+			(((ux >> 8) & 0xff) << 16) |
+			(((ux >> 16) & 0xff) << 8) |
+			(x >> 24) as u32;
+
+		ur as i32
+	}
+
+	fn bitswap_i64(&mut self, context: interpreter::CallerContext)
+		-> Result<Option<interpreter::RuntimeValue>, interpreter::Error>
+	{
+		let x1 = context.value_stack.pop_as::<i32>()?;
+		let x2 = context.value_stack.pop_as::<i32>()?;
+
+		trace!(target: "wasm", "bitswap {} <-> {}", x1, x2);
+
+		let result = ((Runtime::bswap_i32(x2) as i64) << 32) | (Runtime::bswap_i32(x1) as i64);
+
+		self.return_i64(result)
+	}
+
+	fn return_i64(&mut self, val: i64) -> Result<Option<interpreter::RuntimeValue>, interpreter::Error> {
+		trace!(target: "wasm", "returning i64 {}", val);
+
+		let uval = val as u64;
+
+		let target = self.instance.module("contract")
+			.ok_or(interpreter::Error::Trap("Error locating main execution entry".to_owned()))?;
+		target.execute_export(
+			"setTempRet0",
+			self.execution_params().add_argument(
+				interpreter::RuntimeValue::I32((uval >> 32) as i32).into()
+			),
+		)?;
+		Ok(Some(
+			((uval << 32 >> 32) as i32).into()
+		))
+	}
+
+	pub fn execution_params(&mut self) -> interpreter::ExecutionParams {
+		use super::env;
+
+		let env_instance = self.instance.module("env")
+			.expect("Env module always exists; qed");
+
+		interpreter::ExecutionParams::with_external(
+			"env".into(),
+			Arc::new(
+				interpreter::env_native_module(env_instance, env::native_bindings(self))
+					.expect("Env module always exists; qed")
+			)
+		)
+	}
 }
 
-impl<'a> interpreter::UserFunctionExecutor for Runtime<'a> {
+impl<'a, 'b> interpreter::UserFunctionExecutor for Runtime<'a, 'b> {
 	fn execute(&mut self, name: &str, context: interpreter::CallerContext)
 		-> Result<Option<interpreter::RuntimeValue>, interpreter::Error>
 	{
@@ -493,6 +554,9 @@ impl<'a> interpreter::UserFunctionExecutor for Runtime<'a> {
 			},
 			"_emscripten_memcpy_big" => {
 				self.mem_copy(context)
+			},
+			"_llvm_bswap_i64" => {
+				self.bitswap_i64(context)
 			},
 			_ => {
 				trace!(target: "wasm", "Trapped due to unhandled function: '{}'", name);
