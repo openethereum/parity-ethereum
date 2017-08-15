@@ -28,7 +28,7 @@ pub enum HealthStatus {
 	NeedsAttention,
 	/// There is something bad detected with the node.
 	#[serde(rename = "bad")]
-	Bad
+	Bad,
 }
 
 /// Represents a single check in node health.
