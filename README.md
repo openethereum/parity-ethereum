@@ -106,6 +106,26 @@ $ ~/.cargo/bin/cargo build --release
 bash <(curl https://get.parity.io -Lk)
 ```
 
+Note: If you encounter error `curl: (35) SSL peer handshake failed, the server most likely requires a client certificate to connect` then run the following commands prior to the one-liner mentioned above. These commands will install and update your OpenSSL and cURL symlinks and reload your shell session for secure communication:
+```bash
+# update Homebrew
+$ brew update 
+
+# upgrade OpenSSL and update symlinks
+$ brew upgrade openssl
+$ brew link openssl --force
+
+# install cURL and update symlinks
+$ brew install --with-openssl curl
+$ brew link curl --force
+
+# reload shell session
+$ source ~/.bash_profile
+
+# show location of binaries and current version
+$ which curl && which openssl && curl --version
+```
+
 ## Start Parity
 ### Manually
 To start Parity manually, just run
