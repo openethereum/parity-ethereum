@@ -116,7 +116,7 @@ struct Args {
 	flag_gas: Option<String>,
 	flag_gas_price: Option<String>,
 	flag_input: Option<String>,
-	flag_spec: Option<String>,
+	flag_chain: Option<String>,
 	flag_json: bool,
 }
 
@@ -164,7 +164,7 @@ impl Args {
 	}
 
 	pub fn spec(&self) -> Result<spec::Spec, String> {
-		Ok(match self.flag_spec {
+		Ok(match self.flag_chain {
 			Some(ref filename) =>  {
 				let file = fs::File::open(filename).map_err(|e| format!("{}", e))?;
 				spec::Spec::load(::std::env::temp_dir(), file)?
