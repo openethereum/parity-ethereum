@@ -1677,12 +1677,11 @@ impl BlockChainClient for Client {
 
 				let mut traces_iter = traces.into_iter();
 				if let Some(after) = after {
-					if let TransactionId::Location(block, transaction_number) = after.transaction {
-						if let BlockId::Hash(block_hash) = block {
-							if traces_iter.find(|ref trace| trace.block_hash == block_hash
-								&& trace.transaction_number == transaction_number).is_none() {
-								return None;
-							}
+					if let TransactionId::Location(BlockId::Hash(block_hash), transaction_number) = after.transaction {
+						match traces_iter.find(|ref trace| trace.block_hash == block_hash
+							&& trace.transaction_number == transaction_number) {
+							Some(_) => {},
+							None => return None,
 						}
 					}
 				}
