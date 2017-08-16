@@ -73,10 +73,14 @@ pub use self::node_key_pair::{PlainNodeKeyPair, KeyStoreNodeKeyPair};
 pub fn start(client: Arc<Client>, self_key_pair: Arc<NodeKeyPair>, config: ServiceConfiguration) -> Result<Box<KeyServer>, Error> {
 	use std::sync::Arc;
 
-	let acl_storage = acl_storage::OnChainAclStorage::new(&client);
+	let acl_storage: Arc<acl_storage::AclStorage> = if config.acl_check_enabled {
+			acl_storage::OnChainAclStorage::new(&client)
+		} else {
+			Arc::new(acl_storage::DummyAclStorage::default())
+		};
 	let key_server_set = key_server_set::OnChainKeyServerSet::new(&client, config.cluster_config.nodes.clone())?;
 	let key_storage = Arc::new(key_storage::PersistentKeyStorage::new(&config)?);
 	let key_server = key_server::KeyServerImpl::new(&config.cluster_config, key_server_set, self_key_pair, acl_storage, key_storage)?;
-	let listener = http_listener::KeyServerHttpListener::start(&config.listener_address, key_server)?;
+	let listener = http_listener::KeyServerHttpListener::start(config.listener_address, key_server)?;
 	Ok(Box::new(listener))
 }

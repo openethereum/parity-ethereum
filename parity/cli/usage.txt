@@ -234,6 +234,8 @@ API and Console Options:
 
 Secret Store Options:
   --no-secretstore                 Disable Secret Store functionality. (default: {flag_no_secretstore})
+  --no-secretstore-http            Disable Secret Store HTTP API. (default: {flag_no_secretstore_http})
+  --no-acl-check                   Disable ACL check (useful for test environments). (default: {flag_no_secretstore_acl_check})
   --secretstore-secret SECRET      Hex-encoded secret key of this node.
                                    (required, default: {flag_secretstore_secret:?}).
   --secretstore-nodes NODES        Comma-separated list of other secret store cluster nodes in form

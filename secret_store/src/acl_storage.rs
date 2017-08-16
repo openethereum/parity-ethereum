@@ -15,8 +15,9 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::{Arc, Weak};
+use std::collections::{HashMap, HashSet};
 use futures::{future, Future};
-use parking_lot::Mutex;
+use parking_lot::{Mutex, RwLock};
 use ethkey::public_to_address;
 use ethcore::client::{Client, BlockChainClient, BlockId, ChainNotify};
 use native_contracts::SecretStoreAclStorage;
@@ -45,6 +46,12 @@ struct CachedContract {
 	contract_addr: Option<Address>,
 	/// Contract at given address.
 	contract: Option<SecretStoreAclStorage>,
+}
+
+/// Dummy ACL storage implementation (check always passed).
+#[derive(Default, Debug)]
+pub struct DummyAclStorage {
+	prohibited: RwLock<HashMap<Public, HashSet<ServerKeyId>>>,
 }
 
 impl OnChainAclStorage {
@@ -113,36 +120,22 @@ impl CachedContract {
 	}
 }
 
-#[cfg(test)]
-pub mod tests {
-	use std::collections::{HashMap, HashSet};
-	use parking_lot::RwLock;
-	use types::all::{Error, ServerKeyId, Public};
-	use super::AclStorage;
-
-	#[derive(Default, Debug)]
-	/// Dummy ACL storage implementation
-	pub struct DummyAclStorage {
-		prohibited: RwLock<HashMap<Public, HashSet<ServerKeyId>>>,
+impl DummyAclStorage {
+	/// Prohibit given requestor access to given documents
+	#[cfg(test)]
+	pub fn prohibit(&self, public: Public, document: ServerKeyId) {
+		self.prohibited.write()
+			.entry(public)
+			.or_insert_with(Default::default)
+			.insert(document);
 	}
+}
 
-	impl DummyAclStorage {
-		#[cfg(test)]
-		/// Prohibit given requestor access to given document
-		pub fn prohibit(&self, public: Public, document: ServerKeyId) {
-			self.prohibited.write()
-				.entry(public)
-				.or_insert_with(Default::default)
-				.insert(document);
-		}
-	}
-
-	impl AclStorage for DummyAclStorage {
-		fn check(&self, public: &Public, document: &ServerKeyId) -> Result<bool, Error> {
-			Ok(self.prohibited.read()
-				.get(public)
-				.map(|docs| !docs.contains(document))
-				.unwrap_or(true))
-		}
+impl AclStorage for DummyAclStorage {
+	fn check(&self, public: &Public, document: &ServerKeyId) -> Result<bool, Error> {
+		Ok(self.prohibited.read()
+			.get(public)
+			.map(|docs| !docs.contains(document))
+			.unwrap_or(true))
 	}
 }

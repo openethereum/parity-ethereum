@@ -37,6 +37,10 @@ pub enum NodeSecretKey {
 pub struct Configuration {
 	/// Is secret store functionality enabled?
 	pub enabled: bool,
+	/// Is HTTP API enabled?
+	pub http_enabled: bool,
+	/// Is ACL check enabled.
+	pub acl_check_enabled: bool,
 	/// This node secret.
 	pub self_secret: Option<NodeSecretKey>,
 	/// Other nodes IDs + addresses.
@@ -83,6 +87,7 @@ mod server {
 	use std::sync::Arc;
 	use ethcore_secretstore;
 	use ethkey::KeyPair;
+	use ansi_term::Colour::Red;
 	use super::{Configuration, Dependencies, NodeSecretKey};
 
 	/// Key server
@@ -93,6 +98,10 @@ mod server {
 	impl KeyServer {
 		/// Create new key server
 		pub fn new(mut conf: Configuration, deps: Dependencies) -> Result<Self, String> {
+			if !conf.acl_check_enabled {
+				warn!("Running SecretStore with disabled ACL check: {}", Red.bold().paint("everyone has access to stored keys"));
+			}
+
 			let self_secret: Arc<ethcore_secretstore::NodeKeyPair> = match conf.self_secret.take() {
 				Some(NodeSecretKey::Plain(secret)) => Arc::new(ethcore_secretstore::PlainNodeKeyPair::new(
 					KeyPair::from_secret(secret).map_err(|e| format!("invalid secret: {}", e))?)),
@@ -117,12 +126,14 @@ mod server {
 				None => return Err("self secret is required when using secretstore".into()),
 			};
 
-			let mut conf = ethcore_secretstore::ServiceConfiguration {
-				listener_address: ethcore_secretstore::NodeAddress {
+			let key_server_name = format!("{}:{}", conf.interface, conf.port);
+			let mut cconf = ethcore_secretstore::ServiceConfiguration {
+				listener_address: if conf.http_enabled { Some(ethcore_secretstore::NodeAddress {
 					address: conf.http_interface.clone(),
 					port: conf.http_port,
-				},
+				}) } else { None },
 				data_path: conf.data_path.clone(),
+				acl_check_enabled: conf.acl_check_enabled,
 				cluster_config: ethcore_secretstore::ClusterConfiguration {
 					threads: 4,
 					listener_address: ethcore_secretstore::NodeAddress {
@@ -137,10 +148,10 @@ mod server {
 				},
 			};
 
-			conf.cluster_config.nodes.insert(self_secret.public().clone(), conf.cluster_config.listener_address.clone());
+			cconf.cluster_config.nodes.insert(self_secret.public().clone(), cconf.cluster_config.listener_address.clone());
 
-			let key_server = ethcore_secretstore::start(deps.client, self_secret, conf)
-				.map_err(Into::<String>::into)?;
+			let key_server = ethcore_secretstore::start(deps.client, self_secret, cconf)
+				.map_err(|e| format!("Error starting KeyServer {}: {}", key_server_name, e))?;
 
 			Ok(KeyServer {
 				_key_server: key_server,
@@ -156,6 +167,8 @@ impl Default for Configuration {
 		let data_dir = default_data_path();
 		Configuration {
 			enabled: true,
+			http_enabled: true,
+			acl_check_enabled: true,
 			self_secret: None,
 			nodes: BTreeMap::new(),
 			interface: "127.0.0.1".to_owned(),
