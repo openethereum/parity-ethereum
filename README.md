@@ -41,7 +41,7 @@ Parity's current release is 1.7. You can download it at https://github.com/parit
 
 ## Build dependencies
 
-**Parity requires Rust version 1.18.0 to build**
+**Parity requires Rust version 1.19.0 to build**
 
 We recommend installing Rust through [rustup](https://www.rustup.rs/). If you don't already have rustup, you can install it like this:
 
