@@ -48,8 +48,8 @@ struct CachedContract {
 	contract: Option<SecretStoreAclStorage>,
 }
 
-#[derive(Default, Debug)]
 /// Dummy ACL storage implementation (check always passed).
+#[derive(Default, Debug)]
 pub struct DummyAclStorage {
 	prohibited: RwLock<HashMap<Public, HashSet<ServerKeyId>>>,
 }
@@ -121,8 +121,8 @@ impl CachedContract {
 }
 
 impl DummyAclStorage {
+	/// Prohibit given requestor access to given documents
 	#[cfg(test)]
-	/// Prohibit given requestor access to given document
 	pub fn prohibit(&self, public: Public, document: ServerKeyId) {
 		self.prohibited.write()
 			.entry(public)
