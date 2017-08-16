@@ -612,9 +612,9 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 		self.send_raw_transaction(raw)
 	}
 
-	fn call(&self, request: CallRequest, num: Trailing<BlockNumber>) -> BoxFuture<Bytes, Error> {
+	fn call(&self, meta: Self::Metadata, request: CallRequest, num: Trailing<BlockNumber>) -> BoxFuture<Bytes, Error> {
 		let request = CallRequest::into(request);
-		let signed = match fake_sign::sign_call(&self.client, &self.miner, request) {
+		let signed = match fake_sign::sign_call(&self.client, &self.miner, request, meta.is_dapp()) {
 			Ok(signed) => signed,
 			Err(e) => return future::err(e).boxed(),
 		};
@@ -628,9 +628,9 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 		).boxed()
 	}
 
-	fn estimate_gas(&self, request: CallRequest, num: Trailing<BlockNumber>) -> BoxFuture<RpcU256, Error> {
+	fn estimate_gas(&self, meta: Self::Metadata, request: CallRequest, num: Trailing<BlockNumber>) -> BoxFuture<RpcU256, Error> {
 		let request = CallRequest::into(request);
-		let signed = match fake_sign::sign_call(&self.client, &self.miner, request) {
+		let signed = match fake_sign::sign_call(&self.client, &self.miner, request, meta.is_dapp()) {
 			Ok(signed) => signed,
 			Err(e) => return future::err(e).boxed(),
 		};

@@ -18,6 +18,7 @@ use std::sync::Arc;
 use ethcore::client::MiningBlockChainClient;
 use ethcore::miner::MinerService;
 use ethcore::transaction::{Transaction, SignedTransaction, Action};
+use util::U256;
 
 use jsonrpc_core::Error;
 use v1::helpers::CallRequest;
@@ -27,13 +28,22 @@ pub fn sign_call<B: MiningBlockChainClient, M: MinerService>(
 	client: &Arc<B>,
 	miner: &Arc<M>,
 	request: CallRequest,
+	gas_cap: bool,
 ) -> Result<SignedTransaction, Error> {
 	let from = request.from.unwrap_or(0.into());
+	let mut gas = request.gas.unwrap_or(U256::max_value());
+	if gas_cap {
+		let max_gas = 50_000_000.into();
+		if gas > max_gas {
+			warn!("Gas limit capped to {} (from {})", max_gas, gas);
+			gas = max_gas
+		}
+	}
 
 	Ok(Transaction {
 		nonce: request.nonce.unwrap_or_else(|| client.latest_nonce(&from)),
 		action: request.to.map_or(Action::Create, Action::Call),
-		gas: request.gas.unwrap_or(50_000_000.into()),
+		gas,
 		gas_price: request.gas_price.unwrap_or_else(|| default_gas_price(&**client, &**miner)),
 		value: request.value.unwrap_or(0.into()),
 		data: request.data.unwrap_or_default(),
