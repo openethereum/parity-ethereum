@@ -157,7 +157,7 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 	pub fn transact_virtual(&'a mut self, t: &SignedTransaction, options: TransactOptions) -> Result<Executed, ExecutionError> {
 		let sender = t.sender();
 		let balance = self.state.balance(&sender)?;
-		let needed_balance = t.value + t.gas * t.gas_price;
+		let needed_balance = t.value.saturating_add(t.gas.saturating_mul(t.gas_price));
 		if balance < needed_balance {
 			// give the sender a sufficient balance
 			self.state.add_balance(&sender, &(needed_balance - balance), CleanupMode::NoEmpty)?;

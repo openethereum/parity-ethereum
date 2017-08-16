@@ -609,6 +609,8 @@ impl Configuration {
 	fn secretstore_config(&self) -> Result<SecretStoreConfiguration, String> {
 		Ok(SecretStoreConfiguration {
 			enabled: self.secretstore_enabled(),
+			http_enabled: self.secretstore_http_enabled(),
+			acl_check_enabled: self.secretstore_acl_check_enabled(),
 			self_secret: self.secretstore_self_secret()?,
 			nodes: self.secretstore_nodes()?,
 			interface: self.secretstore_interface(),
@@ -1071,6 +1073,14 @@ impl Configuration {
 		!self.args.flag_no_secretstore && cfg!(feature = "secretstore")
 	}
 
+	fn secretstore_http_enabled(&self) -> bool {
+		!self.args.flag_no_secretstore_http && cfg!(feature = "secretstore")
+	}
+
+	fn secretstore_acl_check_enabled(&self) -> bool {
+		!self.args.flag_no_secretstore_acl_check
+	}
+
 	fn ui_enabled(&self) -> bool {
 		if self.args.flag_force_ui {
 			return true;
@@ -1376,6 +1386,7 @@ mod tests {
 			whisper: Default::default(),
 		};
 		expected.secretstore_conf.enabled = cfg!(feature = "secretstore");
+		expected.secretstore_conf.http_enabled = cfg!(feature = "secretstore");
 		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Run(expected));
 	}
 
