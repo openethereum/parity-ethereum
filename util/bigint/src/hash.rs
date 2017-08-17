@@ -16,6 +16,7 @@ use std::collections::{HashMap, HashSet};
 use rand::{Rand, Rng};
 use rand::os::OsRng;
 use rustc_hex::{FromHex, FromHexError};
+use plain_hasher::PlainHasher;
 use bigint::U256;
 use libc::{c_void, memcmp};
 
@@ -445,52 +446,6 @@ impl_hash!(H2048, 256);
 #[cfg(feature="heapsizeof")]
 known_heap_size!(0, H32, H64, H128, H160, H256, H264, H512, H520, H1024, H2048);
 // Specialized HashMap and HashSet
-
-/// Hasher that just takes 8 bytes of the provided value.
-/// May only be used for keys which are 32 bytes.
-pub struct PlainHasher {
-	prefix: u64,
-}
-
-impl Default for PlainHasher {
-	#[inline]
-	fn default() -> PlainHasher {
-		PlainHasher {
-			prefix: 0,
-		}
-	}
-}
-
-impl PlainHasher {
-	#[inline]
-	fn mut_prefix(&mut self) -> &mut [u8; 8] {
-		unsafe { ::std::mem::transmute(&mut self.prefix) }
-	}
-}
-
-impl Hasher for PlainHasher {
-	#[inline]
-	fn finish(&self) -> u64 {
-		self.prefix
-	}
-
-	#[inline]
-	fn write(&mut self, bytes: &[u8]) {
-		debug_assert!(bytes.len() == 32);
-
-		unsafe {
-			let mut bytes_ptr = bytes.as_ptr();
-			let mut prefix_ptr = self.mut_prefix().as_mut_ptr();
-
-			for _ in 0..8 {
-				*prefix_ptr ^= *bytes_ptr ^ *bytes_ptr.offset(8) ^ *bytes_ptr.offset(16) ^ *bytes_ptr.offset(24);
-
-				bytes_ptr = bytes_ptr.offset(1);
-				prefix_ptr = prefix_ptr.offset(1);
-			}
-		}
-	}
-}
 
 /// Specialized version of `HashMap` with H256 keys and fast hashing function.
 pub type H256FastMap<T> = HashMap<H256, T, BuildHasherDefault<PlainHasher>>;
