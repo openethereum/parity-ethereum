@@ -24,7 +24,6 @@ export default {
   buttons: {
     back: `Back`,
     cancel: `Cancel`,
-    close: `Close`,
     next: `Next`,
     send: `Send`
   },
@@ -50,10 +49,6 @@ export default {
     total: {
       label: `total transaction amount`
     }
-  },
-  wallet: {
-    confirmation: `This transaction needs confirmation from other owners.`,
-    operationHash: `operation hash`
   },
   warning: {
     wallet_spent_limit: `This transaction value is above the remaining daily limit. It will need to be confirmed by other owners.`

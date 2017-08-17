@@ -22,8 +22,7 @@ export default {
     consensus: {
       capable: `Upgrade not required.`,
       capableUntil: `Upgrade required before #{blockNumber}`,
-      incapableSince: `Upgrade required since #{blockNumber}`,
-      unknown: `Upgrade status is unknown.`
+      incapableSince: `Upgrade required since #{blockNumber}`
     },
     upgrade: `Upgrade`
   }

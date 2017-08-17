@@ -16,9 +16,18 @@
 
 export default {
   button: {
+    export: `export`,
     newAccount: `account`,
     newWallet: `wallet`,
+    restoreAccount: `restore`,
     vaults: `vaults`
+  },
+  export: {
+    button: {
+      cancel: `Cancel`,
+      export: `Export`
+    },
+    title: `Export an Account`
   },
   summary: {
     minedBlock: `Mined at block #{blockNumber}`
