@@ -301,7 +301,6 @@ impl<'a> TrieDBIterator<'a> {
 				result.push(*ptr * 16 + *ptr.offset(1));
 				ptr = ptr.offset(2);
 			}
-
 			result
 		}
 	}
