@@ -20,9 +20,10 @@ use std::sync::{Arc, Weak};
 use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
 use std::time::{Instant};
 use time::precise_time_ns;
+use itertools::Itertools;
 
 // util
-use util::{Bytes, PerfTimer, Itertools, Mutex, RwLock, MutexGuard, Hashable};
+use util::{Bytes, PerfTimer, Mutex, RwLock, MutexGuard, Hashable};
 use util::{journaldb, DBValue, TrieFactory, Trie};
 use util::{U256, H256, Address, H2048};
 use util::trie::TrieSpec;

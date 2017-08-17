@@ -15,7 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::fmt;
-use itertools::Itertools;
 use hashdb::*;
 use nibbleslice::*;
 use rlp::*;
@@ -293,7 +292,18 @@ impl<'a> TrieDBIterator<'a> {
 	/// The present key.
 	fn key(&self) -> Bytes {
 		// collapse the key_nibbles down to bytes.
-		self.key_nibbles.iter().step(2).zip(self.key_nibbles.iter().skip(1).step(2)).map(|(h, l)| h * 16 + l).collect()
+		unsafe {
+			let size = self.key_nibbles.len() / 2;
+			let mut ptr = self.key_nibbles.as_ptr();
+			let mut result = Bytes::with_capacity(size);
+
+			for _ in 0..size {
+				result.push(*ptr * 16 + *ptr.offset(1));
+				ptr = ptr.offset(2);
+			}
+
+			result
+		}
 	}
 }
 
