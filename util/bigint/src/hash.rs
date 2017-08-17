@@ -449,33 +449,44 @@ known_heap_size!(0, H32, H64, H128, H160, H256, H264, H512, H520, H1024, H2048);
 /// Hasher that just takes 8 bytes of the provided value.
 /// May only be used for keys which are 32 bytes.
 pub struct PlainHasher {
-	prefix: [u8; 8],
-	_marker: [u64; 0], // for alignment
+	prefix: u64,
 }
 
 impl Default for PlainHasher {
 	#[inline]
 	fn default() -> PlainHasher {
 		PlainHasher {
-			prefix: [0; 8],
-			_marker: [0; 0],
+			prefix: 0,
 		}
+	}
+}
+
+impl PlainHasher {
+	#[inline]
+	fn mut_prefix(&mut self) -> &mut [u8; 8] {
+		unsafe { ::std::mem::transmute(&mut self.prefix) }
 	}
 }
 
 impl Hasher for PlainHasher {
 	#[inline]
 	fn finish(&self) -> u64 {
-		unsafe { ::std::mem::transmute(self.prefix) }
+		self.prefix
 	}
 
 	#[inline]
 	fn write(&mut self, bytes: &[u8]) {
 		debug_assert!(bytes.len() == 32);
 
-		for quarter in bytes.chunks(8) {
-			for (x, y) in self.prefix.iter_mut().zip(quarter) {
-				*x ^= *y
+		unsafe {
+			let mut bytes_ptr = bytes.as_ptr();
+			let mut prefix_ptr = self.mut_prefix().as_mut_ptr();
+
+			for _ in 0..8 {
+				*prefix_ptr ^= *bytes_ptr ^ *bytes_ptr.offset(8) ^ *bytes_ptr.offset(16) ^ *bytes_ptr.offset(24);
+
+				bytes_ptr = bytes_ptr.offset(1);
+				prefix_ptr = prefix_ptr.offset(1);
 			}
 		}
 	}
