@@ -217,6 +217,10 @@ impl Eth for EthClient {
 		Ok(format!("{}", ::light::net::MAX_PROTOCOL_VERSION))
 	}
 
+	fn chain_id(&self) -> Result<String, Error> {
+		Ok(self.client.signing_network_id().map(|v| format!("0x{:x}", v)).unwrap_or("".to_string()))
+	}
+
 	fn syncing(&self) -> Result<SyncStatus, Error> {
 		if self.sync.is_major_importing() {
 			let chain_info = self.client.chain_info();

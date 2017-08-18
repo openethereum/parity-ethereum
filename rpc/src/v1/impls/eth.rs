@@ -284,6 +284,11 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 		Ok(format!("{}", version))
 	}
 
+	fn chain_id(&self) -> Result<String, Error> {
+		let client = take_weak!(self.client);
+		Ok(client.signing_network_id().map(|v| format!("0x{:x}", v)).unwrap_or("".to_string()))
+	}
+
 	fn syncing(&self) -> Result<SyncStatus, Error> {
 		use ethcore::snapshot::RestorationStatus;
 
