@@ -72,6 +72,7 @@ pub enum MessageType {
     PinMatrixRequest = 18,
     PinMatrixAck = 19,
     Cancel = 20,
+    ClearSession = 24,
     ButtonRequest = 26,
     ButtonAck = 27,
     // PassphraseRequest = 41,
@@ -276,6 +277,16 @@ impl Device {
             writer.write_message(&pin_matrix_ack).unwrap();
         }
         self.write(MessageType::PinMatrixAck as u16, &buf)
+    }
+
+    fn clear_session(&mut self) {
+        let mut buf = Vec::new();
+        {
+            let mut writer = Writer::new(&mut buf);
+            let get_address = ClearSession {};
+            writer.write_message(&get_address).expect("Cannot write get_address");
+        }
+        self.write(MessageType::ClearSession as u16, &buf);
     }
 
     fn sign_tx(&mut self) {
