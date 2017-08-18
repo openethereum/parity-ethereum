@@ -22,6 +22,11 @@ export default class Eth {
     this._transport = transport;
   }
 
+  chainId () {
+    return this._transport
+      .execute('eth_chainId');
+  }
+
   accounts () {
     return this._transport
       .execute('eth_accounts')

@@ -51,6 +51,14 @@
       "outputFormatter": null
     },
     {
+      "name": "eth_chainId",
+      "desc": "Returns the current chain ID used for tranaction signing.",
+      "params": [],
+      "returns": "`String` - The current blockchain chain ID",
+      "inputFormatters": [],
+      "outputFormatter": null
+    },
+    {
       "name": "eth_syncing",
       "desc": "Returns an object with data about the sync status or `false`.",
       "params": [],
