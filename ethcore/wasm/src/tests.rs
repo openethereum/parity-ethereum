@@ -428,8 +428,8 @@ fn math_add() {
 	params.code = Some(Arc::new(code));
 
 	let mut args = [0u8; 64];
-	let arg_a = U256::from_dec_str("999999999").unwrap();
-	let arg_b = U256::from_dec_str("888888888").unwrap();
+	let arg_a = U256::from_dec_str("999999999999999999999999999999").unwrap();
+	let arg_b = U256::from_dec_str("888888888888888888888888888888").unwrap();
 	arg_a.to_big_endian(&mut args[0..32]);
 	arg_b.to_big_endian(&mut args[32..64]);
 	params.data = Some(args.to_vec());
@@ -446,5 +446,5 @@ fn math_add() {
 	let sum: U256 = (&result[..]).into();
 
 	assert_eq!(gas_left, U256::from(96284));
-	assert_eq!(sum, U256::from_dec_str("1888888887").unwrap());
+	assert_eq!(sum, U256::from_dec_str("1888888888888888888888888888887").unwrap());
 }

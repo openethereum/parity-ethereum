@@ -453,16 +453,8 @@ impl<'a, 'b> Runtime<'a, 'b> {
 		Ok(Some(0i32.into()))
 	}
 
-	fn bswap_i32(x: i32) -> i32 {
-		// conversions to force signed/unsigned shifts
-		let ux = x as u32;
-    	let ur =
-			((ux & 0xff) << 24) |
-			(((ux >> 8) & 0xff) << 16) |
-			(((ux >> 16) & 0xff) << 8) |
-			(x >> 24) as u32;
-
-		ur as i32
+	fn bswap_32(x: u32) -> u32 {
+		x >> 24 | x >> 8 & 0xff00 | x << 8 & 0xff0000 | x << 24
 	}
 
 	fn bitswap_i64(&mut self, context: interpreter::CallerContext)
@@ -471,28 +463,27 @@ impl<'a, 'b> Runtime<'a, 'b> {
 		let x1 = context.value_stack.pop_as::<i32>()?;
 		let x2 = context.value_stack.pop_as::<i32>()?;
 
-		trace!(target: "wasm", "bitswap {} <-> {}", x1, x2);
-
-		let result = ((Runtime::bswap_i32(x2) as i64) << 32) | (Runtime::bswap_i32(x1) as i64);
+		let result = ((Runtime::bswap_32(x2 as u32) as u64) << 32
+			| Runtime::bswap_32(x1 as u32) as u64) as i64;
 
 		self.return_i64(result)
 	}
 
 	fn return_i64(&mut self, val: i64) -> Result<Option<interpreter::RuntimeValue>, interpreter::Error> {
-		trace!(target: "wasm", "returning i64 {}", val);
-
 		let uval = val as u64;
+		let hi = (uval >> 32) as i32;
+		let lo = (uval << 32 >> 32) as i32;
 
 		let target = self.instance.module("contract")
 			.ok_or(interpreter::Error::Trap("Error locating main execution entry".to_owned()))?;
 		target.execute_export(
 			"setTempRet0",
 			self.execution_params().add_argument(
-				interpreter::RuntimeValue::I32((uval >> 32) as i32).into()
+				interpreter::RuntimeValue::I32(hi).into()
 			),
 		)?;
 		Ok(Some(
-			((uval << 32 >> 32) as i32).into()
+			(lo).into()
 		))
 	}
 
