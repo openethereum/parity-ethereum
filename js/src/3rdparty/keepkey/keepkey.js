@@ -69,15 +69,4 @@ export default class Keepkey {
         return err;
       });
   }
-
-  signTransaction (device, transaction) {
-    return this._api.parity
-      .keepkey('sign_transaction', this.devices[device])
-      .then((message) => {
-
-      })
-      .catch((err) => {
-        return err;
-      });
-  }
 }

@@ -25,6 +25,7 @@ extern crate serde_json;
 #[macro_use] extern crate serde_derive;
 #[macro_use] extern crate log;
 #[cfg(test)] extern crate rustc_hex;
+#[cfg_attr(test, macro_use)] extern crate ethcore_util as util;
 
 mod ledger;
 mod keepkey;
@@ -64,6 +65,14 @@ pub struct WalletInfo {
 	pub serial: String,
 	/// Ethereum address.
 	pub address: Address,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TransactionInfo<'a> {
+	pub nonce: &'a[u8],
+	pub gas_limit: &'a[u8],
+	pub gas_price: &'a[u8],
+	pub value: &'a[u8],
 }
 
 impl fmt::Display for Error {
@@ -197,12 +206,24 @@ impl HardwareWalletManager {
 
 	/// Get connected wallet info.
 	pub fn wallet_info(&self, address: &Address) -> Option<WalletInfo> {
-		self.ledger.lock().device_info(address)
+		let l = self.ledger.lock().device_info(address);
+		if l.is_some() {
+			return l;
+		}
+		self.keepkey.lock().path_from_address(address).map(|_| WalletInfo {
+			name: "".to_string(),
+			manufacturer: "keepkey".to_string(),
+			serial: "".to_string(),
+			address: address.to_owned(),
+		})
 	}
 
 	/// Sign transaction data with wallet managing `address`.
-	pub fn sign_transaction(&self, address: &Address, data: &[u8]) -> Result<Signature, Error> {
-		Ok(self.ledger.lock().sign_transaction(address, data)?)
+	pub fn sign_transaction(&self, address: &Address, t: TransactionInfo, data: &[u8]) -> Result<Signature, Error> {
+		if self.wallet_info(address).is_some() {
+			return Ok(self.ledger.lock().sign_transaction(address, data)?);
+		}
+		Ok(self.keepkey.lock().sign_transaction(address, t)?)
 	}
 
 	/// Keepkey message.

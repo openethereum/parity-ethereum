@@ -1,12 +1,13 @@
 #![allow(dead_code)]
-#![allow(unused_imports)]
 
 mod protobuf;
 
 extern crate libusb;
 extern crate quick_protobuf;
 extern crate byteorder;
+use super::TransactionInfo;
 use keepkey::byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
+use keepkey::quick_protobuf::{BytesReader, Writer};
 
 use std::fmt;
 use fmt::Write;
@@ -15,16 +16,14 @@ use std::mem::transmute;
 use std::borrow::Cow;
 use std::sync::{Arc};
 use std::time::Duration;
-use parking_lot;
 use parking_lot::Mutex;
 use serde_json;
 use hidapi;
-use keepkey::quick_protobuf::{BytesReader, Writer};
+use ethkey::{Address, Signature};
+use bigint::hash::H256;
 use self::protobuf::{
-    ButtonAck, ButtonRequest, Cancel, EthereumAddress, EthereumGetAddress,
-    EthereumSignTx, EthereumTxRequest, EthereumTxAck, Failure, Features,
-    GetPublicKey, Initialize, Ping, PinMatrixAck, PinMatrixRequest,
-    PublicKey, Success, InputScriptType,
+    EthereumAddress, EthereumGetAddress, EthereumSignTx, EthereumTxRequest,
+    EthereumTxAck, Failure, Features, PinMatrixAck, Success,
 };
 
 /// Hardware waller error.
@@ -66,67 +65,21 @@ impl From<hidapi::HidError> for Error {
 #[derive(Debug)]
 pub enum MessageType {
     Initialize = 0,
-    Ping = 1,
     Success = 2,
     Failure = 3,
-    ChangePin = 4,
-    WipeDevice = 5,
-    FirmwareErase = 6,
-    FirmwareUpload = 7,
-    GetEntropy = 9,
-    Entropy = 10,
-    GetPublicKey = 11,
-    PublicKey = 12,
-    LoadDevice = 13,
-    ResetDevice = 14,
-    SignTx = 15,
-    SimpleSignTx = 16,
+    // PublicKey = 12,
     Features = 17,
     PinMatrixRequest = 18,
     PinMatrixAck = 19,
     Cancel = 20,
-    TxRequest = 21,
-    TxAck = 22,
-    CipherKeyValue = 23,
-    ClearSession = 24,
-    ApplySettings = 25,
     ButtonRequest = 26,
     ButtonAck = 27,
-    GetAddress = 29,
-    Address = 30,
-    EntropyRequest = 35,
-    EntropyAck = 36,
-    SignMessage = 38,
-    VerifyMessage = 39,
-    MessageSignature = 40,
-    PassphraseRequest = 41,
-    PassphraseAck = 42,
-    EstimateTxSize = 43,
-    TxSize = 44,
-    RecoveryDevice = 45,
-    WordRequest = 46,
-    WordAck = 47,
-    CipheredKeyValue = 48,
-    EncryptMessage = 49,
-    EncryptedMessage = 50,
-    DecryptMessage = 51,
-    DecryptedMessage = 52,
-    SignIdentity = 53,
-    SignedIdentity = 54,
-    GetFeatures = 55,
+    // PassphraseRequest = 41,
+    // PassphraseAck = 42,
     EthereumGetAddress = 56,
     EthereumAddress = 57,
     EthereumSignTx = 58,
     EthereumTxRequest = 59,
-    EthereumTxAck = 60,
-    CharacterRequest = 80,
-    CharacterAck = 81,
-    DebugLinkDecision = 100,
-    DebugLinkGetState = 101,
-    DebugLinkState = 102,
-    DebugLinkStop = 103,
-    DebugLinkLog = 104,
-    DebugLinkFillConfig = 105,
 }
 
 impl MessageType {
@@ -172,6 +125,7 @@ pub struct Manager {
 	devices: Vec<Device>,
 }
 impl Manager {
+    /// Create a new instance
     pub fn new(hidapi: Arc<Mutex<hidapi::HidApi>>) -> Manager {
         println!("NEW KEEPKEY MANAGER");
         Manager {
@@ -180,6 +134,7 @@ impl Manager {
         }
     }
 
+    /// Called when looking for new devices or removing dead ones
     pub fn update_devices(&mut self) -> Result<usize, Error> {
         println!("UPDATE DEVICES KEEPKEY");
         let mut num_new_devices = 0;
@@ -198,6 +153,26 @@ impl Manager {
         let new_devices = path.iter().map(|p| Device::new(self.api.clone(), p.to_string())).collect();
         self.devices = new_devices;
         Ok(num_new_devices)
+    }
+
+    /// Get the device path from address
+    pub fn path_from_address(&self, address: &Address) -> Option<String> {
+        self.devices.iter().find(|d| d.address.clone().unwrap() == address.as_ref()).map(|d| d.path.clone())
+    }
+
+    /// Sign the transaction given an address and
+    pub fn sign_transaction(&self, address: &Address, t: TransactionInfo) -> Result<Signature, Error> {
+        let tx = serde_json::to_string(&t).map_err(Error::SerdeError).unwrap();
+        let path = self.path_from_address(address);
+        let res: Vec<u8> = self._message(path, |mut d| d.sign_transaction(&tx)).unwrap()
+            .split("").map(|s| s.trim())
+            .filter(|s| !s.is_empty())
+            .map(|s| s.parse().unwrap())
+            .collect();
+        let v = (&res[0] + 1) % 2;
+        let r = H256::from_slice(&res[1..33]);
+		let s = H256::from_slice(&res[33..65]);
+        Ok(Signature::from_rsv(&r, &s, v))
     }
 
     pub fn message(&self, message_type: String, path: Option<String>, message: Option<String>) -> Result<String, Error> {
@@ -226,13 +201,6 @@ impl Manager {
                     Some(m) => m,
                 };
                 self._message(path, |mut d| d.pin_matrix_ack(message.as_ref()))
-            }
-            "sign_tx" => {
-                let message = match message {
-                    None => return Err(Error::BadMessageType),
-                    Some(m) => m,
-                };
-                self._message(path, |mut d| d.sign_transaction(message.as_ref()))
             }
             _ => {
                 Err(Error::BadMessageType)
@@ -310,20 +278,52 @@ impl Device {
         self.write(MessageType::PinMatrixAck as u16, &buf)
     }
 
-    fn sign_transaction(&mut self, tx: &str) -> Result<String, Error> {
-        println!("SEND TX");
+    fn sign_tx(&mut self) {
+        println!("SIGN_TX");
         let mut buf = Vec::new();
-        let tx: EthereumSignTx = serde_json::from_str(tx).unwrap();
+        // if data, we need to send data in 1024bit chunks
         {
             let mut writer = Writer::new(&mut buf);
-            writer.write_message(&tx).unwrap();
+            let sign_tx = EthereumSignTx {
+                address_n: vec![0],
+                nonce: Some(Cow::from(vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])),
+                gas_price: Some(Cow::from(vec![0, 0, 0, 5, 210, 29, 186, 0])),
+                gas_limit: Some(Cow::from(vec![0, 0, 0, 23, 72, 118, 232, 0])),
+                to: Some(Cow::from(vec![95, 89, 79, 26, 128, 97, 158, 107, 167, 231, 0, 62, 153, 208, 33, 157, 49, 44, 157, 44])),
+                value: Some(Cow::from(vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 13, 224, 182, 179, 167, 100, 0, 0])),
+                data_initial_chunk: None,
+                data_length: None,
+                to_address_n: vec![0],
+                address_type: Some(OutputAddressType::SPEND),
+                exchange_type: None,
+                chain_id: Some(1),
+            };
+            writer.write_message(&sign_tx).expect("Cannot write sign_tx");
         }
-        self.write(MessageType::EthereumSignTx as u16, &buf)
+        self.write(MessageType::EthereumSignTx as u16, &buf);
+        self.ethereum_tx_ack(None);
+    }
+
+    fn ethereum_tx_ack(&mut self, data: Option<Vec<u8>>) {
+        println!("PIN_MATRIX_ACK");
+        let mut buf = Vec::new();
+        let data_chunk = match data {
+            Some(ref d) => Some(Cow::from(&d[..])),
+            None => None
+        };
+        {
+            let mut writer = Writer::new(&mut buf);
+            let ethereum_tx_ack = EthereumTxAck {
+                data_chunk,
+            };
+            writer.write_message(&ethereum_tx_ack).expect("Cannot write pin_matrix_ack");
+        }
+        self.write(MessageType::EthereumTxAck as u16, &buf);
     }
 
     fn write(&mut self, msg_type: u16, buf: &[u8]) -> Result<String, Error> {
         // write data to device
-        let mut msg = vec![63, 35, 35];
+        let mut msg = vec![35, 35];
         msg.write_u16::<BigEndian>(msg_type).unwrap();
         msg.extend_from_slice(&[0, 0, 0]);
         msg.extend_from_slice(&buf[..]);
@@ -352,10 +352,15 @@ impl Device {
         {
             let api = self.api.lock();
             let handle = self.open_path(|| api.open_path(&self.path))?;
-            handle.write(&msg_in).unwrap();
+            for chunk in msg_in.chunks(63) {
+                let mut msg_chunk = vec![63];
+                msg_chunk.extend_from_slice(&chunk);
+                handle.write(&msg_chunk).unwrap();
+            }
             handle.read(&mut buf[..]).unwrap();
             msg_type        = Cursor::new(&buf[3..5]).read_u16::<BigEndian>().unwrap();
             let mut msg_len = Cursor::new(&buf[7..9]).read_i16::<BigEndian>().unwrap();
+            let l           = msg_len as usize;
             msg.extend_from_slice(&buf[9..]);
 
             // Manage incoming packets that do not have the proper start code
@@ -363,13 +368,11 @@ impl Device {
                 return Err(Error::BadStartCode);
             }
             msg_len -= msg.len() as i16;
-
             while msg_len > 0 {
                 handle.read(&mut buf[..]).unwrap();
                 msg_len -= buf.len() as i16;
                 msg.extend_from_slice(&buf[1..]);
             }
-            let l = (msg.len() as i16 + msg_len + 10) as usize;
             msg = (&msg[..l]).to_vec();
         }
         self.parse_msg(msg_type, msg)
@@ -439,6 +442,12 @@ impl Device {
                 }
                 println!("ADDRESS: {:?}", s);
                 Ok(s)
+            }
+            MessageType::EthereumTxRequest => {
+                // Transaction Signing Responce
+                let request = EthereumTxRequest::from_reader(&mut reader, &msg).expect("Cannot read Message -_-");
+                println!("REQUEST: {:?}", request);
+                Ok("res".to_string())
             }
             _ => {
                 // Messages we don't care about
