@@ -60,6 +60,16 @@ The following options are possible for the \`defaultBlock\` parameter:
     }
   },
 
+  chainId: {
+    desc: 'Returns the current chain ID used for tranaction signing.',
+    params: [],
+    returns: {
+      type: String,
+      desc: 'The current blockchain chain ID',
+      example: '0x1'
+    }
+  },
+
   call: {
     desc: 'Executes a new message call immediately without creating a transaction on the block chain.',
     params: [
