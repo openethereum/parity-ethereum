@@ -20,7 +20,7 @@ use std::sync::{Weak, Arc};
 
 use ethcore::block_status::BlockStatus;
 use ethcore::client::{ClientReport, EnvInfo};
-use ethcore::engines::{Engine, EpochChange, Proof, Unsure};
+use ethcore::engines::{epoch, Engine, EpochChange, Proof, Unsure};
 use ethcore::error::BlockImportError;
 use ethcore::ids::BlockId;
 use ethcore::header::Header;
@@ -182,12 +182,10 @@ impl<T: ChainDataFetcher> Client<T> {
 		io_channel: IoChannel<ClientIoMessage>,
 		cache: Arc<Mutex<Cache>>
 	) -> Result<Self, String> {
-		let gh = ::rlp::encode(&spec.genesis_header());
-
 		Ok(Client {
 			queue: HeaderQueue::new(config.queue, spec.engine.clone(), io_channel, config.check_seal),
 			engine: spec.engine.clone(),
-			chain: HeaderChain::new(db.clone(), chain_col, &gh, cache)?,
+			chain: HeaderChain::new(db.clone(), chain_col, &spec, cache)?,
 			report: RwLock::new(ClientReport::default()),
 			import_lock: Mutex::new(()),
 			db: db,
@@ -320,28 +318,33 @@ impl<T: ChainDataFetcher> Client<T> {
 				continue
 			}
 
-			let _write_proof_result = match self.check_epoch_signal(&verified_header) {
+			let write_proof_result = match self.check_epoch_signal(&verified_header) {
 				Ok(Some(proof)) => self.write_pending_proof(&verified_header, proof),
 				Ok(None) => Ok(()),
 				Err(e) =>
 					panic!("Unable to fetch epoch transition proof: {:?}", e),
 			};
 
-			// TODO: check epoch end.
+			if let Err(e) = write_proof_result {
+				warn!(target: "client", "Error writing pending transition proof to DB: {:?} \
+					The node may not be able to synchronize further.", e);
+			}
 
 			let mut tx = self.db.transaction();
-			let pending = match self.chain.insert(&mut tx, verified_header) {
+			let pending = match self.chain.insert(&mut tx, verified_header, None) {
 				Ok(pending) => {
 					good.push(hash);
 					self.report.write().blocks_imported += 1;
 					pending
 				}
 				Err(e) => {
-					debug!(target: "client", "Error importing header {:?}: {}", (num, hash), e);
+					debug!(target: "client", "Error importing header {:?}: {:?}", (num, hash), e);
 					bad.push(hash);
 					continue;
 				}
 			};
+
+			// TODO: check epoch end and verify under epoch verifier.
 
 			self.db.write_buffered(tx);
 			self.chain.apply_pending(pending);
@@ -498,7 +501,7 @@ impl<T: ChainDataFetcher> Client<T> {
 
 	// attempts to fetch the epoch proof from the network until successful.
 	fn write_pending_proof(&self, header: &Header, proof: Proof) -> Result<(), T::Error> {
-		let _proof = match proof {
+		let proof = match proof {
 			Proof::Known(known) => known,
 			Proof::WithState(state_dependent) => {
 				loop {
@@ -512,8 +515,12 @@ impl<T: ChainDataFetcher> Client<T> {
 			}
 		};
 
-		// TODO: actually write it
-		unimplemented!()
+		let mut batch = self.db.transaction();
+		self.chain.insert_pending_transition(&mut batch, header.hash(), epoch::PendingTransition {
+			proof: proof,
+		});
+		self.db.write_buffered(batch);
+		Ok(())
 	}
 }
 
