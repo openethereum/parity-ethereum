@@ -20,6 +20,7 @@ use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 use std::collections::BTreeMap;
 use std::cmp::max;
+use std::str::FromStr;
 use cli::{Args, ArgsError};
 use util::{Hashable, H256, U256, Bytes, version_data, Address};
 use util::journaldb::Algorithm;
@@ -556,31 +557,57 @@ impl Configuration {
 		Ok(options)
 	}
 
+	fn ui_port(&self) -> u16 {
+		self.args.flag_ports_shift + self.args.flag_ui_port
+	}
+
+	fn ntp_servers(&self) -> Vec<String> {
+		self.args.flag_ntp_servers.split(",").map(str::to_owned).collect()
+	}
+
 	fn ui_config(&self) -> UiConfiguration {
 		UiConfiguration {
 			enabled: self.ui_enabled(),
-			ntp_server: self.args.flag_ntp_server.clone(),
+			ntp_servers: self.ntp_servers(),
 			interface: self.ui_interface(),
-			port: self.args.flag_ports_shift + self.args.flag_ui_port,
+			port: self.ui_port(),
 			hosts: self.ui_hosts(),
 		}
 	}
 
 	fn dapps_config(&self) -> DappsConfiguration {
+		let dev_ui = if self.args.flag_ui_no_validation { vec![("localhost".to_owned(), 3000)] } else { vec![] };
+		let ui_port = self.ui_port();
+
 		DappsConfiguration {
 			enabled: self.dapps_enabled(),
-			ntp_server: self.args.flag_ntp_server.clone(),
+			ntp_servers: self.ntp_servers(),
 			dapps_path: PathBuf::from(self.directories().dapps),
 			extra_dapps: if self.args.cmd_dapp {
 				self.args.arg_path.iter().map(|path| PathBuf::from(path)).collect()
 			} else {
 				vec![]
 			},
-			extra_embed_on: if self.args.flag_ui_no_validation {
-				vec![("localhost".to_owned(), 3000)]
-			} else {
-				vec![]
+			extra_embed_on: {
+				let mut extra_embed = dev_ui.clone();
+				match self.ui_hosts() {
+					// In case host validation is disabled allow all frame ancestors
+					None => extra_embed.push(("*".to_owned(), ui_port)),
+					Some(hosts) => extra_embed.extend(hosts.into_iter().filter_map(|host| {
+						let mut it = host.split(":");
+						let host = it.next();
+						let port = it.next().and_then(|v| u16::from_str(v).ok());
+
+						match (host, port) {
+							(Some(host), Some(port)) => Some((host.into(), port)),
+							(Some(host), None) => Some((host.into(), ui_port)),
+							_ => None,
+						}
+					})),
+				}
+				extra_embed
 			},
+			extra_script_src: dev_ui,
 		}
 	}
 
@@ -908,13 +935,10 @@ impl Configuration {
 		} else {
 			self.args.flag_db_path.as_ref().map_or(dir::CHAINS_PATH, |s| &s)
 		};
-		let cache_path = if is_using_base_path {
-			"$BASE/cache".into()
-		} else {
-			replace_home_and_local(&data_path, &local_path, &dir::CACHE_PATH)
-		};
+		let cache_path = if is_using_base_path { "$BASE/cache" } else { dir::CACHE_PATH };
 
 		let db_path = replace_home_and_local(&data_path, &local_path, &base_db_path);
+		let cache_path = replace_home_and_local(&data_path, &local_path, cache_path);
 		let keys_path = replace_home(&data_path, &self.args.flag_keys_path);
 		let dapps_path = replace_home(&data_path, &self.args.flag_dapps_path);
 		let secretstore_path = replace_home(&data_path, &self.args.flag_secretstore_path);
@@ -1272,7 +1296,12 @@ mod tests {
 			support_token_api: true
 		}, UiConfiguration {
 			enabled: true,
-			ntp_server: "none".into(),
+			ntp_servers: vec![
+				"0.parity.pool.ntp.org:123".into(),
+				"1.parity.pool.ntp.org:123".into(),
+				"2.parity.pool.ntp.org:123".into(),
+				"3.parity.pool.ntp.org:123".into(),
+			],
 			interface: "127.0.0.1".into(),
 			port: 8180,
 			hosts: Some(vec![]),
@@ -1510,10 +1539,16 @@ mod tests {
 		let conf3 = parse(&["parity", "--ui-path", "signer", "--ui-interface", "test"]);
 
 		// then
+		let ntp_servers = vec![
+			"0.parity.pool.ntp.org:123".into(),
+			"1.parity.pool.ntp.org:123".into(),
+			"2.parity.pool.ntp.org:123".into(),
+			"3.parity.pool.ntp.org:123".into(),
+		];
 		assert_eq!(conf0.directories().signer, "signer".to_owned());
 		assert_eq!(conf0.ui_config(), UiConfiguration {
 			enabled: true,
-			ntp_server: "none".into(),
+			ntp_servers: ntp_servers.clone(),
 			interface: "127.0.0.1".into(),
 			port: 8180,
 			hosts: Some(vec![]),
@@ -1522,7 +1557,7 @@ mod tests {
 		assert_eq!(conf1.directories().signer, "signer".to_owned());
 		assert_eq!(conf1.ui_config(), UiConfiguration {
 			enabled: true,
-			ntp_server: "none".into(),
+			ntp_servers: ntp_servers.clone(),
 			interface: "127.0.0.1".into(),
 			port: 8180,
 			hosts: Some(vec![]),
@@ -1532,7 +1567,7 @@ mod tests {
 		assert_eq!(conf2.directories().signer, "signer".to_owned());
 		assert_eq!(conf2.ui_config(), UiConfiguration {
 			enabled: true,
-			ntp_server: "none".into(),
+			ntp_servers: ntp_servers.clone(),
 			interface: "127.0.0.1".into(),
 			port: 3123,
 			hosts: Some(vec![]),
@@ -1541,7 +1576,7 @@ mod tests {
 		assert_eq!(conf3.directories().signer, "signer".to_owned());
 		assert_eq!(conf3.ui_config(), UiConfiguration {
 			enabled: true,
-			ntp_server: "none".into(),
+			ntp_servers: ntp_servers.clone(),
 			interface: "test".into(),
 			port: 8180,
 			hosts: Some(vec![]),
@@ -1654,5 +1689,16 @@ mod tests {
 		assert_eq!(&conf0.secretstore_config().unwrap().http_interface, "0.0.0.0");
 		assert_eq!(&conf0.ipfs_config().interface, "0.0.0.0");
 		assert_eq!(conf0.ipfs_config().hosts, None);
+	}
+
+	#[test]
+	fn should_use_correct_cache_path_if_base_is_set() {
+		let std = parse(&["parity"]);
+		let base = parse(&["parity", "--base-path", "/test"]);
+
+		let base_path = ::dir::default_data_path();
+		let local_path = ::dir::default_local_path();
+		assert_eq!(std.directories().cache, ::helpers::replace_home_and_local(&base_path, &local_path, ::dir::CACHE_PATH));
+		assert_eq!(base.directories().cache, "/test/cache");
 	}
 }

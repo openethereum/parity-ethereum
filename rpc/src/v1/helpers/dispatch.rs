@@ -512,6 +512,10 @@ pub fn execute<D: Dispatcher + 'static>(
 				).boxed()
 		},
 		ConfirmationPayload::EthSignMessage(address, data) => {
+			if accounts.is_hardware_address(address) {
+				return future::err(errors::unsupported("Signing via hardware wallets is not supported.", None)).boxed();
+			}
+
 			let hash = eth_data_hash(data);
 			let res = signature(&accounts, address, hash, pass)
 				.map(|result| result
@@ -522,6 +526,10 @@ pub fn execute<D: Dispatcher + 'static>(
 			future::done(res).boxed()
 		},
 		ConfirmationPayload::Decrypt(address, data) => {
+			if accounts.is_hardware_address(address) {
+				return future::err(errors::unsupported("Decrypting via hardware wallets is not supported.", None)).boxed();
+			}
+
 			let res = decrypt(&accounts, address, data, pass)
 				.map(|result| result
 					.map(RpcBytes)

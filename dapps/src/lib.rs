@@ -130,7 +130,7 @@ impl Middleware {
 
 	/// Creates new middleware for UI server.
 	pub fn ui<F: Fetch>(
-		ntp_server: &str,
+		ntp_servers: &[String],
 		pool: CpuPool,
 		remote: Remote,
 		dapps_domain: &str,
@@ -146,7 +146,7 @@ impl Middleware {
 		).embeddable_on(None).allow_dapps(false));
 		let special = {
 			let mut special = special_endpoints(
-				ntp_server,
+				ntp_servers,
 				pool,
 				content_fetcher.clone(),
 				remote.clone(),
@@ -171,11 +171,12 @@ impl Middleware {
 
 	/// Creates new Dapps server middleware.
 	pub fn dapps<F: Fetch>(
-		ntp_server: &str,
+		ntp_servers: &[String],
 		pool: CpuPool,
 		remote: Remote,
 		ui_address: Option<(String, u16)>,
 		extra_embed_on: Vec<(String, u16)>,
+		extra_script_src: Vec<(String, u16)>,
 		dapps_path: PathBuf,
 		extra_dapps: Vec<PathBuf>,
 		dapps_domain: &str,
@@ -184,7 +185,7 @@ impl Middleware {
 		web_proxy_tokens: Arc<WebProxyTokens>,
 		fetch: F,
 	) -> Self {
-		let embeddable = as_embeddable(ui_address, extra_embed_on, dapps_domain);
+		let embeddable = as_embeddable(ui_address, extra_embed_on, extra_script_src, dapps_domain);
 		let content_fetcher = Arc::new(apps::fetcher::ContentFetcher::new(
 			hash_fetch::urlhint::URLHintContract::new(registrar),
 			sync_status.clone(),
@@ -203,7 +204,7 @@ impl Middleware {
 
 		let special = {
 			let mut special = special_endpoints(
-				ntp_server,
+				ntp_servers,
 				pool,
 				content_fetcher.clone(),
 				remote.clone(),
@@ -237,8 +238,8 @@ impl http::RequestMiddleware for Middleware {
 	}
 }
 
-fn special_endpoints(
-	ntp_server: &str,
+fn special_endpoints<T: AsRef<str>>(
+	ntp_servers: &[T],
 	pool: CpuPool,
 	content_fetcher: Arc<apps::fetcher::Fetcher>,
 	remote: Remote,
@@ -250,7 +251,7 @@ fn special_endpoints(
 	special.insert(router::SpecialEndpoint::Api, Some(api::RestApi::new(
 		content_fetcher,
 		sync_status,
-		api::TimeChecker::new(ntp_server.into(), pool),
+		api::TimeChecker::new(ntp_servers, pool),
 		remote,
 	)));
 	special
@@ -263,12 +264,14 @@ fn address(host: &str, port: u16) -> String {
 fn as_embeddable(
 	ui_address: Option<(String, u16)>,
 	extra_embed_on: Vec<(String, u16)>,
+	extra_script_src: Vec<(String, u16)>,
 	dapps_domain: &str,
 ) -> Option<ParentFrameSettings> {
 	ui_address.map(|(host, port)| ParentFrameSettings {
 		host,
 		port,
 		extra_embed_on,
+		extra_script_src,
 		dapps_domain: dapps_domain.to_owned(),
 	})
 }
@@ -289,8 +292,10 @@ pub struct ParentFrameSettings {
 	pub host: String,
 	/// Port
 	pub port: u16,
-	/// Additional pages the pages can be embedded on.
+	/// Additional URLs the dapps can be embedded on.
 	pub extra_embed_on: Vec<(String, u16)>,
+	/// Additional URLs the dapp scripts can be loaded from.
+	pub extra_script_src: Vec<(String, u16)>,
 	/// Dapps Domain (web3.site)
 	pub dapps_domain: String,
 }
