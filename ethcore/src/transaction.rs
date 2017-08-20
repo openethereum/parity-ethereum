@@ -56,6 +56,15 @@ impl Decodable for Action {
 	}
 }
 
+impl Encodable for Action {
+	fn rlp_append(&self, s: &mut RlpStream) {
+		match *self {
+			Action::Create => s.append_internal(&""),
+			Action::Call(ref addr) => s.append_internal(addr),
+		};
+	}
+}
+
 /// Transaction activation condition.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Condition {
@@ -90,10 +99,7 @@ impl Transaction {
 		s.append(&self.nonce);
 		s.append(&self.gas_price);
 		s.append(&self.gas);
-		match self.action {
-			Action::Create => s.append_empty_data(),
-			Action::Call(ref to) => s.append(to)
-		};
+		s.append(&self.action);
 		s.append(&self.value);
 		s.append(&self.data);
 		if let Some(n) = network_id {
@@ -308,10 +314,7 @@ impl UnverifiedTransaction {
 		s.append(&self.nonce);
 		s.append(&self.gas_price);
 		s.append(&self.gas);
-		match self.action {
-			Action::Create => s.append_empty_data(),
-			Action::Call(ref to) => s.append(to)
-		};
+		s.append(&self.action);
 		s.append(&self.value);
 		s.append(&self.data);
 		s.append(&self.v);
