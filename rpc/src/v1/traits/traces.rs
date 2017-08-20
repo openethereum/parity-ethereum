@@ -17,12 +17,15 @@
 //! Traces specific rpc interface.
 
 use jsonrpc_core::Error;
+use jsonrpc_core::futures::BoxFuture;
 use jsonrpc_macros::Trailing;
 use v1::types::{TraceFilter, LocalizedTrace, BlockNumber, Index, CallRequest, Bytes, TraceResults, H256};
 
 build_rpc_trait! {
 	/// Traces specific rpc interface.
 	pub trait Traces {
+		type Metadata;
+
 		/// Returns traces matching given filter.
 		#[rpc(name = "trace_filter")]
 		fn filter(&self, TraceFilter) -> Result<Option<Vec<LocalizedTrace>>, Error>;
@@ -40,8 +43,8 @@ build_rpc_trait! {
 		fn block_traces(&self, BlockNumber) -> Result<Option<Vec<LocalizedTrace>>, Error>;
 
 		/// Executes the given call and returns a number of possible traces for it.
-		#[rpc(name = "trace_call")]
-		fn call(&self, CallRequest, Vec<String>, Trailing<BlockNumber>) -> Result<TraceResults, Error>;
+		#[rpc(meta, name = "trace_call")]
+		fn call(&self, Self::Metadata, CallRequest, Vec<String>, Trailing<BlockNumber>) -> BoxFuture<TraceResults, Error>;
 
 		/// Executes the given raw transaction and returns a number of possible traces for it.
 		#[rpc(name = "trace_rawTransaction")]

@@ -18,13 +18,15 @@
 
 use std::sync::Arc;
 
-use rlp::UntrustedRlp;
 use ethcore::client::{MiningBlockChainClient, CallAnalytics, TransactionId, TraceId};
 use ethcore::miner::MinerService;
 use ethcore::transaction::SignedTransaction;
+use rlp::UntrustedRlp;
 
 use jsonrpc_core::Error;
+use jsonrpc_core::futures::{self, Future, BoxFuture};
 use jsonrpc_macros::Trailing;
+use v1::Metadata;
 use v1::traits::Traces;
 use v1::helpers::{errors, fake_sign};
 use v1::types::{TraceFilter, LocalizedTrace, BlockNumber, Index, CallRequest, Bytes, TraceResults, H256};
@@ -54,6 +56,8 @@ impl<C, M> TracesClient<C, M> {
 }
 
 impl<C, M> Traces for TracesClient<C, M> where C: MiningBlockChainClient + 'static, M: MinerService + 'static {
+	type Metadata = Metadata;
+
 	fn filter(&self, filter: TraceFilter) -> Result<Option<Vec<LocalizedTrace>>, Error> {
 		Ok(self.client.filter_traces(filter.into())
 			.map(|traces| traces.into_iter().map(LocalizedTrace::from).collect()))
@@ -79,15 +83,17 @@ impl<C, M> Traces for TracesClient<C, M> where C: MiningBlockChainClient + 'stat
 			.map(LocalizedTrace::from))
 	}
 
-	fn call(&self, request: CallRequest, flags: Vec<String>, block: Trailing<BlockNumber>) -> Result<TraceResults, Error> {
+	fn call(&self, meta: Self::Metadata, request: CallRequest, flags: Vec<String>, block: Trailing<BlockNumber>) -> BoxFuture<TraceResults, Error> {
 		let block = block.unwrap_or_default();
 
 		let request = CallRequest::into(request);
-		let signed = fake_sign::sign_call(&self.client, &self.miner, request)?;
+		let signed = try_bf!(fake_sign::sign_call(&self.client, &self.miner, request, meta.is_dapp()));
 
-		self.client.call(&signed, block.into(), to_call_analytics(flags))
+		let res = self.client.call(&signed, block.into(), to_call_analytics(flags))
 			.map(TraceResults::from)
-			.map_err(errors::call)
+			.map_err(errors::call);
+
+		futures::done(res).boxed()
 	}
 
 	fn raw_transaction(&self, raw_transaction: Bytes, flags: Vec<String>, block: Trailing<BlockNumber>) -> Result<TraceResults, Error> {
