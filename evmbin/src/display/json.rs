@@ -116,6 +116,9 @@ impl trace::VMTracer for Informant {
 		self.stack.extend_from_slice(stack_push);
 
 		if let Some((pos, data)) = mem_diff {
+			if self.memory.len() < (pos + data.len()) {
+				self.memory.resize(pos + data.len(), 0);
+			}
 			self.memory[pos..pos + data.len()].copy_from_slice(data);
 		}
 
