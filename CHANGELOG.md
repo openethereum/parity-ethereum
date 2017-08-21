@@ -1,3 +1,49 @@
+## Parity [v1.7.1](https://github.com/paritytech/parity/releases/tag/v1.7.1) (2017-08-21)
+
+Parity 1.7.1 is a bug-fix release to improve performance and stability. Among others, it addresses the following issues:
+
+- Fixed issues with the health status indicator in the wallet.
+- Added support for the ConsenSys multi-sig wallet.
+- Fixes to the Chrome extension.
+- Fixed macOS installer upgrades.
+
+Full list of included changes:
+
+- Increase default gas limit for eth_call [#6337](https://github.com/paritytech/parity/pull/6337)
+  - Fix balance increase.
+  - Cap gas limit for dapp-originating requests.
+- Backports [#6333](https://github.com/paritytech/parity/pull/6333)
+  - Overflow check in addition
+  - Unexpose methods on UI RPC. [#6295](https://github.com/paritytech/parity/pull/6295)
+  - Add more descriptive error when signing/decrypting using hw wallet.
+  - Format instant change proofs correctly
+  - Propagate stratum submit share error upstream [#6260](https://github.com/paritytech/parity/pull/6260)
+  - Updated jsonrpc [#6264](https://github.com/paritytech/parity/pull/6264)
+  - Using multiple NTP servers [#6173](https://github.com/paritytech/parity/pull/6173)
+    - Small improvements to time estimation.
+    - Allow multiple NTP servers to be used.
+    - Removing boxing.
+    - Update list of servers and add reference.
+  - Fix dapps CSP when UI is exposed externally [#6178](https://github.com/paritytech/parity/pull/6178)
+    - Allow embeding on any page when ui-hosts=all and fix dev_ui
+  - Fix cache path when using --base-path [#6212](https://github.com/paritytech/parity/pull/6212)
+  - Bump to v1.7.1
+- UI backports [#6332](https://github.com/paritytech/parity/pull/6332)
+  - Time should not contribue to overall status. [#6276](https://github.com/paritytech/parity/pull/6276)
+  - Add warning to web browser and fix links. [#6232](https://github.com/paritytech/parity/pull/6232)
+  - Extension fixes [#6284](https://github.com/paritytech/parity/pull/6284)
+    - Fix token symbols in extension.
+    - Allow connections from firefox extension.
+  - Add support for ConsenSys multisig wallet [#6153](https://github.com/paritytech/parity/pull/6153)
+    - First draft of ConsenSys wallet
+    - Fix transfer store // WIP Consensys Wallet
+    - Rename walletABI JSON file
+    - Fix wrong daylimit in wallet modal
+    - Confirm/Revoke ConsensysWallet txs
+    - Change of settings for the Multisig Wallet
+- Update README for beta [#6270](https://github.com/paritytech/parity/pull/6270)
+- Fixed macOS installer upgrade [#6221](https://github.com/paritytech/parity/pull/6221)
+
 ## Parity [v1.7.0](https://github.com/paritytech/parity/releases/tag/v1.7.0) (2017-07-28)
 
 Parity 1.7.0 is a major release introducing several important features:
