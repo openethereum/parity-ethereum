@@ -22,6 +22,7 @@
 extern crate base32;
 extern crate futures;
 extern crate futures_cpupool;
+extern crate itertools;
 extern crate linked_hash_map;
 extern crate mime_guess;
 extern crate ntp;

@@ -18,9 +18,10 @@ use std::io::{self, Read, Write};
 use std::path::Path;
 use std::{fs, time, mem};
 
+use itertools::Itertools;
 use rand::Rng;
 use rand::os::OsRng;
-use util::{H256, Hashable, Itertools};
+use util::{H256, Hashable};
 
 /// Providing current time in seconds
 pub trait TimeProvider {

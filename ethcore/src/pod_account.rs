@@ -16,6 +16,7 @@
 
 use std::fmt;
 use std::collections::BTreeMap;
+use itertools::Itertools;
 use util::*;
 use state::Account;
 use ethjson;

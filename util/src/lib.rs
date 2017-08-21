@@ -106,7 +106,6 @@ extern crate rlp;
 extern crate regex;
 extern crate lru_cache;
 extern crate heapsize;
-extern crate itertools;
 extern crate ethcore_logger;
 
 #[macro_use]
@@ -153,7 +152,6 @@ pub use bigint::hash;
 
 pub use ansi_term::{Colour, Style};
 pub use heapsize::HeapSizeOf;
-pub use itertools::Itertools;
 pub use parking_lot::{Condvar, Mutex, MutexGuard, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 /// 160-bit integer representing account address

@@ -31,8 +31,7 @@ pub use self::redirect::Redirection;
 pub use self::streaming::StreamingHandler;
 
 use std::iter;
-use util::Itertools;
-
+use itertools::Itertools;
 use url::Url;
 use hyper::{server, header, net, uri};
 use {apps, address, Embeddable};
