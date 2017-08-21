@@ -19,6 +19,7 @@
 mod stores;
 
 use self::stores::{AddressBook, DappsSettingsStore, NewDappsPolicy};
+use super::transaction::Transaction;
 
 use std::fmt;
 use std::collections::{HashMap, HashSet};
@@ -31,7 +32,7 @@ use ethstore::{
 use ethstore::dir::MemoryDirectory;
 use ethstore::ethkey::{Address, Message, Public, Secret, Random, Generator};
 use ethjson::misc::AccountMeta;
-use hardware_wallet::{Error as HardwareError, HardwareWalletManager, KeyPath};
+use hardware_wallet::{Error as HardwareError, HardwareWalletManager, KeyPath, TransactionInfo};
 pub use ethstore::ethkey::Signature;
 pub use ethstore::{Derivation, IndexDerivation, KeyFile};
 
@@ -288,6 +289,15 @@ impl AccountProvider {
 		Ok(accounts.into_iter().map(|a| a.address).collect())
 	}
 
+	/// Keepkey_message
+	pub fn keepkey_message(&self, message_type: String, path: Option<String>, message: Option<String>) -> Result<String, SignError> {
+		match self.hardware_store.as_ref().map(|h| h.keepkey_message(message_type, path, message)) {
+			None => Err(SignError::NotFound),
+			Some(Err(e)) => Err(SignError::Hardware(e)),
+			Some(Ok(s)) => Ok(s),
+		}
+	}
+
 	/// Sets addresses of accounts exposed for unknown dapps.
 	/// `None` means that all accounts will be visible.
 	/// If not `None` or empty it will also override default account.
@@ -496,7 +506,7 @@ impl AccountProvider {
 		Ok(r)
 	}
 
-	/// Returns each hardware account along with name and meta.
+	/// Returns hardware account if address exists along with name and meta.
 	pub fn is_hardware_address(&self, address: Address) -> bool {
 		self.hardware_store.as_ref().and_then(|s| s.wallet_info(&address)).is_some()
 	}
@@ -779,8 +789,22 @@ impl AccountProvider {
 	}
 
 	/// Sign transaction with hardware wallet.
-	pub fn sign_with_hardware(&self, address: Address, transaction: &[u8]) -> Result<Signature, SignError> {
-		match self.hardware_store.as_ref().map(|s| s.sign_transaction(&address, transaction)) {
+	pub fn sign_with_hardware(&self, address: Address, t: Transaction, data: &[u8]) -> Result<Signature, SignError> {
+		let mut nonce = [0u8; 32];
+		let mut gas_limit = [0u8; 32];
+		let mut gas_price = [0u8; 32];
+		let mut value = [0u8; 32];
+		t.nonce.to_big_endian(&mut nonce);
+		t.gas.to_big_endian(&mut gas_limit);
+		t.gas_price.to_big_endian(&mut gas_price);
+		t.value.to_big_endian(&mut value);
+		let t_info = TransactionInfo {
+			nonce: &nonce,
+			gas_limit: &gas_limit,
+			gas_price: &gas_price,
+			value: &value
+		};
+		match self.hardware_store.as_ref().map(|s| s.sign_transaction(&address, t_info, data)) {
 			None | Some(Err(HardwareError::KeyNotFound)) => Err(SignError::NotFound),
 			Some(Err(e)) => Err(From::from(e)),
 			Some(Ok(s)) => Ok(s),

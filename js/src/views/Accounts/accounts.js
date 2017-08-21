@@ -24,7 +24,7 @@ import { Link } from 'react-router';
 import { bindActionCreators } from 'redux';
 
 import HardwareStore from '~/mobx/hardwareStore';
-import { CreateAccount, CreateWallet, ExportAccount } from '~/modals';
+import { CreateAccount, CreateWallet, ExportAccount, Keepkey } from '~/modals';
 import { Actionbar, ActionbarSearch, ActionbarSort, Button, Page, Tooltip } from '~/ui';
 import { AddIcon, KeyIcon, FileDownloadIcon } from '~/ui/Icons';
 import { setVisibleAccounts } from '~/redux/providers/personalActions';
@@ -75,6 +75,10 @@ class Accounts extends Component {
     });
   }
 
+  componntDidMount () {
+    this.hwstore.initKeepkey();
+  }
+
   componentWillReceiveProps (nextProps) {
     const prevAddresses = Object.keys(this.props.accounts);
     const nextAddresses = Object.keys(nextProps.accounts);
@@ -96,6 +100,8 @@ class Accounts extends Component {
   }
 
   render () {
+    const { pinMatrixRequest } = this.hwstore;
+
     return (
       <div>
         { this.renderNewDialog() }
@@ -119,6 +125,8 @@ class Accounts extends Component {
           { this.renderWallets() }
           { this.renderAccounts() }
         </Page>
+
+        { (pinMatrixRequest.length) ? <Keepkey device={ pinMatrixRequest[0] } store={ this.hwstore } /> : null }
       </div>
     );
   }
@@ -138,7 +146,7 @@ class Accounts extends Component {
   }
 
   renderAccounts () {
-    const { accounts } = this.props;
+    let { accounts } = this.props;
     const _accounts = pickBy(accounts, (account) => account.uuid);
     const _hasAccounts = Object.keys(_accounts).length > 0;
 
@@ -475,16 +483,17 @@ class Accounts extends Component {
 
   onHardwareChange = () => {
     const { accountsInfo } = this.props;
-    const { wallets } = this.hwstore;
+    const { wallets, keepkeys } = this.hwstore;
+    const devices = Object.assign({}, wallets, keepkeys);
 
     Object
-      .keys(wallets)
+      .keys(devices)
       .filter((address) => {
         const account = accountsInfo[address];
 
         return !account || !account.meta || !account.meta.hardware;
       })
-      .forEach((address) => this.hwstore.createAccountInfo(wallets[address], accountsInfo[address]));
+      .forEach((address) => this.hwstore.createAccountInfo(devices[address], accountsInfo[address]));
 
     this.setVisibleAccounts();
   }

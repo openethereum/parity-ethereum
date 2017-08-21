@@ -17,6 +17,8 @@
 import { action, computed, observable, transaction } from 'mobx';
 
 import Ledger from '~/3rdparty/ledger';
+import Keepkey from '~/3rdparty/keepkey';
+import _ from 'lodash';
 
 const HW_SCAN_INTERVAL = 5000;
 let instance = null;
@@ -24,13 +26,77 @@ let instance = null;
 export default class HardwareStore {
   @observable isScanning = false;
   @observable wallets = {};
+  @observable keepkeys = {};
+  @observable pinMatrixRequest = [];
 
   constructor (api) {
     this._api = api;
     this._ledger = Ledger.create(api);
+    this._keepkey = new Keepkey(api);
     this._pollId = null;
 
     this._pollScan();
+  }
+
+  cancelKeepkey (devicePath) {
+    this._keepkey.cancel(devicePath)
+      .then((message) => {
+        this.pinMatrixRequest.shift();
+      })
+      .catch((err) => {
+        console.error(err);
+      });
+  }
+
+  initKeepkey () {
+    this._keepkey.getDevices()
+      .then((devices) => {
+        Object.keys(devices).forEach((path) => {
+          this._keepkey.getAddress(path)
+            .then((message) => {
+              if (message === 'pinMatrixRequest') {
+                this.pinMatrixRequest.push({ label: devices[path].info.label, path: path });
+                this.pinMatrixRequest = _.uniqBy(this.pinMatrixRequest, 'path');
+              } else {
+                devices[path] = _.assign(devices[path], {
+                  address: '0x' + message,
+                  name: devices[path].info.label,
+                  manufacturer: 'Keepkey',
+                  meta: {
+                    description: `${devices[path].major_version}.${devices[path].minor_version}.${devices[path].patch_version}`,
+                    tags: ['hardware', 'keepkey']
+                  }
+                });
+                this.keepkeys['0x' + message] = devices[path];
+              }
+            });
+        });
+      })
+      .catch((err) => {
+        console.error(err);
+      });
+  }
+
+  pinMatrixAck (devicePath, pin) {
+    return this._keepkey.pinMatrixAck(devicePath, pin)
+      .then((message) => {
+        // If successfull, the message will be a string,
+        // If failed, the mesasge will be a json string
+        try {
+          let json = JSON.parse(message);
+
+          if (json.code === 'Failure_PinInvalid') {
+            return false;
+          }
+        } catch (e) {
+          this.pinMatrixRequest.shift();
+          return true;
+        }
+      })
+      .catch((err) => {
+        console.error('ERROR pin_matrix_ack', err);
+        return false;
+      });
   }
 
   isConnected (address) {
@@ -123,13 +189,17 @@ export default class HardwareStore {
   createAccountInfo (entry, original = {}) {
     const { address, manufacturer, name } = entry;
 
+    if (!address || !manufacturer || !name) {
+      return;
+    }
+
     return Promise
       .all([
         original.name
           ? Promise.resolve(true)
           : this._api.parity.setAccountName(address, name),
         this._api.parity.setAccountMeta(address, Object.assign({
-          description: `${manufacturer} ${name}`,
+          description: `${manufacturer} - ${name}`,
           hardware: {
             manufacturer
           },

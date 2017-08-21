@@ -136,7 +136,7 @@ describe('mobx/HardwareStore', () => {
             address: 'testAddr',
             manufacturer: 'testMfg',
             name: 'testName'
-          });
+          }, { meta: { tags: ['hardware', 'keepkey'] } });
         });
 
         it('calls into parity_setAccountName', () => {
@@ -145,11 +145,11 @@ describe('mobx/HardwareStore', () => {
 
         it('calls into parity_setAccountMeta', () => {
           expect(api.parity.setAccountMeta).to.have.been.calledWith('testAddr', sinon.match({
-            description: 'testMfg testName',
+            description: 'testMfg - testName',
             hardware: {
               manufacturer: 'testMfg'
             },
-            tags: ['hardware']
+            tags: ['hardware', 'keepkey']
           }));
         });
       });

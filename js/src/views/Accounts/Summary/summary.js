@@ -84,7 +84,7 @@ class Summary extends Component {
   }
 
   render () {
-    const { account, disabled, handleAddSearchToken, noLink } = this.props;
+    const { account, name, disabled, handleAddSearchToken, noLink } = this.props;
     const { tags } = account.meta;
 
     if (!account) {
