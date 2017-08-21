@@ -182,8 +182,8 @@ fn make_memory_cache(num_nodes: usize, ident: &H256) -> Vec<Node> {
 	let mut nodes: Vec<Node> = Vec::with_capacity(num_nodes);
 	// Use uninit instead of unnecessarily writing `size_of::<Node>() * num_nodes` 0s
 	unsafe {
-		nodes.set_len(num_nodes);
 		initialize_memory(nodes.as_mut_ptr(), num_nodes, ident);
+		nodes.set_len(num_nodes);
 	}
 
 	nodes
@@ -206,19 +206,12 @@ fn consume_cache(cache: &mut Cache, path: &Path) -> io::Result<()> {
 				slice::from_raw_parts_mut(vec.as_mut_ptr() as *mut u8, vec.len() * NODE_BYTES)
 			};
 
-			// Return early if this fails. We only use this for writing to the memmap. I would do
-			// this more explicitly but I need to return it from this scope to fix lifetime issues.
-			// If you're seeing this comment in the future when we have non-lexical lifetimes then
-			// refactor this to use a `match` or something, like below. Maybe you even have monads,
-			// future time-traveller, that would make this significantly cleaner.
-			file.write(buf).map(|_| ())?;
+			file.write_all(buf).map(|_| ())
 		}
 		Either::Right(ref mmap) => {
-			mmap.flush()?;
+			mmap.flush()
 		}
 	}
-
-	Ok(())
 }
 
 fn cache_from_path(path: &Path, optimize_for: OptimizeFor) -> io::Result<Cache> {
