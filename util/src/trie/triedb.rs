@@ -293,11 +293,11 @@ impl<'a> TrieDBIterator<'a> {
 	fn key(&self) -> Bytes {
 		// collapse the key_nibbles down to bytes.
 		let nibbles = &self.key_nibbles;
-		let mut i = 0;
+		let mut i = 1;
 		let mut result = Bytes::with_capacity(nibbles.len() / 2);
-		let len = nibbles.len() - 1;
+		let len = nibbles.len();
 		while i < len {
-			result.push(nibbles[i] * 16 + nibbles[i + 1]);
+			result.push(nibbles[i - 1] * 16 + nibbles[i]);
 			i += 2;
 		}
 		result
