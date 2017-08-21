@@ -217,8 +217,8 @@ impl Eth for EthClient {
 		Ok(format!("{}", ::light::net::MAX_PROTOCOL_VERSION))
 	}
 
-	fn chain_id(&self) -> Result<String, Error> {
-		Ok(self.client.signing_network_id().map(|v| format!("0x{:x}", v)).unwrap_or("".to_string()))
+	fn chain_id(&self) -> Result<Option<u64>, Error> {
+		Ok(self.client.signing_network_id())
 	}
 
 	fn syncing(&self) -> Result<SyncStatus, Error> {

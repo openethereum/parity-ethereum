@@ -54,7 +54,7 @@
       "name": "eth_chainId",
       "desc": "Returns the current chain ID used for tranaction signing.",
       "params": [],
-      "returns": "`String` - The current blockchain chain ID",
+      "returns": "`QUANTITY` - The current blockchain chain ID",
       "inputFormatters": [],
       "outputFormatter": null
     },

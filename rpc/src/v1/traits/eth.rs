@@ -37,7 +37,7 @@ build_rpc_trait! {
 		/// current best block. An empty string is returned if not
 		/// available.
 		#[rpc(name = "eth_chainId")]
-		fn chain_id(&self) -> Result<String, Error>;
+		fn chain_id(&self) -> Result<Option<u64>, Error>;
 
 		/// Returns an object with data about the sync status or false. (wtf?)
 		#[rpc(name = "eth_syncing")]
