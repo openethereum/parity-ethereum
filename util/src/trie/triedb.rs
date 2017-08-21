@@ -275,9 +275,15 @@ impl<'a> TrieDBIterator<'a> {
 
 	/// Descend into a payload.
 	fn descend(&mut self, d: &[u8]) -> super::Result<()> {
+		let node = Node::decoded(&self.db.get_raw_or_lookup(d)?).into();
+		Ok(self.descend_into_node(node))
+	}
+
+	/// Descend into a payload.
+	fn descend_into_node(&mut self, node: OwnedNode) {
 		self.trail.push(Crumb {
 			status: Status::Entering,
-			node: Node::decoded(&self.db.get_raw_or_lookup(d)?).into(),
+			node: node,
 		});
 		match &self.trail.last().expect("just pushed item; qed").node {
 			&OwnedNode::Leaf(ref n, _) | &OwnedNode::Extension(ref n, _) => {
@@ -285,8 +291,6 @@ impl<'a> TrieDBIterator<'a> {
 			},
 			_ => {}
 		}
-
-		Ok(())
 	}
 
 	/// The present key.
@@ -318,52 +322,67 @@ impl<'a> Iterator for TrieDBIterator<'a> {
 	type Item = TrieItem<'a>;
 
 	fn next(&mut self) -> Option<Self::Item> {
+		enum IterStep {
+			Continue,
+			PopTrail,
+			Descend(super::Result<DBValue>),
+		}
+
 		loop {
-			let b = match self.trail.last_mut() {
-				Some(mut b) => { b.increment(); b.clone() },
-				None => return None,
+			let iter_step = {
+				match self.trail.last_mut() {
+					Some(b) => { b.increment(); },
+					None => return None,
+				}
+
+				let b = self.trail.last().expect("trail.last_mut().is_some(); qed");
+
+				match (b.status.clone(), &b.node) {
+					(Status::Exiting, n) => {
+						match *n {
+							OwnedNode::Leaf(ref n, _) | OwnedNode::Extension(ref n, _) => {
+								let l = self.key_nibbles.len();
+								self.key_nibbles.truncate(l - n.len());
+							},
+							OwnedNode::Branch(_, _) => { self.key_nibbles.pop(); },
+							_ => {}
+						}
+						IterStep::PopTrail
+					},
+					(Status::At, &OwnedNode::Leaf(_, ref v)) | (Status::At, &OwnedNode::Branch(_, Some(ref v))) => {
+						return Some(Ok((self.key(), v.clone())));
+					},
+					(Status::At, &OwnedNode::Extension(_, ref d)) => IterStep::Descend(self.db.get_raw_or_lookup(&*d)),
+					(Status::At, &OwnedNode::Branch(_, _)) => IterStep::Continue,
+					(Status::AtChild(i), &OwnedNode::Branch(ref children, _)) if children[i].len() > 0 => {
+						match i {
+							0 => self.key_nibbles.push(0),
+							i => *self.key_nibbles.last_mut()
+								.expect("pushed as 0; moves sequentially; removed afterwards; qed") = i as u8,
+						}
+						IterStep::Descend(self.db.get_raw_or_lookup(&*children[i]))
+					},
+					(Status::AtChild(i), &OwnedNode::Branch(_, _)) => {
+						if i == 0 {
+							self.key_nibbles.push(0);
+						}
+						IterStep::Continue
+					},
+					_ => panic!() // Should never see Entering or AtChild without a Branch here.
+				}
 			};
-			match (b.status, b.node) {
-				(Status::Exiting, n) => {
-					match n {
-						OwnedNode::Leaf(n, _) | OwnedNode::Extension(n, _) => {
-							let l = self.key_nibbles.len();
-							self.key_nibbles.truncate(l - n.len());
-						},
-						OwnedNode::Branch(_, _) => { self.key_nibbles.pop(); },
-						_ => {}
-					}
+
+			match iter_step {
+				IterStep::PopTrail => {
 					self.trail.pop();
-					// continue
 				},
-				(Status::At, OwnedNode::Leaf(_, v)) | (Status::At, OwnedNode::Branch(_, Some(v))) => {
-					return Some(Ok((self.key(), v)));
+				IterStep::Descend(Ok(d)) => {
+					self.descend_into_node(Node::decoded(&d).into())
 				},
-				(Status::At, OwnedNode::Extension(_, d)) => {
-					if let Err(e) = self.descend(&*d) {
-						return Some(Err(e));
-					}
-					// continue
-				},
-				(Status::At, OwnedNode::Branch(_, _)) => {},
-				(Status::AtChild(i), OwnedNode::Branch(ref children, _)) if children[i].len() > 0 => {
-					match i {
-						0 => self.key_nibbles.push(0),
-						i => *self.key_nibbles.last_mut()
-							.expect("pushed as 0; moves sequentially; removed afterwards; qed") = i as u8,
-					}
-					if let Err(e) = self.descend(&*children[i]) {
-						return Some(Err(e));
-					}
-					// continue
-				},
-				(Status::AtChild(i), OwnedNode::Branch(_, _)) => {
-					if i == 0 {
-						self.key_nibbles.push(0);
-					}
-					// continue
-				},
-				_ => panic!() // Should never see Entering or AtChild without a Branch here.
+				IterStep::Descend(Err(e)) => {
+					return Some(Err(e))
+				}
+				IterStep::Continue => {},
 			}
 		}
 	}
