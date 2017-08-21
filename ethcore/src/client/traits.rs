@@ -239,8 +239,8 @@ pub trait BlockChainClient : Sync + Send {
 		corpus.into()
 	}
 
-	/// Get the preferred network ID to sign on
-	fn signing_network_id(&self) -> Option<u64>;
+	/// Get the preferred chain ID to sign on
+	fn signing_chain_id(&self) -> Option<u64>;
 
 	/// Get the mode.
 	fn mode(&self) -> Mode;
