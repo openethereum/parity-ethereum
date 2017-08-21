@@ -292,17 +292,15 @@ impl<'a> TrieDBIterator<'a> {
 	/// The present key.
 	fn key(&self) -> Bytes {
 		// collapse the key_nibbles down to bytes.
-		unsafe {
-			let size = self.key_nibbles.len() / 2;
-			let mut ptr = self.key_nibbles.as_ptr();
-			let mut result = Bytes::with_capacity(size);
-
-			for _ in 0..size {
-				result.push(*ptr * 16 + *ptr.offset(1));
-				ptr = ptr.offset(2);
-			}
-			result
+		let nibbles = &self.key_nibbles;
+		let mut i = 0;
+		let mut result = Bytes::with_capacity(nibbles.len() / 2);
+		let len = nibbles.len() - 1;
+		while i < len {
+			result.push(nibbles[i] * 16 + nibbles[i + 1]);
+			i += 2;
 		}
+		result
 	}
 }
 
