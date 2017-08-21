@@ -330,8 +330,14 @@ impl<T: ChainDataFetcher> Client<T> {
 					The node may not be able to synchronize further.", e);
 			}
 
+			let epoch_proof =  self.engine.is_epoch_end(
+				&verified_header,
+				&|h| self.chain.block_header(BlockId::Hash(h)).map(|hdr| hdr.decode()),
+				&|h| self.chain.pending_transition(h),
+			);
+
 			let mut tx = self.db.transaction();
-			let pending = match self.chain.insert(&mut tx, verified_header, None) {
+			let pending = match self.chain.insert(&mut tx, verified_header, epoch_proof) {
 				Ok(pending) => {
 					good.push(hash);
 					self.report.write().blocks_imported += 1;
@@ -343,8 +349,6 @@ impl<T: ChainDataFetcher> Client<T> {
 					continue;
 				}
 			};
-
-			// TODO: check epoch end and verify under epoch verifier.
 
 			self.db.write_buffered(tx);
 			self.chain.apply_pending(pending);
