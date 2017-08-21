@@ -47,9 +47,9 @@ EVM implementation for Parity.
   Copyright 2016, 2017 Parity Technologies (UK) Ltd
 
 Usage:
-    evmbin stats [options]
-    evmbin [options]
-    evmbin [-h | --help]
+    parity-evm stats [options]
+    parity-evm [options]
+    parity-evm [-h | --help]
 
 Transaction options:
     --code CODE        Contract code as hex (without 0x).
@@ -116,7 +116,7 @@ struct Args {
 	flag_gas: Option<String>,
 	flag_gas_price: Option<String>,
 	flag_input: Option<String>,
-	flag_spec: Option<String>,
+	flag_chain: Option<String>,
 	flag_json: bool,
 }
 
@@ -164,7 +164,7 @@ impl Args {
 	}
 
 	pub fn spec(&self) -> Result<spec::Spec, String> {
-		Ok(match self.flag_spec {
+		Ok(match self.flag_chain {
 			Some(ref filename) =>  {
 				let file = fs::File::open(filename).map_err(|e| format!("{}", e))?;
 				spec::Spec::load(::std::env::temp_dir(), file)?
@@ -187,4 +187,38 @@ fn to_string<T: fmt::Display>(msg: T) -> String {
 fn die<T: fmt::Display>(msg: T) -> ! {
 	println!("{}", msg);
 	::std::process::exit(-1)
+}
+
+#[cfg(test)]
+mod tests {
+	use docopt::Docopt;
+	use super::{Args, USAGE};
+
+	fn run<T: AsRef<str>>(args: &[T]) -> Args {
+		Docopt::new(USAGE).and_then(|d| d.argv(args.into_iter()).deserialize()).unwrap()
+	}
+
+	#[test]
+	fn should_parse_all_the_options() {
+		let args = run(&[
+			"parity-evm",
+			"--json",
+			"--gas", "1",
+			"--gas-price", "2",
+			"--from", "0000000000000000000000000000000000000003",
+			"--to", "0000000000000000000000000000000000000004",
+			"--code", "05",
+			"--input", "06",
+			"--chain", "./testfile",
+		]);
+
+		assert_eq!(args.flag_json, true);
+		assert_eq!(args.gas(), Ok(1.into()));
+		assert_eq!(args.gas_price(), Ok(2.into()));
+		assert_eq!(args.from(), Ok(3.into()));
+		assert_eq!(args.to(), Ok(4.into()));
+		assert_eq!(args.code(), Ok(Some(vec![05])));
+		assert_eq!(args.data(), Ok(Some(vec![06])));
+		assert_eq!(args.flag_chain, Some("./testfile".to_owned()));
+	}
 }

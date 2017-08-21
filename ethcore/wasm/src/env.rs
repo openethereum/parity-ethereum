@@ -17,8 +17,9 @@
 //! Wasm env module bindings
 
 use parity_wasm::elements::ValueType::*;
-use parity_wasm::interpreter::UserFunctionDescriptor;
+use parity_wasm::interpreter::{self, UserFunctionDescriptor};
 use parity_wasm::interpreter::UserFunctionDescriptor::*;
+use super::runtime::Runtime;
 
 pub const SIGNATURES: &'static [UserFunctionDescriptor] = &[
 	Static(
@@ -93,4 +94,17 @@ pub const SIGNATURES: &'static [UserFunctionDescriptor] = &[
 		&[I32; 0],
 		None
 	),
+
+	Static(
+		"_llvm_bswap_i64",
+		&[I32; 2],
+		Some(I32)
+	),
 ];
+
+pub fn native_bindings<'a>(runtime: &'a mut Runtime) -> interpreter::UserFunctions<'a> {
+	interpreter::UserFunctions {
+		executor: runtime,
+		functions: ::std::borrow::Cow::from(SIGNATURES),
+	}
+}
