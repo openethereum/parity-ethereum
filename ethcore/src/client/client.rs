@@ -1720,8 +1720,8 @@ impl BlockChainClient for Client {
 		}
 	}
 
-	fn signing_network_id(&self) -> Option<u64> {
-		self.engine.signing_network_id(&self.latest_env_info())
+	fn signing_chain_id(&self) -> Option<u64> {
+		self.engine.signing_chain_id(&self.latest_env_info())
 	}
 
 	fn block_extra_info(&self, id: BlockId) -> Option<BTreeMap<String, String>> {
@@ -1760,9 +1760,9 @@ impl BlockChainClient for Client {
 			value: U256::zero(),
 			data: data,
 		};
-		let network_id = self.engine.signing_network_id(&self.latest_env_info());
-		let signature = self.engine.sign(transaction.hash(network_id))?;
-		let signed = SignedTransaction::new(transaction.with_signature(signature, network_id))?;
+		let chain_id = self.engine.signing_chain_id(&self.latest_env_info());
+		let signature = self.engine.sign(transaction.hash(chain_id))?;
+		let signed = SignedTransaction::new(transaction.with_signature(signature, chain_id))?;
 		self.miner.import_own_transaction(self, signed.into())
 	}
 

@@ -380,6 +380,9 @@ impl Spec {
 	/// Get the configured Network ID.
 	pub fn network_id(&self) -> u64 { self.params().network_id }
 
+	/// Get the chain ID used for signing.
+	pub fn chain_id(&self) -> u64 { self.params().chain_id }
+
 	/// Get the configured subprotocol name.
 	pub fn subprotocol_name(&self) -> String { self.params().subprotocol_name.clone() }
 
