@@ -16,14 +16,12 @@
 
 //! Epoch verifiers and transitions.
 
+use util::H256;
 use error::Error;
 use header::Header;
 
-use rlp::{Encodable, Decodable, DecoderError, RlpStream, UntrustedRlp};
-use util::H256;
-
 /// A full epoch transition.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, RlpEncodable, RlpDecodable)]
 pub struct Transition {
 	/// Block hash at which the transition occurred.
 	pub block_hash: H256,
@@ -33,44 +31,12 @@ pub struct Transition {
 	pub proof: Vec<u8>,
 }
 
-impl Encodable for Transition {
-	fn rlp_append(&self, s: &mut RlpStream) {
-		s.begin_list(3)
-			.append(&self.block_hash)
-			.append(&self.block_number)
-			.append(&self.proof);
-	}
-}
-
-impl Decodable for Transition {
-	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
-		Ok(Transition {
-			block_hash: rlp.val_at(0)?,
-			block_number: rlp.val_at(1)?,
-			proof: rlp.val_at(2)?,
-		})
-	}
-}
-
 /// An epoch transition pending a finality proof.
 /// Not all transitions need one.
+#[derive(RlpEncodableWrapper, RlpDecodableWrapper)]
 pub struct PendingTransition {
 	/// "transition/epoch" proof from the engine.
 	pub proof: Vec<u8>,
-}
-
-impl Encodable for PendingTransition {
-	fn rlp_append(&self, s: &mut RlpStream) {
-		s.append(&self.proof);
-	}
-}
-
-impl Decodable for PendingTransition {
-	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
-		Ok(PendingTransition {
-			proof: rlp.as_val()?,
-		})
-	}
 }
 
 /// Verifier for all blocks within an epoch with self-contained state.

@@ -21,7 +21,6 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use parking_lot::RwLock;
 use heapsize::HeapSizeOf;
-use itertools::Itertools;
 use rlp::*;
 use hashdb::*;
 use memorydb::*;
@@ -432,7 +431,9 @@ impl JournalDB for EarlyMergeDB {
 			// - we write the key into our journal for this block;
 
 			r.begin_list(inserts.len());
-			inserts.iter().foreach(|&(k, _)| {r.append(&k);});
+			for &(k, _) in &inserts {
+				r.append(&k);
+			}
 			r.append_list(&removes);
 			Self::insert_keys(&inserts, &*self.backing, self.column, &mut refs, batch, trace);
 

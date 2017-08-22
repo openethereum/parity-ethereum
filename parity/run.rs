@@ -56,7 +56,7 @@ use signer;
 use url;
 
 // how often to take periodic snapshots.
-const SNAPSHOT_PERIOD: u64 = 10000;
+const SNAPSHOT_PERIOD: u64 = 5000;
 
 // how many blocks to wait before starting a periodic snapshot.
 const SNAPSHOT_HISTORY: u64 = 100;
@@ -507,7 +507,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 		}
 
 		// Attempt to sign in the engine signer.
-		if !passwords.into_iter().any(|p| miner.set_engine_signer(engine_signer, p).is_ok()) {
+		if !passwords.iter().any(|p| miner.set_engine_signer(engine_signer, (*p).clone()).is_ok()) {
 			return Err(format!("No valid password for the consensus signer {}. {}", engine_signer, VERIFY_PASSWORD_HINT));
 		}
 	}
@@ -734,6 +734,8 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	// secret store key server
 	let secretstore_deps = secretstore::Dependencies {
 		client: client.clone(),
+		account_provider: account_provider,
+		accounts_passwords: &passwords,
 	};
 	let secretstore_key_server = secretstore::start(cmd.secretstore_conf.clone(), secretstore_deps)?;
 

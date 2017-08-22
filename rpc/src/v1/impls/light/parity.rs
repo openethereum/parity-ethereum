@@ -390,7 +390,7 @@ impl Parity for ParityClient {
 		ipfs::cid(content)
 	}
 
-	fn call(&self, _requests: Vec<CallRequest>, _block: Trailing<BlockNumber>) -> BoxFuture<Vec<Bytes>, Error> {
+	fn call(&self, _meta: Self::Metadata, _requests: Vec<CallRequest>, _block: Trailing<BlockNumber>) -> BoxFuture<Vec<Bytes>, Error> {
 		future::err(errors::light_unimplemented(None)).boxed()
 	}
 }

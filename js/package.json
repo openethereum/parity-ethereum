@@ -1,6 +1,6 @@
 {
   "name": "parity.js",
-  "version": "1.8.11",
+  "version": "1.8.16",
   "main": "release/index.js",
   "jsnext:main": "src/index.js",
   "author": "Parity Team <admin@parity.io>",

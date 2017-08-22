@@ -97,6 +97,10 @@ impl SimpleSecretStore for EthStore {
 		self.store.sign_derived(account_ref, password, derivation, message)
 	}
 
+	fn agree(&self, account: &StoreAccountRef, password: &str, other: &Public) -> Result<Secret, Error> {
+		self.store.agree(account, password, other)
+	}
+
 	fn decrypt(&self, account: &StoreAccountRef, password: &str, shared_mac: &[u8], message: &[u8]) -> Result<Vec<u8>, Error> {
 		let account = self.get(account)?;
 		account.decrypt(password, shared_mac, message)
@@ -495,18 +499,26 @@ impl SimpleSecretStore for EthMultiStore {
 
 	fn sign(&self, account: &StoreAccountRef, password: &str, message: &Message) -> Result<Signature, Error> {
 		let accounts = self.get_matching(account, password)?;
-		for account in accounts {
-			return account.sign(password, message);
+		match accounts.first() {
+			Some(ref account) => account.sign(password, message),
+			None => Err(Error::InvalidPassword),
 		}
-		Err(Error::InvalidPassword)
 	}
 
 	fn decrypt(&self, account: &StoreAccountRef, password: &str, shared_mac: &[u8], message: &[u8]) -> Result<Vec<u8>, Error> {
 		let accounts = self.get_matching(account, password)?;
-		for account in accounts {
-			return account.decrypt(password, shared_mac, message);
+		match accounts.first() {
+			Some(ref account) => account.decrypt(password, shared_mac, message),
+			None => Err(Error::InvalidPassword),
 		}
-		Err(Error::InvalidPassword)
+	}
+
+	fn agree(&self, account: &StoreAccountRef, password: &str, other: &Public) -> Result<Secret, Error> {
+		let accounts = self.get_matching(account, password)?;
+		match accounts.first() {
+			Some(ref account) => account.agree(password, other),
+			None => Err(Error::InvalidPassword),
+		}
 	}
 
 	fn create_vault(&self, name: &str, password: &str) -> Result<(), Error> {

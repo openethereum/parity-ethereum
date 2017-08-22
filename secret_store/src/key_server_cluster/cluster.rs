@@ -28,7 +28,7 @@ use tokio_core::reactor::{Handle, Remote, Interval};
 use tokio_core::net::{TcpListener, TcpStream};
 use ethkey::{Public, KeyPair, Signature, Random, Generator};
 use util::H256;
-use key_server_cluster::{Error, NodeId, SessionId, AclStorage, KeyStorage, KeyServerSet};
+use key_server_cluster::{Error, NodeId, SessionId, AclStorage, KeyStorage, KeyServerSet, NodeKeyPair};
 use key_server_cluster::cluster_sessions::{ClusterSession, ClusterSessions, GenerationSessionWrapper, EncryptionSessionWrapper,
 	DecryptionSessionWrapper, SigningSessionWrapper};
 use key_server_cluster::message::{self, Message, ClusterMessage, GenerationMessage, EncryptionMessage, DecryptionMessage,
@@ -99,7 +99,7 @@ pub struct ClusterConfiguration {
 	/// Allow connecting to 'higher' nodes.
 	pub allow_connecting_to_higher_nodes: bool,
 	/// KeyPair this node holds.
-	pub self_key_pair: KeyPair,
+	pub self_key_pair: Arc<NodeKeyPair>,
 	/// Interface to listen to.
 	pub listen_address: (String, u16),
 	/// Cluster nodes set.
@@ -146,7 +146,7 @@ pub struct ClusterData {
 	/// Handle to the cpu thread pool.
 	pool: CpuPool,
 	/// KeyPair this node holds.
-	self_key_pair: KeyPair,
+	self_key_pair: Arc<NodeKeyPair>,
 	/// Connections data.
 	connections: ClusterConnections,
 	/// Active sessions data.
@@ -262,7 +262,7 @@ impl ClusterCore {
 	fn connect_future(handle: &Handle, data: Arc<ClusterData>, node_address: SocketAddr) -> BoxedEmptyFuture {
 		let disconnected_nodes = data.connections.disconnected_nodes().keys().cloned().collect();
 		net_connect(&node_address, handle, data.self_key_pair.clone(), disconnected_nodes)
-			.then(move |result| ClusterCore::process_connection_result(data, false, result))
+			.then(move |result| ClusterCore::process_connection_result(data, Some(node_address), result))
 			.then(|_| finished(()))
 			.boxed()
 	}
@@ -290,7 +290,7 @@ impl ClusterCore {
 	/// Accept connection future.
 	fn accept_connection_future(handle: &Handle, data: Arc<ClusterData>, stream: TcpStream, node_address: SocketAddr) -> BoxedEmptyFuture {
 		net_accept_connection(node_address, stream, handle, data.self_key_pair.clone())
-			.then(move |result| ClusterCore::process_connection_result(data, true, result))
+			.then(move |result| ClusterCore::process_connection_result(data, None, result))
 			.then(|_| finished(()))
 			.boxed()
 	}
@@ -370,10 +370,10 @@ impl ClusterCore {
 	}
 
 	/// Process connection future result.
-	fn process_connection_result(data: Arc<ClusterData>, is_inbound: bool, result: Result<DeadlineStatus<Result<NetConnection, Error>>, io::Error>) -> IoFuture<Result<(), Error>> {
+	fn process_connection_result(data: Arc<ClusterData>, outbound_addr: Option<SocketAddr>, result: Result<DeadlineStatus<Result<NetConnection, Error>>, io::Error>) -> IoFuture<Result<(), Error>> {
 		match result {
 			Ok(DeadlineStatus::Meet(Ok(connection))) => {
-				let connection = Connection::new(is_inbound, connection);
+				let connection = Connection::new(outbound_addr.is_none(), connection);
 				if data.connections.insert(connection.clone()) {
 					ClusterCore::process_connection_messages(data.clone(), connection)
 				} else {
@@ -381,15 +381,21 @@ impl ClusterCore {
 				}
 			},
 			Ok(DeadlineStatus::Meet(Err(err))) => {
-				warn!(target: "secretstore_net", "{}: protocol error {} when establishind connection", data.self_key_pair.public(), err);
+				warn!(target: "secretstore_net", "{}: protocol error {} when establishing {} connection{}",
+					data.self_key_pair.public(), err, if outbound_addr.is_some() { "outbound" } else { "inbound" },
+					outbound_addr.map(|a| format!(" with {}", a)).unwrap_or_default());
 				finished(Ok(())).boxed()
 			},
 			Ok(DeadlineStatus::Timeout) => {
-				warn!(target: "secretstore_net", "{}: timeout when establishind connection", data.self_key_pair.public());
+				warn!(target: "secretstore_net", "{}: timeout when establishing {} connection{}",
+					data.self_key_pair.public(), if outbound_addr.is_some() { "outbound" } else { "inbound" },
+					outbound_addr.map(|a| format!(" with {}", a)).unwrap_or_default());
 				finished(Ok(())).boxed()
 			},
 			Err(err) => {
-				warn!(target: "secretstore_net", "{}: network error {} when establishind connection", data.self_key_pair.public(), err);
+				warn!(target: "secretstore_net", "{}: network error {} when establishing {} connection{}",
+					data.self_key_pair.public(), err, if outbound_addr.is_some() { "outbound" } else { "inbound" },
+					outbound_addr.map(|a| format!(" with {}", a)).unwrap_or_default());
 				finished(Ok(())).boxed()
 			},
 		}
@@ -989,7 +995,7 @@ pub mod tests {
 	use parking_lot::Mutex;
 	use tokio_core::reactor::Core;
 	use ethkey::{Random, Generator, Public};
-	use key_server_cluster::{NodeId, SessionId, Error, DummyAclStorage, DummyKeyStorage, MapKeyServerSet};
+	use key_server_cluster::{NodeId, SessionId, Error, DummyAclStorage, DummyKeyStorage, MapKeyServerSet, PlainNodeKeyPair};
 	use key_server_cluster::message::Message;
 	use key_server_cluster::cluster::{Cluster, ClusterCore, ClusterConfiguration};
 	use key_server_cluster::generation_session::{Session as GenerationSession, SessionState as GenerationSessionState};
@@ -1068,7 +1074,7 @@ pub mod tests {
 		let key_pairs: Vec<_> = (0..num_nodes).map(|_| Random.generate().unwrap()).collect();
 		let cluster_params: Vec<_> = (0..num_nodes).map(|i| ClusterConfiguration {
 			threads: 1,
-			self_key_pair: key_pairs[i].clone(),
+			self_key_pair: Arc::new(PlainNodeKeyPair::new(key_pairs[i].clone())),
 			listen_address: ("127.0.0.1".to_owned(), ports_begin + i as u16),
 			key_server_set: Arc::new(MapKeyServerSet::new(key_pairs.iter().enumerate()
 				.map(|(j, kp)| (kp.public().clone(), format!("127.0.0.1:{}", ports_begin + j as u16).parse().unwrap()))

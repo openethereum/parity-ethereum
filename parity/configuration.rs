@@ -20,6 +20,7 @@ use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 use std::collections::BTreeMap;
 use std::cmp::max;
+use std::str::FromStr;
 use cli::{Args, ArgsError};
 use util::{Hashable, H256, U256, Bytes, version_data, Address};
 use util::journaldb::Algorithm;
@@ -41,7 +42,7 @@ use ethcore_logger::Config as LogConfig;
 use dir::{self, Directories, default_hypervisor_path, default_local_path, default_data_path};
 use dapps::Configuration as DappsConfiguration;
 use ipfs::Configuration as IpfsConfiguration;
-use secretstore::Configuration as SecretStoreConfiguration;
+use secretstore::{Configuration as SecretStoreConfiguration, NodeSecretKey};
 use updater::{UpdatePolicy, UpdateFilter, ReleaseTrack};
 use run::RunCmd;
 use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, KillBlockchain, ExportState, DataFormat};
@@ -551,6 +552,10 @@ impl Configuration {
 		Ok(options)
 	}
 
+	fn ui_port(&self) -> u16 {
+		self.args.flag_ports_shift + self.args.flag_ui_port
+	}
+
 	fn ntp_servers(&self) -> Vec<String> {
 		self.args.flag_ntp_servers.split(",").map(str::to_owned).collect()
 	}
@@ -560,12 +565,15 @@ impl Configuration {
 			enabled: self.ui_enabled(),
 			ntp_servers: self.ntp_servers(),
 			interface: self.ui_interface(),
-			port: self.args.flag_ports_shift + self.args.flag_ui_port,
+			port: self.ui_port(),
 			hosts: self.ui_hosts(),
 		}
 	}
 
 	fn dapps_config(&self) -> DappsConfiguration {
+		let dev_ui = if self.args.flag_ui_no_validation { vec![("localhost".to_owned(), 3000)] } else { vec![] };
+		let ui_port = self.ui_port();
+
 		DappsConfiguration {
 			enabled: self.dapps_enabled(),
 			ntp_servers: self.ntp_servers(),
@@ -575,17 +583,34 @@ impl Configuration {
 			} else {
 				vec![]
 			},
-			extra_embed_on: if self.args.flag_ui_no_validation {
-				vec![("localhost".to_owned(), 3000)]
-			} else {
-				vec![]
+			extra_embed_on: {
+				let mut extra_embed = dev_ui.clone();
+				match self.ui_hosts() {
+					// In case host validation is disabled allow all frame ancestors
+					None => extra_embed.push(("*".to_owned(), ui_port)),
+					Some(hosts) => extra_embed.extend(hosts.into_iter().filter_map(|host| {
+						let mut it = host.split(":");
+						let host = it.next();
+						let port = it.next().and_then(|v| u16::from_str(v).ok());
+
+						match (host, port) {
+							(Some(host), Some(port)) => Some((host.into(), port)),
+							(Some(host), None) => Some((host.into(), ui_port)),
+							_ => None,
+						}
+					})),
+				}
+				extra_embed
 			},
+			extra_script_src: dev_ui,
 		}
 	}
 
 	fn secretstore_config(&self) -> Result<SecretStoreConfiguration, String> {
 		Ok(SecretStoreConfiguration {
 			enabled: self.secretstore_enabled(),
+			http_enabled: self.secretstore_http_enabled(),
+			acl_check_enabled: self.secretstore_acl_check_enabled(),
 			self_secret: self.secretstore_self_secret()?,
 			nodes: self.secretstore_nodes()?,
 			interface: self.secretstore_interface(),
@@ -993,10 +1018,13 @@ impl Configuration {
 		self.interface(&self.args.flag_secretstore_http_interface)
 	}
 
-	fn secretstore_self_secret(&self) -> Result<Option<Secret>, String> {
+	fn secretstore_self_secret(&self) -> Result<Option<NodeSecretKey>, String> {
 		match self.args.flag_secretstore_secret {
-			Some(ref s) => Ok(Some(s.parse()
-				.map_err(|e| format!("Invalid secret store secret: {}. Error: {:?}", s, e))?)),
+			Some(ref s) if s.len() == 64 => Ok(Some(NodeSecretKey::Plain(s.parse()
+				.map_err(|e| format!("Invalid secret store secret: {}. Error: {:?}", s, e))?))),
+			Some(ref s) if s.len() == 40 => Ok(Some(NodeSecretKey::KeyStore(s.parse()
+				.map_err(|e| format!("Invalid secret store secret address: {}. Error: {:?}", s, e))?))),
+			Some(_) => Err(format!("Invalid secret store secret. Must be either existing account address, or hex-encoded private key")),
 			None => Ok(None),
 		}
 	}
@@ -1043,6 +1071,14 @@ impl Configuration {
 
 	fn secretstore_enabled(&self) -> bool {
 		!self.args.flag_no_secretstore && cfg!(feature = "secretstore")
+	}
+
+	fn secretstore_http_enabled(&self) -> bool {
+		!self.args.flag_no_secretstore_http && cfg!(feature = "secretstore")
+	}
+
+	fn secretstore_acl_check_enabled(&self) -> bool {
+		!self.args.flag_no_secretstore_acl_check
 	}
 
 	fn ui_enabled(&self) -> bool {
@@ -1275,7 +1311,7 @@ mod tests {
 			interface: "127.0.0.1".into(),
 			port: 8546,
 			apis: ApiSet::UnsafeContext,
-			origins: Some(vec!["chrome-extension://*".into()]),
+			origins: Some(vec!["chrome-extension://*".into(), "moz-extension://*".into()]),
 			hosts: Some(vec![]),
 			signer_path: expected.into(),
 			ui_address: Some(("127.0.0.1".to_owned(), 8180)),
@@ -1350,6 +1386,7 @@ mod tests {
 			whisper: Default::default(),
 		};
 		expected.secretstore_conf.enabled = cfg!(feature = "secretstore");
+		expected.secretstore_conf.http_enabled = cfg!(feature = "secretstore");
 		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Run(expected));
 	}
 

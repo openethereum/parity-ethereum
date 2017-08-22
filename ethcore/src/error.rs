@@ -78,8 +78,8 @@ pub enum TransactionError {
 	RecipientBanned,
 	/// Contract creation code is banned.
 	CodeBanned,
-	/// Invalid network ID given.
-	InvalidNetworkId,
+	/// Invalid chain ID given.
+	InvalidChainId,
 }
 
 impl fmt::Display for TransactionError {
@@ -103,7 +103,7 @@ impl fmt::Display for TransactionError {
 			SenderBanned => "Sender is temporarily banned.".into(),
 			RecipientBanned => "Recipient is temporarily banned.".into(),
 			CodeBanned => "Contract code is temporarily banned.".into(),
-			InvalidNetworkId => "Transaction of this network ID is not allowed on this chain.".into(),
+			InvalidChainId => "Transaction of this chain ID is not allowed on this chain.".into(),
 		};
 
 		f.write_fmt(format_args!("Transaction error ({})", msg))

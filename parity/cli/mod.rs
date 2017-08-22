@@ -195,7 +195,7 @@ usage! {
 			or |c: &Config| otry!(c.websockets).interface.clone(),
 		flag_ws_apis: String = "web3,eth,pubsub,net,parity,parity_pubsub,traces,rpc,secretstore,shh,shh_pubsub",
 			or |c: &Config| otry!(c.websockets).apis.as_ref().map(|vec| vec.join(",")),
-		flag_ws_origins: String = "chrome-extension://*",
+		flag_ws_origins: String = "chrome-extension://*,moz-extension://*",
 			or |c: &Config| otry!(c.websockets).origins.as_ref().map(|vec| vec.join(",")),
 		flag_ws_hosts: String = "none",
 			or |c: &Config| otry!(c.websockets).hosts.as_ref().map(|vec| vec.join(",")),
@@ -217,6 +217,10 @@ usage! {
 		// Secret Store
 		flag_no_secretstore: bool = false,
 			or |c: &Config| otry!(c.secretstore).disable.clone(),
+		flag_no_secretstore_http: bool = false,
+			or |c: &Config| otry!(c.secretstore).disable_http.clone(),
+		flag_no_secretstore_acl_check: bool = false,
+			or |c: &Config| otry!(c.secretstore).disable_acl_check.clone(),
 		flag_secretstore_secret: Option<String> = None,
 			or |c: &Config| otry!(c.secretstore).self_secret.clone().map(Some),
 		flag_secretstore_nodes: String = "",
@@ -520,6 +524,8 @@ struct Dapps {
 #[derive(Default, Debug, PartialEq, Deserialize)]
 struct SecretStore {
 	disable: Option<bool>,
+	disable_http: Option<bool>,
+	disable_acl_check: Option<bool>,
 	self_secret: Option<String>,
 	nodes: Option<Vec<String>>,
 	interface: Option<String>,
@@ -796,6 +802,8 @@ mod tests {
 			flag_no_dapps: false,
 
 			flag_no_secretstore: false,
+			flag_no_secretstore_http: false,
+			flag_no_secretstore_acl_check: false,
 			flag_secretstore_secret: None,
 			flag_secretstore_nodes: "".into(),
 			flag_secretstore_interface: "local".into(),
@@ -1031,6 +1039,8 @@ mod tests {
 			}),
 			secretstore: Some(SecretStore {
 				disable: None,
+				disable_http: None,
+				disable_acl_check: None,
 				self_secret: None,
 				nodes: None,
 				interface: None,
