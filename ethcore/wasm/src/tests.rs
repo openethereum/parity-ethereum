@@ -484,12 +484,10 @@ fn math_mul() {
 		}
 	);
 
-	let mul: U256 = (&result[..]).into();
-
 	assert_eq!(gas_left, U256::from(97236));
 	assert_eq!(
 		U256::from_dec_str("888888888888888888888888888887111111111111111111111111111112").unwrap(),
-		mul
+		(&result[..]).into()
 	);
 }
 
@@ -508,11 +506,9 @@ fn math_sub() {
 		}
 	);
 
-	let mul: U256 = (&result[..]).into();
-
 	assert_eq!(gas_left, U256::from(97236));
 	assert_eq!(
 		U256::from_dec_str("111111111111111111111111111111").unwrap(),
-		mul
+		(&result[..]).into()
 	);
 }
