@@ -27,6 +27,10 @@ use info as vm;
 pub struct Informant;
 
 impl vm::Informant for Informant {
+	fn before_test(&self, name: &str, action: &str) {
+		println!("Test: {} ({})", name, action);
+	}
+
 	fn finish(result: Result<vm::Success, vm::Failure>) {
 		match result {
 			Ok(success) => {

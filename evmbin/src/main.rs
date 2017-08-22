@@ -49,7 +49,7 @@ EVM implementation for Parity.
   Copyright 2016, 2017 Parity Technologies (UK) Ltd
 
 Usage:
-    parity-evm statetest <file> [--json]
+    parity-evm statetest <file> [--json --only NAME --chain CHAIN]
     parity-evm stats [options]
     parity-evm [options]
     parity-evm [-h | --help]
@@ -77,14 +77,14 @@ fn main() {
 	if args.cmd_statetest {
 		run_state_test(args)
 	} else if args.flag_json {
-		run_transaction(args, display::json::Informant::default())
+		run_call(args, display::json::Informant::default())
 	} else {
-		run_transaction(args, display::simple::Informant::default())
+		run_call(args, display::simple::Informant::default())
 	}
 }
 
 fn run_state_test(args: Args) {
-	use ethjson::state::test::{Test, ForkSpec};
+	use ethjson::state::test::Test;
 
 	let file = args.arg_file.expect("FILE is required");
 	let mut file = match fs::File::open(&file) {
@@ -95,38 +95,40 @@ fn run_state_test(args: Args) {
 		Err(err) => die(format!("Unable to load the test file: {}", err)),
 		Ok(test) => test,
 	};
+	let only_test = args.flag_name.map(|s| s.to_lowercase());
+	let only_chain = args.flag_chain.map(|s| s.to_lowercase());
 
 	for (name, test) in state_test {
+		if let Some(false) = only_test.as_ref().map(|only_test| &name.to_lowercase() == only_test) {
+			continue;
+		}
+
 		let multitransaction = test.transaction;
 		let env_info = test.env.into();
 		let pre = test.pre_state.into();
 
 		for (spec, states) in test.post_states {
-			for state in states {
+			if let Some(false) = only_chain.as_ref().map(|only_chain| &format!("{:?}", spec).to_lowercase() == only_chain) {
+				continue;
+			}
+
+			for (idx, state) in states.into_iter().enumerate() {
 				let post_root = state.hash.into();
 				let transaction = multitransaction.select(&state.indexes).into();
 
-				let spec = match spec {
-					ForkSpec::Frontier => ethcore::ethereum::new_frontier_test(),
-					ForkSpec::Homestead => ethcore::ethereum::new_homestead_test(),
-					ForkSpec::EIP150 => ethcore::ethereum::new_eip150_test(),
-					ForkSpec::EIP158 => ethcore::ethereum::new_eip161_test(),
-					ForkSpec::Metropolis | ForkSpec::Byzantium | ForkSpec::Constantinople => continue,
-				};
-
 				if args.flag_json {
 					let i = display::json::Informant::default();
-					info::run_transaction(spec, &pre, post_root, &env_info, transaction, i)
+					info::run_transaction(&name, idx, &spec, &pre, post_root, &env_info, transaction, i)
 				} else {
 					let i = display::simple::Informant::default();
-					info::run_transaction(spec, &pre, post_root, &env_info, transaction, i)
+					info::run_transaction(&name, idx, &spec, &pre, post_root, &env_info, transaction, i)
 				}
 			}
 		}
 	}
 }
 
-fn run_transaction<T: Informant>(args: Args, mut informant: T) {
+fn run_call<T: Informant>(args: Args, mut informant: T) {
 	let from = arg(args.from(), "--from");
 	let to = arg(args.to(), "--to");
 	let code = arg(args.code(), "--code");
@@ -151,7 +153,7 @@ fn run_transaction<T: Informant>(args: Args, mut informant: T) {
 	params.data = data;
 
 	informant.set_gas(gas);
-	let result = info::run(spec, gas, None, |mut client| {
+	let result = info::run(&spec, gas, None, |mut client| {
 		client.call(params, &mut informant)
 	});
 	T::finish(result);
@@ -162,6 +164,7 @@ struct Args {
 	cmd_stats: bool,
 	cmd_statetest: bool,
 	arg_file: Option<PathBuf>,
+	flag_name: Option<String>,
 	flag_from: Option<String>,
 	flag_to: Option<String>,
 	flag_code: Option<String>,

@@ -56,6 +56,14 @@ impl Informant {
 }
 
 impl vm::Informant for Informant {
+	fn before_test(&self, name: &str, action: &str) {
+		println!(
+			"{{\"test\":\"{name}\",\"action\":\"{action}\"}}",
+			name = name,
+			action = action,
+		);
+	}
+
 	fn set_gas(&mut self, gas: U256) {
 		self.gas_used = gas;
 	}

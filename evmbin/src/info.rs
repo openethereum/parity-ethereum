@@ -19,10 +19,13 @@
 use std::time::{Instant, Duration};
 use util::{U256, H256};
 use ethcore::{trace, spec, transaction, pod_state};
-use ethcore::client::{self, EvmTestClient, EvmTestError};
+use ethcore::client::{self, EvmTestClient, EvmTestError, TransactResult};
+use ethjson;
 
 /// VM execution informant
 pub trait Informant: trace::VMTracer {
+	/// Display a single run init message
+	fn before_test(&self, test: &str, action: &str);
 	/// Set initial gas.
 	fn set_gas(&mut self, _gas: U256) {}
 	/// Display final result.
@@ -51,34 +54,62 @@ pub struct Failure {
 
 /// Execute given Transaction and verify resulting state root.
 pub fn run_transaction<T: Informant>(
-	spec: spec::Spec,
+	name: &str,
+	idx: usize,
+	spec: &ethjson::state::test::ForkSpec,
 	pre_state: &pod_state::PodState,
 	post_root: H256,
 	env_info: &client::EnvInfo,
 	transaction: transaction::SignedTransaction,
 	mut informant: T,
 ) {
-	informant.set_gas(env_info.gas_limit);
-	let result = run(spec, env_info.gas_limit, Some(pre_state), |mut client| {
-		let (root, gas, out) = client.transact(env_info, transaction, informant)?;
-		if root != post_root {
-			return Err(EvmTestError::PostCondition(format!(
-				"State root mismatch (got: {}, expected: {})",
-				root,
-				post_root,
-			)));
-		}
+	let spec_name = format!("{:?}", spec).to_lowercase();
+	let spec = match EvmTestClient::spec_from_json(spec) {
+		Some(spec) => {
+			informant.before_test(&format!("{}:{}:{}", name, spec_name, idx), "starting");
+			spec
+		},
+		None => {
+			informant.before_test(&format!("{}:{}:{}", name, spec_name, idx), "skipping because of missing spec");
+			return;
+		},
+	};
 
-		Ok((gas, out))
+	informant.set_gas(env_info.gas_limit);
+
+	let result = run(spec, env_info.gas_limit, pre_state, |mut client| {
+		let result = client.transact(env_info, transaction, informant)?;
+		match result {
+			TransactResult::Ok { state_root, .. } if state_root != post_root => {
+				Err(EvmTestError::PostCondition(format!(
+					"State root mismatch (got: {}, expected: {})",
+					state_root,
+					post_root,
+				)))
+			},
+			TransactResult::Ok { gas_left, output, .. } => {
+				Ok((gas_left, output))
+			},
+			TransactResult::Err { error, .. } => {
+				Err(EvmTestError::PostCondition(format!(
+					"Unexpected execution error: {:?}", error
+				)))
+			},
+		}
 	});
+
 	T::finish(result)
 }
 
 /// Execute VM with given `ActionParams`
-pub fn run<F>(spec: spec::Spec, initial_gas: U256, pre_state: Option<&pod_state::PodState>,  run: F) -> Result<Success, Failure> where
-	F: FnOnce(EvmTestClient) -> Result<(U256, Vec<u8>), EvmTestError>
+pub fn run<'a, F, T>(spec: &'a spec::Spec, initial_gas: U256, pre_state: T, run: F) -> Result<Success, Failure> where
+	F: FnOnce(EvmTestClient) -> Result<(U256, Vec<u8>), EvmTestError>,
+	T: Into<Option<&'a pod_state::PodState>>,
 {
-	let test_client = EvmTestClient::with_pre_state(spec, pre_state).map_err(|error| Failure {
+	let test_client = match pre_state.into() {
+		Some(pre_state) => EvmTestClient::from_pod_state(spec, pre_state.clone()),
+		None => EvmTestClient::new(spec),
+	}.map_err(|error| Failure {
 		gas_used: 0.into(),
 		error,
 		time: Duration::from_secs(0)

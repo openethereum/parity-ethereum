@@ -33,13 +33,17 @@ pub enum EvmTestError {
 	/// EVM error.
 	Evm(vm::Error),
 	/// Initialization error.
-	Initialization(::error::Error),
-	/// Error during transaction execution.
-	Execution(::error::ExecutionError),
+	ClientError(::error::Error),
 	/// Low-level database error.
 	Database(String),
 	/// Post-condition failure,
 	PostCondition(String),
+}
+
+impl<E: Into<::error::Error>> From<E> for EvmTestError {
+	fn from(err: E) -> Self {
+		EvmTestError::ClientError(err.into())
+	}
 }
 
 impl fmt::Display for EvmTestError {
@@ -49,73 +53,106 @@ impl fmt::Display for EvmTestError {
 		match *self {
 			Trie(ref err) => write!(fmt, "Trie: {}", err),
 			Evm(ref err) => write!(fmt, "EVM: {}", err),
-			Initialization(ref err) => write!(fmt, "Initialization: {}", err),
-			Execution(ref err) => write!(fmt, "Execution: {}", err),
+			ClientError(ref err) => write!(fmt, "{}", err),
 			Database(ref err) => write!(fmt, "DB: {}", err),
 			PostCondition(ref err) => write!(fmt, "{}", err),
 		}
 	}
 }
 
-/// Simplified, single-block EVM test client.
-pub struct EvmTestClient {
-	state: state::State<state_db::StateDB>,
-	factories: Factories,
-	spec: spec::Spec,
+use ethereum;
+use ethjson::state::test::ForkSpec;
+
+lazy_static! {
+	pub static ref FRONTIER: spec::Spec = ethereum::new_frontier_test();
+	pub static ref HOMESTEAD: spec::Spec = ethereum::new_homestead_test();
+	pub static ref EIP150: spec::Spec = ethereum::new_eip150_test();
+	pub static ref EIP161: spec::Spec = ethereum::new_eip161_test();
+	pub static ref _METROPOLIS: spec::Spec = ethereum::new_metropolis_test();
 }
 
-impl EvmTestClient {
-	/// Creates new EVM test client with in-memory DB initialized with genesis of given Spec.
-	pub fn new(spec: spec::Spec) -> Result<Self, EvmTestError> {
-		Self::with_pre_state(spec, None)
+/// Simplified, single-block EVM test client.
+pub struct EvmTestClient<'a> {
+	state: state::State<state_db::StateDB>,
+	spec: &'a spec::Spec,
+}
+
+impl<'a> EvmTestClient<'a> {
+	/// Converts a json spec definition into spec.
+	pub fn spec_from_json(spec: &ForkSpec) -> Option<&'static spec::Spec> {
+		match *spec {
+			ForkSpec::Frontier => Some(&*FRONTIER),
+			ForkSpec::Homestead => Some(&*HOMESTEAD),
+			ForkSpec::EIP150 => Some(&*EIP150),
+			ForkSpec::EIP158 => Some(&*EIP161),
+			ForkSpec::Metropolis | ForkSpec::Byzantium | ForkSpec::Constantinople => None,
+		}
 	}
 
-	pub fn with_pre_state<'a, T>(spec: spec::Spec, pre: T) -> Result<Self, EvmTestError> where
-		T: Into<Option<&'a pod_state::PodState>>,
-	{
-		let factories = Factories {
-			vm: evm::Factory::new(VMType::Interpreter, 5 * 1024),
-			trie: trie::TrieFactory::new(trie::TrieSpec::Secure),
-			accountdb: Default::default(),
-		};
-		let genesis = spec.genesis_header();
-		let db = Arc::new(kvdb::in_memory(db::NUM_COLUMNS.expect("We use column-based DB; qed")));
-		let journal_db = journaldb::new(db.clone(), journaldb::Algorithm::EarlyMerge, db::COL_STATE);
-		let mut state_db = state_db::StateDB::new(journal_db, 5 * 1024 * 1024);
-		let pre_state = pre.into();
-		let state = match pre_state {
-			None => {
-				state_db = spec.ensure_db_good(state_db, &factories).map_err(EvmTestError::Initialization)?;
-				// Write DB
-				{
-					let mut batch = kvdb::DBTransaction::new();
-					state_db.journal_under(&mut batch, 0, &genesis.hash()).map_err(|e| EvmTestError::Initialization(e.into()))?;
-					db.write(batch).map_err(EvmTestError::Database)?;
-				}
-				state::State::from_existing(
-					state_db.boxed_clone(),
-					*genesis.state_root(),
-					spec.engine.account_start_nonce(0),
-					factories.clone()
-				).map_err(EvmTestError::Trie)?
-			},
-			Some(pre_state) => {
-				let mut state = state::State::new(
-					state_db.boxed_clone(),
-					spec.engine.account_start_nonce(0),
-					factories.clone(),
-				);
-				state.populate_from(pre_state.clone());
-				state.commit().map_err(EvmTestError::Initialization)?;
-				state
-			}
-		};
+	/// Creates new EVM test client with in-memory DB initialized with genesis of given Spec.
+	pub fn new(spec: &'a spec::Spec) -> Result<Self, EvmTestError> {
+		let factories = Self::factories();
+		let state =	Self::state_from_spec(spec, &factories)?;
 
 		Ok(EvmTestClient {
 			state,
-			factories,
 			spec,
 		})
+	}
+
+	/// Creates new EVM test client with in-memory DB initialized with given PodState.
+	pub fn from_pod_state(spec: &'a spec::Spec, pod_state: pod_state::PodState) -> Result<Self, EvmTestError> {
+		let factories = Self::factories();
+		let state =	Self::state_from_pod(spec, &factories, pod_state)?;
+
+		Ok(EvmTestClient {
+			state,
+			spec,
+		})
+	}
+
+	fn factories() -> Factories {
+		Factories {
+			vm: evm::Factory::new(VMType::Interpreter, 5 * 1024),
+			trie: trie::TrieFactory::new(trie::TrieSpec::Secure),
+			accountdb: Default::default(),
+		}
+	}
+
+	fn state_from_spec(spec: &'a spec::Spec, factories: &Factories) -> Result<state::State<state_db::StateDB>, EvmTestError> {
+		let db = Arc::new(kvdb::in_memory(db::NUM_COLUMNS.expect("We use column-based DB; qed")));
+		let journal_db = journaldb::new(db.clone(), journaldb::Algorithm::EarlyMerge, db::COL_STATE);
+		let mut state_db = state_db::StateDB::new(journal_db, 5 * 1024 * 1024);
+		state_db = spec.ensure_db_good(state_db, factories)?;
+
+		let genesis = spec.genesis_header();
+		// Write DB
+		{
+			let mut batch = kvdb::DBTransaction::new();
+			state_db.journal_under(&mut batch, 0, &genesis.hash())?;
+			db.write(batch).map_err(EvmTestError::Database)?;
+		}
+
+		state::State::from_existing(
+			state_db,
+			*genesis.state_root(),
+			spec.engine.account_start_nonce(0),
+			factories.clone()
+		).map_err(EvmTestError::Trie)
+	}
+
+	fn state_from_pod(spec: &'a spec::Spec, factories: &Factories, pod_state: pod_state::PodState) -> Result<state::State<state_db::StateDB>, EvmTestError> {
+		let db = Arc::new(kvdb::in_memory(db::NUM_COLUMNS.expect("We use column-based DB; qed")));
+		let journal_db = journaldb::new(db.clone(), journaldb::Algorithm::EarlyMerge, db::COL_STATE);
+		let state_db = state_db::StateDB::new(journal_db, 5 * 1024 * 1024);
+		let mut state = state::State::new(
+			state_db,
+			spec.engine.account_start_nonce(0),
+			factories.clone(),
+		);
+		state.populate_from(pod_state);
+		state.commit()?;
+		Ok(state)
 	}
 
 	/// Execute the VM given ActionParams and tracer.
@@ -150,20 +187,50 @@ impl EvmTestClient {
 
 	/// Executes a SignedTransaction within context of the provided state and `EnvInfo`.
 	/// Returns the state root, gas left and the output.
-	pub fn transact<T: trace::VMTracer>(&mut self, env_info: &client::EnvInfo, transaction: transaction::SignedTransaction, vm_tracer: T)
-		-> Result<(H256, U256, Vec<u8>), EvmTestError>
-	{
+	pub fn transact<T: trace::VMTracer>(
+		&mut self,
+		env_info: &client::EnvInfo,
+		transaction: transaction::SignedTransaction,
+		vm_tracer: T,
+	) -> Result<TransactResult, EvmTestError> {
+		let initial_gas = transaction.gas;
+		// Verify transaction
+		transaction.verify_basic(true, None, env_info.number >= self.spec.engine.params().eip86_transition)?;
+
+		// Apply transaction
 		let tracer = trace::NoopTracer;
-		let executed = {
-			let mut executive = executive::Executive::new(&mut self.state, env_info, &*self.spec.engine);
-			executive.transact_with_tracer(
-				&transaction,
-				true,
-				tracer,
-				vm_tracer,
-			).map_err(EvmTestError::Execution)
-		}?;
-		self.state.commit().map_err(EvmTestError::Initialization)?;
-		Ok((*self.state.root(), executed.gas_used, executed.output))
+		let result = self.state.apply_with_tracing(&env_info, &*self.spec.engine, &transaction, tracer, vm_tracer);
+
+		Ok(match result {
+			Ok(result) => TransactResult::Ok {
+				state_root: *self.state.root(),
+				gas_left: initial_gas - result.receipt.gas_used,
+				output: result.output
+			},
+			Err(error) => TransactResult::Err {
+				state_root: *self.state.root(),
+				error,
+			},
+		})
 	}
+}
+
+/// A result of applying transaction to the state.
+pub enum TransactResult {
+	/// Successful execution
+	Ok {
+		/// State root
+		state_root: H256,
+		/// Amount of gas left
+		gas_left: U256,
+		/// Output
+		output: Vec<u8>,
+	},
+	/// Transaction failed to run
+	Err {
+		/// State root
+		state_root: H256,
+		/// Execution error
+		error: ::error::Error,
+	},
 }

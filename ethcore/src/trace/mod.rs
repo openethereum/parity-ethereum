@@ -85,7 +85,7 @@ pub trait Tracer: Send {
 	fn subtracer(&self) -> Self where Self: Sized;
 
 	/// Consumes self and returns all traces.
-	fn traces(self) -> Vec<FlatTrace>;
+	fn drain(self) -> Vec<FlatTrace>;
 }
 
 /// Used by executive to build VM traces.
