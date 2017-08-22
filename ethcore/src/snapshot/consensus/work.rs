@@ -37,11 +37,24 @@ use rand::OsRng;
 /// Snapshot creation and restoration for PoW chains.
 /// This includes blocks from the head of the chain as a
 /// loose assurance that the chain is valid.
-///
-/// The field is the number of blocks from the head of the chain
-/// to include in the snapshot.
 #[derive(Clone, Copy, PartialEq)]
-pub struct PowSnapshot(pub u64);
+pub struct PowSnapshot {
+	/// Number of blocks from the head of the chain
+	/// to include in the snapshot.
+	pub blocks: u64,
+	/// Number of to allow in the snapshot when restoring.
+	pub max_restore_blocks: u64,
+}
+
+impl PowSnapshot {
+	/// Create a new instance.
+	pub fn new(blocks: u64, max_restore_blocks: u64) -> PowSnapshot {
+		PowSnapshot {
+			blocks: blocks,
+			max_restore_blocks: max_restore_blocks,
+		}
+	}
+}
 
 impl SnapshotComponents for PowSnapshot {
 	fn chunk_all(
@@ -57,7 +70,7 @@ impl SnapshotComponents for PowSnapshot {
 			current_hash: block_at,
 			writer: chunk_sink,
 			preferred_size: preferred_size,
-		}.chunk_all(self.0)
+		}.chunk_all(self.blocks)
 	}
 
 	fn rebuilder(
@@ -66,7 +79,7 @@ impl SnapshotComponents for PowSnapshot {
 		db: Arc<KeyValueDB>,
 		manifest: &ManifestData,
 	) -> Result<Box<Rebuilder>, ::error::Error> {
-		PowRebuilder::new(chain, db, manifest, self.0).map(|r| Box::new(r) as Box<_>)
+		PowRebuilder::new(chain, db, manifest, self.max_restore_blocks).map(|r| Box::new(r) as Box<_>)
 	}
 
 	fn min_supported_version(&self) -> u64 { ::snapshot::MIN_SUPPORTED_STATE_CHUNK_VERSION }
@@ -218,7 +231,7 @@ impl Rebuilder for PowRebuilder {
 		trace!(target: "snapshot", "restoring block chunk with {} blocks.", item_count - 3);
 
 		if self.fed_blocks + num_blocks > self.snapshot_blocks {
-			return Err(Error::TooManyBlocks(self.snapshot_blocks, self.fed_blocks).into())
+			return Err(Error::TooManyBlocks(self.snapshot_blocks, self.fed_blocks + num_blocks).into())
 		}
 
 		// todo: assert here that these values are consistent with chunks being in order.
