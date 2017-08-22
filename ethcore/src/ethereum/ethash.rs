@@ -39,7 +39,10 @@ pub const PARITY_GAS_LIMIT_DETERMINANT: U256 = U256([37, 0, 0, 0]);
 
 /// Number of blocks in an ethash snapshot.
 // make dependent on difficulty incrment divisor?
-const SNAPSHOT_BLOCKS: u64 = 30000;
+const SNAPSHOT_BLOCKS: u64 = 5000;
+/// Maximum number of blocks allowed in an ethash snapshot.
+const MAX_SNAPSHOT_BLOCKS: u64 = 30000;
+
 
 /// Ethash params.
 #[derive(Debug, PartialEq)]
@@ -407,7 +410,7 @@ impl Engine for Arc<Ethash> {
 	}
 
 	fn snapshot_components(&self) -> Option<Box<::snapshot::SnapshotComponents>> {
-		Some(Box::new(::snapshot::PowSnapshot(SNAPSHOT_BLOCKS)))
+		Some(Box::new(::snapshot::PowSnapshot::new(SNAPSHOT_BLOCKS, MAX_SNAPSHOT_BLOCKS)))
 	}
 }
 

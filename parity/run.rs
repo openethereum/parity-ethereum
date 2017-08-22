@@ -56,7 +56,7 @@ use signer;
 use url;
 
 // how often to take periodic snapshots.
-const SNAPSHOT_PERIOD: u64 = 10000;
+const SNAPSHOT_PERIOD: u64 = 5000;
 
 // how many blocks to wait before starting a periodic snapshot.
 const SNAPSHOT_HISTORY: u64 = 100;
