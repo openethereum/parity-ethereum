@@ -192,16 +192,22 @@ impl<'a> EvmTestClient<'a> {
 		env_info: &client::EnvInfo,
 		transaction: transaction::SignedTransaction,
 		vm_tracer: T,
-	) -> Result<TransactResult, EvmTestError> {
+	) -> TransactResult {
 		let initial_gas = transaction.gas;
 		// Verify transaction
-		transaction.verify_basic(true, None, env_info.number >= self.spec.engine.params().eip86_transition)?;
+		let is_ok = transaction.verify_basic(true, None, env_info.number >= self.spec.engine.params().eip86_transition);
+		if let Err(error) = is_ok {
+			return TransactResult::Err {
+				state_root: *self.state.root(),
+				error,
+			};
+		}
 
 		// Apply transaction
 		let tracer = trace::NoopTracer;
 		let result = self.state.apply_with_tracing(&env_info, &*self.spec.engine, &transaction, tracer, vm_tracer);
 
-		Ok(match result {
+		match result {
 			Ok(result) => TransactResult::Ok {
 				state_root: *self.state.root(),
 				gas_left: initial_gas - result.receipt.gas_used,
@@ -211,7 +217,7 @@ impl<'a> EvmTestClient<'a> {
 				state_root: *self.state.root(),
 				error,
 			},
-		})
+		}
 	}
 }
 
