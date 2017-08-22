@@ -37,7 +37,7 @@ use client::ancient_import::AncientVerifier;
 use client::Error as ClientError;
 use client::{
 	BlockId, TransactionId, UncleId, TraceId, ClientConfig, BlockChainClient,
-	MiningBlockChainClient, EngineClient, TraceFilter, CallAnalytics, BlockImportError, Mode,
+	MiningBlockChainClient, TraceFilter, CallAnalytics, BlockImportError, Mode,
 	ChainNotify, PruningInfo, ProvingBlockChainClient,
 };
 use encoded;
@@ -1852,7 +1852,7 @@ impl MiningBlockChainClient for Client {
 	}
 }
 
-impl EngineClient for Client {
+impl super::traits::EngineClient for Client {
 	fn update_sealing(&self) {
 		self.miner.update_sealing(self)
 	}
@@ -1869,6 +1869,22 @@ impl EngineClient for Client {
 
 	fn epoch_transition_for(&self, parent_hash: H256) -> Option<::engines::EpochTransition> {
 		self.chain.read().epoch_transition_for(parent_hash)
+	}
+
+	fn chain_info(&self) -> BlockChainInfo {
+		BlockChainClient::chain_info(self)
+	}
+
+	fn call_contract(&self, id: BlockId, address: Address, data: Bytes) -> Result<Bytes, String> {
+		BlockChainClient::call_contract(self, id, address, data)
+	}
+
+	fn transact_contract(&self, address: Address, data: Bytes) -> Result<TransactionImportResult, EthcoreError> {
+		BlockChainClient::transact_contract(self, address, data)
+	}
+
+	fn block_number(&self, id: BlockId) -> Option<BlockNumber> {
+		BlockChainClient::block_number(self, id)
 	}
 }
 

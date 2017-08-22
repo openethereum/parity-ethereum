@@ -25,7 +25,7 @@ use util::cache::MemoryLruCache;
 use rlp::{UntrustedRlp, RlpStream};
 
 use basic_types::LogBloom;
-use client::{Client, BlockChainClient};
+use client::EngineClient;
 use engines::{Call, Engine};
 use header::Header;
 use ids::BlockId;
@@ -72,7 +72,7 @@ pub struct ValidatorSafeContract {
 	pub address: Address,
 	validators: RwLock<MemoryLruCache<H256, SimpleList>>,
 	provider: Provider,
-	client: RwLock<Option<Weak<Client>>>, // TODO [keorn]: remove
+	client: RwLock<Option<Weak<EngineClient>>>, // TODO [keorn]: remove
 }
 
 // first proof is just a state proof call of `getValidators` at header's state.
@@ -446,7 +446,7 @@ impl ValidatorSet for ValidatorSafeContract {
 				 }))
 	}
 
-	fn register_contract(&self, client: Weak<Client>) {
+	fn register_client(&self, client: Weak<EngineClient>) {
 		trace!(target: "engine", "Setting up contract caller.");
 		*self.client.write() = Some(client);
 	}
@@ -460,7 +460,7 @@ mod tests {
 	use spec::Spec;
 	use account_provider::AccountProvider;
 	use transaction::{Transaction, Action};
-	use client::{BlockChainClient, EngineClient};
+	use client::BlockChainClient;
 	use ethkey::Secret;
 	use miner::MinerService;
 	use tests::helpers::{generate_dummy_client_with_spec_and_accounts, generate_dummy_client_with_spec_and_data};
@@ -471,7 +471,7 @@ mod tests {
 	fn fetches_validators() {
 		let client = generate_dummy_client_with_spec_and_accounts(Spec::new_validator_safe_contract, None);
 		let vc = Arc::new(ValidatorSafeContract::new(Address::from_str("0000000000000000000000000000000000000005").unwrap()));
-		vc.register_contract(Arc::downgrade(&client));
+		vc.register_client(Arc::downgrade(&client) as _);
 		let last_hash = client.best_block_header().hash();
 		assert!(vc.contains(&last_hash, &Address::from_str("7d577a597b2742b498cb5cf0c26cdcd726d39e6e").unwrap()));
 		assert!(vc.contains(&last_hash, &Address::from_str("82a978b3f5962a5b0957d9ee9eef472ee55b42f1").unwrap()));
@@ -485,7 +485,7 @@ mod tests {
 		let v1 = tap.insert_account("0".sha3().into(), "").unwrap();
 		let network_id = Spec::new_validator_safe_contract().network_id();
 		let client = generate_dummy_client_with_spec_and_accounts(Spec::new_validator_safe_contract, Some(tap));
-		client.engine().register_client(Arc::downgrade(&client));
+		client.engine().register_client(Arc::downgrade(&client) as _);
 		let validator_contract = Address::from_str("0000000000000000000000000000000000000005").unwrap();
 
 		client.miner().set_engine_signer(v1, "".into()).unwrap();
@@ -499,7 +499,7 @@ mod tests {
 			data: "bfc708a000000000000000000000000082a978b3f5962a5b0957d9ee9eef472ee55b42f1".from_hex().unwrap(),
 		}.sign(&s0, Some(network_id));
 		client.miner().import_own_transaction(client.as_ref(), tx.into()).unwrap();
-		client.update_sealing();
+		::client::EngineClient::update_sealing(&*client);
 		assert_eq!(client.chain_info().best_block_number, 1);
 		// Add "1" validator back in.
 		let tx = Transaction {
@@ -511,13 +511,13 @@ mod tests {
 			data: "4d238c8e00000000000000000000000082a978b3f5962a5b0957d9ee9eef472ee55b42f1".from_hex().unwrap(),
 		}.sign(&s0, Some(network_id));
 		client.miner().import_own_transaction(client.as_ref(), tx.into()).unwrap();
-		client.update_sealing();
+		::client::EngineClient::update_sealing(&*client);
 		// The transaction is not yet included so still unable to seal.
 		assert_eq!(client.chain_info().best_block_number, 1);
 
 		// Switch to the validator that is still there.
 		client.miner().set_engine_signer(v0, "".into()).unwrap();
-		client.update_sealing();
+		::client::EngineClient::update_sealing(&*client);
 		assert_eq!(client.chain_info().best_block_number, 2);
 		// Switch back to the added validator, since the state is updated.
 		client.miner().set_engine_signer(v1, "".into()).unwrap();
@@ -530,13 +530,13 @@ mod tests {
 			data: Vec::new(),
 		}.sign(&s0, Some(network_id));
 		client.miner().import_own_transaction(client.as_ref(), tx.into()).unwrap();
-		client.update_sealing();
+		::client::EngineClient::update_sealing(&*client);
 		// Able to seal again.
 		assert_eq!(client.chain_info().best_block_number, 3);
 
 		// Check syncing.
 		let sync_client = generate_dummy_client_with_spec_and_data(Spec::new_validator_safe_contract, 0, 0, &[]);
-		sync_client.engine().register_client(Arc::downgrade(&sync_client));
+		sync_client.engine().register_client(Arc::downgrade(&sync_client) as _);
 		for i in 1..4 {
 			sync_client.import_block(client.block(BlockId::Number(i)).unwrap().into_inner()).unwrap();
 		}

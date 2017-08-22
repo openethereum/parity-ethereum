@@ -23,7 +23,7 @@ use std::time::{UNIX_EPOCH, Duration};
 use account_provider::AccountProvider;
 use block::*;
 use builtin::Builtin;
-use client::{Client, EngineClient};
+use client::EngineClient;
 use engines::{Call, Engine, Seal, EngineError, ConstructedVerifier};
 use error::{Error, TransactionError, BlockError};
 use ethjson;
@@ -829,9 +829,9 @@ impl Engine for AuthorityRound {
 		Ok(())
 	}
 
-	fn register_client(&self, client: Weak<Client>) {
+	fn register_client(&self, client: Weak<EngineClient>) {
 		*self.client.write() = Some(client.clone());
-		self.validators.register_contract(client);
+		self.validators.register_client(client);
 	}
 
 	fn set_signer(&self, ap: Arc<AccountProvider>, address: Address, password: String) {

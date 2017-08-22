@@ -112,7 +112,7 @@ impl ClientService {
 		});
 		io_service.register_handler(client_io)?;
 
-		spec.engine.register_client(Arc::downgrade(&client));
+		spec.engine.register_client(Arc::downgrade(&client) as _);
 
 		let stop_guard = ::devtools::StopGuard::new();
 		run_ipc(ipc_path, client.clone(), snapshot.clone(), stop_guard.share());

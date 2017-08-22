@@ -28,7 +28,7 @@ mod params;
 use std::sync::Weak;
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
 use util::*;
-use client::{Client, EngineClient};
+use client::EngineClient;
 use error::{Error, BlockError};
 use header::{Header, BlockNumber};
 use builtin::Builtin;
@@ -766,13 +766,12 @@ impl Engine for Tendermint {
 		self.to_step(next_step);
 	}
 
-	fn register_client(&self, client: Weak<Client>) {
-		use client::BlockChainClient;
+	fn register_client(&self, client: Weak<EngineClient>) {
 		if let Some(c) = client.upgrade() {
 			self.height.store(c.chain_info().best_block_number as usize + 1, AtomicOrdering::SeqCst);
 		}
 		*self.client.write() = Some(client.clone());
-		self.validators.register_contract(client);
+		self.validators.register_client(client);
 	}
 }
 
@@ -1012,7 +1011,7 @@ mod tests {
 		let client = generate_dummy_client(0);
 		let notify = Arc::new(TestNotify::default());
 		client.add_notify(notify.clone());
-		engine.register_client(Arc::downgrade(&client));
+		engine.register_client(Arc::downgrade(&client) as _);
 
 		let prevote_current = vote(engine.as_ref(), |mh| tap.sign(v0, None, mh).map(H520::from), h, r, Step::Prevote, proposal);
 
@@ -1030,7 +1029,6 @@ mod tests {
 	fn seal_submission() {
 		use ethkey::{Generator, Random};
 		use transaction::{Transaction, Action};
-		use client::BlockChainClient;
 
 		let tap = Arc::new(AccountProvider::transient_provider());
 		// Accounts for signing votes.
@@ -1043,7 +1041,7 @@ mod tests {
 
 		let notify = Arc::new(TestNotify::default());
 		client.add_notify(notify.clone());
-		engine.register_client(Arc::downgrade(&client));
+		engine.register_client(Arc::downgrade(&client) as _);
 
 		let keypair = Random.generate().unwrap();
 		let transaction = Transaction {

@@ -42,7 +42,7 @@ use self::epoch::PendingTransition;
 use account_provider::AccountProvider;
 use block::ExecutedBlock;
 use builtin::Builtin;
-use client::Client;
+use client::EngineClient;
 use evm::env_info::{EnvInfo, LastHashes};
 use error::Error;
 use evm::Schedule;
@@ -367,7 +367,7 @@ pub trait Engine : Sync + Send {
 	fn sign(&self, _hash: H256) -> Result<Signature, Error> { unimplemented!() }
 
 	/// Add Client which can be used for sealing, querying the state and sending messages.
-	fn register_client(&self, _client: Weak<Client>) {}
+	fn register_client(&self, _client: Weak<EngineClient>) {}
 
 	/// Trigger next step of the consensus engine.
 	fn step(&self) {}

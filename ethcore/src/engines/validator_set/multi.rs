@@ -22,7 +22,7 @@ use engines::{Call, Engine};
 use util::{Bytes, H256, Address, RwLock};
 use ids::BlockId;
 use header::{BlockNumber, Header};
-use client::{Client, BlockChainClient};
+use client::EngineClient;
 use super::{SystemCall, ValidatorSet};
 
 type BlockNumberLookup = Box<Fn(BlockId) -> Result<BlockNumber, String> + Send + Sync + 'static>;
@@ -129,9 +129,9 @@ impl ValidatorSet for Multi {
 		self.correct_set_by_number(set_block).1.report_benign(validator, set_block, block);
 	}
 
-	fn register_contract(&self, client: Weak<Client>) {
+	fn register_client(&self, client: Weak<EngineClient>) {
 		for set in self.sets.values() {
-			set.register_contract(client.clone());
+			set.register_client(client.clone());
 		}
 		*self.block_number.write() = Box::new(move |id| client
 			.upgrade()
@@ -143,7 +143,7 @@ impl ValidatorSet for Multi {
 #[cfg(test)]
 mod tests {
 	use account_provider::AccountProvider;
-	use client::{BlockChainClient, EngineClient};
+	use client::BlockChainClient;
 	use engines::EpochChange;
 	use engines::validator_set::ValidatorSet;
 	use ethkey::Secret;
@@ -165,7 +165,7 @@ mod tests {
 		let v0 = tap.insert_account(s0.clone(), "").unwrap();
 		let v1 = tap.insert_account("1".sha3().into(), "").unwrap();
 		let client = generate_dummy_client_with_spec_and_accounts(Spec::new_validator_multi, Some(tap));
-		client.engine().register_client(Arc::downgrade(&client));
+		client.engine().register_client(Arc::downgrade(&client) as _);
 
 		// Make sure txs go through.
 		client.miner().set_gas_floor_target(1_000_000.into());
@@ -173,27 +173,27 @@ mod tests {
 		// Wrong signer for the first block.
 		client.miner().set_engine_signer(v1, "".into()).unwrap();
 		client.transact_contract(Default::default(), Default::default()).unwrap();
-		client.update_sealing();
+		::client::EngineClient::update_sealing(&*client);
 		assert_eq!(client.chain_info().best_block_number, 0);
 		// Right signer for the first block.
 		client.miner().set_engine_signer(v0, "".into()).unwrap();
-		client.update_sealing();
+		::client::EngineClient::update_sealing(&*client);
 		assert_eq!(client.chain_info().best_block_number, 1);
 		// This time v0 is wrong.
 		client.transact_contract(Default::default(), Default::default()).unwrap();
-		client.update_sealing();
+		::client::EngineClient::update_sealing(&*client);
 		assert_eq!(client.chain_info().best_block_number, 1);
 		client.miner().set_engine_signer(v1, "".into()).unwrap();
-		client.update_sealing();
+		::client::EngineClient::update_sealing(&*client);
 		assert_eq!(client.chain_info().best_block_number, 2);
 		// v1 is still good.
 		client.transact_contract(Default::default(), Default::default()).unwrap();
-		client.update_sealing();
+		::client::EngineClient::update_sealing(&*client);
 		assert_eq!(client.chain_info().best_block_number, 3);
 
 		// Check syncing.
 		let sync_client = generate_dummy_client_with_spec_and_data(Spec::new_validator_multi, 0, 0, &[]);
-		sync_client.engine().register_client(Arc::downgrade(&sync_client));
+		sync_client.engine().register_client(Arc::downgrade(&sync_client) as _);
 		for i in 1..4 {
 			sync_client.import_block(client.block(BlockId::Number(i)).unwrap().into_inner()).unwrap();
 		}
