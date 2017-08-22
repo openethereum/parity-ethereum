@@ -452,7 +452,7 @@ mod tests {
 		let s0: Secret = "1".sha3().into();
 		let v0 = tap.insert_account(s0.clone(), "").unwrap();
 		let v1 = tap.insert_account("0".sha3().into(), "").unwrap();
-		let network_id = Spec::new_validator_safe_contract().network_id();
+		let chain_id = Spec::new_validator_safe_contract().chain_id();
 		let client = generate_dummy_client_with_spec_and_accounts(Spec::new_validator_safe_contract, Some(tap));
 		client.engine().register_client(Arc::downgrade(&client));
 		let validator_contract = "0000000000000000000000000000000000000005".parse::<Address>().unwrap();
@@ -466,7 +466,7 @@ mod tests {
 			action: Action::Call(validator_contract),
 			value: 0.into(),
 			data: "bfc708a000000000000000000000000082a978b3f5962a5b0957d9ee9eef472ee55b42f1".from_hex().unwrap(),
-		}.sign(&s0, Some(network_id));
+		}.sign(&s0, Some(chain_id));
 		client.miner().import_own_transaction(client.as_ref(), tx.into()).unwrap();
 		client.update_sealing();
 		assert_eq!(client.chain_info().best_block_number, 1);
@@ -478,7 +478,7 @@ mod tests {
 			action: Action::Call(validator_contract),
 			value: 0.into(),
 			data: "4d238c8e00000000000000000000000082a978b3f5962a5b0957d9ee9eef472ee55b42f1".from_hex().unwrap(),
-		}.sign(&s0, Some(network_id));
+		}.sign(&s0, Some(chain_id));
 		client.miner().import_own_transaction(client.as_ref(), tx.into()).unwrap();
 		client.update_sealing();
 		// The transaction is not yet included so still unable to seal.
@@ -497,7 +497,7 @@ mod tests {
 			action: Action::Call(Address::default()),
 			value: 0.into(),
 			data: Vec::new(),
-		}.sign(&s0, Some(network_id));
+		}.sign(&s0, Some(chain_id));
 		client.miner().import_own_transaction(client.as_ref(), tx.into()).unwrap();
 		client.update_sealing();
 		// Able to seal again.

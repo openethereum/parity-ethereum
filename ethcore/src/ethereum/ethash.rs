@@ -39,7 +39,10 @@ pub const PARITY_GAS_LIMIT_DETERMINANT: U256 = U256([37, 0, 0, 0]);
 
 /// Number of blocks in an ethash snapshot.
 // make dependent on difficulty incrment divisor?
-const SNAPSHOT_BLOCKS: u64 = 30000;
+const SNAPSHOT_BLOCKS: u64 = 5000;
+/// Maximum number of blocks allowed in an ethash snapshot.
+const MAX_SNAPSHOT_BLOCKS: u64 = 30000;
+
 
 /// Ethash params.
 #[derive(Debug, PartialEq)]
@@ -206,7 +209,7 @@ impl Engine for Arc<Ethash> {
 		}
 	}
 
-	fn signing_network_id(&self, env_info: &EnvInfo) -> Option<u64> {
+	fn signing_chain_id(&self, env_info: &EnvInfo) -> Option<u64> {
 		if env_info.number >= self.params().eip155_transition {
 			Some(self.params().chain_id)
 		} else {
@@ -397,8 +400,8 @@ impl Engine for Arc<Ethash> {
 		}
 
 		let check_low_s = header.number() >= self.ethash_params.homestead_transition;
-		let network_id = if header.number() >= self.params().eip155_transition { Some(self.params().chain_id) } else { None };
-		t.verify_basic(check_low_s, network_id, false)?;
+		let chain_id = if header.number() >= self.params().eip155_transition { Some(self.params().chain_id) } else { None };
+		t.verify_basic(check_low_s, chain_id, false)?;
 		Ok(())
 	}
 
@@ -407,7 +410,7 @@ impl Engine for Arc<Ethash> {
 	}
 
 	fn snapshot_components(&self) -> Option<Box<::snapshot::SnapshotComponents>> {
-		Some(Box::new(::snapshot::PowSnapshot(SNAPSHOT_BLOCKS)))
+		Some(Box::new(::snapshot::PowSnapshot::new(SNAPSHOT_BLOCKS, MAX_SNAPSHOT_BLOCKS)))
 	}
 }
 

@@ -493,6 +493,7 @@ impl Database {
 		}
 		opts.set_parsed_options(&format!("max_total_wal_size={}", 64 * 1024 * 1024))?;
 		opts.set_parsed_options("verify_checksums_in_compaction=0")?;
+		opts.set_parsed_options("keep_log_file_num=1")?;
 		opts.set_max_open_files(config.max_open_files);
 		opts.create_if_missing(true);
 		opts.set_use_fsync(false);
