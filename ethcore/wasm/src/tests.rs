@@ -512,3 +512,24 @@ fn math_sub() {
 		(&result[..]).into()
 	);
 }
+
+#[test]
+fn math_div() {
+	let (gas_left, result) = reqrep_test!(
+		"math.wasm",
+		{
+			let mut args = [3u8; 65];
+			let arg_a = U256::from_dec_str("999999999999999999999999999999").unwrap();
+			let arg_b = U256::from_dec_str("888888888888888888888888").unwrap();
+			arg_a.to_big_endian(&mut args[1..33]);
+			arg_b.to_big_endian(&mut args[33..65]);
+			args.to_vec()
+		}
+	);
+
+	assert_eq!(gas_left, U256::from(91420));
+	assert_eq!(
+		U256::from_dec_str("1125000").unwrap(),
+		(&result[..]).into()
+	);
+}
