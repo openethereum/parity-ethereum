@@ -498,8 +498,8 @@ fn math_sub() {
 		"math.wasm",
 		{
 			let mut args = [2u8; 65];
-			let arg_a = U256::from_dec_str("888888888888888888888888888888").unwrap();
-			let arg_b = U256::from_dec_str("999999999999999999999999999999").unwrap();
+			let arg_a = U256::from_dec_str("999999999999999999999999999999").unwrap();
+			let arg_b = U256::from_dec_str("888888888888888888888888888888").unwrap();
 			arg_a.to_big_endian(&mut args[1..33]);
 			arg_b.to_big_endian(&mut args[33..65]);
 			args.to_vec()
