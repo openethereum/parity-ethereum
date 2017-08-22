@@ -506,7 +506,7 @@ fn math_sub() {
 		}
 	);
 
-	assert_eq!(gas_left, U256::from(97236));
+	assert_eq!(gas_left, U256::from(98131));
 	assert_eq!(
 		U256::from_dec_str("111111111111111111111111111111").unwrap(),
 		(&result[..]).into()
