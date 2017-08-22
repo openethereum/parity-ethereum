@@ -649,11 +649,9 @@ impl<B: Backend> State<B> {
 		T: trace::Tracer,
 		V: trace::VMTracer,
 	{
-//		let old = self.to_pod();
 		let options = TransactOptions::new(tracer, vm_tracer);
 		let e = self.execute(env_info, engine, t, options, false)?;
-//		trace!("Applied transaction. Diff:\n{}\n", state_diff::diff_pod(&old, &self.to_pod()));
-//
+
 		let state_root = if env_info.number < engine.params().eip98_transition || env_info.number < engine.params().validate_receipts_transition {
 			self.commit()?;
 			Some(self.root().clone())
@@ -664,6 +662,7 @@ impl<B: Backend> State<B> {
 		let output = e.output;
 		let receipt = Receipt::new(state_root, e.cumulative_gas_used, e.logs);
 		trace!(target: "state", "Transaction receipt: {:?}", receipt);
+
 		Ok(ApplyOutcome {
 			receipt,
 			output,

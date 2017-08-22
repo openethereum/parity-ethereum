@@ -218,7 +218,6 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 			self.state.add_balance(&sender, &(needed_balance - balance), CleanupMode::NoEmpty)?;
 		}
 
-		// TODO [ToDr] Confrim that we don't need the add_balance to be on the state diff.
 		self.transact(t, options)
 	}
 
