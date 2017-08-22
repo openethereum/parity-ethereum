@@ -85,7 +85,10 @@ impl<T: ChainDataFetcher> Service<T> {
 			io_service.channel(),
 			cache,
 		).map_err(Error::Database)?);
+
 		io_service.register_handler(Arc::new(ImportBlocks(client.clone()))).map_err(Error::Io)?;
+		spec.engine.register_client(Arc::downgrade(&client) as _);
+
 		Ok(Service {
 			client: client,
 			io_service: io_service,

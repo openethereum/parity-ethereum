@@ -19,11 +19,11 @@
 use std::sync::{Weak, Arc};
 
 use ethcore::block_status::BlockStatus;
-use ethcore::client::{ClientReport, EnvInfo};
-use ethcore::engines::{epoch, Engine, EpochChange, Proof, Unsure};
-use ethcore::error::BlockImportError;
+use ethcore::client::{TransactionImportResult, ClientReport, EnvInfo};
+use ethcore::engines::{epoch, Engine, EpochChange, EpochTransition, Proof, Unsure};
+use ethcore::error::{TransactionError, BlockImportError, Error as EthcoreError};
 use ethcore::ids::BlockId;
-use ethcore::header::Header;
+use ethcore::header::{BlockNumber, Header};
 use ethcore::verification::queue::{self, HeaderQueue};
 use ethcore::blockchain_info::BlockChainInfo;
 use ethcore::spec::Spec;
@@ -33,7 +33,7 @@ use io::IoChannel;
 
 use futures::{IntoFuture, Future};
 
-use util::{H256, U256, Mutex, RwLock};
+use util::{Address, H256, U256, Mutex, RwLock};
 use util::kvdb::{KeyValueDB, CompactionProfile};
 
 use self::fetch::ChainDataFetcher;
@@ -131,7 +131,7 @@ pub trait LightChainClient: Send + Sync {
 	fn cht_root(&self, i: usize) -> Option<H256>;
 
 	/// Get the EIP-86 transition block number.
-	fn eip86_transition(&self) -> u64;
+	fn eip86_transition(&self) -> BlockNumber;
 
 	/// Get a report of import activity since the last call.
 	fn report(&self) -> ClientReport;
@@ -555,7 +555,7 @@ impl<T: ChainDataFetcher> LightChainClient for Client<T> {
 		Box::new(Client::ancestry_iter(self, start))
 	}
 
-	fn signing_network_id(&self) -> Option<u64> {
+	fn signing_network_id(&self) -> Option<BlockNumber> {
 		Client::signing_network_id(self)
 	}
 
@@ -587,11 +587,46 @@ impl<T: ChainDataFetcher> LightChainClient for Client<T> {
 		Client::cht_root(self, i)
 	}
 
-	fn eip86_transition(&self) -> u64 {
+	fn eip86_transition(&self) -> BlockNumber {
 		self.engine().params().eip86_transition
 	}
 
 	fn report(&self) -> ClientReport {
 		Client::report(self)
+	}
+}
+
+impl<T: ChainDataFetcher> ::ethcore::client::EngineClient for Client<T> {
+	fn update_sealing(&self) { }
+	fn submit_seal(&self, _block_hash: H256, _seal: Vec<Vec<u8>>) { }
+	fn broadcast_consensus_message(&self, _message: Vec<u8>) { }
+
+	fn epoch_transition_for(&self, parent_hash: H256) -> Option<EpochTransition> {
+		self.chain.epoch_transition_for(parent_hash).map(|(hdr, proof)| EpochTransition {
+			block_hash: hdr.hash(),
+			block_number: hdr.number(),
+			proof: proof,
+		})
+	}
+
+	fn chain_info(&self) -> BlockChainInfo {
+		Client::chain_info(self)
+	}
+
+	fn call_contract(&self, _id: BlockId, _address: Address, _data: Vec<u8>) -> Result<Vec<u8>, String> {
+		Err("Contract calling not supported by light client".into())
+	}
+
+	fn transact_contract(&self, _address: Address, _data: Vec<u8>)
+		-> Result<TransactionImportResult, EthcoreError>
+	{
+		// TODO: these are only really used for misbehavior reporting.
+		// no relevant clients will be running light clients, but maybe
+		// they could be at some point?
+		Err(TransactionError::LimitReached.into())
+	}
+
+	fn block_number(&self, id: BlockId) -> Option<BlockNumber> {
+		self.block_header(id).map(|hdr| hdr.number())
 	}
 }
