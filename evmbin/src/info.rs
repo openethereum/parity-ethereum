@@ -17,17 +17,16 @@
 //! VM runner.
 
 use std::time::{Instant, Duration};
-use util::U256;
-use ethcore::{trace, spec};
-use ethcore::client::{EvmTestClient, EvmTestError};
-use vm::ActionParams;
+use util::{U256, H256};
+use ethcore::{trace, spec, transaction, pod_state};
+use ethcore::client::{self, EvmTestClient, EvmTestError};
 
 /// VM execution informant
 pub trait Informant: trace::VMTracer {
 	/// Set initial gas.
 	fn set_gas(&mut self, _gas: U256) {}
 	/// Display final result.
-	fn finish(&mut self, result: Result<Success, Failure>);
+	fn finish(result: Result<Success, Failure>);
 }
 
 /// Execution finished correctly
@@ -50,17 +49,43 @@ pub struct Failure {
 	pub time: Duration,
 }
 
+/// Execute given Transaction and verify resulting state root.
+pub fn run_transaction<T: Informant>(
+	spec: spec::Spec,
+	pre_state: &pod_state::PodState,
+	post_root: H256,
+	env_info: &client::EnvInfo,
+	transaction: transaction::SignedTransaction,
+	mut informant: T,
+) {
+	informant.set_gas(env_info.gas_limit);
+	let result = run(spec, env_info.gas_limit, Some(pre_state), |mut client| {
+		let (root, gas, out) = client.transact(env_info, transaction, informant)?;
+		if root != post_root {
+			return Err(EvmTestError::PostCondition(format!(
+				"State root mismatch (got: {}, expected: {})",
+				root,
+				post_root,
+			)));
+		}
+
+		Ok((gas, out))
+	});
+	T::finish(result)
+}
+
 /// Execute VM with given `ActionParams`
-pub fn run<T: trace::VMTracer>(vm_tracer: &mut T, spec: spec::Spec, params: ActionParams) -> Result<Success, Failure> {
-	let mut test_client = EvmTestClient::new(spec).map_err(|error| Failure {
+pub fn run<F>(spec: spec::Spec, initial_gas: U256, pre_state: Option<&pod_state::PodState>,  run: F) -> Result<Success, Failure> where
+	F: FnOnce(EvmTestClient) -> Result<(U256, Vec<u8>), EvmTestError>
+{
+	let test_client = EvmTestClient::with_pre_state(spec, pre_state).map_err(|error| Failure {
 		gas_used: 0.into(),
 		error,
 		time: Duration::from_secs(0)
 	})?;
 
-	let initial_gas = params.gas;
 	let start = Instant::now();
-	let result = test_client.call(params, vm_tracer);
+	let result = run(test_client);
 	let duration = start.elapsed();
 
 	match result {

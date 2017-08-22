@@ -290,7 +290,6 @@ const SEC_TRIE_DB_UNWRAP_STR: &'static str = "A state can only be created with v
 
 impl<B: Backend> State<B> {
 	/// Creates new state with empty state root
-	#[cfg(test)]
 	pub fn new(mut db: B, account_start_nonce: U256, factories: Factories) -> State<B> {
 		let mut root = H256::new();
 		{
@@ -730,8 +729,6 @@ impl<B: Backend> State<B> {
 		Ok(())
 	}
 
-	#[cfg(test)]
-	#[cfg(feature = "json-tests")]
 	/// Populate the state from `accounts`.
 	pub fn populate_from(&mut self, accounts: PodState) {
 		assert!(self.checkpoints.borrow().is_empty());

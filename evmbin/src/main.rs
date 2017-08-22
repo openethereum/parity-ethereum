@@ -17,8 +17,9 @@
 //! Parity EVM interpreter binary.
 
 #![warn(missing_docs)]
-#![allow(dead_code)]
+
 extern crate ethcore;
+extern crate ethjson;
 extern crate rustc_hex;
 extern crate serde;
 #[macro_use]
@@ -31,6 +32,7 @@ extern crate panic_hook;
 
 use std::sync::Arc;
 use std::{fmt, fs};
+use std::path::PathBuf;
 use docopt::Docopt;
 use rustc_hex::FromHex;
 use util::{U256, Bytes, Address};
@@ -47,6 +49,7 @@ EVM implementation for Parity.
   Copyright 2016, 2017 Parity Technologies (UK) Ltd
 
 Usage:
+    parity-evm statetest <file> [--json]
     parity-evm stats [options]
     parity-evm [options]
     parity-evm [-h | --help]
@@ -71,20 +74,65 @@ fn main() {
 
 	let args: Args = Docopt::new(USAGE).and_then(|d| d.deserialize()).unwrap_or_else(|e| e.exit());
 
-	if args.flag_json {
-		run(args, display::json::Informant::default())
+	if args.cmd_statetest {
+		run_state_test(args)
+	} else if args.flag_json {
+		run_transaction(args, display::json::Informant::default())
 	} else {
-		run(args, display::simple::Informant::default())
+		run_transaction(args, display::simple::Informant::default())
 	}
 }
 
-fn run<T: Informant>(args: Args, mut informant: T) {
+fn run_state_test(args: Args) {
+	use ethjson::state::test::{Test, ForkSpec};
+
+	let file = args.arg_file.expect("FILE is required");
+	let mut file = match fs::File::open(&file) {
+		Err(err) => die(format!("Unable to open: {:?}: {}", file, err)),
+		Ok(file) => file,
+	};
+	let state_test = match Test::load(&mut file) {
+		Err(err) => die(format!("Unable to load the test file: {}", err)),
+		Ok(test) => test,
+	};
+
+	for (name, test) in state_test {
+		let multitransaction = test.transaction;
+		let env_info = test.env.into();
+		let pre = test.pre_state.into();
+
+		for (spec, states) in test.post_states {
+			for state in states {
+				let post_root = state.hash.into();
+				let transaction = multitransaction.select(&state.indexes).into();
+
+				let spec = match spec {
+					ForkSpec::Frontier => ethcore::ethereum::new_frontier_test(),
+					ForkSpec::Homestead => ethcore::ethereum::new_homestead_test(),
+					ForkSpec::EIP150 => ethcore::ethereum::new_eip150_test(),
+					ForkSpec::EIP158 => ethcore::ethereum::new_eip161_test(),
+					ForkSpec::Metropolis | ForkSpec::Byzantium | ForkSpec::Constantinople => continue,
+				};
+
+				if args.flag_json {
+					let i = display::json::Informant::default();
+					info::run_transaction(spec, &pre, post_root, &env_info, transaction, i)
+				} else {
+					let i = display::simple::Informant::default();
+					info::run_transaction(spec, &pre, post_root, &env_info, transaction, i)
+				}
+			}
+		}
+	}
+}
+
+fn run_transaction<T: Informant>(args: Args, mut informant: T) {
 	let from = arg(args.from(), "--from");
 	let to = arg(args.to(), "--to");
 	let code = arg(args.code(), "--code");
 	let spec = arg(args.spec(), "--chain");
 	let gas = arg(args.gas(), "--gas");
-	let gas_price = arg(args.gas(), "--gas-price");
+	let gas_price = arg(args.gas_price(), "--gas-price");
 	let data = arg(args.data(), "--input");
 
 	if code.is_none() && to == Address::default() {
@@ -103,13 +151,17 @@ fn run<T: Informant>(args: Args, mut informant: T) {
 	params.data = data;
 
 	informant.set_gas(gas);
-	let result = info::run(&mut informant, spec, params);
-	informant.finish(result);
+	let result = info::run(spec, gas, None, |mut client| {
+		client.call(params, &mut informant)
+	});
+	T::finish(result);
 }
 
 #[derive(Debug, Deserialize)]
 struct Args {
 	cmd_stats: bool,
+	cmd_statetest: bool,
+	arg_file: Option<PathBuf>,
 	flag_from: Option<String>,
 	flag_to: Option<String>,
 	flag_code: Option<String>,

@@ -50,6 +50,7 @@ pub fn json_chain_test(json_data: &[u8]) -> Vec<String> {
 					ForkSpec::Homestead => &HOMESTEAD.engine,
 					ForkSpec::EIP150 => &EIP150.engine,
 					ForkSpec::EIP158 => &EIP161.engine,
+					ForkSpec::Byzantium | ForkSpec::Constantinople => continue,
 					ForkSpec::Metropolis => continue,
 				};
 

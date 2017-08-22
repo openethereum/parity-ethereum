@@ -27,7 +27,7 @@ use info as vm;
 pub struct Informant;
 
 impl vm::Informant for Informant {
-	fn finish(&mut self, result: Result<vm::Success, vm::Failure>) {
+	fn finish(result: Result<vm::Success, vm::Failure>) {
 		match result {
 			Ok(success) => {
 				println!("Output: 0x{}", success.output.to_hex());
