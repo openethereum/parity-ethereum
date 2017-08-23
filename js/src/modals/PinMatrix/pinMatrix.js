@@ -54,7 +54,7 @@ export default class PinMatrix extends Component {
                 values={ {
                   enterPin: (
                     <span>
-                      Please enter the <i>pin</i> for your hardware wallet
+                      Please enter the <i>pin</i> for your { device.manufacturer } hardware wallet
                     </span>
                   )
                 } }

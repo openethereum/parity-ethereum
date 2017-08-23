@@ -360,6 +360,32 @@ export default {
     }
   },
 
+  keepkey: {
+    desc: 'send a trezor device a message',
+    params: [
+      {
+        type: String,
+        desc: 'message type',
+        example: 'get_address'
+      },
+      {
+        type: String,
+        desc: 'path to the device',
+        example: 'USB_2b24_0001_14100000'
+      },
+      {
+        type: String,
+        desc: 'message as a string or JSON string.',
+        example: '1234'
+      }
+    ],
+    returns: {
+      type: String,
+      desc: 'keepkey response message as a string or JSON string.',
+      example: 'PinMatrixRequest'
+    }
+  },
+
   listOpenedVaults: {
     desc: 'Returns a list of all opened vaults',
     params: [],

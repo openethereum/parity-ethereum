@@ -24,7 +24,7 @@ import { Link } from 'react-router';
 import { bindActionCreators } from 'redux';
 
 import HardwareStore from '~/mobx/hardwareStore';
-import { CreateAccount, CreateWallet, ExportAccount } from '~/modals';
+import { CreateAccount, CreateWallet, ExportAccount, PinMatrix } from '~/modals';
 import { Actionbar, ActionbarSearch, ActionbarSort, Button, Page, Tooltip } from '~/ui';
 import { AddIcon, KeyIcon, FileDownloadIcon } from '~/ui/Icons';
 import { setVisibleAccounts } from '~/redux/providers/personalActions';
@@ -96,6 +96,8 @@ class Accounts extends Component {
   }
 
   render () {
+    const { pinMatrixRequest } = this.hwstore;
+
     return (
       <div>
         { this.renderNewDialog() }
@@ -119,6 +121,7 @@ class Accounts extends Component {
           { this.renderWallets() }
           { this.renderAccounts() }
         </Page>
+        { (pinMatrixRequest.length > 0) ? <PinMatrix device={ pinMatrixRequest[0] } store={ this.hwstore } /> : null }
       </div>
     );
   }

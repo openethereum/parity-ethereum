@@ -17,6 +17,7 @@
 import { action, computed, observable, transaction } from 'mobx';
 
 import Ledger from '~/3rdparty/ledger';
+import Trezor from '~/3rdparty/trezor';
 
 const HW_SCAN_INTERVAL = 5000;
 let instance = null;
@@ -24,10 +25,12 @@ let instance = null;
 export default class HardwareStore {
   @observable isScanning = false;
   @observable wallets = {};
+  @observable pinMatrixRequest = [];
 
   constructor (api) {
     this._api = api;
     this._ledger = Ledger.create(api);
+    this._trezor = new Trezor(api);
     this._pollId = null;
 
     this._pollScan();
@@ -49,6 +52,21 @@ export default class HardwareStore {
     this._pollId = setTimeout(() => {
       this.scan().then(this._pollScan);
     }, HW_SCAN_INTERVAL);
+  }
+
+  scanTrezor () {
+    return this._api.parity
+      .trezor('get_devices')
+      .then((message) => {
+        this.pinMatrixRequest = JSON.parse(message).map((path) => {
+          return { path: path, manufacturer: 'Trezor' };
+        });
+        return {};
+      })
+      .catch((err) => {
+        console.warn('HardwareStore::scanTrezor', err);
+        return {};
+      });
   }
 
   scanLedger () {
@@ -110,11 +128,12 @@ export default class HardwareStore {
     return Promise
       .all([
         this.scanParity(),
-        this.scanLedger()
+        this.scanLedger(),
+        this.scanTrezor()
       ])
-      .then(([hwAccounts, ledgerAccounts]) => {
+      .then(([hwAccounts, ledgerAccounts, trezorAccounts]) => {
         transaction(() => {
-          this.setWallets(Object.assign({}, hwAccounts, ledgerAccounts));
+          this.setWallets(Object.assign({}, hwAccounts, ledgerAccounts, trezorAccounts));
           this.setScanning(false);
         });
       });
@@ -145,6 +164,24 @@ export default class HardwareStore {
 
   signLedger (transaction) {
     return this._ledger.signTransaction(transaction);
+  }
+
+  cancelPinMatrix (device) {
+    // TODO: implement this
+    console.log(device);
+  }
+
+  pinMatrixAck (device, passcode) {
+    console.log(device, passcode);
+    return this._api.parity
+      .trezor('pin_matrix_ack', device.path, passcode)
+      .then((message) => {
+        // true/false is returned
+        return JSON.parse(message);
+      })
+      .catch((err) => {
+        return err;
+      });
   }
 
   static get (api) {

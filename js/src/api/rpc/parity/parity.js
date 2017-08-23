@@ -243,6 +243,11 @@ export default class Parity {
       .then(outHwAccountInfo);
   }
 
+  trezor (messageType, address, message) {
+    return this._transport
+      .execute('parity_trezor', messageType, address, message);
+  }
+
   hashContent (url) {
     return this._transport
       .execute('parity_hashContent', url);
