@@ -239,6 +239,10 @@ usage! {
 			"--light",
 			"Experimental: run in light client mode. Light clients synchronize a bare minimum of data and fetch necessary data on-demand from the network. Much lower in storage, potentially higher in bandwidth. Has no effect with subcommands.",
 
+			FLAG flag_force_direct: (bool) = false, or |_| None,
+			"--force-direct",
+			"Run the originally installed version of Parity, ignoring any updates that have since been installed.",
+
 			ARG arg_mode: (String) = "last", or |c: &Config| otry!(c.parity).mode.clone(),
 			"--mode=[MODE]",
 			"Set the operating mode. MODE can be one of:
@@ -692,6 +696,11 @@ usage! {
 			ARG arg_stratum_secret: (Option<String>) = None, or |c: &Config| otry!(c.stratum).secret.clone(),
 			"--stratum-secret=[STRING]",
 			"Secret for authorizing Stratum server for peers.",
+
+		["Internal Options"]
+			FLAG flag_can_restart: (bool) = false, or |_| None,
+			"--can-restart",
+			"Executable will auto-restart if exiting with 69",
 
 		["Miscellaneous options"]
 			FLAG flag_no_color: (bool) = false, or |c: &Config| otry!(c.misc).color.map(|c| !c).clone(),
@@ -1354,6 +1363,7 @@ mod tests {
 			arg_identity: "".into(),
 			flag_light: false,
 			flag_no_persistent_txqueue: false,
+			flag_force_direct: false,
 
 			// -- Convenience Options
 			arg_config: "$BASE/config.toml".into(),
@@ -1545,6 +1555,9 @@ mod tests {
 			arg_dapps_user: Some("test_user".into()),
 			arg_dapps_pass: Some("test_pass".into()),
 			flag_dapps_apis_all: false,
+
+			// -- Internal Options
+			flag_can_restart: false,
 
 			// -- Miscellaneous Options
 			arg_ntp_servers: "0.parity.pool.ntp.org:123,1.parity.pool.ntp.org:123,2.parity.pool.ntp.org:123,3.parity.pool.ntp.org:123".into(),
