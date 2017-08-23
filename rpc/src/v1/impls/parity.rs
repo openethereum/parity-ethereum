@@ -156,6 +156,11 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 		)
 	}
 
+    fn trezor(&self, message_type: String, device_path: Option<String>, message: Option<String>) -> Result<String, Error> {
+        let store = self.account_provider()?;
+        Ok(store.trezor_message(message_type, device_path, message).map_err(|e| errors::account("Error communicating with Trezor.", e))?)
+    }
+
 	fn default_account(&self, meta: Self::Metadata) -> BoxFuture<H160, Error> {
 		let dapp_id = meta.dapp_id();
 		future::ok(
