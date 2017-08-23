@@ -139,6 +139,7 @@ fn compute_timeout(reqs: &Requests) -> Duration {
 			Request::Storage(_) => timeout::PROOF,
 			Request::Code(_) => timeout::CONTRACT_CODE,
 			Request::Execution(_) => timeout::TRANSACTION_PROOF,
+			Request::Signal(_) => timeout::EPOCH_SIGNAL,
 		}
 	}))
 }

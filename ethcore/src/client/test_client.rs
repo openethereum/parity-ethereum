@@ -778,6 +778,10 @@ impl ProvingBlockChainClient for TestBlockChainClient {
 	fn prove_transaction(&self, _: SignedTransaction, _: BlockId) -> Option<(Bytes, Vec<DBValue>)> {
 		None
 	}
+
+	fn epoch_signal(&self, _: H256) -> Option<Vec<u8>> {
+		None
+	}
 }
 
 impl super::traits::EngineClient for TestBlockChainClient {

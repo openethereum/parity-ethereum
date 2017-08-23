@@ -1918,6 +1918,12 @@ impl ProvingBlockChainClient for Client {
 			false,
 		)
 	}
+
+	fn epoch_signal(&self, hash: H256) -> Option<Vec<u8>> {
+		// pending transitions are never deleted, and do not contain
+		// finality proofs by definition.
+		self.chain.read().get_pending_transition(hash).map(|pending| pending.proof)
+	}
 }
 
 impl Drop for Client {

@@ -47,19 +47,19 @@ lazy_static! {
 // state-dependent proofs for the safe contract:
 // only "first" proofs are such.
 struct StateProof {
-	header: Header,
+	header: Mutex<Header>,
 	provider: Provider,
 }
 
 impl ::engines::StateDependentProof for StateProof {
 	fn generate_proof(&self, caller: &Call) -> Result<Vec<u8>, String> {
-		prove_initial(&self.provider, &self.header, caller)
+		prove_initial(&self.provider, &*self.header.lock(), caller)
 	}
 
 	fn check_proof(&self, engine: &Engine, proof: &[u8]) -> Result<(), String> {
 		let (header, state_items) = decode_first_proof(&UntrustedRlp::new(proof))
 			.map_err(|e| format!("proof incorrectly encoded: {}", e))?;
-		if header != self.header {
+		if &header != &*self.header.lock(){
 			return Err("wrong header in proof".into());
 		}
 
@@ -330,11 +330,11 @@ impl ValidatorSet for ValidatorSafeContract {
 		// transition to the first block of a contract requires finality but has no log event.
 		if first {
 			debug!(target: "engine", "signalling transition to fresh contract.");
-			let state_proof = Box::new(StateProof {
-				header: header.clone(),
+			let state_proof = Arc::new(StateProof {
+				header: Mutex::new(header.clone()),
 				provider: self.provider.clone(),
 			});
-			return ::engines::EpochChange::Yes(::engines::Proof::WithState(state_proof as Box<_>));
+			return ::engines::EpochChange::Yes(::engines::Proof::WithState(state_proof as Arc<_>));
 		}
 
 		// otherwise, we're checking for logs.

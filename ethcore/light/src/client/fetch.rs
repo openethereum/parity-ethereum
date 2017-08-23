@@ -16,9 +16,13 @@
 
 //! Trait for fetching chain data.
 
+use std::sync::Arc;
+
+use ethcore::engines::{Engine, StateDependentProof};
 use ethcore::header::Header;
 use ethcore::receipt::Receipt;
 use futures::future::IntoFuture;
+use util::H256;
 
 /// Provides full chain data.
 pub trait ChainDataFetcher: Send + Sync + 'static {
@@ -39,7 +43,7 @@ pub trait ChainDataFetcher: Send + Sync + 'static {
 	fn block_receipts(&self, header: &Header) -> Self::Receipts;
 
 	/// Fetch epoch transition proof at given header.
-	fn epoch_transition(&self, header: &Header) -> Self::Transition;
+	fn epoch_transition(&self, hash: H256, engine: Arc<Engine>, checker: Arc<StateDependentProof>) -> Self::Transition;
 }
 
 /// Fetcher implementation which cannot fetch anything.
@@ -63,7 +67,7 @@ impl ChainDataFetcher for Unavailable {
 		Err("fetching block receipts unavailable")
 	}
 
-	fn epoch_transition(&self, _header: &Header) -> Self::Body {
+	fn epoch_transition(&self, _h: H256, _e: Arc<Engine>, _check: Arc<StateDependentProof>) -> Self::Transition {
 		Err("fetching epoch transition proofs unavailable")
 	}
 }

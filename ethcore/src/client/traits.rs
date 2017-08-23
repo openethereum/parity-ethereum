@@ -353,4 +353,7 @@ pub trait ProvingBlockChainClient: BlockChainClient {
 	/// Returns the output of the call and a vector of database items necessary
 	/// to reproduce it.
 	fn prove_transaction(&self, transaction: SignedTransaction, id: BlockId) -> Option<(Bytes, Vec<DBValue>)>;
+
+	/// Get an epoch change signal by block hash.
+	fn epoch_signal(&self, hash: H256) -> Option<Vec<u8>>;
 }

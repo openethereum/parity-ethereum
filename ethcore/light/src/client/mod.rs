@@ -508,14 +508,11 @@ impl<T: ChainDataFetcher> Client<T> {
 		let proof = match proof {
 			Proof::Known(known) => known,
 			Proof::WithState(state_dependent) => {
-				loop {
-					let proof = self.fetcher.epoch_transition(header).into_future().wait()?;
-					match state_dependent.check_proof(&*self.engine, &proof) {
-						Ok(()) => break proof,
-						Err(e) =>
-							debug!(target: "client", "Fetched bad epoch transition proof from network: {}", e),
-					}
-				}
+				self.fetcher.epoch_transition(
+					header.hash(),
+					self.engine.clone(),
+					state_dependent
+				).into_future().wait()?
 			}
 		};
 

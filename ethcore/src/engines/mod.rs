@@ -121,7 +121,7 @@ pub type Headers<'a> = Fn(H256) -> Option<Header> + 'a;
 pub type PendingTransitionStore<'a> = Fn(H256) -> Option<PendingTransition> + 'a;
 
 /// Proof dependent on state.
-pub trait StateDependentProof {
+pub trait StateDependentProof: Send + Sync {
 	/// Generate a proof, given the state.
 	fn generate_proof(&self, caller: &Call) -> Result<Vec<u8>, String>;
 	/// Check a proof generated elsewhere (potentially by a peer).
@@ -135,7 +135,7 @@ pub enum Proof {
 	/// Known proof (extracted from signal)
 	Known(Vec<u8>),
 	/// State dependent proof.
-	WithState(Box<StateDependentProof>),
+	WithState(Arc<StateDependentProof>),
 }
 
 /// Generated epoch verifier.
