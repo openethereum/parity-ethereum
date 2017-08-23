@@ -20,9 +20,11 @@
 use hidapi;
 use std::fmt;
 use std::cmp::min;
+use std::sync::Arc;
 use std::str::FromStr;
 use std::time::Duration;
 use super::WalletInfo;
+use parking_lot::Mutex;
 use ethkey::{Address, Signature};
 use bigint::hash::H256;
 
@@ -52,7 +54,7 @@ pub enum KeyPath {
 	EthereumClassic,
 }
 
-/// Hardware waller error.
+/// Hardware wallet error.
 #[derive(Debug)]
 pub enum Error {
 	/// Ethereum wallet protocol error.
@@ -84,7 +86,7 @@ impl From<hidapi::HidError> for Error {
 
 /// Ledger device manager.
 pub struct Manager {
-	usb: hidapi::HidApi,
+	usb: Arc<Mutex<hidapi::HidApi>>,
 	devices: Vec<Device>,
 	key_path: KeyPath,
 }
@@ -97,19 +99,19 @@ struct Device {
 
 impl Manager {
 	/// Create a new instance.
-	pub fn new() -> Result<Manager, Error> {
-		let manager = Manager {
-			usb: hidapi::HidApi::new()?,
+	pub fn new(hidapi: Arc<Mutex<hidapi::HidApi>>) -> Manager {
+		Manager {
+			usb: hidapi,
 			devices: Vec::new(),
 			key_path: KeyPath::Ethereum,
-		};
-		Ok(manager)
+		}
 	}
 
 	/// Re-populate device list. Only those devices that have Ethereum app open will be added.
 	pub fn update_devices(&mut self) -> Result<usize, Error> {
-		self.usb.refresh_devices();
-		let devices = self.usb.devices();
+        let mut usb = self.usb.lock();
+		usb.refresh_devices();
+		let devices = usb.devices();
 		let mut new_devices = Vec::new();
 		let mut num_new_devices = 0;
 		for device in devices {
@@ -139,7 +141,8 @@ impl Manager {
 	}
 
 	fn read_device_info(&self, dev_info: &hidapi::HidDeviceInfo) -> Result<Device, Error> {
-		let mut handle = self.open_path(&dev_info.path)?;
+        let usb = self.usb.lock();
+		let mut handle = self.open_path(|| usb.open_path(&dev_info.path))?;
 		let address = Self::read_wallet_address(&mut handle, self.key_path)?;
 		let manufacturer = dev_info.manufacturer_string.clone().unwrap_or("Unknown".to_owned());
 		let name = dev_info.product_string.clone().unwrap_or("Unknown".to_owned());
@@ -200,7 +203,8 @@ impl Manager {
 		let device = self.devices.iter().find(|d| &d.info.address == address)
 			.ok_or(Error::KeyNotFound)?;
 
-		let handle = self.open_path(&device.path)?;
+        let usb = self.usb.lock();
+		let mut handle = self.open_path(|| usb.open_path(&device.path))?;
 
 		let eth_path = &ETH_DERIVATION_PATH_BE[..];
 		let etc_path = &ETC_DERIVATION_PATH_BE[..];
@@ -236,11 +240,12 @@ impl Manager {
 		Ok(Signature::from_rsv(&r, &s, v))
 	}
 
-	fn open_path(&self, path: &str) -> Result<hidapi::HidDevice, Error> {
+    fn open_path<R, F>(&self, f: F) -> Result<R, Error>
+    where F: Fn() -> Result<R, &'static str> {
 		let mut err = Error::KeyNotFound;
 		/// Try to open device a few times.
 		for _ in 0..10 {
-			match self.usb.open_path(&path) {
+			match f() {
 				Ok(handle) => return Ok(handle),
 				Err(e) => err = From::from(e),
 			}
@@ -341,7 +346,8 @@ impl Manager {
 #[test]
 fn smoke() {
 	use rustc_hex::FromHex;
-	let mut manager = Manager::new().unwrap();
+    let hidapi = Arc::new(Mutex::new(hidapi::HidApi::new().unwrap()));
+	let mut manager = Manager::new(hidapi.clone());
 	manager.update_devices().unwrap();
 	for d in &manager.devices {
 		println!("Device: {:?}", d);

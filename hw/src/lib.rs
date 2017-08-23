@@ -16,15 +16,21 @@
 
 //! Hardware wallet management.
 
+extern crate rlp;
 extern crate parking_lot;
+extern crate protobuf;
 extern crate hidapi;
 extern crate libusb;
+extern crate serde_json;
 extern crate ethkey;
+extern crate ethcore_util as util;
 extern crate ethcore_bigint as bigint;
+#[macro_use] extern crate serde_derive;
 #[macro_use] extern crate log;
 #[cfg(test)] extern crate rustc_hex;
 
 mod ledger;
+mod trezor;
 
 use std::fmt;
 use std::thread;
@@ -33,22 +39,37 @@ use std::sync::{Arc, Weak};
 use std::sync::atomic::AtomicBool;
 use std::time::Duration;
 use parking_lot::Mutex;
+use util::{Bytes, U256};
 use ethkey::{Address, Signature};
 
 pub use ledger::KeyPath;
 
-/// Hardware waller error.
+/// Hardware wallet error.
 #[derive(Debug)]
 pub enum Error {
 	/// Ledger device error.
 	LedgerDevice(ledger::Error),
+	TrezorDevice(trezor::Error),
 	/// USB error.
 	Usb(libusb::Error),
 	/// Hardware wallet not found for specified key.
 	KeyNotFound,
 }
 
-/// Hardware waller information.
+/// This is the transaction info we need to supply to Trezor message. It's more
+/// or less a duplicate of ethcore::transaction::Transaction, but we can't
+/// import ethcore here as that would be a circular dependency.
+#[derive(Debug)]
+pub struct TransactionInfo {
+    pub nonce: U256,
+    pub gas_price: U256,
+    pub gas_limit: U256,
+    pub to: Option<Address>,
+    pub value: U256,
+    pub data: Bytes,
+}
+
+/// Hardware wallet information.
 #[derive(Debug, Clone)]
 pub struct WalletInfo {
 	/// Wallet device name.
@@ -66,6 +87,7 @@ impl fmt::Display for Error {
 		match *self {
 			Error::KeyNotFound => write!(f, "Key not found for given address."),
 			Error::LedgerDevice(ref e) => write!(f, "{}", e),
+			Error::TrezorDevice(ref e) => write!(f, "{}", e),
 			Error::Usb(ref e) => write!(f, "{}", e),
 		}
 	}
@@ -80,9 +102,24 @@ impl From<ledger::Error> for Error {
 	}
 }
 
+impl From<trezor::Error> for Error {
+	fn from(err: trezor::Error) -> Error {
+		match err {
+			trezor::Error::KeyNotFound => Error::KeyNotFound,
+			_ => Error::TrezorDevice(err),
+		}
+	}
+}
+
 impl From<libusb::Error> for Error {
 	fn from(err: libusb::Error) -> Error {
 		Error::Usb(err)
+	}
+}
+
+impl From<&'static str> for Error {
+	fn from(err: &str) -> Error {
+		Error::KeyNotFound
 	}
 }
 
@@ -91,10 +128,12 @@ pub struct HardwareWalletManager {
 	update_thread: Option<thread::JoinHandle<()>>,
 	exiting: Arc<AtomicBool>,
 	ledger: Arc<Mutex<ledger::Manager>>,
+	trezor: Arc<Mutex<trezor::Manager>>,
 }
 
 struct EventHandler {
 	ledger: Weak<Mutex<ledger::Manager>>,
+	trezor: Weak<Mutex<trezor::Manager>>,
 }
 
 impl libusb::Hotplug for EventHandler {
@@ -112,6 +151,18 @@ impl libusb::Hotplug for EventHandler {
 				thread::sleep(Duration::from_millis(200));
 			}
 		}
+		if let Some(t) = self.trezor.upgrade() {
+			for _ in 0..10 {
+				// The device might not be visible right away. Try a few times.
+				if t.lock().update_devices().unwrap_or_else(|e| {
+					debug!("Error enumerating Ledger devices: {}", e);
+					0
+				}) > 0 {
+					break;
+				}
+				thread::sleep(Duration::from_millis(200));
+			}
+		}
 	}
 
 	fn device_left(&mut self, _device: libusb::Device) {
@@ -121,20 +172,31 @@ impl libusb::Hotplug for EventHandler {
 				debug!("Error enumerating Ledger devices: {}", e);
 			}
 		}
+		if let Some(t) = self.trezor.upgrade() {
+			if let Err(e) = t.lock().update_devices() {
+				debug!("Error enumerating Ledger devices: {}", e);
+			}
+		}
 	}
 }
 
 impl HardwareWalletManager {
 	pub fn new() -> Result<HardwareWalletManager, Error> {
 		let usb_context = Arc::new(libusb::Context::new()?);
-		let ledger = Arc::new(Mutex::new(ledger::Manager::new()?));
-		usb_context.register_callback(None, None, None, Box::new(EventHandler { ledger: Arc::downgrade(&ledger) }))?;
+        let hidapi = Arc::new(Mutex::new(hidapi::HidApi::new()?));
+		let ledger = Arc::new(Mutex::new(ledger::Manager::new(hidapi.clone())));
+		let trezor = Arc::new(Mutex::new(trezor::Manager::new(hidapi.clone())));
+		usb_context.register_callback(None, None, None, Box::new(EventHandler { ledger: Arc::downgrade(&ledger), trezor: Arc::downgrade(&trezor) }))?;
 		let exiting = Arc::new(AtomicBool::new(false));
 		let thread_exiting = exiting.clone();
 		let l = ledger.clone();
+		let t = trezor.clone();
 		let thread = thread::Builder::new().name("hw_wallet".to_string()).spawn(move || {
 			if let Err(e) = l.lock().update_devices() {
 				debug!("Error updating ledger devices: {}", e);
+			}
+			if let Err(e) = t.lock().update_devices() {
+				debug!("Error updating trezor devices: {}", e);
 			}
 			loop {
 				usb_context.handle_events(Some(Duration::from_millis(500))).unwrap_or_else(|e| debug!("Error processing USB events: {}", e));
@@ -147,28 +209,50 @@ impl HardwareWalletManager {
 			update_thread: thread,
 			exiting: exiting,
 			ledger: ledger,
+			trezor: trezor,
 		})
 	}
 
 	/// Select key derivation path for a chain.
 	pub fn set_key_path(&self, key_path: KeyPath) {
 		self.ledger.lock().set_key_path(key_path);
+		//self.trezor.lock().set_key_path(key_path);
 	}
 
 
 	/// List connected wallets. This only returns wallets that are ready to be used.
 	pub fn list_wallets(&self) -> Vec<WalletInfo> {
-		self.ledger.lock().list_devices()
+		let mut ledger_wallets = self.ledger.lock().list_devices();
+		let mut trezor_wallets = self.trezor.lock().list_devices();
+        ledger_wallets.append(&mut trezor_wallets);
+        ledger_wallets
 	}
 
 	/// Get connected wallet info.
 	pub fn wallet_info(&self, address: &Address) -> Option<WalletInfo> {
-		self.ledger.lock().device_info(address)
+		if let Some(info) = self.ledger.lock().device_info(address) {
+            Some(info)
+        } else {
+            self.trezor.lock().device_info(address)
+        }
 	}
 
 	/// Sign transaction data with wallet managing `address`.
-	pub fn sign_transaction(&self, address: &Address, data: &[u8]) -> Result<Signature, Error> {
-		Ok(self.ledger.lock().sign_transaction(address, data)?)
+	pub fn sign_transaction(&self, address: &Address, t_info: &TransactionInfo, encoded_transaction: &[u8]) -> Result<Signature, Error> {
+		if self.ledger.lock().device_info(address).is_some() {
+            Ok(self.ledger.lock().sign_transaction(address, encoded_transaction)?)
+        } else if self.trezor.lock().device_info(address).is_some() {
+            Ok(self.trezor.lock().sign_transaction(address, t_info)?)
+        } else {
+            Err(Error::KeyNotFound)
+        }
+	}
+
+    /// Communicate with trezor hardware wallet
+	pub fn trezor_message(&self, message_type: String, path: Option<String>, message: Option<String>) -> Result<String, Error> {
+        let mut t = self.trezor.lock();
+        t.update_devices();
+		Ok(t.message(message_type, path, message)?)
 	}
 }
 
