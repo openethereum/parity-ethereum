@@ -467,7 +467,7 @@ impl Ord for DecryptionSessionId {
 mod tests {
 	use std::sync::Arc;
 	use std::collections::BTreeMap;
-	use super::super::super::acl_storage::tests::DummyAclStorage;
+	use acl_storage::DummyAclStorage;
 	use ethkey::{self, KeyPair, Random, Generator, Public, Secret};
 	use key_server_cluster::{NodeId, DocumentKeyShare, SessionId, Error, EncryptedDocumentKeyShadow, SessionMeta};
 	use key_server_cluster::cluster::tests::DummyCluster;

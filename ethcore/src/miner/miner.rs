@@ -1306,10 +1306,10 @@ mod tests {
 	}
 
 	fn transaction() -> SignedTransaction {
-		transaction_with_network_id(2)
+		transaction_with_chain_id(2)
 	}
 
-	fn transaction_with_network_id(id: u64) -> SignedTransaction {
+	fn transaction_with_chain_id(chain_id: u64) -> SignedTransaction {
 		let keypair = Random.generate().unwrap();
 		Transaction {
 			action: Action::Create,
@@ -1318,7 +1318,7 @@ mod tests {
 			gas: U256::from(100_000),
 			gas_price: U256::zero(),
 			nonce: U256::zero(),
-		}.sign(keypair.secret(), Some(id))
+		}.sign(keypair.secret(), Some(chain_id))
 	}
 
 	#[test]
@@ -1399,14 +1399,14 @@ mod tests {
 
 		let client = generate_dummy_client(2);
 
-		assert_eq!(miner.import_external_transactions(&*client, vec![transaction_with_network_id(spec.network_id()).into()]).pop().unwrap().unwrap(), TransactionImportResult::Current);
+		assert_eq!(miner.import_external_transactions(&*client, vec![transaction_with_chain_id(spec.chain_id()).into()]).pop().unwrap().unwrap(), TransactionImportResult::Current);
 
 		miner.update_sealing(&*client);
 		client.flush_queue();
 		assert!(miner.pending_block(0).is_none());
 		assert_eq!(client.chain_info().best_block_number, 3 as BlockNumber);
 
-		assert_eq!(miner.import_own_transaction(&*client, PendingTransaction::new(transaction_with_network_id(spec.network_id()).into(), None)).unwrap(), TransactionImportResult::Current);
+		assert_eq!(miner.import_own_transaction(&*client, PendingTransaction::new(transaction_with_chain_id(spec.chain_id()).into(), None)).unwrap(), TransactionImportResult::Current);
 
 		miner.update_sealing(&*client);
 		client.flush_queue();

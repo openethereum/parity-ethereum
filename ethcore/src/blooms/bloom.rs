@@ -15,12 +15,11 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use bloomchain as bc;
-use rlp::*;
 use util::HeapSizeOf;
 use basic_types::LogBloom;
 
 /// Helper structure representing bloom of the trace.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, RlpEncodableWrapper, RlpDecodableWrapper)]
 pub struct Bloom(LogBloom);
 
 impl From<LogBloom> for Bloom {
@@ -40,18 +39,6 @@ impl Into<bc::Bloom> for Bloom {
 	fn into(self) -> bc::Bloom {
 		let log = self.0;
 		bc::Bloom::from(log.0)
-	}
-}
-
-impl Decodable for Bloom {
-	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
-		LogBloom::decode(rlp).map(Bloom)
-	}
-}
-
-impl Encodable for Bloom {
-	fn rlp_append(&self, s: &mut RlpStream) {
-		Encodable::rlp_append(&self.0, s)
 	}
 }
 

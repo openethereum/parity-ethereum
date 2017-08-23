@@ -25,12 +25,12 @@ use vm::CallType;
 
 use jsonrpc_core::IoHandler;
 use v1::tests::helpers::{TestMinerService};
-use v1::{Traces, TracesClient};
+use v1::{Metadata, Traces, TracesClient};
 
 struct Tester {
 	client: Arc<TestBlockChainClient>,
 	_miner: Arc<TestMinerService>,
-	io: IoHandler,
+	io: IoHandler<Metadata>,
 }
 
 fn io() -> Tester {
@@ -67,7 +67,7 @@ fn io() -> Tester {
 	}));
 	let miner = Arc::new(TestMinerService::default());
 	let traces = TracesClient::new(&client, &miner);
-	let mut io = IoHandler::new();
+	let mut io = IoHandler::default();
 	io.extend_with(traces.to_delegate());
 
 	Tester {

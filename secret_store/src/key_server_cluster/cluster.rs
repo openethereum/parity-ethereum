@@ -262,7 +262,7 @@ impl ClusterCore {
 	fn connect_future(handle: &Handle, data: Arc<ClusterData>, node_address: SocketAddr) -> BoxedEmptyFuture {
 		let disconnected_nodes = data.connections.disconnected_nodes().keys().cloned().collect();
 		net_connect(&node_address, handle, data.self_key_pair.clone(), disconnected_nodes)
-			.then(move |result| ClusterCore::process_connection_result(data, false, result))
+			.then(move |result| ClusterCore::process_connection_result(data, Some(node_address), result))
 			.then(|_| finished(()))
 			.boxed()
 	}
@@ -290,7 +290,7 @@ impl ClusterCore {
 	/// Accept connection future.
 	fn accept_connection_future(handle: &Handle, data: Arc<ClusterData>, stream: TcpStream, node_address: SocketAddr) -> BoxedEmptyFuture {
 		net_accept_connection(node_address, stream, handle, data.self_key_pair.clone())
-			.then(move |result| ClusterCore::process_connection_result(data, true, result))
+			.then(move |result| ClusterCore::process_connection_result(data, None, result))
 			.then(|_| finished(()))
 			.boxed()
 	}
@@ -370,10 +370,10 @@ impl ClusterCore {
 	}
 
 	/// Process connection future result.
-	fn process_connection_result(data: Arc<ClusterData>, is_inbound: bool, result: Result<DeadlineStatus<Result<NetConnection, Error>>, io::Error>) -> IoFuture<Result<(), Error>> {
+	fn process_connection_result(data: Arc<ClusterData>, outbound_addr: Option<SocketAddr>, result: Result<DeadlineStatus<Result<NetConnection, Error>>, io::Error>) -> IoFuture<Result<(), Error>> {
 		match result {
 			Ok(DeadlineStatus::Meet(Ok(connection))) => {
-				let connection = Connection::new(is_inbound, connection);
+				let connection = Connection::new(outbound_addr.is_none(), connection);
 				if data.connections.insert(connection.clone()) {
 					ClusterCore::process_connection_messages(data.clone(), connection)
 				} else {
@@ -381,15 +381,21 @@ impl ClusterCore {
 				}
 			},
 			Ok(DeadlineStatus::Meet(Err(err))) => {
-				warn!(target: "secretstore_net", "{}: protocol error {} when establishind connection", data.self_key_pair.public(), err);
+				warn!(target: "secretstore_net", "{}: protocol error {} when establishing {} connection{}",
+					data.self_key_pair.public(), err, if outbound_addr.is_some() { "outbound" } else { "inbound" },
+					outbound_addr.map(|a| format!(" with {}", a)).unwrap_or_default());
 				finished(Ok(())).boxed()
 			},
 			Ok(DeadlineStatus::Timeout) => {
-				warn!(target: "secretstore_net", "{}: timeout when establishind connection", data.self_key_pair.public());
+				warn!(target: "secretstore_net", "{}: timeout when establishing {} connection{}",
+					data.self_key_pair.public(), if outbound_addr.is_some() { "outbound" } else { "inbound" },
+					outbound_addr.map(|a| format!(" with {}", a)).unwrap_or_default());
 				finished(Ok(())).boxed()
 			},
 			Err(err) => {
-				warn!(target: "secretstore_net", "{}: network error {} when establishind connection", data.self_key_pair.public(), err);
+				warn!(target: "secretstore_net", "{}: network error {} when establishing {} connection{}",
+					data.self_key_pair.public(), err, if outbound_addr.is_some() { "outbound" } else { "inbound" },
+					outbound_addr.map(|a| format!(" with {}", a)).unwrap_or_default());
 				finished(Ok(())).boxed()
 			},
 		}

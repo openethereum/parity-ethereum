@@ -403,7 +403,7 @@ export default {
             condition: {
               block: 1
             },
-            networkId: null,
+            chainId: null,
             nonce: '0x0',
             publicKey: '0x3fa8c08c65a83f6b4ea3e04e1cc70cbe3cd391499e3e05ab7dedf28aff9afc538200ff93e3f2b2cb5029f03c7ebee820d63a4c5a9541c83acebe293f54cacf0e',
             raw: '0xf868808502d20cff33830e57e09400a289b43e1e4825dbedf2a78ba60a640634dc40830fffff801ca034c333b0b91cd832a3414d628e3fea29a00055cebf5ba59f7038c188404c0cf3a0524fd9b35be170439b5ffe89694ae0cfc553cb49d1d8b643239e353351531532',
@@ -626,7 +626,7 @@ export default {
           condition: {
             block: 1
           },
-          networkId: 1,
+          chainId: 1,
           nonce: '0x5',
           publicKey: '0x96157302dade55a1178581333e57d60ffe6fdf5a99607890456a578b4e6b60e335037d61ed58aa4180f9fd747dc50d44a7924aa026acbfb988b5062b629d6c36',
           r: '0x92e8beb19af2bad0511d516a86e77fa73004c0811b2173657a55797bdf8558e1',
@@ -688,7 +688,7 @@ export default {
           condition: {
             block: 1
           },
-          networkId: 1,
+          chainId: 1,
           nonce: '0x5',
           publicKey: '0x96157302dade55a1178581333e57d60ffe6fdf5a99607890456a578b4e6b60e335037d61ed58aa4180f9fd747dc50d44a7924aa026acbfb988b5062b629d6c36',
           r: '0x92e8beb19af2bad0511d516a86e77fa73004c0811b2173657a55797bdf8558e1',
@@ -980,7 +980,7 @@ export default {
           creates: null,
           raw: '0xf86c018504a817c80082520894f5d405530dabfbd0c1cab7a5812f008aa5559adf882efc004ac03a49968025a0b40c6967a7e8bbdfd99a25fd306b9ef23b80e719514aeb7ddd19e2303d6fc139a06bf770ab08119e67dc29817e1412a0e3086f43da308c314db1b3bca9fb6d32bd',
           publicKey: '0xeba33fd74f06236e17475bc5b6d1bac718eac048350d77d3fc8fbcbd85782a57c821255623c4fd1ebc9d555d07df453b2579ee557b7203fc256ca3b3401e4027',
-          networkId: 1,
+          chainId: 1,
           standardV: '0x0',
           v: '0x25',
           r: '0xb40c6967a7e8bbdfd99a25fd306b9ef23b80e719514aeb7ddd19e2303d6fc139',

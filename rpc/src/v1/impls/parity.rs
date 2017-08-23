@@ -406,11 +406,11 @@ impl<C, M, U> Parity for ParityClient<C, M, U> where
 		ipfs::cid(content)
 	}
 
-	fn call(&self, requests: Vec<CallRequest>, block: Trailing<BlockNumber>) -> BoxFuture<Vec<Bytes>, Error> {
+	fn call(&self, meta: Self::Metadata, requests: Vec<CallRequest>, block: Trailing<BlockNumber>) -> BoxFuture<Vec<Bytes>, Error> {
 		let requests: Result<Vec<(SignedTransaction, _)>, Error> = requests
 			.into_iter()
 			.map(|request| Ok((
-				fake_sign::sign_call(&self.client, &self.miner, request.into())?,
+				fake_sign::sign_call(&self.client, &self.miner, request.into(), meta.is_dapp())?,
 				Default::default()
 			)))
 			.collect();

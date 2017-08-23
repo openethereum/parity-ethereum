@@ -19,7 +19,6 @@
 use std::ops::Deref;
 use util::{H256, Address, Bytes, HeapSizeOf, Hashable};
 use bloomable::Bloomable;
-use rlp::*;
 
 use {BlockNumber};
 use ethjson;
@@ -27,7 +26,7 @@ use ethjson;
 pub type LogBloom = ::util::H2048;
 
 /// A record of execution for a `LOG` operation.
-#[derive(Default, Debug, Clone, PartialEq, Eq)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, RlpEncodable, RlpDecodable)]
 pub struct LogEntry {
 	/// The address of the contract executing at the point of the `LOG` operation.
 	pub address: Address,
@@ -35,26 +34,6 @@ pub struct LogEntry {
 	pub topics: Vec<H256>,
 	/// The data associated with the `LOG` operation.
 	pub data: Bytes,
-}
-
-impl Encodable for LogEntry {
-	fn rlp_append(&self, s: &mut RlpStream) {
-		s.begin_list(3);
-		s.append(&self.address);
-		s.append_list(&self.topics);
-		s.append(&self.data);
-	}
-}
-
-impl Decodable for LogEntry {
-	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
-		let entry = LogEntry {
-			address: rlp.val_at(0)?,
-			topics: rlp.list_at(1)?,
-			data: rlp.val_at(2)?,
-		};
-		Ok(entry)
-	}
 }
 
 impl HeapSizeOf for LogEntry {
