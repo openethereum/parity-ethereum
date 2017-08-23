@@ -3,12 +3,15 @@
 Parity 1.7.1 is a bug-fix release to improve performance and stability. Among others, it addresses the following issues:
 
 - Fixed issues with the health status indicator in the wallet.
-- Added support for the ConsenSys multi-sig wallet.
-- Fixes to the Chrome extension.
-- Fixed macOS installer upgrades.
+- Tweaked warp-sync to quickly catch up with chains fallen back more than 10,000 blocks.
+- Added support for the ConsenSys multi-signature wallet.
+- Fixes to the Chrome extension and macOS installer upgrades.
 
 Full list of included changes:
 
+- Backporting [#6352](https://github.com/paritytech/parity/pull/6352)
+  - Better check the created accounts before showing Startup Wizard [#6331](https://github.com/paritytech/parity/pull/6331)
+  - Tweaked snapshot params [#6344](https://github.com/paritytech/parity/pull/6344)
 - Increase default gas limit for eth_call [#6337](https://github.com/paritytech/parity/pull/6337)
   - Fix balance increase.
   - Cap gas limit for dapp-originating requests.
