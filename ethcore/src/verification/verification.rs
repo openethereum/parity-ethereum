@@ -21,6 +21,7 @@
 //! 2. Signatures verification done in the queue.
 //! 3. Final verification against the blockchain done before enactment.
 
+use std::collections::HashSet;
 use util::*;
 use engines::Engine;
 use error::{BlockError, Error};
@@ -264,6 +265,7 @@ fn verify_block_integrity(block: &[u8], transactions_root: &H256, uncles_hash: &
 
 #[cfg(test)]
 mod tests {
+	use std::collections::{BTreeMap, HashMap};
 	use util::*;
 	use ethkey::{Random, Generator};
 	use header::*;

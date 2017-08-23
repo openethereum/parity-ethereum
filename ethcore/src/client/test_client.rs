@@ -17,6 +17,10 @@
 //! Test client.
 
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrder};
+use std::sync::Arc;
+use std::collections::{HashMap, BTreeMap};
+use std::mem;
+use itertools::Itertools;
 use rustc_hex::FromHex;
 use util::*;
 use rlp::*;
@@ -36,7 +40,8 @@ use log_entry::LocalizedLogEntry;
 use receipt::{Receipt, LocalizedReceipt};
 use blockchain::extras::BlockReceipts;
 use error::{ImportResult, Error as EthcoreError};
-use evm::{Factory as EvmFactory, VMType, Schedule};
+use evm::{Factory as EvmFactory, VMType};
+use vm::Schedule;
 use miner::{Miner, MinerService, TransactionImportResult};
 use spec::Spec;
 use types::basic_account::BasicAccount;
@@ -397,8 +402,16 @@ impl MiningBlockChainClient for TestBlockChainClient {
 }
 
 impl BlockChainClient for TestBlockChainClient {
-	fn call(&self, _t: &SignedTransaction, _block: BlockId, _analytics: CallAnalytics) -> Result<Executed, CallError> {
+	fn call(&self, _t: &SignedTransaction, _analytics: CallAnalytics, _block: BlockId) -> Result<Executed, CallError> {
 		self.execution_result.read().clone().unwrap()
+	}
+
+	fn call_many(&self, txs: &[(SignedTransaction, CallAnalytics)], block: BlockId) -> Result<Vec<Executed>, CallError> {
+		let mut res = Vec::with_capacity(txs.len());
+		for &(ref tx, analytics) in txs {
+			res.push(self.call(tx, analytics, block)?);
+		}
+		Ok(res)
 	}
 
 	fn estimate_gas(&self, _t: &SignedTransaction, _block: BlockId) -> Result<U256, CallError> {
@@ -419,7 +432,7 @@ impl BlockChainClient for TestBlockChainClient {
 
 	fn nonce(&self, address: &Address, id: BlockId) -> Option<U256> {
 		match id {
-			BlockId::Latest => Some(self.nonces.read().get(address).cloned().unwrap_or(self.spec.params().account_start_nonce)),
+			BlockId::Latest | BlockId::Pending => Some(self.nonces.read().get(address).cloned().unwrap_or(self.spec.params().account_start_nonce)),
 			_ => None,
 		}
 	}
@@ -434,16 +447,15 @@ impl BlockChainClient for TestBlockChainClient {
 
 	fn code(&self, address: &Address, id: BlockId) -> Option<Option<Bytes>> {
 		match id {
-			BlockId::Latest => Some(self.code.read().get(address).cloned()),
+			BlockId::Latest | BlockId::Pending => Some(self.code.read().get(address).cloned()),
 			_ => None,
 		}
 	}
 
 	fn balance(&self, address: &Address, id: BlockId) -> Option<U256> {
-		if let BlockId::Latest = id {
-			Some(self.balances.read().get(address).cloned().unwrap_or_else(U256::zero))
-		} else {
-			None
+		match id {
+			BlockId::Latest | BlockId::Pending => Some(self.balances.read().get(address).cloned().unwrap_or_else(U256::zero)),
+			_ => None,
 		}
 	}
 
@@ -452,10 +464,9 @@ impl BlockChainClient for TestBlockChainClient {
 	}
 
 	fn storage_at(&self, address: &Address, position: &H256, id: BlockId) -> Option<H256> {
-		if let BlockId::Latest = id {
-			Some(self.storage.read().get(&(address.clone(), position.clone())).cloned().unwrap_or_else(H256::new))
-		} else {
-			None
+		match id {
+			BlockId::Latest | BlockId::Pending => Some(self.storage.read().get(&(address.clone(), position.clone())).cloned().unwrap_or_else(H256::new)),
+			_ => None,
 		}
 	}
 
@@ -544,7 +555,8 @@ impl BlockChainClient for TestBlockChainClient {
 		match id {
 			BlockId::Number(number) if (number as usize) < self.blocks.read().len() => BlockStatus::InChain,
 			BlockId::Hash(ref hash) if self.blocks.read().get(hash).is_some() => BlockStatus::InChain,
-			BlockId::Latest | BlockId::Pending | BlockId::Earliest => BlockStatus::InChain,
+			BlockId::Latest | BlockId::Earliest => BlockStatus::InChain,
+			BlockId::Pending => BlockStatus::Pending,
 			_ => BlockStatus::Unknown,
 		}
 	}
@@ -722,7 +734,7 @@ impl BlockChainClient for TestBlockChainClient {
 		self.miner.ready_transactions(info.best_block_number, info.best_block_timestamp)
 	}
 
-	fn signing_network_id(&self) -> Option<u64> { None }
+	fn signing_chain_id(&self) -> Option<u64> { None }
 
 	fn mode(&self) -> Mode { Mode::Active }
 
@@ -753,9 +765,9 @@ impl BlockChainClient for TestBlockChainClient {
 			value: U256::default(),
 			data: data,
 		};
-		let network_id = Some(self.spec.params().network_id);
-		let sig = self.spec.engine.sign(transaction.hash(network_id)).unwrap();
-		let signed = SignedTransaction::new(transaction.with_signature(sig, network_id)).unwrap();
+		let chain_id = Some(self.spec.chain_id());
+		let sig = self.spec.engine.sign(transaction.hash(chain_id)).unwrap();
+		let signed = SignedTransaction::new(transaction.with_signature(sig, chain_id)).unwrap();
 		self.miner.import_own_transaction(self, signed.into())
 	}
 

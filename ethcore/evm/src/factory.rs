@@ -17,7 +17,7 @@
 //! Evm factory.
 //!
 use std::sync::Arc;
-use evm::Evm;
+use vm::Vm;
 use util::U256;
 use super::interpreter::SharedCache;
 use super::vmtype::VMType;
@@ -33,7 +33,7 @@ impl Factory {
 	/// Create fresh instance of VM
 	/// Might choose implementation depending on supplied gas.
 	#[cfg(feature = "jit")]
-	pub fn create(&self, gas: U256) -> Box<Evm> {
+	pub fn create(&self, gas: U256) -> Box<Vm> {
 		match self.evm {
 			VMType::Jit => {
 				Box::new(super::jit::JitEvm::default())
@@ -49,7 +49,7 @@ impl Factory {
 	/// Create fresh instance of VM
 	/// Might choose implementation depending on supplied gas.
 	#[cfg(not(feature = "jit"))]
-	pub fn create(&self, gas: U256) -> Box<Evm> {
+	pub fn create(&self, gas: U256) -> Box<Vm> {
 		match self.evm {
 			VMType::Interpreter => if Self::can_fit_in_usize(gas) {
 				Box::new(super::interpreter::Interpreter::<usize>::new(self.evm_cache.clone()))

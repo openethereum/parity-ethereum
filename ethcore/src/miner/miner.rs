@@ -15,12 +15,14 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::time::{Instant, Duration};
+use std::collections::{BTreeMap, HashSet};
+use std::sync::Arc;
 
 use util::*;
-use util::using_queue::{UsingQueue, GetAction};
+use using_queue::{UsingQueue, GetAction};
 use account_provider::{AccountProvider, SignError as AccountError};
-use state::{State, CleanupMode};
-use client::{MiningBlockChainClient, Executive, Executed, EnvInfo, TransactOptions, BlockId, CallAnalytics, TransactionId};
+use state::State;
+use client::{MiningBlockChainClient, BlockId, TransactionId};
 use client::TransactionImportResult;
 use executive::contract_address;
 use block::{ClosedBlock, IsBlock, Block};
@@ -37,7 +39,7 @@ use miner::local_transactions::{Status as LocalTransactionStatus};
 use miner::service_transaction_checker::ServiceTransactionChecker;
 use price_info::{Client as PriceInfoClient, PriceInfo};
 use price_info::fetch::Client as FetchClient;
-use header::BlockNumber;
+use header::{Header, BlockNumber};
 
 /// Different possible definitions for pending transaction set.
 #[derive(Debug, PartialEq)]
@@ -329,13 +331,28 @@ impl Miner {
 	}
 
 	/// Get `Some` `clone()` of the current pending block's state or `None` if we're not sealing.
-	pub fn pending_state(&self) -> Option<State<::state_db::StateDB>> {
-		self.sealing_work.lock().queue.peek_last_ref().map(|b| b.block().fields().state.clone())
+	pub fn pending_state(&self, latest_block_number: BlockNumber) -> Option<State<::state_db::StateDB>> {
+		self.map_pending_block(|b| b.state().clone(), latest_block_number)
 	}
 
 	/// Get `Some` `clone()` of the current pending block or `None` if we're not sealing.
-	pub fn pending_block(&self) -> Option<Block> {
-		self.sealing_work.lock().queue.peek_last_ref().map(|b| b.to_base())
+	pub fn pending_block(&self, latest_block_number: BlockNumber) -> Option<Block> {
+		self.map_pending_block(|b| b.to_base(), latest_block_number)
+	}
+
+	/// Get `Some` `clone()` of the current pending block header or `None` if we're not sealing.
+	pub fn pending_block_header(&self, latest_block_number: BlockNumber) -> Option<Header> {
+		self.map_pending_block(|b| b.header().clone(), latest_block_number)
+	}
+
+	fn map_pending_block<F, T>(&self, f: F, latest_block_number: BlockNumber) -> Option<T> where
+		F: FnOnce(&ClosedBlock) -> T,
+	{
+		self.from_pending_block(
+			latest_block_number,
+			|| None,
+			|block| Some(f(block)),
+		)
 	}
 
 	#[cfg_attr(feature="dev", allow(match_same_arms))]
@@ -677,7 +694,7 @@ impl Miner {
 	#[cfg_attr(feature="dev", allow(wrong_self_convention))]
 	#[cfg_attr(feature="dev", allow(redundant_closure))]
 	fn from_pending_block<H, F, G>(&self, latest_block_number: BlockNumber, from_chain: F, map_block: G) -> H
-		where F: Fn() -> H, G: Fn(&ClosedBlock) -> H {
+		where F: Fn() -> H, G: FnOnce(&ClosedBlock) -> H {
 		let sealing_work = self.sealing_work.lock();
 		sealing_work.queue.peek_last_ref().map_or_else(
 			|| from_chain(),
@@ -713,84 +730,6 @@ impl MinerService for Miner {
 			transactions_in_future_queue: status.future,
 			transactions_in_pending_block: sealing_work.queue.peek_last_ref().map_or(0, |b| b.transactions().len()),
 		}
-	}
-
-	fn call(&self, client: &MiningBlockChainClient, t: &SignedTransaction, analytics: CallAnalytics) -> Result<Executed, CallError> {
-		let sealing_work = self.sealing_work.lock();
-		match sealing_work.queue.peek_last_ref() {
-			Some(work) => {
-				let block = work.block();
-
-				// TODO: merge this code with client.rs's fn call somwhow.
-				let header = block.header();
-				let last_hashes = Arc::new(client.last_hashes());
-				let env_info = EnvInfo {
-					number: header.number(),
-					author: *header.author(),
-					timestamp: header.timestamp(),
-					difficulty: *header.difficulty(),
-					last_hashes: last_hashes,
-					gas_used: U256::zero(),
-					gas_limit: U256::max_value(),
-				};
-				// that's just a copy of the state.
-				let mut state = block.state().clone();
-				let original_state = if analytics.state_diffing { Some(state.clone()) } else { None };
-
-				let sender = t.sender();
-				let balance = state.balance(&sender).map_err(ExecutionError::from)?;
-				let needed_balance = t.value + t.gas * t.gas_price;
-				if balance < needed_balance {
-					// give the sender a sufficient balance
-					state.add_balance(&sender, &(needed_balance - balance), CleanupMode::NoEmpty)
-						.map_err(ExecutionError::from)?;
-				}
-				let options = TransactOptions { tracing: analytics.transaction_tracing, vm_tracing: analytics.vm_tracing, check_nonce: false };
-				let mut ret = Executive::new(&mut state, &env_info, &*self.engine).transact(t, options)?;
-
-				// TODO gav move this into Executive.
-				if let Some(original) = original_state {
-					ret.state_diff = Some(state.diff_from(original).map_err(ExecutionError::from)?);
-				}
-
-				Ok(ret)
-			},
-			None => client.call(t, BlockId::Latest, analytics)
-		}
-	}
-
-	// TODO: The `chain.latest_x` actually aren't infallible, they just panic on corruption.
-	// TODO: return trie::Result<T> here, or other.
-	fn balance(&self, chain: &MiningBlockChainClient, address: &Address) -> Option<U256> {
-		self.from_pending_block(
-			chain.chain_info().best_block_number,
-			|| Some(chain.latest_balance(address)),
-			|b| b.block().fields().state.balance(address).ok(),
-		)
-	}
-
-	fn storage_at(&self, chain: &MiningBlockChainClient, address: &Address, position: &H256) -> Option<H256> {
-		self.from_pending_block(
-			chain.chain_info().best_block_number,
-			|| Some(chain.latest_storage_at(address, position)),
-			|b| b.block().fields().state.storage_at(address, position).ok(),
-		)
-	}
-
-	fn nonce(&self, chain: &MiningBlockChainClient, address: &Address) -> Option<U256> {
-		self.from_pending_block(
-			chain.chain_info().best_block_number,
-			|| Some(chain.latest_nonce(address)),
-			|b| b.block().fields().state.nonce(address).ok(),
-		)
-	}
-
-	fn code(&self, chain: &MiningBlockChainClient, address: &Address) -> Option<Option<Bytes>> {
-		self.from_pending_block(
-			chain.chain_info().best_block_number,
-			|| Some(chain.latest_code(address)),
-			|b| b.block().fields().state.code(address).ok().map(|c| c.map(|c| (&*c).clone()))
-		)
 	}
 
 	fn set_author(&self, author: Address) {
@@ -1112,6 +1051,8 @@ impl MinerService for Miner {
 	/// Prepare the block and work if the Engine does not seal internally.
 	fn update_sealing(&self, chain: &MiningBlockChainClient) {
 		trace!(target: "miner", "update_sealing");
+		const NO_NEW_CHAIN_WITH_FORKS: &str = "Your chain specification contains one or more hard forks which are required to be \
+			on by default. Please remove these forks and start your chain again.";
 
 		if self.requires_reseal(chain.chain_info().best_block_number) {
 			// --------------------------------------------------------------------------
@@ -1120,6 +1061,14 @@ impl MinerService for Miner {
 			// --------------------------------------------------------------------------
 			trace!(target: "miner", "update_sealing: preparing a block");
 			let (block, original_work_hash) = self.prepare_block(chain);
+
+			// refuse to seal the first block of the chain if it contains hard forks
+			// which should be on by default.
+			if block.block().fields().header.number() == 1 && self.engine.params().contains_bugfix_hard_fork() {
+				warn!("{}", NO_NEW_CHAIN_WITH_FORKS);
+				return;
+			}
+
 			match self.engine.seals_internally() {
 				Some(true) => {
 					trace!(target: "miner", "update_sealing: engine indicates internal sealing");
@@ -1127,11 +1076,11 @@ impl MinerService for Miner {
 						trace!(target: "miner", "update_sealing: imported internally sealed block");
 					}
 				},
+				Some(false) => trace!(target: "miner", "update_sealing: engine is not keen to seal internally right now"),
 				None => {
 					trace!(target: "miner", "update_sealing: engine does not seal internally, preparing work");
 					self.prepare_work(block, original_work_hash)
 				},
-				_ => trace!(target: "miner", "update_sealing: engine is not keen to seal internally right now")
 			}
 		}
 	}
@@ -1357,10 +1306,10 @@ mod tests {
 	}
 
 	fn transaction() -> SignedTransaction {
-		transaction_with_network_id(2)
+		transaction_with_chain_id(2)
 	}
 
-	fn transaction_with_network_id(id: u64) -> SignedTransaction {
+	fn transaction_with_chain_id(chain_id: u64) -> SignedTransaction {
 		let keypair = Random.generate().unwrap();
 		Transaction {
 			action: Action::Create,
@@ -1369,7 +1318,7 @@ mod tests {
 			gas: U256::from(100_000),
 			gas_price: U256::zero(),
 			nonce: U256::zero(),
-		}.sign(keypair.secret(), Some(id))
+		}.sign(keypair.secret(), Some(chain_id))
 	}
 
 	#[test]
@@ -1450,18 +1399,18 @@ mod tests {
 
 		let client = generate_dummy_client(2);
 
-		assert_eq!(miner.import_external_transactions(&*client, vec![transaction_with_network_id(spec.network_id()).into()]).pop().unwrap().unwrap(), TransactionImportResult::Current);
+		assert_eq!(miner.import_external_transactions(&*client, vec![transaction_with_chain_id(spec.chain_id()).into()]).pop().unwrap().unwrap(), TransactionImportResult::Current);
 
 		miner.update_sealing(&*client);
 		client.flush_queue();
-		assert!(miner.pending_block().is_none());
+		assert!(miner.pending_block(0).is_none());
 		assert_eq!(client.chain_info().best_block_number, 3 as BlockNumber);
 
-		assert_eq!(miner.import_own_transaction(&*client, PendingTransaction::new(transaction_with_network_id(spec.network_id()).into(), None)).unwrap(), TransactionImportResult::Current);
+		assert_eq!(miner.import_own_transaction(&*client, PendingTransaction::new(transaction_with_chain_id(spec.chain_id()).into(), None)).unwrap(), TransactionImportResult::Current);
 
 		miner.update_sealing(&*client);
 		client.flush_queue();
-		assert!(miner.pending_block().is_none());
+		assert!(miner.pending_block(0).is_none());
 		assert_eq!(client.chain_info().best_block_number, 4 as BlockNumber);
 	}
 

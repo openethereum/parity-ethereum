@@ -27,7 +27,7 @@ use std::path::{Path, PathBuf};
 
 use util::Bytes;
 use util::hash::H256;
-use rlp::{self, Encodable, RlpStream, UntrustedRlp};
+use rlp::{RlpStream, UntrustedRlp};
 
 use super::ManifestData;
 
@@ -49,23 +49,8 @@ pub trait SnapshotWriter {
 }
 
 // (hash, len, offset)
+#[derive(RlpEncodable, RlpDecodable)]
 struct ChunkInfo(H256, u64, u64);
-
-impl Encodable for ChunkInfo {
-	fn rlp_append(&self, s: &mut RlpStream) {
-		s.begin_list(3);
-		s.append(&self.0).append(&self.1).append(&self.2);
-	}
-}
-
-impl rlp::Decodable for ChunkInfo {
-	fn decode(rlp: &UntrustedRlp) -> Result<Self, rlp::DecoderError> {
-		let hash = rlp.val_at(0)?;
-		let len = rlp.val_at(1)?;
-		let off = rlp.val_at(2)?;
-		Ok(ChunkInfo(hash, len, off))
-	}
-}
 
 /// A packed snapshot writer. This writes snapshots to a single concatenated file.
 ///

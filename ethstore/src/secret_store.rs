@@ -60,6 +60,8 @@ pub trait SimpleSecretStore: Send + Sync {
 	fn sign_derived(&self, account_ref: &StoreAccountRef, password: &str, derivation: Derivation, message: &Message) -> Result<Signature, Error>;
 	/// Decrypt a messages with given account.
 	fn decrypt(&self, account: &StoreAccountRef, password: &str, shared_mac: &[u8], message: &[u8]) -> Result<Vec<u8>, Error>;
+	/// Agree on shared key.
+	fn agree(&self, account: &StoreAccountRef, password: &str, other: &Public) -> Result<Secret, Error>;
 
 	/// Returns all accounts in this secret store.
 	fn accounts(&self) -> Result<Vec<StoreAccountRef>, Error>;

@@ -31,8 +31,7 @@ pub use self::redirect::Redirection;
 pub use self::streaming::StreamingHandler;
 
 use std::iter;
-use util::Itertools;
-
+use itertools::Itertools;
 use url::Url;
 use hyper::{server, header, net, uri};
 use {apps, address, Embeddable};
@@ -67,10 +66,20 @@ pub fn add_security_headers(headers: &mut header::Headers, embeddable_on: Embedd
 		// Allow fonts from data: and HTTPS.
 		b"font-src 'self' data: https:;".to_vec(),
 		// Allow inline scripts and scripts eval (webpack/jsconsole)
-		b"script-src 'self' 'unsafe-inline' 'unsafe-eval';".to_vec(),
-		// Same restrictions as script-src (fallback) with additional
+		{
+			let script_src = embeddable_on.as_ref()
+				.map(|e| e.extra_script_src.iter()
+					 .map(|&(ref host, port)| address(host, port))
+					 .join(" ")
+				).unwrap_or_default();
+			format!(
+				"script-src 'self' 'unsafe-inline' 'unsafe-eval' {};",
+				script_src
+			).into_bytes()
+		},
+		// Same restrictions as script-src with additional
 		// blob: that is required for camera access (worker)
-		b"worker-src 'self' 'unsafe-inline' 'unsafe-eval' blob: ;".to_vec(),
+		b"worker-src 'self' 'unsafe-inline' 'unsafe-eval' https: blob:;".to_vec(),
 		// Restrict everything else to the same origin.
 		b"default-src 'self';".to_vec(),
 		// Run in sandbox mode (although it's not fully safe since we allow same-origin and script)
@@ -90,7 +99,7 @@ pub fn add_security_headers(headers: &mut header::Headers, embeddable_on: Embedd
 					.into_iter()
 					.chain(embed.extra_embed_on
 						.iter()
-						.map(|&(ref host, port)| format!("{}:{}", host, port))
+						.map(|&(ref host, port)| address(host, port))
 					);
 
 				let ancestors = if embed.host == "127.0.0.1" {

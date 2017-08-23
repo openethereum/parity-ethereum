@@ -42,6 +42,15 @@ impl Metadata {
 			_ => DappId::default(),
 		}
 	}
+
+	/// Returns true if the request originates from a Dapp.
+	pub fn is_dapp(&self) -> bool {
+		if let Origin::Dapps(_) = self.origin {
+			true
+		} else {
+			false
+		}
+	}
 }
 
 impl jsonrpc_core::Metadata for Metadata {}

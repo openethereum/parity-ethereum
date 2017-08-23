@@ -24,6 +24,7 @@ serde_json = "1.0"
 time = "0.1"
 tokio-timer = "0.1"
 transient-hashmap = "0.4"
+itertools = "0.5"
 
 jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
 jsonrpc-http-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
@@ -46,7 +47,7 @@ ethjson = { path = "../json" }
 ethcore-devtools = { path = "../devtools" }
 ethcore-light = { path = "../ethcore/light" }
 ethcore-logger = { path = "../logger" }
-evm = { path = "../ethcore/evm" }
+vm = { path = "../ethcore/vm" }
 parity-updater = { path = "../updater" }
 parity-reactor = { path = "../util/reactor" }
 rlp = { path = "../util/rlp" }

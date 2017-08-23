@@ -4,19 +4,15 @@
 	"engine": {
 		"Ethash": {
 			"params": {
-				"gasLimitBoundDivisor": "0x0400",
 				"minimumDifficulty": "0x020000",
 				"difficultyBoundDivisor": "0x0800",
 				"difficultyIncrementDivisor": "60",
 				"durationLimit": "0x3C",
-				"blockReward": "0x6f05b59d3b200000",
-				"registrar" : "0x6c221ca53705f3497ec90ca7b84c59ae7382fc21",
 				"homesteadTransition": "0x30d40",
 				"difficultyHardforkTransition": "0x59d9",
 				"difficultyHardforkBoundDivisor": "0x0200",
 				"bombDefuseTransition": "0x30d40",
 				"eip150Transition": "0x927C0",
-				"eip155Transition": "0x927C0",
 				"eip160Transition": "0x927C0",
 				"eip161abcTransition": "0x927C0",
 				"eip161dTransition": "0x927C0"
@@ -24,6 +20,9 @@
 		}
 	},
 	"params": {
+		"gasLimitBoundDivisor": "0x0400",
+		"blockReward": "0x6f05b59d3b200000",
+		"registrar" : "0x6c221ca53705f3497ec90ca7b84c59ae7382fc21",
 		"accountStartNonce": "0x00",
 		"maximumExtraDataSize": "0x20",
 		"minGasLimit": "0x1388",
@@ -31,7 +30,8 @@
 		"chainID": "0x2",
 		"subprotocolName": "exp",
 		"eip98Transition": "0x7fffffffffffff",
-		"eip86Transition": "0x7fffffffffffff"
+		"eip86Transition": "0x7fffffffffffff",
+		"eip155Transition": "0x927C0"
 	},
 	"genesis": {
 		"seal": {

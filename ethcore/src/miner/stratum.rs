@@ -32,7 +32,6 @@ use util::Mutex;
 use miner::{self, Miner, MinerService};
 use client::Client;
 use block::IsBlock;
-use std::str::FromStr;
 use rlp::encode;
 
 /// Configures stratum server options.
@@ -60,7 +59,7 @@ impl SubmitPayload {
 			return Err(PayloadError::ArgumentsAmountUnexpected(payload.len()));
 		}
 
-		let nonce = match H64::from_str(clean_0x(&payload[0])) {
+		let nonce = match clean_0x(&payload[0]).parse::<H64>() {
 			Ok(nonce) => nonce,
 			Err(e) => {
 				warn!(target: "stratum", "submit_work ({}): invalid nonce ({:?})", &payload[0], e);
@@ -68,7 +67,7 @@ impl SubmitPayload {
 			}
 		};
 
-		let pow_hash = match H256::from_str(clean_0x(&payload[1])) {
+		let pow_hash = match clean_0x(&payload[1]).parse::<H256>() {
 			Ok(pow_hash) => pow_hash,
 			Err(e) => {
 				warn!(target: "stratum", "submit_work ({}): invalid hash ({:?})", &payload[1], e);
@@ -76,7 +75,7 @@ impl SubmitPayload {
 			}
 		};
 
-		let mix_hash = match H256::from_str(clean_0x(&payload[2])) {
+		let mix_hash = match clean_0x(&payload[2]).parse::<H256>() {
 			Ok(mix_hash) => mix_hash,
 			Err(e) => {
 				warn!(target: "stratum", "submit_work ({}): invalid mix-hash ({:?})",  &payload[2], e);
@@ -133,7 +132,7 @@ impl JobDispatcher for StratumJobDispatcher {
 
 	fn submit(&self, payload: Vec<String>) -> Result<(), StratumServiceError> {
 		let payload = SubmitPayload::from_args(payload).map_err(|e|
-			StratumServiceError::Dispatch(format!("{}", e))
+			StratumServiceError::Dispatch(e.to_string())
 		)?;
 
 		trace!(
@@ -144,14 +143,16 @@ impl JobDispatcher for StratumJobDispatcher {
 			payload.mix_hash,
 		);
 
-		self.with_core_void(|client, miner| {
+		self.with_core_result(|client, miner| {
 			let seal = vec![encode(&payload.mix_hash).into_vec(), encode(&payload.nonce).into_vec()];
-			if let Err(e) = miner.submit_seal(&*client, payload.pow_hash, seal) {
-				warn!(target: "stratum", "submit_seal error: {:?}", e);
-			};
-		});
-
-		Ok(())
+			match miner.submit_seal(&*client, payload.pow_hash, seal) {
+				Ok(_) => Ok(()),
+				Err(e) => {
+					warn!(target: "stratum", "submit_seal error: {:?}", e);
+					Err(StratumServiceError::Dispatch(e.to_string()))
+				}
+			}
+		})
 	}
 }
 
@@ -181,8 +182,11 @@ impl StratumJobDispatcher {
 		self.client.upgrade().and_then(|client| self.miner.upgrade().and_then(|miner| (f)(client, miner)))
 	}
 
-	fn with_core_void<F>(&self, f: F) where F: Fn(Arc<Client>, Arc<Miner>) {
-		self.client.upgrade().map(|client| self.miner.upgrade().map(|miner| (f)(client, miner)));
+	fn with_core_result<F>(&self, f: F) -> Result<(), StratumServiceError> where F: Fn(Arc<Client>, Arc<Miner>) -> Result<(), StratumServiceError> {
+		match (self.client.upgrade(), self.miner.upgrade()) {
+			(Some(client), Some(miner)) => f(client, miner),
+			_ => Ok(()),
+		}
 	}
 }
 
@@ -230,7 +234,7 @@ impl Stratum {
 		let dispatcher = Arc::new(StratumJobDispatcher::new(miner, client));
 
 		let stratum_svc = StratumService::start(
-			&SocketAddr::new(IpAddr::from_str(&options.listen_addr)?, options.port),
+			&SocketAddr::new(options.listen_addr.parse::<IpAddr>()?, options.port),
 			dispatcher.clone(),
 			options.secret.clone(),
 		)?;

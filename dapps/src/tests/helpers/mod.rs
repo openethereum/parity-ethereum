@@ -255,10 +255,11 @@ impl Server {
 		fetch: F,
 	) -> Result<Server, http::Error> {
 		let middleware = Middleware::dapps(
-			"pool.ntp.org:123",
+			&["0.pool.ntp.org:123".into(), "1.pool.ntp.org:123".into()],
 			CpuPool::new(4),
 			remote,
 			signer_address,
+			vec![],
 			vec![],
 			dapps_path,
 			extra_dapps,

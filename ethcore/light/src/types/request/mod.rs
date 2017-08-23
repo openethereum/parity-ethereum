@@ -677,7 +677,7 @@ pub mod header {
 	use rlp::{Encodable, Decodable, DecoderError, RlpStream, UntrustedRlp};
 
 	/// Potentially incomplete headers request.
-	#[derive(Debug, Clone, PartialEq, Eq)]
+	#[derive(Debug, Clone, PartialEq, Eq, RlpEncodable, RlpDecodable)]
 	pub struct Incomplete {
 		/// Start block.
 		pub start: Field<HashOrNumber>,
@@ -687,27 +687,6 @@ pub mod header {
 		pub max: u64,
 		/// Whether to reverse from start.
 		pub reverse: bool,
-	}
-
-	impl Decodable for Incomplete {
-		fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
-			Ok(Incomplete {
-				start: rlp.val_at(0)?,
-				skip: rlp.val_at(1)?,
-				max: rlp.val_at(2)?,
-				reverse: rlp.val_at(3)?
-			})
-		}
-	}
-
-	impl Encodable for Incomplete {
-		fn rlp_append(&self, s: &mut RlpStream) {
-			s.begin_list(4)
-				.append(&self.start)
-				.append(&self.skip)
-				.append(&self.max)
-				.append(&self.reverse);
-		}
 	}
 
 	impl super::IncompleteRequest for Incomplete {
@@ -811,24 +790,10 @@ pub mod header_proof {
 	use util::{Bytes, U256, H256};
 
 	/// Potentially incomplete header proof request.
-	#[derive(Debug, Clone, PartialEq, Eq)]
+	#[derive(Debug, Clone, PartialEq, Eq, RlpEncodable, RlpDecodable)]
 	pub struct Incomplete {
 		/// Block number.
 		pub num: Field<u64>,
-	}
-
-	impl Decodable for Incomplete {
-		fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
-			Ok(Incomplete {
-				num: rlp.val_at(0)?,
-			})
-		}
-	}
-
-	impl Encodable for Incomplete {
-		fn rlp_append(&self, s: &mut RlpStream) {
-			s.begin_list(1).append(&self.num);
-		}
 	}
 
 	impl super::IncompleteRequest for Incomplete {
@@ -916,28 +881,13 @@ pub mod header_proof {
 /// Request and response for transaction index.
 pub mod transaction_index {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
-	use rlp::{Encodable, Decodable, DecoderError, RlpStream, UntrustedRlp};
 	use util::H256;
 
 	/// Potentially incomplete transaction index request.
-	#[derive(Debug, Clone, PartialEq, Eq)]
+	#[derive(Debug, Clone, PartialEq, Eq, RlpEncodable, RlpDecodable)]
 	pub struct Incomplete {
 		/// Transaction hash to get index for.
 		pub hash: Field<H256>,
-	}
-
-	impl Decodable for Incomplete {
-		fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
-			Ok(Incomplete {
-				hash: rlp.val_at(0)?,
-			})
-		}
-	}
-
-	impl Encodable for Incomplete {
-		fn rlp_append(&self, s: &mut RlpStream) {
-			s.begin_list(1).append(&self.hash);
-		}
 	}
 
 	impl super::IncompleteRequest for Incomplete {
@@ -986,7 +936,7 @@ pub mod transaction_index {
 	}
 
 	/// The output of a request for transaction index.
-	#[derive(Debug, Clone, PartialEq, Eq)]
+	#[derive(Debug, Clone, PartialEq, Eq, RlpEncodable, RlpDecodable)]
 	pub struct Response {
 		/// Block number.
 		pub num: u64,
@@ -1003,53 +953,19 @@ pub mod transaction_index {
 			f(1, Output::Hash(self.hash));
 		}
 	}
-
-	impl Decodable for Response {
-		fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
-			Ok(Response {
-				num: rlp.val_at(0)?,
-				hash: rlp.val_at(1)?,
-				index: rlp.val_at(2)?,
-			})
-		}
-	}
-
-	impl Encodable for Response {
-		fn rlp_append(&self, s: &mut RlpStream) {
-			s.begin_list(3)
-				.append(&self.num)
-				.append(&self.hash)
-				.append(&self.index);
-		}
-	}
 }
 
 /// Request and response for block receipts
 pub mod block_receipts {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
 	use ethcore::receipt::Receipt;
-	use rlp::{Encodable, Decodable, DecoderError, RlpStream, UntrustedRlp};
 	use util::H256;
 
 	/// Potentially incomplete block receipts request.
-	#[derive(Debug, Clone, PartialEq, Eq)]
+	#[derive(Debug, Clone, PartialEq, Eq, RlpEncodable, RlpDecodable)]
 	pub struct Incomplete {
 		/// Block hash to get receipts for.
 		pub hash: Field<H256>,
-	}
-
-	impl Decodable for Incomplete {
-		fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
-			Ok(Incomplete {
-				hash: rlp.val_at(0)?,
-			})
-		}
-	}
-
-	impl Encodable for Incomplete {
-		fn rlp_append(&self, s: &mut RlpStream) {
-			s.begin_list(1).append(&self.hash);
-		}
 	}
 
 	impl super::IncompleteRequest for Incomplete {
@@ -1095,7 +1011,7 @@ pub mod block_receipts {
 	}
 
 	/// The output of a request for block receipts.
-	#[derive(Debug, Clone, PartialEq, Eq)]
+	#[derive(Debug, Clone, PartialEq, Eq, RlpEncodableWrapper, RlpDecodableWrapper)]
 	pub struct Response {
 		/// The block receipts.
 		pub receipts: Vec<Receipt>
@@ -1104,20 +1020,6 @@ pub mod block_receipts {
 	impl super::ResponseLike for Response {
 		/// Fill reusable outputs by providing them to the function.
 		fn fill_outputs<F>(&self, _: F) where F: FnMut(usize, Output) {}
-	}
-
-	impl Decodable for Response {
-		fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
-			Ok(Response {
-				receipts: rlp.as_list()?,
-			})
-		}
-	}
-
-	impl Encodable for Response {
-		fn rlp_append(&self, s: &mut RlpStream) {
-			s.append_list(&self.receipts);
-		}
 	}
 }
 
@@ -1129,24 +1031,10 @@ pub mod block_body {
 	use util::H256;
 
 	/// Potentially incomplete block body request.
-	#[derive(Debug, Clone, PartialEq, Eq)]
+	#[derive(Debug, Clone, PartialEq, Eq, RlpEncodable, RlpDecodable)]
 	pub struct Incomplete {
 		/// Block hash to get receipts for.
 		pub hash: Field<H256>,
-	}
-
-	impl Decodable for Incomplete {
-		fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
-			Ok(Incomplete {
-				hash: rlp.val_at(0)?,
-			})
-		}
-	}
-
-	impl Encodable for Incomplete {
-		fn rlp_append(&self, s: &mut RlpStream) {
-			s.begin_list(1).append(&self.hash);
-		}
 	}
 
 	impl super::IncompleteRequest for Incomplete {
@@ -1228,33 +1116,15 @@ pub mod block_body {
 /// A request for an account proof.
 pub mod account {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
-	use rlp::{Encodable, Decodable, DecoderError, RlpStream, UntrustedRlp};
 	use util::{Bytes, U256, H256};
 
 	/// Potentially incomplete request for an account proof.
-	#[derive(Debug, Clone, PartialEq, Eq)]
+	#[derive(Debug, Clone, PartialEq, Eq, RlpEncodable, RlpDecodable)]
 	pub struct Incomplete {
 		/// Block hash to request state proof for.
 		pub block_hash: Field<H256>,
 		/// Hash of the account's address.
 		pub address_hash: Field<H256>,
-	}
-
-	impl Decodable for Incomplete {
-		fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
-			Ok(Incomplete {
-				block_hash: rlp.val_at(0)?,
-				address_hash: rlp.val_at(1)?,
-			})
-		}
-	}
-
-	impl Encodable for Incomplete {
-		fn rlp_append(&self, s: &mut RlpStream) {
-			s.begin_list(2)
-				.append(&self.block_hash)
-				.append(&self.address_hash);
-		}
 	}
 
 	impl super::IncompleteRequest for Incomplete {
@@ -1319,7 +1189,7 @@ pub mod account {
 	}
 
 	/// The output of a request for an account state proof.
-	#[derive(Debug, Clone, PartialEq, Eq)]
+	#[derive(Debug, Clone, PartialEq, Eq, RlpEncodable, RlpDecodable)]
 	pub struct Response {
 		/// Inclusion/exclusion proof
 		pub proof: Vec<Bytes>,
@@ -1340,39 +1210,15 @@ pub mod account {
 			f(1, Output::Hash(self.storage_root));
 		}
 	}
-
-	impl Decodable for Response {
-		fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
-			Ok(Response {
-				proof: rlp.list_at(0)?,
-				nonce: rlp.val_at(1)?,
-				balance: rlp.val_at(2)?,
-				code_hash: rlp.val_at(3)?,
-				storage_root: rlp.val_at(4)?
-			})
-		}
-	}
-
-	impl Encodable for Response {
-		fn rlp_append(&self, s: &mut RlpStream) {
-			s.begin_list(5)
-				.append_list::<Vec<u8>,_>(&self.proof[..])
-				.append(&self.nonce)
-				.append(&self.balance)
-				.append(&self.code_hash)
-				.append(&self.storage_root);
-		}
-	}
 }
 
 /// A request for a storage proof.
 pub mod storage {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
-	use rlp::{Encodable, Decodable, DecoderError, RlpStream, UntrustedRlp};
 	use util::{Bytes, H256};
 
 	/// Potentially incomplete request for an storage proof.
-	#[derive(Debug, Clone, PartialEq, Eq)]
+	#[derive(Debug, Clone, PartialEq, Eq, RlpEncodable, RlpDecodable)]
 	pub struct Incomplete {
 		/// Block hash to request state proof for.
 		pub block_hash: Field<H256>,
@@ -1380,25 +1226,6 @@ pub mod storage {
 		pub address_hash: Field<H256>,
 		/// Hash of the storage key.
 		pub key_hash: Field<H256>,
-	}
-
-	impl Decodable for Incomplete {
-		fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
-			Ok(Incomplete {
-				block_hash: rlp.val_at(0)?,
-				address_hash: rlp.val_at(1)?,
-				key_hash: rlp.val_at(2)?,
-			})
-		}
-	}
-
-	impl Encodable for Incomplete {
-		fn rlp_append(&self, s: &mut RlpStream) {
-			s.begin_list(3)
-				.append(&self.block_hash)
-				.append(&self.address_hash)
-				.append(&self.key_hash);
-		}
 	}
 
 	impl super::IncompleteRequest for Incomplete {
@@ -1477,7 +1304,7 @@ pub mod storage {
 	}
 
 	/// The output of a request for an account state proof.
-	#[derive(Debug, Clone, PartialEq, Eq)]
+	#[derive(Debug, Clone, PartialEq, Eq, RlpEncodable, RlpDecodable)]
 	pub struct Response {
 		/// Inclusion/exclusion proof
 		pub proof: Vec<Bytes>,
@@ -1491,55 +1318,20 @@ pub mod storage {
 			f(0, Output::Hash(self.value));
 		}
 	}
-
-	impl Decodable for Response {
-		fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
-			Ok(Response {
-				proof: rlp.list_at(0)?,
-				value: rlp.val_at(1)?,
-			})
-		}
-	}
-
-	impl Encodable for Response {
-		fn rlp_append(&self, s: &mut RlpStream) {
-			s.begin_list(2)
-				.append_list::<Vec<u8>,_>(&self.proof[..])
-				.append(&self.value);
-		}
-	}
 }
 
 /// A request for contract code.
 pub mod contract_code {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
-	use rlp::{Encodable, Decodable, DecoderError, RlpStream, UntrustedRlp};
 	use util::{Bytes, H256};
 
 	/// Potentially incomplete contract code request.
-	#[derive(Debug, Clone, PartialEq, Eq)]
+	#[derive(Debug, Clone, PartialEq, Eq, RlpEncodable, RlpDecodable)]
 	pub struct Incomplete {
 		/// The block hash to request the state for.
 		pub block_hash: Field<H256>,
 		/// The code hash.
 		pub code_hash: Field<H256>,
-	}
-
-	impl Decodable for Incomplete {
-		fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
-			Ok(Incomplete {
-				block_hash: rlp.val_at(0)?,
-				code_hash: rlp.val_at(1)?,
-			})
-		}
-	}
-
-	impl Encodable for Incomplete {
-		fn rlp_append(&self, s: &mut RlpStream) {
-			s.begin_list(2)
-				.append(&self.block_hash)
-				.append(&self.code_hash);
-		}
 	}
 
 	impl super::IncompleteRequest for Incomplete {
@@ -1600,7 +1392,7 @@ pub mod contract_code {
 	}
 
 	/// The output of a request for
-	#[derive(Debug, Clone, PartialEq, Eq)]
+	#[derive(Debug, Clone, PartialEq, Eq, RlpEncodableWrapper, RlpDecodableWrapper)]
 	pub struct Response {
 		/// The requested code.
 		pub code: Bytes,
@@ -1609,21 +1401,6 @@ pub mod contract_code {
 	impl super::ResponseLike for Response {
 		/// Fill reusable outputs by providing them to the function.
 		fn fill_outputs<F>(&self, _: F) where F: FnMut(usize, Output) {}
-	}
-
-	impl Decodable for Response {
-		fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
-
-			Ok(Response {
-				code: rlp.as_val()?,
-			})
-		}
-	}
-
-	impl Encodable for Response {
-		fn rlp_append(&self, s: &mut RlpStream) {
-			s.append(&self.code);
-		}
 	}
 }
 
@@ -1635,7 +1412,7 @@ pub mod execution {
 	use util::{Bytes, Address, U256, H256, DBValue};
 
 	/// Potentially incomplete execution proof request.
-	#[derive(Debug, Clone, PartialEq, Eq)]
+	#[derive(Debug, Clone, PartialEq, Eq, RlpEncodable, RlpDecodable)]
 	pub struct Incomplete {
 		/// The block hash to request the state for.
 		pub block_hash: Field<H256>,
@@ -1651,38 +1428,6 @@ pub mod execution {
 		pub value: U256,
 		/// Call data.
 		pub data: Bytes,
-	}
-
-	impl Decodable for Incomplete {
-		fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
-			Ok(Incomplete {
-				block_hash: rlp.val_at(0)?,
-				from: rlp.val_at(1)?,
-				action: rlp.val_at(2)?,
-				gas: rlp.val_at(3)?,
-				gas_price: rlp.val_at(4)?,
-				value: rlp.val_at(5)?,
-				data: rlp.val_at(6)?,
-			})
-		}
-	}
-
-	impl Encodable for Incomplete {
-		fn rlp_append(&self, s: &mut RlpStream) {
-			s.begin_list(7)
-				.append(&self.block_hash)
-				.append(&self.from);
-
-			match self.action {
-				Action::Create => s.append_empty_data(),
-				Action::Call(ref addr) => s.append(addr),
-			};
-
-			s.append(&self.gas)
-				.append(&self.gas_price)
-				.append(&self.value)
-				.append(&self.data);
-		}
 	}
 
 	impl super::IncompleteRequest for Incomplete {

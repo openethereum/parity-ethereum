@@ -19,7 +19,9 @@
 
 use std::thread::{self, JoinHandle};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering as AtomicOrdering};
-use std::sync::{Condvar as SCondvar, Mutex as SMutex};
+use std::sync::{Condvar as SCondvar, Mutex as SMutex, Arc};
+use std::cmp;
+use std::collections::{VecDeque, HashSet, HashMap};
 use util::*;
 use io::*;
 use error::*;
@@ -234,8 +236,8 @@ impl<K: Kind> VerificationQueue<K> {
 		let scale_verifiers = config.verifier_settings.scale_verifiers;
 
 		let num_cpus = ::num_cpus::get();
-		let max_verifiers = min(num_cpus, MAX_VERIFIERS);
-		let default_amount = max(1, min(max_verifiers, config.verifier_settings.num_verifiers));
+		let max_verifiers = cmp::min(num_cpus, MAX_VERIFIERS);
+		let default_amount = cmp::max(1, cmp::min(max_verifiers, config.verifier_settings.num_verifiers));
 		let state = Arc::new((Mutex::new(State::Work(default_amount)), Condvar::new()));
 		let mut verifier_handles = Vec::with_capacity(max_verifiers);
 
@@ -278,8 +280,8 @@ impl<K: Kind> VerificationQueue<K> {
 			processing: RwLock::new(HashMap::new()),
 			empty: empty,
 			ticks_since_adjustment: AtomicUsize::new(0),
-			max_queue_size: max(config.max_queue_size, MIN_QUEUE_LIMIT),
-			max_mem_use: max(config.max_mem_use, MIN_MEM_LIMIT),
+			max_queue_size: cmp::max(config.max_queue_size, MIN_QUEUE_LIMIT),
+			max_mem_use: cmp::max(config.max_mem_use, MIN_MEM_LIMIT),
 			scale_verifiers: scale_verifiers,
 			verifier_handles: verifier_handles,
 			state: state,
@@ -567,7 +569,7 @@ impl<K: Kind> VerificationQueue<K> {
 	/// Removes up to `max` verified items from the queue
 	pub fn drain(&self, max: usize) -> Vec<K::Verified> {
 		let mut verified = self.verification.verified.lock();
-		let count = min(max, verified.len());
+		let count = cmp::min(max, verified.len());
 		let result = verified.drain(..count).collect::<Vec<_>>();
 
 		let drained_size = result.iter().map(HeapSizeOf::heap_size_of_children).fold(0, |a, c| a + c);
@@ -687,8 +689,8 @@ impl<K: Kind> VerificationQueue<K> {
 	// or below 1.
 	fn scale_verifiers(&self, target: usize) {
 		let current = self.num_verifiers();
-		let target = min(self.verifier_handles.len(), target);
-		let target = max(1, target);
+		let target = cmp::min(self.verifier_handles.len(), target);
+		let target = cmp::max(1, target);
 
 		debug!(target: "verification", "Scaling from {} to {} verifiers", current, target);
 
@@ -725,7 +727,6 @@ impl<K: Kind> Drop for VerificationQueue<K> {
 
 #[cfg(test)]
 mod tests {
-	use util::*;
 	use io::*;
 	use spec::*;
 	use super::{BlockQueue, Config, State};

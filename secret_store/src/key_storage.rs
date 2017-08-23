@@ -200,7 +200,7 @@ pub mod tests {
 	use devtools::RandomTempPath;
 	use ethkey::{Random, Generator, Public, Secret};
 	use util::Database;
-	use super::super::types::all::{Error, NodeAddress, ServiceConfiguration, ClusterConfiguration, ServerKeyId};
+	use types::all::{Error, NodeAddress, ServiceConfiguration, ClusterConfiguration, ServerKeyId};
 	use super::{DB_META_KEY_VERSION, KeyStorage, PersistentKeyStorage, DocumentKeyShare,
 		SerializableDocumentKeyShareV0, SerializableDocumentKeyShareV1, upgrade_db};
 
@@ -234,14 +234,11 @@ pub mod tests {
 	fn persistent_key_storage() {
 		let path = RandomTempPath::create_dir();
 		let config = ServiceConfiguration {
-			listener_address: NodeAddress {
-				address: "0.0.0.0".to_owned(),
-				port: 8082,
-			},
+			listener_address: None,
+			acl_check_enabled: true,
 			data_path: path.as_str().to_owned(),
 			cluster_config: ClusterConfiguration {
 				threads: 1,
-				self_private: (**Random.generate().unwrap().secret().clone()).into(),
 				listener_address: NodeAddress {
 					address: "0.0.0.0".to_owned(),
 					port: 8083,

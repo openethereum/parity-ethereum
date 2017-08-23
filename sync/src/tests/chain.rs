@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use util::*;
+use std::sync::Arc;
 use ethcore::client::{TestBlockChainClient, BlockChainClient, BlockId, EachBlockWith};
 use chain::{SyncState};
 use super::helpers::*;

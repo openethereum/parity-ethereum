@@ -1,7 +1,5 @@
 #!/bin/sh
 # generate documentation only for partiy and ethcore libraries
 
-. ./scripts/targets.sh
-
-cargo doc --no-deps --verbose $TARGETS &&
+cargo doc --no-deps --verbose --all --exclude parity-ipfs-api --exclude evmjit &&
 	echo '<meta http-equiv=refresh content=0;url=ethcore/index.html>' > target/doc/index.html

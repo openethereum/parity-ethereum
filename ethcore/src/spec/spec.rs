@@ -16,14 +16,17 @@
 
 //! Parameters for a block chain.
 
+use std::io::Read;
+use std::collections::BTreeMap;
+use std::path::Path;
+use std::sync::Arc;
 use rustc_hex::FromHex;
 use super::genesis::Genesis;
 use super::seal::Generic as GenericSeal;
 
-use evm::action_params::{ActionValue, ActionParams};
 use builtin::Builtin;
 use engines::{Engine, NullEngine, InstantSeal, BasicAuthority, AuthorityRound, Tendermint, DEFAULT_BLOCKHASH_CONTRACT};
-use evm::env_info::EnvInfo;
+use vm::{EnvInfo, CallType, ActionValue, ActionParams};
 use error::Error;
 use ethereum;
 use ethjson;
@@ -35,10 +38,14 @@ use rlp::{Rlp, RlpStream};
 use state::{Backend, State, Substate};
 use state::backend::Basic as BasicBackend;
 use trace::{NoopTracer, NoopVMTracer};
-use evm::CallType;
 use util::*;
 
-/// Parameters common to all engines.
+/// Parameters common to ethereum-like blockchains.
+/// NOTE: when adding bugfix hard-fork parameters,
+/// add to `contains_bugfix_hard_fork`
+///
+/// we define a "bugfix" hard fork as any hard fork which
+/// you would put on-by-default in a new chain.
 #[derive(Debug, PartialEq, Default)]
 #[cfg_attr(test, derive(Clone))]
 pub struct CommonParams {
@@ -58,8 +65,10 @@ pub struct CommonParams {
 	pub fork_block: Option<(BlockNumber, H256)>,
 	/// Number of first block where EIP-98 rules begin.
 	pub eip98_transition: BlockNumber,
+	/// Number of first block where EIP-155 rules begin.
+	pub eip155_transition: BlockNumber,
 	/// Validate block receipts root.
-	pub validate_receipts_transition: u64,
+	pub validate_receipts_transition: BlockNumber,
 	/// Number of first block where EIP-86 (Metropolis) rules begin.
 	pub eip86_transition: BlockNumber,
 	/// Number of first block where EIP-140 (Metropolis: REVERT opcode) rules begin.
@@ -84,18 +93,24 @@ pub struct CommonParams {
 	pub remove_dust_contracts: bool,
 	/// Wasm support
 	pub wasm: bool,
+	/// Gas limit bound divisor (how much gas limit can change per block)
+	pub gas_limit_bound_divisor: U256,
+	/// Block reward in wei.
+	pub block_reward: U256,
+	/// Registrar contract address.
+	pub registrar: Address,
 }
 
 impl CommonParams {
 	/// Schedule for an EVM in the post-EIP-150-era of the Ethereum main net.
-	pub fn schedule(&self, block_number: u64) -> ::evm::Schedule {
-		let mut schedule = ::evm::Schedule::new_post_eip150(usize::max_value(), true, true, true);
+	pub fn schedule(&self, block_number: u64) -> ::vm::Schedule {
+		let mut schedule = ::vm::Schedule::new_post_eip150(usize::max_value(), true, true, true);
 		self.update_schedule(block_number, &mut schedule);
 		schedule
 	}
 
 	/// Apply common spec config parameters to the schedule.
- 	pub fn update_schedule(&self, block_number: u64, schedule: &mut ::evm::Schedule) {
+ 	pub fn update_schedule(&self, block_number: u64, schedule: &mut ::vm::Schedule) {
 		schedule.have_create2 = block_number >= self.eip86_transition;
 		schedule.have_revert = block_number >= self.eip140_transition;
 		schedule.have_static_call = block_number >= self.eip214_transition;
@@ -105,10 +120,23 @@ impl CommonParams {
 		}
 		if block_number >= self.dust_protection_transition {
 			schedule.kill_dust = match self.remove_dust_contracts {
-				true => ::evm::CleanDustMode::WithCodeAndStorage,
-				false => ::evm::CleanDustMode::BasicOnly,
+				true => ::vm::CleanDustMode::WithCodeAndStorage,
+				false => ::vm::CleanDustMode::BasicOnly,
 			};
 		}
+	}
+
+	/// Whether these params contain any bug-fix hard forks.
+	pub fn contains_bugfix_hard_fork(&self) -> bool {
+		self.eip98_transition != 0 &&
+			self.eip155_transition != 0 &&
+			self.validate_receipts_transition != 0 &&
+			self.eip86_transition != 0 &&
+			self.eip140_transition != 0 &&
+			self.eip210_transition != 0 &&
+			self.eip211_transition != 0 &&
+			self.eip214_transition != 0 &&
+			self.dust_protection_transition != 0
 	}
 }
 
@@ -123,6 +151,7 @@ impl From<ethjson::spec::Params> for CommonParams {
 			min_gas_limit: p.min_gas_limit.into(),
 			fork_block: if let (Some(n), Some(h)) = (p.fork_block, p.fork_hash) { Some((n.into(), h.into())) } else { None },
 			eip98_transition: p.eip98_transition.map_or(0, Into::into),
+			eip155_transition: p.eip155_transition.map_or(0, Into::into),
 			validate_receipts_transition: p.validate_receipts_transition.map_or(0, Into::into),
 			eip86_transition: p.eip86_transition.map_or(BlockNumber::max_value(), Into::into),
 			eip140_transition: p.eip140_transition.map_or(BlockNumber::max_value(), Into::into),
@@ -138,6 +167,9 @@ impl From<ethjson::spec::Params> for CommonParams {
 			nonce_cap_increment: p.nonce_cap_increment.map_or(64, Into::into),
 			remove_dust_contracts: p.remove_dust_contracts.unwrap_or(false),
 			wasm: p.wasm.unwrap_or(false),
+			gas_limit_bound_divisor: p.gas_limit_bound_divisor.into(),
+			block_reward: p.block_reward.map_or_else(U256::zero, Into::into),
+			registrar: p.registrar.map_or_else(Address::new, Into::into),
 		}
 	}
 }
@@ -241,7 +273,7 @@ impl Spec {
 	) -> Arc<Engine> {
 		match engine_spec {
 			ethjson::spec::Engine::Null => Arc::new(NullEngine::new(params, builtins)),
-			ethjson::spec::Engine::InstantSeal(instant) => Arc::new(InstantSeal::new(params, instant.params.registrar.map_or_else(Address::new, Into::into), builtins)),
+			ethjson::spec::Engine::InstantSeal => Arc::new(InstantSeal::new(params, builtins)),
 			ethjson::spec::Engine::Ethash(ethash) => Arc::new(ethereum::Ethash::new(cache_dir, params, From::from(ethash.params), builtins)),
 			ethjson::spec::Engine::BasicAuthority(basic_authority) => Arc::new(BasicAuthority::new(params, From::from(basic_authority.params), builtins)),
 			ethjson::spec::Engine::AuthorityRound(authority_round) => AuthorityRound::new(params, From::from(authority_round.params), builtins).expect("Failed to start AuthorityRound consensus engine."),
@@ -346,6 +378,9 @@ impl Spec {
 
 	/// Get the configured Network ID.
 	pub fn network_id(&self) -> u64 { self.params().network_id }
+
+	/// Get the chain ID used for signing.
+	pub fn chain_id(&self) -> u64 { self.params().chain_id }
 
 	/// Get the configured subprotocol name.
 	pub fn subprotocol_name(&self) -> String { self.params().subprotocol_name.clone() }
@@ -483,6 +518,7 @@ impl Spec {
 
 #[cfg(test)]
 mod tests {
+	use std::str::FromStr;
 	use util::*;
 	use views::*;
 	use tests::helpers::get_temp_state_db;
@@ -493,19 +529,6 @@ mod tests {
 	#[test]
 	fn test_load_empty() {
 		assert!(Spec::load(::std::env::temp_dir(), &[] as &[u8]).is_err());
-	}
-
-	#[test]
-	fn all_spec_files_valid() {
-		Spec::new_test();
-		Spec::new_null();
-		Spec::new_test_constructor();
-		Spec::new_instant();
-		Spec::new_test_round();
-		Spec::new_test_tendermint();
-		Spec::new_validator_safe_contract();
-		Spec::new_validator_contract();
-		Spec::new_validator_multi();
 	}
 
 	#[test]

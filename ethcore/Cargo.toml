@@ -47,12 +47,18 @@ num_cpus = "1.2"
 price-info = { path = "../price-info" }
 rand = "0.3"
 rlp = { path = "../util/rlp" }
+rlp_derive = { path = "../util/rlp_derive" }
 rust-crypto = "0.2.34"
 rustc-hex = "1.0"
 semver = "0.6"
 stats = { path = "../util/stats" }
 time = "0.1"
 transient-hashmap = "0.4"
+using_queue = { path = "../util/using_queue" }
+table = { path = "../util/table" }
+bloomable = { path = "../util/bloomable" }
+vm = { path = "vm" }
+wasm = { path = "wasm" }
 
 [dev-dependencies]
 native-contracts = { path = "native_contracts", features = ["test_contracts"] }

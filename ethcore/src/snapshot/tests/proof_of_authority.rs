@@ -130,7 +130,7 @@ fn make_chain(accounts: Arc<AccountProvider>, blocks_beyond: usize, transitions:
 				action: Action::Call(Address::new()),
 				value: 1.into(),
 				data: Vec::new(),
-			}.sign(&*RICH_SECRET, client.signing_network_id());
+			}.sign(&*RICH_SECRET, client.signing_chain_id());
 
 			*nonce = *nonce + 1.into();
 			vec![transaction]
@@ -176,7 +176,7 @@ fn make_chain(accounts: Arc<AccountProvider>, blocks_beyond: usize, transitions:
 							action: Action::Call(addr),
 							value: 0.into(),
 							data: data,
-						}.sign(&*RICH_SECRET, client.signing_network_id());
+						}.sign(&*RICH_SECRET, client.signing_chain_id());
 
 						pending.push(transaction);
 

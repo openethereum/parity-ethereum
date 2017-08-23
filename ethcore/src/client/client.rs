@@ -20,9 +20,10 @@ use std::sync::{Arc, Weak};
 use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
 use std::time::{Instant};
 use time::precise_time_ns;
+use itertools::Itertools;
 
 // util
-use util::{Bytes, PerfTimer, Itertools, Mutex, RwLock, MutexGuard, Hashable};
+use util::{Bytes, PerfTimer, Mutex, RwLock, MutexGuard, Hashable};
 use util::{journaldb, DBValue, TrieFactory, Trie};
 use util::{U256, H256, Address, H2048};
 use util::trie::TrieSpec;
@@ -42,9 +43,8 @@ use client::{
 };
 use encoded;
 use engines::{Engine, EpochTransition};
-use evm::env_info::EnvInfo;
-use evm::env_info::LastHashes;
 use error::{ImportError, ExecutionError, CallError, BlockError, ImportResult, Error as EthcoreError};
+use vm::{EnvInfo, LastHashes};
 use evm::{Factory as EvmFactory, Schedule};
 use executive::{Executive, Executed, TransactOptions, contract_address};
 use factory::Factories;
@@ -907,7 +907,7 @@ impl Client {
 	pub fn state_at(&self, id: BlockId) -> Option<State<StateDB>> {
 		// fast path for latest state.
 		match id.clone() {
-			BlockId::Pending => return self.miner.pending_state().or_else(|| Some(self.state())),
+			BlockId::Pending => return self.miner.pending_state(self.chain.read().best_block_number()).or_else(|| Some(self.state())),
 			BlockId::Latest => return Some(self.state()),
 			_ => {},
 		}
@@ -1056,19 +1056,20 @@ impl Client {
 		self.history
 	}
 
-	fn block_hash(chain: &BlockChain, id: BlockId) -> Option<H256> {
+	fn block_hash(chain: &BlockChain, miner: &Miner, id: BlockId) -> Option<H256> {
 		match id {
 			BlockId::Hash(hash) => Some(hash),
 			BlockId::Number(number) => chain.block_hash(number),
 			BlockId::Earliest => chain.block_hash(0),
-			BlockId::Latest | BlockId::Pending => Some(chain.best_block_hash()),
+			BlockId::Latest => Some(chain.best_block_hash()),
+			BlockId::Pending => miner.pending_block_header(chain.best_block_number()).map(|header| header.hash())
 		}
 	}
 
 	fn transaction_address(&self, id: TransactionId) -> Option<TransactionAddress> {
 		match id {
 			TransactionId::Hash(ref hash) => self.chain.read().transaction_address(hash),
-			TransactionId::Location(id, index) => Self::block_hash(&self.chain.read(), id).map(|hash| TransactionAddress {
+			TransactionId::Location(id, index) => Self::block_hash(&self.chain.read(), &self.miner, id).map(|hash| TransactionAddress {
 				block_hash: hash,
 				index: index,
 			})
@@ -1111,6 +1112,20 @@ impl Client {
 			data: data,
 		}.fake_sign(from)
 	}
+
+	fn do_call(&self, env_info: &EnvInfo, state: &mut State<StateDB>, t: &SignedTransaction, analytics: CallAnalytics) -> Result<Executed, CallError> {
+		let original_state = if analytics.state_diffing { Some(state.clone()) } else { None };
+
+		let options = TransactOptions { tracing: analytics.transaction_tracing, vm_tracing: analytics.vm_tracing, check_nonce: false };
+		let mut ret = Executive::new(state, env_info, &*self.engine).transact_virtual(t, options)?;
+
+		// TODO gav move this into Executive.
+		if let Some(original) = original_state {
+			ret.state_diff = Some(state.diff_from(original).map_err(ExecutionError::from)?);
+		}
+
+		Ok(ret)
+	}
 }
 
 impl snapshot::DatabaseRestore for Client {
@@ -1135,23 +1150,31 @@ impl snapshot::DatabaseRestore for Client {
 }
 
 impl BlockChainClient for Client {
-	fn call(&self, t: &SignedTransaction, block: BlockId, analytics: CallAnalytics) -> Result<Executed, CallError> {
+	fn call(&self, transaction: &SignedTransaction, analytics: CallAnalytics, block: BlockId) -> Result<Executed, CallError> {
 		let mut env_info = self.env_info(block).ok_or(CallError::StatePruned)?;
 		env_info.gas_limit = U256::max_value();
 
 		// that's just a copy of the state.
 		let mut state = self.state_at(block).ok_or(CallError::StatePruned)?;
-		let original_state = if analytics.state_diffing { Some(state.clone()) } else { None };
 
-		let options = TransactOptions { tracing: analytics.transaction_tracing, vm_tracing: analytics.vm_tracing, check_nonce: false };
-		let mut ret = Executive::new(&mut state, &env_info, &*self.engine).transact_virtual(t, options)?;
+		self.do_call(&env_info, &mut state, transaction, analytics)
+	}
 
-		// TODO gav move this into Executive.
-		if let Some(original) = original_state {
-			ret.state_diff = Some(state.diff_from(original).map_err(ExecutionError::from)?);
+	fn call_many(&self, transactions: &[(SignedTransaction, CallAnalytics)], block: BlockId) -> Result<Vec<Executed>, CallError> {
+		let mut env_info = self.env_info(block).ok_or(CallError::StatePruned)?;
+		env_info.gas_limit = U256::max_value();
+
+		// that's just a copy of the state.
+		let mut state = self.state_at(block).ok_or(CallError::StatePruned)?;
+		let mut results = Vec::with_capacity(transactions.len());
+
+		for &(ref t, analytics) in transactions {
+			let ret = self.do_call(&env_info, &mut state, t, analytics)?;
+			env_info.gas_used = ret.cumulative_gas_used;
+			results.push(ret);
 		}
 
-		Ok(ret)
+		Ok(results)
 	}
 
 	fn estimate_gas(&self, t: &SignedTransaction, block: BlockId) -> Result<U256, CallError> {
@@ -1304,7 +1327,16 @@ impl BlockChainClient for Client {
 
 	fn block_header(&self, id: BlockId) -> Option<::encoded::Header> {
 		let chain = self.chain.read();
-		Self::block_hash(&chain, id).and_then(|hash| chain.block_header_data(&hash))
+
+		if let BlockId::Pending = id {
+			if let Some(block) = self.miner.pending_block(chain.best_block_number()) {
+				return Some(encoded::Header::new(block.header.rlp(Seal::Without)));
+			}
+			// fall back to latest
+			return self.block_header(BlockId::Latest);
+		}
+
+		Self::block_hash(&chain, &self.miner, id).and_then(|hash| chain.block_header_data(&hash))
 	}
 
 	fn block_number(&self, id: BlockId) -> Option<BlockNumber> {
@@ -1312,30 +1344,48 @@ impl BlockChainClient for Client {
 			BlockId::Number(number) => Some(number),
 			BlockId::Hash(ref hash) => self.chain.read().block_number(hash),
 			BlockId::Earliest => Some(0),
-			BlockId::Latest | BlockId::Pending => Some(self.chain.read().best_block_number()),
+			BlockId::Latest => Some(self.chain.read().best_block_number()),
+			BlockId::Pending => Some(self.chain.read().best_block_number() + 1),
 		}
 	}
 
 	fn block_body(&self, id: BlockId) -> Option<encoded::Body> {
 		let chain = self.chain.read();
-		Self::block_hash(&chain, id).and_then(|hash| chain.block_body(&hash))
+
+		if let BlockId::Pending = id {
+			if let Some(block) = self.miner.pending_block(chain.best_block_number()) {
+				return Some(encoded::Body::new(BlockChain::block_to_body(&block.rlp_bytes(Seal::Without))));
+			}
+			// fall back to latest
+			return self.block_body(BlockId::Latest);
+		}
+
+		Self::block_hash(&chain, &self.miner, id).and_then(|hash| chain.block_body(&hash))
 	}
 
 	fn block(&self, id: BlockId) -> Option<encoded::Block> {
+		let chain = self.chain.read();
+
 		if let BlockId::Pending = id {
-			if let Some(block) = self.miner.pending_block() {
+			if let Some(block) = self.miner.pending_block(chain.best_block_number()) {
 				return Some(encoded::Block::new(block.rlp_bytes(Seal::Without)));
 			}
+			// fall back to latest
+			return self.block(BlockId::Latest);
 		}
-		let chain = self.chain.read();
-		Self::block_hash(&chain, id).and_then(|hash| {
+
+		Self::block_hash(&chain, &self.miner, id).and_then(|hash| {
 			chain.block(&hash)
 		})
 	}
 
 	fn block_status(&self, id: BlockId) -> BlockStatus {
+		if let BlockId::Pending = id {
+			return BlockStatus::Pending;
+		}
+
 		let chain = self.chain.read();
-		match Self::block_hash(&chain, id) {
+		match Self::block_hash(&chain, &self.miner, id) {
 			Some(ref hash) if chain.is_known(hash) => BlockStatus::InChain,
 			Some(hash) => self.block_queue.status(&hash).into(),
 			None => BlockStatus::Unknown
@@ -1343,13 +1393,18 @@ impl BlockChainClient for Client {
 	}
 
 	fn block_total_difficulty(&self, id: BlockId) -> Option<U256> {
-		if let BlockId::Pending = id {
-			if let Some(block) = self.miner.pending_block() {
-				return Some(*block.header.difficulty() + self.block_total_difficulty(BlockId::Latest).expect("blocks in chain have details; qed"));
-			}
-		}
 		let chain = self.chain.read();
-		Self::block_hash(&chain, id).and_then(|hash| chain.block_details(&hash)).map(|d| d.total_difficulty)
+		if let BlockId::Pending = id {
+			let latest_difficulty = self.block_total_difficulty(BlockId::Latest).expect("blocks in chain have details; qed");
+			let pending_difficulty = self.miner.pending_block_header(chain.best_block_number()).map(|header| *header.difficulty());
+			if let Some(difficulty) = pending_difficulty {
+				return Some(difficulty + latest_difficulty);
+			}
+			// fall back to latest
+			return Some(latest_difficulty);
+		}
+
+		Self::block_hash(&chain, &self.miner, id).and_then(|hash| chain.block_details(&hash)).map(|d| d.total_difficulty)
 	}
 
 	fn nonce(&self, address: &Address, id: BlockId) -> Option<U256> {
@@ -1362,7 +1417,7 @@ impl BlockChainClient for Client {
 
 	fn block_hash(&self, id: BlockId) -> Option<H256> {
 		let chain = self.chain.read();
-		Self::block_hash(&chain, id)
+		Self::block_hash(&chain, &self.miner, id)
 	}
 
 	fn code(&self, address: &Address, id: BlockId) -> Option<Option<Bytes>> {
@@ -1527,7 +1582,8 @@ impl BlockChainClient for Client {
 			if self.chain.read().is_known(&unverified.hash()) {
 				return Err(BlockImportError::Import(ImportError::AlreadyInChain));
 			}
-			if self.block_status(BlockId::Hash(unverified.parent_hash())) == BlockStatus::Unknown {
+			let status = self.block_status(BlockId::Hash(unverified.parent_hash()));
+			if status == BlockStatus::Unknown || status == BlockStatus::Pending {
 				return Err(BlockImportError::Block(BlockError::UnknownParent(unverified.parent_hash())));
 			}
 		}
@@ -1541,7 +1597,8 @@ impl BlockChainClient for Client {
 			if self.chain.read().is_known(&header.hash()) {
 				return Err(BlockImportError::Import(ImportError::AlreadyInChain));
 			}
-			if self.block_status(BlockId::Hash(header.parent_hash())) == BlockStatus::Unknown {
+			let status = self.block_status(BlockId::Hash(header.parent_hash()));
+			if  status == BlockStatus::Unknown || status == BlockStatus::Pending {
 				return Err(BlockImportError::Block(BlockError::UnknownParent(header.parent_hash())));
 			}
 		}
@@ -1663,8 +1720,8 @@ impl BlockChainClient for Client {
 		}
 	}
 
-	fn signing_network_id(&self) -> Option<u64> {
-		self.engine.signing_network_id(&self.latest_env_info())
+	fn signing_chain_id(&self) -> Option<u64> {
+		self.engine.signing_chain_id(&self.latest_env_info())
 	}
 
 	fn block_extra_info(&self, id: BlockId) -> Option<BTreeMap<String, String>> {
@@ -1687,7 +1744,7 @@ impl BlockChainClient for Client {
 	fn call_contract(&self, block_id: BlockId, address: Address, data: Bytes) -> Result<Bytes, String> {
 		let transaction = self.contract_call_tx(block_id, address, data);
 
-		self.call(&transaction, block_id, Default::default())
+		self.call(&transaction, Default::default(), block_id)
 			.map_err(|e| format!("{:?}", e))
 			.map(|executed| {
 				executed.output
@@ -1703,9 +1760,9 @@ impl BlockChainClient for Client {
 			value: U256::zero(),
 			data: data,
 		};
-		let network_id = self.engine.signing_network_id(&self.latest_env_info());
-		let signature = self.engine.sign(transaction.hash(network_id))?;
-		let signed = SignedTransaction::new(transaction.with_signature(signature, network_id))?;
+		let chain_id = self.engine.signing_chain_id(&self.latest_env_info());
+		let signature = self.engine.sign(transaction.hash(chain_id))?;
+		let signed = SignedTransaction::new(transaction.with_signature(signature, chain_id))?;
 		self.miner.import_own_transaction(self, signed.into())
 	}
 

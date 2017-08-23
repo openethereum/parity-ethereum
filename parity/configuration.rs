@@ -20,11 +20,12 @@ use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 use std::collections::BTreeMap;
 use std::cmp::max;
+use std::str::FromStr;
 use cli::{Args, ArgsError};
 use util::{Hashable, H256, U256, Bytes, version_data, Address};
 use util::journaldb::Algorithm;
 use util::Colour;
-use ethsync::{NetworkConfiguration, is_valid_node_url, AllowIP};
+use ethsync::{NetworkConfiguration, is_valid_node_url};
 use ethcore::ethstore::ethkey::{Secret, Public};
 use ethcore::client::{VMType};
 use ethcore::miner::{MinerOptions, Banning, StratumOptions};
@@ -41,13 +42,14 @@ use ethcore_logger::Config as LogConfig;
 use dir::{self, Directories, default_hypervisor_path, default_local_path, default_data_path};
 use dapps::Configuration as DappsConfiguration;
 use ipfs::Configuration as IpfsConfiguration;
-use secretstore::Configuration as SecretStoreConfiguration;
+use secretstore::{Configuration as SecretStoreConfiguration, NodeSecretKey};
 use updater::{UpdatePolicy, UpdateFilter, ReleaseTrack};
 use run::RunCmd;
 use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, KillBlockchain, ExportState, DataFormat};
 use presale::ImportWallet;
 use account::{AccountCmd, NewAccount, ListAccounts, ImportAccounts, ImportFromGethAccounts};
 use snapshot::{self, SnapshotCommand};
+use network::{IpFilter};
 
 #[derive(Debug, PartialEq)]
 pub enum Cmd {
@@ -56,7 +58,7 @@ pub enum Cmd {
 	Account(AccountCmd),
 	ImportPresaleWallet(ImportWallet),
 	Blockchain(BlockchainCmd),
-	SignerToken(WsConfiguration, UiConfiguration),
+	SignerToken(WsConfiguration, UiConfiguration, LogConfig),
 	SignerSign {
 		id: Option<usize>,
 		pwfile: Option<PathBuf>,
@@ -148,7 +150,7 @@ impl Configuration {
 			let authfile = ::signer::codes_path(&ws_conf.signer_path);
 
 			if self.args.cmd_new_token {
-				Cmd::SignerToken(ws_conf, ui_conf)
+				Cmd::SignerToken(ws_conf, ui_conf, logger_config.clone())
 			} else if self.args.cmd_sign {
 				let pwfile = self.args.flag_password.get(0).map(|pwfile| {
 					PathBuf::from(pwfile)
@@ -461,12 +463,10 @@ impl Configuration {
 		max(self.min_peers(), peers)
 	}
 
-	fn allow_ips(&self) -> Result<AllowIP, String> {
-		match self.args.flag_allow_ips.as_str() {
-			"all" => Ok(AllowIP::All),
-			"public" => Ok(AllowIP::Public),
-			"private" => Ok(AllowIP::Private),
-			_ => Err("Invalid IP filter value".to_owned()),
+	fn ip_filter(&self) -> Result<IpFilter, String> {
+		match IpFilter::parse(self.args.flag_allow_ips.as_str()) {
+			Ok(allow_ip) => Ok(allow_ip),
+			Err(_) => Err("Invalid IP filter value".to_owned()),
 		}
 	}
 
@@ -552,37 +552,65 @@ impl Configuration {
 		Ok(options)
 	}
 
+	fn ui_port(&self) -> u16 {
+		self.args.flag_ports_shift + self.args.flag_ui_port
+	}
+
+	fn ntp_servers(&self) -> Vec<String> {
+		self.args.flag_ntp_servers.split(",").map(str::to_owned).collect()
+	}
+
 	fn ui_config(&self) -> UiConfiguration {
 		UiConfiguration {
 			enabled: self.ui_enabled(),
-			ntp_server: self.args.flag_ntp_server.clone(),
+			ntp_servers: self.ntp_servers(),
 			interface: self.ui_interface(),
-			port: self.args.flag_ports_shift + self.args.flag_ui_port,
+			port: self.ui_port(),
 			hosts: self.ui_hosts(),
 		}
 	}
 
 	fn dapps_config(&self) -> DappsConfiguration {
+		let dev_ui = if self.args.flag_ui_no_validation { vec![("localhost".to_owned(), 3000)] } else { vec![] };
+		let ui_port = self.ui_port();
+
 		DappsConfiguration {
 			enabled: self.dapps_enabled(),
-			ntp_server: self.args.flag_ntp_server.clone(),
+			ntp_servers: self.ntp_servers(),
 			dapps_path: PathBuf::from(self.directories().dapps),
 			extra_dapps: if self.args.cmd_dapp {
 				self.args.arg_path.iter().map(|path| PathBuf::from(path)).collect()
 			} else {
 				vec![]
 			},
-			extra_embed_on: if self.args.flag_ui_no_validation {
-				vec![("localhost".to_owned(), 3000)]
-			} else {
-				vec![]
+			extra_embed_on: {
+				let mut extra_embed = dev_ui.clone();
+				match self.ui_hosts() {
+					// In case host validation is disabled allow all frame ancestors
+					None => extra_embed.push(("*".to_owned(), ui_port)),
+					Some(hosts) => extra_embed.extend(hosts.into_iter().filter_map(|host| {
+						let mut it = host.split(":");
+						let host = it.next();
+						let port = it.next().and_then(|v| u16::from_str(v).ok());
+
+						match (host, port) {
+							(Some(host), Some(port)) => Some((host.into(), port)),
+							(Some(host), None) => Some((host.into(), ui_port)),
+							_ => None,
+						}
+					})),
+				}
+				extra_embed
 			},
+			extra_script_src: dev_ui,
 		}
 	}
 
 	fn secretstore_config(&self) -> Result<SecretStoreConfiguration, String> {
 		Ok(SecretStoreConfiguration {
 			enabled: self.secretstore_enabled(),
+			http_enabled: self.secretstore_http_enabled(),
+			acl_check_enabled: self.secretstore_acl_check_enabled(),
 			self_secret: self.secretstore_self_secret()?,
 			nodes: self.secretstore_nodes()?,
 			interface: self.secretstore_interface(),
@@ -712,7 +740,7 @@ impl Configuration {
 		ret.max_peers = self.max_peers();
 		ret.min_peers = self.min_peers();
 		ret.snapshot_peers = self.snapshot_peers();
-		ret.allow_ips = self.allow_ips()?;
+		ret.ip_filter = self.ip_filter()?;
 		ret.max_pending_peers = self.max_pending_peers();
 		let mut net_path = PathBuf::from(self.directories().base);
 		net_path.push("network");
@@ -906,13 +934,10 @@ impl Configuration {
 		} else {
 			self.args.flag_db_path.as_ref().map_or(dir::CHAINS_PATH, |s| &s)
 		};
-		let cache_path = if is_using_base_path {
-			"$BASE/cache".into()
-		} else {
-			replace_home_and_local(&data_path, &local_path, &dir::CACHE_PATH)
-		};
+		let cache_path = if is_using_base_path { "$BASE/cache" } else { dir::CACHE_PATH };
 
 		let db_path = replace_home_and_local(&data_path, &local_path, &base_db_path);
+		let cache_path = replace_home_and_local(&data_path, &local_path, cache_path);
 		let keys_path = replace_home(&data_path, &self.args.flag_keys_path);
 		let dapps_path = replace_home(&data_path, &self.args.flag_dapps_path);
 		let secretstore_path = replace_home(&data_path, &self.args.flag_secretstore_path);
@@ -968,7 +993,6 @@ impl Configuration {
 		}.into()
 	}
 
-
 	fn ui_interface(&self) -> String {
 		self.interface(&self.args.flag_ui_interface)
 	}
@@ -994,10 +1018,13 @@ impl Configuration {
 		self.interface(&self.args.flag_secretstore_http_interface)
 	}
 
-	fn secretstore_self_secret(&self) -> Result<Option<Secret>, String> {
+	fn secretstore_self_secret(&self) -> Result<Option<NodeSecretKey>, String> {
 		match self.args.flag_secretstore_secret {
-			Some(ref s) => Ok(Some(s.parse()
-				.map_err(|e| format!("Invalid secret store secret: {}. Error: {:?}", s, e))?)),
+			Some(ref s) if s.len() == 64 => Ok(Some(NodeSecretKey::Plain(s.parse()
+				.map_err(|e| format!("Invalid secret store secret: {}. Error: {:?}", s, e))?))),
+			Some(ref s) if s.len() == 40 => Ok(Some(NodeSecretKey::KeyStore(s.parse()
+				.map_err(|e| format!("Invalid secret store secret address: {}. Error: {:?}", s, e))?))),
+			Some(_) => Err(format!("Invalid secret store secret. Must be either existing account address, or hex-encoded private key")),
 			None => Ok(None),
 		}
 	}
@@ -1046,6 +1073,14 @@ impl Configuration {
 		!self.args.flag_no_secretstore && cfg!(feature = "secretstore")
 	}
 
+	fn secretstore_http_enabled(&self) -> bool {
+		!self.args.flag_no_secretstore_http && cfg!(feature = "secretstore")
+	}
+
+	fn secretstore_acl_check_enabled(&self) -> bool {
+		!self.args.flag_no_secretstore_acl_check
+	}
+
 	fn ui_enabled(&self) -> bool {
 		if self.args.flag_force_ui {
 			return true;
@@ -1080,6 +1115,7 @@ impl Configuration {
 mod tests {
 	use std::io::Write;
 	use std::fs::{File, create_dir};
+	use std::str::FromStr;
 
 	use devtools::{RandomTempPath};
 	use ethcore::client::{VMType, BlockId};
@@ -1096,6 +1132,11 @@ mod tests {
 	use presale::ImportWallet;
 	use rpc::{WsConfiguration, UiConfiguration};
 	use run::RunCmd;
+
+	use network::{AllowIP, IpFilter};
+
+	extern crate ipnetwork;
+	use self::ipnetwork::IpNetwork;
 
 	use super::*;
 
@@ -1270,18 +1311,27 @@ mod tests {
 			interface: "127.0.0.1".into(),
 			port: 8546,
 			apis: ApiSet::UnsafeContext,
-			origins: Some(vec!["chrome-extension://*".into()]),
+			origins: Some(vec!["chrome-extension://*".into(), "moz-extension://*".into()]),
 			hosts: Some(vec![]),
 			signer_path: expected.into(),
 			ui_address: Some(("127.0.0.1".to_owned(), 8180)),
 			support_token_api: true
 		}, UiConfiguration {
 			enabled: true,
-			ntp_server: "none".into(),
+			ntp_servers: vec![
+				"0.parity.pool.ntp.org:123".into(),
+				"1.parity.pool.ntp.org:123".into(),
+				"2.parity.pool.ntp.org:123".into(),
+				"3.parity.pool.ntp.org:123".into(),
+			],
 			interface: "127.0.0.1".into(),
 			port: 8180,
 			hosts: Some(vec![]),
-		}));
+		}, LogConfig {
+            color: true,
+            mode: None,
+            file: None,
+        } ));
 	}
 
 	#[test]
@@ -1336,6 +1386,7 @@ mod tests {
 			whisper: Default::default(),
 		};
 		expected.secretstore_conf.enabled = cfg!(feature = "secretstore");
+		expected.secretstore_conf.http_enabled = cfg!(feature = "secretstore");
 		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Run(expected));
 	}
 
@@ -1516,10 +1567,16 @@ mod tests {
 		let conf3 = parse(&["parity", "--ui-path", "signer", "--ui-interface", "test"]);
 
 		// then
+		let ntp_servers = vec![
+			"0.parity.pool.ntp.org:123".into(),
+			"1.parity.pool.ntp.org:123".into(),
+			"2.parity.pool.ntp.org:123".into(),
+			"3.parity.pool.ntp.org:123".into(),
+		];
 		assert_eq!(conf0.directories().signer, "signer".to_owned());
 		assert_eq!(conf0.ui_config(), UiConfiguration {
 			enabled: true,
-			ntp_server: "none".into(),
+			ntp_servers: ntp_servers.clone(),
 			interface: "127.0.0.1".into(),
 			port: 8180,
 			hosts: Some(vec![]),
@@ -1528,7 +1585,7 @@ mod tests {
 		assert_eq!(conf1.directories().signer, "signer".to_owned());
 		assert_eq!(conf1.ui_config(), UiConfiguration {
 			enabled: true,
-			ntp_server: "none".into(),
+			ntp_servers: ntp_servers.clone(),
 			interface: "127.0.0.1".into(),
 			port: 8180,
 			hosts: Some(vec![]),
@@ -1538,7 +1595,7 @@ mod tests {
 		assert_eq!(conf2.directories().signer, "signer".to_owned());
 		assert_eq!(conf2.ui_config(), UiConfiguration {
 			enabled: true,
-			ntp_server: "none".into(),
+			ntp_servers: ntp_servers.clone(),
 			interface: "127.0.0.1".into(),
 			port: 3123,
 			hosts: Some(vec![]),
@@ -1547,7 +1604,7 @@ mod tests {
 		assert_eq!(conf3.directories().signer, "signer".to_owned());
 		assert_eq!(conf3.ui_config(), UiConfiguration {
 			enabled: true,
-			ntp_server: "none".into(),
+			ntp_servers: ntp_servers.clone(),
 			interface: "test".into(),
 			port: 8180,
 			hosts: Some(vec![]),
@@ -1751,5 +1808,62 @@ mod tests {
 		assert_eq!(&conf0.secretstore_config().unwrap().http_interface, "0.0.0.0");
 		assert_eq!(&conf0.ipfs_config().interface, "0.0.0.0");
 		assert_eq!(conf0.ipfs_config().hosts, None);
+	}
+
+	#[test]
+	fn allow_ips() {
+		let all = parse(&["parity", "--allow-ips", "all"]);
+		let private = parse(&["parity", "--allow-ips", "private"]);
+		let block_custom = parse(&["parity", "--allow-ips", "-10.0.0.0/8"]);
+		let combo = parse(&["parity", "--allow-ips", "public 10.0.0.0/8 -1.0.0.0/8"]);
+		let ipv6_custom_public = parse(&["parity", "--allow-ips", "public fc00::/7"]);
+		let ipv6_custom_private = parse(&["parity", "--allow-ips", "private -fc00::/7"]);
+
+		assert_eq!(all.ip_filter().unwrap(), IpFilter {
+			predefined: AllowIP::All,
+			custom_allow: vec![],
+			custom_block: vec![],
+		});
+
+		assert_eq!(private.ip_filter().unwrap(), IpFilter {
+			predefined: AllowIP::Private,
+			custom_allow: vec![],
+			custom_block: vec![],
+		});
+
+		assert_eq!(block_custom.ip_filter().unwrap(), IpFilter {
+			predefined: AllowIP::All,
+			custom_allow: vec![],
+			custom_block: vec![IpNetwork::from_str("10.0.0.0/8").unwrap()],
+		});
+
+		assert_eq!(combo.ip_filter().unwrap(), IpFilter {
+			predefined: AllowIP::Public,
+			custom_allow: vec![IpNetwork::from_str("10.0.0.0/8").unwrap()],
+			custom_block: vec![IpNetwork::from_str("1.0.0.0/8").unwrap()],
+		});
+
+		assert_eq!(ipv6_custom_public.ip_filter().unwrap(), IpFilter {
+			predefined: AllowIP::Public,
+			custom_allow: vec![IpNetwork::from_str("fc00::/7").unwrap()],
+			custom_block: vec![],
+		});
+
+		assert_eq!(ipv6_custom_private.ip_filter().unwrap(), IpFilter {
+			predefined: AllowIP::Private,
+			custom_allow: vec![],
+			custom_block: vec![IpNetwork::from_str("fc00::/7").unwrap()],
+		});
+	}
+
+	#[test]
+	fn should_use_correct_cache_path_if_base_is_set() {
+		let std = parse(&["parity"]);
+		let base = parse(&["parity", "--base-path", "/test"]);
+
+		let base_path = ::dir::default_data_path();
+		let local_path = ::dir::default_local_path();
+		assert_eq!(std.directories().cache, ::helpers::replace_home_and_local(&base_path, &local_path, ::dir::CACHE_PATH));
+		assert_eq!(base.directories().cache, "/test/cache");
 	}
 }

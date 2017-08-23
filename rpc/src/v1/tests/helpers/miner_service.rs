@@ -16,12 +16,12 @@
 
 //! Test implementation of miner service.
 
+use std::collections::{BTreeMap, HashMap};
 use std::collections::hash_map::Entry;
-use util::{Address, H256, Bytes, U256};
-use util::standard::*;
-use ethcore::error::{Error, CallError};
-use ethcore::client::{MiningBlockChainClient, Executed, CallAnalytics};
-use ethcore::block::{ClosedBlock, IsBlock};
+use util::{Address, H256, Bytes, U256, RwLock, Mutex};
+use ethcore::error::Error;
+use ethcore::client::MiningBlockChainClient;
+use ethcore::block::ClosedBlock;
 use ethcore::header::BlockNumber;
 use ethcore::transaction::{UnverifiedTransaction, SignedTransaction, PendingTransaction};
 use ethcore::receipt::{Receipt, RichReceipt};
@@ -278,41 +278,6 @@ impl MinerService for TestMinerService {
 	/// Will check the seal, but not actually insert the block into the chain.
 	fn submit_seal(&self, _chain: &MiningBlockChainClient, _pow_hash: H256, _seal: Vec<Bytes>) -> Result<(), Error> {
 		unimplemented!();
-	}
-
-	fn balance(&self, _chain: &MiningBlockChainClient, address: &Address) -> Option<U256> {
-		self.latest_closed_block.lock()
-			.as_ref()
-			.map(|b| b.block().fields().state.balance(address))
-			.map(|b| b.ok())
-			.unwrap_or(Some(U256::default()))
-	}
-
-	fn call(&self, _chain: &MiningBlockChainClient, _t: &SignedTransaction, _analytics: CallAnalytics) -> Result<Executed, CallError> {
-		unimplemented!();
-	}
-
-	fn storage_at(&self, _chain: &MiningBlockChainClient, address: &Address, position: &H256) -> Option<H256> {
-		self.latest_closed_block.lock()
-			.as_ref()
-			.map(|b| b.block().fields().state.storage_at(address, position))
-			.map(|s| s.ok())
-			.unwrap_or(Some(H256::default()))
-	}
-
-	fn nonce(&self, _chain: &MiningBlockChainClient, address: &Address) -> Option<U256> {
-		// we assume all transactions are in a pending block, ignoring the
-		// reality of gas limits.
-		Some(self.last_nonce(address).unwrap_or(U256::zero()))
-	}
-
-	fn code(&self, _chain: &MiningBlockChainClient, address: &Address) -> Option<Option<Bytes>> {
-		self.latest_closed_block.lock()
-			.as_ref()
-			.map(|b| b.block().fields().state.code(address))
-			.map(|c| c.ok())
-			.unwrap_or(None)
-			.map(|c| c.map(|c| (&*c).clone()))
 	}
 
 	fn sensible_gas_price(&self) -> U256 {

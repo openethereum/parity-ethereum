@@ -1,0 +1,10 @@
+[package]
+name = "bloomable"
+version = "0.1.0"
+authors = ["debris <marek.kotewicz@gmail.com>"]
+
+[dependencies]
+ethcore-bigint = { path = "../bigint" }
+
+[dev-dependencies]
+tiny-keccak = "1.3"

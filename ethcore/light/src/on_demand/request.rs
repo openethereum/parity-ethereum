@@ -24,7 +24,7 @@ use ethcore::engines::{Engine, StateDependentProof};
 use ethcore::receipt::Receipt;
 use ethcore::state::{self, ProvedExecution};
 use ethcore::transaction::SignedTransaction;
-use evm::env_info::EnvInfo;
+use vm::EnvInfo;
 
 use request::{self as net_request, IncompleteRequest, CompleteRequest, Output, OutputKind, Field};
 

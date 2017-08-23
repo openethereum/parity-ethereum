@@ -1,0 +1,13 @@
+[package]
+name = "wasm"
+version = "0.1.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+
+[dependencies]
+byteorder = "1.0"
+ethcore-util = { path = "../../util" }
+log = "0.3"
+parity-wasm = "0.12"
+wasm-utils = { git = "https://github.com/paritytech/wasm-utils" }
+vm = { path = "../vm" }
+ethcore-logger = { path = "../../logger" }

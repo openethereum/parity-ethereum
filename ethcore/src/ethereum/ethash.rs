@@ -15,11 +15,14 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::path::Path;
+use std::cmp;
+use std::collections::{BTreeMap, HashMap};
+use std::sync::Arc;
 use ethash::{quick_get_difficulty, slow_get_seedhash, EthashManager};
 use util::*;
 use block::*;
 use builtin::Builtin;
-use evm::env_info::EnvInfo;
+use vm::EnvInfo;
 use error::{BlockError, Error, TransactionError};
 use header::{Header, BlockNumber};
 use state::CleanupMode;
@@ -29,20 +32,21 @@ use engines::{self, Engine};
 use evm::Schedule;
 use ethjson;
 use rlp::{self, UntrustedRlp};
-use evm::env_info::LastHashes;
+use vm::LastHashes;
 
 /// Parity tries to round block.gas_limit to multiple of this constant
 pub const PARITY_GAS_LIMIT_DETERMINANT: U256 = U256([37, 0, 0, 0]);
 
 /// Number of blocks in an ethash snapshot.
 // make dependent on difficulty incrment divisor?
-const SNAPSHOT_BLOCKS: u64 = 30000;
+const SNAPSHOT_BLOCKS: u64 = 5000;
+/// Maximum number of blocks allowed in an ethash snapshot.
+const MAX_SNAPSHOT_BLOCKS: u64 = 30000;
+
 
 /// Ethash params.
 #[derive(Debug, PartialEq)]
 pub struct EthashParams {
-	/// Gas limit divisor.
-	pub gas_limit_bound_divisor: U256,
 	/// Minimum difficulty.
 	pub minimum_difficulty: U256,
 	/// Difficulty bound divisor.
@@ -53,10 +57,6 @@ pub struct EthashParams {
 	pub metropolis_difficulty_increment_divisor: u64,
 	/// Block duration.
 	pub duration_limit: u64,
-	/// Block reward.
-	pub block_reward: U256,
-	/// Namereg contract address.
-	pub registrar: Address,
 	/// Homestead transition block number.
 	pub homestead_transition: u64,
 	/// DAO hard-fork transition block (X).
@@ -75,8 +75,6 @@ pub struct EthashParams {
 	pub eip100b_transition: u64,
 	/// Number of first block where EIP-150 rules begin.
 	pub eip150_transition: u64,
-	/// Number of first block where EIP-155 rules begin.
-	pub eip155_transition: u64,
 	/// Number of first block where EIP-160 rules begin.
 	pub eip160_transition: u64,
 	/// Number of first block where EIP-161.abc begin.
@@ -104,14 +102,11 @@ pub struct EthashParams {
 impl From<ethjson::spec::EthashParams> for EthashParams {
 	fn from(p: ethjson::spec::EthashParams) -> Self {
 		EthashParams {
-			gas_limit_bound_divisor: p.gas_limit_bound_divisor.into(),
 			minimum_difficulty: p.minimum_difficulty.into(),
 			difficulty_bound_divisor: p.difficulty_bound_divisor.into(),
 			difficulty_increment_divisor: p.difficulty_increment_divisor.map_or(10, Into::into),
 			metropolis_difficulty_increment_divisor: p.metropolis_difficulty_increment_divisor.map_or(9, Into::into),
 			duration_limit: p.duration_limit.map_or(0, Into::into),
-			block_reward: p.block_reward.into(),
-			registrar: p.registrar.map_or_else(Address::new, Into::into),
 			homestead_transition: p.homestead_transition.map_or(0, Into::into),
 			dao_hardfork_transition: p.dao_hardfork_transition.map_or(u64::max_value(), Into::into),
 			dao_hardfork_beneficiary: p.dao_hardfork_beneficiary.map_or_else(Address::new, Into::into),
@@ -121,7 +116,6 @@ impl From<ethjson::spec::EthashParams> for EthashParams {
 			bomb_defuse_transition: p.bomb_defuse_transition.map_or(u64::max_value(), Into::into),
 			eip100b_transition: p.eip100b_transition.map_or(u64::max_value(), Into::into),
 			eip150_transition: p.eip150_transition.map_or(0, Into::into),
-			eip155_transition: p.eip155_transition.map_or(0, Into::into),
 			eip160_transition: p.eip160_transition.map_or(0, Into::into),
 			eip161abc_transition: p.eip161abc_transition.map_or(0, Into::into),
 			eip161d_transition: p.eip161d_transition.map_or(u64::max_value(), Into::into),
@@ -185,7 +179,7 @@ impl Engine for Arc<Ethash> {
 	fn seal_fields(&self) -> usize { 2 }
 
 	fn params(&self) -> &CommonParams { &self.params }
-	fn additional_params(&self) -> HashMap<String, String> { hash_map!["registrar".to_owned() => self.ethash_params.registrar.hex()] }
+	fn additional_params(&self) -> HashMap<String, String> { hash_map!["registrar".to_owned() => self.params().registrar.hex()] }
 
 	fn builtins(&self) -> &BTreeMap<Address, Builtin> {
 		&self.builtins
@@ -215,8 +209,8 @@ impl Engine for Arc<Ethash> {
 		}
 	}
 
-	fn signing_network_id(&self, env_info: &EnvInfo) -> Option<u64> {
-		if env_info.number >= self.ethash_params.eip155_transition {
+	fn signing_chain_id(&self, env_info: &EnvInfo) -> Option<u64> {
+		if env_info.number >= self.params().eip155_transition {
 			Some(self.params().chain_id)
 		} else {
 			None
@@ -231,19 +225,19 @@ impl Engine for Arc<Ethash> {
 		}
 		let gas_limit = {
 			let gas_limit = parent.gas_limit().clone();
-			let bound_divisor = self.ethash_params.gas_limit_bound_divisor;
+			let bound_divisor = self.params().gas_limit_bound_divisor;
 			let lower_limit = gas_limit - gas_limit / bound_divisor + 1.into();
 			let upper_limit = gas_limit + gas_limit / bound_divisor - 1.into();
 			let gas_limit = if gas_limit < gas_floor_target {
-				let gas_limit = min(gas_floor_target, upper_limit);
+				let gas_limit = cmp::min(gas_floor_target, upper_limit);
 				round_block_gas_limit(gas_limit, lower_limit, upper_limit)
 			} else if gas_limit > gas_ceil_target {
-				let gas_limit = max(gas_ceil_target, lower_limit);
+				let gas_limit = cmp::max(gas_ceil_target, lower_limit);
 				round_block_gas_limit(gas_limit, lower_limit, upper_limit)
 			} else {
-				let total_lower_limit = max(lower_limit, gas_floor_target);
-				let total_upper_limit = min(upper_limit, gas_ceil_target);
-				let gas_limit = max(gas_floor_target, min(total_upper_limit,
+				let total_lower_limit = cmp::max(lower_limit, gas_floor_target);
+				let total_upper_limit = cmp::min(upper_limit, gas_ceil_target);
+				let gas_limit = cmp::max(gas_floor_target, cmp::min(total_upper_limit,
 					lower_limit + (header.gas_used().clone() * 6.into() / 5.into()) / bound_divisor));
 				round_block_gas_limit(gas_limit, total_lower_limit, total_upper_limit)
 			};
@@ -284,7 +278,7 @@ impl Engine for Arc<Ethash> {
 	/// Apply the block reward on finalisation of the block.
 	/// This assumes that all uncles are valid uncles (i.e. of at least one generation before the current).
 	fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<(), Error> {
-		let reward = self.ethash_params.block_reward;
+		let reward = self.params().block_reward;
 		let fields = block.fields_mut();
 		let eras_rounds = self.ethash_params.ecip1017_era_rounds;
 		let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, reward, fields.header.number());
@@ -319,7 +313,7 @@ impl Engine for Arc<Ethash> {
 		Ok(())
 	}
 
-	fn verify_block_basic(&self, header: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
+	fn verify_block_basic(&self, header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
 		// check the seal fields.
 		if header.seal().len() != self.seal_fields() {
 			return Err(From::from(BlockError::InvalidSealArity(
@@ -357,7 +351,7 @@ impl Engine for Arc<Ethash> {
 		Ok(())
 	}
 
-	fn verify_block_unordered(&self, header: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
+	fn verify_block_unordered(&self, header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
 		if header.seal().len() != self.seal_fields() {
 			return Err(From::from(BlockError::InvalidSealArity(
 				Mismatch { expected: self.seal_fields(), found: header.seal().len() }
@@ -376,7 +370,7 @@ impl Engine for Arc<Ethash> {
 		Ok(())
 	}
 
-	fn verify_block_family(&self, header: &Header, parent: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
+	fn verify_block_family(&self, header: &Header, parent: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
 		// we should not calculate difficulty for genesis blocks
 		if header.number() == 0 {
 			return Err(From::from(BlockError::RidiculousNumber(OutOfBounds { min: Some(1), max: None, found: header.number() })));
@@ -387,7 +381,7 @@ impl Engine for Arc<Ethash> {
 		if header.difficulty() != &expected_difficulty {
 			return Err(From::from(BlockError::InvalidDifficulty(Mismatch { expected: expected_difficulty, found: header.difficulty().clone() })))
 		}
-		let gas_limit_divisor = self.ethash_params.gas_limit_bound_divisor;
+		let gas_limit_divisor = self.params().gas_limit_bound_divisor;
 		let parent_gas_limit = *parent.gas_limit();
 		let min_gas = parent_gas_limit - parent_gas_limit / gas_limit_divisor;
 		let max_gas = parent_gas_limit + parent_gas_limit / gas_limit_divisor;
@@ -400,14 +394,14 @@ impl Engine for Arc<Ethash> {
 		Ok(())
 	}
 
-	fn verify_transaction_basic(&self, t: &UnverifiedTransaction, header: &Header) -> result::Result<(), Error> {
+	fn verify_transaction_basic(&self, t: &UnverifiedTransaction, header: &Header) -> Result<(), Error> {
 		if header.number() >= self.ethash_params.min_gas_price_transition && t.gas_price < self.ethash_params.min_gas_price {
 			return Err(TransactionError::InsufficientGasPrice { minimal: self.ethash_params.min_gas_price, got: t.gas_price }.into());
 		}
 
 		let check_low_s = header.number() >= self.ethash_params.homestead_transition;
-		let network_id = if header.number() >= self.ethash_params.eip155_transition { Some(self.params().chain_id) } else { None };
-		t.verify_basic(check_low_s, network_id, false)?;
+		let chain_id = if header.number() >= self.params().eip155_transition { Some(self.params().chain_id) } else { None };
+		t.verify_basic(check_low_s, chain_id, false)?;
 		Ok(())
 	}
 
@@ -416,7 +410,7 @@ impl Engine for Arc<Ethash> {
 	}
 
 	fn snapshot_components(&self) -> Option<Box<::snapshot::SnapshotComponents>> {
-		Some(Box::new(::snapshot::PowSnapshot(SNAPSHOT_BLOCKS)))
+		Some(Box::new(::snapshot::PowSnapshot::new(SNAPSHOT_BLOCKS, MAX_SNAPSHOT_BLOCKS)))
 	}
 }
 
@@ -493,28 +487,28 @@ impl Ethash {
 			if diff_inc <= threshold {
 				*parent.difficulty() + *parent.difficulty() / difficulty_bound_divisor * (threshold - diff_inc).into()
 			} else {
-				let multiplier = min(diff_inc - threshold, 99).into();
+				let multiplier = cmp::min(diff_inc - threshold, 99).into();
 				parent.difficulty().saturating_sub(
 					*parent.difficulty() / difficulty_bound_divisor * multiplier
 				)
 			}
 		};
-		target = max(min_difficulty, target);
+		target = cmp::max(min_difficulty, target);
 		if header.number() < self.ethash_params.bomb_defuse_transition {
 			if header.number() < self.ethash_params.ecip1010_pause_transition {
 				let period = ((parent.number() + 1) / EXP_DIFF_PERIOD) as usize;
 				if period > 1 {
-					target = max(min_difficulty, target + (U256::from(1) << (period - 2)));
+					target = cmp::max(min_difficulty, target + (U256::from(1) << (period - 2)));
 				}
 			}
 			else if header.number() < self.ethash_params.ecip1010_continue_transition {
 				let fixed_difficulty = ((self.ethash_params.ecip1010_pause_transition / EXP_DIFF_PERIOD) - 2) as usize;
-				target = max(min_difficulty, target + (U256::from(1) << fixed_difficulty));
+				target = cmp::max(min_difficulty, target + (U256::from(1) << fixed_difficulty));
 			}
 			else {
 				let period = ((parent.number() + 1) / EXP_DIFF_PERIOD) as usize;
 				let delay = ((self.ethash_params.ecip1010_continue_transition - self.ethash_params.ecip1010_pause_transition) / EXP_DIFF_PERIOD) as usize;
-				target = max(min_difficulty, target + (U256::from(1) << (period - delay - 2)));
+				target = cmp::max(min_difficulty, target + (U256::from(1) << (period - delay - 2)));
 			}
 		}
 		target
@@ -559,6 +553,9 @@ impl Header {
 
 #[cfg(test)]
 mod tests {
+	use std::str::FromStr;
+	use std::collections::BTreeMap;
+	use std::sync::Arc;
 	use util::*;
 	use block::*;
 	use tests::helpers::*;
@@ -809,36 +806,32 @@ mod tests {
 
 	#[test]
 	fn has_valid_ecip1017_eras_block_reward() {
-		let ethparams = EthashParams {
-			// see ethcore/res/ethereum/classic.json
-			ecip1017_era_rounds: 5000000,
-			block_reward: U256::from_str("4563918244F40000").unwrap(),
-			..get_default_ethash_params()
-		};
-		let eras_rounds = ethparams.ecip1017_era_rounds;
-		let reward = ethparams.block_reward;
+		let eras_rounds = 5000000;
+
+		let start_reward: U256 = "4563918244F40000".parse().unwrap();
+
 		let block_number = 0;
-		let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, reward, block_number);
+		let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, start_reward, block_number);
 		assert_eq!(0, eras);
 		assert_eq!(U256::from_str("4563918244F40000").unwrap(), reward);
-		let reward = ethparams.block_reward;
+
 		let block_number = 5000000;
-		let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, reward, block_number);
+		let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, start_reward, block_number);
 		assert_eq!(0, eras);
 		assert_eq!(U256::from_str("4563918244F40000").unwrap(), reward);
-		let reward = ethparams.block_reward;
+
 		let block_number = 10000000;
-		let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, reward, block_number);
+		let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, start_reward, block_number);
 		assert_eq!(1, eras);
 		assert_eq!(U256::from_str("3782DACE9D900000").unwrap(), reward);
-		let reward = ethparams.block_reward;
+
 		let block_number = 20000000;
-		let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, reward, block_number);
+		let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, start_reward, block_number);
 		assert_eq!(3, eras);
 		assert_eq!(U256::from_str("2386F26FC1000000").unwrap(), reward);
-		let reward = ethparams.block_reward;
+
 		let block_number = 80000000;
-		let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, reward, block_number);
+		let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, start_reward, block_number);
 		assert_eq!(15, eras);
 		assert_eq!(U256::from_str("271000000000000").unwrap(), reward);
 	}
