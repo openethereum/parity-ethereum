@@ -17,6 +17,7 @@
 use std::fmt;
 use std::ops::Deref;
 use std::str::FromStr;
+use rustc_hex::ToHex;
 use secp256k1::key;
 use bigint::hash::H256;
 use {Error, SECP256K1};
@@ -24,6 +25,12 @@ use {Error, SECP256K1};
 #[derive(Clone, PartialEq, Eq)]
 pub struct Secret {
 	inner: H256,
+}
+
+impl ToHex for Secret {
+	fn to_hex(&self) -> String {
+		self.inner.to_hex()
+	}
 }
 
 impl fmt::Debug for Secret {
@@ -87,6 +94,15 @@ impl Secret {
 		let mut key_secret = self.to_secp256k1_secret()?;
 		let other_secret = other.to_secp256k1_secret()?;
 		key_secret.mul_assign(&SECP256K1, &other_secret)?;
+
+		*self = key_secret.into();
+		Ok(())
+	}
+
+	/// Inplace negate secret key (-scalar)
+	pub fn neg(&mut self) -> Result<(), Error> {
+		let mut key_secret = self.to_secp256k1_secret()?;
+		key_secret.mul_assign(&SECP256K1, &key::MINUS_ONE_KEY)?;
 
 		*self = key_secret.into();
 		Ok(())

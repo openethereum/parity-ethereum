@@ -20,11 +20,12 @@ use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 use std::collections::BTreeMap;
 use std::cmp::max;
+use std::str::FromStr;
 use cli::{Args, ArgsError};
 use util::{Hashable, H256, U256, Bytes, version_data, Address};
 use util::journaldb::Algorithm;
 use util::Colour;
-use ethsync::{NetworkConfiguration, is_valid_node_url, AllowIP};
+use ethsync::{NetworkConfiguration, is_valid_node_url};
 use ethcore::ethstore::ethkey::{Secret, Public};
 use ethcore::client::{VMType};
 use ethcore::miner::{MinerOptions, Banning, StratumOptions};
@@ -34,20 +35,21 @@ use rpc::{IpcConfiguration, HttpConfiguration, WsConfiguration, UiConfiguration}
 use rpc_apis::ApiSet;
 use parity_rpc::NetworkSettings;
 use cache::CacheConfig;
-use helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_price, replace_home, replace_home_for_db,
+use helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_price, replace_home, replace_home_and_local,
 geth_ipc_path, parity_ipc_path, to_bootnodes, to_addresses, to_address, to_gas_limit, to_queue_strategy};
-use params::{SpecType, ResealPolicy, AccountsConfig, GasPricerConfig, MinerExtras, Pruning, Switch};
+use params::{ResealPolicy, AccountsConfig, GasPricerConfig, MinerExtras, Pruning, Switch};
 use ethcore_logger::Config as LogConfig;
 use dir::{self, Directories, default_hypervisor_path, default_local_path, default_data_path};
 use dapps::Configuration as DappsConfiguration;
 use ipfs::Configuration as IpfsConfiguration;
-use secretstore::Configuration as SecretStoreConfiguration;
+use secretstore::{Configuration as SecretStoreConfiguration, NodeSecretKey};
 use updater::{UpdatePolicy, UpdateFilter, ReleaseTrack};
 use run::RunCmd;
 use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, KillBlockchain, ExportState, DataFormat};
 use presale::ImportWallet;
 use account::{AccountCmd, NewAccount, ListAccounts, ImportAccounts, ImportFromGethAccounts};
 use snapshot::{self, SnapshotCommand};
+use network::{IpFilter};
 
 #[derive(Debug, PartialEq)]
 pub enum Cmd {
@@ -56,7 +58,7 @@ pub enum Cmd {
 	Account(AccountCmd),
 	ImportPresaleWallet(ImportWallet),
 	Blockchain(BlockchainCmd),
-	SignerToken(WsConfiguration, UiConfiguration),
+	SignerToken(WsConfiguration, UiConfiguration, LogConfig),
 	SignerSign {
 		id: Option<usize>,
 		pwfile: Option<PathBuf>,
@@ -137,7 +139,7 @@ impl Configuration {
 		let secretstore_conf = self.secretstore_config()?;
 		let format = self.format()?;
 
-		if self.args.flag_jsonrpc_threads.is_some() && dapps_conf.enabled {
+		if self.args.flag_jsonrpc_server_threads.is_some() && dapps_conf.enabled {
 			dapps_conf.enabled = false;
 			writeln!(&mut stderr(), "Warning: Disabling Dapps server because fast RPC server was enabled.").expect("Error writing to stderr.")
 		}
@@ -148,7 +150,7 @@ impl Configuration {
 			let authfile = ::signer::codes_path(&ws_conf.signer_path);
 
 			if self.args.cmd_new_token {
-				Cmd::SignerToken(ws_conf, ui_conf)
+				Cmd::SignerToken(ws_conf, ui_conf, logger_config.clone())
 			} else if self.args.cmd_sign {
 				let pwfile = self.args.flag_password.get(0).map(|pwfile| {
 					PathBuf::from(pwfile)
@@ -243,6 +245,7 @@ impl Configuration {
 				check_seal: !self.args.flag_no_seal_check,
 				with_color: logger_config.color,
 				verifier_settings: self.verifier_settings(),
+				light: self.args.flag_light,
 			};
 			Cmd::Blockchain(BlockchainCmd::Import(import_cmd))
 		} else if self.args.cmd_export {
@@ -331,12 +334,7 @@ impl Configuration {
 			};
 
 			let verifier_settings = self.verifier_settings();
-
-			// Special presets are present for the dev chain.
-			let (gas_pricer, miner_options) = match spec {
-				SpecType::Dev => (GasPricerConfig::Fixed(0.into()), self.miner_options(0)?),
-				_ => (self.gas_pricer_config()?, self.miner_options(self.args.flag_reseal_min_period)?),
-			};
+			let whisper_config = self.whisper_config();
 
 			let run_cmd = RunCmd {
 				cache_config: cache_config,
@@ -347,14 +345,14 @@ impl Configuration {
 				pruning_memory: self.args.flag_pruning_memory,
 				daemon: daemon,
 				logger_config: logger_config.clone(),
-				miner_options: miner_options,
+				miner_options: self.miner_options(self.args.flag_reseal_min_period)?,
 				ws_conf: ws_conf,
 				http_conf: http_conf,
 				ipc_conf: ipc_conf,
 				net_conf: net_conf,
 				network_id: network_id,
 				acc_conf: self.accounts_config()?,
-				gas_pricer: gas_pricer,
+				gas_pricer_conf: self.gas_pricer_config()?,
 				miner_extras: self.miner_extras()?,
 				stratum: self.stratum_options()?,
 				update_policy: update_policy,
@@ -383,6 +381,7 @@ impl Configuration {
 				serve_light: !self.args.flag_no_serve_light,
 				light: self.args.flag_light,
 				no_persistent_txqueue: self.args.flag_no_persistent_txqueue,
+				whisper: whisper_config,
 			};
 			Cmd::Run(run_cmd)
 		};
@@ -407,7 +406,6 @@ impl Configuration {
 			extra_data: self.extra_data()?,
 			gas_floor_target: to_u256(&self.args.flag_gas_floor_target)?,
 			gas_ceil_target: to_u256(&self.args.flag_gas_cap)?,
-			transactions_limit: self.args.flag_tx_queue_size,
 			engine_signer: self.engine_signer()?,
 		};
 
@@ -465,12 +463,10 @@ impl Configuration {
 		max(self.min_peers(), peers)
 	}
 
-	fn allow_ips(&self) -> Result<AllowIP, String> {
-		match self.args.flag_allow_ips.as_str() {
-			"all" => Ok(AllowIP::All),
-			"public" => Ok(AllowIP::Public),
-			"private" => Ok(AllowIP::Private),
-			_ => Err("Invalid IP filter value".to_owned()),
+	fn ip_filter(&self) -> Result<IpFilter, String> {
+		match IpFilter::parse(self.args.flag_allow_ips.as_str()) {
+			Ok(allow_ip) => Ok(allow_ip),
+			Err(_) => Err("Invalid IP filter value".to_owned()),
 		}
 	}
 
@@ -497,6 +493,7 @@ impl Configuration {
 			password_files: self.args.flag_password.clone(),
 			unlocked_accounts: to_addresses(&self.args.flag_unlock)?,
 			enable_hardware_wallets: !self.args.flag_no_hardware_wallets,
+			enable_fast_unlock: self.args.flag_fast_unlock,
 		};
 
 		Ok(cfg)
@@ -514,6 +511,10 @@ impl Configuration {
 	}
 
 	fn miner_options(&self, reseal_min_period: u64) -> Result<MinerOptions, String> {
+		if self.args.flag_force_sealing && reseal_min_period == 0 {
+			return Err("Force sealing can't be used with reseal_min_period = 0".into());
+		}
+
 		let reseal = self.args.flag_reseal_on_txs.parse::<ResealPolicy>()?;
 
 		let options = MinerOptions {
@@ -521,11 +522,15 @@ impl Configuration {
 			force_sealing: self.args.flag_force_sealing,
 			reseal_on_external_tx: reseal.external,
 			reseal_on_own_tx: reseal.own,
+			reseal_on_uncle: self.args.flag_reseal_on_uncle,
 			tx_gas_limit: match self.args.flag_tx_gas_limit {
 				Some(ref d) => to_u256(d)?,
 				None => U256::max_value(),
 			},
 			tx_queue_size: self.args.flag_tx_queue_size,
+			tx_queue_memory_limit: if self.args.flag_tx_queue_mem_limit > 0 {
+				Some(self.args.flag_tx_queue_mem_limit as usize * 1024 * 1024)
+			} else { None },
 			tx_queue_gas_limit: to_gas_limit(&self.args.flag_tx_queue_gas)?,
 			tx_queue_strategy: to_queue_strategy(&self.args.flag_tx_queue_strategy)?,
 			pending_set: to_pending_set(&self.args.flag_relay_set)?,
@@ -547,30 +552,65 @@ impl Configuration {
 		Ok(options)
 	}
 
+	fn ui_port(&self) -> u16 {
+		self.args.flag_ports_shift + self.args.flag_ui_port
+	}
+
+	fn ntp_servers(&self) -> Vec<String> {
+		self.args.flag_ntp_servers.split(",").map(str::to_owned).collect()
+	}
+
 	fn ui_config(&self) -> UiConfiguration {
 		UiConfiguration {
 			enabled: self.ui_enabled(),
+			ntp_servers: self.ntp_servers(),
 			interface: self.ui_interface(),
-			port: self.args.flag_ports_shift + self.args.flag_ui_port,
+			port: self.ui_port(),
 			hosts: self.ui_hosts(),
 		}
 	}
 
 	fn dapps_config(&self) -> DappsConfiguration {
+		let dev_ui = if self.args.flag_ui_no_validation { vec![("localhost".to_owned(), 3000)] } else { vec![] };
+		let ui_port = self.ui_port();
+
 		DappsConfiguration {
 			enabled: self.dapps_enabled(),
+			ntp_servers: self.ntp_servers(),
 			dapps_path: PathBuf::from(self.directories().dapps),
 			extra_dapps: if self.args.cmd_dapp {
 				self.args.arg_path.iter().map(|path| PathBuf::from(path)).collect()
 			} else {
 				vec![]
 			},
+			extra_embed_on: {
+				let mut extra_embed = dev_ui.clone();
+				match self.ui_hosts() {
+					// In case host validation is disabled allow all frame ancestors
+					None => extra_embed.push(("*".to_owned(), ui_port)),
+					Some(hosts) => extra_embed.extend(hosts.into_iter().filter_map(|host| {
+						let mut it = host.split(":");
+						let host = it.next();
+						let port = it.next().and_then(|v| u16::from_str(v).ok());
+
+						match (host, port) {
+							(Some(host), Some(port)) => Some((host.into(), port)),
+							(Some(host), None) => Some((host.into(), ui_port)),
+							_ => None,
+						}
+					})),
+				}
+				extra_embed
+			},
+			extra_script_src: dev_ui,
 		}
 	}
 
 	fn secretstore_config(&self) -> Result<SecretStoreConfiguration, String> {
 		Ok(SecretStoreConfiguration {
 			enabled: self.secretstore_enabled(),
+			http_enabled: self.secretstore_http_enabled(),
+			acl_check_enabled: self.secretstore_acl_check_enabled(),
 			self_secret: self.secretstore_self_secret()?,
 			nodes: self.secretstore_nodes()?,
 			interface: self.secretstore_interface(),
@@ -612,8 +652,10 @@ impl Configuration {
 			U256::from_dec_str(&format!("{:.0}", wei_per_gas)).unwrap()
 		}
 
-		if let Some(d) = self.args.flag_gasprice.as_ref() {
-			return Ok(GasPricerConfig::Fixed(to_u256(d)?));
+		if let Some(dec) = self.args.flag_gasprice.as_ref() {
+			return Ok(GasPricerConfig::Fixed(to_u256(dec)?));
+		} else if let Some(dec) = self.args.flag_min_gas_price {
+			return Ok(GasPricerConfig::Fixed(U256::from(dec)));
 		}
 
 		let usd_per_tx = to_price(&self.args.flag_usd_per_tx)?;
@@ -657,7 +699,7 @@ impl Configuration {
 				let mut buffer = String::new();
 				let mut node_file = File::open(path).map_err(|e| format!("Error opening reserved nodes file: {}", e))?;
 				node_file.read_to_string(&mut buffer).map_err(|_| "Error reading reserved node file")?;
-				let lines = buffer.lines().map(|s| s.trim().to_owned()).filter(|s| !s.is_empty()).collect::<Vec<_>>();
+				let lines = buffer.lines().map(|s| s.trim().to_owned()).filter(|s| !s.is_empty() && !s.starts_with("#")).collect::<Vec<_>>();
 				if let Some(invalid) = lines.iter().find(|s| !is_valid_node_url(s)) {
 					return Err(format!("Invalid node address format given for a boot node: {}", invalid));
 				}
@@ -698,7 +740,7 @@ impl Configuration {
 		ret.max_peers = self.max_peers();
 		ret.min_peers = self.min_peers();
 		ret.snapshot_peers = self.snapshot_peers();
-		ret.allow_ips = self.allow_ips()?;
+		ret.ip_filter = self.ip_filter()?;
 		ret.max_pending_peers = self.max_pending_peers();
 		let mut net_path = PathBuf::from(self.directories().base);
 		net_path.push("network");
@@ -770,15 +812,11 @@ impl Configuration {
 	}
 
 	fn ws_hosts(&self) -> Option<Vec<String>> {
-		if self.args.flag_ui_no_validation {
-			return None;
-		}
-
 		self.hosts(&self.args.flag_ws_hosts, &self.ws_interface())
 	}
 
 	fn ws_origins(&self) -> Option<Vec<String>> {
-		if self.args.flag_unsafe_expose {
+		if self.args.flag_unsafe_expose || self.args.flag_ui_no_validation {
 			return None;
 		}
 
@@ -819,11 +857,12 @@ impl Configuration {
 			},
 			hosts: self.rpc_hosts(),
 			cors: self.rpc_cors(),
-			threads: match self.args.flag_jsonrpc_threads {
+			server_threads: match self.args.flag_jsonrpc_server_threads {
 				Some(threads) if threads > 0 => Some(threads),
 				None => None,
-				_ => return Err("--jsonrpc-threads number needs to be positive.".into()),
-			}
+				_ => return Err("--jsonrpc-server-threads number needs to be positive.".into()),
+			},
+			processing_threads: self.args.flag_jsonrpc_threads,
 		};
 
 		Ok(conf)
@@ -840,6 +879,7 @@ impl Configuration {
 			hosts: self.ws_hosts(),
 			origins: self.ws_origins(),
 			signer_path: self.directories().signer.into(),
+			support_token_api: !self.args.flag_public_node,
 			ui_address: ui.address(),
 		};
 
@@ -887,14 +927,17 @@ impl Configuration {
 		let local_path = default_local_path();
 		let base_path = self.args.flag_base_path.as_ref().or_else(|| self.args.flag_datadir.as_ref()).map_or_else(|| default_data_path(), |s| s.clone());
 		let data_path = replace_home("", &base_path);
-		let base_db_path = if self.args.flag_base_path.is_some() && self.args.flag_db_path.is_none() {
-			// If base_path is set and db_path is not we default to base path subdir instead of LOCAL.
+		let is_using_base_path = self.args.flag_base_path.is_some();
+		// If base_path is set and db_path is not we default to base path subdir instead of LOCAL.
+		let base_db_path = if is_using_base_path && self.args.flag_db_path.is_none() {
 			"$BASE/chains"
 		} else {
 			self.args.flag_db_path.as_ref().map_or(dir::CHAINS_PATH, |s| &s)
 		};
+		let cache_path = if is_using_base_path { "$BASE/cache" } else { dir::CACHE_PATH };
 
-		let db_path = replace_home_for_db(&data_path, &local_path, &base_db_path);
+		let db_path = replace_home_and_local(&data_path, &local_path, &base_db_path);
+		let cache_path = replace_home_and_local(&data_path, &local_path, cache_path);
 		let keys_path = replace_home(&data_path, &self.args.flag_keys_path);
 		let dapps_path = replace_home(&data_path, &self.args.flag_dapps_path);
 		let secretstore_path = replace_home(&data_path, &self.args.flag_secretstore_path);
@@ -918,6 +961,7 @@ impl Configuration {
 		Directories {
 			keys: keys_path,
 			base: data_path,
+			cache: cache_path,
 			db: db_path,
 			dapps: dapps_path,
 			signer: ui_path,
@@ -949,7 +993,6 @@ impl Configuration {
 		}.into()
 	}
 
-
 	fn ui_interface(&self) -> String {
 		self.interface(&self.args.flag_ui_interface)
 	}
@@ -975,10 +1018,13 @@ impl Configuration {
 		self.interface(&self.args.flag_secretstore_http_interface)
 	}
 
-	fn secretstore_self_secret(&self) -> Result<Option<Secret>, String> {
+	fn secretstore_self_secret(&self) -> Result<Option<NodeSecretKey>, String> {
 		match self.args.flag_secretstore_secret {
-			Some(ref s) => Ok(Some(s.parse()
-				.map_err(|e| format!("Invalid secret store secret: {}. Error: {:?}", s, e))?)),
+			Some(ref s) if s.len() == 64 => Ok(Some(NodeSecretKey::Plain(s.parse()
+				.map_err(|e| format!("Invalid secret store secret: {}. Error: {:?}", s, e))?))),
+			Some(ref s) if s.len() == 40 => Ok(Some(NodeSecretKey::KeyStore(s.parse()
+				.map_err(|e| format!("Invalid secret store secret address: {}. Error: {:?}", s, e))?))),
+			Some(_) => Err(format!("Invalid secret store secret. Must be either existing account address, or hex-encoded private key")),
 			None => Ok(None),
 		}
 	}
@@ -1027,6 +1073,14 @@ impl Configuration {
 		!self.args.flag_no_secretstore && cfg!(feature = "secretstore")
 	}
 
+	fn secretstore_http_enabled(&self) -> bool {
+		!self.args.flag_no_secretstore_http && cfg!(feature = "secretstore")
+	}
+
+	fn secretstore_acl_check_enabled(&self) -> bool {
+		!self.args.flag_no_secretstore_acl_check
+	}
+
 	fn ui_enabled(&self) -> bool {
 		if self.args.flag_force_ui {
 			return true;
@@ -1036,7 +1090,7 @@ impl Configuration {
 			self.args.flag_geth ||
 			self.args.flag_no_ui;
 
-		!ui_disabled
+		!ui_disabled && cfg!(feature = "ui-enabled")
 	}
 
 	fn verifier_settings(&self) -> VerifierSettings {
@@ -1048,12 +1102,20 @@ impl Configuration {
 
 		settings
 	}
+
+	fn whisper_config(&self) -> ::whisper::Config {
+		::whisper::Config {
+			enabled: self.args.flag_whisper,
+			target_message_pool_size: self.args.flag_whisper_pool_size * 1024 * 1024,
+		}
+	}
 }
 
 #[cfg(test)]
 mod tests {
 	use std::io::Write;
 	use std::fs::{File, create_dir};
+	use std::str::FromStr;
 
 	use devtools::{RandomTempPath};
 	use ethcore::client::{VMType, BlockId};
@@ -1070,6 +1132,11 @@ mod tests {
 	use presale::ImportWallet;
 	use rpc::{WsConfiguration, UiConfiguration};
 	use run::RunCmd;
+
+	use network::{AllowIP, IpFilter};
+
+	extern crate ipnetwork;
+	use self::ipnetwork::IpNetwork;
 
 	use super::*;
 
@@ -1159,6 +1226,7 @@ mod tests {
 			check_seal: true,
 			with_color: !cfg!(windows),
 			verifier_settings: Default::default(),
+			light: false,
 		})));
 	}
 
@@ -1243,16 +1311,27 @@ mod tests {
 			interface: "127.0.0.1".into(),
 			port: 8546,
 			apis: ApiSet::UnsafeContext,
-			origins: Some(vec!["chrome-extension://*".into()]),
+			origins: Some(vec!["chrome-extension://*".into(), "moz-extension://*".into()]),
 			hosts: Some(vec![]),
 			signer_path: expected.into(),
 			ui_address: Some(("127.0.0.1".to_owned(), 8180)),
+			support_token_api: true
 		}, UiConfiguration {
 			enabled: true,
+			ntp_servers: vec![
+				"0.parity.pool.ntp.org:123".into(),
+				"1.parity.pool.ntp.org:123".into(),
+				"2.parity.pool.ntp.org:123".into(),
+				"3.parity.pool.ntp.org:123".into(),
+			],
 			interface: "127.0.0.1".into(),
 			port: 8180,
 			hosts: Some(vec![]),
-		}));
+		}, LogConfig {
+            color: true,
+            mode: None,
+            file: None,
+        } ));
 	}
 
 	#[test]
@@ -1277,7 +1356,7 @@ mod tests {
 			public_node: false,
 			warp_sync: true,
 			acc_conf: Default::default(),
-			gas_pricer: Default::default(),
+			gas_pricer_conf: Default::default(),
 			miner_extras: Default::default(),
 			update_policy: UpdatePolicy { enable_downloading: true, require_consensus: true, filter: UpdateFilter::Critical, track: ReleaseTrack::Unknown, path: default_hypervisor_path() },
 			mode: Default::default(),
@@ -1304,8 +1383,10 @@ mod tests {
 			serve_light: true,
 			light: false,
 			no_persistent_txqueue: false,
+			whisper: Default::default(),
 		};
 		expected.secretstore_conf.enabled = cfg!(feature = "secretstore");
+		expected.secretstore_conf.http_enabled = cfg!(feature = "secretstore");
 		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Run(expected));
 	}
 
@@ -1329,6 +1410,13 @@ mod tests {
 		assert_eq!(conf2.miner_options(min_period).unwrap(), mining_options);
 		mining_options.tx_queue_strategy = PrioritizationStrategy::GasAndGasPrice;
 		assert_eq!(conf3.miner_options(min_period).unwrap(), mining_options);
+	}
+
+	#[test]
+	fn should_fail_on_force_reseal_and_reseal_min_period() {
+		let conf = parse(&["parity", "--chain", "dev", "--force-sealing"]);
+
+		assert!(conf.miner_options(0).is_err());
 	}
 
 	#[test]
@@ -1479,9 +1567,16 @@ mod tests {
 		let conf3 = parse(&["parity", "--ui-path", "signer", "--ui-interface", "test"]);
 
 		// then
+		let ntp_servers = vec![
+			"0.parity.pool.ntp.org:123".into(),
+			"1.parity.pool.ntp.org:123".into(),
+			"2.parity.pool.ntp.org:123".into(),
+			"3.parity.pool.ntp.org:123".into(),
+		];
 		assert_eq!(conf0.directories().signer, "signer".to_owned());
 		assert_eq!(conf0.ui_config(), UiConfiguration {
 			enabled: true,
+			ntp_servers: ntp_servers.clone(),
 			interface: "127.0.0.1".into(),
 			port: 8180,
 			hosts: Some(vec![]),
@@ -1490,14 +1585,17 @@ mod tests {
 		assert_eq!(conf1.directories().signer, "signer".to_owned());
 		assert_eq!(conf1.ui_config(), UiConfiguration {
 			enabled: true,
+			ntp_servers: ntp_servers.clone(),
 			interface: "127.0.0.1".into(),
 			port: 8180,
 			hosts: Some(vec![]),
 		});
-		assert_eq!(conf1.ws_config().unwrap().hosts, None);
+		assert_eq!(conf1.dapps_config().extra_embed_on, vec![("localhost".to_owned(), 3000)]);
+		assert_eq!(conf1.ws_config().unwrap().origins, None);
 		assert_eq!(conf2.directories().signer, "signer".to_owned());
 		assert_eq!(conf2.ui_config(), UiConfiguration {
 			enabled: true,
+			ntp_servers: ntp_servers.clone(),
 			interface: "127.0.0.1".into(),
 			port: 3123,
 			hosts: Some(vec![]),
@@ -1506,6 +1604,7 @@ mod tests {
 		assert_eq!(conf3.directories().signer, "signer".to_owned());
 		assert_eq!(conf3.ui_config(), UiConfiguration {
 			enabled: true,
+			ntp_servers: ntp_servers.clone(),
 			interface: "test".into(),
 			port: 8180,
 			hosts: Some(vec![]),
@@ -1541,13 +1640,117 @@ mod tests {
 	}
 
 	#[test]
-	fn test_dev_chain() {
-		let args = vec!["parity", "--chain", "dev"];
-		let conf = parse(&args);
+	fn should_ignore_comments_in_reserved_peers() {
+		let temp = RandomTempPath::new();
+		create_dir(temp.as_str().to_owned()).unwrap();
+		let filename = temp.as_str().to_owned() + "/peers_comments";
+		File::create(filename.clone()).unwrap().write_all(b"# Sample comment\nenode://6f8a80d14311c39f35f516fa664deaaaa13e85b2f7493f37f6144d86991ec012937307647bd3b9a82abe2974e1407241d54947bbb39763a4cac9f77166ad92a0@172.0.0.1:30303\n").unwrap();
+		let args = vec!["parity", "--reserved-peers", &filename];
+		let conf = Configuration::parse(&args, None).unwrap();
+		let reserved_nodes = conf.init_reserved_nodes();
+		assert!(reserved_nodes.is_ok());
+		assert_eq!(reserved_nodes.unwrap().len(), 1);
+	}
+
+	#[test]
+	fn test_dev_preset() {
+		let args = vec!["parity", "--config", "dev"];
+		let conf = Configuration::parse(&args, None).unwrap();
 		match conf.into_command().unwrap().cmd {
 			Cmd::Run(c) => {
-				assert_eq!(c.gas_pricer, GasPricerConfig::Fixed(0.into()));
+				assert_eq!(c.net_settings.chain, "dev");
+				assert_eq!(c.gas_pricer_conf, GasPricerConfig::Fixed(0.into()));
 				assert_eq!(c.miner_options.reseal_min_period, Duration::from_millis(0));
+			},
+			_ => panic!("Should be Cmd::Run"),
+		}
+	}
+
+	#[test]
+	fn test_mining_preset() {
+		let args = vec!["parity", "--config", "mining"];
+		let conf = Configuration::parse(&args, None).unwrap();
+		match conf.into_command().unwrap().cmd {
+			Cmd::Run(c) => {
+				assert_eq!(c.net_conf.min_peers, 50);
+				assert_eq!(c.net_conf.max_peers, 100);
+				assert_eq!(c.ipc_conf.enabled, false);
+				assert_eq!(c.dapps_conf.enabled, false);
+				assert_eq!(c.miner_options.force_sealing, true);
+				assert_eq!(c.miner_options.reseal_on_external_tx, true);
+				assert_eq!(c.miner_options.reseal_on_own_tx, true);
+				assert_eq!(c.miner_options.reseal_min_period, Duration::from_millis(4000));
+				assert_eq!(c.miner_options.tx_queue_size, 2048);
+				assert_eq!(c.cache_config, CacheConfig::new_with_total_cache_size(256));
+				assert_eq!(c.logger_config.mode.unwrap(), "miner=trace,own_tx=trace");
+			},
+			_ => panic!("Should be Cmd::Run"),
+		}
+	}
+
+	#[test]
+	fn test_non_standard_ports_preset() {
+		let args = vec!["parity", "--config", "non-standard-ports"];
+		let conf = Configuration::parse(&args, None).unwrap();
+		match conf.into_command().unwrap().cmd {
+			Cmd::Run(c) => {
+				assert_eq!(c.net_settings.network_port, 30305);
+				assert_eq!(c.net_settings.rpc_port, 8645);
+			},
+			_ => panic!("Should be Cmd::Run"),
+		}
+	}
+
+	#[test]
+	fn test_insecure_preset() {
+		let args = vec!["parity", "--config", "insecure"];
+		let conf = Configuration::parse(&args, None).unwrap();
+		match conf.into_command().unwrap().cmd {
+			Cmd::Run(c) => {
+				assert_eq!(c.update_policy.require_consensus, false);
+				assert_eq!(c.net_settings.rpc_interface, "0.0.0.0");
+				match c.http_conf.apis {
+					ApiSet::List(set) => assert_eq!(set, ApiSet::All.list_apis()),
+					_ => panic!("Incorrect rpc apis"),
+				}
+				// "web3,eth,net,personal,parity,parity_set,traces,rpc,parity_accounts");
+				assert_eq!(c.http_conf.hosts, None);
+				assert_eq!(c.ipfs_conf.hosts, None);
+			},
+			_ => panic!("Should be Cmd::Run"),
+		}
+	}
+
+	#[test]
+	fn test_dev_insecure_preset() {
+		let args = vec!["parity", "--config", "dev-insecure"];
+		let conf = Configuration::parse(&args, None).unwrap();
+		match conf.into_command().unwrap().cmd {
+			Cmd::Run(c) => {
+				assert_eq!(c.net_settings.chain, "dev");
+				assert_eq!(c.gas_pricer_conf, GasPricerConfig::Fixed(0.into()));
+				assert_eq!(c.miner_options.reseal_min_period, Duration::from_millis(0));
+				assert_eq!(c.update_policy.require_consensus, false);
+				assert_eq!(c.net_settings.rpc_interface, "0.0.0.0");
+				match c.http_conf.apis {
+					ApiSet::List(set) => assert_eq!(set, ApiSet::All.list_apis()),
+					_ => panic!("Incorrect rpc apis"),
+				}
+				// "web3,eth,net,personal,parity,parity_set,traces,rpc,parity_accounts");
+				assert_eq!(c.http_conf.hosts, None);
+				assert_eq!(c.ipfs_conf.hosts, None);
+			},
+			_ => panic!("Should be Cmd::Run"),
+		}
+	}
+
+	#[test]
+	fn test_override_preset() {
+		let args = vec!["parity", "--config", "mining", "--min-peers=99"];
+		let conf = Configuration::parse(&args, None).unwrap();
+		match conf.into_command().unwrap().cmd {
+			Cmd::Run(c) => {
+				assert_eq!(c.net_conf.min_peers, 99);
 			},
 			_ => panic!("Should be Cmd::Run"),
 		}
@@ -1605,5 +1808,62 @@ mod tests {
 		assert_eq!(&conf0.secretstore_config().unwrap().http_interface, "0.0.0.0");
 		assert_eq!(&conf0.ipfs_config().interface, "0.0.0.0");
 		assert_eq!(conf0.ipfs_config().hosts, None);
+	}
+
+	#[test]
+	fn allow_ips() {
+		let all = parse(&["parity", "--allow-ips", "all"]);
+		let private = parse(&["parity", "--allow-ips", "private"]);
+		let block_custom = parse(&["parity", "--allow-ips", "-10.0.0.0/8"]);
+		let combo = parse(&["parity", "--allow-ips", "public 10.0.0.0/8 -1.0.0.0/8"]);
+		let ipv6_custom_public = parse(&["parity", "--allow-ips", "public fc00::/7"]);
+		let ipv6_custom_private = parse(&["parity", "--allow-ips", "private -fc00::/7"]);
+
+		assert_eq!(all.ip_filter().unwrap(), IpFilter {
+			predefined: AllowIP::All,
+			custom_allow: vec![],
+			custom_block: vec![],
+		});
+
+		assert_eq!(private.ip_filter().unwrap(), IpFilter {
+			predefined: AllowIP::Private,
+			custom_allow: vec![],
+			custom_block: vec![],
+		});
+
+		assert_eq!(block_custom.ip_filter().unwrap(), IpFilter {
+			predefined: AllowIP::All,
+			custom_allow: vec![],
+			custom_block: vec![IpNetwork::from_str("10.0.0.0/8").unwrap()],
+		});
+
+		assert_eq!(combo.ip_filter().unwrap(), IpFilter {
+			predefined: AllowIP::Public,
+			custom_allow: vec![IpNetwork::from_str("10.0.0.0/8").unwrap()],
+			custom_block: vec![IpNetwork::from_str("1.0.0.0/8").unwrap()],
+		});
+
+		assert_eq!(ipv6_custom_public.ip_filter().unwrap(), IpFilter {
+			predefined: AllowIP::Public,
+			custom_allow: vec![IpNetwork::from_str("fc00::/7").unwrap()],
+			custom_block: vec![],
+		});
+
+		assert_eq!(ipv6_custom_private.ip_filter().unwrap(), IpFilter {
+			predefined: AllowIP::Private,
+			custom_allow: vec![],
+			custom_block: vec![IpNetwork::from_str("fc00::/7").unwrap()],
+		});
+	}
+
+	#[test]
+	fn should_use_correct_cache_path_if_base_is_set() {
+		let std = parse(&["parity"]);
+		let base = parse(&["parity", "--base-path", "/test"]);
+
+		let base_path = ::dir::default_data_path();
+		let local_path = ::dir::default_local_path();
+		assert_eq!(std.directories().cache, ::helpers::replace_home_and_local(&base_path, &local_path, ::dir::CACHE_PATH));
+		assert_eq!(base.directories().cache, "/test/cache");
 	}
 }

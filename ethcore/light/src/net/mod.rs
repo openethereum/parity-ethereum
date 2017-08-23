@@ -21,7 +21,7 @@
 use ethcore::transaction::UnverifiedTransaction;
 
 use io::TimerToken;
-use network::{NetworkProtocolHandler, NetworkContext, PeerId};
+use network::{HostInfo, NetworkProtocolHandler, NetworkContext, PeerId};
 use rlp::{RlpStream, UntrustedRlp};
 use util::hash::H256;
 use util::{DBValue, Mutex, RwLock, U256};
@@ -31,6 +31,7 @@ use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::ops::{BitOr, BitAnd, Not};
 
 use provider::Provider;
 use request::{Request, NetworkRequests as Requests, Response};
@@ -80,7 +81,7 @@ pub const PROTOCOL_VERSIONS: &'static [u8] = &[1];
 pub const MAX_PROTOCOL_VERSION: u8 = 1;
 
 /// Packet count for PIP.
-pub const PACKET_COUNT: u8 = 5;
+pub const PACKET_COUNT: u8 = 9;
 
 // packet ID definitions.
 mod packet {
@@ -100,6 +101,10 @@ mod packet {
 
 	// relay transactions to peers.
 	pub const SEND_TRANSACTIONS: u8 = 0x06;
+
+	// request and respond with epoch transition proof
+	pub const REQUEST_EPOCH_PROOF: u8 = 0x07;
+	pub const EPOCH_PROOF: u8 = 0x08;
 }
 
 // timeouts for different kinds of requests. all values are in milliseconds.
@@ -110,6 +115,7 @@ mod timeout {
 
 	// timeouts per request within packet.
 	pub const HEADERS: i64 = 250; // per header?
+	pub const TRANSACTION_INDEX: i64 = 100;
 	pub const BODY: i64 = 50;
 	pub const RECEIPT: i64 = 50;
 	pub const PROOF: i64 = 100; // state proof
@@ -157,6 +163,54 @@ pub struct Peer {
 	awaiting_acknowledge: Option<(SteadyTime, Arc<FlowParams>)>,
 }
 
+/// Whether or not a peer was kept by a handler
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PeerStatus {
+	/// The peer was kept
+	Kept,
+	/// The peer was not kept
+	Unkept,
+}
+
+impl Not for PeerStatus {
+	type Output = Self;
+
+	fn not(self) -> Self {
+		use self::PeerStatus::*;
+
+		match self {
+			Kept => Unkept,
+			Unkept => Kept,
+		}
+	}
+}
+
+impl BitAnd for PeerStatus {
+	type Output = Self;
+
+	fn bitand(self, other: Self) -> Self {
+		use self::PeerStatus::*;
+
+		match (self, other) {
+			(Kept, Kept) => Kept,
+			_ => Unkept,
+		}
+	}
+}
+
+impl BitOr for PeerStatus {
+	type Output = Self;
+
+	fn bitor(self, other: Self) -> Self {
+		use self::PeerStatus::*;
+
+		match (self, other) {
+			(_, Kept) | (Kept, _) => Kept,
+			_ => Unkept,
+		}
+	}
+}
+
 /// A light protocol event handler.
 ///
 /// Each handler function takes a context which describes the relevant peer
@@ -168,7 +222,12 @@ pub struct Peer {
 /// that relevant data will be stored by interested handlers.
 pub trait Handler: Send + Sync {
 	/// Called when a peer connects.
-	fn on_connect(&self, _ctx: &EventContext, _status: &Status, _capabilities: &Capabilities) { }
+	fn on_connect(
+		&self,
+		_ctx: &EventContext,
+		_status: &Status,
+		_capabilities: &Capabilities
+	) -> PeerStatus { PeerStatus::Kept }
 	/// Called when a peer disconnects, with a list of unfulfilled request IDs as
 	/// of yet.
 	fn on_disconnect(&self, _ctx: &EventContext, _unfulfilled: &[ReqId]) { }
@@ -523,6 +582,12 @@ impl LightProtocol {
 
 			packet::SEND_TRANSACTIONS => self.relay_transactions(peer, io, rlp),
 
+			packet::REQUEST_EPOCH_PROOF | packet::EPOCH_PROOF => {
+				// ignore these for now, but leave them specified.
+				debug!(target: "pip", "Ignoring request/response for epoch proof");
+				Ok(())
+			}
+
 			other => {
 				Err(Error::UnrecognizedPacket(other))
 			}
@@ -741,6 +806,9 @@ impl LightProtocol {
 		trace!(target: "pip", "Connected peer with chain head {:?}", (status.head_hash, status.head_num));
 
 		if (status.network_id, status.genesis_hash) != (self.network_id, self.genesis_hash) {
+			trace!(target: "pip", "peer {} wrong network: network_id is {} vs our {}, gh is {} vs our {}",
+				peer, status.network_id, self.network_id, status.genesis_hash, self.genesis_hash);
+
 			return Err(Error::WrongNetwork);
 		}
 
@@ -766,15 +834,23 @@ impl LightProtocol {
 			awaiting_acknowledge: None,
 		}));
 
-		for handler in &self.handlers {
-			handler.on_connect(&Ctx {
-				peer: *peer,
-				io: io,
-				proto: self,
-			}, &status, &capabilities)
-		}
+		let any_kept = self.handlers.iter().map(
+			|handler| handler.on_connect(
+				&Ctx {
+					peer: *peer,
+					io: io,
+					proto: self,
+				},
+				&status,
+				&capabilities
+			)
+		).fold(PeerStatus::Kept, PeerStatus::bitor);
 
-		Ok(())
+		if any_kept == PeerStatus::Unkept {
+			Err(Error::RejectedByHandlers)
+		} else {
+			Ok(())
+		}
 	}
 
 	// Handle an announcement.
@@ -867,6 +943,7 @@ impl LightProtocol {
 			match complete_req {
 				CompleteRequest::Headers(req) => self.provider.block_headers(req).map(Response::Headers),
 				CompleteRequest::HeaderProof(req) => self.provider.header_proof(req).map(Response::HeaderProof),
+				CompleteRequest::TransactionIndex(_) => None, // don't answer these yet, but leave them in protocol.
 				CompleteRequest::Body(req) => self.provider.block_body(req).map(Response::Body),
 				CompleteRequest::Receipts(req) => self.provider.block_receipts(req).map(Response::Receipts),
 				CompleteRequest::Account(req) => self.provider.account_proof(req).map(Response::Account),
@@ -1000,7 +1077,7 @@ fn punish(peer: PeerId, io: &IoContext, e: Error) {
 }
 
 impl NetworkProtocolHandler for LightProtocol {
-	fn initialize(&self, io: &NetworkContext) {
+	fn initialize(&self, io: &NetworkContext, _host_info: &HostInfo) {
 		io.register_timer(TIMEOUT, TIMEOUT_INTERVAL_MS)
 			.expect("Error registering sync timer.");
 		io.register_timer(TICK_TIMEOUT, TICK_TIMEOUT_INTERVAL_MS)

@@ -23,7 +23,7 @@ use util::kvdb::{self, KeyValueDB};
 use {state, state_db, client, executive, trace, db, spec};
 use factory::Factories;
 use evm::{self, VMType};
-use action_params::ActionParams;
+use vm::{self, ActionParams};
 
 /// EVM test Error.
 #[derive(Debug)]
@@ -31,7 +31,7 @@ pub enum EvmTestError {
 	/// Trie integrity error.
 	Trie(util::TrieError),
 	/// EVM error.
-	Evm(evm::Error),
+	Evm(vm::Error),
 	/// Initialization error.
 	Initialization(::error::Error),
 	/// Low-level database error.
@@ -89,7 +89,7 @@ impl EvmTestClient {
 		-> Result<(U256, Vec<u8>), EvmTestError>
 	{
 		let genesis = self.spec.genesis_header();
-		let mut state = state::State::from_existing(self.state_db.boxed_clone(), *genesis.state_root(), self.spec.engine.account_start_nonce(), self.factories.clone())
+		let mut state = state::State::from_existing(self.state_db.boxed_clone(), *genesis.state_root(), self.spec.engine.account_start_nonce(0), self.factories.clone())
 			.map_err(EvmTestError::Trie)?;
 		let info = client::EnvInfo {
 			number: genesis.number(),
@@ -104,7 +104,7 @@ impl EvmTestClient {
 		let mut tracer = trace::NoopTracer;
 		let mut output = vec![];
 		let mut executive = executive::Executive::new(&mut state, &info, &*self.spec.engine);
-		let gas_left = executive.call(
+		let (gas_left, _) = executive.call(
 			params,
 			&mut substate,
 			util::BytesRef::Flexible(&mut output),

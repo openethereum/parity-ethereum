@@ -16,6 +16,7 @@
 
 #[macro_use]
 mod usage;
+mod presets;
 use dir;
 
 usage! {
@@ -114,6 +115,8 @@ usage! {
 			or |c: &Config| otry!(c.account).keys_iterations.clone(),
 		flag_no_hardware_wallets: bool = false,
 			or |c: &Config| otry!(c.account).disable_hardware.clone(),
+		flag_fast_unlock: bool = false,
+			or |c: &Config| otry!(c.account).fast_unlock.clone(),
 
 
 		flag_force_ui: bool = false,
@@ -174,12 +177,14 @@ usage! {
 			or |c: &Config| otry!(c.rpc).interface.clone(),
 		flag_jsonrpc_cors: Option<String> = None,
 			or |c: &Config| otry!(c.rpc).cors.clone().map(Some),
-		flag_jsonrpc_apis: String = "web3,eth,pubsub,net,parity,parity_pubsub,traces,rpc,secretstore",
+		flag_jsonrpc_apis: String = "web3,eth,pubsub,net,parity,parity_pubsub,traces,rpc,secretstore,shh,shh_pubsub",
 			or |c: &Config| otry!(c.rpc).apis.as_ref().map(|vec| vec.join(",")),
 		flag_jsonrpc_hosts: String = "none",
 			or |c: &Config| otry!(c.rpc).hosts.as_ref().map(|vec| vec.join(",")),
-		flag_jsonrpc_threads: Option<usize> = None,
-			or |c: &Config| otry!(c.rpc).threads.map(Some),
+		flag_jsonrpc_server_threads: Option<usize> = None,
+			or |c: &Config| otry!(c.rpc).server_threads.map(Some),
+		flag_jsonrpc_threads: usize = 0usize,
+			or |c: &Config| otry!(c.rpc).processing_threads,
 
 		// WS
 		flag_no_ws: bool = false,
@@ -188,9 +193,9 @@ usage! {
 			or |c: &Config| otry!(c.websockets).port.clone(),
 		flag_ws_interface: String  = "local",
 			or |c: &Config| otry!(c.websockets).interface.clone(),
-		flag_ws_apis: String = "web3,eth,pubsub,net,parity,parity_pubsub,traces,rpc,secretstore",
+		flag_ws_apis: String = "web3,eth,pubsub,net,parity,parity_pubsub,traces,rpc,secretstore,shh,shh_pubsub",
 			or |c: &Config| otry!(c.websockets).apis.as_ref().map(|vec| vec.join(",")),
-		flag_ws_origins: String = "chrome-extension://*",
+		flag_ws_origins: String = "chrome-extension://*,moz-extension://*",
 			or |c: &Config| otry!(c.websockets).origins.as_ref().map(|vec| vec.join(",")),
 		flag_ws_hosts: String = "none",
 			or |c: &Config| otry!(c.websockets).hosts.as_ref().map(|vec| vec.join(",")),
@@ -200,7 +205,7 @@ usage! {
 			or |c: &Config| otry!(c.ipc).disable.clone(),
 		flag_ipc_path: String = if cfg!(windows) { r"\\.\pipe\jsonrpc.ipc" } else { "$BASE/jsonrpc.ipc" },
 			or |c: &Config| otry!(c.ipc).path.clone(),
-		flag_ipc_apis: String = "web3,eth,pubsub,net,parity,parity_pubsub,parity_accounts,traces,rpc,secretstore",
+		flag_ipc_apis: String = "web3,eth,pubsub,net,parity,parity_pubsub,parity_accounts,traces,rpc,secretstore,shh,shh_pubsub",
 			or |c: &Config| otry!(c.ipc).apis.as_ref().map(|vec| vec.join(",")),
 
 		// DAPPS
@@ -212,6 +217,10 @@ usage! {
 		// Secret Store
 		flag_no_secretstore: bool = false,
 			or |c: &Config| otry!(c.secretstore).disable.clone(),
+		flag_no_secretstore_http: bool = false,
+			or |c: &Config| otry!(c.secretstore).disable_http.clone(),
+		flag_no_secretstore_acl_check: bool = false,
+			or |c: &Config| otry!(c.secretstore).disable_acl_check.clone(),
 		flag_secretstore_secret: Option<String> = None,
 			or |c: &Config| otry!(c.secretstore).self_secret.clone().map(Some),
 		flag_secretstore_nodes: String = "",
@@ -248,6 +257,8 @@ usage! {
 			or |c: &Config| otry!(c.mining).force_sealing.clone(),
 		flag_reseal_on_txs: String = "own",
 			or |c: &Config| otry!(c.mining).reseal_on_txs.clone(),
+		flag_reseal_on_uncle: bool = false,
+			or |c: &Config| otry!(c.mining).reseal_on_uncle.clone(),
 		flag_reseal_min_period: u64 = 2000u64,
 			or |c: &Config| otry!(c.mining).reseal_min_period.clone(),
 		flag_reseal_max_period: u64 = 120000u64,
@@ -260,6 +271,8 @@ usage! {
 			or |c: &Config| otry!(c.mining).tx_time_limit.clone().map(Some),
 		flag_relay_set: String = "cheap",
 			or |c: &Config| otry!(c.mining).relay_set.clone(),
+		flag_min_gas_price: Option<u64> = None,
+			or |c: &Config| otry!(c.mining).min_gas_price.clone().map(Some),
 		flag_usd_per_tx: String = "0.0025",
 			or |c: &Config| otry!(c.mining).usd_per_tx.clone(),
 		flag_usd_per_eth: String = "auto",
@@ -272,9 +285,11 @@ usage! {
 			or |c: &Config| otry!(c.mining).gas_cap.clone(),
 		flag_extra_data: Option<String> = None,
 			or |c: &Config| otry!(c.mining).extra_data.clone().map(Some),
-		flag_tx_queue_size: usize = 1024usize,
+		flag_tx_queue_size: usize = 8192usize,
 			or |c: &Config| otry!(c.mining).tx_queue_size.clone(),
-		flag_tx_queue_gas: String = "auto",
+		flag_tx_queue_mem_limit: u32 = 2u32,
+			or |c: &Config| otry!(c.mining).tx_queue_mem_limit.clone(),
+		flag_tx_queue_gas: String = "off",
 			or |c: &Config| otry!(c.mining).tx_queue_gas.clone(),
 		flag_tx_queue_strategy: String = "gas_price",
 			or |c: &Config| otry!(c.mining).tx_queue_strategy.clone(),
@@ -348,12 +363,20 @@ usage! {
 			or |c: &Config| otry!(c.vm).jit.clone(),
 
 		// -- Miscellaneous Options
+		flag_ntp_servers: String = "0.parity.pool.ntp.org:123,1.parity.pool.ntp.org:123,2.parity.pool.ntp.org:123,3.parity.pool.ntp.org:123",
+			or |c: &Config| otry!(c.misc).ntp_servers.clone().map(|vec| vec.join(",")),
 		flag_logging: Option<String> = None,
 			or |c: &Config| otry!(c.misc).logging.clone().map(Some),
 		flag_log_file: Option<String> = None,
 			or |c: &Config| otry!(c.misc).log_file.clone().map(Some),
 		flag_no_color: bool = false,
 			or |c: &Config| otry!(c.misc).color.map(|c| !c).clone(),
+
+		// -- Whisper options
+		flag_whisper: bool = false,
+			or |c: &Config| otry!(c.whisper).enabled,
+		flag_whisper_pool_size: usize = 10usize,
+			or |c: &Config| otry!(c.whisper).pool_size.clone(),
 
 		// -- Legacy Options supported in configs
 		flag_dapps_port: Option<u16> = None,
@@ -378,8 +401,8 @@ usage! {
 	}
 }
 
-
-#[derive(Default, Debug, PartialEq, RustcDecodable)]
+#[derive(Default, Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct Config {
 	parity: Option<Operating>,
 	account: Option<Account>,
@@ -397,9 +420,10 @@ struct Config {
 	vm: Option<VM>,
 	misc: Option<Misc>,
 	stratum: Option<Stratum>,
+	whisper: Option<Whisper>,
 }
 
-#[derive(Default, Debug, PartialEq, RustcDecodable)]
+#[derive(Default, Debug, PartialEq, Deserialize)]
 struct Operating {
 	mode: Option<String>,
 	mode_timeout: Option<u64>,
@@ -418,15 +442,16 @@ struct Operating {
 	no_persistent_txqueue: Option<bool>,
 }
 
-#[derive(Default, Debug, PartialEq, RustcDecodable)]
+#[derive(Default, Debug, PartialEq, Deserialize)]
 struct Account {
 	unlock: Option<Vec<String>>,
 	password: Option<Vec<String>>,
 	keys_iterations: Option<u32>,
 	disable_hardware: Option<bool>,
+	fast_unlock: Option<bool>,
 }
 
-#[derive(Default, Debug, PartialEq, RustcDecodable)]
+#[derive(Default, Debug, PartialEq, Deserialize)]
 struct Ui {
 	force: Option<bool>,
 	disable: Option<bool>,
@@ -436,7 +461,7 @@ struct Ui {
 	path: Option<String>,
 }
 
-#[derive(Default, Debug, PartialEq, RustcDecodable)]
+#[derive(Default, Debug, PartialEq, Deserialize)]
 struct Network {
 	warp: Option<bool>,
 	port: Option<u16>,
@@ -455,7 +480,7 @@ struct Network {
 	no_serve_light: Option<bool>,
 }
 
-#[derive(Default, Debug, PartialEq, RustcDecodable)]
+#[derive(Default, Debug, PartialEq, Deserialize)]
 struct Rpc {
 	disable: Option<bool>,
 	port: Option<u16>,
@@ -463,10 +488,11 @@ struct Rpc {
 	cors: Option<String>,
 	apis: Option<Vec<String>>,
 	hosts: Option<Vec<String>>,
-	threads: Option<usize>,
+	server_threads: Option<usize>,
+	processing_threads: Option<usize>,
 }
 
-#[derive(Default, Debug, PartialEq, RustcDecodable)]
+#[derive(Default, Debug, PartialEq, Deserialize)]
 struct Ws {
 	disable: Option<bool>,
 	port: Option<u16>,
@@ -476,14 +502,14 @@ struct Ws {
 	hosts: Option<Vec<String>>,
 }
 
-#[derive(Default, Debug, PartialEq, RustcDecodable)]
+#[derive(Default, Debug, PartialEq, Deserialize)]
 struct Ipc {
 	disable: Option<bool>,
 	path: Option<String>,
 	apis: Option<Vec<String>>,
 }
 
-#[derive(Default, Debug, PartialEq, RustcDecodable)]
+#[derive(Default, Debug, PartialEq, Deserialize)]
 struct Dapps {
 	disable: Option<bool>,
 	port: Option<u16>,
@@ -495,9 +521,11 @@ struct Dapps {
 	pass: Option<String>,
 }
 
-#[derive(Default, Debug, PartialEq, RustcDecodable)]
+#[derive(Default, Debug, PartialEq, Deserialize)]
 struct SecretStore {
 	disable: Option<bool>,
+	disable_http: Option<bool>,
+	disable_acl_check: Option<bool>,
 	self_secret: Option<String>,
 	nodes: Option<Vec<String>>,
 	interface: Option<String>,
@@ -507,7 +535,7 @@ struct SecretStore {
 	path: Option<String>,
 }
 
-#[derive(Default, Debug, PartialEq, RustcDecodable)]
+#[derive(Default, Debug, PartialEq, Deserialize)]
 struct Ipfs {
 	enable: Option<bool>,
 	port: Option<u16>,
@@ -516,11 +544,12 @@ struct Ipfs {
 	hosts: Option<Vec<String>>,
 }
 
-#[derive(Default, Debug, PartialEq, RustcDecodable)]
+#[derive(Default, Debug, PartialEq, Deserialize)]
 struct Mining {
 	author: Option<String>,
 	engine_signer: Option<String>,
 	force_sealing: Option<bool>,
+	reseal_on_uncle: Option<bool>,
 	reseal_on_txs: Option<String>,
 	reseal_min_period: Option<u64>,
 	reseal_max_period: Option<u64>,
@@ -528,6 +557,7 @@ struct Mining {
 	tx_gas_limit: Option<String>,
 	tx_time_limit: Option<u64>,
 	relay_set: Option<String>,
+	min_gas_price: Option<u64>,
 	usd_per_tx: Option<String>,
 	usd_per_eth: Option<String>,
 	price_update_period: Option<String>,
@@ -535,6 +565,7 @@ struct Mining {
 	gas_cap: Option<String>,
 	extra_data: Option<String>,
 	tx_queue_size: Option<usize>,
+	tx_queue_mem_limit: Option<u32>,
 	tx_queue_gas: Option<String>,
 	tx_queue_strategy: Option<String>,
 	tx_queue_ban_count: Option<u16>,
@@ -544,14 +575,14 @@ struct Mining {
 	refuse_service_transactions: Option<bool>,
 }
 
-#[derive(Default, Debug, PartialEq, RustcDecodable)]
+#[derive(Default, Debug, PartialEq, Deserialize)]
 struct Stratum {
 	interface: Option<String>,
 	port: Option<u16>,
 	secret: Option<String>,
 }
 
-#[derive(Default, Debug, PartialEq, RustcDecodable)]
+#[derive(Default, Debug, PartialEq, Deserialize)]
 struct Footprint {
 	tracing: Option<String>,
 	pruning: Option<String>,
@@ -569,18 +600,19 @@ struct Footprint {
 	num_verifiers: Option<usize>,
 }
 
-#[derive(Default, Debug, PartialEq, RustcDecodable)]
+#[derive(Default, Debug, PartialEq, Deserialize)]
 struct Snapshots {
 	disable_periodic: Option<bool>,
 }
 
-#[derive(Default, Debug, PartialEq, RustcDecodable)]
+#[derive(Default, Debug, PartialEq, Deserialize)]
 struct VM {
 	jit: Option<bool>,
 }
 
-#[derive(Default, Debug, PartialEq, RustcDecodable)]
+#[derive(Default, Debug, PartialEq, Deserialize)]
 struct Misc {
+	ntp_servers: Option<Vec<String>>,
 	logging: Option<String>,
 	log_file: Option<String>,
 	color: Option<bool>,
@@ -588,12 +620,18 @@ struct Misc {
 	unsafe_expose: Option<bool>,
 }
 
+#[derive(Default, Debug, PartialEq, Deserialize)]
+struct Whisper {
+	enabled: Option<bool>,
+	pool_size: Option<usize>,
+}
+
 #[cfg(test)]
 mod tests {
 	use super::{
 		Args, ArgsError,
 		Config, Operating, Account, Ui, Network, Ws, Rpc, Ipc, Dapps, Ipfs, Mining, Footprint,
-		Snapshots, VM, Misc, SecretStore,
+		Snapshots, VM, Misc, Whisper, SecretStore,
 	};
 	use toml;
 
@@ -644,7 +682,7 @@ mod tests {
 	#[test]
 	fn should_parse_full_config() {
 		// given
-		let config = toml::decode_str(include_str!("./config.full.toml")).unwrap();
+		let config = toml::from_str(include_str!("./config.full.toml")).unwrap();
 
 		// when
 		let args = Args::parse_with_config(&["parity", "--chain", "xyz"], config).unwrap();
@@ -707,6 +745,7 @@ mod tests {
 			flag_password: vec!["~/.safe/password.file".into()],
 			flag_keys_iterations: 10240u32,
 			flag_no_hardware_wallets: false,
+			flag_fast_unlock: false,
 
 			flag_force_ui: false,
 			flag_no_ui: false,
@@ -742,7 +781,8 @@ mod tests {
 			flag_jsonrpc_cors: Some("null".into()),
 			flag_jsonrpc_apis: "web3,eth,net,parity,traces,rpc,secretstore".into(),
 			flag_jsonrpc_hosts: "none".into(),
-			flag_jsonrpc_threads: None,
+			flag_jsonrpc_server_threads: None,
+			flag_jsonrpc_threads: 0,
 
 			// WS
 			flag_no_ws: false,
@@ -762,6 +802,8 @@ mod tests {
 			flag_no_dapps: false,
 
 			flag_no_secretstore: false,
+			flag_no_secretstore_http: false,
+			flag_no_secretstore_acl_check: false,
 			flag_secretstore_secret: None,
 			flag_secretstore_nodes: "".into(),
 			flag_secretstore_interface: "local".into(),
@@ -784,18 +826,21 @@ mod tests {
 			flag_reseal_on_txs: "all".into(),
 			flag_reseal_min_period: 4000u64,
 			flag_reseal_max_period: 60000u64,
+			flag_reseal_on_uncle: false,
 			flag_work_queue_size: 20usize,
 			flag_tx_gas_limit: Some("6283184".into()),
 			flag_tx_time_limit: Some(100u64),
 			flag_relay_set: "cheap".into(),
+			flag_min_gas_price: Some(0u64),
 			flag_usd_per_tx: "0.0025".into(),
 			flag_usd_per_eth: "auto".into(),
 			flag_price_update_period: "hourly".into(),
 			flag_gas_floor_target: "4700000".into(),
 			flag_gas_cap: "6283184".into(),
 			flag_extra_data: Some("Parity".into()),
-			flag_tx_queue_size: 1024usize,
-			flag_tx_queue_gas: "auto".into(),
+			flag_tx_queue_size: 8192usize,
+			flag_tx_queue_mem_limit: 2u32,
+			flag_tx_queue_gas: "off".into(),
 			flag_tx_queue_strategy: "gas_factor".into(),
 			flag_tx_queue_ban_count: 1u16,
 			flag_tx_queue_ban_time: 180u16,
@@ -841,6 +886,10 @@ mod tests {
 			// -- Virtual Machine Options
 			flag_jitvm: false,
 
+			// -- Whisper options.
+			flag_whisper: false,
+			flag_whisper_pool_size: 20,
+
 			// -- Legacy Options
 			flag_geth: false,
 			flag_testnet: false,
@@ -878,6 +927,7 @@ mod tests {
 			flag_dapps_apis_all: None,
 
 			// -- Miscellaneous Options
+			flag_ntp_servers: "0.parity.pool.ntp.org:123,1.parity.pool.ntp.org:123,2.parity.pool.ntp.org:123,3.parity.pool.ntp.org:123".into(),
 			flag_version: false,
 			flag_logging: Some("own_tx=trace".into()),
 			flag_log_file: Some("/var/log/parity.log".into()),
@@ -893,7 +943,7 @@ mod tests {
 		let config3 = Args::parse_config(include_str!("./config.invalid3.toml"));
 
 		match (config1, config2, config3) {
-			(Err(ArgsError::Parsing(_)), Err(ArgsError::Decode(_)), Err(ArgsError::UnknownFields(_))) => {},
+			(Err(ArgsError::Decode(_)), Err(ArgsError::Decode(_)), Err(ArgsError::Decode(_))) => {},
 			(a, b, c) => {
 				assert!(false, "Got invalid error types: {:?}, {:?}, {:?}", a, b, c);
 			}
@@ -902,7 +952,7 @@ mod tests {
 
 	#[test]
 	fn should_deserialize_toml_file() {
-		let config: Config = toml::decode_str(include_str!("./config.toml")).unwrap();
+		let config: Config = toml::from_str(include_str!("./config.toml")).unwrap();
 
 		assert_eq!(config, Config {
 			parity: Some(Operating {
@@ -927,6 +977,7 @@ mod tests {
 				password: Some(vec!["passwdfile path".into()]),
 				keys_iterations: None,
 				disable_hardware: None,
+				fast_unlock: None,
 			}),
 			ui: Some(Ui {
 				force: None,
@@ -968,7 +1019,8 @@ mod tests {
 				cors: None,
 				apis: None,
 				hosts: None,
-				threads: None,
+				server_threads: None,
+				processing_threads: None,
 			}),
 			ipc: Some(Ipc {
 				disable: None,
@@ -987,6 +1039,8 @@ mod tests {
 			}),
 			secretstore: Some(SecretStore {
 				disable: None,
+				disable_http: None,
+				disable_acl_check: None,
 				self_secret: None,
 				nodes: None,
 				interface: None,
@@ -1007,17 +1061,20 @@ mod tests {
 				engine_signer: Some("0xdeadbeefcafe0000000000000000000000000001".into()),
 				force_sealing: Some(true),
 				reseal_on_txs: Some("all".into()),
+				reseal_on_uncle: None,
 				reseal_min_period: Some(4000),
 				reseal_max_period: Some(60000),
 				work_queue_size: None,
 				relay_set: None,
+				min_gas_price: None,
 				usd_per_tx: None,
 				usd_per_eth: None,
 				price_update_period: Some("hourly".into()),
 				gas_floor_target: None,
 				gas_cap: None,
-				tx_queue_size: Some(1024),
-				tx_queue_gas: Some("auto".into()),
+				tx_queue_size: Some(8192),
+				tx_queue_mem_limit: None,
+				tx_queue_gas: Some("off".into()),
 				tx_queue_strategy: None,
 				tx_queue_ban_count: None,
 				tx_queue_ban_time: None,
@@ -1051,11 +1108,16 @@ mod tests {
 				jit: Some(false),
 			}),
 			misc: Some(Misc {
+				ntp_servers: Some(vec!["0.parity.pool.ntp.org:123".into()]),
 				logging: Some("own_tx=trace".into()),
 				log_file: Some("/var/log/parity.log".into()),
 				color: Some(true),
 				ports_shift: Some(0),
 				unsafe_expose: Some(false),
+			}),
+			whisper: Some(Whisper {
+				enabled: Some(true),
+				pool_size: Some(50),
 			}),
 			stratum: None,
 		});

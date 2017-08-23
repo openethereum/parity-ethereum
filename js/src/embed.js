@@ -64,14 +64,19 @@ class FakeTransport {
 
 class FrameSecureApi extends SecureApi {
   constructor (transport) {
-    super(transport.uiUrl, null, () => {
-      return transport;
-    });
+    super(
+      transport.uiUrl,
+      null,
+      () => transport,
+      () => 'http:'
+    );
   }
 
   connect () {
     // Do nothing - this API does not need connecting
     this.emit('connecting');
+    // Fetch settings
+    this._fetchSettings();
     // Fire connected event with some delay.
     setTimeout(() => {
       this.emit('connected');
@@ -94,6 +99,7 @@ class FrameSecureApi extends SecureApi {
 const transport = window.secureTransport || new FakeTransport();
 const uiUrl = transport.uiUrl || 'http://127.0.0.1:8180';
 
+transport.uiUrlWithProtocol = uiUrl;
 transport.uiUrl = uiUrl.replace('http://', '').replace('https://', '');
 const api = new FrameSecureApi(transport);
 

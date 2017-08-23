@@ -15,27 +15,31 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Transaction Execution environment.
+use std::cmp;
+use std::sync::Arc;
 use util::*;
-use action_params::{ActionParams, ActionValue};
 use state::{Backend as StateBackend, State, Substate, CleanupMode};
 use engines::Engine;
-use types::executed::CallType;
-use env_info::EnvInfo;
+use vm::EnvInfo;
 use error::ExecutionError;
-use evm::{self, Ext, Finalize, CreateContractAddress, FinalizationResult};
+use evm::{CallType, Factory, Finalize, FinalizationResult};
+use vm::{self, Ext, CreateContractAddress, ReturnData, CleanDustMode, ActionParams, ActionValue};
+use wasm;
 use externalities::*;
 use trace::{FlatTrace, Tracer, NoopTracer, ExecutiveTracer, VMTrace, VMTracer, ExecutiveVMTracer, NoopVMTracer};
 use transaction::{Action, SignedTransaction};
 use crossbeam;
-pub use types::executed::{Executed, ExecutionResult};
+pub use executed::{Executed, ExecutionResult};
 
 /// Roughly estimate what stack size each level of evm depth will use
 /// TODO [todr] We probably need some more sophisticated calculations here (limit on my machine 132)
 /// Maybe something like here: `https://github.com/ethereum/libethereum/blob/4db169b8504f2b87f7d5a481819cfb959fc65f6c/libethereum/ExtVM.cpp`
 const STACK_SIZE_PER_DEPTH: usize = 24*1024;
 
+const WASM_MAGIC_NUMBER: &'static [u8; 4] = b"\0asm";
+
 /// Returns new address created from address, nonce, and code hash
-pub fn contract_address(address_scheme: CreateContractAddress, sender: &Address, nonce: &U256, code_hash: &H256) -> Address {
+pub fn contract_address(address_scheme: CreateContractAddress, sender: &Address, nonce: &U256, code: &[u8]) -> (Address, Option<H256>) {
 	use rlp::RlpStream;
 
 	match address_scheme {
@@ -43,18 +47,20 @@ pub fn contract_address(address_scheme: CreateContractAddress, sender: &Address,
 			let mut stream = RlpStream::new_list(2);
 			stream.append(sender);
 			stream.append(nonce);
-			From::from(stream.as_raw().sha3())
+			(From::from(stream.as_raw().sha3()), None)
 		},
 		CreateContractAddress::FromCodeHash => {
+			let code_hash = code.sha3();
 			let mut buffer = [0xffu8; 20 + 32];
 			&mut buffer[20..].copy_from_slice(&code_hash[..]);
-			From::from((&buffer[..]).sha3())
+			(From::from((&buffer[..]).sha3()), Some(code_hash))
 		},
 		CreateContractAddress::FromSenderAndCodeHash => {
+			let code_hash = code.sha3();
 			let mut buffer = [0u8; 20 + 32];
 			&mut buffer[..20].copy_from_slice(&sender[..]);
 			&mut buffer[20..].copy_from_slice(&code_hash[..]);
-			From::from((&buffer[..]).sha3())
+			(From::from((&buffer[..]).sha3()), Some(code_hash))
 		},
 	}
 }
@@ -70,12 +76,27 @@ pub struct TransactOptions {
 	pub check_nonce: bool,
 }
 
+pub fn executor<E>(engine: &E, vm_factory: &Factory, params: &ActionParams)
+	-> Box<vm::Vm> where E: Engine + ?Sized
+{
+	if engine.supports_wasm() && params.code.as_ref().map_or(false, |code| code.len() > 4 && &code[0..4] == WASM_MAGIC_NUMBER) {
+		Box::new(
+			wasm::WasmInterpreter::new()
+				// prefer to fail fast
+				.expect("Failed to create wasm runtime")
+		)
+	} else {
+		vm_factory.create(params.gas)
+	}
+}
+
 /// Transaction executor.
 pub struct Executive<'a, B: 'a + StateBackend, E: 'a + Engine + ?Sized> {
 	state: &'a mut State<B>,
 	info: &'a EnvInfo,
 	engine: &'a E,
 	depth: usize,
+	static_flag: bool,
 }
 
 impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
@@ -86,16 +107,18 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 			info: info,
 			engine: engine,
 			depth: 0,
+			static_flag: false,
 		}
 	}
 
 	/// Populates executive from parent properties. Increments executive depth.
-	pub fn from_parent(state: &'a mut State<B>, info: &'a EnvInfo, engine: &'a E, parent_depth: usize) -> Self {
+	pub fn from_parent(state: &'a mut State<B>, info: &'a EnvInfo, engine: &'a E, parent_depth: usize, static_flag: bool) -> Self {
 		Executive {
 			state: state,
 			info: info,
 			engine: engine,
 			depth: parent_depth + 1,
+			static_flag: static_flag,
 		}
 	}
 
@@ -106,9 +129,11 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 		substate: &'any mut Substate,
 		output: OutputPolicy<'any, 'any>,
 		tracer: &'any mut T,
-		vm_tracer: &'any mut V
+		vm_tracer: &'any mut V,
+		static_call: bool,
 	) -> Externalities<'any, T, V, B, E> where T: Tracer, V: VMTracer {
-		Externalities::new(self.state, self.info, self.engine, self.depth, origin_info, substate, output, tracer, vm_tracer)
+		let is_static = self.static_flag || static_call;
+		Externalities::new(self.state, self.info, self.engine, self.depth, origin_info, substate, output, tracer, vm_tracer, is_static)
 	}
 
 	/// This function should be used to execute transaction.
@@ -132,7 +157,7 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 	pub fn transact_virtual(&'a mut self, t: &SignedTransaction, options: TransactOptions) -> Result<Executed, ExecutionError> {
 		let sender = t.sender();
 		let balance = self.state.balance(&sender)?;
-		let needed_balance = t.value + t.gas * t.gas_price;
+		let needed_balance = t.value.saturating_add(t.gas.saturating_mul(t.gas_price));
 		if balance < needed_balance {
 			// give the sender a sufficient balance
 			self.state.add_balance(&sender, &(needed_balance - balance), CleanupMode::NoEmpty)?;
@@ -157,6 +182,10 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 
 		if t.gas < base_gas_required {
 			return Err(From::from(ExecutionError::NotEnoughBaseGas { required: base_gas_required, got: t.gas }));
+		}
+
+		if !t.is_unsigned() && check_nonce && schedule.kill_dust != CleanDustMode::Off && !self.state.exists(&sender)? {
+			return Err(From::from(ExecutionError::SenderMustExist));
 		}
 
 		let init_gas = t.gas - base_gas_required;
@@ -186,18 +215,17 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 			return Err(From::from(ExecutionError::NotEnoughCash { required: total_cost, got: balance512 }));
 		}
 
+		let mut substate = Substate::new();
+
 		// NOTE: there can be no invalid transactions from this point.
 		if !t.is_unsigned() {
 			self.state.inc_nonce(&sender)?;
 		}
-		self.state.sub_balance(&sender, &U256::from(gas_cost))?;
+		self.state.sub_balance(&sender, &U256::from(gas_cost), &mut substate.to_cleanup_mode(&schedule))?;
 
-		let mut substate = Substate::new();
-
-		let (gas_left, output) = match t.action {
+		let (result, output) = match t.action {
 			Action::Create => {
-				let code_hash = t.data.sha3();
-				let new_address = contract_address(self.engine.create_address_scheme(self.info.number), &sender, &nonce, &code_hash);
+				let (new_address, code_hash) = contract_address(self.engine.create_address_scheme(self.info.number), &sender, &nonce, &t.data);
 				let params = ActionParams {
 					code_address: new_address.clone(),
 					code_hash: code_hash,
@@ -223,7 +251,7 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 					gas_price: t.gas_price,
 					value: ActionValue::Transfer(t.value),
 					code: self.state.code(address)?,
-					code_hash: self.state.code_hash(address)?,
+					code_hash: Some(self.state.code_hash(address)?),
 					data: Some(t.data.clone()),
 					call_type: CallType::Call,
 				};
@@ -233,7 +261,7 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 		};
 
 		// finalize here!
-		Ok(self.finalize(t, substate, gas_left, output, tracer.traces(), vm_tracer.drain())?)
+		Ok(self.finalize(t, substate, result, output, tracer.traces(), vm_tracer.drain())?)
 	}
 
 	fn exec_vm<T, V>(
@@ -243,27 +271,29 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 		output_policy: OutputPolicy,
 		tracer: &mut T,
 		vm_tracer: &mut V
-	) -> evm::Result<FinalizationResult> where T: Tracer, V: VMTracer {
+	) -> vm::Result<FinalizationResult> where T: Tracer, V: VMTracer {
 
 		let depth_threshold = ::io::LOCAL_STACK_SIZE.with(|sz| sz.get() / STACK_SIZE_PER_DEPTH);
+		let static_call = params.call_type == CallType::StaticCall;
 
 		// Ordinary execution - keep VM in same thread
 		if (self.depth + 1) % depth_threshold != 0 {
 			let vm_factory = self.state.vm_factory();
-			let mut ext = self.as_externalities(OriginInfo::from(&params), unconfirmed_substate, output_policy, tracer, vm_tracer);
+			let mut ext = self.as_externalities(OriginInfo::from(&params), unconfirmed_substate, output_policy, tracer, vm_tracer, static_call);
 			trace!(target: "executive", "ext.schedule.have_delegate_call: {}", ext.schedule().have_delegate_call);
-			return vm_factory.create(params.gas).exec(params, &mut ext).finalize(ext);
+			return executor(self.engine, &vm_factory, &params).exec(params, &mut ext).finalize(ext);
 		}
 
 		// Start in new thread to reset stack
 		// TODO [todr] No thread builder yet, so we need to reset once for a while
 		// https://github.com/aturon/crossbeam/issues/16
 		crossbeam::scope(|scope| {
+			let engine = self.engine;
 			let vm_factory = self.state.vm_factory();
-			let mut ext = self.as_externalities(OriginInfo::from(&params), unconfirmed_substate, output_policy, tracer, vm_tracer);
+			let mut ext = self.as_externalities(OriginInfo::from(&params), unconfirmed_substate, output_policy, tracer, vm_tracer, static_call);
 
 			scope.spawn(move || {
-				vm_factory.create(params.gas).exec(params, &mut ext).finalize(ext)
+				executor(engine, &vm_factory, &params).exec(params, &mut ext).finalize(ext)
 			})
 		}).join()
 	}
@@ -271,7 +301,7 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 	/// Calls contract function with given contract params.
 	/// NOTE. It does not finalize the transaction (doesn't do refunds, nor suicides).
 	/// Modifies the substate and the output.
-	/// Returns either gas_left or `evm::Error`.
+	/// Returns either gas_left or `vm::Error`.
 	pub fn call<T, V>(
 		&mut self,
 		params: ActionParams,
@@ -279,7 +309,16 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 		mut output: BytesRef,
 		tracer: &mut T,
 		vm_tracer: &mut V
-	) -> evm::Result<U256> where T: Tracer, V: VMTracer {
+	) -> vm::Result<(U256, ReturnData)> where T: Tracer, V: VMTracer {
+
+		trace!("Executive::call(params={:?}) self.env_info={:?}", params, self.info);
+		if (params.call_type == CallType::StaticCall ||
+				((params.call_type == CallType::Call || params.call_type == CallType::DelegateCall) &&
+				 self.static_flag))
+			&& params.value.value() > 0.into() {
+			return Err(vm::Error::MutableCallInStaticContext);
+		}
+
 		// backup used in case of running out of gas
 		self.state.checkpoint();
 
@@ -289,7 +328,6 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 		if let ActionValue::Transfer(val) = params.value {
 			self.state.transfer_balance(&params.sender, &params.address, &val, substate.to_cleanup_mode(&schedule))?;
 		}
-		trace!("Executive::call(params={:?}) self.env_info={:?}", params, self.info);
 
 		// if destination is builtin, try to execute it
 		if let Some(builtin) = self.engine.builtin(&params.code_address, self.info.number) {
@@ -308,7 +346,7 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 			if cost <= params.gas {
 				if let Err(e) = builtin.execute(data, &mut output) {
 					self.state.revert_to_checkpoint();
-					let evm_err: evm::evm::Error = e.into();
+					let evm_err: vm::Error = e.into();
 					tracer.trace_failed_call(trace_info, vec![], evm_err.clone().into());
 					Err(evm_err)
 				} else {
@@ -329,15 +367,15 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 						);
 					}
 
-					Ok(params.gas - cost)
+					Ok((params.gas - cost, ReturnData::empty()))
 				}
 			} else {
 				// just drain the whole gas
 				self.state.revert_to_checkpoint();
 
-				tracer.trace_failed_call(trace_info, vec![], evm::Error::OutOfGas.into());
+				tracer.trace_failed_call(trace_info, vec![], vm::Error::OutOfGas.into());
 
-				Err(evm::Error::OutOfGas)
+				Err(vm::Error::OutOfGas)
 			}
 		} else {
 			let trace_info = tracer.prepare_trace_call(&params);
@@ -376,13 +414,13 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 
 				self.enact_result(&res, substate, unconfirmed_substate);
 				trace!(target: "executive", "enacted: substate={:?}\n", substate);
-				res.map(|r| r.gas_left)
+				res.map(|r| (r.gas_left, r.return_data))
 			} else {
 				// otherwise it's just a basic transaction, only do tracing, if necessary.
 				self.state.discard_checkpoint();
 
 				tracer.trace_call(trace_info, U256::zero(), trace_output, vec![]);
-				Ok(params.gas)
+				Ok((params.gas, ReturnData::empty()))
 			}
 		}
 	}
@@ -396,11 +434,17 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 		substate: &mut Substate,
 		tracer: &mut T,
 		vm_tracer: &mut V,
-	) -> evm::Result<U256> where T: Tracer, V: VMTracer {
+	) -> vm::Result<(U256, ReturnData)> where T: Tracer, V: VMTracer {
 
 		let scheme = self.engine.create_address_scheme(self.info.number);
 		if scheme != CreateContractAddress::FromSenderAndNonce && self.state.exists_and_has_code(&params.address)? {
-			return Err(evm::Error::OutOfGas);
+			return Err(vm::Error::OutOfGas);
+		}
+
+		if params.call_type == CallType::StaticCall || self.static_flag {
+			let trace_info = tracer.prepare_trace_create(&params);
+			tracer.trace_failed_create(trace_info, vec![], vm::Error::MutableCallInStaticContext.into());
+			return Err(vm::Error::MutableCallInStaticContext);
 		}
 
 		// backup used in case of running out of gas
@@ -414,7 +458,7 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 		let nonce_offset = if schedule.no_empty {1} else {0}.into();
 		let prev_bal = self.state.balance(&params.address)?;
 		if let ActionValue::Transfer(val) = params.value {
-			self.state.sub_balance(&params.sender, &val)?;
+			self.state.sub_balance(&params.sender, &val, &mut substate.to_cleanup_mode(&schedule))?;
 			self.state.new_contract(&params.address, val + prev_bal, nonce_offset);
 		} else {
 			self.state.new_contract(&params.address, prev_bal, nonce_offset);
@@ -446,7 +490,7 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 		};
 
 		self.enact_result(&res, substate, unconfirmed_substate);
-		res.map(|r| r.gas_left)
+		res.map(|r| (r.gas_left, r.return_data))
 	}
 
 	/// Finalizes the transaction (does refunds and suicides).
@@ -454,7 +498,7 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 		&mut self,
 		t: &SignedTransaction,
 		mut substate: Substate,
-		result: evm::Result<U256>,
+		result: vm::Result<(U256, ReturnData)>,
 		output: Bytes,
 		trace: Vec<FlatTrace>,
 		vm_trace: Option<VMTrace>
@@ -468,7 +512,7 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 		let refunds_bound = sstore_refunds + suicide_refunds;
 
 		// real ammount to refund
-		let gas_left_prerefund = match result { Ok(x) => x, _ => 0.into() };
+		let gas_left_prerefund = match result { Ok((x, _)) => x, _ => 0.into() };
 		let refunded = cmp::min(refunds_bound, (t.gas - gas_left_prerefund) >> 1);
 		let gas_left = gas_left_prerefund + refunded;
 
@@ -492,14 +536,11 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 		}
 
 		// perform garbage-collection
-		for address in &substate.garbage {
-			if self.state.exists(address)? && !self.state.exists_and_not_null(address)? {
-				self.state.kill_account(address);
-			}
-		}
+		let min_balance = if schedule.kill_dust != CleanDustMode::Off { Some(U256::from(schedule.tx_gas) * t.gas_price) } else { None };
+		self.state.kill_garbage(&substate.touched, schedule.kill_empty, &min_balance, schedule.kill_dust == CleanDustMode::WithCodeAndStorage)?;
 
 		match result {
-			Err(evm::Error::Internal(msg)) => Err(ExecutionError::Internal(msg)),
+			Err(vm::Error::Internal(msg)) => Err(ExecutionError::Internal(msg)),
 			Err(exception) => {
 				Ok(Executed {
 					exception: Some(exception),
@@ -533,18 +574,20 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 		}
 	}
 
-	fn enact_result(&mut self, result: &evm::Result<FinalizationResult>, substate: &mut Substate, un_substate: Substate) {
+	fn enact_result(&mut self, result: &vm::Result<FinalizationResult>, substate: &mut Substate, un_substate: Substate) {
 		match *result {
-			Err(evm::Error::OutOfGas)
-				| Err(evm::Error::BadJumpDestination {..})
-				| Err(evm::Error::BadInstruction {.. })
-				| Err(evm::Error::StackUnderflow {..})
-				| Err(evm::Error::BuiltIn {..})
-				| Err(evm::Error::OutOfStack {..})
+			Err(vm::Error::OutOfGas)
+				| Err(vm::Error::BadJumpDestination {..})
+				| Err(vm::Error::BadInstruction {.. })
+				| Err(vm::Error::StackUnderflow {..})
+				| Err(vm::Error::BuiltIn {..})
+				| Err(vm::Error::Wasm {..})
+				| Err(vm::Error::OutOfStack {..})
+				| Err(vm::Error::MutableCallInStaticContext)
 				| Ok(FinalizationResult { apply_state: false, .. }) => {
 					self.state.revert_to_checkpoint();
 			},
-			Ok(_) | Err(evm::Error::Internal(_)) => {
+			Ok(_) | Err(vm::Error::Internal(_)) => {
 				self.state.discard_checkpoint();
 				substate.accrue(un_substate);
 			}
@@ -556,13 +599,14 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 #[allow(dead_code)]
 mod tests {
 	use std::sync::Arc;
+	use std::str::FromStr;
+	use rustc_hex::FromHex;
 	use ethkey::{Generator, Random};
 	use super::*;
-	use util::{H256, U256, U512, Address, FromHex, FromStr};
+	use util::{H256, U256, U512, Address};
 	use util::bytes::BytesRef;
-	use action_params::{ActionParams, ActionValue};
-	use env_info::EnvInfo;
-	use evm::{Factory, VMType, CreateContractAddress};
+	use vm::{ActionParams, ActionValue, CallType, EnvInfo, CreateContractAddress};
+	use evm::{Factory, VMType};
 	use error::ExecutionError;
 	use state::{Substate, CleanupMode};
 	use tests::helpers::*;
@@ -571,20 +615,18 @@ mod tests {
 	use trace::{VMTrace, VMOperation, VMExecutedOperation, MemoryDiff, StorageDiff, VMTracer, NoopVMTracer, ExecutiveVMTracer};
 	use transaction::{Action, Transaction};
 
-	use types::executed::CallType;
-
 	#[test]
 	fn test_contract_address() {
 		let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
 		let expected_address = Address::from_str("3f09c73a5ed19289fb9bdc72f1742566df146f56").unwrap();
-		assert_eq!(expected_address, contract_address(CreateContractAddress::FromSenderAndNonce, &address, &U256::from(88), &H256::default()));
+		assert_eq!(expected_address, contract_address(CreateContractAddress::FromSenderAndNonce, &address, &U256::from(88), &[]).0);
 	}
 
 	// TODO: replace params with transactions!
 	evm_test!{test_sender_balance: test_sender_balance_jit, test_sender_balance_int}
 	fn test_sender_balance(factory: Factory) {
 		let sender = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
-		let address = contract_address(CreateContractAddress::FromSenderAndNonce, &sender, &U256::zero(), &H256::default());
+		let address = contract_address(CreateContractAddress::FromSenderAndNonce, &sender, &U256::zero(), &[]).0;
 		let mut params = ActionParams::default();
 		params.address = address.clone();
 		params.sender = sender.clone();
@@ -597,7 +639,7 @@ mod tests {
 		let engine = TestEngine::new(0);
 		let mut substate = Substate::new();
 
-		let gas_left = {
+		let (gas_left, _) = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
 			ex.create(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer).unwrap()
 		};
@@ -639,7 +681,7 @@ mod tests {
 		let code = "7c601080600c6000396000f3006000355415600957005b60203560003555600052601d60036017f0600055".from_hex().unwrap();
 
 		let sender = Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap();
-		let address = contract_address(CreateContractAddress::FromSenderAndNonce, &sender, &U256::zero(), &H256::default());
+		let address = contract_address(CreateContractAddress::FromSenderAndNonce, &sender, &U256::zero(), &[]).0;
 		// TODO: add tests for 'callcreate'
 		//let next_address = contract_address(&address, &U256::zero());
 		let mut params = ActionParams::default();
@@ -655,7 +697,7 @@ mod tests {
 		let engine = TestEngine::new(0);
 		let mut substate = Substate::new();
 
-		let gas_left = {
+		let (gas_left, _) = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
 			ex.create(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer).unwrap()
 		};
@@ -693,7 +735,7 @@ mod tests {
 		let code = "7c601080600c6000396000f3006000355415600957005b60203560003555600052601d60036017f0600055".from_hex().unwrap();
 
 		let sender = Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap();
-		let address = contract_address(CreateContractAddress::FromSenderAndNonce, &sender, &U256::zero(), &H256::default());
+		let address = contract_address(CreateContractAddress::FromSenderAndNonce, &sender, &U256::zero(), &[]).0;
 		// TODO: add tests for 'callcreate'
 		//let next_address = contract_address(&address, &U256::zero());
 		let mut params = ActionParams::default();
@@ -713,7 +755,7 @@ mod tests {
 		let mut tracer = ExecutiveTracer::default();
 		let mut vm_tracer = ExecutiveVMTracer::toplevel();
 
-		let gas_left = {
+		let (gas_left, _) = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
 			let output = BytesRef::Fixed(&mut[0u8;0]);
 			ex.call(params, &mut substate, output, &mut tracer, &mut vm_tracer).unwrap()
@@ -804,7 +846,7 @@ mod tests {
 		let code = "601080600c6000396000f3006000355415600957005b60203560003555".from_hex().unwrap();
 
 		let sender = Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap();
-		let address = contract_address(CreateContractAddress::FromSenderAndNonce, &sender, &U256::zero(), &H256::default());
+		let address = contract_address(CreateContractAddress::FromSenderAndNonce, &sender, &U256::zero(), &[]).0;
 		// TODO: add tests for 'callcreate'
 		//let next_address = contract_address(&address, &U256::zero());
 		let mut params = ActionParams::default();
@@ -822,7 +864,7 @@ mod tests {
 		let mut tracer = ExecutiveTracer::default();
 		let mut vm_tracer = ExecutiveVMTracer::toplevel();
 
-		let gas_left = {
+		let (gas_left, _) = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
 			ex.create(params.clone(), &mut substate, &mut tracer, &mut vm_tracer).unwrap()
 		};
@@ -891,7 +933,7 @@ mod tests {
 		let code = "7c601080600c6000396000f3006000355415600957005b60203560003555600052601d600360e6f0600055".from_hex().unwrap();
 
 		let sender = Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap();
-		let address = contract_address(CreateContractAddress::FromSenderAndNonce, &sender, &U256::zero(), &H256::default());
+		let address = contract_address(CreateContractAddress::FromSenderAndNonce, &sender, &U256::zero(), &[]).0;
 		// TODO: add tests for 'callcreate'
 		//let next_address = contract_address(&address, &U256::zero());
 		let mut params = ActionParams::default();
@@ -907,7 +949,7 @@ mod tests {
 		let engine = TestEngine::new(0);
 		let mut substate = Substate::new();
 
-		let gas_left = {
+		let (gas_left, _) = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
 			ex.create(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer).unwrap()
 		};
@@ -943,8 +985,8 @@ mod tests {
 		let code = "7c601080600c6000396000f3006000355415600957005b60203560003555600052601d60036017f0".from_hex().unwrap();
 
 		let sender = Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap();
-		let address = contract_address(CreateContractAddress::FromSenderAndNonce, &sender, &U256::zero(), &H256::default());
-		let next_address = contract_address(CreateContractAddress::FromSenderAndNonce, &address, &U256::zero(), &H256::default());
+		let address = contract_address(CreateContractAddress::FromSenderAndNonce, &sender, &U256::zero(), &[]).0;
+		let next_address = contract_address(CreateContractAddress::FromSenderAndNonce, &address, &U256::zero(), &[]).0;
 		let mut params = ActionParams::default();
 		params.address = address.clone();
 		params.sender = sender.clone();
@@ -1018,7 +1060,7 @@ mod tests {
 		let engine = TestEngine::new(0);
 		let mut substate = Substate::new();
 
-		let gas_left = {
+		let (gas_left, _) = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
 			ex.call(params, &mut substate, BytesRef::Fixed(&mut []), &mut NoopTracer, &mut NoopVMTracer).unwrap()
 		};
@@ -1051,7 +1093,7 @@ mod tests {
 		// 55 - sstore
 		let sender = Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap();
 		let code = "600160005401600055600060006000600060003060e05a03f1600155".from_hex().unwrap();
-		let address = contract_address(CreateContractAddress::FromSenderAndNonce, &sender, &U256::zero(), &H256::default());
+		let address = contract_address(CreateContractAddress::FromSenderAndNonce, &sender, &U256::zero(), &[]).0;
 		let mut params = ActionParams::default();
 		params.address = address.clone();
 		params.gas = U256::from(100_000);
@@ -1062,7 +1104,7 @@ mod tests {
 		let engine = TestEngine::new(0);
 		let mut substate = Substate::new();
 
-		let gas_left = {
+		let (gas_left, _) = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
 			ex.call(params, &mut substate, BytesRef::Fixed(&mut []), &mut NoopTracer, &mut NoopVMTracer).unwrap()
 		};
@@ -1086,7 +1128,7 @@ mod tests {
 			nonce: U256::zero()
 		}.sign(keypair.secret(), None);
 		let sender = t.sender();
-		let contract = contract_address(CreateContractAddress::FromSenderAndNonce, &sender, &U256::zero(), &H256::default());
+		let contract = contract_address(CreateContractAddress::FromSenderAndNonce, &sender, &U256::zero(), &[]).0;
 
 		let mut state = get_temp_state_with_factory(factory);
 		state.add_balance(&sender, &U256::from(18), CleanupMode::NoEmpty).unwrap();
@@ -1215,7 +1257,7 @@ mod tests {
 		let code = "6064640fffffffff20600055".from_hex().unwrap();
 
 		let sender = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
-		let address = contract_address(CreateContractAddress::FromSenderAndNonce, &sender, &U256::zero(), &H256::default());
+		let address = contract_address(CreateContractAddress::FromSenderAndNonce, &sender, &U256::zero(), &[]).0;
 		// TODO: add tests for 'callcreate'
 		//let next_address = contract_address(&address, &U256::zero());
 		let mut params = ActionParams::default();
@@ -1267,7 +1309,7 @@ mod tests {
 		let mut substate = Substate::new();
 
 		let mut output = [0u8; 14];
-		let result = {
+		let (result, _) = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
 			ex.call(params, &mut substate, BytesRef::Fixed(&mut output), &mut NoopTracer, &mut NoopVMTracer).unwrap()
 		};

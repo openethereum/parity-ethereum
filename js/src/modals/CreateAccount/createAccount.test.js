@@ -17,6 +17,7 @@
 import BigNumber from 'bignumber.js';
 import sinon from 'sinon';
 
+import Api from '~/api';
 import Store from './store';
 
 const ADDRESS = '0x00000123456789abcdef123456789abcdef123456789abcdef';
@@ -45,7 +46,8 @@ function createApi () {
       setAccountName: sinon.stub().resolves(),
       listVaults: sinon.stub().resolves([]),
       listOpenedVaults: sinon.stub().resolves([])
-    }
+    },
+    util: Api.util
   };
 }
 

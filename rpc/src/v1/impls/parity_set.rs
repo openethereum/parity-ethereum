@@ -101,7 +101,7 @@ impl<C, M, U, F> ParitySet for ParitySetClient<C, M, U, F> where
 	}
 
 	fn set_engine_signer(&self, address: H160, password: String) -> Result<bool, Error> {
-		self.miner.set_engine_signer(address.into(), password).map_err(Into::into).map_err(errors::from_password_error)?;
+		self.miner.set_engine_signer(address.into(), password).map_err(Into::into).map_err(errors::password)?;
 		Ok(true)
 	}
 
@@ -168,12 +168,16 @@ impl<C, M, U, F> ParitySet for ParitySetClient<C, M, U, F> where
 	fn hash_content(&self, url: String) -> BoxFuture<H256, Error> {
 		self.fetch.process(self.fetch.fetch(&url).then(move |result| {
 			result
-				.map_err(errors::from_fetch_error)
+				.map_err(errors::fetch)
 				.and_then(|response| {
-					sha3(&mut io::BufReader::new(response)).map_err(errors::from_fetch_error)
+					sha3(&mut io::BufReader::new(response)).map_err(errors::fetch)
 				})
 				.map(Into::into)
 		}))
+	}
+
+	fn dapps_refresh(&self) -> Result<bool, Error> {
+		self.dapps.as_ref().map(|dapps| dapps.refresh_local_dapps()).ok_or_else(errors::dapps_disabled)
 	}
 
 	fn dapps_list(&self) -> Result<Vec<LocalDapp>, Error> {

@@ -21,6 +21,7 @@
 //! 2. Signatures verification done in the queue.
 //! 3. Final verification against the blockchain done before enactment.
 
+use std::collections::HashSet;
 use util::*;
 use engines::Engine;
 use error::{BlockError, Error};
@@ -80,10 +81,18 @@ pub fn verify_block_unordered(header: Header, bytes: Bytes, engine: &Engine, che
 	}
 	// Verify transactions.
 	let mut transactions = Vec::new();
+	let nonce_cap = if header.number() >= engine.params().dust_protection_transition {
+		Some((engine.params().nonce_cap_increment * header.number()).into())
+	} else { None };
 	{
 		let v = BlockView::new(&bytes);
 		for t in v.transactions() {
 			let t = engine.verify_transaction(t, &header)?;
+			if let Some(max_nonce) = nonce_cap {
+				if t.nonce >= max_nonce {
+					return Err(BlockError::TooManyTransactions(t.sender()).into());
+				}
+			}
 			transactions.push(t);
 		}
 	}
@@ -124,10 +133,15 @@ pub fn verify_block_family(header: &Header, bytes: &[u8], engine: &Engine, bc: &
 			}
 		}
 
+		let mut verified = HashSet::new();
 		for uncle in UntrustedRlp::new(bytes).at(2)?.iter().map(|rlp| rlp.as_val::<Header>()) {
 			let uncle = uncle?;
 			if excluded.contains(&uncle.hash()) {
 				return Err(From::from(BlockError::UncleInChain(uncle.hash())))
+			}
+
+			if verified.contains(&uncle.hash()) {
+				return Err(From::from(BlockError::DuplicateUncle(uncle.hash())))
 			}
 
 			// m_currentBlock.number() - uncle.number()		m_cB.n - uP.n()
@@ -172,6 +186,7 @@ pub fn verify_block_family(header: &Header, bytes: &[u8], engine: &Engine, bc: &
 
 			verify_parent(&uncle, &uncle_parent)?;
 			engine.verify_block_family(&uncle, &uncle_parent, Some(bytes))?;
+			verified.insert(uncle.hash());
 		}
 	}
 	Ok(())
@@ -250,6 +265,7 @@ fn verify_block_integrity(block: &[u8], transactions_root: &H256, uncles_hash: &
 
 #[cfg(test)]
 mod tests {
+	use std::collections::{BTreeMap, HashMap};
 	use util::*;
 	use ethkey::{Random, Generator};
 	use header::*;
@@ -391,6 +407,12 @@ mod tests {
 		verify_block_family(&header, bytes, engine, bc)
 	}
 
+	fn unordered_test(bytes: &[u8], engine: &Engine) -> Result<(), Error> {
+		let header = BlockView::new(bytes).header();
+		verify_block_unordered(header, bytes.to_vec(), engine, false)?;
+		Ok(())
+	}
+
 	#[test]
 	#[cfg_attr(feature="dev", allow(similar_names))]
 	fn test_verify_block() {
@@ -461,7 +483,7 @@ mod tests {
 		let mut uncles_rlp = RlpStream::new();
 		uncles_rlp.append_list(&good_uncles);
 		let good_uncles_hash = uncles_rlp.as_raw().sha3();
-		let good_transactions_root = ordered_trie_root(good_transactions.iter().map(|t| ::rlp::encode::<UnverifiedTransaction>(t).to_vec()));
+		let good_transactions_root = ordered_trie_root(good_transactions.iter().map(|t| ::rlp::encode::<UnverifiedTransaction>(t).into_vec()));
 
 		let mut parent = good.clone();
 		parent.set_number(9);
@@ -554,6 +576,41 @@ mod tests {
 		check_fail(family_test(&create_test_block_with_data(&header, &good_transactions, &bad_uncles), engine, &bc),
 			TooManyUncles(OutOfBounds { max: Some(engine.maximum_uncle_count()), min: None, found: bad_uncles.len() }));
 
+		header = good.clone();
+		bad_uncles = vec![ good_uncle1.clone(), good_uncle1.clone() ];
+		check_fail(family_test(&create_test_block_with_data(&header, &good_transactions, &bad_uncles), engine, &bc),
+			DuplicateUncle(good_uncle1.hash()));
+
 		// TODO: some additional uncle checks
+	}
+
+	#[test]
+	fn dust_protection() {
+		use ethkey::{Generator, Random};
+		use transaction::{Transaction, Action};
+		use engines::NullEngine;
+
+		let mut params = CommonParams::default();
+		params.dust_protection_transition = 0;
+		params.nonce_cap_increment = 2;
+
+		let mut header = Header::default();
+		header.set_number(1);
+
+		let keypair = Random.generate().unwrap();
+		let bad_transactions: Vec<_> = (0..3).map(|i| Transaction {
+			action: Action::Create,
+			value: U256::zero(),
+			data: Vec::new(),
+			gas: 0.into(),
+			gas_price: U256::zero(),
+			nonce: i.into(),
+		}.sign(keypair.secret(), None)).collect();
+
+		let good_transactions = [bad_transactions[0].clone(), bad_transactions[1].clone()];
+
+		let engine = NullEngine::new(params, BTreeMap::new());
+		check_fail(unordered_test(&create_test_block_with_data(&header, &bad_transactions, &[]), &engine), TooManyTransactions(keypair.address()));
+		unordered_test(&create_test_block_with_data(&header, &good_transactions, &[]), &engine).unwrap();
 	}
 }

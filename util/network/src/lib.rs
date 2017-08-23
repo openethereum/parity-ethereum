@@ -26,7 +26,7 @@
 //! struct MyHandler;
 //!
 //! impl NetworkProtocolHandler for MyHandler {
-//!		fn initialize(&self, io: &NetworkContext) {
+//!		fn initialize(&self, io: &NetworkContext, _host_info: &HostInfo) {
 //!			io.register_timer(0, 1000);
 //!		}
 //!
@@ -54,6 +54,9 @@
 //! }
 //! ```
 
+//TODO: use Poll from mio
+#![allow(deprecated)]
+
 extern crate ethcore_io as io;
 extern crate ethcore_util as util;
 extern crate parking_lot;
@@ -63,6 +66,7 @@ extern crate crypto as rcrypto;
 extern crate rand;
 extern crate time;
 extern crate ansi_term; //TODO: remove this
+extern crate rustc_hex;
 extern crate rustc_serialize;
 extern crate igd;
 extern crate libc;
@@ -73,6 +77,7 @@ extern crate rlp;
 extern crate bytes;
 extern crate path;
 extern crate ethcore_logger;
+extern crate ipnetwork;
 
 #[macro_use]
 extern crate log;
@@ -94,14 +99,16 @@ mod ip_utils;
 #[cfg(test)]
 mod tests;
 
-pub use host::{PeerId, PacketId, ProtocolId, NetworkContext, NetworkIoMessage, NetworkConfiguration};
+pub use host::{HostInfo, PeerId, PacketId, ProtocolId, NetworkContext, NetworkIoMessage, NetworkConfiguration};
 pub use service::NetworkService;
 pub use error::NetworkError;
 pub use stats::NetworkStats;
 pub use session::SessionInfo;
 
-use io::TimerToken;
+pub use io::TimerToken;
 pub use node_table::{is_valid_node_url, NodeId};
+use ipnetwork::{IpNetwork, IpNetworkError};
+use std::str::FromStr;
 
 const PROTOCOL_VERSION: u32 = 4;
 
@@ -110,7 +117,7 @@ const PROTOCOL_VERSION: u32 = 4;
 /// `Message` is the type for message data.
 pub trait NetworkProtocolHandler: Sync + Send {
 	/// Initialize the handler
-	fn initialize(&self, _io: &NetworkContext) {}
+	fn initialize(&self, _io: &NetworkContext, _host_info: &HostInfo) {}
 	/// Called when new network packet received.
 	fn read(&self, io: &NetworkContext, peer: &PeerId, packet_id: u8, data: &[u8]);
 	/// Called when new peer is connected. Only called when peer supports the same protocol.
@@ -141,8 +148,49 @@ impl NonReservedPeerMode {
 	}
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "ipc", binary)]
+pub struct IpFilter {
+    pub predefined: AllowIP,
+    pub custom_allow: Vec<IpNetwork>,
+    pub custom_block: Vec<IpNetwork>,
+} 
+
+impl Default for IpFilter {
+    fn default() -> Self {
+        IpFilter {
+            predefined: AllowIP::All,
+            custom_allow: vec![],
+            custom_block: vec![],
+        }
+    }
+}
+
+impl IpFilter {
+    /// Attempt to parse the peer mode from a string.
+    pub fn parse(s: &str) -> Result<IpFilter, IpNetworkError> {
+        let mut filter = IpFilter::default();
+        for f in s.split_whitespace() {
+            match f {
+                "all" => filter.predefined = AllowIP::All,
+                "private" => filter.predefined = AllowIP::Private,
+                "public" => filter.predefined = AllowIP::Public,
+                "none" => filter.predefined = AllowIP::None,
+                custom => {
+                    if custom.starts_with("-") {
+                        filter.custom_block.push(IpNetwork::from_str(&custom.to_owned().split_off(1))?)
+                    } else {
+                        filter.custom_allow.push(IpNetwork::from_str(custom)?)
+                    }
+                }
+            }
+        }
+        Ok(filter)
+    }
+}
+
 /// IP fiter
-#[derive(Clone, Debug, PartialEq, Eq, Copy)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum AllowIP {
 	/// Connect to any address
 	All,
@@ -150,5 +198,7 @@ pub enum AllowIP {
 	Private,
 	/// Connect to public network only
 	Public,
+    /// Block all addresses
+    None,
 }
 

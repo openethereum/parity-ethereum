@@ -134,7 +134,7 @@ mod tests {
 	use views::BlockView;
 	use block::Block;
 	use super::AbridgedBlock;
-	use types::transaction::{Action, Transaction};
+	use transaction::{Action, Transaction};
 
 	use util::{Address, H256, U256, Bytes};
 
@@ -190,7 +190,7 @@ mod tests {
 
 		let receipts_root = b.header.receipts_root().clone();
 		b.header.set_transactions_root(::util::triehash::ordered_trie_root(
-			b.transactions.iter().map(::rlp::encode).map(|out| out.to_vec())
+			b.transactions.iter().map(::rlp::encode).map(|out| out.into_vec())
 		));
 
 		let encoded = encode_block(&b);

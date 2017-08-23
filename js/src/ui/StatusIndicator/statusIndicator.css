@@ -1,0 +1,89 @@
+/* Copyright 2015-2017 Parity Technologies (UK) Ltd.
+/* This file is part of Parity.
+/*
+/* Parity is free software: you can redistribute it and/or modify
+/* it under the terms of the GNU General Public License as published by
+/* the Free Software Foundation, either version 3 of the License, or
+/* (at your option) any later version.
+/*
+/* Parity is distributed in the hope that it will be useful,
+/* but WITHOUT ANY WARRANTY; without even the implied warranty of
+/* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+/* GNU General Public License for more details.
+/*
+/* You should have received a copy of the GNU General Public License
+/* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+*/
+.status {
+  display: inline-block;
+}
+
+.radial,.signal {
+  display: inline-block;
+  margin: .2em;
+  width: 1em;
+  height: 1em;
+  white-space: nowrap;
+}
+
+.radial {
+  border-radius: 100%;
+  border-top: 1px solid rgba(255, 255, 255, 0.5);
+  background-image: radial-gradient(ellipse at top, rgba(255, 255, 255, 0.38) 0%, rgba(255, 255, 255, 0) 100%);
+
+  &.ok {
+    background-color: #070;
+  }
+  &.bad {
+    background-color: #c00;
+  }
+  &.needsAttention {
+    background-color: #dc0;
+  }
+}
+
+.signal {
+  width: 2em;
+  width: calc(.9em + 5px);
+  text-transform: initial;
+  vertical-align: bottom;
+  margin-top: -1em;
+
+  > .bar {
+    display: inline-block;
+    border: 1px solid #444;
+    box-shadow: 0 0 1px rgba(0, 0, 0, 0.8);
+    width: .3em;
+    height: 1em;
+    opacity: 0.7;
+    background-color: rgba(0, 0, 0, 0.6);
+    vertical-align: bottom;
+
+    &.active {
+      opacity: 1.0;
+      background-image: linear-gradient(0, rgba(255, 255, 255, 0.38) 0%, rgba(255, 255, 255, 0) 100%);
+    }
+
+    &.bad {
+      height: .4em;
+      border-right: 0;
+    }
+    &.needsAttention {
+      height: .6em;
+      border-right: 0;
+    }
+    &.ok {
+      height: 1em;
+    }
+  }
+
+  &.bad > .bar.active {
+    background-color: #c00;
+  }
+  &.ok > .bar.active {
+    background-color: #080;
+  }
+  &.needsAttention > .bar.active {
+    background-color: #dc0;
+  }
+}

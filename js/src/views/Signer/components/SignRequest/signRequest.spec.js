@@ -53,7 +53,14 @@ function render () {
     <SignRequest signerStore={ signerStore } />,
     {
       context: {
-        store: reduxStore
+        store: reduxStore,
+        api: {
+          util: {
+            sha3: (x) => x,
+            hexToBytes: (x) => x,
+            asciiToHex: (x) => x
+          }
+        }
       }
     }
   ).find('SignRequest').shallow();
@@ -61,7 +68,7 @@ function render () {
   return component;
 }
 
-describe('views/Signer/components/SignRequest', () => {
+describe.only('views/Signer/components/SignRequest', () => {
   beforeEach(() => {
     render();
   });

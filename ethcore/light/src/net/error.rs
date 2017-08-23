@@ -66,6 +66,8 @@ pub enum Error {
 	BadProtocolVersion,
 	/// Peer is overburdened.
 	Overburdened,
+	/// No handler kept the peer.
+	RejectedByHandlers,
 }
 
 impl Error {
@@ -85,6 +87,7 @@ impl Error {
 			Error::UnsupportedProtocolVersion(_) => Punishment::Disable,
 			Error::BadProtocolVersion => Punishment::Disable,
 			Error::Overburdened => Punishment::None,
+			Error::RejectedByHandlers => Punishment::Disconnect,
 		}
 	}
 }
@@ -117,6 +120,7 @@ impl fmt::Display for Error {
 			Error::UnsupportedProtocolVersion(pv) => write!(f, "Unsupported protocol version: {}", pv),
 			Error::BadProtocolVersion => write!(f, "Bad protocol version in handshake"),
 			Error::Overburdened => write!(f, "Peer overburdened"),
+			Error::RejectedByHandlers => write!(f, "No handler kept this peer"),
 		}
 	}
 }

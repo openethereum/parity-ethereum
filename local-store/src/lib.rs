@@ -121,7 +121,7 @@ impl TransactionEntry {
 impl From<PendingTransaction> for TransactionEntry {
 	fn from(pending: PendingTransaction) -> Self {
 		TransactionEntry {
-			rlp_bytes: ::rlp::encode(&pending.transaction).to_vec(),
+			rlp_bytes: ::rlp::encode(&pending.transaction).into_vec(),
 			condition: pending.condition.map(Into::into),
 		}
 	}

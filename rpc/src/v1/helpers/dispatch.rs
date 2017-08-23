@@ -133,7 +133,7 @@ impl<C: MiningBlockChainClient, M: MinerService> Dispatcher for FullDispatcher<C
 		-> BoxFuture<WithToken<SignedTransaction>, Error>
 	{
 		let (client, miner) = (self.client.clone(), self.miner.clone());
-		let network_id = client.signing_network_id();
+		let chain_id = client.signing_chain_id();
 		let address = filled.from;
 		future::done({
 			let t = Transaction {
@@ -146,12 +146,12 @@ impl<C: MiningBlockChainClient, M: MinerService> Dispatcher for FullDispatcher<C
 			};
 
 			if accounts.is_hardware_address(address) {
-				hardware_signature(&*accounts, address, t, network_id).map(WithToken::No)
+				hardware_signature(&*accounts, address, t, chain_id).map(WithToken::No)
 			} else {
-				let hash = t.hash(network_id);
+				let hash = t.hash(chain_id);
 				let signature = try_bf!(signature(&*accounts, address, hash, password));
 				Ok(signature.map(|sig| {
-					SignedTransaction::new(t.with_signature(sig, network_id))
+					SignedTransaction::new(t.with_signature(sig, chain_id))
 						.expect("Transaction was signed by AccountsProvider; it never produces invalid signatures; qed")
 				}))
 			}
@@ -162,7 +162,7 @@ impl<C: MiningBlockChainClient, M: MinerService> Dispatcher for FullDispatcher<C
 		let hash = signed_transaction.transaction.hash();
 
 		self.miner.import_own_transaction(&*self.client, signed_transaction)
-			.map_err(errors::from_transaction_error)
+			.map_err(errors::transaction)
 			.map(|_| hash)
 	}
 }
@@ -177,7 +177,7 @@ pub fn fetch_gas_price_corpus(
 ) -> BoxFuture<Corpus<U256>, Error> {
 	const GAS_PRICE_SAMPLE_SIZE: usize = 100;
 
-	if let Some(cached) = cache.lock().gas_price_corpus() {
+	if let Some(cached) = { cache.lock().gas_price_corpus() } {
 		return future::ok(cached).boxed()
 	}
 
@@ -284,7 +284,7 @@ impl LightDispatcher {
 		}
 
 		let best_header = self.client.best_block_header();
-		let account_start_nonce = self.client.engine().account_start_nonce();
+		let account_start_nonce = self.client.engine().account_start_nonce(best_header.number());
 		let nonce_future = self.sync.with_context(|ctx| self.on_demand.request(ctx, request::Account {
 			header: best_header.into(),
 			address: addr,
@@ -358,7 +358,7 @@ impl Dispatcher for LightDispatcher {
 	fn sign(&self, accounts: Arc<AccountProvider>, filled: FilledTransactionRequest, password: SignWith)
 		-> BoxFuture<WithToken<SignedTransaction>, Error>
 	{
-		let network_id = self.client.signing_network_id();
+		let chain_id = self.client.signing_chain_id();
 		let address = filled.from;
 
 		let with_nonce = move |filled: FilledTransactionRequest, nonce| {
@@ -372,14 +372,14 @@ impl Dispatcher for LightDispatcher {
 			};
 
 			if accounts.is_hardware_address(address) {
-				return hardware_signature(&*accounts, address, t, network_id).map(WithToken::No)
+				return hardware_signature(&*accounts, address, t, chain_id).map(WithToken::No)
 			}
 
-			let hash = t.hash(network_id);
+			let hash = t.hash(chain_id);
 			let signature = signature(&*accounts, address, hash, password)?;
 
 			Ok(signature.map(|sig| {
-				SignedTransaction::new(t.with_signature(sig, network_id))
+				SignedTransaction::new(t.with_signature(sig, chain_id))
 					.expect("Transaction was signed by AccountsProvider; it never produces invalid signatures; qed")
 			}))
 		};
@@ -400,7 +400,7 @@ impl Dispatcher for LightDispatcher {
 
 		self.transaction_queue.write().import(signed_transaction)
 			.map_err(Into::into)
-			.map_err(errors::from_transaction_error)
+			.map_err(errors::transaction)
 			.map(|_| hash)
 	}
 }
@@ -512,6 +512,10 @@ pub fn execute<D: Dispatcher + 'static>(
 				).boxed()
 		},
 		ConfirmationPayload::EthSignMessage(address, data) => {
+			if accounts.is_hardware_address(address) {
+				return future::err(errors::unsupported("Signing via hardware wallets is not supported.", None)).boxed();
+			}
+
 			let hash = eth_data_hash(data);
 			let res = signature(&accounts, address, hash, pass)
 				.map(|result| result
@@ -522,6 +526,10 @@ pub fn execute<D: Dispatcher + 'static>(
 			future::done(res).boxed()
 		},
 		ConfirmationPayload::Decrypt(address, data) => {
+			if accounts.is_hardware_address(address) {
+				return future::err(errors::unsupported("Decrypting via hardware wallets is not supported.", None)).boxed();
+			}
+
 			let res = decrypt(&accounts, address, data, pass)
 				.map(|result| result
 					.map(RpcBytes)
@@ -538,26 +546,26 @@ fn signature(accounts: &AccountProvider, address: Address, hash: H256, password:
 		SignWith::Password(pass) => accounts.sign(address, Some(pass), hash).map(WithToken::No),
 		SignWith::Token(token) => accounts.sign_with_token(address, token, hash).map(Into::into),
 	}.map_err(|e| match password {
-		SignWith::Nothing => errors::from_signing_error(e),
-		_ => errors::from_password_error(e),
+		SignWith::Nothing => errors::signing(e),
+		_ => errors::password(e),
 	})
 }
 
 // obtain a hardware signature from the given account.
-fn hardware_signature(accounts: &AccountProvider, address: Address, t: Transaction, network_id: Option<u64>)
+fn hardware_signature(accounts: &AccountProvider, address: Address, t: Transaction, chain_id: Option<u64>)
 	-> Result<SignedTransaction, Error>
 {
 	debug_assert!(accounts.is_hardware_address(address));
 
 	let mut stream = rlp::RlpStream::new();
-	t.rlp_append_unsigned_transaction(&mut stream, network_id);
+	t.rlp_append_unsigned_transaction(&mut stream, chain_id);
 	let signature = accounts.sign_with_hardware(address, &stream.as_raw())
 		.map_err(|e| {
 			debug!(target: "miner", "Error signing transaction with hardware wallet: {}", e);
 			errors::account("Error signing transaction with hardware wallet", e)
 		})?;
 
-	SignedTransaction::new(t.with_signature(signature, network_id))
+	SignedTransaction::new(t.with_signature(signature, chain_id))
 		.map_err(|e| {
 		  debug!(target: "miner", "Hardware wallet has produced invalid signature: {}", e);
 		  errors::account("Invalid signature generated", e)
@@ -570,8 +578,8 @@ fn decrypt(accounts: &AccountProvider, address: Address, msg: Bytes, password: S
 		SignWith::Password(pass) => accounts.decrypt(address, Some(pass), &DEFAULT_MAC, &msg).map(WithToken::No),
 		SignWith::Token(token) => accounts.decrypt_with_token(address, token, &DEFAULT_MAC, &msg).map(Into::into),
 	}.map_err(|e| match password {
-		SignWith::Nothing => errors::from_signing_error(e),
-		_ => errors::from_password_error(e),
+		SignWith::Nothing => errors::signing(e),
+		_ => errors::password(e),
 	})
 }
 

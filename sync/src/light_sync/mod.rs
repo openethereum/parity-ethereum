@@ -39,8 +39,9 @@ use std::sync::Arc;
 use ethcore::encoded;
 use light::client::{AsLightClient, LightChainClient};
 use light::net::{
-	Announcement, Handler, BasicContext, EventContext,
-	Capabilities, ReqId, Status, Error as NetError,
+	PeerStatus, Announcement, Handler, BasicContext,
+	EventContext, Capabilities, ReqId, Status,
+	Error as NetError,
 };
 use light::request::{self, CompleteHeadersRequest as HeadersRequest};
 use network::PeerId;
@@ -229,26 +230,33 @@ pub struct LightSync<L: AsLightClient> {
 }
 
 impl<L: AsLightClient + Send + Sync> Handler for LightSync<L> {
-	fn on_connect(&self, ctx: &EventContext, status: &Status, capabilities: &Capabilities) {
-		if !capabilities.serve_headers {
-			trace!(target: "sync", "Disconnecting irrelevant peer: {}", ctx.peer());
-			ctx.disconnect_peer(ctx.peer());
-			return;
+	fn on_connect(
+		&self,
+		ctx: &EventContext,
+		status: &Status,
+		capabilities: &Capabilities
+	) -> PeerStatus {
+		use std::cmp;
+
+		if capabilities.serve_headers {
+			let chain_info = ChainInfo {
+				head_td: status.head_td,
+				head_hash: status.head_hash,
+				head_num: status.head_num,
+			};
+
+			{
+				let mut best = self.best_seen.lock();
+				*best = cmp::max(best.clone(), Some(chain_info.clone()));
+			}
+
+			self.peers.write().insert(ctx.peer(), Mutex::new(Peer::new(chain_info)));
+			self.maintain_sync(ctx.as_basic());
+
+			PeerStatus::Kept
+		} else {
+			PeerStatus::Unkept
 		}
-
-		let chain_info = ChainInfo {
-			head_td: status.head_td,
-			head_hash: status.head_hash,
-			head_num: status.head_num,
-		};
-
-		{
-			let mut best = self.best_seen.lock();
-			*best = ::std::cmp::max(best.clone(), Some(chain_info.clone()));
-		}
-
-		self.peers.write().insert(ctx.peer(), Mutex::new(Peer::new(chain_info)));
-		self.maintain_sync(ctx.as_basic());
 	}
 
 	fn on_disconnect(&self, ctx: &EventContext, unfulfilled: &[ReqId]) {
@@ -276,6 +284,13 @@ impl<L: AsLightClient + Send + Sync> Handler for LightSync<L> {
 
 			best.clone()
 		};
+
+		{
+			let mut pending_reqs = self.pending_reqs.lock();
+			for unfulfilled in unfulfilled {
+				pending_reqs.remove(&unfulfilled);
+			}
+		}
 
 		if new_best.is_none() {
 			debug!(target: "sync", "No peers remain. Reverting to idle");
@@ -495,10 +510,12 @@ impl<L: AsLightClient> LightSync<L> {
 					None
 				}
 			}).collect();
+
 			let mut rng = self.rng.lock();
+			let mut requested_from = HashSet::new();
 
 			// naive request dispatcher: just give to any peer which says it will
-			// give us responses.
+			// give us responses. but only one request per peer per state transition.
 			let dispatcher = move |req: HeadersRequest| {
 				rng.shuffle(&mut peer_ids);
 
@@ -513,9 +530,12 @@ impl<L: AsLightClient> LightSync<L> {
 					builder.build()
 				};
 				for peer in &peer_ids {
+					if requested_from.contains(peer) { continue }
 					match ctx.request_from(*peer, request.clone()) {
 						Ok(id) => {
 							self.pending_reqs.lock().insert(id.clone());
+							requested_from.insert(peer.clone());
+
 							return Some(id)
 						}
 						Err(NetError::NoCredits) => {}
@@ -551,7 +571,7 @@ impl<L: AsLightClient> LightSync<L> {
 			peers: RwLock::new(HashMap::new()),
 			pending_reqs: Mutex::new(HashSet::new()),
 			client: client,
-			rng: Mutex::new(try!(OsRng::new())),
+			rng: Mutex::new(OsRng::new()?),
 			state: Mutex::new(SyncState::Idle),
 		})
 	}

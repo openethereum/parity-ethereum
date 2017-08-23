@@ -23,10 +23,12 @@
 extern crate cid;
 extern crate crypto as rust_crypto;
 extern crate futures;
+extern crate futures_cpupool;
+extern crate itertools;
 extern crate multihash;
 extern crate order_stat;
 extern crate rand;
-extern crate rustc_serialize;
+extern crate rustc_hex;
 extern crate semver;
 extern crate serde;
 extern crate serde_json;
@@ -51,6 +53,7 @@ extern crate ethkey;
 extern crate ethstore;
 extern crate ethsync;
 extern crate ethcore_logger;
+extern crate vm;
 extern crate fetch;
 extern crate parity_reactor;
 extern crate parity_updater as updater;
@@ -59,7 +62,7 @@ extern crate stats;
 
 #[macro_use]
 extern crate log;
-#[macro_use]
+#[cfg_attr(test, macro_use)]
 extern crate ethcore_util as util;
 #[macro_use]
 extern crate jsonrpc_macros;

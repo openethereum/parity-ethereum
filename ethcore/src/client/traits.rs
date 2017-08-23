@@ -15,24 +15,28 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::BTreeMap;
-use util::{U256, Address, H256, H2048, Bytes, Itertools};
-use util::hashdb::DBValue;
+use itertools::Itertools;
+
+use block::{OpenBlock, SealedBlock, ClosedBlock};
 use blockchain::TreeRoute;
-use verification::queue::QueueInfo as BlockQueueInfo;
-use block::{OpenBlock, SealedBlock};
-use header::{BlockNumber};
-use transaction::{LocalizedTransaction, PendingTransaction, SignedTransaction};
-use transaction_import::TransactionImportResult;
-use log_entry::LocalizedLogEntry;
-use filter::Filter;
+use encoded;
+use vm::LastHashes;
 use error::{ImportResult, CallError, Error as EthcoreError};
-use receipt::LocalizedReceipt;
-use trace::LocalizedTrace;
+use error::{TransactionImportResult, BlockImportError};
 use evm::{Factory as EvmFactory, Schedule};
 use executive::Executed;
-use env_info::LastHashes;
-use block_import_error::BlockImportError;
+use filter::Filter;
+use header::{BlockNumber};
 use ipc::IpcConfig;
+use log_entry::LocalizedLogEntry;
+use receipt::LocalizedReceipt;
+use trace::LocalizedTrace;
+use transaction::{LocalizedTransaction, PendingTransaction, SignedTransaction};
+use verification::queue::QueueInfo as BlockQueueInfo;
+
+use util::{U256, Address, H256, H2048, Bytes};
+use util::hashdb::DBValue;
+
 use types::ids::*;
 use types::basic_account::BasicAccount;
 use types::trace_filter::Filter as TraceFilter;
@@ -41,7 +45,6 @@ use types::blockchain_info::BlockChainInfo;
 use types::block_status::BlockStatus;
 use types::mode::Mode;
 use types::pruning_info::PruningInfo;
-use encoded;
 
 #[ipc(client_ident="RemoteClient")]
 /// Blockchain database client. Owns and manages a blockchain and a block queue.
@@ -180,7 +183,11 @@ pub trait BlockChainClient : Sync + Send {
 	fn logs(&self, filter: Filter) -> Vec<LocalizedLogEntry>;
 
 	/// Makes a non-persistent transaction call.
-	fn call(&self, t: &SignedTransaction, block: BlockId, analytics: CallAnalytics) -> Result<Executed, CallError>;
+	fn call(&self, tx: &SignedTransaction, analytics: CallAnalytics, block: BlockId) -> Result<Executed, CallError>;
+
+	/// Makes multiple non-persistent but dependent transaction calls.
+	/// Returns a vector of successes or a failure if any of the transaction fails.
+	fn call_many(&self, txs: &[(SignedTransaction, CallAnalytics)], block: BlockId) -> Result<Vec<Executed>, CallError>;
 
 	/// Estimates how much gas will be necessary for a call.
 	fn estimate_gas(&self, t: &SignedTransaction, block: BlockId) -> Result<U256, CallError>;
@@ -233,8 +240,8 @@ pub trait BlockChainClient : Sync + Send {
 		corpus.into()
 	}
 
-	/// Get the preferred network ID to sign on
-	fn signing_network_id(&self) -> Option<u64>;
+	/// Get the preferred chain ID to sign on
+	fn signing_chain_id(&self) -> Option<u64>;
 
 	/// Get the mode.
 	fn mode(&self) -> Mode;
@@ -288,6 +295,9 @@ pub trait MiningBlockChainClient: BlockChainClient {
 		extra_data: Bytes
 	) -> OpenBlock;
 
+	/// Reopens an OpenBlock and updates uncles.
+	fn reopen_block(&self, block: ClosedBlock) -> OpenBlock;
+
 	/// Returns EvmFactory.
 	fn vm_factory(&self) -> &EvmFactory;
 
@@ -311,6 +321,13 @@ pub trait EngineClient: MiningBlockChainClient {
 
 	/// Broadcast a consensus message to the network.
 	fn broadcast_consensus_message(&self, message: Bytes);
+
+	/// Get the transition to the epoch the given parent hash is part of
+	/// or transitions to.
+	/// This will give the epoch that any children of this parent belong to.
+	///
+	/// The block corresponding the the parent hash must be stored already.
+	fn epoch_transition_for(&self, parent_hash: H256) -> Option<::engines::EpochTransition>;
 }
 
 /// Extended client interface for providing proofs of the state.

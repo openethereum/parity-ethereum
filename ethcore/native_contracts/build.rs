@@ -21,6 +21,7 @@ use std::fs::File;
 use std::io::Write;
 
 // TODO: just walk the "res" directory and generate whole crate automatically.
+const KEY_SERVER_SET_ABI: &'static str = include_str!("res/key_server_set.json");
 const REGISTRY_ABI: &'static str = include_str!("res/registrar.json");
 const URLHINT_ABI: &'static str = include_str!("res/urlhint.json");
 const SERVICE_TRANSACTION_ABI: &'static str = include_str!("res/service_transaction.json");
@@ -28,7 +29,7 @@ const SECRETSTORE_ACL_STORAGE_ABI: &'static str = include_str!("res/secretstore_
 const VALIDATOR_SET_ABI: &'static str = include_str!("res/validator_set.json");
 const VALIDATOR_REPORT_ABI: &'static str = include_str!("res/validator_report.json");
 
-const TEST_VALIDATOR_SET_ABI: &'static str = r#"[{"constant":true,"inputs":[],"name":"transitionNonce","outputs":[{"name":"n","type":"uint256"}],"payable":false,"type":"function"},{"constant":false,"inputs":[{"name":"newValidators","type":"address[]"}],"name":"setValidators","outputs":[],"payable":false,"type":"function"},{"constant":true,"inputs":[],"name":"getValidators","outputs":[{"name":"vals","type":"address[]"}],"payable":false,"type":"function"},{"inputs":[],"payable":false,"type":"constructor"},{"anonymous":false,"inputs":[{"indexed":true,"name":"_parent_hash","type":"bytes32"},{"indexed":true,"name":"_nonce","type":"uint256"},{"indexed":false,"name":"_new_set","type":"address[]"}],"name":"ValidatorsChanged","type":"event"}]"#;
+const TEST_VALIDATOR_SET_ABI: &'static str = include_str!("res/test_validator_set.json");
 
 fn build_file(name: &str, abi: &str, filename: &str) {
 	let code = ::native_contract_generator::generate_module(name, abi).unwrap();
@@ -45,6 +46,7 @@ fn build_test_contracts() {
 }
 
 fn main() {
+	build_file("KeyServerSet", KEY_SERVER_SET_ABI, "key_server_set.rs");
 	build_file("Registry", REGISTRY_ABI, "registry.rs");
 	build_file("Urlhint", URLHINT_ABI, "urlhint.rs");
 	build_file("ServiceTransactionChecker", SERVICE_TRANSACTION_ABI, "service_transaction.rs");

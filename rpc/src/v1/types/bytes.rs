@@ -17,10 +17,9 @@
 //! Serializable wrapper around vector of bytes
 
 use std::fmt;
-use rustc_serialize::hex::ToHex;
+use rustc_hex::{ToHex, FromHex};
 use serde::{Serialize, Serializer, Deserialize, Deserializer};
 use serde::de::{Error, Visitor};
-use util::common::FromHex;
 
 /// Wrapper structure around vector of bytes.
 #[derive(Debug, PartialEq, Eq, Default, Hash, Clone)]
@@ -58,16 +57,16 @@ impl Serialize for Bytes {
 	}
 }
 
-impl Deserialize for Bytes {
+impl<'a> Deserialize<'a> for Bytes {
 	fn deserialize<D>(deserializer: D) -> Result<Bytes, D::Error>
-	where D: Deserializer {
-		deserializer.deserialize(BytesVisitor)
+	where D: Deserializer<'a> {
+		deserializer.deserialize_any(BytesVisitor)
 	}
 }
 
 struct BytesVisitor;
 
-impl Visitor for BytesVisitor {
+impl<'a> Visitor<'a> for BytesVisitor {
 	type Value = Bytes;
 
 	fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -82,9 +81,9 @@ impl Visitor for BytesVisitor {
 			);
 			Ok(Bytes::new(Vec::new()))
 		} else if value.len() >= 2 && &value[0..2] == "0x" && value.len() & 1 == 0 {
-			Ok(Bytes::new(FromHex::from_hex(&value[2..]).map_err(|_| Error::custom("invalid hex"))?))
+			Ok(Bytes::new(FromHex::from_hex(&value[2..]).map_err(|e| Error::custom(format!("Invalid hex: {}", e)))?))
 		} else {
-			Err(Error::custom("invalid format"))
+			Err(Error::custom("Invalid bytes format. Expected a 0x-prefixed hex string with even length"))
 		}
 	}
 
@@ -98,7 +97,7 @@ impl Visitor for BytesVisitor {
 mod tests {
 	use super::*;
 	use serde_json;
-	use rustc_serialize::hex::FromHex;
+	use rustc_hex::FromHex;
 
 	#[test]
 	fn test_bytes_serialize() {

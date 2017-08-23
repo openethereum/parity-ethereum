@@ -29,6 +29,7 @@ extern crate docopt;
 extern crate env_logger;
 extern crate fdlimit;
 extern crate futures;
+extern crate futures_cpupool;
 extern crate isatty;
 extern crate jsonrpc_core;
 extern crate num_cpus;
@@ -36,10 +37,12 @@ extern crate number_prefix;
 extern crate regex;
 extern crate rlp;
 extern crate rpassword;
-extern crate rustc_serialize;
+extern crate rustc_hex;
 extern crate semver;
 extern crate serde;
 extern crate serde_json;
+#[macro_use]
+extern crate serde_derive;
 extern crate time;
 extern crate toml;
 
@@ -52,14 +55,17 @@ extern crate ethcore_ipc_nano as nanoipc;
 extern crate ethcore_light as light;
 extern crate ethcore_logger;
 extern crate ethcore_util as util;
+extern crate ethcore_network as network;
 extern crate ethkey;
 extern crate ethsync;
+extern crate panic_hook;
 extern crate parity_hash_fetch as hash_fetch;
 extern crate parity_ipfs_api;
 extern crate parity_local_store as local_store;
 extern crate parity_reactor;
 extern crate parity_rpc;
 extern crate parity_updater as updater;
+extern crate parity_whisper;
 extern crate path;
 extern crate rpc_cli;
 
@@ -81,18 +87,6 @@ extern crate pretty_assertions;
 
 #[cfg(windows)] extern crate ws2_32;
 #[cfg(windows)] extern crate winapi;
-
-macro_rules! dependency {
-	($dep_ty:ident, $url:expr) => {
-		{
-			let dep = boot::dependency::<$dep_ty<_>>($url)
-				.unwrap_or_else(|e| panic!("Fatal: error connecting service ({:?})", e));
-			dep.handshake()
-				.unwrap_or_else(|e| panic!("Fatal: error in connected service ({:?})", e));
-			dep
-		}
-	}
-}
 
 mod account;
 mod blockchain;
@@ -119,6 +113,7 @@ mod snapshot;
 mod upgrade;
 mod url;
 mod user_defaults;
+mod whisper;
 
 #[cfg(feature="ipc")]
 mod boot;
@@ -169,7 +164,7 @@ fn execute(command: Execute, can_restart: bool) -> Result<PostExecutionAction, S
 		Cmd::Account(account_cmd) => account::execute(account_cmd).map(|s| PostExecutionAction::Print(s)),
 		Cmd::ImportPresaleWallet(presale_cmd) => presale::execute(presale_cmd).map(|s| PostExecutionAction::Print(s)),
 		Cmd::Blockchain(blockchain_cmd) => blockchain::execute(blockchain_cmd).map(|_| PostExecutionAction::Quit),
-		Cmd::SignerToken(ws_conf, ui_conf) => signer::execute(ws_conf, ui_conf).map(|s| PostExecutionAction::Print(s)),
+		Cmd::SignerToken(ws_conf, ui_conf, logger_config) => signer::execute(ws_conf, ui_conf, logger_config).map(|s| PostExecutionAction::Print(s)),
 		Cmd::SignerSign { id, pwfile, port, authfile } => rpc_cli::signer_sign(id, pwfile, port, authfile).map(|s| PostExecutionAction::Print(s)),
 		Cmd::SignerList { port, authfile } => rpc_cli::signer_list(port, authfile).map(|s| PostExecutionAction::Print(s)),
 		Cmd::SignerReject { id, port, authfile } => rpc_cli::signer_reject(id, port, authfile).map(|s| PostExecutionAction::Print(s)),
@@ -322,8 +317,7 @@ macro_rules! trace_main {
 }
 
 fn main() {
-	// Always print backtrace on panic.
-	env::set_var("RUST_BACKTRACE", "1");
+	panic_hook::set();
 
 	// assuming the user is not running with `--force-direct`, then:
 	// if argv[0] == "parity" and this executable != ~/.parity-updates/parity, run that instead.

@@ -24,12 +24,14 @@ use key_server_cluster;
 
 /// Node id.
 pub type NodeId = ethkey::Public;
-/// Document address type.
-pub type DocumentAddress = util::H256;
-/// Document key type.
-pub type DocumentKey = util::Bytes;
-/// Encrypted key type.
-pub type DocumentEncryptedKey = util::Bytes;
+/// Server key id. When key is used to encrypt document, it could be document contents hash.
+pub type ServerKeyId = util::H256;
+/// Encrypted document key type.
+pub type EncryptedDocumentKey = util::Bytes;
+/// Message hash.
+pub type MessageHash = util::H256;
+/// Message signature.
+pub type EncryptedMessageSignature = util::Bytes;
 /// Request signature type.
 pub type RequestSignature = ethkey::Signature;
 /// Public key type.
@@ -67,8 +69,10 @@ pub struct NodeAddress {
 #[binary]
 /// Secret store configuration
 pub struct ServiceConfiguration {
-	/// HTTP listener address.
-	pub listener_address: NodeAddress,
+	/// HTTP listener address. If None, HTTP API is disabled.
+	pub listener_address: Option<NodeAddress>,
+	/// Is ACL check enabled. If false, everyone has access to all keys. Useful for tests only.
+	pub acl_check_enabled: bool,
 	/// Data directory path for secret store
 	pub data_path: String,
 	/// Cluster configuration.
@@ -81,8 +85,6 @@ pub struct ServiceConfiguration {
 pub struct ClusterConfiguration {
 	/// Number of threads reserved by cluster.
 	pub threads: usize,
-	/// Private key this node holds.
-	pub self_private: Vec<u8>, // holds ethkey::Secret
 	/// This node address.
 	pub listener_address: NodeAddress,
 	/// All cluster nodes addresses.
@@ -95,7 +97,7 @@ pub struct ClusterConfiguration {
 #[derive(Clone, Debug, PartialEq)]
 #[binary]
 /// Shadow decryption result.
-pub struct DocumentEncryptedKeyShadow {
+pub struct EncryptedDocumentKeyShadow {
 	/// Decrypted secret point. It is partially decrypted if shadow decrpytion was requested.
 	pub decrypted_secret: ethkey::Public,
 	/// Shared common point.

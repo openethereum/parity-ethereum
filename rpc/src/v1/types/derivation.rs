@@ -102,15 +102,15 @@ impl Derive {
 	}
 }
 
-impl Deserialize for DerivationType {
-	fn deserialize<D>(deserializer: D) -> Result<DerivationType, D::Error> where D: Deserializer {
-		deserializer.deserialize(DerivationTypeVisitor)
+impl<'a> Deserialize<'a> for DerivationType {
+	fn deserialize<D>(deserializer: D) -> Result<DerivationType, D::Error> where D: Deserializer<'a> {
+		deserializer.deserialize_any(DerivationTypeVisitor)
 	}
 }
 
 struct DerivationTypeVisitor;
 
-impl Visitor for DerivationTypeVisitor {
+impl<'a> Visitor<'a> for DerivationTypeVisitor {
 	type Value = DerivationType;
 
 	fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -121,7 +121,7 @@ impl Visitor for DerivationTypeVisitor {
 		match value {
 			"soft" => Ok(DerivationType::Soft),
 			"hard" => Ok(DerivationType::Hard),
-			_ => Err(Error::custom("invalid derivation type")),
+			v => Err(Error::custom(format!("invalid derivation type: {:?}", v))),
 		}
 	}
 

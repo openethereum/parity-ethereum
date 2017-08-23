@@ -16,9 +16,10 @@
 
 use super::*;
 use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
+use std::sync::Arc;
 use std::thread;
 use std::time::*;
-use util::common::*;
+use util::{Bytes, Mutex};
 use io::TimerToken;
 use ethkey::{Random, Generator};
 
@@ -59,7 +60,7 @@ impl TestProtocol {
 }
 
 impl NetworkProtocolHandler for TestProtocol {
-	fn initialize(&self, io: &NetworkContext) {
+	fn initialize(&self, io: &NetworkContext, _host_info: &HostInfo) {
 		io.register_timer(0, 10).unwrap();
 	}
 

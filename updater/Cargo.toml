@@ -1,7 +1,7 @@
 [package]
 description = "Parity Updater Service."
 name = "parity-updater"
-version = "1.7.0"
+version = "1.8.0"
 license = "GPL-3.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 build = "build.rs"
@@ -11,7 +11,7 @@ ethcore-ipc-codegen = { path = "../ipc/codegen" }
 
 [dependencies]
 log = "0.3"
-ethabi = "1.0.0"
+ethabi = "2.0"
 target_info = "0.1"
 ethcore = { path = "../ethcore" }
 ethsync = { path = "../sync" }

@@ -39,7 +39,7 @@ use v1::helpers::light_fetch::LightFetch;
 use v1::metadata::Metadata;
 use v1::traits::Parity;
 use v1::types::{
-	Bytes, U256, H160, H256, H512,
+	Bytes, U256, H160, H256, H512, CallRequest,
 	Peers, Transaction, RpcSettings, Histogram,
 	TransactionStats, LocalTransactionStatus,
 	BlockNumber, ConsensusCapability, VersionInfo,
@@ -98,7 +98,7 @@ impl Parity for ParityClient {
 	type Metadata = Metadata;
 
 	fn accounts_info(&self, dapp: Trailing<DappId>) -> Result<BTreeMap<H160, AccountInfo>, Error> {
-		let dapp = dapp.0;
+		let dapp = dapp.unwrap_or_default();
 
 		let store = &self.accounts;
 		let dapp_accounts = store
@@ -241,7 +241,7 @@ impl Parity for ParityClient {
 
 	fn encrypt_message(&self, key: H512, phrase: Bytes) -> Result<Bytes, Error> {
 		ecies::encrypt(&key.into(), &DEFAULT_MAC, &phrase.0)
-			.map_err(errors::encryption_error)
+			.map_err(errors::encryption)
 			.map(Into::into)
 	}
 
@@ -383,10 +383,14 @@ impl Parity for ParityClient {
 			}
 		};
 
-		self.fetcher().header(number.0.into()).map(from_encoded).boxed()
+		self.fetcher().header(number.unwrap_or_default().into()).map(from_encoded).boxed()
 	}
 
 	fn ipfs_cid(&self, content: Bytes) -> Result<String, Error> {
 		ipfs::cid(content)
+	}
+
+	fn call(&self, _meta: Self::Metadata, _requests: Vec<CallRequest>, _block: Trailing<BlockNumber>) -> BoxFuture<Vec<Bytes>, Error> {
+		future::err(errors::light_unimplemented(None)).boxed()
 	}
 }

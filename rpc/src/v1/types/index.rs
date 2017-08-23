@@ -29,16 +29,16 @@ impl Index {
 	}
 }
 
-impl Deserialize for Index {
+impl<'a> Deserialize<'a> for Index {
 	fn deserialize<D>(deserializer: D) -> Result<Index, D::Error>
-	where D: Deserializer {
-		deserializer.deserialize(IndexVisitor)
+	where D: Deserializer<'a> {
+		deserializer.deserialize_any(IndexVisitor)
 	}
 }
 
 struct IndexVisitor;
 
-impl Visitor for IndexVisitor {
+impl<'a> Visitor<'a> for IndexVisitor {
 	type Value = Index;
 
 	fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -47,8 +47,12 @@ impl Visitor for IndexVisitor {
 
 	fn visit_str<E>(self, value: &str) -> Result<Self::Value, E> where E: Error {
 		match value {
-			_ if value.starts_with("0x") => usize::from_str_radix(&value[2..], 16).map(Index).map_err(|_| Error::custom("invalid index")),
-			_ => value.parse::<usize>().map(Index).map_err(|_| Error::custom("invalid index")),
+			_ if value.starts_with("0x") => usize::from_str_radix(&value[2..], 16).map(Index).map_err(|e| {
+				Error::custom(format!("Invalid index: {}", e))
+			}),
+			_ => value.parse::<usize>().map(Index).map_err(|e| {
+				Error::custom(format!("Invalid index: {}", e))
+			}),
 		}
 	}
 

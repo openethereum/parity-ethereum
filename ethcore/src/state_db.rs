@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::{VecDeque, HashSet};
+use std::sync::Arc;
 use lru_cache::LruCache;
 use util::cache::MemoryLruCache;
 use util::journaldb::JournalDB;
@@ -23,7 +24,7 @@ use util::hash::{H256};
 use util::hashdb::HashDB;
 use state::{self, Account};
 use header::BlockNumber;
-use util::{Arc, Address, DBTransaction, UtilError, Mutex, Hashable};
+use util::{Address, DBTransaction, UtilError, Mutex, Hashable};
 use bloom_journal::{Bloom, BloomJournal};
 use db::COL_ACCOUNT_BLOOM;
 use byteorder::{LittleEndian, ByteOrder};
@@ -477,7 +478,7 @@ mod tests {
 		let mut batch = DBTransaction::new();
 
 		// blocks  [ 3a(c) 2a(c) 2b 1b 1a(c) 0 ]
-	    // balance [ 5     5     4  3  2     2 ]
+		// balance [ 5     5     4  3  2     2 ]
 		let mut s = state_db.boxed_clone_canon(&root_parent);
 		s.add_to_account_cache(address, Some(Account::new_basic(2.into(), 0.into())), false);
 		s.journal_under(&mut batch, 0, &h0).unwrap();

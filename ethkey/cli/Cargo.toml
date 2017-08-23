@@ -1,0 +1,17 @@
+[package]
+name = "ethkey-cli"
+version = "0.1.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+
+[dependencies]
+ethkey = { path = "../" }
+serde = "1.0"
+serde_derive = "1.0"
+rustc-hex = "1.0"
+docopt = "0.8"
+panic_hook = { path = "../../panic_hook" }
+
+[[bin]]
+name = "ethkey"
+path = "src/main.rs"
+doc = false

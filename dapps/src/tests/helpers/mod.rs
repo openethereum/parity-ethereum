@@ -26,6 +26,7 @@ use jsonrpc_http_server::{self as http, Host, DomainsValidation};
 use devtools::http_client;
 use hash_fetch::urlhint::ContractClient;
 use fetch::{Fetch, Client as FetchClient};
+use futures_cpupool::CpuPool;
 use parity_reactor::Remote;
 
 use {Middleware, SyncStatus, WebProxyTokens};
@@ -37,6 +38,12 @@ use self::registrar::FakeRegistrar;
 use self::fetch::FakeFetch;
 
 const SIGNER_PORT: u16 = 18180;
+
+struct FakeSync(bool);
+impl SyncStatus for FakeSync {
+	fn is_major_importing(&self) -> bool { self.0 }
+	fn peers(&self) -> (usize, usize) { (0, 5) }
+}
 
 fn init_logger() {
 	// Initialize logger
@@ -82,7 +89,7 @@ pub fn serve_with_registrar() -> (Server, Arc<FakeRegistrar>) {
 
 pub fn serve_with_registrar_and_sync() -> (Server, Arc<FakeRegistrar>) {
 	init_server(|builder| {
-		builder.sync_status(Arc::new(|| true))
+		builder.sync_status(Arc::new(FakeSync(true)))
 	}, Default::default(), Remote::new_sync())
 }
 
@@ -100,13 +107,15 @@ pub fn serve_with_registrar_and_fetch_and_threads(multi_threaded: bool) -> (Serv
 	(server, fetch, reg)
 }
 
-pub fn serve_with_fetch(web_token: &'static str) -> (Server, FakeFetch) {
+pub fn serve_with_fetch(web_token: &'static str, domain: &'static str) -> (Server, FakeFetch) {
 	let fetch = FakeFetch::default();
 	let f = fetch.clone();
 	let (server, _) = init_server(move |builder| {
 		builder
 			.fetch(f.clone())
-			.web_proxy_tokens(Arc::new(move |token| &token == web_token))
+			.web_proxy_tokens(Arc::new(move |token| {
+				if &token == web_token { Some(domain.into()) } else { None }
+			}))
 	}, Default::default(), Remote::new_sync());
 
 	(server, fetch)
@@ -146,8 +155,8 @@ impl ServerBuilder {
 		ServerBuilder {
 			dapps_path: dapps_path.as_ref().to_owned(),
 			registrar: registrar,
-			sync_status: Arc::new(|| false),
-			web_proxy_tokens: Arc::new(|_| false),
+			sync_status: Arc::new(FakeSync(false)),
+			web_proxy_tokens: Arc::new(|_| None),
 			signer_address: None,
 			allowed_hosts: DomainsValidation::Disabled,
 			remote: remote,
@@ -246,8 +255,12 @@ impl Server {
 		fetch: F,
 	) -> Result<Server, http::Error> {
 		let middleware = Middleware::dapps(
+			&["0.pool.ntp.org:123".into(), "1.pool.ntp.org:123".into()],
+			CpuPool::new(4),
 			remote,
 			signer_address,
+			vec![],
+			vec![],
 			dapps_path,
 			extra_dapps,
 			DAPPS_DOMAIN.into(),
@@ -288,4 +301,3 @@ impl Drop for Server {
 		self.server.take().unwrap().close()
 	}
 }
-

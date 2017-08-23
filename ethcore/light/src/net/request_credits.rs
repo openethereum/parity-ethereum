@@ -83,6 +83,7 @@ impl Credits {
 pub struct CostTable {
 	base: U256, // cost per packet.
 	headers: U256, // cost per header
+	transaction_index: U256,
 	body: U256,
 	receipts: U256,
 	account: U256,
@@ -98,6 +99,7 @@ impl Default for CostTable {
 		CostTable {
 			base: 100000.into(),
 			headers: 10000.into(),
+			transaction_index: 10000.into(),
 			body: 15000.into(),
 			receipts: 5000.into(),
 			account: 25000.into(),
@@ -119,8 +121,9 @@ impl Encodable for CostTable {
 			s.append(cost);
 		}
 
-		s.begin_list(9).append(&self.base);
+		s.begin_list(10).append(&self.base);
 		append_cost(s, &self.headers, request::Kind::Headers);
+		append_cost(s, &self.transaction_index, request::Kind::TransactionIndex);
 		append_cost(s, &self.body, request::Kind::Body);
 		append_cost(s, &self.receipts, request::Kind::Receipts);
 		append_cost(s, &self.account, request::Kind::Account);
@@ -136,6 +139,7 @@ impl Decodable for CostTable {
 		let base = rlp.val_at(0)?;
 
 		let mut headers = None;
+		let mut transaction_index = None;
 		let mut body = None;
 		let mut receipts = None;
 		let mut account = None;
@@ -148,6 +152,7 @@ impl Decodable for CostTable {
 			let cost = cost_list.val_at(1)?;
 			match cost_list.val_at(0)? {
 				request::Kind::Headers => headers = Some(cost),
+				request::Kind::TransactionIndex => transaction_index = Some(cost),
 				request::Kind::Body => body = Some(cost),
 				request::Kind::Receipts => receipts = Some(cost),
 				request::Kind::Account => account = Some(cost),
@@ -163,6 +168,7 @@ impl Decodable for CostTable {
 		Ok(CostTable {
 			base: base,
 			headers: unwrap_cost(headers)?,
+			transaction_index: unwrap_cost(transaction_index)?,
 			body: unwrap_cost(body)?,
 			receipts: unwrap_cost(receipts)?,
 			account: unwrap_cost(account)?,
@@ -224,6 +230,7 @@ impl FlowParams {
 		let costs = CostTable {
 			base: 0.into(),
 			headers: cost_for_kind(Kind::Headers),
+			transaction_index: cost_for_kind(Kind::TransactionIndex),
 			body: cost_for_kind(Kind::Body),
 			receipts: cost_for_kind(Kind::Receipts),
 			account: cost_for_kind(Kind::Account),
@@ -249,6 +256,7 @@ impl FlowParams {
 			costs: CostTable {
 				base: free_cost.clone(),
 				headers: free_cost.clone(),
+				transaction_index: free_cost.clone(),
 				body: free_cost.clone(),
 				receipts: free_cost.clone(),
 				account: free_cost.clone(),
@@ -278,6 +286,7 @@ impl FlowParams {
 		match *request {
 			Request::Headers(ref req) => self.costs.headers * req.max.into(),
 			Request::HeaderProof(_) => self.costs.header_proof,
+			Request::TransactionIndex(_) => self.costs.transaction_index,
 			Request::Body(_) => self.costs.body,
 			Request::Receipts(_) => self.costs.receipts,
 			Request::Account(_) => self.costs.account,

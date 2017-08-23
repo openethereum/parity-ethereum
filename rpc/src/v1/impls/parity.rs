@@ -28,22 +28,23 @@ use crypto::ecies;
 use ethkey::{Brain, Generator};
 use ethstore::random_phrase;
 use ethsync::{SyncProvider, ManageNetwork};
+use ethcore::account_provider::AccountProvider;
+use ethcore::client::{MiningBlockChainClient};
 use ethcore::ids::BlockId;
 use ethcore::miner::MinerService;
-use ethcore::client::{MiningBlockChainClient};
 use ethcore::mode::Mode;
-use ethcore::account_provider::AccountProvider;
+use ethcore::transaction::SignedTransaction;
 use updater::{Service as UpdateService};
 use crypto::DEFAULT_MAC;
 
 use jsonrpc_core::Error;
 use jsonrpc_macros::Trailing;
-use v1::helpers::{self, errors, ipfs, SigningQueue, SignerService, NetworkSettings};
+use v1::helpers::{self, errors, fake_sign, ipfs, SigningQueue, SignerService, NetworkSettings};
 use v1::helpers::accounts::unwrap_provider;
 use v1::metadata::Metadata;
 use v1::traits::Parity;
 use v1::types::{
-	Bytes, U256, H160, H256, H512,
+	Bytes, U256, H160, H256, H512, CallRequest,
 	Peers, Transaction, RpcSettings, Histogram,
 	TransactionStats, LocalTransactionStatus,
 	BlockNumber, ConsensusCapability, VersionInfo,
@@ -124,7 +125,7 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 	type Metadata = Metadata;
 
 	fn accounts_info(&self, dapp: Trailing<DappId>) -> Result<BTreeMap<H160, AccountInfo>, Error> {
-		let dapp = dapp.0;
+		let dapp = dapp.unwrap_or_default();
 
 		let store = self.account_provider()?;
 		let dapp_accounts = store
@@ -272,19 +273,19 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 
 	fn list_accounts(&self, count: u64, after: Option<H160>, block_number: Trailing<BlockNumber>) -> Result<Option<Vec<H160>>, Error> {
 		Ok(self.client
-			.list_accounts(block_number.0.into(), after.map(Into::into).as_ref(), count)
+			.list_accounts(block_number.unwrap_or_default().into(), after.map(Into::into).as_ref(), count)
 			.map(|a| a.into_iter().map(Into::into).collect()))
 	}
 
 	fn list_storage_keys(&self, address: H160, count: u64, after: Option<H256>, block_number: Trailing<BlockNumber>) -> Result<Option<Vec<H256>>, Error> {
 		Ok(self.client
-			.list_storage(block_number.0.into(), &address.into(), after.map(Into::into).as_ref(), count)
+			.list_storage(block_number.unwrap_or_default().into(), &address.into(), after.map(Into::into).as_ref(), count)
 			.map(|a| a.into_iter().map(Into::into).collect()))
 	}
 
 	fn encrypt_message(&self, key: H512, phrase: Bytes) -> Result<Bytes, Error> {
 		ecies::encrypt(&key.into(), &DEFAULT_MAC, &phrase.0)
-			.map_err(errors::encryption_error)
+			.map_err(errors::encryption)
 			.map(Into::into)
 	}
 
@@ -307,6 +308,11 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 	}
 
 	fn local_transactions(&self) -> Result<BTreeMap<H256, LocalTransactionStatus>, Error> {
+		// Return nothing if accounts are disabled (running as public node)
+		if self.accounts.is_none() {
+			return Ok(BTreeMap::new());
+		}
+
 		let transactions = self.miner.local_transactions();
 		let block_number = self.client.chain_info().best_block_number;
 		Ok(transactions
@@ -389,7 +395,7 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 	fn block_header(&self, number: Trailing<BlockNumber>) -> BoxFuture<RichHeader, Error> {
 		const EXTRA_INFO_PROOF: &'static str = "Object exists in in blockchain (fetched earlier), extra_info is always available if object exists; qed";
 
-		let id: BlockId = number.0.into();
+		let id: BlockId = number.unwrap_or_default().into();
 		let encoded = match self.client.block_header(id.clone()) {
 			Some(encoded) => encoded,
 			None => return future::err(errors::unknown_block()).boxed(),
@@ -403,5 +409,24 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 
 	fn ipfs_cid(&self, content: Bytes) -> Result<String, Error> {
 		ipfs::cid(content)
+	}
+
+	fn call(&self, meta: Self::Metadata, requests: Vec<CallRequest>, block: Trailing<BlockNumber>) -> BoxFuture<Vec<Bytes>, Error> {
+		let requests: Result<Vec<(SignedTransaction, _)>, Error> = requests
+			.into_iter()
+			.map(|request| Ok((
+				fake_sign::sign_call(&self.client, &self.miner, request.into(), meta.is_dapp())?,
+				Default::default()
+			)))
+			.collect();
+
+		let block = block.unwrap_or_default();
+		let requests = try_bf!(requests);
+
+		let result = self.client.call_many(&requests, block.into())
+				.map(|res| res.into_iter().map(|res| res.output.into()).collect())
+				.map_err(errors::call);
+
+		future::done(result).boxed()
 	}
 }

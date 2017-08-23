@@ -38,9 +38,9 @@ impl Default for BlockNumber {
 	}
 }
 
-impl Deserialize for BlockNumber {
-	fn deserialize<D>(deserializer: D) -> Result<BlockNumber, D::Error> where D: Deserializer {
-		deserializer.deserialize(BlockNumberVisitor)
+impl<'a> Deserialize<'a> for BlockNumber {
+	fn deserialize<D>(deserializer: D) -> Result<BlockNumber, D::Error> where D: Deserializer<'a> {
+		deserializer.deserialize_any(BlockNumberVisitor)
 	}
 }
 
@@ -67,7 +67,7 @@ impl Serialize for BlockNumber {
 
 struct BlockNumberVisitor;
 
-impl Visitor for BlockNumberVisitor {
+impl<'a> Visitor<'a> for BlockNumberVisitor {
 	type Value = BlockNumber;
 
 	fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -79,8 +79,12 @@ impl Visitor for BlockNumberVisitor {
 			"latest" => Ok(BlockNumber::Latest),
 			"earliest" => Ok(BlockNumber::Earliest),
 			"pending" => Ok(BlockNumber::Pending),
-			_ if value.starts_with("0x") => u64::from_str_radix(&value[2..], 16).map(BlockNumber::Num).map_err(|_| Error::custom("invalid block number")),
-			_ => value.parse::<u64>().map(BlockNumber::Num).map_err(|_| Error::custom("invalid block number"))
+			_ if value.starts_with("0x") => u64::from_str_radix(&value[2..], 16).map(BlockNumber::Num).map_err(|e| {
+				Error::custom(format!("Invalid block number: {}", e))
+			}),
+			_ => value.parse::<u64>().map(BlockNumber::Num).map_err(|e| {
+				Error::custom(format!("Invalid block number: {}", e))
+			}),
 		}
 	}
 

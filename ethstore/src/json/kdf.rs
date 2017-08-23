@@ -35,16 +35,16 @@ impl Serialize for KdfSer {
 	}
 }
 
-impl Deserialize for KdfSer {
+impl<'a> Deserialize<'a> for KdfSer {
 	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-	where D: Deserializer {
-		deserializer.deserialize(KdfSerVisitor)
+	where D: Deserializer<'a> {
+		deserializer.deserialize_any(KdfSerVisitor)
 	}
 }
 
 struct KdfSerVisitor;
 
-impl Visitor for KdfSerVisitor {
+impl<'a> Visitor<'a> for KdfSerVisitor {
 	type Value = KdfSer;
 
 	fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -78,16 +78,16 @@ impl Serialize for Prf {
 	}
 }
 
-impl Deserialize for Prf {
+impl<'a> Deserialize<'a> for Prf {
 	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-	where D: Deserializer {
-		deserializer.deserialize(PrfVisitor)
+	where D: Deserializer<'a> {
+		deserializer.deserialize_any(PrfVisitor)
 	}
 }
 
 struct PrfVisitor;
 
-impl Visitor for PrfVisitor {
+impl<'a> Visitor<'a> for PrfVisitor {
 	type Value = Prf;
 
 	fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -139,9 +139,9 @@ impl Serialize for KdfSerParams {
 	}
 }
 
-impl Deserialize for KdfSerParams {
+impl<'a> Deserialize<'a> for KdfSerParams {
 	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-	where D: Deserializer {
+	where D: Deserializer<'a> {
 		use serde_json::{Value, from_value};
 
 		let v: Value = Deserialize::deserialize(deserializer)?;

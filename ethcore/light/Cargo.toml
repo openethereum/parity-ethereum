@@ -3,7 +3,7 @@ description = "Parity Light Client Implementation"
 homepage = "http://parity.io"
 license = "GPL-3.0"
 name = "ethcore-light"
-version = "1.7.0"
+version = "1.8.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 build = "build.rs"
 
@@ -18,7 +18,10 @@ ethcore-network = { path = "../../util/network" }
 ethcore-io = { path = "../../util/io" }
 ethcore-ipc = { path = "../../ipc/rpc", optional = true }
 ethcore-devtools = { path = "../../devtools" }
+evm = { path = "../evm" }
+vm = { path = "../vm" }
 rlp = { path = "../../util/rlp" }
+rlp_derive = { path = "../../util/rlp_derive" }
 time = "0.1"
 smallvec = "0.4"
 futures = "0.1"

@@ -16,13 +16,15 @@
 
 //! Disk-backed `HashDB` implementation.
 
-use common::*;
+use std::collections::HashMap;
+use std::sync::Arc;
 use rlp::*;
 use hashdb::*;
 use memorydb::*;
 use super::{DB_PREFIX_LEN, LATEST_ERA_KEY};
 use super::traits::JournalDB;
 use kvdb::{KeyValueDB, DBTransaction};
+use {Bytes, H256, BaseDataError, UtilError};
 
 /// Implementation of the `HashDB` trait for a disk-backed database with a memory overlay
 /// and latent-removal semantics.
@@ -177,7 +179,7 @@ impl JournalDB for ArchiveDB {
 	fn latest_era(&self) -> Option<u64> { self.latest_era }
 
 	fn state(&self, id: &H256) -> Option<Bytes> {
-		self.backing.get_by_prefix(self.column, &id[0..DB_PREFIX_LEN]).map(|b| b.to_vec())
+		self.backing.get_by_prefix(self.column, &id[0..DB_PREFIX_LEN]).map(|b| b.into_vec())
 	}
 
 	fn is_pruned(&self) -> bool { false }
@@ -196,11 +198,12 @@ mod tests {
 	#![cfg_attr(feature="dev", allow(blacklisted_name))]
 	#![cfg_attr(feature="dev", allow(similar_names))]
 
-	use common::*;
+	use std::path::Path;
 	use hashdb::{HashDB, DBValue};
 	use super::*;
 	use journaldb::traits::JournalDB;
 	use kvdb::Database;
+	use {Hashable, H32};
 
 	#[test]
 	fn insert_same_in_fork() {
@@ -239,6 +242,21 @@ mod tests {
 		jdb.commit_batch(3, &b"3".sha3(), Some((0, b"0".sha3()))).unwrap();
 		assert!(jdb.contains(&h));
 		jdb.commit_batch(4, &b"4".sha3(), Some((1, b"1".sha3()))).unwrap();
+		assert!(jdb.contains(&h));
+	}
+
+	#[test]
+	#[should_panic]
+	fn multiple_owed_removal_not_allowed() {
+		let mut jdb = ArchiveDB::new_temp();
+		let h = jdb.insert(b"foo");
+		jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
+		assert!(jdb.contains(&h));
+		jdb.remove(&h);
+		jdb.remove(&h);
+		// commit_batch would call journal_under(),
+		// and we don't allow multiple owned removals.
+		jdb.commit_batch(1, &b"1".sha3(), None).unwrap();
 	}
 
 	#[test]

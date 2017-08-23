@@ -22,9 +22,11 @@ use ethcore::basic_account::BasicAccount;
 use ethcore::encoded;
 use ethcore::executed::{Executed, ExecutionError};
 use ethcore::ids::BlockId;
+use ethcore::filter::Filter as EthcoreFilter;
 use ethcore::transaction::{Action, Transaction as EthTransaction};
 
 use futures::{future, Future, BoxFuture};
+use futures::future::Either;
 use jsonrpc_core::Error;
 use jsonrpc_macros::Trailing;
 
@@ -38,7 +40,7 @@ use ethsync::LightSync;
 use util::{Address, Mutex, U256};
 
 use v1::helpers::{CallRequest as CallRequestHelper, errors, dispatch};
-use v1::types::{BlockNumber, CallRequest};
+use v1::types::{BlockNumber, CallRequest, Log};
 
 /// Helper for fetching blockchain data either from the light client or the network
 /// as necessary.
@@ -158,29 +160,31 @@ impl LightFetch {
 
 	/// helper for getting proved execution.
 	pub fn proved_execution(&self, req: CallRequest, num: Trailing<BlockNumber>) -> BoxFuture<ExecutionResult, Error> {
-		const DEFAULT_GAS_PRICE: U256 = U256([0, 0, 0, 21_000_000]);
+		const DEFAULT_GAS_PRICE: u64 = 21_000;
+		// starting gas when gas not provided.
+		const START_GAS: u64 = 50_000;
 
 		let (sync, on_demand, client) = (self.sync.clone(), self.on_demand.clone(), self.client.clone());
 		let req: CallRequestHelper = req.into();
-		let id = num.0.into();
+		let id = num.unwrap_or_default().into();
 
 		let from = req.from.unwrap_or(Address::zero());
 		let nonce_fut = match req.nonce {
-			Some(nonce) => future::ok(Some(nonce)).boxed(),
-			None => self.account(from, id).map(|acc| acc.map(|a| a.nonce)).boxed(),
+			Some(nonce) => Either::A(future::ok(Some(nonce))),
+			None => Either::B(self.account(from, id).map(|acc| acc.map(|a| a.nonce))),
 		};
 
 		let gas_price_fut = match req.gas_price {
-			Some(price) => future::ok(price).boxed(),
-			None => dispatch::fetch_gas_price_corpus(
+			Some(price) => Either::A(future::ok(price)),
+			None => Either::B(dispatch::fetch_gas_price_corpus(
 				self.sync.clone(),
 				self.client.clone(),
 				self.on_demand.clone(),
 				self.cache.clone(),
 			).map(|corp| match corp.median() {
 				Some(median) => *median,
-				None => DEFAULT_GAS_PRICE,
-			}).boxed()
+				None => DEFAULT_GAS_PRICE.into(),
+			}))
 		};
 
 		// if nonce resolves, this should too since it'll be in the LRU-cache.
@@ -189,22 +193,29 @@ impl LightFetch {
 		// fetch missing transaction fields from the network.
 		nonce_fut.join(gas_price_fut).and_then(move |(nonce, gas_price)| {
 			let action = req.to.map_or(Action::Create, Action::Call);
-			let gas = req.gas.unwrap_or(U256::from(10_000_000)); // better gas amount?
 			let value = req.value.unwrap_or_else(U256::zero);
-			let data = req.data.map_or_else(Vec::new, |d| d.to_vec());
+			let data = req.data.unwrap_or_default();
 
-			future::done(match nonce {
-				Some(n) => Ok(EthTransaction {
+			future::done(match (nonce, req.gas) {
+				(Some(n), Some(gas)) => Ok((true, EthTransaction {
 					nonce: n,
 					action: action,
 					gas: gas,
 					gas_price: gas_price,
 					value: value,
 					data: data,
-				}.fake_sign(from)),
-				None => Err(errors::unknown_block()),
+				})),
+				(Some(n), None) => Ok((false, EthTransaction {
+					nonce: n,
+					action: action,
+					gas: START_GAS.into(),
+					gas_price: gas_price,
+					value: value,
+					data: data,
+				})),
+				(None, _) => Err(errors::unknown_block()),
 			})
-		}).join(header_fut).and_then(move |(tx, hdr)| {
+		}).join(header_fut).and_then(move |((gas_known, tx), hdr)| {
 			// then request proved execution.
 			// TODO: get last-hashes from network.
 			let env_info = match client.env_info(id) {
@@ -212,24 +223,15 @@ impl LightFetch {
 				_ => return future::err(errors::unknown_block()).boxed(),
 			};
 
-			let request = request::TransactionProof {
+			execute_tx(gas_known, ExecuteParams {
+				from: from,
 				tx: tx,
-				header: hdr.into(),
+				hdr: hdr,
 				env_info: env_info,
 				engine: client.engine().clone(),
-			};
-
-			let proved_future = sync.with_context(move |ctx| {
-				on_demand
-					.request(ctx, request)
-					.expect("no back-references; therefore all back-refs valid; qed")
-					.map_err(errors::on_demand_cancel).boxed()
-			});
-
-			match proved_future {
-				Some(fut) => fut.boxed(),
-				None => future::err(errors::network_disabled()).boxed(),
-			}
+				on_demand: on_demand,
+				sync: sync,
+			})
 		}).boxed()
 	}
 
@@ -257,6 +259,128 @@ impl LightFetch {
 		match maybe_future {
 			Some(recv) => recv,
 			None => future::err(errors::network_disabled()).boxed()
+		}
+	}
+
+	/// get transaction logs
+	pub fn logs(&self, filter: EthcoreFilter) -> BoxFuture<Vec<Log>, Error> {
+		use std::collections::BTreeMap;
+
+		use futures::stream::{self, Stream};
+
+		const NO_INVALID_BACK_REFS: &'static str = "Fails only on invalid back-references; back-references here known to be valid; qed";
+
+		// early exit for "to" block before "from" block.
+		let best_number = self.client.chain_info().best_block_number;
+		let block_number = |id| match id {
+			BlockId::Earliest => Some(0),
+			BlockId::Latest | BlockId::Pending => Some(best_number),
+			BlockId::Hash(h) => self.client.block_header(BlockId::Hash(h)).map(|hdr| hdr.number()),
+			BlockId::Number(x) => Some(x),
+		};
+
+		match (block_number(filter.to_block), block_number(filter.from_block)) {
+			(Some(to), Some(from)) if to < from => return future::ok(Vec::new()).boxed(),
+			(Some(_), Some(_)) => {},
+			_ => return future::err(errors::unknown_block()).boxed(),
+		}
+
+		let maybe_future = self.sync.with_context(move |ctx| {
+			// find all headers which match the filter, and fetch the receipts for each one.
+			// match them with their numbers for easy sorting later.
+			let bit_combos = filter.bloom_possibilities();
+			let receipts_futures: Vec<_> = self.client.ancestry_iter(filter.to_block)
+				.take_while(|ref hdr| BlockId::Number(hdr.number()) != filter.from_block)
+				.take_while(|ref hdr| BlockId::Hash(hdr.hash()) != filter.from_block)
+				.filter(|ref hdr| {
+					let hdr_bloom = hdr.log_bloom();
+					bit_combos.iter().find(|&bloom| hdr_bloom & *bloom == *bloom).is_some()
+				})
+				.map(|hdr| (hdr.number(), request::BlockReceipts(hdr.into())))
+				.map(|(num, req)| self.on_demand.request(ctx, req).expect(NO_INVALID_BACK_REFS).map(move |x| (num, x)))
+				.collect();
+
+			// as the receipts come in, find logs within them which match the filter.
+			// insert them into a BTreeMap to maintain order by number and block index.
+			stream::futures_unordered(receipts_futures)
+				.fold(BTreeMap::new(), move |mut matches, (num, receipts)| {
+					for (block_index, log) in receipts.into_iter().flat_map(|r| r.logs).enumerate() {
+						if filter.matches(&log) {
+							matches.insert((num, block_index), log.into());
+						}
+					}
+					future::ok(matches)
+				}) // and then collect them into a vector.
+				.map(|matches| matches.into_iter().map(|(_, v)| v).collect())
+				.map_err(errors::on_demand_cancel)
+		});
+
+		match maybe_future {
+			Some(fut) => fut.boxed(),
+			None => future::err(errors::network_disabled()).boxed(),
+		}
+	}
+}
+
+#[derive(Clone)]
+struct ExecuteParams {
+	from: Address,
+	tx: EthTransaction,
+	hdr: encoded::Header,
+	env_info: ::vm::EnvInfo,
+	engine: Arc<::ethcore::engines::Engine>,
+	on_demand: Arc<OnDemand>,
+	sync: Arc<LightSync>,
+}
+
+// has a peer execute the transaction with given params. If `gas_known` is false,
+// this will double the gas on each `OutOfGas` error.
+fn execute_tx(gas_known: bool, params: ExecuteParams) -> BoxFuture<ExecutionResult, Error> {
+	if !gas_known {
+		future::loop_fn(params, |mut params| {
+			execute_tx(true, params.clone()).and_then(move |res| {
+				match res {
+					Ok(executed) => {
+						// TODO: how to distinguish between actual OOG and
+						// exception?
+						if executed.exception.is_some() {
+							let old_gas = params.tx.gas;
+							params.tx.gas = params.tx.gas * 2.into();
+							if params.tx.gas > params.hdr.gas_limit() {
+								params.tx.gas = old_gas;
+							} else {
+								return Ok(future::Loop::Continue(params))
+							}
+						}
+
+						Ok(future::Loop::Break(Ok(executed)))
+					}
+					failed => Ok(future::Loop::Break(failed)),
+				}
+			})
+		}).boxed()
+	} else {
+		trace!(target: "light_fetch", "Placing execution request for {} gas in on_demand",
+			params.tx.gas);
+
+		let request = request::TransactionProof {
+			tx: params.tx.fake_sign(params.from),
+			header: params.hdr.into(),
+			env_info: params.env_info,
+			engine: params.engine,
+		};
+
+		let on_demand = params.on_demand;
+		let proved_future = params.sync.with_context(move |ctx| {
+			on_demand
+				.request(ctx, request)
+				.expect("no back-references; therefore all back-refs valid; qed")
+				.map_err(errors::on_demand_cancel)
+		});
+
+		match proved_future {
+			Some(fut) => fut.boxed(),
+			None => future::err(errors::network_disabled()).boxed(),
 		}
 	}
 }

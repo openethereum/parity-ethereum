@@ -37,6 +37,7 @@ extern crate semver;
 extern crate parking_lot;
 extern crate smallvec;
 extern crate rlp;
+extern crate ipnetwork;
 
 extern crate ethcore_light as light;
 

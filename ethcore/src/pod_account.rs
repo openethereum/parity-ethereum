@@ -14,6 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::fmt;
+use std::collections::BTreeMap;
+use itertools::Itertools;
 use util::*;
 use state::Account;
 use ethjson;
@@ -166,7 +169,7 @@ pub fn diff_pod(pre: Option<&PodAccount>, post: Option<&PodAccount>) -> Option<A
 
 #[cfg(test)]
 mod test {
-	use util::*;
+	use std::collections::BTreeMap;
 	use types::account_diff::*;
 	use super::{PodAccount, diff_pod};
 

@@ -61,7 +61,7 @@ impl<D: Dispatcher + 'static> SignerClient<D> {
 				for subscription in subs.lock().values() {
 					let subscription: &Sink<_> = subscription;
 					remote.spawn(subscription
-						.notify(requests.clone())
+						.notify(Ok(requests.clone()))
 						.map(|_| ())
 						.map_err(|e| warn!(target: "rpc", "Unable to send notification: {}", e))
 					);
@@ -133,7 +133,7 @@ impl<D: Dispatcher + 'static> SignerClient<D> {
 	fn verify_transaction<F>(bytes: Bytes, request: FilledTransactionRequest, process: F) -> Result<ConfirmationResponse, Error> where
 		F: FnOnce(PendingTransaction) -> Result<ConfirmationResponse, Error>,
 	{
-		let signed_transaction = UntrustedRlp::new(&bytes.0).as_val().map_err(errors::from_rlp_error)?;
+		let signed_transaction = UntrustedRlp::new(&bytes.0).as_val().map_err(errors::rlp)?;
 		let signed_transaction = SignedTransaction::new(signed_transaction).map_err(|e| errors::invalid_params("Invalid signature.", e))?;
 		let sender = signed_transaction.sender();
 
@@ -245,8 +245,8 @@ impl<D: Dispatcher + 'static> Signer for SignerClient<D> {
 			.map_err(|e| errors::token(e))
 	}
 
-	fn generate_web_proxy_token(&self) -> Result<String, Error> {
-		Ok(self.signer.generate_web_proxy_access_token())
+	fn generate_web_proxy_token(&self, domain: String) -> Result<String, Error> {
+		Ok(self.signer.generate_web_proxy_access_token(domain.into()))
 	}
 
 	fn subscribe_pending(&self, _meta: Self::Metadata, sub: Subscriber<Vec<ConfirmationRequest>>) {

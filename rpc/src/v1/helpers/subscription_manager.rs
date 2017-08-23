@@ -17,6 +17,7 @@
 //! Generic poll manager for Pub-Sub.
 
 use std::sync::Arc;
+use std::sync::atomic::{self, AtomicBool};
 use util::Mutex;
 
 use jsonrpc_core::futures::future::{self, Either};
@@ -34,7 +35,8 @@ struct Subscription {
 	method: String,
 	params: core::Params,
 	sink: mpsc::Sender<Result<core::Value, core::Error>>,
-	last_result: Arc<Mutex<Option<core::Output>>>,
+	/// a flag if subscription is still active and last returned value
+	last_result: Arc<(AtomicBool, Mutex<Option<core::Output>>)>,
 }
 
 /// A struct managing all subscriptions.
@@ -54,16 +56,24 @@ impl<S: core::Middleware<Metadata>> GenericPollManager<S> {
 		}
 	}
 
+	/// Creates new poll manager with deterministic ids.
+	#[cfg(test)]
+	pub fn new_test(rpc: MetaIoHandler<Metadata, S>) -> Self {
+		let mut manager = Self::new(rpc);
+		manager.subscribers = Subscribers::new_test();
+		manager
+	}
+
 	/// Subscribes to update from polling given method.
 	pub fn subscribe(&mut self, metadata: Metadata, method: String, params: core::Params)
 		-> (SubscriptionId, mpsc::Receiver<Result<core::Value, core::Error>>)
 	{
 		let (sink, stream) = mpsc::channel(1);
 		let subscription = Subscription {
-			metadata: metadata,
-			method: method,
-			params: params,
-			sink: sink,
+			metadata,
+			method,
+			params,
+			sink,
 			last_result: Default::default(),
 		};
 		let id = self.subscribers.insert(subscription);
@@ -72,7 +82,9 @@ impl<S: core::Middleware<Metadata>> GenericPollManager<S> {
 
 	pub fn unsubscribe(&mut self, id: &SubscriptionId) -> bool {
 		debug!(target: "pubsub", "Removing subscription: {:?}", id);
-		self.subscribers.remove(id).is_some()
+		self.subscribers.remove(id).map(|subscription| {
+			subscription.last_result.0.store(true, atomic::Ordering::SeqCst);
+		}).is_some()
 	}
 
 	pub fn tick(&self) -> BoxFuture<(), ()> {
@@ -81,7 +93,7 @@ impl<S: core::Middleware<Metadata>> GenericPollManager<S> {
 		for (id, subscription) in self.subscribers.iter() {
 			let call = core::MethodCall {
 				jsonrpc: Some(core::Version::V2),
-				id: core::Id::Num(*id as u64),
+				id: core::Id::Str(id.as_string()),
 				method: subscription.method.clone(),
 				params: Some(subscription.params.clone()),
 			};
@@ -92,7 +104,12 @@ impl<S: core::Middleware<Metadata>> GenericPollManager<S> {
 			let sender = subscription.sink.clone();
 
 			let result = result.and_then(move |response| {
-				let mut last_result = last_result.lock();
+				// quick check if the subscription is still valid
+				if last_result.0.load(atomic::Ordering::SeqCst) {
+					return Either::B(future::ok(()))
+				}
+
+				let mut last_result = last_result.1.lock();
 				if *last_result != response && response.is_some() {
 					let output = response.expect("Existence proved by the condition.");
 					debug!(target: "pubsub", "Got new response, sending: {:?}", output);
@@ -139,7 +156,7 @@ mod tests {
 				Ok(Value::String("world".into()))
 			}
 		});
-		GenericPollManager::new(io)
+		GenericPollManager::new_test(io)
 	}
 
 	#[test]
@@ -148,7 +165,7 @@ mod tests {
 		let mut el = reactor::Core::new().unwrap();
 		let mut poll_manager = poll_manager();
 		let (id, rx) = poll_manager.subscribe(Default::default(), "hello".into(), Params::None);
-		assert_eq!(id, SubscriptionId::Number(1));
+		assert_eq!(id, SubscriptionId::String("0x416d77337e24399d".into()));
 
 		// then
 		poll_manager.tick().wait().unwrap();

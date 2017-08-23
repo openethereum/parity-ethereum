@@ -1,7 +1,7 @@
 [package]
 description = "Parity JSON-RPC servers."
 name = "parity-rpc"
-version = "1.7.0"
+version = "1.8.0"
 license = "GPL-3.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
@@ -10,19 +10,21 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [dependencies]
 cid = "0.2"
 futures = "0.1"
+futures-cpupool = "0.1"
 log = "0.3"
-multihash = "0.5"
+multihash ="0.6"
 order-stat = "0.1"
 rand = "0.3"
 rust-crypto = "0.2"
-rustc-serialize = "0.3"
+rustc-hex = "1.0"
 semver = "0.6"
-serde = "0.9"
-serde_derive = "0.9"
-serde_json = "0.9"
+serde = "1.0"
+serde_derive = "1.0"
+serde_json = "1.0"
 time = "0.1"
 tokio-timer = "0.1"
 transient-hashmap = "0.4"
+itertools = "0.5"
 
 jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
 jsonrpc-http-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
@@ -45,6 +47,7 @@ ethjson = { path = "../json" }
 ethcore-devtools = { path = "../devtools" }
 ethcore-light = { path = "../ethcore/light" }
 ethcore-logger = { path = "../logger" }
+vm = { path = "../ethcore/vm" }
 parity-updater = { path = "../updater" }
 parity-reactor = { path = "../util/reactor" }
 rlp = { path = "../util/rlp" }

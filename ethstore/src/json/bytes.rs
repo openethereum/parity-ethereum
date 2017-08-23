@@ -17,7 +17,7 @@
 use std::{ops, str};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde::de::Error;
-use rustc_serialize::hex::{ToHex, FromHex, FromHexError};
+use rustc_hex::{ToHex, FromHex, FromHexError};
 
 #[derive(Debug, PartialEq)]
 pub struct Bytes(Vec<u8>);
@@ -30,9 +30,9 @@ impl ops::Deref for Bytes {
 	}
 }
 
-impl Deserialize for Bytes {
+impl<'a> Deserialize<'a> for Bytes {
 	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-		where D: Deserializer
+		where D: Deserializer<'a>
 	{
 		let s = String::deserialize(deserializer)?;
 		let data = s.from_hex().map_err(|e| Error::custom(format!("Invalid hex value {}", e)))?;

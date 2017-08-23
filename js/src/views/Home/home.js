@@ -16,6 +16,7 @@
 
 import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
+import { connect } from 'react-redux';
 import { FormattedMessage } from 'react-intl';
 
 import HistoryStore from '~/mobx/historyStore';
@@ -32,9 +33,13 @@ import Urls from './Urls';
 import styles from './home.css';
 
 @observer
-export default class Home extends Component {
+class Home extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
+  };
+
+  static propTypes = {
+    availability: PropTypes.string.isRequired
   };
 
   dappsStore = DappsStore.get(this.context.api);
@@ -49,6 +54,13 @@ export default class Home extends Component {
   }
 
   render () {
+    const urls = this.props.availability !== 'personal' ? null : (
+      <Urls
+        extensionStore={ this.extensionStore }
+        store={ this.webStore }
+      />
+    );
+
     return (
       <Page
         className={ styles.body }
@@ -60,10 +72,7 @@ export default class Home extends Component {
         }
       >
         <News />
-        <Urls
-          extensionStore={ this.extensionStore }
-          store={ this.webStore }
-        />
+        { urls }
         <div className={ styles.row }>
           <div className={ styles.column }>
             <Dapps
@@ -79,3 +88,16 @@ export default class Home extends Component {
     );
   }
 }
+
+function mapStateToProps (initState) {
+  return (state) => {
+    const { availability = 'unknown' } = state.nodeStatus.nodeKind || {};
+
+    return { availability };
+  };
+}
+
+export default connect(
+  mapStateToProps,
+  null
+)(Home);

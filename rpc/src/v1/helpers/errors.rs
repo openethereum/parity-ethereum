@@ -16,10 +16,6 @@
 
 //! RPC Error codes and error objects
 
-macro_rules! rpc_unimplemented {
-	() => (Err(::v1::helpers::errors::unimplemented(None)))
-}
-
 use std::fmt;
 use rlp::DecoderError;
 use ethcore::error::{Error as EthcoreError, CallError, TransactionError};
@@ -32,6 +28,7 @@ mod codes {
 	pub const NO_WORK: i64 = -32001;
 	pub const NO_AUTHOR: i64 = -32002;
 	pub const NO_NEW_WORK: i64 = -32003;
+	pub const NO_WORK_REQUIRED: i64 = -32004;
 	pub const UNKNOWN_ERROR: i64 = -32009;
 	pub const TRANSACTION_ERROR: i64 = -32010;
 	pub const EXECUTION_ERROR: i64 = -32015;
@@ -71,6 +68,14 @@ pub fn public_unsupported(details: Option<String>) -> Error {
 		code: ErrorCode::ServerError(codes::UNSUPPORTED_REQUEST),
 		message: "Method disallowed when running parity as a public node.".into(),
 		data: details.map(Value::String),
+	}
+}
+
+pub fn unsupported<T: Into<String>>(msg: T, details: Option<T>) -> Error {
+	Error {
+		code: ErrorCode::ServerError(codes::UNSUPPORTED_REQUEST),
+		message: msg.into(),
+		data: details.map(Into::into).map(Value::String),
 	}
 }
 
@@ -137,7 +142,7 @@ pub fn state_pruned() -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::UNSUPPORTED_REQUEST),
 		message: "This request is not supported because your node is running with state pruning. Run with --pruning=archive.".into(),
-		data: None
+		data: None,
 	}
 }
 
@@ -149,7 +154,7 @@ pub fn exceptional() -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::EXCEPTION_ERROR),
 		message: "The execution failed due to an exception.".into(),
-		data: None
+		data: None,
 	}
 }
 
@@ -157,7 +162,7 @@ pub fn no_work() -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::NO_WORK),
 		message: "Still syncing.".into(),
-		data: None
+		data: None,
 	}
 }
 
@@ -165,7 +170,7 @@ pub fn no_new_work() -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::NO_NEW_WORK),
 		message: "Work has not changed.".into(),
-		data: None
+		data: None,
 	}
 }
 
@@ -173,7 +178,15 @@ pub fn no_author() -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::NO_AUTHOR),
 		message: "Author not configured. Run Parity with --author to configure.".into(),
-		data: None
+		data: None,
+	}
+}
+
+pub fn no_work_required() -> Error {
+	Error {
+		code: ErrorCode::ServerError(codes::NO_WORK_REQUIRED),
+		message: "External work is only required for Proof of Work engines.".into(),
+		data: None,
 	}
 }
 
@@ -225,7 +238,7 @@ pub fn network_disabled() -> Error {
 	}
 }
 
-pub fn encryption_error<T: fmt::Debug>(error: T) -> Error {
+pub fn encryption<T: fmt::Debug>(error: T) -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::ENCRYPTION_ERROR),
 		message: "Encryption error.".into(),
@@ -233,7 +246,7 @@ pub fn encryption_error<T: fmt::Debug>(error: T) -> Error {
 	}
 }
 
-pub fn encoding_error<T: fmt::Debug>(error: T) -> Error {
+pub fn encoding<T: fmt::Debug>(error: T) -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::ENCODING_ERROR),
 		message: "Encoding error.".into(),
@@ -241,7 +254,7 @@ pub fn encoding_error<T: fmt::Debug>(error: T) -> Error {
 	}
 }
 
-pub fn database_error<T: fmt::Debug>(error: T) -> Error {
+pub fn database<T: fmt::Debug>(error: T) -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::DATABASE_ERROR),
 		message: "Database error.".into(),
@@ -249,7 +262,7 @@ pub fn database_error<T: fmt::Debug>(error: T) -> Error {
 	}
 }
 
-pub fn from_fetch_error<T: fmt::Debug>(error: T) -> Error {
+pub fn fetch<T: fmt::Debug>(error: T) -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::FETCH_ERROR),
 		message: "Error while fetching content.".into(),
@@ -257,7 +270,7 @@ pub fn from_fetch_error<T: fmt::Debug>(error: T) -> Error {
 	}
 }
 
-pub fn from_signing_error(error: AccountError) -> Error {
+pub fn signing(error: AccountError) -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::ACCOUNT_LOCKED),
 		message: "Your account is locked. Unlock the account via CLI, personal_unlockAccount or use Trusted Signer.".into(),
@@ -265,7 +278,7 @@ pub fn from_signing_error(error: AccountError) -> Error {
 	}
 }
 
-pub fn from_password_error(error: AccountError) -> Error {
+pub fn password(error: AccountError) -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::PASSWORD_INVALID),
 		message: "Account password is invalid or account does not exist.".into(),
@@ -297,7 +310,7 @@ pub fn transaction_message(error: TransactionError) -> String {
 		GasLimitExceeded { limit, got } => {
 			format!("Transaction cost exceeds current gas limit. Limit: {}, got: {}. Try decreasing supplied gas.", limit, got)
 		},
-		InvalidNetworkId => "Invalid network id.".into(),
+		InvalidChainId => "Invalid chain id.".into(),
 		InvalidGasLimit(_) => "Supplied gas is beyond limit.".into(),
 		SenderBanned => "Sender is banned in local queue.".into(),
 		RecipientBanned => "Recipient is banned in local queue.".into(),
@@ -305,7 +318,7 @@ pub fn transaction_message(error: TransactionError) -> String {
 	}
 }
 
-pub fn from_transaction_error(error: EthcoreError) -> Error {
+pub fn transaction(error: EthcoreError) -> Error {
 
 	if let EthcoreError::Transaction(e) = error {
 		Error {
@@ -322,7 +335,7 @@ pub fn from_transaction_error(error: EthcoreError) -> Error {
 	}
 }
 
-pub fn from_rlp_error(error: DecoderError) -> Error {
+pub fn rlp(error: DecoderError) -> Error {
 	Error {
 		code: ErrorCode::InvalidParams,
 		message: "Invalid RLP.".into(),
@@ -330,7 +343,7 @@ pub fn from_rlp_error(error: DecoderError) -> Error {
 	}
 }
 
-pub fn from_call_error(error: CallError) -> Error {
+pub fn call(error: CallError) -> Error {
 	match error {
 		CallError::StatePruned => state_pruned(),
 		CallError::StateCorrupt => state_corrupt(),

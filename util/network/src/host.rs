@@ -35,7 +35,7 @@ use rlp::*;
 use session::{Session, SessionInfo, SessionData};
 use error::*;
 use io::*;
-use {NetworkProtocolHandler, NonReservedPeerMode, AllowIP, PROTOCOL_VERSION};
+use {NetworkProtocolHandler, NonReservedPeerMode, PROTOCOL_VERSION, IpFilter};
 use node_table::*;
 use stats::NetworkStats;
 use discovery::{Discovery, TableUpdates, NodeEntry};
@@ -50,22 +50,26 @@ const MAX_HANDSHAKES: usize = 1024;
 
 const DEFAULT_PORT: u16 = 30303;
 
-// Tokens
-const TCP_ACCEPT: usize = SYS_TIMER + 1;
-const IDLE: usize = SYS_TIMER + 2;
-const DISCOVERY: usize = SYS_TIMER + 3;
-const DISCOVERY_REFRESH: usize = SYS_TIMER + 4;
-const DISCOVERY_ROUND: usize = SYS_TIMER + 5;
-const NODE_TABLE: usize = SYS_TIMER + 6;
-const FIRST_SESSION: usize = 0;
-const LAST_SESSION: usize = FIRST_SESSION + MAX_SESSIONS - 1;
-const USER_TIMER: usize = LAST_SESSION + 256;
-const SYS_TIMER: usize = LAST_SESSION + 1;
+// StreamToken/TimerToken
+const TCP_ACCEPT: StreamToken = SYS_TIMER + 1;
+const IDLE: TimerToken = SYS_TIMER + 2;
+const DISCOVERY: StreamToken = SYS_TIMER + 3;
+const DISCOVERY_REFRESH: TimerToken = SYS_TIMER + 4;
+const DISCOVERY_ROUND: TimerToken = SYS_TIMER + 5;
+const NODE_TABLE: TimerToken = SYS_TIMER + 6;
+const FIRST_SESSION: StreamToken = 0;
+const LAST_SESSION: StreamToken = FIRST_SESSION + MAX_SESSIONS - 1;
+const USER_TIMER: TimerToken = LAST_SESSION + 256;
+const SYS_TIMER: TimerToken = LAST_SESSION + 1;
 
 // Timeouts
+// for IDLE TimerToken
 const MAINTENANCE_TIMEOUT: u64 = 1000;
+// for DISCOVERY_REFRESH TimerToken
 const DISCOVERY_REFRESH_TIMEOUT: u64 = 60_000;
+// for DISCOVERY_ROUND TimerToken
 const DISCOVERY_ROUND_TIMEOUT: u64 = 300;
+// for NODE_TABLE TimerToken
 const NODE_TABLE_TIMEOUT: u64 = 300_000;
 
 #[derive(Debug, PartialEq, Clone)]
@@ -102,7 +106,7 @@ pub struct NetworkConfiguration {
 	/// The non-reserved peer mode.
 	pub non_reserved_mode: NonReservedPeerMode,
 	/// IP filter
-	pub allow_ips: AllowIP,
+	pub ip_filter: IpFilter,
 }
 
 impl Default for NetworkConfiguration {
@@ -128,7 +132,7 @@ impl NetworkConfiguration {
 			max_peers: 50,
 			max_handshakes: 64,
 			reserved_protocols: HashMap::new(),
-			allow_ips: AllowIP::All,
+			ip_filter: IpFilter::default(),
 			reserved_nodes: Vec::new(),
 			non_reserved_mode: NonReservedPeerMode::Accept,
 		}
@@ -562,7 +566,7 @@ impl Host {
 		}
 		let local_endpoint = self.info.read().local_endpoint.clone();
 		let public_address = self.info.read().config.public_address.clone();
-		let allow_ips = self.info.read().config.allow_ips;
+		let allow_ips = self.info.read().config.ip_filter.clone();
 		let public_endpoint = match public_address {
 			None => {
 				let public_address = select_public_address(local_endpoint.address.port());
@@ -656,7 +660,7 @@ impl Host {
 			}
 			let config = &info.config;
 
-			(config.min_peers, config.non_reserved_mode == NonReservedPeerMode::Deny, config.max_handshakes as usize, config.allow_ips, info.id().clone())
+			(config.min_peers, config.non_reserved_mode == NonReservedPeerMode::Deny, config.max_handshakes as usize, config.ip_filter.clone(), info.id().clone())
 		};
 
 		let session_count = self.session_count();
@@ -853,11 +857,16 @@ impl Host {
 							// Add it to the node table
 							if !s.info.originated {
 								if let Ok(address) = s.remote_addr() {
-									let entry = NodeEntry { id: id, endpoint: NodeEndpoint { address: address, udp_port: address.port() } };
-									self.nodes.write().add_node(Node::new(entry.id.clone(), entry.endpoint.clone()));
-									let mut discovery = self.discovery.lock();
-									if let Some(ref mut discovery) = *discovery {
-										discovery.add_node(entry);
+									// We can't know remote listening ports, so just assume defaults and hope for the best.
+									let endpoint = NodeEndpoint { address: SocketAddr::new(address.ip(), DEFAULT_PORT), udp_port: DEFAULT_PORT };
+									let entry = NodeEntry { id: id, endpoint: endpoint };
+									let mut nodes = self.nodes.write();
+									if !nodes.contains(&entry.id) {
+										nodes.add_node(Node::new(entry.id.clone(), entry.endpoint.clone()));
+										let mut discovery = self.discovery.lock();
+										if let Some(ref mut discovery) = *discovery {
+											discovery.add_node(entry);
+										}
 									}
 								}
 							}
@@ -1095,7 +1104,10 @@ impl IoHandler<NetworkIoMessage> for Host {
 			} => {
 				let h = handler.clone();
 				let reserved = self.reserved_nodes.read();
-				h.initialize(&NetworkContext::new(io, *protocol, None, self.sessions.clone(), &reserved));
+				h.initialize(
+					&NetworkContext::new(io, *protocol, None, self.sessions.clone(), &reserved),
+					&*self.info.read(),
+				);
 				self.handlers.write().insert(*protocol, h);
 				let mut info = self.info.write();
 				for v in versions {

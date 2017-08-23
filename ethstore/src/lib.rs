@@ -23,7 +23,7 @@ extern crate itertools;
 extern crate libc;
 extern crate parking_lot;
 extern crate rand;
-extern crate rustc_serialize;
+extern crate rustc_hex;
 extern crate serde;
 extern crate serde_json;
 extern crate smallvec;
@@ -66,3 +66,6 @@ pub use self::secret_store::{
 };
 pub use self::random::random_string;
 pub use self::parity_wordlist::random_phrase;
+
+/// An opaque wrapper for secret.
+pub struct OpaqueSecret(::ethkey::Secret);
