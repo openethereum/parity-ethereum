@@ -72,9 +72,9 @@ pub enum Error {
 	KeyNotFound,
 	/// Signing has been cancelled by user.
 	UserCancel,
-    BadMessageType,
-    SerdeError(serde_json::Error),
-    ClosedDevice(String),
+	BadMessageType,
+	SerdeError(serde_json::Error),
+	ClosedDevice(String),
 }
 
 impl fmt::Display for Error {
@@ -107,14 +107,14 @@ impl From<protobuf::ProtobufError> for Error {
 pub struct Manager {
 	usb: Arc<Mutex<hidapi::HidApi>>,
 	devices: Vec<Device>,
-    closed_devices: Vec<String>,
+	closed_devices: Vec<String>,
 	key_path: KeyPath,
 }
 
 #[derive(Debug)]
 struct Device {
 	path: String,
-    info: WalletInfo,
+	info: WalletInfo,
 }
 
 impl Manager {
@@ -123,7 +123,7 @@ impl Manager {
 		Manager {
 			usb: hidapi,
 			devices: Vec::new(),
-            closed_devices: Vec::new(),
+			closed_devices: Vec::new(),
 			key_path: KeyPath::Ethereum,
 		}
 	}
@@ -131,7 +131,7 @@ impl Manager {
 	/// Re-populate device list
 	pub fn update_devices(&mut self) -> Result<usize, Error> {
 		let mut usb = self.usb.lock();
-        usb.refresh_devices();
+		usb.refresh_devices();
 		let devices = usb.devices();
 		let mut new_devices = Vec::new();
 		let mut closed_devices = Vec::new();
@@ -140,11 +140,11 @@ impl Manager {
 			if usb_device.vendor_id != TREZOR_VID || !TREZOR_PIDS.contains(&usb_device.product_id) || usb_device.usage_page != 0xFF00 {
 				continue;
 			}
-            match self.read_device_info(&usb, &usb_device) {
-                Ok(device) => new_devices.push(device),
-                Err(Error::ClosedDevice(path)) => closed_devices.push(path.to_string()),
-                Err(e) => return Err(e),
-            }
+			match self.read_device_info(&usb, &usb_device) {
+				Ok(device) => new_devices.push(device),
+				Err(Error::ClosedDevice(path)) => closed_devices.push(path.to_string()),
+				Err(e) => return Err(e),
+			}
 		}
 		let count = new_devices.len();
 		self.devices = new_devices;
@@ -158,38 +158,38 @@ impl Manager {
 		let name = dev_info.product_string.clone().unwrap_or("Unknown".to_owned());
 		let serial = dev_info.serial_number.clone().unwrap_or("Unknown".to_owned());
 		match self.get_address(&handle) {
-            Ok(Some(addr)) => {
-                Ok(Device {
-                    path: dev_info.path.clone(),
-                    info: WalletInfo {
-                        name: name,
-                        manufacturer: manufacturer,
-                        serial: serial,
-                        address: addr,
-                    },
-                })
-            }
-            Ok(None) => Err(Error::ClosedDevice(dev_info.path.clone())),
-            Err(e) => Err(e)
-        }
+			Ok(Some(addr)) => {
+				Ok(Device {
+					path: dev_info.path.clone(),
+					info: WalletInfo {
+						name: name,
+						manufacturer: manufacturer,
+						serial: serial,
+						address: addr,
+					},
+				})
+			}
+			Ok(None) => Err(Error::ClosedDevice(dev_info.path.clone())),
+			Err(e) => Err(e)
+		}
 	}
 
-    pub fn message(&self, message_type: String, device_path: Option<String>, message: Option<String>) -> Result<String, Error> {
-        match message_type.as_ref() {
-            "get_devices" => {
-                serde_json::to_string(&self.closed_devices).map_err(Error::SerdeError)
-            }
-            "pin_matrix_ack" => {
-                if let (Some(path), Some(msg)) = (device_path, message) {
-                    let unlocked = self.pin_matrix_ack(&path, &msg)?;
-                    serde_json::to_string(&unlocked).map_err(Error::SerdeError)
-                } else {
-                    Err(Error::BadMessageType)
-                }
-            }
-            _ => Err(Error::BadMessageType)
-        }
-    }
+	pub fn message(&self, message_type: String, device_path: Option<String>, message: Option<String>) -> Result<String, Error> {
+		match message_type.as_ref() {
+			"get_devices" => {
+				serde_json::to_string(&self.closed_devices).map_err(Error::SerdeError)
+			}
+			"pin_matrix_ack" => {
+				if let (Some(path), Some(msg)) = (device_path, message) {
+					let unlocked = self.pin_matrix_ack(&path, &msg)?;
+					serde_json::to_string(&unlocked).map_err(Error::SerdeError)
+				} else {
+					Err(Error::BadMessageType)
+				}
+			}
+			_ => Err(Error::BadMessageType)
+		}
+	}
 
 	/// Select key derivation path for a known chain.
 	pub fn set_key_path(&mut self, key_path: KeyPath) {
@@ -206,8 +206,8 @@ impl Manager {
 		self.devices.iter().find(|d| &d.info.address == address).map(|d| d.info.clone())
 	}
 
-    fn open_path<R, F>(&self, f: F) -> Result<R, Error>
-    where F: Fn() -> Result<R, &'static str> {
+	fn open_path<R, F>(&self, f: F) -> Result<R, Error>
+	where F: Fn() -> Result<R, &'static str> {
 		let mut err = Error::KeyNotFound;
 		/// Try to open device a few times.
 		for _ in 0..10 {
@@ -220,33 +220,33 @@ impl Manager {
 		Err(err)
 	}
 
-    fn pin_matrix_ack(&self, device_path: &str, pin: &str) -> Result<bool, Error> {
+	fn pin_matrix_ack(&self, device_path: &str, pin: &str) -> Result<bool, Error> {
 		let usb = self.usb.lock();
 		let device = self.open_path(|| usb.open_path(&device_path))?;
-        let t = MessageType::MessageType_PinMatrixAck;
-        let mut m = PinMatrixAck::new();
-        m.set_pin(pin.to_string());
-        self.send_device_message(&device, &t, &m)?;
+		let t = MessageType::MessageType_PinMatrixAck;
+		let mut m = PinMatrixAck::new();
+		m.set_pin(pin.to_string());
+		self.send_device_message(&device, &t, &m)?;
 		let (resp_type, bytes) = self.read_device_response(&device)?;
 		match resp_type {
-            // Getting an Address back means it's unlocked, this is undocumented behavior
+			// Getting an Address back means it's unlocked, this is undocumented behavior
 			MessageType::MessageType_EthereumAddress => {
-                Ok(true)
+				Ok(true)
 			}
-            // Getting anything else means we didn't unlock it
+			// Getting anything else means we didn't unlock it
 			_ => {
-                Ok(false)
-            }
+				Ok(false)
+			}
 		}
-    }
+	}
 
-    fn get_address(&self, device: &hidapi::HidDevice) -> Result<Option<Address>, Error> {
+	fn get_address(&self, device: &hidapi::HidDevice) -> Result<Option<Address>, Error> {
 		let typ = MessageType::MessageType_EthereumGetAddress;
 		let mut message = EthereumGetAddress::new();
-        match self.key_path {
-            KeyPath::Ethereum => message.set_address_n(ETH_DERIVATION_PATH.to_vec()),
-            KeyPath::EthereumClassic => message.set_address_n(ETC_DERIVATION_PATH.to_vec()),
-        }
+		match self.key_path {
+			KeyPath::Ethereum => message.set_address_n(ETH_DERIVATION_PATH.to_vec()),
+			KeyPath::EthereumClassic => message.set_address_n(ETC_DERIVATION_PATH.to_vec()),
+		}
 		message.set_show_display(false);
 		self.send_device_message(&device, &typ, &message)?;
 
@@ -254,86 +254,86 @@ impl Manager {
 		match resp_type {
 			MessageType::MessageType_EthereumAddress => {
 				let response: EthereumAddress = protobuf::core::parse_from_bytes(&bytes)?;
-                Ok(Some(From::from(response.get_address())))
+				Ok(Some(From::from(response.get_address())))
 			}
 			_ => Ok(None)
 		}
-    }
+	}
 
 	/// Sign transaction data with wallet managing `address`.
 	pub fn sign_transaction(&self, address: &Address, t_info: &TransactionInfo) -> Result<Signature, Error> {
 		let device = self.devices.iter().find(|d| &d.info.address == address)
 			.ok_or(Error::KeyNotFound)?;
-        println!("T info: {:?}", t_info);
-        let usb = self.usb.lock();
+		println!("T info: {:?}", t_info);
+		let usb = self.usb.lock();
 		let mut handle = self.open_path(|| usb.open_path(&device.path))?;
-        let msg_type = MessageType::MessageType_EthereumSignTx;
-        let mut message = EthereumSignTx::new();
-        match self.key_path {
-            KeyPath::Ethereum => message.set_address_n(ETH_DERIVATION_PATH.to_vec()),
-            KeyPath::EthereumClassic => message.set_address_n(ETC_DERIVATION_PATH.to_vec()),
-        }
-        // This encoding is completely undocumented, documentation says it
-        // should just be a big-endian unsigned integer, but it's actually an
-        // RLP encoded integer _without_ the initial length byte. This was found
-        // by trial-and-error and inspecting their sample python code.
-        message.set_nonce(rlp::encode(&t_info.nonce)[1..].to_vec());
-        message.set_gas_limit(rlp::encode(&t_info.gas_limit)[1..].to_vec());
-        message.set_gas_price(rlp::encode(&t_info.gas_price)[1..].to_vec());
-        message.set_value(rlp::encode(&t_info.value)[1..].to_vec());
+		let msg_type = MessageType::MessageType_EthereumSignTx;
+		let mut message = EthereumSignTx::new();
+		match self.key_path {
+			KeyPath::Ethereum => message.set_address_n(ETH_DERIVATION_PATH.to_vec()),
+			KeyPath::EthereumClassic => message.set_address_n(ETC_DERIVATION_PATH.to_vec()),
+		}
+		// This encoding is completely undocumented, documentation says it
+		// should just be a big-endian unsigned integer, but it's actually an
+		// RLP encoded integer _without_ the initial length byte. This was found
+		// by trial-and-error and inspecting their sample python code.
+		message.set_nonce(rlp::encode(&t_info.nonce)[1..].to_vec());
+		message.set_gas_limit(rlp::encode(&t_info.gas_limit)[1..].to_vec());
+		message.set_gas_price(rlp::encode(&t_info.gas_price)[1..].to_vec());
+		message.set_value(rlp::encode(&t_info.value)[1..].to_vec());
 
-        match t_info.to {
-            Some(addr) => {
-                message.set_to(addr.to_vec())
-            },
-            None => ()
-        }
-        println!("Message is: {:?}", message);
-        let first_chunk_length = min(t_info.data.len(), 1024);
-        let chunk = &t_info.data[0..first_chunk_length];
-        println!("Chunk: {:?}", chunk);
-        message.set_data_initial_chunk(chunk.to_vec());
-        message.set_data_length(t_info.data.len() as u32);
+		match t_info.to {
+			Some(addr) => {
+				message.set_to(addr.to_vec())
+			},
+			None => ()
+		}
+		println!("Message is: {:?}", message);
+		let first_chunk_length = min(t_info.data.len(), 1024);
+		let chunk = &t_info.data[0..first_chunk_length];
+		println!("Chunk: {:?}", chunk);
+		message.set_data_initial_chunk(chunk.to_vec());
+		message.set_data_length(t_info.data.len() as u32);
 
-        self.send_device_message(&handle, &msg_type, &message)?;
+		self.send_device_message(&handle, &msg_type, &message)?;
 
-        self.signing_loop(&handle, &t_info.data[first_chunk_length..])
-    }
+		self.signing_loop(&handle, &t_info.data[first_chunk_length..])
+	}
 
-    fn signing_loop(&self, handle: &hidapi::HidDevice, data: &[u8]) -> Result<Signature, Error> {
+	fn signing_loop(&self, handle: &hidapi::HidDevice, data: &[u8]) -> Result<Signature, Error> {
 		let (resp_type, bytes) = self.read_device_response(&handle)?;
-        println!("{:?} : {:?}", resp_type, bytes);
-        match resp_type {
-            MessageType::MessageType_Cancel => Err(Error::UserCancel),
-            MessageType::MessageType_ButtonRequest => {
-                self.send_device_message(handle, &MessageType::MessageType_ButtonAck, &ButtonAck::new())?;
+		println!("{:?} : {:?}", resp_type, bytes);
+		match resp_type {
+			MessageType::MessageType_Cancel => Err(Error::UserCancel),
+			MessageType::MessageType_ButtonRequest => {
+				self.send_device_message(handle, &MessageType::MessageType_ButtonAck, &ButtonAck::new())?;
 				::thread::sleep(Duration::from_millis(200));
-                self.signing_loop(handle, data)
-            }
-            MessageType::MessageType_EthereumTxRequest => {
-                let resp: EthereumTxRequest = protobuf::core::parse_from_bytes(&bytes)?;
-                if resp.has_data_length() {
-                    let mut msg = EthereumTxAck::new();
-                    let len = resp.get_data_length() as usize;
-                    msg.set_data_chunk(data[..len].to_vec());
-                    self.send_device_message(handle, &MessageType::MessageType_EthereumTxAck, &msg);
-                    self.signing_loop(handle, &data[len..])
-                } else {
-                    let v = resp.get_signature_v();
-                    let r = H256::from_slice(resp.get_signature_r());
-                    let s = H256::from_slice(resp.get_signature_s());
-                    Ok(Signature::from_rsv(&r, &s, v as u8))
-                }
-            }
-            MessageType::MessageType_Failure => {
-                let mut resp: Failure = protobuf::core::parse_from_bytes(&bytes)?;
-                println!("Failed msg: {:?}", resp.get_message());
+				self.signing_loop(handle, data)
+			}
+			MessageType::MessageType_EthereumTxRequest => {
+				let resp: EthereumTxRequest = protobuf::core::parse_from_bytes(&bytes)?;
+				if resp.has_data_length() {
+					let mut msg = EthereumTxAck::new();
+					let len = resp.get_data_length() as usize;
+					msg.set_data_chunk(data[..len].to_vec());
+					self.send_device_message(handle, &MessageType::MessageType_EthereumTxAck, &msg);
+					self.signing_loop(handle, &data[len..])
+				} else {
+					let v = resp.get_signature_v();
+					let r = H256::from_slice(resp.get_signature_r());
+					let s = H256::from_slice(resp.get_signature_s());
+					Ok(Signature::from_rsv(&r, &s, v as u8))
+				}
+			}
+			MessageType::MessageType_Failure => {
+				let mut resp: Failure = protobuf::core::parse_from_bytes(&bytes)?;
+				println!("Failed msg: {:?}", resp.get_message());
 
-                Err(Error::Protocol("Last message sent failed"))
-            }
-            _ => Err(Error::Protocol("Unexpected response from Trezor device."))
-        }
-    }
+				Err(Error::Protocol("Last message sent failed"))
+			}
+			_ => Err(Error::Protocol("Unexpected response from Trezor device."))
+		}
+	}
 
 	fn send_device_message(&self, device: &hidapi::HidDevice, msg_type: &MessageType, msg: &Message) -> Result<usize, Error> {
 		let msg_id = *msg_type as u16;
@@ -385,24 +385,24 @@ impl Manager {
 
 #[test]
 fn debug() {
-    use util::{U256};
+	use util::{U256};
 
-    let hidapi = Arc::new(Mutex::new(hidapi::HidApi::new().unwrap()));
-    let mut manager = Manager::new(hidapi.clone());
-    let addr: Address = H160::from("3C9b5aC40587E6799D42f7342c3641bc4aABEDa4");
+	let hidapi = Arc::new(Mutex::new(hidapi::HidApi::new().unwrap()));
+	let mut manager = Manager::new(hidapi.clone());
+	let addr: Address = H160::from("3C9b5aC40587E6799D42f7342c3641bc4aABEDa4");
 
 	manager.update_devices().unwrap();
 
-    let t_info = TransactionInfo {
-        nonce: U256::zero(),
-        gas_price: U256::from(100),
-        gas_limit: U256::from(21_000),
-        to: Some(H160::from("00b1d5c8e02a18f5d5ddb83b6d17db757706148c")),
-        value: U256::from(1_000_000),
-        data: (&[1u8;3000]).to_vec(),
-    };
-    let signature = manager.sign_transaction(&addr, &t_info);
-    println!("Signature: {:?}", signature);
+	let t_info = TransactionInfo {
+		nonce: U256::zero(),
+		gas_price: U256::from(100),
+		gas_limit: U256::from(21_000),
+		to: Some(H160::from("00b1d5c8e02a18f5d5ddb83b6d17db757706148c")),
+		value: U256::from(1_000_000),
+		data: (&[1u8;3000]).to_vec(),
+	};
+	let signature = manager.sign_transaction(&addr, &t_info);
+	println!("Signature: {:?}", signature);
 
 	assert!(true)
 }

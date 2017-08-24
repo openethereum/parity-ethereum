@@ -61,12 +61,12 @@ pub enum Error {
 /// import ethcore here as that would be a circular dependency.
 #[derive(Debug)]
 pub struct TransactionInfo {
-    pub nonce: U256,
-    pub gas_price: U256,
-    pub gas_limit: U256,
-    pub to: Option<Address>,
-    pub value: U256,
-    pub data: Bytes,
+	pub nonce: U256,
+	pub gas_price: U256,
+	pub gas_limit: U256,
+	pub to: Option<Address>,
+	pub value: U256,
+	pub data: Bytes,
 }
 
 /// Hardware wallet information.
@@ -183,7 +183,7 @@ impl libusb::Hotplug for EventHandler {
 impl HardwareWalletManager {
 	pub fn new() -> Result<HardwareWalletManager, Error> {
 		let usb_context = Arc::new(libusb::Context::new()?);
-        let hidapi = Arc::new(Mutex::new(hidapi::HidApi::new()?));
+		let hidapi = Arc::new(Mutex::new(hidapi::HidApi::new()?));
 		let ledger = Arc::new(Mutex::new(ledger::Manager::new(hidapi.clone())));
 		let trezor = Arc::new(Mutex::new(trezor::Manager::new(hidapi.clone())));
 		usb_context.register_callback(None, None, None, Box::new(EventHandler { ledger: Arc::downgrade(&ledger), trezor: Arc::downgrade(&trezor) }))?;
@@ -224,34 +224,34 @@ impl HardwareWalletManager {
 	pub fn list_wallets(&self) -> Vec<WalletInfo> {
 		let mut ledger_wallets = self.ledger.lock().list_devices();
 		let mut trezor_wallets = self.trezor.lock().list_devices();
-        ledger_wallets.append(&mut trezor_wallets);
-        ledger_wallets
+		ledger_wallets.append(&mut trezor_wallets);
+		ledger_wallets
 	}
 
 	/// Get connected wallet info.
 	pub fn wallet_info(&self, address: &Address) -> Option<WalletInfo> {
 		if let Some(info) = self.ledger.lock().device_info(address) {
-            Some(info)
-        } else {
-            self.trezor.lock().device_info(address)
-        }
+			Some(info)
+		} else {
+			self.trezor.lock().device_info(address)
+		}
 	}
 
 	/// Sign transaction data with wallet managing `address`.
 	pub fn sign_transaction(&self, address: &Address, t_info: &TransactionInfo, encoded_transaction: &[u8]) -> Result<Signature, Error> {
 		if self.ledger.lock().device_info(address).is_some() {
-            Ok(self.ledger.lock().sign_transaction(address, encoded_transaction)?)
-        } else if self.trezor.lock().device_info(address).is_some() {
-            Ok(self.trezor.lock().sign_transaction(address, t_info)?)
-        } else {
-            Err(Error::KeyNotFound)
-        }
+			Ok(self.ledger.lock().sign_transaction(address, encoded_transaction)?)
+		} else if self.trezor.lock().device_info(address).is_some() {
+			Ok(self.trezor.lock().sign_transaction(address, t_info)?)
+		} else {
+			Err(Error::KeyNotFound)
+		}
 	}
 
-    /// Communicate with trezor hardware wallet
+	/// Communicate with trezor hardware wallet
 	pub fn trezor_message(&self, message_type: String, path: Option<String>, message: Option<String>) -> Result<String, Error> {
-        let mut t = self.trezor.lock();
-        t.update_devices();
+		let mut t = self.trezor.lock();
+		t.update_devices();
 		Ok(t.message(message_type, path, message)?)
 	}
 }

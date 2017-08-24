@@ -109,7 +109,7 @@ impl Manager {
 
 	/// Re-populate device list. Only those devices that have Ethereum app open will be added.
 	pub fn update_devices(&mut self) -> Result<usize, Error> {
-        let mut usb = self.usb.lock();
+		let mut usb = self.usb.lock();
 		usb.refresh_devices();
 		let devices = usb.devices();
 		let mut new_devices = Vec::new();
@@ -141,7 +141,7 @@ impl Manager {
 	}
 
 	fn read_device_info(&self, dev_info: &hidapi::HidDeviceInfo) -> Result<Device, Error> {
-        let usb = self.usb.lock();
+		let usb = self.usb.lock();
 		let mut handle = self.open_path(|| usb.open_path(&dev_info.path))?;
 		let address = Self::read_wallet_address(&mut handle, self.key_path)?;
 		let manufacturer = dev_info.manufacturer_string.clone().unwrap_or("Unknown".to_owned());
@@ -203,7 +203,7 @@ impl Manager {
 		let device = self.devices.iter().find(|d| &d.info.address == address)
 			.ok_or(Error::KeyNotFound)?;
 
-        let usb = self.usb.lock();
+		let usb = self.usb.lock();
 		let mut handle = self.open_path(|| usb.open_path(&device.path))?;
 
 		let eth_path = &ETH_DERIVATION_PATH_BE[..];
@@ -240,8 +240,8 @@ impl Manager {
 		Ok(Signature::from_rsv(&r, &s, v))
 	}
 
-    fn open_path<R, F>(&self, f: F) -> Result<R, Error>
-    where F: Fn() -> Result<R, &'static str> {
+	fn open_path<R, F>(&self, f: F) -> Result<R, Error>
+	where F: Fn() -> Result<R, &'static str> {
 		let mut err = Error::KeyNotFound;
 		/// Try to open device a few times.
 		for _ in 0..10 {
@@ -346,7 +346,7 @@ impl Manager {
 #[test]
 fn smoke() {
 	use rustc_hex::FromHex;
-    let hidapi = Arc::new(Mutex::new(hidapi::HidApi::new().unwrap()));
+	let hidapi = Arc::new(Mutex::new(hidapi::HidApi::new().unwrap()));
 	let mut manager = Manager::new(hidapi.clone());
 	manager.update_devices().unwrap();
 	for d in &manager.devices {

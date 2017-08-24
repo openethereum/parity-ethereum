@@ -44,7 +44,7 @@ build_rpc_trait! {
 		#[rpc(name = "parity_hardwareAccountsInfo")]
 		fn hardware_accounts_info(&self) -> Result<BTreeMap<H160, HwAccountInfo>, Error>;
 
-        /// Communicate with trezor hardware wallet
+		/// Communicate with trezor hardware wallet
 		#[rpc(name = "parity_trezor")]
 		fn trezor(&self, String, Option<String>, Option<String>) -> Result<String, Error>;
 

@@ -790,17 +790,17 @@ impl AccountProvider {
 
 	/// Sign transaction with hardware wallet.
 	pub fn sign_with_hardware(&self, address: Address, transaction: &Transaction, rlp_encoded_transaction: &[u8]) -> Result<Signature, SignError> {
-        let t_info = TransactionInfo {
-            nonce: transaction.nonce,
-            gas_price: transaction.gas_price,
-            gas_limit: transaction.gas,
-            to: match transaction.action {
-                Action::Create => None,
-                Action::Call(ref to) => Some(to.clone()),
-            },
-            value: transaction.value,
-            data: transaction.data.to_vec(),
-        };
+		let t_info = TransactionInfo {
+			nonce: transaction.nonce,
+			gas_price: transaction.gas_price,
+			gas_limit: transaction.gas,
+			to: match transaction.action {
+				Action::Create => None,
+				Action::Call(ref to) => Some(to.clone()),
+			},
+			value: transaction.value,
+			data: transaction.data.to_vec(),
+		};
 		match self.hardware_store.as_ref().map(|s| s.sign_transaction(&address, &t_info, rlp_encoded_transaction)) {
 			None | Some(Err(HardwareError::KeyNotFound)) => Err(SignError::NotFound),
 			Some(Err(e)) => Err(From::from(e)),
