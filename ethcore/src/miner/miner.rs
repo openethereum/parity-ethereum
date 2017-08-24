@@ -736,7 +736,7 @@ impl MinerService for Miner {
 
 				let sender = t.sender();
 				let balance = state.balance(&sender).map_err(ExecutionError::from)?;
-				let needed_balance = t.value + t.gas * t.gas_price;
+				let needed_balance = t.value.saturating_add(t.gas.saturating_mul(t.gas_price));
 				if balance < needed_balance {
 					// give the sender a sufficient balance
 					state.add_balance(&sender, &(needed_balance - balance), CleanupMode::NoEmpty)
