@@ -30,15 +30,17 @@ pub fn sign_call<B: MiningBlockChainClient, M: MinerService>(
 	request: CallRequest,
 	gas_cap: bool,
 ) -> Result<SignedTransaction, Error> {
-	let from = request.from.unwrap_or(0.into());
-	let mut gas = request.gas.unwrap_or(U256::max_value());
-	if gas_cap {
-		let max_gas = 50_000_000.into();
-		if gas > max_gas {
+	let max_gas = 50_000_000.into();
+	let gas = match request.gas {
+		Some(gas) if gas_cap && gas > max_gas => {
 			warn!("Gas limit capped to {} (from {})", max_gas, gas);
-			gas = max_gas
+			max_gas
 		}
-	}
+		Some(gas) => gas,
+		None if gas_cap => max_gas,
+		None => U256::from(2) << 50,
+	};
+	let from = request.from.unwrap_or(0.into());
 
 	Ok(Transaction {
 		nonce: request.nonce.unwrap_or_else(|| client.latest_nonce(&from)),
