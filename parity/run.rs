@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::sync::Arc;
+use std::sync::{Arc, Weak};
 use std::net::{TcpListener};
 
 use ctrlc::CtrlC;
@@ -217,7 +217,16 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 	config.queue.max_mem_use = cmd.cache_config.queue() as usize * 1024 * 1024;
 	config.queue.verifier_settings = cmd.verifier_settings;
 
-	let service = light_client::Service::start(config, &spec, &db_dirs.client_path(algorithm), cache.clone())
+	// start on_demand service.
+	let on_demand = Arc::new(::light::on_demand::OnDemand::new(cache.clone()));
+
+	let sync_handle = Arc::new(RwLock::new(Weak::new()));
+	let fetch = ::light_helpers::EpochFetch {
+		on_demand: on_demand.clone(),
+		sync: sync_handle.clone(),
+	};
+
+	let service = light_client::Service::start(config, &spec, fetch, &db_dirs.client_path(algorithm), cache.clone())
 		.map_err(|e| format!("Error starting light client: {}", e))?;
 	let txq = Arc::new(RwLock::new(::light::transaction_queue::TransactionQueue::default()));
 	let provider = ::light::provider::LightProvider::new(service.client().clone(), txq.clone());
@@ -228,9 +237,6 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 	if !cmd.custom_bootnodes {
 		net_conf.boot_nodes = spec.nodes.clone();
 	}
-
-	// start on_demand service.
-	let on_demand = Arc::new(::light::on_demand::OnDemand::new(cache.clone()));
 
 	let mut attached_protos = Vec::new();
 	let whisper_factory = if cmd.whisper.enabled {
@@ -255,6 +261,7 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 	};
 	let light_sync = LightSync::new(sync_params).map_err(|e| format!("Error starting network: {}", e))?;
 	let light_sync = Arc::new(light_sync);
+	*sync_handle.write() = Arc::downgrade(&light_sync);
 
 	// spin up event loop
 	let event_loop = EventLoop::spawn();

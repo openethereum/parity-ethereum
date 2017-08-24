@@ -259,6 +259,11 @@ impl Header {
 
 	/// Get the SHA3 (Keccak) of this header, optionally `with_seal`.
 	pub fn rlp_sha3(&self, with_seal: Seal) -> H256 { self.rlp(with_seal).sha3() }
+
+	/// Encode the header, getting a type-safe wrapper around the RLP.
+	pub fn encoded(&self) -> ::encoded::Header {
+		::encoded::Header::new(self.rlp(Seal::With))
+	}
 }
 
 impl Decodable for Header {

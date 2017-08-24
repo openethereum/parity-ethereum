@@ -83,6 +83,9 @@ impl Default for Config {
 
 /// Trait for interacting with the header chain abstractly.
 pub trait LightChainClient: Send + Sync {
+	/// Adds a new `LightChainNotify` listener.
+	fn add_listener(&self, listener: Weak<LightChainNotify>);
+
 	/// Get chain info.
 	fn chain_info(&self) -> BlockChainInfo;
 
@@ -481,7 +484,7 @@ impl<T: ChainDataFetcher> Client<T> {
 				};
 
 				if let Some(b) = b {
-					block = Some(b.into_future().wait()?);
+					block = Some(b.into_future().wait()?.into_inner());
 				}
 
 				if let Some(r) = r {
@@ -526,6 +529,10 @@ impl<T: ChainDataFetcher> Client<T> {
 }
 
 impl<T: ChainDataFetcher> LightChainClient for Client<T> {
+	fn add_listener(&self, listener: Weak<LightChainNotify>) {
+		Client::add_listener(self, listener)
+	}
+
 	fn chain_info(&self) -> BlockChainInfo { Client::chain_info(self) }
 
 	fn queue_header(&self, header: Header) -> Result<H256, BlockImportError> {

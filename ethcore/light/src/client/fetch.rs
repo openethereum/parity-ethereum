@@ -18,6 +18,7 @@
 
 use std::sync::Arc;
 
+use ethcore::encoded;
 use ethcore::engines::{Engine, StateDependentProof};
 use ethcore::header::Header;
 use ethcore::receipt::Receipt;
@@ -30,7 +31,7 @@ pub trait ChainDataFetcher: Send + Sync + 'static {
 	type Error: ::std::fmt::Debug;
 
 	/// Future for fetching block body.
-	type Body: IntoFuture<Item=Vec<u8>,Error=Self::Error>;
+	type Body: IntoFuture<Item=encoded::Block,Error=Self::Error>;
 	/// Future for fetching block receipts.
 	type Receipts: IntoFuture<Item=Vec<Receipt>,Error=Self::Error>;
 	/// Future for fetching epoch transition
@@ -55,7 +56,7 @@ pub fn unavailable() -> Unavailable { Unavailable }
 impl ChainDataFetcher for Unavailable {
 	type Error = &'static str;
 
-	type Body = Result<Vec<u8>, &'static str>;
+	type Body = Result<encoded::Block, &'static str>;
 	type Receipts = Result<Vec<Receipt>, &'static str>;
 	type Transition = Result<Vec<u8>, &'static str>;
 
