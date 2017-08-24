@@ -411,8 +411,8 @@ impl HeaderChain {
 			self.live_epoch_proofs.write().insert(hash, transition);
 		}
 
-		let raw = ::rlp::encode(&header);
-		transaction.put(self.col, &hash[..], &*raw);
+		let raw = header.encoded().into_inner();
+		transaction.put_vec(self.col, &hash[..], raw);
 
 		let (best_num, is_new_best) = {
 			let cur_best = self.best_block.read();
