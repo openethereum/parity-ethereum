@@ -165,6 +165,7 @@
     "@parity/dapp-vaults": "paritytech/dapp-vaults",
     "@parity/dapp-wallet": "paritytech/dapp-wallet",
     "@parity/dapp-web": "paritytech/dapp-web",
+    "@parity/jsonrpc": "paritytech/js-jsonrpc",
     "@parity/shared": "paritytech/js-shared",
     "@parity/ui": "paritytech/js-ui",
     "isomorphic-fetch": "2.2.1",
