@@ -266,8 +266,8 @@ impl Configuration {
 					wal: wal,
 					tracing: tracing,
 					fat_db: fat_db,
-					from_block: to_block_id(&self.args.arg_from)?,
-					to_block: to_block_id(&self.args.arg_to)?,
+					from_block: to_block_id(&self.args.arg_export_blocks_from)?,
+					to_block: to_block_id(&self.args.arg_export_blocks_to)?,
 					check_seal: !self.args.flag_no_seal_check,
 				};
 				Cmd::Blockchain(BlockchainCmd::Export(export_cmd))
@@ -286,10 +286,10 @@ impl Configuration {
 					tracing: tracing,
 					fat_db: fat_db,
 					at: to_block_id(&self.args.arg_export_state_at)?,
-					storage: !self.args.flag_no_storage,
-					code: !self.args.flag_no_code,
-					min_balance: self.args.arg_min_balance.and_then(|s| to_u256(&s).ok()),
-					max_balance: self.args.arg_max_balance.and_then(|s| to_u256(&s).ok()),
+					storage: !self.args.flag_export_state_no_storage,
+					code: !self.args.flag_export_state_no_code,
+					min_balance: self.args.arg_export_state_min_balance.and_then(|s| to_u256(&s).ok()),
+					max_balance: self.args.arg_export_state_max_balance.and_then(|s| to_u256(&s).ok()),
 				};
 				Cmd::Blockchain(BlockchainCmd::ExportState(export_cmd))
 			} else {

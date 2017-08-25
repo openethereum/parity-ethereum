@@ -120,11 +120,35 @@ usage! {
 				ARG arg_export_blocks_format: (Option<String>) = None,
 				"--format=[FORMAT]",
 				"Export in a given format. FORMAT must be either 'hex' or 'binary'. (default: binary)",
+
+				ARG arg_export_blocks_from: (String) = "1",
+				"--from=[BLOCK]",
+				"Export from block BLOCK, which may be an index or hash.",
+
+				ARG arg_export_blocks_to: (String) = "latest",
+				"--to=[BLOCK]",
+				"Export to (including) block BLOCK, which may be an index, hash or latest.",
 			}
 
 			CMD cmd_export_state
 			{
 				"Export state",
+
+				FLAG flag_export_state_no_storage: (bool) = false,
+				"--no-storage",
+				"Don't export account storage.",
+
+				FLAG flag_export_state_no_code: (bool) = false,
+				"--no-code",
+				"Don't export account code.",
+
+				ARG arg_export_state_min_balance: (Option<String>) = None,
+				"--min-balance=[WEI]",
+				"Don't export accounts with balance less than specified.",
+
+				ARG arg_export_state_max_balance: (Option<String>) = None,
+				"--max-balance=[WEI]",
+				"Don't export accounts with balance greater than specified.",
 
 				ARG arg_export_state_at: (String) = "latest",
 				"--at=[BLOCK]",
@@ -789,34 +813,6 @@ usage! {
 			"--no-seal-check",
 			"Skip block seal check.",
 
-			FLAG flag_no_storage: (bool) = false, or |_| None,
-			"--no-storage",
-			"Don't export account storage.",
-
-			FLAG flag_no_code: (bool) = false, or |_| None,
-			"--no-code",
-			"Don't export account code.",
-
-			ARG arg_from: (String) = "1", or |_| None,
-			"--from=[BLOCK]",
-			"Export from block BLOCK, which may be an index or hash.",
-
-			ARG arg_to: (String) = "latest", or |_| None,
-			"--to=[BLOCK]",
-			"Export to (including) block BLOCK, which may be an index, hash or latest.",
-
-			ARG arg_format: (Option<String>) = None, or |_| None,
-			"--format=[FORMAT]",
-			"For import/export in given format. FORMAT must be one of 'hex' and 'binary'.",
-
-			ARG arg_min_balance: (Option<String>) = None, or |_| None,
-			"--min-balance=[WEI]",
-			"Don't export accounts with balance less than specified.",
-
-			ARG arg_max_balance: (Option<String>) = None, or |_| None,
-			"--max-balance=[WEI]",
-			"Don't export accounts with balance greater than specified.",
-
 		["Snapshot options"]
 			FLAG flag_no_periodic_snapshot: (bool) = false, or |c: &Config| otry!(c.snapshots).disable_periodic.clone(),
 			"--no-periodic-snapshot",
@@ -1203,6 +1199,21 @@ mod tests {
 	use toml;
 
 	#[test]
+	fn should_parse_args_and_flags() {
+		let args = Args::parse(&["parity", "--no-warp"]).unwrap();
+		assert_eq!(args.flag_no_warp, true);
+
+		let args = Args::parse(&["parity", "--pruning", "archive"]).unwrap();
+		assert_eq!(args.arg_pruning, "archive");
+
+		let args = Args::parse(&["parity", "export", "state", "--no-storage"]).unwrap();
+		assert_eq!(args.flag_export_state_no_storage, true);
+
+		let args = Args::parse(&["parity", "export", "state", "--min-balance","123"]).unwrap();
+		assert_eq!(args.arg_export_state_min_balance, Some("123".to_string()));
+	}
+
+	#[test]
 	fn should_use_subcommand_arg_default() {
 		let args = Args::parse(&["parity", "export", "state", "--at", "123"]).unwrap();
 		assert_eq!(args.arg_export_state_at, "123");
@@ -1500,14 +1511,13 @@ mod tests {
 			arg_num_verifiers: Some(6),
 
 			// -- Import/Export Options
-			arg_from: "1".into(),
-			arg_to: "latest".into(),
-			arg_format: None,
+			arg_export_blocks_from: "1".into(),
+			arg_export_blocks_to: "latest".into(),
 			flag_no_seal_check: false,
-			flag_no_code: false,
-			flag_no_storage: false,
-			arg_min_balance: None,
-			arg_max_balance: None,
+			flag_export_state_no_code: false,
+			flag_export_state_no_storage: false,
+			arg_export_state_min_balance: None,
+			arg_export_state_max_balance: None,
 
 			// -- Snapshot Optons
 			arg_export_state_at: "latest".into(),

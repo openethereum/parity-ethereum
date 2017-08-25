@@ -105,13 +105,18 @@ macro_rules! usage {
 						CMD $subc_subc:ident
 						{
 							$subc_subc_help:expr,
-
+							$(
+								FLAG $subc_subc_flag:ident : (bool) = false, $subc_subc_flag_usage:expr, $subc_subc_flag_help:expr,
+							)*
 							$(
 								ARG $subc_subc_arg:ident : ($($subc_subc_arg_type_tt:tt)+) = $subc_subc_arg_default:expr, $subc_subc_arg_usage:expr, $subc_subc_arg_help:expr,
 							)*
 						}
 					)*
 
+					$(
+						FLAG $subc_flag:ident : (bool) = false, $subc_flag_usage:expr, $subc_flag_help:expr,
+					)*
 					$(
 						ARG $subc_arg:ident : ($($subc_arg_type_tt:tt)+) = $subc_arg_default:expr, $subc_arg_usage:expr, $subc_arg_help:expr,
 					)*
@@ -187,10 +192,16 @@ macro_rules! usage {
 				$(
 					pub $subc_subc: bool,
 					$(
+						pub $subc_subc_flag: bool,
+					)*
+					$(
 						pub $subc_subc_arg: $($subc_subc_arg_type_tt)+,
 					)*
 				)*
 
+				$(
+					pub $subc_flag: bool,
+				)*
 				$(
 					pub $subc_arg: $($subc_arg_type_tt)+,
 				)*
@@ -214,10 +225,16 @@ macro_rules! usage {
 						$(
 							$subc_subc: Default::default(),
 							$(
+								$subc_subc_flag: Default::default(),
+							)*
+							$(
 								$subc_subc_arg: Default::default(),
 							)*
 						)*
 
+						$(
+							$subc_flag: Default::default(),
+						)*
 						$(
 							$subc_arg: Default::default(),
 						)*
@@ -243,6 +260,9 @@ macro_rules! usage {
 				$(
 					$subc_subc: bool,
 					$(
+						$subc_subc_flag: bool,
+					)*
+					$(
 						$subc_subc_arg: if_option!(
 							$($subc_subc_arg_type_tt)+,
 							THEN { $($subc_subc_arg_type_tt)+ }
@@ -251,6 +271,9 @@ macro_rules! usage {
 					)*
 				)*
 
+				$(
+					$subc_flag: bool,
+				)*
 				$(
 					$subc_arg: if_option!(
 						$($subc_arg_type_tt)+,
@@ -340,31 +363,43 @@ macro_rules! usage {
 
 						$(
 							subc_subc_exist = true;
+							let subc_subc_flag_usages : Vec<String> = vec![
+								$(
+									format!("[{}]",$subc_subc_flag_usage),
+								)*
+							];
+
 							let subc_subc_arg_usages : Vec<&str> = vec![
 								$(
 									$subc_subc_arg_usage,
 								)*
 							];
 
-							if subc_subc_arg_usages.is_empty() {
+							if subc_subc_flag_usages.is_empty() && subc_subc_arg_usages.is_empty() {
 								help.push_str(&format!("parity [options] {} {}\n", underscore_to_hyphen!(&stringify!($subc)[4..]), underscore_to_hyphen!(&stringify!($subc_subc)[stringify!($subc).len()+1..])));
 							} else {
-								help.push_str(&format!("parity [options] {} {} {}\n", underscore_to_hyphen!(&stringify!($subc)[4..]), underscore_to_hyphen!(&stringify!($subc_subc)[stringify!($subc).len()+1..]), subc_subc_arg_usages.join(" ")));
+								help.push_str(&format!("parity [options] {} {} {} {}\n", underscore_to_hyphen!(&stringify!($subc)[4..]), underscore_to_hyphen!(&stringify!($subc_subc)[stringify!($subc).len()+1..]), subc_subc_flag_usages.join(" "), subc_subc_arg_usages.join(" ")));
 							}
 						)*
 
 						// Print the subcommand on its own only if it has no subsubcommands
 						if !subc_subc_exist {
+							let subc_flag_usages : Vec<String> = vec![
+								$(
+									format!("[{}]",$subc_flag_usage),
+								)*
+							];
+
 							let subc_arg_usages : Vec<&str> = vec![
 								$(
 									$subc_arg_usage,
 								)*
 							];
 
-							if subc_arg_usages.is_empty() {
+							if subc_flag_usages.is_empty() && subc_arg_usages.is_empty() {
 								help.push_str(&format!("parity [options] {}\n", underscore_to_hyphen!(&stringify!($subc)[4..])));
 							} else {
-								help.push_str(&format!("parity [options] {} {}\n", underscore_to_hyphen!(&stringify!($subc)[4..]), subc_arg_usages.join(" ")));
+								help.push_str(&format!("parity [options] {} {} {}\n", underscore_to_hyphen!(&stringify!($subc)[4..]), subc_flag_usages.join(" "), subc_arg_usages.join(" ")));
 							}
 						}
 					}
@@ -422,6 +457,9 @@ macro_rules! usage {
 					$(
 						args.$subc_subc = self.$subc_subc;
 						$(
+							args.$subc_subc_flag = self.$subc_subc_flag;
+						)*
+						$(
 							args.$subc_subc_arg = if_option!(
 								$($subc_subc_arg_type_tt)+,
 								THEN { self.$subc_subc_arg.or($subc_subc_arg_default) }
@@ -430,6 +468,9 @@ macro_rules! usage {
 						)*
 					)*
 
+					$(
+						args.$subc_flag = self.$subc_flag;
+					)*
 					$(
 						args.$subc_arg = if_option!(
 							$($subc_arg_type_tt)+,
@@ -474,6 +515,9 @@ macro_rules! usage {
 					{
 						let this_subc_usages = vec![
 							$(
+								usage_with_ident!(stringify!($subc_flag), $subc_flag_usage, $subc_flag_help),
+							)*
+							$(
 								usage_with_ident!(stringify!($subc_arg), $subc_arg_usage, $subc_arg_help),
 							)*
 						];
@@ -483,6 +527,9 @@ macro_rules! usage {
 						$(
 							{
 								let this_subc_subc_usages = vec![
+									$(
+										usage_with_ident!(stringify!($subc_subc_flag), $subc_subc_flag_usage, $subc_subc_flag_help),
+									)*
 									$(
 										usage_with_ident!(stringify!($subc_subc_arg), $subc_subc_arg_usage, $subc_subc_arg_help),
 									)*
@@ -548,6 +595,10 @@ macro_rules! usage {
 					if let Some(submatches) = matches.subcommand_matches(&underscore_to_hyphen!(&stringify!($subc)[4..])) {
 						raw_args.$subc = true;
 
+						// Subcommand flags
+						$(
+							raw_args.$subc_flag = submatches.is_present(&stringify!($subc_flag));
+						)*
 						// Subcommand arguments
 						$(
 							raw_args.$subc_arg = if_option!(
@@ -574,6 +625,10 @@ macro_rules! usage {
 							if let Some(subsubmatches) = submatches.subcommand_matches(&underscore_to_hyphen!(&stringify!($subc_subc)[stringify!($subc).len()+1..])) {
 								raw_args.$subc_subc = true;
 
+								// Sub-subcommand flags
+								$(
+									raw_args.$subc_subc_flag = subsubmatches.is_present(&stringify!($subc_subc_flag));
+								)*
 								// Sub-subcommand arguments
 								$(
 									raw_args.$subc_subc_arg = if_option!(
