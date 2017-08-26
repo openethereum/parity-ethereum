@@ -168,7 +168,12 @@ impl<Cost: CostType> vm::Vm for Interpreter<Cost> {
 			}
 
 			if do_trace {
-				ext.trace_executed(gasometer.current_gas.as_u256(), stack.peek_top(info.ret), mem_written.map(|(o, s)| (o, &(self.mem[o..(o + s)]))), store_written);
+				ext.trace_executed(
+					gasometer.current_gas.as_u256(),
+					stack.peek_top(info.ret),
+					mem_written.map(|(o, s)| (o, &(self.mem[o..o+s]))),
+					store_written,
+				);
 			}
 
 			// Advance
@@ -252,14 +257,20 @@ impl<Cost: CostType> Interpreter<Cost> {
 		instruction: Instruction,
 		stack: &Stack<U256>
 	) -> Option<(usize, usize)> {
-		match instruction {
-			instructions::MSTORE | instructions::MLOAD => Some((stack.peek(0).low_u64() as usize, 32)),
-			instructions::MSTORE8 => Some((stack.peek(0).low_u64() as usize, 1)),
-			instructions::CALLDATACOPY | instructions::CODECOPY | instructions::RETURNDATACOPY => Some((stack.peek(0).low_u64() as usize, stack.peek(2).low_u64() as usize)),
-			instructions::EXTCODECOPY => Some((stack.peek(1).low_u64() as usize, stack.peek(3).low_u64() as usize)),
-			instructions::CALL | instructions::CALLCODE => Some((stack.peek(5).low_u64() as usize, stack.peek(6).low_u64() as usize)),
-			instructions::DELEGATECALL => Some((stack.peek(4).low_u64() as usize, stack.peek(5).low_u64() as usize)),
+		let read = |pos| stack.peek(pos).low_u64() as usize;
+		let written = match instruction {
+			instructions::MSTORE | instructions::MLOAD => Some((read(0), 32)),
+			instructions::MSTORE8 => Some((read(0), 1)),
+			instructions::CALLDATACOPY | instructions::CODECOPY | instructions::RETURNDATACOPY => Some((read(0), read(2))),
+			instructions::EXTCODECOPY => Some((read(1), read(3))),
+			instructions::CALL | instructions::CALLCODE => Some((read(5), read(6))),
+			instructions::DELEGATECALL | instructions::STATICCALL => Some((read(4), read(5))),
 			_ => None,
+		};
+
+		match written {
+			Some((offset, size)) if !memory::is_valid_range(offset, size) => None,
+			written => written,
 		}
 	}
 
