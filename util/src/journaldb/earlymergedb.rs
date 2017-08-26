@@ -322,7 +322,7 @@ impl HashDB for EarlyMergeDB {
 					*entry.get_mut() += refs;
 				},
 				Entry::Vacant(entry) => {
-					*entry.insert(refs);
+					entry.insert(refs);
 				}
 			}
 		}
