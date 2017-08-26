@@ -16,14 +16,14 @@
 
 //! Reference-counted memory-based `HashDB` implementation.
 
-use hash::*;
-use rlp::*;
-use sha3::*;
-use hashdb::*;
-use heapsize::*;
 use std::mem;
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
+use heapsize::HeapSizeOf;
+use hash::{H256FastMap, H256};
+use rlp::NULL_RLP;
+use sha3::*;
+use hashdb::*;
 
 /// Reference-counted memory-based `HashDB` implementation.
 ///
