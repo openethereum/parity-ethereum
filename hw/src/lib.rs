@@ -67,6 +67,7 @@ pub struct TransactionInfo {
 	pub to: Option<Address>,
 	pub value: U256,
 	pub data: Bytes,
+	pub network_id: Option<u64>,
 }
 
 /// Hardware wallet information.

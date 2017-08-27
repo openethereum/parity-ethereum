@@ -288,27 +288,29 @@ impl Manager {
 			},
 			None => ()
 		}
-		println!("Message is: {:?}", message);
 		let first_chunk_length = min(t_info.data.len(), 1024);
 		let chunk = &t_info.data[0..first_chunk_length];
 		println!("Chunk: {:?}", chunk);
 		message.set_data_initial_chunk(chunk.to_vec());
 		message.set_data_length(t_info.data.len() as u32);
+		if let Some(n_id) = t_info.network_id {
+			message.set_chain_id(n_id as u32);
+		}
 
 		self.send_device_message(&handle, &msg_type, &message)?;
 
-		self.signing_loop(&handle, &t_info.data[first_chunk_length..])
+		let sig = self.signing_loop(&handle, &t_info.network_id, &t_info.data[first_chunk_length..])?;
+		Ok(sig)
 	}
 
-	fn signing_loop(&self, handle: &hidapi::HidDevice, data: &[u8]) -> Result<Signature, Error> {
+	fn signing_loop(&self, handle: &hidapi::HidDevice, chain_id: &Option<u64>, data: &[u8]) -> Result<Signature, Error> {
 		let (resp_type, bytes) = self.read_device_response(&handle)?;
-		println!("{:?} : {:?}", resp_type, bytes);
 		match resp_type {
 			MessageType::MessageType_Cancel => Err(Error::UserCancel),
 			MessageType::MessageType_ButtonRequest => {
 				self.send_device_message(handle, &MessageType::MessageType_ButtonAck, &ButtonAck::new())?;
 				::thread::sleep(Duration::from_millis(200));
-				self.signing_loop(handle, data)
+				self.signing_loop(handle, chain_id, data)
 			}
 			MessageType::MessageType_EthereumTxRequest => {
 				let resp: EthereumTxRequest = protobuf::core::parse_from_bytes(&bytes)?;
@@ -316,19 +318,26 @@ impl Manager {
 					let mut msg = EthereumTxAck::new();
 					let len = resp.get_data_length() as usize;
 					msg.set_data_chunk(data[..len].to_vec());
-					self.send_device_message(handle, &MessageType::MessageType_EthereumTxAck, &msg);
-					self.signing_loop(handle, &data[len..])
+					self.send_device_message(handle, &MessageType::MessageType_EthereumTxAck, &msg)?;
+					self.signing_loop(handle, chain_id, &data[len..])
 				} else {
 					let v = resp.get_signature_v();
 					let r = H256::from_slice(resp.get_signature_r());
 					let s = H256::from_slice(resp.get_signature_s());
-					Ok(Signature::from_rsv(&r, &s, v as u8))
+					if let Some(c_id) = *chain_id {
+						// If there is a chain_id supplied, Trezor will return a v
+						// part of the signature that is already adjusted for EIP-155,
+						// so v' = v + 2 * chain_id + 35, but code further down the
+						// pipeline will already do this transformation, so remove it here
+						Ok(Signature::from_rsv(&r, &s, (v - (35 + 2 * c_id as u32)) as u8))
+					} else {
+						// If there isn't a chain_id, v will be returned as v + 27
+						Ok(Signature::from_rsv(&r, &s, (v - 27) as u8))
+					}
 				}
 			}
 			MessageType::MessageType_Failure => {
 				let mut resp: Failure = protobuf::core::parse_from_bytes(&bytes)?;
-				println!("Failed msg: {:?}", resp.get_message());
-
 				Err(Error::Protocol("Last message sent failed"))
 			}
 			_ => Err(Error::Protocol("Unexpected response from Trezor device."))
