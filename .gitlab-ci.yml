@@ -441,6 +441,20 @@ linux-aarch64:
     - target/aarch64-unknown-linux-gnu/release/parity
     name: "aarch64-unknown-linux-gnu_parity"
   allow_failure: true
+linux-alpine:
+  stage: build
+  image: parity/rust-alpine:gitlab-ci
+  before_script:
+    - git submodule update --init --recursive
+  script:
+    - cargo build -j 4 --features final --release
+  tags:
+    - rust
+    - rust-alpine
+  artifacts:
+    paths:
+    - target/release/parity
+    name: "x86_64-alpine-linux-musl"
 darwin:
   stage: build
   only:
