@@ -25,6 +25,7 @@
 use super::WalletInfo;
 use bigint::hash::{H256, H160};
 use ethkey::{Address, Signature};
+use util::{U256};
 use rlp;
 
 use hidapi;
@@ -264,7 +265,6 @@ impl Manager {
 	pub fn sign_transaction(&self, address: &Address, t_info: &TransactionInfo) -> Result<Signature, Error> {
 		let device = self.devices.iter().find(|d| &d.info.address == address)
 			.ok_or(Error::KeyNotFound)?;
-		println!("T info: {:?}", t_info);
 		let usb = self.usb.lock();
 		let mut handle = self.open_path(|| usb.open_path(&device.path))?;
 		let msg_type = MessageType::MessageType_EthereumSignTx;
@@ -273,14 +273,10 @@ impl Manager {
 			KeyPath::Ethereum => message.set_address_n(ETH_DERIVATION_PATH.to_vec()),
 			KeyPath::EthereumClassic => message.set_address_n(ETC_DERIVATION_PATH.to_vec()),
 		}
-		// This encoding is completely undocumented, documentation says it
-		// should just be a big-endian unsigned integer, but it's actually an
-		// RLP encoded integer _without_ the initial length byte. This was found
-		// by trial-and-error and inspecting their sample python code.
-		message.set_nonce(rlp::encode(&t_info.nonce)[1..].to_vec());
-		message.set_gas_limit(rlp::encode(&t_info.gas_limit)[1..].to_vec());
-		message.set_gas_price(rlp::encode(&t_info.gas_price)[1..].to_vec());
-		message.set_value(rlp::encode(&t_info.value)[1..].to_vec());
+		message.set_nonce(self.u256_to_be_vec(&t_info.nonce));
+		message.set_gas_limit(self.u256_to_be_vec(&t_info.gas_limit));
+		message.set_gas_price(self.u256_to_be_vec(&t_info.gas_price));
+		message.set_value(self.u256_to_be_vec(&t_info.value));
 
 		match t_info.to {
 			Some(addr) => {
@@ -290,7 +286,6 @@ impl Manager {
 		}
 		let first_chunk_length = min(t_info.data.len(), 1024);
 		let chunk = &t_info.data[0..first_chunk_length];
-		println!("Chunk: {:?}", chunk);
 		message.set_data_initial_chunk(chunk.to_vec());
 		message.set_data_length(t_info.data.len() as u32);
 		if let Some(n_id) = t_info.network_id {
@@ -301,6 +296,12 @@ impl Manager {
 
 		let sig = self.signing_loop(&handle, &t_info.network_id, &t_info.data[first_chunk_length..])?;
 		Ok(sig)
+	}
+
+	fn u256_to_be_vec(&self, val: &U256) -> Vec<u8> {
+		let mut buf = [0u8; 32];
+		val.to_big_endian(&mut buf);
+		buf.iter().skip_while(|x| **x == 0).cloned().collect()
 	}
 
 	fn signing_loop(&self, handle: &hidapi::HidDevice, chain_id: &Option<u64>, data: &[u8]) -> Result<Signature, Error> {
@@ -403,10 +404,11 @@ fn debug() {
 	manager.update_devices().unwrap();
 
 	let t_info = TransactionInfo {
-		nonce: U256::zero(),
+		nonce: U256::from(1),
 		gas_price: U256::from(100),
 		gas_limit: U256::from(21_000),
 		to: Some(H160::from("00b1d5c8e02a18f5d5ddb83b6d17db757706148c")),
+		network_id: Some(17),
 		value: U256::from(1_000_000),
 		data: (&[1u8;3000]).to_vec(),
 	};
