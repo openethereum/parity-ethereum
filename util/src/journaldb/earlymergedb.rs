@@ -18,6 +18,7 @@
 
 use std::fmt;
 use std::collections::HashMap;
+use std::collections::hash_map::Entry;
 use std::sync::Arc;
 use parking_lot::RwLock;
 use heapsize::HeapSizeOf;
@@ -159,33 +160,38 @@ impl EarlyMergeDB {
 
 	fn insert_keys(inserts: &[(H256, DBValue)], backing: &KeyValueDB, col: Option<u32>, refs: &mut HashMap<H256, RefInfo>, batch: &mut DBTransaction, trace: bool) {
 		for &(ref h, ref d) in inserts {
-			if let Some(c) = refs.get_mut(h) {
-				// already counting. increment.
-				c.queue_refs += 1;
-				if trace {
-					trace!(target: "jdb.fine", "    insert({}): In queue: Incrementing refs to {}", h, c.queue_refs);
-				}
-				continue;
-			}
-
-			// this is the first entry for this node in the journal.
-			if backing.get(col, h).expect("Low-level database error. Some issue with your hard disk?").is_some() {
-				// already in the backing DB. start counting, and remember it was already in.
-				Self::set_already_in(batch, col, h);
-				refs.insert(h.clone(), RefInfo{queue_refs: 1, in_archive: true});
-				if trace {
-					trace!(target: "jdb.fine", "    insert({}): New to queue, in DB: Recording and inserting into queue", h);
-				}
-				continue;
-			}
-
-			// Gets removed when a key leaves the journal, so should never be set when we're placing a new key.
-			//Self::reset_already_in(&h);
-			assert!(!Self::is_already_in(backing, col, &h));
-			batch.put(col, h, d);
-			refs.insert(h.clone(), RefInfo{queue_refs: 1, in_archive: false});
-			if trace {
-				trace!(target: "jdb.fine", "    insert({}): New to queue, not in DB: Inserting into queue and DB", h);
+			match refs.entry(*h) {
+				Entry::Occupied(mut entry) => {
+					let info = entry.get_mut();
+					// already counting. increment.
+					info.queue_refs += 1;
+					if trace {
+						trace!(target: "jdb.fine", "    insert({}): In queue: Incrementing refs to {}", h, info.queue_refs);
+					}
+				},
+				Entry::Vacant(entry) => {
+					// this is the first entry for this node in the journal.
+					let in_archive = backing.get(col, h).expect("Low-level database error. Some issue with your hard disk?").is_some();
+					if in_archive {
+						// already in the backing DB. start counting, and remember it was already in.
+						Self::set_already_in(batch, col, h);
+						if trace {
+							trace!(target: "jdb.fine", "    insert({}): New to queue, in DB: Recording and inserting into queue", h);
+						}
+					} else {
+						// Gets removed when a key leaves the journal, so should never be set when we're placing a new key.
+						//Self::reset_already_in(&h);
+						assert!(!Self::is_already_in(backing, col, h));
+						if trace {
+							trace!(target: "jdb.fine", "    insert({}): New to queue, not in DB: Inserting into queue and DB", h);
+						}
+						batch.put(col, h, d);
+					}
+					entry.insert(RefInfo {
+						queue_refs: 1,
+						in_archive: in_archive,
+					});
+				},
 			}
 		}
 	}
@@ -193,15 +199,20 @@ impl EarlyMergeDB {
 	fn replay_keys(inserts: &[H256], backing: &KeyValueDB, col: Option<u32>, refs: &mut HashMap<H256, RefInfo>) {
 		trace!(target: "jdb.fine", "replay_keys: inserts={:?}, refs={:?}", inserts, refs);
 		for h in inserts {
-			if let Some(c) = refs.get_mut(h) {
+			match refs.entry(*h) {
 				// already counting. increment.
-				c.queue_refs += 1;
-				continue;
+				Entry::Occupied(mut entry) => {
+					entry.get_mut().queue_refs += 1;
+				},
+				// this is the first entry for this node in the journal.
+				// it is initialised to 1 if it was already in.
+				Entry::Vacant(entry) => {
+					entry.insert(RefInfo {
+						queue_refs: 1,
+						in_archive: Self::is_already_in(backing, col, h),
+					});
+				},
 			}
-
-			// this is the first entry for this node in the journal.
-			// it is initialised to 1 if it was already in.
-			refs.insert(h.clone(), RefInfo{queue_refs: 1, in_archive: Self::is_already_in(backing, col, h)});
 		}
 		trace!(target: "jdb.fine", "replay_keys: (end) refs={:?}", refs);
 	}
@@ -213,50 +224,54 @@ impl EarlyMergeDB {
 		// (the latter option would then mean removing the RefInfo, since it would no longer be counted in the queue.)
 		// both are valid, but we switch between them depending on context.
 		//     All inserts in queue (i.e. those which may yet be reverted) have an entry in refs.
-		for h in deletes.iter() {
-			let mut n: Option<RefInfo> = None;
-			if let Some(c) = refs.get_mut(h) {
-				if c.in_archive && from == RemoveFrom::Archive {
-					c.in_archive = false;
-					Self::reset_already_in(batch, col, h);
-					if trace {
-						trace!(target: "jdb.fine", "    remove({}): In archive, 1 in queue: Reducing to queue only and recording", h);
+		for h in deletes {
+			match refs.entry(*h) {
+				Entry::Occupied(mut entry) => {
+					if entry.get().in_archive && from == RemoveFrom::Archive {
+						entry.get_mut().in_archive = false;
+						Self::reset_already_in(batch, col, h);
+						if trace {
+							trace!(target: "jdb.fine", "    remove({}): In archive, 1 in queue: Reducing to queue only and recording", h);
+						}
+						continue;
 					}
-					continue;
-				} else if c.queue_refs > 1 {
-					c.queue_refs -= 1;
-					if trace {
-						trace!(target: "jdb.fine", "    remove({}): In queue > 1 refs: Decrementing ref count to {}", h, c.queue_refs);
+					if entry.get().queue_refs > 1 {
+						entry.get_mut().queue_refs -= 1;
+						if trace {
+							trace!(target: "jdb.fine", "    remove({}): In queue > 1 refs: Decrementing ref count to {}", h, entry.get().queue_refs);
+						}
+						continue;
 					}
-					continue;
-				} else {
-					n = Some(c.clone());
-				}
-			}
-			match n {
-				Some(RefInfo{queue_refs: 1, in_archive: true}) => {
-					refs.remove(h);
-					Self::reset_already_in(batch, col, h);
-					if trace {
-						trace!(target: "jdb.fine", "    remove({}): In archive, 1 in queue: Removing from queue and leaving in archive", h);
+
+					let queue_refs = entry.get().queue_refs;
+					let in_archive = entry.get().in_archive;
+
+					match (queue_refs, in_archive) {
+						(1, true) => {
+							entry.remove();
+							Self::reset_already_in(batch, col, h);
+							if trace {
+								trace!(target: "jdb.fine", "    remove({}): In archive, 1 in queue: Removing from queue and leaving in archive", h);
+							}
+						},
+						(1, false) => {
+							entry.remove();
+							batch.delete(col, h);
+							if trace {
+								trace!(target: "jdb.fine", "    remove({}): Not in archive, only 1 ref in queue: Removing from queue and DB", h);
+							}
+						},
+						_ => panic!("Invalid value in refs: {:?}", entry.get()),
 					}
-				}
-				Some(RefInfo{queue_refs: 1, in_archive: false}) => {
-					refs.remove(h);
-					batch.delete(col, h);
-					if trace {
-						trace!(target: "jdb.fine", "    remove({}): Not in archive, only 1 ref in queue: Removing from queue and DB", h);
-					}
-				}
-				None => {
+				},
+				Entry::Vacant(_entry) => {
 					// Gets removed when moving from 1 to 0 additional refs. Should never be here at 0 additional refs.
 					//assert!(!Self::is_already_in(db, &h));
 					batch.delete(col, h);
 					if trace {
 						trace!(target: "jdb.fine", "    remove({}): Not in queue - MUST BE IN ARCHIVE: Removing from DB", h);
 					}
-				}
-				_ => panic!("Invalid value in refs: {:?}", n),
+				},
 			}
 		}
 	}
