@@ -367,42 +367,63 @@ impl<'a> TrieDBMut<'a> {
 	}
 
 	// walk the trie, attempting to find the key's node.
-	fn lookup<'x, 'key>(&'x self, partial: NibbleSlice<'key>, handle: &NodeHandle) -> super::Result<Option<DBValue>>
+	fn lookup<'x, 'key>(&'x self, mut partial: NibbleSlice<'key>, handle: &NodeHandle) -> super::Result<Option<DBValue>>
 		where 'x: 'key
 	{
-		match *handle {
-			NodeHandle::Hash(ref hash) => Lookup {
-				db: &*self.db,
-				query: DBValue::from_slice,
-				hash: hash.clone(),
-			}.look_up(partial),
-			NodeHandle::InMemory(ref handle) => match self.storage[handle] {
-				Node::Empty => Ok(None),
-				Node::Leaf(ref key, ref value) => {
-					if NibbleSlice::from_encoded(key).0 == partial {
-						Ok(Some(DBValue::from_slice(value)))
-					} else {
-						Ok(None)
-					}
-				}
-				Node::Extension(ref slice, ref child) => {
-					let slice = NibbleSlice::from_encoded(slice).0;
-					if partial.starts_with(&slice) {
-						self.lookup(partial.mid(slice.len()), child)
-					} else {
-						Ok(None)
-					}
-				}
-				Node::Branch(ref children, ref value) => {
-					if partial.is_empty() {
-						Ok(value.as_ref().map(|v| DBValue::from_slice(v)))
-					} else {
-						let idx = partial.at(0);
-						match children[idx as usize].as_ref() {
-							Some(child) => self.lookup(partial.mid(1), child),
-							None => Ok(None),
+		enum Step<'s> {
+			Return(Option<DBValue>),
+			Lookup(usize, &'s NodeHandle),
+		}
+
+		let mut handle = handle;
+		loop {
+			let step = {
+				match *handle {
+					NodeHandle::Hash(ref hash) => {
+						let lookup = Lookup {
+							db: &*self.db,
+							query: DBValue::from_slice,
+							hash: hash.clone(),
+						}.look_up(partial)?;
+						Step::Return(lookup)
+					},
+					NodeHandle::InMemory(ref handle) => match self.storage[handle] {
+						Node::Empty => Step::Return(None),
+						Node::Leaf(ref key, ref value) => {
+							if NibbleSlice::from_encoded(key).0 == partial {
+								Step::Return(Some(DBValue::from_slice(value)))
+							} else {
+								Step::Return(None)
+							}
+						}
+						Node::Extension(ref slice, ref child) => {
+							let slice = NibbleSlice::from_encoded(slice).0;
+							if partial.starts_with(&slice) {
+								Step::Lookup(slice.len(), child)
+							} else {
+								Step::Return(None)
+							}
+						}
+						Node::Branch(ref children, ref value) => {
+							if partial.is_empty() {
+								Step::Return(value.as_ref().map(|v| DBValue::from_slice(v)))
+							} else {
+								let idx = partial.at(0);
+								match children[idx as usize].as_ref() {
+									Some(child) => Step::Lookup(1, child),
+									None => Step::Return(None),
+								}
+							}
 						}
 					}
+				}
+			};
+
+			match step {
+				Step::Return(r) => return Ok(r),
+				Step::Lookup(mid, child) => {
+					partial = partial.mid(mid);
+					handle = child;
 				}
 			}
 		}
