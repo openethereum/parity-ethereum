@@ -41,6 +41,9 @@ parity-ui = { path = "./ui" }
 
 clippy = { version = "0.0.103", optional = true}
 
+[dev-dependencies]
+tempdir = "0.3.5"
+
 [features]
 dev = ["clippy", "ethcore-util/dev"]
 

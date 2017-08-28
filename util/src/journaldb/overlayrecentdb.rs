@@ -454,6 +454,7 @@ mod tests {
 	#![cfg_attr(feature="dev", allow(blacklisted_name))]
 	#![cfg_attr(feature="dev", allow(similar_names))]
 
+	extern crate tempdir;
 	use std::path::Path;
 	use super::*;
 	use hashdb::{HashDB, DBValue};
@@ -461,6 +462,7 @@ mod tests {
 	use journaldb::JournalDB;
 	use kvdb::Database;
 	use {H32, Hashable};
+	use self::tempdir::TempDir;
 
 	fn new_db(path: &Path) -> OverlayRecentDB {
 		let backing = Arc::new(Database::open_default(path.to_str().unwrap()).unwrap());
@@ -705,8 +707,8 @@ mod tests {
 
 	#[test]
 	fn reopen() {
-		let mut dir = ::std::env::temp_dir();
-		dir.push(H32::random().hex());
+		let temp_path = TempDir::new("").unwrap();
+		let dir = temp_path.path().join(H32::random().hex());
 		let bar = H256::random();
 
 		let foo = {
@@ -873,8 +875,8 @@ mod tests {
 	fn reopen_remove_three() {
 		init_log();
 
-		let mut dir = ::std::env::temp_dir();
-		dir.push(H32::random().hex());
+		let temp_path = TempDir::new("").unwrap();
+		let dir = temp_path.path().join(H32::random().hex());
 
 		let foo = b"foo".sha3();
 
@@ -928,8 +930,8 @@ mod tests {
 
 	#[test]
 	fn reopen_fork() {
-		let mut dir = ::std::env::temp_dir();
-		dir.push(H32::random().hex());
+		let temp_path = TempDir::new("").unwrap();
+		let dir = temp_path.path().join(H32::random().hex());
 		let (foo, bar, baz) = {
 			let mut jdb = new_db(&dir);
 			// history is 1

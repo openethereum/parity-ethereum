@@ -282,7 +282,7 @@ impl KeyFileManager for DiskKeyFileManager {
 mod test {
 	extern crate tempdir;
 
-	use std::{env, fs};
+	use std::fs;
 	use super::RootDiskDirectory;
 	use dir::{KeyDirectory, VaultKey};
 	use account::SafeAccount;
@@ -292,8 +292,8 @@ mod test {
 	#[test]
 	fn should_create_new_account() {
 		// given
-		let mut dir = env::temp_dir();
-		dir.push("ethstore_should_create_new_account");
+		let temp_path = TempDir::new("").unwrap();
+		let dir = temp_path.path().join("ethstore_should_create_new_account");
 		let keypair = Random.generate().unwrap();
 		let password = "hello world";
 		let directory = RootDiskDirectory::create(dir.clone()).unwrap();
@@ -313,8 +313,8 @@ mod test {
 	#[test]
 	fn should_manage_vaults() {
 		// given
-		let mut dir = env::temp_dir();
-		dir.push("should_create_new_vault");
+		let temp_path = TempDir::new("").unwrap();
+		let dir = temp_path.path().join("should_create_new_vault");
 		let directory = RootDiskDirectory::create(dir.clone()).unwrap();
 		let vault_name = "vault";
 		let password = "password";

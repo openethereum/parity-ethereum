@@ -560,6 +560,7 @@ impl Header {
 
 #[cfg(test)]
 mod tests {
+	extern crate tempdir;
 	use std::str::FromStr;
 	use std::collections::BTreeMap;
 	use std::sync::Arc;
@@ -573,9 +574,10 @@ mod tests {
 	use super::super::{new_morden, new_homestead_test};
 	use super::{Ethash, EthashParams, PARITY_GAS_LIMIT_DETERMINANT, ecip1017_eras_block_reward};
 	use rlp;
+	use self::tempdir::TempDir;
 
 	fn test_spec() -> Spec {
-		new_morden(&::std::env::temp_dir())
+		new_morden(&TempDir::new("").unwrap().path())
 	}
 
 	#[test]
@@ -779,7 +781,7 @@ mod tests {
 	fn difficulty_frontier() {
 		let spec = new_homestead_test();
 		let ethparams = get_default_ethash_params();
-		let ethash = Ethash::new(&::std::env::temp_dir(), spec.params().clone(), ethparams, BTreeMap::new());
+		let ethash = Ethash::new(&TempDir::new("").unwrap().path(), spec.params().clone(), ethparams, BTreeMap::new());
 
 		let mut parent_header = Header::default();
 		parent_header.set_number(1000000);
@@ -797,7 +799,7 @@ mod tests {
 	fn difficulty_homestead() {
 		let spec = new_homestead_test();
 		let ethparams = get_default_ethash_params();
-		let ethash = Ethash::new(&::std::env::temp_dir(), spec.params().clone(), ethparams, BTreeMap::new());
+		let ethash = Ethash::new(&TempDir::new("").unwrap().path(), spec.params().clone(), ethparams, BTreeMap::new());
 
 		let mut parent_header = Header::default();
 		parent_header.set_number(1500000);
@@ -850,7 +852,7 @@ mod tests {
 			ecip1010_pause_transition: 3000000,
 			..get_default_ethash_params()
 		};
-		let ethash = Ethash::new(&::std::env::temp_dir(), spec.params().clone(), ethparams, BTreeMap::new());
+		let ethash = Ethash::new(&TempDir::new("").unwrap().path(), spec.params().clone(), ethparams, BTreeMap::new());
 
 		let mut parent_header = Header::default();
 		parent_header.set_number(3500000);
@@ -884,7 +886,7 @@ mod tests {
 			ecip1010_continue_transition: 5000000,
 			..get_default_ethash_params()
 		};
-		let ethash = Ethash::new(&::std::env::temp_dir(), spec.params().clone(), ethparams, BTreeMap::new());
+		let ethash = Ethash::new(&TempDir::new("").unwrap().path(), spec.params().clone(), ethparams, BTreeMap::new());
 
 		let mut parent_header = Header::default();
 		parent_header.set_number(5000102);
@@ -930,7 +932,7 @@ mod tests {
 	fn gas_limit_is_multiple_of_determinant() {
 		let spec = new_homestead_test();
 		let ethparams = get_default_ethash_params();
-		let ethash = Ethash::new(&::std::env::temp_dir(), spec.params().clone(), ethparams, BTreeMap::new());
+		let ethash = Ethash::new(&TempDir::new("").unwrap().path(), spec.params().clone(), ethparams, BTreeMap::new());
 		let mut parent = Header::new();
 		let mut header = Header::new();
 		header.set_number(1);
@@ -974,7 +976,7 @@ mod tests {
 	fn difficulty_max_timestamp() {
 		let spec = new_homestead_test();
 		let ethparams = get_default_ethash_params();
-		let ethash = Ethash::new(&::std::env::temp_dir(), spec.params().clone(), ethparams, BTreeMap::new());
+		let ethash = Ethash::new(&TempDir::new("").unwrap().path(), spec.params().clone(), ethparams, BTreeMap::new());
 
 		let mut parent_header = Header::default();
 		parent_header.set_number(1000000);
@@ -1002,7 +1004,7 @@ mod tests {
 		header.set_number(parent_header.number() + 1);
 		header.set_gas_limit(100_001.into());
 		header.set_difficulty(ethparams.minimum_difficulty);
-		let ethash = Ethash::new(&::std::env::temp_dir(), spec.params().clone(), ethparams, BTreeMap::new());
+		let ethash = Ethash::new(&TempDir::new("").unwrap().path(), spec.params().clone(), ethparams, BTreeMap::new());
 		assert!(ethash.verify_block_family(&header, &parent_header, None).is_ok());
 
 		parent_header.set_number(9);
@@ -1057,7 +1059,7 @@ mod tests {
 			nonce: U256::zero(),
 		}.sign(keypair.secret(), None).into();
 
-		let ethash = Ethash::new(&::std::env::temp_dir(), spec.params().clone(), ethparams, BTreeMap::new());
+		let ethash = Ethash::new(&TempDir::new("").unwrap().path(), spec.params().clone(), ethparams, BTreeMap::new());
 		assert!(ethash.verify_transaction_basic(&tx1, &header).is_ok());
 		assert!(ethash.verify_transaction_basic(&tx2, &header).is_ok());
 

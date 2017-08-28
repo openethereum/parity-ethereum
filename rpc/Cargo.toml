@@ -22,6 +22,7 @@ serde = "1.0"
 serde_derive = "1.0"
 serde_json = "1.0"
 time = "0.1"
+tempdir = "0.3.5"
 tokio-timer = "0.1"
 transient-hashmap = "0.4"
 itertools = "0.5"
@@ -56,6 +57,8 @@ stats = { path = "../util/stats" }
 
 clippy = { version = "0.0.103", optional = true}
 pretty_assertions = "0.1"
+
+[dev-dependencies]
 
 [features]
 dev = ["clippy", "ethcore/dev", "ethcore-util/dev", "ethsync/dev"]

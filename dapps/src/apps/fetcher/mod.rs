@@ -259,13 +259,14 @@ impl<R: URLHint + 'static, F: Fetch> Fetcher for ContentFetcher<F, R> {
 
 #[cfg(test)]
 mod tests {
-	use std::env;
+	extern crate tempdir;
 	use std::sync::Arc;
 	use util::Bytes;
 	use fetch::{Fetch, Client};
 	use futures::{future, Future, BoxFuture};
 	use hash_fetch::urlhint::{URLHint, URLHintResult};
 	use parity_reactor::Remote;
+	use self::tempdir::TempDir;
 
 	use apps::cache::ContentStatus;
 	use endpoint::EndpointInfo;
@@ -290,7 +291,7 @@ mod tests {
 	#[test]
 	fn should_true_if_contains_the_app() {
 		// given
-		let path = env::temp_dir();
+		let path = TempDir::new("").unwrap().into_path();
 		let fetcher = ContentFetcher::new(FakeResolver, Arc::new(FakeSync(false)), Remote::new_sync(), Client::new().unwrap())
 			.allow_dapps(true);
 		let handler = LocalPageEndpoint::new(path, EndpointInfo {

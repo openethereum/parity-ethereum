@@ -92,15 +92,17 @@ pub fn new_metropolis_test() -> Spec { load(None, include_bytes!("../../res/ethe
 
 #[cfg(test)]
 mod tests {
+	extern crate tempdir;
 	use util::*;
 	use state::*;
 	use super::*;
 	use tests::helpers::*;
 	use views::BlockView;
+	use self::tempdir::TempDir;
 
 	#[test]
 	fn ensure_db_good() {
-		let spec = new_morden(&::std::env::temp_dir());
+		let spec = new_morden(&TempDir::new("").unwrap().path());
 		let engine = &spec.engine;
 		let genesis_header = spec.genesis_header();
 		let db = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
@@ -115,7 +117,7 @@ mod tests {
 
 	#[test]
 	fn morden() {
-		let morden = new_morden(&::std::env::temp_dir());
+		let morden = new_morden(&TempDir::new("").unwrap().path());
 
 		assert_eq!(morden.state_root(), "f3f4696bbf3b3b07775128eb7a3763279a394e382130f27c21e70233e04946a9".into());
 		let genesis = morden.genesis_block();
@@ -126,7 +128,7 @@ mod tests {
 
 	#[test]
 	fn frontier() {
-		let frontier = new_foundation(&::std::env::temp_dir());
+		let frontier = new_foundation(&TempDir::new("").unwrap().path());
 
 		assert_eq!(frontier.state_root(), "d7f8974fb5ac78d9ac099b9ad5018bedc2ce0a72dad1827a1709da30580f0544".into());
 		let genesis = frontier.genesis_block();

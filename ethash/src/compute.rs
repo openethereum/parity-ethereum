@@ -528,98 +528,112 @@ fn to_hex(bytes: &[u8]) -> String {
 	unsafe { String::from_utf8_unchecked(v) }
 }
 
-#[test]
-fn test_get_cache_size() {
-	// https://github.com/ethereum/wiki/wiki/Ethash/ef6b93f9596746a088ea95d01ca2778be43ae68f#data-sizes
-	assert_eq!(16776896usize, get_cache_size(0));
-	assert_eq!(16776896usize, get_cache_size(1));
-	assert_eq!(16776896usize, get_cache_size(ETHASH_EPOCH_LENGTH - 1));
-	assert_eq!(16907456usize, get_cache_size(ETHASH_EPOCH_LENGTH));
-	assert_eq!(16907456usize, get_cache_size(ETHASH_EPOCH_LENGTH + 1));
-	assert_eq!(284950208usize, get_cache_size(2046 * ETHASH_EPOCH_LENGTH));
-	assert_eq!(285081536usize, get_cache_size(2047 * ETHASH_EPOCH_LENGTH));
-	assert_eq!(285081536usize, get_cache_size(2048 * ETHASH_EPOCH_LENGTH - 1));
-}
+#[cfg(test)]
+mod test {
+	extern crate tempdir;
+	use super::get_cache_size;
+	use super::get_data_size;
+	use super::ETHASH_EPOCH_LENGTH;
+	use super::Light;
+	use super::light_compute;
+	use super::SeedHashCompute;
+	use super::quick_get_difficulty;
+	use std::fs;
+	use self::tempdir::TempDir;
 
-#[test]
-fn test_get_data_size() {
-	// https://github.com/ethereum/wiki/wiki/Ethash/ef6b93f9596746a088ea95d01ca2778be43ae68f#data-sizes
-	assert_eq!(1073739904usize, get_data_size(0));
-	assert_eq!(1073739904usize, get_data_size(1));
-	assert_eq!(1073739904usize, get_data_size(ETHASH_EPOCH_LENGTH - 1));
-	assert_eq!(1082130304usize, get_data_size(ETHASH_EPOCH_LENGTH));
-	assert_eq!(1082130304usize, get_data_size(ETHASH_EPOCH_LENGTH + 1));
-	assert_eq!(18236833408usize, get_data_size(2046 * ETHASH_EPOCH_LENGTH));
-	assert_eq!(18245220736usize, get_data_size(2047 * ETHASH_EPOCH_LENGTH));
-}
+	#[test]
+	fn test_get_cache_size() {
+		// https://github.com/ethereum/wiki/wiki/Ethash/ef6b93f9596746a088ea95d01ca2778be43ae68f#data-sizes
+		assert_eq!(16776896usize, get_cache_size(0));
+			assert_eq!(16776896usize, get_cache_size(1));
+		assert_eq!(16776896usize, get_cache_size(ETHASH_EPOCH_LENGTH - 1));
+		assert_eq!(16907456usize, get_cache_size(ETHASH_EPOCH_LENGTH));
+		assert_eq!(16907456usize, get_cache_size(ETHASH_EPOCH_LENGTH + 1));
+		assert_eq!(284950208usize, get_cache_size(2046 * ETHASH_EPOCH_LENGTH));
+		assert_eq!(285081536usize, get_cache_size(2047 * ETHASH_EPOCH_LENGTH));
+		assert_eq!(285081536usize, get_cache_size(2048 * ETHASH_EPOCH_LENGTH - 1));
+	}
 
-#[test]
-fn test_difficulty_test() {
-	let hash = [0xf5, 0x7e, 0x6f, 0x3a, 0xcf, 0xc0, 0xdd, 0x4b, 0x5b, 0xf2, 0xbe, 0xe4, 0x0a, 0xb3, 0x35, 0x8a, 0xa6, 0x87, 0x73, 0xa8, 0xd0, 0x9f, 0x5e, 0x59, 0x5e, 0xab, 0x55, 0x94, 0x05, 0x52, 0x7d, 0x72];
-	let mix_hash = [0x1f, 0xff, 0x04, 0xce, 0xc9, 0x41, 0x73, 0xfd, 0x59, 0x1e, 0x3d, 0x89, 0x60, 0xce, 0x6b, 0xdf, 0x8b, 0x19, 0x71, 0x04, 0x8c, 0x71, 0xff, 0x93, 0x7b, 0xb2, 0xd3, 0x2a, 0x64, 0x31, 0xab, 0x6d];
-	let nonce = 0xd7b3ac70a301a249;
-	let boundary_good = [0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x3e, 0x9b, 0x6c, 0x69, 0xbc, 0x2c, 0xe2, 0xa2, 0x4a, 0x8e, 0x95, 0x69, 0xef, 0xc7, 0xd7, 0x1b, 0x33, 0x35, 0xdf, 0x36, 0x8c, 0x9a, 0xe9, 0x7e, 0x53, 0x84];
-	assert_eq!(quick_get_difficulty(&hash, nonce, &mix_hash)[..], boundary_good[..]);
-	let boundary_bad = [0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x3a, 0x9b, 0x6c, 0x69, 0xbc, 0x2c, 0xe2, 0xa2, 0x4a, 0x8e, 0x95, 0x69, 0xef, 0xc7, 0xd7, 0x1b, 0x33, 0x35, 0xdf, 0x36, 0x8c, 0x9a, 0xe9, 0x7e, 0x53, 0x84];
-	assert!(quick_get_difficulty(&hash, nonce, &mix_hash)[..] != boundary_bad[..]);
-}
+	#[test]
+	fn test_get_data_size() {
+		// https://github.com/ethereum/wiki/wiki/Ethash/ef6b93f9596746a088ea95d01ca2778be43ae68f#data-sizes
+		assert_eq!(1073739904usize, get_data_size(0));
+		assert_eq!(1073739904usize, get_data_size(1));
+		assert_eq!(1073739904usize, get_data_size(ETHASH_EPOCH_LENGTH - 1));
+		assert_eq!(1082130304usize, get_data_size(ETHASH_EPOCH_LENGTH));
+		assert_eq!(1082130304usize, get_data_size(ETHASH_EPOCH_LENGTH + 1));
+		assert_eq!(18236833408usize, get_data_size(2046 * ETHASH_EPOCH_LENGTH));
+		assert_eq!(18245220736usize, get_data_size(2047 * ETHASH_EPOCH_LENGTH));
+	}
 
-#[test]
-fn test_light_compute() {
-	let hash = [0xf5, 0x7e, 0x6f, 0x3a, 0xcf, 0xc0, 0xdd, 0x4b, 0x5b, 0xf2, 0xbe, 0xe4, 0x0a, 0xb3, 0x35, 0x8a, 0xa6, 0x87, 0x73, 0xa8, 0xd0, 0x9f, 0x5e, 0x59, 0x5e, 0xab, 0x55, 0x94, 0x05, 0x52, 0x7d, 0x72];
-	let mix_hash = [0x1f, 0xff, 0x04, 0xce, 0xc9, 0x41, 0x73, 0xfd, 0x59, 0x1e, 0x3d, 0x89, 0x60, 0xce, 0x6b, 0xdf, 0x8b, 0x19, 0x71, 0x04, 0x8c, 0x71, 0xff, 0x93, 0x7b, 0xb2, 0xd3, 0x2a, 0x64, 0x31, 0xab, 0x6d];
-	let boundary = [0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x3e, 0x9b, 0x6c, 0x69, 0xbc, 0x2c, 0xe2, 0xa2, 0x4a, 0x8e, 0x95, 0x69, 0xef, 0xc7, 0xd7, 0x1b, 0x33, 0x35, 0xdf, 0x36, 0x8c, 0x9a, 0xe9, 0x7e, 0x53, 0x84];
-	let nonce = 0xd7b3ac70a301a249;
-	// difficulty = 0x085657254bd9u64;
-	let light = Light::new(&::std::env::temp_dir(), 486382);
-	let result = light_compute(&light, &hash, nonce);
-	assert_eq!(result.mix_hash[..], mix_hash[..]);
-	assert_eq!(result.value[..], boundary[..]);
-}
+	#[test]
+	fn test_difficulty_test() {
+		let hash = [0xf5, 0x7e, 0x6f, 0x3a, 0xcf, 0xc0, 0xdd, 0x4b, 0x5b, 0xf2, 0xbe, 0xe4, 0x0a, 0xb3, 0x35, 0x8a, 0xa6, 0x87, 0x73, 0xa8, 0xd0, 0x9f, 0x5e, 0x59, 0x5e, 0xab, 0x55, 0x94, 0x05, 0x52, 0x7d, 0x72];
+		let mix_hash = [0x1f, 0xff, 0x04, 0xce, 0xc9, 0x41, 0x73, 0xfd, 0x59, 0x1e, 0x3d, 0x89, 0x60, 0xce, 0x6b, 0xdf, 0x8b, 0x19, 0x71, 0x04, 0x8c, 0x71, 0xff, 0x93, 0x7b, 0xb2, 0xd3, 0x2a, 0x64, 0x31, 0xab, 0x6d];
+		let nonce = 0xd7b3ac70a301a249;
+		let boundary_good = [0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x3e, 0x9b, 0x6c, 0x69, 0xbc, 0x2c, 0xe2, 0xa2, 0x4a, 0x8e, 0x95, 0x69, 0xef, 0xc7, 0xd7, 0x1b, 0x33, 0x35, 0xdf, 0x36, 0x8c, 0x9a, 0xe9, 0x7e, 0x53, 0x84];
+		assert_eq!(quick_get_difficulty(&hash, nonce, &mix_hash)[..], boundary_good[..]);
+		let boundary_bad = [0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x3a, 0x9b, 0x6c, 0x69, 0xbc, 0x2c, 0xe2, 0xa2, 0x4a, 0x8e, 0x95, 0x69, 0xef, 0xc7, 0xd7, 0x1b, 0x33, 0x35, 0xdf, 0x36, 0x8c, 0x9a, 0xe9, 0x7e, 0x53, 0x84];
+		assert!(quick_get_difficulty(&hash, nonce, &mix_hash)[..] != boundary_bad[..]);
+	}
 
-#[test]
-fn test_seed_compute_once() {
-	let seed_compute = SeedHashCompute::new();
-	let hash = [241, 175, 44, 134, 39, 121, 245, 239, 228, 236, 43, 160, 195, 152, 46, 7, 199, 5, 253, 147, 241, 206, 98, 43, 3, 104, 17, 40, 192, 79, 106, 162];
-	assert_eq!(seed_compute.get_seedhash(486382), hash);
-}
+	#[test]
+	fn test_light_compute() {
+		let hash = [0xf5, 0x7e, 0x6f, 0x3a, 0xcf, 0xc0, 0xdd, 0x4b, 0x5b, 0xf2, 0xbe, 0xe4, 0x0a, 0xb3, 0x35, 0x8a, 0xa6, 0x87, 0x73, 0xa8, 0xd0, 0x9f, 0x5e, 0x59, 0x5e, 0xab, 0x55, 0x94, 0x05, 0x52, 0x7d, 0x72];
+		let mix_hash = [0x1f, 0xff, 0x04, 0xce, 0xc9, 0x41, 0x73, 0xfd, 0x59, 0x1e, 0x3d, 0x89, 0x60, 0xce, 0x6b, 0xdf, 0x8b, 0x19, 0x71, 0x04, 0x8c, 0x71, 0xff, 0x93, 0x7b, 0xb2, 0xd3, 0x2a, 0x64, 0x31, 0xab, 0x6d];
+		let boundary = [0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x3e, 0x9b, 0x6c, 0x69, 0xbc, 0x2c, 0xe2, 0xa2, 0x4a, 0x8e, 0x95, 0x69, 0xef, 0xc7, 0xd7, 0x1b, 0x33, 0x35, 0xdf, 0x36, 0x8c, 0x9a, 0xe9, 0x7e, 0x53, 0x84];
+		let nonce = 0xd7b3ac70a301a249;
+		// difficulty = 0x085657254bd9u64;
+		let light = Light::new(TempDir::new("").unwrap(), 486382);
+		let result = light_compute(&light, &hash, nonce);
+		assert_eq!(result.mix_hash[..], mix_hash[..]);
+		assert_eq!(result.value[..], boundary[..]);
+	}
 
-#[test]
-fn test_seed_compute_zero() {
-	let seed_compute = SeedHashCompute::new();
-	assert_eq!(seed_compute.get_seedhash(0), [0u8; 32]);
-}
+	#[test]
+	fn test_seed_compute_once() {
+		let seed_compute = SeedHashCompute::new();
+		let hash = [241, 175, 44, 134, 39, 121, 245, 239, 228, 236, 43, 160, 195, 152, 46, 7, 199, 5, 253, 147, 241, 206, 98, 43, 3, 104, 17, 40, 192, 79, 106, 162];
+		assert_eq!(seed_compute.get_seedhash(486382), hash);
+	}
 
-#[test]
-fn test_seed_compute_after_older() {
-	let seed_compute = SeedHashCompute::new();
-	// calculating an older value first shouldn't affect the result
-	let _ = seed_compute.get_seedhash(50000);
-	let hash = [241, 175, 44, 134, 39, 121, 245, 239, 228, 236, 43, 160, 195, 152, 46, 7, 199, 5, 253, 147, 241, 206, 98, 43, 3, 104, 17, 40, 192, 79, 106, 162];
-	assert_eq!(seed_compute.get_seedhash(486382), hash);
-}
+	#[test]
+	fn test_seed_compute_zero() {
+		let seed_compute = SeedHashCompute::new();
+		assert_eq!(seed_compute.get_seedhash(0), [0u8; 32]);
+	}
 
-#[test]
-fn test_seed_compute_after_newer() {
-	let seed_compute = SeedHashCompute::new();
-	// calculating an newer value first shouldn't affect the result
-	let _ = seed_compute.get_seedhash(972764);
-	let hash = [241, 175, 44, 134, 39, 121, 245, 239, 228, 236, 43, 160, 195, 152, 46, 7, 199, 5, 253, 147, 241, 206, 98, 43, 3, 104, 17, 40, 192, 79, 106, 162];
-	assert_eq!(seed_compute.get_seedhash(486382), hash);
-}
+	#[test]
+	fn test_seed_compute_after_older() {
+		let seed_compute = SeedHashCompute::new();
+		// calculating an older value first shouldn't affect the result
+		let _ = seed_compute.get_seedhash(50000);
+		let hash = [241, 175, 44, 134, 39, 121, 245, 239, 228, 236, 43, 160, 195, 152, 46, 7, 199, 5, 253, 147, 241, 206, 98, 43, 3, 104, 17, 40, 192, 79, 106, 162];
+		assert_eq!(seed_compute.get_seedhash(486382), hash);
+	}
 
-#[test]
-fn test_drop_old_data() {
-	let path = ::std::env::temp_dir();
-	let first = Light::new(&path, 0).to_file().unwrap();
+	#[test]
+	fn test_seed_compute_after_newer() {
+		let seed_compute = SeedHashCompute::new();
+		// calculating an newer value first shouldn't affect the result
+		let _ = seed_compute.get_seedhash(972764);
+		let hash = [241, 175, 44, 134, 39, 121, 245, 239, 228, 236, 43, 160, 195, 152, 46, 7, 199, 5, 253, 147, 241, 206, 98, 43, 3, 104, 17, 40, 192, 79, 106, 162];
+		assert_eq!(seed_compute.get_seedhash(486382), hash);
+	}
 
-	let second = Light::new(&path, ETHASH_EPOCH_LENGTH).to_file().unwrap();
-	assert!(fs::metadata(&first).is_ok());
+	#[test]
+	fn test_drop_old_data() {
+		let path = TempDir::new("").unwrap();
+		let first = Light::new(&path, 0).to_file().unwrap();
 
-	let _ = Light::new(&path, ETHASH_EPOCH_LENGTH * 2).to_file();
-	assert!(fs::metadata(&first).is_err());
-	assert!(fs::metadata(&second).is_ok());
+		let second = Light::new(&path, ETHASH_EPOCH_LENGTH).to_file().unwrap();
+		assert!(fs::metadata(&first).is_ok());
 
-	let _ = Light::new(&path, ETHASH_EPOCH_LENGTH * 3).to_file();
-	assert!(fs::metadata(&second).is_err());
+		let _ = Light::new(&path, ETHASH_EPOCH_LENGTH * 2).to_file();
+		assert!(fs::metadata(&first).is_err());
+		assert!(fs::metadata(&second).is_ok());
+
+		let _ = Light::new(&path, ETHASH_EPOCH_LENGTH * 3).to_file();
+		assert!(fs::metadata(&second).is_err());
+	}
 }
