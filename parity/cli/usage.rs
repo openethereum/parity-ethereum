@@ -363,43 +363,37 @@ macro_rules! usage {
 
 						$(
 							subc_subc_exist = true;
-							let subc_subc_flag_usages : Vec<String> = vec![
+							let subc_subc_usages : Vec<&str> = vec![
 								$(
-									format!("[{}]",$subc_subc_flag_usage),
+									concat!("[",$subc_subc_flag_usage,"]"),
 								)*
-							];
-
-							let subc_subc_arg_usages : Vec<&str> = vec![
 								$(
 									$subc_subc_arg_usage,
 								)*
 							];
 
-							if subc_subc_flag_usages.is_empty() && subc_subc_arg_usages.is_empty() {
+							if subc_subc_usages.is_empty() {
 								help.push_str(&format!("parity [options] {} {}\n", underscore_to_hyphen!(&stringify!($subc)[4..]), underscore_to_hyphen!(&stringify!($subc_subc)[stringify!($subc).len()+1..])));
 							} else {
-								help.push_str(&format!("parity [options] {} {} {} {}\n", underscore_to_hyphen!(&stringify!($subc)[4..]), underscore_to_hyphen!(&stringify!($subc_subc)[stringify!($subc).len()+1..]), subc_subc_flag_usages.join(" "), subc_subc_arg_usages.join(" ")));
+								help.push_str(&format!("parity [options] {} {} {}\n", underscore_to_hyphen!(&stringify!($subc)[4..]), underscore_to_hyphen!(&stringify!($subc_subc)[stringify!($subc).len()+1..]), subc_subc_usages.join(" ")));
 							}
 						)*
 
 						// Print the subcommand on its own only if it has no subsubcommands
 						if !subc_subc_exist {
-							let subc_flag_usages : Vec<String> = vec![
+							let subc_usages : Vec<&str> = vec![
 								$(
-									format!("[{}]",$subc_flag_usage),
+									concat!("[",$subc_flag_usage,"]"),
 								)*
-							];
-
-							let subc_arg_usages : Vec<&str> = vec![
 								$(
 									$subc_arg_usage,
 								)*
 							];
 
-							if subc_flag_usages.is_empty() && subc_arg_usages.is_empty() {
+							if subc_usages.is_empty() {
 								help.push_str(&format!("parity [options] {}\n", underscore_to_hyphen!(&stringify!($subc)[4..])));
 							} else {
-								help.push_str(&format!("parity [options] {} {} {}\n", underscore_to_hyphen!(&stringify!($subc)[4..]), subc_flag_usages.join(" "), subc_arg_usages.join(" ")));
+								help.push_str(&format!("parity [options] {} {}\n", underscore_to_hyphen!(&stringify!($subc)[4..]), subc_usages.join(" ")));
 							}
 						}
 					}

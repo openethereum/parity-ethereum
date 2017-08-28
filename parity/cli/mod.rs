@@ -17,7 +17,6 @@
 #[macro_use]
 mod usage;
 mod presets;
-use dir;
 
 usage! {
 	{
@@ -82,13 +81,13 @@ usage! {
 			{
 				"Import wallet",
 
-				ARG arg_wallet_import_path: (Option<String>) = None,
-				"<PATH>",
-				"Path to the wallet",
-
 				ARG arg_wallet_import_password: (Option<String>) = None,
 				"--password=[FILE]",
 				"Path to the password file",
+
+				ARG arg_wallet_import_path: (Option<String>) = None,
+				"<PATH>",
+				"Path to the wallet",
 			}
 		}
 
@@ -96,13 +95,13 @@ usage! {
 		{
 			"Import blockchain",
 
-			ARG arg_import_file: (Option<String>) = None,
-			"[FILE]",
-			"Path to the file to import from",
-
 			ARG arg_import_format: (Option<String>) = None,
 			"--format=[FORMAT]",
 			"Import in a given format. FORMAT must be either 'hex' or 'binary'. (default: auto)",
+
+			ARG arg_import_file: (Option<String>) = None,
+			"[FILE]",
+			"Path to the file to import from",
 		}
 
 		CMD cmd_export
@@ -112,10 +111,6 @@ usage! {
 			CMD cmd_export_blocks
 			{
 				"Export blocks",
-
-				ARG arg_export_blocks_file: (Option<String>) = None,
-				"[FILE]",
-				"Path to the exported file",
 
 				ARG arg_export_blocks_format: (Option<String>) = None,
 				"--format=[FORMAT]",
@@ -128,6 +123,10 @@ usage! {
 				ARG arg_export_blocks_to: (String) = "latest",
 				"--to=[BLOCK]",
 				"Export to (including) block BLOCK, which may be an index, hash or latest.",
+
+				ARG arg_export_blocks_file: (Option<String>) = None,
+				"[FILE]",
+				"Path to the exported file",
 			}
 
 			CMD cmd_export_state
@@ -154,13 +153,13 @@ usage! {
 				"--at=[BLOCK]",
 				"Take a snapshot at the given block, which may be an index, hash, or latest. Note that taking snapshots at non-recent blocks will only work with --pruning archive",
 
-				ARG arg_export_state_file: (Option<String>) = None,
-				"[FILE]",
-				"Path to the exported file",
-
 				ARG arg_export_state_format: (Option<String>) = None,
 				"--format=[FORMAT]",
 				"Export in a given format. FORMAT must be either 'hex' or 'binary'. (default: binary)",
+
+				ARG arg_export_state_file: (Option<String>) = None,
+				"[FILE]",
+				"Path to the exported file",
 			}
 		}
 
@@ -180,13 +179,13 @@ usage! {
 			{
 				"Sign",
 
-				ARG arg_signer_sign_id: (Option<usize>) = None,
-				"[ID]",
-				"ID",
-
 				ARG arg_signer_sign_password: (Option<String>) = None,
 				"--password=[FILE]",
 				"Path to the password file",
+
+				ARG arg_signer_sign_id: (Option<usize>) = None,
+				"[ID]",
+				"ID",
 			}
 
 			CMD cmd_signer_reject
