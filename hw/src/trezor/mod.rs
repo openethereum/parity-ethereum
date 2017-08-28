@@ -294,8 +294,7 @@ impl Manager {
 
 		self.send_device_message(&handle, &msg_type, &message)?;
 
-		let sig = self.signing_loop(&handle, &t_info.network_id, &t_info.data[first_chunk_length..])?;
-		Ok(sig)
+		self.signing_loop(&handle, &t_info.network_id, &t_info.data[first_chunk_length..])
 	}
 
 	fn u256_to_be_vec(&self, val: &U256) -> Vec<u8> {
@@ -310,7 +309,10 @@ impl Manager {
 			MessageType::MessageType_Cancel => Err(Error::UserCancel),
 			MessageType::MessageType_ButtonRequest => {
 				self.send_device_message(handle, &MessageType::MessageType_ButtonAck, &ButtonAck::new())?;
-				::thread::sleep(Duration::from_millis(200));
+				// Signing loop goes back to the top and reading blocks
+				// for up to 5 minutes waiting for response from the device
+				// if the user doesn't click any button within 5 minutes you
+				// get a signing error and the device sort of locks up on the signing screen
 				self.signing_loop(handle, chain_id, data)
 			}
 			MessageType::MessageType_EthereumTxRequest => {
@@ -337,10 +339,7 @@ impl Manager {
 					}
 				}
 			}
-			MessageType::MessageType_Failure => {
-				let mut resp: Failure = protobuf::core::parse_from_bytes(&bytes)?;
-				Err(Error::Protocol("Last message sent failed"))
-			}
+			MessageType::MessageType_Failure => Err(Error::Protocol("Last message sent to Trezor failed")),
 			_ => Err(Error::Protocol("Unexpected response from Trezor device."))
 		}
 	}
@@ -377,7 +376,7 @@ impl Manager {
 		let protocol_err = Error::Protocol(&"Unexpected wire response from Trezor Device");
 		let mut buf = vec![0; 64];
 
-		let first_chunk = device.read_timeout(&mut buf, 10_000)?;
+		let first_chunk = device.read_timeout(&mut buf, 300_000)?;
 		if first_chunk < 9 || buf[0] != '?' as u8 || buf[1] != '#' as u8 || buf[2] != '#' as u8 {
 			return Err(protocol_err);
 		}

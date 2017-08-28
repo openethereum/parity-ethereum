@@ -252,7 +252,7 @@ impl HardwareWalletManager {
 	/// Communicate with trezor hardware wallet
 	pub fn trezor_message(&self, message_type: String, path: Option<String>, message: Option<String>) -> Result<String, Error> {
 		let mut t = self.trezor.lock();
-		t.update_devices();
+		t.update_devices()?;
 		Ok(t.message(message_type, path, message)?)
 	}
 }
