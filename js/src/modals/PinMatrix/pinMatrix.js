@@ -48,17 +48,15 @@ export default class PinMatrix extends Component {
         <div className={ styles.modal }>
           <div className={ styles.body }>
             <div id={ styles.title }>
-              <FormattedMessage
-                id='pinMatrix.enterPin'
-                defaultMessage='{enterPin}'
-                values={ {
-                  enterPin: (
-                    <span>
-                      Please enter the <i>pin</i> for your { device.manufacturer } hardware wallet
-                    </span>
-                  )
-                } }
-              />
+              <span>
+                <FormattedMessage
+                  id='pinMatrix.enterPin'
+                  defaultMessage='Please enter the pin for your {manufacturer} hardware wallet'
+                  values={ {
+                    manufacturer: device.manufacturer
+                  } }
+                />
+              </span>
             </div>
             <div id={ styles.passcodeBoxes }>
               {this.renderPasscodeBox()}
