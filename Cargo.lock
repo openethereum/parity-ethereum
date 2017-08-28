@@ -548,7 +548,7 @@ dependencies = [
  "bigint 4.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "heapsize 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)",
- "plain_hasher 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "plain_hasher 0.1.0",
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-hex 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -2201,9 +2201,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "plain_hasher"
 version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "crunchy 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "crunchy 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -3394,7 +3393,6 @@ dependencies = [
 "checksum phf_generator 0.7.14 (registry+https://github.com/rust-lang/crates.io-index)" = "db005608fd99800c8c74106a7c894cf582055b689aa14a79462cefdcb7dc1cc3"
 "checksum phf_shared 0.7.14 (registry+https://github.com/rust-lang/crates.io-index)" = "fee4d039930e4f45123c9b15976cf93a499847b6483dc09c42ea0ec4940f2aa6"
 "checksum pkg-config 0.3.9 (registry+https://github.com/rust-lang/crates.io-index)" = "3a8b4c6b8165cd1a1cd4b9b120978131389f64bdaf456435caa41e630edba903"
-"checksum plain_hasher 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "83ae80873992f511142c07d0ec6c44de5636628fdb7e204abd655932ea79d995"
 "checksum podio 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)" = "e5422a1ee1bc57cc47ae717b0137314258138f38fd5f3cea083f43a9725383a0"
 "checksum pretty_assertions 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)" = "2412f3332a07c7a2a50168988dcc184f32180a9758ad470390e5f55e089f6b6e"
 "checksum primal 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)" = "0e31b86efadeaeb1235452171a66689682783149a6249ff334a2c5d8218d00a4"
