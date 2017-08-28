@@ -101,6 +101,12 @@ struct Device {
 	info: WalletInfo,
 }
 
+/// HID Version used for the Trezor device
+enum HidVersion {
+	V1,
+	V2,
+}
+
 impl Manager {
 	/// Create a new instance.
 	pub fn new(hidapi: Arc<Mutex<hidapi::HidApi>>) -> Manager {
@@ -329,11 +335,13 @@ impl Manager {
 		let mut message = msg.write_to_bytes()?;
 		let msg_size = message.len();
 		let mut data = Vec::new();
+		let hid_version = self.probe_hid_version(device)?;
 		// Magic constants
 		data.push('#' as u8);
 		data.push('#' as u8);
-		data.push(((msg_id >> 8) & 0xFF) as u8); // First byte of BE msg type
-		data.push((msg_id & 0xFF) as u8); // Second byte of BE msg type
+		// Convert msg_id to BE and split into bytes
+		data.push(((msg_id >> 8) & 0xFF) as u8);
+		data.push((msg_id & 0xFF) as u8);
 		// Convert msg_size to BE and split into bytes
 		data.push(((msg_size >> 24) & 0xFF) as u8);
 		data.push(((msg_size >> 16) & 0xFF) as u8);
@@ -345,11 +353,29 @@ impl Manager {
 		}
 		let mut total_written = 0;
 		for chunk in data.chunks(63) {
-			let mut padded_chunk = vec![0, '?' as u8]; // TODO: Determine HID_Version and pad or not depending on that
+			let mut padded_chunk = match hid_version {
+				HidVersion::V1 => vec!['?' as u8],
+				HidVersion::V2 => vec![0, '?' as u8],
+			};
 			padded_chunk.extend_from_slice(&chunk);
 			total_written += device.write(&padded_chunk)?;
 		}
 		Ok(total_written)
+	}
+
+	fn probe_hid_version(&self, device: &hidapi::HidDevice) -> Result<HidVersion, Error> {
+		let mut buf2 = [0xFFu8; 65];
+		buf2[0] = 0;
+		buf2[1] = 63;
+		let mut buf1 = [0xFFu8; 64];
+		buf1[0] = 63;
+		if device.write(&buf2)? == 65 {
+			Ok(HidVersion::V2)
+		} else if device.write(&buf1)? == 64 {
+			Ok(HidVersion::V1)
+		} else {
+			Err(Error::Usb("Unable to determine HID Version"))
+		}
 	}
 
 	fn read_device_response(&self, device: &hidapi::HidDevice) -> Result<(MessageType, Vec<u8>), Error> {
@@ -375,6 +401,7 @@ impl Manager {
 #[test]
 fn debug() {
 	use util::U256;
+	use bigint::hash::H160;
 
 	let hidapi = Arc::new(Mutex::new(hidapi::HidApi::new().unwrap()));
 	let mut manager = Manager::new(hidapi.clone());
