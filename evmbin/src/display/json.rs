@@ -30,10 +30,8 @@ pub struct Informant {
 	depth: usize,
 	pc: usize,
 	instruction: u8,
-	name: &'static str,
 	gas_cost: U256,
 	gas_used: U256,
-	stack_pop: usize,
 	stack: Vec<U256>,
 	memory: Vec<u8>,
 	storage: HashMap<H256, H256>,
@@ -58,11 +56,19 @@ impl Informant {
 }
 
 impl vm::Informant for Informant {
+	fn before_test(&self, name: &str, action: &str) {
+		println!(
+			"{{\"test\":\"{name}\",\"action\":\"{action}\"}}",
+			name = name,
+			action = action,
+		);
+	}
+
 	fn set_gas(&mut self, gas: U256) {
 		self.gas_used = gas;
 	}
 
-	fn finish(&mut self, result: Result<vm::Success, vm::Failure>) {
+	fn finish(result: Result<vm::Success, vm::Failure>) {
 		match result {
 			Ok(success) => println!(
 				"{{\"output\":\"0x{output}\",\"gasUsed\":\"{gas:x}\",\"time\":{time}}}",
@@ -112,7 +118,7 @@ impl trace::VMTracer for Informant {
 		self.gas_used = gas_used;
 
 		let len = self.stack.len();
-		self.stack.truncate(len - info.args);
+		self.stack.truncate(if len > info.args { len - info.args } else { 0 });
 		self.stack.extend_from_slice(stack_push);
 
 		if let Some((pos, data)) = mem_diff {
