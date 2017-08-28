@@ -16,33 +16,30 @@
 
 //! Hardware wallet management.
 
-extern crate rlp;
-extern crate parking_lot;
-extern crate protobuf;
+extern crate ethcore_bigint as bigint;
+extern crate ethcore_util as util;
+extern crate ethkey;
 extern crate hidapi;
 extern crate libusb;
+extern crate parking_lot;
+extern crate protobuf;
 extern crate serde_json;
-extern crate ethkey;
-extern crate ethcore_util as util;
-extern crate ethcore_bigint as bigint;
-#[macro_use] extern crate serde_derive;
 #[macro_use] extern crate log;
 #[cfg(test)] extern crate rustc_hex;
 
 mod ledger;
 mod trezor;
 
-use std::fmt;
-use std::thread;
-use std::sync::atomic;
-use std::sync::{Arc, Weak};
-use std::sync::atomic::AtomicBool;
-use std::time::Duration;
-use parking_lot::Mutex;
-use util::{Bytes, U256};
 use ethkey::{Address, Signature};
 
-pub use ledger::KeyPath;
+use parking_lot::Mutex;
+use std::fmt;
+use std::sync::{Arc, Weak};
+use std::sync::atomic;
+use std::sync::atomic::AtomicBool;
+use std::thread;
+use std::time::Duration;
+use util::{Bytes, U256};
 
 /// Hardware wallet error.
 #[derive(Debug)]
@@ -83,6 +80,15 @@ pub struct WalletInfo {
 	pub address: Address,
 }
 
+/// Key derivation paths used on hardware wallets.
+#[derive(Debug, Clone, Copy)]
+pub enum KeyPath {
+	/// Ethereum.
+	Ethereum,
+	/// Ethereum classic.
+	EthereumClassic,
+}
+
 impl fmt::Display for Error {
 	fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
 		match *self {
@@ -115,12 +121,6 @@ impl From<trezor::Error> for Error {
 impl From<libusb::Error> for Error {
 	fn from(err: libusb::Error) -> Error {
 		Error::Usb(err)
-	}
-}
-
-impl From<&'static str> for Error {
-	fn from(err: &str) -> Error {
-		Error::KeyNotFound
 	}
 }
 
@@ -184,28 +184,38 @@ impl libusb::Hotplug for EventHandler {
 impl HardwareWalletManager {
 	pub fn new() -> Result<HardwareWalletManager, Error> {
 		let usb_context = Arc::new(libusb::Context::new()?);
-		let hidapi = Arc::new(Mutex::new(hidapi::HidApi::new()?));
+		let hidapi = Arc::new(Mutex::new(hidapi::HidApi::new().map_err(|_| libusb::Error::Io)?));
 		let ledger = Arc::new(Mutex::new(ledger::Manager::new(hidapi.clone())));
 		let trezor = Arc::new(Mutex::new(trezor::Manager::new(hidapi.clone())));
-		usb_context.register_callback(None, None, None, Box::new(EventHandler { ledger: Arc::downgrade(&ledger), trezor: Arc::downgrade(&trezor) }))?;
+		usb_context.register_callback(
+			None, None, None,
+			Box::new(EventHandler {
+				ledger: Arc::downgrade(&ledger),
+				trezor: Arc::downgrade(&trezor),
+			}),
+		)?;
 		let exiting = Arc::new(AtomicBool::new(false));
 		let thread_exiting = exiting.clone();
 		let l = ledger.clone();
 		let t = trezor.clone();
-		let thread = thread::Builder::new().name("hw_wallet".to_string()).spawn(move || {
-			if let Err(e) = l.lock().update_devices() {
-				debug!("Error updating ledger devices: {}", e);
-			}
-			if let Err(e) = t.lock().update_devices() {
-				debug!("Error updating trezor devices: {}", e);
-			}
-			loop {
-				usb_context.handle_events(Some(Duration::from_millis(500))).unwrap_or_else(|e| debug!("Error processing USB events: {}", e));
-				if thread_exiting.load(atomic::Ordering::Acquire) {
-					break;
+		let thread = thread::Builder::new()
+			.name("hw_wallet".to_string())
+			.spawn(move || {
+				if let Err(e) = l.lock().update_devices() {
+					debug!("Error updating ledger devices: {}", e);
 				}
-			}
-		}).ok();
+				if let Err(e) = t.lock().update_devices() {
+					debug!("Error updating trezor devices: {}", e);
+				}
+				loop {
+					usb_context.handle_events(Some(Duration::from_millis(500)))
+					           .unwrap_or_else(|e| debug!("Error processing USB events: {}", e));
+					if thread_exiting.load(atomic::Ordering::Acquire) {
+						break;
+					}
+				}
+			})
+			.ok();
 		Ok(HardwareWalletManager {
 			update_thread: thread,
 			exiting: exiting,
@@ -217,7 +227,7 @@ impl HardwareWalletManager {
 	/// Select key derivation path for a chain.
 	pub fn set_key_path(&self, key_path: KeyPath) {
 		self.ledger.lock().set_key_path(key_path);
-		//self.trezor.lock().set_key_path(key_path);
+		self.trezor.lock().set_key_path(key_path);
 	}
 
 

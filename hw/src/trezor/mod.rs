@@ -1,6 +1,3 @@
-#![allow(dead_code)]
-#![allow(unused_imports)]
-
 // Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
@@ -22,23 +19,20 @@
 //! and https://github.com/trezor/trezor-common/blob/master/protob/protocol.md
 //! for protocol details.
 
-use super::WalletInfo;
-use bigint::hash::{H256, H160};
-use ethkey::{Address, Signature};
-use util::{U256};
-use rlp;
+use super::{WalletInfo, TransactionInfo, KeyPath};
 
+use bigint::hash::H256;
+use ethkey::{Address, Signature};
 use hidapi;
+use parking_lot::Mutex;
 use protobuf;
-use protobuf::{Message, MessageStatic, ProtobufEnum};
+use protobuf::{Message, ProtobufEnum};
+use serde_json;
 use std::cmp::min;
 use std::fmt;
 use std::sync::Arc;
-use parking_lot::Mutex;
-use std::str::FromStr;
 use std::time::Duration;
-use serde_json;
-use super::TransactionInfo;
+use util::U256;
 
 mod gen;
 use self::gen::messages::*;
@@ -47,20 +41,6 @@ const TREZOR_VID: u16 = 0x534c;
 const TREZOR_PIDS: [u16; 1] = [0x0001]; // Trezor v1, keeping this as an array to leave room for Trezor v2 which is in progress
 const ETH_DERIVATION_PATH: [u32; 4] = [0x8000002C, 0x8000003C, 0x80000000, 0]; // m/44'/60'/0'/0
 const ETC_DERIVATION_PATH: [u32; 4] = [0x8000002C, 0x8000003D, 0x80000000, 0]; // m/44'/61'/0'/0
-
-#[cfg(windows)]
-const HID_PREFIX_ZERO: bool = true;
-#[cfg(not(windows))]
-const HID_PREFIX_ZERO: bool = false;
-
-/// Key derivation paths used on ledger wallets.
-#[derive(Debug, Clone, Copy)]
-pub enum KeyPath {
-	/// Ethereum.
-	Ethereum,
-	/// Ethereum classic.
-	EthereumClassic,
-}
 
 /// Hardware wallet error.
 #[derive(Debug)]
@@ -73,8 +53,11 @@ pub enum Error {
 	KeyNotFound,
 	/// Signing has been cancelled by user.
 	UserCancel,
+	/// The Message Type given in the trezor RPC call is not something we recognize
 	BadMessageType,
+	/// When trying to respond to an RPC call, we couldn't serialize the response
 	SerdeError(serde_json::Error),
+	/// Trying to read from a closed device at the given path
 	ClosedDevice(String),
 }
 
@@ -171,7 +154,7 @@ impl Manager {
 				})
 			}
 			Ok(None) => Err(Error::ClosedDevice(dev_info.path.clone())),
-			Err(e) => Err(e)
+			Err(e) => Err(e),
 		}
 	}
 
@@ -188,7 +171,7 @@ impl Manager {
 					Err(Error::BadMessageType)
 				}
 			}
-			_ => Err(Error::BadMessageType)
+			_ => Err(Error::BadMessageType),
 		}
 	}
 
@@ -208,7 +191,8 @@ impl Manager {
 	}
 
 	fn open_path<R, F>(&self, f: F) -> Result<R, Error>
-	where F: Fn() -> Result<R, &'static str> {
+		where F: Fn() -> Result<R, &'static str>
+	{
 		let mut err = Error::KeyNotFound;
 		/// Try to open device a few times.
 		for _ in 0..10 {
@@ -228,16 +212,13 @@ impl Manager {
 		let mut m = PinMatrixAck::new();
 		m.set_pin(pin.to_string());
 		self.send_device_message(&device, &t, &m)?;
-		let (resp_type, bytes) = self.read_device_response(&device)?;
+		let (resp_type, _) = self.read_device_response(&device)?;
 		match resp_type {
 			// Getting an Address back means it's unlocked, this is undocumented behavior
-			MessageType::MessageType_EthereumAddress => {
-				Ok(true)
-			}
+			MessageType::MessageType_EthereumAddress => Ok(true),
 			// Getting anything else means we didn't unlock it
-			_ => {
-				Ok(false)
-			}
+			_ => Ok(false),
+
 		}
 	}
 
@@ -257,16 +238,15 @@ impl Manager {
 				let response: EthereumAddress = protobuf::core::parse_from_bytes(&bytes)?;
 				Ok(Some(From::from(response.get_address())))
 			}
-			_ => Ok(None)
+			_ => Ok(None),
 		}
 	}
 
 	/// Sign transaction data with wallet managing `address`.
 	pub fn sign_transaction(&self, address: &Address, t_info: &TransactionInfo) -> Result<Signature, Error> {
-		let device = self.devices.iter().find(|d| &d.info.address == address)
-			.ok_or(Error::KeyNotFound)?;
+		let device = self.devices.iter().find(|d| &d.info.address == address).ok_or(Error::KeyNotFound)?;
 		let usb = self.usb.lock();
-		let mut handle = self.open_path(|| usb.open_path(&device.path))?;
+		let handle = self.open_path(|| usb.open_path(&device.path))?;
 		let msg_type = MessageType::MessageType_EthereumSignTx;
 		let mut message = EthereumSignTx::new();
 		match self.key_path {
@@ -281,8 +261,8 @@ impl Manager {
 		match t_info.to {
 			Some(addr) => {
 				message.set_to(addr.to_vec())
-			},
-			None => ()
+			}
+			None => (),
 		}
 		let first_chunk_length = min(t_info.data.len(), 1024);
 		let chunk = &t_info.data[0..first_chunk_length];
@@ -340,7 +320,7 @@ impl Manager {
 				}
 			}
 			MessageType::MessageType_Failure => Err(Error::Protocol("Last message sent to Trezor failed")),
-			_ => Err(Error::Protocol("Unexpected response from Trezor device."))
+			_ => Err(Error::Protocol("Unexpected response from Trezor device.")),
 		}
 	}
 
@@ -394,7 +374,7 @@ impl Manager {
 
 #[test]
 fn debug() {
-	use util::{U256};
+	use util::U256;
 
 	let hidapi = Arc::new(Mutex::new(hidapi::HidApi::new().unwrap()));
 	let mut manager = Manager::new(hidapi.clone());
@@ -409,7 +389,7 @@ fn debug() {
 		to: Some(H160::from("00b1d5c8e02a18f5d5ddb83b6d17db757706148c")),
 		network_id: Some(17),
 		value: U256::from(1_000_000),
-		data: (&[1u8;3000]).to_vec(),
+		data: (&[1u8; 3000]).to_vec(),
 	};
 	let signature = manager.sign_transaction(&addr, &t_info);
 	println!("Signature: {:?}", signature);
