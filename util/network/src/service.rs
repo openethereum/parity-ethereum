@@ -22,6 +22,7 @@ use io::*;
 use parking_lot::RwLock;
 use std::sync::Arc;
 use ansi_term::Colour;
+use connection_filter::ConnectionFilter;
 
 struct HostHandler {
 	public_url: RwLock<Option<String>>
@@ -48,11 +49,12 @@ pub struct NetworkService {
 	stats: Arc<NetworkStats>,
 	host_handler: Arc<HostHandler>,
 	config: NetworkConfiguration,
+	filter: Option<Arc<ConnectionFilter>>,
 }
 
 impl NetworkService {
 	/// Starts IO event loop
-	pub fn new(config: NetworkConfiguration) -> Result<NetworkService, NetworkError> {
+	pub fn new(config: NetworkConfiguration, filter: Option<Arc<ConnectionFilter>>) -> Result<NetworkService, NetworkError> {
 		let host_handler = Arc::new(HostHandler { public_url: RwLock::new(None) });
 		let io_service = IoService::<NetworkIoMessage>::start()?;
 
@@ -65,6 +67,7 @@ impl NetworkService {
 			host: RwLock::new(None),
 			config: config,
 			host_handler: host_handler,
+			filter: filter,
 		})
 	}
 
@@ -115,7 +118,7 @@ impl NetworkService {
 	pub fn start(&self) -> Result<(), NetworkError> {
 		let mut host = self.host.write();
 		if host.is_none() {
-			let h = Arc::new(Host::new(self.config.clone(), self.stats.clone())?);
+			let h = Arc::new(Host::new(self.config.clone(), self.stats.clone(), self.filter.clone())?);
 			self.io_service.register_handler(h.clone())?;
 			*host = Some(h);
 		}

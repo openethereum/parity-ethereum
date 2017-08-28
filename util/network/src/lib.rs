@@ -44,7 +44,7 @@
 //! }
 //!
 //! fn main () {
-//! 	let mut service = NetworkService::new(NetworkConfiguration::new_local()).expect("Error creating network service");
+//! 	let mut service = NetworkService::new(NetworkConfiguration::new_local(), None).expect("Error creating network service");
 //! 	service.start().expect("Error starting service");
 //! 	service.register_protocol(Arc::new(MyHandler), *b"myp", 1, &[1u8]);
 //!
@@ -95,6 +95,7 @@ mod error;
 mod node_table;
 mod stats;
 mod ip_utils;
+mod connection_filter;
 
 #[cfg(test)]
 mod tests;
@@ -104,6 +105,7 @@ pub use service::NetworkService;
 pub use error::NetworkError;
 pub use stats::NetworkStats;
 pub use session::SessionInfo;
+pub use connection_filter::{ConnectionFilter, ConnectionDirection};
 
 pub use io::TimerToken;
 pub use node_table::{is_valid_node_url, NodeId};

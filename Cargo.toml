@@ -42,6 +42,7 @@ ethcore-light = { path = "ethcore/light" }
 ethcore-logger = { path = "logger" }
 ethcore-stratum = { path = "stratum" }
 ethcore-network = { path = "util/network" }
+node-filter = { path = "ethcore/node_filter" }
 ethkey = { path = "ethkey" }
 node-health = { path = "dapps/node-health" }
 rlp = { path = "util/rlp" }
