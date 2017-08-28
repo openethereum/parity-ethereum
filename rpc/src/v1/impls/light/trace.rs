@@ -31,7 +31,7 @@ pub struct TracesClient;
 impl Traces for TracesClient {
 	type Metadata = Metadata;
 
-	fn filter(&self, _filter: TraceFilter, _offset: Option<TraceIndex>, _count: Option<u64>) -> Result<Option<Vec<LocalizedTrace>>, Error> {
+	fn filter(&self, _filter: TraceFilter, _offset: Option<TraceIndex>, _count: Option<usize>) -> Result<Option<Vec<LocalizedTrace>>, Error> {
 		Err(errors::light_unimplemented(None))
 	}
 

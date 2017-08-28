@@ -1658,7 +1658,7 @@ impl BlockChainClient for Client {
 		self.chain.read().logs(blocks, |entry| filter.matches(entry), filter.limit)
 	}
 
-	fn filter_traces(&self, filter: TraceFilter, after: Option<&TraceId>, count: Option<u64>) -> Option<Vec<LocalizedTrace>> {
+	fn filter_traces(&self, filter: TraceFilter, after: Option<&TraceId>, count: Option<usize>) -> Option<Vec<LocalizedTrace>> {
 		let start = self.block_number(filter.range.start);
 		let end = self.block_number(filter.range.end);
 
