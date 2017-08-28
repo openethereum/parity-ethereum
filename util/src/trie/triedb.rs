@@ -217,14 +217,9 @@ impl<'a> TrieDBIterator<'a> {
 		Ok(r)
 	}
 
-	fn seek_descend<'key>(&mut self, mut node_data: DBValue, mut key: NibbleSlice<'key>) -> super::Result<()> {
-		enum Step {
-			Descend(DBValue, usize),
-			Return,
-		}
-
+	fn seek<'key>(&mut self, mut node_data: DBValue, mut key: NibbleSlice<'key>) -> super::Result<()> {
 		loop {
-			let step = {
+			let (data, mid) = {
 				let node = Node::decoded(&node_data);
 				match node {
 					Node::Leaf(slice, _) => {
@@ -241,7 +236,7 @@ impl<'a> TrieDBIterator<'a> {
 						}
 
 						self.key_nibbles.extend(slice.iter());
-						Step::Return
+						return Ok(())
 					},
 					Node::Extension(ref slice, ref item) => {
 						if key.starts_with(slice) {
@@ -251,10 +246,10 @@ impl<'a> TrieDBIterator<'a> {
 							});
 							self.key_nibbles.extend(slice.iter());
 							let data = self.db.get_raw_or_lookup(&*item)?;
-							Step::Descend(data, slice.len())
+							(data, slice.len())
 						} else {
 							self.descend(&node_data)?;
-							Step::Return
+							return Ok(())
 						}
 					},
 					Node::Branch(ref nodes, _) => match key.is_empty() {
@@ -263,7 +258,7 @@ impl<'a> TrieDBIterator<'a> {
 								status: Status::At,
 								node: node.clone().into(),
 							});
-							Step::Return
+							return Ok(())
 						},
 						false => {
 							let i = key.at(0);
@@ -273,20 +268,15 @@ impl<'a> TrieDBIterator<'a> {
 							});
 							self.key_nibbles.push(i);
 							let child = self.db.get_raw_or_lookup(&*nodes[i as usize])?;
-							Step::Descend(child, 1)
+							(child, 1)
 						}
 					},
-					_ => Step::Return
+					_ => return Ok(()),
 				}
 			};
 
-			match step {
-				Step::Return => return Ok(()),
-				Step::Descend(data, mid) => {
-					node_data = data;
-					key = key.mid(mid);
-				}
-			}
+			node_data = data;
+			key = key.mid(mid);
 		}
 	}
 
@@ -331,7 +321,7 @@ impl<'a> TrieIterator for TrieDBIterator<'a> {
 		self.trail.clear();
 		self.key_nibbles.clear();
 		let root_rlp = self.db.root_data()?;
-		self.seek_descend(root_rlp, NibbleSlice::new(key))
+		self.seek(root_rlp, NibbleSlice::new(key))
 	}
 }
 

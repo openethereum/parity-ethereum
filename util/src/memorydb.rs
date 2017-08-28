@@ -182,8 +182,11 @@ impl HashDB for MemoryDB {
 
 	fn keys(&self) -> HashMap<H256, i32> {
 		self.data.iter()
-			.filter(|&(_, v)| v.1 != 0)
-			.map(|(k, v)| (*k, v.1))
+			.filter_map(|(k, v)| if v.1 != 0 {
+				Some((*k, v.1))
+			} else {
+				None
+			})
 			.collect()
 	}
 
