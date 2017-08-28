@@ -350,6 +350,7 @@ impl Configuration {
 				daemon: daemon,
 				logger_config: logger_config.clone(),
 				miner_options: miner_options,
+				ntp_servers: self.ntp_servers(),
 				ws_conf: ws_conf,
 				http_conf: http_conf,
 				ipc_conf: ipc_conf,
@@ -568,7 +569,6 @@ impl Configuration {
 	fn ui_config(&self) -> UiConfiguration {
 		UiConfiguration {
 			enabled: self.ui_enabled(),
-			ntp_servers: self.ntp_servers(),
 			interface: self.ui_interface(),
 			port: self.ui_port(),
 			hosts: self.ui_hosts(),
@@ -581,7 +581,6 @@ impl Configuration {
 
 		DappsConfiguration {
 			enabled: self.dapps_enabled(),
-			ntp_servers: self.ntp_servers(),
 			dapps_path: PathBuf::from(self.directories().dapps),
 			extra_dapps: if self.args.cmd_dapp {
 				self.args.arg_path.iter().map(|path| PathBuf::from(path)).collect()
@@ -1296,12 +1295,6 @@ mod tests {
 			support_token_api: true
 		}, UiConfiguration {
 			enabled: true,
-			ntp_servers: vec![
-				"0.parity.pool.ntp.org:123".into(),
-				"1.parity.pool.ntp.org:123".into(),
-				"2.parity.pool.ntp.org:123".into(),
-				"3.parity.pool.ntp.org:123".into(),
-			],
 			interface: "127.0.0.1".into(),
 			port: 8180,
 			hosts: Some(vec![]),
@@ -1322,6 +1315,12 @@ mod tests {
 			daemon: None,
 			logger_config: Default::default(),
 			miner_options: Default::default(),
+			ntp_servers: vec![
+				"0.parity.pool.ntp.org:123".into(),
+				"1.parity.pool.ntp.org:123".into(),
+				"2.parity.pool.ntp.org:123".into(),
+				"3.parity.pool.ntp.org:123".into(),
+			],
 			ws_conf: Default::default(),
 			http_conf: Default::default(),
 			ipc_conf: Default::default(),
@@ -1539,16 +1538,9 @@ mod tests {
 		let conf3 = parse(&["parity", "--ui-path", "signer", "--ui-interface", "test"]);
 
 		// then
-		let ntp_servers = vec![
-			"0.parity.pool.ntp.org:123".into(),
-			"1.parity.pool.ntp.org:123".into(),
-			"2.parity.pool.ntp.org:123".into(),
-			"3.parity.pool.ntp.org:123".into(),
-		];
 		assert_eq!(conf0.directories().signer, "signer".to_owned());
 		assert_eq!(conf0.ui_config(), UiConfiguration {
 			enabled: true,
-			ntp_servers: ntp_servers.clone(),
 			interface: "127.0.0.1".into(),
 			port: 8180,
 			hosts: Some(vec![]),
@@ -1557,7 +1549,6 @@ mod tests {
 		assert_eq!(conf1.directories().signer, "signer".to_owned());
 		assert_eq!(conf1.ui_config(), UiConfiguration {
 			enabled: true,
-			ntp_servers: ntp_servers.clone(),
 			interface: "127.0.0.1".into(),
 			port: 8180,
 			hosts: Some(vec![]),
@@ -1567,7 +1558,6 @@ mod tests {
 		assert_eq!(conf2.directories().signer, "signer".to_owned());
 		assert_eq!(conf2.ui_config(), UiConfiguration {
 			enabled: true,
-			ntp_servers: ntp_servers.clone(),
 			interface: "127.0.0.1".into(),
 			port: 3123,
 			hosts: Some(vec![]),
@@ -1576,7 +1566,6 @@ mod tests {
 		assert_eq!(conf3.directories().signer, "signer".to_owned());
 		assert_eq!(conf3.ui_config(), UiConfiguration {
 			enabled: true,
-			ntp_servers: ntp_servers.clone(),
 			interface: "test".into(),
 			port: 8180,
 			hosts: Some(vec![]),

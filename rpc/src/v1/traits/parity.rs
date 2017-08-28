@@ -22,6 +22,7 @@ use jsonrpc_core::Error;
 use jsonrpc_macros::Trailing;
 use futures::BoxFuture;
 
+use node_health::Health;
 use v1::types::{
 	H160, H256, H512, U256, Bytes,
 	Peers, Transaction, RpcSettings, Histogram,
@@ -203,5 +204,9 @@ build_rpc_trait! {
 		/// Get IPFS CIDv0 given protobuf encoded bytes.
 		#[rpc(name = "parity_cidV0")]
 		fn ipfs_cid(&self, Bytes) -> Result<String, Error>;
+
+		/// Returns node's health report.
+		#[rpc(async, name = "parity_nodeHealth")]
+		fn node_health(&self) -> BoxFuture<Health, Error>;
 	}
 }

@@ -249,13 +249,6 @@ export default class Status {
     }
   }
 
-  _fetchHealth = () => {
-    // Support Parity-Extension.
-    const uiUrl = this._api.transport.uiUrlWithProtocol || '';
-
-    return fetch(`${uiUrl}/api/health`).then(res => res.json());
-  }
-
   /**
    * The data fetched here should not change
    * unless Parity is restarted. They are thus

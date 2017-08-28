@@ -22,6 +22,7 @@
 
 extern crate cid;
 extern crate crypto as rust_crypto;
+extern crate evm;
 extern crate futures;
 extern crate futures_cpupool;
 extern crate multihash;
@@ -52,8 +53,8 @@ extern crate ethkey;
 extern crate ethstore;
 extern crate ethsync;
 extern crate ethcore_logger;
-extern crate evm;
 extern crate fetch;
+extern crate node_health;
 extern crate parity_reactor;
 extern crate parity_updater as updater;
 extern crate rlp;
