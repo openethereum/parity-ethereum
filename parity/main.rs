@@ -58,6 +58,7 @@ extern crate ethcore_util as util;
 extern crate ethcore_network as network;
 extern crate ethkey;
 extern crate ethsync;
+extern crate node_health;
 extern crate panic_hook;
 extern crate parity_hash_fetch as hash_fetch;
 extern crate parity_ipfs_api;
