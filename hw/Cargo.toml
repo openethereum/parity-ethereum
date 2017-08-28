@@ -12,12 +12,10 @@ parking_lot = "0.4"
 protobuf = "1.4"
 serde = "1.0"
 serde_json = "1.0"
-serde_derive = "1.0"
 hidapi = { git = "https://github.com/paritytech/hidapi-rs" }
 libusb = { git = "https://github.com/paritytech/libusb-rs" }
 ethkey = { path = "../ethkey" }
 ethcore-util = { path = "../util" }
-rlp = { path = "../util/rlp" }
 ethcore-bigint = { path = "../util/bigint" }
 
 [dev-dependencies]
