@@ -58,13 +58,6 @@ export default class Balances {
       { leading: false, trailing: true }
     );
 
-    // Fetch all tokens every 2 minutes
-    this.throttledTokensFetch = throttle(
-      this._fetchTokens,
-      2 * 60 * 1000,
-      { leading: false, trailing: true }
-    );
-
     // Unsubscribe previous instance if it exists
     if (instance) {
       Balances.stop();
@@ -195,7 +188,7 @@ export default class Balances {
         }
 
         this._store.dispatch(queryTokensFilter());
-        return this.fetchAllBalances();
+        return this.fetchBalances({});
       })
       .then((blockNumberSID) => {
         this._blockNumberSID = blockNumberSID;
@@ -221,18 +214,17 @@ export default class Balances {
       return;
     }
 
-    this.fetchTokensBalances(options);
     this.fetchBalances(options);
+
+    if (options.force) {
+      this.fetchTokensBalances(options);
+    }
   }
 
   fetchTokensBalances (options) {
-    const { skipNotifications = false, force = false } = options;
+    const { skipNotifications = false } = options;
 
-    this.throttledTokensFetch(skipNotifications);
-
-    if (force) {
-      this.throttledTokensFetch.flush();
-    }
+    this._fetchTokens(skipNotifications);
   }
 
   fetchBalances (options) {
@@ -265,7 +257,7 @@ export default class Balances {
   }
 
   _fetchTokens (skipNotifications = false) {
-    this._store.dispatch(fetchTokensBalances(null, null, skipNotifications));
+    this._store.dispatch(fetchTokensBalances(null, skipNotifications));
   }
 
   getTokenRegistry () {

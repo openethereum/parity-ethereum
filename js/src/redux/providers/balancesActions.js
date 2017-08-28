@@ -100,8 +100,14 @@ function notifyBalanceChange (who, fromValue, toValue, token) {
 }
 
 // TODO: fetch txCount when needed
-export function fetchBalances (_addresses, skipNotifications = false) {
-  return fetchTokensBalances(_addresses, [ ETH_TOKEN ], skipNotifications);
+export function fetchBalances (addresses, skipNotifications = false) {
+  const updates = (addresses || []).reduce((updates, who) => {
+    updates[who] = [ ETH_TOKEN.id ];
+
+    return updates;
+  }, {});
+
+  return fetchTokensBalances(updates, skipNotifications);
 }
 
 export function updateTokensFilter (_addresses, _tokens, options = {}) {
@@ -184,7 +190,13 @@ export function updateTokensFilter (_addresses, _tokens, options = {}) {
         const { skipNotifications } = options;
 
         tokensFilter = nextTokensFilter;
-        fetchTokensBalances(addresses, tokensToUpdate, skipNotifications)(dispatch, getState);
+
+        const updates = addresses.reduce((updates, who) => {
+          updates[who] = tokensToUpdate.map((t) => t.id);
+          return updates;
+        }, {});
+
+        fetchTokensBalances(updates, skipNotifications)(dispatch, getState);
       })
       .catch((error) => {
         console.warn('balances::updateTokensFilter', error);
@@ -194,12 +206,7 @@ export function updateTokensFilter (_addresses, _tokens, options = {}) {
 
 export function queryTokensFilter () {
   return (dispatch, getState) => {
-    const { api, personal, tokens } = getState();
-    const { visibleAccounts, accounts } = personal;
-
-    const allAddresses = visibleAccounts.concat(Object.keys(accounts));
-    const addressesToFetch = uniq(allAddresses);
-    const lcAddresses = addressesToFetch.map((a) => a.toLowerCase());
+    const { api } = getState();
 
     Promise
       .all([
@@ -207,65 +214,78 @@ export function queryTokensFilter () {
         api.eth.getFilterChanges(tokensFilter.filterToId)
       ])
       .then(([ logsFrom, logsTo ]) => {
-        const addresses = [];
-        const tokenAddresses = [];
         const logs = logsFrom.concat(logsTo);
 
-        if (logs.length > 0) {
+        if (logs.length === 0) {
+          return;
+        } else {
           log.debug('got tokens filter logs', logs);
         }
 
+        const { personal, tokens } = getState();
+        const { visibleAccounts, accounts } = personal;
+
+        const allAddresses = visibleAccounts.concat(Object.keys(accounts));
+        const addressesToFetch = uniq(allAddresses);
+        const lcAddresses = addressesToFetch.map((a) => a.toLowerCase());
+
+        const lcTokensMap = Object.values(tokens).reduce((map, token) => {
+          map[token.address.toLowerCase()] = token;
+          return map;
+        });
+
+        // The keys are the account addresses,
+        // and the value is an Array of the tokens addresses
+        // to update
+        const updates = {};
+
         logs
           .forEach((log) => {
-            const tokenAddress = log.address;
+            const tokenAddress = log.address.toLowerCase();
+            const token = lcTokensMap[tokenAddress];
 
-            const fromAddress = '0x' + log.topics[1].slice(-40);
-            const toAddress = '0x' + log.topics[2].slice(-40);
+            const fromAddress = ('0x' + log.topics[1].slice(-40)).toLowerCase();
+            const toAddress = ('0x' + log.topics[2].slice(-40)).toLowerCase();
 
             const fromAddressIndex = lcAddresses.indexOf(fromAddress);
             const toAddressIndex = lcAddresses.indexOf(toAddress);
 
             if (fromAddressIndex > -1) {
-              addresses.push(addressesToFetch[fromAddressIndex]);
+              const who = addressesToFetch[fromAddressIndex];
+
+              updates[who] = [].concat(updates[who] || [], token.id);
             }
 
             if (toAddressIndex > -1) {
-              addresses.push(addressesToFetch[toAddressIndex]);
-            }
+              const who = addressesToFetch[toAddressIndex];
 
-            tokenAddresses.push(tokenAddress);
+              updates[who] = [].concat(updates[who] || [], token.id);
+            }
           });
 
-        if (addresses.length === 0) {
+        // No accounts to update
+        if (Object.keys(updates).length === 0) {
           return;
         }
 
-        const tokensToUpdate = Object.values(tokens)
-          .filter((t) => tokenAddresses.includes(t.address));
+        Object.keys(updates).forEach((who) => {
+          // Keep non-empty token addresses
+          updates[who] = uniq(updates[who]);
+        });
 
-        fetchTokensBalances(uniq(addresses), tokensToUpdate)(dispatch, getState);
+        fetchTokensBalances(updates)(dispatch, getState);
       });
   };
 }
 
-export function fetchTokensBalances (_addresses = null, _tokens = null, skipNotifications = false) {
+export function fetchTokensBalances (updates, skipNotifications = false) {
   return (dispatch, getState) => {
-    const { api, personal, tokens } = getState();
-    const { visibleAccounts, accounts } = personal;
-    const allTokens = Object.values(tokens);
-
-    const addressesToFetch = uniq(visibleAccounts.concat(Object.keys(accounts)));
-    const addresses = _addresses || addressesToFetch;
-    const tokensToUpdate = _tokens || allTokens;
-
-    if (addresses.length === 0) {
+    if (!updates) {
       return Promise.resolve();
     }
 
-    const updates = addresses.reduce((updates, who) => {
-      updates[who] = tokensToUpdate.map((token) => token.id);
-      return updates;
-    }, {});
+    const { api, tokens } = getState();
+    const allTokens = Object.values(tokens);
 
     return fetchAccountsBalances(api, allTokens, updates)
       .then((balances) => {

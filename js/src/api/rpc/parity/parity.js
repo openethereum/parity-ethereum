@@ -44,6 +44,15 @@ export default class Parity {
       .execute('parity_addReservedPeer', enode);
   }
 
+  call (requests, blockNumber = 'latest') {
+    return this._transport
+      .execute(
+        'parity_call',
+        requests.map((options) => inOptions(options)),
+        inBlockNumber(blockNumber)
+      );
+  }
+
   chainStatus () {
     return this._transport
       .execute('parity_chainStatus')

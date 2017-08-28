@@ -15,7 +15,9 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import EventEmitter from 'eventemitter3';
+
 import { Logging } from '../subscriptions';
+import logger from './logger';
 
 export default class JsonRpcBase extends EventEmitter {
   constructor () {
@@ -75,6 +77,8 @@ export default class JsonRpcBase extends EventEmitter {
   }
 
   execute (method, ...params) {
+    logger.log(method, params);
+
     return this._middlewareList.then((middlewareList) => {
       for (const middleware of middlewareList) {
         const res = middleware.handle(method, params);

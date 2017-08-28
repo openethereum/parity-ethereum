@@ -18,7 +18,7 @@ import { uniq } from 'lodash';
 
 import Contracts from '~/contracts';
 import { LOG_KEYS, getLogger } from '~/config';
-import { fetchTokenIds, fetchTokenInfo } from '~/util/tokens';
+import { fetchTokenIds, fetchTokensInfo } from '~/util/tokens';
 
 import { updateTokensFilter } from './balancesActions';
 import { setAddressImage } from './imagesActions';
@@ -56,14 +56,15 @@ export function fetchTokens (_tokenIndexes, options = {}) {
     const { api, images } = getState();
     const { tokenReg } = Contracts.get();
 
-    return tokenReg.getInstance()
-      .then((tokenRegInstance) => {
-        const promises = tokenIndexes.map((id) => fetchTokenInfo(api, tokenRegInstance, id));
-
-        return Promise.all(promises);
+    return tokenReg.getContract()
+      .then((tokenReg) => {
+        return fetchTokensInfo(api, tokenReg, tokenIndexes);
       })
       .then((results) => {
         const tokens = results
+          .filter((token) => {
+            return token.name && token.address && !/^(0x)?0*$/.test(token.address);
+          })
           .reduce((tokens, token) => {
             const { id, image, address } = token;
 

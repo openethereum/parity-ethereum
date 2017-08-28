@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { range } from 'lodash';
+import { flatten, range } from 'lodash';
 import BigNumber from 'bignumber.js';
 
 import { hashToImageUrl } from '~/redux/util';
@@ -44,26 +44,35 @@ export function fetchTokenIds (tokenregInstance) {
     });
 }
 
-export function fetchTokenInfo (api, tokenregInstace, tokenIndex) {
-  return Promise
-    .all([
-      tokenregInstace.token.call({}, [tokenIndex]),
-      tokenregInstace.meta.call({}, [tokenIndex, 'IMG'])
-    ])
-    .then(([ tokenData, image ]) => {
-      const [ address, tag, format, name ] = tokenData;
+export function fetchTokensInfo (api, tokenReg, tokenIndexes) {
+  const requests = tokenIndexes.map((tokenIndex) => {
+    const tokenCalldata = tokenReg.getCallData(tokenReg.instance.token, {}, [tokenIndex]);
+    const metaCalldata = tokenReg.getCallData(tokenReg.instance.meta, {}, [tokenIndex, 'IMG']);
 
-      const token = {
-        format: format.toString(),
-        index: tokenIndex,
-        image: hashToImageUrl(image),
-        id: sha3(address + tokenIndex).slice(0, 10),
-        address,
-        name,
-        tag
-      };
+    return [
+      { to: tokenReg.address, data: tokenCalldata },
+      { to: tokenReg.address, data: metaCalldata }
+    ];
+  });
 
-      return token;
+  return api.parity.call(flatten(requests))
+    .then((results) => {
+      return tokenIndexes.map((tokenIndex, index) => {
+        const [ tokenData, image ] = results.slice(index * 2, index * 2 + 2);
+        const [ address, tag, format, name ] = tokenData;
+
+        const token = {
+          format: format.toString(),
+          index: tokenIndex,
+          image: hashToImageUrl(image),
+          id: sha3(address + tokenIndex).slice(0, 10),
+          address,
+          name,
+          tag
+        };
+
+        return token;
+      });
     });
 }
 
@@ -73,61 +82,90 @@ export function fetchTokenInfo (api, tokenregInstace, tokenIndex) {
  *     [ who ]: [ tokenId ]  // Array of tokens to updates
  *   }
  *
- * Returns a Promise resolved witht the balances in the shape:
+ * Returns a Promise resolved with the balances in the shape:
  *   {
  *     [ who ]: { [ tokenId ]: BigNumber } // The balances of `who`
  *   }
  */
 export function fetchAccountsBalances (api, tokens, updates) {
+  const tokenIdMap = tokens.reduce((map, token) => {
+    map[token.id] = token;
+    return map;
+  }, {});
+
   const addresses = Object.keys(updates);
-  const promises = addresses
+
+  const ethUpdates = addresses
     .map((who) => {
       const tokensIds = updates[who];
-      const tokensToUpdate = tokensIds.map((tokenId) => tokens.find((t) => t.id === tokenId));
 
-      return fetchAccountBalances(api, tokensToUpdate, who);
-    });
+      if (tokensIds.includes(ETH_TOKEN.id)) {
+        return who;
+      }
+    })
+    .filter((who) => who);
 
-  return Promise.all(promises)
-    .then((results) => {
-      return results.reduce((balances, accountBalances, index) => {
-        balances[addresses[index]] = accountBalances;
-        return balances;
-      }, {});
-    });
-}
+  // An Array which each elements is an Object
+  // containing the request Object (with data and to fields),
+  // and the who field
+  const calls = addresses
+    .map((who) => {
+      const tokensIds = updates[who];
 
-/**
- * Returns a Promise resolved with the balances in the shape:
- *   {
- *     [ tokenId ]: BigNumber  // Token balance value
- *   }
- */
-export function fetchAccountBalances (api, tokens, who) {
-  const calldata = '0x' + BALANCEOF_SIGNATURE.slice(2, 10) + ADDRESS_PADDING + who.slice(2);
-  const promises = tokens.map((token) => fetchTokenBalance(api, token, { who, calldata }));
+      return tokensIds
+        .map((id) => tokenIdMap[id])
+        // Filter out non-contract tokens
+        .filter((t) => t.address)
+        .map((token) => {
+          const calldata = '0x' + BALANCEOF_SIGNATURE.slice(2, 10) + ADDRESS_PADDING + who.slice(2);
 
-  return Promise.all(promises)
-    .then((results) => {
-      return results.reduce((balances, value, index) => {
-        const token = tokens[index];
+          return {
+            request: {
+              to: token.address,
+              data: calldata
+            },
+            who,
+            tokenId: token.id
+          };
+        });
+    })
+    .reduce((calls, requests) => [].concat(calls, requests), []);
 
-        balances[token.id] = value;
-        return balances;
-      }, {});
-    });
-}
+  const requests = calls.map((c) => c.request);
 
-export function fetchTokenBalance (api, token, { who, calldata }) {
-  if (token.native) {
-    return api.eth.getBalance(who);
-  }
+  return Promise
+    .all([
+      api.parity.call(requests),
+      Promise.all(ethUpdates.map((who) => api.eth.getBalance(who)))
+    ])
+    .then(([ _tokensResults, _ethResults ]) => {
+      const balances = {};
 
-  return api.eth
-    .call({ data: calldata, to: token.address })
-    .then((result) => {
-      const cleanResult = result.replace(/^0x/, '');
+      const tokensResults = _tokensResults.map((result, index) => {
+        const { who, tokenId } = calls[index];
+        const cleanValue = result.replace(/^0x/, '');
 
-      return new BigNumber(`0x${cleanResult || 0}`);
+        return { who, tokenId, value: new BigNumber(`0x${cleanValue || 0}`) };
+      });
+
+      const ethResults = _ethResults.map((balance, index) => {
+        return {
+          value: balance,
+          who: ethUpdates[index],
+          tokenId: ETH_TOKEN.id
+        };
+      });
+
+      [].concat(ethResults, tokensResults).forEach((result) => {
+        const { value, who, tokenId } = result;
+
+        if (!balances[who]) {
+          balances[who] = {};
+        }
+
+        balances[who][tokenId] = value;
+      });
+
+      return balances;
     });
 }
