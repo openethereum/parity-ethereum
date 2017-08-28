@@ -176,6 +176,7 @@ export default class HardwareStore {
     return this._api.parity
       .trezor('pin_matrix_ack', device.path, passcode)
       .then((message) => {
+        this.scan();
         // true/false is returned
         return JSON.parse(message);
       })
