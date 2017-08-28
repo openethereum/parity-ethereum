@@ -17,7 +17,6 @@
 import { action, computed, observable, transaction } from 'mobx';
 
 import Ledger from '~/3rdparty/ledger';
-import Trezor from '~/3rdparty/trezor';
 
 const HW_SCAN_INTERVAL = 5000;
 let instance = null;
@@ -30,7 +29,6 @@ export default class HardwareStore {
   constructor (api) {
     this._api = api;
     this._ledger = Ledger.create(api);
-    this._trezor = new Trezor(api);
     this._pollId = null;
 
     this._pollScan();
@@ -166,13 +164,7 @@ export default class HardwareStore {
     return this._ledger.signTransaction(transaction);
   }
 
-  cancelPinMatrix (device) {
-    // TODO: implement this
-    console.log(device);
-  }
-
   pinMatrixAck (device, passcode) {
-    console.log(device, passcode);
     return this._api.parity
       .trezor('pin_matrix_ack', device.path, passcode)
       .then((message) => {

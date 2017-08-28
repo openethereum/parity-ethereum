@@ -73,7 +73,6 @@ export default class PinMatrix extends Component {
               }
             </div>
             <div>
-              <span className={ styles.button } id={ styles.cancel } onClick={ this.cancel }>Cancel</span>
               <span className={ styles.button } id={ styles.submit } onClick={ this.submit }>Submit</span>
             </div>
             <div id={ styles.error }>
@@ -121,13 +120,6 @@ export default class PinMatrix extends Component {
     this.setState({
       passcode: ''
     });
-  }
-
-  cancel = () => {
-    const { device } = this.props;
-    const { store } = this.props;
-
-    store.cancelPinMatrix(device);
   }
 
   submit = () => {
