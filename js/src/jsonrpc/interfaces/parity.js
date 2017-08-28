@@ -360,7 +360,7 @@ export default {
     }
   },
 
-  keepkey: {
+  trezor: {
     desc: 'send a trezor device a message',
     params: [
       {
@@ -381,7 +381,7 @@ export default {
     ],
     returns: {
       type: String,
-      desc: 'keepkey response message as a string or JSON string.',
+      desc: 'trezor response message as a string or JSON string.',
       example: 'PinMatrixRequest'
     }
   },
