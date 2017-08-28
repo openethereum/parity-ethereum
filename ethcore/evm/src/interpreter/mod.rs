@@ -873,3 +873,36 @@ fn address_to_u256(value: Address) -> U256 {
 	U256::from(&*H256::from(value))
 }
 
+
+#[cfg(test)]
+mod tests {
+	use std::sync::Arc;
+	use rustc_hex::FromHex;
+	use vmtype::VMType;
+	use factory::Factory;
+	use vm::{self, ActionParams, ActionValue};
+	use vm::tests::{FakeExt, test_finalize};
+
+	#[test]
+	fn should_not_fail_on_tracing_mem() {
+		let code = "7feeffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff006000527faaffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffaa6020526000620f120660406000601773945304eb96065b2a98b57a48a06ae28d285a71b56101f4f1600055".from_hex().unwrap();
+
+		let mut params = ActionParams::default();
+		params.address = 5.into();
+		params.gas = 300_000.into();
+		params.gas_price = 1.into();
+		params.value = ActionValue::Transfer(100_000.into());
+		params.code = Some(Arc::new(code));
+		let mut ext = FakeExt::new();
+		ext.balances.insert(5.into(), 1_000_000_000.into());
+		ext.tracing = true;
+
+		let gas_left = {
+			let mut vm = Factory::new(VMType::Interpreter, 1).create(params.gas);
+			test_finalize(vm.exec(params, &mut ext)).unwrap()
+		};
+
+		assert_eq!(ext.calls.len(), 1);
+		assert_eq!(gas_left, 248_212.into());
+	}
+}
