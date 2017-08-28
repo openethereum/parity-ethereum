@@ -187,7 +187,14 @@ impl Engine for Arc<Ethash> {
 
 	/// Additional engine-specific information for the user/developer concerning `header`.
 	fn extra_info(&self, header: &Header) -> BTreeMap<String, String> {
-		map!["nonce".to_owned() => format!("0x{}", header.nonce().hex()), "mixHash".to_owned() => format!("0x{}", header.mix_hash().hex())]
+		if header.seal().len() == self.seal_fields() {
+			map![
+				"nonce".to_owned() => format!("0x{}", header.nonce().hex()),
+				"mixHash".to_owned() => format!("0x{}", header.mix_hash().hex())
+			]
+		} else {
+			BTreeMap::default()
+		}
 	}
 
 	fn schedule(&self, block_number: BlockNumber) -> Schedule {

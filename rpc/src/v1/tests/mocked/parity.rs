@@ -15,13 +15,15 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
-use ethcore_logger::RotatingLogger;
-use util::{Address, U256};
-use ethsync::ManageNetwork;
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::{TestBlockChainClient, Executed};
 use ethcore::miner::LocalTransactionStatus;
+use ethcore_logger::RotatingLogger;
 use ethstore::ethkey::{Generator, Random};
+use ethsync::ManageNetwork;
+use node_health::{self, NodeHealth};
+use parity_reactor;
+use util::Address;
 
 use jsonrpc_core::IoHandler;
 use v1::{Parity, ParityClient};
@@ -30,13 +32,14 @@ use v1::helpers::{SignerService, NetworkSettings};
 use v1::tests::helpers::{TestSyncProvider, Config, TestMinerService, TestUpdater};
 use super::manage_network::TestManageNetwork;
 
-pub type TestParityClient = ParityClient<TestBlockChainClient, TestMinerService, TestSyncProvider, TestUpdater>;
+pub type TestParityClient = ParityClient<TestBlockChainClient, TestMinerService, TestUpdater>;
 
 pub struct Dependencies {
 	pub miner: Arc<TestMinerService>,
 	pub client: Arc<TestBlockChainClient>,
 	pub sync: Arc<TestSyncProvider>,
 	pub updater: Arc<TestUpdater>,
+	pub health: NodeHealth,
 	pub logger: Arc<RotatingLogger>,
 	pub settings: Arc<NetworkSettings>,
 	pub network: Arc<ManageNetwork>,
@@ -54,6 +57,11 @@ impl Dependencies {
 				network_id: 3,
 				num_peers: 120,
 			})),
+			health: NodeHealth::new(
+				Arc::new(FakeSync),
+				node_health::TimeChecker::new::<String>(&[], node_health::CpuPool::new(1)),
+				parity_reactor::Remote::new_sync(),
+			),
 			updater: Arc::new(TestUpdater::default()),
 			logger: Arc::new(RotatingLogger::new("rpc=trace".to_owned())),
 			settings: Arc::new(NetworkSettings {
@@ -75,12 +83,13 @@ impl Dependencies {
 		let opt_accounts = Some(self.accounts.clone());
 
 		ParityClient::new(
-			&self.client,
-			&self.miner,
-			&self.sync,
-			&self.updater,
-			&self.network,
-			&opt_accounts,
+			self.client.clone(),
+			self.miner.clone(),
+			self.sync.clone(),
+			self.updater.clone(),
+			self.network.clone(),
+			self.health.clone(),
+			opt_accounts.clone(),
 			self.logger.clone(),
 			self.settings.clone(),
 			signer,
@@ -100,6 +109,13 @@ impl Dependencies {
 		io.extend_with(self.client(Some(Arc::new(signer))).to_delegate());
 		io
 	}
+}
+
+#[derive(Debug)]
+struct FakeSync;
+impl node_health::SyncStatus for FakeSync {
+	fn is_major_importing(&self) -> bool { false }
+	fn peers(&self) -> (usize, usize) { (4, 25) }
 }
 
 #[test]
@@ -507,6 +523,8 @@ fn rpc_parity_cid() {
 
 #[test]
 fn rpc_parity_call() {
+	use util::U256;
+
 	let deps = Dependencies::new();
 	deps.client.set_execution_result(Ok(Executed {
 		exception: None,
@@ -538,6 +556,17 @@ fn rpc_parity_call() {
 		"id": 1
 	}"#;
 	let response = r#"{"jsonrpc":"2.0","result":["0x1234ff"],"id":1}"#;
+
+	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
+}
+
+#[test]
+fn rpc_parity_node_health() {
+	let deps = Dependencies::new();
+	let io = deps.default_client();
+
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_nodeHealth", "params":[], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":{"peers":{"details":[4,25],"message":"","status":"ok"},"sync":{"details":false,"message":"","status":"ok"},"time":{"details":0,"message":"","status":"ok"}},"id":1}"#;
 
 	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
 }

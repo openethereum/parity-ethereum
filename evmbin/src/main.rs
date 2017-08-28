@@ -17,8 +17,9 @@
 //! Parity EVM interpreter binary.
 
 #![warn(missing_docs)]
-#![allow(dead_code)]
+
 extern crate ethcore;
+extern crate ethjson;
 extern crate rustc_hex;
 extern crate serde;
 #[macro_use]
@@ -31,6 +32,7 @@ extern crate panic_hook;
 
 use std::sync::Arc;
 use std::{fmt, fs};
+use std::path::PathBuf;
 use docopt::Docopt;
 use rustc_hex::FromHex;
 use util::{U256, Bytes, Address};
@@ -47,6 +49,7 @@ EVM implementation for Parity.
   Copyright 2016, 2017 Parity Technologies (UK) Ltd
 
 Usage:
+    parity-evm state-test <file> [--json --only NAME --chain CHAIN]
     parity-evm stats [options]
     parity-evm [options]
     parity-evm [-h | --help]
@@ -58,6 +61,10 @@ Transaction options:
     --input DATA       Input data as hex (without 0x).
     --gas GAS          Supplied gas as hex (without 0x).
     --gas-price WEI    Supplied gas price as hex (without 0x).
+
+State test options:
+    --only NAME        Runs only a single test matching the name.
+    --chain CHAIN      Run only tests from specific chain.
 
 General options:
     --json             Display verbose results in JSON.
@@ -71,20 +78,67 @@ fn main() {
 
 	let args: Args = Docopt::new(USAGE).and_then(|d| d.deserialize()).unwrap_or_else(|e| e.exit());
 
-	if args.flag_json {
-		run(args, display::json::Informant::default())
+	if args.cmd_state_test {
+		run_state_test(args)
+	} else if args.flag_json {
+		run_call(args, display::json::Informant::default())
 	} else {
-		run(args, display::simple::Informant::default())
+		run_call(args, display::simple::Informant::default())
 	}
 }
 
-fn run<T: Informant>(args: Args, mut informant: T) {
+fn run_state_test(args: Args) {
+	use ethjson::state::test::Test;
+
+	let file = args.arg_file.expect("FILE is required");
+	let mut file = match fs::File::open(&file) {
+		Err(err) => die(format!("Unable to open: {:?}: {}", file, err)),
+		Ok(file) => file,
+	};
+	let state_test = match Test::load(&mut file) {
+		Err(err) => die(format!("Unable to load the test file: {}", err)),
+		Ok(test) => test,
+	};
+	let only_test = args.flag_only.map(|s| s.to_lowercase());
+	let only_chain = args.flag_chain.map(|s| s.to_lowercase());
+
+	for (name, test) in state_test {
+		if let Some(false) = only_test.as_ref().map(|only_test| &name.to_lowercase() == only_test) {
+			continue;
+		}
+
+		let multitransaction = test.transaction;
+		let env_info = test.env.into();
+		let pre = test.pre_state.into();
+
+		for (spec, states) in test.post_states {
+			if let Some(false) = only_chain.as_ref().map(|only_chain| &format!("{:?}", spec).to_lowercase() == only_chain) {
+				continue;
+			}
+
+			for (idx, state) in states.into_iter().enumerate() {
+				let post_root = state.hash.into();
+				let transaction = multitransaction.select(&state.indexes).into();
+
+				if args.flag_json {
+					let i = display::json::Informant::default();
+					info::run_transaction(&name, idx, &spec, &pre, post_root, &env_info, transaction, i)
+				} else {
+					let i = display::simple::Informant::default();
+					info::run_transaction(&name, idx, &spec, &pre, post_root, &env_info, transaction, i)
+				}
+			}
+		}
+	}
+}
+
+fn run_call<T: Informant>(args: Args, mut informant: T) {
 	let from = arg(args.from(), "--from");
 	let to = arg(args.to(), "--to");
 	let code = arg(args.code(), "--code");
 	let spec = arg(args.spec(), "--chain");
 	let gas = arg(args.gas(), "--gas");
-	let gas_price = arg(args.gas(), "--gas-price");
+	let gas_price = arg(args.gas_price(), "--gas-price");
 	let data = arg(args.data(), "--input");
 
 	if code.is_none() && to == Address::default() {
@@ -103,13 +157,18 @@ fn run<T: Informant>(args: Args, mut informant: T) {
 	params.data = data;
 
 	informant.set_gas(gas);
-	let result = info::run(&mut informant, spec, params);
-	informant.finish(result);
+	let result = info::run(&spec, gas, None, |mut client| {
+		client.call(params, &mut informant)
+	});
+	T::finish(result);
 }
 
 #[derive(Debug, Deserialize)]
 struct Args {
 	cmd_stats: bool,
+	cmd_state_test: bool,
+	arg_file: Option<PathBuf>,
+	flag_only: Option<String>,
 	flag_from: Option<String>,
 	flag_to: Option<String>,
 	flag_code: Option<String>,
@@ -220,5 +279,23 @@ mod tests {
 		assert_eq!(args.code(), Ok(Some(vec![05])));
 		assert_eq!(args.data(), Ok(Some(vec![06])));
 		assert_eq!(args.flag_chain, Some("./testfile".to_owned()));
+	}
+
+	#[test]
+	fn should_parse_state_test_command() {
+		let args = run(&[
+			"parity-evm",
+			"state-test",
+			"./file.json",
+			"--chain", "homestead",
+			"--only=add11",
+			"--json",
+		]);
+
+		assert_eq!(args.cmd_state_test, true);
+		assert!(args.arg_file.is_some());
+		assert_eq!(args.flag_json, true);
+		assert_eq!(args.flag_chain, Some("homestead".to_owned()));
+		assert_eq!(args.flag_only, Some("add11".to_owned()));
 	}
 }

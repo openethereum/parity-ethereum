@@ -21,11 +21,9 @@
 
 extern crate base32;
 extern crate futures;
-extern crate futures_cpupool;
 extern crate itertools;
 extern crate linked_hash_map;
 extern crate mime_guess;
-extern crate ntp;
 extern crate rand;
 extern crate rustc_hex;
 extern crate serde;
@@ -40,6 +38,7 @@ extern crate jsonrpc_http_server;
 
 extern crate ethcore_util as util;
 extern crate fetch;
+extern crate node_health;
 extern crate parity_dapps_glue as parity_dapps;
 extern crate parity_hash_fetch as hash_fetch;
 extern crate parity_reactor;
@@ -56,7 +55,6 @@ extern crate serde_derive;
 extern crate ethcore_devtools as devtools;
 #[cfg(test)]
 extern crate env_logger;
-
 
 mod endpoint;
 mod apps;
@@ -79,19 +77,12 @@ use util::RwLock;
 use jsonrpc_http_server::{self as http, hyper, Origin};
 
 use fetch::Fetch;
-use futures_cpupool::CpuPool;
+use node_health::NodeHealth;
 use parity_reactor::Remote;
 
 pub use hash_fetch::urlhint::ContractClient;
+pub use node_health::SyncStatus;
 
-/// Indicates sync status
-pub trait SyncStatus: Send + Sync {
-	/// Returns true if there is a major sync happening.
-	fn is_major_importing(&self) -> bool;
-
-	/// Returns number of connected and ideal peers.
-	fn peers(&self) -> (usize, usize);
-}
 
 /// Validates Web Proxy tokens
 pub trait WebProxyTokens: Send + Sync {
@@ -156,8 +147,7 @@ impl Middleware {
 
 	/// Creates new middleware for UI server.
 	pub fn ui<F: Fetch>(
-		ntp_servers: &[String],
-		pool: CpuPool,
+		health: NodeHealth,
 		remote: Remote,
 		dapps_domain: &str,
 		registrar: Arc<ContractClient>,
@@ -172,11 +162,9 @@ impl Middleware {
 		).embeddable_on(None).allow_dapps(false));
 		let special = {
 			let mut special = special_endpoints(
-				ntp_servers,
-				pool,
+				health,
 				content_fetcher.clone(),
 				remote.clone(),
-				sync_status.clone(),
 			);
 			special.insert(router::SpecialEndpoint::Home, Some(apps::ui()));
 			special
@@ -197,8 +185,7 @@ impl Middleware {
 
 	/// Creates new Dapps server middleware.
 	pub fn dapps<F: Fetch>(
-		ntp_servers: &[String],
-		pool: CpuPool,
+		health: NodeHealth,
 		remote: Remote,
 		ui_address: Option<(String, u16)>,
 		extra_embed_on: Vec<(String, u16)>,
@@ -236,11 +223,9 @@ impl Middleware {
 
 		let special = {
 			let mut special = special_endpoints(
-				ntp_servers,
-				pool,
+				health,
 				content_fetcher.clone(),
 				remote.clone(),
-				sync_status,
 			);
 			special.insert(
 				router::SpecialEndpoint::Home,
@@ -270,20 +255,17 @@ impl http::RequestMiddleware for Middleware {
 	}
 }
 
-fn special_endpoints<T: AsRef<str>>(
-	ntp_servers: &[T],
-	pool: CpuPool,
+fn special_endpoints(
+	health: NodeHealth,
 	content_fetcher: Arc<apps::fetcher::Fetcher>,
 	remote: Remote,
-	sync_status: Arc<SyncStatus>,
 ) -> HashMap<router::SpecialEndpoint, Option<Box<endpoint::Endpoint>>> {
 	let mut special = HashMap::new();
 	special.insert(router::SpecialEndpoint::Rpc, None);
 	special.insert(router::SpecialEndpoint::Utils, Some(apps::utils()));
 	special.insert(router::SpecialEndpoint::Api, Some(api::RestApi::new(
 		content_fetcher,
-		sync_status,
-		api::TimeChecker::new(ntp_servers, pool),
+		health,
 		remote,
 	)));
 	special
