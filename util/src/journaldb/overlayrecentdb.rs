@@ -17,6 +17,7 @@
 //! `JournalDB` over in-memory overlay
 
 use std::collections::HashMap;
+use std::collections::hash_map::Entry;
 use std::sync::Arc;
 use parking_lot::RwLock;
 use heapsize::HeapSizeOf;
@@ -407,23 +408,28 @@ impl JournalDB for OverlayRecentDB {
 
 impl HashDB for OverlayRecentDB {
 	fn keys(&self) -> HashMap<H256, i32> {
-		let mut ret: HashMap<H256, i32> = HashMap::new();
-		for (key, _) in self.backing.iter(self.column) {
-			let h = H256::from_slice(&*key);
-			ret.insert(h, 1);
-		}
+		let mut ret: HashMap<H256, i32> = self.backing.iter(self.column)
+			.map(|(key, _)| (H256::from_slice(&*key), 1))
+			.collect();
 
 		for (key, refs) in self.transaction_overlay.keys() {
-			let refs = *ret.get(&key).unwrap_or(&0) + refs;
-			ret.insert(key, refs);
+			match ret.entry(key) {
+				Entry::Occupied(mut entry) => {
+					*entry.get_mut() += refs;
+				},
+				Entry::Vacant(entry) => {
+					entry.insert(refs);
+				}
+			}
 		}
 		ret
 	}
 
 	fn get(&self, key: &H256) -> Option<DBValue> {
-		let k = self.transaction_overlay.raw(key);
-		if let Some((d, rc)) = k {
-			if rc > 0 { return Some(d) }
+		if let Some((d, rc)) = self.transaction_overlay.raw(key) {
+			if rc > 0 {
+				return Some(d)
+			}
 		}
 		let v = {
 			let journal_overlay = self.journal_overlay.read();
