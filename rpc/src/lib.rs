@@ -24,6 +24,7 @@ extern crate cid;
 extern crate crypto as rust_crypto;
 extern crate futures;
 extern crate futures_cpupool;
+extern crate itertools;
 extern crate multihash;
 extern crate order_stat;
 extern crate rand;

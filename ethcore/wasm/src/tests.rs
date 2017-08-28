@@ -414,3 +414,37 @@ fn storage_read() {
 	assert_eq!(gas_left, U256::from(99682));
 	assert_eq!(Address::from(&result[12..32]), address);
 }
+
+
+// Tests that contract's ability to read from a storage
+// Test prepopulates address into storage, than executes a contract which read that address from storage and write this address into result
+#[test]
+fn math_add() {
+	::ethcore_logger::init_log();
+	let code = load_sample!("math.wasm");
+
+	let mut params = ActionParams::default();
+	params.gas = U256::from(100_000);
+	params.code = Some(Arc::new(code));
+
+	let mut args = [0u8; 64];
+	let arg_a = U256::from_dec_str("999999999999999999999999999999").unwrap();
+	let arg_b = U256::from_dec_str("888888888888888888888888888888").unwrap();
+	arg_a.to_big_endian(&mut args[0..32]);
+	arg_b.to_big_endian(&mut args[32..64]);
+	params.data = Some(args.to_vec());
+
+	let (gas_left, result) = {
+		let mut interpreter = wasm_interpreter();
+		let result = interpreter.exec(params, &mut FakeExt::new()).expect("Interpreter to execute without any errors");
+		match result {
+				GasLeft::Known(_) => { panic!("storage_read should return payload"); },
+				GasLeft::NeedsReturn { gas_left: gas, data: result, apply_state: _apply } => (gas, result.to_vec()),
+		}
+	};
+
+	let sum: U256 = (&result[..]).into();
+
+	assert_eq!(gas_left, U256::from(96284));
+	assert_eq!(sum, U256::from_dec_str("1888888888888888888888888888887").unwrap());
+}
