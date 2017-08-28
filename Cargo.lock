@@ -935,6 +935,7 @@ dependencies = [
  "docopt 0.8.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore 1.8.0",
  "ethcore-util 1.8.0",
+ "ethjson 0.1.0",
  "evm 0.1.0",
  "panic_hook 0.1.0",
  "rustc-hex 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",

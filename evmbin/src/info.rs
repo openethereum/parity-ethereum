@@ -17,17 +17,19 @@
 //! VM runner.
 
 use std::time::{Instant, Duration};
-use util::U256;
-use ethcore::{trace, spec};
-use ethcore::client::{EvmTestClient, EvmTestError};
-use vm::ActionParams;
+use util::{U256, H256};
+use ethcore::{trace, spec, transaction, pod_state};
+use ethcore::client::{self, EvmTestClient, EvmTestError, TransactResult};
+use ethjson;
 
 /// VM execution informant
 pub trait Informant: trace::VMTracer {
+	/// Display a single run init message
+	fn before_test(&self, test: &str, action: &str);
 	/// Set initial gas.
 	fn set_gas(&mut self, _gas: U256) {}
 	/// Display final result.
-	fn finish(&mut self, result: Result<Success, Failure>);
+	fn finish(result: Result<Success, Failure>);
 }
 
 /// Execution finished correctly
@@ -50,17 +52,71 @@ pub struct Failure {
 	pub time: Duration,
 }
 
+/// Execute given Transaction and verify resulting state root.
+pub fn run_transaction<T: Informant>(
+	name: &str,
+	idx: usize,
+	spec: &ethjson::state::test::ForkSpec,
+	pre_state: &pod_state::PodState,
+	post_root: H256,
+	env_info: &client::EnvInfo,
+	transaction: transaction::SignedTransaction,
+	mut informant: T,
+) {
+	let spec_name = format!("{:?}", spec).to_lowercase();
+	let spec = match EvmTestClient::spec_from_json(spec) {
+		Some(spec) => {
+			informant.before_test(&format!("{}:{}:{}", name, spec_name, idx), "starting");
+			spec
+		},
+		None => {
+			informant.before_test(&format!("{}:{}:{}", name, spec_name, idx), "skipping because of missing spec");
+			return;
+		},
+	};
+
+	informant.set_gas(env_info.gas_limit);
+
+	let result = run(spec, env_info.gas_limit, pre_state, |mut client| {
+		let result = client.transact(env_info, transaction, informant);
+		match result {
+			TransactResult::Ok { state_root, .. } if state_root != post_root => {
+				Err(EvmTestError::PostCondition(format!(
+					"State root mismatch (got: {}, expected: {})",
+					state_root,
+					post_root,
+				)))
+			},
+			TransactResult::Ok { gas_left, output, .. } => {
+				Ok((gas_left, output))
+			},
+			TransactResult::Err { error, .. } => {
+				Err(EvmTestError::PostCondition(format!(
+					"Unexpected execution error: {:?}", error
+				)))
+			},
+		}
+	});
+
+	T::finish(result)
+}
+
 /// Execute VM with given `ActionParams`
-pub fn run<T: trace::VMTracer>(vm_tracer: &mut T, spec: spec::Spec, params: ActionParams) -> Result<Success, Failure> {
-	let mut test_client = EvmTestClient::new(spec).map_err(|error| Failure {
+pub fn run<'a, F, T>(spec: &'a spec::Spec, initial_gas: U256, pre_state: T, run: F) -> Result<Success, Failure> where
+	F: FnOnce(EvmTestClient) -> Result<(U256, Vec<u8>), EvmTestError>,
+	T: Into<Option<&'a pod_state::PodState>>,
+{
+	let test_client = match pre_state.into() {
+		Some(pre_state) => EvmTestClient::from_pod_state(spec, pre_state.clone()),
+		None => EvmTestClient::new(spec),
+	}.map_err(|error| Failure {
 		gas_used: 0.into(),
 		error,
 		time: Duration::from_secs(0)
 	})?;
 
-	let initial_gas = params.gas;
 	let start = Instant::now();
-	let result = test_client.call(params, vm_tracer);
+	let result = run(test_client);
 	let duration = start.elapsed();
 
 	match result {
