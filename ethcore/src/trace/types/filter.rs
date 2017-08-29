@@ -113,7 +113,7 @@ impl Filter {
 				let from_matches = self.from_address.matches(&call.from);
 				let to_matches = self.to_address.matches(&call.to);
 				from_matches && to_matches
-			}
+			},
 			Action::Create(ref create) => {
 				let from_matches = self.from_address.matches(&create.from);
 
@@ -131,7 +131,7 @@ impl Filter {
 			},
 			Action::Reward(ref reward) => {
 				self.to_address.matches(&reward.author)
-			}
+			},
 		}
 	}
 }
