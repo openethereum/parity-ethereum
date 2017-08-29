@@ -156,9 +156,9 @@ class Requests extends Component {
       return (
         <FormattedMessage
           id='requests.status.transactionMined'
-          defaultMessage='Transaction mined at block #{blockNumber} ({blockHeight} blocks ago)'
+          defaultMessage='Transaction mined at block #{blockNumber} ({blockHeight} confirmations)'
           values={ {
-            blockHeight: +request.blockHeight,
+            blockHeight: (+request.blockHeight || 0).toString(),
             blockNumber: +transactionReceipt.blockNumber
           } }
         />
