@@ -399,7 +399,7 @@ impl Manager {
 
 #[test]
 fn debug() {
-	use util::U256;
+	use bigint::prelude::uint::U256;
 	use bigint::hash::H160;
 
 	let hidapi = Arc::new(Mutex::new(hidapi::HidApi::new().unwrap()));
