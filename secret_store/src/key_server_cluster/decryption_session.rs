@@ -281,10 +281,13 @@ impl SessionImpl {
 			return Ok(());
 		}
 
-		self.core.cluster.broadcast(Message::Decryption(DecryptionMessage::DecryptionSessionCompleted(DecryptionSessionCompleted {
-			session: self.core.meta.id.clone().into(),
-			sub_session: self.core.access_key.clone().into(),
-		})))?;
+		// send compeltion signal to all nodes, except for rejected nodes
+		for node in data.consensus_session.consensus_non_rejected_nodes() {
+			self.core.cluster.send(&node, Message::Decryption(DecryptionMessage::DecryptionSessionCompleted(DecryptionSessionCompleted {
+				session: self.core.meta.id.clone().into(),
+				sub_session: self.core.access_key.clone().into(),
+			})))?;
+		}
 
 		data.result = Some(Ok(data.consensus_session.result()?));
 		self.core.completed.notify_all();

@@ -101,10 +101,21 @@ impl<ConsensusTransport, ComputationExecutor, ComputationTransport> ConsensusSes
 		})
 	}
 
-	/// Get consensus job reference.
 	#[cfg(test)]
+	/// Get consensus job reference.
 	pub fn consensus_job(&self) -> &JobSession<KeyAccessJob, ConsensusTransport> {
 		&self.consensus_job
+	}
+
+	/// Get all nodes, which chas not rejected consensus request.
+	pub fn consensus_non_rejected_nodes(&self) -> BTreeSet<NodeId> {
+		self.consensus_job.responses().iter()
+			.filter(|r| *r.1)
+			.map(|r| r.0)
+			.chain(self.consensus_job.requests())
+			.filter(|n| **n != self.meta.self_node_id)
+			.cloned()
+			.collect()
 	}
 
 	/// Get computation job reference.
