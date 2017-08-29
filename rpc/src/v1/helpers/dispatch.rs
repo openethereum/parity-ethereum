@@ -584,8 +584,9 @@ fn decrypt(accounts: &AccountProvider, address: Address, msg: Bytes, password: S
 }
 
 /// Extract the default gas price from a client and miner.
-pub fn default_gas_price<C, M>(client: &C, miner: &M) -> U256
-	where C: MiningBlockChainClient, M: MinerService
+pub fn default_gas_price<C, M>(client: &C, miner: &M) -> U256 where
+	C: MiningBlockChainClient,
+	M: MinerService,
 {
 	client.gas_price_corpus(100).median().cloned().unwrap_or_else(|| miner.sensible_gas_price())
 }

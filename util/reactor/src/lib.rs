@@ -20,7 +20,7 @@
 extern crate futures;
 extern crate tokio_core;
 
-use std::thread;
+use std::{fmt, thread};
 use std::sync::mpsc;
 use std::time::Duration;
 use futures::{Future, IntoFuture};
@@ -81,7 +81,19 @@ enum Mode {
 	ThreadPerFuture,
 }
 
-#[derive(Clone)]
+impl fmt::Debug for Mode {
+	fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+		use self::Mode::*;
+
+		match *self {
+			Tokio(_) => write!(fmt, "tokio"),
+			Sync => write!(fmt, "synchronous"),
+			ThreadPerFuture => write!(fmt, "thread per future"),
+		}
+	}
+}
+
+#[derive(Debug, Clone)]
 pub struct Remote {
 	inner: Mode,
 }

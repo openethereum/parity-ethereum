@@ -31,7 +31,7 @@ use vm::EnvInfo;
 use error::Error;
 use executive::{Executive, TransactOptions};
 use factory::Factories;
-use trace::FlatTrace;
+use trace::{self, FlatTrace, VMTrace};
 use pod_account::*;
 use pod_state::{self, PodState};
 use types::basic_account::BasicAccount;
@@ -59,8 +59,12 @@ pub use self::substate::Substate;
 pub struct ApplyOutcome {
 	/// The receipt for the applied transaction.
 	pub receipt: Receipt,
-	/// The trace for the applied transaction, if None if tracing is disabled.
+	/// The output of the applied transaction.
+	pub output: Bytes,
+	/// The trace for the applied transaction, empty if tracing was not produced.
 	pub trace: Vec<FlatTrace>,
+	/// The VM trace for the applied transaction, None if tracing was not produced.
+	pub vm_trace: Option<VMTrace>
 }
 
 /// Result type for the execution ("application") of a transaction.
@@ -205,7 +209,7 @@ pub fn check_proof(
 		Err(_) => return ProvedExecution::BadProof,
 	};
 
-	match state.execute(env_info, engine, transaction, false, true) {
+	match state.execute(env_info, engine, transaction, TransactOptions::with_no_tracing(), true) {
 		Ok(executed) => ProvedExecution::Complete(executed),
 		Err(ExecutionError::Internal(_)) => ProvedExecution::BadProof,
 		Err(e) => ProvedExecution::Failed(e),
@@ -290,7 +294,7 @@ const SEC_TRIE_DB_UNWRAP_STR: &'static str = "A state can only be created with v
 
 impl<B: Backend> State<B> {
 	/// Creates new state with empty state root
-	#[cfg(test)]
+	/// Used for tests.
 	pub fn new(mut db: B, account_start_nonce: U256, factories: Factories) -> State<B> {
 		let mut root = H256::new();
 		{
@@ -623,29 +627,57 @@ impl<B: Backend> State<B> {
 	/// Execute a given transaction, producing a receipt and an optional trace.
 	/// This will change the state accordingly.
 	pub fn apply(&mut self, env_info: &EnvInfo, engine: &Engine, t: &SignedTransaction, tracing: bool) -> ApplyResult {
-//		let old = self.to_pod();
+		if tracing {
+			let options = TransactOptions::with_tracing();
+			self.apply_with_tracing(env_info, engine, t, options.tracer, options.vm_tracer)
+		} else {
+			let options = TransactOptions::with_no_tracing();
+			self.apply_with_tracing(env_info, engine, t, options.tracer, options.vm_tracer)
+		}
+	}
 
-		let e = self.execute(env_info, engine, t, tracing, false)?;
-//		trace!("Applied transaction. Diff:\n{}\n", state_diff::diff_pod(&old, &self.to_pod()));
+	/// Execute a given transaction with given tracer and VM tracer producing a receipt and an optional trace.
+	/// This will change the state accordingly.
+	pub fn apply_with_tracing<V, T>(
+		&mut self,
+		env_info: &EnvInfo,
+		engine: &Engine,
+		t: &SignedTransaction,
+		tracer: T,
+		vm_tracer: V,
+	) -> ApplyResult where
+		T: trace::Tracer,
+		V: trace::VMTracer,
+	{
+		let options = TransactOptions::new(tracer, vm_tracer);
+		let e = self.execute(env_info, engine, t, options, false)?;
+
 		let state_root = if env_info.number < engine.params().eip98_transition || env_info.number < engine.params().validate_receipts_transition {
 			self.commit()?;
 			Some(self.root().clone())
 		} else {
 			None
 		};
+
+		let output = e.output;
 		let receipt = Receipt::new(state_root, e.cumulative_gas_used, e.logs);
 		trace!(target: "state", "Transaction receipt: {:?}", receipt);
-		Ok(ApplyOutcome{receipt: receipt, trace: e.trace})
+
+		Ok(ApplyOutcome {
+			receipt,
+			output,
+			trace: e.trace,
+			vm_trace: e.vm_trace,
+		})
 	}
 
 	// Execute a given transaction without committing changes.
 	//
 	// `virt` signals that we are executing outside of a block set and restrictions like
 	// gas limits and gas costs should be lifted.
-	fn execute(&mut self, env_info: &EnvInfo, engine: &Engine, t: &SignedTransaction, tracing: bool, virt: bool)
-		-> Result<Executed, ExecutionError>
+	fn execute<T, V>(&mut self, env_info: &EnvInfo, engine: &Engine, t: &SignedTransaction, options: TransactOptions<T, V>, virt: bool)
+		-> Result<Executed, ExecutionError> where T: trace::Tracer, V: trace::VMTracer,
 	{
-		let options = TransactOptions { tracing: tracing, vm_tracing: false, check_nonce: true };
 		let mut e = Executive::new(self, env_info, engine);
 
 		match virt {
@@ -730,9 +762,8 @@ impl<B: Backend> State<B> {
 		Ok(())
 	}
 
-	#[cfg(test)]
-	#[cfg(feature = "json-tests")]
 	/// Populate the state from `accounts`.
+	/// Used for tests.
 	pub fn populate_from(&mut self, accounts: PodState) {
 		assert!(self.checkpoints.borrow().is_empty());
 		for (add, acc) in accounts.drain().into_iter() {

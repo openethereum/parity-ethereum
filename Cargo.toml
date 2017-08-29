@@ -43,6 +43,7 @@ ethcore-logger = { path = "logger" }
 ethcore-stratum = { path = "stratum" }
 ethcore-network = { path = "util/network" }
 ethkey = { path = "ethkey" }
+node-health = { path = "dapps/node-health" }
 rlp = { path = "util/rlp" }
 rpc-cli = { path = "rpc_cli" }
 parity-hash-fetch = { path = "hash-fetch" }
@@ -110,4 +111,4 @@ lto = false
 panic = "abort"
 
 [workspace]
-members = ["ethstore/cli", "ethkey/cli", "evmbin", "whisper", "chainspec"]
+members = ["ethstore/cli", "ethkey/cli", "evmbin", "whisper", "chainspec", "dapps/node-health"]
