@@ -58,7 +58,14 @@ export function fetchTokensInfo (api, tokenReg, tokenIndexes) {
   return api.parity.call(flatten(requests))
     .then((results) => {
       return tokenIndexes.map((tokenIndex, index) => {
-        const [ tokenData, image ] = results.slice(index * 2, index * 2 + 2);
+        const [ rawTokenData, rawImage ] = results.slice(index * 2, index * 2 + 2);
+
+        const tokenData = tokenReg.instance.token
+          .decodeOutput(rawTokenData)
+          .map((t) => t.value);
+
+        const image = tokenReg.instance.meta.decodeOutput(rawImage)[0].value;
+
         const [ address, tag, format, name ] = tokenData;
 
         const token = {
