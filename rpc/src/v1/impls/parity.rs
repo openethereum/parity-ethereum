@@ -20,11 +20,10 @@ use std::str::FromStr;
 use std::collections::{BTreeMap, HashSet};
 use futures::{future, Future, BoxFuture};
 
-use ethcore_logger::RotatingLogger;
 use util::Address;
 use util::misc::version_data;
 
-use crypto::ecies;
+use crypto::{DEFAULT_MAC, ecies};
 use ethkey::{Brain, Generator};
 use ethstore::random_phrase;
 use ethsync::{SyncProvider, ManageNetwork};
@@ -34,8 +33,9 @@ use ethcore::ids::BlockId;
 use ethcore::miner::MinerService;
 use ethcore::mode::Mode;
 use ethcore::transaction::SignedTransaction;
+use ethcore_logger::RotatingLogger;
+use node_health::{NodeHealth, Health};
 use updater::{Service as UpdateService};
-use crypto::DEFAULT_MAC;
 
 use jsonrpc_core::Error;
 use jsonrpc_macros::Trailing;
@@ -53,17 +53,13 @@ use v1::types::{
 };
 
 /// Parity implementation.
-pub struct ParityClient<C, M, S: ?Sized, U> where
-	C: MiningBlockChainClient,
-	M: MinerService,
-	S: SyncProvider,
-	U: UpdateService,
-{
+pub struct ParityClient<C, M, U>  {
 	client: Arc<C>,
 	miner: Arc<M>,
-	sync: Arc<S>,
 	updater: Arc<U>,
+	sync: Arc<SyncProvider>,
 	net: Arc<ManageNetwork>,
+	health: NodeHealth,
 	accounts: Option<Arc<AccountProvider>>,
 	logger: Arc<RotatingLogger>,
 	settings: Arc<NetworkSettings>,
@@ -73,39 +69,39 @@ pub struct ParityClient<C, M, S: ?Sized, U> where
 	eip86_transition: u64,
 }
 
-impl<C, M, S: ?Sized, U> ParityClient<C, M, S, U> where
+impl<C, M, U> ParityClient<C, M, U> where
 	C: MiningBlockChainClient,
-	M: MinerService,
-	S: SyncProvider,
-	U: UpdateService,
 {
 	/// Creates new `ParityClient`.
 	pub fn new(
-		client: &Arc<C>,
-		miner: &Arc<M>,
-		sync: &Arc<S>,
-		updater: &Arc<U>,
-		net: &Arc<ManageNetwork>,
-		store: &Option<Arc<AccountProvider>>,
+		client: Arc<C>,
+		miner: Arc<M>,
+		sync: Arc<SyncProvider>,
+		updater: Arc<U>,
+		net: Arc<ManageNetwork>,
+		health: NodeHealth,
+		accounts: Option<Arc<AccountProvider>>,
 		logger: Arc<RotatingLogger>,
 		settings: Arc<NetworkSettings>,
 		signer: Option<Arc<SignerService>>,
 		dapps_address: Option<(String, u16)>,
 		ws_address: Option<(String, u16)>,
 	) -> Self {
+		let eip86_transition = client.eip86_transition();
 		ParityClient {
-			client: client.clone(),
-			miner: miner.clone(),
-			sync: sync.clone(),
-			updater: updater.clone(),
-			net: net.clone(),
-			accounts: store.clone(),
-			logger: logger,
-			settings: settings,
-			signer: signer,
-			dapps_address: dapps_address,
-			ws_address: ws_address,
-			eip86_transition: client.eip86_transition(),
+			client,
+			miner,
+			sync,
+			updater,
+			net,
+			health,
+			accounts,
+			logger,
+			settings,
+			signer,
+			dapps_address,
+			ws_address,
+			eip86_transition,
 		}
 	}
 
@@ -116,10 +112,9 @@ impl<C, M, S: ?Sized, U> ParityClient<C, M, S, U> where
 	}
 }
 
-impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
-	M: MinerService + 'static,
+impl<C, M, U> Parity for ParityClient<C, M, U> where
 	C: MiningBlockChainClient + 'static,
-	S: SyncProvider + 'static,
+	M: MinerService + 'static,
 	U: UpdateService + 'static,
 {
 	type Metadata = Metadata;
@@ -428,5 +423,11 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 				.map_err(errors::call);
 
 		future::done(result).boxed()
+	}
+
+	fn node_health(&self) -> BoxFuture<Health, Error> {
+		self.health.health()
+			.map_err(|err| errors::internal("Health API failure.", err))
+			.boxed()
 	}
 }

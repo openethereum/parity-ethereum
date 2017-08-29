@@ -9,15 +9,12 @@ authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 base32 = "0.3"
-env_logger = "0.4"
 futures = "0.1"
-futures-cpupool = "0.1"
 linked-hash-map = "0.3"
 log = "0.3"
 parity-dapps-glue = "1.7"
 mime = "0.2"
 mime_guess = "1.6.1"
-ntp = "0.2.0"
 rand = "0.3"
 rustc-hex = "1.0"
 serde = "1.0"
@@ -32,14 +29,18 @@ itertools = "0.5"
 jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
 jsonrpc-http-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
 
-ethcore-devtools = { path = "../devtools" }
 ethcore-util = { path = "../util" }
 fetch = { path = "../util/fetch" }
+node-health = { path = "./node-health" }
 parity-hash-fetch = { path = "../hash-fetch" }
 parity-reactor = { path = "../util/reactor" }
 parity-ui = { path = "./ui" }
 
 clippy = { version = "0.0.103", optional = true}
+
+[dev-dependencies]
+env_logger = "0.4"
+ethcore-devtools = { path = "../devtools" }
 
 [features]
 dev = ["clippy", "ethcore-util/dev"]

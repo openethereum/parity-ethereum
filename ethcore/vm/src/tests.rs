@@ -61,6 +61,7 @@ pub struct FakeExt {
 	pub info: EnvInfo,
 	pub schedule: Schedule,
 	pub balances: HashMap<Address, U256>,
+	pub tracing: bool,
 }
 
 // similar to the normal `finalize` function, but ignoring NeedsReturn.
@@ -183,5 +184,9 @@ impl Ext for FakeExt {
 
 	fn inc_sstore_clears(&mut self) {
 		self.sstore_clears += 1;
+	}
+
+	fn trace_next_instruction(&mut self, _pc: usize, _instruction: u8) -> bool {
+		self.tracing
 	}
 }
