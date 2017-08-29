@@ -24,6 +24,7 @@ extern crate libusb;
 extern crate parking_lot;
 extern crate protobuf;
 extern crate serde_json;
+extern crate trezor_sys;
 #[macro_use] extern crate log;
 #[cfg(test)] extern crate rustc_hex;
 

@@ -34,8 +34,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use util::U256;
 
-mod gen;
-use self::gen::messages::*;
+use trezor_sys::messages::{EthereumAddress, PinMatrixAck, MessageType, EthereumTxRequest, EthereumSignTx, EthereumGetAddress, EthereumTxAck, ButtonAck};
 
 const TREZOR_VID: u16 = 0x534c;
 const TREZOR_PIDS: [u16; 1] = [0x0001]; // Trezor v1, keeping this as an array to leave room for Trezor v2 which is in progress
