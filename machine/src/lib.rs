@@ -34,19 +34,6 @@ pub trait Header {
 pub trait ScoredHeader {
 	/// Get the score of this header.
     fn score(&self) -> U256;
-
-	/// Set the score of this header.
-	fn set_score(&mut self, new_score: U256);
-}
-
-/// A block type consists of a header and a body.
-pub trait Block {
-    type Header: Header;
-
-	/// Get a reference to the header.
-    fn header(&self) -> &Self::Header;
-	/// Get a reference to the body.
-    fn body(&self) -> &Self::Body;
 }
 
 /// the state machine the engine acquires consensus over.
@@ -58,12 +45,12 @@ pub trait Block {
 pub trait Machine {
 	/// The block header type.
     type Header: Header;
-	/// The block type.
-    type Block: Block<Header=Self::Header>;
 	/// The state type of the state machine.
     type State;
 	/// Errors which can be returned during verification.
     type Error;
 
 	// TODO verification functions.
+	// verify transactions.
+	// verify block basic
 }
