@@ -16,7 +16,6 @@ hidapi = { git = "https://github.com/paritytech/hidapi-rs" }
 libusb = { git = "https://github.com/paritytech/libusb-rs" }
 trezor-sys = { git = "https://github.com/paritytech/trezor-sys" }
 ethkey = { path = "../ethkey" }
-ethcore-util = { path = "../util" }
 ethcore-bigint = { path = "../util/bigint" }
 
 [dev-dependencies]

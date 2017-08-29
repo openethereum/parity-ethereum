@@ -32,7 +32,7 @@ use std::cmp::min;
 use std::fmt;
 use std::sync::Arc;
 use std::time::Duration;
-use util::U256;
+use bigint::prelude::uint::U256;
 
 use trezor_sys::messages::{EthereumAddress, PinMatrixAck, MessageType, EthereumTxRequest, EthereumSignTx, EthereumGetAddress, EthereumTxAck, ButtonAck};
 

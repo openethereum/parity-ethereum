@@ -17,7 +17,6 @@
 //! Hardware wallet management.
 
 extern crate ethcore_bigint as bigint;
-extern crate ethcore_util as util;
 extern crate ethkey;
 extern crate hidapi;
 extern crate libusb;
@@ -40,7 +39,7 @@ use std::sync::atomic;
 use std::sync::atomic::AtomicBool;
 use std::thread;
 use std::time::Duration;
-use util::{Bytes, U256};
+use bigint::prelude::uint::U256;
 
 /// Hardware wallet error.
 #[derive(Debug)]
@@ -64,7 +63,7 @@ pub struct TransactionInfo {
 	pub gas_limit: U256,
 	pub to: Option<Address>,
 	pub value: U256,
-	pub data: Bytes,
+	pub data: Vec<u8>,
 	pub network_id: Option<u64>,
 }
 
