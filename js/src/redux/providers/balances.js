@@ -36,14 +36,6 @@ export default class Balances {
     this._blockNumberSID = null;
     this._accountsInfoSID = null;
 
-    // Throtthled load tokens (no more than once
-    // every minute)
-    this.loadTokens = throttle(
-      this._loadTokens,
-      60 * 1000,
-      { leading: true, trailing: true }
-    );
-
     // Throttled `_fetchBalances` function
     // that gets called max once every 40s
     this.longThrottledFetch = throttle(
@@ -188,7 +180,7 @@ export default class Balances {
         }
 
         this._store.dispatch(queryTokensFilter());
-        return this.fetchBalances({});
+        return this.fetchBalances();
       })
       .then((blockNumberSID) => {
         this._blockNumberSID = blockNumberSID;
@@ -204,7 +196,6 @@ export default class Balances {
     // the accounts balances
     if (options.changedNetwork) {
       this.loadTokens({ skipNotifications: true });
-      this.loadTokens.flush();
 
       this.fetchBalances({
         force: true,
@@ -227,7 +218,7 @@ export default class Balances {
     this._fetchTokens(skipNotifications);
   }
 
-  fetchBalances (options) {
+  fetchBalances (options = {}) {
     const { skipNotifications = false, force = false } = options;
     const { syncing } = this._store.getState().nodeStatus;
 
@@ -264,7 +255,7 @@ export default class Balances {
     return Contracts.get().tokenReg.getContract();
   }
 
-  _loadTokens (options = {}) {
+  loadTokens (options = {}) {
     return this
       .getTokenRegistry()
       .then((tokenreg) => {

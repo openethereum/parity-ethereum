@@ -135,6 +135,8 @@ class Logger {
 
 const logger = new Logger();
 
-window._logger = logger;
+if (window) {
+  window._logger = logger;
+}
 
 export default logger;

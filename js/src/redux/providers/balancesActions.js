@@ -63,13 +63,10 @@ function setBalances (updates, skipNotifications = false) {
               dispatch(notifyBalanceChange(who, prevTokenValue, nextTokenValue, token));
             }
 
-            // Add the token if it's native ETH or if it has a value
-            if (token.native || nextTokenValue.gt(0)) {
-              nextBalances[who] = {
-                ...(nextBalances[who] || {}),
-                [tokenId]: nextTokenValue
-              };
-            }
+            nextBalances[who] = {
+              ...(nextBalances[who] || {}),
+              [tokenId]: nextTokenValue
+            };
           });
       });
 
@@ -101,13 +98,19 @@ function notifyBalanceChange (who, fromValue, toValue, token) {
 
 // TODO: fetch txCount when needed
 export function fetchBalances (addresses, skipNotifications = false) {
-  const updates = (addresses || []).reduce((updates, who) => {
-    updates[who] = [ ETH_TOKEN.id ];
+  return (dispatch, getState) => {
+    const { personal } = getState();
+    const { visibleAccounts, accounts } = personal;
 
-    return updates;
-  }, {});
+    const addressesToFetch = uniq(visibleAccounts.concat(Object.keys(accounts)));
+    const updates = (addresses || addressesToFetch).reduce((updates, who) => {
+      updates[who] = [ ETH_TOKEN.id ];
 
-  return fetchTokensBalances(updates, skipNotifications);
+      return updates;
+    }, {});
+
+    return fetchTokensBalances(updates, skipNotifications)(dispatch, getState);
+  };
 }
 
 export function updateTokensFilter (_addresses, _tokens, options = {}) {
@@ -214,7 +217,7 @@ export function queryTokensFilter () {
         api.eth.getFilterChanges(tokensFilter.filterToId)
       ])
       .then(([ logsFrom, logsTo ]) => {
-        const logs = logsFrom.concat(logsTo);
+        const logs = [].concat(logsFrom, logsTo);
 
         if (logs.length === 0) {
           return;
@@ -240,26 +243,29 @@ export function queryTokensFilter () {
         const updates = {};
 
         logs
-          .forEach((log) => {
+          .forEach((log, index) => {
             const tokenAddress = log.address.toLowerCase();
             const token = lcTokensMap[tokenAddress];
 
-            const fromAddress = ('0x' + log.topics[1].slice(-40)).toLowerCase();
-            const toAddress = ('0x' + log.topics[2].slice(-40)).toLowerCase();
+            // logs = [ ...logsFrom, ...logsTo ]
+            if (index < logsFrom.length) {
+              const fromAddress = ('0x' + log.topics[1].slice(-40)).toLowerCase();
+              const fromAddressIndex = lcAddresses.indexOf(fromAddress);
 
-            const fromAddressIndex = lcAddresses.indexOf(fromAddress);
-            const toAddressIndex = lcAddresses.indexOf(toAddress);
+              if (fromAddressIndex > -1) {
+                const who = addressesToFetch[fromAddressIndex];
 
-            if (fromAddressIndex > -1) {
-              const who = addressesToFetch[fromAddressIndex];
+                updates[who] = [].concat(updates[who] || [], token.id);
+              }
+            } else {
+              const toAddress = ('0x' + log.topics[2].slice(-40)).toLowerCase();
+              const toAddressIndex = lcAddresses.indexOf(toAddress);
 
-              updates[who] = [].concat(updates[who] || [], token.id);
-            }
+              if (toAddressIndex > -1) {
+                const who = addressesToFetch[toAddressIndex];
 
-            if (toAddressIndex > -1) {
-              const who = addressesToFetch[toAddressIndex];
-
-              updates[who] = [].concat(updates[who] || [], token.id);
+                updates[who] = [].concat(updates[who] || [], token.id);
+              }
             }
           });
 
