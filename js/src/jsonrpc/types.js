@@ -173,9 +173,9 @@ export class TransactionResponse {
       type: Data,
       desc: 'Public key of the signer.'
     },
-    networkId: {
+    chainId: {
       type: Quantity,
-      desc: 'The network id of the transaction, if any.'
+      desc: 'The chain id of the transaction, if any.'
     },
     standardV: {
       type: Quantity,

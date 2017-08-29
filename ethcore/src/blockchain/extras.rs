@@ -25,10 +25,8 @@ use engines::epoch::{Transition as EpochTransition};
 use header::BlockNumber;
 use receipt::Receipt;
 
-use rlp::*;
-use util::*;
+use util::{HeapSizeOf, H256, H264, U256};
 use util::kvdb::PREFIX_LEN as DB_PREFIX_LEN;
-
 
 /// Represents index of extra data in database
 #[derive(Copy, Debug, Hash, Eq, PartialEq, Clone)]
@@ -184,7 +182,7 @@ impl Key<EpochTransitions> for u64 {
 }
 
 /// Familial details concerning a block
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, RlpEncodable, RlpDecodable)]
 pub struct BlockDetails {
 	/// Block number
 	pub number: BlockNumber,
@@ -202,30 +200,8 @@ impl HeapSizeOf for BlockDetails {
 	}
 }
 
-impl Decodable for BlockDetails {
-	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
-		let details = BlockDetails {
-			number: rlp.val_at(0)?,
-			total_difficulty: rlp.val_at(1)?,
-			parent: rlp.val_at(2)?,
-			children: rlp.list_at(3)?,
-		};
-		Ok(details)
-	}
-}
-
-impl Encodable for BlockDetails {
-	fn rlp_append(&self, s: &mut RlpStream) {
-		s.begin_list(4);
-		s.append(&self.number);
-		s.append(&self.total_difficulty);
-		s.append(&self.parent);
-		s.append_list(&self.children);
-	}
-}
-
 /// Represents address of certain transaction within block
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, RlpEncodable, RlpDecodable)]
 pub struct TransactionAddress {
 	/// Block hash
 	pub block_hash: H256,
@@ -237,27 +213,8 @@ impl HeapSizeOf for TransactionAddress {
 	fn heap_size_of_children(&self) -> usize { 0 }
 }
 
-impl Decodable for TransactionAddress {
-	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
-		let tx_address = TransactionAddress {
-			block_hash: rlp.val_at(0)?,
-			index: rlp.val_at(1)?,
-		};
-
-		Ok(tx_address)
-	}
-}
-
-impl Encodable for TransactionAddress {
-	fn rlp_append(&self, s: &mut RlpStream) {
-		s.begin_list(2);
-		s.append(&self.block_hash);
-		s.append(&self.index);
-	}
-}
-
 /// Contains all block receipts.
-#[derive(Clone)]
+#[derive(Clone, RlpEncodableWrapper, RlpDecodableWrapper)]
 pub struct BlockReceipts {
 	pub receipts: Vec<Receipt>,
 }
@@ -270,20 +227,6 @@ impl BlockReceipts {
 	}
 }
 
-impl Decodable for BlockReceipts {
-	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
-		Ok(BlockReceipts {
-			receipts: rlp.as_list()?,
-		})
-	}
-}
-
-impl Encodable for BlockReceipts {
-	fn rlp_append(&self, s: &mut RlpStream) {
-		s.append_list(&self.receipts);
-	}
-}
-
 impl HeapSizeOf for BlockReceipts {
 	fn heap_size_of_children(&self) -> usize {
 		self.receipts.heap_size_of_children()
@@ -291,25 +234,10 @@ impl HeapSizeOf for BlockReceipts {
 }
 
 /// Candidate transitions to an epoch with specific number.
-#[derive(Clone)]
+#[derive(Clone, RlpEncodable, RlpDecodable)]
 pub struct EpochTransitions {
 	pub number: u64,
 	pub candidates: Vec<EpochTransition>,
-}
-
-impl Encodable for EpochTransitions {
-	fn rlp_append(&self, s: &mut RlpStream) {
-		s.begin_list(2).append(&self.number).append_list(&self.candidates);
-	}
-}
-
-impl Decodable for EpochTransitions {
-	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
-		Ok(EpochTransitions {
-			number: rlp.val_at(0)?,
-			candidates: rlp.list_at(1)?,
-		})
-	}
 }
 
 #[cfg(test)]

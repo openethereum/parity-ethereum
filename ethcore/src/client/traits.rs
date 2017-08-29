@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::BTreeMap;
+use itertools::Itertools;
 
 use block::{OpenBlock, SealedBlock, ClosedBlock};
 use blockchain::TreeRoute;
@@ -33,7 +34,7 @@ use trace::LocalizedTrace;
 use transaction::{LocalizedTransaction, PendingTransaction, SignedTransaction};
 use verification::queue::QueueInfo as BlockQueueInfo;
 
-use util::{U256, Address, H256, H2048, Bytes, Itertools};
+use util::{U256, Address, H256, H2048, Bytes};
 use util::hashdb::DBValue;
 
 use types::ids::*;
@@ -239,8 +240,8 @@ pub trait BlockChainClient : Sync + Send {
 		corpus.into()
 	}
 
-	/// Get the preferred network ID to sign on
-	fn signing_network_id(&self) -> Option<u64>;
+	/// Get the preferred chain ID to sign on
+	fn signing_chain_id(&self) -> Option<u64>;
 
 	/// Get the mode.
 	fn mode(&self) -> Mode;

@@ -121,7 +121,7 @@ impl<'a> Visitor<'a> for DerivationTypeVisitor {
 		match value {
 			"soft" => Ok(DerivationType::Soft),
 			"hard" => Ok(DerivationType::Hard),
-			_ => Err(Error::custom("invalid derivation type")),
+			v => Err(Error::custom(format!("invalid derivation type: {:?}", v))),
 		}
 	}
 

@@ -102,6 +102,9 @@ pub struct Params {
 	pub block_reward: Option<Uint>,
 	/// See `CommonParams` docs.
 	pub registrar: Option<Address>,
+	/// Node permission contract address.
+	#[serde(rename="nodePermissionContract")]
+	pub node_permission_contract: Option<Address>,
 }
 
 #[cfg(test)]

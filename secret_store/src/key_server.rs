@@ -196,7 +196,7 @@ pub mod tests {
 	use std::collections::BTreeMap;
 	use ethcrypto;
 	use ethkey::{self, Secret, Random, Generator};
-	use acl_storage::tests::DummyAclStorage;
+	use acl_storage::DummyAclStorage;
 	use key_storage::tests::DummyKeyStorage;
 	use node_key_pair::PlainNodeKeyPair;
 	use key_server_set::tests::MapKeyServerSet;

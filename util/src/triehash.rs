@@ -115,7 +115,7 @@ pub fn sec_trie_root(input: Vec<(Vec<u8>, Vec<u8>)>) -> H256 {
 	let gen_input = input
 		// first put elements into btree to sort them and to remove duplicates
 		.into_iter()
-		.map(|(k, v)| (k.sha3().to_vec(), v))
+		.map(|(k, v)| (k.sha3(), v))
 		.collect::<BTreeMap<_, _>>()
 		// then move them to a vector
 		.into_iter()
@@ -155,8 +155,7 @@ fn hex_prefix_encode(nibbles: &[u8], leaf: bool) -> Vec<u8> {
 	let oddness_factor = inlen % 2;
 	// next even number divided by two
 	let reslen = (inlen + 2) >> 1;
-	let mut res = vec![];
-	res.reserve(reslen);
+	let mut res = Vec::with_capacity(reslen);
 
 	let first_byte = {
 		let mut bits = ((inlen as u8 & 1) + (2 * leaf as u8)) << 4;
@@ -180,11 +179,11 @@ fn hex_prefix_encode(nibbles: &[u8], leaf: bool) -> Vec<u8> {
 
 /// Converts slice of bytes to nibbles.
 fn as_nibbles(bytes: &[u8]) -> Vec<u8> {
-	let mut res = vec![];
-	res.reserve(bytes.len() * 2);
+	let mut res = Vec::with_capacity(bytes.len() * 2);
 	for i in 0..bytes.len() {
-		res.push(bytes[i] >> 4);
-		res.push((bytes[i] << 4) >> 4);
+		let byte = bytes[i];
+		res.push(byte >> 4);
+		res.push(byte & 0b1111);
 	}
 	res
 }

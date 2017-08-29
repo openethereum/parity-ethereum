@@ -20,6 +20,7 @@ use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrder};
 use std::sync::Arc;
 use std::collections::{HashMap, BTreeMap};
 use std::mem;
+use itertools::Itertools;
 use rustc_hex::FromHex;
 use util::*;
 use rlp::*;
@@ -733,7 +734,7 @@ impl BlockChainClient for TestBlockChainClient {
 		self.miner.ready_transactions(info.best_block_number, info.best_block_timestamp)
 	}
 
-	fn signing_network_id(&self) -> Option<u64> { None }
+	fn signing_chain_id(&self) -> Option<u64> { None }
 
 	fn mode(&self) -> Mode { Mode::Active }
 
@@ -764,9 +765,9 @@ impl BlockChainClient for TestBlockChainClient {
 			value: U256::default(),
 			data: data,
 		};
-		let network_id = Some(self.spec.params().network_id);
-		let sig = self.spec.engine.sign(transaction.hash(network_id)).unwrap();
-		let signed = SignedTransaction::new(transaction.with_signature(sig, network_id)).unwrap();
+		let chain_id = Some(self.spec.chain_id());
+		let sig = self.spec.engine.sign(transaction.hash(chain_id)).unwrap();
+		let signed = SignedTransaction::new(transaction.with_signature(sig, chain_id)).unwrap();
 		self.miner.import_own_transaction(self, signed.into())
 	}
 

@@ -20,9 +20,10 @@ use std::sync::{Arc, Weak};
 use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
 use std::time::{Instant};
 use time::precise_time_ns;
+use itertools::Itertools;
 
 // util
-use util::{Bytes, PerfTimer, Itertools, Mutex, RwLock, MutexGuard, Hashable};
+use util::{Bytes, PerfTimer, Mutex, RwLock, MutexGuard, Hashable};
 use util::{journaldb, DBValue, TrieFactory, Trie};
 use util::{U256, H256, Address, H2048};
 use util::trie::TrieSpec;
@@ -747,7 +748,7 @@ impl Client {
 								self.factories.clone(),
 							).expect("state known to be available for just-imported block; qed");
 
-							let options = TransactOptions { tracing: false, vm_tracing: false, check_nonce: false };
+							let options = TransactOptions::with_no_tracing().dont_check_nonce();
 							let res = Executive::new(&mut state, &env_info, &*self.engine)
 								.transact(&transaction, options);
 
@@ -1112,29 +1113,39 @@ impl Client {
 		}.fake_sign(from)
 	}
 
-	fn do_call(&self, env_info: &EnvInfo, state: &mut State<StateDB>, increase_balance: bool, t: &SignedTransaction, analytics: CallAnalytics) -> Result<Executed, CallError> {
-		let original_state = if analytics.state_diffing { Some(state.clone()) } else { None };
+	fn do_virtual_call(&self, env_info: &EnvInfo, state: &mut State<StateDB>, t: &SignedTransaction, analytics: CallAnalytics) -> Result<Executed, CallError> {
+		fn call<E, V, T>(
+			state: &mut State<StateDB>,
+			env_info: &EnvInfo,
+			engine: &E,
+			state_diff: bool,
+			transaction: &SignedTransaction,
+			options: TransactOptions<T, V>,
+		) -> Result<Executed, CallError> where
+			E: Engine + ?Sized,
+			T: trace::Tracer,
+			V: trace::VMTracer,
+		{
+			let options = options.dont_check_nonce();
+			let original_state = if state_diff { Some(state.clone()) } else { None };
 
-		// give the sender a sufficient balance (if calling in pending block)
-		if increase_balance {
-			let sender = t.sender();
-			let balance = state.balance(&sender).map_err(ExecutionError::from)?;
-			let needed_balance = t.value + t.gas * t.gas_price;
-			if balance < needed_balance {
-				state.add_balance(&sender, &(needed_balance - balance), state::CleanupMode::NoEmpty)
-					.map_err(ExecutionError::from)?;
+			let mut ret = Executive::new(state, env_info, engine).transact_virtual(transaction, options)?;
+
+			if let Some(original) = original_state {
+				ret.state_diff = Some(state.diff_from(original).map_err(ExecutionError::from)?);
 			}
+			Ok(ret)
 		}
 
-		let options = TransactOptions { tracing: analytics.transaction_tracing, vm_tracing: analytics.vm_tracing, check_nonce: false };
-		let mut ret = Executive::new(state, env_info, &*self.engine).transact_virtual(t, options)?;
+		let state_diff = analytics.state_diffing;
+		let engine = &*self.engine;
 
-		// TODO gav move this into Executive.
-		if let Some(original) = original_state {
-			ret.state_diff = Some(state.diff_from(original).map_err(ExecutionError::from)?);
+		match (analytics.transaction_tracing, analytics.vm_tracing) {
+			(true, true) => call(state, env_info, engine, state_diff, t, TransactOptions::with_tracing_and_vm_tracing()),
+			(true, false) => call(state, env_info, engine, state_diff, t, TransactOptions::with_tracing()),
+			(false, true) => call(state, env_info, engine, state_diff, t, TransactOptions::with_vm_tracing()),
+			(false, false) => call(state, env_info, engine, state_diff, t, TransactOptions::with_no_tracing()),
 		}
-
-		Ok(ret)
 	}
 }
 
@@ -1167,7 +1178,7 @@ impl BlockChainClient for Client {
 		// that's just a copy of the state.
 		let mut state = self.state_at(block).ok_or(CallError::StatePruned)?;
 
-		self.do_call(&env_info, &mut state, block == BlockId::Pending, transaction, analytics)
+		self.do_virtual_call(&env_info, &mut state, transaction, analytics)
 	}
 
 	fn call_many(&self, transactions: &[(SignedTransaction, CallAnalytics)], block: BlockId) -> Result<Vec<Executed>, CallError> {
@@ -1179,7 +1190,7 @@ impl BlockChainClient for Client {
 		let mut results = Vec::with_capacity(transactions.len());
 
 		for &(ref t, analytics) in transactions {
-			let ret = self.do_call(&env_info, &mut state, block == BlockId::Pending, t, analytics)?;
+			let ret = self.do_virtual_call(&env_info, &mut state, t, analytics)?;
 			env_info.gas_used = ret.cumulative_gas_used;
 			results.push(ret);
 		}
@@ -1199,7 +1210,7 @@ impl BlockChainClient for Client {
 		// that's just a copy of the state.
 		let original_state = self.state_at(block).ok_or(CallError::StatePruned)?;
 		let sender = t.sender();
-		let options = TransactOptions { tracing: true, vm_tracing: false, check_nonce: false };
+		let options = || TransactOptions::with_tracing();
 
 		let cond = |gas| {
 			let mut tx = t.as_unsigned().clone();
@@ -1208,7 +1219,7 @@ impl BlockChainClient for Client {
 
 			let mut state = original_state.clone();
 			Ok(Executive::new(&mut state, &env_info, &*self.engine)
-				.transact_virtual(&tx, options.clone())
+				.transact_virtual(&tx, options())
 				.map(|r| r.exception.is_none())
 				.unwrap_or(false))
 		};
@@ -1264,22 +1275,17 @@ impl BlockChainClient for Client {
 			return Err(CallError::TransactionNotFound);
 		}
 
-		let options = TransactOptions { tracing: analytics.transaction_tracing, vm_tracing: analytics.vm_tracing, check_nonce: false };
 		const PROOF: &'static str = "Transactions fetched from blockchain; blockchain transactions are valid; qed";
 		let rest = txs.split_off(address.index);
 		for t in txs {
 			let t = SignedTransaction::new(t).expect(PROOF);
-			let x = Executive::new(&mut state, &env_info, &*self.engine).transact(&t, Default::default())?;
+			let x = Executive::new(&mut state, &env_info, &*self.engine).transact(&t, TransactOptions::with_no_tracing())?;
 			env_info.gas_used = env_info.gas_used + x.gas_used;
 		}
 		let first = rest.into_iter().next().expect("We split off < `address.index`; Length is checked earlier; qed");
 		let t = SignedTransaction::new(first).expect(PROOF);
-		let original_state = if analytics.state_diffing { Some(state.clone()) } else { None };
-		let mut ret = Executive::new(&mut state, &env_info, &*self.engine).transact(&t, options)?;
-		if let Some(original) = original_state {
-			ret.state_diff = Some(state.diff_from(original).map_err(ExecutionError::from)?)
-		}
-		Ok(ret)
+
+		self.do_virtual_call(&env_info, &mut state, &t, analytics)
 	}
 
 	fn mode(&self) -> IpcMode {
@@ -1730,8 +1736,8 @@ impl BlockChainClient for Client {
 		}
 	}
 
-	fn signing_network_id(&self) -> Option<u64> {
-		self.engine.signing_network_id(&self.latest_env_info())
+	fn signing_chain_id(&self) -> Option<u64> {
+		self.engine.signing_chain_id(&self.latest_env_info())
 	}
 
 	fn block_extra_info(&self, id: BlockId) -> Option<BTreeMap<String, String>> {
@@ -1770,9 +1776,9 @@ impl BlockChainClient for Client {
 			value: U256::zero(),
 			data: data,
 		};
-		let network_id = self.engine.signing_network_id(&self.latest_env_info());
-		let signature = self.engine.sign(transaction.hash(network_id))?;
-		let signed = SignedTransaction::new(transaction.with_signature(signature, network_id))?;
+		let chain_id = self.engine.signing_chain_id(&self.latest_env_info());
+		let signature = self.engine.sign(transaction.hash(chain_id))?;
+		let signed = SignedTransaction::new(transaction.with_signature(signature, chain_id))?;
 		self.miner.import_own_transaction(self, signed.into())
 	}
 
@@ -1961,7 +1967,7 @@ impl ProvingBlockChainClient for Client {
 		let backend = state::backend::Proving::new(jdb.as_hashdb_mut());
 
 		let mut state = state.replace_backend(backend);
-		let options = TransactOptions { tracing: false, vm_tracing: false, check_nonce: false };
+		let options = TransactOptions::with_no_tracing().dont_check_nonce();
 		let res = Executive::new(&mut state, &env_info, &*self.engine).transact(&transaction, options);
 
 		match res {

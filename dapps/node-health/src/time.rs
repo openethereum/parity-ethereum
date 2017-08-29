@@ -41,8 +41,8 @@ use futures::{self, Future, BoxFuture};
 use futures::future::{self, IntoFuture};
 use futures_cpupool::{CpuPool, CpuFuture};
 use ntp;
-use time::{Duration, Timespec};
-use util::RwLock;
+use parking_lot::RwLock;
+use time_crate::{Duration, Timespec};
 
 /// Time checker error.
 #[derive(Debug, Clone, PartialEq)]
@@ -164,7 +164,7 @@ impl Ntp for SimpleNtp {
 
 				match ntp::request(&server.address) {
 					Ok(packet) => {
-						let dest_time = ::time::now_utc().to_timespec();
+						let dest_time = ::time_crate::now_utc().to_timespec();
 						let orig_time = Timespec::from(packet.orig_time);
 						let recv_time = Timespec::from(packet.recv_time);
 						let transmit_time = Timespec::from(packet.transmit_time);
@@ -293,7 +293,7 @@ mod tests {
 	use time::Duration;
 	use futures::{future, Future};
 	use super::{Ntp, TimeChecker, Error};
-	use util::RwLock;
+	use parking_lot::RwLock;
 
 	#[derive(Clone)]
 	struct FakeNtp(RefCell<Vec<Duration>>, Cell<u64>);

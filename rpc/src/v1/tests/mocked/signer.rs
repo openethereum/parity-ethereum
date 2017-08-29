@@ -454,12 +454,13 @@ fn should_confirm_sign_transaction_with_rlp() {
 	let response = r#"{"jsonrpc":"2.0","result":{"#.to_owned() +
 		r#""raw":"0x"# + &rlp.to_hex() + r#"","# +
 		r#""tx":{"# +
-		r#""blockHash":null,"blockNumber":null,"condition":null,"creates":null,"# +
+		r#""blockHash":null,"blockNumber":null,"# +
+		&format!("\"chainId\":{},", t.chain_id().map_or("null".to_owned(), |n| format!("{}", n))) +
+		r#""condition":null,"creates":null,"# +
 		&format!("\"from\":\"0x{:?}\",", &address) +
 		r#""gas":"0x989680","gasPrice":"0x1000","# +
 		&format!("\"hash\":\"0x{:?}\",", t.hash()) +
 		r#""input":"0x","# +
-		&format!("\"networkId\":{},", t.network_id().map_or("null".to_owned(), |n| format!("{}", n))) +
 		r#""nonce":"0x0","# +
 		&format!("\"publicKey\":\"0x{:?}\",", t.public_key().unwrap()) +
 		&format!("\"r\":\"0x{}\",", U256::from(signature.r()).to_hex()) +

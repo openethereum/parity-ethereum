@@ -21,6 +21,7 @@ ethcore-devtools = { path = "../../devtools" }
 evm = { path = "../evm" }
 vm = { path = "../vm" }
 rlp = { path = "../../util/rlp" }
+rlp_derive = { path = "../../util/rlp_derive" }
 time = "0.1"
 smallvec = "0.4"
 futures = "0.1"

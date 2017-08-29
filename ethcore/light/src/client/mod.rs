@@ -100,8 +100,8 @@ pub trait LightChainClient: Send + Sync {
 	/// Get an iterator over a block and its ancestry.
 	fn ancestry_iter<'a>(&'a self, start: BlockId) -> Box<Iterator<Item=encoded::Header> + 'a>;
 
-	/// Get the signing network ID.
-	fn signing_network_id(&self) -> Option<u64>;
+	/// Get the signing chain ID.
+	fn signing_chain_id(&self) -> Option<u64>;
 
 	/// Get environment info for execution at a given block.
 	/// Fails if that block's header is not stored.
@@ -260,9 +260,9 @@ impl Client {
 		self.chain.ancestry_iter(start)
 	}
 
-	/// Get the signing network id.
-	pub fn signing_network_id(&self) -> Option<u64> {
-		self.engine.signing_network_id(&self.latest_env_info())
+	/// Get the signing chain id.
+	pub fn signing_chain_id(&self) -> Option<u64> {
+		self.engine.signing_chain_id(&self.latest_env_info())
 	}
 
 	/// Flush the header queue.
@@ -448,8 +448,8 @@ impl LightChainClient for Client {
 		Box::new(Client::ancestry_iter(self, start))
 	}
 
-	fn signing_network_id(&self) -> Option<u64> {
-		Client::signing_network_id(self)
+	fn signing_chain_id(&self) -> Option<u64> {
+		Client::signing_chain_id(self)
 	}
 
 	fn env_info(&self, id: BlockId) -> Option<EnvInfo> {

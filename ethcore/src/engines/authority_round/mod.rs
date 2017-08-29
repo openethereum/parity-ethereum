@@ -522,7 +522,9 @@ impl Engine for AuthorityRound {
 		let parent_hash = block.fields().header.parent_hash().clone();
 		::engines::common::push_last_hash(block, last_hashes.clone(), self, &parent_hash)?;
 
-		if !epoch_begin { return Ok(()) }
+		// with immediate transitions, we don't use the epoch mechanism anyway.
+		// the genesis is always considered an epoch, but we ignore it intentionally.
+		if self.immediate_transitions || !epoch_begin { return Ok(()) }
 
 		// genesis is never a new block, but might as well check.
 		let header = block.fields().header.clone();
@@ -804,9 +806,9 @@ impl Engine for AuthorityRound {
 	fn verify_transaction_basic(&self, t: &UnverifiedTransaction, header: &Header) -> Result<(), Error> {
 		t.check_low_s()?;
 
-		if let Some(n) = t.network_id() {
+		if let Some(n) = t.chain_id() {
 			if header.number() >= self.params().eip155_transition && n != self.params().chain_id {
-				return Err(TransactionError::InvalidNetworkId.into());
+				return Err(TransactionError::InvalidChainId.into());
 			}
 		}
 

@@ -45,14 +45,14 @@ fn random_bytes(min_count: usize, diff_count: usize, seed: &mut H256) -> Vec<u8>
 	assert!(min_count + diff_count <= 32);
 	*seed = seed.sha3();
 	let r = min_count + (seed[31] as usize % (diff_count + 1));
-	seed[0..r].into_vec()
+	seed[0..r].to_vec()
 }
 
 fn random_value(seed: &mut H256) -> Bytes {
 	*seed = seed.sha3();
 	match seed[0] % 2 {
 		1 => vec![seed[31];1],
-		_ => seed.into_vec(),
+		_ => seed.to_vec(),
 	}
 }
 
