@@ -22,12 +22,12 @@ use ethcore::client::{Client, BlockChainClient, BlockId};
 use ethcore::transaction::{Transaction, Action};
 use ethsync::LightSync;
 use futures::{future, IntoFuture, Future, BoxFuture};
-use futures_cpupool::CpuPool;
 use hash_fetch::fetch::Client as FetchClient;
 use hash_fetch::urlhint::ContractClient;
 use helpers::replace_home;
 use light::client::LightChainClient;
 use light::on_demand::{self, OnDemand};
+use node_health::{SyncStatus, NodeHealth};
 use rpc;
 use rpc_apis::SignerService;
 use parity_reactor;
@@ -36,7 +36,6 @@ use util::{Bytes, Address};
 #[derive(Debug, PartialEq, Clone)]
 pub struct Configuration {
 	pub enabled: bool,
-	pub ntp_servers: Vec<String>,
 	pub dapps_path: PathBuf,
 	pub extra_dapps: Vec<PathBuf>,
 	pub extra_embed_on: Vec<(String, u16)>,
@@ -48,12 +47,6 @@ impl Default for Configuration {
 		let data_dir = default_data_path();
 		Configuration {
 			enabled: true,
-			ntp_servers: vec![
-				"0.parity.pool.ntp.org:123".into(),
-				"1.parity.pool.ntp.org:123".into(),
-				"2.parity.pool.ntp.org:123".into(),
-				"3.parity.pool.ntp.org:123".into(),
-			],
 			dapps_path: replace_home(&data_dir, "$BASE/dapps").into(),
 			extra_dapps: vec![],
 			extra_embed_on: vec![],
@@ -156,10 +149,10 @@ impl<T: LightChainClient + 'static> ContractClient for LightRegistrar<T> {
 // to resolve.
 #[derive(Clone)]
 pub struct Dependencies {
+	pub node_health: NodeHealth,
 	pub sync_status: Arc<SyncStatus>,
 	pub contract_client: Arc<ContractClient>,
 	pub remote: parity_reactor::TokioRemote,
-	pub pool: CpuPool,
 	pub fetch: FetchClient,
 	pub signer: Arc<SignerService>,
 	pub ui_address: Option<(String, u16)>,
@@ -172,7 +165,6 @@ pub fn new(configuration: Configuration, deps: Dependencies) -> Result<Option<Mi
 
 	server::dapps_middleware(
 		deps,
-		&configuration.ntp_servers,
 		configuration.dapps_path,
 		configuration.extra_dapps,
 		rpc::DAPPS_DOMAIN,
@@ -181,19 +173,18 @@ pub fn new(configuration: Configuration, deps: Dependencies) -> Result<Option<Mi
 	).map(Some)
 }
 
-pub fn new_ui(enabled: bool, ntp_servers: &[String], deps: Dependencies) -> Result<Option<Middleware>, String> {
+pub fn new_ui(enabled: bool, deps: Dependencies) -> Result<Option<Middleware>, String> {
 	if !enabled {
 		return Ok(None);
 	}
 
 	server::ui_middleware(
 		deps,
-		ntp_servers,
 		rpc::DAPPS_DOMAIN,
 	).map(Some)
 }
 
-pub use self::server::{SyncStatus, Middleware, service};
+pub use self::server::{Middleware, service};
 
 #[cfg(not(feature = "dapps"))]
 mod server {
@@ -202,11 +193,6 @@ mod server {
 	use std::path::PathBuf;
 	use parity_rpc::{hyper, RequestMiddleware, RequestMiddlewareAction};
 	use rpc_apis;
-
-	pub trait SyncStatus {
-		fn is_major_importing(&self) -> bool;
-		fn peers(&self) -> (usize, usize);
-	}
 
 	pub struct Middleware;
 	impl RequestMiddleware for Middleware {
@@ -219,7 +205,6 @@ mod server {
 
 	pub fn dapps_middleware(
 		_deps: Dependencies,
-		_ntp_servers: &[String],
 		_dapps_path: PathBuf,
 		_extra_dapps: Vec<PathBuf>,
 		_dapps_domain: &str,
@@ -231,7 +216,6 @@ mod server {
 
 	pub fn ui_middleware(
 		_deps: Dependencies,
-		_ntp_servers: &[String],
 		_dapps_domain: &str,
 	) -> Result<Middleware, String> {
 		Err("Your Parity version has been compiled without UI support.".into())
@@ -253,11 +237,9 @@ mod server {
 	use parity_reactor;
 
 	pub use parity_dapps::Middleware;
-	pub use parity_dapps::SyncStatus;
 
 	pub fn dapps_middleware(
 		deps: Dependencies,
-		ntp_servers: &[String],
 		dapps_path: PathBuf,
 		extra_dapps: Vec<PathBuf>,
 		dapps_domain: &str,
@@ -269,8 +251,7 @@ mod server {
 		let web_proxy_tokens = Arc::new(move |token| signer.web_proxy_access_token_domain(&token));
 
 		Ok(parity_dapps::Middleware::dapps(
-			ntp_servers,
-			deps.pool,
+			deps.node_health,
 			parity_remote,
 			deps.ui_address,
 			extra_embed_on,
@@ -287,13 +268,11 @@ mod server {
 
 	pub fn ui_middleware(
 		deps: Dependencies,
-		ntp_servers: &[String],
 		dapps_domain: &str,
 	) -> Result<Middleware, String> {
 		let parity_remote = parity_reactor::Remote::new(deps.remote.clone());
 		Ok(parity_dapps::Middleware::ui(
-			ntp_servers,
-			deps.pool,
+			deps.node_health,
 			parity_remote,
 			dapps_domain,
 			deps.contract_client,

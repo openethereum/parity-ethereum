@@ -99,6 +99,8 @@ pub struct CommonParams {
 	pub block_reward: U256,
 	/// Registrar contract address.
 	pub registrar: Address,
+	/// Node permission managing contract address.
+	pub node_permission_contract: Option<Address>,
 }
 
 impl CommonParams {
@@ -170,6 +172,7 @@ impl From<ethjson::spec::Params> for CommonParams {
 			gas_limit_bound_divisor: p.gas_limit_bound_divisor.into(),
 			block_reward: p.block_reward.map_or_else(U256::zero, Into::into),
 			registrar: p.registrar.map_or_else(Address::new, Into::into),
+			node_permission_contract: p.node_permission_contract.map(Into::into),
 		}
 	}
 }

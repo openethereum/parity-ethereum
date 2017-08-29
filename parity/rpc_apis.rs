@@ -27,18 +27,19 @@ use ethcore::account_provider::AccountProvider;
 use ethcore::client::Client;
 use ethcore::miner::{Miner, ExternalMiner};
 use ethcore::snapshot::SnapshotService;
-use parity_rpc::{Metadata, NetworkSettings};
-use parity_rpc::informant::{ActivityNotifier, ClientNotifier};
-use parity_rpc::dispatch::{FullDispatcher, LightDispatcher};
+use ethcore_logger::RotatingLogger;
 use ethsync::{ManageNetwork, SyncProvider, LightSync};
 use hash_fetch::fetch::Client as FetchClient;
 use jsonrpc_core::{self as core, MetaIoHandler};
 use light::{TransactionQueue as LightTransactionQueue, Cache as LightDataCache};
 use light::client::LightChainClient;
+use node_health::NodeHealth;
+use parity_reactor;
+use parity_rpc::dispatch::{FullDispatcher, LightDispatcher};
+use parity_rpc::informant::{ActivityNotifier, ClientNotifier};
+use parity_rpc::{Metadata, NetworkSettings};
 use updater::Updater;
 use util::{Mutex, RwLock};
-use ethcore_logger::RotatingLogger;
-use parity_reactor;
 
 #[derive(Debug, PartialEq, Clone, Eq, Hash)]
 pub enum Api {
@@ -218,6 +219,7 @@ pub struct FullDependencies {
 	pub settings: Arc<NetworkSettings>,
 	pub net_service: Arc<ManageNetwork>,
 	pub updater: Arc<Updater>,
+	pub health: NodeHealth,
 	pub geth_compatibility: bool,
 	pub dapps_service: Option<Arc<DappsService>>,
 	pub dapps_address: Option<(String, u16)>,
@@ -301,12 +303,13 @@ impl FullDependencies {
 						false => None,
 					};
 					handler.extend_with(ParityClient::new(
-						&self.client,
-						&self.miner,
-						&self.sync,
-						&self.updater,
-						&self.net_service,
-						&self.secret_store,
+						self.client.clone(),
+						self.miner.clone(),
+						self.sync.clone(),
+						self.updater.clone(),
+						self.net_service.clone(),
+						self.health.clone(),
+						self.secret_store.clone(),
 						self.logger.clone(),
 						self.settings.clone(),
 						signer,
@@ -404,6 +407,7 @@ pub struct LightDependencies<T> {
 	pub secret_store: Arc<AccountProvider>,
 	pub logger: Arc<RotatingLogger>,
 	pub settings: Arc<NetworkSettings>,
+	pub health: NodeHealth,
 	pub on_demand: Arc<::light::on_demand::OnDemand>,
 	pub cache: Arc<Mutex<LightDataCache>>,
 	pub transaction_queue: Arc<RwLock<LightTransactionQueue>>,
@@ -508,6 +512,7 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 						self.secret_store.clone(),
 						self.logger.clone(),
 						self.settings.clone(),
+						self.health.clone(),
 						signer,
 						self.dapps_address.clone(),
 						self.ws_address.clone(),
