@@ -61,10 +61,6 @@ impl Light {
 		}
 	}
 
-	pub fn new(cache_dir: &Path, block_number: u64) -> Light {
-		Self::new_with_builder(&NodeCacheBuilder::new(None), cache_dir, block_number)
-	}
-
 	/// Calculate the light boundary data
 	/// `header_hash` - The header hash to pack into the mix
 	/// `nonce` - The nonce to pack into the mix
@@ -82,10 +78,6 @@ impl Light {
 			block_number: block_number,
 			cache: cache,
 		})
-	}
-
-	pub fn from_file(cache_dir: &Path, block_number: u64) -> io::Result<Light> {
-		Self::from_file_with_builder(&NodeCacheBuilder::new(None), cache_dir, block_number)
 	}
 
 	pub fn to_file(&mut self) -> io::Result<&Path> {

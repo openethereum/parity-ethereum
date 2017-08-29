@@ -231,13 +231,18 @@ fn read_from_path(path: &Path) -> io::Result<Vec<Node>> {
 
 	let mut file = File::open(path)?;
 
-	let mut nodes: Vec<u8> =
-		Vec::with_capacity(file.metadata().map(|m| m.len() as _).unwrap_or(NODE_BYTES * 1_000_000));
+	let mut nodes: Vec<u8> = Vec::with_capacity(file.metadata().map(|m| m.len() as _).unwrap_or(
+		NODE_BYTES * 1_000_000,
+	));
 	file.read_to_end(&mut nodes)?;
 
 	nodes.shrink_to_fit();
-	assert_eq!(nodes.capacity() % NODE_BYTES, 0);
-	assert_eq!(nodes.len() % NODE_BYTES, 0);
+
+	if nodes.len() % NODE_BYTES != 0 || nodes.capacity() % NODE_BYTES != 0 {
+		return Err(
+			io::Error::new(io::ErrorKind::Other, "Node cache is not a multiple of node size")
+		);
+	}
 
 	let out: Vec<Node> = unsafe {
 		Vec::from_raw_parts(
