@@ -346,7 +346,6 @@ impl Spec {
 				};
 
 				let mut substate = Substate::new();
-				state.kill_account(&address);
 
 				{
 					let mut exec = Executive::new(&mut state, &env_info, self.engine.as_ref());
