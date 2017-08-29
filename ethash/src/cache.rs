@@ -157,8 +157,10 @@ impl NodeCache {
 			cache_path(self.cache_dir.as_ref(), &self.builder.epoch_to_ident(ep))
 		})
 		{
-			fs::remove_file(last)
-				.unwrap_or_else(|error| warn!("Error removing stale DAG cache: {:?}", error));
+			fs::remove_file(last).unwrap_or_else(|error| match error.kind() {
+				io::ErrorKind::NotFound => (),
+				_ => warn!("Error removing stale DAG cache: {:?}", error),
+			});
 		}
 
 		consume_cache(&mut self.cache, &self.cache_path)
