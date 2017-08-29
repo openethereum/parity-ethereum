@@ -24,6 +24,13 @@ export default class Eth {
 
     this._lastBlock = new BigNumber(-1);
     this._pollTimerId = null;
+
+    // Try to restart subscription if transport is closed
+    this._api.transport.on('close', () => {
+      if (this.isStarted) {
+        this.start();
+      }
+    });
   }
 
   get isStarted () {
@@ -33,13 +40,29 @@ export default class Eth {
   start () {
     this._started = true;
 
-    return this._blockNumber();
+    if (this._api.isPubSub) {
+      return this._api.pubsub
+        .subscribeAndGetResult(
+          callback => this._api.pubsub.eth.newHeads(callback),
+          () => {
+            return this._api.eth
+              .blockNumber()
+              .then(blockNumber => {
+                this.updateBlock(blockNumber);
+                return blockNumber;
+              });
+          }
+        );
+    }
+
+    // fallback to polling
+    return this._pollBlockNumber();
   }
 
-  _blockNumber = () => {
+  _pollBlockNumber = () => {
     const nextTimeout = (timeout = 1000) => {
       this._pollTimerId = setTimeout(() => {
-        this._blockNumber();
+        this._pollBlockNumber();
       }, timeout);
     };
 
@@ -51,13 +74,17 @@ export default class Eth {
     return this._api.eth
       .blockNumber()
       .then((blockNumber) => {
-        if (!blockNumber.eq(this._lastBlock)) {
-          this._lastBlock = blockNumber;
-          this._updateSubscriptions('eth_blockNumber', null, blockNumber);
-        }
+        this.updateBlock(blockNumber);
 
         nextTimeout();
       })
       .catch(() => nextTimeout());
+  }
+
+  updateBlock (blockNumber) {
+    if (!blockNumber.eq(this._lastBlock)) {
+      this._lastBlock = blockNumber;
+      this._updateSubscriptions('eth_blockNumber', null, blockNumber);
+    }
   }
 }

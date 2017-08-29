@@ -13,26 +13,25 @@
 
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+import PubsubBase from '../pubsubBase';
 
-export default class PubsubBase {
-  // Provider for websocket pubsub transport
+import { outSignerRequest } from '../../format/output';
+
+export default class Net extends PubsubBase {
   constructor (transport) {
-    this._transport = transport;
+    super(transport);
+    this._api = {
+      subscribe: 'signer_subscribePending',
+      unsubscribe: 'signer_unsubscribePending',
+      subscription: 'signer_pending'
+    };
   }
 
-  addListener (module, eventName, callback, eventParams = []) {
-    if (eventName) {
-      return this._transport.subscribe(module, callback, eventParams ? [eventName, eventParams] : [eventName]);
-    }
-
-    return this._transport.subscribe(module, callback, eventParams);
-  }
-
-  removeListener (subscriptionIds) {
-    return this._transport.unsubscribe(subscriptionIds);
-  }
-
-  unsubscribe (subscriptionIds) {
-    return this.removeListener(subscriptionIds);
+  pendingRequests (callback) {
+    return this.addListener(this._api, null, (error, data) => {
+      error
+        ? callback(error)
+        : callback(null, data.map(outSignerRequest));
+    });
   }
 }

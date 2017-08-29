@@ -77,7 +77,7 @@ export default class Status {
     Promise
       .all([
         this._subscribeBlockNumber(),
-
+        this._subscribeNetPeers(),
         this._pollLongStatus(),
         this._pollStatus()
       ])
@@ -127,6 +127,17 @@ export default class Status {
       this._store.dispatch(statusCollection(apiStatus));
       this._apiStatus = apiStatus;
     }
+  }
+
+  _subscribeNetPeers = () => {
+    return this._api.pubsub
+      .parity
+      .netPeers((error, netPeers) => {
+        if (error || !netPeers) {
+          return;
+        }
+        this._store.dispatch(statusCollection({ netPeers }));
+      });
   }
 
   _subscribeBlockNumber = () => {
@@ -182,7 +193,7 @@ export default class Status {
   }
 
   _pollStatus = () => {
-    const nextTimeout = (timeout = 1000) => {
+    const nextTimeout = (timeout = 30000) => {
       if (this._timeoutIds.status) {
         clearTimeout(this._timeoutIds.status);
       }
@@ -199,14 +210,13 @@ export default class Status {
 
     const statusPromises = [
       this._api.eth.syncing(),
-      this._api.parity.netPeers(),
       this._fetchHealth()
     ];
 
     return Promise
       .all(statusPromises)
-      .then(([ syncing, netPeers, health ]) => {
-        const status = { netPeers, syncing, health };
+      .then(([ syncing, health ]) => {
+        const status = { syncing, health };
 
         health.overall = this._overallStatus(health);
         health.peers = health.peers || {};
@@ -278,7 +288,6 @@ export default class Status {
 
     const statusPromises = [
       this._api.parity.nodeKind(),
-      this._api.parity.netPeers(),
       this._api.web3.clientVersion(),
       this._api.net.version(),
       this._api.parity.netChain()
@@ -290,7 +299,7 @@ export default class Status {
 
     return Promise
       .all(statusPromises)
-      .then(([nodeKind, netPeers, clientVersion, netVersion, netChain]) => {
+      .then(([nodeKind, clientVersion, netVersion, netChain]) => {
         const isTest = [
           '2',  // morden
           '3',  // ropsten,
@@ -305,7 +314,6 @@ export default class Status {
         const longStatus = {
           nodeKind,
           nodeKindFull,
-          netPeers,
           clientVersion,
           netChain,
           netVersion,
