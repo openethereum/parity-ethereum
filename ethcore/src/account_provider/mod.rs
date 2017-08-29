@@ -519,6 +519,11 @@ impl AccountProvider {
 		}
 	}
 
+	/// Returns account public key.
+	pub fn account_public(&self, address: Address, password: &str) -> Result<Public, Error> {
+		self.sstore.public(&self.sstore.account_ref(&address)?, password)
+	}
+
 	/// Returns each account along with name and meta.
 	pub fn set_account_name(&self, address: Address, name: String) -> Result<(), Error> {
 		self.sstore.set_name(&self.sstore.account_ref(&address)?, name)?;
@@ -695,6 +700,13 @@ impl AccountProvider {
 		let account = self.sstore.account_ref(&address)?;
 		let password = password.map(Ok).unwrap_or_else(|| self.password(&account))?;
 		Ok(self.sstore.decrypt(&account, &password, shared_mac, message)?)
+	}
+
+	/// Agree on shared key.
+	pub fn agree(&self, address: Address, password: Option<String>, other_public: &Public) -> Result<Secret, SignError> {
+		let account = self.sstore.account_ref(&address)?;
+		let password = password.map(Ok).unwrap_or_else(|| self.password(&account))?;
+		Ok(self.sstore.agree(&account, &password, other_public)?)
 	}
 
 	/// Returns the underlying `SecretStore` reference if one exists.

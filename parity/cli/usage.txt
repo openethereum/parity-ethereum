@@ -78,7 +78,7 @@ Operating Options:
 
 Convenience Options:
 -c --config CONFIG                 Specify a configuration. CONFIG may be either a
-                                   configuration file or a preset: dev, insecure, dev-insecure, 
+                                   configuration file or a preset: dev, insecure, dev-insecure,
                                    mining, or non-standard-ports.
                                    (default: {flag_config}).
   --ports-shift SHIFT              Add SHIFT to all port numbers Parity is listening on.
@@ -234,6 +234,8 @@ API and Console Options:
 
 Secret Store Options:
   --no-secretstore                 Disable Secret Store functionality. (default: {flag_no_secretstore})
+  --no-secretstore-http            Disable Secret Store HTTP API. (default: {flag_no_secretstore_http})
+  --no-acl-check                   Disable ACL check (useful for test environments). (default: {flag_no_secretstore_acl_check})
   --secretstore-secret SECRET      Hex-encoded secret key of this node.
                                    (required, default: {flag_secretstore_secret:?}).
   --secretstore-nodes NODES        Comma-separated list of other secret store cluster nodes in form
@@ -483,8 +485,10 @@ Internal Options:
   --can-restart                    Executable will auto-restart if exiting with 69.
 
 Miscellaneous Options:
-  --ntp-server HOST                NTP server to provide current time (host:port). Used to verify node health.
-                                   (default: {flag_ntp_server})
+  --ntp-servers HOSTS              Comma separated list of NTP servers to provide current time (host:port).
+                                   Used to verify node health. Parity uses pool.ntp.org NTP servers,
+                                   consider joining the pool: http://www.pool.ntp.org/join.html
+                                   (default: {flag_ntp_servers})
   -l --logging LOGGING             Specify the logging level. Must conform to the same
                                    format as RUST_LOG. (default: {flag_logging:?})
   --log-file FILENAME              Specify a filename into which logging should be

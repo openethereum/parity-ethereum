@@ -35,6 +35,10 @@ export default class Web extends Component {
 
   store = Store.get(this.context.api);
 
+  state = {
+    isWarningDismissed: false
+  }
+
   componentDidMount () {
     this.store.gotoUrl(this.props.params.url);
   }
@@ -83,9 +87,35 @@ export default class Web extends Component {
           scrolling='auto'
           src={ encodedPath }
         />
+        { this.renderWarning() }
       </div>
     );
   }
+
+  renderWarning () {
+    if (this.state.isWarningDismissed) {
+      return null;
+    }
+
+    return (
+      <div className={ styles.warning }>
+        <p>
+          WARNING: The web browser dapp is not safe as a general purpose browser.
+          Make sure to only visit web3-enabled sites that you trust.
+          Do not use it to browse web2.0 and never log in to any service - web3 dapps should not require that.
+        </p>
+        <div className={ styles.warningClose }>
+          <a onClick={ this.dismissWarning }>Okay!</a>
+        </div>
+      </div>
+    );
+  }
+
+  dismissWarning = () => {
+    this.setState({
+      isWarningDismissed: true
+    });
+  };
 
   iframeOnLoad = () => {
     this.store.setLoading(false);

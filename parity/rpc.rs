@@ -73,7 +73,6 @@ impl Default for HttpConfiguration {
 #[derive(Debug, PartialEq, Clone)]
 pub struct UiConfiguration {
 	pub enabled: bool,
-	pub ntp_server: String,
 	pub interface: String,
 	pub port: u16,
 	pub hosts: Option<Vec<String>>,
@@ -94,7 +93,7 @@ impl From<UiConfiguration> for HttpConfiguration {
 			enabled: conf.enabled,
 			interface: conf.interface,
 			port: conf.port,
-			apis: rpc_apis::ApiSet::SafeContext,
+			apis: rpc_apis::ApiSet::UnsafeContext,
 			cors: None,
 			hosts: conf.hosts,
 			server_threads: None,
@@ -107,7 +106,6 @@ impl Default for UiConfiguration {
 	fn default() -> Self {
 		UiConfiguration {
 			enabled: true && cfg!(feature = "ui-enabled"),
-			ntp_server: "none".into(),
 			port: 8180,
 			interface: "127.0.0.1".into(),
 			hosts: Some(vec![]),
@@ -158,7 +156,7 @@ impl Default for WsConfiguration {
 			interface: "127.0.0.1".into(),
 			port: 8546,
 			apis: ApiSet::UnsafeContext,
-			origins: Some(vec!["chrome-extension://*".into()]),
+			origins: Some(vec!["chrome-extension://*".into(), "moz-extension://*".into()]),
 			hosts: Some(Vec::new()),
 			signer_path: replace_home(&data_dir, "$BASE/signer").into(),
 			support_token_api: true,

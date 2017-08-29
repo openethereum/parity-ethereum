@@ -27,7 +27,7 @@ use evm::CallType;
 use super::error::Error;
 
 /// `Call` result.
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, PartialEq, Default, RlpEncodable, RlpDecodable)]
 #[cfg_attr(feature = "ipc", binary)]
 pub struct CallResult {
 	/// Gas used by call.
@@ -36,27 +36,8 @@ pub struct CallResult {
 	pub output: Bytes,
 }
 
-impl Encodable for CallResult {
-	fn rlp_append(&self, s: &mut RlpStream) {
-		s.begin_list(2);
-		s.append(&self.gas_used);
-		s.append(&self.output);
-	}
-}
-
-impl Decodable for CallResult {
-	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
-		let res = CallResult {
-			gas_used: rlp.val_at(0)?,
-			output: rlp.val_at(1)?,
-		};
-
-		Ok(res)
-	}
-}
-
 /// `Create` result.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, RlpEncodable, RlpDecodable)]
 #[cfg_attr(feature = "ipc", binary)]
 pub struct CreateResult {
 	/// Gas used by create.
@@ -67,27 +48,6 @@ pub struct CreateResult {
 	pub address: Address,
 }
 
-impl Encodable for CreateResult {
-	fn rlp_append(&self, s: &mut RlpStream) {
-		s.begin_list(3);
-		s.append(&self.gas_used);
-		s.append(&self.code);
-		s.append(&self.address);
-	}
-}
-
-impl Decodable for CreateResult {
-	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
-		let res = CreateResult {
-			gas_used: rlp.val_at(0)?,
-			code: rlp.val_at(1)?,
-			address: rlp.val_at(2)?,
-		};
-
-		Ok(res)
-	}
-}
-
 impl CreateResult {
 	/// Returns bloom.
 	pub fn bloom(&self) -> LogBloom {
@@ -96,7 +56,7 @@ impl CreateResult {
 }
 
 /// Description of a _call_ action, either a `CALL` operation or a message transction.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, RlpEncodable, RlpDecodable)]
 #[cfg_attr(feature = "ipc", binary)]
 pub struct Call {
 	/// The sending account.
@@ -126,33 +86,6 @@ impl From<ActionParams> for Call {
 	}
 }
 
-impl Encodable for Call {
-	fn rlp_append(&self, s: &mut RlpStream) {
-		s.begin_list(6);
-		s.append(&self.from);
-		s.append(&self.to);
-		s.append(&self.value);
-		s.append(&self.gas);
-		s.append(&self.input);
-		s.append(&self.call_type);
-	}
-}
-
-impl Decodable for Call {
-	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
-		let res = Call {
-			from: rlp.val_at(0)?,
-			to: rlp.val_at(1)?,
-			value: rlp.val_at(2)?,
-			gas: rlp.val_at(3)?,
-			input: rlp.val_at(4)?,
-			call_type: rlp.val_at(5)?,
-		};
-
-		Ok(res)
-	}
-}
-
 impl Call {
 	/// Returns call action bloom.
 	/// The bloom contains from and to addresses.
@@ -163,7 +96,7 @@ impl Call {
 }
 
 /// Description of a _create_ action, either a `CREATE` operation or a create transction.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, RlpEncodable, RlpDecodable)]
 #[cfg_attr(feature = "ipc", binary)]
 pub struct Create {
 	/// The address of the creator.
@@ -184,29 +117,6 @@ impl From<ActionParams> for Create {
 			gas: p.gas,
 			init: p.code.map_or_else(Vec::new, |c| (*c).clone()),
 		}
-	}
-}
-
-impl Encodable for Create {
-	fn rlp_append(&self, s: &mut RlpStream) {
-		s.begin_list(4);
-		s.append(&self.from);
-		s.append(&self.value);
-		s.append(&self.gas);
-		s.append(&self.init);
-	}
-}
-
-impl Decodable for Create {
-	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
-		let res = Create {
-			from: rlp.val_at(0)?,
-			value: rlp.val_at(1)?,
-			gas: rlp.val_at(2)?,
-			init: rlp.val_at(3)?,
-		};
-
-		Ok(res)
 	}
 }
 
@@ -290,7 +200,7 @@ impl Decodable for Reward {
 
 
 /// Suicide action.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, RlpEncodable, RlpDecodable)]
 #[cfg_attr(feature = "ipc", binary)]
 pub struct Suicide {
 	/// Suicided address.
@@ -331,7 +241,7 @@ impl Decodable for Suicide {
 }
 
 
-/// Description of an action that we trace.
+/// Description of an action that we trace; will be either a call or a create.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "ipc", binary)]
 pub enum Action {
@@ -474,7 +384,7 @@ impl Res {
 	}
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, RlpEncodable, RlpDecodable)]
 #[cfg_attr(feature = "ipc", binary)]
 /// A diff of some chunk of memory.
 pub struct MemoryDiff {
@@ -484,24 +394,7 @@ pub struct MemoryDiff {
 	pub data: Bytes,
 }
 
-impl Encodable for MemoryDiff {
-	fn rlp_append(&self, s: &mut RlpStream) {
-		s.begin_list(2);
-		s.append(&self.offset);
-		s.append(&self.data);
-	}
-}
-
-impl Decodable for MemoryDiff {
-	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
-		Ok(MemoryDiff {
-			offset: rlp.val_at(0)?,
-			data: rlp.val_at(1)?,
-		})
-	}
-}
-
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, RlpEncodable, RlpDecodable)]
 #[cfg_attr(feature = "ipc", binary)]
 /// A diff of some storage value.
 pub struct StorageDiff {
@@ -511,24 +404,7 @@ pub struct StorageDiff {
 	pub value: U256,
 }
 
-impl Encodable for StorageDiff {
-	fn rlp_append(&self, s: &mut RlpStream) {
-		s.begin_list(2);
-		s.append(&self.location);
-		s.append(&self.value);
-	}
-}
-
-impl Decodable for StorageDiff {
-	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
-		Ok(StorageDiff {
-			location: rlp.val_at(0)?,
-			value: rlp.val_at(1)?,
-		})
-	}
-}
-
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, RlpEncodable, RlpDecodable)]
 #[cfg_attr(feature = "ipc", binary)]
 /// A record of an executed VM operation.
 pub struct VMExecutedOperation {
@@ -542,28 +418,7 @@ pub struct VMExecutedOperation {
 	pub store_diff: Option<StorageDiff>,
 }
 
-impl Encodable for VMExecutedOperation {
-	fn rlp_append(&self, s: &mut RlpStream) {
-		s.begin_list(4);
-		s.append(&self.gas_used);
-		s.append_list(&self.stack_push);
-		s.append(&self.mem_diff);
-		s.append(&self.store_diff);
-	}
-}
-
-impl Decodable for VMExecutedOperation {
-	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
-		Ok(VMExecutedOperation {
-			gas_used: rlp.val_at(0)?,
-			stack_push: rlp.list_at(1)?,
-			mem_diff: rlp.val_at(2)?,
-			store_diff: rlp.val_at(3)?,
-		})
-	}
-}
-
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, PartialEq, Default, RlpEncodable, RlpDecodable)]
 #[cfg_attr(feature = "ipc", binary)]
 /// A record of the execution of a single VM operation.
 pub struct VMOperation {
@@ -577,30 +432,7 @@ pub struct VMOperation {
 	pub executed: Option<VMExecutedOperation>,
 }
 
-impl Encodable for VMOperation {
-	fn rlp_append(&self, s: &mut RlpStream) {
-		s.begin_list(4);
-		s.append(&self.pc);
-		s.append(&self.instruction);
-		s.append(&self.gas_cost);
-		s.append(&self.executed);
-	}
-}
-
-impl Decodable for VMOperation {
-	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
-		let res = VMOperation {
-			pc: rlp.val_at(0)?,
-			instruction: rlp.val_at(1)?,
-			gas_cost: rlp.val_at(2)?,
-			executed: rlp.val_at(3)?,
-		};
-
-		Ok(res)
-	}
-}
-
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, PartialEq, Default, RlpEncodable, RlpDecodable)]
 #[cfg_attr(feature = "ipc", binary)]
 /// A record of a full VM trace for a CALL/CREATE.
 pub struct VMTrace {
@@ -613,27 +445,4 @@ pub struct VMTrace {
 	/// The sub traces for each interior action performed as part of this call/create.
 	/// Thre is a 1:1 correspondance between these and a CALL/CREATE/CALLCODE/DELEGATECALL instruction.
 	pub subs: Vec<VMTrace>,
-}
-
-impl Encodable for VMTrace {
-	fn rlp_append(&self, s: &mut RlpStream) {
-		s.begin_list(4);
-		s.append(&self.parent_step);
-		s.append(&self.code);
-		s.append_list(&self.operations);
-		s.append_list(&self.subs);
-	}
-}
-
-impl Decodable for VMTrace {
-	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
-		let res = VMTrace {
-			parent_step: rlp.val_at(0)?,
-			code: rlp.val_at(1)?,
-			operations: rlp.list_at(2)?,
-			subs: rlp.list_at(3)?,
-		};
-
-		Ok(res)
-	}
 }

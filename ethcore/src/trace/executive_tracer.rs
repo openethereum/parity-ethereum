@@ -174,7 +174,7 @@ impl Tracer for ExecutiveTracer {
 		ExecutiveTracer::default()
 	}
 
-	fn traces(self) -> Vec<FlatTrace> {
+	fn drain(self) -> Vec<FlatTrace> {
 		self.traces
 	}
 }

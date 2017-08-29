@@ -77,7 +77,7 @@ impl Decodable for FlatTrace {
 }
 
 /// Represents all traces produced by a single transaction.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, RlpEncodableWrapper, RlpDecodableWrapper)]
 pub struct FlatTransactionTraces(Vec<FlatTrace>);
 
 impl From<Vec<FlatTrace>> for FlatTransactionTraces {
@@ -99,18 +99,6 @@ impl FlatTransactionTraces {
 	}
 }
 
-impl Encodable for FlatTransactionTraces {
-	fn rlp_append(&self, s: &mut RlpStream) {
-		s.append_list(&self.0);
-	}
-}
-
-impl Decodable for FlatTransactionTraces {
-	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
-		Ok(FlatTransactionTraces(rlp.as_list()?))
-	}
-}
-
 impl Into<Vec<FlatTrace>> for FlatTransactionTraces {
 	fn into(self) -> Vec<FlatTrace> {
 		self.0
@@ -118,7 +106,7 @@ impl Into<Vec<FlatTrace>> for FlatTransactionTraces {
 }
 
 /// Represents all traces produced by transactions in a single block.
-#[derive(Debug, PartialEq, Clone, Default)]
+#[derive(Debug, PartialEq, Clone, Default, RlpEncodableWrapper, RlpDecodableWrapper)]
 pub struct FlatBlockTraces(Vec<FlatTransactionTraces>);
 
 impl HeapSizeOf for FlatBlockTraces {
@@ -137,18 +125,6 @@ impl FlatBlockTraces {
 	/// Returns bloom of all traces in the block.
 	pub fn bloom(&self) -> LogBloom {
 		self.0.iter().fold(Default::default(), | bloom, tx_traces | bloom | tx_traces.bloom())
-	}
-}
-
-impl Encodable for FlatBlockTraces {
-	fn rlp_append(&self, s: &mut RlpStream) {
-		s.append_list(&self.0);
-	}
-}
-
-impl Decodable for FlatBlockTraces {
-	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
-		Ok(FlatBlockTraces(rlp.as_list()?))
 	}
 }
 

@@ -65,7 +65,7 @@ impl Tracer for NoopTracer {
 		NoopTracer
 	}
 
-	fn traces(self) -> Vec<FlatTrace> {
+	fn drain(self) -> Vec<FlatTrace> {
 		vec![]
 	}
 }

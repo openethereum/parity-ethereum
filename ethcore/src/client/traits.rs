@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::BTreeMap;
+use itertools::Itertools;
 
 use block::{OpenBlock, SealedBlock, ClosedBlock};
 use blockchain::TreeRoute;
@@ -33,7 +34,7 @@ use trace::LocalizedTrace;
 use transaction::{LocalizedTransaction, PendingTransaction, SignedTransaction};
 use verification::queue::QueueInfo as BlockQueueInfo;
 
-use util::{U256, Address, H256, H2048, Bytes, Itertools};
+use util::{U256, Address, H256, H2048, Bytes};
 use util::hashdb::DBValue;
 
 use types::ids::*;
@@ -182,7 +183,11 @@ pub trait BlockChainClient : Sync + Send {
 	fn logs(&self, filter: Filter) -> Vec<LocalizedLogEntry>;
 
 	/// Makes a non-persistent transaction call.
-	fn call(&self, t: &SignedTransaction, block: BlockId, analytics: CallAnalytics) -> Result<Executed, CallError>;
+	fn call(&self, tx: &SignedTransaction, analytics: CallAnalytics, block: BlockId) -> Result<Executed, CallError>;
+
+	/// Makes multiple non-persistent but dependent transaction calls.
+	/// Returns a vector of successes or a failure if any of the transaction fails.
+	fn call_many(&self, txs: &[(SignedTransaction, CallAnalytics)], block: BlockId) -> Result<Vec<Executed>, CallError>;
 
 	/// Estimates how much gas will be necessary for a call.
 	fn estimate_gas(&self, t: &SignedTransaction, block: BlockId) -> Result<U256, CallError>;
@@ -235,8 +240,8 @@ pub trait BlockChainClient : Sync + Send {
 		corpus.into()
 	}
 
-	/// Get the preferred network ID to sign on
-	fn signing_network_id(&self) -> Option<u64>;
+	/// Get the preferred chain ID to sign on
+	fn signing_chain_id(&self) -> Option<u64>;
 
 	/// Get the mode.
 	fn mode(&self) -> Mode;

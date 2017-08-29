@@ -20,9 +20,11 @@ use ethkey;
 use ethcrypto;
 use super::types::all::ServerKeyId;
 
+pub use super::traits::NodeKeyPair;
 pub use super::types::all::{NodeId, EncryptedDocumentKeyShadow};
 pub use super::acl_storage::AclStorage;
 pub use super::key_storage::{KeyStorage, DocumentKeyShare};
+pub use super::key_server_set::KeyServerSet;
 pub use super::serialization::{SerializableSignature, SerializableH256, SerializableSecret, SerializablePublic, SerializableMessageHash};
 pub use self::cluster::{ClusterCore, ClusterConfiguration, ClusterClient};
 pub use self::generation_session::Session as GenerationSession;
@@ -30,9 +32,13 @@ pub use self::encryption_session::Session as EncryptionSession;
 pub use self::decryption_session::Session as DecryptionSession;
 
 #[cfg(test)]
+pub use super::node_key_pair::PlainNodeKeyPair;
+#[cfg(test)]
 pub use super::key_storage::tests::DummyKeyStorage;
 #[cfg(test)]
-pub use super::acl_storage::tests::DummyAclStorage;
+pub use super::acl_storage::DummyAclStorage;
+#[cfg(test)]
+pub use super::key_server_set::tests::MapKeyServerSet;
 
 pub type SessionId = ServerKeyId;
 

@@ -263,7 +263,7 @@ pub trait Engine : Sync + Send {
 	// TODO: Add flags for which bits of the transaction to check.
 	// TODO: consider including State in the params.
 	fn verify_transaction_basic(&self, t: &UnverifiedTransaction, _header: &Header) -> Result<(), Error> {
-		t.verify_basic(true, Some(self.params().network_id), true)?;
+		t.verify_basic(true, Some(self.params().chain_id), true)?;
 		Ok(())
 	}
 
@@ -273,7 +273,7 @@ pub trait Engine : Sync + Send {
 	}
 
 	/// The network ID that transactions should be signed with.
-	fn signing_network_id(&self, _env_info: &EnvInfo) -> Option<u64> {
+	fn signing_chain_id(&self, _env_info: &EnvInfo) -> Option<u64> {
 		Some(self.params().chain_id)
 	}
 

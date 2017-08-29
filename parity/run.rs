@@ -14,7 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::sync::Arc;
+use std::fmt;
+use std::sync::{Arc, Weak};
 use std::net::{TcpListener};
 
 use ctrlc::CtrlC;
@@ -32,10 +33,12 @@ use fdlimit::raise_fd_limit;
 use hash_fetch::fetch::{Fetch, Client as FetchClient};
 use informant::{Informant, LightNodeInformantData, FullNodeInformantData};
 use light::Cache as LightDataCache;
+use node_health;
 use parity_reactor::EventLoop;
 use parity_rpc::{NetworkSettings, informant, is_major_importing};
 use updater::{UpdatePolicy, Updater};
 use util::{Colour, version, Mutex, Condvar};
+use node_filter::NodeFilter;
 
 use params::{
 	SpecType, Pruning, AccountsConfig, GasPricerConfig, MinerExtras, Switch,
@@ -56,7 +59,7 @@ use signer;
 use url;
 
 // how often to take periodic snapshots.
-const SNAPSHOT_PERIOD: u64 = 10000;
+const SNAPSHOT_PERIOD: u64 = 5000;
 
 // how many blocks to wait before starting a periodic snapshot.
 const SNAPSHOT_HISTORY: u64 = 100;
@@ -80,6 +83,7 @@ pub struct RunCmd {
 	pub daemon: Option<String>,
 	pub logger_config: LogConfig,
 	pub miner_options: MinerOptions,
+	pub ntp_servers: Vec<String>,
 	pub ws_conf: rpc::WsConfiguration,
 	pub http_conf: rpc::HttpConfiguration,
 	pub ipc_conf: rpc::IpcConfiguration,
@@ -283,7 +287,7 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 
 	// the dapps server
 	let signer_service = Arc::new(signer::new_service(&cmd.ws_conf, &cmd.ui_conf, &cmd.logger_config));
-	let dapps_deps = {
+	let (node_health, dapps_deps) = {
 		let contract_client = Arc::new(::dapps::LightRegistrar {
 			client: service.client().clone(),
 			sync: light_sync.clone(),
@@ -291,7 +295,12 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 		});
 
 		struct LightSyncStatus(Arc<LightSync>);
-		impl dapps::SyncStatus for LightSyncStatus {
+		impl fmt::Debug for LightSyncStatus {
+			fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+				write!(fmt, "Light Sync Status")
+			}
+		}
+		impl node_health::SyncStatus for LightSyncStatus {
 			fn is_major_importing(&self) -> bool { self.0.is_major_importing() }
 			fn peers(&self) -> (usize, usize) {
 				let peers = ethsync::LightSyncProvider::peer_numbers(&*self.0);
@@ -299,19 +308,26 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 			}
 		}
 
-		dapps::Dependencies {
-			sync_status: Arc::new(LightSyncStatus(light_sync.clone())),
-			pool: fetch.pool(),
+		let sync_status = Arc::new(LightSyncStatus(light_sync.clone()));
+		let node_health = node_health::NodeHealth::new(
+			sync_status.clone(),
+			node_health::TimeChecker::new(&cmd.ntp_servers, fetch.pool()),
+			event_loop.remote(),
+		);
+
+		(node_health.clone(), dapps::Dependencies {
+			sync_status,
+			node_health,
 			contract_client: contract_client,
 			remote: event_loop.raw_remote(),
 			fetch: fetch.clone(),
 			signer: signer_service.clone(),
 			ui_address: cmd.ui_conf.address(),
-		}
+		})
 	};
 
 	let dapps_middleware = dapps::new(cmd.dapps_conf.clone(), dapps_deps.clone())?;
-	let ui_middleware = dapps::new_ui(cmd.ui_conf.enabled, &cmd.ui_conf.ntp_server, dapps_deps)?;
+	let ui_middleware = dapps::new_ui(cmd.ui_conf.enabled, dapps_deps)?;
 
 	// start RPCs
 	let dapps_service = dapps::service(&dapps_middleware);
@@ -320,6 +336,7 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 		client: service.client().clone(),
 		sync: light_sync.clone(),
 		net: light_sync.clone(),
+		health: node_health,
 		secret_store: account_provider,
 		logger: logger,
 		settings: Arc::new(cmd.net_settings),
@@ -507,7 +524,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 		}
 
 		// Attempt to sign in the engine signer.
-		if !passwords.into_iter().any(|p| miner.set_engine_signer(engine_signer, p).is_ok()) {
+		if !passwords.iter().any(|p| miner.set_engine_signer(engine_signer, (*p).clone()).is_ok()) {
 			return Err(format!("No valid password for the consensus signer {}. {}", engine_signer, VERIFY_PASSWORD_HINT));
 		}
 	}
@@ -553,11 +570,13 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 		miner.clone(),
 	).map_err(|e| format!("Client service error: {:?}", e))?;
 
+	let connection_filter_address = spec.params().node_permission_contract;
 	// drop the spec to free up genesis state.
 	drop(spec);
 
 	// take handle to client
 	let client = service.client();
+	let connection_filter = connection_filter_address.map(|a| Arc::new(NodeFilter::new(Arc::downgrade(&client) as Weak<BlockChainClient>, a)));
 	let snapshot_service = service.snapshot_service();
 
 	// initialize the local node information store.
@@ -629,9 +648,13 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 		client.clone(),
 		&cmd.logger_config,
 		attached_protos,
+		connection_filter.clone().map(|f| f as Arc<::ethsync::ConnectionFilter + 'static>),
 	).map_err(|e| format!("Sync error: {}", e))?;
 
 	service.add_notify(chain_notify.clone());
+	if let Some(filter) = connection_filter {
+		service.add_notify(filter);
+	}
 
 	// start network
 	if network_enabled {
@@ -661,12 +684,17 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	let signer_service = Arc::new(signer::new_service(&cmd.ws_conf, &cmd.ui_conf, &cmd.logger_config));
 
 	// the dapps server
-	let dapps_deps = {
+	let (node_health, dapps_deps) = {
 		let (sync, client) = (sync_provider.clone(), client.clone());
 		let contract_client = Arc::new(::dapps::FullRegistrar { client: client.clone() });
 
 		struct SyncStatus(Arc<ethsync::SyncProvider>, Arc<Client>, ethsync::NetworkConfiguration);
-		impl dapps::SyncStatus for SyncStatus {
+		impl fmt::Debug for SyncStatus {
+			fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+				write!(fmt, "Dapps Sync Status")
+			}
+		}
+		impl node_health::SyncStatus for SyncStatus {
 			fn is_major_importing(&self) -> bool {
 				is_major_importing(Some(self.0.status().state), self.1.queue_info())
 			}
@@ -676,18 +704,24 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 			}
 		}
 
-		dapps::Dependencies {
-			sync_status: Arc::new(SyncStatus(sync, client, net_conf)),
-			pool: fetch.pool(),
+		let sync_status = Arc::new(SyncStatus(sync, client, net_conf));
+		let node_health = node_health::NodeHealth::new(
+			sync_status.clone(),
+			node_health::TimeChecker::new(&cmd.ntp_servers, fetch.pool()),
+			event_loop.remote(),
+		);
+		(node_health.clone(), dapps::Dependencies {
+			sync_status,
+			node_health,
 			contract_client: contract_client,
 			remote: event_loop.raw_remote(),
 			fetch: fetch.clone(),
 			signer: signer_service.clone(),
 			ui_address: cmd.ui_conf.address(),
-		}
+		})
 	};
 	let dapps_middleware = dapps::new(cmd.dapps_conf.clone(), dapps_deps.clone())?;
-	let ui_middleware = dapps::new_ui(cmd.ui_conf.enabled, &cmd.ui_conf.ntp_server, dapps_deps)?;
+	let ui_middleware = dapps::new_ui(cmd.ui_conf.enabled, dapps_deps)?;
 
 	let dapps_service = dapps::service(&dapps_middleware);
 	let deps_for_rpc_apis = Arc::new(rpc_apis::FullDependencies {
@@ -695,6 +729,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 		snapshot: snapshot_service.clone(),
 		client: client.clone(),
 		sync: sync_provider.clone(),
+		health: node_health,
 		net: manage_network.clone(),
 		secret_store: secret_store,
 		miner: miner.clone(),
@@ -734,6 +769,8 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	// secret store key server
 	let secretstore_deps = secretstore::Dependencies {
 		client: client.clone(),
+		account_provider: account_provider,
+		accounts_passwords: &passwords,
 	};
 	let secretstore_key_server = secretstore::start(cmd.secretstore_conf.clone(), secretstore_deps)?;
 

@@ -19,7 +19,6 @@ rust-crypto = "0.2.34"
 elastic-array = "0.9"
 rlp = { path = "rlp" }
 heapsize = "0.4"
-itertools = "0.5"
 sha3 = { path = "sha3" }
 clippy = { version = "0.0.103", optional = true}
 ethcore-devtools = { path = "../devtools" }

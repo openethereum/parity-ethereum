@@ -84,7 +84,7 @@ impl<'a> Deserialize<'a> for Params {
 		}
 
 		from_value(v.clone()).map(Params::Logs)
-			.map_err(|_| D::Error::custom("Invalid type."))
+			.map_err(|e| D::Error::custom(format!("Invalid Pub-Sub parameters: {}", e)))
 	}
 }
 

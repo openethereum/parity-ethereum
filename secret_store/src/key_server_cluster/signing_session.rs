@@ -572,7 +572,7 @@ mod tests {
 	use std::collections::{BTreeMap, VecDeque};
 	use ethkey::{self, Random, Generator, Public};
 	use util::H256;
-	use super::super::super::acl_storage::tests::DummyAclStorage;
+	use acl_storage::DummyAclStorage;
 	use key_server_cluster::{NodeId, SessionId, SessionMeta, Error, KeyStorage};
 	use key_server_cluster::cluster::tests::DummyCluster;
 	use key_server_cluster::generation_session::{Session as GenerationSession};

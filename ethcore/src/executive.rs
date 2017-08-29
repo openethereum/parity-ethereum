@@ -26,7 +26,7 @@ use evm::{CallType, Factory, Finalize, FinalizationResult};
 use vm::{self, Ext, CreateContractAddress, ReturnData, CleanDustMode, ActionParams, ActionValue};
 use wasm;
 use externalities::*;
-use trace::{FlatTrace, Tracer, NoopTracer, ExecutiveTracer, VMTrace, VMTracer, ExecutiveVMTracer, NoopVMTracer};
+use trace::{self, FlatTrace, VMTrace, Tracer, VMTracer};
 use transaction::{Action, SignedTransaction};
 use crossbeam;
 pub use executed::{Executed, ExecutionResult};
@@ -66,14 +66,75 @@ pub fn contract_address(address_scheme: CreateContractAddress, sender: &Address,
 }
 
 /// Transaction execution options.
-#[derive(Default, Copy, Clone, PartialEq)]
-pub struct TransactOptions {
+#[derive(Copy, Clone, PartialEq)]
+pub struct TransactOptions<T, V> {
 	/// Enable call tracing.
-	pub tracing: bool,
+	pub tracer: T,
 	/// Enable VM tracing.
-	pub vm_tracing: bool,
+	pub vm_tracer: V,
 	/// Check transaction nonce before execution.
 	pub check_nonce: bool,
+}
+
+impl<T, V> TransactOptions<T, V> {
+	/// Create new `TransactOptions` with given tracer and VM tracer.
+	pub fn new(tracer: T, vm_tracer: V) -> Self {
+		TransactOptions {
+			tracer,
+			vm_tracer,
+			check_nonce: true,
+		}
+	}
+
+	/// Disables the nonce check
+	pub fn dont_check_nonce(mut self) -> Self {
+		self.check_nonce = false;
+		self
+	}
+}
+
+impl TransactOptions<trace::ExecutiveTracer, trace::ExecutiveVMTracer> {
+	/// Creates new `TransactOptions` with default tracing and VM tracing.
+	pub fn with_tracing_and_vm_tracing() -> Self {
+		TransactOptions {
+			tracer: trace::ExecutiveTracer::default(),
+			vm_tracer: trace::ExecutiveVMTracer::toplevel(),
+			check_nonce: true,
+		}
+	}
+}
+
+impl TransactOptions<trace::ExecutiveTracer, trace::NoopVMTracer> {
+	/// Creates new `TransactOptions` with default tracing and no VM tracing.
+	pub fn with_tracing() -> Self {
+		TransactOptions {
+			tracer: trace::ExecutiveTracer::default(),
+			vm_tracer: trace::NoopVMTracer,
+			check_nonce: true,
+		}
+	}
+}
+
+impl TransactOptions<trace::NoopTracer, trace::ExecutiveVMTracer> {
+	/// Creates new `TransactOptions` with no tracing and default VM tracing.
+	pub fn with_vm_tracing() -> Self {
+		TransactOptions {
+			tracer: trace::NoopTracer,
+			vm_tracer: trace::ExecutiveVMTracer::toplevel(),
+			check_nonce: true,
+		}
+	}
+}
+
+impl TransactOptions<trace::NoopTracer, trace::NoopVMTracer> {
+	/// Creates new `TransactOptions` without any tracing.
+	pub fn with_no_tracing() -> Self {
+		TransactOptions {
+			tracer: trace::NoopTracer,
+			vm_tracer: trace::NoopVMTracer,
+			check_nonce: true,
+		}
+	}
 }
 
 pub fn executor<E>(engine: &E, vm_factory: &Factory, params: &ActionParams)
@@ -137,27 +198,21 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 	}
 
 	/// This function should be used to execute transaction.
-	pub fn transact(&'a mut self, t: &SignedTransaction, options: TransactOptions) -> Result<Executed, ExecutionError> {
-		let check = options.check_nonce;
-		match options.tracing {
-			true => match options.vm_tracing {
-				true => self.transact_with_tracer(t, check, ExecutiveTracer::default(), ExecutiveVMTracer::toplevel()),
-				false => self.transact_with_tracer(t, check, ExecutiveTracer::default(), NoopVMTracer),
-			},
-			false => match options.vm_tracing {
-				true => self.transact_with_tracer(t, check, NoopTracer, ExecutiveVMTracer::toplevel()),
-				false => self.transact_with_tracer(t, check, NoopTracer, NoopVMTracer),
-			},
-		}
+	pub fn transact<T, V>(&'a mut self, t: &SignedTransaction, options: TransactOptions<T, V>)
+		-> Result<Executed, ExecutionError> where T: Tracer, V: VMTracer,
+	{
+		self.transact_with_tracer(t, options.check_nonce, options.tracer, options.vm_tracer)
 	}
 
 	/// Execute a transaction in a "virtual" context.
 	/// This will ensure the caller has enough balance to execute the desired transaction.
 	/// Used for extra-block executions for things like consensus contracts and RPCs
-	pub fn transact_virtual(&'a mut self, t: &SignedTransaction, options: TransactOptions) -> Result<Executed, ExecutionError> {
+	pub fn transact_virtual<T, V>(&'a mut self, t: &SignedTransaction, options: TransactOptions<T, V>)
+		-> Result<Executed, ExecutionError> where T: Tracer, V: VMTracer,
+	{
 		let sender = t.sender();
 		let balance = self.state.balance(&sender)?;
-		let needed_balance = t.value + t.gas * t.gas_price;
+		let needed_balance = t.value.saturating_add(t.gas.saturating_mul(t.gas_price));
 		if balance < needed_balance {
 			// give the sender a sufficient balance
 			self.state.add_balance(&sender, &(needed_balance - balance), CleanupMode::NoEmpty)?;
@@ -167,7 +222,7 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 	}
 
 	/// Execute transaction/call with tracing enabled
-	pub fn transact_with_tracer<T, V>(
+	fn transact_with_tracer<T, V>(
 		&'a mut self,
 		t: &SignedTransaction,
 		check_nonce: bool,
@@ -261,7 +316,7 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 		};
 
 		// finalize here!
-		Ok(self.finalize(t, substate, result, output, tracer.traces(), vm_tracer.drain())?)
+		Ok(self.finalize(t, substate, result, output, tracer.drain(), vm_tracer.drain())?)
 	}
 
 	fn exec_vm<T, V>(
@@ -399,7 +454,7 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 
 				trace!(target: "executive", "res={:?}", res);
 
-				let traces = subtracer.traces();
+				let traces = subtracer.drain();
 				match res {
 					Ok(ref res) => tracer.trace_call(
 						trace_info,
@@ -484,9 +539,9 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 				gas - res.gas_left,
 				trace_output,
 				created,
-				subtracer.traces()
+				subtracer.drain()
 			),
-			Err(ref e) => tracer.trace_failed_create(trace_info, subtracer.traces(), e.into())
+			Err(ref e) => tracer.trace_failed_create(trace_info, subtracer.drain(), e.into())
 		};
 
 		self.enact_result(&res, substate, unconfirmed_substate);
@@ -794,7 +849,7 @@ mod tests {
 			}),
 		}];
 
-		assert_eq!(tracer.traces(), expected_trace);
+		assert_eq!(tracer.drain(), expected_trace);
 
 		let expected_vm_trace = VMTrace {
 			parent_step: 0,
@@ -887,7 +942,7 @@ mod tests {
 			}),
 		}];
 
-		assert_eq!(tracer.traces(), expected_trace);
+		assert_eq!(tracer.drain(), expected_trace);
 
 		let expected_vm_trace = VMTrace {
 			parent_step: 0,
@@ -1138,7 +1193,7 @@ mod tests {
 
 		let executed = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
-			let opts = TransactOptions { check_nonce: true, tracing: false, vm_tracing: false };
+			let opts = TransactOptions::with_no_tracing();
 			ex.transact(&t, opts).unwrap()
 		};
 
@@ -1175,7 +1230,7 @@ mod tests {
 
 		let res = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
-			let opts = TransactOptions { check_nonce: true, tracing: false, vm_tracing: false };
+			let opts = TransactOptions::with_no_tracing();
 			ex.transact(&t, opts)
 		};
 
@@ -1208,7 +1263,7 @@ mod tests {
 
 		let res = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
-			let opts = TransactOptions { check_nonce: true, tracing: false, vm_tracing: false };
+			let opts = TransactOptions::with_no_tracing();
 			ex.transact(&t, opts)
 		};
 
@@ -1241,7 +1296,7 @@ mod tests {
 
 		let res = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
-			let opts = TransactOptions { check_nonce: true, tracing: false, vm_tracing: false };
+			let opts = TransactOptions::with_no_tracing();
 			ex.transact(&t, opts)
 		};
 

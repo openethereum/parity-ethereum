@@ -57,7 +57,7 @@ fn empty() {
 		test_finalize(interpreter.exec(params, &mut ext)).unwrap()
 	};
 
-	assert_eq!(gas_left, U256::from(99_996));
+	assert_eq!(gas_left, U256::from(99_992));
 }
 
 // This test checks if the contract deserializes payload header properly.
@@ -85,7 +85,7 @@ fn logger() {
 	};
 
 	println!("ext.store: {:?}", ext.store);
-	assert_eq!(gas_left, U256::from(99590));
+	assert_eq!(gas_left, U256::from(99327));
 	let address_val: H256 = address.into();
 	assert_eq!(
 		ext.store.get(&"0100000000000000000000000000000000000000000000000000000000000000".parse().unwrap()).expect("storage key to exist"),
@@ -136,7 +136,7 @@ fn identity() {
 		}
 	};
 
-	assert_eq!(gas_left, U256::from(99_687));
+	assert_eq!(gas_left, U256::from(99_672));
 
 	assert_eq!(
 		Address::from_slice(&result),
@@ -170,7 +170,7 @@ fn dispersion() {
 		}
 	};
 
-	assert_eq!(gas_left, U256::from(99_423));
+	assert_eq!(gas_left, U256::from(99_270));
 
 	assert_eq!(
 		result,
@@ -199,7 +199,7 @@ fn suicide_not() {
 		}
 	};
 
-	assert_eq!(gas_left, U256::from(99_656));
+	assert_eq!(gas_left, U256::from(99_578));
 
 	assert_eq!(
 		result,
@@ -233,7 +233,7 @@ fn suicide() {
 		}
 	};
 
-	assert_eq!(gas_left, U256::from(99_740));
+	assert_eq!(gas_left, U256::from(99_621));
 	assert!(ext.suicides.contains(&refund));
 }
 
@@ -264,7 +264,7 @@ fn create() {
 	assert!(ext.calls.contains(
 		&FakeCall {
 			call_type: FakeCallType::Create,
-			gas: U256::from(99_767),
+			gas: U256::from(99_674),
 			sender_address: None,
 			receive_address: None,
 			value: Some(1_000_000_000.into()),
@@ -272,7 +272,7 @@ fn create() {
 			code_address: None,
 		}
 	));
-	assert_eq!(gas_left, U256::from(99_759));
+	assert_eq!(gas_left, U256::from(99_596));
 }
 
 
@@ -306,7 +306,7 @@ fn call_code() {
 	assert!(ext.calls.contains(
 		&FakeCall {
 			call_type: FakeCallType::Call,
-			gas: U256::from(99_061),
+			gas: U256::from(99_069),
 			sender_address: Some(sender),
 			receive_address: Some(receiver),
 			value: None,
@@ -314,7 +314,7 @@ fn call_code() {
 			code_address: Some("0d13710000000000000000000000000000000000".parse().unwrap()),
 		}
 	));
-	assert_eq!(gas_left, U256::from(94196));
+	assert_eq!(gas_left, U256::from(94144));
 
 	// siphash result
 	let res = LittleEndian::read_u32(&result[..]);
@@ -351,7 +351,7 @@ fn call_static() {
 	assert!(ext.calls.contains(
 		&FakeCall {
 			call_type: FakeCallType::Call,
-			gas: U256::from(99_061),
+			gas: U256::from(99_069),
 			sender_address: Some(sender),
 			receive_address: Some(receiver),
 			value: None,
@@ -359,7 +359,7 @@ fn call_static() {
 			code_address: Some("13077bfb00000000000000000000000000000000".parse().unwrap()),
 		}
 	));
-	assert_eq!(gas_left, U256::from(94196));
+	assert_eq!(gas_left, U256::from(94144));
 
 	// siphash result
 	let res = LittleEndian::read_u32(&result[..]);
@@ -378,13 +378,158 @@ fn realloc() {
 	let mut ext = FakeExt::new();
 
 	let (gas_left, result) = {
-			let mut interpreter = wasm_interpreter();
-			let result = interpreter.exec(params, &mut ext).expect("Interpreter to execute without any errors");
-			match result {
-					GasLeft::Known(_) => { panic!("Realloc should return payload"); },
-					GasLeft::NeedsReturn { gas_left: gas, data: result, apply_state: _apply } => (gas, result.to_vec()),
-			}
+		let mut interpreter = wasm_interpreter();
+		let result = interpreter.exec(params, &mut ext).expect("Interpreter to execute without any errors");
+		match result {
+				GasLeft::Known(_) => { panic!("Realloc should return payload"); },
+				GasLeft::NeedsReturn { gas_left: gas, data: result, apply_state: _apply } => (gas, result.to_vec()),
+		}
 	};
-	assert_eq!(gas_left, U256::from(98326));
+	assert_eq!(gas_left, U256::from(99432));
 	assert_eq!(result, vec![0u8; 2]);
+}
+
+// Tests that contract's ability to read from a storage
+// Test prepopulates address into storage, than executes a contract which read that address from storage and write this address into result
+#[test]
+fn storage_read() {
+	let code = load_sample!("storage_read.wasm");
+	let address: Address = "0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6".parse().unwrap();
+
+	let mut params = ActionParams::default();
+	params.gas = U256::from(100_000);
+	params.code = Some(Arc::new(code));
+	let mut ext = FakeExt::new();
+	ext.store.insert("0100000000000000000000000000000000000000000000000000000000000000".into(), address.into());
+
+	let (gas_left, result) = {
+		let mut interpreter = wasm_interpreter();
+		let result = interpreter.exec(params, &mut ext).expect("Interpreter to execute without any errors");
+		match result {
+				GasLeft::Known(_) => { panic!("storage_read should return payload"); },
+				GasLeft::NeedsReturn { gas_left: gas, data: result, apply_state: _apply } => (gas, result.to_vec()),
+		}
+	};
+
+	assert_eq!(gas_left, U256::from(99682));
+	assert_eq!(Address::from(&result[12..32]), address);
+}
+
+macro_rules! reqrep_test {
+	($name: expr, $input: expr) => {
+		{
+			::ethcore_logger::init_log();
+			let code = load_sample!($name);
+
+			let mut params = ActionParams::default();
+			params.gas = U256::from(100_000);
+			params.code = Some(Arc::new(code));
+			params.data = Some($input);
+
+			let (gas_left, result) = {
+				let mut interpreter = wasm_interpreter();
+				let result = interpreter.exec(params, &mut FakeExt::new()).expect("Interpreter to execute without any errors");
+				match result {
+						GasLeft::Known(_) => { panic!("Test is expected to return payload to check"); },
+						GasLeft::NeedsReturn { gas_left: gas, data: result, apply_state: _apply } => (gas, result.to_vec()),
+				}
+			};
+
+			(gas_left, result)
+		}
+	}
+}
+
+// math_* tests check the ability of wasm contract to perform big integer operations
+// - addition
+// - multiplication
+// - substraction
+// - division
+
+// addition
+#[test]
+fn math_add() {
+
+	let (gas_left, result) = reqrep_test!(
+		"math.wasm",
+		{
+			let mut args = [0u8; 65];
+			let arg_a = U256::from_dec_str("999999999999999999999999999999").unwrap();
+			let arg_b = U256::from_dec_str("888888888888888888888888888888").unwrap();
+			arg_a.to_big_endian(&mut args[1..33]);
+			arg_b.to_big_endian(&mut args[33..65]);
+			args.to_vec()
+		}
+	);
+
+	assert_eq!(gas_left, U256::from(98087));
+	assert_eq!(
+		U256::from_dec_str("1888888888888888888888888888887").unwrap(),
+		(&result[..]).into()
+	);
+}
+
+// multiplication
+#[test]
+fn math_mul() {
+	let (gas_left, result) = reqrep_test!(
+		"math.wasm",
+		{
+			let mut args = [1u8; 65];
+			let arg_a = U256::from_dec_str("888888888888888888888888888888").unwrap();
+			let arg_b = U256::from_dec_str("999999999999999999999999999999").unwrap();
+			arg_a.to_big_endian(&mut args[1..33]);
+			arg_b.to_big_endian(&mut args[33..65]);
+			args.to_vec()
+		}
+	);
+
+	assert_eq!(gas_left, U256::from(97236));
+	assert_eq!(
+		U256::from_dec_str("888888888888888888888888888887111111111111111111111111111112").unwrap(),
+		(&result[..]).into()
+	);
+}
+
+// substraction
+#[test]
+fn math_sub() {
+	let (gas_left, result) = reqrep_test!(
+		"math.wasm",
+		{
+			let mut args = [2u8; 65];
+			let arg_a = U256::from_dec_str("999999999999999999999999999999").unwrap();
+			let arg_b = U256::from_dec_str("888888888888888888888888888888").unwrap();
+			arg_a.to_big_endian(&mut args[1..33]);
+			arg_b.to_big_endian(&mut args[33..65]);
+			args.to_vec()
+		}
+	);
+
+	assert_eq!(gas_left, U256::from(98131));
+	assert_eq!(
+		U256::from_dec_str("111111111111111111111111111111").unwrap(),
+		(&result[..]).into()
+	);
+}
+
+#[test]
+fn math_div() {
+	let (gas_left, result) = reqrep_test!(
+		"math.wasm",
+		{
+			let mut args = [3u8; 65];
+			let arg_a = U256::from_dec_str("999999999999999999999999999999").unwrap();
+			let arg_b = U256::from_dec_str("888888888888888888888888").unwrap();
+			arg_a.to_big_endian(&mut args[1..33]);
+			arg_b.to_big_endian(&mut args[33..65]);
+			args.to_vec()
+		}
+	);
+
+	assert_eq!(gas_left, U256::from(91420));
+	assert_eq!(
+		U256::from_dec_str("1125000").unwrap(),
+		(&result[..]).into()
+	);
 }

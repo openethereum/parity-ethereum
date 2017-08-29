@@ -17,8 +17,9 @@
 //! Parity EVM interpreter binary.
 
 #![warn(missing_docs)]
-#![allow(dead_code)]
+
 extern crate ethcore;
+extern crate ethjson;
 extern crate rustc_hex;
 extern crate serde;
 #[macro_use]
@@ -31,11 +32,12 @@ extern crate panic_hook;
 
 use std::sync::Arc;
 use std::{fmt, fs};
+use std::path::PathBuf;
 use docopt::Docopt;
 use rustc_hex::FromHex;
 use util::{U256, Bytes, Address};
 use ethcore::spec;
-use vm::ActionParams;
+use vm::{ActionParams, CallType};
 
 mod info;
 mod display;
@@ -47,15 +49,22 @@ EVM implementation for Parity.
   Copyright 2016, 2017 Parity Technologies (UK) Ltd
 
 Usage:
-    evmbin stats [options]
-    evmbin [options]
-    evmbin [-h | --help]
+    parity-evm state-test <file> [--json --only NAME --chain CHAIN]
+    parity-evm stats [options]
+    parity-evm [options]
+    parity-evm [-h | --help]
 
 Transaction options:
     --code CODE        Contract code as hex (without 0x).
+    --to ADDRESS       Recipient address (without 0x).
     --from ADDRESS     Sender address (without 0x).
     --input DATA       Input data as hex (without 0x).
     --gas GAS          Supplied gas as hex (without 0x).
+    --gas-price WEI    Supplied gas price as hex (without 0x).
+
+State test options:
+    --only NAME        Runs only a single test matching the name.
+    --chain CHAIN      Run only tests from specific chain.
 
 General options:
     --json             Display verbose results in JSON.
@@ -69,40 +78,104 @@ fn main() {
 
 	let args: Args = Docopt::new(USAGE).and_then(|d| d.deserialize()).unwrap_or_else(|e| e.exit());
 
-	if args.flag_json {
-		run(args, display::json::Informant::default())
+	if args.cmd_state_test {
+		run_state_test(args)
+	} else if args.flag_json {
+		run_call(args, display::json::Informant::default())
 	} else {
-		run(args, display::simple::Informant::default())
+		run_call(args, display::simple::Informant::default())
 	}
 }
 
-fn run<T: Informant>(args: Args, mut informant: T) {
+fn run_state_test(args: Args) {
+	use ethjson::state::test::Test;
+
+	let file = args.arg_file.expect("FILE is required");
+	let mut file = match fs::File::open(&file) {
+		Err(err) => die(format!("Unable to open: {:?}: {}", file, err)),
+		Ok(file) => file,
+	};
+	let state_test = match Test::load(&mut file) {
+		Err(err) => die(format!("Unable to load the test file: {}", err)),
+		Ok(test) => test,
+	};
+	let only_test = args.flag_only.map(|s| s.to_lowercase());
+	let only_chain = args.flag_chain.map(|s| s.to_lowercase());
+
+	for (name, test) in state_test {
+		if let Some(false) = only_test.as_ref().map(|only_test| &name.to_lowercase() == only_test) {
+			continue;
+		}
+
+		let multitransaction = test.transaction;
+		let env_info = test.env.into();
+		let pre = test.pre_state.into();
+
+		for (spec, states) in test.post_states {
+			if let Some(false) = only_chain.as_ref().map(|only_chain| &format!("{:?}", spec).to_lowercase() == only_chain) {
+				continue;
+			}
+
+			for (idx, state) in states.into_iter().enumerate() {
+				let post_root = state.hash.into();
+				let transaction = multitransaction.select(&state.indexes).into();
+
+				if args.flag_json {
+					let i = display::json::Informant::default();
+					info::run_transaction(&name, idx, &spec, &pre, post_root, &env_info, transaction, i)
+				} else {
+					let i = display::simple::Informant::default();
+					info::run_transaction(&name, idx, &spec, &pre, post_root, &env_info, transaction, i)
+				}
+			}
+		}
+	}
+}
+
+fn run_call<T: Informant>(args: Args, mut informant: T) {
 	let from = arg(args.from(), "--from");
+	let to = arg(args.to(), "--to");
 	let code = arg(args.code(), "--code");
 	let spec = arg(args.spec(), "--chain");
 	let gas = arg(args.gas(), "--gas");
+	let gas_price = arg(args.gas_price(), "--gas-price");
 	let data = arg(args.data(), "--input");
 
+	if code.is_none() && to == Address::default() {
+		die("Either --code or --to is required.");
+	}
+
 	let mut params = ActionParams::default();
+	params.call_type = if code.is_none() { CallType::Call } else { CallType::None };
+	params.code_address = to;
+	params.address = to;
 	params.sender = from;
 	params.origin = from;
 	params.gas = gas;
-	params.code = Some(Arc::new(code));
+	params.gas_price = gas_price;
+	params.code = code.map(Arc::new);
 	params.data = data;
 
 	informant.set_gas(gas);
-	let result = info::run(&mut informant, spec, params);
-	informant.finish(result);
+	let result = info::run(&spec, gas, None, |mut client| {
+		client.call(params, &mut informant)
+	});
+	T::finish(result);
 }
 
 #[derive(Debug, Deserialize)]
 struct Args {
 	cmd_stats: bool,
+	cmd_state_test: bool,
+	arg_file: Option<PathBuf>,
+	flag_only: Option<String>,
 	flag_from: Option<String>,
+	flag_to: Option<String>,
 	flag_code: Option<String>,
 	flag_gas: Option<String>,
+	flag_gas_price: Option<String>,
 	flag_input: Option<String>,
-	flag_spec: Option<String>,
+	flag_chain: Option<String>,
 	flag_json: bool,
 }
 
@@ -114,6 +187,13 @@ impl Args {
 		}
 	}
 
+	pub fn gas_price(&self) -> Result<U256, String> {
+		match self.flag_gas_price {
+			Some(ref gas_price) => gas_price.parse().map_err(to_string),
+			None => Ok(U256::zero()),
+		}
+	}
+
 	pub fn from(&self) -> Result<Address, String> {
 		match self.flag_from {
 			Some(ref from) => from.parse().map_err(to_string),
@@ -121,10 +201,17 @@ impl Args {
 		}
 	}
 
-	pub fn code(&self) -> Result<Bytes, String> {
+	pub fn to(&self) -> Result<Address, String> {
+		match self.flag_to {
+			Some(ref to) => to.parse().map_err(to_string),
+			None => Ok(Address::default()),
+		}
+	}
+
+	pub fn code(&self) -> Result<Option<Bytes>, String> {
 		match self.flag_code {
-			Some(ref code) => code.from_hex().map_err(to_string),
-			None => Err("Code is required!".into()),
+			Some(ref code) => code.from_hex().map(Some).map_err(to_string),
+			None => Ok(None),
 		}
 	}
 
@@ -136,7 +223,7 @@ impl Args {
 	}
 
 	pub fn spec(&self) -> Result<spec::Spec, String> {
-		Ok(match self.flag_spec {
+		Ok(match self.flag_chain {
 			Some(ref filename) =>  {
 				let file = fs::File::open(filename).map_err(|e| format!("{}", e))?;
 				spec::Spec::load(::std::env::temp_dir(), file)?
@@ -159,4 +246,56 @@ fn to_string<T: fmt::Display>(msg: T) -> String {
 fn die<T: fmt::Display>(msg: T) -> ! {
 	println!("{}", msg);
 	::std::process::exit(-1)
+}
+
+#[cfg(test)]
+mod tests {
+	use docopt::Docopt;
+	use super::{Args, USAGE};
+
+	fn run<T: AsRef<str>>(args: &[T]) -> Args {
+		Docopt::new(USAGE).and_then(|d| d.argv(args.into_iter()).deserialize()).unwrap()
+	}
+
+	#[test]
+	fn should_parse_all_the_options() {
+		let args = run(&[
+			"parity-evm",
+			"--json",
+			"--gas", "1",
+			"--gas-price", "2",
+			"--from", "0000000000000000000000000000000000000003",
+			"--to", "0000000000000000000000000000000000000004",
+			"--code", "05",
+			"--input", "06",
+			"--chain", "./testfile",
+		]);
+
+		assert_eq!(args.flag_json, true);
+		assert_eq!(args.gas(), Ok(1.into()));
+		assert_eq!(args.gas_price(), Ok(2.into()));
+		assert_eq!(args.from(), Ok(3.into()));
+		assert_eq!(args.to(), Ok(4.into()));
+		assert_eq!(args.code(), Ok(Some(vec![05])));
+		assert_eq!(args.data(), Ok(Some(vec![06])));
+		assert_eq!(args.flag_chain, Some("./testfile".to_owned()));
+	}
+
+	#[test]
+	fn should_parse_state_test_command() {
+		let args = run(&[
+			"parity-evm",
+			"state-test",
+			"./file.json",
+			"--chain", "homestead",
+			"--only=add11",
+			"--json",
+		]);
+
+		assert_eq!(args.cmd_state_test, true);
+		assert!(args.arg_file.is_some());
+		assert_eq!(args.flag_json, true);
+		assert_eq!(args.flag_chain, Some("homestead".to_owned()));
+		assert_eq!(args.flag_only, Some("add11".to_owned()));
+	}
 }

@@ -399,7 +399,7 @@ impl SessionImpl {
 		// check state
 		if data.state != SessionState::WaitingForKeysDissemination {
 			match data.state {
-				SessionState::WaitingForInitializationComplete => return Err(Error::TooEarlyForRequest),
+				SessionState::WaitingForInitializationComplete | SessionState::WaitingForInitializationConfirm(_) => return Err(Error::TooEarlyForRequest),
 				_ => return Err(Error::InvalidStateForRequest),
 			}
 		}
@@ -1104,7 +1104,7 @@ pub mod tests {
 			secret1: math::generate_random_scalar().unwrap().into(),
 			secret2: math::generate_random_scalar().unwrap().into(),
 			publics: vec![math::generate_random_point().unwrap().into()],
-		}).unwrap_err(), Error::InvalidStateForRequest);
+		}).unwrap_err(), Error::TooEarlyForRequest);
 	}
 
 	#[test]

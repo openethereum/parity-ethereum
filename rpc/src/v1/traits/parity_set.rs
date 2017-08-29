@@ -96,6 +96,10 @@ build_rpc_trait! {
 		#[rpc(async, name = "parity_hashContent")]
 		fn hash_content(&self, String) -> BoxFuture<H256, Error>;
 
+		/// Returns true if refresh successful, error if unsuccessful or server is disabled.
+		#[rpc(name = "parity_dappsRefresh")]
+		fn dapps_refresh(&self) -> Result<bool, Error>;
+
 		/// Returns a list of local dapps
 		#[rpc(name = "parity_dappsList")]
 		fn dapps_list(&self) -> Result<Vec<LocalDapp>, Error>;

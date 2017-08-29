@@ -32,8 +32,6 @@ mod result;
 mod tests;
 mod env;
 
-use std::sync::Arc;
-
 const DEFAULT_STACK_SPACE: u32 = 5 * 1024 * 1024;
 
 use parity_wasm::{interpreter, elements};
@@ -89,6 +87,7 @@ impl vm::Vm for WasmInterpreter {
 			DEFAULT_STACK_SPACE,
 			params.gas.low_u64(),
 			RuntimeContext::new(params.address, params.sender),
+			&self.program,
 		);
 
 		let mut cursor = ::std::io::Cursor::new(&*code);
@@ -112,16 +111,8 @@ impl vm::Vm for WasmInterpreter {
 		)?;
 
 		{
-			let execution_params = interpreter::ExecutionParams::with_external(
-				"env".into(),
-				Arc::new(
-					interpreter::env_native_module(env_instance, native_bindings(&mut runtime))
-						.map_err(|err| {
-							// todo: prefer explicit panic here also?
-							vm::Error::Wasm(format!("Error instantiating native bindings: {:?}", err))
-						})?
-				)
-			).add_argument(interpreter::RuntimeValue::I32(d_ptr.as_raw() as i32));
+			let execution_params = runtime.execution_params()
+				.add_argument(interpreter::RuntimeValue::I32(d_ptr.as_raw() as i32));
 
 			let module_instance = self.program.add_module("contract", contract_module, Some(&execution_params.externals))
 				.map_err(|err| {
@@ -155,13 +146,6 @@ impl vm::Vm for WasmInterpreter {
 				apply_state: true,
 			})
 		}
-	}
-}
-
-fn native_bindings<'a>(runtime: &'a mut Runtime) -> interpreter::UserFunctions<'a> {
-	interpreter::UserFunctions {
-		executor: runtime,
-		functions: ::std::borrow::Cow::from(env::SIGNATURES),
 	}
 }
 

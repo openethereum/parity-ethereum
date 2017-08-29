@@ -632,6 +632,7 @@ impl Engine for Tendermint {
 		let first = chain_head.number() == 0;
 
 		if let Some(change) = self.validators.is_epoch_end(first, chain_head) {
+			let change = combine_proofs(chain_head.number(), &change, &[]);
 			return Some(change)
 		} else if let Some(pending) = transition_store(chain_head.hash()) {
 			let signal_number = chain_head.number();
@@ -1039,7 +1040,7 @@ mod tests {
 		client.miner().import_own_transaction(client.as_ref(), transaction.into()).unwrap();
 
 		// Propose
-		let proposal = Some(client.miner().pending_block().unwrap().header.bare_hash());
+		let proposal = Some(client.miner().pending_block(0).unwrap().header.bare_hash());
 		// Propose timeout
 		engine.step();
 

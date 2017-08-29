@@ -76,7 +76,7 @@ mod api;
 
 pub use api::*;
 pub use chain::{SyncStatus, SyncState};
-pub use network::{is_valid_node_url, NonReservedPeerMode, NetworkError};
+pub use network::{is_valid_node_url, NonReservedPeerMode, NetworkError, ConnectionFilter, ConnectionDirection};
 
 /// IPC interfaces
 #[cfg(feature="ipc")]

@@ -39,7 +39,7 @@ use types::all::{Error, Public, MessageHash, EncryptedMessageSignature, NodeAddr
 /// To sign message with server key:				GET			/{server_key_id}/{signature}/{message_hash}
 
 pub struct KeyServerHttpListener<T: KeyServer + 'static> {
-	_http_server: HttpListening,
+	http_server: Option<HttpListening>,
 	handler: Arc<KeyServerSharedHttpHandler<T>>,
 }
 
@@ -74,19 +74,20 @@ struct KeyServerSharedHttpHandler<T: KeyServer + 'static> {
 
 impl<T> KeyServerHttpListener<T> where T: KeyServer + 'static {
 	/// Start KeyServer http listener
-	pub fn start(listener_address: &NodeAddress, key_server: T) -> Result<Self, Error> {
+	pub fn start(listener_address: Option<NodeAddress>, key_server: T) -> Result<Self, Error> {
 		let shared_handler = Arc::new(KeyServerSharedHttpHandler {
 			key_server: key_server,
 		});
-		let handler = KeyServerHttpHandler {
-			handler: shared_handler.clone(),
-		};
 
-		let listener_addr: &str = &format!("{}:{}", listener_address.address, listener_address.port);
-		let http_server = HttpServer::http(&listener_addr).expect("cannot start HttpServer");
-		let http_server = http_server.handle(handler).expect("cannot start HttpServer");
+		let http_server = listener_address
+			.map(|listener_address| format!("{}:{}", listener_address.address, listener_address.port))
+			.map(|listener_address| HttpServer::http(&listener_address).expect("cannot start HttpServer"))
+			.map(|http_server| http_server.handle(KeyServerHttpHandler {
+				handler: shared_handler.clone(),
+			}).expect("cannot start HttpServer"));
+
 		let listener = KeyServerHttpListener {
-			_http_server: http_server,
+			http_server: http_server,
 			handler: shared_handler,
 		};
 		Ok(listener)
@@ -128,7 +129,7 @@ impl <T> MessageSigner for KeyServerHttpListener<T> where T: KeyServer + 'static
 impl<T> Drop for KeyServerHttpListener<T> where T: KeyServer + 'static {
 	fn drop(&mut self) {
 		// ignore error as we are dropping anyway
-		let _ = self._http_server.close();
+		self.http_server.take().map(|mut s| { let _ = s.close(); });
 	}
 }
 
@@ -318,7 +319,7 @@ mod tests {
 	fn http_listener_successfully_drops() {
 		let key_server = DummyKeyServer;
 		let address = NodeAddress { address: "127.0.0.1".into(), port: 9000 };
-		let listener = KeyServerHttpListener::start(&address, key_server).unwrap();
+		let listener = KeyServerHttpListener::start(Some(address), key_server).unwrap();
 		drop(listener);
 	}
 

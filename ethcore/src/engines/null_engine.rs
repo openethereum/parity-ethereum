@@ -67,7 +67,7 @@ impl Engine for NullEngine {
 	}
 
 	fn snapshot_components(&self) -> Option<Box<::snapshot::SnapshotComponents>> {
-		Some(Box::new(::snapshot::PowSnapshot(10000)))
+		Some(Box::new(::snapshot::PowSnapshot::new(10000, 10000)))
 	}
 
 	fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<(), Error> {

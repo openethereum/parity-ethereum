@@ -200,7 +200,7 @@ export default class Status {
     const statusPromises = [
       this._api.eth.syncing(),
       this._api.parity.netPeers(),
-      this._fetchHealth()
+      this._api.parity.nodeHealth()
     ];
 
     return Promise
@@ -227,12 +227,12 @@ export default class Status {
   }
 
   _overallStatus = (health) => {
-    const all = [health.peers, health.sync, health.time].filter(x => x);
-    const allNoTime = [health.peers, health.sync].filter(x => x);
+    const allWithTime = [health.peers, health.sync, health.time].filter(x => x);
+    const all = [health.peers, health.sync].filter(x => x);
     const statuses = all.map(x => x.status);
     const bad = statuses.find(x => x === STATUS_BAD);
-    const needsAttention = allNoTime.map(x => x.status).find(x => x === STATUS_WARN);
-    const message = all.map(x => x.message).filter(x => x);
+    const needsAttention = statuses.find(x => x === STATUS_WARN);
+    const message = allWithTime.map(x => x.message).filter(x => x);
 
     if (all.length) {
       return {
@@ -245,13 +245,6 @@ export default class Status {
       status: STATUS_BAD,
       message: ['Unable to fetch node health.']
     };
-  }
-
-  _fetchHealth = () => {
-    // Support Parity-Extension.
-    const uiUrl = this._api.transport.uiUrlWithProtocol || '';
-
-    return fetch(`${uiUrl}/api/health`).then(res => res.json());
   }
 
   /**
