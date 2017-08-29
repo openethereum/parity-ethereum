@@ -114,7 +114,6 @@ class Dapps extends Component {
         app={ app }
         key={ app.id }
         showLink
-        showTags
       />
     );
   }
