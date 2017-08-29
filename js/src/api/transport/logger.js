@@ -37,9 +37,7 @@ class Logger {
     const progress = Math.round(calls.length / 20);
 
     calls.forEach((call, index) => {
-      const date = call.date;
       const { data, to } = call.params[0];
-      const block = call.params[1];
 
       if (!contracts[to]) {
         contracts[to] = [];
