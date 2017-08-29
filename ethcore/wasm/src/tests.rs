@@ -15,20 +15,20 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
-
-use super::super::tests::{FakeExt, FakeCall, FakeCallType};
-use super::WasmInterpreter;
-use evm::{self, Evm, GasLeft};
-use action_params::{ActionParams, ActionValue};
+use byteorder::{LittleEndian, ByteOrder};
 use util::{U256, H256, Address};
+
+use super::WasmInterpreter;
+use vm::{self, Vm, GasLeft, ActionParams, ActionValue};
+use vm::tests::{FakeCall, FakeExt, FakeCallType};
 
 macro_rules! load_sample {
 	($name: expr) => {
-		include_bytes!(concat!("../../../res/wasm-tests/compiled/", $name)).to_vec()
+		include_bytes!(concat!("../../res/wasm-tests/compiled/", $name)).to_vec()
 	}
 }
 
-fn test_finalize(res: Result<GasLeft, evm::Error>) -> Result<U256, evm::Error> {
+fn test_finalize(res: Result<GasLeft, vm::Error>) -> Result<U256, vm::Error> {
 	match res {
 		Ok(GasLeft::Known(gas)) => Ok(gas),
 		Ok(GasLeft::NeedsReturn{..}) => unimplemented!(), // since ret is unimplemented.
@@ -57,7 +57,7 @@ fn empty() {
 		test_finalize(interpreter.exec(params, &mut ext)).unwrap()
 	};
 
-	assert_eq!(gas_left, U256::from(99_996));
+	assert_eq!(gas_left, U256::from(99_992));
 }
 
 // This test checks if the contract deserializes payload header properly.
@@ -85,7 +85,7 @@ fn logger() {
 	};
 
 	println!("ext.store: {:?}", ext.store);
-	assert_eq!(gas_left, U256::from(99581));
+	assert_eq!(gas_left, U256::from(99327));
 	let address_val: H256 = address.into();
 	assert_eq!(
 		ext.store.get(&"0100000000000000000000000000000000000000000000000000000000000000".parse().unwrap()).expect("storage key to exist"),
@@ -136,7 +136,7 @@ fn identity() {
 		}
 	};
 
-	assert_eq!(gas_left, U256::from(99_689));
+	assert_eq!(gas_left, U256::from(99_672));
 
 	assert_eq!(
 		Address::from_slice(&result),
@@ -170,7 +170,7 @@ fn dispersion() {
 		}
 	};
 
-	assert_eq!(gas_left, U256::from(99_402));
+	assert_eq!(gas_left, U256::from(99_270));
 
 	assert_eq!(
 		result,
@@ -199,7 +199,7 @@ fn suicide_not() {
 		}
 	};
 
-	assert_eq!(gas_left, U256::from(99_703));
+	assert_eq!(gas_left, U256::from(99_578));
 
 	assert_eq!(
 		result,
@@ -233,12 +233,14 @@ fn suicide() {
 		}
 	};
 
-	assert_eq!(gas_left, U256::from(99_747));
+	assert_eq!(gas_left, U256::from(99_621));
 	assert!(ext.suicides.contains(&refund));
 }
 
 #[test]
 fn create() {
+	::ethcore_logger::init_log();
+
 	let mut params = ActionParams::default();
 	params.gas = U256::from(100_000);
 	params.code = Some(Arc::new(load_sample!("creator.wasm")));
@@ -262,7 +264,7 @@ fn create() {
 	assert!(ext.calls.contains(
 		&FakeCall {
 			call_type: FakeCallType::Create,
-			gas: U256::from(99_778),
+			gas: U256::from(99_674),
 			sender_address: None,
 			receive_address: None,
 			value: Some(1_000_000_000.into()),
@@ -270,5 +272,179 @@ fn create() {
 			code_address: None,
 		}
 	));
-	assert_eq!(gas_left, U256::from(99_768));
+	assert_eq!(gas_left, U256::from(99_596));
+}
+
+
+#[test]
+fn call_code() {
+	::ethcore_logger::init_log();
+
+	let sender: Address = "01030507090b0d0f11131517191b1d1f21232527".parse().unwrap();
+	let receiver: Address = "0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6".parse().unwrap();
+
+	let mut params = ActionParams::default();
+	params.sender = sender.clone();
+	params.address = receiver.clone();
+	params.gas = U256::from(100_000);
+	params.code = Some(Arc::new(load_sample!("call_code.wasm")));
+	params.data = Some(Vec::new());
+	params.value = ActionValue::transfer(1_000_000_000);
+
+	let mut ext = FakeExt::new();
+
+	let (gas_left, result) = {
+		let mut interpreter = wasm_interpreter();
+		let result = interpreter.exec(params, &mut ext).expect("Interpreter to execute without any errors");
+		match result {
+			GasLeft::Known(_) => { panic!("Call test should return payload"); },
+			GasLeft::NeedsReturn { gas_left: gas, data: result, apply_state: _apply } => (gas, result.to_vec()),
+		}
+	};
+
+	trace!(target: "wasm", "fake_calls: {:?}", &ext.calls);
+	assert!(ext.calls.contains(
+		&FakeCall {
+			call_type: FakeCallType::Call,
+			gas: U256::from(99_069),
+			sender_address: Some(sender),
+			receive_address: Some(receiver),
+			value: None,
+			data: vec![1u8, 2, 3, 5, 7, 11],
+			code_address: Some("0d13710000000000000000000000000000000000".parse().unwrap()),
+		}
+	));
+	assert_eq!(gas_left, U256::from(94144));
+
+	// siphash result
+	let res = LittleEndian::read_u32(&result[..]);
+	assert_eq!(res, 4198595614);
+}
+
+#[test]
+fn call_static() {
+	::ethcore_logger::init_log();
+
+	let sender: Address = "0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6".parse().unwrap();
+	let receiver: Address = "01030507090b0d0f11131517191b1d1f21232527".parse().unwrap();
+
+	let mut params = ActionParams::default();
+	params.sender = sender.clone();
+	params.address = receiver.clone();
+	params.gas = U256::from(100_000);
+	params.code = Some(Arc::new(load_sample!("call_static.wasm")));
+	params.data = Some(Vec::new());
+	params.value = ActionValue::transfer(1_000_000_000);
+
+	let mut ext = FakeExt::new();
+
+	let (gas_left, result) = {
+		let mut interpreter = wasm_interpreter();
+		let result = interpreter.exec(params, &mut ext).expect("Interpreter to execute without any errors");
+		match result {
+			GasLeft::Known(_) => { panic!("Static call test should return payload"); },
+			GasLeft::NeedsReturn { gas_left: gas, data: result, apply_state: _apply } => (gas, result.to_vec()),
+		}
+	};
+
+	trace!(target: "wasm", "fake_calls: {:?}", &ext.calls);
+	assert!(ext.calls.contains(
+		&FakeCall {
+			call_type: FakeCallType::Call,
+			gas: U256::from(99_069),
+			sender_address: Some(sender),
+			receive_address: Some(receiver),
+			value: None,
+			data: vec![1u8, 2, 3, 5, 7, 11],
+			code_address: Some("13077bfb00000000000000000000000000000000".parse().unwrap()),
+		}
+	));
+	assert_eq!(gas_left, U256::from(94144));
+
+	// siphash result
+	let res = LittleEndian::read_u32(&result[..]);
+	assert_eq!(res, 317632590);
+}
+
+// Realloc test
+#[test]
+fn realloc() {
+	let code = load_sample!("realloc.wasm");
+
+	let mut params = ActionParams::default();
+	params.gas = U256::from(100_000);
+	params.code = Some(Arc::new(code));
+	params.data = Some(vec![0u8]);
+	let mut ext = FakeExt::new();
+
+	let (gas_left, result) = {
+		let mut interpreter = wasm_interpreter();
+		let result = interpreter.exec(params, &mut ext).expect("Interpreter to execute without any errors");
+		match result {
+				GasLeft::Known(_) => { panic!("Realloc should return payload"); },
+				GasLeft::NeedsReturn { gas_left: gas, data: result, apply_state: _apply } => (gas, result.to_vec()),
+		}
+	};
+	assert_eq!(gas_left, U256::from(99432));
+	assert_eq!(result, vec![0u8; 2]);
+}
+
+// Tests that contract's ability to read from a storage
+// Test prepopulates address into storage, than executes a contract which read that address from storage and write this address into result
+#[test]
+fn storage_read() {
+	let code = load_sample!("storage_read.wasm");
+	let address: Address = "0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6".parse().unwrap();
+
+	let mut params = ActionParams::default();
+	params.gas = U256::from(100_000);
+	params.code = Some(Arc::new(code));
+	let mut ext = FakeExt::new();
+	ext.store.insert("0100000000000000000000000000000000000000000000000000000000000000".into(), address.into());
+
+	let (gas_left, result) = {
+		let mut interpreter = wasm_interpreter();
+		let result = interpreter.exec(params, &mut ext).expect("Interpreter to execute without any errors");
+		match result {
+				GasLeft::Known(_) => { panic!("storage_read should return payload"); },
+				GasLeft::NeedsReturn { gas_left: gas, data: result, apply_state: _apply } => (gas, result.to_vec()),
+		}
+	};
+
+	assert_eq!(gas_left, U256::from(99682));
+	assert_eq!(Address::from(&result[12..32]), address);
+}
+
+
+// Tests that contract's ability to read from a storage
+// Test prepopulates address into storage, than executes a contract which read that address from storage and write this address into result
+#[test]
+fn math_add() {
+	::ethcore_logger::init_log();
+	let code = load_sample!("math.wasm");
+
+	let mut params = ActionParams::default();
+	params.gas = U256::from(100_000);
+	params.code = Some(Arc::new(code));
+
+	let mut args = [0u8; 64];
+	let arg_a = U256::from_dec_str("999999999999999999999999999999").unwrap();
+	let arg_b = U256::from_dec_str("888888888888888888888888888888").unwrap();
+	arg_a.to_big_endian(&mut args[0..32]);
+	arg_b.to_big_endian(&mut args[32..64]);
+	params.data = Some(args.to_vec());
+
+	let (gas_left, result) = {
+		let mut interpreter = wasm_interpreter();
+		let result = interpreter.exec(params, &mut FakeExt::new()).expect("Interpreter to execute without any errors");
+		match result {
+				GasLeft::Known(_) => { panic!("storage_read should return payload"); },
+				GasLeft::NeedsReturn { gas_left: gas, data: result, apply_state: _apply } => (gas, result.to_vec()),
+		}
+	};
+
+	let sum: U256 = (&result[..]).into();
+
+	assert_eq!(gas_left, U256::from(96284));
+	assert_eq!(sum, U256::from_dec_str("1888888888888888888888888888887").unwrap());
 }

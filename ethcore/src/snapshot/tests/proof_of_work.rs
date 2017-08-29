@@ -30,7 +30,7 @@ use util::kvdb::{self, KeyValueDB, DBTransaction};
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 
-const SNAPSHOT_MODE: ::snapshot::PowSnapshot = ::snapshot::PowSnapshot(30000);
+const SNAPSHOT_MODE: ::snapshot::PowSnapshot = ::snapshot::PowSnapshot { blocks: 30000, max_restore_blocks: 30000 };
 
 fn chunk_and_restore(amount: u64) {
 	let mut canon_chain = ChainGenerator::default();

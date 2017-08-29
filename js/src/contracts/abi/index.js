@@ -28,4 +28,4 @@ export registry2 from './registry2.json';
 export signaturereg from './signaturereg.json';
 export smsverification from './sms-verification.json';
 export tokenreg from './tokenreg.json';
-export wallet from './wallet.json';
+export foundationWallet from './foundation-multisig-wallet.json';

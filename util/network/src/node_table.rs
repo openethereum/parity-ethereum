@@ -30,7 +30,7 @@ use util::UtilError;
 use rlp::*;
 use time::Tm;
 use error::NetworkError;
-use AllowIP;
+use {AllowIP, IpFilter};
 use discovery::{TableUpdates, NodeEntry};
 use ip_utils::*;
 pub use rustc_serialize::json::Json;
@@ -55,11 +55,21 @@ impl NodeEndpoint {
 		}
 	}
 
-	pub fn is_allowed(&self, filter: AllowIP) -> bool {
+	pub fn is_allowed(&self, filter: &IpFilter) -> bool {
+		(self.is_allowed_by_predefined(&filter.predefined) || filter.custom_allow.iter().any(|ipnet| {
+			self.address.ip().is_within(ipnet)
+		})) 
+		&& !filter.custom_block.iter().any(|ipnet| {
+			self.address.ip().is_within(ipnet)
+		})
+	}
+
+	pub fn is_allowed_by_predefined(&self, filter: &AllowIP) -> bool {
 		match filter {
-			AllowIP::All => true,
-			AllowIP::Private => !self.address.ip().is_global_s(),
-			AllowIP::Public => self.address.ip().is_global_s(),
+			&AllowIP::All => true,
+			&AllowIP::Private => self.address.ip().is_usable_private(),
+			&AllowIP::Public => self.address.ip().is_usable_public(),
+			&AllowIP::None => false,
 		}
 	}
 
@@ -101,8 +111,8 @@ impl NodeEndpoint {
 	pub fn is_valid(&self) -> bool {
 		self.udp_port != 0 && self.address.port() != 0 &&
 		match self.address {
-			SocketAddr::V4(a) => !a.ip().is_unspecified_s(),
-			SocketAddr::V6(a) => !a.ip().is_unspecified_s()
+			SocketAddr::V4(a) => !a.ip().is_unspecified(),
+			SocketAddr::V6(a) => !a.ip().is_unspecified()
 		}
 	}
 }
@@ -219,8 +229,8 @@ impl NodeTable {
 	}
 
 	/// Returns node ids sorted by number of failures
-	pub fn nodes(&self, filter: AllowIP) -> Vec<NodeId> {
-		let mut refs: Vec<&Node> = self.nodes.values().filter(|n| !self.useless_nodes.contains(&n.id) && n.endpoint.is_allowed(filter)).collect();
+	pub fn nodes(&self, filter: IpFilter) -> Vec<NodeId> {
+		let mut refs: Vec<&Node> = self.nodes.values().filter(|n| !self.useless_nodes.contains(&n.id) && n.endpoint.is_allowed(&filter)).collect();
 		refs.sort_by(|a, b| a.failures.cmp(&b.failures));
 		refs.iter().map(|n| n.id.clone()).collect()
 	}
@@ -283,7 +293,7 @@ impl NodeTable {
 			let mut json = String::new();
 			json.push_str("{\n");
 			json.push_str("\"nodes\": [\n");
-			let node_ids = self.nodes(AllowIP::All);
+			let node_ids = self.nodes(IpFilter::default());
 			for i in 0 .. node_ids.len() {
 				let node = self.nodes.get(&node_ids[i]).expect("self.nodes() only returns node IDs from self.nodes");
 				json.push_str(&format!("\t{{ \"url\": \"{}\", \"failures\": {} }}{}\n", node, node.failures, if i == node_ids.len() - 1 {""} else {","}))
@@ -366,7 +376,7 @@ mod tests {
 	use util::H512;
 	use std::str::FromStr;
 	use devtools::*;
-	use AllowIP;
+	use ipnetwork::IpNetwork;
 
 	#[test]
 	fn endpoint_parse() {
@@ -412,7 +422,7 @@ mod tests {
 		table.note_failure(&id1);
 		table.note_failure(&id2);
 
-		let r = table.nodes(AllowIP::All);
+		let r = table.nodes(IpFilter::default());
 		assert_eq!(r[0][..], id3[..]);
 		assert_eq!(r[1][..], id2[..]);
 		assert_eq!(r[2][..], id1[..]);
@@ -434,9 +444,55 @@ mod tests {
 
 		{
 			let table = NodeTable::new(Some(temp_path.as_path().to_str().unwrap().to_owned()));
-			let r = table.nodes(AllowIP::All);
+			let r = table.nodes(IpFilter::default());
 			assert_eq!(r[0][..], id1[..]);
 			assert_eq!(r[1][..], id2[..]);
 		}
+	}
+
+	#[test]
+	fn custom_allow() {
+		let filter = IpFilter {
+			predefined: AllowIP::None,
+			custom_allow: vec![IpNetwork::from_str(&"10.0.0.0/8").unwrap(), IpNetwork::from_str(&"1.0.0.0/8").unwrap()],
+			custom_block: vec![],
+		};
+		assert!(!NodeEndpoint::from_str("123.99.55.44:7770").unwrap().is_allowed(&filter));
+		assert!(NodeEndpoint::from_str("10.0.0.1:7770").unwrap().is_allowed(&filter));
+		assert!(NodeEndpoint::from_str("1.0.0.55:5550").unwrap().is_allowed(&filter));
+	}
+
+	#[test]
+	fn custom_block() {
+		let filter = IpFilter {
+			predefined: AllowIP::All,
+			custom_allow: vec![],
+			custom_block: vec![IpNetwork::from_str(&"10.0.0.0/8").unwrap(), IpNetwork::from_str(&"1.0.0.0/8").unwrap()],
+		};
+		assert!(NodeEndpoint::from_str("123.99.55.44:7770").unwrap().is_allowed(&filter));
+		assert!(!NodeEndpoint::from_str("10.0.0.1:7770").unwrap().is_allowed(&filter));
+		assert!(!NodeEndpoint::from_str("1.0.0.55:5550").unwrap().is_allowed(&filter));
+	}
+
+	#[test]
+	fn custom_allow_ipv6() {
+		let filter = IpFilter {
+			predefined: AllowIP::None,
+			custom_allow: vec![IpNetwork::from_str(&"fc00::/8").unwrap()],
+			custom_block: vec![],
+		};
+		assert!(NodeEndpoint::from_str("[fc00::]:5550").unwrap().is_allowed(&filter));
+		assert!(!NodeEndpoint::from_str("[fd00::]:5550").unwrap().is_allowed(&filter));
+	}
+
+	#[test]
+	fn custom_block_ipv6() {
+		let filter = IpFilter {
+			predefined: AllowIP::All,
+			custom_allow: vec![],
+			custom_block: vec![IpNetwork::from_str(&"fc00::/8").unwrap()],
+		};
+		assert!(!NodeEndpoint::from_str("[fc00::]:5550").unwrap().is_allowed(&filter));
+		assert!(NodeEndpoint::from_str("[fd00::]:5550").unwrap().is_allowed(&filter));
 	}
 }

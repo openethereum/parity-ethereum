@@ -106,17 +106,11 @@ extern crate rlp;
 extern crate regex;
 extern crate lru_cache;
 extern crate heapsize;
-extern crate itertools;
 extern crate ethcore_logger;
 
 #[macro_use]
 extern crate log as rlog;
 
-pub extern crate using_queue;
-pub extern crate table;
-
-pub mod bloom;
-pub mod standard;
 #[macro_use]
 pub mod common;
 pub mod error;
@@ -139,7 +133,6 @@ pub mod snappy;
 pub mod cache;
 mod timer;
 
-pub use common::*;
 pub use misc::*;
 pub use hashdb::*;
 pub use memorydb::MemoryDB;
@@ -147,11 +140,19 @@ pub use overlaydb::*;
 pub use journaldb::JournalDB;
 pub use triehash::*;
 pub use trie::{Trie, TrieMut, TrieDB, TrieDBMut, TrieFactory, TrieError, SecTrieDB, SecTrieDBMut};
-pub use nibbleslice::*;
 pub use semantic_version::*;
 pub use kvdb::*;
 pub use timer::*;
+pub use error::*;
+pub use bytes::*;
+pub use vector::*;
+pub use sha3::*;
+pub use bigint::prelude::*;
+pub use bigint::hash;
+
 pub use ansi_term::{Colour, Style};
+pub use heapsize::HeapSizeOf;
+pub use parking_lot::{Condvar, Mutex, MutexGuard, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 /// 160-bit integer representing account address
 pub type Address = H160;

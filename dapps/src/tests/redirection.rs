@@ -204,4 +204,3 @@ fn should_serve_utils() {
 	assert_eq!(response.body.contains("function(){"), true);
 	assert_security_headers(&response.headers);
 }
-

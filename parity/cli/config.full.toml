@@ -76,8 +76,10 @@ path = "$HOME/.parity/dapps"
 user = "test_user"
 pass = "test_pass"
 
-[secretstore]
+[secretstore]	
 disable = false
+disable_http = false
+disable_acl_check = false
 nodes = []
 http_interface = "local"
 http_port = 8082
@@ -101,6 +103,7 @@ reseal_min_period = 4000
 reseal_max_period = 60000
 work_queue_size = 20
 relay_set = "cheap"
+min_gas_price = 0
 usd_per_tx = "0.0025"
 usd_per_eth = "auto"
 price_update_period = "hourly"

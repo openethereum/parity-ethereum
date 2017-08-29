@@ -16,6 +16,9 @@
 
 //! State of all accounts in the system expressed in Plain Old Data.
 
+use std::fmt;
+use std::collections::BTreeMap;
+use itertools::Itertools;
 use util::*;
 use pod_account::{self, PodAccount};
 use types::state_diff::StateDiff;
@@ -77,7 +80,7 @@ pub fn diff_pod(pre: &PodState, post: &PodState) -> StateDiff {
 
 #[cfg(test)]
 mod test {
-	use util::*;
+	use std::collections::BTreeMap;
 	use types::state_diff::*;
 	use types::account_diff::*;
 	use pod_account::PodAccount;

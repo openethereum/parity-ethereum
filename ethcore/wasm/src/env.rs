@@ -14,11 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Wasm env module bindings 
+//! Wasm env module bindings
 
 use parity_wasm::elements::ValueType::*;
-use parity_wasm::interpreter::UserFunctionDescriptor;
+use parity_wasm::interpreter::{self, UserFunctionDescriptor};
 use parity_wasm::interpreter::UserFunctionDescriptor::*;
+use super::runtime::Runtime;
 
 pub const SIGNATURES: &'static [UserFunctionDescriptor] = &[
 	Static(
@@ -62,58 +63,48 @@ pub const SIGNATURES: &'static [UserFunctionDescriptor] = &[
 		Some(I32),
 	),
 	Static(
+		"_ccall",
+		&[I32; 6],
+		Some(I32),
+	),
+	Static(
+		"_dcall",
+		&[I32; 5],
+		Some(I32),
+	),
+	Static(
+		"_scall",
+		&[I32; 5],
+		Some(I32),
+	),
+	Static(
 		"abort",
 		&[I32],
 		None,
 	),
 	Static(
-		"_abort",
-		&[],
-		None,
-	),
-	Static(
-		"invoke_vii",
-		&[I32; 3],
-		None,
-	),
-	Static(
-		"invoke_vi",
-		&[I32; 2],
-		None,
-	),
-	Static(
-		"invoke_v",
-		&[I32],
-		None,
-	),
-	Static(
-		"invoke_iii",
-		&[I32; 3],
-		Some(I32),
-	),
-	Static(
-		"___resumeException",
-		&[I32],
-		None,
-	),
-	Static(
-		"_rust_begin_unwind",
-		&[I32; 4],
-		None,
-	),
-	Static(
-		"___cxa_find_matching_catch_2",
-		&[],
-		Some(I32),
-	),
-	Static(
-		"___gxx_personality_v0",
-		&[I32; 6],
-		Some(I32),
-	),
-	Static(
 		"_emscripten_memcpy_big",
 		&[I32; 3],
 		Some(I32),
-	)
+	),
+
+	// TODO: Get rid of it also somehow?
+	Static(
+		"_llvm_trap",
+		&[I32; 0],
+		None
+	),
+
+	Static(
+		"_llvm_bswap_i64",
+		&[I32; 2],
+		Some(I32)
+	),
 ];
+
+pub fn native_bindings<'a>(runtime: &'a mut Runtime) -> interpreter::UserFunctions<'a> {
+	interpreter::UserFunctions {
+		executor: runtime,
+		functions: ::std::borrow::Cow::from(SIGNATURES),
+	}
+}

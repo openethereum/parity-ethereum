@@ -51,5 +51,5 @@ impl WebApp for App {
 
 #[test]
 fn test_js() {
-	parity_dapps_glue::js::build(env!("CARGO_MANIFEST_DIR"));
+	parity_dapps_glue::js::build(env!("CARGO_MANIFEST_DIR"), "build");
 }

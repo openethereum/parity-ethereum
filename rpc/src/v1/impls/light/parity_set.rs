@@ -135,6 +135,10 @@ impl<F: Fetch> ParitySet for ParitySetClient<F> {
 		}))
 	}
 
+	fn dapps_refresh(&self) -> Result<bool, Error> {
+		self.dapps.as_ref().map(|dapps| dapps.refresh_local_dapps()).ok_or_else(errors::dapps_disabled)
+	}
+
 	fn dapps_list(&self) -> Result<Vec<LocalDapp>, Error> {
 		self.dapps.as_ref().map(|dapps| dapps.list_dapps()).ok_or_else(errors::dapps_disabled)
 	}

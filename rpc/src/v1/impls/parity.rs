@@ -28,22 +28,23 @@ use crypto::ecies;
 use ethkey::{Brain, Generator};
 use ethstore::random_phrase;
 use ethsync::{SyncProvider, ManageNetwork};
+use ethcore::account_provider::AccountProvider;
+use ethcore::client::{MiningBlockChainClient};
 use ethcore::ids::BlockId;
 use ethcore::miner::MinerService;
-use ethcore::client::{MiningBlockChainClient};
 use ethcore::mode::Mode;
-use ethcore::account_provider::AccountProvider;
+use ethcore::transaction::SignedTransaction;
 use updater::{Service as UpdateService};
 use crypto::DEFAULT_MAC;
 
 use jsonrpc_core::Error;
 use jsonrpc_macros::Trailing;
-use v1::helpers::{self, errors, ipfs, SigningQueue, SignerService, NetworkSettings};
+use v1::helpers::{self, errors, fake_sign, ipfs, SigningQueue, SignerService, NetworkSettings};
 use v1::helpers::accounts::unwrap_provider;
 use v1::metadata::Metadata;
 use v1::traits::Parity;
 use v1::types::{
-	Bytes, U256, H160, H256, H512,
+	Bytes, U256, H160, H256, H512, CallRequest,
 	Peers, Transaction, RpcSettings, Histogram,
 	TransactionStats, LocalTransactionStatus,
 	BlockNumber, ConsensusCapability, VersionInfo,
@@ -408,5 +409,24 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 
 	fn ipfs_cid(&self, content: Bytes) -> Result<String, Error> {
 		ipfs::cid(content)
+	}
+
+	fn call(&self, meta: Self::Metadata, requests: Vec<CallRequest>, block: Trailing<BlockNumber>) -> BoxFuture<Vec<Bytes>, Error> {
+		let requests: Result<Vec<(SignedTransaction, _)>, Error> = requests
+			.into_iter()
+			.map(|request| Ok((
+				fake_sign::sign_call(&self.client, &self.miner, request.into(), meta.is_dapp())?,
+				Default::default()
+			)))
+			.collect();
+
+		let block = block.unwrap_or_default();
+		let requests = try_bf!(requests);
+
+		let result = self.client.call_many(&requests, block.into())
+				.map(|res| res.into_iter().map(|res| res.output.into()).collect())
+				.map_err(errors::call);
+
+		future::done(result).boxed()
 	}
 }

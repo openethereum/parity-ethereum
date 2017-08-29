@@ -16,6 +16,8 @@
 
 //! Creates and registers client and network services.
 
+use std::sync::Arc;
+use std::path::Path;
 use util::*;
 use io::*;
 use spec::Spec;

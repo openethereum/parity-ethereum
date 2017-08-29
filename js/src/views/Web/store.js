@@ -64,12 +64,9 @@ export default class Store {
     if (!hasProtocol.test(url)) {
       url = `https://${url}`;
     }
-
+    this.setNextUrl(url);
     return this.generateToken(url).then(() => {
-      transaction(() => {
-        this.setNextUrl(url);
-        this.setCurrentUrl(this.nextUrl);
-      });
+      this.setCurrentUrl(this.nextUrl);
     });
   }
 

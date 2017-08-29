@@ -14,58 +14,78 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export default class Personal {
+export default class Shh {
   constructor (transport) {
     this._transport = transport;
   }
 
-  addToGroup (identity) {
+  info () {
     return this._transport
-      .execute('shh_addToGroup', identity);
+      .execute('shh_info');
   }
 
-  getFilterChanges (filterId) {
+  newKeyPair () {
     return this._transport
-      .execute('shh_getFilterChanges', filterId);
+      .execute('shh_newKeyPair');
   }
 
-  getMessages (filterId) {
+  addPrivateKey (privKey) {
     return this._transport
-      .execute('shh_getMessages', filterId);
+      .execute('shh_addPrivateKey', privKey);
   }
 
-  hasIdentity (identity) {
+  newSymKey () {
     return this._transport
-      .execute('shh_hasIdentity', identity);
+      .execute('shh_newSymKey');
   }
 
-  newFilter (options) {
+  getPublicKey (identity) {
     return this._transport
-      .execute('shh_newFilter', options);
+      .execute('shh_getPublicKey', identity);
   }
 
-  newGroup () {
+  getPrivateKey (identity) {
     return this._transport
-      .execute('shh_newGroup');
+      .execute('shh_getPrivateKey', identity);
   }
 
-  newIdentity () {
+  getSymKey (identity) {
     return this._transport
-      .execute('shh_newIdentity');
+      .execute('shh_getSymKey', identity);
   }
 
-  post (options) {
+  deleteKey (identity) {
     return this._transport
-      .execute('shh_post', options);
+      .execute('shh_deleteKey', identity);
   }
 
-  uninstallFilter (filterId) {
+  post (messageObj) {
     return this._transport
-      .execute('shh_uninstallFilter', filterId);
+      .execute('shh_post', messageObj);
   }
 
-  version () {
+  newMessageFilter (filterObj) {
     return this._transport
-      .execute('shh_version');
+      .execute('shh_newMessageFilter', filterObj);
+  }
+
+  getFilterMessages (filterId) {
+    return this._transport
+      .execute('shh_getFilterMessages', filterId);
+  }
+
+  deleteMessageFilter (filterId) {
+    return this._transport
+      .execute('shh_deleteMessageFilter', filterId);
+  }
+
+  subscribe (filterObj, callback) {
+    return this._transport
+      .subscribe('shh', callback, filterObj);
+  }
+
+  unsubscribe (subscriptionId) {
+    return this._transport
+      .unsubscribe(subscriptionId);
   }
 }

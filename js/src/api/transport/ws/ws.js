@@ -29,7 +29,7 @@ export default class Ws extends JsonRpcBase {
     this._url = url;
     this._token = token;
     this._messages = {};
-    this._subscriptions = { 'eth_subscription': [], 'parity_subscription': [] };
+    this._subscriptions = { 'eth_subscription': [], 'parity_subscription': [], 'shh_subscription': [] };
     this._sessionHash = null;
 
     this._connecting = false;

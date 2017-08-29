@@ -14,8 +14,20 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use ethkey::{KeyPair, Signature, Error as EthKeyError};
+use util::H256;
 use types::all::{Error, Public, ServerKeyId, MessageHash, EncryptedMessageSignature, RequestSignature, EncryptedDocumentKey,
 	EncryptedDocumentKeyShadow};
+
+/// Node key pair.
+pub trait NodeKeyPair: Send + Sync {
+	/// Public portion of key.
+	fn public(&self) -> &Public;
+	/// Sign data with node key.
+	fn sign(&self, data: &H256) -> Result<Signature, EthKeyError>;
+	/// Compute shared key to encrypt channel between two nodes.
+	fn compute_shared_key(&self, peer_public: &Public) -> Result<KeyPair, EthKeyError>;
+}
 
 /// Server key (SK) generator.
 pub trait ServerKeyGenerator {

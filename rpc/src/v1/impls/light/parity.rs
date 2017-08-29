@@ -39,7 +39,7 @@ use v1::helpers::light_fetch::LightFetch;
 use v1::metadata::Metadata;
 use v1::traits::Parity;
 use v1::types::{
-	Bytes, U256, H160, H256, H512,
+	Bytes, U256, H160, H256, H512, CallRequest,
 	Peers, Transaction, RpcSettings, Histogram,
 	TransactionStats, LocalTransactionStatus,
 	BlockNumber, ConsensusCapability, VersionInfo,
@@ -388,5 +388,9 @@ impl Parity for ParityClient {
 
 	fn ipfs_cid(&self, content: Bytes) -> Result<String, Error> {
 		ipfs::cid(content)
+	}
+
+	fn call(&self, _meta: Self::Metadata, _requests: Vec<CallRequest>, _block: Trailing<BlockNumber>) -> BoxFuture<Vec<Bytes>, Error> {
+		future::err(errors::light_unimplemented(None)).boxed()
 	}
 }
