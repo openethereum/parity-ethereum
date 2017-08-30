@@ -168,7 +168,12 @@ impl<Cost: CostType> vm::Vm for Interpreter<Cost> {
 			}
 
 			if do_trace {
-				ext.trace_executed(gasometer.current_gas.as_u256(), stack.peek_top(info.ret), mem_written.map(|(o, s)| (o, &(self.mem[o..(o + s)]))), store_written);
+				ext.trace_executed(
+					gasometer.current_gas.as_u256(),
+					stack.peek_top(info.ret),
+					mem_written.map(|(o, s)| (o, &(self.mem[o..o+s]))),
+					store_written,
+				);
 			}
 
 			// Advance
@@ -252,14 +257,20 @@ impl<Cost: CostType> Interpreter<Cost> {
 		instruction: Instruction,
 		stack: &Stack<U256>
 	) -> Option<(usize, usize)> {
-		match instruction {
-			instructions::MSTORE | instructions::MLOAD => Some((stack.peek(0).low_u64() as usize, 32)),
-			instructions::MSTORE8 => Some((stack.peek(0).low_u64() as usize, 1)),
-			instructions::CALLDATACOPY | instructions::CODECOPY | instructions::RETURNDATACOPY => Some((stack.peek(0).low_u64() as usize, stack.peek(2).low_u64() as usize)),
-			instructions::EXTCODECOPY => Some((stack.peek(1).low_u64() as usize, stack.peek(3).low_u64() as usize)),
-			instructions::CALL | instructions::CALLCODE => Some((stack.peek(5).low_u64() as usize, stack.peek(6).low_u64() as usize)),
-			instructions::DELEGATECALL => Some((stack.peek(4).low_u64() as usize, stack.peek(5).low_u64() as usize)),
+		let read = |pos| stack.peek(pos).low_u64() as usize;
+		let written = match instruction {
+			instructions::MSTORE | instructions::MLOAD => Some((read(0), 32)),
+			instructions::MSTORE8 => Some((read(0), 1)),
+			instructions::CALLDATACOPY | instructions::CODECOPY | instructions::RETURNDATACOPY => Some((read(0), read(2))),
+			instructions::EXTCODECOPY => Some((read(1), read(3))),
+			instructions::CALL | instructions::CALLCODE => Some((read(5), read(6))),
+			instructions::DELEGATECALL | instructions::STATICCALL => Some((read(4), read(5))),
 			_ => None,
+		};
+
+		match written {
+			Some((offset, size)) if !memory::is_valid_range(offset, size) => None,
+			written => written,
 		}
 	}
 
@@ -862,3 +873,36 @@ fn address_to_u256(value: Address) -> U256 {
 	U256::from(&*H256::from(value))
 }
 
+
+#[cfg(test)]
+mod tests {
+	use std::sync::Arc;
+	use rustc_hex::FromHex;
+	use vmtype::VMType;
+	use factory::Factory;
+	use vm::{self, ActionParams, ActionValue};
+	use vm::tests::{FakeExt, test_finalize};
+
+	#[test]
+	fn should_not_fail_on_tracing_mem() {
+		let code = "7feeffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff006000527faaffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffaa6020526000620f120660406000601773945304eb96065b2a98b57a48a06ae28d285a71b56101f4f1600055".from_hex().unwrap();
+
+		let mut params = ActionParams::default();
+		params.address = 5.into();
+		params.gas = 300_000.into();
+		params.gas_price = 1.into();
+		params.value = ActionValue::Transfer(100_000.into());
+		params.code = Some(Arc::new(code));
+		let mut ext = FakeExt::new();
+		ext.balances.insert(5.into(), 1_000_000_000.into());
+		ext.tracing = true;
+
+		let gas_left = {
+			let mut vm = Factory::new(VMType::Interpreter, 1).create(params.gas);
+			test_finalize(vm.exec(params, &mut ext)).unwrap()
+		};
+
+		assert_eq!(ext.calls.len(), 1);
+		assert_eq!(gas_left, 248_212.into());
+	}
+}

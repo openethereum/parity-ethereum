@@ -1,0 +1,16 @@
+[package]
+description = "Parity smart network connections"
+homepage = "http://parity.io"
+license = "GPL-3.0"
+name = "node-filter"
+version = "1.8.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+
+[dependencies]
+ethcore = { path = ".."}
+ethcore-util = { path = "../../util" }
+ethcore-io = { path = "../../util/io" }
+ethcore-network = { path = "../../util/network" }
+native-contracts = { path = "../native_contracts" }
+futures = "0.1"
+log = "0.3"

@@ -198,7 +198,7 @@ impl JournalDB for RefCountedDB {
 	fn consolidate(&mut self, mut with: MemoryDB) {
 		for (key, (value, rc)) in with.drain() {
 			for _ in 0..rc {
-				self.emplace(key.clone(), value.clone());
+				self.emplace(key, value.clone());
 			}
 
 			for _ in rc..0 {

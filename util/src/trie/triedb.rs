@@ -217,59 +217,66 @@ impl<'a> TrieDBIterator<'a> {
 		Ok(r)
 	}
 
-	fn seek_descend<'key>(&mut self, node_data: DBValue, key: &NibbleSlice<'key>) -> super::Result<()> {
-		let node = Node::decoded(&node_data);
-		match node {
-			Node::Leaf(ref slice, _) => {
-				if slice == key {
-					self.trail.push(Crumb {
-						status: Status::At,
-						node: node.clone().into(),
-					});
-				} else {
-					self.trail.push(Crumb {
-						status: Status::Exiting,
-						node: node.clone().into(),
-					});
-				}
+	fn seek<'key>(&mut self, mut node_data: DBValue, mut key: NibbleSlice<'key>) -> super::Result<()> {
+		loop {
+			let (data, mid) = {
+				let node = Node::decoded(&node_data);
+				match node {
+					Node::Leaf(slice, _) => {
+						if slice == key {
+							self.trail.push(Crumb {
+								status: Status::At,
+								node: node.clone().into(),
+							});
+						} else {
+							self.trail.push(Crumb {
+								status: Status::Exiting,
+								node: node.clone().into(),
+							});
+						}
 
-				self.key_nibbles.extend(slice.iter());
-				Ok(())
-			},
-			Node::Extension(ref slice, ref item) => {
-				if key.starts_with(slice) {
-					self.trail.push(Crumb {
-						status: Status::At,
-						node: node.clone().into(),
-					});
-					self.key_nibbles.extend(slice.iter());
-					let data = self.db.get_raw_or_lookup(&*item)?;
-					self.seek_descend(data, &key.mid(slice.len()))
-				} else {
-					self.descend(&node_data)?;
-					Ok(())
+						self.key_nibbles.extend(slice.iter());
+						return Ok(())
+					},
+					Node::Extension(ref slice, ref item) => {
+						if key.starts_with(slice) {
+							self.trail.push(Crumb {
+								status: Status::At,
+								node: node.clone().into(),
+							});
+							self.key_nibbles.extend(slice.iter());
+							let data = self.db.get_raw_or_lookup(&*item)?;
+							(data, slice.len())
+						} else {
+							self.descend(&node_data)?;
+							return Ok(())
+						}
+					},
+					Node::Branch(ref nodes, _) => match key.is_empty() {
+						true => {
+							self.trail.push(Crumb {
+								status: Status::At,
+								node: node.clone().into(),
+							});
+							return Ok(())
+						},
+						false => {
+							let i = key.at(0);
+							self.trail.push(Crumb {
+								status: Status::AtChild(i as usize),
+								node: node.clone().into(),
+							});
+							self.key_nibbles.push(i);
+							let child = self.db.get_raw_or_lookup(&*nodes[i as usize])?;
+							(child, 1)
+						}
+					},
+					_ => return Ok(()),
 				}
-			},
-			Node::Branch(ref nodes, _) => match key.is_empty() {
-				true => {
-					self.trail.push(Crumb {
-						status: Status::At,
-						node: node.clone().into(),
-					});
-					Ok(())
-				},
-				false => {
-					let i = key.at(0);
-					self.trail.push(Crumb {
-						status: Status::AtChild(i as usize),
-						node: node.clone().into(),
-					});
-					self.key_nibbles.push(i);
-					let child = self.db.get_raw_or_lookup(&*nodes[i as usize])?;
-					self.seek_descend(child, &key.mid(1))
-				}
-			},
-			_ => Ok(())
+			};
+
+			node_data = data;
+			key = key.mid(mid);
 		}
 	}
 
@@ -314,7 +321,7 @@ impl<'a> TrieIterator for TrieDBIterator<'a> {
 		self.trail.clear();
 		self.key_nibbles.clear();
 		let root_rlp = self.db.root_data()?;
-		self.seek_descend(root_rlp, &NibbleSlice::new(key))
+		self.seek(root_rlp, NibbleSlice::new(key))
 	}
 }
 

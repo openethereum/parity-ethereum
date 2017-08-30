@@ -14,6 +14,7 @@ extern crate rand;
 extern crate rustc_hex;
 extern crate bigint;
 extern crate libc;
+extern crate plain_hasher;
 
 #[cfg(feature="heapsizeof")]
 #[macro_use]
