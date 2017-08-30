@@ -21,6 +21,8 @@ extern crate log;
 extern crate futures;
 extern crate futures_cpupool;
 extern crate hyper;
+#[macro_use]
+extern crate lazy_static;
 extern crate parking_lot;
 extern crate rustc_hex;
 extern crate serde;
@@ -56,21 +58,29 @@ mod http_listener;
 mod key_server;
 mod key_storage;
 mod serialization;
+mod key_server_set;
+mod node_key_pair;
 
 use std::sync::Arc;
 use ethcore::client::Client;
 
 pub use types::all::{ServerKeyId, EncryptedDocumentKey, RequestSignature, Public,
 	Error, NodeAddress, ServiceConfiguration, ClusterConfiguration};
-pub use traits::{KeyServer};
+pub use traits::{NodeKeyPair, KeyServer};
+pub use self::node_key_pair::{PlainNodeKeyPair, KeyStoreNodeKeyPair};
 
 /// Start new key server instance
-pub fn start(client: Arc<Client>, config: ServiceConfiguration) -> Result<Box<KeyServer>, Error> {
+pub fn start(client: Arc<Client>, self_key_pair: Arc<NodeKeyPair>, config: ServiceConfiguration) -> Result<Box<KeyServer>, Error> {
 	use std::sync::Arc;
 
-	let acl_storage = Arc::new(acl_storage::OnChainAclStorage::new(client));
+	let acl_storage: Arc<acl_storage::AclStorage> = if config.acl_check_enabled {
+			acl_storage::OnChainAclStorage::new(&client)
+		} else {
+			Arc::new(acl_storage::DummyAclStorage::default())
+		};
+	let key_server_set = key_server_set::OnChainKeyServerSet::new(&client, config.cluster_config.nodes.clone())?;
 	let key_storage = Arc::new(key_storage::PersistentKeyStorage::new(&config)?);
-	let key_server = key_server::KeyServerImpl::new(&config.cluster_config, acl_storage, key_storage)?;
-	let listener = http_listener::KeyServerHttpListener::start(&config.listener_address, key_server)?;
+	let key_server = key_server::KeyServerImpl::new(&config.cluster_config, key_server_set, self_key_pair, acl_storage, key_storage)?;
+	let listener = http_listener::KeyServerHttpListener::start(config.listener_address, key_server)?;
 	Ok(Box::new(listener))
 }

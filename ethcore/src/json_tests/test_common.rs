@@ -15,6 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 pub use util::*;
+use std::collections::HashSet;
+use std::io::Read;
 use std::fs::{File, read_dir};
 use std::path::Path;
 use std::ffi::OsString;

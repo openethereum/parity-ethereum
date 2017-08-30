@@ -20,30 +20,31 @@ use std::str::FromStr;
 use std::collections::{BTreeMap, HashSet};
 use futures::{future, Future, BoxFuture};
 
-use ethcore_logger::RotatingLogger;
 use util::Address;
 use util::misc::version_data;
 
-use crypto::ecies;
+use crypto::{DEFAULT_MAC, ecies};
 use ethkey::{Brain, Generator};
 use ethstore::random_phrase;
 use ethsync::{SyncProvider, ManageNetwork};
+use ethcore::account_provider::AccountProvider;
+use ethcore::client::{MiningBlockChainClient};
 use ethcore::ids::BlockId;
 use ethcore::miner::MinerService;
-use ethcore::client::{MiningBlockChainClient};
 use ethcore::mode::Mode;
-use ethcore::account_provider::AccountProvider;
+use ethcore::transaction::SignedTransaction;
+use ethcore_logger::RotatingLogger;
+use node_health::{NodeHealth, Health};
 use updater::{Service as UpdateService};
-use crypto::DEFAULT_MAC;
 
 use jsonrpc_core::Error;
 use jsonrpc_macros::Trailing;
-use v1::helpers::{self, errors, ipfs, SigningQueue, SignerService, NetworkSettings};
+use v1::helpers::{self, errors, fake_sign, ipfs, SigningQueue, SignerService, NetworkSettings};
 use v1::helpers::accounts::unwrap_provider;
 use v1::metadata::Metadata;
 use v1::traits::Parity;
 use v1::types::{
-	Bytes, U256, H160, H256, H512,
+	Bytes, U256, H160, H256, H512, CallRequest,
 	Peers, Transaction, RpcSettings, Histogram,
 	TransactionStats, LocalTransactionStatus,
 	BlockNumber, ConsensusCapability, VersionInfo,
@@ -52,17 +53,13 @@ use v1::types::{
 };
 
 /// Parity implementation.
-pub struct ParityClient<C, M, S: ?Sized, U> where
-	C: MiningBlockChainClient,
-	M: MinerService,
-	S: SyncProvider,
-	U: UpdateService,
-{
+pub struct ParityClient<C, M, U>  {
 	client: Arc<C>,
 	miner: Arc<M>,
-	sync: Arc<S>,
 	updater: Arc<U>,
+	sync: Arc<SyncProvider>,
 	net: Arc<ManageNetwork>,
+	health: NodeHealth,
 	accounts: Option<Arc<AccountProvider>>,
 	logger: Arc<RotatingLogger>,
 	settings: Arc<NetworkSettings>,
@@ -72,39 +69,39 @@ pub struct ParityClient<C, M, S: ?Sized, U> where
 	eip86_transition: u64,
 }
 
-impl<C, M, S: ?Sized, U> ParityClient<C, M, S, U> where
+impl<C, M, U> ParityClient<C, M, U> where
 	C: MiningBlockChainClient,
-	M: MinerService,
-	S: SyncProvider,
-	U: UpdateService,
 {
 	/// Creates new `ParityClient`.
 	pub fn new(
-		client: &Arc<C>,
-		miner: &Arc<M>,
-		sync: &Arc<S>,
-		updater: &Arc<U>,
-		net: &Arc<ManageNetwork>,
-		store: &Option<Arc<AccountProvider>>,
+		client: Arc<C>,
+		miner: Arc<M>,
+		sync: Arc<SyncProvider>,
+		updater: Arc<U>,
+		net: Arc<ManageNetwork>,
+		health: NodeHealth,
+		accounts: Option<Arc<AccountProvider>>,
 		logger: Arc<RotatingLogger>,
 		settings: Arc<NetworkSettings>,
 		signer: Option<Arc<SignerService>>,
 		dapps_address: Option<(String, u16)>,
 		ws_address: Option<(String, u16)>,
 	) -> Self {
+		let eip86_transition = client.eip86_transition();
 		ParityClient {
-			client: client.clone(),
-			miner: miner.clone(),
-			sync: sync.clone(),
-			updater: updater.clone(),
-			net: net.clone(),
-			accounts: store.clone(),
-			logger: logger,
-			settings: settings,
-			signer: signer,
-			dapps_address: dapps_address,
-			ws_address: ws_address,
-			eip86_transition: client.eip86_transition(),
+			client,
+			miner,
+			sync,
+			updater,
+			net,
+			health,
+			accounts,
+			logger,
+			settings,
+			signer,
+			dapps_address,
+			ws_address,
+			eip86_transition,
 		}
 	}
 
@@ -115,10 +112,9 @@ impl<C, M, S: ?Sized, U> ParityClient<C, M, S, U> where
 	}
 }
 
-impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
-	M: MinerService + 'static,
+impl<C, M, U> Parity for ParityClient<C, M, U> where
 	C: MiningBlockChainClient + 'static,
-	S: SyncProvider + 'static,
+	M: MinerService + 'static,
 	U: UpdateService + 'static,
 {
 	type Metadata = Metadata;
@@ -408,5 +404,30 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 
 	fn ipfs_cid(&self, content: Bytes) -> Result<String, Error> {
 		ipfs::cid(content)
+	}
+
+	fn call(&self, meta: Self::Metadata, requests: Vec<CallRequest>, block: Trailing<BlockNumber>) -> BoxFuture<Vec<Bytes>, Error> {
+		let requests: Result<Vec<(SignedTransaction, _)>, Error> = requests
+			.into_iter()
+			.map(|request| Ok((
+				fake_sign::sign_call(&self.client, &self.miner, request.into(), meta.is_dapp())?,
+				Default::default()
+			)))
+			.collect();
+
+		let block = block.unwrap_or_default();
+		let requests = try_bf!(requests);
+
+		let result = self.client.call_many(&requests, block.into())
+				.map(|res| res.into_iter().map(|res| res.output.into()).collect())
+				.map_err(errors::call);
+
+		future::done(result).boxed()
+	}
+
+	fn node_health(&self) -> BoxFuture<Health, Error> {
+		self.health.health()
+			.map_err(|err| errors::internal("Health API failure.", err))
+			.boxed()
 	}
 }

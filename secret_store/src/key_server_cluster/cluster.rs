@@ -28,7 +28,7 @@ use tokio_core::reactor::{Handle, Remote, Interval};
 use tokio_core::net::{TcpListener, TcpStream};
 use ethkey::{Public, KeyPair, Signature, Random, Generator};
 use util::H256;
-use key_server_cluster::{Error, NodeId, SessionId, AclStorage, KeyStorage};
+use key_server_cluster::{Error, NodeId, SessionId, AclStorage, KeyStorage, KeyServerSet, NodeKeyPair};
 use key_server_cluster::cluster_sessions::{ClusterSession, ClusterSessions, GenerationSessionWrapper, EncryptionSessionWrapper,
 	DecryptionSessionWrapper, SigningSessionWrapper};
 use key_server_cluster::message::{self, Message, ClusterMessage, GenerationMessage, EncryptionMessage, DecryptionMessage,
@@ -99,11 +99,11 @@ pub struct ClusterConfiguration {
 	/// Allow connecting to 'higher' nodes.
 	pub allow_connecting_to_higher_nodes: bool,
 	/// KeyPair this node holds.
-	pub self_key_pair: KeyPair,
+	pub self_key_pair: Arc<NodeKeyPair>,
 	/// Interface to listen to.
 	pub listen_address: (String, u16),
-	/// Cluster nodes.
-	pub nodes: BTreeMap<NodeId, (String, u16)>,
+	/// Cluster nodes set.
+	pub key_server_set: Arc<KeyServerSet>,
 	/// Reference to key storage
 	pub key_storage: Arc<KeyStorage>,
 	/// Reference to ACL storage
@@ -146,7 +146,7 @@ pub struct ClusterData {
 	/// Handle to the cpu thread pool.
 	pool: CpuPool,
 	/// KeyPair this node holds.
-	self_key_pair: KeyPair,
+	self_key_pair: Arc<NodeKeyPair>,
 	/// Connections data.
 	connections: ClusterConnections,
 	/// Active sessions data.
@@ -158,9 +158,17 @@ pub struct ClusterConnections {
 	/// Self node id.
 	pub self_node_id: NodeId,
 	/// All known other key servers.
-	pub nodes: BTreeMap<NodeId, SocketAddr>,
+	pub key_server_set: Arc<KeyServerSet>,
+	/// Connections data.
+	pub data: RwLock<ClusterConnectionsData>,
+}
+
+/// Cluster connections data.
+pub struct ClusterConnectionsData {
+	/// Active key servers set.
+	pub nodes: BTreeMap<Public, SocketAddr>,
 	/// Active connections to key servers.
-	pub connections: RwLock<BTreeMap<NodeId, Arc<Connection>>>,
+	pub connections: BTreeMap<NodeId, Arc<Connection>>,
 }
 
 /// Cluster view core.
@@ -254,7 +262,7 @@ impl ClusterCore {
 	fn connect_future(handle: &Handle, data: Arc<ClusterData>, node_address: SocketAddr) -> BoxedEmptyFuture {
 		let disconnected_nodes = data.connections.disconnected_nodes().keys().cloned().collect();
 		net_connect(&node_address, handle, data.self_key_pair.clone(), disconnected_nodes)
-			.then(move |result| ClusterCore::process_connection_result(data, false, result))
+			.then(move |result| ClusterCore::process_connection_result(data, Some(node_address), result))
 			.then(|_| finished(()))
 			.boxed()
 	}
@@ -281,9 +289,8 @@ impl ClusterCore {
 
 	/// Accept connection future.
 	fn accept_connection_future(handle: &Handle, data: Arc<ClusterData>, stream: TcpStream, node_address: SocketAddr) -> BoxedEmptyFuture {
-		let disconnected_nodes = data.connections.disconnected_nodes().keys().cloned().collect();
-		net_accept_connection(node_address, stream, handle, data.self_key_pair.clone(), disconnected_nodes)
-			.then(move |result| ClusterCore::process_connection_result(data, true, result))
+		net_accept_connection(node_address, stream, handle, data.self_key_pair.clone())
+			.then(move |result| ClusterCore::process_connection_result(data, None, result))
 			.then(|_| finished(()))
 			.boxed()
 	}
@@ -354,6 +361,7 @@ impl ClusterCore {
 
 	/// Try to connect to every disconnected node.
 	fn connect_disconnected_nodes(data: Arc<ClusterData>) {
+		data.connections.update_nodes_set();
 		for (node_id, node_address) in data.connections.disconnected_nodes() {
 			if data.config.allow_connecting_to_higher_nodes || data.self_key_pair.public() < &node_id {
 				ClusterCore::connect(data.clone(), node_address);
@@ -362,24 +370,32 @@ impl ClusterCore {
 	}
 
 	/// Process connection future result.
-	fn process_connection_result(data: Arc<ClusterData>, is_inbound: bool, result: Result<DeadlineStatus<Result<NetConnection, Error>>, io::Error>) -> IoFuture<Result<(), Error>> {
+	fn process_connection_result(data: Arc<ClusterData>, outbound_addr: Option<SocketAddr>, result: Result<DeadlineStatus<Result<NetConnection, Error>>, io::Error>) -> IoFuture<Result<(), Error>> {
 		match result {
 			Ok(DeadlineStatus::Meet(Ok(connection))) => {
-				let connection = Connection::new(is_inbound, connection);
+				let connection = Connection::new(outbound_addr.is_none(), connection);
 				if data.connections.insert(connection.clone()) {
 					ClusterCore::process_connection_messages(data.clone(), connection)
 				} else {
 					finished(Ok(())).boxed()
 				}
 			},
-			Ok(DeadlineStatus::Meet(Err(_))) => {
+			Ok(DeadlineStatus::Meet(Err(err))) => {
+				warn!(target: "secretstore_net", "{}: protocol error {} when establishing {} connection{}",
+					data.self_key_pair.public(), err, if outbound_addr.is_some() { "outbound" } else { "inbound" },
+					outbound_addr.map(|a| format!(" with {}", a)).unwrap_or_default());
 				finished(Ok(())).boxed()
 			},
 			Ok(DeadlineStatus::Timeout) => {
+				warn!(target: "secretstore_net", "{}: timeout when establishing {} connection{}",
+					data.self_key_pair.public(), if outbound_addr.is_some() { "outbound" } else { "inbound" },
+					outbound_addr.map(|a| format!(" with {}", a)).unwrap_or_default());
 				finished(Ok(())).boxed()
 			},
-			Err(_) => {
-				// network error
+			Err(err) => {
+				warn!(target: "secretstore_net", "{}: network error {} when establishing {} connection{}",
+					data.self_key_pair.public(), err, if outbound_addr.is_some() { "outbound" } else { "inbound" },
+					outbound_addr.map(|a| format!(" with {}", a)).unwrap_or_default());
 				finished(Ok(())).boxed()
 			},
 		}
@@ -665,33 +681,38 @@ impl ClusterCore {
 
 impl ClusterConnections {
 	pub fn new(config: &ClusterConfiguration) -> Result<Self, Error> {
-		let mut connections = ClusterConnections {
+		let mut nodes = config.key_server_set.get();
+		nodes.remove(config.self_key_pair.public());
+
+		Ok(ClusterConnections {
 			self_node_id: config.self_key_pair.public().clone(),
-			nodes: BTreeMap::new(),
-			connections: RwLock::new(BTreeMap::new()),
-		};
-
-		for (node_id, &(ref node_addr, node_port)) in config.nodes.iter().filter(|&(node_id, _)| node_id != config.self_key_pair.public()) {
-			let socket_address = make_socket_address(&node_addr, node_port)?;
-			connections.nodes.insert(node_id.clone(), socket_address);
-		}
-
-		Ok(connections)
+			key_server_set: config.key_server_set.clone(),
+			data: RwLock::new(ClusterConnectionsData {
+				nodes: nodes,
+				connections: BTreeMap::new(),
+			}),
+		})
 	}
 
 	pub fn cluster_state(&self) -> ClusterState {
 		ClusterState {
-			connected: self.connections.read().keys().cloned().collect(),
+			connected: self.data.read().connections.keys().cloned().collect(),
 		}
 	}
 
 	pub fn get(&self, node: &NodeId) -> Option<Arc<Connection>> {
-		self.connections.read().get(node).cloned()
+		self.data.read().connections.get(node).cloned()
 	}
 
 	pub fn insert(&self, connection: Arc<Connection>) -> bool {
-		let mut connections = self.connections.write();
-		if connections.contains_key(connection.node_id()) {
+		let mut data = self.data.write();
+		if !data.nodes.contains_key(connection.node_id()) {
+			// incoming connections are checked here
+			trace!(target: "secretstore_net", "{}: ignoring unknown connection from {} at {}", self.self_node_id, connection.node_id(), connection.node_address());
+			debug_assert!(connection.is_inbound());
+			return false;
+		}
+		if data.connections.contains_key(connection.node_id()) {
 			// we have already connected to the same node
 			// the agreement is that node with lower id must establish connection to node with higher id
 			if (&self.self_node_id < connection.node_id() && connection.is_inbound())
@@ -700,14 +721,15 @@ impl ClusterConnections {
 			}
 		}
 
-		trace!(target: "secretstore_net", "{}: inserting connection to {} at {}", self.self_node_id, connection.node_id(), connection.node_address());
-		connections.insert(connection.node_id().clone(), connection);
+		trace!(target: "secretstore_net", "{}: inserting connection to {} at {}. Connected to {} of {} nodes",
+			self.self_node_id, connection.node_id(), connection.node_address(), data.connections.len() + 1, data.nodes.len());
+		data.connections.insert(connection.node_id().clone(), connection);
 		true
 	}
 
 	pub fn remove(&self, node: &NodeId, is_inbound: bool) {
-		let mut connections = self.connections.write();
-		if let Entry::Occupied(entry) = connections.entry(node.clone()) {
+		let mut data = self.data.write();
+		if let Entry::Occupied(entry) = data.connections.entry(node.clone()) {
 			if entry.get().is_inbound() != is_inbound {
 				return;
 			}
@@ -718,19 +740,63 @@ impl ClusterConnections {
 	}
 
 	pub fn connected_nodes(&self) -> BTreeSet<NodeId> {
-		self.connections.read().keys().cloned().collect()
+		self.data.read().connections.keys().cloned().collect()
 	}
 
 	pub fn active_connections(&self)-> Vec<Arc<Connection>> {
-		self.connections.read().values().cloned().collect()
+		self.data.read().connections.values().cloned().collect()
 	}
 
 	pub fn disconnected_nodes(&self) -> BTreeMap<NodeId, SocketAddr> {
-		let connections = self.connections.read();
-		self.nodes.iter()
-			.filter(|&(node_id, _)| !connections.contains_key(node_id))
+		let data = self.data.read();
+		data.nodes.iter()
+			.filter(|&(node_id, _)| !data.connections.contains_key(node_id))
 			.map(|(node_id, node_address)| (node_id.clone(), node_address.clone()))
 			.collect()
+	}
+
+	pub fn update_nodes_set(&self) {
+		let mut data = self.data.write();
+		let mut new_nodes = self.key_server_set.get();
+		// we do not need to connect to self
+		// + we do not need to try to connect to any other node if we are not the part of a cluster
+		if new_nodes.remove(&self.self_node_id).is_none() {
+			new_nodes.clear();
+		}
+
+		let mut num_added_nodes = 0;
+		let mut num_removed_nodes = 0;
+		let mut num_changed_nodes = 0;
+
+		for obsolete_node in data.nodes.keys().cloned().collect::<Vec<_>>() {
+			if !new_nodes.contains_key(&obsolete_node) {
+				if let Entry::Occupied(entry) = data.connections.entry(obsolete_node) {
+					trace!(target: "secretstore_net", "{}: removing connection to {} at {}", self.self_node_id, entry.get().node_id(), entry.get().node_address());
+					entry.remove();
+				}
+
+				data.nodes.remove(&obsolete_node);
+				num_removed_nodes += 1;
+			}
+		}
+
+		for (new_node_public, new_node_addr) in new_nodes {
+			match data.nodes.insert(new_node_public, new_node_addr) {
+				None => num_added_nodes += 1,
+				Some(old_node_addr) => if new_node_addr != old_node_addr {
+					if let Entry::Occupied(entry) = data.connections.entry(new_node_public) {
+						trace!(target: "secretstore_net", "{}: removing connection to {} at {}", self.self_node_id, entry.get().node_id(), entry.get().node_address());
+						entry.remove();
+					}
+					num_changed_nodes += 1;
+				},
+			}
+		}
+
+		if num_added_nodes != 0 || num_removed_nodes != 0 || num_changed_nodes != 0 {
+			trace!(target: "secretstore_net", "{}: updated nodes set: removed {}, added {}, changed {}. Connected to {} of {} nodes",
+				self.self_node_id, num_removed_nodes, num_added_nodes, num_changed_nodes, data.connections.len(), data.nodes.len());
+		}
 	}
 }
 
@@ -929,7 +995,7 @@ pub mod tests {
 	use parking_lot::Mutex;
 	use tokio_core::reactor::Core;
 	use ethkey::{Random, Generator, Public};
-	use key_server_cluster::{NodeId, SessionId, Error, DummyAclStorage, DummyKeyStorage};
+	use key_server_cluster::{NodeId, SessionId, Error, DummyAclStorage, DummyKeyStorage, MapKeyServerSet, PlainNodeKeyPair};
 	use key_server_cluster::message::Message;
 	use key_server_cluster::cluster::{Cluster, ClusterCore, ClusterConfiguration};
 	use key_server_cluster::generation_session::{Session as GenerationSession, SessionState as GenerationSessionState};
@@ -999,7 +1065,7 @@ pub mod tests {
 	}
 
 	pub fn all_connections_established(cluster: &Arc<ClusterCore>) -> bool {
-		cluster.config().nodes.keys()
+		cluster.config().key_server_set.get().keys()
 			.filter(|p| *p != cluster.config().self_key_pair.public())
 			.all(|p| cluster.connection(p).is_some())
 	}
@@ -1008,11 +1074,11 @@ pub mod tests {
 		let key_pairs: Vec<_> = (0..num_nodes).map(|_| Random.generate().unwrap()).collect();
 		let cluster_params: Vec<_> = (0..num_nodes).map(|i| ClusterConfiguration {
 			threads: 1,
-			self_key_pair: key_pairs[i].clone(),
+			self_key_pair: Arc::new(PlainNodeKeyPair::new(key_pairs[i].clone())),
 			listen_address: ("127.0.0.1".to_owned(), ports_begin + i as u16),
-			nodes: key_pairs.iter().enumerate()
-				.map(|(j, kp)| (kp.public().clone(), ("127.0.0.1".into(), ports_begin + j as u16)))
-				.collect(),
+			key_server_set: Arc::new(MapKeyServerSet::new(key_pairs.iter().enumerate()
+				.map(|(j, kp)| (kp.public().clone(), format!("127.0.0.1:{}", ports_begin + j as u16).parse().unwrap()))
+				.collect())),
 			allow_connecting_to_higher_nodes: false,
 			key_storage: Arc::new(DummyKeyStorage::default()),
 			acl_storage: Arc::new(DummyAclStorage::default()),

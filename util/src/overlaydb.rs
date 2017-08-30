@@ -16,13 +16,14 @@
 
 //! Disk-backed `HashDB` implementation.
 
+use std::sync::Arc;
+use std::collections::HashMap;
+use std::collections::hash_map::Entry;
 use error::*;
 use hash::*;
 use rlp::*;
 use hashdb::*;
 use memorydb::*;
-use std::sync::*;
-use std::collections::HashMap;
 use kvdb::{KeyValueDB, DBTransaction};
 
 /// Implementation of the `HashDB` trait for a disk-backed database with a memory overlay.
@@ -125,19 +126,27 @@ impl OverlayDB {
 
 impl HashDB for OverlayDB {
 	fn keys(&self) -> HashMap<H256, i32> {
-		let mut ret: HashMap<H256, i32> = HashMap::new();
-		for (key, _) in self.backing.iter(self.column) {
-			let h = H256::from_slice(&*key);
-			let r = self.payload(&h).unwrap().1;
-			ret.insert(h, r as i32);
-		}
+		let mut ret: HashMap<H256, i32> = self.backing.iter(self.column)
+			.map(|(key, _)| {
+				let h = H256::from_slice(&*key);
+				let r = self.payload(&h).unwrap().1;
+				(h, r as i32)
+			})
+			.collect();
 
 		for (key, refs) in self.overlay.keys() {
-			let refs = *ret.get(&key).unwrap_or(&0) + refs;
-			ret.insert(key, refs);
+			match ret.entry(key) {
+				Entry::Occupied(mut entry) => {
+					*entry.get_mut() += refs;
+				},
+				Entry::Vacant(entry) => {
+					entry.insert(refs);
+				}
+			}
 		}
 		ret
 	}
+
 	fn get(&self, key: &H256) -> Option<DBValue> {
 		// return ok if positive; if negative, check backing - might be enough references there to make
 		// it positive again.
@@ -165,6 +174,7 @@ impl HashDB for OverlayDB {
 			_ => None,
 		}
 	}
+
 	fn contains(&self, key: &H256) -> bool {
 		// return ok if positive; if negative, check backing - might be enough references there to make
 		// it positive again.
@@ -185,6 +195,7 @@ impl HashDB for OverlayDB {
 			}
 		}
 	}
+
 	fn insert(&mut self, value: &[u8]) -> H256 { self.overlay.insert(value) }
 	fn emplace(&mut self, key: H256, value: DBValue) { self.overlay.emplace(key, value); }
 	fn remove(&mut self, key: &H256) { self.overlay.remove(key); }

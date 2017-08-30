@@ -22,12 +22,6 @@ use v1::types::LocalDapp;
 pub trait DappsService: Send + Sync + 'static {
 	/// List available local dapps.
 	fn list_dapps(&self) -> Vec<LocalDapp>;
-}
-
-impl<F> DappsService for F where
-	F: Fn() -> Vec<LocalDapp> + Send + Sync + 'static
-{
-	fn list_dapps(&self) -> Vec<LocalDapp> {
-		(*self)()
-	}
+	/// Refresh local dapps list
+	fn refresh_local_dapps(&self) -> bool;
 }

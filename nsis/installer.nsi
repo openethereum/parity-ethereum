@@ -9,7 +9,7 @@
 !define COMPANYNAME "Parity"
 !define DESCRIPTION "Fast, light, robust Ethereum implementation"
 !define VERSIONMAJOR 1
-!define VERSIONMINOR 7
+!define VERSIONMINOR 8
 !define VERSIONBUILD 0
 !define ARGS "--warp"
 !define FIRST_START_ARGS "ui --warp --mode=passive"
@@ -149,7 +149,7 @@ function un.onInit
 	SetShellVarContext all
 
 	#Verify the uninstaller - last chance to back out
-	MessageBox MB_OKCANCEL "Permanantly remove ${APPNAME}?" IDOK next
+	MessageBox MB_OKCANCEL "Permanently remove ${APPNAME}?" IDOK next
 		Abort
 
 	next:

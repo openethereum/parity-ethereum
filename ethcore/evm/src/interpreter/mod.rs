@@ -23,17 +23,23 @@ mod stack;
 mod memory;
 mod shared_cache;
 
+use std::marker::PhantomData;
+use std::{cmp, mem};
+use std::sync::Arc;
+
+use vm::{
+	self, ActionParams, ActionValue, CallType, MessageCallResult,
+	ContractCreateResult, CreateContractAddress, ReturnData, GasLeft
+};
+
+use evm::CostType;
+use instructions::{self, Instruction, InstructionInfo};
+
 use self::gasometer::Gasometer;
 use self::stack::{Stack, VecStack};
 use self::memory::Memory;
 pub use self::shared_cache::SharedCache;
 
-use std::marker::PhantomData;
-use action_params::{ActionParams, ActionValue};
-use call_type::CallType;
-use instructions::{self, Instruction, InstructionInfo};
-use evm::{self, GasLeft, CostType, ReturnData};
-use ext::{self, MessageCallResult, ContractCreateResult, CreateContractAddress};
 use bit_set::BitSet;
 
 use util::*;
@@ -107,8 +113,8 @@ pub struct Interpreter<Cost: CostType> {
 	_type: PhantomData<Cost>,
 }
 
-impl<Cost: CostType> evm::Evm for Interpreter<Cost> {
-	fn exec(&mut self, params: ActionParams, ext: &mut ext::Ext) -> evm::Result<GasLeft> {
+impl<Cost: CostType> vm::Vm for Interpreter<Cost> {
+	fn exec(&mut self, params: ActionParams, ext: &mut vm::Ext) -> vm::Result<GasLeft> {
 		self.mem.clear();
 
 		let mut informant = informant::EvmInformant::new(ext.depth());
@@ -162,7 +168,12 @@ impl<Cost: CostType> evm::Evm for Interpreter<Cost> {
 			}
 
 			if do_trace {
-				ext.trace_executed(gasometer.current_gas.as_u256(), stack.peek_top(info.ret), mem_written.map(|(o, s)| (o, &(self.mem[o..(o + s)]))), store_written);
+				ext.trace_executed(
+					gasometer.current_gas.as_u256(),
+					stack.peek_top(info.ret),
+					mem_written.map(|(o, s)| (o, &(self.mem[o..o+s]))),
+					store_written,
+				);
 			}
 
 			// Advance
@@ -205,7 +216,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 		}
 	}
 
-	fn verify_instruction(&self, ext: &ext::Ext, instruction: Instruction, info: &InstructionInfo, stack: &Stack<U256>) -> evm::Result<()> {
+	fn verify_instruction(&self, ext: &vm::Ext, instruction: Instruction, info: &InstructionInfo, stack: &Stack<U256>) -> vm::Result<()> {
 		let schedule = ext.schedule();
 
 		if (instruction == instructions::DELEGATECALL && !schedule.have_delegate_call) ||
@@ -214,25 +225,25 @@ impl<Cost: CostType> Interpreter<Cost> {
 			((instruction == instructions::RETURNDATACOPY || instruction == instructions::RETURNDATASIZE) && !schedule.have_return_data) ||
 			(instruction == instructions::REVERT && !schedule.have_revert) {
 
-			return Err(evm::Error::BadInstruction {
+			return Err(vm::Error::BadInstruction {
 				instruction: instruction
 			});
 		}
 
 		if info.tier == instructions::GasPriceTier::Invalid {
-			return Err(evm::Error::BadInstruction {
+			return Err(vm::Error::BadInstruction {
 				instruction: instruction
 			});
 		}
 
 		if !stack.has(info.args) {
-			Err(evm::Error::StackUnderflow {
+			Err(vm::Error::StackUnderflow {
 				instruction: info.name,
 				wanted: info.args,
 				on_stack: stack.size()
 			})
 		} else if stack.size() - info.args + info.ret > schedule.stack_limit {
-			Err(evm::Error::OutOfStack {
+			Err(vm::Error::OutOfStack {
 				instruction: info.name,
 				wanted: info.ret - info.args,
 				limit: schedule.stack_limit
@@ -246,14 +257,20 @@ impl<Cost: CostType> Interpreter<Cost> {
 		instruction: Instruction,
 		stack: &Stack<U256>
 	) -> Option<(usize, usize)> {
-		match instruction {
-			instructions::MSTORE | instructions::MLOAD => Some((stack.peek(0).low_u64() as usize, 32)),
-			instructions::MSTORE8 => Some((stack.peek(0).low_u64() as usize, 1)),
-			instructions::CALLDATACOPY | instructions::CODECOPY | instructions::RETURNDATACOPY => Some((stack.peek(0).low_u64() as usize, stack.peek(2).low_u64() as usize)),
-			instructions::EXTCODECOPY => Some((stack.peek(1).low_u64() as usize, stack.peek(3).low_u64() as usize)),
-			instructions::CALL | instructions::CALLCODE => Some((stack.peek(5).low_u64() as usize, stack.peek(6).low_u64() as usize)),
-			instructions::DELEGATECALL => Some((stack.peek(4).low_u64() as usize, stack.peek(5).low_u64() as usize)),
+		let read = |pos| stack.peek(pos).low_u64() as usize;
+		let written = match instruction {
+			instructions::MSTORE | instructions::MLOAD => Some((read(0), 32)),
+			instructions::MSTORE8 => Some((read(0), 1)),
+			instructions::CALLDATACOPY | instructions::CODECOPY | instructions::RETURNDATACOPY => Some((read(0), read(2))),
+			instructions::EXTCODECOPY => Some((read(1), read(3))),
+			instructions::CALL | instructions::CALLCODE => Some((read(5), read(6))),
+			instructions::DELEGATECALL | instructions::STATICCALL => Some((read(4), read(5))),
 			_ => None,
+		};
+
+		match written {
+			Some((offset, size)) if !memory::is_valid_range(offset, size) => None,
+			written => written,
 		}
 	}
 
@@ -272,12 +289,12 @@ impl<Cost: CostType> Interpreter<Cost> {
 		&mut self,
 		gas: Cost,
 		params: &ActionParams,
-		ext: &mut ext::Ext,
+		ext: &mut vm::Ext,
 		instruction: Instruction,
 		code: &mut CodeReader,
 		stack: &mut Stack<U256>,
 		provided: Option<Cost>
-	) -> evm::Result<InstructionResult<Cost>> {
+	) -> vm::Result<InstructionResult<Cost>> {
 		match instruction {
 			instructions::JUMP => {
 				let jump = stack.pop_back();
@@ -593,13 +610,13 @@ impl<Cost: CostType> Interpreter<Cost> {
 		}
 	}
 
-	fn verify_jump(&self, jump_u: U256, valid_jump_destinations: &BitSet) -> evm::Result<usize> {
+	fn verify_jump(&self, jump_u: U256, valid_jump_destinations: &BitSet) -> vm::Result<usize> {
 		let jump = jump_u.low_u64() as usize;
 
 		if valid_jump_destinations.contains(jump) && U256::from(jump) == jump_u {
 			Ok(jump)
 		} else {
-			Err(evm::Error::BadJumpDestination {
+			Err(vm::Error::BadJumpDestination {
 				destination: jump
 			})
 		}
@@ -617,7 +634,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 		}
 	}
 
-	fn exec_stack_instruction(&self, instruction: Instruction, stack: &mut Stack<U256>) -> evm::Result<()> {
+	fn exec_stack_instruction(&self, instruction: Instruction, stack: &mut Stack<U256>) -> vm::Result<()> {
 		match instruction {
 			instructions::DUP1...instructions::DUP16 => {
 				let position = instructions::get_dup_position(instruction);
@@ -822,7 +839,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 				}
 			},
 			_ => {
-				return Err(evm::Error::BadInstruction {
+				return Err(vm::Error::BadInstruction {
 					instruction: instruction
 				});
 			}
@@ -856,3 +873,36 @@ fn address_to_u256(value: Address) -> U256 {
 	U256::from(&*H256::from(value))
 }
 
+
+#[cfg(test)]
+mod tests {
+	use std::sync::Arc;
+	use rustc_hex::FromHex;
+	use vmtype::VMType;
+	use factory::Factory;
+	use vm::{self, ActionParams, ActionValue};
+	use vm::tests::{FakeExt, test_finalize};
+
+	#[test]
+	fn should_not_fail_on_tracing_mem() {
+		let code = "7feeffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff006000527faaffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffaa6020526000620f120660406000601773945304eb96065b2a98b57a48a06ae28d285a71b56101f4f1600055".from_hex().unwrap();
+
+		let mut params = ActionParams::default();
+		params.address = 5.into();
+		params.gas = 300_000.into();
+		params.gas_price = 1.into();
+		params.value = ActionValue::Transfer(100_000.into());
+		params.code = Some(Arc::new(code));
+		let mut ext = FakeExt::new();
+		ext.balances.insert(5.into(), 1_000_000_000.into());
+		ext.tracing = true;
+
+		let gas_left = {
+			let mut vm = Factory::new(VMType::Interpreter, 1).create(params.gas);
+			test_finalize(vm.exec(params, &mut ext)).unwrap()
+		};
+
+		assert_eq!(ext.calls.len(), 1);
+		assert_eq!(gas_left, 248_212.into());
+	}
+}

@@ -19,15 +19,15 @@ use std::sync::Arc;
 use std::collections::{BTreeMap, HashSet};
 use futures::{future, Future, BoxFuture};
 
-use ethcore_logger::RotatingLogger;
 use util::misc::version_data;
 
-use crypto::ecies;
+use crypto::{ecies, DEFAULT_MAC};
 use ethkey::{Brain, Generator};
 use ethstore::random_phrase;
 use ethsync::LightSyncProvider;
 use ethcore::account_provider::AccountProvider;
-use crypto::DEFAULT_MAC;
+use ethcore_logger::RotatingLogger;
+use node_health::{NodeHealth, Health};
 
 use light::client::LightChainClient;
 
@@ -39,7 +39,7 @@ use v1::helpers::light_fetch::LightFetch;
 use v1::metadata::Metadata;
 use v1::traits::Parity;
 use v1::types::{
-	Bytes, U256, H160, H256, H512,
+	Bytes, U256, H160, H256, H512, CallRequest,
 	Peers, Transaction, RpcSettings, Histogram,
 	TransactionStats, LocalTransactionStatus,
 	BlockNumber, ConsensusCapability, VersionInfo,
@@ -53,6 +53,7 @@ pub struct ParityClient {
 	accounts: Arc<AccountProvider>,
 	logger: Arc<RotatingLogger>,
 	settings: Arc<NetworkSettings>,
+	health: NodeHealth,
 	signer: Option<Arc<SignerService>>,
 	dapps_address: Option<(String, u16)>,
 	ws_address: Option<(String, u16)>,
@@ -67,18 +68,20 @@ impl ParityClient {
 		accounts: Arc<AccountProvider>,
 		logger: Arc<RotatingLogger>,
 		settings: Arc<NetworkSettings>,
+		health: NodeHealth,
 		signer: Option<Arc<SignerService>>,
 		dapps_address: Option<(String, u16)>,
 		ws_address: Option<(String, u16)>,
 	) -> Self {
 		ParityClient {
-			light_dispatch: light_dispatch,
-			accounts: accounts,
-			logger: logger,
-			settings: settings,
-			signer: signer,
-			dapps_address: dapps_address,
-			ws_address: ws_address,
+			light_dispatch,
+			accounts,
+			logger,
+			settings,
+			health,
+			signer,
+			dapps_address,
+			ws_address,
 			eip86_transition: client.eip86_transition(),
 		}
 	}
@@ -388,5 +391,15 @@ impl Parity for ParityClient {
 
 	fn ipfs_cid(&self, content: Bytes) -> Result<String, Error> {
 		ipfs::cid(content)
+	}
+
+	fn call(&self, _meta: Self::Metadata, _requests: Vec<CallRequest>, _block: Trailing<BlockNumber>) -> BoxFuture<Vec<Bytes>, Error> {
+		future::err(errors::light_unimplemented(None)).boxed()
+	}
+
+	fn node_health(&self) -> BoxFuture<Health, Error> {
+		self.health.health()
+			.map_err(|err| errors::internal("Health API failure.", err))
+			.boxed()
 	}
 }

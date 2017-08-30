@@ -264,6 +264,7 @@ fn check_known<C>(client: &C, number: BlockNumber) -> Result<(), Error> where C:
 
 	match client.block_status(number.into()) {
 		BlockStatus::InChain => Ok(()),
+		BlockStatus::Pending => Ok(()),
 		_ => Err(errors::unknown_block()),
 	}
 }
@@ -361,20 +362,12 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 	fn balance(&self, address: RpcH160, num: Trailing<BlockNumber>) -> BoxFuture<RpcU256, Error> {
 		let address = address.into();
 
-		let res = match num.unwrap_or_default() {
-			BlockNumber::Pending => {
-				match self.miner.balance(&*self.client, &address) {
-					Some(balance) => Ok(balance.into()),
-					None => Err(errors::database("latest balance missing"))
-				}
-			}
-			id => {
-				try_bf!(check_known(&*self.client, id.clone()));
-				match self.client.balance(&address, id.into()) {
-					Some(balance) => Ok(balance.into()),
-					None => Err(errors::state_pruned()),
-				}
-			}
+		let id = num.unwrap_or_default();
+
+		try_bf!(check_known(&*self.client, id.clone()));
+		let res = match self.client.balance(&address, id.into()) {
+			Some(balance) => Ok(balance.into()),
+			None => Err(errors::state_pruned()),
 		};
 
 		future::done(res).boxed()
@@ -384,20 +377,12 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 		let address: Address = RpcH160::into(address);
 		let position: U256 = RpcU256::into(pos);
 
-		let res = match num.unwrap_or_default() {
-			BlockNumber::Pending => {
-				match self.miner.storage_at(&*self.client, &address, &H256::from(position)) {
-					Some(s) => Ok(s.into()),
-					None => Err(errors::database("latest storage missing"))
-				}
-			}
-			id => {
-				try_bf!(check_known(&*self.client, id.clone()));
-				match self.client.storage_at(&address, &H256::from(position), id.into()) {
-					Some(s) => Ok(s.into()),
-					None => Err(errors::state_pruned()),
-				}
-			}
+		let id = num.unwrap_or_default();
+
+		try_bf!(check_known(&*self.client, id.clone()));
+		let res = match self.client.storage_at(&address, &H256::from(position), id.into()) {
+			Some(s) => Ok(s.into()),
+			None => Err(errors::state_pruned()),
 		};
 
 		future::done(res).boxed()
@@ -410,14 +395,8 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 			BlockNumber::Pending if self.options.pending_nonce_from_queue => {
 				let nonce = self.miner.last_nonce(&address)
 					.map(|n| n + 1.into())
-					.or_else(|| self.miner.nonce(&*self.client, &address));
+					.or_else(|| self.client.nonce(&address, BlockNumber::Pending.into()));
 				match nonce {
-					Some(nonce) => Ok(nonce.into()),
-					None => Err(errors::database("latest nonce missing"))
-				}
-			}
-			BlockNumber::Pending => {
-				match self.miner.nonce(&*self.client, &address) {
 					Some(nonce) => Ok(nonce.into()),
 					None => Err(errors::database("latest nonce missing"))
 				}
@@ -468,20 +447,12 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 	fn code_at(&self, address: RpcH160, num: Trailing<BlockNumber>) -> BoxFuture<Bytes, Error> {
 		let address: Address = RpcH160::into(address);
 
-		let res = match num.unwrap_or_default() {
-			BlockNumber::Pending => {
-				match self.miner.code(&*self.client, &address) {
-					Some(code) => Ok(code.map_or_else(Bytes::default, Bytes::new)),
-					None => Err(errors::database("latest code missing"))
-				}
-			}
-			id => {
-				try_bf!(check_known(&*self.client, id.clone()));
-				match self.client.code(&address, id.into()) {
-					Some(code) => Ok(code.map_or_else(Bytes::default, Bytes::new)),
-					None => Err(errors::state_pruned()),
-				}
-			}
+		let id = num.unwrap_or_default();
+		try_bf!(check_known(&*self.client, id.clone()));
+
+		let res = match self.client.code(&address, id.into()) {
+			Some(code) => Ok(code.map_or_else(Bytes::default, Bytes::new)),
+			None => Err(errors::state_pruned()),
 		};
 
 		future::done(res).boxed()
@@ -641,17 +612,15 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 		self.send_raw_transaction(raw)
 	}
 
-	fn call(&self, request: CallRequest, num: Trailing<BlockNumber>) -> BoxFuture<Bytes, Error> {
+	fn call(&self, meta: Self::Metadata, request: CallRequest, num: Trailing<BlockNumber>) -> BoxFuture<Bytes, Error> {
 		let request = CallRequest::into(request);
-		let signed = match fake_sign::sign_call(&self.client, &self.miner, request) {
+		let signed = match fake_sign::sign_call(&self.client, &self.miner, request, meta.is_dapp()) {
 			Ok(signed) => signed,
 			Err(e) => return future::err(e).boxed(),
 		};
 
-		let result = match num.unwrap_or_default() {
-			BlockNumber::Pending => self.miner.call(&*self.client, &signed, Default::default()),
-			num => self.client.call(&signed, num.into(), Default::default()),
-		};
+		let num = num.unwrap_or_default();
+		let result = self.client.call(&signed, Default::default(), num.into());
 
 		future::done(result
 			.map(|b| b.output.into())
@@ -659,9 +628,9 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 		).boxed()
 	}
 
-	fn estimate_gas(&self, request: CallRequest, num: Trailing<BlockNumber>) -> BoxFuture<RpcU256, Error> {
+	fn estimate_gas(&self, meta: Self::Metadata, request: CallRequest, num: Trailing<BlockNumber>) -> BoxFuture<RpcU256, Error> {
 		let request = CallRequest::into(request);
-		let signed = match fake_sign::sign_call(&self.client, &self.miner, request) {
+		let signed = match fake_sign::sign_call(&self.client, &self.miner, request, meta.is_dapp()) {
 			Ok(signed) => signed,
 			Err(e) => return future::err(e).boxed(),
 		};

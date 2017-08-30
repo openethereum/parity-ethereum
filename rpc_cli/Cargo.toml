@@ -9,7 +9,7 @@ version = "1.4.0"
 [dependencies]
 futures = "0.1"
 rpassword = "0.3.0"
-bigint = "3.0"
+bigint = "4.0"
 parity-rpc = { path = "../rpc" }
 parity-rpc-client = { path = "../rpc_client" }
 ethcore-util = { path = "../util" }

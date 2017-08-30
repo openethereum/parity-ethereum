@@ -79,8 +79,12 @@ impl<'a> Visitor<'a> for BlockNumberVisitor {
 			"latest" => Ok(BlockNumber::Latest),
 			"earliest" => Ok(BlockNumber::Earliest),
 			"pending" => Ok(BlockNumber::Pending),
-			_ if value.starts_with("0x") => u64::from_str_radix(&value[2..], 16).map(BlockNumber::Num).map_err(|_| Error::custom("invalid block number")),
-			_ => value.parse::<u64>().map(BlockNumber::Num).map_err(|_| Error::custom("invalid block number"))
+			_ if value.starts_with("0x") => u64::from_str_radix(&value[2..], 16).map(BlockNumber::Num).map_err(|e| {
+				Error::custom(format!("Invalid block number: {}", e))
+			}),
+			_ => value.parse::<u64>().map(BlockNumber::Num).map_err(|e| {
+				Error::custom(format!("Invalid block number: {}", e))
+			}),
 		}
 	}
 

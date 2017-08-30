@@ -40,7 +40,7 @@ export default class StatusStore {
   constructor (api) {
     this.api = api;
     this.api.transport.on('close', () => {
-      if this.isPolling {
+      if (this.isPolling) {
         this.startPolling();
       }
     });

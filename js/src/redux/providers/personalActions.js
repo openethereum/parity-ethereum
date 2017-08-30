@@ -23,7 +23,7 @@ import { attachWallets } from './walletActions';
 import Contract from '~/api/contract';
 import MethodDecodingStore from '~/ui/MethodDecoding/methodDecodingStore';
 import WalletsUtils from '~/util/wallets';
-import { wallet as WalletAbi } from '~/contracts/abi';
+import { foundationWallet as WalletAbi } from '~/contracts/abi';
 
 export function personalAccountsInfo (accountsInfo) {
   const accounts = {};

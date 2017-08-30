@@ -95,6 +95,11 @@ export default class Parity {
       .execute('parity_dappsList');
   }
 
+  dappsRefresh () {
+    return this._transport
+      .execute('parity_dappsRefresh');
+  }
+
   dappsUrl () {
     return this._transport
       .execute('parity_dappsUrl');
@@ -378,6 +383,11 @@ export default class Parity {
     return this._transport
       .execute('parity_nextNonce', inAddress(account))
       .then(outNumber);
+  }
+
+  nodeHealth () {
+    return this._transport
+      .execute('parity_nodeHealth');
   }
 
   nodeName () {

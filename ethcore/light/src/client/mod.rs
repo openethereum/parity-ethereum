@@ -58,6 +58,8 @@ pub struct Config {
 	pub db_wal: bool,
 	/// Should it do full verification of blocks?
 	pub verify_full: bool,
+	/// Should it check the seal of blocks?
+	pub check_seal: bool,
 }
 
 impl Default for Config {
@@ -69,6 +71,7 @@ impl Default for Config {
 			db_compaction: CompactionProfile::default(),
 			db_wal: true,
 			verify_full: true,
+			check_seal: true,
 		}
 	}
 }
@@ -97,8 +100,8 @@ pub trait LightChainClient: Send + Sync {
 	/// Get an iterator over a block and its ancestry.
 	fn ancestry_iter<'a>(&'a self, start: BlockId) -> Box<Iterator<Item=encoded::Header> + 'a>;
 
-	/// Get the signing network ID.
-	fn signing_network_id(&self) -> Option<u64>;
+	/// Get the signing chain ID.
+	fn signing_chain_id(&self) -> Option<u64>;
 
 	/// Get environment info for execution at a given block.
 	/// Fails if that block's header is not stored.
@@ -168,7 +171,7 @@ impl Client {
 		let gh = ::rlp::encode(&spec.genesis_header());
 
 		Ok(Client {
-			queue: HeaderQueue::new(config.queue, spec.engine.clone(), io_channel, true),
+			queue: HeaderQueue::new(config.queue, spec.engine.clone(), io_channel, config.check_seal),
 			engine: spec.engine.clone(),
 			chain: HeaderChain::new(db.clone(), chain_col, &gh, cache)?,
 			report: RwLock::new(ClientReport::default()),
@@ -257,9 +260,9 @@ impl Client {
 		self.chain.ancestry_iter(start)
 	}
 
-	/// Get the signing network id.
-	pub fn signing_network_id(&self) -> Option<u64> {
-		self.engine.signing_network_id(&self.latest_env_info())
+	/// Get the signing chain id.
+	pub fn signing_chain_id(&self) -> Option<u64> {
+		self.engine.signing_chain_id(&self.latest_env_info())
 	}
 
 	/// Flush the header queue.
@@ -282,6 +285,7 @@ impl Client {
 		let mut good = Vec::new();
 		for verified_header in self.queue.drain(MAX) {
 			let (num, hash) = (verified_header.number(), verified_header.hash());
+			trace!(target: "client", "importing block {}", num);
 
 			if self.verify_full && !self.check_header(&mut bad, &verified_header) {
 				continue
@@ -381,13 +385,17 @@ impl Client {
 		}
 	}
 
-	// return true if should skip, false otherwise. may push onto bad if
+	// return false if should skip, true otherwise. may push onto bad if
 	// should skip.
 	fn check_header(&self, bad: &mut Vec<H256>, verified_header: &Header) -> bool {
 		let hash = verified_header.hash();
 		let parent_header = match self.chain.block_header(BlockId::Hash(*verified_header.parent_hash())) {
 			Some(header) => header,
-			None => return false, // skip import of block with missing parent.
+			None => {
+				trace!(target: "client", "No parent for block ({}, {})",
+					verified_header.number(), hash);
+				return false // skip import of block with missing parent.
+			}
 		};
 
 		// Verify Block Family
@@ -440,8 +448,8 @@ impl LightChainClient for Client {
 		Box::new(Client::ancestry_iter(self, start))
 	}
 
-	fn signing_network_id(&self) -> Option<u64> {
-		Client::signing_network_id(self)
+	fn signing_chain_id(&self) -> Option<u64> {
+		Client::signing_chain_id(self)
 	}
 
 	fn env_info(&self, id: BlockId) -> Option<EnvInfo> {

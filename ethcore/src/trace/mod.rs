@@ -39,7 +39,7 @@ pub use self::types::filter::{Filter, AddressesFilter};
 
 use util::{Bytes, Address, U256, H256, DBTransaction};
 use self::trace::{Call, Create};
-use evm::action_params::ActionParams;
+use vm::ActionParams;
 use header::BlockNumber;
 
 /// This trait is used by executive to build traces.
@@ -85,7 +85,7 @@ pub trait Tracer: Send {
 	fn subtracer(&self) -> Self where Self: Sized;
 
 	/// Consumes self and returns all traces.
-	fn traces(self) -> Vec<FlatTrace>;
+	fn drain(self) -> Vec<FlatTrace>;
 }
 
 /// Used by executive to build VM traces.

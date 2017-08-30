@@ -14,10 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::str::FromStr;
+use std::sync::Arc;
 use io::IoChannel;
 use client::{BlockChainClient, MiningBlockChainClient, Client, ClientConfig, BlockId};
 use state::{self, State, CleanupMode};
-use executive::Executive;
+use executive::{Executive, TransactOptions};
 use ethereum;
 use block::IsBlock;
 use tests::helpers::*;
@@ -359,7 +361,7 @@ fn transaction_proof() {
 
 	let mut state = State::from_existing(backend, root, 0.into(), factories.clone()).unwrap();
 	Executive::new(&mut state, &client.latest_env_info(), &*test_spec.engine)
-		.transact(&transaction, Default::default()).unwrap();
+		.transact(&transaction, TransactOptions::with_no_tracing().dont_check_nonce()).unwrap();
 
 	assert_eq!(state.balance(&Address::default()).unwrap(), 5.into());
 	assert_eq!(state.balance(&address).unwrap(), 95.into());

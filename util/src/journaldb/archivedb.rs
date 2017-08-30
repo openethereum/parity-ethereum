@@ -16,13 +16,16 @@
 
 //! Disk-backed `HashDB` implementation.
 
-use common::*;
+use std::collections::HashMap;
+use std::collections::hash_map::Entry;
+use std::sync::Arc;
 use rlp::*;
 use hashdb::*;
 use memorydb::*;
 use super::{DB_PREFIX_LEN, LATEST_ERA_KEY};
 use super::traits::JournalDB;
 use kvdb::{KeyValueDB, DBTransaction};
+use {Bytes, H256, BaseDataError, UtilError};
 
 /// Implementation of the `HashDB` trait for a disk-backed database with a memory overlay
 /// and latent-removal semantics.
@@ -64,23 +67,28 @@ impl ArchiveDB {
 
 impl HashDB for ArchiveDB {
 	fn keys(&self) -> HashMap<H256, i32> {
-		let mut ret: HashMap<H256, i32> = HashMap::new();
-		for (key, _) in self.backing.iter(self.column) {
-			let h = H256::from_slice(&*key);
-			ret.insert(h, 1);
-		}
+		let mut ret: HashMap<H256, i32> = self.backing.iter(self.column)
+			.map(|(key, _)| (H256::from_slice(&*key), 1))
+			.collect();
 
 		for (key, refs) in self.overlay.keys() {
-			let refs = *ret.get(&key).unwrap_or(&0) + refs;
-			ret.insert(key, refs);
+			match ret.entry(key) {
+				Entry::Occupied(mut entry) => {
+					*entry.get_mut() += refs;
+				},
+				Entry::Vacant(entry) => {
+					entry.insert(refs);
+				}
+			}
 		}
 		ret
 	}
 
 	fn get(&self, key: &H256) -> Option<DBValue> {
-		let k = self.overlay.raw(key);
-		if let Some((d, rc)) = k {
-			if rc > 0 { return Some(d); }
+		if let Some((d, rc)) = self.overlay.raw(key) {
+			if rc > 0 {
+				return Some(d);
+			}
 		}
 		self.payload(key)
 	}
@@ -196,11 +204,12 @@ mod tests {
 	#![cfg_attr(feature="dev", allow(blacklisted_name))]
 	#![cfg_attr(feature="dev", allow(similar_names))]
 
-	use common::*;
+	use std::path::Path;
 	use hashdb::{HashDB, DBValue};
 	use super::*;
 	use journaldb::traits::JournalDB;
 	use kvdb::Database;
+	use {Hashable, H32};
 
 	#[test]
 	fn insert_same_in_fork() {

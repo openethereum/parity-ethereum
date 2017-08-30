@@ -47,8 +47,12 @@ impl<'a> Visitor<'a> for IndexVisitor {
 
 	fn visit_str<E>(self, value: &str) -> Result<Self::Value, E> where E: Error {
 		match value {
-			_ if value.starts_with("0x") => usize::from_str_radix(&value[2..], 16).map(Index).map_err(|_| Error::custom("invalid index")),
-			_ => value.parse::<usize>().map(Index).map_err(|_| Error::custom("invalid index")),
+			_ if value.starts_with("0x") => usize::from_str_radix(&value[2..], 16).map(Index).map_err(|e| {
+				Error::custom(format!("Invalid index: {}", e))
+			}),
+			_ => value.parse::<usize>().map(Index).map_err(|e| {
+				Error::custom(format!("Invalid index: {}", e))
+			}),
 		}
 	}
 

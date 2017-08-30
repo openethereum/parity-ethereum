@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::collections::BTreeMap;
+use std::sync::Arc;
 use ethkey::KeyPair;
 use io::*;
 use client::{BlockChainClient, Client, ClientConfig};
@@ -209,7 +211,7 @@ pub fn generate_dummy_client_with_spec_accounts_and_data<F>(get_test_spec: F, ac
 				action: Action::Create,
 				data: vec![],
 				value: U256::zero(),
-			}.sign(kp.secret(), Some(test_spec.network_id())), None).unwrap();
+			}.sign(kp.secret(), Some(test_spec.chain_id())), None).unwrap();
 			n += 1;
 		}
 
@@ -347,7 +349,7 @@ pub fn get_good_dummy_block_fork_seq(start_number: usize, count: usize, parent_h
 	for i in start_number .. start_number + count + 1 {
 		let mut block_header = Header::new();
 		block_header.set_gas_limit(test_engine.params().min_gas_limit);
-		block_header.set_difficulty(U256::from(i).mul(U256([0, 1, 0, 0])));
+		block_header.set_difficulty(U256::from(i) * U256([0, 1, 0, 0]));
 		block_header.set_timestamp(rolling_timestamp);
 		block_header.set_number(i as u64);
 		block_header.set_parent_hash(parent);
@@ -394,16 +396,13 @@ pub fn get_bad_state_dummy_block() -> Bytes {
 	create_test_block(&block_header)
 }
 
-pub fn get_default_ethash_params() -> EthashParams{
+pub fn get_default_ethash_params() -> EthashParams {
 	EthashParams {
-		gas_limit_bound_divisor: U256::from(1024),
 		minimum_difficulty: U256::from(131072),
 		difficulty_bound_divisor: U256::from(2048),
 		difficulty_increment_divisor: 10,
 		metropolis_difficulty_increment_divisor: 9,
 		duration_limit: 13,
-		block_reward: U256::from(0),
-		registrar: "0000000000000000000000000000000000000001".into(),
 		homestead_transition: 1150000,
 		dao_hardfork_transition: u64::max_value(),
 		dao_hardfork_beneficiary: "0000000000000000000000000000000000000001".into(),
@@ -413,7 +412,6 @@ pub fn get_default_ethash_params() -> EthashParams{
 		bomb_defuse_transition: u64::max_value(),
 		eip100b_transition: u64::max_value(),
 		eip150_transition: u64::max_value(),
-		eip155_transition: u64::max_value(),
 		eip160_transition: u64::max_value(),
 		eip161abc_transition: u64::max_value(),
 		eip161d_transition: u64::max_value(),

@@ -21,20 +21,24 @@
 extern crate futures;
 extern crate byteorder;
 extern crate ethabi;
-extern crate ethcore_util as util;
+extern crate ethcore_bigint as bigint;
 
+mod key_server_set;
 mod registry;
 mod urlhint;
 mod service_transaction;
 mod secretstore_acl_storage;
 mod validator_set;
 mod validator_report;
+mod peer_set;
 
 pub mod test_contracts;
 
+pub use self::key_server_set::KeyServerSet;
 pub use self::registry::Registry;
 pub use self::urlhint::Urlhint;
 pub use self::service_transaction::ServiceTransactionChecker;
 pub use self::secretstore_acl_storage::SecretStoreAclStorage;
 pub use self::validator_set::ValidatorSet;
 pub use self::validator_report::ValidatorReport;
+pub use self::peer_set::PeerSet;

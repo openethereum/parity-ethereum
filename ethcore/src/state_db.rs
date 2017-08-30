@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::{VecDeque, HashSet};
+use std::sync::Arc;
 use lru_cache::LruCache;
 use util::cache::MemoryLruCache;
 use util::journaldb::JournalDB;
@@ -23,7 +24,7 @@ use util::hash::{H256};
 use util::hashdb::HashDB;
 use state::{self, Account};
 use header::BlockNumber;
-use util::{Arc, Address, DBTransaction, UtilError, Mutex, Hashable};
+use util::{Address, DBTransaction, UtilError, Mutex, Hashable};
 use bloom_journal::{Bloom, BloomJournal};
 use db::COL_ACCOUNT_BLOOM;
 use byteorder::{LittleEndian, ByteOrder};
