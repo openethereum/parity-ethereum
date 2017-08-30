@@ -31,7 +31,6 @@ const STATUS_BAD = 'bad';
 
 export default class Status {
   _apiStatus = {};
-  _status = {};
   _longStatus = {};
   _minerSettings = {};
   _timeoutIds = {};
@@ -78,8 +77,10 @@ export default class Status {
       .all([
         this._subscribeBlockNumber(),
         this._subscribeNetPeers(),
+        this._subscribeEthSyncing(),
+        this._subscribeNodeHealth(),
         this._pollLongStatus(),
-        this._pollStatus()
+        this._pollApiStatus()
       ])
       .then(() => {
         return BalancesProvider.start();
@@ -118,6 +119,17 @@ export default class Status {
       .then(() => this.updateApiStatus());
   }
 
+  getApiStatus = () => {
+    const { isConnected, isConnecting, needsToken, secureToken } = this._api;
+
+    return {
+      isConnected,
+      isConnecting,
+      needsToken,
+      secureToken
+    };
+  }
+
   updateApiStatus () {
     const apiStatus = this.getApiStatus();
 
@@ -127,6 +139,56 @@ export default class Status {
       this._store.dispatch(statusCollection(apiStatus));
       this._apiStatus = apiStatus;
     }
+  }
+
+  _subscribeEthSyncing = () => {
+    return this._api.pubsub
+      .eth
+      .syncing((error, syncing) => {
+        if (error) {
+          return;
+        }
+
+        this._store.dispatch(statusCollection({ syncing }));
+      });
+  }
+
+  _subscribeNodeHealth = () => {
+    return this._api.pubsub
+      .parity
+      .nodeHealth((error, health) => {
+        if (error || !health) {
+          return;
+        }
+
+        health.overall = this._overallStatus(health);
+        health.peers = health.peers || {};
+        health.sync = health.sync || {};
+        health.time = health.time || {};
+
+        this._store.dispatch(statusCollection({ health }));
+      });
+  }
+
+  _overallStatus = (health) => {
+    const allWithTime = [health.peers, health.sync, health.time].filter(x => x);
+    const all = [health.peers, health.sync].filter(x => x);
+    const statuses = all.map(x => x.status);
+    const bad = statuses.find(x => x === STATUS_BAD);
+    const needsAttention = statuses.find(x => x === STATUS_WARN);
+    const message = allWithTime.map(x => x.message).filter(x => x);
+
+    if (all.length) {
+      return {
+        status: bad || needsAttention || STATUS_OK,
+        message
+      };
+    }
+
+    return {
+      status: STATUS_BAD,
+      message: ['Unable to fetch node health.']
+    };
   }
 
   _subscribeNetPeers = () => {
@@ -170,91 +232,22 @@ export default class Status {
       });
   }
 
-  _pollTraceMode = () => {
-    return this._api.trace
-      .block()
-      .then(blockTraces => {
-        // Assumes not in Trace Mode if no transactions
-        // in latest block...
-        return blockTraces.length > 0;
-      })
-      .catch(() => false);
-  }
-
-  getApiStatus = () => {
-    const { isConnected, isConnecting, needsToken, secureToken } = this._api;
-
-    return {
-      isConnected,
-      isConnecting,
-      needsToken,
-      secureToken
-    };
-  }
-
-  _pollStatus = () => {
-    const nextTimeout = (timeout = 3000) => {
+  _pollApiStatus = () => {
+    const nextTimeout = (timeout = 1000) => {
       if (this._timeoutIds.status) {
         clearTimeout(this._timeoutIds.status);
       }
 
-      this._timeoutIds.status = setTimeout(() => this._pollStatus(), timeout);
+      this._timeoutIds.status = setTimeout(() => this._pollApiStatus(), timeout);
     };
 
     this.updateApiStatus();
 
     if (!this._api.isConnected) {
       nextTimeout(250);
-      return Promise.resolve();
+    } else {
+      nextTimeout();
     }
-
-    const statusPromises = [
-      this._api.eth.syncing(),
-      this._api.parity.nodeHealth()
-    ];
-
-    return Promise
-      .all(statusPromises)
-      .then(([ syncing, health ]) => {
-        const status = { syncing, health };
-
-        health.overall = this._overallStatus(health);
-        health.peers = health.peers || {};
-        health.sync = health.sync || {};
-        health.time = health.time || {};
-
-        if (!isEqual(status, this._status)) {
-          this._store.dispatch(statusCollection(status));
-          this._status = status;
-        }
-      })
-      .catch((error) => {
-        console.error('_pollStatus', error);
-      })
-      .then(() => {
-        nextTimeout();
-      });
-  }
-
-  _overallStatus = (health) => {
-    const allWithTime = [health.peers, health.sync, health.time].filter(x => x);
-    const all = [health.peers, health.sync].filter(x => x);
-    const statuses = all.map(x => x.status);
-    const bad = statuses.find(x => x === STATUS_BAD);
-    const needsAttention = statuses.find(x => x === STATUS_WARN);
-    const message = allWithTime.map(x => x.message).filter(x => x);
-
-    if (all.length) {
-      return {
-        status: bad || needsAttention || STATUS_OK,
-        message
-      };
-    }
-
-    return {
-      status: STATUS_BAD,
-      message: ['Unable to fetch node health.']
-    };
   }
 
   /**
@@ -269,7 +262,7 @@ export default class Status {
     }
 
     const { nodeKindFull } = this._store.getState().nodeStatus;
-    const defaultTimeout = (nodeKindFull === false ? 240 : 30) * 1000;
+    const defaultTimeout = (nodeKindFull === false ? 240 : 60) * 1000;
 
     const nextTimeout = (timeout = defaultTimeout) => {
       if (this._timeoutIds.longStatus) {
@@ -318,11 +311,12 @@ export default class Status {
           this._longStatus = longStatus;
         }
       })
+      .then(() => {
+        nextTimeout();
+      })
       .catch((error) => {
         console.error('_pollLongStatus', error);
-      })
-      .then(() => {
-        nextTimeout(60000);
+        nextTimeout(30000)
       });
   }
 }
