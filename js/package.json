@@ -81,6 +81,7 @@
     "css-loader": "0.28.4",
     "ejs-loader": "0.3.0",
     "ejsify": "1.0.0",
+    "electron": "1.7.5",
     "empty-module": "0.0.2",
     "enzyme": "2.9.1",
     "eslint": "3.16.1",
