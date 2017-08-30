@@ -734,8 +734,10 @@ impl BlockChainClient for TestBlockChainClient {
 	}
 
 	fn queue_consensus_message(&self, message: Bytes) {
-		self.spec.engine.handle_message(&message).unwrap();
+		self.spec.engine.handle_consensus_message(&message).unwrap();
 	}
+
+	fn queue_private_transaction(&self, _transaction: Bytes, _peer_id: usize) { unimplemented!(); }
 
 	fn ready_transactions(&self) -> Vec<PendingTransaction> {
 		let info = self.chain_info();

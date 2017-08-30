@@ -162,8 +162,9 @@ const SNAPSHOT_MANIFEST_PACKET: u8 = 0x12;
 const GET_SNAPSHOT_DATA_PACKET: u8 = 0x13;
 const SNAPSHOT_DATA_PACKET: u8 = 0x14;
 const CONSENSUS_DATA_PACKET: u8 = 0x15;
+const PRIVATE_TRANSACTION_PACKET: u8 = 0x16;
 
-pub const SNAPSHOT_SYNC_PACKET_COUNT: u8 = 0x16;
+pub const SNAPSHOT_SYNC_PACKET_COUNT: u8 = 0x17;
 
 const MAX_SNAPSHOT_CHUNKS_DOWNLOAD_AHEAD: usize = 3;
 
@@ -1750,6 +1751,7 @@ impl ChainSync {
 				ChainSync::return_snapshot_data,
 				|e| format!("Error sending snapshot data: {:?}", e)),
 			CONSENSUS_DATA_PACKET => ChainSync::on_consensus_packet(io, peer, &rlp),
+			PRIVATE_TRANSACTION_PACKET => ChainSync::on_private_transaction(io, peer, &rlp),
 			_ => {
 				sync.write().on_packet(io, peer, packet_id, data);
 				Ok(())
@@ -2208,6 +2210,23 @@ impl ChainSync {
 			self.send_packet(io, peer_id, CONSENSUS_DATA_PACKET, packet.clone());
 		}
 	}
+
+	/// Called when peer sends us new consensus packet
+	fn on_private_transaction(io: &mut SyncIo, peer_id: PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
+		trace!(target: "sync", "Received private transaction packet from {:?}", peer_id);
+		io.chain().queue_private_transaction(r.as_raw().to_vec(), peer_id);
+		Ok(())
+	}
+
+	/// Broadcast consensus message to peers.
+	pub fn propagate_private_transaction(&mut self, io: &mut SyncIo, packet: Bytes) {
+		let lucky_peers = ChainSync::select_random_peers(&self.get_consensus_peers());
+		trace!(target: "sync", "Sending private transaction packet to {:?}", lucky_peers);
+		for peer_id in lucky_peers {
+			self.send_packet(io, peer_id, PRIVATE_TRANSACTION_PACKET, packet.clone());
+		}
+	}
+	
 }
 
 /// Checks if peer is able to process service transactions

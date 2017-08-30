@@ -24,7 +24,7 @@ use bigint::prelude::U256;
 use bigint::hash::{H256, H512};
 use io::{TimerToken};
 use ethcore::ethstore::ethkey::Secret;
-use ethcore::client::{BlockChainClient, ChainNotify};
+use ethcore::client::{BlockChainClient, ChainNotify, ChainMessageType};
 use ethcore::snapshot::SnapshotService;
 use ethcore::header::BlockNumber;
 use sync_io::NetSyncIo;
@@ -454,10 +454,13 @@ impl ChainNotify for EthSync {
 		self.network.stop().unwrap_or_else(|e| warn!("Error stopping network: {:?}", e));
 	}
 
-	fn broadcast(&self, message: Vec<u8>) {
+	fn broadcast(&self, message_type: ChainMessageType, message: Vec<u8>) {
 		self.network.with_context(WARP_SYNC_PROTOCOL_ID, |context| {
 			let mut sync_io = NetSyncIo::new(context, &*self.eth_handler.chain, &*self.eth_handler.snapshot_service, &self.eth_handler.overlay);
-			self.eth_handler.sync.write().propagate_consensus_packet(&mut sync_io, message.clone());
+			match message_type {
+				ChainMessageType::Consensus => self.eth_handler.sync.write().propagate_consensus_packet(&mut sync_io, message.clone()),
+				ChainMessageType::PrivateTransaction => self.eth_handler.sync.write().propagate_private_transaction(&mut sync_io, message.clone()),
+			}
 		});
 	}
 

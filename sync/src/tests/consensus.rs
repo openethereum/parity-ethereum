@@ -18,8 +18,8 @@ use std::sync::Arc;
 use hash::keccak;
 use bigint::prelude::U256;
 use util::*;
-use io::{IoHandler, IoContext, IoChannel};
-use ethcore::client::{BlockChainClient, Client};
+use io::{IoHandler, IoChannel};
+use ethcore::client::BlockChainClient;
 use ethcore::service::ClientIoMessage;
 use ethcore::spec::Spec;
 use ethcore::miner::MinerService;
@@ -28,21 +28,6 @@ use ethcore::account_provider::AccountProvider;
 use ethkey::{KeyPair, Secret};
 use super::helpers::*;
 use SyncConfig;
-
-struct TestIoHandler {
-	client: Arc<Client>,
-}
-
-impl IoHandler<ClientIoMessage> for TestIoHandler {
-	fn message(&self, _io: &IoContext<ClientIoMessage>, net_message: &ClientIoMessage) {
-		match *net_message {
-			ClientIoMessage::NewMessage(ref message) => if let Err(e) = self.client.engine().handle_message(message) {
-				panic!("Invalid message received: {}", e);
-			},
-			_ => {} // ignore other messages
-		}
-	}
-}
 
 fn new_tx(secret: &Secret, nonce: U256, chain_id: u64) -> PendingTransaction {
 	let signed = Transaction {

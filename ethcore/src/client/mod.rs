@@ -29,8 +29,8 @@ pub use self::config::{Mode, ClientConfig, DatabaseCompactionProfile, BlockChain
 pub use self::error::Error;
 pub use self::evm_test_client::{EvmTestClient, EvmTestError, TransactResult};
 pub use self::test_client::{TestBlockChainClient, EachBlockWith};
-pub use self::chain_notify::ChainNotify;
-pub use self::traits::{BlockChainClient, MiningBlockChainClient, EngineClient};
+pub use self::chain_notify::{ChainNotify, ChainMessageType};
+pub use self::traits::{BlockChainClient, MiningBlockChainClient, EngineClient, PrivateTransactionClient};
 
 pub use self::traits::ProvingBlockChainClient;
 
