@@ -7,4 +7,4 @@ authors = ["debris <marek.kotewicz@gmail.com>"]
 ethcore-bigint = { path = "../bigint" }
 
 [dev-dependencies]
-tiny-keccak = "1.3"
+hash = { path = "../hash" }
