@@ -56,7 +56,6 @@ pub enum Error {
 /// This is the transaction info we need to supply to Trezor message. It's more
 /// or less a duplicate of ethcore::transaction::Transaction, but we can't
 /// import ethcore here as that would be a circular dependency.
-#[derive(Debug)]
 pub struct TransactionInfo {
 	pub nonce: U256,
 	pub gas_price: U256,

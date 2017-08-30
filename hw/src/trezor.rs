@@ -398,13 +398,16 @@ impl Manager {
 }
 
 #[test]
-fn debug() {
+#[ignore]
+/// This test can't be run without an actual trezor device connected
+/// (and unlocked) attached to the machine that's running the test
+fn test_signature() {
 	use bigint::prelude::uint::U256;
-	use bigint::hash::H160;
+	use bigint::hash::{H160, H256};
 
 	let hidapi = Arc::new(Mutex::new(hidapi::HidApi::new().unwrap()));
 	let mut manager = Manager::new(hidapi.clone());
-	let addr: Address = H160::from("3C9b5aC40587E6799D42f7342c3641bc4aABEDa4");
+	let addr: Address = H160::from("some_addr");
 
 	manager.update_devices().unwrap();
 
@@ -412,13 +415,17 @@ fn debug() {
 		nonce: U256::from(1),
 		gas_price: U256::from(100),
 		gas_limit: U256::from(21_000),
-		to: Some(H160::from("00b1d5c8e02a18f5d5ddb83b6d17db757706148c")),
+		to: Some(H160::from("some_other_addr")),
 		network_id: Some(17),
 		value: U256::from(1_000_000),
 		data: (&[1u8; 3000]).to_vec(),
 	};
-	let signature = manager.sign_transaction(&addr, &t_info);
-	println!("Signature: {:?}", signature);
+	let signature = manager.sign_transaction(&addr, &t_info).unwrap();
+	let expected = Signature::from_rsv(
+		&H256::from("device_specific_r"),
+		&H256::from("device_specific_s"),
+		0x01
+		);
 
-	assert!(true)
+	assert_eq!(signature, expected)
 }
