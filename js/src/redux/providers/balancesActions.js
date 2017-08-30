@@ -163,7 +163,7 @@ export function updateTokensFilter (_addresses, _tokens, options = {}) {
 
         const filterOptions = {
           fromBlock: block,
-          toBlock: 'pending',
+          toBlock: 'latest',
           address: tokenAddresses
         };
 

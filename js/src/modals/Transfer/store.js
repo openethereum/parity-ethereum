@@ -87,6 +87,7 @@ export default class TransferStore {
     this.newError = newError;
     this.tokens = tokens;
 
+    console.log(gasLimit);
     this.gasStore = new GasPriceStore(api, { gasLimit });
     this.tokenContract = api.newContract(tokenAbi, '');
 
@@ -133,8 +134,8 @@ export default class TransferStore {
   }
 
   @action handleClose = () => {
-    this.stage = 0;
     this.onClose();
+    this.stage = 0;
   }
 
   @action onUpdateDetails = (type, value) => {
@@ -169,7 +170,6 @@ export default class TransferStore {
   }
 
   @action onSend = () => {
-    this.onNext();
     this.sending = true;
 
     this

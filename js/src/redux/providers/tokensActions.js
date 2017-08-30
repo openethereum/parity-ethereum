@@ -51,39 +51,57 @@ export function loadTokens (options = {}) {
 
 export function fetchTokens (_tokenIndexes, options = {}) {
   const tokenIndexes = uniq(_tokenIndexes || []);
+  const tokenChunks = chunks(tokenIndexes, 64);
 
   return (dispatch, getState) => {
     const { api, images } = getState();
     const { tokenReg } = Contracts.get();
 
-    return tokenReg.getContract()
-      .then((tokenReg) => {
-        return fetchTokensInfo(api, tokenReg, tokenIndexes);
-      })
-      .then((results) => {
-        const tokens = results
-          .filter((token) => {
-            return token.name && token.address && !/^(0x)?0*$/.test(token.address);
-          })
-          .reduce((tokens, token) => {
-            const { id, image, address } = token;
+    const processChunk = (chunk) => {
+      if (!chunk || chunk.length === 0) {
+        return Promise.resolve(true);
+      }
 
-            // dispatch only the changed images
-            if (images[address] !== image) {
-              dispatch(setAddressImage(address, image, true));
-            }
+      let tokens = {};
 
-            tokens[id] = token;
-            return tokens;
-          }, {});
+      return tokenReg.getContract()
+        .then((tokenReg) => {
+          return fetchTokensInfo(api, tokenReg, chunk);
+        })
+        .then((results) => {
+          tokens = results
+            .filter((token) => {
+              return token.name && token.address && !/^(0x)?0*$/.test(token.address);
+            })
+            .reduce((tokens, token) => {
+              const { id, image, address } = token;
 
-        log.debug('fetched token', tokens);
+              // dispatch only the changed images
+              if (images[address] !== image) {
+                dispatch(setAddressImage(address, image, true));
+              }
 
-        dispatch(setTokens(tokens));
-        dispatch(updateTokensFilter(null, null, options));
-      })
-      .catch((error) => {
-        console.warn('tokens::fetchTokens', error);
-      });
+              tokens[id] = token;
+              return tokens;
+            }, tokens);
+
+          log.debug('fetched token', tokens);
+
+          dispatch(setTokens(tokens));
+          dispatch(updateTokensFilter(null, null, options));
+        })
+        .catch((error) => {
+          console.warn('tokens::fetchTokens', error);
+        });
+    };
+    let promise = Promise.resolve(true);
+
+    while (tokensChunks.length) {
+      const chunk = tokenChunks.unshift();
+
+      promise = promise.then(() => processChunk(chunk));
+    }
+
+    return promise;
   };
 }
