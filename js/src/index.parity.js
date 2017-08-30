@@ -52,8 +52,7 @@ if (window.location.hash && window.location.hash.indexOf(AUTH_HASH) === 0) {
   token = qs.parse(window.location.hash.substr(AUTH_HASH.length)).token;
 }
 
-const uiUrl = window.location.host;
-const api = new SecureApi(uiUrl, token);
+const api = new SecureApi(window.location.host, token);
 
 ContractInstances.get(api);
 

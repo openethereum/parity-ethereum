@@ -22,6 +22,9 @@ import { LOG_KEYS, getLogger } from '@parity/shared/config';
 
 const log = getLogger(LOG_KEYS.Signer);
 
+const RPC_URL = '127.0.0.1:8545';
+const WS_URL = '127.0.0.1:8546';
+
 export default class SecureApi extends Api {
   _isConnecting = false;
   _needsToken = false;
@@ -32,13 +35,17 @@ export default class SecureApi extends Api {
   _wsUrl = null;
   _url = null;
 
-  static getTransport (url, sysuiToken, protocol) {
-    const transportUrl = SecureApi.transportUrl(url, protocol);
+  static getHttpProvider (url = RPC_URL, protocol) {
+    return new Api.Provider.Http(`${protocol}//${url}/rpc`, 0);
+  }
+
+  static getWsProvider (url = WS_URL, protocol, sysuiToken) {
+    const transportUrl = SecureApi.transportWsUrl(url, protocol);
 
     return new Api.Provider.Ws(transportUrl, sysuiToken, false);
   }
 
-  static transportUrl (url, protocol) {
+  static transportWsUrl (url, protocol) {
     const proto = protocol() === 'https:' ? 'wss:' : 'ws:';
 
     return `${proto}//${url}`;
@@ -51,23 +58,29 @@ export default class SecureApi extends Api {
       : window.location.protocol;
   }
 
-  constructor (uiUrl, nextToken, getTransport = SecureApi.getTransport, protocol = SecureApi.protocol) {
+  constructor (uiUrl, nextToken, getProvider = SecureApi.getWsProvider, protocol = SecureApi.protocol) {
     const sysuiToken = store.get('sysuiToken');
-    const transport = getTransport(uiUrl, sysuiToken, protocol);
+    const wsProvider = getProvider(uiUrl, protocol, sysuiToken);
 
-    super(transport);
+    super(wsProvider);
 
     this.protocol = protocol;
     this._url = uiUrl;
-    this._uiApi = new Api(new Api.Provider.Http(`${this.protocol()}//${this._url}/rpc`, 0), false);
+
+    const httpProvider = SecureApi.getHttpProvider(this._url, this.protocol());
+
+    this._uiApi = new Api(httpProvider, false);
     this._wsUrl = uiUrl;
     // Try tokens from localStorage, from hash and 'initial'
     this._tokens = uniq([sysuiToken, nextToken, 'initial'])
       .filter((token) => token)
-      .map((token) => ({ value: token, tried: false }));
+      .map((value) => ({
+        value,
+        tried: false
+      }));
 
-    // When the transport is closed, try to reconnect
-    transport.on('close', this.connect, this);
+    // When the provider is closed, try to reconnect
+    wsProvider.on('close', this.connect, this);
 
     this.connect();
   }
@@ -103,7 +116,7 @@ export default class SecureApi extends Api {
       return 'dapps.parity';
     }
 
-    return this._dappsAddress.host;
+    return this._dappsAddress.host || '127.0.0.1';
   }
 
   get isConnecting () {
