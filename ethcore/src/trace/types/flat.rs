@@ -18,7 +18,7 @@
 
 use std::collections::VecDeque;
 use rlp::*;
-use util::HeapSizeOf;
+use heapsize::HeapSizeOf;
 use basic_types::LogBloom;
 use super::trace::{Action, Res};
 

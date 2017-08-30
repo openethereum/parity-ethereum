@@ -17,6 +17,7 @@
 use std::collections::{HashSet, HashMap};
 use std::collections::hash_map::Entry;
 use smallvec::SmallVec;
+use heapsize::HeapSizeOf;
 use util::*;
 use rlp::*;
 use network::NetworkError;

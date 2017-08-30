@@ -21,6 +21,7 @@ use std::sync::Arc;
 use std::mem;
 use itertools::Itertools;
 use bloomchain as bc;
+use heapsize::HeapSizeOf;
 use util::*;
 use rlp::*;
 use header::*;
