@@ -39,6 +39,11 @@ export default class StatusStore {
 
   constructor (api) {
     this.api = api;
+    this.api.transport.on('close', () => {
+      if this.isPolling {
+        this.startPolling();
+      }
+    });
   }
 
   @action setStatuses ({ chain, defaultExtraData, enode, netPeers, netPort, rpcSettings, hashrate }) {
@@ -58,15 +63,13 @@ export default class StatusStore {
     this.minGasPrice = minGasPrice;
   }
 
-  startPolling () {
-    this._startPolling();
-  }
-
   stopPolling () {
+    this.isPolling = false;
     this.subscription.then(id => this.api.pubsub.unsubscribe([id]));
   }
 
-  _startPolling () {
+  startPolling () {
+    this.isPolling = true;
     this.subscription = this.api.pubsub.parity.getBlockHeaderByNumber((error, block) => {
       if (error) {
         console.warn('_startPolling', error);

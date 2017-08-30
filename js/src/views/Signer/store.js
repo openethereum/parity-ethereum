@@ -28,6 +28,9 @@ export default class SignerStore {
     this.externalLink = externalLink;
 
     if (withLocalTransactions) {
+      this._api.transport.on('close', () => {
+        this.subscribeLocalTransactions();
+      });
       this.subscribeLocalTransactions();
     }
   }
