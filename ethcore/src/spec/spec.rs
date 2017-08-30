@@ -346,7 +346,6 @@ impl Spec {
 				};
 
 				let mut substate = Substate::new();
-				state.kill_account(&address);
 
 				{
 					let mut exec = Executive::new(&mut state, &env_info, self.engine.as_ref());
@@ -551,6 +550,9 @@ mod tests {
 		let db = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
 		let state = State::from_existing(db.boxed_clone(), spec.state_root(), spec.engine.account_start_nonce(0), Default::default()).unwrap();
 		let expected = H256::from_str("0000000000000000000000000000000000000000000000000000000000000001").unwrap();
-		assert_eq!(state.storage_at(&Address::from_str("0000000000000000000000000000000000000005").unwrap(), &H256::zero()).unwrap(), expected);
+		let address = Address::from_str("0000000000000000000000000000000000000005").unwrap();
+
+		assert_eq!(state.storage_at(&address, &H256::zero()).unwrap(), expected);
+		assert_eq!(state.balance(&address).unwrap(), 1.into());
 	}
 }
