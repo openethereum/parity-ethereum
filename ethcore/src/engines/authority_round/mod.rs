@@ -31,7 +31,6 @@ use error::{Error, TransactionError, BlockError};
 use ethjson;
 use header::{Header, BlockNumber};
 use spec::CommonParams;
-use state::CleanupMode;
 use transaction::UnverifiedTransaction;
 
 use super::signer::EngineSigner;
@@ -548,17 +547,7 @@ impl Engine for AuthorityRound {
 
 	/// Apply the block reward on finalisation of the block.
 	fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<(), Error> {
-		let fields = block.fields_mut();
-		// Bestow block reward
-		let reward = self.params().block_reward;
-		let res = fields.state.add_balance(fields.header.author(), &reward, CleanupMode::NoEmpty)
-			.map_err(::error::Error::from)
-			.and_then(|_| fields.state.commit());
-		// Commit state so that we can actually figure out the state root.
-		if let Err(ref e) = res {
-			warn!("Encountered error on closing block: {}", e);
-		}
-		res
+		::engines::common::bestow_block_reward(block, self)
 	}
 
 	/// Check the number of seal fields.

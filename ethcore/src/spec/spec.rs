@@ -483,6 +483,9 @@ impl Spec {
 	/// Create a new Spec which conforms to the Frontier-era Morden chain except that it's a NullEngine consensus.
 	pub fn new_test() -> Spec { load_bundled!("null_morden") }
 
+	/// Create a new Spec which conforms to the Frontier-era Morden chain except that it's a NullEngine consensus with applying reward on block close.
+	pub fn new_test_with_reward() -> Spec { load_bundled!("null_morden_with_reward") }
+
 	/// Create a new Spec which is a NullEngine consensus with a premine of address whose secret is sha3('').
 	pub fn new_null() -> Spec { load_bundled!("null") }
 
