@@ -28,7 +28,7 @@ use parking_lot::Mutex;
 use protobuf;
 use protobuf::{Message, ProtobufEnum};
 use serde_json;
-use std::cmp::min;
+use std::cmp::{min, max};
 use std::fmt;
 use std::sync::Arc;
 use std::time::Duration;
@@ -163,13 +163,13 @@ impl Manager {
 		}
 	}
 
-	pub fn message(&self, message_type: String, device_path: Option<String>, message: Option<String>) -> Result<String, Error> {
-		match message_type.as_ref() {
+	pub fn message(&self, message_type: &str, device_path: &Option<String>, message: &Option<String>) -> Result<String, Error> {
+		match message_type {
 			"get_devices" => {
 				serde_json::to_string(&self.closed_devices).map_err(Error::SerdeError)
 			}
 			"pin_matrix_ack" => {
-				if let (Some(path), Some(msg)) = (device_path, message) {
+				if let (&Some(ref path), &Some(ref msg)) = (device_path, message) {
 					let unlocked = self.pin_matrix_ack(&path, &msg)?;
 					serde_json::to_string(&unlocked).map_err(Error::SerdeError)
 				} else {
@@ -273,13 +273,13 @@ impl Manager {
 		let chunk = &t_info.data[0..first_chunk_length];
 		message.set_data_initial_chunk(chunk.to_vec());
 		message.set_data_length(t_info.data.len() as u32);
-		if let Some(n_id) = t_info.network_id {
-			message.set_chain_id(n_id as u32);
+		if let Some(c_id) = t_info.chain_id {
+			message.set_chain_id(c_id as u32);
 		}
 
 		self.send_device_message(&handle, &msg_type, &message)?;
 
-		self.signing_loop(&handle, &t_info.network_id, &t_info.data[first_chunk_length..])
+		self.signing_loop(&handle, &t_info.chain_id, &t_info.data[first_chunk_length..])
 	}
 
 	fn u256_to_be_vec(&self, val: &U256) -> Vec<u8> {
@@ -317,10 +317,12 @@ impl Manager {
 						// part of the signature that is already adjusted for EIP-155,
 						// so v' = v + 2 * chain_id + 35, but code further down the
 						// pipeline will already do this transformation, so remove it here
-						Ok(Signature::from_rsv(&r, &s, (v - (35 + 2 * c_id as u32)) as u8))
+						let adjustment = 35 * 2 * c_id as u32;
+						Ok(Signature::from_rsv(&r, &s, (max(v, adjustment) - adjustment) as u8))
 					} else {
 						// If there isn't a chain_id, v will be returned as v + 27
-						Ok(Signature::from_rsv(&r, &s, (v - 27) as u8))
+						let adjusted_v = if v < 27 { v } else { v - 27 };
+						Ok(Signature::from_rsv(&r, &s, adjusted_v as u8))
 					}
 				}
 			}
@@ -416,7 +418,7 @@ fn test_signature() {
 		gas_price: U256::from(100),
 		gas_limit: U256::from(21_000),
 		to: Some(H160::from("some_other_addr")),
-		network_id: Some(17),
+		chain_id: Some(17),
 		value: U256::from(1_000_000),
 		data: (&[1u8; 3000]).to_vec(),
 	};

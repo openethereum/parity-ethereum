@@ -134,7 +134,7 @@ impl Parity for ParityClient {
 
 	fn trezor(&self, message_type: String, device_path: Option<String>, message: Option<String>) -> Result<String, Error> {
 		let store = &self.accounts;
-		Ok(store.trezor_message(message_type, device_path, message).map_err(|e| errors::account("Error communicating with Trezor.", e))?)
+		Ok(store.trezor_message(&message_type, &device_path, &message).map_err(|e| errors::account("Error communicating with Trezor.", e))?)
 	}
 
 	fn default_account(&self, meta: Self::Metadata) -> BoxFuture<H160, Error> {

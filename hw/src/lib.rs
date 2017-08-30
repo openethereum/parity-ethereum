@@ -46,9 +46,12 @@ use bigint::prelude::uint::U256;
 pub enum Error {
 	/// Ledger device error.
 	LedgerDevice(ledger::Error),
+	/// Trezor device error
 	TrezorDevice(trezor::Error),
 	/// USB error.
 	Usb(libusb::Error),
+	/// HID error
+	Hid(String),
 	/// Hardware wallet not found for specified key.
 	KeyNotFound,
 }
@@ -63,7 +66,7 @@ pub struct TransactionInfo {
 	pub to: Option<Address>,
 	pub value: U256,
 	pub data: Vec<u8>,
-	pub network_id: Option<u64>,
+	pub chain_id: Option<u64>,
 }
 
 /// Hardware wallet information.
@@ -95,6 +98,7 @@ impl fmt::Display for Error {
 			Error::LedgerDevice(ref e) => write!(f, "{}", e),
 			Error::TrezorDevice(ref e) => write!(f, "{}", e),
 			Error::Usb(ref e) => write!(f, "{}", e),
+			Error::Hid(ref e) => write!(f, "{}", e),
 		}
 	}
 }
@@ -139,25 +143,17 @@ struct EventHandler {
 impl libusb::Hotplug for EventHandler {
 	fn device_arrived(&mut self, _device: libusb::Device) {
 		debug!("USB Device arrived");
-		if let Some(l) = self.ledger.upgrade() {
+		if let (Some(l), Some(t)) = (self.ledger.upgrade(), self.trezor.upgrade()) {
 			for _ in 0..10 {
-				// The device might not be visible right away. Try a few times.
-				if l.lock().update_devices().unwrap_or_else(|e| {
+				let l_devices = l.lock().update_devices().unwrap_or_else(|e| {
 					debug!("Error enumerating Ledger devices: {}", e);
 					0
-				}) > 0 {
-					break;
-				}
-				thread::sleep(Duration::from_millis(200));
-			}
-		}
-		if let Some(t) = self.trezor.upgrade() {
-			for _ in 0..10 {
-				// The device might not be visible right away. Try a few times.
-				if t.lock().update_devices().unwrap_or_else(|e| {
-					debug!("Error enumerating Ledger devices: {}", e);
+				});
+				let t_devices = t.lock().update_devices().unwrap_or_else(|e| {
+					debug!("Error enumerating Trezor devices: {}", e);
 					0
-				}) > 0 {
+				});
+				if l_devices + t_devices > 0 {
 					break;
 				}
 				thread::sleep(Duration::from_millis(200));
@@ -167,15 +163,9 @@ impl libusb::Hotplug for EventHandler {
 
 	fn device_left(&mut self, _device: libusb::Device) {
 		debug!("USB Device lost");
-		if let Some(l) = self.ledger.upgrade() {
-			if let Err(e) = l.lock().update_devices() {
-				debug!("Error enumerating Ledger devices: {}", e);
-			}
-		}
-		if let Some(t) = self.trezor.upgrade() {
-			if let Err(e) = t.lock().update_devices() {
-				debug!("Error enumerating Ledger devices: {}", e);
-			}
+		if let (Some(l), Some(t)) = (self.ledger.upgrade(), self.trezor.upgrade()) {
+			l.lock().update_devices().unwrap_or_else(|e| {debug!("Error enumerating Ledger devices: {}", e); 0});
+			t.lock().update_devices().unwrap_or_else(|e| {debug!("Error enumerating Trezor devices: {}", e); 0});
 		}
 	}
 }
@@ -183,7 +173,7 @@ impl libusb::Hotplug for EventHandler {
 impl HardwareWalletManager {
 	pub fn new() -> Result<HardwareWalletManager, Error> {
 		let usb_context = Arc::new(libusb::Context::new()?);
-		let hidapi = Arc::new(Mutex::new(hidapi::HidApi::new().map_err(|_| libusb::Error::Io)?));
+		let hidapi = Arc::new(Mutex::new(hidapi::HidApi::new().map_err(|e| Error::Hid(e.to_string().clone()))?));
 		let ledger = Arc::new(Mutex::new(ledger::Manager::new(hidapi.clone())));
 		let trezor = Arc::new(Mutex::new(trezor::Manager::new(hidapi.clone())));
 		usb_context.register_callback(
@@ -259,7 +249,7 @@ impl HardwareWalletManager {
 	}
 
 	/// Communicate with trezor hardware wallet
-	pub fn trezor_message(&self, message_type: String, path: Option<String>, message: Option<String>) -> Result<String, Error> {
+	pub fn trezor_message(&self, message_type: &str, path: &Option<String>, message: &Option<String>) -> Result<String, Error> {
 		let mut t = self.trezor.lock();
 		t.update_devices()?;
 		Ok(t.message(message_type, path, message)?)

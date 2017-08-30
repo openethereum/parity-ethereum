@@ -290,7 +290,7 @@ impl AccountProvider {
 	}
 
 	/// Communicate with Trezor hardware wallet
-	pub fn trezor_message(&self, message_type: String, path: Option<String>, message: Option<String>) -> Result<String, SignError> {
+	pub fn trezor_message(&self, message_type: &str, path: &Option<String>, message: &Option<String>) -> Result<String, SignError> {
 		match self.hardware_store.as_ref().map(|h| h.trezor_message(message_type, path, message)) {
 			None => Err(SignError::NotFound),
 			Some(Err(e)) => Err(SignError::Hardware(e)),
@@ -789,7 +789,7 @@ impl AccountProvider {
 	}
 
 	/// Sign transaction with hardware wallet.
-	pub fn sign_with_hardware(&self, address: Address, transaction: &Transaction, network_id: Option<u64>, rlp_encoded_transaction: &[u8]) -> Result<Signature, SignError> {
+	pub fn sign_with_hardware(&self, address: Address, transaction: &Transaction, chain_id: Option<u64>, rlp_encoded_transaction: &[u8]) -> Result<Signature, SignError> {
 		let t_info = TransactionInfo {
 			nonce: transaction.nonce,
 			gas_price: transaction.gas_price,
@@ -800,7 +800,7 @@ impl AccountProvider {
 			},
 			value: transaction.value,
 			data: transaction.data.to_vec(),
-			network_id: network_id,
+			chain_id: chain_id,
 		};
 		match self.hardware_store.as_ref().map(|s| s.sign_transaction(&address, &t_info, rlp_encoded_transaction)) {
 			None | Some(Err(HardwareError::KeyNotFound)) => Err(SignError::NotFound),
