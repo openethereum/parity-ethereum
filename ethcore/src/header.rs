@@ -18,6 +18,7 @@
 
 use std::cmp;
 use std::cell::RefCell;
+use hash::{KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP, keccak};
 use util::*;
 use basic_types::{LogBloom, ZERO_LOGBLOOM};
 use time::get_time;
@@ -100,12 +101,12 @@ impl Default for Header {
 			number: 0,
 			author: Address::default(),
 
-			transactions_root: SHA3_NULL_RLP,
-			uncles_hash: SHA3_EMPTY_LIST_RLP,
+			transactions_root: KECCAK_NULL_RLP,
+			uncles_hash: KECCAK_EMPTY_LIST_RLP,
 			extra_data: vec![],
 
-			state_root: SHA3_NULL_RLP,
-			receipts_root: SHA3_NULL_RLP,
+			state_root: KECCAK_NULL_RLP,
+			receipts_root: KECCAK_NULL_RLP,
 			log_bloom: ZERO_LOGBLOOM.clone(),
 			gas_used: U256::default(),
 			gas_limit: U256::default(),
@@ -194,13 +195,13 @@ impl Header {
 	/// Set the seal field of the header.
 	pub fn set_seal(&mut self, a: Vec<Bytes>) { self.seal = a; self.note_dirty(); }
 
-	/// Get the hash of this header (sha3 of the RLP).
+	/// Get the hash of this header (keccak of the RLP).
 	pub fn hash(&self) -> H256 {
  		let mut hash = self.hash.borrow_mut();
  		match &mut *hash {
  			&mut Some(ref h) => h.clone(),
  			hash @ &mut None => {
-				let h = self.rlp_sha3(Seal::With);
+				let h = self.rlp_keccak(Seal::With);
  				*hash = Some(h.clone());
  				h
  			}
@@ -213,7 +214,7 @@ impl Header {
 		match &mut *hash {
 			&mut Some(ref h) => h.clone(),
 			hash @ &mut None => {
-				let h = self.rlp_sha3(Seal::Without);
+				let h = self.rlp_keccak(Seal::Without);
 				*hash = Some(h.clone());
 				h
 			}
@@ -257,8 +258,8 @@ impl Header {
 		s.out()
 	}
 
-	/// Get the SHA3 (Keccak) of this header, optionally `with_seal`.
-	pub fn rlp_sha3(&self, with_seal: Seal) -> H256 { self.rlp(with_seal).sha3() }
+	/// Get the KECCAK (Keccak) of this header, optionally `with_seal`.
+	pub fn rlp_keccak(&self, with_seal: Seal) -> H256 { keccak(self.rlp(with_seal)) }
 }
 
 impl Decodable for Header {
@@ -278,7 +279,7 @@ impl Decodable for Header {
 			timestamp: cmp::min(r.val_at::<U256>(11)?, u64::max_value().into()).as_u64(),
 			extra_data: r.val_at(12)?,
 			seal: vec![],
-			hash: RefCell::new(Some(r.as_raw().sha3())),
+			hash: RefCell::new(Some(keccak(r.as_raw()))),
 			bare_hash: RefCell::new(None),
 		};
 

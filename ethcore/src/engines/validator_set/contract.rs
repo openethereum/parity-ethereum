@@ -128,6 +128,7 @@ impl ValidatorSet for ValidatorContract {
 mod tests {
 	use std::sync::Arc;
 	use rustc_hex::FromHex;
+	use hash::keccak;
 	use util::*;
 	use rlp::encode;
 	use spec::Spec;
@@ -153,7 +154,7 @@ mod tests {
 	#[test]
 	fn reports_validators() {
 		let tap = Arc::new(AccountProvider::transient_provider());
-		let v1 = tap.insert_account("1".sha3().into(), "").unwrap();
+		let v1 = tap.insert_account(keccak("1").into(), "").unwrap();
 		let client = generate_dummy_client_with_spec_and_accounts(Spec::new_validator_contract, Some(tap.clone()));
 		client.engine().register_client(Arc::downgrade(&client));
 		let validator_contract = "0000000000000000000000000000000000000005".parse::<Address>().unwrap();

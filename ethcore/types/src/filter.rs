@@ -16,10 +16,11 @@
 
 //! Blockchain filter
 
-use util::{Address, H256, Hashable, H2048};
+use util::{Address, H256, H2048};
 use bloomable::Bloomable;
 use ids::BlockId;
 use log_entry::LogEntry;
+use hash::keccak;
 
 /// Blockchain Filter.
 #[derive(Debug, PartialEq)]
@@ -78,7 +79,7 @@ impl Filter {
 			Some(ref addresses) if !addresses.is_empty() =>
 				addresses.iter().map(|ref address| {
 					let mut bloom = H2048::default();
-					bloom.shift_bloomed(&address.sha3());
+					bloom.shift_bloomed(&keccak(address));
 					bloom
 				}).collect(),
 			_ => vec![H2048::default()]
@@ -89,7 +90,7 @@ impl Filter {
 			Some(ref topics) => bs.into_iter().flat_map(|bloom| {
 				topics.into_iter().map(|topic| {
 					let mut b = bloom.clone();
-					b.shift_bloomed(&topic.sha3());
+					b.shift_bloomed(&keccak(topic));
 					b
 				}).collect::<Vec<H2048>>()
 			}).collect()

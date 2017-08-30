@@ -23,7 +23,7 @@ use primal::is_prime;
 use std::cell::Cell;
 use std::mem;
 use std::ptr;
-use sha3;
+use hash;
 use std::slice;
 use std::path::{Path, PathBuf};
 use std::io::{self, Read, Write};
@@ -200,7 +200,7 @@ impl SeedHashCompute {
 	#[inline]
 	pub fn resume_compute_seedhash(mut hash: H256, start_epoch: u64, end_epoch: u64) -> H256 {
 		for _ in start_epoch..end_epoch {
-			unsafe { sha3::sha3_256(hash[..].as_mut_ptr(), 32, hash[..].as_ptr(), 32) };
+			unsafe { hash::keccak_256(hash[..].as_mut_ptr(), 32, hash[..].as_ptr(), 32) };
 		}
 		hash
 	}
@@ -214,14 +214,14 @@ fn fnv_hash(x: u32, y: u32) -> u32 {
 	return x.wrapping_mul(FNV_PRIME) ^ y;
 }
 
-fn sha3_512(input: &[u8], output: &mut [u8]) {
-	unsafe { sha3::sha3_512(output.as_mut_ptr(), output.len(), input.as_ptr(), input.len()) };
+fn keccak_512(input: &[u8], output: &mut [u8]) {
+	unsafe { hash::keccak_512(output.as_mut_ptr(), output.len(), input.as_ptr(), input.len()) };
 }
 
-fn sha3_512_inplace(input: &mut [u8]) {
+fn keccak_512_inplace(input: &mut [u8]) {
 	// This is safe since `sha3_*` uses an internal buffer and copies the result to the output. This
 	// means that we can reuse the input buffer for both input and output.
-	unsafe { sha3::sha3_512(input.as_mut_ptr(), input.len(), input.as_ptr(), input.len()) };
+	unsafe { hash::keccak_512(input.as_mut_ptr(), input.len(), input.as_ptr(), input.len()) };
 }
 
 fn get_cache_size(block_number: u64) -> usize {
@@ -250,23 +250,23 @@ fn get_data_size(block_number: u64) -> usize {
 /// Boundary recovered from mix hash
 pub fn quick_get_difficulty(header_hash: &H256, nonce: u64, mix_hash: &H256) -> H256 {
 	unsafe {
-		// This is safe - the `sha3_512` call below reads the first 40 bytes (which we explicitly set
+		// This is safe - the `keccak_512` call below reads the first 40 bytes (which we explicitly set
 		// with two `copy_nonoverlapping` calls) but writes the first 64, and then we explicitly write
-		// the next 32 bytes before we read the whole thing with `sha3_256`.
+		// the next 32 bytes before we read the whole thing with `keccak_256`.
 		//
 		// This cannot be elided by the compiler as it doesn't know the implementation of
-		// `sha3_512`.
+		// `keccak_512`.
 		let mut buf: [u8; 64 + 32] = mem::uninitialized();
 
 		ptr::copy_nonoverlapping(header_hash.as_ptr(), buf.as_mut_ptr(), 32);
 		ptr::copy_nonoverlapping(mem::transmute(&nonce), buf[32..].as_mut_ptr(), 8);
 
-		sha3::sha3_512(buf.as_mut_ptr(), 64, buf.as_ptr(), 40);
+		hash::keccak_512(buf.as_mut_ptr(), 64, buf.as_ptr(), 40);
 		ptr::copy_nonoverlapping(mix_hash.as_ptr(), buf[64..].as_mut_ptr(), 32);
 
-		// This is initialized in `sha3_256`
+		// This is initialized in `keccak_256`
 		let mut hash: [u8; 32] = mem::uninitialized();
-		sha3::sha3_256(hash.as_mut_ptr(), hash.len(), buf.as_ptr(), buf.len());
+		hash::keccak_256(hash.as_mut_ptr(), hash.len(), buf.as_ptr(), buf.len());
 
 		hash
 	}
@@ -320,7 +320,7 @@ fn hash_compute(light: &Light, full_size: usize, header_hash: &H256, nonce: u64)
 		half_mix: unsafe {
 			// Pack `header_hash` and `nonce` together
 			// We explicitly write the first 40 bytes, leaving the last 24 as uninitialized. Then
-			// `sha3_512` reads the first 40 bytes (4th parameter) and overwrites the entire array,
+			// `keccak_512` reads the first 40 bytes (4th parameter) and overwrites the entire array,
 			// leaving it fully initialized.
 			let mut out: [u8; NODE_BYTES] = mem::uninitialized();
 
@@ -336,7 +336,7 @@ fn hash_compute(light: &Light, full_size: usize, header_hash: &H256, nonce: u64)
 			);
 
 			// compute sha3-512 hash and replicate across mix
-			sha3::sha3_512(
+			hash::keccak_512(
 				out.as_mut_ptr(),
 				NODE_BYTES,
 				out.as_ptr(),
@@ -427,10 +427,10 @@ fn hash_compute(light: &Light, full_size: usize, header_hash: &H256, nonce: u64)
 	let value: H256 = unsafe {
 		// We can interpret the buffer as an array of `u8`s, since it's `repr(C)`.
 		let read_ptr: *const u8 = mem::transmute(&buf);
-		// We overwrite the second half since `sha3_256` has an internal buffer and so allows
+		// We overwrite the second half since `keccak_256` has an internal buffer and so allows
 		// overlapping arrays as input.
 		let write_ptr: *mut u8 = mem::transmute(&mut buf.compress_bytes);
-		sha3::sha3_256(
+		hash::keccak_256(
 			write_ptr,
 			buf.compress_bytes.len(),
 			read_ptr,
@@ -450,7 +450,7 @@ fn calculate_dag_item(node_index: u32, cache: &[Node]) -> Node {
 	let mut ret = cache[node_index as usize % num_parent_nodes].clone();
 	ret.as_words_mut()[0] ^= node_index;
 
-	sha3_512_inplace(&mut ret.bytes);
+	keccak_512_inplace(&mut ret.bytes);
 
 	debug_assert_eq!(NODE_WORDS, 16);
 	for i in 0..ETHASH_DATASET_PARENTS as u32 {
@@ -467,7 +467,7 @@ fn calculate_dag_item(node_index: u32, cache: &[Node]) -> Node {
 		}
 	}
 
-	sha3_512_inplace(&mut ret.bytes);
+	keccak_512_inplace(&mut ret.bytes);
 
 	ret
 }
@@ -485,9 +485,9 @@ fn light_new<T: AsRef<Path>>(cache_dir: T, block_number: u64) -> Light {
 		// Use uninit instead of unnecessarily writing `size_of::<Node>() * num_nodes` 0s
 		nodes.set_len(num_nodes);
 
-		sha3_512(&seedhash[0..32], &mut nodes.get_unchecked_mut(0).bytes);
+		keccak_512(&seedhash[0..32], &mut nodes.get_unchecked_mut(0).bytes);
 		for i in 1..num_nodes {
-			sha3::sha3_512(nodes.get_unchecked_mut(i).bytes.as_mut_ptr(), NODE_BYTES, nodes.get_unchecked(i - 1).bytes.as_ptr(), NODE_BYTES);
+			hash::keccak_512(nodes.get_unchecked_mut(i).bytes.as_mut_ptr(), NODE_BYTES, nodes.get_unchecked(i - 1).bytes.as_ptr(), NODE_BYTES);
 		}
 
 		debug_assert_eq!(NODE_WORDS, 16);
@@ -504,7 +504,7 @@ fn light_new<T: AsRef<Path>>(cache_dir: T, block_number: u64) -> Light {
 					}
 				}
 
-				sha3_512(&data.bytes, &mut nodes.get_unchecked_mut(i).bytes);
+				keccak_512(&data.bytes, &mut nodes.get_unchecked_mut(i).bytes);
 			}
 		}
 	}

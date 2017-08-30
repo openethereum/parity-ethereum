@@ -28,7 +28,8 @@ use header::{BlockNumber, Header as FullHeader};
 use transaction::UnverifiedTransaction;
 use views;
 
-use util::{Address, Hashable, H256, H2048, U256, HeapSizeOf};
+use util::{Address, H256, H2048, U256, HeapSizeOf};
+use hash::keccak;
 use rlp::Rlp;
 
 /// Owning header view.
@@ -64,7 +65,7 @@ impl Header {
 // forwarders to borrowed view.
 impl Header {
 	/// Returns the header hash.
-	pub fn hash(&self) -> H256 { self.sha3() }
+	pub fn hash(&self) -> H256 { keccak(&self.0) }
 
 	/// Returns the parent hash.
 	pub fn parent_hash(&self) -> H256 { self.view().parent_hash() }
@@ -107,12 +108,6 @@ impl Header {
 
 	/// Engine-specific seal fields.
 	pub fn seal(&self) -> Vec<Vec<u8>> { self.view().seal() }
-}
-
-impl Hashable for Header {
-	fn sha3(&self) -> H256 {
-		self.0.sha3()
-	}
 }
 
 /// Owning block body view.
@@ -218,7 +213,7 @@ impl Block {
 // forwarders to borrowed header view.
 impl Block {
 	/// Returns the header hash.
-	pub fn hash(&self) -> H256 { self.header_view().sha3() }
+	pub fn hash(&self) -> H256 { self.header_view().hash() }
 
 	/// Returns the parent hash.
 	pub fn parent_hash(&self) -> H256 { self.header_view().parent_hash() }

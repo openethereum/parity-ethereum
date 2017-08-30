@@ -18,10 +18,11 @@
 
 use block::Block;
 use header::Header;
+use hash::keccak;
 
 use views::BlockView;
 use rlp::{DecoderError, RlpStream, UntrustedRlp};
-use util::{Bytes, Hashable, H256};
+use util::{Bytes, H256};
 use util::triehash::ordered_trie_root;
 
 const HEADER_FIELDS: usize = 8;
@@ -111,7 +112,7 @@ impl AbridgedBlock {
 
 		let mut uncles_rlp = RlpStream::new();
 		uncles_rlp.append_list(&uncles);
-		header.set_uncles_hash(uncles_rlp.as_raw().sha3());
+		header.set_uncles_hash(keccak(uncles_rlp.as_raw()));
 
 		let mut seal_fields = Vec::new();
 		for i in (HEADER_FIELDS + BLOCK_FIELDS)..rlp.item_count()? {

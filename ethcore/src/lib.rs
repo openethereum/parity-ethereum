@@ -101,6 +101,7 @@ extern crate num;
 extern crate price_info;
 extern crate rand;
 extern crate rlp;
+extern crate hash;
 
 #[macro_use]
 extern crate rlp_derive;

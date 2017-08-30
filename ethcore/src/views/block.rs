@@ -16,6 +16,7 @@
 
 //! View onto block rlp.
 
+use hash::keccak;
 use util::*;
 use header::*;
 use transaction::*;
@@ -44,7 +45,7 @@ impl<'a> BlockView<'a> {
 
 	/// Block header hash.
 	pub fn hash(&self) -> H256 {
-		self.sha3()
+		self.header_view().hash()
 	}
 
 	/// Return reference to underlaying rlp.
@@ -75,7 +76,7 @@ impl<'a> BlockView<'a> {
 	/// Return List of transactions with additional localization info.
 	pub fn localized_transactions(&self) -> Vec<LocalizedTransaction> {
 		let header = self.header_view();
-		let block_hash = header.sha3();
+		let block_hash = header.hash();
 		let block_number = header.number();
 		self.transactions()
 			.into_iter()
@@ -101,7 +102,7 @@ impl<'a> BlockView<'a> {
 
 	/// Return transaction hashes.
 	pub fn transaction_hashes(&self) -> Vec<H256> {
-		self.rlp.at(1).iter().map(|rlp| rlp.as_raw().sha3()).collect()
+		self.rlp.at(1).iter().map(|rlp| keccak(rlp.as_raw())).collect()
 	}
 
 	/// Returns transaction at given index without deserializing unnecessary data.
@@ -112,7 +113,7 @@ impl<'a> BlockView<'a> {
 	/// Returns localized transaction at given index.
 	pub fn localized_transaction_at(&self, index: usize) -> Option<LocalizedTransaction> {
 		let header = self.header_view();
-		let block_hash = header.sha3();
+		let block_hash = header.hash();
 		let block_number = header.number();
 		self.transaction_at(index).map(|t| LocalizedTransaction {
 			signed: t,
@@ -140,7 +141,7 @@ impl<'a> BlockView<'a> {
 
 	/// Return list of uncle hashes of given block.
 	pub fn uncle_hashes(&self) -> Vec<H256> {
-		self.rlp.at(2).iter().map(|rlp| rlp.as_raw().sha3()).collect()
+		self.rlp.at(2).iter().map(|rlp| keccak(rlp.as_raw())).collect()
 	}
 
 	/// Return nth uncle.
@@ -151,12 +152,6 @@ impl<'a> BlockView<'a> {
 	/// Return nth uncle rlp.
 	pub fn uncle_rlp_at(&self, index: usize) -> Option<Bytes> {
 		self.rlp.at(2).iter().nth(index).map(|rlp| rlp.as_raw().to_vec())
-	}
-}
-
-impl<'a> Hashable for BlockView<'a> {
-	fn sha3(&self) -> H256 {
-		self.header_view().sha3()
 	}
 }
 
