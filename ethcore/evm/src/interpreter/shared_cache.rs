@@ -15,7 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
-use util::{H256, HeapSizeOf, Mutex};
+use heapsize::HeapSizeOf;
+use util::{H256, Mutex};
 use util::sha3::*;
 use util::cache::MemoryLruCache;
 use bit_set::BitSet;

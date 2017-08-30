@@ -345,7 +345,6 @@ impl Spec {
 				};
 
 				let mut substate = Substate::new();
-				state.kill_account(&address);
 
 				{
 					let mut exec = Executive::new(&mut state, &env_info, self.engine.as_ref());
@@ -483,6 +482,9 @@ impl Spec {
 	/// Create a new Spec which conforms to the Frontier-era Morden chain except that it's a NullEngine consensus.
 	pub fn new_test() -> Spec { load_bundled!("null_morden") }
 
+	/// Create a new Spec which conforms to the Frontier-era Morden chain except that it's a NullEngine consensus with applying reward on block close.
+	pub fn new_test_with_reward() -> Spec { load_bundled!("null_morden_with_reward") }
+
 	/// Create a new Spec which is a NullEngine consensus with a premine of address whose secret is sha3('').
 	pub fn new_null() -> Spec { load_bundled!("null") }
 
@@ -550,6 +552,9 @@ mod tests {
 		let db = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
 		let state = State::from_existing(db.boxed_clone(), spec.state_root(), spec.engine.account_start_nonce(0), Default::default()).unwrap();
 		let expected = H256::from_str("0000000000000000000000000000000000000000000000000000000000000001").unwrap();
-		assert_eq!(state.storage_at(&Address::from_str("0000000000000000000000000000000000000005").unwrap(), &H256::zero()).unwrap(), expected);
+		let address = Address::from_str("0000000000000000000000000000000000000005").unwrap();
+
+		assert_eq!(state.storage_at(&address, &H256::zero()).unwrap(), expected);
+		assert_eq!(state.balance(&address).unwrap(), 1.into());
 	}
 }

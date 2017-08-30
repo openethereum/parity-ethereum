@@ -10,6 +10,7 @@ rlp_derive = { path = "../../util/rlp_derive" }
 ethcore-util = { path = "../../util" }
 ethjson = { path = "../../json" }
 bloomable = { path = "../../util/bloomable" }
+heapsize = "0.4"
 
 [dev-dependencies]
 rustc-hex= "1.0"

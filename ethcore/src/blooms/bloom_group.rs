@@ -16,7 +16,7 @@
 
 use bloomchain::group as bc;
 use rlp::*;
-use util::HeapSizeOf;
+use heapsize::HeapSizeOf;
 use super::Bloom;
 
 /// Represents group of X consecutive blooms.

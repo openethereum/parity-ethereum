@@ -19,7 +19,7 @@
 use util::{Bytes, Address, U256};
 use vm::ActionParams;
 use trace::{Tracer, VMTracer, FlatTrace, TraceError};
-use trace::trace::{Call, Create, VMTrace};
+use trace::trace::{Call, Create, VMTrace, RewardType};
 
 /// Nonoperative tracer. Does not trace anything.
 pub struct NoopTracer;
@@ -56,6 +56,9 @@ impl Tracer for NoopTracer {
 	}
 
 	fn trace_suicide(&mut self, _address: Address, _balance: U256, _refund_address: Address) {
+	}
+
+	fn trace_reward(&mut self, _: Address, _: U256, _: RewardType) {
 	}
 
 	fn subtracer(&self) -> Self {

@@ -91,6 +91,7 @@
 
 use std::collections::{HashSet, HashMap};
 use std::cmp;
+use heapsize::HeapSizeOf;
 use util::*;
 use rlp::*;
 use network::*;
