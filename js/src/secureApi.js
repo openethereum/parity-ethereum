@@ -46,7 +46,9 @@ export default class SecureApi extends Api {
 
   // Returns a protocol with `:` at the end.
   static protocol () {
-    return window.location.protocol;
+    return window.location.protocol === 'file:'
+      ? 'http:'
+      : window.location.protocol;
   }
 
   constructor (uiUrl, nextToken, getTransport = SecureApi.getTransport, protocol = SecureApi.protocol) {

@@ -47,7 +47,7 @@ const isEmbed = EMBED === '1' || EMBED === 'true';
 
 const entry = isEmbed
   ? { embed: './embed.js' }
-  : { bundle: './index.js' };
+  : { bundle: './index.parity.js' };
 
 module.exports = {
   cache: !isProd,
@@ -176,7 +176,7 @@ module.exports = {
         new HtmlWebpackPlugin({
           title: 'Parity',
           filename: 'index.html',
-          template: './index.ejs',
+          template: './index.parity.ejs',
           favicon: FAVICON,
           chunks: ['bundle']
         }),
