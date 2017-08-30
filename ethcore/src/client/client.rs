@@ -712,11 +712,10 @@ impl Client {
 
 	/// Add private transaction into the store
 	pub fn import_private_transaction(&self, rlp: &[u8], peer_id: usize) -> Result<(), EthcoreError> {
-		let tx: UnverifiedTransaction = UntrustedRlp::new(rlp).as_val()?;		
+		let tx: UnverifiedTransaction = UntrustedRlp::new(rlp).as_val()?;
 		// TODO: notify engines about private transactions
 		self.private_transactions.lock().import(tx, peer_id)
 	}
-
 
 	// check for epoch end signal and write pending transition if it occurs.
 	// state for the given block must be available.
