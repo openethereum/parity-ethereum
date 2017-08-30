@@ -338,7 +338,7 @@ impl Engine for Arc<Ethash> {
 		// Commit state so that we can actually figure out the state root.
 		fields.state.commit()?;
 		if tracing_enabled {
-			fields.traces.as_mut().map(|mut traces| traces.push(tracer.traces()));
+			fields.traces.as_mut().map(|mut traces| traces.push(tracer.drain()));
 		}
 		Ok(())
 	}

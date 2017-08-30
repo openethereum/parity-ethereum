@@ -78,7 +78,7 @@ impl Engine for NullEngine {
 
 		/// Block reward
 		let tracing_enabled = block.tracing_enabled();
-		let fields = block.fields_mut();		
+		let fields = block.fields_mut();
 		let mut tracer = ExecutiveTracer::default();
 
 		let result_block_reward = U256::from(1000000000);
@@ -104,12 +104,12 @@ impl Engine for NullEngine {
 			)?;
 			if tracing_enabled {
 				tracer.trace_reward(uncle_author, result_uncle_reward, RewardType::Uncle);
-			}			
+			}
 		}
 
 		fields.state.commit()?;
 		if tracing_enabled {
-			fields.traces.as_mut().map(|mut traces| traces.push(tracer.traces()));
+			fields.traces.as_mut().map(|mut traces| traces.push(tracer.drain()));
 		}
 		Ok(())
 	}

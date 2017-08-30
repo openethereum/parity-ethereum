@@ -473,7 +473,7 @@ pub mod common {
 
 	/// Trace rewards on closing block
 	pub fn bestow_block_reward<E: Engine + ?Sized>(block: &mut ExecutedBlock, engine: &E) -> Result<(), Error> {
-		let fields = block.fields_mut();		
+		let fields = block.fields_mut();
 		// Bestow block reward
 		let reward = engine.params().block_reward;
 		let res = fields.state.add_balance(fields.header.author(), &reward, CleanupMode::NoEmpty)
@@ -482,9 +482,9 @@ pub mod common {
 
 		let block_author = fields.header.author().clone();
 		fields.traces.as_mut().map(|mut traces| {
-  			let mut tracer = ExecutiveTracer::default();			
+  			let mut tracer = ExecutiveTracer::default();
   			tracer.trace_reward(block_author, engine.params().block_reward, RewardType::Block);
-  			traces.push(tracer.traces())
+  			traces.push(tracer.drain())
 		});
 
 		// Commit state so that we can actually figure out the state root.

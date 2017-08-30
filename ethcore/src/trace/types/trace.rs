@@ -219,28 +219,6 @@ impl Suicide {
 	}
 }
 
-impl Encodable for Suicide {
-	fn rlp_append(&self, s: &mut RlpStream) {
-		s.begin_list(3);
-		s.append(&self.address);
-		s.append(&self.refund_address);
-		s.append(&self.balance);
-	}
-}
-
-impl Decodable for Suicide {
-	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
-		let res = Suicide {
-			address: rlp.val_at(0)?,
-			refund_address: rlp.val_at(1)?,
-			balance: rlp.val_at(2)?,
-		};
-
-		Ok(res)
-	}
-}
-
-
 /// Description of an action that we trace; will be either a call or a create.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "ipc", binary)]
