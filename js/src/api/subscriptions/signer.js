@@ -39,7 +39,7 @@ export default class Signer {
     this._started = true;
 
     if (this._api.isPubSub) {
-      return this._api.pubsub
+      const subscription = this._api.pubsub
         .subscribeAndGetResult(
           callback => this._api.pubsub.signer.pendingRequests(callback),
           requests => {
@@ -47,6 +47,11 @@ export default class Signer {
             return requests;
           }
         );
+
+      return Promise.all([
+        this._listRequests(false),
+        subscription
+      ]);
     }
 
     return Promise.all([
@@ -60,8 +65,8 @@ export default class Signer {
   }
 
   _listRequests = (doTimeout) => {
-    const nextTimeout = (timeout = 1000) => {
-      if (doTimeout) {
+    const nextTimeout = (timeout = 1000, forceTimeout = doTimeout) => {
+      if (forceTimeout) {
         setTimeout(() => {
           this._listRequests(true);
         }, timeout);
@@ -69,7 +74,7 @@ export default class Signer {
     };
 
     if (!this._api.transport.isConnected) {
-      nextTimeout(500);
+      nextTimeout(500, true);
       return;
     }
 

@@ -224,7 +224,7 @@ export default class Ws extends JsonRpcBase {
     }
 
     // pubsub format
-    if (method.includes('subscription')) {
+    if (this._subscriptions[method]) {
       const messageId = this._messages[this._subscriptions[method][params.subscription]];
 
       if (messageId) {
