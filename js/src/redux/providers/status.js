@@ -193,7 +193,7 @@ export default class Status {
   }
 
   _pollStatus = () => {
-    const nextTimeout = (timeout = 30000) => {
+    const nextTimeout = (timeout = 3000) => {
       if (this._timeoutIds.status) {
         clearTimeout(this._timeoutIds.status);
       }
