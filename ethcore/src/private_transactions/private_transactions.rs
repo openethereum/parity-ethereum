@@ -14,11 +14,32 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-pub mod helpers;
-pub mod snapshot;
-mod chain;
-mod consensus;
-mod private_transactions;
+use transaction::UnverifiedTransaction;
+use error::Error;
+use util::RwLock;
 
-#[cfg(feature = "ipc")]
-mod rpc;
+/// Storage for private transactions
+pub struct PrivateTransactions {
+	transactions: RwLock<Vec<UnverifiedTransaction>>,
+}
+
+impl PrivateTransactions {
+	pub fn new() -> Self {
+		PrivateTransactions {
+			transactions: RwLock::new(Vec::new()),
+		}
+	}
+
+	pub fn import(&self, transaction: UnverifiedTransaction, _peer_id: usize) -> Result<(), Error> {
+		{
+			let mut transactions = self.transactions.write();
+			transactions.push(transaction.clone());
+		}
+		Ok(())
+	}
+
+	pub fn get_list(&self) -> Vec<UnverifiedTransaction> {
+		let transactions = self.transactions.read();
+		transactions.clone()
+	}
+}

@@ -515,11 +515,7 @@ impl Engine<EthereumMachine> for Tendermint {
 		}
 	}
 
-	fn handle_message(&self, rlp: &[u8]) -> Result<(), EngineError> {
-		fn fmt_err<T: ::std::fmt::Debug>(x: T) -> EngineError {
-			EngineError::MalformedMessage(format!("{:?}", x))
-		}
-
+	fn handle_consensus_message(&self, rlp: &[u8]) -> Result<(), Error> {
 		let rlp = UntrustedRlp::new(rlp);
 		let message: ConsensusMessage = rlp.as_val().map_err(fmt_err)?;
 		if !self.votes.is_old_or_known(&message) {
@@ -782,7 +778,7 @@ mod tests {
 	use block::*;
 	use error::{Error, BlockError};
 	use header::Header;
-	use client::ChainNotify;
+	use client::chain_notify::{ChainNotify, ChainMessageType};
 	use miner::MinerService;
 	use tests::helpers::*;
 	use account_provider::AccountProvider;
@@ -815,7 +811,7 @@ mod tests {
 	fn vote<F>(engine: &EthEngine, signer: F, height: usize, view: usize, step: Step, block_hash: Option<H256>) -> Bytes where F: FnOnce(H256) -> Result<H520, ::account_provider::SignError> {
 		let mi = message_info_rlp(&VoteStep::new(height, view, step), block_hash);
 		let m = message_full_rlp(&signer(keccak(&mi)).unwrap().into(), &mi);
-		engine.handle_message(&m).unwrap();
+		engine.handle_consensus_message(&m).unwrap();
 		m
 	}
 
@@ -848,7 +844,7 @@ mod tests {
 	}
 
 	impl ChainNotify for TestNotify {
-		fn broadcast(&self, data: Vec<u8>) {
+		fn broadcast(&self, _message_type: ChainMessageType, data: Vec<u8>) {
 			self.messages.write().push(data);
 		}
 	}

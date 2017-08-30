@@ -17,6 +17,11 @@
 use bigint::hash::H256;
 use bytes::Bytes;
 
+pub enum ChainMessageType {
+	Consensus,
+	PrivateTransaction,
+}
+
 /// Represents what has to be handled by actor listening to chain events
 pub trait ChainNotify : Send + Sync {
 	/// fires when chain has new blocks.
@@ -45,7 +50,7 @@ pub trait ChainNotify : Send + Sync {
 	}
 
 	/// fires when chain broadcasts a message
-	fn broadcast(&self, _data: Vec<u8>) {}
+	fn broadcast(&self, _message_type: ChainMessageType, _data: Vec<u8>) {}
 
 	/// fires when new transactions are received from a peer
 	fn transactions_received(&self,

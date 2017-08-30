@@ -21,14 +21,15 @@ use parking_lot::RwLock;
 use bytes::Bytes;
 use network::*;
 use tests::snapshot::*;
-use ethcore::client::{TestBlockChainClient, BlockChainClient, Client as EthcoreClient, ClientConfig, ChainNotify};
+use ethcore::client::{TestBlockChainClient, BlockChainClient, Client as EthcoreClient, ClientConfig, ChainNotify, ChainMessageType};
+use ethcore::service::ClientIoMessage;
 use ethcore::header::BlockNumber;
 use ethcore::snapshot::SnapshotService;
 use ethcore::spec::Spec;
 use ethcore::account_provider::AccountProvider;
 use ethcore::miner::Miner;
 use sync_io::SyncIo;
-use io::IoChannel;
+use io::{IoChannel, IoContext, IoHandler};
 use api::WARP_SYNC_PROTOCOL_ID;
 use chain::ChainSync;
 use ::SyncConfig;
@@ -397,6 +398,24 @@ impl<C: FlushingBlockChainClient> TestNet<EthPeer<C>> {
 	}
 }
 
+pub struct TestIoHandler {
+	pub client: Arc<EthcoreClient>,
+}
+
+impl IoHandler<ClientIoMessage> for TestIoHandler {
+	fn message(&self, _io: &IoContext<ClientIoMessage>, net_message: &ClientIoMessage) {
+		match *net_message {
+			ClientIoMessage::NewConsensusMessage(ref message) => if let Err(e) = self.client.engine().handle_consensus_message(message) {
+				panic!("Invalid message received: {}", e);
+			},
+			ClientIoMessage::NewPrivateTransaction(ref transaction, peer_id) => if let Err(e) = self.client.import_private_transaction(transaction, peer_id) {
+				trace!(target: "poa", "Invalid private transaction received: {}", e);
+			},
+			_ => {} // ignore other messages
+		}
+	}
+}
+
 impl ChainNotify for EthPeer<EthcoreClient> {
 	fn new_blocks(&self,
 		imported: Vec<H256>,
@@ -422,8 +441,11 @@ impl ChainNotify for EthPeer<EthcoreClient> {
 
 	fn stop(&self) {}
 
-	fn broadcast(&self, message: Vec<u8>) {
+	fn broadcast(&self, message_type: ChainMessageType, message: Vec<u8>) {
 		let mut io = TestIo::new(&*self.chain, &self.snapshot_service, &self.queue, None);
-		self.sync.write().propagate_consensus_packet(&mut io, message.clone());
+		match message_type {
+			ChainMessageType::Consensus => self.sync.write().propagate_consensus_packet(&mut io, message.clone()),
+			ChainMessageType::PrivateTransaction => self.sync.write().propagate_private_transaction(&mut io, message.clone()),
+		}
 	}
 }

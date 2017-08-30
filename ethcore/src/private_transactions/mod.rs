@@ -14,11 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-pub mod helpers;
-pub mod snapshot;
-mod chain;
-mod consensus;
-mod private_transactions;
+//! Private transactions module.
 
-#[cfg(feature = "ipc")]
-mod rpc;
+pub mod private_transactions;
+
+pub use self::private_transactions::PrivateTransactions;
