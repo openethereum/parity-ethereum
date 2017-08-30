@@ -23,11 +23,7 @@ import injectTapEventPlugin from 'react-tap-event-plugin';
 import { IndexRoute, Redirect, Route, Router, hashHistory } from 'react-router';
 import qs from 'querystring';
 
-import Api from '@parity/api';
-import builtinDapps from '@parity/shared/config/dappsBuiltin.json';
-import viewsDapps from '@parity/shared/config/dappsViews.json';
 import ContractInstances from '@parity/shared/contracts';
-import HistoryStore from '@parity/shared/mobx/historyStore';
 import { initStore } from '@parity/shared/redux';
 import ContextProvider from '@parity/ui/ContextProvider';
 
@@ -35,8 +31,8 @@ import '@parity/shared/environment';
 
 import Application from './Application';
 import Dapp from './Dapp';
-import { setupProviderFilters } from './DappRequests';
 import Dapps from './Dapps';
+import { setupProviderFilters } from './DappRequests';
 import SecureApi from './secureApi';
 
 injectTapEventPlugin();
@@ -65,32 +61,15 @@ setupProviderFilters(api.provider);
 
 const store = initStore(api, hashHistory);
 
-const dapps = [].concat(viewsDapps, builtinDapps).map((app) => {
-  if (app.id && app.id.substr(0, 2) !== '0x') {
-    app.id = Api.util.sha3(app.id);
-  }
-
-  return app;
-});
-
-const dappsHistory = HistoryStore.get('dapps');
-
-function onEnterDapp ({ params: { id } }) {
-  if (!dapps[id] || !dapps[id].skipHistory) {
-    dappsHistory.add(id);
-  }
-}
-
 console.log('UI version', process.env.UI_VERSION);
-console.log('Loaded dapps', dapps);
 
 ReactDOM.render(
   <ContextProvider api={ api } store={ store }>
     <Router history={ hashHistory }>
       <Route path='/' component={ Application }>
         <Redirect from='/auth' to='/' />
-        <Route path='/:id' component={ Dapp } onEnter={ onEnterDapp } />
-        <Route path='/:id/:details' component={ Dapp } onEnter={ onEnterDapp } />
+        <Route path='/:id' component={ Dapp } />
+        <Route path='/:id/:details' component={ Dapp } />
         <IndexRoute component={ Dapps } />
       </Route>
     </Router>

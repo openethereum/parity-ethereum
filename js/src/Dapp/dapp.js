@@ -19,9 +19,23 @@ import { observer } from 'mobx-react';
 import { FormattedMessage } from 'react-intl';
 import PropTypes from 'prop-types';
 
+import Api from '@parity/api';
+import builtinDapps from '@parity/shared/config/dappsBuiltin.json';
+import viewsDapps from '@parity/shared/config/dappsViews.json';
 import DappsStore from '@parity/shared/mobx/dappsStore';
+import HistoryStore from '@parity/shared/mobx/historyStore';
 
 import styles from './dapp.css';
+
+const internalDapps = []
+  .concat(viewsDapps, builtinDapps)
+  .map((app) => {
+    if (app.id && app.id.substr(0, 2) !== '0x') {
+      app.id = Api.util.sha3(app.id);
+    }
+
+    return app;
+  });
 
 @observer
 export default class Dapp extends Component {
@@ -39,9 +53,14 @@ export default class Dapp extends Component {
   };
 
   store = DappsStore.get(this.context.api);
+  historyStore = HistoryStore.get('dapps');
 
   componentWillMount () {
     const { id } = this.props.params;
+
+    if (!internalDapps[id] || !internalDapps[id].skipHistory) {
+      this.historyStore.add(id);
+    }
 
     this.loadApp(id);
   }
