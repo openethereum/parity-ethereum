@@ -415,36 +415,121 @@ fn storage_read() {
 	assert_eq!(Address::from(&result[12..32]), address);
 }
 
+macro_rules! reqrep_test {
+	($name: expr, $input: expr) => {
+		{
+			::ethcore_logger::init_log();
+			let code = load_sample!($name);
 
-// Tests that contract's ability to read from a storage
-// Test prepopulates address into storage, than executes a contract which read that address from storage and write this address into result
+			let mut params = ActionParams::default();
+			params.gas = U256::from(100_000);
+			params.code = Some(Arc::new(code));
+			params.data = Some($input);
+
+			let (gas_left, result) = {
+				let mut interpreter = wasm_interpreter();
+				let result = interpreter.exec(params, &mut FakeExt::new()).expect("Interpreter to execute without any errors");
+				match result {
+						GasLeft::Known(_) => { panic!("Test is expected to return payload to check"); },
+						GasLeft::NeedsReturn { gas_left: gas, data: result, apply_state: _apply } => (gas, result.to_vec()),
+				}
+			};
+
+			(gas_left, result)
+		}
+	}
+}
+
+// math_* tests check the ability of wasm contract to perform big integer operations
+// - addition
+// - multiplication
+// - substraction
+// - division
+
+// addition
 #[test]
 fn math_add() {
-	::ethcore_logger::init_log();
-	let code = load_sample!("math.wasm");
 
-	let mut params = ActionParams::default();
-	params.gas = U256::from(100_000);
-	params.code = Some(Arc::new(code));
-
-	let mut args = [0u8; 64];
-	let arg_a = U256::from_dec_str("999999999999999999999999999999").unwrap();
-	let arg_b = U256::from_dec_str("888888888888888888888888888888").unwrap();
-	arg_a.to_big_endian(&mut args[0..32]);
-	arg_b.to_big_endian(&mut args[32..64]);
-	params.data = Some(args.to_vec());
-
-	let (gas_left, result) = {
-		let mut interpreter = wasm_interpreter();
-		let result = interpreter.exec(params, &mut FakeExt::new()).expect("Interpreter to execute without any errors");
-		match result {
-				GasLeft::Known(_) => { panic!("storage_read should return payload"); },
-				GasLeft::NeedsReturn { gas_left: gas, data: result, apply_state: _apply } => (gas, result.to_vec()),
+	let (gas_left, result) = reqrep_test!(
+		"math.wasm",
+		{
+			let mut args = [0u8; 65];
+			let arg_a = U256::from_dec_str("999999999999999999999999999999").unwrap();
+			let arg_b = U256::from_dec_str("888888888888888888888888888888").unwrap();
+			arg_a.to_big_endian(&mut args[1..33]);
+			arg_b.to_big_endian(&mut args[33..65]);
+			args.to_vec()
 		}
-	};
+	);
 
-	let sum: U256 = (&result[..]).into();
+	assert_eq!(gas_left, U256::from(98087));
+	assert_eq!(
+		U256::from_dec_str("1888888888888888888888888888887").unwrap(),
+		(&result[..]).into()
+	);
+}
 
-	assert_eq!(gas_left, U256::from(96284));
-	assert_eq!(sum, U256::from_dec_str("1888888888888888888888888888887").unwrap());
+// multiplication
+#[test]
+fn math_mul() {
+	let (gas_left, result) = reqrep_test!(
+		"math.wasm",
+		{
+			let mut args = [1u8; 65];
+			let arg_a = U256::from_dec_str("888888888888888888888888888888").unwrap();
+			let arg_b = U256::from_dec_str("999999999999999999999999999999").unwrap();
+			arg_a.to_big_endian(&mut args[1..33]);
+			arg_b.to_big_endian(&mut args[33..65]);
+			args.to_vec()
+		}
+	);
+
+	assert_eq!(gas_left, U256::from(97236));
+	assert_eq!(
+		U256::from_dec_str("888888888888888888888888888887111111111111111111111111111112").unwrap(),
+		(&result[..]).into()
+	);
+}
+
+// substraction
+#[test]
+fn math_sub() {
+	let (gas_left, result) = reqrep_test!(
+		"math.wasm",
+		{
+			let mut args = [2u8; 65];
+			let arg_a = U256::from_dec_str("999999999999999999999999999999").unwrap();
+			let arg_b = U256::from_dec_str("888888888888888888888888888888").unwrap();
+			arg_a.to_big_endian(&mut args[1..33]);
+			arg_b.to_big_endian(&mut args[33..65]);
+			args.to_vec()
+		}
+	);
+
+	assert_eq!(gas_left, U256::from(98131));
+	assert_eq!(
+		U256::from_dec_str("111111111111111111111111111111").unwrap(),
+		(&result[..]).into()
+	);
+}
+
+#[test]
+fn math_div() {
+	let (gas_left, result) = reqrep_test!(
+		"math.wasm",
+		{
+			let mut args = [3u8; 65];
+			let arg_a = U256::from_dec_str("999999999999999999999999999999").unwrap();
+			let arg_b = U256::from_dec_str("888888888888888888888888").unwrap();
+			arg_a.to_big_endian(&mut args[1..33]);
+			arg_b.to_big_endian(&mut args[33..65]);
+			args.to_vec()
+		}
+	);
+
+	assert_eq!(gas_left, U256::from(91420));
+	assert_eq!(
+		U256::from_dec_str("1125000").unwrap(),
+		(&result[..]).into()
+	);
 }

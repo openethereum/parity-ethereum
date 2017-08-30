@@ -281,6 +281,7 @@ mod tests {
 		}
 	}
 
+	#[derive(Debug)]
 	struct FakeSync(bool);
 	impl SyncStatus for FakeSync {
 		fn is_major_importing(&self) -> bool { self.0 }

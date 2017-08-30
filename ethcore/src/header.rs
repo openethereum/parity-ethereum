@@ -18,6 +18,7 @@
 
 use std::cmp;
 use std::cell::RefCell;
+use heapsize::HeapSizeOf;
 use util::*;
 use basic_types::{LogBloom, ZERO_LOGBLOOM};
 use time::get_time;

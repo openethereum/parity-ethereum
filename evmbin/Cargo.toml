@@ -14,6 +14,7 @@ docopt = "0.8"
 serde = "1.0"
 serde_derive = "1.0"
 ethcore = { path = "../ethcore" }
+ethjson = { path = "../json" }
 ethcore-util = { path = "../util" }
 evm = { path = "../ethcore/evm" }
 vm = { path = "../ethcore/vm" }

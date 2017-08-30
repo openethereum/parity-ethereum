@@ -16,14 +16,14 @@
 
 //! Reference-counted memory-based `HashDB` implementation.
 
-use hash::*;
-use rlp::*;
-use sha3::*;
-use hashdb::*;
-use heapsize::*;
 use std::mem;
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
+use heapsize::HeapSizeOf;
+use hash::{H256FastMap, H256};
+use rlp::NULL_RLP;
+use sha3::*;
+use hashdb::*;
 
 /// Reference-counted memory-based `HashDB` implementation.
 ///
@@ -181,7 +181,13 @@ impl HashDB for MemoryDB {
 	}
 
 	fn keys(&self) -> HashMap<H256, i32> {
-		self.data.iter().filter_map(|(k, v)| if v.1 != 0 {Some((k.clone(), v.1))} else {None}).collect()
+		self.data.iter()
+			.filter_map(|(k, v)| if v.1 != 0 {
+				Some((*k, v.1))
+			} else {
+				None
+			})
+			.collect()
 	}
 
 	fn contains(&self, key: &H256) -> bool {
@@ -200,16 +206,17 @@ impl HashDB for MemoryDB {
 			return SHA3_NULL_RLP.clone();
 		}
 		let key = value.sha3();
-		if match self.data.get_mut(&key) {
-			Some(&mut (ref mut old_value, ref mut rc @ -0x80000000i32 ... 0)) => {
-				*old_value = DBValue::from_slice(value);
+		match self.data.entry(key) {
+			Entry::Occupied(mut entry) => {
+				let &mut (ref mut old_value, ref mut rc) = entry.get_mut();
+				if *rc >= -0x80000000i32 && *rc <= 0 {
+					*old_value = DBValue::from_slice(value);
+				}
 				*rc += 1;
-				false
 			},
-			Some(&mut (_, ref mut x)) => { *x += 1; false } ,
-			None => true,
-		}{	// ... None falls through into...
-			self.data.insert(key.clone(), (DBValue::from_slice(value), 1));
+			Entry::Vacant(entry) => {
+				entry.insert((DBValue::from_slice(value), 1));
+			},
 		}
 		key
 	}
@@ -219,17 +226,18 @@ impl HashDB for MemoryDB {
 			return;
 		}
 
-		match self.data.get_mut(&key) {
-			Some(&mut (ref mut old_value, ref mut rc @ -0x80000000i32 ... 0)) => {
-				*old_value = value;
+		match self.data.entry(key) {
+			Entry::Occupied(mut entry) => {
+				let &mut (ref mut old_value, ref mut rc) = entry.get_mut();
+				if *rc >= -0x80000000i32 && *rc <= 0 {
+					*old_value = value;
+				}
 				*rc += 1;
-				return;
 			},
-			Some(&mut (_, ref mut x)) => { *x += 1; return; } ,
-			None => {},
+			Entry::Vacant(entry) => {
+				entry.insert((value, 1));
+			},
 		}
-		// ... None falls through into...
-		self.data.insert(key, (value, 1));
 	}
 
 	fn remove(&mut self, key: &H256) {
@@ -237,11 +245,14 @@ impl HashDB for MemoryDB {
 			return;
 		}
 
-		if match self.data.get_mut(key) {
-			Some(&mut (_, ref mut x)) => { *x -= 1; false }
-			None => true
-		}{	// ... None falls through into...
-			self.data.insert(key.clone(), (DBValue::new(), -1));
+		match self.data.entry(*key) {
+			Entry::Occupied(mut entry) => {
+				let &mut (_, ref mut rc) = entry.get_mut();
+				*rc -= 1;
+			},
+			Entry::Vacant(entry) => {
+				entry.insert((DBValue::new(), -1));
+			},
 		}
 	}
 }

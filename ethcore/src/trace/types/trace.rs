@@ -128,6 +128,77 @@ impl Create {
 	}
 }
 
+/// Reward type.
+#[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "ipc", binary)]
+pub enum RewardType {
+	/// Block
+	Block,
+	/// Uncle
+	Uncle,
+}
+
+impl Encodable for RewardType {
+	fn rlp_append(&self, s: &mut RlpStream) {
+		let v = match *self {
+			RewardType::Block => 0u32,
+			RewardType::Uncle => 1,
+		};
+		Encodable::rlp_append(&v, s);
+	}
+}
+
+impl Decodable for RewardType {
+	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+		rlp.as_val().and_then(|v| Ok(match v {
+			0u32 => RewardType::Block,
+			1 => RewardType::Uncle,
+			_ => return Err(DecoderError::Custom("Invalid value of RewardType item")),
+		}))
+	}
+}
+
+/// Reward action
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "ipc", binary)]
+pub struct Reward {
+	/// Author's address.
+	pub author: Address,
+	/// Reward amount.
+	pub value: U256,
+	/// Reward type.
+	pub reward_type: RewardType,
+}
+
+impl Reward {
+	/// Return reward action bloom.
+	pub fn bloom(&self) -> LogBloom {
+		LogBloom::from_bloomed(&self.author.sha3())
+	}
+}
+
+impl Encodable for Reward {
+	fn rlp_append(&self, s: &mut RlpStream) {
+		s.begin_list(3);
+		s.append(&self.author);
+		s.append(&self.value);
+		s.append(&self.reward_type);
+	}
+}
+
+impl Decodable for Reward {
+	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+		let res = Reward {
+			author: rlp.val_at(0)?,
+			value: rlp.val_at(1)?,
+			reward_type: rlp.val_at(2)?,
+		};
+
+		Ok(res)
+	}
+}
+
+
 /// Suicide action.
 #[derive(Debug, Clone, PartialEq, RlpEncodable, RlpDecodable)]
 #[cfg_attr(feature = "ipc", binary)]
@@ -158,6 +229,8 @@ pub enum Action {
 	Create(Create),
 	/// Suicide.
 	Suicide(Suicide),
+	/// Reward
+	Reward(Reward),
 }
 
 impl Encodable for Action {
@@ -175,7 +248,12 @@ impl Encodable for Action {
 			Action::Suicide(ref suicide) => {
 				s.append(&2u8);
 				s.append(suicide);
+			},
+			Action::Reward(ref reward) => {
+				s.append(&3u8);
+				s.append(reward);
 			}
+
 		}
 	}
 }
@@ -187,6 +265,7 @@ impl Decodable for Action {
 			0 => rlp.val_at(1).map(Action::Call),
 			1 => rlp.val_at(1).map(Action::Create),
 			2 => rlp.val_at(1).map(Action::Suicide),
+			3 => rlp.val_at(1).map(Action::Reward),
 			_ => Err(DecoderError::Custom("Invalid action type.")),
 		}
 	}
@@ -199,6 +278,7 @@ impl Action {
 			Action::Call(ref call) => call.bloom(),
 			Action::Create(ref create) => create.bloom(),
 			Action::Suicide(ref suicide) => suicide.bloom(),
+			Action::Reward(ref reward) => reward.bloom(),
 		}
 	}
 }

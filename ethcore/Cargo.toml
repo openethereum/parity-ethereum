@@ -35,6 +35,7 @@ ethstore = { path = "../ethstore" }
 evm = { path = "evm" }
 futures = "0.1"
 hardware-wallet = { path = "../hw" }
+heapsize = "0.4"
 hyper = { git = "https://github.com/paritytech/hyper", default-features = false }
 itertools = "0.5"
 lazy_static = "0.2"

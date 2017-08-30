@@ -15,22 +15,12 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use super::test_common::*;
-use tests::helpers::*;
 use pod_state::PodState;
-use ethereum;
-use spec::Spec;
+use trace;
+use client::{EvmTestClient, EvmTestError, TransactResult};
 use ethjson;
-use ethjson::state::test::ForkSpec;
 use transaction::SignedTransaction;
 use vm::EnvInfo;
-
-lazy_static! {
-	pub static ref FRONTIER: Spec = ethereum::new_frontier_test();
-	pub static ref HOMESTEAD: Spec = ethereum::new_homestead_test();
-	pub static ref EIP150: Spec = ethereum::new_eip150_test();
-	pub static ref EIP161: Spec = ethereum::new_eip161_test();
-	pub static ref _METROPOLIS: Spec = ethereum::new_metropolis_test();
-}
 
 pub fn json_chain_test(json_data: &[u8]) -> Vec<String> {
 	::ethcore_logger::init_log();
@@ -43,35 +33,49 @@ pub fn json_chain_test(json_data: &[u8]) -> Vec<String> {
 			let env: EnvInfo = test.env.into();
 			let pre: PodState = test.pre_state.into();
 
-			for (spec, states) in test.post_states {
+			for (spec_name, states) in test.post_states {
 				let total = states.len();
-				let engine = match spec {
-					ForkSpec::Frontier => &FRONTIER.engine,
-					ForkSpec::Homestead => &HOMESTEAD.engine,
-					ForkSpec::EIP150 => &EIP150.engine,
-					ForkSpec::EIP158 => &EIP161.engine,
-					ForkSpec::Metropolis => continue,
+				let spec = match EvmTestClient::spec_from_json(&spec_name) {
+					Some(spec) => spec,
+					None => {
+						println!("   - {} | {:?} Ignoring tests because of missing spec", name, spec_name);
+						continue;
+					}
 				};
 
 				for (i, state) in states.into_iter().enumerate() {
-					let info = format!("   - {} | {:?} ({}/{}) ...", name, spec, i + 1, total);
+					let info = format!("   - {} | {:?} ({}/{}) ...", name, spec_name, i + 1, total);
 
 					let post_root: H256 = state.hash.into();
 					let transaction: SignedTransaction = multitransaction.select(&state.indexes).into();
-					let mut state = get_temp_state();
-					state.populate_from(pre.clone());
-					if transaction.verify_basic(true, None, env.number >= engine.params().eip86_transition).is_ok() {
-						state.commit().expect(&format!("State test {} failed due to internal error.", name));
-						let _res = state.apply(&env, &**engine, &transaction, false);
-					} else {
-						let _rest = state.commit();
-					}
-					if state.root() != &post_root {
-						println!("{} !!! State mismatch (got: {}, expect: {}", info, state.root(), post_root);
-						flushln!("{} fail", info);
-						failed.push(name.clone());
-					} else {
-						flushln!("{} ok", info);
+
+					let result = || -> Result<_, EvmTestError> {
+						Ok(EvmTestClient::from_pod_state(spec, pre.clone())?
+							.transact(&env, transaction, trace::NoopVMTracer))
+					};
+					match result() {
+						Err(err) => {
+							println!("{} !!! Unexpected internal error: {:?}", info, err);
+							flushln!("{} fail", info);
+							failed.push(name.clone());
+						},
+						Ok(TransactResult::Ok { state_root, .. }) if state_root != post_root => {
+							println!("{} !!! State mismatch (got: {}, expect: {}", info, state_root, post_root);
+							flushln!("{} fail", info);
+							failed.push(name.clone());
+						},
+						Ok(TransactResult::Err { state_root, ref error }) if state_root != post_root => {
+							println!("{} !!! State mismatch (got: {}, expect: {}", info, state_root, post_root);
+							println!("{} !!! Execution error: {:?}", info, error);
+							flushln!("{} fail", info);
+							failed.push(name.clone());
+						},
+						Ok(TransactResult::Err { error, .. }) => {
+							flushln!("{} ok ({:?})", info, error);
+						},
+						Ok(_) => {
+							flushln!("{} ok", info);
+						},
 					}
 				}
 			}

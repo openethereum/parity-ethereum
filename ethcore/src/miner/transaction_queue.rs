@@ -105,7 +105,8 @@ use std::cmp::Ordering;
 use std::cmp;
 use std::collections::{HashSet, HashMap, BTreeSet, BTreeMap};
 use linked_hash_map::LinkedHashMap;
-use util::{Address, H256, U256, HeapSizeOf};
+use heapsize::HeapSizeOf;
+use util::{Address, H256, U256};
 use table::Table;
 use transaction::*;
 use error::{Error, TransactionError};
@@ -506,8 +507,6 @@ pub struct AccountDetails {
 	pub balance: U256,
 }
 
-/// Transactions with `gas > (gas_limit + gas_limit * Factor(in percents))` are not imported to the queue.
-const GAS_LIMIT_HYSTERESIS: usize = 200; // (100/GAS_LIMIT_HYSTERESIS) %
 /// Transaction with the same (sender, nonce) can be replaced only if
 /// `new_gas_price > old_gas_price + old_gas_price >> SHIFT`
 const GAS_PRICE_BUMP_SHIFT: usize = 3; // 2 = 25%, 3 = 12.5%, 4 = 6.25%
@@ -570,8 +569,8 @@ pub struct TransactionQueue {
 	minimal_gas_price: U256,
 	/// The maximum amount of gas any individual transaction may use.
 	tx_gas_limit: U256,
-	/// Current gas limit (block gas limit * factor). Transactions above the limit will not be accepted (default to !0)
-	total_gas_limit: U256,
+	/// Current gas limit (block gas limit). Transactions above the limit will not be accepted (default to !0)
+	block_gas_limit: U256,
 	/// Maximal time transaction may occupy the queue.
 	/// When we reach `max_time_in_queue / 2^3` we re-validate
 	/// account balance.
@@ -631,7 +630,7 @@ impl TransactionQueue {
 		TransactionQueue {
 			strategy,
 			minimal_gas_price: U256::zero(),
-			total_gas_limit: !U256::zero(),
+			block_gas_limit: !U256::zero(),
 			tx_gas_limit,
 			max_time_in_queue: DEFAULT_QUEUING_PERIOD,
 			current,
@@ -674,16 +673,10 @@ impl TransactionQueue {
 		self.current.gas_price_entry_limit()
 	}
 
-	/// Sets new gas limit. Transactions with gas slightly (`GAS_LIMIT_HYSTERESIS`) above the limit won't be imported.
+	/// Sets new gas limit. Transactions with gas over the limit will not be accepted.
 	/// Any transaction already imported to the queue is not affected.
 	pub fn set_gas_limit(&mut self, gas_limit: U256) {
-		let extra = gas_limit / U256::from(GAS_LIMIT_HYSTERESIS);
-
-		let total_gas_limit = match gas_limit.overflowing_add(extra) {
-			(_, true) => !U256::zero(),
-			(val, false) => val,
-		};
-		self.total_gas_limit = total_gas_limit;
+		self.block_gas_limit = gas_limit;
 	}
 
 	/// Sets new total gas limit.
@@ -819,13 +812,13 @@ impl TransactionQueue {
 			}));
 		}
 
-		let gas_limit = cmp::min(self.tx_gas_limit, self.total_gas_limit);
+		let gas_limit = cmp::min(self.tx_gas_limit, self.block_gas_limit);
 		if tx.gas > gas_limit {
 			trace!(target: "txqueue",
 				"Dropping transaction above gas limit: {:?} ({} > min({}, {}))",
 				tx.hash(),
 				tx.gas,
-				self.total_gas_limit,
+				self.block_gas_limit,
 				self.tx_gas_limit
 			);
 			return Err(Error::Transaction(TransactionError::GasLimitExceeded {
@@ -1922,13 +1915,13 @@ pub mod test {
 		// given
 		let mut txq = TransactionQueue::default();
 		txq.set_gas_limit(U256::zero());
-		assert_eq!(txq.total_gas_limit, U256::zero());
+		assert_eq!(txq.block_gas_limit, U256::zero());
 
 		// when
 		txq.set_gas_limit(!U256::zero());
 
 		// then
-		assert_eq!(txq.total_gas_limit, !U256::zero());
+		assert_eq!(txq.block_gas_limit, !U256::zero());
 	}
 
 	#[test]
@@ -1945,7 +1938,7 @@ pub mod test {
 
 		// then
 		assert_eq!(unwrap_tx_err(res), TransactionError::GasLimitExceeded {
-			limit: U256::from(50_250), // Should be 100.5% of set_gas_limit
+			limit: U256::from(50_000),
 			got: gas,
 		});
 		let stats = txq.status();
