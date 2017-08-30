@@ -118,7 +118,6 @@ pub mod error;
 pub mod bytes;
 pub mod misc;
 pub mod vector;
-//pub mod sha3;
 pub mod hashdb;
 pub mod memorydb;
 pub mod migration;
