@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use bloomchain::group as bc;
-use util::HeapSizeOf;
+use heapsize::HeapSizeOf;
 
 /// Represents `BloomGroup` position in database.
 #[derive(PartialEq, Eq, Hash, Clone, Debug)]

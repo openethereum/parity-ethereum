@@ -22,6 +22,7 @@
 //! 3. Final verification against the blockchain done before enactment.
 
 use std::collections::HashSet;
+use heapsize::HeapSizeOf;
 use util::*;
 use engines::Engine;
 use error::{BlockError, Error};

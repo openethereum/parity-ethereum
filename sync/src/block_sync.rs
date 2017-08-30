@@ -20,6 +20,7 @@
 
 use std::collections::{HashSet, VecDeque};
 use std::cmp;
+use heapsize::HeapSizeOf;
 use util::*;
 use rlp::*;
 use ethcore::views::{BlockView};
