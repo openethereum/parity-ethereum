@@ -245,14 +245,33 @@ mod tests {
 	}
 
 	#[test]
-	fn hash_backward_compatibility() {
+	fn hash_backward_compatibility_for_new() {
 		let ss = vec!["you", "should", "not", "break", "hash", "backward", "compatibility"];
 		let mut bloom = Bloom::new(16, 8);
 		for s in ss.iter() {
 			bloom.set(&s);
 		}
+
 		let drained_elems: HashSet<u64> = bloom.drain_journal().entries.into_iter().map(|t| t.1).collect();
 		let expected: HashSet<u64> = [2094615114573771027u64, 244675582389208413u64].iter().cloned().collect();
 		assert_eq!(drained_elems, expected);
+		assert_eq!(bloom.k_num, 12);
+	}
+
+	#[test]
+	fn hash_backward_compatibility_for_from_parts() {
+		let stored_state = vec![2094615114573771027u64, 244675582389208413u64];
+		let k_num = 12;
+		let bloom = Bloom::from_parts(&stored_state, k_num);
+
+		let ss = vec!["you", "should", "not", "break", "hash", "backward", "compatibility"];
+		let tt = vec!["this", "doesnot", "exist"];
+		for s in ss.iter() {
+			assert!(bloom.check(&s));
+		}
+		for s in tt.iter() {
+			assert!(!bloom.check(&s));
+		}
+
 	}
 }
