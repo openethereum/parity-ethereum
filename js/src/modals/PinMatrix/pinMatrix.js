@@ -88,7 +88,6 @@ export default class PinMatrix extends Component {
 
   renderPasscodeBox () {
     return Array.apply(null, Array(9)).map((box, index) => {
-
       return (
         <button
           className={ styles.passcodeBox }

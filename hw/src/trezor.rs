@@ -124,21 +124,39 @@ impl Manager {
 		let devices = usb.devices();
 		let mut new_devices = Vec::new();
 		let mut closed_devices = Vec::new();
+		let mut error = None;
 		for usb_device in devices {
-			trace!("Checking device: {:?}", usb_device);
-			if usb_device.vendor_id != TREZOR_VID || !TREZOR_PIDS.contains(&usb_device.product_id) || usb_device.usage_page != 0xFF00 {
+			let is_trezor = usb_device.vendor_id == TREZOR_VID;
+			let is_supported_product = TREZOR_PIDS.contains(&usb_device.product_id);
+			let is_valid = usb_device.usage_page == 0xFF00 || usb_device.interface_number == 0;
+
+			trace!(
+				"Checking device: {:?}, trezor: {:?}, prod: {:?}, valid: {:?}",
+				usb_device,
+				is_trezor,
+				is_supported_product,
+				is_valid,
+			);
+			if !is_trezor || !is_supported_product || !is_valid {
 				continue;
 			}
 			match self.read_device_info(&usb, &usb_device) {
 				Ok(device) => new_devices.push(device),
 				Err(Error::ClosedDevice(path)) => closed_devices.push(path.to_string()),
-				Err(e) => return Err(e),
+				Err(e) => {
+					warn!("Error reading device: {:?}", e);
+					error = Some(e);
+				}
 			}
 		}
 		let count = new_devices.len();
+		trace!("Got devices: {:?}, closed: {:?}", new_devices, closed_devices);
 		self.devices = new_devices;
 		self.closed_devices = closed_devices;
-		Ok(count)
+		match error {
+			Some(e) => Err(e),
+			None => Ok(count),
+		}
 	}
 
 	fn read_device_info(&self, usb: &hidapi::HidApi, dev_info: &hidapi::HidDeviceInfo) -> Result<Device, Error> {
