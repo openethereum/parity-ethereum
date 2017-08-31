@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { uniq } from 'lodash';
+import { uniq, chunk } from 'lodash';
 
 import Contracts from '~/contracts';
 import { LOG_KEYS, getLogger } from '~/config';
@@ -51,7 +51,7 @@ export function loadTokens (options = {}) {
 
 export function fetchTokens (_tokenIndexes, options = {}) {
   const tokenIndexes = uniq(_tokenIndexes || []);
-  const tokenChunks = chunks(tokenIndexes, 64);
+  const tokenChunks = chunk(tokenIndexes, 64);
 
   return (dispatch, getState) => {
     const { api, images } = getState();
@@ -96,8 +96,8 @@ export function fetchTokens (_tokenIndexes, options = {}) {
     };
     let promise = Promise.resolve(true);
 
-    while (tokensChunks.length) {
-      const chunk = tokenChunks.unshift();
+    while (tokenChunks.length) {
+      const chunk = tokenChunks.shift();
 
       promise = promise.then(() => processChunk(chunk));
     }
