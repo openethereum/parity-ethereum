@@ -40,6 +40,7 @@ export default class Personal {
     this._started = true;
 
     let defaultAccount = null;
+
     if (this._api.isPubSub) {
       defaultAccount = this._api.pubsub
         .subscribeAndGetResult(

@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { uniq, chunk } from 'lodash';
+import { chunk, uniq } from 'lodash';
 
 import Contracts from '~/contracts';
 import { LOG_KEYS, getLogger } from '~/config';
@@ -57,51 +57,41 @@ export function fetchTokens (_tokenIndexes, options = {}) {
     const { api, images } = getState();
     const { tokenReg } = Contracts.get();
 
-    const processChunk = (chunk) => {
-      if (!chunk || chunk.length === 0) {
-        return Promise.resolve(true);
-      }
+    return tokenReg.getContract()
+      .then((tokenRegContract) => {
+        let promise = Promise.resolve();
 
-      let tokens = {};
+        tokenChunks.forEach((tokenChunk) => {
+          promise = promise
+            .then(() => fetchTokensInfo(api, tokenRegContract, tokenChunk))
+            .then((results) => {
+              const tokens = results
+                .filter((token) => {
+                  return token.name && token.address && !/^(0x)?0*$/.test(token.address);
+                })
+                .reduce((tokens, token) => {
+                  const { id, image, address } = token;
 
-      return tokenReg.getContract()
-        .then((tokenReg) => {
-          return fetchTokensInfo(api, tokenReg, chunk);
-        })
-        .then((results) => {
-          tokens = results
-            .filter((token) => {
-              return token.name && token.address && !/^(0x)?0*$/.test(token.address);
-            })
-            .reduce((tokens, token) => {
-              const { id, image, address } = token;
+                  // dispatch only the changed images
+                  if (images[address] !== image) {
+                    dispatch(setAddressImage(address, image, true));
+                  }
 
-              // dispatch only the changed images
-              if (images[address] !== image) {
-                dispatch(setAddressImage(address, image, true));
-              }
+                  tokens[id] = token;
+                  return tokens;
+                }, {});
 
-              tokens[id] = token;
-              return tokens;
-            }, tokens);
+              log.debug('fetched token', tokens);
 
-          log.debug('fetched token', tokens);
-
-          dispatch(setTokens(tokens));
-          dispatch(updateTokensFilter(null, null, options));
-        })
-        .catch((error) => {
-          console.warn('tokens::fetchTokens', error);
+              dispatch(setTokens(tokens));
+              dispatch(updateTokensFilter(null, null, options));
+            });
         });
-    };
-    let promise = Promise.resolve(true);
 
-    while (tokenChunks.length) {
-      const chunk = tokenChunks.shift();
-
-      promise = promise.then(() => processChunk(chunk));
-    }
-
-    return promise;
+        return promise;
+      })
+      .catch((error) => {
+        console.warn('tokens::fetchTokens', error);
+      });
   };
 }
