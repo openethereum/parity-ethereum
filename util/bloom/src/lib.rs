@@ -24,9 +24,6 @@ use std::hash::{Hash, Hasher};
 use std::collections::HashSet;
 use siphasher::sip::SipHasher;
 
-// TODO [ToDr] Both hashers are exactly the same - no point to keep two.
-const NUMBER_OF_HASHERS: usize = 2;
-
 /// BitVec structure with journalling
 /// Every time any of the blocks is getting set it's index is tracked
 /// and can be then drained by `drain` method
@@ -80,8 +77,6 @@ pub struct Bloom {
 	bitmap: BitVecJournal,
 	bitmap_bits: u64,
 	k_num: u32,
-	// TODO [ToDr] Both hashers are exactly the same - no point to keep two.
-	sips: [SipHasher; NUMBER_OF_HASHERS],
 }
 
 impl Bloom {
@@ -93,12 +88,10 @@ impl Bloom {
 		let bitmap_bits = (bitmap_size as u64) * 8u64;
 		let k_num = Bloom::optimal_k_num(bitmap_bits, items_count);
 		let bitmap = BitVecJournal::new(bitmap_bits as usize);
-		let sips = [SipHasher::new(), SipHasher::new()];
 		Bloom {
 			bitmap: bitmap,
 			bitmap_bits: bitmap_bits,
 			k_num: k_num,
-			sips: sips,
 		}
 	}
 
@@ -107,12 +100,10 @@ impl Bloom {
 		let bitmap_size = parts.len() * 8;
 		let bitmap_bits = (bitmap_size as u64) * 8u64;
 		let bitmap = BitVecJournal::from_parts(parts);
-		let sips = [SipHasher::new(), SipHasher::new()];
 		Bloom {
 			bitmap: bitmap,
 			bitmap_bits: bitmap_bits,
 			k_num: k_num,
-			sips: sips,
 		}
 	}
 
@@ -139,9 +130,9 @@ impl Bloom {
 	pub fn set<T>(&mut self, item: T)
 		where T: Hash
 	{
-		let mut hashes = [0u64, 0u64];
+		let base_hash = Bloom::sip_hash(&item);
 		for k_i in 0..self.k_num {
-			let bit_offset = (self.bloom_hash(&mut hashes, &item, k_i) % self.bitmap_bits) as usize;
+			let bit_offset = (Bloom::bloom_hash(base_hash, k_i) % self.bitmap_bits) as usize;
 			self.bitmap.set(bit_offset);
 		}
 	}
@@ -151,9 +142,9 @@ impl Bloom {
 	pub fn check<T>(&self, item: T) -> bool
 		where T: Hash
 	{
-		let mut hashes = [0u64, 0u64];
+		let base_hash = Bloom::sip_hash(&item);
 		for k_i in 0..self.k_num {
-			let bit_offset = (self.bloom_hash(&mut hashes, &item, k_i) % self.bitmap_bits) as usize;
+			let bit_offset = (Bloom::bloom_hash(base_hash, k_i) % self.bitmap_bits) as usize;
 			if !self.bitmap.get(bit_offset) {
 				return false;
 			}
@@ -178,17 +169,20 @@ impl Bloom {
 		cmp::max(k_num, 1)
 	}
 
-	fn bloom_hash<T>(&self, hashes: &mut [u64; NUMBER_OF_HASHERS], item: &T, k_i: u32) -> u64
+	fn sip_hash<T>(item: &T) -> u64
 		where T: Hash
 	{
-		if k_i < NUMBER_OF_HASHERS as u32 {
-			let mut sip = self.sips[k_i as usize].clone();
-			item.hash(&mut sip);
-			let hash = sip.finish();
-			hashes[k_i as usize] = hash;
-			hash
+		let mut sip = SipHasher::new();
+		item.hash(&mut sip);
+		let hash = sip.finish();
+		hash
+	}
+
+	fn bloom_hash(base_hash: u64, k_i: u32) -> u64 {
+		if k_i < 2 {
+			base_hash
 		} else {
-			hashes[0].wrapping_add((k_i as u64).wrapping_mul(hashes[1]) % 0xffffffffffffffc5)
+			base_hash.wrapping_add((k_i as u64).wrapping_mul(base_hash) % 0xffffffffffffffc5)
 		}
 	}
 
@@ -218,6 +212,7 @@ pub struct BloomJournal {
 #[cfg(test)]
 mod tests {
 	use super::Bloom;
+	use std::collections::HashSet;
 
 	#[test]
 	fn get_set() {
@@ -247,5 +242,17 @@ mod tests {
 		let full = bloom.saturation();
 		// 2/8/64 = 0.00390625
 		assert!(full >= 0.0039f64 && full <= 0.004f64);
+	}
+
+	#[test]
+	fn hash_backward_compatibility() {
+		let ss = vec!["you", "should", "not", "break", "hash", "backward", "compatibility"];
+		let mut bloom = Bloom::new(16, 8);
+		for s in ss.iter() {
+			bloom.set(&s);
+		}
+		let drained_elems: HashSet<u64> = bloom.drain_journal().entries.into_iter().map(|t| t.1).collect();
+		let expected: HashSet<u64> = [2094615114573771027u64, 244675582389208413u64].iter().cloned().collect();
+		assert_eq!(drained_elems, expected);
 	}
 }

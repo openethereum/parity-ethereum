@@ -16,7 +16,8 @@
 
 use std::sync::Arc;
 use hash::KECCAK_EMPTY;
-use util::{H256, HeapSizeOf, Mutex};
+use heapsize::HeapSizeOf;
+use util::{H256, Mutex};
 use util::cache::MemoryLruCache;
 use bit_set::BitSet;
 use super::super::instructions;

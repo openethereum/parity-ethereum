@@ -19,6 +19,7 @@
 use std::cmp;
 use std::cell::RefCell;
 use hash::{KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP, keccak};
+use heapsize::HeapSizeOf;
 use util::*;
 use basic_types::{LogBloom, ZERO_LOGBLOOM};
 use time::get_time;

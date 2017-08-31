@@ -11,6 +11,7 @@ ethcore-util = { path = "../../util" }
 ethjson = { path = "../../json" }
 bloomable = { path = "../../util/bloomable" }
 hash = { path = "../../util/hash" }
+heapsize = "0.4"
 
 [dev-dependencies]
 rustc-hex= "1.0"

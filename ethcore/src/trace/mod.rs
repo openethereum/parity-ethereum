@@ -33,7 +33,7 @@ pub use self::localized::LocalizedTrace;
 
 pub use self::types::{filter, flat, localized, trace};
 pub use self::types::error::Error as TraceError;
-pub use self::types::trace::{VMTrace, VMOperation, VMExecutedOperation, MemoryDiff, StorageDiff};
+pub use self::types::trace::{VMTrace, VMOperation, VMExecutedOperation, MemoryDiff, StorageDiff, RewardType};
 pub use self::types::flat::{FlatTrace, FlatTransactionTraces, FlatBlockTraces};
 pub use self::types::filter::{Filter, AddressesFilter};
 
@@ -80,6 +80,9 @@ pub trait Tracer: Send {
 
 	/// Stores suicide info.
 	fn trace_suicide(&mut self, address: Address, balance: U256, refund_address: Address);
+
+	/// Stores reward info.
+	fn trace_reward(&mut self, author: Address, value: U256, reward_type: RewardType);
 
 	/// Spawn subtracer which will be used to trace deeper levels of execution.
 	fn subtracer(&self) -> Self where Self: Sized;

@@ -18,7 +18,8 @@
 
 use std::ops::Deref;
 use hash::keccak;
-use util::{H256, Address, Bytes, HeapSizeOf};
+use heapsize::HeapSizeOf;
+use util::{H256, Address, Bytes};
 use bloomable::Bloomable;
 
 use {BlockNumber};

@@ -16,7 +16,8 @@
 
 /// Preconfigured validator list.
 
-use util::{H256, Address, HeapSizeOf};
+use heapsize::HeapSizeOf;
+use util::{H256, Address};
 
 use engines::{Call, Engine};
 use header::{BlockNumber, Header};

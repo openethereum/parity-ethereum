@@ -19,6 +19,7 @@ ethcore-io = { path = "../../util/io" }
 ethcore-ipc = { path = "../../ipc/rpc", optional = true }
 ethcore-devtools = { path = "../../devtools" }
 evm = { path = "../evm" }
+heapsize = "0.4"
 vm = { path = "../vm" }
 rlp = { path = "../../util/rlp" }
 rlp_derive = { path = "../../util/rlp_derive" }

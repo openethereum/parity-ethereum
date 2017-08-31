@@ -17,7 +17,7 @@
 //! Receipt
 
 use util::{H256, U256, Address};
-use util::HeapSizeOf;
+use heapsize::HeapSizeOf;
 use rlp::*;
 
 use {BlockNumber};

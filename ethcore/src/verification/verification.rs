@@ -23,6 +23,7 @@
 
 use std::collections::HashSet;
 use hash::keccak;
+use heapsize::HeapSizeOf;
 use util::*;
 use engines::Engine;
 use error::{BlockError, Error};

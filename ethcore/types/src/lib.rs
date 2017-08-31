@@ -23,6 +23,7 @@ extern crate rlp;
 extern crate rlp_derive;
 extern crate bloomable;
 extern crate hash;
+extern crate heapsize;
 
 #[cfg(test)]
 extern crate rustc_hex;

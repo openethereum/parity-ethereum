@@ -10,6 +10,7 @@ common-types = { path = "../types" }
 ethcore-util = { path = "../../util" }
 evmjit = { path = "../../evmjit", optional = true }
 ethjson = { path = "../../json" }
+heapsize = "0.4"
 lazy_static = "0.2"
 log = "0.3"
 rlp = { path = "../../util/rlp" }

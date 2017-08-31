@@ -28,8 +28,9 @@ use header::{BlockNumber, Header as FullHeader};
 use transaction::UnverifiedTransaction;
 use views;
 
-use util::{Address, H256, H2048, U256, HeapSizeOf};
 use hash::keccak;
+use heapsize::HeapSizeOf;
+use util::{Address, H256, H2048, U256};
 use rlp::Rlp;
 
 /// Owning header view.

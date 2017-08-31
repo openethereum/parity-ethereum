@@ -92,6 +92,7 @@
 use std::collections::{HashSet, HashMap};
 use std::cmp;
 use hash::keccak;
+use heapsize::HeapSizeOf;
 use util::*;
 use rlp::*;
 use network::*;

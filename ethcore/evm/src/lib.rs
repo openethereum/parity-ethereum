@@ -25,6 +25,7 @@ extern crate rlp;
 extern crate parity_wasm;
 extern crate wasm_utils;
 extern crate ethcore_logger;
+extern crate heapsize;
 extern crate vm;
 extern crate hash;
 
