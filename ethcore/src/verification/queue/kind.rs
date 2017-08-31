@@ -19,7 +19,8 @@
 use engines::Engine;
 use error::Error;
 
-use util::{HeapSizeOf, H256, U256};
+use heapsize::HeapSizeOf;
+use util::{H256, U256};
 
 pub use self::blocks::Blocks;
 pub use self::headers::Headers;
@@ -72,7 +73,8 @@ pub mod blocks {
 	use header::Header;
 	use verification::{PreverifiedBlock, verify_block_basic, verify_block_unordered};
 
-	use util::{Bytes, HeapSizeOf, H256, U256};
+	use heapsize::HeapSizeOf;
+	use util::{Bytes, H256, U256};
 
 	/// A mode for verifying blocks.
 	pub struct Blocks;

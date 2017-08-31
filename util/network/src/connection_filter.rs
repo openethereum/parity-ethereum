@@ -14,37 +14,18 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Types used in the public API
+//! Connection filter trait.
 
-extern crate ethcore_util as util;
-extern crate ethjson;
-extern crate rlp;
-#[macro_use]
-extern crate rlp_derive;
-extern crate bloomable;
-extern crate heapsize;
+use super::NodeId;
 
-#[cfg(test)]
-extern crate rustc_hex;
+/// Filtered connection direction.
+pub enum ConnectionDirection {
+	Inbound,
+	Outbound,
+}
 
-pub mod account_diff;
-pub mod basic_account;
-pub mod block_status;
-pub mod blockchain_info;
-pub mod call_analytics;
-pub mod filter;
-pub mod ids;
-pub mod log_entry;
-pub mod mode;
-pub mod pruning_info;
-pub mod receipt;
-pub mod restoration_status;
-pub mod security_level;
-pub mod snapshot_manifest;
-pub mod state_diff;
-pub mod trace_filter;
-pub mod tree_route;
-pub mod verification_queue_info;
-
-/// Type for block number.
-pub type BlockNumber = u64;
+/// Connection filter. Each connection is checked against `connection_allowed`.
+pub trait ConnectionFilter : Send + Sync {
+	/// Filter a connection. Returns `true` if connection should be allowed. `false` if rejected.
+	fn connection_allowed(&self, own_id: &NodeId, connecting_id: &NodeId, direction: ConnectionDirection) -> bool;
+}

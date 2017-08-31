@@ -399,8 +399,9 @@ pub mod common {
 	use transaction::SYSTEM_ADDRESS;
 	use executive::Executive;
 	use vm::{CallType, ActionParams, ActionValue, EnvInfo, LastHashes};
-	use trace::{NoopTracer, NoopVMTracer};
+	use trace::{NoopTracer, NoopVMTracer, Tracer, ExecutiveTracer, RewardType};
 	use state::Substate;
+	use state::CleanupMode;
 
 	use util::*;
 	use super::Engine;
@@ -468,5 +469,28 @@ pub mod common {
 			)?;
 		}
 		Ok(())
+	}
+
+	/// Trace rewards on closing block
+	pub fn bestow_block_reward<E: Engine + ?Sized>(block: &mut ExecutedBlock, engine: &E) -> Result<(), Error> {
+		let fields = block.fields_mut();
+		// Bestow block reward
+		let reward = engine.params().block_reward;
+		let res = fields.state.add_balance(fields.header.author(), &reward, CleanupMode::NoEmpty)
+			.map_err(::error::Error::from)
+			.and_then(|_| fields.state.commit());
+
+		let block_author = fields.header.author().clone();
+		fields.traces.as_mut().map(|mut traces| {
+  			let mut tracer = ExecutiveTracer::default();
+  			tracer.trace_reward(block_author, engine.params().block_reward, RewardType::Block);
+  			traces.push(tracer.drain())
+		});
+
+		// Commit state so that we can actually figure out the state root.
+		if let Err(ref e) = res {
+			warn!("Encountered error on bestowing reward: {}", e);
+		}
+		res
 	}
 }

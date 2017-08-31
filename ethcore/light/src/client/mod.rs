@@ -330,7 +330,7 @@ impl Client {
 
 	/// Get blockchain mem usage in bytes.
 	pub fn chain_mem_used(&self) -> usize {
-		use util::HeapSizeOf;
+		use heapsize::HeapSizeOf;
 
 		self.chain.heap_size_of_children()
 	}

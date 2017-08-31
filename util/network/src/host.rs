@@ -42,6 +42,7 @@ use discovery::{Discovery, TableUpdates, NodeEntry};
 use ip_utils::{map_external_address, select_public_address};
 use path::restrict_permissions_owner;
 use parking_lot::{Mutex, RwLock};
+use connection_filter::{ConnectionFilter, ConnectionDirection};
 
 type Slab<T> = ::slab::Slab<T, usize>;
 
@@ -380,11 +381,12 @@ pub struct Host {
 	reserved_nodes: RwLock<HashSet<NodeId>>,
 	num_sessions: AtomicUsize,
 	stopping: AtomicBool,
+	filter: Option<Arc<ConnectionFilter>>,
 }
 
 impl Host {
 	/// Create a new instance
-	pub fn new(mut config: NetworkConfiguration, stats: Arc<NetworkStats>) -> Result<Host, NetworkError> {
+	pub fn new(mut config: NetworkConfiguration, stats: Arc<NetworkStats>, filter: Option<Arc<ConnectionFilter>>) -> Result<Host, NetworkError> {
 		let mut listen_address = match config.listen_address {
 			None => SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(0, 0, 0, 0), DEFAULT_PORT)),
 			Some(addr) => addr,
@@ -437,6 +439,7 @@ impl Host {
 			reserved_nodes: RwLock::new(HashSet::new()),
 			num_sessions: AtomicUsize::new(0),
 			stopping: AtomicBool::new(false),
+			filter: filter,
 		};
 
 		for n in boot_nodes {
@@ -691,8 +694,12 @@ impl Host {
 
 		let max_handshakes_per_round = max_handshakes / 2;
 		let mut started: usize = 0;
-		for id in nodes.filter(|id| !self.have_session(id) && !self.connecting_to(id) && *id != self_id)
-			.take(min(max_handshakes_per_round, max_handshakes - handshake_count)) {
+		for id in nodes.filter(|id| 
+				!self.have_session(id) &&
+				!self.connecting_to(id) &&
+				*id != self_id &&
+				self.filter.as_ref().map_or(true, |f| f.connection_allowed(&self_id, &id, ConnectionDirection::Outbound))
+			).take(min(max_handshakes_per_round, max_handshakes - handshake_count)) {
 			self.connect_peer(&id, io);
 			started += 1;
 		}
@@ -827,7 +834,7 @@ impl Host {
 						Ok(SessionData::Ready) => {
 							self.num_sessions.fetch_add(1, AtomicOrdering::SeqCst);
 							let session_count = self.session_count();
-							let (min_peers, max_peers, reserved_only) = {
+							let (min_peers, max_peers, reserved_only, self_id) = {
 								let info = self.info.read();
 								let mut max_peers = info.config.max_peers;
 								for cap in s.info.capabilities.iter() {
@@ -836,7 +843,7 @@ impl Host {
 										break;
 									}
 								}
-								(info.config.min_peers as usize, max_peers as usize, info.config.non_reserved_mode == NonReservedPeerMode::Deny)
+								(info.config.min_peers as usize, max_peers as usize, info.config.non_reserved_mode == NonReservedPeerMode::Deny, info.id().clone())
 							};
 
 							let id = s.id().expect("Ready session always has id").clone();
@@ -852,6 +859,14 @@ impl Host {
 									break;
 								}
 							}
+
+							if !self.filter.as_ref().map_or(true, |f| f.connection_allowed(&self_id, &id, ConnectionDirection::Inbound)) {
+								trace!(target: "network", "Inbound connection not allowed for {:?}", id);
+								s.disconnect(io, DisconnectReason::UnexpectedIdentity);
+								kill = true;
+								break;
+							}
+
 							ready_id = Some(id);
 
 							// Add it to the node table
@@ -1266,7 +1281,7 @@ fn host_client_url() {
 	let mut config = NetworkConfiguration::new_local();
 	let key = "6f7b0d801bc7b5ce7bbd930b84fd0369b3eb25d09be58d64ba811091046f3aa2".parse().unwrap();
 	config.use_secret = Some(key);
-	let host: Host = Host::new(config, Arc::new(NetworkStats::new())).unwrap();
+	let host: Host = Host::new(config, Arc::new(NetworkStats::new()), None).unwrap();
 	assert!(host.local_url().starts_with("enode://101b3ef5a4ea7a1c7928e24c4c75fd053c235d7b80c22ae5c03d145d0ac7396e2a4ffff9adee3133a7b05044a5cee08115fd65145e5165d646bde371010d803c@"));
 }
 

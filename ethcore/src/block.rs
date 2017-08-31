@@ -21,7 +21,7 @@ use std::sync::Arc;
 use std::collections::HashSet;
 
 use rlp::{UntrustedRlp, RlpStream, Encodable, Decodable, DecoderError};
-use util::{Bytes, Address, Hashable, U256, H256, ordered_trie_root, SHA3_NULL_RLP};
+use util::{Bytes, Address, Hashable, U256, H256, ordered_trie_root, SHA3_NULL_RLP, SHA3_EMPTY_LIST_RLP};
 use util::error::{Mismatch, OutOfBounds};
 
 use basic_types::{LogBloom, Seal};
@@ -107,7 +107,7 @@ pub struct BlockRefMut<'a> {
 	/// State.
 	pub state: &'a mut State<StateDB>,
 	/// Traces.
-	pub traces: &'a Option<Vec<Vec<FlatTrace>>>,
+	pub traces: &'a mut Option<Vec<Vec<FlatTrace>>>,
 }
 
 /// A set of immutable references to `ExecutedBlock` fields that are publicly accessible.
@@ -148,7 +148,7 @@ impl ExecutedBlock {
 			uncles: &self.uncles,
 			state: &mut self.state,
 			receipts: &self.receipts,
-			traces: &self.traces,
+			traces: &mut self.traces,
 		}
 	}
 
@@ -196,6 +196,9 @@ pub trait IsBlock {
 
 	/// Get all uncles in this block.
 	fn uncles(&self) -> &[Header] { &self.block().uncles }
+
+	/// Get tracing enabled flag for this block.
+	fn tracing_enabled(&self) -> bool { self.block().traces.is_some() }
 }
 
 /// Trait for a object that has a state database.
@@ -395,6 +398,7 @@ impl<'x> OpenBlock<'x> {
 		if let Err(e) = s.engine.on_close_block(&mut s.block) {
 			warn!("Encountered error on closing the block: {}", e);
 		}
+		
 		if let Err(e) = s.block.state.commit() {
 			warn!("Encountered error on state commit: {}", e);
 		}
@@ -429,7 +433,7 @@ impl<'x> OpenBlock<'x> {
 			s.block.header.set_transactions_root(ordered_trie_root(s.block.transactions.iter().map(|e| e.rlp_bytes().into_vec())));
 		}
 		let uncle_bytes = s.block.uncles.iter().fold(RlpStream::new_list(s.block.uncles.len()), |mut s, u| {s.append_raw(&u.rlp(Seal::With), 1); s} ).out();
-		if s.block.header.uncles_hash().is_zero() {
+		if s.block.header.uncles_hash().is_zero() || s.block.header.uncles_hash() == &SHA3_EMPTY_LIST_RLP {
 			s.block.header.set_uncles_hash(uncle_bytes.sha3());
 		}
 		if s.block.header.receipts_root().is_zero() || s.block.header.receipts_root() == &SHA3_NULL_RLP {

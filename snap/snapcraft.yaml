@@ -1,5 +1,5 @@
 name: parity
-version: master
+version: git
 summary: Fast, light, robust Ethereum implementation
 description: |
   Parity's goal is to be the fastest, lightest, and most secure Ethereum

@@ -100,6 +100,8 @@ pub struct CommonParams {
 	pub block_reward: U256,
 	/// Registrar contract address.
 	pub registrar: Address,
+	/// Node permission managing contract address.
+	pub node_permission_contract: Option<Address>,
 }
 
 impl CommonParams {
@@ -171,6 +173,7 @@ impl From<ethjson::spec::Params> for CommonParams {
 			gas_limit_bound_divisor: p.gas_limit_bound_divisor.into(),
 			block_reward: p.block_reward.map_or_else(U256::zero, Into::into),
 			registrar: p.registrar.map_or_else(Address::new, Into::into),
+			node_permission_contract: p.node_permission_contract.map(Into::into),
 		}
 	}
 }
@@ -343,7 +346,6 @@ impl Spec {
 				};
 
 				let mut substate = Substate::new();
-				state.kill_account(&address);
 
 				{
 					let mut exec = Executive::new(&mut state, &env_info, self.engine.as_ref());
@@ -481,6 +483,9 @@ impl Spec {
 	/// Create a new Spec which conforms to the Frontier-era Morden chain except that it's a NullEngine consensus.
 	pub fn new_test() -> Spec { load_bundled!("null_morden") }
 
+	/// Create a new Spec which conforms to the Frontier-era Morden chain except that it's a NullEngine consensus with applying reward on block close.
+	pub fn new_test_with_reward() -> Spec { load_bundled!("null_morden_with_reward") }
+
 	/// Create a new Spec which is a NullEngine consensus with a premine of address whose secret is sha3('').
 	pub fn new_null() -> Spec { load_bundled!("null") }
 
@@ -548,6 +553,9 @@ mod tests {
 		let db = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
 		let state = State::from_existing(db.boxed_clone(), spec.state_root(), spec.engine.account_start_nonce(0), Default::default()).unwrap();
 		let expected = H256::from_str("0000000000000000000000000000000000000000000000000000000000000001").unwrap();
-		assert_eq!(state.storage_at(&Address::from_str("0000000000000000000000000000000000000005").unwrap(), &H256::zero()).unwrap(), expected);
+		let address = Address::from_str("0000000000000000000000000000000000000005").unwrap();
+
+		assert_eq!(state.storage_at(&address, &H256::zero()).unwrap(), expected);
+		assert_eq!(state.balance(&address).unwrap(), 1.into());
 	}
 }

@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::fmt;
-use std::sync::Arc;
+use std::sync::{Arc, Weak};
 use std::net::{TcpListener};
 
 use ctrlc::CtrlC;
@@ -38,6 +38,7 @@ use parity_reactor::EventLoop;
 use parity_rpc::{NetworkSettings, informant, is_major_importing};
 use updater::{UpdatePolicy, Updater};
 use util::{Colour, version, Mutex, Condvar};
+use node_filter::NodeFilter;
 
 use params::{
 	SpecType, Pruning, AccountsConfig, GasPricerConfig, MinerExtras, Switch,
@@ -569,11 +570,13 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 		miner.clone(),
 	).map_err(|e| format!("Client service error: {:?}", e))?;
 
+	let connection_filter_address = spec.params().node_permission_contract;
 	// drop the spec to free up genesis state.
 	drop(spec);
 
 	// take handle to client
 	let client = service.client();
+	let connection_filter = connection_filter_address.map(|a| Arc::new(NodeFilter::new(Arc::downgrade(&client) as Weak<BlockChainClient>, a)));
 	let snapshot_service = service.snapshot_service();
 
 	// initialize the local node information store.
@@ -645,9 +648,13 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 		client.clone(),
 		&cmd.logger_config,
 		attached_protos,
+		connection_filter.clone().map(|f| f as Arc<::ethsync::ConnectionFilter + 'static>),
 	).map_err(|e| format!("Sync error: {}", e))?;
 
 	service.add_notify(chain_notify.clone());
+	if let Some(filter) = connection_filter {
+		service.add_notify(filter);
+	}
 
 	// start network
 	if network_enabled {

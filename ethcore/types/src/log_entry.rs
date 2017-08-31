@@ -17,7 +17,8 @@
 //! Log entry type definition.
 
 use std::ops::Deref;
-use util::{H256, Address, Bytes, HeapSizeOf, Hashable};
+use heapsize::HeapSizeOf;
+use util::{H256, Address, Bytes, Hashable};
 use bloomable::Bloomable;
 
 use {BlockNumber};
