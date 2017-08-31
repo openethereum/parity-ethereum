@@ -20,6 +20,7 @@ use std::time::Duration;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use hash::keccak;
 use ethcore::snapshot::{Progress, RestorationStatus, SnapshotService as SS};
 use ethcore::snapshot::io::{SnapshotReader, PackedReader, PackedWriter};
 use ethcore::snapshot::service::Service as SnapshotService;
@@ -65,8 +66,6 @@ pub struct SnapshotCommand {
 // helper for reading chunks from arbitrary reader and feeding them into the
 // service.
 fn restore_using<R: SnapshotReader>(snapshot: Arc<SnapshotService>, reader: &R, recover: bool) -> Result<(), String> {
-	use util::sha3::Hashable;
-
 	let manifest = reader.manifest();
 
 	info!("Restoring to block #{} (0x{:?})", manifest.block_number, manifest.block_hash);
@@ -95,7 +94,7 @@ fn restore_using<R: SnapshotReader>(snapshot: Arc<SnapshotService>, reader: &R, 
  		let chunk = reader.chunk(state_hash)
 			.map_err(|e| format!("Encountered error while reading chunk {:?}: {}", state_hash, e))?;
 
-		let hash = chunk.sha3();
+		let hash = keccak(&chunk);
 		if hash != state_hash {
 			return Err(format!("Mismatched chunk hash. Expected {:?}, got {:?}", state_hash, hash));
 		}
@@ -112,7 +111,7 @@ fn restore_using<R: SnapshotReader>(snapshot: Arc<SnapshotService>, reader: &R, 
  		let chunk = reader.chunk(block_hash)
 			.map_err(|e| format!("Encountered error while reading chunk {:?}: {}", block_hash, e))?;
 
-		let hash = chunk.sha3();
+		let hash = keccak(&chunk);
 		if hash != block_hash {
 			return Err(format!("Mismatched chunk hash. Expected {:?}, got {:?}", block_hash, hash));
 		}

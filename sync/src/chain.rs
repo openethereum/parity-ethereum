@@ -91,6 +91,7 @@
 
 use std::collections::{HashSet, HashMap};
 use std::cmp;
+use hash::keccak;
 use util::*;
 use rlp::*;
 use network::*;
@@ -682,7 +683,7 @@ impl ChainSync {
 					peer.confirmation = ForkConfirmation::TooShort;
 				} else {
 					let header = r.at(0)?.as_raw();
-					if header.sha3() == fork_hash {
+					if keccak(&header) == fork_hash {
 						trace!(target: "sync", "{}: Confirmed peer", peer_id);
 						peer.confirmation = ForkConfirmation::Confirmed;
 						if !io.chain_overlay().read().contains_key(&fork_number) {
@@ -894,7 +895,7 @@ impl ChainSync {
 		}
 		let block_rlp = r.at(0)?;
 		let header_rlp = block_rlp.at(0)?;
-		let h = header_rlp.as_raw().sha3();
+		let h = keccak(&header_rlp.as_raw());
 		trace!(target: "sync", "{} -> NewBlock ({})", peer_id, h);
 		let header: BlockHeader = header_rlp.as_val()?;
 		if header.number() > self.highest_block.unwrap_or(0) {
@@ -1055,7 +1056,7 @@ impl ChainSync {
 			self.continue_sync(io);
 			return Ok(());
 		}
-		self.snapshot.reset_to(&manifest, &manifest_rlp.as_raw().sha3());
+		self.snapshot.reset_to(&manifest, &keccak(manifest_rlp.as_raw()));
 		io.snapshot_service().begin_restore(manifest);
 		self.state = SyncState::SnapshotData;
 
@@ -1509,7 +1510,7 @@ impl ChainSync {
 				false => io.snapshot_service().manifest(),
 			};
 			let block_number = manifest.as_ref().map_or(0, |m| m.block_number);
-			let manifest_hash = manifest.map_or(H256::new(), |m| m.into_rlp().sha3());
+			let manifest_hash = manifest.map_or(H256::new(), |m| keccak(m.into_rlp()));
 			packet.append(&manifest_hash);
 			packet.append(&block_number);
 		}
@@ -1531,7 +1532,7 @@ impl ChainSync {
 			match io.chain().block_header(BlockId::Hash(hash)) {
 				Some(hdr) => {
 					let number = hdr.number().into();
-					debug_assert_eq!(hdr.sha3(), hash);
+					debug_assert_eq!(hdr.hash(), hash);
 
 					if max_headers == 1 || io.chain().block_hash(BlockId::Number(number)) != Some(hash) {
 						// Non canonical header or single header requested
@@ -2229,7 +2230,6 @@ mod tests {
 	use tests::helpers::*;
 	use tests::snapshot::TestSnapshotService;
 	use util::{U256, Address, RwLock};
-	use util::sha3::Hashable;
 	use util::hash::H256;
 	use util::bytes::Bytes;
 	use rlp::{Rlp, RlpStream, UntrustedRlp};
@@ -2394,7 +2394,7 @@ mod tests {
 		let blocks: Vec<_> = (0 .. 100)
 			.map(|i| (&client as &BlockChainClient).block(BlockId::Number(i as BlockNumber)).map(|b| b.into_inner()).unwrap()).collect();
 		let headers: Vec<_> = blocks.iter().map(|b| Rlp::new(b).at(0).as_raw().to_vec()).collect();
-		let hashes: Vec<_> = headers.iter().map(|h| HeaderView::new(h).sha3()).collect();
+		let hashes: Vec<_> = headers.iter().map(|h| HeaderView::new(h).hash()).collect();
 
 		let queue = RwLock::new(VecDeque::new());
 		let ss = TestSnapshotService::new();

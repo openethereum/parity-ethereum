@@ -11,6 +11,7 @@ extern crate serde;
 extern crate serde_json;
 extern crate tempdir;
 extern crate url;
+extern crate hash;
 
 #[macro_use]
 extern crate log;

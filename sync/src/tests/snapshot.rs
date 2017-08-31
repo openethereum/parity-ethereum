@@ -16,6 +16,7 @@
 
 use std::collections::HashMap;
 use std::sync::Arc;
+use hash::keccak;
 use util::*;
 use ethcore::snapshot::{SnapshotService, ManifestData, RestorationStatus};
 use ethcore::header::BlockNumber;
@@ -50,14 +51,14 @@ impl TestSnapshotService {
 		let block_chunks: Vec<Bytes> = (0..num_block_chunks).map(|_| H256::random().to_vec()).collect();
 		let manifest = ManifestData {
 			version: 2,
-			state_hashes: state_chunks.iter().map(|data| data.sha3()).collect(),
-			block_hashes: block_chunks.iter().map(|data| data.sha3()).collect(),
+			state_hashes: state_chunks.iter().map(|data| keccak(data)).collect(),
+			block_hashes: block_chunks.iter().map(|data| keccak(data)).collect(),
 			state_root: H256::new(),
 			block_number: block_number,
 			block_hash: block_hash,
 		};
-		let mut chunks: HashMap<H256, Bytes> = state_chunks.into_iter().map(|data| (data.sha3(), data)).collect();
-		chunks.extend(block_chunks.into_iter().map(|data| (data.sha3(), data)));
+		let mut chunks: HashMap<H256, Bytes> = state_chunks.into_iter().map(|data| (keccak(&data), data)).collect();
+		chunks.extend(block_chunks.into_iter().map(|data| (keccak(&data), data)));
 		TestSnapshotService {
 			manifest: Some(manifest),
 			chunks: chunks,

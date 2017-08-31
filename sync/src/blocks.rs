@@ -17,6 +17,7 @@
 use std::collections::{HashSet, HashMap};
 use std::collections::hash_map::Entry;
 use smallvec::SmallVec;
+use hash::{keccak, KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP};
 use util::*;
 use rlp::*;
 use network::NetworkError;
@@ -342,7 +343,7 @@ impl BlockCollection {
 			let body = UntrustedRlp::new(&b);
 			let tx = body.at(0)?;
 			let tx_root = ordered_trie_root(tx.iter().map(|r| r.as_raw().to_vec())); //TODO: get rid of vectors here
-			let uncles = body.at(1)?.as_raw().sha3();
+			let uncles = keccak(body.at(1)?.as_raw());
 			HeaderId {
 				transactions_root: tx_root,
 				uncles: uncles
@@ -425,7 +426,7 @@ impl BlockCollection {
 			transactions_root: info.transactions_root().clone(),
 			uncles: info.uncles_hash().clone(),
 		};
-		if header_id.transactions_root == sha3::SHA3_NULL_RLP && header_id.uncles == sha3::SHA3_EMPTY_LIST_RLP {
+		if header_id.transactions_root == KECCAK_NULL_RLP && header_id.uncles == KECCAK_EMPTY_LIST_RLP {
 			// empty body, just mark as downloaded
 			let mut body_stream = RlpStream::new_list(2);
 			body_stream.append_raw(&::rlp::EMPTY_LIST_RLP, 1);
@@ -438,7 +439,7 @@ impl BlockCollection {
 		}
 		if self.need_receipts {
 			let receipt_root = info.receipts_root().clone();
-			if receipt_root == sha3::SHA3_NULL_RLP {
+			if receipt_root == KECCAK_NULL_RLP {
 				let receipts_stream = RlpStream::new_list(0);
 				block.receipts = Some(receipts_stream.out());
 			} else {
@@ -489,7 +490,6 @@ mod test {
 	use ethcore::client::{TestBlockChainClient, EachBlockWith, BlockId, BlockChainClient};
 	use ethcore::views::HeaderView;
 	use ethcore::header::BlockNumber;
-	use util::*;
 	use rlp::*;
 
 	fn is_empty(bc: &BlockCollection) -> bool {
@@ -526,7 +526,7 @@ mod test {
 			.map(|i| (&client as &BlockChainClient).block(BlockId::Number(i as BlockNumber)).unwrap().into_inner())
 			.collect();
 		let headers: Vec<_> = blocks.iter().map(|b| Rlp::new(b).at(0).as_raw().to_vec()).collect();
-		let hashes: Vec<_> = headers.iter().map(|h| HeaderView::new(h).sha3()).collect();
+		let hashes: Vec<_> = headers.iter().map(|h| HeaderView::new(h).hash()).collect();
 		let heads: Vec<_> = hashes.iter().enumerate().filter_map(|(i, h)| if i % 20 == 0 { Some(h.clone()) } else { None }).collect();
 		bc.reset_to(heads);
 		assert!(!bc.is_empty());
@@ -581,7 +581,7 @@ mod test {
 			.map(|i| (&client as &BlockChainClient).block(BlockId::Number(i as BlockNumber)).unwrap().into_inner())
 			.collect();
 		let headers: Vec<_> = blocks.iter().map(|b| Rlp::new(b).at(0).as_raw().to_vec()).collect();
-		let hashes: Vec<_> = headers.iter().map(|h| HeaderView::new(h).sha3()).collect();
+		let hashes: Vec<_> = headers.iter().map(|h| HeaderView::new(h).hash()).collect();
 		let heads: Vec<_> = hashes.iter().enumerate().filter_map(|(i, h)| if i % 20 == 0 { Some(h.clone()) } else { None }).collect();
 		bc.reset_to(heads);
 
@@ -605,7 +605,7 @@ mod test {
 			.map(|i| (&client as &BlockChainClient).block(BlockId::Number(i as BlockNumber)).unwrap().into_inner())
 			.collect();
 		let headers: Vec<_> = blocks.iter().map(|b| Rlp::new(b).at(0).as_raw().to_vec()).collect();
-		let hashes: Vec<_> = headers.iter().map(|h| HeaderView::new(h).sha3()).collect();
+		let hashes: Vec<_> = headers.iter().map(|h| HeaderView::new(h).hash()).collect();
 		let heads: Vec<_> = hashes.iter().enumerate().filter_map(|(i, h)| if i % 20 == 0 { Some(h.clone()) } else { None }).collect();
 		bc.reset_to(heads);
 

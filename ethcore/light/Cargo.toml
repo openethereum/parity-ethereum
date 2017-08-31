@@ -31,6 +31,7 @@ bincode = "0.8.0"
 serde = "1.0"
 serde_derive = "1.0"
 stats = { path = "../../util/stats" }
+hash = { path = "../../util/hash" }
 
 [features]
 default = []
