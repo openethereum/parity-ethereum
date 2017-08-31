@@ -15,7 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use ethkey::{Public, Secret, Random, Generator, math};
-use util::{U256, H256, Hashable};
+use util::{U256, H256};
+use hash::keccak;
 use key_server_cluster::Error;
 
 #[derive(Debug)]
@@ -306,7 +307,7 @@ pub fn combine_message_hash_with_public(message_hash: &H256, public: &Public) ->
 	buffer[32..64].copy_from_slice(&public[0..32]);
 
 	// calculate hash of buffer
-	let hash = (&buffer[..]).sha3();
+	let hash = keccak(&buffer[..]);
 
 	// map hash to EC finite field value
 	let hash: U256 = hash.into();

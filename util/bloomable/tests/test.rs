@@ -1,14 +1,10 @@
-extern crate tiny_keccak;
+extern crate hash;
 extern crate ethcore_bigint;
 extern crate bloomable;
 
 use ethcore_bigint::hash::{H160, H256, H2048};
 use bloomable::Bloomable;
-use tiny_keccak::keccak256;
-
-fn sha3(input: &[u8]) -> H256 {
-	keccak256(input).into()
-}
+use hash::keccak;
 
 #[test]
 fn shift_bloomed() {
@@ -17,15 +13,15 @@ fn shift_bloomed() {
 	let topic: H256 = "02c69be41d0b7e40352fc85be1cd65eb03d40ef8427a0ca4596b1ead9a00e9fc".into();
 
 	let mut my_bloom = H2048::default();
-	assert!(!my_bloom.contains_bloomed(&sha3(&address)));
-	assert!(!my_bloom.contains_bloomed(&sha3(&topic)));
+	assert!(!my_bloom.contains_bloomed(&keccak(&address)));
+	assert!(!my_bloom.contains_bloomed(&keccak(&topic)));
 
-	my_bloom.shift_bloomed(&sha3(&address));
-	assert!(my_bloom.contains_bloomed(&sha3(&address)));
-	assert!(!my_bloom.contains_bloomed(&sha3(&topic)));
+	my_bloom.shift_bloomed(&keccak(&address));
+	assert!(my_bloom.contains_bloomed(&keccak(&address)));
+	assert!(!my_bloom.contains_bloomed(&keccak(&topic)));
 
-	my_bloom.shift_bloomed(&sha3(&topic));
+	my_bloom.shift_bloomed(&keccak(&topic));
 	assert_eq!(my_bloom, bloom);
-	assert!(my_bloom.contains_bloomed(&sha3(&address)));
-	assert!(my_bloom.contains_bloomed(&sha3(&topic)));
+	assert!(my_bloom.contains_bloomed(&keccak(&address)));
+	assert!(my_bloom.contains_bloomed(&keccak(&topic)));
 }

@@ -18,6 +18,7 @@ vm = { path = "../vm" }
 parity-wasm = "0.12"
 ethcore-logger = { path = "../../logger" }
 wasm-utils = { git = "https://github.com/paritytech/wasm-utils" }
+hash = { path = "../../util/hash" }
 
 [dev-dependencies]
 rustc-hex = "1.0"

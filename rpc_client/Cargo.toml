@@ -19,3 +19,4 @@ jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "pa
 jsonrpc-ws-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
 parity-rpc = { path = "../rpc" }
 ethcore-util = { path = "../util" }
+hash = { path = "../util/hash" }

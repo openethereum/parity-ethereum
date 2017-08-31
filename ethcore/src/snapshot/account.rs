@@ -19,8 +19,9 @@
 use account_db::{AccountDB, AccountDBMut};
 use basic_account::BasicAccount;
 use snapshot::Error;
+use hash::{KECCAK_EMPTY, KECCAK_NULL_RLP};
 
-use util::{U256, H256, Bytes, HashDB, SHA3_EMPTY, SHA3_NULL_RLP};
+use util::{U256, H256, Bytes, HashDB};
 use util::trie::{TrieDB, Trie};
 use rlp::{RlpStream, UntrustedRlp};
 
@@ -30,8 +31,8 @@ use std::collections::HashSet;
 const ACC_EMPTY: BasicAccount = BasicAccount {
 	nonce: U256([0, 0, 0, 0]),
 	balance: U256([0, 0, 0, 0]),
-	storage_root: SHA3_NULL_RLP,
-	code_hash: SHA3_EMPTY,
+	storage_root: KECCAK_NULL_RLP,
+	code_hash: KECCAK_EMPTY,
 };
 
 // whether an encoded account has code and how it is referred to.
@@ -78,7 +79,7 @@ pub fn to_fat_rlps(account_hash: &H256, acc: &BasicAccount, acct_db: &AccountDB,
 					  .append(&acc.balance);
 
 		// [has_code, code_hash].
-		if acc.code_hash == SHA3_EMPTY {
+		if acc.code_hash == KECCAK_EMPTY {
 			account_stream.append(&CodeState::Empty.raw()).append_empty_data();
 		} else if used_code.contains(&acc.code_hash) {
 			account_stream.append(&CodeState::Hash.raw()).append(&acc.code_hash);
@@ -164,7 +165,7 @@ pub fn from_fat_rlp(
 
 	// load the code if it exists.
 	let (code_hash, new_code) = match code_state {
-		CodeState::Empty => (SHA3_EMPTY, None),
+		CodeState::Empty => (KECCAK_EMPTY, None),
 		CodeState::Inline => {
 			let code: Bytes = rlp.val_at(3)?;
 			let code_hash = acct_db.insert(&code);
@@ -210,8 +211,8 @@ mod tests {
 	use tests::helpers::get_temp_state_db;
 	use snapshot::tests::helpers::fill_storage;
 
-	use util::sha3::{SHA3_EMPTY, SHA3_NULL_RLP};
-	use util::{Address, H256, HashDB, DBValue, Hashable};
+	use hash::{KECCAK_EMPTY, KECCAK_NULL_RLP, keccak};
+	use util::{Address, H256, HashDB, DBValue};
 	use rlp::UntrustedRlp;
 
 	use std::collections::HashSet;
@@ -226,14 +227,14 @@ mod tests {
 		let account = BasicAccount {
 			nonce: 50.into(),
 			balance: 123456789.into(),
-			storage_root: SHA3_NULL_RLP,
-			code_hash: SHA3_EMPTY,
+			storage_root: KECCAK_NULL_RLP,
+			code_hash: KECCAK_EMPTY,
 		};
 
 		let thin_rlp = ::rlp::encode(&account);
 		assert_eq!(::rlp::decode::<BasicAccount>(&thin_rlp), account);
 
-		let fat_rlps = to_fat_rlps(&addr.sha3(), &account, &AccountDB::new(db.as_hashdb(), &addr), &mut Default::default(), usize::max_value(), usize::max_value()).unwrap();
+		let fat_rlps = to_fat_rlps(&keccak(&addr), &account, &AccountDB::new(db.as_hashdb(), &addr), &mut Default::default(), usize::max_value(), usize::max_value()).unwrap();
 		let fat_rlp = UntrustedRlp::new(&fat_rlps[0]).at(1).unwrap();
 		assert_eq!(from_fat_rlp(&mut AccountDBMut::new(db.as_hashdb_mut(), &addr), fat_rlp, H256::zero()).unwrap().0, account);
 	}
@@ -245,20 +246,20 @@ mod tests {
 
 		let account = {
 			let acct_db = AccountDBMut::new(db.as_hashdb_mut(), &addr);
-			let mut root = SHA3_NULL_RLP;
+			let mut root = KECCAK_NULL_RLP;
 			fill_storage(acct_db, &mut root, &mut H256::zero());
 			BasicAccount {
 				nonce: 25.into(),
 				balance: 987654321.into(),
 				storage_root: root,
-				code_hash: SHA3_EMPTY,
+				code_hash: KECCAK_EMPTY,
 			}
 		};
 
 		let thin_rlp = ::rlp::encode(&account);
 		assert_eq!(::rlp::decode::<BasicAccount>(&thin_rlp), account);
 
-		let fat_rlp = to_fat_rlps(&addr.sha3(), &account, &AccountDB::new(db.as_hashdb(), &addr), &mut Default::default(), usize::max_value(), usize::max_value()).unwrap();
+		let fat_rlp = to_fat_rlps(&keccak(&addr), &account, &AccountDB::new(db.as_hashdb(), &addr), &mut Default::default(), usize::max_value(), usize::max_value()).unwrap();
 		let fat_rlp = UntrustedRlp::new(&fat_rlp[0]).at(1).unwrap();
 		assert_eq!(from_fat_rlp(&mut AccountDBMut::new(db.as_hashdb_mut(), &addr), fat_rlp, H256::zero()).unwrap().0, account);
 	}
@@ -270,21 +271,21 @@ mod tests {
 
 		let account = {
 			let acct_db = AccountDBMut::new(db.as_hashdb_mut(), &addr);
-			let mut root = SHA3_NULL_RLP;
+			let mut root = KECCAK_NULL_RLP;
 			fill_storage(acct_db, &mut root, &mut H256::zero());
 			BasicAccount {
 				nonce: 25.into(),
 				balance: 987654321.into(),
 				storage_root: root,
-				code_hash: SHA3_EMPTY,
+				code_hash: KECCAK_EMPTY,
 			}
 		};
 
 		let thin_rlp = ::rlp::encode(&account);
 		assert_eq!(::rlp::decode::<BasicAccount>(&thin_rlp), account);
 
-		let fat_rlps = to_fat_rlps(&addr.sha3(), &account, &AccountDB::new(db.as_hashdb(), &addr), &mut Default::default(), 500, 1000).unwrap();
-		let mut root = SHA3_NULL_RLP;
+		let fat_rlps = to_fat_rlps(&keccak(addr), &account, &AccountDB::new(db.as_hashdb(), &addr), &mut Default::default(), 500, 1000).unwrap();
+		let mut root = KECCAK_NULL_RLP;
 		let mut restored_account = None;
 		for rlp in fat_rlps {
 			let fat_rlp = UntrustedRlp::new(&rlp).at(1).unwrap();
@@ -314,21 +315,21 @@ mod tests {
 		let account1 = BasicAccount {
 			nonce: 50.into(),
 			balance: 123456789.into(),
-			storage_root: SHA3_NULL_RLP,
+			storage_root: KECCAK_NULL_RLP,
 			code_hash: code_hash,
 		};
 
 		let account2 = BasicAccount {
 			nonce: 400.into(),
 			balance: 98765432123456789usize.into(),
-			storage_root: SHA3_NULL_RLP,
+			storage_root: KECCAK_NULL_RLP,
 			code_hash: code_hash,
 		};
 
 		let mut used_code = HashSet::new();
 
-		let fat_rlp1 = to_fat_rlps(&addr1.sha3(), &account1, &AccountDB::new(db.as_hashdb(), &addr1), &mut used_code, usize::max_value(), usize::max_value()).unwrap();
-		let fat_rlp2 = to_fat_rlps(&addr2.sha3(), &account2, &AccountDB::new(db.as_hashdb(), &addr2), &mut used_code, usize::max_value(), usize::max_value()).unwrap();
+		let fat_rlp1 = to_fat_rlps(&keccak(&addr1), &account1, &AccountDB::new(db.as_hashdb(), &addr1), &mut used_code, usize::max_value(), usize::max_value()).unwrap();
+		let fat_rlp2 = to_fat_rlps(&keccak(&addr2), &account2, &AccountDB::new(db.as_hashdb(), &addr2), &mut used_code, usize::max_value(), usize::max_value()).unwrap();
 		assert_eq!(used_code.len(), 1);
 
 		let fat_rlp1 = UntrustedRlp::new(&fat_rlp1[0]).at(1).unwrap();

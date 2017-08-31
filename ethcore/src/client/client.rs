@@ -23,7 +23,8 @@ use time::precise_time_ns;
 use itertools::Itertools;
 
 // util
-use util::{Bytes, PerfTimer, Mutex, RwLock, MutexGuard, Hashable};
+use hash::keccak;
+use util::{Bytes, PerfTimer, Mutex, RwLock, MutexGuard};
 use util::{journaldb, DBValue, TrieFactory, Trie};
 use util::{U256, H256, Address, H2048};
 use util::trie::TrieSpec;
@@ -652,7 +653,7 @@ impl Client {
 			.map(Into::into)
 			.collect();
 
-		assert_eq!(header.hash(), BlockView::new(block_data).header_view().sha3());
+		assert_eq!(header.hash(), BlockView::new(block_data).header_view().hash());
 
 		//let traces = From::from(block.traces().clone().unwrap_or_else(Vec::new));
 
@@ -1503,7 +1504,7 @@ impl BlockChainClient for Client {
 		};
 
 		let (_, db) = state.drop();
-		let account_db = self.factories.accountdb.readonly(db.as_hashdb(), account.sha3());
+		let account_db = self.factories.accountdb.readonly(db.as_hashdb(), keccak(account));
 		let trie = match self.factories.trie.readonly(account_db.as_hashdb(), &root) {
 			Ok(trie) => trie,
 			_ => {
@@ -1591,7 +1592,7 @@ impl BlockChainClient for Client {
 		use verification::queue::kind::BlockLike;
 		use verification::queue::kind::blocks::Unverified;
 
-		// create unverified block here so the `sha3` calculation can be cached.
+		// create unverified block here so the `keccak` calculation can be cached.
 		let unverified = Unverified::new(bytes);
 
 		{
@@ -1792,7 +1793,7 @@ impl BlockChainClient for Client {
 				let dispatch = move |reg_addr, data| {
 					future::done(self.call_contract(BlockId::Latest, reg_addr, data))
 				};
-				r.get_address(dispatch, name.as_bytes().sha3(), "A".to_string()).wait().ok()
+				r.get_address(dispatch, keccak(name.as_bytes()), "A".to_string()).wait().ok()
 			})
 			.and_then(|a| if a.is_zero() { None } else { Some(a) })
 	}
@@ -2067,16 +2068,16 @@ mod tests {
 
 	#[test]
 	fn should_return_correct_log_index() {
+		use hash::keccak;
 		use super::transaction_receipt;
 		use ethkey::KeyPair;
 		use log_entry::{LogEntry, LocalizedLogEntry};
 		use receipt::{Receipt, LocalizedReceipt};
 		use transaction::{Transaction, LocalizedTransaction, Action};
-		use util::Hashable;
 		use tests::helpers::TestEngine;
 
 		// given
-		let key = KeyPair::from_secret_slice(&"test".sha3()).unwrap();
+		let key = KeyPair::from_secret_slice(&keccak("test")).unwrap();
 		let secret = key.secret();
 		let engine = TestEngine::new(0);
 

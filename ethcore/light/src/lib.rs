@@ -84,6 +84,7 @@ extern crate smallvec;
 extern crate stats;
 extern crate time;
 extern crate vm;
+extern crate hash;
 
 #[cfg(feature = "ipc")]
 extern crate ethcore_ipc as ipc;

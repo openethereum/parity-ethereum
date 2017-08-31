@@ -9,7 +9,8 @@ use std::thread;
 use std::time;
 
 use std::path::PathBuf;
-use util::{Hashable, Mutex};
+use hash::keccak;
+use util::Mutex;
 use url::Url;
 use std::fs::File;
 
@@ -72,7 +73,7 @@ impl Handler for RpcHandler {
 					WsError::new(WsErrorKind::Internal, format!("{}", err))
 				})?;
 				let secs = timestamp.as_secs();
-				let hashed = format!("{}:{}", self.auth_code, secs).sha3();
+				let hashed = keccak(format!("{}:{}", self.auth_code, secs));
 				let proto = format!("{:?}_{}", hashed, secs);
 				r.add_protocol(&proto);
 				Ok(r)

@@ -17,7 +17,7 @@
 //! Tracing datatypes.
 
 use util::{U256, Bytes, Address};
-use util::sha3::Hashable;
+use hash::keccak;
 use bloomable::Bloomable;
 use rlp::*;
 
@@ -51,7 +51,7 @@ pub struct CreateResult {
 impl CreateResult {
 	/// Returns bloom.
 	pub fn bloom(&self) -> LogBloom {
-		LogBloom::from_bloomed(&self.address.sha3())
+		LogBloom::from_bloomed(&keccak(&self.address))
 	}
 }
 
@@ -90,8 +90,8 @@ impl Call {
 	/// Returns call action bloom.
 	/// The bloom contains from and to addresses.
 	pub fn bloom(&self) -> LogBloom {
-		LogBloom::from_bloomed(&self.from.sha3())
-			.with_bloomed(&self.to.sha3())
+		LogBloom::from_bloomed(&keccak(&self.from))
+			.with_bloomed(&keccak(&self.to))
 	}
 }
 
@@ -124,7 +124,7 @@ impl Create {
 	/// Returns bloom create action bloom.
 	/// The bloom contains only from address.
 	pub fn bloom(&self) -> LogBloom {
-		LogBloom::from_bloomed(&self.from.sha3())
+		LogBloom::from_bloomed(&keccak(&self.from))
 	}
 }
 
@@ -173,7 +173,7 @@ pub struct Reward {
 impl Reward {
 	/// Return reward action bloom.
 	pub fn bloom(&self) -> LogBloom {
-		LogBloom::from_bloomed(&self.author.sha3())
+		LogBloom::from_bloomed(&keccak(&self.author))
 	}
 }
 
@@ -214,8 +214,8 @@ pub struct Suicide {
 impl Suicide {
 	/// Return suicide action bloom.
 	pub fn bloom(&self) -> LogBloom {
-		LogBloom::from_bloomed(&self.address.sha3())
-			.with_bloomed(&self.refund_address.sha3())
+		LogBloom::from_bloomed(&keccak(self.address))
+			.with_bloomed(&keccak(self.refund_address))
 	}
 }
 

@@ -16,9 +16,9 @@
 
 use std::sync::Arc;
 use rand::random;
+use hash::write_keccak;
 use mio::tcp::*;
 use util::hash::*;
-use util::sha3::Hashable;
 use util::bytes::Bytes;
 use rlp::*;
 use connection::{Connection};
@@ -273,7 +273,7 @@ impl Handshake {
 			// E(remote-pubk, S(ecdhe-random, ecdh-shared-secret^nonce) || H(ecdhe-random-pubk) || pubk || nonce || 0x0)
 			let shared = *ecdh::agree(secret, &self.id)?;
 			sig.copy_from_slice(&*sign(self.ecdhe.secret(), &(&shared ^ &self.nonce))?);
-			self.ecdhe.public().sha3_into(hepubk);
+			write_keccak(self.ecdhe.public(), hepubk);
 			pubk.copy_from_slice(public);
 			nonce.copy_from_slice(&self.nonce);
 		}

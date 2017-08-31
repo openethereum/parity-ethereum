@@ -20,10 +20,11 @@ use std::sync::Arc;
 use rustc_hex::ToHex;
 use mime::Mime;
 use mime_guess;
+use hash::keccak;
 
 use futures::{future, BoxFuture, Future};
 use native_contracts::{Registry, Urlhint};
-use util::{Address, Bytes, Hashable};
+use util::{Address, Bytes};
 
 const COMMIT_LEN: usize = 20;
 
@@ -164,7 +165,7 @@ impl URLHint for URLHintContract {
 
 		let urlhint = self.urlhint.clone();
 		let client = self.client.clone();
-		self.registrar.get_address(do_call, "githubhint".sha3(), "A".into())
+		self.registrar.get_address(do_call, keccak("githubhint"), "A".into())
 			.map(|addr| if addr == Address::default() { None } else { Some(addr) })
 			.and_then(move |address| {
 				let mut fixed_id = [0; 32];

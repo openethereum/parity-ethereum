@@ -487,7 +487,7 @@ impl HeaderChain {
 
 	/// Get the genesis hash.
 	pub fn genesis_hash(&self) -> H256 {
-		::util::Hashable::sha3(&self.genesis_header)
+		self.genesis_header.hash()
 	}
 
 	/// Get the best block's data.

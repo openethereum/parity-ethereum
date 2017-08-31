@@ -24,7 +24,8 @@ use util::hash::{H256};
 use util::hashdb::HashDB;
 use state::{self, Account};
 use header::BlockNumber;
-use util::{Address, DBTransaction, UtilError, Mutex, Hashable};
+use hash::keccak;
+use util::{Address, DBTransaction, UtilError, Mutex};
 use bloom_journal::{Bloom, BloomJournal};
 use db::COL_ACCOUNT_BLOOM;
 use byteorder::{LittleEndian, ByteOrder};
@@ -443,13 +444,13 @@ impl state::Backend for StateDB {
 	fn note_non_null_account(&self, address: &Address) {
 		trace!(target: "account_bloom", "Note account bloom: {:?}", address);
 		let mut bloom = self.account_bloom.lock();
-		bloom.set(&*address.sha3());
+		bloom.set(&*keccak(address));
 	}
 
 	fn is_known_null(&self, address: &Address) -> bool {
 		trace!(target: "account_bloom", "Check account bloom: {:?}", address);
 		let bloom = self.account_bloom.lock();
-		let is_null = !bloom.check(&*address.sha3());
+		let is_null = !bloom.check(&*keccak(address));
 		is_null
 	}
 }
