@@ -279,7 +279,7 @@ export default class SecureApi extends Api {
     const connectPromise = this._fetchSettings()
       .then(() => {
         // Update the URL and token in the transport layer
-        this.transport.url = SecureApi.transportUrl(this._wsUrl, this.protocol);
+        this.transport.url = SecureApi.transportWsUrl(this._wsUrl, this.protocol);
         this.provider.updateToken(token, false);
 
         log.debug('connecting with token', token);
