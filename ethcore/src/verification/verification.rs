@@ -23,6 +23,7 @@
 
 use std::collections::HashSet;
 use hash::keccak;
+use triehash::ordered_trie_root;
 use heapsize::HeapSizeOf;
 use util::*;
 use engines::Engine;
@@ -269,6 +270,7 @@ fn verify_block_integrity(block: &[u8], transactions_root: &H256, uncles_hash: &
 mod tests {
 	use std::collections::{BTreeMap, HashMap};
 	use hash::keccak;
+	use triehash::ordered_trie_root;
 	use util::*;
 	use ethkey::{Random, Generator};
 	use header::*;

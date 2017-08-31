@@ -20,9 +20,10 @@ use std::cmp;
 use std::sync::Arc;
 use std::collections::HashSet;
 use hash::{keccak, KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP};
+use triehash::ordered_trie_root;
 
 use rlp::{UntrustedRlp, RlpStream, Encodable, Decodable, DecoderError};
-use util::{Bytes, Address, U256, H256, ordered_trie_root};
+use util::{Bytes, Address, U256, H256};
 use util::error::{Mismatch, OutOfBounds};
 
 use basic_types::{LogBloom, Seal};

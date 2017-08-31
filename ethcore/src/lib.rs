@@ -103,6 +103,7 @@ extern crate rand;
 extern crate rlp;
 extern crate hash;
 extern crate heapsize;
+extern crate triehash;
 
 #[macro_use]
 extern crate rlp_derive;

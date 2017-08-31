@@ -85,6 +85,7 @@ extern crate stats;
 extern crate time;
 extern crate vm;
 extern crate hash;
+extern crate triehash;
 
 #[cfg(feature = "ipc")]
 extern crate ethcore_ipc as ipc;
