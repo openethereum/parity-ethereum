@@ -71,7 +71,7 @@ export function fetchTokens (_tokenIndexes, options = {}) {
             .then((prevResults) => {
               return fetchTokensInfo(api, tokenRegContract, tokenChunk)
                 .then((results) => prevResults.concat(results));
-            })
+            });
         });
 
         return promise;
@@ -91,7 +91,7 @@ export function fetchTokens (_tokenIndexes, options = {}) {
 
             tokens[id] = token;
             return tokens;
-          }, tokens);
+          }, {});
 
         log.debug('fetched token', tokens);
 

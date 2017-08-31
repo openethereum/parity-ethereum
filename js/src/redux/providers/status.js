@@ -316,7 +316,7 @@ export default class Status {
       })
       .catch((error) => {
         console.error('_pollLongStatus', error);
-        nextTimeout(30000)
+        nextTimeout(30000);
       });
   }
 }
