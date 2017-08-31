@@ -219,7 +219,7 @@ fn keccak_512(input: &[u8], output: &mut [u8]) {
 }
 
 fn keccak_512_inplace(input: &mut [u8]) {
-	// This is safe since `sha3_*` uses an internal buffer and copies the result to the output. This
+	// This is safe since `keccak_*` uses an internal buffer and copies the result to the output. This
 	// means that we can reuse the input buffer for both input and output.
 	unsafe { hash::keccak_512(input.as_mut_ptr(), input.len(), input.as_ptr(), input.len()) };
 }
@@ -335,7 +335,7 @@ fn hash_compute(light: &Light, full_size: usize, header_hash: &H256, nonce: u64)
 				mem::size_of::<u64>(),
 			);
 
-			// compute sha3-512 hash and replicate across mix
+			// compute keccak-512 hash and replicate across mix
 			hash::keccak_512(
 				out.as_mut_ptr(),
 				NODE_BYTES,
