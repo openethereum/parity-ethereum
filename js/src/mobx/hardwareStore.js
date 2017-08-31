@@ -171,9 +171,6 @@ export default class HardwareStore {
         this.scan();
         // true/false is returned
         return JSON.parse(message);
-      })
-      .catch((err) => {
-        return err;
       });
   }
 

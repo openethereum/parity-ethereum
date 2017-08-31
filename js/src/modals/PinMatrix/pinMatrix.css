@@ -15,14 +15,6 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.bold {
-  font-weight: bold !important;
-}
-
-.pinMatrix {
-
-}
-
 .overlay {
   position: fixed;
   top: 0;
@@ -30,16 +22,7 @@
   bottom: 0;
   left: 0;
   background: rgba(255, 255, 255, 0.75);
-  z-index: 20000
-}
-
-.modal {
-  position: fixed;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  z-index: 20001
+  z-index: 20000;
 }
 
 .body {
@@ -50,14 +33,10 @@
   min-height: 200px;
   background: rgba(25, 25, 25, 0.75);
   color: rgb(208, 208, 208);
-  box-shadow: rgba(0, 0, 0, 0.25) 0px 14px 45px, rgba(0, 0, 0, 0.22) 0px 10px 18px
+  box-shadow: rgba(0, 0, 0, 0.25) 0px 14px 45px, rgba(0, 0, 0, 0.22) 0px 10px 18px;
 }
 
-#title {
-
-}
-
-#passcodeBoxes {
+.passcodeBoxes {
   display: flex;
   flex-flow: row wrap;
   justify-content: center;
@@ -73,11 +52,12 @@
   line-height: 25px;
   margin: 2px;
   background-color: rgba(0, 0, 0, 0.5);
-  transition: background-color 500ms;
-}
-.passcodeBox:hover {
+  transition: background-color 400ms;
   cursor: pointer;
-  background-color: rgba(0, 0, 0, 0.25);
+
+  &:hover {
+    background-color: rgba(0, 0, 0, 0.25);
+  }
 }
 
 .passcodeBall {
@@ -91,14 +71,14 @@
   transform: translate(-50%, -50%);
 }
 
-#pin {
+.pin {
   margin-left: 2px;
   min-height: 20px;
   position: relative;
   letter-spacing: 2px;
 }
 
-#clearThik {
+.clearThik {
   color: rgba(0, 0, 0, 0.5);
   font: 14px/100% arial, sans-serif;
   position: absolute;
@@ -112,48 +92,49 @@
   border-top-right-radius: 3px;
   position: absolute;
   line-height: 20px;
-}
-#clearThik:hover {
   cursor: pointer;
-}
-#clearThik:after {
-	right: 100%;
-	top: 50%;
-	border: solid transparent;
-	content: " ";
-	height: 0;
-	width: 0;
-	position: absolute;
-	pointer-events: none;
-  border-right-color: rgba(0, 0, 0, 0.5);
-  border-width: 12px;
-  margin-top: -12px;
-  margin-right: 3px;
-}
-#clearThik:before {
-  content: '\2716';
-  padding-left: 2px;
+
+  &:after {
+    right: 100%;
+    top: 50%;
+    border: solid transparent;
+    content: " ";
+    height: 0;
+    width: 0;
+    position: absolute;
+    pointer-events: none;
+    border-right-color: rgba(0, 0, 0, 0.5);
+    border-width: 12px;
+    margin-top: -12px;
+    margin-right: 3px;
+  }
+
+  &:before {
+    content: '\2716';
+    padding-left: 2px;
+  }
 }
 
 .button {
   padding: 7px;
   background-color: rgba(0, 0, 0, 0.5);
   border-radius: 3px;
-}
-.button:hover {
   cursor: pointer;
-  background-color: rgba(0, 0, 0, 0.25);
+
+  &:hover {
+    background-color: rgba(0, 0, 0, 0.25);
+  }
 }
 
-#cancel {
+.cancel {
   float: left;
 }
 
-#submit {
+.submit {
   float: right;
 }
 
-#error {
+.error {
   color: rgba(218, 39, 39, 0.85);
   padding-top: 7px;
 }

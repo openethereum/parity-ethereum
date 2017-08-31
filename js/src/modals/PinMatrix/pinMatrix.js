@@ -25,123 +25,109 @@ export default class PinMatrix extends Component {
     device: PropTypes.object.isRequired
   }
 
-  constructor () {
-    super();
-
-    this.state = {
-      passcode: '',
-      failureMessage: ''
-    };
-
-    this.pinMatrix = [7, 8, 9, 4, 5, 6, 1, 2, 3];
+  state = {
+    passcode: '',
+    failureMessage: ''
   }
+
+  pinMatrix = [7, 8, 9, 4, 5, 6, 1, 2, 3]
 
   render () {
     const { failureMessage, passcode } = this.state;
     const { device } = this.props;
 
     return (
-      <div className={ styles.pinMatrix }>
+      <div className={ styles.overlay }>
+        <div className={ styles.body }>
+          <FormattedMessage
+            id='pinMatrix.enterPin'
+            defaultMessage='Please enter the pin for your {manufacturer} hardware wallet'
+            values={ {
+              manufacturer: device.manufacturer
+            } }
+          />
+          <div className={ styles.passcodeBoxes }>
+            {this.renderPasscodeBox()}
+          </div>
 
-        <div className={ styles.overlay } />
-
-        <div className={ styles.modal }>
-          <div className={ styles.body }>
-            <div id={ styles.title }>
-              <span>
-                <FormattedMessage
-                  id='pinMatrix.enterPin'
-                  defaultMessage='Please enter the pin for your {manufacturer} hardware wallet'
-                  values={ {
-                    manufacturer: device.manufacturer
-                  } }
-                />
-              </span>
-            </div>
-            <div id={ styles.passcodeBoxes }>
-              {this.renderPasscodeBox()}
-            </div>
-
-            <div id={ styles.pin }>
-              {passcode.replace(/./g, '*')}
-              {
-                (passcode.length)
-                  ? <div id={ styles.clearThik } onClick={ this.removeDigit } />
-                  : null
-              }
-            </div>
-            <div>
-              <span className={ styles.button } id={ styles.submit } onClick={ this.submit }>Submit</span>
-            </div>
-            <div id={ styles.error }>
-              { failureMessage }
-            </div>
+          <div className={ styles.pin }>
+            {passcode.replace(/./g, '*')}
+            {
+              passcode.length
+                ? <div className={ styles.clearThik } onClick={ this.handleRemoveDigit } />
+                : null
+            }
+          </div>
+          <span
+            className={ `${styles.button} ${styles.submit}` }
+            onClick={ this.handleSubmit }
+          >
+            Submit
+          </span>
+          <div className={ styles.error }>
+            { failureMessage }
           </div>
         </div>
-
       </div>
     );
   }
 
+  handleAddDigit = (ev) => {
+    const index = ev.target.getAttribute('data-index');
+    const digit = this.pinMatrix[index];
+    const { passcode } = this.state;
+
+    if (passcode.length > 8) {
+      return;
+    }
+
+    this.setState({
+      passcode: passcode + digit
+    });
+  }
+
   renderPasscodeBox () {
     return Array.apply(null, Array(9)).map((box, index) => {
-      let addDigit = () => this.addDigit(this.pinMatrix[index]);
 
       return (
-        <div
+        <button
           className={ styles.passcodeBox }
-          onClick={ addDigit }
+          onClick={ this.handleAddDigit }
+          data-index={ index }
           key={ index }
         >
           <div className={ styles.passcodeBall } />
-        </div>
+        </button>
       );
     });
   }
 
-  addDigit = (digit) => {
-    if (this.state.passcode.length > 8) {
-      return;
-    }
-    this.setState({
-      passcode: this.state.passcode + digit
-    });
-  }
-
-  removeDigit = () => {
+  handleRemoveDigit = () => {
     this.setState({
       passcode: this.state.passcode.slice(0, -1)
     });
   }
 
-  clearPasscode = () => {
-    this.setState({
-      passcode: ''
-    });
-  }
-
-  submit = () => {
+  handleSubmit = () => {
     const { device, store } = this.props;
     const { passcode } = this.state;
 
     store.pinMatrixAck(device, passcode)
       .then((status) => {
-        if (!status) {
-          this.setState({
-            passcode: '',
-            failureMessage: (
-              <FormattedMessage
-                id='pinMatrix.label.failureMessage'
-                defaultMessage='Wrong pin, try again.'
-              />
-            )
-          });
-        } else {
-          this.setState({
-            passcode: '',
-            failureMessage: ''
-          });
-        }
+        const passcode = '';
+        const failureMessage = status ? '' : (
+          <FormattedMessage
+            id='pinMatrix.label.failureMessage'
+            defaultMessage='Wrong pin, try again.'
+          />
+        );
+
+        this.setState({ passcode, failureMessage });
+      })
+      .catch(err => {
+        this.setState({
+          failureMessage: err.toString()
+        });
       });
   }
 }
