@@ -527,6 +527,7 @@ dependencies = [
  "native-contracts 0.1.0",
  "num 0.1.32 (registry+https://github.com/rust-lang/crates.io-index)",
  "num_cpus 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "parity-machine 0.1.0",
  "price-info 1.7.0",
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlp 0.2.0",
@@ -1978,6 +1979,13 @@ dependencies = [
  "serde 1.0.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_derive 1.0.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "parity-machine"
+version = "0.1.0"
+dependencies = [
+ "ethcore-util 1.8.0",
 ]
 
 [[package]]

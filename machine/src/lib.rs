@@ -17,6 +17,10 @@
 //! Generalization of a state machine for a consensus engine.
 //! This will define traits for the header, block, and state of a blockchain.
 
+extern crate ethcore_util as util;
+
+use util::{H256, U256};
+
 /// A header. This contains important metadata about the block, as well as a
 /// "seal" that indicates validity to a consensus engine.
 pub trait Header {
