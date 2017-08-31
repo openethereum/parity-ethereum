@@ -64,39 +64,36 @@ export function fetchTokens (_tokenIndexes, options = {}) {
         tokenRegContract = _tokenRegContract;
       })
       .then(() => {
-        let promise = Promise.resolve([]);
+        let promise = Promise.resolve();
 
         tokenChunks.forEach((tokenChunk) => {
           promise = promise
-            .then((prevResults) => {
-              return fetchTokensInfo(api, tokenRegContract, tokenChunk)
-                .then((results) => prevResults.concat(results));
+            .then(() => fetchTokensInfo(api, tokenRegContract, tokenChunk))
+            .then((results) => {
+              const tokens = results
+                .filter((token) => {
+                  return token.name && token.address && !/^(0x)?0*$/.test(token.address);
+                })
+                .reduce((tokens, token) => {
+                  const { id, image, address } = token;
+
+                  // dispatch only the changed images
+                  if (images[address] !== image) {
+                    dispatch(setAddressImage(address, image, true));
+                  }
+
+                  tokens[id] = token;
+                  return tokens;
+                }, {});
+
+              log.debug('fetched token', tokens);
+
+              dispatch(setTokens(tokens));
+              dispatch(updateTokensFilter(null, null, options));
             });
         });
 
         return promise;
-      })
-      .then((results) => {
-        const tokens = results
-          .filter((token) => {
-            return token.name && token.address && !/^(0x)?0*$/.test(token.address);
-          })
-          .reduce((tokens, token) => {
-            const { id, image, address } = token;
-
-            // dispatch only the changed images
-            if (images[address] !== image) {
-              dispatch(setAddressImage(address, image, true));
-            }
-
-            tokens[id] = token;
-            return tokens;
-          }, {});
-
-        log.debug('fetched token', tokens);
-
-        dispatch(setTokens(tokens));
-        dispatch(updateTokensFilter(null, null, options));
       })
       .catch((error) => {
         console.warn('tokens::fetchTokens', error);
