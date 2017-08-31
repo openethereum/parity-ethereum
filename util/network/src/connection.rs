@@ -18,7 +18,7 @@ use std::sync::Arc;
 use std::collections::VecDeque;
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
-use hash::{keccak, keccak_into};
+use hash::{keccak, write_keccak};
 use mio::{Token, Ready, PollOpt};
 use mio::deprecated::{Handler, EventLoop, TryRead, TryWrite};
 use mio::tcp::*;
@@ -312,7 +312,7 @@ impl EncryptedConnection {
 		}
 		let mut key_material = H512::new();
 		shared.copy_to(&mut key_material[0..32]);
-		keccak_into(&nonce_material, &mut key_material[32..64]);
+		write_keccak(&nonce_material, &mut key_material[32..64]);
 		keccak(&key_material).copy_to(&mut key_material[32..64]);
 		keccak(&key_material).copy_to(&mut key_material[32..64]);
 

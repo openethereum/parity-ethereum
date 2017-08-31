@@ -31,19 +31,23 @@ pub const KECCAK_NULL_RLP: H256 = H256( [0x56, 0xe8, 0x1f, 0x17, 0x1b, 0xcc, 0x5
 pub const KECCAK_EMPTY_LIST_RLP: H256 = H256( [0x1d, 0xcc, 0x4d, 0xe8, 0xde, 0xc7, 0x5d, 0x7a, 0xab, 0x85, 0xb5, 0x67, 0xb6, 0xcc, 0xd4, 0x1a, 0xd3, 0x12, 0x45, 0x1b, 0x94, 0x8a, 0x74, 0x13, 0xf0, 0xa1, 0x42, 0xfd, 0x40, 0xd4, 0x93, 0x47] );
 
 extern {
+	/// Hashes input. Returns -1 if either out or input does not exist. Otherwise returns 0.
 	pub fn keccak_256(out: *mut u8, outlen: usize, input: *const u8, inputlen: usize) -> i32;
+	/// Hashes input. Returns -1 if either out or input does not exist. Otherwise returns 0.
 	pub fn keccak_512(out: *mut u8, outlen: usize, input: *const u8, inputlen: usize) -> i32;
 }
 
 pub fn keccak<T: AsRef<[u8]>>(s: T) -> H256 {
 	let mut result = [0u8; 32];
-	keccak_into(s, &mut result);
+	write_keccak(s, &mut result);
 	H256(result)
 }
 
-pub fn keccak_into<T: AsRef<[u8]>>(s: T, dest: &mut [u8]) {
+pub fn write_keccak<T: AsRef<[u8]>>(s: T, dest: &mut [u8]) {
 	let input = s.as_ref();
 	unsafe {
+		// we can safely ignore keccak_256 output, cause we know that both input
+		// and dest are properly allocated
 		keccak_256(dest.as_mut_ptr(), dest.len(), input.as_ptr(), input.len());
 	}
 }
