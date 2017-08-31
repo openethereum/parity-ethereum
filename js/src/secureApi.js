@@ -24,6 +24,7 @@ const log = getLogger(LOG_KEYS.Signer);
 
 const RPC_URL = '127.0.0.1:8545';
 const WS_URL = '127.0.0.1:8546';
+const UI_URL = '127.0.0.1:8180';
 
 export default class SecureApi extends Api {
   _isConnecting = false;
@@ -35,12 +36,12 @@ export default class SecureApi extends Api {
   _wsUrl = null;
   _url = null;
 
-  static getHttpProvider (url = RPC_URL, protocol) {
-    return new Api.Provider.Http(`${protocol}//${url}/rpc`, 0);
+  static getHttpProvider (url, protocol) {
+    return new Api.Provider.Http(`${protocol}//${url || RPC_URL}/rpc`, 0);
   }
 
-  static getWsProvider (url = WS_URL, protocol, sysuiToken) {
-    const transportUrl = SecureApi.transportWsUrl(url, protocol);
+  static getWsProvider (url, protocol, sysuiToken) {
+    const transportUrl = SecureApi.transportWsUrl(url || WS_URL, protocol);
 
     return new Api.Provider.Ws(transportUrl, sysuiToken, false);
   }
@@ -65,7 +66,7 @@ export default class SecureApi extends Api {
     super(wsProvider);
 
     this.protocol = protocol;
-    this._url = uiUrl;
+    this._url = uiUrl || UI_URL;
 
     const httpProvider = SecureApi.getHttpProvider(this._url, this.protocol());
 
