@@ -174,11 +174,15 @@ pub enum Unsure {
 
 /// A consensus mechanism for the chain. Generally either proof-of-work or proof-of-stake-based.
 /// Provides hooks into each of the major parts of block import.
-pub trait Engine: Sync + Send {
+pub trait Engine<M: Machine> Sync + Send {
 	/// The name of this engine.
 	fn name(&self) -> &str;
 	/// The version of this engine. Should be of the form
 	fn version(&self) -> SemanticVersion { SemanticVersion::new(0, 0, 0) }
+
+	/// Get access to the underlying state machine.
+	// TODO: decouple.
+	fn machine(&self) -> &M;
 
 	/// The number of additional header fields required for this engine.
 	fn seal_fields(&self) -> usize { 0 }
@@ -189,32 +193,10 @@ pub trait Engine: Sync + Send {
 	/// Additional information.
 	fn additional_params(&self) -> HashMap<String, String> { HashMap::new() }
 
-	/// Get the general parameters of the chain.
-	fn params(&self) -> &CommonParams;
-
-	/// Get the EVM schedule for the given `block_number`.
-	fn schedule(&self, block_number: BlockNumber) -> Schedule {
-		self.params().schedule(block_number)
-	}
-
-	/// Builtin-contracts we would like to see in the chain.
-	/// (In principle these are just hints for the engine since that has the last word on them.)
-	fn builtins(&self) -> &BTreeMap<Address, Builtin>;
-
-	/// Some intrinsic operation parameters; by default they take their value from the `spec()`'s `engine_params`.
-	fn maximum_extra_data_size(&self) -> usize { self.params().maximum_extra_data_size }
 	/// Maximum number of uncles a block is allowed to declare.
 	fn maximum_uncle_count(&self) -> usize { 2 }
 	/// The number of generations back that uncles can be.
 	fn maximum_uncle_age(&self) -> usize { 6 }
-	/// The nonce with which accounts begin at given block.
-	fn account_start_nonce(&self, block: u64) -> U256 {
-		if block >= self.params().dust_protection_transition {
-			U256::from(self.params().nonce_cap_increment) * U256::from(block)
-		} else {
-			self.params().account_start_nonce
-		}
-	}
 
 	/// Block transformation functions, before the transactions.
 	/// `epoch_begin` set to true if this block kicks off an epoch.
@@ -237,6 +219,7 @@ pub trait Engine: Sync + Send {
 	/// Some(true) means the engine is currently prime for seal generation (i.e. node is the current validator).
 	/// Some(false) means that the node might seal internally but is not qualified now.
 	fn seals_internally(&self) -> Option<bool> { None }
+
 	/// Attempt to seal the block internally.
 	///
 	/// If `Some` is returned, then you get a valid seal.
@@ -263,19 +246,10 @@ pub trait Engine: Sync + Send {
 	/// Additional verification for transactions in blocks.
 	// TODO: Add flags for which bits of the transaction to check.
 	// TODO: consider including State in the params.
+	// TODO: move to machine.
 	fn verify_transaction_basic(&self, t: &UnverifiedTransaction, _header: &Header) -> Result<(), Error> {
 		t.verify_basic(true, Some(self.params().chain_id), true)?;
 		Ok(())
-	}
-
-	/// Verify a particular transaction is valid.
-	fn verify_transaction(&self, t: UnverifiedTransaction, _header: &Header) -> Result<SignedTransaction, Error> {
-		SignedTransaction::new(t)
-	}
-
-	/// The network ID that transactions should be signed with.
-	fn signing_chain_id(&self, _env_info: &EnvInfo) -> Option<u64> {
-		Some(self.params().chain_id)
 	}
 
 	/// Verify the seal of a block. This is an auxilliary method that actually just calls other `verify_` methods
@@ -337,16 +311,6 @@ pub trait Engine: Sync + Send {
 	/// updating consensus state and potentially issuing a new one.
 	fn handle_message(&self, _message: &[u8]) -> Result<(), Error> { Err(EngineError::UnexpectedMessage.into()) }
 
-	/// Attempt to get a handle to a built-in contract.
-	/// Only returns references to activated built-ins.
-	// TODO: builtin contract routing - to do this properly, it will require removing the built-in configuration-reading logic
-	// from Spec into here and removing the Spec::builtins field.
-	fn builtin(&self, a: &Address, block_number: ::header::BlockNumber) -> Option<&Builtin> {
-		self.builtins()
-			.get(a)
-			.and_then(|b| if b.is_active(block_number) { Some(b) } else { None })
-	}
-
 	/// Find out if the block is a proposal block and should not be inserted into the DB.
 	/// Takes a header of a fully verified block.
 	fn is_proposal(&self, _verified_header: &Header) -> bool { false }
@@ -376,19 +340,65 @@ pub trait Engine: Sync + Send {
 	fn supports_warp(&self) -> bool {
 		self.snapshot_components().is_some()
 	}
+}
 
-	/// If this engine supports wasm contracts.
-	fn supports_wasm(&self) -> bool {
-		self.params().wasm
+/// Common type alias for an engine coupled with an Ethereum-like state machine.
+// TODO: make this a _trait_ alias when those exist.
+// fortunately the effect is largely the same since engines are mostly used
+// via trait objects.
+pub type EthEngine = Engine<::machine::EthereumMachine>;
+
+// convenience wrappers for existing functions.
+impl<T: ?Sized> T where T: Engine<::machine::EthereumMachine> {
+	/// Get the general parameters of the chain.
+	pub fn params(&self) -> &CommonParams {
+		self.machine().params()
+	}
+
+	/// Get the EVM schedule for the given block number.
+	pub fn schedule(&self, block_number: BlockNumber) -> Schedule {
+		self.machine().schedule(block_number)
+	}
+
+	/// Builtin-contracts for the chain..
+	pub fn builtins(&self) -> &BTreeMap<Address, Builtin> {
+		self.machine().builtins()
+	}
+
+	/// Attempt to get a handle to a built-in contract.
+	/// Only returns references to activated built-ins.
+	pub fn builtin(&self, a: &Address, block_number: BlockNumber) -> Option<&Builtin> {
+		self.machine().builtin(a, block_number)
+	}
+
+	/// Some intrinsic operation parameters; by default they take their value from the `spec()`'s `engine_params`.
+	pub fn maximum_extra_data_size(&self) -> usize {
+		self.machine().maximum_extra_data_size()
+	}
+
+	/// The nonce with which accounts begin at given block.
+	pub fn account_start_nonce(&self, block: u64) -> U256 {
+		self.machine().account_start_nonce(block)
+	}
+
+	/// The network ID that transactions should be signed with.
+	pub fn signing_chain_id(&self, env_info: &EnvInfo) -> Option<u64> {
+		self.machine().signing_chain_id(env_info)
 	}
 
 	/// Returns new contract address generation scheme at given block number.
-	fn create_address_scheme(&self, number: BlockNumber) -> CreateContractAddress {
-		if number >= self.params().eip86_transition {
-			CreateContractAddress::FromCodeHash
-		} else {
-			CreateContractAddress::FromSenderAndNonce
-		}
+	pub fn create_address_scheme(&self, number: BlockNumber) -> CreateContractAddress {
+		self.machine().create_address_scheme(number)
+	}
+
+	/// Verify a particular transaction is valid.
+	pub fn verify_transaction(&self, t: UnverifiedTransaction, header: &Header) -> Result<SignedTransaction, Error> {
+		self.machine().verify_transaction(t, header)
+	}
+
+	/// If this machine supports wasm.
+	pub fn supports_wasm(&self) -> bool {
+		self.machine().supports_wasm()
 	}
 }
 

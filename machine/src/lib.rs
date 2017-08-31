@@ -37,16 +37,19 @@ pub trait Header {
 /// a header with an associated score (difficulty in PoW terms)
 pub trait ScoredHeader {
 	/// Get the score of this header.
-    fn score(&self) -> U256;
+    fn score(&self) -> &U256;
+
+	/// Set the score of this header.
+	fn set_score(&mut self, score: U256);
 }
 
-/// the state machine the engine acquires consensus over.
+/// The state machine the engine acquires consensus over.
 /// Note that most of the definitions here actually relate to the _transition_ mechanism
 /// as opposed to the state itself.
 ///
 /// This is because consensus over transitions, as well as their ordering, is the most
 /// important responsibility of the consensus engine.
-pub trait Machine {
+pub trait Machine: Sync + Send {
 	/// The block header type.
     type Header: Header;
 	/// The state type of the state machine.

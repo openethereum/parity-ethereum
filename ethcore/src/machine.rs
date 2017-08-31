@@ -19,8 +19,10 @@
 use std::collections::BTreeMap;
 
 use builtin::Builtin;
+use error::Error;
 use header::{BlockNumber, Header};
 use spec::CommonParams;
+use transaction::{UnverifiedTransaction, SignedTransaction};
 
 use util::{Address, U256};
 use vm::{EnvInfo, Schedule, CreateContractAddress};
@@ -86,4 +88,20 @@ impl EthereumMachine {
 			CreateContractAddress::FromSenderAndNonce
 		}
 	}
+
+	/// Verify a particular transaction is valid.
+	pub fn verify_transaction(&self, t: UnverifiedTransaction, _header: &Header) -> Result<SignedTransaction, Error> {
+		SignedTransaction::new(t)
+	}
+
+	/// If this machine supports wasm.
+	pub fn supports_wasm(&self) -> bool {
+		self.params().wasm
+	}
+}
+
+impl ::parity_machine::Machine for EthereumMachine {
+	type Header = Header;
+	type State = ();
+	type Error = ();
 }

@@ -11,7 +11,6 @@
 				"eip160Transition": "0x0",
 				"eip161abcTransition": "0x0",
 				"eip161dTransition": "0x0",
-				"maxCodeSize": 24576
 			}
 		}
 	},
@@ -25,7 +24,8 @@
 		"networkID" : "0x1",
 		"eip98Transition": "0x7fffffffffffffff",
 		"eip86Transition": "0x7fffffffffffffff",
-		"eip155Transition": "0x7fffffffffffffff"
+		"eip155Transition": "0x7fffffffffffffff",
+		"maxCodeSize": 24576
 	},
 	"genesis": {
 		"seal": {

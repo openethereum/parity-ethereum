@@ -102,12 +102,14 @@ pub struct CommonParams {
 	pub registrar: Address,
 	/// Node permission managing contract address.
 	pub node_permission_contract: Option<Address>,
+	/// Maximum contract code size that can be deployed.
+	pub max_code_size: u64,
 }
 
 impl CommonParams {
 	/// Schedule for an EVM in the post-EIP-150-era of the Ethereum main net.
 	pub fn schedule(&self, block_number: u64) -> ::vm::Schedule {
-		let mut schedule = ::vm::Schedule::new_post_eip150(usize::max_value(), true, true, true);
+		let mut schedule = ::vm::Schedule::new_post_eip150(self.max_code_size, true, true, true);
 		self.update_schedule(block_number, &mut schedule);
 		schedule
 	}
@@ -174,6 +176,7 @@ impl From<ethjson::spec::Params> for CommonParams {
 			block_reward: p.block_reward.map_or_else(U256::zero, Into::into),
 			registrar: p.registrar.map_or_else(Address::new, Into::into),
 			node_permission_contract: p.node_permission_contract.map(Into::into),
+			max_code_size: p.max_code_size.map_or(u64::max_value(), Into::into),
 		}
 	}
 }

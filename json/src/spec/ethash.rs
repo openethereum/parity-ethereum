@@ -91,26 +91,6 @@ pub struct EthashParams {
 	/// See main EthashParams docs.
 	#[serde(rename="ecip1017EraRounds")]
 	pub ecip1017_era_rounds: Option<Uint>,
-
-	/// See main EthashParams docs.
-	#[serde(rename="maxCodeSize")]
-	pub max_code_size: Option<Uint>,
-
-	/// See main EthashParams docs.
-	#[serde(rename="maxGasLimitTransition")]
-	pub max_gas_limit_transition: Option<Uint>,
-
-	/// See main EthashParams docs.
-	#[serde(rename="maxGasLimit")]
-	pub max_gas_limit: Option<Uint>,
-
-	/// See main EthashParams docs.
-	#[serde(rename="minGasPriceTransition")]
-	pub min_gas_price_transition: Option<Uint>,
-
-	/// See main EthashParams docs.
-	#[serde(rename="minGasPrice")]
-	pub min_gas_price: Option<Uint>,
 }
 
 /// Ethash engine deserialization.
@@ -216,11 +196,6 @@ mod tests {
 				ecip1010_pause_transition: None,
 				ecip1010_continue_transition: None,
 				ecip1017_era_rounds: None,
-				max_code_size: None,
-				max_gas_limit_transition: None,
-				max_gas_limit: None,
-				min_gas_price_transition: None,
-				min_gas_price: None,
 			}
 		});
 	}
@@ -257,11 +232,6 @@ mod tests {
 				ecip1010_pause_transition: None,
 				ecip1010_continue_transition: None,
 				ecip1017_era_rounds: None,
-				max_code_size: None,
-				max_gas_limit_transition: None,
-				max_gas_limit: None,
-				min_gas_price_transition: None,
-				min_gas_price: None,
 			}
 		});
 	}
