@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use bloomchain as bc;
-use util::HeapSizeOf;
+use heapsize::HeapSizeOf;
 use basic_types::LogBloom;
 
 /// Helper structure representing bloom of the trace.

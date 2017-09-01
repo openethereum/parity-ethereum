@@ -183,16 +183,17 @@ export default class Parity extends PubsubBase {
 
   localTransactions (callback) {
     return this.addListener(this._api, 'parity_localTransactions', (error, transactions) => {
-      error
-        ? callback(error)
-        : callback(null, transactions => {
-          Object.values(transactions)
-            .filter(tx => tx.transaction)
-            .map(tx => {
-              tx.transaction = outTransaction(tx.transaction);
-            });
-          return transactions;
+      if (error) {
+        return callback(error);
+      }
+
+      Object.values(transactions)
+        .filter(tx => tx.transaction)
+        .map(tx => {
+          tx.transaction = outTransaction(tx.transaction);
         });
+
+      callback(null, transactions);
     });
   }
 

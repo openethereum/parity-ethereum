@@ -36,7 +36,8 @@ use ethcore::header::Header;
 use ethcore::ids::BlockId;
 
 use rlp::{Encodable, Decodable, DecoderError, RlpStream, Rlp, UntrustedRlp};
-use util::{H256, U256, HeapSizeOf, RwLock};
+use heapsize::HeapSizeOf;
+use util::{H256, U256, RwLock};
 use util::kvdb::{DBTransaction, KeyValueDB};
 
 use cache::Cache;
@@ -486,7 +487,7 @@ impl HeaderChain {
 
 	/// Get the genesis hash.
 	pub fn genesis_hash(&self) -> H256 {
-		::util::Hashable::sha3(&self.genesis_header)
+		self.genesis_header.hash()
 	}
 
 	/// Get the best block's data.

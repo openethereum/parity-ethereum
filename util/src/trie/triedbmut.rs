@@ -25,14 +25,13 @@ use ::{HashDB, H256};
 use ::bytes::ToPretty;
 use ::nibbleslice::NibbleSlice;
 use ::rlp::{Rlp, RlpStream};
-use ::sha3::SHA3_NULL_RLP;
 use hashdb::DBValue;
-
-use elastic_array::ElasticArray1024;
 
 use std::collections::{HashSet, VecDeque};
 use std::mem;
 use std::ops::Index;
+use elastic_array::ElasticArray1024;
+use keccak::{KECCAK_NULL_RLP};
 
 // For lookups into the Node storage buffer.
 // This is deliberately non-copyable.
@@ -262,7 +261,9 @@ impl<'a> Index<&'a StorageHandle> for NodeStorage {
 /// # Example
 /// ```
 /// extern crate ethcore_util as util;
+/// extern crate hash;
 ///
+/// use hash::KECCAK_NULL_RLP;
 /// use util::trie::*;
 /// use util::hashdb::*;
 /// use util::memorydb::*;
@@ -273,7 +274,7 @@ impl<'a> Index<&'a StorageHandle> for NodeStorage {
 ///   let mut root = H256::new();
 ///   let mut t = TrieDBMut::new(&mut memdb, &mut root);
 ///   assert!(t.is_empty());
-///   assert_eq!(*t.root(), ::util::sha3::SHA3_NULL_RLP);
+///   assert_eq!(*t.root(), KECCAK_NULL_RLP);
 ///   t.insert(b"foo", b"bar").unwrap();
 ///   assert!(t.contains(b"foo").unwrap());
 ///   assert_eq!(t.get(b"foo").unwrap().unwrap(), DBValue::from_slice(b"bar"));
@@ -295,8 +296,8 @@ pub struct TrieDBMut<'a> {
 impl<'a> TrieDBMut<'a> {
 	/// Create a new trie with backing database `db` and empty `root`.
 	pub fn new(db: &'a mut HashDB, root: &'a mut H256) -> Self {
-		*root = SHA3_NULL_RLP;
-		let root_handle = NodeHandle::Hash(SHA3_NULL_RLP);
+		*root = KECCAK_NULL_RLP;
+		let root_handle = NodeHandle::Hash(KECCAK_NULL_RLP);
 
 		TrieDBMut {
 			storage: NodeStorage::empty(),
@@ -871,7 +872,7 @@ impl<'a> TrieMut for TrieDBMut<'a> {
 
 	fn is_empty(&self) -> bool {
 		match self.root_handle {
-			NodeHandle::Hash(h) => h == SHA3_NULL_RLP,
+			NodeHandle::Hash(h) => h == KECCAK_NULL_RLP,
 			NodeHandle::InMemory(ref h) => match self.storage[h] {
 				Node::Empty => true,
 				_ => false,
@@ -919,8 +920,8 @@ impl<'a> TrieMut for TrieDBMut<'a> {
 			}
 			None => {
 				trace!(target: "trie", "remove: obliterated trie");
-				self.root_handle = NodeHandle::Hash(SHA3_NULL_RLP);
-				*self.root = SHA3_NULL_RLP;
+				self.root_handle = NodeHandle::Hash(KECCAK_NULL_RLP);
+				*self.root = KECCAK_NULL_RLP;
 			}
 		}
 
@@ -941,7 +942,7 @@ mod tests {
 	use memorydb::*;
 	use super::*;
 	use bytes::ToPretty;
-	use sha3::SHA3_NULL_RLP;
+	use keccak::KECCAK_NULL_RLP;
 	use super::super::TrieMut;
 	use super::super::standardmap::*;
 
@@ -996,7 +997,7 @@ mod tests {
 			assert_eq!(*memtrie.root(), real);
 			unpopulate_trie(&mut memtrie, &x);
 			memtrie.commit();
-			if *memtrie.root() != SHA3_NULL_RLP {
+			if *memtrie.root() != KECCAK_NULL_RLP {
 				println!("- TRIE MISMATCH");
 				println!("");
 				println!("{:?} vs {:?}", memtrie.root(), real);
@@ -1004,7 +1005,7 @@ mod tests {
 					println!("{:?} -> {:?}", i.0.pretty(), i.1.pretty());
 				}
 			}
-			assert_eq!(*memtrie.root(), SHA3_NULL_RLP);
+			assert_eq!(*memtrie.root(), KECCAK_NULL_RLP);
 		}
 	}
 
@@ -1013,7 +1014,7 @@ mod tests {
 		let mut memdb = MemoryDB::new();
 		let mut root = H256::new();
 		let mut t = TrieDBMut::new(&mut memdb, &mut root);
-		assert_eq!(*t.root(), SHA3_NULL_RLP);
+		assert_eq!(*t.root(), KECCAK_NULL_RLP);
 	}
 
 	#[test]
@@ -1268,7 +1269,7 @@ mod tests {
 		}
 
 		assert!(t.is_empty());
-		assert_eq!(*t.root(), SHA3_NULL_RLP);
+		assert_eq!(*t.root(), KECCAK_NULL_RLP);
 	}
 
 	#[test]

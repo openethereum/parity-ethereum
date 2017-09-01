@@ -17,6 +17,7 @@
 //! Transaction Execution environment.
 use std::cmp;
 use std::sync::Arc;
+use hash::keccak;
 use util::*;
 use state::{Backend as StateBackend, State, Substate, CleanupMode};
 use engines::Engine;
@@ -47,20 +48,20 @@ pub fn contract_address(address_scheme: CreateContractAddress, sender: &Address,
 			let mut stream = RlpStream::new_list(2);
 			stream.append(sender);
 			stream.append(nonce);
-			(From::from(stream.as_raw().sha3()), None)
+			(From::from(keccak(stream.as_raw())), None)
 		},
 		CreateContractAddress::FromCodeHash => {
-			let code_hash = code.sha3();
+			let code_hash = keccak(code);
 			let mut buffer = [0xffu8; 20 + 32];
 			&mut buffer[20..].copy_from_slice(&code_hash[..]);
-			(From::from((&buffer[..]).sha3()), Some(code_hash))
+			(From::from(keccak(&buffer[..])), Some(code_hash))
 		},
 		CreateContractAddress::FromSenderAndCodeHash => {
-			let code_hash = code.sha3();
+			let code_hash = keccak(code);
 			let mut buffer = [0u8; 20 + 32];
 			&mut buffer[..20].copy_from_slice(&sender[..]);
 			&mut buffer[20..].copy_from_slice(&code_hash[..]);
-			(From::from((&buffer[..]).sha3()), Some(code_hash))
+			(From::from(keccak(&buffer[..])), Some(code_hash))
 		},
 	}
 }
@@ -1307,8 +1308,8 @@ mod tests {
 		}
 	}
 
-	evm_test!{test_sha3: test_sha3_jit, test_sha3_int}
-	fn test_sha3(factory: Factory) {
+	evm_test!{test_keccak: test_keccak_jit, test_keccak_int}
+	fn test_keccak(factory: Factory) {
 		let code = "6064640fffffffff20600055".from_hex().unwrap();
 
 		let sender = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();

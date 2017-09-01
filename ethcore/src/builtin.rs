@@ -23,7 +23,8 @@ use crypto::ripemd160::Ripemd160 as Ripemd160Digest;
 use crypto::digest::Digest;
 use num::{BigUint, Zero, One};
 
-use util::{U256, H256, Hashable, BytesRef};
+use hash::keccak;
+use util::{U256, H256, BytesRef};
 use ethkey::{Signature, recover as ec_recover};
 use ethjson;
 
@@ -228,7 +229,7 @@ impl Impl for EcRecover {
 		let s = Signature::from_rsv(&r, &s, bit);
 		if s.is_valid() {
 			if let Ok(p) = ec_recover(&s, &hash) {
-				let r = p.sha3();
+				let r = keccak(p);
 				output.write(0, &[0; 12]);
 				output.write(12, &r[12..r.len()]);
 			}
@@ -572,14 +573,6 @@ mod tests {
 
 	#[test]
 	fn ecrecover() {
-		/*let k = KeyPair::from_secret(b"test".sha3()).unwrap();
-		let a: Address = From::from(k.public().sha3());
-		println!("Address: {}", a);
-		let m = b"hello world".sha3();
-		println!("Message: {}", m);
-		let s = k.sign(&m).unwrap();
-		println!("Signed: {}", s);*/
-
 		let f = ethereum_builtin("ecrecover");
 
 		let i = FromHex::from_hex("47173285a8d7341e5e972fc677286384f802f8ef42a5ec5f03bbfa254cb01fad000000000000000000000000000000000000000000000000000000000000001b650acf9d3f5f0a2c799776a1254355d5f4061762a237396a99a0e0e3fc2bcd6729514a0dacb2e623ac4abd157cb18163ff942280db4d5caad66ddf941ba12e03").unwrap();

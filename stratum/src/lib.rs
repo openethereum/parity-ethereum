@@ -25,6 +25,7 @@ extern crate ethcore_ipc as ipc;
 extern crate semver;
 extern crate futures;
 extern crate ethcore_logger;
+extern crate hash;
 
 #[cfg(test)] extern crate tokio_core;
 extern crate ethcore_devtools as devtools;
@@ -54,7 +55,8 @@ use std::sync::Arc;
 
 use std::net::SocketAddr;
 use std::collections::{HashSet, HashMap};
-use util::{H256, Hashable, RwLock, RwLockReadGuard};
+use hash::keccak;
+use util::{H256, RwLock, RwLockReadGuard};
 
 type RpcResult = BoxFuture<jsonrpc_core::Value, jsonrpc_core::Error>;
 
@@ -228,7 +230,7 @@ impl Stratum {
 	fn authorize(&self, params: Params, meta: SocketMetadata) -> RpcResult {
 		future::result(params.parse::<(String, String)>().map(|(worker_id, secret)|{
 			if let Some(valid_secret) = self.secret {
-				let hash = secret.sha3();
+				let hash = keccak(secret);
 				if hash != valid_secret {
 					return to_value(&false);
 				}

@@ -54,6 +54,7 @@ parity-updater = { path = "../updater" }
 rlp = { path = "../util/rlp" }
 stats = { path = "../util/stats" }
 vm = { path = "../ethcore/vm" }
+hash = { path = "../util/hash" }
 
 clippy = { version = "0.0.103", optional = true}
 pretty_assertions = "0.1"

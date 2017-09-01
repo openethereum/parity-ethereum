@@ -24,7 +24,7 @@ use ethcore::mode::Mode;
 use ethsync::ManageNetwork;
 use fetch::{self, Fetch};
 use futures::{BoxFuture, Future};
-use util::sha3;
+use hash::keccak_buffer;
 use updater::{Service as UpdateService};
 
 use jsonrpc_core::Error;
@@ -170,7 +170,7 @@ impl<C, M, U, F> ParitySet for ParitySetClient<C, M, U, F> where
 			result
 				.map_err(errors::fetch)
 				.and_then(|response| {
-					sha3(&mut io::BufReader::new(response)).map_err(errors::fetch)
+					keccak_buffer(&mut io::BufReader::new(response)).map_err(errors::fetch)
 				})
 				.map(Into::into)
 		}))

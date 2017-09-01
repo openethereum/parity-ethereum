@@ -20,6 +20,7 @@
 
 use std::collections::{HashSet, VecDeque};
 use std::cmp;
+use heapsize::HeapSizeOf;
 use util::*;
 use rlp::*;
 use ethcore::views::{BlockView};
@@ -478,7 +479,7 @@ impl BlockDownloader {
 			let receipts = block_and_receipts.receipts;
 			let (h, number, parent) = {
 				let header = BlockView::new(&block).header_view();
-				(header.sha3(), header.number(), header.parent_hash())
+				(header.hash(), header.number(), header.parent_hash())
 			};
 
 			// Perform basic block verification

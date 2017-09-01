@@ -19,6 +19,7 @@ ethcore-io = { path = "../../util/io" }
 ethcore-ipc = { path = "../../ipc/rpc", optional = true }
 ethcore-devtools = { path = "../../devtools" }
 evm = { path = "../evm" }
+heapsize = "0.4"
 vm = { path = "../vm" }
 rlp = { path = "../../util/rlp" }
 rlp_derive = { path = "../../util/rlp_derive" }
@@ -31,6 +32,7 @@ bincode = "0.8.0"
 serde = "1.0"
 serde_derive = "1.0"
 stats = { path = "../../util/stats" }
+hash = { path = "../../util/hash" }
 
 [features]
 default = []

@@ -21,7 +21,8 @@ use std::time::{Instant, Duration};
 use std::thread::sleep;
 use std::sync::Arc;
 use rustc_hex::FromHex;
-use util::{ToPretty, U256, H256, Address, Hashable};
+use hash::{keccak, KECCAK_NULL_RLP};
+use util::{ToPretty, U256, H256, Address};
 use rlp::PayloadInfo;
 use ethcore::service::ClientService;
 use ethcore::client::{Mode, DatabaseCompactionProfile, VMType, BlockImportError, BlockChainClient, BlockId};
@@ -639,13 +640,13 @@ fn execute_export_state(cmd: ExportState) -> Result<(), String> {
 			out.write_fmt(format_args!("\n\"0x{}\": {{\"balance\": \"{:x}\", \"nonce\": \"{:x}\"", account.hex(), balance, client.nonce(&account, at).unwrap_or_else(U256::zero))).expect("Write error");
 			let code = client.code(&account, at).unwrap_or(None).unwrap_or_else(Vec::new);
 			if !code.is_empty() {
-				out.write_fmt(format_args!(", \"code_hash\": \"0x{}\"", code.sha3().hex())).expect("Write error");
+				out.write_fmt(format_args!(", \"code_hash\": \"0x{}\"", keccak(&code).hex())).expect("Write error");
 				if cmd.code {
 					out.write_fmt(format_args!(", \"code\": \"{}\"", code.to_hex())).expect("Write error");
 				}
 			}
-			let storage_root = client.storage_root(&account, at).unwrap_or(::util::SHA3_NULL_RLP);
-			if storage_root != ::util::SHA3_NULL_RLP {
+			let storage_root = client.storage_root(&account, at).unwrap_or(KECCAK_NULL_RLP);
+			if storage_root != KECCAK_NULL_RLP {
 				out.write_fmt(format_args!(", \"storage_root\": \"0x{}\"", storage_root.hex())).expect("Write error");
 				if cmd.storage {
 					out.write_fmt(format_args!(", \"storage\": {{")).expect("Write error");

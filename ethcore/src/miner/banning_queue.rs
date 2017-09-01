@@ -24,7 +24,8 @@ use transient_hashmap::TransientHashMap;
 use miner::{TransactionQueue, TransactionQueueDetailsProvider, TransactionImportResult, TransactionOrigin};
 use miner::transaction_queue::QueuingInstant;
 use error::{Error, TransactionError};
-use util::{U256, H256, Address, Hashable};
+use util::{U256, H256, Address};
+use hash::keccak;
 
 type Count = u16;
 
@@ -103,7 +104,7 @@ impl BanningTransactionQueue {
 
 			// Check code
 			if let Action::Create = transaction.action {
-				let code_hash = transaction.data.sha3();
+				let code_hash = keccak(&transaction.data);
 				let count = self.codes_bans.direct().get(&code_hash).cloned().unwrap_or(0);
 				if count > threshold {
 					debug!(target: "txqueue", "Ignoring transaction {:?} because code is banned.", transaction.hash());
@@ -131,7 +132,7 @@ impl BanningTransactionQueue {
 						self.ban_recipient(recipient)
 					},
 					Action::Create => {
-						self.ban_codehash(transaction.data.sha3())
+						self.ban_codehash(keccak(&transaction.data))
 					},
 				};
 				sender_banned || recipient_or_code_banned
@@ -210,13 +211,14 @@ impl DerefMut for BanningTransactionQueue {
 mod tests {
 	use std::time::Duration;
 	use rustc_hex::FromHex;
+	use hash::keccak;
 	use super::{BanningTransactionQueue, Threshold};
 	use ethkey::{Random, Generator};
 	use transaction::{Transaction, SignedTransaction, Action};
 	use error::{Error, TransactionError};
 	use client::TransactionImportResult;
 	use miner::{TransactionQueue, TransactionOrigin};
-	use util::{U256, Address, Hashable};
+	use util::{U256, Address};
 	use miner::transaction_queue::test::DummyTransactionDetailsProvider;
 
 	fn queue() -> BanningTransactionQueue {
@@ -310,7 +312,7 @@ mod tests {
 	fn should_not_accept_transactions_with_banned_code() {
 		// given
 		let tx = transaction(Action::Create);
-		let codehash = tx.data.sha3();
+		let codehash = keccak(&tx.data);
 		let mut txq = queue();
 		// Banlist once (threshold not reached)
 		let banlist1 = txq.ban_codehash(codehash);

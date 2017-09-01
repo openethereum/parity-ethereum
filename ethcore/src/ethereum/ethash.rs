@@ -18,12 +18,14 @@ use std::path::Path;
 use std::cmp;
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
+use hash::{KECCAK_EMPTY_LIST_RLP};
 use ethash::{quick_get_difficulty, slow_get_seedhash, EthashManager};
 use util::*;
 use block::*;
 use builtin::Builtin;
 use vm::EnvInfo;
 use error::{BlockError, Error, TransactionError};
+use trace::{Tracer, ExecutiveTracer, RewardType};
 use header::{Header, BlockNumber};
 use state::CleanupMode;
 use spec::CommonParams;
@@ -285,38 +287,60 @@ impl Engine for Arc<Ethash> {
 	/// Apply the block reward on finalisation of the block.
 	/// This assumes that all uncles are valid uncles (i.e. of at least one generation before the current).
 	fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<(), Error> {
+		use std::ops::Shr;
 		let reward = self.params().block_reward;
+		let tracing_enabled = block.tracing_enabled();
 		let fields = block.fields_mut();
 		let eras_rounds = self.ethash_params.ecip1017_era_rounds;
 		let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, reward, fields.header.number());
+		let mut tracer = ExecutiveTracer::default();
 
 		// Bestow block reward
+		let result_block_reward = reward + reward.shr(5) * U256::from(fields.uncles.len());
 		fields.state.add_balance(
 			fields.header.author(),
-			&(reward + reward / U256::from(32) * U256::from(fields.uncles.len())),
+			&result_block_reward,
 			CleanupMode::NoEmpty
 		)?;
+
+		if tracing_enabled {
+			let block_author = fields.header.author().clone();
+			tracer.trace_reward(block_author, result_block_reward, RewardType::Block);
+		}
 
 		// Bestow uncle rewards
 		let current_number = fields.header.number();
 		for u in fields.uncles.iter() {
+			let uncle_author = u.author().clone();
+			let result_uncle_reward: U256;
+
 			if eras == 0 {
+				result_uncle_reward = (reward * U256::from(8 + u.number() - current_number)).shr(3);
 				fields.state.add_balance(
 					u.author(),
-					&(reward * U256::from(8 + u.number() - current_number) / U256::from(8)),
+					&result_uncle_reward,
 					CleanupMode::NoEmpty
 				)
 			} else {
+				result_uncle_reward = reward.shr(5);
 				fields.state.add_balance(
 					u.author(),
-					&(reward / U256::from(32)),
+					&result_uncle_reward,
 					CleanupMode::NoEmpty
 				)
 			}?;
+
+			// Trace uncle rewards
+			if tracing_enabled {
+				tracer.trace_reward(uncle_author, result_uncle_reward, RewardType::Uncle);
+			}
 		}
 
 		// Commit state so that we can actually figure out the state root.
 		fields.state.commit()?;
+		if tracing_enabled {
+			fields.traces.as_mut().map(|mut traces| traces.push(tracer.drain()));
+		}
 		Ok(())
 	}
 
@@ -458,7 +482,7 @@ impl Ethash {
 			panic!("Can't calculate genesis block difficulty");
 		}
 
-		let parent_has_uncles = parent.uncles_hash() != &sha3::SHA3_EMPTY_LIST_RLP;
+		let parent_has_uncles = parent.uncles_hash() != &KECCAK_EMPTY_LIST_RLP;
 
 		let min_difficulty = self.ethash_params.minimum_difficulty;
 

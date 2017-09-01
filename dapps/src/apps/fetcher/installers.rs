@@ -19,9 +19,9 @@ use std::{fs, fmt};
 use std::io::{self, Read, Write};
 use std::path::PathBuf;
 use fetch::{self, Mime};
+use hash::keccak_buffer;
 use util::H256;
 
-use util::sha3::sha3;
 use page::{LocalPageEndpoint, PageCache};
 use handlers::{ContentValidator, ValidatorResponse};
 use apps::manifest::{MANIFEST_FILENAME, deserialize_manifest, serialize_manifest, Manifest};
@@ -57,9 +57,9 @@ fn write_response_and_check_hash(
 	file.flush()?;
 
 	// Validate hash
-	// TODO [ToDr] calculate sha3 in-flight while reading the response
+	// TODO [ToDr] calculate keccak in-flight while reading the response
 	let mut file = io::BufReader::new(fs::File::open(&content_path)?);
-	let hash = sha3(&mut file)?;
+	let hash = keccak_buffer(&mut file)?;
 	if id == hash {
 		Ok((file.into_inner(), content_path))
 	} else {

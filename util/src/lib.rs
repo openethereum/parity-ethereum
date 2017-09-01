@@ -107,6 +107,7 @@ extern crate regex;
 extern crate lru_cache;
 extern crate heapsize;
 extern crate ethcore_logger;
+extern crate hash as keccak;
 
 #[macro_use]
 extern crate log as rlog;
@@ -117,7 +118,6 @@ pub mod error;
 pub mod bytes;
 pub mod misc;
 pub mod vector;
-pub mod sha3;
 pub mod hashdb;
 pub mod memorydb;
 pub mod migration;
@@ -146,12 +146,10 @@ pub use timer::*;
 pub use error::*;
 pub use bytes::*;
 pub use vector::*;
-pub use sha3::*;
 pub use bigint::prelude::*;
 pub use bigint::hash;
 
 pub use ansi_term::{Colour, Style};
-pub use heapsize::HeapSizeOf;
 pub use parking_lot::{Condvar, Mutex, MutexGuard, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 /// 160-bit integer representing account address

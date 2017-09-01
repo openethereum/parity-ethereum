@@ -20,6 +20,7 @@ extern crate test;
 extern crate ethcore_util;
 #[macro_use]
 extern crate log;
+extern crate hash;
 
 use test::{Bencher, black_box};
 use ethcore_util::hash::*;
@@ -27,12 +28,11 @@ use ethcore_util::bytes::*;
 use ethcore_util::trie::*;
 use ethcore_util::memorydb::*;
 use ethcore_util::triehash::*;
-use ethcore_util::sha3::*;
-
+use hash::keccak;
 
 fn random_word(alphabet: &[u8], min_count: usize, diff_count: usize, seed: &mut H256) -> Vec<u8> {
 	assert!(min_count + diff_count <= 32);
-	*seed = seed.sha3();
+	*seed = keccak(&seed);
 	let r = min_count + (seed[31] as usize % (diff_count + 1));
 	let mut ret: Vec<u8> = Vec::with_capacity(r);
 	for i in 0..r {
@@ -43,13 +43,13 @@ fn random_word(alphabet: &[u8], min_count: usize, diff_count: usize, seed: &mut 
 
 fn random_bytes(min_count: usize, diff_count: usize, seed: &mut H256) -> Vec<u8> {
 	assert!(min_count + diff_count <= 32);
-	*seed = seed.sha3();
+	*seed = keccak(&seed);
 	let r = min_count + (seed[31] as usize % (diff_count + 1));
 	seed[0..r].to_vec()
 }
 
 fn random_value(seed: &mut H256) -> Bytes {
-	*seed = seed.sha3();
+	*seed = keccak(&seed);
 	match seed[0] % 2 {
 		1 => vec![seed[31];1],
 		_ => seed.to_vec(),
@@ -306,11 +306,11 @@ fn triehash_insertions_six_low(b: &mut Bencher) {
 }
 
 #[bench]
-fn sha3x10000(b: &mut Bencher) {
+fn keccakx10000(b: &mut Bencher) {
 	b.iter(||{
 		let mut seed = H256::new();
 		for _ in 0..10000 {
-			seed = seed.sha3()
+			seed = keccak(&seed);
 		}
 	})
 }

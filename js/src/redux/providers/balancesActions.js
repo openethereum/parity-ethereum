@@ -164,7 +164,7 @@ export function updateTokensFilter (_addresses, _tokens, options = {}) {
         const filterOptions = {
           fromBlock: block,
           toBlock: 'latest',
-          // address: tokenAddresses
+          address: tokenAddresses
         };
 
         const optionsFrom = {
