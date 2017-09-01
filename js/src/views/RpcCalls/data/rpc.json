@@ -1053,7 +1053,7 @@
       "desc": "Returns traces matching given filter",
       "params": [
         "`OBJECT` - The filter object",
-        "`OBJECT` - (optional) The offset trace for output",
+        "`INTEGER` - (optional) The offset number for trace output",
         "`INTEGER` - (optional) Amount of traces to output"
       ],
       "returns": "`ARRAY` - Traces matching given filter",

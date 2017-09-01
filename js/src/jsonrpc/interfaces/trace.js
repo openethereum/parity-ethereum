@@ -143,23 +143,10 @@ then it should look something like:
         }
       },
       {
-        type: Object,
+        type: Quantity,
         desc: 'The offset trace index',
-        details: {
-          blockHash: {
-            type: Hash,
-            desc: 'Hash of the block.'
-          },
-          transactionNumber: {
-            type: Quantity,
-            desc: 'Transaction number in the block.'
-          }
-        },
         optional: true,
-        example: {
-          blockHash: '0x86df301bcdd8248d982dbf039f09faf792684e1aeee99d5b58b77d620008b80f',
-          transactionNumber: fromDecimal(3)
-        }
+        example: 10,
       },
       {
         type: Quantity,
