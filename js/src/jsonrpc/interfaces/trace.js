@@ -146,7 +146,7 @@ then it should look something like:
         type: Quantity,
         desc: 'The offset trace index',
         optional: true,
-        example: 10,
+        example: 10
       },
       {
         type: Quantity,
