@@ -40,6 +40,7 @@ use miner::service_transaction_checker::ServiceTransactionChecker;
 use price_info::{Client as PriceInfoClient, PriceInfo};
 use price_info::fetch::Client as FetchClient;
 use header::{Header, BlockNumber};
+use ansi_term::Colour;
 
 /// Different possible definitions for pending transaction set.
 #[derive(Debug, PartialEq)]

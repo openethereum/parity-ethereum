@@ -104,6 +104,7 @@ extern crate rlp;
 extern crate hash;
 extern crate heapsize;
 extern crate triehash;
+extern crate ansi_term;
 
 #[macro_use]
 extern crate rlp_derive;

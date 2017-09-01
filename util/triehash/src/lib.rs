@@ -37,12 +37,12 @@ fn shared_prefix_len<T: Eq>(first: &[T], second: &[T]) -> usize {
 ///
 /// ```rust
 /// extern crate triehash;
-/// use util::triehash::ordered_trie_root;
+/// use triehash::ordered_trie_root;
 ///
 /// fn main() {
 /// 	let v = vec![From::from("doe"), From::from("reindeer")];
 /// 	let root = "e766d5d51b89dc39d981b41bda63248d7abce4f0225eefd023792a540bcffee3";
-/// 	assert_eq!(ordered_trie_root(v), H256::from_str(root).unwrap());
+/// 	assert_eq!(ordered_trie_root(v), root.parse().unwrap());
 /// }
 /// ```
 pub fn ordered_trie_root<I>(input: I) -> H256
@@ -67,7 +67,7 @@ pub fn ordered_trie_root<I>(input: I) -> H256
 ///
 /// ```rust
 /// extern crate triehash;
-/// use util::triehash::trie_root;
+/// use triehash::trie_root;
 ///
 /// fn main() {
 /// 	let v = vec![
@@ -99,7 +99,7 @@ pub fn trie_root<I>(input: I) -> H256
 ///
 /// ```rust
 /// extern crate triehash;
-/// use util::triehash::sec_trie_root;
+/// use triehash::sec_trie_root;
 ///
 /// fn main() {
 /// 	let v = vec![
