@@ -41,33 +41,38 @@ export default class Eth {
     this._started = true;
 
     if (this._api.isPubSub) {
-      return this._api.pubsub
-        .subscribeAndGetResult(
-          callback => this._api.pubsub.eth.newHeads(callback),
-          () => {
-            return this._api.eth
-              .blockNumber()
-              .then(blockNumber => {
-                this.updateBlock(blockNumber);
-                return blockNumber;
-              });
-          }
-        );
+      return Promise.all([
+        this._pollBlockNumber(false),
+        this._api.pubsub
+          .subscribeAndGetResult(
+            callback => this._api.pubsub.eth.newHeads(callback),
+            () => {
+              return this._api.eth
+                .blockNumber()
+                .then(blockNumber => {
+                  this.updateBlock(blockNumber);
+                  return blockNumber;
+                });
+            }
+          )
+      ]);
     }
 
     // fallback to polling
-    return this._pollBlockNumber();
+    return this._pollBlockNumber(true);
   }
 
-  _pollBlockNumber = () => {
-    const nextTimeout = (timeout = 1000) => {
-      this._pollTimerId = setTimeout(() => {
-        this._pollBlockNumber();
-      }, timeout);
+  _pollBlockNumber = (doTimeout) => {
+    const nextTimeout = (timeout = 1000, forceTimeout = doTimeout) => {
+      if (forceTimeout) {
+        this._pollTimerId = setTimeout(() => {
+          this._pollBlockNumber(doTimeout);
+        }, timeout);
+      }
     };
 
     if (!this._api.transport.isConnected) {
-      nextTimeout(500);
+      nextTimeout(500, true);
       return;
     }
 

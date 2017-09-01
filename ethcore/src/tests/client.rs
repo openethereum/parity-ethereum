@@ -16,6 +16,7 @@
 
 use std::str::FromStr;
 use std::sync::Arc;
+use hash::keccak;
 use io::IoChannel;
 use client::{BlockChainClient, MiningBlockChainClient, Client, ClientConfig, BlockId};
 use state::{self, State, CleanupMode};
@@ -254,7 +255,7 @@ fn can_mine() {
 
 	let b = client.prepare_open_block(Address::default(), (3141562.into(), 31415620.into()), vec![]).close();
 
-	assert_eq!(*b.block().header().parent_hash(), BlockView::new(&dummy_blocks[0]).header_view().sha3());
+	assert_eq!(*b.block().header().parent_hash(), BlockView::new(&dummy_blocks[0]).header_view().hash());
 }
 
 #[test]
@@ -298,7 +299,7 @@ fn change_history_size() {
 
 #[test]
 fn does_not_propagate_delayed_transactions() {
-	let key = KeyPair::from_secret("test".sha3().into()).unwrap();
+	let key = KeyPair::from_secret(keccak("test").into()).unwrap();
 	let secret = key.secret();
 	let tx0 = PendingTransaction::new(Transaction {
 		nonce: 0.into(),

@@ -100,7 +100,10 @@ extern crate num_cpus;
 extern crate num;
 extern crate price_info;
 extern crate rand;
+extern crate rayon;
 extern crate rlp;
+extern crate hash;
+extern crate heapsize;
 
 #[macro_use]
 extern crate rlp_derive;

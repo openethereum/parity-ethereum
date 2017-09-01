@@ -22,6 +22,7 @@ use std::collections::{HashMap, BTreeMap};
 use std::mem;
 use itertools::Itertools;
 use rustc_hex::FromHex;
+use hash::keccak;
 use util::*;
 use rlp::*;
 use ethkey::{Generator, Random};
@@ -241,7 +242,7 @@ impl TestBlockChainClient {
 					uncle_header.set_parent_hash(self.last_hash.read().clone());
 					uncle_header.set_number(n as BlockNumber);
 					uncles.append(&uncle_header);
-					header.set_uncles_hash(uncles.as_raw().sha3());
+					header.set_uncles_hash(keccak(uncles.as_raw()));
 					uncles
 				},
 				_ => RlpStream::new_list(0)
@@ -495,10 +496,6 @@ impl BlockChainClient for TestBlockChainClient {
 
 	fn transaction_receipt(&self, id: TransactionId) -> Option<LocalizedReceipt> {
 		self.receipts.read().get(&id).cloned()
-	}
-
-	fn blocks_with_bloom(&self, _bloom: &H2048, _from_block: BlockId, _to_block: BlockId) -> Option<Vec<BlockNumber>> {
-		unimplemented!();
 	}
 
 	fn logs(&self, filter: Filter) -> Vec<LocalizedLogEntry> {

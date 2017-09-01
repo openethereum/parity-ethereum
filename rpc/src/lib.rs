@@ -60,6 +60,7 @@ extern crate parity_reactor;
 extern crate parity_updater as updater;
 extern crate rlp;
 extern crate stats;
+extern crate hash;
 
 #[macro_use]
 extern crate log;

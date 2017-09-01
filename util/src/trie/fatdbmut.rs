@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use hash::H256;
-use sha3::Hashable;
+use keccak::keccak;
 use hashdb::{HashDB, DBValue};
 use super::{TrieDBMut, TrieMut};
 
@@ -53,7 +53,7 @@ impl<'db> FatDBMut<'db> {
 	}
 
 	fn to_aux_key(key: &[u8]) -> H256 {
-		key.sha3()
+		keccak(key)
 	}
 }
 
@@ -67,17 +67,17 @@ impl<'db> TrieMut for FatDBMut<'db> {
 	}
 
 	fn contains(&self, key: &[u8]) -> super::Result<bool> {
-		self.raw.contains(&key.sha3())
+		self.raw.contains(&keccak(key))
 	}
 
 	fn get<'a, 'key>(&'a self, key: &'key [u8]) -> super::Result<Option<DBValue>>
 		where 'a: 'key
 	{
-		self.raw.get(&key.sha3())
+		self.raw.get(&keccak(key))
 	}
 
 	fn insert(&mut self, key: &[u8], value: &[u8]) -> super::Result<Option<DBValue>> {
-		let hash = key.sha3();
+		let hash = keccak(key);
 		let out = self.raw.insert(&hash, value)?;
 		let db = self.raw.db_mut();
 
@@ -89,7 +89,7 @@ impl<'db> TrieMut for FatDBMut<'db> {
 	}
 
 	fn remove(&mut self, key: &[u8]) -> super::Result<Option<DBValue>> {
-		let hash = key.sha3();
+		let hash = keccak(key);
 		let out = self.raw.remove(&hash)?;
 
 		// don't remove if it already exists.
@@ -114,5 +114,5 @@ fn fatdb_to_trie() {
 		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]).unwrap();
 	}
 	let t = TrieDB::new(&memdb, &root).unwrap();
-	assert_eq!(t.get(&(&[0x01u8, 0x23]).sha3()).unwrap().unwrap(), DBValue::from_slice(&[0x01u8, 0x23]));
+	assert_eq!(t.get(&keccak(&[0x01u8, 0x23])).unwrap().unwrap(), DBValue::from_slice(&[0x01u8, 0x23]));
 }

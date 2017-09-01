@@ -18,3 +18,4 @@ fetch = { path = "../util/fetch" }
 ethcore-util = { path = "../util" }
 parity-reactor = { path = "../util/reactor" }
 native-contracts = { path = "../ethcore/native_contracts" }
+hash = { path = "../util/hash" }

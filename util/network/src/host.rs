@@ -25,11 +25,11 @@ use std::path::{Path, PathBuf};
 use std::io::{Read, Write, ErrorKind};
 use std::fs;
 use ethkey::{KeyPair, Secret, Random, Generator};
+use hash::keccak;
 use mio::*;
 use mio::deprecated::{EventLoop};
 use mio::tcp::*;
 use util::hash::*;
-use util::Hashable;
 use util::version;
 use rlp::*;
 use session::{Session, SessionInfo, SessionData};
@@ -354,8 +354,8 @@ impl HostInfo {
 
 	/// Increments and returns connection nonce.
 	pub fn next_nonce(&mut self) -> H256 {
-		self.nonce = self.nonce.sha3();
-		self.nonce.clone()
+		self.nonce = keccak(&self.nonce);
+		self.nonce
 	}
 }
 
@@ -694,7 +694,7 @@ impl Host {
 
 		let max_handshakes_per_round = max_handshakes / 2;
 		let mut started: usize = 0;
-		for id in nodes.filter(|id| 
+		for id in nodes.filter(|id|
 				!self.have_session(id) &&
 				!self.connecting_to(id) &&
 				*id != self_id &&

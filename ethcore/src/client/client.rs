@@ -23,9 +23,10 @@ use time::precise_time_ns;
 use itertools::Itertools;
 
 // util
-use util::{Bytes, PerfTimer, Mutex, RwLock, MutexGuard, Hashable};
+use hash::keccak;
+use util::{Bytes, PerfTimer, Mutex, RwLock, MutexGuard};
 use util::{journaldb, DBValue, TrieFactory, Trie};
-use util::{U256, H256, Address, H2048};
+use util::{U256, H256, Address};
 use util::trie::TrieSpec;
 use util::kvdb::*;
 
@@ -652,7 +653,7 @@ impl Client {
 			.map(Into::into)
 			.collect();
 
-		assert_eq!(header.hash(), BlockView::new(block_data).header_view().sha3());
+		assert_eq!(header.hash(), BlockView::new(block_data).header_view().hash());
 
 		//let traces = From::from(block.traces().clone().unwrap_or_else(Vec::new));
 
@@ -912,7 +913,7 @@ impl Client {
 			_ => {},
 		}
 
-		let block_number = match self.block_number(id.clone()) {
+		let block_number = match self.block_number(id) {
 			Some(num) => num,
 			None => return None,
 		};
@@ -1147,6 +1148,16 @@ impl Client {
 			(false, false) => call(state, env_info, engine, state_diff, t, TransactOptions::with_no_tracing()),
 		}
 	}
+
+	fn block_number_ref(&self, id: &BlockId) -> Option<BlockNumber> {
+		match *id {
+			BlockId::Number(number) => Some(number),
+			BlockId::Hash(ref hash) => self.chain.read().block_number(hash),
+			BlockId::Earliest => Some(0),
+			BlockId::Latest => Some(self.chain.read().best_block_number()),
+			BlockId::Pending => Some(self.chain.read().best_block_number() + 1),
+		}
+	}
 }
 
 impl snapshot::DatabaseRestore for Client {
@@ -1356,13 +1367,7 @@ impl BlockChainClient for Client {
 	}
 
 	fn block_number(&self, id: BlockId) -> Option<BlockNumber> {
-		match id {
-			BlockId::Number(number) => Some(number),
-			BlockId::Hash(ref hash) => self.chain.read().block_number(hash),
-			BlockId::Earliest => Some(0),
-			BlockId::Latest => Some(self.chain.read().best_block_number()),
-			BlockId::Pending => Some(self.chain.read().best_block_number() + 1),
-		}
+		self.block_number_ref(&id)
 	}
 
 	fn block_body(&self, id: BlockId) -> Option<encoded::Body> {
@@ -1503,7 +1508,7 @@ impl BlockChainClient for Client {
 		};
 
 		let (_, db) = state.drop();
-		let account_db = self.factories.accountdb.readonly(db.as_hashdb(), account.sha3());
+		let account_db = self.factories.accountdb.readonly(db.as_hashdb(), keccak(account));
 		let trie = match self.factories.trie.readonly(account_db.as_hashdb(), &root) {
 			Ok(trie) => trie,
 			_ => {
@@ -1591,7 +1596,7 @@ impl BlockChainClient for Client {
 		use verification::queue::kind::BlockLike;
 		use verification::queue::kind::blocks::Unverified;
 
-		// create unverified block here so the `sha3` calculation can be cached.
+		// create unverified block here so the `keccak` calculation can be cached.
 		let unverified = Unverified::new(bytes);
 
 		{
@@ -1639,16 +1644,17 @@ impl BlockChainClient for Client {
 		self.engine.additional_params().into_iter().collect()
 	}
 
-	fn blocks_with_bloom(&self, bloom: &H2048, from_block: BlockId, to_block: BlockId) -> Option<Vec<BlockNumber>> {
-		match (self.block_number(from_block), self.block_number(to_block)) {
-			(Some(from), Some(to)) => Some(self.chain.read().blocks_with_bloom(bloom, from, to)),
-			_ => None
-		}
-	}
-
 	fn logs(&self, filter: Filter) -> Vec<LocalizedLogEntry> {
+		let (from, to) = match (self.block_number_ref(&filter.from_block), self.block_number_ref(&filter.to_block)) {
+			(Some(from), Some(to)) => (from, to),
+			_ => return Vec::new(),
+		};
+
+		let chain = self.chain.read();
 		let blocks = filter.bloom_possibilities().iter()
-			.filter_map(|bloom| self.blocks_with_bloom(bloom, filter.from_block.clone(), filter.to_block.clone()))
+			.map(move |bloom| {
+				chain.blocks_with_bloom(bloom, from, to)
+			})
 			.flat_map(|m| m)
 			// remove duplicate elements
 			.collect::<HashSet<u64>>()
@@ -1792,7 +1798,7 @@ impl BlockChainClient for Client {
 				let dispatch = move |reg_addr, data| {
 					future::done(self.call_contract(BlockId::Latest, reg_addr, data))
 				};
-				r.get_address(dispatch, name.as_bytes().sha3(), "A".to_string()).wait().ok()
+				r.get_address(dispatch, keccak(name.as_bytes()), "A".to_string()).wait().ok()
 			})
 			.and_then(|a| if a.is_zero() { None } else { Some(a) })
 	}
@@ -2067,16 +2073,16 @@ mod tests {
 
 	#[test]
 	fn should_return_correct_log_index() {
+		use hash::keccak;
 		use super::transaction_receipt;
 		use ethkey::KeyPair;
 		use log_entry::{LogEntry, LocalizedLogEntry};
 		use receipt::{Receipt, LocalizedReceipt};
 		use transaction::{Transaction, LocalizedTransaction, Action};
-		use util::Hashable;
 		use tests::helpers::TestEngine;
 
 		// given
-		let key = KeyPair::from_secret_slice(&"test".sha3()).unwrap();
+		let key = KeyPair::from_secret_slice(&keccak("test")).unwrap();
 		let secret = key.secret();
 		let engine = TestEngine::new(0);
 

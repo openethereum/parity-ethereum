@@ -70,6 +70,7 @@ extern crate parity_whisper;
 extern crate path;
 extern crate rpc_cli;
 extern crate node_filter;
+extern crate hash;
 
 #[macro_use]
 extern crate log as rlog;
@@ -130,7 +131,7 @@ use std::collections::HashMap;
 use std::io::{self as stdio, BufReader, Read, Write};
 use std::fs::{remove_file, metadata, File, create_dir_all};
 use std::path::PathBuf;
-use util::sha3::sha3;
+use hash::keccak_buffer;
 use cli::Args;
 use configuration::{Cmd, Execute, Configuration};
 use deprecated::find_deprecated;
@@ -140,7 +141,7 @@ use dir::default_hypervisor_path;
 fn print_hash_of(maybe_file: Option<String>) -> Result<String, String> {
 	if let Some(file) = maybe_file {
 		let mut f = BufReader::new(File::open(&file).map_err(|_| "Unable to open file".to_owned())?);
-		let hash = sha3(&mut f).map_err(|_| "Unable to read from file".to_owned())?;
+		let hash = keccak_buffer(&mut f).map_err(|_| "Unable to read from file".to_owned())?;
 		Ok(hash.hex())
 	} else {
 		Err("Streaming from standard input not yet supported. Specify a file.".to_owned())

@@ -21,7 +21,7 @@
 use std::collections::BTreeMap;
 use std::cmp;
 use hash::*;
-use sha3::*;
+use keccak::keccak;
 use rlp;
 use rlp::RlpStream;
 use vector::SharedPrefix;
@@ -115,7 +115,7 @@ pub fn sec_trie_root(input: Vec<(Vec<u8>, Vec<u8>)>) -> H256 {
 	let gen_input = input
 		// first put elements into btree to sort them and to remove duplicates
 		.into_iter()
-		.map(|(k, v)| (k.sha3(), v))
+		.map(|(k, v)| (keccak(k), v))
 		.collect::<BTreeMap<_, _>>()
 		// then move them to a vector
 		.into_iter()
@@ -128,7 +128,7 @@ pub fn sec_trie_root(input: Vec<(Vec<u8>, Vec<u8>)>) -> H256 {
 fn gen_trie_root(input: Vec<(Vec<u8>, Vec<u8>)>) -> H256 {
 	let mut stream = RlpStream::new();
 	hash256rlp(&input, 0, &mut stream);
-	stream.out().sha3()
+	keccak(stream.out())
 }
 
 /// Hex-prefix Notation. First nibble has flags: oddness = 2^0 & termination = 2^1.
@@ -271,7 +271,7 @@ fn hash256aux(input: &[(Vec<u8>, Vec<u8>)], pre_len: usize, stream: &mut RlpStre
 	let out = s.out();
 	match out.len() {
 		0...31 => stream.append_raw(&out, 1),
-		_ => stream.append(&out.sha3())
+		_ => stream.append(&keccak(out))
 	};
 }
 

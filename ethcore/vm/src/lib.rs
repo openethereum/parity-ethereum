@@ -20,6 +20,7 @@ extern crate ethcore_util as util;
 extern crate common_types as types;
 extern crate ethjson;
 extern crate rlp;
+extern crate hash;
 
 mod action_params;
 mod call_type;

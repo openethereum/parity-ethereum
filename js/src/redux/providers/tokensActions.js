@@ -57,13 +57,8 @@ export function fetchTokens (_tokenIndexes, options = {}) {
     const { api, images } = getState();
     const { tokenReg } = Contracts.get();
 
-    let tokenRegContract;
-
     return tokenReg.getContract()
-      .then((_tokenRegContract) => {
-        tokenRegContract = _tokenRegContract;
-      })
-      .then(() => {
+      .then((tokenRegContract) => {
         let promise = Promise.resolve();
 
         tokenChunks.forEach((tokenChunk) => {

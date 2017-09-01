@@ -130,7 +130,7 @@ impl<'db> TrieDB<'db> {
 	/// This could be a simple identity operation in the case that the node is sufficiently small, but
 	/// may require a database lookup.
 	fn get_raw_or_lookup(&'db self, node: &'db [u8]) -> super::Result<DBValue> {
-		// check if its sha3 + len
+		// check if its keccak + len
 		let r = Rlp::new(node);
 		match r.is_data() && r.size() == 32 {
 			true => {
