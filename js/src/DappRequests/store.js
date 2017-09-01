@@ -33,10 +33,9 @@ export default class Store {
   middleware = [];
   sources = {};
 
-  constructor (provider, middleware = []) {
+  constructor (provider) {
     this.provider = provider;
     this.permissions = store.get(LS_PERMISSIONS) || {};
-    this.middleware = middleware;
 
     window.addEventListener('message', this.receiveMessage, false);
   }
@@ -272,9 +271,9 @@ export default class Store {
 
   static instance = null;
 
-  static create (provider, middleware) {
+  static create (provider) {
     if (!Store.instance) {
-      Store.instance = new Store(provider, middleware);
+      Store.instance = new Store(provider);
     }
 
     return Store.instance;

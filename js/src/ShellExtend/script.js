@@ -14,25 +14,15 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import Store from './store';
-import shellMiddleware from '../shellMiddleware';
+export function injectExternalScript (src) {
+  const script = document.createElement('script');
 
-import { extendShell } from '../ShellExtend';
+  script.type = 'text/javascript';
+  script.async = true;
+  script.onload = function () {
+    // remote script has loaded
+  };
+  script.src = src;
 
-function setupProviderFilters (provider) {
-  const store = Store.create(provider);
-
-  extendShell({
-    type: 'interceptor',
-    middleware: shellMiddleware
-  });
-
-  return store;
+  document.getElementsByTagName('head')[0].appendChild(script);
 }
-
-export default from './dappRequests';
-
-export {
-  Store,
-  setupProviderFilters
-};

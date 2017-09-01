@@ -14,25 +14,22 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import Store from './store';
-import shellMiddleware from '../shellMiddleware';
+import { action, observable } from 'mobx';
 
-import { extendShell } from '../ShellExtend';
+let instance = null;
 
-function setupProviderFilters (provider) {
-  const store = Store.create(provider);
+export default class PluginStore {
+  @observable components = [];
 
-  extendShell({
-    type: 'interceptor',
-    middleware: shellMiddleware
-  });
+  @action addComponent (Component) {
+    this.components.push(Component);
+  }
 
-  return store;
+  static get () {
+    if (!instance) {
+      instance = new PluginStore();
+    }
+
+    return instance;
+  }
 }
-
-export default from './dappRequests';
-
-export {
-  Store,
-  setupProviderFilters
-};

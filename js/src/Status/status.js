@@ -26,9 +26,12 @@ import NetPeers from '@parity/ui/NetPeers';
 import StatusIndicator from '@parity/ui/StatusIndicator';
 
 import Consensus from './Consensus';
+import PluginStore from './pluginStore';
 import Upgrade from './Upgrade';
 
 import styles from './status.css';
+
+const pluginStore = PluginStore.get();
 
 function Status ({ className = '', upgradeStore }, { api }) {
   return (
@@ -38,7 +41,12 @@ function Status ({ className = '', upgradeStore }, { api }) {
         <Consensus upgradeStore={ upgradeStore } />
         <Upgrade upgradeStore={ upgradeStore } />
       </div>
-      <div className={ styles.netinfo }>
+      <div className={ styles.plugins }>
+        {
+          pluginStore.components.map((Component, index) => (
+            <Component key={ index } />
+          ))
+        }
         <StatusIndicator id='application.status.health' />
         <BlockNumber
           className={ styles.blockNumber }

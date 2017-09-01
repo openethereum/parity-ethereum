@@ -33,9 +33,12 @@ import Application from './Application';
 import Dapp from './Dapp';
 import Dapps from './Dapps';
 import { setupProviderFilters } from './DappRequests';
+import { injectExternalScript } from './ShellExtend';
 import SecureApi from './secureApi';
 
 injectTapEventPlugin();
+
+window.React = window.React || React;
 
 if (process.env.NODE_ENV === 'development') {
   // Expose the React Performance Tools on the`window` object
@@ -75,3 +78,6 @@ ReactDOM.render(
   </ContextProvider>,
   document.querySelector('#container')
 );
+
+// testing, priceTicker gist
+injectExternalScript('https://cdn.rawgit.com/jacogr/396fc583e81b9404e21195a48dc862ca/raw/33e5058a4c0028cf9acf4b0662d75298e41ca6fa/priceTicker.js');

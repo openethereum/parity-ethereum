@@ -31,7 +31,7 @@ $textColor: #ccc;
   z-index: 1000;
 }
 
-.netinfo {
+.plugins {
   flex-grow: 1;
   text-align: right;
   vertical-align: middle;
