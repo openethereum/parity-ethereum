@@ -25,7 +25,7 @@ use cli::{Args, ArgsError};
 use hash::keccak;
 use util::{H256, U256, Bytes, version_data, Address};
 use util::journaldb::Algorithm;
-use util::Colour;
+use ansi_term::Colour;
 use ethsync::{NetworkConfiguration, is_valid_node_url};
 use ethcore::ethstore::ethkey::{Secret, Public};
 use ethcore::client::{VMType};

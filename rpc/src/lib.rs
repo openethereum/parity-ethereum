@@ -20,6 +20,7 @@
 #![cfg_attr(feature="dev", feature(plugin))]
 #![cfg_attr(feature="dev", plugin(clippy))]
 
+extern crate ansi_term;
 extern crate cid;
 extern crate crypto as rust_crypto;
 extern crate futures;
