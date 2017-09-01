@@ -285,7 +285,7 @@ export default class Balances {
 
     return tokenreg.instance.Registered
       .subscribe({
-        fromBlock: 0,
+        fromBlock: 'latest',
         toBlock: 'latest',
         skipInitFetch: true
       }, (error, logs) => {
@@ -307,7 +307,7 @@ export default class Balances {
 
     return tokenreg.instance.MetaChanged
       .subscribe({
-        fromBlock: 0,
+        fromBlock: 'latest',
         toBlock: 'latest',
         topics: [ null, padRight(this._api.util.asciiToHex('IMG'), 32) ],
         skipInitFetch: true
