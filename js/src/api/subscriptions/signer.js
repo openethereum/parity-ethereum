@@ -68,7 +68,7 @@ export default class Signer {
     const nextTimeout = (timeout = 1000, forceTimeout = doTimeout) => {
       if (forceTimeout) {
         setTimeout(() => {
-          this._listRequests(true);
+          this._listRequests(doTimeout);
         }, timeout);
       }
     };
