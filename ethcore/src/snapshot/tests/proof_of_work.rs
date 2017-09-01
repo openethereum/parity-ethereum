@@ -24,7 +24,8 @@ use blockchain::BlockChain;
 use snapshot::{chunk_secondary, Error as SnapshotError, Progress, SnapshotComponents};
 use snapshot::io::{PackedReader, PackedWriter, SnapshotReader, SnapshotWriter};
 
-use util::{Mutex, snappy};
+use parking_lot::Mutex;
+use util::snappy;
 use util::kvdb::{self, KeyValueDB, DBTransaction};
 
 use std::sync::Arc;

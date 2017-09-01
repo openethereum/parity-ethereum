@@ -145,7 +145,5 @@ pub use vector::*;
 pub use bigint::prelude::*;
 pub use bigint::hash;
 
-pub use parking_lot::{Condvar, Mutex, MutexGuard, RwLock, RwLockReadGuard, RwLockWriteGuard};
-
 /// 160-bit integer representing account address
 pub type Address = H160;

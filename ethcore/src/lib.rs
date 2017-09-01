@@ -98,6 +98,7 @@ extern crate lru_cache;
 extern crate native_contracts;
 extern crate num_cpus;
 extern crate num;
+extern crate parking_lot;
 extern crate price_info;
 extern crate rand;
 extern crate rlp;

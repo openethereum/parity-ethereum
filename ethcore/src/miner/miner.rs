@@ -18,6 +18,7 @@ use std::time::{Instant, Duration};
 use std::collections::{BTreeMap, HashSet};
 use std::sync::Arc;
 
+use parking_lot::{Mutex, RwLock};
 use util::*;
 use timer::PerfTimer;
 use using_queue::{UsingQueue, GetAction};

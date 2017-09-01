@@ -34,6 +34,7 @@ extern crate isatty;
 extern crate jsonrpc_core;
 extern crate num_cpus;
 extern crate number_prefix;
+extern crate parking_lot;
 extern crate regex;
 extern crate rlp;
 extern crate rpassword;

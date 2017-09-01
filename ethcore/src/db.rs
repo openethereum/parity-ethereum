@@ -19,7 +19,8 @@
 use std::ops::Deref;
 use std::hash::Hash;
 use std::collections::HashMap;
-use util::{DBTransaction, KeyValueDB, RwLock};
+use parking_lot::RwLock;
+use util::{DBTransaction, KeyValueDB};
 
 use rlp;
 

@@ -23,7 +23,8 @@ use jsonrpc_core::*;
 use ethcore::miner::MinerService;
 use ethcore::filter::Filter as EthcoreFilter;
 use ethcore::client::{BlockChainClient, BlockId};
-use util::{H256, Mutex};
+use util::H256;
+use parking_lot::Mutex;
 
 use futures::{future, Future, BoxFuture};
 

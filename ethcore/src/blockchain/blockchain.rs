@@ -22,6 +22,7 @@ use std::mem;
 use itertools::Itertools;
 use bloomchain as bc;
 use heapsize::HeapSizeOf;
+use parking_lot::{Mutex, RwLock};
 use util::*;
 use rlp::*;
 use header::*;

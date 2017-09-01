@@ -28,7 +28,7 @@ use std::fmt;
 use util::{H256, U256, H64, clean_0x};
 use ethereum::ethash::Ethash;
 use ethash::SeedHashCompute;
-use util::Mutex;
+use parking_lot::Mutex;
 use miner::{self, Miner, MinerService};
 use client::Client;
 use block::IsBlock;

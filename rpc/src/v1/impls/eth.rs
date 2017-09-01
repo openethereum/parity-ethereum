@@ -24,7 +24,7 @@ use futures::{self, future, BoxFuture, Future};
 use rlp::{self, UntrustedRlp};
 use time::get_time;
 use util::{H160, H256, Address, U256, H64};
-use util::Mutex;
+use parking_lot::Mutex;
 
 use ethash::SeedHashCompute;
 use ethcore::account_provider::{AccountProvider, DappId};

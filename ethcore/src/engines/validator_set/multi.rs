@@ -19,7 +19,8 @@
 use std::collections::BTreeMap;
 use std::sync::Weak;
 use engines::{Call, Engine};
-use util::{Bytes, H256, Address, RwLock};
+use parking_lot::RwLock;
+use util::{Bytes, H256, Address};
 use ids::BlockId;
 use header::{BlockNumber, Header};
 use client::{Client, BlockChainClient};

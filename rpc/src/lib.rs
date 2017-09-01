@@ -28,6 +28,7 @@ extern crate futures_cpupool;
 extern crate itertools;
 extern crate multihash;
 extern crate order_stat;
+extern crate parking_lot;
 extern crate rand;
 extern crate rustc_hex;
 extern crate semver;

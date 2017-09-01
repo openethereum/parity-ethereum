@@ -19,6 +19,7 @@
 use std::fmt::Debug;
 use std::collections::{BTreeMap, HashSet, HashMap};
 use std::hash::Hash;
+use parking_lot:: RwLock;
 use util::*;
 use rlp::{Encodable, RlpStream};
 
