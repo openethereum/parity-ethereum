@@ -71,10 +71,10 @@ function initWeb3 (ethereum) {
 function initParity (ethereum) {
   const api = new Api(ethereum);
 
-  window.parity = {
+  window.parity = Object.assign({}, window.parity || {}, {
     Api,
     api
-  };
+  });
 }
 
 const ethereum = initProvider();
