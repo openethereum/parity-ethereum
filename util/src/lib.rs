@@ -131,7 +131,6 @@ pub mod nibblevec;
 pub mod semantic_version;
 pub mod snappy;
 pub mod cache;
-mod timer;
 
 pub use misc::*;
 pub use hashdb::*;
@@ -142,7 +141,6 @@ pub use triehash::*;
 pub use trie::{Trie, TrieMut, TrieDB, TrieDBMut, TrieFactory, TrieError, SecTrieDB, SecTrieDBMut};
 pub use semantic_version::*;
 pub use kvdb::*;
-pub use timer::*;
 pub use error::*;
 pub use bytes::*;
 pub use vector::*;
