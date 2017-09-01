@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { Address, BlockNumber, Data, Hash, CallRequest } from '../types';
+import { Address, BlockNumber, Data, Hash, CallRequest, Quantity } from '../types';
 import { withPreamble, Dummy, fromDecimal } from '../helpers';
 
 const SECTION_FILTERING = 'Transaction-Trace Filtering';
