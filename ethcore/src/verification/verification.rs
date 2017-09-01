@@ -382,10 +382,6 @@ mod tests {
 			self.numbers.get(&index).cloned()
 		}
 
-		fn blocks_with_bloom(&self, _bloom: &H2048, _from_block: BlockNumber, _to_block: BlockNumber) -> Vec<BlockNumber> {
-			unimplemented!()
-		}
-
 		fn block_receipts(&self, _hash: &H256) -> Option<BlockReceipts> {
 			unimplemented!()
 		}
