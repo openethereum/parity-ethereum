@@ -18,7 +18,7 @@
 
 use v1::types::{Bytes, H160, U256, TransactionCondition};
 use v1::helpers;
-use util::Colour;
+use ansi_term::Colour;
 
 use std::fmt;
 

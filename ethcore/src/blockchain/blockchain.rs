@@ -41,6 +41,7 @@ use db::{self, Writable, Readable, CacheUpdatePolicy};
 use cache_manager::CacheManager;
 use encoded;
 use engines::epoch::{Transition as EpochTransition, PendingTransition as PendingEpochTransition};
+use ansi_term::Colour;
 
 const LOG_BLOOMS_LEVELS: usize = 3;
 const LOG_BLOOMS_ELEMENTS_PER_INDEX: usize = 16;

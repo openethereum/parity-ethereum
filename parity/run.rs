@@ -37,7 +37,8 @@ use node_health;
 use parity_reactor::EventLoop;
 use parity_rpc::{NetworkSettings, informant, is_major_importing};
 use updater::{UpdatePolicy, Updater};
-use util::{Colour, version, Mutex, Condvar};
+use util::{version, Mutex, Condvar};
+use ansi_term::Colour;
 use node_filter::NodeFilter;
 
 use params::{

@@ -149,7 +149,6 @@ pub use vector::*;
 pub use bigint::prelude::*;
 pub use bigint::hash;
 
-pub use ansi_term::{Colour, Style};
 pub use parking_lot::{Condvar, Mutex, MutexGuard, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 /// 160-bit integer representing account address
