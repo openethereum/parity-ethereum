@@ -309,7 +309,7 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 					call_type: CallType::None,
 				};
 				let mut out = if output_from_create { Some(vec![]) } else { None };
-				(self.create(params, &mut substate, &mut tracer, &mut vm_tracer, &mut out), out.unwrap_or_else(Vec::new))
+				(self.create(params, &mut substate, &mut out, &mut tracer, &mut vm_tracer), out.unwrap_or_else(Vec::new))
 			},
 			Action::Call(ref address) => {
 				let params = ActionParams {
@@ -502,9 +502,9 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 		&mut self,
 		params: ActionParams,
 		substate: &mut Substate,
+		output: &mut Option<Bytes>,
 		tracer: &mut T,
 		vm_tracer: &mut V,
-		output: &mut Option<Bytes>,
 	) -> vm::Result<(U256, ReturnData)> where T: Tracer, V: VMTracer {
 
 		let scheme = self.engine.create_address_scheme(self.info.number);
@@ -712,7 +712,7 @@ mod tests {
 
 		let (gas_left, _) = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
-			ex.create(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer, &mut None).unwrap()
+			ex.create(params, &mut substate, &mut None, &mut NoopTracer, &mut NoopVMTracer).unwrap()
 		};
 
 		assert_eq!(gas_left, U256::from(79_975));
@@ -770,7 +770,7 @@ mod tests {
 
 		let (gas_left, _) = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
-			ex.create(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer, &mut None).unwrap()
+			ex.create(params, &mut substate, &mut None, &mut NoopTracer, &mut NoopVMTracer).unwrap()
 		};
 
 		assert_eq!(gas_left, U256::from(62_976));
@@ -937,7 +937,7 @@ mod tests {
 
 		let (gas_left, _) = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
-			ex.create(params.clone(), &mut substate, &mut tracer, &mut vm_tracer, &mut None).unwrap()
+			ex.create(params.clone(), &mut substate, &mut None, &mut tracer, &mut vm_tracer).unwrap()
 		};
 
 		assert_eq!(gas_left, U256::from(96_776));
@@ -1022,7 +1022,7 @@ mod tests {
 
 		let (gas_left, _) = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
-			ex.create(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer, &mut None).unwrap()
+			ex.create(params, &mut substate, &mut None, &mut NoopTracer, &mut NoopVMTracer).unwrap()
 		};
 
 		assert_eq!(gas_left, U256::from(62_976));
@@ -1073,7 +1073,7 @@ mod tests {
 
 		{
 			let mut ex = Executive::new(&mut state, &info, &engine);
-			ex.create(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer, &mut None).unwrap();
+			ex.create(params, &mut substate, &mut None, &mut NoopTracer, &mut NoopVMTracer).unwrap();
 		}
 
 		assert_eq!(substate.contracts_created.len(), 1);
@@ -1346,7 +1346,7 @@ mod tests {
 
 		let result = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
-			ex.create(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer, &mut None)
+			ex.create(params, &mut substate, &mut None, &mut NoopTracer, &mut NoopVMTracer)
 		};
 
 		match result {
