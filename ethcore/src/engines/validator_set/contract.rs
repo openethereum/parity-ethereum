@@ -18,6 +18,7 @@
 /// It can also report validators for misbehaviour with two levels: `reportMalicious` and `reportBenign`.
 
 use std::sync::Weak;
+use parking_lot::RwLock;
 use util::*;
 
 use futures::Future;

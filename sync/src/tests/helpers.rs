@@ -16,6 +16,7 @@
 
 use std::collections::{VecDeque, HashSet, HashMap};
 use std::sync::Arc;
+use parking_lot::RwLock;
 use util::*;
 use network::*;
 use tests::snapshot::*;

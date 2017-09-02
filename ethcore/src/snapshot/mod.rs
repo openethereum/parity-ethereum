@@ -31,7 +31,7 @@ use header::Header;
 use ids::BlockId;
 
 use util::{Bytes, HashDB, DBValue, snappy, U256};
-use util::Mutex;
+use parking_lot::Mutex;
 use util::hash::{H256};
 use util::journaldb::{self, Algorithm, JournalDB};
 use util::kvdb::KeyValueDB;

@@ -30,6 +30,7 @@ use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
 use std::collections::{HashSet, BTreeMap, HashMap};
 use hash::keccak;
 use std::cmp;
+use parking_lot::RwLock;
 use util::*;
 use client::{Client, EngineClient};
 use error::{Error, BlockError};

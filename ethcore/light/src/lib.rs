@@ -77,6 +77,7 @@ extern crate futures;
 extern crate itertools;
 extern crate rand;
 extern crate rlp;
+extern crate parking_lot;
 #[macro_use]
 extern crate rlp_derive;
 extern crate serde;

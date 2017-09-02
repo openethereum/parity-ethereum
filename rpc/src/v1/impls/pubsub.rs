@@ -18,7 +18,7 @@
 
 use std::sync::Arc;
 use std::time::Duration;
-use util::RwLock;
+use parking_lot::RwLock;
 
 use futures::{self, BoxFuture, Future, Stream, Sink};
 use jsonrpc_core::{self as core, Error, MetaIoHandler};

@@ -30,8 +30,9 @@ use ethcore::spec::Spec;
 use ethcore::service::ClientIoMessage;
 use ethcore::encoded;
 use io::IoChannel;
+use parking_lot::{Mutex, RwLock};
 
-use util::{H256, U256, Mutex, RwLock};
+use util::{H256, U256};
 use util::kvdb::{KeyValueDB, CompactionProfile};
 
 use self::header_chain::{AncestryIter, HeaderChain};

@@ -93,6 +93,7 @@ use std::collections::{HashSet, HashMap};
 use std::cmp;
 use hash::keccak;
 use heapsize::HeapSizeOf;
+use parking_lot::RwLock;
 use util::*;
 use rlp::*;
 use network::*;
@@ -2230,7 +2231,8 @@ mod tests {
 	use network::PeerId;
 	use tests::helpers::*;
 	use tests::snapshot::TestSnapshotService;
-	use util::{U256, Address, RwLock};
+	use parking_lot::RwLock;
+	use util::{U256, Address};
 	use util::hash::H256;
 	use util::bytes::Bytes;
 	use rlp::{Rlp, RlpStream, UntrustedRlp};

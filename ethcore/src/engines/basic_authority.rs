@@ -19,6 +19,7 @@
 use std::sync::{Weak, Arc};
 use std::collections::BTreeMap;
 use std::cmp;
+use parking_lot::RwLock;
 use util::*;
 use ethkey::{recover, public_to_address, Signature};
 use account_provider::AccountProvider;

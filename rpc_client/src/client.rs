@@ -10,7 +10,7 @@ use std::time;
 
 use std::path::PathBuf;
 use hash::keccak;
-use util::Mutex;
+use parking_lot::Mutex;
 use url::Url;
 use std::fs::File;
 
