@@ -31,6 +31,7 @@ use evm::Schedule;
 use ethjson;
 use header::{Header, BlockNumber};
 use client::Client;
+use semantic_version::SemanticVersion;
 use super::signer::EngineSigner;
 use super::validator_set::{ValidatorSet, SimpleList, new_validator_set};
 

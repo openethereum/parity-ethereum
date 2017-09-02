@@ -62,6 +62,7 @@ bloomable = { path = "../util/bloomable" }
 vm = { path = "vm" }
 wasm = { path = "wasm" }
 hash = { path = "../util/hash" }
+semantic_version = { path = "../util/semantic_version" }
 
 [dev-dependencies]
 native-contracts = { path = "native_contracts", features = ["test_contracts"] }

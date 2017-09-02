@@ -536,6 +536,7 @@ dependencies = [
  "rlp_derive 0.1.0",
  "rust-crypto 0.2.36 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-hex 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "semantic_version 0.1.0",
  "semver 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "stats 0.1.0",
  "table 0.1.0",
@@ -2633,6 +2634,10 @@ dependencies = [
  "core-foundation-sys 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.21 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
+
+[[package]]
+name = "semantic_version"
+version = "0.1.0"
 
 [[package]]
 name = "semver"

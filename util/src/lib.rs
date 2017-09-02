@@ -128,7 +128,6 @@ pub mod triehash;
 pub mod trie;
 pub mod nibbleslice;
 pub mod nibblevec;
-pub mod semantic_version;
 pub mod snappy;
 pub mod cache;
 
@@ -139,7 +138,6 @@ pub use overlaydb::*;
 pub use journaldb::JournalDB;
 pub use triehash::*;
 pub use trie::{Trie, TrieMut, TrieDB, TrieDBMut, TrieFactory, TrieError, SecTrieDB, SecTrieDBMut};
-pub use semantic_version::*;
 pub use kvdb::*;
 pub use error::*;
 pub use bytes::*;

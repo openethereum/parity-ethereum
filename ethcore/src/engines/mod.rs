@@ -54,6 +54,7 @@ use spec::CommonParams;
 use transaction::{UnverifiedTransaction, SignedTransaction};
 
 use ethkey::Signature;
+use semantic_version::SemanticVersion;
 use util::*;
 
 /// Default EIP-210 contrat code.
