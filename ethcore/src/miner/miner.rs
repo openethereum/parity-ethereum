@@ -19,6 +19,7 @@ use std::collections::{BTreeMap, HashSet};
 use std::sync::Arc;
 
 use util::*;
+use timer::PerfTimer;
 use using_queue::{UsingQueue, GetAction};
 use account_provider::{AccountProvider, SignError as AccountError};
 use state::State;

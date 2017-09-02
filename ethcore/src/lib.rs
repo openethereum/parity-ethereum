@@ -151,6 +151,7 @@ pub mod service;
 pub mod snapshot;
 pub mod spec;
 pub mod state;
+pub mod timer;
 pub mod trace;
 pub mod transaction;
 pub mod verification;
