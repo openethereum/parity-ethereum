@@ -24,7 +24,8 @@ use itertools::Itertools;
 
 // util
 use hash::keccak;
-use util::{Bytes, PerfTimer, Mutex, RwLock, MutexGuard};
+use timer::PerfTimer;
+use util::{Bytes, Mutex, RwLock, MutexGuard};
 use util::{journaldb, DBValue, TrieFactory, Trie};
 use util::{U256, H256, Address, H2048};
 use util::trie::TrieSpec;

@@ -63,6 +63,7 @@ vm = { path = "vm" }
 wasm = { path = "wasm" }
 hash = { path = "../util/hash" }
 triehash = { path = "../util/triehash" }
+semantic_version = { path = "../util/semantic_version" }
 
 [dev-dependencies]
 native-contracts = { path = "native_contracts", features = ["test_contracts"] }
