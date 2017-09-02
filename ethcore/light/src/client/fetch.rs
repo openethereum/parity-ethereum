@@ -31,11 +31,11 @@ pub trait ChainDataFetcher: Send + Sync + 'static {
 	type Error: ::std::fmt::Debug;
 
 	/// Future for fetching block body.
-	type Body: IntoFuture<Item=encoded::Block,Error=Self::Error>;
+	type Body: IntoFuture<Item=encoded::Block, Error=Self::Error>;
 	/// Future for fetching block receipts.
-	type Receipts: IntoFuture<Item=Vec<Receipt>,Error=Self::Error>;
+	type Receipts: IntoFuture<Item=Vec<Receipt>, Error=Self::Error>;
 	/// Future for fetching epoch transition
-	type Transition: IntoFuture<Item=Vec<u8>,Error=Self::Error>;
+	type Transition: IntoFuture<Item=Vec<u8>, Error=Self::Error>;
 
 	/// Fetch a block body.
 	fn block_body(&self, header: &Header) -> Self::Body;
