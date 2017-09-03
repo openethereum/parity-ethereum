@@ -85,7 +85,7 @@ struct SessionData {
 }
 
 /// Signing session state.
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[cfg_attr(test, derive(Clone, Copy))]
 pub enum SessionState {
 	/// State when consensus is establishing.
 	ConsensusEstablishing,
