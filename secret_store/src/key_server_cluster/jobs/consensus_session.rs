@@ -101,8 +101,8 @@ impl<ConsensusTransport, ComputationExecutor, ComputationTransport> ConsensusSes
 		})
 	}
 
-	#[cfg(test)]
 	/// Get consensus job reference.
+	#[cfg(test)]
 	pub fn consensus_job(&self) -> &JobSession<KeyAccessJob, ConsensusTransport> {
 		&self.consensus_job
 	}
