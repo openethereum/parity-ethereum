@@ -85,6 +85,7 @@ struct SessionData {
 }
 
 /// Signing session state.
+#[derive(Debug, PartialEq)]
 #[cfg_attr(test, derive(Clone, Copy))]
 pub enum SessionState {
 	/// State when consensus is establishing.
@@ -236,13 +237,13 @@ impl SessionImpl {
 				self.on_consensus_message(sender, message),
 			&SigningMessage::SigningGenerationMessage(ref message) =>
 				self.on_generation_message(sender, message),
-			&SigningMessage::RequestPartialSignature(ref message) => 
+			&SigningMessage::RequestPartialSignature(ref message) =>
 				self.on_partial_signature_requested(sender, message),
-			&SigningMessage::PartialSignature(ref message) => 
+			&SigningMessage::PartialSignature(ref message) =>
 				self.on_partial_signature(sender, message),
-			&SigningMessage::SigningSessionError(ref message) => 
+			&SigningMessage::SigningSessionError(ref message) =>
 				self.on_session_error(sender, message),
-			&SigningMessage::SigningSessionCompleted(ref message) => 
+			&SigningMessage::SigningSessionCompleted(ref message) =>
 				self.on_session_completed(sender, message),
 		}
 	}
