@@ -39,6 +39,7 @@ extern crate smallvec;
 extern crate rlp;
 extern crate ipnetwork;
 extern crate hash;
+extern crate triehash;
 
 extern crate ethcore_light as light;
 

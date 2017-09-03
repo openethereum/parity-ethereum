@@ -104,6 +104,7 @@ extern crate rand;
 extern crate rlp;
 extern crate hash;
 extern crate heapsize;
+extern crate triehash;
 extern crate ansi_term;
 extern crate semantic_version;
 

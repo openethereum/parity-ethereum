@@ -353,7 +353,7 @@ impl ValidatorSet for ValidatorSafeContract {
 
 			// ensure receipts match header.
 			// TODO: optimize? these were just decoded.
-			let found_root = ::util::triehash::ordered_trie_root(
+			let found_root = ::triehash::ordered_trie_root(
 				receipts.iter().map(::rlp::encode).map(|x| x.to_vec())
 			);
 			if found_root != *old_header.receipts_root() {

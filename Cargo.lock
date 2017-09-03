@@ -543,6 +543,7 @@ dependencies = [
  "table 0.1.0",
  "time 0.1.35 (registry+https://github.com/rust-lang/crates.io-index)",
  "transient-hashmap 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "triehash 0.1.0",
  "using_queue 0.1.0",
  "vm 0.1.0",
  "wasm 0.1.0",
@@ -672,6 +673,7 @@ dependencies = [
  "smallvec 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "stats 0.1.0",
  "time 0.1.35 (registry+https://github.com/rust-lang/crates.io-index)",
+ "triehash 0.1.0",
  "vm 0.1.0",
 ]
 
@@ -807,6 +809,7 @@ dependencies = [
  "target_info 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "time 0.1.35 (registry+https://github.com/rust-lang/crates.io-index)",
  "tiny-keccak 1.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "triehash 0.1.0",
  "vergen 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -922,6 +925,7 @@ dependencies = [
  "semver 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "smallvec 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "time 0.1.35 (registry+https://github.com/rust-lang/crates.io-index)",
+ "triehash 0.1.0",
 ]
 
 [[package]]
@@ -3104,6 +3108,15 @@ version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "time 0.1.35 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "triehash"
+version = "0.1.0"
+dependencies = [
+ "ethcore-bigint 0.1.3",
+ "hash 0.1.0",
+ "rlp 0.2.0",
 ]
 
 [[package]]

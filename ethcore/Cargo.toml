@@ -63,6 +63,7 @@ bloomable = { path = "../util/bloomable" }
 vm = { path = "vm" }
 wasm = { path = "wasm" }
 hash = { path = "../util/hash" }
+triehash = { path = "../util/triehash" }
 semantic_version = { path = "../util/semantic_version" }
 
 [dev-dependencies]

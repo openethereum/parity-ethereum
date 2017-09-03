@@ -19,6 +19,7 @@
 use std::fmt;
 use std::collections::BTreeMap;
 use itertools::Itertools;
+use triehash::sec_trie_root;
 use util::*;
 use pod_account::{self, PodAccount};
 use types::state_diff::StateDiff;
