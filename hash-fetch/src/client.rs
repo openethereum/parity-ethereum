@@ -21,11 +21,12 @@ use std::io::Write;
 use std::sync::Arc;
 use std::path::PathBuf;
 
+use hash::keccak_buffer;
 use fetch::{Fetch, Response, Error as FetchError, Client as FetchClient};
 use futures::Future;
 use parity_reactor::Remote;
 use urlhint::{ContractClient, URLHintContract, URLHint, URLHintResult};
-use util::{H256, sha3};
+use util::H256;
 
 /// API for fetching by hash.
 pub trait HashFetch: Send + Sync + 'static {
@@ -101,7 +102,7 @@ fn validate_hash(path: PathBuf, hash: H256, result: Result<Response, FetchError>
 
 	// And validate the hash
 	let mut file_reader = io::BufReader::new(fs::File::open(&path)?);
-	let content_hash = sha3(&mut file_reader)?;
+	let content_hash = keccak_buffer(&mut file_reader)?;
 	if content_hash != hash {
 		Err(Error::HashMismatch{ got: content_hash, expected: hash })
 	} else {
@@ -190,7 +191,7 @@ fn random_temp_path() -> PathBuf {
 mod tests {
 	use rustc_hex::FromHex;
 	use std::sync::{Arc, mpsc};
-	use util::Mutex;
+	use parking_lot::Mutex;
 	use futures::future;
 	use fetch::{self, Fetch};
 	use parity_reactor::Remote;

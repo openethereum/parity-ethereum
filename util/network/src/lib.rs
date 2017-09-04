@@ -44,7 +44,7 @@
 //! }
 //!
 //! fn main () {
-//! 	let mut service = NetworkService::new(NetworkConfiguration::new_local()).expect("Error creating network service");
+//! 	let mut service = NetworkService::new(NetworkConfiguration::new_local(), None).expect("Error creating network service");
 //! 	service.start().expect("Error starting service");
 //! 	service.register_protocol(Arc::new(MyHandler), *b"myp", 1, &[1u8]);
 //!
@@ -78,6 +78,7 @@ extern crate bytes;
 extern crate path;
 extern crate ethcore_logger;
 extern crate ipnetwork;
+extern crate hash;
 
 #[macro_use]
 extern crate log;
@@ -95,6 +96,7 @@ mod error;
 mod node_table;
 mod stats;
 mod ip_utils;
+mod connection_filter;
 
 #[cfg(test)]
 mod tests;
@@ -104,6 +106,7 @@ pub use service::NetworkService;
 pub use error::NetworkError;
 pub use stats::NetworkStats;
 pub use session::SessionInfo;
+pub use connection_filter::{ConnectionFilter, ConnectionDirection};
 
 pub use io::TimerToken;
 pub use node_table::{is_valid_node_url, NodeId};
@@ -154,7 +157,7 @@ pub struct IpFilter {
     pub predefined: AllowIP,
     pub custom_allow: Vec<IpNetwork>,
     pub custom_block: Vec<IpNetwork>,
-} 
+}
 
 impl Default for IpFilter {
     fn default() -> Self {

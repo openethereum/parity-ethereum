@@ -18,6 +18,7 @@ number_prefix = "0.2"
 rpassword = "0.2.1"
 semver = "0.6"
 ansi_term = "0.9"
+parking_lot = "0.4"
 regex = "0.2"
 isatty = "0.1"
 toml = "0.4"
@@ -43,7 +44,9 @@ ethcore-light = { path = "ethcore/light" }
 ethcore-logger = { path = "logger" }
 ethcore-stratum = { path = "stratum" }
 ethcore-network = { path = "util/network" }
+node-filter = { path = "ethcore/node_filter" }
 ethkey = { path = "ethkey" }
+node-health = { path = "dapps/node-health" }
 rlp = { path = "util/rlp" }
 rpc-cli = { path = "rpc_cli" }
 parity-hash-fetch = { path = "hash-fetch" }
@@ -56,6 +59,7 @@ parity-updater = { path = "updater" }
 parity-whisper = { path = "whisper" }
 path = { path = "util/path" }
 panic_hook = { path = "panic_hook" }
+hash = { path = "util/hash" }
 
 parity-dapps = { path = "dapps", optional = true }
 clippy = { version = "0.0.103", optional = true}
@@ -111,4 +115,4 @@ lto = false
 panic = "abort"
 
 [workspace]
-members = ["ethstore/cli", "ethkey/cli", "evmbin", "whisper", "chainspec"]
+members = ["ethstore/cli", "ethkey/cli", "evmbin", "whisper", "chainspec", "dapps/node-health"]

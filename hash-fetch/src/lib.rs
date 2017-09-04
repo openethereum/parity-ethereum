@@ -29,8 +29,10 @@ extern crate futures;
 extern crate mime_guess;
 extern crate native_contracts;
 extern crate parity_reactor;
+extern crate parking_lot;
 extern crate rand;
 extern crate rustc_hex;
+extern crate hash;
 
 pub extern crate fetch;
 

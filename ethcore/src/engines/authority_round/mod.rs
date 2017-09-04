@@ -31,7 +31,6 @@ use error::{Error, TransactionError, BlockError};
 use ethjson;
 use header::{Header, BlockNumber};
 use spec::CommonParams;
-use state::CleanupMode;
 use transaction::UnverifiedTransaction;
 
 use super::signer::EngineSigner;
@@ -43,6 +42,8 @@ use ethkey::{verify_address, Signature};
 use io::{IoContext, IoHandler, TimerToken, IoService};
 use itertools::{self, Itertools};
 use rlp::{UntrustedRlp, encode};
+use semantic_version::SemanticVersion;
+use parking_lot::{Mutex, RwLock};
 use util::*;
 
 mod finality;
@@ -522,7 +523,9 @@ impl Engine for AuthorityRound {
 		let parent_hash = block.fields().header.parent_hash().clone();
 		::engines::common::push_last_hash(block, last_hashes.clone(), self, &parent_hash)?;
 
-		if !epoch_begin { return Ok(()) }
+		// with immediate transitions, we don't use the epoch mechanism anyway.
+		// the genesis is always considered an epoch, but we ignore it intentionally.
+		if self.immediate_transitions || !epoch_begin { return Ok(()) }
 
 		// genesis is never a new block, but might as well check.
 		let header = block.fields().header.clone();
@@ -546,17 +549,7 @@ impl Engine for AuthorityRound {
 
 	/// Apply the block reward on finalisation of the block.
 	fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<(), Error> {
-		let fields = block.fields_mut();
-		// Bestow block reward
-		let reward = self.params().block_reward;
-		let res = fields.state.add_balance(fields.header.author(), &reward, CleanupMode::NoEmpty)
-			.map_err(::error::Error::from)
-			.and_then(|_| fields.state.commit());
-		// Commit state so that we can actually figure out the state root.
-		if let Err(ref e) = res {
-			warn!("Encountered error on closing block: {}", e);
-		}
-		res
+		::engines::common::bestow_block_reward(block, self)
 	}
 
 	/// Check the number of seal fields.
@@ -839,6 +832,7 @@ impl Engine for AuthorityRound {
 mod tests {
 	use std::sync::Arc;
 	use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
+	use hash::keccak;
 	use util::*;
 	use header::Header;
 	use error::{Error, BlockError};
@@ -893,8 +887,8 @@ mod tests {
 	#[test]
 	fn generates_seal_and_does_not_double_propose() {
 		let tap = Arc::new(AccountProvider::transient_provider());
-		let addr1 = tap.insert_account("1".sha3().into(), "1").unwrap();
-		let addr2 = tap.insert_account("2".sha3().into(), "2").unwrap();
+		let addr1 = tap.insert_account(keccak("1").into(), "1").unwrap();
+		let addr2 = tap.insert_account(keccak("2").into(), "2").unwrap();
 
 		let spec = Spec::new_test_round();
 		let engine = &*spec.engine;
@@ -925,7 +919,7 @@ mod tests {
 	#[test]
 	fn proposer_switching() {
 		let tap = AccountProvider::transient_provider();
-		let addr = tap.insert_account("0".sha3().into(), "0").unwrap();
+		let addr = tap.insert_account(keccak("0").into(), "0").unwrap();
 		let mut parent_header: Header = Header::default();
 		parent_header.set_seal(vec![encode(&0usize).into_vec()]);
 		parent_header.set_gas_limit("222222".parse::<U256>().unwrap());
@@ -950,7 +944,7 @@ mod tests {
 	#[test]
 	fn rejects_future_block() {
 		let tap = AccountProvider::transient_provider();
-		let addr = tap.insert_account("0".sha3().into(), "0").unwrap();
+		let addr = tap.insert_account(keccak("0").into(), "0").unwrap();
 
 		let mut parent_header: Header = Header::default();
 		parent_header.set_seal(vec![encode(&0usize).into_vec()]);
@@ -976,7 +970,7 @@ mod tests {
 	#[test]
 	fn rejects_step_backwards() {
 		let tap = AccountProvider::transient_provider();
-		let addr = tap.insert_account("0".sha3().into(), "0").unwrap();
+		let addr = tap.insert_account(keccak("0").into(), "0").unwrap();
 
 		let mut parent_header: Header = Header::default();
 		parent_header.set_seal(vec![encode(&4usize).into_vec()]);

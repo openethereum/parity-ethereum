@@ -12,3 +12,4 @@ evmjit = { path = "../../evmjit", optional = true }
 ethjson = { path = "../../json" }
 lazy_static = "0.2"
 rlp = { path = "../../util/rlp" }
+hash = { path = "../../util/hash" }

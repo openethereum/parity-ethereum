@@ -32,7 +32,7 @@ use hyper;
 use hyper::status::StatusCode;
 
 use {Embeddable, SyncStatus, random_filename};
-use util::Mutex;
+use parking_lot::Mutex;
 use page::LocalPageEndpoint;
 use handlers::{ContentHandler, ContentFetcherHandler};
 use endpoint::{Endpoint, EndpointPath, Handler};
@@ -281,6 +281,7 @@ mod tests {
 		}
 	}
 
+	#[derive(Debug)]
 	struct FakeSync(bool);
 	impl SyncStatus for FakeSync {
 		fn is_major_importing(&self) -> bool { self.0 }

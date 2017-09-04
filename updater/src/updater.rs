@@ -31,7 +31,8 @@ use path::restrict_permissions_owner;
 use service::{Service};
 use target_info::Target;
 use types::all::{ReleaseInfo, OperationsInfo, CapState};
-use util::{Address, H160, H256, Mutex, Bytes};
+use parking_lot::Mutex;
+use util::{Address, H160, H256, Bytes};
 use util::misc;
 
 /// Filter for releases.

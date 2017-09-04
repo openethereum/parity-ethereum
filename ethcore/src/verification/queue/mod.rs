@@ -22,6 +22,8 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering as AtomicOrdering};
 use std::sync::{Condvar as SCondvar, Mutex as SMutex, Arc};
 use std::cmp;
 use std::collections::{VecDeque, HashSet, HashMap};
+use heapsize::HeapSizeOf;
+use parking_lot::{Condvar, Mutex, RwLock};
 use util::*;
 use io::*;
 use error::*;

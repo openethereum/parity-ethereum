@@ -20,6 +20,7 @@
 #![cfg_attr(feature="dev", feature(plugin))]
 #![cfg_attr(feature="dev", plugin(clippy))]
 
+extern crate ansi_term;
 extern crate cid;
 extern crate crypto as rust_crypto;
 extern crate futures;
@@ -27,6 +28,7 @@ extern crate futures_cpupool;
 extern crate itertools;
 extern crate multihash;
 extern crate order_stat;
+extern crate parking_lot;
 extern crate rand;
 extern crate rustc_hex;
 extern crate semver;
@@ -55,10 +57,12 @@ extern crate ethsync;
 extern crate ethcore_logger;
 extern crate vm;
 extern crate fetch;
+extern crate node_health;
 extern crate parity_reactor;
 extern crate parity_updater as updater;
 extern crate rlp;
 extern crate stats;
+extern crate hash;
 
 #[macro_use]
 extern crate log;

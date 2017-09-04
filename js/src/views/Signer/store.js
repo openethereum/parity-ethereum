@@ -25,11 +25,13 @@ export default class SignerStore {
 
   constructor (api, withLocalTransactions = false, externalLink = '') {
     this._api = api;
-    this._timeoutId = 0;
     this.externalLink = externalLink;
 
     if (withLocalTransactions) {
-      this.fetchLocalTransactions();
+      this._api.transport.on('close', () => {
+        this.subscribeLocalTransactions();
+      });
+      this.subscribeLocalTransactions();
     }
   }
 
@@ -49,9 +51,7 @@ export default class SignerStore {
   }
 
   @action unsubscribe () {
-    if (this._timeoutId) {
-      clearTimeout(this._timeoutId);
-    }
+    this.subscription.then(id => this._api.pubsub.unsubscribe([id]));
   }
 
   fetchBalance (address) {
@@ -87,21 +87,17 @@ export default class SignerStore {
       });
   }
 
-  fetchLocalTransactions = () => {
-    const nextTimeout = () => {
-      this._timeoutId = setTimeout(this.fetchLocalTransactions, 1500);
-    };
+  subscribeLocalTransactions = () => {
+    this.subscription = this._api.pubsub.parity.localTransactions((error, transactions) => {
+      if (error) {
+        console.warn('subscribeLocalTransactions', error);
+        return;
+      }
+      const keys = Object
+        .keys(transactions)
+        .filter((key) => transactions[key].status !== 'canceled');
 
-    this._api.parity
-      .localTransactions()
-      .then((localTransactions) => {
-        const keys = Object
-          .keys(localTransactions)
-          .filter((key) => localTransactions[key].status !== 'canceled');
-
-        this.setLocalHashes(keys);
-      })
-      .then(() => nextTimeout())
-      .catch(() => nextTimeout());
+      this.setLocalHashes(keys);
+    });
   }
 }

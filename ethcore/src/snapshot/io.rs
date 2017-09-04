@@ -342,7 +342,7 @@ impl SnapshotReader for LooseReader {
 #[cfg(test)]
 mod tests {
 	use devtools::RandomTempPath;
-	use util::sha3::Hashable;
+	use hash::keccak;
 
 	use snapshot::ManifestData;
 	use super::{SnapshotWriter, SnapshotReader, PackedWriter, PackedReader, LooseWriter, LooseReader, SNAPSHOT_VERSION};
@@ -359,24 +359,24 @@ mod tests {
 		let mut block_hashes = Vec::new();
 
 		for chunk in STATE_CHUNKS {
-			let hash = chunk.sha3();
+			let hash = keccak(&chunk);
 			state_hashes.push(hash.clone());
 			writer.write_state_chunk(hash, chunk).unwrap();
 		}
 
 		for chunk in BLOCK_CHUNKS {
-			let hash = chunk.sha3();
+			let hash = keccak(&chunk);
 			block_hashes.push(hash.clone());
-			writer.write_block_chunk(chunk.sha3(), chunk).unwrap();
+			writer.write_block_chunk(keccak(&chunk), chunk).unwrap();
 		}
 
 		let manifest = ManifestData {
 			version: SNAPSHOT_VERSION,
 			state_hashes: state_hashes,
 			block_hashes: block_hashes,
-			state_root: b"notarealroot".sha3(),
+			state_root: keccak(b"notarealroot"),
 			block_number: 12345678987654321,
-			block_hash: b"notarealblock".sha3(),
+			block_hash: keccak(b"notarealblock"),
 		};
 
 		writer.finish(manifest.clone()).unwrap();
@@ -398,24 +398,24 @@ mod tests {
 		let mut block_hashes = Vec::new();
 
 		for chunk in STATE_CHUNKS {
-			let hash = chunk.sha3();
+			let hash = keccak(&chunk);
 			state_hashes.push(hash.clone());
 			writer.write_state_chunk(hash, chunk).unwrap();
 		}
 
 		for chunk in BLOCK_CHUNKS {
-			let hash = chunk.sha3();
+			let hash = keccak(&chunk);
 			block_hashes.push(hash.clone());
-			writer.write_block_chunk(chunk.sha3(), chunk).unwrap();
+			writer.write_block_chunk(keccak(&chunk), chunk).unwrap();
 		}
 
 		let manifest = ManifestData {
 			version: SNAPSHOT_VERSION,
 			state_hashes: state_hashes,
 			block_hashes: block_hashes,
-			state_root: b"notarealroot".sha3(),
+			state_root: keccak(b"notarealroot"),
 			block_number: 12345678987654321,
-			block_hash: b"notarealblock".sha3(),
+			block_hash: keccak(b"notarealblock)"),
 		};
 
 		writer.finish(manifest.clone()).unwrap();

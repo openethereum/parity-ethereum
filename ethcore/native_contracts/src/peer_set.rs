@@ -14,7 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-extern {
-	pub fn sha3_256(out: *mut u8, outlen: usize, input: *const u8, inputlen: usize) -> i32;
-	pub fn sha3_512(out: *mut u8, outlen: usize, input: *const u8, inputlen: usize) -> i32;
-}
+#![allow(unused_mut, unused_variables, unused_imports)]
+
+//! Peer set contract.
+
+include!(concat!(env!("OUT_DIR"), "/peer_set.rs"));
