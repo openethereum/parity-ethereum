@@ -511,8 +511,12 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 		vm_tracer: &mut V,
 	) -> vm::Result<(U256, ReturnData)> where T: Tracer, V: VMTracer {
 
-		let scheme = self.engine.create_address_scheme(self.info.number);
-		if scheme != CreateContractAddress::FromSenderAndNonce && self.state.exists_and_has_code(&params.address)? {
+		// EIP-684: If a contract creation is attempted, due to either a creation transaction or the
+		// CREATE (or future CREATE2) opcode, and the destination address already has either
+		// nonzero nonce, or nonempty code, then the creation throws immediately, with exactly
+		// the same behavior as would arise if the first byte in the init code were an invalid
+		// opcode. This applies retroactively starting from genesis.
+		if self.state.exists_and_has_code_or_nonce(&params.address)? {
 			return Err(vm::Error::OutOfGas);
 		}
 
