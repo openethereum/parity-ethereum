@@ -258,6 +258,8 @@ impl HeaderChain {
 		let mut live_epoch_proofs = ::std::collections::HashMap::default();
 
 		let genesis = ::rlp::encode(&spec.genesis_header()).into_vec();
+		let decoded_header = spec.genesis_header();
+
 		let chain = if let Some(current) = db.get(col, CURRENT_KEY)? {
 			let (best_number, highest_number) = {
 				let rlp = Rlp::new(&current);
@@ -315,16 +317,6 @@ impl HeaderChain {
 				cache: cache,
 			}
 		} else {
-			let decoded_header: Header = ::rlp::decode(&genesis);
-			let genesis_data = genesis_epoch_data(spec, &decoded_header)?;
-
-			{
-				let mut batch = db.transaction();
-				let data = encode_canonical_transition(&decoded_header, &genesis_data);
-				batch.put_vec(col, LAST_CANONICAL_TRANSITION, data);
-				db.write(batch)?;
-			}
-
 			HeaderChain {
 				genesis_header: encoded::Header::new(genesis),
 				best_block: RwLock::new(BlockDescriptor {
@@ -339,6 +331,18 @@ impl HeaderChain {
 				cache: cache,
 			}
 		};
+
+		// instantiate genesis epoch data if it doesn't exist.
+		if let None = chain.db.get(col, LAST_CANONICAL_TRANSITION)? {
+			let genesis_data = genesis_epoch_data(spec, &decoded_header)?;
+
+			{
+				let mut batch = chain.db.transaction();
+				let data = encode_canonical_transition(&decoded_header, &genesis_data);
+				batch.put_vec(col, LAST_CANONICAL_TRANSITION, data);
+				chain.db.write(batch)?;
+			}
+		}
 
 		Ok(chain)
 	}
