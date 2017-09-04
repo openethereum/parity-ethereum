@@ -427,5 +427,8 @@ pub fn get_default_ethash_params() -> EthashParams {
 		max_gas_limit: U256::max_value(),
 		min_gas_price_transition: u64::max_value(),
 		min_gas_price: U256::zero(),
+		eip649_transition: u64::max_value(),
+		eip649_delay: 3_000_000,
+		eip649_reward: None,
 	}
 }
