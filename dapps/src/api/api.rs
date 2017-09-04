@@ -21,32 +21,28 @@ use hyper::method::Method;
 use hyper::status::StatusCode;
 
 use api::{response, types};
-use api::time::TimeChecker;
 use apps::fetcher::Fetcher;
 use handlers::{self, extract_url};
 use endpoint::{Endpoint, Handler, EndpointPath};
+use node_health::{NodeHealth, HealthStatus, Health};
 use parity_reactor::Remote;
-use {SyncStatus};
 
 #[derive(Clone)]
 pub struct RestApi {
 	fetcher: Arc<Fetcher>,
-	sync_status: Arc<SyncStatus>,
-	time: TimeChecker,
+	health: NodeHealth,
 	remote: Remote,
 }
 
 impl RestApi {
 	pub fn new(
 		fetcher: Arc<Fetcher>,
-		sync_status: Arc<SyncStatus>,
-		time: TimeChecker,
+		health: NodeHealth,
 		remote: Remote,
 	) -> Box<Endpoint> {
 		Box::new(RestApi {
 			fetcher,
-			sync_status,
-			time,
+			health,
 			remote,
 		})
 	}
@@ -90,69 +86,23 @@ impl RestApiRouter {
 	}
 
 	fn health(&self, control: Control) -> Box<Handler> {
-		use self::types::{HealthInfo, HealthStatus, Health};
-
-		trace!(target: "dapps", "Checking node health.");
-		// Check timediff
-		let sync_status = self.api.sync_status.clone();
-		let map = move |time| {
-			// Check peers
-			let peers = {
-				let (connected, max) = sync_status.peers();
-				let (status, message) = match connected {
-					0 => {
-						(HealthStatus::Bad, "You are not connected to any peers. There is most likely some network issue. Fix connectivity.".into())
-					},
-					1 => (HealthStatus::NeedsAttention, "You are connected to only one peer. Your node might not be reliable. Check your network connection.".into()),
-					_ => (HealthStatus::Ok, "".into()),
-				};
-				HealthInfo { status, message, details: (connected, max) }
+		let map = move |health: Result<Result<Health, ()>, ()>| {
+			let status = match health {
+				Ok(Ok(ref health)) => {
+					if [&health.peers.status, &health.sync.status].iter().any(|x| *x != &HealthStatus::Ok) {
+						StatusCode::PreconditionFailed // HTTP 412
+					} else {
+						StatusCode::Ok // HTTP 200
+					}
+				},
+				_ => StatusCode::ServiceUnavailable, // HTTP 503
 			};
 
-			// Check sync
-			let sync = {
-				let is_syncing = sync_status.is_major_importing();
-				let (status, message) = if is_syncing {
-					(HealthStatus::NeedsAttention, "Your node is still syncing, the values you see might be outdated. Wait until it's fully synced.".into())
-				} else {
-					(HealthStatus::Ok, "".into())
-				};
-				HealthInfo { status, message, details: is_syncing }
-			};
-
-			// Check time
-			let time = {
-				const MAX_DRIFT: i64 = 500;
-				let (status, message, details) = match time {
-					Ok(Ok(diff)) if diff < MAX_DRIFT && diff > -MAX_DRIFT => {
-						(HealthStatus::Ok, "".into(), diff)
-					},
-					Ok(Ok(diff)) => {
-						(HealthStatus::Bad, format!(
-							"Your clock is not in sync. Detected difference is too big for the protocol to work: {}ms. Synchronize your clock.",
-							diff,
-						), diff)
-					},
-					Ok(Err(err)) => {
-						(HealthStatus::NeedsAttention, format!(
-							"Unable to reach time API: {}. Make sure that your clock is synchronized.",
-							err,
-						), 0)
-					},
-					Err(_) => {
-						(HealthStatus::NeedsAttention, "Time API request timed out. Make sure that the clock is synchronized.".into(), 0)
-					},
-				};
-
-				HealthInfo { status, message, details, }
-			};
-
-			response::as_json(StatusCode::Ok, &Health { peers, sync, time })
+			response::as_json(status, &health)
 		};
-
-		let time = self.api.time.time_drift();
+		let health = self.api.health.health();
 		let remote = self.api.remote.clone();
-		Box::new(handlers::AsyncHandler::new(time, map, remote, control))
+		Box::new(handlers::AsyncHandler::new(health, map, remote, control))
 	}
 }
 

@@ -21,14 +21,18 @@
 
 use std::cell::{RefCell, RefMut};
 use std::collections::hash_map::Entry;
+use std::collections::{HashMap, BTreeMap, HashSet};
+use std::fmt;
+use std::sync::Arc;
+use hash::{KECCAK_NULL_RLP, KECCAK_EMPTY};
 
 use receipt::Receipt;
 use engines::Engine;
-use evm::env_info::EnvInfo;
+use vm::EnvInfo;
 use error::Error;
 use executive::{Executive, TransactOptions};
 use factory::Factories;
-use trace::FlatTrace;
+use trace::{self, FlatTrace, VMTrace};
 use pod_account::*;
 use pod_state::{self, PodState};
 use types::basic_account::BasicAccount;
@@ -56,8 +60,12 @@ pub use self::substate::Substate;
 pub struct ApplyOutcome {
 	/// The receipt for the applied transaction.
 	pub receipt: Receipt,
-	/// The trace for the applied transaction, if None if tracing is disabled.
+	/// The output of the applied transaction.
+	pub output: Bytes,
+	/// The trace for the applied transaction, empty if tracing was not produced.
 	pub trace: Vec<FlatTrace>,
+	/// The VM trace for the applied transaction, None if tracing was not produced.
+	pub vm_trace: Option<VMTrace>
 }
 
 /// Result type for the execution ("application") of a transaction.
@@ -202,7 +210,7 @@ pub fn check_proof(
 		Err(_) => return ProvedExecution::BadProof,
 	};
 
-	match state.execute(env_info, engine, transaction, false, true) {
+	match state.execute(env_info, engine, transaction, TransactOptions::with_no_tracing(), true) {
 		Ok(executed) => ProvedExecution::Complete(executed),
 		Err(ExecutionError::Internal(_)) => ProvedExecution::BadProof,
 		Err(e) => ProvedExecution::Failed(e),
@@ -287,7 +295,7 @@ const SEC_TRIE_DB_UNWRAP_STR: &'static str = "A state can only be created with v
 
 impl<B: Backend> State<B> {
 	/// Creates new state with empty state root
-	#[cfg(test)]
+	/// Used for tests.
 	pub fn new(mut db: B, account_start_nonce: U256, factories: Factories) -> State<B> {
 		let mut root = H256::new();
 		{
@@ -545,7 +553,7 @@ impl<B: Backend> State<B> {
 	/// Get an account's code hash.
 	pub fn code_hash(&self, a: &Address) -> trie::Result<H256> {
 		self.ensure_cached(a, RequireCache::None, true,
-			|a| a.as_ref().map_or(SHA3_EMPTY, |a| a.code_hash()))
+			|a| a.as_ref().map_or(KECCAK_EMPTY, |a| a.code_hash()))
 	}
 
 	/// Get accounts' code size.
@@ -620,29 +628,57 @@ impl<B: Backend> State<B> {
 	/// Execute a given transaction, producing a receipt and an optional trace.
 	/// This will change the state accordingly.
 	pub fn apply(&mut self, env_info: &EnvInfo, engine: &Engine, t: &SignedTransaction, tracing: bool) -> ApplyResult {
-//		let old = self.to_pod();
+		if tracing {
+			let options = TransactOptions::with_tracing();
+			self.apply_with_tracing(env_info, engine, t, options.tracer, options.vm_tracer)
+		} else {
+			let options = TransactOptions::with_no_tracing();
+			self.apply_with_tracing(env_info, engine, t, options.tracer, options.vm_tracer)
+		}
+	}
 
-		let e = self.execute(env_info, engine, t, tracing, false)?;
-//		trace!("Applied transaction. Diff:\n{}\n", state_diff::diff_pod(&old, &self.to_pod()));
+	/// Execute a given transaction with given tracer and VM tracer producing a receipt and an optional trace.
+	/// This will change the state accordingly.
+	pub fn apply_with_tracing<V, T>(
+		&mut self,
+		env_info: &EnvInfo,
+		engine: &Engine,
+		t: &SignedTransaction,
+		tracer: T,
+		vm_tracer: V,
+	) -> ApplyResult where
+		T: trace::Tracer,
+		V: trace::VMTracer,
+	{
+		let options = TransactOptions::new(tracer, vm_tracer);
+		let e = self.execute(env_info, engine, t, options, false)?;
+
 		let state_root = if env_info.number < engine.params().eip98_transition || env_info.number < engine.params().validate_receipts_transition {
 			self.commit()?;
 			Some(self.root().clone())
 		} else {
 			None
 		};
+
+		let output = e.output;
 		let receipt = Receipt::new(state_root, e.cumulative_gas_used, e.logs);
 		trace!(target: "state", "Transaction receipt: {:?}", receipt);
-		Ok(ApplyOutcome{receipt: receipt, trace: e.trace})
+
+		Ok(ApplyOutcome {
+			receipt,
+			output,
+			trace: e.trace,
+			vm_trace: e.vm_trace,
+		})
 	}
 
 	// Execute a given transaction without committing changes.
 	//
 	// `virt` signals that we are executing outside of a block set and restrictions like
 	// gas limits and gas costs should be lifted.
-	fn execute(&mut self, env_info: &EnvInfo, engine: &Engine, t: &SignedTransaction, tracing: bool, virt: bool)
-		-> Result<Executed, ExecutionError>
+	fn execute<T, V>(&mut self, env_info: &EnvInfo, engine: &Engine, t: &SignedTransaction, options: TransactOptions<T, V>, virt: bool)
+		-> Result<Executed, ExecutionError> where T: trace::Tracer, V: trace::VMTracer,
 	{
-		let options = TransactOptions { tracing: tracing, vm_tracing: false, check_nonce: true };
 		let mut e = Executive::new(self, env_info, engine);
 
 		match virt {
@@ -727,9 +763,8 @@ impl<B: Backend> State<B> {
 		Ok(())
 	}
 
-	#[cfg(test)]
-	#[cfg(feature = "json-tests")]
 	/// Populate the state from `accounts`.
+	/// Used for tests.
 	pub fn populate_from(&mut self, accounts: PodState) {
 		assert!(self.checkpoints.borrow().is_empty());
 		for (add, acc) in accounts.drain().into_iter() {
@@ -904,7 +939,7 @@ impl<B: Backend> State<B> {
 	/// Returns a merkle proof of the account's trie node omitted or an encountered trie error.
 	/// If the account doesn't exist in the trie, prove that and return defaults.
 	/// Requires a secure trie to be used for accurate results.
-	/// `account_key` == sha3(address)
+	/// `account_key` == keccak(address)
 	pub fn prove_account(&self, account_key: H256) -> trie::Result<(Vec<Bytes>, BasicAccount)> {
 		let mut recorder = Recorder::new();
 		let trie = TrieDB::new(self.db.as_hashdb(), &self.root)?;
@@ -915,8 +950,8 @@ impl<B: Backend> State<B> {
 		let account = maybe_account.unwrap_or_else(|| BasicAccount {
 			balance: 0.into(),
 			nonce: self.account_start_nonce,
-			code_hash: SHA3_EMPTY,
-			storage_root: ::util::sha3::SHA3_NULL_RLP,
+			code_hash: KECCAK_EMPTY,
+			storage_root: KECCAK_NULL_RLP,
 		});
 
 		Ok((recorder.drain().into_iter().map(|r| r.data).collect(), account))
@@ -925,11 +960,11 @@ impl<B: Backend> State<B> {
 	/// Prove an account's storage key's existence or nonexistence in the state.
 	/// Returns a merkle proof of the account's storage trie.
 	/// Requires a secure trie to be used for correctness.
-	/// `account_key` == sha3(address)
-	/// `storage_key` == sha3(key)
+	/// `account_key` == keccak(address)
+	/// `storage_key` == keccak(key)
 	pub fn prove_storage(&self, account_key: H256, storage_key: H256) -> trie::Result<(Vec<Bytes>, H256)> {
 		// TODO: probably could look into cache somehow but it's keyed by
-		// address, not sha3(address).
+		// address, not keccak(address).
 		let trie = TrieDB::new(self.db.as_hashdb(), &self.root)?;
 		let acc = match trie.get_with(&account_key, Account::from_rlp)? {
 			Some(acc) => acc,
@@ -974,15 +1009,15 @@ impl Clone for State<StateDB> {
 
 #[cfg(test)]
 mod tests {
-
 	use std::sync::Arc;
 	use std::str::FromStr;
 	use rustc_hex::FromHex;
+	use hash::keccak;
 	use super::*;
 	use ethkey::Secret;
-	use util::{U256, H256, Address, Hashable};
+	use util::{U256, H256, Address};
 	use tests::helpers::*;
-	use evm::env_info::EnvInfo;
+	use vm::EnvInfo;
 	use spec::*;
 	use transaction::*;
 	use ethcore_logger::init_log;
@@ -990,7 +1025,7 @@ mod tests {
 	use evm::CallType;
 
 	fn secret() -> Secret {
-		"".sha3().into()
+		keccak("").into()
 	}
 
 	#[test]

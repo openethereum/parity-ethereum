@@ -16,7 +16,8 @@
 
 //! View onto block header rlp
 
-use util::{U256, Bytes, Hashable, H256, Address, H2048};
+use hash::keccak;
+use util::{U256, Bytes, H256, Address, H2048};
 use rlp::Rlp;
 use header::BlockNumber;
 
@@ -41,7 +42,9 @@ impl<'a> HeaderView<'a> {
 	}
 
 	/// Returns header hash.
-	pub fn hash(&self) -> H256 { self.sha3() }
+	pub fn hash(&self) -> H256 {
+		keccak(self.rlp.as_raw())
+	}
 
 	/// Returns raw rlp.
 	pub fn rlp(&self) -> &Rlp<'a> { &self.rlp }
@@ -92,12 +95,6 @@ impl<'a> HeaderView<'a> {
 			seal.push(self.rlp.at(i).as_raw().to_vec());
 		}
 		seal
-	}
-}
-
-impl<'a> Hashable for HeaderView<'a> {
-	fn sha3(&self) -> H256 {
-		self.rlp.as_raw().sha3()
 	}
 }
 

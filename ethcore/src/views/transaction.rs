@@ -15,7 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! View onto transaction rlp
-use util::{U256, Bytes, Hashable, H256};
+use util::{U256, Bytes, H256};
+use hash::keccak;
 use rlp::Rlp;
 
 /// View onto transaction rlp.
@@ -43,6 +44,11 @@ impl<'a> TransactionView<'a> {
 		&self.rlp
 	}
 
+	/// Returns transaction hash.
+	pub fn hash(&self) -> H256 {
+		keccak(self.rlp.as_raw())
+	}
+
 	/// Get the nonce field of the transaction.
 	pub fn nonce(&self) -> U256 { self.rlp.val_at(0) }
 
@@ -66,12 +72,6 @@ impl<'a> TransactionView<'a> {
 
 	/// Get the s field of the transaction.
 	pub fn s(&self) -> U256 { self.rlp.val_at(8) }
-}
-
-impl<'a> Hashable for TransactionView<'a> {
-	fn sha3(&self) -> H256 {
-		self.rlp.as_raw().sha3()
-	}
 }
 
 #[cfg(test)]

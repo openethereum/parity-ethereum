@@ -18,6 +18,7 @@
 /// It can also report validators for misbehaviour with two levels: `reportMalicious` and `reportBenign`.
 
 use std::sync::Weak;
+use parking_lot::RwLock;
 use util::*;
 
 use futures::Future;
@@ -126,7 +127,9 @@ impl ValidatorSet for ValidatorContract {
 
 #[cfg(test)]
 mod tests {
+	use std::sync::Arc;
 	use rustc_hex::FromHex;
+	use hash::keccak;
 	use util::*;
 	use rlp::encode;
 	use spec::Spec;
@@ -142,20 +145,20 @@ mod tests {
 	#[test]
 	fn fetches_validators() {
 		let client = generate_dummy_client_with_spec_and_accounts(Spec::new_validator_contract, None);
-		let vc = Arc::new(ValidatorContract::new(Address::from_str("0000000000000000000000000000000000000005").unwrap()));
+		let vc = Arc::new(ValidatorContract::new("0000000000000000000000000000000000000005".parse::<Address>().unwrap()));
 		vc.register_contract(Arc::downgrade(&client));
 		let last_hash = client.best_block_header().hash();
-		assert!(vc.contains(&last_hash, &Address::from_str("7d577a597b2742b498cb5cf0c26cdcd726d39e6e").unwrap()));
-		assert!(vc.contains(&last_hash, &Address::from_str("82a978b3f5962a5b0957d9ee9eef472ee55b42f1").unwrap()));
+		assert!(vc.contains(&last_hash, &"7d577a597b2742b498cb5cf0c26cdcd726d39e6e".parse::<Address>().unwrap()));
+		assert!(vc.contains(&last_hash, &"82a978b3f5962a5b0957d9ee9eef472ee55b42f1".parse::<Address>().unwrap()));
 	}
 
 	#[test]
 	fn reports_validators() {
 		let tap = Arc::new(AccountProvider::transient_provider());
-		let v1 = tap.insert_account("1".sha3().into(), "").unwrap();
+		let v1 = tap.insert_account(keccak("1").into(), "").unwrap();
 		let client = generate_dummy_client_with_spec_and_accounts(Spec::new_validator_contract, Some(tap.clone()));
 		client.engine().register_client(Arc::downgrade(&client));
-		let validator_contract = Address::from_str("0000000000000000000000000000000000000005").unwrap();
+		let validator_contract = "0000000000000000000000000000000000000005".parse::<Address>().unwrap();
 
 		// Make sure reporting can be done.
 		client.miner().set_gas_floor_target(1_000_000.into());

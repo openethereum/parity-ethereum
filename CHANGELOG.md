@@ -1,41 +1,45 @@
-## Parity [v1.6.10](https://github.com/paritytech/parity/releases/tag/v1.6.10) (2017-07-23)
-
-This is a hotfix release for the stable channel addressing the recent [multi-signature wallet vulnerability](https://blog.parity.io/security-alert-high-2/). Note, upgrading is not mandatory, and all future multi-sig wallets created by any version of Parity are secure.
-
-All Changes:
-
-- Backports for stable [#6116](https://github.com/paritytech/parity/pull/6116)
-  - Remove chunk to restore from pending set only upon successful import [#6112](https://github.com/paritytech/parity/pull/6112)
-  - Blacklist bad snapshot manifest hashes upon failure [#5874](https://github.com/paritytech/parity/pull/5874)
-  - Bump snap version and tweak importing detection logic [#6079](https://github.com/paritytech/parity/pull/6079) (modified to work)
-- Fix docker build for stable [#6118](https://github.com/paritytech/parity/pull/6118)
-- Backported wallet fix [#6104](https://github.com/paritytech/parity/pull/6104)
-  - Fix initialisation bug. ([#6102](https://github.com/paritytech/parity/pull/6102))
-  - Update wallet library modifiers ([#6103](https://github.com/paritytech/parity/pull/6103))
-- Bump to v1.6.10
-
-## Parity [v1.7.0](https://github.com/paritytech/parity/releases/tag/v1.7.0) (2017-07-23)
+## Parity [v1.7.0](https://github.com/paritytech/parity/releases/tag/v1.7.0) (2017-07-28)
 
 Parity 1.7.0 is a major release introducing several important features:
 
-- **Experimental [Light client](https://github.com/paritytech/parity/wiki/The-Parity-Light-Protocol-(PIP)) support**. Start Parity with `--light` to enable light mode.
+- **Experimental [Light client](https://github.com/paritytech/parity/wiki/The-Parity-Light-Protocol-(PIP)) support**. Start Parity with `--light` to enable light mode. Please, note: The wallet UI integration for the light client is not included, yet.
 - **Experimental web wallet**. A hosted version of Parity that keeps the keys and signs transactions using your browser storage. Try it at https://wallet.parity.io or run your own with `--public-node`.
 - **WASM contract support**. Private networks can run contracts compiled into WASM bytecode. _More information and documentation to follow_.
 - **DApps and RPC server merge**. DApp and RPC are now available through a single API endpoint. DApp server related settings are deprecated.
 - **Export accounts from the wallet**. Backing up your keys can now simply be managed through the wallet interface.
-- **PoA/Kovan validator set contract**. The PoA network validator-set management via smart contract is now supported by warp and light sync.
+- **PoA/Kovan validator set contract**. The PoA network validator-set management via smart contract is now supported by warp and, in the near future, light sync.
 - **PubSub API**. https://github.com/paritytech/parity/wiki/JSONRPC-Parity-Pub-Sub-module
 - **Signer apps for IOS and Android**.
 
 Full list of included changes:
 
+- Backports [#6163](https://github.com/paritytech/parity/pull/6163)
+  - Light client improvements ([#6156](https://github.com/paritytech/parity/pull/6156))
+    - No seal checking
+    - Import command and --no-seal-check for light client
+    - Fix eth_call
+    - Tweak registry dapps lookup
+    - Ignore failed requests to non-server peers
+  - Fix connecting to wildcard addresses. ([#6167](https://github.com/paritytech/parity/pull/6167))
+  - Don't display an overlay in case the time sync check fails. ([#6164](https://github.com/paritytech/parity/pull/6164))
+    - Small improvements to time estimation.
+    - Temporarily disable NTP time check by default.
+- Light client fixes ([#6148](https://github.com/paritytech/parity/pull/6148)) [#6151](https://github.com/paritytech/parity/pull/6151)
+  - Light client fixes
+  - Fix memory-lru-cache
+  - Clear pending reqs on disconnect
+- Filter tokens logs from current block, not genesis ([#6128](https://github.com/paritytech/parity/pull/6128)) [#6141](https://github.com/paritytech/parity/pull/6141)
+- Fix QR scanner returning null on confirm [#6122](https://github.com/paritytech/parity/pull/6122)
 - Check QR before lowercase ([#6119](https://github.com/paritytech/parity/pull/6119)) [#6120](https://github.com/paritytech/parity/pull/6120)
 - Remove chunk to restore from pending set only upon successful import [#6117](https://github.com/paritytech/parity/pull/6117)
 - Fixed node address detection on incoming connection [#6094](https://github.com/paritytech/parity/pull/6094)
 - Place RETURNDATA behind block number gate [#6095](https://github.com/paritytech/parity/pull/6095)
+- Update wallet library binaries [#6108](https://github.com/paritytech/parity/pull/6108)
 - Backported wallet fix [#6105](https://github.com/paritytech/parity/pull/6105)
   - Fix initialisation bug. ([#6102](https://github.com/paritytech/parity/pull/6102))
   - Update wallet library modifiers ([#6103](https://github.com/paritytech/parity/pull/6103))
+- Place RETURNDATA behind block number gate [#6095](https://github.com/paritytech/parity/pull/6095)
+- Fixed node address detection on incoming connection [#6094](https://github.com/paritytech/parity/pull/6094)
 - Bump snap version and tweak importing detection logic ([#6079](https://github.com/paritytech/parity/pull/6079)) [#6081](https://github.com/paritytech/parity/pull/6081)
   - bump last tick just before printing info and restore sync detection
   - bump kovan snapshot version
@@ -438,6 +442,23 @@ Full list of included changes:
 - Adjust selection colours/display [#4811](https://github.com/paritytech/parity/pull/4811)
 - Update the Wallet Library Registry key [#4817](https://github.com/paritytech/parity/pull/4817)
 - Update Wallet to new Wallet Code [#4805](https://github.com/paritytech/parity/pull/4805)
+
+## Parity [v1.6.10](https://github.com/paritytech/parity/releases/tag/v1.6.10) (2017-07-25)
+
+This is a hotfix release for the stable channel addressing the recent [multi-signature wallet vulnerability](https://blog.parity.io/security-alert-high-2/). Note, upgrading is not mandatory, and all future multi-sig wallets created by any version of Parity are secure.
+
+All Changes:
+
+- Backports for stable [#6116](https://github.com/paritytech/parity/pull/6116)
+  - Remove chunk to restore from pending set only upon successful import [#6112](https://github.com/paritytech/parity/pull/6112)
+  - Blacklist bad snapshot manifest hashes upon failure [#5874](https://github.com/paritytech/parity/pull/5874)
+  - Bump snap version and tweak importing detection logic [#6079](https://github.com/paritytech/parity/pull/6079) (modified to work)
+- Fix docker build for stable [#6118](https://github.com/paritytech/parity/pull/6118)
+- Update wallet library binaries [#6108](https://github.com/paritytech/parity/pull/6108)
+- Backported wallet fix [#6104](https://github.com/paritytech/parity/pull/6104)
+  - Fix initialisation bug. ([#6102](https://github.com/paritytech/parity/pull/6102))
+  - Update wallet library modifiers ([#6103](https://github.com/paritytech/parity/pull/6103))
+- Bump to v1.6.10
 
 ## Parity [v1.6.9](https://github.com/paritytech/parity/releases/tag/v1.6.9) (2017-07-16)
 

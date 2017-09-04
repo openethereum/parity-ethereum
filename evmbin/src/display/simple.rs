@@ -20,14 +20,18 @@ use ethcore::trace;
 use util::ToPretty;
 
 use display;
-use vm;
+use info as vm;
 
 /// Simple formatting informant.
 #[derive(Default)]
 pub struct Informant;
 
 impl vm::Informant for Informant {
-	fn finish(&mut self, result: Result<vm::Success, vm::Failure>) {
+	fn before_test(&self, name: &str, action: &str) {
+		println!("Test: {} ({})", name, action);
+	}
+
+	fn finish(result: Result<vm::Success, vm::Failure>) {
 		match result {
 			Ok(success) => {
 				println!("Output: 0x{}", success.output.to_hex());

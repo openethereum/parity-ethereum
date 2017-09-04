@@ -71,6 +71,14 @@ pub fn public_unsupported(details: Option<String>) -> Error {
 	}
 }
 
+pub fn unsupported<T: Into<String>>(msg: T, details: Option<T>) -> Error {
+	Error {
+		code: ErrorCode::ServerError(codes::UNSUPPORTED_REQUEST),
+		message: msg.into(),
+		data: details.map(Into::into).map(Value::String),
+	}
+}
+
 pub fn request_not_found() -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::REQUEST_NOT_FOUND),
@@ -302,7 +310,7 @@ pub fn transaction_message(error: TransactionError) -> String {
 		GasLimitExceeded { limit, got } => {
 			format!("Transaction cost exceeds current gas limit. Limit: {}, got: {}. Try decreasing supplied gas.", limit, got)
 		},
-		InvalidNetworkId => "Invalid network id.".into(),
+		InvalidChainId => "Invalid chain id.".into(),
 		InvalidGasLimit(_) => "Supplied gas is beyond limit.".into(),
 		SenderBanned => "Sender is banned in local queue.".into(),
 		RecipientBanned => "Recipient is banned in local queue.".into(),

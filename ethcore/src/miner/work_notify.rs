@@ -16,6 +16,7 @@
 
 extern crate hyper;
 
+use std::io::Write;
 use hyper::header::ContentType;
 use hyper::method::Method;
 use hyper::client::{Request, Response, Client};
@@ -23,6 +24,7 @@ use hyper::{Next};
 use hyper::net::HttpStream;
 use ethash::SeedHashCompute;
 use hyper::Url;
+use parking_lot::Mutex;
 use util::*;
 use ethereum::ethash::Ethash;
 

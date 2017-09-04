@@ -17,19 +17,17 @@
 import { isEqual, uniq } from 'lodash';
 
 import Contract from '~/api/contract';
-import { bytesToHex, toHex } from '~/api/util/format';
 import { ERROR_CODES } from '~/api/transport/error';
-import { wallet as WALLET_ABI } from '~/contracts/abi';
-import { MAX_GAS_ESTIMATION } from '~/util/constants';
+import { foundationWallet as WALLET_ABI } from '~/contracts/abi';
 import WalletsUtils from '~/util/wallets';
-
 import { newError } from '~/ui/Errors/actions';
-
-const UPDATE_OWNERS = 'owners';
-const UPDATE_REQUIRE = 'require';
-const UPDATE_DAILYLIMIT = 'dailylimit';
-const UPDATE_TRANSACTIONS = 'transactions';
-const UPDATE_CONFIRMATIONS = 'confirmations';
+import {
+  UPDATE_OWNERS,
+  UPDATE_REQUIRE,
+  UPDATE_DAILYLIMIT,
+  UPDATE_TRANSACTIONS,
+  UPDATE_CONFIRMATIONS
+} from '~/util/wallets/updates';
 
 export function confirmOperation (address, owner, operation) {
   return modifyOperation('confirm', address, owner, operation);
@@ -39,41 +37,25 @@ export function revokeOperation (address, owner, operation) {
   return modifyOperation('revoke', address, owner, operation);
 }
 
-function modifyOperation (method, address, owner, operation) {
+function modifyOperation (modification, address, owner, operation) {
   return (dispatch, getState) => {
     const { api } = getState();
-    const contract = new Contract(api, WALLET_ABI).at(address);
-
-    const options = {
-      from: owner,
-      gas: MAX_GAS_ESTIMATION
-    };
-
-    const values = [ operation ];
 
     dispatch(setOperationPendingState(address, operation, true));
 
-    contract.instance[method]
-      .estimateGas(options, values)
-      .then((gas) => {
-        options.gas = gas.mul(1.2);
-        return contract.instance[method].postTransaction(options, values);
-      })
+    WalletsUtils.postModifyOperation(api, address, modification, owner, operation)
       .then((requestId) => {
-        return api
-          .pollMethod('parity_checkRequest', requestId)
-          .catch((e) => {
-            dispatch(setOperationPendingState(address, operation, false));
-            if (e.code === ERROR_CODES.REQUEST_REJECTED) {
-              return;
-            }
-
-            throw e;
-          });
+        return api.pollMethod('parity_checkRequest', requestId);
       })
       .catch((error) => {
-        dispatch(setOperationPendingState(address, operation, false));
+        if (error.code === ERROR_CODES.REQUEST_REJECTED) {
+          return;
+        }
+
         dispatch(newError(error));
+      })
+      .then(() => {
+        dispatch(setOperationPendingState(address, operation, false));
       });
   };
 }
@@ -97,14 +79,18 @@ export function attachWallets (_wallets) {
       return dispatch(updateWallets({ wallets: {}, walletsAddresses: [], filterSubId: null }));
     }
 
-    const filterOptions = {
-      fromBlock: 0,
-      toBlock: 'latest',
-      address: nextAddresses
-    };
-
+    // Filter the logs from the current block
     api.eth
-      .newFilter(filterOptions)
+      .blockNumber()
+      .then((block) => {
+        const filterOptions = {
+          fromBlock: block,
+          toBlock: 'latest',
+          address: nextAddresses
+        };
+
+        return api.eth.newFilter(filterOptions);
+      })
       .then((filterId) => {
         dispatch(updateWallets({ wallets: _wallets, walletsAddresses: nextAddresses, filterSubId: filterId }));
       })
@@ -142,7 +128,6 @@ export function load (api) {
 
       api.eth
         .getFilterChanges(filterSubId)
-        .then((logs) => contract.parseEventLogs(logs))
         .then((logs) => {
           parseLogs(logs)(dispatch, getState);
         })
@@ -292,136 +277,18 @@ function fetchWalletDailylimit (contract) {
 }
 
 function fetchWalletConfirmations (contract, _operations, _owners = null, _transactions = null, getState) {
-  const walletInstance = contract.instance;
-
   const wallet = getState().wallet.wallets[contract.address];
 
   const owners = _owners || (wallet && wallet.owners) || null;
   const transactions = _transactions || (wallet && wallet.transactions) || null;
-  // Full load if no operations given, or if the one given aren't loaded yet
-  const fullLoad = !Array.isArray(_operations) || _operations
-    .filter((op) => !wallet.confirmations.find((conf) => conf.operation === op))
-    .length > 0;
+  const cache = { owners, transactions };
 
-  let promise;
-
-  if (fullLoad) {
-    promise = walletInstance
-      .ConfirmationNeeded
-      .getAllLogs()
-      .then((logs) => {
-        return logs.map((log) => ({
-          initiator: log.params.initiator.value,
-          to: log.params.to.value,
-          data: log.params.data.value,
-          value: log.params.value.value,
-          operation: bytesToHex(log.params.operation.value),
-          transactionIndex: log.transactionIndex,
-          transactionHash: log.transactionHash,
-          blockNumber: log.blockNumber,
-          confirmedBy: []
-        }));
-      })
-      .then((logs) => {
-        return logs.sort((logA, logB) => {
-          const comp = logA.blockNumber.comparedTo(logB.blockNumber);
-
-          if (comp !== 0) {
-            return comp;
-          }
-
-          return logA.transactionIndex.comparedTo(logB.transactionIndex);
-        });
-      })
-      .then((confirmations) => {
-        if (confirmations.length === 0) {
-          return confirmations;
-        }
-
-        // Only fetch confirmations for operations not
-        // yet confirmed (ie. not yet a transaction)
-        if (transactions) {
-          const operations = transactions
-            .filter((t) => t.operation)
-            .map((t) => t.operation);
-
-          return confirmations.filter((confirmation) => {
-            return !operations.includes(confirmation.operation);
-          });
-        }
-
-        return confirmations;
-      });
-  } else {
-    const { confirmations } = wallet;
-    const nextConfirmations = confirmations
-      .filter((conf) => _operations.includes(conf.operation));
-
-    promise = Promise.resolve(nextConfirmations);
-  }
-
-  return promise
+  return WalletsUtils.fetchPendingTransactions(contract, cache)
     .then((confirmations) => {
-      if (confirmations.length === 0) {
-        return confirmations;
-      }
-
-      const uniqConfirmations = Object.values(
-        confirmations.reduce((confirmations, confirmation) => {
-          confirmations[confirmation.operation] = confirmation;
-          return confirmations;
-        }, {})
-      );
-
-      const operations = uniqConfirmations.map((conf) => conf.operation);
-
-      return Promise
-        .all(operations.map((op) => fetchOperationConfirmations(contract, op, owners)))
-        .then((confirmedBys) => {
-          uniqConfirmations.forEach((_, index) => {
-            uniqConfirmations[index].confirmedBy = confirmedBys[index];
-          });
-
-          return uniqConfirmations;
-        });
-    })
-    .then((confirmations) => {
-      const prevConfirmations = wallet.confirmations || [];
-      const nextConfirmations = prevConfirmations
-        .filter((conA) => !confirmations.find((conB) => conB.operation === conA.operation))
-        .concat(confirmations)
-        .map((conf) => ({
-          ...conf,
-          pending: false
-        }));
-
       return {
         key: UPDATE_CONFIRMATIONS,
-        value: nextConfirmations
+        value: confirmations
       };
-    });
-}
-
-function fetchOperationConfirmations (contract, operation, owners = null) {
-  if (!owners) {
-    console.warn('[fetchOperationConfirmations] try to provide the owners for the Wallet', contract.address);
-  }
-
-  const walletInstance = contract.instance;
-
-  const promise = owners
-    ? Promise.resolve({ value: owners })
-    : fetchWalletOwners(contract);
-
-  return promise
-    .then((result) => {
-      const owners = result.value;
-
-      return Promise
-        .all(owners.map((owner) => walletInstance.hasConfirmed.call({}, [ operation, owner ])))
-        .then((data) => {
-          return owners.filter((owner, index) => data[index]);
-        });
     });
 }
 
@@ -431,63 +298,36 @@ function parseLogs (logs) {
       return;
     }
 
-    const WalletSignatures = WalletsUtils.getWalletSignatures();
-
+    const { api } = getState();
     const updates = {};
 
-    logs.forEach((log) => {
-      const { address, topics } = log;
-      const eventSignature = toHex(topics[0]);
-      const prev = updates[address] || {
-        [ UPDATE_DAILYLIMIT ]: true,
-        address
-      };
+    const promises = logs.map((log) => {
+      const { address } = log;
 
-      switch (eventSignature) {
-        case WalletSignatures.OwnerChanged:
-        case WalletSignatures.OwnerAdded:
-        case WalletSignatures.OwnerRemoved:
-          updates[address] = {
-            ...prev,
-            [ UPDATE_OWNERS ]: true
+      return WalletsUtils.logToUpdate(api, address, log)
+        .then((update) => {
+          const prev = updates[address] || {
+            [ UPDATE_DAILYLIMIT ]: true,
+            address
           };
-          return;
 
-        case WalletSignatures.RequirementChanged:
-          updates[address] = {
-            ...prev,
-            [ UPDATE_REQUIRE ]: true
-          };
-          return;
+          if (update[UPDATE_CONFIRMATIONS]) {
+            const operations = (prev[UPDATE_CONFIRMATIONS] || []).concat(update[UPDATE_CONFIRMATIONS]);
 
-        case WalletSignatures.ConfirmationNeeded:
-        case WalletSignatures.Confirmation:
-        case WalletSignatures.Revoke:
-          const operation = bytesToHex(log.params.operation.value);
+            update[UPDATE_CONFIRMATIONS] = uniq(operations);
+          }
 
           updates[address] = {
             ...prev,
-            [ UPDATE_CONFIRMATIONS ]: uniq(
-              (prev[UPDATE_CONFIRMATIONS] || []).concat(operation)
-            )
+            ...update
           };
-
-          return;
-
-        case WalletSignatures.Deposit:
-        case WalletSignatures.SingleTransact:
-        case WalletSignatures.MultiTransact:
-        case WalletSignatures.Old.SingleTransact:
-        case WalletSignatures.Old.MultiTransact:
-          updates[address] = {
-            ...prev,
-            [ UPDATE_TRANSACTIONS ]: true
-          };
-          return;
-      }
+        });
     });
 
-    fetchWalletsInfo(updates)(dispatch, getState);
+    return Promise.all(promises)
+      .then(() => {
+        fetchWalletsInfo(updates)(dispatch, getState);
+      });
   };
 }
 

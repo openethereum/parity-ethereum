@@ -23,7 +23,7 @@ use std::sync::Arc;
 use ethsync::ManageNetwork;
 use fetch::Fetch;
 use futures::{BoxFuture, Future};
-use util::sha3;
+use hash::keccak_buffer;
 
 use jsonrpc_core::Error;
 use v1::helpers::dapps::DappsService;
@@ -129,10 +129,14 @@ impl<F: Fetch> ParitySet for ParitySetClient<F> {
 			result
 				.map_err(errors::fetch)
 				.and_then(|response| {
-					sha3(&mut io::BufReader::new(response)).map_err(errors::fetch)
+					keccak_buffer(&mut io::BufReader::new(response)).map_err(errors::fetch)
 				})
 				.map(Into::into)
 		}))
+	}
+
+	fn dapps_refresh(&self) -> Result<bool, Error> {
+		self.dapps.as_ref().map(|dapps| dapps.refresh_local_dapps()).ok_or_else(errors::dapps_disabled)
 	}
 
 	fn dapps_list(&self) -> Result<Vec<LocalDapp>, Error> {

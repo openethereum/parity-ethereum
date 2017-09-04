@@ -19,8 +19,7 @@ rust-crypto = "0.2.34"
 elastic-array = "0.9"
 rlp = { path = "rlp" }
 heapsize = "0.4"
-itertools = "0.5"
-sha3 = { path = "sha3" }
+hash = { path = "hash" }
 clippy = { version = "0.0.103", optional = true}
 ethcore-devtools = { path = "../devtools" }
 libc = "0.2.7"
@@ -28,14 +27,13 @@ vergen = "0.1"
 target_info = "0.1"
 ethcore-bigint = { path = "bigint", features = ["heapsizeof"] }
 parking_lot = "0.4"
-using_queue = { path = "using_queue" }
-table = { path = "table" }
 ansi_term = "0.9"
 tiny-keccak= "1.0"
 ethcore-bloom-journal = { path = "bloom" }
 regex = "0.2"
 lru-cache = "0.1.0"
 ethcore-logger = { path = "../logger" }
+triehash = { path = "triehash" }
 
 [features]
 default = []

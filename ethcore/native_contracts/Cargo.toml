@@ -9,7 +9,7 @@ build = "build.rs"
 ethabi = "2.0"
 futures = "0.1"
 byteorder = "1.0"
-ethcore-util = { path = "../../util" }
+ethcore-bigint = { path = "../../util/bigint" }
 
 [build-dependencies]
 native-contract-generator = { path = "generator" }

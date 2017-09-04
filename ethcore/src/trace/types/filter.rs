@@ -18,9 +18,9 @@
 
 use std::ops::Range;
 use bloomchain::{Filter as BloomFilter, Bloom, Number};
+use hash::keccak;
 use util::Address;
-use util::sha3::Hashable;
-use util::bloom::Bloomable;
+use bloomable::Bloomable;
 use basic_types::LogBloom;
 use trace::flat::FlatTrace;
 use super::trace::{Action, Res};
@@ -55,7 +55,7 @@ impl AddressesFilter {
 		match self.list.is_empty() {
 			true => vec![LogBloom::default()],
 			false => self.list.iter()
-				.map(|address| LogBloom::from_bloomed(&address.sha3()))
+				.map(|address| LogBloom::from_bloomed(&keccak(address)))
 				.collect(),
 		}
 	}
@@ -67,7 +67,7 @@ impl AddressesFilter {
 			false => blooms
 				.into_iter()
 				.flat_map(|bloom| self.list.iter()
-					.map(|address| bloom.with_bloomed(&address.sha3()))
+					.map(|address| bloom.with_bloomed(&keccak(address)))
 					.collect::<Vec<_>>())
 				.collect(),
 		}
@@ -113,7 +113,7 @@ impl Filter {
 				let from_matches = self.from_address.matches(&call.from);
 				let to_matches = self.to_address.matches(&call.to);
 				from_matches && to_matches
-			}
+			},
 			Action::Create(ref create) => {
 				let from_matches = self.from_address.matches(&create.from);
 
@@ -128,7 +128,10 @@ impl Filter {
 				let from_matches = self.from_address.matches(&suicide.address);
 				let to_matches = self.to_address.matches(&suicide.refund_address);
 				from_matches && to_matches
-			}
+			},
+			Action::Reward(ref reward) => {
+				self.to_address.matches(&reward.author)
+			},
 		}
 	}
 }
@@ -136,11 +139,11 @@ impl Filter {
 #[cfg(test)]
 mod tests {
 	use util::Address;
-	use util::sha3::Hashable;
-	use util::bloom::Bloomable;
-	use trace::trace::{Action, Call, Res, Create, CreateResult, Suicide};
+	use hash::keccak;
+	use bloomable::Bloomable;
+	use trace::trace::{Action, Call, Res, Create, CreateResult, Suicide, Reward};
 	use trace::flat::FlatTrace;
-	use trace::{Filter, AddressesFilter, TraceError};
+	use trace::{Filter, AddressesFilter, TraceError, RewardType};
 	use evm::CallType;
 
 	#[test]
@@ -166,9 +169,9 @@ mod tests {
 		let blooms = filter.bloom_possibilities();
 		assert_eq!(blooms.len(), 1);
 
-		assert!(blooms[0].contains_bloomed(&Address::from(1).sha3()));
-		assert!(blooms[0].contains_bloomed(&Address::from(2).sha3()));
-		assert!(!blooms[0].contains_bloomed(&Address::from(3).sha3()));
+		assert!(blooms[0].contains_bloomed(&keccak(Address::from(1))));
+		assert!(blooms[0].contains_bloomed(&keccak(Address::from(2))));
+		assert!(!blooms[0].contains_bloomed(&keccak(Address::from(3))));
 	}
 
 	#[test]
@@ -182,8 +185,8 @@ mod tests {
 		let blooms = filter.bloom_possibilities();
 		assert_eq!(blooms.len(), 1);
 
-		assert!(blooms[0].contains_bloomed(&Address::from(1).sha3()));
-		assert!(!blooms[0].contains_bloomed(&Address::from(2).sha3()));
+		assert!(blooms[0].contains_bloomed(&keccak(Address::from(1))));
+		assert!(!blooms[0].contains_bloomed(&keccak(Address::from(2))));
 	}
 
 	#[test]
@@ -197,8 +200,8 @@ mod tests {
 		let blooms = filter.bloom_possibilities();
 		assert_eq!(blooms.len(), 1);
 
-		assert!(blooms[0].contains_bloomed(&Address::from(1).sha3()));
-		assert!(!blooms[0].contains_bloomed(&Address::from(2).sha3()));
+		assert!(blooms[0].contains_bloomed(&keccak(Address::from(1))));
+		assert!(!blooms[0].contains_bloomed(&keccak(Address::from(2))));
 	}
 
 	#[test]
@@ -212,25 +215,25 @@ mod tests {
 		let blooms = filter.bloom_possibilities();
 		assert_eq!(blooms.len(), 4);
 
-		assert!(blooms[0].contains_bloomed(&Address::from(1).sha3()));
-		assert!(blooms[0].contains_bloomed(&Address::from(2).sha3()));
-		assert!(!blooms[0].contains_bloomed(&Address::from(3).sha3()));
-		assert!(!blooms[0].contains_bloomed(&Address::from(4).sha3()));
+		assert!(blooms[0].contains_bloomed(&keccak(Address::from(1))));
+		assert!(blooms[0].contains_bloomed(&keccak(Address::from(2))));
+		assert!(!blooms[0].contains_bloomed(&keccak(Address::from(3))));
+		assert!(!blooms[0].contains_bloomed(&keccak(Address::from(4))));
 
-		assert!(blooms[1].contains_bloomed(&Address::from(1).sha3()));
-		assert!(blooms[1].contains_bloomed(&Address::from(4).sha3()));
-		assert!(!blooms[1].contains_bloomed(&Address::from(2).sha3()));
-		assert!(!blooms[1].contains_bloomed(&Address::from(3).sha3()));
+		assert!(blooms[1].contains_bloomed(&keccak(Address::from(1))));
+		assert!(blooms[1].contains_bloomed(&keccak(Address::from(4))));
+		assert!(!blooms[1].contains_bloomed(&keccak(Address::from(2))));
+		assert!(!blooms[1].contains_bloomed(&keccak(Address::from(3))));
 
-		assert!(blooms[2].contains_bloomed(&Address::from(2).sha3()));
-		assert!(blooms[2].contains_bloomed(&Address::from(3).sha3()));
-		assert!(!blooms[2].contains_bloomed(&Address::from(1).sha3()));
-		assert!(!blooms[2].contains_bloomed(&Address::from(4).sha3()));
+		assert!(blooms[2].contains_bloomed(&keccak(Address::from(2))));
+		assert!(blooms[2].contains_bloomed(&keccak(Address::from(3))));
+		assert!(!blooms[2].contains_bloomed(&keccak(Address::from(1))));
+		assert!(!blooms[2].contains_bloomed(&keccak(Address::from(4))));
 
-		assert!(blooms[3].contains_bloomed(&Address::from(3).sha3()));
-		assert!(blooms[3].contains_bloomed(&Address::from(4).sha3()));
-		assert!(!blooms[3].contains_bloomed(&Address::from(1).sha3()));
-		assert!(!blooms[3].contains_bloomed(&Address::from(2).sha3()));
+		assert!(blooms[3].contains_bloomed(&keccak(Address::from(3))));
+		assert!(blooms[3].contains_bloomed(&keccak(Address::from(4))));
+		assert!(!blooms[3].contains_bloomed(&keccak(Address::from(1))));
+		assert!(!blooms[3].contains_bloomed(&keccak(Address::from(2))));
 	}
 
 	#[test]
@@ -328,6 +331,25 @@ mod tests {
 				address: 1.into(),
 				refund_address: 2.into(),
 				balance: 3.into(),
+			}),
+			result: Res::None,
+			trace_address: vec![].into_iter().collect(),
+			subtraces: 0
+		};
+
+		assert!(f0.matches(&trace));
+		assert!(f1.matches(&trace));
+		assert!(f2.matches(&trace));
+		assert!(f3.matches(&trace));
+		assert!(f4.matches(&trace));
+		assert!(f5.matches(&trace));
+		assert!(!f6.matches(&trace));
+
+		let trace = FlatTrace {
+			action: Action::Reward(Reward {
+				author: 2.into(),
+				value: 100.into(),
+				reward_type: RewardType::Block,
 			}),
 			result: Res::None,
 			trace_address: vec![].into_iter().collect(),

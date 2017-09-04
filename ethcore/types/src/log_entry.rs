@@ -17,9 +17,10 @@
 //! Log entry type definition.
 
 use std::ops::Deref;
-use util::{H256, Address, Bytes, HeapSizeOf, Hashable};
-use util::bloom::Bloomable;
-use rlp::*;
+use hash::keccak;
+use heapsize::HeapSizeOf;
+use util::{H256, Address, Bytes};
+use bloomable::Bloomable;
 
 use {BlockNumber};
 use ethjson;
@@ -27,7 +28,7 @@ use ethjson;
 pub type LogBloom = ::util::H2048;
 
 /// A record of execution for a `LOG` operation.
-#[derive(Default, Debug, Clone, PartialEq, Eq)]
+#[derive(Default, Debug, Clone, PartialEq, Eq, RlpEncodable, RlpDecodable)]
 pub struct LogEntry {
 	/// The address of the contract executing at the point of the `LOG` operation.
 	pub address: Address,
@@ -35,26 +36,6 @@ pub struct LogEntry {
 	pub topics: Vec<H256>,
 	/// The data associated with the `LOG` operation.
 	pub data: Bytes,
-}
-
-impl Encodable for LogEntry {
-	fn rlp_append(&self, s: &mut RlpStream) {
-		s.begin_list(3);
-		s.append(&self.address);
-		s.append_list(&self.topics);
-		s.append(&self.data);
-	}
-}
-
-impl Decodable for LogEntry {
-	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
-		let entry = LogEntry {
-			address: rlp.val_at(0)?,
-			topics: rlp.list_at(1)?,
-			data: rlp.val_at(2)?,
-		};
-		Ok(entry)
-	}
 }
 
 impl HeapSizeOf for LogEntry {
@@ -66,7 +47,7 @@ impl HeapSizeOf for LogEntry {
 impl LogEntry {
 	/// Calculates the bloom of this log entry.
 	pub fn bloom(&self) -> LogBloom {
-		self.topics.iter().fold(LogBloom::from_bloomed(&self.address.sha3()), |b, t| b.with_bloomed(&t.sha3()))
+		self.topics.iter().fold(LogBloom::from_bloomed(&keccak(&self.address)), |b, t| b.with_bloomed(&keccak(t)))
 	}
 }
 
@@ -114,8 +95,8 @@ mod tests {
 
 	#[test]
 	fn test_empty_log_bloom() {
-		let bloom = H2048::from_str("00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000008800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000").unwrap();
-		let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
+		let bloom = "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000008800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000".parse::<H2048>().unwrap();
+		let address = "0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6".parse::<Address>().unwrap();
 		let log = LogEntry {
 			address: address,
 			topics: vec![],

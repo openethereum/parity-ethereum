@@ -11,6 +11,7 @@ build = "build.rs"
 "ethcore-ipc-codegen" = { path = "../ipc/codegen" }
 
 [dependencies]
+ansi_term = "0.9"
 bit-set = "0.4"
 bloomchain = "0.1"
 bn = { git = "https://github.com/paritytech/bn" }
@@ -35,6 +36,7 @@ ethstore = { path = "../ethstore" }
 evm = { path = "evm" }
 futures = "0.1"
 hardware-wallet = { path = "../hw" }
+heapsize = "0.4"
 hyper = { git = "https://github.com/paritytech/hyper", default-features = false }
 itertools = "0.5"
 lazy_static = "0.2"
@@ -44,15 +46,25 @@ lru-cache = "0.1.0"
 native-contracts = { path = "native_contracts" }
 num = "0.1"
 num_cpus = "1.2"
+parking_lot = "0.4"
 price-info = { path = "../price-info" }
 rand = "0.3"
 rlp = { path = "../util/rlp" }
+rlp_derive = { path = "../util/rlp_derive" }
 rust-crypto = "0.2.34"
 rustc-hex = "1.0"
 semver = "0.6"
 stats = { path = "../util/stats" }
 time = "0.1"
 transient-hashmap = "0.4"
+using_queue = { path = "../util/using_queue" }
+table = { path = "../util/table" }
+bloomable = { path = "../util/bloomable" }
+vm = { path = "vm" }
+wasm = { path = "wasm" }
+hash = { path = "../util/hash" }
+triehash = { path = "../util/triehash" }
+semantic_version = { path = "../util/semantic_version" }
 
 [dev-dependencies]
 native-contracts = { path = "native_contracts", features = ["test_contracts"] }

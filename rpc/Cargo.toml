@@ -8,12 +8,14 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [lib]
 
 [dependencies]
+ansi_term = "0.9"
 cid = "0.2"
 futures = "0.1"
 futures-cpupool = "0.1"
 log = "0.3"
 multihash ="0.6"
 order-stat = "0.1"
+parking_lot = "0.4"
 rand = "0.3"
 rust-crypto = "0.2"
 rustc-hex = "1.0"
@@ -24,6 +26,7 @@ serde_json = "1.0"
 time = "0.1"
 tokio-timer = "0.1"
 transient-hashmap = "0.4"
+itertools = "0.5"
 
 jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
 jsonrpc-http-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
@@ -46,12 +49,14 @@ ethjson = { path = "../json" }
 ethcore-devtools = { path = "../devtools" }
 ethcore-light = { path = "../ethcore/light" }
 ethcore-logger = { path = "../logger" }
-evm = { path = "../ethcore/evm" }
-parity-updater = { path = "../updater" }
-parity-reactor = { path = "../util/reactor" }
-rlp = { path = "../util/rlp" }
 fetch = { path = "../util/fetch" }
+node-health = { path = "../dapps/node-health" }
+parity-reactor = { path = "../util/reactor" }
+parity-updater = { path = "../updater" }
+rlp = { path = "../util/rlp" }
 stats = { path = "../util/stats" }
+vm = { path = "../ethcore/vm" }
+hash = { path = "../util/hash" }
 
 clippy = { version = "0.0.103", optional = true}
 pretty_assertions = "0.1"

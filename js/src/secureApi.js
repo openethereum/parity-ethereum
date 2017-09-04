@@ -325,7 +325,8 @@ export default class SecureApi extends Api {
   _fetchSettings () {
     return Promise
       .all([
-        this._uiApi.parity.dappsUrl(),
+        // ignore dapps disabled errors
+        this._uiApi.parity.dappsUrl().catch(() => null),
         this._uiApi.parity.wsUrl()
       ])
       .then(([dappsUrl, wsUrl]) => {

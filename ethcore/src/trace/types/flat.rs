@@ -18,7 +18,7 @@
 
 use std::collections::VecDeque;
 use rlp::*;
-use util::HeapSizeOf;
+use heapsize::HeapSizeOf;
 use basic_types::LogBloom;
 use super::trace::{Action, Res};
 
@@ -77,7 +77,7 @@ impl Decodable for FlatTrace {
 }
 
 /// Represents all traces produced by a single transaction.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, RlpEncodableWrapper, RlpDecodableWrapper)]
 pub struct FlatTransactionTraces(Vec<FlatTrace>);
 
 impl From<Vec<FlatTrace>> for FlatTransactionTraces {
@@ -99,18 +99,6 @@ impl FlatTransactionTraces {
 	}
 }
 
-impl Encodable for FlatTransactionTraces {
-	fn rlp_append(&self, s: &mut RlpStream) {
-		s.append_list(&self.0);
-	}
-}
-
-impl Decodable for FlatTransactionTraces {
-	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
-		Ok(FlatTransactionTraces(rlp.as_list()?))
-	}
-}
-
 impl Into<Vec<FlatTrace>> for FlatTransactionTraces {
 	fn into(self) -> Vec<FlatTrace> {
 		self.0
@@ -118,7 +106,7 @@ impl Into<Vec<FlatTrace>> for FlatTransactionTraces {
 }
 
 /// Represents all traces produced by transactions in a single block.
-#[derive(Debug, PartialEq, Clone, Default)]
+#[derive(Debug, PartialEq, Clone, Default, RlpEncodableWrapper, RlpDecodableWrapper)]
 pub struct FlatBlockTraces(Vec<FlatTransactionTraces>);
 
 impl HeapSizeOf for FlatBlockTraces {
@@ -140,18 +128,6 @@ impl FlatBlockTraces {
 	}
 }
 
-impl Encodable for FlatBlockTraces {
-	fn rlp_append(&self, s: &mut RlpStream) {
-		s.append_list(&self.0);
-	}
-}
-
-impl Decodable for FlatBlockTraces {
-	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
-		Ok(FlatBlockTraces(rlp.as_list()?))
-	}
-}
-
 impl Into<Vec<FlatTransactionTraces>> for FlatBlockTraces {
 	fn into(self) -> Vec<FlatTransactionTraces> {
 		self.0
@@ -162,8 +138,9 @@ impl Into<Vec<FlatTransactionTraces>> for FlatBlockTraces {
 mod tests {
 	use rlp::*;
 	use super::{FlatBlockTraces, FlatTransactionTraces, FlatTrace};
-	use trace::trace::{Action, Res, CallResult, Call, Suicide};
+	use trace::trace::{Action, Res, CallResult, Call, Suicide, Reward};
 	use evm::CallType;
+	use trace::RewardType;
 
 	#[test]
 	fn encode_flat_transaction_traces() {
@@ -238,9 +215,32 @@ mod tests {
 			subtraces: 0,
 		};
 
+		let flat_trace3 = FlatTrace {
+			action: Action::Reward(Reward {
+				author: "412fda7643b37d436cb40628f6dbbb80a07267ed".parse().unwrap(),
+				value: 10.into(),
+				reward_type: RewardType::Uncle,
+			}),
+			result: Res::None,
+			trace_address: vec![0].into_iter().collect(),
+			subtraces: 0,
+		};
+
+		let flat_trace4 = FlatTrace {
+			action: Action::Reward(Reward {
+				author: "412fda7643b37d436cb40628f6dbbb80a07267ed".parse().unwrap(),
+				value: 10.into(),
+				reward_type: RewardType::Block,
+			}),
+			result: Res::None,
+			trace_address: vec![0].into_iter().collect(),
+			subtraces: 0,
+		};
+
 		let block_traces = FlatBlockTraces(vec![
 			FlatTransactionTraces(vec![flat_trace]),
-			FlatTransactionTraces(vec![flat_trace1, flat_trace2])
+			FlatTransactionTraces(vec![flat_trace1, flat_trace2]),
+			FlatTransactionTraces(vec![flat_trace3, flat_trace4])
 		]);
 
 		let encoded = ::rlp::encode(&block_traces);

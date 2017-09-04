@@ -39,7 +39,8 @@ use light::cache::Cache;
 use light::on_demand::OnDemand;
 use light::client::{LightChainClient, LightChainNotify};
 use parity_reactor::Remote;
-use util::{RwLock, Mutex, H256, Bytes};
+use util::{H256, Bytes};
+use parking_lot::{RwLock, Mutex};
 
 type Client = Sink<pubsub::Result>;
 
@@ -245,17 +246,27 @@ impl<C: Send + Sync + 'static> EthPubSub for EthPubSubClient<C> {
 		kind: pubsub::Kind,
 		params: Trailing<pubsub::Params>,
 	) {
-		match (kind, params.into()) {
+		let error = match (kind, params.into()) {
 			(pubsub::Kind::NewHeads, None) => {
-				self.heads_subscribers.write().push(subscriber)
+				self.heads_subscribers.write().push(subscriber);
+				return;
 			},
 			(pubsub::Kind::Logs, Some(pubsub::Params::Logs(filter))) => {
 				self.logs_subscribers.write().push(subscriber, filter.into());
+				return;
+			},
+			(pubsub::Kind::NewHeads, _) => {
+				errors::invalid_params("newHeads", "Expected no parameters.")
+			},
+			(pubsub::Kind::Logs, _) => {
+				errors::invalid_params("logs", "Expected a filter object.")
 			},
 			_ => {
-				let _ = subscriber.reject(errors::unimplemented(None));
+				errors::unimplemented(None)
 			},
-		}
+		};
+
+		let _ = subscriber.reject(error);
 	}
 
 	fn unsubscribe(&self, id: SubscriptionId) -> BoxFuture<bool, Error> {

@@ -18,9 +18,11 @@ use std::io::{self, Read, Write};
 use std::path::Path;
 use std::{fs, time, mem};
 
+use itertools::Itertools;
 use rand::Rng;
 use rand::os::OsRng;
-use util::{H256, Hashable, Itertools};
+use hash::keccak;
+use util::H256;
 
 /// Providing current time in seconds
 pub trait TimeProvider {
@@ -161,7 +163,7 @@ impl<T: TimeProvider> AuthCodes<T> {
 			return false;
 		}
 
-		let as_token = |code| format!("{}:{}", code, time).sha3();
+		let as_token = |code| keccak(format!("{}:{}", code, time));
 
 		// Check if it's the initial token.
 		if self.is_empty() {
@@ -230,12 +232,13 @@ mod tests {
 	use std::io::{Read, Write};
 	use std::{time, fs};
 	use std::cell::Cell;
+	use hash::keccak;
 
-	use util::{H256, Hashable};
+	use util::H256;
 	use super::*;
 
 	fn generate_hash(val: &str, time: u64) -> H256 {
-		format!("{}:{}", val, time).sha3()
+		keccak(format!("{}:{}", val, time))
 	}
 
 	#[test]

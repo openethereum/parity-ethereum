@@ -35,7 +35,9 @@ pub use self::instant_seal::InstantSeal;
 pub use self::null_engine::NullEngine;
 pub use self::tendermint::Tendermint;
 
-use std::sync::Weak;
+use std::sync::{Weak, Arc};
+use std::collections::{BTreeMap, HashMap};
+use std::fmt;
 
 use self::epoch::PendingTransition;
 
@@ -43,17 +45,16 @@ use account_provider::AccountProvider;
 use block::ExecutedBlock;
 use builtin::Builtin;
 use client::Client;
-use evm::env_info::{EnvInfo, LastHashes};
+use vm::{EnvInfo, LastHashes, Schedule, CreateContractAddress};
 use error::Error;
-use evm::Schedule;
 use header::{Header, BlockNumber};
 use receipt::Receipt;
 use snapshot::SnapshotComponents;
 use spec::CommonParams;
 use transaction::{UnverifiedTransaction, SignedTransaction};
-use evm::CreateContractAddress;
 
 use ethkey::Signature;
+use semantic_version::SemanticVersion;
 use util::*;
 
 /// Default EIP-210 contrat code.
@@ -263,7 +264,7 @@ pub trait Engine : Sync + Send {
 	// TODO: Add flags for which bits of the transaction to check.
 	// TODO: consider including State in the params.
 	fn verify_transaction_basic(&self, t: &UnverifiedTransaction, _header: &Header) -> Result<(), Error> {
-		t.verify_basic(true, Some(self.params().network_id), true)?;
+		t.verify_basic(true, Some(self.params().chain_id), true)?;
 		Ok(())
 	}
 
@@ -273,7 +274,7 @@ pub trait Engine : Sync + Send {
 	}
 
 	/// The network ID that transactions should be signed with.
-	fn signing_network_id(&self, _env_info: &EnvInfo) -> Option<u64> {
+	fn signing_chain_id(&self, _env_info: &EnvInfo) -> Option<u64> {
 		Some(self.params().chain_id)
 	}
 
@@ -393,15 +394,15 @@ pub trait Engine : Sync + Send {
 
 /// Common engine utilities
 pub mod common {
+	use std::sync::Arc;
 	use block::ExecutedBlock;
-	use evm::env_info::{EnvInfo, LastHashes};
 	use error::Error;
 	use transaction::SYSTEM_ADDRESS;
 	use executive::Executive;
-	use evm::CallType;
-	use evm::action_params::{ActionParams, ActionValue};
-	use trace::{NoopTracer, NoopVMTracer};
+	use vm::{CallType, ActionParams, ActionValue, EnvInfo, LastHashes};
+	use trace::{NoopTracer, NoopVMTracer, Tracer, ExecutiveTracer, RewardType};
 	use state::Substate;
+	use state::CleanupMode;
 
 	use util::*;
 	use super::Engine;
@@ -469,5 +470,28 @@ pub mod common {
 			)?;
 		}
 		Ok(())
+	}
+
+	/// Trace rewards on closing block
+	pub fn bestow_block_reward<E: Engine + ?Sized>(block: &mut ExecutedBlock, engine: &E) -> Result<(), Error> {
+		let fields = block.fields_mut();
+		// Bestow block reward
+		let reward = engine.params().block_reward;
+		let res = fields.state.add_balance(fields.header.author(), &reward, CleanupMode::NoEmpty)
+			.map_err(::error::Error::from)
+			.and_then(|_| fields.state.commit());
+
+		let block_author = fields.header.author().clone();
+		fields.traces.as_mut().map(|mut traces| {
+  			let mut tracer = ExecutiveTracer::default();
+  			tracer.trace_reward(block_author, engine.params().block_reward, RewardType::Block);
+  			traces.push(tracer.drain())
+		});
+
+		// Commit state so that we can actually figure out the state root.
+		if let Err(ref e) = res {
+			warn!("Encountered error on bestowing reward: {}", e);
+		}
+		res
 	}
 }

@@ -16,6 +16,8 @@
 
 //! Tendermint message handling.
 
+use std::cmp;
+use hash::keccak;
 use util::*;
 use super::{Height, View, BlockHash, Step};
 use error::Error;
@@ -98,7 +100,7 @@ impl ConsensusMessage {
 	pub fn verify(&self) -> Result<Address, Error> {
 		let full_rlp = ::rlp::encode(self);
 		let block_info = Rlp::new(&full_rlp).at(1);
-		let public_key = recover(&self.signature.into(), &block_info.as_raw().sha3())?;
+		let public_key = recover(&self.signature.into(), &keccak(block_info.as_raw()))?;
 		Ok(public_to_address(&public_key))
 	}
 }
@@ -110,13 +112,13 @@ impl Default for VoteStep {
 }
 
 impl PartialOrd for VoteStep {
-	fn partial_cmp(&self, m: &VoteStep) -> Option<Ordering> {
+	fn partial_cmp(&self, m: &VoteStep) -> Option<cmp::Ordering> {
 		Some(self.cmp(m))
 	}
 }
 
 impl Ord for VoteStep {
-	fn cmp(&self, m: &VoteStep) -> Ordering {
+	fn cmp(&self, m: &VoteStep) -> cmp::Ordering {
 		if self.height != m.height {
 			self.height.cmp(&m.height)
 		} else if self.view != m.view {
@@ -193,11 +195,13 @@ pub fn message_full_rlp(signature: &H520, vote_info: &Bytes) -> Bytes {
 }
 
 pub fn message_hash(vote_step: VoteStep, block_hash: H256) -> H256 {
-	message_info_rlp(&vote_step, Some(block_hash)).sha3()
+	keccak(message_info_rlp(&vote_step, Some(block_hash)))
 }
 
 #[cfg(test)]
 mod tests {
+	use std::sync::Arc;
+	use hash::keccak;
 	use util::*;
 	use rlp::*;
 	use account_provider::AccountProvider;
@@ -226,7 +230,7 @@ mod tests {
 				view: 123,
 				step: Step::Precommit,
 			},
-			block_hash: Some("1".sha3())
+			block_hash: Some(keccak("1")),
 		};
 		let raw_rlp = ::rlp::encode(&message).into_vec();
 		let rlp = Rlp::new(&raw_rlp);
@@ -249,12 +253,12 @@ mod tests {
 	#[test]
 	fn generate_and_verify() {
 		let tap = Arc::new(AccountProvider::transient_provider());
-		let addr = tap.insert_account("0".sha3().into(), "0").unwrap();
+		let addr = tap.insert_account(keccak("0").into(), "0").unwrap();
 		tap.unlock_account_permanently(addr, "0".into()).unwrap();
 
 		let mi = message_info_rlp(&VoteStep::new(123, 2, Step::Precommit), Some(H256::default()));
 
-		let raw_rlp = message_full_rlp(&tap.sign(addr, None, mi.sha3()).unwrap().into(), &mi);
+		let raw_rlp = message_full_rlp(&tap.sign(addr, None, keccak(&mi)).unwrap().into(), &mi);
 
 		let rlp = UntrustedRlp::new(&raw_rlp);
 		let message: ConsensusMessage = rlp.as_val().unwrap();

@@ -24,7 +24,7 @@ use ethcore::mode::Mode;
 use ethsync::ManageNetwork;
 use fetch::{self, Fetch};
 use futures::{BoxFuture, Future};
-use util::sha3;
+use hash::keccak_buffer;
 use updater::{Service as UpdateService};
 
 use jsonrpc_core::Error;
@@ -170,10 +170,14 @@ impl<C, M, U, F> ParitySet for ParitySetClient<C, M, U, F> where
 			result
 				.map_err(errors::fetch)
 				.and_then(|response| {
-					sha3(&mut io::BufReader::new(response)).map_err(errors::fetch)
+					keccak_buffer(&mut io::BufReader::new(response)).map_err(errors::fetch)
 				})
 				.map(Into::into)
 		}))
+	}
+
+	fn dapps_refresh(&self) -> Result<bool, Error> {
+		self.dapps.as_ref().map(|dapps| dapps.refresh_local_dapps()).ok_or_else(errors::dapps_disabled)
 	}
 
 	fn dapps_list(&self) -> Result<Vec<LocalDapp>, Error> {

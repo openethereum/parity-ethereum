@@ -15,11 +15,11 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Web3 rpc implementation.
+use hash::keccak;
 use jsonrpc_core::*;
 use util::version;
 use v1::traits::Web3;
 use v1::types::{H256, Bytes};
-use util::sha3::Hashable;
 
 /// Web3 rpc implementation.
 pub struct Web3Client;
@@ -35,6 +35,6 @@ impl Web3 for Web3Client {
 	}
 
 	fn sha3(&self, data: Bytes) -> Result<H256, Error> {
-		Ok(data.0.sha3().into())
+		Ok(keccak(&data.0).into())
 	}
 }

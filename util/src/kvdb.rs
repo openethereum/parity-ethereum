@@ -16,16 +16,21 @@
 
 //! Key-Value store abstraction with `RocksDB` backend.
 
+use std::{mem, fs};
+use std::collections::{HashMap, BTreeMap};
 use std::io::ErrorKind;
 use std::marker::PhantomData;
-use std::path::PathBuf;
+use std::path::{PathBuf, Path};
+use parking_lot::{Mutex, MutexGuard, RwLock};
 
-use common::*;
 use elastic_array::*;
 use hashdb::DBValue;
 use rlp::{UntrustedRlp, RlpType, Compressible};
 use rocksdb::{DB, Writable, WriteBatch, WriteOptions, IteratorMode, DBIterator,
 	Options, DBCompactionStyle, BlockBasedOptions, Direction, Cache, Column, ReadOptions};
+use {UtilError, Bytes};
+
+
 #[cfg(target_os = "linux")]
 use regex::Regex;
 #[cfg(target_os = "linux")]
@@ -299,6 +304,7 @@ impl Default for CompactionProfile {
 /// Given output of df command return Linux rotational flag file path.
 #[cfg(target_os = "linux")]
 pub fn rotational_from_df_output(df_out: Vec<u8>) -> Option<PathBuf> {
+	use std::str;
 	str::from_utf8(df_out.as_slice())
 		.ok()
 		// Get the drive name.
@@ -319,6 +325,7 @@ impl CompactionProfile {
 	/// Attempt to determine the best profile automatically, only Linux for now.
 	#[cfg(target_os = "linux")]
 	pub fn auto(db_path: &Path) -> CompactionProfile {
+		use std::io::Read;
 		let hdd_check_file = db_path
 			.to_str()
 			.and_then(|path_str| Command::new("df").arg(path_str).output().ok())
@@ -486,6 +493,7 @@ impl Database {
 		}
 		opts.set_parsed_options(&format!("max_total_wal_size={}", 64 * 1024 * 1024))?;
 		opts.set_parsed_options("verify_checksums_in_compaction=0")?;
+		opts.set_parsed_options("keep_log_file_num=1")?;
 		opts.set_max_open_files(config.max_open_files);
 		opts.create_if_missing(true);
 		opts.set_use_fsync(false);

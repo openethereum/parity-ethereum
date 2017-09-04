@@ -25,6 +25,8 @@ extern crate ethcore_ipc as ipc;
 extern crate semver;
 extern crate futures;
 extern crate ethcore_logger;
+extern crate hash;
+extern crate parking_lot;
 
 #[cfg(test)] extern crate tokio_core;
 extern crate ethcore_devtools as devtools;
@@ -54,7 +56,9 @@ use std::sync::Arc;
 
 use std::net::SocketAddr;
 use std::collections::{HashSet, HashMap};
-use util::{H256, Hashable, RwLock, RwLockReadGuard};
+use hash::keccak;
+use parking_lot::{RwLock, RwLockReadGuard};
+use util::H256;
 
 type RpcResult = BoxFuture<jsonrpc_core::Value, jsonrpc_core::Error>;
 
@@ -228,7 +232,7 @@ impl Stratum {
 	fn authorize(&self, params: Params, meta: SocketMetadata) -> RpcResult {
 		future::result(params.parse::<(String, String)>().map(|(worker_id, secret)|{
 			if let Some(valid_secret) = self.secret {
-				let hash = secret.sha3();
+				let hash = keccak(secret);
 				if hash != valid_secret {
 					return to_value(&false);
 				}
@@ -342,7 +346,7 @@ mod tests {
 		let mut core = Core::new().expect("Tokio Core should be created with no errors");
 		let mut buffer = vec![0u8; 2048];
 
-		let mut data_vec = data.as_bytes().into_vec();
+		let mut data_vec = data.as_bytes().to_vec();
 		data_vec.extend(b"\n");
 
 		let stream = TcpStream::connect(addr, &core.handle())
@@ -353,7 +357,7 @@ mod tests {
 				io::read(stream, &mut buffer)
 			})
 			.and_then(|(_, read_buf, len)| {
-				future::ok(read_buf[0..len].into_vec())
+				future::ok(read_buf[0..len].to_vec())
 			});
 			let result = core.run(stream).expect("Core should run with no errors");
 
@@ -454,7 +458,7 @@ mod tests {
 		let mut auth_request =
 			r#"{"jsonrpc": "2.0", "method": "mining.authorize", "params": ["miner1", ""], "id": 1}"#
 			.as_bytes()
-			.into_vec();
+			.to_vec();
 		auth_request.extend(b"\n");
 
 		let mut core = Core::new().expect("Tokio Core should be created with no errors");
@@ -487,7 +491,7 @@ mod tests {
 			})
 			.and_then(|(_, read_buf, len)| {
 				trace!(target: "stratum", "Received work from server");
-				future::ok(read_buf[0..len].into_vec())
+				future::ok(read_buf[0..len].to_vec())
 			});
 		let response = String::from_utf8(
 			core.run(stream).expect("Core should run with no errors")

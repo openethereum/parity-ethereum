@@ -25,14 +25,13 @@ use ::{HashDB, H256};
 use ::bytes::ToPretty;
 use ::nibbleslice::NibbleSlice;
 use ::rlp::{Rlp, RlpStream};
-use ::sha3::SHA3_NULL_RLP;
 use hashdb::DBValue;
-
-use elastic_array::ElasticArray1024;
 
 use std::collections::{HashSet, VecDeque};
 use std::mem;
 use std::ops::Index;
+use elastic_array::ElasticArray1024;
+use keccak::{KECCAK_NULL_RLP};
 
 // For lookups into the Node storage buffer.
 // This is deliberately non-copyable.
@@ -262,7 +261,9 @@ impl<'a> Index<&'a StorageHandle> for NodeStorage {
 /// # Example
 /// ```
 /// extern crate ethcore_util as util;
+/// extern crate hash;
 ///
+/// use hash::KECCAK_NULL_RLP;
 /// use util::trie::*;
 /// use util::hashdb::*;
 /// use util::memorydb::*;
@@ -273,7 +274,7 @@ impl<'a> Index<&'a StorageHandle> for NodeStorage {
 ///   let mut root = H256::new();
 ///   let mut t = TrieDBMut::new(&mut memdb, &mut root);
 ///   assert!(t.is_empty());
-///   assert_eq!(*t.root(), ::util::sha3::SHA3_NULL_RLP);
+///   assert_eq!(*t.root(), KECCAK_NULL_RLP);
 ///   t.insert(b"foo", b"bar").unwrap();
 ///   assert!(t.contains(b"foo").unwrap());
 ///   assert_eq!(t.get(b"foo").unwrap().unwrap(), DBValue::from_slice(b"bar"));
@@ -295,8 +296,8 @@ pub struct TrieDBMut<'a> {
 impl<'a> TrieDBMut<'a> {
 	/// Create a new trie with backing database `db` and empty `root`.
 	pub fn new(db: &'a mut HashDB, root: &'a mut H256) -> Self {
-		*root = SHA3_NULL_RLP;
-		let root_handle = NodeHandle::Hash(SHA3_NULL_RLP);
+		*root = KECCAK_NULL_RLP;
+		let root_handle = NodeHandle::Hash(KECCAK_NULL_RLP);
 
 		TrieDBMut {
 			storage: NodeStorage::empty(),
@@ -367,44 +368,50 @@ impl<'a> TrieDBMut<'a> {
 	}
 
 	// walk the trie, attempting to find the key's node.
-	fn lookup<'x, 'key>(&'x self, partial: NibbleSlice<'key>, handle: &NodeHandle) -> super::Result<Option<DBValue>>
+	fn lookup<'x, 'key>(&'x self, mut partial: NibbleSlice<'key>, handle: &NodeHandle) -> super::Result<Option<DBValue>>
 		where 'x: 'key
 	{
-		match *handle {
-			NodeHandle::Hash(ref hash) => Lookup {
-				db: &*self.db,
-				query: DBValue::from_slice,
-				hash: hash.clone(),
-			}.look_up(partial),
-			NodeHandle::InMemory(ref handle) => match self.storage[handle] {
-				Node::Empty => Ok(None),
-				Node::Leaf(ref key, ref value) => {
-					if NibbleSlice::from_encoded(key).0 == partial {
-						Ok(Some(DBValue::from_slice(value)))
-					} else {
-						Ok(None)
+		let mut handle = handle;
+		loop {
+			let (mid, child) = match *handle {
+				NodeHandle::Hash(ref hash) => return Lookup {
+					db: &*self.db,
+					query: DBValue::from_slice,
+					hash: hash.clone(),
+				}.look_up(partial),
+				NodeHandle::InMemory(ref handle) => match self.storage[handle] {
+					Node::Empty => return Ok(None),
+					Node::Leaf(ref key, ref value) => {
+						if NibbleSlice::from_encoded(key).0 == partial {
+							return Ok(Some(DBValue::from_slice(value)));
+						} else {
+							return Ok(None);
+						}
 					}
-				}
-				Node::Extension(ref slice, ref child) => {
-					let slice = NibbleSlice::from_encoded(slice).0;
-					if partial.starts_with(&slice) {
-						self.lookup(partial.mid(slice.len()), child)
-					} else {
-						Ok(None)
+					Node::Extension(ref slice, ref child) => {
+						let slice = NibbleSlice::from_encoded(slice).0;
+						if partial.starts_with(&slice) {
+							(slice.len(), child)
+						} else {
+							return Ok(None);
+						}
 					}
-				}
-				Node::Branch(ref children, ref value) => {
-					if partial.is_empty() {
-						Ok(value.as_ref().map(|v| DBValue::from_slice(v)))
-					} else {
-						let idx = partial.at(0);
-						match children[idx as usize].as_ref() {
-							Some(child) => self.lookup(partial.mid(1), child),
-							None => Ok(None),
+					Node::Branch(ref children, ref value) => {
+						if partial.is_empty() {
+							return Ok(value.as_ref().map(|v| DBValue::from_slice(v)));
+						} else {
+							let idx = partial.at(0);
+							match children[idx as usize].as_ref() {
+								Some(child) => (1, child),
+								None => return Ok(None),
+							}
 						}
 					}
 				}
-			}
+			};
+
+			partial = partial.mid(mid);
+			handle = child;
 		}
 	}
 
@@ -865,7 +872,7 @@ impl<'a> TrieMut for TrieDBMut<'a> {
 
 	fn is_empty(&self) -> bool {
 		match self.root_handle {
-			NodeHandle::Hash(h) => h == SHA3_NULL_RLP,
+			NodeHandle::Hash(h) => h == KECCAK_NULL_RLP,
 			NodeHandle::InMemory(ref h) => match self.storage[h] {
 				Node::Empty => true,
 				_ => false,
@@ -913,8 +920,8 @@ impl<'a> TrieMut for TrieDBMut<'a> {
 			}
 			None => {
 				trace!(target: "trie", "remove: obliterated trie");
-				self.root_handle = NodeHandle::Hash(SHA3_NULL_RLP);
-				*self.root = SHA3_NULL_RLP;
+				self.root_handle = NodeHandle::Hash(KECCAK_NULL_RLP);
+				*self.root = KECCAK_NULL_RLP;
 			}
 		}
 
@@ -930,12 +937,13 @@ impl<'a> Drop for TrieDBMut<'a> {
 
 #[cfg(test)]
 mod tests {
-	use triehash::trie_root;
+	extern crate triehash;
+	use self::triehash::trie_root;
 	use hashdb::*;
 	use memorydb::*;
 	use super::*;
 	use bytes::ToPretty;
-	use sha3::SHA3_NULL_RLP;
+	use keccak::KECCAK_NULL_RLP;
 	use super::super::TrieMut;
 	use super::super::standardmap::*;
 
@@ -990,7 +998,7 @@ mod tests {
 			assert_eq!(*memtrie.root(), real);
 			unpopulate_trie(&mut memtrie, &x);
 			memtrie.commit();
-			if *memtrie.root() != SHA3_NULL_RLP {
+			if *memtrie.root() != KECCAK_NULL_RLP {
 				println!("- TRIE MISMATCH");
 				println!("");
 				println!("{:?} vs {:?}", memtrie.root(), real);
@@ -998,7 +1006,7 @@ mod tests {
 					println!("{:?} -> {:?}", i.0.pretty(), i.1.pretty());
 				}
 			}
-			assert_eq!(*memtrie.root(), SHA3_NULL_RLP);
+			assert_eq!(*memtrie.root(), KECCAK_NULL_RLP);
 		}
 	}
 
@@ -1007,7 +1015,7 @@ mod tests {
 		let mut memdb = MemoryDB::new();
 		let mut root = H256::new();
 		let mut t = TrieDBMut::new(&mut memdb, &mut root);
-		assert_eq!(*t.root(), SHA3_NULL_RLP);
+		assert_eq!(*t.root(), KECCAK_NULL_RLP);
 	}
 
 	#[test]
@@ -1262,7 +1270,7 @@ mod tests {
 		}
 
 		assert!(t.is_empty());
-		assert_eq!(*t.root(), SHA3_NULL_RLP);
+		assert_eq!(*t.root(), KECCAK_NULL_RLP);
 	}
 
 	#[test]

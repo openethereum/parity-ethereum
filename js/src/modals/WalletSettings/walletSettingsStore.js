@@ -20,6 +20,7 @@ import BigNumber from 'bignumber.js';
 
 import { validateUint, validateAddress } from '~/util/validation';
 import { DEFAULT_GAS, MAX_GAS_ESTIMATION } from '~/util/constants';
+import WalletsUtils from '~/util/wallets';
 
 const STEPS = {
   EDIT: { title: 'wallet settings' },
@@ -220,8 +221,6 @@ export default class WalletSettingsStore {
     this.api = api;
     this.step = this.stepsKeys[0];
 
-    this.walletInstance = wallet.instance;
-
     this.initialWallet = {
       address: wallet.address,
       owners: wallet.owners,
@@ -280,70 +279,41 @@ export default class WalletSettingsStore {
 
   @action send = () => {
     const changes = this.changes;
-    const walletInstance = this.walletInstance;
 
-    Promise.all(changes.map((change) => this.sendChange(change, walletInstance)));
+    Promise.all(changes.map((change) => this.sendChange(change)));
     this.onClose();
   }
 
-  @action sendChange = (change, walletInstance) => {
-    const { method, values } = this.getChangeMethod(change, walletInstance);
+  @action sendChange = (change) => {
+    const { api, initialWallet } = this;
 
-    const options = {
-      from: this.wallet.sender,
-      to: this.initialWallet.address,
-      gas: MAX_GAS_ESTIMATION
-    };
-
-    return method
-      .estimateGas(options, values)
-      .then((gasEst) => {
-        let gas = gasEst;
-
-        if (gas.gt(DEFAULT_GAS)) {
-          gas = gas.mul(1.2);
+    WalletsUtils.getChangeMethod(api, initialWallet.address, change)
+      .then((changeMethod) => {
+        if (!changeMethod) {
+          return;
         }
-        options.gas = gas;
 
-        return method.postTransaction(options, values);
+        const { method, values } = changeMethod;
+
+        const options = {
+          from: this.wallet.sender,
+          to: initialWallet.address,
+          gas: MAX_GAS_ESTIMATION
+        };
+
+        return method
+          .estimateGas(options, values)
+          .then((gasEst) => {
+            let gas = gasEst;
+
+            if (gas.gt(DEFAULT_GAS)) {
+              gas = gas.mul(1.2);
+            }
+            options.gas = gas;
+
+            return method.postTransaction(options, values);
+          });
       });
-  }
-
-  getChangeMethod = (change, walletInstance) => {
-    if (change.type === 'require') {
-      return {
-        method: walletInstance.changeRequirement,
-        values: [ change.value ]
-      };
-    }
-
-    if (change.type === 'dailylimit') {
-      return {
-        method: walletInstance.setDailyLimit,
-        values: [ change.value ]
-      };
-    }
-
-    if (change.type === 'add_owner') {
-      return {
-        method: walletInstance.addOwner,
-        values: [ change.value ]
-      };
-    }
-
-    if (change.type === 'change_owner') {
-      return {
-        method: walletInstance.changeOwner,
-        values: [ change.value.from, change.value.to ]
-      };
-    }
-
-    if (change.type === 'remove_owner') {
-      return {
-        method: walletInstance.removeOwner,
-        values: [ change.value ]
-      };
-    }
   }
 
   @action validateWallet = (_wallet) => {
