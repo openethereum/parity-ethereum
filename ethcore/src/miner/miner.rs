@@ -18,7 +18,9 @@ use std::time::{Instant, Duration};
 use std::collections::{BTreeMap, HashSet};
 use std::sync::Arc;
 
+use parking_lot::{Mutex, RwLock};
 use util::*;
+use timer::PerfTimer;
 use using_queue::{UsingQueue, GetAction};
 use account_provider::{AccountProvider, SignError as AccountError};
 use state::State;
@@ -40,6 +42,7 @@ use miner::service_transaction_checker::ServiceTransactionChecker;
 use price_info::{Client as PriceInfoClient, PriceInfo};
 use price_info::fetch::Client as FetchClient;
 use header::{Header, BlockNumber};
+use ansi_term::Colour;
 
 /// Different possible definitions for pending transaction set.
 #[derive(Debug, PartialEq)]

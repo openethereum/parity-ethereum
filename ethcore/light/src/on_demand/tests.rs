@@ -22,7 +22,8 @@ use ethcore::header::{Header, Seal};
 use futures::Future;
 use network::{PeerId, NodeId};
 use net::*;
-use util::{H256, Mutex};
+use parking_lot::Mutex;
+use util::H256;
 use time::Duration;
 use ::request::{self as basic_request, Response};
 

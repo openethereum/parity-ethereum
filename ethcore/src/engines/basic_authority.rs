@@ -19,6 +19,7 @@
 use std::sync::{Weak, Arc};
 use std::collections::BTreeMap;
 use std::cmp;
+use parking_lot::RwLock;
 use util::*;
 use ethkey::{recover, public_to_address, Signature};
 use account_provider::AccountProvider;
@@ -31,6 +32,7 @@ use evm::Schedule;
 use ethjson;
 use header::{Header, BlockNumber};
 use client::Client;
+use semantic_version::SemanticVersion;
 use super::signer::EngineSigner;
 use super::validator_set::{ValidatorSet, SimpleList, new_validator_set};
 

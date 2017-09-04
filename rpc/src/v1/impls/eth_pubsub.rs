@@ -39,7 +39,8 @@ use light::cache::Cache;
 use light::on_demand::OnDemand;
 use light::client::{LightChainClient, LightChainNotify};
 use parity_reactor::Remote;
-use util::{RwLock, Mutex, H256, Bytes};
+use util::{H256, Bytes};
+use parking_lot::{RwLock, Mutex};
 
 type Client = Sink<pubsub::Result>;
 

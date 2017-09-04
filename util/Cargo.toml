@@ -33,6 +33,7 @@ ethcore-bloom-journal = { path = "bloom" }
 regex = "0.2"
 lru-cache = "0.1.0"
 ethcore-logger = { path = "../logger" }
+triehash = { path = "triehash" }
 
 [features]
 default = []

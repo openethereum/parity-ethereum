@@ -23,5 +23,6 @@ semver = "0.6"
 ethcore-ipc-nano = { path = "../ipc/nano" }
 futures = "0.1"
 tokio-core = "0.1"
+parking_lot = "0.4"
 ethcore-logger = { path = "../logger" }
 hash = { path = "../util/hash" }

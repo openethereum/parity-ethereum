@@ -39,7 +39,8 @@ use ethcore::transaction::{Action, SignedTransaction, Transaction as EthTransact
 use ethsync::LightSync;
 use rlp::UntrustedRlp;
 use hash::{KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP};
-use util::{RwLock, Mutex, U256};
+use util::U256;
+use parking_lot::{RwLock, Mutex};
 
 use futures::{future, Future, BoxFuture, IntoFuture};
 use futures::sync::oneshot;

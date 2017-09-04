@@ -155,6 +155,7 @@ pub fn execute(cmd: BlockchainCmd) -> Result<(), String> {
 fn execute_import_light(cmd: ImportBlockchain) -> Result<(), String> {
 	use light::client::{Service as LightClientService, Config as LightClientConfig};
 	use light::cache::Cache as LightDataCache;
+	use parking_lot::Mutex;
 
 	let timer = Instant::now();
 
@@ -188,7 +189,7 @@ fn execute_import_light(cmd: ImportBlockchain) -> Result<(), String> {
 	// create dirs used by parity
 	cmd.dirs.create_dirs(false, false, false)?;
 
-	let cache = Arc::new(::util::Mutex::new(
+	let cache = Arc::new(Mutex::new(
 		LightDataCache::new(Default::default(), ::time::Duration::seconds(0))
 	));
 

@@ -40,6 +40,7 @@ use state_db::StateDB;
 use state::{Backend, State, Substate};
 use state::backend::Basic as BasicBackend;
 use trace::{NoopTracer, NoopVMTracer};
+use parking_lot::RwLock;
 use util::*;
 
 /// Parameters common to ethereum-like blockchains.

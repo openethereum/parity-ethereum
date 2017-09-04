@@ -24,7 +24,7 @@ use futures::Future;
 use futures_cpupool as pool;
 use jsonrpc_core as rpc;
 use order_stat;
-use util::RwLock;
+use parking_lot::RwLock;
 
 pub use self::pool::CpuPool;
 

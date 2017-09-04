@@ -19,6 +19,7 @@ use std::collections::hash_map::Entry;
 use smallvec::SmallVec;
 use hash::{keccak, KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP};
 use heapsize::HeapSizeOf;
+use triehash::ordered_trie_root;
 use util::*;
 use rlp::*;
 use network::NetworkError;

@@ -18,6 +18,7 @@ use std::fmt;
 use std::collections::BTreeMap;
 use itertools::Itertools;
 use hash::{keccak};
+use triehash::sec_trie_root;
 use util::*;
 use state::Account;
 use ethjson;

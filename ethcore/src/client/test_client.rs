@@ -23,6 +23,7 @@ use std::mem;
 use itertools::Itertools;
 use rustc_hex::FromHex;
 use hash::keccak;
+use parking_lot::RwLock;
 use util::*;
 use rlp::*;
 use ethkey::{Generator, Random};

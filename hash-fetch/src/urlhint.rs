@@ -216,7 +216,8 @@ pub mod tests {
 
 	use super::*;
 	use super::guess_mime_type;
-	use util::{Bytes, Address, Mutex, ToPretty};
+	use parking_lot::Mutex;
+	use util::{Bytes, Address, ToPretty};
 
 	pub struct FakeRegistrar {
 		pub calls: Arc<Mutex<Vec<(String, String)>>>,

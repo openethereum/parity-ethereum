@@ -42,6 +42,8 @@ use ethkey::{verify_address, Signature};
 use io::{IoContext, IoHandler, TimerToken, IoService};
 use itertools::{self, Itertools};
 use rlp::{UntrustedRlp, encode};
+use semantic_version::SemanticVersion;
+use parking_lot::{Mutex, RwLock};
 use util::*;
 
 mod finality;
