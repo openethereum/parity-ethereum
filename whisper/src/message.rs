@@ -24,9 +24,6 @@ use rlp::{self, DecoderError, RlpStream, UntrustedRlp};
 use smallvec::SmallVec;
 use tiny_keccak::{keccak256, Keccak};
 
-/// Version of the envelope.
-pub const ENVELOPE_VERSION: usize = ::net::PROTOCOL_VERSION;
-
 /// Work-factor proved. Takes 3 parameters: size of message, time to live,
 /// and hash.
 ///
@@ -159,8 +156,6 @@ fn decode_topics(rlp: UntrustedRlp) -> Result<SmallVec<[Topic; 4]>, DecoderError
 // Raw envelope struct.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Envelope {
-	/// Version number.
-	pub version: usize,
 	/// Expiry timestamp
 	pub expiry: u64,
 	/// Time-to-live in seconds
@@ -184,8 +179,8 @@ impl Envelope {
 
 		let mut buf = [0; 32];
 
-		let mut stream = RlpStream::new_list(5);
-		stream.append(&self.version).append(&self.expiry).append(&self.ttl);
+		let mut stream = RlpStream::new_list(4);
+		stream.append(&self.expiry).append(&self.ttl);
 
 		append_topics(&mut stream, &self.topics)
 			.append(&self.data);
@@ -206,8 +201,7 @@ impl Envelope {
 
 impl rlp::Encodable for Envelope {
 	fn rlp_append(&self, s: &mut RlpStream) {
-		s.begin_list(6)
-			.append(&self.version)
+		s.begin_list(5)
 			.append(&self.expiry)
 			.append(&self.ttl);
 
@@ -219,19 +213,14 @@ impl rlp::Encodable for Envelope {
 
 impl rlp::Decodable for Envelope {
 	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
-		if rlp.item_count()? != 6 { return Err(DecoderError::RlpIncorrectListLen) }
+		if rlp.item_count()? != 5 { return Err(DecoderError::RlpIncorrectListLen) }
 
-		let version: usize = rlp.val_at(0)?;
-		if version != ENVELOPE_VERSION {
-			return Err(DecoderError::Custom("unknown envelope version"));
-		}
 		Ok(Envelope {
-			version: version,
-			expiry: rlp.val_at(1)?,
-			ttl: rlp.val_at(2)?,
-			topics: decode_topics(rlp.at(3)?)?,
-			data: rlp.val_at(4)?,
-			nonce: rlp.val_at(5)?,
+			expiry: rlp.val_at(0)?,
+			ttl: rlp.val_at(1)?,
+			topics: decode_topics(rlp.at(2)?)?,
+			data: rlp.val_at(3)?,
+			nonce: rlp.val_at(4)?,
 		})
 	}
 }
@@ -277,8 +266,6 @@ impl Message {
 			XorShiftRng::from_seed(thread_rng.gen::<[u32; 4]>())
 		};
 
-		let version = ENVELOPE_VERSION;
-
 		assert!(params.ttl > 0);
 
 		let expiry = {
@@ -291,8 +278,8 @@ impl Message {
 		};
 
 		let start_digest = {
-			let mut stream = RlpStream::new_list(5);
-			stream.append(&version).append(&expiry).append(&params.ttl);
+			let mut stream = RlpStream::new_list(4);
+			stream.append(&expiry).append(&params.ttl);
 			append_topics(&mut stream, &params.topics).append(&params.payload);
 
 			let mut digest = Keccak::new_keccak256();
@@ -325,7 +312,6 @@ impl Message {
 		}
 
 		let envelope = Envelope {
-			version: version,
 			expiry: expiry,
 			ttl: params.ttl,
 			topics: params.topics.into_iter().collect(),
@@ -452,7 +438,6 @@ mod tests {
 	#[test]
 	fn round_trip() {
 		let envelope = Envelope {
-			version: ENVELOPE_VERSION,
 			expiry: 100_000,
 			ttl: 30,
 			data: vec![9; 256],
@@ -469,7 +454,6 @@ mod tests {
 	#[test]
 	fn round_trip_multitopic() {
 		let envelope = Envelope {
-			version: ENVELOPE_VERSION,
 			expiry: 100_000,
 			ttl: 30,
 			data: vec![9; 256],
@@ -486,7 +470,6 @@ mod tests {
 	#[test]
 	fn passes_checks() {
 		let envelope = Envelope {
-			version: ENVELOPE_VERSION,
 			expiry: 100_000,
 			ttl: 30,
 			data: vec![9; 256],
@@ -506,7 +489,6 @@ mod tests {
 	#[should_panic]
 	fn future_message() {
 		let envelope = Envelope {
-			version: ENVELOPE_VERSION,
 			expiry: 100_000,
 			ttl: 30,
 			data: vec![9; 256],
@@ -524,7 +506,6 @@ mod tests {
 	#[should_panic]
 	fn pre_epoch() {
 		let envelope = Envelope {
-			version: ENVELOPE_VERSION,
 			expiry: 100_000,
 			ttl: 200_000,
 			data: vec![9; 256],

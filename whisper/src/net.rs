@@ -317,8 +317,8 @@ struct Peer {
 	known_messages: HashSet<H256>,
 	topic_filter: Option<H512>,
 	pow_requirement: f64,
-	version: usize,
 	is_parity: bool,
+	_protocol_version: usize,
 }
 
 impl Peer {
@@ -331,7 +331,6 @@ impl Peer {
 
 	// whether this peer will accept the message.
 	fn will_accept(&self, message: &Message) -> bool {
-		if message.envelope().version > self.version { return false }
 		if self.known_messages.contains(message.hash()) { return false }
 
 		// only parity peers will accept multitopic messages.
@@ -651,8 +650,8 @@ impl<T: MessageHandler> Network<T> {
 			known_messages: HashSet::new(),
 			topic_filter: None,
 			pow_requirement: 0f64,
-			version: version,
 			is_parity: io.protocol_version(PARITY_PROTOCOL_ID, *peer).is_some(),
+			_protocol_version: version,
 		}));
 
 		io.send(*peer, packet::STATUS, ::rlp::EMPTY_LIST_RLP.to_vec());
