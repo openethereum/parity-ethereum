@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import InterceptorStore from '../DappRequests/store';
+import SignerPluginStore from '../Signer/pluginStore';
 import StatusPluginStore from '../Status/pluginStore';
 
 function injectInterceptorPlugin (middleware) {
@@ -24,6 +25,9 @@ function injectInterceptorPlugin (middleware) {
 }
 
 function injectSignerPlugin (component) {
+  SignerPluginStore.get().addComponent(component);
+
+  return true;
 }
 
 function injectStatusPlugin (component) {

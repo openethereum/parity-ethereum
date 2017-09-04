@@ -161,6 +161,10 @@ export default class Store {
   }
 
   addMiddleware (middleware) {
+    if (!middleware || (typeof middleware !== 'function')) {
+      throw new Error('Interceptor middleware does not implement a function');
+    }
+
     this.middleware.push(middleware);
   }
 

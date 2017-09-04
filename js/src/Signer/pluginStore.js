@@ -22,11 +22,17 @@ export default class PluginStore {
   @observable components = [];
 
   @action addComponent (Component) {
-    if (!Component) {
-      throw new Error('Unable to attach empty Component to status');
+    if (!Component || (typeof Component.isHandler !== 'function')) {
+      throw new Error(`Unable to attach Signer component, 'isHandler' function is not defined`);
     }
 
     this.components.push(Component);
+  }
+
+  findHandler (payload) {
+    return this.components.find((component) => {
+      return component.isHandler(payload);
+    });
   }
 
   static get () {

@@ -20,15 +20,18 @@ import PropTypes from 'prop-types';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
+import { observer } from 'mobx-react';
 
 import * as RequestsActions from '@parity/shared/redux/providers/signerActions';
 import Container from '@parity/ui/Container';
 import RequestPending from '@parity/ui/Signer/RequestPending';
-
 import Store from '@parity/shared/mobx/signerStore';
+
+import PluginStore from '../pluginStore';
 
 import styles from './embedded.css';
 
+@observer
 class Embedded extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
@@ -49,6 +52,7 @@ class Embedded extends Component {
   };
 
   store = new Store(this.context.api, false, this.props.externalLink);
+  pluginStore = PluginStore.get();
 
   render () {
     return (
@@ -87,6 +91,22 @@ class Embedded extends Component {
   renderPending = (data, index) => {
     const { actions, gasLimit, netVersion } = this.props;
     const { date, id, isSending, payload, origin } = data;
+    const Handler = this.pluginStore.findHandler(payload);
+
+    // if (Handler) {
+    //   return (
+    //     <Handler
+    //       gasLimit={ gasLimit }
+    //       id={ id }
+    //       isSending={ isSending }
+    //       key={ id }
+    //       netVersion={ netVersion }
+    //       onConfirm={ actions.startConfirmRequest }
+    //       onReject={ actions.startRejectRequest }
+    //       payload={ payload }
+    //     />
+    //   );
+    // }
 
     return (
       <RequestPending
