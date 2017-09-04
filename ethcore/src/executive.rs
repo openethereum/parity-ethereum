@@ -18,6 +18,8 @@
 use std::cmp;
 use std::sync::Arc;
 use hash::keccak;
+use bigint::prelude::{U256, U512};
+use bigint::hash::H256;
 use util::*;
 use state::{Backend as StateBackend, State, Substate, CleanupMode};
 use engines::Engine;
@@ -659,7 +661,9 @@ mod tests {
 	use rustc_hex::FromHex;
 	use ethkey::{Generator, Random};
 	use super::*;
-	use util::{H256, U256, U512, Address};
+	use bigint::prelude::{U256, U512};
+	use bigint::hash::H256;
+	use util::Address;
 	use util::bytes::BytesRef;
 	use vm::{ActionParams, ActionValue, CallType, EnvInfo, CreateContractAddress};
 	use evm::{Factory, VMType};

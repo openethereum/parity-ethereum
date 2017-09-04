@@ -26,7 +26,7 @@ use fetch::{Fetch, Response, Error as FetchError, Client as FetchClient};
 use futures::Future;
 use parity_reactor::Remote;
 use urlhint::{ContractClient, URLHintContract, URLHint, URLHintResult};
-use util::H256;
+use bigint::hash::H256;
 
 /// API for fetching by hash.
 pub trait HashFetch: Send + Sync + 'static {

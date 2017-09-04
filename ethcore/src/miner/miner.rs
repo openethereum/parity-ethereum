@@ -18,6 +18,8 @@ use std::time::{Instant, Duration};
 use std::collections::{BTreeMap, HashSet};
 use std::sync::Arc;
 
+use bigint::prelude::U256;
+use bigint::hash::H256;
 use util::*;
 use using_queue::{UsingQueue, GetAction};
 use account_provider::{AccountProvider, SignError as AccountError};
@@ -1239,7 +1241,7 @@ mod tests {
 	use super::super::{MinerService, PrioritizationStrategy};
 	use super::*;
 	use block::IsBlock;
-	use util::U256;
+	use bigint::prelude::U256;
 	use ethkey::{Generator, Random};
 	use client::{BlockChainClient, TestBlockChainClient, EachBlockWith, TransactionImportResult};
 	use header::BlockNumber;

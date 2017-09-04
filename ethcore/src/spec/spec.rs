@@ -40,6 +40,8 @@ use state_db::StateDB;
 use state::{Backend, State, Substate};
 use state::backend::Basic as BasicBackend;
 use trace::{NoopTracer, NoopVMTracer};
+use bigint::prelude::U256;
+use bigint::hash::{H256, H2048};
 use util::*;
 
 /// Parameters common to ethereum-like blockchains.

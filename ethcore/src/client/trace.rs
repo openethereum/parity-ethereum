@@ -1,7 +1,7 @@
 
 //! Bridge between Tracedb and Blockchain.
 
-use util::{H256};
+use bigint::hash::H256;
 use header::BlockNumber;
 use trace::DatabaseExtras as TraceDatabaseExtras;
 use blockchain::{BlockChain, BlockProvider};

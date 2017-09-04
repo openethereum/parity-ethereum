@@ -18,7 +18,7 @@ use std::sync::Arc;
 use rand::random;
 use hash::write_keccak;
 use mio::tcp::*;
-use util::hash::*;
+use bigint::hash::*;
 use util::bytes::Bytes;
 use rlp::*;
 use connection::{Connection};
@@ -333,7 +333,7 @@ mod test {
 	use std::sync::Arc;
 	use rustc_hex::FromHex;
 	use super::*;
-	use util::hash::H256;
+	use bigint::hash::H256;
 	use io::*;
 	use mio::tcp::TcpStream;
 	use stats::NetworkStats;

@@ -16,7 +16,7 @@
 
 use std::collections::{BTreeSet, BTreeMap};
 use ethkey::{Public, Secret};
-use util::H256;
+use bigint::hash::H256;
 use key_server_cluster::{Error, NodeId, DocumentKeyShare};
 use key_server_cluster::math;
 use key_server_cluster::jobs::job_session::{JobPartialRequestAction, JobPartialResponseAction, JobExecutor};
@@ -139,7 +139,7 @@ impl JobExecutor for SigningJob {
 
 		let signature_c = math::combine_message_hash_with_public(message_hash, &self.session_public)?;
 		let signature_s = math::compute_signature(partial_responses.values().map(|r| &r.partial_signature))?;
-	
+
 		Ok((signature_c, signature_s))
 	}
 }

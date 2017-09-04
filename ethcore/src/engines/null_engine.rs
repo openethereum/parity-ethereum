@@ -18,7 +18,7 @@ use std::collections::BTreeMap;
 use util::Address;
 use builtin::Builtin;
 use block::{ExecutedBlock, IsBlock};
-use util::U256;
+use bigint::prelude::U256;
 use engines::Engine;
 use spec::CommonParams;
 use evm::Schedule;

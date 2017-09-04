@@ -27,7 +27,9 @@ use light::on_demand::{request, OnDemand};
 use light::TransactionQueue as LightTransactionQueue;
 use rlp;
 use hash::keccak;
-use util::{Address, H520, H256, U256, Bytes, Mutex, RwLock};
+use bigint::prelude::U256;
+use bigint::hash::{H256, H520};
+use util::{Address, Bytes, Mutex, RwLock};
 use stats::Corpus;
 
 use ethkey::Signature;

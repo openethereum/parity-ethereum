@@ -17,6 +17,8 @@
 //! Transaction Execution environment.
 use std::cmp;
 use std::sync::Arc;
+use bigint::prelude::U256;
+use bigint::hash::H256;
 use util::*;
 use state::{Backend as StateBackend, State, Substate, CleanupMode};
 use engines::Engine;

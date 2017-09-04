@@ -25,7 +25,8 @@ use memorydb::*;
 use super::{DB_PREFIX_LEN, LATEST_ERA_KEY};
 use super::traits::JournalDB;
 use kvdb::{KeyValueDB, DBTransaction};
-use {Bytes, H256, BaseDataError, UtilError};
+use bigint::hash::H256;
+use {Bytes, BaseDataError, UtilError};
 
 /// Implementation of the `HashDB` trait for a disk-backed database with a memory overlay
 /// and latent-removal semantics.
@@ -210,7 +211,7 @@ mod tests {
 	use super::*;
 	use journaldb::traits::JournalDB;
 	use kvdb::Database;
-	use {H32};
+	use bigint::hash::H32;
 
 	#[test]
 	fn insert_same_in_fork() {

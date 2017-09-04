@@ -23,6 +23,8 @@ use std::mem;
 use itertools::Itertools;
 use rustc_hex::FromHex;
 use hash::keccak;
+use bigint::prelude::U256;
+use bigint::hash::{H256, H2048};
 use util::*;
 use rlp::*;
 use ethkey::{Generator, Random};

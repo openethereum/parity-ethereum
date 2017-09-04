@@ -25,7 +25,7 @@ use std::path::{PathBuf};
 use std::fmt;
 use std::fs;
 use std::io::{Read, Write};
-use util::hash::*;
+use bigint::hash::*;
 use util::UtilError;
 use rlp::*;
 use time::Tm;
@@ -58,7 +58,7 @@ impl NodeEndpoint {
 	pub fn is_allowed(&self, filter: &IpFilter) -> bool {
 		(self.is_allowed_by_predefined(&filter.predefined) || filter.custom_allow.iter().any(|ipnet| {
 			self.address.ip().is_within(ipnet)
-		})) 
+		}))
 		&& !filter.custom_block.iter().any(|ipnet| {
 			self.address.ip().is_within(ipnet)
 		})
@@ -373,7 +373,7 @@ pub fn is_valid_node_url(url: &str) -> bool {
 mod tests {
 	use super::*;
 	use std::net::{SocketAddr, SocketAddrV4, Ipv4Addr};
-	use util::H512;
+	use bigint::hash::H512;
 	use std::str::FromStr;
 	use devtools::*;
 	use ipnetwork::IpNetwork;

@@ -16,7 +16,8 @@
 
 //! Execution environment substate.
 use std::collections::HashSet;
-use util::{Address, U256};
+use bigint::prelude::U256;
+use util::Address;
 use log_entry::LogEntry;
 use evm::{Schedule, CleanDustMode};
 use super::CleanupMode;

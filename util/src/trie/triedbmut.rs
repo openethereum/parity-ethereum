@@ -21,7 +21,7 @@ use super::lookup::Lookup;
 use super::node::Node as RlpNode;
 use super::node::NodeKey;
 
-use ::{HashDB, H256};
+use ::HashDB;
 use ::bytes::ToPretty;
 use ::nibbleslice::NibbleSlice;
 use ::rlp::{Rlp, RlpStream};
@@ -30,6 +30,7 @@ use hashdb::DBValue;
 use std::collections::{HashSet, VecDeque};
 use std::mem;
 use std::ops::Index;
+use bigint::hash::H256;
 use elastic_array::ElasticArray1024;
 use keccak::{KECCAK_NULL_RLP};
 
@@ -261,13 +262,14 @@ impl<'a> Index<&'a StorageHandle> for NodeStorage {
 /// # Example
 /// ```
 /// extern crate ethcore_util as util;
+/// extern crate ethcore_bigint as bigint;
 /// extern crate hash;
 ///
 /// use hash::KECCAK_NULL_RLP;
 /// use util::trie::*;
 /// use util::hashdb::*;
 /// use util::memorydb::*;
-/// use util::hash::*;
+/// use bigint::hash::*;
 ///
 /// fn main() {
 ///   let mut memdb = MemoryDB::new();

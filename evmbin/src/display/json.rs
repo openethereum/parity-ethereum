@@ -18,7 +18,9 @@
 
 use ethcore::trace;
 use std::collections::HashMap;
-use util::{U256, H256, ToPretty};
+use bigint::prelude::U256;
+use bigint::hash::H256;
+use util::ToPretty;
 
 use display;
 use info as vm;

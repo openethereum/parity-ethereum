@@ -20,7 +20,7 @@
 
 use std::collections::BTreeMap;
 use std::cmp;
-use hash::*;
+use bigint::hash::*;
 use keccak::keccak;
 use rlp;
 use rlp::RlpStream;
@@ -30,9 +30,10 @@ use vector::SharedPrefix;
 ///
 /// ```rust
 /// extern crate ethcore_util as util;
+/// extern crate ethcore_bigint as bigint;
 /// use std::str::FromStr;
 /// use util::triehash::*;
-/// use util::hash::*;
+/// use bigint::hash::*;
 ///
 /// fn main() {
 /// 	let v = vec![From::from("doe"), From::from("reindeer")];
@@ -62,9 +63,10 @@ pub fn ordered_trie_root<I>(input: I) -> H256
 ///
 /// ```rust
 /// extern crate ethcore_util as util;
+/// extern crate ethcore_bigint as bigint;
 /// use std::str::FromStr;
 /// use util::triehash::*;
-/// use util::hash::*;
+/// use bigint::hash::*;
 ///
 /// fn main() {
 /// 	let v = vec![
@@ -96,9 +98,10 @@ pub fn trie_root<I>(input: I) -> H256
 ///
 /// ```rust
 /// extern crate ethcore_util as util;
+/// extern crate ethcore_bigint as bigint;
 /// use std::str::FromStr;
 /// use util::triehash::*;
-/// use util::hash::*;
+/// use bigint::hash::*;
 ///
 /// fn main() {
 /// 	let v = vec![
@@ -324,7 +327,7 @@ fn test_hex_prefix_encode() {
 #[cfg(test)]
 mod tests {
 	use std::str::FromStr;
-	use hash::H256;
+	use bigint::hash::H256;
 	use super::trie_root;
 
 	#[test]

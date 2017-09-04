@@ -13,6 +13,7 @@ ethcore-ipc-codegen = { path = "../ipc/codegen" }
 
 [dependencies]
 ethcore-util = { path = "../util" }
+ethcore-bigint = { path = "../util/bigint" }
 ethcore-network = { path = "../util/network" }
 ethcore-io = { path = "../util/io" }
 ethcore-light = { path = "../ethcore/light"}

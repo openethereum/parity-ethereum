@@ -18,6 +18,7 @@
 
 extern crate ethcore;
 extern crate ethcore_util as util;
+extern crate ethcore_bigint as bigint;
 extern crate ethcore_network as network;
 extern crate native_contracts;
 extern crate futures;
@@ -29,7 +30,8 @@ use std::collections::HashMap;
 use native_contracts::PeerSet as Contract;
 use network::{NodeId, ConnectionFilter, ConnectionDirection};
 use ethcore::client::{BlockChainClient, BlockId, ChainNotify};
-use util::{Mutex, Address, H256, Bytes};
+use bigint::hash::H256;
+use util::{Mutex, Address, Bytes};
 use futures::Future;
 
 const MAX_CACHE_SIZE: usize = 4096;

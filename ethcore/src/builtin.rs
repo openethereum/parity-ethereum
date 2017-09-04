@@ -24,7 +24,9 @@ use crypto::digest::Digest;
 use num::{BigUint, Zero, One};
 
 use hash::keccak;
-use util::{U256, H256, BytesRef};
+use bigint::prelude::U256;
+use bigint::hash::H256;
+use util::BytesRef;
 use ethkey::{Signature, recover as ec_recover};
 use ethjson;
 
@@ -506,7 +508,8 @@ impl Impl for Bn128PairingImpl {
 mod tests {
 	use super::{Builtin, Linear, ethereum_builtin, Pricer, Modexp};
 	use ethjson;
-	use util::{U256, BytesRef};
+	use bigint::prelude::U256;
+	use util::BytesRef;
 	use rustc_hex::FromHex;
 
 	#[test]

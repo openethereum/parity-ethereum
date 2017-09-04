@@ -14,6 +14,7 @@ build = "build.rs"
 log = "0.3"
 ethcore = { path = ".."}
 ethcore-util = { path = "../../util" }
+ethcore-bigint = { path = "../../util/bigint" }
 ethcore-network = { path = "../../util/network" }
 ethcore-io = { path = "../../util/io" }
 ethcore-ipc = { path = "../../ipc/rpc", optional = true }

@@ -20,6 +20,8 @@ use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 use hash::{KECCAK_EMPTY_LIST_RLP};
 use ethash::{quick_get_difficulty, slow_get_seedhash, EthashManager};
+use bigint::prelude::U256;
+use bigint::hash::{H256, H64};
 use util::*;
 use block::*;
 use builtin::Builtin;
@@ -587,6 +589,8 @@ mod tests {
 	use std::str::FromStr;
 	use std::collections::BTreeMap;
 	use std::sync::Arc;
+	use bigint::prelude::U256;
+	use bigint::hash::{H64, H256};
 	use util::*;
 	use block::*;
 	use tests::helpers::*;

@@ -29,6 +29,7 @@ ethcore-ipc-nano = { path = "../ipc/nano" }
 ethcore-logger = { path = "../logger" }
 ethcore-stratum = { path = "../stratum" }
 ethcore-util = { path = "../util" }
+ethcore-bigint = { path = "../util/bigint" }
 ethjson = { path = "../json" }
 ethkey = { path = "../ethkey" }
 ethstore = { path = "../ethstore" }

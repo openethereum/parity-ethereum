@@ -39,7 +39,8 @@ use ethcore::transaction::{Action, SignedTransaction, Transaction as EthTransact
 use ethsync::LightSync;
 use rlp::UntrustedRlp;
 use hash::{KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP};
-use util::{RwLock, Mutex, U256};
+use bigint::prelude::U256;
+use util::{RwLock, Mutex};
 
 use futures::{future, Future, BoxFuture, IntoFuture};
 use futures::sync::oneshot;
@@ -472,7 +473,7 @@ impl Filterable for EthClient {
 		self.client.block_hash(id).map(Into::into)
 	}
 
-	fn pending_transactions_hashes(&self, _block_number: u64) -> Vec<::util::H256> {
+	fn pending_transactions_hashes(&self, _block_number: u64) -> Vec<::bigint::hash::H256> {
 		Vec::new()
 	}
 

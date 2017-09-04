@@ -20,7 +20,7 @@ use lru_cache::LruCache;
 use util::cache::MemoryLruCache;
 use util::journaldb::JournalDB;
 use util::kvdb::KeyValueDB;
-use util::hash::{H256};
+use bigint::hash::H256;
 use util::hashdb::HashDB;
 use state::{self, Account};
 use header::BlockNumber;
@@ -457,7 +457,9 @@ impl state::Backend for StateDB {
 
 #[cfg(test)]
 mod tests {
-	use util::{U256, H256, Address, DBTransaction};
+	use bigint::prelude::U256;
+	use bigint::hash::H256;
+	use util::{Address, DBTransaction};
 	use tests::helpers::*;
 	use state::{Account, Backend};
 	use ethcore_logger::init_log;

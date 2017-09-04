@@ -16,7 +16,7 @@
 
 //! Tree route info type definition
 
-use util::H256;
+use bigint::hash::H256;
 
 /// Represents a tree route between `from` block and `to` block:
 #[derive(Debug)]

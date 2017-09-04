@@ -117,7 +117,7 @@ impl URLHintContract {
 	}
 }
 
-fn decode_urlhint_output(output: (String, ::util::H160, Address)) -> Option<URLHintResult> {
+fn decode_urlhint_output(output: (String, ::bigint::hash::H160, Address)) -> Option<URLHintResult> {
 	let (account_slash_repo, commit, owner) = output;
 
 	if owner == Address::default() {
@@ -176,7 +176,7 @@ impl URLHint for URLHintContract {
 					None => Either::A(future::ok(None)),
 					Some(address) => {
 						let do_call = move |_, data| client.call(address, data);
-						Either::B(urlhint.entries(do_call, ::util::H256(fixed_id)).map(decode_urlhint_output))
+						Either::B(urlhint.entries(do_call, ::bigint::hash::H256(fixed_id)).map(decode_urlhint_output))
 					}
 				}
 			}).boxed()

@@ -25,6 +25,7 @@ extern crate mime;
 
 extern crate ethabi;
 extern crate ethcore_util as util;
+extern crate ethcore_bigint as bigint;
 extern crate futures;
 extern crate mime_guess;
 extern crate native_contracts;

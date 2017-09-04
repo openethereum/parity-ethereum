@@ -146,11 +146,9 @@ pub use timer::*;
 pub use error::*;
 pub use bytes::*;
 pub use vector::*;
-pub use bigint::prelude::*;
-pub use bigint::hash;
 
 pub use ansi_term::{Colour, Style};
 pub use parking_lot::{Condvar, Mutex, MutexGuard, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 /// 160-bit integer representing account address
-pub type Address = H160;
+pub type Address = bigint::hash::H160;

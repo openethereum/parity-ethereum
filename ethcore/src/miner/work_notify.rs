@@ -24,6 +24,8 @@ use hyper::{Next};
 use hyper::net::HttpStream;
 use ethash::SeedHashCompute;
 use hyper::Url;
+use bigint::prelude::U256;
+use bigint::hash::H256;
 use util::*;
 use ethereum::ethash::Ethash;
 

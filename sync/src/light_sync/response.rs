@@ -22,7 +22,7 @@ use ethcore::encoded;
 use ethcore::header::Header;
 use light::request::{HashOrNumber, CompleteHeadersRequest as HeadersRequest};
 use rlp::DecoderError;
-use util::H256;
+use bigint::hash::H256;
 
 /// Errors found when decoding headers and verifying with basic constraints.
 #[derive(Debug, PartialEq)]

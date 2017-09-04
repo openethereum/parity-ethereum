@@ -19,7 +19,8 @@
 use std::sync::Arc;
 use hashdb::*;
 use kvdb::{self, DBTransaction};
-use {Bytes, H256, UtilError};
+use bigint::hash::H256;
+use {Bytes, UtilError};
 
 /// A `HashDB` which can manage a short-term journal potentially containing many forks of mutually
 /// exclusive actions.

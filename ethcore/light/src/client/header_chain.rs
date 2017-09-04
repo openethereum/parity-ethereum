@@ -37,7 +37,9 @@ use ethcore::ids::BlockId;
 
 use rlp::{Encodable, Decodable, DecoderError, RlpStream, Rlp, UntrustedRlp};
 use heapsize::HeapSizeOf;
-use util::{H256, U256, RwLock};
+use bigint::prelude::U256;
+use bigint::hash::H256;
+use util::RwLock;
 use util::kvdb::{DBTransaction, KeyValueDB};
 
 use cache::Cache;

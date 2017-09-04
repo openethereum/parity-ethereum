@@ -23,6 +23,8 @@ use std::sync::{Condvar as SCondvar, Mutex as SMutex, Arc};
 use std::cmp;
 use std::collections::{VecDeque, HashSet, HashMap};
 use heapsize::HeapSizeOf;
+use bigint::prelude::U256;
+use bigint::hash::H256;
 use util::*;
 use io::*;
 use error::*;

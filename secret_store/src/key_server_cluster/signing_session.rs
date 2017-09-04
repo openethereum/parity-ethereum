@@ -18,7 +18,7 @@ use std::collections::BTreeSet;
 use std::sync::Arc;
 use parking_lot::{Mutex, Condvar};
 use ethkey::{Public, Secret, Signature};
-use util::H256;
+use bigint::hash::H256;
 use key_server_cluster::{Error, NodeId, SessionId, SessionMeta, AclStorage, DocumentKeyShare};
 use key_server_cluster::cluster::{Cluster};
 use key_server_cluster::cluster_sessions::ClusterSession;
@@ -230,13 +230,13 @@ impl SessionImpl {
 				self.on_consensus_message(sender, message),
 			&SigningMessage::SigningGenerationMessage(ref message) =>
 				self.on_generation_message(sender, message),
-			&SigningMessage::RequestPartialSignature(ref message) => 
+			&SigningMessage::RequestPartialSignature(ref message) =>
 				self.on_partial_signature_requested(sender, message),
-			&SigningMessage::PartialSignature(ref message) => 
+			&SigningMessage::PartialSignature(ref message) =>
 				self.on_partial_signature(sender, message),
-			&SigningMessage::SigningSessionError(ref message) => 
+			&SigningMessage::SigningSessionError(ref message) =>
 				self.on_session_error(sender, message),
-			&SigningMessage::SigningSessionCompleted(ref message) => 
+			&SigningMessage::SigningSessionCompleted(ref message) =>
 				self.on_session_completed(sender, message),
 		}
 	}
@@ -571,7 +571,7 @@ mod tests {
 	use std::sync::Arc;
 	use std::collections::{BTreeMap, VecDeque};
 	use ethkey::{self, Random, Generator, Public};
-	use util::H256;
+	use bigint::hash::H256;
 	use acl_storage::DummyAclStorage;
 	use key_server_cluster::{NodeId, SessionId, SessionMeta, Error, KeyStorage};
 	use key_server_cluster::cluster::tests::DummyCluster;

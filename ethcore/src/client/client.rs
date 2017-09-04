@@ -26,11 +26,13 @@ use itertools::Itertools;
 use hash::keccak;
 use util::{Bytes, PerfTimer, Mutex, RwLock, MutexGuard};
 use util::{journaldb, DBValue, TrieFactory, Trie};
-use util::{U256, H256, Address, H2048};
+use util::Address;
 use util::trie::TrieSpec;
 use util::kvdb::*;
 
 // other
+use bigint::prelude::U256;
+use bigint::hash::{H256, H2048};
 use basic_types::Seal;
 use block::*;
 use blockchain::{BlockChain, BlockProvider,  TreeRoute, ImportRoute};

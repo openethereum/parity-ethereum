@@ -16,6 +16,7 @@
 
 use std::collections::{VecDeque, HashSet, HashMap};
 use std::sync::Arc;
+use bigint::hash::H256;
 use util::*;
 use network::*;
 use tests::snapshot::*;

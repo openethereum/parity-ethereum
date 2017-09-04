@@ -8,6 +8,7 @@ bit-set = "0.4"
 byteorder = "1.0"
 common-types = { path = "../types" }
 ethcore-util = { path = "../../util" }
+ethcore-bigint = { path = "../../util/bigint" }
 evmjit = { path = "../../evmjit", optional = true }
 ethjson = { path = "../../json" }
 heapsize = "0.4"

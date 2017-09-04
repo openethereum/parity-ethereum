@@ -18,12 +18,13 @@
 
 extern crate test;
 extern crate ethcore_util;
+extern crate ethcore_bigint;
 #[macro_use]
 extern crate log;
 extern crate hash;
 
 use test::{Bencher, black_box};
-use ethcore_util::hash::*;
+use ethcore_bigint::hash::*;
 use ethcore_util::bytes::*;
 use ethcore_util::trie::*;
 use ethcore_util::memorydb::*;

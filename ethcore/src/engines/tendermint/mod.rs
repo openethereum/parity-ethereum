@@ -30,6 +30,8 @@ use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
 use std::collections::{HashSet, BTreeMap, HashMap};
 use hash::keccak;
 use std::cmp;
+use bigint::prelude::{U128, U256};
+use bigint::hash::{H256, H520};
 use util::*;
 use client::{Client, EngineClient};
 use error::{Error, BlockError};

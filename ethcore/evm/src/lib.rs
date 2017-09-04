@@ -20,6 +20,7 @@ extern crate byteorder;
 extern crate bit_set;
 extern crate common_types as types;
 extern crate ethcore_util as util;
+extern crate ethcore_bigint as bigint;
 extern crate ethjson;
 extern crate rlp;
 extern crate parity_wasm;

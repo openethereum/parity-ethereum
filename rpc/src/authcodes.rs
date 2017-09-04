@@ -22,7 +22,7 @@ use itertools::Itertools;
 use rand::Rng;
 use rand::os::OsRng;
 use hash::keccak;
-use util::H256;
+use bigint::hash::H256;
 
 /// Providing current time in seconds
 pub trait TimeProvider {
@@ -234,7 +234,7 @@ mod tests {
 	use std::cell::Cell;
 	use hash::keccak;
 
-	use util::H256;
+	use bigint::hash::H256;
 	use super::*;
 
 	fn generate_hash(val: &str, time: u64) -> H256 {

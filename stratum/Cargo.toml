@@ -15,6 +15,7 @@ jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "pa
 jsonrpc-macros = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
 jsonrpc-tcp-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
 ethcore-util = { path = "../util" }
+ethcore-bigint = { path = "../util/bigint" }
 ethcore-devtools = { path = "../devtools" }
 lazy_static = "0.2"
 env_logger = "0.4"

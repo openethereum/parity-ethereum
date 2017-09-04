@@ -17,7 +17,7 @@
 //! Trie interface and implementation.
 
 use std::fmt;
-use hash::H256;
+use bigint::hash::H256;
 use keccak::KECCAK_NULL_RLP;
 use hashdb::{HashDB, DBValue};
 
