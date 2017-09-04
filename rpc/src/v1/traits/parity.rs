@@ -171,6 +171,12 @@ build_rpc_trait! {
 		#[rpc(name = "parity_mode")]
 		fn mode(&self) -> Result<String, Error>;
 
+		/// Returns the chain ID used for transaction signing at the
+		/// current best block. An empty string is returned if not
+		/// available.
+		#[rpc(name = "parity_chainId")]
+		fn chain_id(&self) -> Result<Option<u64>, Error>;
+
 		/// Get the chain name. Returns one of: "foundation", "kovan", &c. of a filename.
 		#[rpc(name = "parity_chain")]
 		fn chain(&self) -> Result<String, Error>;

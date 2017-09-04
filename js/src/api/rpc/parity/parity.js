@@ -44,6 +44,11 @@ export default class Parity {
       .execute('parity_addReservedPeer', encode);
   }
 
+  chainId () {
+    return this._transport
+      .execute('parity_chainId');
+  }
+
   chainStatus () {
     return this._transport
       .execute('parity_chainStatus')

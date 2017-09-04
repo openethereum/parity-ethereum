@@ -33,12 +33,6 @@ build_rpc_trait! {
 		#[rpc(name = "eth_protocolVersion")]
 		fn protocol_version(&self) -> Result<String, Error>;
 
-		/// Returns the chain ID used for transaction signing at the
-		/// current best block. An empty string is returned if not
-		/// available.
-		#[rpc(name = "eth_chainId")]
-		fn chain_id(&self) -> Result<Option<u64>, Error>;
-
 		/// Returns an object with data about the sync status or false. (wtf?)
 		#[rpc(name = "eth_syncing")]
 		fn syncing(&self) -> Result<SyncStatus, Error>;

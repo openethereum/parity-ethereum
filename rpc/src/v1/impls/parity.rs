@@ -199,6 +199,11 @@ impl<C, M, S: ?Sized, U> Parity for ParityClient<C, M, S, U> where
 		Ok(self.settings.chain.clone())
 	}
 
+	fn chain_id(&self) -> Result<Option<u64>, Error> {
+		let client = take_weak!(self.client);
+		Ok(client.signing_network_id())
+	}
+
 	fn chain(&self) -> Result<String, Error> {
 		Ok(take_weak!(self.client).spec_name())
 	}

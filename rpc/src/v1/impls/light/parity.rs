@@ -49,6 +49,7 @@ use v1::types::{
 
 /// Parity implementation for light client.
 pub struct ParityClient {
+	client: Arc<LightChainClient>,
 	light_dispatch: Arc<LightDispatcher>,
 	accounts: Arc<AccountProvider>,
 	logger: Arc<RotatingLogger>,
@@ -80,6 +81,7 @@ impl ParityClient {
 			dapps_interface: dapps_interface,
 			dapps_port: dapps_port,
 			eip86_transition: client.eip86_transition(),
+			client: client,
 		}
 	}
 
@@ -318,6 +320,10 @@ impl Parity for ParityClient {
 
 	fn mode(&self) -> Result<String, Error> {
 		Err(errors::light_unimplemented(None))
+	}
+
+	fn chain_id(&self) -> Result<Option<u64>, Error> {
+		Ok(self.client.signing_network_id())
 	}
 
 	fn chain(&self) -> Result<String, Error> {
