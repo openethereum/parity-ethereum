@@ -127,6 +127,9 @@ pub trait Provider: Send + Sync {
 	/// Provide a proof-of-execution for the given transaction proof request.
 	/// Returns a vector of all state items necessary to execute the transaction.
 	fn transaction_proof(&self, req: request::CompleteExecutionRequest) -> Option<request::ExecutionResponse>;
+
+	/// Provide epoch signal data at given block hash. This should be just the
+	fn epoch_signal(&self, req: request::CompleteSignalRequest) -> Option<request::SignalResponse>;
 }
 
 // Implementation of a light client data provider for a client.
@@ -265,6 +268,12 @@ impl<T: ProvingBlockChainClient + ?Sized> Provider for T {
 	fn ready_transactions(&self) -> Vec<PendingTransaction> {
 		BlockChainClient::ready_transactions(self)
 	}
+
+	fn epoch_signal(&self, req: request::CompleteSignalRequest) -> Option<request::SignalResponse> {
+		self.epoch_signal(req.block_hash).map(|signal| request::SignalResponse {
+			signal: signal,
+		})
+	}
 }
 
 /// The light client "provider" implementation. This wraps a `LightClient` and
@@ -327,6 +336,10 @@ impl<L: AsLightClient + Send + Sync> Provider for LightProvider<L> {
 	}
 
 	fn transaction_proof(&self, _req: request::CompleteExecutionRequest) -> Option<request::ExecutionResponse> {
+		None
+	}
+
+	fn epoch_signal(&self, _req: request::CompleteSignalRequest) -> Option<request::SignalResponse> {
 		None
 	}
 

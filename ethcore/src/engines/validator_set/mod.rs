@@ -27,7 +27,7 @@ use std::sync::Weak;
 use ids::BlockId;
 use util::{Bytes, Address, H256};
 use ethjson::spec::ValidatorSet as ValidatorSpec;
-use client::Client;
+use client::EngineClient;
 use header::{Header, BlockNumber};
 
 #[cfg(test)]
@@ -141,5 +141,5 @@ pub trait ValidatorSet: Send + Sync {
 	/// Notifies about benign misbehaviour.
 	fn report_benign(&self, _validator: &Address, _set_block: BlockNumber, _block: BlockNumber) {}
 	/// Allows blockchain state access.
-	fn register_contract(&self, _client: Weak<Client>) {}
+	fn register_client(&self, _client: Weak<EngineClient>) {}
 }

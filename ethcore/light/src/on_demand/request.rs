@@ -20,7 +20,7 @@ use std::sync::Arc;
 
 use ethcore::basic_account::BasicAccount;
 use ethcore::encoded;
-use ethcore::engines::Engine;
+use ethcore::engines::{Engine, StateDependentProof};
 use ethcore::receipt::Receipt;
 use ethcore::state::{self, ProvedExecution};
 use ethcore::transaction::SignedTransaction;
@@ -54,6 +54,8 @@ pub enum Request {
 	Code(Code),
 	/// A request for proof of execution.
 	Execution(TransactionProof),
+	/// A request for epoch change signal.
+	Signal(Signal),
 }
 
 /// A request argument.
@@ -134,6 +136,7 @@ impl_single!(Body, Body, encoded::Block);
 impl_single!(Account, Account, Option<BasicAccount>);
 impl_single!(Code, Code, Bytes);
 impl_single!(Execution, TransactionProof, super::ExecutionResult);
+impl_single!(Signal, Signal, Vec<u8>);
 
 macro_rules! impl_args {
 	() => {
@@ -242,6 +245,7 @@ pub enum CheckedRequest {
 	Account(Account, net_request::IncompleteAccountRequest),
 	Code(Code, net_request::IncompleteCodeRequest),
 	Execution(TransactionProof, net_request::IncompleteExecutionRequest),
+	Signal(Signal, net_request::IncompleteSignalRequest)
 }
 
 impl From<Request> for CheckedRequest {
@@ -300,6 +304,12 @@ impl From<Request> for CheckedRequest {
 				};
 				CheckedRequest::Execution(req, net_req)
 			}
+			Request::Signal(req) => {
+				let net_req = net_request::IncompleteSignalRequest {
+					block_hash: req.hash.into(),
+				};
+				CheckedRequest::Signal(req, net_req)
+			}
 		}
 	}
 }
@@ -317,6 +327,7 @@ impl CheckedRequest {
 			CheckedRequest::Account(_, req) => NetRequest::Account(req),
 			CheckedRequest::Code(_, req) => NetRequest::Code(req),
 			CheckedRequest::Execution(_, req) => NetRequest::Execution(req),
+			CheckedRequest::Signal(_, req) => NetRequest::Signal(req),
 		}
 	}
 
@@ -444,6 +455,7 @@ macro_rules! match_me {
 			CheckedRequest::Account($check, $req) => $e,
 			CheckedRequest::Code($check, $req) => $e,
 			CheckedRequest::Execution($check, $req) => $e,
+			CheckedRequest::Signal($check, $req) => $e,
 		}
 	}
 }
@@ -471,6 +483,7 @@ impl IncompleteRequest for CheckedRequest {
 			CheckedRequest::Account(_, ref req) => req.check_outputs(f),
 			CheckedRequest::Code(_, ref req) => req.check_outputs(f),
 			CheckedRequest::Execution(_, ref req) => req.check_outputs(f),
+			CheckedRequest::Signal(_, ref req) => req.check_outputs(f),
 		}
 	}
 
@@ -491,6 +504,7 @@ impl IncompleteRequest for CheckedRequest {
 			CheckedRequest::Account(_, req) => req.complete().map(CompleteRequest::Account),
 			CheckedRequest::Code(_, req) => req.complete().map(CompleteRequest::Code),
 			CheckedRequest::Execution(_, req) => req.complete().map(CompleteRequest::Execution),
+			CheckedRequest::Signal(_, req) => req.complete().map(CompleteRequest::Signal),
 		}
 	}
 
@@ -542,6 +556,9 @@ impl net_request::CheckedRequest for CheckedRequest {
 			CheckedRequest::Execution(ref prover, _) =>
 				expect!((&NetResponse::Execution(ref res), _) =>
 					prover.check_response(cache, &res.items).map(Response::Execution)),
+			CheckedRequest::Signal(ref prover, _) =>
+				expect!((&NetResponse::Signal(ref res), _) =>
+					prover.check_response(cache, &res.signal).map(Response::Signal)),
 		}
 	 }
 }
@@ -565,6 +582,8 @@ pub enum Response {
 	Code(Vec<u8>),
 	/// Response to a request for proved execution.
 	Execution(super::ExecutionResult),
+	/// Response to a request for epoch change signal.
+	Signal(Vec<u8>),
 }
 
 impl net_request::ResponseLike for Response {
@@ -845,6 +864,27 @@ impl TransactionProof {
 			ProvedExecution::Failed(e) => Ok(Err(e)),
 			ProvedExecution::Complete(e) => Ok(Ok(e)),
 		}
+	}
+}
+
+/// Request for epoch signal.
+/// Provide engine and state-dependent proof checker.
+#[derive(Clone)]
+pub struct Signal {
+	/// Block hash and number to fetch proof for.
+	pub hash: H256,
+	/// Consensus engine, used to check the proof.
+	pub engine: Arc<Engine>,
+	/// Special checker for the proof.
+	pub proof_check: Arc<StateDependentProof>,
+}
+
+impl Signal {
+	/// Check the signal, returning the signal or indicate that it's bad.
+	pub fn check_response(&self, _: &Mutex<::cache::Cache>, signal: &[u8]) -> Result<Vec<u8>, Error> {
+		self.proof_check.check_proof(&*self.engine, signal)
+			.map(|_| signal.to_owned())
+			.map_err(|_| Error::BadProof)
 	}
 }
 

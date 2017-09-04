@@ -18,11 +18,12 @@
 //!
 //! Unlike a full node's `BlockChain` this doesn't store much in the database.
 //! It stores candidates for the last 2048-4096 blocks as well as CHT roots for
-//! historical blocks all the way to the genesis.
+//! historical blocks all the way to the genesis. If the engine makes use
+//! of epoch transitions, those are stored as well.
 //!
 //! This is separate from the `BlockChain` for two reasons:
 //!   - It stores only headers (and a pruned subset of them)
-//!   - To allow for flexibility in the database layout once that's incorporated.
+//!   - To allow for flexibility in the database layout..
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
@@ -30,14 +31,19 @@ use std::sync::Arc;
 use cht;
 
 use ethcore::block_status::BlockStatus;
-use ethcore::error::BlockError;
+use ethcore::error::{BlockImportError, BlockError};
 use ethcore::encoded;
 use ethcore::header::Header;
 use ethcore::ids::BlockId;
+use ethcore::spec::Spec;
+use ethcore::engines::epoch::{
+	Transition as EpochTransition,
+	PendingTransition as PendingEpochTransition
+};
 
 use rlp::{Encodable, Decodable, DecoderError, RlpStream, Rlp, UntrustedRlp};
 use heapsize::HeapSizeOf;
-use util::{H256, U256};
+use util::{H256, H256FastMap, H264, U256};
 use util::kvdb::{DBTransaction, KeyValueDB};
 
 use cache::Cache;
@@ -52,6 +58,9 @@ const HISTORY: u64 = 2048;
 
 /// The best block key. Maps to an RLP list: [best_era, last_era]
 const CURRENT_KEY: &'static [u8] = &*b"best_and_latest";
+
+/// Key storing the last canonical epoch transition.
+const LAST_CANONICAL_TRANSITION: &'static [u8] = &*b"canonical_transition";
 
 /// Information about a block.
 #[derive(Debug, Clone)]
@@ -100,7 +109,6 @@ impl Encodable for Entry {
 
 impl Decodable for Entry {
 	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
-
 		let mut candidates = SmallVec::<[Candidate; 3]>::new();
 
 		for item in rlp.iter() {
@@ -130,6 +138,42 @@ fn era_key(number: u64) -> String {
 	format!("candidates_{}", number)
 }
 
+fn pending_transition_key(block_hash: H256) -> H264 {
+	const LEADING: u8 = 1;
+
+	let mut key = H264::default();
+
+	key[0] = LEADING;
+	key.0[1..].copy_from_slice(&block_hash.0[..]);
+
+	key
+}
+
+fn transition_key(block_hash: H256) -> H264 {
+	const LEADING: u8 = 2;
+
+	let mut key = H264::default();
+
+	key[0] = LEADING;
+	key.0[1..].copy_from_slice(&block_hash.0[..]);
+
+	key
+}
+
+// encode last canonical transition entry: header and proof.
+fn encode_canonical_transition(header: &Header, proof: &[u8]) -> Vec<u8> {
+	let mut stream = RlpStream::new_list(2);
+	stream.append(header).append(&proof);
+	stream.out()
+}
+
+// decode last canonical transition entry.
+fn decode_canonical_transition(t: &[u8]) -> Result<(Header, &[u8]), DecoderError> {
+	let rlp = UntrustedRlp::new(t);
+
+	Ok((rlp.val_at(0)?, rlp.at(1)?.data()?))
+}
+
 /// Pending changes from `insert` to be applied after the database write has finished.
 pub struct PendingChanges {
 	best_block: Option<BlockDescriptor>, // new best block.
@@ -140,6 +184,7 @@ pub struct HeaderChain {
 	genesis_header: encoded::Header, // special-case the genesis.
 	candidates: RwLock<BTreeMap<u64, Entry>>,
 	best_block: RwLock<BlockDescriptor>,
+	live_epoch_proofs: RwLock<H256FastMap<EpochTransition>>,
 	db: Arc<KeyValueDB>,
 	col: Option<u32>,
 	cache: Arc<Mutex<Cache>>,
@@ -147,8 +192,16 @@ pub struct HeaderChain {
 
 impl HeaderChain {
 	/// Create a new header chain given this genesis block and database to read from.
-	pub fn new(db: Arc<KeyValueDB>, col: Option<u32>, genesis: &[u8], cache: Arc<Mutex<Cache>>) -> Result<Self, String> {
-		use ethcore::views::HeaderView;
+	pub fn new(
+		db: Arc<KeyValueDB>,
+		col: Option<u32>,
+		spec: &Spec,
+		cache: Arc<Mutex<Cache>>,
+	) -> Result<Self, String> {
+		let mut live_epoch_proofs = ::std::collections::HashMap::default();
+
+		let genesis = ::rlp::encode(&spec.genesis_header()).into_vec();
+		let decoded_header = spec.genesis_header();
 
 		let chain = if let Some(current) = db.get(col, CURRENT_KEY)? {
 			let (best_number, highest_number) = {
@@ -159,12 +212,24 @@ impl HeaderChain {
 			let mut cur_number = highest_number;
 			let mut candidates = BTreeMap::new();
 
-			// load all era entries and referenced headers within them.
+			// load all era entries, referenced headers within them,
+			// and live epoch proofs.
 			while let Some(entry) = db.get(col, era_key(cur_number).as_bytes())? {
 				let entry: Entry = ::rlp::decode(&entry);
 				trace!(target: "chain", "loaded header chain entry for era {} with {} candidates",
 					cur_number, entry.candidates.len());
 
+				for c in &entry.candidates {
+					let key = transition_key(c.hash);
+
+					if let Some(proof) = db.get(col, &*key)? {
+						live_epoch_proofs.insert(c.hash, EpochTransition {
+							block_hash: c.hash,
+							block_number: cur_number,
+							proof: proof.into_vec(),
+						});
+					}
+				}
 				candidates.insert(cur_number, entry);
 
 				cur_number -= 1;
@@ -186,28 +251,41 @@ impl HeaderChain {
 			};
 
 			HeaderChain {
-				genesis_header: encoded::Header::new(genesis.to_owned()),
+				genesis_header: encoded::Header::new(genesis),
 				best_block: RwLock::new(best_block),
 				candidates: RwLock::new(candidates),
+				live_epoch_proofs: RwLock::new(live_epoch_proofs),
 				db: db,
 				col: col,
 				cache: cache,
 			}
 		} else {
-			let g_view = HeaderView::new(genesis);
 			HeaderChain {
-				genesis_header: encoded::Header::new(genesis.to_owned()),
+				genesis_header: encoded::Header::new(genesis),
 				best_block: RwLock::new(BlockDescriptor {
-					hash: g_view.hash(),
+					hash: decoded_header.hash(),
 					number: 0,
-					total_difficulty: g_view.difficulty(),
+					total_difficulty: *decoded_header.difficulty(),
 				}),
 				candidates: RwLock::new(BTreeMap::new()),
+				live_epoch_proofs: RwLock::new(live_epoch_proofs),
 				db: db,
 				col: col,
 				cache: cache,
 			}
 		};
+
+		// instantiate genesis epoch data if it doesn't exist.
+		if let None = chain.db.get(col, LAST_CANONICAL_TRANSITION)? {
+			let genesis_data = spec.genesis_epoch_data()?;
+
+			{
+				let mut batch = chain.db.transaction();
+				let data = encode_canonical_transition(&decoded_header, &genesis_data);
+				batch.put_vec(col, LAST_CANONICAL_TRANSITION, data);
+				chain.db.write(batch)?;
+			}
+		}
 
 		Ok(chain)
 	}
@@ -217,10 +295,24 @@ impl HeaderChain {
 	/// This blindly trusts that the data given to it is sensible.
 	/// Returns a set of pending changes to be applied with `apply_pending`
 	/// before the next call to insert and after the transaction has been written.
-	pub fn insert(&self, transaction: &mut DBTransaction, header: Header) -> Result<PendingChanges, BlockError> {
+	///
+	/// If the block is an epoch transition, provide the transition along with
+	/// the header.
+	pub fn insert(
+		&self,
+		transaction: &mut DBTransaction,
+		header: Header,
+		transition_proof: Option<Vec<u8>>,
+	) -> Result<PendingChanges, BlockImportError> {
 		let hash = header.hash();
 		let number = header.number();
 		let parent_hash = *header.parent_hash();
+		let transition = transition_proof.map(|proof| EpochTransition {
+			block_hash: hash,
+			block_number: number,
+			proof: proof,
+		});
+
 		let mut pending = PendingChanges {
 			best_block: None,
 		};
@@ -236,7 +328,8 @@ impl HeaderChain {
 				candidates.get(&(number - 1))
 					.and_then(|entry| entry.candidates.iter().find(|c| c.hash == parent_hash))
 					.map(|c| c.total_difficulty)
-					.ok_or_else(|| BlockError::UnknownParent(parent_hash))?
+					.ok_or_else(|| BlockError::UnknownParent(parent_hash))
+					.map_err(BlockImportError::Block)?
 			};
 
 		let total_difficulty = parent_td + *header.difficulty();
@@ -261,8 +354,13 @@ impl HeaderChain {
 			transaction.put(self.col, era_key(number).as_bytes(), &::rlp::encode(&*cur_era))
 		}
 
-		let raw = ::rlp::encode(&header);
-		transaction.put(self.col, &hash[..], &*raw);
+		if let Some(transition) = transition {
+			transaction.put(self.col, &*transition_key(hash), &transition.proof);
+			self.live_epoch_proofs.write().insert(hash, transition);
+		}
+
+		let raw = header.encoded().into_inner();
+		transaction.put_vec(self.col, &hash[..], raw);
 
 		let (best_num, is_new_best) = {
 			let cur_best = self.best_block.read();
@@ -315,8 +413,10 @@ impl HeaderChain {
 				let cht_num = cht::block_to_cht_number(earliest_era)
 					.expect("fails only for number == 0; genesis never imported; qed");
 
+				let mut last_canonical_transition = None;
 				let cht_root = {
 					let mut i = earliest_era;
+					let mut live_epoch_proofs = self.live_epoch_proofs.write();
 
 					// iterable function which removes the candidates as it goes
 					// along. this will only be called until the CHT is complete.
@@ -327,7 +427,25 @@ impl HeaderChain {
 
 						i += 1;
 
+						// prune old blocks and epoch proofs.
 						for ancient in &era_entry.candidates {
+							let maybe_transition = live_epoch_proofs.remove(&ancient.hash);
+							if let Some(epoch_transition) = maybe_transition {
+								transaction.delete(self.col, &*transition_key(ancient.hash));
+
+								if ancient.hash == era_entry.canonical_hash {
+									last_canonical_transition = match self.db.get(self.col, &ancient.hash) {
+										Err(e) => {
+											warn!(target: "chain", "Error reading from DB: {}\n
+												", e);
+											None
+										}
+										Ok(None) => panic!("stored candidates always have corresponding headers; qed"),
+										Ok(Some(header)) => Some((epoch_transition, ::rlp::decode(&header))),
+									};
+								}
+							}
+
 							transaction.delete(self.col, &ancient.hash);
 						}
 
@@ -341,6 +459,12 @@ impl HeaderChain {
 				// write the CHT root to the database.
 				debug!(target: "chain", "Produced CHT {} root: {:?}", cht_num, cht_root);
 				transaction.put(self.col, cht_key(cht_num).as_bytes(), &::rlp::encode(&cht_root));
+
+				// update the last canonical transition proof
+				if let Some((epoch_transition, header)) = last_canonical_transition {
+					let x = encode_canonical_transition(&header, &epoch_transition.proof);
+					transaction.put_vec(self.col, LAST_CANONICAL_TRANSITION, x);
+				}
 			}
 		}
 
@@ -366,7 +490,7 @@ impl HeaderChain {
 	/// will be returned.
 	pub fn block_hash(&self, id: BlockId) -> Option<H256> {
 		match id {
-			BlockId::Earliest => Some(self.genesis_hash()),
+			BlockId::Earliest | BlockId::Number(0) => Some(self.genesis_hash()),
 			BlockId::Hash(hash) => Some(hash),
 			BlockId::Number(num) => {
 				if self.best_block.read().number < num { return None }
@@ -517,6 +641,56 @@ impl HeaderChain {
 			false => BlockStatus::Unknown,
 		}
 	}
+
+	/// Insert a pending transition.
+	pub fn insert_pending_transition(&self, batch: &mut DBTransaction, hash: H256, t: PendingEpochTransition) {
+		let key = pending_transition_key(hash);
+		batch.put(self.col, &*key, &*::rlp::encode(&t));
+	}
+
+	/// Get pending transition for a specific block hash.
+	pub fn pending_transition(&self, hash: H256) -> Option<PendingEpochTransition> {
+		let key = pending_transition_key(hash);
+		match self.db.get(self.col, &*key) {
+			Ok(val) => val.map(|x| ::rlp::decode(&x)),
+			Err(e) => {
+				warn!(target: "chain", "Error reading from database: {}", e);
+				None
+			}
+		}
+	}
+
+	/// Get the transition to the epoch the given parent hash is part of
+	/// or transitions to.
+	/// This will give the epoch that any children of this parent belong to.
+	///
+	/// The header corresponding the the parent hash must be stored already.
+	pub fn epoch_transition_for(&self, parent_hash: H256) -> Option<(Header, Vec<u8>)> {
+		// slow path: loop back block by block
+		let live_proofs = self.live_epoch_proofs.read();
+
+		for hdr in self.ancestry_iter(BlockId::Hash(parent_hash)) {
+			if let Some(transition) = live_proofs.get(&hdr.hash()).cloned() {
+				return Some((hdr.decode(), transition.proof))
+			}
+		}
+
+		// any blocks left must be descendants of the last canonical transition block.
+		match self.db.get(self.col, LAST_CANONICAL_TRANSITION) {
+			Ok(x) => {
+				let x = x.expect("last canonical transition always instantiated; qed");
+
+				let (hdr, proof) = decode_canonical_transition(&x)
+					.expect("last canonical transition always encoded correctly; qed");
+
+				Some((hdr, proof.to_vec()))
+			}
+			Err(e) => {
+				warn!("Error reading from DB: {}", e);
+				None
+			}
+		}
+	}
 }
 
 impl HeapSizeOf for HeaderChain {
@@ -569,7 +743,7 @@ mod tests {
 
 		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::hours(6))));
 
-		let chain = HeaderChain::new(db.clone(), None, &::rlp::encode(&genesis_header), cache).unwrap();
+		let chain = HeaderChain::new(db.clone(), None, &spec, cache).unwrap();
 
 		let mut parent_hash = genesis_header.hash();
 		let mut rolling_timestamp = genesis_header.timestamp();
@@ -582,7 +756,7 @@ mod tests {
 			parent_hash = header.hash();
 
 			let mut tx = db.transaction();
-			let pending = chain.insert(&mut tx, header).unwrap();
+			let pending = chain.insert(&mut tx, header, None).unwrap();
 			db.write(tx).unwrap();
 			chain.apply_pending(pending);
 
@@ -602,7 +776,7 @@ mod tests {
 		let db = make_db();
 		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::hours(6))));
 
-		let chain = HeaderChain::new(db.clone(), None, &::rlp::encode(&genesis_header), cache).unwrap();
+		let chain = HeaderChain::new(db.clone(), None, &spec, cache).unwrap();
 
 		let mut parent_hash = genesis_header.hash();
 		let mut rolling_timestamp = genesis_header.timestamp();
@@ -615,7 +789,7 @@ mod tests {
 			parent_hash = header.hash();
 
 			let mut tx = db.transaction();
-			let pending = chain.insert(&mut tx, header).unwrap();
+			let pending = chain.insert(&mut tx, header, None).unwrap();
 			db.write(tx).unwrap();
 			chain.apply_pending(pending);
 
@@ -634,7 +808,7 @@ mod tests {
 				parent_hash = header.hash();
 
 				let mut tx = db.transaction();
-				let pending = chain.insert(&mut tx, header).unwrap();
+				let pending = chain.insert(&mut tx, header, None).unwrap();
 				db.write(tx).unwrap();
 				chain.apply_pending(pending);
 
@@ -658,7 +832,7 @@ mod tests {
 				parent_hash = header.hash();
 
 				let mut tx = db.transaction();
-				let pending = chain.insert(&mut tx, header).unwrap();
+				let pending = chain.insert(&mut tx, header, None).unwrap();
 				db.write(tx).unwrap();
 				chain.apply_pending(pending);
 
@@ -681,12 +855,10 @@ mod tests {
 	#[test]
 	fn earliest_is_latest() {
 		let spec = Spec::new_test();
-		let genesis_header = spec.genesis_header();
 		let db = make_db();
 		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::hours(6))));
 
-		let chain = HeaderChain::new(db.clone(), None, &::rlp::encode(&genesis_header), cache).unwrap();
-
+		let chain = HeaderChain::new(db.clone(), None, &spec, cache).unwrap();
 
 		assert!(chain.block_header(BlockId::Earliest).is_some());
 		assert!(chain.block_header(BlockId::Latest).is_some());
@@ -701,7 +873,7 @@ mod tests {
 		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::hours(6))));
 
 		{
-			let chain = HeaderChain::new(db.clone(), None, &::rlp::encode(&genesis_header), cache.clone()).unwrap();
+			let chain = HeaderChain::new(db.clone(), None, &spec, cache.clone()).unwrap();
 			let mut parent_hash = genesis_header.hash();
 			let mut rolling_timestamp = genesis_header.timestamp();
 			for i in 1..10000 {
@@ -713,7 +885,7 @@ mod tests {
 				parent_hash = header.hash();
 
 				let mut tx = db.transaction();
-				let pending = chain.insert(&mut tx, header).unwrap();
+				let pending = chain.insert(&mut tx, header, None).unwrap();
 				db.write(tx).unwrap();
 				chain.apply_pending(pending);
 
@@ -721,7 +893,7 @@ mod tests {
 			}
 		}
 
-		let chain = HeaderChain::new(db.clone(), None, &::rlp::encode(&genesis_header), cache.clone()).unwrap();
+		let chain = HeaderChain::new(db.clone(), None, &spec, cache.clone()).unwrap();
 		assert!(chain.block_header(BlockId::Number(10)).is_none());
 		assert!(chain.block_header(BlockId::Number(9000)).is_some());
 		assert!(chain.cht_root(2).is_some());
@@ -737,7 +909,7 @@ mod tests {
 		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::hours(6))));
 
 		{
-			let chain = HeaderChain::new(db.clone(), None, &::rlp::encode(&genesis_header), cache.clone()).unwrap();
+			let chain = HeaderChain::new(db.clone(), None, &spec, cache.clone()).unwrap();
 			let mut parent_hash = genesis_header.hash();
 			let mut rolling_timestamp = genesis_header.timestamp();
 
@@ -751,7 +923,7 @@ mod tests {
 				parent_hash = header.hash();
 
 				let mut tx = db.transaction();
-				let pending = chain.insert(&mut tx, header).unwrap();
+				let pending = chain.insert(&mut tx, header, None).unwrap();
 				db.write(tx).unwrap();
 				chain.apply_pending(pending);
 
@@ -768,7 +940,7 @@ mod tests {
 				parent_hash = header.hash();
 
 				let mut tx = db.transaction();
-				let pending = chain.insert(&mut tx, header).unwrap();
+				let pending = chain.insert(&mut tx, header, None).unwrap();
 				db.write(tx).unwrap();
 				chain.apply_pending(pending);
 
@@ -779,7 +951,7 @@ mod tests {
 		}
 
 		// after restoration, non-canonical eras should still be loaded.
-		let chain = HeaderChain::new(db.clone(), None, &::rlp::encode(&genesis_header), cache.clone()).unwrap();
+		let chain = HeaderChain::new(db.clone(), None, &spec, cache.clone()).unwrap();
 		assert_eq!(chain.block_header(BlockId::Latest).unwrap().number(), 10);
 		assert!(chain.candidates.read().get(&100).is_some())
 	}
@@ -791,10 +963,76 @@ mod tests {
 		let db = make_db();
 		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::hours(6))));
 
-		let chain = HeaderChain::new(db.clone(), None, &::rlp::encode(&genesis_header), cache.clone()).unwrap();
+		let chain = HeaderChain::new(db.clone(), None, &spec, cache.clone()).unwrap();
 
 		assert!(chain.block_header(BlockId::Earliest).is_some());
 		assert!(chain.block_header(BlockId::Number(0)).is_some());
 		assert!(chain.block_header(BlockId::Hash(genesis_header.hash())).is_some());
+	}
+
+	#[test]
+	fn epoch_transitions_available_after_cht() {
+		let spec = Spec::new_test();
+		let genesis_header = spec.genesis_header();
+		let db = make_db();
+		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::hours(6))));
+
+		let chain = HeaderChain::new(db.clone(), None, &spec, cache).unwrap();
+
+		let mut parent_hash = genesis_header.hash();
+		let mut rolling_timestamp = genesis_header.timestamp();
+		for i in 1..6 {
+			let mut header = Header::new();
+			header.set_parent_hash(parent_hash);
+			header.set_number(i);
+			header.set_timestamp(rolling_timestamp);
+			header.set_difficulty(*genesis_header.difficulty() * i.into());
+			parent_hash = header.hash();
+
+			let mut tx = db.transaction();
+			let epoch_proof = if i == 3 {
+				Some(vec![1, 2, 3, 4])
+			} else {
+				None
+			};
+
+			let pending = chain.insert(&mut tx, header, epoch_proof).unwrap();
+			db.write(tx).unwrap();
+			chain.apply_pending(pending);
+
+			rolling_timestamp += 10;
+		}
+
+		// these 3 should end up falling back to the genesis epoch proof in DB
+		for i in 0..3 {
+			let hash = chain.block_hash(BlockId::Number(i)).unwrap();
+			assert_eq!(chain.epoch_transition_for(hash).unwrap().1, Vec::<u8>::new());
+		}
+
+		// these are live.
+		for i in 3..6 {
+			let hash = chain.block_hash(BlockId::Number(i)).unwrap();
+			assert_eq!(chain.epoch_transition_for(hash).unwrap().1, vec![1, 2, 3, 4]);
+		}
+
+		for i in 6..10000 {
+			let mut header = Header::new();
+			header.set_parent_hash(parent_hash);
+			header.set_number(i);
+			header.set_timestamp(rolling_timestamp);
+			header.set_difficulty(*genesis_header.difficulty() * i.into());
+			parent_hash = header.hash();
+
+			let mut tx = db.transaction();
+			let pending = chain.insert(&mut tx, header, None).unwrap();
+			db.write(tx).unwrap();
+			chain.apply_pending(pending);
+
+			rolling_timestamp += 10;
+		}
+
+		// no live blocks have associated epoch proofs -- make sure we aren't leaking memory.
+		assert!(chain.live_epoch_proofs.read().is_empty());
+		assert_eq!(chain.epoch_transition_for(parent_hash).unwrap().1, vec![1, 2, 3, 4]);
 	}
 }

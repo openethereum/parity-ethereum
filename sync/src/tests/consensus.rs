@@ -70,8 +70,8 @@ fn authority_round() {
 	// Push transaction to both clients. Only one of them gets lucky to produce a block.
 	net.peer(0).chain.miner().set_engine_signer(s0.address(), "".to_owned()).unwrap();
 	net.peer(1).chain.miner().set_engine_signer(s1.address(), "".to_owned()).unwrap();
-	net.peer(0).chain.engine().register_client(Arc::downgrade(&net.peer(0).chain));
-	net.peer(1).chain.engine().register_client(Arc::downgrade(&net.peer(1).chain));
+	net.peer(0).chain.engine().register_client(Arc::downgrade(&net.peer(0).chain) as _);
+	net.peer(1).chain.engine().register_client(Arc::downgrade(&net.peer(1).chain) as _);
 	net.peer(0).chain.set_io_channel(IoChannel::to_handler(Arc::downgrade(&io_handler1)));
 	net.peer(1).chain.set_io_channel(IoChannel::to_handler(Arc::downgrade(&io_handler0)));
 	// exchange statuses
@@ -159,8 +159,8 @@ fn tendermint() {
 	trace!(target: "poa", "Peer 0 is {}.", s0.address());
 	net.peer(1).chain.miner().set_engine_signer(s1.address(), "".to_owned()).unwrap();
 	trace!(target: "poa", "Peer 1 is {}.", s1.address());
-	net.peer(0).chain.engine().register_client(Arc::downgrade(&net.peer(0).chain));
-	net.peer(1).chain.engine().register_client(Arc::downgrade(&net.peer(1).chain));
+	net.peer(0).chain.engine().register_client(Arc::downgrade(&net.peer(0).chain) as _);
+	net.peer(1).chain.engine().register_client(Arc::downgrade(&net.peer(1).chain) as _);
 	net.peer(0).chain.set_io_channel(IoChannel::to_handler(Arc::downgrade(&io_handler0)));
 	net.peer(1).chain.set_io_channel(IoChannel::to_handler(Arc::downgrade(&io_handler1)));
 	// Exhange statuses
