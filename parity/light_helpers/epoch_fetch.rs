@@ -27,7 +27,8 @@ use futures::{future, Future, BoxFuture};
 use light::client::fetch::ChainDataFetcher;
 use light::on_demand::{request, OnDemand};
 
-use util::{RwLock, H256};
+use parking_lot::RwLock;
+use util::H256;
 
 const ALL_VALID_BACKREFS: &str = "no back-references, therefore all back-references valid; qed";
 
