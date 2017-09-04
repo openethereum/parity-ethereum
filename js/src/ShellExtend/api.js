@@ -23,12 +23,10 @@ function injectInterceptorPlugin (middleware) {
   return true;
 }
 
-function injectSignerPlugin (func) {
+function injectSignerPlugin (component) {
 }
 
 function injectStatusPlugin (component) {
-  console.log('component', component);
-
   StatusPluginStore.get().addComponent(component);
 
   return true;
