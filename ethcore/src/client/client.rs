@@ -1969,7 +1969,7 @@ impl ProvingBlockChainClient for Client {
 		let backend = state::backend::Proving::new(jdb.as_hashdb_mut());
 
 		let mut state = state.replace_backend(backend);
-		let options = TransactOptions::with_no_tracing().dont_check_nonce();
+		let options = TransactOptions::with_no_tracing().dont_check_nonce().save_output_from_contract();
 		let res = Executive::new(&mut state, &env_info, &*self.engine).transact(&transaction, options);
 
 		match res {
