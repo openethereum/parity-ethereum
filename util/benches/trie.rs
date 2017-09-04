@@ -17,6 +17,7 @@
 #![feature(test)]
 
 extern crate test;
+extern crate triehash;
 extern crate ethcore_util;
 extern crate ethcore_bigint;
 #[macro_use]
@@ -28,7 +29,7 @@ use ethcore_bigint::hash::*;
 use ethcore_util::bytes::*;
 use ethcore_util::trie::*;
 use ethcore_util::memorydb::*;
-use ethcore_util::triehash::*;
+use triehash::*;
 use hash::keccak;
 
 fn random_word(alphabet: &[u8], min_count: usize, diff_count: usize, seed: &mut H256) -> Vec<u8> {

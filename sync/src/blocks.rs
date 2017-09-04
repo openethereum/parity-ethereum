@@ -20,6 +20,7 @@ use smallvec::SmallVec;
 use hash::{keccak, KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP};
 use heapsize::HeapSizeOf;
 use bigint::hash::H256;
+use triehash::ordered_trie_root;
 use util::*;
 use rlp::*;
 use network::NetworkError;

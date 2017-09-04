@@ -26,7 +26,7 @@ use time::get_time;
 use bigint::prelude::U256;
 use bigint::hash::{H64, H160, H256};
 use util::Address;
-use util::Mutex;
+use parking_lot::Mutex;
 
 use ethash::SeedHashCompute;
 use ethcore::account_provider::{AccountProvider, DappId};

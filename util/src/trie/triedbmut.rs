@@ -939,7 +939,8 @@ impl<'a> Drop for TrieDBMut<'a> {
 
 #[cfg(test)]
 mod tests {
-	use triehash::trie_root;
+	extern crate triehash;
+	use self::triehash::trie_root;
 	use hashdb::*;
 	use memorydb::*;
 	use super::*;

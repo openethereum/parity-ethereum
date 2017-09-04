@@ -19,6 +19,7 @@
 
 use std::sync::Weak;
 use bigint::hash::H256;
+use parking_lot::RwLock;
 use util::*;
 
 use futures::Future;

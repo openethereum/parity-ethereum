@@ -16,7 +16,7 @@
 
 extern crate ansi_term;
 use self::ansi_term::Colour::{White, Yellow, Green, Cyan, Blue};
-use self::ansi_term::Style;
+use self::ansi_term::{Colour, Style};
 
 use std::sync::{Arc};
 use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
@@ -36,7 +36,8 @@ use number_prefix::{binary_prefix, Standalone, Prefixed};
 use parity_rpc::{is_major_importing};
 use parity_rpc::informant::RpcStats;
 use bigint::hash::H256;
-use util::{RwLock, Mutex, Colour, Bytes};
+use util::Bytes;
+use parking_lot::{RwLock, Mutex};
 
 /// Format byte counts to standard denominations.
 pub fn format_bytes(b: usize) -> String {

@@ -27,6 +27,7 @@ extern crate semver;
 extern crate futures;
 extern crate ethcore_logger;
 extern crate hash;
+extern crate parking_lot;
 
 #[cfg(test)] extern crate tokio_core;
 extern crate ethcore_devtools as devtools;
@@ -58,7 +59,7 @@ use std::net::SocketAddr;
 use std::collections::{HashSet, HashMap};
 use hash::keccak;
 use bigint::hash::H256;
-use util::{RwLock, RwLockReadGuard};
+use parking_lot::{RwLock, RwLockReadGuard};
 
 type RpcResult = BoxFuture<jsonrpc_core::Value, jsonrpc_core::Error>;
 

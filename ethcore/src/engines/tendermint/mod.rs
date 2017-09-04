@@ -32,6 +32,7 @@ use hash::keccak;
 use std::cmp;
 use bigint::prelude::{U128, U256};
 use bigint::hash::{H256, H520};
+use parking_lot::RwLock;
 use util::*;
 use client::{Client, EngineClient};
 use error::{Error, BlockError};
@@ -50,6 +51,7 @@ use super::transition::TransitionHandler;
 use super::vote_collector::VoteCollector;
 use self::message::*;
 use self::params::TendermintParams;
+use semantic_version::SemanticVersion;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub enum Step {

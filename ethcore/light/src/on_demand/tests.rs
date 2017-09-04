@@ -23,7 +23,7 @@ use futures::Future;
 use network::{PeerId, NodeId};
 use net::*;
 use bigint::hash::H256;
-use util::Mutex;
+use parking_lot::Mutex;
 use time::Duration;
 use ::request::{self as basic_request, Response};
 

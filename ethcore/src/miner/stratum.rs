@@ -29,7 +29,7 @@ use bigint::prelude::U256;
 use bigint::hash::{H64, H256, clean_0x};
 use ethereum::ethash::Ethash;
 use ethash::SeedHashCompute;
-use util::Mutex;
+use parking_lot::Mutex;
 use miner::{self, Miner, MinerService};
 use client::Client;
 use block::IsBlock;

@@ -36,7 +36,8 @@ use service::ClientIoMessage;
 use io::IoChannel;
 
 use bigint::hash::H256;
-use util::{Bytes, Mutex, RwLock, RwLockReadGuard, UtilError};
+use parking_lot::{Mutex, RwLock, RwLockReadGuard};
+use util::{Bytes, UtilError};
 use util::journaldb::Algorithm;
 use util::kvdb::{Database, DatabaseConfig};
 use util::snappy;

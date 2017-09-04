@@ -24,6 +24,7 @@ use bloomchain as bc;
 use heapsize::HeapSizeOf;
 use bigint::prelude::U256;
 use bigint::hash::{H256, H2048};
+use parking_lot::{Mutex, RwLock};
 use util::*;
 use rlp::*;
 use header::*;
@@ -43,6 +44,7 @@ use db::{self, Writable, Readable, CacheUpdatePolicy};
 use cache_manager::CacheManager;
 use encoded;
 use engines::epoch::{Transition as EpochTransition, PendingTransition as PendingEpochTransition};
+use ansi_term::Colour;
 
 const LOG_BLOOMS_LEVELS: usize = 3;
 const LOG_BLOOMS_ELEMENTS_PER_INDEX: usize = 16;

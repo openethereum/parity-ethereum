@@ -32,8 +32,10 @@ itertools = "0.5"
 bincode = "0.8.0"
 serde = "1.0"
 serde_derive = "1.0"
+parking_lot = "0.4"
 stats = { path = "../../util/stats" }
 hash = { path = "../../util/hash" }
+triehash = { path = "../../util/triehash" }
 
 [features]
 default = []

@@ -17,6 +17,7 @@ log = "0.3"
 rlp = { path = "../../util/rlp" }
 vm = { path = "../vm" }
 parity-wasm = "0.12"
+parking_lot = "0.4"
 ethcore-logger = { path = "../../logger" }
 wasm-utils = { git = "https://github.com/paritytech/wasm-utils" }
 hash = { path = "../../util/hash" }

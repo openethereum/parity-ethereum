@@ -25,7 +25,8 @@ use network::{HostInfo, NetworkProtocolHandler, NetworkContext, PeerId};
 use rlp::{RlpStream, UntrustedRlp};
 use bigint::prelude::U256;
 use bigint::hash::H256;
-use util::{DBValue, Mutex, RwLock};
+use util::DBValue;
+use parking_lot::{Mutex, RwLock};
 use time::{Duration, SteadyTime};
 
 use std::collections::{HashMap, HashSet};
@@ -288,7 +289,7 @@ pub type PeerMap = HashMap<PeerId, Mutex<Peer>>;
 mod id_guard {
 
 	use network::PeerId;
-	use util::RwLockReadGuard;
+	use parking_lot::RwLockReadGuard;
 
 	use super::{PeerMap, ReqId};
 

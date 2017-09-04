@@ -24,7 +24,7 @@ use ethcore::miner::MinerService;
 use ethcore::filter::Filter as EthcoreFilter;
 use ethcore::client::{BlockChainClient, BlockId};
 use bigint::hash::H256;
-use util::Mutex;
+use parking_lot::Mutex;
 
 use futures::{future, Future, BoxFuture};
 

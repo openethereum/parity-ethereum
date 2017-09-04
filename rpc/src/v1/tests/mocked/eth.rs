@@ -24,7 +24,8 @@ use rlp;
 
 use bigint::prelude::U256;
 use bigint::hash::H256;
-use util::{Address, Mutex};
+use util::Address;
+use parking_lot::Mutex;
 use ethkey::Secret;
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::{TestBlockChainClient, EachBlockWith, Executed, TransactionId};

@@ -23,6 +23,7 @@
 
 use std::collections::HashSet;
 use hash::keccak;
+use triehash::ordered_trie_root;
 use heapsize::HeapSizeOf;
 use bigint::hash::H256;
 use util::*;
@@ -272,6 +273,7 @@ mod tests {
 	use hash::keccak;
 	use bigint::prelude::U256;
 	use bigint::hash::{H256, H2048};
+	use triehash::ordered_trie_root;
 	use util::*;
 	use ethkey::{Random, Generator};
 	use header::*;

@@ -95,6 +95,7 @@ use hash::keccak;
 use heapsize::HeapSizeOf;
 use bigint::prelude::U256;
 use bigint::hash::{H256, H256FastMap};
+use parking_lot::RwLock;
 use util::*;
 use rlp::*;
 use network::*;
@@ -2234,7 +2235,8 @@ mod tests {
 	use tests::snapshot::TestSnapshotService;
 	use bigint::prelude::U256;
 	use bigint::hash::H256;
-	use util::{Address, RwLock};
+	use util::Address;
+	use parking_lot::RwLock;
 	use util::bytes::Bytes;
 	use rlp::{Rlp, RlpStream, UntrustedRlp};
 	use super::*;

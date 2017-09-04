@@ -42,6 +42,7 @@ use state::backend::Basic as BasicBackend;
 use trace::{NoopTracer, NoopVMTracer};
 use bigint::prelude::U256;
 use bigint::hash::{H256, H2048};
+use parking_lot::RwLock;
 use util::*;
 
 /// Parameters common to ethereum-like blockchains.

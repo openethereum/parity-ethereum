@@ -56,6 +56,7 @@ use transaction::{UnverifiedTransaction, SignedTransaction};
 use ethkey::Signature;
 use bigint::prelude::U256;
 use bigint::hash::H256;
+use semantic_version::SemanticVersion;
 use util::*;
 
 /// Default EIP-210 contrat code.

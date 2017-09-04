@@ -29,6 +29,7 @@ use miner::Miner;
 use snapshot::ManifestData;
 use snapshot::service::{Service as SnapshotService, ServiceParams as SnapServiceParams};
 use std::sync::atomic::AtomicBool;
+use ansi_term::Colour;
 
 #[cfg(feature="ipc")]
 use nanoipc;

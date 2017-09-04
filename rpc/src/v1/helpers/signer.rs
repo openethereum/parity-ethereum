@@ -17,7 +17,7 @@
 use std::sync::Arc;
 use std::ops::Deref;
 use http::Origin;
-use util::Mutex;
+use parking_lot::Mutex;
 use transient_hashmap::TransientHashMap;
 
 use ethstore::random_string;

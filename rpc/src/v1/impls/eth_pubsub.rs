@@ -40,7 +40,8 @@ use light::on_demand::OnDemand;
 use light::client::{LightChainClient, LightChainNotify};
 use parity_reactor::Remote;
 use bigint::hash::H256;
-use util::{RwLock, Mutex, Bytes};
+use util::Bytes;
+use parking_lot::{RwLock, Mutex};
 
 type Client = Sink<pubsub::Result>;
 

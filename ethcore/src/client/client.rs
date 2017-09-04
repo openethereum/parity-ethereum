@@ -24,7 +24,8 @@ use itertools::Itertools;
 
 // util
 use hash::keccak;
-use util::{Bytes, PerfTimer, Mutex, RwLock, MutexGuard};
+use timer::PerfTimer;
+use util::Bytes;
 use util::{journaldb, DBValue, TrieFactory, Trie};
 use util::Address;
 use util::trie::TrieSpec;
@@ -57,6 +58,7 @@ use io::*;
 use log_entry::LocalizedLogEntry;
 use miner::{Miner, MinerService, TransactionImportResult};
 use native_contracts::Registry;
+use parking_lot::{Mutex, RwLock, MutexGuard};
 use rand::OsRng;
 use receipt::{Receipt, LocalizedReceipt};
 use rlp::UntrustedRlp;

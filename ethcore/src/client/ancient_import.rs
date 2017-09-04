@@ -23,7 +23,7 @@ use engines::{Engine, EpochVerifier};
 use header::Header;
 
 use rand::Rng;
-use util::RwLock;
+use parking_lot::RwLock;
 
 // do "heavy" verification on ~1/50 blocks, randomly sampled.
 const HEAVY_VERIFY_RATE: f32 = 0.02;

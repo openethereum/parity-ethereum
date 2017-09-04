@@ -37,7 +37,9 @@ use node_health;
 use parity_reactor::EventLoop;
 use parity_rpc::{NetworkSettings, informant, is_major_importing};
 use updater::{UpdatePolicy, Updater};
-use util::{Colour, version, Mutex, Condvar};
+use ansi_term::Colour;
+use util::version;
+use parking_lot::{Condvar, Mutex};
 use node_filter::NodeFilter;
 
 use params::{
@@ -170,7 +172,7 @@ impl ::local_store::NodeInfo for FullNodeInfo {
 fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> Result<(bool, Option<String>), String> {
 	use light::client as light_client;
 	use ethsync::{LightSyncParams, LightSync, ManageNetwork};
-	use util::RwLock;
+	use parking_lot::{Mutex, RwLock};
 
 	// load spec
 	let spec = cmd.spec.spec(&cmd.dirs.cache)?;
@@ -205,7 +207,7 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 
 	// TODO: configurable cache size.
 	let cache = LightDataCache::new(Default::default(), ::time::Duration::minutes(GAS_CORPUS_EXPIRATION_MINUTES));
-	let cache = Arc::new(::util::Mutex::new(cache));
+	let cache = Arc::new(Mutex::new(cache));
 
 	// start client and create transaction queue.
 	let mut config = light_client::Config {

@@ -23,7 +23,7 @@ use self::stores::{AddressBook, DappsSettingsStore, NewDappsPolicy};
 use std::fmt;
 use std::collections::{HashMap, HashSet};
 use std::time::{Instant, Duration};
-use util::{RwLock};
+use parking_lot::RwLock;
 use ethstore::{
 	SimpleSecretStore, SecretStore, Error as SSError, EthStore, EthMultiStore,
 	random_string, SecretVaultRef, StoreAccountRef, OpaqueSecret,

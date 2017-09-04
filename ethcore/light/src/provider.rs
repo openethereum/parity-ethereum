@@ -25,7 +25,7 @@ use ethcore::transaction::PendingTransaction;
 use ethcore::ids::BlockId;
 use ethcore::encoded;
 use bigint::hash::H256;
-use util::RwLock;
+use parking_lot::RwLock;
 
 use cht::{self, BlockInfo};
 use client::{LightChainClient, AsLightClient};

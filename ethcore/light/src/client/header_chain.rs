@@ -39,11 +39,10 @@ use rlp::{Encodable, Decodable, DecoderError, RlpStream, Rlp, UntrustedRlp};
 use heapsize::HeapSizeOf;
 use bigint::prelude::U256;
 use bigint::hash::H256;
-use util::RwLock;
 use util::kvdb::{DBTransaction, KeyValueDB};
 
 use cache::Cache;
-use util::Mutex;
+use parking_lot::{Mutex, RwLock};
 
 use smallvec::SmallVec;
 
@@ -557,7 +556,7 @@ mod tests {
   	use cache::Cache;
 
 	use time::Duration;
-	use util::Mutex;
+	use parking_lot::Mutex;
 
 	fn make_db() -> Arc<::util::KeyValueDB> {
 		Arc::new(::util::kvdb::in_memory(0))

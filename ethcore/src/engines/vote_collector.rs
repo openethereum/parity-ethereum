@@ -20,6 +20,7 @@ use std::fmt::Debug;
 use std::collections::{BTreeMap, HashSet, HashMap};
 use std::hash::Hash;
 use bigint::hash::{H256, H520};
+use parking_lot:: RwLock;
 use util::*;
 use rlp::{Encodable, RlpStream};
 

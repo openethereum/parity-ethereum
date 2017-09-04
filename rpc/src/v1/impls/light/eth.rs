@@ -40,7 +40,7 @@ use ethsync::LightSync;
 use rlp::UntrustedRlp;
 use hash::{KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP};
 use bigint::prelude::U256;
-use util::{RwLock, Mutex};
+use parking_lot::{RwLock, Mutex};
 
 use futures::{future, Future, BoxFuture, IntoFuture};
 use futures::sync::oneshot;

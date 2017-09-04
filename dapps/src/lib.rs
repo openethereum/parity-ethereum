@@ -24,6 +24,7 @@ extern crate futures;
 extern crate itertools;
 extern crate linked_hash_map;
 extern crate mime_guess;
+extern crate parking_lot;
 extern crate rand;
 extern crate rustc_hex;
 extern crate serde;
@@ -74,7 +75,7 @@ use std::collections::HashMap;
 use std::mem;
 use std::path::PathBuf;
 use std::sync::Arc;
-use util::RwLock;
+use parking_lot::RwLock;
 
 use jsonrpc_http_server::{self as http, hyper, Origin};
 

@@ -132,7 +132,7 @@ pub fn compute_root<I>(cht_num: u64, iterable: I) -> Option<H256>
 	}
 
 	if v.len() == SIZE as usize {
-		Some(::util::triehash::trie_root(v))
+		Some(::triehash::trie_root(v))
 	} else {
 		None
 	}

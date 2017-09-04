@@ -18,27 +18,31 @@
 //!
 //! This module should be used to generate trie root hash.
 
+extern crate ethcore_bigint;
+extern crate hash;
+extern crate rlp;
+
 use std::collections::BTreeMap;
 use std::cmp;
-use bigint::hash::*;
-use keccak::keccak;
-use rlp;
+use ethcore_bigint::hash::H256;
+use hash::keccak;
 use rlp::RlpStream;
-use vector::SharedPrefix;
+
+fn shared_prefix_len<T: Eq>(first: &[T], second: &[T]) -> usize {
+	let len = cmp::min(first.len(), second.len());
+	(0..len).take_while(|&i| first[i] == second[i]).count()
+}
 
 /// Generates a trie root hash for a vector of values
 ///
 /// ```rust
-/// extern crate ethcore_util as util;
-/// extern crate ethcore_bigint as bigint;
-/// use std::str::FromStr;
-/// use util::triehash::*;
-/// use bigint::hash::*;
+/// extern crate triehash;
+/// use triehash::ordered_trie_root;
 ///
 /// fn main() {
 /// 	let v = vec![From::from("doe"), From::from("reindeer")];
 /// 	let root = "e766d5d51b89dc39d981b41bda63248d7abce4f0225eefd023792a540bcffee3";
-/// 	assert_eq!(ordered_trie_root(v), H256::from_str(root).unwrap());
+/// 	assert_eq!(ordered_trie_root(v), root.parse().unwrap());
 /// }
 /// ```
 pub fn ordered_trie_root<I>(input: I) -> H256
@@ -62,11 +66,8 @@ pub fn ordered_trie_root<I>(input: I) -> H256
 /// Generates a trie root hash for a vector of key-values
 ///
 /// ```rust
-/// extern crate ethcore_util as util;
-/// extern crate ethcore_bigint as bigint;
-/// use std::str::FromStr;
-/// use util::triehash::*;
-/// use bigint::hash::*;
+/// extern crate triehash;
+/// use triehash::trie_root;
 ///
 /// fn main() {
 /// 	let v = vec![
@@ -76,7 +77,7 @@ pub fn ordered_trie_root<I>(input: I) -> H256
 /// 	];
 ///
 /// 	let root = "8aad789dff2f538bca5d8ea56e8abe10f4c7ba3a5dea95fea4cd6e7c3a1168d3";
-/// 	assert_eq!(trie_root(v), H256::from_str(root).unwrap());
+/// 	assert_eq!(trie_root(v), root.parse().unwrap());
 /// }
 /// ```
 pub fn trie_root<I>(input: I) -> H256
@@ -97,11 +98,8 @@ pub fn trie_root<I>(input: I) -> H256
 /// Generates a key-hashed (secure) trie root hash for a vector of key-values.
 ///
 /// ```rust
-/// extern crate ethcore_util as util;
-/// extern crate ethcore_bigint as bigint;
-/// use std::str::FromStr;
-/// use util::triehash::*;
-/// use bigint::hash::*;
+/// extern crate triehash;
+/// use triehash::sec_trie_root;
 ///
 /// fn main() {
 /// 	let v = vec![
@@ -111,7 +109,7 @@ pub fn trie_root<I>(input: I) -> H256
 /// 	];
 ///
 /// 	let root = "d4cd937e4a4368d7931a9cf51686b7e10abb3dce38a39000fd7902a092b64585";
-/// 	assert_eq!(sec_trie_root(v), H256::from_str(root).unwrap());
+/// 	assert_eq!(sec_trie_root(v), root.parse().unwrap());
 /// }
 /// ```
 pub fn sec_trie_root(input: Vec<(Vec<u8>, Vec<u8>)>) -> H256 {
@@ -219,7 +217,7 @@ fn hash256rlp(input: &[(Vec<u8>, Vec<u8>)], pre_len: usize, stream: &mut RlpStre
 		.skip(1)
 		// get minimum number of shared nibbles between first and each successive
 		.fold(key.len(), | acc, &(ref k, _) | {
-			cmp::min(key.shared_prefix_len(k), acc)
+			cmp::min(shared_prefix_len(key, k), acc)
 		});
 
 	// if shared prefix is higher than current prefix append its
@@ -291,50 +289,49 @@ fn test_nibbles() {
 	assert_eq!(as_nibbles(&v), e);
 }
 
-#[test]
-fn test_hex_prefix_encode() {
-	let v = vec![0, 0, 1, 2, 3, 4, 5];
-	let e = vec![0x10, 0x01, 0x23, 0x45];
-	let h = hex_prefix_encode(&v, false);
-	assert_eq!(h, e);
-
-	let v = vec![0, 1, 2, 3, 4, 5];
-	let e = vec![0x00, 0x01, 0x23, 0x45];
-	let h = hex_prefix_encode(&v, false);
-	assert_eq!(h, e);
-
-	let v = vec![0, 1, 2, 3, 4, 5];
-	let e = vec![0x20, 0x01, 0x23, 0x45];
-	let h = hex_prefix_encode(&v, true);
-	assert_eq!(h, e);
-
-	let v = vec![1, 2, 3, 4, 5];
-	let e = vec![0x31, 0x23, 0x45];
-	let h = hex_prefix_encode(&v, true);
-	assert_eq!(h, e);
-
-	let v = vec![1, 2, 3, 4];
-	let e = vec![0x00, 0x12, 0x34];
-	let h = hex_prefix_encode(&v, false);
-	assert_eq!(h, e);
-
-	let v = vec![4, 1];
-	let e = vec![0x20, 0x41];
-	let h = hex_prefix_encode(&v, true);
-	assert_eq!(h, e);
-}
 
 #[cfg(test)]
 mod tests {
-	use std::str::FromStr;
-	use bigint::hash::H256;
-	use super::trie_root;
+	use super::{trie_root, shared_prefix_len, hex_prefix_encode};
+
+	#[test]
+	fn test_hex_prefix_encode() {
+		let v = vec![0, 0, 1, 2, 3, 4, 5];
+		let e = vec![0x10, 0x01, 0x23, 0x45];
+		let h = hex_prefix_encode(&v, false);
+		assert_eq!(h, e);
+
+		let v = vec![0, 1, 2, 3, 4, 5];
+		let e = vec![0x00, 0x01, 0x23, 0x45];
+		let h = hex_prefix_encode(&v, false);
+		assert_eq!(h, e);
+
+		let v = vec![0, 1, 2, 3, 4, 5];
+		let e = vec![0x20, 0x01, 0x23, 0x45];
+		let h = hex_prefix_encode(&v, true);
+		assert_eq!(h, e);
+
+		let v = vec![1, 2, 3, 4, 5];
+		let e = vec![0x31, 0x23, 0x45];
+		let h = hex_prefix_encode(&v, true);
+		assert_eq!(h, e);
+
+		let v = vec![1, 2, 3, 4];
+		let e = vec![0x00, 0x12, 0x34];
+		let h = hex_prefix_encode(&v, false);
+		assert_eq!(h, e);
+
+		let v = vec![4, 1];
+		let e = vec![0x20, 0x41];
+		let h = hex_prefix_encode(&v, true);
+		assert_eq!(h, e);
+	}
 
 	#[test]
 	fn simple_test() {
 		assert_eq!(trie_root(vec![
 			(b"A".to_vec(), b"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".to_vec())
-		]), H256::from_str("d23786fb4a010da3ce639d66d5e904a11dbc02746d1ce25029e53290cabf28ab").unwrap());
+		]), "d23786fb4a010da3ce639d66d5e904a11dbc02746d1ce25029e53290cabf28ab".parse().unwrap());
 	}
 
 	#[test]
@@ -351,4 +348,24 @@ mod tests {
 		]));
 	}
 
+	#[test]
+	fn test_shared_prefix() {
+		let a = vec![1,2,3,4,5,6];
+		let b = vec![4,2,3,4,5,6];
+		assert_eq!(shared_prefix_len(&a, &b), 0);
+	}
+
+	#[test]
+	fn test_shared_prefix2() {
+		let a = vec![1,2,3,3,5];
+		let b = vec![1,2,3];
+		assert_eq!(shared_prefix_len(&a, &b), 3);
+	}
+
+	#[test]
+	fn test_shared_prefix3() {
+		let a = vec![1,2,3,4,5,6];
+		let b = vec![1,2,3,4,5,6];
+		assert_eq!(shared_prefix_len(&a, &b), 6);
+	}
 }

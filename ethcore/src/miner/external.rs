@@ -19,7 +19,7 @@ use std::sync::Arc;
 use std::time::{Instant, Duration};
 use bigint::prelude::U256;
 use bigint::hash::H256;
-use util::Mutex;
+use parking_lot::Mutex;
 
 /// External miner interface.
 pub trait ExternalMinerService: Send + Sync {

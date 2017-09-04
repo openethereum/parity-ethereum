@@ -29,7 +29,7 @@ use bigint::hash::H256;
 use util::journaldb::{self, Algorithm};
 use util::kvdb::{Database, DatabaseConfig};
 use util::memorydb::MemoryDB;
-use util::Mutex;
+use parking_lot::Mutex;
 use devtools::RandomTempPath;
 
 use std::sync::Arc;

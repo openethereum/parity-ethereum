@@ -33,7 +33,7 @@ use ids::BlockId;
 use bigint::prelude::U256;
 use bigint::hash::H256;
 use util::{Bytes, HashDB, DBValue, snappy};
-use util::Mutex;
+use parking_lot::Mutex;
 use util::journaldb::{self, Algorithm, JournalDB};
 use util::kvdb::KeyValueDB;
 use util::trie::{TrieDB, TrieDBMut, Trie, TrieMut};

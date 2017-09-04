@@ -78,6 +78,7 @@ extern crate futures;
 extern crate itertools;
 extern crate rand;
 extern crate rlp;
+extern crate parking_lot;
 #[macro_use]
 extern crate rlp_derive;
 extern crate serde;
@@ -86,6 +87,7 @@ extern crate stats;
 extern crate time;
 extern crate vm;
 extern crate hash;
+extern crate triehash;
 
 #[cfg(feature = "ipc")]
 extern crate ethcore_ipc as ipc;

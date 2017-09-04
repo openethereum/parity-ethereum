@@ -18,7 +18,7 @@
 
 use std::collections::BTreeMap;
 use bigint::hash::H256;
-use util::RwLock;
+use parking_lot::RwLock;
 use ethsync::{SyncProvider, EthProtocolInfo, SyncStatus, SyncState, PeerInfo, TransactionStats};
 
 /// TestSyncProvider config.

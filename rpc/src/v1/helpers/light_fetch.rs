@@ -38,7 +38,8 @@ use light::request::Field;
 
 use ethsync::LightSync;
 use bigint::prelude::U256;
-use util::{Address, Mutex};
+use util::Address;
+use parking_lot::Mutex;
 
 use v1::helpers::{CallRequest as CallRequestHelper, errors, dispatch};
 use v1::types::{BlockNumber, CallRequest, Log};

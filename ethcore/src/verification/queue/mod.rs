@@ -25,6 +25,7 @@ use std::collections::{VecDeque, HashSet, HashMap};
 use heapsize::HeapSizeOf;
 use bigint::prelude::U256;
 use bigint::hash::H256;
+use parking_lot::{Condvar, Mutex, RwLock};
 use util::*;
 use io::*;
 use error::*;

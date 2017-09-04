@@ -223,7 +223,7 @@ impl Rebuilder for PowRebuilder {
 		use views::BlockView;
 		use snapshot::verify_old_block;
 		use bigint::prelude::U256;
-		use util::triehash::ordered_trie_root;
+		use triehash::ordered_trie_root;
 
 		let rlp = UntrustedRlp::new(chunk);
 		let item_count = rlp.item_count()?;
