@@ -179,63 +179,6 @@ pub struct PendingChanges {
 	best_block: Option<BlockDescriptor>, // new best block.
 }
 
-// initialize genesis epoch data, using in-memory database for
-// constructor.
-// TODO: move to `Spec`?
-fn genesis_epoch_data(spec: &Spec, genesis: &Header) -> Result<Vec<u8>, String> {
-	use ethcore::state::backend::Basic as BasicBackend;
-	use ethcore::transaction::{Action, Transaction};
-	use util::{journaldb, kvdb, Address};
-
-	let factories = Default::default();
-	let mut db = journaldb::new(
-		Arc::new(kvdb::in_memory(0)),
-		journaldb::Algorithm::Archive,
-		None,
-	);
-
-	spec.ensure_db_good(BasicBackend(db.as_hashdb_mut()), &factories)
-		.map_err(|e| format!("Unable to initialize genesis state: {}", e))?;
-
-	let call = |a, d| {
-		let mut db = db.boxed_clone();
-		let env_info = ::evm::EnvInfo {
-			number: 0,
-			author: *genesis.author(),
-			timestamp: genesis.timestamp(),
-			difficulty: *genesis.difficulty(),
-			gas_limit: *genesis.gas_limit(),
-			last_hashes: Arc::new(Vec::new()),
-			gas_used: 0.into()
-		};
-
-		let from = Address::default();
-		let tx = Transaction {
-			nonce: spec.engine.account_start_nonce(0),
-			action: Action::Call(a),
-			gas: U256::from(50_000_000), // TODO: share with client.
-			gas_price: U256::default(),
-			value: U256::default(),
-			data: d,
-		}.fake_sign(from);
-
-		let res = ::ethcore::state::prove_transaction(
-			db.as_hashdb_mut(),
-			*genesis.state_root(),
-			&tx,
-			&*spec.engine,
-			&env_info,
-			factories.clone(),
-			true,
-		);
-
-		res.map(|(out, proof)| (out, proof.into_iter().map(|x| x.into_vec()).collect()))
-			.ok_or_else(|| "Failed to prove call: insufficient state".into())
-	};
-
-	spec.engine.genesis_epoch_data(&genesis, &call)
-}
-
 /// Header chain. See module docs for more details.
 pub struct HeaderChain {
 	genesis_header: encoded::Header, // special-case the genesis.
@@ -334,7 +277,7 @@ impl HeaderChain {
 
 		// instantiate genesis epoch data if it doesn't exist.
 		if let None = chain.db.get(col, LAST_CANONICAL_TRANSITION)? {
-			let genesis_data = genesis_epoch_data(spec, &decoded_header)?;
+			let genesis_data = spec.genesis_epoch_data()?;
 
 			{
 				let mut batch = chain.db.transaction();
