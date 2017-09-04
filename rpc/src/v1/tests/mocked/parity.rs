@@ -205,7 +205,10 @@ fn rpc_parity_extra_data() {
 }
 
 #[test]
-fn rpc_eth_chain_id() {
+fn rpc_parity_chain_id() {
+	let deps = Dependencies::new();
+	let io = deps.default_client();
+
 	let request = r#"{"jsonrpc": "2.0", "method": "parity_chainId", "params": [], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":"0x1","id":1}"#;
 
