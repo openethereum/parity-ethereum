@@ -1443,6 +1443,10 @@ impl BlockChainClient for Client {
 		self.state_at(id).and_then(|s| s.code(address).ok()).map(|c| c.map(|c| (&*c).clone()))
 	}
 
+	fn code_hash(&self, address: &Address, id: BlockId) -> Option<H256> {
+		self.state_at(id).and_then(|s| s.code_hash(address).ok())
+	}
+
 	fn balance(&self, address: &Address, id: BlockId) -> Option<U256> {
 		self.state_at(id).and_then(|s| s.balance(address).ok())
 	}

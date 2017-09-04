@@ -17,7 +17,7 @@
 use std::path::Path;
 use std::cmp;
 use std::collections::{BTreeMap, HashMap};
-use std::sync::Arc;
+use std::sync::{Arc, Weak};
 use hash::{KECCAK_EMPTY_LIST_RLP};
 use ethash::{quick_get_difficulty, slow_get_seedhash, EthashManager};
 use util::*;
@@ -29,13 +29,15 @@ use trace::{Tracer, ExecutiveTracer, RewardType};
 use header::{Header, BlockNumber};
 use state::CleanupMode;
 use spec::CommonParams;
-use transaction::UnverifiedTransaction;
+use transaction::{UnverifiedTransaction, SignedTransaction};
 use engines::{self, Engine};
 use evm::Schedule;
 use ethjson;
 use rlp::{self, UntrustedRlp};
 use vm::LastHashes;
 use semantic_version::SemanticVersion;
+use tx_filter::{TransactionFilter};
+use client::{Client, BlockChainClient};
 
 /// Parity tries to round block.gas_limit to multiple of this constant
 pub const PARITY_GAS_LIMIT_DETERMINANT: U256 = U256([37, 0, 0, 0]);
@@ -141,6 +143,7 @@ pub struct Ethash {
 	ethash_params: EthashParams,
 	builtins: BTreeMap<Address, Builtin>,
 	pow: EthashManager,
+	tx_filter: Option<TransactionFilter>,
 }
 
 impl Ethash {
@@ -152,6 +155,7 @@ impl Ethash {
 		builtins: BTreeMap<Address, Builtin>,
 	) -> Arc<Self> {
 		Arc::new(Ethash {
+			tx_filter: TransactionFilter::from_params(&params),
 			params,
 			ethash_params,
 			builtins,
@@ -437,6 +441,14 @@ impl Engine for Arc<Ethash> {
 		Ok(())
 	}
 
+	fn verify_transaction(&self, t: UnverifiedTransaction, header: &Header) -> Result<SignedTransaction, Error> {
+		let signed = SignedTransaction::new(t)?;
+		if !self.tx_filter.as_ref().map_or(true, |filter| filter.transaction_allowed(header.parent_hash(), &signed)) {
+			return Err(From::from(TransactionError::NotAllowed));
+		}
+		Ok(signed)
+	}
+
 	fn epoch_verifier<'a>(&self, _header: &Header, _proof: &'a [u8]) -> engines::ConstructedVerifier<'a> {
 		engines::ConstructedVerifier::Trusted(Box::new(self.clone()))
 	}
@@ -444,6 +456,13 @@ impl Engine for Arc<Ethash> {
 	fn snapshot_components(&self) -> Option<Box<::snapshot::SnapshotComponents>> {
 		Some(Box::new(::snapshot::PowSnapshot::new(SNAPSHOT_BLOCKS, MAX_SNAPSHOT_BLOCKS)))
 	}
+
+	fn register_client(&self, client: Weak<Client>) {
+		if let Some(ref filter) = self.tx_filter {
+			filter.register_client(client as Weak<BlockChainClient>);
+		}
+	}
+
 }
 
 // Try to round gas_limit a bit so that:

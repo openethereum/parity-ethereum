@@ -454,6 +454,13 @@ impl BlockChainClient for TestBlockChainClient {
 		}
 	}
 
+	fn code_hash(&self, address: &Address, id: BlockId) -> Option<H256> {
+		match id {
+			BlockId::Latest | BlockId::Pending => self.code.read().get(address).map(|c| keccak(&c)),
+			_ => None,
+		}
+	}
+
 	fn balance(&self, address: &Address, id: BlockId) -> Option<U256> {
 		match id {
 			BlockId::Latest | BlockId::Pending => Some(self.balances.read().get(address).cloned().unwrap_or_else(U256::zero)),
