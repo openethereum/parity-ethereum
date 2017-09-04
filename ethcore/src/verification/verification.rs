@@ -22,6 +22,8 @@
 //! 3. Final verification against the blockchain done before enactment.
 
 use std::collections::HashSet;
+use hash::keccak;
+use triehash::ordered_trie_root;
 use heapsize::HeapSizeOf;
 use util::*;
 use engines::Engine;
@@ -257,7 +259,7 @@ fn verify_block_integrity(block: &[u8], transactions_root: &H256, uncles_hash: &
 	if expected_root != transactions_root {
 		return Err(From::from(BlockError::InvalidTransactionsRoot(Mismatch { expected: expected_root.clone(), found: transactions_root.clone() })))
 	}
-	let expected_uncles = &block.at(2)?.as_raw().sha3();
+	let expected_uncles = &keccak(block.at(2)?.as_raw());
 	if expected_uncles != uncles_hash {
 		return Err(From::from(BlockError::InvalidUnclesHash(Mismatch { expected: expected_uncles.clone(), found: uncles_hash.clone() })))
 	}
@@ -267,6 +269,8 @@ fn verify_block_integrity(block: &[u8], transactions_root: &H256, uncles_hash: &
 #[cfg(test)]
 mod tests {
 	use std::collections::{BTreeMap, HashMap};
+	use hash::keccak;
+	use triehash::ordered_trie_root;
 	use util::*;
 	use ethkey::{Random, Generator};
 	use header::*;
@@ -325,7 +329,7 @@ mod tests {
 
 		pub fn insert(&mut self, bytes: Bytes) {
 			let number = BlockView::new(&bytes).header_view().number();
-			let hash = BlockView::new(&bytes).header_view().sha3();
+			let hash = BlockView::new(&bytes).header_view().hash();
 			self.blocks.insert(hash.clone(), bytes);
 			self.numbers.insert(number, hash.clone());
 		}
@@ -483,7 +487,7 @@ mod tests {
 		let good_uncles = vec![ good_uncle1.clone(), good_uncle2.clone() ];
 		let mut uncles_rlp = RlpStream::new();
 		uncles_rlp.append_list(&good_uncles);
-		let good_uncles_hash = uncles_rlp.as_raw().sha3();
+		let good_uncles_hash = keccak(uncles_rlp.as_raw());
 		let good_transactions_root = ordered_trie_root(good_transactions.iter().map(|t| ::rlp::encode::<UnverifiedTransaction>(t).into_vec()));
 
 		let mut parent = good.clone();

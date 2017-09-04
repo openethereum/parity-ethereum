@@ -24,7 +24,8 @@ use ethcore::client::{BlockChainClient, ProvingBlockChainClient};
 use ethcore::transaction::PendingTransaction;
 use ethcore::ids::BlockId;
 use ethcore::encoded;
-use util::{RwLock, H256};
+use parking_lot::RwLock;
+use util::H256;
 
 use cht::{self, BlockInfo};
 use client::{LightChainClient, AsLightClient};

@@ -30,10 +30,11 @@ use ethcore::spec::Spec;
 use ethcore::service::ClientIoMessage;
 use ethcore::encoded;
 use io::IoChannel;
+use parking_lot::{Mutex, RwLock};
 
 use futures::{IntoFuture, Future};
 
-use util::{Address, H256, U256, Mutex, RwLock};
+use util::{Address, H256, U256};
 use util::kvdb::{KeyValueDB, CompactionProfile};
 
 use self::fetch::ChainDataFetcher;

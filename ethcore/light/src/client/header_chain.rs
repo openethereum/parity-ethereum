@@ -43,11 +43,11 @@ use ethcore::engines::epoch::{
 
 use rlp::{Encodable, Decodable, DecoderError, RlpStream, Rlp, UntrustedRlp};
 use heapsize::HeapSizeOf;
-use util::{H256, H256FastMap, H264, U256,  RwLock};
+use util::{H256, H256FastMap, H264, U256};
 use util::kvdb::{DBTransaction, KeyValueDB};
 
 use cache::Cache;
-use util::Mutex;
+use parking_lot::{Mutex, RwLock};
 
 use smallvec::SmallVec;
 
@@ -664,7 +664,7 @@ impl HeaderChain {
 
 	/// Get the genesis hash.
 	pub fn genesis_hash(&self) -> H256 {
-		::util::Hashable::sha3(&self.genesis_header)
+		self.genesis_header.hash()
 	}
 
 	/// Get the best block's data.
@@ -782,7 +782,7 @@ mod tests {
   	use cache::Cache;
 
 	use time::Duration;
-	use util::Mutex;
+	use parking_lot::Mutex;
 
 	fn make_db() -> Arc<::util::KeyValueDB> {
 		Arc::new(::util::kvdb::in_memory(0))

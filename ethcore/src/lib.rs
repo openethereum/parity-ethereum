@@ -98,10 +98,15 @@ extern crate lru_cache;
 extern crate native_contracts;
 extern crate num_cpus;
 extern crate num;
+extern crate parking_lot;
 extern crate price_info;
 extern crate rand;
 extern crate rlp;
+extern crate hash;
 extern crate heapsize;
+extern crate triehash;
+extern crate ansi_term;
+extern crate semantic_version;
 
 #[macro_use]
 extern crate rlp_derive;
@@ -149,6 +154,7 @@ pub mod service;
 pub mod snapshot;
 pub mod spec;
 pub mod state;
+pub mod timer;
 pub mod trace;
 pub mod transaction;
 pub mod verification;

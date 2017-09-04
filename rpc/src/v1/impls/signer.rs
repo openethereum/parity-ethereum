@@ -24,7 +24,7 @@ use ethkey;
 use futures::{future, BoxFuture, Future, IntoFuture};
 use parity_reactor::Remote;
 use rlp::UntrustedRlp;
-use util::Mutex;
+use parking_lot::Mutex;
 
 use jsonrpc_core::{futures, Error};
 use jsonrpc_pubsub::SubscriptionId;

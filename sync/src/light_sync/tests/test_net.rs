@@ -29,7 +29,7 @@ use light::client::fetch::{self, Unavailable};
 use light::net::{LightProtocol, IoContext, Capabilities, Params as LightParams};
 use light::provider::LightProvider;
 use network::{NodeId, PeerId};
-use util::RwLock;
+use parking_lot::RwLock;
 
 use time::Duration;
 use light::cache::Cache;

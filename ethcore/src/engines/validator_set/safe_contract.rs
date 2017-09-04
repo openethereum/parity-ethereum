@@ -19,7 +19,9 @@
 use std::sync::{Weak, Arc};
 use futures::Future;
 use native_contracts::ValidatorSet as Provider;
+use hash::keccak;
 
+use parking_lot::{Mutex, RwLock};
 use util::*;
 use util::cache::MemoryLruCache;
 use rlp::{UntrustedRlp, RlpStream};
@@ -41,7 +43,7 @@ const MEMOIZE_CAPACITY: usize = 500;
 const EVENT_NAME: &'static [u8] = &*b"InitiateChange(bytes32,address[])";
 
 lazy_static! {
-	static ref EVENT_NAME_HASH: H256 = EVENT_NAME.sha3();
+	static ref EVENT_NAME_HASH: H256 = keccak(EVENT_NAME);
 }
 
 // state-dependent proofs for the safe contract:
@@ -383,7 +385,7 @@ impl ValidatorSet for ValidatorSafeContract {
 
 			// ensure receipts match header.
 			// TODO: optimize? these were just decoded.
-			let found_root = ::util::triehash::ordered_trie_root(
+			let found_root = ::triehash::ordered_trie_root(
 				receipts.iter().map(::rlp::encode).map(|x| x.to_vec())
 			);
 			if found_root != *old_header.receipts_root() {
@@ -456,6 +458,7 @@ impl ValidatorSet for ValidatorSafeContract {
 mod tests {
 	use std::sync::Arc;
 	use rustc_hex::FromHex;
+	use hash::keccak;
 	use util::*;
 	use types::ids::BlockId;
 	use spec::Spec;
@@ -481,9 +484,9 @@ mod tests {
 	#[test]
 	fn knows_validators() {
 		let tap = Arc::new(AccountProvider::transient_provider());
-		let s0: Secret = "1".sha3().into();
+		let s0: Secret = keccak("1").into();
 		let v0 = tap.insert_account(s0.clone(), "").unwrap();
-		let v1 = tap.insert_account("0".sha3().into(), "").unwrap();
+		let v1 = tap.insert_account(keccak("0").into(), "").unwrap();
 		let chain_id = Spec::new_validator_safe_contract().chain_id();
 		let client = generate_dummy_client_with_spec_and_accounts(Spec::new_validator_safe_contract, Some(tap));
 		client.engine().register_client(Arc::downgrade(&client) as _);

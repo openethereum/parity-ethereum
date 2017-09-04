@@ -17,8 +17,9 @@
 //! Log entry type definition.
 
 use std::ops::Deref;
+use hash::keccak;
 use heapsize::HeapSizeOf;
-use util::{H256, Address, Bytes, Hashable};
+use util::{H256, Address, Bytes};
 use bloomable::Bloomable;
 
 use {BlockNumber};
@@ -46,7 +47,7 @@ impl HeapSizeOf for LogEntry {
 impl LogEntry {
 	/// Calculates the bloom of this log entry.
 	pub fn bloom(&self) -> LogBloom {
-		self.topics.iter().fold(LogBloom::from_bloomed(&self.address.sha3()), |b, t| b.with_bloomed(&t.sha3()))
+		self.topics.iter().fold(LogBloom::from_bloomed(&keccak(&self.address)), |b, t| b.with_bloomed(&keccak(t)))
 	}
 }
 

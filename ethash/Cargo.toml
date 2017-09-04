@@ -7,7 +7,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 log = "0.3"
-sha3 = { path = "../util/sha3" }
+hash = { path = "../util/hash" }
 primal = "0.2.3"
 parking_lot = "0.4"
 crunchy = "0.1.0"

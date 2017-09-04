@@ -26,8 +26,9 @@ use light::client::LightChainClient;
 use light::on_demand::{request, OnDemand};
 use light::TransactionQueue as LightTransactionQueue;
 use rlp;
-use util::{Address, H520, H256, U256, Bytes, Mutex, RwLock};
-use util::sha3::Hashable;
+use hash::keccak;
+use util::{Address, H520, H256, U256, Bytes};
+use parking_lot::{Mutex, RwLock};
 use stats::Corpus;
 
 use ethkey::Signature;
@@ -226,7 +227,7 @@ pub fn eth_data_hash(mut data: Bytes) -> H256 {
 		format!("\x19Ethereum Signed Message:\n{}", data.len())
 		.into_bytes();
 	message_data.append(&mut data);
-	message_data.sha3()
+	keccak(message_data)
 }
 
 /// Dispatcher for light clients -- fetches default gas price, next nonce, etc. from network.

@@ -78,6 +78,7 @@ extern crate bytes;
 extern crate path;
 extern crate ethcore_logger;
 extern crate ipnetwork;
+extern crate hash;
 
 #[macro_use]
 extern crate log;
@@ -156,7 +157,7 @@ pub struct IpFilter {
     pub predefined: AllowIP,
     pub custom_allow: Vec<IpNetwork>,
     pub custom_block: Vec<IpNetwork>,
-} 
+}
 
 impl Default for IpFilter {
     fn default() -> Self {

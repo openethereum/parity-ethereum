@@ -21,6 +21,7 @@ use std::collections::BTreeMap;
 use std::path::Path;
 use std::sync::Arc;
 use rustc_hex::FromHex;
+use hash::{KECCAK_NULL_RLP, keccak};
 use super::genesis::Genesis;
 use super::seal::Generic as GenericSeal;
 
@@ -38,6 +39,7 @@ use rlp::{Rlp, RlpStream};
 use state::{Backend, State, Substate};
 use state::backend::Basic as BasicBackend;
 use trace::{NoopTracer, NoopVMTracer};
+use parking_lot::RwLock;
 use util::*;
 
 /// Parameters common to ethereum-like blockchains.
@@ -202,9 +204,9 @@ pub struct Spec {
 	pub gas_used: U256,
 	/// The genesis block's timestamp field.
 	pub timestamp: u64,
-	/// Transactions root of the genesis block. Should be SHA3_NULL_RLP.
+	/// Transactions root of the genesis block. Should be KECCAK_NULL_RLP.
 	pub transactions_root: H256,
-	/// Receipts root of the genesis block. Should be SHA3_NULL_RLP.
+	/// Receipts root of the genesis block. Should be KECCAK_NULL_RLP.
 	pub receipts_root: H256,
 	/// The genesis block's extra data field.
 	pub extra_data: Bytes,
@@ -286,7 +288,7 @@ impl Spec {
 
 	// given a pre-constructor state, run all the given constructors and produce a new state and state root.
 	fn run_constructors<T: Backend>(&self, factories: &Factories, mut db: T) -> Result<T, Error> {
-		let mut root = SHA3_NULL_RLP;
+		let mut root = KECCAK_NULL_RLP;
 
 		// basic accounts in spec.
 		{
@@ -300,7 +302,7 @@ impl Spec {
 		for (address, account) in self.genesis_state.get().iter() {
 			db.note_non_null_account(address);
 			account.insert_additional(
-				&mut *factories.accountdb.create(db.as_hashdb_mut(), address.sha3()),
+				&mut *factories.accountdb.create(db.as_hashdb_mut(), keccak(address)),
 				&factories.trie
 			);
 		}
@@ -332,7 +334,7 @@ impl Spec {
 				trace!(target: "spec", "  .. root before = {}", state.root());
 				let params = ActionParams {
 					code_address: address.clone(),
-					code_hash: Some(constructor.sha3()),
+					code_hash: Some(keccak(constructor)),
 					address: address.clone(),
 					sender: from.clone(),
 					origin: from.clone(),
@@ -398,7 +400,7 @@ impl Spec {
 		header.set_number(0);
 		header.set_author(self.author.clone());
 		header.set_transactions_root(self.transactions_root.clone());
-		header.set_uncles_hash(RlpStream::new_list(0).out().sha3());
+		header.set_uncles_hash(keccak(RlpStream::new_list(0).out()));
 		header.set_extra_data(self.extra_data.clone());
 		header.set_state_root(self.state_root());
 		header.set_receipts_root(self.receipts_root.clone());
@@ -485,7 +487,7 @@ impl Spec {
 	/// Create a new Spec which conforms to the Frontier-era Morden chain except that it's a NullEngine consensus with applying reward on block close.
 	pub fn new_test_with_reward() -> Spec { load_bundled!("null_morden_with_reward") }
 
-	/// Create a new Spec which is a NullEngine consensus with a premine of address whose secret is sha3('').
+	/// Create a new Spec which is a NullEngine consensus with a premine of address whose secret is keccak('').
 	pub fn new_null() -> Spec { load_bundled!("null") }
 
 	/// Create a new Spec which constructs a contract at address 5 with storage at 0 equal to 1.
@@ -495,15 +497,15 @@ impl Spec {
 	pub fn new_instant() -> Spec { load_bundled!("instant_seal") }
 
 	/// Create a new Spec with AuthorityRound consensus which does internal sealing (not requiring work).
-	/// Accounts with secrets "0".sha3() and "1".sha3() are the validators.
+	/// Accounts with secrets keccak("0") and keccak("1") are the validators.
 	pub fn new_test_round() -> Self { load_bundled!("authority_round") }
 
 	/// Create a new Spec with Tendermint consensus which does internal sealing (not requiring work).
-	/// Account "0".sha3() and "1".sha3() are a authorities.
+	/// Account keccak("0") and keccak("1") are a authorities.
 	pub fn new_test_tendermint() -> Self { load_bundled!("tendermint") }
 
 	/// TestList.sol used in both specs: https://github.com/paritytech/contracts/pull/30/files
-	/// Accounts with secrets "0".sha3() and "1".sha3() are initially the validators.
+	/// Accounts with secrets keccak("0") and keccak("1") are initially the validators.
 	/// Create a new Spec with BasicAuthority which uses a contract at address 5 to determine the current validators using `getValidators`.
 	/// Second validator can be removed with "0xbfc708a000000000000000000000000082a978b3f5962a5b0957d9ee9eef472ee55b42f1" and added back in using "0x4d238c8e00000000000000000000000082a978b3f5962a5b0957d9ee9eef472ee55b42f1".
 	pub fn new_validator_safe_contract() -> Self { load_bundled!("validator_safe_contract") }
@@ -514,7 +516,7 @@ impl Spec {
 	pub fn new_validator_contract() -> Self { load_bundled!("validator_contract") }
 
 	/// Create a new Spec with BasicAuthority which uses multiple validator sets changing with height.
-	/// Account with secrets "0".sha3() is the validator for block 1 and with "1".sha3() onwards.
+	/// Account with secrets keccak("0") is the validator for block 1 and with keccak("1") onwards.
 	pub fn new_validator_multi() -> Self { load_bundled!("validator_multi") }
 
 	/// Create a new spec for a PoW chain
@@ -542,7 +544,7 @@ mod tests {
 
 		assert_eq!(test_spec.state_root(), H256::from_str("f3f4696bbf3b3b07775128eb7a3763279a394e382130f27c21e70233e04946a9").unwrap());
 		let genesis = test_spec.genesis_block();
-		assert_eq!(BlockView::new(&genesis).header_view().sha3(), H256::from_str("0cd786a2425d16f152c658316c423e6ce1181e15c3295826d7c9904cba9ce303").unwrap());
+		assert_eq!(BlockView::new(&genesis).header_view().hash(), H256::from_str("0cd786a2425d16f152c658316c423e6ce1181e15c3295826d7c9904cba9ce303").unwrap());
 	}
 
 	#[test]

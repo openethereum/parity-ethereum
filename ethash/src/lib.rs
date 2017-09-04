@@ -20,7 +20,7 @@
 #![cfg_attr(feature = "benches", feature(test))]
 
 extern crate primal;
-extern crate sha3;
+extern crate hash;
 extern crate parking_lot;
 
 #[macro_use]

@@ -22,6 +22,7 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use hash::{keccak, KECCAK_NULL_RLP, KECCAK_EMPTY};
 
 use account_db::{AccountDB, AccountDBMut};
 use blockchain::{BlockChain, BlockProvider};
@@ -29,13 +30,12 @@ use engines::Engine;
 use header::Header;
 use ids::BlockId;
 
-use util::{Bytes, Hashable, HashDB, DBValue, snappy, U256};
-use util::Mutex;
+use util::{Bytes, HashDB, DBValue, snappy, U256};
+use parking_lot::Mutex;
 use util::hash::{H256};
 use util::journaldb::{self, Algorithm, JournalDB};
 use util::kvdb::KeyValueDB;
 use util::trie::{TrieDB, TrieDBMut, Trie, TrieMut};
-use util::sha3::SHA3_NULL_RLP;
 use rlp::{RlpStream, UntrustedRlp};
 use bloom_journal::Bloom;
 
@@ -183,7 +183,7 @@ pub fn chunk_secondary<'a>(mut chunker: Box<SnapshotComponents>, chain: &'a Bloc
 		let mut chunk_sink = |raw_data: &[u8]| {
 			let compressed_size = snappy::compress_into(raw_data, &mut snappy_buffer);
 			let compressed = &snappy_buffer[..compressed_size];
-			let hash = compressed.sha3();
+			let hash = keccak(&compressed);
 			let size = compressed.len();
 
 			writer.lock().write_block_chunk(hash, compressed)?;
@@ -240,7 +240,7 @@ impl<'a> StateChunker<'a> {
 
 		let compressed_size = snappy::compress_into(&raw_data, &mut self.snappy_buffer);
 		let compressed = &self.snappy_buffer[..compressed_size];
-		let hash = compressed.sha3();
+		let hash = keccak(&compressed);
 
 		self.writer.lock().write_state_chunk(hash, compressed)?;
 		trace!(target: "snapshot", "wrote state chunk. size: {}, uncompressed size: {}", compressed_size, raw_data.len());
@@ -318,7 +318,7 @@ impl StateRebuilder {
 	pub fn new(db: Arc<KeyValueDB>, pruning: Algorithm) -> Self {
 		StateRebuilder {
 			db: journaldb::new(db.clone(), pruning, ::db::COL_STATE),
-			state_root: SHA3_NULL_RLP,
+			state_root: KECCAK_NULL_RLP,
 			known_code: HashMap::new(),
 			missing_code: HashMap::new(),
 			bloom: StateDB::load_bloom(&*db),
@@ -362,7 +362,7 @@ impl StateRebuilder {
 
 		// batch trie writes
 		{
-			let mut account_trie = if self.state_root != SHA3_NULL_RLP {
+			let mut account_trie = if self.state_root != KECCAK_NULL_RLP {
 				TrieDBMut::from_existing(self.db.as_hashdb_mut(), &mut self.state_root)?
 			} else {
 				TrieDBMut::new(self.db.as_hashdb_mut(), &mut self.state_root)
@@ -443,7 +443,7 @@ fn rebuild_accounts(
 				// new inline code
 				Some(code) => status.new_code.push((code_hash, code, hash)),
 				None => {
-					if code_hash != ::util::SHA3_EMPTY {
+					if code_hash != KECCAK_EMPTY {
 						// see if this code has already been included inline
 						match known_code.get(&code_hash) {
 							Some(&first_with) => {

@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use hash::H256;
-use sha3::Hashable;
+use keccak::keccak;
 use hashdb::{HashDB, DBValue};
 use super::triedbmut::TrieDBMut;
 use super::TrieMut;
@@ -59,21 +59,21 @@ impl<'db> TrieMut for SecTrieDBMut<'db> {
 	}
 
 	fn contains(&self, key: &[u8]) -> super::Result<bool> {
-		self.raw.contains(&key.sha3())
+		self.raw.contains(&keccak(key))
 	}
 
 	fn get<'a, 'key>(&'a self, key: &'key [u8]) -> super::Result<Option<DBValue>>
 		where 'a: 'key
 	{
-		self.raw.get(&key.sha3())
+		self.raw.get(&keccak(key))
 	}
 
 	fn insert(&mut self, key: &[u8], value: &[u8]) -> super::Result<Option<DBValue>> {
-		self.raw.insert(&key.sha3(), value)
+		self.raw.insert(&keccak(key), value)
 	}
 
 	fn remove(&mut self, key: &[u8]) -> super::Result<Option<DBValue>> {
-		self.raw.remove(&key.sha3())
+		self.raw.remove(&keccak(key))
 	}
 }
 
@@ -90,5 +90,5 @@ fn sectrie_to_trie() {
 		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]).unwrap();
 	}
 	let t = TrieDB::new(&memdb, &root).unwrap();
-	assert_eq!(t.get(&(&[0x01u8, 0x23]).sha3()).unwrap().unwrap(), DBValue::from_slice(&[0x01u8, 0x23]));
+	assert_eq!(t.get(&keccak(&[0x01u8, 0x23])).unwrap().unwrap(), DBValue::from_slice(&[0x01u8, 0x23]));
 }

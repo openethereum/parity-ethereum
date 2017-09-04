@@ -18,7 +18,9 @@ use std::time::{Instant, Duration};
 use std::collections::{BTreeMap, HashSet};
 use std::sync::Arc;
 
+use parking_lot::{Mutex, RwLock};
 use util::*;
+use timer::PerfTimer;
 use using_queue::{UsingQueue, GetAction};
 use account_provider::{AccountProvider, SignError as AccountError};
 use state::State;
@@ -40,6 +42,7 @@ use miner::service_transaction_checker::ServiceTransactionChecker;
 use price_info::{Client as PriceInfoClient, PriceInfo};
 use price_info::fetch::Client as FetchClient;
 use header::{Header, BlockNumber};
+use ansi_term::Colour;
 
 /// Different possible definitions for pending transaction set.
 #[derive(Debug, PartialEq)]
@@ -1235,6 +1238,7 @@ mod tests {
 	use std::sync::Arc;
 	use std::time::Duration;
 	use rustc_hex::FromHex;
+	use hash::keccak;
 	use super::super::{MinerService, PrioritizationStrategy};
 	use super::*;
 	use block::IsBlock;
@@ -1418,7 +1422,7 @@ mod tests {
 	fn should_fail_setting_engine_signer_on_pow() {
 		let spec = Spec::new_pow_test_spec;
 		let tap = Arc::new(AccountProvider::transient_provider());
-		let addr = tap.insert_account("1".sha3().into(), "").unwrap();
+		let addr = tap.insert_account(keccak("1").into(), "").unwrap();
 		let client = generate_dummy_client_with_spec_and_accounts(spec, Some(tap.clone()));
 		assert!(match client.miner().set_engine_signer(addr, "".into()) { Err(AccountError::InappropriateChain) => true, _ => false })
 	}
@@ -1427,7 +1431,7 @@ mod tests {
 	fn should_fail_setting_engine_signer_without_account_provider() {
 		let spec = Spec::new_instant;
 		let tap = Arc::new(AccountProvider::transient_provider());
-		let addr = tap.insert_account("1".sha3().into(), "").unwrap();
+		let addr = tap.insert_account(keccak("1").into(), "").unwrap();
 		let client = generate_dummy_client_with_spec_and_accounts(spec, None);
 		assert!(match client.miner().set_engine_signer(addr, "".into()) { Err(AccountError::NotFound) => true, _ => false });
 	}

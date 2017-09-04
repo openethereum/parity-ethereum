@@ -44,6 +44,7 @@ extern crate ethcore_logger as logger;
 extern crate ethcrypto;
 extern crate ethkey;
 extern crate native_contracts;
+extern crate hash;
 
 mod key_server_cluster;
 mod types;

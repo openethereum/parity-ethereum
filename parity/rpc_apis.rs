@@ -39,7 +39,7 @@ use parity_rpc::dispatch::{FullDispatcher, LightDispatcher};
 use parity_rpc::informant::{ActivityNotifier, ClientNotifier};
 use parity_rpc::{Metadata, NetworkSettings};
 use updater::Updater;
-use util::{Mutex, RwLock};
+use parking_lot::{Mutex, RwLock};
 
 #[derive(Debug, PartialEq, Clone, Eq, Hash)]
 pub enum Api {

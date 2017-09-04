@@ -24,8 +24,7 @@ use futures::{self, future, BoxFuture, Future};
 use rlp::{self, UntrustedRlp};
 use time::get_time;
 use util::{H160, H256, Address, U256, H64};
-use util::sha3::Hashable;
-use util::Mutex;
+use parking_lot::Mutex;
 
 use ethash::SeedHashCompute;
 use ethcore::account_provider::{AccountProvider, DappId};
@@ -149,7 +148,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> EthClient<C, SN, S, M, EM> where
 				let view = block.header_view();
 				Ok(Some(RichBlock {
 					inner: Block {
-						hash: Some(view.sha3().into()),
+						hash: Some(view.hash().into()),
 						size: Some(block.rlp().as_raw().len().into()),
 						parent_hash: view.parent_hash().into(),
 						uncles_hash: view.uncles_hash().into(),

@@ -28,7 +28,7 @@ use io::{IoContext, IoError, IoHandler, IoService};
 use util::kvdb::{Database, DatabaseConfig};
 
 use cache::Cache;
-use util::Mutex;
+use parking_lot::Mutex;
 
 use super::{ChainDataFetcher, Client, Config as ClientConfig};
 
@@ -126,7 +126,7 @@ mod tests {
 	use cache::Cache;
 	use client::fetch;
 	use time::Duration;
-	use util::Mutex;
+	use parking_lot::Mutex;
 
 	#[test]
 	fn it_works() {

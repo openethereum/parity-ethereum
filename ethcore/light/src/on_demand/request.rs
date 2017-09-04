@@ -25,13 +25,14 @@ use ethcore::receipt::Receipt;
 use ethcore::state::{self, ProvedExecution};
 use ethcore::transaction::SignedTransaction;
 use vm::EnvInfo;
+use hash::{KECCAK_NULL_RLP, KECCAK_EMPTY, KECCAK_EMPTY_LIST_RLP, keccak};
 
 use request::{self as net_request, IncompleteRequest, CompleteRequest, Output, OutputKind, Field};
 
 use rlp::{RlpStream, UntrustedRlp};
-use util::{Address, Bytes, DBValue, HashDB, Mutex, H256, U256};
+use parking_lot::Mutex;
+use util::{Address, Bytes, DBValue, HashDB, H256, U256};
 use util::memorydb::MemoryDB;
-use util::sha3::{Hashable, SHA3_NULL_RLP, SHA3_EMPTY, SHA3_EMPTY_LIST_RLP};
 use util::trie::{Trie, TrieDB, TrieError};
 
 const SUPPLIED_MATCHES: &'static str = "supplied responses always match produced requests; enforced by `check_response`; qed";
@@ -280,7 +281,7 @@ impl From<Request> for CheckedRequest {
 			Request::Account(req) => {
 				let net_req = net_request::IncompleteAccountRequest {
 					block_hash: req.header.field(),
-					address_hash: ::util::Hashable::sha3(&req.address).into(),
+					address_hash: ::hash::keccak(&req.address).into(),
 				};
 				CheckedRequest::Account(req, net_req)
 			}
@@ -377,7 +378,7 @@ impl CheckedRequest {
 			}
 			CheckedRequest::Receipts(ref check, ref req) => {
 				// empty transactions -> no receipts
-				if check.0.as_ref().ok().map_or(false, |hdr| hdr.receipts_root() == SHA3_NULL_RLP) {
+				if check.0.as_ref().ok().map_or(false, |hdr| hdr.receipts_root() == KECCAK_NULL_RLP) {
 					return Some(Response::Receipts(Vec::new()));
 				}
 
@@ -388,7 +389,7 @@ impl CheckedRequest {
 			CheckedRequest::Body(ref check, ref req) => {
 				// check for empty body.
 				if let Some(hdr) = check.0.as_ref().ok() {
-					if hdr.transactions_root() == SHA3_NULL_RLP && hdr.uncles_hash() == SHA3_EMPTY_LIST_RLP {
+					if hdr.transactions_root() == KECCAK_NULL_RLP && hdr.uncles_hash() == KECCAK_EMPTY_LIST_RLP {
 						let mut stream = RlpStream::new_list(3);
 						stream.append_raw(hdr.rlp().as_raw(), 1);
 						stream.begin_list(0);
@@ -433,7 +434,7 @@ impl CheckedRequest {
 					})
 			}
 			CheckedRequest::Code(_, ref req) => {
-				if req.code_hash.as_ref().map_or(false, |&h| h == SHA3_EMPTY) {
+				if req.code_hash.as_ref().map_or(false, |&h| h == KECCAK_EMPTY) {
 					Some(Response::Code(Vec::new()))
 				} else {
 					None
@@ -590,8 +591,8 @@ impl net_request::ResponseLike for Response {
 		match *self {
 			Response::HeaderProof((ref hash, _)) => f(0, Output::Hash(*hash)),
 			Response::Account(None) => {
-				f(0, Output::Hash(SHA3_EMPTY)); // code hash
-				f(1, Output::Hash(SHA3_NULL_RLP)); // storage root.
+				f(0, Output::Hash(KECCAK_EMPTY)); // code hash
+				f(1, Output::Hash(KECCAK_NULL_RLP)); // storage root.
 			}
 			Response::Account(Some(ref acc)) => {
 				f(0, Output::Hash(acc.code_hash));
@@ -707,7 +708,7 @@ impl HeaderByHash {
 		};
 
 		let header = headers.get(0).ok_or(Error::Empty)?;
-		let hash = header.sha3();
+		let hash = header.hash();
 		match hash == expected_hash {
 			true => {
 				cache.lock().insert_block_header(hash, header.clone());
@@ -727,12 +728,12 @@ impl Body {
 	pub fn check_response(&self, cache: &Mutex<::cache::Cache>, body: &encoded::Body) -> Result<encoded::Block, Error> {
 		// check the integrity of the the body against the header
 		let header = self.0.as_ref()?;
-		let tx_root = ::util::triehash::ordered_trie_root(body.rlp().at(0).iter().map(|r| r.as_raw().to_vec()));
+		let tx_root = ::triehash::ordered_trie_root(body.rlp().at(0).iter().map(|r| r.as_raw().to_vec()));
 		if tx_root != header.transactions_root() {
 			return Err(Error::WrongTrieRoot(header.transactions_root(), tx_root));
 		}
 
-		let uncles_hash = body.rlp().at(1).as_raw().sha3();
+		let uncles_hash = keccak(body.rlp().at(1).as_raw());
 		if uncles_hash != header.uncles_hash() {
 			return Err(Error::WrongHash(header.uncles_hash(), uncles_hash));
 		}
@@ -757,7 +758,7 @@ impl BlockReceipts {
 	/// Check a response with receipts against the stored header.
 	pub fn check_response(&self, cache: &Mutex<::cache::Cache>, receipts: &[Receipt]) -> Result<Vec<Receipt>, Error> {
 		let receipts_root = self.0.as_ref()?.receipts_root();
-		let found_root = ::util::triehash::ordered_trie_root(receipts.iter().map(|r| ::rlp::encode(r).into_vec()));
+		let found_root = ::triehash::ordered_trie_root(receipts.iter().map(|r| ::rlp::encode(r).into_vec()));
 
 		match receipts_root == found_root {
 			true => {
@@ -787,7 +788,7 @@ impl Account {
 		let mut db = MemoryDB::new();
 		for node in proof { db.insert(&node[..]); }
 
-		match TrieDB::new(&db, &state_root).and_then(|t| t.get(&self.address.sha3()))? {
+		match TrieDB::new(&db, &state_root).and_then(|t| t.get(&keccak(&self.address)))? {
 			Some(val) => {
 				let rlp = UntrustedRlp::new(&val);
 				Ok(Some(BasicAccount {
@@ -819,7 +820,7 @@ impl Code {
 		code_hash: &H256,
 		code: &[u8]
 	) -> Result<Vec<u8>, Error> {
-		let found_hash = code.sha3();
+		let found_hash = keccak(code);
 		if &found_hash == code_hash {
 			Ok(code.to_vec())
 		} else {
@@ -890,9 +891,11 @@ impl Signal {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use util::{MemoryDB, Address, Mutex, H256};
+	use parking_lot::Mutex;
+	use util::{MemoryDB, Address, H256};
 	use util::trie::{Trie, TrieMut, SecTrieDB, SecTrieDBMut};
 	use util::trie::recorder::Recorder;
+	use hash::keccak;
 
 	use ethcore::client::{BlockChainClient, TestBlockChainClient, EachBlockWith};
 	use ethcore::header::Header;
@@ -973,7 +976,7 @@ mod tests {
 		}).collect::<Vec<_>>();
 
 		let mut header = Header::new();
-		let receipts_root = ::util::triehash::ordered_trie_root(
+		let receipts_root = ::triehash::ordered_trie_root(
 			receipts.iter().map(|x| ::rlp::encode(x).into_vec())
 		);
 
@@ -1038,7 +1041,7 @@ mod tests {
 	#[test]
 	fn check_code() {
 		let code = vec![1u8; 256];
-		let code_hash = ::util::Hashable::sha3(&code);
+		let code_hash = keccak(&code);
 		let header = Header::new();
 		let req = Code {
 			header: encoded::Header::new(::rlp::encode(&header).into_vec()).into(),

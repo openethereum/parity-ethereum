@@ -38,8 +38,9 @@ use ethcore::filter::Filter as EthcoreFilter;
 use ethcore::transaction::{Action, SignedTransaction, Transaction as EthTransaction};
 use ethsync::LightSync;
 use rlp::UntrustedRlp;
-use util::sha3::{SHA3_NULL_RLP, SHA3_EMPTY_LIST_RLP};
-use util::{RwLock, Mutex, U256};
+use hash::{KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP};
+use util::U256;
+use parking_lot::{RwLock, Mutex};
 
 use futures::{future, Future, BoxFuture, IntoFuture};
 use futures::sync::oneshot;
@@ -295,7 +296,7 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 		let (sync, on_demand) = (self.sync.clone(), self.on_demand.clone());
 
 		self.fetcher().header(BlockId::Hash(hash.into())).and_then(move |hdr| {
-			if hdr.transactions_root() == SHA3_NULL_RLP {
+			if hdr.transactions_root() == KECCAK_NULL_RLP {
 				future::ok(Some(U256::from(0).into())).boxed()
 			} else {
 				sync.with_context(|ctx| on_demand.request(ctx, request::Body(hdr.into())))
@@ -311,7 +312,7 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 		let (sync, on_demand) = (self.sync.clone(), self.on_demand.clone());
 
 		self.fetcher().header(num.into()).and_then(move |hdr| {
-			if hdr.transactions_root() == SHA3_NULL_RLP {
+			if hdr.transactions_root() == KECCAK_NULL_RLP {
 				future::ok(Some(U256::from(0).into())).boxed()
 			} else {
 				sync.with_context(|ctx| on_demand.request(ctx, request::Body(hdr.into())))
@@ -327,7 +328,7 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 		let (sync, on_demand) = (self.sync.clone(), self.on_demand.clone());
 
 		self.fetcher().header(BlockId::Hash(hash.into())).and_then(move |hdr| {
-			if hdr.uncles_hash() == SHA3_EMPTY_LIST_RLP {
+			if hdr.uncles_hash() == KECCAK_EMPTY_LIST_RLP {
 				future::ok(Some(U256::from(0).into())).boxed()
 			} else {
 				sync.with_context(|ctx| on_demand.request(ctx, request::Body(hdr.into())))
@@ -343,7 +344,7 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 		let (sync, on_demand) = (self.sync.clone(), self.on_demand.clone());
 
 		self.fetcher().header(num.into()).and_then(move |hdr| {
-			if hdr.uncles_hash() == SHA3_EMPTY_LIST_RLP {
+			if hdr.uncles_hash() == KECCAK_EMPTY_LIST_RLP {
 				future::ok(Some(U256::from(0).into())).boxed()
 			} else {
 				sync.with_context(|ctx| on_demand.request(ctx, request::Body(hdr.into())))

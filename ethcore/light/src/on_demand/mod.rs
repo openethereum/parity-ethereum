@@ -27,7 +27,7 @@ use ethcore::executed::{Executed, ExecutionError};
 use futures::{Async, Poll, Future};
 use futures::sync::oneshot::{self, Sender, Receiver, Canceled};
 use network::PeerId;
-use util::{RwLock, Mutex};
+use parking_lot::{RwLock, Mutex};
 
 use net::{
 	self, Handler, PeerStatus, Status, Capabilities,

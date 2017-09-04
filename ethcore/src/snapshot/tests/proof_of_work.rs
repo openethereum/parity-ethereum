@@ -24,7 +24,8 @@ use blockchain::BlockChain;
 use snapshot::{chunk_secondary, Error as SnapshotError, Progress, SnapshotComponents};
 use snapshot::io::{PackedReader, PackedWriter, SnapshotReader, SnapshotWriter};
 
-use util::{Mutex, snappy};
+use parking_lot::Mutex;
+use util::snappy;
 use util::kvdb::{self, KeyValueDB, DBTransaction};
 
 use std::sync::Arc;
@@ -71,7 +72,7 @@ fn chunk_and_restore(amount: u64) {
 		version: 2,
 		state_hashes: Vec::new(),
 		block_hashes: block_hashes,
-		state_root: ::util::sha3::SHA3_NULL_RLP,
+		state_root: ::hash::KECCAK_NULL_RLP,
 		block_number: amount,
 		block_hash: best_hash,
 	};
@@ -134,7 +135,7 @@ fn checks_flag() {
 		version: 2,
 		state_hashes: Vec::new(),
 		block_hashes: Vec::new(),
-		state_root: ::util::sha3::SHA3_NULL_RLP,
+		state_root: ::hash::KECCAK_NULL_RLP,
 		block_number: 102,
 		block_hash: H256::default(),
 	};

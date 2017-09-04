@@ -30,7 +30,7 @@ use spec::Spec;
 use tests::helpers;
 use transaction::{Transaction, Action, SignedTransaction};
 
-use util::{Address, Hashable};
+use util::Address;
 use util::kvdb;
 
 const PASS: &'static str = "";
@@ -38,14 +38,14 @@ const TRANSITION_BLOCK_1: usize = 2; // block at which the contract becomes acti
 const TRANSITION_BLOCK_2: usize = 10; // block at which the second contract activates.
 
 macro_rules! secret {
-	($e: expr) => { Secret::from_slice(&$e.sha3()) }
+	($e: expr) => { Secret::from_slice(&$crate::hash::keccak($e)) }
 }
 
 lazy_static! {
 	// contract addresses.
 	static ref CONTRACT_ADDR_1: Address = Address::from_str("0000000000000000000000000000000000000005").unwrap();
 	static ref CONTRACT_ADDR_2: Address = Address::from_str("0000000000000000000000000000000000000006").unwrap();
-	// secret: `sha3(1)`, and initial validator.
+	// secret: `keccak(1)`, and initial validator.
 	static ref RICH_ADDR: Address = Address::from_str("7d577a597b2742b498cb5cf0c26cdcd726d39e6e").unwrap();
 	// rich address' secret.
 	static ref RICH_SECRET: Secret = secret!("1");
@@ -53,7 +53,7 @@ lazy_static! {
 
 
 /// Contract code used here: https://gist.github.com/anonymous/2a43783647e0f0dfcc359bd6fd81d6d9
-/// Account with secrets "1".sha3() is initially the validator.
+/// Account with secrets keccak("1") is initially the validator.
 /// Transitions to the contract at block 2, initially same validator set.
 /// Create a new Spec with AuthorityRound which uses a contract at address 5 to determine the current validators using `getValidators`.
 /// `native_contracts::test_contracts::ValidatorSet` provides a native wrapper for the ABi.

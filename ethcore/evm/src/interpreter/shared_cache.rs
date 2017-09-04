@@ -15,9 +15,10 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
+use hash::KECCAK_EMPTY;
 use heapsize::HeapSizeOf;
-use util::{H256, Mutex};
-use util::sha3::*;
+use parking_lot::Mutex;
+use util::H256;
 use util::cache::MemoryLruCache;
 use bit_set::BitSet;
 use super::super::instructions;
@@ -50,7 +51,7 @@ impl SharedCache {
 
 	/// Get jump destinations bitmap for a contract.
 	pub fn jump_destinations(&self, code_hash: &H256, code: &[u8]) -> Arc<BitSet> {
-		if code_hash == &SHA3_EMPTY {
+		if code_hash == &KECCAK_EMPTY {
 			return Self::find_jump_destinations(code);
 		}
 

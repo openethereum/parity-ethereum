@@ -17,7 +17,8 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Instant, Duration};
-use util::{Mutex, U256, H256};
+use util::{U256, H256};
+use parking_lot::Mutex;
 
 /// External miner interface.
 pub trait ExternalMinerService: Send + Sync {

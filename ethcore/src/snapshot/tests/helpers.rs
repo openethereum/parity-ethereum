@@ -18,6 +18,7 @@
 //! which can be queried before and after a full snapshot/restore cycle.
 
 use std::sync::Arc;
+use hash::{KECCAK_NULL_RLP};
 
 use account_db::AccountDBMut;
 use basic_account::BasicAccount;
@@ -36,7 +37,6 @@ use util::hashdb::HashDB;
 use util::journaldb;
 use util::trie::{Alphabet, StandardMap, SecTrieDBMut, TrieMut, ValueMode};
 use util::trie::{TrieDB, TrieDBMut, Trie};
-use util::sha3::SHA3_NULL_RLP;
 
 // the proportion of accounts we will alter each tick.
 const ACCOUNT_CHURN: f32 = 0.01;
@@ -51,7 +51,7 @@ impl StateProducer {
 	/// Create a new `StateProducer`.
 	pub fn new() -> Self {
 		StateProducer {
-			state_root: SHA3_NULL_RLP,
+			state_root: KECCAK_NULL_RLP,
 			storage_seed: H256::zero(),
 		}
 	}
@@ -115,7 +115,7 @@ pub fn fill_storage(mut db: AccountDBMut, root: &mut H256, seed: &mut H256) {
 		count: 100,
 	};
 	{
-		let mut trie = if *root == SHA3_NULL_RLP {
+		let mut trie = if *root == KECCAK_NULL_RLP {
 			SecTrieDBMut::new(&mut db, root)
 		} else {
 			SecTrieDBMut::from_existing(&mut db, root).unwrap()
