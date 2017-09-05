@@ -20,9 +20,9 @@ use std::fmt;
 use std::sync::Arc;
 use std::sync::atomic::{self, AtomicUsize};
 use std::time;
-use futures::Future;
 use futures_cpupool as pool;
 use jsonrpc_core as rpc;
+use jsonrpc_core::futures::Future;
 use order_stat;
 use parking_lot::RwLock;
 

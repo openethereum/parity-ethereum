@@ -23,7 +23,6 @@
 extern crate ansi_term;
 extern crate cid;
 extern crate crypto as rust_crypto;
-extern crate futures;
 extern crate futures_cpupool;
 extern crate itertools;
 extern crate multihash;
@@ -118,7 +117,7 @@ impl HttpServer {
 	pub fn address(&self) -> &SocketAddr {
 		match *self {
 			HttpServer::Mini(ref s) => s.address(),
-			HttpServer::Hyper(ref s) => &s.addrs()[0],
+			HttpServer::Hyper(ref s) => s.address(),
 		}
 	}
 }

@@ -20,7 +20,6 @@ use std::thread;
 use std::time::{Instant, Duration};
 use std::sync::Arc;
 
-use futures::{self, future, BoxFuture, Future};
 use rlp::{self, UntrustedRlp};
 use time::get_time;
 use util::{H160, H256, Address, U256, H64};
@@ -39,7 +38,8 @@ use ethcore::transaction::SignedTransaction;
 use ethcore::snapshot::SnapshotService;
 use ethsync::{SyncProvider};
 
-use jsonrpc_core::Error;
+use jsonrpc_core::{BoxFuture, Error};
+use jsonrpc_core::futures::{self, future, Future};
 use jsonrpc_macros::Trailing;
 
 use v1::helpers::{errors, limit_logs, fake_sign};

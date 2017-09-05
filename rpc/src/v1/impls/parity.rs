@@ -18,7 +18,6 @@
 use std::sync::Arc;
 use std::str::FromStr;
 use std::collections::{BTreeMap, HashSet};
-use futures::{future, Future, BoxFuture};
 
 use util::Address;
 use util::misc::version_data;
@@ -37,7 +36,8 @@ use ethcore_logger::RotatingLogger;
 use node_health::{NodeHealth, Health};
 use updater::{Service as UpdateService};
 
-use jsonrpc_core::Error;
+use jsonrpc_core::{BoxFuture, Error};
+use jsonrpc_core::futures::{future, Future};
 use jsonrpc_macros::Trailing;
 use v1::helpers::{self, errors, fake_sign, ipfs, SigningQueue, SignerService, NetworkSettings};
 use v1::helpers::accounts::unwrap_provider;

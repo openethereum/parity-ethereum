@@ -25,9 +25,9 @@ use ethcore::ids::BlockId;
 use ethcore::filter::Filter as EthcoreFilter;
 use ethcore::transaction::{Action, Transaction as EthTransaction};
 
-use futures::{future, Future, BoxFuture};
-use futures::future::Either;
-use jsonrpc_core::Error;
+use jsonrpc_core::{BoxFuture, Error};
+use jsonrpc_core::futures::{future, Future};
+use jsonrpc_core::futures::future::Either;
 use jsonrpc_macros::Trailing;
 
 use light::cache::Cache;
@@ -266,8 +266,7 @@ impl LightFetch {
 	/// get transaction logs
 	pub fn logs(&self, filter: EthcoreFilter) -> BoxFuture<Vec<Log>, Error> {
 		use std::collections::BTreeMap;
-
-		use futures::stream::{self, Stream};
+		use jsonrpc_core::futures::stream::{self, Stream};
 
 		const NO_INVALID_BACK_REFS: &'static str = "Fails only on invalid back-references; back-references here known to be valid; qed";
 

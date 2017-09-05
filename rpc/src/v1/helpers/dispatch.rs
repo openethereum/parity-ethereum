@@ -20,7 +20,6 @@ use std::fmt::Debug;
 use std::ops::Deref;
 use std::sync::Arc;
 
-use futures::{future, Future, BoxFuture};
 use light::cache::Cache as LightDataCache;
 use light::client::LightChainClient;
 use light::on_demand::{request, OnDemand};
@@ -40,7 +39,8 @@ use ethcore::transaction::{Action, SignedTransaction, PendingTransaction, Transa
 use ethcore::account_provider::AccountProvider;
 use crypto::DEFAULT_MAC;
 
-use jsonrpc_core::Error;
+use jsonrpc_core::{BoxFuture, Error};
+use jsonrpc_core::futures::{future, Future};
 use v1::helpers::{errors, TransactionRequest, FilledTransactionRequest, ConfirmationPayload};
 use v1::types::{
 	H256 as RpcH256, H520 as RpcH520, Bytes as RpcBytes,

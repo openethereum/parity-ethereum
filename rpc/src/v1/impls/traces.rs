@@ -23,8 +23,8 @@ use ethcore::miner::MinerService;
 use ethcore::transaction::SignedTransaction;
 use rlp::UntrustedRlp;
 
-use jsonrpc_core::Error;
-use jsonrpc_core::futures::{self, Future, BoxFuture};
+use jsonrpc_core::{BoxFuture, Error};
+use jsonrpc_core::futures::{self, Future};
 use jsonrpc_macros::Trailing;
 use v1::Metadata;
 use v1::traits::Traces;

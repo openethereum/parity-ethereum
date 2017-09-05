@@ -19,15 +19,14 @@
 use std::sync::Arc;
 use std::collections::HashSet;
 
-use jsonrpc_core::*;
 use ethcore::miner::MinerService;
 use ethcore::filter::Filter as EthcoreFilter;
 use ethcore::client::{BlockChainClient, BlockId};
 use util::H256;
 use parking_lot::Mutex;
 
-use futures::{future, Future, BoxFuture};
-
+use jsonrpc_core::{BoxFuture, Error};
+use jsonrpc_core::futures::{future, Future};
 use v1::traits::EthFilter;
 use v1::types::{BlockNumber, Index, Filter, FilterChanges, Log, H256 as RpcH256, U256 as RpcU256};
 use v1::helpers::{PollFilter, PollManager, limit_logs};

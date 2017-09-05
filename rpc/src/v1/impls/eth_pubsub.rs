@@ -19,8 +19,8 @@
 use std::sync::Arc;
 use std::collections::BTreeMap;
 
-use futures::{self, future, BoxFuture, Future};
-use jsonrpc_core::Error;
+use jsonrpc_core::{BoxFuture, Error};
+use jsonrpc_core::futures::{self, future, Future};
 use jsonrpc_macros::Trailing;
 use jsonrpc_macros::pubsub::{Sink, Subscriber};
 use jsonrpc_pubsub::SubscriptionId;
@@ -269,10 +269,10 @@ impl<C: Send + Sync + 'static> EthPubSub for EthPubSubClient<C> {
 		let _ = subscriber.reject(error);
 	}
 
-	fn unsubscribe(&self, id: SubscriptionId) -> BoxFuture<bool, Error> {
+	fn unsubscribe(&self, id: SubscriptionId) -> Result<bool, Error> {
 		let res = self.heads_subscribers.write().remove(&id).is_some();
 		let res2 = self.logs_subscribers.write().remove(&id).is_some();
 
-		future::ok(res || res2).boxed()
+		Ok(res || res2)
 	}
 }

@@ -17,7 +17,6 @@
 //! Parity-specific rpc implementation.
 use std::sync::Arc;
 use std::collections::{BTreeMap, HashSet};
-use futures::{future, Future, BoxFuture};
 
 use util::misc::version_data;
 
@@ -31,7 +30,8 @@ use node_health::{NodeHealth, Health};
 
 use light::client::LightChainClient;
 
-use jsonrpc_core::Error;
+use jsonrpc_core::{BoxFuture, Error};
+use jsonrpc_core::futures::{future, Future};
 use jsonrpc_macros::Trailing;
 use v1::helpers::{self, errors, ipfs, SigningQueue, SignerService, NetworkSettings};
 use v1::helpers::dispatch::LightDispatcher;

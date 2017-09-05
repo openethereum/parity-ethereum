@@ -21,12 +21,12 @@ use std::sync::Arc;
 use ethcore::account_provider::AccountProvider;
 use ethcore::transaction::{SignedTransaction, PendingTransaction};
 use ethkey;
-use futures::{future, BoxFuture, Future, IntoFuture};
 use parity_reactor::Remote;
 use rlp::UntrustedRlp;
 use parking_lot::Mutex;
 
-use jsonrpc_core::{futures, Error};
+use jsonrpc_core::{Error, BoxFuture};
+use jsonrpc_core::futures::{future, Future, IntoFuture};
 use jsonrpc_pubsub::SubscriptionId;
 use jsonrpc_macros::pubsub::{Sink, Subscriber};
 use v1::helpers::accounts::unwrap_provider;
@@ -253,8 +253,8 @@ impl<D: Dispatcher + 'static> Signer for SignerClient<D> {
 		self.subscribers.lock().push(sub)
 	}
 
-	fn unsubscribe_pending(&self, id: SubscriptionId) -> BoxFuture<bool, Error> {
+	fn unsubscribe_pending(&self, id: SubscriptionId) -> Result<bool, Error> {
 		let res = self.subscribers.lock().remove(&id).is_some();
-		futures::future::ok(res).boxed()
+		Ok(res)
 	}
 }

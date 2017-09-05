@@ -17,7 +17,7 @@
 //! Test implementation of fetch client.
 
 use std::{io, thread};
-use futures::{self, Future};
+use jsonrpc_core::futures::{self, Future};
 use fetch::{self, Fetch};
 
 /// Test implementation of fetcher. Will always return the same file.

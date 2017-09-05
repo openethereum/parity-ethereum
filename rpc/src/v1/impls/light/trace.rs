@@ -16,8 +16,8 @@
 
 //! Traces api implementation.
 
-use jsonrpc_core::Error;
-use jsonrpc_core::futures::{future, Future, BoxFuture};
+use jsonrpc_core::{BoxFuture, Error};
+use jsonrpc_core::futures::{future, Future};
 use jsonrpc_macros::Trailing;
 use v1::Metadata;
 use v1::traits::Traces;

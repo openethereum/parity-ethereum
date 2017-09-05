@@ -22,8 +22,8 @@ use ethcore::transaction::PendingTransaction;
 
 use util::{Address, U128, ToPretty};
 
-use futures::{future, Future, BoxFuture};
-use jsonrpc_core::Error;
+use jsonrpc_core::{BoxFuture, Error};
+use jsonrpc_core::futures::{future, Future};
 use v1::helpers::errors;
 use v1::helpers::dispatch::{Dispatcher, SignWith};
 use v1::helpers::accounts::unwrap_provider;

@@ -2092,7 +2092,6 @@ dependencies = [
  "ethstore 0.1.0",
  "ethsync 1.8.0",
  "fetch 0.1.0",
- "futures 0.1.15 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures-cpupool 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "hash 0.1.0",
  "itertools 0.5.9 (registry+https://github.com/rust-lang/crates.io-index)",

@@ -23,8 +23,8 @@ use util::U256;
 
 use ethcore::account_provider::AccountProvider;
 
-use futures::{future, BoxFuture, Future};
-use jsonrpc_core::Error;
+use jsonrpc_core::{BoxFuture, Error};
+use jsonrpc_core::futures::{future, Future};
 use v1::helpers::{
 	errors, oneshot,
 	DefaultAccount,

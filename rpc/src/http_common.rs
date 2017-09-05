@@ -45,8 +45,8 @@ impl<M, T> http::MetaExtractor<M> for HyperMetaExtractor<T> where
 	T: HttpMetaExtractor<Metadata = M>,
 	M: jsonrpc_core::Metadata,
 {
-	fn read_metadata(&self, req: &hyper::server::Request<hyper::net::HttpStream>) -> M {
-		let as_string = |header: Option<&http::request_response::header::Raw>| header
+	fn read_metadata(&self, req: &hyper::server::Request) -> M {
+		let as_string = |header: Option<&hyper::header::Raw>| header
 			.and_then(|raw| raw.one())
 			.map(|raw| String::from_utf8_lossy(raw).into_owned());
 

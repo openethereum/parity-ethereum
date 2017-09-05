@@ -16,12 +16,10 @@
 
 //! Eth RPC interface for the light client.
 
-// TODO: remove when complete.
-#![allow(unused_imports, unused_variables)]
-
 use std::sync::Arc;
 
-use jsonrpc_core::Error;
+use jsonrpc_core::{BoxFuture, Error};
+use jsonrpc_core::futures::{future, Future};
 use jsonrpc_macros::Trailing;
 
 use light::cache::Cache as LightDataCache;
@@ -30,25 +28,20 @@ use light::{cht, TransactionQueue};
 use light::on_demand::{request, OnDemand};
 
 use ethcore::account_provider::{AccountProvider, DappId};
-use ethcore::basic_account::BasicAccount;
 use ethcore::encoded;
-use ethcore::executed::{Executed, ExecutionError};
 use ethcore::ids::BlockId;
 use ethcore::filter::Filter as EthcoreFilter;
-use ethcore::transaction::{Action, SignedTransaction, Transaction as EthTransaction};
+use ethcore::transaction::SignedTransaction;
 use ethsync::LightSync;
 use rlp::UntrustedRlp;
 use hash::{KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP};
 use util::U256;
 use parking_lot::{RwLock, Mutex};
 
-use futures::{future, Future, BoxFuture, IntoFuture};
-use futures::sync::oneshot;
 
 use v1::impls::eth_filter::Filterable;
-use v1::helpers::{CallRequest as CRequest, errors, limit_logs, dispatch};
+use v1::helpers::{errors, limit_logs};
 use v1::helpers::{PollFilter, PollManager};
-use v1::helpers::block_import::is_major_importing;
 use v1::helpers::light_fetch::LightFetch;
 use v1::traits::Eth;
 use v1::types::{
@@ -57,8 +50,6 @@ use v1::types::{
 	H64 as RpcH64, H256 as RpcH256, H160 as RpcH160, U256 as RpcU256,
 };
 use v1::metadata::Metadata;
-
-use util::Address;
 
 const NO_INVALID_BACK_REFS: &'static str = "Fails only on invalid back-references; back-references here known to be valid; qed";
 

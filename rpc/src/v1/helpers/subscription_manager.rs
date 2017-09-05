@@ -22,8 +22,8 @@ use parking_lot::Mutex;
 
 use jsonrpc_core::futures::future::{self, Either};
 use jsonrpc_core::futures::sync::mpsc;
-use jsonrpc_core::futures::{Sink, Future, BoxFuture};
-use jsonrpc_core::{self as core, MetaIoHandler};
+use jsonrpc_core::futures::{Sink, Future};
+use jsonrpc_core::{self as core, MetaIoHandler, BoxFuture};
 use jsonrpc_pubsub::SubscriptionId;
 
 use v1::helpers::Subscribers;
