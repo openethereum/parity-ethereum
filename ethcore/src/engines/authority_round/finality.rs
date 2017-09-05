@@ -19,7 +19,8 @@
 use std::collections::{VecDeque};
 use std::collections::hash_map::{HashMap, Entry};
 
-use util::{Address, H256};
+use bigint::hash::H256;
+use util::Address;
 
 use engines::validator_set::SimpleList;
 
@@ -149,7 +150,8 @@ impl<'a> Iterator for Iter<'a> {
 
 #[cfg(test)]
 mod tests {
-	use util::{Address, H256};
+	use bigint::hash::H256;
+	use util::Address;
 	use super::RollingFinality;
 
 	#[test]

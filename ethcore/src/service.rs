@@ -18,6 +18,7 @@
 
 use std::sync::Arc;
 use std::path::Path;
+use bigint::hash::H256;
 use util::*;
 use io::*;
 use spec::Spec;
@@ -28,6 +29,7 @@ use miner::Miner;
 use snapshot::ManifestData;
 use snapshot::service::{Service as SnapshotService, ServiceParams as SnapServiceParams};
 use std::sync::atomic::AtomicBool;
+use ansi_term::Colour;
 
 #[cfg(feature="ipc")]
 use nanoipc;

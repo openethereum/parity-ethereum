@@ -211,7 +211,7 @@ impl<T: IncompleteRequest> DerefMut for Requests<T> {
 mod tests {
 	use request::*;
 	use super::RequestBuilder;
-	use util::H256;
+	use bigint::hash::H256;
 
 	#[test]
 	fn all_scalar() {

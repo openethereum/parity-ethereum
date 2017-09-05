@@ -23,7 +23,7 @@ use self::stores::{AddressBook, DappsSettingsStore, NewDappsPolicy};
 use std::fmt;
 use std::collections::{HashMap, HashSet};
 use std::time::{Instant, Duration};
-use util::{RwLock};
+use parking_lot::RwLock;
 use ethstore::{
 	SimpleSecretStore, SecretStore, Error as SSError, EthStore, EthMultiStore,
 	random_string, SecretVaultRef, StoreAccountRef, OpaqueSecret,
@@ -794,7 +794,7 @@ mod tests {
 	use std::time::Instant;
 	use ethstore::ethkey::{Generator, Random, Address};
 	use ethstore::{StoreAccountRef, Derivation};
-	use util::H256;
+	use bigint::hash::H256;
 
 	#[test]
 	fn unlock_account_temp() {

@@ -15,18 +15,11 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 export default {
-  busy: {
-    title: `The deployment is currently in progress`
-  },
   button: {
     cancel: `Cancel`,
     close: `Close`,
     create: `Create`,
-    done: `Done`,
     next: `Next`
-  },
-  completed: {
-    description: `Your contract has been deployed at`
   },
   details: {
     abi: {
@@ -66,25 +59,9 @@ export default {
   parameters: {
     choose: `Choose the contract parameters`
   },
-  rejected: {
-    description: `You can safely close this window, the contract deployment will not occur.`,
-    title: `The deployment has been rejected`
-  },
-  state: {
-    completed: `The contract deployment has been completed`,
-    confirmationNeeded: `The operation needs confirmations from the other owners of the contract`,
-    preparing: `Preparing transaction for network transmission`,
-    validatingCode: `Validating the deployed contract code`,
-    waitReceipt: `Waiting for the contract deployment transaction receipt`,
-    waitSigner: `Waiting for confirmation of the transaction in the Parity Secure Signer`
-  },
   title: {
-    completed: `completed`,
-    deployment: `deployment`,
     details: `contract details`,
     extras: `extra information`,
-    failed: `deployment failed`,
-    parameters: `contract parameters`,
-    rejected: `rejected`
+    parameters: `contract parameters`
   }
 };

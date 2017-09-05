@@ -14,7 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use util::{U256, H2048, Bytes};
+use bigint::prelude::U256;
+use bigint::hash::H2048;
+use util::Bytes;
 use header::BlockNumber;
 use transaction::SignedTransaction;
 use super::fork::Fork;
@@ -110,8 +112,7 @@ impl Iterator for ChainGenerator {
 }
 
 mod tests {
-	use util::hash::{H256, H2048};
-	use util::sha3::Hashable;
+	use bigint::hash::{H256, H2048};
 	use views::BlockView;
 	use blockchain::generator::{ChainIterator, ChainGenerator, BlockFinalizer};
 
@@ -129,7 +130,7 @@ mod tests {
 		let b1_rlp = canon_chain.generate(&mut finalizer).unwrap();
 		let b1 = BlockView::new(&b1_rlp);
 
-		assert_eq!(b1.header_view().parent_hash(), genesis.header_view().sha3());
+		assert_eq!(b1.header_view().parent_hash(), genesis.header_view().hash());
 		assert_eq!(b1.header_view().number(), 1);
 
 		let mut fork_chain = canon_chain.fork(1);
@@ -137,13 +138,13 @@ mod tests {
 		let b2_rlp_fork = fork_chain.generate(&mut finalizer.fork()).unwrap();
 		let b2_fork = BlockView::new(&b2_rlp_fork);
 
-		assert_eq!(b2_fork.header_view().parent_hash(), b1.header_view().sha3());
+		assert_eq!(b2_fork.header_view().parent_hash(), b1.header_view().hash());
 		assert_eq!(b2_fork.header_view().number(), 2);
 
 		let b2_rlp = canon_chain.generate(&mut finalizer).unwrap();
 		let b2 = BlockView::new(&b2_rlp);
 
-		assert_eq!(b2.header_view().parent_hash(), b1.header_view().sha3());
+		assert_eq!(b2.header_view().parent_hash(), b1.header_view().hash());
 		assert_eq!(b2.header_view().number(), 2);
 		assert!(b2.header_view().difficulty() > b2_fork.header_view().difficulty());
 	}
@@ -163,7 +164,7 @@ mod tests {
 		assert_eq!(block0.header_view().parent_hash(), H256::default());
 
 		assert_eq!(block1.header_view().number(), 1);
-		assert_eq!(block1.header_view().parent_hash(), block0.header_view().sha3());
+		assert_eq!(block1.header_view().parent_hash(), block0.header_view().hash());
 
 	}
 

@@ -19,7 +19,9 @@
 use std::collections::BTreeMap;
 use std::sync::Weak;
 use engines::{Call, Engine};
-use util::{Bytes, H256, Address, RwLock};
+use bigint::hash::H256;
+use parking_lot::RwLock;
+use util::{Bytes, Address};
 use ids::BlockId;
 use header::{BlockNumber, Header};
 use client::{Client, BlockChainClient};
@@ -144,6 +146,7 @@ impl ValidatorSet for Multi {
 mod tests {
 	use std::sync::Arc;
 	use std::collections::BTreeMap;
+	use hash::keccak;
 	use account_provider::AccountProvider;
 	use client::{BlockChainClient, EngineClient};
 	use engines::EpochChange;
@@ -163,9 +166,9 @@ mod tests {
 		let _ = ::env_logger::init();
 
 		let tap = Arc::new(AccountProvider::transient_provider());
-		let s0: Secret = "0".sha3().into();
+		let s0: Secret = keccak("0").into();
 		let v0 = tap.insert_account(s0.clone(), "").unwrap();
-		let v1 = tap.insert_account("1".sha3().into(), "").unwrap();
+		let v1 = tap.insert_account(keccak("1").into(), "").unwrap();
 		let client = generate_dummy_client_with_spec_and_accounts(Spec::new_validator_multi, Some(tap));
 		client.engine().register_client(Arc::downgrade(&client));
 

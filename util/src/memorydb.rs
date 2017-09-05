@@ -20,9 +20,9 @@ use std::mem;
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use heapsize::HeapSizeOf;
-use hash::{H256FastMap, H256};
+use bigint::hash::{H256FastMap, H256};
 use rlp::NULL_RLP;
-use sha3::*;
+use keccak::{KECCAK_NULL_RLP, keccak};
 use hashdb::*;
 
 /// Reference-counted memory-based `HashDB` implementation.
@@ -117,7 +117,7 @@ impl MemoryDB {
 	/// Even when Some is returned, the data is only guaranteed to be useful
 	/// when the refs > 0.
 	pub fn raw(&self, key: &H256) -> Option<(DBValue, i32)> {
-		if key == &SHA3_NULL_RLP {
+		if key == &KECCAK_NULL_RLP {
 			return Some((DBValue::from_slice(&NULL_RLP), 1));
 		}
 		self.data.get(key).cloned()
@@ -131,7 +131,7 @@ impl MemoryDB {
 	/// Remove an element and delete it from storage if reference count reaches zero.
 	/// If the value was purged, return the old value.
 	pub fn remove_and_purge(&mut self, key: &H256) -> Option<DBValue> {
-		if key == &SHA3_NULL_RLP {
+		if key == &KECCAK_NULL_RLP {
 			return None;
 		}
 		match self.data.entry(key.clone()) {
@@ -170,7 +170,7 @@ impl MemoryDB {
 
 impl HashDB for MemoryDB {
 	fn get(&self, key: &H256) -> Option<DBValue> {
-		if key == &SHA3_NULL_RLP {
+		if key == &KECCAK_NULL_RLP {
 			return Some(DBValue::from_slice(&NULL_RLP));
 		}
 
@@ -191,7 +191,7 @@ impl HashDB for MemoryDB {
 	}
 
 	fn contains(&self, key: &H256) -> bool {
-		if key == &SHA3_NULL_RLP {
+		if key == &KECCAK_NULL_RLP {
 			return true;
 		}
 
@@ -203,9 +203,9 @@ impl HashDB for MemoryDB {
 
 	fn insert(&mut self, value: &[u8]) -> H256 {
 		if value == &NULL_RLP {
-			return SHA3_NULL_RLP.clone();
+			return KECCAK_NULL_RLP.clone();
 		}
-		let key = value.sha3();
+		let key = keccak(value);
 		match self.data.entry(key) {
 			Entry::Occupied(mut entry) => {
 				let &mut (ref mut old_value, ref mut rc) = entry.get_mut();
@@ -241,7 +241,7 @@ impl HashDB for MemoryDB {
 	}
 
 	fn remove(&mut self, key: &H256) {
-		if key == &SHA3_NULL_RLP {
+		if key == &KECCAK_NULL_RLP {
 			return;
 		}
 
@@ -259,12 +259,13 @@ impl HashDB for MemoryDB {
 
 #[cfg(test)]
 mod tests {
+	use keccak::keccak;
 	use super::*;
 
 	#[test]
 	fn memorydb_remove_and_purge() {
 		let hello_bytes = b"Hello world!";
-		let hello_key = hello_bytes.sha3();
+		let hello_key = keccak(hello_bytes);
 
 		let mut m = MemoryDB::new();
 		m.remove(&hello_key);

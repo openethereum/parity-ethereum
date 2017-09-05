@@ -19,7 +19,9 @@
 use std::cmp::*;
 use std::fmt;
 use std::collections::BTreeMap;
-use util::{U256, H256, Bytes};
+use bigint::prelude::U256;
+use bigint::hash::H256;
+use util::Bytes;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 /// Diff type for specifying a change (or not).

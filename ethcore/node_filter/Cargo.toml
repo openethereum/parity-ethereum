@@ -9,8 +9,10 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [dependencies]
 ethcore = { path = ".."}
 ethcore-util = { path = "../../util" }
+ethcore-bigint = { path = "../../util/bigint" }
 ethcore-io = { path = "../../util/io" }
 ethcore-network = { path = "../../util/network" }
 native-contracts = { path = "../native_contracts" }
 futures = "0.1"
 log = "0.3"
+parking_lot = "0.4"

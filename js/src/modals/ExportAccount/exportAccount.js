@@ -58,7 +58,7 @@ class ExportAccount extends Component {
             key='cancel'
             label={
               <FormattedMessage
-                id='export.accounts.button.cancel'
+                id='accounts.export.button.cancel'
                 defaultMessage='Cancel'
               />
             }
@@ -70,7 +70,7 @@ class ExportAccount extends Component {
             key='execute'
             label={
               <FormattedMessage
-                id='export.accounts.button.export'
+                id='accounts.export.button.export'
                 defaultMessage='Export'
               />
             }
@@ -81,7 +81,7 @@ class ExportAccount extends Component {
         open
         title={
           <FormattedMessage
-            id='export.accounts.title'
+            id='accounts.export.title'
             defaultMessage='Export an Account'
           />
         }

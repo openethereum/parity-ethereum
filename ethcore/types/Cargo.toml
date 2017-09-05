@@ -8,8 +8,10 @@ authors = ["Parity Technologies <admin@parity.io>"]
 rlp = { path = "../../util/rlp" }
 rlp_derive = { path = "../../util/rlp_derive" }
 ethcore-util = { path = "../../util" }
+ethcore-bigint = { path = "../../util/bigint" }
 ethjson = { path = "../../json" }
 bloomable = { path = "../../util/bloomable" }
+hash = { path = "../../util/hash" }
 heapsize = "0.4"
 
 [dev-dependencies]

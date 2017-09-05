@@ -64,6 +64,7 @@ impl Engine for InstantSeal {
 #[cfg(test)]
 mod tests {
 	use std::sync::Arc;
+	use bigint::hash::H520;
 	use util::*;
 	use tests::helpers::*;
 	use spec::Spec;

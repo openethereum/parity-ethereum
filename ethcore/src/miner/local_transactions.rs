@@ -19,7 +19,8 @@
 use linked_hash_map::LinkedHashMap;
 use transaction::{SignedTransaction, PendingTransaction};
 use error::TransactionError;
-use util::{U256, H256};
+use bigint::prelude::U256;
+use bigint::hash::H256;
 
 /// Status of local transaction.
 /// Can indicate that the transaction is currently part of the queue (`Pending/Future`)
@@ -152,7 +153,7 @@ impl LocalTransactionsList {
 
 #[cfg(test)]
 mod tests {
-	use util::U256;
+	use bigint::prelude::U256;
 	use ethkey::{Random, Generator};
 	use transaction::{Action, Transaction, SignedTransaction};
 	use super::{LocalTransactionsList, Status};

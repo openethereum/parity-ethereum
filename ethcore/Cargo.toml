@@ -11,6 +11,7 @@ build = "build.rs"
 "ethcore-ipc-codegen" = { path = "../ipc/codegen" }
 
 [dependencies]
+ansi_term = "0.9"
 bit-set = "0.4"
 bloomchain = "0.1"
 bn = { git = "https://github.com/paritytech/bn" }
@@ -29,6 +30,7 @@ ethcore-ipc-nano = { path = "../ipc/nano" }
 ethcore-logger = { path = "../logger" }
 ethcore-stratum = { path = "../stratum" }
 ethcore-util = { path = "../util" }
+ethcore-bigint = { path = "../util/bigint" }
 ethjson = { path = "../json" }
 ethkey = { path = "../ethkey" }
 ethstore = { path = "../ethstore" }
@@ -45,6 +47,7 @@ lru-cache = "0.1.0"
 native-contracts = { path = "native_contracts" }
 num = "0.1"
 num_cpus = "1.2"
+parking_lot = "0.4"
 price-info = { path = "../price-info" }
 rand = "0.3"
 rlp = { path = "../util/rlp" }
@@ -60,6 +63,10 @@ table = { path = "../util/table" }
 bloomable = { path = "../util/bloomable" }
 vm = { path = "vm" }
 wasm = { path = "wasm" }
+hash = { path = "../util/hash" }
+triehash = { path = "../util/triehash" }
+semantic_version = { path = "../util/semantic_version" }
+unexpected = { path = "../util/unexpected" }
 
 [dev-dependencies]
 native-contracts = { path = "native_contracts", features = ["test_contracts"] }

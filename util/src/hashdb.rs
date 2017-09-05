@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Database of byte-slices keyed to their Keccak hash.
-use hash::*;
+use bigint::hash::*;
 use std::collections::HashMap;
 use elastic_array::ElasticArray128;
 
@@ -48,14 +48,15 @@ pub trait HashDB: AsHashDB + Send + Sync {
 	///
 	/// # Examples
 	/// ```rust
+	/// extern crate hash;
 	/// extern crate ethcore_util;
 	/// use ethcore_util::hashdb::*;
 	/// use ethcore_util::memorydb::*;
-	/// use ethcore_util::sha3::*;
+	/// use hash::keccak;
 	/// fn main() {
 	///   let mut m = MemoryDB::new();
 	///   let hello_bytes = "Hello world!".as_bytes();
-	///   assert!(!m.contains(&hello_bytes.sha3()));
+	///   assert!(!m.contains(&keccak(hello_bytes)));
 	///   let key = m.insert(hello_bytes);
 	///   assert!(m.contains(&key));
 	///   m.remove(&key);
@@ -71,9 +72,10 @@ pub trait HashDB: AsHashDB + Send + Sync {
 	/// # Examples
 	/// ```rust
 	/// extern crate ethcore_util;
+	/// extern crate ethcore_bigint;
 	/// use ethcore_util::hashdb::*;
 	/// use ethcore_util::memorydb::*;
-	/// use ethcore_util::hash::*;
+	/// use ethcore_bigint::hash::*;
 	/// fn main() {
 	///   let mut m = MemoryDB::new();
 	///   let key = m.insert("Hello world!".as_bytes());
@@ -91,13 +93,14 @@ pub trait HashDB: AsHashDB + Send + Sync {
 	/// # Examples
 	/// ```rust
 	/// extern crate ethcore_util;
+	/// extern crate hash;
 	/// use ethcore_util::hashdb::*;
 	/// use ethcore_util::memorydb::*;
-	/// use ethcore_util::sha3::*;
+	/// use hash::keccak;
 	/// fn main() {
 	///   let mut m = MemoryDB::new();
 	///   let d = "Hello world!".as_bytes();
-	///   let key = &d.sha3();
+	///   let key = &keccak(d);
 	///   m.remove(key);	// OK - we now owe an insertion.
 	///   assert!(!m.contains(key));
 	///   m.remove(key);	// OK - we now owe two insertions.

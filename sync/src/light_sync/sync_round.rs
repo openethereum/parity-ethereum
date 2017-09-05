@@ -27,7 +27,7 @@ use light::net::ReqId;
 use light::request::CompleteHeadersRequest as HeadersRequest;
 
 use network::PeerId;
-use util::H256;
+use bigint::hash::H256;
 
 use super::response;
 

@@ -14,8 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use hash::H256;
-use sha3::Hashable;
+use bigint::hash::H256;
+use keccak::keccak;
 use hashdb::HashDB;
 use super::triedb::TrieDB;
 use super::{Trie, TrieItem, TrieIterator, Query};
@@ -56,13 +56,13 @@ impl<'db> Trie for SecTrieDB<'db> {
 	fn root(&self) -> &H256 { self.raw.root() }
 
 	fn contains(&self, key: &[u8]) -> super::Result<bool> {
-		self.raw.contains(&key.sha3())
+		self.raw.contains(&keccak(key))
 	}
 
 	fn get_with<'a, 'key, Q: Query>(&'a self, key: &'key [u8], query: Q) -> super::Result<Option<Q::Item>>
 		where 'a: 'key
 	{
-		self.raw.get_with(&key.sha3(), query)
+		self.raw.get_with(&keccak(key), query)
 	}
 }
 
@@ -77,7 +77,7 @@ fn trie_to_sectrie() {
 	let mut root = H256::default();
 	{
 		let mut t = TrieDBMut::new(&mut memdb, &mut root);
-		t.insert(&(&[0x01u8, 0x23]).sha3(), &[0x01u8, 0x23]).unwrap();
+		t.insert(&keccak(&[0x01u8, 0x23]), &[0x01u8, 0x23]).unwrap();
 	}
 	let t = SecTrieDB::new(&memdb, &root).unwrap();
 	assert_eq!(t.get(&[0x01u8, 0x23]).unwrap().unwrap(), DBValue::from_slice(&[0x01u8, 0x23]));

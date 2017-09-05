@@ -15,6 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Just in time compiler execution environment.
+use bigint::prelude::U256;
+use bigint::hash::H256;
 use util::*;
 use evmjit;
 use evm::{self, GasLeft};

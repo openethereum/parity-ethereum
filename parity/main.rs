@@ -26,6 +26,8 @@ extern crate ansi_term;
 extern crate app_dirs;
 extern crate ctrlc;
 extern crate docopt;
+#[macro_use]
+extern crate clap;
 extern crate env_logger;
 extern crate fdlimit;
 extern crate futures;
@@ -34,6 +36,7 @@ extern crate isatty;
 extern crate jsonrpc_core;
 extern crate num_cpus;
 extern crate number_prefix;
+extern crate parking_lot;
 extern crate regex;
 extern crate rlp;
 extern crate rpassword;
@@ -55,6 +58,7 @@ extern crate ethcore_ipc_nano as nanoipc;
 extern crate ethcore_light as light;
 extern crate ethcore_logger;
 extern crate ethcore_util as util;
+extern crate ethcore_bigint as bigint;
 extern crate ethcore_network as network;
 extern crate ethkey;
 extern crate ethsync;
@@ -70,6 +74,7 @@ extern crate parity_whisper;
 extern crate path;
 extern crate rpc_cli;
 extern crate node_filter;
+extern crate hash;
 
 #[macro_use]
 extern crate log as rlog;
@@ -130,7 +135,7 @@ use std::collections::HashMap;
 use std::io::{self as stdio, BufReader, Read, Write};
 use std::fs::{remove_file, metadata, File, create_dir_all};
 use std::path::PathBuf;
-use util::sha3::sha3;
+use hash::keccak_buffer;
 use cli::Args;
 use configuration::{Cmd, Execute, Configuration};
 use deprecated::find_deprecated;
@@ -140,7 +145,7 @@ use dir::default_hypervisor_path;
 fn print_hash_of(maybe_file: Option<String>) -> Result<String, String> {
 	if let Some(file) = maybe_file {
 		let mut f = BufReader::new(File::open(&file).map_err(|_| "Unable to open file".to_owned())?);
-		let hash = sha3(&mut f).map_err(|_| "Unable to read from file".to_owned())?;
+		let hash = keccak_buffer(&mut f).map_err(|_| "Unable to read from file".to_owned())?;
 		Ok(hash.hex())
 	} else {
 		Err("Streaming from standard input not yet supported. Specify a file.".to_owned())

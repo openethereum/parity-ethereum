@@ -18,7 +18,10 @@
 
 use std::cmp;
 use std::sync::Arc;
-use util::{U256, Address, H256, Hashable};
+use hash::keccak;
+use bigint::hash::H256;
+use bigint::prelude::U256;
+use util::Address;
 use types::BlockNumber;
 use ethjson;
 
@@ -68,7 +71,7 @@ impl From<ethjson::vm::Env> for EnvInfo {
 			difficulty: e.difficulty.into(),
 			gas_limit: e.gas_limit.into(),
 			timestamp: e.timestamp.into(),
-			last_hashes: Arc::new((1..cmp::min(number + 1, 257)).map(|i| format!("{}", number - i).as_bytes().sha3()).collect()),
+			last_hashes: Arc::new((1..cmp::min(number + 1, 257)).map(|i| keccak(format!("{}", number - i).as_bytes())).collect()),
 			gas_used: U256::default(),
 		}
 	}
@@ -78,7 +81,8 @@ impl From<ethjson::vm::Env> for EnvInfo {
 mod tests {
 	use std::str::FromStr;
 	use super::*;
-	use util::{U256, Address};
+	use bigint::prelude::U256;
+	use util::Address;
 	use ethjson;
 
 	#[test]

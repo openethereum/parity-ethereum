@@ -14,7 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use util::{U256,H256};
+use bigint::prelude::U256;
+use bigint::hash::H256;
 use header::BlockNumber;
 
 /// Brief info about inserted block.

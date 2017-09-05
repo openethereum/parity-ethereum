@@ -16,8 +16,9 @@
 
 //! Trie query recorder.
 
-use sha3::Hashable;
-use {Bytes, H256};
+use keccak::keccak;
+use bigint::hash::H256;
+use Bytes;
 
 /// A record of a visited node.
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -62,7 +63,7 @@ impl Recorder {
 
 	/// Record a visited node, given its hash, data, and depth.
 	pub fn record(&mut self, hash: &H256, data: &[u8], depth: u32) {
-		debug_assert_eq!(data.sha3(), *hash);
+		debug_assert_eq!(keccak(data), *hash);
 
 		if depth >= self.min_depth {
 			self.nodes.push(Record {
@@ -82,8 +83,7 @@ impl Recorder {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use sha3::Hashable;
-	use ::H256;
+	use bigint::hash::H256;
 
 	#[test]
 	fn basic_recorder() {
@@ -92,7 +92,7 @@ mod tests {
 		let node1 = vec![1, 2, 3, 4];
 		let node2 = vec![4, 5, 6, 7, 8, 9, 10];
 
-		let (hash1, hash2) = (node1.sha3(), node2.sha3());
+		let (hash1, hash2) = (keccak(&node1), keccak(&node2));
 		basic.record(&hash1, &node1, 0);
 		basic.record(&hash2, &node2, 456);
 
@@ -118,8 +118,8 @@ mod tests {
 		let node1 = vec![1, 2, 3, 4];
 		let node2 = vec![4, 5, 6, 7, 8, 9, 10];
 
-		let hash1 = node1.sha3();
-		let hash2 = node2.sha3();
+		let hash1 = keccak(&node1);
+		let hash2 = keccak(&node2);
 		basic.record(&hash1, &node1, 0);
 		basic.record(&hash2, &node2, 456);
 

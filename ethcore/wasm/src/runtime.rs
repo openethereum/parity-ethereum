@@ -22,7 +22,9 @@ use byteorder::{LittleEndian, ByteOrder};
 
 use vm;
 use parity_wasm::interpreter;
-use util::{Address, H256, U256};
+use bigint::prelude::U256;
+use bigint::hash::H256;
+use util::Address;
 
 use vm::CallType;
 use super::ptr::{WasmPtr, Error as PtrError};

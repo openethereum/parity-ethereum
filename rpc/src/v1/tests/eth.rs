@@ -29,7 +29,9 @@ use ethcore::miner::{MinerOptions, Banning, GasPricer, MinerService, ExternalMin
 use ethcore::account_provider::AccountProvider;
 use ethjson::blockchain::BlockChain;
 use io::IoChannel;
-use util::{U256, H256, Address, Hashable};
+use bigint::prelude::U256;
+use bigint::hash::H256;
+use util::Address;
 
 use jsonrpc_core::IoHandler;
 use v1::impls::{EthClient, SigningUnsafeClient};
@@ -431,7 +433,7 @@ fn verify_transaction_counts(name: String, chain: BlockChain) {
 	for b in chain.blocks_rlp().iter().filter(|b| Block::is_good(b)).map(|b| BlockView::new(b)) {
 		let count = b.transactions_count();
 
-		let hash = b.sha3();
+		let hash = b.hash();
 		let number = b.header_view().number();
 
 		let (req, res) = by_hash(hash, count, &mut id);
