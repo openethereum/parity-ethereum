@@ -132,7 +132,7 @@ export function updateTokensFilter (options = {}) {
 
     const tokenAddresses = tokensToUpdate
       .map((t) => t.address)
-      .filter((address) => address)
+      .filter((address) => address && !/^(0x)?0*$/.test(address))
       .sort();
 
     // Token Addresses that are not in the current filter

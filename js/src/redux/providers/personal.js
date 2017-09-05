@@ -89,12 +89,15 @@ export default class Personal {
               accountsInfo[address].address = address;
             });
 
-          this._store.dispatch(personalAccountsInfo(accountsInfo));
+          const { dispatch, getState } = this._store;
 
-          if (!resolved) {
-            resolved = true;
-            return resolve();
-          }
+          personalAccountsInfo(accountsInfo)(dispatch, getState)
+            .then(() => {
+              if (!resolved) {
+                resolved = true;
+                return resolve();
+              }
+            });
         })
         .then((subId) => {
           this.subscriptionId = subId;

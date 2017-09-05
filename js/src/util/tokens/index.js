@@ -74,28 +74,29 @@ export function fetchTokensBasics (api, tokenReg, start = 0, limit = 100) {
 export function fetchTokensInfo (api, tokenReg, tokenIndexes) {
   const requests = tokenIndexes.map((tokenIndex) => {
     const tokenCalldata = tokenReg.getCallData(tokenReg.instance.token, {}, [tokenIndex]);
-    const metaCalldata = tokenReg.getCallData(tokenReg.instance.meta, {}, [tokenIndex, 'IMG']);
 
-    return [
-      { to: tokenReg.address, data: tokenCalldata },
-      { to: tokenReg.address, data: metaCalldata }
-    ];
+    return { to: tokenReg.address, data: tokenCalldata };
   });
 
-  const calls = flatten(requests).map((req) => api.eth.call(req));
+  const calls = requests.map((req) => api.eth.call(req));
+  const imagesPromise = fetchTokensImages(api, tokenReg, tokenIndexes);
+
+  let results;
 
   return Promise.all(calls)
-    .then((results) => {
-      return tokenIndexes.map((tokenIndex, index) => {
-        const [ rawTokenData, rawImage ] = results.slice(index * 2, index * 2 + 2);
-
+    .then((_results) => {
+      results = _results;
+      return imagesPromise;
+    })
+    .then((images) => {
+      return results.map((rawTokenData, index) => {
+        const tokenIndex = tokenIndexes[index];
         const tokenData = tokenReg.instance.token
           .decodeOutput(rawTokenData)
           .map((t) => t.value);
 
-        const image = tokenReg.instance.meta.decodeOutput(rawImage)[0].value;
-
         const [ address, tag, format, name ] = tokenData;
+        const image = images[index];
 
         const token = {
           address,
@@ -103,7 +104,7 @@ export function fetchTokensInfo (api, tokenReg, tokenIndexes) {
           index: tokenIndex,
 
           format: format.toString(),
-          image: hashToImageUrl(image),
+          image,
           name,
           tag,
 
@@ -111,6 +112,25 @@ export function fetchTokensInfo (api, tokenReg, tokenIndexes) {
         };
 
         return token;
+      });
+    });
+}
+
+export function fetchTokensImages (api, tokenReg, tokenIndexes) {
+  const requests = tokenIndexes.map((tokenIndex) => {
+    const metaCalldata = tokenReg.getCallData(tokenReg.instance.meta, {}, [tokenIndex, 'IMG']);
+
+    return { to: tokenReg.address, data: metaCalldata };
+  });
+
+  const calls = requests.map((req) => api.eth.call(req));
+
+  return Promise.all(calls)
+    .then((results) => {
+      return results.map((rawImage) => {
+        const image = tokenReg.instance.meta.decodeOutput(rawImage)[0].value;
+
+        return hashToImageUrl(image);
       });
     });
 }

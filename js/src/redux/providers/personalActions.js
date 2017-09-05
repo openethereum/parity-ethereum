@@ -71,7 +71,7 @@ export function personalAccountsInfo (accountsInfo) {
         return WalletsUtils.fetchOwners(walletContract.at(wallet.address));
       });
 
-    Promise
+    return Promise
       .all(_fetchOwners)
       .then((walletsOwners) => {
         return Object
