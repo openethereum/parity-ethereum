@@ -219,7 +219,6 @@ impl HardwareWalletManager {
 		self.trezor.lock().set_key_path(key_path);
 	}
 
-
 	/// List connected wallets. This only returns wallets that are ready to be used.
 	pub fn list_wallets(&self) -> Vec<WalletInfo> {
 		let mut ledger_wallets = self.ledger.lock().list_devices();

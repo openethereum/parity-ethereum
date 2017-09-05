@@ -23,7 +23,10 @@ use crypto::ripemd160::Ripemd160 as Ripemd160Digest;
 use crypto::digest::Digest;
 use num::{BigUint, Zero, One};
 
-use util::{U256, H256, Hashable, BytesRef};
+use hash::keccak;
+use bigint::prelude::U256;
+use bigint::hash::H256;
+use util::BytesRef;
 use ethkey::{Signature, recover as ec_recover};
 use ethjson;
 
@@ -228,7 +231,7 @@ impl Impl for EcRecover {
 		let s = Signature::from_rsv(&r, &s, bit);
 		if s.is_valid() {
 			if let Ok(p) = ec_recover(&s, &hash) {
-				let r = p.sha3();
+				let r = keccak(p);
 				output.write(0, &[0; 12]);
 				output.write(12, &r[12..r.len()]);
 			}
@@ -266,6 +269,34 @@ impl Impl for Ripemd160 {
 	}
 }
 
+// calculate modexp: exponentiation by squaring. the `num` crate has pow, but not modular.
+fn modexp(mut base: BigUint, mut exp: BigUint, modulus: BigUint) -> BigUint {
+	use num::Integer;
+
+	match (base.is_zero(), exp.is_zero()) {
+		(_, true) => return BigUint::one(), // n^0 % m
+		(true, false) => return BigUint::zero(), // 0^n % m, n>0
+		(false, false) if modulus <= BigUint::one() => return BigUint::zero(), // a^b % 1 = 0.
+		_ => {}
+	}
+
+	let mut result = BigUint::one();
+	base = base % &modulus;
+
+	// fast path for base divisible by modulus.
+	if base.is_zero() { return BigUint::zero() }
+	while !exp.is_zero() {
+		if exp.is_odd() {
+			result = (result * &base) % &modulus;
+		}
+
+		exp = exp >> 1;
+		base = (base.clone() * base) % &modulus;
+	}
+
+	result
+}
+
 impl Impl for ModexpImpl {
 	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), Error> {
 		let mut reader = input.chain(io::repeat(0));
@@ -293,34 +324,6 @@ impl Impl for ModexpImpl {
 		let base = read_num(base_len);
 		let exp = read_num(exp_len);
 		let modulus = read_num(mod_len);
-
-		// calculate modexp: exponentiation by squaring. the `num` crate has pow, but not modular.
-		fn modexp(mut base: BigUint, mut exp: BigUint, modulus: BigUint) -> BigUint {
-			use num::Integer;
-
-			match (base.is_zero(), exp.is_zero()) {
-				(_, true) => return BigUint::one(), // n^0 % m
-				(true, false) => return BigUint::zero(), // 0^n % m, n>0
-				(false, false) if modulus <= BigUint::one() => return BigUint::zero(), // a^b % 1 = 0.
-				_ => {}
-			}
-
-			let mut result = BigUint::one();
-			base = base % &modulus;
-
-			// fast path for base divisible by modulus.
-			if base.is_zero() { return result }
-			while !exp.is_zero() {
-				if exp.is_odd() {
-					result = (result * &base) % &modulus;
-				}
-
-				exp = exp >> 1;
-				base = (base.clone() * base) % &modulus;
-			}
-
-			result
-		}
 
 		// write output to given memory, left padded and same length as the modulus.
 		let bytes = modexp(base, exp, modulus).to_bytes_be();
@@ -503,10 +506,45 @@ impl Impl for Bn128PairingImpl {
 
 #[cfg(test)]
 mod tests {
-	use super::{Builtin, Linear, ethereum_builtin, Pricer, Modexp};
+	use super::{Builtin, Linear, ethereum_builtin, Pricer, Modexp, modexp as me};
 	use ethjson;
-	use util::{U256, BytesRef};
+	use bigint::prelude::U256;
+	use util::BytesRef;
 	use rustc_hex::FromHex;
+	use num::{BigUint, Zero, One};
+
+	#[test]
+	fn modexp_func() {
+		// n^0 % m == 1
+		let mut base = BigUint::parse_bytes(b"12345", 10).unwrap();
+		let mut exp = BigUint::zero();
+		let mut modulus = BigUint::parse_bytes(b"789", 10).unwrap();
+		assert_eq!(me(base, exp, modulus), BigUint::one());
+
+		// 0^n % m == 0
+		base = BigUint::zero();
+		exp = BigUint::parse_bytes(b"12345", 10).unwrap();
+		modulus = BigUint::parse_bytes(b"789", 10).unwrap();
+		assert_eq!(me(base, exp, modulus), BigUint::zero());
+
+		// n^m % 1 == 0
+		base = BigUint::parse_bytes(b"12345", 10).unwrap();
+		exp = BigUint::parse_bytes(b"789", 10).unwrap();
+		modulus = BigUint::one();
+		assert_eq!(me(base, exp, modulus), BigUint::zero());
+
+		// if n % d == 0, then n^m % d == 0
+		base = BigUint::parse_bytes(b"12345", 10).unwrap();
+		exp = BigUint::parse_bytes(b"789", 10).unwrap();
+		modulus = BigUint::parse_bytes(b"15", 10).unwrap();
+		assert_eq!(me(base, exp, modulus), BigUint::zero());
+
+		// others
+		base = BigUint::parse_bytes(b"12345", 10).unwrap();
+		exp = BigUint::parse_bytes(b"789", 10).unwrap();
+		modulus = BigUint::parse_bytes(b"97", 10).unwrap();
+		assert_eq!(me(base, exp, modulus), BigUint::parse_bytes(b"55", 10).unwrap());
+	}
 
 	#[test]
 	fn identity() {
@@ -572,14 +610,6 @@ mod tests {
 
 	#[test]
 	fn ecrecover() {
-		/*let k = KeyPair::from_secret(b"test".sha3()).unwrap();
-		let a: Address = From::from(k.public().sha3());
-		println!("Address: {}", a);
-		let m = b"hello world".sha3();
-		println!("Message: {}", m);
-		let s = k.sign(&m).unwrap();
-		println!("Signed: {}", s);*/
-
 		let f = ethereum_builtin("ecrecover");
 
 		let i = FromHex::from_hex("47173285a8d7341e5e972fc677286384f802f8ef42a5ec5f03bbfa254cb01fad000000000000000000000000000000000000000000000000000000000000001b650acf9d3f5f0a2c799776a1254355d5f4061762a237396a99a0e0e3fc2bcd6729514a0dacb2e623ac4abd157cb18163ff942280db4d5caad66ddf941ba12e03").unwrap();

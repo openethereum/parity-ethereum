@@ -19,7 +19,9 @@
 use std::str::FromStr;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
-use util::{Bytes, H256, Address, HeapSizeOf};
+use heapsize::HeapSizeOf;
+use bigint::hash::H256;
+use util::{Bytes, Address};
 
 use engines::{Call, Engine};
 use header::{Header, BlockNumber};

@@ -13,6 +13,7 @@ futures = "0.1"
 linked-hash-map = "0.3"
 log = "0.3"
 parity-dapps-glue = "1.7"
+parking_lot = "0.4"
 mime = "0.2"
 mime_guess = "1.6.1"
 rand = "0.3"
@@ -30,11 +31,13 @@ jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "pa
 jsonrpc-http-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
 
 ethcore-util = { path = "../util" }
+ethcore-bigint = { path = "../util/bigint" }
 fetch = { path = "../util/fetch" }
 node-health = { path = "./node-health" }
 parity-hash-fetch = { path = "../hash-fetch" }
 parity-reactor = { path = "../util/reactor" }
 parity-ui = { path = "./ui" }
+hash = { path = "../util/hash" }
 
 clippy = { version = "0.0.103", optional = true}
 

@@ -17,7 +17,7 @@
 use std::str::FromStr;
 use std::fmt;
 use serde;
-use util::{U256 as EthU256, U128 as EthU128};
+use bigint::prelude::{U256 as EthU256, U128 as EthU128};
 
 macro_rules! impl_uint {
 	($name: ident, $other: ident, $size: expr) => {

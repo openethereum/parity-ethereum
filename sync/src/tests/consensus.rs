@@ -15,6 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
+use hash::keccak;
+use bigint::prelude::U256;
 use util::*;
 use io::{IoHandler, IoContext, IoChannel};
 use ethcore::client::{BlockChainClient, Client};
@@ -56,8 +58,8 @@ fn new_tx(secret: &Secret, nonce: U256, chain_id: u64) -> PendingTransaction {
 
 #[test]
 fn authority_round() {
-	let s0 = KeyPair::from_secret_slice(&"1".sha3()).unwrap();
-	let s1 = KeyPair::from_secret_slice(&"0".sha3()).unwrap();
+	let s0 = KeyPair::from_secret_slice(&keccak("1")).unwrap();
+	let s1 = KeyPair::from_secret_slice(&keccak("0")).unwrap();
 	let ap = Arc::new(AccountProvider::transient_provider());
 	ap.insert_account(s0.secret().clone(), "").unwrap();
 	ap.insert_account(s1.secret().clone(), "").unwrap();
@@ -143,8 +145,8 @@ fn authority_round() {
 
 #[test]
 fn tendermint() {
-	let s0 = KeyPair::from_secret_slice(&"1".sha3()).unwrap();
-	let s1 = KeyPair::from_secret_slice(&"0".sha3()).unwrap();
+	let s0 = KeyPair::from_secret_slice(&keccak("1")).unwrap();
+	let s1 = KeyPair::from_secret_slice(&keccak("0")).unwrap();
 	let ap = Arc::new(AccountProvider::transient_provider());
 	ap.insert_account(s0.secret().clone(), "").unwrap();
 	ap.insert_account(s1.secret().clone(), "").unwrap();

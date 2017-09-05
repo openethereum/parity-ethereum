@@ -18,7 +18,8 @@
 
 use std::sync::Arc;
 use transient_hashmap::TransientHashMap;
-use util::{U256, Mutex};
+use bigint::prelude::U256;
+use parking_lot::Mutex;
 
 use ethcore::account_provider::AccountProvider;
 

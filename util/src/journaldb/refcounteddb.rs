@@ -26,7 +26,8 @@ use memorydb::MemoryDB;
 use super::{DB_PREFIX_LEN, LATEST_ERA_KEY};
 use super::traits::JournalDB;
 use kvdb::{KeyValueDB, DBTransaction};
-use {UtilError, H256, Bytes};
+use bigint::hash::H256;
+use {UtilError, Bytes};
 
 /// Implementation of the `HashDB` trait for a disk-backed database with a memory overlay
 /// and latent-removal semantics.
@@ -213,26 +214,26 @@ mod tests {
 	#![cfg_attr(feature="dev", allow(blacklisted_name))]
 	#![cfg_attr(feature="dev", allow(similar_names))]
 
+	use keccak::keccak;
 	use hashdb::{HashDB, DBValue};
 	use super::*;
 	use super::super::traits::JournalDB;
-	use {Hashable};
 
 	#[test]
 	fn long_history() {
 		// history is 3
 		let mut jdb = RefCountedDB::new_temp();
 		let h = jdb.insert(b"foo");
-		jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
+		jdb.commit_batch(0, &keccak(b"0"), None).unwrap();
 		assert!(jdb.contains(&h));
 		jdb.remove(&h);
-		jdb.commit_batch(1, &b"1".sha3(), None).unwrap();
+		jdb.commit_batch(1, &keccak(b"1"), None).unwrap();
 		assert!(jdb.contains(&h));
-		jdb.commit_batch(2, &b"2".sha3(), None).unwrap();
+		jdb.commit_batch(2, &keccak(b"2"), None).unwrap();
 		assert!(jdb.contains(&h));
-		jdb.commit_batch(3, &b"3".sha3(), Some((0, b"0".sha3()))).unwrap();
+		jdb.commit_batch(3, &keccak(b"3"), Some((0, keccak(b"0")))).unwrap();
 		assert!(jdb.contains(&h));
-		jdb.commit_batch(4, &b"4".sha3(), Some((1, b"1".sha3()))).unwrap();
+		jdb.commit_batch(4, &keccak(b"4"), Some((1, keccak(b"1")))).unwrap();
 		assert!(!jdb.contains(&h));
 	}
 
@@ -242,16 +243,16 @@ mod tests {
 		let mut jdb = RefCountedDB::new_temp();
 		assert_eq!(jdb.latest_era(), None);
 		let h = jdb.insert(b"foo");
-		jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
+		jdb.commit_batch(0, &keccak(b"0"), None).unwrap();
 		assert_eq!(jdb.latest_era(), Some(0));
 		jdb.remove(&h);
-		jdb.commit_batch(1, &b"1".sha3(), None).unwrap();
+		jdb.commit_batch(1, &keccak(b"1"), None).unwrap();
 		assert_eq!(jdb.latest_era(), Some(1));
-		jdb.commit_batch(2, &b"2".sha3(), None).unwrap();
+		jdb.commit_batch(2, &keccak(b"2"), None).unwrap();
 		assert_eq!(jdb.latest_era(), Some(2));
-		jdb.commit_batch(3, &b"3".sha3(), Some((0, b"0".sha3()))).unwrap();
+		jdb.commit_batch(3, &keccak(b"3"), Some((0, keccak(b"0")))).unwrap();
 		assert_eq!(jdb.latest_era(), Some(3));
-		jdb.commit_batch(4, &b"4".sha3(), Some((1, b"1".sha3()))).unwrap();
+		jdb.commit_batch(4, &keccak(b"4"), Some((1, keccak(b"1")))).unwrap();
 		assert_eq!(jdb.latest_era(), Some(4));
 	}
 
@@ -262,32 +263,32 @@ mod tests {
 
 		let foo = jdb.insert(b"foo");
 		let bar = jdb.insert(b"bar");
-		jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
+		jdb.commit_batch(0, &keccak(b"0"), None).unwrap();
 		assert!(jdb.contains(&foo));
 		assert!(jdb.contains(&bar));
 
 		jdb.remove(&foo);
 		jdb.remove(&bar);
 		let baz = jdb.insert(b"baz");
-		jdb.commit_batch(1, &b"1".sha3(), Some((0, b"0".sha3()))).unwrap();
+		jdb.commit_batch(1, &keccak(b"1"), Some((0, keccak(b"0")))).unwrap();
 		assert!(jdb.contains(&foo));
 		assert!(jdb.contains(&bar));
 		assert!(jdb.contains(&baz));
 
 		let foo = jdb.insert(b"foo");
 		jdb.remove(&baz);
-		jdb.commit_batch(2, &b"2".sha3(), Some((1, b"1".sha3()))).unwrap();
+		jdb.commit_batch(2, &keccak(b"2"), Some((1, keccak(b"1")))).unwrap();
 		assert!(jdb.contains(&foo));
 		assert!(!jdb.contains(&bar));
 		assert!(jdb.contains(&baz));
 
 		jdb.remove(&foo);
-		jdb.commit_batch(3, &b"3".sha3(), Some((2, b"2".sha3()))).unwrap();
+		jdb.commit_batch(3, &keccak(b"3"), Some((2, keccak(b"2")))).unwrap();
 		assert!(jdb.contains(&foo));
 		assert!(!jdb.contains(&bar));
 		assert!(!jdb.contains(&baz));
 
-		jdb.commit_batch(4, &b"4".sha3(), Some((3, b"3".sha3()))).unwrap();
+		jdb.commit_batch(4, &keccak(b"4"), Some((3, keccak(b"3")))).unwrap();
 		assert!(!jdb.contains(&foo));
 		assert!(!jdb.contains(&bar));
 		assert!(!jdb.contains(&baz));
@@ -300,22 +301,22 @@ mod tests {
 
 		let foo = jdb.insert(b"foo");
 		let bar = jdb.insert(b"bar");
-		jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
+		jdb.commit_batch(0, &keccak(b"0"), None).unwrap();
 		assert!(jdb.contains(&foo));
 		assert!(jdb.contains(&bar));
 
 		jdb.remove(&foo);
 		let baz = jdb.insert(b"baz");
-		jdb.commit_batch(1, &b"1a".sha3(), Some((0, b"0".sha3()))).unwrap();
+		jdb.commit_batch(1, &keccak(b"1a"), Some((0, keccak(b"0")))).unwrap();
 
 		jdb.remove(&bar);
-		jdb.commit_batch(1, &b"1b".sha3(), Some((0, b"0".sha3()))).unwrap();
+		jdb.commit_batch(1, &keccak(b"1b"), Some((0, keccak(b"0")))).unwrap();
 
 		assert!(jdb.contains(&foo));
 		assert!(jdb.contains(&bar));
 		assert!(jdb.contains(&baz));
 
-		jdb.commit_batch(2, &b"2b".sha3(), Some((1, b"1b".sha3()))).unwrap();
+		jdb.commit_batch(2, &keccak(b"2b"), Some((1, keccak(b"1b")))).unwrap();
 		assert!(jdb.contains(&foo));
 		assert!(!jdb.contains(&baz));
 		assert!(!jdb.contains(&bar));

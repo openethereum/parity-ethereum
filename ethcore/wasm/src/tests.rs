@@ -16,7 +16,9 @@
 
 use std::sync::Arc;
 use byteorder::{LittleEndian, ByteOrder};
-use util::{U256, H256, Address};
+use bigint::prelude::U256;
+use bigint::hash::H256;
+use util::Address;
 
 use super::WasmInterpreter;
 use vm::{self, Vm, GasLeft, ActionParams, ActionValue};

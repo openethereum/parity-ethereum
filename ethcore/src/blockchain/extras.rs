@@ -25,7 +25,9 @@ use engines::epoch::{Transition as EpochTransition};
 use header::BlockNumber;
 use receipt::Receipt;
 
-use util::{HeapSizeOf, H256, H264, U256};
+use heapsize::HeapSizeOf;
+use bigint::prelude::U256;
+use bigint::hash::{H256, H264};
 use util::kvdb::PREFIX_LEN as DB_PREFIX_LEN;
 
 /// Represents index of extra data in database

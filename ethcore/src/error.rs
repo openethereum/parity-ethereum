@@ -17,7 +17,10 @@
 //! General error types for use in ethcore.
 
 use std::fmt;
+use bigint::prelude::U256;
+use bigint::hash::H256;
 use util::*;
+use unexpected::{Mismatch, OutOfBounds};
 use io::*;
 use header::BlockNumber;
 use basic_types::LogBloom;
@@ -80,6 +83,8 @@ pub enum TransactionError {
 	CodeBanned,
 	/// Invalid chain ID given.
 	InvalidChainId,
+	/// Not enough permissions given by permission contract.
+	NotAllowed,
 }
 
 impl fmt::Display for TransactionError {
@@ -104,6 +109,7 @@ impl fmt::Display for TransactionError {
 			RecipientBanned => "Recipient is temporarily banned.".into(),
 			CodeBanned => "Contract code is temporarily banned.".into(),
 			InvalidChainId => "Transaction of this chain ID is not allowed on this chain.".into(),
+			NotAllowed => "Sender does not have permissions to execute this type of transction".into(),
 		};
 
 		f.write_fmt(format_args!("Transaction error ({})", msg))
@@ -389,7 +395,7 @@ impl From<ExecutionError> for Error {
 
 impl From<::rlp::DecoderError> for Error {
 	fn from(err: ::rlp::DecoderError) -> Error {
-		Error::Util(UtilError::Decoder(err))
+		Error::Util(UtilError::from(err))
 	}
 }
 
@@ -422,7 +428,7 @@ impl From<BlockImportError> for Error {
 		match err {
 			BlockImportError::Block(e) => Error::Block(e),
 			BlockImportError::Import(e) => Error::Import(e),
-			BlockImportError::Other(s) => Error::Util(UtilError::SimpleString(s)),
+			BlockImportError::Other(s) => Error::Util(UtilError::from(s)),
 		}
 	}
 }

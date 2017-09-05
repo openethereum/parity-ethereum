@@ -17,7 +17,8 @@
 //! A signer used by Engines which need to sign messages.
 
 use std::sync::Arc;
-use util::{H256, Address};
+use bigint::hash::H256;
+use util::Address;
 use ethkey::Signature;
 use account_provider::{self, AccountProvider};
 

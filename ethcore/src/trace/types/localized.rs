@@ -16,7 +16,7 @@
 
 //! Localized traces type definitions
 
-use util::H256;
+use bigint::hash::H256;
 use super::trace::{Action, Res};
 use header::BlockNumber;
 
@@ -34,9 +34,9 @@ pub struct LocalizedTrace {
 	/// [index in root, index in first CALL, index in second CALL, ...]
 	pub trace_address: Vec<usize>,
 	/// Transaction number within the block.
-	pub transaction_number: usize,
+	pub transaction_number: Option<usize>,
 	/// Signed transaction hash.
-	pub transaction_hash: H256,
+	pub transaction_hash: Option<H256>,
 	/// Block number.
 	pub block_number: BlockNumber,
 	/// Block hash.

@@ -16,9 +16,12 @@
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
+use hash::keccak;
 use ethkey::KeyPair;
 use io::*;
 use client::{BlockChainClient, Client, ClientConfig};
+use bigint::prelude::U256;
+use bigint::hash::H256;
 use util::*;
 use spec::*;
 use account_provider::AccountProvider;
@@ -178,7 +181,7 @@ pub fn generate_dummy_client_with_spec_accounts_and_data<F>(get_test_spec: F, ac
 	let mut last_hashes = vec![];
 	let mut last_header = genesis_header.clone();
 
-	let kp = KeyPair::from_secret_slice(&"".sha3()).unwrap();
+	let kp = KeyPair::from_secret_slice(&keccak("")).unwrap();
 	let author = kp.address();
 
 	let mut n = 0;

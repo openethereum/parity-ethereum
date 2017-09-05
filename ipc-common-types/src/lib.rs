@@ -18,6 +18,7 @@
 
 extern crate semver;
 extern crate ethcore_util as util;
+extern crate ethcore_bigint as bigint;
 extern crate ethcore_ipc as ipc;
 
 mod types;

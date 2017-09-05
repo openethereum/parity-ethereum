@@ -18,7 +18,7 @@
 
 use std::sync::Arc;
 use std::sync::atomic::{self, AtomicBool};
-use util::Mutex;
+use parking_lot::Mutex;
 
 use jsonrpc_core::futures::future::{self, Either};
 use jsonrpc_core::futures::sync::mpsc;

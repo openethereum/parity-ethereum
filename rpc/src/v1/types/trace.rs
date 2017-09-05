@@ -299,6 +299,49 @@ impl From<trace::Call> for Call {
 	}
 }
 
+/// Reward type.
+#[derive(Debug, Serialize)]
+pub enum RewardType {
+	/// Block
+	#[serde(rename="block")]
+	Block,
+	/// Uncle
+	#[serde(rename="uncle")]
+	Uncle,
+}
+
+impl From<trace::RewardType> for RewardType {
+	fn from(c: trace::RewardType) -> Self {
+		match c {
+			trace::RewardType::Block => RewardType::Block,
+			trace::RewardType::Uncle => RewardType::Uncle,
+		}
+	}
+}
+
+
+/// Reward action
+#[derive(Debug, Serialize)]
+pub struct Reward {
+	/// Author's address.
+	pub author: H160,
+	/// Reward amount.
+	pub value: U256,
+	/// Reward type.
+	#[serde(rename="rewardType")]
+	pub reward_type: RewardType,
+}
+
+impl From<trace::Reward> for Reward {
+	fn from(r: trace::Reward) -> Self {
+		Reward {
+			author: r.author.into(),
+			value: r.value.into(),
+			reward_type: r.reward_type.into(),
+		}
+	}
+}
+
 /// Suicide
 #[derive(Debug, Serialize)]
 pub struct Suicide {
@@ -330,6 +373,8 @@ pub enum Action {
 	Create(Create),
 	/// Suicide
 	Suicide(Suicide),
+	/// Reward
+	Reward(Reward),	
 }
 
 impl From<trace::Action> for Action {
@@ -338,6 +383,7 @@ impl From<trace::Action> for Action {
 			trace::Action::Call(call) => Action::Call(call.into()),
 			trace::Action::Create(create) => Action::Create(create.into()),
 			trace::Action::Suicide(suicide) => Action::Suicide(suicide.into()),
+			trace::Action::Reward(reward) => Action::Reward(reward.into()),
 		}
 	}
 }
@@ -422,9 +468,9 @@ pub struct LocalizedTrace {
 	/// Subtraces
 	subtraces: usize,
 	/// Transaction position
-	transaction_position: usize,
+	transaction_position: Option<usize>,
 	/// Transaction hash
-	transaction_hash: H256,
+	transaction_hash: Option<H256>,
 	/// Block Number
 	block_number: u64,
 	/// Block Hash
@@ -448,6 +494,10 @@ impl Serialize for LocalizedTrace {
 			Action::Suicide(ref suicide) => {
 				struc.serialize_field("type", "suicide")?;
 				struc.serialize_field("action", suicide)?;
+			},
+			Action::Reward(ref reward) => {
+				struc.serialize_field("type", "reward")?;
+				struc.serialize_field("action", reward)?;
 			},
 		}
 
@@ -477,8 +527,8 @@ impl From<EthLocalizedTrace> for LocalizedTrace {
 			result: t.result.into(),
 			trace_address: t.trace_address.into_iter().map(Into::into).collect(),
 			subtraces: t.subtraces.into(),
-			transaction_position: t.transaction_number.into(),
-			transaction_hash: t.transaction_hash.into(),
+			transaction_position: t.transaction_number.map(Into::into),
+			transaction_hash: t.transaction_hash.map(Into::into),
 			block_number: t.block_number.into(),
 			block_hash: t.block_hash.into(),
 		}
@@ -515,6 +565,10 @@ impl Serialize for Trace {
 			Action::Suicide(ref suicide) => {
 				struc.serialize_field("type", "suicide")?;
 				struc.serialize_field("action", suicide)?;
+			},
+			Action::Reward(ref reward) => {
+				struc.serialize_field("type", "reward")?;
+				struc.serialize_field("action", reward)?;
 			},
 		}
 
@@ -607,8 +661,8 @@ mod tests {
 			}),
 			trace_address: vec![10],
 			subtraces: 1,
-			transaction_position: 11,
-			transaction_hash: 12.into(),
+			transaction_position: Some(11),
+			transaction_hash: Some(12.into()),
 			block_number: 13,
 			block_hash: 14.into(),
 		};
@@ -630,8 +684,8 @@ mod tests {
 			result: Res::FailedCall(TraceError::OutOfGas),
 			trace_address: vec![10],
 			subtraces: 1,
-			transaction_position: 11,
-			transaction_hash: 12.into(),
+			transaction_position: Some(11),
+			transaction_hash: Some(12.into()),
 			block_number: 13,
 			block_hash: 14.into(),
 		};
@@ -655,8 +709,8 @@ mod tests {
 			}),
 			trace_address: vec![10],
 			subtraces: 1,
-			transaction_position: 11,
-			transaction_hash: 12.into(),
+			transaction_position: Some(11),
+			transaction_hash: Some(12.into()),
 			block_number: 13,
 			block_hash: 14.into(),
 		};
@@ -676,8 +730,8 @@ mod tests {
 			result: Res::FailedCreate(TraceError::OutOfGas),
 			trace_address: vec![10],
 			subtraces: 1,
-			transaction_position: 11,
-			transaction_hash: 12.into(),
+			transaction_position: Some(11),
+			transaction_hash: Some(12.into()),
 			block_number: 13,
 			block_hash: 14.into(),
 		};
@@ -696,13 +750,33 @@ mod tests {
 			result: Res::None,
 			trace_address: vec![10],
 			subtraces: 1,
-			transaction_position: 11,
-			transaction_hash: 12.into(),
+			transaction_position: Some(11),
+			transaction_hash: Some(12.into()),
 			block_number: 13,
 			block_hash: 14.into(),
 		};
 		let serialized = serde_json::to_string(&t).unwrap();
 		assert_eq!(serialized, r#"{"type":"suicide","action":{"address":"0x0000000000000000000000000000000000000004","refundAddress":"0x0000000000000000000000000000000000000006","balance":"0x7"},"result":null,"traceAddress":[10],"subtraces":1,"transactionPosition":11,"transactionHash":"0x000000000000000000000000000000000000000000000000000000000000000c","blockNumber":13,"blockHash":"0x000000000000000000000000000000000000000000000000000000000000000e"}"#);
+	}
+
+	#[test]
+	fn test_trace_reward_serialize() {
+		let t = LocalizedTrace {
+			action: Action::Reward(Reward {
+				author: 4.into(),
+				value: 6.into(),
+				reward_type: RewardType::Block,
+			}),
+			result: Res::None,
+			trace_address: vec![10],
+			subtraces: 1,
+			transaction_position: None,
+			transaction_hash: None,
+			block_number: 13,
+			block_hash: 14.into(),
+		};
+		let serialized = serde_json::to_string(&t).unwrap();
+		assert_eq!(serialized, r#"{"type":"reward","action":{"author":"0x0000000000000000000000000000000000000004","value":"0x6","rewardType":"block"},"result":null,"traceAddress":[10],"subtraces":1,"transactionPosition":null,"transactionHash":null,"blockNumber":13,"blockHash":"0x000000000000000000000000000000000000000000000000000000000000000e"}"#);
 	}
 
 	#[test]

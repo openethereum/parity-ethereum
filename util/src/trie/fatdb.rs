@@ -14,8 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use hash::H256;
-use sha3::Hashable;
+use bigint::hash::H256;
+use keccak::keccak;
 use hashdb::HashDB;
 use super::{TrieDB, Trie, TrieDBIterator, TrieItem, TrieIterator, Query};
 
@@ -55,13 +55,13 @@ impl<'db> Trie for FatDB<'db> {
 	}
 
 	fn contains(&self, key: &[u8]) -> super::Result<bool> {
-		self.raw.contains(&key.sha3())
+		self.raw.contains(&keccak(key))
 	}
 
 	fn get_with<'a, 'key, Q: Query>(&'a self, key: &'key [u8], query: Q) -> super::Result<Option<Q::Item>>
 		where 'a: 'key
 	{
-		self.raw.get_with(&key.sha3(), query)
+		self.raw.get_with(&keccak(key), query)
 	}
 }
 
@@ -83,7 +83,7 @@ impl<'db> FatDBIterator<'db> {
 
 impl<'db> TrieIterator for FatDBIterator<'db> {
 	fn seek(&mut self, key: &[u8]) -> super::Result<()> {
-		self.trie_iterator.seek(&key.sha3())
+		self.trie_iterator.seek(&keccak(key))
 	}
 }
 
@@ -94,7 +94,7 @@ impl<'db> Iterator for FatDBIterator<'db> {
 		self.trie_iterator.next()
 			.map(|res|
 				res.map(|(hash, value)| {
-					let aux_hash = hash.sha3();
+					let aux_hash = keccak(hash);
 					(self.trie.db().get(&aux_hash).expect("Missing fatdb hash").into_vec(), value)
 				})
 			)

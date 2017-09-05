@@ -15,14 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 export default {
-  busy: {
-    posted: `Your transaction has been posted to the network`,
-    title: `The function execution is in progress`,
-    waitAuth: `Waiting for authorization in the Parity Signer`
-  },
   button: {
     cancel: `cancel`,
-    done: `done`,
     next: `next`,
     post: `post transaction`,
     prev: `prev`
@@ -44,15 +38,8 @@ export default {
       label: `function to execute`
     }
   },
-  rejected: {
-    state: `You can safely close this window, the function execution will not occur.`,
-    title: `The execution has been rejected`
-  },
   steps: {
     advanced: `advanced options`,
-    complete: `complete`,
-    rejected: `rejected`,
-    sending: `sending`,
     transfer: `function details`
   }
 };

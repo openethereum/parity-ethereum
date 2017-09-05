@@ -302,7 +302,8 @@ fn detokenize(name: &str, output_type: ParamType) -> String {
 		}
 		ParamType::Uint(width) => {
 			let read_uint = match width {
-				8 | 16 | 32 | 64 => format!("bigint::prelude::U256(u).low_u64() as u{}", width),
+				8 => "u[31] as u8".into(),
+				16 | 32 | 64 => format!("BigEndian::read_u{}(&u[{}..])", width, 32 - (width / 8)),
 				_ => format!("bigint::prelude::U{}::from(&u[..])", width),
 			};
 

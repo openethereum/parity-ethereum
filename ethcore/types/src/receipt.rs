@@ -16,8 +16,10 @@
 
 //! Receipt
 
-use util::{H256, U256, Address};
-use util::HeapSizeOf;
+use bigint::prelude::U256;
+use bigint::hash::H256;
+use util::Address;
+use heapsize::HeapSizeOf;
 use rlp::*;
 
 use {BlockNumber};

@@ -22,9 +22,9 @@ use std::default::Default;
 use mio::*;
 use mio::deprecated::{Handler, EventLoop};
 use mio::udp::*;
-use util::sha3::*;
+use hash::keccak;
 use time;
-use util::hash::*;
+use bigint::hash::*;
 use rlp::*;
 use node_table::*;
 use error::NetworkError;
@@ -112,7 +112,7 @@ impl Discovery {
 		let socket = UdpSocket::bind(&listen).expect("Error binding UDP socket");
 		Discovery {
 			id: key.public().clone(),
-			id_hash: key.public().sha3(),
+			id_hash: keccak(key.public()),
 			secret: key.secret().clone(),
 			public_endpoint: public,
 			token: token,
@@ -154,7 +154,7 @@ impl Discovery {
 
 	fn update_node(&mut self, e: NodeEntry) {
 		trace!(target: "discovery", "Inserting {:?}", &e);
-		let id_hash = e.id.sha3();
+		let id_hash = keccak(e.id);
 		let ping = {
 			let mut bucket = &mut self.node_buckets[Discovery::distance(&self.id_hash, &id_hash) as usize];
 			let updated = if let Some(node) = bucket.nodes.iter_mut().find(|n| n.address.id == e.id) {
@@ -180,7 +180,7 @@ impl Discovery {
 	}
 
 	fn clear_ping(&mut self, id: &NodeId) {
-		let mut bucket = &mut self.node_buckets[Discovery::distance(&self.id_hash, &id.sha3()) as usize];
+		let mut bucket = &mut self.node_buckets[Discovery::distance(&self.id_hash, &keccak(id)) as usize];
 		if let Some(node) = bucket.nodes.iter_mut().find(|n| &n.address.id == id) {
 			node.timeout = None;
 		}
@@ -264,7 +264,7 @@ impl Discovery {
 		rlp.append(&timestamp);
 
 		let bytes = rlp.drain();
-		let hash = bytes.as_ref().sha3();
+		let hash = keccak(bytes.as_ref());
 		let signature = match sign(&self.secret, &hash) {
 			Ok(s) => s,
 			Err(_) => {
@@ -276,7 +276,7 @@ impl Discovery {
 		packet.extend(hash.iter());
 		packet.extend(signature.iter());
 		packet.extend(bytes.iter());
-		let signed_hash = (&packet[32..]).sha3();
+		let signed_hash = keccak(&packet[32..]);
 		packet[0..32].clone_from_slice(&signed_hash);
 		self.send_to(packet, address.clone());
 	}
@@ -285,7 +285,7 @@ impl Discovery {
 	fn nearest_node_entries(target: &NodeId, buckets: &[NodeBucket]) -> Vec<NodeEntry> {
 		let mut found: BTreeMap<u32, Vec<&NodeEntry>> = BTreeMap::new();
 		let mut count = 0;
-		let target_hash = target.sha3();
+		let target_hash = keccak(target);
 
 		// Sort nodes by distance to target
 		for bucket in buckets {
@@ -368,14 +368,14 @@ impl Discovery {
 			return Err(NetworkError::BadProtocol);
 		}
 
-		let hash_signed = (&packet[32..]).sha3();
+		let hash_signed = keccak(&packet[32..]);
 		if hash_signed[..] != packet[0..32] {
 			return Err(NetworkError::BadProtocol);
 		}
 
 		let signed = &packet[(32 + 65)..];
 		let signature = H520::from_slice(&packet[32..(32 + 65)]);
-		let node_id = recover(&signature.into(), &signed.sha3())?;
+		let node_id = recover(&signature.into(), &keccak(signed))?;
 
 		let packet_id = signed[0];
 		let rlp = UntrustedRlp::new(&signed[1..]);
@@ -419,7 +419,7 @@ impl Discovery {
 			self.update_node(entry.clone());
 			added_map.insert(node.clone(), entry);
 		}
-		let hash = rlp.as_raw().sha3();
+		let hash = keccak(rlp.as_raw());
 		let mut response = RlpStream::new_list(2);
 		dest.to_rlp_list(&mut response);
 		response.append(&hash);
@@ -636,7 +636,7 @@ mod tests {
 			buckets[0].nodes.push_back(BucketEntry {
 				address: NodeEntry { id: NodeId::new(), endpoint: ep.clone() },
 				timeout: None,
-				id_hash: NodeId::new().sha3(),
+				id_hash: keccak(NodeId::new()),
 			});
 		}
 		let nearest = Discovery::nearest_node_entries(&NodeId::new(), &buckets);

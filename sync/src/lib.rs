@@ -28,6 +28,7 @@
 //!
 
 extern crate ethcore_network as network;
+extern crate ethcore_bigint as bigint;
 extern crate ethcore_io as io;
 extern crate ethcore;
 extern crate env_logger;
@@ -38,6 +39,8 @@ extern crate parking_lot;
 extern crate smallvec;
 extern crate rlp;
 extern crate ipnetwork;
+extern crate hash;
+extern crate triehash;
 
 extern crate ethcore_light as light;
 

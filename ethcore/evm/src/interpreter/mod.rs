@@ -26,6 +26,9 @@ mod shared_cache;
 use std::marker::PhantomData;
 use std::{cmp, mem};
 use std::sync::Arc;
+use hash::keccak;
+use bigint::prelude::{U256, U512};
+use bigint::hash::H256;
 
 use vm::{
 	self, ActionParams, ActionValue, CallType, MessageCallResult,
@@ -180,7 +183,7 @@ impl<Cost: CostType> vm::Vm for Interpreter<Cost> {
 			match result {
 				InstructionResult::JumpToPosition(position) => {
 					if valid_jump_destinations.is_none() {
-						let code_hash = params.code_hash.clone().unwrap_or_else(|| code.sha3());
+						let code_hash = params.code_hash.clone().unwrap_or_else(|| keccak(code.as_ref()));
 						valid_jump_destinations = Some(self.cache.jump_destinations(&code_hash, code));
 					}
 					let jump_destinations = valid_jump_destinations.as_ref().expect("jump_destinations are initialized on first jump; qed");
@@ -464,8 +467,8 @@ impl<Cost: CostType> Interpreter<Cost> {
 			instructions::SHA3 => {
 				let offset = stack.pop_back();
 				let size = stack.pop_back();
-				let sha3 = self.mem.read_slice(offset, size).sha3();
-				stack.push(U256::from(&*sha3));
+				let k = keccak(self.mem.read_slice(offset, size));
+				stack.push(U256::from(&*k));
 			},
 			instructions::SLOAD => {
 				let key = H256::from(&stack.pop_back());
@@ -880,7 +883,7 @@ mod tests {
 	use rustc_hex::FromHex;
 	use vmtype::VMType;
 	use factory::Factory;
-	use vm::{self, ActionParams, ActionValue};
+	use vm::{ActionParams, ActionValue};
 	use vm::tests::{FakeExt, test_finalize};
 
 	#[test]

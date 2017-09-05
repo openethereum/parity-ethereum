@@ -32,7 +32,9 @@ use request;
 use request::*;
 
 use rlp::*;
-use util::{Address, H256, U256};
+use bigint::prelude::U256;
+use bigint::hash::H256;
+use util::Address;
 
 use std::sync::Arc;
 
@@ -606,7 +608,7 @@ fn id_guard() {
 	pending_requests.insert(req_id_1, req.clone(), 0.into(), ::time::SteadyTime::now());
 	pending_requests.insert(req_id_2, req, 1.into(), ::time::SteadyTime::now());
 
-	proto.peers.write().insert(peer_id, ::util::Mutex::new(Peer {
+	proto.peers.write().insert(peer_id, ::parking_lot::Mutex::new(Peer {
 		local_credits: flow_params.create_credits(),
 		status: status(provider.client.chain_info()),
 		capabilities: capabilities.clone(),
