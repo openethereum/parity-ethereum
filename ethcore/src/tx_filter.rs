@@ -19,9 +19,10 @@
 use std::sync::Weak;
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
+use bigint::hash::H256;
 use native_contracts::TransactAcl as Contract;
-use client::{BlockChainClient, BlockId, ChainNotify};
-use util::{Address, H256, Bytes};
+use client::{EngineClient, BlockId, ChainNotify};
+use util::{Address, Bytes};
 use parking_lot::{Mutex, RwLock};
 use futures::{self, Future};
 use spec::CommonParams;
@@ -42,7 +43,7 @@ mod tx_permissions {
 /// Connection filter that uses a contract to manage permissions.
 pub struct TransactionFilter {
 	contract: Mutex<Option<Contract>>,
-	client: RwLock<Option<Weak<BlockChainClient>>>,
+	client: RwLock<Option<Weak<EngineClient>>>,
 	contract_address: Address,
 	permission_cache: Mutex<HashMap<(H256, Address), u32>>,
 }
@@ -66,7 +67,7 @@ impl TransactionFilter {
 	}
 
 	/// Set client reference to be used for contract call.
-	pub fn register_client(&self, client: Weak<BlockChainClient>) {
+	pub fn register_client(&self, client: Weak<EngineClient>) {
 		*self.client.write() = Some(client);
 	}
 
@@ -78,6 +79,12 @@ impl TransactionFilter {
 				Some(client) => client,
 				_ => return false,
 			};
+
+			let client = match client.as_full_client() {
+				Some(client) => client,
+				_ => return false, // TODO: how to handle verification for light clients?
+			};
+
 			let tx_type = match transaction.action {
 				Action::Create => tx_permissions::CREATE,
 				Action::Call(address) => if client.code_hash(&address, BlockId::Hash(*parent_hash)).map_or(false, |c| c != KECCAK_EMPTY) {

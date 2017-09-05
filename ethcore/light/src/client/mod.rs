@@ -19,9 +19,9 @@
 use std::sync::{Weak, Arc};
 
 use ethcore::block_status::BlockStatus;
-use ethcore::client::{TransactionImportResult, ClientReport, EnvInfo};
+use ethcore::client::{ClientReport, EnvInfo};
 use ethcore::engines::{epoch, Engine, EpochChange, EpochTransition, Proof, Unsure};
-use ethcore::error::{TransactionError, BlockImportError, Error as EthcoreError};
+use ethcore::error::BlockImportError;
 use ethcore::ids::BlockId;
 use ethcore::header::{BlockNumber, Header};
 use ethcore::verification::queue::{self, HeaderQueue};
@@ -35,7 +35,6 @@ use bigint::prelude::U256;
 use bigint::hash::H256;
 use futures::{IntoFuture, Future};
 
-use util::Address;
 use util::kvdb::{KeyValueDB, CompactionProfile};
 
 use self::fetch::ChainDataFetcher;
@@ -619,17 +618,8 @@ impl<T: ChainDataFetcher> ::ethcore::client::EngineClient for Client<T> {
 		Client::chain_info(self)
 	}
 
-	fn call_contract(&self, _id: BlockId, _address: Address, _data: Vec<u8>) -> Result<Vec<u8>, String> {
-		Err("Contract calling not supported by light client".into())
-	}
-
-	fn transact_contract(&self, _address: Address, _data: Vec<u8>)
-		-> Result<TransactionImportResult, EthcoreError>
-	{
-		// TODO: these are only really used for misbehavior reporting.
-		// no relevant clients will be running light clients, but maybe
-		// they could be at some point?
-		Err(TransactionError::LimitReached.into())
+	fn as_full_client(&self) -> Option<&::ethcore::client::BlockChainClient> {
+		None
 	}
 
 	fn block_number(&self, id: BlockId) -> Option<BlockNumber> {

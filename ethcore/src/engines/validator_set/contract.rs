@@ -58,7 +58,13 @@ impl ValidatorContract {
 		Box::new(move |a, d| client.as_ref()
 			.and_then(Weak::upgrade)
 			.ok_or("No client!".into())
-			.and_then(|c| c.transact_contract(a, d).map_err(|e| format!("Transaction import error: {}", e)))
+			.and_then(|c| {
+				match c.as_full_client() {
+					Some(c) => c.transact_contract(a, d)
+						.map_err(|e| format!("Transaction import error: {}", e)),
+					None => Err("No full client!".into()),
+				}
+			})
 			.map(|_| Default::default()))
 	}
 }

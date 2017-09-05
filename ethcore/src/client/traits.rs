@@ -337,12 +337,10 @@ pub trait EngineClient: Sync + Send {
 	/// Get block chain info.
 	fn chain_info(&self) -> BlockChainInfo;
 
-	/// Like `call`, but with various defaults. Designed to be used for calling contracts.
-	fn call_contract(&self, id: BlockId, address: Address, data: Bytes) -> Result<Bytes, String>;
+	/// Attempt to cast the engine client to a full client.
+	fn as_full_client(&self) -> Option<&BlockChainClient>;
 
-	/// Import a transaction: used for misbehaviour reporting.
-	fn transact_contract(&self, address: Address, data: Bytes) -> Result<TransactionImportResult, EthcoreError>;
-
+	/// Get a block number by ID.
 	fn block_number(&self, id: BlockId) -> Option<BlockNumber>;
 }
 

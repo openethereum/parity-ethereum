@@ -1960,13 +1960,7 @@ impl super::traits::EngineClient for Client {
 		BlockChainClient::chain_info(self)
 	}
 
-	fn call_contract(&self, id: BlockId, address: Address, data: Bytes) -> Result<Bytes, String> {
-		BlockChainClient::call_contract(self, id, address, data)
-	}
-
-	fn transact_contract(&self, address: Address, data: Bytes) -> Result<TransactionImportResult, EthcoreError> {
-		BlockChainClient::transact_contract(self, address, data)
-	}
+	fn as_full_client(&self) -> Option<&BlockChainClient> { Some(self) }
 
 	fn block_number(&self, id: BlockId) -> Option<BlockNumber> {
 		BlockChainClient::block_number(self, id)

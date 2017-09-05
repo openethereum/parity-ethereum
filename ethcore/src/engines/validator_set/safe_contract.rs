@@ -311,7 +311,12 @@ impl ValidatorSet for ValidatorSafeContract {
 		Box::new(move |addr, data| client.as_ref()
 			.and_then(Weak::upgrade)
 			.ok_or("No client!".into())
-			.and_then(|c| c.call_contract(id, addr, data))
+			.and_then(|c| {
+				match c.as_full_client() {
+					Some(c) => c.call_contract(id, addr, data),
+					None => Err("No full client!".into()),
+				}
+			})
 			.map(|out| (out, Vec::new()))) // generate no proofs in general
 	}
 
