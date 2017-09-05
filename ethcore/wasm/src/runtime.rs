@@ -518,6 +518,63 @@ impl<'a, 'b> Runtime<'a, 'b> {
 		Err(UserTrap::Panic(msg).into())
 	}
 
+	fn block_hash(&mut self, context: InterpreterCallerContext)
+		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
+	{
+		let return_ptr = context.value_stack.pop_as::<i32>()? as u32;
+		let block_hi = context.value_stack.pop_as::<i32>()? as u32;
+		let block_lo = context.value_stack.pop_as::<i32>()? as u32;
+
+		let block_num = (block_hi as u64) << 32 | block_lo as u64;
+
+		trace!("Requesting block hash for block #{}", block_num);
+		let hash = self.ext.blockhash(&U256::from(block_num));
+
+		self.memory.set(return_ptr, &*hash)?;
+
+		Ok(Some(0i32.into()))
+	}
+
+	fn coinbase(&mut self, context: InterpreterCallerContext)
+		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
+	{
+		let return_ptr = context.value_stack.pop_as::<i32>()? as u32;
+		self.memory.set(return_ptr, &*self.ext.env_info().author)?;
+		Ok(None)
+	}
+
+	fn timestamp(&mut self, _context: InterpreterCallerContext)
+		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
+	{
+		let timestamp = self.ext.env_info().timestamp as i64;
+		self.return_i64(timestamp)
+	}
+
+	fn block_number(&mut self, _context: InterpreterCallerContext)
+		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
+	{
+		let block_number: u64 = self.ext.env_info().number.into();
+		self.return_i64(block_number as i64)
+	}
+
+	fn difficulty(&mut self, context: InterpreterCallerContext)
+		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
+	{
+		let return_ptr = context.value_stack.pop_as::<i32>()? as u32;
+		let difficulty: H256 = self.ext.env_info().difficulty.into();
+		self.memory.set(return_ptr, &*difficulty)?;
+		Ok(None)
+	}
+
+	fn ext_gas_limit(&mut self, context: InterpreterCallerContext)
+		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
+	{
+		let return_ptr = context.value_stack.pop_as::<i32>()? as u32;
+		let gas_limit: H256 = self.ext.env_info().gas_limit.into();
+		self.memory.set(return_ptr, &*gas_limit)?;
+		Ok(None)
+	}
+
 	fn return_i64(&mut self, val: i64) -> Result<Option<interpreter::RuntimeValue>, InterpreterError> {
 		let uval = val as u64;
 		let hi = (uval >> 32) as i32;
@@ -600,10 +657,28 @@ impl<'a, 'b> interpreter::UserFunctionExecutor<UserTrap> for Runtime<'a, 'b> {
 			"_panic" => {
 				self.user_panic(context)
 			},
+			"_blockhash" => {
+				self.block_hash(context)
+			},
+			"_coinbase" => {
+				self.coinbase(context)
+			},
+			"_timestamp" => {
+				self.timestamp(context)
+			},
+			"_blocknumber" => {
+				self.block_number(context)
+			},
+			"_difficulty" => {
+				self.difficulty(context)
+			},
+			"_gaslimit" => {
+				self.ext_gas_limit(context)
+			},
 			_ => {
 				trace!(target: "wasm", "Trapped due to unhandled function: '{}'", name);
 				Ok(self.unknown_trap(context)?)
-			}
+			},
 		}
 	}
 }

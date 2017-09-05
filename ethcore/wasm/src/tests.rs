@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
+use std::collections::HashMap;
 use byteorder::{LittleEndian, ByteOrder};
 use util::{U256, H256, Address};
 
@@ -417,6 +418,9 @@ fn storage_read() {
 
 macro_rules! reqrep_test {
 	($name: expr, $input: expr) => {
+		reqrep_test!($name, $input, vm::EnvInfo::default(), HashMap::new())
+	};
+	($name: expr, $input: expr, $info: expr, $block_hashes: expr) => {
 		{
 			::ethcore_logger::init_log();
 			let code = load_sample!($name);
@@ -426,9 +430,13 @@ macro_rules! reqrep_test {
 			params.code = Some(Arc::new(code));
 			params.data = Some($input);
 
+			let mut fake_ext = FakeExt::new();
+			fake_ext.info = $info;
+			fake_ext.blockhashes = $block_hashes;
+
 			let (gas_left, result) = {
 				let mut interpreter = wasm_interpreter();
-				let result = interpreter.exec(params, &mut FakeExt::new()).expect("Interpreter to execute without any errors");
+				let result = interpreter.exec(params, &mut fake_ext).expect("Interpreter to execute without any errors");
 				match result {
 						GasLeft::Known(_) => { panic!("Test is expected to return payload to check"); },
 						GasLeft::NeedsReturn { gas_left: gas, data: result, apply_state: _apply } => (gas, result.to_vec()),
@@ -437,7 +445,7 @@ macro_rules! reqrep_test {
 
 			(gas_left, result)
 		}
-	}
+	};
 }
 
 // math_* tests check the ability of wasm contract to perform big integer operations
@@ -538,7 +546,86 @@ fn math_div() {
 // varios blockchain runtime methods
 #[test]
 fn externs() {
-	let (gas_left, result) = reqrep_test!("externs.wasm", Vec::new());
+	let (gas_left, result) = reqrep_test!(
+		"externs.wasm",
+		Vec::new(),
+		vm::EnvInfo {
+			number: 0x9999999999u64.into(),
+			author: "efefefefefefefefefefefefefefefefefefefef".parse().unwrap(),
+			timestamp: 0x8888888888u64.into(),
+			difficulty: H256::from("0f1f2f3f4f5f6f7f8f9fafbfcfdfefff0d1d2d3d4d5d6d7d8d9dadbdcdddedfd").into(),
+			gas_limit: 0x777777777777u64.into(),
+			last_hashes: Default::default(),
+			gas_used: 0.into(),
+		},
+		{
+			let mut hashes = HashMap::new();
+			hashes.insert(
+				U256::from(0),
+				H256::from("9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d")
+			);
+			hashes.insert(
+				U256::from(1),
+				H256::from("7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b")
+			);
+			hashes
+		}
+	);
 
-	assert_eq!(gas_left, U256::from(91420));
+	assert_eq!(
+		&result[0..64].to_vec(),
+		&vec![
+			0x9d, 0x9d, 0x9d, 0x9d, 0x9d, 0x9d, 0x9d, 0x9d, 0x9d, 0x9d, 0x9d, 0x9d, 0x9d, 0x9d, 0x9d, 0x9d, 0x9d, 0x9d, 0x9d, 0x9d, 0x9d, 0x9d, 0x9d, 0x9d, 0x9d, 0x9d, 0x9d, 0x9d, 0x9d, 0x9d, 0x9d, 0x9d,
+			0x7b, 0x7b, 0x7b, 0x7b, 0x7b, 0x7b, 0x7b, 0x7b, 0x7b, 0x7b, 0x7b, 0x7b, 0x7b, 0x7b, 0x7b, 0x7b, 0x7b, 0x7b, 0x7b, 0x7b, 0x7b, 0x7b, 0x7b, 0x7b, 0x7b, 0x7b,0x7b, 0x7b, 0x7b, 0x7b, 0x7b, 0x7b,
+		],
+		"Block hashes requested and returned do not match"
+	);
+
+	assert_eq!(
+		&result[64..84].to_vec(),
+		&vec![
+			0xef, 0xef, 0xef, 0xef, 0xef, 0xef, 0xef, 0xef, 0xef, 0xef, 0xef, 0xef, 0xef, 0xef, 0xef, 0xef, 0xef, 0xef, 0xef, 0xef,
+		],
+		"Coinbase requested and returned does not match"
+	);
+
+	assert_eq!(
+		&result[84..92].to_vec(),
+		&vec![
+			0x88, 0x88, 0x88, 0x88, 0x88, 0x00, 0x00, 0x00
+		],
+		"Timestamp requested and returned does not match"
+	);
+
+	assert_eq!(
+		&result[92..100].to_vec(),
+		&vec![
+			0x99, 0x99, 0x99, 0x99, 0x99, 0x00, 0x00, 0x00
+		],
+		"Block number requested and returned does not match"
+	);
+
+	assert_eq!(
+		&result[100..132].to_vec(),
+		&vec![
+			0x0f, 0x1f, 0x2f, 0x3f, 0x4f, 0x5f, 0x6f, 0x7f,
+			0x8f, 0x9f, 0xaf, 0xbf, 0xcf, 0xdf, 0xef, 0xff,
+			0x0d, 0x1d, 0x2d, 0x3d, 0x4d, 0x5d, 0x6d, 0x7d,
+			0x8d, 0x9d, 0xad, 0xbd, 0xcd, 0xdd, 0xed, 0xfd,
+		],
+		"Difficulty requested and returned does not match"
+	);
+
+	assert_eq!(
+		&result[132..164].to_vec(),
+		&vec![
+			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+			0x00, 0x00, 0x77, 0x77, 0x77, 0x77, 0x77, 0x77,
+		],
+		"Gas limit requested and returned does not match"
+	);
+
+	assert_eq!(gas_left, U256::from(97588));
 }
