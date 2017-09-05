@@ -14,41 +14,37 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-#[macro_use]
-extern crate mime;
 extern crate multihash;
 extern crate cid;
+extern crate unicase;
 
 extern crate rlp;
 extern crate ethcore;
 extern crate ethcore_util as util;
+extern crate jsonrpc_core as core;
 extern crate jsonrpc_http_server as http;
 
 pub mod error;
 mod route;
 
-use std::io::Write;
 use std::sync::Arc;
 use std::net::{SocketAddr, IpAddr};
+
+use core::futures::future::{self, FutureResult};
+use core::futures::{self, Future};
+use ethcore::client::BlockChainClient;
+use http::hyper::header::{self, Vary, ContentType};
+use http::hyper::{Method, StatusCode};
+use http::hyper::{self, server};
+use unicase::Ascii;
+
 use error::ServerError;
 use route::Out;
-use http::hyper::server::{Handler, Request, Response};
-use http::hyper::net::HttpStream;
-use http::hyper::header::{self, Vary, ContentLength, ContentType};
-use http::hyper::{Next, Encoder, Decoder, Method, RequestUri, StatusCode};
-use ethcore::client::BlockChainClient;
 
-pub use http::hyper::server::Listening;
 pub use http::{AccessControlAllowOrigin, Host, DomainsValidation};
 
 /// Request/response handler
 pub struct IpfsHandler {
-	/// Response to send out
-	out: Out,
-	/// How many bytes from the response have been written
-	out_progress: usize,
-	/// CORS response header
-	cors_header: Option<header::AccessControlAllowOrigin>,
 	/// Allowed CORS domains
 	cors_domains: Option<Vec<AccessControlAllowOrigin>>,
 	/// Hostnames allowed in the `Host` request header
@@ -64,124 +60,68 @@ impl IpfsHandler {
 
 	pub fn new(cors: DomainsValidation<AccessControlAllowOrigin>, hosts: DomainsValidation<Host>, client: Arc<BlockChainClient>) -> Self {
 		IpfsHandler {
-			out: Out::Bad("Invalid Request"),
-			out_progress: 0,
-			cors_header: None,
 			cors_domains: cors.into(),
 			allowed_hosts: hosts.into(),
 			client: client,
 		}
 	}
-}
-
-/// Implement Hyper's HTTP handler
-impl Handler<HttpStream> for IpfsHandler {
-	fn on_request(&mut self, req: Request<HttpStream>) -> Next {
+	pub fn on_request(&self, req: server::Request) -> (Option<header::AccessControlAllowOrigin>, Out) {
 		match *req.method() {
 			Method::Get | Method::Post => {},
-			_ => return Next::write()
+			_ => return (None, Out::Bad("Invalid Request")),
 		}
 
 		if !http::is_host_allowed(&req, &self.allowed_hosts) {
-			self.out = Out::Bad("Disallowed Host header");
-
-			return Next::write();
+			return (None, Out::Bad("Disallowed Host header"));
 		}
 
 		let cors_header = http::cors_header(&req, &self.cors_domains);
 		if cors_header == http::CorsHeader::Invalid {
-			self.out = Out::Bad("Disallowed Origin header");
-
-			return Next::write();
-		}
-		self.cors_header = cors_header.into();
-
-		let (path, query) = match *req.uri() {
-			RequestUri::AbsolutePath { ref path, ref query } => (path, query.as_ref().map(AsRef::as_ref)),
-			_ => return Next::write(),
-		};
-
-		self.out = self.route(path, query);
-
-		Next::write()
-	}
-
-	fn on_request_readable(&mut self, _decoder: &mut Decoder<HttpStream>) -> Next {
-		Next::write()
-	}
-
-	fn on_response(&mut self, res: &mut Response) -> Next {
-		use Out::*;
-
-		match self.out {
-			OctetStream(ref bytes) => {
-				use mime::{Mime, TopLevel, SubLevel};
-
-				// `OctetStream` is not a valid variant, so need to construct
-				// the type manually.
-				let content_type = Mime(
-					TopLevel::Application,
-					SubLevel::Ext("octet-stream".into()),
-					vec![]
-				);
-
-				res.headers_mut().set(ContentLength(bytes.len() as u64));
-				res.headers_mut().set(ContentType(content_type));
-
-			},
-			NotFound(reason) => {
-				res.set_status(StatusCode::NotFound);
-
-				res.headers_mut().set(ContentLength(reason.len() as u64));
-				res.headers_mut().set(ContentType(mime!(Text/Plain)));
-			},
-			Bad(reason) => {
-				res.set_status(StatusCode::BadRequest);
-
-				res.headers_mut().set(ContentLength(reason.len() as u64));
-				res.headers_mut().set(ContentType(mime!(Text/Plain)));
-			}
+			return (None, Out::Bad("Disallowed Origin header"));
 		}
 
-		if let Some(cors_header) = self.cors_header.take() {
-			res.headers_mut().set(cors_header);
-			res.headers_mut().set(Vary::Items(vec!["Origin".into()]));
-		}
-
-		Next::write()
-	}
-
-	fn on_response_writable(&mut self, transport: &mut Encoder<HttpStream>) -> Next {
-		use Out::*;
-
-		// Get the data to write as a byte slice
-		let data = match self.out {
-			OctetStream(ref bytes) => &bytes,
-			NotFound(reason) | Bad(reason) => reason.as_bytes(),
-		};
-
-		write_chunk(transport, &mut self.out_progress, data)
+		let path = req.uri().path();
+		let query = req.uri().query();
+		return (cors_header.into(), self.route(path, query));
 	}
 }
 
-/// Attempt to write entire `data` from current `progress`
-fn write_chunk<W: Write>(transport: &mut W, progress: &mut usize, data: &[u8]) -> Next {
-	// Skip any bytes that have already been written
-	let chunk = &data[*progress..];
+impl server::Service for IpfsHandler {
+	type Request = server::Request;
+	type Response = server::Response;
+	type Error = hyper::Error;
+	type Future = FutureResult<server::Response, hyper::Error>;
 
-	// Write an get the amount of bytes written. End the connection in case of an error.
-	let written = match transport.write(chunk) {
-		Ok(written) => written,
-		Err(_) => return Next::end(),
-	};
+	fn call(&self, request: Self::Request) -> Self::Future {
+		let (cors_header, out) = self.on_request(request);
 
-	*progress += written;
+		let mut res = match out {
+			Out::OctetStream(bytes) => {
+				server::Response::new()
+					.with_status(StatusCode::Ok)
+					.with_header(ContentType::octet_stream())
+					.with_body(bytes)
+			},
+			Out::NotFound(reason) => {
+				server::Response::new()
+					.with_status(StatusCode::NotFound)
+					.with_header(ContentType::plaintext())
+					.with_body(reason)
+			},
+			Out::Bad(reason) => {
+				server::Response::new()
+					.with_status(StatusCode::BadRequest)
+					.with_header(ContentType::plaintext())
+					.with_body(reason)
+			}
+		};
 
-	// Close the connection if the entire remaining chunk has been written
-	if written < chunk.len() {
-		Next::write()
-	} else {
-		Next::end()
+		if let Some(cors_header) = cors_header {
+			res.headers_mut().set(cors_header);
+			res.headers_mut().set(Vary::Items(vec![Ascii::new("Origin".into())]));
+		}
+
+		future::ok(res)
 	}
 }
 
@@ -193,6 +133,17 @@ fn include_current_interface(mut hosts: Vec<Host>, interface: String, port: u16)
 	}.into());
 
 	hosts
+}
+
+#[derive(Debug)]
+pub struct Listening {
+	close: Option<futures::sync::oneshot::Sender<()>>,
+}
+
+impl Drop for Listening {
+	fn drop(&mut self) {
+		self.close.take().unwrap().send(()).unwrap();
+	}
 }
 
 pub fn start_server(
@@ -208,67 +159,23 @@ pub fn start_server(
 	let hosts: Option<Vec<_>> = hosts.into();
 	let hosts: DomainsValidation<_> = hosts.map(move |hosts| include_current_interface(hosts, interface, port)).into();
 
-	Ok(
-		http::hyper::Server::http(&addr)?
-			.handle(move |_| IpfsHandler::new(cors.clone(), hosts.clone(), client.clone()))
-			.map(|(listening, srv)| {
+	let (close, shutdown_signal) = futures::sync::oneshot::channel::<()>();
+	let server = server::Http::new().bind(&addr, move || {
+		Ok(IpfsHandler::new(cors.clone(), hosts.clone(), client.clone()))
+	})?;
 
-				::std::thread::spawn(move || {
-					srv.run();
-				});
+	// TODO [ToDr] Spawn in separate thread.
+	server.run_until(shutdown_signal.map_err(|_| {}))?;
 
-				listening
-			})?
-	)
+	Ok(Listening {
+		close: Some(close),
+	})
 }
 
 #[cfg(test)]
 mod tests {
-	use super::*;
-
 	#[test]
-	fn write_chunk_to_vec() {
-		let mut transport = Vec::new();
-		let mut progress = 0;
-
-		let _ = write_chunk(&mut transport, &mut progress, b"foobar");
-
-		assert_eq!(b"foobar".to_vec(), transport);
-		assert_eq!(6, progress);
-	}
-
-	#[test]
-	fn write_chunk_to_vec_part() {
-		let mut transport = Vec::new();
-		let mut progress = 3;
-
-		let _ = write_chunk(&mut transport, &mut progress, b"foobar");
-
-		assert_eq!(b"bar".to_vec(), transport);
-		assert_eq!(6, progress);
-	}
-
-	#[test]
-	fn write_chunk_to_array() {
-		use std::io::Cursor;
-
-		let mut buf = [0u8; 3];
-		let mut progress = 0;
-
-		{
-			let mut transport: Cursor<&mut [u8]> = Cursor::new(&mut buf);
-			let _ = write_chunk(&mut transport, &mut progress, b"foobar");
-		}
-
-		assert_eq!(*b"foo", buf);
-		assert_eq!(3, progress);
-
-		{
-			let mut transport: Cursor<&mut [u8]> = Cursor::new(&mut buf);
-			let _ = write_chunk(&mut transport, &mut progress, b"foobar");
-		}
-
-		assert_eq!(*b"bar", buf);
-		assert_eq!(6, progress);
+	fn should_test_server_behaviour() {
+		assert_eq!(true, false);
 	}
 }

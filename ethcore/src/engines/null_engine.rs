@@ -76,7 +76,7 @@ impl Engine for NullEngine {
 			return Ok(())
 		}
 
-		/// Block reward
+		// Block reward
 		let tracing_enabled = block.tracing_enabled();
 		let fields = block.fields_mut();
 		let mut tracer = ExecutiveTracer::default();
@@ -93,7 +93,7 @@ impl Engine for NullEngine {
 			tracer.trace_reward(block_author, result_block_reward, RewardType::Block);
 		}
 
-		/// Uncle rewards
+		// Uncle rewards
 		let result_uncle_reward = U256::from(10000000);
 		for u in fields.uncles.iter() {
 			let uncle_author = u.author().clone();

@@ -37,7 +37,7 @@ use std::collections::VecDeque;
 use std::sync::atomic::{self, AtomicUsize};
 use std::sync::Arc;
 
-use futures::{self, Future, BoxFuture};
+use futures::{self, Future};
 use futures::future::{self, IntoFuture};
 use futures_cpupool::{CpuPool, CpuFuture};
 use ntp;
@@ -194,6 +194,8 @@ const UPDATE_TIMEOUT_INCOMPLETE_SECS: u64 = 10;
 
 /// Maximal valid time drift.
 pub const MAX_DRIFT: i64 = 500;
+
+type BoxFuture<A, B> = Box<Future<Item = A, Error = B> + Send>;
 
 #[derive(Debug, Clone)]
 /// A time checker.

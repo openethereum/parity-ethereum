@@ -502,7 +502,6 @@ name = "ethcore"
 version = "1.8.0"
 dependencies = [
  "ansi_term 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "bit-set 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "bloomable 0.1.0",
  "bloomchain 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "bn 0.4.4 (git+https://github.com/paritytech/bn)",
@@ -510,8 +509,6 @@ dependencies = [
  "clippy 0.0.103 (registry+https://github.com/rust-lang/crates.io-index)",
  "common-types 0.1.0",
  "crossbeam 0.2.10 (registry+https://github.com/rust-lang/crates.io-index)",
- "env_logger 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethabi 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethash 1.8.0",
  "ethcore-bloom-journal 0.1.0",
  "ethcore-devtools 1.8.0",
@@ -547,7 +544,6 @@ dependencies = [
  "rust-crypto 0.2.36 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-hex 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "semantic_version 0.1.0",
- "semver 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "stats 0.1.0",
  "table 0.1.0",
  "time 0.1.35 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -771,13 +767,11 @@ name = "ethcore-stratum"
 version = "1.8.0"
 dependencies = [
  "env_logger 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethcore-devtools 1.8.0",
  "ethcore-ipc 1.8.0",
  "ethcore-ipc-codegen 1.8.0",
  "ethcore-ipc-nano 1.8.0",
  "ethcore-logger 1.8.0",
  "ethcore-util 1.8.0",
- "futures 0.1.15 (registry+https://github.com/rust-lang/crates.io-index)",
  "hash 0.1.0",
  "jsonrpc-core 8.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=td-remove-boxfuture)",
  "jsonrpc-macros 8.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=td-remove-boxfuture)",
@@ -785,7 +779,6 @@ dependencies = [
  "lazy_static 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "parking_lot 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "semver 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "tokio-core 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -2042,10 +2035,11 @@ dependencies = [
  "cid 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore 1.8.0",
  "ethcore-util 1.8.0",
+ "jsonrpc-core 8.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=td-remove-boxfuture)",
  "jsonrpc-http-server 8.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=td-remove-boxfuture)",
- "mime 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "multihash 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlp 0.2.0",
+ "unicase 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -2129,7 +2123,6 @@ dependencies = [
 name = "parity-rpc-client"
 version = "1.4.0"
 dependencies = [
- "ethcore-util 1.8.0",
  "futures 0.1.15 (registry+https://github.com/rust-lang/crates.io-index)",
  "hash 0.1.0",
  "jsonrpc-core 8.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=td-remove-boxfuture)",
@@ -2138,10 +2131,8 @@ dependencies = [
  "matches 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-rpc 1.8.0",
  "parking_lot 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "tempdir 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "url 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -2226,7 +2217,6 @@ dependencies = [
  "ethcore-network 1.8.0",
  "ethcrypto 0.1.0",
  "ethkey 0.2.0",
- "futures 0.1.15 (registry+https://github.com/rust-lang/crates.io-index)",
  "hex 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "jsonrpc-core 8.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=td-remove-boxfuture)",
  "jsonrpc-macros 8.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=td-remove-boxfuture)",

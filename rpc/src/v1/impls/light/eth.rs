@@ -347,7 +347,7 @@ impl Eth for EthClient {
 		}).boxed()
 	}
 
-	fn code_at(&self, address: RpcH160, num: Trailing<BlockNumber>) -> BoxFuture<Bytes, Error> {
+	fn code_at(&self, _address: RpcH160, _num: Trailing<BlockNumber>) -> BoxFuture<Bytes, Error> {
 		future::err(errors::unimplemented(None)).boxed()
 	}
 
@@ -394,19 +394,19 @@ impl Eth for EthClient {
 		}).boxed()
 	}
 
-	fn transaction_by_hash(&self, hash: RpcH256) -> Result<Option<Transaction>, Error> {
+	fn transaction_by_hash(&self, _hash: RpcH256) -> Result<Option<Transaction>, Error> {
 		Err(errors::unimplemented(None))
 	}
 
-	fn transaction_by_block_hash_and_index(&self, hash: RpcH256, idx: Index) -> Result<Option<Transaction>, Error> {
+	fn transaction_by_block_hash_and_index(&self, _hash: RpcH256, _idx: Index) -> Result<Option<Transaction>, Error> {
 		Err(errors::unimplemented(None))
 	}
 
-	fn transaction_by_block_number_and_index(&self, num: BlockNumber, idx: Index) -> Result<Option<Transaction>, Error> {
+	fn transaction_by_block_number_and_index(&self, _num: BlockNumber, _idx: Index) -> Result<Option<Transaction>, Error> {
 		Err(errors::unimplemented(None))
 	}
 
-	fn transaction_receipt(&self, hash: RpcH256) -> Result<Option<Receipt>, Error> {
+	fn transaction_receipt(&self, _hash: RpcH256) -> Result<Option<Receipt>, Error> {
 		Err(errors::unimplemented(None))
 	}
 

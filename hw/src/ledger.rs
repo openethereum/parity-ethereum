@@ -238,7 +238,7 @@ impl Manager {
 
 	fn open_path(&self, path: &str) -> Result<hidapi::HidDevice, Error> {
 		let mut err = Error::KeyNotFound;
-		/// Try to open device a few times.
+		// Try to open device a few times.
 		for _ in 0..10 {
 			match self.usb.open_path(&path) {
 				Ok(handle) => return Ok(handle),

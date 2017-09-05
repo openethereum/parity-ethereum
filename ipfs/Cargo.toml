@@ -8,8 +8,9 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [dependencies]
 ethcore = { path = "../ethcore" }
 ethcore-util = { path = "../util" }
+jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "td-remove-boxfuture" }
 jsonrpc-http-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "td-remove-boxfuture" }
 rlp = { path = "../util/rlp" }
-mime = "0.2"
 cid = "0.2"
 multihash = "0.6"
+unicase = "2.0"

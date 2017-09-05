@@ -22,9 +22,13 @@ use mime::Mime;
 use mime_guess;
 use hash::keccak;
 
-use futures::{future, BoxFuture, Future};
+use futures::{future, Future};
 use native_contracts::{Registry, Urlhint};
 use util::{Address, Bytes};
+
+/// Boxed future that can be shared between threads.
+/// TODO [ToDr] Use concrete types!
+pub type BoxFuture<A, B> = Box<Future<Item = A, Error = B> + Send>;
 
 const COMMIT_LEN: usize = 20;
 
@@ -212,7 +216,7 @@ pub mod tests {
 	use std::str::FromStr;
 	use rustc_hex::FromHex;
 
-	use futures::{BoxFuture, Future, IntoFuture};
+	use futures::{Future, IntoFuture};
 
 	use super::*;
 	use super::guess_mime_type;

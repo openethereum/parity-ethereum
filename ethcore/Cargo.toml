@@ -12,15 +12,12 @@ build = "build.rs"
 
 [dependencies]
 ansi_term = "0.9"
-bit-set = "0.4"
 bloomchain = "0.1"
 bn = { git = "https://github.com/paritytech/bn" }
 byteorder = "1.0"
 clippy = { version = "0.0.103", optional = true}
 common-types = { path = "types" }
 crossbeam = "0.2.9"
-env_logger = "0.4"
-ethabi = "2.0"
 ethash = { path = "../ethash" }
 ethcore-bloom-journal = { path = "../util/bloom" }
 ethcore-devtools = { path = "../devtools" }
@@ -53,7 +50,6 @@ rlp = { path = "../util/rlp" }
 rlp_derive = { path = "../util/rlp_derive" }
 rust-crypto = "0.2.34"
 rustc-hex = "1.0"
-semver = "0.6"
 stats = { path = "../util/stats" }
 time = "0.1"
 transient-hashmap = "0.4"

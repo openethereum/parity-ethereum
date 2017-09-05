@@ -1,5 +1,3 @@
-extern crate jsonrpc_core;
-
 use std::fmt::{Debug, Formatter, Error as FmtError};
 use std::io::{BufReader, BufRead};
 use std::sync::Arc;
@@ -33,9 +31,9 @@ use serde_json::{
 	Error as JsonError,
 };
 
-use futures::{BoxFuture, Canceled, Complete, Future, oneshot, done};
+use futures::{Canceled, Complete, Future, oneshot, done};
 
-use jsonrpc_core::{Id, Version, Params, Error as JsonRpcError};
+use jsonrpc_core::{BoxFuture, Id, Version, Params, Error as JsonRpcError};
 use jsonrpc_core::request::MethodCall;
 use jsonrpc_core::response::{Output, Success, Failure};
 

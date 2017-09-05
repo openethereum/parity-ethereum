@@ -22,18 +22,16 @@ extern crate jsonrpc_macros;
 #[macro_use] extern crate log;
 extern crate ethcore_util as util;
 extern crate ethcore_ipc as ipc;
-extern crate semver;
-extern crate futures;
-extern crate ethcore_logger;
 extern crate hash;
 extern crate parking_lot;
 
 #[cfg(test)] extern crate tokio_core;
-extern crate ethcore_devtools as devtools;
+#[cfg(test)] extern crate ethcore_logger;
 #[cfg(test)] extern crate env_logger;
 #[cfg(test)] #[macro_use] extern crate lazy_static;
 
-use futures::{future, BoxFuture, Future};
+use jsonrpc_core::BoxFuture;
+use jsonrpc_core::futures::{future, Future};
 
 mod traits {
 	//! Stratum ipc interfaces specification

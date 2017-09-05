@@ -20,11 +20,13 @@ use std::{io, fmt, time};
 use std::sync::Arc;
 use std::sync::atomic::{self, AtomicBool};
 
-use futures::{self, BoxFuture, Future};
+use futures::{self, Future};
 use futures_cpupool::{CpuPool, CpuFuture};
 use mime::{self, Mime};
 use parking_lot::RwLock;
 use reqwest;
+
+type BoxFuture<A, B> = Box<Future<Item = A, Error = B> + Send>;
 
 /// Fetch abort control
 #[derive(Default, Debug, Clone)]
@@ -58,7 +60,7 @@ pub trait Fetch: Clone + Send + Sync + 'static {
 		I: Send + 'static,
 		E: Send + 'static,
 	{
-		f.boxed()
+		Box::new(f)
 	}
 
 	/// Spawn the future in context of this `Fetch` thread pool as "fire and forget", i.e. dropping this future without
@@ -154,7 +156,7 @@ impl Fetch for Client {
 		I: Send + 'static,
 		E: Send + 'static,
 	{
-		self.pool.spawn(f).boxed()
+		Box::new(self.pool.spawn(f))
 	}
 
 	fn forget<F, I, E>(&self, f: F) where
