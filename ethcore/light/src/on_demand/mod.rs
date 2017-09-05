@@ -195,6 +195,8 @@ fn guess_capabilities(requests: &[CheckedRequest]) -> Capabilities {
 				caps.serve_headers = true,
 			CheckedRequest::HeaderByHash(_, _) =>
 				caps.serve_headers = true,
+			CheckedRequest::Signal(_, _) =>
+				caps.serve_headers = true,
 			CheckedRequest::Body(ref req, _) => if let Ok(ref hdr) = req.0.as_ref() {
 				update_since(&mut caps.serve_chain_since, hdr.number());
 			},

@@ -25,7 +25,7 @@ use tests::helpers::{TestNet, Peer as PeerLike, TestPacket};
 use ethcore::client::TestBlockChainClient;
 use ethcore::spec::Spec;
 use io::IoChannel;
-use light::client::Client as LightClient;
+use light::client::fetch::{self, Unavailable};
 use light::net::{LightProtocol, IoContext, Capabilities, Params as LightParams};
 use light::provider::LightProvider;
 use network::{NodeId, PeerId};
@@ -35,6 +35,8 @@ use time::Duration;
 use light::cache::Cache;
 
 const NETWORK_ID: u64 = 0xcafebabe;
+
+pub type LightClient = ::light::client::Client<Unavailable>;
 
 struct TestIoContext<'a> {
 	queue: &'a RwLock<VecDeque<TestPacket>>,
@@ -216,7 +218,14 @@ impl TestNet<Peer> {
 			// skip full verification because the blocks are bad.
 			config.verify_full = false;
 			let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::hours(6))));
-			let client = LightClient::in_memory(config, &Spec::new_test(), IoChannel::disconnected(), cache);
+			let client = LightClient::in_memory(
+				config,
+				&Spec::new_test(),
+				fetch::unavailable(), // TODO: allow fetch from full nodes.
+				IoChannel::disconnected(),
+				cache
+			);
+
 			peers.push(Arc::new(Peer::new_light(Arc::new(client))))
 		}
 
