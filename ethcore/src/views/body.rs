@@ -17,6 +17,7 @@
 //! View onto block body rlp.
 
 use hash::keccak;
+use bigint::hash::H256;
 use util::*;
 use header::*;
 use transaction::*;

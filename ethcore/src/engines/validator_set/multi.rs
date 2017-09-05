@@ -19,8 +19,9 @@
 use std::collections::BTreeMap;
 use std::sync::Weak;
 use engines::{Call, Engine};
+use bigint::hash::H256;
 use parking_lot::RwLock;
-use util::{Bytes, H256, Address};
+use util::{Bytes, Address};
 use ids::BlockId;
 use header::{BlockNumber, Header};
 use client::EngineClient;

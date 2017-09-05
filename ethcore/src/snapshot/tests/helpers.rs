@@ -32,7 +32,7 @@ use devtools::{RandomTempPath, GuardedTempResult};
 use rand::Rng;
 
 use util::{DBValue, KeyValueDB};
-use util::hash::H256;
+use bigint::hash::H256;
 use util::hashdb::HashDB;
 use util::journaldb;
 use util::trie::{Alphabet, StandardMap, SecTrieDBMut, TrieMut, ValueMode};

@@ -28,7 +28,9 @@ use std::collections::hash_map::Entry;
 
 use ethcore::error::{TransactionError, TransactionImportResult};
 use ethcore::transaction::{Condition, PendingTransaction, SignedTransaction};
-use util::{Address, U256, H256, H256FastMap};
+use bigint::prelude::U256;
+use bigint::hash::{H256, H256FastMap};
+use util::Address;
 
 // Knowledge of an account's current nonce.
 #[derive(Debug, Clone, PartialEq, Eq)]

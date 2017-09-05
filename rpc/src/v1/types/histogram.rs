@@ -29,8 +29,8 @@ pub struct Histogram {
 	pub counts: Vec<usize>,
 }
 
-impl From<::stats::Histogram<::util::U256>> for Histogram {
-	fn from(h: ::stats::Histogram<::util::U256>) -> Self {
+impl From<::stats::Histogram<::bigint::prelude::U256>> for Histogram {
+	fn from(h: ::stats::Histogram<::bigint::prelude::U256>) -> Self {
 		Histogram {
 			bucket_bounds: h.bucket_bounds.into_iter().map(Into::into).collect(),
 			counts: h.counts

@@ -20,7 +20,7 @@ use std::sync::Arc;
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use error::*;
-use hash::*;
+use bigint::hash::*;
 use rlp::*;
 use hashdb::*;
 use memorydb::*;

@@ -22,7 +22,8 @@ use hash::keccak;
 
 use views::BlockView;
 use rlp::{DecoderError, RlpStream, UntrustedRlp};
-use util::{Bytes, H256};
+use bigint::hash::H256;
+use util::Bytes;
 use triehash::ordered_trie_root;
 
 const HEADER_FIELDS: usize = 8;
@@ -137,7 +138,9 @@ mod tests {
 	use super::AbridgedBlock;
 	use transaction::{Action, Transaction};
 
-	use util::{Address, H256, U256, Bytes};
+	use bigint::prelude::U256;
+	use bigint::hash::H256;
+	use util::{Address, Bytes};
 
 	fn encode_block(b: &Block) -> Bytes {
 		b.rlp_bytes(::basic_types::Seal::With)

@@ -25,7 +25,7 @@ use std::path::{PathBuf};
 use std::fmt;
 use std::fs;
 use std::io::{Read, Write};
-use util::hash::*;
+use bigint::hash::*;
 use rlp::*;
 use time::Tm;
 use error::NetworkError;
@@ -372,7 +372,7 @@ pub fn is_valid_node_url(url: &str) -> bool {
 mod tests {
 	use super::*;
 	use std::net::{SocketAddr, SocketAddrV4, Ipv4Addr};
-	use util::H512;
+	use bigint::hash::H512;
 	use std::str::FromStr;
 	use devtools::*;
 	use ipnetwork::IpNetwork;

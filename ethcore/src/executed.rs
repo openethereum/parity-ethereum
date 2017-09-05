@@ -16,7 +16,8 @@
 
 //! Transaction execution format module.
 
-use util::{Bytes, U256, Address, U512, trie};
+use bigint::prelude::{U256, U512};
+use util::{Bytes, Address, trie};
 use vm;
 use trace::{VMTrace, FlatTrace};
 use log_entry::LogEntry;

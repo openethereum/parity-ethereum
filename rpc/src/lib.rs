@@ -46,6 +46,7 @@ extern crate jsonrpc_pubsub;
 
 extern crate ethash;
 extern crate ethcore;
+extern crate ethcore_bigint as bigint;
 extern crate ethcore_devtools as devtools;
 extern crate ethcore_io as io;
 extern crate ethcore_ipc;

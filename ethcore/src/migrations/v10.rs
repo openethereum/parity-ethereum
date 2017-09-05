@@ -24,7 +24,8 @@ use views::HeaderView;
 use bloom_journal::Bloom;
 use util::migration::{Error, Migration, Progress, Batch, Config};
 use util::journaldb;
-use util::{H256, Trie};
+use bigint::hash::H256;
+use util::Trie;
 use util::{Database, DBTransaction};
 
 /// Account bloom upgrade routine. If bloom already present, does nothing.

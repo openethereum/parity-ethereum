@@ -16,7 +16,7 @@
 
 use ethjson;
 use util::trie::{TrieFactory, TrieSpec};
-use util::hash::H256;
+use bigint::hash::H256;
 use util::memorydb::MemoryDB;
 
 fn test_trie(json: &[u8], trie: TrieSpec) -> Vec<String> {

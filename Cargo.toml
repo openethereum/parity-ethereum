@@ -34,6 +34,7 @@ jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "pa
 ethsync = { path = "sync" }
 ethcore = { path = "ethcore" }
 ethcore-util = { path = "util" }
+ethcore-bigint = { path = "util/bigint" }
 ethcore-io = { path = "util/io" }
 ethcore-devtools = { path = "devtools" }
 ethcore-ipc = { path = "ipc/rpc" }

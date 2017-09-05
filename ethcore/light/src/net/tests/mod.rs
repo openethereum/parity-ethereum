@@ -32,7 +32,9 @@ use request;
 use request::*;
 
 use rlp::*;
-use util::{Address, H256, U256};
+use bigint::prelude::U256;
+use bigint::hash::H256;
+use util::Address;
 
 use std::sync::Arc;
 

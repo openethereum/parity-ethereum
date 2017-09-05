@@ -31,10 +31,11 @@ use ethcore::service::ClientIoMessage;
 use ethcore::encoded;
 use io::IoChannel;
 use parking_lot::{Mutex, RwLock};
-
+use bigint::prelude::U256;
+use bigint::hash::H256;
 use futures::{IntoFuture, Future};
 
-use util::{Address, H256, U256};
+use util::Address;
 use util::kvdb::{KeyValueDB, CompactionProfile};
 
 use self::fetch::ChainDataFetcher;

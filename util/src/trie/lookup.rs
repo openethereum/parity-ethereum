@@ -19,7 +19,7 @@
 use hashdb::HashDB;
 use nibbleslice::NibbleSlice;
 use rlp::Rlp;
-use ::{H256};
+use bigint::hash::H256;
 
 use super::{TrieError, Query};
 use super::node::Node;
