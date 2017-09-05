@@ -1,0 +1,71 @@
+/* Copyright 2015-2017 Parity Technologies (UK) Ltd.
+/* This file is part of Parity.
+/*
+/* Parity is free software: you can redistribute it and/or modify
+/* it under the terms of the GNU General Public License as published by
+/* the Free Software Foundation, either version 3 of the License, or
+/* (at your option) any later version.
+/*
+/* Parity is distributed in the hope that it will be useful,
+/* but WITHOUT ANY WARRANTY; without even the implied warranty of
+/* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+/* GNU General Public License for more details.
+/*
+/* You should have received a copy of the GNU General Public License
+/* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+.header {
+}
+
+.titlebar {
+  padding: 0.5em 1em;
+  margin: 0;
+  color: white;
+}
+
+.navigation {
+  table-layout: fixed;
+  width: 100%;
+  border-spacing: 0.25em;
+  border-collapse: separate;
+  border-color: white;
+  background: white;
+}
+
+.navigation tr {
+  height: 10em;
+}
+
+.title {
+  font-size: 1.25em;
+  margin-bottom: 0.25em;
+}
+
+.byline {
+  font-size: 1em;
+  opacity: 0.75;
+  margin-bottom: 0.25em;
+}
+
+.description {
+  font-size: 0.5em;
+  opacity: 0.5;
+  line-height: 1.5em;
+}
+
+.navNext,
+.navCurrent {
+  color: white;
+  padding: 1em 2em;
+  vertical-align: middle;
+}
+
+.navNext:hover {
+  cursor: pointer;
+  opacity: 0.8;
+}
+
+.navCurrent {
+  font-size: 2em;
+}

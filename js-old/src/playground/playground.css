@@ -1,0 +1,91 @@
+/* Copyright 2015-2017 Parity Technologies (UK) Ltd.
+/* This file is part of Parity.
+/*
+/* Parity is free software: you can redistribute it and/or modify
+/* it under the terms of the GNU General Public License as published by
+/* the Free Software Foundation, either version 3 of the License, or
+/* (at your option) any later version.
+/*
+/* Parity is distributed in the hope that it will be useful,
+/* but WITHOUT ANY WARRANTY; without even the implied warranty of
+/* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+/* GNU General Public License for more details.
+/*
+/* You should have received a copy of the GNU General Public License
+/* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+$codeBackground: #002b36;
+$codeColor: #93a1a1;
+
+.container {
+  background-color: rgba(0, 0, 0, 0.5);
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  padding: 1em;
+  display: flex;
+  flex-direction: column;
+
+  .examples {
+    flex: 1;
+    overflow: auto;
+  }
+}
+
+.title {
+  font-size: 2.25em;
+  margin-bottom: 1em;
+
+  .select {
+    font-size: 0.85em;
+    font-family: monospace;
+    display: inline-block;
+    height: 1.5em;
+    border: 1px solid #aaa;
+    padding: 0 0.5em;
+    color: #555;
+    appearance: none;
+  }
+}
+
+.exampleContainer {
+  background-color: rgba(0, 0, 0, 0.5);
+  padding: 1em;
+  margin-bottom: 1em;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+
+  p {
+    font-size: 1.25em;
+    margin-top: 0;
+  }
+}
+
+.example {
+  display: flex;
+  flex-direction: row;
+
+  .code {
+    flex: 1;
+    overflow: auto;
+    padding: 0.5em;
+    background-color: $codeBackground;
+    color: $codeColor;
+    font-size: 0.75em;
+
+    code {
+      white-space: pre;
+    }
+  }
+
+  .component {
+    flex: 3;
+    padding-left: 0.5em;
+    overflow: auto;
+  }
+}

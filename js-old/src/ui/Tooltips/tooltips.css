@@ -1,0 +1,103 @@
+/* Copyright 2015-2017 Parity Technologies (UK) Ltd.
+/* This file is part of Parity.
+/*
+/* Parity is free software: you can redistribute it and/or modify
+/* it under the terms of the GNU General Public License as published by
+/* the Free Software Foundation, either version 3 of the License, or
+/* (at your option) any later version.
+/*
+/* Parity is distributed in the hope that it will be useful,
+/* but WITHOUT ANY WARRANTY; without even the implied warranty of
+/* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+/* GNU General Public License for more details.
+/*
+/* You should have received a copy of the GNU General Public License
+/* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+*/
+.container {
+  height: 100%;
+  width: 100%;
+}
+
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  background: rgba(0, 0, 0, 0.25);
+  z-index: 499;
+}
+
+.box {
+  position: absolute;
+  background: #663600; /* rgba(48, 48, 48, 0.95); #88b7d5; */
+  border: 4px solid #f80; /* #c2e1f5; */
+  max-width: 450px;
+  border-radius: 0.5em;
+  z-index: 500;
+  opacity: 1;
+  line-height: 1.618em;
+  white-space: normal;
+  opacity: 0.95;
+}
+
+.box:after, .box:before {
+  bottom: 100%;
+  border: solid transparent;
+  content: " ";
+  height: 0;
+  width: 0;
+  position: absolute;
+  pointer-events: none;
+}
+
+.box:after {
+  border-color: rgba(136, 183, 213, 0);
+  border-bottom-color: #663600; /* rgba(48, 48, 48, 0.95); #88b7d5; */
+  border-width: 20px;
+}
+
+.box:before {
+  border-color: rgba(194, 225, 245, 0);
+  border-bottom-color: #f80; /* #c2e1f5; */
+  border-width: 26px;
+}
+
+.arrowLeft:after, .arrowLeft:before {
+  left: 15%;
+}
+
+.arrowLeft:after {
+  margin-left: -20px;
+}
+
+.arrowLeft:before {
+  margin-left: -26px;
+}
+
+.arrowRight:after, .arrowRight:before {
+  right: 15%;
+}
+
+.arrowRight:after {
+  margin-right: -20px;
+}
+
+.arrowRight:before {
+  margin-right: -26px;
+}
+
+.title {
+  text-transform: uppercase;
+}
+
+.text {
+  padding: 1em;
+}
+
+.buttons {
+  margin: 0;
+  padding: 0 0.5em 0.5em 0;
+  text-align: right;
+}

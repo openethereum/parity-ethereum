@@ -1,0 +1,83 @@
+/* Copyright 2015-2017 Parity Technologies (UK) Ltd.
+/* This file is part of Parity.
+/*
+/* Parity is free software: you can redistribute it and/or modify
+/* it under the terms of the GNU General Public License as published by
+/* the Free Software Foundation, either version 3 of the License, or
+/* (at your option) any later version.
+/*
+/* Parity is distributed in the hope that it will be useful,
+/* but WITHOUT ANY WARRANTY; without even the implied warranty of
+/* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+/* GNU General Public License for more details.
+/*
+/* You should have received a copy of the GNU General Public License
+/* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+*/
+.container {
+  padding-bottom: 1em;
+}
+
+.row {
+  margin: 0 -1em;
+
+  &::after {
+    display: table;
+    clear: both;
+    content: '';
+  }
+}
+
+.blockInfo {
+  color: #aaa;
+  font-size: 1.5em;
+  line-height: 1.5em;
+}
+
+.blockByline {
+  color: #aaa;
+  font-size: 0.75em;
+}
+
+.padBottom {
+  padding-bottom: 1.25em !important;
+}
+
+.col,
+.col3, .col4, .col4_5, .col6, .col12 {
+  float: left;
+  padding: 0 1em;
+  box-sizing: border-box;
+}
+
+.col3 {
+  width: 25%;
+  width: -webkit-calc(100% / 12 * 3);
+  width: -moz-calc(100% / 12 * 3);
+  width: calc(100% / 12 * 3);
+}
+
+.col4 {
+  width: 33.3%;
+  width: -webkit-calc(100% / 12 * 4);
+  width: -moz-calc(100% / 12 * 4);
+  width: calc(100% / 12 * 4);
+}
+
+.col4_5 {
+  width: 37.5%;
+  width: -webkit-calc(100% / 12 * 4.5);
+  width: -moz-calc(100% / 12 * 4.5);
+  width: calc(100% / 12 * 4.5);
+}
+
+.col6 {
+  width: 50%;
+  width: -webkit-calc(100% / 12 * 6);
+  width: -moz-calc(100% / 12 * 6);
+  width: calc(100% / 12 * 6);
+}
+
+.col12 {
+  width: 100%;
+}

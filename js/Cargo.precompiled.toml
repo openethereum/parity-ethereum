@@ -1,7 +1,7 @@
 [package]
 description = "Parity built-in dapps."
 name = "parity-ui-precompiled"
-version = "1.4.0"
+version = "1.9.0"
 license = "GPL-3.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 build = "build.rs"
@@ -12,8 +12,8 @@ use-precompiled-js = ["parity-dapps-glue/use-precompiled-js"]
 with-syntex = ["parity-dapps-glue/with-syntex"]
 
 [build-dependencies]
-parity-dapps-glue = "1.8"
+parity-dapps-glue = "1.9"
 
 [dependencies]
-parity-dapps-glue = "1.8"
+parity-dapps-glue = "1.9"
 

@@ -25,9 +25,11 @@ import viewsDapps from '@parity/shared/config/dappsViews.json';
 import DappsStore from '@parity/shared/mobx/dappsStore';
 import HistoryStore from '@parity/shared/mobx/historyStore';
 
+import walletVersion1 from '../v1.json';
+
 import styles from './dapp.css';
 
-const internalDapps = []
+const internalDapps = [walletVersion1]
   .concat(viewsDapps, builtinDapps)
   .map((app) => {
     if (app.id && app.id.substr(0, 2) !== '0x') {
@@ -72,6 +74,13 @@ export default class Dapp extends Component {
   }
 
   loadApp (id) {
+    if (id === walletVersion1.id) {
+      return this.setState({
+        loading: false,
+        app: walletVersion1
+      });
+    }
+
     this.setState({ loading: true });
 
     this.store

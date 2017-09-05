@@ -2001,7 +2001,7 @@ dependencies = [
  "log 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "mime_guess 2.0.0-alpha.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "node-health 0.1.0",
- "parity-dapps-glue 1.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "parity-dapps-glue 1.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-hash-fetch 1.9.0",
  "parity-reactor 0.1.0",
  "parity-ui 1.9.0",
@@ -2017,20 +2017,6 @@ dependencies = [
 
 [[package]]
 name = "parity-dapps-glue"
-version = "1.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-dependencies = [
- "aster 0.41.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "glob 0.2.11 (registry+https://github.com/rust-lang/crates.io-index)",
- "mime_guess 2.0.0-alpha.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "quasi 0.32.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "quasi_codegen 0.32.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "syntex 0.58.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "syntex_syntax 0.58.1 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "parity-dapps-glue"
 version = "1.9.0"
 dependencies = [
  "aster 0.41.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2040,6 +2026,20 @@ dependencies = [
  "quasi 0.32.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "quasi_codegen 0.32.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "quasi_macros 0.32.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "syntex 0.58.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "syntex_syntax 0.58.1 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "parity-dapps-glue"
+version = "1.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "aster 0.41.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "glob 0.2.11 (registry+https://github.com/rust-lang/crates.io-index)",
+ "mime_guess 2.0.0-alpha.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "quasi 0.32.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "quasi_codegen 0.32.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "syntex 0.58.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "syntex_syntax 0.58.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -2211,6 +2211,7 @@ name = "parity-ui"
 version = "1.9.0"
 dependencies = [
  "parity-ui-dev 1.9.0",
+ "parity-ui-old-dev 1.9.0",
  "parity-ui-precompiled 1.4.0 (git+https://github.com/paritytech/js-precompiled.git)",
  "rustc_version 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -2219,7 +2220,14 @@ dependencies = [
 name = "parity-ui-dev"
 version = "1.9.0"
 dependencies = [
- "parity-dapps-glue 1.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "parity-dapps-glue 1.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "parity-ui-old-dev"
+version = "1.9.0"
+dependencies = [
+ "parity-dapps-glue 1.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -2227,7 +2235,7 @@ name = "parity-ui-precompiled"
 version = "1.4.0"
 source = "git+https://github.com/paritytech/js-precompiled.git#4b77a23c3e55aed45725f43cd2a499676375b995"
 dependencies = [
- "parity-dapps-glue 1.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "parity-dapps-glue 1.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -3631,7 +3639,7 @@ dependencies = [
 "checksum order-stat 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)" = "efa535d5117d3661134dbf1719b6f0ffe06f2375843b13935db186cd094105eb"
 "checksum ordered-float 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)" = "58d25b6c0e47b20d05226d288ff434940296e7e2f8b877975da32f862152241f"
 "checksum owning_ref 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)" = "cdf84f41639e037b484f93433aa3897863b561ed65c6e59c7073d7c561710f37"
-"checksum parity-dapps-glue 1.8.0 (registry+https://github.com/rust-lang/crates.io-index)" = "ddaeb8543c6823e93dae65a25eb8083ebfeee8f0000031119d7a0055b2e8fc63"
+"checksum parity-dapps-glue 1.9.0 (registry+https://github.com/rust-lang/crates.io-index)" = "9df5504a83dbbbd25ddb0645372bd09dff5a7716e18690a21211873b81606fe9"
 "checksum parity-tokio-ipc 0.1.5 (git+https://github.com/nikvolf/parity-tokio-ipc)" = "<none>"
 "checksum parity-ui-precompiled 1.4.0 (git+https://github.com/paritytech/js-precompiled.git)" = "<none>"
 "checksum parity-wasm 0.14.5 (registry+https://github.com/rust-lang/crates.io-index)" = "d4502e18417d96bd8e72fca9ea4cc18f4d80288ff565582d10aefe86f18b4fc3"
