@@ -1,0 +1,17 @@
+[package]
+name = "whisper-cli"
+version = "0.1.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+
+[dependencies]
+parity-whisper = { path = "../" }
+serde = "1.0"
+serde_derive = "1.0"
+docopt = "0.8"
+panic_hook = { path = "../../panic_hook" }
+ethcore-network = { path = "../../util/network" }
+
+[[bin]]
+name = "whisper"
+path = "src/main.rs"
+doc = false

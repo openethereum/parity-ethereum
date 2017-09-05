@@ -1,14 +1,13 @@
 [root]
-name = "wasm"
+name = "whisper-cli"
 version = "0.1.0"
 dependencies = [
- "byteorder 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethcore-logger 1.8.0",
- "ethcore-util 1.8.0",
- "log 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)",
- "parity-wasm 0.12.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "vm 0.1.0",
- "wasm-utils 0.1.0 (git+https://github.com/paritytech/wasm-utils)",
+ "docopt 0.8.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethcore-network 1.8.0",
+ "panic_hook 0.1.0",
+ "parity-whisper 0.1.0",
+ "serde 1.0.9 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_derive 1.0.9 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -3242,6 +3241,19 @@ dependencies = [
 name = "void"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "wasm"
+version = "0.1.0"
+dependencies = [
+ "byteorder 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethcore-logger 1.8.0",
+ "ethcore-util 1.8.0",
+ "log 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)",
+ "parity-wasm 0.12.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "vm 0.1.0",
+ "wasm-utils 0.1.0 (git+https://github.com/paritytech/wasm-utils)",
+]
 
 [[package]]
 name = "wasm-utils"
