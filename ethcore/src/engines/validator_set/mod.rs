@@ -28,7 +28,7 @@ use ids::BlockId;
 use bigint::hash::H256;
 use util::{Bytes, Address};
 use ethjson::spec::ValidatorSet as ValidatorSpec;
-use client::EngineClient;
+use client::Client;
 use header::{Header, BlockNumber};
 
 #[cfg(test)]
@@ -142,5 +142,5 @@ pub trait ValidatorSet: Send + Sync {
 	/// Notifies about benign misbehaviour.
 	fn report_benign(&self, _validator: &Address, _set_block: BlockNumber, _block: BlockNumber) {}
 	/// Allows blockchain state access.
-	fn register_client(&self, _client: Weak<EngineClient>) {}
+	fn register_contract(&self, _client: Weak<Client>) {}
 }

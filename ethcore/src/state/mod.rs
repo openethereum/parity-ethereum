@@ -212,7 +212,8 @@ pub fn check_proof(
 		Err(_) => return ProvedExecution::BadProof,
 	};
 
-	match state.execute(env_info, engine, transaction, TransactOptions::with_no_tracing(), true) {
+	let options = TransactOptions::with_no_tracing().save_output_from_contract();
+	match state.execute(env_info, engine, transaction, options, true) {
 		Ok(executed) => ProvedExecution::Complete(executed),
 		Err(ExecutionError::Internal(_)) => ProvedExecution::BadProof,
 		Err(e) => ProvedExecution::Failed(e),
@@ -246,7 +247,7 @@ pub fn prove_transaction<H: AsHashDB + Send + Sync>(
 		Err(_) => return None,
 	};
 
-	let options = TransactOptions::with_no_tracing().dont_check_nonce();
+	let options = TransactOptions::with_no_tracing().dont_check_nonce().save_output_from_contract();
 	match state.execute(env_info, engine, transaction, options, virt) {
 		Err(ExecutionError::Internal(_)) => None,
 		Err(e) => {

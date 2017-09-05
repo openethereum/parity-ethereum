@@ -15,12 +15,10 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 export default {
-  duplicateName: `the name already exists`,
-  invalidKey: `the raw key needs to be hex, 64 characters in length and contain the prefix "0x"`,
-  noFile: `select a valid wallet file to import`,
-  noKey: `you need to provide the raw private key`,
-  noMatchBackupPhrase: `the supplied recovery phrase does not match`,
-  noMatchPassword: `the supplied passwords does not match`,
-  noMatchPhraseBackedUp: `type "I have written down the phrase"`,
-  noName: `you need to specify a valid name`
+  status: {
+    error: `An error occured:`,
+    transactionMined: `Transaction mined at block #{blockNumber} ({blockHeight} blocks ago)`,
+    transactionSent: `Transaction sent to network with hash`,
+    waitingForSigner: `Waiting for authorization in the Parity Signer`
+  }
 };
