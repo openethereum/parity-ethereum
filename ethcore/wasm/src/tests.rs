@@ -88,7 +88,7 @@ fn logger() {
 	};
 
 	println!("ext.store: {:?}", ext.store);
-	assert_eq!(gas_left, U256::from(99327));
+	assert_eq!(gas_left, U256::from(99529));
 	let address_val: H256 = address.into();
 	assert_eq!(
 		ext.store.get(&"0100000000000000000000000000000000000000000000000000000000000000".parse().unwrap()).expect("storage key to exist"),
@@ -139,7 +139,7 @@ fn identity() {
 		}
 	};
 
-	assert_eq!(gas_left, U256::from(99_672));
+	assert_eq!(gas_left, U256::from(99_762));
 
 	assert_eq!(
 		Address::from_slice(&result),
@@ -173,7 +173,7 @@ fn dispersion() {
 		}
 	};
 
-	assert_eq!(gas_left, U256::from(99_270));
+	assert_eq!(gas_left, U256::from(99_360));
 
 	assert_eq!(
 		result,
@@ -202,7 +202,7 @@ fn suicide_not() {
 		}
 	};
 
-	assert_eq!(gas_left, U256::from(99_578));
+	assert_eq!(gas_left, U256::from(99_668));
 
 	assert_eq!(
 		result,
@@ -236,7 +236,7 @@ fn suicide() {
 		}
 	};
 
-	assert_eq!(gas_left, U256::from(99_639));
+	assert_eq!(gas_left, U256::from(99_699));
 	assert!(ext.suicides.contains(&refund));
 }
 
@@ -267,7 +267,7 @@ fn create() {
 	assert!(ext.calls.contains(
 		&FakeCall {
 			call_type: FakeCallType::Create,
-			gas: U256::from(99_674),
+			gas: U256::from(99_734),
 			sender_address: None,
 			receive_address: None,
 			value: Some(1_000_000_000.into()),
@@ -275,7 +275,7 @@ fn create() {
 			code_address: None,
 		}
 	));
-	assert_eq!(gas_left, U256::from(99_596));
+	assert_eq!(gas_left, U256::from(99_686));
 }
 
 
@@ -309,7 +309,7 @@ fn call_code() {
 	assert!(ext.calls.contains(
 		&FakeCall {
 			call_type: FakeCallType::Call,
-			gas: U256::from(99_069),
+			gas: U256::from(99_129),
 			sender_address: Some(sender),
 			receive_address: Some(receiver),
 			value: None,
@@ -317,7 +317,7 @@ fn call_code() {
 			code_address: Some("0d13710000000000000000000000000000000000".parse().unwrap()),
 		}
 	));
-	assert_eq!(gas_left, U256::from(94144));
+	assert_eq!(gas_left, U256::from(94262));
 
 	// siphash result
 	let res = LittleEndian::read_u32(&result[..]);
@@ -354,7 +354,7 @@ fn call_static() {
 	assert!(ext.calls.contains(
 		&FakeCall {
 			call_type: FakeCallType::Call,
-			gas: U256::from(99_069),
+			gas: U256::from(99_129),
 			sender_address: Some(sender),
 			receive_address: Some(receiver),
 			value: None,
@@ -362,7 +362,7 @@ fn call_static() {
 			code_address: Some("13077bfb00000000000000000000000000000000".parse().unwrap()),
 		}
 	));
-	assert_eq!(gas_left, U256::from(94144));
+	assert_eq!(gas_left, U256::from(94262));
 
 	// siphash result
 	let res = LittleEndian::read_u32(&result[..]);
@@ -388,7 +388,7 @@ fn realloc() {
 				GasLeft::NeedsReturn { gas_left: gas, data: result, apply_state: _apply } => (gas, result.to_vec()),
 		}
 	};
-	assert_eq!(gas_left, U256::from(99432));
+	assert_eq!(gas_left, U256::from(99522));
 	assert_eq!(result, vec![0u8; 2]);
 }
 
@@ -414,7 +414,7 @@ fn storage_read() {
 		}
 	};
 
-	assert_eq!(gas_left, U256::from(99682));
+	assert_eq!(gas_left, U256::from(99800));
 	assert_eq!(Address::from(&result[12..32]), address);
 }
 
@@ -472,7 +472,7 @@ fn math_add() {
 		}
 	);
 
-	assert_eq!(gas_left, U256::from(98087));
+	assert_eq!(gas_left, U256::from(98177));
 	assert_eq!(
 		U256::from_dec_str("1888888888888888888888888888887").unwrap(),
 		(&result[..]).into()
@@ -494,7 +494,7 @@ fn math_mul() {
 		}
 	);
 
-	assert_eq!(gas_left, U256::from(97236));
+	assert_eq!(gas_left, U256::from(97326));
 	assert_eq!(
 		U256::from_dec_str("888888888888888888888888888887111111111111111111111111111112").unwrap(),
 		(&result[..]).into()
@@ -516,7 +516,7 @@ fn math_sub() {
 		}
 	);
 
-	assert_eq!(gas_left, U256::from(98131));
+	assert_eq!(gas_left, U256::from(98221));
 	assert_eq!(
 		U256::from_dec_str("111111111111111111111111111111").unwrap(),
 		(&result[..]).into()
@@ -537,7 +537,7 @@ fn math_div() {
 		}
 	);
 
-	assert_eq!(gas_left, U256::from(91420));
+	assert_eq!(gas_left, U256::from(91510));
 	assert_eq!(
 		U256::from_dec_str("1125000").unwrap(),
 		(&result[..]).into()
