@@ -64,6 +64,7 @@ extern crate parity_updater as updater;
 extern crate rlp;
 extern crate stats;
 extern crate hash;
+extern crate hardware_wallet;
 
 #[macro_use]
 extern crate log;

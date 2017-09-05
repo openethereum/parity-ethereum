@@ -41,6 +41,18 @@ const TREZOR_PIDS: [u16; 1] = [0x0001]; // Trezor v1, keeping this as an array t
 const ETH_DERIVATION_PATH: [u32; 4] = [0x8000002C, 0x8000003C, 0x80000000, 0]; // m/44'/60'/0'/0
 const ETC_DERIVATION_PATH: [u32; 4] = [0x8000002C, 0x8000003D, 0x80000000, 0]; // m/44'/61'/0'/0
 
+
+/// Type of message that can be sent to a Trezor device
+#[derive(Debug, Serialize, Deserialize)]
+pub enum TrezorMessageType {
+	/// Get a list of locked devices.
+	#[serde(rename="getDevices")]
+	GetDevices,
+	/// Supply a pin for the Pin Matrix Ack
+	#[serde(rename="pinMatrixAck")]
+	PinMatrixAck,
+}
+
 /// Hardware wallet error.
 #[derive(Debug)]
 pub enum Error {
@@ -181,12 +193,12 @@ impl Manager {
 		}
 	}
 
-	pub fn message(&self, message_type: &str, device_path: &Option<String>, message: &Option<String>) -> Result<String, Error> {
-		match message_type {
-			"get_devices" => {
+	pub fn message(&self, message_type: &TrezorMessageType, device_path: &Option<String>, message: &Option<String>) -> Result<String, Error> {
+		match *message_type {
+			TrezorMessageType::GetDevices => {
 				serde_json::to_string(&self.closed_devices).map_err(Error::SerdeError)
 			}
-			"pin_matrix_ack" => {
+			TrezorMessageType::PinMatrixAck => {
 				if let (&Some(ref path), &Some(ref msg)) = (device_path, message) {
 					let unlocked = self.pin_matrix_ack(&path, &msg)?;
 					serde_json::to_string(&unlocked).map_err(Error::SerdeError)
@@ -194,7 +206,6 @@ impl Manager {
 					Err(Error::BadMessageType)
 				}
 			}
-			_ => Err(Error::BadMessageType),
 		}
 	}
 

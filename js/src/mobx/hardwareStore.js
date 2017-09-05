@@ -54,7 +54,7 @@ export default class HardwareStore {
 
   scanTrezor () {
     return this._api.parity
-      .trezor('get_devices')
+      .trezor('getDevices')
       .then((message) => {
         this.pinMatrixRequest = JSON.parse(message).map((path) => {
           return { path: path, manufacturer: 'Trezor' };
@@ -166,7 +166,7 @@ export default class HardwareStore {
 
   pinMatrixAck (device, passcode) {
     return this._api.parity
-      .trezor('pin_matrix_ack', device.path, passcode)
+      .trezor('pinMatrixAck', device.path, passcode)
       .then((message) => {
         this.scan();
         // true/false is returned

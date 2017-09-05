@@ -25,6 +25,7 @@ extern crate protobuf;
 extern crate serde_json;
 extern crate trezor_sys;
 #[macro_use] extern crate log;
+#[macro_use] extern crate serde_derive;
 #[cfg(test)] extern crate rustc_hex;
 
 mod ledger;
@@ -40,6 +41,8 @@ use std::sync::atomic::AtomicBool;
 use std::thread;
 use std::time::Duration;
 use bigint::prelude::uint::U256;
+
+pub use trezor::TrezorMessageType;
 
 /// Hardware wallet error.
 #[derive(Debug)]
@@ -248,7 +251,7 @@ impl HardwareWalletManager {
 	}
 
 	/// Communicate with trezor hardware wallet
-	pub fn trezor_message(&self, message_type: &str, path: &Option<String>, message: &Option<String>) -> Result<String, Error> {
+	pub fn trezor_message(&self, message_type: &TrezorMessageType, path: &Option<String>, message: &Option<String>) -> Result<String, Error> {
 		let mut t = self.trezor.lock();
 		t.update_devices()?;
 		Ok(t.message(message_type, path, message)?)

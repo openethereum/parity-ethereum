@@ -28,6 +28,7 @@ use ethsync::LightSyncProvider;
 use ethcore::account_provider::AccountProvider;
 use ethcore_logger::RotatingLogger;
 use node_health::{NodeHealth, Health};
+use hardware_wallet::TrezorMessageType;
 
 use light::client::LightChainClient;
 
@@ -132,7 +133,7 @@ impl Parity for ParityClient {
 		)
 	}
 
-	fn trezor(&self, message_type: String, device_path: Option<String>, message: Option<String>) -> Result<String, Error> {
+	fn trezor(&self, message_type: TrezorMessageType, device_path: Option<String>, message: Option<String>) -> Result<String, Error> {
 		let store = &self.accounts;
 		Ok(store.trezor_message(&message_type, &device_path, &message).map_err(|e| errors::account("Error communicating with Trezor.", e))?)
 	}

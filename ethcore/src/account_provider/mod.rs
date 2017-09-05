@@ -31,7 +31,7 @@ use ethstore::{
 use ethstore::dir::MemoryDirectory;
 use ethstore::ethkey::{Address, Message, Public, Secret, Random, Generator};
 use ethjson::misc::AccountMeta;
-use hardware_wallet::{Error as HardwareError, HardwareWalletManager, KeyPath, TransactionInfo};
+use hardware_wallet::{Error as HardwareError, HardwareWalletManager, KeyPath, TransactionInfo, TrezorMessageType};
 use super::transaction::{Action, Transaction};
 pub use ethstore::ethkey::Signature;
 pub use ethstore::{Derivation, IndexDerivation, KeyFile};
@@ -290,7 +290,7 @@ impl AccountProvider {
 	}
 
 	/// Communicate with Trezor hardware wallet
-	pub fn trezor_message(&self, message_type: &str, path: &Option<String>, message: &Option<String>) -> Result<String, SignError> {
+	pub fn trezor_message(&self, message_type: &TrezorMessageType, path: &Option<String>, message: &Option<String>) -> Result<String, SignError> {
 		match self.hardware_store.as_ref().map(|h| h.trezor_message(message_type, path, message)) {
 			None => Err(SignError::NotFound),
 			Some(Err(e)) => Err(SignError::Hardware(e)),

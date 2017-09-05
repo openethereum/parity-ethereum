@@ -21,6 +21,7 @@ use std::collections::BTreeMap;
 use jsonrpc_core::Error;
 use jsonrpc_macros::Trailing;
 use futures::BoxFuture;
+use hardware_wallet::TrezorMessageType;
 
 use node_health::Health;
 use v1::types::{
@@ -47,7 +48,7 @@ build_rpc_trait! {
 
 		/// Communicate with trezor hardware wallet
 		#[rpc(name = "parity_trezor")]
-		fn trezor(&self, String, Option<String>, Option<String>) -> Result<String, Error>;
+		fn trezor(&self, TrezorMessageType, Option<String>, Option<String>) -> Result<String, Error>;
 
 		/// Returns default account for dapp.
 		#[rpc(meta, name = "parity_defaultAccount")]
