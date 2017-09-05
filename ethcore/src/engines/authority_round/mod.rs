@@ -25,7 +25,7 @@ use std::cmp;
 use account_provider::AccountProvider;
 use block::*;
 use builtin::Builtin;
-use client::EngineClient;
+use client::{Client, EngineClient};
 use engines::{Call, Engine, Seal, EngineError, ConstructedVerifier};
 use error::{Error, TransactionError, BlockError};
 use ethjson;
@@ -647,8 +647,6 @@ impl Engine for AuthorityRound {
 			(&active_set as &_, epoch_manager.epoch_transition_number)
 		};
 
-		// always report with "self.validators" so that the report actually gets
-		// to the contract.
 		let report = |report| match report {
 			Report::Benign(address, block_number) =>
 				self.validators.report_benign(&address, set_number, block_number),
@@ -741,18 +739,13 @@ impl Engine for AuthorityRound {
 		{
 			if let Ok(finalized) = epoch_manager.finality_checker.push_hash(chain_head.hash(), *chain_head.author()) {
 				let mut finalized = finalized.into_iter();
-				while let Some(finalized_hash) = finalized.next() {
-					if let Some(pending) = transition_store(finalized_hash) {
-						let finality_proof = ::std::iter::once(finalized_hash)
+				while let Some(hash) = finalized.next() {
+					if let Some(pending) = transition_store(hash) {
+						let finality_proof = ::std::iter::once(hash)
 							.chain(finalized)
 							.chain(epoch_manager.finality_checker.unfinalized_hashes())
-							.map(|h| if h == chain_head.hash() {
-								// chain closure only stores ancestry, but the chain head is also
-								// unfinalized.
-								chain_head.clone()
-							} else {
-								chain(h).expect("these headers fetched before when constructing finality checker; qed")
-							})
+							.map(|hash| chain(hash)
+								.expect("these headers fetched before when constructing finality checker; qed"))
 							.collect::<Vec<Header>>();
 
 						// this gives us the block number for `hash`, assuming it's ancestry.
@@ -816,9 +809,9 @@ impl Engine for AuthorityRound {
 		Ok(())
 	}
 
-	fn register_client(&self, client: Weak<EngineClient>) {
+	fn register_client(&self, client: Weak<Client>) {
 		*self.client.write() = Some(client.clone());
-		self.validators.register_client(client);
+		self.validators.register_contract(client);
 	}
 
 	fn set_signer(&self, ap: Arc<AccountProvider>, address: Address, password: String) {

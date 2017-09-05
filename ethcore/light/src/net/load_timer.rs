@@ -62,7 +62,6 @@ fn hardcoded_serve_time(kind: Kind) -> u64 {
 		Kind::Storage => 2_000_000,
 		Kind::Code => 1_500_000,
 		Kind::Execution => 250, // per gas.
-		Kind::Signal => 500_000,
 	}
 }
 

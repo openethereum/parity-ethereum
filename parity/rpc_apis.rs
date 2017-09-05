@@ -32,7 +32,6 @@ use ethsync::{ManageNetwork, SyncProvider, LightSync};
 use hash_fetch::fetch::Client as FetchClient;
 use jsonrpc_core::{self as core, MetaIoHandler};
 use light::{TransactionQueue as LightTransactionQueue, Cache as LightDataCache};
-use light::client::LightChainClient;
 use node_health::NodeHealth;
 use parity_reactor;
 use parity_rpc::dispatch::{FullDispatcher, LightDispatcher};
@@ -399,9 +398,9 @@ impl ActivityNotifier for LightClientNotifier {
 }
 
 /// RPC dependencies for a light client.
-pub struct LightDependencies<T> {
+pub struct LightDependencies {
 	pub signer_service: Arc<SignerService>,
-	pub client: Arc<T>,
+	pub client: Arc<::light::client::Client>,
 	pub sync: Arc<LightSync>,
 	pub net: Arc<ManageNetwork>,
 	pub secret_store: Arc<AccountProvider>,
@@ -420,7 +419,7 @@ pub struct LightDependencies<T> {
 	pub whisper_rpc: Option<::whisper::RpcFactory>,
 }
 
-impl<C: LightChainClient + 'static> LightDependencies<C> {
+impl LightDependencies {
 	fn extend_api<T: core::Middleware<Metadata>>(
 		&self,
 		handler: &mut MetaIoHandler<Metadata, T>,
@@ -569,7 +568,7 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 	}
 }
 
-impl<T: LightChainClient + 'static> Dependencies for LightDependencies<T> {
+impl Dependencies for LightDependencies {
 	type Notifier = LightClientNotifier;
 
 	fn activity_notifier(&self) -> Self::Notifier { LightClientNotifier }

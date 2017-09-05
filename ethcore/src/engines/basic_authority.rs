@@ -34,7 +34,7 @@ use error::{BlockError, Error};
 use evm::Schedule;
 use ethjson;
 use header::{Header, BlockNumber};
-use client::EngineClient;
+use client::Client;
 use semantic_version::SemanticVersion;
 use super::signer::EngineSigner;
 use super::validator_set::{ValidatorSet, SimpleList, new_validator_set};
@@ -237,8 +237,8 @@ impl Engine for BasicAuthority {
 		}
 	}
 
-	fn register_client(&self, client: Weak<EngineClient>) {
-		self.validators.register_client(client);
+	fn register_client(&self, client: Weak<Client>) {
+		self.validators.register_contract(client);
 	}
 
 	fn set_signer(&self, ap: Arc<AccountProvider>, address: Address, password: String) {

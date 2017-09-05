@@ -93,7 +93,7 @@ fn make_chain(accounts: Arc<AccountProvider>, blocks_beyond: usize, transitions:
 	let mut cur_signers = vec![*RICH_ADDR];
 	{
 		let engine = client.engine();
-		engine.register_client(Arc::downgrade(&client) as _);
+		engine.register_client(Arc::downgrade(&client));
 	}
 
 	{

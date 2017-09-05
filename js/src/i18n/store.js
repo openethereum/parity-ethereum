@@ -33,8 +33,8 @@ import zhHantTWMessages from './zh-Hant-TW';
 
 let instance = null;
 
-const LANGUAGES = flatten({ languages });
-const MESSAGES = {
+export const LANGUAGES = flatten({ languages });
+export const MESSAGES = {
   de: Object.assign(flatten(deMessages), LANGUAGES),
   en: Object.assign(flatten(enMessages), LANGUAGES),
   nl: Object.assign(flatten(nlMessages), LANGUAGES),
@@ -75,8 +75,3 @@ export default class Store {
     return instance;
   }
 }
-
-export {
-  LANGUAGES,
-  MESSAGES
-};

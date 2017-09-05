@@ -43,7 +43,7 @@ use client::ancient_import::AncientVerifier;
 use client::Error as ClientError;
 use client::{
 	BlockId, TransactionId, UncleId, TraceId, ClientConfig, BlockChainClient,
-	MiningBlockChainClient, TraceFilter, CallAnalytics, BlockImportError, Mode,
+	MiningBlockChainClient, EngineClient, TraceFilter, CallAnalytics, BlockImportError, Mode,
 	ChainNotify, PruningInfo, ProvingBlockChainClient,
 };
 use encoded;
@@ -771,7 +771,7 @@ impl Client {
 							res.map(|(output, proof)| (output, proof.into_iter().map(|x| x.into_vec()).collect()))
 						};
 
-						match with_state.generate_proof(&call) {
+						match (with_state)(&call) {
 							Ok(proof) => proof,
 							Err(e) => {
 								warn!(target: "client", "Failed to generate transition proof for block {}: {}", hash, e);
@@ -1132,7 +1132,9 @@ impl Client {
 			T: trace::Tracer,
 			V: trace::VMTracer,
 		{
-			let options = options.dont_check_nonce();
+			let options = options
+				.dont_check_nonce()
+				.save_output_from_contract();
 			let original_state = if state_diff { Some(state.clone()) } else { None };
 
 			let mut ret = Executive::new(state, env_info, engine).transact_virtual(transaction, options)?;
@@ -1935,7 +1937,7 @@ impl MiningBlockChainClient for Client {
 	}
 }
 
-impl super::traits::EngineClient for Client {
+impl EngineClient for Client {
 	fn update_sealing(&self) {
 		self.miner.update_sealing(self)
 	}
@@ -1953,22 +1955,6 @@ impl super::traits::EngineClient for Client {
 	fn epoch_transition_for(&self, parent_hash: H256) -> Option<::engines::EpochTransition> {
 		self.chain.read().epoch_transition_for(parent_hash)
 	}
-
-	fn chain_info(&self) -> BlockChainInfo {
-		BlockChainClient::chain_info(self)
-	}
-
-	fn call_contract(&self, id: BlockId, address: Address, data: Bytes) -> Result<Bytes, String> {
-		BlockChainClient::call_contract(self, id, address, data)
-	}
-
-	fn transact_contract(&self, address: Address, data: Bytes) -> Result<TransactionImportResult, EthcoreError> {
-		BlockChainClient::transact_contract(self, address, data)
-	}
-
-	fn block_number(&self, id: BlockId) -> Option<BlockNumber> {
-		BlockChainClient::block_number(self, id)
-	}
 }
 
 impl ProvingBlockChainClient for Client {
@@ -1983,29 +1969,27 @@ impl ProvingBlockChainClient for Client {
 	}
 
 	fn prove_transaction(&self, transaction: SignedTransaction, id: BlockId) -> Option<(Bytes, Vec<DBValue>)> {
-		let (header, mut env_info) = match (self.block_header(id), self.env_info(id)) {
+		let (state, mut env_info) = match (self.state_at(id), self.env_info(id)) {
 			(Some(s), Some(e)) => (s, e),
 			_ => return None,
 		};
 
 		env_info.gas_limit = transaction.gas.clone();
 		let mut jdb = self.state_db.lock().journal_db().boxed_clone();
+		let backend = state::backend::Proving::new(jdb.as_hashdb_mut());
 
-		state::prove_transaction(
-			jdb.as_hashdb_mut(),
-			header.state_root().clone(),
-			&transaction,
-			&*self.engine,
-			&env_info,
-			self.factories.clone(),
-			false,
-		)
-	}
+		let mut state = state.replace_backend(backend);
+		let options = TransactOptions::with_no_tracing().dont_check_nonce();
+		let res = Executive::new(&mut state, &env_info, &*self.engine).transact(&transaction, options);
 
-	fn epoch_signal(&self, hash: H256) -> Option<Vec<u8>> {
-		// pending transitions are never deleted, and do not contain
-		// finality proofs by definition.
-		self.chain.read().get_pending_transition(hash).map(|pending| pending.proof)
+		match res {
+			Err(ExecutionError::Internal(_)) => None,
+			Err(e) => {
+				trace!(target: "client", "Proved call failed: {}", e);
+				Some((Vec::new(), state.drop().1.extract_proof()))
+			}
+			Ok(res) => Some((res.output, state.drop().1.extract_proof())),
+		}
 	}
 }
 

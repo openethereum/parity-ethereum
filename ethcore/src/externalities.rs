@@ -224,7 +224,7 @@ impl<'a, T: 'a, V: 'a, B: 'a, E: 'a> Ext for Externalities<'a, T, V, B, E>
 		let mut ex = Executive::from_parent(self.state, self.env_info, self.engine, self.depth, self.static_flag);
 
 		// TODO: handle internal error separately
-		match ex.create(params, self.substate, self.tracer, self.vm_tracer) {
+		match ex.create(params, self.substate, &mut None, self.tracer, self.vm_tracer) {
 			Ok((gas_left, _)) => {
 				self.substate.contracts_created.push(address.clone());
 				ContractCreateResult::Created(address, gas_left)

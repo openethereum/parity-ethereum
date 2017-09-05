@@ -291,7 +291,7 @@ class TxRow extends Component {
         <div />
         <div className={ styles.uppercase }>
           <FormattedMessage
-            id='ui.txList.txRow.verify'
+            id='ui.txList.txRow.verify.confirm'
             defaultMessage='Are you sure?'
           />
         </div>
