@@ -22,7 +22,10 @@ use rustc_hex::{FromHex, ToHex};
 use time::get_time;
 use rlp;
 
-use util::{U256, Address, H256, Mutex};
+use bigint::prelude::U256;
+use bigint::hash::H256;
+use util::Address;
+use parking_lot::Mutex;
 use ethkey::Secret;
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::{TestBlockChainClient, EachBlockWith, Executed, TransactionId};
@@ -533,7 +536,7 @@ fn rpc_eth_transaction_count_by_number_pending() {
 
 #[test]
 fn rpc_eth_pending_transaction_by_hash() {
-	use util::H256;
+	use bigint::hash::H256;
 	use rlp;
 	use ethcore::transaction::SignedTransaction;
 

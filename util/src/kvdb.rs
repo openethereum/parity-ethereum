@@ -279,7 +279,7 @@ impl KeyValueDB for InMemory {
 	}
 
 	fn restore(&self, _new_db: &str) -> Result<(), UtilError> {
-		Err(UtilError::SimpleString("Attempted to restore in-memory database".into()))
+		Err("Attempted to restore in-memory database".into())
 	}
 }
 
@@ -902,7 +902,7 @@ impl Drop for Database {
 
 #[cfg(test)]
 mod tests {
-	use hash::H256;
+	use bigint::hash::H256;
 	use super::*;
 	use devtools::*;
 	use std::str::FromStr;

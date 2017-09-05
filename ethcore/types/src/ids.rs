@@ -16,7 +16,7 @@
 
 //! Unique identifiers.
 
-use util::hash::H256;
+use bigint::hash::H256;
 use {BlockNumber};
 
 /// Uniquely identifies block.

@@ -16,7 +16,7 @@
 
 //! Localized traces type definitions
 
-use util::H256;
+use bigint::hash::H256;
 use super::trace::{Action, Res};
 use header::BlockNumber;
 

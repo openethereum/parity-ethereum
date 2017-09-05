@@ -26,7 +26,7 @@ use fetch::{Fetch, Response, Error as FetchError, Client as FetchClient};
 use futures::Future;
 use parity_reactor::Remote;
 use urlhint::{ContractClient, URLHintContract, URLHint, URLHintResult};
-use util::H256;
+use bigint::hash::H256;
 
 /// API for fetching by hash.
 pub trait HashFetch: Send + Sync + 'static {
@@ -191,7 +191,7 @@ fn random_temp_path() -> PathBuf {
 mod tests {
 	use rustc_hex::FromHex;
 	use std::sync::{Arc, mpsc};
-	use util::Mutex;
+	use parking_lot::Mutex;
 	use futures::future;
 	use fetch::{self, Fetch};
 	use parity_reactor::Remote;

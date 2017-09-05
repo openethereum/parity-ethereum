@@ -42,6 +42,11 @@ use ethkey::{verify_address, Signature};
 use io::{IoContext, IoHandler, TimerToken, IoService};
 use itertools::{self, Itertools};
 use rlp::{UntrustedRlp, encode};
+use bigint::prelude::{U256, U128};
+use bigint::hash::{H256, H520};
+use semantic_version::SemanticVersion;
+use parking_lot::{Mutex, RwLock};
+use unexpected::{Mismatch, OutOfBounds};
 use util::*;
 
 mod finality;
@@ -831,7 +836,8 @@ mod tests {
 	use std::sync::Arc;
 	use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
 	use hash::keccak;
-	use util::*;
+	use bigint::prelude::U256;
+	use bigint::hash::H520;
 	use header::Header;
 	use error::{Error, BlockError};
 	use rlp::encode;

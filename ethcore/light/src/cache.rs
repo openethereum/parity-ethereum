@@ -27,7 +27,8 @@ use ethcore::receipt::Receipt;
 use stats::Corpus;
 use time::{SteadyTime, Duration};
 use heapsize::HeapSizeOf;
-use util::{U256, H256};
+use bigint::prelude::U256;
+use bigint::hash::H256;
 use util::cache::MemoryLruCache;
 
 /// Configuration for how much data to cache.

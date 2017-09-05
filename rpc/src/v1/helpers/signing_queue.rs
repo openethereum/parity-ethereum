@@ -19,7 +19,9 @@ use std::cell::RefCell;
 use std::sync::Arc;
 use std::collections::BTreeMap;
 use jsonrpc_core;
-use util::{Mutex, RwLock, U256, Address};
+use bigint::prelude::U256;
+use util::Address;
+use parking_lot::{Mutex, RwLock};
 use ethcore::account_provider::DappId;
 use v1::helpers::{ConfirmationRequest, ConfirmationPayload};
 use v1::types::{ConfirmationResponse, H160 as RpcH160, Origin, DappId as RpcDappId};
@@ -297,7 +299,9 @@ mod test {
 	use std::time::Duration;
 	use std::thread;
 	use std::sync::{mpsc, Arc};
-	use util::{Address, U256, Mutex};
+	use bigint::prelude::U256;
+	use util::Address;
+	use parking_lot::Mutex;
 	use v1::helpers::{SigningQueue, ConfirmationsQueue, QueueEvent, FilledTransactionRequest, ConfirmationPayload};
 	use v1::types::ConfirmationResponse;
 

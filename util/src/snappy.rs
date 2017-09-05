@@ -16,7 +16,7 @@
 
 //! Snappy compression bindings.
 
-use std::fmt;
+use std::{self, fmt};
 use libc::{c_char, c_int, size_t};
 
 const SNAPPY_OK: c_int = 0;
@@ -55,6 +55,12 @@ extern {
 /// Attempted to decompress an uncompressed buffer.
 #[derive(Debug)]
 pub struct InvalidInput;
+
+impl std::error::Error for InvalidInput {
+	fn description(&self) -> &str {
+		"Attempted snappy decompression with invalid input"
+	}
+}
 
 impl fmt::Display for InvalidInput {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

@@ -26,13 +26,14 @@ extern crate test;
 extern crate ethcore;
 extern crate evm;
 extern crate ethcore_util;
+extern crate ethcore_bigint;
 extern crate rustc_hex;
 
 use self::test::{Bencher, black_box};
 
 use evm::run_vm;
 use ethcore::vm::ActionParams;
-use ethcore_util::U256;
+use ethcore_bigint::prelude::U256;
 use rustc_hex::FromHex;
 
 #[bench]

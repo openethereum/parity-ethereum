@@ -17,6 +17,7 @@
 //! Types used in the public API
 
 extern crate ethcore_util as util;
+extern crate ethcore_bigint as bigint;
 extern crate ethjson;
 extern crate rlp;
 #[macro_use]

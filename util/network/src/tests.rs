@@ -19,7 +19,8 @@ use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
 use std::sync::Arc;
 use std::thread;
 use std::time::*;
-use util::{Bytes, Mutex};
+use parking_lot::Mutex;
+use util::Bytes;
 use io::TimerToken;
 use ethkey::{Random, Generator};
 

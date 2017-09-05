@@ -16,7 +16,7 @@
 
 //! Snapshot manifest type definition
 
-use util::hash::H256;
+use bigint::hash::H256;
 use rlp::*;
 use util::Bytes;
 

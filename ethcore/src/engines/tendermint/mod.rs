@@ -30,7 +30,11 @@ use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
 use std::collections::{HashSet, BTreeMap, HashMap};
 use hash::keccak;
 use std::cmp;
+use bigint::prelude::{U128, U256};
+use bigint::hash::{H256, H520};
+use parking_lot::RwLock;
 use util::*;
+use unexpected::{OutOfBounds, Mismatch};
 use client::{Client, EngineClient};
 use error::{Error, BlockError};
 use header::{Header, BlockNumber};
@@ -48,6 +52,7 @@ use super::transition::TransitionHandler;
 use super::vote_collector::VoteCollector;
 use self::message::*;
 use self::params::TendermintParams;
+use semantic_version::SemanticVersion;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub enum Step {

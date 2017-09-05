@@ -32,7 +32,7 @@ use hyper;
 use hyper::status::StatusCode;
 
 use {Embeddable, SyncStatus, random_filename};
-use util::Mutex;
+use parking_lot::Mutex;
 use page::LocalPageEndpoint;
 use handlers::{ContentHandler, ContentFetcherHandler};
 use endpoint::{Endpoint, EndpointPath, Handler};

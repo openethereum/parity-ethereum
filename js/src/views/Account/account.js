@@ -370,14 +370,14 @@ class Account extends Component {
           onDeny={ this.exportClose }
           title={
             <FormattedMessage
-              id='export.account.title'
+              id='account.export.title'
               defaultMessage='Export Account'
             />
           }
         >
           <div className={ styles.textbox }>
             <FormattedMessage
-              id='export.account.info'
+              id='account.export.info'
               defaultMessage='Export your account as a JSON file. Please enter the password linked with this account.'
             />
           </div>
@@ -388,13 +388,13 @@ class Account extends Component {
             type='password'
             hint={
               <FormattedMessage
-                id='export.account.password.hint'
+                id='account.export.password.hint'
                 defaultMessage='The password specified when creating this account'
               />
             }
             label={
               <FormattedMessage
-                id='export.account.password.label'
+                id='account.export.password.label'
                 defaultMessage='Account password'
               />
             }

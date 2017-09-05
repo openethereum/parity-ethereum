@@ -23,7 +23,7 @@ use std::time::{Instant, Duration};
 use fetch::{self, Fetch};
 use futures::Future;
 use parity_reactor::Remote;
-use util::Mutex;
+use parking_lot::Mutex;
 
 use hyper::{server, Decoder, Encoder, Next, Method, Control};
 use hyper::net::HttpStream;

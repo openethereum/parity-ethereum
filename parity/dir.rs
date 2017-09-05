@@ -16,7 +16,7 @@
 
 use std::fs;
 use std::path::{PathBuf, Path};
-use util::{H64, H256};
+use bigint::hash::{H64, H256};
 use util::journaldb::Algorithm;
 use helpers::{replace_home, replace_home_and_local};
 use app_dirs::{AppInfo, get_app_root, AppDataType};

@@ -92,7 +92,7 @@ pub fn new_metropolis_test() -> Spec { load(None, include_bytes!("../../res/ethe
 
 #[cfg(test)]
 mod tests {
-	use util::*;
+	use bigint::prelude::U256;
 	use state::*;
 	use super::*;
 	use tests::helpers::*;

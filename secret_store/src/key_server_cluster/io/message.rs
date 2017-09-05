@@ -22,7 +22,8 @@ use serde_json;
 use ethcrypto::ecies::{encrypt_single_message, decrypt_single_message};
 use ethkey::{Secret, KeyPair};
 use ethkey::math::curve_order;
-use util::{H256, U256};
+use bigint::prelude::U256;
+use bigint::hash::H256;
 use key_server_cluster::Error;
 use key_server_cluster::message::{Message, ClusterMessage, GenerationMessage, EncryptionMessage,
 	DecryptionMessage, SigningMessage};

@@ -17,7 +17,8 @@
 use std::sync::Arc;
 use std::str::FromStr;
 use rustc_hex::FromHex;
-use util::{U256, Address};
+use bigint::prelude::U256;
+use util::Address;
 
 use ethcore::miner::MinerService;
 use ethcore::client::TestBlockChainClient;

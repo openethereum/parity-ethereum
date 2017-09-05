@@ -20,6 +20,8 @@ use hash::keccak;
 use ethkey::KeyPair;
 use io::*;
 use client::{BlockChainClient, Client, ClientConfig};
+use bigint::prelude::U256;
+use bigint::hash::H256;
 use util::*;
 use spec::*;
 use account_provider::AccountProvider;

@@ -25,11 +25,11 @@ use super::helpers::{compare_dbs, StateProducer};
 use error::Error;
 
 use rand::{XorShiftRng, SeedableRng};
-use util::hash::H256;
+use bigint::hash::H256;
 use util::journaldb::{self, Algorithm};
 use util::kvdb::{Database, DatabaseConfig};
 use util::memorydb::MemoryDB;
-use util::Mutex;
+use parking_lot::Mutex;
 use devtools::RandomTempPath;
 
 use std::sync::Arc;
@@ -97,7 +97,9 @@ fn snap_and_restore() {
 fn get_code_from_prev_chunk() {
 	use std::collections::HashSet;
 	use rlp::RlpStream;
-	use util::{HashDB, H256, U256};
+	use bigint::prelude::U256;
+	use bigint::hash::H256;
+	use util::HashDB;
 
 	use account_db::{AccountDBMut, AccountDB};
 
