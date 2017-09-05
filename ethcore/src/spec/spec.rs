@@ -355,7 +355,7 @@ impl Spec {
 
 				{
 					let mut exec = Executive::new(&mut state, &env_info, self.engine.as_ref());
-					if let Err(e) = exec.create(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer) {
+					if let Err(e) = exec.create(params, &mut substate, &mut None, &mut NoopTracer, &mut NoopVMTracer) {
 						warn!(target: "spec", "Genesis constructor execution at {} failed: {}.", address, e);
 					}
 				}

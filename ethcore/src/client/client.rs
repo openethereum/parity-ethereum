@@ -1131,7 +1131,9 @@ impl Client {
 			T: trace::Tracer,
 			V: trace::VMTracer,
 		{
-			let options = options.dont_check_nonce();
+			let options = options
+				.dont_check_nonce()
+				.save_output_from_contract();
 			let original_state = if state_diff { Some(state.clone()) } else { None };
 
 			let mut ret = Executive::new(state, env_info, engine).transact_virtual(transaction, options)?;
@@ -2000,6 +2002,7 @@ impl ProvingBlockChainClient for Client {
 			false,
 		)
 	}
+
 
 	fn epoch_signal(&self, hash: H256) -> Option<Vec<u8>> {
 		// pending transitions are never deleted, and do not contain
