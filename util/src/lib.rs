@@ -88,19 +88,15 @@
 //!   ```
 
 extern crate rustc_hex;
-extern crate rand;
 extern crate rocksdb;
 extern crate env_logger;
-extern crate crypto as rcrypto;
 extern crate secp256k1;
 extern crate elastic_array;
-extern crate time;
 extern crate ethcore_devtools as devtools;
 extern crate libc;
 extern crate target_info;
 extern crate ethcore_bigint as bigint;
 extern crate parking_lot;
-extern crate ansi_term;
 extern crate tiny_keccak;
 extern crate rlp;
 extern crate regex;
