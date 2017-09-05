@@ -86,6 +86,7 @@ struct SessionData {
 
 /// Signing session state.
 #[derive(Debug, PartialEq)]
+#[cfg_attr(test, derive(Clone, Copy))]
 pub enum SessionState {
 	/// State when consensus is establishing.
 	ConsensusEstablishing,
@@ -187,6 +188,12 @@ impl SessionImpl {
 		})
 	}
 
+	#[cfg(test)]
+	/// Get session state.
+	pub fn state(&self) -> SessionState {
+		self.data.lock().state
+	}
+
 	/// Initialize signing session on master node.
 	pub fn initialize(&self, message_hash: H256) -> Result<(), Error> {
 		let mut data = self.data.lock();
@@ -230,13 +237,13 @@ impl SessionImpl {
 				self.on_consensus_message(sender, message),
 			&SigningMessage::SigningGenerationMessage(ref message) =>
 				self.on_generation_message(sender, message),
-			&SigningMessage::RequestPartialSignature(ref message) => 
+			&SigningMessage::RequestPartialSignature(ref message) =>
 				self.on_partial_signature_requested(sender, message),
-			&SigningMessage::PartialSignature(ref message) => 
+			&SigningMessage::PartialSignature(ref message) =>
 				self.on_partial_signature(sender, message),
-			&SigningMessage::SigningSessionError(ref message) => 
+			&SigningMessage::SigningSessionError(ref message) =>
 				self.on_session_error(sender, message),
-			&SigningMessage::SigningSessionCompleted(ref message) => 
+			&SigningMessage::SigningSessionCompleted(ref message) =>
 				self.on_session_completed(sender, message),
 		}
 	}
@@ -378,10 +385,13 @@ impl SessionImpl {
 			return Ok(());
 		}
 
-		self.core.cluster.broadcast(Message::Signing(SigningMessage::SigningSessionCompleted(SigningSessionCompleted {
-			session: self.core.meta.id.clone().into(),
-			sub_session: self.core.access_key.clone().into(),
-		})))?;
+		// send compeltion signal to all nodes, except for rejected nodes
+		for node in data.consensus_session.consensus_non_rejected_nodes() {
+			self.core.cluster.send(&node, Message::Signing(SigningMessage::SigningSessionCompleted(SigningSessionCompleted {
+				session: self.core.meta.id.clone().into(),
+				sub_session: self.core.access_key.clone().into(),
+			})))?;
+		}
 
 		data.result = Some(Ok(data.consensus_session.result()?));
 		self.core.completed.notify_all();
@@ -569,17 +579,19 @@ impl JobTransport for SigningJobTransport {
 #[cfg(test)]
 mod tests {
 	use std::sync::Arc;
+	use std::str::FromStr;
 	use std::collections::{BTreeMap, VecDeque};
-	use ethkey::{self, Random, Generator, Public};
+	use ethkey::{self, Random, Generator, Public, Secret, KeyPair};
 	use util::H256;
 	use acl_storage::DummyAclStorage;
-	use key_server_cluster::{NodeId, SessionId, SessionMeta, Error, KeyStorage};
+	use key_server_cluster::{NodeId, DocumentKeyShare, SessionId, SessionMeta, Error, KeyStorage};
 	use key_server_cluster::cluster::tests::DummyCluster;
 	use key_server_cluster::generation_session::{Session as GenerationSession};
 	use key_server_cluster::generation_session::tests::MessageLoop as KeyGenerationMessageLoop;
 	use key_server_cluster::math;
-	use key_server_cluster::message::{Message, SigningMessage};
-	use key_server_cluster::signing_session::{Session, SessionImpl, SessionParams};
+	use key_server_cluster::message::{Message, SigningMessage, SigningConsensusMessage, ConsensusMessage, ConfirmConsensusInitialization,
+		SigningGenerationMessage, GenerationMessage, ConfirmInitialization, InitializeSession, RequestPartialSignature};
+	use key_server_cluster::signing_session::{Session, SessionImpl, SessionState, SessionParams};
 
 	struct Node {
 		pub node_id: NodeId,
@@ -589,8 +601,10 @@ mod tests {
 
 	struct MessageLoop {
 		pub session_id: SessionId,
+		pub requester: KeyPair,
 		pub nodes: BTreeMap<NodeId, Node>,
 		pub queue: VecDeque<(NodeId, NodeId, Message)>,
+		pub acl_storages: Vec<Arc<DummyAclStorage>>,
 	}
 
 	impl MessageLoop {
@@ -600,8 +614,10 @@ mod tests {
 			let requester = Random.generate().unwrap();
 			let signature = Some(ethkey::sign(requester.secret(), &SessionId::default()).unwrap());
 			let master_node_id = gl.nodes.keys().nth(0).unwrap().clone();
+			let mut acl_storages = Vec::new();
 			for (i, (gl_node_id, gl_node)) in gl.nodes.iter().enumerate() {
 				let acl_storage = Arc::new(DummyAclStorage::default());
+				acl_storages.push(acl_storage.clone());
 				let cluster = Arc::new(DummyCluster::new(gl_node_id.clone()));
 				let session = SessionImpl::new(SessionParams {
 					meta: SessionMeta {
@@ -627,8 +643,10 @@ mod tests {
 
 			MessageLoop {
 				session_id: session_id,
+				requester: requester,
 				nodes: nodes,
 				queue: VecDeque::new(),
+				acl_storages: acl_storages,
 			}
 		}
 
@@ -676,22 +694,41 @@ mod tests {
 				}
 			}
 		}
+
+		pub fn run_until<F: Fn(&MessageLoop) -> bool>(&mut self, predicate: F) -> Result<(), Error> {
+			while let Some((from, to, message)) = self.take_message() {
+				if predicate(self) {
+					return Ok(());
+				}
+
+				self.process_message((from, to, message))?;
+			}
+
+			unreachable!("either wrong predicate, or failing test")
+		}
+	}
+
+	fn prepare_signing_sessions(threshold: usize, num_nodes: usize) -> (KeyGenerationMessageLoop, MessageLoop) {
+		// run key generation sessions
+		let mut gl = KeyGenerationMessageLoop::new(num_nodes);
+		gl.master().initialize(Public::default(), threshold, gl.nodes.keys().cloned().collect()).unwrap();
+		while let Some((from, to, message)) = gl.take_message() {
+			gl.process_message((from, to, message)).unwrap();
+		}
+
+		// run signing session
+		let sl = MessageLoop::new(&gl);
+		(gl, sl)
 	}
 
 	#[test]
 	fn complete_gen_sign_session() {
 		let test_cases = [(0, 1), (0, 5), (2, 5), (3, 5)];
 		for &(threshold, num_nodes) in &test_cases {
-			// run key generation sessions
-			let mut gl = KeyGenerationMessageLoop::new(num_nodes);
-			gl.master().initialize(Public::default(), threshold, gl.nodes.keys().cloned().collect()).unwrap();
-			while let Some((from, to, message)) = gl.take_message() {
-				gl.process_message((from, to, message)).unwrap();
-			}
+			let (gl, mut sl) = prepare_signing_sessions(threshold, num_nodes);
 
 			// run signing session
 			let message_hash = H256::from(777);
-			let mut sl = MessageLoop::new(&gl);
 			sl.master().initialize(message_hash).unwrap();
 			while let Some((from, to, message)) = sl.take_message() {
 				sl.process_message((from, to, message)).unwrap();
@@ -701,6 +738,249 @@ mod tests {
 			let public = gl.master().joint_public_and_secret().unwrap().unwrap().0;
 			let signature = sl.master().wait().unwrap();
 			assert!(math::verify_signature(&public, &signature, &message_hash).unwrap());
+		}
+	}
+
+	#[test]
+	fn constructs_in_cluster_of_single_node() {
+		let mut nodes = BTreeMap::new();
+		let self_node_id = Random.generate().unwrap().public().clone();
+		nodes.insert(self_node_id, Random.generate().unwrap().secret().clone());
+		match SessionImpl::new(SessionParams {
+			meta: SessionMeta {
+				id: SessionId::default(),
+				self_node_id: self_node_id.clone(),
+				master_node_id: self_node_id.clone(),
+				threshold: 0,
+			},
+			access_key: Random.generate().unwrap().secret().clone(),
+			key_share: DocumentKeyShare {
+				author: Public::default(),
+				threshold: 0,
+				id_numbers: nodes,
+				secret_share: Random.generate().unwrap().secret().clone(),
+				common_point: Some(Random.generate().unwrap().public().clone()),
+				encrypted_point: Some(Random.generate().unwrap().public().clone()),
+			},
+			acl_storage: Arc::new(DummyAclStorage::default()),
+			cluster: Arc::new(DummyCluster::new(self_node_id.clone())),
+		}, Some(ethkey::sign(Random.generate().unwrap().secret(), &SessionId::default()).unwrap())) {
+			Ok(_) => (),
+			_ => panic!("unexpected"),
+		}
+	}
+
+	#[test]
+	fn fails_to_construct_if_not_a_part_of_cluster() {
+		let mut nodes = BTreeMap::new();
+		let self_node_id = Random.generate().unwrap().public().clone();
+		nodes.insert(Random.generate().unwrap().public().clone(), Random.generate().unwrap().secret().clone());
+		nodes.insert(Random.generate().unwrap().public().clone(), Random.generate().unwrap().secret().clone());
+		match SessionImpl::new(SessionParams {
+			meta: SessionMeta {
+				id: SessionId::default(),
+				self_node_id: self_node_id.clone(),
+				master_node_id: self_node_id.clone(),
+				threshold: 0,
+			},
+			access_key: Random.generate().unwrap().secret().clone(),
+			key_share: DocumentKeyShare {
+				author: Public::default(),
+				threshold: 0,
+				id_numbers: nodes,
+				secret_share: Random.generate().unwrap().secret().clone(),
+				common_point: Some(Random.generate().unwrap().public().clone()),
+				encrypted_point: Some(Random.generate().unwrap().public().clone()),
+			},
+			acl_storage: Arc::new(DummyAclStorage::default()),
+			cluster: Arc::new(DummyCluster::new(self_node_id.clone())),
+		}, Some(ethkey::sign(Random.generate().unwrap().secret(), &SessionId::default()).unwrap())) {
+			Err(Error::InvalidNodesConfiguration) => (),
+			_ => panic!("unexpected"),
+		}
+	}
+
+	#[test]
+	fn fails_to_construct_if_threshold_is_wrong() {
+		let mut nodes = BTreeMap::new();
+		let self_node_id = Random.generate().unwrap().public().clone();
+		nodes.insert(self_node_id.clone(), Random.generate().unwrap().secret().clone());
+		nodes.insert(Random.generate().unwrap().public().clone(), Random.generate().unwrap().secret().clone());
+		match SessionImpl::new(SessionParams {
+			meta: SessionMeta {
+				id: SessionId::default(),
+				self_node_id: self_node_id.clone(),
+				master_node_id: self_node_id.clone(),
+				threshold: 2,
+			},
+			access_key: Random.generate().unwrap().secret().clone(),
+			key_share: DocumentKeyShare {
+				author: Public::default(),
+				threshold: 2,
+				id_numbers: nodes,
+				secret_share: Random.generate().unwrap().secret().clone(),
+				common_point: Some(Random.generate().unwrap().public().clone()),
+				encrypted_point: Some(Random.generate().unwrap().public().clone()),
+			},
+			acl_storage: Arc::new(DummyAclStorage::default()),
+			cluster: Arc::new(DummyCluster::new(self_node_id.clone())),
+		}, Some(ethkey::sign(Random.generate().unwrap().secret(), &SessionId::default()).unwrap())) {
+			Err(Error::InvalidThreshold) => (),
+			_ => panic!("unexpected"),
+		}
+	}
+
+	#[test]
+	fn fails_to_initialize_when_already_initialized() {
+		let (_, sl) = prepare_signing_sessions(1, 3);
+		assert_eq!(sl.master().initialize(777.into()), Ok(()));
+		assert_eq!(sl.master().initialize(777.into()), Err(Error::InvalidStateForRequest));
+	}
+
+	#[test]
+	fn does_not_fail_when_consensus_message_received_after_consensus_established() {
+		let (_, mut sl) = prepare_signing_sessions(1, 3);
+		sl.master().initialize(777.into()).unwrap();
+		// consensus is established
+		sl.run_until(|sl| sl.master().state() == SessionState::SessionKeyGeneration).unwrap();
+		// but 3rd node continues to send its messages
+		// this should not fail session
+		let consensus_group = sl.master().data.lock().consensus_session.select_consensus_group().unwrap().clone();
+		let mut had_3rd_message = false;
+		while let Some((from, to, message)) = sl.take_message() {
+			if !consensus_group.contains(&from) {
+				had_3rd_message = true;
+				sl.process_message((from, to, message)).unwrap();
+			}
+		}
+		assert!(had_3rd_message);
+	}
+
+	#[test]
+	fn fails_when_consensus_message_is_received_when_not_initialized() {
+		let (_, sl) = prepare_signing_sessions(1, 3);
+		assert_eq!(sl.master().on_consensus_message(sl.nodes.keys().nth(1).unwrap(), &SigningConsensusMessage {
+			session: SessionId::default().into(),
+			sub_session: sl.master().core.access_key.clone().into(),
+			message: ConsensusMessage::ConfirmConsensusInitialization(ConfirmConsensusInitialization {
+				is_confirmed: true,
+			}),
+		}), Err(Error::InvalidStateForRequest));
+	}
+
+	#[test]
+	fn fails_when_generation_message_is_received_when_not_initialized() {
+		let (_, sl) = prepare_signing_sessions(1, 3);
+		assert_eq!(sl.master().on_generation_message(sl.nodes.keys().nth(1).unwrap(), &SigningGenerationMessage {
+			session: SessionId::default().into(),
+			sub_session: sl.master().core.access_key.clone().into(),
+			message: GenerationMessage::ConfirmInitialization(ConfirmInitialization {
+				session: SessionId::default().into(),
+				derived_point: Public::default().into(),
+			}),
+		}), Err(Error::InvalidStateForRequest));
+	}
+
+	#[test]
+	fn fails_when_generation_sesson_is_initialized_by_slave_node() {
+		let (_, mut sl) = prepare_signing_sessions(1, 3);
+		sl.master().initialize(777.into()).unwrap();
+		sl.run_until(|sl| sl.master().state() == SessionState::SessionKeyGeneration).unwrap();
+
+		let slave2_id = sl.nodes.keys().nth(2).unwrap().clone();
+		let slave1 = &sl.nodes.values().nth(1).unwrap().session;
+
+		assert_eq!(slave1.on_generation_message(&slave2_id, &SigningGenerationMessage {
+			session: SessionId::default().into(),
+			sub_session: sl.master().core.access_key.clone().into(),
+			message: GenerationMessage::InitializeSession(InitializeSession {
+				session: SessionId::default().into(),
+				author: Public::default().into(),
+				nodes: BTreeMap::new(),
+				threshold: 1,
+				derived_point: Public::default().into(),
+			})
+		}), Err(Error::InvalidMessage));
+	}
+
+	#[test]
+	fn fails_when_signature_requested_when_not_initialized() {
+		let (_, sl) = prepare_signing_sessions(1, 3);
+		let slave1 = &sl.nodes.values().nth(1).unwrap().session;
+		assert_eq!(slave1.on_partial_signature_requested(sl.nodes.keys().nth(0).unwrap(), &RequestPartialSignature {
+			session: SessionId::default().into(),
+			sub_session: sl.master().core.access_key.clone().into(),
+			request_id: Secret::from_str("0000000000000000000000000000000000000000000000000000000000000001").unwrap().into(),
+			message_hash: H256::default().into(),
+			nodes: Default::default(),
+		}), Err(Error::InvalidStateForRequest));
+	}
+
+	#[test]
+	fn fails_when_signature_requested_by_slave_node() {
+		let (_, sl) = prepare_signing_sessions(1, 3);
+		assert_eq!(sl.master().on_partial_signature_requested(sl.nodes.keys().nth(1).unwrap(), &RequestPartialSignature {
+			session: SessionId::default().into(),
+			sub_session: sl.master().core.access_key.clone().into(),
+			request_id: Secret::from_str("0000000000000000000000000000000000000000000000000000000000000001").unwrap().into(),
+			message_hash: H256::default().into(),
+			nodes: Default::default(),
+		}), Err(Error::InvalidMessage));
+	}
+
+	#[test]
+	fn failed_signing_session() {
+		let (_, mut sl) = prepare_signing_sessions(1, 3);
+		sl.master().initialize(777.into()).unwrap();
+
+		// we need at least 2-of-3 nodes to agree to reach consensus
+		// let's say 2 of 3 nodes disagee
+		sl.acl_storages[1].prohibit(sl.requester.public().clone(), SessionId::default());
+		sl.acl_storages[2].prohibit(sl.requester.public().clone(), SessionId::default());
+
+		// then consensus is unreachable
+		assert_eq!(sl.run_until(|_| false), Err(Error::ConsensusUnreachable));
+	}
+
+	#[test]
+	fn complete_signing_session_with_single_node_failing() {
+		let (_, mut sl) = prepare_signing_sessions(1, 3);
+		sl.master().initialize(777.into()).unwrap();
+
+		// we need at least 2-of-3 nodes to agree to reach consensus
+		// let's say 1 of 3 nodes disagee
+		sl.acl_storages[1].prohibit(sl.requester.public().clone(), SessionId::default());
+
+		// then consensus reachable, but single node will disagree
+		while let Some((from, to, message)) = sl.take_message() {
+			sl.process_message((from, to, message)).unwrap();
+		}
+
+		let data = sl.master().data.lock();
+		match data.result {
+			Some(Ok(_)) => (),
+			_ => unreachable!(),
+		}
+	}
+
+	#[test]
+	fn complete_signing_session_with_acl_check_failed_on_master() {
+		let (_, mut sl) = prepare_signing_sessions(1, 3);
+		sl.master().initialize(777.into()).unwrap();
+
+		// we need at least 2-of-3 nodes to agree to reach consensus
+		// let's say 1 of 3 nodes disagee
+		sl.acl_storages[0].prohibit(sl.requester.public().clone(), SessionId::default());
+
+		// then consensus reachable, but single node will disagree
+		while let Some((from, to, message)) = sl.take_message() {
+			sl.process_message((from, to, message)).unwrap();
+		}
+
+		let data = sl.master().data.lock();
+		match data.result {
+			Some(Ok(_)) => (),
+			_ => unreachable!(),
 		}
 	}
 }

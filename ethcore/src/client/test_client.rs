@@ -22,6 +22,8 @@ use std::collections::{HashMap, BTreeMap};
 use std::mem;
 use itertools::Itertools;
 use rustc_hex::FromHex;
+use hash::keccak;
+use parking_lot::RwLock;
 use util::*;
 use rlp::*;
 use ethkey::{Generator, Random};
@@ -29,7 +31,7 @@ use devtools::*;
 use transaction::{Transaction, LocalizedTransaction, PendingTransaction, SignedTransaction, Action};
 use blockchain::TreeRoute;
 use client::{
-	BlockChainClient, MiningBlockChainClient, EngineClient, BlockChainInfo, BlockStatus, BlockId,
+	BlockChainClient, MiningBlockChainClient, BlockChainInfo, BlockStatus, BlockId,
 	TransactionId, UncleId, TraceId, TraceFilter, LastHashes, CallAnalytics, BlockImportError,
 	ProvingBlockChainClient,
 };
@@ -241,7 +243,7 @@ impl TestBlockChainClient {
 					uncle_header.set_parent_hash(self.last_hash.read().clone());
 					uncle_header.set_number(n as BlockNumber);
 					uncles.append(&uncle_header);
-					header.set_uncles_hash(uncles.as_raw().sha3());
+					header.set_uncles_hash(keccak(uncles.as_raw()));
 					uncles
 				},
 				_ => RlpStream::new_list(0)
@@ -790,9 +792,13 @@ impl ProvingBlockChainClient for TestBlockChainClient {
 	fn prove_transaction(&self, _: SignedTransaction, _: BlockId) -> Option<(Bytes, Vec<DBValue>)> {
 		None
 	}
+
+	fn epoch_signal(&self, _: H256) -> Option<Vec<u8>> {
+		None
+	}
 }
 
-impl EngineClient for TestBlockChainClient {
+impl super::traits::EngineClient for TestBlockChainClient {
 	fn update_sealing(&self) {
 		self.miner.update_sealing(self)
 	}
@@ -807,5 +813,21 @@ impl EngineClient for TestBlockChainClient {
 
 	fn epoch_transition_for(&self, _block_hash: H256) -> Option<::engines::EpochTransition> {
 		None
+	}
+
+	fn chain_info(&self) -> BlockChainInfo {
+		BlockChainClient::chain_info(self)
+	}
+
+	fn call_contract(&self, id: BlockId, address: Address, data: Bytes) -> Result<Bytes, String> {
+		BlockChainClient::call_contract(self, id, address, data)
+	}
+
+	fn transact_contract(&self, address: Address, data: Bytes) -> Result<TransactionImportResult, EthcoreError> {
+		BlockChainClient::transact_contract(self, address, data)
+	}
+
+	fn block_number(&self, id: BlockId) -> Option<BlockNumber> {
+		BlockChainClient::block_number(self, id)
 	}
 }

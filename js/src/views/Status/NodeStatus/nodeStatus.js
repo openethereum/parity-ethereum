@@ -18,7 +18,7 @@ import bytes from 'bytes';
 import moment from 'moment';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
-import { connect } from 'react-redux';
+import { observer } from 'mobx-react';
 
 import { Container, ContainerTitle, Input } from '~/ui';
 
@@ -27,16 +27,10 @@ import StatusStore from './store';
 
 import styles from './nodeStatus.css';
 
+@observer
 class NodeStatus extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
-  };
-
-  static propTypes = {
-    blockNumber: PropTypes.object,
-    blockTimestamp: PropTypes.object,
-    netChain: PropTypes.string,
-    netPeers: PropTypes.object
   };
 
   statusStore = new StatusStore(this.context.api);
@@ -50,8 +44,7 @@ class NodeStatus extends Component {
   }
 
   render () {
-    const { blockNumber, blockTimestamp, netPeers } = this.props;
-    const { hashrate } = this.statusStore;
+    const { blockNumber, blockTimestamp, netPeers, hashrate } = this.statusStore;
 
     if (!netPeers || !blockNumber) {
       return null;
@@ -157,8 +150,7 @@ class NodeStatus extends Component {
   }
 
   renderSettings () {
-    const { netChain } = this.props;
-    const { enode, rpcSettings, netPort = '' } = this.statusStore;
+    const { chain, enode, rpcSettings, netPort = '' } = this.statusStore;
 
     if (!rpcSettings) {
       return null;
@@ -185,7 +177,7 @@ class NodeStatus extends Component {
               defaultMessage='chain'
             />
           }
-          value={ netChain }
+          value={ chain }
         />
         <div className={ styles.row }>
           <div className={ styles.col6 }>
@@ -279,23 +271,4 @@ class NodeStatus extends Component {
   }
 }
 
-function mapStateToProps (state) {
-  const {
-    blockNumber,
-    blockTimestamp,
-    netChain,
-    netPeers
-  } = state.nodeStatus;
-
-  return {
-    blockNumber,
-    blockTimestamp,
-    netChain,
-    netPeers
-  };
-}
-
-export default connect(
-  mapStateToProps,
-  null
-)(NodeStatus);
+export default NodeStatus;

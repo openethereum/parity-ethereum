@@ -37,7 +37,8 @@ use light::on_demand::{request, OnDemand, HeaderRef, Request as OnDemandRequest,
 use light::request::Field;
 
 use ethsync::LightSync;
-use util::{Address, Mutex, U256};
+use util::{Address, U256};
+use parking_lot::Mutex;
 
 use v1::helpers::{CallRequest as CallRequestHelper, errors, dispatch};
 use v1::types::{BlockNumber, CallRequest, Log};

@@ -21,6 +21,7 @@ extern crate ethcore_util as util;
 extern crate ethcore_network as network;
 extern crate native_contracts;
 extern crate futures;
+extern crate parking_lot;
 #[cfg(test)] extern crate ethcore_io as io;
 #[macro_use] extern crate log;
 
@@ -29,7 +30,8 @@ use std::collections::HashMap;
 use native_contracts::PeerSet as Contract;
 use network::{NodeId, ConnectionFilter, ConnectionDirection};
 use ethcore::client::{BlockChainClient, BlockId, ChainNotify};
-use util::{Mutex, Address, H256, Bytes};
+use util::{Address, H256, Bytes};
+use parking_lot::Mutex;
 use futures::Future;
 
 const MAX_CACHE_SIZE: usize = 4096;

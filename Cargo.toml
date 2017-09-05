@@ -17,6 +17,7 @@ number_prefix = "0.2"
 rpassword = "0.2.1"
 semver = "0.6"
 ansi_term = "0.9"
+parking_lot = "0.4"
 regex = "0.2"
 isatty = "0.1"
 toml = "0.4"
@@ -57,6 +58,7 @@ parity-updater = { path = "updater" }
 parity-whisper = { path = "whisper" }
 path = { path = "util/path" }
 panic_hook = { path = "panic_hook" }
+hash = { path = "util/hash" }
 
 parity-dapps = { path = "dapps", optional = true }
 clippy = { version = "0.0.103", optional = true}

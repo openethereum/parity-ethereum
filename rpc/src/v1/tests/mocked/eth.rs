@@ -22,7 +22,8 @@ use rustc_hex::{FromHex, ToHex};
 use time::get_time;
 use rlp;
 
-use util::{U256, Address, H256, Mutex};
+use util::{U256, Address, H256};
+use parking_lot::Mutex;
 use ethkey::Secret;
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::{TestBlockChainClient, EachBlockWith, Executed, TransactionId};

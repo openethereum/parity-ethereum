@@ -14,7 +14,9 @@ mime = "0.2"
 mime_guess = "1.6.1"
 rand = "0.3"
 rustc-hex = "1.0"
+parking_lot = "0.4"
 fetch = { path = "../util/fetch" }
 ethcore-util = { path = "../util" }
 parity-reactor = { path = "../util/reactor" }
 native-contracts = { path = "../ethcore/native_contracts" }
+hash = { path = "../util/hash" }

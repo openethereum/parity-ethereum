@@ -18,6 +18,7 @@ use std::path::Path;
 use std::cmp;
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
+use hash::{KECCAK_EMPTY_LIST_RLP};
 use ethash::{quick_get_difficulty, slow_get_seedhash, EthashManager};
 use util::*;
 use block::*;
@@ -34,6 +35,7 @@ use evm::Schedule;
 use ethjson;
 use rlp::{self, UntrustedRlp};
 use vm::LastHashes;
+use semantic_version::SemanticVersion;
 
 /// Parity tries to round block.gas_limit to multiple of this constant
 pub const PARITY_GAS_LIMIT_DETERMINANT: U256 = U256([37, 0, 0, 0]);
@@ -481,7 +483,7 @@ impl Ethash {
 			panic!("Can't calculate genesis block difficulty");
 		}
 
-		let parent_has_uncles = parent.uncles_hash() != &sha3::SHA3_EMPTY_LIST_RLP;
+		let parent_has_uncles = parent.uncles_hash() != &KECCAK_EMPTY_LIST_RLP;
 
 		let min_difficulty = self.ethash_params.minimum_difficulty;
 

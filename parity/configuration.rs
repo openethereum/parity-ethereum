@@ -22,9 +22,10 @@ use std::collections::BTreeMap;
 use std::cmp::max;
 use std::str::FromStr;
 use cli::{Args, ArgsError};
-use util::{Hashable, H256, U256, Bytes, version_data, Address};
+use hash::keccak;
+use util::{H256, U256, Bytes, version_data, Address};
 use util::journaldb::Algorithm;
-use util::Colour;
+use ansi_term::Colour;
 use ethsync::{NetworkConfiguration, is_valid_node_url};
 use ethcore::ethstore::ethkey::{Secret, Public};
 use ethcore::client::{VMType};
@@ -506,7 +507,7 @@ impl Configuration {
 				io_path: self.directories().db,
 				listen_addr: self.stratum_interface(),
 				port: self.args.flag_ports_shift + self.args.flag_stratum_port,
-				secret: self.args.flag_stratum_secret.as_ref().map(|s| s.parse::<H256>().unwrap_or_else(|_| s.sha3())),
+				secret: self.args.flag_stratum_secret.as_ref().map(|s| s.parse::<H256>().unwrap_or_else(|_| keccak(s))),
 			}))
 		} else { Ok(None) }
 	}
@@ -729,7 +730,7 @@ impl Configuration {
 		ret.listen_address = Some(format!("{}", listen));
 		ret.public_address = public.map(|p| format!("{}", p));
 		ret.use_secret = match self.args.flag_node_key.as_ref()
-			.map(|s| s.parse::<Secret>().or_else(|_| Secret::from_unsafe_slice(&s.sha3())).map_err(|e| format!("Invalid key: {:?}", e))
+			.map(|s| s.parse::<Secret>().or_else(|_| Secret::from_unsafe_slice(&keccak(s))).map_err(|e| format!("Invalid key: {:?}", e))
 			) {
 			None => None,
 			Some(Ok(key)) => Some(key),

@@ -18,8 +18,8 @@
 
 use std::ops::Range;
 use bloomchain::{Filter as BloomFilter, Bloom, Number};
+use hash::keccak;
 use util::Address;
-use util::sha3::Hashable;
 use bloomable::Bloomable;
 use basic_types::LogBloom;
 use trace::flat::FlatTrace;
@@ -55,7 +55,7 @@ impl AddressesFilter {
 		match self.list.is_empty() {
 			true => vec![LogBloom::default()],
 			false => self.list.iter()
-				.map(|address| LogBloom::from_bloomed(&address.sha3()))
+				.map(|address| LogBloom::from_bloomed(&keccak(address)))
 				.collect(),
 		}
 	}
@@ -67,7 +67,7 @@ impl AddressesFilter {
 			false => blooms
 				.into_iter()
 				.flat_map(|bloom| self.list.iter()
-					.map(|address| bloom.with_bloomed(&address.sha3()))
+					.map(|address| bloom.with_bloomed(&keccak(address)))
 					.collect::<Vec<_>>())
 				.collect(),
 		}
@@ -139,7 +139,7 @@ impl Filter {
 #[cfg(test)]
 mod tests {
 	use util::Address;
-	use util::sha3::Hashable;
+	use hash::keccak;
 	use bloomable::Bloomable;
 	use trace::trace::{Action, Call, Res, Create, CreateResult, Suicide, Reward};
 	use trace::flat::FlatTrace;
@@ -169,9 +169,9 @@ mod tests {
 		let blooms = filter.bloom_possibilities();
 		assert_eq!(blooms.len(), 1);
 
-		assert!(blooms[0].contains_bloomed(&Address::from(1).sha3()));
-		assert!(blooms[0].contains_bloomed(&Address::from(2).sha3()));
-		assert!(!blooms[0].contains_bloomed(&Address::from(3).sha3()));
+		assert!(blooms[0].contains_bloomed(&keccak(Address::from(1))));
+		assert!(blooms[0].contains_bloomed(&keccak(Address::from(2))));
+		assert!(!blooms[0].contains_bloomed(&keccak(Address::from(3))));
 	}
 
 	#[test]
@@ -185,8 +185,8 @@ mod tests {
 		let blooms = filter.bloom_possibilities();
 		assert_eq!(blooms.len(), 1);
 
-		assert!(blooms[0].contains_bloomed(&Address::from(1).sha3()));
-		assert!(!blooms[0].contains_bloomed(&Address::from(2).sha3()));
+		assert!(blooms[0].contains_bloomed(&keccak(Address::from(1))));
+		assert!(!blooms[0].contains_bloomed(&keccak(Address::from(2))));
 	}
 
 	#[test]
@@ -200,8 +200,8 @@ mod tests {
 		let blooms = filter.bloom_possibilities();
 		assert_eq!(blooms.len(), 1);
 
-		assert!(blooms[0].contains_bloomed(&Address::from(1).sha3()));
-		assert!(!blooms[0].contains_bloomed(&Address::from(2).sha3()));
+		assert!(blooms[0].contains_bloomed(&keccak(Address::from(1))));
+		assert!(!blooms[0].contains_bloomed(&keccak(Address::from(2))));
 	}
 
 	#[test]
@@ -215,25 +215,25 @@ mod tests {
 		let blooms = filter.bloom_possibilities();
 		assert_eq!(blooms.len(), 4);
 
-		assert!(blooms[0].contains_bloomed(&Address::from(1).sha3()));
-		assert!(blooms[0].contains_bloomed(&Address::from(2).sha3()));
-		assert!(!blooms[0].contains_bloomed(&Address::from(3).sha3()));
-		assert!(!blooms[0].contains_bloomed(&Address::from(4).sha3()));
+		assert!(blooms[0].contains_bloomed(&keccak(Address::from(1))));
+		assert!(blooms[0].contains_bloomed(&keccak(Address::from(2))));
+		assert!(!blooms[0].contains_bloomed(&keccak(Address::from(3))));
+		assert!(!blooms[0].contains_bloomed(&keccak(Address::from(4))));
 
-		assert!(blooms[1].contains_bloomed(&Address::from(1).sha3()));
-		assert!(blooms[1].contains_bloomed(&Address::from(4).sha3()));
-		assert!(!blooms[1].contains_bloomed(&Address::from(2).sha3()));
-		assert!(!blooms[1].contains_bloomed(&Address::from(3).sha3()));
+		assert!(blooms[1].contains_bloomed(&keccak(Address::from(1))));
+		assert!(blooms[1].contains_bloomed(&keccak(Address::from(4))));
+		assert!(!blooms[1].contains_bloomed(&keccak(Address::from(2))));
+		assert!(!blooms[1].contains_bloomed(&keccak(Address::from(3))));
 
-		assert!(blooms[2].contains_bloomed(&Address::from(2).sha3()));
-		assert!(blooms[2].contains_bloomed(&Address::from(3).sha3()));
-		assert!(!blooms[2].contains_bloomed(&Address::from(1).sha3()));
-		assert!(!blooms[2].contains_bloomed(&Address::from(4).sha3()));
+		assert!(blooms[2].contains_bloomed(&keccak(Address::from(2))));
+		assert!(blooms[2].contains_bloomed(&keccak(Address::from(3))));
+		assert!(!blooms[2].contains_bloomed(&keccak(Address::from(1))));
+		assert!(!blooms[2].contains_bloomed(&keccak(Address::from(4))));
 
-		assert!(blooms[3].contains_bloomed(&Address::from(3).sha3()));
-		assert!(blooms[3].contains_bloomed(&Address::from(4).sha3()));
-		assert!(!blooms[3].contains_bloomed(&Address::from(1).sha3()));
-		assert!(!blooms[3].contains_bloomed(&Address::from(2).sha3()));
+		assert!(blooms[3].contains_bloomed(&keccak(Address::from(3))));
+		assert!(blooms[3].contains_bloomed(&keccak(Address::from(4))));
+		assert!(!blooms[3].contains_bloomed(&keccak(Address::from(1))));
+		assert!(!blooms[3].contains_bloomed(&keccak(Address::from(2))));
 	}
 
 	#[test]

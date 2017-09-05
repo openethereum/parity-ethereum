@@ -56,7 +56,7 @@ pub fn request(server: Server<ws::Server>, request: &str) -> http_client::Respon
 #[cfg(test)]
 mod testing {
 	use std::time;
-	use util::Hashable;
+	use hash::keccak;
 	use devtools::http_client;
 	use super::{serve, request};
 
@@ -125,7 +125,7 @@ mod testing {
 				{{}}
 			",
 			port,
-			format!("{}:{}", code, timestamp).sha3(),
+			keccak(format!("{}:{}", code, timestamp)),
 			timestamp,
 			)
 		);
@@ -155,7 +155,7 @@ mod testing {
 				{{}}
 			",
 			port,
-			format!("{}:{}", code, timestamp).sha3(),
+			keccak(format!("{}:{}", code, timestamp)),
 			timestamp,
 			)
 		);
@@ -171,7 +171,7 @@ mod testing {
 				{{}}
 			",
 			port,
-			format!("{}:{}", code, timestamp).sha3(),
+			keccak(format!("{}:{}", code, timestamp)),
 			timestamp,
 			)
 		);

@@ -27,7 +27,7 @@ use ethcore::executed::{Executed, ExecutionError};
 use futures::{Async, Poll, Future};
 use futures::sync::oneshot::{self, Sender, Receiver, Canceled};
 use network::PeerId;
-use util::{RwLock, Mutex};
+use parking_lot::{RwLock, Mutex};
 
 use net::{
 	self, Handler, PeerStatus, Status, Capabilities,
@@ -194,6 +194,8 @@ fn guess_capabilities(requests: &[CheckedRequest]) -> Capabilities {
 			CheckedRequest::HeaderProof(_, _) =>
 				caps.serve_headers = true,
 			CheckedRequest::HeaderByHash(_, _) =>
+				caps.serve_headers = true,
+			CheckedRequest::Signal(_, _) =>
 				caps.serve_headers = true,
 			CheckedRequest::Body(ref req, _) => if let Ok(ref hdr) = req.0.as_ref() {
 				update_since(&mut caps.serve_chain_since, hdr.number());
