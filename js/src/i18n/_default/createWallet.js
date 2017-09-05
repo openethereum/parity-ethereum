@@ -18,14 +18,9 @@ export default {
   button: {
     add: `Add`,
     cancel: `Cancel`,
-    close: `Close`,
     create: `Create`,
     done: `Done`,
-    next: `Next`,
-    sending: `Sending...`
-  },
-  deployment: {
-    message: `The deployment is currently in progress`
+    next: `Next`
   },
   details: {
     address: {
@@ -73,21 +68,7 @@ export default {
     numOwners: `{numOwners} owners are required to confirm a transaction.`,
     owners: `The following are wallet owners`
   },
-  rejected: {
-    message: `The deployment has been rejected`,
-    state: `The wallet will not be created. You can safely close this window.`,
-    title: `rejected`
-  },
-  states: {
-    completed: `The contract deployment has been completed`,
-    confirmationNeeded: `The contract deployment needs confirmations from other owners of the Wallet`,
-    preparing: `Preparing transaction for network transmission`,
-    validatingCode: `Validating the deployed contract code`,
-    waitingConfirm: `Waiting for confirmation of the transaction in the Parity Secure Signer`,
-    waitingReceipt: `Waiting for the contract deployment transaction receipt`
-  },
   steps: {
-    deployment: `wallet deployment`,
     details: `wallet details`,
     info: `wallet informaton`,
     type: `wallet type`

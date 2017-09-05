@@ -25,7 +25,7 @@ use jsonrpc_core::Error;
 use jsonrpc_macros::Trailing;
 
 use light::cache::Cache as LightDataCache;
-use light::client::LightChainClient;
+use light::client::{Client as LightClient, LightChainClient};
 use light::{cht, TransactionQueue};
 use light::on_demand::{request, OnDemand};
 
@@ -63,9 +63,9 @@ use util::Address;
 const NO_INVALID_BACK_REFS: &'static str = "Fails only on invalid back-references; back-references here known to be valid; qed";
 
 /// Light client `ETH` (and filter) RPC.
-pub struct EthClient<T> {
+pub struct EthClient {
 	sync: Arc<LightSync>,
-	client: Arc<T>,
+	client: Arc<LightClient>,
 	on_demand: Arc<OnDemand>,
 	transaction_queue: Arc<RwLock<TransactionQueue>>,
 	accounts: Arc<AccountProvider>,
@@ -73,7 +73,7 @@ pub struct EthClient<T> {
 	polls: Mutex<PollManager<PollFilter>>,
 }
 
-impl<T> Clone for EthClient<T> {
+impl Clone for EthClient {
 	fn clone(&self) -> Self {
 		// each instance should have its own poll manager.
 		EthClient {
@@ -89,12 +89,12 @@ impl<T> Clone for EthClient<T> {
 }
 
 
-impl<T: LightChainClient + 'static> EthClient<T> {
+impl EthClient {
 	/// Create a new `EthClient` with a handle to the light sync instance, client,
 	/// and on-demand request service, which is assumed to be attached as a handler.
 	pub fn new(
 		sync: Arc<LightSync>,
-		client: Arc<T>,
+		client: Arc<LightClient>,
 		on_demand: Arc<OnDemand>,
 		transaction_queue: Arc<RwLock<TransactionQueue>>,
 		accounts: Arc<AccountProvider>,
@@ -209,7 +209,7 @@ impl<T: LightChainClient + 'static> EthClient<T> {
 	}
 }
 
-impl<T: LightChainClient + 'static> Eth for EthClient<T> {
+impl Eth for EthClient {
 	type Metadata = Metadata;
 
 	fn protocol_version(&self) -> Result<String, Error> {
@@ -466,7 +466,7 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 }
 
 // This trait implementation triggers a blanked impl of `EthFilter`.
-impl<T: LightChainClient + 'static> Filterable for EthClient<T> {
+impl Filterable for EthClient {
 	fn best_block_number(&self) -> u64 { self.client.chain_info().best_block_number }
 
 	fn block_hash(&self, id: BlockId) -> Option<RpcH256> {
