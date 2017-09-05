@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { uniq, isEqual } from 'lodash';
+import { uniq } from 'lodash';
 import { push } from 'react-router-redux';
 
 import { notifyTransaction } from '~/util/notifications';
@@ -26,7 +26,10 @@ const TRANSFER_SIGNATURE = sha3('Transfer(address,address,uint256)');
 
 const log = getLogger(LOG_KEYS.Balances);
 
-let tokensFilter = {};
+let tokensFilter = {
+  tokenAddresses: [],
+  addresses: []
+};
 
 function _setBalances (balances) {
   return {
@@ -113,37 +116,82 @@ export function fetchBalances (addresses, skipNotifications = false) {
   };
 }
 
-export function updateTokensFilter (_addresses, _tokens, options = {}) {
+export function updateTokensFilter (options = {}) {
   return (dispatch, getState) => {
     const { api, personal, tokens } = getState();
     const { visibleAccounts, accounts } = personal;
 
-    const addressesToFetch = uniq(visibleAccounts.concat(Object.keys(accounts)));
-    const addresses = uniq(_addresses || addressesToFetch || []).sort();
+    const addresses = uniq(visibleAccounts.concat(Object.keys(accounts))).sort();
+    const tokensToUpdate = Object.values(tokens);
+    const tokensAddressMap = Object.values(tokens).reduce((map, token) => {
+      map[token.address] = token;
+      return map;
+    }, {});
 
-    const tokensToUpdate = _tokens || Object.values(tokens);
     const tokenAddresses = tokensToUpdate
       .map((t) => t.address)
       .filter((address) => address)
       .sort();
 
+    // Token Addresses that are not in the current filter
+    const newTokenAddresses = tokenAddresses
+      .filter((tokenAddress) => !tokensFilter.tokenAddresses.includes(tokenAddress));
+
+    // Addresses that are not in the current filter (omit those
+    // that the filter includes)
+    const newAddresses = addresses
+      .filter((address) => !tokensFilter.addresses.includes(address));
+
     if (tokensFilter.filterFromId || tokensFilter.filterToId) {
-      // Has the tokens addresses changed (eg. a network change)
-      const sameTokens = isEqual(tokenAddresses, tokensFilter.tokenAddresses);
-
-      // Addresses that are not in the current filter (omit those
-      // that the filter includes)
-      const newAddresses = addresses.filter((address) => !tokensFilter.addresses.includes(address));
-
       // If no new addresses and the same tokens, don't change the filter
-      if (sameTokens && newAddresses.length === 0) {
+      if (newTokenAddresses.length === 0 && newAddresses.length === 0) {
         log.debug('no need to update token filter', addresses, tokenAddresses, tokensFilter);
-        return queryTokensFilter(tokensFilter)(dispatch, getState);
+        return;
       }
     }
 
-    log.debug('updating the token filter', addresses, tokenAddresses);
     const promises = [];
+    const updates = {};
+
+    // Fetch all tokens for each new address
+    newAddresses.forEach((address) => {
+      updates[address] = tokensToUpdate.map((token) => token.id);
+    });
+
+    // Fetch new token balances for each address
+    newTokenAddresses.forEach((tokenAddress) => {
+      const token = tokensAddressMap[tokenAddress];
+
+      addresses.forEach((address) => {
+        updates[address] = uniq((updates[address] || []).concat(token.id));
+      });
+    });
+
+    log.debug('updating the token filter', addresses, tokenAddresses);
+
+    const topicsFrom = [ TRANSFER_SIGNATURE, addresses, null ];
+    const topicsTo = [ TRANSFER_SIGNATURE, null, addresses ];
+
+    const filterOptions = {
+      fromBlock: 'latest',
+      toBlock: 'latest',
+      address: tokenAddresses
+    };
+
+    const optionsFrom = {
+      ...filterOptions,
+      topics: topicsFrom
+    };
+
+    const optionsTo = {
+      ...filterOptions,
+      topics: topicsTo
+    };
+
+    promises.push(
+      api.eth.newFilter(optionsFrom),
+      api.eth.newFilter(optionsTo)
+    );
 
     if (tokensFilter.filterFromId) {
       promises.push(api.eth.uninstallFilter(tokensFilter.filterFromId));
@@ -153,54 +201,16 @@ export function updateTokensFilter (_addresses, _tokens, options = {}) {
       promises.push(api.eth.uninstallFilter(tokensFilter.filterToId));
     }
 
-    Promise
-      .all([
-        api.eth.blockNumber()
-      ].concat(promises))
-      .then(([ block ]) => {
-        const topicsFrom = [ TRANSFER_SIGNATURE, addresses, null ];
-        const topicsTo = [ TRANSFER_SIGNATURE, null, addresses ];
-
-        const filterOptions = {
-          fromBlock: block,
-          toBlock: 'latest',
-          address: tokenAddresses
-        };
-
-        const optionsFrom = {
-          ...filterOptions,
-          topics: topicsFrom
-        };
-
-        const optionsTo = {
-          ...filterOptions,
-          topics: topicsTo
-        };
-
-        const newFilters = Promise.all([
-          api.eth.newFilter(optionsFrom),
-          api.eth.newFilter(optionsTo)
-        ]);
-
-        return newFilters;
-      })
+    return Promise.all(promises)
       .then(([ filterFromId, filterToId ]) => {
         const nextTokensFilter = {
           filterFromId, filterToId,
           addresses, tokenAddresses
         };
 
-        const { skipNotifications } = options;
-
         tokensFilter = nextTokensFilter;
-
-        const updates = addresses.reduce((updates, who) => {
-          updates[who] = tokensToUpdate.map((t) => t.id);
-          return updates;
-        }, {});
-
-        fetchTokensBalances(updates, skipNotifications)(dispatch, getState);
       })
+      .then(() => fetchTokensBalances(updates)(dispatch, getState))
       .catch((error) => {
         console.warn('balances::updateTokensFilter', error);
       });
@@ -286,15 +296,23 @@ export function queryTokensFilter () {
 
 export function fetchTokensBalances (updates, skipNotifications = false) {
   return (dispatch, getState) => {
-    if (!updates) {
-      return Promise.resolve();
-    }
-
-    const { api, tokens } = getState();
+    const { api, personal, tokens } = getState();
     const allTokens = Object.values(tokens);
+
+    if (!updates) {
+      const { visibleAccounts, accounts } = personal;
+      const addressesToFetch = uniq(visibleAccounts.concat(Object.keys(accounts)));
+
+      updates = addressesToFetch.reduce((updates, who) => {
+        updates[who] = allTokens.map((token) => token.id);
+
+        return updates;
+      }, {});
+    }
 
     return fetchAccountsBalances(api, allTokens, updates)
       .then((balances) => {
+        log.debug('got tokens balances', balances, updates);
         dispatch(setBalances(balances, skipNotifications));
       })
       .catch((error) => {

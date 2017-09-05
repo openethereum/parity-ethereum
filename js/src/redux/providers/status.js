@@ -19,7 +19,6 @@ import { isEqual } from 'lodash';
 import { LOG_KEYS, getLogger } from '~/config';
 import UpgradeStore from '~/modals/UpgradeParity/store';
 
-import BalancesProvider from './balances';
 import { statusBlockNumber, statusCollection } from './statusActions';
 
 const log = getLogger(LOG_KEYS.Signer);
@@ -42,19 +41,12 @@ export default class Status {
     this._store = store;
     this._upgradeStore = UpgradeStore.get(api);
 
-    // On connecting, stop all subscriptions
-    api.on('connecting', this.stop, this);
-
-    // On connected, start the subscriptions
-    api.on('connected', this.start, this);
-
-    // On disconnected, stop all subscriptions
-    api.on('disconnected', this.stop, this);
-
     this.updateApiStatus();
   }
 
-  static instantiate (store, api) {
+  static init (store) {
+    const { api } = store.getState();
+
     if (!instance) {
       instance = new Status(store, api);
     }
@@ -62,61 +54,50 @@ export default class Status {
     return instance;
   }
 
-  static get () {
-    if (!instance) {
+  static get (store) {
+    if (!instance && store) {
+      return Status.init(store);
+    } else if (!instance) {
       throw new Error('The Status Provider has not been initialized yet');
     }
 
     return instance;
   }
 
-  start () {
+  static start () {
+    const self = instance;
+
     log.debug('status::start');
 
-    Promise
-      .all([
-        this._subscribeBlockNumber(),
-        this._subscribeNetPeers(),
-        this._subscribeEthSyncing(),
-        this._subscribeNodeHealth(),
-        this._pollLongStatus(),
-        this._pollApiStatus()
-      ])
-      .then(() => {
-        return BalancesProvider.start();
-      });
+    const promises = [
+      self._subscribeBlockNumber(),
+      self._subscribeNetPeers(),
+      self._subscribeEthSyncing(),
+      self._subscribeNodeHealth(),
+      self._pollLongStatus(),
+      self._pollApiStatus()
+    ];
+
+    return Status.stop()
+      .then(() => Promise.all(promises));
   }
 
-  stop () {
-    log.debug('status::stop');
-
-    const promises = [];
-
-    if (this._blockNumberSubscriptionId) {
-      const promise = this._api
-        .unsubscribe(this._blockNumberSubscriptionId)
-        .then(() => {
-          this._blockNumberSubscriptionId = null;
-        });
-
-      promises.push(promise);
+  static stop () {
+    if (!instance) {
+      return Promise.resolve();
     }
 
-    Object.values(this._timeoutIds).forEach((timeoutId) => {
-      clearTimeout(timeoutId);
-    });
+    const self = instance;
 
-    const promise = BalancesProvider.stop();
+    log.debug('status::stop');
 
-    promises.push(promise);
+    self._clearTimeouts();
 
-    return Promise.all(promises)
-      .then(() => true)
+    return self._unsubscribeBlockNumber()
       .catch((error) => {
         console.error('status::stop', error);
-        return true;
       })
-      .then(() => this.updateApiStatus());
+      .then(() => self.updateApiStatus());
   }
 
   getApiStatus = () => {
@@ -141,36 +122,13 @@ export default class Status {
     }
   }
 
-  _subscribeEthSyncing = () => {
-    return this._api.pubsub
-      .eth
-      .syncing((error, syncing) => {
-        if (error) {
-          return;
-        }
-
-        this._store.dispatch(statusCollection({ syncing }));
-      });
+  _clearTimeouts () {
+    Object.values(this._timeoutIds).forEach((timeoutId) => {
+      clearTimeout(timeoutId);
+    });
   }
 
-  _subscribeNodeHealth = () => {
-    return this._api.pubsub
-      .parity
-      .nodeHealth((error, health) => {
-        if (error || !health) {
-          return;
-        }
-
-        health.overall = this._overallStatus(health);
-        health.peers = health.peers || {};
-        health.sync = health.sync || {};
-        health.time = health.time || {};
-
-        this._store.dispatch(statusCollection({ health }));
-      });
-  }
-
-  _overallStatus = (health) => {
+  _overallStatus (health) {
     const allWithTime = [health.peers, health.sync, health.time].filter(x => x);
     const all = [health.peers, health.sync].filter(x => x);
     const statuses = all.map(x => x.status);
@@ -189,17 +147,6 @@ export default class Status {
       status: STATUS_BAD,
       message: ['Unable to fetch node health.']
     };
-  }
-
-  _subscribeNetPeers = () => {
-    return this._api.pubsub
-      .parity
-      .netPeers((error, netPeers) => {
-        if (error || !netPeers) {
-          return;
-        }
-        this._store.dispatch(statusCollection({ netPeers }));
-      });
   }
 
   _subscribeBlockNumber = () => {
@@ -230,6 +177,58 @@ export default class Status {
       .then((blockNumberSubscriptionId) => {
         this._blockNumberSubscriptionId = blockNumberSubscriptionId;
       });
+  }
+
+  _subscribeEthSyncing = () => {
+    return this._api.pubsub
+      .eth
+      .syncing((error, syncing) => {
+        if (error) {
+          return;
+        }
+
+        this._store.dispatch(statusCollection({ syncing }));
+      });
+  }
+
+  _subscribeNetPeers = () => {
+    return this._api.pubsub
+      .parity
+      .netPeers((error, netPeers) => {
+        if (error || !netPeers) {
+          return;
+        }
+        this._store.dispatch(statusCollection({ netPeers }));
+      });
+  }
+
+  _subscribeNodeHealth = () => {
+    return this._api.pubsub
+      .parity
+      .nodeHealth((error, health) => {
+        if (error || !health) {
+          return;
+        }
+
+        health.overall = this._overallStatus(health);
+        health.peers = health.peers || {};
+        health.sync = health.sync || {};
+        health.time = health.time || {};
+
+        this._store.dispatch(statusCollection({ health }));
+      });
+  }
+
+  _unsubscribeBlockNumber () {
+    if (this._blockNumberSubscriptionId) {
+      return this._api
+        .unsubscribe(this._blockNumberSubscriptionId)
+        .then(() => {
+          this._blockNumberSubscriptionId = null;
+        });
+    }
+
+    return Promise.resolve();
   }
 
   _pollApiStatus = () => {

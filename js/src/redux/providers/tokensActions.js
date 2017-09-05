@@ -38,11 +38,11 @@ export function loadTokens (options = {}) {
   return (dispatch, getState) => {
     const { tokenReg } = Contracts.get();
 
-    tokenReg.getInstance()
+    return tokenReg.getInstance()
       .then((tokenRegInstance) => {
         return fetchTokenIds(tokenRegInstance);
       })
-      .then((tokenIndexes) => dispatch(fetchTokens(tokenIndexes, options)))
+      .then((tokenIndexes) => fetchTokens(tokenIndexes, options)(dispatch, getState))
       .catch((error) => {
         console.warn('tokens::loadTokens', error);
       });
@@ -81,14 +81,15 @@ export function fetchTokens (_tokenIndexes, options = {}) {
                   return tokens;
                 }, {});
 
-              log.debug('fetched token', tokens);
-
               dispatch(setTokens(tokens));
-              dispatch(updateTokensFilter(null, null, options));
             });
         });
 
         return promise;
+      })
+      .then(() => {
+        log.debug('fetched token', getState().tokens);
+        dispatch(updateTokensFilter(options));
       })
       .catch((error) => {
         console.warn('tokens::fetchTokens', error);
