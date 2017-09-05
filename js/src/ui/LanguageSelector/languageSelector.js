@@ -45,7 +45,7 @@ export default class LanguageSelector extends Component {
         label={
           <FormattedMessage
             id='settings.parity.languages.label'
-            defaultMessage='UI language'
+            defaultMessage='language'
           />
         }
         value={ this.store.locale }
