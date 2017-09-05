@@ -312,22 +312,34 @@ export function fetchTokensBalances (updates, skipNotifications = false) {
       }, {});
     }
 
-    // Tokens info might not be fetched yet (to not load
-    // tokens we don't care about)
-    const tokenIndexesToFetch = uniq(Object.values(updates).reduce((tokenIds, update) => tokenIds.concat(update), []))
-      .filter((tokenId) => tokens[tokenId] && tokens[tokenId].index && !tokens[tokenId].fetched)
-      .map((tokenId) => tokens[tokenId].index);
-
-    log.debug('token indexes to fetch', tokenIndexesToFetch);
+    let start = Date.now();
 
     return fetchAccountsBalances(api, allTokens, updates)
       .then((balances) => {
-        log.debug('got tokens balances', balances, updates);
+        log.debug('got tokens balances', balances, updates, `(took ${Date.now() - start}ms)`);
 
         let promise = Promise.resolve();
 
+        // Tokens info might not be fetched yet (to not load
+        // tokens we don't care about)
+        const tokenIdsToFetch = Object.values(balances)
+          .reduce((tokenIds, balance) => {
+            const nextTokenIds = Object.keys(balance)
+              .filter((tokenId) => balance[tokenId].gt(0));
+
+            return tokenIds.concat(nextTokenIds);
+          }, []);
+
+        const tokenIndexesToFetch = uniq(tokenIdsToFetch)
+          .filter((tokenId) => tokens[tokenId] && tokens[tokenId].index && !tokens[tokenId].fetched)
+          .map((tokenId) => tokens[tokenId].index);
+
         if (tokenIndexesToFetch.length > 0) {
-          promise = fetchTokens(tokenIndexesToFetch)(dispatch, getState);
+          start = Date.now();
+          promise = fetchTokens(tokenIndexesToFetch)(dispatch, getState)
+            .then(() => {
+              log.debug('token indexes fetched', tokenIndexesToFetch, `(took ${Date.now() - start}ms)`);
+            });
         }
 
         return promise
