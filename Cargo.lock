@@ -959,6 +959,7 @@ dependencies = [
  "heapsize 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "lazy_static 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)",
+ "parking_lot 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlp 0.2.0",
  "rustc-hex 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "vm 0.1.0",
