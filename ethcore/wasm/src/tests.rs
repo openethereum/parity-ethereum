@@ -533,3 +533,12 @@ fn math_div() {
 		(&result[..]).into()
 	);
 }
+
+// This test checks the ability of wasm contract to invoke
+// varios blockchain runtime methods
+#[test]
+fn externs() {
+	let (gas_left, result) = reqrep_test!("externs.wasm", Vec::new());
+
+	assert_eq!(gas_left, U256::from(91420));
+}
