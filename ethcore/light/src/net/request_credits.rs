@@ -91,7 +91,6 @@ pub struct CostTable {
 	code: U256,
 	header_proof: U256,
 	transaction_proof: U256, // cost per gas.
-	epoch_signal: U256,
 }
 
 impl Default for CostTable {
@@ -108,7 +107,6 @@ impl Default for CostTable {
 			code: 20000.into(),
 			header_proof: 15000.into(),
 			transaction_proof: 2.into(),
-			epoch_signal: 10000.into(),
 		}
 	}
 }
@@ -123,7 +121,7 @@ impl Encodable for CostTable {
 			s.append(cost);
 		}
 
-		s.begin_list(11).append(&self.base);
+		s.begin_list(10).append(&self.base);
 		append_cost(s, &self.headers, request::Kind::Headers);
 		append_cost(s, &self.transaction_index, request::Kind::TransactionIndex);
 		append_cost(s, &self.body, request::Kind::Body);
@@ -133,7 +131,6 @@ impl Encodable for CostTable {
 		append_cost(s, &self.code, request::Kind::Code);
 		append_cost(s, &self.header_proof, request::Kind::HeaderProof);
 		append_cost(s, &self.transaction_proof, request::Kind::Execution);
-		append_cost(s, &self.epoch_signal, request::Kind::Signal);
 	}
 }
 
@@ -150,7 +147,6 @@ impl Decodable for CostTable {
 		let mut code = None;
 		let mut header_proof = None;
 		let mut transaction_proof = None;
-		let mut epoch_signal = None;
 
 		for cost_list in rlp.iter().skip(1) {
 			let cost = cost_list.val_at(1)?;
@@ -164,7 +160,6 @@ impl Decodable for CostTable {
 				request::Kind::Code => code = Some(cost),
 				request::Kind::HeaderProof => header_proof = Some(cost),
 				request::Kind::Execution => transaction_proof = Some(cost),
-				request::Kind::Signal => epoch_signal = Some(cost),
 			}
 		}
 
@@ -181,7 +176,6 @@ impl Decodable for CostTable {
 			code: unwrap_cost(code)?,
 			header_proof: unwrap_cost(header_proof)?,
 			transaction_proof: unwrap_cost(transaction_proof)?,
-			epoch_signal: unwrap_cost(epoch_signal)?,
 		})
 	}
 }
@@ -244,7 +238,6 @@ impl FlowParams {
 			code: cost_for_kind(Kind::Code),
 			header_proof: cost_for_kind(Kind::HeaderProof),
 			transaction_proof: cost_for_kind(Kind::Execution),
-			epoch_signal: cost_for_kind(Kind::Signal),
 		};
 
 		FlowParams {
@@ -270,8 +263,7 @@ impl FlowParams {
 				storage: free_cost.clone(),
 				code: free_cost.clone(),
 				header_proof: free_cost.clone(),
-				transaction_proof: free_cost.clone(),
-				epoch_signal: free_cost,
+				transaction_proof: free_cost,
 			}
 		}
 	}
@@ -301,7 +293,6 @@ impl FlowParams {
 			Request::Storage(_) => self.costs.storage,
 			Request::Code(_) => self.costs.code,
 			Request::Execution(ref req) => self.costs.transaction_proof * req.gas,
-			Request::Signal(_) => self.costs.epoch_signal,
 		}
 	}
 
