@@ -211,7 +211,7 @@ mod test {
 		let key4 = KeyPair::from_secret(Secret::from("0000000000000000000000000000000000000000000000000000000000000004")).unwrap();
 
 		let filter = TransactionFilter::from_params(spec.params()).unwrap();
-		filter.register_client(Arc::downgrade(&client) as Weak<BlockChainClient>);
+		filter.register_client(Arc::downgrade(&client) as Weak<_>);
 		let mut basic_tx = Transaction::default();
 		basic_tx.action = Action::Call(Address::from("000000000000000000000000000000000000032"));
 		let create_tx = Transaction::default();
