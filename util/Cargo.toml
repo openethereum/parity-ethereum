@@ -34,6 +34,7 @@ regex = "0.2"
 lru-cache = "0.1.0"
 ethcore-logger = { path = "../logger" }
 triehash = { path = "triehash" }
+error-chain = "0.11.0-rc.2"
 
 [features]
 default = []

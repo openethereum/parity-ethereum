@@ -110,6 +110,9 @@ extern crate ethcore_logger;
 extern crate hash as keccak;
 
 #[macro_use]
+extern crate error_chain;
+
+#[macro_use]
 extern crate log as rlog;
 
 #[macro_use]
@@ -136,7 +139,7 @@ pub use overlaydb::*;
 pub use journaldb::JournalDB;
 pub use trie::{Trie, TrieMut, TrieDB, TrieDBMut, TrieFactory, TrieError, SecTrieDB, SecTrieDBMut};
 pub use kvdb::*;
-pub use error::*;
+pub use error::UtilError;
 pub use bytes::*;
 
 /// 160-bit integer representing account address

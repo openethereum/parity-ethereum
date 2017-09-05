@@ -46,6 +46,7 @@ use bigint::prelude::{U256, U128};
 use bigint::hash::{H256, H520};
 use semantic_version::SemanticVersion;
 use parking_lot::{Mutex, RwLock};
+use unexpected::{Mismatch, OutOfBounds};
 use util::*;
 
 mod finality;

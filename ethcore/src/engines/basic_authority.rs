@@ -23,6 +23,7 @@ use bigint::prelude::U256;
 use bigint::hash::{H256, H520};
 use parking_lot::RwLock;
 use util::*;
+use unexpected::{Mismatch, OutOfBounds};
 use ethkey::{recover, public_to_address, Signature};
 use account_provider::AccountProvider;
 use block::*;

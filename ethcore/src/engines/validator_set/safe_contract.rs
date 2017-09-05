@@ -26,6 +26,7 @@ use bigint::hash::{H160, H256};
 use parking_lot::RwLock;
 use util::*;
 use util::cache::MemoryLruCache;
+use unexpected::Mismatch;
 use rlp::{UntrustedRlp, RlpStream};
 
 use basic_types::LogBloom;

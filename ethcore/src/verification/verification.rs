@@ -27,6 +27,7 @@ use triehash::ordered_trie_root;
 use heapsize::HeapSizeOf;
 use bigint::hash::H256;
 use util::*;
+use unexpected::{Mismatch, OutOfBounds};
 use engines::Engine;
 use error::{BlockError, Error};
 use blockchain::*;
@@ -274,6 +275,7 @@ mod tests {
 	use bigint::prelude::U256;
 	use bigint::hash::{H256, H2048};
 	use triehash::ordered_trie_root;
+	use unexpected::{Mismatch, OutOfBounds};
 	use util::*;
 	use ethkey::{Random, Generator};
 	use header::*;

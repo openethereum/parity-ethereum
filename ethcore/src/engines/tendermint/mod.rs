@@ -34,6 +34,7 @@ use bigint::prelude::{U128, U256};
 use bigint::hash::{H256, H520};
 use parking_lot::RwLock;
 use util::*;
+use unexpected::{OutOfBounds, Mismatch};
 use client::{Client, EngineClient};
 use error::{Error, BlockError};
 use header::{Header, BlockNumber};

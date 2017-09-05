@@ -380,7 +380,7 @@ impl UnverifiedTransaction {
 			self.recover_public()?;
 		}
 		if self.gas < U256::from(self.gas_required(&schedule)) {
-			return Err(TransactionError::InvalidGasLimit(::util::OutOfBounds{min: Some(U256::from(self.gas_required(&schedule))), max: None, found: self.gas}).into())
+			return Err(TransactionError::InvalidGasLimit(::unexpected::OutOfBounds{min: Some(U256::from(self.gas_required(&schedule))), max: None, found: self.gas}).into())
 		}
 		Ok(self)
 	}

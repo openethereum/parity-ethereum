@@ -23,6 +23,7 @@ use ethash::{quick_get_difficulty, slow_get_seedhash, EthashManager};
 use bigint::prelude::U256;
 use bigint::hash::{H256, H64};
 use util::*;
+use unexpected::{OutOfBounds, Mismatch};
 use block::*;
 use builtin::Builtin;
 use vm::EnvInfo;
