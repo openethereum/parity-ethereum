@@ -62,7 +62,7 @@ export function setTokens (nextTokens) {
 
 function loadCachedTokens (tokenRegContract) {
   return (dispatch, getState) => {
-    const { api, images, nodeStatus } = getState();
+    const { nodeStatus } = getState();
 
     const lsKey = TOKENS_CACHE_LS_KEY_PREFIX + nodeStatus.netChain;
     const cached = store.get(lsKey);
