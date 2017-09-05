@@ -18,9 +18,8 @@ import { chunk, uniq } from 'lodash';
 
 import Contracts from '~/contracts';
 import { LOG_KEYS, getLogger } from '~/config';
-import { fetchTokenIds, fetchTokensInfo } from '~/util/tokens';
+import { fetchTokenIds, fetchTokensBasics, fetchTokensInfo } from '~/util/tokens';
 
-import { updateTokensFilter } from './balancesActions';
 import { setAddressImage } from './imagesActions';
 
 const log = getLogger(LOG_KEYS.Balances);
@@ -42,15 +41,51 @@ export function loadTokens (options = {}) {
       .then((tokenRegInstance) => {
         return fetchTokenIds(tokenRegInstance);
       })
-      .then((tokenIndexes) => fetchTokens(tokenIndexes, options)(dispatch, getState))
+      .then((tokenIndexes) => loadTokensBasics(tokenIndexes, options)(dispatch, getState))
       .catch((error) => {
         console.warn('tokens::loadTokens', error);
       });
   };
 }
 
+export function loadTokensBasics (tokenIndexes, options) {
+  const limit = 64;
+  const count = tokenIndexes.length;
+
+  return (dispatch, getState) => {
+    const { api } = getState();
+    const { tokenReg } = Contracts.get();
+    const tokens = {};
+
+    return tokenReg.getContract()
+      .then((tokenRegContract) => {
+        let promise = Promise.resolve();
+
+        for (let start = 0; start + limit <= count; start += limit) {
+          promise = promise
+            .then(() => fetchTokensBasics(api, tokenRegContract, start, limit))
+            .then((results) => {
+              results.forEach((token) => {
+                tokens[token.id] = token;
+              });
+            });
+        }
+
+        return promise;
+      })
+      .then(() => {
+        log.debug('fetched tokens basic info', tokens);
+
+        dispatch(setTokens(tokens));
+      })
+      .catch((error) => {
+        console.warn('tokens::fetchTokens', error);
+      });
+  };
+}
+
 export function fetchTokens (_tokenIndexes, options = {}) {
-  const tokenIndexes = uniq(_tokenIndexes || []);
+  const tokenIndexes = uniq(_tokenIndexes || []).sort();
   const tokenChunks = chunk(tokenIndexes, 64);
 
   return (dispatch, getState) => {
@@ -89,7 +124,6 @@ export function fetchTokens (_tokenIndexes, options = {}) {
       })
       .then(() => {
         log.debug('fetched token', getState().tokens);
-        dispatch(updateTokensFilter(options));
       })
       .catch((error) => {
         console.warn('tokens::fetchTokens', error);

@@ -22,6 +22,8 @@ import { ETH_TOKEN, fetchAccountsBalances } from '~/util/tokens';
 import { LOG_KEYS, getLogger } from '~/config';
 import { sha3 } from '~/api/util/sha3';
 
+import { fetchTokens } from './tokensActions';
+
 const TRANSFER_SIGNATURE = sha3('Transfer(address,address,uint256)');
 
 const log = getLogger(LOG_KEYS.Balances);
@@ -310,10 +312,26 @@ export function fetchTokensBalances (updates, skipNotifications = false) {
       }, {});
     }
 
+    // Tokens info might not be fetched yet (to not load
+    // tokens we don't care about)
+    const tokenIndexesToFetch = uniq(Object.values(updates).reduce((tokenIds, update) => tokenIds.concat(update), []))
+      .filter((tokenId) => tokens[tokenId] && tokens[tokenId].index && !tokens[tokenId].fetched)
+      .map((tokenId) => tokens[tokenId].index);
+
+    log.debug('token indexes to fetch', tokenIndexesToFetch);
+
     return fetchAccountsBalances(api, allTokens, updates)
       .then((balances) => {
         log.debug('got tokens balances', balances, updates);
-        dispatch(setBalances(balances, skipNotifications));
+
+        let promise = Promise.resolve();
+
+        if (tokenIndexesToFetch.length > 0) {
+          promise = fetchTokens(tokenIndexesToFetch)(dispatch, getState);
+        }
+
+        return promise
+          .then(() => dispatch(setBalances(balances, skipNotifications)));
       })
       .catch((error) => {
         console.warn('balances::fetchTokensBalances', error);

@@ -20,7 +20,10 @@ import BigNumber from 'bignumber.js';
 import { hashToImageUrl } from '~/redux/util';
 import { sha3 } from '~/api/util/sha3';
 import imagesEthereum from '~/../assets/images/contracts/ethereum-black-64x64.png';
-import { tokensBalances as tokensBalancesBytecode } from './bytecodes';
+import {
+  tokenAddresses as tokenAddressesBytcode,
+  tokensBalances as tokensBalancesBytecode
+} from './bytecodes';
 
 export const ETH_TOKEN = {
   address: '',
@@ -42,6 +45,32 @@ export function fetchTokenIds (tokenregInstance) {
     });
 }
 
+export function fetchTokensBasics (api, tokenReg, start = 0, limit = 100) {
+  const tokenAddressesCallData = encode(
+    api,
+    [ 'address', 'uint', 'uint' ],
+    [ tokenReg.address, start, limit ]
+  );
+
+  return api.eth
+    .call({ data: tokenAddressesBytcode + tokenAddressesCallData })
+    .then((result) => {
+      const tokenAddresses = decodeArray(api, 'address[]', result);
+
+      return tokenAddresses.map((tokenAddress, index) => {
+        const tokenIndex = start + index;
+
+        return {
+          address: tokenAddress,
+          id: sha3(tokenAddress + tokenIndex).slice(0, 10),
+          index: tokenIndex,
+
+          fetched: false
+        };
+      });
+    });
+}
+
 export function fetchTokensInfo (api, tokenReg, tokenIndexes) {
   const requests = tokenIndexes.map((tokenIndex) => {
     const tokenCalldata = tokenReg.getCallData(tokenReg.instance.token, {}, [tokenIndex]);
@@ -53,7 +82,9 @@ export function fetchTokensInfo (api, tokenReg, tokenIndexes) {
     ];
   });
 
-  return api.parity.call(flatten(requests))
+  const calls = flatten(requests).map((req) => api.eth.call(req));
+
+  return Promise.all(calls)
     .then((results) => {
       return tokenIndexes.map((tokenIndex, index) => {
         const [ rawTokenData, rawImage ] = results.slice(index * 2, index * 2 + 2);
@@ -67,13 +98,16 @@ export function fetchTokensInfo (api, tokenReg, tokenIndexes) {
         const [ address, tag, format, name ] = tokenData;
 
         const token = {
-          format: format.toString(),
-          index: tokenIndex,
-          image: hashToImageUrl(image),
-          id: sha3(address + tokenIndex).slice(0, 10),
           address,
+          id: sha3(address + tokenIndex).slice(0, 10),
+          index: tokenIndex,
+
+          format: format.toString(),
+          image: hashToImageUrl(image),
           name,
-          tag
+          tag,
+
+          fetched: true
         };
 
         return token;

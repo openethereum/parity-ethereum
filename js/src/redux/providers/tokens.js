@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { updateTokensFilter } from './balancesActions';
 import { loadTokens, fetchTokens } from './tokensActions';
 import { padRight } from '~/api/util/format';
 
@@ -111,15 +112,16 @@ export default class Tokens {
   }
 
   loadTokens (options = {}) {
+    const { dispatch, getState } = this._store;
+
     return this
       .getTokenRegistry()
       .then((tokenreg) => {
         this._tokenreg = tokenreg;
 
-        const { dispatch, getState } = this._store;
-
         return loadTokens(options)(dispatch, getState);
       })
+      .then(() => updateTokensFilter()(dispatch, getState))
       .then(() => this.attachToTokensEvents(this._tokenreg))
       .catch((error) => {
         console.warn('balances::loadTokens', error);
@@ -150,8 +152,10 @@ export default class Tokens {
   }
 
   _handleTokensLogs (logs) {
+    const { dispatch, getState } = this._store;
     const tokenIds = logs.map((log) => log.params.id.value.toNumber());
 
-    this._store.dispatch(fetchTokens(tokenIds));
+    return fetchTokens(tokenIds)(dispatch, getState)
+      .then(() => updateTokensFilter()(dispatch, getState));
   }
 }
