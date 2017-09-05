@@ -27,7 +27,6 @@ use hyper::Url;
 use bigint::prelude::U256;
 use bigint::hash::H256;
 use parking_lot::Mutex;
-use util::*;
 use ethereum::ethash::Ethash;
 
 /// Trait for notifying about new mining work
