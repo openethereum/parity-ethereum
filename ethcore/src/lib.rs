@@ -173,7 +173,6 @@ mod executive;
 mod externalities;
 mod blockchain;
 mod factory;
-mod tx_filter;
 
 #[cfg(test)]
 mod tests;
