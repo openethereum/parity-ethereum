@@ -16,7 +16,6 @@
 
 //! Wasm bound-checked ptr
 
-use parity_wasm::interpreter;
 use super::runtime::{InterpreterMemoryInstance, InterpreterError, UserTrap};
 
 /// Bound-checked wrapper for webassembly memory
@@ -35,7 +34,7 @@ impl From<u32> for WasmPtr {
 }
 
 impl From<Error> for InterpreterError {
-	fn from(e: Error) -> Self {
+	fn from(_e: Error) -> Self {
 		UserTrap::MemoryAccessViolation.into()
 	}
 }

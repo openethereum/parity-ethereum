@@ -18,8 +18,6 @@
 
 use byteorder::{LittleEndian, ByteOrder};
 
-use parity_wasm::interpreter;
-
 use super::ptr::WasmPtr;
 use super::runtime::{InterpreterError, InterpreterMemoryInstance};
 

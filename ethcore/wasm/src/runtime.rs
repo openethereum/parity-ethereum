@@ -55,25 +55,27 @@ pub enum UserTrap {
 	BadUtf8,
 	/// Other error in native code
 	Other,
+	/// Panic with message
+	Panic(String),
 }
 
 impl ::std::fmt::Display for UserTrap {
 	fn fmt(&self, f: &mut ::std::fmt::Formatter) -> Result<(), ::std::fmt::Error> {
 		match *self {
-			UserTrap::StorageReadError => { write!(f, "Storage read error"); }
-			UserTrap::StorageUpdateError => { write!(f, "Storage update error"); }
-			UserTrap::MemoryAccessViolation => { write!(f, "Memory access violation"); }
-			UserTrap::SuicideAbort => { write!(f, "Attempt to suicide resulted in an error"); }
-			UserTrap::InvalidGasState => { write!(f, "Invalid gas state"); }
-			UserTrap::BalanceQueryError => { write!(f, "Balance query resulted in an error"); }
-			UserTrap::Suicide => { write!(f, "Suicide result"); }
-			UserTrap::Unknown => { write!(f, "Unknown runtime function invoked"); }
-			UserTrap::AllocationFailed => { write!(f, "Memory allocation failed (OOM)"); }
-			UserTrap::BadUtf8 => { write!(f, "String encoding is bad utf-8 sequence"); }
-			UserTrap::GasLimit => { write!(f, "Invocation resulted in gas limit violated"); }
-			UserTrap::Other => { write!(f, "Other unspecified error"); }
+			UserTrap::StorageReadError => write!(f, "Storage read error"),
+			UserTrap::StorageUpdateError => write!(f, "Storage update error"),
+			UserTrap::MemoryAccessViolation => write!(f, "Memory access violation"),
+			UserTrap::SuicideAbort => write!(f, "Attempt to suicide resulted in an error"),
+			UserTrap::InvalidGasState => write!(f, "Invalid gas state"),
+			UserTrap::BalanceQueryError => write!(f, "Balance query resulted in an error"),
+			UserTrap::Suicide => write!(f, "Suicide result"),
+			UserTrap::Unknown => write!(f, "Unknown runtime function invoked"),
+			UserTrap::AllocationFailed => write!(f, "Memory allocation failed (OOM)"),
+			UserTrap::BadUtf8 => write!(f, "String encoding is bad utf-8 sequence"),
+			UserTrap::GasLimit => write!(f, "Invocation resulted in gas limit violated"),
+			UserTrap::Other => write!(f, "Other unspecified error"),
+			UserTrap::Panic(ref msg) => write!(f, "Panic: {}", msg),
 		}
-		Ok(())
 	}
 }
 
@@ -176,6 +178,7 @@ impl<'a, 'b> Runtime<'a, 'b> {
 
 		self.ext.suicide(&refund_address).map_err(|_| UserTrap::SuicideAbort)?;
 
+		// We send trap to interpreter so it should abort further execution
 		Err(UserTrap::Suicide.into())
 	}
 
@@ -501,6 +504,20 @@ impl<'a, 'b> Runtime<'a, 'b> {
 		self.return_i64(result)
 	}
 
+	fn user_panic(&mut self, context: InterpreterCallerContext)
+		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
+	{
+		let msg_len = context.value_stack.pop_as::<i32>()? as u32;
+		let msg_ptr = context.value_stack.pop_as::<i32>()? as u32;
+
+		let msg = String::from_utf8(self.memory.get(msg_ptr, msg_len as usize)?)
+			.map_err(|_| UserTrap::BadUtf8)?;
+
+		trace!(target: "wasm", "Contract custom panic message: {}", msg);
+
+		Err(UserTrap::Panic(msg).into())
+	}
+
 	fn return_i64(&mut self, val: i64) -> Result<Option<interpreter::RuntimeValue>, InterpreterError> {
 		let uval = val as u64;
 		let hi = (uval >> 32) as i32;
@@ -579,6 +596,9 @@ impl<'a, 'b> interpreter::UserFunctionExecutor<UserTrap> for Runtime<'a, 'b> {
 			},
 			"_llvm_bswap_i64" => {
 				self.bitswap_i64(context)
+			},
+			"_panic" => {
+				self.user_panic(context)
 			},
 			_ => {
 				trace!(target: "wasm", "Trapped due to unhandled function: '{}'", name);

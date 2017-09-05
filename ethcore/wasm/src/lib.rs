@@ -61,11 +61,7 @@ impl From<Error> for vm::Error {
 }
 
 impl From<UserTrap> for vm::Error {
-	fn from(e: UserTrap) -> Self {
-		let int_err: InterpreterError = e.into();
-		let e: Error = int_err.into();
-		vm::Error::Wasm(format!("Wasm runtime error: {:?}", e.0))
-	}
+	fn from(e: UserTrap) -> Self { e.into() }
 }
 
 /// Wasm interpreter instance
@@ -144,11 +140,14 @@ impl vm::Vm for WasmInterpreter {
 					vm::Error::from(Error(err))
 				})?;
 
-			module_instance.execute_export("_call", execution_params)
-				.map_err(|err| {
+			match module_instance.execute_export("_call", execution_params) {
+				Ok(_) => { },
+				Err(interpreter::Error::User(UserTrap::Suicide)) => { },
+				Err(err) => {
 					trace!(target: "wasm", "Error executing contract: {:?}", err);
-					vm::Error::from(Error(err))
-				})?;
+					return Err(vm::Error::from(Error(err)))
+				}
+			}
 		}
 
 		let result = result::WasmResult::new(d_ptr);

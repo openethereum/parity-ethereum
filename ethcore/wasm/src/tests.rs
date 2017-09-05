@@ -233,7 +233,7 @@ fn suicide() {
 		}
 	};
 
-	assert_eq!(gas_left, U256::from(99_621));
+	assert_eq!(gas_left, U256::from(99_639));
 	assert!(ext.suicides.contains(&refund));
 }
 
