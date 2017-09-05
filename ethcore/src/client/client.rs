@@ -748,7 +748,7 @@ impl Client {
 								self.factories.clone(),
 							).expect("state known to be available for just-imported block; qed");
 
-							let options = TransactOptions { tracing: false, vm_tracing: false, check_nonce: false };
+							let options = TransactOptions::with_no_tracing().dont_check_nonce().save_output_from_contract();
 							let res = Executive::new(&mut state, &env_info, &*self.engine)
 								.transact(&transaction, options);
 
@@ -1112,43 +1112,6 @@ impl Client {
 		}.fake_sign(from)
 	}
 
-	fn do_virtual_call(&self, env_info: &EnvInfo, state: &mut State<StateDB>, t: &SignedTransaction, analytics: CallAnalytics) -> Result<Executed, CallError> {
-		fn call<E, V, T>(
-			state: &mut State<StateDB>,
-			env_info: &EnvInfo,
-			engine: &E,
-			state_diff: bool,
-			transaction: &SignedTransaction,
-			options: TransactOptions<T, V>,
-		) -> Result<Executed, CallError> where
-			E: Engine + ?Sized,
-			T: trace::Tracer,
-			V: trace::VMTracer,
-		{
-			let options = options
-				.dont_check_nonce()
-				.save_output_from_contract();
-			let original_state = if state_diff { Some(state.clone()) } else { None };
-
-			let mut ret = Executive::new(state, env_info, engine).transact_virtual(transaction, options)?;
-
-			if let Some(original) = original_state {
-				ret.state_diff = Some(state.diff_from(original).map_err(ExecutionError::from)?);
-			}
-			Ok(ret)
-		}
-
-		let state_diff = analytics.state_diffing;
-		let engine = &*self.engine;
-
-		match (analytics.transaction_tracing, analytics.vm_tracing) {
-			(true, true) => call(state, env_info, engine, state_diff, t, TransactOptions::with_tracing_and_vm_tracing()),
-			(true, false) => call(state, env_info, engine, state_diff, t, TransactOptions::with_tracing()),
-			(false, true) => call(state, env_info, engine, state_diff, t, TransactOptions::with_vm_tracing()),
-			(false, false) => call(state, env_info, engine, state_diff, t, TransactOptions::with_no_tracing()),
-		}
-	}
-
 	fn block_number_ref(&self, id: &BlockId) -> Option<BlockNumber> {
 		match *id {
 			BlockId::Number(number) => Some(number),
@@ -1189,7 +1152,9 @@ impl BlockChainClient for Client {
 		let mut state = self.state_at(block).ok_or(CallError::StatePruned)?;
 		let original_state = if analytics.state_diffing { Some(state.clone()) } else { None };
 
-		let options = TransactOptions { tracing: analytics.transaction_tracing, vm_tracing: analytics.vm_tracing, check_nonce: false };
+		let options = TransactOptions::new(analytics.transaction_tracing, analytics.vm_tracing)
+			.dont_check_nonce()
+			.save_output_from_contract();
 		let mut ret = Executive::new(&mut state, &env_info, &*self.engine).transact_virtual(t, options)?;
 
 		// TODO gav move this into Executive.
@@ -1212,7 +1177,7 @@ impl BlockChainClient for Client {
 		// that's just a copy of the state.
 		let original_state = self.state_at(block).ok_or(CallError::StatePruned)?;
 		let sender = t.sender();
-		let options = TransactOptions { tracing: true, vm_tracing: false, check_nonce: false };
+		let options = TransactOptions::with_tracing().dont_check_nonce();
 
 		let cond = |gas| {
 			let mut tx = t.as_unsigned().clone();
@@ -1277,7 +1242,9 @@ impl BlockChainClient for Client {
 			return Err(CallError::TransactionNotFound);
 		}
 
-		let options = TransactOptions { tracing: analytics.transaction_tracing, vm_tracing: analytics.vm_tracing, check_nonce: false };
+		let options = TransactOptions::new(analytics.transaction_tracing, analytics.vm_tracing)
+			.dont_check_nonce()
+			.save_output_from_contract();
 		const PROOF: &'static str = "Transactions fetched from blockchain; blockchain transactions are valid; qed";
 		let rest = txs.split_off(address.index);
 		for t in txs {
@@ -1936,7 +1903,7 @@ impl ProvingBlockChainClient for Client {
 		let backend = state::backend::Proving::new(jdb.as_hashdb_mut());
 
 		let mut state = state.replace_backend(backend);
-		let options = TransactOptions { tracing: false, vm_tracing: false, check_nonce: false };
+		let options = TransactOptions::with_no_tracing().dont_check_nonce().save_output_from_contract();
 		let res = Executive::new(&mut state, &env_info, &*self.engine).transact(&transaction, options);
 
 		match res {

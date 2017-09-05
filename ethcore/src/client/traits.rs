@@ -33,7 +33,7 @@ use trace::LocalizedTrace;
 use transaction::{LocalizedTransaction, PendingTransaction, SignedTransaction};
 use verification::queue::QueueInfo as BlockQueueInfo;
 
-use util::{U256, Address, H256, H2048, Bytes, Itertools};
+use util::{U256, Address, H256, Bytes, Itertools};
 use util::hashdb::DBValue;
 
 use types::ids::*;

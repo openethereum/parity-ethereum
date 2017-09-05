@@ -642,7 +642,7 @@ impl<B: Backend> State<B> {
 	fn execute(&mut self, env_info: &EnvInfo, engine: &Engine, t: &SignedTransaction, tracing: bool, virt: bool)
 		-> Result<Executed, ExecutionError>
 	{
-		let options = TransactOptions { tracing: tracing, vm_tracing: false, check_nonce: true };
+		let options = TransactOptions { tracing: tracing, vm_tracing: false, check_nonce: true, output_from_init_contract: true };
 		let mut e = Executive::new(self, env_info, engine);
 
 		match virt {
