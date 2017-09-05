@@ -90,6 +90,8 @@ pub enum Error {
 	/// Message or some data in the message was recognized as invalid.
 	/// This means that node is misbehaving/cheating.
 	InvalidMessage,
+	/// Message version is not supported.
+	InvalidMessageVersion,
 	/// Connection to node, required for this session is not established.
 	NodeDisconnected,
 	/// Cryptographic error.
@@ -140,6 +142,7 @@ impl fmt::Display for Error {
 			Error::InvalidStateForRequest => write!(f, "session is in invalid state for processing this request"),
 			Error::InvalidNodeForRequest => write!(f, "invalid node for this request"),
 			Error::InvalidMessage => write!(f, "invalid message is received"),
+			Error::InvalidMessageVersion => write!(f, "unsupported message is received"),
 			Error::NodeDisconnected => write!(f, "node required for this operation is currently disconnected"),
 			Error::EthKey(ref e) => write!(f, "cryptographic error {}", e),
 			Error::Io(ref e) => write!(f, "i/o error {}", e),

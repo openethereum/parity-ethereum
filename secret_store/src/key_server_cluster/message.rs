@@ -127,8 +127,10 @@ pub enum SigningMessage {
 pub struct NodePublicKey {
 	/// Node identifier (aka node public key).
 	pub node_id: MessageNodeId,
-	/// Data, which must be signed by peer to prove that he owns the corresponding private key. 
+	/// Random data, which must be signed by peer to prove that he owns the corresponding private key. 
 	pub confirmation_plain: SerializableH256,
+	/// The same random `confirmation_plain`, signed with one-time session key.
+	pub confirmation_signed_session: SerializableSignature,
 }
 
 /// Confirm that node owns the private key of previously passed public key (aka node id).
