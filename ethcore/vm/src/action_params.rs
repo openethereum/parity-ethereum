@@ -15,8 +15,9 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Evm input params.
-use util::{Address, Bytes, U256};
-use util::hash::{H256};
+use bigint::prelude::U256;
+use bigint::hash::{H256};
+use util::{Address, Bytes};
 use hash::{keccak, KECCAK_EMPTY};
 use ethjson;
 

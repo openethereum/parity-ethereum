@@ -18,6 +18,8 @@ use std::fmt;
 use std::collections::BTreeMap;
 use itertools::Itertools;
 use hash::{keccak};
+use bigint::prelude::U256;
+use bigint::hash::H256;
 use triehash::sec_trie_root;
 use util::*;
 use state::Account;

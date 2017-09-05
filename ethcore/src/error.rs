@@ -17,6 +17,8 @@
 //! General error types for use in ethcore.
 
 use std::fmt;
+use bigint::prelude::U256;
+use bigint::hash::H256;
 use util::*;
 use io::*;
 use header::BlockNumber;

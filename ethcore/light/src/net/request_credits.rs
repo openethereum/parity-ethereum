@@ -30,7 +30,7 @@ use request::{self, Request};
 use super::error::Error;
 
 use rlp::*;
-use util::U256;
+use bigint::prelude::U256;
 use time::{Duration, SteadyTime};
 
 /// Credits value.

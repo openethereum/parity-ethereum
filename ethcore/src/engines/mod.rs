@@ -54,6 +54,8 @@ use spec::CommonParams;
 use transaction::{UnverifiedTransaction, SignedTransaction};
 
 use ethkey::Signature;
+use bigint::prelude::U256;
+use bigint::hash::H256;
 use semantic_version::SemanticVersion;
 use util::*;
 
@@ -414,6 +416,8 @@ pub mod common {
 	use state::Substate;
 	use state::CleanupMode;
 
+	use bigint::prelude::U256;
+	use bigint::hash::H256;
 	use util::*;
 	use super::Engine;
 

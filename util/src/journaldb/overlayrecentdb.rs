@@ -27,7 +27,8 @@ use memorydb::*;
 use super::{DB_PREFIX_LEN, LATEST_ERA_KEY};
 use kvdb::{KeyValueDB, DBTransaction};
 use super::JournalDB;
-use {H256, BaseDataError, UtilError, Bytes, H256FastMap};
+use bigint::hash::{H256, H256FastMap};
+use {BaseDataError, UtilError, Bytes};
 
 /// Implementation of the `JournalDB` trait for a disk-backed database with a memory overlay
 /// and, possibly, latent-removal semantics.
@@ -467,7 +468,7 @@ mod tests {
 	use ethcore_logger::init_log;
 	use journaldb::JournalDB;
 	use kvdb::Database;
-	use {H32};
+	use bigint::hash::H32;
 
 	fn new_db(path: &Path) -> OverlayRecentDB {
 		let backing = Arc::new(Database::open_default(path.to_str().unwrap()).unwrap());

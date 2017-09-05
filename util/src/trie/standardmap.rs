@@ -19,7 +19,7 @@ extern crate rand;
 
 use keccak::keccak;
 use bytes::*;
-use hash::*;
+use bigint::hash::*;
 use rlp::encode;
 
 /// Alphabet to use when creating words for insertion into tries.

@@ -19,6 +19,7 @@
 use std::fmt;
 use std::collections::BTreeMap;
 use itertools::Itertools;
+use bigint::hash::H256;
 use triehash::sec_trie_root;
 use util::*;
 use pod_account::{self, PodAccount};

@@ -42,6 +42,8 @@ use transaction::SignedTransaction;
 use state_db::StateDB;
 use evm::{Factory as EvmFactory};
 
+use bigint::prelude::U256;
+use bigint::hash::H256;
 use util::*;
 
 use util::trie;
@@ -1053,7 +1055,9 @@ mod tests {
 	use hash::keccak;
 	use super::*;
 	use ethkey::Secret;
-	use util::{U256, H256, Address};
+	use bigint::prelude::U256;
+	use bigint::hash::H256;
+	use util::Address;
 	use tests::helpers::*;
 	use vm::EnvInfo;
 	use spec::*;

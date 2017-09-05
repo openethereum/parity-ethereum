@@ -15,7 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use super::{ManifestData, RestorationStatus};
-use util::{Bytes, H256};
+use bigint::hash::H256;
+use util::Bytes;
 use ipc::IpcConfig;
 
 /// The interface for a snapshot network service.

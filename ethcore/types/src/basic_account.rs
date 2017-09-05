@@ -16,7 +16,8 @@
 
 //! Basic account type -- the decoded RLP from the state trie.
 
-use util::{U256, H256};
+use bigint::prelude::U256;
+use bigint::prelude::H256;
 
 /// Basic account type.
 #[derive(Debug, Clone, PartialEq, Eq, RlpEncodable, RlpDecodable)]

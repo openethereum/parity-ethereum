@@ -19,6 +19,7 @@
 use ethkey::KeyPair;
 use hash::keccak;
 use block::*;
+use bigint::prelude::U256;
 use util::*;
 use io::*;
 use spec::*;

@@ -17,7 +17,8 @@
 //! Trie query recorder.
 
 use keccak::keccak;
-use {Bytes, H256};
+use bigint::hash::H256;
+use Bytes;
 
 /// A record of a visited node.
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -82,7 +83,7 @@ impl Recorder {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use ::H256;
+	use bigint::hash::H256;
 
 	#[test]
 	fn basic_recorder() {

@@ -21,6 +21,7 @@ extern crate jsonrpc_core;
 extern crate jsonrpc_macros;
 #[macro_use] extern crate log;
 extern crate ethcore_util as util;
+extern crate ethcore_bigint as bigint;
 extern crate ethcore_ipc as ipc;
 extern crate semver;
 extern crate futures;
@@ -57,8 +58,8 @@ use std::sync::Arc;
 use std::net::SocketAddr;
 use std::collections::{HashSet, HashMap};
 use hash::keccak;
+use bigint::hash::H256;
 use parking_lot::{RwLock, RwLockReadGuard};
-use util::H256;
 
 type RpcResult = BoxFuture<jsonrpc_core::Value, jsonrpc_core::Error>;
 

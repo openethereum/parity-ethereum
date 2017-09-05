@@ -30,7 +30,9 @@ use views;
 
 use hash::keccak;
 use heapsize::HeapSizeOf;
-use util::{Address, H256, H2048, U256};
+use bigint::prelude::U256;
+use bigint::hash::{H256, H2048};
+use util::Address;
 use rlp::Rlp;
 
 /// Owning header view.

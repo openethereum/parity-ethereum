@@ -23,7 +23,7 @@ use ethcore::engines::{Engine, StateDependentProof};
 use ethcore::header::Header;
 use ethcore::receipt::Receipt;
 use futures::future::IntoFuture;
-use util::H256;
+use bigint::hash::H256;
 
 /// Provides full chain data.
 pub trait ChainDataFetcher: Send + Sync + 'static {

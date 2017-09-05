@@ -138,8 +138,6 @@ pub use trie::{Trie, TrieMut, TrieDB, TrieDBMut, TrieFactory, TrieError, SecTrie
 pub use kvdb::*;
 pub use error::*;
 pub use bytes::*;
-pub use bigint::prelude::*;
-pub use bigint::hash;
 
 /// 160-bit integer representing account address
-pub type Address = H160;
+pub type Address = bigint::hash::H160;

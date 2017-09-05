@@ -15,7 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use ethkey::{Public, Secret, Random, Generator, math};
-use util::{U256, H256};
+use bigint::prelude::U256;
+use bigint::hash::H256;
 use hash::keccak;
 use key_server_cluster::Error;
 

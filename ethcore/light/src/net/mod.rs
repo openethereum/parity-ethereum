@@ -23,8 +23,9 @@ use ethcore::transaction::UnverifiedTransaction;
 use io::TimerToken;
 use network::{HostInfo, NetworkProtocolHandler, NetworkContext, PeerId};
 use rlp::{RlpStream, UntrustedRlp};
-use util::hash::H256;
-use util::{DBValue, U256};
+use bigint::prelude::U256;
+use bigint::hash::H256;
+use util::DBValue;
 use parking_lot::{Mutex, RwLock};
 use time::{Duration, SteadyTime};
 

@@ -18,7 +18,9 @@
 
 use std::fmt;
 use std::sync::Arc;
-use util::{self, U256, H256, journaldb, trie};
+use bigint::prelude::U256;
+use bigint::hash::H256;
+use util::{self, journaldb, trie};
 use util::kvdb::{self, KeyValueDB};
 use {state, state_db, client, executive, trace, transaction, db, spec, pod_state};
 use factory::Factories;
@@ -166,7 +168,7 @@ impl<'a> EvmTestClient<'a> {
 			author: *genesis.author(),
 			timestamp: genesis.timestamp(),
 			difficulty: *genesis.difficulty(),
-			last_hashes: Arc::new([util::H256::default(); 256].to_vec()),
+			last_hashes: Arc::new([H256::default(); 256].to_vec()),
 			gas_used: 0.into(),
 			gas_limit: *genesis.gas_limit(),
 		};

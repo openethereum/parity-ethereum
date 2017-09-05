@@ -34,7 +34,9 @@ use trace::LocalizedTrace;
 use transaction::{LocalizedTransaction, PendingTransaction, SignedTransaction};
 use verification::queue::QueueInfo as BlockQueueInfo;
 
-use util::{U256, Address, H256, H2048, Bytes};
+use bigint::prelude::U256;
+use bigint::hash::{H256, H2048};
+use util::{Address, Bytes};
 use util::hashdb::DBValue;
 
 use types::ids::*;

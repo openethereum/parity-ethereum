@@ -20,6 +20,7 @@ extern crate ethcore_devtools as devtools;
 extern crate semver;
 extern crate nanomsg;
 extern crate ethcore_util as util;
+extern crate ethcore_bigint as bigint;
 
 pub mod interface;
 pub mod binary;

@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use util::hash::H256;
+use bigint::hash::H256;
 use util::bytes::Bytes;
 use views::BlockView;
 

@@ -23,7 +23,7 @@ use std::collections::HashMap;
 use mio::*;
 use mio::deprecated::{Handler, EventLoop};
 use mio::tcp::*;
-use util::hash::*;
+use bigint::hash::*;
 use rlp::*;
 use connection::{EncryptedConnection, Packet, Connection};
 use handshake::Handshake;

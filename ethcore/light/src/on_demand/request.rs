@@ -30,8 +30,10 @@ use hash::{KECCAK_NULL_RLP, KECCAK_EMPTY, KECCAK_EMPTY_LIST_RLP, keccak};
 use request::{self as net_request, IncompleteRequest, CompleteRequest, Output, OutputKind, Field};
 
 use rlp::{RlpStream, UntrustedRlp};
+use bigint::prelude::U256;
+use bigint::hash::H256;
 use parking_lot::Mutex;
-use util::{Address, Bytes, DBValue, HashDB, H256, U256};
+use util::{Address, Bytes, DBValue, HashDB};
 use util::memorydb::MemoryDB;
 use util::trie::{Trie, TrieDB, TrieError};
 
@@ -891,8 +893,9 @@ impl Signal {
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use bigint::hash::H256;
+	use util::{MemoryDB, Address};
 	use parking_lot::Mutex;
-	use util::{MemoryDB, Address, H256};
 	use util::trie::{Trie, TrieMut, SecTrieDB, SecTrieDBMut};
 	use util::trie::recorder::Recorder;
 	use hash::keccak;

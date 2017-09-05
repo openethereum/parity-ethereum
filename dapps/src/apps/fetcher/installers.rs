@@ -20,7 +20,7 @@ use std::io::{self, Read, Write};
 use std::path::PathBuf;
 use fetch::{self, Mime};
 use hash::keccak_buffer;
-use util::H256;
+use bigint::hash::H256;
 
 use page::{LocalPageEndpoint, PageCache};
 use handlers::{ContentValidator, ValidatorResponse};
