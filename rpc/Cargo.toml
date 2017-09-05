@@ -28,13 +28,13 @@ tokio-timer = "0.1"
 transient-hashmap = "0.4"
 itertools = "0.5"
 
-jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
-jsonrpc-http-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
-jsonrpc-minihttp-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
-jsonrpc-ws-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
-jsonrpc-ipc-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
-jsonrpc-macros = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
-jsonrpc-pubsub = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
+jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "td-remove-boxfuture" }
+jsonrpc-http-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "td-remove-boxfuture" }
+jsonrpc-minihttp-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "td-remove-boxfuture" }
+jsonrpc-ws-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "td-remove-boxfuture" }
+jsonrpc-ipc-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "td-remove-boxfuture" }
+jsonrpc-macros = { git = "https://github.com/paritytech/jsonrpc.git", branch = "td-remove-boxfuture" }
+jsonrpc-pubsub = { git = "https://github.com/paritytech/jsonrpc.git", branch = "td-remove-boxfuture" }
 
 ethcore-io = { path = "../util/io" }
 ethcore-ipc = { path = "../ipc/rpc" }

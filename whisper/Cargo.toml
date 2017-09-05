@@ -27,6 +27,6 @@ smallvec = "0.4"
 time = "0.1"
 tiny-keccak = "1.3"
 
-jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
-jsonrpc-macros = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
-jsonrpc-pubsub = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
+jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "td-remove-boxfuture" }
+jsonrpc-macros = { git = "https://github.com/paritytech/jsonrpc.git", branch = "td-remove-boxfuture" }
+jsonrpc-pubsub = { git = "https://github.com/paritytech/jsonrpc.git", branch = "td-remove-boxfuture" }

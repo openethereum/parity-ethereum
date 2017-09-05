@@ -27,8 +27,8 @@ url = "1.0"
 zip = { version = "0.1", default-features = false }
 itertools = "0.5"
 
-jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
-jsonrpc-http-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
+jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "td-remove-boxfuture" }
+jsonrpc-http-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "td-remove-boxfuture" }
 
 ethcore-util = { path = "../util" }
 fetch = { path = "../util/fetch" }
