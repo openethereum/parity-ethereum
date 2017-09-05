@@ -159,16 +159,14 @@ impl EarlyMergeDB {
 		backing.get(col, &Self::morph_key(key, 0)).expect("Low-level database error. Some issue with your hard disk?").is_some()
 	}
 
-	fn insert_keys(inserts: &[(H256, DBValue)], backing: &KeyValueDB, col: Option<u32>, refs: &mut HashMap<H256, RefInfo>, batch: &mut DBTransaction, trace: bool) {
+	fn insert_keys(inserts: &[(H256, DBValue)], backing: &KeyValueDB, col: Option<u32>, refs: &mut HashMap<H256, RefInfo>, batch: &mut DBTransaction) {
 		for &(ref h, ref d) in inserts {
 			match refs.entry(*h) {
 				Entry::Occupied(mut entry) => {
 					let info = entry.get_mut();
 					// already counting. increment.
 					info.queue_refs += 1;
-					if trace {
-						trace!(target: "jdb.fine", "    insert({}): In queue: Incrementing refs to {}", h, info.queue_refs);
-					}
+					trace!(target: "jdb.fine", "    insert({}): In queue: Incrementing refs to {}", h, info.queue_refs);
 				},
 				Entry::Vacant(entry) => {
 					// this is the first entry for this node in the journal.
@@ -176,16 +174,12 @@ impl EarlyMergeDB {
 					if in_archive {
 						// already in the backing DB. start counting, and remember it was already in.
 						Self::set_already_in(batch, col, h);
-						if trace {
-							trace!(target: "jdb.fine", "    insert({}): New to queue, in DB: Recording and inserting into queue", h);
-						}
+						trace!(target: "jdb.fine", "    insert({}): New to queue, in DB: Recording and inserting into queue", h);
 					} else {
 						// Gets removed when a key leaves the journal, so should never be set when we're placing a new key.
 						//Self::reset_already_in(&h);
 						assert!(!Self::is_already_in(backing, col, h));
-						if trace {
-							trace!(target: "jdb.fine", "    insert({}): New to queue, not in DB: Inserting into queue and DB", h);
-						}
+						trace!(target: "jdb.fine", "    insert({}): New to queue, not in DB: Inserting into queue and DB", h);
 						batch.put(col, h, d);
 					}
 					entry.insert(RefInfo {
@@ -218,7 +212,7 @@ impl EarlyMergeDB {
 		trace!(target: "jdb.fine", "replay_keys: (end) refs={:?}", refs);
 	}
 
-	fn remove_keys(deletes: &[H256], refs: &mut HashMap<H256, RefInfo>, batch: &mut DBTransaction, col: Option<u32>, from: RemoveFrom, trace: bool) {
+	fn remove_keys(deletes: &[H256], refs: &mut HashMap<H256, RefInfo>, batch: &mut DBTransaction, col: Option<u32>, from: RemoveFrom) {
 		// with a remove on {queue_refs: 1, in_archive: true}, we have two options:
 		// - convert to {queue_refs: 1, in_archive: false} (i.e. remove it from the conceptual archive)
 		// - convert to {queue_refs: 0, in_archive: true} (i.e. remove it from the conceptual queue)
@@ -231,16 +225,12 @@ impl EarlyMergeDB {
 					if entry.get().in_archive && from == RemoveFrom::Archive {
 						entry.get_mut().in_archive = false;
 						Self::reset_already_in(batch, col, h);
-						if trace {
-							trace!(target: "jdb.fine", "    remove({}): In archive, 1 in queue: Reducing to queue only and recording", h);
-						}
+						trace!(target: "jdb.fine", "    remove({}): In archive, 1 in queue: Reducing to queue only and recording", h);
 						continue;
 					}
 					if entry.get().queue_refs > 1 {
 						entry.get_mut().queue_refs -= 1;
-						if trace {
-							trace!(target: "jdb.fine", "    remove({}): In queue > 1 refs: Decrementing ref count to {}", h, entry.get().queue_refs);
-						}
+						trace!(target: "jdb.fine", "    remove({}): In queue > 1 refs: Decrementing ref count to {}", h, entry.get().queue_refs);
 						continue;
 					}
 
@@ -251,16 +241,12 @@ impl EarlyMergeDB {
 						(1, true) => {
 							entry.remove();
 							Self::reset_already_in(batch, col, h);
-							if trace {
-								trace!(target: "jdb.fine", "    remove({}): In archive, 1 in queue: Removing from queue and leaving in archive", h);
-							}
+							trace!(target: "jdb.fine", "    remove({}): In archive, 1 in queue: Removing from queue and leaving in archive", h);
 						},
 						(1, false) => {
 							entry.remove();
 							batch.delete(col, h);
-							if trace {
-								trace!(target: "jdb.fine", "    remove({}): Not in archive, only 1 ref in queue: Removing from queue and DB", h);
-							}
+							trace!(target: "jdb.fine", "    remove({}): Not in archive, only 1 ref in queue: Removing from queue and DB", h);
 						},
 						_ => panic!("Invalid value in refs: {:?}", entry.get()),
 					}
@@ -269,9 +255,7 @@ impl EarlyMergeDB {
 					// Gets removed when moving from 1 to 0 additional refs. Should never be here at 0 additional refs.
 					//assert!(!Self::is_already_in(db, &h));
 					batch.delete(col, h);
-					if trace {
-						trace!(target: "jdb.fine", "    remove({}): Not in queue - MUST BE IN ARCHIVE: Removing from DB", h);
-					}
+					trace!(target: "jdb.fine", "    remove({}): Not in queue - MUST BE IN ARCHIVE: Removing from DB", h);
 				},
 			}
 		}
@@ -401,8 +385,6 @@ impl JournalDB for EarlyMergeDB {
 	}
 
 	fn journal_under(&mut self, batch: &mut DBTransaction, now: u64, id: &H256) -> Result<u32, UtilError> {
-		let trace = false;
-
 		// record new commit's details.
 		let mut refs = match self.refs.as_ref() {
 			Some(refs) => refs.write(),
@@ -426,9 +408,7 @@ impl JournalDB for EarlyMergeDB {
 
 			let drained = self.overlay.drain();
 
-			if trace {
-				trace!(target: "jdb", "commit: #{} ({})", now, id);
-			}
+			trace!(target: "jdb", "commit: #{} ({})", now, id);
 
 			let removes: Vec<H256> = drained
 				.iter()
@@ -456,14 +436,12 @@ impl JournalDB for EarlyMergeDB {
 				r.append(&k);
 			}
 			r.append_list(&removes);
-			Self::insert_keys(&inserts, &*self.backing, self.column, &mut refs, batch, trace);
+			Self::insert_keys(&inserts, &*self.backing, self.column, &mut refs, batch);
 
 			let ins = inserts.iter().map(|&(k, _)| k).collect::<Vec<_>>();
 
-			if trace {
-				trace!(target: "jdb.ops", "  Deletes: {:?}", removes);
-				trace!(target: "jdb.ops", "  Inserts: {:?}", ins);
-			}
+			trace!(target: "jdb.ops", "  Deletes: {:?}", removes);
+			trace!(target: "jdb.ops", "  Inserts: {:?}", ins);
 
 			batch.put(self.column, &last, r.as_raw());
 			if self.latest_era.map_or(true, |e| now > e) {
@@ -477,8 +455,6 @@ impl JournalDB for EarlyMergeDB {
 
 	#[cfg_attr(feature="dev", allow(cyclomatic_complexity))]
 	fn mark_canonical(&mut self, batch: &mut DBTransaction, end_era: u64, canon_id: &H256) -> Result<u32, UtilError> {
-		let trace = false;
-
 		let mut refs = self.refs.as_ref().unwrap().write();
 
 		// apply old commits' details
@@ -500,9 +476,9 @@ impl JournalDB for EarlyMergeDB {
 				// Collect keys to be removed. Canon block - remove the (enacted) deletes.
 				let deletes: Vec<H256> = rlp.list_at(2);
 				trace!(target: "jdb.ops", "  Expunging: {:?}", deletes);
-				Self::remove_keys(&deletes, &mut refs, batch, self.column, RemoveFrom::Archive, trace);
+				Self::remove_keys(&deletes, &mut refs, batch, self.column, RemoveFrom::Archive);
 
-					trace!(target: "jdb.ops", "  Finalising: {:?}", inserts);
+				trace!(target: "jdb.ops", "  Finalising: {:?}", inserts);
 				for k in &inserts {
 					match refs.get(k).cloned() {
 						None => {
@@ -528,7 +504,7 @@ impl JournalDB for EarlyMergeDB {
 			} else {
 				// Collect keys to be removed. Non-canon block - remove the (reverted) inserts.
 				trace!(target: "jdb.ops", "  Reverting: {:?}", inserts);
-				Self::remove_keys(&inserts, &mut refs, batch, self.column, RemoveFrom::Queue, trace);
+				Self::remove_keys(&inserts, &mut refs, batch, self.column, RemoveFrom::Queue);
 			}
 
 			batch.delete(self.column, &last);
@@ -536,7 +512,7 @@ impl JournalDB for EarlyMergeDB {
 		}
 
 		trace!(target: "jdb", "EarlyMergeDB: delete journal for time #{}.{}, (canon was {})", end_era, index, canon_id);
-		trace!(target: "jdb", "OK: {:?}", refs.clone());
+		trace!(target: "jdb", "OK: {:?}", &*refs);
 
 		Ok(0)
 	}
