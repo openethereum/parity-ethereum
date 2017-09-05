@@ -1540,7 +1540,8 @@ pub mod execution {
 pub mod epoch_signal {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
 	use rlp::{Encodable, Decodable, DecoderError, RlpStream, UntrustedRlp};
-	use util::{Bytes, H256};
+	use bigint::hash::H256;
+	use util::Bytes;
 
 	/// Potentially incomplete epoch signal request.
 	#[derive(Debug, Clone, PartialEq, Eq)]

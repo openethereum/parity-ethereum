@@ -28,7 +28,7 @@ use light::client::fetch::ChainDataFetcher;
 use light::on_demand::{request, OnDemand};
 
 use parking_lot::RwLock;
-use util::H256;
+use bigint::hash::H256;
 
 const ALL_VALID_BACKREFS: &str = "no back-references, therefore all back-references valid; qed";
 

@@ -43,7 +43,7 @@ mod inner {
 	use evm::instructions::{Instruction, InstructionInfo, INSTRUCTIONS};
 	use evm::{CostType};
 
-	use util::U256;
+	use bigint::prelude::U256;
 
 	macro_rules! evm_debug {
 		($x: expr) => {
