@@ -29,7 +29,7 @@ use hash::keccak;
 use mio::*;
 use mio::deprecated::{EventLoop};
 use mio::tcp::*;
-use util::hash::*;
+use bigint::hash::*;
 use util::version;
 use rlp::*;
 use session::{Session, SessionInfo, SessionData};

@@ -37,7 +37,7 @@ export default {
     params: `An error occurred with the following description`
   },
   input: {
-    abi: `ABI Interface`,
+    abi: `ABI Definition`,
     code: `Bytecode`,
     metadata: `Metadata`,
     swarm: `Swarm Metadata Hash`

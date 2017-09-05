@@ -18,6 +18,7 @@
 
 extern crate vm;
 extern crate ethcore_util as util;
+extern crate ethcore_bigint as bigint;
 #[macro_use] extern crate log;
 extern crate ethcore_logger;
 extern crate byteorder;

@@ -16,7 +16,7 @@
 
 //! Epoch verifiers and transitions.
 
-use util::H256;
+use bigint::hash::H256;
 use error::Error;
 use header::Header;
 

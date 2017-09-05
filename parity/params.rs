@@ -16,7 +16,8 @@
 
 use std::{str, fs, fmt, path};
 use std::time::Duration;
-use util::{Address, U256, version_data};
+use bigint::prelude::U256;
+use util::{Address, version_data};
 use util::journaldb::Algorithm;
 use ethcore::spec::Spec;
 use ethcore::ethereum;

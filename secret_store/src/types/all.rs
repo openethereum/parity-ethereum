@@ -20,16 +20,17 @@ use serde_json;
 
 use ethkey;
 use util;
+use bigint;
 use key_server_cluster;
 
 /// Node id.
 pub type NodeId = ethkey::Public;
 /// Server key id. When key is used to encrypt document, it could be document contents hash.
-pub type ServerKeyId = util::H256;
+pub type ServerKeyId = bigint::hash::H256;
 /// Encrypted document key type.
 pub type EncryptedDocumentKey = util::Bytes;
 /// Message hash.
-pub type MessageHash = util::H256;
+pub type MessageHash = bigint::hash::H256;
 /// Message signature.
 pub type EncryptedMessageSignature = util::Bytes;
 /// Request signature type.

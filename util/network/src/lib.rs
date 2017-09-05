@@ -59,6 +59,7 @@
 
 extern crate ethcore_io as io;
 extern crate ethcore_util as util;
+extern crate ethcore_bigint as bigint;
 extern crate parking_lot;
 extern crate mio;
 extern crate tiny_keccak;

@@ -22,7 +22,7 @@ use hash::{keccak, write_keccak};
 use mio::{Token, Ready, PollOpt};
 use mio::deprecated::{Handler, EventLoop, TryRead, TryWrite};
 use mio::tcp::*;
-use util::hash::*;
+use bigint::hash::*;
 use util::bytes::*;
 use rlp::*;
 use std::io::{self, Cursor, Read, Write};
@@ -481,7 +481,7 @@ impl EncryptedConnection {
 
 #[test]
 pub fn test_encryption() {
-	use util::hash::*;
+	use bigint::hash::*;
 	use std::str::FromStr;
 	let key = H256::from_str("2212767d793a7a3d66f869ae324dd11bd17044b82c9f463b8a541a4d089efec5").unwrap();
 	let before = H128::from_str("12532abaec065082a3cf1da7d0136f15").unwrap();

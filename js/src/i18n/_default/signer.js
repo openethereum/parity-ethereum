@@ -15,6 +15,13 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 export default {
+  decryptRequest: {
+    request: `A request to decrypt data using your account:`,
+    state: {
+      confirmed: `Confirmed`,
+      rejected: `Rejected`
+    }
+  },
   embedded: {
     noPending: `There are currently no pending requests awaiting your confirmation`
   },
@@ -29,7 +36,7 @@ export default {
   requestOrigin: {
     dapp: `by a dapp at {url}`,
     ipc: `via IPC session`,
-    rpc: `via RPC {rpc}`,
+    rpc: `via RPC {url}`,
     signerCurrent: `via current tab`,
     signerUI: `via UI session`,
     unknownInterface: `via unknown interface`,
@@ -38,10 +45,14 @@ export default {
   },
   requestsPage: {
     noPending: `There are no requests requiring your confirmation.`,
-    pendingTitle: `Pending Requests`,
+    pendingTitle: `Pending Signature Authorization`,
     queueTitle: `Local Transactions`
   },
   sending: {
+    external: {
+      scanSigned: `Scan the QR code of the signed transaction from your external device`,
+      scanTx: `Please scan the transaction QR on your external device`
+    },
     hardware: {
       confirm: `Please confirm the transaction on your attached hardware device`,
       connect: `Please attach your hardware device before confirming the transaction`
@@ -52,6 +63,10 @@ export default {
     state: {
       confirmed: `Confirmed`,
       rejected: `Rejected`
+    },
+    tooltip: {
+      data: `Data: {data}`,
+      hash: `Hash to be signed: {hashToSign}`
     },
     unknownBinary: `(Unknown binary data)`,
     warning: `WARNING: This consequences of doing this may be grave. Confirm the request only if you are sure.`
@@ -65,7 +80,8 @@ export default {
   txPendingConfirm: {
     buttons: {
       confirmBusy: `Confirming...`,
-      confirmRequest: `Confirm Request`
+      confirmRequest: `Confirm Request`,
+      scanSigned: `Scan Signed QR`
     },
     errors: {
       invalidWallet: `Given wallet file is invalid.`

@@ -16,8 +16,7 @@
 
 use api::TransactionStats;
 use std::collections::{HashSet, HashMap};
-use util::{H256, H512};
-use util::hash::H256FastMap;
+use bigint::hash::{H256, H512, H256FastMap};
 
 type NodeId = H512;
 type BlockNumber = u64;

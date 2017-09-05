@@ -109,7 +109,7 @@ fn chunk_and_restore_40k() { chunk_and_restore(40000) }
 #[test]
 fn checks_flag() {
 	use rlp::RlpStream;
-	use util::H256;
+	use bigint::hash::H256;
 
 	let mut stream = RlpStream::new_list(5);
 

@@ -20,7 +20,7 @@ use std::fmt;
 
 use ids::BlockId;
 
-use util::H256;
+use bigint::hash::H256;
 use util::trie::TrieError;
 use rlp::DecoderError;
 

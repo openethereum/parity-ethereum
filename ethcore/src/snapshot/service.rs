@@ -35,8 +35,9 @@ use service::ClientIoMessage;
 
 use io::IoChannel;
 
+use bigint::hash::H256;
 use parking_lot::{Mutex, RwLock, RwLockReadGuard};
-use util::{Bytes, H256, UtilError};
+use util::{Bytes, UtilError};
 use util::journaldb::Algorithm;
 use util::kvdb::{Database, DatabaseConfig};
 use util::snappy;
@@ -679,7 +680,7 @@ mod tests {
 
 	#[test]
 	fn cannot_finish_with_invalid_chunks() {
-		use util::H256;
+		use bigint::hash::H256;
 		use util::kvdb::DatabaseConfig;
 
 		let spec = get_test_spec();

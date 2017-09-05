@@ -19,6 +19,8 @@
 use std::sync::{Weak, Arc};
 use std::collections::BTreeMap;
 use std::cmp;
+use bigint::prelude::U256;
+use bigint::hash::{H256, H520};
 use parking_lot::RwLock;
 use util::*;
 use ethkey::{recover, public_to_address, Signature};
@@ -31,7 +33,7 @@ use error::{BlockError, Error};
 use evm::Schedule;
 use ethjson;
 use header::{Header, BlockNumber};
-use client::Client;
+use client::EngineClient;
 use semantic_version::SemanticVersion;
 use super::signer::EngineSigner;
 use super::validator_set::{ValidatorSet, SimpleList, new_validator_set};
@@ -234,8 +236,8 @@ impl Engine for BasicAuthority {
 		}
 	}
 
-	fn register_client(&self, client: Weak<Client>) {
-		self.validators.register_contract(client);
+	fn register_client(&self, client: Weak<EngineClient>) {
+		self.validators.register_client(client);
 	}
 
 	fn set_signer(&self, ap: Arc<AccountProvider>, address: Address, password: String) {
@@ -255,7 +257,7 @@ impl Engine for BasicAuthority {
 mod tests {
 	use std::sync::Arc;
 	use hash::keccak;
-	use util::*;
+	use bigint::hash::H520;
 	use block::*;
 	use error::{BlockError, Error};
 	use tests::helpers::*;

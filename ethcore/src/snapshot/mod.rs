@@ -30,9 +30,10 @@ use engines::Engine;
 use header::Header;
 use ids::BlockId;
 
-use util::{Bytes, HashDB, DBValue, snappy, U256};
+use bigint::prelude::U256;
+use bigint::hash::H256;
+use util::{Bytes, HashDB, DBValue, snappy};
 use parking_lot::Mutex;
-use util::hash::{H256};
 use util::journaldb::{self, Algorithm, JournalDB};
 use util::kvdb::KeyValueDB;
 use util::trie::{TrieDB, TrieDBMut, Trie, TrieMut};

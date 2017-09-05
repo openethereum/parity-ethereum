@@ -20,6 +20,14 @@ export default {
     stopped: `Refresh and display of logs from Parity is currently stopped via the UI, start it to see the latest updates.`,
     title: `Node Logs`
   },
+  health: {
+    no: `no`,
+    peers: `Connected Peers`,
+    sync: `Chain Synchronized`,
+    time: `Time Synchronized`,
+    title: `Node Health`,
+    yes: `yes`
+  },
   miningSettings: {
     input: {
       author: {
@@ -41,13 +49,25 @@ export default {
     },
     title: `mining settings`
   },
+  peers: {
+    table: {
+      header: {
+        caps: `Capabilities`,
+        ethDiff: `Difficulty (ETH)`,
+        ethHeader: `Header (ETH)`,
+        id: `ID`,
+        name: `Name`,
+        remoteAddress: `Remote Address`
+      }
+    },
+    title: `network peers`
+  },
   status: {
     hashrate: `{hashrate} H/s`,
     input: {
       chain: `chain`,
       enode: `enode`,
       no: `no`,
-      peers: `peers`,
       port: `network port`,
       rpcEnabled: `rpc enabled`,
       rpcInterface: `rpc interface`,

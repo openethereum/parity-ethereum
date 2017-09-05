@@ -21,7 +21,8 @@ use rustc_hex::{ToHex, FromHex};
 use serde::{Serialize, Deserialize, Serializer, Deserializer};
 use serde::de::{Visitor, Error as SerdeError};
 use ethkey::{Public, Secret, Signature};
-use util::{H256, Bytes};
+use bigint::hash::H256;
+use util::Bytes;
 
 /// Serializable message hash.
 pub type SerializableMessageHash = SerializableH256;
