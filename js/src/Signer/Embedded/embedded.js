@@ -38,6 +38,7 @@ class Embedded extends Component {
   };
 
   static propTypes = {
+    accounts: PropTypes.object.isRequired,
     actions: PropTypes.shape({
       startConfirmRequest: PropTypes.func.isRequired,
       startRejectRequest: PropTypes.func.isRequired
@@ -79,39 +80,32 @@ class Embedded extends Component {
       );
     }
 
-    const items = pending.sort(this._sortRequests).map(this.renderPending);
-
     return (
       <div>
-        { items }
+        {
+          pending
+            .sort(this._sortRequests)
+            .map(this.renderPending)
+        }
       </div>
     );
   }
 
   renderPending = (data, index) => {
-    const { actions, gasLimit, netVersion } = this.props;
+    const { accounts, actions, gasLimit, netVersion } = this.props;
     const { date, id, isSending, payload, origin } = data;
-    const Handler = this.pluginStore.findHandler(payload);
+    const transaction = payload.sendTransaction || payload.signTransaction;
+    let Handler;
 
-    // if (Handler) {
-    //   return (
-    //     <Handler
-    //       gasLimit={ gasLimit }
-    //       id={ id }
-    //       isSending={ isSending }
-    //       key={ id }
-    //       netVersion={ netVersion }
-    //       onConfirm={ actions.startConfirmRequest }
-    //       onReject={ actions.startRejectRequest }
-    //       payload={ payload }
-    //     />
-    //   );
-    // }
+    if (transaction) {
+      Handler = this.pluginStore.findHandler(payload, accounts[transaction.from]);
+    }
 
     return (
       <RequestPending
         className={ styles.request }
         date={ date }
+        elementRequest={ Handler }
         focus={ index === 0 }
         gasLimit={ gasLimit }
         id={ id }
@@ -134,9 +128,11 @@ class Embedded extends Component {
 
 function mapStateToProps (state) {
   const { gasLimit, netVersion } = state.nodeStatus;
+  const { accounts } = state.personal;
   const { actions, signer } = state;
 
   return {
+    accounts,
     actions,
     gasLimit,
     netVersion,

@@ -29,9 +29,9 @@ export default class PluginStore {
     this.components.push(Component);
   }
 
-  findHandler (payload) {
+  findHandler (payload, account) {
     return this.components.find((component) => {
-      return component.isHandler(payload);
+      return component.isHandler(payload, account);
     });
   }
 

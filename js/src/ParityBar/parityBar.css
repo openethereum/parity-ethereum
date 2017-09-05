@@ -190,9 +190,9 @@ $modalZ: 10001;
 }
 
 .header {
-  height: 2em;
+  /* height: 2em; */
   padding: 0.5em 1em;
-  background: rgba(0, 0, 0, 0.25);
+  background: #444444;
   margin-bottom: 0;
 
   &::after {
@@ -219,6 +219,7 @@ $modalZ: 10001;
 }
 
 .title {
+  color: white;
   float: left;
 }
 
