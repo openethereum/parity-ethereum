@@ -86,6 +86,7 @@ pub fn json_chain_test(json_data: &[u8], era: ChainEra) -> Vec<String> {
 	failed
 }
 
+/*
 mod frontier_era_tests {
 	use tests::helpers::*;
 	use super::json_chain_test;
@@ -150,3 +151,4 @@ mod eip150_blockchain_tests {
 	declare_test!{BlockchainTests_EIP150_bcValidBlockTest, "BlockchainTests/EIP150/bcValidBlockTest"}
 	declare_test!{BlockchainTests_EIP150_bcWalletTest, "BlockchainTests/EIP150/bcWalletTest"}
 }
+*/

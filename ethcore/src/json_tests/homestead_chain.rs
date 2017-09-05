@@ -20,7 +20,7 @@ use tests::helpers::*;
 fn do_json_test(json_data: &[u8]) -> Vec<String> {
 	json_chain_test(json_data, ChainEra::Homestead)
 }
-
+/*
 declare_test!{BlockchainTests_Homestead_bcBlockGasLimitTest, "BlockchainTests/Homestead/bcBlockGasLimitTest"}
 declare_test!{BlockchainTests_Homestead_bcForkStressTest, "BlockchainTests/Homestead/bcForkStressTest"}
 declare_test!{BlockchainTests_Homestead_bcGasPricerTest, "BlockchainTests/Homestead/bcGasPricerTest"}
@@ -37,3 +37,4 @@ declare_test!{BlockchainTests_Homestead_bcWalletTest, "BlockchainTests/Homestead
 declare_test!{BlockchainTests_Homestead_bcShanghaiLove, "BlockchainTests/Homestead/bcShanghaiLove"}
 declare_test!{BlockchainTests_Homestead_bcSuicideIssue, "BlockchainTests/Homestead/bcSuicideIssue"}
 declare_test!{BlockchainTests_Homestead_bcExploitTest, "BlockchainTests/Homestead/bcExploitTest"}
+*/

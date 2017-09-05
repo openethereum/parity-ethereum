@@ -18,8 +18,9 @@
 
 use bytes::Bytes;
 use uint::Uint;
+use hash::H256;
 use blockchain::State;
-use vm::{Transaction, Log, Call, Env};
+use vm::{Transaction, Call, Env};
 
 /// Reporesents vm execution environment before and after exeuction of transaction.
 #[derive(Debug, PartialEq, Deserialize)]
@@ -35,8 +36,8 @@ pub struct Vm {
 	/// Gas left after transaction execution.
 	#[serde(rename="gas")]
 	pub gas_left: Option<Uint>,
-	/// Logs created during execution of transaction.
-	pub logs: Option<Vec<Log>>,
+	/// Hash of logs created during execution of transaction.
+	pub logs: Option<H256>,
 	/// Transaction output.
 	#[serde(rename="out")]
 	pub output: Option<Bytes>,
@@ -83,8 +84,7 @@ mod tests {
 				"value" : "0x0de0b6b3a7640000"
 			},
 			"gas" : "0x013874",
-			"logs" : [
-			],
+			"logs" : "0x0",
 			"out" : "0x",
 			"post" : {
 				"0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6" : {

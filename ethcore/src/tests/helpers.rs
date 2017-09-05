@@ -64,9 +64,9 @@ impl TestEngine {
 		}
 	}
 
-	pub fn new_metropolis() -> TestEngine {
+	pub fn new_byzantium() -> TestEngine {
 		TestEngine {
-			engine: ethereum::new_metropolis_test().engine,
+			engine: ethereum::new_byzantium_test().engine,
 			max_depth: 0,
 		}
 	}

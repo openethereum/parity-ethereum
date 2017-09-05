@@ -313,6 +313,7 @@ impl Engine for Arc<Ethash> {
 		} else {
 			self.params().block_reward
 		};
+
 		let eras_rounds = self.ethash_params.ecip1017_era_rounds;
 		let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, reward, fields.header.number());
 		let mut tracer = ExecutiveTracer::default();

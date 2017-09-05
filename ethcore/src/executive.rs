@@ -1396,7 +1396,7 @@ mod tests {
 		let mut state = get_temp_state_with_factory(factory);
 		state.add_balance(&sender, &U256::from_str("152d02c7e14af68000000").unwrap(), CleanupMode::NoEmpty).unwrap();
 		let info = EnvInfo::default();
-		let engine = TestEngine::new_metropolis();
+		let engine = TestEngine::new_byzantium();
 		let mut substate = Substate::new();
 
 		let mut output = [0u8; 14];

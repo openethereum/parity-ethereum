@@ -262,6 +262,8 @@ fn do_json_test_for(vm_type: &VMType, json_data: &[u8]) -> Vec<String> {
 				fail_unless(Some(res.gas_left) == vm.gas_left.map(Into::into), "gas_left is incorrect");
 				let vm_output: Option<Vec<u8>> = vm.output.map(Into::into);
 				fail_unless(Some(output) == vm_output, "output is incorrect");
+				// TODO: verify logs
+				//fail_unless(Some(res.logs) == vm.logs, "logs are incorrect");
 
 				for (address, account) in vm.post_state.unwrap().into_iter() {
 					let address = address.into();
@@ -295,15 +297,15 @@ fn do_json_test_for(vm_type: &VMType, json_data: &[u8]) -> Vec<String> {
 }
 
 declare_test!{ExecutiveTests_vmArithmeticTest, "VMTests/vmArithmeticTest"}
-declare_test!{ExecutiveTests_vmBitwiseLogicOperationTest, "VMTests/vmBitwiseLogicOperationTest"}
+declare_test!{ExecutiveTests_vmBitwiseLogicOperationTest, "VMTests/vmBitwiseLogicOperation"}
 declare_test!{ExecutiveTests_vmBlockInfoTest, "VMTests/vmBlockInfoTest"}
  // TODO [todr] Fails with Signal 11 when using JIT
-declare_test!{ExecutiveTests_vmEnvironmentalInfoTest, "VMTests/vmEnvironmentalInfoTest"}
-declare_test!{ExecutiveTests_vmIOandFlowOperationsTest, "VMTests/vmIOandFlowOperationsTest"}
-declare_test!{heavy => ExecutiveTests_vmInputLimits, "VMTests/vmInputLimits"}
+declare_test!{ExecutiveTests_vmEnvironmentalInfoTest, "VMTests/vmEnvironmentalInfo"}
+declare_test!{ExecutiveTests_vmIOandFlowOperationsTest, "VMTests/vmIOandFlowOperations"}
 declare_test!{ExecutiveTests_vmLogTest, "VMTests/vmLogTest"}
-declare_test!{ExecutiveTests_vmPerformanceTest, "VMTests/vmPerformanceTest"}
+declare_test!{heavy => ExecutiveTests_vmPerformance, "VMTests/vmPerformance"}
 declare_test!{ExecutiveTests_vmPushDupSwapTest, "VMTests/vmPushDupSwapTest"}
+declare_test!{ExecutiveTests_vmRandomTest, "VMTests/vmRandomTest"}
 declare_test!{ExecutiveTests_vmSha3Test, "VMTests/vmSha3Test"}
-declare_test!{ExecutiveTests_vmSystemOperationsTest, "VMTests/vmSystemOperationsTest"}
-declare_test!{ExecutiveTests_vmtests, "VMTests/vmtests"}
+declare_test!{ExecutiveTests_vmSystemOperationsTest, "VMTests/vmSystemOperations"}
+declare_test!{ExecutiveTests_vmTests, "VMTests/vmTests"}
