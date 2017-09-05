@@ -67,6 +67,11 @@ pub use self::execution::{
 	Incomplete as IncompleteExecutionRequest,
 	Response as ExecutionResponse,
 };
+pub use self::epoch_signal::{
+	Complete as CompleteSignalRequest,
+	Incomplete as IncompleteSignalRequest,
+	Response as SignalResponse,
+};
 
 pub use self::builder::{RequestBuilder, Requests};
 
@@ -261,6 +266,8 @@ pub enum Request {
 	Code(IncompleteCodeRequest),
 	/// A request for proof of execution,
 	Execution(IncompleteExecutionRequest),
+	/// A request for an epoch signal.
+	Signal(IncompleteSignalRequest),
 }
 
 /// All request types, in an answerable state.
@@ -284,6 +291,8 @@ pub enum CompleteRequest {
 	Code(CompleteCodeRequest),
 	/// A request for proof of execution,
 	Execution(CompleteExecutionRequest),
+	/// A request for an epoch signal.
+	Signal(CompleteSignalRequest),
 }
 
 impl CompleteRequest {
@@ -299,6 +308,7 @@ impl CompleteRequest {
 			CompleteRequest::Storage(_) => Kind::Storage,
 			CompleteRequest::Code(_) => Kind::Code,
 			CompleteRequest::Execution(_) => Kind::Execution,
+			CompleteRequest::Signal(_) => Kind::Signal,
 		}
 	}
 }
@@ -316,6 +326,7 @@ impl Request {
 			Request::Storage(_) => Kind::Storage,
 			Request::Code(_) => Kind::Code,
 			Request::Execution(_) => Kind::Execution,
+			Request::Signal(_) => Kind::Signal,
 		}
 	}
 }
@@ -332,6 +343,7 @@ impl Decodable for Request {
 			Kind::Storage => Ok(Request::Storage(rlp.val_at(1)?)),
 			Kind::Code => Ok(Request::Code(rlp.val_at(1)?)),
 			Kind::Execution => Ok(Request::Execution(rlp.val_at(1)?)),
+			Kind::Signal => Ok(Request::Signal(rlp.val_at(1)?)),
 		}
 	}
 }
@@ -353,6 +365,7 @@ impl Encodable for Request {
 			Request::Storage(ref req) => s.append(req),
 			Request::Code(ref req) => s.append(req),
 			Request::Execution(ref req) => s.append(req),
+			Request::Signal(ref req) => s.append(req),
 		};
 	}
 }
@@ -374,6 +387,7 @@ impl IncompleteRequest for Request {
 			Request::Storage(ref req) => req.check_outputs(f),
 			Request::Code(ref req) => req.check_outputs(f),
 			Request::Execution(ref req) => req.check_outputs(f),
+			Request::Signal(ref req) => req.check_outputs(f),
 		}
 	}
 
@@ -388,6 +402,7 @@ impl IncompleteRequest for Request {
 			Request::Storage(ref req) => req.note_outputs(f),
 			Request::Code(ref req) => req.note_outputs(f),
 			Request::Execution(ref req) => req.note_outputs(f),
+			Request::Signal(ref req) => req.note_outputs(f),
 		}
 	}
 
@@ -402,6 +417,7 @@ impl IncompleteRequest for Request {
 			Request::Storage(ref mut req) => req.fill(oracle),
 			Request::Code(ref mut req) => req.fill(oracle),
 			Request::Execution(ref mut req) => req.fill(oracle),
+			Request::Signal(ref mut req) => req.fill(oracle),
 		}
 	}
 
@@ -416,6 +432,7 @@ impl IncompleteRequest for Request {
 			Request::Storage(req) => req.complete().map(CompleteRequest::Storage),
 			Request::Code(req) => req.complete().map(CompleteRequest::Code),
 			Request::Execution(req) => req.complete().map(CompleteRequest::Execution),
+			Request::Signal(req) => req.complete().map(CompleteRequest::Signal),
 		}
 	}
 
@@ -430,6 +447,7 @@ impl IncompleteRequest for Request {
 			Request::Storage(ref mut req) => req.adjust_refs(mapping),
 			Request::Code(ref mut req) => req.adjust_refs(mapping),
 			Request::Execution(ref mut req) => req.adjust_refs(mapping),
+			Request::Signal(ref mut req) => req.adjust_refs(mapping),
 		}
 	}
 }
@@ -471,6 +489,8 @@ pub enum Kind {
 	Code = 7,
 	/// A request for transaction execution + state proof.
 	Execution = 8,
+	/// A request for epoch transition signal.
+	Signal = 9,
 }
 
 impl Decodable for Kind {
@@ -485,6 +505,7 @@ impl Decodable for Kind {
 			6 => Ok(Kind::Storage),
 			7 => Ok(Kind::Code),
 			8 => Ok(Kind::Execution),
+			9 => Ok(Kind::Signal),
 			_ => Err(DecoderError::Custom("Unknown PIP request ID.")),
 		}
 	}
@@ -517,6 +538,8 @@ pub enum Response {
 	Code(CodeResponse),
 	/// A response for proof of execution,
 	Execution(ExecutionResponse),
+	/// A response for epoch change signal.
+	Signal(SignalResponse),
 }
 
 impl ResponseLike for Response {
@@ -532,6 +555,7 @@ impl ResponseLike for Response {
 			Response::Storage(ref res) => res.fill_outputs(f),
 			Response::Code(ref res) => res.fill_outputs(f),
 			Response::Execution(ref res) => res.fill_outputs(f),
+			Response::Signal(ref res) => res.fill_outputs(f),
 		}
 	}
 }
@@ -549,6 +573,7 @@ impl Response {
 			Response::Storage(_) => Kind::Storage,
 			Response::Code(_) => Kind::Code,
 			Response::Execution(_) => Kind::Execution,
+			Response::Signal(_) => Kind::Signal,
 		}
 	}
 }
@@ -565,6 +590,7 @@ impl Decodable for Response {
 			Kind::Storage => Ok(Response::Storage(rlp.val_at(1)?)),
 			Kind::Code => Ok(Response::Code(rlp.val_at(1)?)),
 			Kind::Execution => Ok(Response::Execution(rlp.val_at(1)?)),
+			Kind::Signal => Ok(Response::Signal(rlp.val_at(1)?)),
 		}
 	}
 }
@@ -586,6 +612,7 @@ impl Encodable for Response {
 			Response::Storage(ref res) => s.append(res),
 			Response::Code(ref res) => s.append(res),
 			Response::Execution(ref res) => s.append(res),
+			Response::Signal(ref res) => s.append(res),
 		};
 	}
 }
@@ -1509,6 +1536,104 @@ pub mod execution {
 	}
 }
 
+/// A request for epoch signal data.
+pub mod epoch_signal {
+	use super::{Field, NoSuchOutput, OutputKind, Output};
+	use rlp::{Encodable, Decodable, DecoderError, RlpStream, UntrustedRlp};
+	use util::{Bytes, H256};
+
+	/// Potentially incomplete epoch signal request.
+	#[derive(Debug, Clone, PartialEq, Eq)]
+	pub struct Incomplete {
+		/// The block hash to request the signal for.
+		pub block_hash: Field<H256>,
+	}
+
+	impl Decodable for Incomplete {
+		fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+			Ok(Incomplete {
+				block_hash: rlp.val_at(0)?,
+			})
+		}
+	}
+
+	impl Encodable for Incomplete {
+		fn rlp_append(&self, s: &mut RlpStream) {
+			s.begin_list(1).append(&self.block_hash);
+		}
+	}
+
+	impl super::IncompleteRequest for Incomplete {
+		type Complete = Complete;
+		type Response = Response;
+
+		fn check_outputs<F>(&self, mut f: F) -> Result<(), NoSuchOutput>
+			where F: FnMut(usize, usize, OutputKind) -> Result<(), NoSuchOutput>
+		{
+			if let Field::BackReference(req, idx) = self.block_hash {
+				f(req, idx, OutputKind::Hash)?;
+			}
+
+			Ok(())
+		}
+
+		fn note_outputs<F>(&self, _: F) where F: FnMut(usize, OutputKind) {}
+
+		fn fill<F>(&mut self, oracle: F) where F: Fn(usize, usize) -> Result<Output, NoSuchOutput> {
+			if let Field::BackReference(req, idx) = self.block_hash {
+				self.block_hash = match oracle(req, idx) {
+					Ok(Output::Hash(block_hash)) => Field::Scalar(block_hash.into()),
+					_ => Field::BackReference(req, idx),
+				}
+			}
+		}
+
+		fn complete(self) -> Result<Self::Complete, NoSuchOutput> {
+			Ok(Complete {
+				block_hash: self.block_hash.into_scalar()?,
+			})
+		}
+
+		fn adjust_refs<F>(&mut self, mut mapping: F) where F: FnMut(usize) -> usize {
+			self.block_hash.adjust_req(&mut mapping);
+		}
+	}
+
+	/// A complete request.
+	#[derive(Debug, Clone, PartialEq, Eq)]
+	pub struct Complete {
+		/// The block hash to request the epoch signal for.
+		pub block_hash: H256,
+	}
+
+	/// The output of a request for an epoch signal.
+	#[derive(Debug, Clone, PartialEq, Eq)]
+	pub struct Response {
+		/// The requested epoch signal.
+		pub signal: Bytes,
+	}
+
+	impl super::ResponseLike for Response {
+		/// Fill reusable outputs by providing them to the function.
+		fn fill_outputs<F>(&self, _: F) where F: FnMut(usize, Output) {}
+	}
+
+	impl Decodable for Response {
+		fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+
+			Ok(Response {
+				signal: rlp.as_val()?,
+			})
+		}
+	}
+
+	impl Encodable for Response {
+		fn rlp_append(&self, s: &mut RlpStream) {
+			s.append(&self.signal);
+		}
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;
@@ -1796,5 +1921,23 @@ mod tests {
 
 		let raw = ::rlp::encode_list(&reqs);
 		assert_eq!(::rlp::decode_list::<Response>(&raw), reqs);
+	}
+
+	#[test]
+	fn epoch_signal_roundtrip() {
+		let req = IncompleteSignalRequest {
+			block_hash: Field::Scalar(Default::default()),
+		};
+
+		let full_req = Request::Signal(req.clone());
+		let res = SignalResponse {
+			signal: vec![1, 2, 3, 4, 5, 6, 7, 6, 5, 4],
+		};
+		let full_res = Response::Signal(res.clone());
+
+		check_roundtrip(req);
+		check_roundtrip(full_req);
+		check_roundtrip(res);
+		check_roundtrip(full_res);
 	}
 }

@@ -25,7 +25,7 @@ use futures::{future, IntoFuture, Future, BoxFuture};
 use hash_fetch::fetch::Client as FetchClient;
 use hash_fetch::urlhint::ContractClient;
 use helpers::replace_home;
-use light::client::Client as LightClient;
+use light::client::LightChainClient;
 use light::on_demand::{self, OnDemand};
 use node_health::{SyncStatus, NodeHealth};
 use rpc;
@@ -87,16 +87,16 @@ impl ContractClient for FullRegistrar {
 }
 
 /// Registrar implementation for the light client.
-pub struct LightRegistrar {
+pub struct LightRegistrar<T> {
 	/// The light client.
-	pub client: Arc<LightClient>,
+	pub client: Arc<T>,
 	/// Handle to the on-demand service.
 	pub on_demand: Arc<OnDemand>,
 	/// Handle to the light network service.
 	pub sync: Arc<LightSync>,
 }
 
-impl ContractClient for LightRegistrar {
+impl<T: LightChainClient + 'static> ContractClient for LightRegistrar<T> {
 	fn registrar(&self) -> Result<Address, String> {
 		self.client.engine().additional_params().get("registrar")
 			 .ok_or_else(|| "Registrar not defined.".into())
@@ -106,7 +106,14 @@ impl ContractClient for LightRegistrar {
 	}
 
 	fn call(&self, address: Address, data: Bytes) -> BoxFuture<Bytes, String> {
-		let (header, env_info) = (self.client.best_block_header(), self.client.latest_env_info());
+		let header = self.client.best_block_header();
+		let env_info = self.client.env_info(BlockId::Hash(header.hash()))
+			.ok_or_else(|| format!("Cannot fetch env info for header {}", header.hash()));
+
+		let env_info = match env_info {
+			Ok(x) => x,
+			Err(e) => return future::err(e).boxed(),
+		};
 
 		let maybe_future = self.sync.with_context(move |ctx| {
 			self.on_demand

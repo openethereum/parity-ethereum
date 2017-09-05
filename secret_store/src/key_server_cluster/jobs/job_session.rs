@@ -153,7 +153,6 @@ impl<Executor, Transport> JobSession<Executor, Transport> where Executor: JobExe
 			.requests
 	}
 
-	#[cfg(test)]
 	/// Get responses.
 	pub fn responses(&self) -> &BTreeMap<NodeId, Executor::PartialJobResponse> {
 		debug_assert!(self.meta.self_node_id == self.meta.master_node_id);

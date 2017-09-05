@@ -314,7 +314,7 @@ pub trait MiningBlockChainClient: BlockChainClient {
 }
 
 /// Client facilities used by internally sealing Engines.
-pub trait EngineClient: MiningBlockChainClient {
+pub trait EngineClient: Sync + Send {
 	/// Make a new block and seal it.
 	fn update_sealing(&self);
 
@@ -330,6 +330,17 @@ pub trait EngineClient: MiningBlockChainClient {
 	///
 	/// The block corresponding the the parent hash must be stored already.
 	fn epoch_transition_for(&self, parent_hash: H256) -> Option<::engines::EpochTransition>;
+
+	/// Get block chain info.
+	fn chain_info(&self) -> BlockChainInfo;
+
+	/// Like `call`, but with various defaults. Designed to be used for calling contracts.
+	fn call_contract(&self, id: BlockId, address: Address, data: Bytes) -> Result<Bytes, String>;
+
+	/// Import a transaction: used for misbehaviour reporting.
+	fn transact_contract(&self, address: Address, data: Bytes) -> Result<TransactionImportResult, EthcoreError>;
+
+	fn block_number(&self, id: BlockId) -> Option<BlockNumber>;
 }
 
 /// Extended client interface for providing proofs of the state.
@@ -349,4 +360,7 @@ pub trait ProvingBlockChainClient: BlockChainClient {
 	/// Returns the output of the call and a vector of database items necessary
 	/// to reproduce it.
 	fn prove_transaction(&self, transaction: SignedTransaction, id: BlockId) -> Option<(Bytes, Vec<DBValue>)>;
+
+	/// Get an epoch change signal by block hash.
+	fn epoch_signal(&self, hash: H256) -> Option<Vec<u8>>;
 }

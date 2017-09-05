@@ -34,7 +34,7 @@ use bigint::prelude::{U128, U256};
 use bigint::hash::{H256, H520};
 use parking_lot::RwLock;
 use util::*;
-use client::{Client, EngineClient};
+use client::EngineClient;
 use error::{Error, BlockError};
 use header::{Header, BlockNumber};
 use builtin::Builtin;
@@ -570,18 +570,35 @@ impl Engine for Tendermint {
 		Ok(())
 	}
 
-	/// Verify validators and gas limit.
+	/// Verify gas limit.
 	fn verify_block_family(&self, header: &Header, parent: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
 		if header.number() == 0 {
 			return Err(BlockError::RidiculousNumber(OutOfBounds { min: Some(1), max: None, found: header.number() }).into());
 		}
 
+		let gas_limit_divisor = self.params().gas_limit_bound_divisor;
+		let min_gas = parent.gas_limit().clone() - parent.gas_limit().clone() / gas_limit_divisor;
+		let max_gas = parent.gas_limit().clone() + parent.gas_limit().clone() / gas_limit_divisor;
+		if header.gas_limit() <= &min_gas || header.gas_limit() >= &max_gas {
+			self.validators.report_malicious(header.author(), header.number(), header.number(), Default::default());
+			return Err(BlockError::InvalidGasLimit(OutOfBounds { min: Some(min_gas), max: Some(max_gas), found: header.gas_limit().clone() }).into());
+		}
+
+		Ok(())
+	}
+
+	fn verify_block_external(&self, header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
 		if let Ok(proposal) = ConsensusMessage::new_proposal(header) {
 			let proposer = proposal.verify()?;
 			if !self.is_authority(&proposer) {
 				return Err(EngineError::NotAuthorized(proposer).into());
 			}
-			self.check_view_proposer(header.parent_hash(), proposal.vote_step.height, proposal.vote_step.view, &proposer)?;
+			self.check_view_proposer(
+				header.parent_hash(),
+				proposal.vote_step.height,
+				proposal.vote_step.view,
+				&proposer
+			).map_err(Into::into)
 		} else {
 			let vote_step = VoteStep::new(header.number() as usize, consensus_view(header)?, Step::Precommit);
 			let precommit_hash = message_hash(vote_step.clone(), header.bare_hash());
@@ -607,18 +624,8 @@ impl Engine for Tendermint {
 				}
 			}
 
-			self.check_above_threshold(origins.len())?
+			self.check_above_threshold(origins.len()).map_err(Into::into)
 		}
-
-		let gas_limit_divisor = self.params().gas_limit_bound_divisor;
-		let min_gas = parent.gas_limit().clone() - parent.gas_limit().clone() / gas_limit_divisor;
-		let max_gas = parent.gas_limit().clone() + parent.gas_limit().clone() / gas_limit_divisor;
-		if header.gas_limit() <= &min_gas || header.gas_limit() >= &max_gas {
-			self.validators.report_malicious(header.author(), header.number(), header.number(), Default::default());
-			return Err(BlockError::InvalidGasLimit(OutOfBounds { min: Some(min_gas), max: Some(max_gas), found: header.gas_limit().clone() }).into());
-		}
-
-		Ok(())
 	}
 
 	fn signals_epoch_end(&self, header: &Header, block: Option<&[u8]>, receipts: Option<&[::receipt::Receipt]>)
@@ -753,13 +760,12 @@ impl Engine for Tendermint {
 		self.to_step(next_step);
 	}
 
-	fn register_client(&self, client: Weak<Client>) {
-		use client::BlockChainClient;
+	fn register_client(&self, client: Weak<EngineClient>) {
 		if let Some(c) = client.upgrade() {
 			self.height.store(c.chain_info().best_block_number as usize + 1, AtomicOrdering::SeqCst);
 		}
 		*self.client.write() = Some(client.clone());
-		self.validators.register_contract(client);
+		self.validators.register_client(client);
 	}
 }
 
@@ -887,14 +893,14 @@ mod tests {
 		let seal = proposal_seal(&tap, &header, 0);
 		header.set_seal(seal);
 		// Good proposer.
-		assert!(engine.verify_block_family(&header, &parent_header, None).is_ok());
+		assert!(engine.verify_block_external(&header, None).is_ok());
 
 		let validator = insert_and_unlock(&tap, "0");
 		header.set_author(validator);
 		let seal = proposal_seal(&tap, &header, 0);
 		header.set_seal(seal);
 		// Bad proposer.
-		match engine.verify_block_family(&header, &parent_header, None) {
+		match engine.verify_block_external(&header, None) {
 			Err(Error::Engine(EngineError::NotProposer(_))) => {},
 			_ => panic!(),
 		}
@@ -904,7 +910,7 @@ mod tests {
 		let seal = proposal_seal(&tap, &header, 0);
 		header.set_seal(seal);
 		// Not authority.
-		match engine.verify_block_family(&header, &parent_header, None) {
+		match engine.verify_block_external(&header, None) {
 			Err(Error::Engine(EngineError::NotAuthorized(_))) => {},
 			_ => panic!(),
 		};
@@ -934,7 +940,7 @@ mod tests {
 		header.set_seal(seal.clone());
 
 		// One good signature is not enough.
-		match engine.verify_block_family(&header, &parent_header, None) {
+		match engine.verify_block_external(&header, None) {
 			Err(Error::Engine(EngineError::BadSealFieldSize(_))) => {},
 			_ => panic!(),
 		}
@@ -945,7 +951,7 @@ mod tests {
 		seal[2] = ::rlp::encode_list(&vec![H520::from(signature1.clone()), H520::from(signature0.clone())]).into_vec();
 		header.set_seal(seal.clone());
 
-		assert!(engine.verify_block_family(&header, &parent_header, None).is_ok());
+		assert!(engine.verify_block_external(&header, None).is_ok());
 
 		let bad_voter = insert_and_unlock(&tap, "101");
 		let bad_signature = tap.sign(bad_voter, None, keccak(vote_info)).unwrap();
@@ -954,7 +960,7 @@ mod tests {
 		header.set_seal(seal);
 
 		// One good and one bad signature.
-		match engine.verify_block_family(&header, &parent_header, None) {
+		match engine.verify_block_external(&header, None) {
 			Err(Error::Engine(EngineError::NotAuthorized(_))) => {},
 			_ => panic!(),
 		};
@@ -1000,7 +1006,7 @@ mod tests {
 		let client = generate_dummy_client(0);
 		let notify = Arc::new(TestNotify::default());
 		client.add_notify(notify.clone());
-		engine.register_client(Arc::downgrade(&client));
+		engine.register_client(Arc::downgrade(&client) as _);
 
 		let prevote_current = vote(engine.as_ref(), |mh| tap.sign(v0, None, mh).map(H520::from), h, r, Step::Prevote, proposal);
 
@@ -1018,7 +1024,6 @@ mod tests {
 	fn seal_submission() {
 		use ethkey::{Generator, Random};
 		use transaction::{Transaction, Action};
-		use client::BlockChainClient;
 
 		let tap = Arc::new(AccountProvider::transient_provider());
 		// Accounts for signing votes.
@@ -1031,7 +1036,7 @@ mod tests {
 
 		let notify = Arc::new(TestNotify::default());
 		client.add_notify(notify.clone());
-		engine.register_client(Arc::downgrade(&client));
+		engine.register_client(Arc::downgrade(&client) as _);
 
 		let keypair = Random.generate().unwrap();
 		let transaction = Transaction {

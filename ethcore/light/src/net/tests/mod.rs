@@ -158,6 +158,12 @@ impl Provider for TestProvider {
 		None
 	}
 
+	fn epoch_signal(&self, _req: request::CompleteSignalRequest) -> Option<request::SignalResponse> {
+		Some(request::SignalResponse {
+			signal: vec![1, 2, 3, 4],
+		})
+	}
+
 	fn ready_transactions(&self) -> Vec<PendingTransaction> {
 		self.0.client.ready_transactions()
 	}
@@ -516,6 +522,50 @@ fn get_contract_code() {
 		let mut response_stream = RlpStream::new_list(3);
 
 		response_stream.append(&req_id).append(&new_creds).append_list(&response);
+		response_stream.out()
+	};
+
+	let expected = Expect::Respond(packet::RESPONSE, response);
+	proto.handle_packet(&expected, &1, packet::REQUEST, &request_body);
+}
+
+#[test]
+fn epoch_signal() {
+	let capabilities = capabilities();
+
+	let (provider, proto) = setup(capabilities.clone());
+	let flow_params = proto.flow_params.read().clone();
+
+	let cur_status = status(provider.client.chain_info());
+
+	{
+		let packet_body = write_handshake(&cur_status, &capabilities, &proto);
+		proto.on_connect(&1, &Expect::Send(1, packet::STATUS, packet_body.clone()));
+		proto.handle_packet(&Expect::Nothing, &1, packet::STATUS, &packet_body);
+	}
+
+	let req_id = 112;
+	let request = Request::Signal(request::IncompleteSignalRequest {
+		block_hash: H256([1; 32]).into(),
+	});
+
+	let requests = encode_single(request.clone());
+	let request_body = make_packet(req_id, &requests);
+
+	let response = {
+		let response = vec![Response::Signal(SignalResponse {
+			signal: vec![1, 2, 3, 4],
+		})];
+
+		let limit = *flow_params.limit();
+		let cost = flow_params.compute_cost_multi(requests.requests());
+
+		println!("limit = {}, cost = {}", limit, cost);
+		let new_creds = limit - cost;
+
+		let mut response_stream = RlpStream::new_list(3);
+		response_stream.append(&req_id).append(&new_creds).append_list(&response);
+
 		response_stream.out()
 	};
 
