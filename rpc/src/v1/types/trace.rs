@@ -93,6 +93,8 @@ impl From<et::VMExecutedOperation> for VMExecutedOperation {
 pub struct VMOperation {
 	/// The program counter.
 	pub pc: usize,
+	/// The instruction executed.
+	pub op: u8,
 	/// The gas cost for this instruction.
 	pub cost: u64,
 	/// Information concerning the execution of the operation.
@@ -106,6 +108,7 @@ impl From<(et::VMOperation, Option<et::VMTrace>)> for VMOperation {
 	fn from(c: (et::VMOperation, Option<et::VMTrace>)) -> Self {
 		VMOperation {
 			pc: c.0.pc,
+			op: c.0.instruction,
 			cost: c.0.gas_cost.low_u64(),
 			ex: c.0.executed.map(Into::into),
 			sub: c.1.map(Into::into),
@@ -374,7 +377,7 @@ pub enum Action {
 	/// Suicide
 	Suicide(Suicide),
 	/// Reward
-	Reward(Reward),	
+	Reward(Reward),
 }
 
 impl From<trace::Action> for Action {
@@ -786,12 +789,14 @@ mod tests {
 			ops: vec![
 				VMOperation {
 					pc: 0,
+					op: 1,
 					cost: 10,
 					ex: None,
 					sub: None,
 				},
 				VMOperation {
 					pc: 1,
+					op: 6,
 					cost: 11,
 					ex: Some(VMExecutedOperation {
 						used: 10,
@@ -804,6 +809,7 @@ mod tests {
 						ops: vec![
 							VMOperation {
 								pc: 0,
+								op: 0,
 								cost: 0,
 								ex: Some(VMExecutedOperation {
 									used: 10,
@@ -819,7 +825,7 @@ mod tests {
 			]
 		};
 		let serialized = serde_json::to_string(&t).unwrap();
-		assert_eq!(serialized, r#"{"code":"0x00010203","ops":[{"pc":0,"cost":10,"ex":null,"sub":null},{"pc":1,"cost":11,"ex":{"used":10,"push":["0x45"],"mem":null,"store":null},"sub":{"code":"0x00","ops":[{"pc":0,"cost":0,"ex":{"used":10,"push":["0x2a"],"mem":{"off":42,"data":"0x010203"},"store":{"key":"0x45","val":"0x2a"}},"sub":null}]}}]}"#);
+		assert_eq!(serialized, r#"{"code":"0x00010203","ops":[{"pc":0,"op":1,"cost":10,"ex":null,"sub":null},{"pc":1,"op":6,"cost":11,"ex":{"used":10,"push":["0x45"],"mem":null,"store":null},"sub":{"code":"0x00","ops":[{"pc":0,"op":0,"cost":0,"ex":{"used":10,"push":["0x2a"],"mem":{"off":42,"data":"0x010203"},"store":{"key":"0x45","val":"0x2a"}},"sub":null}]}}]}"#);
 	}
 
 	#[test]
