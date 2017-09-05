@@ -27,6 +27,7 @@ use parking_lot::{Mutex, RwLock};
 
 use util::*;
 use util::cache::MemoryLruCache;
+use unexpected::Mismatch;
 use rlp::{UntrustedRlp, RlpStream};
 
 use basic_types::LogBloom;

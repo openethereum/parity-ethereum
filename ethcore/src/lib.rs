@@ -108,6 +108,7 @@ extern crate heapsize;
 extern crate triehash;
 extern crate ansi_term;
 extern crate semantic_version;
+extern crate unexpected;
 
 #[macro_use]
 extern crate rlp_derive;

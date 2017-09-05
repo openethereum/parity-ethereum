@@ -25,6 +25,7 @@ use itertools::Itertools;
 // util
 use hash::keccak;
 use timer::PerfTimer;
+use util::UtilError;
 use util::Bytes;
 use util::{journaldb, DBValue, TrieFactory, Trie};
 use util::Address;
@@ -252,7 +253,7 @@ impl Client {
 			last_hashes: RwLock::new(VecDeque::new()),
 			factories: factories,
 			history: history,
-			rng: Mutex::new(OsRng::new().map_err(::util::UtilError::StdIo)?),
+			rng: Mutex::new(OsRng::new().map_err(UtilError::from)?),
 			ancient_verifier: Mutex::new(None),
 			on_user_defaults_change: Mutex::new(None),
 			registrar: Mutex::new(None),

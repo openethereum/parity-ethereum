@@ -279,7 +279,7 @@ impl KeyValueDB for InMemory {
 	}
 
 	fn restore(&self, _new_db: &str) -> Result<(), UtilError> {
-		Err(UtilError::SimpleString("Attempted to restore in-memory database".into()))
+		Err("Attempted to restore in-memory database".into())
 	}
 }
 

@@ -29,7 +29,8 @@ use super::{DB_PREFIX_LEN, LATEST_ERA_KEY};
 use super::traits::JournalDB;
 use kvdb::{KeyValueDB, DBTransaction};
 use bigint::hash::H256;
-use { BaseDataError, UtilError, Bytes};
+use error::{BaseDataError, UtilError};
+use {Bytes};
 
 #[derive(Clone, PartialEq, Eq)]
 struct RefInfo {
