@@ -45,6 +45,8 @@ pub enum Error {
 	Wasm,
 	/// Contract tried to access past the return data buffer.
 	OutOfBounds,
+	/// Execution has been reverted with REVERT instruction.
+	Reverted,
 }
 
 impl<'a> From<&'a VmError> for Error {
@@ -60,6 +62,7 @@ impl<'a> From<&'a VmError> for Error {
 			VmError::Internal(_) => Error::Internal,
 			VmError::MutableCallInStaticContext => Error::MutableCallInStaticContext,
 			VmError::OutOfBounds => Error::OutOfBounds,
+			VmError::Reverted => Error::Reverted,
 		}
 	}
 }
@@ -84,6 +87,7 @@ impl fmt::Display for Error {
 			Internal => "Internal error",
 			MutableCallInStaticContext => "Mutable Call In Static Context",
 			OutOfBounds => "Out of bounds",
+			Reverted => "Reverted",
 		};
 		message.fmt(f)
 	}
@@ -103,6 +107,7 @@ impl Encodable for Error {
 			MutableCallInStaticContext => 7,
 			Wasm => 8,
 			OutOfBounds => 9,
+			Reverted => 10,
 		};
 
 		s.append_internal(&value);
@@ -124,6 +129,7 @@ impl Decodable for Error {
 			7 => Ok(MutableCallInStaticContext),
 			8 => Ok(Wasm),
 			9 => Ok(OutOfBounds),
+			10 => Ok(Reverted),
 			_ => Err(DecoderError::Custom("Invalid error type")),
 		}
 	}

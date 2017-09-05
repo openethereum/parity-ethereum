@@ -26,7 +26,7 @@ use bytes;
 use util::kvdb::{self, KeyValueDB};
 use {state, state_db, client, executive, trace, transaction, db, spec, pod_state};
 use factory::Factories;
-use evm::{self, VMType};
+use evm::{self, VMType, FinalizationResult};
 use vm::{self, ActionParams};
 
 /// EVM test Error.
@@ -162,7 +162,7 @@ impl<'a> EvmTestClient<'a> {
 	/// Execute the VM given ActionParams and tracer.
 	/// Returns amount of gas left and the output.
 	pub fn call<T: trace::VMTracer>(&mut self, params: ActionParams, vm_tracer: &mut T)
-		-> Result<(U256, Vec<u8>), EvmTestError>
+		-> Result<FinalizationResult, EvmTestError>
 	{
 		let genesis = self.spec.genesis_header();
 		let info = client::EnvInfo {
@@ -178,15 +178,13 @@ impl<'a> EvmTestClient<'a> {
 		let mut tracer = trace::NoopTracer;
 		let mut output = vec![];
 		let mut executive = executive::Executive::new(&mut self.state, &info, &*self.spec.engine);
-		let (gas_left, _) = executive.call(
+		executive.call(
 			params,
 			&mut substate,
 			bytes::BytesRef::Flexible(&mut output),
 			&mut tracer,
 			vm_tracer,
-		).map_err(EvmTestError::Evm)?;
-
-		Ok((gas_left, output))
+		).map_err(EvmTestError::Evm)
 	}
 
 	/// Executes a SignedTransaction within context of the provided state and `EnvInfo`.

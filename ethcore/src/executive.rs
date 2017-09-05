@@ -383,12 +383,12 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 		mut output: BytesRef,
 		tracer: &mut T,
 		vm_tracer: &mut V
-	) -> vm::Result<(U256, ReturnData)> where T: Tracer, V: VMTracer {
+	) -> vm::Result<FinalizationResult> where T: Tracer, V: VMTracer {
 
 		trace!("Executive::call(params={:?}) self.env_info={:?}", params, self.info);
 		if (params.call_type == CallType::StaticCall ||
 				((params.call_type == CallType::Call || params.call_type == CallType::DelegateCall) &&
-				 self.static_flag))
+				self.static_flag))
 			&& params.value.value() > 0.into() {
 			return Err(vm::Error::MutableCallInStaticContext);
 		}
@@ -441,7 +441,11 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 						);
 					}
 
-					Ok((params.gas - cost, ReturnData::empty()))
+					Ok(FinalizationResult {
+						gas_left: params.gas - cost,
+						return_data: ReturnData::empty(),
+						apply_state: true,
+					})
 				}
 			} else {
 				// just drain the whole gas
@@ -488,13 +492,17 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 
 				self.enact_result(&res, substate, unconfirmed_substate);
 				trace!(target: "executive", "enacted: substate={:?}\n", substate);
-				res.map(|r| (r.gas_left, r.return_data))
+				res
 			} else {
 				// otherwise it's just a basic transaction, only do tracing, if necessary.
 				self.state.discard_checkpoint();
 
 				tracer.trace_call(trace_info, U256::zero(), trace_output, vec![]);
-				Ok((params.gas, ReturnData::empty()))
+				Ok(FinalizationResult {
+					gas_left: params.gas,
+					return_data: ReturnData::empty(),
+					apply_state: true,
+				})
 			}
 		}
 	}
@@ -509,7 +517,7 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 		output: &mut Option<Bytes>,
 		tracer: &mut T,
 		vm_tracer: &mut V,
-	) -> vm::Result<(U256, ReturnData)> where T: Tracer, V: VMTracer {
+	) -> vm::Result<FinalizationResult> where T: Tracer, V: VMTracer {
 
 		// EIP-684: If a contract creation is attempted, due to either a creation transaction or the
 		// CREATE (or future CREATE2) opcode, and the destination address already has either
@@ -569,7 +577,7 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 		};
 
 		self.enact_result(&res, substate, unconfirmed_substate);
-		res.map(|r| (r.gas_left, r.return_data))
+		res
 	}
 
 	/// Finalizes the transaction (does refunds and suicides).
@@ -577,7 +585,7 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 		&mut self,
 		t: &SignedTransaction,
 		mut substate: Substate,
-		result: vm::Result<(U256, ReturnData)>,
+		result: vm::Result<FinalizationResult>,
 		output: Bytes,
 		trace: Vec<FlatTrace>,
 		vm_trace: Option<VMTrace>
@@ -591,7 +599,7 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 		let refunds_bound = sstore_refunds + suicide_refunds;
 
 		// real ammount to refund
-		let gas_left_prerefund = match result { Ok((x, _)) => x, _ => 0.into() };
+		let gas_left_prerefund = match result { Ok(FinalizationResult{ gas_left, .. }) => gas_left, _ => 0.into() };
 		let refunded = cmp::min(refunds_bound, (t.gas - gas_left_prerefund) >> 1);
 		let gas_left = gas_left_prerefund + refunded;
 
@@ -635,9 +643,9 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 					state_diff: None,
 				})
 			},
-			_ => {
+			Ok(r) => {
 				Ok(Executed {
-					exception: None,
+					exception: if r.apply_state { None } else { Some(vm::Error::Reverted) },
 					gas: t.gas,
 					gas_used: gas_used,
 					refunded: refunded,
@@ -664,6 +672,7 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 				| Err(vm::Error::OutOfStack {..})
 				| Err(vm::Error::MutableCallInStaticContext)
 				| Err(vm::Error::OutOfBounds)
+				| Err(vm::Error::Reverted)
 				| Ok(FinalizationResult { apply_state: false, .. }) => {
 					self.state.revert_to_checkpoint();
 			},
@@ -721,7 +730,7 @@ mod tests {
 		let engine = TestEngine::new(0);
 		let mut substate = Substate::new();
 
-		let (gas_left, _) = {
+		let FinalizationResult { gas_left, .. } = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
 			ex.create(params, &mut substate, &mut None, &mut NoopTracer, &mut NoopVMTracer).unwrap()
 		};
@@ -779,7 +788,7 @@ mod tests {
 		let engine = TestEngine::new(0);
 		let mut substate = Substate::new();
 
-		let (gas_left, _) = {
+		let FinalizationResult { gas_left, .. } = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
 			ex.create(params, &mut substate, &mut None, &mut NoopTracer, &mut NoopVMTracer).unwrap()
 		};
@@ -837,7 +846,7 @@ mod tests {
 		let mut tracer = ExecutiveTracer::default();
 		let mut vm_tracer = ExecutiveVMTracer::toplevel();
 
-		let (gas_left, _) = {
+		let FinalizationResult { gas_left, .. } = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
 			let output = BytesRef::Fixed(&mut[0u8;0]);
 			ex.call(params, &mut substate, output, &mut tracer, &mut vm_tracer).unwrap()
@@ -946,7 +955,7 @@ mod tests {
 		let mut tracer = ExecutiveTracer::default();
 		let mut vm_tracer = ExecutiveVMTracer::toplevel();
 
-		let (gas_left, _) = {
+		let FinalizationResult { gas_left, .. } = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
 			ex.create(params.clone(), &mut substate, &mut None, &mut tracer, &mut vm_tracer).unwrap()
 		};
@@ -1031,7 +1040,7 @@ mod tests {
 		let engine = TestEngine::new(0);
 		let mut substate = Substate::new();
 
-		let (gas_left, _) = {
+		let FinalizationResult { gas_left, .. } = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
 			ex.create(params, &mut substate, &mut None, &mut NoopTracer, &mut NoopVMTracer).unwrap()
 		};
@@ -1142,7 +1151,7 @@ mod tests {
 		let engine = TestEngine::new(0);
 		let mut substate = Substate::new();
 
-		let (gas_left, _) = {
+		let FinalizationResult { gas_left, .. } = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
 			ex.call(params, &mut substate, BytesRef::Fixed(&mut []), &mut NoopTracer, &mut NoopVMTracer).unwrap()
 		};
@@ -1186,7 +1195,7 @@ mod tests {
 		let engine = TestEngine::new(0);
 		let mut substate = Substate::new();
 
-		let (gas_left, _) = {
+		let FinalizationResult { gas_left, .. } = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
 			ex.call(params, &mut substate, BytesRef::Fixed(&mut []), &mut NoopTracer, &mut NoopVMTracer).unwrap()
 		};
@@ -1391,7 +1400,7 @@ mod tests {
 		let mut substate = Substate::new();
 
 		let mut output = [0u8; 14];
-		let (result, _) = {
+		let FinalizationResult { gas_left: result, .. } = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
 			ex.call(params, &mut substate, BytesRef::Fixed(&mut output), &mut NoopTracer, &mut NoopVMTracer).unwrap()
 		};

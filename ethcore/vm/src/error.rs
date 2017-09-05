@@ -67,6 +67,8 @@ pub enum Error {
 	Wasm(String),
 	/// Out of bounds access in RETURNDATACOPY.
 	OutOfBounds,
+	/// Execution has been reverted with REVERT.
+	Reverted,
 }
 
 
@@ -96,6 +98,7 @@ impl fmt::Display for Error {
 			MutableCallInStaticContext => write!(f, "Mutable call in static context"),
 			Wasm(ref msg) => write!(f, "Internal error: {}", msg),
 			OutOfBounds => write!(f, "Out of bounds"),
+			Reverted => write!(f, "Reverted"),
 		}
 	}
 }

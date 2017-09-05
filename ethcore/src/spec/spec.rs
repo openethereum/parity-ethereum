@@ -70,6 +70,8 @@ pub struct CommonParams {
 	pub fork_block: Option<(BlockNumber, H256)>,
 	/// Number of first block where EIP-98 rules begin.
 	pub eip98_transition: BlockNumber,
+	/// Number of first block where EIP-658 rules begin.
+	pub eip658_transition: BlockNumber,
 	/// Number of first block where EIP-155 rules begin.
 	pub eip155_transition: BlockNumber,
 	/// Validate block receipts root.
@@ -172,6 +174,7 @@ impl From<ethjson::spec::Params> for CommonParams {
 			eip210_contract_gas: p.eip210_contract_gas.map_or(1000000.into(), Into::into),
 			eip211_transition: p.eip211_transition.map_or(BlockNumber::max_value(), Into::into),
 			eip214_transition: p.eip214_transition.map_or(BlockNumber::max_value(), Into::into),
+			eip658_transition: p.eip658_transition.map_or(BlockNumber::max_value(), Into::into),
 			dust_protection_transition: p.dust_protection_transition.map_or(BlockNumber::max_value(), Into::into),
 			nonce_cap_increment: p.nonce_cap_increment.map_or(64, Into::into),
 			remove_dust_contracts: p.remove_dust_contracts.unwrap_or(false),
