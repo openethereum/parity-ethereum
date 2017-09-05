@@ -212,10 +212,49 @@ pub fn check_proof(
 		Err(_) => return ProvedExecution::BadProof,
 	};
 
-	match state.execute(env_info, engine, transaction, TransactOptions::with_no_tracing(), true) {
+	let options = TransactOptions::with_no_tracing().save_output_from_contract();
+	match state.execute(env_info, engine, transaction, options, true) {
 		Ok(executed) => ProvedExecution::Complete(executed),
 		Err(ExecutionError::Internal(_)) => ProvedExecution::BadProof,
 		Err(e) => ProvedExecution::Failed(e),
+	}
+}
+
+/// Prove a transaction on the given state.
+/// Returns `None` when the transacion could not be proved,
+/// and a proof otherwise.
+pub fn prove_transaction<H: AsHashDB + Send + Sync>(
+	db: H,
+	root: H256,
+	transaction: &SignedTransaction,
+	engine: &Engine,
+	env_info: &EnvInfo,
+	factories: Factories,
+	virt: bool,
+) -> Option<(Bytes, Vec<DBValue>)> {
+	use self::backend::Proving;
+
+	let backend = Proving::new(db);
+	let res = State::from_existing(
+		backend,
+		root,
+		engine.account_start_nonce(env_info.number),
+		factories,
+	);
+
+	let mut state = match res {
+		Ok(state) => state,
+		Err(_) => return None,
+	};
+
+	let options = TransactOptions::with_no_tracing().dont_check_nonce().save_output_from_contract();
+	match state.execute(env_info, engine, transaction, options, virt) {
+		Err(ExecutionError::Internal(_)) => None,
+		Err(e) => {
+			trace!(target: "state", "Proved call failed: {}", e);
+			Some((Vec::new(), state.drop().1.extract_proof()))
+		}
+		Ok(res) => Some((res.output, state.drop().1.extract_proof())),
 	}
 }
 

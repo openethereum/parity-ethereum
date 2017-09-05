@@ -34,13 +34,13 @@ export default class ExportInput extends Component {
         type='password'
         label={
           <FormattedMessage
-            id='export.setPassword.label'
+            id='account.export.setPassword.label'
             defaultMessage='Password'
           />
         }
         hint={
           <FormattedMessage
-            id='export.setPassword.hint'
+            id='account.export.setPassword.hint'
             defaultMessage='Enter password Here'
           />
         }

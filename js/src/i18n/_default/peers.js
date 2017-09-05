@@ -15,12 +15,32 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 export default {
-  duplicateName: `the name already exists`,
-  invalidKey: `the raw key needs to be hex, 64 characters in length and contain the prefix "0x"`,
-  noFile: `select a valid wallet file to import`,
-  noKey: `you need to provide the raw private key`,
-  noMatchBackupPhrase: `the supplied recovery phrase does not match`,
-  noMatchPassword: `the supplied passwords does not match`,
-  noMatchPhraseBackedUp: `type "I have written down the phrase"`,
-  noName: `you need to specify a valid name`
+  acceptNonReserved: {
+    label: `Accept non-reserved`
+  },
+  acceptNonReservedPeers: {
+    success: `Accepting non-reserved peers`
+  },
+  addReserved: {
+    label: `Add reserved`
+  },
+  dropNonReserved: {
+    label: `Drop non-reserved`
+  },
+  dropNonReservedPeers: {
+    success: `Dropping non-reserved peers`
+  },
+  form: {
+    action: {
+      label: `{add, select, true {Add} false {}}{remove, select, true {Remove} false {}}`,
+      success: `Successfully {add, select, true {added} false {}}{remove, select, true {removed} false {}} a reserved peer`
+    },
+    cancel: {
+      label: `Cancel`
+    },
+    label: `Peer enode URL`
+  },
+  removeReserved: {
+    label: `Remove reserved`
+  }
 };
