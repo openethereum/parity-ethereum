@@ -116,9 +116,8 @@ export default class Balances {
         }
 
         if (firstcall) {
+          firstcall = false;
           return;
-        } else {
-          firstcall = true;
         }
 
         this._store.dispatch(updateTokensFilter());
@@ -138,15 +137,14 @@ export default class Balances {
     let firstcall = true;
 
     return this._api
-      .subscribe('eth_blockNumber', (error) => {
+      .subscribe('eth_blockNumber', (error, block) => {
         if (error) {
           return console.warn('balances::subscribeBlockNumber', error);
         }
 
         if (firstcall) {
+          firstcall = false;
           return;
-        } else {
-          firstcall = true;
         }
 
         this._store.dispatch(queryTokensFilter());
