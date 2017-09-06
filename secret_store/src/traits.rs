@@ -82,7 +82,7 @@ pub trait MessageSigner: ServerKeyGenerator {
 }
 
 
-#[ipc(client_ident="RemoteKeyServer")]
 /// Key server.
+#[ipc(client_ident="RemoteKeyServer")]
 pub trait KeyServer: DocumentKeyServer + MessageSigner + Send + Sync {
 }

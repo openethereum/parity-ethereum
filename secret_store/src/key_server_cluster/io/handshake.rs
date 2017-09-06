@@ -74,8 +74,8 @@ pub fn accept_handshake<A>(a: A, self_key_pair: Arc<NodeKeyPair>) -> Handshake<A
 	}
 }
 
-#[derive(Debug, PartialEq)]
 /// Result of handshake procedure.
+#[derive(Debug, PartialEq)]
 pub struct HandshakeResult {
 	/// Node id.
 	pub node_id: NodeId,

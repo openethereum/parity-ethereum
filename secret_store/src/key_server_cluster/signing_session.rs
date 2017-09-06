@@ -188,8 +188,8 @@ impl SessionImpl {
 		})
 	}
 
-	#[cfg(test)]
 	/// Get session state.
+	#[cfg(test)]
 	pub fn state(&self) -> SessionState {
 		self.data.lock().state
 	}
