@@ -87,7 +87,6 @@ export default class TransferStore {
     this.newError = newError;
     this.tokens = tokens;
 
-    console.log(gasLimit);
     this.gasStore = new GasPriceStore(api, { gasLimit });
     this.tokenContract = api.newContract(tokenAbi, '');
 
