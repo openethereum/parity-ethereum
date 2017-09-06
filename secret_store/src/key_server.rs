@@ -51,8 +51,8 @@ impl KeyServerImpl {
 		})
 	}
 
-	#[cfg(test)]
 	/// Get cluster client reference.
+	#[cfg(test)]
 	pub fn cluster(&self) -> Arc<ClusterClient> {
 		self.data.lock().cluster.clone()
 	}

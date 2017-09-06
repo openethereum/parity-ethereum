@@ -31,8 +31,8 @@ use key_server_cluster::message::{Message, ClusterMessage, GenerationMessage, En
 /// Size of serialized header.
 pub const MESSAGE_HEADER_SIZE: usize = 4;
 
-#[derive(Debug, PartialEq)]
 /// Message header.
+#[derive(Debug, PartialEq)]
 pub struct MessageHeader {
 	/// Message/Header version.
 	pub version: u8,
@@ -42,8 +42,8 @@ pub struct MessageHeader {
 	pub size: u16,
 }
 
-#[derive(Debug, Clone, PartialEq)]
 /// Serialized message.
+#[derive(Debug, Clone, PartialEq)]
 pub struct SerializedMessage(Vec<u8>);
 
 impl Deref for SerializedMessage {

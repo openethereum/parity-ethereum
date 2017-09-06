@@ -72,8 +72,8 @@ pub struct SessionParams {
 	pub cluster: Arc<Cluster>,
 }
 
-#[derive(Debug)]
 /// Mutable data of distributed key generation session.
+#[derive(Debug)]
 struct SessionData {
 	/// Current state of the session.
 	state: SessionState,
@@ -110,8 +110,8 @@ struct SessionData {
 	joint_public_and_secret: Option<Result<(Public, Secret), Error>>,
 }
 
-#[derive(Debug, Clone)]
 /// Mutable node-specific data.
+#[derive(Debug, Clone)]
 struct NodeData {
 	/// Random unique scalar. Persistent.
 	pub id_number: Secret,
@@ -137,8 +137,8 @@ struct NodeData {
 	pub completion_confirmed: bool,
 }
 
-#[derive(Debug, Clone, PartialEq)]
 /// Schedule for visiting other nodes of cluster.
+#[derive(Debug, Clone, PartialEq)]
 pub struct EveryOtherNodeVisitor {
 	/// Already visited nodes.
 	visited: BTreeSet<NodeId>,
@@ -148,8 +148,8 @@ pub struct EveryOtherNodeVisitor {
 	in_progress: BTreeSet<NodeId>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
 /// Distributed key generation session state.
+#[derive(Debug, Clone, PartialEq)]
 pub enum SessionState {
 	// === Initialization states ===
 	/// Every node starts in this state.
@@ -209,8 +209,8 @@ impl SessionImpl {
 		&self.self_node_id
 	}
 
-	#[cfg(test)]
 	/// Get derived point.
+	#[cfg(test)]
 	pub fn derived_point(&self) -> Option<Public> {
 		self.data.lock().derived_point.clone()
 	}
