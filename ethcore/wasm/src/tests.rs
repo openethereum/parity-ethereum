@@ -436,16 +436,12 @@ macro_rules! reqrep_test {
 			fake_ext.info = $info;
 			fake_ext.blockhashes = $block_hashes;
 
-			let (gas_left, result) = {
-				let mut interpreter = wasm_interpreter();
-				let result = interpreter.exec(params, &mut fake_ext).expect("Interpreter to execute without any errors");
-				match result {
-						GasLeft::Known(_) => { panic!("Test is expected to return payload to check"); },
-						GasLeft::NeedsReturn { gas_left: gas, data: result, apply_state: _apply } => (gas, result.to_vec()),
-				}
-			};
-
-			(gas_left, result)
+			let mut interpreter = wasm_interpreter();
+			interpreter.exec(params, &mut fake_ext)
+				.map(|result| match result {
+					GasLeft::Known(_) => { panic!("Test is expected to return payload to check"); },
+					GasLeft::NeedsReturn { gas_left: gas, data: result, apply_state: _apply } => (gas, result.to_vec()),
+				})
 		}
 	};
 }
@@ -470,7 +466,7 @@ fn math_add() {
 			arg_b.to_big_endian(&mut args[33..65]);
 			args.to_vec()
 		}
-	);
+	).expect("Interpreter to execute without any errors");
 
 	assert_eq!(gas_left, U256::from(98177));
 	assert_eq!(
@@ -492,7 +488,7 @@ fn math_mul() {
 			arg_b.to_big_endian(&mut args[33..65]);
 			args.to_vec()
 		}
-	);
+	).expect("Interpreter to execute without any errors");
 
 	assert_eq!(gas_left, U256::from(97326));
 	assert_eq!(
@@ -501,7 +497,7 @@ fn math_mul() {
 	);
 }
 
-// substraction
+// subtraction
 #[test]
 fn math_sub() {
 	let (gas_left, result) = reqrep_test!(
@@ -514,13 +510,31 @@ fn math_sub() {
 			arg_b.to_big_endian(&mut args[33..65]);
 			args.to_vec()
 		}
-	);
+	).expect("Interpreter to execute without any errors");
 
 	assert_eq!(gas_left, U256::from(98221));
 	assert_eq!(
 		U256::from_dec_str("111111111111111111111111111111").unwrap(),
 		(&result[..]).into()
 	);
+}
+
+// subtraction with overflow
+#[test]
+fn math_sub_with_overflow() {
+	let result = reqrep_test!(
+		"math.wasm",
+		{
+			let mut args = [2u8; 65];
+			let arg_a = U256::from_dec_str("888888888888888888888888888888").unwrap();
+			let arg_b = U256::from_dec_str("999999999999999999999999999999").unwrap();
+			arg_a.to_big_endian(&mut args[1..33]);
+			arg_b.to_big_endian(&mut args[33..65]);
+			args.to_vec()
+		}
+	);
+
+	assert_eq!(result, Err(vm::Error::Wasm("Wasm runtime error: User(Panic(\"arithmetic operation overflow\"))".into())));
 }
 
 #[test]
@@ -535,7 +549,7 @@ fn math_div() {
 			arg_b.to_big_endian(&mut args[33..65]);
 			args.to_vec()
 		}
-	);
+	).expect("Interpreter to execute without any errors");
 
 	assert_eq!(gas_left, U256::from(91510));
 	assert_eq!(
@@ -572,7 +586,7 @@ fn externs() {
 			);
 			hashes
 		}
-	);
+	).expect("Interpreter to execute without any errors");
 
 	assert_eq!(
 		&result[0..64].to_vec(),
