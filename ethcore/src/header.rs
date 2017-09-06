@@ -23,6 +23,7 @@ use heapsize::HeapSizeOf;
 use bigint::prelude::U256;
 use bigint::hash::H256;
 use util::*;
+use bytes::Bytes;
 use basic_types::{LogBloom, ZERO_LOGBLOOM};
 use time::get_time;
 use rlp::*;

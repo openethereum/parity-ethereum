@@ -23,6 +23,10 @@ env_logger = "0.4"
 ethabi = "2.0"
 ethash = { path = "../ethash" }
 ethcore-bloom-journal = { path = "../util/bloom" }
+ethcore-bytes = { path = "../util/bytes" }
+hashdb = { path = "../util/hashdb" }
+memorydb = { path = "../util/memorydb" }
+trie = { path = "../util/trie" }
 ethcore-devtools = { path = "../devtools" }
 ethcore-io = { path = "../util/io" }
 ethcore-ipc = { path = "../ipc/rpc" }

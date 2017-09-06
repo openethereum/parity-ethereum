@@ -43,6 +43,7 @@ use bigint::prelude::U256;
 use bigint::hash::{H256, H2048};
 use parking_lot::RwLock;
 use util::*;
+use bytes::Bytes;
 
 /// Parameters common to ethereum-like blockchains.
 /// NOTE: when adding bugfix hard-fork parameters,

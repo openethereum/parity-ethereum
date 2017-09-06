@@ -1,0 +1,8 @@
+[package]
+name = "nibblevec"
+version = "0.1.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+
+[dependencies]
+elastic-array = "0.9"
+nibbleslice = { path = "../nibbleslice" }

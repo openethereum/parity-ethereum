@@ -30,6 +30,12 @@ lru-cache = "0.1.0"
 ethcore-logger = { path = "../logger" }
 triehash = { path = "triehash" }
 error-chain = "0.11.0-rc.2"
+hashdb = { path = "hashdb" }
+trie = { path = "trie" }
+nibbleslice = { path = "nibbleslice" }
+nibblevec = { path = "nibblevec" }
+ethcore-bytes = { path = "bytes" }
+memorydb = { path = "memorydb" }
 
 [features]
 default = []

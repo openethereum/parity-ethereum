@@ -17,6 +17,7 @@ ethcore = { path = "../ethcore" }
 ethjson = { path = "../json" }
 ethcore-util = { path = "../util" }
 ethcore-bigint = { path = "../util/bigint" }
+ethcore-bytes = { path = "../util/bytes" }
 evm = { path = "../ethcore/evm" }
 vm = { path = "../ethcore/vm" }
 panic_hook = { path = "../panic_hook" }

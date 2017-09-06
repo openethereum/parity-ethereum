@@ -789,7 +789,7 @@ pub mod header_proof {
 	use rlp::{Encodable, Decodable, DecoderError, RlpStream, UntrustedRlp};
 	use bigint::prelude::U256;
 	use bigint::hash::H256;
-	use util::Bytes;
+	use bytes::Bytes;
 
 	/// Potentially incomplete header proof request.
 	#[derive(Debug, Clone, PartialEq, Eq, RlpEncodable, RlpDecodable)]
@@ -1120,7 +1120,7 @@ pub mod account {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
 	use bigint::prelude::U256;
 	use bigint::hash::H256;
-	use util::Bytes;
+	use bytes::Bytes;
 
 	/// Potentially incomplete request for an account proof.
 	#[derive(Debug, Clone, PartialEq, Eq, RlpEncodable, RlpDecodable)]
@@ -1220,7 +1220,7 @@ pub mod account {
 pub mod storage {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
 	use bigint::hash::H256;
-	use util::Bytes;
+	use bytes::Bytes;
 
 	/// Potentially incomplete request for an storage proof.
 	#[derive(Debug, Clone, PartialEq, Eq, RlpEncodable, RlpDecodable)]
@@ -1329,7 +1329,7 @@ pub mod storage {
 pub mod contract_code {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
 	use bigint::hash::H256;
-	use util::Bytes;
+	use bytes::Bytes;
 
 	/// Potentially incomplete contract code request.
 	#[derive(Debug, Clone, PartialEq, Eq, RlpEncodable, RlpDecodable)]
@@ -1417,7 +1417,8 @@ pub mod execution {
 	use rlp::{Encodable, Decodable, DecoderError, RlpStream, UntrustedRlp};
 	use bigint::prelude::U256;
 	use bigint::hash::H256;
-	use util::{Bytes, Address, DBValue};
+	use util::{Address, DBValue};
+	use bytes::Bytes;
 
 	/// Potentially incomplete execution proof request.
 	#[derive(Debug, Clone, PartialEq, Eq, RlpEncodable, RlpDecodable)]

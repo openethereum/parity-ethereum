@@ -19,7 +19,7 @@ use rand::random;
 use hash::write_keccak;
 use mio::tcp::*;
 use bigint::hash::*;
-use util::bytes::Bytes;
+use ethcore_bytes::Bytes;
 use rlp::*;
 use connection::{Connection};
 use host::{HostInfo};

@@ -17,7 +17,8 @@
 //! Evm input params.
 use bigint::prelude::U256;
 use bigint::hash::{H256};
-use util::{Address, Bytes};
+use util::Address;
+use bytes::Bytes;
 use hash::{keccak, KECCAK_EMPTY};
 use ethjson;
 

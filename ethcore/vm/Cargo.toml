@@ -6,7 +6,9 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [dependencies]
 byteorder = "1.0"
 ethcore-util = { path = "../../util" }
+ethcore-bytes = { path = "../../util/bytes" }
 ethcore-bigint = { path = "../../util/bigint" }
+trie = { path = "../../util/trie" }
 log = "0.3"
 common-types = { path = "../types" }
 evmjit = { path = "../../evmjit", optional = true }

@@ -17,7 +17,7 @@
 use std::sync::Arc;
 use std::collections::{HashMap, BTreeMap};
 use std::io;
-use util::Bytes;
+use bytes::Bytes;
 use network::{NetworkProtocolHandler, NetworkService, NetworkContext, HostInfo, PeerId, ProtocolId,
 	NetworkConfiguration as BasicNetworkConfiguration, NonReservedPeerMode, NetworkError, ConnectionFilter};
 use bigint::prelude::U256;

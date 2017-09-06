@@ -15,6 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Nibble-orientated view onto byte-slice, allowing nibble-precision offsets.
+extern crate elastic_array;
+
 use std::cmp::*;
 use std::fmt;
 use elastic_array::ElasticArray36;
@@ -25,8 +27,8 @@ use elastic_array::ElasticArray36;
 ///
 /// # Example
 /// ```rust
-/// extern crate ethcore_util;
-/// use ethcore_util::nibbleslice::*;
+/// extern crate nibbleslice;
+/// use nibbleslice::*;
 /// fn main() {
 ///   let d1 = &[0x01u8, 0x23, 0x45];
 ///   let d2 = &[0x34u8, 0x50, 0x12];

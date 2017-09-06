@@ -22,7 +22,7 @@ use super::node::{Node, OwnedNode};
 use super::lookup::Lookup;
 use super::{Trie, TrieItem, TrieError, TrieIterator, Query};
 use bigint::hash::H256;
-use {ToPretty, Bytes};
+use bytes::{ToPretty, Bytes};
 
 /// A `Trie` implementation using a generic `HashDB` backing database.
 ///
@@ -31,12 +31,14 @@ use {ToPretty, Bytes};
 ///
 /// # Example
 /// ```
-/// extern crate ethcore_util as util;
+/// extern crate trie;
+/// extern crate hashdb;
+/// extern crate memorydb;
 /// extern crate ethcore_bigint as bigint;
 ///
-/// use util::trie::*;
-/// use util::hashdb::*;
-/// use util::memorydb::*;
+/// use trie::*;
+/// use hashdb::*;
+/// use memorydb::*;
 /// use bigint::hash::*;
 ///
 /// fn main() {

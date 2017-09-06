@@ -20,7 +20,7 @@ use ethcore::trace;
 use std::collections::HashMap;
 use bigint::prelude::U256;
 use bigint::hash::H256;
-use util::ToPretty;
+use bytes::ToPretty;
 
 use display;
 use info as vm;

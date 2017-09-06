@@ -63,7 +63,8 @@ pub use self::stratum::{Stratum, Error as StratumError, Options as StratumOption
 use std::collections::BTreeMap;
 use bigint::prelude::U256;
 use bigint::hash::H256;
-use util::{Address, Bytes};
+use util::Address;
+use bytes::Bytes;
 use client::{MiningBlockChainClient};
 use block::ClosedBlock;
 use header::BlockNumber;

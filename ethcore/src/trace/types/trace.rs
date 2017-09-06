@@ -17,7 +17,8 @@
 //! Tracing datatypes.
 
 use bigint::prelude::U256;
-use util::{Bytes, Address};
+use util::Address;
+use bytes::Bytes;
 use hash::keccak;
 use bloomable::Bloomable;
 use rlp::*;

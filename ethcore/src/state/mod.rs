@@ -45,9 +45,12 @@ use evm::{Factory as EvmFactory};
 use bigint::prelude::U256;
 use bigint::hash::H256;
 use util::*;
+use bytes::Bytes;
 
-use util::trie;
-use util::trie::recorder::Recorder;
+use trie;
+use trie::{Trie, TrieError, TrieDB};
+use trie::recorder::Recorder;
+
 
 mod account;
 mod substate;

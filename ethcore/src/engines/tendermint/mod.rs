@@ -36,6 +36,7 @@ use parking_lot::RwLock;
 use util::*;
 use unexpected::{OutOfBounds, Mismatch};
 use client::EngineClient;
+use bytes::Bytes;
 use error::{Error, BlockError};
 use header::{Header, BlockNumber};
 use builtin::Builtin;
@@ -775,6 +776,7 @@ mod tests {
 	use std::str::FromStr;
 	use rustc_hex::FromHex;
 	use util::*;
+	use bytes::Bytes;
 	use block::*;
 	use error::{Error, BlockError};
 	use header::Header;

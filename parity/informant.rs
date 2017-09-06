@@ -36,7 +36,7 @@ use number_prefix::{binary_prefix, Standalone, Prefixed};
 use parity_rpc::{is_major_importing};
 use parity_rpc::informant::RpcStats;
 use bigint::hash::H256;
-use util::Bytes;
+use bytes::Bytes;
 use parking_lot::{RwLock, Mutex};
 
 /// Format byte counts to standard denominations.

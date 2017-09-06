@@ -20,7 +20,7 @@ use cid::{ToCid, Codec};
 
 use multihash::Hash;
 use bigint::hash::H256;
-use util::Bytes;
+use bytes::Bytes;
 use ethcore::client::{BlockId, TransactionId};
 
 type Reason = &'static str;

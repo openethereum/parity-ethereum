@@ -21,7 +21,8 @@ use ethcore::account_provider::AccountProvider;
 use ethcore::transaction::PendingTransaction;
 
 use bigint::prelude::U128;
-use util::{Address, ToPretty};
+use util::Address;
+use bytes::ToPretty;
 
 use futures::{future, Future, BoxFuture};
 use jsonrpc_core::Error;

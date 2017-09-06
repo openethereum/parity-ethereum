@@ -16,7 +16,7 @@
 
 use ethcore::snapshot::{ManifestData, RestorationStatus, SnapshotService};
 
-use util::Bytes;
+use bytes::Bytes;
 use bigint::hash::H256;
 use parking_lot::Mutex;
 

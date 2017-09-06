@@ -1,0 +1,21 @@
+[package]
+name = "trie"
+version = "0.1.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+
+[dependencies]
+elastic-array = "0.9"
+log = "0.3"
+rand = "0.3"
+ethcore-bytes = { path = "../bytes" }
+ethcore-bigint = { path = "../bigint" }
+hash = { path = "../hash" }
+hashdb = { path = "../hashdb" }
+rlp = { path = "../rlp" }
+nibbleslice = { path = "../nibbleslice" }
+nibblevec = { path = "../nibblevec" }
+triehash = { path = "../triehash" }
+memorydb = { path = "../memorydb" }
+ethcore-logger = { path = "../../logger" }
+
+

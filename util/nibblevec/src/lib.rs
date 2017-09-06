@@ -16,6 +16,8 @@
 
 
 //! An owning, nibble-oriented byte vector.
+extern crate nibbleslice;
+extern crate elastic_array;
 
 use nibbleslice::NibbleSlice;
 use elastic_array::ElasticArray36;
