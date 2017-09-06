@@ -98,6 +98,9 @@ pub trait BlockChainClient : Sync + Send {
 			.expect("code will return Some if given BlockId::Latest; qed")
 	}
 
+	/// Get address code hash at given block's state.
+	fn code_hash(&self, address: &Address, id: BlockId) -> Option<H256>;
+
 	/// Get address balance at the given block's state.
 	///
 	/// May not return None if given BlockId::Latest.

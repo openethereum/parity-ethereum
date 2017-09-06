@@ -315,6 +315,7 @@ pub fn transaction_message(error: TransactionError) -> String {
 		SenderBanned => "Sender is banned in local queue.".into(),
 		RecipientBanned => "Recipient is banned in local queue.".into(),
 		CodeBanned => "Code is banned in local queue.".into(),
+		NotAllowed => "Transaction is not permitted.".into(),
 	}
 }
 
