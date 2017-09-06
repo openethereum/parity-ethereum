@@ -31,7 +31,7 @@ use error::{Error, TransactionError, BlockError};
 use ethjson;
 use header::{Header, BlockNumber};
 use spec::CommonParams;
-use transaction::UnverifiedTransaction;
+use transaction::{UnverifiedTransaction, SignedTransaction};
 
 use super::signer::EngineSigner;
 use super::validator_set::{ValidatorSet, SimpleList, new_validator_set};
@@ -48,6 +48,7 @@ use semantic_version::SemanticVersion;
 use parking_lot::{Mutex, RwLock};
 use unexpected::{Mismatch, OutOfBounds};
 use util::*;
+use tx_filter::TransactionFilter;
 
 mod finality;
 
@@ -219,6 +220,7 @@ pub struct AuthorityRound {
 	validate_step_transition: u64,
 	epoch_manager: Mutex<EpochManager>,
 	immediate_transitions: bool,
+	tx_filter: Option<TransactionFilter>,
 }
 
 // header-chain validator.
@@ -351,6 +353,7 @@ impl AuthorityRound {
 		let initial_step = our_params.start_step.unwrap_or_else(|| (unix_now().as_secs() / our_params.step_duration.as_secs())) as usize;
 		let engine = Arc::new(
 			AuthorityRound {
+				tx_filter: TransactionFilter::from_params(&params),
 				params: params,
 				builtins: builtins,
 				transition_service: IoService::<()>::start()?,
@@ -774,6 +777,14 @@ impl Engine for AuthorityRound {
 		None
 	}
 
+	fn verify_transaction(&self, t: UnverifiedTransaction, header: &Header) -> Result<SignedTransaction, Error> {
+ 		let signed = SignedTransaction::new(t)?;
+ 		if !self.tx_filter.as_ref().map_or(true, |filter| filter.transaction_allowed(header.parent_hash(), &signed)) {
+ 			return Err(From::from(TransactionError::NotAllowed));
+ 		}
+ 		Ok(signed)
+ 	}
+
 	fn epoch_verifier<'a>(&self, _header: &Header, proof: &'a [u8]) -> ConstructedVerifier<'a> {
 		let (signal_number, set_proof, finality_proof) = match destructure_proofs(proof) {
 			Ok(x) => x,
@@ -810,6 +821,9 @@ impl Engine for AuthorityRound {
 	}
 
 	fn register_client(&self, client: Weak<Client>) {
+		if let Some(ref filter) = self.tx_filter {
+			filter.register_client(client.clone());
+		}
 		*self.client.write() = Some(client.clone());
 		self.validators.register_contract(client);
 	}
