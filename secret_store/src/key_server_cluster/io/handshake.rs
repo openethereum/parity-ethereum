@@ -318,7 +318,6 @@ mod tests {
 	use std::collections::BTreeSet;
 	use futures::Future;
 	use ethkey::{Random, Generator, sign};
-	use ethcrypto::ecdh::agree;
 	use bigint::hash::H256;
 	use key_server_cluster::PlainNodeKeyPair;
 	use key_server_cluster::io::message::tests::TestIo;
