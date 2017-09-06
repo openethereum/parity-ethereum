@@ -57,6 +57,11 @@ class Requests extends Component {
 
   renderRequest (request, extras = {}) {
     const { show, transaction } = request;
+
+    if (!transaction) {
+      return null;
+    }
+
     const state = this.getTransactionState(request);
     const displayedTransaction = { ...transaction };
 

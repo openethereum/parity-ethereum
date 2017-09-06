@@ -31,7 +31,7 @@ export const init = (api) => (dispatch) => {
     const requests = pending
       .filter((p) => p.payload && p.payload.sendTransaction)
       .map((p) => ({
-        requestId: p.id,
+        requestId: '0x' + p.id.toString(16),
         transaction: p.payload.sendTransaction
       }));
 
