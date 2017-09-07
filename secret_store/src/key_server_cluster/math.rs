@@ -521,23 +521,35 @@ pub mod tests {
 		}
 	}
 
-	fn run_key_share_refreshing_and_add_new_node(t: usize, n: usize, artifacts: &KeyGenerationArtifacts) -> KeyGenerationArtifacts {
+	fn run_key_share_refreshing_and_add_new_nodes(t: usize, n: usize, new_nodes: usize, artifacts: &KeyGenerationArtifacts) -> KeyGenerationArtifacts {
 		// === share refreshing protocol (with new node addition) from http://www.wu.ece.ufl.edu/mypapers/msig.pdf
 		let mut id_numbers: Vec<_> = artifacts.id_numbers.iter().cloned().collect();
 
 		// key refreshing distribution algorithm (KRD)
-		let refreshed_polynoms1: Vec<_> = (0..n).map(|_| generate_random_polynom(t).unwrap()).collect();
-		let mut refreshed_polynoms1_sum: Vec<_> = (0..n).map(|i| add_polynoms(&artifacts.polynoms1[i], &refreshed_polynoms1[i], false).unwrap()).collect();
+		// for each new node: generate random polynom
+		let refreshed_polynoms1: Vec<_> = (0..n).map(|_| (0..new_nodes).map(|_| generate_random_polynom(t).unwrap()).collect::<Vec<_>>()).collect();
+		let mut refreshed_polynoms1_sum: Vec<_> = (0..n).map(|i| {
+			let mut refreshed_polynom1_sum = artifacts.polynoms1[i].clone();
+			for refreshed_polynom1 in &refreshed_polynoms1[i] {
+				refreshed_polynom1_sum = add_polynoms(&refreshed_polynom1_sum, refreshed_polynom1, false).unwrap();
+			}
+			refreshed_polynom1_sum
+		}).collect();
 
-		// new node receives private information and generates its own polynom
-		let mut new_polynom1 = generate_random_polynom(t).unwrap();
-		let new_polynom_absolute_term = compute_additional_polynom1_absolute_term(refreshed_polynoms1.iter().map(|polynom1| &polynom1[0])).unwrap();
-		new_polynom1[0] = new_polynom_absolute_term;
+		// new nodes receiving private information and generates its own polynom
+		let mut new_nodes_polynom1 = Vec::with_capacity(new_nodes);
+		for i in 0..new_nodes {
+			let mut new_polynom1 = generate_random_polynom(t).unwrap();
+			let new_polynom_absolute_term = compute_additional_polynom1_absolute_term(refreshed_polynoms1.iter().map(|polynom1| &polynom1[i][0])).unwrap();
+			new_polynom1[0] = new_polynom_absolute_term;
+			new_nodes_polynom1.push(new_polynom1);
+		}
+
 
 		// new nodes sends its own information to all other nodes
-		let n = n + 1;
-		id_numbers.push(Random.generate().unwrap().secret().clone());
-		refreshed_polynoms1_sum.push(new_polynom1);
+		let n = n + new_nodes;
+		id_numbers.extend((0..new_nodes).map(|_| Random.generate().unwrap().secret().clone()));
+		refreshed_polynoms1_sum.extend(new_nodes_polynom1);
 
 		// the rest of protocol is the same as without new node
 		let refreshed_secrets1: Vec<_> = (0..n).map(|i| (0..n).map(|j| compute_polynom(&refreshed_polynoms1_sum[i], &id_numbers[j]).unwrap()).collect::<Vec<_>>()).collect();
@@ -736,18 +748,18 @@ pub mod tests {
 	}
 
 	#[test]
-	fn full_generation_math_session_with_adding_new_node() {
+	fn full_generation_math_session_with_adding_new_nodes() {
 		// generate key using 6-of-10 session
 		let (t, n) = (5, 10);
 		let artifacts1 = run_key_generation(t, n, None);
 
 		// let's say we want to include additional server to the set
 		// so that scheme becames 6-of-11
-		let artifacts2 = run_key_share_refreshing_and_add_new_node(t, n, &artifacts1);
+		let artifacts2 = run_key_share_refreshing_and_add_new_nodes(t, n, 1, &artifacts1);
 		assert_eq!(artifacts1.joint_public, artifacts2.joint_public);
 
-		// include one more server (6-of-12)
-		let artifacts3 = run_key_share_refreshing_and_add_new_node(t, n + 1, &artifacts2);
+		// include another couple of servers (6-of-13)
+		let artifacts3 = run_key_share_refreshing_and_add_new_nodes(t, n + 1, 2, &artifacts2);
 		assert_eq!(artifacts1.joint_public, artifacts3.joint_public);
 	}
 }
