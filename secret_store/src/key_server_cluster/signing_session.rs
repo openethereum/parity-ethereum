@@ -64,7 +64,7 @@ struct SessionCore {
 	/// Cluster which allows this node to send messages to other nodes in the cluster.
 	pub cluster: Arc<Cluster>,
 	/// Session-level nonce.
-	pub session_nonce: u64,
+	pub nonce: u64,
 	/// SessionImpl completion condvar.
 	pub completed: Condvar,
 }
@@ -111,7 +111,7 @@ pub struct SessionParams {
 	/// Cluster
 	pub cluster: Arc<Cluster>,
 	/// Session nonce.
-	pub session_nonce: u64,
+	pub nonce: u64,
 }
 
 /// Signing consensus transport.
@@ -121,7 +121,7 @@ struct SigningConsensusTransport {
 	/// Session access key.
 	access_key: Secret,
 	/// Session-level nonce.
-	session_nonce: u64,
+	nonce: u64,
 	/// Cluster.
 	cluster: Arc<Cluster>,
 }
@@ -133,7 +133,7 @@ struct SessionKeyGenerationTransport {
 	/// Cluster.
 	cluster: Arc<Cluster>,
 	/// Session-level nonce.
-	session_nonce: u64,
+	nonce: u64,
 	/// Other nodes ids.
 	other_nodes_ids: BTreeSet<NodeId>,
 }
@@ -145,7 +145,7 @@ struct SigningJobTransport {
 	/// Session access key.
 	access_key: Secret,
 	/// Session-level nonce.
-	session_nonce: u64,
+	nonce: u64,
 	/// Cluster.
 	cluster: Arc<Cluster>,
 }
@@ -166,7 +166,7 @@ impl SessionImpl {
 		let consensus_transport = SigningConsensusTransport {
 			id: params.meta.id.clone(),
 			access_key: params.access_key.clone(),
-			session_nonce: params.session_nonce,
+			nonce: params.nonce,
 			cluster: params.cluster.clone(),
 		};
 
@@ -176,7 +176,7 @@ impl SessionImpl {
 				access_key: params.access_key,
 				key_share: params.key_share,
 				cluster: params.cluster,
-				session_nonce: params.session_nonce,
+				nonce: params.nonce,
 				completed: Condvar::new(),
 			},
 			data: Mutex::new(SessionData {
@@ -220,10 +220,10 @@ impl SessionImpl {
 				cluster: Arc::new(SessionKeyGenerationTransport {
 					access_key: self.core.access_key.clone(),
 					cluster: self.core.cluster.clone(),
-					session_nonce: self.core.session_nonce,
+					nonce: self.core.nonce,
 					other_nodes_ids: BTreeSet::new()
 				}),
-				session_nonce: None,
+				nonce: None,
 			});
 			generation_session.initialize(Public::default(), 0, vec![self.core.meta.self_node_id.clone()].into_iter().collect())?;
 
@@ -246,7 +246,7 @@ impl SessionImpl {
 
 	/// Process signing message.
 	pub fn process_message(&self, sender: &NodeId, message: &SigningMessage) -> Result<(), Error> {
-		if self.core.session_nonce != message.session_nonce() {
+		if self.core.nonce != message.session_nonce() {
 			return Err(Error::ReplayProtection);
 		}
 
@@ -292,10 +292,10 @@ impl SessionImpl {
 			cluster: Arc::new(SessionKeyGenerationTransport {
 				access_key: self.core.access_key.clone(),
 				cluster: self.core.cluster.clone(),
-				session_nonce: self.core.session_nonce,
+				nonce: self.core.nonce,
 				other_nodes_ids: other_consensus_group_nodes,
 			}),
-			session_nonce: None,
+			nonce: None,
 		});
 		generation_session.initialize(Public::default(), self.core.key_share.threshold, consensus_group)?;
 		data.generation_session = Some(generation_session);
@@ -328,10 +328,10 @@ impl SessionImpl {
 				cluster: Arc::new(SessionKeyGenerationTransport {
 					access_key: self.core.access_key.clone(),
 					cluster: self.core.cluster.clone(),
-					session_nonce: self.core.session_nonce,
+					nonce: self.core.nonce,
 					other_nodes_ids: other_consensus_group_nodes
 				}),
-				session_nonce: None,
+				nonce: None,
 			});
 			data.generation_session = Some(generation_session);
 			data.state = SessionState::SessionKeyGeneration;
@@ -412,7 +412,7 @@ impl SessionImpl {
 			self.core.cluster.send(&node, Message::Signing(SigningMessage::SigningSessionCompleted(SigningSessionCompleted {
 				session: self.core.meta.id.clone().into(),
 				sub_session: self.core.access_key.clone().into(),
-				session_nonce: self.core.session_nonce,
+				session_nonce: self.core.nonce,
 			})))?;
 		}
 
@@ -513,7 +513,7 @@ impl SessionKeyGenerationTransport {
 			Message::Generation(message) => Ok(Message::Signing(SigningMessage::SigningGenerationMessage(SigningGenerationMessage {
 				session: message.session_id().clone().into(),
 				sub_session: self.access_key.clone().into(),
-				session_nonce: self.session_nonce,
+				session_nonce: self.nonce,
 				message: message,
 			}))),
 			_ => Err(Error::InvalidMessage),
@@ -541,7 +541,7 @@ impl SessionCore {
 		SigningJobTransport {
 			id: self.meta.id.clone(),
 			access_key: self.access_key.clone(),
-			session_nonce: self.session_nonce,
+			nonce: self.nonce,
 			cluster: self.cluster.clone()
 		}
 	}
@@ -560,7 +560,7 @@ impl JobTransport for SigningConsensusTransport {
 		self.cluster.send(node, Message::Signing(SigningMessage::SigningConsensusMessage(SigningConsensusMessage {
 			session: self.id.clone().into(),
 			sub_session: self.access_key.clone().into(),
-			session_nonce: self.session_nonce,
+			session_nonce: self.nonce,
 			message: ConsensusMessage::InitializeConsensusSession(InitializeConsensusSession {
 				requestor_signature: request.into(),
 			})
@@ -571,7 +571,7 @@ impl JobTransport for SigningConsensusTransport {
 		self.cluster.send(node, Message::Signing(SigningMessage::SigningConsensusMessage(SigningConsensusMessage {
 			session: self.id.clone().into(),
 			sub_session: self.access_key.clone().into(),
-			session_nonce: self.session_nonce,
+			session_nonce: self.nonce,
 			message: ConsensusMessage::ConfirmConsensusInitialization(ConfirmConsensusInitialization {
 				is_confirmed: response,
 			})
@@ -587,7 +587,7 @@ impl JobTransport for SigningJobTransport {
 		self.cluster.send(node, Message::Signing(SigningMessage::RequestPartialSignature(RequestPartialSignature {
 			session: self.id.clone().into(),
 			sub_session: self.access_key.clone().into(),
-			session_nonce: self.session_nonce,
+			session_nonce: self.nonce,
 			request_id: request.id.into(),
 			message_hash: request.message_hash.into(),
 			nodes: request.other_nodes_ids.into_iter().map(Into::into).collect(),
@@ -598,7 +598,7 @@ impl JobTransport for SigningJobTransport {
 		self.cluster.send(node, Message::Signing(SigningMessage::PartialSignature(PartialSignature {
 			session: self.id.clone().into(),
 			sub_session: self.access_key.clone().into(),
-			session_nonce: self.session_nonce,
+			session_nonce: self.nonce,
 			request_id: response.request_id.into(),
 			partial_signature: response.partial_signature.into(),
 		})))
@@ -659,7 +659,7 @@ mod tests {
 					key_share: gl_node.key_storage.get(&session_id).unwrap(),
 					acl_storage: acl_storage,
 					cluster: cluster.clone(),
-					session_nonce: 0,
+					nonce: 0,
 				}, if i == 0 { signature.clone() } else { None }).unwrap();
 				nodes.insert(gl_node_id.clone(), Node { node_id: gl_node_id.clone(), cluster: cluster, session: session });
 			}
@@ -794,7 +794,7 @@ mod tests {
 			},
 			acl_storage: Arc::new(DummyAclStorage::default()),
 			cluster: Arc::new(DummyCluster::new(self_node_id.clone())),
-			session_nonce: 0,
+			nonce: 0,
 		}, Some(ethkey::sign(Random.generate().unwrap().secret(), &SessionId::default()).unwrap())) {
 			Ok(_) => (),
 			_ => panic!("unexpected"),
@@ -825,7 +825,7 @@ mod tests {
 			},
 			acl_storage: Arc::new(DummyAclStorage::default()),
 			cluster: Arc::new(DummyCluster::new(self_node_id.clone())),
-			session_nonce: 0,
+			nonce: 0,
 		}, Some(ethkey::sign(Random.generate().unwrap().secret(), &SessionId::default()).unwrap())) {
 			Err(Error::InvalidNodesConfiguration) => (),
 			_ => panic!("unexpected"),
@@ -856,7 +856,7 @@ mod tests {
 			},
 			acl_storage: Arc::new(DummyAclStorage::default()),
 			cluster: Arc::new(DummyCluster::new(self_node_id.clone())),
-			session_nonce: 0,
+			nonce: 0,
 		}, Some(ethkey::sign(Random.generate().unwrap().secret(), &SessionId::default()).unwrap())) {
 			Err(Error::InvalidThreshold) => (),
 			_ => panic!("unexpected"),

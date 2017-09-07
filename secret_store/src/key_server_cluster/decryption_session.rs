@@ -60,7 +60,7 @@ struct SessionCore {
 	/// Cluster which allows this node to send messages to other nodes in the cluster.
 	pub cluster: Arc<Cluster>,
 	/// Session-level nonce.
-	pub session_nonce: u64,
+	pub nonce: u64,
 	/// SessionImpl completion condvar.
 	pub completed: Condvar,
 }
@@ -100,7 +100,7 @@ pub struct SessionParams {
 	/// Cluster.
 	pub cluster: Arc<Cluster>,
 	/// Session nonce.
-	pub session_nonce: u64,
+	pub nonce: u64,
 }
 
 /// Decryption consensus transport.
@@ -110,7 +110,7 @@ struct DecryptionConsensusTransport {
 	/// Session access key.
 	access_key: Secret,
 	/// Session-level nonce.
-	session_nonce: u64,
+	nonce: u64,
 	/// Cluster.
 	cluster: Arc<Cluster>,
 }
@@ -122,7 +122,7 @@ struct DecryptionJobTransport {
 	//// Session access key.
 	access_key: Secret,
 	/// Session-level nonce.
-	session_nonce: u64,
+	nonce: u64,
 	/// Cluster.
 	cluster: Arc<Cluster>,
 }
@@ -148,7 +148,7 @@ impl SessionImpl {
 		let consensus_transport = DecryptionConsensusTransport {
 			id: params.meta.id.clone(),
 			access_key: params.access_key.clone(),
-			session_nonce: params.session_nonce,
+			nonce: params.nonce,
 			cluster: params.cluster.clone(),
 		};
 
@@ -158,7 +158,7 @@ impl SessionImpl {
 				access_key: params.access_key,
 				key_share: params.key_share,
 				cluster: params.cluster,
-				session_nonce: params.session_nonce,
+				nonce: params.nonce,
 				completed: Condvar::new(),
 			},
 			data: Mutex::new(SessionData {
@@ -223,7 +223,7 @@ impl SessionImpl {
 
 	/// Process decryption message.
 	pub fn process_message(&self, sender: &NodeId, message: &DecryptionMessage) -> Result<(), Error> {
-		if self.core.session_nonce != message.session_nonce() {
+		if self.core.nonce != message.session_nonce() {
 			return Err(Error::ReplayProtection);
 		}
 
@@ -300,7 +300,7 @@ impl SessionImpl {
 			self.core.cluster.send(&node, Message::Decryption(DecryptionMessage::DecryptionSessionCompleted(DecryptionSessionCompleted {
 				session: self.core.meta.id.clone().into(),
 				sub_session: self.core.access_key.clone().into(),
-				session_nonce: self.core.session_nonce,
+				session_nonce: self.core.nonce,
 			})))?;
 		}
 
@@ -395,7 +395,7 @@ impl SessionCore {
 		DecryptionJobTransport {
 			id: self.meta.id.clone(),
 			access_key: self.access_key.clone(),
-			session_nonce: self.session_nonce,
+			nonce: self.nonce,
 			cluster: self.cluster.clone()
 		}
 	}
@@ -415,7 +415,7 @@ impl JobTransport for DecryptionConsensusTransport {
 		self.cluster.send(node, Message::Decryption(DecryptionMessage::DecryptionConsensusMessage(DecryptionConsensusMessage {
 			session: self.id.clone().into(),
 			sub_session: self.access_key.clone().into(),
-			session_nonce: self.session_nonce,
+			session_nonce: self.nonce,
 			message: ConsensusMessage::InitializeConsensusSession(InitializeConsensusSession {
 				requestor_signature: request.into(),
 			})
@@ -426,7 +426,7 @@ impl JobTransport for DecryptionConsensusTransport {
 		self.cluster.send(node, Message::Decryption(DecryptionMessage::DecryptionConsensusMessage(DecryptionConsensusMessage {
 			session: self.id.clone().into(),
 			sub_session: self.access_key.clone().into(),
-			session_nonce: self.session_nonce,
+			session_nonce: self.nonce,
 			message: ConsensusMessage::ConfirmConsensusInitialization(ConfirmConsensusInitialization {
 				is_confirmed: response,
 			})
@@ -442,7 +442,7 @@ impl JobTransport for DecryptionJobTransport {
 		self.cluster.send(node, Message::Decryption(DecryptionMessage::RequestPartialDecryption(RequestPartialDecryption {
 			session: self.id.clone().into(),
 			sub_session: self.access_key.clone().into(),
-			session_nonce: self.session_nonce,
+			session_nonce: self.nonce,
 			request_id: request.id.into(),
 			is_shadow_decryption: request.is_shadow_decryption,
 			nodes: request.other_nodes_ids.into_iter().map(Into::into).collect(),
@@ -453,7 +453,7 @@ impl JobTransport for DecryptionJobTransport {
 		self.cluster.send(node, Message::Decryption(DecryptionMessage::PartialDecryption(PartialDecryption {
 			session: self.id.clone().into(),
 			sub_session: self.access_key.clone().into(),
-			session_nonce: self.session_nonce,
+			session_nonce: self.nonce,
 			request_id: response.request_id.into(),
 			shadow_point: response.shadow_point.into(),
 			decrypt_shadow: response.decrypt_shadow,
@@ -556,7 +556,7 @@ mod tests {
 			key_share: encrypted_datas[i].clone(),
 			acl_storage: acl_storages[i].clone(),
 			cluster: clusters[i].clone(),
-			session_nonce: 0,
+			nonce: 0,
 		}, if i == 0 { signature.clone() } else { None }).unwrap()).collect();
 
 		(requester, clusters, acl_storages, sessions)
@@ -605,7 +605,7 @@ mod tests {
 			},
 			acl_storage: Arc::new(DummyAclStorage::default()),
 			cluster: Arc::new(DummyCluster::new(self_node_id.clone())),
-			session_nonce: 0,
+			nonce: 0,
 		}, Some(ethkey::sign(Random.generate().unwrap().secret(), &SessionId::default()).unwrap())) {
 			Ok(_) => (),
 			_ => panic!("unexpected"),
@@ -636,7 +636,7 @@ mod tests {
 			},
 			acl_storage: Arc::new(DummyAclStorage::default()),
 			cluster: Arc::new(DummyCluster::new(self_node_id.clone())),
-			session_nonce: 0,
+			nonce: 0,
 		}, Some(ethkey::sign(Random.generate().unwrap().secret(), &SessionId::default()).unwrap())) {
 			Err(Error::InvalidNodesConfiguration) => (),
 			_ => panic!("unexpected"),
@@ -667,7 +667,7 @@ mod tests {
 			},
 			acl_storage: Arc::new(DummyAclStorage::default()),
 			cluster: Arc::new(DummyCluster::new(self_node_id.clone())),
-			session_nonce: 0,
+			nonce: 0,
 		}, Some(ethkey::sign(Random.generate().unwrap().secret(), &SessionId::default()).unwrap())) {
 			Err(Error::InvalidThreshold) => (),
 			_ => panic!("unexpected"),

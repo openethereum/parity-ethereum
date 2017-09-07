@@ -79,7 +79,7 @@ pub struct ClusterSessions {
 	/// => this guarantees that sessions are replay-protected.
 	session_counter: AtomicUsize,
 	/// Maximal session nonce, received from given connection.
-	max_session_nonce: RwLock<BTreeMap<NodeId, u64>>,
+	max_nonce: RwLock<BTreeMap<NodeId, u64>>,
 }
 
 /// Active sessions container.
@@ -156,7 +156,7 @@ impl ClusterSessions {
 			signing_sessions: ClusterSessionsContainer::new(),
 			make_faulty_generation_sessions: AtomicBool::new(false),
 			session_counter: AtomicUsize::new(0),
-			max_session_nonce: RwLock::new(BTreeMap::new()),
+			max_nonce: RwLock::new(BTreeMap::new()),
 		}
 	}
 
@@ -166,7 +166,7 @@ impl ClusterSessions {
 	}
 
 	/// Create new generation session.
-	pub fn new_generation_session(&self, master: NodeId, session_id: SessionId, session_nonce: Option<u64>, cluster: Arc<ClusterView>) -> Result<Arc<GenerationSessionImpl>, Error> {
+	pub fn new_generation_session(&self, master: NodeId, session_id: SessionId, nonce: Option<u64>, cluster: Arc<ClusterView>) -> Result<Arc<GenerationSessionImpl>, Error> {
 		// check that there's no finished encryption session with the same id
 		if self.key_storage.contains(&session_id) {
 			return Err(Error::DuplicateSessionId);
@@ -179,14 +179,14 @@ impl ClusterSessions {
 		}
 
 		// check that there's no active encryption session with the same id
-		let session_nonce = self.check_session_nonce(&master, session_nonce)?;
+		let nonce = self.check_session_nonce(&master, nonce)?;
 		self.generation_sessions.insert(master, session_id, cluster.clone(), move ||
 			Ok(GenerationSessionImpl::new(GenerationSessionParams {
 				id: session_id.clone(),
 				self_node_id: self.self_node_id.clone(),
 				key_storage: Some(self.key_storage.clone()),
 				cluster: cluster,
-				session_nonce: Some(session_nonce),
+				nonce: Some(nonce),
 			})))
 			.map(|session| {
 				if self.make_faulty_generation_sessions.load(Ordering::Relaxed) {
@@ -209,9 +209,9 @@ impl ClusterSessions {
 	}
 
 	/// Create new encryption session.
-	pub fn new_encryption_session(&self, master: NodeId, session_id: SessionId, session_nonce: Option<u64>, cluster: Arc<ClusterView>) -> Result<Arc<EncryptionSessionImpl>, Error> {
+	pub fn new_encryption_session(&self, master: NodeId, session_id: SessionId, nonce: Option<u64>, cluster: Arc<ClusterView>) -> Result<Arc<EncryptionSessionImpl>, Error> {
 		let encrypted_data = self.read_key_share(&session_id, &cluster)?;
-		let session_nonce = self.check_session_nonce(&master, session_nonce)?;
+		let nonce = self.check_session_nonce(&master, nonce)?;
 
 		self.encryption_sessions.insert(master, session_id, cluster.clone(), move || EncryptionSessionImpl::new(EncryptionSessionParams {
 			id: session_id.clone(),
@@ -219,7 +219,7 @@ impl ClusterSessions {
 			encrypted_data: encrypted_data,
 			key_storage: self.key_storage.clone(),
 			cluster: cluster,
-			session_nonce: session_nonce,
+			nonce: nonce,
 		}))
 	}
 
@@ -236,10 +236,10 @@ impl ClusterSessions {
 	}
 
 	/// Create new decryption session.
-	pub fn new_decryption_session(&self, master: NodeId, session_id: SessionId, sub_session_id: Secret, session_nonce: Option<u64>, cluster: Arc<ClusterView>, requester_signature: Option<Signature>) -> Result<Arc<DecryptionSessionImpl>, Error> {
+	pub fn new_decryption_session(&self, master: NodeId, session_id: SessionId, sub_session_id: Secret, nonce: Option<u64>, cluster: Arc<ClusterView>, requester_signature: Option<Signature>) -> Result<Arc<DecryptionSessionImpl>, Error> {
 		let session_id = DecryptionSessionId::new(session_id, sub_session_id);
 		let encrypted_data = self.read_key_share(&session_id.id, &cluster)?;
-		let session_nonce = self.check_session_nonce(&master, session_nonce)?;
+		let nonce = self.check_session_nonce(&master, nonce)?;
 
 		self.decryption_sessions.insert(master, session_id.clone(), cluster.clone(), move || DecryptionSessionImpl::new(DecryptionSessionParams {
 			meta: SessionMeta {
@@ -252,7 +252,7 @@ impl ClusterSessions {
 			key_share: encrypted_data,
 			acl_storage: self.acl_storage.clone(),
 			cluster: cluster,
-			session_nonce: session_nonce,
+			nonce: nonce,
 		}, requester_signature))
 	}
 
@@ -275,10 +275,10 @@ impl ClusterSessions {
 	}
 
 	/// Create new signing session.
-	pub fn new_signing_session(&self, master: NodeId, session_id: SessionId, sub_session_id: Secret, session_nonce: Option<u64>, cluster: Arc<ClusterView>, requester_signature: Option<Signature>) -> Result<Arc<SigningSessionImpl>, Error> {
+	pub fn new_signing_session(&self, master: NodeId, session_id: SessionId, sub_session_id: Secret, nonce: Option<u64>, cluster: Arc<ClusterView>, requester_signature: Option<Signature>) -> Result<Arc<SigningSessionImpl>, Error> {
 		let session_id = SigningSessionId::new(session_id, sub_session_id);
 		let encrypted_data = self.read_key_share(&session_id.id, &cluster)?;
-		let session_nonce = self.check_session_nonce(&master, session_nonce)?;
+		let nonce = self.check_session_nonce(&master, nonce)?;
 
 		self.signing_sessions.insert(master, session_id.clone(), cluster.clone(), move || SigningSessionImpl::new(SigningSessionParams {
 			meta: SessionMeta {
@@ -291,7 +291,7 @@ impl ClusterSessions {
 			key_share: encrypted_data,
 			acl_storage: self.acl_storage.clone(),
 			cluster: cluster,
-			session_nonce: session_nonce,
+			nonce: nonce,
 		}, requester_signature))
 	}
 
@@ -327,7 +327,7 @@ impl ClusterSessions {
 		self.encryption_sessions.on_connection_timeout(node_id);
 		self.decryption_sessions.on_connection_timeout(node_id);
 		self.signing_sessions.on_connection_timeout(node_id);
-		self.max_session_nonce.write().remove(node_id);
+		self.max_nonce.write().remove(node_id);
 	}
 
 	/// Read key share && remove disconnected nodes.
@@ -344,14 +344,14 @@ impl ClusterSessions {
 	}
 
 	/// Check or generate new session nonce.
-	fn check_session_nonce(&self, master: &NodeId, session_nonce: Option<u64>) -> Result<u64, Error> {
+	fn check_session_nonce(&self, master: &NodeId, nonce: Option<u64>) -> Result<u64, Error> {
 		// if we're master node of the session, then nonce should be generated
 		// if we're slave node of the session, then nonce should be passed from outside
-		debug_assert!((master == &self.self_node_id) == session_nonce.is_none());
+		debug_assert!((master == &self.self_node_id) == nonce.is_none());
 
-		match session_nonce {
-			Some(session_nonce) => match session_nonce > *self.max_session_nonce.write().entry(master.clone()).or_insert(0) {
-				true => Ok(session_nonce),
+		match nonce {
+			Some(nonce) => match nonce > *self.max_nonce.write().entry(master.clone()).or_insert(0) {
+				true => Ok(nonce),
 				false => Err(Error::ReplayProtection),
 			},
 			None => Ok(self.session_counter.fetch_add(1, Ordering::Relaxed) as u64 + 1),

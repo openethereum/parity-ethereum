@@ -55,7 +55,7 @@ pub struct SessionImpl {
 	/// Cluster which allows this node to send messages to other nodes in the cluster.
 	cluster: Arc<Cluster>,
 	/// Session-level nonce.
-	session_nonce: u64,
+	nonce: u64,
 	/// SessionImpl completion condvar.
 	completed: Condvar,
 	/// Mutable session data.
@@ -73,7 +73,7 @@ pub struct SessionParams {
 	/// Cluster
 	pub cluster: Arc<Cluster>,
 	/// Session nonce.
-	pub session_nonce: Option<u64>,
+	pub nonce: Option<u64>,
 }
 
 /// Mutable data of distributed key generation session.
@@ -193,7 +193,7 @@ impl SessionImpl {
 			cluster: params.cluster,
 			// when nonce.is_nonce(), generation session is wrapped
 			// => nonce is checked somewhere else && we can pass any value
-			session_nonce: params.session_nonce.unwrap_or_default(),
+			nonce: params.nonce.unwrap_or_default(),
 			completed: Condvar::new(),
 			data: Mutex::new(SessionData {
 				state: SessionState::WaitingForInitialization,
@@ -258,7 +258,7 @@ impl SessionImpl {
 				// start initialization
 				self.cluster.send(&next_node, Message::Generation(GenerationMessage::InitializeSession(InitializeSession {
 						session: self.id.clone().into(),
-						session_nonce: self.session_nonce,
+						session_nonce: self.nonce,
 						author: author.into(),
 						nodes: data.nodes.iter().map(|(k, v)| (k.clone().into(), v.id_number.clone().into())).collect(),
 						threshold: data.threshold.expect("threshold is filled in initialization phase; KD phase follows initialization phase; qed"),
@@ -277,7 +277,7 @@ impl SessionImpl {
 
 	/// Process single message.
 	pub fn process_message(&self, sender: &NodeId, message: &GenerationMessage) -> Result<(), Error> {
-		if self.session_nonce != message.session_nonce() {
+		if self.nonce != message.session_nonce() {
 			return Err(Error::ReplayProtection);
 		}
 
@@ -323,7 +323,7 @@ impl SessionImpl {
 		// send confirmation back to master node
 		self.cluster.send(&sender, Message::Generation(GenerationMessage::ConfirmInitialization(ConfirmInitialization {
 			session: self.id.clone().into(),
-			session_nonce: self.session_nonce,
+			session_nonce: self.nonce,
 			derived_point: derived_point.into(),
 		})))?;
 
@@ -361,7 +361,7 @@ impl SessionImpl {
 		if let Some(next_receiver) = next_receiver {
 			return self.cluster.send(&next_receiver, Message::Generation(GenerationMessage::InitializeSession(InitializeSession {
 					session: self.id.clone().into(),
-					session_nonce: self.session_nonce,
+					session_nonce: self.nonce,
 					author: data.author.as_ref().expect("author is filled on initialization step; confrm initialization follows initialization; qed").clone().into(),
 					nodes: data.nodes.iter().map(|(k, v)| (k.clone().into(), v.id_number.clone().into())).collect(),
 					threshold: data.threshold.expect("threshold is filled in initialization phase; KD phase follows initialization phase; qed"),
@@ -520,7 +520,7 @@ impl SessionImpl {
 			data.state = SessionState::Finished;
 			return self.cluster.send(&sender, Message::Generation(GenerationMessage::SessionCompleted(SessionCompleted {
 				session: self.id.clone().into(),
-				session_nonce: self.session_nonce,
+				session_nonce: self.nonce,
 			})));
 		}
 
@@ -572,7 +572,7 @@ impl SessionImpl {
 		// broadcast derived point && other session paraeters to every other node
 		self.cluster.broadcast(Message::Generation(GenerationMessage::CompleteInitialization(CompleteInitialization {
 			session: self.id.clone().into(),
-			session_nonce: self.session_nonce,
+			session_nonce: self.nonce,
 			derived_point: derived_point.into(),
 		})))
 	}
@@ -605,7 +605,7 @@ impl SessionImpl {
 
 				self.cluster.send(&node, Message::Generation(GenerationMessage::KeysDissemination(KeysDissemination {
 					session: self.id.clone().into(),
-					session_nonce: self.session_nonce,
+					session_nonce: self.nonce,
 					secret1: secret1.into(),
 					secret2: secret2.into(),
 					publics: publics.iter().cloned().map(Into::into).collect(),
@@ -666,7 +666,7 @@ impl SessionImpl {
 		// broadcast self public key share
 		self.cluster.broadcast(Message::Generation(GenerationMessage::PublicKeyShare(PublicKeyShare {
 			session: self.id.clone().into(),
-			session_nonce: self.session_nonce,
+			session_nonce: self.nonce,
 			public_share: self_public_share.into(),
 		})))
 	}
@@ -709,7 +709,7 @@ impl SessionImpl {
 		// then distribute encrypted data to every other node
 		self.cluster.broadcast(Message::Generation(GenerationMessage::SessionCompleted(SessionCompleted {
 			session: self.id.clone().into(),
-			session_nonce: self.session_nonce,
+			session_nonce: self.nonce,
 		})))?;
 
 		// then wait for confirmation from all other nodes
@@ -890,7 +890,7 @@ pub mod tests {
 					self_node_id: node_id.clone(),
 					key_storage: Some(key_storage.clone()),
 					cluster: cluster.clone(),
-					session_nonce: Some(0),
+					nonce: Some(0),
 				});
 				nodes.insert(node_id, Node { cluster: cluster, key_storage: key_storage, session: session });
 			}
@@ -980,7 +980,7 @@ pub mod tests {
 			self_node_id: node_id.clone(),
 			key_storage: Some(Arc::new(DummyKeyStorage::default())),
 			cluster: cluster,
-			session_nonce: Some(0),
+			nonce: Some(0),
 		});
 		let cluster_nodes: BTreeSet<_> = (0..2).map(|_| math::generate_random_point().unwrap()).collect();
 		assert_eq!(session.initialize(Public::default(), 0, cluster_nodes).unwrap_err(), Error::InvalidNodesConfiguration);
