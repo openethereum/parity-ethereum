@@ -34,7 +34,10 @@ pub enum ContractCreateResult {
 	Created(Address, U256),
 	/// Returned when contract creation failed.
 	/// VM doesn't have to know the reason.
-	Failed
+	Failed,
+	/// Returned when contract creation failed.
+	/// VM doesn't have to know the reason.
+	FailedInStaticCall,
 }
 
 /// Result of externalities call function.
@@ -44,7 +47,7 @@ pub enum MessageCallResult {
 	Success(U256, ReturnData),
 	/// Returned when message call failed.
 	/// VM doesn't have to know the reason.
-	Failed
+	Failed,
 }
 
 /// Specifies how an address is calculated for a new contract.

@@ -346,6 +346,9 @@ impl<Cost: CostType> Interpreter<Cost> {
 						stack.push(U256::zero());
 						Ok(InstructionResult::Ok)
 					}
+					ContractCreateResult::FailedInStaticCall => {
+						Err(vm::Error::MutableCallInStaticContext)
+					}
 				};
 			},
 			instructions::CALL | instructions::CALLCODE | instructions::DELEGATECALL | instructions::STATICCALL => {
@@ -356,9 +359,12 @@ impl<Cost: CostType> Interpreter<Cost> {
 				let code_address = stack.pop_back();
 				let code_address = u256_to_address(&code_address);
 
-				let value = if instruction == instructions::DELEGATECALL || instruction == instructions::STATICCALL {
+				let value = if instruction == instructions::DELEGATECALL {
 					None
-				} else {
+				} else if instruction == instructions::STATICCALL {
+					Some(U256::zero())
+				}
+				else {
 					Some(stack.pop_back())
 				};
 
@@ -376,15 +382,15 @@ impl<Cost: CostType> Interpreter<Cost> {
 				// Get sender & receive addresses, check if we have balance
 				let (sender_address, receive_address, has_balance, call_type) = match instruction {
 					instructions::CALL => {
-						let has_balance = ext.balance(&params.address)? >= value.expect("value set for all but delegate call; qed");
+						let has_balance = ext.balance(&params.address)? >= value.expect("value set for all but delegate call and staticcall; qed");
 						(&params.address, &code_address, has_balance, CallType::Call)
 					},
 					instructions::CALLCODE => {
-						let has_balance = ext.balance(&params.address)? >= value.expect("value set for all but delegate call; qed");
+						let has_balance = ext.balance(&params.address)? >= value.expect("value set for all but delegate call and staticcall; qed");
 						(&params.address, &params.address, has_balance, CallType::CallCode)
 					},
 					instructions::DELEGATECALL => (&params.sender, &params.address, true, CallType::DelegateCall),
-					instructions::STATICCALL => (&params.sender, &params.address, true, CallType::StaticCall),
+					instructions::STATICCALL => (&params.sender, &code_address, true, CallType::StaticCall),
 					_ => panic!(format!("Unexpected instruction {} in CALL branch.", instruction))
 				};
 

@@ -385,9 +385,9 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 		vm_tracer: &mut V
 	) -> vm::Result<FinalizationResult> where T: Tracer, V: VMTracer {
 
-		trace!("Executive::call(params={:?}) self.env_info={:?}", params, self.info);
+		trace!("Executive::call(params={:?}) self.env_info={:?}, static={}", params, self.info, self.static_flag);
 		if (params.call_type == CallType::StaticCall ||
-				((params.call_type == CallType::Call || params.call_type == CallType::DelegateCall) &&
+				((params.call_type == CallType::Call) &&
 				self.static_flag))
 			&& params.value.value() > 0.into() {
 			return Err(vm::Error::MutableCallInStaticContext);
@@ -528,6 +528,7 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 			return Err(vm::Error::OutOfGas);
 		}
 
+		trace!("Executive::create(params={:?}) self.env_info={:?}, static={}", params, self.info, self.static_flag);
 		if params.call_type == CallType::StaticCall || self.static_flag {
 			let trace_info = tracer.prepare_trace_create(&params);
 			tracer.trace_failed_create(trace_info, vec![], vm::Error::MutableCallInStaticContext.into());

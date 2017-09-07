@@ -220,7 +220,11 @@ impl<'a, 'b> Runtime<'a, 'b> {
 			vm::ContractCreateResult::Failed => {
 				trace!(target: "wasm", "runtime: create contract fail");
 				Ok(Some((-1i32).into()))
-			}
+			},
+			vm::ContractCreateResult::FailedInStaticCall => {
+				trace!(target: "wasm", "runtime: create contract called in static context");
+				Err(interpreter::Error::Trap("CREATE in static context".to_owned()))
+			},
 		}
 	}
 

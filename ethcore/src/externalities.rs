@@ -217,10 +217,12 @@ impl<'a, T: 'a, V: 'a, B: 'a, E: 'a> Ext for Externalities<'a, T, V, B, E>
 			call_type: CallType::None,
 		};
 
-		if params.sender != UNSIGNED_SENDER {
-			if let Err(e) = self.state.inc_nonce(&self.origin_info.address) {
-				debug!(target: "ext", "Database corruption encountered: {:?}", e);
-				return ContractCreateResult::Failed
+		if !self.static_flag {
+			if params.sender != UNSIGNED_SENDER {
+				if let Err(e) = self.state.inc_nonce(&self.origin_info.address) {
+					debug!(target: "ext", "Database corruption encountered: {:?}", e);
+					return ContractCreateResult::Failed
+				}
 			}
 		}
 		let mut ex = Executive::from_parent(self.state, self.env_info, self.engine, self.depth, self.static_flag);
@@ -231,7 +233,8 @@ impl<'a, T: 'a, V: 'a, B: 'a, E: 'a> Ext for Externalities<'a, T, V, B, E>
 				self.substate.contracts_created.push(address.clone());
 				ContractCreateResult::Created(address, gas_left)
 			},
-			_ => ContractCreateResult::Failed
+			Err(vm::Error::MutableCallInStaticContext) => ContractCreateResult::FailedInStaticCall,
+			_ => ContractCreateResult::Failed,
 		}
 	}
 
