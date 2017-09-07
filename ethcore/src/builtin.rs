@@ -88,17 +88,49 @@ impl Pricer for Modexp {
 		let exp_len = read_len();
 		let mod_len = read_len();
 
-		// floor(max(length_of_MODULUS, length_of_BASE) ** 2 * max(length_of_EXPONENT, 1) / GQUADDIVISOR)
-		// TODO: is saturating the best behavior here?
+		let max_len = U256::from(u32::max_value() / 2);
+		if base_len > max_len || mod_len > max_len {
+			return U256::max_value();
+		}
+
+		let base_len = base_len.low_u64();
+		let exp_len = exp_len.low_u64();
+		let mod_len = mod_len.low_u64();
 		let m = max(mod_len, base_len);
-		match m.overflowing_mul(m) {
-			(_, true) => U256::max_value(),
-			(val, _) => {
-				match val.overflowing_mul(max(exp_len, U256::one())) {
-					(_, true) => U256::max_value(),
-					(val, _) => val / (self.divisor as u64).into()
-				}
-			}
+		if m == 0 {
+			return U256::zero();
+		}
+		// read fist 32-byte word of the exponent.
+		let exp_low = if base_len + 96 >= input.len() as u64 { U256::zero() } else {
+			let mut buf = [0; 32];
+			let mut reader = input[(96 + base_len as usize)..].chain(io::repeat(0));
+			let len = min(exp_len, 32) as usize;
+			reader.read_exact(&mut buf[(32 - len)..]).expect("reading from zero-extended memory cannot fail; qed");
+			U256::from(H256::from_slice(&buf[..]))
+		};
+
+		let adjusted_exp_len = Self::adjusted_exp_len(exp_len, exp_low);
+
+		(Self::mult_complexity(m) * max(adjusted_exp_len, 1) / self.divisor as u64).into()
+	}
+}
+
+impl Modexp {
+	fn adjusted_exp_len(len: u64, exp_low: U256) -> u64 {
+		let bit_index = if exp_low.is_zero() { 0 } else { (255 - exp_low.leading_zeros()) as u64 };
+		if len <= 32 {
+			bit_index
+		}
+		else {
+			8 * (len - 32) + bit_index
+		}
+	}
+
+	fn mult_complexity(x: u64) -> u64 {
+		match x {
+			x if x <= 64 => x * x,
+			x if x <= 1024 => (x * x) / 4 + 96 * x - 3072,
+			x => (x * x) / 16 + 480 * x - 199680,
 		}
 	}
 }
@@ -273,10 +305,13 @@ impl Impl for Ripemd160 {
 fn modexp(mut base: BigUint, mut exp: BigUint, modulus: BigUint) -> BigUint {
 	use num::Integer;
 
+	if modulus <= BigUint::one() {
+		return BigUint::zero();
+	}
+
 	match (base.is_zero(), exp.is_zero()) {
 		(_, true) => return BigUint::one(), // n^0 % m
 		(true, false) => return BigUint::zero(), // 0^n % m, n>0
-		(false, false) if modulus <= BigUint::one() => return BigUint::zero(), // a^b % 1 = 0.
 		_ => {}
 	}
 
@@ -293,7 +328,6 @@ fn modexp(mut base: BigUint, mut exp: BigUint, modulus: BigUint) -> BigUint {
 		exp = exp >> 1;
 		base = (base.clone() * base) % &modulus;
 	}
-
 	result
 }
 
@@ -322,11 +356,17 @@ impl Impl for ModexpImpl {
 		};
 
 		let base = read_num(base_len);
-		let exp = read_num(exp_len);
-		let modulus = read_num(mod_len);
+		// Gas formula allows arbitrary large exp_len when base and modulus are empty, so we need to handle empty base first.
+		let r = if base_len == 0 && mod_len == 0 {
+			BigUint::zero()
+		} else {
+			let exp = read_num(exp_len);
+			let modulus = read_num(mod_len);
+			modexp(base, exp, modulus)
+		};
 
 		// write output to given memory, left padded and same length as the modulus.
-		let bytes = modexp(base, exp, modulus).to_bytes_be();
+		let bytes = r.to_bytes_be();
 
 		// always true except in the case of zero-length modulus, which leads to
 		// output of length and value 1.

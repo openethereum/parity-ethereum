@@ -51,6 +51,10 @@
 		"0000000000000000000000000000000000000001": { "balance": "1", "builtin": { "name": "ecrecover", "pricing": { "linear": { "base": 3000, "word": 0 } } } },
 		"0000000000000000000000000000000000000002": { "balance": "1", "builtin": { "name": "sha256", "pricing": { "linear": { "base": 60, "word": 12 } } } },
 		"0000000000000000000000000000000000000003": { "balance": "1", "builtin": { "name": "ripemd160", "pricing": { "linear": { "base": 600, "word": 120 } } } },
-		"0000000000000000000000000000000000000004": { "balance": "1", "builtin": { "name": "identity", "pricing": { "linear": { "base": 15, "word": 3 } } } }
+		"0000000000000000000000000000000000000004": { "balance": "1", "builtin": { "name": "identity", "pricing": { "linear": { "base": 15, "word": 3 } } } },
+		"0000000000000000000000000000000000000005": { "builtin": { "name": "modexp", "activate_at": "0x00", "pricing": { "modexp": { "divisor": 100 } } } },
+		"0000000000000000000000000000000000000006": { "builtin": { "name": "bn128_add", "activate_at": "0x00", "pricing": { "linear": { "base": 999999, "word": 0 } } } },
+		"0000000000000000000000000000000000000007": { "builtin": { "name": "bn128_mul", "activate_at": "0x00", "pricing": { "linear": { "base": 999999, "word": 0 } } } },
+		"0000000000000000000000000000000000000008": { "builtin": { "name": "bn128_pairing", "activate_at": "0x00", "pricing": { "linear": { "base": 999999, "word": 0 } } } }
 	}
 }
