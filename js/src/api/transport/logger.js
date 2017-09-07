@@ -16,127 +16,144 @@
 
 import MethodDecodingStore from '~/ui/MethodDecoding/methodDecodingStore';
 
-class Logger {
-  _logs = [];
+const LOGGER_ENABLED = process.env.NODE_ENV !== 'production';
 
-  log (method, params) {
-    this._logs.push({ method, params, date: Date.now() });
-  }
+let logger;
 
-  static sorter (logA, logB) {
-    return logA.date - logB.date;
-  }
+if (LOGGER_ENABLED) {
+  class Logger {
+    _logs = {};
+    _id = 0;
 
-  get calls () {
-    const calls = this.methods['eth_call'] || [];
-    const decoding = MethodDecodingStore.get(window.secureApi);
-    const contracts = {};
+    log ({ method, params }) {
+      const logId = this._id++;
 
-    let promise = Promise.resolve(null);
+      this._logs[logId] = { method, params, date: Date.now() };
+      return logId;
+    }
 
-    const progress = Math.round(calls.length / 20);
+    set (logId, data) {
+      this._logs[logId] = {
+        ...this._logs[logId],
+        ...data
+      };
+    }
 
-    calls.forEach((call, index) => {
-      const { data, to } = call.params[0];
+    static sorter (logA, logB) {
+      return logA.date - logB.date;
+    }
 
-      if (!contracts[to]) {
-        contracts[to] = [];
-      }
+    get calls () {
+      const calls = this.methods['eth_call'] || [];
+      const decoding = MethodDecodingStore.get(window.secureApi);
+      const contracts = {};
 
-      promise = promise
-        .then(() => decoding.lookup(null, { data, to }))
-        .then((lookup) => {
-          if (!lookup.name) {
-            contracts[to].push(data);
-            return;
+      let promise = Promise.resolve(null);
+
+      const progress = Math.round(calls.length / 20);
+
+      return calls
+        .reduce((promise, call, index) => {
+          const { data, to } = call.params[0];
+
+          if (!contracts[to]) {
+            contracts[to] = [];
           }
 
-          const inputs = lookup.inputs.map((input) => {
-            if (/bytes/.test(input.type)) {
-              return '0x' + input.value.map((v) => v.toString(16).padStart(2, 0)).join('');
-            }
+          return promise
+            .then(() => decoding.lookup(null, { data, to }))
+            .then((lookup) => {
+              if (!lookup.name) {
+                contracts[to].push(data);
+                return;
+              }
 
-            return input.value;
-          });
+              const inputs = lookup.inputs.map((input) => {
+                if (/bytes/.test(input.type)) {
+                  return '0x' + input.value.map((v) => v.toString(16).padStart(2, 0)).join('');
+                }
 
-          const called = `${lookup.name}(${inputs.join(', ')})`;
+                return input.value;
+              });
 
-          contracts[to].push(called);
+              const called = `${lookup.name}(${inputs.join(', ')})`;
 
-          if (index % progress === 0) {
-            console.warn(`progress: ${Math.round(100 * index / calls.length)}%`);
-          }
-        });
-    });
+              contracts[to].push(called);
 
-    return promise.then(() => {
-      return Object.keys(contracts)
-        .map((address) => {
-          const count = contracts[address].length;
+              if (index % progress === 0) {
+                console.warn(`progress: ${Math.round(100 * index / calls.length)}%`);
+              }
+            });
+        }, Promise.resolve())
+        .then(() => {
+          return Object.keys(contracts)
+            .map((address) => {
+              const count = contracts[address].length;
+
+              return {
+                count,
+                calls: contracts[address],
+                to: address
+              };
+            })
+            .sort((cA, cB) => cB.count - cA.count);
+      });
+    }
+
+    get logs () {
+      return Object.values(this._logs).sort(Logger.sorter);
+    }
+
+    get methods () {
+      const methods = this.logs.reduce((methods, log) => {
+        if (!methods[log.method]) {
+          methods[log.method] = [];
+        }
+
+        methods[log.method].push(log);
+        return methods;
+      }, {});
+
+      return methods;
+    }
+
+    get stats () {
+      const logs = this.logs;
+      const methods = this.methods;
+
+      const start = logs[0].date;
+      const end = logs[logs.length - 1].date;
+
+      // Duration in seconds
+      const duration = (end - start) / 1000;
+      const speed = logs.length / duration;
+
+      const sortedMethods = Object.keys(methods)
+        .map((method) => {
+          const methodLogs = methods[method].sort(Logger.sorter);
+          const methodSpeed = methodLogs.length / duration;
 
           return {
-            count,
-            calls: contracts[address],
-            to: address
+            speed: methodSpeed,
+            count: methodLogs.length,
+            logs: methodLogs,
+            method
           };
         })
-        .sort((cA, cB) => cB.count - cA.count);
-    });
+        .sort((mA, mB) => mB.count - mA.count);
+
+      return {
+        methods: sortedMethods,
+        speed
+      };
+    }
   }
 
-  get logs () {
-    return this._logs.sort(Logger.sorter);
+  logger = new Logger();
+
+  if (window) {
+    window._logger = logger;
   }
-
-  get methods () {
-    const methods = this.logs.reduce((methods, log) => {
-      if (!methods[log.method]) {
-        methods[log.method] = [];
-      }
-
-      methods[log.method].push(log);
-      return methods;
-    }, {});
-
-    return methods;
-  }
-
-  get stats () {
-    const logs = this.logs;
-    const methods = this.methods;
-
-    const start = logs[0].date;
-    const end = logs[logs.length - 1].date;
-
-    // Duration in seconds
-    const duration = (end - start) / 1000;
-    const speed = logs.length / duration;
-
-    const sortedMethods = Object.keys(methods)
-      .map((method) => {
-        const methodLogs = methods[method].sort(Logger.sorter);
-        const methodSpeed = methodLogs.length / duration;
-
-        return {
-          speed: methodSpeed,
-          count: methodLogs.length,
-          logs: methodLogs,
-          method
-        };
-      })
-      .sort((mA, mB) => mB.count - mA.count);
-
-    return {
-      methods: sortedMethods,
-      speed
-    };
-  }
-}
-
-const logger = new Logger();
-
-if (window) {
-  window._logger = logger;
 }
 
 export default logger;
