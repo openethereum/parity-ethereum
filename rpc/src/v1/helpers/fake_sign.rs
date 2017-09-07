@@ -18,7 +18,7 @@ use std::sync::Arc;
 use ethcore::client::MiningBlockChainClient;
 use ethcore::miner::MinerService;
 use ethcore::transaction::{Transaction, SignedTransaction, Action};
-use util::U256;
+use bigint::prelude::U256;
 
 use jsonrpc_core::Error;
 use v1::helpers::CallRequest;

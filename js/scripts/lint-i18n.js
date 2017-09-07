@@ -20,34 +20,57 @@ import * as defaults from '../i18n/_default';
 import { LANGUAGES, MESSAGES } from '../i18n/store';
 
 const SKIP_LANG = ['en'];
-const defaultKeys = Object.keys(flatten(Object.assign({}, defaults, LANGUAGES)));
+const defaultValues = flatten(Object.assign({}, defaults, LANGUAGES));
+const defaultKeys = Object.keys(defaultValues);
+const results = {};
 
 Object
   .keys(MESSAGES)
   .filter((lang) => !SKIP_LANG.includes(lang))
   .forEach((lang) => {
     const messageKeys = Object.keys(MESSAGES[lang]);
-    let extra = 0;
-    let found = 0;
-    let missing = 0;
+    const langResults = { found: [], missing: [], extras: [] };
 
-    console.log(`*** Checking translations for ${lang}`);
+    console.warn(`*** Checking translations for ${lang}`);
 
     defaultKeys.forEach((key) => {
       if (messageKeys.includes(key)) {
-        found++;
+        langResults.found.push(key);
       } else {
-        missing++;
-        console.log(`  Missing ${key}`);
+        langResults.missing.push(key);
       }
     });
 
     messageKeys.forEach((key) => {
       if (!defaultKeys.includes(key)) {
-        extra++;
-        console.log(`  Extra ${key}`);
+        langResults.extras.push(key);
       }
     });
 
-    console.log(`Found ${found} keys, missing ${missing} keys, ${extra} extraneous keys\n`);
+    // Sort keys
+    langResults.extras.sort((kA, kB) => kA.localeCompare(kB));
+    langResults.found.sort((kA, kB) => kA.localeCompare(kB));
+    langResults.missing.sort((kA, kB) => kA.localeCompare(kB));
+
+    // Print to stderr the missing and extra keys
+    langResults.missing.forEach((key) => console.warn(`  Missing ${key}`));
+    langResults.extras.forEach((key) => console.warn(`  Extra ${key}`));
+
+    results[lang] = langResults;
+
+    console.warn(`Found ${langResults.found.length} keys, missing ${langResults.missing.length} keys, ${langResults.extras.length} extraneous keys\n`);
   });
+
+const formattedResults = Object.keys(results)
+  .reduce((res, lang) => {
+    const { missing } = results[lang];
+
+    res[lang] = missing.map((key) => ({
+      key,
+      default: defaultValues[key]
+    }));
+
+    return res;
+  }, {});
+
+process.stdout.write(JSON.stringify(formattedResults, null, 2) + '\n');

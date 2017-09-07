@@ -14,7 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-extern {
-	pub fn sha3_256(out: *mut u8, outlen: usize, input: *const u8, inputlen: usize) -> i32;
-	pub fn sha3_512(out: *mut u8, outlen: usize, input: *const u8, inputlen: usize) -> i32;
-}
+export default {
+  dontShowAgain: {
+    label: `Do not show this warning again`
+  },
+  understandBtn: {
+    label: `I understand`
+  }
+};

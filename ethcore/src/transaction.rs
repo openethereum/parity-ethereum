@@ -18,9 +18,11 @@
 
 use std::ops::Deref;
 use rlp::*;
-use util::sha3::Hashable;
+use hash::keccak;
 use heapsize::HeapSizeOf;
-use util::{H256, Address, U256, Bytes};
+use bigint::prelude::U256;
+use bigint::hash::H256;
+use util::{Address, Bytes};
 use ethkey::{Signature, Secret, Public, recover, public_to_address, Error as EthkeyError};
 use error::*;
 use evm::Schedule;
@@ -28,10 +30,10 @@ use header::BlockNumber;
 use ethjson;
 
 /// Fake address for unsigned transactions as defined by EIP-86.
-pub const UNSIGNED_SENDER: Address = ::util::H160([0xff; 20]);
+pub const UNSIGNED_SENDER: Address = ::bigint::hash::H160([0xff; 20]);
 
 /// System sender address for internal state updates.
-pub const SYSTEM_ADDRESS: Address = ::util::H160([0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,0xff, 0xff, 0xff, 0xff,0xff, 0xff, 0xff, 0xff,0xff, 0xff, 0xff, 0xfe]);
+pub const SYSTEM_ADDRESS: Address = ::bigint::hash::H160([0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,0xff, 0xff, 0xff, 0xff,0xff, 0xff, 0xff, 0xff,0xff, 0xff, 0xff, 0xfe]);
 
 /// Transaction action type.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -167,7 +169,7 @@ impl Transaction {
 	pub fn hash(&self, chain_id: Option<u64>) -> H256 {
 		let mut stream = RlpStream::new();
 		self.rlp_append_unsigned_transaction(&mut stream, chain_id);
-		stream.as_raw().sha3()
+		keccak(stream.as_raw())
 	}
 
 	/// Signs the transaction as coming from `sender`.
@@ -274,7 +276,7 @@ impl Decodable for UnverifiedTransaction {
 		if d.item_count()? != 9 {
 			return Err(DecoderError::RlpIncorrectListLen);
 		}
-		let hash = d.as_raw().sha3();
+		let hash = keccak(d.as_raw());
 		Ok(UnverifiedTransaction {
 			unsigned: Transaction {
 				nonce: d.val_at(0)?,
@@ -299,7 +301,7 @@ impl Encodable for UnverifiedTransaction {
 impl UnverifiedTransaction {
 	/// Used to compute hash of created transactions
 	fn compute_hash(mut self) -> UnverifiedTransaction {
-		let hash = (&*self.rlp_bytes()).sha3();
+		let hash = keccak(&*self.rlp_bytes());
 		self.hash = hash;
 		self
 	}
@@ -357,7 +359,7 @@ impl UnverifiedTransaction {
 		}
 	}
 
-	/// Get the hash of this header (sha3 of the RLP).
+	/// Get the hash of this header (keccak of the RLP).
 	pub fn hash(&self) -> H256 {
 		self.hash
 	}
@@ -378,7 +380,7 @@ impl UnverifiedTransaction {
 			self.recover_public()?;
 		}
 		if self.gas < U256::from(self.gas_required(&schedule)) {
-			return Err(TransactionError::InvalidGasLimit(::util::OutOfBounds{min: Some(U256::from(self.gas_required(&schedule))), max: None, found: self.gas}).into())
+			return Err(TransactionError::InvalidGasLimit(::unexpected::OutOfBounds{min: Some(U256::from(self.gas_required(&schedule))), max: None, found: self.gas}).into())
 		}
 		Ok(self)
 	}
@@ -545,7 +547,8 @@ impl From<SignedTransaction> for PendingTransaction {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use util::{Hashable, U256};
+	use bigint::prelude::U256;
+	use hash::keccak;
 
 	#[test]
 	fn sender_test() {
@@ -575,7 +578,7 @@ mod tests {
 			value: U256::from(1),
 			data: b"Hello!".to_vec()
 		}.sign(&key.secret(), None);
-		assert_eq!(Address::from(key.public().sha3()), t.sender());
+		assert_eq!(Address::from(keccak(key.public())), t.sender());
 		assert_eq!(t.chain_id(), None);
 	}
 
@@ -609,7 +612,7 @@ mod tests {
 			value: U256::from(1),
 			data: b"Hello!".to_vec()
 		}.sign(&key.secret(), Some(69));
-		assert_eq!(Address::from(key.public().sha3()), t.sender());
+		assert_eq!(Address::from(keccak(key.public())), t.sender());
 		assert_eq!(t.chain_id(), Some(69));
 	}
 

@@ -24,6 +24,7 @@ use std::collections::hash_map::Entry;
 use std::collections::{HashMap, BTreeMap, HashSet};
 use std::fmt;
 use std::sync::Arc;
+use hash::{KECCAK_NULL_RLP, KECCAK_EMPTY};
 
 use receipt::Receipt;
 use engines::Engine;
@@ -41,6 +42,8 @@ use transaction::SignedTransaction;
 use state_db::StateDB;
 use evm::{Factory as EvmFactory};
 
+use bigint::prelude::U256;
+use bigint::hash::H256;
 use util::*;
 
 use util::trie;
@@ -209,10 +212,49 @@ pub fn check_proof(
 		Err(_) => return ProvedExecution::BadProof,
 	};
 
-	match state.execute(env_info, engine, transaction, TransactOptions::with_no_tracing(), true) {
+	let options = TransactOptions::with_no_tracing().save_output_from_contract();
+	match state.execute(env_info, engine, transaction, options, true) {
 		Ok(executed) => ProvedExecution::Complete(executed),
 		Err(ExecutionError::Internal(_)) => ProvedExecution::BadProof,
 		Err(e) => ProvedExecution::Failed(e),
+	}
+}
+
+/// Prove a transaction on the given state.
+/// Returns `None` when the transacion could not be proved,
+/// and a proof otherwise.
+pub fn prove_transaction<H: AsHashDB + Send + Sync>(
+	db: H,
+	root: H256,
+	transaction: &SignedTransaction,
+	engine: &Engine,
+	env_info: &EnvInfo,
+	factories: Factories,
+	virt: bool,
+) -> Option<(Bytes, Vec<DBValue>)> {
+	use self::backend::Proving;
+
+	let backend = Proving::new(db);
+	let res = State::from_existing(
+		backend,
+		root,
+		engine.account_start_nonce(env_info.number),
+		factories,
+	);
+
+	let mut state = match res {
+		Ok(state) => state,
+		Err(_) => return None,
+	};
+
+	let options = TransactOptions::with_no_tracing().dont_check_nonce().save_output_from_contract();
+	match state.execute(env_info, engine, transaction, options, virt) {
+		Err(ExecutionError::Internal(_)) => None,
+		Err(e) => {
+			trace!(target: "state", "Proved call failed: {}", e);
+			Some((Vec::new(), state.drop().1.extract_proof()))
+		}
+		Ok(res) => Some((res.output, state.drop().1.extract_proof())),
 	}
 }
 
@@ -552,7 +594,7 @@ impl<B: Backend> State<B> {
 	/// Get an account's code hash.
 	pub fn code_hash(&self, a: &Address) -> trie::Result<H256> {
 		self.ensure_cached(a, RequireCache::None, true,
-			|a| a.as_ref().map_or(SHA3_EMPTY, |a| a.code_hash()))
+			|a| a.as_ref().map_or(KECCAK_EMPTY, |a| a.code_hash()))
 	}
 
 	/// Get accounts' code size.
@@ -938,7 +980,7 @@ impl<B: Backend> State<B> {
 	/// Returns a merkle proof of the account's trie node omitted or an encountered trie error.
 	/// If the account doesn't exist in the trie, prove that and return defaults.
 	/// Requires a secure trie to be used for accurate results.
-	/// `account_key` == sha3(address)
+	/// `account_key` == keccak(address)
 	pub fn prove_account(&self, account_key: H256) -> trie::Result<(Vec<Bytes>, BasicAccount)> {
 		let mut recorder = Recorder::new();
 		let trie = TrieDB::new(self.db.as_hashdb(), &self.root)?;
@@ -949,8 +991,8 @@ impl<B: Backend> State<B> {
 		let account = maybe_account.unwrap_or_else(|| BasicAccount {
 			balance: 0.into(),
 			nonce: self.account_start_nonce,
-			code_hash: SHA3_EMPTY,
-			storage_root: ::util::sha3::SHA3_NULL_RLP,
+			code_hash: KECCAK_EMPTY,
+			storage_root: KECCAK_NULL_RLP,
 		});
 
 		Ok((recorder.drain().into_iter().map(|r| r.data).collect(), account))
@@ -959,11 +1001,11 @@ impl<B: Backend> State<B> {
 	/// Prove an account's storage key's existence or nonexistence in the state.
 	/// Returns a merkle proof of the account's storage trie.
 	/// Requires a secure trie to be used for correctness.
-	/// `account_key` == sha3(address)
-	/// `storage_key` == sha3(key)
+	/// `account_key` == keccak(address)
+	/// `storage_key` == keccak(key)
 	pub fn prove_storage(&self, account_key: H256, storage_key: H256) -> trie::Result<(Vec<Bytes>, H256)> {
 		// TODO: probably could look into cache somehow but it's keyed by
-		// address, not sha3(address).
+		// address, not keccak(address).
 		let trie = TrieDB::new(self.db.as_hashdb(), &self.root)?;
 		let acc = match trie.get_with(&account_key, Account::from_rlp)? {
 			Some(acc) => acc,
@@ -1008,13 +1050,15 @@ impl Clone for State<StateDB> {
 
 #[cfg(test)]
 mod tests {
-
 	use std::sync::Arc;
 	use std::str::FromStr;
 	use rustc_hex::FromHex;
+	use hash::keccak;
 	use super::*;
 	use ethkey::Secret;
-	use util::{U256, H256, Address, Hashable};
+	use bigint::prelude::U256;
+	use bigint::hash::H256;
+	use util::Address;
 	use tests::helpers::*;
 	use vm::EnvInfo;
 	use spec::*;
@@ -1024,7 +1068,7 @@ mod tests {
 	use evm::CallType;
 
 	fn secret() -> Secret {
-		"".sha3().into()
+		keccak("").into()
 	}
 
 	#[test]

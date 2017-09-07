@@ -17,7 +17,9 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Instant, Duration};
-use util::{Mutex, U256, H256};
+use bigint::prelude::U256;
+use bigint::hash::H256;
+use parking_lot::Mutex;
 
 /// External miner interface.
 pub trait ExternalMinerService: Send + Sync {
@@ -70,7 +72,8 @@ mod tests {
 	use super::*;
 	use std::thread::sleep;
 	use std::time::Duration;
-	use util::{H256, U256};
+	use bigint::prelude::U256;
+	use bigint::hash::H256;
 
 	fn miner() -> ExternalMiner {
 		ExternalMiner::default()

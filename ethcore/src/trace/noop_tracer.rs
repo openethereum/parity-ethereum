@@ -16,7 +16,8 @@
 
 //! Nonoperative tracer.
 
-use util::{Bytes, Address, U256};
+use bigint::prelude::U256;
+use util::{Bytes, Address};
 use vm::ActionParams;
 use trace::{Tracer, VMTracer, FlatTrace, TraceError};
 use trace::trace::{Call, Create, VMTrace, RewardType};

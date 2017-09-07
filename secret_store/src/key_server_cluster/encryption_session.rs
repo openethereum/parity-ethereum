@@ -73,8 +73,8 @@ pub struct SessionParams {
 	pub cluster: Arc<Cluster>,
 }
 
-#[derive(Debug)]
 /// Mutable data of encryption (distributed key generation) session.
+#[derive(Debug)]
 struct SessionData {
 	/// Current state of the session.
 	state: SessionState,
@@ -84,16 +84,16 @@ struct SessionData {
 	result: Option<Result<(), Error>>,
 }
 
-#[derive(Debug, Clone)]
 /// Mutable node-specific data.
+#[derive(Debug, Clone)]
 struct NodeData {
 	// === Values, filled during initialization phase ===
 	/// Flags marking that node has confirmed session initialization.
 	pub initialization_confirmed: bool,
 }
 
-#[derive(Debug, Clone, PartialEq)]
 /// Encryption (distributed key generation) session state.
+#[derive(Debug, Clone, PartialEq)]
 pub enum SessionState {
 	// === Initialization states ===
 	/// Every node starts in this state.

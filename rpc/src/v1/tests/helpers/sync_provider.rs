@@ -17,7 +17,8 @@
 //! Test implementation of SyncProvider.
 
 use std::collections::BTreeMap;
-use util::{H256, RwLock};
+use bigint::hash::H256;
+use parking_lot::RwLock;
 use ethsync::{SyncProvider, EthProtocolInfo, SyncStatus, SyncState, PeerInfo, TransactionStats};
 
 /// TestSyncProvider config.

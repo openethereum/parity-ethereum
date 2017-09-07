@@ -42,8 +42,8 @@ pub use super::key_server_set::tests::MapKeyServerSet;
 
 pub type SessionId = ServerKeyId;
 
-#[derive(Debug, Clone)]
 /// Session metadata.
+#[derive(Debug, Clone)]
 pub struct SessionMeta {
 	/// Key id.
 	pub id: SessionId,
@@ -55,8 +55,8 @@ pub struct SessionMeta {
 	pub threshold: usize,
 }
 
-#[derive(Clone, Debug, PartialEq)]
 /// Errors which can occur during encryption/decryption session
+#[derive(Clone, Debug, PartialEq)]
 pub enum Error {
 	/// Invalid node address has been passed.
 	InvalidNodeAddress,

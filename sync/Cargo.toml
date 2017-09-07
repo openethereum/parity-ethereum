@@ -13,11 +13,14 @@ ethcore-ipc-codegen = { path = "../ipc/codegen" }
 
 [dependencies]
 ethcore-util = { path = "../util" }
+ethcore-bigint = { path = "../util/bigint" }
 ethcore-network = { path = "../util/network" }
 ethcore-io = { path = "../util/io" }
 ethcore-light = { path = "../ethcore/light"}
 ethcore = { path = "../ethcore" }
 rlp = { path = "../util/rlp" }
+hash = { path = "../util/hash" }
+triehash = { path = "../util/triehash" }
 clippy = { version = "0.0.103", optional = true}
 log = "0.3"
 env_logger = "0.4"

@@ -31,7 +31,7 @@ use futures::{future, Future};
 
 use parity_reactor::Remote;
 
-use util::RwLock;
+use parking_lot::RwLock;
 
 // Attepmt to cull once every 10 minutes.
 const TOKEN: TimerToken = 1;

@@ -22,6 +22,10 @@ use std::collections::{HashMap, BTreeMap};
 use std::mem;
 use itertools::Itertools;
 use rustc_hex::FromHex;
+use hash::keccak;
+use bigint::prelude::U256;
+use bigint::hash::{H256, H2048};
+use parking_lot::RwLock;
 use util::*;
 use rlp::*;
 use ethkey::{Generator, Random};
@@ -241,7 +245,7 @@ impl TestBlockChainClient {
 					uncle_header.set_parent_hash(self.last_hash.read().clone());
 					uncle_header.set_number(n as BlockNumber);
 					uncles.append(&uncle_header);
-					header.set_uncles_hash(uncles.as_raw().sha3());
+					header.set_uncles_hash(keccak(uncles.as_raw()));
 					uncles
 				},
 				_ => RlpStream::new_list(0)
@@ -448,6 +452,13 @@ impl BlockChainClient for TestBlockChainClient {
 	fn code(&self, address: &Address, id: BlockId) -> Option<Option<Bytes>> {
 		match id {
 			BlockId::Latest | BlockId::Pending => Some(self.code.read().get(address).cloned()),
+			_ => None,
+		}
+	}
+
+	fn code_hash(&self, address: &Address, id: BlockId) -> Option<H256> {
+		match id {
+			BlockId::Latest | BlockId::Pending => self.code.read().get(address).map(|c| keccak(&c)),
 			_ => None,
 		}
 	}

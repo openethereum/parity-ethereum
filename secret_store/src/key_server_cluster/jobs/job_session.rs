@@ -17,8 +17,8 @@
 use std::collections::{BTreeSet, BTreeMap};
 use key_server_cluster::{Error, NodeId, SessionMeta};
 
-#[derive(Debug, Clone, Copy, PartialEq)]
 /// Partial response action.
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum JobPartialResponseAction {
 	/// Ignore this response.
 	Ignore,
@@ -28,8 +28,8 @@ pub enum JobPartialResponseAction {
 	Accept,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
 /// Partial request action.
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum JobPartialRequestAction<PartialJobResponse> {
 	/// Repond with reject.
 	Reject(PartialJobResponse),
@@ -64,8 +64,8 @@ pub trait JobTransport {
 	fn send_partial_response(&self, node: &NodeId, response: Self::PartialJobResponse) -> Result<(), Error>;
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
 /// Current state of job session.
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum JobSessionState {
 	/// Session is inactive.
 	Inactive,
@@ -123,8 +123,8 @@ impl<Executor, Transport> JobSession<Executor, Transport> where Executor: JobExe
 		}
 	}
 
-	#[cfg(test)]
 	/// Get transport reference.
+	#[cfg(test)]
 	pub fn transport(&self) -> &Transport {
 		&self.transport
 	}
@@ -134,8 +134,8 @@ impl<Executor, Transport> JobSession<Executor, Transport> where Executor: JobExe
 		self.data.state
 	}
 
-	#[cfg(test)]
 	/// Get rejects.
+	#[cfg(test)]
 	pub fn rejects(&self) -> &BTreeSet<NodeId> {
 		debug_assert!(self.meta.self_node_id == self.meta.master_node_id);
 
@@ -153,7 +153,6 @@ impl<Executor, Transport> JobSession<Executor, Transport> where Executor: JobExe
 			.requests
 	}
 
-	#[cfg(test)]
 	/// Get responses.
 	pub fn responses(&self) -> &BTreeMap<NodeId, Executor::PartialJobResponse> {
 		debug_assert!(self.meta.self_node_id == self.meta.master_node_id);

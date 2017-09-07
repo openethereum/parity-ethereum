@@ -21,7 +21,8 @@ use rlp::*;
 use super::node::{Node, OwnedNode};
 use super::lookup::Lookup;
 use super::{Trie, TrieItem, TrieError, TrieIterator, Query};
-use {ToPretty, Bytes, H256};
+use bigint::hash::H256;
+use {ToPretty, Bytes};
 
 /// A `Trie` implementation using a generic `HashDB` backing database.
 ///
@@ -31,11 +32,12 @@ use {ToPretty, Bytes, H256};
 /// # Example
 /// ```
 /// extern crate ethcore_util as util;
+/// extern crate ethcore_bigint as bigint;
 ///
 /// use util::trie::*;
 /// use util::hashdb::*;
 /// use util::memorydb::*;
-/// use util::hash::*;
+/// use bigint::hash::*;
 ///
 /// fn main() {
 ///   let mut memdb = MemoryDB::new();
@@ -130,7 +132,7 @@ impl<'db> TrieDB<'db> {
 	/// This could be a simple identity operation in the case that the node is sufficiently small, but
 	/// may require a database lookup.
 	fn get_raw_or_lookup(&'db self, node: &'db [u8]) -> super::Result<DBValue> {
-		// check if its sha3 + len
+		// check if its keccak + len
 		let r = Rlp::new(node);
 		match r.is_data() && r.size() == 32 {
 			true => {

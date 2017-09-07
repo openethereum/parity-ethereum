@@ -14,8 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-
-use util::{H256, Hashable};
+use hash::keccak;
+use bigint::hash::H256;
 use std::collections::HashSet;
 use ethcore::snapshot::ManifestData;
 
@@ -71,7 +71,7 @@ impl Snapshot {
 
 	/// Validate chunk and mark it as downloaded
 	pub fn validate_chunk(&mut self, chunk: &[u8]) -> Result<ChunkType, ()> {
-		let hash = chunk.sha3();
+		let hash = keccak(chunk);
 		if self.completed_chunks.contains(&hash) {
 			trace!(target: "sync", "Ignored proccessed chunk: {}", hash.hex());
 			return Err(());
@@ -136,6 +136,7 @@ impl Snapshot {
 
 #[cfg(test)]
 mod test {
+	use hash::keccak;
 	use util::*;
 	use super::*;
 	use ethcore::snapshot::ManifestData;
@@ -153,13 +154,13 @@ mod test {
 		let block_chunks: Vec<Bytes> = (0..20).map(|_| H256::random().to_vec()).collect();
 		let manifest = ManifestData {
 			version: 2,
-			state_hashes: state_chunks.iter().map(|data| data.sha3()).collect(),
-			block_hashes: block_chunks.iter().map(|data| data.sha3()).collect(),
+			state_hashes: state_chunks.iter().map(|data| keccak(data)).collect(),
+			block_hashes: block_chunks.iter().map(|data| keccak(data)).collect(),
 			state_root: H256::new(),
 			block_number: 42,
 			block_hash: H256::new(),
 		};
-		let mhash = manifest.clone().into_rlp().sha3();
+		let mhash = keccak(manifest.clone().into_rlp());
 		(manifest, mhash, state_chunks, block_chunks)
 	}
 
@@ -211,7 +212,7 @@ mod test {
 		assert!(snapshot.is_complete());
 		assert_eq!(snapshot.done_chunks(), 40);
 		assert_eq!(snapshot.done_chunks(), snapshot.total_chunks());
-		assert_eq!(snapshot.snapshot_hash(), Some(manifest.into_rlp().sha3()));
+		assert_eq!(snapshot.snapshot_hash(), Some(keccak(manifest.into_rlp())));
 	}
 
 	#[test]

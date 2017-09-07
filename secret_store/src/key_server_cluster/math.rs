@@ -15,11 +15,13 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use ethkey::{Public, Secret, Random, Generator, math};
-use util::{U256, H256, Hashable};
+use bigint::prelude::U256;
+use bigint::hash::H256;
+use hash::keccak;
 use key_server_cluster::Error;
 
-#[derive(Debug)]
 /// Encryption result.
+#[derive(Debug)]
 pub struct EncryptedSecret {
 	/// Common encryption point.
 	pub common_point: Public,
@@ -181,8 +183,8 @@ pub fn compute_joint_public<'a, I>(public_shares: I) -> Result<Public, Error> wh
 	compute_public_sum(public_shares)
 }
 
-#[cfg(test)]
 /// Compute joint secret key.
+#[cfg(test)]
 pub fn compute_joint_secret<'a, I>(secret_coeffs: I) -> Result<Secret, Error> where I: Iterator<Item=&'a Secret> {
 	compute_secret_sum(secret_coeffs)
 }
@@ -238,8 +240,8 @@ pub fn compute_joint_shadow_point<'a, I>(nodes_shadow_points: I) -> Result<Publi
 	compute_public_sum(nodes_shadow_points)
 }
 
-#[cfg(test)]
 /// Compute joint shadow point (version for tests).
+#[cfg(test)]
 pub fn compute_joint_shadow_point_test<'a, I>(access_key: &Secret, common_point: &Public, nodes_shadows: I) -> Result<Public, Error> where I: Iterator<Item=&'a Secret> {
 	let mut joint_shadow = compute_secret_sum(nodes_shadows)?;
 	joint_shadow.mul(access_key)?;
@@ -277,8 +279,8 @@ pub fn make_common_shadow_point(threshold: usize, mut common_point: Public) -> R
 	}
 }
 
-#[cfg(test)]
 /// Decrypt shadow-encrypted secret.
+#[cfg(test)]
 pub fn decrypt_with_shadow_coefficients(mut decrypted_shadow: Public, mut common_shadow_point: Public, shadow_coefficients: Vec<Secret>) -> Result<Public, Error> {
 	let shadow_coefficients_sum = compute_secret_sum(shadow_coefficients.iter())?;
 	math::public_mul_secret(&mut common_shadow_point, &shadow_coefficients_sum)?;
@@ -286,8 +288,8 @@ pub fn decrypt_with_shadow_coefficients(mut decrypted_shadow: Public, mut common
 	Ok(decrypted_shadow)
 }
 
-#[cfg(test)]
 /// Decrypt data using joint secret (version for tests).
+#[cfg(test)]
 pub fn decrypt_with_joint_secret(encrypted_point: &Public, common_point: &Public, joint_secret: &Secret) -> Result<Public, Error> {
 	let mut common_point_mul = common_point.clone();
 	math::public_mul_secret(&mut common_point_mul, joint_secret)?;
@@ -306,7 +308,7 @@ pub fn combine_message_hash_with_public(message_hash: &H256, public: &Public) ->
 	buffer[32..64].copy_from_slice(&public[0..32]);
 
 	// calculate hash of buffer
-	let hash = (&buffer[..]).sha3();
+	let hash = keccak(&buffer[..]);
 
 	// map hash to EC finite field value
 	let hash: U256 = hash.into();
@@ -356,8 +358,8 @@ pub fn compute_signature<'a, I>(signature_shares: I) -> Result<Secret, Error> wh
 	compute_secret_sum(signature_shares)
 }
 
-#[cfg(test)]
 /// Locally compute Schnorr signature as described in https://en.wikipedia.org/wiki/Schnorr_signature#Signing.
+#[cfg(test)]
 pub fn local_compute_signature(nonce: &Secret, secret: &Secret, message_hash: &Secret) -> Result<(Secret, Secret), Error> {
 	let mut nonce_public = math::generation_point();
 	math::public_mul_secret(&mut nonce_public, &nonce).unwrap();
@@ -372,8 +374,8 @@ pub fn local_compute_signature(nonce: &Secret, secret: &Secret, message_hash: &S
 	Ok((combined_hash, sig))
 }
 
-#[cfg(test)]
 /// Verify signature as described in https://en.wikipedia.org/wiki/Schnorr_signature#Verifying.
+#[cfg(test)]
 pub fn verify_signature(public: &Public, signature: &(Secret, Secret), message_hash: &H256) -> Result<bool, Error> {
 	let mut addendum = math::generation_point();
 	math::public_mul_secret(&mut addendum, &signature.1)?;

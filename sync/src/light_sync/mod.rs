@@ -45,7 +45,9 @@ use light::net::{
 };
 use light::request::{self, CompleteHeadersRequest as HeadersRequest};
 use network::PeerId;
-use util::{U256, H256, Mutex, RwLock};
+use bigint::prelude::U256;
+use bigint::hash::H256;
+use parking_lot::{Mutex, RwLock};
 use rand::{Rng, OsRng};
 
 use self::sync_round::{AbortReason, SyncRound, ResponseContext};

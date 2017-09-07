@@ -16,7 +16,7 @@
 
 //! Types used in the public API
 
-use util::{H256};
+use bigint::hash::H256;
 pub use ipc_common_types::{VersionInfo, ReleaseTrack};
 
 /// Information regarding a particular release of Parity

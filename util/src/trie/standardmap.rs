@@ -15,11 +15,9 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Key-value datastore with a modified Merkle tree.
-extern crate rand;
-
+use keccak::keccak;
 use bytes::*;
-use sha3::*;
-use hash::*;
+use bigint::hash::*;
 use rlp::encode;
 
 /// Alphabet to use when creating words for insertion into tries.
@@ -63,14 +61,14 @@ impl StandardMap {
 	/// `seed` is mutated pseudoramdonly and used.
 	fn random_bytes(min_count: usize, journal_count: usize, seed: &mut H256) -> Vec<u8> {
 		assert!(min_count + journal_count <= 32);
-		*seed = seed.sha3();
+		*seed = keccak(&seed);
 		let r = min_count + (seed[31] as usize % (journal_count + 1));
 		seed[0..r].to_vec()
 	}
 
 	/// Get a random value. Equal chance of being 1 byte as of 32. `seed` is mutated pseudoramdonly and used.
 	fn random_value(seed: &mut H256) -> Bytes {
-		*seed = seed.sha3();
+		*seed = keccak(&seed);
 		match seed[0] % 2 {
 			1 => vec![seed[31];1],
 			_ => seed.to_vec(),
@@ -81,7 +79,7 @@ impl StandardMap {
 	/// Each byte is an item from `alphabet`. `seed` is mutated pseudoramdonly and used.
 	fn random_word(alphabet: &[u8], min_count: usize, journal_count: usize, seed: &mut H256) -> Vec<u8> {
 		assert!(min_count + journal_count <= 32);
-		*seed = seed.sha3();
+		*seed = keccak(&seed);
 		let r = min_count + (seed[31] as usize % (journal_count + 1));
 		let mut ret: Vec<u8> = Vec::with_capacity(r);
 		for i in 0..r {
