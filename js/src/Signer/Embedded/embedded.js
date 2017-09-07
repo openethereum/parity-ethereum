@@ -91,21 +91,34 @@ class Embedded extends Component {
     );
   }
 
-  renderPending = (data, index) => {
-    const { accounts, actions, gasLimit, netVersion } = this.props;
-    const { date, id, isSending, payload, origin } = data;
-    const transaction = payload.sendTransaction || payload.signTransaction;
-    let Handler;
+  findPluginHandler (data) {
+    const { accounts } = this.props;
+    const { payload } = data;
 
-    if (transaction) {
-      Handler = this.pluginStore.findHandler(payload, accounts[transaction.from]);
+    let account;
+
+    if (payload.decrypt) {
+      account = accounts[payload.decrypt.address];
+    } else if (payload.sign) {
+      account = accounts[payload.sign.address];
+    } else if (payload.sendTransaction) {
+      account = accounts[payload.sendTransaction.from];
+    } else if (payload.signTransaction) {
+      account = accounts[payload.signTransaction.from];
     }
+
+    return this.pluginStore.findHandler(payload, account);
+  }
+
+  renderPending = (data, index) => {
+    const { actions, gasLimit, netVersion } = this.props;
+    const { date, id, isSending, payload, origin } = data;
 
     return (
       <RequestPending
         className={ styles.request }
         date={ date }
-        elementRequest={ Handler }
+        elementRequest={ this.findPluginHandler(data) }
         focus={ index === 0 }
         gasLimit={ gasLimit }
         id={ id }
