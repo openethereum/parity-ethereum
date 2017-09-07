@@ -28,7 +28,7 @@ import {
 export const ETH_TOKEN = {
   address: '',
   format: new BigNumber(10).pow(18),
-  id: sha3('eth_native_token').slice(0, 10),
+  id: getTokenId ('eth_native_token'),
   image: imagesEthereum,
   name: 'Ethereum',
   native: true,
@@ -62,7 +62,7 @@ export function fetchTokensBasics (api, tokenReg, start = 0, limit = 100) {
 
         return {
           address: tokenAddress,
-          id: sha3(tokenAddress + tokenIndex).slice(0, 10),
+          id: getTokenId(address, tokenIndex),
           index: tokenIndex,
 
           fetched: false
@@ -81,14 +81,11 @@ export function fetchTokensInfo (api, tokenReg, tokenIndexes) {
   const calls = requests.map((req) => api.eth.call(req));
   const imagesPromise = fetchTokensImages(api, tokenReg, tokenIndexes);
 
-  let results;
-
   return Promise.all(calls)
-    .then((_results) => {
-      results = _results;
-      return imagesPromise;
+    .then((results) => {
+      return imagesPromise.then((images) => [ results, images ]);
     })
-    .then((images) => {
+    .then(([ results, images ]) => {
       return results.map((rawTokenData, index) => {
         const tokenIndex = tokenIndexes[index];
         const tokenData = tokenReg.instance.token
@@ -100,7 +97,7 @@ export function fetchTokensInfo (api, tokenReg, tokenIndexes) {
 
         const token = {
           address,
-          id: sha3(address + tokenIndex).slice(0, 10),
+          id: getTokenId(address, tokenIndex),
           index: tokenIndex,
 
           format: format.toString(),
@@ -151,28 +148,20 @@ export function fetchAccountsBalances (api, tokens, updates) {
 
   // Updates for the ETH balances
   const ethUpdates = accountAddresses
-    .map((accountAddress) => {
-      return updates[accountAddress].filter((tokenId) => tokenId === ETH_TOKEN.id);
+    .filter((accountAddress) => {
+      return updates[accountAddress].find((tokenId) => tokenId === ETH_TOKEN.id);
     })
-    .reduce((nextUpdates, tokenIds, accountIndex) => {
-      if (tokenIds.length > 0) {
-        const accountAddress = accountAddresses[accountIndex];
-
-        nextUpdates[accountAddress] = tokenIds;
-      }
-
+    .reduce((nextUpdates, accountAddress) => {
+      nextUpdates[accountAddress] = [ETH_TOKEN.id];
       return nextUpdates;
     }, {});
 
   // Updates for Tokens balances
   const tokenUpdates = Object.keys(updates)
-    .map((accountAddress) => {
-      return updates[accountAddress].filter((tokenId) => tokenId !== ETH_TOKEN.id);
-    })
-    .reduce((nextUpdates, tokenIds, accountIndex) => {
-      if (tokenIds.length > 0) {
-        const accountAddress = accountAddresses[accountIndex];
+    .reduce((nextUpdates, accountAddress) => {
+      const tokenIds = updates[accountAddress].filter((tokenId) => tokenId !== ETH_TOKEN.id);
 
+      if (tokenIds.length > 0) {
         nextUpdates[accountAddress] = tokenIds;
       }
 
@@ -187,23 +176,20 @@ export function fetchAccountsBalances (api, tokens, updates) {
       ethBalances = _ethBalances;
     });
 
-  let tokenPromise = Promise.resolve();
-
-  Object.keys(tokenUpdates)
-    .forEach((accountAddress) => {
+  const tokenPromise = Object.keys(tokenUpdates)
+    .reduce((tokenPromise, accountAddress) => {
       const tokenIds = tokenUpdates[accountAddress];
       const updateTokens = tokens
         .filter((t) => tokenIds.includes(t.id));
 
-      tokenPromise = tokenPromise
+      return tokenPromise
         .then(() => fetchTokensBalances(api, updateTokens, [ accountAddress ]))
         .then((balances) => {
           tokensBalances[accountAddress] = balances[accountAddress];
         });
-    });
+    }, Promise.resolve());
 
-  return ethPromise
-    .then(() => tokenPromise)
+  return Promise.all([ ethPromise, tokenPromise ])
     .then(() => {
       const balances = Object.assign({}, tokensBalances);
 
@@ -269,6 +255,10 @@ function fetchTokensBalances (api, tokens, accountAddresses) {
 
       return balances;
     });
+}
+
+function getTokenId (...args) {
+  return sha3(args.join('')).slice(0, 10);
 }
 
 function encode (api, types, values) {

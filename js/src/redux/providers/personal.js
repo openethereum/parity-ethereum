@@ -97,6 +97,12 @@ export default class Personal {
                 resolved = true;
                 return resolve();
               }
+            })
+            .catch((error) => {
+              if (!resolved) {
+                resolved = true;
+                return reject(error);
+              }
             });
         })
         .then((subId) => {
