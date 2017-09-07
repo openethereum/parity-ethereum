@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { uniq } from 'lodash';
+import { difference, uniq } from 'lodash';
 import { push } from 'react-router-redux';
 
 import { notifyTransaction } from '~/util/notifications';
@@ -107,8 +107,8 @@ export function fetchBalances (addresses, skipNotifications = false) {
     const { personal } = getState();
     const { visibleAccounts, accounts } = personal;
 
-    const addressesToFetch = uniq(visibleAccounts.concat(Object.keys(accounts)));
-    const updates = (addresses || addressesToFetch).reduce((updates, who) => {
+    const addressesToFetch = addresses || uniq(visibleAccounts.concat(Object.keys(accounts)));
+    const updates = addressesToFetch.reduce((updates, who) => {
       updates[who] = [ ETH_TOKEN.id ];
 
       return updates;
@@ -123,7 +123,7 @@ export function updateTokensFilter (options = {}) {
     const { api, personal, tokens } = getState();
     const { visibleAccounts, accounts } = personal;
 
-    const addresses = uniq(visibleAccounts.concat(Object.keys(accounts))).sort();
+    const addresses = uniq(visibleAccounts.concat(Object.keys(accounts)));
     const tokensToUpdate = Object.values(tokens);
     const tokensAddressMap = Object.values(tokens).reduce((map, token) => {
       map[token.address] = token;
@@ -132,17 +132,14 @@ export function updateTokensFilter (options = {}) {
 
     const tokenAddresses = tokensToUpdate
       .map((t) => t.address)
-      .filter((address) => address && !/^(0x)?0*$/.test(address))
-      .sort();
+      .filter((address) => address && !/^(0x)?0*$/.test(address));
 
     // Token Addresses that are not in the current filter
-    const newTokenAddresses = tokenAddresses
-      .filter((tokenAddress) => !tokensFilter.tokenAddresses.includes(tokenAddress));
+    const newTokenAddresses = difference(tokenAddresses, tokensFilter.tokenAddresses);
 
     // Addresses that are not in the current filter (omit those
     // that the filter includes)
-    const newAddresses = addresses
-      .filter((address) => !tokensFilter.addresses.includes(address));
+    const newAddresses = difference(addresses, tokensFilter.addresses);
 
     if (tokensFilter.filterFromId || tokensFilter.filterToId) {
       // If no new addresses and the same tokens, don't change the filter
@@ -155,18 +152,15 @@ export function updateTokensFilter (options = {}) {
     const promises = [];
     const updates = {};
 
-    // Fetch all tokens for each new address
-    newAddresses.forEach((address) => {
-      updates[address] = tokensToUpdate.map((token) => token.id);
+    const allTokenIds = tokensToUpdate.map((token) => token.id);
+    const newTokenIds = newTokenAddresses.map((address) => tokensAddressMap[address].id);
+
+    newAddresses.forEach((newAddress) => {
+      updates[newAddress] = allTokenIds;
     });
 
-    // Fetch new token balances for each address
-    newTokenAddresses.forEach((tokenAddress) => {
-      const token = tokensAddressMap[tokenAddress];
-
-      addresses.forEach((address) => {
-        updates[address] = uniq((updates[address] || []).concat(token.id));
-      });
+    difference(addresses, newAddresses).forEach((oldAddress) => {
+      updates[oldAddress] = newTokenIds;
     });
 
     log.debug('updating the token filter', addresses, tokenAddresses);
@@ -240,8 +234,7 @@ export function queryTokensFilter () {
         const { personal, tokens } = getState();
         const { visibleAccounts, accounts } = personal;
 
-        const allAddresses = visibleAccounts.concat(Object.keys(accounts));
-        const addressesToFetch = uniq(allAddresses);
+        const addressesToFetch = uniq(visibleAccounts.concat(Object.keys(accounts)));
         const lcAddresses = addressesToFetch.map((a) => a.toLowerCase());
 
         const lcTokensMap = Object.values(tokens).reduce((map, token) => {
@@ -260,24 +253,14 @@ export function queryTokensFilter () {
             const token = lcTokensMap[tokenAddress];
 
             // logs = [ ...logsFrom, ...logsTo ]
-            if (index < logsFrom.length) {
-              const fromAddress = ('0x' + log.topics[1].slice(-40)).toLowerCase();
-              const fromAddressIndex = lcAddresses.indexOf(fromAddress);
+            const topicIdx = index < logsFrom.length ? 1 : 2;
+            const address = ('0x' + log.topics[topicIdx].slice(-40)).toLowerCase();
+            const addressIndex = lcAddresses.indexOf(address);
 
-              if (fromAddressIndex > -1) {
-                const who = addressesToFetch[fromAddressIndex];
+            if (addressIndex > -1) {
+              const who = addressesToFetch[addressIndex];
 
-                updates[who] = [].concat(updates[who] || [], token.id);
-              }
-            } else {
-              const toAddress = ('0x' + log.topics[2].slice(-40)).toLowerCase();
-              const toAddressIndex = lcAddresses.indexOf(toAddress);
-
-              if (toAddressIndex > -1) {
-                const who = addressesToFetch[toAddressIndex];
-
-                updates[who] = [].concat(updates[who] || [], token.id);
-              }
+              updates[who] = [].concat(updates[who] || [], token.id);
             }
           });
 
@@ -318,8 +301,6 @@ export function fetchTokensBalances (updates, skipNotifications = false) {
       .then((balances) => {
         log.debug('got tokens balances', balances, updates, `(took ${Date.now() - start}ms)`);
 
-        let promise = Promise.resolve();
-
         // Tokens info might not be fetched yet (to not load
         // tokens we don't care about)
         const tokenIdsToFetch = Object.values(balances)
@@ -334,16 +315,17 @@ export function fetchTokensBalances (updates, skipNotifications = false) {
           .filter((tokenId) => tokens[tokenId] && tokens[tokenId].index && !tokens[tokenId].fetched)
           .map((tokenId) => tokens[tokenId].index);
 
-        if (tokenIndexesToFetch.length > 0) {
-          start = Date.now();
-          promise = fetchTokens(tokenIndexesToFetch)(dispatch, getState)
-            .then(() => {
-              log.debug('token indexes fetched', tokenIndexesToFetch, `(took ${Date.now() - start}ms)`);
-            });
+        if (tokenIndexesToFetch.length === 0) {
+          return balances;
         }
 
-        return promise
-          .then(() => dispatch(setBalances(balances, skipNotifications)));
+        start = Date.now();
+        return fetchTokens(tokenIndexesToFetch)(dispatch, getState)
+          .then(() => log.debug('token indexes fetched', tokenIndexesToFetch, `(took ${Date.now() - start}ms)`))
+          .then(() => balances);
+      })
+      .then((balances) => {
+        dispatch(setBalances(balances, skipNotifications));
       })
       .catch((error) => {
         console.warn('balances::fetchTokensBalances', error);

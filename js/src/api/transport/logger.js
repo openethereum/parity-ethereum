@@ -48,17 +48,13 @@ if (LOGGER_ENABLED) {
       const decoding = MethodDecodingStore.get(window.secureApi);
       const contracts = {};
 
-      let promise = Promise.resolve(null);
-
       const progress = Math.round(calls.length / 20);
 
       return calls
         .reduce((promise, call, index) => {
           const { data, to } = call.params[0];
 
-          if (!contracts[to]) {
-            contracts[to] = [];
-          }
+          contracts[to] = contracts[to] || [];
 
           return promise
             .then(() => decoding.lookup(null, { data, to }))
@@ -97,7 +93,7 @@ if (LOGGER_ENABLED) {
               };
             })
             .sort((cA, cB) => cB.count - cA.count);
-      });
+        });
     }
 
     get logs () {
@@ -105,16 +101,11 @@ if (LOGGER_ENABLED) {
     }
 
     get methods () {
-      const methods = this.logs.reduce((methods, log) => {
-        if (!methods[log.method]) {
-          methods[log.method] = [];
-        }
-
+      return this.logs.reduce((methods, log) => {
+        methods[log.method] = methods[log.method] || [];
         methods[log.method].push(log);
         return methods;
       }, {});
-
-      return methods;
     }
 
     get stats () {
