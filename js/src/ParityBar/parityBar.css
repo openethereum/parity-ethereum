@@ -192,7 +192,7 @@ $modalZ: 10001;
 .header {
   /* height: 2em; */
   padding: 0.5em 1em;
-  background: #444444;
+  background: #444;
   margin-bottom: 0;
 
   &::after {
