@@ -28,7 +28,7 @@ import {
 export const ETH_TOKEN = {
   address: '',
   format: new BigNumber(10).pow(18),
-  id: getTokenId ('eth_native_token'),
+  id: getTokenId('eth_native_token'),
   image: imagesEthereum,
   name: 'Ethereum',
   native: true,
@@ -62,7 +62,7 @@ export function fetchTokensBasics (api, tokenReg, start = 0, limit = 100) {
 
         return {
           address: tokenAddress,
-          id: getTokenId(address, tokenIndex),
+          id: getTokenId(tokenAddress, tokenIndex),
           index: tokenIndex,
 
           fetched: false
