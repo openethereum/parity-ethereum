@@ -18,6 +18,7 @@
 
 use std::sync::Arc;
 use std::path::Path;
+use bigint::hash::H256;
 use util::*;
 use io::*;
 use spec::Spec;

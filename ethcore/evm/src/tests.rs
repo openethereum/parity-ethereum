@@ -20,6 +20,8 @@ use std::hash::Hash;
 use std::sync::Arc;
 use std::collections::{HashMap, HashSet};
 use rustc_hex::FromHex;
+use bigint::prelude::U256;
+use bigint::hash::H256;
 use util::*;
 use vm::{self, ActionParams, ActionValue};
 use vm::tests::{FakeExt, FakeCall, FakeCallType, test_finalize};

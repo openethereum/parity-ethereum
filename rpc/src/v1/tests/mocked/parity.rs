@@ -485,7 +485,8 @@ fn rpc_parity_local_transactions() {
 
 #[test]
 fn rpc_parity_chain_status() {
-	use util::{H256, U256};
+	use bigint::prelude::U256;
+	use bigint::hash::H256;
 
 	let deps = Dependencies::new();
 	let io = deps.default_client();
@@ -523,7 +524,7 @@ fn rpc_parity_cid() {
 
 #[test]
 fn rpc_parity_call() {
-	use util::U256;
+	use bigint::prelude::U256;
 
 	let deps = Dependencies::new();
 	deps.client.set_execution_result(Ok(Executed {

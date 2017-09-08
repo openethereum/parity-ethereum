@@ -22,6 +22,8 @@ use std::mem;
 use itertools::Itertools;
 use bloomchain as bc;
 use heapsize::HeapSizeOf;
+use bigint::prelude::U256;
+use bigint::hash::{H256, H2048};
 use parking_lot::{Mutex, RwLock};
 use util::*;
 use rlp::*;
@@ -624,7 +626,7 @@ impl BlockChain {
 				return None;
 			}
 			if let Some(extras) = self.db.read(db::COL_EXTRA, &best_block_hash) as Option<BlockDetails> {
-				type DetailsKey = Key<BlockDetails, Target=H264>;
+				type DetailsKey = Key<BlockDetails, Target=::bigint::hash::H264>;
 				batch.delete(db::COL_EXTRA, &(DetailsKey::key(&best_block_hash)));
 				let hash = extras.parent;
 				let range = extras.number as bc::Number .. extras.number as bc::Number;
@@ -1470,7 +1472,7 @@ mod tests {
 	use rustc_hex::FromHex;
 	use hash::keccak;
 	use util::kvdb::KeyValueDB;
-	use util::hash::*;
+	use bigint::hash::*;
 	use receipt::Receipt;
 	use blockchain::{BlockProvider, BlockChain, Config, ImportRoute};
 	use tests::helpers::*;

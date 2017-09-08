@@ -23,6 +23,8 @@ use std::mem;
 use itertools::Itertools;
 use rustc_hex::FromHex;
 use hash::keccak;
+use bigint::prelude::U256;
+use bigint::hash::{H256, H2048};
 use parking_lot::RwLock;
 use util::*;
 use rlp::*;
@@ -450,6 +452,13 @@ impl BlockChainClient for TestBlockChainClient {
 	fn code(&self, address: &Address, id: BlockId) -> Option<Option<Bytes>> {
 		match id {
 			BlockId::Latest | BlockId::Pending => Some(self.code.read().get(address).cloned()),
+			_ => None,
+		}
+	}
+
+	fn code_hash(&self, address: &Address, id: BlockId) -> Option<H256> {
+		match id {
+			BlockId::Latest | BlockId::Pending => self.code.read().get(address).map(|c| keccak(&c)),
 			_ => None,
 		}
 	}

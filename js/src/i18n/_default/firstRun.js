@@ -20,6 +20,7 @@ export default {
     create: `Create`,
     next: `Next`,
     print: `Print Phrase`,
+    restart: `Start Over`,
     skip: `Skip`
   },
   completed: {
@@ -28,6 +29,7 @@ export default {
   },
   title: {
     completed: `completed`,
+    confirmation: `confirmation`,
     newAccount: `new account`,
     recovery: `recovery`,
     terms: `terms`,

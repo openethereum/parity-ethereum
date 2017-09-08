@@ -25,6 +25,7 @@ use ethereum;
 use block::IsBlock;
 use tests::helpers::*;
 use types::filter::Filter;
+use bigint::prelude::U256;
 use util::*;
 use devtools::*;
 use miner::Miner;

@@ -34,7 +34,9 @@ use trace::LocalizedTrace;
 use transaction::{LocalizedTransaction, PendingTransaction, SignedTransaction};
 use verification::queue::QueueInfo as BlockQueueInfo;
 
-use util::{U256, Address, H256, H2048, Bytes};
+use bigint::prelude::U256;
+use bigint::hash::{H256, H2048};
+use util::{Address, Bytes};
 use util::hashdb::DBValue;
 
 use types::ids::*;
@@ -95,6 +97,9 @@ pub trait BlockChainClient : Sync + Send {
 		self.code(address, BlockId::Latest)
 			.expect("code will return Some if given BlockId::Latest; qed")
 	}
+
+	/// Get address code hash at given block's state.
+	fn code_hash(&self, address: &Address, id: BlockId) -> Option<H256>;
 
 	/// Get address balance at the given block's state.
 	///

@@ -40,6 +40,8 @@ use state_db::StateDB;
 use state::{Backend, State, Substate};
 use state::backend::Basic as BasicBackend;
 use trace::{NoopTracer, NoopVMTracer};
+use bigint::prelude::U256;
+use bigint::hash::{H256, H2048};
 use parking_lot::RwLock;
 use util::*;
 
@@ -104,6 +106,8 @@ pub struct CommonParams {
 	pub registrar: Address,
 	/// Node permission managing contract address.
 	pub node_permission_contract: Option<Address>,
+	/// Transaction permission managing contract address.
+	pub transaction_permission_contract: Option<Address>,
 }
 
 impl CommonParams {
@@ -176,6 +180,7 @@ impl From<ethjson::spec::Params> for CommonParams {
 			block_reward: p.block_reward.map_or_else(U256::zero, Into::into),
 			registrar: p.registrar.map_or_else(Address::new, Into::into),
 			node_permission_contract: p.node_permission_contract.map(Into::into),
+			transaction_permission_contract: p.transaction_permission_contract.map(Into::into),
 		}
 	}
 }
@@ -351,7 +356,7 @@ impl Spec {
 
 				{
 					let mut exec = Executive::new(&mut state, &env_info, self.engine.as_ref());
-					if let Err(e) = exec.create(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer) {
+					if let Err(e) = exec.create(params, &mut substate, &mut None, &mut NoopTracer, &mut NoopVMTracer) {
 						warn!(target: "spec", "Genesis constructor execution at {} failed: {}.", address, e);
 					}
 				}

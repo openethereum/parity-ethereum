@@ -25,13 +25,16 @@ use itertools::Itertools;
 // util
 use hash::keccak;
 use timer::PerfTimer;
+use util::UtilError;
 use util::Bytes;
 use util::{journaldb, DBValue, TrieFactory, Trie};
-use util::{U256, H256, Address, H2048};
+use util::Address;
 use util::trie::TrieSpec;
 use util::kvdb::*;
 
 // other
+use bigint::prelude::U256;
+use bigint::hash::{H256, H2048};
 use basic_types::Seal;
 use block::*;
 use blockchain::{BlockChain, BlockProvider,  TreeRoute, ImportRoute};
@@ -250,7 +253,7 @@ impl Client {
 			last_hashes: RwLock::new(VecDeque::new()),
 			factories: factories,
 			history: history,
-			rng: Mutex::new(OsRng::new().map_err(::util::UtilError::StdIo)?),
+			rng: Mutex::new(OsRng::new().map_err(UtilError::from)?),
 			ancient_verifier: Mutex::new(None),
 			on_user_defaults_change: Mutex::new(None),
 			registrar: Mutex::new(None),
@@ -1129,7 +1132,9 @@ impl Client {
 			T: trace::Tracer,
 			V: trace::VMTracer,
 		{
-			let options = options.dont_check_nonce();
+			let options = options
+				.dont_check_nonce()
+				.save_output_from_contract();
 			let original_state = if state_diff { Some(state.clone()) } else { None };
 
 			let mut ret = Executive::new(state, env_info, engine).transact_virtual(transaction, options)?;
@@ -1441,6 +1446,10 @@ impl BlockChainClient for Client {
 
 	fn code(&self, address: &Address, id: BlockId) -> Option<Option<Bytes>> {
 		self.state_at(id).and_then(|s| s.code(address).ok()).map(|c| c.map(|c| (&*c).clone()))
+	}
+
+	fn code_hash(&self, address: &Address, id: BlockId) -> Option<H256> {
+		self.state_at(id).and_then(|s| s.code_hash(address).ok())
 	}
 
 	fn balance(&self, address: &Address, id: BlockId) -> Option<U256> {

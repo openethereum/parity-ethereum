@@ -19,8 +19,8 @@
 
 use std::collections::HashMap;
 
-use util::Bytes;
-use util::{Address, H256};
+use bigint::hash::H256;
+use util::{Address, Bytes};
 use util::kvdb::Database;
 use util::migration::{Batch, Config, Error, Migration, SimpleMigration, Progress};
 use hash::keccak;

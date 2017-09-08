@@ -18,6 +18,7 @@
 /// It can also report validators for misbehaviour with two levels: `reportMalicious` and `reportBenign`.
 
 use std::sync::Weak;
+use bigint::hash::H256;
 use parking_lot::RwLock;
 use util::*;
 
@@ -130,6 +131,7 @@ mod tests {
 	use std::sync::Arc;
 	use rustc_hex::FromHex;
 	use hash::keccak;
+	use bigint::hash::H520;
 	use util::*;
 	use rlp::encode;
 	use spec::Spec;

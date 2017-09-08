@@ -18,6 +18,8 @@
 use std::cmp;
 use std::sync::Arc;
 use hash::keccak;
+use bigint::prelude::{U256, U512};
+use bigint::hash::H256;
 use util::*;
 use state::{Backend as StateBackend, State, Substate, CleanupMode};
 use engines::Engine;
@@ -75,6 +77,8 @@ pub struct TransactOptions<T, V> {
 	pub vm_tracer: V,
 	/// Check transaction nonce before execution.
 	pub check_nonce: bool,
+	/// Records the output from init contract calls.
+	pub output_from_init_contract: bool,
 }
 
 impl<T, V> TransactOptions<T, V> {
@@ -84,12 +88,19 @@ impl<T, V> TransactOptions<T, V> {
 			tracer,
 			vm_tracer,
 			check_nonce: true,
+			output_from_init_contract: false,
 		}
 	}
 
 	/// Disables the nonce check
 	pub fn dont_check_nonce(mut self) -> Self {
 		self.check_nonce = false;
+		self
+	}
+
+	/// Saves the output from contract creation.
+	pub fn save_output_from_contract(mut self) -> Self {
+		self.output_from_init_contract = true;
 		self
 	}
 }
@@ -101,6 +112,7 @@ impl TransactOptions<trace::ExecutiveTracer, trace::ExecutiveVMTracer> {
 			tracer: trace::ExecutiveTracer::default(),
 			vm_tracer: trace::ExecutiveVMTracer::toplevel(),
 			check_nonce: true,
+			output_from_init_contract: false,
 		}
 	}
 }
@@ -112,6 +124,7 @@ impl TransactOptions<trace::ExecutiveTracer, trace::NoopVMTracer> {
 			tracer: trace::ExecutiveTracer::default(),
 			vm_tracer: trace::NoopVMTracer,
 			check_nonce: true,
+			output_from_init_contract: false,
 		}
 	}
 }
@@ -123,6 +136,7 @@ impl TransactOptions<trace::NoopTracer, trace::ExecutiveVMTracer> {
 			tracer: trace::NoopTracer,
 			vm_tracer: trace::ExecutiveVMTracer::toplevel(),
 			check_nonce: true,
+			output_from_init_contract: false,
 		}
 	}
 }
@@ -134,6 +148,7 @@ impl TransactOptions<trace::NoopTracer, trace::NoopVMTracer> {
 			tracer: trace::NoopTracer,
 			vm_tracer: trace::NoopVMTracer,
 			check_nonce: true,
+			output_from_init_contract: false,
 		}
 	}
 }
@@ -202,7 +217,7 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 	pub fn transact<T, V>(&'a mut self, t: &SignedTransaction, options: TransactOptions<T, V>)
 		-> Result<Executed, ExecutionError> where T: Tracer, V: VMTracer,
 	{
-		self.transact_with_tracer(t, options.check_nonce, options.tracer, options.vm_tracer)
+		self.transact_with_tracer(t, options.check_nonce, options.output_from_init_contract, options.tracer, options.vm_tracer)
 	}
 
 	/// Execute a transaction in a "virtual" context.
@@ -227,6 +242,7 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 		&'a mut self,
 		t: &SignedTransaction,
 		check_nonce: bool,
+		output_from_create: bool,
 		mut tracer: T,
 		mut vm_tracer: V
 	) -> Result<Executed, ExecutionError> where T: Tracer, V: VMTracer {
@@ -295,7 +311,8 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 					data: None,
 					call_type: CallType::None,
 				};
-				(self.create(params, &mut substate, &mut tracer, &mut vm_tracer), vec![])
+				let mut out = if output_from_create { Some(vec![]) } else { None };
+				(self.create(params, &mut substate, &mut out, &mut tracer, &mut vm_tracer), out.unwrap_or_else(Vec::new))
 			},
 			Action::Call(ref address) => {
 				let params = ActionParams {
@@ -488,6 +505,7 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 		&mut self,
 		params: ActionParams,
 		substate: &mut Substate,
+		output: &mut Option<Bytes>,
 		tracer: &mut T,
 		vm_tracer: &mut V,
 	) -> vm::Result<(U256, ReturnData)> where T: Tracer, V: VMTracer {
@@ -529,7 +547,7 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 		let mut subvmtracer = vm_tracer.prepare_subtrace(params.code.as_ref().expect("two ways into create (Externalities::create and Executive::transact_with_tracer); both place `Some(...)` `code` in `params`; qed"));
 
 		let res = {
-			self.exec_vm(params, &mut unconfirmed_substate, OutputPolicy::InitContract(trace_output.as_mut()), &mut subtracer, &mut subvmtracer)
+			self.exec_vm(params, &mut unconfirmed_substate, OutputPolicy::InitContract(output.as_mut().or(trace_output.as_mut())), &mut subtracer, &mut subvmtracer)
 		};
 
 		vm_tracer.done_subtrace(subvmtracer);
@@ -538,7 +556,7 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 			Ok(ref res) => tracer.trace_create(
 				trace_info,
 				gas - res.gas_left,
-				trace_output,
+				trace_output.map(|data| output.as_ref().map(|out| out.to_vec()).unwrap_or(data)),
 				created,
 				subtracer.drain()
 			),
@@ -659,7 +677,9 @@ mod tests {
 	use rustc_hex::FromHex;
 	use ethkey::{Generator, Random};
 	use super::*;
-	use util::{H256, U256, U512, Address};
+	use bigint::prelude::{U256, U512};
+	use bigint::hash::H256;
+	use util::Address;
 	use util::bytes::BytesRef;
 	use vm::{ActionParams, ActionValue, CallType, EnvInfo, CreateContractAddress};
 	use evm::{Factory, VMType};
@@ -697,7 +717,7 @@ mod tests {
 
 		let (gas_left, _) = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
-			ex.create(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer).unwrap()
+			ex.create(params, &mut substate, &mut None, &mut NoopTracer, &mut NoopVMTracer).unwrap()
 		};
 
 		assert_eq!(gas_left, U256::from(79_975));
@@ -755,7 +775,7 @@ mod tests {
 
 		let (gas_left, _) = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
-			ex.create(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer).unwrap()
+			ex.create(params, &mut substate, &mut None, &mut NoopTracer, &mut NoopVMTracer).unwrap()
 		};
 
 		assert_eq!(gas_left, U256::from(62_976));
@@ -922,7 +942,7 @@ mod tests {
 
 		let (gas_left, _) = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
-			ex.create(params.clone(), &mut substate, &mut tracer, &mut vm_tracer).unwrap()
+			ex.create(params.clone(), &mut substate, &mut None, &mut tracer, &mut vm_tracer).unwrap()
 		};
 
 		assert_eq!(gas_left, U256::from(96_776));
@@ -1007,7 +1027,7 @@ mod tests {
 
 		let (gas_left, _) = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
-			ex.create(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer).unwrap()
+			ex.create(params, &mut substate, &mut None, &mut NoopTracer, &mut NoopVMTracer).unwrap()
 		};
 
 		assert_eq!(gas_left, U256::from(62_976));
@@ -1058,7 +1078,7 @@ mod tests {
 
 		{
 			let mut ex = Executive::new(&mut state, &info, &engine);
-			ex.create(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer).unwrap();
+			ex.create(params, &mut substate, &mut None, &mut NoopTracer, &mut NoopVMTracer).unwrap();
 		}
 
 		assert_eq!(substate.contracts_created.len(), 1);
@@ -1331,7 +1351,7 @@ mod tests {
 
 		let result = {
 			let mut ex = Executive::new(&mut state, &info, &engine);
-			ex.create(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer)
+			ex.create(params, &mut substate, &mut None, &mut NoopTracer, &mut NoopVMTracer)
 		};
 
 		match result {

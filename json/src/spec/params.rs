@@ -108,6 +108,9 @@ pub struct Params {
 	/// Node permission contract address.
 	#[serde(rename="nodePermissionContract")]
 	pub node_permission_contract: Option<Address>,
+	/// Transaction permission contract address.
+	#[serde(rename="transactionPermissionContract")]
+	pub transaction_permission_contract: Option<Address>,
 }
 
 #[cfg(test)]

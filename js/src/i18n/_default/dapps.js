@@ -31,6 +31,9 @@ export default {
     }
   },
   button: {
+    dapp: {
+      refresh: `refresh`
+    },
     edit: `edit`,
     permissions: `permissions`
   },

@@ -21,7 +21,7 @@
 use std::collections::{HashSet, VecDeque};
 use std::cmp;
 use heapsize::HeapSizeOf;
-use util::*;
+use bigint::hash::H256;
 use rlp::*;
 use ethcore::views::{BlockView};
 use ethcore::header::{BlockNumber, Header as BlockHeader};

@@ -21,9 +21,12 @@ use futures::Future;
 use native_contracts::ValidatorSet as Provider;
 use hash::keccak;
 
+use bigint::prelude::U256;
+use bigint::hash::{H160, H256};
 use parking_lot::RwLock;
 use util::*;
 use util::cache::MemoryLruCache;
+use unexpected::Mismatch;
 use rlp::{UntrustedRlp, RlpStream};
 
 use basic_types::LogBloom;

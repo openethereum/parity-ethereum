@@ -18,7 +18,7 @@
 //!
 use std::sync::Arc;
 use vm::Vm;
-use util::U256;
+use bigint::prelude::U256;
 use super::interpreter::SharedCache;
 use super::vmtype::VMType;
 

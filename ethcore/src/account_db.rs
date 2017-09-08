@@ -17,6 +17,7 @@
 //! DB backend wrapper for Account trie
 use std::collections::HashMap;
 use hash::{KECCAK_NULL_RLP, keccak};
+use bigint::hash::H256;
 use util::*;
 use rlp::NULL_RLP;
 

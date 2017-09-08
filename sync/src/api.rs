@@ -20,7 +20,8 @@ use std::io;
 use util::Bytes;
 use network::{NetworkProtocolHandler, NetworkService, NetworkContext, HostInfo, PeerId, ProtocolId,
 	NetworkConfiguration as BasicNetworkConfiguration, NonReservedPeerMode, NetworkError, ConnectionFilter};
-use util::{U256, H256, H512};
+use bigint::prelude::U256;
+use bigint::hash::{H256, H512};
 use io::{TimerToken};
 use ethcore::ethstore::ethkey::Secret;
 use ethcore::client::{BlockChainClient, ChainNotify};

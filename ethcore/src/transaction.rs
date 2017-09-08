@@ -20,7 +20,9 @@ use std::ops::Deref;
 use rlp::*;
 use hash::keccak;
 use heapsize::HeapSizeOf;
-use util::{H256, Address, U256, Bytes};
+use bigint::prelude::U256;
+use bigint::hash::H256;
+use util::{Address, Bytes};
 use ethkey::{Signature, Secret, Public, recover, public_to_address, Error as EthkeyError};
 use error::*;
 use evm::Schedule;
@@ -28,10 +30,10 @@ use header::BlockNumber;
 use ethjson;
 
 /// Fake address for unsigned transactions as defined by EIP-86.
-pub const UNSIGNED_SENDER: Address = ::util::H160([0xff; 20]);
+pub const UNSIGNED_SENDER: Address = ::bigint::hash::H160([0xff; 20]);
 
 /// System sender address for internal state updates.
-pub const SYSTEM_ADDRESS: Address = ::util::H160([0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,0xff, 0xff, 0xff, 0xff,0xff, 0xff, 0xff, 0xff,0xff, 0xff, 0xff, 0xfe]);
+pub const SYSTEM_ADDRESS: Address = ::bigint::hash::H160([0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,0xff, 0xff, 0xff, 0xff,0xff, 0xff, 0xff, 0xff,0xff, 0xff, 0xff, 0xfe]);
 
 /// Transaction action type.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -378,7 +380,7 @@ impl UnverifiedTransaction {
 			self.recover_public()?;
 		}
 		if self.gas < U256::from(self.gas_required(&schedule)) {
-			return Err(TransactionError::InvalidGasLimit(::util::OutOfBounds{min: Some(U256::from(self.gas_required(&schedule))), max: None, found: self.gas}).into())
+			return Err(TransactionError::InvalidGasLimit(::unexpected::OutOfBounds{min: Some(U256::from(self.gas_required(&schedule))), max: None, found: self.gas}).into())
 		}
 		Ok(self)
 	}
@@ -545,7 +547,7 @@ impl From<SignedTransaction> for PendingTransaction {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use util::{U256};
+	use bigint::prelude::U256;
 	use hash::keccak;
 
 	#[test]

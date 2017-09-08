@@ -66,6 +66,18 @@ export default {
   errors: {
     close: `close`
   },
+  features: {
+    defaults: {
+      i18n: {
+        desc: `Allows changing the default interface language`,
+        name: `Language Selection`
+      },
+      logging: {
+        desc: `Allows changing of the log levels for various components`,
+        name: `Logging Level Selection`
+      }
+    }
+  },
   fileSelect: {
     defaultLabel: `Drop a file here, or click to select a file to upload`
   },
@@ -80,8 +92,8 @@ export default {
   },
   methodDecoding: {
     condition: {
-      block: `, {historic, select, true {Submitted} false {Submission}} at block {blockNumber}`,
-      time: `, {historic, select, true {Submitted} false {Submission}} at {timestamp}`
+      block: `{historic, select, true {Will be submitted} false {To be submitted}} at block {blockNumber}`,
+      time: `{historic, select, true {Will be submitted} false {To be submitted}} {timestamp}`
     },
     deploy: {
       address: `Deployed a contract at address`,
@@ -101,7 +113,7 @@ export default {
       info: `{historic, select, true {Received} false {Will receive}} {valueEth} from {aContract}{address}`
     },
     signature: {
-      info: `{historic, select, true {Executed} false {Will execute}} the {method} function on the contract {address} trsansferring {ethValue}{inputLength, plural, zero {,} other {passing the following {inputLength, plural, one {parameter} other {parameters}}}}`
+      info: `{historic, select, true {Executed} false {Will execute}} the {method} function on the contract {address} {showEth, select, true {transferring {ethValue}} false {}} {showInputs, select, false {} true {passing the following {inputLength, plural, one {parameter} other {parameters}}}}`
     },
     token: {
       transfer: `{historic, select, true {Transferred} false {Will transfer}} {value} to {address}`
@@ -130,6 +142,27 @@ export default {
     oog: `The transaction might have gone out of gas. Try again with more gas.`,
     posted: `The transaction has been posted to the network with a hash of {hashLink}`,
     waiting: `waiting for confirmations`
+  },
+  txList: {
+    txRow: {
+      cancel: `Cancel`,
+      cancelWarning: `Warning: Editing or Canceling the transaction may not succeed!`,
+      canceled: `Canceled`,
+      edit: `Edit`,
+      editing: `Editing`,
+      pendingStatus: {
+        blocksLeft: `{blockNumber} blocks left`,
+        time: `{time} left`
+      },
+      scheduled: `Scheduled`,
+      submitting: `Pending`,
+      verify: {
+        cancelEditCancel: `Cancel`,
+        cancelEditEdit: `Edit`,
+        confirm: `Are you sure?`,
+        nevermind: `Nevermind`
+      }
+    }
   },
   vaultSelect: {
     hint: `the vault this account is attached to`,

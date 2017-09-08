@@ -19,8 +19,11 @@
 use std::sync::{Weak, Arc};
 use std::collections::BTreeMap;
 use std::cmp;
+use bigint::prelude::U256;
+use bigint::hash::{H256, H520};
 use parking_lot::RwLock;
 use util::*;
+use unexpected::{Mismatch, OutOfBounds};
 use ethkey::{recover, public_to_address, Signature};
 use account_provider::AccountProvider;
 use block::*;
@@ -255,7 +258,7 @@ impl Engine for BasicAuthority {
 mod tests {
 	use std::sync::Arc;
 	use hash::keccak;
-	use util::*;
+	use bigint::hash::H520;
 	use block::*;
 	use error::{BlockError, Error};
 	use tests::helpers::*;

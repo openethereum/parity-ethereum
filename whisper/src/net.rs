@@ -583,7 +583,7 @@ impl<T: MessageHandler> Network<T> {
 					return Err(Error::InvalidPowReq);
 				}
 
-				// as of byteorder 1.1.0, this is always defined and
+				// as of byteorder 1.1.0, this is always defined.
 				let req = BigEndian::read_f64(&bytes[..]);
 
 				if !req.is_normal() {
