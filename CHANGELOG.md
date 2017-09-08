@@ -1,4 +1,4 @@
-## Parity [v1.7.1](https://github.com/paritytech/parity/releases/tag/v1.7.1) (2017-08-21)
+## Parity [v1.7.2](https://github.com/paritytech/parity/releases/tag/v1.7.2) (2017-09-11)
 
 Parity 1.7.1 is a bug-fix release to improve performance and stability. Among others, it addresses the following issues:
 
@@ -9,6 +9,9 @@ Parity 1.7.1 is a bug-fix release to improve performance and stability. Among ot
 
 Full list of included changes:
 
+- Fix warning spam. [#6369](https://github.com/paritytech/parity/pull/6369)
+- Bump to 1.7.2
+- Fix eth_call [#6366](https://github.com/paritytech/parity/pull/6366)
 - Backporting [#6352](https://github.com/paritytech/parity/pull/6352)
   - Better check the created accounts before showing Startup Wizard [#6331](https://github.com/paritytech/parity/pull/6331)
   - Tweaked snapshot params [#6344](https://github.com/paritytech/parity/pull/6344)
