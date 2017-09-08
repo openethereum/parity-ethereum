@@ -445,7 +445,7 @@ impl Impl for Bn128PairingImpl {
 	///     - any of odd points does not belong to bn128 curve
 	///     - any of even points does not belong to the twisted bn128 curve over the field F_p^2 = F_p[i] / (i^2 + 1)
 	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), Error> {
-		use bn::{AffineG1, AffineG2, Fq, Fq2, pairing, G1, G2, Gt};
+		use bn::{AffineG1, AffineG2, Fq, Fq2, pairing, G1, G2, Gt, Group};
 
 		let elements = input.len() / 192; // (a, b_a, b_b - each 64-byte affine coordinates)
 		if input.len() % 192 != 0 {
@@ -474,22 +474,37 @@ impl Impl for Bn128PairingImpl {
 				let b_a_y = Fq::from_slice(&input[idx*192+160..idx*192+192])
 					.map_err(|_| Error::from("Invalid b argument real coeff y coordinate"))?;
 
-				vals.push((
-					G1::from(
+				let g1_point;
+				if a_x == Fq::zero() && a_y == Fq::zero() {
+					g1_point = G1::zero();
+				} else {
+					//g1_point = G1::from(bn::AffineG1::new(a_x, a_y).expect("Invalid a argument - not on curve"));
+					g1_point = G1::from(
 						AffineG1::new(a_x, a_y).map_err(|_| Error::from("Invalid a argument - not on curve"))?
-					),
-					G2::from(
+					);
+				}
+
+				let g2_point;
+				if b_b_y.is_zero() && b_b_x.is_zero() && b_a_y.is_zero() && b_a_x.is_zero() {
+					g2_point = G2::zero();
+				} else {
+					g2_point = G2::from(
 						AffineG2::new(
-							Fq2::new(b_a_x, b_a_y),
-							Fq2::new(b_b_x, b_b_y),
+							Fq2::new(b_b_y, b_b_x),
+							Fq2::new(b_a_y, b_a_x),
 						).map_err(|_| Error::from("Invalid b argument - not on curve"))?
-					),
+					);
+				}
+
+				vals.push((
+					g1_point,
+					g2_point,
 				));
 			};
 
 			let mul = vals.into_iter().fold(Gt::one(), |s, (a, b)| s * pairing(a, b));
 
-			if mul == *bn128_gen::P1_P2_PAIRING {
+			if mul == Gt::one() {
 				U256::one()
 			} else {
 				U256::zero()
