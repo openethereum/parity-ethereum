@@ -182,6 +182,10 @@ impl<'a, T: 'a, V: 'a, B: 'a, E: 'a> Ext for TestExt<'a, T, V, B, E>
 		0
 	}
 
+	fn is_static(&self) -> bool {
+		false
+	}
+
 	fn inc_sstore_clears(&mut self) {
 		self.ext.inc_sstore_clears()
 	}

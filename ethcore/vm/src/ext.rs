@@ -48,6 +48,9 @@ pub enum MessageCallResult {
 	/// Returned when message call failed.
 	/// VM doesn't have to know the reason.
 	Failed,
+	/// Returned when message call was reverted.
+	/// Contains gas left and output data.
+	Reverted(U256, ReturnData),
 }
 
 /// Specifies how an address is calculated for a new contract.
@@ -146,4 +149,7 @@ pub trait Ext {
 
 	/// Trace the finalised execution of a single instruction.
 	fn trace_executed(&mut self, _gas_used: U256, _stack_push: &[U256], _mem_diff: Option<(usize, &[u8])>, _store_diff: Option<(U256, U256)>) {}
+
+	/// Check if running in static context.
+	fn is_static(&self) -> bool;
 }

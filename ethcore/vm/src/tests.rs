@@ -185,6 +185,10 @@ impl Ext for FakeExt {
 		self.depth
 	}
 
+	fn is_static(&self) -> bool {
+		false
+	}
+
 	fn inc_sstore_clears(&mut self) {
 		self.sstore_clears += 1;
 	}

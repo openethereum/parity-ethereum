@@ -327,6 +327,11 @@ impl<'a, 'b> Runtime<'a, 'b> {
 				self.memory.set(result_ptr, &result)?;
 				Ok(Some(0i32.into()))
 			},
+			vm::MessageCallResult::Reverted(gas_left, _) => {
+				self.gas_counter = self.gas_limit - gas_left.low_u64();
+				self.memory.set(result_ptr, &result)?;
+				Ok(Some((-1i32).into()))
+			},
 			vm::MessageCallResult::Failed  => {
 				Ok(Some((-1i32).into()))
 			}

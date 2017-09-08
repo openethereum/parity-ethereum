@@ -128,6 +128,10 @@ impl<'a, T: 'a, V: 'a, B: 'a, E: 'a> Ext for Externalities<'a, T, V, B, E>
 		}
 	}
 
+	fn is_static(&self) -> bool {
+		return self.static_flag
+	}
+
 	fn exists(&self, address: &Address) -> vm::Result<bool> {
 		self.state.exists(address).map_err(Into::into)
 	}
@@ -279,7 +283,8 @@ impl<'a, T: 'a, V: 'a, B: 'a, E: 'a> Ext for Externalities<'a, T, V, B, E>
 		let mut ex = Executive::from_parent(self.state, self.env_info, self.engine, self.depth, self.static_flag);
 
 		match ex.call(params, self.substate, BytesRef::Fixed(output), self.tracer, self.vm_tracer) {
-			Ok(FinalizationResult{ gas_left, return_data, .. }) => MessageCallResult::Success(gas_left, return_data),
+			Ok(FinalizationResult{ gas_left, return_data, apply_state: true }) => MessageCallResult::Success(gas_left, return_data),
+			Ok(FinalizationResult{ gas_left, return_data, apply_state: false }) => MessageCallResult::Reverted(gas_left, return_data),
 			_ => MessageCallResult::Failed
 		}
 	}

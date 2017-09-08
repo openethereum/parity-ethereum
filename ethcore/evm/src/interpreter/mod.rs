@@ -382,6 +382,9 @@ impl<Cost: CostType> Interpreter<Cost> {
 				// Get sender & receive addresses, check if we have balance
 				let (sender_address, receive_address, has_balance, call_type) = match instruction {
 					instructions::CALL => {
+						if ext.is_static() && value.map_or(false, |v| !v.is_zero()) {
+							return Err(vm::Error::MutableCallInStaticContext);
+						}
 						let has_balance = ext.balance(&params.address)? >= value.expect("value set for all but delegate call and staticcall; qed");
 						(&params.address, &code_address, has_balance, CallType::Call)
 					},
@@ -390,11 +393,11 @@ impl<Cost: CostType> Interpreter<Cost> {
 						(&params.address, &params.address, has_balance, CallType::CallCode)
 					},
 					instructions::DELEGATECALL => (&params.sender, &params.address, true, CallType::DelegateCall),
-					instructions::STATICCALL => (&params.sender, &code_address, true, CallType::StaticCall),
+					instructions::STATICCALL => (&params.address, &code_address, true, CallType::StaticCall),
 					_ => panic!(format!("Unexpected instruction {} in CALL branch.", instruction))
 				};
 
-				// clear return data buffer before crearing new call frame.
+				// clear return data buffer before creating new call frame.
 				self.return_data = ReturnData::empty();
 
 				let can_call = has_balance && ext.depth() < ext.schedule().max_depth;
@@ -414,6 +417,11 @@ impl<Cost: CostType> Interpreter<Cost> {
 				return match call_result {
 					MessageCallResult::Success(gas_left, data) => {
 						stack.push(U256::one());
+						self.return_data = data;
+						Ok(InstructionResult::UnusedGas(Cost::from_u256(gas_left).expect("Gas left cannot be greater then current one")))
+					},
+					MessageCallResult::Reverted(gas_left, data) => {
+						stack.push(U256::zero());
 						self.return_data = data;
 						Ok(InstructionResult::UnusedGas(Cost::from_u256(gas_left).expect("Gas left cannot be greater then current one")))
 					},
