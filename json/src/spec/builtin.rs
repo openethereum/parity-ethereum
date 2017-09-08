@@ -34,6 +34,15 @@ pub struct Modexp {
 	pub divisor: usize,
 }
 
+/// Pricing for alt_bn128_pairing.
+#[derive(Debug, PartialEq, Deserialize, Clone)]
+pub struct AltBn128Pairing {
+	/// Base price.
+	pub base: usize,
+	/// Price per point pair.
+	pub pair: usize,
+}
+
 /// Pricing variants.
 #[derive(Debug, PartialEq, Deserialize, Clone)]
 pub enum Pricing {
@@ -43,6 +52,9 @@ pub enum Pricing {
 	/// Pricing for modular exponentiation.
 	#[serde(rename="modexp")]
 	Modexp(Modexp),
+	/// Pricing for alt_bn128_pairing exponentiation.
+	#[serde(rename="alt_bn128_pairing")]
+	AltBn128Pairing(AltBn128Pairing),
 }
 
 /// Spec builtin.

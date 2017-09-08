@@ -64,7 +64,7 @@ struct Linear {
 }
 
 /// A special pricing model for modular exponentiation.
-struct Modexp {
+struct ModexpPricer {
 	divisor: usize,
 }
 
@@ -74,7 +74,20 @@ impl Pricer for Linear {
 	}
 }
 
-impl Pricer for Modexp {
+/// A alt_bn128_parinig pricing model. This computes a price using a base cost and a cost per pair.
+struct AltBn128PairingPricer {
+	base: usize,
+	pair: usize,
+}
+
+impl Pricer for AltBn128PairingPricer {
+	fn cost(&self, input: &[u8]) -> U256 {
+		let cost = U256::from(self.base) + U256::from(self.pair) * U256::from(input.len() / 192);
+		cost
+	}
+}
+
+impl Pricer for ModexpPricer {
 	fn cost(&self, input: &[u8]) -> U256 {
 		let mut reader = input.chain(io::repeat(0));
 		let mut buf = [0; 32];
@@ -115,7 +128,7 @@ impl Pricer for Modexp {
 	}
 }
 
-impl Modexp {
+impl ModexpPricer {
 	fn adjusted_exp_len(len: u64, exp_low: U256) -> u64 {
 		let bit_index = if exp_low.is_zero() { 0 } else { (255 - exp_low.leading_zeros()) as u64 };
 		if len <= 32 {
@@ -170,13 +183,19 @@ impl From<ethjson::spec::Builtin> for Builtin {
 				})
 			}
 			ethjson::spec::Pricing::Modexp(exp) => {
-				Box::new(Modexp {
+				Box::new(ModexpPricer {
 					divisor: if exp.divisor == 0 {
 						warn!("Zero modexp divisor specified. Falling back to default.");
 						10
 					} else {
 						exp.divisor
 					}
+				})
+			}
+			ethjson::spec::Pricing::AltBn128Pairing(pricer) => {
+				Box::new(AltBn128PairingPricer {
+					base: pricer.base,
+					pair: pricer.pair,
 				})
 			}
 		};
@@ -197,9 +216,9 @@ fn ethereum_builtin(name: &str) -> Box<Impl> {
 		"sha256" => Box::new(Sha256) as Box<Impl>,
 		"ripemd160" => Box::new(Ripemd160) as Box<Impl>,
 		"modexp" => Box::new(ModexpImpl) as Box<Impl>,
-		"bn128_add" => Box::new(Bn128AddImpl) as Box<Impl>,
-		"bn128_mul" => Box::new(Bn128MulImpl) as Box<Impl>,
-		"bn128_pairing" => Box::new(Bn128PairingImpl) as Box<Impl>,
+		"alt_bn128_add" => Box::new(Bn128AddImpl) as Box<Impl>,
+		"alt_bn128_mul" => Box::new(Bn128MulImpl) as Box<Impl>,
+		"alt_bn128_pairing" => Box::new(Bn128PairingImpl) as Box<Impl>,
 		_ => panic!("invalid builtin name: {}", name),
 	}
 }
@@ -446,50 +465,30 @@ impl Impl for Bn128MulImpl {
 	}
 }
 
-mod bn128_gen {
-	use bn::{AffineG1, AffineG2, Fq, Fq2, G1, G2, Gt, pairing};
-
-	lazy_static! {
-		pub static ref P1: G1 = G1::from(AffineG1::new(
-			Fq::from_str("1").expect("1 is a valid field element"),
-			Fq::from_str("2").expect("2 is a valid field element"),
-		).expect("Generator P1(1, 2) is a valid curve point"));
-	}
-
-	lazy_static! {
-		pub static ref P2: G2 = G2::from(AffineG2::new(
-			Fq2::new(
-				Fq::from_str("10857046999023057135944570762232829481370756359578518086990519993285655852781")
-					.expect("a valid field element"),
-				Fq::from_str("11559732032986387107991004021392285783925812861821192530917403151452391805634")
-					.expect("a valid field element"),
-			),
-			Fq2::new(
-				Fq::from_str("8495653923123431417604973247489272438418190587263600148770280649306958101930")
-					.expect("a valid field element"),
-				Fq::from_str("4082367875863433681332203403145435568316851327593401208105741076214120093531")
-					.expect("a valid field element"),
-			),
-		).expect("the generator P2(10857046999023057135944570762232829481370756359578518086990519993285655852781 + 11559732032986387107991004021392285783925812861821192530917403151452391805634i, 8495653923123431417604973247489272438418190587263600148770280649306958101930 + 4082367875863433681332203403145435568316851327593401208105741076214120093531i) is a valid curve point"));
-	}
-
-	lazy_static! {
-		pub static ref P1_P2_PAIRING: Gt = pairing(P1.clone(), P2.clone());
-	}
-}
-
 impl Impl for Bn128PairingImpl {
 	/// Can fail if:
 	///     - input length is not a multiple of 192
 	///     - any of odd points does not belong to bn128 curve
 	///     - any of even points does not belong to the twisted bn128 curve over the field F_p^2 = F_p[i] / (i^2 + 1)
 	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), Error> {
-		use bn::{AffineG1, AffineG2, Fq, Fq2, pairing, G1, G2, Gt};
-
-		let elements = input.len() / 192; // (a, b_a, b_b - each 64-byte affine coordinates)
 		if input.len() % 192 != 0 {
+			trace!("Error: len={}", input.len());
 			return Err("Invalid input length, must be multiple of 192 (3 * (32*2))".into())
 		}
+
+		if let Err(err) = self.execute_with_error(input, output) {
+			trace!("Pairining error: {:?}", err);
+			return Err(err)
+		}
+		Ok(())
+	}
+}
+
+impl Bn128PairingImpl {
+	fn execute_with_error(&self, input: &[u8], output: &mut BytesRef) -> Result<(), Error> {
+		use bn::{AffineG1, AffineG2, Fq, Fq2, pairing, G1, G2, Gt, Group};
+
+		let elements = input.len() / 192; // (a, b_a, b_b - each 64-byte affine coordinates)
 		let ret_val = if input.len() == 0 {
 			U256::one()
 		} else {
@@ -501,34 +500,36 @@ impl Impl for Bn128PairingImpl {
 				let a_y = Fq::from_slice(&input[idx*192+32..idx*192+64])
 					.map_err(|_| Error::from("Invalid a argument y coordinate"))?;
 
-				let b_b_x = Fq::from_slice(&input[idx*192+64..idx*192+96])
+				let b_a_y = Fq::from_slice(&input[idx*192+64..idx*192+96])
 					.map_err(|_| Error::from("Invalid b argument imaginary coeff x coordinate"))?;
 
-				let b_b_y = Fq::from_slice(&input[idx*192+96..idx*192+128])
+				let b_a_x = Fq::from_slice(&input[idx*192+96..idx*192+128])
 					.map_err(|_| Error::from("Invalid b argument imaginary coeff y coordinate"))?;
 
-				let b_a_x = Fq::from_slice(&input[idx*192+128..idx*192+160])
+				let b_b_y = Fq::from_slice(&input[idx*192+128..idx*192+160])
 					.map_err(|_| Error::from("Invalid b argument real coeff x coordinate"))?;
 
-				let b_a_y = Fq::from_slice(&input[idx*192+160..idx*192+192])
+				let b_b_x = Fq::from_slice(&input[idx*192+160..idx*192+192])
 					.map_err(|_| Error::from("Invalid b argument real coeff y coordinate"))?;
 
-				vals.push((
-					G1::from(
-						AffineG1::new(a_x, a_y).map_err(|_| Error::from("Invalid a argument - not on curve"))?
-					),
-					G2::from(
-						AffineG2::new(
-							Fq2::new(b_a_x, b_a_y),
-							Fq2::new(b_b_x, b_b_y),
-						).map_err(|_| Error::from("Invalid b argument - not on curve"))?
-					),
-				));
+				let b_a = Fq2::new(b_a_x, b_a_y);
+				let b_b = Fq2::new(b_b_x, b_b_y);
+				let b = if b_a.is_zero() && b_b.is_zero() {
+					G2::zero()
+				} else {
+					G2::from(AffineG2::new(b_a, b_b).map_err(|_| Error::from("Invalid b argument - not on curve"))?)
+				};
+				let a = if a_x.is_zero() && a_y.is_zero() {
+					G1::zero()
+				} else {
+					G1::from(AffineG1::new(a_x, a_y).map_err(|_| Error::from("Invalid a argument - not on curve"))?)
+				};
+				vals.push((a, b));
 			};
 
 			let mul = vals.into_iter().fold(Gt::one(), |s, (a, b)| s * pairing(a, b));
 
-			if mul == *bn128_gen::P1_P2_PAIRING {
+			if mul == Gt::one() {
 				U256::one()
 			} else {
 				U256::zero()
@@ -545,7 +546,7 @@ impl Impl for Bn128PairingImpl {
 
 #[cfg(test)]
 mod tests {
-	use super::{Builtin, Linear, ethereum_builtin, Pricer, Modexp, modexp as me};
+	use super::{Builtin, Linear, ethereum_builtin, Pricer, ModexpPricer, modexp as me};
 	use ethjson;
 	use bigint::prelude::U256;
 	use bytes::BytesRef;
@@ -701,7 +702,7 @@ mod tests {
 	fn modexp() {
 
 		let f = Builtin {
-			pricer: Box::new(Modexp { divisor: 20 }),
+			pricer: Box::new(ModexpPricer { divisor: 20 }),
 			native: ethereum_builtin("modexp"),
 			activate_at: 0,
 		};
@@ -729,10 +730,10 @@ mod tests {
 		{
 			let input = FromHex::from_hex("\
 				0000000000000000000000000000000000000000000000000000000000000000\
- 				0000000000000000000000000000000000000000000000000000000000000020\
- 				0000000000000000000000000000000000000000000000000000000000000020\
- 				fffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2e\
- 				fffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f"
+				0000000000000000000000000000000000000000000000000000000000000020\
+				0000000000000000000000000000000000000000000000000000000000000020\
+				fffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2e\
+				fffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f"
 			).unwrap();
 
 			let mut output = vec![0u8; 32];

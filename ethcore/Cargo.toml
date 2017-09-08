@@ -14,7 +14,7 @@ build = "build.rs"
 ansi_term = "0.9"
 bit-set = "0.4"
 bloomchain = "0.1"
-bn = { git = "https://github.com/paritytech/bn" }
+bn = { git = "https://github.com/arkpar/bn" }
 byteorder = "1.0"
 clippy = { version = "0.0.103", optional = true}
 common-types = { path = "types" }
