@@ -443,7 +443,7 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 
 					Ok(FinalizationResult {
 						gas_left: params.gas - cost,
-						return_data: ReturnData::empty(),
+						return_data: ReturnData::new(output.to_owned(), 0, output.len()),
 						apply_state: true,
 					})
 				}
