@@ -38,6 +38,8 @@ pub enum ContractCreateResult {
 	/// Returned when contract creation failed.
 	/// VM doesn't have to know the reason.
 	FailedInStaticCall,
+	/// Reverted with REVERT.
+	Reverted(U256, ReturnData),
 }
 
 /// Result of externalities call function.
@@ -120,7 +122,7 @@ pub trait Ext {
 
 	/// Should be called when transaction calls `RETURN` opcode.
 	/// Returns gas_left if cost of returning the data is not too high.
-	fn ret(self, gas: &U256, data: &ReturnData) -> Result<U256>;
+	fn ret(self, gas: &U256, data: &ReturnData, apply_state: bool) -> Result<U256>;
 
 	/// Should be called when contract commits suicide.
 	/// Address to which funds should be refunded.

@@ -162,8 +162,8 @@ impl<'a, T: 'a, V: 'a, B: 'a, E: 'a> Ext for TestExt<'a, T, V, B, E>
 		self.ext.log(topics, data)
 	}
 
-	fn ret(self, gas: &U256, data: &ReturnData) -> Result<U256, vm::Error> {
-		self.ext.ret(gas, data)
+	fn ret(self, gas: &U256, data: &ReturnData, apply_state: bool) -> Result<U256, vm::Error> {
+		self.ext.ret(gas, data, apply_state)
 	}
 
 	fn suicide(&mut self, refund_address: &Address) -> vm::Result<()> {

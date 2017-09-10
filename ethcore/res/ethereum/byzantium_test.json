@@ -28,6 +28,7 @@
 		"eip98Transition": "0xffffffffffffffff",
 		"eip140Transition": "0x0",
 		"eip210Transition": "0x0",
+		"eip211Transition": "0x0",
 		"eip214Transition": "0x0",
 		"eip155Transition": "0x0",
 		"eip658Transition": "0x0",

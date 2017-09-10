@@ -221,6 +221,11 @@ impl<'a, 'b> Runtime<'a, 'b> {
 				trace!(target: "wasm", "runtime: create contract fail");
 				Ok(Some((-1i32).into()))
 			},
+			vm::ContractCreateResult::Reverted(gas_left, _) => {
+				trace!(target: "wasm", "runtime: create contract reverted");
+				self.gas_counter = self.gas_limit - gas_left.low_u64();
+				Ok(Some((-1i32).into()))
+			},
 			vm::ContractCreateResult::FailedInStaticCall => {
 				trace!(target: "wasm", "runtime: create contract called in static context");
 				Err(interpreter::Error::Trap("CREATE in static context".to_owned()))

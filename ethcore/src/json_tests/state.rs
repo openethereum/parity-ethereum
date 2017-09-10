@@ -122,6 +122,7 @@ mod state_tests {
 	declare_test!{GeneralStateTest_stRandom, "GeneralStateTests/stRandom/"}
 	declare_test!{GeneralStateTest_stRecursiveCreate, "GeneralStateTests/stRecursiveCreate/"}
 	declare_test!{GeneralStateTest_stRefundTest, "GeneralStateTests/stRefundTest/"}
+	declare_test!{GeneralStateTest_stReturnDataTest, "GeneralStateTests/stReturnDataTest/"}
 	declare_test!{skip => [ "RevertDepthCreateAddressCollision" ], GeneralStateTest_stRevertTest, "GeneralStateTests/stRevertTest/"}
 	declare_test!{GeneralStateTest_stSolidityTest, "GeneralStateTests/stSolidityTest/"}
 	declare_test!{GeneralStateTest_stSpecialTest, "GeneralStateTests/stSpecialTest/"}

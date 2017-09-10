@@ -237,6 +237,9 @@ impl<'a, T: 'a, V: 'a, B: 'a, E: 'a> Ext for Externalities<'a, T, V, B, E>
 				self.substate.contracts_created.push(address.clone());
 				ContractCreateResult::Created(address, gas_left)
 			},
+			Ok(FinalizationResult{ gas_left, apply_state: false, return_data }) => {
+				ContractCreateResult::Reverted(gas_left, return_data)
+			},
 			Err(vm::Error::MutableCallInStaticContext) => ContractCreateResult::FailedInStaticCall,
 			_ => ContractCreateResult::Failed,
 		}
@@ -298,7 +301,7 @@ impl<'a, T: 'a, V: 'a, B: 'a, E: 'a> Ext for Externalities<'a, T, V, B, E>
 	}
 
 	#[cfg_attr(feature="dev", allow(match_ref_pats))]
-	fn ret(mut self, gas: &U256, data: &ReturnData) -> vm::Result<U256>
+	fn ret(mut self, gas: &U256, data: &ReturnData, apply_state: bool) -> vm::Result<U256>
 		where Self: Sized {
 		let handle_copy = |to: &mut Option<&mut Bytes>| {
 			to.as_mut().map(|b| **b = data.to_vec());
@@ -318,7 +321,7 @@ impl<'a, T: 'a, V: 'a, B: 'a, E: 'a> Ext for Externalities<'a, T, V, B, E>
 				vec.extend_from_slice(&*data);
 				Ok(*gas)
 			},
-			OutputPolicy::InitContract(ref mut copy) => {
+			OutputPolicy::InitContract(ref mut copy) if apply_state => {
 				let return_cost = U256::from(data.len()) * U256::from(self.schedule.create_data_gas);
 				if return_cost > *gas || data.len() > self.schedule.create_data_limit {
 					return match self.schedule.exceptional_failed_code_deposit {
@@ -326,12 +329,13 @@ impl<'a, T: 'a, V: 'a, B: 'a, E: 'a> Ext for Externalities<'a, T, V, B, E>
 						false => Ok(*gas)
 					}
 				}
-
 				handle_copy(copy);
-
 				self.state.init_code(&self.origin_info.address, data.to_vec())?;
 				Ok(*gas - return_cost)
-			}
+			},
+			OutputPolicy::InitContract(_) => {
+				Ok(*gas)
+			},
 		}
 	}
 

@@ -342,6 +342,11 @@ impl<Cost: CostType> Interpreter<Cost> {
 						stack.push(address_to_u256(address));
 						Ok(InstructionResult::UnusedGas(Cost::from_u256(gas_left).expect("Gas left cannot be greater.")))
 					},
+					ContractCreateResult::Reverted(gas_left, return_data) => {
+						stack.push(U256::zero());
+						self.return_data = return_data;
+						Ok(InstructionResult::UnusedGas(Cost::from_u256(gas_left).expect("Gas left cannot be greater.")))
+					},
 					ContractCreateResult::Failed => {
 						stack.push(U256::zero());
 						Ok(InstructionResult::Ok)
