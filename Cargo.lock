@@ -7,7 +7,7 @@ dependencies = [
  "ethcore-logger 1.8.0",
  "ethcore-util 1.8.0",
  "log 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)",
- "parity-wasm 0.12.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "parity-wasm 0.14.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "vm 0.1.0",
  "wasm-utils 0.1.0 (git+https://github.com/paritytech/wasm-utils)",
 ]
@@ -959,7 +959,6 @@ dependencies = [
  "heapsize 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "lazy_static 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)",
- "parity-wasm 0.12.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "parking_lot 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlp 0.2.0",
  "rustc-hex 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2188,7 +2187,7 @@ dependencies = [
 
 [[package]]
 name = "parity-wasm"
-version = "0.12.1"
+version = "0.14.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "byteorder 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -3278,13 +3277,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "wasm-utils"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/wasm-utils#9462bcc0680f0ec2c876abdf75bae981dd4344a5"
+source = "git+https://github.com/paritytech/wasm-utils#95f9f04d1036c39de5af1c811c6e5dc488fb73d9"
 dependencies = [
  "clap 2.24.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "glob 0.2.11 (registry+https://github.com/rust-lang/crates.io-index)",
  "lazy_static 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)",
- "parity-wasm 0.12.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "parity-wasm 0.14.3 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -3500,7 +3500,7 @@ dependencies = [
 "checksum parity-dapps-glue 1.7.0 (registry+https://github.com/rust-lang/crates.io-index)" = "e1d06f6ee0fda786df3784a96ee3f0629f529b91cbfb7d142f6410e6bcd1ce2c"
 "checksum parity-tokio-ipc 0.1.5 (git+https://github.com/nikvolf/parity-tokio-ipc)" = "<none>"
 "checksum parity-ui-precompiled 1.4.0 (git+https://github.com/paritytech/js-precompiled.git)" = "<none>"
-"checksum parity-wasm 0.12.1 (registry+https://github.com/rust-lang/crates.io-index)" = "51104c8b8da5cd0ebe0ab765dfab37bc1927b4a01a3d870b0fe09d9ee65e35ea"
+"checksum parity-wasm 0.14.3 (registry+https://github.com/rust-lang/crates.io-index)" = "466c01423614bbf89a37b0fc081e1ed3523dfd9064497308ad3f9c7c9f0092bb"
 "checksum parity-wordlist 1.0.1 (registry+https://github.com/rust-lang/crates.io-index)" = "52142d717754f7ff7ef0fc8da1bdce4f302dd576fb9bf8b727d6a5fdef33348d"
 "checksum parking_lot 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "aebb68eebde2c99f89592d925288600fde220177e46b5c9a91ca218d245aeedf"
 "checksum parking_lot_core 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "fb1b97670a2ffadce7c397fb80a3d687c4f3060140b885621ef1653d0e5d5068"

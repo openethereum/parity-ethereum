@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
+use std::collections::HashMap;
 use byteorder::{LittleEndian, ByteOrder};
 use bigint::prelude::U256;
 use bigint::hash::H256;
@@ -87,7 +88,7 @@ fn logger() {
 	};
 
 	println!("ext.store: {:?}", ext.store);
-	assert_eq!(gas_left, U256::from(99327));
+	assert_eq!(gas_left, U256::from(99529));
 	let address_val: H256 = address.into();
 	assert_eq!(
 		ext.store.get(&"0100000000000000000000000000000000000000000000000000000000000000".parse().unwrap()).expect("storage key to exist"),
@@ -138,7 +139,7 @@ fn identity() {
 		}
 	};
 
-	assert_eq!(gas_left, U256::from(99_672));
+	assert_eq!(gas_left, U256::from(99_762));
 
 	assert_eq!(
 		Address::from_slice(&result),
@@ -172,7 +173,7 @@ fn dispersion() {
 		}
 	};
 
-	assert_eq!(gas_left, U256::from(99_270));
+	assert_eq!(gas_left, U256::from(99_360));
 
 	assert_eq!(
 		result,
@@ -201,7 +202,7 @@ fn suicide_not() {
 		}
 	};
 
-	assert_eq!(gas_left, U256::from(99_578));
+	assert_eq!(gas_left, U256::from(99_668));
 
 	assert_eq!(
 		result,
@@ -235,7 +236,7 @@ fn suicide() {
 		}
 	};
 
-	assert_eq!(gas_left, U256::from(99_621));
+	assert_eq!(gas_left, U256::from(99_699));
 	assert!(ext.suicides.contains(&refund));
 }
 
@@ -266,7 +267,7 @@ fn create() {
 	assert!(ext.calls.contains(
 		&FakeCall {
 			call_type: FakeCallType::Create,
-			gas: U256::from(99_674),
+			gas: U256::from(99_734),
 			sender_address: None,
 			receive_address: None,
 			value: Some(1_000_000_000.into()),
@@ -274,7 +275,7 @@ fn create() {
 			code_address: None,
 		}
 	));
-	assert_eq!(gas_left, U256::from(99_596));
+	assert_eq!(gas_left, U256::from(99_686));
 }
 
 
@@ -308,7 +309,7 @@ fn call_code() {
 	assert!(ext.calls.contains(
 		&FakeCall {
 			call_type: FakeCallType::Call,
-			gas: U256::from(99_069),
+			gas: U256::from(99_129),
 			sender_address: Some(sender),
 			receive_address: Some(receiver),
 			value: None,
@@ -316,7 +317,7 @@ fn call_code() {
 			code_address: Some("0d13710000000000000000000000000000000000".parse().unwrap()),
 		}
 	));
-	assert_eq!(gas_left, U256::from(94144));
+	assert_eq!(gas_left, U256::from(94262));
 
 	// siphash result
 	let res = LittleEndian::read_u32(&result[..]);
@@ -353,7 +354,7 @@ fn call_static() {
 	assert!(ext.calls.contains(
 		&FakeCall {
 			call_type: FakeCallType::Call,
-			gas: U256::from(99_069),
+			gas: U256::from(99_129),
 			sender_address: Some(sender),
 			receive_address: Some(receiver),
 			value: None,
@@ -361,7 +362,7 @@ fn call_static() {
 			code_address: Some("13077bfb00000000000000000000000000000000".parse().unwrap()),
 		}
 	));
-	assert_eq!(gas_left, U256::from(94144));
+	assert_eq!(gas_left, U256::from(94262));
 
 	// siphash result
 	let res = LittleEndian::read_u32(&result[..]);
@@ -387,7 +388,7 @@ fn realloc() {
 				GasLeft::NeedsReturn { gas_left: gas, data: result, apply_state: _apply } => (gas, result.to_vec()),
 		}
 	};
-	assert_eq!(gas_left, U256::from(99432));
+	assert_eq!(gas_left, U256::from(99522));
 	assert_eq!(result, vec![0u8; 2]);
 }
 
@@ -413,12 +414,15 @@ fn storage_read() {
 		}
 	};
 
-	assert_eq!(gas_left, U256::from(99682));
+	assert_eq!(gas_left, U256::from(99800));
 	assert_eq!(Address::from(&result[12..32]), address);
 }
 
 macro_rules! reqrep_test {
 	($name: expr, $input: expr) => {
+		reqrep_test!($name, $input, vm::EnvInfo::default(), HashMap::new())
+	};
+	($name: expr, $input: expr, $info: expr, $block_hashes: expr) => {
 		{
 			::ethcore_logger::init_log();
 			let code = load_sample!($name);
@@ -428,9 +432,13 @@ macro_rules! reqrep_test {
 			params.code = Some(Arc::new(code));
 			params.data = Some($input);
 
+			let mut fake_ext = FakeExt::new();
+			fake_ext.info = $info;
+			fake_ext.blockhashes = $block_hashes;
+
 			let (gas_left, result) = {
 				let mut interpreter = wasm_interpreter();
-				let result = interpreter.exec(params, &mut FakeExt::new()).expect("Interpreter to execute without any errors");
+				let result = interpreter.exec(params, &mut fake_ext).expect("Interpreter to execute without any errors");
 				match result {
 						GasLeft::Known(_) => { panic!("Test is expected to return payload to check"); },
 						GasLeft::NeedsReturn { gas_left: gas, data: result, apply_state: _apply } => (gas, result.to_vec()),
@@ -439,7 +447,7 @@ macro_rules! reqrep_test {
 
 			(gas_left, result)
 		}
-	}
+	};
 }
 
 // math_* tests check the ability of wasm contract to perform big integer operations
@@ -464,7 +472,7 @@ fn math_add() {
 		}
 	);
 
-	assert_eq!(gas_left, U256::from(98087));
+	assert_eq!(gas_left, U256::from(98177));
 	assert_eq!(
 		U256::from_dec_str("1888888888888888888888888888887").unwrap(),
 		(&result[..]).into()
@@ -486,7 +494,7 @@ fn math_mul() {
 		}
 	);
 
-	assert_eq!(gas_left, U256::from(97236));
+	assert_eq!(gas_left, U256::from(97326));
 	assert_eq!(
 		U256::from_dec_str("888888888888888888888888888887111111111111111111111111111112").unwrap(),
 		(&result[..]).into()
@@ -508,7 +516,7 @@ fn math_sub() {
 		}
 	);
 
-	assert_eq!(gas_left, U256::from(98131));
+	assert_eq!(gas_left, U256::from(98221));
 	assert_eq!(
 		U256::from_dec_str("111111111111111111111111111111").unwrap(),
 		(&result[..]).into()
@@ -529,9 +537,97 @@ fn math_div() {
 		}
 	);
 
-	assert_eq!(gas_left, U256::from(91420));
+	assert_eq!(gas_left, U256::from(91510));
 	assert_eq!(
 		U256::from_dec_str("1125000").unwrap(),
 		(&result[..]).into()
 	);
+}
+
+// This test checks the ability of wasm contract to invoke
+// varios blockchain runtime methods
+#[test]
+fn externs() {
+	let (gas_left, result) = reqrep_test!(
+		"externs.wasm",
+		Vec::new(),
+		vm::EnvInfo {
+			number: 0x9999999999u64.into(),
+			author: "efefefefefefefefefefefefefefefefefefefef".parse().unwrap(),
+			timestamp: 0x8888888888u64.into(),
+			difficulty: H256::from("0f1f2f3f4f5f6f7f8f9fafbfcfdfefff0d1d2d3d4d5d6d7d8d9dadbdcdddedfd").into(),
+			gas_limit: 0x777777777777u64.into(),
+			last_hashes: Default::default(),
+			gas_used: 0.into(),
+		},
+		{
+			let mut hashes = HashMap::new();
+			hashes.insert(
+				U256::from(0),
+				H256::from("9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d9d")
+			);
+			hashes.insert(
+				U256::from(1),
+				H256::from("7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b7b")
+			);
+			hashes
+		}
+	);
+
+	assert_eq!(
+		&result[0..64].to_vec(),
+		&vec![
+			0x9d, 0x9d, 0x9d, 0x9d, 0x9d, 0x9d, 0x9d, 0x9d, 0x9d, 0x9d, 0x9d, 0x9d, 0x9d, 0x9d, 0x9d, 0x9d, 0x9d, 0x9d, 0x9d, 0x9d, 0x9d, 0x9d, 0x9d, 0x9d, 0x9d, 0x9d, 0x9d, 0x9d, 0x9d, 0x9d, 0x9d, 0x9d,
+			0x7b, 0x7b, 0x7b, 0x7b, 0x7b, 0x7b, 0x7b, 0x7b, 0x7b, 0x7b, 0x7b, 0x7b, 0x7b, 0x7b, 0x7b, 0x7b, 0x7b, 0x7b, 0x7b, 0x7b, 0x7b, 0x7b, 0x7b, 0x7b, 0x7b, 0x7b,0x7b, 0x7b, 0x7b, 0x7b, 0x7b, 0x7b,
+		],
+		"Block hashes requested and returned do not match"
+	);
+
+	assert_eq!(
+		&result[64..84].to_vec(),
+		&vec![
+			0xef, 0xef, 0xef, 0xef, 0xef, 0xef, 0xef, 0xef, 0xef, 0xef, 0xef, 0xef, 0xef, 0xef, 0xef, 0xef, 0xef, 0xef, 0xef, 0xef,
+		],
+		"Coinbase requested and returned does not match"
+	);
+
+	assert_eq!(
+		&result[84..92].to_vec(),
+		&vec![
+			0x88, 0x88, 0x88, 0x88, 0x88, 0x00, 0x00, 0x00
+		],
+		"Timestamp requested and returned does not match"
+	);
+
+	assert_eq!(
+		&result[92..100].to_vec(),
+		&vec![
+			0x99, 0x99, 0x99, 0x99, 0x99, 0x00, 0x00, 0x00
+		],
+		"Block number requested and returned does not match"
+	);
+
+	assert_eq!(
+		&result[100..132].to_vec(),
+		&vec![
+			0x0f, 0x1f, 0x2f, 0x3f, 0x4f, 0x5f, 0x6f, 0x7f,
+			0x8f, 0x9f, 0xaf, 0xbf, 0xcf, 0xdf, 0xef, 0xff,
+			0x0d, 0x1d, 0x2d, 0x3d, 0x4d, 0x5d, 0x6d, 0x7d,
+			0x8d, 0x9d, 0xad, 0xbd, 0xcd, 0xdd, 0xed, 0xfd,
+		],
+		"Difficulty requested and returned does not match"
+	);
+
+	assert_eq!(
+		&result[132..164].to_vec(),
+		&vec![
+			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+			0x00, 0x00, 0x77, 0x77, 0x77, 0x77, 0x77, 0x77,
+		],
+		"Gas limit requested and returned does not match"
+	);
+
+	assert_eq!(gas_left, U256::from(97588));
 }
