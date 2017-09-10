@@ -34,7 +34,7 @@ use util::kvdb::*;
 
 // other
 use bigint::prelude::U256;
-use bigint::hash::{H256, H2048};
+use bigint::hash::H256;
 use basic_types::Seal;
 use block::*;
 use blockchain::{BlockChain, BlockProvider,  TreeRoute, ImportRoute};
