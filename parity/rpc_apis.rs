@@ -354,14 +354,14 @@ impl FullDependencies {
 				},
 				Api::Whisper => {
 					if let Some(ref whisper_rpc) = self.whisper_rpc {
-						let whisper = whisper_rpc.make_handler();
+						let whisper = whisper_rpc.make_handler(self.net.clone());
 						handler.extend_with(::parity_whisper::rpc::Whisper::to_delegate(whisper));
 					}
 				}
 				Api::WhisperPubSub => {
 					if !for_generic_pubsub {
 						if let Some(ref whisper_rpc) = self.whisper_rpc {
-							let whisper = whisper_rpc.make_handler();
+							let whisper = whisper_rpc.make_handler(self.net.clone());
 							handler.extend_with(
 								::parity_whisper::rpc::WhisperPubSub::to_delegate(whisper)
 							);
@@ -554,13 +554,13 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 				},
 				Api::Whisper => {
 					if let Some(ref whisper_rpc) = self.whisper_rpc {
-						let whisper = whisper_rpc.make_handler();
+						let whisper = whisper_rpc.make_handler(self.net.clone());
 						handler.extend_with(::parity_whisper::rpc::Whisper::to_delegate(whisper));
 					}
 				}
 				Api::WhisperPubSub => {
 					if let Some(ref whisper_rpc) = self.whisper_rpc {
-						let whisper = whisper_rpc.make_handler();
+						let whisper = whisper_rpc.make_handler(self.net.clone());
 						handler.extend_with(::parity_whisper::rpc::WhisperPubSub::to_delegate(whisper));
 					}
 				}

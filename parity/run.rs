@@ -246,10 +246,8 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 
 	let mut attached_protos = Vec::new();
 	let whisper_factory = if cmd.whisper.enabled {
-		let (whisper_net, whisper_factory) = ::whisper::setup(cmd.whisper.target_message_pool_size)
+		let whisper_factory = ::whisper::setup(cmd.whisper.target_message_pool_size, &mut attached_protos)
 			.map_err(|e| format!("Failed to initialize whisper: {}", e))?;
-
-		attached_protos.push(whisper_net);
 		whisper_factory
 	} else {
 		None
@@ -638,10 +636,9 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	let mut attached_protos = Vec::new();
 
 	let whisper_factory = if cmd.whisper.enabled {
-		let (whisper_net, whisper_factory) = ::whisper::setup(cmd.whisper.target_message_pool_size)
+		let whisper_factory = ::whisper::setup(cmd.whisper.target_message_pool_size, &mut attached_protos)
 			.map_err(|e| format!("Failed to initialize whisper: {}", e))?;
 
-		attached_protos.push(whisper_net);
 		whisper_factory
 	} else {
 		None
