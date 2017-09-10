@@ -16,37 +16,117 @@
 
 import { personalAccountsInfo } from './personalActions';
 
+let instance;
+
 export default class Personal {
   constructor (store, api) {
     this._api = api;
     this._store = store;
   }
 
-  start () {
-    this._removeDeleted();
-    this._subscribeAccountsInfo();
+  static get (store) {
+    if (!instance && store) {
+      return Personal.init(store);
+    }
+
+    return instance;
+  }
+
+  static init (store) {
+    const { api } = store.getState();
+
+    if (!instance) {
+      instance = new Personal(store, api);
+    } else if (!instance) {
+      throw new Error('The Personal Provider has not been initialized yet');
+    }
+
+    return instance;
+  }
+
+  static start () {
+    const self = instance;
+
+    return Personal.stop()
+      .then(() => Promise.all([
+        self._removeDeleted(),
+        self._subscribeAccountsInfo()
+      ]));
+  }
+
+  static stop () {
+    if (!instance) {
+      return Promise.resolve();
+    }
+
+    const self = instance;
+
+    return self._unsubscribeAccountsInfo();
   }
 
   _subscribeAccountsInfo () {
-    this._api
-      .subscribe('parity_allAccountsInfo', (error, accountsInfo) => {
-        if (error) {
-          console.error('parity_allAccountsInfo', error);
-          return;
-        }
+    let resolved = false;
 
-        // Add the address to each accounts
-        Object.keys(accountsInfo)
-          .forEach((address) => {
-            accountsInfo[address].address = address;
-          });
+    // The Promise will be resolved when the first
+    // accounts are loaded
+    return new Promise((resolve, reject) => {
+      this._api
+        .subscribe('parity_allAccountsInfo', (error, accountsInfo) => {
+          if (error) {
+            console.error('parity_allAccountsInfo', error);
 
-        this._store.dispatch(personalAccountsInfo(accountsInfo));
-      });
+            if (!resolved) {
+              resolved = true;
+              return reject(error);
+            }
+
+            return;
+          }
+
+          // Add the address to each accounts
+          Object.keys(accountsInfo)
+            .forEach((address) => {
+              accountsInfo[address].address = address;
+            });
+
+          const { dispatch, getState } = this._store;
+
+          personalAccountsInfo(accountsInfo)(dispatch, getState)
+            .then(() => {
+              if (!resolved) {
+                resolved = true;
+                return resolve();
+              }
+            })
+            .catch((error) => {
+              if (!resolved) {
+                resolved = true;
+                return reject(error);
+              }
+            });
+        })
+        .then((subId) => {
+          this.subscriptionId = subId;
+        });
+    });
+  }
+
+  _unsubscribeAccountsInfo () {
+    // Unsubscribe to any previous
+    // subscriptions
+    if (this.subscriptionId) {
+      return this._api
+        .unsubscribe(this.subscriptionId)
+        .then(() => {
+          this.subscriptionId = null;
+        });
+    }
+
+    return Promise.resolve();
   }
 
   _removeDeleted () {
-    this._api.parity
+    return this._api.parity
       .allAccountsInfo()
       .then((accountsInfo) => {
         return Promise.all(

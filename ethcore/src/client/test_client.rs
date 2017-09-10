@@ -24,7 +24,7 @@ use itertools::Itertools;
 use rustc_hex::FromHex;
 use hash::keccak;
 use bigint::prelude::U256;
-use bigint::hash::{H256, H2048};
+use bigint::hash::H256;
 use parking_lot::RwLock;
 use util::*;
 use rlp::*;
@@ -506,10 +506,6 @@ impl BlockChainClient for TestBlockChainClient {
 
 	fn transaction_receipt(&self, id: TransactionId) -> Option<LocalizedReceipt> {
 		self.receipts.read().get(&id).cloned()
-	}
-
-	fn blocks_with_bloom(&self, _bloom: &H2048, _from_block: BlockId, _to_block: BlockId) -> Option<Vec<BlockNumber>> {
-		unimplemented!();
 	}
 
 	fn logs(&self, filter: Filter) -> Vec<LocalizedLogEntry> {

@@ -31,6 +31,10 @@ export default class HardwareStore {
     this._pollId = null;
 
     this._pollScan();
+    this._subscribeParity();
+    this._api.transport.on('close', () => {
+      this._subscribeParity();
+    });
   }
 
   isConnected (address) {
@@ -78,26 +82,30 @@ export default class HardwareStore {
       });
   }
 
-  scanParity () {
-    return this._api.parity
-      .hardwareAccountsInfo()
-      .then((hwInfo) => {
-        Object
-          .keys(hwInfo)
-          .forEach((address) => {
-            const info = hwInfo[address];
+  _subscribeParity () {
+    const onError = error => {
+      console.warn('HardwareStore::scanParity', error);
 
-            info.address = address;
-            info.via = 'parity';
-          });
+      return {};
+    };
 
-        return hwInfo;
-      })
-      .catch((error) => {
-        console.warn('HardwareStore::scanParity', error);
+    return this._api.pubsub
+      .subscribeAndGetResult(
+        callback => this._api.pubsub.parity.hardwareAccountsInfo(callback),
+        hwInfo => {
+          Object
+            .keys(hwInfo)
+            .forEach((address) => {
+              const info = hwInfo[address];
 
-        return {};
-      });
+              info.address = address;
+              info.via = 'parity';
+            });
+          this.setWallets(hwInfo);
+          return hwInfo;
+        },
+        onError
+      ).catch(onError);
   }
 
   scan () {
@@ -107,14 +115,10 @@ export default class HardwareStore {
     // is done, different results will be retrieved via Parity vs. the browser APIs
     // (latter is Chrome-only, needs the browser app enabled on a Ledger, former is
     // not intended as a network call, i.e. hw wallet is with the user)
-    return Promise
-      .all([
-        this.scanParity(),
-        this.scanLedger()
-      ])
-      .then(([hwAccounts, ledgerAccounts]) => {
+    return this.scanLedger()
+      .then((ledgerAccounts) => {
         transaction(() => {
-          this.setWallets(Object.assign({}, hwAccounts, ledgerAccounts));
+          this.setWallets(Object.assign({}, ledgerAccounts));
           this.setScanning(false);
         });
       });

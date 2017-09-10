@@ -35,7 +35,7 @@ use transaction::{LocalizedTransaction, PendingTransaction, SignedTransaction};
 use verification::queue::QueueInfo as BlockQueueInfo;
 
 use bigint::prelude::U256;
-use bigint::hash::{H256, H2048};
+use bigint::hash::H256;
 use util::{Address, Bytes};
 use util::hashdb::DBValue;
 
@@ -180,9 +180,6 @@ pub trait BlockChainClient : Sync + Send {
 
 	/// Get the best block header.
 	fn best_block_header(&self) -> encoded::Header;
-
-	/// Returns numbers of blocks containing given bloom.
-	fn blocks_with_bloom(&self, bloom: &H2048, from_block: BlockId, to_block: BlockId) -> Option<Vec<BlockNumber>>;
 
 	/// Returns logs matching given filter.
 	fn logs(&self, filter: Filter) -> Vec<LocalizedLogEntry>;
