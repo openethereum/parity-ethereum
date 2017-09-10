@@ -75,18 +75,13 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 	failed
 }
 
-declare_test!{TransactionTests_ttTransactionTest, "TransactionTests/ttTransactionTest"}
-declare_test!{heavy => TransactionTests_tt10mbDataField, "TransactionTests/tt10mbDataField"}
-declare_test!{TransactionTests_ttWrongRLPTransaction, "TransactionTests/ttWrongRLPTransaction"}
-declare_test!{TransactionTests_Homestead_ttTransactionTest, "TransactionTests/Homestead/ttTransactionTest"}
-declare_test!{heavy => TransactionTests_Homestead_tt10mbDataField, "TransactionTests/Homestead/tt10mbDataField"}
-declare_test!{TransactionTests_Homestead_ttWrongRLPTransaction, "TransactionTests/Homestead/ttWrongRLPTransaction"}
-declare_test!{TransactionTests_RandomTests_tr201506052141PYTHON, "TransactionTests/RandomTests/tr201506052141PYTHON"}
-declare_test!{TransactionTests_Homestead_ttTransactionTestEip155VitaliksTests, "TransactionTests/Homestead/ttTransactionTestEip155VitaliksTests"}
-declare_test!{TransactionTests_EIP155_ttTransactionTest, "TransactionTests/EIP155/ttTransactionTest"}
-declare_test!{TransactionTests_EIP155_ttTransactionTestEip155VitaliksTests, "TransactionTests/EIP155/ttTransactionTestEip155VitaliksTests"}
-declare_test!{TransactionTests_EIP155_ttTransactionTestVRule, "TransactionTests/EIP155/ttTransactionTestVRule"}
-
-declare_test!{TransactionTests_Metropolis_ttMetropolisTest, "TransactionTests/Metropolis/ttMetropolisTest"}
-declare_test!{TransactionTests_Metropolis_ttTransactionTest, "TransactionTests/Metropolis/ttTransactionTest"}
-declare_test!{TransactionTests_Metropolis_ttTransactionTestZeroSig, "TransactionTests/Metropolis/ttTransactionTestZeroSig"}
+declare_test!{TransactionTests_ttEip155VitaliksHomesead, "TransactionTests/ttEip155VitaliksHomesead"}
+declare_test!{TransactionTests_ttEip155VitaliksEip158, "TransactionTests/ttEip155VitaliksEip158"}
+declare_test!{TransactionTests_ttEip158, "TransactionTests/ttEip158"}
+declare_test!{TransactionTests_ttFrontier, "TransactionTests/ttFrontier"}
+declare_test!{TransactionTests_ttHomestead, "TransactionTests/ttHomestead"}
+declare_test!{TransactionTests_ttVRuleEip158, "TransactionTests/ttVRuleEip158"}
+declare_test!{TransactionTests_ttWrongRLPFrontier, "TransactionTests/ttWrongRLPFrontier"}
+declare_test!{TransactionTests_ttWrongRLPHomestead, "TransactionTests/ttWrongRLPHomestead"}
+declare_test!{TransactionTests_ttConstantinople, "TransactionTests/ttConstantinople"}
+declare_test!{TransactionTests_ttSpecConstantinople, "TransactionTests/ttSpecConstantinople"}

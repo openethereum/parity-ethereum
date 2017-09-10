@@ -6,20 +6,20 @@
 				"minimumDifficulty": "0x020000",
 				"difficultyBoundDivisor": "0x0800",
 				"durationLimit": "0x0d",
-
 				"homesteadTransition": "0x0",
 				"eip150Transition": "0x0",
 				"eip160Transition": "0x0",
 				"eip161abcTransition": "0x0",
 				"eip161dTransition": "0x0",
-				"maxCodeSize": 24576
+				"maxCodeSize": 24576,
+				"eip649Reward": "0x29A2241AF62C0000",
+				"eip649Transition": "0x0"
 			}
 		}
 	},
 	"params": {
 		"gasLimitBoundDivisor": "0x0400",
 		"blockReward": "0x4563918244F40000",
-		"eip649Reward": "0x29A2241AF62C0000",
 		"registrar" : "0xc6d9d2cd449a754c494264e1809c50e34d64562b",
 		"accountStartNonce": "0x00",
 		"maximumExtraDataSize": "0x20",
@@ -31,9 +31,7 @@
 		"eip211Transition": "0x0",
 		"eip214Transition": "0x0",
 		"eip155Transition": "0x0",
-		"eip658Transition": "0x0",
-		"eip649Transition": "0x0",
-		"eip684Transition": "0x0"
+		"eip658Transition": "0x0"
 	},
 	"genesis": {
 		"seal": {

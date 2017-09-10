@@ -719,7 +719,7 @@ mod tests {
 
 			let mut output = vec![0u8; 32];
 			let expected = FromHex::from_hex("0000000000000000000000000000000000000000000000000000000000000001").unwrap();
-			let expected_cost = 1638;
+			let expected_cost = 13056;
 
 			f.execute(&input[..], &mut BytesRef::Fixed(&mut output[..])).expect("Builtin should not fail");
 			assert_eq!(output, expected);
@@ -738,7 +738,7 @@ mod tests {
 
 			let mut output = vec![0u8; 32];
 			let expected = FromHex::from_hex("0000000000000000000000000000000000000000000000000000000000000000").unwrap();
-			let expected_cost = 1638;
+			let expected_cost = 13056;
 
 			f.execute(&input[..], &mut BytesRef::Fixed(&mut output[..])).expect("Builtin should not fail");
 			assert_eq!(output, expected);
@@ -758,7 +758,7 @@ mod tests {
 
 			let mut output = vec![0u8; 32];
 			let expected = FromHex::from_hex("3b01b01ac41f2d6e917c6d6a221ce793802469026d9ab7578fa2e79e4da6aaab").unwrap();
-			let expected_cost = 102;
+			let expected_cost = 768;
 
 			f.execute(&input[..], &mut BytesRef::Fixed(&mut output[..])).expect("Builtin should not fail");
 			assert_eq!(output, expected);
@@ -789,7 +789,7 @@ mod tests {
 
 		let f = Builtin {
 			pricer: Box::new(Linear { base: 0, word: 0 }),
-			native: ethereum_builtin("bn128_add"),
+			native: ethereum_builtin("alt_bn128_add"),
 			activate_at: 0,
 		};
 
@@ -850,7 +850,7 @@ mod tests {
 
 		let f = Builtin {
 			pricer: Box::new(Linear { base: 0, word: 0 }),
-			native: ethereum_builtin("bn128_mul"),
+			native: ethereum_builtin("alt_bn128_mul"),
 			activate_at: 0,
 		};
 
@@ -890,7 +890,7 @@ mod tests {
 	fn builtin_pairing() -> Builtin {
 		Builtin {
 			pricer: Box::new(Linear { base: 0, word: 0 }),
-			native: ethereum_builtin("bn128_pairing"),
+			native: ethereum_builtin("alt_bn128_pairing"),
 			activate_at: 0,
 		}
 	}
