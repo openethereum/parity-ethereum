@@ -16,6 +16,7 @@
 
 import Eth from './eth';
 import Parity from './parity';
+import Signer from './signer';
 import Net from './net';
 
 import { isFunction } from '../util/types';
@@ -29,6 +30,7 @@ export default class Pubsub {
     this._eth = new Eth(transport);
     this._net = new Net(transport);
     this._parity = new Parity(transport);
+    this._signer = new Signer(transport);
   }
 
   get net () {
@@ -43,8 +45,35 @@ export default class Pubsub {
     return this._parity;
   }
 
+  get signer () {
+    return this._signer;
+  }
+
   unsubscribe (subscriptionIds) {
     // subscriptions are namespace independent. Thus we can simply removeListener from any.
     return this._parity.removeListener(subscriptionIds);
+  }
+
+  subscribeAndGetResult (f, callback) {
+    return new Promise((resolve, reject) => {
+      let isFirst = true;
+      let onSubscription = (error, data) => {
+        const p1 = error ? Promise.reject(error) : Promise.resolve(data);
+        const p2 = p1.then(callback);
+
+        if (isFirst) {
+          isFirst = false;
+          p2
+            .then(resolve)
+            .catch(reject);
+        }
+      };
+
+      try {
+        f.call(this, onSubscription).catch(reject);
+      } catch (err) {
+        reject(err);
+      }
+    });
   }
 }

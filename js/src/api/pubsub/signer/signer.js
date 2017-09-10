@@ -13,43 +13,25 @@
 
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+import PubsubBase from '../pubsubBase';
 
-import React from 'react';
-import { shallow } from 'enzyme';
-import sinon from 'sinon';
+import { outSignerRequest } from '../../format/output';
 
-import Api from '~/api';
-
-import TxList from './txList';
-
-const api = new Api({ execute: sinon.stub(), on: sinon.stub() });
-
-const STORE = {
-  dispatch: sinon.stub(),
-  subscribe: sinon.stub(),
-  getState: () => {
-    return {
-      nodeStatus: {
-        netVersion: '42'
-      }
+export default class Net extends PubsubBase {
+  constructor (transport) {
+    super(transport);
+    this._api = {
+      subscribe: 'signer_subscribePending',
+      unsubscribe: 'signer_unsubscribePending',
+      subscription: 'signer_pending'
     };
   }
-};
 
-function render (props) {
-  return shallow(
-    <TxList
-      store={ STORE }
-      { ...props }
-    />,
-    { context: { api } }
-  );
-}
-
-describe('ui/TxList', () => {
-  describe('rendering', () => {
-    it('renders defaults', () => {
-      expect(render({ address: '0x123', hashes: [] })).to.be.ok;
+  pendingRequests (callback) {
+    return this.addListener(this._api, null, (error, data) => {
+      error
+        ? callback(error)
+        : callback(null, data.map(outSignerRequest));
     });
-  });
-});
+  }
+}

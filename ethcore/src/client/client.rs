@@ -24,7 +24,7 @@ use time::precise_time_ns;
 // util
 use util::{Bytes, PerfTimer, Itertools, Mutex, RwLock, MutexGuard, Hashable};
 use util::{journaldb, DBValue, TrieFactory, Trie};
-use util::{U256, H256, Address, H2048};
+use util::{U256, H256, Address};
 use util::trie::TrieSpec;
 use util::kvdb::*;
 
@@ -912,7 +912,7 @@ impl Client {
 			_ => {},
 		}
 
-		let block_number = match self.block_number(id.clone()) {
+		let block_number = match self.block_number(id) {
 			Some(num) => num,
 			None => return None,
 		};
@@ -1111,6 +1111,52 @@ impl Client {
 			data: data,
 		}.fake_sign(from)
 	}
+
+	fn do_virtual_call(&self, env_info: &EnvInfo, state: &mut State<StateDB>, t: &SignedTransaction, analytics: CallAnalytics) -> Result<Executed, CallError> {
+		fn call<E, V, T>(
+			state: &mut State<StateDB>,
+			env_info: &EnvInfo,
+			engine: &E,
+			state_diff: bool,
+			transaction: &SignedTransaction,
+			options: TransactOptions<T, V>,
+		) -> Result<Executed, CallError> where
+			E: Engine + ?Sized,
+			T: trace::Tracer,
+			V: trace::VMTracer,
+		{
+			let options = options
+				.dont_check_nonce()
+				.save_output_from_contract();
+			let original_state = if state_diff { Some(state.clone()) } else { None };
+
+			let mut ret = Executive::new(state, env_info, engine).transact_virtual(transaction, options)?;
+
+			if let Some(original) = original_state {
+				ret.state_diff = Some(state.diff_from(original).map_err(ExecutionError::from)?);
+			}
+			Ok(ret)
+		}
+
+		let state_diff = analytics.state_diffing;
+		let engine = &*self.engine;
+
+		match (analytics.transaction_tracing, analytics.vm_tracing) {
+			(true, true) => call(state, env_info, engine, state_diff, t, TransactOptions::with_tracing_and_vm_tracing()),
+			(true, false) => call(state, env_info, engine, state_diff, t, TransactOptions::with_tracing()),
+			(false, true) => call(state, env_info, engine, state_diff, t, TransactOptions::with_vm_tracing()),
+			(false, false) => call(state, env_info, engine, state_diff, t, TransactOptions::with_no_tracing()),
+		}
+	}
+
+	fn block_number_ref(&self, id: &BlockId) -> Option<BlockNumber> {
+		match *id {
+			BlockId::Number(number) => Some(number),
+			BlockId::Hash(ref hash) => self.chain.read().block_number(hash),
+			BlockId::Earliest => Some(0),
+			BlockId::Latest | BlockId::Pending => Some(self.chain.read().best_block_number()),
+		}
+	}
 }
 
 impl snapshot::DatabaseRestore for Client {
@@ -1308,12 +1354,7 @@ impl BlockChainClient for Client {
 	}
 
 	fn block_number(&self, id: BlockId) -> Option<BlockNumber> {
-		match id {
-			BlockId::Number(number) => Some(number),
-			BlockId::Hash(ref hash) => self.chain.read().block_number(hash),
-			BlockId::Earliest => Some(0),
-			BlockId::Latest | BlockId::Pending => Some(self.chain.read().best_block_number()),
-		}
+		self.block_number_ref(&id)
 	}
 
 	fn block_body(&self, id: BlockId) -> Option<encoded::Body> {
@@ -1566,16 +1607,17 @@ impl BlockChainClient for Client {
 		self.engine.additional_params().into_iter().collect()
 	}
 
-	fn blocks_with_bloom(&self, bloom: &H2048, from_block: BlockId, to_block: BlockId) -> Option<Vec<BlockNumber>> {
-		match (self.block_number(from_block), self.block_number(to_block)) {
-			(Some(from), Some(to)) => Some(self.chain.read().blocks_with_bloom(bloom, from, to)),
-			_ => None
-		}
-	}
-
 	fn logs(&self, filter: Filter) -> Vec<LocalizedLogEntry> {
+		let (from, to) = match (self.block_number_ref(&filter.from_block), self.block_number_ref(&filter.to_block)) {
+			(Some(from), Some(to)) => (from, to),
+			_ => return Vec::new(),
+		};
+
+		let chain = self.chain.read();
 		let blocks = filter.bloom_possibilities().iter()
-			.filter_map(|bloom| self.blocks_with_bloom(bloom, filter.from_block.clone(), filter.to_block.clone()))
+			.map(move |bloom| {
+				chain.blocks_with_bloom(bloom, from, to)
+			})
 			.flat_map(|m| m)
 			// remove duplicate elements
 			.collect::<HashSet<u64>>()

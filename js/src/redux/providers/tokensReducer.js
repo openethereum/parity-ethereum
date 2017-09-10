@@ -25,10 +25,15 @@ const initialState = {
 export default handleActions({
   setTokens (state, action) {
     const { tokens } = action;
+    const nextTokens = { ...state };
 
-    return {
-      ...state,
-      ...tokens
-    };
+    Object.keys(tokens).forEach((tokenId) => {
+      nextTokens[tokenId] = {
+        ...(nextTokens[tokenId]),
+        ...tokens[tokenId]
+      };
+    });
+
+    return nextTokens;
   }
 }, initialState);

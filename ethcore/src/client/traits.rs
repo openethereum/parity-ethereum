@@ -175,9 +175,6 @@ pub trait BlockChainClient : Sync + Send {
 	/// Get the best block header.
 	fn best_block_header(&self) -> encoded::Header;
 
-	/// Returns numbers of blocks containing given bloom.
-	fn blocks_with_bloom(&self, bloom: &H2048, from_block: BlockId, to_block: BlockId) -> Option<Vec<BlockNumber>>;
-
 	/// Returns logs matching given filter.
 	fn logs(&self, filter: Filter) -> Vec<LocalizedLogEntry>;
 

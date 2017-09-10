@@ -74,7 +74,7 @@ pub struct TransactOptions {
 	pub check_nonce: bool,
 }
 
-pub fn executor<E>(engine: &E, vm_factory: &Factory, params: &ActionParams) 
+pub fn executor<E>(engine: &E, vm_factory: &Factory, params: &ActionParams)
 	-> Box<evm::Evm> where E: Engine + ?Sized
 {
 	if engine.supports_wasm() && params.code.as_ref().map_or(false, |code| code.len() > 4 && &code[0..4] == WASM_MAGIC_NUMBER) {

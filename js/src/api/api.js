@@ -71,10 +71,15 @@ export default class Api extends EventEmitter {
     }
   }
 
+  get isPubSub () {
+    return !!this._pubsub;
+  }
+
   get pubsub () {
-    if (!this._pubsub) {
+    if (!this.isPubSub) {
       throw Error('Pubsub is only available with a subscribing-supported transport injected!');
     }
+
     return this._pubsub;
   }
 
