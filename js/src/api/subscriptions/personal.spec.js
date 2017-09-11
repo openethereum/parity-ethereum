@@ -37,7 +37,8 @@ function stubApi (accounts, info) {
   return {
     _calls,
     transport: {
-      isConnected: true
+      isConnected: true,
+      on: sinon.stub()
     },
     parity: {
       accountsInfo: () => {
