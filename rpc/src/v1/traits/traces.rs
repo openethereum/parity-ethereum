@@ -28,7 +28,7 @@ build_rpc_trait! {
 
 		/// Returns traces matching given filter.
 		#[rpc(name = "trace_filter")]
-		fn filter(&self, TraceFilter, Option<usize>, Option<usize>) -> Result<Option<Vec<LocalizedTrace>>, Error>;
+		fn filter(&self, TraceFilter) -> Result<Option<Vec<LocalizedTrace>>, Error>;
 
 		/// Returns transaction trace at given index.
 		#[rpc(name = "trace_get")]

@@ -34,9 +34,9 @@ export default class Trace {
       .then(outTraceReplay);
   }
 
-  filter (filterObj, offset = null, count = null) {
+  filter (filterObj) {
     return this._transport
-      .execute('trace_filter', inTraceFilter(filterObj), offset, count)
+      .execute('trace_filter', inTraceFilter(filterObj))
       .then(outTraces);
   }
 

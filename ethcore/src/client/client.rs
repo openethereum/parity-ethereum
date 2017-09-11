@@ -1658,25 +1658,25 @@ impl BlockChainClient for Client {
 		self.chain.read().logs(blocks, |entry| filter.matches(entry), filter.limit)
 	}
 
-	fn filter_traces(&self, filter: TraceFilter, after: Option<usize>, count: Option<usize>) -> Option<Vec<LocalizedTrace>> {
+	fn filter_traces(&self, filter: TraceFilter) -> Option<Vec<LocalizedTrace>> {
 		let start = self.block_number(filter.range.start);
 		let end = self.block_number(filter.range.end);
 
 		match (start, end) {
 			(Some(s), Some(e)) => {
-				let filter = trace::Filter {
+				let db_filter = trace::Filter {
 					range: s as usize..e as usize,
 					from_address: From::from(filter.from_address),
 					to_address: From::from(filter.to_address),
 				};
 
-				let traces = self.tracedb.read().filter(&filter);
+				let traces = self.tracedb.read().filter(&db_filter);
 				if traces.is_empty() {
 					return None;
 				}
 
-				let traces_iter = traces.into_iter().skip(after.unwrap_or(0));
-				Some(match count {
+				let traces_iter = traces.into_iter().skip(filter.after.unwrap_or(0));
+				Some(match filter.count {
 					Some(count) => traces_iter.take(count).collect(),
 					None => traces_iter.collect(),
 				})

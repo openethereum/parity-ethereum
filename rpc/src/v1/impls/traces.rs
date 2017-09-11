@@ -58,8 +58,8 @@ impl<C, M> TracesClient<C, M> {
 impl<C, M> Traces for TracesClient<C, M> where C: MiningBlockChainClient + 'static, M: MinerService + 'static {
 	type Metadata = Metadata;
 
-	fn filter(&self, filter: TraceFilter, offset: Option<usize>, count: Option<usize>) -> Result<Option<Vec<LocalizedTrace>>, Error> {
-		Ok(self.client.filter_traces(filter.into(), offset, count)
+	fn filter(&self, filter: TraceFilter) -> Result<Option<Vec<LocalizedTrace>>, Error> {
+		Ok(self.client.filter_traces(filter.into())
 			.map(|traces| traces.into_iter().map(LocalizedTrace::from).collect()))
 	}
 

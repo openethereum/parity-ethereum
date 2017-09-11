@@ -134,26 +134,26 @@ then it should look something like:
             type: Address,
             desc: 'Sent to these addresses.',
             optional: true
+          },
+          after: {
+            type: Quantity,
+            desc: 'The offset trace number',
+            optional: true
+          },
+          count: {
+            type: Quantity,
+            desc: 'Integer number of traces to display in a batch.',
+            optional: true
           }
         },
         example: {
           fromBlock: fromDecimal(3068100),
           toBlock: fromDecimal(3068200),
-          toAddress: ['0x8bbB73BCB5d553B5A556358d27625323Fd781D37']
+          toAddress: ['0x8bbB73BCB5d553B5A556358d27625323Fd781D37'],
+          after: 1000,
+          count: 100
         }
       },
-      {
-        type: Quantity,
-        desc: 'The offset trace index',
-        optional: true,
-        example: 10
-      },
-      {
-        type: Quantity,
-        desc: 'Integer number of traces to display in a batch.',
-        example: 5,
-        optional: true
-      }
     ],
     returns: {
       type: Array,
