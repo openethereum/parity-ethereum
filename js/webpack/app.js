@@ -187,6 +187,14 @@ module.exports = {
               from: path.join(__dirname, '../src/error_pages.css'),
               to: 'styles.css'
             },
+            {
+              from: path.join(__dirname, '../src/index.electron.js'),
+              to: 'electron.js'
+            },
+            {
+              from: path.join(__dirname, '../package.electron.json'),
+              to: 'package.json'
+            },
             flatten(
               DAPPS_ALL
                 .map((dapp) => {

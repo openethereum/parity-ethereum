@@ -1,8 +1,8 @@
 {
   "name": "Parity",
   "version": "1.8.19",
-  "main": "src/index.electron.js",
-  "jsnext:main": "src/index.electron.js",
+  "main": "src/index.parity.js",
+  "jsnext:main": "src/index.parity.js",
   "author": "Parity Team <admin@parity.io>",
   "maintainers": [
     "Jaco Greeff",
@@ -46,7 +46,7 @@
     "lint:js:fix": "eslint --fix --ignore-path .gitignore ./src/",
     "start": "npm run clean && npm install && npm run build:lib && npm run start:app",
     "start:app": "node webpack/dev.server",
-    "start:electron": "npm run build:app && electron .",
+    "start:electron": "npm run build:app && electron .build/",
     "test": "NODE_ENV=test mocha --compilers ejs:ejsify 'src/**/*.spec.js' 'packages/**/*.spec.js'",
     "test:coverage": "NODE_ENV=test istanbul cover _mocha -- --compilers ejs:ejsify 'src/**/*.spec.js' 'packages/**/*.spec.js'",
     "test:e2e": "NODE_ENV=test mocha 'src/**/*.e2e.js' 'packages/**/*.e2e.js'",
