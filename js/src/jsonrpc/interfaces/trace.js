@@ -153,7 +153,7 @@ then it should look something like:
           after: 1000,
           count: 100
         }
-      },
+      }
     ],
     returns: {
       type: Array,
