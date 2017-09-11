@@ -24,7 +24,7 @@ use time::precise_time_ns;
 // util
 use util::{Bytes, PerfTimer, Itertools, Mutex, RwLock, MutexGuard, Hashable};
 use util::{journaldb, DBValue, TrieFactory, Trie};
-use util::{U256, H256, Address, H2048};
+use util::{U256, H256, Address};
 use util::trie::TrieSpec;
 use util::kvdb::*;
 
@@ -748,7 +748,7 @@ impl Client {
 								self.factories.clone(),
 							).expect("state known to be available for just-imported block; qed");
 
-							let options = TransactOptions { tracing: false, vm_tracing: false, check_nonce: false };
+							let options = TransactOptions::with_no_tracing().dont_check_nonce().save_output_from_contract();
 							let res = Executive::new(&mut state, &env_info, &*self.engine)
 								.transact(&transaction, options);
 
@@ -912,7 +912,7 @@ impl Client {
 			_ => {},
 		}
 
-		let block_number = match self.block_number(id.clone()) {
+		let block_number = match self.block_number(id) {
 			Some(num) => num,
 			None => return None,
 		};
@@ -1111,6 +1111,15 @@ impl Client {
 			data: data,
 		}.fake_sign(from)
 	}
+
+	fn block_number_ref(&self, id: &BlockId) -> Option<BlockNumber> {
+		match *id {
+			BlockId::Number(number) => Some(number),
+			BlockId::Hash(ref hash) => self.chain.read().block_number(hash),
+			BlockId::Earliest => Some(0),
+			BlockId::Latest | BlockId::Pending => Some(self.chain.read().best_block_number()),
+		}
+	}
 }
 
 impl snapshot::DatabaseRestore for Client {
@@ -1143,7 +1152,9 @@ impl BlockChainClient for Client {
 		let mut state = self.state_at(block).ok_or(CallError::StatePruned)?;
 		let original_state = if analytics.state_diffing { Some(state.clone()) } else { None };
 
-		let options = TransactOptions { tracing: analytics.transaction_tracing, vm_tracing: analytics.vm_tracing, check_nonce: false };
+		let options = TransactOptions::new(analytics.transaction_tracing, analytics.vm_tracing)
+			.dont_check_nonce()
+			.save_output_from_contract();
 		let mut ret = Executive::new(&mut state, &env_info, &*self.engine).transact_virtual(t, options)?;
 
 		// TODO gav move this into Executive.
@@ -1166,7 +1177,7 @@ impl BlockChainClient for Client {
 		// that's just a copy of the state.
 		let original_state = self.state_at(block).ok_or(CallError::StatePruned)?;
 		let sender = t.sender();
-		let options = TransactOptions { tracing: true, vm_tracing: false, check_nonce: false };
+		let options = TransactOptions::with_tracing().dont_check_nonce();
 
 		let cond = |gas| {
 			let mut tx = t.as_unsigned().clone();
@@ -1231,7 +1242,9 @@ impl BlockChainClient for Client {
 			return Err(CallError::TransactionNotFound);
 		}
 
-		let options = TransactOptions { tracing: analytics.transaction_tracing, vm_tracing: analytics.vm_tracing, check_nonce: false };
+		let options = TransactOptions::new(analytics.transaction_tracing, analytics.vm_tracing)
+			.dont_check_nonce()
+			.save_output_from_contract();
 		const PROOF: &'static str = "Transactions fetched from blockchain; blockchain transactions are valid; qed";
 		let rest = txs.split_off(address.index);
 		for t in txs {
@@ -1308,12 +1321,7 @@ impl BlockChainClient for Client {
 	}
 
 	fn block_number(&self, id: BlockId) -> Option<BlockNumber> {
-		match id {
-			BlockId::Number(number) => Some(number),
-			BlockId::Hash(ref hash) => self.chain.read().block_number(hash),
-			BlockId::Earliest => Some(0),
-			BlockId::Latest | BlockId::Pending => Some(self.chain.read().best_block_number()),
-		}
+		self.block_number_ref(&id)
 	}
 
 	fn block_body(&self, id: BlockId) -> Option<encoded::Body> {
@@ -1566,16 +1574,17 @@ impl BlockChainClient for Client {
 		self.engine.additional_params().into_iter().collect()
 	}
 
-	fn blocks_with_bloom(&self, bloom: &H2048, from_block: BlockId, to_block: BlockId) -> Option<Vec<BlockNumber>> {
-		match (self.block_number(from_block), self.block_number(to_block)) {
-			(Some(from), Some(to)) => Some(self.chain.read().blocks_with_bloom(bloom, from, to)),
-			_ => None
-		}
-	}
-
 	fn logs(&self, filter: Filter) -> Vec<LocalizedLogEntry> {
+		let (from, to) = match (self.block_number_ref(&filter.from_block), self.block_number_ref(&filter.to_block)) {
+			(Some(from), Some(to)) => (from, to),
+			_ => return Vec::new(),
+		};
+
+		let chain = self.chain.read();
 		let blocks = filter.bloom_possibilities().iter()
-			.filter_map(|bloom| self.blocks_with_bloom(bloom, filter.from_block.clone(), filter.to_block.clone()))
+			.map(move |bloom| {
+				chain.blocks_with_bloom(bloom, from, to)
+			})
 			.flat_map(|m| m)
 			// remove duplicate elements
 			.collect::<HashSet<u64>>()
@@ -1894,7 +1903,7 @@ impl ProvingBlockChainClient for Client {
 		let backend = state::backend::Proving::new(jdb.as_hashdb_mut());
 
 		let mut state = state.replace_backend(backend);
-		let options = TransactOptions { tracing: false, vm_tracing: false, check_nonce: false };
+		let options = TransactOptions::with_no_tracing().dont_check_nonce().save_output_from_contract();
 		let res = Executive::new(&mut state, &env_info, &*self.engine).transact(&transaction, options);
 
 		match res {

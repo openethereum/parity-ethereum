@@ -44,7 +44,7 @@ pub trait Memory {
 }
 
 /// Checks whether offset and size is valid memory range
-fn is_valid_range(off: usize, size: usize)  -> bool {
+pub fn is_valid_range(off: usize, size: usize)  -> bool {
 	// When size is zero we haven't actually expanded the memory
 	let overflow = off.overflowing_add(size).1;
 	size > 0 && !overflow

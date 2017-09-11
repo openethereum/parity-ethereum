@@ -24,8 +24,8 @@ use jsonrpc_core::Error;
 use v1::helpers::CallRequest;
 use v1::helpers::dispatch::default_gas_price;
 
-pub fn sign_call<B: MiningBlockChainClient, M: MinerService>(
-	client: &Arc<B>,
+pub fn sign_call<C: MiningBlockChainClient, M: MinerService> (
+	client: &Arc<C>,
 	miner: &Arc<M>,
 	request: CallRequest,
 	gas_cap: bool,
