@@ -12,6 +12,8 @@ panic_hook = { path = "../../panic_hook" }
 ethcore-network = { path = "../../util/network" }
 parity-rpc = { path = "../../rpc" }
 parity-dapps = { path = "../../dapps" }
+ethsync = { path = "../../sync" }
+ethcore-ipc-nano = { path = "../../ipc/nano" }
 
 jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
 jsonrpc-http-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }

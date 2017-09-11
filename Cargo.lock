@@ -3,7 +3,9 @@ name = "whisper-cli"
 version = "0.1.0"
 dependencies = [
  "docopt 0.8.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethcore-ipc-nano 1.8.0",
  "ethcore-network 1.8.0",
+ "ethsync 1.8.0",
  "jsonrpc-core 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)",
  "jsonrpc-http-server 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)",
  "jsonrpc-ipc-server 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)",
