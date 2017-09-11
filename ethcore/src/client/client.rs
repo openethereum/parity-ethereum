@@ -42,7 +42,7 @@ use client::{
 	ChainNotify, PruningInfo, ProvingBlockChainClient,
 };
 use encoded;
-use engines::{Engine, EpochTransition};
+use engines::{Engine, EthEngine, EpochTransition};
 use error::{ImportError, ExecutionError, CallError, BlockError, ImportResult, Error as EthcoreError};
 use vm::{EnvInfo, LastHashes};
 use evm::{Factory as EvmFactory, Schedule};
@@ -142,7 +142,7 @@ pub struct Client {
 	mode: Mutex<Mode>,
 	chain: RwLock<Arc<BlockChain>>,
 	tracedb: RwLock<TraceDB<BlockChain>>,
-	engine: Arc<Engine>,
+	engine: Arc<EthEngine>,
 	config: ClientConfig,
 	pruning: journaldb::Algorithm,
 	db: RwLock<Arc<KeyValueDB>>,
@@ -327,7 +327,7 @@ impl Client {
 	}
 
 	/// Returns engine reference.
-	pub fn engine(&self) -> &Engine {
+	pub fn engine(&self) -> &EthEngine {
 		&*self.engine
 	}
 
@@ -749,7 +749,7 @@ impl Client {
 							).expect("state known to be available for just-imported block; qed");
 
 							let options = TransactOptions::with_no_tracing().dont_check_nonce();
-							let res = Executive::new(&mut state, &env_info, &*self.engine)
+							let res = Executive::new(&mut state, &env_info, self.engine.machine())
 								.transact(&transaction, options);
 
 							let res = match res {
@@ -1114,22 +1114,21 @@ impl Client {
 	}
 
 	fn do_virtual_call(&self, env_info: &EnvInfo, state: &mut State<StateDB>, t: &SignedTransaction, analytics: CallAnalytics) -> Result<Executed, CallError> {
-		fn call<E, V, T>(
+		fn call<V, T>(
 			state: &mut State<StateDB>,
 			env_info: &EnvInfo,
-			engine: &E,
+			machine: &::machine::EthereumMachine,
 			state_diff: bool,
 			transaction: &SignedTransaction,
 			options: TransactOptions<T, V>,
 		) -> Result<Executed, CallError> where
-			E: Engine + ?Sized,
 			T: trace::Tracer,
 			V: trace::VMTracer,
 		{
 			let options = options.dont_check_nonce();
 			let original_state = if state_diff { Some(state.clone()) } else { None };
 
-			let mut ret = Executive::new(state, env_info, engine).transact_virtual(transaction, options)?;
+			let mut ret = Executive::new(state, env_info, machine).transact_virtual(transaction, options)?;
 
 			if let Some(original) = original_state {
 				ret.state_diff = Some(state.diff_from(original).map_err(ExecutionError::from)?);
@@ -1138,13 +1137,13 @@ impl Client {
 		}
 
 		let state_diff = analytics.state_diffing;
-		let engine = &*self.engine;
+		let machine = self.engine.machine();
 
 		match (analytics.transaction_tracing, analytics.vm_tracing) {
-			(true, true) => call(state, env_info, engine, state_diff, t, TransactOptions::with_tracing_and_vm_tracing()),
-			(true, false) => call(state, env_info, engine, state_diff, t, TransactOptions::with_tracing()),
-			(false, true) => call(state, env_info, engine, state_diff, t, TransactOptions::with_vm_tracing()),
-			(false, false) => call(state, env_info, engine, state_diff, t, TransactOptions::with_no_tracing()),
+			(true, true) => call(state, env_info, machine, state_diff, t, TransactOptions::with_tracing_and_vm_tracing()),
+			(true, false) => call(state, env_info, machine, state_diff, t, TransactOptions::with_tracing()),
+			(false, true) => call(state, env_info, machine, state_diff, t, TransactOptions::with_vm_tracing()),
+			(false, false) => call(state, env_info, machine, state_diff, t, TransactOptions::with_no_tracing()),
 		}
 	}
 }
@@ -1218,7 +1217,7 @@ impl BlockChainClient for Client {
 			let tx = tx.fake_sign(sender);
 
 			let mut state = original_state.clone();
-			Ok(Executive::new(&mut state, &env_info, &*self.engine)
+			Ok(Executive::new(&mut state, &env_info, self.engine.machine())
 				.transact_virtual(&tx, options())
 				.map(|r| r.exception.is_none())
 				.unwrap_or(false))
@@ -1279,7 +1278,7 @@ impl BlockChainClient for Client {
 		let rest = txs.split_off(address.index);
 		for t in txs {
 			let t = SignedTransaction::new(t).expect(PROOF);
-			let x = Executive::new(&mut state, &env_info, &*self.engine).transact(&t, TransactOptions::with_no_tracing())?;
+			let x = Executive::new(&mut state, &env_info, self.engine.machine()).transact(&t, TransactOptions::with_no_tracing())?;
 			env_info.gas_used = env_info.gas_used + x.gas_used;
 		}
 		let first = rest.into_iter().next().expect("We split off < `address.index`; Length is checked earlier; qed");
@@ -1968,7 +1967,8 @@ impl ProvingBlockChainClient for Client {
 
 		let mut state = state.replace_backend(backend);
 		let options = TransactOptions::with_no_tracing().dont_check_nonce();
-		let res = Executive::new(&mut state, &env_info, &*self.engine).transact(&transaction, options);
+		let res = Executive::new(&mut state, &env_info, self.engine.machine())
+			.transact(&transaction, options);
 
 		match res {
 			Err(ExecutionError::Internal(_)) => None,
@@ -1989,7 +1989,7 @@ impl Drop for Client {
 
 /// Returns `LocalizedReceipt` given `LocalizedTransaction`
 /// and a vector of receipts from given block up to transaction index.
-fn transaction_receipt(engine: &Engine, mut tx: LocalizedTransaction, mut receipts: Vec<Receipt>) -> LocalizedReceipt {
+fn transaction_receipt(engine: &EthEngine, mut tx: LocalizedTransaction, mut receipts: Vec<Receipt>) -> LocalizedReceipt {
 	assert_eq!(receipts.len(), tx.transaction_index + 1, "All previous receipts are provided.");
 
 	let sender = tx.sender();

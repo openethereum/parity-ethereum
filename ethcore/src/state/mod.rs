@@ -26,7 +26,7 @@ use std::fmt;
 use std::sync::Arc;
 
 use receipt::Receipt;
-use engines::Engine;
+use machine::EthereumMachine as Machine;
 use vm::EnvInfo;
 use error::Error;
 use executive::{Executive, TransactOptions};
@@ -190,7 +190,7 @@ pub fn check_proof(
 	proof: &[::util::DBValue],
 	root: H256,
 	transaction: &SignedTransaction,
-	engine: &Engine,
+	machine: &Machine,
 	env_info: &EnvInfo,
 ) -> ProvedExecution {
 	let backend = self::backend::ProofCheck::new(proof);
@@ -200,7 +200,7 @@ pub fn check_proof(
 	let res = State::from_existing(
 		backend,
 		root,
-		engine.account_start_nonce(env_info.number),
+		machine.account_start_nonce(env_info.number),
 		factories
 	);
 
@@ -209,7 +209,7 @@ pub fn check_proof(
 		Err(_) => return ProvedExecution::BadProof,
 	};
 
-	match state.execute(env_info, engine, transaction, TransactOptions::with_no_tracing(), true) {
+	match state.execute(env_info, machine, transaction, TransactOptions::with_no_tracing(), true) {
 		Ok(executed) => ProvedExecution::Complete(executed),
 		Err(ExecutionError::Internal(_)) => ProvedExecution::BadProof,
 		Err(e) => ProvedExecution::Failed(e),
@@ -626,13 +626,13 @@ impl<B: Backend> State<B> {
 
 	/// Execute a given transaction, producing a receipt and an optional trace.
 	/// This will change the state accordingly.
-	pub fn apply(&mut self, env_info: &EnvInfo, engine: &Engine, t: &SignedTransaction, tracing: bool) -> ApplyResult {
+	pub fn apply(&mut self, env_info: &EnvInfo, machine: &Machine, t: &SignedTransaction, tracing: bool) -> ApplyResult {
 		if tracing {
 			let options = TransactOptions::with_tracing();
-			self.apply_with_tracing(env_info, engine, t, options.tracer, options.vm_tracer)
+			self.apply_with_tracing(env_info, machine, t, options.tracer, options.vm_tracer)
 		} else {
 			let options = TransactOptions::with_no_tracing();
-			self.apply_with_tracing(env_info, engine, t, options.tracer, options.vm_tracer)
+			self.apply_with_tracing(env_info, machine, t, options.tracer, options.vm_tracer)
 		}
 	}
 
@@ -641,7 +641,7 @@ impl<B: Backend> State<B> {
 	pub fn apply_with_tracing<V, T>(
 		&mut self,
 		env_info: &EnvInfo,
-		engine: &Engine,
+		machine: &Machine,
 		t: &SignedTransaction,
 		tracer: T,
 		vm_tracer: V,
@@ -650,9 +650,9 @@ impl<B: Backend> State<B> {
 		V: trace::VMTracer,
 	{
 		let options = TransactOptions::new(tracer, vm_tracer);
-		let e = self.execute(env_info, engine, t, options, false)?;
+		let e = self.execute(env_info, machine, t, options, false)?;
 
-		let state_root = if env_info.number < engine.params().eip98_transition || env_info.number < engine.params().validate_receipts_transition {
+		let state_root = if env_info.number < machine.params().eip98_transition || env_info.number < machine.params().validate_receipts_transition {
 			self.commit()?;
 			Some(self.root().clone())
 		} else {
@@ -675,10 +675,10 @@ impl<B: Backend> State<B> {
 	//
 	// `virt` signals that we are executing outside of a block set and restrictions like
 	// gas limits and gas costs should be lifted.
-	fn execute<T, V>(&mut self, env_info: &EnvInfo, engine: &Engine, t: &SignedTransaction, options: TransactOptions<T, V>, virt: bool)
+	fn execute<T, V>(&mut self, env_info: &EnvInfo, machine: &Machine, t: &SignedTransaction, options: TransactOptions<T, V>, virt: bool)
 		-> Result<Executed, ExecutionError> where T: trace::Tracer, V: trace::VMTracer,
 	{
-		let mut e = Executive::new(self, env_info, engine);
+		let mut e = Executive::new(self, env_info, machine);
 
 		match virt {
 			true => e.transact_virtual(t, options),

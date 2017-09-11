@@ -24,7 +24,7 @@
 use std::collections::HashSet;
 use heapsize::HeapSizeOf;
 use util::*;
-use engines::Engine;
+use engines::{Engine, EthEngine};
 use error::{BlockError, Error};
 use blockchain::*;
 use header::{BlockNumber, Header};
@@ -52,7 +52,7 @@ impl HeapSizeOf for PreverifiedBlock {
 }
 
 /// Phase 1 quick block verification. Only does checks that are cheap. Operates on a single block
-pub fn verify_block_basic(header: &Header, bytes: &[u8], engine: &Engine) -> Result<(), Error> {
+pub fn verify_block_basic(header: &Header, bytes: &[u8], engine: &EthEngine) -> Result<(), Error> {
 	verify_header_params(&header, engine, true)?;
 	verify_block_integrity(bytes, &header.transactions_root(), &header.uncles_hash())?;
 	engine.verify_block_basic(&header, Some(bytes))?;
@@ -73,7 +73,7 @@ pub fn verify_block_basic(header: &Header, bytes: &[u8], engine: &Engine) -> Res
 /// Phase 2 verification. Perform costly checks such as transaction signatures and block nonce for ethash.
 /// Still operates on a individual block
 /// Returns a `PreverifiedBlock` structure populated with transactions
-pub fn verify_block_unordered(header: Header, bytes: Bytes, engine: &Engine, check_seal: bool) -> Result<PreverifiedBlock, Error> {
+pub fn verify_block_unordered(header: Header, bytes: Bytes, engine: &EthEngine, check_seal: bool) -> Result<PreverifiedBlock, Error> {
 	if check_seal {
 		engine.verify_block_unordered(&header, Some(&bytes))?;
 		for u in UntrustedRlp::new(&bytes).at(2)?.iter().map(|rlp| rlp.as_val::<Header>()) {
@@ -105,7 +105,7 @@ pub fn verify_block_unordered(header: Header, bytes: Bytes, engine: &Engine, che
 }
 
 /// Phase 3 verification. Check block information against parent and uncles.
-pub fn verify_block_family(header: &Header, bytes: &[u8], engine: &Engine, bc: &BlockProvider) -> Result<(), Error> {
+pub fn verify_block_family(header: &Header, bytes: &[u8], engine: &EthEngine, bc: &BlockProvider) -> Result<(), Error> {
 	// TODO: verify timestamp
 	let parent = bc.block_header(&header.parent_hash()).ok_or_else(|| Error::from(BlockError::UnknownParent(header.parent_hash().clone())))?;
 	verify_parent(&header, &parent)?;
@@ -211,7 +211,7 @@ pub fn verify_block_final(expected: &Header, got: &Header) -> Result<(), Error> 
 }
 
 /// Check basic header parameters.
-pub fn verify_header_params(header: &Header, engine: &Engine, is_full: bool) -> Result<(), Error> {
+pub fn verify_header_params(header: &Header, engine: &EthEngine, is_full: bool) -> Result<(), Error> {
 	if header.number() >= From::from(BlockNumber::max_value()) {
 		return Err(From::from(BlockError::RidiculousNumber(OutOfBounds { max: Some(From::from(BlockNumber::max_value())), min: None, found: header.number() })))
 	}
@@ -276,7 +276,7 @@ mod tests {
 	use error::BlockError::*;
 	use views::*;
 	use blockchain::*;
-	use engines::Engine;
+	use engines::{Engine, EthEngine};
 	use spec::*;
 	use transaction::*;
 	use tests::helpers::*;
@@ -398,17 +398,17 @@ mod tests {
 		}
 	}
 
-	fn basic_test(bytes: &[u8], engine: &Engine) -> Result<(), Error> {
+	fn basic_test(bytes: &[u8], engine: &EthEngine) -> Result<(), Error> {
 		let header = BlockView::new(bytes).header();
 		verify_block_basic(&header, bytes, engine)
 	}
 
-	fn family_test<BC>(bytes: &[u8], engine: &Engine, bc: &BC) -> Result<(), Error> where BC: BlockProvider {
+	fn family_test<BC>(bytes: &[u8], engine: &EthEngine, bc: &BC) -> Result<(), Error> where BC: BlockProvider {
 		let header = BlockView::new(bytes).header();
 		verify_block_family(&header, bytes, engine, bc)
 	}
 
-	fn unordered_test(bytes: &[u8], engine: &Engine) -> Result<(), Error> {
+	fn unordered_test(bytes: &[u8], engine: &EthEngine) -> Result<(), Error> {
 		let header = BlockView::new(bytes).header();
 		verify_block_unordered(header, bytes.to_vec(), engine, false)?;
 		Ok(())

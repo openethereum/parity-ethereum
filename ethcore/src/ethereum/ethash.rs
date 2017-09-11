@@ -29,11 +29,12 @@ use header::{Header, BlockNumber};
 use state::CleanupMode;
 use spec::CommonParams;
 use transaction::UnverifiedTransaction;
-use engines::{self, Engine};
+use engines::{self, Engine, EthEngine};
 use evm::Schedule;
 use ethjson;
 use rlp::{self, UntrustedRlp};
 use vm::LastHashes;
+use machine::EthereumMachine;
 
 /// Parity tries to round block.gas_limit to multiple of this constant
 pub const PARITY_GAS_LIMIT_DETERMINANT: U256 = U256([37, 0, 0, 0]);
@@ -119,24 +120,21 @@ impl From<ethjson::spec::EthashParams> for EthashParams {
 /// Engine using Ethash proof-of-work consensus algorithm, suitable for Ethereum
 /// mainnet chains in the Olympic, Frontier and Homestead eras.
 pub struct Ethash {
-	params: CommonParams,
 	ethash_params: EthashParams,
-	builtins: BTreeMap<Address, Builtin>,
 	pow: EthashManager,
+	machine: EthereumMachine,
 }
 
 impl Ethash {
 	/// Create a new instance of Ethash engine
 	pub fn new<T: AsRef<Path>>(
 		cache_dir: T,
-		params: CommonParams,
 		ethash_params: EthashParams,
-		builtins: BTreeMap<Address, Builtin>,
+		machine: EthereumMachine,
 	) -> Arc<Self> {
 		Arc::new(Ethash {
-			params,
 			ethash_params,
-			builtins,
+			machine,
 			pow: EthashManager::new(cache_dir),
 		})
 	}
@@ -157,18 +155,15 @@ impl engines::EpochVerifier for Arc<Ethash> {
 	}
 }
 
-impl Engine for Arc<Ethash> {
+impl Engine<EthereumMachine> for Arc<Ethash> {
 	fn name(&self) -> &str { "Ethash" }
 	fn version(&self) -> SemanticVersion { SemanticVersion::new(1, 0, 0) }
-	// Two fields - mix
+	fn machine(&self) -> &EthereumMachine { &self.machine }
+
+	// Two fields - nonce and mix.
 	fn seal_fields(&self) -> usize { 2 }
 
-	fn params(&self) -> &CommonParams { &self.params }
 	fn additional_params(&self) -> HashMap<String, String> { hash_map!["registrar".to_owned() => self.params().registrar.hex()] }
-
-	fn builtins(&self) -> &BTreeMap<Address, Builtin> {
-		&self.builtins
-	}
 
 	/// Additional engine-specific information for the user/developer concerning `header`.
 	fn extra_info(&self, header: &Header) -> BTreeMap<String, String> {
@@ -179,26 +174,6 @@ impl Engine for Arc<Ethash> {
 			]
 		} else {
 			BTreeMap::default()
-		}
-	}
-
-	fn schedule(&self, block_number: BlockNumber) -> Schedule {
-		trace!(target: "client", "Creating schedule. fCML={}, bGCML={}", self.ethash_params.homestead_transition, self.ethash_params.eip150_transition);
-
-		if block_number < self.ethash_params.homestead_transition {
-			Schedule::new_frontier()
-		} else if block_number < self.ethash_params.eip150_transition {
-			Schedule::new_homestead()
-		} else {
-			let mut schedule = Schedule::new_post_eip150(
-				self.params().max_code_size,
-				block_number >= self.ethash_params.eip160_transition,
-				block_number >= self.ethash_params.eip161abc_transition,
-				block_number >= self.ethash_params.eip161d_transition
-			);
-
-			self.params().update_schedule(block_number, &mut schedule);
-			schedule
 		}
 	}
 
@@ -234,7 +209,6 @@ impl Engine for Arc<Ethash> {
 			header.number() <= self.ethash_params.dao_hardfork_transition + 9 {
 			header.set_extra_data(b"dao-hard-fork"[..].to_owned());
 		}
-		header.note_dirty();
 //		info!("ethash: populate_from_parent #{}: difficulty={} and gas_limit={}", header.number(), header.difficulty(), header.gas_limit());
 	}
 
@@ -245,7 +219,7 @@ impl Engine for Arc<Ethash> {
 		_begins_epoch: bool,
 	) -> Result<(), Error> {
 		let parent_hash = block.fields().header.parent_hash().clone();
-		engines::common::push_last_hash(block, last_hashes, self, &parent_hash)?;
+		self.machine().push_last_hash(block, last_hashes, &parent_hash)?;
 		if block.fields().header.number() == self.ethash_params.dao_hardfork_transition {
 			let state = block.fields_mut().state;
 			for child in &self.ethash_params.dao_hardfork_accounts {
@@ -260,61 +234,7 @@ impl Engine for Arc<Ethash> {
 	/// Apply the block reward on finalisation of the block.
 	/// This assumes that all uncles are valid uncles (i.e. of at least one generation before the current).
 	fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<(), Error> {
-		use std::ops::Shr;
-		let reward = self.params().block_reward;
-		let tracing_enabled = block.tracing_enabled();
-		let fields = block.fields_mut();
-		let eras_rounds = self.ethash_params.ecip1017_era_rounds;
-		let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, reward, fields.header.number());
-		let mut tracer = ExecutiveTracer::default();
-
-		// Bestow block reward
-		let result_block_reward = reward + reward.shr(5) * U256::from(fields.uncles.len());
-		fields.state.add_balance(
-			fields.header.author(),
-			&result_block_reward,
-			CleanupMode::NoEmpty
-		)?;
-
-		if tracing_enabled {
-			let block_author = fields.header.author().clone();
-			tracer.trace_reward(block_author, result_block_reward, RewardType::Block);
-		}
-
-		// Bestow uncle rewards
-		let current_number = fields.header.number();
-		for u in fields.uncles.iter() {
-			let uncle_author = u.author().clone();
-			let result_uncle_reward: U256;
-
-			if eras == 0 {
-				result_uncle_reward = (reward * U256::from(8 + u.number() - current_number)).shr(3);
-				fields.state.add_balance(
-					u.author(),
-					&result_uncle_reward,
-					CleanupMode::NoEmpty
-				)
-			} else {
-				result_uncle_reward = reward.shr(5);
-				fields.state.add_balance(
-					u.author(),
-					&result_uncle_reward,
-					CleanupMode::NoEmpty
-				)
-			}?;
-
-			// Trace uncle rewards
-			if tracing_enabled {
-				tracer.trace_reward(uncle_author, result_uncle_reward, RewardType::Uncle);
-			}
-		}
-
-		// Commit state so that we can actually figure out the state root.
-		fields.state.commit()?;
-		if tracing_enabled {
-			fields.traces.as_mut().map(|mut traces| traces.push(tracer.drain()));
-		}
-		Ok(())
+		self.machine().bestow_block_reward(block)
 	}
 
 	fn verify_block_basic(&self, header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
@@ -397,13 +317,6 @@ impl Engine for Arc<Ethash> {
 		Ok(())
 	}
 
-	fn verify_transaction_basic(&self, t: &UnverifiedTransaction, header: &Header) -> Result<(), Error> {
-		let check_low_s = header.number() >= self.ethash_params.homestead_transition;
-		let chain_id = if header.number() >= self.params().eip155_transition { Some(self.params().chain_id) } else { None };
-		t.verify_basic(check_low_s, chain_id, false)?;
-		Ok(())
-	}
-
 	fn epoch_verifier<'a>(&self, _header: &Header, _proof: &'a [u8]) -> engines::ConstructedVerifier<'a> {
 		engines::ConstructedVerifier::Trusted(Box::new(self.clone()))
 	}
@@ -430,17 +343,6 @@ fn round_block_gas_limit(gas_limit: U256, lower_limit: U256, upper_limit: U256) 
 	}
 }
 
-fn ecip1017_eras_block_reward(era_rounds: u64, mut reward: U256, block_number:u64) -> (u64, U256){
-	let eras = if block_number != 0 && block_number % era_rounds == 0 {
-		block_number / era_rounds - 1
-	} else {
-		block_number / era_rounds
-	};
-	for _ in 0..eras {
-		reward = reward / U256::from(5) * U256::from(4);
-	}
-	(eras, reward)
-}
 
 #[cfg_attr(feature="dev", allow(wrong_self_convention))]
 impl Ethash {
@@ -534,7 +436,7 @@ impl Ethash {
 }
 
 impl Header {
-	/// Get the none field of the header.
+	/// Get the nonce field of the header.
 	pub fn nonce(&self) -> H64 {
 		rlp::decode(&self.seal()[1])
 	}
@@ -542,11 +444,6 @@ impl Header {
 	/// Get the mix hash field of the header.
 	pub fn mix_hash(&self) -> H256 {
 		rlp::decode(&self.seal()[0])
-	}
-
-	/// Set the nonce and mix hash fields of the header.
-	pub fn set_nonce_and_mix_hash(&mut self, nonce: &H64, mix_hash: &H256) {
-		self.set_seal(vec![rlp::encode(mix_hash).into_vec(), rlp::encode(nonce).into_vec()]);
 	}
 }
 
@@ -801,38 +698,6 @@ mod tests {
 
 		let difficulty = ethash.calculate_difficulty(&header, &parent_header);
 		assert_eq!(U256::from_str("1fc50f118efe").unwrap(), difficulty);
-	}
-
-	#[test]
-	fn has_valid_ecip1017_eras_block_reward() {
-		let eras_rounds = 5000000;
-
-		let start_reward: U256 = "4563918244F40000".parse().unwrap();
-
-		let block_number = 0;
-		let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, start_reward, block_number);
-		assert_eq!(0, eras);
-		assert_eq!(U256::from_str("4563918244F40000").unwrap(), reward);
-
-		let block_number = 5000000;
-		let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, start_reward, block_number);
-		assert_eq!(0, eras);
-		assert_eq!(U256::from_str("4563918244F40000").unwrap(), reward);
-
-		let block_number = 10000000;
-		let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, start_reward, block_number);
-		assert_eq!(1, eras);
-		assert_eq!(U256::from_str("3782DACE9D900000").unwrap(), reward);
-
-		let block_number = 20000000;
-		let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, start_reward, block_number);
-		assert_eq!(3, eras);
-		assert_eq!(U256::from_str("2386F26FC1000000").unwrap(), reward);
-
-		let block_number = 80000000;
-		let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, start_reward, block_number);
-		assert_eq!(15, eras);
-		assert_eq!(U256::from_str("271000000000000").unwrap(), reward);
 	}
 
 	#[test]

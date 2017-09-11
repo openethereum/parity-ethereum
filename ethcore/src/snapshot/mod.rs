@@ -25,7 +25,7 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
 use account_db::{AccountDB, AccountDBMut};
 use blockchain::{BlockChain, BlockProvider};
-use engines::Engine;
+use engines::{Engine, EthEngine};
 use header::Header;
 use ids::BlockId;
 
@@ -124,7 +124,7 @@ impl Progress {
 }
 /// Take a snapshot using the given blockchain, starting block hash, and database, writing into the given writer.
 pub fn take_snapshot<W: SnapshotWriter + Send>(
-	engine: &Engine,
+	engine: &EthEngine,
 	chain: &BlockChain,
 	block_at: H256,
 	state_db: &HashDB,
@@ -482,7 +482,7 @@ const POW_VERIFY_RATE: f32 = 0.02;
 /// Verify an old block with the given header, engine, blockchain, body. If `always` is set, it will perform
 /// the fullest verification possible. If not, it will take a random sample to determine whether it will
 /// do heavy or light verification.
-pub fn verify_old_block(rng: &mut OsRng, header: &Header, engine: &Engine, chain: &BlockChain, body: Option<&[u8]>, always: bool) -> Result<(), ::error::Error> {
+pub fn verify_old_block(rng: &mut OsRng, header: &Header, engine: &EthEngine, chain: &BlockChain, body: Option<&[u8]>, always: bool) -> Result<(), ::error::Error> {
 	engine.verify_block_basic(header, body)?;
 
 	if always || rng.gen::<f32>() <= POW_VERIFY_RATE {

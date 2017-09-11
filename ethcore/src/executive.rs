@@ -19,7 +19,7 @@ use std::cmp;
 use std::sync::Arc;
 use util::*;
 use state::{Backend as StateBackend, State, Substate, CleanupMode};
-use engines::Engine;
+use machine::EthereumMachine as Machine;
 use vm::EnvInfo;
 use error::ExecutionError;
 use evm::{CallType, Factory, Finalize, FinalizationResult};
@@ -137,10 +137,8 @@ impl TransactOptions<trace::NoopTracer, trace::NoopVMTracer> {
 	}
 }
 
-pub fn executor<E>(engine: &E, vm_factory: &Factory, params: &ActionParams)
-	-> Box<vm::Vm> where E: Engine + ?Sized
-{
-	if engine.supports_wasm() && params.code.as_ref().map_or(false, |code| code.len() > 4 && &code[0..4] == WASM_MAGIC_NUMBER) {
+pub fn executor(machine: &Machine, vm_factory: &Factory, params: &ActionParams) -> Box<vm::Vm> {
+	if machine.supports_wasm() && params.code.as_ref().map_or(false, |code| code.len() > 4 && &code[0..4] == WASM_MAGIC_NUMBER) {
 		Box::new(
 			wasm::WasmInterpreter::new()
 				// prefer to fail fast
@@ -152,32 +150,32 @@ pub fn executor<E>(engine: &E, vm_factory: &Factory, params: &ActionParams)
 }
 
 /// Transaction executor.
-pub struct Executive<'a, B: 'a + StateBackend, E: 'a + Engine + ?Sized> {
+pub struct Executive<'a, B: 'a + StateBackend> {
 	state: &'a mut State<B>,
 	info: &'a EnvInfo,
-	engine: &'a E,
+	machine: &'a Machine,
 	depth: usize,
 	static_flag: bool,
 }
 
-impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
+impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 	/// Basic constructor.
-	pub fn new(state: &'a mut State<B>, info: &'a EnvInfo, engine: &'a E) -> Self {
+	pub fn new(state: &'a mut State<B>, info: &'a EnvInfo, machine: &'a Machine) -> Self {
 		Executive {
 			state: state,
 			info: info,
-			engine: engine,
+			machine: machine,
 			depth: 0,
 			static_flag: false,
 		}
 	}
 
 	/// Populates executive from parent properties. Increments executive depth.
-	pub fn from_parent(state: &'a mut State<B>, info: &'a EnvInfo, engine: &'a E, parent_depth: usize, static_flag: bool) -> Self {
+	pub fn from_parent(state: &'a mut State<B>, info: &'a EnvInfo, machine: &'a Machine, parent_depth: usize, static_flag: bool) -> Self {
 		Executive {
 			state: state,
 			info: info,
-			engine: engine,
+			machine: machine,
 			depth: parent_depth + 1,
 			static_flag: static_flag,
 		}
@@ -192,9 +190,9 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 		tracer: &'any mut T,
 		vm_tracer: &'any mut V,
 		static_call: bool,
-	) -> Externalities<'any, T, V, B, E> where T: Tracer, V: VMTracer {
+	) -> Externalities<'any, T, V, B> where T: Tracer, V: VMTracer {
 		let is_static = self.static_flag || static_call;
-		Externalities::new(self.state, self.info, self.engine, self.depth, origin_info, substate, output, tracer, vm_tracer, is_static)
+		Externalities::new(self.state, self.info, self.machine, self.depth, origin_info, substate, output, tracer, vm_tracer, is_static)
 	}
 
 	/// This function should be used to execute transaction.
@@ -232,7 +230,7 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 		let sender = t.sender();
 		let nonce = self.state.nonce(&sender)?;
 
-		let schedule = self.engine.schedule(self.info.number);
+		let schedule = self.machine.schedule(self.info.number);
 		let base_gas_required = U256::from(t.gas_required(&schedule));
 
 		if t.gas < base_gas_required {
@@ -280,7 +278,7 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 
 		let (result, output) = match t.action {
 			Action::Create => {
-				let (new_address, code_hash) = contract_address(self.engine.create_address_scheme(self.info.number), &sender, &nonce, &t.data);
+				let (new_address, code_hash) = contract_address(self.machine.create_address_scheme(self.info.number), &sender, &nonce, &t.data);
 				let params = ActionParams {
 					code_address: new_address.clone(),
 					code_hash: code_hash,
@@ -336,19 +334,19 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 			let vm_factory = self.state.vm_factory();
 			let mut ext = self.as_externalities(OriginInfo::from(&params), unconfirmed_substate, output_policy, tracer, vm_tracer, static_call);
 			trace!(target: "executive", "ext.schedule.have_delegate_call: {}", ext.schedule().have_delegate_call);
-			return executor(self.engine, &vm_factory, &params).exec(params, &mut ext).finalize(ext);
+			return executor(self.machine, &vm_factory, &params).exec(params, &mut ext).finalize(ext);
 		}
 
 		// Start in new thread to reset stack
 		// TODO [todr] No thread builder yet, so we need to reset once for a while
 		// https://github.com/aturon/crossbeam/issues/16
 		crossbeam::scope(|scope| {
-			let engine = self.engine;
+			let machine = self.machine;
 			let vm_factory = self.state.vm_factory();
 			let mut ext = self.as_externalities(OriginInfo::from(&params), unconfirmed_substate, output_policy, tracer, vm_tracer, static_call);
 
 			scope.spawn(move || {
-				executor(engine, &vm_factory, &params).exec(params, &mut ext).finalize(ext)
+				executor(machine, &vm_factory, &params).exec(params, &mut ext).finalize(ext)
 			})
 		}).join()
 	}
@@ -377,7 +375,7 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 		// backup used in case of running out of gas
 		self.state.checkpoint();
 
-		let schedule = self.engine.schedule(self.info.number);
+		let schedule = self.machine.schedule(self.info.number);
 
 		// at first, transfer value to destination
 		if let ActionValue::Transfer(val) = params.value {
@@ -385,7 +383,7 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 		}
 
 		// if destination is builtin, try to execute it
-		if let Some(builtin) = self.engine.builtin(&params.code_address, self.info.number) {
+		if let Some(builtin) = self.machine.builtin(&params.code_address, self.info.number) {
 			// Engines aren't supposed to return builtins until activation, but
 			// prefer to fail rather than silently break consensus.
 			if !builtin.is_active(self.info.number) {
@@ -491,7 +489,7 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 		vm_tracer: &mut V,
 	) -> vm::Result<(U256, ReturnData)> where T: Tracer, V: VMTracer {
 
-		let scheme = self.engine.create_address_scheme(self.info.number);
+		let scheme = self.machine.create_address_scheme(self.info.number);
 		if scheme != CreateContractAddress::FromSenderAndNonce && self.state.exists_and_has_code(&params.address)? {
 			return Err(vm::Error::OutOfGas);
 		}
@@ -509,7 +507,7 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 		let mut unconfirmed_substate = Substate::new();
 
 		// create contract and transfer value to it if necessary
-		let schedule = self.engine.schedule(self.info.number);
+		let schedule = self.machine.schedule(self.info.number);
 		let nonce_offset = if schedule.no_empty {1} else {0}.into();
 		let prev_bal = self.state.balance(&params.address)?;
 		if let ActionValue::Transfer(val) = params.value {
@@ -558,7 +556,7 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 		trace: Vec<FlatTrace>,
 		vm_trace: Option<VMTrace>
 	) -> ExecutionResult {
-		let schedule = self.engine.schedule(self.info.number);
+		let schedule = self.machine.schedule(self.info.number);
 
 		// refunds from SSTORE nonzero -> zero
 		let sstore_refunds = U256::from(schedule.sstore_refund_gas) * substate.sstore_clears_count;

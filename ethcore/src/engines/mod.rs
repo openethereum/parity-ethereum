@@ -16,24 +16,24 @@
 
 //! Consensus engine specification and basic implementations.
 
-mod authority_round;
-mod basic_authority;
-mod instant_seal;
-mod null_engine;
-mod signer;
-mod tendermint;
-mod transition;
-mod validator_set;
-mod vote_collector;
+// mod authority_round;
+// mod basic_authority;
+// mod instant_seal;
+// mod null_engine;
+// mod signer;
+// mod tendermint;
+// mod transition;
+// mod validator_set;
+// mod vote_collector;
 
 pub mod epoch;
 
-pub use self::authority_round::AuthorityRound;
-pub use self::basic_authority::BasicAuthority;
+// pub use self::authority_round::AuthorityRound;
+// pub use self::basic_authority::BasicAuthority;
 pub use self::epoch::{EpochVerifier, Transition as EpochTransition};
-pub use self::instant_seal::InstantSeal;
-pub use self::null_engine::NullEngine;
-pub use self::tendermint::Tendermint;
+// pub use self::instant_seal::InstantSeal;
+// pub use self::null_engine::NullEngine;
+// pub use self::tendermint::Tendermint;
 
 use std::sync::{Weak, Arc};
 use std::collections::{BTreeMap, HashMap};
@@ -174,7 +174,7 @@ pub enum Unsure {
 
 /// A consensus mechanism for the chain. Generally either proof-of-work or proof-of-stake-based.
 /// Provides hooks into each of the major parts of block import.
-pub trait Engine<M: Machine> Sync + Send {
+pub trait Engine<M: Machine>: Sync + Send {
 	/// The name of this engine.
 	fn name(&self) -> &str;
 	/// The version of this engine. Should be of the form
@@ -205,10 +205,7 @@ pub trait Engine<M: Machine> Sync + Send {
 		block: &mut ExecutedBlock,
 		last_hashes: Arc<LastHashes>,
 		_epoch_begin: bool,
-	) -> Result<(), Error> {
-		let parent_hash = block.fields().header.parent_hash().clone();
-		common::push_last_hash(block, last_hashes, self, &parent_hash)
-	}
+	) -> Result<(), Error>;
 
 	/// Block transformation functions, after the transactions.
 	fn on_close_block(&self, _block: &mut ExecutedBlock) -> Result<(), Error> {
@@ -242,15 +239,6 @@ pub trait Engine<M: Machine> Sync + Send {
 
 	/// Phase 4 verification. Verify block header against potentially external data.
 	fn verify_block_external(&self, _header: &Header, _block: Option<&[u8]>) -> Result<(), Error> { Ok(()) }
-
-	/// Additional verification for transactions in blocks.
-	// TODO: Add flags for which bits of the transaction to check.
-	// TODO: consider including State in the params.
-	// TODO: move to machine.
-	fn verify_transaction_basic(&self, t: &UnverifiedTransaction, _header: &Header) -> Result<(), Error> {
-		t.verify_basic(true, Some(self.params().chain_id), true)?;
-		Ok(())
-	}
 
 	/// Verify the seal of a block. This is an auxilliary method that actually just calls other `verify_` methods
 	/// to get the job done. By default it must pass `verify_basic` and `verify_block_unordered`. If more or fewer
@@ -346,162 +334,65 @@ pub trait Engine<M: Machine> Sync + Send {
 // TODO: make this a _trait_ alias when those exist.
 // fortunately the effect is largely the same since engines are mostly used
 // via trait objects.
-pub type EthEngine = Engine<::machine::EthereumMachine>;
-
-// convenience wrappers for existing functions.
-impl<T: ?Sized> T where T: Engine<::machine::EthereumMachine> {
+pub trait EthEngine: Engine<::machine::EthereumMachine> {
 	/// Get the general parameters of the chain.
-	pub fn params(&self) -> &CommonParams {
+	fn params(&self) -> &CommonParams {
 		self.machine().params()
 	}
 
 	/// Get the EVM schedule for the given block number.
-	pub fn schedule(&self, block_number: BlockNumber) -> Schedule {
+	fn schedule(&self, block_number: BlockNumber) -> Schedule {
 		self.machine().schedule(block_number)
 	}
 
 	/// Builtin-contracts for the chain..
-	pub fn builtins(&self) -> &BTreeMap<Address, Builtin> {
+	fn builtins(&self) -> &BTreeMap<Address, Builtin> {
 		self.machine().builtins()
 	}
 
 	/// Attempt to get a handle to a built-in contract.
 	/// Only returns references to activated built-ins.
-	pub fn builtin(&self, a: &Address, block_number: BlockNumber) -> Option<&Builtin> {
+	fn builtin(&self, a: &Address, block_number: BlockNumber) -> Option<&Builtin> {
 		self.machine().builtin(a, block_number)
 	}
 
 	/// Some intrinsic operation parameters; by default they take their value from the `spec()`'s `engine_params`.
-	pub fn maximum_extra_data_size(&self) -> usize {
+	fn maximum_extra_data_size(&self) -> usize {
 		self.machine().maximum_extra_data_size()
 	}
 
 	/// The nonce with which accounts begin at given block.
-	pub fn account_start_nonce(&self, block: u64) -> U256 {
+	fn account_start_nonce(&self, block: u64) -> U256 {
 		self.machine().account_start_nonce(block)
 	}
 
 	/// The network ID that transactions should be signed with.
-	pub fn signing_chain_id(&self, env_info: &EnvInfo) -> Option<u64> {
+	fn signing_chain_id(&self, env_info: &EnvInfo) -> Option<u64> {
 		self.machine().signing_chain_id(env_info)
 	}
 
 	/// Returns new contract address generation scheme at given block number.
-	pub fn create_address_scheme(&self, number: BlockNumber) -> CreateContractAddress {
+	fn create_address_scheme(&self, number: BlockNumber) -> CreateContractAddress {
 		self.machine().create_address_scheme(number)
 	}
 
 	/// Verify a particular transaction is valid.
-	pub fn verify_transaction(&self, t: UnverifiedTransaction, header: &Header) -> Result<SignedTransaction, Error> {
+	fn verify_transaction(&self, t: UnverifiedTransaction, header: &Header) -> Result<SignedTransaction, Error> {
 		self.machine().verify_transaction(t, header)
 	}
 
+	/// Additional verification for transactions in blocks.
+	// TODO: Add flags for which bits of the transaction to check.
+	// TODO: consider including State in the params.
+	fn verify_transaction_basic(&self, t: &UnverifiedTransaction, header: &Header) -> Result<(), Error> {
+		self.machine().verify_transaction_basic(t, header)
+	}
+
 	/// If this machine supports wasm.
-	pub fn supports_wasm(&self) -> bool {
+	fn supports_wasm(&self) -> bool {
 		self.machine().supports_wasm()
 	}
 }
 
-/// Common engine utilities
-pub mod common {
-	use std::sync::Arc;
-	use block::ExecutedBlock;
-	use error::Error;
-	use transaction::SYSTEM_ADDRESS;
-	use executive::Executive;
-	use vm::{CallType, ActionParams, ActionValue, EnvInfo, LastHashes};
-	use trace::{NoopTracer, NoopVMTracer, Tracer, ExecutiveTracer, RewardType};
-	use state::Substate;
-	use state::CleanupMode;
-
-	use util::*;
-	use super::Engine;
-
-	/// Execute a call as the system address.
-	pub fn execute_as_system<E: Engine + ?Sized>(
-		block: &mut ExecutedBlock,
-		last_hashes: Arc<LastHashes>,
-		engine: &E,
-		contract_address: Address,
-		gas: U256,
-		data: Option<Bytes>,
-	) -> Result<Bytes, Error> {
-		let env_info = {
-			let header = block.fields().header;
-			EnvInfo {
-				number: header.number(),
-				author: header.author().clone(),
-				timestamp: header.timestamp(),
-				difficulty: header.difficulty().clone(),
-				last_hashes: last_hashes,
-				gas_used: U256::zero(),
-				gas_limit: gas,
-			}
-		};
-
-		let mut state = block.fields_mut().state;
-		let params = ActionParams {
-			code_address: contract_address.clone(),
-			address: contract_address.clone(),
-			sender: SYSTEM_ADDRESS.clone(),
-			origin: SYSTEM_ADDRESS.clone(),
-			gas: gas,
-			gas_price: 0.into(),
-			value: ActionValue::Transfer(0.into()),
-			code: state.code(&contract_address)?,
-			code_hash: Some(state.code_hash(&contract_address)?),
-			data: data,
-			call_type: CallType::Call,
-		};
-		let mut ex = Executive::new(&mut state, &env_info, engine);
-		let mut substate = Substate::new();
-		let mut output = Vec::new();
-		if let Err(e) = ex.call(params, &mut substate, BytesRef::Flexible(&mut output), &mut NoopTracer, &mut NoopVMTracer) {
-			warn!("Encountered error on making system call: {}", e);
-		}
-
-		Ok(output)
-	}
-
-	/// Push last known block hash to the state.
-	pub fn push_last_hash<E: Engine + ?Sized>(block: &mut ExecutedBlock, last_hashes: Arc<LastHashes>, engine: &E, hash: &H256) -> Result<(), Error> {
-		if block.fields().header.number() == engine.params().eip210_transition {
-			let state = block.fields_mut().state;
-			state.init_code(&engine.params().eip210_contract_address, engine.params().eip210_contract_code.clone())?;
-		}
-		if block.fields().header.number() >= engine.params().eip210_transition {
-			let _ = execute_as_system(
-				block,
-				last_hashes,
-				engine,
-				engine.params().eip210_contract_address,
-				engine.params().eip210_contract_gas,
-				Some(hash.to_vec()),
-			)?;
-		}
-		Ok(())
-	}
-
-	/// Trace rewards on closing block
-	pub fn bestow_block_reward<E: Engine + ?Sized>(block: &mut ExecutedBlock, engine: &E) -> Result<(), Error> {
-		let fields = block.fields_mut();
-		// Bestow block reward
-		let reward = engine.params().block_reward;
-		let res = fields.state.add_balance(fields.header.author(), &reward, CleanupMode::NoEmpty)
-			.map_err(::error::Error::from)
-			.and_then(|_| fields.state.commit());
-
-		let block_author = fields.header.author().clone();
-		fields.traces.as_mut().map(|mut traces| {
-  			let mut tracer = ExecutiveTracer::default();
-  			tracer.trace_reward(block_author, engine.params().block_reward, RewardType::Block);
-  			traces.push(tracer.drain())
-		});
-
-		// Commit state so that we can actually figure out the state root.
-		if let Err(ref e) = res {
-			warn!("Encountered error on bestowing reward: {}", e);
-		}
-		res
-	}
-}
+// convenience wrappers for existing functions.
+impl<T> EthEngine for T where T: Engine<::machine::EthereumMachine> { }

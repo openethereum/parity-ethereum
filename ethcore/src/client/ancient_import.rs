@@ -19,7 +19,7 @@
 use std::sync::Arc;
 
 use blockchain::BlockChain;
-use engines::{Engine, EpochVerifier};
+use engines::{Engine, EthEngine, EpochVerifier};
 use header::Header;
 
 use rand::Rng;
@@ -32,12 +32,12 @@ const HEAVY_VERIFY_RATE: f32 = 0.02;
 /// epoch.
 pub struct AncientVerifier {
 	cur_verifier: RwLock<Box<EpochVerifier>>,
-	engine: Arc<Engine>,
+	engine: Arc<EthEngine>,
 }
 
 impl AncientVerifier {
 	/// Create a new ancient block verifier with the given engine and initial verifier.
-	pub fn new(engine: Arc<Engine>, start_verifier: Box<EpochVerifier>) -> Self {
+	pub fn new(engine: Arc<EthEngine>, start_verifier: Box<EpochVerifier>) -> Self {
 		AncientVerifier {
 			cur_verifier: RwLock::new(start_verifier),
 			engine: engine,

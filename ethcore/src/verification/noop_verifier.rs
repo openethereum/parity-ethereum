@@ -17,7 +17,7 @@
 //! No-op verifier.
 
 use blockchain::BlockProvider;
-use engines::Engine;
+use engines::EthEngine;
 use error::Error;
 use header::Header;
 use super::Verifier;
@@ -27,7 +27,7 @@ use super::Verifier;
 pub struct NoopVerifier;
 
 impl Verifier for NoopVerifier {
-	fn verify_block_family(&self, _header: &Header, _bytes: &[u8], _engine: &Engine, _bc: &BlockProvider) -> Result<(), Error> {
+	fn verify_block_family(&self, _header: &Header, _bytes: &[u8], _engine: &EthEngine, _bc: &BlockProvider) -> Result<(), Error> {
 		Ok(())
 	}
 
@@ -35,7 +35,7 @@ impl Verifier for NoopVerifier {
 		Ok(())
 	}
 
-	fn verify_block_external(&self, _header: &Header, _bytes: &[u8], _engine: &Engine) -> Result<(), Error> {
+	fn verify_block_external(&self, _header: &Header, _bytes: &[u8], _engine: &EthEngine) -> Result<(), Error> {
 		Ok(())
 	}
 }

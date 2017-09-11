@@ -30,7 +30,7 @@ use error::*;
 use transaction::{Action, UnverifiedTransaction, PendingTransaction, SignedTransaction, Condition as TransactionCondition};
 use receipt::{Receipt, RichReceipt};
 use spec::Spec;
-use engines::{Engine, Seal};
+use engines::{Engine, EthEngine, Seal};
 use miner::{MinerService, MinerStatus, TransactionQueue, RemovalReason, TransactionQueueDetailsProvider, PrioritizationStrategy,
 	AccountDetails, TransactionOrigin};
 use miner::banning_queue::{BanningTransactionQueue, Threshold};
@@ -234,7 +234,7 @@ pub struct Miner {
 	gas_range_target: RwLock<(U256, U256)>,
 	author: RwLock<Address>,
 	extra_data: RwLock<Bytes>,
-	engine: Arc<Engine>,
+	engine: Arc<EthEngine>,
 
 	accounts: Option<Arc<AccountProvider>>,
 	notifiers: RwLock<Vec<Box<NotifyWork>>>,

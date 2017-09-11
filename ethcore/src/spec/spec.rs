@@ -25,7 +25,7 @@ use super::genesis::Genesis;
 use super::seal::Generic as GenericSeal;
 
 use builtin::Builtin;
-use engines::{Engine, NullEngine, InstantSeal, BasicAuthority, AuthorityRound, Tendermint, DEFAULT_BLOCKHASH_CONTRACT};
+use engines::{EthEngine, /* NullEngine, InstantSeal, BasicAuthority, AuthorityRound, Tendermint, */ DEFAULT_BLOCKHASH_CONTRACT};
 use vm::{EnvInfo, CallType, ActionValue, ActionParams};
 use error::Error;
 use ethereum;
@@ -109,7 +109,7 @@ pub struct CommonParams {
 impl CommonParams {
 	/// Schedule for an EVM in the post-EIP-150-era of the Ethereum main net.
 	pub fn schedule(&self, block_number: u64) -> ::vm::Schedule {
-		let mut schedule = ::vm::Schedule::new_post_eip150(self.max_code_size, true, true, true);
+		let mut schedule = ::vm::Schedule::new_post_eip150(self.max_code_size as _, true, true, true);
 		self.update_schedule(block_number, &mut schedule);
 		schedule
 	}
@@ -187,7 +187,7 @@ pub struct Spec {
 	/// User friendly spec name
 	pub name: String,
 	/// What engine are we using for this?
-	pub engine: Arc<Engine>,
+	pub engine: Arc<EthEngine>,
 	/// Name of the subdir inside the main data dir to use for chain data and settings.
 	pub data_dir: String,
 
@@ -277,15 +277,17 @@ impl Spec {
 		engine_spec: ethjson::spec::Engine,
 		params: CommonParams,
 		builtins: BTreeMap<Address, Builtin>,
-	) -> Arc<Engine> {
-		match engine_spec {
-			ethjson::spec::Engine::Null => Arc::new(NullEngine::new(params, builtins)),
-			ethjson::spec::Engine::InstantSeal => Arc::new(InstantSeal::new(params, builtins)),
-			ethjson::spec::Engine::Ethash(ethash) => Arc::new(ethereum::Ethash::new(cache_dir, params, From::from(ethash.params), builtins)),
-			ethjson::spec::Engine::BasicAuthority(basic_authority) => Arc::new(BasicAuthority::new(params, From::from(basic_authority.params), builtins)),
-			ethjson::spec::Engine::AuthorityRound(authority_round) => AuthorityRound::new(params, From::from(authority_round.params), builtins).expect("Failed to start AuthorityRound consensus engine."),
-			ethjson::spec::Engine::Tendermint(tendermint) => Tendermint::new(params, From::from(tendermint.params), builtins).expect("Failed to start the Tendermint consensus engine."),
-		}
+	) -> Arc<EthEngine> {
+		// TODO: instantiate ethash-specific params.
+		// match engine_spec {
+		// 	ethjson::spec::Engine::Null => Arc::new(NullEngine::new(params, builtins)),
+		// 	ethjson::spec::Engine::InstantSeal => Arc::new(InstantSeal::new(params, builtins)),
+		// 	ethjson::spec::Engine::Ethash(ethash) => Arc::new(ethereum::Ethash::new(cache_dir, params, From::from(ethash.params), builtins)),
+		// 	ethjson::spec::Engine::BasicAuthority(basic_authority) => Arc::new(BasicAuthority::new(params, From::from(basic_authority.params), builtins)),
+		// 	ethjson::spec::Engine::AuthorityRound(authority_round) => AuthorityRound::new(params, From::from(authority_round.params), builtins).expect("Failed to start AuthorityRound consensus engine."),
+		// 	ethjson::spec::Engine::Tendermint(tendermint) => Tendermint::new(params, From::from(tendermint.params), builtins).expect("Failed to start the Tendermint consensus engine."),
+		// }
+		unimplemented!()
 	}
 
 	// given a pre-constructor state, run all the given constructors and produce a new state and state root.
@@ -351,7 +353,7 @@ impl Spec {
 				let mut substate = Substate::new();
 
 				{
-					let mut exec = Executive::new(&mut state, &env_info, self.engine.as_ref());
+					let mut exec = Executive::new(&mut state, &env_info, self.engine.machine());
 					if let Err(e) = exec.create(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer) {
 						warn!(target: "spec", "Genesis constructor execution at {} failed: {}.", address, e);
 					}

@@ -26,7 +26,7 @@ use util::error::{Mismatch, OutOfBounds};
 
 use basic_types::{LogBloom, Seal};
 use vm::{EnvInfo, LastHashes};
-use engines::Engine;
+use engines::EthEngine;
 use error::{Error, BlockError, TransactionError};
 use factory::Factories;
 use header::Header;
@@ -217,7 +217,7 @@ impl IsBlock for ExecutedBlock {
 /// maintain the system `state()`. We also archive execution receipts in preparation for later block creation.
 pub struct OpenBlock<'x> {
 	block: ExecutedBlock,
-	engine: &'x Engine,
+	engine: &'x EthEngine,
 	last_hashes: Arc<LastHashes>,
 }
 
@@ -254,7 +254,7 @@ impl<'x> OpenBlock<'x> {
 	#[cfg_attr(feature="dev", allow(too_many_arguments))]
 	/// Create a new `OpenBlock` ready for transaction pushing.
 	pub fn new(
-		engine: &'x Engine,
+		engine: &'x EthEngine,
 		factories: Factories,
 		tracing: bool,
 		db: StateDB,
@@ -360,7 +360,7 @@ impl<'x> OpenBlock<'x> {
 
 		let env_info = self.env_info();
 //		info!("env_info says gas_used={}", env_info.gas_used);
-		match self.block.state.apply(&env_info, self.engine, &t, self.block.traces.is_some()) {
+		match self.block.state.apply(&env_info, self.engine.machine(), &t, self.block.traces.is_some()) {
 			Ok(outcome) => {
 				self.block.transactions_set.insert(h.unwrap_or_else(||t.hash()));
 				self.block.transactions.push(t.into());
@@ -398,7 +398,7 @@ impl<'x> OpenBlock<'x> {
 		if let Err(e) = s.engine.on_close_block(&mut s.block) {
 			warn!("Encountered error on closing the block: {}", e);
 		}
-		
+
 		if let Err(e) = s.block.state.commit() {
 			warn!("Encountered error on state commit: {}", e);
 		}
@@ -480,7 +480,7 @@ impl ClosedBlock {
 	}
 
 	/// Given an engine reference, reopen the `ClosedBlock` into an `OpenBlock`.
-	pub fn reopen(self, engine: &Engine) -> OpenBlock {
+	pub fn reopen(self, engine: &EthEngine) -> OpenBlock {
 		// revert rewards (i.e. set state back at last transaction's state).
 		let mut block = self.block;
 		block.state = self.unclosed_state;
@@ -499,7 +499,7 @@ impl LockedBlock {
 	/// Provide a valid seal in order to turn this into a `SealedBlock`.
 	///
 	/// NOTE: This does not check the validity of `seal` with the engine.
-	pub fn seal(self, engine: &Engine, seal: Vec<Bytes>) -> Result<SealedBlock, BlockError> {
+	pub fn seal(self, engine: &EthEngine, seal: Vec<Bytes>) -> Result<SealedBlock, BlockError> {
 		let mut s = self;
 		if seal.len() != engine.seal_fields() {
 			return Err(BlockError::InvalidSealArity(Mismatch{expected: engine.seal_fields(), found: seal.len()}));
@@ -513,7 +513,7 @@ impl LockedBlock {
 	/// Returns the `ClosedBlock` back again if the seal is no good.
 	pub fn try_seal(
 		self,
-		engine: &Engine,
+		engine: &EthEngine,
 		seal: Vec<Bytes>,
 	) -> Result<SealedBlock, (Error, LockedBlock)> {
 		let mut s = self;
@@ -570,7 +570,7 @@ pub fn enact(
 	header: &Header,
 	transactions: &[SignedTransaction],
 	uncles: &[Header],
-	engine: &Engine,
+	engine: &EthEngine,
 	tracing: bool,
 	db: StateDB,
 	parent: &Header,
@@ -642,7 +642,7 @@ fn push_transactions(block: &mut OpenBlock, transactions: &[SignedTransaction]) 
 #[cfg_attr(feature="dev", allow(too_many_arguments))]
 pub fn enact_verified(
 	block: &PreverifiedBlock,
-	engine: &Engine,
+	engine: &EthEngine,
 	tracing: bool,
 	db: StateDB,
 	parent: &Header,
@@ -670,7 +670,7 @@ pub fn enact_verified(
 mod tests {
 	use tests::helpers::*;
 	use super::*;
-	use engines::Engine;
+	use engines::EthEngine;
 	use vm::LastHashes;
 	use error::Error;
 	use header::Header;
@@ -685,7 +685,7 @@ mod tests {
 	#[cfg_attr(feature="dev", allow(too_many_arguments))]
 	fn enact_bytes(
 		block_bytes: &[u8],
-		engine: &Engine,
+		engine: &EthEngine,
 		tracing: bool,
 		db: StateDB,
 		parent: &Header,
@@ -732,7 +732,7 @@ mod tests {
 	#[cfg_attr(feature="dev", allow(too_many_arguments))]
 	fn enact_and_seal(
 		block_bytes: &[u8],
-		engine: &Engine,
+		engine: &EthEngine,
 		tracing: bool,
 		db: StateDB,
 		parent: &Header,

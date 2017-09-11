@@ -792,18 +792,6 @@ impl Engine for AuthorityRound {
 		}
 	}
 
-	fn verify_transaction_basic(&self, t: &UnverifiedTransaction, header: &Header) -> Result<(), Error> {
-		t.check_low_s()?;
-
-		if let Some(n) = t.chain_id() {
-			if header.number() >= self.params().eip155_transition && n != self.params().chain_id {
-				return Err(TransactionError::InvalidChainId.into());
-			}
-		}
-
-		Ok(())
-	}
-
 	fn register_client(&self, client: Weak<Client>) {
 		*self.client.write() = Some(client.clone());
 		self.validators.register_contract(client);
