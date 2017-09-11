@@ -18,7 +18,7 @@ import sinon from 'sinon';
 
 import AccountStore from './accountStore';
 
-import { ACCOUNT_DEFAULT, ACCOUNT_NEW, createApi } from './parityBar.test.js';
+import { ACCOUNT_NEW, createApi } from './parityBar.test.js';
 
 let api;
 let store;
@@ -86,16 +86,6 @@ describe('views/ParityBar/AccountStore', () => {
 
       it('sets the accounts', () => {
         expect(store.setAccounts).to.have.been.called;
-      });
-    });
-
-    describe('loadDefaultAccount', () => {
-      beforeEach(() => {
-        return store.loadDefaultAccount();
-      });
-
-      it('load and set the default account', () => {
-        expect(store.defaultAccount).to.equal(ACCOUNT_DEFAULT);
       });
     });
 
