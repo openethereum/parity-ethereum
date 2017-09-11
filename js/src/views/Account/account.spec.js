@@ -42,7 +42,7 @@ function render (props) {
           },
           pubsub: {
             subscribeAndGetResult: sinon.stub()
-          },
+          }
         }
       }
     }

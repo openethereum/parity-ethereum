@@ -18,7 +18,7 @@ import sinon from 'sinon';
 
 import AccountStore from './accountStore';
 
-import { ACCOUNT_DEFAULT, ACCOUNT_NEW, createApi } from './parityBar.test.js';
+import { ACCOUNT_NEW, createApi } from './parityBar.test.js';
 
 let api;
 let store;
