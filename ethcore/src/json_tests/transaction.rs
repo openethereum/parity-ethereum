@@ -25,7 +25,7 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 	let mut failed = Vec::new();
 	let frontier_schedule = evm::Schedule::new_frontier();
 	let homestead_schedule = evm::Schedule::new_homestead();
-	let metropolis_schedule = evm::Schedule::new_metropolis();
+	let byzantium_schedule = evm::Schedule::new_byzantium();
 	for (name, test) in tests.into_iter() {
 		let mut fail_unless = |cond: bool, title: &str| if !cond { failed.push(name.clone()); println!("Transaction failed: {:?}: {:?}", name, title); };
 
@@ -34,7 +34,7 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 			None => &frontier_schedule,
 			Some(x) if x < 1_150_000 => &frontier_schedule,
 			Some(x) if x < 3_000_000 => &homestead_schedule,
-			Some(_) => &metropolis_schedule
+			Some(_) => &byzantium_schedule
 		};
 		let allow_chain_id_of_one = number.map_or(false, |n| n >= 2_675_000);
 		let allow_unsigned = number.map_or(false, |n| n >= 3_000_000);
