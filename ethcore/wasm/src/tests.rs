@@ -418,6 +418,32 @@ fn storage_read() {
 	assert_eq!(Address::from(&result[12..32]), address);
 }
 
+// Tests sha3 calculation
+// sha3.wasm runs sha3 wasm-std function for an empty string and puts hash into result
+#[test]
+fn sha3() {
+	::ethcore_logger::init_log();
+	let code = load_sample!("sha3.wasm");
+
+	let mut params = ActionParams::default();
+	params.gas = U256::from(100_000);
+	params.code = Some(Arc::new(code));
+	let mut ext = FakeExt::new();
+
+	let (gas_left, result) = {
+		let mut interpreter = wasm_interpreter();
+		let result = interpreter.exec(params, &mut ext).expect("Interpreter to execute without any errors");
+		match result {
+				GasLeft::Known(_) => { panic!("sha3 should return payload"); },
+				GasLeft::NeedsReturn { gas_left: gas, data: result, apply_state: _apply } => (gas, result.to_vec()),
+		}
+	};
+
+	assert_eq!(H256::from_slice(&result), H256::from("c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"));
+	assert_eq!(gas_left, U256::from(84240));
+}
+
+
 macro_rules! reqrep_test {
 	($name: expr, $input: expr) => {
 		reqrep_test!($name, $input, vm::EnvInfo::default(), HashMap::new())
