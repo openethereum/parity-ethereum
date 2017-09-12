@@ -203,12 +203,11 @@ pub trait Engine<M: Machine>: Sync + Send {
 	fn on_new_block(
 		&self,
 		block: &mut M::LiveBlock,
-		last_hashes: Arc<LastHashes>,
 		_epoch_begin: bool,
-	) -> Result<(), Error>;
+	) -> Result<(), M::Error>;
 
 	/// Block transformation functions, after the transactions.
-	fn on_close_block(&self, _block: &mut ExecutedBlock) -> Result<(), Error> {
+	fn on_close_block(&self, _block: &mut M::LiveBlock) -> Result<(), M::Error> {
 		Ok(())
 	}
 
@@ -223,32 +222,24 @@ pub trait Engine<M: Machine>: Sync + Send {
 	///
 	/// This operation is synchronous and may (quite reasonably) not be available, in which None will
 	/// be returned.
-	fn generate_seal(&self, _block: &ExecutedBlock) -> Seal { Seal::None }
+	fn generate_seal(&self, _block: &M::LiveBlock) -> Seal { Seal::None }
 
-	/// Phase 1 quick block verification. Only does checks that are cheap. `block` (the header's full block)
-	/// may be provided for additional checks. Returns either a null `Ok` or a general error detailing the problem with import.
-	fn verify_block_basic(&self, _header: &Header,  _block: Option<&[u8]>) -> Result<(), Error> { Ok(()) }
+	/// Phase 1 quick block verification. Only does checks that are cheap. Returns either a null `Ok` or a general error detailing the problem with import.
+	fn verify_block_basic(&self, _header: &M::Header) -> Result<(), M::Error> { Ok(()) }
 
 	/// Phase 2 verification. Perform costly checks such as transaction signatures. `block` (the header's full block)
 	/// may be provided for additional checks. Returns either a null `Ok` or a general error detailing the problem with import.
-	fn verify_block_unordered(&self, _header: &Header, _block: Option<&[u8]>) -> Result<(), Error> { Ok(()) }
+	fn verify_block_unordered(&self, _header: &M::Header) -> Result<(), M::Error> { Ok(()) }
 
 	/// Phase 3 verification. Check block information against parent and uncles. `block` (the header's full block)
 	/// may be provided for additional checks. Returns either a null `Ok` or a general error detailing the problem with import.
-	fn verify_block_family(&self, _header: &Header, _parent: &Header, _block: Option<&[u8]>) -> Result<(), Error> { Ok(()) }
+	fn verify_block_family(&self, _header: &M::Header, _parent: &Header, _block: Option<&[u8]>) -> Result<(), Error> { Ok(()) }
 
 	/// Phase 4 verification. Verify block header against potentially external data.
-	fn verify_block_external(&self, _header: &Header, _block: Option<&[u8]>) -> Result<(), Error> { Ok(()) }
-
-	/// Verify the seal of a block. This is an auxilliary method that actually just calls other `verify_` methods
-	/// to get the job done. By default it must pass `verify_basic` and `verify_block_unordered`. If more or fewer
-	/// methods are needed for an Engine, this may be overridden.
-	fn verify_block_seal(&self, header: &Header) -> Result<(), Error> {
-		self.verify_block_basic(header, None).and_then(|_| self.verify_block_unordered(header, None))
-	}
+	fn verify_block_external(&self, _header: &M::Header, _block: Option<&[u8]>) -> Result<(), Error> { Ok(()) }
 
 	/// Genesis epoch data.
-	fn genesis_epoch_data(&self, _header: &Header, _call: &Call) -> Result<Vec<u8>, String> { Ok(Vec::new()) }
+	fn genesis_epoch_data(&self, _header: &M::Header, _call: &Call) -> Result<Vec<u8>, String> { Ok(Vec::new()) }
 
 	/// Whether an epoch change is signalled at the given header but will require finality.
 	/// If a change can be enacted immediately then return `No` from this function but
@@ -259,7 +250,7 @@ pub trait Engine<M: Machine>: Sync + Send {
 	/// Return `Yes` or `No` when the answer is definitively known.
 	///
 	/// Should not interact with state.
-	fn signals_epoch_end(&self, _header: &Header, _block: Option<&[u8]>, _receipts: Option<&[Receipt]>)
+	fn signals_epoch_end(&self, _header: &M::Header, _block: Option<&[u8]>, _receipts: Option<&[Receipt]>)
 		-> EpochChange
 	{
 		EpochChange::No
@@ -274,7 +265,7 @@ pub trait Engine<M: Machine>: Sync + Send {
 	/// Return optional transition proof.
 	fn is_epoch_end(
 		&self,
-		_chain_head: &Header,
+		_chain_head: &M::Header,
 		_chain: &Headers,
 		_transition_store: &PendingTransitionStore,
 	) -> Option<Vec<u8>> {
@@ -283,25 +274,25 @@ pub trait Engine<M: Machine>: Sync + Send {
 
 	/// Create an epoch verifier from validation proof and a flag indicating
 	/// whether finality is required.
-	fn epoch_verifier<'a>(&self, _header: &Header, _proof: &'a [u8]) -> ConstructedVerifier<'a> {
+	fn epoch_verifier<'a>(&self, _header: &M::Header, _proof: &'a [u8]) -> ConstructedVerifier<'a> {
 		ConstructedVerifier::Trusted(Box::new(self::epoch::NoOp))
 	}
 
 	/// Populate a header's fields based on its parent's header.
 	/// Usually implements the chain scoring rule based on weight.
 	/// The gas floor target must not be lower than the engine's minimum gas limit.
-	fn populate_from_parent(&self, header: &mut Header, parent: &Header, _gas_floor_target: U256, _gas_ceil_target: U256) {
+	fn populate_from_parent(&self, header: &mut M::Header, parent: &M::Header) {
 		header.set_difficulty(parent.difficulty().clone());
 		header.set_gas_limit(parent.gas_limit().clone());
 	}
 
 	/// Handle any potential consensus messages;
 	/// updating consensus state and potentially issuing a new one.
-	fn handle_message(&self, _message: &[u8]) -> Result<(), Error> { Err(EngineError::UnexpectedMessage.into()) }
+	fn handle_message(&self, _message: &[u8]) -> Result<(), M::Error> { Err(EngineError::UnexpectedMessage.into()) }
 
 	/// Find out if the block is a proposal block and should not be inserted into the DB.
 	/// Takes a header of a fully verified block.
-	fn is_proposal(&self, _verified_header: &Header) -> bool { false }
+	fn is_proposal(&self, _verified_header: &M::Header) -> bool { false }
 
 	/// Register an account which signs consensus messages.
 	fn set_signer(&self, _account_provider: Arc<AccountProvider>, _address: Address, _password: String) {}

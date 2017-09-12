@@ -149,6 +149,14 @@ impl EthereumMachine {
 		}
 	}
 
+	/// Populate a header's fields based on its parent's header.
+	/// Usually implements the chain scoring rule based on weight.
+	/// The gas floor target must not be lower than the engine's minimum gas limit.
+	pub fn populate_from_parent(&self, header: &mut Header, parent: &Header, _gas_floor_target: U256, _gas_ceil_target: U256) {
+		header.set_difficulty(parent.difficulty().clone());
+		header.set_gas_limit(parent.gas_limit().clone());
+	}
+
 	/// Get the general parameters of the chain.
 	pub fn params(&self) -> &CommonParams {
 		match *self {

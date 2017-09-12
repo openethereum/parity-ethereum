@@ -293,7 +293,10 @@ impl<'x> OpenBlock<'x> {
 
 		let gas_floor_target = cmp::max(gas_range_target.0, engine.params().min_gas_limit);
 		let gas_ceil_target = cmp::max(gas_range_target.1, gas_floor_target);
-		engine.populate_from_parent(&mut r.block.header, parent, gas_floor_target, gas_ceil_target);
+
+		engine.machine().populate_from_parent(&mut r.block.header, parent, gas_floor_target, gas_ceil_target);
+		engine.populate_from_parent(&mut r.block.header, parent);
+
 		engine.machine().on_new_block(&mut r.block, last_hashes)?;
 		engine.on_new_block(&mut r.block, is_epoch_begin)?;
 
@@ -530,6 +533,8 @@ impl LockedBlock {
 	) -> Result<SealedBlock, (Error, LockedBlock)> {
 		let mut s = self;
 		s.block.header.set_seal(seal);
+
+		unimplemented!() // TODO: verify seal without `verify_seal`.
 		match engine.verify_block_seal(&s.block.header) {
 			Err(e) => Err((e, s)),
 			_ => Ok(SealedBlock { block: s.block, uncle_bytes: s.uncle_bytes }),

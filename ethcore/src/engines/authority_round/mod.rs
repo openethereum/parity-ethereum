@@ -520,7 +520,6 @@ impl Engine for AuthorityRound {
 	fn on_new_block(
 		&self,
 		block: &mut ExecutedBlock,
-		last_hashes: Arc<::vm::LastHashes>,
 		epoch_begin: bool,
 	) -> Result<(), Error> {
 		// with immediate transitions, we don't use the epoch mechanism anyway.
