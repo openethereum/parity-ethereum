@@ -15,38 +15,7 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-@import '../ParityBar/_colors.css';
-
-$textColor: #ccc;
-
-.status {
-  align-items: center;
-  background: $backgroundColor;
-  background: $backgroundGradient;
-  bottom: 0;
-  color: $textColor;
-  display: flex;
-  left: 0;
-  padding: 0.5em 0.75em;
-  position: fixed;
-  right: 0;
-  z-index: 1000;
-}
-
-.plugins {
-  flex-grow: 1;
-  text-align: right;
-  vertical-align: middle;
-
-  div {
-    display: inline-block;
-    margin-left: 1em;
-  }
-}
-
-.upgrade {
-  div {
-    display: inline-block;
-    margin-left: 1em;
-  }
-}
+$backgroundFrom: #405161;
+$backgroundTo: #2c3742;
+$backgroundGradient: linear-gradient(to bottom, $backgroundFrom 0%, $backgroundTo 100%);
+$backgroundColor: $backgroundFrom;

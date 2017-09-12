@@ -151,6 +151,7 @@
     "@parity/dapp-contracts": "paritytech/dapp-contracts",
     "@parity/dapp-dapp-accounts": "paritytech/dapp-dapp-accounts",
     "@parity/dapp-dapp-methods": "paritytech/dapp-dapp-methods",
+    "@parity/dapp-dapp-visible": "paritytech/dapp-dapp-visible",
     "@parity/dapp-dappreg": "paritytech/dapp-dappreg",
     "@parity/dapp-develop": "paritytech/dapp-develop",
     "@parity/dapp-githubhint": "paritytech/dapp-githubhint",

@@ -15,6 +15,8 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+@import './_colors.css';
+
 $overlayZ: 10000;
 $modalZ: 10001;
 
@@ -110,11 +112,11 @@ $modalZ: 10001;
   width: 960px;
 
   .content {
-    flex: 1;
-    overflow: auto;
-    display: flex;
     background: rgba(255, 255, 255, 0.95);
+    display: flex;
+    flex: 1;
     max-width: calc(100vw - 2em);
+    overflow: auto;
   }
 }
 
@@ -123,10 +125,11 @@ $modalZ: 10001;
 }
 
 .cornercolor {
-  background: rgba(0, 0, 0, 0.75);
-  padding: 0.5em 1em;
-  display: flex;
   align-items: center;
+  background: $backgroundColor;
+  background: $backgroundGradient;
+  display: flex;
+  padding: 0.5em 1em;
 }
 
 .link {
@@ -192,7 +195,8 @@ $modalZ: 10001;
 .header {
   /* height: 2em; */
   padding: 0.5em 1em;
-  background: #444;
+  background: $backgroundColor;
+  background: $backgroundGradient;
   margin-bottom: 0;
 
   &::after {
@@ -204,13 +208,7 @@ $modalZ: 10001;
 .corner {
   button {
     background-color: transparent !important;
-    margin: 0 !important;
-    padding: 0 0.5em !important;
-
-    i {
-      font-size: 24px !important;
-      height: 24px !important;
-    }
+    padding: 0.5em 1.5em !important;
   }
 }
 
@@ -221,11 +219,16 @@ $modalZ: 10001;
 .title {
   color: white;
   float: left;
+
+  h3 {
+    background: transparent !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
 }
 
 .actions {
   float: right;
-  margin-top: -2px;
 
   div {
     margin-left: 1em;
