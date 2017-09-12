@@ -418,12 +418,12 @@ fn storage_read() {
 	assert_eq!(Address::from(&result[12..32]), address);
 }
 
-// Tests sha3 calculation
-// sha3.wasm runs sha3 wasm-std function for an empty string and puts hash into result
+// Tests keccak calculation
+// keccak.wasm runs keccak wasm-std function for an empty string and puts hash into result
 #[test]
-fn sha3() {
+fn keccak() {
 	::ethcore_logger::init_log();
-	let code = load_sample!("sha3.wasm");
+	let code = load_sample!("keccak.wasm");
 
 	let mut params = ActionParams::default();
 	params.gas = U256::from(100_000);
@@ -434,7 +434,7 @@ fn sha3() {
 		let mut interpreter = wasm_interpreter();
 		let result = interpreter.exec(params, &mut ext).expect("Interpreter to execute without any errors");
 		match result {
-				GasLeft::Known(_) => { panic!("sha3 should return payload"); },
+				GasLeft::Known(_) => { panic!("keccak should return payload"); },
 				GasLeft::NeedsReturn { gas_left: gas, data: result, apply_state: _apply } => (gas, result.to_vec()),
 		}
 	};
