@@ -102,12 +102,14 @@ extern crate num;
 extern crate parking_lot;
 extern crate price_info;
 extern crate rand;
+extern crate rayon;
 extern crate rlp;
 extern crate hash;
 extern crate heapsize;
 extern crate triehash;
 extern crate ansi_term;
 extern crate semantic_version;
+extern crate unexpected;
 
 #[macro_use]
 extern crate rlp_derive;

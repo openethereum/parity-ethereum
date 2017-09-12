@@ -19,7 +19,7 @@
 use parity_wasm::elements::ValueType::*;
 use parity_wasm::interpreter::{self, UserFunctionDescriptor};
 use parity_wasm::interpreter::UserFunctionDescriptor::*;
-use super::runtime::Runtime;
+use super::runtime::{Runtime, UserTrap};
 
 pub const SIGNATURES: &'static [UserFunctionDescriptor] = &[
 	Static(
@@ -87,6 +87,41 @@ pub const SIGNATURES: &'static [UserFunctionDescriptor] = &[
 		&[I32; 3],
 		Some(I32),
 	),
+	Static(
+		"_panic",
+		&[I32; 2],
+		None,
+	),
+	Static(
+		"_blockhash",
+		&[I32; 3],
+		Some(I32),
+	),
+	Static(
+		"_coinbase",
+		&[I32],
+		None,
+	),
+	Static(
+		"_timestamp",
+		&[],
+		Some(I32),
+	),
+	Static(
+		"_blocknumber",
+		&[],
+		Some(I32),
+	),
+	Static(
+		"_difficulty",
+		&[I32],
+		None,
+	),
+	Static(
+		"_gaslimit",
+		&[I32],
+		None,
+	),
 
 	// TODO: Get rid of it also somehow?
 	Static(
@@ -102,9 +137,10 @@ pub const SIGNATURES: &'static [UserFunctionDescriptor] = &[
 	),
 ];
 
-pub fn native_bindings<'a>(runtime: &'a mut Runtime) -> interpreter::UserFunctions<'a> {
-	interpreter::UserFunctions {
-		executor: runtime,
+pub fn native_bindings<'a>(runtime: &'a mut Runtime) -> interpreter::UserDefinedElements<'a, UserTrap> {
+	interpreter::UserDefinedElements {
+		executor: Some(runtime),
+		globals: ::std::collections::HashMap::new(),
 		functions: ::std::borrow::Cow::from(SIGNATURES),
 	}
 }

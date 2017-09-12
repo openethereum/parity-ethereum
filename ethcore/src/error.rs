@@ -20,6 +20,7 @@ use std::fmt;
 use bigint::prelude::U256;
 use bigint::hash::H256;
 use util::*;
+use unexpected::{Mismatch, OutOfBounds};
 use io::*;
 use header::BlockNumber;
 use basic_types::LogBloom;
@@ -394,7 +395,7 @@ impl From<ExecutionError> for Error {
 
 impl From<::rlp::DecoderError> for Error {
 	fn from(err: ::rlp::DecoderError) -> Error {
-		Error::Util(UtilError::Decoder(err))
+		Error::Util(UtilError::from(err))
 	}
 }
 
@@ -427,7 +428,7 @@ impl From<BlockImportError> for Error {
 		match err {
 			BlockImportError::Block(e) => Error::Block(e),
 			BlockImportError::Import(e) => Error::Import(e),
-			BlockImportError::Other(s) => Error::Util(UtilError::SimpleString(s)),
+			BlockImportError::Other(s) => Error::Util(UtilError::from(s)),
 		}
 	}
 }

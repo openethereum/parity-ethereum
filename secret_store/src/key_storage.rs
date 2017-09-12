@@ -25,8 +25,8 @@ use serialization::{SerializablePublic, SerializableSecret};
 /// Key of version value.
 const DB_META_KEY_VERSION: &'static [u8; 7] = b"version";
 
-#[derive(Debug, Clone, PartialEq)]
 /// Encrypted key share, stored by key storage on the single key server.
+#[derive(Debug, Clone, PartialEq)]
 pub struct DocumentKeyShare {
 	/// Author of the entry.
 	pub author: Public,
@@ -59,8 +59,8 @@ pub struct PersistentKeyStorage {
 	db: Database,
 }
 
-#[derive(Serialize, Deserialize)]
 /// V0 of encrypted key share, as it is stored by key storage on the single key server.
+#[derive(Serialize, Deserialize)]
 struct SerializableDocumentKeyShareV0 {
 	/// Decryption threshold (at least threshold + 1 nodes are required to decrypt data).
 	pub threshold: usize,
@@ -74,8 +74,8 @@ struct SerializableDocumentKeyShareV0 {
 	pub encrypted_point: SerializablePublic,
 }
 
-#[derive(Serialize, Deserialize)]
 /// V1 of encrypted key share, as it is stored by key storage on the single key server.
+#[derive(Serialize, Deserialize)]
 struct SerializableDocumentKeyShareV1 {
 	/// Authore of the entry.
 	pub author: SerializablePublic,
@@ -204,8 +204,8 @@ pub mod tests {
 	use super::{DB_META_KEY_VERSION, KeyStorage, PersistentKeyStorage, DocumentKeyShare,
 		SerializableDocumentKeyShareV0, SerializableDocumentKeyShareV1, upgrade_db};
 
-	#[derive(Default)]
 	/// In-memory document encryption keys storage
+	#[derive(Default)]
 	pub struct DummyKeyStorage {
 		keys: RwLock<HashMap<ServerKeyId, DocumentKeyShare>>,
 	}

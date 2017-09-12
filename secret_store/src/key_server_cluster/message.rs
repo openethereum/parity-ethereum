@@ -23,8 +23,8 @@ use super::{SerializableH256, SerializablePublic, SerializableSecret, Serializab
 pub type MessageSessionId = SerializableH256;
 pub type MessageNodeId = SerializablePublic;
 
-#[derive(Clone, Debug)]
 /// All possible messages that can be sent during encryption/decryption sessions.
+#[derive(Clone, Debug)]
 pub enum Message {
 	/// Cluster message.
 	Cluster(ClusterMessage),
@@ -38,8 +38,8 @@ pub enum Message {
 	Signing(SigningMessage),
 }
 
-#[derive(Clone, Debug)]
 /// All possible cluster-level messages.
+#[derive(Clone, Debug)]
 pub enum ClusterMessage {
 	/// Introduce node public key.
 	NodePublicKey(NodePublicKey),
@@ -51,8 +51,8 @@ pub enum ClusterMessage {
 	KeepAliveResponse(KeepAliveResponse),
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
 /// All possible messages that can be sent during key generation session.
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum GenerationMessage {
 	/// Initialize new DKG session.
 	InitializeSession(InitializeSession),
@@ -70,8 +70,8 @@ pub enum GenerationMessage {
 	SessionCompleted(SessionCompleted),
 }
 
-#[derive(Clone, Debug)]
 /// All possible messages that can be sent during encryption session.
+#[derive(Clone, Debug)]
 pub enum EncryptionMessage {
 	/// Initialize encryption session.
 	InitializeEncryptionSession(InitializeEncryptionSession),
@@ -81,8 +81,8 @@ pub enum EncryptionMessage {
 	EncryptionSessionError(EncryptionSessionError),
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
 /// All possible messages that can be sent during consensus establishing.
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum ConsensusMessage {
 	/// Initialize consensus session.
 	InitializeConsensusSession(InitializeConsensusSession),
@@ -90,8 +90,8 @@ pub enum ConsensusMessage {
 	ConfirmConsensusInitialization(ConfirmConsensusInitialization),
 }
 
-#[derive(Clone, Debug)]
 /// All possible messages that can be sent during decryption session.
+#[derive(Clone, Debug)]
 pub enum DecryptionMessage {
 	/// Consensus establishing message.
 	DecryptionConsensusMessage(DecryptionConsensusMessage),
@@ -105,8 +105,8 @@ pub enum DecryptionMessage {
 	DecryptionSessionCompleted(DecryptionSessionCompleted),
 }
 
-#[derive(Clone, Debug)]
 /// All possible messages that can be sent during signing session.
+#[derive(Clone, Debug)]
 pub enum SigningMessage {
 	/// Consensus establishing message.
 	SigningConsensusMessage(SigningConsensusMessage),
@@ -122,8 +122,8 @@ pub enum SigningMessage {
 	SigningSessionCompleted(SigningSessionCompleted),
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
 /// Introduce node public key.
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct NodePublicKey {
 	/// Node identifier (aka node public key).
 	pub node_id: MessageNodeId,
@@ -131,26 +131,26 @@ pub struct NodePublicKey {
 	pub confirmation_plain: SerializableH256,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
 /// Confirm that node owns the private key of previously passed public key (aka node id).
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct NodePrivateKeySignature {
 	/// Previously passed `confirmation_plain`, signed with node private key.
 	pub confirmation_signed: SerializableSignature,
 }
 
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
 /// Ask if the node is still alive.
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct KeepAlive {
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
 /// Confirm that the node is still alive.
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct KeepAliveResponse {
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
 /// Initialize new DKG session.
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct InitializeSession {
 	/// Session Id.
 	pub session: MessageSessionId,
@@ -168,8 +168,8 @@ pub struct InitializeSession {
 	pub derived_point: SerializablePublic,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
 /// Confirm DKG session initialization.
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ConfirmInitialization {
 	/// Session Id.
 	pub session: MessageSessionId,
@@ -177,8 +177,8 @@ pub struct ConfirmInitialization {
 	pub derived_point: SerializablePublic,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
 /// Broadcast generated point to every other node.
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CompleteInitialization {
 	/// Session Id.
 	pub session: MessageSessionId,
@@ -186,8 +186,8 @@ pub struct CompleteInitialization {
 	pub derived_point: SerializablePublic,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
 /// Generated keys are sent to every node.
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct KeysDissemination {
 	/// Session Id.
 	pub session: MessageSessionId,
@@ -199,8 +199,8 @@ pub struct KeysDissemination {
 	pub publics: Vec<SerializablePublic>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
 /// Node is sharing its public key share.
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PublicKeyShare {
 	/// Session Id.
 	pub session: MessageSessionId,
@@ -208,8 +208,8 @@ pub struct PublicKeyShare {
 	pub public_share: SerializablePublic,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
 /// When session error has occured.
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SessionError {
 	/// Session Id.
 	pub session: MessageSessionId,
@@ -217,15 +217,15 @@ pub struct SessionError {
 	pub error: String,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
 /// When session is completed.
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SessionCompleted {
 	/// Session Id.
 	pub session: MessageSessionId,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
 /// Node is requested to prepare for saving encrypted data.
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct InitializeEncryptionSession {
 	/// Encryption session Id.
 	pub session: MessageSessionId,
@@ -237,15 +237,15 @@ pub struct InitializeEncryptionSession {
 	pub encrypted_point: SerializablePublic,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
 /// Node is responding to encryption initialization request.
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ConfirmEncryptionInitialization {
 	/// Encryption session Id.
 	pub session: MessageSessionId,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
 /// When encryption session error has occured.
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct EncryptionSessionError {
 	/// Encryption session Id.
 	pub session: MessageSessionId,
@@ -253,22 +253,22 @@ pub struct EncryptionSessionError {
 	pub error: String,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
 /// Node is asked to be part of consensus group.
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct InitializeConsensusSession {
 	/// Requestor signature.
 	pub requestor_signature: SerializableSignature,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
 /// Node is responding to consensus initialization request.
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ConfirmConsensusInitialization {
 	/// Is node confirmed consensus participation.
 	pub is_confirmed: bool,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
 /// Consensus-related signing message.
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SigningConsensusMessage {
 	/// Generation session Id.
 	pub session: MessageSessionId,
@@ -278,8 +278,8 @@ pub struct SigningConsensusMessage {
 	pub message: ConsensusMessage,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
 /// Session key generation message.
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SigningGenerationMessage {
 	/// Generation session Id.
 	pub session: MessageSessionId,
@@ -289,8 +289,8 @@ pub struct SigningGenerationMessage {
 	pub message: GenerationMessage,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
 /// Request partial signature.
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RequestPartialSignature {
 	/// Generation session Id.
 	pub session: MessageSessionId,
@@ -304,8 +304,8 @@ pub struct RequestPartialSignature {
 	pub nodes: BTreeSet<MessageNodeId>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
 /// Partial signature.
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PartialSignature {
 	/// Generation session Id.
 	pub session: MessageSessionId,
@@ -317,8 +317,8 @@ pub struct PartialSignature {
 	pub partial_signature: SerializableSecret,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
 /// When signing session error has occured.
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SigningSessionError {
 	/// Encryption session Id.
 	pub session: MessageSessionId,
@@ -328,8 +328,8 @@ pub struct SigningSessionError {
 	pub error: String,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
 /// Signing session completed.
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SigningSessionCompleted {
 	/// Generation session Id.
 	pub session: MessageSessionId,
@@ -337,8 +337,8 @@ pub struct SigningSessionCompleted {
 	pub sub_session: SerializableSecret,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
 /// Consensus-related decryption message.
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct DecryptionConsensusMessage {
 	/// Generation session Id.
 	pub session: MessageSessionId,
@@ -348,8 +348,8 @@ pub struct DecryptionConsensusMessage {
 	pub message: ConsensusMessage,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
 /// Node is requested to do a partial decryption.
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RequestPartialDecryption {
 	/// Encryption session Id.
 	pub session: MessageSessionId,
@@ -364,8 +364,8 @@ pub struct RequestPartialDecryption {
 	pub nodes: BTreeSet<MessageNodeId>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
 /// Node has partially decrypted the secret.
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PartialDecryption {
 	/// Encryption session Id.
 	pub session: MessageSessionId,
@@ -379,8 +379,8 @@ pub struct PartialDecryption {
 	pub decrypt_shadow: Option<Vec<u8>>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
 /// When decryption session error has occured.
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct DecryptionSessionError {
 	/// Encryption session Id.
 	pub session: MessageSessionId,
@@ -390,8 +390,8 @@ pub struct DecryptionSessionError {
 	pub error: String,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
 /// When decryption session is completed.
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct DecryptionSessionCompleted {
 	/// Encryption session Id.
 	pub session: MessageSessionId,

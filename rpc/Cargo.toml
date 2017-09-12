@@ -62,5 +62,8 @@ hash = { path = "../util/hash" }
 clippy = { version = "0.0.103", optional = true}
 pretty_assertions = "0.1"
 
+[dev-dependencies]
+ethcore-network = { path = "../util/network" }
+
 [features]
 dev = ["clippy", "ethcore/dev", "ethcore-util/dev", "ethsync/dev"]

@@ -25,6 +25,7 @@ use itertools::Itertools;
 // util
 use hash::keccak;
 use timer::PerfTimer;
+use util::UtilError;
 use util::Bytes;
 use util::{journaldb, DBValue, TrieFactory, Trie};
 use util::Address;
@@ -33,7 +34,7 @@ use util::kvdb::*;
 
 // other
 use bigint::prelude::U256;
-use bigint::hash::{H256, H2048};
+use bigint::hash::H256;
 use basic_types::Seal;
 use block::*;
 use blockchain::{BlockChain, BlockProvider,  TreeRoute, ImportRoute};
@@ -252,7 +253,7 @@ impl Client {
 			last_hashes: RwLock::new(VecDeque::new()),
 			factories: factories,
 			history: history,
-			rng: Mutex::new(OsRng::new().map_err(::util::UtilError::StdIo)?),
+			rng: Mutex::new(OsRng::new().map_err(UtilError::from)?),
 			ancient_verifier: Mutex::new(None),
 			on_user_defaults_change: Mutex::new(None),
 			registrar: Mutex::new(None),
@@ -917,7 +918,7 @@ impl Client {
 			_ => {},
 		}
 
-		let block_number = match self.block_number(id.clone()) {
+		let block_number = match self.block_number(id) {
 			Some(num) => num,
 			None => return None,
 		};
@@ -1154,6 +1155,16 @@ impl Client {
 			(false, false) => call(state, env_info, engine, state_diff, t, TransactOptions::with_no_tracing()),
 		}
 	}
+
+	fn block_number_ref(&self, id: &BlockId) -> Option<BlockNumber> {
+		match *id {
+			BlockId::Number(number) => Some(number),
+			BlockId::Hash(ref hash) => self.chain.read().block_number(hash),
+			BlockId::Earliest => Some(0),
+			BlockId::Latest => Some(self.chain.read().best_block_number()),
+			BlockId::Pending => Some(self.chain.read().best_block_number() + 1),
+		}
+	}
 }
 
 impl snapshot::DatabaseRestore for Client {
@@ -1363,13 +1374,7 @@ impl BlockChainClient for Client {
 	}
 
 	fn block_number(&self, id: BlockId) -> Option<BlockNumber> {
-		match id {
-			BlockId::Number(number) => Some(number),
-			BlockId::Hash(ref hash) => self.chain.read().block_number(hash),
-			BlockId::Earliest => Some(0),
-			BlockId::Latest => Some(self.chain.read().best_block_number()),
-			BlockId::Pending => Some(self.chain.read().best_block_number() + 1),
-		}
+		self.block_number_ref(&id)
 	}
 
 	fn block_body(&self, id: BlockId) -> Option<encoded::Body> {
@@ -1650,16 +1655,17 @@ impl BlockChainClient for Client {
 		self.engine.additional_params().into_iter().collect()
 	}
 
-	fn blocks_with_bloom(&self, bloom: &H2048, from_block: BlockId, to_block: BlockId) -> Option<Vec<BlockNumber>> {
-		match (self.block_number(from_block), self.block_number(to_block)) {
-			(Some(from), Some(to)) => Some(self.chain.read().blocks_with_bloom(bloom, from, to)),
-			_ => None
-		}
-	}
-
 	fn logs(&self, filter: Filter) -> Vec<LocalizedLogEntry> {
+		let (from, to) = match (self.block_number_ref(&filter.from_block), self.block_number_ref(&filter.to_block)) {
+			(Some(from), Some(to)) => (from, to),
+			_ => return Vec::new(),
+		};
+
+		let chain = self.chain.read();
 		let blocks = filter.bloom_possibilities().iter()
-			.filter_map(|bloom| self.blocks_with_bloom(bloom, filter.from_block.clone(), filter.to_block.clone()))
+			.map(move |bloom| {
+				chain.blocks_with_bloom(bloom, from, to)
+			})
 			.flat_map(|m| m)
 			// remove duplicate elements
 			.collect::<HashSet<u64>>()
@@ -1959,13 +1965,7 @@ impl super::traits::EngineClient for Client {
 		BlockChainClient::chain_info(self)
 	}
 
-	fn call_contract(&self, id: BlockId, address: Address, data: Bytes) -> Result<Bytes, String> {
-		BlockChainClient::call_contract(self, id, address, data)
-	}
-
-	fn transact_contract(&self, address: Address, data: Bytes) -> Result<TransactionImportResult, EthcoreError> {
-		BlockChainClient::transact_contract(self, address, data)
-	}
+	fn as_full_client(&self) -> Option<&BlockChainClient> { Some(self) }
 
 	fn block_number(&self, id: BlockId) -> Option<BlockNumber> {
 		BlockChainClient::block_number(self, id)

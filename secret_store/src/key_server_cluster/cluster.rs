@@ -72,14 +72,14 @@ pub trait ClusterClient: Send + Sync {
 	/// Start new signing session.
 	fn new_signing_session(&self, session_id: SessionId, requestor_signature: Signature, message_hash: H256) -> Result<Arc<SigningSession>, Error>;
 
-	#[cfg(test)]
 	/// Ask node to make 'faulty' generation sessions.
+	#[cfg(test)]
 	fn make_faulty_generation_sessions(&self);
-	#[cfg(test)]
 	/// Get active generation session with given id.
-	fn generation_session(&self, session_id: &SessionId) -> Option<Arc<GenerationSessionImpl>>;
 	#[cfg(test)]
+	fn generation_session(&self, session_id: &SessionId) -> Option<Arc<GenerationSessionImpl>>;
 	/// Try connect to disconnected nodes.
+	#[cfg(test)]
 	fn connect(&self);
 }
 
@@ -91,8 +91,8 @@ pub trait Cluster: Send + Sync {
 	fn send(&self, to: &NodeId, message: Message) -> Result<(), Error>;
 }
 
-#[derive(Clone)]
 /// Cluster initialization parameters.
+#[derive(Clone)]
 pub struct ClusterConfiguration {
 	/// Number of threads reserved by cluster.
 	pub threads: usize,
@@ -214,14 +214,14 @@ impl ClusterCore {
 		Arc::new(ClusterClientImpl::new(self.data.clone()))
 	}
 
-	#[cfg(test)]
 	/// Get cluster configuration.
+	#[cfg(test)]
 	pub fn config(&self) -> &ClusterConfiguration {
 		&self.data.config
 	}
 
-	#[cfg(test)]
 	/// Get connection to given node.
+	#[cfg(test)]
 	pub fn connection(&self, node: &NodeId) -> Option<Arc<Connection>> {
 		self.data.connection(node)
 	}

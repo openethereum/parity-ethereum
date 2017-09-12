@@ -44,6 +44,7 @@ use db::{self, Writable, Readable, CacheUpdatePolicy};
 use cache_manager::CacheManager;
 use encoded;
 use engines::epoch::{Transition as EpochTransition, PendingTransition as PendingEpochTransition};
+use rayon::prelude::*;
 use ansi_term::Colour;
 
 const LOG_BLOOMS_LEVELS: usize = 3;
@@ -152,7 +153,7 @@ pub trait BlockProvider {
 
 	/// Returns logs matching given filter.
 	fn logs<F>(&self, blocks: Vec<BlockNumber>, matches: F, limit: Option<usize>) -> Vec<LocalizedLogEntry>
-		where F: Fn(&LogEntry) -> bool, Self: Sized;
+		where F: Fn(&LogEntry) -> bool + Send + Sync, Self: Sized;
 }
 
 macro_rules! otry {
@@ -363,50 +364,56 @@ impl BlockProvider for BlockChain {
 	}
 
 	fn logs<F>(&self, mut blocks: Vec<BlockNumber>, matches: F, limit: Option<usize>) -> Vec<LocalizedLogEntry>
-		where F: Fn(&LogEntry) -> bool, Self: Sized {
+		where F: Fn(&LogEntry) -> bool + Send + Sync, Self: Sized {
 		// sort in reverse order
 		blocks.sort_by(|a, b| b.cmp(a));
 
-		let mut log_index = 0;
-		let mut logs = blocks.into_iter()
-			.filter_map(|number| self.block_hash(number).map(|hash| (number, hash)))
-			.filter_map(|(number, hash)| self.block_receipts(&hash).map(|r| (number, hash, r.receipts)))
-			.filter_map(|(number, hash, receipts)| self.block_body(&hash).map(|ref b| (number, hash, receipts, b.transaction_hashes())))
-			.flat_map(|(number, hash, mut receipts, mut hashes)| {
-				if receipts.len() != hashes.len() {
-					warn!("Block {} ({}) has different number of receipts ({}) to transactions ({}). Database corrupt?", number, hash, receipts.len(), hashes.len());
-					assert!(false);
-				}
-				log_index = receipts.iter().fold(0, |sum, receipt| sum + receipt.logs.len());
+		let mut logs = blocks
+			.chunks(128)
+			.flat_map(move |blocks_chunk| {
+				blocks_chunk.into_par_iter()
+					.filter_map(|number| self.block_hash(*number).map(|hash| (*number, hash)))
+					.filter_map(|(number, hash)| self.block_receipts(&hash).map(|r| (number, hash, r.receipts)))
+					.filter_map(|(number, hash, receipts)| self.block_body(&hash).map(|ref b| (number, hash, receipts, b.transaction_hashes())))
+					.flat_map(|(number, hash, mut receipts, mut hashes)| {
+						if receipts.len() != hashes.len() {
+							warn!("Block {} ({}) has different number of receipts ({}) to transactions ({}). Database corrupt?", number, hash, receipts.len(), hashes.len());
+							assert!(false);
+						}
+						let mut log_index = receipts.iter().fold(0, |sum, receipt| sum + receipt.logs.len());
 
-				let receipts_len = receipts.len();
-				hashes.reverse();
-				receipts.reverse();
-				receipts.into_iter()
-					.map(|receipt| receipt.logs)
-					.zip(hashes)
-					.enumerate()
-					.flat_map(move |(index, (mut logs, tx_hash))| {
-						let current_log_index = log_index;
-						let no_of_logs = logs.len();
-						log_index -= no_of_logs;
-
-						logs.reverse();
-						logs.into_iter()
+						let receipts_len = receipts.len();
+						hashes.reverse();
+						receipts.reverse();
+						receipts.into_iter()
+							.map(|receipt| receipt.logs)
+							.zip(hashes)
 							.enumerate()
-							.map(move |(i, log)| LocalizedLogEntry {
-								entry: log,
-								block_hash: hash,
-								block_number: number,
-								transaction_hash: tx_hash,
-								// iterating in reverse order
-								transaction_index: receipts_len - index - 1,
-								transaction_log_index: no_of_logs - i - 1,
-								log_index: current_log_index - i - 1,
+							.flat_map(move |(index, (mut logs, tx_hash))| {
+								let current_log_index = log_index;
+								let no_of_logs = logs.len();
+								log_index -= no_of_logs;
+
+								logs.reverse();
+								logs.into_iter()
+									.enumerate()
+									.map(move |(i, log)| LocalizedLogEntry {
+										entry: log,
+										block_hash: hash,
+										block_number: number,
+										transaction_hash: tx_hash,
+										// iterating in reverse order
+										transaction_index: receipts_len - index - 1,
+										transaction_log_index: no_of_logs - i - 1,
+										log_index: current_log_index - i - 1,
+									})
 							})
+							.filter(|log_entry| matches(&log_entry.entry))
+							.take(limit.unwrap_or(::std::usize::MAX))
+							.collect::<Vec<_>>()
 					})
+					.collect::<Vec<_>>()
 			})
-			.filter(|log_entry| matches(&log_entry.entry))
 			.take(limit.unwrap_or(::std::usize::MAX))
 			.collect::<Vec<LocalizedLogEntry>>();
 		logs.reverse();

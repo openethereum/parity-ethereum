@@ -27,8 +27,8 @@ use util::Bytes;
 /// Serializable message hash.
 pub type SerializableMessageHash = SerializableH256;
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
 /// Serializable shadow decryption result.
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SerializableEncryptedDocumentKeyShadow {
 	/// Decrypted secret point. It is partially decrypted if shadow decrpytion was requested.
 	pub decrypted_secret: SerializablePublic,
@@ -38,8 +38,8 @@ pub struct SerializableEncryptedDocumentKeyShadow {
 	pub decrypt_shadows: Vec<SerializableBytes>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
 /// Serializable Bytes.
+#[derive(Clone, Debug, PartialEq)]
 pub struct SerializableBytes(pub Bytes);
 
 impl<T> From<T> for SerializableBytes where Bytes: From<T> {
@@ -84,8 +84,8 @@ impl<'a> Deserialize<'a> for SerializableBytes {
 	}
 }
 
-#[derive(Clone, Debug)]
 /// Serializable Signature.
+#[derive(Clone, Debug)]
 pub struct SerializableSignature(pub Signature);
 
 impl<T> From<T> for SerializableSignature where Signature: From<T> {
@@ -144,8 +144,8 @@ impl<'a> Deserialize<'a> for SerializableSignature {
 	}
 }
 
-#[derive(Clone, Debug)]
 /// Serializable H256.
+#[derive(Clone, Debug)]
 pub struct SerializableH256(pub H256);
 
 impl<T> From<T> for SerializableH256 where H256: From<T> {
@@ -204,8 +204,8 @@ impl<'a> Deserialize<'a> for SerializableH256 {
 	}
 }
 
-#[derive(Clone, Debug)]
 /// Serializable EC scalar/secret key.
+#[derive(Clone, Debug)]
 pub struct SerializableSecret(pub Secret);
 
 impl<T> From<T> for SerializableSecret where Secret: From<T> {
@@ -264,8 +264,8 @@ impl<'a> Deserialize<'a> for SerializableSecret {
 	}
 }
 
-#[derive(Clone, Debug)]
 /// Serializable EC point/public key.
+#[derive(Clone, Debug)]
 pub struct SerializablePublic(pub Public);
 
 impl<T> From<T> for SerializablePublic where Public: From<T> {

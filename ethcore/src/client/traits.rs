@@ -35,7 +35,7 @@ use transaction::{LocalizedTransaction, PendingTransaction, SignedTransaction};
 use verification::queue::QueueInfo as BlockQueueInfo;
 
 use bigint::prelude::U256;
-use bigint::hash::{H256, H2048};
+use bigint::hash::H256;
 use util::{Address, Bytes};
 use util::hashdb::DBValue;
 
@@ -180,9 +180,6 @@ pub trait BlockChainClient : Sync + Send {
 
 	/// Get the best block header.
 	fn best_block_header(&self) -> encoded::Header;
-
-	/// Returns numbers of blocks containing given bloom.
-	fn blocks_with_bloom(&self, bloom: &H2048, from_block: BlockId, to_block: BlockId) -> Option<Vec<BlockNumber>>;
 
 	/// Returns logs matching given filter.
 	fn logs(&self, filter: Filter) -> Vec<LocalizedLogEntry>;
@@ -337,12 +334,10 @@ pub trait EngineClient: Sync + Send {
 	/// Get block chain info.
 	fn chain_info(&self) -> BlockChainInfo;
 
-	/// Like `call`, but with various defaults. Designed to be used for calling contracts.
-	fn call_contract(&self, id: BlockId, address: Address, data: Bytes) -> Result<Bytes, String>;
+	/// Attempt to cast the engine client to a full client.
+	fn as_full_client(&self) -> Option<&BlockChainClient>;
 
-	/// Import a transaction: used for misbehaviour reporting.
-	fn transact_contract(&self, address: Address, data: Bytes) -> Result<TransactionImportResult, EthcoreError>;
-
+	/// Get a block number by ID.
 	fn block_number(&self, id: BlockId) -> Option<BlockNumber>;
 }
 

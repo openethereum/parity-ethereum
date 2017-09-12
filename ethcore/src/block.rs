@@ -26,7 +26,7 @@ use rlp::{UntrustedRlp, RlpStream, Encodable, Decodable, DecoderError};
 use bigint::prelude::U256;
 use bigint::hash::H256;
 use util::{Bytes, Address};
-use util::error::{Mismatch, OutOfBounds};
+use unexpected::{Mismatch, OutOfBounds};
 
 use basic_types::{LogBloom, Seal};
 use vm::{EnvInfo, LastHashes};
