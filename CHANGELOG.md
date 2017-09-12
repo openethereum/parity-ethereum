@@ -1,14 +1,66 @@
-## Parity [v1.7.2](https://github.com/paritytech/parity/releases/tag/v1.7.2) (2017-09-11)
+## Parity [v1.7.2](https://github.com/paritytech/parity/releases/tag/v1.7.2) (2017-09-12)
 
-Parity 1.7.1 is a bug-fix release to improve performance and stability. Among others, it addresses the following issues:
+Parity 1.7.2 is a bug-fix release to improve performance and stability. Among others, it addresses the following issues:
 
+- Significantly increased token registry performance and token balance lookups.
 - Fixed issues with the health status indicator in the wallet.
-- Tweaked warp-sync to quickly catch up with chains fallen back more than 10,000 blocks.
+- Tweaked warp-sync to quickly catch up with chains fallen back more than 5,000 blocks.
 - Added support for the ConsenSys multi-signature wallet.
 - Fixes to the Chrome extension and macOS installer upgrades.
 
 Full list of included changes:
 
+- Backports [#6497](https://github.com/paritytech/parity/pull/6497)
+  - Fix slow balances ([#6471](https://github.com/paritytech/parity/pull/6471))
+    - Update token updates
+    - Update token info fetching
+    - Update logger
+    - Minor fixes to updates and notifications for balances
+    - Use Pubsub
+    - Fix timeout.
+    - Use pubsub for status.
+    - Fix signer subscription.
+    - Process tokens in chunks.
+    - Fix tokens loaded by chunks
+    - Dispatch tokens asap
+    - Fix chunks processing.
+    - Better filter options
+    - Parallel log fetching.
+    - Fix signer polling.
+    - Fix initial block query.
+    - Token balances updates : the right(er) way
+    - Better tokens info fetching
+    - Fixes in token data fetching
+    - Only fetch what's needed (tokens)
+    - Fix linting issues
+    - Update wasm-tests.
+    - Fixing balances fetching
+    - Fix requests tracking in UI
+    - Fix request watching
+    - Update the Logger
+    - PR Grumbles Fixes
+  - Eth_call returns output of contract creations ([#6420](https://github.com/paritytech/parity/pull/6420))
+    - Eth_call returns output of contract creations
+    - Fix parameters order.
+    - Save outputs for light client as well.
+  - Don't accept transactions above block gas limit.
+  - Expose health status over RPC ([#6274](https://github.com/paritytech/parity/pull/6274))
+     - Node-health to a separate crate.
+     - Initialize node_health outside of dapps.
+     - Expose health over RPC.
+     - Bring back 412 and fix JS.
+     - Add health to workspace and tests.
+     - Fix compilation without default features.
+     - Fix borked merge.
+     - Revert to generics to avoid virtual calls.
+     - Fix node-health tests.
+     - Add missing trailing comma.
+  - Fixing/removing failing JS tests.
+  - Do not activate genesis epoch in immediate transition validator contract ([#6349](https://github.com/paritytech/parity/pull/6349))
+  - Fix memory tracing.
+  - Add test to cover that.
+  - Ensure balances of constructor accounts are kept
+  - Test balance of spec-constructed account is kept
 - Fix warning spam. [#6369](https://github.com/paritytech/parity/pull/6369)
 - Bump to 1.7.2
 - Fix eth_call [#6366](https://github.com/paritytech/parity/pull/6366)
