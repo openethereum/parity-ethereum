@@ -309,6 +309,10 @@ impl ::parity_machine::Header for Header {
 	fn hash(&self) -> H256 { Header::hash(self) }
 
 	fn seal(&self) -> &[Vec<u8>] { Header::seal(self) }
+
+	fn author(&self) -> &Address { Header::author(self) }
+
+	fn number(&self) -> BlockNumber { Header::number(self) }
 }
 
 impl ::parity_machine::ScoredHeader for Header {

@@ -19,7 +19,7 @@
 
 extern crate ethcore_util as util;
 
-use util::{H256, U256};
+use util::{Address, H256, U256};
 
 /// A header. This contains important metadata about the block, as well as a
 /// "seal" that indicates validity to a consensus engine.
@@ -32,6 +32,12 @@ pub trait Header {
 
 	/// Get a reference to the seal fields.
     fn seal(&self) -> &[Vec<u8>];
+
+	/// The author of the header.
+	fn author(&self) -> &Address;
+
+	/// The number of the header.
+	fn number(&self) -> u64;
 }
 
 /// a header with an associated score (difficulty in PoW terms)
@@ -43,21 +49,32 @@ pub trait ScoredHeader {
 	fn set_score(&mut self, score: U256);
 }
 
-/// The state machine the engine acquires consensus over.
-/// Note that most of the definitions here actually relate to the _transition_ mechanism
-/// as opposed to the state itself.
-///
-/// This is because consensus over transitions, as well as their ordering, is the most
-/// important responsibility of the consensus engine.
+/// Types describing the state machine an engine acquires consensus over.
 pub trait Machine: Sync + Send {
 	/// The block header type.
     type Header: Header;
-	/// The state type of the state machine.
-    type State;
-	/// Errors which can be returned during verification.
-    type Error;
+	/// A "live" block is one which is in the process of being verified.
+	/// The state of this block can be mutated by arbitrary rules of the
+	/// state transition function.
+	type LiveBlock;
+	/// Errors which can occur when querying or interacting with the machine.
+	type Error;
+}
 
-	// TODO verification functions.
-	// verify transactions.
-	// verify block basic
+/// A state machine that uses balances.
+pub trait WithBalances: Machine {
+	/// Get the balance, in base units, associated with an account.
+	/// Extracts data from the live block.
+	fn balance(&self, live: &Self::LiveBlock, address: &Address) -> Result<U256, Self::Error>;
+
+	/// Increment the balance of an account in the state of the live block.
+	fn add_balance(&self, live: &mut Self::LiveBlock, address: &Address, amount: &U256) -> Result<(), Self::Error>;
+
+	/// Note block rewards. "direct" rewards are for authors, "indirect" are for e.g. uncles.
+	fn note_rewards(
+		&self,
+		_live: &mut Self::LiveBlock,
+		_direct: &[(Address, U256)],
+		_indirect: &[(Address, U256)],
+	) -> Result<(), Self::Error> { Ok(()) }
 }

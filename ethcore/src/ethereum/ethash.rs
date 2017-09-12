@@ -260,9 +260,6 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 			tracer.trace_reward(block_author, result_block_reward, RewardType::Block);
 		}
 
-		// Bestow uncle rewards
-		// TODO: find a way to bring uncle rewards out of this function without breaking
-		// certain PoA networks where uncles were not disallowed or rewarded.
 		let current_number = fields.header.number();
 		for u in fields.uncles.iter() {
 			let uncle_author = u.author().clone();
@@ -288,6 +285,12 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 			if tracing_enabled {
 				tracer.trace_reward(uncle_author, result_uncle_reward, RewardType::Uncle);
 			}
+		}
+
+		// Commit state so that we can actually figure out the state root.
+		fields.state.commit()?;
+		if tracing_enabled {
+			fields.traces.as_mut().map(|mut traces| traces.push(tracer.drain()));
 		}
 
 		Ok(())

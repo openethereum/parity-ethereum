@@ -242,6 +242,41 @@ impl EthereumMachine {
 
 impl ::parity_machine::Machine for EthereumMachine {
 	type Header = Header;
-	type State = ();
-	type Error = ();
+	type LiveBlock = ExecutedBlock;
+	type Error = Error;
+}
+
+impl ::parity_machine::WithBalances for EthereumMachine {
+	fn balance(&self, live: &ExecutedBlock, address: &Address) -> Result<U256, Error> {
+		live.fields().state.balance(address).map_err(Into::into)
+	}
+
+	fn add_balance(&self, live: &mut ExecutedBlock, address: &Address, amount: &U256) -> Result<(), Error> {
+		live.fields_mut().state.add_balance(address, amount, CleanupMode::NoEmpty).map_err(Into::into)
+	}
+
+	fn note_rewards(
+		&self,
+		live: &mut Self::LiveBlock,
+		direct: &[(Address, U256)],
+		indirect: &[(Address, U256)],
+	) -> Result<(), Self::Error> {
+		use block::IsBlock;
+
+		if !live.tracing_enabled() { return Ok(()) }
+
+		let mut tracer = ExecutiveTracer::default();
+
+		for &(address, amount) in direct {
+			tracer.trace_reward(address, amount, RewardType::Block);
+		}
+
+		for &(address, amount) in indirect {
+			tracer.trace_reward(address, amount, RewardType::Uncle);
+		}
+
+		live.fields_mut().push_traces(tracer);
+
+		Ok(())
+	}
 }

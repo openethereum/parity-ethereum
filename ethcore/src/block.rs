@@ -110,6 +110,17 @@ pub struct BlockRefMut<'a> {
 	pub traces: &'a mut Option<Vec<Vec<FlatTrace>>>,
 }
 
+impl<'a> BlockRefMut<'a> {
+	/// Add traces if tracing is enabled.
+	pub fn push_traces(&mut self, tracer: ::trace::ExecutiveTracer) {
+		use trace::Tracer;
+
+		if let Some(ref mut traces) = self.traces.as_mut() {
+			traces.push(tracer.drain())
+		}
+	}
+}
+
 /// A set of immutable references to `ExecutedBlock` fields that are publicly accessible.
 pub struct BlockRef<'a> {
 	/// Block header.
