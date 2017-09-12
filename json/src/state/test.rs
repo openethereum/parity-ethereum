@@ -104,8 +104,6 @@ pub enum ForkSpec {
 	EIP158,
 	Frontier,
 	Homestead,
-	// TODO [ToDr] Deprecated
-	Metropolis,
 	Byzantium,
 	Constantinople,
 }

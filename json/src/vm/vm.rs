@@ -84,8 +84,9 @@ mod tests {
 				"value" : "0x0de0b6b3a7640000"
 			},
 			"gas" : "0x013874",
-			"logs" : "0x0",
+			"logs" : "0x1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347",
 			"out" : "0x",
+			"network" : "Fronier",
 			"post" : {
 				"0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6" : {
 					"balance" : "0x0de0b6b3a7640000",

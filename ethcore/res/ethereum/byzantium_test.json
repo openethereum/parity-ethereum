@@ -13,6 +13,7 @@
 				"eip161dTransition": "0x0",
 				"maxCodeSize": 24576,
 				"eip649Reward": "0x29A2241AF62C0000",
+				"eip100bTransition": "0x0",
 				"eip649Transition": "0x0"
 			}
 		}
@@ -27,7 +28,6 @@
 		"networkID" : "0x1",
 		"eip98Transition": "0xffffffffffffffff",
 		"eip140Transition": "0x0",
-		"eip210Transition": "0x0",
 		"eip211Transition": "0x0",
 		"eip214Transition": "0x0",
 		"eip155Transition": "0x0",

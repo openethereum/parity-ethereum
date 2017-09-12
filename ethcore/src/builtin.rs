@@ -472,7 +472,6 @@ impl Impl for Bn128PairingImpl {
 	///     - any of even points does not belong to the twisted bn128 curve over the field F_p^2 = F_p[i] / (i^2 + 1)
 	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), Error> {
 		if input.len() % 192 != 0 {
-			trace!("Error: len={}", input.len());
 			return Err("Invalid input length, must be multiple of 192 (3 * (32*2))".into())
 		}
 

@@ -232,6 +232,31 @@ pub struct Spec {
 	genesis_state: PodState,
 }
 
+#[cfg(test)]
+impl Clone for Spec {
+	fn clone(&self) -> Spec {
+		Spec {
+			name: self.name.clone(),
+			engine: self.engine.clone(),
+			data_dir: self.data_dir.clone(),
+			nodes: self.nodes.clone(),
+			parent_hash: self.parent_hash.clone(),
+			transactions_root: self.transactions_root.clone(),
+			receipts_root: self.receipts_root.clone(),
+			author: self.author.clone(),
+			difficulty: self.difficulty.clone(),
+			gas_limit: self.gas_limit.clone(),
+			gas_used: self.gas_used.clone(),
+			timestamp: self.timestamp.clone(),
+			extra_data: self.extra_data.clone(),
+			seal_rlp: self.seal_rlp.clone(),
+			constructors: self.constructors.clone(),
+			state_root_memo: RwLock::new(*self.state_root_memo.read()),
+			genesis_state: self.genesis_state.clone(),
+		}
+	}
+}
+
 fn load_from<T: AsRef<Path>>(cache_dir: T, s: ethjson::spec::Spec) -> Result<Spec, Error> {
 	let builtins = s.accounts.builtins().into_iter().map(|p| (p.0.into(), From::from(p.1))).collect();
 	let g = Genesis::from(s.genesis);

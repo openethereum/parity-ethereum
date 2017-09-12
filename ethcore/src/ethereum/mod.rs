@@ -90,6 +90,9 @@ pub fn new_mainnet_like() -> Spec { load(None, include_bytes!("../../res/ethereu
 /// Create a new Foundation Byzantium era spec.
 pub fn new_byzantium_test() -> Spec { load(None, include_bytes!("../../res/ethereum/byzantium_test.json")) }
 
+/// Create a new Foundation Constaniple era spec.
+pub fn new_constaninople_test() -> Spec { load(None, include_bytes!("../../res/ethereum/constaniple_test.json")) }
+
 #[cfg(test)]
 mod tests {
 	use bigint::prelude::U256;
