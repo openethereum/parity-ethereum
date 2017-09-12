@@ -73,7 +73,7 @@ export default class PinMatrix extends Component {
   }
 
   handleAddDigit = (ev) => {
-    const index = ev.target.getAttribute('data-index');
+    const index = ev.currentTarget.getAttribute('data-index');
     const digit = this.pinMatrix[index];
     const { passcode } = this.state;
 
