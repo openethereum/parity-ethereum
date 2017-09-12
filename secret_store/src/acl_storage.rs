@@ -21,7 +21,8 @@ use parking_lot::{Mutex, RwLock};
 use ethkey::public_to_address;
 use ethcore::client::{Client, BlockChainClient, BlockId, ChainNotify};
 use native_contracts::SecretStoreAclStorage;
-use util::{H256, Address, Bytes};
+use bigint::hash::H256;
+use util::{Address, Bytes};
 use types::all::{Error, ServerKeyId, Public};
 
 const ACL_CHECKER_CONTRACT_REGISTRY_NAME: &'static str = "secretstore_acl_checker";

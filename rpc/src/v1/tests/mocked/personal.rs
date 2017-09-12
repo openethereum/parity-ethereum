@@ -21,7 +21,8 @@ use ethcore::account_provider::AccountProvider;
 use ethcore::client::TestBlockChainClient;
 use ethcore::transaction::{Action, Transaction};
 use jsonrpc_core::IoHandler;
-use util::{U256, Address};
+use bigint::prelude::U256;
+use util::Address;
 
 use v1::{PersonalClient, Personal, Metadata};
 use v1::helpers::dispatch::FullDispatcher;

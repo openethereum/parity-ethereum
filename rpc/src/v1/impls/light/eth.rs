@@ -25,7 +25,7 @@ use jsonrpc_core::Error;
 use jsonrpc_macros::Trailing;
 
 use light::cache::Cache as LightDataCache;
-use light::client::{Client as LightClient, LightChainClient};
+use light::client::LightChainClient;
 use light::{cht, TransactionQueue};
 use light::on_demand::{request, OnDemand};
 
@@ -38,8 +38,9 @@ use ethcore::filter::Filter as EthcoreFilter;
 use ethcore::transaction::{Action, SignedTransaction, Transaction as EthTransaction};
 use ethsync::LightSync;
 use rlp::UntrustedRlp;
-use util::sha3::{SHA3_NULL_RLP, SHA3_EMPTY_LIST_RLP};
-use util::{RwLock, Mutex, U256};
+use hash::{KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP};
+use bigint::prelude::U256;
+use parking_lot::{RwLock, Mutex};
 
 use futures::{future, Future, BoxFuture, IntoFuture};
 use futures::sync::oneshot;
@@ -62,9 +63,9 @@ use util::Address;
 const NO_INVALID_BACK_REFS: &'static str = "Fails only on invalid back-references; back-references here known to be valid; qed";
 
 /// Light client `ETH` (and filter) RPC.
-pub struct EthClient {
+pub struct EthClient<T> {
 	sync: Arc<LightSync>,
-	client: Arc<LightClient>,
+	client: Arc<T>,
 	on_demand: Arc<OnDemand>,
 	transaction_queue: Arc<RwLock<TransactionQueue>>,
 	accounts: Arc<AccountProvider>,
@@ -72,7 +73,7 @@ pub struct EthClient {
 	polls: Mutex<PollManager<PollFilter>>,
 }
 
-impl Clone for EthClient {
+impl<T> Clone for EthClient<T> {
 	fn clone(&self) -> Self {
 		// each instance should have its own poll manager.
 		EthClient {
@@ -88,12 +89,12 @@ impl Clone for EthClient {
 }
 
 
-impl EthClient {
+impl<T: LightChainClient + 'static> EthClient<T> {
 	/// Create a new `EthClient` with a handle to the light sync instance, client,
 	/// and on-demand request service, which is assumed to be attached as a handler.
 	pub fn new(
 		sync: Arc<LightSync>,
-		client: Arc<LightClient>,
+		client: Arc<T>,
 		on_demand: Arc<OnDemand>,
 		transaction_queue: Arc<RwLock<TransactionQueue>>,
 		accounts: Arc<AccountProvider>,
@@ -208,7 +209,7 @@ impl EthClient {
 	}
 }
 
-impl Eth for EthClient {
+impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 	type Metadata = Metadata;
 
 	fn protocol_version(&self) -> Result<String, Error> {
@@ -295,7 +296,7 @@ impl Eth for EthClient {
 		let (sync, on_demand) = (self.sync.clone(), self.on_demand.clone());
 
 		self.fetcher().header(BlockId::Hash(hash.into())).and_then(move |hdr| {
-			if hdr.transactions_root() == SHA3_NULL_RLP {
+			if hdr.transactions_root() == KECCAK_NULL_RLP {
 				future::ok(Some(U256::from(0).into())).boxed()
 			} else {
 				sync.with_context(|ctx| on_demand.request(ctx, request::Body(hdr.into())))
@@ -311,7 +312,7 @@ impl Eth for EthClient {
 		let (sync, on_demand) = (self.sync.clone(), self.on_demand.clone());
 
 		self.fetcher().header(num.into()).and_then(move |hdr| {
-			if hdr.transactions_root() == SHA3_NULL_RLP {
+			if hdr.transactions_root() == KECCAK_NULL_RLP {
 				future::ok(Some(U256::from(0).into())).boxed()
 			} else {
 				sync.with_context(|ctx| on_demand.request(ctx, request::Body(hdr.into())))
@@ -327,7 +328,7 @@ impl Eth for EthClient {
 		let (sync, on_demand) = (self.sync.clone(), self.on_demand.clone());
 
 		self.fetcher().header(BlockId::Hash(hash.into())).and_then(move |hdr| {
-			if hdr.uncles_hash() == SHA3_EMPTY_LIST_RLP {
+			if hdr.uncles_hash() == KECCAK_EMPTY_LIST_RLP {
 				future::ok(Some(U256::from(0).into())).boxed()
 			} else {
 				sync.with_context(|ctx| on_demand.request(ctx, request::Body(hdr.into())))
@@ -343,7 +344,7 @@ impl Eth for EthClient {
 		let (sync, on_demand) = (self.sync.clone(), self.on_demand.clone());
 
 		self.fetcher().header(num.into()).and_then(move |hdr| {
-			if hdr.uncles_hash() == SHA3_EMPTY_LIST_RLP {
+			if hdr.uncles_hash() == KECCAK_EMPTY_LIST_RLP {
 				future::ok(Some(U256::from(0).into())).boxed()
 			} else {
 				sync.with_context(|ctx| on_demand.request(ctx, request::Body(hdr.into())))
@@ -465,14 +466,14 @@ impl Eth for EthClient {
 }
 
 // This trait implementation triggers a blanked impl of `EthFilter`.
-impl Filterable for EthClient {
+impl<T: LightChainClient + 'static> Filterable for EthClient<T> {
 	fn best_block_number(&self) -> u64 { self.client.chain_info().best_block_number }
 
 	fn block_hash(&self, id: BlockId) -> Option<RpcH256> {
 		self.client.block_hash(id).map(Into::into)
 	}
 
-	fn pending_transactions_hashes(&self, _block_number: u64) -> Vec<::util::H256> {
+	fn pending_transactions_hashes(&self, _block_number: u64) -> Vec<::bigint::hash::H256> {
 		Vec::new()
 	}
 

@@ -25,7 +25,7 @@ use std::cmp;
 use account_provider::AccountProvider;
 use block::*;
 use builtin::Builtin;
-use client::{Client, EngineClient};
+use client::EngineClient;
 use engines::{Call, Engine, Seal, EngineError, ConstructedVerifier};
 use error::{Error, TransactionError, BlockError};
 use ethjson;
@@ -42,6 +42,11 @@ use ethkey::{verify_address, Signature};
 use io::{IoContext, IoHandler, TimerToken, IoService};
 use itertools::{self, Itertools};
 use rlp::{UntrustedRlp, encode};
+use bigint::prelude::{U256, U128};
+use bigint::hash::{H256, H520};
+use semantic_version::SemanticVersion;
+use parking_lot::{Mutex, RwLock};
+use unexpected::{Mismatch, OutOfBounds};
 use util::*;
 
 mod finality;
@@ -644,6 +649,8 @@ impl Engine for AuthorityRound {
 			(&active_set as &_, epoch_manager.epoch_transition_number)
 		};
 
+		// always report with "self.validators" so that the report actually gets
+		// to the contract.
 		let report = |report| match report {
 			Report::Benign(address, block_number) =>
 				self.validators.report_benign(&address, set_number, block_number),
@@ -736,13 +743,18 @@ impl Engine for AuthorityRound {
 		{
 			if let Ok(finalized) = epoch_manager.finality_checker.push_hash(chain_head.hash(), *chain_head.author()) {
 				let mut finalized = finalized.into_iter();
-				while let Some(hash) = finalized.next() {
-					if let Some(pending) = transition_store(hash) {
-						let finality_proof = ::std::iter::once(hash)
+				while let Some(finalized_hash) = finalized.next() {
+					if let Some(pending) = transition_store(finalized_hash) {
+						let finality_proof = ::std::iter::once(finalized_hash)
 							.chain(finalized)
 							.chain(epoch_manager.finality_checker.unfinalized_hashes())
-							.map(|hash| chain(hash)
-								.expect("these headers fetched before when constructing finality checker; qed"))
+							.map(|h| if h == chain_head.hash() {
+								// chain closure only stores ancestry, but the chain head is also
+								// unfinalized.
+								chain_head.clone()
+							} else {
+								chain(h).expect("these headers fetched before when constructing finality checker; qed")
+							})
 							.collect::<Vec<Header>>();
 
 						// this gives us the block number for `hash`, assuming it's ancestry.
@@ -794,9 +806,9 @@ impl Engine for AuthorityRound {
 		}
 	}
 
-	fn register_client(&self, client: Weak<Client>) {
+	fn register_client(&self, client: Weak<EngineClient>) {
 		*self.client.write() = Some(client.clone());
-		self.validators.register_contract(client);
+		self.validators.register_client(client);
 	}
 
 	fn set_signer(&self, ap: Arc<AccountProvider>, address: Address, password: String) {
@@ -820,7 +832,9 @@ impl Engine for AuthorityRound {
 mod tests {
 	use std::sync::Arc;
 	use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
-	use util::*;
+	use hash::keccak;
+	use bigint::prelude::U256;
+	use bigint::hash::H520;
 	use header::Header;
 	use error::{Error, BlockError};
 	use rlp::encode;
@@ -874,8 +888,8 @@ mod tests {
 	#[test]
 	fn generates_seal_and_does_not_double_propose() {
 		let tap = Arc::new(AccountProvider::transient_provider());
-		let addr1 = tap.insert_account("1".sha3().into(), "1").unwrap();
-		let addr2 = tap.insert_account("2".sha3().into(), "2").unwrap();
+		let addr1 = tap.insert_account(keccak("1").into(), "1").unwrap();
+		let addr2 = tap.insert_account(keccak("2").into(), "2").unwrap();
 
 		let spec = Spec::new_test_round();
 		let engine = &*spec.engine;
@@ -906,7 +920,7 @@ mod tests {
 	#[test]
 	fn proposer_switching() {
 		let tap = AccountProvider::transient_provider();
-		let addr = tap.insert_account("0".sha3().into(), "0").unwrap();
+		let addr = tap.insert_account(keccak("0").into(), "0").unwrap();
 		let mut parent_header: Header = Header::default();
 		parent_header.set_seal(vec![encode(&0usize).into_vec()]);
 		parent_header.set_gas_limit("222222".parse::<U256>().unwrap());
@@ -931,7 +945,7 @@ mod tests {
 	#[test]
 	fn rejects_future_block() {
 		let tap = AccountProvider::transient_provider();
-		let addr = tap.insert_account("0".sha3().into(), "0").unwrap();
+		let addr = tap.insert_account(keccak("0").into(), "0").unwrap();
 
 		let mut parent_header: Header = Header::default();
 		parent_header.set_seal(vec![encode(&0usize).into_vec()]);
@@ -957,7 +971,7 @@ mod tests {
 	#[test]
 	fn rejects_step_backwards() {
 		let tap = AccountProvider::transient_provider();
-		let addr = tap.insert_account("0".sha3().into(), "0").unwrap();
+		let addr = tap.insert_account(keccak("0").into(), "0").unwrap();
 
 		let mut parent_header: Header = Header::default();
 		parent_header.set_seal(vec![encode(&4usize).into_vec()]);

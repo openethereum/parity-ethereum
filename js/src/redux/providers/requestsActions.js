@@ -23,12 +23,19 @@ import SavedRequests from '~/views/Application/Requests/savedRequests';
 const savedRequests = new SavedRequests();
 
 export const init = (api) => (dispatch) => {
-  api.subscribe('parity_postTransaction', (error, request) => {
+  api.subscribe('signer_requestsToConfirm', (error, pending) => {
     if (error) {
-      return console.error(error);
+      return;
     }
 
-    dispatch(watchRequest(request));
+    const requests = pending
+      .filter((p) => p.payload && p.payload.sendTransaction)
+      .map((p) => ({
+        requestId: '0x' + p.id.toString(16),
+        transaction: p.payload.sendTransaction
+      }));
+
+    requests.forEach((request) => dispatch(watchRequest(request)));
   });
 
   api.once('connected', () => {

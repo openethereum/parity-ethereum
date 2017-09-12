@@ -22,6 +22,13 @@ export default class Signer {
     this._api = api;
     this._updateSubscriptions = updateSubscriptions;
     this._started = false;
+
+    // Try to restart subscription if transport is closed
+    this._api.transport.on('close', () => {
+      if (this.isStarted) {
+        this.start();
+      }
+    });
   }
 
   get isStarted () {
@@ -31,30 +38,50 @@ export default class Signer {
   start () {
     this._started = true;
 
+    if (this._api.isPubSub) {
+      const subscription = this._api.pubsub
+        .subscribeAndGetResult(
+          callback => this._api.pubsub.signer.pendingRequests(callback),
+          requests => {
+            this.updateSubscriptions(requests);
+            return requests;
+          }
+        );
+
+      return Promise.all([
+        this._listRequests(false),
+        subscription
+      ]);
+    }
+
     return Promise.all([
       this._listRequests(true),
       this._loggingSubscribe()
     ]);
   }
 
+  updateSubscriptions (requests) {
+    return this._updateSubscriptions('signer_requestsToConfirm', null, requests);
+  }
+
   _listRequests = (doTimeout) => {
-    const nextTimeout = (timeout = 1000) => {
-      if (doTimeout) {
+    const nextTimeout = (timeout = 1000, forceTimeout = doTimeout) => {
+      if (forceTimeout) {
         setTimeout(() => {
-          this._listRequests(true);
+          this._listRequests(doTimeout);
         }, timeout);
       }
     };
 
     if (!this._api.transport.isConnected) {
-      nextTimeout(500);
+      nextTimeout(500, true);
       return;
     }
 
     return this._api.signer
       .requestsToConfirm()
       .then((requests) => {
-        this._updateSubscriptions('signer_requestsToConfirm', null, requests);
+        this.updateSubscriptions(requests);
         nextTimeout();
       })
       .catch(() => nextTimeout());

@@ -29,7 +29,7 @@ export default class Ws extends JsonRpcBase {
     this._url = url;
     this._token = token;
     this._messages = {};
-    this._subscriptions = { 'eth_subscription': [], 'parity_subscription': [], 'shh_subscription': [] };
+    this._subscriptions = {};
     this._sessionHash = null;
 
     this._connecting = false;
@@ -209,6 +209,7 @@ export default class Ws extends JsonRpcBase {
     // initial pubsub ACK
     if (id && msg.subscription) {
       // save subscription to map subId -> messageId
+      this._subscriptions[msg.subscription] = this._subscriptions[msg.subscription] || {};
       this._subscriptions[msg.subscription][res] = id;
       // resolve promise with messageId because subId's can collide (eth/parity)
       msg.resolve(id);
@@ -223,7 +224,7 @@ export default class Ws extends JsonRpcBase {
     }
 
     // pubsub format
-    if (method.includes('subscription')) {
+    if (this._subscriptions[method]) {
       const messageId = this._messages[this._subscriptions[method][params.subscription]];
 
       if (messageId) {
@@ -302,6 +303,16 @@ export default class Ws extends JsonRpcBase {
   }
 
   _methodsFromApi (api) {
+    if (api.subscription) {
+      const { subscribe, unsubscribe, subscription } = api;
+
+      return {
+        method: subscribe,
+        uMethod: unsubscribe,
+        subscription
+      };
+    }
+
     const method = `${api}_subscribe`;
     const uMethod = `${api}_unsubscribe`;
     const subscription = `${api}_subscription`;
@@ -309,7 +320,7 @@ export default class Ws extends JsonRpcBase {
     return { method, uMethod, subscription };
   }
 
-  subscribe (api, callback, ...params) {
+  subscribe (api, callback, params) {
     return new Promise((resolve, reject) => {
       const id = this.id;
       const { method, uMethod, subscription } = this._methodsFromApi(api);

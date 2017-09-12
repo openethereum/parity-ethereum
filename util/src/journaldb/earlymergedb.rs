@@ -28,7 +28,9 @@ use memorydb::*;
 use super::{DB_PREFIX_LEN, LATEST_ERA_KEY};
 use super::traits::JournalDB;
 use kvdb::{KeyValueDB, DBTransaction};
-use {H256, BaseDataError, UtilError, Bytes};
+use bigint::hash::H256;
+use error::{BaseDataError, UtilError};
+use {Bytes};
 
 #[derive(Clone, PartialEq, Eq)]
 struct RefInfo {
@@ -158,16 +160,14 @@ impl EarlyMergeDB {
 		backing.get(col, &Self::morph_key(key, 0)).expect("Low-level database error. Some issue with your hard disk?").is_some()
 	}
 
-	fn insert_keys(inserts: &[(H256, DBValue)], backing: &KeyValueDB, col: Option<u32>, refs: &mut HashMap<H256, RefInfo>, batch: &mut DBTransaction, trace: bool) {
+	fn insert_keys(inserts: &[(H256, DBValue)], backing: &KeyValueDB, col: Option<u32>, refs: &mut HashMap<H256, RefInfo>, batch: &mut DBTransaction) {
 		for &(ref h, ref d) in inserts {
 			match refs.entry(*h) {
 				Entry::Occupied(mut entry) => {
 					let info = entry.get_mut();
 					// already counting. increment.
 					info.queue_refs += 1;
-					if trace {
-						trace!(target: "jdb.fine", "    insert({}): In queue: Incrementing refs to {}", h, info.queue_refs);
-					}
+					trace!(target: "jdb.fine", "    insert({}): In queue: Incrementing refs to {}", h, info.queue_refs);
 				},
 				Entry::Vacant(entry) => {
 					// this is the first entry for this node in the journal.
@@ -175,16 +175,12 @@ impl EarlyMergeDB {
 					if in_archive {
 						// already in the backing DB. start counting, and remember it was already in.
 						Self::set_already_in(batch, col, h);
-						if trace {
-							trace!(target: "jdb.fine", "    insert({}): New to queue, in DB: Recording and inserting into queue", h);
-						}
+						trace!(target: "jdb.fine", "    insert({}): New to queue, in DB: Recording and inserting into queue", h);
 					} else {
 						// Gets removed when a key leaves the journal, so should never be set when we're placing a new key.
 						//Self::reset_already_in(&h);
 						assert!(!Self::is_already_in(backing, col, h));
-						if trace {
-							trace!(target: "jdb.fine", "    insert({}): New to queue, not in DB: Inserting into queue and DB", h);
-						}
+						trace!(target: "jdb.fine", "    insert({}): New to queue, not in DB: Inserting into queue and DB", h);
 						batch.put(col, h, d);
 					}
 					entry.insert(RefInfo {
@@ -217,7 +213,7 @@ impl EarlyMergeDB {
 		trace!(target: "jdb.fine", "replay_keys: (end) refs={:?}", refs);
 	}
 
-	fn remove_keys(deletes: &[H256], refs: &mut HashMap<H256, RefInfo>, batch: &mut DBTransaction, col: Option<u32>, from: RemoveFrom, trace: bool) {
+	fn remove_keys(deletes: &[H256], refs: &mut HashMap<H256, RefInfo>, batch: &mut DBTransaction, col: Option<u32>, from: RemoveFrom) {
 		// with a remove on {queue_refs: 1, in_archive: true}, we have two options:
 		// - convert to {queue_refs: 1, in_archive: false} (i.e. remove it from the conceptual archive)
 		// - convert to {queue_refs: 0, in_archive: true} (i.e. remove it from the conceptual queue)
@@ -230,16 +226,12 @@ impl EarlyMergeDB {
 					if entry.get().in_archive && from == RemoveFrom::Archive {
 						entry.get_mut().in_archive = false;
 						Self::reset_already_in(batch, col, h);
-						if trace {
-							trace!(target: "jdb.fine", "    remove({}): In archive, 1 in queue: Reducing to queue only and recording", h);
-						}
+						trace!(target: "jdb.fine", "    remove({}): In archive, 1 in queue: Reducing to queue only and recording", h);
 						continue;
 					}
 					if entry.get().queue_refs > 1 {
 						entry.get_mut().queue_refs -= 1;
-						if trace {
-							trace!(target: "jdb.fine", "    remove({}): In queue > 1 refs: Decrementing ref count to {}", h, entry.get().queue_refs);
-						}
+						trace!(target: "jdb.fine", "    remove({}): In queue > 1 refs: Decrementing ref count to {}", h, entry.get().queue_refs);
 						continue;
 					}
 
@@ -250,16 +242,12 @@ impl EarlyMergeDB {
 						(1, true) => {
 							entry.remove();
 							Self::reset_already_in(batch, col, h);
-							if trace {
-								trace!(target: "jdb.fine", "    remove({}): In archive, 1 in queue: Removing from queue and leaving in archive", h);
-							}
+							trace!(target: "jdb.fine", "    remove({}): In archive, 1 in queue: Removing from queue and leaving in archive", h);
 						},
 						(1, false) => {
 							entry.remove();
 							batch.delete(col, h);
-							if trace {
-								trace!(target: "jdb.fine", "    remove({}): Not in archive, only 1 ref in queue: Removing from queue and DB", h);
-							}
+							trace!(target: "jdb.fine", "    remove({}): Not in archive, only 1 ref in queue: Removing from queue and DB", h);
 						},
 						_ => panic!("Invalid value in refs: {:?}", entry.get()),
 					}
@@ -268,9 +256,7 @@ impl EarlyMergeDB {
 					// Gets removed when moving from 1 to 0 additional refs. Should never be here at 0 additional refs.
 					//assert!(!Self::is_already_in(db, &h));
 					batch.delete(col, h);
-					if trace {
-						trace!(target: "jdb.fine", "    remove({}): Not in queue - MUST BE IN ARCHIVE: Removing from DB", h);
-					}
+					trace!(target: "jdb.fine", "    remove({}): Not in queue - MUST BE IN ARCHIVE: Removing from DB", h);
 				},
 			}
 		}
@@ -400,8 +386,6 @@ impl JournalDB for EarlyMergeDB {
 	}
 
 	fn journal_under(&mut self, batch: &mut DBTransaction, now: u64, id: &H256) -> Result<u32, UtilError> {
-		let trace = false;
-
 		// record new commit's details.
 		let mut refs = match self.refs.as_ref() {
 			Some(refs) => refs.write(),
@@ -425,9 +409,7 @@ impl JournalDB for EarlyMergeDB {
 
 			let drained = self.overlay.drain();
 
-			if trace {
-				trace!(target: "jdb", "commit: #{} ({})", now, id);
-			}
+			trace!(target: "jdb", "commit: #{} ({})", now, id);
 
 			let removes: Vec<H256> = drained
 				.iter()
@@ -455,14 +437,12 @@ impl JournalDB for EarlyMergeDB {
 				r.append(&k);
 			}
 			r.append_list(&removes);
-			Self::insert_keys(&inserts, &*self.backing, self.column, &mut refs, batch, trace);
+			Self::insert_keys(&inserts, &*self.backing, self.column, &mut refs, batch);
 
 			let ins = inserts.iter().map(|&(k, _)| k).collect::<Vec<_>>();
 
-			if trace {
-				trace!(target: "jdb.ops", "  Deletes: {:?}", removes);
-				trace!(target: "jdb.ops", "  Inserts: {:?}", ins);
-			}
+			trace!(target: "jdb.ops", "  Deletes: {:?}", removes);
+			trace!(target: "jdb.ops", "  Inserts: {:?}", ins);
 
 			batch.put(self.column, &last, r.as_raw());
 			if self.latest_era.map_or(true, |e| now > e) {
@@ -476,8 +456,6 @@ impl JournalDB for EarlyMergeDB {
 
 	#[cfg_attr(feature="dev", allow(cyclomatic_complexity))]
 	fn mark_canonical(&mut self, batch: &mut DBTransaction, end_era: u64, canon_id: &H256) -> Result<u32, UtilError> {
-		let trace = false;
-
 		let mut refs = self.refs.as_ref().unwrap().write();
 
 		// apply old commits' details
@@ -499,9 +477,9 @@ impl JournalDB for EarlyMergeDB {
 				// Collect keys to be removed. Canon block - remove the (enacted) deletes.
 				let deletes: Vec<H256> = rlp.list_at(2);
 				trace!(target: "jdb.ops", "  Expunging: {:?}", deletes);
-				Self::remove_keys(&deletes, &mut refs, batch, self.column, RemoveFrom::Archive, trace);
+				Self::remove_keys(&deletes, &mut refs, batch, self.column, RemoveFrom::Archive);
 
-					trace!(target: "jdb.ops", "  Finalising: {:?}", inserts);
+				trace!(target: "jdb.ops", "  Finalising: {:?}", inserts);
 				for k in &inserts {
 					match refs.get(k).cloned() {
 						None => {
@@ -527,7 +505,7 @@ impl JournalDB for EarlyMergeDB {
 			} else {
 				// Collect keys to be removed. Non-canon block - remove the (reverted) inserts.
 				trace!(target: "jdb.ops", "  Reverting: {:?}", inserts);
-				Self::remove_keys(&inserts, &mut refs, batch, self.column, RemoveFrom::Queue, trace);
+				Self::remove_keys(&inserts, &mut refs, batch, self.column, RemoveFrom::Queue);
 			}
 
 			batch.delete(self.column, &last);
@@ -535,7 +513,7 @@ impl JournalDB for EarlyMergeDB {
 		}
 
 		trace!(target: "jdb", "EarlyMergeDB: delete journal for time #{}.{}, (canon was {})", end_era, index, canon_id);
-		trace!(target: "jdb", "OK: {:?}", refs.clone());
+		trace!(target: "jdb", "OK: {:?}", &*refs);
 
 		Ok(0)
 	}
@@ -577,12 +555,13 @@ mod tests {
 	#![cfg_attr(feature="dev", allow(similar_names))]
 
 	use std::path::Path;
+	use keccak::keccak;
 	use hashdb::{HashDB, DBValue};
 	use super::*;
 	use super::super::traits::JournalDB;
 	use ethcore_logger::init_log;
 	use kvdb::{DatabaseConfig};
-	use {Hashable, H32};
+	use bigint::hash::H32;
 
 	#[test]
 	fn insert_same_in_fork() {
@@ -590,25 +569,25 @@ mod tests {
 		let mut jdb = EarlyMergeDB::new_temp();
 
 		let x = jdb.insert(b"X");
-		jdb.commit_batch(1, &b"1".sha3(), None).unwrap();
+		jdb.commit_batch(1, &keccak(b"1"), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
-		jdb.commit_batch(2, &b"2".sha3(), None).unwrap();
+		jdb.commit_batch(2, &keccak(b"2"), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
-		jdb.commit_batch(3, &b"1002a".sha3(), Some((1, b"1".sha3()))).unwrap();
+		jdb.commit_batch(3, &keccak(b"1002a"), Some((1, keccak(b"1")))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
-		jdb.commit_batch(4, &b"1003a".sha3(), Some((2, b"2".sha3()))).unwrap();
+		jdb.commit_batch(4, &keccak(b"1003a"), Some((2, keccak(b"2")))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
 		jdb.remove(&x);
-		jdb.commit_batch(3, &b"1002b".sha3(), Some((1, b"1".sha3()))).unwrap();
+		jdb.commit_batch(3, &keccak(b"1002b"), Some((1, keccak(b"1")))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 		let x = jdb.insert(b"X");
-		jdb.commit_batch(4, &b"1003b".sha3(), Some((2, b"2".sha3()))).unwrap();
+		jdb.commit_batch(4, &keccak(b"1003b"), Some((2, keccak(b"2")))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
-		jdb.commit_batch(5, &b"1004a".sha3(), Some((3, b"1002a".sha3()))).unwrap();
+		jdb.commit_batch(5, &keccak(b"1004a"), Some((3, keccak(b"1002a")))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
-		jdb.commit_batch(6, &b"1005a".sha3(), Some((4, b"1003a".sha3()))).unwrap();
+		jdb.commit_batch(6, &keccak(b"1005a"), Some((4, keccak(b"1003a")))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
 		assert!(jdb.contains(&x));
@@ -618,17 +597,17 @@ mod tests {
 	fn insert_older_era() {
 		let mut jdb = EarlyMergeDB::new_temp();
 		let foo = jdb.insert(b"foo");
-		jdb.commit_batch(0, &b"0a".sha3(), None).unwrap();
+		jdb.commit_batch(0, &keccak(b"0a"), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
 		let bar = jdb.insert(b"bar");
-		jdb.commit_batch(1, &b"1".sha3(), Some((0, b"0a".sha3()))).unwrap();
+		jdb.commit_batch(1, &keccak(b"1"), Some((0, keccak(b"0a")))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
 		jdb.remove(&bar);
-		jdb.commit_batch(0, &b"0b".sha3(), None).unwrap();
+		jdb.commit_batch(0, &keccak(b"0b"), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
-		jdb.commit_batch(2, &b"2".sha3(), Some((1, b"1".sha3()))).unwrap();
+		jdb.commit_batch(2, &keccak(b"2"), Some((1, keccak(b"1")))).unwrap();
 
 		assert!(jdb.contains(&foo));
 		assert!(jdb.contains(&bar));
@@ -639,20 +618,20 @@ mod tests {
 		// history is 3
 		let mut jdb = EarlyMergeDB::new_temp();
 		let h = jdb.insert(b"foo");
-		jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
+		jdb.commit_batch(0, &keccak(b"0"), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 		assert!(jdb.contains(&h));
 		jdb.remove(&h);
-		jdb.commit_batch(1, &b"1".sha3(), None).unwrap();
+		jdb.commit_batch(1, &keccak(b"1"), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 		assert!(jdb.contains(&h));
-		jdb.commit_batch(2, &b"2".sha3(), None).unwrap();
+		jdb.commit_batch(2, &keccak(b"2"), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 		assert!(jdb.contains(&h));
-		jdb.commit_batch(3, &b"3".sha3(), Some((0, b"0".sha3()))).unwrap();
+		jdb.commit_batch(3, &keccak(b"3"), Some((0, keccak(b"0")))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 		assert!(jdb.contains(&h));
-		jdb.commit_batch(4, &b"4".sha3(), Some((1, b"1".sha3()))).unwrap();
+		jdb.commit_batch(4, &keccak(b"4"), Some((1, keccak(b"1")))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 		assert!(!jdb.contains(&h));
 	}
@@ -664,7 +643,7 @@ mod tests {
 
 		let foo = jdb.insert(b"foo");
 		let bar = jdb.insert(b"bar");
-		jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
+		jdb.commit_batch(0, &keccak(b"0"), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 		assert!(jdb.contains(&foo));
 		assert!(jdb.contains(&bar));
@@ -672,7 +651,7 @@ mod tests {
 		jdb.remove(&foo);
 		jdb.remove(&bar);
 		let baz = jdb.insert(b"baz");
-		jdb.commit_batch(1, &b"1".sha3(), Some((0, b"0".sha3()))).unwrap();
+		jdb.commit_batch(1, &keccak(b"1"), Some((0, keccak(b"0")))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 		assert!(jdb.contains(&foo));
 		assert!(jdb.contains(&bar));
@@ -680,20 +659,20 @@ mod tests {
 
 		let foo = jdb.insert(b"foo");
 		jdb.remove(&baz);
-		jdb.commit_batch(2, &b"2".sha3(), Some((1, b"1".sha3()))).unwrap();
+		jdb.commit_batch(2, &keccak(b"2"), Some((1, keccak(b"1")))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 		assert!(jdb.contains(&foo));
 		assert!(!jdb.contains(&bar));
 		assert!(jdb.contains(&baz));
 
 		jdb.remove(&foo);
-		jdb.commit_batch(3, &b"3".sha3(), Some((2, b"2".sha3()))).unwrap();
+		jdb.commit_batch(3, &keccak(b"3"), Some((2, keccak(b"2")))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 		assert!(jdb.contains(&foo));
 		assert!(!jdb.contains(&bar));
 		assert!(!jdb.contains(&baz));
 
-		jdb.commit_batch(4, &b"4".sha3(), Some((3, b"3".sha3()))).unwrap();
+		jdb.commit_batch(4, &keccak(b"4"), Some((3, keccak(b"3")))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 		assert!(!jdb.contains(&foo));
 		assert!(!jdb.contains(&bar));
@@ -707,25 +686,25 @@ mod tests {
 
 		let foo = jdb.insert(b"foo");
 		let bar = jdb.insert(b"bar");
-		jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
+		jdb.commit_batch(0, &keccak(b"0"), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 		assert!(jdb.contains(&foo));
 		assert!(jdb.contains(&bar));
 
 		jdb.remove(&foo);
 		let baz = jdb.insert(b"baz");
-		jdb.commit_batch(1, &b"1a".sha3(), Some((0, b"0".sha3()))).unwrap();
+		jdb.commit_batch(1, &keccak(b"1a"), Some((0, keccak(b"0")))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
 		jdb.remove(&bar);
-		jdb.commit_batch(1, &b"1b".sha3(), Some((0, b"0".sha3()))).unwrap();
+		jdb.commit_batch(1, &keccak(b"1b"), Some((0, keccak(b"0")))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
 		assert!(jdb.contains(&foo));
 		assert!(jdb.contains(&bar));
 		assert!(jdb.contains(&baz));
 
-		jdb.commit_batch(2, &b"2b".sha3(), Some((1, b"1b".sha3()))).unwrap();
+		jdb.commit_batch(2, &keccak(b"2b"), Some((1, keccak(b"1b")))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 		assert!(jdb.contains(&foo));
 		assert!(!jdb.contains(&baz));
@@ -738,19 +717,19 @@ mod tests {
 		let mut jdb = EarlyMergeDB::new_temp();
 
 		let foo = jdb.insert(b"foo");
-		jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
+		jdb.commit_batch(0, &keccak(b"0"), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 		assert!(jdb.contains(&foo));
 
 		jdb.remove(&foo);
-		jdb.commit_batch(1, &b"1".sha3(), Some((0, b"0".sha3()))).unwrap();
+		jdb.commit_batch(1, &keccak(b"1"), Some((0, keccak(b"0")))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 		jdb.insert(b"foo");
 		assert!(jdb.contains(&foo));
-		jdb.commit_batch(2, &b"2".sha3(), Some((1, b"1".sha3()))).unwrap();
+		jdb.commit_batch(2, &keccak(b"2"), Some((1, keccak(b"1")))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 		assert!(jdb.contains(&foo));
-		jdb.commit_batch(3, &b"2".sha3(), Some((0, b"2".sha3()))).unwrap();
+		jdb.commit_batch(3, &keccak(b"2"), Some((0, keccak(b"2")))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 		assert!(jdb.contains(&foo));
 	}
@@ -759,24 +738,24 @@ mod tests {
 	fn fork_same_key_one() {
 
 		let mut jdb = EarlyMergeDB::new_temp();
-		jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
+		jdb.commit_batch(0, &keccak(b"0"), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
 		let foo = jdb.insert(b"foo");
-		jdb.commit_batch(1, &b"1a".sha3(), Some((0, b"0".sha3()))).unwrap();
+		jdb.commit_batch(1, &keccak(b"1a"), Some((0, keccak(b"0")))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
 		jdb.insert(b"foo");
-		jdb.commit_batch(1, &b"1b".sha3(), Some((0, b"0".sha3()))).unwrap();
+		jdb.commit_batch(1, &keccak(b"1b"), Some((0, keccak(b"0")))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
 		jdb.insert(b"foo");
-		jdb.commit_batch(1, &b"1c".sha3(), Some((0, b"0".sha3()))).unwrap();
+		jdb.commit_batch(1, &keccak(b"1c"), Some((0, keccak(b"0")))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
 		assert!(jdb.contains(&foo));
 
-		jdb.commit_batch(2, &b"2a".sha3(), Some((1, b"1a".sha3()))).unwrap();
+		jdb.commit_batch(2, &keccak(b"2a"), Some((1, keccak(b"1a")))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 		assert!(jdb.contains(&foo));
 	}
@@ -784,24 +763,24 @@ mod tests {
 	#[test]
 	fn fork_same_key_other() {
 		let mut jdb = EarlyMergeDB::new_temp();
-		jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
+		jdb.commit_batch(0, &keccak(b"0"), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
 		let foo = jdb.insert(b"foo");
-		jdb.commit_batch(1, &b"1a".sha3(), Some((0, b"0".sha3()))).unwrap();
+		jdb.commit_batch(1, &keccak(b"1a"), Some((0, keccak(b"0")))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
 		jdb.insert(b"foo");
-		jdb.commit_batch(1, &b"1b".sha3(), Some((0, b"0".sha3()))).unwrap();
+		jdb.commit_batch(1, &keccak(b"1b"), Some((0, keccak(b"0")))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
 		jdb.insert(b"foo");
-		jdb.commit_batch(1, &b"1c".sha3(), Some((0, b"0".sha3()))).unwrap();
+		jdb.commit_batch(1, &keccak(b"1c"), Some((0, keccak(b"0")))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
 		assert!(jdb.contains(&foo));
 
-		jdb.commit_batch(2, &b"2b".sha3(), Some((1, b"1b".sha3()))).unwrap();
+		jdb.commit_batch(2, &keccak(b"2b"), Some((1, keccak(b"1b")))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 		assert!(jdb.contains(&foo));
 	}
@@ -809,33 +788,33 @@ mod tests {
 	#[test]
 	fn fork_ins_del_ins() {
 		let mut jdb = EarlyMergeDB::new_temp();
-		jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
+		jdb.commit_batch(0, &keccak(b"0"), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
 		let foo = jdb.insert(b"foo");
-		jdb.commit_batch(1, &b"1".sha3(), None).unwrap();
+		jdb.commit_batch(1, &keccak(b"1"), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
 		jdb.remove(&foo);
-		jdb.commit_batch(2, &b"2a".sha3(), Some((0, b"0".sha3()))).unwrap();
+		jdb.commit_batch(2, &keccak(b"2a"), Some((0, keccak(b"0")))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
 		jdb.remove(&foo);
-		jdb.commit_batch(2, &b"2b".sha3(), Some((0, b"0".sha3()))).unwrap();
+		jdb.commit_batch(2, &keccak(b"2b"), Some((0, keccak(b"0")))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
 		jdb.insert(b"foo");
-		jdb.commit_batch(3, &b"3a".sha3(), Some((1, b"1".sha3()))).unwrap();
+		jdb.commit_batch(3, &keccak(b"3a"), Some((1, keccak(b"1")))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
 		jdb.insert(b"foo");
-		jdb.commit_batch(3, &b"3b".sha3(), Some((1, b"1".sha3()))).unwrap();
+		jdb.commit_batch(3, &keccak(b"3b"), Some((1, keccak(b"1")))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
-		jdb.commit_batch(4, &b"4a".sha3(), Some((2, b"2a".sha3()))).unwrap();
+		jdb.commit_batch(4, &keccak(b"4a"), Some((2, keccak(b"2a")))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
-		jdb.commit_batch(5, &b"5a".sha3(), Some((3, b"3a".sha3()))).unwrap();
+		jdb.commit_batch(5, &keccak(b"5a"), Some((3, keccak(b"3a")))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 	}
 
@@ -856,7 +835,7 @@ mod tests {
 			// history is 1
 			let foo = jdb.insert(b"foo");
 			jdb.emplace(bar.clone(), DBValue::from_slice(b"bar"));
-			jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
+			jdb.commit_batch(0, &keccak(b"0"), None).unwrap();
 			assert!(jdb.can_reconstruct_refs());
 			foo
 		};
@@ -864,7 +843,7 @@ mod tests {
 		{
 			let mut jdb = new_db(&dir);
 			jdb.remove(&foo);
-			jdb.commit_batch(1, &b"1".sha3(), Some((0, b"0".sha3()))).unwrap();
+			jdb.commit_batch(1, &keccak(b"1"), Some((0, keccak(b"0")))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
 		}
 
@@ -872,7 +851,7 @@ mod tests {
 			let mut jdb = new_db(&dir);
 			assert!(jdb.contains(&foo));
 			assert!(jdb.contains(&bar));
-			jdb.commit_batch(2, &b"2".sha3(), Some((1, b"1".sha3()))).unwrap();
+			jdb.commit_batch(2, &keccak(b"2"), Some((1, keccak(b"1")))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
 			assert!(!jdb.contains(&foo));
 		}
@@ -886,22 +865,22 @@ mod tests {
 
 		// history is 4
 		let foo = jdb.insert(b"foo");
-		jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
+		jdb.commit_batch(0, &keccak(b"0"), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 		jdb.remove(&foo);
-		jdb.commit_batch(1, &b"1".sha3(), None).unwrap();
+		jdb.commit_batch(1, &keccak(b"1"), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 		jdb.insert(b"foo");
-		jdb.commit_batch(2, &b"2".sha3(), None).unwrap();
+		jdb.commit_batch(2, &keccak(b"2"), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 		jdb.remove(&foo);
-		jdb.commit_batch(3, &b"3".sha3(), None).unwrap();
+		jdb.commit_batch(3, &keccak(b"3"), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 		jdb.insert(b"foo");
-		jdb.commit_batch(4, &b"4".sha3(), Some((0, b"0".sha3()))).unwrap();
+		jdb.commit_batch(4, &keccak(b"4"), Some((0, keccak(b"0")))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 		// expunge foo
-		jdb.commit_batch(5, &b"5".sha3(), Some((1, b"1".sha3()))).unwrap();
+		jdb.commit_batch(5, &keccak(b"5"), Some((1, keccak(b"1")))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 	}
 
@@ -912,43 +891,43 @@ mod tests {
 
 		// history is 4
 		let foo = jdb.insert(b"foo");
-		jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
+		jdb.commit_batch(0, &keccak(b"0"), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
 		jdb.remove(&foo);
-		jdb.commit_batch(1, &b"1a".sha3(), None).unwrap();
+		jdb.commit_batch(1, &keccak(b"1a"), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
 		jdb.remove(&foo);
-		jdb.commit_batch(1, &b"1b".sha3(), None).unwrap();
+		jdb.commit_batch(1, &keccak(b"1b"), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
 		jdb.insert(b"foo");
-		jdb.commit_batch(2, &b"2a".sha3(), None).unwrap();
+		jdb.commit_batch(2, &keccak(b"2a"), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
 		jdb.insert(b"foo");
-		jdb.commit_batch(2, &b"2b".sha3(), None).unwrap();
+		jdb.commit_batch(2, &keccak(b"2b"), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
 		jdb.remove(&foo);
-		jdb.commit_batch(3, &b"3a".sha3(), None).unwrap();
+		jdb.commit_batch(3, &keccak(b"3a"), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
 		jdb.remove(&foo);
-		jdb.commit_batch(3, &b"3b".sha3(), None).unwrap();
+		jdb.commit_batch(3, &keccak(b"3b"), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
 		jdb.insert(b"foo");
-		jdb.commit_batch(4, &b"4a".sha3(), Some((0, b"0".sha3()))).unwrap();
+		jdb.commit_batch(4, &keccak(b"4a"), Some((0, keccak(b"0")))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
 		jdb.insert(b"foo");
-		jdb.commit_batch(4, &b"4b".sha3(), Some((0, b"0".sha3()))).unwrap();
+		jdb.commit_batch(4, &keccak(b"4b"), Some((0, keccak(b"0")))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
 		// expunge foo
-		jdb.commit_batch(5, &b"5".sha3(), Some((1, b"1a".sha3()))).unwrap();
+		jdb.commit_batch(5, &keccak(b"5"), Some((1, keccak(b"1a")))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 	}
 
@@ -958,25 +937,25 @@ mod tests {
 
 		// history is 1
 		let foo = jdb.insert(b"foo");
-		jdb.commit_batch(1, &b"1".sha3(), Some((0, b"0".sha3()))).unwrap();
+		jdb.commit_batch(1, &keccak(b"1"), Some((0, keccak(b"0")))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
 		// foo is ancient history.
 
 		jdb.remove(&foo);
-		jdb.commit_batch(2, &b"2".sha3(), Some((1, b"1".sha3()))).unwrap();
+		jdb.commit_batch(2, &keccak(b"2"), Some((1, keccak(b"1")))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
 		jdb.insert(b"foo");
-		jdb.commit_batch(3, &b"3".sha3(), Some((2, b"2".sha3()))).unwrap();	// BROKEN
+		jdb.commit_batch(3, &keccak(b"3"), Some((2, keccak(b"2")))).unwrap();	// BROKEN
 		assert!(jdb.can_reconstruct_refs());
 		assert!(jdb.contains(&foo));
 
 		jdb.remove(&foo);
-		jdb.commit_batch(4, &b"4".sha3(), Some((3, b"3".sha3()))).unwrap();
+		jdb.commit_batch(4, &keccak(b"4"), Some((3, keccak(b"3")))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
-		jdb.commit_batch(5, &b"5".sha3(), Some((4, b"4".sha3()))).unwrap();
+		jdb.commit_batch(5, &keccak(b"5"), Some((4, keccak(b"4")))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 		assert!(!jdb.contains(&foo));
 	}
@@ -987,30 +966,30 @@ mod tests {
 
 		// history is 4
 		let foo = jdb.insert(b"foo");
-		jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
+		jdb.commit_batch(0, &keccak(b"0"), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
-		jdb.commit_batch(1, &b"1".sha3(), None).unwrap();
+		jdb.commit_batch(1, &keccak(b"1"), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
-		jdb.commit_batch(2, &b"2".sha3(), None).unwrap();
+		jdb.commit_batch(2, &keccak(b"2"), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
-		jdb.commit_batch(3, &b"3".sha3(), None).unwrap();
+		jdb.commit_batch(3, &keccak(b"3"), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
-		jdb.commit_batch(4, &b"4".sha3(), Some((0, b"0".sha3()))).unwrap();
+		jdb.commit_batch(4, &keccak(b"4"), Some((0, keccak(b"0")))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
 		// foo is ancient history.
 
 		jdb.insert(b"foo");
 		let bar = jdb.insert(b"bar");
-		jdb.commit_batch(5, &b"5".sha3(), Some((1, b"1".sha3()))).unwrap();
+		jdb.commit_batch(5, &keccak(b"5"), Some((1, keccak(b"1")))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 		jdb.remove(&foo);
 		jdb.remove(&bar);
-		jdb.commit_batch(6, &b"6".sha3(), Some((2, b"2".sha3()))).unwrap();
+		jdb.commit_batch(6, &keccak(b"6"), Some((2, keccak(b"2")))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 		jdb.insert(b"foo");
 		jdb.insert(b"bar");
-		jdb.commit_batch(7, &b"7".sha3(), Some((3, b"3".sha3()))).unwrap();
+		jdb.commit_batch(7, &keccak(b"7"), Some((3, keccak(b"3")))).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 	}
 
@@ -1021,26 +1000,26 @@ mod tests {
 		let mut dir = ::std::env::temp_dir();
 		dir.push(H32::random().hex());
 
-		let foo = b"foo".sha3();
+		let foo = keccak(b"foo");
 
 		{
 			let mut jdb = new_db(&dir);
 			// history is 1
 			jdb.insert(b"foo");
-			jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
+			jdb.commit_batch(0, &keccak(b"0"), None).unwrap();
 			assert!(jdb.can_reconstruct_refs());
-			jdb.commit_batch(1, &b"1".sha3(), None).unwrap();
+			jdb.commit_batch(1, &keccak(b"1"), None).unwrap();
 			assert!(jdb.can_reconstruct_refs());
 
 			// foo is ancient history.
 
 			jdb.remove(&foo);
-			jdb.commit_batch(2, &b"2".sha3(), Some((0, b"0".sha3()))).unwrap();
+			jdb.commit_batch(2, &keccak(b"2"), Some((0, keccak(b"0")))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
 			assert!(jdb.contains(&foo));
 
 			jdb.insert(b"foo");
-			jdb.commit_batch(3, &b"3".sha3(), Some((1, b"1".sha3()))).unwrap();
+			jdb.commit_batch(3, &keccak(b"3"), Some((1, keccak(b"1")))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
 			assert!(jdb.contains(&foo));
 
@@ -1049,7 +1028,7 @@ mod tests {
 			let mut jdb = new_db(&dir);
 
 			jdb.remove(&foo);
-			jdb.commit_batch(4, &b"4".sha3(), Some((2, b"2".sha3()))).unwrap();
+			jdb.commit_batch(4, &keccak(b"4"), Some((2, keccak(b"2")))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
 			assert!(jdb.contains(&foo));
 
@@ -1057,7 +1036,7 @@ mod tests {
 		}; {
 			let mut jdb = new_db(&dir);
 
-			jdb.commit_batch(5, &b"5".sha3(), Some((3, b"3".sha3()))).unwrap();
+			jdb.commit_batch(5, &keccak(b"5"), Some((3, keccak(b"3")))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
 			assert!(jdb.contains(&foo));
 
@@ -1065,7 +1044,7 @@ mod tests {
 		}; {
 			let mut jdb = new_db(&dir);
 
-			jdb.commit_batch(6, &b"6".sha3(), Some((4, b"4".sha3()))).unwrap();
+			jdb.commit_batch(6, &keccak(b"6"), Some((4, keccak(b"4")))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
 			assert!(!jdb.contains(&foo));
 		}
@@ -1080,22 +1059,22 @@ mod tests {
 			// history is 1
 			let foo = jdb.insert(b"foo");
 			let bar = jdb.insert(b"bar");
-			jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
+			jdb.commit_batch(0, &keccak(b"0"), None).unwrap();
 			assert!(jdb.can_reconstruct_refs());
 			jdb.remove(&foo);
 			let baz = jdb.insert(b"baz");
-			jdb.commit_batch(1, &b"1a".sha3(), Some((0, b"0".sha3()))).unwrap();
+			jdb.commit_batch(1, &keccak(b"1a"), Some((0, keccak(b"0")))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
 
 			jdb.remove(&bar);
-			jdb.commit_batch(1, &b"1b".sha3(), Some((0, b"0".sha3()))).unwrap();
+			jdb.commit_batch(1, &keccak(b"1b"), Some((0, keccak(b"0")))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
 			(foo, bar, baz)
 		};
 
 		{
 			let mut jdb = new_db(&dir);
-			jdb.commit_batch(2, &b"2b".sha3(), Some((1, b"1b".sha3()))).unwrap();
+			jdb.commit_batch(2, &keccak(b"2b"), Some((1, keccak(b"1b")))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
 			assert!(jdb.contains(&foo));
 			assert!(!jdb.contains(&baz));

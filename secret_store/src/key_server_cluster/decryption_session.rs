@@ -170,26 +170,26 @@ impl SessionImpl {
 		})
 	}
 
-	#[cfg(test)]
 	/// Get this node id.
+	#[cfg(test)]
 	pub fn node(&self) -> &NodeId {
 		&self.core.meta.self_node_id
 	}
 
-	#[cfg(test)]
 	/// Get this session access key.
+	#[cfg(test)]
 	pub fn access_key(&self) -> &Secret {
 		&self.core.access_key
 	}
 
-	#[cfg(test)]
 	/// Get session state.
+	#[cfg(test)]
 	pub fn state(&self) -> ConsensusSessionState {
 		self.data.lock().consensus_session.state()
 	}
 
-	#[cfg(test)]
 	/// Get decrypted secret
+	#[cfg(test)]
 	pub fn decrypted_secret(&self) -> Option<Result<EncryptedDocumentKeyShadow, Error>> {
 		self.data.lock().result.clone()
 	}
@@ -281,10 +281,13 @@ impl SessionImpl {
 			return Ok(());
 		}
 
-		self.core.cluster.broadcast(Message::Decryption(DecryptionMessage::DecryptionSessionCompleted(DecryptionSessionCompleted {
-			session: self.core.meta.id.clone().into(),
-			sub_session: self.core.access_key.clone().into(),
-		})))?;
+		// send compeltion signal to all nodes, except for rejected nodes
+		for node in data.consensus_session.consensus_non_rejected_nodes() {
+			self.core.cluster.send(&node, Message::Decryption(DecryptionMessage::DecryptionSessionCompleted(DecryptionSessionCompleted {
+				session: self.core.meta.id.clone().into(),
+				sub_session: self.core.access_key.clone().into(),
+			})))?;
+		}
 
 		data.result = Some(Ok(data.consensus_session.result()?));
 		self.core.completed.notify_all();

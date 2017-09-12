@@ -16,7 +16,7 @@
 
 use std;
 use std::error::Error as StdError;
-use util::H256;
+use bigint::hash::H256;
 use ipc::IpcConfig;
 use jsonrpc_tcp_server::PushMessageError;
 

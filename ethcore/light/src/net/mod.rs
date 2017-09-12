@@ -23,8 +23,10 @@ use ethcore::transaction::UnverifiedTransaction;
 use io::TimerToken;
 use network::{HostInfo, NetworkProtocolHandler, NetworkContext, PeerId};
 use rlp::{RlpStream, UntrustedRlp};
-use util::hash::H256;
-use util::{DBValue, Mutex, RwLock, U256};
+use bigint::prelude::U256;
+use bigint::hash::H256;
+use util::DBValue;
+use parking_lot::{Mutex, RwLock};
 use time::{Duration, SteadyTime};
 
 use std::collections::{HashMap, HashSet};
@@ -102,9 +104,8 @@ mod packet {
 	// relay transactions to peers.
 	pub const SEND_TRANSACTIONS: u8 = 0x06;
 
-	// request and respond with epoch transition proof
-	pub const REQUEST_EPOCH_PROOF: u8 = 0x07;
-	pub const EPOCH_PROOF: u8 = 0x08;
+	// two packets were previously meant to be reserved for epoch proofs.
+	// these have since been moved to requests.
 }
 
 // timeouts for different kinds of requests. all values are in milliseconds.
@@ -122,6 +123,7 @@ mod timeout {
 	pub const CONTRACT_CODE: i64 = 100;
 	pub const HEADER_PROOF: i64 = 100;
 	pub const TRANSACTION_PROOF: i64 = 1000; // per gas?
+	pub const EPOCH_SIGNAL: i64 = 200;
 }
 
 /// A request id.
@@ -287,7 +289,7 @@ pub type PeerMap = HashMap<PeerId, Mutex<Peer>>;
 mod id_guard {
 
 	use network::PeerId;
-	use util::RwLockReadGuard;
+	use parking_lot::RwLockReadGuard;
 
 	use super::{PeerMap, ReqId};
 
@@ -581,12 +583,6 @@ impl LightProtocol {
 			packet::ACKNOWLEDGE_UPDATE => self.acknowledge_update(peer, io, rlp),
 
 			packet::SEND_TRANSACTIONS => self.relay_transactions(peer, io, rlp),
-
-			packet::REQUEST_EPOCH_PROOF | packet::EPOCH_PROOF => {
-				// ignore these for now, but leave them specified.
-				debug!(target: "pip", "Ignoring request/response for epoch proof");
-				Ok(())
-			}
 
 			other => {
 				Err(Error::UnrecognizedPacket(other))
@@ -950,6 +946,7 @@ impl LightProtocol {
 				CompleteRequest::Storage(req) => self.provider.storage_proof(req).map(Response::Storage),
 				CompleteRequest::Code(req) => self.provider.contract_code(req).map(Response::Code),
 				CompleteRequest::Execution(req) => self.provider.transaction_proof(req).map(Response::Execution),
+				CompleteRequest::Signal(req) => self.provider.epoch_signal(req).map(Response::Signal),
 			}
 		});
 

@@ -16,9 +16,9 @@
 
 //! Wasm bound-checked ptr
 
-use parity_wasm::interpreter;
+use super::runtime::{InterpreterMemoryInstance, InterpreterError, UserTrap};
 
-/// Bound-checked wrapper for webassembly memory 
+/// Bound-checked wrapper for webassembly memory
 pub struct WasmPtr(u32);
 
 /// Error in bound check
@@ -28,15 +28,21 @@ pub enum Error {
 }
 
 impl From<u32> for WasmPtr {
-	fn from(raw: u32) -> Self { 
+	fn from(raw: u32) -> Self {
 		WasmPtr(raw)
+	}
+}
+
+impl From<Error> for InterpreterError {
+	fn from(_e: Error) -> Self {
+		UserTrap::MemoryAccessViolation.into()
 	}
 }
 
 impl WasmPtr {
 	// todo: use memory view when they are on
 	/// Check memory range and return data with given length starting from the current pointer value
-	pub fn slice(&self, len: u32, mem: &interpreter::MemoryInstance) -> Result<Vec<u8>, Error> {
+	pub fn slice(&self, len: u32, mem: &InterpreterMemoryInstance) -> Result<Vec<u8>, Error> {
 		mem.get(self.0, len as usize).map_err(|_| Error::AccessViolation)
 	}
 

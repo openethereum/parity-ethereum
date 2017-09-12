@@ -18,6 +18,7 @@ export Balances from './balances';
 export Personal from './personal';
 export Signer from './signer';
 export Status from './status';
+export Tokens from './tokens';
 
 export apiReducer from './apiReducer';
 export balancesReducer from './balancesReducer';

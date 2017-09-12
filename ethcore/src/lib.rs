@@ -85,6 +85,7 @@ extern crate ethcore_bloom_journal as bloom_journal;
 extern crate ethcore_devtools as devtools;
 extern crate ethcore_io as io;
 extern crate ethcore_ipc_nano as nanoipc;
+extern crate ethcore_bigint as bigint;
 extern crate ethcore_logger;
 extern crate ethcore_stratum;
 extern crate ethjson;
@@ -99,10 +100,17 @@ extern crate native_contracts;
 extern crate num_cpus;
 extern crate num;
 extern crate parity_machine;
+extern crate parking_lot;
 extern crate price_info;
 extern crate rand;
+extern crate rayon;
 extern crate rlp;
+extern crate hash;
 extern crate heapsize;
+extern crate triehash;
+extern crate ansi_term;
+extern crate semantic_version;
+extern crate unexpected;
 
 #[macro_use]
 extern crate rlp_derive;
@@ -151,6 +159,7 @@ pub mod service;
 pub mod snapshot;
 pub mod spec;
 pub mod state;
+pub mod timer;
 pub mod trace;
 pub mod transaction;
 pub mod verification;
@@ -167,6 +176,7 @@ mod executive;
 mod externalities;
 mod blockchain;
 mod factory;
+mod tx_filter;
 
 #[cfg(test)]
 mod tests;

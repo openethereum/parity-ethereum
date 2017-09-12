@@ -16,7 +16,7 @@
 
 use std::{io, thread, time};
 use std::sync::{atomic, mpsc, Arc};
-use util::Mutex;
+use parking_lot::Mutex;
 
 use futures::{self, Future};
 use fetch::{self, Fetch};

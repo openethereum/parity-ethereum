@@ -25,17 +25,16 @@ use super::helpers::{compare_dbs, StateProducer};
 use error::Error;
 
 use rand::{XorShiftRng, SeedableRng};
-use util::hash::H256;
+use bigint::hash::H256;
 use util::journaldb::{self, Algorithm};
 use util::kvdb::{Database, DatabaseConfig};
 use util::memorydb::MemoryDB;
-use util::Mutex;
+use parking_lot::Mutex;
 use devtools::RandomTempPath;
-
-use util::sha3::SHA3_NULL_RLP;
 
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
+use hash::{KECCAK_NULL_RLP, keccak};
 
 #[test]
 fn snap_and_restore() {
@@ -98,7 +97,9 @@ fn snap_and_restore() {
 fn get_code_from_prev_chunk() {
 	use std::collections::HashSet;
 	use rlp::RlpStream;
-	use util::{HashDB, H256, U256, Hashable};
+	use bigint::prelude::U256;
+	use bigint::hash::H256;
+	use util::HashDB;
 
 	use account_db::{AccountDBMut, AccountDB};
 
@@ -107,8 +108,8 @@ fn get_code_from_prev_chunk() {
 	let mut acc_stream = RlpStream::new_list(4);
 	acc_stream.append(&U256::default())
 		.append(&U256::default())
-		.append(&SHA3_NULL_RLP)
-		.append(&code.sha3());
+		.append(&KECCAK_NULL_RLP)
+		.append(&keccak(code));
 
 	let (h1, h2) = (H256::random(), H256::random());
 

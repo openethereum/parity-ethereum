@@ -35,7 +35,9 @@ use service::ClientIoMessage;
 
 use io::IoChannel;
 
-use util::{Bytes, H256, Mutex, RwLock, RwLockReadGuard, UtilError};
+use bigint::hash::H256;
+use parking_lot::{Mutex, RwLock, RwLockReadGuard};
+use util::{Bytes, UtilError};
 use util::journaldb::Algorithm;
 use util::kvdb::{Database, DatabaseConfig};
 use util::snappy;
@@ -100,7 +102,7 @@ impl Restoration {
 		let block_chunks = manifest.block_hashes.iter().cloned().collect();
 
 		let raw_db = Arc::new(Database::open(params.db_config, &*params.db_path.to_string_lossy())
-			.map_err(UtilError::SimpleString)?);
+			.map_err(UtilError::from)?);
 
 		let chain = BlockChain::new(Default::default(), params.genesis, raw_db.clone());
 		let components = params.engine.snapshot_components()
@@ -517,7 +519,7 @@ impl Service {
 
 							match is_done {
 								true => {
-									db.flush().map_err(::util::UtilError::SimpleString)?;
+									db.flush().map_err(UtilError::from)?;
 									drop(db);
 									return self.finalize_restoration(&mut *restoration);
 								},
@@ -530,7 +532,7 @@ impl Service {
 				}
 			}
 		};
-		result.and_then(|_| db.flush().map_err(|e| ::util::UtilError::SimpleString(e).into()))
+		result.and_then(|_| db.flush().map_err(|e| UtilError::from(e).into()))
 	}
 
 	/// Feed a state chunk to be processed synchronously.
@@ -678,7 +680,7 @@ mod tests {
 
 	#[test]
 	fn cannot_finish_with_invalid_chunks() {
-		use util::H256;
+		use bigint::hash::H256;
 		use util::kvdb::DatabaseConfig;
 
 		let spec = get_test_spec();

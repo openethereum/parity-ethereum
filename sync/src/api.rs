@@ -20,7 +20,8 @@ use std::io;
 use util::Bytes;
 use network::{NetworkProtocolHandler, NetworkService, NetworkContext, HostInfo, PeerId, ProtocolId,
 	NetworkConfiguration as BasicNetworkConfiguration, NonReservedPeerMode, NetworkError, ConnectionFilter};
-use util::{U256, H256, H512};
+use bigint::prelude::U256;
+use bigint::hash::{H256, H512};
 use io::{TimerToken};
 use ethcore::ethstore::ethkey::Secret;
 use ethcore::client::{BlockChainClient, ChainNotify};
@@ -496,6 +497,8 @@ pub trait ManageNetwork : Send + Sync {
 	fn stop_network(&self);
 	/// Query the current configuration of the network
 	fn network_config(&self) -> NetworkConfiguration;
+	/// Get network context for protocol.
+	fn with_proto_context(&self, proto: ProtocolId, f: &mut FnMut(&NetworkContext));
 }
 
 
@@ -536,6 +539,10 @@ impl ManageNetwork for EthSync {
 
 	fn network_config(&self) -> NetworkConfiguration {
 		NetworkConfiguration::from(self.network.config().clone())
+	}
+
+	fn with_proto_context(&self, proto: ProtocolId, f: &mut FnMut(&NetworkContext)) {
+		self.network.with_context_eval(proto, f);
 	}
 }
 
@@ -806,6 +813,10 @@ impl ManageNetwork for LightSync {
 
 	fn network_config(&self) -> NetworkConfiguration {
 		NetworkConfiguration::from(self.network.config().clone())
+	}
+
+	fn with_proto_context(&self, proto: ProtocolId, f: &mut FnMut(&NetworkContext)) {
+		self.network.with_context_eval(proto, f);
 	}
 }
 

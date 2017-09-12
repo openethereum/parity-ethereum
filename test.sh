@@ -1,5 +1,5 @@
 #!/bin/sh
-# Running Parity Full Test Sute
+# Running Parity Full Test Suite
 
 FEATURES="json-tests"
 OPTIONS="--release"

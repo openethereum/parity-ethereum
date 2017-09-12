@@ -21,7 +21,9 @@ use std::sync::Arc;
 use bloomchain::{Number, Config as BloomConfig};
 use bloomchain::group::{BloomGroupDatabase, BloomGroupChain, GroupPosition, BloomGroup};
 use heapsize::HeapSizeOf;
-use util::{H256, H264, KeyValueDB, DBTransaction, RwLock};
+use bigint::hash::{H256, H264};
+use util::{KeyValueDB, DBTransaction};
+use parking_lot::RwLock;
 use header::BlockNumber;
 use trace::{LocalizedTrace, Config, Filter, Database as TraceDatabase, ImportRequest, DatabaseExtras};
 use db::{self, Key, Writable, Readable, CacheUpdatePolicy};
@@ -411,7 +413,9 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 mod tests {
 	use std::collections::HashMap;
 	use std::sync::Arc;
-	use util::{Address, U256, H256, DBTransaction};
+	use bigint::prelude::U256;
+	use bigint::hash::H256;
+	use util::{Address, DBTransaction};
 	use header::BlockNumber;
 	use trace::{Config, TraceDB, Database as TraceDatabase, DatabaseExtras, ImportRequest};
 	use trace::{Filter, LocalizedTrace, AddressesFilter, TraceError};

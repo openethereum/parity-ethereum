@@ -25,7 +25,7 @@ use ipc;
 use jsonrpc_core as core;
 use jsonrpc_pubsub::Session;
 use ws;
-use util::H256;
+use bigint::hash::H256;
 
 use v1::{Metadata, Origin};
 use v1::informant::RpcStats;

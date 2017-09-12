@@ -20,10 +20,11 @@ use std::sync::Arc;
 use rustc_hex::ToHex;
 use mime::Mime;
 use mime_guess;
+use hash::keccak;
 
 use futures::{future, BoxFuture, Future};
 use native_contracts::{Registry, Urlhint};
-use util::{Address, Bytes, Hashable};
+use util::{Address, Bytes};
 
 const COMMIT_LEN: usize = 20;
 
@@ -116,7 +117,7 @@ impl URLHintContract {
 	}
 }
 
-fn decode_urlhint_output(output: (String, ::util::H160, Address)) -> Option<URLHintResult> {
+fn decode_urlhint_output(output: (String, ::bigint::hash::H160, Address)) -> Option<URLHintResult> {
 	let (account_slash_repo, commit, owner) = output;
 
 	if owner == Address::default() {
@@ -164,7 +165,7 @@ impl URLHint for URLHintContract {
 
 		let urlhint = self.urlhint.clone();
 		let client = self.client.clone();
-		self.registrar.get_address(do_call, "githubhint".sha3(), "A".into())
+		self.registrar.get_address(do_call, keccak("githubhint"), "A".into())
 			.map(|addr| if addr == Address::default() { None } else { Some(addr) })
 			.and_then(move |address| {
 				let mut fixed_id = [0; 32];
@@ -175,7 +176,7 @@ impl URLHint for URLHintContract {
 					None => Either::A(future::ok(None)),
 					Some(address) => {
 						let do_call = move |_, data| client.call(address, data);
-						Either::B(urlhint.entries(do_call, ::util::H256(fixed_id)).map(decode_urlhint_output))
+						Either::B(urlhint.entries(do_call, ::bigint::hash::H256(fixed_id)).map(decode_urlhint_output))
 					}
 				}
 			}).boxed()
@@ -215,7 +216,8 @@ pub mod tests {
 
 	use super::*;
 	use super::guess_mime_type;
-	use util::{Bytes, Address, Mutex, ToPretty};
+	use parking_lot::Mutex;
+	use util::{Bytes, Address, ToPretty};
 
 	pub struct FakeRegistrar {
 		pub calls: Arc<Mutex<Vec<(String, String)>>>,

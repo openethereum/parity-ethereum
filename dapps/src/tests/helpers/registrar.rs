@@ -20,7 +20,9 @@ use std::collections::HashMap;
 use rustc_hex::FromHex;
 
 use hash_fetch::urlhint::ContractClient;
-use util::{Bytes, Address, Mutex, H256, ToPretty};
+use bigint::hash::H256;
+use util::{Bytes, Address, ToPretty};
+use parking_lot::Mutex;
 
 const REGISTRAR: &'static str = "8e4e9b13d4b45cb0befc93c3061b1408f67316b2";
 const URLHINT: &'static str = "deadbeefcafe0000000000000000000000000000";

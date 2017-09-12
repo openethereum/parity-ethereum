@@ -32,8 +32,8 @@ pub fn deadline<F, T>(duration: Duration, handle: &Handle, future: F) -> Result<
 	Ok(deadline)
 }
 
-#[derive(Debug, PartialEq)]
 /// Deadline future completion status.
+#[derive(Debug, PartialEq)]
 pub enum DeadlineStatus<T> {
 	/// Completed a future.
 	Meet(T),

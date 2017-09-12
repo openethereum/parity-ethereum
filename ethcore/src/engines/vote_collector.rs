@@ -19,6 +19,8 @@
 use std::fmt::Debug;
 use std::collections::{BTreeMap, HashSet, HashMap};
 use std::hash::Hash;
+use bigint::hash::{H256, H520};
+use parking_lot:: RwLock;
 use util::*;
 use rlp::{Encodable, RlpStream};
 
@@ -206,6 +208,8 @@ impl <M: Message + Default + Encodable + Debug> VoteCollector<M> {
 
 #[cfg(test)]
 mod tests {
+	use hash::keccak;
+	use bigint::hash::H160;
 	use util::*;
 	use rlp::*;
 	use super::*;
@@ -251,7 +255,7 @@ mod tests {
 	#[test]
 	fn seal_retrieval() {
 		let collector = VoteCollector::default();
-		let bh = Some("1".sha3());
+		let bh = Some(keccak("1"));
 		let mut signatures = Vec::new();
 		for _ in 0..5 {
 			signatures.push(H520::random());
@@ -263,9 +267,9 @@ mod tests {
 		// Good proposal
 		random_vote(&collector, signatures[0].clone(), propose_round.clone(), bh.clone());
 		// Wrong block proposal.
-		random_vote(&collector, signatures[0].clone(), propose_round.clone(), Some("0".sha3()));
+		random_vote(&collector, signatures[0].clone(), propose_round.clone(), Some(keccak("0")));
 		// Wrong block commit.
-		random_vote(&collector, signatures[3].clone(), commit_round.clone(), Some("0".sha3()));
+		random_vote(&collector, signatures[3].clone(), commit_round.clone(), Some(keccak("0")));
 		// Wrong round.
 		random_vote(&collector, signatures[0].clone(), 6, bh.clone());
 		// Wrong round.
@@ -291,22 +295,22 @@ mod tests {
 		let round1 = 1;
 		let round3 = 3;
 		// good 1
-		random_vote(&collector, H520::random(), round1, Some("0".sha3()));
-		random_vote(&collector, H520::random(), 0, Some("0".sha3()));
+		random_vote(&collector, H520::random(), round1, Some(keccak("0")));
+		random_vote(&collector, H520::random(), 0, Some(keccak("0")));
 		// good 3
-		random_vote(&collector, H520::random(), round3, Some("0".sha3()));
-		random_vote(&collector, H520::random(), 2, Some("0".sha3()));
+		random_vote(&collector, H520::random(), round3, Some(keccak("0")));
+		random_vote(&collector, H520::random(), 2, Some(keccak("0")));
 		// good prevote
-		random_vote(&collector, H520::random(), round1, Some("1".sha3()));
+		random_vote(&collector, H520::random(), round1, Some(keccak("1")));
 		// good prevote
 		let same_sig = H520::random();
-		random_vote(&collector, same_sig.clone(), round1, Some("1".sha3()));
-		random_vote(&collector, same_sig, round1, Some("1".sha3()));
+		random_vote(&collector, same_sig.clone(), round1, Some(keccak("1")));
+		random_vote(&collector, same_sig, round1, Some(keccak("1")));
 		// good precommit
-		random_vote(&collector, H520::random(), round3, Some("1".sha3()));
+		random_vote(&collector, H520::random(), round3, Some(keccak("1")));
 		// good prevote
-		random_vote(&collector, H520::random(), round1, Some("0".sha3()));
-		random_vote(&collector, H520::random(), 4, Some("2".sha3()));
+		random_vote(&collector, H520::random(), round1, Some(keccak("0")));
+		random_vote(&collector, H520::random(), 4, Some(keccak("2")));
 
 		assert_eq!(collector.count_round_votes(&round1), 4);
 		assert_eq!(collector.count_round_votes(&round3), 2);
@@ -314,7 +318,7 @@ mod tests {
 		let message = TestMessage {
 			signature: H520::default(),
 			step: round1,
-			block_hash: Some("1".sha3())
+			block_hash: Some(keccak("1"))
 		};
 		assert_eq!(collector.count_aligned_votes(&message), 2);
 	}
@@ -325,11 +329,11 @@ mod tests {
 		let vote = |round, hash| {
 			random_vote(&collector, H520::random(), round, hash);
 		};
-		vote(6, Some("0".sha3()));
-		vote(3, Some("0".sha3()));
-		vote(7, Some("0".sha3()));
-		vote(8, Some("1".sha3()));
-		vote(1, Some("1".sha3()));
+		vote(6, Some(keccak("0")));
+		vote(3, Some(keccak("0")));
+		vote(7, Some(keccak("0")));
+		vote(8, Some(keccak("1")));
+		vote(1, Some(keccak("1")));
 
 		collector.throw_out_old(&7);
 		assert_eq!(collector.len(), 2);
@@ -340,9 +344,9 @@ mod tests {
 		let collector = VoteCollector::default();
 		let round = 3;
 		// Vote is inserted fine.
-		assert!(full_vote(&collector, H520::random(), round, Some("0".sha3()), &Address::default()));
+		assert!(full_vote(&collector, H520::random(), round, Some(keccak("0")), &Address::default()));
 		// Returns the double voting address.
-		assert!(!full_vote(&collector, H520::random(), round, Some("1".sha3()), &Address::default()));
+		assert!(!full_vote(&collector, H520::random(), round, Some(keccak("1")), &Address::default()));
 		assert_eq!(collector.count_round_votes(&round), 1);
 	}
 }

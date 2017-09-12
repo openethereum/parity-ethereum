@@ -183,16 +183,17 @@ export default class Parity extends PubsubBase {
 
   localTransactions (callback) {
     return this.addListener(this._api, 'parity_localTransactions', (error, transactions) => {
-      error
-        ? callback(error)
-        : callback(null, transactions => {
-          Object.values(transactions)
-            .filter(tx => tx.transaction)
-            .map(tx => {
-              tx.transaction = outTransaction(tx.transaction);
-            });
-          return transactions;
+      if (error) {
+        return callback(error);
+      }
+
+      Object.values(transactions)
+        .filter(tx => tx.transaction)
+        .map(tx => {
+          tx.transaction = outTransaction(tx.transaction);
         });
+
+      callback(null, transactions);
     });
   }
 
@@ -266,7 +267,7 @@ export default class Parity extends PubsubBase {
 
   // parity accounts API (only secure API or configured to be exposed)
   allAccountsInfo (callback) {
-    return this._addListener(this._api, 'parity_allAccountsInfo', (error, data) => {
+    return this.addListener(this._api, 'parity_allAccountsInfo', (error, data) => {
       error
         ? callback(error)
         : callback(null, outAccountInfo(data));
@@ -274,7 +275,7 @@ export default class Parity extends PubsubBase {
   }
 
   getDappAddresses (callback, dappId) {
-    return this._addListener(this._api, 'parity_getDappAddresses', (error, data) => {
+    return this.addListener(this._api, 'parity_getDappAddresses', (error, data) => {
       error
         ? callback(error)
         : callback(null, outAddresses(data));
@@ -282,7 +283,7 @@ export default class Parity extends PubsubBase {
   }
 
   getDappDefaultAddress (callback, dappId) {
-    return this._addListener(this._api, 'parity_getDappDefaultAddress', (error, data) => {
+    return this.addListener(this._api, 'parity_getDappDefaultAddress', (error, data) => {
       error
         ? callback(error)
         : callback(null, outAddress(data));
@@ -290,7 +291,7 @@ export default class Parity extends PubsubBase {
   }
 
   getNewDappsAddresses (callback) {
-    return this._addListener(this._api, 'parity_getDappDefaultAddress', (error, addresses) => {
+    return this.addListener(this._api, 'parity_getDappDefaultAddress', (error, addresses) => {
       error
         ? callback(error)
         : callback(null, addresses ? addresses.map(outAddress) : null);
@@ -298,7 +299,7 @@ export default class Parity extends PubsubBase {
   }
 
   getNewDappsDefaultAddress (callback) {
-    return this._addListener(this._api, 'parity_getNewDappsDefaultAddress', (error, data) => {
+    return this.addListener(this._api, 'parity_getNewDappsDefaultAddress', (error, data) => {
       error
         ? callback(error)
         : callback(null, outAddress(data));
@@ -306,7 +307,7 @@ export default class Parity extends PubsubBase {
   }
 
   listRecentDapps (callback) {
-    return this._addListener(this._api, 'parity_listRecentDapps', (error, data) => {
+    return this.addListener(this._api, 'parity_listRecentDapps', (error, data) => {
       error
         ? callback(error)
         : callback(null, outRecentDapps(data));
@@ -314,7 +315,7 @@ export default class Parity extends PubsubBase {
   }
 
   listGethAccounts (callback) {
-    return this._addListener(this._api, 'parity_listGethAccounts', (error, data) => {
+    return this.addListener(this._api, 'parity_listGethAccounts', (error, data) => {
       error
         ? callback(error)
         : callback(null, outAddresses(data));
@@ -322,15 +323,15 @@ export default class Parity extends PubsubBase {
   }
 
   listVaults (callback) {
-    return this._addListener(this._api, 'parity_listVaults', callback);
+    return this.addListener(this._api, 'parity_listVaults', callback);
   }
 
   listOpenedVaults (callback) {
-    return this._addListener(this._api, 'parity_listOpenedVaults', callback);
+    return this.addListener(this._api, 'parity_listOpenedVaults', callback);
   }
 
   getVaultMeta (callback, vaultName) {
-    return this._addListener(this._api, 'parity_getVaultMeta', (error, data) => {
+    return this.addListener(this._api, 'parity_getVaultMeta', (error, data) => {
       error
         ? callback(error)
         : callback(null, outVaultMeta(data));
@@ -338,7 +339,7 @@ export default class Parity extends PubsubBase {
   }
 
   deriveAddressHash (callback, address, password, hash, shouldSave) {
-    return this._addListener(this._api, 'parity_deriveAddressHash', (error, data) => {
+    return this.addListener(this._api, 'parity_deriveAddressHash', (error, data) => {
       error
         ? callback(error)
         : callback(null, outAddress(data));
@@ -346,10 +347,18 @@ export default class Parity extends PubsubBase {
   }
 
   deriveAddressIndex (callback, address, password, index, shouldSave) {
-    return this._addListener(this._api, 'parity_deriveAddressIndex', (error, data) => {
+    return this.addListener(this._api, 'parity_deriveAddressIndex', (error, data) => {
       error
         ? callback(error)
         : callback(null, outAddress(data));
     }, [inAddress(address), password, inDeriveIndex(index), !!shouldSave]);
+  }
+
+  nodeHealth (callback) {
+    return this.addListener(this._api, 'parity_nodeHealth', (error, data) => {
+      error
+        ? callback(error)
+        : callback(null, data);
+    });
   }
 }

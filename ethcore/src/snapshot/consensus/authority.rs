@@ -33,7 +33,8 @@ use snapshot::{Error, ManifestData};
 
 use itertools::{Position, Itertools};
 use rlp::{RlpStream, UntrustedRlp};
-use util::{Bytes, H256, KeyValueDB};
+use bigint::hash::H256;
+use util::{Bytes, KeyValueDB};
 
 /// Snapshot creation and restoration for PoA chains.
 /// Chunk format:
@@ -332,7 +333,7 @@ impl Rebuilder for ChunkRebuilder {
 				}
 			}
 
-			let parent_td: ::util::U256 = last_rlp.val_at(4)?;
+			let parent_td: ::bigint::prelude::U256 = last_rlp.val_at(4)?;
 
 			let mut batch = self.db.transaction();
 			self.chain.insert_unordered_block(&mut batch, &block_data, receipts, Some(parent_td), true, false);

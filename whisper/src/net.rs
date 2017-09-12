@@ -23,31 +23,45 @@ use std::time::{Duration, SystemTime};
 use std::sync::Arc;
 
 use bigint::hash::{H256, H512};
-use network::{HostInfo, NetworkContext, NetworkError, NodeId, PeerId, TimerToken};
+use network::{HostInfo, NetworkContext, NetworkError, NodeId, PeerId, ProtocolId, TimerToken};
 use ordered_float::OrderedFloat;
 use parking_lot::{Mutex, RwLock};
 use rlp::{DecoderError, RlpStream, UntrustedRlp};
 
 use message::{Message, Error as MessageError};
 
+// how often periodic relays are. when messages are imported
+// we directly broadcast.
 const RALLY_TOKEN: TimerToken = 1;
-const RALLY_TIMEOUT_MS: u64 = 750; // supposed to be at least once per second.
+const RALLY_TIMEOUT_MS: u64 = 2500;
 
-const PROTOCOL_VERSION: usize = 2;
+/// Current protocol version.
+pub const PROTOCOL_VERSION: usize = 6;
 
 /// Supported protocol versions.
 pub const SUPPORTED_VERSIONS: &'static [u8] = &[PROTOCOL_VERSION as u8];
 
 // maximum tolerated delay between messages packets.
-const MAX_TOLERATED_DELAY_MS: u64 = 2000;
+const MAX_TOLERATED_DELAY_MS: u64 = 5000;
 
-/// Number of packets.
-pub const PACKET_COUNT: u8 = 3;
+/// Number of packets. A bunch are reserved.
+pub const PACKET_COUNT: u8 = 128;
+
+/// Whisper protocol ID
+pub const PROTOCOL_ID: ::network::ProtocolId = *b"shh";
+
+/// Parity-whisper protocol ID
+/// Current parity-specific extensions:
+///   - Multiple topics in packet.
+pub const PARITY_PROTOCOL_ID: ::network::ProtocolId = *b"pwh";
 
 mod packet {
 	pub const STATUS: u8 = 0;
 	pub const MESSAGES: u8 = 1;
-	pub const TOPIC_FILTER: u8 = 2;
+	pub const POW_REQUIREMENT: u8 = 2;
+	pub const TOPIC_FILTER: u8 = 3;
+
+	// 126, 127 for mail server stuff we will never implement here.
 }
 
 /// Handles messages within a single packet.
@@ -67,11 +81,9 @@ enum Error {
 	Decoder(DecoderError),
 	Network(NetworkError),
 	Message(MessageError),
-	UnknownPacket(u8),
 	UnknownPeer(PeerId),
-	ProtocolVersionMismatch(usize),
-	SameNodeKey,
 	UnexpectedMessage,
+	InvalidPowReq,
 }
 
 impl From<DecoderError> for Error {
@@ -98,12 +110,9 @@ impl fmt::Display for Error {
 			Error::Decoder(ref err) => write!(f, "Failed to decode packet: {}", err),
 			Error::Network(ref err) => write!(f, "Network error: {}", err),
 			Error::Message(ref err) => write!(f, "Error decoding message: {}", err),
-			Error::UnknownPacket(ref id) => write!(f, "Unknown packet kind: {}", id),
 			Error::UnknownPeer(ref id) => write!(f, "Message received from unknown peer: {}", id),
-			Error::ProtocolVersionMismatch(ref proto) =>
-				write!(f, "Unknown protocol version: {}", proto),
 			Error::UnexpectedMessage => write!(f, "Unexpected message."),
-			Error::SameNodeKey => write!(f, "Peer and us have same node key."),
+			Error::InvalidPowReq => write!(f, "Peer sent invalid PoW requirement."),
 		}
 	}
 }
@@ -298,15 +307,18 @@ impl Messages {
 
 enum State {
 	Unconfirmed(SystemTime), // awaiting status packet.
-	TheirTurn(SystemTime), // it has been their turn to send since stored time.
-	OurTurn,
+	Confirmed,
 }
 
+#[allow(dead_code)] // for node key. this will be useful for topic routing.
 struct Peer {
 	node_key: NodeId,
 	state: State,
 	known_messages: HashSet<H256>,
 	topic_filter: Option<H512>,
+	pow_requirement: f64,
+	is_parity: bool,
+	_protocol_version: usize,
 }
 
 impl Peer {
@@ -319,12 +331,14 @@ impl Peer {
 
 	// whether this peer will accept the message.
 	fn will_accept(&self, message: &Message) -> bool {
-		let known = self.known_messages.contains(message.hash());
+		if self.known_messages.contains(message.hash()) { return false }
 
-		let matches_bloom = self.topic_filter.as_ref()
-			.map_or(true, |topic| topic & message.bloom() == message.bloom().clone());
+		// only parity peers will accept multitopic messages.
+		if message.envelope().is_multitopic() && !self.is_parity { return false }
+		if message.work_proved() < self.pow_requirement { return false }
 
-		!known && matches_bloom
+		self.topic_filter.as_ref()
+			.map_or(true, |filter| &(filter & message.bloom()) == message.bloom())
 	}
 
 	// note a message as known. returns true if it was already
@@ -337,10 +351,14 @@ impl Peer {
 		self.topic_filter = Some(topic);
 	}
 
+	fn set_pow_requirement(&mut self, pow_requirement: f64) {
+		self.pow_requirement = pow_requirement;
+	}
+
 	fn can_send_messages(&self) -> bool {
 		match self.state {
-			State::Unconfirmed(_) | State::OurTurn => false,
-			State::TheirTurn(_) => true,
+			State::Unconfirmed(_) => false,
+			State::Confirmed => true,
 		}
 	}
 }
@@ -357,21 +375,41 @@ pub struct PoolStatus {
 	pub target_size: usize,
 }
 
-/// Handle to the pool, for posting messages or getting info.
-#[derive(Clone)]
-pub struct PoolHandle {
-	messages: Arc<RwLock<Messages>>,
+/// Generic network context.
+pub trait Context {
+	/// Disconnect a peer.
+	fn disconnect_peer(&self, PeerId);
+	/// Disable a peer.
+	fn disable_peer(&self, PeerId);
+	/// Get a peer's node key.
+	fn node_key(&self, PeerId) -> Option<NodeId>;
+	/// Get a peer's protocol version for given protocol.
+	fn protocol_version(&self, ProtocolId, PeerId) -> Option<u8>;
+	/// Send message to peer.
+	fn send(&self, PeerId, u8, Vec<u8>);
 }
 
-impl PoolHandle {
-	/// Post a message to the whisper network to be relayed.
-	pub fn post_message(&self, message: Message) -> bool {
-		self.messages.write().insert(message)
+impl<'a> Context for NetworkContext<'a> {
+	fn disconnect_peer(&self, peer: PeerId) {
+		NetworkContext::disconnect_peer(self, peer);
+	}
+	fn disable_peer(&self, peer: PeerId) {
+		NetworkContext::disable_peer(self, peer)
+	}
+	fn node_key(&self, peer: PeerId) -> Option<NodeId> {
+		self.session_info(peer).and_then(|info| info.id)
+	}
+	fn protocol_version(&self, proto_id: ProtocolId, peer: PeerId) -> Option<u8> {
+		NetworkContext::protocol_version(self, proto_id, peer)
 	}
 
-	/// Get number of messages and amount of memory used by them.
-	pub fn pool_status(&self) -> PoolStatus {
-		self.messages.read().status()
+	fn send(&self, peer: PeerId, packet_id: u8, message: Vec<u8>) {
+		if let Err(e) = NetworkContext::send(self, peer, packet_id, message) {
+			debug!(target: "whisper", "Failed to send packet {} to peer {}: {}",
+				packet_id, peer, e);
+
+			self.disconnect_peer(peer)
+		}
 	}
 }
 
@@ -395,15 +433,23 @@ impl<T> Network<T> {
 		}
 	}
 
-	/// Acquire a sender to asynchronously feed messages to the whisper
-	/// network.
-	pub fn handle(&self) -> PoolHandle {
-		PoolHandle { messages: self.messages.clone() }
+	/// Post a message to the whisper network to be relayed.
+	pub fn post_message<C: Context>(&self, message: Message, context: &C) -> bool
+		where T: MessageHandler
+	{
+		let ok = self.messages.write().insert(message);
+		if ok { self.rally(context) }
+		ok
+	}
+
+	/// Get number of messages and amount of memory used by them.
+	pub fn pool_status(&self) -> PoolStatus {
+		self.messages.read().status()
 	}
 }
 
 impl<T: MessageHandler> Network<T> {
-	fn rally(&self, io: &NetworkContext) {
+	fn rally<C: Context>(&self, io: &C) {
 		// cannot be greater than 16MB (protocol limitation)
 		const MAX_MESSAGES_PACKET_SIZE: usize = 8 * 1024 * 1024;
 
@@ -428,11 +474,11 @@ impl<T: MessageHandler> Network<T> {
 
 			// check timeouts and skip peers who we can't send a rally to.
 			match peer_data.state {
-				State::Unconfirmed(ref time) | State::TheirTurn(ref time) => {
+				State::Unconfirmed(ref time)  => {
 					punish_timeout(time);
 					continue;
 				}
-				State::OurTurn => {}
+				State::Confirmed => {}
 			}
 
 			// construct packet, skipping messages the peer won't accept.
@@ -452,39 +498,19 @@ impl<T: MessageHandler> Network<T> {
 
 			stream.complete_unbounded_list();
 
-			peer_data.state = State::TheirTurn(SystemTime::now());
-			if let Err(e) = io.send(*peer_id, packet::MESSAGES, stream.out()) {
-				debug!(target: "whisper", "Failed to send messages packet to peer {}: {}", peer_id, e);
-				io.disconnect_peer(*peer_id);
-			}
+			io.send(*peer_id, packet::MESSAGES, stream.out());
 		}
 	}
 
 	// handle status packet from peer.
-	fn on_status(&self, peer: &PeerId, status: UntrustedRlp)
+	fn on_status(&self, peer: &PeerId, _status: UntrustedRlp)
 		-> Result<(), Error>
 	{
-		let proto: usize = status.as_val()?;
-		if proto != PROTOCOL_VERSION { return Err(Error::ProtocolVersionMismatch(proto)) }
-
 		let peers = self.peers.read();
+
 		match peers.get(peer) {
 			Some(peer) => {
-				let mut peer = peer.lock();
-				let our_node_key = self.node_key.read().clone();
-
-				// handle this basically impossible edge case gracefully.
-				if peer.node_key == our_node_key {
-					return Err(Error::SameNodeKey);
-				}
-
-				// peer with lower node key begins the rally.
-				if peer.node_key > our_node_key {
-					peer.state = State::OurTurn;
-				} else {
-					peer.state = State::TheirTurn(SystemTime::now());
-				}
-
+				peer.lock().state = State::Confirmed;
 				Ok(())
 			}
 			None => {
@@ -513,8 +539,6 @@ impl<T: MessageHandler> Network<T> {
 				return Err(Error::UnexpectedMessage);
 			}
 
-			peer.state = State::OurTurn;
-
 			let now = SystemTime::now();
 			let mut messages_vec = message_packet.iter().map(|rlp| Message::decode(rlp, now))
 				.collect::<Result<Vec<_>, _>>()?;
@@ -536,6 +560,42 @@ impl<T: MessageHandler> Network<T> {
 
 		for message in messages_vec {
 			messages.insert(message);
+		}
+
+		Ok(())
+	}
+
+	fn on_pow_requirement(&self, peer: &PeerId, requirement: UntrustedRlp)
+		-> Result<(), Error>
+	{
+		use byteorder::{ByteOrder, BigEndian};
+
+		let peers = self.peers.read();
+		match peers.get(peer) {
+			Some(peer) => {
+				let mut peer = peer.lock();
+
+				if let State::Unconfirmed(_) = peer.state {
+					return Err(Error::UnexpectedMessage);
+				}
+				let bytes: Vec<u8> = requirement.as_val()?;
+				if bytes.len() != ::std::mem::size_of::<f64>() {
+					return Err(Error::InvalidPowReq);
+				}
+
+				// as of byteorder 1.1.0, this is always defined.
+				let req = BigEndian::read_f64(&bytes[..]);
+
+				if !req.is_normal() {
+					return Err(Error::InvalidPowReq);
+				}
+
+				peer.set_pow_requirement(req);
+			}
+			None => {
+				debug!(target: "whisper", "Received message from unknown peer.");
+				return Err(Error::UnknownPeer(*peer));
+			}
 		}
 
 		Ok(())
@@ -564,10 +624,10 @@ impl<T: MessageHandler> Network<T> {
 		Ok(())
 	}
 
-	fn on_connect(&self, io: &NetworkContext, peer: &PeerId) {
+	fn on_connect<C: Context>(&self, io: &C, peer: &PeerId) {
 		trace!(target: "whisper", "Connecting peer {}", peer);
 
-		let node_key = match io.session_info(*peer).and_then(|info| info.id) {
+		let node_key = match io.node_key(*peer) {
 			Some(node_key) => node_key,
 			None => {
 				debug!(target: "whisper", "Disconnecting peer {}, who has no node key.", peer);
@@ -576,17 +636,25 @@ impl<T: MessageHandler> Network<T> {
 			}
 		};
 
+		let version = match io.protocol_version(PROTOCOL_ID, *peer) {
+			Some(version) => version as usize,
+			None => {
+				io.disable_peer(*peer);
+				return
+			}
+		};
+
 		self.peers.write().insert(*peer, Mutex::new(Peer {
 			node_key: node_key,
 			state: State::Unconfirmed(SystemTime::now()),
 			known_messages: HashSet::new(),
 			topic_filter: None,
+			pow_requirement: 0f64,
+			is_parity: io.protocol_version(PARITY_PROTOCOL_ID, *peer).is_some(),
+			_protocol_version: version,
 		}));
 
-		if let Err(e) = io.send(*peer, packet::STATUS, ::rlp::encode(&PROTOCOL_VERSION).to_vec()) {
-			debug!(target: "whisper", "Error sending status: {}", e);
-			io.disconnect_peer(*peer);
-		}
+		io.send(*peer, packet::STATUS, ::rlp::EMPTY_LIST_RLP.to_vec());
 	}
 
 	fn on_disconnect(&self, peer: &PeerId) {
@@ -609,8 +677,9 @@ impl<T: MessageHandler> ::network::NetworkProtocolHandler for Network<T> {
 		let res = match packet_id {
 			packet::STATUS => self.on_status(peer, rlp),
 			packet::MESSAGES => self.on_messages(peer, rlp),
+			packet::POW_REQUIREMENT => self.on_pow_requirement(peer, rlp),
 			packet::TOPIC_FILTER => self.on_topic_filter(peer, rlp),
-			other => Err(Error::UnknownPacket(other)),
+			_ => Ok(()), // ignore unknown packets.
 		};
 
 		if let Err(e) = res {
@@ -635,4 +704,20 @@ impl<T: MessageHandler> ::network::NetworkProtocolHandler for Network<T> {
 			other => debug!(target: "whisper", "Timout triggered on unknown token {}", other),
 		}
 	}
+}
+
+/// Dummy subprotocol used for parity extensions.
+#[derive(Debug, Copy, Clone)]
+pub struct ParityExtensions;
+
+impl ::network::NetworkProtocolHandler for ParityExtensions {
+	fn initialize(&self, _io: &NetworkContext, _host_info: &HostInfo) { }
+
+	fn read(&self, _io: &NetworkContext, _peer: &PeerId, _id: u8, _msg: &[u8]) { }
+
+	fn connected(&self, _io: &NetworkContext, _peer: &PeerId) { }
+
+	fn disconnected(&self, _io: &NetworkContext, _peer: &PeerId) { }
+
+	fn timeout(&self, _io: &NetworkContext, _timer: TimerToken) { }
 }

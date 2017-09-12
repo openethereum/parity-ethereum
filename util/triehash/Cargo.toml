@@ -1,0 +1,9 @@
+[package]
+name = "triehash"
+version = "0.1.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+
+[dependencies]
+rlp = { path = "../rlp" }
+ethcore-bigint = { path = "../bigint" }
+hash = { path = "../hash" }

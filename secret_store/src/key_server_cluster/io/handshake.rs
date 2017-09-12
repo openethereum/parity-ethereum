@@ -20,7 +20,7 @@ use std::collections::BTreeSet;
 use futures::{Future, Poll, Async};
 use tokio_io::{AsyncRead, AsyncWrite};
 use ethkey::{Random, Generator, KeyPair, verify_public};
-use util::H256;
+use bigint::hash::H256;
 use key_server_cluster::{NodeId, Error, NodeKeyPair};
 use key_server_cluster::message::{Message, ClusterMessage, NodePublicKey, NodePrivateKeySignature};
 use key_server_cluster::io::{write_message, write_encrypted_message, WriteMessage, ReadMessage,
@@ -74,8 +74,8 @@ pub fn accept_handshake<A>(a: A, self_key_pair: Arc<NodeKeyPair>) -> Handshake<A
 	}
 }
 
-#[derive(Debug, PartialEq)]
 /// Result of handshake procedure.
+#[derive(Debug, PartialEq)]
 pub struct HandshakeResult {
 	/// Node id.
 	pub node_id: NodeId,
@@ -254,7 +254,7 @@ mod tests {
 	use futures::Future;
 	use ethkey::{Random, Generator, sign};
 	use ethcrypto::ecdh::agree;
-	use util::H256;
+	use bigint::hash::H256;
 	use key_server_cluster::PlainNodeKeyPair;
 	use key_server_cluster::io::message::fix_shared_key;
 	use key_server_cluster::io::message::tests::TestIo;

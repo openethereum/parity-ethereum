@@ -15,9 +15,10 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Evm input params.
-use util::{Address, Bytes, U256};
-use util::hash::{H256};
-use util::sha3::{Hashable, SHA3_EMPTY};
+use bigint::prelude::U256;
+use bigint::hash::{H256};
+use util::{Address, Bytes};
+use hash::{keccak, KECCAK_EMPTY};
 use ethjson;
 
 use call_type::CallType;
@@ -87,7 +88,7 @@ impl Default for ActionParams {
 	fn default() -> ActionParams {
 		ActionParams {
 			code_address: Address::new(),
-			code_hash: Some(SHA3_EMPTY),
+			code_hash: Some(KECCAK_EMPTY),
 			address: Address::new(),
 			sender: Address::new(),
 			origin: Address::new(),
@@ -106,7 +107,7 @@ impl From<ethjson::vm::Transaction> for ActionParams {
 		let address: Address = t.address.into();
 		ActionParams {
 			code_address: Address::new(),
-			code_hash: Some((&*t.code).sha3()),
+			code_hash: Some(keccak(&*t.code)),
 			address: address,
 			sender: t.sender.into(),
 			origin: t.origin.into(),
