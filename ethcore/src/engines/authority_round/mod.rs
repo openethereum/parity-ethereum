@@ -60,6 +60,8 @@ pub struct AuthorityRoundParams {
 	pub validate_step_transition: u64,
 	/// Immediate transitions.
 	pub immediate_transitions: bool,
+	/// Block reward in base units.
+	pub block_reward: U256,
 }
 
 impl From<ethjson::spec::AuthorityRoundParams> for AuthorityRoundParams {
@@ -71,6 +73,7 @@ impl From<ethjson::spec::AuthorityRoundParams> for AuthorityRoundParams {
 			validate_score_transition: p.validate_score_transition.map_or(0, Into::into),
 			validate_step_transition: p.validate_step_transition.map_or(0, Into::into),
 			immediate_transitions: p.immediate_transitions.unwrap_or(false),
+			block_reward: p.block_reward.map_or_else(Default::default, Into::into),
 		}
 	}
 }
@@ -214,6 +217,7 @@ pub struct AuthorityRound {
 	validate_step_transition: u64,
 	epoch_manager: Mutex<EpochManager>,
 	immediate_transitions: bool,
+	block_reward: U256,
 }
 
 // header-chain validator.
@@ -362,6 +366,7 @@ impl AuthorityRound {
 				validate_step_transition: our_params.validate_step_transition,
 				epoch_manager: Mutex::new(EpochManager::blank()),
 				immediate_transitions: our_params.immediate_transitions,
+				block_reward: our_params: block_reward,
 			});
 
 		// Do not initialize timeouts for tests.
@@ -547,7 +552,8 @@ impl Engine for AuthorityRound {
 
 	/// Apply the block reward on finalisation of the block.
 	fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<(), Error> {
-		::engines::common::bestow_block_reward(block, self)
+		// TODO: move to "machine::WithBalances" trait.
+		::engines::common::bestow_block_reward(block, self.block_reward)
 	}
 
 	/// Check the number of seal fields.

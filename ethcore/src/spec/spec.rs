@@ -96,8 +96,6 @@ pub struct CommonParams {
 	pub wasm: bool,
 	/// Gas limit bound divisor (how much gas limit can change per block)
 	pub gas_limit_bound_divisor: U256,
-	/// Block reward in wei.
-	pub block_reward: U256,
 	/// Registrar contract address.
 	pub registrar: Address,
 	/// Node permission managing contract address.
@@ -173,7 +171,6 @@ impl From<ethjson::spec::Params> for CommonParams {
 			remove_dust_contracts: p.remove_dust_contracts.unwrap_or(false),
 			wasm: p.wasm.unwrap_or(false),
 			gas_limit_bound_divisor: p.gas_limit_bound_divisor.into(),
-			block_reward: p.block_reward.map_or_else(U256::zero, Into::into),
 			registrar: p.registrar.map_or_else(Address::new, Into::into),
 			node_permission_contract: p.node_permission_contract.map(Into::into),
 			max_code_size: p.max_code_size.map_or(u64::max_value(), Into::into),

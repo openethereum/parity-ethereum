@@ -55,9 +55,13 @@ pub struct EthashExtensions {
 }
 
 /// An ethereum-like state machine.
-// TODO: find a way to unify
 pub enum EthereumMachine {
+	/// Regular ethereum-like state machine
 	Regular(CommonParams, BTreeMap<Address, Builtin>),
+	/// A machine with Ethash extensions.
+	// TODO: unify with regular. at the time of writing, we've only had to do
+	// significant hard forks for ethash engines, but we don't want to end up
+	// with a variant for each consensus mode.
 	WithEthashExtensions(CommonParams, BTreeMap<Address, Builtin>, EthashExtensions),
 }
 
@@ -106,36 +110,6 @@ impl EthereumMachine {
 		}
 
 		Ok(output)
-	}
-
-	/// Bestow a block reward.
-	// TODO: move back to engines since lock rewards are relevant to security
-	// in permissionless systems.
-	pub fn bestow_block_reward(&self, block: &mut ExecutedBlock) -> Result<(), Error> {
-		if let EthereumMachine::WithEthashExtensions(ref params, _, ref ext) = *self {
-			return apply_ethash_reward(block, params, ext);
-		}
-
-		let fields = block.fields_mut();
-
-		// Bestow block reward
-		let reward = self.params().block_reward;
-		let res = fields.state.add_balance(fields.header.author(), &reward, CleanupMode::NoEmpty)
-			.map_err(::error::Error::from)
-			.and_then(|_| fields.state.commit());
-
-		let block_author = fields.header.author().clone();
-		fields.traces.as_mut().map(move |mut traces| {
-  			let mut tracer = ExecutiveTracer::default();
-  			tracer.trace_reward(block_author, reward, RewardType::Block);
-  			traces.push(tracer.drain())
-		});
-
-		// Commit state so that we can actually figure out the state root.
-		if let Err(ref e) = res {
-			warn!("Encountered error on bestowing reward: {}", e);
-		}
-		res
 	}
 
 	/// Push last known block hash to the state.
@@ -270,111 +244,4 @@ impl ::parity_machine::Machine for EthereumMachine {
 	type Header = Header;
 	type State = ();
 	type Error = ();
-}
-
-fn apply_ethash_reward(block: &mut ExecutedBlock, params: &CommonParams, ethash_params: &EthashExtensions) -> Result<(), Error> {
-	use std::ops::Shr;
-	use block::IsBlock;
-
-	let reward = params.block_reward;
-	let tracing_enabled = block.tracing_enabled();
-	let fields = block.fields_mut();
-	let eras_rounds = ethash_params.ecip1017_era_rounds;
-	let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, reward, fields.header.number());
-	let mut tracer = ExecutiveTracer::default();
-
-	// Bestow block reward
-	let result_block_reward = reward + reward.shr(5) * U256::from(fields.uncles.len());
-	fields.state.add_balance(
-		fields.header.author(),
-		&result_block_reward,
-		CleanupMode::NoEmpty
-	)?;
-
-	if tracing_enabled {
-		let block_author = fields.header.author().clone();
-		tracer.trace_reward(block_author, result_block_reward, RewardType::Block);
-	}
-
-	// Bestow uncle rewards
-	// TODO: find a way to bring uncle rewards out of this function without breaking
-	// certain PoA networks where uncles were not disallowed or rewarded.
-	let current_number = fields.header.number();
-	for u in fields.uncles.iter() {
-		let uncle_author = u.author().clone();
-		let result_uncle_reward: U256;
-
-		if eras == 0 {
-			result_uncle_reward = (reward * U256::from(8 + u.number() - current_number)).shr(3);
-			fields.state.add_balance(
-				u.author(),
-				&result_uncle_reward,
-				CleanupMode::NoEmpty
-			)
-		} else {
-			result_uncle_reward = reward.shr(5);
-			fields.state.add_balance(
-				u.author(),
-				&result_uncle_reward,
-				CleanupMode::NoEmpty
-			)
-		}?;
-
-		// Trace uncle rewards
-		if tracing_enabled {
-			tracer.trace_reward(uncle_author, result_uncle_reward, RewardType::Uncle);
-		}
-	}
-
-	Ok(())
-}
-
-fn ecip1017_eras_block_reward(era_rounds: u64, mut reward: U256, block_number:u64) -> (u64, U256) {
-	let eras = if block_number != 0 && block_number % era_rounds == 0 {
-		block_number / era_rounds - 1
-	} else {
-		block_number / era_rounds
-	};
-	for _ in 0..eras {
-		reward = reward / U256::from(5) * U256::from(4);
-	}
-	(eras, reward)
-}
-
-#[cfg(test)]
-mod tests {
-	use util::U256;
-	use super::ecip1017_eras_block_reward;
-
-	#[test]
-	fn has_valid_ecip1017_eras_block_reward() {
-		let eras_rounds = 5000000;
-
-		let start_reward: U256 = "4563918244F40000".parse().unwrap();
-
-		let block_number = 0;
-		let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, start_reward, block_number);
-		assert_eq!(0, eras);
-		assert_eq!(U256::from_str("4563918244F40000").unwrap(), reward);
-
-		let block_number = 5000000;
-		let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, start_reward, block_number);
-		assert_eq!(0, eras);
-		assert_eq!(U256::from_str("4563918244F40000").unwrap(), reward);
-
-		let block_number = 10000000;
-		let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, start_reward, block_number);
-		assert_eq!(1, eras);
-		assert_eq!(U256::from_str("3782DACE9D900000").unwrap(), reward);
-
-		let block_number = 20000000;
-		let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, start_reward, block_number);
-		assert_eq!(3, eras);
-		assert_eq!(U256::from_str("2386F26FC1000000").unwrap(), reward);
-
-		let block_number = 80000000;
-		let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, start_reward, block_number);
-		assert_eq!(15, eras);
-		assert_eq!(U256::from_str("271000000000000").unwrap(), reward);
-	}
 }

@@ -396,3 +396,41 @@ pub trait EthEngine: Engine<::machine::EthereumMachine> {
 
 // convenience wrappers for existing functions.
 impl<T> EthEngine for T where T: Engine<::machine::EthereumMachine> { }
+
+/// Common engine utilities
+pub mod common {
+	use std::sync::Arc;
+	use block::ExecutedBlock;
+	use error::Error;
+	use transaction::SYSTEM_ADDRESS;
+	use executive::Executive;
+	use vm::{CallType, ActionParams, ActionValue, EnvInfo, LastHashes};
+	use trace::{NoopTracer, NoopVMTracer, Tracer, ExecutiveTracer, RewardType};
+	use state::Substate;
+	use state::CleanupMode;
+
+	use util::*;
+	use spec::CommonParams;
+
+	/// Give reward and trace.
+	pub fn bestow_block_reward(block: &mut ExecutedBlock, reward: U256) -> Result<(), Error> {
+		let fields = block.fields_mut();
+		// Bestow block reward
+		let res = fields.state.add_balance(fields.header.author(), &reward, CleanupMode::NoEmpty)
+			.map_err(::error::Error::from)
+			.and_then(|_| fields.state.commit());
+
+		let block_author = fields.header.author().clone();
+		fields.traces.as_mut().map(move |mut traces| {
+  			let mut tracer = ExecutiveTracer::default();
+  			tracer.trace_reward(block_author, reward, RewardType::Block);
+  			traces.push(tracer.drain())
+		});
+
+		// Commit state so that we can actually figure out the state root.
+		if let Err(ref e) = res {
+			warn!("Encountered error on bestowing reward: {}", e);
+		}
+		res
+	}
+}

@@ -41,6 +41,9 @@ pub struct EthashParams {
 	/// See main EthashParams docs.
 	#[serde(rename="homesteadTransition")]
 	pub homestead_transition: Option<Uint>,
+	/// Reward per block in wei.
+	#[serde(rename="blockReward")]
+	pub block_reward: Option<Uint>,
 
 	/// See main EthashParams docs.
 	#[serde(rename="daoHardforkTransition")]
@@ -116,6 +119,7 @@ mod tests {
 				"difficultyBoundDivisor": "0x0800",
 				"durationLimit": "0x0d",
 				"homesteadTransition": "0x42",
+				"blockReward": "0x100",
 				"daoHardforkTransition": "0x08",
 				"daoHardforkBeneficiary": "0xabcabcabcabcabcabcabcabcabcabcabcabcabca",
 				"daoHardforkAccounts": [
@@ -161,6 +165,7 @@ mod tests {
 				metropolis_difficulty_increment_divisor: None,
 				duration_limit: Some(Uint(U256::from(0x0d))),
 				homestead_transition: Some(Uint(U256::from(0x42))),
+				block_reward: Some(Uint(U256::from(0x100))),
 				dao_hardfork_transition: Some(Uint(U256::from(0x08))),
 				dao_hardfork_beneficiary: Some(Address(H160::from("0xabcabcabcabcabcabcabcabcabcabcabcabcabca"))),
 				dao_hardfork_accounts: Some(vec![
@@ -218,6 +223,7 @@ mod tests {
 				metropolis_difficulty_increment_divisor: None,
 				duration_limit: None,
 				homestead_transition: None,
+				block_reward: None,
 				dao_hardfork_transition: None,
 				dao_hardfork_beneficiary: None,
 				dao_hardfork_accounts: None,

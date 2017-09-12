@@ -98,9 +98,6 @@ pub struct Params {
 	#[serde(rename="gasLimitBoundDivisor")]
 	pub gas_limit_bound_divisor: Uint,
 	/// See `CommonParams` docs.
-	#[serde(rename="blockReward")]
-	pub block_reward: Option<Uint>,
-	/// See `CommonParams` docs.
 	pub registrar: Option<Address>,
 	/// Apply reward flag
 	#[serde(rename="applyReward")]

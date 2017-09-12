@@ -88,6 +88,8 @@ pub struct EthashParams {
 	pub ecip1010_continue_transition: u64,
 	/// Total block number for one ECIP-1017 era.
 	pub ecip1017_era_rounds: u64,
+	/// Block reward in base units.
+	pub block_reward: U256,
 }
 
 impl From<ethjson::spec::EthashParams> for EthashParams {
@@ -113,6 +115,7 @@ impl From<ethjson::spec::EthashParams> for EthashParams {
 			ecip1010_pause_transition: p.ecip1010_pause_transition.map_or(u64::max_value(), Into::into),
 			ecip1010_continue_transition: p.ecip1010_continue_transition.map_or(u64::max_value(), Into::into),
 			ecip1017_era_rounds: p.ecip1017_era_rounds.map_or(u64::max_value(), Into::into),
+			block_reward: p.block_reward.map_or_else(Default::default, Into::into),
 		}
 	}
 }
@@ -177,7 +180,7 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 		}
 	}
 
-	fn populate_from_parent(&self, header: &mut Header, parent: &Header, gas_floor_target: U256, mut gas_ceil_target: U256) {
+	fn populate_from_parent(&self, header: &mut Header, parent: &Header, gas_floor_target: U256, gas_ceil_target: U256) {
 		let difficulty = self.calculate_difficulty(header, parent);
 
 		let gas_limit = {
@@ -234,7 +237,60 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 	/// Apply the block reward on finalisation of the block.
 	/// This assumes that all uncles are valid uncles (i.e. of at least one generation before the current).
 	fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<(), Error> {
-		self.machine().bestow_block_reward(block)
+		use std::ops::Shr;
+		use block::IsBlock;
+
+		let reward = self.ethash_params.block_reward;
+		let tracing_enabled = block.tracing_enabled();
+		let fields = block.fields_mut();
+		let eras_rounds = self.ethash_params.ecip1017_era_rounds;
+		let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, reward, fields.header.number());
+		let mut tracer = ExecutiveTracer::default();
+
+		// Bestow block reward
+		let result_block_reward = reward + reward.shr(5) * U256::from(fields.uncles.len());
+		fields.state.add_balance(
+			fields.header.author(),
+			&result_block_reward,
+			CleanupMode::NoEmpty
+		)?;
+
+		if tracing_enabled {
+			let block_author = fields.header.author().clone();
+			tracer.trace_reward(block_author, result_block_reward, RewardType::Block);
+		}
+
+		// Bestow uncle rewards
+		// TODO: find a way to bring uncle rewards out of this function without breaking
+		// certain PoA networks where uncles were not disallowed or rewarded.
+		let current_number = fields.header.number();
+		for u in fields.uncles.iter() {
+			let uncle_author = u.author().clone();
+			let result_uncle_reward: U256;
+
+			if eras == 0 {
+				result_uncle_reward = (reward * U256::from(8 + u.number() - current_number)).shr(3);
+				fields.state.add_balance(
+					u.author(),
+					&result_uncle_reward,
+					CleanupMode::NoEmpty
+				)
+			} else {
+				result_uncle_reward = reward.shr(5);
+				fields.state.add_balance(
+					u.author(),
+					&result_uncle_reward,
+					CleanupMode::NoEmpty
+				)
+			}?;
+
+			// Trace uncle rewards
+			if tracing_enabled {
+				tracer.trace_reward(uncle_author, result_uncle_reward, RewardType::Uncle);
+			}
+		}
+
+		Ok(())
 	}
 
 	fn verify_block_basic(&self, header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
@@ -447,6 +503,18 @@ impl Header {
 	}
 }
 
+fn ecip1017_eras_block_reward(era_rounds: u64, mut reward: U256, block_number:u64) -> (u64, U256) {
+	let eras = if block_number != 0 && block_number % era_rounds == 0 {
+		block_number / era_rounds - 1
+	} else {
+		block_number / era_rounds
+	};
+	for _ in 0..eras {
+		reward = reward / U256::from(5) * U256::from(4);
+	}
+	(eras, reward)
+}
+
 #[cfg(test)]
 mod tests {
 	use std::str::FromStr;
@@ -477,6 +545,38 @@ mod tests {
 		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, Address::zero(), (3141562.into(), 31415620.into()), vec![], false).unwrap();
 		let b = b.close();
 		assert_eq!(b.state().balance(&Address::zero()).unwrap(), U256::from_str("4563918244f40000").unwrap());
+	}
+
+	#[test]
+	fn has_valid_ecip1017_eras_block_reward() {
+		let eras_rounds = 5000000;
+
+		let start_reward: U256 = "4563918244F40000".parse().unwrap();
+
+		let block_number = 0;
+		let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, start_reward, block_number);
+		assert_eq!(0, eras);
+		assert_eq!(U256::from_str("4563918244F40000").unwrap(), reward);
+
+		let block_number = 5000000;
+		let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, start_reward, block_number);
+		assert_eq!(0, eras);
+		assert_eq!(U256::from_str("4563918244F40000").unwrap(), reward);
+
+		let block_number = 10000000;
+		let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, start_reward, block_number);
+		assert_eq!(1, eras);
+		assert_eq!(U256::from_str("3782DACE9D900000").unwrap(), reward);
+
+		let block_number = 20000000;
+		let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, start_reward, block_number);
+		assert_eq!(3, eras);
+		assert_eq!(U256::from_str("2386F26FC1000000").unwrap(), reward);
+
+		let block_number = 80000000;
+		let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, start_reward, block_number);
+		assert_eq!(15, eras);
+		assert_eq!(U256::from_str("271000000000000").unwrap(), reward);
 	}
 
 	#[test]
