@@ -73,6 +73,7 @@ lazy_static! {
 	pub static ref EIP150: spec::Spec = ethereum::new_eip150_test();
 	pub static ref EIP161: spec::Spec = ethereum::new_eip161_test();
 	pub static ref BYZANTIUM: spec::Spec = ethereum::new_byzantium_test();
+	pub static ref BYZANTIUM_TRANSITION: spec::Spec = ethereum::new_transition_test();
 }
 
 /// Simplified, single-block EVM test client.
@@ -90,6 +91,7 @@ impl<'a> EvmTestClient<'a> {
 			ForkSpec::EIP150 => Some(&*EIP150),
 			ForkSpec::EIP158 => Some(&*EIP161),
 			ForkSpec::Byzantium => Some(&*BYZANTIUM),
+			ForkSpec::EIP158ToByzantiumAt5 => Some(&BYZANTIUM_TRANSITION),
 			_ => None,
 		}
 	}
