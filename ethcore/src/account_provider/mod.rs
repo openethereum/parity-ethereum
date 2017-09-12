@@ -31,7 +31,7 @@ use ethstore::{
 use ethstore::dir::MemoryDirectory;
 use ethstore::ethkey::{Address, Message, Public, Secret, Random, Generator};
 use ethjson::misc::AccountMeta;
-use hardware_wallet::{Error as HardwareError, HardwareWalletManager, KeyPath, TransactionInfo, TrezorMessageType};
+use hardware_wallet::{Error as HardwareError, HardwareWalletManager, KeyPath, TransactionInfo};
 use super::transaction::{Action, Transaction};
 pub use ethstore::ethkey::Signature;
 pub use ethstore::{Derivation, IndexDerivation, KeyFile};
@@ -289,9 +289,18 @@ impl AccountProvider {
 		Ok(accounts.into_iter().map(|a| a.address).collect())
 	}
 
-	/// Communicate with Trezor hardware wallet
-	pub fn trezor_message(&self, message_type: &TrezorMessageType, path: &Option<String>, message: &Option<String>) -> Result<String, SignError> {
-		match self.hardware_store.as_ref().map(|h| h.trezor_message(message_type, path, message)) {
+	/// Get a list of paths to locked hardware wallets
+	pub fn locked_hardware_accounts(&self) -> Result<Vec<String>, SignError> {
+		match self.hardware_store.as_ref().map(|h| h.list_locked_wallets()) {
+			None => Err(SignError::NotFound),
+			Some(Err(e)) => Err(SignError::Hardware(e)),
+			Some(Ok(s)) => Ok(s),
+		}
+	}
+
+	/// Provide a pin to a locked hardware wallet on USB path to unlock it
+	pub fn hardware_pin_matrix_ack(&self, path: &str, pin: &str) -> Result<bool, SignError> {
+		match self.hardware_store.as_ref().map(|h| h.pin_matrix_ack(path, pin)) {
 			None => Err(SignError::NotFound),
 			Some(Err(e)) => Err(SignError::Hardware(e)),
 			Some(Ok(s)) => Ok(s),

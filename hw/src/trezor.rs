@@ -27,7 +27,6 @@ use hidapi;
 use parking_lot::Mutex;
 use protobuf;
 use protobuf::{Message, ProtobufEnum};
-use serde_json;
 use std::cmp::{min, max};
 use std::fmt;
 use std::sync::Arc;
@@ -42,17 +41,6 @@ const ETH_DERIVATION_PATH: [u32; 4] = [0x8000002C, 0x8000003C, 0x80000000, 0]; /
 const ETC_DERIVATION_PATH: [u32; 4] = [0x8000002C, 0x8000003D, 0x80000000, 0]; // m/44'/61'/0'/0
 
 
-/// Type of message that can be sent to a Trezor device
-#[derive(Debug, Serialize, Deserialize)]
-pub enum TrezorMessageType {
-	/// Get a list of locked devices.
-	#[serde(rename="getDevices")]
-	GetDevices,
-	/// Supply a pin for the Pin Matrix Ack
-	#[serde(rename="pinMatrixAck")]
-	PinMatrixAck,
-}
-
 /// Hardware wallet error.
 #[derive(Debug)]
 pub enum Error {
@@ -66,8 +54,6 @@ pub enum Error {
 	UserCancel,
 	/// The Message Type given in the trezor RPC call is not something we recognize
 	BadMessageType,
-	/// When trying to respond to an RPC call, we couldn't serialize the response
-	SerdeError(serde_json::Error),
 	/// Trying to read from a closed device at the given path
 	ClosedDevice(String),
 }
@@ -80,7 +66,6 @@ impl fmt::Display for Error {
 			Error::KeyNotFound => write!(f, "Key not found"),
 			Error::UserCancel => write!(f, "Operation has been cancelled"),
 			Error::BadMessageType => write!(f, "Bad Message Type in RPC call"),
-			Error::SerdeError(ref e) => write!(f, "Serde serialization error: {}", e),
 			Error::ClosedDevice(ref s) => write!(f, "Device is closed, needs PIN to perform operations: {}", s),
 		}
 	}
@@ -193,22 +178,6 @@ impl Manager {
 		}
 	}
 
-	pub fn message(&self, message_type: &TrezorMessageType, device_path: &Option<String>, message: &Option<String>) -> Result<String, Error> {
-		match *message_type {
-			TrezorMessageType::GetDevices => {
-				serde_json::to_string(&self.closed_devices).map_err(Error::SerdeError)
-			}
-			TrezorMessageType::PinMatrixAck => {
-				if let (&Some(ref path), &Some(ref msg)) = (device_path, message) {
-					let unlocked = self.pin_matrix_ack(&path, &msg)?;
-					serde_json::to_string(&unlocked).map_err(Error::SerdeError)
-				} else {
-					Err(Error::BadMessageType)
-				}
-			}
-		}
-	}
-
 	/// Select key derivation path for a known chain.
 	pub fn set_key_path(&mut self, key_path: KeyPath) {
 		self.key_path = key_path;
@@ -217,6 +186,10 @@ impl Manager {
 	/// List connected wallets. This only returns wallets that are ready to be used.
 	pub fn list_devices(&self) -> Vec<WalletInfo> {
 		self.devices.iter().map(|d| d.info.clone()).collect()
+	}
+
+	pub fn list_locked_devices(&self) -> Vec<String> {
+		self.closed_devices.clone()
 	}
 
 	/// Get wallet info.
@@ -239,7 +212,7 @@ impl Manager {
 		Err(err)
 	}
 
-	fn pin_matrix_ack(&self, device_path: &str, pin: &str) -> Result<bool, Error> {
+	pub fn pin_matrix_ack(&self, device_path: &str, pin: &str) -> Result<bool, Error> {
 		let usb = self.usb.lock();
 		let device = self.open_path(|| usb.open_path(&device_path))?;
 		let t = MessageType::MessageType_PinMatrixAck;

@@ -22,10 +22,8 @@ extern crate hidapi;
 extern crate libusb;
 extern crate parking_lot;
 extern crate protobuf;
-extern crate serde_json;
 extern crate trezor_sys;
 #[macro_use] extern crate log;
-#[macro_use] extern crate serde_derive;
 #[cfg(test)] extern crate rustc_hex;
 
 mod ledger;
@@ -41,8 +39,6 @@ use std::sync::atomic::AtomicBool;
 use std::thread;
 use std::time::Duration;
 use bigint::prelude::uint::U256;
-
-pub use trezor::TrezorMessageType;
 
 /// Hardware wallet error.
 #[derive(Debug)]
@@ -230,6 +226,13 @@ impl HardwareWalletManager {
 		ledger_wallets
 	}
 
+	/// Return a list of paths to locked hardware wallets
+	pub fn list_locked_wallets(&self) -> Result<Vec<String>, Error> {
+		let mut t = self.trezor.lock();
+		t.update_devices()?;
+		Ok(t.list_locked_devices())
+	}
+
 	/// Get connected wallet info.
 	pub fn wallet_info(&self, address: &Address) -> Option<WalletInfo> {
 		if let Some(info) = self.ledger.lock().device_info(address) {
@@ -250,11 +253,10 @@ impl HardwareWalletManager {
 		}
 	}
 
-	/// Communicate with trezor hardware wallet
-	pub fn trezor_message(&self, message_type: &TrezorMessageType, path: &Option<String>, message: &Option<String>) -> Result<String, Error> {
-		let mut t = self.trezor.lock();
-		t.update_devices()?;
-		Ok(t.message(message_type, path, message)?)
+	/// Send a pin to a device at a certain path to unlock it
+	pub fn pin_matrix_ack(&self, path: &str, pin: &str) -> Result<bool, Error> {
+		let t = self.trezor.lock();
+		t.pin_matrix_ack(path, pin).map_err(Error::TrezorDevice)
 	}
 }
 

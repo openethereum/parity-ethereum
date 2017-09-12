@@ -36,7 +36,6 @@ use ethcore::transaction::SignedTransaction;
 use ethcore_logger::RotatingLogger;
 use node_health::{NodeHealth, Health};
 use updater::{Service as UpdateService};
-use hardware_wallet::TrezorMessageType;
 
 use jsonrpc_core::Error;
 use jsonrpc_macros::Trailing;
@@ -152,9 +151,9 @@ impl<C, M, U> Parity for ParityClient<C, M, U> where
 		)
 	}
 
-	fn trezor(&self, message_type: TrezorMessageType, device_path: Option<String>, message: Option<String>) -> Result<String, Error> {
+	fn locked_hardware_accounts_info(&self) -> Result<Vec<String>, Error> {
 		let store = self.account_provider()?;
-		Ok(store.trezor_message(&message_type, &device_path, &message).map_err(|e| errors::account("Error communicating with Trezor.", e))?)
+		Ok(store.locked_hardware_accounts().map_err(|e| errors::account("Error communicating with hardware wallet.", e))?)
 	}
 
 	fn default_account(&self, meta: Self::Metadata) -> BoxFuture<H160, Error> {
