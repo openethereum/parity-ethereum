@@ -188,7 +188,7 @@ pub trait Engine<M: Machine>: Sync + Send {
 	fn seal_fields(&self) -> usize { 0 }
 
 	/// Additional engine-specific information for the user/developer concerning `header`.
-	fn extra_info(&self, _header: &Header) -> BTreeMap<String, String> { BTreeMap::new() }
+	fn extra_info(&self, _header: &M::Header) -> BTreeMap<String, String> { BTreeMap::new() }
 
 	/// Additional information.
 	fn additional_params(&self) -> HashMap<String, String> { HashMap::new() }
@@ -202,7 +202,7 @@ pub trait Engine<M: Machine>: Sync + Send {
 	/// `epoch_begin` set to true if this block kicks off an epoch.
 	fn on_new_block(
 		&self,
-		block: &mut ExecutedBlock,
+		block: &mut M::LiveBlock,
 		last_hashes: Arc<LastHashes>,
 		_epoch_begin: bool,
 	) -> Result<(), Error>;

@@ -49,14 +49,29 @@ pub trait ScoredHeader {
 	fn set_score(&mut self, score: U256);
 }
 
+/// A "live" block is one which is in the process of the transition.
+/// The state of this block can be mutated by arbitrary rules of the
+/// state transition function.
+pub trait LiveBlock {
+	/// The block header type;
+	type Header: Header;
+
+	/// Get a reference to the header.
+	fn header(&self) -> &Self::Header;
+}
+
+/// A live block with uncles.
+pub trait WithUncles: LiveBlock {
+	/// Get a reference to the uncle headers.
+	fn uncles(&self) -> &[Self::Header];
+}
+
 /// Types describing the state machine an engine acquires consensus over.
 pub trait Machine: Sync + Send {
 	/// The block header type.
     type Header: Header;
-	/// A "live" block is one which is in the process of being verified.
-	/// The state of this block can be mutated by arbitrary rules of the
-	/// state transition function.
-	type LiveBlock;
+	/// The live block type.
+	type LiveBlock: LiveBlock<Header=Self::Header>;
 	/// Errors which can occur when querying or interacting with the machine.
 	type Error;
 }

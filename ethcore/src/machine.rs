@@ -113,22 +113,40 @@ impl EthereumMachine {
 	}
 
 	/// Push last known block hash to the state.
-	pub fn push_last_hash(&self, block: &mut ExecutedBlock, last_hashes: Arc<LastHashes>, hash: &H256) -> Result<(), Error> {
+	fn push_last_hash(&self, block: &mut ExecutedBlock, last_hashes: Arc<LastHashes>) -> Result<(), Error> {
 		let params = self.params();
 		if block.fields().header.number() == params.eip210_transition {
 			let state = block.fields_mut().state;
 			state.init_code(&params.eip210_contract_address, params.eip210_contract_code.clone())?;
 		}
 		if block.fields().header.number() >= params.eip210_transition {
+			let parent_hash = block.fields().header.parent_hash().clone();
 			let _ = self.execute_as_system(
 				block,
 				last_hashes,
 				params.eip210_contract_address,
 				params.eip210_contract_gas,
-				Some(hash.to_vec()),
+				Some(parent_hash.to_vec()),
 			)?;
 		}
 		Ok(())
+	}
+
+	/// Logic to perform on a new block: updating last hashes and the DAO
+	/// fork, for ethash.
+	pub fn on_new_block(&self, block: &mut ExecutedBlock, last_hashes: Arc<LastHashes>) -> Result<(), Error> {
+		self.push_last_hash(block, last_hashes);
+
+		if let EthereumMachine::WithEthashExtensions(ref params, _, ref ethash_params) = *self {
+			if block.fields().header.number() == ethash_params.dao_hardfork_transition {
+				let state = block.fields_mut().state;
+				for child in &self.ethash_params.dao_hardfork_accounts {
+					let beneficiary = &ethash_params.dao_hardfork_beneficiary;
+					state.balance(child)
+						.and_then(|b| state.transfer_balance(child, beneficiary, &b, CleanupMode::NoEmpty))?;
+				}
+			}
+		}
 	}
 
 	/// Get the general parameters of the chain.

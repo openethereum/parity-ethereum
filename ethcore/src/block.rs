@@ -294,7 +294,8 @@ impl<'x> OpenBlock<'x> {
 		let gas_floor_target = cmp::max(gas_range_target.0, engine.params().min_gas_limit);
 		let gas_ceil_target = cmp::max(gas_range_target.1, gas_floor_target);
 		engine.populate_from_parent(&mut r.block.header, parent, gas_floor_target, gas_ceil_target);
-		engine.on_new_block(&mut r.block, last_hashes, is_epoch_begin)?;
+		engine.machine().on_new_block(&mut r.block, last_hashes)?;
+		engine.on_new_block(&mut r.block, is_epoch_begin)?;
 
 		Ok(r)
 	}
