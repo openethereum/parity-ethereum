@@ -62,9 +62,9 @@ impl TestEngine {
 		}
 	}
 
-	pub fn new_constaninople() -> TestEngine {
+	pub fn new_constantinople() -> TestEngine {
 		TestEngine {
-			engine: ethereum::new_constaninople_test().engine,
+			engine: ethereum::new_constantinople_test().engine,
 			max_depth: 0,
 		}
 	}
