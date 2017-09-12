@@ -22,7 +22,7 @@ import Api from '~/api';
 
 import TxList from './txList';
 
-const api = new Api({ execute: sinon.stub() });
+const api = new Api({ execute: sinon.stub(), on: sinon.stub() });
 
 const STORE = {
   dispatch: sinon.stub(),

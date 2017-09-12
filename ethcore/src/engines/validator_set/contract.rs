@@ -25,7 +25,7 @@ use util::*;
 use futures::Future;
 use native_contracts::ValidatorReport as Provider;
 
-use client::{Client, BlockChainClient};
+use client::EngineClient;
 use engines::{Call, Engine};
 use header::{Header, BlockNumber};
 
@@ -36,7 +36,7 @@ use super::safe_contract::ValidatorSafeContract;
 pub struct ValidatorContract {
 	validators: ValidatorSafeContract,
 	provider: Provider,
-	client: RwLock<Option<Weak<Client>>>, // TODO [keorn]: remove
+	client: RwLock<Option<Weak<EngineClient>>>, // TODO [keorn]: remove
 }
 
 impl ValidatorContract {
@@ -58,7 +58,13 @@ impl ValidatorContract {
 		Box::new(move |a, d| client.as_ref()
 			.and_then(Weak::upgrade)
 			.ok_or("No client!".into())
-			.and_then(|c| c.transact_contract(a, d).map_err(|e| format!("Transaction import error: {}", e)))
+			.and_then(|c| {
+				match c.as_full_client() {
+					Some(c) => c.transact_contract(a, d)
+						.map_err(|e| format!("Transaction import error: {}", e)),
+					None => Err("No full client!".into()),
+				}
+			})
 			.map(|_| Default::default()))
 	}
 }
@@ -120,8 +126,8 @@ impl ValidatorSet for ValidatorContract {
 		}
 	}
 
-	fn register_contract(&self, client: Weak<Client>) {
-		self.validators.register_contract(client.clone());
+	fn register_client(&self, client: Weak<EngineClient>) {
+		self.validators.register_client(client.clone());
 		*self.client.write() = Some(client);
 	}
 }
@@ -148,7 +154,7 @@ mod tests {
 	fn fetches_validators() {
 		let client = generate_dummy_client_with_spec_and_accounts(Spec::new_validator_contract, None);
 		let vc = Arc::new(ValidatorContract::new("0000000000000000000000000000000000000005".parse::<Address>().unwrap()));
-		vc.register_contract(Arc::downgrade(&client));
+		vc.register_client(Arc::downgrade(&client) as _);
 		let last_hash = client.best_block_header().hash();
 		assert!(vc.contains(&last_hash, &"7d577a597b2742b498cb5cf0c26cdcd726d39e6e".parse::<Address>().unwrap()));
 		assert!(vc.contains(&last_hash, &"82a978b3f5962a5b0957d9ee9eef472ee55b42f1".parse::<Address>().unwrap()));
@@ -159,7 +165,7 @@ mod tests {
 		let tap = Arc::new(AccountProvider::transient_provider());
 		let v1 = tap.insert_account(keccak("1").into(), "").unwrap();
 		let client = generate_dummy_client_with_spec_and_accounts(Spec::new_validator_contract, Some(tap.clone()));
-		client.engine().register_client(Arc::downgrade(&client));
+		client.engine().register_client(Arc::downgrade(&client) as _);
 		let validator_contract = "0000000000000000000000000000000000000005".parse::<Address>().unwrap();
 
 		// Make sure reporting can be done.

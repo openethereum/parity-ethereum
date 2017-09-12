@@ -17,6 +17,7 @@
 import { isEqual, intersection } from 'lodash';
 
 import BalancesProvider from './balances';
+import TokensProvider from './tokens';
 import { updateTokensFilter } from './balancesActions';
 import { attachWallets } from './walletActions';
 
@@ -70,7 +71,7 @@ export function personalAccountsInfo (accountsInfo) {
         return WalletsUtils.fetchOwners(walletContract.at(wallet.address));
       });
 
-    Promise
+    return Promise
       .all(_fetchOwners)
       .then((walletsOwners) => {
         return Object
@@ -135,10 +136,6 @@ export function personalAccountsInfo (accountsInfo) {
           hardware
         }));
         dispatch(attachWallets(wallets));
-
-        BalancesProvider.get().fetchAllBalances({
-          force: true
-        });
       })
       .catch((error) => {
         console.warn('personalAccountsInfo', error);
@@ -176,12 +173,17 @@ export function setVisibleAccounts (addresses) {
       return;
     }
 
-    // Update the Tokens filter to take into account the new
-    // addresses
-    dispatch(updateTokensFilter());
+    const promises = [];
 
-    BalancesProvider.get().fetchBalances({
-      force: true
-    });
+    // Update the Tokens filter to take into account the new
+    // addresses if it is not loading (it fetches the
+    // balances automatically after loading)
+    if (!TokensProvider.get().loading) {
+      promises.push(updateTokensFilter()(dispatch, getState));
+    }
+
+    promises.push(BalancesProvider.get().fetchEthBalances({ force: true }));
+
+    return Promise.all(promises);
   };
 }

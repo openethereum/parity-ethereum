@@ -211,30 +211,35 @@ impl<T: Filterable + Send + Sync + 'static> EthFilter for T {
 	}
 
 	fn filter_logs(&self, index: Index) -> BoxFuture<Vec<Log>, Error> {
-		let mut polls = self.polls().lock();
-		match polls.poll(&index.value()) {
-			Some(&PollFilter::Logs(ref _block_number, ref _previous_log, ref filter)) => {
-				let include_pending = filter.to_block == Some(BlockNumber::Pending);
-				let filter: EthcoreFilter = filter.clone().into();
+		let filter = {
+			let mut polls = self.polls().lock();
 
-				// fetch pending logs.
-				let pending = if include_pending {
-					let best_block = self.best_block_number();
-					self.pending_logs(best_block, &filter)
-				} else {
-					Vec::new()
-				};
+			match polls.poll(&index.value()) {
+				Some(&PollFilter::Logs(ref _block_number, ref _previous_log, ref filter)) => filter.clone(),
+				// just empty array
+				_ => return future::ok(Vec::new()).boxed(),
+			}
+		};
 
-				// retrieve logs asynchronously, appending pending logs.
-				let limit = filter.limit;
-				self.logs(filter)
-					.map(move |mut logs| { logs.extend(pending); logs })
-					.map(move |logs| limit_logs(logs, limit))
-					.boxed()
-			},
-			// just empty array
-			_ => future::ok(Vec::new()).boxed()
-		}
+		let include_pending = filter.to_block == Some(BlockNumber::Pending);
+		let filter: EthcoreFilter = filter.into();
+
+		// fetch pending logs.
+		let pending = if include_pending {
+			let best_block = self.best_block_number();
+			self.pending_logs(best_block, &filter)
+		} else {
+			Vec::new()
+		};
+
+		// retrieve logs asynchronously, appending pending logs.
+		let limit = filter.limit;
+		let logs = self.logs(filter);
+		let res = logs
+			.map(move |mut logs| { logs.extend(pending); logs })
+			.map(move |logs| limit_logs(logs, limit))
+			.boxed();
+		res
 	}
 
 	fn uninstall_filter(&self, index: Index) -> Result<bool, Error> {

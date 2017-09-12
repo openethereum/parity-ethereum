@@ -18,10 +18,8 @@
 
 use byteorder::{LittleEndian, ByteOrder};
 
-use parity_wasm::interpreter;
-
 use super::ptr::WasmPtr;
-use super::runtime::Error as RuntimeError;
+use super::runtime::{InterpreterError, InterpreterMemoryInstance};
 
 /// Wrapper for wasm contract call result
 pub struct WasmResult {
@@ -35,13 +33,13 @@ impl WasmResult {
 	}
 
 	/// Check if the result contains any data
-	pub fn peek_empty(&self, mem: &interpreter::MemoryInstance) -> Result<bool, RuntimeError> {
+	pub fn peek_empty(&self, mem: &InterpreterMemoryInstance) -> Result<bool, InterpreterError> {
 		let result_len = LittleEndian::read_u32(&self.ptr.slice(16, mem)?[12..16]);
 		Ok(result_len == 0)
 	}
 
 	/// Consume the result ptr and return the actual data from wasm linear memory
-	pub fn pop(self, mem: &interpreter::MemoryInstance) -> Result<Vec<u8>, RuntimeError> {
+	pub fn pop(self, mem: &InterpreterMemoryInstance) -> Result<Vec<u8>, InterpreterError> {
 		let result_ptr = LittleEndian::read_u32(&self.ptr.slice(16, mem)?[8..12]);
 		let result_len = LittleEndian::read_u32(&self.ptr.slice(16, mem)?[12..16]);
 		trace!(target: "wasm", "contract result: {} bytes at @{}", result_len, result_ptr);

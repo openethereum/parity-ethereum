@@ -392,14 +392,13 @@ mod tests {
 			self.numbers.get(&index).cloned()
 		}
 
-		fn blocks_with_bloom(&self, _bloom: &H2048, _from_block: BlockNumber, _to_block: BlockNumber) -> Vec<BlockNumber> {
-			unimplemented!()
-		}
-
 		fn block_receipts(&self, _hash: &H256) -> Option<BlockReceipts> {
 			unimplemented!()
 		}
 
+		fn blocks_with_bloom(&self, _bloom: &H2048, _from_block: BlockNumber, _to_block: BlockNumber) -> Vec<BlockNumber> {
+			unimplemented!()
+		}
 
 		fn logs<F>(&self, _blocks: Vec<BlockNumber>, _matches: F, _limit: Option<usize>) -> Vec<LocalizedLogEntry>
 			where F: Fn(&LogEntry) -> bool, Self: Sized {

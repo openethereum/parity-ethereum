@@ -497,6 +497,8 @@ pub trait ManageNetwork : Send + Sync {
 	fn stop_network(&self);
 	/// Query the current configuration of the network
 	fn network_config(&self) -> NetworkConfiguration;
+	/// Get network context for protocol.
+	fn with_proto_context(&self, proto: ProtocolId, f: &mut FnMut(&NetworkContext));
 }
 
 
@@ -537,6 +539,10 @@ impl ManageNetwork for EthSync {
 
 	fn network_config(&self) -> NetworkConfiguration {
 		NetworkConfiguration::from(self.network.config().clone())
+	}
+
+	fn with_proto_context(&self, proto: ProtocolId, f: &mut FnMut(&NetworkContext)) {
+		self.network.with_context_eval(proto, f);
 	}
 }
 
@@ -807,6 +813,10 @@ impl ManageNetwork for LightSync {
 
 	fn network_config(&self) -> NetworkConfiguration {
 		NetworkConfiguration::from(self.network.config().clone())
+	}
+
+	fn with_proto_context(&self, proto: ProtocolId, f: &mut FnMut(&NetworkContext)) {
+		self.network.with_context_eval(proto, f);
 	}
 }
 

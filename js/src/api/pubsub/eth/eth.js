@@ -25,7 +25,7 @@ export default class Eth extends PubsubBase {
   }
 
   newHeads (callback) {
-    return this.addListener('eth', 'newHeads', callback);
+    return this.addListener('eth', 'newHeads', callback, null);
   }
 
   logs (callback) {

@@ -29,7 +29,8 @@ function stubApi (blockNumber) {
   return {
     _calls,
     transport: {
-      isConnected: true
+      isConnected: true,
+      on: () => {}
     },
     eth: {
       blockNumber: () => {

@@ -24,7 +24,7 @@ use itertools::Itertools;
 use rustc_hex::FromHex;
 use hash::keccak;
 use bigint::prelude::U256;
-use bigint::hash::{H256, H2048};
+use bigint::hash::H256;
 use parking_lot::RwLock;
 use util::*;
 use rlp::*;
@@ -33,7 +33,7 @@ use devtools::*;
 use transaction::{Transaction, LocalizedTransaction, PendingTransaction, SignedTransaction, Action};
 use blockchain::TreeRoute;
 use client::{
-	BlockChainClient, MiningBlockChainClient, EngineClient, BlockChainInfo, BlockStatus, BlockId,
+	BlockChainClient, MiningBlockChainClient, BlockChainInfo, BlockStatus, BlockId,
 	TransactionId, UncleId, TraceId, TraceFilter, LastHashes, CallAnalytics, BlockImportError,
 	ProvingBlockChainClient,
 };
@@ -508,10 +508,6 @@ impl BlockChainClient for TestBlockChainClient {
 		self.receipts.read().get(&id).cloned()
 	}
 
-	fn blocks_with_bloom(&self, _bloom: &H2048, _from_block: BlockId, _to_block: BlockId) -> Option<Vec<BlockNumber>> {
-		unimplemented!();
-	}
-
 	fn logs(&self, filter: Filter) -> Vec<LocalizedLogEntry> {
 		let mut logs = self.logs.read().clone();
 		let len = logs.len();
@@ -801,9 +797,13 @@ impl ProvingBlockChainClient for TestBlockChainClient {
 	fn prove_transaction(&self, _: SignedTransaction, _: BlockId) -> Option<(Bytes, Vec<DBValue>)> {
 		None
 	}
+
+	fn epoch_signal(&self, _: H256) -> Option<Vec<u8>> {
+		None
+	}
 }
 
-impl EngineClient for TestBlockChainClient {
+impl super::traits::EngineClient for TestBlockChainClient {
 	fn update_sealing(&self) {
 		self.miner.update_sealing(self)
 	}
@@ -818,5 +818,15 @@ impl EngineClient for TestBlockChainClient {
 
 	fn epoch_transition_for(&self, _block_hash: H256) -> Option<::engines::EpochTransition> {
 		None
+	}
+
+	fn chain_info(&self) -> BlockChainInfo {
+		BlockChainClient::chain_info(self)
+	}
+
+	fn as_full_client(&self) -> Option<&BlockChainClient> { Some(self) }
+
+	fn block_number(&self, id: BlockId) -> Option<BlockNumber> {
+		BlockChainClient::block_number(self, id)
 	}
 }

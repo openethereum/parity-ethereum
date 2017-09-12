@@ -102,6 +102,7 @@ extern crate num;
 extern crate parking_lot;
 extern crate price_info;
 extern crate rand;
+extern crate rayon;
 extern crate rlp;
 extern crate hash;
 extern crate heapsize;

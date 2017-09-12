@@ -155,16 +155,6 @@ pub trait PoolHandle: Send + Sync {
 	fn pool_status(&self) -> ::net::PoolStatus;
 }
 
-impl PoolHandle for ::net::PoolHandle {
-	fn relay(&self, message: Message) -> bool {
-		self.post_message(message)
-	}
-
-	fn pool_status(&self) -> ::net::PoolStatus {
-		::net::PoolHandle::pool_status(self)
-	}
-}
-
 /// Default, simple metadata implementation.
 #[derive(Clone, Default)]
 pub struct Meta {
@@ -339,7 +329,7 @@ impl<P: PoolHandle + 'static, M: Send + Sync + 'static> Whisper for WhisperClien
 			payload: encrypted,
 			topics: req.topics.into_iter().map(|x| abridge_topic(&x.into_inner())).collect(),
 			work: req.priority,
-		});
+		}).map_err(|_| whisper_error("Empty topics"))?;
 
 		if !self.pool.relay(message) {
 			Err(whisper_error("PoW too low to compete with other messages"))

@@ -48,22 +48,27 @@ function createReduxStore () {
 function render () {
   reduxStore = createReduxStore();
   signerStore = createSignerStore();
+  const context = {
+    store: reduxStore,
+    api: {
+      transport: {
+        on: sinon.stub()
+      },
+      pubsub: {
+        subscribeAndGetResult: sinon.stub().returns(Promise.resolve(1))
+      },
+      util: {
+        sha3: (x) => x,
+        hexToBytes: (x) => x,
+        asciiToHex: (x) => x
+      }
+    }
+  };
 
   component = shallow(
     <SignRequest signerStore={ signerStore } />,
-    {
-      context: {
-        store: reduxStore,
-        api: {
-          util: {
-            sha3: (x) => x,
-            hexToBytes: (x) => x,
-            asciiToHex: (x) => x
-          }
-        }
-      }
-    }
-  ).find('SignRequest').shallow();
+    { context }
+  ).find('SignRequest').shallow({ context });
 
   return component;
 }

@@ -40,7 +40,7 @@ use rlp::{self, UntrustedRlp};
 use vm::LastHashes;
 use semantic_version::SemanticVersion;
 use tx_filter::{TransactionFilter};
-use client::{Client, BlockChainClient};
+use client::EngineClient;
 
 /// Parity tries to round block.gas_limit to multiple of this constant
 pub const PARITY_GAS_LIMIT_DETERMINANT: U256 = U256([37, 0, 0, 0]);
@@ -460,9 +460,9 @@ impl Engine for Arc<Ethash> {
 		Some(Box::new(::snapshot::PowSnapshot::new(SNAPSHOT_BLOCKS, MAX_SNAPSHOT_BLOCKS)))
 	}
 
-	fn register_client(&self, client: Weak<Client>) {
+	fn register_client(&self, client: Weak<EngineClient>) {
 		if let Some(ref filter) = self.tx_filter {
-			filter.register_client(client as Weak<BlockChainClient>);
+			filter.register_client(client);
 		}
 	}
 
