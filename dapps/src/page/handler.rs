@@ -14,21 +14,20 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use time::{self, Duration};
+use std::thread;
+use std::time::{Duration, SystemTime};
+use futures::{Future, Sink};
+use hyper::{self, header, StatusCode};
 
-use hyper::header;
-use hyper::server;
-use hyper::uri::RequestUri;
-use hyper::net::HttpStream;
-use hyper::status::StatusCode;
-use hyper::{Decoder, Encoder, Next};
 use endpoint::EndpointPath;
 use handlers::{ContentHandler, add_security_headers};
 use {Embeddable};
 
+// TODO [ToDr] This should be a stream!
 /// Represents a file that can be sent to client.
 /// Implementation should keep track of bytes already sent internally.
-pub trait DappFile: Send {
+pub trait DappFile: Send + 'static {
+	// TODO [ToDr] Use Mime?
 	/// Returns a content-type of this file.
 	fn content_type(&self) -> &str;
 
@@ -38,12 +37,12 @@ pub trait DappFile: Send {
 	/// Fetch next chunk to write to the client.
 	fn next_chunk(&mut self) -> &[u8];
 
-	/// How many files have been written to the client.
+	/// How many bytes have been written to the client.
 	fn bytes_written(&mut self, bytes: usize);
 }
 
 /// Dapp as a (dynamic) set of files.
-pub trait Dapp: Send + 'static {
+pub trait Dapp: Send {
 	/// File type
 	type DappFile: DappFile;
 
@@ -51,25 +50,6 @@ pub trait Dapp: Send + 'static {
 	fn file(&self, path: &str) -> Option<Self::DappFile>;
 }
 
-/// Currently served by `PageHandler` file
-pub enum ServedFile<T: Dapp> {
-	/// File from dapp
-	File(T::DappFile),
-	/// Error (404)
-	Error(ContentHandler),
-}
-
-impl<T: Dapp> ServedFile<T> {
-	pub fn new(embeddable_on: Embeddable) -> Self {
-		ServedFile::Error(ContentHandler::error(
-			StatusCode::NotFound,
-			"404 Not Found",
-			"Requested dapp resource was not found.",
-			None,
-			embeddable_on,
-		))
-	}
-}
 
 /// Defines what cache headers should be appended to returned resources.
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -84,125 +64,136 @@ impl Default for PageCache {
 	}
 }
 
-/// A generic type for `PageHandler` allowing to set the URL.
-/// Used by dapps fetching to set the URL after the content was downloaded.
-pub trait PageHandlerWaiting: server::Handler<HttpStream> + Send {
-	fn set_uri(&mut self, uri: &RequestUri);
-}
-
 /// A handler for a single webapp.
 /// Resolves correct paths and serves as a plumbing code between
 /// hyper server and dapp.
-pub struct PageHandler<T: Dapp> {
-	/// A Dapp.
-	pub app: T,
+pub struct PageHandler<T: DappFile> {
 	/// File currently being served
-	pub file: ServedFile<T>,
-	/// Optional prefix to strip from path.
-	pub prefix: Option<String>,
-	/// Requested path.
-	pub path: EndpointPath,
+	pub file: Option<T>,
 	/// Flag indicating if the file can be safely embeded (put in iframe).
 	pub safe_to_embed_on: Embeddable,
 	/// Cache settings for this page.
 	pub cache: PageCache,
 }
 
-impl<T: Dapp> PageHandlerWaiting for PageHandler<T> {
-	fn set_uri(&mut self, uri: &RequestUri) {
-		trace!(target: "dapps", "Setting URI: {:?}", uri);
-		self.file = match *uri {
-			RequestUri::AbsolutePath { ref path, .. } => {
-				self.app.file(&self.extract_path(path))
-			},
-			RequestUri::AbsoluteUri(ref url) => {
-				self.app.file(&self.extract_path(url.path()))
-			},
-			_ => None,
-		}.map_or_else(|| ServedFile::new(self.safe_to_embed_on.clone()), |f| ServedFile::File(f));
+impl <T: DappFile> PageHandler<T> {
+	pub fn file<D>(app: D, prefix: &Option<String>, path: EndpointPath) -> Option<T> where
+		D: Dapp<DappFile = T>,
+	{
+		let url = "/".to_owned() + &path.app_params.join("/");
+		trace!(target: "dapps", "Setting URL: {} ({:?})", url, path);
+		app.file(Self::extract_file_path(&url, &path.app_id, prefix))
 	}
-}
 
-impl<T: Dapp> PageHandler<T> {
-	fn extract_path(&self, path: &str) -> String {
-		let app_id = &self.path.app_id;
-		let prefix = "/".to_owned() + self.prefix.as_ref().unwrap_or(app_id);
-		let prefix_with_slash = prefix.clone() + "/";
-		let query_pos = path.find('?').unwrap_or_else(|| path.len());
+	fn extract_file_path<'a>(url: &'a str, app_id: &str, prefix: &Option<String>) -> &'a str {
+		let prefix_with_slash = format!("/{}/", prefix.as_ref().map(|s| s.as_str()).unwrap_or(app_id));
+		let len = prefix_with_slash.len();
+		let prefix = &prefix_with_slash[0 .. len - 1];
+		let query_pos = url.find('?').unwrap_or_else(|| url.len());
 
 		// Index file support
-		match path == "/" || path == &prefix || path == &prefix_with_slash {
-			true => "index.html".to_owned(),
-			false => if path.starts_with(&prefix_with_slash) {
-				path[prefix_with_slash.len()..query_pos].to_owned()
-			} else if path.starts_with("/") {
-				path[1..query_pos].to_owned()
+		match url == "/" || url == prefix || url == &prefix_with_slash {
+			true => "index.html",
+			false => if url.starts_with(&prefix_with_slash) {
+				&url[len .. query_pos]
+			} else if url.starts_with("/") {
+				&url[1 .. query_pos]
 			} else {
-				path[0..query_pos].to_owned()
+				&url[0 .. query_pos]
 			}
 		}
 	}
+
 }
 
-impl<T: Dapp> server::Handler<HttpStream> for PageHandler<T> {
-	fn on_request(&mut self, req: server::Request<HttpStream>) -> Next {
-		self.set_uri(req.uri());
-		Next::write()
-	}
+// TODO [ToDr] Consider this async
+impl<T: DappFile + 'static> Into<hyper::Response> for PageHandler<T> {
+	fn into(self) -> hyper::Response {
+		let mut file = match self.file {
+			None => return ContentHandler::error(
+				StatusCode::NotFound,
+				"File not found",
+				"Requested file has not been found.",
+				None,
+				self.safe_to_embed_on,
+			).into(),
+			Some(file) => file,
+		};
 
-	fn on_request_readable(&mut self, _decoder: &mut Decoder<HttpStream>) -> Next {
-		Next::write()
-	}
+		let mut res = hyper::Response::new()
+			.with_status(StatusCode::Ok);
 
-	fn on_response(&mut self, res: &mut server::Response) -> Next {
-		match self.file {
-			ServedFile::File(ref f) => {
-				res.set_status(StatusCode::Ok);
+		// headers
+		{
+			let mut headers = res.headers_mut();
 
-				if let PageCache::Enabled = self.cache {
-					let mut headers = res.headers_mut();
-					let validity = Duration::days(365);
-					headers.set(header::CacheControl(vec![
-						header::CacheDirective::Public,
-						header::CacheDirective::MaxAge(validity.num_seconds() as u32),
-					]));
-					headers.set(header::Expires(header::HttpDate(time::now() + validity)));
+			if let PageCache::Enabled = self.cache {
+				let validity_secs = 365u32 * 24 * 3600;
+				let validity = Duration::from_secs(validity_secs as u64);
+				headers.set(header::CacheControl(vec![
+					header::CacheDirective::Public,
+					header::CacheDirective::MaxAge(validity_secs),
+				]));
+				headers.set(header::Expires(header::HttpDate::from(SystemTime::now() + validity)));
+			}
+
+			match file.content_type().parse() {
+				Ok(mime) => headers.set(header::ContentType(mime)),
+				Err(_) => {
+					warn!(target: "dapps", "invalid MIME type: {}", file.content_type());
+					headers.set(header::ContentType::html())
+				},
+			}
+
+			add_security_headers(&mut headers, self.safe_to_embed_on);
+		}
+
+		let (mut sender, body) = hyper::Body::pair();
+		res.set_body(body);
+
+		sender = match write_chunk(&mut file, sender) {
+			Ok(s) => s,
+			Err(_) => return res,
+		};
+
+		// TODO [ToDr] do it asynchronously
+		if !file.is_drained() {
+			thread::spawn(move || {
+				let mut sender = sender;
+				while !file.is_drained() {
+					sender = match write_chunk(&mut file, sender) {
+						Ok(s) => s,
+						Err(_) => return,
+					};
 				}
+			});
+		}
 
-				match f.content_type().parse() {
-					Ok(mime) => res.headers_mut().set(header::ContentType(mime)),
-					Err(()) => debug!(target: "dapps", "invalid MIME type: {}", f.content_type()),
-				}
+		res
+	}
+}
 
-				// Security headers:
-				add_security_headers(&mut res.headers_mut(), self.safe_to_embed_on.take());
-				Next::write()
+fn write_chunk<T, S>(file: &mut T, sender: S) -> Result<S, ()> where
+	T: DappFile,
+	S: Sink<SinkItem = Result<hyper::Chunk, hyper::Error>>,
+	S::SinkError: ::std::fmt::Debug,
+{
+	let (written, new_sender) = {
+		let chunk = file.next_chunk();
+		let written = chunk.len();
+
+		(written, match sender.send(Ok(chunk.to_vec().into())).wait() {
+			Ok(sender) => sender,
+			Err(err) => {
+				warn!(target: "dapps", "Cannot stream response: {:?}", err);
+				return Err(());
 			},
-			ServedFile::Error(ref mut handler) => {
-				handler.on_response(res)
-			}
-		}
-	}
+		})
+	};
 
-	fn on_response_writable(&mut self, encoder: &mut Encoder<HttpStream>) -> Next {
-		match self.file {
-			ServedFile::Error(ref mut handler) => handler.on_response_writable(encoder),
-			ServedFile::File(ref f) if f.is_drained() => Next::end(),
-			ServedFile::File(ref mut f) => match encoder.write(f.next_chunk()) {
-				Ok(bytes) => {
-					f.bytes_written(bytes);
-					Next::write()
-				},
-				Err(e) => match e.kind() {
-					::std::io::ErrorKind::WouldBlock => Next::write(),
-					_ => Next::end(),
-				},
-			}
-		}
-	}
+	file.bytes_written(written);
+	Ok(new_sender)
 }
-
-
 
 #[cfg(test)]
 mod test {
@@ -228,50 +219,25 @@ mod test {
 		}
 	}
 
-	#[derive(Default)]
-	pub struct TestWebapp;
+	#[test]
+	fn should_extract_path_with_appid() {
 
-	impl Dapp for TestWebapp {
-		type DappFile = TestWebAppFile;
+		// given
+		let path1 = "/";
+		let path2= "/test.css";
+		let path3 = "/app/myfile.txt";
+		let path4 = "/app/myfile.txt?query=123";
 
-		fn file(&self, _path: &str) -> Option<Self::DappFile> {
-			None
-		}
+		// when
+		let res1 = PageHandler::<TestWebAppFile>::extract_file_path(path1, "app", &None);
+		let res2 = PageHandler::<TestWebAppFile>::extract_file_path(path2, "app", &None);
+		let res3 = PageHandler::<TestWebAppFile>::extract_file_path(path3, "app", &None);
+		let res4 = PageHandler::<TestWebAppFile>::extract_file_path(path4, "app", &None);
+
+		// then
+		assert_eq!(res1, "index.html");
+		assert_eq!(res2, "test.css");
+		assert_eq!(res3, "myfile.txt");
+		assert_eq!(res4, "myfile.txt");
 	}
-}
-
-#[test]
-fn should_extract_path_with_appid() {
-
-	// given
-	let path1 = "/";
-	let path2= "/test.css";
-	let path3 = "/app/myfile.txt";
-	let path4 = "/app/myfile.txt?query=123";
-	let page_handler = PageHandler {
-		app: test::TestWebapp,
-		prefix: None,
-		path: EndpointPath {
-			app_id: "app".to_owned(),
-			app_params: vec![],
-			host: "".to_owned(),
-			port: 8080,
-			using_dapps_domains: true,
-		},
-		file: ServedFile::new(None),
-		cache: Default::default(),
-		safe_to_embed_on: None,
-	};
-
-	// when
-	let res1 = page_handler.extract_path(path1);
-	let res2 = page_handler.extract_path(path2);
-	let res3 = page_handler.extract_path(path3);
-	let res4 = page_handler.extract_path(path4);
-
-	// then
-	assert_eq!(&res1, "index.html");
-	assert_eq!(&res2, "test.css");
-	assert_eq!(&res3, "myfile.txt");
-	assert_eq!(&res4, "myfile.txt");
 }

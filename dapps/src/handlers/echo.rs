@@ -16,45 +16,31 @@
 
 //! Echo Handler
 
-use std::io::Read;
-use hyper::{server, Decoder, Encoder, Next};
-use hyper::net::HttpStream;
-use super::ContentHandler;
+use hyper::{self, header};
 
-#[derive(Default)]
+use handlers::add_security_headers;
+
+#[derive(Debug)]
 pub struct EchoHandler {
-	content: String,
-	handler: Option<ContentHandler>,
+	request: hyper::Request,
 }
 
-impl server::Handler<HttpStream> for EchoHandler {
-	fn on_request(&mut self, _: server::Request<HttpStream>) -> Next {
-		Next::read()
-	}
-
-	fn on_request_readable(&mut self, decoder: &mut Decoder<HttpStream>) -> Next {
-		match decoder.read_to_string(&mut self.content) {
-			Ok(0) => {
-				self.handler = Some(ContentHandler::ok(self.content.clone(), mime!(Application/Json)));
-				Next::write()
-			},
-			Ok(_) => Next::read(),
-			Err(e) => match e.kind() {
-				::std::io::ErrorKind::WouldBlock => Next::read(),
-				_ => Next::end(),
-			}
+impl EchoHandler {
+	pub fn new(request: hyper::Request) -> Self {
+		EchoHandler {
+			request,
 		}
 	}
+}
 
-	fn on_response(&mut self, res: &mut server::Response) -> Next {
-		self.handler.as_mut()
-			.expect("handler always set in on_request, which is before now; qed")
-			.on_response(res)
-	}
+impl Into<hyper::Response> for EchoHandler {
+	fn into(self) -> hyper::Response {
+		let content_type = self.request.headers().get().cloned();
+		let mut res = hyper::Response::new()
+			.with_header(content_type.unwrap_or(header::ContentType::json()))
+			.with_body(self.request.body());
 
-	fn on_response_writable(&mut self, encoder: &mut Encoder<HttpStream>) -> Next {
-		self.handler.as_mut()
-			.expect("handler always set in on_request, which is before now; qed")
-			.on_response_writable(encoder)
+		add_security_headers(res.headers_mut(), None);
+		res
 	}
 }

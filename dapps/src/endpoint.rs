@@ -18,12 +18,14 @@
 
 use std::collections::BTreeMap;
 
-use hyper::{self, server, net};
+use jsonrpc_core::BoxFuture;
+use hyper;
 
 #[derive(Debug, PartialEq, Default, Clone)]
 pub struct EndpointPath {
 	pub app_id: String,
 	pub app_params: Vec<String>,
+	pub query: Option<String>,
 	pub host: String,
 	pub port: u16,
 	pub using_dapps_domains: bool,
@@ -39,16 +41,11 @@ pub struct EndpointInfo {
 }
 
 pub type Endpoints = BTreeMap<String, Box<Endpoint>>;
-pub type Handler = server::Handler<net::HttpStream> + Send;
+pub type Response = BoxFuture<hyper::Response, hyper::Error>;
+pub type Request = hyper::Request;
 
 pub trait Endpoint : Send + Sync {
 	fn info(&self) -> Option<&EndpointInfo> { None }
 
-	fn to_handler(&self, _path: EndpointPath) -> Box<Handler> {
-		panic!("This Endpoint is asynchronous and requires Control object.");
-	}
-
-	fn to_async_handler(&self, path: EndpointPath, _control: hyper::Control) -> Box<Handler> {
-		self.to_handler(path)
-	}
+	fn respond(&self, path: EndpointPath, req: Request) -> Response;
 }

@@ -22,12 +22,12 @@ use std::sync::Arc;
 use env_logger::LogBuilder;
 use jsonrpc_core::IoHandler;
 use jsonrpc_http_server::{self as http, Host, DomainsValidation};
+use parity_reactor::Remote;
 
 use devtools::http_client;
 use hash_fetch::urlhint::ContractClient;
 use fetch::{Fetch, Client as FetchClient};
 use node_health::{NodeHealth, TimeChecker, CpuPool};
-use parity_reactor::Remote;
 
 use {Middleware, SyncStatus, WebProxyTokens};
 
@@ -55,7 +55,7 @@ fn init_logger() {
 	}
 }
 
-pub fn init_server<F, B>(process: F, io: IoHandler, remote: Remote) -> (Server, Arc<FakeRegistrar>) where
+pub fn init_server<F, B>(process: F, io: IoHandler) -> (Server, Arc<FakeRegistrar>) where
 	F: FnOnce(ServerBuilder) -> ServerBuilder<B>,
 	B: Fetch,
 {
@@ -65,7 +65,7 @@ pub fn init_server<F, B>(process: F, io: IoHandler, remote: Remote) -> (Server, 
 	dapps_path.push("non-existent-dir-to-prevent-fs-files-from-loading");
 
 	let server = process(ServerBuilder::new(
-		&dapps_path, registrar.clone(), remote,
+		&dapps_path, registrar.clone(),
 	))
 		.signer_address(Some(("127.0.0.1".into(), SIGNER_PORT)))
 		.start_unsecured_http(&"127.0.0.1:0".parse().unwrap(), io).unwrap();
@@ -76,34 +76,30 @@ pub fn init_server<F, B>(process: F, io: IoHandler, remote: Remote) -> (Server, 
 }
 
 pub fn serve_with_rpc(io: IoHandler) -> Server {
-	init_server(|builder| builder, io, Remote::new_sync()).0
+	init_server(|builder| builder, io).0
 }
 
 pub fn serve_hosts(hosts: Option<Vec<String>>) -> Server {
 	let hosts = hosts.map(|hosts| hosts.into_iter().map(Into::into).collect());
-	init_server(|builder| builder.allowed_hosts(hosts.into()), Default::default(), Remote::new_sync()).0
+	init_server(|builder| builder.allowed_hosts(hosts.into()), Default::default()).0
 }
 
 pub fn serve_with_registrar() -> (Server, Arc<FakeRegistrar>) {
-	init_server(|builder| builder, Default::default(), Remote::new_sync())
+	init_server(|builder| builder, Default::default())
 }
 
 pub fn serve_with_registrar_and_sync() -> (Server, Arc<FakeRegistrar>) {
 	init_server(|builder| {
 		builder.sync_status(Arc::new(FakeSync(true)))
-	}, Default::default(), Remote::new_sync())
+	}, Default::default())
 }
 
 pub fn serve_with_registrar_and_fetch() -> (Server, FakeFetch, Arc<FakeRegistrar>) {
-	serve_with_registrar_and_fetch_and_threads(false)
-}
-
-pub fn serve_with_registrar_and_fetch_and_threads(multi_threaded: bool) -> (Server, FakeFetch, Arc<FakeRegistrar>) {
 	let fetch = FakeFetch::default();
 	let f = fetch.clone();
 	let (server, reg) = init_server(move |builder| {
 		builder.fetch(f.clone())
-	}, Default::default(), if multi_threaded { Remote::new_thread_per_future() } else { Remote::new_sync() });
+	}, Default::default());
 
 	(server, fetch, reg)
 }
@@ -117,13 +113,13 @@ pub fn serve_with_fetch(web_token: &'static str, domain: &'static str) -> (Serve
 			.web_proxy_tokens(Arc::new(move |token| {
 				if &token == web_token { Some(domain.into()) } else { None }
 			}))
-	}, Default::default(), Remote::new_sync());
+	}, Default::default());
 
 	(server, fetch)
 }
 
 pub fn serve() -> Server {
-	init_server(|builder| builder, Default::default(), Remote::new_sync()).0
+	init_server(|builder| builder, Default::default()).0
 }
 
 pub fn request(server: Server, request: &str) -> http_client::Response {
@@ -146,13 +142,12 @@ pub struct ServerBuilder<T: Fetch = FetchClient> {
 	web_proxy_tokens: Arc<WebProxyTokens>,
 	signer_address: Option<(String, u16)>,
 	allowed_hosts: DomainsValidation<Host>,
-	remote: Remote,
 	fetch: Option<T>,
 }
 
 impl ServerBuilder {
 	/// Construct new dapps server
-	pub fn new<P: AsRef<Path>>(dapps_path: P, registrar: Arc<ContractClient>, remote: Remote) -> Self {
+	pub fn new<P: AsRef<Path>>(dapps_path: P, registrar: Arc<ContractClient>) -> Self {
 		ServerBuilder {
 			dapps_path: dapps_path.as_ref().to_owned(),
 			registrar: registrar,
@@ -160,7 +155,6 @@ impl ServerBuilder {
 			web_proxy_tokens: Arc::new(|_| None),
 			signer_address: None,
 			allowed_hosts: DomainsValidation::Disabled,
-			remote: remote,
 			fetch: None,
 		}
 	}
@@ -176,7 +170,6 @@ impl<T: Fetch> ServerBuilder<T> {
 			web_proxy_tokens: self.web_proxy_tokens,
 			signer_address: self.signer_address,
 			allowed_hosts: self.allowed_hosts,
-			remote: self.remote,
 			fetch: Some(fetch),
 		}
 	}
@@ -221,7 +214,7 @@ impl<T: Fetch> ServerBuilder<T> {
 			self.registrar,
 			self.sync_status,
 			self.web_proxy_tokens,
-			self.remote,
+			Remote::new_sync(),
 			fetch,
 		)
 	}
@@ -262,7 +255,6 @@ impl Server {
 		);
 		let middleware = Middleware::dapps(
 			health,
-			remote,
 			signer_address,
 			vec![],
 			vec![],
@@ -295,9 +287,7 @@ impl Server {
 	pub fn addr(&self) -> &SocketAddr {
 		self.server.as_ref()
 			.expect("server is always Some at the start; it's consumed only when object is dropped; qed")
-			.addrs()
-			.first()
-			.expect("You cannot start the server without binding to at least one address; qed")
+			.address()
 	}
 }
 

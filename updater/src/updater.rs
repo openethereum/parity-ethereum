@@ -21,7 +21,7 @@ use std::sync::{Arc, Weak};
 
 use ethcore::client::{BlockId, BlockChainClient, ChainNotify};
 use ethsync::{SyncProvider};
-use futures::{future, Future};
+use futures::future;
 use hash_fetch::{self as fetch, HashFetch};
 use hash_fetch::fetch::Client as FetchService;
 use ipc_common_types::{VersionInfo, ReleaseTrack};

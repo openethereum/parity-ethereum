@@ -23,7 +23,6 @@ use proxypac::ProxyPac;
 use web::Web;
 use fetch::Fetch;
 use parity_dapps::WebApp;
-use parity_reactor::Remote;
 use parity_ui;
 use {WebProxyTokens, ParentFrameSettings};
 
@@ -61,7 +60,6 @@ pub fn all_endpoints<F: Fetch>(
 	dapps_domain: &str,
 	embeddable: Option<ParentFrameSettings>,
 	web_proxy_tokens: Arc<WebProxyTokens>,
-	remote: Remote,
 	fetch: F,
 ) -> (Vec<String>, Endpoints) {
 	// fetch fs dapps at first to avoid overwriting builtins
@@ -78,7 +76,7 @@ pub fn all_endpoints<F: Fetch>(
 	// NOTE [ToDr] Dapps will be currently embeded on 8180
 	insert::<parity_ui::App>(&mut pages, "ui", Embeddable::Yes(embeddable.clone()));
 	pages.insert("proxy".into(), ProxyPac::boxed(embeddable.clone(), dapps_domain.to_owned()));
-	pages.insert(WEB_PATH.into(), Web::boxed(embeddable.clone(), web_proxy_tokens.clone(), remote.clone(), fetch.clone()));
+	pages.insert(WEB_PATH.into(), Web::boxed(embeddable.clone(), web_proxy_tokens.clone(), fetch.clone()));
 
 	(local_endpoints, pages)
 }

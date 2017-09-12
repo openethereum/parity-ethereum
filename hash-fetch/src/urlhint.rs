@@ -18,7 +18,7 @@
 
 use std::sync::Arc;
 use rustc_hex::ToHex;
-use mime::Mime;
+use mime::{self, Mime};
 use mime_guess;
 use hash::keccak;
 
@@ -130,7 +130,7 @@ fn decode_urlhint_output(output: (String, ::util::H160, Address)) -> Option<URLH
 
 	let commit = GithubApp::commit(&commit);
 	if commit == Some(Default::default()) {
-		let mime = guess_mime_type(&account_slash_repo).unwrap_or(mime!(Application/_));
+		let mime = guess_mime_type(&account_slash_repo).unwrap_or(mime::APPLICATION_JSON);
 		return Some(URLHintResult::Content(Content {
 			url: account_slash_repo,
 			mime: mime,
@@ -161,7 +161,8 @@ impl URLHint for URLHintContract {
 		let do_call = |_, data| {
 			let addr = match self.client.registrar() {
 				Ok(addr) => addr,
-				Err(e) => return future::err(e).boxed(),
+				Err(e) => return Box::new(future::err(e))
+					as BoxFuture<Vec<u8>, _>,
 			};
 
 			self.client.call(addr, data)
@@ -169,7 +170,7 @@ impl URLHint for URLHintContract {
 
 		let urlhint = self.urlhint.clone();
 		let client = self.client.clone();
-		self.registrar.get_address(do_call, keccak("githubhint"), "A".into())
+		Box::new(self.registrar.get_address(do_call, keccak("githubhint"), "A".into())
 			.map(|addr| if addr == Address::default() { None } else { Some(addr) })
 			.and_then(move |address| {
 				let mut fixed_id = [0; 32];
@@ -183,7 +184,7 @@ impl URLHint for URLHintContract {
 						Either::B(urlhint.entries(do_call, ::util::H256(fixed_id)).map(decode_urlhint_output))
 					}
 				}
-			}).boxed()
+			}))
 	}
 }
 
@@ -253,7 +254,7 @@ pub mod tests {
 		fn call(&self, address: Address, data: Bytes) -> BoxFuture<Bytes, String> {
 			self.calls.lock().push((address.to_hex(), data.to_hex()));
 			let res = self.responses.lock().remove(0);
-			res.into_future().boxed()
+			Box::new(res.into_future())
 		}
 	}
 

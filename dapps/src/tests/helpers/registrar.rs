@@ -19,7 +19,7 @@ use std::sync::Arc;
 use std::collections::HashMap;
 use rustc_hex::FromHex;
 
-use hash_fetch::urlhint::ContractClient;
+use hash_fetch::urlhint::{ContractClient, BoxFuture};
 use parking_lot::Mutex;
 use util::{Bytes, Address, H256, ToPretty};
 
@@ -65,7 +65,7 @@ impl ContractClient for FakeRegistrar {
 		Ok(REGISTRAR.parse().unwrap())
 	}
 
-	fn call(&self, address: Address, data: Bytes) -> ::futures::BoxFuture<Bytes, String> {
+	fn call(&self, address: Address, data: Bytes) -> BoxFuture<Bytes, String> {
 		let call = (address.to_hex(), data.to_hex());
 		self.calls.lock().push(call.clone());
 		let res = self.responses.lock().get(&call).cloned().expect(&format!("No response for call: {:?}", call));

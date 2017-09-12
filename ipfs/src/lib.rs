@@ -65,7 +65,7 @@ impl IpfsHandler {
 			client: client,
 		}
 	}
-	pub fn on_request(&self, req: server::Request) -> (Option<header::AccessControlAllowOrigin>, Out) {
+	pub fn on_request(&self, req: hyper::Request) -> (Option<header::AccessControlAllowOrigin>, Out) {
 		match *req.method() {
 			Method::Get | Method::Post => {},
 			_ => return (None, Out::Bad("Invalid Request")),
@@ -87,29 +87,29 @@ impl IpfsHandler {
 }
 
 impl server::Service for IpfsHandler {
-	type Request = server::Request;
-	type Response = server::Response;
+	type Request = hyper::Request;
+	type Response = hyper::Response;
 	type Error = hyper::Error;
-	type Future = FutureResult<server::Response, hyper::Error>;
+	type Future = FutureResult<hyper::Response, hyper::Error>;
 
 	fn call(&self, request: Self::Request) -> Self::Future {
 		let (cors_header, out) = self.on_request(request);
 
 		let mut res = match out {
 			Out::OctetStream(bytes) => {
-				server::Response::new()
+				hyper::Response::new()
 					.with_status(StatusCode::Ok)
 					.with_header(ContentType::octet_stream())
 					.with_body(bytes)
 			},
 			Out::NotFound(reason) => {
-				server::Response::new()
+				hyper::Response::new()
 					.with_status(StatusCode::NotFound)
 					.with_header(ContentType::plaintext())
 					.with_body(reason)
 			},
 			Out::Bad(reason) => {
-				server::Response::new()
+				hyper::Response::new()
 					.with_status(StatusCode::BadRequest)
 					.with_header(ContentType::plaintext())
 					.with_body(reason)

@@ -14,10 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use page::{handler, PageCache};
 use std::sync::Arc;
-use endpoint::{Endpoint, EndpointInfo, EndpointPath, Handler};
+
+use endpoint::{Endpoint, EndpointInfo, EndpointPath, Request, Response};
+use futures::future;
 use parity_dapps::{WebApp, File, Info};
+use page::{handler, PageCache};
 use Embeddable;
 
 pub struct PageEndpoint<T : WebApp + 'static> {
@@ -92,15 +94,14 @@ impl<T: WebApp> Endpoint for PageEndpoint<T> {
 		Some(&self.info)
 	}
 
-	fn to_handler(&self, path: EndpointPath) -> Box<Handler> {
-		Box::new(handler::PageHandler {
-			app: BuiltinDapp::new(self.app.clone(), self.fallback_to_index_html),
-			prefix: self.prefix.clone(),
-			path: path,
-			file: handler::ServedFile::new(self.safe_to_embed_on.clone()),
+	fn respond(&self, path: EndpointPath, _req: Request) -> Response {
+		// TODO [ToDr] Consider getting rid of Arc<T>
+		let app = BuiltinDapp::new(self.app.clone(), self.fallback_to_index_html);
+		Box::new(future::ok(handler::PageHandler {
+			file: handler::PageHandler::file(app, &self.prefix, path),
 			cache: PageCache::Disabled,
 			safe_to_embed_on: self.safe_to_embed_on.clone(),
-		})
+		}.into()))
 	}
 }
 

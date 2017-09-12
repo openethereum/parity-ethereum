@@ -16,14 +16,12 @@
 
 //! Hyper handlers implementations.
 
-mod async;
 mod content;
 mod echo;
 mod fetch;
 mod redirect;
 mod streaming;
 
-pub use self::async::AsyncHandler;
 pub use self::content::ContentHandler;
 pub use self::echo::EchoHandler;
 pub use self::fetch::{ContentFetcherHandler, ContentValidator, FetchControl, ValidatorResponse};
@@ -32,8 +30,7 @@ pub use self::streaming::StreamingHandler;
 
 use std::iter;
 use itertools::Itertools;
-use url::Url;
-use hyper::{server, header, net, uri};
+use hyper::header;
 use {apps, address, Embeddable};
 
 /// Adds security-related headers to the Response.
@@ -114,41 +111,4 @@ pub fn add_security_headers(headers: &mut header::Headers, embeddable_on: Embedd
 			None => format!("frame-ancestors 'self';"),
 		}.into_bytes(),
 	]);
-}
-
-
-/// Extracts URL part from the Request.
-pub fn extract_url(req: &server::Request<net::HttpStream>) -> Option<Url> {
-	convert_uri_to_url(req.uri(), req.headers().get::<header::Host>())
-}
-
-/// Extracts URL given URI and Host header.
-pub fn convert_uri_to_url(uri: &uri::RequestUri, host: Option<&header::Host>) -> Option<Url> {
-	match *uri {
-		uri::RequestUri::AbsoluteUri(ref url) => {
-			match Url::from_generic_url(url.clone()) {
-				Ok(url) => Some(url),
-				_ => None,
-			}
-		},
-		uri::RequestUri::AbsolutePath { ref path, ref query } => {
-			let query = match *query {
-				Some(ref query) => format!("?{}", query),
-				None => "".into(),
-			};
-			// Attempt to prepend the Host header (mandatory in HTTP/1.1)
-			let url_string = match host {
-				Some(ref host) => {
-					format!("http://{}:{}{}{}", host.hostname, host.port.unwrap_or(80), path, query)
-				},
-				None => return None,
-			};
-
-			match Url::parse(&url_string) {
-				Ok(url) => Some(url),
-				_ => None,
-			}
-		},
-		_ => None,
-	}
 }

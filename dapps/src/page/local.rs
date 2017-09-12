@@ -18,9 +18,10 @@ use mime_guess;
 use std::io::{Seek, Read, SeekFrom};
 use std::fs;
 use std::path::{Path, PathBuf};
-use page::handler::{self, PageCache, PageHandlerWaiting};
-use endpoint::{Endpoint, EndpointInfo, EndpointPath, Handler};
-use mime::Mime;
+use futures::future;
+use page::handler::{self, PageCache};
+use endpoint::{Endpoint, EndpointInfo, EndpointPath, Request, Response};
+use hyper::mime::Mime;
 use Embeddable;
 
 #[derive(Debug, Clone)]
@@ -57,34 +58,30 @@ impl LocalPageEndpoint {
 		self.path.clone()
 	}
 
-	fn page_handler_with_mime(&self, path: EndpointPath, mime: &Mime) -> handler::PageHandler<LocalSingleFile> {
+	fn page_handler_with_mime(&self, path: EndpointPath, mime: &Mime) -> handler::PageHandler<LocalFile> {
+		let app = LocalSingleFile { path: &self.path, mime: format!("{}", mime) };
 		handler::PageHandler {
-			app: LocalSingleFile { path: self.path.clone(), mime: format!("{}", mime) },
-			prefix: None,
-			path: path,
-			file: handler::ServedFile::new(None),
-			safe_to_embed_on: self.embeddable_on.clone(),
+			file: handler::PageHandler::file(app, &None, path),
 			cache: self.cache,
+			safe_to_embed_on: self.embeddable_on.clone(),
 		}
 	}
 
-	fn page_handler(&self, path: EndpointPath) -> handler::PageHandler<LocalDapp> {
+	fn page_handler(&self, path: EndpointPath) -> handler::PageHandler<LocalFile> {
+		let app = LocalDapp { path: &self.path };
 		handler::PageHandler {
-			app: LocalDapp { path: self.path.clone() },
-			prefix: None,
-			path: path,
-			file: handler::ServedFile::new(None),
-			safe_to_embed_on: self.embeddable_on.clone(),
+			file: handler::PageHandler::file(app, &None, path),
 			cache: self.cache,
+			safe_to_embed_on: self.embeddable_on.clone(),
 		}
 	}
 
-	pub fn to_page_handler(&self, path: EndpointPath) -> Box<PageHandlerWaiting> {
-		if let Some(ref mime) = self.mime {
-			Box::new(self.page_handler_with_mime(path, mime))
+	pub fn to_response(&self, path: EndpointPath) -> Response {
+		Box::new(future::ok(if let Some(ref mime) = self.mime {
+			self.page_handler_with_mime(path, mime).into()
 		} else {
-			Box::new(self.page_handler(path))
-		}
+			self.page_handler(path).into()
+		}))
 	}
 }
 
@@ -93,37 +90,33 @@ impl Endpoint for LocalPageEndpoint {
 		self.info.as_ref()
 	}
 
-	fn to_handler(&self, path: EndpointPath) -> Box<Handler> {
-		if let Some(ref mime) = self.mime {
-			Box::new(self.page_handler_with_mime(path, mime))
-		} else {
-			Box::new(self.page_handler(path))
-		}
+	fn respond(&self, path: EndpointPath, _req: Request) -> Response {
+		self.to_response(path)
 	}
 }
 
-struct LocalSingleFile {
-	path: PathBuf,
+struct LocalSingleFile<'a> {
+	path: &'a Path,
 	mime: String,
 }
 
-impl handler::Dapp for LocalSingleFile {
+impl<'a> handler::Dapp for LocalSingleFile<'a> {
 	type DappFile = LocalFile;
 
 	fn file(&self, _path: &str) -> Option<Self::DappFile> {
-		LocalFile::from_path(&self.path, Some(&self.mime))
+		LocalFile::from_path(self.path, Some(&self.mime))
 	}
 }
 
-struct LocalDapp {
-	path: PathBuf,
+struct LocalDapp<'a> {
+	path: &'a Path,
 }
 
-impl handler::Dapp for LocalDapp {
+impl<'a> handler::Dapp for LocalDapp<'a> {
 	type DappFile = LocalFile;
 
 	fn file(&self, file_path: &str) -> Option<Self::DappFile> {
-		let mut path = self.path.clone();
+		let mut path = self.path.to_owned();
 		for part in file_path.split('/') {
 			path.push(part);
 		}
