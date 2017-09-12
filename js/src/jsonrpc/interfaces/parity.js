@@ -360,14 +360,19 @@ export default {
     }
   },
 
-  trezor: {
-    desc: 'send a trezor device a message',
+  lockedHardwareAccountsInfo: {
+    desc: 'Provides a list of paths to locked hardware wallets',
+    params: [],
+    returns: {
+      type: Array,
+      desc: 'Paths of all locked hardware wallets',
+      example: "['/dev/hidraw0']"
+    }
+  },
+
+  hardwarePinMatrixAck: {
+    desc: 'Send a pin to a hardware wallet at a specific path to unlock it',
     params: [
-      {
-        type: String,
-        desc: 'message type',
-        example: 'get_address'
-      },
       {
         type: String,
         desc: 'path to the device',
@@ -375,14 +380,14 @@ export default {
       },
       {
         type: String,
-        desc: 'message as a string or JSON string.',
+        desc: 'the pin as recieved from the pin matrix',
         example: '1234'
       }
     ],
     returns: {
-      type: String,
-      desc: 'trezor response message as a string or JSON string.',
-      example: 'PinMatrixRequest'
+      type: Boolean,
+      desc: 'Whether or not the pin entry successfully unlocked the device',
+      example: true
     }
   },
 

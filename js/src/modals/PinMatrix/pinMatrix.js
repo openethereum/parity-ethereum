@@ -33,7 +33,7 @@ export default class PinMatrix extends Component {
   pinMatrix = [7, 8, 9, 4, 5, 6, 1, 2, 3]
 
   render () {
-    const { failureMessage, passcode } = this.state;
+    const { passcode, failureMessage } = this.state;
     const { device } = this.props;
 
     return (

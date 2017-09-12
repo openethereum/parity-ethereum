@@ -252,9 +252,14 @@ export default class Parity {
       .then(outHwAccountInfo);
   }
 
-  trezor (messageType, address, message) {
+  lockedHardwareAccountsInfo () {
     return this._transport
-      .execute('parity_trezor', messageType, address, message);
+      .execute('parity_lockedHardwareAccountsInfo');
+  }
+
+  hardwarePinMatrixAck (path, pin) {
+    return this._transport
+      .execute('parity_hardwarePinMatrixAck', path, pin);
   }
 
   hashContent (url) {
