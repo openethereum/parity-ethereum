@@ -109,7 +109,7 @@ extern crate rlp;
 extern crate hash;
 extern crate heapsize;
 extern crate memorydb;
-extern crate trie;
+extern crate patricia_trie as trie;
 extern crate triehash;
 extern crate ansi_term;
 extern crate semantic_version;

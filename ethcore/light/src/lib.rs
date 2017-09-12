@@ -78,7 +78,7 @@ extern crate heapsize;
 extern crate futures;
 extern crate itertools;
 extern crate memorydb;
-extern crate trie;
+extern crate patricia_trie as trie;
 extern crate rand;
 extern crate rlp;
 extern crate parking_lot;

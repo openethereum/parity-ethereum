@@ -22,7 +22,7 @@ extern crate ethcore_util;
 extern crate ethcore_bytes;
 extern crate ethcore_bigint;
 extern crate memorydb;
-extern crate trie;
+extern crate patricia_trie as trie;
 #[macro_use]
 extern crate log;
 extern crate hash;

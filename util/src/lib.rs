@@ -107,7 +107,7 @@ extern crate ethcore_logger;
 extern crate hash as keccak;
 extern crate hashdb;
 extern crate memorydb;
-extern crate trie;
+extern crate patricia_trie as trie;
 
 #[macro_use]
 extern crate error_chain;

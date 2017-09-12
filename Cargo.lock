@@ -576,8 +576,8 @@ dependencies = [
  "futures 0.1.15 (registry+https://github.com/rust-lang/crates.io-index)",
  "hardware-wallet 1.8.0",
  "hash 0.1.0",
- "heapsize 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "hashdb 0.1.0",
+ "heapsize 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "hyper 0.10.0-a.0 (git+https://github.com/paritytech/hyper)",
  "itertools 0.5.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "lazy_static 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -589,6 +589,7 @@ dependencies = [
  "num 0.1.40 (registry+https://github.com/rust-lang/crates.io-index)",
  "num_cpus 1.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "parking_lot 0.4.7 (registry+https://github.com/rust-lang/crates.io-index)",
+ "patricia_trie 0.1.0",
  "price-info 1.7.0",
  "rand 0.3.16 (registry+https://github.com/rust-lang/crates.io-index)",
  "rayon 0.8.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -602,7 +603,6 @@ dependencies = [
  "table 0.1.0",
  "time 0.1.38 (registry+https://github.com/rust-lang/crates.io-index)",
  "transient-hashmap 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "trie 0.1.0",
  "triehash 0.1.0",
  "unexpected 0.1.0",
  "using_queue 0.1.0",
@@ -733,9 +733,10 @@ dependencies = [
  "heapsize 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "itertools 0.5.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
- "parking_lot 0.4.7 (registry+https://github.com/rust-lang/crates.io-index)",
- "rand 0.3.16 (registry+https://github.com/rust-lang/crates.io-index)",
  "memorydb 0.1.0",
+ "parking_lot 0.4.7 (registry+https://github.com/rust-lang/crates.io-index)",
+ "patricia_trie 0.1.0",
+ "rand 0.3.16 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlp 0.2.0",
  "rlp_derive 0.1.0",
  "serde 1.0.14 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -743,7 +744,6 @@ dependencies = [
  "smallvec 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "stats 0.1.0",
  "time 0.1.38 (registry+https://github.com/rust-lang/crates.io-index)",
- "trie 0.1.0",
  "triehash 0.1.0",
  "vm 0.1.0",
 ]
@@ -871,23 +871,23 @@ dependencies = [
  "ethcore-devtools 1.8.0",
  "ethcore-logger 1.8.0",
  "hash 0.1.0",
+ "hashdb 0.1.0",
  "heapsize 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.30 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "lru-cache 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "parking_lot 0.4.7 (registry+https://github.com/rust-lang/crates.io-index)",
- "regex 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "hashdb 0.1.0",
  "memorydb 0.1.0",
  "nibbleslice 0.1.0",
  "nibblevec 0.1.0",
+ "parking_lot 0.4.7 (registry+https://github.com/rust-lang/crates.io-index)",
+ "patricia_trie 0.1.0",
+ "regex 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlp 0.2.0",
  "rocksdb 0.4.5 (git+https://github.com/paritytech/rust-rocksdb)",
  "rustc-hex 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc_version 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "target_info 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "tiny-keccak 1.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "trie 0.1.0",
  "triehash 0.1.0",
  "vergen 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -1580,12 +1580,12 @@ dependencies = [
 name = "memorydb"
 version = "0.1.0"
 dependencies = [
- "bigint 4.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "bigint 4.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "elastic-array 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore-bigint 0.1.3",
  "hash 0.1.0",
  "hashdb 0.1.0",
- "heapsize 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "heapsize 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlp 0.2.0",
 ]
 
@@ -2372,6 +2372,25 @@ dependencies = [
 [[package]]
 name = "path"
 version = "0.1.0"
+
+[[package]]
+name = "patricia_trie"
+version = "0.1.0"
+dependencies = [
+ "elastic-array 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethcore-bigint 0.1.3",
+ "ethcore-bytes 0.1.0",
+ "ethcore-logger 1.8.0",
+ "hash 0.1.0",
+ "hashdb 0.1.0",
+ "log 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
+ "memorydb 0.1.0",
+ "nibbleslice 0.1.0",
+ "nibblevec 0.1.0",
+ "rand 0.3.16 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rlp 0.2.0",
+ "triehash 0.1.0",
+]
 
 [[package]]
 name = "percent-encoding"
@@ -3305,25 +3324,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "trie"
-version = "0.1.0"
-dependencies = [
- "elastic-array 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethcore-bigint 0.1.3",
- "ethcore-bytes 0.1.0",
- "ethcore-logger 1.8.0",
- "hash 0.1.0",
- "hashdb 0.1.0",
- "log 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)",
- "memorydb 0.1.0",
- "nibbleslice 0.1.0",
- "nibblevec 0.1.0",
- "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
- "rlp 0.2.0",
- "triehash 0.1.0",
-]
-
-[[package]]
 name = "triehash"
 version = "0.1.0"
 dependencies = [
@@ -3464,8 +3464,8 @@ dependencies = [
  "hash 0.1.0",
  "lazy_static 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
+ "patricia_trie 0.1.0",
  "rlp 0.2.0",
- "trie 0.1.0",
 ]
 
 [[package]]

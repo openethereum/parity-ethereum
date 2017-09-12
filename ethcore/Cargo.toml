@@ -26,7 +26,7 @@ ethcore-bloom-journal = { path = "../util/bloom" }
 ethcore-bytes = { path = "../util/bytes" }
 hashdb = { path = "../util/hashdb" }
 memorydb = { path = "../util/memorydb" }
-trie = { path = "../util/trie" }
+patricia_trie = { path = "../util/patricia_trie" }
 ethcore-devtools = { path = "../devtools" }
 ethcore-io = { path = "../util/io" }
 ethcore-ipc = { path = "../ipc/rpc" }

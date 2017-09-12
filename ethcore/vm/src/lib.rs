@@ -23,7 +23,7 @@ extern crate common_types as types;
 extern crate ethjson;
 extern crate rlp;
 extern crate hash;
-extern crate trie;
+extern crate patricia_trie as trie;
 
 mod action_params;
 mod call_type;
