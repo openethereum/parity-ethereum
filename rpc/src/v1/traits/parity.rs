@@ -46,7 +46,7 @@ build_rpc_trait! {
 
 		/// Returns default account for dapp.
 		#[rpc(meta, name = "parity_defaultAccount")]
-		fn default_account(&self, Self::Metadata) -> BoxFuture<H160, Error>;
+		fn default_account(&self, Self::Metadata) -> Result<H160, Error>;
 
 		/// Returns current transactions limit.
 		#[rpc(name = "parity_transactionsLimit")]
@@ -206,7 +206,7 @@ build_rpc_trait! {
 
 		/// Call contract, returning the output data.
 		#[rpc(meta, name = "parity_call")]
-		fn call(&self, Self::Metadata, Vec<CallRequest>, Trailing<BlockNumber>) -> BoxFuture<Vec<Bytes>, Error>;
+		fn call(&self, Self::Metadata, Vec<CallRequest>, Trailing<BlockNumber>) -> Result<Vec<Bytes>, Error>;
 
 		/// Returns node's health report.
 		#[rpc(name = "parity_nodeHealth")]

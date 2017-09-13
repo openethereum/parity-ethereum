@@ -38,6 +38,6 @@ impl Fetch for TestFetch {
 			tx.send(fetch::Response::from_reader(cursor)).unwrap();
 		});
 
-		rx.map_err(|_| fetch::Error::Aborted).boxed()
+		Box::new(rx.map_err(|_| fetch::Error::Aborted))
 	}
 }

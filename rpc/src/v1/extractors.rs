@@ -236,7 +236,7 @@ impl<M: core::Middleware<Metadata>> core::Middleware<Metadata> for WsDispatcher<
 		if use_full {
 			A(self.full_handler.handle_rpc_request(request, meta))
 		} else {
-			B(process(request, meta).boxed())
+			B(Box::new(process(request, meta)))
 		}
 	}
 }

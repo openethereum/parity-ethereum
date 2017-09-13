@@ -21,7 +21,8 @@ use dir::default_data_path;
 use ethcore::client::{Client, BlockChainClient, BlockId};
 use ethcore::transaction::{Transaction, Action};
 use ethsync::LightSync;
-use futures::{future, IntoFuture, Future, BoxFuture};
+use futures::{future, IntoFuture, Future};
+use jsonrpc_core::BoxFuture;
 use hash_fetch::fetch::Client as FetchClient;
 use hash_fetch::urlhint::ContractClient;
 use helpers::replace_home;
@@ -79,9 +80,8 @@ impl ContractClient for FullRegistrar {
 	}
 
 	fn call(&self, address: Address, data: Bytes) -> BoxFuture<Bytes, String> {
-		self.client.call_contract(BlockId::Latest, address, data)
-			.into_future()
-			.boxed()
+		Box::new(self.client.call_contract(BlockId::Latest, address, data)
+			.into_future())
 	}
 }
 
@@ -131,8 +131,8 @@ impl ContractClient for LightRegistrar {
 		});
 
 		match maybe_future {
-			Some(fut) => fut.boxed(),
-			None => future::err("cannot query registry: network disabled".into()).boxed(),
+			Some(fut) => Box::new(fut),
+			None => Box::new(future::err("cannot query registry: network disabled".into())),
 		}
 	}
 }

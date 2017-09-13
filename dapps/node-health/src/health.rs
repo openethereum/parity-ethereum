@@ -63,7 +63,7 @@ impl NodeHealth {
 			},
 		);
 
-		rx.map_err(|err| {
+		Box::new(rx.map_err(|err| {
 			warn!(target: "dapps", "Health request cancelled: {:?}", err);
 		}).and_then(move |time| {
 			// Check peers
@@ -117,6 +117,6 @@ impl NodeHealth {
 			};
 
 			Ok(Health { peers, sync, time})
-		}).boxed()
+		}))
 	}
 }

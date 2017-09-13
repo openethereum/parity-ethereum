@@ -112,10 +112,10 @@ impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 
 		let default = match default {
 			Ok(default) => default,
-			Err(e) => return future::err(e).boxed(),
+			Err(e) => return Box::new(future::err(e)),
 		};
 
-		dispatcher.fill_optional_fields(request.into(), default, false)
+		Box::new(dispatcher.fill_optional_fields(request.into(), default, false)
 			.and_then(move |filled| {
 				let condition = filled.condition.clone().map(Into::into);
 				dispatcher.sign(accounts, filled, SignWith::Password(password))
@@ -129,8 +129,7 @@ impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 					::rlp::encode(&*pending_tx).into_vec().pretty(), chain_id);
 
 				dispatcher.dispatch_transaction(pending_tx).map(Into::into)
-			})
-			.boxed()
+			}))
 	}
 
 	fn sign_and_send_transaction(&self, meta: Metadata, request: TransactionRequest, password: String) -> BoxFuture<RpcH256, Error> {

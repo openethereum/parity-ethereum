@@ -20,7 +20,7 @@ use std::sync::Arc;
 use std::collections::BTreeMap;
 
 use jsonrpc_core::{BoxFuture, Error};
-use jsonrpc_core::futures::{self, future, Future};
+use jsonrpc_core::futures::{self, Future, IntoFuture};
 use jsonrpc_macros::Trailing;
 use jsonrpc_macros::pubsub::{Sink, Subscriber};
 use jsonrpc_pubsub::SubscriptionId;
@@ -130,8 +130,10 @@ impl<C> ChainNotificationHandler<C> {
 		}
 	}
 
-	fn notify_logs<F>(&self, enacted: &[H256], logs: F) where
-		F: Fn(EthFilter) -> BoxFuture<Vec<Log>, Error>,
+	fn notify_logs<F, T>(&self, enacted: &[H256], logs: F) where
+		F: Fn(EthFilter) -> T,
+		T: IntoFuture<Item = Vec<Log>, Error = Error>,
+		T::Future: Send + 'static,
 	{
 		for &(ref subscriber, ref filter) in self.logs_subscribers.read().values() {
 			let logs = futures::future::join_all(enacted
@@ -140,7 +142,7 @@ impl<C> ChainNotificationHandler<C> {
 					let mut filter = filter.clone();
 					filter.from_block = BlockId::Hash(*hash);
 					filter.to_block = filter.from_block.clone();
-					logs(filter)
+					logs(filter).into_future()
 				})
 				.collect::<Vec<_>>()
 			);
@@ -223,15 +225,15 @@ impl<C: BlockChainClient> ChainNotify for ChainNotificationHandler<C> {
 
 		// Enacted logs
 		self.notify_logs(&enacted, |filter| {
-			future::ok(self.client.logs(filter).into_iter().map(Into::into).collect()).boxed()
+			Ok(self.client.logs(filter).into_iter().map(Into::into).collect())
 		});
 
 		// Retracted logs
 		self.notify_logs(&retracted, |filter| {
-			future::ok(self.client.logs(filter).into_iter().map(Into::into).map(|mut log: Log| {
+			Ok(self.client.logs(filter).into_iter().map(Into::into).map(|mut log: Log| {
 				log.log_type = "removed".into();
 				log
-			}).collect()).boxed()
+			}).collect())
 		});
 	}
 }

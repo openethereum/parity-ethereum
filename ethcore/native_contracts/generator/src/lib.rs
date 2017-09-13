@@ -120,15 +120,14 @@ pub fn {snake_name}<F, U>(&self, call: F, {params}) -> BoxFuture<{output_type}, 
 
 	let call_future = match function.encode_call({to_tokens}) {{
 		Ok(call_data) => (call)(call_addr, call_data),
-		Err(e) => return future::err(format!("Error encoding call: {{:?}}", e)).boxed(),
+		Err(e) => return Box::new(future::err(format!("Error encoding call: {{:?}}", e))),
 	}};
 
-	call_future
+	Box::new(call_future
 		.into_future()
 		.and_then(move |out| function.decode_output(out).map_err(|e| format!("{{:?}}", e)))
 		.map(Vec::into_iter)
-		.and_then(|mut outputs| {decode_outputs})
-		.boxed()
+		.and_then(|mut outputs| {decode_outputs}))
 }}
 	"##,
 		abi_name = name,

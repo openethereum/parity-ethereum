@@ -56,7 +56,7 @@ mod testsing {
 	fn serve() -> (Server<::HttpServer>, ::std::net::SocketAddr) {
 		let mut io = MetaIoHandler::default();
 		io.add_method_with_meta("hello", |_, meta: Metadata| {
-			future::ok(Value::String(format!("{}", meta.origin))).boxed()
+			Ok(Value::String(format!("{}", meta.origin)))
 		});
 		let server = super::serve(Some(io));
 		let address = server.server.address().to_owned();

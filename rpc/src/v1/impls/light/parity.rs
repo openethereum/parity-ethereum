@@ -31,7 +31,7 @@ use node_health::{NodeHealth, Health};
 use light::client::LightChainClient;
 
 use jsonrpc_core::{BoxFuture, Error};
-use jsonrpc_core::futures::{future, Future};
+use jsonrpc_core::futures::Future;
 use jsonrpc_macros::Trailing;
 use v1::helpers::{self, errors, ipfs, SigningQueue, SignerService, NetworkSettings};
 use v1::helpers::dispatch::LightDispatcher;
@@ -132,15 +132,14 @@ impl Parity for ParityClient {
 		)
 	}
 
-	fn default_account(&self, meta: Self::Metadata) -> BoxFuture<H160, Error> {
+	fn default_account(&self, meta: Self::Metadata) -> Result<H160, Error> {
 		let dapp_id = meta.dapp_id();
-		future::ok(self.accounts
+		Ok(self.accounts
 			.dapp_addresses(dapp_id.into())
 			.ok()
 			.and_then(|accounts| accounts.get(0).cloned())
 			.map(|acc| acc.into())
-			.unwrap_or_default()
-		).boxed()
+			.unwrap_or_default())
 	}
 
 	fn transactions_limit(&self) -> Result<usize, Error> {
@@ -213,10 +212,9 @@ impl Parity for ParityClient {
 	}
 
 	fn gas_price_histogram(&self) -> BoxFuture<Histogram, Error> {
-		self.light_dispatch.gas_price_corpus()
+		Box::new(self.light_dispatch.gas_price_corpus()
 			.and_then(|corpus| corpus.histogram(10).ok_or_else(errors::not_enough_data))
-			.map(Into::into)
-			.boxed()
+			.map(Into::into))
 	}
 
 	fn unsigned_transactions_count(&self) -> Result<usize, Error> {
@@ -308,7 +306,7 @@ impl Parity for ParityClient {
 	}
 
 	fn next_nonce(&self, address: H160) -> BoxFuture<U256, Error> {
-		self.light_dispatch.next_nonce(address.into()).map(Into::into).boxed()
+		Box::new(self.light_dispatch.next_nonce(address.into()).map(Into::into))
 	}
 
 	fn mode(&self) -> Result<String, Error> {
@@ -386,20 +384,19 @@ impl Parity for ParityClient {
 			}
 		};
 
-		self.fetcher().header(number.unwrap_or_default().into()).map(from_encoded).boxed()
+		Box::new(self.fetcher().header(number.unwrap_or_default().into()).map(from_encoded))
 	}
 
 	fn ipfs_cid(&self, content: Bytes) -> Result<String, Error> {
 		ipfs::cid(content)
 	}
 
-	fn call(&self, _meta: Self::Metadata, _requests: Vec<CallRequest>, _block: Trailing<BlockNumber>) -> BoxFuture<Vec<Bytes>, Error> {
-		future::err(errors::light_unimplemented(None)).boxed()
+	fn call(&self, _meta: Self::Metadata, _requests: Vec<CallRequest>, _block: Trailing<BlockNumber>) -> Result<Vec<Bytes>, Error> {
+		Err(errors::light_unimplemented(None))
 	}
 
 	fn node_health(&self) -> BoxFuture<Health, Error> {
-		self.health.health()
-			.map_err(|err| errors::internal("Health API failure.", err))
-			.boxed()
+		Box::new(self.health.health()
+			.map_err(|err| errors::internal("Health API failure.", err)))
 	}
 }

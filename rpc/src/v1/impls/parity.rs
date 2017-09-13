@@ -31,7 +31,6 @@ use ethcore::client::{MiningBlockChainClient};
 use ethcore::ids::BlockId;
 use ethcore::miner::MinerService;
 use ethcore::mode::Mode;
-use ethcore::transaction::SignedTransaction;
 use ethcore_logger::RotatingLogger;
 use node_health::{NodeHealth, Health};
 use updater::{Service as UpdateService};
@@ -151,15 +150,14 @@ impl<C, M, U> Parity for ParityClient<C, M, U> where
 		)
 	}
 
-	fn default_account(&self, meta: Self::Metadata) -> BoxFuture<H160, Error> {
+	fn default_account(&self, meta: Self::Metadata) -> Result<H160, Error> {
 		let dapp_id = meta.dapp_id();
-		future::ok(
-			try_bf!(self.account_provider())
-				.dapp_default_address(dapp_id.into())
-				.map(Into::into)
-				.ok()
-				.unwrap_or_default()
-		).boxed()
+
+		Ok(self.account_provider()?
+			.dapp_default_address(dapp_id.into())
+			.map(Into::into)
+			.ok()
+			.unwrap_or_default())
 	}
 
 	fn transactions_limit(&self) -> Result<usize, Error> {
@@ -243,12 +241,12 @@ impl<C, M, U> Parity for ParityClient<C, M, U> where
 	}
 
 	fn gas_price_histogram(&self) -> BoxFuture<Histogram, Error> {
-		future::done(self.client
+		Box::new(future::done(self.client
 			.gas_price_corpus(100)
 			.histogram(10)
 			.ok_or_else(errors::not_enough_data)
 			.map(Into::into)
-		).boxed()
+		))
 	}
 
 	fn unsigned_transactions_count(&self) -> Result<usize, Error> {
@@ -330,11 +328,11 @@ impl<C, M, U> Parity for ParityClient<C, M, U> where
 	fn next_nonce(&self, address: H160) -> BoxFuture<U256, Error> {
 		let address: Address = address.into();
 
-		future::ok(self.miner.last_nonce(&address)
+		Box::new(future::ok(self.miner.last_nonce(&address)
 			.map(|n| n + 1.into())
 			.unwrap_or_else(|| self.client.latest_nonce(&address))
 			.into()
-		).boxed()
+		))
 	}
 
 	fn mode(&self) -> Result<String, Error> {
@@ -393,41 +391,37 @@ impl<C, M, U> Parity for ParityClient<C, M, U> where
 		let id: BlockId = number.unwrap_or_default().into();
 		let encoded = match self.client.block_header(id.clone()) {
 			Some(encoded) => encoded,
-			None => return future::err(errors::unknown_block()).boxed(),
+			None => return Box::new(future::err(errors::unknown_block())),
 		};
 
-		future::ok(RichHeader {
+		Box::new(future::ok(RichHeader {
 			inner: encoded.into(),
 			extra_info: self.client.block_extra_info(id).expect(EXTRA_INFO_PROOF),
-		}).boxed()
+		}))
 	}
 
 	fn ipfs_cid(&self, content: Bytes) -> Result<String, Error> {
 		ipfs::cid(content)
 	}
 
-	fn call(&self, meta: Self::Metadata, requests: Vec<CallRequest>, block: Trailing<BlockNumber>) -> BoxFuture<Vec<Bytes>, Error> {
-		let requests: Result<Vec<(SignedTransaction, _)>, Error> = requests
+	fn call(&self, meta: Self::Metadata, requests: Vec<CallRequest>, block: Trailing<BlockNumber>) -> Result<Vec<Bytes>, Error> {
+		let requests = requests
 			.into_iter()
 			.map(|request| Ok((
 				fake_sign::sign_call(&self.client, &self.miner, request.into(), meta.is_dapp())?,
 				Default::default()
 			)))
-			.collect();
+			.collect::<Result<Vec<_>, Error>>()?;
 
 		let block = block.unwrap_or_default();
-		let requests = try_bf!(requests);
 
-		let result = self.client.call_many(&requests, block.into())
+		self.client.call_many(&requests, block.into())
 				.map(|res| res.into_iter().map(|res| res.output.into()).collect())
-				.map_err(errors::call);
-
-		future::done(result).boxed()
+				.map_err(errors::call)
 	}
 
 	fn node_health(&self) -> BoxFuture<Health, Error> {
-		self.health.health()
-			.map_err(|err| errors::internal("Health API failure.", err))
-			.boxed()
+		Box::new(self.health.health()
+			.map_err(|err| errors::internal("Health API failure.", err)))
 	}
 }

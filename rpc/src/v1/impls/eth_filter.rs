@@ -27,6 +27,7 @@ use parking_lot::Mutex;
 
 use jsonrpc_core::{BoxFuture, Error};
 use jsonrpc_core::futures::{future, Future};
+use jsonrpc_core::futures::future::Either;
 use v1::traits::EthFilter;
 use v1::types::{BlockNumber, Index, Filter, FilterChanges, Log, H256 as RpcH256, U256 as RpcU256};
 use v1::helpers::{PollFilter, PollManager, limit_logs};
@@ -88,7 +89,7 @@ impl<C, M> Filterable for EthFilterClient<C, M> where C: BlockChainClient, M: Mi
 	}
 
 	fn logs(&self, filter: EthcoreFilter) -> BoxFuture<Vec<Log>, Error> {
-		future::ok(self.client.logs(filter).into_iter().map(Into::into).collect()).boxed()
+		Box::new(future::ok(self.client.logs(filter).into_iter().map(Into::into).collect()))
 	}
 
 	fn pending_logs(&self, block_number: u64, filter: &EthcoreFilter) -> Vec<Log> {
@@ -124,8 +125,8 @@ impl<T: Filterable + Send + Sync + 'static> EthFilter for T {
 
 	fn filter_changes(&self, index: Index) -> BoxFuture<FilterChanges, Error> {
 		let mut polls = self.polls().lock();
-		match polls.poll_mut(&index.value()) {
-			None => future::ok(FilterChanges::Empty).boxed(),
+		Box::new(match polls.poll_mut(&index.value()) {
+			None => Either::A(future::ok(FilterChanges::Empty)),
 			Some(filter) => match *filter {
 				PollFilter::Block(ref mut block_number) => {
 					// + 1, cause we want to return hashes including current block hash.
@@ -137,7 +138,7 @@ impl<T: Filterable + Send + Sync + 'static> EthFilter for T {
 
 					*block_number = current_number;
 
-					future::ok(FilterChanges::Hashes(hashes)).boxed()
+					Either::A(future::ok(FilterChanges::Hashes(hashes)))
 				},
 				PollFilter::PendingTransaction(ref mut previous_hashes) => {
 					// get hashes of pending transactions
@@ -161,7 +162,7 @@ impl<T: Filterable + Send + Sync + 'static> EthFilter for T {
 					*previous_hashes = current_hashes;
 
 					// return new hashes
-					future::ok(FilterChanges::Hashes(new_hashes)).boxed()
+					Either::A(future::ok(FilterChanges::Hashes(new_hashes)))
 				},
 				PollFilter::Logs(ref mut block_number, ref mut previous_logs, ref filter) => {
 					// retrive the current block number
@@ -199,19 +200,18 @@ impl<T: Filterable + Send + Sync + 'static> EthFilter for T {
 
 					// retrieve logs in range from_block..min(BlockId::Latest..to_block)
 					let limit = filter.limit;
-					self.logs(filter)
+					Either::B(self.logs(filter)
 						.map(move |mut logs| { logs.extend(pending); logs }) // append fetched pending logs
 						.map(move |logs| limit_logs(logs, limit)) // limit the logs
-						.map(FilterChanges::Logs)
-						.boxed()
+						.map(FilterChanges::Logs))
 				}
 			}
-		}
+		})
 	}
 
 	fn filter_logs(&self, index: Index) -> BoxFuture<Vec<Log>, Error> {
 		let mut polls = self.polls().lock();
-		match polls.poll(&index.value()) {
+		Box::new(match polls.poll(&index.value()) {
 			Some(&PollFilter::Logs(ref _block_number, ref _previous_log, ref filter)) => {
 				let include_pending = filter.to_block == Some(BlockNumber::Pending);
 				let filter: EthcoreFilter = filter.clone().into();
@@ -226,14 +226,13 @@ impl<T: Filterable + Send + Sync + 'static> EthFilter for T {
 
 				// retrieve logs asynchronously, appending pending logs.
 				let limit = filter.limit;
-				self.logs(filter)
+				Either::A(self.logs(filter)
 					.map(move |mut logs| { logs.extend(pending); logs })
-					.map(move |logs| limit_logs(logs, limit))
-					.boxed()
+					.map(move |logs| limit_logs(logs, limit)))
 			},
 			// just empty array
-			_ => future::ok(Vec::new()).boxed()
-		}
+			_ => Either::B(future::ok(Vec::new()))
+		})
 	}
 
 	fn uninstall_filter(&self, index: Index) -> Result<bool, Error> {

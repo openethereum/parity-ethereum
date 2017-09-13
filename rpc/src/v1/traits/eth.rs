@@ -41,7 +41,7 @@ build_rpc_trait! {
 
 		/// Returns block author.
 		#[rpc(meta, name = "eth_coinbase")]
-		fn author(&self, Self::Metadata) -> BoxFuture<H160, Error>;
+		fn author(&self, Self::Metadata) -> Result<H160, Error>;
 
 		/// Returns true if client is actively mining new blocks.
 		#[rpc(name = "eth_mining")]
@@ -53,7 +53,7 @@ build_rpc_trait! {
 
 		/// Returns accounts list.
 		#[rpc(meta, name = "eth_accounts")]
-		fn accounts(&self, Self::Metadata) -> BoxFuture<Vec<H160>, Error>;
+		fn accounts(&self, Self::Metadata) -> Result<Vec<H160>, Error>;
 
 		/// Returns highest block number.
 		#[rpc(name = "eth_blockNumber")]

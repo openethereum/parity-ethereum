@@ -30,9 +30,6 @@ extern crate parking_lot;
 #[cfg(test)] extern crate env_logger;
 #[cfg(test)] #[macro_use] extern crate lazy_static;
 
-use jsonrpc_core::BoxFuture;
-use jsonrpc_core::futures::{future, Future};
-
 mod traits {
 	//! Stratum ipc interfaces specification
 	#![allow(dead_code, unused_assignments, unused_variables, missing_docs)] // codegen issues
@@ -58,7 +55,7 @@ use hash::keccak;
 use parking_lot::{RwLock, RwLockReadGuard};
 use util::H256;
 
-type RpcResult = BoxFuture<jsonrpc_core::Value, jsonrpc_core::Error>;
+type RpcResult = Result<jsonrpc_core::Value, jsonrpc_core::Error>;
 
 const NOTIFY_COUNTER_INITIAL: u32 = 16;
 
@@ -185,7 +182,7 @@ impl Stratum {
 	}
 
 	fn submit(&self, params: Params, _meta: SocketMetadata) -> RpcResult {
-		future::ok(match params {
+		Ok(match params {
 			Params::Array(vals) => {
 				// first two elements are service messages (worker_id & job_id)
 				match self.dispatcher.submit(vals.iter().skip(2)
@@ -205,7 +202,7 @@ impl Stratum {
 				trace!(target: "stratum", "Invalid submit work format {:?}", params);
 				to_value(false)
 			}
-		}.expect("Only true/false is returned and it's always serializable; qed")).boxed()
+		}.expect("Only true/false is returned and it's always serializable; qed"))
 	}
 
 	fn subscribe(&self, _params: Params, meta: SocketMetadata) -> RpcResult {
@@ -215,7 +212,7 @@ impl Stratum {
 		self.job_que.write().insert(meta.addr().clone());
 		trace!(target: "stratum", "Subscription request from {:?}", meta.addr());
 
-		future::ok(match self.dispatcher.initial() {
+		Ok(match self.dispatcher.initial() {
 			Some(initial) => match jsonrpc_core::Value::from_str(&initial) {
 				Ok(val) => Ok(val),
 				Err(e) => {
@@ -224,11 +221,11 @@ impl Stratum {
 				},
 			},
 			None => to_value(&[0u8; 0]),
-		}.expect("Empty slices are serializable; qed")).boxed()
+		}.expect("Empty slices are serializable; qed"))
 	}
 
 	fn authorize(&self, params: Params, meta: SocketMetadata) -> RpcResult {
-		future::result(params.parse::<(String, String)>().map(|(worker_id, secret)|{
+		params.parse::<(String, String)>().map(|(worker_id, secret)|{
 			if let Some(valid_secret) = self.secret {
 				let hash = keccak(secret);
 				if hash != valid_secret {
@@ -238,7 +235,7 @@ impl Stratum {
 			trace!(target: "stratum", "New worker #{} registered", worker_id);
 			self.workers.write().insert(meta.addr().clone(), worker_id);
 			to_value(true)
-		}).map(|v| v.expect("Only true/false is returned and it's always serializable; qed"))).boxed()
+		}).map(|v| v.expect("Only true/false is returned and it's always serializable; qed"))
 	}
 
 	pub fn subscribers(&self) -> RwLockReadGuard<Vec<SocketAddr>> {

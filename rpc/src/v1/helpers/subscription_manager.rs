@@ -130,7 +130,7 @@ impl<S: core::Middleware<Metadata>> GenericPollManager<S> {
 		}
 
 		// return a future represeting all the polls
-		future::join_all(futures).map(|_| ()).boxed()
+		Box::new(future::join_all(futures).map(|_| ()))
 	}
 }
 
