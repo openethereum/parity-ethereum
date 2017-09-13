@@ -18,8 +18,8 @@ use std::sync::Arc;
 use util::*;
 use rlp::*;
 use io::{IoHandler, IoChannel};
-use ethcore::client::PrivateTransactionClient;
 use ethcore::service::ClientIoMessage;
+use ethcore::client::BlockChainClient;
 use ethcore::spec::Spec;
 use ethcore::miner::MinerService;
 use ethcore::transaction::*;
@@ -49,7 +49,7 @@ pub fn send_private_transaction() {
 	net.peer(1).chain.set_io_channel(IoChannel::to_handler(Arc::downgrade(&io_handler1)));
 	// Exhange statuses
 	net.sync();
-	// broadcast private transaction	
+	// broadcast private transaction
 	let transaction = Transaction {
 		nonce: 0.into(),
 		gas_price: 0.into(),
@@ -60,11 +60,11 @@ pub fn send_private_transaction() {
 	};
 	let signature = net.peer(0).chain.engine().sign(transaction.hash(Some(chain_id)));
 	let message = transaction.with_signature(signature.unwrap(), Some(chain_id)).rlp_bytes();
-	net.peer(0).chain.broadcast_private_transaction(message.into_vec());
+	net.peer(0).chain.get_private_transactions_provider().broadcast_private_transaction(message.into_vec());
 	net.sync();
 	net.peer(0).chain.engine().step();
 	net.peer(1).chain.engine().step();
 	net.sync();
 
-	assert_eq!(net.peer(1).chain.private_transactions().len(), 1);
+	assert_eq!(net.peer(1).chain.get_private_transactions_provider().private_transactions().len(), 1);
 }
