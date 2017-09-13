@@ -306,6 +306,7 @@ impl TestNet<EthPeer<EthcoreClient>> {
 			queue: RwLock::new(VecDeque::new()),
 		});
 		peer.chain.add_notify(peer.clone());
+		peer.chain.get_private_transactions_provider().add_notify(peer.clone());
 		self.peers.push(peer);
 	}
 }
@@ -405,11 +406,8 @@ pub struct TestIoHandler {
 impl IoHandler<ClientIoMessage> for TestIoHandler {
 	fn message(&self, _io: &IoContext<ClientIoMessage>, net_message: &ClientIoMessage) {
 		match *net_message {
-			ClientIoMessage::NewConsensusMessage(ref message) => if let Err(e) = self.client.engine().handle_consensus_message(message) {
+			ClientIoMessage::NewMessage(ref message) => if let Err(e) = self.client.engine().handle_message(message) {
 				panic!("Invalid message received: {}", e);
-			},
-			ClientIoMessage::NewPrivateTransaction(ref transaction, peer_id) => if let Err(e) = self.client.import_private_transaction(transaction, peer_id) {
-				trace!(target: "poa", "Invalid private transaction received: {}", e);
 			},
 			_ => {} // ignore other messages
 		}

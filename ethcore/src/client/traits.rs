@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::BTreeMap;
+use std::sync::Arc;
 use itertools::Itertools;
 
 use block::{OpenBlock, SealedBlock, ClosedBlock};
@@ -31,7 +32,8 @@ use ipc::IpcConfig;
 use log_entry::LocalizedLogEntry;
 use receipt::LocalizedReceipt;
 use trace::LocalizedTrace;
-use transaction::{LocalizedTransaction, PendingTransaction, SignedTransaction, UnverifiedTransaction};
+use private_transactions::Provider as PrivateTransactionsProvider;
+use transaction::{LocalizedTransaction, PendingTransaction, SignedTransaction};
 use verification::queue::QueueInfo as BlockQueueInfo;
 
 use bigint::prelude::U256;
@@ -185,6 +187,9 @@ pub trait BlockChainClient : Sync + Send {
 	/// Returns logs matching given filter.
 	fn logs(&self, filter: Filter) -> Vec<LocalizedLogEntry>;
 
+	/// Get the private transactions provider.
+	fn get_private_transactions_provider(&self) -> Arc<PrivateTransactionsProvider>;
+
 	/// Makes a non-persistent transaction call.
 	fn call(&self, tx: &SignedTransaction, analytics: CallAnalytics, block: BlockId) -> Result<Executed, CallError>;
 
@@ -218,9 +223,6 @@ pub trait BlockChainClient : Sync + Send {
 
 	/// Queue conensus engine message.
 	fn queue_consensus_message(&self, message: Bytes);
-
-	/// Queue private transactions.
-	fn queue_private_transaction(&self, transaction: Bytes, peer_id: usize);
 
 	/// List all transactions that are allowed into the next block.
 	fn ready_transactions(&self) -> Vec<PendingTransaction>;
@@ -343,14 +345,6 @@ pub trait EngineClient: Sync + Send {
 
 	/// Get a block number by ID.
 	fn block_number(&self, id: BlockId) -> Option<BlockNumber>;
-}
-
-/// Client facilities used for private transactions.
-pub trait PrivateTransactionClient: BlockChainClient {
-	/// Broadcast a private transaction to the network.
-	fn broadcast_private_transaction(&self, message: Bytes);
-	/// List all transactions that are allowed into the next block.
-	fn private_transactions(&self) -> Vec<UnverifiedTransaction>;
 }
 
 /// Extended client interface for providing proofs of the state.

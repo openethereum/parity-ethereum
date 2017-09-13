@@ -2211,14 +2211,16 @@ impl ChainSync {
 		}
 	}
 
-	/// Called when peer sends us new consensus packet
+	/// Called when peer sends us new private transaction packet
 	fn on_private_transaction(io: &mut SyncIo, peer_id: PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
 		trace!(target: "sync", "Received private transaction packet from {:?}", peer_id);
-		io.chain().queue_private_transaction(r.as_raw().to_vec(), peer_id);
+		if let Err(e) = io.chain().get_private_transactions_provider().import_private_transaction(r.as_raw(), peer_id) {
+			debug!("Ignoring the message, error queueing: {}", e);
+		}
 		Ok(())
 	}
 
-	/// Broadcast consensus message to peers.
+	/// Broadcast private transaction message to peers.
 	pub fn propagate_private_transaction(&mut self, io: &mut SyncIo, packet: Bytes) {
 		let lucky_peers = ChainSync::select_random_peers(&self.get_consensus_peers());
 		trace!(target: "sync", "Sending private transaction packet to {:?}", lucky_peers);
@@ -2226,7 +2228,7 @@ impl ChainSync {
 			self.send_packet(io, peer_id, PRIVATE_TRANSACTION_PACKET, packet.clone());
 		}
 	}
-	
+
 }
 
 /// Checks if peer is able to process service transactions

@@ -525,7 +525,7 @@ impl Engine for Tendermint {
 		}
 	}
 
-	fn handle_consensus_message(&self, rlp: &[u8]) -> Result<(), Error> {
+	fn handle_message(&self, rlp: &[u8]) -> Result<(), Error> {
 		let rlp = UntrustedRlp::new(rlp);
 		let message: ConsensusMessage = rlp.as_val()?;
 		if !self.votes.is_old_or_known(&message) {
@@ -813,7 +813,7 @@ mod tests {
 	fn vote<F>(engine: &Engine, signer: F, height: usize, view: usize, step: Step, block_hash: Option<H256>) -> Bytes where F: FnOnce(H256) -> Result<H520, ::account_provider::SignError> {
 		let mi = message_info_rlp(&VoteStep::new(height, view, step), block_hash);
 		let m = message_full_rlp(&signer(keccak(&mi)).unwrap().into(), &mi);
-		engine.handle_consensus_message(&m).unwrap();
+		engine.handle_message(&m).unwrap();
 		m
 	}
 

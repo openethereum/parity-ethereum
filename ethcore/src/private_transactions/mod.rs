@@ -19,3 +19,57 @@
 pub mod private_transactions;
 
 pub use self::private_transactions::PrivateTransactions;
+
+use std::sync::{Arc, Weak};
+use client::{ChainNotify, ChainMessageType};
+use transaction::UnverifiedTransaction;
+use error::Error as EthcoreError;
+use rlp::UntrustedRlp;
+use util::{Bytes, Mutex, RwLock};
+
+/// Manager of private transactions
+pub struct Provider {
+	notify: RwLock<Vec<Weak<ChainNotify>>>,
+	private_transactions: Mutex<PrivateTransactions>,
+}
+
+impl Provider {
+	/// Create a new provider.
+	pub fn new() -> Self {
+		Provider {
+			notify: RwLock::new(Vec::new()),
+			private_transactions: Mutex::new(PrivateTransactions::new()),
+		}
+	}
+
+	/// Adds an actor to be notified on certain events
+	pub fn add_notify(&self, target: Arc<ChainNotify>) {
+		self.notify.write().push(Arc::downgrade(&target));
+	}
+
+	fn notify<F>(&self, f: F) where F: Fn(&ChainNotify) {
+		for np in self.notify.read().iter() {
+			if let Some(n) = np.upgrade() {
+				f(&*n);
+			}
+		}
+	}
+
+	/// Add private transaction into the store
+	pub fn import_private_transaction(&self, rlp: &[u8], peer_id: usize) -> Result<(), EthcoreError> {
+		let tx: UnverifiedTransaction = UntrustedRlp::new(rlp).as_val()?;
+		// TODO: notify engines about private transactions
+		self.private_transactions.lock().import(tx, peer_id)
+	}
+
+	/// Broadcast the private transaction message to chain
+	pub fn broadcast_private_transaction(&self, message: Bytes) {
+		self.notify(|notify| notify.broadcast(ChainMessageType::PrivateTransaction, message.clone()));
+	}
+
+	/// Returns the list of private transactions
+	pub fn private_transactions(&self) -> Vec<UnverifiedTransaction> {
+		self.private_transactions.lock().get_list()
+	}
+
+}

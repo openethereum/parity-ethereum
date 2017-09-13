@@ -42,8 +42,8 @@ use client::ancient_import::AncientVerifier;
 use client::Error as ClientError;
 use client::{
 	BlockId, TransactionId, UncleId, TraceId, ClientConfig, BlockChainClient,
-	MiningBlockChainClient, TraceFilter, CallAnalytics, BlockImportError, Mode,
-	ChainNotify, PruningInfo, ProvingBlockChainClient, ChainMessageType, PrivateTransactionClient,
+	MiningBlockChainClient, EngineClient, TraceFilter, CallAnalytics, BlockImportError, Mode,
+	ChainNotify, PruningInfo, ProvingBlockChainClient, ChainMessageType,
 };
 use encoded;
 use engines::{Engine, EpochTransition};
@@ -59,7 +59,7 @@ use log_entry::LocalizedLogEntry;
 use miner::{Miner, MinerService, TransactionImportResult};
 use native_contracts::Registry;
 use parking_lot::{Mutex, RwLock, MutexGuard};
-use private_transactions::PrivateTransactions;
+use private_transactions::Provider as PrivateTransactionsProvider;
 use rand::OsRng;
 use receipt::{Receipt, LocalizedReceipt};
 use rlp::UntrustedRlp;
@@ -158,7 +158,7 @@ pub struct Client {
 	import_lock: Mutex<()>,
 	verifier: Box<Verifier>,
 	miner: Arc<Miner>,
-	private_transactions: Mutex<PrivateTransactions>,
+	provider: Arc<PrivateTransactionsProvider>,
 	sleep_state: Mutex<SleepState>,
 	liveness: AtomicBool,
 	io_channel: Mutex<IoChannel<ClientIoMessage>>,
@@ -248,7 +248,7 @@ impl Client {
 			report: RwLock::new(Default::default()),
 			import_lock: Mutex::new(()),
 			miner: miner,
-			private_transactions: Mutex::new(PrivateTransactions::new()),
+			provider: Arc::new(PrivateTransactionsProvider::new()),
 			io_channel: Mutex::new(message_channel),
 			notify: RwLock::new(Vec::new()),
 			queue_transactions: AtomicUsize::new(0),
@@ -708,13 +708,6 @@ impl Client {
 		}
 
 		route
-	}
-
-	/// Add private transaction into the store
-	pub fn import_private_transaction(&self, rlp: &[u8], peer_id: usize) -> Result<(), EthcoreError> {
-		let tx: UnverifiedTransaction = UntrustedRlp::new(rlp).as_val()?;
-		// TODO: notify engines about private transactions
-		self.private_transactions.lock().import(tx, peer_id)
 	}
 
 	// check for epoch end signal and write pending transition if it occurs.
@@ -1223,6 +1216,10 @@ impl BlockChainClient for Client {
 		}
 
 		Ok(results)
+	}
+
+	fn get_private_transactions_provider(&self) -> Arc<PrivateTransactionsProvider> {
+		self.provider.clone()
 	}
 
 	fn estimate_gas(&self, t: &SignedTransaction, block: BlockId) -> Result<U256, CallError> {
@@ -1757,14 +1754,7 @@ impl BlockChainClient for Client {
 
 	fn queue_consensus_message(&self, message: Bytes) {
 		let channel = self.io_channel.lock().clone();
-		if let Err(e) = channel.send(ClientIoMessage::NewConsensusMessage(message)) {
-			debug!("Ignoring the message, error queueing: {}", e);
-		}
-	}
-
-	fn queue_private_transaction(&self, transaction: Bytes, peer_id: usize) {
-		let channel = self.io_channel.lock().clone();
-		if let Err(e) = channel.send(ClientIoMessage::NewPrivateTransaction(transaction, peer_id)) {
+		if let Err(e) = channel.send(ClientIoMessage::NewMessage(message)) {
 			debug!("Ignoring the message, error queueing: {}", e);
 		}
 	}
@@ -1985,16 +1975,6 @@ impl super::traits::EngineClient for Client {
 
 	fn block_number(&self, id: BlockId) -> Option<BlockNumber> {
 		BlockChainClient::block_number(self, id)
-	}
-}
-
-impl PrivateTransactionClient for Client {
-	fn broadcast_private_transaction(&self, message: Bytes) {
-		self.notify(|notify| notify.broadcast(ChainMessageType::PrivateTransaction, message.clone()));
-	}
-
-	fn private_transactions(&self) -> Vec<UnverifiedTransaction> {
-		self.private_transactions.lock().get_list()
 	}
 }
 

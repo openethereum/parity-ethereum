@@ -31,15 +31,12 @@ impl PrivateTransactions {
 	}
 
 	pub fn import(&self, transaction: UnverifiedTransaction, _peer_id: usize) -> Result<(), Error> {
-		{
-			let mut transactions = self.transactions.write();
-			transactions.push(transaction.clone());
-		}
+		let mut transactions = self.transactions.write();
+		transactions.push(transaction);
 		Ok(())
 	}
 
 	pub fn get_list(&self) -> Vec<UnverifiedTransaction> {
-		let transactions = self.transactions.read();
-		transactions.clone()
+		self.transactions.read().clone()
 	}
 }

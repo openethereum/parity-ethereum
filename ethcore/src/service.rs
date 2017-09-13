@@ -53,9 +53,7 @@ pub enum ClientIoMessage {
 	/// Take a snapshot for the block with given number.
 	TakeSnapshot(u64),
 	/// New consensus message received.
-	NewConsensusMessage(Bytes),
-	/// New private transaction received
-	NewPrivateTransaction(Bytes, usize)
+	NewMessage(Bytes),
 }
 
 /// Client service setup. Creates and registers client and network services with the IO subsystem.
@@ -218,11 +216,8 @@ impl IoHandler<ClientIoMessage> for ClientIoHandler {
 					debug!(target: "snapshot", "Failed to initialize periodic snapshot thread: {:?}", e);
 				}
 			},
-			ClientIoMessage::NewConsensusMessage(ref message) => if let Err(e) = self.client.engine().handle_consensus_message(message) {
+			ClientIoMessage::NewMessage(ref message) => if let Err(e) = self.client.engine().handle_message(message) {
 				trace!(target: "poa", "Invalid message received: {}", e);
-			},
-			ClientIoMessage::NewPrivateTransaction(ref transaction, peer_id) => if let Err(e) = self.client.import_private_transaction(transaction, peer_id) {
-				trace!(target: "poa", "Invalid private transaction received: {}", e);
 			},
 			_ => {} // ignore other messages
 		}
