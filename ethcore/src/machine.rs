@@ -39,6 +39,7 @@ use vm::{EnvInfo, Schedule, CreateContractAddress};
 /// Parity tries to round block.gas_limit to multiple of this constant
 pub const PARITY_GAS_LIMIT_DETERMINANT: U256 = U256([37, 0, 0, 0]);
 
+/// Ethash-specific extensions.
 pub struct EthashExtensions {
 	/// Homestead transition block number.
 	pub homestead_transition: BlockNumber,
@@ -56,8 +57,21 @@ pub struct EthashExtensions {
 	pub dao_hardfork_beneficiary: Address,
 	/// DAO hard-fork DAO accounts list (L)
 	pub dao_hardfork_accounts: Vec<Address>,
-	/// Total block number for one ECIP-1017 era.
-	pub ecip1017_era_rounds: u64,
+}
+
+impl From<::ethjson::spec::EthashParams> for EthashExtensions {
+	fn from(p: ::ethjson::spec::EthashParams) -> Self {
+		EthashExtensions{
+			homestead_transition: p.homestead_transition.map_or(0, Into::into),
+			eip150_transition: p.eip150_transition.map_or(0, Into::into),
+			eip160_transition: p.eip160_transition.map_or(0, Into::into),
+			eip161abc_transition: p.eip161abc_transition.map_or(0, Into::into),
+			eip161d_transition: p.eip161d_transition.map_or(u64::max_value(), Into::into),
+			dao_hardfork_transition: p.dao_hardfork_transition.map_or(u64::max_value(), Into::into),
+			dao_hardfork_beneficiary: p.dao_hardfork_beneficiary.map_or_else(Address::new, Into::into),
+			dao_hardfork_accounts: p.dao_hardfork_accounts.unwrap_or_else(Vec::new).into_iter().map(Into::into).collect(),
+		}
+	}
 }
 
 /// An ethereum-like state machine.

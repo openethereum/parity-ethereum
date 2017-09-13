@@ -20,7 +20,7 @@ use uint::Uint;
 use hash::Address;
 
 /// Deserializable doppelganger of EthashParams.
-#[derive(Debug, PartialEq, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize)]
 pub struct EthashParams {
 	/// See main EthashParams docs.
 	#[serde(rename="minimumDifficulty")]

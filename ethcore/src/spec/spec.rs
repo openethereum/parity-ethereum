@@ -281,6 +281,14 @@ impl Spec {
 		params: CommonParams,
 		builtins: BTreeMap<Address, Builtin>,
 	) -> Arc<EthEngine> {
+		use machine::EthereumMachine;
+
+		let _machine = if let ethjson::spec::Engine::Ethash(ref ethash) = engine_spec {
+			EthereumMachine::WithEthashExtensions(params, builtins, ethash.params.clone().into())
+		} else {
+			EthereumMachine::Regular(params, builtins)
+		};
+
 		// TODO: instantiate ethash-specific params.
 		// match engine_spec {
 		// 	ethjson::spec::Engine::Null => Arc::new(NullEngine::new(params, builtins)),
