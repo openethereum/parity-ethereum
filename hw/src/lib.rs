@@ -32,7 +32,6 @@ use std::sync::atomic;
 use std::sync::{Arc, Weak};
 use std::sync::atomic::AtomicBool;
 use std::time::Duration;
-use parking_lot::Mutex;
 use ethkey::{Address, Signature};
 
 pub use ledger::KeyPath;
@@ -90,11 +89,11 @@ impl From<libusb::Error> for Error {
 pub struct HardwareWalletManager {
 	update_thread: Option<thread::JoinHandle<()>>,
 	exiting: Arc<AtomicBool>,
-	ledger: Arc<Mutex<ledger::Manager>>,
+	ledger: Arc<ledger::Manager>,
 }
 
 struct EventHandler {
-	ledger: Weak<Mutex<ledger::Manager>>,
+	ledger: Weak<ledger::Manager>,
 }
 
 impl libusb::Hotplug for EventHandler {
@@ -103,7 +102,7 @@ impl libusb::Hotplug for EventHandler {
 		if let Some(l) = self.ledger.upgrade() {
 			for _ in 0..10 {
 				// The device might not be visible right away. Try a few times.
-				if l.lock().update_devices().unwrap_or_else(|e| {
+				if l.update_devices().unwrap_or_else(|e| {
 					debug!("Error enumerating Ledger devices: {}", e);
 					0
 				}) > 0 {
@@ -117,7 +116,7 @@ impl libusb::Hotplug for EventHandler {
 	fn device_left(&mut self, _device: libusb::Device) {
 		debug!("USB Device lost");
 		if let Some(l) = self.ledger.upgrade() {
-			if let Err(e) = l.lock().update_devices() {
+			if let Err(e) = l.update_devices() {
 				debug!("Error enumerating Ledger devices: {}", e);
 			}
 		}
@@ -125,15 +124,15 @@ impl libusb::Hotplug for EventHandler {
 }
 
 impl HardwareWalletManager {
-	pub fn new() -> Result<HardwareWalletManager, Error> {
+	pub fn new(key_path: KeyPath) -> Result<HardwareWalletManager, Error> {
 		let usb_context = Arc::new(libusb::Context::new()?);
-		let ledger = Arc::new(Mutex::new(ledger::Manager::new()?));
+		let ledger = Arc::new(ledger::Manager::new(key_path)?);
 		usb_context.register_callback(None, None, None, Box::new(EventHandler { ledger: Arc::downgrade(&ledger) }))?;
 		let exiting = Arc::new(AtomicBool::new(false));
 		let thread_exiting = exiting.clone();
 		let l = ledger.clone();
 		let thread = thread::Builder::new().name("hw_wallet".to_string()).spawn(move || {
-			if let Err(e) = l.lock().update_devices() {
+			if let Err(e) = l.update_devices() {
 				debug!("Error updating ledger devices: {}", e);
 			}
 			loop {
@@ -150,25 +149,19 @@ impl HardwareWalletManager {
 		})
 	}
 
-	/// Select key derivation path for a chain.
-	pub fn set_key_path(&self, key_path: KeyPath) {
-		self.ledger.lock().set_key_path(key_path);
-	}
-
-
 	/// List connected wallets. This only returns wallets that are ready to be used.
 	pub fn list_wallets(&self) -> Vec<WalletInfo> {
-		self.ledger.lock().list_devices()
+		self.ledger.list_devices()
 	}
 
 	/// Get connected wallet info.
 	pub fn wallet_info(&self, address: &Address) -> Option<WalletInfo> {
-		self.ledger.lock().device_info(address)
+		self.ledger.device_info(address)
 	}
 
 	/// Sign transaction data with wallet managing `address`.
 	pub fn sign_transaction(&self, address: &Address, data: &[u8]) -> Result<Signature, Error> {
-		Ok(self.ledger.lock().sign_transaction(address, data)?)
+		Ok(self.ledger.sign_transaction(address, data)?)
 	}
 }
 
