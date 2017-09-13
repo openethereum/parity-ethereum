@@ -24,7 +24,7 @@ use super::{WalletInfo, TransactionInfo, KeyPath};
 use bigint::hash::H256;
 use ethkey::{Address, Signature};
 use hidapi;
-use parking_lot::Mutex;
+use parking_lot::{Mutex, RwLock};
 use protobuf;
 use protobuf::{Message, ProtobufEnum};
 use std::cmp::{min, max};
@@ -86,9 +86,9 @@ impl From<protobuf::ProtobufError> for Error {
 /// Ledger device manager.
 pub struct Manager {
 	usb: Arc<Mutex<hidapi::HidApi>>,
-	devices: Vec<Device>,
-	closed_devices: Vec<String>,
-	key_path: KeyPath,
+	devices: RwLock<Vec<Device>>,
+	closed_devices: RwLock<Vec<String>>,
+	key_path: RwLock<KeyPath>,
 }
 
 #[derive(Debug)]
@@ -108,14 +108,14 @@ impl Manager {
 	pub fn new(hidapi: Arc<Mutex<hidapi::HidApi>>) -> Manager {
 		Manager {
 			usb: hidapi,
-			devices: Vec::new(),
-			closed_devices: Vec::new(),
-			key_path: KeyPath::Ethereum,
+			devices: RwLock::new(Vec::new()),
+			closed_devices: RwLock::new(Vec::new()),
+			key_path: RwLock::new(KeyPath::Ethereum),
 		}
 	}
 
 	/// Re-populate device list
-	pub fn update_devices(&mut self) -> Result<usize, Error> {
+	pub fn update_devices(&self) -> Result<usize, Error> {
 		let mut usb = self.usb.lock();
 		usb.refresh_devices();
 		let devices = usb.devices();
@@ -148,8 +148,8 @@ impl Manager {
 		}
 		let count = new_devices.len();
 		trace!("Got devices: {:?}, closed: {:?}", new_devices, closed_devices);
-		self.devices = new_devices;
-		self.closed_devices = closed_devices;
+		*self.devices.write() = new_devices;
+		*self.closed_devices.write() = closed_devices;
 		match error {
 			Some(e) => Err(e),
 			None => Ok(count),
@@ -179,22 +179,22 @@ impl Manager {
 	}
 
 	/// Select key derivation path for a known chain.
-	pub fn set_key_path(&mut self, key_path: KeyPath) {
-		self.key_path = key_path;
+	pub fn set_key_path(&self, key_path: KeyPath) {
+		*self.key_path.write() = key_path;
 	}
 
 	/// List connected wallets. This only returns wallets that are ready to be used.
 	pub fn list_devices(&self) -> Vec<WalletInfo> {
-		self.devices.iter().map(|d| d.info.clone()).collect()
+		self.devices.read().iter().map(|d| d.info.clone()).collect()
 	}
 
 	pub fn list_locked_devices(&self) -> Vec<String> {
-		self.closed_devices.clone()
+		(*self.closed_devices.read()).clone()
 	}
 
 	/// Get wallet info.
 	pub fn device_info(&self, address: &Address) -> Option<WalletInfo> {
-		self.devices.iter().find(|d| &d.info.address == address).map(|d| d.info.clone())
+		self.devices.read().iter().find(|d| &d.info.address == address).map(|d| d.info.clone())
 	}
 
 	fn open_path<R, F>(&self, f: F) -> Result<R, Error>
@@ -212,7 +212,7 @@ impl Manager {
 		Err(err)
 	}
 
-	pub fn pin_matrix_ack(&mut self, device_path: &str, pin: &str) -> Result<bool, Error> {
+	pub fn pin_matrix_ack(&self, device_path: &str, pin: &str) -> Result<bool, Error> {
 		let unlocked = {
 			let usb = self.usb.lock();
 			let device = self.open_path(|| usb.open_path(&device_path))?;
@@ -236,7 +236,7 @@ impl Manager {
 	fn get_address(&self, device: &hidapi::HidDevice) -> Result<Option<Address>, Error> {
 		let typ = MessageType::MessageType_EthereumGetAddress;
 		let mut message = EthereumGetAddress::new();
-		match self.key_path {
+		match *self.key_path.read() {
 			KeyPath::Ethereum => message.set_address_n(ETH_DERIVATION_PATH.to_vec()),
 			KeyPath::EthereumClassic => message.set_address_n(ETC_DERIVATION_PATH.to_vec()),
 		}
@@ -255,12 +255,13 @@ impl Manager {
 
 	/// Sign transaction data with wallet managing `address`.
 	pub fn sign_transaction(&self, address: &Address, t_info: &TransactionInfo) -> Result<Signature, Error> {
-		let device = self.devices.iter().find(|d| &d.info.address == address).ok_or(Error::KeyNotFound)?;
+		let devices = self.devices.read();
+		let device = devices.iter().find(|d| &d.info.address == address).ok_or(Error::KeyNotFound)?;
 		let usb = self.usb.lock();
 		let handle = self.open_path(|| usb.open_path(&device.path))?;
 		let msg_type = MessageType::MessageType_EthereumSignTx;
 		let mut message = EthereumSignTx::new();
-		match self.key_path {
+		match *self.key_path.read() {
 			KeyPath::Ethereum => message.set_address_n(ETH_DERIVATION_PATH.to_vec()),
 			KeyPath::EthereumClassic => message.set_address_n(ETC_DERIVATION_PATH.to_vec()),
 		}
