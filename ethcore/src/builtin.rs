@@ -367,18 +367,18 @@ impl Impl for ModexpImpl {
 		let exp_len = read_len(&mut reader);
 		let mod_len = read_len(&mut reader);
 
-		// read the numbers themselves.
-		let mut buf = vec![0; max(mod_len, max(base_len, exp_len))];
-		let mut read_num = |len| {
-			reader.read_exact(&mut buf[..len]).expect("reading from zero-extended memory cannot fail; qed");
-			BigUint::from_bytes_be(&buf[..len])
-		};
-
-		let base = read_num(base_len);
 		// Gas formula allows arbitrary large exp_len when base and modulus are empty, so we need to handle empty base first.
 		let r = if base_len == 0 && mod_len == 0 {
 			BigUint::zero()
 		} else {
+			// read the numbers themselves.
+			let mut buf = vec![0; max(mod_len, max(base_len, exp_len))];
+			let mut read_num = |len| {
+				reader.read_exact(&mut buf[..len]).expect("reading from zero-extended memory cannot fail; qed");
+				BigUint::from_bytes_be(&buf[..len])
+			};
+
+			let base = read_num(base_len);
 			let exp = read_num(exp_len);
 			let modulus = read_num(mod_len);
 			modexp(base, exp, modulus)
