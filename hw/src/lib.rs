@@ -228,8 +228,7 @@ impl HardwareWalletManager {
 
 	/// Return a list of paths to locked hardware wallets
 	pub fn list_locked_wallets(&self) -> Result<Vec<String>, Error> {
-		let mut t = self.trezor.lock();
-		t.update_devices()?;
+		let t = self.trezor.lock();
 		Ok(t.list_locked_devices())
 	}
 
@@ -255,7 +254,7 @@ impl HardwareWalletManager {
 
 	/// Send a pin to a device at a certain path to unlock it
 	pub fn pin_matrix_ack(&self, path: &str, pin: &str) -> Result<bool, Error> {
-		let t = self.trezor.lock();
+		let mut t = self.trezor.lock();
 		t.pin_matrix_ack(path, pin).map_err(Error::TrezorDevice)
 	}
 }

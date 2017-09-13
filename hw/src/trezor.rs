@@ -212,21 +212,25 @@ impl Manager {
 		Err(err)
 	}
 
-	pub fn pin_matrix_ack(&self, device_path: &str, pin: &str) -> Result<bool, Error> {
-		let usb = self.usb.lock();
-		let device = self.open_path(|| usb.open_path(&device_path))?;
-		let t = MessageType::MessageType_PinMatrixAck;
-		let mut m = PinMatrixAck::new();
-		m.set_pin(pin.to_string());
-		self.send_device_message(&device, &t, &m)?;
-		let (resp_type, _) = self.read_device_response(&device)?;
-		match resp_type {
-			// Getting an Address back means it's unlocked, this is undocumented behavior
-			MessageType::MessageType_EthereumAddress => Ok(true),
-			// Getting anything else means we didn't unlock it
-			_ => Ok(false),
+	pub fn pin_matrix_ack(&mut self, device_path: &str, pin: &str) -> Result<bool, Error> {
+		let unlocked = {
+			let usb = self.usb.lock();
+			let device = self.open_path(|| usb.open_path(&device_path))?;
+			let t = MessageType::MessageType_PinMatrixAck;
+			let mut m = PinMatrixAck::new();
+			m.set_pin(pin.to_string());
+			self.send_device_message(&device, &t, &m)?;
+			let (resp_type, _) = self.read_device_response(&device)?;
+			match resp_type {
+				// Getting an Address back means it's unlocked, this is undocumented behavior
+				MessageType::MessageType_EthereumAddress => Ok(true),
+				// Getting anything else means we didn't unlock it
+				_ => Ok(false),
 
-		}
+			}
+		};
+		self.update_devices()?;
+		unlocked
 	}
 
 	fn get_address(&self, device: &hidapi::HidDevice) -> Result<Option<Address>, Error> {
