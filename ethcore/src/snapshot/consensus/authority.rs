@@ -26,6 +26,7 @@ use std::sync::Arc;
 
 use blockchain::{BlockChain, BlockProvider};
 use engines::{Engine, EthEngine, EpochVerifier, EpochTransition};
+use machine::EthereumMachine;
 use ids::BlockId;
 use header::Header;
 use receipt::Receipt;
@@ -167,7 +168,7 @@ struct ChunkRebuilder {
 	// and epoch data from last blocks in chunks.
 	// verification for these will be done at the end.
 	unverified_firsts: Vec<(Header, Bytes, H256)>,
-	last_epochs: Vec<(Header, Box<EpochVerifier>)>,
+	last_epochs: Vec<(Header, Box<EpochVerifier<EthereumMachine>>)>,
 }
 
 // verified data.
@@ -179,7 +180,7 @@ struct Verified {
 impl ChunkRebuilder {
 	fn verify_transition(
 		&mut self,
-		last_verifier: &mut Option<Box<EpochVerifier>>,
+		last_verifier: &mut Option<Box<EpochVerifier<EthereumMachine>>>,
 		transition_rlp: UntrustedRlp,
 		engine: &EthEngine,
 	) -> Result<Verified, ::error::Error> {

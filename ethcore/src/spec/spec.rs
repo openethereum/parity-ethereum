@@ -532,7 +532,7 @@ impl Spec {
 				db.as_hashdb_mut(),
 				*genesis.state_root(),
 				&tx,
-				&*self.engine,
+				self.engine.machine(),
 				&env_info,
 				factories.clone(),
 				true,

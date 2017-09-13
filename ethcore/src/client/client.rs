@@ -429,7 +429,7 @@ impl Client {
 			return Err(());
 		};
 
-		let verify_external_result = self.verifier.verify_block_external(header, &block.bytes, engine);
+		let verify_external_result = self.verifier.verify_block_external(header, engine);
 		if let Err(e) = verify_external_result {
 			warn!(target: "client", "Stage 4 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 			return Err(());

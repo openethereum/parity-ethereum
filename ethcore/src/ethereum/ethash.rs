@@ -44,9 +44,6 @@ use semantic_version::SemanticVersion;
 use tx_filter::{TransactionFilter};
 use client::EngineClient;
 
-/// Parity tries to round block.gas_limit to multiple of this constant
-pub const PARITY_GAS_LIMIT_DETERMINANT: U256 = U256([37, 0, 0, 0]);
-
 /// Number of blocks in an ethash snapshot.
 // make dependent on difficulty incrment divisor?
 const SNAPSHOT_BLOCKS: u64 = 5000;
@@ -161,10 +158,10 @@ impl Ethash {
 // for any block in the chain.
 // in the future, we might move the Ethash epoch
 // caching onto this mechanism as well.
-impl engines::EpochVerifier for Arc<Ethash> {
+impl engines::EpochVerifier<EthereumMachine> for Arc<Ethash> {
 	fn verify_light(&self, _header: &Header) -> Result<(), Error> { Ok(()) }
 	fn verify_heavy(&self, header: &Header) -> Result<(), Error> {
-		self.verify_block_unordered(header, None)
+		self.verify_block_unordered(header)
 	}
 }
 
@@ -190,39 +187,9 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 		}
 	}
 
-	fn populate_from_parent(&self, header: &mut Header, parent: &Header, gas_floor_target: U256, gas_ceil_target: U256) {
+	fn populate_from_parent(&self, header: &mut Header, parent: &Header) {
 		let difficulty = self.calculate_difficulty(header, parent);
-
-		let gas_limit = {
-			let gas_limit = parent.gas_limit().clone();
-			let bound_divisor = self.params().gas_limit_bound_divisor;
-			let lower_limit = gas_limit - gas_limit / bound_divisor + 1.into();
-			let upper_limit = gas_limit + gas_limit / bound_divisor - 1.into();
-			let gas_limit = if gas_limit < gas_floor_target {
-				let gas_limit = cmp::min(gas_floor_target, upper_limit);
-				round_block_gas_limit(gas_limit, lower_limit, upper_limit)
-			} else if gas_limit > gas_ceil_target {
-				let gas_limit = cmp::max(gas_ceil_target, lower_limit);
-				round_block_gas_limit(gas_limit, lower_limit, upper_limit)
-			} else {
-				let total_lower_limit = cmp::max(lower_limit, gas_floor_target);
-				let total_upper_limit = cmp::min(upper_limit, gas_ceil_target);
-				let gas_limit = cmp::max(gas_floor_target, cmp::min(total_upper_limit,
-					lower_limit + (header.gas_used().clone() * 6.into() / 5.into()) / bound_divisor));
-				round_block_gas_limit(gas_limit, total_lower_limit, total_upper_limit)
-			};
-			// ensure that we are not violating protocol limits
-			debug_assert!(gas_limit >= lower_limit);
-			debug_assert!(gas_limit <= upper_limit);
-			gas_limit
-		};
 		header.set_difficulty(difficulty);
-		header.set_gas_limit(gas_limit);
-		if header.number() >= self.ethash_params.dao_hardfork_transition &&
-			header.number() <= self.ethash_params.dao_hardfork_transition + 9 {
-			header.set_extra_data(b"dao-hard-fork"[..].to_owned());
-		}
-//		info!("ethash: populate_from_parent #{}: difficulty={} and gas_limit={}", header.number(), header.difficulty(), header.gas_limit());
 	}
 
 	fn on_new_block(
@@ -237,65 +204,46 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 	/// This assumes that all uncles are valid uncles (i.e. of at least one generation before the current).
 	fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<(), Error> {
 		use std::ops::Shr;
-		use block::IsBlock;
+		use parity_machine::{WithUncles, WithBalances};
 
 		let reward = self.ethash_params.block_reward;
-		let tracing_enabled = block.tracing_enabled();
-		let fields = block.fields_mut();
+		let author = *block.header().author();
+		let number = block.header().number();
+
 		let eras_rounds = self.ethash_params.ecip1017_era_rounds;
-		let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, reward, fields.header.number());
-		let mut tracer = ExecutiveTracer::default();
+		let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, reward, number);
+
+		let n_uncles = WithUncles::uncles(&*block).len();
 
 		// Bestow block reward
-		let result_block_reward = reward + reward.shr(5) * U256::from(fields.uncles.len());
-		fields.state.add_balance(
-			fields.header.author(),
-			&result_block_reward,
-			CleanupMode::NoEmpty
-		)?;
+		let result_block_reward = reward + reward.shr(5) * U256::from(n_uncles);
+		let mut uncle_rewards = Vec::with_capacity(n_uncles);
 
-		if tracing_enabled {
-			let block_author = fields.header.author().clone();
-			tracer.trace_reward(block_author, result_block_reward, RewardType::Block);
-		}
+		self.machine.add_balance(block, &author, &result_block_reward)?;
 
-		let current_number = fields.header.number();
-		for u in fields.uncles.iter() {
-			let uncle_author = u.author().clone();
-			let result_uncle_reward: U256;
-
-			if eras == 0 {
-				result_uncle_reward = (reward * U256::from(8 + u.number() - current_number)).shr(3);
-				fields.state.add_balance(
-					u.author(),
-					&result_uncle_reward,
-					CleanupMode::NoEmpty
-				)
+		// bestow uncle rewards.
+		for u in WithUncles::uncles(&*block) {
+			let uncle_author = u.author();
+			let result_uncle_reward = if eras == 0 {
+				(reward * U256::from(8 + u.number() - number)).shr(3)
 			} else {
-				result_uncle_reward = reward.shr(5);
-				fields.state.add_balance(
-					u.author(),
-					&result_uncle_reward,
-					CleanupMode::NoEmpty
-				)
-			}?;
+				reward.shr(5)
+			};
 
-			// Trace uncle rewards
-			if tracing_enabled {
-				tracer.trace_reward(uncle_author, result_uncle_reward, RewardType::Uncle);
-			}
+			uncle_rewards.push((*uncle_author, result_uncle_reward));
 		}
 
-		// Commit state so that we can actually figure out the state root.
-		fields.state.commit()?;
-		if tracing_enabled {
-			fields.traces.as_mut().map(|mut traces| traces.push(tracer.drain()));
+		for &(ref a, ref reward) in &uncle_rewards {
+			self.machine.add_balance(block, a, reward)?;
 		}
+
+		// note and trace.
+		self.machine.note_rewards(block, &[(author, result_block_reward)], &uncle_rewards);
 
 		Ok(())
 	}
 
-	fn verify_block_basic(&self, header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
+	fn verify_block_basic(&self, header: &Header) -> Result<(), Error> {
 		// check the seal fields.
 		if header.seal().len() != self.seal_fields() {
 			return Err(From::from(BlockError::InvalidSealArity(
@@ -333,7 +281,7 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 		Ok(())
 	}
 
-	fn verify_block_unordered(&self, header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
+	fn verify_block_unordered(&self, header: &Header) -> Result<(), Error> {
 		if header.seal().len() != self.seal_fields() {
 			return Err(From::from(BlockError::InvalidSealArity(
 				Mismatch { expected: self.seal_fields(), found: header.seal().len() }
@@ -352,7 +300,7 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 		Ok(())
 	}
 
-	fn verify_block_family(&self, header: &Header, parent: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
+	fn verify_block_family(&self, header: &Header, parent: &Header) -> Result<(), Error> {
 		// we should not calculate difficulty for genesis blocks
 		if header.number() == 0 {
 			return Err(From::from(BlockError::RidiculousNumber(OutOfBounds { min: Some(1), max: None, found: header.number() })));
@@ -375,15 +323,7 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 		Ok(())
 	}
 
-	fn verify_transaction(&self, t: UnverifiedTransaction, header: &Header) -> Result<SignedTransaction, Error> {
-		let signed = SignedTransaction::new(t)?;
-		if !self.tx_filter.as_ref().map_or(true, |filter| filter.transaction_allowed(header.parent_hash(), &signed)) {
-			return Err(From::from(TransactionError::NotAllowed));
-		}
-		Ok(signed)
-	}
-
-	fn epoch_verifier<'a>(&self, _header: &Header, _proof: &'a [u8]) -> engines::ConstructedVerifier<'a> {
+	fn epoch_verifier<'a>(&self, _header: &Header, _proof: &'a [u8]) -> engines::ConstructedVerifier<'a, EthereumMachine> {
 		engines::ConstructedVerifier::Trusted(Box::new(self.clone()))
 	}
 
@@ -396,26 +336,7 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 			filter.register_client(client);
 		}
 	}
-
 }
-
-// Try to round gas_limit a bit so that:
-// 1) it will still be in desired range
-// 2) it will be a nearest (with tendency to increase) multiple of PARITY_GAS_LIMIT_DETERMINANT
-fn round_block_gas_limit(gas_limit: U256, lower_limit: U256, upper_limit: U256) -> U256 {
-	let increased_gas_limit = gas_limit + (PARITY_GAS_LIMIT_DETERMINANT - gas_limit % PARITY_GAS_LIMIT_DETERMINANT);
-	if increased_gas_limit > upper_limit {
-		let decreased_gas_limit = increased_gas_limit - PARITY_GAS_LIMIT_DETERMINANT;
-		if decreased_gas_limit < lower_limit {
-			gas_limit
-		} else {
-			decreased_gas_limit
-		}
-	} else {
-		increased_gas_limit
-	}
-}
-
 
 #[cfg_attr(feature="dev", allow(wrong_self_convention))]
 impl Ethash {
@@ -639,7 +560,7 @@ mod tests {
 		//let engine = Ethash::new_test(test_spec());
 		let header: Header = Header::default();
 
-		let verify_result = engine.verify_block_basic(&header, None);
+		let verify_result = engine.verify_block_basic(&header);
 
 		match verify_result {
 			Err(Error::Block(BlockError::InvalidSealArity(_))) => {},
@@ -654,7 +575,7 @@ mod tests {
 		let mut header: Header = Header::default();
 		header.set_seal(vec![rlp::encode(&H256::zero()).into_vec(), rlp::encode(&H64::zero()).into_vec()]);
 
-		let verify_result = engine.verify_block_basic(&header, None);
+		let verify_result = engine.verify_block_basic(&header);
 
 		match verify_result {
 			Err(Error::Block(BlockError::DifficultyOutOfBounds(_))) => {},
@@ -670,7 +591,7 @@ mod tests {
 		header.set_seal(vec![rlp::encode(&H256::zero()).into_vec(), rlp::encode(&H64::zero()).into_vec()]);
 		header.set_difficulty(U256::from_str("ffffffffffffffffffffffffffffffffffffffffffffaaaaaaaaaaaaaaaaaaaa").unwrap());
 
-		let verify_result = engine.verify_block_basic(&header, None);
+		let verify_result = engine.verify_block_basic(&header);
 
 		match verify_result {
 			Err(Error::Block(BlockError::InvalidProofOfWork(_))) => {},
@@ -684,7 +605,7 @@ mod tests {
 		let engine = test_spec().engine;
 		let header: Header = Header::default();
 
-		let verify_result = engine.verify_block_unordered(&header, None);
+		let verify_result = engine.verify_block_unordered(&header);
 
 		match verify_result {
 			Err(Error::Block(BlockError::InvalidSealArity(_))) => {},
@@ -698,7 +619,7 @@ mod tests {
 		let engine = test_spec().engine;
 		let mut header: Header = Header::default();
 		header.set_seal(vec![rlp::encode(&H256::zero()).into_vec(), rlp::encode(&H64::zero()).into_vec()]);
-		let verify_result = engine.verify_block_unordered(&header, None);
+		let verify_result = engine.verify_block_unordered(&header);
 
 		match verify_result {
 			Err(Error::Block(BlockError::MismatchedH256SealElement(_))) => {},
@@ -714,7 +635,7 @@ mod tests {
 		header.set_seal(vec![rlp::encode(&H256::from("b251bd2e0283d0658f2cadfdc8ca619b5de94eca5742725e2e757dd13ed7503d")).into_vec(), rlp::encode(&H64::zero()).into_vec()]);
 		header.set_difficulty(U256::from_str("ffffffffffffffffffffffffffffffffffffffffffffaaaaaaaaaaaaaaaaaaaa").unwrap());
 
-		let verify_result = engine.verify_block_unordered(&header, None);
+		let verify_result = engine.verify_block_unordered(&header);
 
 		match verify_result {
 			Err(Error::Block(BlockError::InvalidProofOfWork(_))) => {},
@@ -729,7 +650,7 @@ mod tests {
 		let header: Header = Header::default();
 		let parent_header: Header = Header::default();
 
-		let verify_result = engine.verify_block_family(&header, &parent_header, None);
+		let verify_result = engine.verify_block_family(&header, &parent_header);
 
 		match verify_result {
 			Err(Error::Block(BlockError::RidiculousNumber(_))) => {},
@@ -746,7 +667,7 @@ mod tests {
 		let mut parent_header: Header = Header::default();
 		parent_header.set_number(1);
 
-		let verify_result = engine.verify_block_family(&header, &parent_header, None);
+		let verify_result = engine.verify_block_family(&header, &parent_header);
 
 		match verify_result {
 			Err(Error::Block(BlockError::InvalidDifficulty(_))) => {},
@@ -764,7 +685,7 @@ mod tests {
 		let mut parent_header: Header = Header::default();
 		parent_header.set_number(1);
 
-		let verify_result = engine.verify_block_family(&header, &parent_header, None);
+		let verify_result = engine.verify_block_family(&header, &parent_header);
 
 		match verify_result {
 			Err(Error::Block(BlockError::InvalidGasLimit(_))) => {},
@@ -900,50 +821,6 @@ mod tests {
 			U256::from_str("5126FFD5BCBB9E7").unwrap(),
 			ethash.calculate_difficulty(&header, &parent_header)
 		);
-	}
-
-	#[test]
-	fn gas_limit_is_multiple_of_determinant() {
-		let spec = new_homestead_test();
-		let ethparams = get_default_ethash_params();
-		let ethash = Ethash::new(&::std::env::temp_dir(), spec.params().clone(), ethparams, BTreeMap::new());
-		let mut parent = Header::new();
-		let mut header = Header::new();
-		header.set_number(1);
-
-		// this test will work for this constant only
-		assert_eq!(PARITY_GAS_LIMIT_DETERMINANT, U256::from(37));
-
-		// when parent.gas_limit < gas_floor_target:
-		parent.set_gas_limit(U256::from(50_000));
-		ethash.populate_from_parent(&mut header, &parent, U256::from(100_000), U256::from(200_000));
-		assert_eq!(*header.gas_limit(), U256::from(50_024));
-
-		// when parent.gas_limit > gas_ceil_target:
-		parent.set_gas_limit(U256::from(250_000));
-		ethash.populate_from_parent(&mut header, &parent, U256::from(100_000), U256::from(200_000));
-		assert_eq!(*header.gas_limit(), U256::from(249_787));
-
-		// when parent.gas_limit is in miner's range
-		header.set_gas_used(U256::from(150_000));
-		parent.set_gas_limit(U256::from(150_000));
-		ethash.populate_from_parent(&mut header, &parent, U256::from(100_000), U256::from(200_000));
-		assert_eq!(*header.gas_limit(), U256::from(150_035));
-
-		// when parent.gas_limit is in miner's range
-		// && we can NOT increase it to be multiple of constant
-		header.set_gas_used(U256::from(150_000));
-		parent.set_gas_limit(U256::from(150_000));
-		ethash.populate_from_parent(&mut header, &parent, U256::from(100_000), U256::from(150_002));
-		assert_eq!(*header.gas_limit(), U256::from(149_998));
-
-		// when parent.gas_limit is in miner's range
-		// && we can NOT increase it to be multiple of constant
-		// && we can NOT decrease it to be multiple of constant
-		header.set_gas_used(U256::from(150_000));
-		parent.set_gas_limit(U256::from(150_000));
-		ethash.populate_from_parent(&mut header, &parent, U256::from(150_000), U256::from(150_002));
-		assert_eq!(*header.gas_limit(), U256::from(150_002));
 	}
 
 	#[test]

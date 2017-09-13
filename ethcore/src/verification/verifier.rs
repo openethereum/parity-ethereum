@@ -28,5 +28,5 @@ pub trait Verifier: Send + Sync {
 	/// Do a final verification check for an enacted header vs its expected counterpart.
 	fn verify_block_final(&self, expected: &Header, got: &Header) -> Result<(), Error>;
 	/// Verify a block, inspecing external state.
-	fn verify_block_external(&self, header: &Header, bytes: &[u8], engine: &EthEngine) -> Result<(), Error>;
+	fn verify_block_external(&self, header: &Header, engine: &EthEngine) -> Result<(), Error>;
 }

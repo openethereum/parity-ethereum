@@ -195,7 +195,7 @@ pub mod headers {
 
 		fn verify(unverified: Self::Unverified, engine: &EthEngine, check_seal: bool) -> Result<Self::Verified, Error> {
 			match check_seal {
-				true => engine.verify_block_unordered(&unverified, None).map(|_| unverified),
+				true => engine.verify_block_unordered(&unverified,).map(|_| unverified),
 				false => Ok(unverified),
 			}
 		}

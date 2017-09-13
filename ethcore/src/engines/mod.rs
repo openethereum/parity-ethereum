@@ -132,7 +132,7 @@ pub trait StateDependentProof: Send + Sync {
 	/// Check a proof generated elsewhere (potentially by a peer).
 	// `engine` needed to check state proofs, while really this should
 	// just be state machine params.
-	fn check_proof(&self, engine: &Engine, proof: &[u8]) -> Result<(), String>;
+	fn check_proof(&self, engine: &EthEngine, proof: &[u8]) -> Result<(), String>;
 }
 
 /// Proof generated on epoch change.
@@ -144,20 +144,20 @@ pub enum Proof {
 }
 
 /// Generated epoch verifier.
-pub enum ConstructedVerifier<'a> {
+pub enum ConstructedVerifier<'a, M: Machine> {
 	/// Fully trusted verifier.
-	Trusted(Box<EpochVerifier>),
+	Trusted(Box<EpochVerifier<M>>),
 	/// Verifier unconfirmed. Check whether given finality proof finalizes given hash
 	/// under previous epoch.
-	Unconfirmed(Box<EpochVerifier>, &'a [u8], H256),
+	Unconfirmed(Box<EpochVerifier<M>>, &'a [u8], H256),
 	/// Error constructing verifier.
 	Err(Error),
 }
 
-impl<'a> ConstructedVerifier<'a> {
+impl<'a, M: Machine> ConstructedVerifier<'a, M> {
 	/// Convert to a result, indicating that any necessary confirmation has been done
 	/// already.
-	pub fn known_confirmed(self) -> Result<Box<EpochVerifier>, Error> {
+	pub fn known_confirmed(self) -> Result<Box<EpochVerifier<M>>, Error> {
 		match self {
 			ConstructedVerifier::Trusted(v) | ConstructedVerifier::Unconfirmed(v, _, _) => Ok(v),
 			ConstructedVerifier::Err(e) => Err(e),
@@ -241,16 +241,14 @@ pub trait Engine<M: Machine>: Sync + Send {
 	/// Phase 1 quick block verification. Only does checks that are cheap. Returns either a null `Ok` or a general error detailing the problem with import.
 	fn verify_block_basic(&self, _header: &M::Header) -> Result<(), M::Error> { Ok(()) }
 
-	/// Phase 2 verification. Perform costly checks such as transaction signatures. `block` (the header's full block)
-	/// may be provided for additional checks. Returns either a null `Ok` or a general error detailing the problem with import.
+	/// Phase 2 verification. Perform costly checks such as transaction signatures. Returns either a null `Ok` or a general error detailing the problem with import.
 	fn verify_block_unordered(&self, _header: &M::Header) -> Result<(), M::Error> { Ok(()) }
 
-	/// Phase 3 verification. Check block information against parent and uncles. `block` (the header's full block)
-	/// may be provided for additional checks. Returns either a null `Ok` or a general error detailing the problem with import.
-	fn verify_block_family(&self, _header: &M::Header, _parent: &Header, _block: Option<&[u8]>) -> Result<(), Error> { Ok(()) }
+	/// Phase 3 verification. Check block information against parent and uncles. Returns either a null `Ok` or a general error detailing the problem with import.
+	fn verify_block_family(&self, _header: &M::Header, _parent: &Header) -> Result<(), Error> { Ok(()) }
 
 	/// Phase 4 verification. Verify block header against potentially external data.
-	fn verify_block_external(&self, _header: &M::Header, _block: Option<&[u8]>) -> Result<(), Error> { Ok(()) }
+	fn verify_block_external(&self, _header: &M::Header) -> Result<(), Error> { Ok(()) }
 
 	/// Genesis epoch data.
 	fn genesis_epoch_data(&self, _header: &M::Header, _call: &Call) -> Result<Vec<u8>, String> { Ok(Vec::new()) }
@@ -288,21 +286,18 @@ pub trait Engine<M: Machine>: Sync + Send {
 
 	/// Create an epoch verifier from validation proof and a flag indicating
 	/// whether finality is required.
-	fn epoch_verifier<'a>(&self, _header: &M::Header, _proof: &'a [u8]) -> ConstructedVerifier<'a> {
+	fn epoch_verifier<'a>(&self, _header: &M::Header, _proof: &'a [u8]) -> ConstructedVerifier<'a, M> {
 		ConstructedVerifier::Trusted(Box::new(self::epoch::NoOp))
 	}
 
 	/// Populate a header's fields based on its parent's header.
 	/// Usually implements the chain scoring rule based on weight.
 	/// The gas floor target must not be lower than the engine's minimum gas limit.
-	fn populate_from_parent(&self, header: &mut M::Header, parent: &M::Header) {
-		header.set_difficulty(parent.difficulty().clone());
-		header.set_gas_limit(parent.gas_limit().clone());
-	}
+	fn populate_from_parent(&self, header: &mut M::Header, parent: &M::Header);
 
 	/// Handle any potential consensus messages;
 	/// updating consensus state and potentially issuing a new one.
-	fn handle_message(&self, _message: &[u8]) -> Result<(), M::Error> { Err(EngineError::UnexpectedMessage.into()) }
+	fn handle_message(&self, _message: &[u8]) -> Result<(), EngineError> { Err(EngineError::UnexpectedMessage) }
 
 	/// Find out if the block is a proposal block and should not be inserted into the DB.
 	/// Takes a header of a fully verified block.
@@ -314,7 +309,7 @@ pub trait Engine<M: Machine>: Sync + Send {
 	/// Sign using the EngineSigner, to be used for consensus tx signing.
 	fn sign(&self, _hash: H256) -> Result<Signature, Error> { unimplemented!() }
 
-	/// Add Client which can be used for sealing, querying the state and sending messages.
+	/// Add Client which can be used for sealing, potentially querying the state and sending messages.
 	fn register_client(&self, _client: Weak<EngineClient>) {}
 
 	/// Trigger next step of the consensus engine.

@@ -18,8 +18,11 @@
 //! This will define traits for the header, block, and state of a blockchain.
 
 extern crate ethcore_util as util;
+extern crate ethcore_bigint as bigint;
 
-use util::{Address, H256, U256};
+use bigint::hash::H256;
+use bigint::prelude::U256;
+use util::Address;
 
 /// A header. This contains important metadata about the block, as well as a
 /// "seal" that indicates validity to a consensus engine.

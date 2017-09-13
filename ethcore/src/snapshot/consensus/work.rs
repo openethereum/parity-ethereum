@@ -270,7 +270,6 @@ impl Rebuilder for PowRebuilder {
 				&block.header,
 				engine,
 				&self.chain,
-				Some(&block_bytes),
 				is_best
 			)?;
 

@@ -59,11 +59,11 @@ impl HeapSizeOf for PreverifiedBlock {
 pub fn verify_block_basic(header: &Header, bytes: &[u8], engine: &EthEngine) -> Result<(), Error> {
 	verify_header_params(&header, engine, true)?;
 	verify_block_integrity(bytes, &header.transactions_root(), &header.uncles_hash())?;
-	engine.verify_block_basic(&header, Some(bytes))?;
+	engine.verify_block_basic(&header)?;
 	for u in UntrustedRlp::new(bytes).at(2)?.iter().map(|rlp| rlp.as_val::<Header>()) {
 		let u = u?;
 		verify_header_params(&u, engine, false)?;
-		engine.verify_block_basic(&u, None)?;
+		engine.verify_block_basic(&u)?;
 	}
 	// Verify transactions.
 	// TODO: either use transaction views or cache the decoded transactions.
@@ -79,9 +79,9 @@ pub fn verify_block_basic(header: &Header, bytes: &[u8], engine: &EthEngine) -> 
 /// Returns a `PreverifiedBlock` structure populated with transactions
 pub fn verify_block_unordered(header: Header, bytes: Bytes, engine: &EthEngine, check_seal: bool) -> Result<PreverifiedBlock, Error> {
 	if check_seal {
-		engine.verify_block_unordered(&header, Some(&bytes))?;
+		engine.verify_block_unordered(&header)?;
 		for u in UntrustedRlp::new(&bytes).at(2)?.iter().map(|rlp| rlp.as_val::<Header>()) {
-			engine.verify_block_unordered(&u?, None)?;
+			engine.verify_block_unordered(&u?)?;
 		}
 	}
 	// Verify transactions.
@@ -113,7 +113,7 @@ pub fn verify_block_family(header: &Header, bytes: &[u8], engine: &EthEngine, bc
 	// TODO: verify timestamp
 	let parent = bc.block_header(&header.parent_hash()).ok_or_else(|| Error::from(BlockError::UnknownParent(header.parent_hash().clone())))?;
 	verify_parent(&header, &parent)?;
-	engine.verify_block_family(&header, &parent, Some(bytes))?;
+	engine.verify_block_family(&header, &parent)?;
 
 	let num_uncles = UntrustedRlp::new(bytes).at(2)?.item_count()?;
 	if num_uncles != 0 {
@@ -190,7 +190,7 @@ pub fn verify_block_family(header: &Header, bytes: &[u8], engine: &EthEngine, bc
 			}
 
 			verify_parent(&uncle, &uncle_parent)?;
-			engine.verify_block_family(&uncle, &uncle_parent, Some(bytes))?;
+			engine.verify_block_family(&uncle, &uncle_parent)?;
 			verified.insert(uncle.hash());
 		}
 	}

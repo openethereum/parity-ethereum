@@ -226,6 +226,20 @@ impl IsBlock for ExecutedBlock {
 	fn block(&self) -> &ExecutedBlock { self }
 }
 
+impl ::parity_machine::LiveBlock for ExecutedBlock {
+	type Header = Header;
+
+	fn header(&self) -> &Header {
+		&self.header
+	}
+}
+
+impl ::parity_machine::WithUncles for ExecutedBlock {
+	fn uncles(&self) -> &[Header] {
+		&self.uncles
+	}
+}
+
 /// Block that is ready for transactions to be added.
 ///
 /// It's a bit like a Vec<Transaction>, except that whenever a transaction is pushed, we execute it and
@@ -538,11 +552,11 @@ impl LockedBlock {
 		let mut s = self;
 		s.block.header.set_seal(seal);
 
-		unimplemented!() // TODO: verify seal without `verify_seal`.
-		match engine.verify_block_seal(&s.block.header) {
-			Err(e) => Err((e, s)),
-			_ => Ok(SealedBlock { block: s.block, uncle_bytes: s.uncle_bytes }),
-		}
+		unimplemented!(); // TODO: verify seal without `verify_seal`.
+		// match engine.verify_block_seal(&s.block.header) {
+		// 	Err(e) => Err((e, s)),
+		// 	_ => Ok(SealedBlock { block: s.block, uncle_bytes: s.uncle_bytes }),
+		// }
 	}
 
 	/// Remove state root from transaction receipts to make them EIP-98 compatible.
