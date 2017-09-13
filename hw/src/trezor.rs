@@ -324,7 +324,7 @@ impl Manager {
 						// part of the signature that is already adjusted for EIP-155,
 						// so v' = v + 2 * chain_id + 35, but code further down the
 						// pipeline will already do this transformation, so remove it here
-						let adjustment = 35 * 2 * c_id as u32;
+						let adjustment = 35 + 2 * c_id as u32;
 						Ok(Signature::from_rsv(&r, &s, (max(v, adjustment) - adjustment) as u8))
 					} else {
 						// If there isn't a chain_id, v will be returned as v + 27
