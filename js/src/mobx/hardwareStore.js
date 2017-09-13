@@ -30,6 +30,8 @@ export default class HardwareStore {
     this._api = api;
     this._ledger = Ledger.create(api);
     this._pollId = null;
+    this.hwAccounts = {};
+    this.ledgerAccounts = {};
 
     this._pollScan();
     this._subscribeParity();
@@ -117,7 +119,8 @@ export default class HardwareStore {
               info.address = address;
               info.via = 'parity';
             });
-          this.setWallets(hwInfo);
+          this.hwAccounts = hwInfo;
+          this.updateWallets();
           return hwInfo;
         },
         onError
@@ -126,22 +129,26 @@ export default class HardwareStore {
 
   scan () {
     this.setScanning(true);
+    // This only scans for locked devices and does not return open devices,
+    // so no need to actually wait for any results here.
+    this.scanTrezor();
 
     // NOTE: Depending on how the hardware is configured and how the local env setup
     // is done, different results will be retrieved via Parity vs. the browser APIs
     // (latter is Chrome-only, needs the browser app enabled on a Ledger, former is
     // not intended as a network call, i.e. hw wallet is with the user)
-    return Promise
-      .all([
-        this.scanLedger(),
-        this.scanTrezor()
-      ])
-      .then(([ledgerAccounts, trezorAccounts]) => {
+    return this.scanLedger()
+      .then((ledgerAccounts) => {
+        this.ledgerAccounts = ledgerAccounts;
         transaction(() => {
-          this.setWallets(Object.assign({}, ledgerAccounts, trezorAccounts));
+          this.updateWallets();
           this.setScanning(false);
         });
       });
+  }
+
+  updateWallets () {
+    this.setWallets(Object.assign({}, this.hwAccounts, this.ledgerAccounts));
   }
 
   createAccountInfo (entry, original = {}) {
