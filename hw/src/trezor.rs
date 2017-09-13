@@ -415,7 +415,7 @@ fn test_signature() {
 	use bigint::hash::{H160, H256};
 
 	let hidapi = Arc::new(Mutex::new(hidapi::HidApi::new().unwrap()));
-	let mut manager = Manager::new(hidapi.clone());
+	let manager = Manager::new(hidapi.clone());
 	let addr: Address = H160::from("some_addr");
 
 	manager.update_devices().unwrap();

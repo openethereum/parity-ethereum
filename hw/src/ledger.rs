@@ -340,9 +340,9 @@ impl Manager {
 fn smoke() {
 	use rustc_hex::FromHex;
 	let hidapi = Arc::new(Mutex::new(hidapi::HidApi::new().unwrap()));
-	let mut manager = Manager::new(hidapi.clone());
+	let manager = Manager::new(hidapi.clone());
 	manager.update_devices().unwrap();
-	for d in &manager.devices.read() {
+	for d in &*manager.devices.read() {
 		println!("Device: {:?}", d);
 	}
 
