@@ -15,6 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Key-value datastore with a modified Merkle tree.
+extern crate rand;
+
 use keccak::keccak;
 use bytes::*;
 use bigint::hash::*;
