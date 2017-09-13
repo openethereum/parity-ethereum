@@ -49,6 +49,7 @@ num = "0.1"
 num_cpus = "1.2"
 parking_lot = "0.4"
 price-info = { path = "../price-info" }
+rayon = "0.8"
 rand = "0.3"
 rlp = { path = "../util/rlp" }
 rlp_derive = { path = "../util/rlp_derive" }

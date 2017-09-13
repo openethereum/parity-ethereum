@@ -20,10 +20,10 @@ use std::sync::{Weak, Arc};
 
 use ethcore::block_status::BlockStatus;
 use ethcore::client::{ClientReport, EnvInfo};
-use ethcore::engines::Engine;
+use ethcore::engines::{epoch, Engine, EpochChange, EpochTransition, Proof, Unsure};
 use ethcore::error::BlockImportError;
 use ethcore::ids::BlockId;
-use ethcore::header::Header;
+use ethcore::header::{BlockNumber, Header};
 use ethcore::verification::queue::{self, HeaderQueue};
 use ethcore::blockchain_info::BlockChainInfo;
 use ethcore::spec::Spec;
@@ -33,9 +33,11 @@ use io::IoChannel;
 use parking_lot::{Mutex, RwLock};
 use bigint::prelude::U256;
 use bigint::hash::H256;
+use futures::{IntoFuture, Future};
 
 use util::kvdb::{KeyValueDB, CompactionProfile};
 
+use self::fetch::ChainDataFetcher;
 use self::header_chain::{AncestryIter, HeaderChain};
 
 use cache::Cache;
@@ -44,6 +46,8 @@ pub use self::service::Service;
 
 mod header_chain;
 mod service;
+
+pub mod fetch;
 
 /// Configuration for the light client.
 #[derive(Debug, Clone)]
@@ -80,6 +84,9 @@ impl Default for Config {
 
 /// Trait for interacting with the header chain abstractly.
 pub trait LightChainClient: Send + Sync {
+	/// Adds a new `LightChainNotify` listener.
+	fn add_listener(&self, listener: Weak<LightChainNotify>);
+
 	/// Get chain info.
 	fn chain_info(&self) -> BlockChainInfo;
 
@@ -128,7 +135,7 @@ pub trait LightChainClient: Send + Sync {
 	fn cht_root(&self, i: usize) -> Option<H256>;
 
 	/// Get the EIP-86 transition block number.
-	fn eip86_transition(&self) -> u64;
+	fn eip86_transition(&self) -> BlockNumber;
 
 	/// Get a report of import activity since the last call.
 	fn report(&self) -> ClientReport;
@@ -156,7 +163,7 @@ impl<T: LightChainClient> AsLightClient for T {
 }
 
 /// Light client implementation.
-pub struct Client {
+pub struct Client<T> {
 	queue: HeaderQueue,
 	engine: Arc<Engine>,
 	chain: HeaderChain,
@@ -164,22 +171,30 @@ pub struct Client {
 	import_lock: Mutex<()>,
 	db: Arc<KeyValueDB>,
 	listeners: RwLock<Vec<Weak<LightChainNotify>>>,
+	fetcher: T,
 	verify_full: bool,
 }
 
-impl Client {
+impl<T: ChainDataFetcher> Client<T> {
 	/// Create a new `Client`.
-	pub fn new(config: Config, db: Arc<KeyValueDB>, chain_col: Option<u32>, spec: &Spec, io_channel: IoChannel<ClientIoMessage>, cache: Arc<Mutex<Cache>>) -> Result<Self, String> {
-		let gh = ::rlp::encode(&spec.genesis_header());
-
+	pub fn new(
+		config: Config,
+		db: Arc<KeyValueDB>,
+		chain_col: Option<u32>,
+		spec: &Spec,
+		fetcher: T,
+		io_channel: IoChannel<ClientIoMessage>,
+		cache: Arc<Mutex<Cache>>
+	) -> Result<Self, String> {
 		Ok(Client {
 			queue: HeaderQueue::new(config.queue, spec.engine.clone(), io_channel, config.check_seal),
 			engine: spec.engine.clone(),
-			chain: HeaderChain::new(db.clone(), chain_col, &gh, cache)?,
+			chain: HeaderChain::new(db.clone(), chain_col, &spec, cache)?,
 			report: RwLock::new(ClientReport::default()),
 			import_lock: Mutex::new(()),
 			db: db,
 			listeners: RwLock::new(vec![]),
+			fetcher: fetcher,
 			verify_full: config.verify_full,
 		})
 	}
@@ -191,10 +206,24 @@ impl Client {
 
 	/// Create a new `Client` backed purely in-memory.
 	/// This will ignore all database options in the configuration.
-	pub fn in_memory(config: Config, spec: &Spec, io_channel: IoChannel<ClientIoMessage>, cache: Arc<Mutex<Cache>>) -> Self {
+	pub fn in_memory(
+		config: Config,
+		spec: &Spec,
+		fetcher: T,
+		io_channel: IoChannel<ClientIoMessage>,
+		cache: Arc<Mutex<Cache>>
+	) -> Self {
 		let db = ::util::kvdb::in_memory(0);
 
-		Client::new(config, Arc::new(db), None, spec, io_channel, cache).expect("New DB creation infallible; qed")
+		Client::new(
+			config,
+			Arc::new(db),
+			None,
+			spec,
+			fetcher,
+			io_channel,
+			cache
+		).expect("New DB creation infallible; qed")
 	}
 
 	/// Import a header to the queue for additional verification.
@@ -293,19 +322,33 @@ impl Client {
 				continue
 			}
 
-			// TODO: `epoch_end_signal`, `is_epoch_end`.
-			// proofs we get from the network would be _complete_, whereas we need
-			// _incomplete_ signals
+			let write_proof_result = match self.check_epoch_signal(&verified_header) {
+				Ok(Some(proof)) => self.write_pending_proof(&verified_header, proof),
+				Ok(None) => Ok(()),
+				Err(e) =>
+					panic!("Unable to fetch epoch transition proof: {:?}", e),
+			};
+
+			if let Err(e) = write_proof_result {
+				warn!(target: "client", "Error writing pending transition proof to DB: {:?} \
+					The node may not be able to synchronize further.", e);
+			}
+
+			let epoch_proof =  self.engine.is_epoch_end(
+				&verified_header,
+				&|h| self.chain.block_header(BlockId::Hash(h)).map(|hdr| hdr.decode()),
+				&|h| self.chain.pending_transition(h),
+			);
 
 			let mut tx = self.db.transaction();
-			let pending = match self.chain.insert(&mut tx, verified_header) {
+			let pending = match self.chain.insert(&mut tx, verified_header, epoch_proof) {
 				Ok(pending) => {
 					good.push(hash);
 					self.report.write().blocks_imported += 1;
 					pending
 				}
 				Err(e) => {
-					debug!(target: "client", "Error importing header {:?}: {}", (num, hash), e);
+					debug!(target: "client", "Error importing header {:?}: {:?}", (num, hash), e);
 					bad.push(hash);
 					continue;
 				}
@@ -421,9 +464,76 @@ impl Client {
 
 		true
 	}
+
+	fn check_epoch_signal(&self, verified_header: &Header) -> Result<Option<Proof>, T::Error> {
+		let (mut block, mut receipts) = (None, None);
+
+		// First, check without providing auxiliary data.
+		match self.engine.signals_epoch_end(verified_header, None, None) {
+			EpochChange::No => return Ok(None),
+			EpochChange::Yes(proof) => return Ok(Some(proof)),
+			EpochChange::Unsure(unsure) => {
+				let (b, r) = match unsure {
+					Unsure::NeedsBody =>
+						(Some(self.fetcher.block_body(verified_header)), None),
+					Unsure::NeedsReceipts =>
+						(None, Some(self.fetcher.block_receipts(verified_header))),
+					Unsure::NeedsBoth => (
+						Some(self.fetcher.block_body(verified_header)),
+						Some(self.fetcher.block_receipts(verified_header)),
+					),
+				};
+
+				if let Some(b) = b {
+					block = Some(b.into_future().wait()?.into_inner());
+				}
+
+				if let Some(r) = r {
+					receipts = Some(r.into_future().wait()?);
+				}
+			}
+		}
+
+		let block = block.as_ref().map(|x| &x[..]);
+		let receipts = receipts.as_ref().map(|x| &x[..]);
+
+		// Check again now that required data has been fetched.
+		match self.engine.signals_epoch_end(verified_header, block, receipts) {
+			EpochChange::No => return Ok(None),
+			EpochChange::Yes(proof) => return Ok(Some(proof)),
+			EpochChange::Unsure(_) =>
+				panic!("Detected faulty engine implementation: requests additional \
+					data to check epoch end signal when everything necessary provided"),
+		}
+	}
+
+	// attempts to fetch the epoch proof from the network until successful.
+	fn write_pending_proof(&self, header: &Header, proof: Proof) -> Result<(), T::Error> {
+		let proof = match proof {
+			Proof::Known(known) => known,
+			Proof::WithState(state_dependent) => {
+				self.fetcher.epoch_transition(
+					header.hash(),
+					self.engine.clone(),
+					state_dependent
+				).into_future().wait()?
+			}
+		};
+
+		let mut batch = self.db.transaction();
+		self.chain.insert_pending_transition(&mut batch, header.hash(), epoch::PendingTransition {
+			proof: proof,
+		});
+		self.db.write_buffered(batch);
+		Ok(())
+	}
 }
 
-impl LightChainClient for Client {
+impl<T: ChainDataFetcher> LightChainClient for Client<T> {
+	fn add_listener(&self, listener: Weak<LightChainNotify>) {
+		Client::add_listener(self, listener)
+	}
+
 	fn chain_info(&self) -> BlockChainInfo { Client::chain_info(self) }
 
 	fn queue_header(&self, header: Header) -> Result<H256, BlockImportError> {
@@ -482,11 +592,37 @@ impl LightChainClient for Client {
 		Client::cht_root(self, i)
 	}
 
-	fn eip86_transition(&self) -> u64 {
+	fn eip86_transition(&self) -> BlockNumber {
 		self.engine().params().eip86_transition
 	}
 
 	fn report(&self) -> ClientReport {
 		Client::report(self)
+	}
+}
+
+impl<T: ChainDataFetcher> ::ethcore::client::EngineClient for Client<T> {
+	fn update_sealing(&self) { }
+	fn submit_seal(&self, _block_hash: H256, _seal: Vec<Vec<u8>>) { }
+	fn broadcast_consensus_message(&self, _message: Vec<u8>) { }
+
+	fn epoch_transition_for(&self, parent_hash: H256) -> Option<EpochTransition> {
+		self.chain.epoch_transition_for(parent_hash).map(|(hdr, proof)| EpochTransition {
+			block_hash: hdr.hash(),
+			block_number: hdr.number(),
+			proof: proof,
+		})
+	}
+
+	fn chain_info(&self) -> BlockChainInfo {
+		Client::chain_info(self)
+	}
+
+	fn as_full_client(&self) -> Option<&::ethcore::client::BlockChainClient> {
+		None
+	}
+
+	fn block_number(&self, id: BlockId) -> Option<BlockNumber> {
+		self.block_header(id).map(|hdr| hdr.number())
 	}
 }

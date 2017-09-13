@@ -307,7 +307,7 @@ impl Filter {
 
 #[cfg(test)]
 mod tests {
-	use message::{CreateParams, Message};
+	use message::{CreateParams, Message, Topic};
 	use rpc::types::{FilterRequest, HexEncode};
 	use rpc::abridge_topic;
 	use super::*;
@@ -325,38 +325,40 @@ mod tests {
 
 	#[test]
 	fn basic_match() {
-		let topics = vec![vec![1, 2, 3], vec![4, 5, 6]];
+		let topics = vec![vec![1, 2, 3, 4], vec![5, 6, 7, 8]];
+		let abridged_topics: Vec<_> = topics.iter().map(|x| abridge_topic(&x)).collect();
+
 		let req = FilterRequest {
 			decrypt_with: Default::default(),
 			from: None,
-			topics: topics.iter().cloned().map(HexEncode).collect(),
+			topics: topics.into_iter().map(HexEncode).collect(),
 		};
 
 		let filter = Filter::new(req).unwrap();
 		let message = Message::create(CreateParams {
 			ttl: 100,
 			payload: vec![1, 3, 5, 7, 9],
-			topics: topics.iter().map(|x| abridge_topic(&x)).collect(),
+			topics: abridged_topics.clone(),
 			work: 0,
-		});
+		}).unwrap();
 
 		assert!(filter.basic_matches(&message));
 
 		let message = Message::create(CreateParams {
 			ttl: 100,
 			payload: vec![1, 3, 5, 7, 9],
-			topics: topics.iter().take(1).map(|x| abridge_topic(&x)).collect(),
+			topics: abridged_topics.clone(),
 			work: 0,
-		});
+		}).unwrap();
 
 		assert!(filter.basic_matches(&message));
 
 		let message = Message::create(CreateParams {
 			ttl: 100,
 			payload: vec![1, 3, 5, 7, 9],
-			topics: Vec::new(),
+			topics: vec![Topic([1, 8, 3, 99])],
 			work: 0,
-		});
+		}).unwrap();
 
 		assert!(!filter.basic_matches(&message));
 	}
@@ -365,6 +367,9 @@ mod tests {
 	fn decrypt_and_decode() {
 		use rpc::payload::{self, EncodeParams};
 		use rpc::key_store::{Key, KeyStore};
+
+		let topics = vec![vec![1, 2, 3, 4], vec![5, 6, 7, 8]];
+		let abridged_topics: Vec<_> = topics.iter().map(|x| abridge_topic(&x)).collect();
 
 		let mut store = KeyStore::new().unwrap();
 		let signing_pair = Key::new_asymmetric(store.rng());
@@ -386,24 +391,25 @@ mod tests {
 		let message = Message::create(CreateParams {
 			ttl: 100,
 			payload: encrypted,
-			topics: vec![abridge_topic(&[9; 32])],
+			topics: abridged_topics.clone(),
 			work: 0,
-		});
+		}).unwrap();
 
 		let message2 = Message::create(CreateParams {
 			ttl: 100,
 			payload: vec![3, 5, 7, 9],
-			topics: vec![abridge_topic(&[9; 32])],
+			topics: abridged_topics,
 			work: 0,
-		});
+		}).unwrap();
 
 		let filter = Filter::new(FilterRequest {
 			decrypt_with: Some(HexEncode(decrypt_id)),
 			from: Some(HexEncode(signing_pair.public().unwrap().clone())),
-			topics: vec![HexEncode(vec![9; 32])],
+			topics: topics.into_iter().map(HexEncode).collect(),
 		}).unwrap();
 
 		assert!(filter.basic_matches(&message));
+		assert!(filter.basic_matches(&message2));
 
 		let items = ::std::cell::Cell::new(0);
 		let on_match = |_| { items.set(items.get() + 1); };
