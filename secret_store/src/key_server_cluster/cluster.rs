@@ -32,7 +32,7 @@ use key_server_cluster::{Error, NodeId, SessionId, AclStorage, KeyStorage, KeySe
 use key_server_cluster::cluster_sessions::{ClusterSession, ClusterSessions, GenerationSessionWrapper, EncryptionSessionWrapper,
 	DecryptionSessionWrapper, SigningSessionWrapper};
 use key_server_cluster::message::{self, Message, ClusterMessage, GenerationMessage, EncryptionMessage, DecryptionMessage,
-	SigningMessage, ConsensusMessage};
+	SigningMessage, ServersSetChangeMessage, ConsensusMessage};
 use key_server_cluster::generation_session::{Session as GenerationSession, SessionState as GenerationSessionState};
 #[cfg(test)]
 use key_server_cluster::generation_session::SessionImpl as GenerationSessionImpl;
@@ -410,6 +410,7 @@ impl ClusterCore {
 			Message::Encryption(message) => ClusterCore::process_encryption_message(data, connection, message),
 			Message::Decryption(message) => ClusterCore::process_decryption_message(data, connection, message),
 			Message::Signing(message) => ClusterCore::process_signing_message(data, connection, message),
+			Message::ServersSetChange(message) => ClusterCore::process_servers_set_change_message(data, connection, message),
 			Message::Cluster(message) => ClusterCore::process_cluster_message(data, connection, message),
 		}
 	}
@@ -647,7 +648,7 @@ impl ClusterCore {
 		}
 	}
 
-	/// Process singlesigning message from the connection.
+	/// Process single signing message from the connection.
 	fn process_signing_message(data: Arc<ClusterData>, connection: Arc<Connection>, mut message: SigningMessage) {
 		let session_id = message.session_id().clone();
 		let sub_session_id = message.sub_session_id().clone();
@@ -725,6 +726,11 @@ impl ClusterCore {
 				},
 			}
 		}
+	}
+
+	/// Process singlesigning message from the connection.
+	fn process_servers_set_change_message(data: Arc<ClusterData>, connection: Arc<Connection>, mut message: ServersSetChangeMessage) {
+		unimplemented!()
 	}
 
 	/// Process single cluster message from the connection.

@@ -34,6 +34,8 @@ pub struct DocumentKeyShare {
 	pub threshold: usize,
 	/// Nodes ids numbers.
 	pub id_numbers: BTreeMap<NodeId, Secret>,
+	/// Polynom1. TODO: check that it is not empty when starting share add session!!!
+	pub polynom1: Vec<Secret>,
 	/// Node secret share.
 	pub secret_share: Secret,
 	/// Common (shared) encryption point.
@@ -91,6 +93,25 @@ struct SerializableDocumentKeyShareV1 {
 	pub encrypted_point: Option<SerializablePublic>,
 }
 
+/// V2 of encrypted key share, as it is stored by key storage on the single key server.
+#[derive(Serialize, Deserialize)]
+struct SerializableDocumentKeyShareV2 {
+	/// Authore of the entry.
+	pub author: SerializablePublic,
+	/// Decryption threshold (at least threshold + 1 nodes are required to decrypt data).
+	pub threshold: usize,
+	/// Nodes ids numbers.
+	pub id_numbers: BTreeMap<SerializablePublic, SerializableSecret>,
+	/// Polynom1.
+	pub polynom1: Vec<SerializableSecret>,
+	/// Node secret share.
+	pub secret_share: SerializableSecret,
+	/// Common (shared) encryption point.
+	pub common_point: Option<SerializablePublic>,
+	/// Encrypted point.
+	pub encrypted_point: Option<SerializablePublic>,
+}
+
 impl PersistentKeyStorage {
 	/// Create new persistent document encryption keys storage
 	pub fn new(config: &ServiceConfiguration) -> Result<Self, Error> {
@@ -116,24 +137,45 @@ fn upgrade_db(db: Database) -> Result<Database, Error> {
 			batch.put(None, DB_META_KEY_VERSION, &[1]);
 			for (db_key, db_value) in db.iter(None).into_iter().flat_map(|inner| inner) {
 				let v0_key = serde_json::from_slice::<SerializableDocumentKeyShareV0>(&db_value).map_err(|e| Error::Database(e.to_string()))?;
-				let v1_key = SerializableDocumentKeyShareV1 {
+				let v2_key = SerializableDocumentKeyShareV2 {
 					// author is used in separate generation + encrypt sessions.
 					// in v0 there have been only simultaneous GenEnc sessions.
-					author: Public::default().into(), 
+					author: Public::default().into(), // added in v1 
 					threshold: v0_key.threshold,
 					id_numbers: v0_key.id_numbers,
 					secret_share: v0_key.secret_share,
+					polynom1: Vec::new(), // added in v2
 					common_point: Some(v0_key.common_point),
 					encrypted_point: Some(v0_key.encrypted_point),
 				};
-				let db_value = serde_json::to_vec(&v1_key).map_err(|e| Error::Database(e.to_string()))?;
+				let db_value = serde_json::to_vec(&v2_key).map_err(|e| Error::Database(e.to_string()))?;
 				batch.put(None, &*db_key, &*db_value);
 			}
 			db.write(batch).map_err(Error::Database)?;
 			Ok(db)
 		},
-		1 => Ok(db),
-		_ => Err(Error::Database(format!("unsupported SecretStore database version:? {}", version))),
+		1 => {
+			let mut batch = db.transaction();
+			batch.put(None, DB_META_KEY_VERSION, &[2]);
+			for (db_key, db_value) in db.iter(None).into_iter().flat_map(|inner| inner) {
+				let v1_key = serde_json::from_slice::<SerializableDocumentKeyShareV1>(&db_value).map_err(|e| Error::Database(e.to_string()))?;
+				let v2_key = SerializableDocumentKeyShareV2 {
+					author: v1_key.author, // added in v1
+					threshold: v1_key.threshold,
+					id_numbers: v1_key.id_numbers,
+					secret_share: v1_key.secret_share,
+					polynom1: Vec::new(), // added in v2
+					common_point: v1_key.common_point,
+					encrypted_point: v1_key.encrypted_point,
+				};
+				let db_value = serde_json::to_vec(&v2_key).map_err(|e| Error::Database(e.to_string()))?;
+				batch.put(None, &*db_key, &*db_value);
+			}
+			db.write(batch).map_err(Error::Database)?;
+			Ok(db)
+		}
+		2 => Ok(db),
+		_ => Err(Error::Database(format!("unsupported SecretStore database version: {}", version))),
 	}
 }
 
@@ -166,6 +208,20 @@ impl KeyStorage for PersistentKeyStorage {
 	}
 }
 
+impl From<DocumentKeyShare> for SerializableDocumentKeyShareV2 {
+	fn from(key: DocumentKeyShare) -> Self {
+		SerializableDocumentKeyShareV2 {
+			author: key.author.into(),
+			threshold: key.threshold,
+			id_numbers: key.id_numbers.into_iter().map(|(k, v)| (k.into(), v.into())).collect(),
+			secret_share: key.secret_share.into(),
+			polynom1: key.polynom1.into_iter().map(Into::into).collect(),
+			common_point: key.common_point.map(Into::into),
+			encrypted_point: key.encrypted_point.map(Into::into),
+		}
+	}
+}
+
 impl From<DocumentKeyShare> for SerializableDocumentKeyShareV1 {
 	fn from(key: DocumentKeyShare) -> Self {
 		SerializableDocumentKeyShareV1 {
@@ -186,6 +242,7 @@ impl From<SerializableDocumentKeyShareV1> for DocumentKeyShare {
 			threshold: key.threshold,
 			id_numbers: key.id_numbers.into_iter().map(|(k, v)| (k.into(), v.into())).collect(),
 			secret_share: key.secret_share.into(),
+			polynom1: Vec::new(),
 			common_point: key.common_point.map(Into::into),
 			encrypted_point: key.encrypted_point.map(Into::into),
 		}
@@ -256,6 +313,7 @@ pub mod tests {
 				(Random.generate().unwrap().public().clone(), Random.generate().unwrap().secret().clone())
 			].into_iter().collect(),
 			secret_share: Random.generate().unwrap().secret().clone(),
+			polynom1: Vec::new(),
 			common_point: Some(Random.generate().unwrap().public().clone()),
 			encrypted_point: Some(Random.generate().unwrap().public().clone()),
 		};
@@ -267,6 +325,7 @@ pub mod tests {
 				(Random.generate().unwrap().public().clone(), Random.generate().unwrap().secret().clone())
 			].into_iter().collect(),
 			secret_share: Random.generate().unwrap().secret().clone(),
+			polynom1: Vec::new(),
 			common_point: Some(Random.generate().unwrap().public().clone()),
 			encrypted_point: Some(Random.generate().unwrap().public().clone()),
 		};
@@ -323,5 +382,10 @@ pub mod tests {
 		assert_eq!("00125d85a05e5e63e214cb60fe63f132eec8a103aa29266b7e6e6c5b7597230b".parse::<Secret>().unwrap(), key.secret_share.into());
 		assert_eq!(Some("99e82b163b062d55a64085bacfd407bb55f194ba5fb7a1af9c34b84435455520f1372e0e650a4f91aed0058cb823f62146ccb5599c8d13372c300dea866b69fc".parse::<Public>().unwrap()), key.common_point.clone().map(Into::into));
 		assert_eq!(Some("7e05df9dd077ec21ed4bc45c9fe9e0a43d65fa4be540630de615ced5e95cf5c3003035eb713317237d7667feeeb64335525158f5f7411f67aca9645169ea554c".parse::<Public>().unwrap()), key.encrypted_point.clone().map(Into::into));
+	}
+
+	#[test]
+	fn upgrade_db_1_to_2() {
+		// TODO
 	}
 }

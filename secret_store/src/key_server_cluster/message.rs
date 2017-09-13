@@ -36,6 +36,8 @@ pub enum Message {
 	Decryption(DecryptionMessage),
 	/// Signing message.
 	Signing(SigningMessage),
+	/// Servers set change message.
+	ServersSetChange(ServersSetChangeMessage),
 }
 
 /// All possible cluster-level messages.
@@ -120,6 +122,78 @@ pub enum SigningMessage {
 	SigningSessionError(SigningSessionError),
 	/// Signing session completed.
 	SigningSessionCompleted(SigningSessionCompleted),
+}
+
+/// All possible messages that can be sent during servers set change session.
+#[derive(Clone, Debug)]
+pub enum ServersSetChangeMessage {
+	/// Consensus establishing message.
+	ServersSetChangeConsensusMessage(ServersSetChangeConsensusMessage),
+	/// Unknown sessions ids.
+	UnknownSessions(UnknownSessions),
+	/// Unknown session details request.
+	UnknownSessionDetailsRequest(UnknownSessionDetailsRequest),
+	/// Unknown session details.
+	UnknownSessionDetails(UnknownSessionDetails),
+	/// Share add message.
+	ServersSetChangeShareAddMessage(ServersSetChangeShareAddMessage),
+	/// Share move message.
+	ServersSetChangeShareMoveMessage(ServersSetChangeShareMoveMessage),
+	/// Share remove message.
+	ServersSetChangeShareRemoveMessage(ServersSetChangeShareRemoveMessage),
+	/// Servers set change session completed.
+	ServersSetChangeError(ServersSetChangeError),
+	/// Servers set change session completed.
+	ServersSetChangeCompleted(ServersSetChangeCompleted),
+}
+
+/// All possible messages that can be sent during share add session.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum ShareAddMessage {
+	/// Initialize share add session.
+	InitializeShareAddSession(InitializeShareAddSession),
+	/// Confirm initialization of share add session.
+	ConfirmShareAddInitialization(ConfirmShareAddInitialization),
+	/// Common key share data is sent to new node.
+	KeyShareCommon(KeyShareCommon),
+	/// Absolute term share of secret polynom is sent to new node.
+	NewAbsoluteTermShare(NewAbsoluteTermShare),
+	/// Generated keys are sent to every node.
+	NewKeysDissemination(NewKeysDissemination),
+	/// When session error has occured.
+	ShareAddError(ShareAddError),
+}
+
+/// All possible messages that can be sent during share move session.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum ShareMoveMessage {
+	/// Initialize share move session.
+	InitializeShareMoveSession(InitializeShareMoveSession),
+	/// Consensus establishing message.
+	ShareMoveConsensusMessage(ShareMoveConsensusMessage),
+	/// Share move.
+	ShareMove(ShareMove),
+	/// Share move confirmation.
+	ShareMoveConfirm(ShareMoveConfirm),
+	/// When session error has occured.
+	ShareMoveError(ShareMoveError),
+	/// When session is completed.
+	ShareMoveCompleted(ShareMoveCompleted),
+}
+
+/// All possible messages that can be sent during share remove session.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum ShareRemoveMessage {
+	/// Initialize share remove session.
+	InitializeShareRemoveSession(InitializeShareRemoveSession),
+	/// Consensus establishing message.
+	ShareRemoveConsensusMessage(ShareRemoveConsensusMessage),
+	/// Share remove.
+	ShareRemove(ShareRemove),
+	/// When session error has occured.
+	ShareRemoveError(ShareRemoveError),
+	/// When session is completed.
+	ShareRemoveCompleted(ShareRemoveCompleted),
 }
 
 /// Introduce node public key.
@@ -226,7 +300,7 @@ pub struct SessionError {
 	pub session: MessageSessionId,
 	/// Session-level nonce.
 	pub session_nonce: u64,
-	/// Public key share.
+	/// Error message.
 	pub error: String,
 }
 
@@ -355,7 +429,7 @@ pub struct SigningSessionError {
 	pub sub_session: SerializableSecret,
 	/// Session-level nonce.
 	pub session_nonce: u64,
-	/// Error description.
+	/// Error message.
 	pub error: String,
 }
 
@@ -427,7 +501,7 @@ pub struct DecryptionSessionError {
 	pub sub_session: SerializableSecret,
 	/// Session-level nonce.
 	pub session_nonce: u64,
-	/// Public key share.
+	/// Error message.
 	pub error: String,
 }
 
@@ -437,6 +511,322 @@ pub struct DecryptionSessionCompleted {
 	/// Encryption session Id.
 	pub session: MessageSessionId,
 	/// Decryption session Id.
+	pub sub_session: SerializableSecret,
+	/// Session-level nonce.
+	pub session_nonce: u64,
+}
+
+/// Consensus-related servers set change message.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ServersSetChangeConsensusMessage {
+	/// Servers set change session Id.
+	pub session: MessageSessionId,
+	/// Session-level nonce.
+	pub session_nonce: u64,
+	/// Consensus message.
+	pub message: ConsensusMessage,
+}
+
+/// Unknown sessions ids.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct UnknownSessions {
+	/// Servers set change session Id.
+	pub session: MessageSessionId,
+	/// Session-level nonce.
+	pub session_nonce: u64,
+	/// Unknown sessions ids.
+	pub unknown_sessions: BTreeSet<MessageSessionId>,
+}
+
+/// Unknown session details request.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct UnknownSessionDetailsRequest {
+	/// Servers set change session Id.
+	pub session: MessageSessionId,
+	/// Session-level nonce.
+	pub session_nonce: u64,
+	/// Unknown session id.
+	pub unknown_sessions: BTreeSet<MessageSessionId>,
+}
+
+/// Unknown session details.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct UnknownSessionDetails {
+	/// Servers set change session Id.
+	pub session: MessageSessionId,
+	/// Session-level nonce.
+	pub session_nonce: u64,
+	/// Unknown session id.
+	pub unknown_session_details: BTreeSet<MessageNodeId>,
+}
+
+/// Servers set change share add message.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ServersSetChangeShareAddMessage {
+	/// Servers set change session Id.
+	pub session: MessageSessionId,
+	/// Session-level nonce.
+	pub session_nonce: u64,
+	/// Unknown session id.
+	pub message: ShareAddMessage,
+}
+
+/// Servers set change share move message.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ServersSetChangeShareMoveMessage {
+	/// Servers set change session Id.
+	pub session: MessageSessionId,
+	/// Session-level nonce.
+	pub session_nonce: u64,
+	/// Unknown session id.
+	pub message: ShareMoveMessage,
+}
+
+/// Servers set change share remove message.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ServersSetChangeShareRemoveMessage {
+	/// Servers set change session Id.
+	pub session: MessageSessionId,
+	/// Session-level nonce.
+	pub session_nonce: u64,
+	/// Unknown session id.
+	pub message: ShareRemoveMessage,
+}
+
+/// When servers set change session error has occured.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ServersSetChangeError {
+	/// Servers set change session Id.
+	pub session: MessageSessionId,
+	/// Session-level nonce.
+	pub session_nonce: u64,
+	/// Error message.
+	pub error: String,
+}
+
+/// When servers set change session is completed.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ServersSetChangeCompleted {
+	/// Servers set change session Id.
+	pub session: MessageSessionId,
+	/// Session-level nonce.
+	pub session_nonce: u64,
+}
+
+/// Initialize new share add session.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct InitializeShareAddSession {
+	/// Generation session Id.
+	pub session: MessageSessionId,
+	/// Share add session Id.
+	pub sub_session: SerializableSecret,
+	/// Session-level nonce.
+	pub session_nonce: u64,
+	/// Threshold.
+	pub threshold: usize,
+	/// Updated key shares nodes set.
+	pub nodes: BTreeMap<MessageNodeId, SerializableSecret>,
+	/// New nodes ids.
+	pub new_nodes: BTreeSet<MessageNodeId>,
+}
+
+/// Confirm initialization of share add session.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ConfirmShareAddInitialization {
+	/// Generation session Id.
+	pub session: MessageSessionId,
+	/// Share add session Id.
+	pub sub_session: SerializableSecret,
+	/// Session-level nonce.
+	pub session_nonce: u64,
+}
+
+/// Key share common data is passed to new node.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct KeyShareCommon {
+	/// Generation session Id.
+	pub session: MessageSessionId,
+	/// Share add session Id.
+	pub sub_session: SerializableSecret,
+	/// Session-level nonce.
+	pub session_nonce: u64,
+	/// Author of key share entry.
+	pub author: SerializablePublic,
+	/// Common (shared) encryption point.
+	pub common_point: Option<SerializablePublic>,
+	/// Encrypted point.
+	pub encrypted_point: Option<SerializablePublic>,
+}
+
+/// Absolute term share is passed to new node.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct NewAbsoluteTermShare {
+	/// Generation session Id.
+	pub session: MessageSessionId,
+	/// Share add session Id.
+	pub sub_session: SerializableSecret,
+	/// Session-level nonce.
+	pub session_nonce: u64,
+	/// Absolute term share.
+	pub absolute_term_share: SerializableSecret,
+}
+
+/// Generated keys are sent to every node.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct NewKeysDissemination {
+	/// Generation session Id.
+	pub session: MessageSessionId,
+	/// Share add session Id.
+	pub sub_session: SerializableSecret,
+	/// Session-level nonce.
+	pub session_nonce: u64,
+	/// Refreshed secret1 value.
+	pub refreshed_secret1: SerializableSecret,
+	/// Refreshed public values.
+	pub refreshed_publics: Vec<SerializablePublic>,
+}
+
+/// When share add session error has occured.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ShareAddError {
+	/// Generation session Id.
+	pub session: MessageSessionId,
+	/// Share add session Id.
+	pub sub_session: SerializableSecret,
+	/// Session-level nonce.
+	pub session_nonce: u64,
+	/// Error message.
+	pub error: String,
+}
+
+/// Initialize new share move session.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct InitializeShareMoveSession {
+	/// Generation session Id.
+	pub session: MessageSessionId,
+	/// Share move session Id.
+	pub sub_session: SerializableSecret,
+	/// Session-level nonce.
+	pub session_nonce: u64,
+	/// Nodes pairs to move shares between.
+	pub nodes_pairs: BTreeMap<MessageNodeId, MessageNodeId>,
+}
+
+/// Consensus-related share-move message.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ShareMoveConsensusMessage {
+	/// Generation session Id.
+	pub session: MessageSessionId,
+	/// Share move session Id.
+	pub sub_session: SerializableSecret,
+	/// Session-level nonce.
+	pub session_nonce: u64,
+	/// Consensus message.
+	pub message: ConsensusMessage,
+}
+
+/// Share is moved from source to destination.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ShareMove {
+	/// Generation session Id.
+	pub session: MessageSessionId,
+	/// Share move session Id.
+	pub sub_session: SerializableSecret,
+	/// Session-level nonce.
+	pub session_nonce: u64,
+
+	// TODO: share fields
+}
+
+/// Share move is confirmed (destination node confirms to all other nodes).
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ShareMoveConfirm {
+	/// Generation session Id.
+	pub session: MessageSessionId,
+	/// Share move session Id.
+	pub sub_session: SerializableSecret,
+}
+
+/// When share move session error has occured.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ShareMoveError {
+	/// Generation session Id.
+	pub session: MessageSessionId,
+	/// Share move session Id.
+	pub sub_session: SerializableSecret,
+	/// Session-level nonce.
+	pub session_nonce: u64,
+	/// Error message.
+	pub error: String,
+}
+
+/// When share move session is completed.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ShareMoveCompleted {
+	/// Generation session Id.
+	pub session: MessageSessionId,
+	/// Share move session Id.
+	pub sub_session: SerializableSecret,
+	/// Session-level nonce.
+	pub session_nonce: u64,
+}
+
+/// Initialize new share remove session.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct InitializeShareRemoveSession {
+	/// Generation session Id.
+	pub session: MessageSessionId,
+	/// Share remove session Id.
+	pub sub_session: SerializableSecret,
+	/// Session-level nonce.
+	pub session_nonce: u64,
+	/// Nodes to remove from session.
+	pub nodes_to_remove: BTreeSet<MessageNodeId>,
+}
+
+/// Consensus-related share-remove message.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ShareRemoveConsensusMessage {
+	/// Generation session Id.
+	pub session: MessageSessionId,
+	/// Share remove session Id.
+	pub sub_session: SerializableSecret,
+	/// Session-level nonce.
+	pub session_nonce: u64,
+	/// Consensus message.
+	pub message: ConsensusMessage,
+}
+
+/// Share is removed.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ShareRemove {
+	/// Generation session Id.
+	pub session: MessageSessionId,
+	/// Share move session Id.
+	pub sub_session: SerializableSecret,
+	/// Session-level nonce.
+	pub session_nonce: u64,
+}
+
+/// When share remove session error has occured.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ShareRemoveError {
+	/// Generation session Id.
+	pub session: MessageSessionId,
+	/// Share remove session Id.
+	pub sub_session: SerializableSecret,
+	/// Session-level nonce.
+	pub session_nonce: u64,
+	/// Error message.
+	pub error: String,
+}
+
+/// When share remove session is completed.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ShareRemoveCompleted {
+	/// Generation session Id.
+	pub session: MessageSessionId,
+	/// Share remove session Id.
 	pub sub_session: SerializableSecret,
 	/// Session-level nonce.
 	pub session_nonce: u64,
@@ -553,6 +943,19 @@ impl SigningMessage {
 	}
 }
 
+impl ShareAddMessage {
+	pub fn session_nonce(&self) -> u64 {
+		match *self {
+			ShareAddMessage::InitializeShareAddSession(ref msg) => msg.session_nonce,
+			ShareAddMessage::ConfirmShareAddInitialization(ref msg) => msg.session_nonce,
+			ShareAddMessage::KeyShareCommon(ref msg) => msg.session_nonce,
+			ShareAddMessage::NewAbsoluteTermShare(ref msg) => msg.session_nonce,
+			ShareAddMessage::NewKeysDissemination(ref msg) => msg.session_nonce,
+			ShareAddMessage::ShareAddError(ref msg) => msg.session_nonce,
+		}
+	}
+}
+
 impl fmt::Display for Message {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match *self {
@@ -561,6 +964,7 @@ impl fmt::Display for Message {
 			Message::Encryption(ref message) => write!(f, "Encryption.{}", message),
 			Message::Decryption(ref message) => write!(f, "Decryption.{}", message),
 			Message::Signing(ref message) => write!(f, "Signing.{}", message),
+			Message::ServersSetChange(ref message) => write!(f, "ServersSetChange.{}", message),
 		}
 	}
 }
@@ -630,6 +1034,61 @@ impl fmt::Display for SigningMessage {
 			SigningMessage::PartialSignature(_) => write!(f, "PartialSignature"),
 			SigningMessage::SigningSessionError(_) => write!(f, "SigningSessionError"),
 			SigningMessage::SigningSessionCompleted(_) => write!(f, "SigningSessionCompleted"),
+		}
+	}
+}
+
+impl fmt::Display for ServersSetChangeMessage {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		match *self {
+			ServersSetChangeMessage::ServersSetChangeConsensusMessage(ref m) => write!(f, "ServersSetChangeConsensusMessage.{}", m.message),
+			ServersSetChangeMessage::UnknownSessions(_) => write!(f, "UnknownSessions"),
+			ServersSetChangeMessage::UnknownSessionDetailsRequest(_) => write!(f, "UnknownSessionDetailsRequest"),
+			ServersSetChangeMessage::UnknownSessionDetails(_) => write!(f, "UnknownSessionDetails"),
+			ServersSetChangeMessage::ServersSetChangeShareAddMessage(ref m) => write!(f, "ServersSetChangeShareAddMessage.{}", m.message),
+			ServersSetChangeMessage::ServersSetChangeShareMoveMessage(ref m) => write!(f, "ServersSetChangeShareMoveMessage.{}", m.message),
+			ServersSetChangeMessage::ServersSetChangeShareRemoveMessage(ref m) => write!(f, "ServersSetChangeShareRemoveMessage.{}", m.message),
+			ServersSetChangeMessage::ServersSetChangeError(_) => write!(f, "ServersSetChangeError"),
+			ServersSetChangeMessage::ServersSetChangeCompleted(_) => write!(f, "ServersSetChangeCompleted"),
+		}
+	}
+}
+
+impl fmt::Display for ShareAddMessage {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		match *self {
+			ShareAddMessage::InitializeShareAddSession(_) => write!(f, "InitializeShareAddSession"),
+			ShareAddMessage::ConfirmShareAddInitialization(_) => write!(f, "ConfirmShareAddInitialization"),
+			ShareAddMessage::KeyShareCommon(_) => write!(f, "KeyShareCommon"),
+			ShareAddMessage::NewAbsoluteTermShare(_) => write!(f, "NewAbsoluteTermShare"),
+			ShareAddMessage::NewKeysDissemination(_) => write!(f, "NewKeysDissemination"),
+			ShareAddMessage::ShareAddError(_) => write!(f, "ShareAddError"),
+
+		}
+	}
+}
+
+impl fmt::Display for ShareMoveMessage {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		match *self {
+			ShareMoveMessage::InitializeShareMoveSession(_) => write!(f, "InitializeShareMoveSession"),
+			ShareMoveMessage::ShareMoveConsensusMessage(ref m) => write!(f, "ShareMoveConsensusMessage.{}", m.message),
+			ShareMoveMessage::ShareMove(_) => write!(f, "ShareMove"),
+			ShareMoveMessage::ShareMoveConfirm(_) => write!(f, "ShareMoveConfirm"),
+			ShareMoveMessage::ShareMoveError(_) => write!(f, "ShareMoveError"),
+			ShareMoveMessage::ShareMoveCompleted(_) => write!(f, "ShareMoveCompleted"),
+		}
+	}
+}
+
+impl fmt::Display for ShareRemoveMessage {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		match *self {
+			ShareRemoveMessage::InitializeShareRemoveSession(_) => write!(f, "InitializeShareRemoveSession"),
+			ShareRemoveMessage::ShareRemoveConsensusMessage(ref m) => write!(f, "ShareRemoveConsensusMessage.{}", m.message),
+			ShareRemoveMessage::ShareRemove(_) => write!(f, "ShareRemove"),
+			ShareRemoveMessage::ShareRemoveError(_) => write!(f, "ShareRemoveError"),
+			ShareRemoveMessage::ShareRemoveCompleted(_) => write!(f, "ShareRemoveCompleted"),
 		}
 	}
 }
