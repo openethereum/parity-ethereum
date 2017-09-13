@@ -419,7 +419,7 @@ fn storage_read() {
 }
 
 // Tests keccak calculation
-// keccak.wasm runs keccak wasm-std function for an empty string and puts hash into result
+// keccak.wasm runs wasm-std::keccak function on data param and returns hash
 #[test]
 fn keccak() {
 	::ethcore_logger::init_log();
@@ -428,6 +428,7 @@ fn keccak() {
 	let mut params = ActionParams::default();
 	params.gas = U256::from(100_000);
 	params.code = Some(Arc::new(code));
+	params.data = Some(b"something".to_vec());
 	let mut ext = FakeExt::new();
 
 	let (gas_left, result) = {
@@ -439,8 +440,8 @@ fn keccak() {
 		}
 	};
 
-	assert_eq!(H256::from_slice(&result), H256::from("c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"));
-	assert_eq!(gas_left, U256::from(84240));
+	assert_eq!(H256::from_slice(&result), H256::from("68371d7e884c168ae2022c82bd837d51837718a7f7dfb7aa3f753074a35e1d87"));
+	assert_eq!(gas_left, U256::from(84003));
 }
 
 
