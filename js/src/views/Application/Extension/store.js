@@ -39,7 +39,6 @@ export default class Store {
 
   constructor () {
     this.nextDisplay = store.get(NEXT_DISPLAY) || 0;
-    this.testInstall();
   }
 
   @computed get showWarning () {
@@ -59,11 +58,12 @@ export default class Store {
     store.set(NEXT_DISPLAY, this.nextDisplay);
   }
 
-  @action testInstall = () => {
-    this.readStatus()
-      .then(status => {
-        this.shouldInstall = status;
-      });
+  @action setShouldInstall = (status) => {
+    this.shouldInstall = status;
+  }
+
+  testInstall = () => {
+    this.readStatus().then(this.setShouldInstall);
   }
 
   readStatus = () => {
