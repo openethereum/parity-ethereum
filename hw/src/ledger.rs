@@ -112,7 +112,7 @@ impl Manager {
 			if device.vendor_id != LEDGER_VID || !LEDGER_PIDS.contains(&device.product_id) {
 				continue;
 			}
-			match self.read_device_info(&device) {
+			match self.read_device_info(&usb, &device) {
 				Ok(info) => {
 					debug!("Found device: {:?}", info);
 					if !self.devices.iter().any(|d| d.path == info.path) {
@@ -133,8 +133,7 @@ impl Manager {
 		self.key_path = key_path;
 	}
 
-	fn read_device_info(&self, dev_info: &hidapi::HidDeviceInfo) -> Result<Device, Error> {
-		let usb = self.usb.lock();
+	fn read_device_info(&self, usb: &hidapi::HidApi, dev_info: &hidapi::HidDeviceInfo) -> Result<Device, Error> {
 		let mut handle = self.open_path(|| usb.open_path(&dev_info.path))?;
 		let address = Self::read_wallet_address(&mut handle, self.key_path)?;
 		let manufacturer = dev_info.manufacturer_string.clone().unwrap_or("Unknown".to_owned());
