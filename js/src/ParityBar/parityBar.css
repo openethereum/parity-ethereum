@@ -15,8 +15,6 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-@import './_colors.css';
-
 $overlayZ: 10000;
 $modalZ: 10001;
 
@@ -126,8 +124,6 @@ $modalZ: 10001;
 
 .cornercolor {
   align-items: center;
-  background: $backgroundColor;
-  background: $backgroundGradient;
   display: flex;
   padding: 0.5em 1em;
 }
@@ -195,8 +191,6 @@ $modalZ: 10001;
 .header {
   /* height: 2em; */
   padding: 0.5em 1em;
-  background: $backgroundColor;
-  background: $backgroundGradient;
   margin-bottom: 0;
 
   &::after {

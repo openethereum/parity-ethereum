@@ -22,6 +22,7 @@ import store from 'store';
 
 import Button from '@parity/ui/Button';
 import Checkbox from '@parity/ui/Form/Checkbox';
+import GradientBg from '@parity/ui/GradientBg';
 import StatusIndicator from '@parity/ui/StatusIndicator';
 
 import styles from './syncWarning.css';
@@ -61,7 +62,7 @@ class SyncWarning extends Component {
       <div>
         <div className={ styles.overlay } />
         <div className={ styles.modal }>
-          <div className={ styles.body }>
+          <GradientBg className={ styles.body }>
             <div className={ styles.status }>
               <StatusIndicator
                 type='signal'
@@ -97,7 +98,7 @@ class SyncWarning extends Component {
                 onClick={ this.handleAgreeClick }
               />
             </div>
-          </div>
+          </GradientBg>
         </div>
       </div>
     );

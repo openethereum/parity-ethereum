@@ -21,6 +21,7 @@ import { FormattedMessage } from 'react-intl';
 
 import BlockNumber from '@parity/ui/BlockNumber';
 import ClientVersion from '@parity/ui/ClientVersion';
+import GradientBg from '@parity/ui/GradientBg';
 import NetChain from '@parity/ui/NetChain';
 import NetPeers from '@parity/ui/NetPeers';
 import StatusIndicator from '@parity/ui/StatusIndicator';
@@ -35,7 +36,7 @@ const pluginStore = PluginStore.get();
 
 function Status ({ className = '', upgradeStore }, { api }) {
   return (
-    <div className={ [styles.status, className].join(' ') }>
+    <GradientBg className={ [styles.status, className].join(' ') }>
       <ClientVersion className={ styles.version } />
       <div className={ styles.upgrade }>
         <Consensus upgradeStore={ upgradeStore } />
@@ -68,7 +69,7 @@ function Status ({ className = '', upgradeStore }, { api }) {
         />
         <NetChain />
       </div>
-    </div>
+    </GradientBg>
   );
 }
 

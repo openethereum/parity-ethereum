@@ -29,6 +29,7 @@ import Badge from '@parity/ui/Badge';
 import Button from '@parity/ui/Button';
 import ContainerTitle from '@parity/ui/Container/Title';
 import IdentityIcon from '@parity/ui/IdentityIcon';
+import GradientBg from '@parity/ui/GradientBg';
 import SelectionList from '@parity/ui/SectionList';
 import StatusIndicator from '@parity/ui/StatusIndicator';
 import { CancelIcon, FingerprintIcon } from '@parity/ui/Icons';
@@ -226,7 +227,7 @@ class ParityBar extends Component {
     }
 
     return (
-      <div className={ styles.cornercolor }>
+      <GradientBg className={ styles.cornercolor }>
         <StatusIndicator
           id='paritybar.health'
           tooltipPlacement='right'
@@ -271,7 +272,7 @@ class ParityBar extends Component {
           onClick={ this.toggleSignerDisplay }
         />
         { this.renderDrag() }
-      </div>
+      </GradientBg>
     );
   }
 
@@ -322,7 +323,7 @@ class ParityBar extends Component {
 
     return (
       <div className={ styles.container }>
-        <div className={ styles.header }>
+        <GradientBg className={ styles.header }>
           <div className={ styles.title }>
             <ContainerTitle
               title={
@@ -354,7 +355,7 @@ class ParityBar extends Component {
               onClick={ this.toggleSignerDisplay }
             />
           </div>
-        </div>
+        </GradientBg>
         <div className={ styles.content }>
           {
             displayType === DISPLAY_ACCOUNTS

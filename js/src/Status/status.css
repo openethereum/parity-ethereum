@@ -15,14 +15,10 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-@import '../ParityBar/_colors.css';
-
 $textColor: #ccc;
 
 .status {
   align-items: center;
-  background: $backgroundColor;
-  background: $backgroundGradient;
   bottom: 0;
   color: $textColor;
   display: flex;

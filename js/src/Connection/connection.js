@@ -19,6 +19,7 @@ import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import PropTypes from 'prop-types';
 
+import GradientBg from '@parity/ui/GradientBg';
 import Input from '@parity/ui/Form/Input';
 import { CompareIcon, ComputerIcon, DashboardIcon, VpnIcon } from '@parity/ui/Icons';
 
@@ -52,7 +53,7 @@ class Connection extends Component {
       <div>
         <div className={ styles.overlay } />
         <div className={ styles.modal }>
-          <div className={ styles.body }>
+          <GradientBg className={ styles.body }>
             <div className={ styles.icons }>
               <div className={ styles.icon }>
                 <ComputerIcon className={ styles.svg } />
@@ -73,7 +74,7 @@ class Connection extends Component {
                 ? this.renderSigner()
                 : this.renderPing()
             }
-          </div>
+          </GradientBg>
         </div>
       </div>
     );
