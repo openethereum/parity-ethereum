@@ -30,6 +30,8 @@ use key_server_cluster::message::{Message, ClusterMessage, GenerationMessage, En
 
 /// Size of serialized header.
 pub const MESSAGE_HEADER_SIZE: usize = 4;
+/// Current header version.
+pub const CURRENT_HEADER_VERSION: u8 = 1;
 
 /// Message header.
 #[derive(Debug, PartialEq)]
@@ -97,7 +99,7 @@ pub fn serialize_message(message: Message) -> Result<SerializedMessage, Error> {
 	let payload = payload.map_err(|err| Error::Serde(err.to_string()))?;
 	build_serialized_message(MessageHeader {
 		kind: message_kind,
-		version: 1,
+		version: CURRENT_HEADER_VERSION,
 		size: 0,
 	}, payload)
 }
@@ -177,8 +179,13 @@ fn serialize_header(header: &MessageHeader) -> Result<Vec<u8>, Error> {
 /// Deserialize message header.
 pub fn deserialize_header(data: &[u8]) -> Result<MessageHeader, Error> {
 	let mut reader = Cursor::new(data);
+	let version = reader.read_u8()?;
+	if version != CURRENT_HEADER_VERSION {
+		return Err(Error::InvalidMessageVersion);
+	}
+
 	Ok(MessageHeader {
-		version: reader.read_u8()?,
+		version: version,
 		kind: reader.read_u8()?,
 		size: reader.read_u16::<LittleEndian>()?,
 	})
@@ -202,25 +209,34 @@ pub mod tests {
 	use std::io;
 	use futures::Poll;
 	use tokio_io::{AsyncRead, AsyncWrite};
-	use ethkey::{KeyPair, Public};
+	use ethkey::{Random, Generator, KeyPair};
 	use ethcrypto::ecdh::agree;
+	use key_server_cluster::Error;
 	use key_server_cluster::message::Message;
-	use super::{MESSAGE_HEADER_SIZE, MessageHeader, fix_shared_key, encrypt_message, serialize_message,
-		serialize_header, deserialize_header};
+	use super::{MESSAGE_HEADER_SIZE, CURRENT_HEADER_VERSION, MessageHeader, fix_shared_key, encrypt_message,
+		serialize_message, serialize_header, deserialize_header};
 
 	pub struct TestIo {
 		self_key_pair: KeyPair,
-		peer_public: Public,
+		self_session_key_pair: KeyPair,
+		peer_key_pair: KeyPair,
+		peer_session_key_pair: KeyPair,
 		shared_key_pair: KeyPair,
 		input_buffer: io::Cursor<Vec<u8>>,
 	}
 
 	impl TestIo {
-		pub fn new(self_key_pair: KeyPair, peer_public: Public) -> Self {
-			let shared_key_pair = fix_shared_key(&agree(self_key_pair.secret(), &peer_public).unwrap()).unwrap();
+		pub fn new() -> Self {
+			let self_session_key_pair = Random.generate().unwrap();
+			let peer_session_key_pair = Random.generate().unwrap();
+			let self_key_pair = Random.generate().unwrap();
+			let peer_key_pair = Random.generate().unwrap();
+			let shared_key_pair = fix_shared_key(&agree(self_session_key_pair.secret(), peer_session_key_pair.public()).unwrap()).unwrap();
 			TestIo {
 				self_key_pair: self_key_pair,
-				peer_public: peer_public,
+				self_session_key_pair: self_session_key_pair,
+				peer_key_pair: peer_key_pair,
+				peer_session_key_pair: peer_session_key_pair,
 				shared_key_pair: shared_key_pair,
 				input_buffer: io::Cursor::new(Vec::new()),
 			}
@@ -230,8 +246,20 @@ pub mod tests {
 			&self.self_key_pair
 		}
 
-		pub fn peer_public(&self) -> &Public {
-			&self.peer_public
+		pub fn self_session_key_pair(&self) -> &KeyPair {
+			&self.self_session_key_pair
+		}
+
+		pub fn peer_key_pair(&self) -> &KeyPair {
+			&self.peer_key_pair
+		}
+
+		pub fn peer_session_key_pair(&self) -> &KeyPair {
+			&self.peer_session_key_pair
+		}
+
+		pub fn shared_key_pair(&self) -> &KeyPair {
+			&self.shared_key_pair
 		}
 
 		pub fn add_input_message(&mut self, message: Message) {
@@ -281,7 +309,7 @@ pub mod tests {
 	fn header_serialization_works() {
 		let header = MessageHeader {
 			kind: 1,
-			version: 2,
+			version: CURRENT_HEADER_VERSION,
 			size: 3,
 		};
 
@@ -290,5 +318,16 @@ pub mod tests {
 
 		let deserialized_header = deserialize_header(&serialized_header).unwrap();
 		assert_eq!(deserialized_header, header);
+	}
+
+	#[test]
+	fn deserializing_header_of_wrong_version_fails() {
+		let header = MessageHeader {
+			kind: 1,
+			version: CURRENT_HEADER_VERSION + 1,
+			size: 3,
+		};
+
+		assert_eq!(deserialize_header(&serialize_header(&header).unwrap()).unwrap_err(), Error::InvalidMessageVersion);
 	}
 }
