@@ -24,15 +24,15 @@ use key_server_cluster::math;
 use key_server_cluster::jobs::job_session::{JobPartialRequestAction, JobPartialResponseAction, JobExecutor};
 
 /// Unknown sessions report job.
-pub struct UnknownSessionsJob {
+pub struct UnknownSessionsJob<'a> {
 	/// Target node id.
 	target_node_id: Option<NodeId>,
 	/// Keys storage.
-	key_storage: Option<Arc<KeyStorage>>,
+	key_storage: Option<Arc<KeyStorage + 'a>>,
 }
 
-impl UnknownSessionsJob {
-	pub fn new_on_slave(key_storage: Arc<KeyStorage>) -> Self {
+impl<'a> UnknownSessionsJob<'a> {
+	pub fn new_on_slave(key_storage: Arc<KeyStorage + 'a>) -> Self {
 		UnknownSessionsJob {
 			target_node_id: None,
 			key_storage: Some(key_storage),
@@ -47,7 +47,7 @@ impl UnknownSessionsJob {
 	}
 }
 
-impl JobExecutor for UnknownSessionsJob {
+impl<'a> JobExecutor for UnknownSessionsJob<'a> {
 	type PartialJobRequest = NodeId;
 	type PartialJobResponse = BTreeSet<SessionId>;
 	type JobResponse = BTreeMap<SessionId, BTreeSet<NodeId>>;

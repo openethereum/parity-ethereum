@@ -28,6 +28,9 @@ use key_server_cluster::jobs::job_session::JobTransport;
 use key_server_cluster::jobs::unknown_sessions_job::{UnknownSessionsJob};
 use key_server_cluster::jobs::consensus_session::{ConsensusSessionParams, ConsensusSessionState, ConsensusSession};
 
+/// Maximal number of active share change sessions.
+const MAX_ACTIVE_SESSIONS: usize = 64;
+
 /// Servers set change session API.
 pub trait Session: Send + Sync + 'static {
 	/// Wait until session is completed.
@@ -45,11 +48,11 @@ pub trait Session: Send + Sync + 'static {
 /// 4) for each node1 in nodes_to_remove: select node2 from nodes_to_add and move all sessions from node1 to node2
 /// 5) for each node1 left in nodes_to_remove (if nodes_to_add.len() < nodes_to_remove.len()): run share removal protocol for each node1 session
 /// 6) for each node1 left in nodes_to_add (if nodes_to_add.len() > nodes_to_remove.len()): run share addition protocol for each node1 session
-pub struct SessionImpl {
+pub struct SessionImpl<'a> {
 	/// Session core.
 	core: SessionCore,
 	/// Session data.
-	data: Mutex<SessionData>,
+	data: Mutex<SessionData<'a>>,
 }
 
 /// Session state.
@@ -80,16 +83,16 @@ struct SessionCore {
 }
 
 /// Servers set change consensus session type.
-type ServersSetChangeConsensusSession = ConsensusSession<ServersSetChangeConsensusTransport, UnknownSessionsJob, UnknownSessionsJobTransport>;
+type ServersSetChangeConsensusSession<'a> = ConsensusSession<ServersSetChangeConsensusTransport, UnknownSessionsJob<'a>, UnknownSessionsJobTransport>;
 
 /// Mutable session data.
-struct SessionData {
+struct SessionData<'a> {
 	/// Session state.
 	pub state: SessionState,
 	/// Consensus-based servers set change session.
-	pub consensus_session: ServersSetChangeConsensusSession,
+	pub consensus_session: ServersSetChangeConsensusSession<'a>,
 	/// Unknown sessions (actual for master node only).
-	pub sessions_queue: Option<SessionsQueue>,
+	pub sessions_queue: Option<SessionsQueue<'a>>,
 	/// Active change sessions, where this node is a master.
 	pub master_sessions: Option<BTreeMap<SessionId, ShareChangeSession>>,
 	/// Servers set change result.
@@ -121,9 +124,9 @@ pub struct SessionParams {
 }
 
 /// Share change sessions queue.
-struct SessionsQueue {
+struct SessionsQueue<'a> {
 	/// Known sessions iterator.
-	//known_sessions: Box<Iterator<Item=(SessionId, DocumentKeyShare)>>,
+	known_sessions: Box<Iterator<Item=(SessionId, DocumentKeyShare)> + 'a>,
 	/// Unknown sessions.
 	unknown_sessions: BTreeMap<SessionId, BTreeSet<NodeId>>,
 }
@@ -150,7 +153,7 @@ struct UnknownSessionsJobTransport {
 	cluster: Arc<Cluster>,
 }
 
-impl SessionImpl {
+impl<'a> SessionImpl<'a> {
 	/// Create new servers set change session.
 	pub fn new(params: SessionParams, requester_signature: Option<Signature>) -> Result<Self, Error> {
 		// session id must be the hash of sorted nodes set
@@ -216,7 +219,7 @@ impl SessionImpl {
 	}
 
 	/// Process servers set change message.
-	pub fn process_message(&self, sender: &NodeId, message: &ServersSetChangeMessage) -> Result<(), Error> {
+	pub fn process_message(&'a self, sender: &NodeId, message: &ServersSetChangeMessage) -> Result<(), Error> {
 		if self.core.nonce != message.session_nonce() {
 			return Err(Error::ReplayProtection);
 		}
@@ -263,7 +266,7 @@ impl SessionImpl {
 	}
 
 	/// When unknown sessions are received.
-	pub fn on_unknown_sessions(&self, sender: &NodeId, message: &UnknownSessions) -> Result<(), Error> {
+	pub fn on_unknown_sessions(&'a self, sender: &NodeId, message: &UnknownSessions) -> Result<(), Error> {
 		debug_assert!(self.core.meta.id == *message.session);
 		debug_assert!(sender != &self.core.meta.self_node_id);
 
@@ -274,10 +277,20 @@ impl SessionImpl {
 			return Ok(());
 		}
 
-		// all nodes has reported their unknown sessions => we are ready to start adding/moving/removing shares
-		let sessions_queue = SessionsQueue::new(/*self.core.key_storage.iter(), */data.consensus_session.result()?);
+		// all nodes has reported their unknown sessions
+		// => we are ready to start adding/moving/removing shares
+		// => take some sessions and start
+		let mut sessions_queue = SessionsQueue::new(&self.core, data.consensus_session.result()?);
+		for (session_id, session_nodes) in sessions_queue.dequeue(MAX_ACTIVE_SESSIONS) {
+			if session_nodes.contains(&self.core.meta.self_node_id) {
+				let change_session = Self::start_share_change_session(&self.core, &mut *data, session_id, session_nodes);
+			} else {
+				unimplemented!()
+			}
+		}
 		data.sessions_queue = Some(sessions_queue);
-		unimplemented!()
+
+		Ok(())
 	}
 
 	/// Create unknown sessions transport.
@@ -288,14 +301,42 @@ impl SessionImpl {
 			cluster: self.core.cluster.clone(),
 		}
 	}
+
+	/// Start share change session.
+	fn start_share_change_session(core: &SessionCore, data: &mut SessionData<'a>, session_id: SessionId, session_nodes: BTreeSet<NodeId>) -> Result<ShareChangeSession, Error> {
+		unimplemented!()
+	}
 }
 
-impl SessionsQueue {
-	pub fn new(/*known_sessions: Box<Iterator<Item=(SessionId, DocumentKeyShare)>>, */unknown_sessions: BTreeMap<SessionId, BTreeSet<NodeId>>) -> Self {
+impl<'a> SessionsQueue<'a> {
+	/// Create new sessions queue.
+	pub fn new(core: &'a SessionCore, unknown_sessions: BTreeMap<SessionId, BTreeSet<NodeId>>) -> Self {
 		SessionsQueue {
-			//known_sessions: known_sessions,
+			known_sessions: core.key_storage.iter(),
 			unknown_sessions: unknown_sessions,
 		}
+	}
+
+	/// Dequeue at most N sessions.
+	pub fn dequeue(&mut self, mut n: usize) -> Vec<(SessionId, BTreeSet<NodeId>)> {
+		let mut result = Vec::with_capacity(n);
+		while n > 0 {
+			if let Some(s) = self.next() {
+				result.push(s);
+				n = n - 1;
+			} else {
+				break;
+			}
+		}
+		result
+	}
+}
+
+impl<'a> Iterator for SessionsQueue<'a> {
+	type Item = (SessionId, BTreeSet<NodeId>);
+
+	fn next(&mut self) -> Option<Self::Item> {
+		unimplemented!()
 	}
 }
 
