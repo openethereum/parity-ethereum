@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+/*// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -34,6 +34,8 @@ pub struct ServersSetChangeAccessJob {
 
 /// Servers set change job partial request.
 pub struct ServersSetChangeAccessRequest {
+	/// Session id.
+	session_id: SessionId,
 	/// New servers set.
 	new_servers_set: BTreeSet<NodeId>,
 	/// Requester signature.
@@ -94,3 +96,4 @@ impl JobExecutor for ServersSetChangeAccessJob {
 		Ok(partial_responses.keys().cloned().collect())
 	}
 }
+*/

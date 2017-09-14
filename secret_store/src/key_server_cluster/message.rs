@@ -129,11 +129,11 @@ pub enum SigningMessage {
 pub enum ServersSetChangeMessage {
 	/// Consensus establishing message.
 	ServersSetChangeConsensusMessage(ServersSetChangeConsensusMessage),
+	/// Unknown sessions ids request.
+	UnknownSessionsRequest(UnknownSessionsRequest),
 	/// Unknown sessions ids.
 	UnknownSessions(UnknownSessions),
-	/// Unknown session details request.
-	UnknownSessionDetailsRequest(UnknownSessionDetailsRequest),
-	/// Unknown session details.
+	/*/// Unknown session details.
 	UnknownSessionDetails(UnknownSessionDetails),
 	/// Share add message.
 	ServersSetChangeShareAddMessage(ServersSetChangeShareAddMessage),
@@ -144,7 +144,7 @@ pub enum ServersSetChangeMessage {
 	/// Servers set change session completed.
 	ServersSetChangeError(ServersSetChangeError),
 	/// Servers set change session completed.
-	ServersSetChangeCompleted(ServersSetChangeCompleted),
+	ServersSetChangeCompleted(ServersSetChangeCompleted),*/
 }
 
 /// All possible messages that can be sent during share add session.
@@ -527,20 +527,18 @@ pub struct ServersSetChangeConsensusMessage {
 	pub message: ConsensusMessage,
 }
 
-/// Unknown sessions ids.
+/// Unknown sessions ids request.
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct UnknownSessions {
+pub struct UnknownSessionsRequest {
 	/// Servers set change session Id.
 	pub session: MessageSessionId,
 	/// Session-level nonce.
 	pub session_nonce: u64,
-	/// Unknown sessions ids.
-	pub unknown_sessions: BTreeSet<MessageSessionId>,
 }
 
-/// Unknown session details request.
+/// Unknown session ids.
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct UnknownSessionDetailsRequest {
+pub struct UnknownSessions {
 	/// Servers set change session Id.
 	pub session: MessageSessionId,
 	/// Session-level nonce.
@@ -548,7 +546,7 @@ pub struct UnknownSessionDetailsRequest {
 	/// Unknown session id.
 	pub unknown_sessions: BTreeSet<MessageSessionId>,
 }
-
+/*
 /// Unknown session details.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct UnknownSessionDetails {
@@ -611,7 +609,7 @@ pub struct ServersSetChangeCompleted {
 	pub session: MessageSessionId,
 	/// Session-level nonce.
 	pub session_nonce: u64,
-}
+}*/
 
 /// Initialize new share add session.
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -1042,14 +1040,14 @@ impl fmt::Display for ServersSetChangeMessage {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match *self {
 			ServersSetChangeMessage::ServersSetChangeConsensusMessage(ref m) => write!(f, "ServersSetChangeConsensusMessage.{}", m.message),
+			ServersSetChangeMessage::UnknownSessionsRequest(_) => write!(f, "UnknownSessionsRequest"),
 			ServersSetChangeMessage::UnknownSessions(_) => write!(f, "UnknownSessions"),
-			ServersSetChangeMessage::UnknownSessionDetailsRequest(_) => write!(f, "UnknownSessionDetailsRequest"),
-			ServersSetChangeMessage::UnknownSessionDetails(_) => write!(f, "UnknownSessionDetails"),
+			/*ServersSetChangeMessage::UnknownSessionDetails(_) => write!(f, "UnknownSessionDetails"),
 			ServersSetChangeMessage::ServersSetChangeShareAddMessage(ref m) => write!(f, "ServersSetChangeShareAddMessage.{}", m.message),
 			ServersSetChangeMessage::ServersSetChangeShareMoveMessage(ref m) => write!(f, "ServersSetChangeShareMoveMessage.{}", m.message),
 			ServersSetChangeMessage::ServersSetChangeShareRemoveMessage(ref m) => write!(f, "ServersSetChangeShareRemoveMessage.{}", m.message),
 			ServersSetChangeMessage::ServersSetChangeError(_) => write!(f, "ServersSetChangeError"),
-			ServersSetChangeMessage::ServersSetChangeCompleted(_) => write!(f, "ServersSetChangeCompleted"),
+			ServersSetChangeMessage::ServersSetChangeCompleted(_) => write!(f, "ServersSetChangeCompleted"),*/
 		}
 	}
 }
