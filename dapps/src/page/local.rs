@@ -140,7 +140,7 @@ impl LocalFile {
 				.unwrap_or_else(|| mime_guess::guess_mime_type(path).to_string());
 			let len = file.metadata().ok().map_or(0, |meta| meta.len());
 			LocalFile {
-				content_type: content_type,
+				content_type,
 				buffer: [0; 4096],
 				file: file,
 				pos: 0,

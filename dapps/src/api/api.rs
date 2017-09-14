@@ -31,19 +31,19 @@ pub struct RestApi {
 }
 
 impl Endpoint for RestApi {
-	fn respond(&self, path: EndpointPath, req: Request) -> Response {
+	fn respond(&self, mut path: EndpointPath, req: Request) -> Response {
 		if let Method::Options = *req.method() {
 			return Box::new(future::ok(response::empty()));
 		}
 
 		let endpoint = path.app_params.get(0).map(String::to_owned);
 		let hash = path.app_params.get(1).map(String::to_owned);
+
 		// at this point path.app_id contains 'api', adjust it to the hash properly, otherwise
 		// we will try and retrieve 'api' as the hash when doing the /api/content route
-		// TODO [ToDr] Verify if still needed.
-		// if let Some(ref hash) = hash {
-		// 	path.app_id = hash.to_owned();
-		// }
+		if let Some(ref hash) = hash {
+			path.app_id = hash.to_owned();
+		}
 
 		trace!(target: "dapps", "Handling /api request: {:?}/{:?}", endpoint, hash);
 		match endpoint.as_ref().map(String::as_str) {

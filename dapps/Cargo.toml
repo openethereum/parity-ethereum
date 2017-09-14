@@ -10,10 +10,9 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [dependencies]
 base32 = "0.3"
 futures = "0.1"
-# TODO [ToDr] Update
-linked-hash-map = "0.3"
+linked-hash-map = "0.5"
 log = "0.3"
-parity-dapps-glue = "1.7"
+parity-dapps-glue = "1.8"
 parking_lot = "0.4"
 mime_guess = "2.0.0-alpha.2"
 rand = "0.3"
@@ -22,8 +21,7 @@ serde = "1.0"
 serde_derive = "1.0"
 serde_json = "1.0"
 unicase = "1.4"
-# TODO [ToDr] Update
-zip = { version = "0.1", default-features = false }
+zip = { version = "0.2", default-features = false }
 itertools = "0.5"
 
 jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "td-remove-boxfuture" }

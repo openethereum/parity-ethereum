@@ -38,11 +38,11 @@ impl Redirection {
 }
 
 impl Endpoint for Redirection {
-	fn respond(&self, _path: EndpointPath, _req: Request) -> Response {
+	fn respond(&self, _path: EndpointPath, req: Request) -> Response {
 		Box::new(future::ok(if let Some(ref frame) = self.embeddable_on {
 			trace!(target: "dapps", "Redirecting to signer interface.");
-			// TODO [ToDr] use dynamic protocol
-			handlers::Redirection::new(format!("http://{}:{}", &frame.host, frame.port)).into()
+			let protocol = req.uri().scheme().unwrap_or("http");
+			handlers::Redirection::new(format!("{}://{}:{}", protocol, &frame.host, frame.port)).into()
 		} else {
 			trace!(target: "dapps", "Signer disabled, returning 404.");
 			handlers::ContentHandler::error(

@@ -37,9 +37,9 @@ heapsize = "0.4"
 hyper = { git = "https://github.com/paritytech/hyper", default-features = false }
 itertools = "0.5"
 lazy_static = "0.2"
-linked-hash-map = "0.3.0"
+linked-hash-map = "0.5"
 log = "0.3"
-lru-cache = "0.1.0"
+lru-cache = "0.1"
 native-contracts = { path = "native_contracts" }
 num = "0.1"
 num_cpus = "1.2"

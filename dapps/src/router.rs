@@ -140,7 +140,11 @@ impl Router {
 			_ if (is_get_request || is_head_request) && self.special.contains_key(&SpecialEndpoint::Home) => {
 				let special = self.special.get(&SpecialEndpoint::Home).expect("special known to contain key; qed");
 				match *special {
-					Some(ref special) => Response::Some(special.respond(Default::default(), req)),
+					Some(ref special) => {
+						let mut endpoint = EndpointPath::default();
+						endpoint.app_params = req.uri().path().split('/').map(str::to_owned).collect();
+						Response::Some(special.respond(endpoint, req))
+					},
 					None => Response::None(req),
 				}
 			},
