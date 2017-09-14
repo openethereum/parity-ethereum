@@ -18,7 +18,7 @@ use std::path::PathBuf;
 use std::collections::BTreeMap;
 use serde_json;
 use ethkey::{Secret, Public};
-use util::Database;
+use util::{Database, DatabaseIterator};
 use types::all::{Error, ServiceConfiguration, ServerKeyId, NodeId};
 use serialization::{SerializablePublic, SerializableSecret};
 
@@ -54,11 +54,18 @@ pub trait KeyStorage: Send + Sync {
 	fn get(&self, document: &ServerKeyId) -> Result<DocumentKeyShare, Error>;
 	/// Check if storage contains document encryption key
 	fn contains(&self, document: &ServerKeyId) -> bool;
+	/// Iterate through storage
+	fn iter<'a>(&'a self) -> Box<Iterator<Item=(ServerKeyId, DocumentKeyShare)> + 'a>;
 }
 
 /// Persistent document encryption keys storage
 pub struct PersistentKeyStorage {
 	db: Database,
+}
+
+/// Persistent document encryption keys storage iterator
+pub struct PersistentKeyStorageIterator<'a> {
+	iter: Option<DatabaseIterator<'a>>,
 }
 
 /// V0 of encrypted key share, as it is stored by key storage on the single key server.
@@ -197,7 +204,7 @@ impl KeyStorage for PersistentKeyStorage {
 			.map_err(Error::Database)?
 			.ok_or(Error::DocumentNotFound)
 			.map(|key| key.into_vec())
-			.and_then(|key| serde_json::from_slice::<SerializableDocumentKeyShareV1>(&key).map_err(|e| Error::Database(e.to_string())))
+			.and_then(|key| serde_json::from_slice::<SerializableDocumentKeyShareV2>(&key).map_err(|e| Error::Database(e.to_string())))
 			.map(Into::into)
 	}
 
@@ -205,6 +212,24 @@ impl KeyStorage for PersistentKeyStorage {
 		self.db.get(None, document)
 			.map(|k| k.is_some())
 			.unwrap_or(false)
+	}
+
+	fn iter<'a>(&'a self) -> Box<Iterator<Item=(ServerKeyId, DocumentKeyShare)> + 'a> {
+		Box::new(PersistentKeyStorageIterator {
+			iter: self.db.iter(None),
+		})
+	}
+}
+
+impl<'a> Iterator for PersistentKeyStorageIterator<'a> {
+	type Item = (ServerKeyId, DocumentKeyShare);
+
+	fn next(&mut self) -> Option<(ServerKeyId, DocumentKeyShare)> {
+		self.iter.as_mut()
+			.and_then(|iter| iter.next()
+				.and_then(|(db_key, db_val)| serde_json::from_slice::<SerializableDocumentKeyShareV2>(&db_val)
+					.ok()
+					.map(|key| ((*db_key).into(), key.into()))))
 	}
 }
 
@@ -235,14 +260,14 @@ impl From<DocumentKeyShare> for SerializableDocumentKeyShareV1 {
 	}
 }
 
-impl From<SerializableDocumentKeyShareV1> for DocumentKeyShare {
-	fn from(key: SerializableDocumentKeyShareV1) -> Self {
+impl From<SerializableDocumentKeyShareV2> for DocumentKeyShare {
+	fn from(key: SerializableDocumentKeyShareV2) -> Self {
 		DocumentKeyShare {
 			author: key.author.into(),
 			threshold: key.threshold,
 			id_numbers: key.id_numbers.into_iter().map(|(k, v)| (k.into(), v.into())).collect(),
 			secret_share: key.secret_share.into(),
-			polynom1: Vec::new(),
+			polynom1: key.polynom1.into_iter().map(Into::into).collect(),
 			common_point: key.common_point.map(Into::into),
 			encrypted_point: key.encrypted_point.map(Into::into),
 		}
@@ -284,6 +309,10 @@ pub mod tests {
 
 		fn contains(&self, document: &ServerKeyId) -> bool {
 			self.keys.read().contains_key(document)
+		}
+
+		fn iter<'a>(&'a self) -> Box<Iterator<Item=(ServerKeyId, DocumentKeyShare)> + 'a> {
+			unimplemented!()
 		}
 	}
 
