@@ -52,6 +52,10 @@ export default class HardwareStore {
     this.wallets = wallets;
   }
 
+  @action setPinMatrixRequest = (requests) => {
+    this.pinMatrixRequest = requests;
+  }
+
   _pollScan = () => {
     this._pollId = setTimeout(() => {
       this.scan().then(this._pollScan);
@@ -62,9 +66,9 @@ export default class HardwareStore {
     return this._api.parity
       .lockedHardwareAccountsInfo()
       .then((paths) => {
-        this.pinMatrixRequest = paths.map((path) => {
+        this.setPinMatrixRequest(paths.map((path) => {
           return { path: path, manufacturer: 'Trezor' };
-        });
+        }));
         return {};
       })
       .catch((err) => {
