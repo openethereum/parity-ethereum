@@ -126,9 +126,9 @@ pub struct SessionParams {
 /// Share change sessions queue.
 struct SessionsQueue<'a> {
 	/// Known sessions iterator.
-	known_sessions: Box<Iterator<Item=(SessionId, DocumentKeyShare)> + 'a>,
+	known_sessions: Option<Box<Iterator<Item=(SessionId, DocumentKeyShare)> + 'a>>,
 	/// Unknown sessions.
-	unknown_sessions: BTreeMap<SessionId, BTreeSet<NodeId>>,
+	unknown_sessions: Option<BTreeMap<SessionId, BTreeSet<NodeId>>>,
 }
 
 /// Servers set change consensus transport.
@@ -312,8 +312,8 @@ impl<'a> SessionsQueue<'a> {
 	/// Create new sessions queue.
 	pub fn new(core: &'a SessionCore, unknown_sessions: BTreeMap<SessionId, BTreeSet<NodeId>>) -> Self {
 		SessionsQueue {
-			known_sessions: core.key_storage.iter(),
-			unknown_sessions: unknown_sessions,
+			known_sessions: Some(core.key_storage.iter()),
+			unknown_sessions: Some(unknown_sessions),
 		}
 	}
 
@@ -336,7 +336,21 @@ impl<'a> Iterator for SessionsQueue<'a> {
 	type Item = (SessionId, BTreeSet<NodeId>);
 
 	fn next(&mut self) -> Option<Self::Item> {
-		unimplemented!()
+		if let Some(known_sessions) = self.known_sessions.as_mut() {
+			if let Some(session) = known_sessions.next() {
+				return Some((session.0, session.1.id_numbers.into_iter().map(|(k, _)| k).collect()));
+			}
+		}
+		self.known_sessions = None;
+
+		if let Some(unknown_sessions) = self.unknown_sessions.as_mut() {
+			if let Some(session) = unknown_sessions.keys().cloned().nth(0).and_then(|k| unknown_sessions.remove(&k).map(|v| (k, v))) {
+				return Some(session);
+			}
+		}
+		self.unknown_sessions = None;
+
+		None
 	}
 }
 
