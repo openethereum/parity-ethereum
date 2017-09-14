@@ -16,7 +16,8 @@
 
 //! Wasm evm call arguments helper
 
-use util::{U256, H160};
+use bigint::prelude::U256;
+use bigint::hash::H160;
 
 /// Input part of the wasm call descriptor
 pub struct CallArgs {

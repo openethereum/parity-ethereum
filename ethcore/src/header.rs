@@ -20,6 +20,8 @@ use std::cmp;
 use std::cell::RefCell;
 use hash::{KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP, keccak};
 use heapsize::HeapSizeOf;
+use bigint::prelude::U256;
+use bigint::hash::H256;
 use util::*;
 use basic_types::{LogBloom, ZERO_LOGBLOOM};
 use time::get_time;
@@ -259,8 +261,13 @@ impl Header {
 		s.out()
 	}
 
-	/// Get the KECCAK (Keccak) of this header, optionally `with_seal`.
+	/// Get the SHA3 (Keccak) of this header, optionally `with_seal`.
 	pub fn rlp_keccak(&self, with_seal: Seal) -> H256 { keccak(self.rlp(with_seal)) }
+
+	/// Encode the header, getting a type-safe wrapper around the RLP.
+	pub fn encoded(&self) -> ::encoded::Header {
+		::encoded::Header::new(self.rlp(Seal::With))
+	}
 }
 
 impl Decodable for Header {

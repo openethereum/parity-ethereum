@@ -29,7 +29,9 @@ use ethcore::miner::{MinerOptions, Banning, GasPricer, MinerService, ExternalMin
 use ethcore::account_provider::AccountProvider;
 use ethjson::blockchain::BlockChain;
 use io::IoChannel;
-use util::{U256, H256, Address};
+use bigint::prelude::U256;
+use bigint::hash::H256;
+use util::Address;
 
 use jsonrpc_core::IoHandler;
 use v1::impls::{EthClient, SigningUnsafeClient};

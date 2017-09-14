@@ -21,6 +21,7 @@ extern crate unicase;
 extern crate rlp;
 extern crate ethcore;
 extern crate ethcore_util as util;
+extern crate ethcore_bigint as bigint;
 extern crate jsonrpc_core as core;
 extern crate jsonrpc_http_server as http;
 

@@ -18,6 +18,7 @@
 
 use std::cmp;
 use hash::keccak;
+use bigint::hash::{H256, H520};
 use util::*;
 use super::{Height, View, BlockHash, Step};
 use error::Error;
@@ -202,7 +203,6 @@ pub fn message_hash(vote_step: VoteStep, block_hash: H256) -> H256 {
 mod tests {
 	use std::sync::Arc;
 	use hash::keccak;
-	use util::*;
 	use rlp::*;
 	use account_provider::AccountProvider;
 	use header::Header;

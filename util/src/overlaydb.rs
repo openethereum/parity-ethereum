@@ -19,8 +19,8 @@
 use std::sync::Arc;
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
-use error::*;
-use hash::*;
+use error::{Result, BaseDataError};
+use bigint::hash::*;
 use rlp::*;
 use hashdb::*;
 use memorydb::*;
@@ -56,14 +56,14 @@ impl OverlayDB {
 
 	/// Commit all operations in a single batch.
 	#[cfg(test)]
-	pub fn commit(&mut self) -> Result<u32, UtilError> {
+	pub fn commit(&mut self) -> Result<u32> {
 		let mut batch = self.backing.transaction();
 		let res = self.commit_to_batch(&mut batch)?;
 		self.backing.write(batch).map(|_| res).map_err(|e| e.into())
 	}
 
 	/// Commit all operations to given batch.
-	pub fn commit_to_batch(&mut self, batch: &mut DBTransaction) -> Result<u32, UtilError> {
+	pub fn commit_to_batch(&mut self, batch: &mut DBTransaction) -> Result<u32> {
 		let mut ret = 0u32;
 		let mut deletes = 0usize;
 		for i in self.overlay.drain() {

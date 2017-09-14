@@ -30,17 +30,17 @@ const FEATURES = {
 
 const DEFAULTS = {
   [FEATURES.LANGUAGE]: {
-    mode: MODES.TESTING,
+    mode: MODES.PRODUCTION,
     name: (
       <FormattedMessage
         id='ui.features.defaults.i18n.name'
-        defaultMssage='Language Selection'
+        defaultMessage='Language Selection'
       />
     ),
     description: (
       <FormattedMessage
         id='ui.features.defaults.i18n.desc'
-        defaultMssage='Allows changing the default interface language'
+        defaultMessage='Allows changing the default interface language'
       />
     )
   },
@@ -49,13 +49,13 @@ const DEFAULTS = {
     name: (
       <FormattedMessage
         id='ui.features.defaults.logging.name'
-        defaultMssage='Logging Level Selection'
+        defaultMessage='Logging Level Selection'
       />
     ),
     description: (
       <FormattedMessage
         id='ui.features.defaults.logging.desc'
-        defaultMssage='Allows changing of the log levels for various components'
+        defaultMessage='Allows changing of the log levels for various components'
       />
     )
   }

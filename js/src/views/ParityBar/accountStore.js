@@ -24,10 +24,8 @@ export default class AccountStore {
   constructor (api) {
     this._api = api;
 
-    this.loadDefaultAccount()
+    this.subscribeDefaultAccount()
       .then(() => this.loadAccounts());
-
-    this.subscribeDefaultAccount();
   }
 
   @action setAccounts = (accounts) => {
@@ -58,12 +56,6 @@ export default class AccountStore {
       .catch((error) => {
         console.warn('makeDefaultAccount', error);
       });
-  }
-
-  loadDefaultAccount () {
-    return this._api.parity
-      .defaultAccount()
-      .then((address) => this.setDefaultAccount(address));
   }
 
   loadAccounts () {

@@ -20,7 +20,7 @@ use std::mem;
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use heapsize::HeapSizeOf;
-use hash::{H256FastMap, H256};
+use bigint::hash::{H256FastMap, H256};
 use rlp::NULL_RLP;
 use keccak::{KECCAK_NULL_RLP, keccak};
 use hashdb::*;

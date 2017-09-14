@@ -34,7 +34,9 @@ use trace::LocalizedTrace;
 use transaction::{LocalizedTransaction, PendingTransaction, SignedTransaction};
 use verification::queue::QueueInfo as BlockQueueInfo;
 
-use util::{U256, Address, H256, H2048, Bytes};
+use bigint::prelude::U256;
+use bigint::hash::H256;
+use util::{Address, Bytes};
 use util::hashdb::DBValue;
 
 use types::ids::*;
@@ -95,6 +97,9 @@ pub trait BlockChainClient : Sync + Send {
 		self.code(address, BlockId::Latest)
 			.expect("code will return Some if given BlockId::Latest; qed")
 	}
+
+	/// Get address code hash at given block's state.
+	fn code_hash(&self, address: &Address, id: BlockId) -> Option<H256>;
 
 	/// Get address balance at the given block's state.
 	///
@@ -175,9 +180,6 @@ pub trait BlockChainClient : Sync + Send {
 
 	/// Get the best block header.
 	fn best_block_header(&self) -> encoded::Header;
-
-	/// Returns numbers of blocks containing given bloom.
-	fn blocks_with_bloom(&self, bloom: &H2048, from_block: BlockId, to_block: BlockId) -> Option<Vec<BlockNumber>>;
 
 	/// Returns logs matching given filter.
 	fn logs(&self, filter: Filter) -> Vec<LocalizedLogEntry>;
@@ -312,7 +314,7 @@ pub trait MiningBlockChainClient: BlockChainClient {
 }
 
 /// Client facilities used by internally sealing Engines.
-pub trait EngineClient: MiningBlockChainClient {
+pub trait EngineClient: Sync + Send {
 	/// Make a new block and seal it.
 	fn update_sealing(&self);
 
@@ -328,6 +330,15 @@ pub trait EngineClient: MiningBlockChainClient {
 	///
 	/// The block corresponding the the parent hash must be stored already.
 	fn epoch_transition_for(&self, parent_hash: H256) -> Option<::engines::EpochTransition>;
+
+	/// Get block chain info.
+	fn chain_info(&self) -> BlockChainInfo;
+
+	/// Attempt to cast the engine client to a full client.
+	fn as_full_client(&self) -> Option<&BlockChainClient>;
+
+	/// Get a block number by ID.
+	fn block_number(&self, id: BlockId) -> Option<BlockNumber>;
 }
 
 /// Extended client interface for providing proofs of the state.
@@ -347,4 +358,7 @@ pub trait ProvingBlockChainClient: BlockChainClient {
 	/// Returns the output of the call and a vector of database items necessary
 	/// to reproduce it.
 	fn prove_transaction(&self, transaction: SignedTransaction, id: BlockId) -> Option<(Bytes, Vec<DBValue>)>;
+
+	/// Get an epoch change signal by block hash.
+	fn epoch_signal(&self, hash: H256) -> Option<Vec<u8>>;
 }

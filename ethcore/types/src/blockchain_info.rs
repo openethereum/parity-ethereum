@@ -18,7 +18,8 @@
 
 use std::fmt;
 
-use util::{U256, H256};
+use bigint::prelude::U256;
+use bigint::hash::H256;
 use security_level::SecurityLevel;
 use {BlockNumber};
 

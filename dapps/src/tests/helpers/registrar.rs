@@ -17,11 +17,12 @@
 use std::str;
 use std::sync::Arc;
 use std::collections::HashMap;
-use rustc_hex::FromHex;
 
+use bigint::hash::H256;
 use hash_fetch::urlhint::{ContractClient, BoxFuture};
 use parking_lot::Mutex;
-use util::{Bytes, Address, H256, ToPretty};
+use rustc_hex::FromHex;
+use util::{Bytes, Address, ToPretty};
 
 const REGISTRAR: &'static str = "8e4e9b13d4b45cb0befc93c3061b1408f67316b2";
 const URLHINT: &'static str = "deadbeefcafe0000000000000000000000000000";

@@ -27,7 +27,7 @@ use std::iter::FromIterator;
 use request::Request;
 use request::NetworkRequests as Requests;
 use net::{timeout, ReqId};
-use util::U256;
+use bigint::prelude::U256;
 
 use time::{Duration, SteadyTime};
 
@@ -139,6 +139,7 @@ fn compute_timeout(reqs: &Requests) -> Duration {
 			Request::Storage(_) => timeout::PROOF,
 			Request::Code(_) => timeout::CONTRACT_CODE,
 			Request::Execution(_) => timeout::TRANSACTION_PROOF,
+			Request::Signal(_) => timeout::EPOCH_SIGNAL,
 		}
 	}))
 }

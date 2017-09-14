@@ -20,16 +20,17 @@ use serde_json;
 
 use ethkey;
 use util;
+use bigint;
 use key_server_cluster;
 
 /// Node id.
 pub type NodeId = ethkey::Public;
 /// Server key id. When key is used to encrypt document, it could be document contents hash.
-pub type ServerKeyId = util::H256;
+pub type ServerKeyId = bigint::hash::H256;
 /// Encrypted document key type.
 pub type EncryptedDocumentKey = util::Bytes;
 /// Message hash.
-pub type MessageHash = util::H256;
+pub type MessageHash = bigint::hash::H256;
 /// Message signature.
 pub type EncryptedMessageSignature = util::Bytes;
 /// Request signature type.
@@ -37,9 +38,9 @@ pub type RequestSignature = ethkey::Signature;
 /// Public key type.
 pub use ethkey::Public;
 
+/// Secret store error
 #[derive(Debug, Clone, PartialEq)]
 #[binary]
-/// Secret store error
 pub enum Error {
 	/// Bad signature is passed
 	BadSignature,
@@ -55,9 +56,9 @@ pub enum Error {
 	Internal(String),
 }
 
+/// Secret store configuration
 #[derive(Debug, Clone)]
 #[binary]
-/// Secret store configuration
 pub struct NodeAddress {
 	/// IP address.
 	pub address: String,
@@ -65,9 +66,9 @@ pub struct NodeAddress {
 	pub port: u16,
 }
 
+/// Secret store configuration
 #[derive(Debug)]
 #[binary]
-/// Secret store configuration
 pub struct ServiceConfiguration {
 	/// HTTP listener address. If None, HTTP API is disabled.
 	pub listener_address: Option<NodeAddress>,
@@ -79,9 +80,9 @@ pub struct ServiceConfiguration {
 	pub cluster_config: ClusterConfiguration,
 }
 
+/// Key server cluster configuration
 #[derive(Debug)]
 #[binary]
-/// Key server cluster configuration
 pub struct ClusterConfiguration {
 	/// Number of threads reserved by cluster.
 	pub threads: usize,
@@ -94,9 +95,9 @@ pub struct ClusterConfiguration {
 	pub allow_connecting_to_higher_nodes: bool,
 }
 
+/// Shadow decryption result.
 #[derive(Clone, Debug, PartialEq)]
 #[binary]
-/// Shadow decryption result.
 pub struct EncryptedDocumentKeyShadow {
 	/// Decrypted secret point. It is partially decrypted if shadow decrpytion was requested.
 	pub decrypted_secret: ethkey::Public,

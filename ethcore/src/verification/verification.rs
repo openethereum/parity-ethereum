@@ -25,7 +25,9 @@ use std::collections::HashSet;
 use hash::keccak;
 use triehash::ordered_trie_root;
 use heapsize::HeapSizeOf;
+use bigint::hash::H256;
 use util::*;
+use unexpected::{Mismatch, OutOfBounds};
 use engines::Engine;
 use error::{BlockError, Error};
 use blockchain::*;
@@ -270,7 +272,10 @@ fn verify_block_integrity(block: &[u8], transactions_root: &H256, uncles_hash: &
 mod tests {
 	use std::collections::{BTreeMap, HashMap};
 	use hash::keccak;
+	use bigint::prelude::U256;
+	use bigint::hash::{H256, H2048};
 	use triehash::ordered_trie_root;
+	use unexpected::{Mismatch, OutOfBounds};
 	use util::*;
 	use ethkey::{Random, Generator};
 	use header::*;
@@ -387,14 +392,13 @@ mod tests {
 			self.numbers.get(&index).cloned()
 		}
 
-		fn blocks_with_bloom(&self, _bloom: &H2048, _from_block: BlockNumber, _to_block: BlockNumber) -> Vec<BlockNumber> {
-			unimplemented!()
-		}
-
 		fn block_receipts(&self, _hash: &H256) -> Option<BlockReceipts> {
 			unimplemented!()
 		}
 
+		fn blocks_with_bloom(&self, _bloom: &H2048, _from_block: BlockNumber, _to_block: BlockNumber) -> Vec<BlockNumber> {
+			unimplemented!()
+		}
 
 		fn logs<F>(&self, _blocks: Vec<BlockNumber>, _matches: F, _limit: Option<usize>) -> Vec<LocalizedLogEntry>
 			where F: Fn(&LogEntry) -> bool, Self: Sized {

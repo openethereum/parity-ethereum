@@ -22,8 +22,12 @@ export default {
     cancel: `Cancel`,
     close: `Close`,
     next: `Next`,
-    send: `Send`,
-    sending: `Sending...`
+    send: `Send`
+  },
+  changeOwner: {
+    labelFrom: `From`,
+    labelTo: `To`,
+    title: `Change Owner`
   },
   changes: {
     modificationString: `For your modifications to be taken into account,
@@ -62,7 +66,6 @@ export default {
     details: `from {from} to {to}`,
     title: `Change Required Owners`
   },
-  rejected: `The transaction #{txid} has been rejected`,
   removeOwner: {
     title: `Remove Owner`
   }

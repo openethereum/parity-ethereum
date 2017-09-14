@@ -16,7 +16,6 @@
 
 use io::IoError;
 use rlp::*;
-use util::UtilError;
 use std::fmt;
 use ethkey::Error as KeyError;
 use crypto::Error as CryptoError;
@@ -96,8 +95,8 @@ pub enum NetworkError {
 	PeerNotFound,
 	/// Peer is diconnected.
 	Disconnect(DisconnectReason),
-	/// Util error.
-	Util(UtilError),
+	/// Invalid NodeId
+	InvalidNodeId,
 	/// Socket IO error.
 	Io(IoError),
 	/// Error concerning the network address parsing subsystem.
@@ -125,7 +124,7 @@ impl fmt::Display for NetworkError {
 			AddressResolve(Some(ref err)) => format!("{}", err),
 			AddressResolve(_) => "Failed to resolve network address.".into(),
 			StdIo(ref err) => format!("{}", err),
-			Util(ref err) => format!("{}", err),
+			InvalidNodeId => "Invalid node id".into(),
 			OversizedPacket => "Packet is too large".into(),
 		};
 
@@ -148,12 +147,6 @@ impl From<::std::io::Error> for NetworkError {
 impl From<IoError> for NetworkError {
 	fn from(err: IoError) -> NetworkError {
 		NetworkError::Io(err)
-	}
-}
-
-impl From<UtilError> for NetworkError {
-	fn from(err: UtilError) -> NetworkError {
-		NetworkError::Util(err)
 	}
 }
 

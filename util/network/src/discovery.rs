@@ -24,7 +24,7 @@ use mio::deprecated::{Handler, EventLoop};
 use mio::udp::*;
 use hash::keccak;
 use time;
-use util::hash::*;
+use bigint::hash::*;
 use rlp::*;
 use node_table::*;
 use error::NetworkError;

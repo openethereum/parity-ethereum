@@ -13,3 +13,4 @@ ethcore-ipc-codegen = { path = "../ipc/codegen" }
 semver = "0.6"
 ethcore-ipc = { path = "../ipc/rpc" }
 ethcore-util = { path = "../util" }
+ethcore-bigint = { path = "../util/bigint" }

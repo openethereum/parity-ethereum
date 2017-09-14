@@ -16,9 +16,12 @@
 
 //! General error types for use in ethcore.
 
+#![allow(missing_docs)]
+#![allow(unknown_lints)]
+
+use std::{self, fmt};
 use rustc_hex::FromHexError;
 use rlp::DecoderError;
-use std::fmt;
 use bigint::hash::H256;
 
 #[derive(Debug)]
@@ -41,124 +44,23 @@ impl fmt::Display for BaseDataError {
 	}
 }
 
-#[derive(Debug)]
-/// General error type which should be capable of representing all errors in ethcore.
-pub enum UtilError {
-	/// Error concerning the Rust standard library's IO subsystem.
-	StdIo(::std::io::Error),
-	/// Error concerning the hex conversion logic.
-	FromHex(FromHexError),
-	/// Error concerning the database abstraction logic.
-	BaseData(BaseDataError),
-	/// Error concerning the RLP decoder.
-	Decoder(DecoderError),
-	/// Miscellaneous error described by a string.
-	SimpleString(String),
-	/// Error from a bad input size being given for the needed output.
-	BadSize,
-	/// Error from snappy.
-	Snappy(::snappy::InvalidInput),
-}
-
-impl fmt::Display for UtilError {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		match *self {
-			UtilError::StdIo(ref err) => f.write_fmt(format_args!("{}", err)),
-			UtilError::FromHex(ref err) => f.write_fmt(format_args!("{}", err)),
-			UtilError::BaseData(ref err) => f.write_fmt(format_args!("{}", err)),
-			UtilError::Decoder(ref err) => f.write_fmt(format_args!("{}", err)),
-			UtilError::SimpleString(ref msg) => f.write_str(msg),
-			UtilError::BadSize => f.write_str("Bad input size."),
-			UtilError::Snappy(ref err) => f.write_fmt(format_args!("{}", err)),
-		}
+impl std::error::Error for BaseDataError {
+	fn description(&self) -> &str {
+		"Error in database subsystem"
 	}
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-/// Error indicating an expected value was not found.
-pub struct Mismatch<T: fmt::Debug> {
-	/// Value expected.
-	pub expected: T,
-	/// Value found.
-	pub found: T,
-}
+error_chain! {
+	types {
+		UtilError, ErrorKind, ResultExt, Result;
+	}
 
-impl<T: fmt::Debug + fmt::Display> fmt::Display for Mismatch<T> {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		f.write_fmt(format_args!("Expected {}, found {}", self.expected, self.found))
+	foreign_links {
+		Io(::std::io::Error);
+		FromHex(FromHexError);
+		Decoder(DecoderError);
+		Snappy(::snappy::InvalidInput);
+		BaseData(BaseDataError);
 	}
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-/// Error indicating value found is outside of a valid range.
-pub struct OutOfBounds<T: fmt::Debug> {
-	/// Minimum allowed value.
-	pub min: Option<T>,
-	/// Maximum allowed value.
-	pub max: Option<T>,
-	/// Value found.
-	pub found: T,
-}
-
-impl<T: fmt::Debug + fmt::Display> fmt::Display for OutOfBounds<T> {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		let msg = match (self.min.as_ref(), self.max.as_ref()) {
-			(Some(min), Some(max)) => format!("Min={}, Max={}", min, max),
-			(Some(min), _) => format!("Min={}", min),
-			(_, Some(max)) => format!("Max={}", max),
-			(None, None) => "".into(),
-		};
-
-		f.write_fmt(format_args!("Value {} out of bounds. {}", self.found, msg))
-	}
-}
-
-impl From<FromHexError> for UtilError {
-	fn from(err: FromHexError) -> UtilError {
-		UtilError::FromHex(err)
-	}
-}
-
-impl From<BaseDataError> for UtilError {
-	fn from(err: BaseDataError) -> UtilError {
-		UtilError::BaseData(err)
-	}
-}
-
-impl From<::std::io::Error> for UtilError {
-	fn from(err: ::std::io::Error) -> UtilError {
-		UtilError::StdIo(err)
-	}
-}
-
-impl From<::rlp::DecoderError> for UtilError {
-	fn from(err: ::rlp::DecoderError) -> UtilError {
-		UtilError::Decoder(err)
-	}
-}
-
-impl From<String> for UtilError {
-	fn from(err: String) -> UtilError {
-		UtilError::SimpleString(err)
-	}
-}
-
-impl From<::snappy::InvalidInput> for UtilError {
-	fn from(err: ::snappy::InvalidInput) -> UtilError {
-		UtilError::Snappy(err)
-	}
-}
-
-// TODO: uncomment below once https://github.com/rust-lang/rust/issues/27336 sorted.
-/*#![feature(concat_idents)]
-macro_rules! assimilate {
-    ($name:ident) => (
-		impl From<concat_idents!($name, Error)> for Error {
-			fn from(err: concat_idents!($name, Error)) -> Error {
-				Error:: $name (err)
-			}
-		}
-    )
-}
-assimilate!(FromHex);
-assimilate!(BaseData);*/

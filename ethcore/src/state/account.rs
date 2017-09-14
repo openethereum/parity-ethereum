@@ -20,6 +20,8 @@ use std::fmt;
 use std::sync::Arc;
 use std::collections::HashMap;
 use hash::{KECCAK_EMPTY, KECCAK_NULL_RLP, keccak};
+use bigint::prelude::U256;
+use bigint::hash::H256;
 use util::*;
 use pod_account::*;
 use rlp::*;

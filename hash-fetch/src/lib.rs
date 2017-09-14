@@ -22,6 +22,7 @@
 extern crate log;
 
 extern crate ethcore_util as util;
+extern crate ethcore_bigint as bigint;
 extern crate futures;
 extern crate hash;
 extern crate mime;

@@ -26,6 +26,8 @@ extern crate ansi_term;
 extern crate app_dirs;
 extern crate ctrlc;
 extern crate docopt;
+#[macro_use]
+extern crate clap;
 extern crate env_logger;
 extern crate fdlimit;
 extern crate futures;
@@ -56,6 +58,7 @@ extern crate ethcore_ipc_nano as nanoipc;
 extern crate ethcore_light as light;
 extern crate ethcore_logger;
 extern crate ethcore_util as util;
+extern crate ethcore_bigint as bigint;
 extern crate ethcore_network as network;
 extern crate ethkey;
 extern crate ethsync;

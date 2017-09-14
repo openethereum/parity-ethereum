@@ -221,7 +221,7 @@ pub struct FilterItem {
 	/// Time to live in seconds.
 	pub ttl: u64,
 
-	/// Abridged topics that matched the filter.
+	/// Topics that matched the filter.
 	pub topics: Vec<Bytes>,
 
 	/// Unix timestamp of the message generation.

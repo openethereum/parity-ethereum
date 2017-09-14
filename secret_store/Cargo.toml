@@ -29,6 +29,7 @@ ethabi = "2.0"
 ethcore = { path = "../ethcore" }
 ethcore-devtools = { path = "../devtools" }
 ethcore-util = { path = "../util" }
+ethcore-bigint = { path = "../util/bigint" }
 hash = { path = "../util/hash" }
 ethcore-ipc = { path = "../ipc/rpc" }
 ethcore-ipc-nano = { path = "../ipc/nano" }

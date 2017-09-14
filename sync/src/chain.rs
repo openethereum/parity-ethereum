@@ -93,6 +93,8 @@ use std::collections::{HashSet, HashMap};
 use std::cmp;
 use hash::keccak;
 use heapsize::HeapSizeOf;
+use bigint::prelude::U256;
+use bigint::hash::{H256, H256FastMap};
 use parking_lot::RwLock;
 use util::*;
 use rlp::*;
@@ -2231,9 +2233,10 @@ mod tests {
 	use network::PeerId;
 	use tests::helpers::*;
 	use tests::snapshot::TestSnapshotService;
+	use bigint::prelude::U256;
+	use bigint::hash::H256;
+	use util::Address;
 	use parking_lot::RwLock;
-	use util::{U256, Address};
-	use util::hash::H256;
 	use util::bytes::Bytes;
 	use rlp::{Rlp, RlpStream, UntrustedRlp};
 	use super::*;
@@ -2241,7 +2244,7 @@ mod tests {
 	use super::{PeerInfo, PeerAsking};
 	use ethkey;
 	use ethcore::header::*;
-	use ethcore::client::*;
+	use ethcore::client::{BlockChainClient, EachBlockWith, TestBlockChainClient};
 	use ethcore::transaction::UnverifiedTransaction;
 	use ethcore::miner::MinerService;
 

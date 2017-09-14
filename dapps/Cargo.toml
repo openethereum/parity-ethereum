@@ -28,6 +28,7 @@ jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "td
 jsonrpc-http-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "td-remove-boxfuture" }
 
 ethcore-util = { path = "../util" }
+ethcore-bigint = { path = "../util/bigint" }
 fetch = { path = "../util/fetch" }
 node-health = { path = "./node-health" }
 parity-hash-fetch = { path = "../hash-fetch" }

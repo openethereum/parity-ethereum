@@ -20,7 +20,8 @@ use std::sync::Arc;
 use ethcore::account_provider::AccountProvider;
 use ethcore::transaction::PendingTransaction;
 
-use util::{Address, U128, ToPretty};
+use bigint::prelude::U128;
+use util::{Address, ToPretty};
 
 use jsonrpc_core::{BoxFuture, Error};
 use jsonrpc_core::futures::{future, Future};

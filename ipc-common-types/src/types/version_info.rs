@@ -19,7 +19,7 @@
 use std::fmt;
 use std::str::FromStr;
 use semver::{Version};
-use util::H160;
+use bigint::hash::H160;
 use util::misc::raw_package_info;
 use release_track::ReleaseTrack;
 

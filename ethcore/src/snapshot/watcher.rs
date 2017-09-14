@@ -22,7 +22,8 @@ use ids::BlockId;
 use service::ClientIoMessage;
 
 use io::IoChannel;
-use util::{H256, Bytes};
+use bigint::hash::H256;
+use util::Bytes;
 
 use std::sync::Arc;
 
@@ -133,7 +134,8 @@ mod tests {
 
 	use client::ChainNotify;
 
-	use util::{H256, U256};
+	use bigint::prelude::U256;
+	use bigint::hash::H256;
 
 	use std::collections::HashMap;
 

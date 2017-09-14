@@ -21,7 +21,9 @@ use basic_account::BasicAccount;
 use snapshot::Error;
 use hash::{KECCAK_EMPTY, KECCAK_NULL_RLP};
 
-use util::{U256, H256, Bytes, HashDB};
+use bigint::prelude::U256;
+use bigint::hash::H256;
+use util::{Bytes, HashDB};
 use util::trie::{TrieDB, Trie};
 use rlp::{RlpStream, UntrustedRlp};
 
@@ -212,7 +214,8 @@ mod tests {
 	use snapshot::tests::helpers::fill_storage;
 
 	use hash::{KECCAK_EMPTY, KECCAK_NULL_RLP, keccak};
-	use util::{Address, H256, HashDB, DBValue};
+	use bigint::hash::H256;
+	use util::{Address, HashDB, DBValue};
 	use rlp::UntrustedRlp;
 
 	use std::collections::HashSet;

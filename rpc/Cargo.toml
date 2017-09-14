@@ -38,6 +38,7 @@ jsonrpc-pubsub = { git = "https://github.com/paritytech/jsonrpc.git", branch = "
 ethcore-io = { path = "../util/io" }
 ethcore-ipc = { path = "../ipc/rpc" }
 ethcore-util = { path = "../util" }
+ethcore-bigint = { path = "../util/bigint" }
 ethcore = { path = "../ethcore" }
 ethcrypto = { path = "../ethcrypto" }
 ethkey = { path = "../ethkey" }
@@ -59,6 +60,9 @@ hash = { path = "../util/hash" }
 
 clippy = { version = "0.0.103", optional = true}
 pretty_assertions = "0.1"
+
+[dev-dependencies]
+ethcore-network = { path = "../util/network" }
 
 [features]
 dev = ["clippy", "ethcore/dev", "ethcore-util/dev", "ethsync/dev"]

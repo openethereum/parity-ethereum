@@ -14,7 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use util::{U256, H2048, Bytes};
+use bigint::prelude::U256;
+use bigint::hash::H2048;
+use util::Bytes;
 use header::BlockNumber;
 use transaction::SignedTransaction;
 use super::fork::Fork;
@@ -110,7 +112,7 @@ impl Iterator for ChainGenerator {
 }
 
 mod tests {
-	use util::hash::{H256, H2048};
+	use bigint::hash::{H256, H2048};
 	use views::BlockView;
 	use blockchain::generator::{ChainIterator, ChainGenerator, BlockFinalizer};
 

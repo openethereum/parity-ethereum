@@ -15,11 +15,9 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Key-value datastore with a modified Merkle tree.
-extern crate rand;
-
 use keccak::keccak;
 use bytes::*;
-use hash::*;
+use bigint::hash::*;
 use rlp::encode;
 
 /// Alphabet to use when creating words for insertion into tries.
