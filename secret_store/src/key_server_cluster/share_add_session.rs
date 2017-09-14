@@ -24,6 +24,7 @@ use std::collections::btree_map::Entry;
 use ethkey::{Public, Secret, Signature};
 use parking_lot::Mutex;
 use key_server_cluster::{Error, NodeId, SessionMeta, DocumentKeyShare, KeyStorage};
+use key_server_cluster::cluster_sessions::ClusterSession;
 use key_server_cluster::math;
 use key_server_cluster::message::{Message, ShareAddMessage, InitializeShareAddSession, ConfirmShareAddInitialization,
 	KeyShareCommon, NewAbsoluteTermShare, NewKeysDissemination, ShareAddError};
@@ -58,7 +59,7 @@ pub struct SessionImpl<T: SessionTransport> {
 struct SessionCore<T: SessionTransport> {
 	/// Session metadata.
 	pub meta: SessionMeta,
-	/// Decryption session access key.
+	/// Share add session id.
 	pub sub_session: Secret,
 	/// Session-level nonce.
 	pub nonce: u64,
@@ -542,6 +543,20 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		data.state = SessionState::Finished;
 		core.key_storage.insert(core.meta.id.clone(), refreshed_key_share.clone())
 			.map_err(|e| Error::KeyStorage(e.into()))
+	}
+}
+
+impl<T> ClusterSession for SessionImpl<T> where T: SessionTransport {
+	fn is_finished(&self) -> bool {
+		self.data.lock().state == SessionState::Finished
+	}
+
+	fn on_session_timeout(&self) {
+		unimplemented!()
+	}
+
+	fn on_node_timeout(&self, _node_id: &NodeId) {
+		unimplemented!()
 	}
 }
 

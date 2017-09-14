@@ -50,7 +50,7 @@ impl UnknownSessionsJob {
 impl JobExecutor for UnknownSessionsJob {
 	type PartialJobRequest = NodeId;
 	type PartialJobResponse = BTreeSet<SessionId>;
-	type JobResponse = BTreeSet<SessionId>;
+	type JobResponse = BTreeMap<SessionId, BTreeSet<NodeId>>;
 
 	fn prepare_partial_request(&self, _node: &NodeId, _nodes: &BTreeSet<NodeId>) -> Result<NodeId, Error> {
 		Ok(self.target_node_id.clone().expect("prepare_partial_request is only called on master nodes; this field is filled on master nodes in constructor; qed"))
@@ -69,9 +69,16 @@ impl JobExecutor for UnknownSessionsJob {
 	}
 
 	// TODO: add partial response computation + partial-partial responses
-	fn compute_response(&self, partial_responses: &BTreeMap<NodeId, BTreeSet<SessionId>>) -> Result<BTreeSet<SessionId>, Error> {
-		Ok(partial_responses.values()
-			.flat_map(|s| s.iter().cloned())
-			.collect())
+	fn compute_response(&self, partial_responses: &BTreeMap<NodeId, BTreeSet<SessionId>>) -> Result<BTreeMap<SessionId, BTreeSet<NodeId>>, Error> {
+		let mut result: BTreeMap<SessionId, BTreeSet<NodeId>> = BTreeMap::new();
+		for (node_id, node_sessions) in partial_responses {
+			for node_session in node_sessions {
+				result.entry(node_session.clone())
+					.or_insert_with(Default::default)
+					.insert(node_id.clone());
+			}
+		}
+
+		Ok(result)
 	}
 }

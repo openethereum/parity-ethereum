@@ -173,6 +173,7 @@ pub mod math;
 mod message;
 mod servers_set_change_session;
 mod share_add_session;
+mod share_change_session;
 mod share_move_session;
 mod share_remove_session;
 mod signing_session;

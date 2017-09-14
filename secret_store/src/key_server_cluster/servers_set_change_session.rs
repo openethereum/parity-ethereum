@@ -19,10 +19,11 @@ use std::collections::{BTreeSet, BTreeMap};
 use parking_lot::{Mutex, Condvar};
 use ethkey::Signature;
 use tiny_keccak::{keccak256, Keccak};
-use key_server_cluster::{Error, NodeId, SessionId, SessionMeta, KeyStorage, DummyAclStorage};
+use key_server_cluster::{Error, NodeId, SessionId, SessionMeta, KeyStorage, DummyAclStorage, DocumentKeyShare};
 use key_server_cluster::cluster::Cluster;
 use key_server_cluster::message::{MessageNodeId, Message, ConsensusMessage, InitializeConsensusSession, ServersSetChangeMessage,
 	ServersSetChangeConsensusMessage, UnknownSessionsRequest, UnknownSessions};
+use key_server_cluster::share_change_session::ShareChangeSession;
 use key_server_cluster::jobs::job_session::JobTransport;
 use key_server_cluster::jobs::unknown_sessions_job::{UnknownSessionsJob};
 use key_server_cluster::jobs::consensus_session::{ConsensusSessionParams, ConsensusSessionState, ConsensusSession};
@@ -87,8 +88,10 @@ struct SessionData {
 	pub state: SessionState,
 	/// Consensus-based servers set change session.
 	pub consensus_session: ServersSetChangeConsensusSession,
-	/// Unknown sessions (filled on master node only). HashMap works like balance-load policy for poor here (TODO: check that diff HashMaps are getting diff seeds in single program run or change this).
-	pub unknown_sessions: BTreeMap<SessionId, BTreeSet<NodeId>>,
+	/// Unknown sessions (actual for master node only).
+	pub sessions_queue: Option<SessionsQueue>,
+	/// Active change sessions, where this node is a master.
+	pub master_sessions: Option<BTreeMap<SessionId, ShareChangeSession>>,
 	/// Servers set change result.
 	pub result: Option<Result<(), Error>>,
 /*	/// Keys, unknown to master node.
@@ -115,6 +118,14 @@ pub struct SessionParams {
 	pub key_storage: Arc<KeyStorage>,
 	/// Session nonce.
 	pub nonce: u64,
+}
+
+/// Share change sessions queue.
+struct SessionsQueue {
+	/// Known sessions iterator.
+	//known_sessions: Box<Iterator<Item=(SessionId, DocumentKeyShare)>>,
+	/// Unknown sessions.
+	unknown_sessions: BTreeMap<SessionId, BTreeSet<NodeId>>,
 }
 
 /// Servers set change consensus transport.
@@ -182,7 +193,8 @@ impl SessionImpl {
 						consensus_transport: consensus_transport,
 					})?,
 				},
-				unknown_sessions: BTreeMap::new(),
+				sessions_queue: None,
+				master_sessions: None,
 				result: None,
 			}),
 		})
@@ -213,9 +225,9 @@ impl SessionImpl {
 			&ServersSetChangeMessage::ServersSetChangeConsensusMessage(ref message) =>
 				self.on_consensus_message(sender, message),
 			&ServersSetChangeMessage::UnknownSessionsRequest(ref message) =>
-				unimplemented!(),
+				self.on_unknown_sessions_requested(sender, message),
 			&ServersSetChangeMessage::UnknownSessions(ref message) =>
-				unimplemented!(),
+				self.on_unknown_sessions(sender, message),
 		}
 	}
 
@@ -263,6 +275,8 @@ impl SessionImpl {
 		}
 
 		// all nodes has reported their unknown sessions => we are ready to start adding/moving/removing shares
+		let sessions_queue = SessionsQueue::new(/*self.core.key_storage.iter(), */data.consensus_session.result()?);
+		data.sessions_queue = Some(sessions_queue);
 		unimplemented!()
 	}
 
@@ -272,6 +286,15 @@ impl SessionImpl {
 			id: self.core.meta.id.clone(),
 			nonce: self.core.nonce,
 			cluster: self.core.cluster.clone(),
+		}
+	}
+}
+
+impl SessionsQueue {
+	pub fn new(/*known_sessions: Box<Iterator<Item=(SessionId, DocumentKeyShare)>>, */unknown_sessions: BTreeMap<SessionId, BTreeSet<NodeId>>) -> Self {
+		SessionsQueue {
+			//known_sessions: known_sessions,
+			unknown_sessions: unknown_sessions,
 		}
 	}
 }
