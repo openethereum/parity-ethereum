@@ -523,6 +523,8 @@ pub struct ServersSetChangeConsensusMessage {
 	pub session: MessageSessionId,
 	/// Session-level nonce.
 	pub session_nonce: u64,
+	/// New nodes set (sent only once to slave nodes).
+	pub new_nodes_set: Option<BTreeSet<MessageNodeId>>,
 	/// Consensus message.
 	pub message: ConsensusMessage,
 }
@@ -937,6 +939,16 @@ impl SigningMessage {
 			SigningMessage::PartialSignature(ref msg) => msg.session_nonce,
 			SigningMessage::SigningSessionError(ref msg) => msg.session_nonce,
 			SigningMessage::SigningSessionCompleted(ref msg) => msg.session_nonce,
+		}
+	}
+}
+
+impl ServersSetChangeMessage {
+	pub fn session_nonce(&self) -> u64 {
+		match *self {
+			ServersSetChangeMessage::ServersSetChangeConsensusMessage(ref msg) => msg.session_nonce,
+			ServersSetChangeMessage::UnknownSessionsRequest(ref msg) => msg.session_nonce,
+			ServersSetChangeMessage::UnknownSessions(ref msg) => msg.session_nonce,
 		}
 	}
 }

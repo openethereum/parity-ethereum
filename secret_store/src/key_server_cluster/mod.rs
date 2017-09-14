@@ -35,7 +35,6 @@ pub use self::decryption_session::Session as DecryptionSession;
 pub use super::node_key_pair::PlainNodeKeyPair;
 #[cfg(test)]
 pub use super::key_storage::tests::DummyKeyStorage;
-#[cfg(test)]
 pub use super::acl_storage::DummyAclStorage;
 #[cfg(test)]
 pub use super::key_server_set::tests::MapKeyServerSet;

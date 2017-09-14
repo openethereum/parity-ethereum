@@ -18,9 +18,11 @@ use std::sync::Arc;
 use std::collections::{BTreeSet, BTreeMap};
 use parking_lot::{Mutex, Condvar};
 use ethkey::Signature;
-use key_server_cluster::{Error, NodeId, SessionId, SessionMeta};
+use tiny_keccak::{keccak256, Keccak};
+use key_server_cluster::{Error, NodeId, SessionId, SessionMeta, KeyStorage, DummyAclStorage};
 use key_server_cluster::cluster::Cluster;
-use key_server_cluster::message::{ServersSetChangeMessage, ServersSetChangeConsensusMessage};
+use key_server_cluster::message::{MessageNodeId, Message, ConsensusMessage, InitializeConsensusSession, ServersSetChangeMessage,
+	ServersSetChangeConsensusMessage, UnknownSessionsRequest, UnknownSessions};
 use key_server_cluster::jobs::job_session::JobTransport;
 use key_server_cluster::jobs::unknown_sessions_job::{UnknownSessionsJob};
 use key_server_cluster::jobs::consensus_session::{ConsensusSessionParams, ConsensusSessionState, ConsensusSession};
@@ -51,6 +53,7 @@ pub struct SessionImpl {
 
 /// Session state.
 enum SessionState {
+	GetheringUnknownSessions,
 }
 
 /// Immutable session data.
@@ -59,8 +62,12 @@ struct SessionCore {
 	pub meta: SessionMeta,
 	/// Cluster which allows this node to send messages to other nodes in the cluster.
 	pub cluster: Arc<Cluster>,
+	/// Keys storage.
+	pub key_storage: Arc<KeyStorage>,
 	/// Session-level nonce.
 	pub nonce: u64,
+	/// New nodes set (sent only once to slave nodes).
+	pub new_nodes_set: Option<BTreeSet<NodeId>>,
 	/// SessionImpl completion condvar.
 	pub completed: Condvar,
 /*	/// Nodes to remove from the set.
@@ -80,6 +87,8 @@ struct SessionData {
 	pub state: SessionState,
 	/// Consensus-based servers set change session.
 	pub consensus_session: ServersSetChangeConsensusSession,
+	/// Unknown sessions (filled on master node only). HashMap works like balance-load policy for poor here (TODO: check that diff HashMaps are getting diff seeds in single program run or change this).
+	pub unknown_sessions: BTreeMap<SessionId, BTreeSet<NodeId>>,
 	/// Servers set change result.
 	pub result: Option<Result<(), Error>>,
 /*	/// Keys, unknown to master node.
@@ -102,6 +111,8 @@ pub struct SessionParams {
 	pub new_nodes_set: BTreeSet<NodeId>,
 	/// Cluster.
 	pub cluster: Arc<Cluster>,
+	/// Keys storage.
+	pub key_storage: Arc<KeyStorage>,
 	/// Session nonce.
 	pub nonce: u64,
 }
@@ -114,6 +125,8 @@ struct ServersSetChangeConsensusTransport {
 	nonce: u64,
 	/// Cluster.
 	cluster: Arc<Cluster>,
+	/// New nodes set.
+	new_nodes_set: Option<BTreeSet<MessageNodeId>>,
 }
 
 /// Unknown sessions job transport.
@@ -129,32 +142,47 @@ struct UnknownSessionsJobTransport {
 impl SessionImpl {
 	/// Create new servers set change session.
 	pub fn new(params: SessionParams, requester_signature: Option<Signature>) -> Result<Self, Error> {
-		debug_assert_eq!(params.meta.id, compute_servers_set_change_session_id(&params.new_nodes_set));
+		// session id must be the hash of sorted nodes set
+		let new_nodes_set_hash = nodes_hash(&params.new_nodes_set);
+		if new_nodes_set_hash != params.meta.id {
+			return Err(Error::InvalidNodesConfiguration);
+		}
 
 		let consensus_transport = ServersSetChangeConsensusTransport {
 			id: params.meta.id.clone(),
 			nonce: params.nonce,
 			cluster: params.cluster.clone(),
+			new_nodes_set: if params.meta.self_node_id == params.meta.self_node_id {
+				Some(params.new_nodes_set.iter().cloned().map(Into::into).collect())
+			} else {
+				None
+			},
 		};
 
 		Ok(SessionImpl {
 			core: SessionCore {
 				meta: params.meta.clone(),
 				cluster: params.cluster,
+				key_storage: params.key_storage,
 				nonce: params.nonce,
+				new_nodes_set: Some(params.new_nodes_set),
 				completed: Condvar::new(),
 			},
 			data: Mutex::new(SessionData {
+				state: SessionState::GetheringUnknownSessions,
 				consensus_session: match requester_signature {
 					Some(requester_signature) => ConsensusSession::new_on_master(ConsensusSessionParams {
 						meta: params.meta,
+						acl_storage: Arc::new(DummyAclStorage::default()), // TODO: change for something real
 						consensus_transport: consensus_transport,
 					}, requester_signature)?,
 					None => ConsensusSession::new_on_slave(ConsensusSessionParams {
 						meta: params.meta,
+						acl_storage: Arc::new(DummyAclStorage::default()), // TODO: change for something real
 						consensus_transport: consensus_transport,
 					})?,
 				},
+				unknown_sessions: BTreeMap::new(),
 				result: None,
 			}),
 		})
@@ -194,18 +222,57 @@ impl SessionImpl {
 	/// When consensus-related message is received.
 	pub fn on_consensus_message(&self, sender: &NodeId, message: &ServersSetChangeConsensusMessage) -> Result<(), Error> {
 		debug_assert!(self.core.meta.id == *message.session);
-		debug_assert!(self.core.access_key == *message.sub_session);
 
 		let mut data = self.data.lock();
 		let is_establishing_consensus = data.consensus_session.state() == ConsensusSessionState::EstablishingConsensus;
 		data.consensus_session.on_consensus_message(&sender, &message.message)?;
 
+		// whn consensus is established => request unknown sessions
 		let is_consensus_established = data.consensus_session.state() == ConsensusSessionState::ConsensusEstablished;
 		if self.core.meta.self_node_id != self.core.meta.master_node_id || !is_establishing_consensus || !is_consensus_established {
 			return Ok(());
 		}
 
+		let unknown_sessions_job = UnknownSessionsJob::new_on_master(self.core.meta.self_node_id.clone());
+		data.consensus_session.disseminate_jobs(unknown_sessions_job, self.unknown_sessions_transport())
+	}
+
+	/// When unknown sessions are requested.
+	pub fn on_unknown_sessions_requested(&self, sender: &NodeId, message: &UnknownSessionsRequest) -> Result<(), Error> {
+		debug_assert!(self.core.meta.id == *message.session);
+		debug_assert!(sender != &self.core.meta.self_node_id);
+
+		let mut data = self.data.lock();
+		let requester = data.consensus_session.requester()?.clone();
+		let unknown_sessions_job = UnknownSessionsJob::new_on_slave(self.core.key_storage.clone());
+		let unknown_sessions_transport = self.unknown_sessions_transport();
+
+		data.consensus_session.on_job_request(&sender, sender.clone(), unknown_sessions_job, unknown_sessions_transport)
+	}
+
+	/// When unknown sessions are received.
+	pub fn on_unknown_sessions(&self, sender: &NodeId, message: &UnknownSessions) -> Result<(), Error> {
+		debug_assert!(self.core.meta.id == *message.session);
+		debug_assert!(sender != &self.core.meta.self_node_id);
+
+		let mut data = self.data.lock();
+		data.consensus_session.on_job_response(sender, message.unknown_sessions.iter().cloned().map(Into::into).collect())?;
+
+		if data.consensus_session.state() != ConsensusSessionState::Finished {
+			return Ok(());
+		}
+
+		// all nodes has reported their unknown sessions => we are ready to start adding/moving/removing shares
 		unimplemented!()
+	}
+
+	/// Create unknown sessions transport.
+	fn unknown_sessions_transport(&self) -> UnknownSessionsJobTransport {
+		UnknownSessionsJobTransport {
+			id: self.core.meta.id.clone(),
+			nonce: self.core.nonce,
+			cluster: self.core.cluster.clone(),
+		}
 	}
 }
 
@@ -214,7 +281,14 @@ impl JobTransport for ServersSetChangeConsensusTransport {
 	type PartialJobResponse=bool;
 
 	fn send_partial_request(&self, node: &NodeId, request: Signature) -> Result<(), Error> {
-		unimplemented!()
+		self.cluster.send(node, Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeConsensusMessage(ServersSetChangeConsensusMessage {
+			session: self.id.clone().into(),
+			session_nonce: self.nonce,
+			new_nodes_set: self.new_nodes_set.clone(),
+			message: ConsensusMessage::InitializeConsensusSession(InitializeConsensusSession {
+				requestor_signature: request.into(),
+			}),
+		})))
 	}
 
 	fn send_partial_response(&self, node: &NodeId, response: bool) -> Result<(), Error> {
@@ -235,6 +309,14 @@ impl JobTransport for UnknownSessionsJobTransport {
 	}
 }
 
-pub fn compute_servers_set_change_session_id(new_nodes_set: &BTreeSet<NodeId>) -> SessionId {
-	unimplemented!()
+pub fn nodes_hash(nodes: &BTreeSet<NodeId>) -> SessionId {
+	let mut nodes_keccak = Keccak::new_keccak256();
+	for node in nodes {
+		nodes_keccak.update(&*node);
+	}
+
+	let mut nodes_keccak_value = [0u8; 32];
+	nodes_keccak.finalize(&mut nodes_keccak_value);
+
+	nodes_keccak_value.into()
 }
