@@ -32,6 +32,8 @@ use trace::{Tracer, NoopTracer};
 use trace::{VMTracer, NoopVMTracer};
 use bytes::{Bytes, BytesRef};
 use trie;
+use rlp::RlpStream;
+use hash::keccak;
 
 #[derive(Debug, PartialEq, Clone)]
 struct CallCreate {
@@ -259,6 +261,14 @@ fn do_json_test_for(vm_type: &VMType, json_data: &[u8]) -> Vec<String> {
 			(res.finalize(ex), callcreates)
 		};
 
+		let log_hash = {
+			let mut rlp = RlpStream::new_list(substate.logs.len());
+			for l in &substate.logs {
+				rlp.append(l);
+			}
+			keccak(&rlp.drain())
+		};
+
 		match res {
 			Err(_) => fail_unless(out_of_gas, "didn't expect to run out of gas."),
 			Ok(res) => {
@@ -266,8 +276,7 @@ fn do_json_test_for(vm_type: &VMType, json_data: &[u8]) -> Vec<String> {
 				fail_unless(Some(res.gas_left) == vm.gas_left.map(Into::into), "gas_left is incorrect");
 				let vm_output: Option<Vec<u8>> = vm.output.map(Into::into);
 				fail_unless(Some(output) == vm_output, "output is incorrect");
-				// TODO: verify logs
-				//fail_unless(Some(res.logs) == vm.logs, "logs are incorrect");
+				fail_unless(Some(log_hash) == vm.logs.map(|h| h.0), "logs are incorrect");
 
 				for (address, account) in vm.post_state.unwrap().into_iter() {
 					let address = address.into();

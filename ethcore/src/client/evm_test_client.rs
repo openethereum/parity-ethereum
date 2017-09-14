@@ -92,6 +92,7 @@ impl<'a> EvmTestClient<'a> {
 			ForkSpec::EIP158 => Some(&*EIP161),
 			ForkSpec::Byzantium => Some(&*BYZANTIUM),
 			ForkSpec::EIP158ToByzantiumAt5 => Some(&BYZANTIUM_TRANSITION),
+			ForkSpec::FrontierToHomesteadAt5 | ForkSpec::HomesteadToDaoAt5 | ForkSpec::HomesteadToEIP150At5 => None,
 			_ => None,
 		}
 	}

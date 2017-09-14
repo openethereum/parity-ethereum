@@ -505,7 +505,9 @@ impl<B: Backend> State<B> {
 
 	/// Determine whether an account exists and has code or non-zero nonce.
 	pub fn exists_and_has_code_or_nonce(&self, a: &Address) -> trie::Result<bool> {
-		self.ensure_cached(a, RequireCache::CodeSize, false, |a| a.map_or(false, |a| a.code_size().map_or(false, |size| size != 0 || !a.nonce().is_zero())))
+		self.ensure_cached(a, RequireCache::CodeSize, false,
+			|a| a.map_or(false, |a| a.code_size().map_or(false,
+				|size| size != 0 || *a.nonce() != self.account_start_nonce)))
 	}
 
 	/// Get the balance of account `a`.
@@ -698,9 +700,9 @@ impl<B: Backend> State<B> {
 		let e = self.execute(env_info, engine, t, options, false)?;
 
 		let eip658 = env_info.number >= engine.params().eip658_transition;
-		let no_intermediate_commits = (env_info.number >= engine.params().eip98_transition
-			&& env_info.number >= engine.params().validate_receipts_transition)
-			|| eip658;
+		let no_intermediate_commits =
+			eip658 ||
+			(env_info.number >= engine.params().eip98_transition && env_info.number >= engine.params().validate_receipts_transition);
 
 		let state_root = if no_intermediate_commits {
 			None

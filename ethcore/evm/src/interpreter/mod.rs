@@ -328,7 +328,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 				let contract_code = self.mem.read_slice(init_off, init_size);
 				let can_create = ext.balance(&params.address)? >= endowment && ext.depth() < ext.schedule().max_depth;
 
-				// clear return data buffer before crearing new call frame.
+				// clear return data buffer before creating new call frame.
 				self.return_data = ReturnData::empty();
 
 				if !can_create {
@@ -368,8 +368,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 					None
 				} else if instruction == instructions::STATICCALL {
 					Some(U256::zero())
-				}
-				else {
+				} else {
 					Some(stack.pop_back())
 				};
 
@@ -390,11 +389,11 @@ impl<Cost: CostType> Interpreter<Cost> {
 						if ext.is_static() && value.map_or(false, |v| !v.is_zero()) {
 							return Err(vm::Error::MutableCallInStaticContext);
 						}
-						let has_balance = ext.balance(&params.address)? >= value.expect("value set for all but delegate call and staticcall; qed");
+						let has_balance = ext.balance(&params.address)? >= value.expect("value set for all but delegate call; qed");
 						(&params.address, &code_address, has_balance, CallType::Call)
 					},
 					instructions::CALLCODE => {
-						let has_balance = ext.balance(&params.address)? >= value.expect("value set for all but delegate call and staticcall; qed");
+						let has_balance = ext.balance(&params.address)? >= value.expect("value set for all but delegate call; qed");
 						(&params.address, &params.address, has_balance, CallType::CallCode)
 					},
 					instructions::DELEGATECALL => (&params.sender, &params.address, true, CallType::DelegateCall),
@@ -423,12 +422,12 @@ impl<Cost: CostType> Interpreter<Cost> {
 					MessageCallResult::Success(gas_left, data) => {
 						stack.push(U256::one());
 						self.return_data = data;
-						Ok(InstructionResult::UnusedGas(Cost::from_u256(gas_left).expect("Gas left cannot be greater then current one")))
+						Ok(InstructionResult::UnusedGas(Cost::from_u256(gas_left).expect("Gas left cannot be greater than current one")))
 					},
 					MessageCallResult::Reverted(gas_left, data) => {
 						stack.push(U256::zero());
 						self.return_data = data;
-						Ok(InstructionResult::UnusedGas(Cost::from_u256(gas_left).expect("Gas left cannot be greater then current one")))
+						Ok(InstructionResult::UnusedGas(Cost::from_u256(gas_left).expect("Gas left cannot be greater than current one")))
 					},
 					MessageCallResult::Failed  => {
 						stack.push(U256::zero());

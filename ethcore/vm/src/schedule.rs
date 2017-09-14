@@ -197,7 +197,6 @@ impl Schedule {
 		schedule.have_revert = true;
 		schedule.have_static_call = true;
 		schedule.have_return_data = true;
-		schedule.blockhash_gas = 800;
 		schedule
 	}
 
