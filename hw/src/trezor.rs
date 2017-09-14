@@ -255,9 +255,9 @@ impl Manager {
 
 	/// Sign transaction data with wallet managing `address`.
 	pub fn sign_transaction(&self, address: &Address, t_info: &TransactionInfo) -> Result<Signature, Error> {
+		let usb = self.usb.lock();
 		let devices = self.devices.read();
 		let device = devices.iter().find(|d| &d.info.address == address).ok_or(Error::KeyNotFound)?;
-		let usb = self.usb.lock();
 		let handle = self.open_path(|| usb.open_path(&device.path))?;
 		let msg_type = MessageType::MessageType_EthereumSignTx;
 		let mut message = EthereumSignTx::new();

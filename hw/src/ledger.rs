@@ -192,10 +192,9 @@ impl Manager {
 
 	/// Sign transaction data with wallet managing `address`.
 	pub fn sign_transaction(&self, address: &Address, data: &[u8]) -> Result<Signature, Error> {
+		let usb = self.usb.lock();
 		let devices = self.devices.read();
 		let device = devices.iter().find(|d| &d.info.address == address).ok_or(Error::KeyNotFound)?;
-
-		let usb = self.usb.lock();
 		let handle = self.open_path(|| usb.open_path(&device.path))?;
 
 		let eth_path = &ETH_DERIVATION_PATH_BE[..];
