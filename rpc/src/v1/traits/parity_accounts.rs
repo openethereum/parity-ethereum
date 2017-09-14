@@ -184,5 +184,9 @@ build_rpc_trait! {
 		/// Sign raw hash with the key corresponding to address and password.
 		#[rpc(name = "parity_signMessage")]
 		fn sign_message(&self, H160, String, H256) -> Result<H520, Error>;
+
+		/// Send a PinMatrixAck to a hardware wallet, unlocking it
+		#[rpc(name = "parity_hardwarePinMatrixAck")]
+		fn hardware_pin_matrix_ack(&self, String, String) -> Result<bool, Error>;
 	}
 }

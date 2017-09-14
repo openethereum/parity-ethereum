@@ -562,7 +562,7 @@ fn hardware_signature(accounts: &AccountProvider, address: Address, t: Transacti
 
 	let mut stream = rlp::RlpStream::new();
 	t.rlp_append_unsigned_transaction(&mut stream, chain_id);
-	let signature = accounts.sign_with_hardware(address, &stream.as_raw())
+	let signature = accounts.sign_with_hardware(address, &t, chain_id, &stream.as_raw())
 		.map_err(|e| {
 			debug!(target: "miner", "Error signing transaction with hardware wallet: {}", e);
 			errors::account("Error signing transaction with hardware wallet", e)

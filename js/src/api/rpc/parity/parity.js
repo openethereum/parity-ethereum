@@ -252,6 +252,16 @@ export default class Parity {
       .then(outHwAccountInfo);
   }
 
+  lockedHardwareAccountsInfo () {
+    return this._transport
+      .execute('parity_lockedHardwareAccountsInfo');
+  }
+
+  hardwarePinMatrixAck (path, pin) {
+    return this._transport
+      .execute('parity_hardwarePinMatrixAck', path, pin);
+  }
+
   hashContent (url) {
     return this._transport
       .execute('parity_hashContent', url);
