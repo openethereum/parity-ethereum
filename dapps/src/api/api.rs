@@ -77,7 +77,6 @@ impl RestApi {
 	}
 
 	fn health(&self) -> Response {
-		// TODO [ToDr] timeout?
 		Box::new(self.health.health()
 			.then(|health| {
 				let status = match health {
@@ -91,7 +90,6 @@ impl RestApi {
 					_ => StatusCode::ServiceUnavailable, // HTTP 503
 				};
 
-				// TODO Soem properly formatted error
 				Ok(response::as_json(status, &health).into())
 			})
 		)

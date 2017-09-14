@@ -29,7 +29,6 @@ itertools = "0.5"
 
 jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "td-remove-boxfuture" }
 jsonrpc-http-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "td-remove-boxfuture" }
-jsonrpc-minihttp-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "td-remove-boxfuture" }
 jsonrpc-ws-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "td-remove-boxfuture" }
 jsonrpc-ipc-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "td-remove-boxfuture" }
 jsonrpc-macros = { git = "https://github.com/paritytech/jsonrpc.git", branch = "td-remove-boxfuture" }

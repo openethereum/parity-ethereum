@@ -40,7 +40,6 @@ extern crate transient_hashmap;
 extern crate jsonrpc_core;
 extern crate jsonrpc_http_server as http;
 extern crate jsonrpc_ipc_server as ipc;
-extern crate jsonrpc_minihttp_server as minihttp;
 extern crate jsonrpc_pubsub;
 
 extern crate ethash;
@@ -106,22 +105,8 @@ use std::net::SocketAddr;
 use http::tokio_core;
 
 /// RPC HTTP Server instance
-pub enum HttpServer {
-	/// Fast MiniHTTP variant
-	Mini(minihttp::Server),
-	/// Hyper variant
-	Hyper(http::Server),
-}
+pub type HttpServer = http::Server;
 
-impl HttpServer {
-	/// Returns current listening address.
-	pub fn address(&self) -> &SocketAddr {
-		match *self {
-			HttpServer::Mini(ref s) => s.address(),
-			HttpServer::Hyper(ref s) => s.address(),
-		}
-	}
-}
 
 /// RPC HTTP Server error
 #[derive(Debug)]
@@ -142,23 +127,6 @@ impl From<http::Error> for HttpServerError {
 	}
 }
 
-impl From<minihttp::Error> for HttpServerError {
-	fn from(e: minihttp::Error) -> Self {
-		use self::HttpServerError::*;
-		match e {
-			minihttp::Error::Io(io) => Io(io),
-		}
-	}
-}
-
-/// HTTP server implementation-specific settings.
-pub enum HttpSettings<R: RequestMiddleware> {
-	/// Enable fast minihttp server with given number of threads.
-	Threads(usize),
-	/// Enable standard server with optional dapps middleware.
-	Dapps(Option<R>),
-}
-
 /// Start http server asynchronously and returns result with `Server` handle on success or an error.
 pub fn start_http<M, S, H, T, R>(
 	addr: &SocketAddr,
@@ -167,7 +135,8 @@ pub fn start_http<M, S, H, T, R>(
 	handler: H,
 	remote: tokio_core::reactor::Remote,
 	extractor: T,
-	settings: HttpSettings<R>,
+	middleware: Option<R>,
+	threads: usize,
 ) -> Result<HttpServer, HttpServerError> where
 	M: jsonrpc_core::Metadata,
 	S: jsonrpc_core::Middleware<M>,
@@ -175,30 +144,18 @@ pub fn start_http<M, S, H, T, R>(
 	T: HttpMetaExtractor<Metadata=M>,
 	R: RequestMiddleware,
 {
-	Ok(match settings {
-		HttpSettings::Dapps(middleware) => {
-			let mut builder = http::ServerBuilder::new(handler)
-				.event_loop_remote(remote)
-				.meta_extractor(http_common::HyperMetaExtractor::new(extractor))
-				.cors(cors_domains.into())
-				.allowed_hosts(allowed_hosts.into());
+	let mut builder = http::ServerBuilder::new(handler)
+		.threads(threads)
+		.event_loop_remote(remote)
+		.meta_extractor(http_common::MetaExtractor::new(extractor))
+		.cors(cors_domains.into())
+		.allowed_hosts(allowed_hosts.into());
 
-			if let Some(dapps) = middleware {
-				builder = builder.request_middleware(dapps)
-			}
-			builder.start_http(addr)
-				.map(HttpServer::Hyper)?
-		},
-		HttpSettings::Threads(threads) => {
-			minihttp::ServerBuilder::new(handler)
-				.threads(threads)
-				.meta_extractor(http_common::MiniMetaExtractor::new(extractor))
-				.cors(cors_domains.into())
-				.allowed_hosts(allowed_hosts.into())
-				.start_http(addr)
-				.map(HttpServer::Mini)?
-		},
-	})
+	if let Some(dapps) = middleware {
+		builder = builder.request_middleware(dapps)
+	}
+
+	Ok(builder.start_http(addr)?)
 }
 
 /// Start ipc server asynchronously and returns result with `Server` handle on success or an error.
