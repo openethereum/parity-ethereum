@@ -22,7 +22,7 @@ use tiny_keccak::{keccak256, Keccak};
 use key_server_cluster::{Error, NodeId, SessionId, SessionMeta, KeyStorage, DummyAclStorage, DocumentKeyShare};
 use key_server_cluster::cluster::Cluster;
 use key_server_cluster::message::{MessageNodeId, Message, ConsensusMessage, InitializeConsensusSession, ServersSetChangeMessage,
-	ServersSetChangeConsensusMessage, UnknownSessionsRequest, UnknownSessions};
+	ServersSetChangeConsensusMessage, ConfirmConsensusInitialization, UnknownSessionsRequest, UnknownSessions};
 use key_server_cluster::share_change_session::ShareChangeSession;
 use key_server_cluster::jobs::job_session::JobTransport;
 use key_server_cluster::jobs::unknown_sessions_job::{UnknownSessionsJob};
@@ -370,7 +370,14 @@ impl JobTransport for ServersSetChangeConsensusTransport {
 	}
 
 	fn send_partial_response(&self, node: &NodeId, response: bool) -> Result<(), Error> {
-		unimplemented!()
+		self.cluster.send(node, Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeConsensusMessage(ServersSetChangeConsensusMessage {
+			session: self.id.clone().into(),
+			session_nonce: self.nonce,
+			new_nodes_set: self.new_nodes_set.clone(),
+			message: ConsensusMessage::ConfirmConsensusInitialization(ConfirmConsensusInitialization {
+				is_confirmed: response,
+			}),
+		})))
 	}
 }
 
@@ -379,11 +386,18 @@ impl JobTransport for UnknownSessionsJobTransport {
 	type PartialJobResponse=BTreeSet<SessionId>;
 
 	fn send_partial_request(&self, node: &NodeId, request: NodeId) -> Result<(), Error> {
-		unimplemented!()
+		self.cluster.send(node, Message::ServersSetChange(ServersSetChangeMessage::UnknownSessionsRequest(UnknownSessionsRequest {
+			session: self.id.clone().into(),
+			session_nonce: self.nonce,
+		})))
 	}
 
 	fn send_partial_response(&self, node: &NodeId, response: BTreeSet<SessionId>) -> Result<(), Error> {
-		unimplemented!()
+		self.cluster.send(node, Message::ServersSetChange(ServersSetChangeMessage::UnknownSessions(UnknownSessions {
+			session: self.id.clone().into(),
+			session_nonce: self.nonce,
+			unknown_sessions: response.into_iter().map(Into::into).collect(),
+		})))
 	}
 }
 
