@@ -29,6 +29,8 @@ export default class HardwareStore {
     this._api = api;
     this._ledger = Ledger.create(api);
     this._pollId = null;
+    this.hwAccounts = {};
+    this.ledgerAccounts = {};
 
     this._pollScan();
     this._subscribeParity();
@@ -101,7 +103,8 @@ export default class HardwareStore {
               info.address = address;
               info.via = 'parity';
             });
-          this.setWallets(hwInfo);
+          this.hwAccounts = hwInfo;
+          this.updateWallets();
           return hwInfo;
         },
         onError
@@ -117,11 +120,16 @@ export default class HardwareStore {
     // not intended as a network call, i.e. hw wallet is with the user)
     return this.scanLedger()
       .then((ledgerAccounts) => {
+        this.ledgerAccounts = ledgerAccounts;
         transaction(() => {
-          this.setWallets(Object.assign({}, ledgerAccounts));
+          this.updateWallets();
           this.setScanning(false);
         });
       });
+  }
+
+  updateWallets () {
+    this.setWallets(Object.assign({}, this.hwAccounts, this.ledgerAccounts));
   }
 
   createAccountInfo (entry, original = {}) {
