@@ -64,11 +64,9 @@ pub fn init_server<F, B>(process: F, io: IoHandler) -> (Server, Arc<FakeRegistra
 	let mut dapps_path = env::temp_dir();
 	dapps_path.push("non-existent-dir-to-prevent-fs-files-from-loading");
 
-	let server = process(ServerBuilder::new(
-		&dapps_path, registrar.clone(),
-	))
-		.signer_address(Some(("127.0.0.1".into(), SIGNER_PORT)))
-		.start_unsecured_http(&"127.0.0.1:0".parse().unwrap(), io).unwrap();
+	let mut builder = ServerBuilder::new(&dapps_path, registrar.clone());
+	builder.signer_address = Some(("127.0.0.1".into(), SIGNER_PORT));
+	let server = process(builder).start_unsecured_http(&"127.0.0.1:0".parse().unwrap(), io).unwrap();
 	(
 		server,
 		registrar,
@@ -81,7 +79,10 @@ pub fn serve_with_rpc(io: IoHandler) -> Server {
 
 pub fn serve_hosts(hosts: Option<Vec<String>>) -> Server {
 	let hosts = hosts.map(|hosts| hosts.into_iter().map(Into::into).collect());
-	init_server(|builder| builder.allowed_hosts(hosts.into()), Default::default()).0
+	init_server(|mut builder| {
+		builder.allowed_hosts = hosts.into();
+		builder
+	}, Default::default()).0
 }
 
 pub fn serve_with_registrar() -> (Server, Arc<FakeRegistrar>) {
@@ -89,8 +90,9 @@ pub fn serve_with_registrar() -> (Server, Arc<FakeRegistrar>) {
 }
 
 pub fn serve_with_registrar_and_sync() -> (Server, Arc<FakeRegistrar>) {
-	init_server(|builder| {
-		builder.sync_status(Arc::new(FakeSync(true)))
+	init_server(|mut builder| {
+		builder.sync_status = Arc::new(FakeSync(true));
+		builder
 	}, Default::default())
 }
 
@@ -107,12 +109,11 @@ pub fn serve_with_registrar_and_fetch() -> (Server, FakeFetch, Arc<FakeRegistrar
 pub fn serve_with_fetch(web_token: &'static str, domain: &'static str) -> (Server, FakeFetch) {
 	let fetch = FakeFetch::default();
 	let f = fetch.clone();
-	let (server, _) = init_server(move |builder| {
-		builder
-			.fetch(f.clone())
-			.web_proxy_tokens(Arc::new(move |token| {
-				if &token == web_token { Some(domain.into()) } else { None }
-			}))
+	let (server, _) = init_server(move |mut builder| {
+		builder.web_proxy_tokens = Arc::new(move |token| {
+			if &token == web_token { Some(domain.into()) } else { None }
+		});
+		builder.fetch(f.clone())
 	}, Default::default());
 
 	(server, fetch)
@@ -120,6 +121,13 @@ pub fn serve_with_fetch(web_token: &'static str, domain: &'static str) -> (Serve
 
 pub fn serve() -> Server {
 	init_server(|builder| builder, Default::default()).0
+}
+
+pub fn serve_ui() -> Server {
+	init_server(|mut builder| {
+		builder.serve_ui = true;
+		builder
+	}, Default::default()).0
 }
 
 pub fn request(server: Server, request: &str) -> http_client::Response {
@@ -143,6 +151,7 @@ pub struct ServerBuilder<T: Fetch = FetchClient> {
 	signer_address: Option<(String, u16)>,
 	allowed_hosts: DomainsValidation<Host>,
 	fetch: Option<T>,
+	serve_ui: bool,
 }
 
 impl ServerBuilder {
@@ -156,6 +165,7 @@ impl ServerBuilder {
 			signer_address: None,
 			allowed_hosts: DomainsValidation::Disabled,
 			fetch: None,
+			serve_ui: false,
 		}
 	}
 }
@@ -171,33 +181,8 @@ impl<T: Fetch> ServerBuilder<T> {
 			signer_address: self.signer_address,
 			allowed_hosts: self.allowed_hosts,
 			fetch: Some(fetch),
+			serve_ui: self.serve_ui,
 		}
-	}
-
-	/// Change default sync status.
-	pub fn sync_status(mut self, status: Arc<SyncStatus>) -> Self {
-		self.sync_status = status;
-		self
-	}
-
-	/// Change default web proxy tokens validator.
-	pub fn web_proxy_tokens(mut self, tokens: Arc<WebProxyTokens>) -> Self {
-		self.web_proxy_tokens = tokens;
-		self
-	}
-
-	/// Change default signer port.
-	pub fn signer_address(mut self, signer_address: Option<(String, u16)>) -> Self {
-		self.signer_address = signer_address;
-		self
-	}
-
-	/// Change allowed hosts.
-	/// `None` - All hosts are allowed
-	/// `Some(whitelist)` - Allow only whitelisted hosts (+ listen address)
-	pub fn allowed_hosts(mut self, allowed_hosts: DomainsValidation<Host>) -> Self {
-		self.allowed_hosts = allowed_hosts;
-		self
 	}
 
 	/// Asynchronously start server with no authentication,
@@ -216,6 +201,7 @@ impl<T: Fetch> ServerBuilder<T> {
 			self.web_proxy_tokens,
 			Remote::new_sync(),
 			fetch,
+			self.serve_ui,
 		)
 	}
 
@@ -247,25 +233,39 @@ impl Server {
 		web_proxy_tokens: Arc<WebProxyTokens>,
 		remote: Remote,
 		fetch: F,
+		serve_ui: bool,
 	) -> Result<Server, http::Error> {
 		let health = NodeHealth::new(
 			sync_status.clone(),
 			TimeChecker::new::<String>(&[], CpuPool::new(1)),
 			remote.clone(),
 		);
-		let middleware = Middleware::dapps(
-			health,
-			signer_address,
-			vec![],
-			vec![],
-			dapps_path,
-			extra_dapps,
-			DAPPS_DOMAIN.into(),
-			registrar,
-			sync_status,
-			web_proxy_tokens,
-			fetch,
-		);
+		let pool = ::futures_cpupool::CpuPool::new(1);
+		let middleware = if serve_ui {
+			Middleware::ui(
+				pool,
+				health,
+				DAPPS_DOMAIN.into(),
+				registrar,
+				sync_status,
+				fetch,
+			)
+		} else {
+			Middleware::dapps(
+				pool,
+				health,
+				signer_address,
+				vec![],
+				vec![],
+				dapps_path,
+				extra_dapps,
+				DAPPS_DOMAIN.into(),
+				registrar,
+				sync_status,
+				web_proxy_tokens,
+				fetch,
+			)
+		};
 
 		let mut allowed_hosts: Option<Vec<Host>> = allowed_hosts.into();
 		allowed_hosts.as_mut().map(|mut hosts| {

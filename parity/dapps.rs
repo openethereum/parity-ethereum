@@ -247,6 +247,7 @@ mod server {
 		let web_proxy_tokens = Arc::new(move |token| signer.web_proxy_access_token_domain(&token));
 
 		Ok(parity_dapps::Middleware::dapps(
+			deps.fetch.pool(),
 			deps.node_health,
 			deps.ui_address,
 			extra_embed_on,
@@ -266,6 +267,7 @@ mod server {
 		dapps_domain: &str,
 	) -> Result<Middleware, String> {
 		Ok(parity_dapps::Middleware::ui(
+			deps.fetch.pool(),
 			deps.node_health,
 			dapps_domain,
 			deps.contract_client,

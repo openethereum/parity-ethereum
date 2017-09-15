@@ -1965,6 +1965,7 @@ dependencies = [
  "ethcore-util 1.8.0",
  "fetch 0.1.0",
  "futures 0.1.15 (registry+https://github.com/rust-lang/crates.io-index)",
+ "futures-cpupool 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "hash 0.1.0",
  "itertools 0.5.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "jsonrpc-core 8.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=td-remove-boxfuture)",
@@ -1984,7 +1985,7 @@ dependencies = [
  "serde_derive 1.0.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "unicase 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "zip 0.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "zip 0.1.19 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -3368,7 +3369,7 @@ dependencies = [
 
 [[package]]
 name = "zip"
-version = "0.2.6"
+version = "0.1.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "flate2 0.2.14 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -3651,4 +3652,4 @@ dependencies = [
 "checksum xdg 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "77b831a5ba77110f438f0ac5583aafeb087f70432998ba6b7dcb1d32185db453"
 "checksum xml-rs 0.3.4 (registry+https://github.com/rust-lang/crates.io-index)" = "65e74b96bd3179209dc70a980da6df843dff09e46eee103a0376c0949257e3ef"
 "checksum xmltree 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)" = "472a9d37c7c53ab2391161df5b89b1f3bf76dab6ab150d7941ecbdd832282082"
-"checksum zip 0.2.6 (registry+https://github.com/rust-lang/crates.io-index)" = "21c4067ff2f91926cb9aef8a8a55f8568b0f2631bb6b827d0fb9770ff5894e43"
+"checksum zip 0.1.19 (registry+https://github.com/rust-lang/crates.io-index)" = "c0deac03fc7d43abcf19f2c2db6bd9289f9ea3d31f350e26eb0ed8b4117983c1"

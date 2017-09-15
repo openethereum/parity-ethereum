@@ -16,13 +16,10 @@
 
 //! Content Stream Response
 
-use std::io::{self, Read};
-
-use futures::{self, sink, Sink, Future};
-use futures::sync::mpsc;
+use std::io;
 use hyper::{self, header, mime, StatusCode};
 
-use handlers::add_security_headers;
+use handlers::{add_security_headers, Reader};
 use Embeddable;
 
 pub struct StreamingHandler<R> {
@@ -48,48 +45,14 @@ impl<R: io::Read> StreamingHandler<R> {
 		self.initial = content.as_bytes().to_vec();
 	}
 
-	pub fn into_response(self) -> (Reading<R>, hyper::Response) {
-		let (tx, rx) = hyper::Body::pair();
-		let reader = Reading {
-			buffer: [0; MAX_CHUNK_SIZE],
-			content: io::BufReader::new(self.content),
-			sending: tx.send(Ok(self.initial.into())),
-		};
-
+	pub fn into_response(self) -> (Reader<R>, hyper::Response) {
+		let (reader, body) = Reader::pair(self.content, self.initial);
 		let mut res = hyper::Response::new()
 			.with_status(self.status)
 			.with_header(header::ContentType(self.mimetype))
-			.with_body(rx);
+			.with_body(body);
 		add_security_headers(&mut res.headers_mut(), self.safe_to_embed_on);
 
 		(reader, res)
-	}
-}
-
-type Sender = mpsc::Sender<Result<hyper::Chunk, hyper::Error>>;
-
-const MAX_CHUNK_SIZE: usize = 16 * 1024;
-pub struct Reading<R: io::Read> {
-	buffer: [u8; MAX_CHUNK_SIZE],
-	content: io::BufReader<R>,
-	sending: sink::Send<Sender>,
-}
-
-impl<R: io::Read> Future for Reading<R> {
-	type Item = ();
-	type Error = ();
-
-	fn poll(&mut self) -> futures::Poll<Self::Item, Self::Error> {
-		loop {
-			let next = try_ready!(self.sending.poll().map_err(|err| {
-				warn!(target: "dapps", "Unable to send next chunk: {:?}", err);
-			}));
-
-			self.sending = match self.content.read(&mut self.buffer) {
-				Ok(0) => return Ok(futures::Async::Ready(())),
-				Ok(read) => next.send(Ok(self.buffer[..read].to_vec().into())),
-				Err(err) => next.send(Err(hyper::Error::Io(err))),
-			}
-		}
 	}
 }

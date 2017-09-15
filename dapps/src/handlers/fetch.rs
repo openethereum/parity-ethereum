@@ -21,28 +21,28 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Instant, Duration};
 use fetch::{self, Fetch};
-use futures::{self, Future};
 use futures::sync::oneshot;
+use futures::{self, Future};
+use hyper::{self, Method, StatusCode};
+use jsonrpc_core::BoxFuture;
 use parking_lot::Mutex;
 
-use hyper::{self, Method, StatusCode};
-
-use jsonrpc_core::BoxFuture;
 use endpoint::{self, EndpointPath};
 use handlers::{ContentHandler, StreamingHandler};
-use page::LocalPageEndpoint;
+use page::local;
 use {Embeddable};
 
 const FETCH_TIMEOUT: u64 = 300;
 
 pub enum ValidatorResponse {
-	Local(LocalPageEndpoint),
+	Local(local::Dapp),
 	Streaming(StreamingHandler<fetch::Response>),
 }
 
 pub trait ContentValidator: Send + 'static {
 	type Error: fmt::Debug + fmt::Display;
 
+	// TODO [ToDr] Consume!
 	fn validate_and_install(&self, fetch::Response) -> Result<ValidatorResponse, Self::Error>;
 }
 
@@ -112,7 +112,7 @@ enum WaitState {
 #[derive(Debug)]
 enum WaitResult {
 	Error(ContentHandler),
-	Done(LocalPageEndpoint),
+	Done(local::Dapp),
 	NonAwaitable,
 }
 
@@ -140,7 +140,7 @@ impl Future for WaitingHandler {
 							return Ok(futures::Async::Ready(errors.streaming().into()));
 						},
 						WaitResult::Done(endpoint) => {
-							WaitState::Done(endpoint.to_response(self.path.clone()).into())
+							WaitState::Done(endpoint.to_response(&self.path).into())
 						},
 					}
 				},
@@ -215,7 +215,7 @@ enum FetchState {
 	Error(ContentHandler),
 	InProgress(BoxFuture<FetchState, ()>),
 	Streaming(hyper::Response),
-	Done(LocalPageEndpoint, endpoint::Response),
+	Done(local::Dapp, endpoint::Response),
 	Empty,
 }
 
@@ -299,7 +299,7 @@ impl ContentFetcherHandler {
 				Ok(response) => match installer.validate_and_install(response) {
 					Ok(ValidatorResponse::Local(endpoint)) => {
 						trace!(target: "dapps", "Validation OK. Returning response.");
-						let response = endpoint.to_response(path);
+						let response = endpoint.to_response(&path);
 						FetchState::Done(endpoint, response)
 					},
 					Ok(ValidatorResponse::Streaming(stream)) => {

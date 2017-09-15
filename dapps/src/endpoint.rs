@@ -31,6 +31,12 @@ pub struct EndpointPath {
 	pub using_dapps_domains: bool,
 }
 
+impl EndpointPath {
+	pub fn has_no_params(&self) -> bool {
+		self.app_params.is_empty() || self.app_params.iter().all(|x| x.is_empty())
+	}
+}
+
 #[derive(Debug, PartialEq, Clone)]
 pub struct EndpointInfo {
 	pub name: String,

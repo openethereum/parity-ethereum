@@ -258,9 +258,14 @@ fn extract_endpoint(url: &Uri, extra_host: Option<&header::Host>, dapps_domain: 
 		Some(host) if host.ends_with(dapps_domain) => {
 			let id = &host[0..(host.len() - dapps_domain.len())];
 			let special = special_endpoint(&path_segments);
+
+			// remove special endpoint id from params
+			if special != SpecialEndpoint::None {
+				path_segments.remove(0);
+			}
+
 			let (app_id, app_params) = if let Some(split) = id.rfind('.') {
 				let (params, id) = id.split_at(split);
-				let mut path_segments = path_segments.clone();
 				path_segments.insert(0, params);
 				(id[1..].to_owned(), path_segments)
 			} else {
@@ -339,12 +344,24 @@ mod tests {
 			extract_endpoint(&"http://my.status.web3.site/parity-utils/inject.js".parse().unwrap(), None, dapps_domain),
 			(Some(EndpointPath {
 				app_id: "status".to_owned(),
-				app_params: vec!["my".to_owned(), "parity-utils".into(), "inject.js".into()],
+				app_params: vec!["my".into(), "inject.js".into()],
 				query: None,
 				host: "my.status.web3.site".to_owned(),
 				port: 80,
 				using_dapps_domains: true,
 			}), SpecialEndpoint::Utils)
+		);
+
+		assert_eq!(
+			extract_endpoint(&"http://my.status.web3.site/inject.js".parse().unwrap(), None, dapps_domain),
+			(Some(EndpointPath {
+				app_id: "status".to_owned(),
+				app_params: vec!["my".into(), "inject.js".into()],
+				query: None,
+				host: "my.status.web3.site".to_owned(),
+				port: 80,
+				using_dapps_domains: true,
+			}), SpecialEndpoint::None)
 		);
 
 		// By Subdomain
@@ -365,7 +382,7 @@ mod tests {
 			extract_endpoint(&"http://my.status.web3.site/rpc/".parse().unwrap(), None, dapps_domain),
 			(Some(EndpointPath {
 				app_id: "status".to_owned(),
-				app_params: vec!["my".to_owned(), "rpc".into(), "".into()],
+				app_params: vec!["my".into(), "".into()],
 				query: None,
 				host: "my.status.web3.site".to_owned(),
 				port: 80,
@@ -378,7 +395,7 @@ mod tests {
 			extract_endpoint(&"http://my.status.web3.site/api/".parse().unwrap(), None, dapps_domain),
 			(Some(EndpointPath {
 				app_id: "status".to_owned(),
-				app_params: vec!["my".to_owned(), "api".into(), "".into()],
+				app_params: vec!["my".into(), "".into()],
 				query: None,
 				host: "my.status.web3.site".to_owned(),
 				port: 80,

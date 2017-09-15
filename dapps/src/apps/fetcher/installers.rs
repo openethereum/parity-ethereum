@@ -18,16 +18,17 @@ use zip;
 use std::{fs, fmt};
 use std::io::{self, Read, Write};
 use std::path::PathBuf;
-use fetch::{self, Mime};
-use hash::keccak_buffer;
 use bigint::hash::H256;
+use fetch::{self, Mime};
+use futures_cpupool::CpuPool;
+use hash::keccak_buffer;
 
-use page::{LocalPageEndpoint, PageCache};
-use handlers::{ContentValidator, ValidatorResponse};
 use apps::manifest::{MANIFEST_FILENAME, deserialize_manifest, serialize_manifest, Manifest};
+use handlers::{ContentValidator, ValidatorResponse};
+use page::{local, PageCache};
 use Embeddable;
 
-type OnDone = Box<Fn(Option<LocalPageEndpoint>) + Send>;
+type OnDone = Box<Fn(Option<local::Dapp>) + Send>;
 
 fn write_response_and_check_hash(
 	id: &str,
@@ -75,15 +76,17 @@ pub struct Content {
 	mime: Mime,
 	content_path: PathBuf,
 	on_done: OnDone,
+	pool: CpuPool,
 }
 
 impl Content {
-	pub fn new(id: String, mime: Mime, content_path: PathBuf, on_done: OnDone) -> Self {
+	pub fn new(id: String, mime: Mime, content_path: PathBuf, on_done: OnDone, pool: CpuPool) -> Self {
 		Content {
-			id: id,
-			mime: mime,
-			content_path: content_path,
-			on_done: on_done,
+			id,
+			mime,
+			content_path,
+			on_done,
+			pool,
 		}
 	}
 }
@@ -96,7 +99,7 @@ impl ContentValidator for Content {
 			// Create dir
 			let (_, content_path) = write_response_and_check_hash(self.id.as_str(), content_path.clone(), self.id.as_str(), response)?;
 
-			Ok(LocalPageEndpoint::single_file(content_path, self.mime.clone(), PageCache::Enabled))
+			Ok(local::Dapp::single_file(self.pool.clone(), content_path, self.mime.clone(), PageCache::Enabled))
 		};
 
 		// Prepare path for a file
@@ -118,15 +121,17 @@ pub struct Dapp {
 	dapps_path: PathBuf,
 	on_done: OnDone,
 	embeddable_on: Embeddable,
+	pool: CpuPool,
 }
 
 impl Dapp {
-	pub fn new(id: String, dapps_path: PathBuf, on_done: OnDone, embeddable_on: Embeddable) -> Self {
+	pub fn new(id: String, dapps_path: PathBuf, on_done: OnDone, embeddable_on: Embeddable, pool: CpuPool) -> Self {
 		Dapp {
 			id,
 			dapps_path,
 			on_done,
 			embeddable_on,
+			pool,
 		}
 	}
 
@@ -198,7 +203,7 @@ impl ContentValidator for Dapp {
 			let mut manifest_file = fs::File::create(manifest_path)?;
 			manifest_file.write_all(manifest_str.as_bytes())?;
 			// Create endpoint
-			let endpoint = LocalPageEndpoint::new(dapp_path, manifest.clone().into(), PageCache::Enabled, self.embeddable_on.clone());
+			let endpoint = local::Dapp::new(self.pool.clone(), dapp_path, manifest.clone().into(), PageCache::Enabled, self.embeddable_on.clone());
 			Ok(endpoint)
 		};
 

@@ -25,6 +25,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use rustc_hex::FromHex;
 use futures::{future, Future};
+use futures_cpupool::CpuPool;
 use fetch::{Client as FetchClient, Fetch};
 use hash_fetch::urlhint::{URLHintContract, URLHint, URLHintResult};
 
@@ -32,7 +33,7 @@ use hyper::StatusCode;
 
 use {Embeddable, SyncStatus, random_filename};
 use parking_lot::Mutex;
-use page::LocalPageEndpoint;
+use page::local;
 use handlers::{ContentHandler, ContentFetcherHandler};
 use endpoint::{self, Endpoint, EndpointPath};
 use apps::cache::{ContentCache, ContentStatus};
@@ -51,6 +52,7 @@ pub struct ContentFetcher<F: Fetch = FetchClient, R: URLHint + 'static = URLHint
 	sync: Arc<SyncStatus>,
 	embeddable_on: Embeddable,
 	fetch: F,
+	pool: CpuPool,
 	only_content: bool,
 }
 
@@ -66,6 +68,7 @@ impl<R: URLHint + 'static, F: Fetch> ContentFetcher<F, R> {
 		resolver: R,
 		sync: Arc<SyncStatus>,
 		fetch: F,
+		pool: CpuPool,
 	) -> Self {
 		let mut cache_path = env::temp_dir();
 		cache_path.push(random_filename());
@@ -77,6 +80,7 @@ impl<R: URLHint + 'static, F: Fetch> ContentFetcher<F, R> {
 			cache: Arc::new(Mutex::new(ContentCache::default())),
 			embeddable_on: None,
 			fetch,
+			pool,
 			only_content: true,
 		}
 	}
@@ -164,7 +168,7 @@ impl<R: URLHint + 'static, F: Fetch> Endpoint for ContentFetcher<F, R> {
 			match status {
 				// Just serve the content
 				Some(&mut ContentStatus::Ready(ref endpoint)) => {
-					(None, endpoint.to_response(path))
+					(None, endpoint.to_response(&path))
 				},
 				// Content is already being fetched
 				Some(&mut ContentStatus::Fetching(ref fetch_control)) if !fetch_control.is_deadline_reached() => {
@@ -175,12 +179,11 @@ impl<R: URLHint + 'static, F: Fetch> Endpoint for ContentFetcher<F, R> {
 				_ => {
 					trace!(target: "dapps", "Content unavailable. Fetching... {:?}", content_id);
 					let content_hex = content_id.from_hex().expect("to_handler is called only when `contains` returns true.");
-					// TODO [ToDr] Move to future!!!
 					let content = self.resolve(content_hex);
 
 					let cache = self.cache.clone();
 					let id = content_id.clone();
-					let on_done = move |result: Option<LocalPageEndpoint>| {
+					let on_done = move |result: Option<local::Dapp>| {
 						let mut cache = cache.lock();
 						match result {
 							Some(endpoint) => cache.insert(id.clone(), ContentStatus::Ready(endpoint)),
@@ -207,6 +210,7 @@ impl<R: URLHint + 'static, F: Fetch> Endpoint for ContentFetcher<F, R> {
 									self.cache_path.clone(),
 									Box::new(on_done),
 									self.embeddable_on.clone(),
+									self.pool.clone(),
 								),
 								self.embeddable_on.clone(),
 								self.fetch.clone(),
@@ -224,6 +228,7 @@ impl<R: URLHint + 'static, F: Fetch> Endpoint for ContentFetcher<F, R> {
 									content.mime,
 									self.cache_path.clone(),
 									Box::new(on_done),
+									self.pool.clone(),
 								),
 								self.embeddable_on.clone(),
 								self.fetch.clone(),
@@ -264,7 +269,7 @@ mod tests {
 
 	use apps::cache::ContentStatus;
 	use endpoint::EndpointInfo;
-	use page::LocalPageEndpoint;
+	use page::local;
 	use super::{ContentFetcher, Fetcher};
 	use {SyncStatus};
 
@@ -286,14 +291,16 @@ mod tests {
 	#[test]
 	fn should_true_if_contains_the_app() {
 		// given
+		let pool = ::futures_cpupool::CpuPool::new(1);
 		let path = env::temp_dir();
 		let fetcher = ContentFetcher::new(
 			FakeResolver,
 			Arc::new(FakeSync(false)),
 			Client::new().unwrap(),
-		)
-			.allow_dapps(true);
-		let handler = LocalPageEndpoint::new(path, EndpointInfo {
+			pool.clone(),
+		).allow_dapps(true);
+
+		let handler = local::Dapp::new(pool, path, EndpointInfo {
 			name: "fake".into(),
 			description: "".into(),
 			version: "".into(),

@@ -19,12 +19,14 @@
 mod content;
 mod echo;
 mod fetch;
+mod reader;
 mod redirect;
 mod streaming;
 
 pub use self::content::ContentHandler;
 pub use self::echo::EchoHandler;
 pub use self::fetch::{ContentFetcherHandler, ContentValidator, FetchControl, ValidatorResponse};
+pub use self::reader::Reader;
 pub use self::redirect::Redirection;
 pub use self::streaming::StreamingHandler;
 
