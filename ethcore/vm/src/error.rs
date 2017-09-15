@@ -16,7 +16,7 @@
 
 //! VM errors module
 
-use util::trie;
+use trie;
 use std::fmt;
 
 /// VM errors.

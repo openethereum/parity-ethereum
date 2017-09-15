@@ -28,7 +28,8 @@ use hashdb::DBValue;
 use rlp::{UntrustedRlp, RlpType, Compressible};
 use rocksdb::{DB, Writable, WriteBatch, WriteOptions, IteratorMode, DBIterator,
 	Options, DBCompactionStyle, BlockBasedOptions, Direction, Cache, Column, ReadOptions};
-use {UtilError, Bytes};
+use UtilError;
+use bytes::Bytes;
 
 
 #[cfg(target_os = "linux")]

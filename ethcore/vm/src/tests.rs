@@ -19,7 +19,8 @@ use std::collections::{HashMap, HashSet};
 
 use bigint::prelude::U256;
 use bigint::hash::H256;
-use util::{Address, Bytes};
+use util::Address;
+use bytes::Bytes;
 use {
 	CallType, Schedule, EnvInfo,
 	ReturnData, Ext, ContractCreateResult, MessageCallResult,

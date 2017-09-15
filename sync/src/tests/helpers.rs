@@ -18,7 +18,7 @@ use std::collections::{VecDeque, HashSet, HashMap};
 use std::sync::Arc;
 use bigint::hash::H256;
 use parking_lot::RwLock;
-use util::*;
+use bytes::Bytes;
 use network::*;
 use tests::snapshot::*;
 use ethcore::client::{TestBlockChainClient, BlockChainClient, Client as EthcoreClient, ClientConfig, ChainNotify};

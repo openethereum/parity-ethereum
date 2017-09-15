@@ -17,6 +17,7 @@ ethcore = { path = "../ethcore" }
 ethsync = { path = "../sync" }
 ethcore-util = { path = "../util" }
 ethcore-bigint = { path = "../util/bigint" }
+ethcore-bytes = { path = "../util/bytes" }
 futures = "0.1"
 parking_lot = "0.4"
 parity-hash-fetch = { path = "../hash-fetch" }

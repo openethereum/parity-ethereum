@@ -16,7 +16,7 @@
 
 use bigint::prelude::U256;
 use bigint::hash::H256;
-use util::Bytes;
+use bytes::Bytes;
 use header::BlockNumber;
 
 /// Best block info.

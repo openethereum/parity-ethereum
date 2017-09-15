@@ -14,6 +14,7 @@ use rustc_hex::FromHex;
 
 use bigint::hash::H256;
 use util::*;
+use bytes::BytesRef;
 
 evm_test!{test_blockhash_eip210: test_blockhash_eip210_jit, test_blockhash_eip210_int}
 fn test_blockhash_eip210(factory: Factory) {

@@ -352,6 +352,7 @@ version = "0.1.0"
 dependencies = [
  "bloomable 0.1.0",
  "ethcore-bigint 0.1.3",
+ "ethcore-bytes 0.1.0",
  "ethcore-util 1.8.0",
  "ethjson 0.1.0",
  "hash 0.1.0",
@@ -559,6 +560,7 @@ dependencies = [
  "ethash 1.8.0",
  "ethcore-bigint 0.1.3",
  "ethcore-bloom-journal 0.1.0",
+ "ethcore-bytes 0.1.0",
  "ethcore-devtools 1.8.0",
  "ethcore-io 1.8.0",
  "ethcore-ipc 1.8.0",
@@ -574,6 +576,7 @@ dependencies = [
  "futures 0.1.15 (registry+https://github.com/rust-lang/crates.io-index)",
  "hardware-wallet 1.8.0",
  "hash 0.1.0",
+ "hashdb 0.1.0",
  "heapsize 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "hyper 0.10.0-a.0 (git+https://github.com/paritytech/hyper)",
  "itertools 0.5.10 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -581,10 +584,12 @@ dependencies = [
  "linked-hash-map 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "lru-cache 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "memorydb 0.1.0",
  "native-contracts 0.1.0",
  "num 0.1.40 (registry+https://github.com/rust-lang/crates.io-index)",
  "num_cpus 1.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "parking_lot 0.4.7 (registry+https://github.com/rust-lang/crates.io-index)",
+ "patricia_trie 0.1.0",
  "price-info 1.7.0",
  "rand 0.3.16 (registry+https://github.com/rust-lang/crates.io-index)",
  "rayon 0.8.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -623,6 +628,10 @@ version = "0.1.0"
 dependencies = [
  "siphasher 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
+
+[[package]]
+name = "ethcore-bytes"
+version = "0.1.0"
 
 [[package]]
 name = "ethcore-devtools"
@@ -693,6 +702,7 @@ dependencies = [
 name = "ethcore-ipc-tests"
 version = "0.1.0"
 dependencies = [
+ "ethcore-bytes 0.1.0",
  "ethcore-devtools 1.8.0",
  "ethcore-ipc 1.8.0",
  "ethcore-ipc-codegen 1.8.0",
@@ -710,6 +720,7 @@ dependencies = [
  "bincode 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore 1.8.0",
  "ethcore-bigint 0.1.3",
+ "ethcore-bytes 0.1.0",
  "ethcore-devtools 1.8.0",
  "ethcore-io 1.8.0",
  "ethcore-ipc 1.8.0",
@@ -722,7 +733,9 @@ dependencies = [
  "heapsize 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "itertools 0.5.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
+ "memorydb 0.1.0",
  "parking_lot 0.4.7 (registry+https://github.com/rust-lang/crates.io-index)",
+ "patricia_trie 0.1.0",
  "rand 0.3.16 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlp 0.2.0",
  "rlp_derive 0.1.0",
@@ -758,6 +771,7 @@ dependencies = [
  "bytes 0.4.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "clippy 0.0.103 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore-bigint 0.1.3",
+ "ethcore-bytes 0.1.0",
  "ethcore-devtools 1.8.0",
  "ethcore-io 1.8.0",
  "ethcore-logger 1.8.0",
@@ -790,6 +804,7 @@ dependencies = [
  "ethabi 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore 1.8.0",
  "ethcore-bigint 0.1.3",
+ "ethcore-bytes 0.1.0",
  "ethcore-devtools 1.8.0",
  "ethcore-ipc 1.8.0",
  "ethcore-ipc-codegen 1.8.0",
@@ -852,14 +867,20 @@ dependencies = [
  "eth-secp256k1 0.5.6 (git+https://github.com/paritytech/rust-secp256k1)",
  "ethcore-bigint 0.1.3",
  "ethcore-bloom-journal 0.1.0",
+ "ethcore-bytes 0.1.0",
  "ethcore-devtools 1.8.0",
  "ethcore-logger 1.8.0",
  "hash 0.1.0",
+ "hashdb 0.1.0",
  "heapsize 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.30 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "lru-cache 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "memorydb 0.1.0",
+ "nibbleslice 0.1.0",
+ "nibblevec 0.1.0",
  "parking_lot 0.4.7 (registry+https://github.com/rust-lang/crates.io-index)",
+ "patricia_trie 0.1.0",
  "regex 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlp 0.2.0",
  "rocksdb 0.4.5 (git+https://github.com/paritytech/rust-rocksdb)",
@@ -965,6 +986,7 @@ dependencies = [
  "env_logger 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore 1.8.0",
  "ethcore-bigint 0.1.3",
+ "ethcore-bytes 0.1.0",
  "ethcore-devtools 1.8.0",
  "ethcore-io 1.8.0",
  "ethcore-ipc 1.8.0",
@@ -1017,6 +1039,7 @@ dependencies = [
  "docopt 0.8.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore 1.8.0",
  "ethcore-bigint 0.1.3",
+ "ethcore-bytes 0.1.0",
  "ethcore-util 1.8.0",
  "ethjson 0.1.0",
  "evm 0.1.0",
@@ -1145,6 +1168,14 @@ dependencies = [
  "gcc 0.3.53 (registry+https://github.com/rust-lang/crates.io-index)",
  "tempdir 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "tiny-keccak 1.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "hashdb"
+version = "0.1.0"
+dependencies = [
+ "elastic-array 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethcore-bigint 0.1.3",
 ]
 
 [[package]]
@@ -1546,6 +1577,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "memorydb"
+version = "0.1.0"
+dependencies = [
+ "bigint 4.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "elastic-array 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethcore-bigint 0.1.3",
+ "hash 0.1.0",
+ "hashdb 0.1.0",
+ "heapsize 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rlp 0.2.0",
+]
+
+[[package]]
 name = "mime"
 version = "0.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1712,11 +1756,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "nibbleslice"
+version = "0.1.0"
+dependencies = [
+ "elastic-array 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "nibblevec"
+version = "0.1.0"
+dependencies = [
+ "elastic-array 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "nibbleslice 0.1.0",
+]
+
+[[package]]
 name = "node-filter"
 version = "1.8.0"
 dependencies = [
  "ethcore 1.8.0",
  "ethcore-bigint 0.1.3",
+ "ethcore-bytes 0.1.0",
  "ethcore-io 1.8.0",
  "ethcore-network 1.8.0",
  "ethcore-util 1.8.0",
@@ -1929,6 +1989,7 @@ dependencies = [
  "env_logger 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore 1.8.0",
  "ethcore-bigint 0.1.3",
+ "ethcore-bytes 0.1.0",
  "ethcore-devtools 1.8.0",
  "ethcore-io 1.8.0",
  "ethcore-ipc 1.8.0",
@@ -1992,6 +2053,7 @@ dependencies = [
  "clippy 0.0.103 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore-bigint 0.1.3",
+ "ethcore-bytes 0.1.0",
  "ethcore-devtools 1.8.0",
  "ethcore-util 1.8.0",
  "fetch 0.1.0",
@@ -2041,6 +2103,7 @@ version = "1.8.0"
 dependencies = [
  "ethabi 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore-bigint 0.1.3",
+ "ethcore-bytes 0.1.0",
  "ethcore-util 1.8.0",
  "fetch 0.1.0",
  "futures 0.1.15 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2062,6 +2125,7 @@ dependencies = [
  "cid 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore 1.8.0",
  "ethcore-bigint 0.1.3",
+ "ethcore-bytes 0.1.0",
  "ethcore-util 1.8.0",
  "jsonrpc-http-server 7.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.7)",
  "mime 0.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2102,6 +2166,7 @@ dependencies = [
  "ethash 1.8.0",
  "ethcore 1.8.0",
  "ethcore-bigint 0.1.3",
+ "ethcore-bytes 0.1.0",
  "ethcore-devtools 1.8.0",
  "ethcore-io 1.8.0",
  "ethcore-ipc 1.8.0",
@@ -2218,6 +2283,7 @@ dependencies = [
  "ethabi 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore 1.8.0",
  "ethcore-bigint 0.1.3",
+ "ethcore-bytes 0.1.0",
  "ethcore-ipc 1.8.0",
  "ethcore-ipc-codegen 1.8.0",
  "ethcore-util 1.8.0",
@@ -2306,6 +2372,25 @@ dependencies = [
 [[package]]
 name = "path"
 version = "0.1.0"
+
+[[package]]
+name = "patricia_trie"
+version = "0.1.0"
+dependencies = [
+ "elastic-array 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethcore-bigint 0.1.3",
+ "ethcore-bytes 0.1.0",
+ "ethcore-logger 1.8.0",
+ "hash 0.1.0",
+ "hashdb 0.1.0",
+ "log 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
+ "memorydb 0.1.0",
+ "nibbleslice 0.1.0",
+ "nibblevec 0.1.0",
+ "rand 0.3.16 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rlp 0.2.0",
+ "triehash 0.1.0",
+]
 
 [[package]]
 name = "percent-encoding"
@@ -3372,12 +3457,14 @@ dependencies = [
  "byteorder 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "common-types 0.1.0",
  "ethcore-bigint 0.1.3",
+ "ethcore-bytes 0.1.0",
  "ethcore-util 1.8.0",
  "ethjson 0.1.0",
  "evmjit 1.8.0",
  "hash 0.1.0",
  "lazy_static 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
+ "patricia_trie 0.1.0",
  "rlp 0.2.0",
 ]
 

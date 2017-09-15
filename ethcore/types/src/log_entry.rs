@@ -19,7 +19,8 @@
 use std::ops::Deref;
 use hash::keccak;
 use heapsize::HeapSizeOf;
-use util::{Address, Bytes};
+use util::Address;
+use bytes::Bytes;
 use bigint::hash::H256;
 use bloomable::Bloomable;
 

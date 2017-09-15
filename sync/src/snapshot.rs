@@ -137,7 +137,7 @@ impl Snapshot {
 #[cfg(test)]
 mod test {
 	use hash::keccak;
-	use util::*;
+	use bytes::Bytes;
 	use super::*;
 	use ethcore::snapshot::ManifestData;
 

@@ -21,6 +21,7 @@ use hash::keccak;
 use bigint::prelude::{U256, U512};
 use bigint::hash::H256;
 use util::*;
+use bytes::{Bytes, BytesRef};
 use state::{Backend as StateBackend, State, Substate, CleanupMode};
 use engines::Engine;
 use vm::EnvInfo;
@@ -680,7 +681,7 @@ mod tests {
 	use bigint::prelude::{U256, U512};
 	use bigint::hash::H256;
 	use util::Address;
-	use util::bytes::BytesRef;
+	use bytes::BytesRef;
 	use vm::{ActionParams, ActionValue, CallType, EnvInfo, CreateContractAddress};
 	use evm::{Factory, VMType};
 	use error::ExecutionError;

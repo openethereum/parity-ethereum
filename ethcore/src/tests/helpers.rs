@@ -23,6 +23,7 @@ use client::{BlockChainClient, Client, ClientConfig};
 use bigint::prelude::U256;
 use bigint::hash::H256;
 use util::*;
+use bytes::Bytes;
 use spec::*;
 use account_provider::AccountProvider;
 use state_db::StateDB;

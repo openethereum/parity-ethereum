@@ -26,7 +26,7 @@ use num::{BigUint, Zero, One};
 use hash::keccak;
 use bigint::prelude::U256;
 use bigint::hash::H256;
-use util::BytesRef;
+use bytes::BytesRef;
 use ethkey::{Signature, recover as ec_recover};
 use ethjson;
 
@@ -509,7 +509,7 @@ mod tests {
 	use super::{Builtin, Linear, ethereum_builtin, Pricer, Modexp, modexp as me};
 	use ethjson;
 	use bigint::prelude::U256;
-	use util::BytesRef;
+	use bytes::BytesRef;
 	use rustc_hex::FromHex;
 	use num::{BigUint, Zero, One};
 

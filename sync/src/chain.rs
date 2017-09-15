@@ -96,7 +96,7 @@ use heapsize::HeapSizeOf;
 use bigint::prelude::U256;
 use bigint::hash::{H256, H256FastMap};
 use parking_lot::RwLock;
-use util::*;
+use bytes::Bytes;
 use rlp::*;
 use network::*;
 use ethcore::header::{BlockNumber, Header as BlockHeader};
@@ -2237,7 +2237,7 @@ mod tests {
 	use bigint::hash::H256;
 	use util::Address;
 	use parking_lot::RwLock;
-	use util::bytes::Bytes;
+	use bytes::Bytes;
 	use rlp::{Rlp, RlpStream, UntrustedRlp};
 	use super::*;
 	use ::SyncConfig;

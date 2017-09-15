@@ -48,6 +48,7 @@ use semantic_version::SemanticVersion;
 use parking_lot::{Mutex, RwLock};
 use unexpected::{Mismatch, OutOfBounds};
 use util::*;
+use bytes::Bytes;
 
 mod finality;
 

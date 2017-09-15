@@ -31,7 +31,8 @@ use node_health::{SyncStatus, NodeHealth};
 use rpc;
 use rpc_apis::SignerService;
 use parity_reactor;
-use util::{Bytes, Address};
+use util::Address;
+use bytes::Bytes;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Configuration {

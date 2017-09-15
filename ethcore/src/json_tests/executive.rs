@@ -30,6 +30,8 @@ use tests::helpers::*;
 use ethjson;
 use trace::{Tracer, NoopTracer};
 use trace::{VMTracer, NoopVMTracer};
+use bytes::{Bytes, BytesRef};
+use trie;
 
 #[derive(Debug, PartialEq, Clone)]
 struct CallCreate {

@@ -20,6 +20,7 @@ use std::sync::Arc;
 use bigint::prelude::U256;
 use bigint::hash::H256;
 use util::*;
+use bytes::Bytes;
 use call_type::CallType;
 use env_info::EnvInfo;
 use schedule::Schedule;

@@ -16,7 +16,7 @@
 
 use rlp::*;
 use bigint::hash::{H256, H2048};
-use util::bytes::Bytes;
+use bytes::Bytes;
 use header::Header;
 use transaction::SignedTransaction;
 

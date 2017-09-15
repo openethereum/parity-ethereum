@@ -20,6 +20,7 @@ use std::cmp;
 use hash::keccak;
 use bigint::hash::{H256, H520};
 use util::*;
+use bytes::Bytes;
 use super::{Height, View, BlockHash, Step};
 use error::Error;
 use header::Header;

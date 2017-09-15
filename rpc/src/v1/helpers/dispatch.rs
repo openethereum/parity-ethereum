@@ -29,7 +29,8 @@ use rlp;
 use hash::keccak;
 use bigint::prelude::U256;
 use bigint::hash::{H256, H520};
-use util::{Address, Bytes};
+use util::Address;
+use bytes::Bytes;
 use parking_lot::{Mutex, RwLock};
 use stats::Corpus;
 

@@ -27,6 +27,7 @@ extern crate serde_derive;
 extern crate docopt;
 extern crate ethcore_util as util;
 extern crate ethcore_bigint as bigint;
+extern crate ethcore_bytes as bytes;
 extern crate vm;
 extern crate evm;
 extern crate panic_hook;
@@ -37,7 +38,8 @@ use std::path::PathBuf;
 use docopt::Docopt;
 use rustc_hex::FromHex;
 use bigint::prelude::U256;
-use util::{Bytes, Address};
+use util::Address;
+use bytes::Bytes;
 use ethcore::spec;
 use vm::{ActionParams, CallType};
 
