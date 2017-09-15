@@ -109,7 +109,7 @@ pub enum ForkSpec {
 	EIP158ToByzantiumAt5,
 	FrontierToHomesteadAt5,
 	HomesteadToDaoAt5,
-	HomesteadToEIP150At5
+	HomesteadToEIP150At5,
 }
 
 /// State test indexes deserialization.
