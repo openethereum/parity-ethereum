@@ -130,17 +130,31 @@ export default class FoundationWalletUtils {
       .ConfirmationNeeded
       .getAllLogs()
       .then((logs) => {
-        return logs.map((log) => ({
-          initiator: log.params.initiator.value,
-          to: log.params.to.value,
-          data: log.params.data.value,
-          value: log.params.value.value,
-          operation: bytesToHex(log.params.operation.value),
-          transactionIndex: log.transactionIndex,
-          transactionHash: log.transactionHash,
-          blockNumber: log.blockNumber,
-          confirmedBy: []
-        }));
+        return logs
+          .filter((log) => {
+            if (!log.blockNumber) {
+              console.warn('got a log without blockNumber', log);
+              return false;
+            }
+
+            if (!log.transactionIndex) {
+              console.warn('got a log without transactionIndex', log);
+              return false;
+            }
+
+            return true;
+          })
+          .map((log) => ({
+            initiator: log.params.initiator.value,
+            to: log.params.to.value,
+            data: log.params.data.value,
+            value: log.params.value.value,
+            operation: bytesToHex(log.params.operation.value),
+            transactionIndex: log.transactionIndex,
+            transactionHash: log.transactionHash,
+            blockNumber: log.blockNumber,
+            confirmedBy: []
+          }));
       })
       .then((logs) => {
         return logs.sort((logA, logB) => {
