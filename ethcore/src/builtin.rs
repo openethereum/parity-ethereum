@@ -324,14 +324,16 @@ impl Impl for Ripemd160 {
 fn modexp(mut base: BigUint, mut exp: BigUint, modulus: BigUint) -> BigUint {
 	use num::Integer;
 
-	if modulus <= BigUint::one() {
+	if modulus <= BigUint::one() { // n^m % 0 || n^m % 1
 		return BigUint::zero();
 	}
 
-	match (base.is_zero(), exp.is_zero()) {
-		(_, true) => return BigUint::one(), // n^0 % m
-		(true, false) => return BigUint::zero(), // 0^n % m, n>0
-		_ => {}
+	if exp.is_zero() { // n^0 % m
+		return BigUint::one();
+	}
+
+	if base.is_zero() { // 0^n % m, n>0
+		return BigUint::zero();
 	}
 
 	let mut result = BigUint::one();
