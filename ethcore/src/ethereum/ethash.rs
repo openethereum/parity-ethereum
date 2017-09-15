@@ -225,8 +225,8 @@ impl Engine for Arc<Ethash> {
 		} else if block_number < self.ethash_params.eip150_transition {
 			Schedule::new_homestead()
 		} else {
-			/// There's no max_code_size transition so we tie it to eip150
-			let max_code_size = if block_number >= self.ethash_params.eip150_transition { self.ethash_params.max_code_size as usize } else { usize::max_value() };
+			/// There's no max_code_size transition so we tie it to eip161abc
+			let max_code_size = if block_number >= self.ethash_params.eip161abc_transition { self.ethash_params.max_code_size as usize } else { usize::max_value() };
 			let mut schedule = Schedule::new_post_eip150(
 				max_code_size,
 				block_number >= self.ethash_params.eip160_transition,
