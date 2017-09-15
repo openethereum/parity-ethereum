@@ -27,7 +27,8 @@ use super::{DB_PREFIX_LEN, LATEST_ERA_KEY};
 use super::traits::JournalDB;
 use kvdb::{KeyValueDB, DBTransaction};
 use bigint::hash::H256;
-use {UtilError, Bytes};
+use UtilError;
+use bytes::Bytes;
 
 /// Implementation of the `HashDB` trait for a disk-backed database with a memory overlay
 /// and latent-removal semantics.

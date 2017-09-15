@@ -32,7 +32,8 @@ use service::{Service};
 use target_info::Target;
 use types::all::{ReleaseInfo, OperationsInfo, CapState};
 use bigint::hash::{H160, H256};
-use util::{Address, Bytes};
+use util::Address;
+use bytes::Bytes;
 use parking_lot::Mutex;
 use util::misc;
 

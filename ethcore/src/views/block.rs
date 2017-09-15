@@ -18,7 +18,7 @@
 
 use hash::keccak;
 use bigint::hash::H256;
-use util::*;
+use bytes::Bytes;
 use header::*;
 use transaction::*;
 use super::{TransactionView, HeaderView};

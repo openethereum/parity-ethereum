@@ -20,7 +20,9 @@ use std::fmt;
 use std::sync::Arc;
 use bigint::prelude::U256;
 use bigint::hash::H256;
-use util::{self, journaldb, trie};
+use util::journaldb;
+use trie;
+use bytes;
 use util::kvdb::{self, KeyValueDB};
 use {state, state_db, client, executive, trace, transaction, db, spec, pod_state};
 use factory::Factories;
@@ -31,7 +33,7 @@ use vm::{self, ActionParams};
 #[derive(Debug)]
 pub enum EvmTestError {
 	/// Trie integrity error.
-	Trie(util::TrieError),
+	Trie(trie::TrieError),
 	/// EVM error.
 	Evm(vm::Error),
 	/// Initialization error.
@@ -179,7 +181,7 @@ impl<'a> EvmTestClient<'a> {
 		let (gas_left, _) = executive.call(
 			params,
 			&mut substate,
-			util::BytesRef::Flexible(&mut output),
+			bytes::BytesRef::Flexible(&mut output),
 			&mut tracer,
 			vm_tracer,
 		).map_err(EvmTestError::Evm)?;

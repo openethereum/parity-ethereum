@@ -19,6 +19,7 @@
 extern crate ethcore;
 extern crate ethcore_util as util;
 extern crate ethcore_bigint as bigint;
+extern crate ethcore_bytes as bytes;
 extern crate ethcore_network as network;
 extern crate native_contracts;
 extern crate futures;
@@ -32,7 +33,8 @@ use native_contracts::PeerSet as Contract;
 use network::{NodeId, ConnectionFilter, ConnectionDirection};
 use ethcore::client::{BlockChainClient, BlockId, ChainNotify};
 use bigint::hash::H256;
-use util::{Address, Bytes};
+use util::Address;
+use bytes::Bytes;
 use parking_lot::Mutex;
 use futures::Future;
 

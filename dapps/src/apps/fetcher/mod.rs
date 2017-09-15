@@ -262,7 +262,7 @@ impl<R: URLHint + 'static, F: Fetch> Endpoint for ContentFetcher<F, R> {
 mod tests {
 	use std::env;
 	use std::sync::Arc;
-	use util::Bytes;
+	use bytes::Bytes;
 	use fetch::{Fetch, Client};
 	use futures::future;
 	use hash_fetch::urlhint::{URLHint, URLHintResult, BoxFuture};

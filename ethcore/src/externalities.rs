@@ -20,6 +20,7 @@ use std::sync::Arc;
 use bigint::prelude::U256;
 use bigint::hash::H256;
 use util::*;
+use bytes::{Bytes, BytesRef};
 use state::{Backend as StateBackend, State, Substate, CleanupMode};
 use engines::Engine;
 use executive::*;

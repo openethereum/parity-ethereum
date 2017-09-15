@@ -24,7 +24,8 @@ use hash::keccak;
 
 use futures::{future, Future};
 use native_contracts::{Registry, Urlhint};
-use util::{Address, Bytes};
+use util::Address;
+use bytes::Bytes;
 
 /// Boxed future that can be shared between threads.
 /// TODO [ToDr] Use concrete types!
@@ -222,7 +223,8 @@ pub mod tests {
 	use super::*;
 	use super::guess_mime_type;
 	use parking_lot::Mutex;
-	use util::{Bytes, Address, ToPretty};
+	use util::Address;
+	use bytes::{Bytes, ToPretty};
 
 	pub struct FakeRegistrar {
 		pub calls: Arc<Mutex<Vec<(String, String)>>>,

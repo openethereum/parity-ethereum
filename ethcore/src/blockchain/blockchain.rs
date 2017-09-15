@@ -25,6 +25,7 @@ use heapsize::HeapSizeOf;
 use bigint::prelude::U256;
 use bigint::hash::{H256, H2048};
 use parking_lot::{Mutex, RwLock};
+use bytes::Bytes;
 use util::*;
 use rlp::*;
 use header::*;

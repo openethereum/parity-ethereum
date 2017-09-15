@@ -23,7 +23,7 @@ use service::ClientIoMessage;
 
 use io::IoChannel;
 use bigint::hash::H256;
-use util::Bytes;
+use bytes::Bytes;
 
 use std::sync::Arc;
 

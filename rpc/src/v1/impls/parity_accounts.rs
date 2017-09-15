@@ -355,6 +355,11 @@ impl ParityAccounts for ParityAccountsClient {
 			.map(Into::into)
 			.map_err(|e| errors::account("Could not sign message.", e))
 	}
+
+	fn hardware_pin_matrix_ack(&self, path: String, pin: String) -> Result<bool, Error> {
+		let store = self.account_provider()?;
+		Ok(store.hardware_pin_matrix_ack(&path, &pin).map_err(|e| errors::account("Error communicating with hardware wallet.", e))?)
+	}
 }
 
 fn into_vec<A, B>(a: Vec<A>) -> Vec<B> where

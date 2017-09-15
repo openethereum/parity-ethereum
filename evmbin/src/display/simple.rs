@@ -17,7 +17,7 @@
 //! Simple VM output.
 
 use ethcore::trace;
-use util::ToPretty;
+use bytes::ToPretty;
 
 use display;
 use info as vm;

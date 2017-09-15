@@ -28,7 +28,7 @@ use rand::{XorShiftRng, SeedableRng};
 use bigint::hash::H256;
 use util::journaldb::{self, Algorithm};
 use util::kvdb::{Database, DatabaseConfig};
-use util::memorydb::MemoryDB;
+use memorydb::MemoryDB;
 use parking_lot::Mutex;
 use devtools::RandomTempPath;
 
@@ -99,7 +99,7 @@ fn get_code_from_prev_chunk() {
 	use rlp::RlpStream;
 	use bigint::prelude::U256;
 	use bigint::hash::H256;
-	use util::HashDB;
+	use hashdb::HashDB;
 
 	use account_db::{AccountDBMut, AccountDB};
 

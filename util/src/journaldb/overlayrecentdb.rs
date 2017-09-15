@@ -29,7 +29,7 @@ use kvdb::{KeyValueDB, DBTransaction};
 use super::JournalDB;
 use bigint::hash::{H256, H256FastMap};
 use error::{BaseDataError, UtilError};
-use {Bytes};
+use bytes::Bytes;
 
 /// Implementation of the `JournalDB` trait for a disk-backed database with a memory overlay
 /// and, possibly, latent-removal semantics.

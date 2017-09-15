@@ -15,9 +15,9 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use ethjson;
-use util::trie::{TrieFactory, TrieSpec};
+use trie::{TrieFactory, TrieSpec};
 use bigint::hash::H256;
-use util::memorydb::MemoryDB;
+use memorydb::MemoryDB;
 
 fn test_trie(json: &[u8], trie: TrieSpec) -> Vec<String> {
 	let tests = ethjson::trie::Test::load(json).unwrap();
@@ -49,7 +49,7 @@ fn test_trie(json: &[u8], trie: TrieSpec) -> Vec<String> {
 }
 
 mod generic {
-	use util::trie::TrieSpec;
+	use trie::TrieSpec;
 
 	fn do_json_test(json: &[u8]) -> Vec<String> {
 		super::test_trie(json, TrieSpec::Generic)
@@ -60,7 +60,7 @@ mod generic {
 }
 
 mod secure {
-	use util::trie::TrieSpec;
+	use trie::TrieSpec;
 
 	fn do_json_test(json: &[u8]) -> Vec<String> {
 		super::test_trie(json, TrieSpec::Secure)

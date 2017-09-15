@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use util::trie::TrieFactory;
+use trie::TrieFactory;
 use evm::Factory as EvmFactory;
 use account_db::Factory as AccountFactory;
 

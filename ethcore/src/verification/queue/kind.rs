@@ -77,7 +77,7 @@ pub mod blocks {
 	use heapsize::HeapSizeOf;
 	use bigint::prelude::U256;
 	use bigint::hash::H256;
-	use util::Bytes;
+	use bytes::Bytes;
 
 	/// A mode for verifying blocks.
 	pub struct Blocks;

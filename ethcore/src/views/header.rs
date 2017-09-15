@@ -19,7 +19,8 @@
 use hash::keccak;
 use bigint::prelude::U256;
 use bigint::hash::{H256, H2048};
-use util::{Bytes, Address};
+use util::Address;
+use bytes::Bytes;
 use rlp::Rlp;
 use header::BlockNumber;
 

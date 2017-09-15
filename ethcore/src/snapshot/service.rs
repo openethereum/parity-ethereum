@@ -37,7 +37,8 @@ use io::IoChannel;
 
 use bigint::hash::H256;
 use parking_lot::{Mutex, RwLock, RwLockReadGuard};
-use util::{Bytes, UtilError};
+use util::UtilError;
+use bytes::Bytes;
 use util::journaldb::Algorithm;
 use util::kvdb::{Database, DatabaseConfig};
 use util::snappy;
@@ -161,7 +162,7 @@ impl Restoration {
 
 	// finish up restoration.
 	fn finalize(mut self, engine: &Engine) -> Result<(), Error> {
-		use util::trie::TrieError;
+		use trie::TrieError;
 
 		if !self.is_done() { return Ok(()) }
 

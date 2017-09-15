@@ -53,6 +53,8 @@ pub struct SessionImpl {
 	key_storage: Arc<KeyStorage>,
 	/// Cluster which allows this node to send messages to other nodes in the cluster.
 	cluster: Arc<Cluster>,
+	/// Session nonce.
+	nonce: u64,
 	/// SessionImpl completion condvar.
 	completed: Condvar,
 	/// Mutable session data.
@@ -71,6 +73,8 @@ pub struct SessionParams {
 	pub key_storage: Arc<KeyStorage>,
 	/// Cluster
 	pub cluster: Arc<Cluster>,
+	/// Session nonce.
+	pub nonce: u64,
 }
 
 /// Mutable data of encryption (distributed key generation) session.
@@ -119,6 +123,7 @@ impl SessionImpl {
 			encrypted_data: params.encrypted_data,
 			key_storage: params.key_storage,
 			cluster: params.cluster,
+			nonce: params.nonce,
 			completed: Condvar::new(),
 			data: Mutex::new(SessionData {
 				state: SessionState::WaitingForInitialization,
@@ -169,6 +174,7 @@ impl SessionImpl {
 		if self.encrypted_data.id_numbers.len() > 1 {
 			self.cluster.broadcast(Message::Encryption(EncryptionMessage::InitializeEncryptionSession(InitializeEncryptionSession {
 				session: self.id.clone().into(),
+				session_nonce: self.nonce,
 				requestor_signature: requestor_signature.into(),
 				common_point: common_point.into(),
 				encrypted_point: encrypted_point.into(),
@@ -186,6 +192,8 @@ impl SessionImpl {
 	pub fn on_initialize_session(&self, sender: NodeId, message: &InitializeEncryptionSession) -> Result<(), Error> {
 		debug_assert!(self.id == *message.session);
 		debug_assert!(&sender != self.node());
+
+		self.check_nonce(message.session_nonce)?;
 
 		let mut data = self.data.lock();
 
@@ -213,6 +221,7 @@ impl SessionImpl {
 		// send confirmation back to master node
 		self.cluster.send(&sender, Message::Encryption(EncryptionMessage::ConfirmEncryptionInitialization(ConfirmEncryptionInitialization {
 			session: self.id.clone().into(),
+			session_nonce: self.nonce,
 		})))
 	}
 
@@ -220,6 +229,8 @@ impl SessionImpl {
 	pub fn on_confirm_initialization(&self, sender: NodeId, message: &ConfirmEncryptionInitialization) -> Result<(), Error> {
 		debug_assert!(self.id == *message.session);
 		debug_assert!(&sender != self.node());
+
+		self.check_nonce(message.session_nonce)?;
 
 		let mut data = self.data.lock();
 		debug_assert!(data.nodes.contains_key(&sender));
@@ -242,6 +253,8 @@ impl SessionImpl {
 
 	/// When error has occured on another node.
 	pub fn on_session_error(&self, sender: NodeId, message: &EncryptionSessionError) -> Result<(), Error> {
+		self.check_nonce(message.session_nonce)?;
+
 		let mut data = self.data.lock();
 
 		warn!("{}: encryption session failed with error: {} from {}", self.node(), message.error, sender);
@@ -251,6 +264,14 @@ impl SessionImpl {
 		self.completed.notify_all();
 
 		Ok(())
+	}
+
+	/// Check session nonce.
+	fn check_nonce(&self, message_session_nonce: u64) -> Result<(), Error> {
+		match self.nonce == message_session_nonce {
+			true => Ok(()),
+			false => Err(Error::ReplayProtection),
+		}
 	}
 }
 

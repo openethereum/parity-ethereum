@@ -36,8 +36,9 @@ use verification::queue::QueueInfo as BlockQueueInfo;
 
 use bigint::prelude::U256;
 use bigint::hash::H256;
-use util::{Address, Bytes};
-use util::hashdb::DBValue;
+use util::Address;
+use bytes::Bytes;
+use hashdb::DBValue;
 
 use types::ids::*;
 use types::basic_account::BasicAccount;

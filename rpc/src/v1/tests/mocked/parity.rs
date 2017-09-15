@@ -223,7 +223,7 @@ fn rpc_parity_extra_data() {
 #[test]
 fn rpc_parity_default_extra_data() {
 	use util::misc;
-	use util::ToPretty;
+	use bytes::ToPretty;
 
 	let deps = Dependencies::new();
 	let io = deps.default_client();

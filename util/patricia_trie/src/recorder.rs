@@ -18,7 +18,7 @@
 
 use keccak::keccak;
 use bigint::hash::H256;
-use Bytes;
+use bytes::Bytes;
 
 /// A record of a visited node.
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -136,7 +136,7 @@ mod tests {
 
 	#[test]
 	fn trie_record() {
-		use trie::{TrieDB, TrieDBMut, Trie, TrieMut};
+		use super::super::{TrieDB, TrieDBMut, Trie, TrieMut};
 		use memorydb::MemoryDB;
 
 		let mut db = MemoryDB::new();

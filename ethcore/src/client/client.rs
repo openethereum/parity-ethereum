@@ -25,11 +25,10 @@ use itertools::Itertools;
 // util
 use hash::keccak;
 use timer::PerfTimer;
-use util::UtilError;
-use util::Bytes;
-use util::{journaldb, DBValue, TrieFactory, Trie};
-use util::Address;
-use util::trie::TrieSpec;
+use bytes::Bytes;
+use util::{journaldb, DBValue};
+use util::{Address, UtilError};
+use trie::{TrieSpec, TrieFactory, Trie};
 use util::kvdb::*;
 
 // other
