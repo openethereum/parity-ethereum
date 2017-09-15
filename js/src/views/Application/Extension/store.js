@@ -39,7 +39,6 @@ export default class Store {
 
   constructor () {
     this.nextDisplay = store.get(NEXT_DISPLAY) || 0;
-    this.testInstall();
   }
 
   @computed get showWarning () {
@@ -59,20 +58,29 @@ export default class Store {
     store.set(NEXT_DISPLAY, this.nextDisplay);
   }
 
-  @action testInstall = () => {
-    this.shouldInstall = this.readStatus();
+  @action setShouldInstall = (status) => {
+    this.shouldInstall = status;
+  }
+
+  testInstall = () => {
+    this.readStatus().then(this.setShouldInstall);
   }
 
   readStatus = () => {
-    const hasExtension = Symbol.for('parity.extension') in window;
-    const ua = browser.analyze(navigator.userAgent || '');
+    return new Promise((resolve, reject) => {
+      // Defer checking for the extension since it may not have loaded yet.
+      setTimeout(() => {
+        const hasExtension = Symbol.for('parity.extension') in window;
+        const ua = browser.analyze(navigator.userAgent || '');
 
-    if (hasExtension) {
-      this.setExtensionActive();
-      return false;
-    }
+        if (hasExtension) {
+          this.setExtensionActive();
+          return resolve(false);
+        }
 
-    return (ua || {}).name.toLowerCase() === 'chrome';
+        return resolve((ua || {}).name.toLowerCase() === 'chrome');
+      }, 5000);
+    });
   }
 
   installExtension = () => {
