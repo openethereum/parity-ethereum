@@ -29,7 +29,8 @@ extern crate jsonrpc_http_server as http;
 pub mod error;
 mod route;
 
-use std::sync::Arc;
+use std::thread;
+use std::sync::{mpsc, Arc};
 use std::net::{SocketAddr, IpAddr};
 
 use core::futures::future::{self, FutureResult};
@@ -140,11 +141,13 @@ fn include_current_interface(mut hosts: Vec<Host>, interface: String, port: u16)
 #[derive(Debug)]
 pub struct Listening {
 	close: Option<futures::sync::oneshot::Sender<()>>,
+	thread: Option<thread::JoinHandle<()>>,
 }
 
 impl Drop for Listening {
 	fn drop(&mut self) {
 		self.close.take().unwrap().send(()).unwrap();
+		let _ = self.thread.take().unwrap().join();
 	}
 }
 
@@ -162,22 +165,30 @@ pub fn start_server(
 	let hosts: DomainsValidation<_> = hosts.map(move |hosts| include_current_interface(hosts, interface, port)).into();
 
 	let (close, shutdown_signal) = futures::sync::oneshot::channel::<()>();
-	let server = server::Http::new().bind(&addr, move || {
-		Ok(IpfsHandler::new(cors.clone(), hosts.clone(), client.clone()))
-	})?;
+	let (tx, rx) = mpsc::sync_channel(1);
+	let thread = thread::spawn(move || {
+		let send = |res| tx.send(res).expect("rx end is never dropped; qed");
+		let server = match server::Http::new().bind(&addr, move || {
+			Ok(IpfsHandler::new(cors.clone(), hosts.clone(), client.clone()))
+		}) {
+			Ok(server) => {
+				send(Ok(()));
+				server
+			},
+			Err(err) => {
+				send(Err(err));
+				return;
+			}
+		};
 
-	// TODO [ToDr] Spawn in separate thread.
-	server.run_until(shutdown_signal.map_err(|_| {}))?;
+		let _ = server.run_until(shutdown_signal.map_err(|_| {}));
+	});
+
+	// Wait for server to start successfuly.
+	rx.recv().expect("tx end is never dropped; qed")?;
 
 	Ok(Listening {
-		close: Some(close),
+		close: close.into(),
+		thread: thread.into(),
 	})
-}
-
-#[cfg(test)]
-mod tests {
-	#[test]
-	fn should_test_server_behaviour() {
-		assert_eq!(true, false);
-	}
 }

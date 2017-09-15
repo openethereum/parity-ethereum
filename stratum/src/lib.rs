@@ -27,9 +27,9 @@ extern crate hash;
 extern crate parking_lot;
 
 #[cfg(test)] extern crate tokio_core;
+#[cfg(test)] extern crate tokio_io;
 #[cfg(test)] extern crate ethcore_logger;
 #[cfg(test)] extern crate env_logger;
-#[cfg(test)] #[macro_use] extern crate lazy_static;
 
 mod traits {
 	//! Stratum ipc interfaces specification
@@ -325,7 +325,7 @@ mod tests {
 
 	use tokio_core::reactor::{Core, Timeout};
 	use tokio_core::net::TcpStream;
-	use tokio_core::io;
+	use tokio_io::io;
 	use jsonrpc_core::futures::{Future, future};
 
 	use ethcore_logger::init_log;
