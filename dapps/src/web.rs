@@ -141,7 +141,7 @@ struct WebInstaller {
 impl ContentValidator for WebInstaller {
 	type Error = String;
 
-	fn validate_and_install(&self, response: fetch::Response) -> Result<ValidatorResponse, String> {
+	fn validate_and_install(self, response: fetch::Response) -> Result<ValidatorResponse, String> {
 		let status = response.status();
 		let is_html = response.is_html();
 		let mime = response.content_type().unwrap_or(mime::TEXT_HTML);
@@ -149,7 +149,7 @@ impl ContentValidator for WebInstaller {
 			response,
 			status,
 			mime,
-			self.embeddable_on.clone(),
+			self.embeddable_on,
 		);
 		if is_html {
 			handler.set_initial_content(&format!(

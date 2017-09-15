@@ -94,12 +94,15 @@ impl Content {
 impl ContentValidator for Content {
 	type Error = ValidationError;
 
-	fn validate_and_install(&self, response: fetch::Response) -> Result<ValidatorResponse, ValidationError> {
-		let validate = |content_path: PathBuf| {
+	fn validate_and_install(self, response: fetch::Response) -> Result<ValidatorResponse, ValidationError> {
+		let pool = self.pool;
+		let id = self.id.clone();
+		let mime = self.mime;
+		let validate = move |content_path: PathBuf| {
 			// Create dir
-			let (_, content_path) = write_response_and_check_hash(self.id.as_str(), content_path.clone(), self.id.as_str(), response)?;
+			let (_, content_path) = write_response_and_check_hash(&id, content_path, &id, response)?;
 
-			Ok(local::Dapp::single_file(self.pool.clone(), content_path, self.mime.clone(), PageCache::Enabled))
+			Ok(local::Dapp::single_file(pool, content_path, mime, PageCache::Enabled))
 		};
 
 		// Prepare path for a file
@@ -163,16 +166,19 @@ impl Dapp {
 impl ContentValidator for Dapp {
 	type Error = ValidationError;
 
-	fn validate_and_install(&self, response: fetch::Response) -> Result<ValidatorResponse, ValidationError> {
-		let validate = |dapp_path: PathBuf| {
-			let (file, zip_path) = write_response_and_check_hash(self.id.as_str(), dapp_path.clone(), &format!("{}.zip", self.id), response)?;
+	fn validate_and_install(self, response: fetch::Response) -> Result<ValidatorResponse, ValidationError> {
+		let id = self.id.clone();
+		let pool = self.pool;
+		let embeddable_on = self.embeddable_on;
+		let validate = move |dapp_path: PathBuf| {
+			let (file, zip_path) = write_response_and_check_hash(&id, dapp_path.clone(), &format!("{}.zip", id), response)?;
 			trace!(target: "dapps", "Opening dapp bundle at {:?}", zip_path);
 			// Unpack archive
 			let mut zip = zip::ZipArchive::new(file)?;
 			// First find manifest file
 			let (mut manifest, manifest_dir) = Self::find_manifest(&mut zip)?;
 			// Overwrite id to match hash
-			manifest.id = self.id.clone();
+			manifest.id = id;
 
 			// Unpack zip
 			for i in 0..zip.len() {
@@ -203,7 +209,7 @@ impl ContentValidator for Dapp {
 			let mut manifest_file = fs::File::create(manifest_path)?;
 			manifest_file.write_all(manifest_str.as_bytes())?;
 			// Create endpoint
-			let endpoint = local::Dapp::new(self.pool.clone(), dapp_path, manifest.clone().into(), PageCache::Enabled, self.embeddable_on.clone());
+			let endpoint = local::Dapp::new(pool, dapp_path, manifest.into(), PageCache::Enabled, embeddable_on);
 			Ok(endpoint)
 		};
 

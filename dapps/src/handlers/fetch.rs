@@ -39,11 +39,10 @@ pub enum ValidatorResponse {
 	Streaming(StreamingHandler<fetch::Response>),
 }
 
-pub trait ContentValidator: Send + 'static {
+pub trait ContentValidator: Sized + Send + 'static {
 	type Error: fmt::Debug + fmt::Display;
 
-	// TODO [ToDr] Consume!
-	fn validate_and_install(&self, fetch::Response) -> Result<ValidatorResponse, Self::Error>;
+	fn validate_and_install(self, fetch::Response) -> Result<ValidatorResponse, Self::Error>;
 }
 
 #[derive(Debug, Clone)]
