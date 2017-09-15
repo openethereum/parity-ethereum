@@ -25,6 +25,7 @@ use std::time::Duration;
 use super::WalletInfo;
 use ethkey::{Address, Signature};
 use bigint::hash::H256;
+use parking_lot::{Mutex, RwLock};
 
 const LEDGER_VID: u16 = 0x2c97;
 const LEDGER_PIDS: [u16; 2] = [0x0000, 0x0001]; // Nano S and Blue
@@ -84,10 +85,13 @@ impl From<hidapi::HidError> for Error {
 
 /// Ledger device manager.
 pub struct Manager {
-	usb: hidapi::HidApi,
-	devices: Vec<Device>,
+	// always lock in that order
+	usb: Mutex<hidapi::HidApi>,
+	devices: RwLock<Vec<Device>>,
 	key_path: KeyPath,
 }
+
+
 
 #[derive(Debug)]
 struct Device {
@@ -96,20 +100,21 @@ struct Device {
 }
 
 impl Manager {
-	/// Create a new instance.
-	pub fn new() -> Result<Manager, Error> {
+	/// Create a new instance with given
+	pub fn new(key_path: KeyPath) -> Result<Manager, Error> {
 		let manager = Manager {
-			usb: hidapi::HidApi::new()?,
-			devices: Vec::new(),
-			key_path: KeyPath::Ethereum,
+			usb: Mutex::new(hidapi::HidApi::new()?),
+			devices: RwLock::new(Vec::new()),
+			key_path,
 		};
 		Ok(manager)
 	}
 
 	/// Re-populate device list. Only those devices that have Ethereum app open will be added.
-	pub fn update_devices(&mut self) -> Result<usize, Error> {
-		self.usb.refresh_devices();
-		let devices = self.usb.devices();
+	pub fn update_devices(&self) -> Result<usize, Error> {
+		let mut usb = self.usb.lock();
+		usb.refresh_devices();
+		let devices = usb.devices();
 		let mut new_devices = Vec::new();
 		let mut num_new_devices = 0;
 		for device in devices {
@@ -117,10 +122,10 @@ impl Manager {
 			if device.vendor_id != LEDGER_VID || !LEDGER_PIDS.contains(&device.product_id) {
 				continue;
 			}
-			match self.read_device_info(&device) {
+			match self.read_device_info(&device, &mut usb) {
 				Ok(info) => {
 					debug!("Found device: {:?}", info);
-					if !self.devices.iter().any(|d| d.path == info.path) {
+					if !self.devices.read().iter().any(|d| d.path == info.path) {
 						num_new_devices += 1;
 					}
 					new_devices.push(info);
@@ -129,17 +134,12 @@ impl Manager {
 				Err(e) => debug!("Error reading device info: {}", e),
 			};
 		}
-		self.devices = new_devices;
+		*self.devices.write() = new_devices;
 		Ok(num_new_devices)
 	}
 
-	/// Select key derivation path for a known chain.
-	pub fn set_key_path(&mut self, key_path: KeyPath) {
-		self.key_path = key_path;
-	}
-
-	fn read_device_info(&self, dev_info: &hidapi::HidDeviceInfo) -> Result<Device, Error> {
-		let mut handle = self.open_path(&dev_info.path)?;
+	fn read_device_info(&self, dev_info: &hidapi::HidDeviceInfo, usb: &mut hidapi::HidApi) -> Result<Device, Error> {
+		let mut handle = self.open_path(&dev_info.path, usb)?;
 		let address = Self::read_wallet_address(&mut handle, self.key_path)?;
 		let manufacturer = dev_info.manufacturer_string.clone().unwrap_or("Unknown".to_owned());
 		let name = dev_info.product_string.clone().unwrap_or("Unknown".to_owned());
@@ -187,20 +187,23 @@ impl Manager {
 
 	/// List connected wallets. This only returns wallets that are ready to be used.
 	pub fn list_devices(&self) -> Vec<WalletInfo> {
-		self.devices.iter().map(|d| d.info.clone()).collect()
+		self.devices.read().iter().map(|d| d.info.clone()).collect()
 	}
 
 	/// Get wallet info.
 	pub fn device_info(&self, address: &Address) -> Option<WalletInfo> {
-		self.devices.iter().find(|d| &d.info.address == address).map(|d| d.info.clone())
+		self.devices.read().iter().find(|d| &d.info.address == address).map(|d| d.info.clone())
 	}
 
 	/// Sign transaction data with wallet managing `address`.
 	pub fn sign_transaction(&self, address: &Address, data: &[u8]) -> Result<Signature, Error> {
-		let device = self.devices.iter().find(|d| &d.info.address == address)
+		// mind the lock order
+		let mut usb = self.usb.lock();
+		let devices = self.devices.read();
+		let device = devices.iter().find(|d| &d.info.address == address)
 			.ok_or(Error::KeyNotFound)?;
 
-		let handle = self.open_path(&device.path)?;
+		let handle = self.open_path(&device.path, &mut usb)?;
 
 		let eth_path = &ETH_DERIVATION_PATH_BE[..];
 		let etc_path = &ETC_DERIVATION_PATH_BE[..];
@@ -236,11 +239,11 @@ impl Manager {
 		Ok(Signature::from_rsv(&r, &s, v))
 	}
 
-	fn open_path(&self, path: &str) -> Result<hidapi::HidDevice, Error> {
+	fn open_path<'a>(&self, path: &str, usb: &'a mut hidapi::HidApi) -> Result<hidapi::HidDevice<'a>, Error> {
 		let mut err = Error::KeyNotFound;
 		/// Try to open device a few times.
 		for _ in 0..10 {
-			match self.usb.open_path(&path) {
+			match usb.open_path(&path) {
 				Ok(handle) => return Ok(handle),
 				Err(e) => err = From::from(e),
 			}
@@ -340,10 +343,12 @@ impl Manager {
 
 #[test]
 fn smoke() {
+	use super::KeyPath;
 	use rustc_hex::FromHex;
-	let mut manager = Manager::new().unwrap();
+
+	let manager = Manager::new(KeyPath::Ethereum).unwrap();
 	manager.update_devices().unwrap();
-	for d in &manager.devices {
+	for d in &*manager.devices.read() {
 		println!("Device: {:?}", d);
 	}
 
