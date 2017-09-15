@@ -16,7 +16,7 @@
 
 use transaction::UnverifiedTransaction;
 use error::Error;
-use util::RwLock;
+use parking_lot::RwLock;
 
 /// Storage for private transactions
 pub struct PrivateTransactions {

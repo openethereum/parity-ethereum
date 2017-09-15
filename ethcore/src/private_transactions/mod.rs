@@ -25,7 +25,8 @@ use client::{ChainNotify, ChainMessageType};
 use transaction::UnverifiedTransaction;
 use error::Error as EthcoreError;
 use rlp::UntrustedRlp;
-use util::{Bytes, Mutex, RwLock};
+use parking_lot::{Mutex, RwLock};
+use bytes::Bytes;
 
 /// Manager of private transactions
 pub struct Provider {

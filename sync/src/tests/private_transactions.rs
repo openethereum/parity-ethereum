@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
+use hash::keccak;
 use util::*;
 use rlp::*;
 use io::{IoHandler, IoChannel};
@@ -31,8 +32,8 @@ use SyncConfig;
 #[test]
 pub fn send_private_transaction() {
 	// Setup two clients
-	let s0 = KeyPair::from_secret_slice(&"1".sha3()).unwrap();
-	let s1 = KeyPair::from_secret_slice(&"0".sha3()).unwrap();
+	let s0 = KeyPair::from_secret_slice(&keccak("1")).unwrap();
+	let s1 = KeyPair::from_secret_slice(&keccak("0")).unwrap();
 	let ap = Arc::new(AccountProvider::transient_provider());
 	ap.insert_account(s0.secret().clone(), "").unwrap();
 	ap.insert_account(s1.secret().clone(), "").unwrap();
@@ -43,8 +44,8 @@ pub fn send_private_transaction() {
 	let io_handler1: Arc<IoHandler<ClientIoMessage>> = Arc::new(TestIoHandler { client: net.peer(1).chain.clone() });
 	net.peer(0).chain.miner().set_engine_signer(s0.address(), "".to_owned()).unwrap();
 	net.peer(1).chain.miner().set_engine_signer(s1.address(), "".to_owned()).unwrap();
-	net.peer(0).chain.engine().register_client(Arc::downgrade(&net.peer(0).chain));
-	net.peer(1).chain.engine().register_client(Arc::downgrade(&net.peer(1).chain));
+	net.peer(0).chain.engine().register_client(Arc::downgrade(&net.peer(0).chain) as _);
+	net.peer(1).chain.engine().register_client(Arc::downgrade(&net.peer(1).chain) as _);
 	net.peer(0).chain.set_io_channel(IoChannel::to_handler(Arc::downgrade(&io_handler0)));
 	net.peer(1).chain.set_io_channel(IoChannel::to_handler(Arc::downgrade(&io_handler1)));
 	// Exhange statuses
