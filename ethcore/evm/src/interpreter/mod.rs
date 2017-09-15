@@ -350,10 +350,10 @@ impl<Cost: CostType> Interpreter<Cost> {
 					ContractCreateResult::Failed => {
 						stack.push(U256::zero());
 						Ok(InstructionResult::Ok)
-					}
+					},
 					ContractCreateResult::FailedInStaticCall => {
 						Err(vm::Error::MutableCallInStaticContext)
-					}
+					},
 				};
 			},
 			instructions::CALL | instructions::CALLCODE | instructions::DELEGATECALL | instructions::STATICCALL => {
@@ -432,7 +432,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 					MessageCallResult::Failed  => {
 						stack.push(U256::zero());
 						Ok(InstructionResult::Ok)
-					}
+					},
 				};
 			},
 			instructions::RETURN => {
