@@ -111,6 +111,8 @@ pub struct Schedule {
 	pub have_return_data: bool,
 	/// Kill basic accounts below this balance if touched.
 	pub kill_dust: CleanDustMode,
+	/// Enable EIP-86 rules
+	pub eip86: bool,
 }
 
 /// Dust accounts cleanup mode.
@@ -184,17 +186,17 @@ impl Schedule {
 			blockhash_gas: 20,
 			have_static_call: false,
 			kill_dust: CleanDustMode::Off,
+			eip86: false,
 		}
 	}
 
-	/// Schedule for the Metropolis of the Ethereum main net.
-	pub fn new_metropolis() -> Schedule {
+	/// Schedule for the Byzantium fork of the Ethereum main net.
+	pub fn new_byzantium() -> Schedule {
 		let mut schedule = Self::new_post_eip150(24576, true, true, true);
 		schedule.have_create2 = true;
 		schedule.have_revert = true;
 		schedule.have_static_call = true;
 		schedule.have_return_data = true;
-		schedule.blockhash_gas = 350;
 		schedule
 	}
 
@@ -246,6 +248,7 @@ impl Schedule {
 			blockhash_gas: 20,
 			have_static_call: false,
 			kill_dust: CleanDustMode::Off,
+			eip86: false,
 		}
 	}
 }

@@ -2140,11 +2140,13 @@ mod tests {
 		}];
 		let receipts = vec![Receipt {
 			state_root: state_root,
+			status_code: None,
 			gas_used: 5.into(),
 			log_bloom: Default::default(),
 			logs: vec![logs[0].clone()],
 		}, Receipt {
 			state_root: state_root,
+			status_code: None,
 			gas_used: gas_used,
 			log_bloom: Default::default(),
 			logs: logs.clone(),

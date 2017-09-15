@@ -162,7 +162,7 @@ fn run_call<T: Informant>(args: Args, mut informant: T) {
 
 	informant.set_gas(gas);
 	let result = info::run(&spec, gas, None, |mut client| {
-		client.call(params, &mut informant)
+		client.call(params, &mut informant).map(|r| (r.gas_left, r.return_data.to_vec()))
 	});
 	T::finish(result);
 }

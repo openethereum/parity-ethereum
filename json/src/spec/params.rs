@@ -85,6 +85,9 @@ pub struct Params {
 	#[serde(rename="eip214Transition")]
 	pub eip214_transition: Option<Uint>,
 	/// See `CommonParams` docs.
+	#[serde(rename="eip658Transition")]
+	pub eip658_transition: Option<Uint>,
+	/// See `CommonParams` docs.
 	#[serde(rename="dustProtectionTransition")]
 	pub dust_protection_transition: Option<Uint>,
 	/// See `CommonParams` docs.

@@ -15,16 +15,14 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
-use client::{BlockChainClient, Client, ClientConfig};
+use client::{EvmTestClient, BlockChainClient, Client, ClientConfig};
 use block::Block;
-use ethereum;
-use tests::helpers::*;
 use spec::Genesis;
 use ethjson;
 use miner::Miner;
 use io::IoChannel;
 
-pub fn json_chain_test(json_data: &[u8], era: ChainEra) -> Vec<String> {
+pub fn json_chain_test(json_data: &[u8]) -> Vec<String> {
 	::ethcore_logger::init_log();
 	let tests = ethjson::blockchain::Test::load(json_data).unwrap();
 	let mut failed = Vec::new();
@@ -42,15 +40,16 @@ pub fn json_chain_test(json_data: &[u8], era: ChainEra) -> Vec<String> {
 			flush!("   - {}...", name);
 
 			let spec = {
+				let mut spec = match EvmTestClient::spec_from_json(&blockchain.network) {
+					Some(spec) => (*spec).clone(),
+					None => {
+						println!("   - {} | {:?} Ignoring tests because of missing spec", name, blockchain.network);
+						continue;
+					}
+				};
+
 				let genesis = Genesis::from(blockchain.genesis());
 				let state = From::from(blockchain.pre_state.clone());
-				let mut spec = match era {
-					ChainEra::Frontier => ethereum::new_frontier_test(),
-					ChainEra::Homestead => ethereum::new_homestead_test(),
-					ChainEra::Eip150 => ethereum::new_eip150_test(),
-					ChainEra::_Eip161 => ethereum::new_eip161_test(),
-					ChainEra::TransitionTest => ethereum::new_transition_test(),
-				};
 				spec.set_genesis_state(state).expect("Failed to overwrite genesis state");
 				spec.overwrite_genesis_params(genesis);
 				assert!(spec.is_state_root_valid());
@@ -86,67 +85,69 @@ pub fn json_chain_test(json_data: &[u8], era: ChainEra) -> Vec<String> {
 	failed
 }
 
-mod frontier_era_tests {
-	use tests::helpers::*;
+mod block_tests {
 	use super::json_chain_test;
 
 	fn do_json_test(json_data: &[u8]) -> Vec<String> {
-		json_chain_test(json_data, ChainEra::Frontier)
+		json_chain_test(json_data)
 	}
 
 	declare_test!{BlockchainTests_bcBlockGasLimitTest, "BlockchainTests/bcBlockGasLimitTest"}
-	declare_test!{BlockchainTests_bcForkBlockTest, "BlockchainTests/bcForkBlockTest"}
+	declare_test!{BlockchainTests_bcExploitTest, "BlockchainTests/bcExploitTest"}
+	declare_test!{BlockchainTests_bcForgedTest, "BlockchainTests/bcForgedTest"}
 	declare_test!{BlockchainTests_bcForkStressTest, "BlockchainTests/bcForkStressTest"}
-	declare_test!{BlockchainTests_bcForkUncle, "BlockchainTests/bcForkUncle"}
 	declare_test!{BlockchainTests_bcGasPricerTest, "BlockchainTests/bcGasPricerTest"}
 	declare_test!{BlockchainTests_bcInvalidHeaderTest, "BlockchainTests/bcInvalidHeaderTest"}
-	// TODO [ToDr] Ignored because of incorrect JSON (https://github.com/ethereum/tests/pull/113)
-	declare_test!{ignore => BlockchainTests_bcInvalidRLPTest, "BlockchainTests/bcInvalidRLPTest"}
 	declare_test!{BlockchainTests_bcMultiChainTest, "BlockchainTests/bcMultiChainTest"}
-	declare_test!{BlockchainTests_bcRPC_API_Test, "BlockchainTests/bcRPC_API_Test"}
-	declare_test!{BlockchainTests_bcStateTest, "BlockchainTests/bcStateTest"}
+	declare_test!{BlockchainTests_bcRandomBlockhashTest, "BlockchainTests/bcRandomBlockhashTest"}
 	declare_test!{BlockchainTests_bcTotalDifficultyTest, "BlockchainTests/bcTotalDifficultyTest"}
 	declare_test!{BlockchainTests_bcUncleHeaderValiditiy, "BlockchainTests/bcUncleHeaderValiditiy"}
 	declare_test!{BlockchainTests_bcUncleTest, "BlockchainTests/bcUncleTest"}
 	declare_test!{BlockchainTests_bcValidBlockTest, "BlockchainTests/bcValidBlockTest"}
 	declare_test!{BlockchainTests_bcWalletTest, "BlockchainTests/bcWalletTest"}
 
-	declare_test!{BlockchainTests_RandomTests_bl10251623GO, "BlockchainTests/RandomTests/bl10251623GO"}
-	declare_test!{BlockchainTests_RandomTests_bl201507071825GO, "BlockchainTests/RandomTests/bl201507071825GO"}
+	declare_test!{BlockchainTests_GeneralStateTest_stAttackTest, "BlockchainTests/GeneralStateTests/stAttackTest/"}
+	declare_test!{BlockchainTests_GeneralStateTest_stBadOpcodeTest, "BlockchainTests/GeneralStateTests/stBadOpcode/"}
+	declare_test!{BlockchainTests_GeneralStateTest_stCallCodes, "BlockchainTests/GeneralStateTests/stCallCodes/"}
+	declare_test!{BlockchainTests_GeneralStateTest_stCallDelegateCodesCallCodeHomestead, "BlockchainTests/GeneralStateTests/stCallDelegateCodesCallCodeHomestead/"}
+	declare_test!{BlockchainTests_GeneralStateTest_stCallDelegateCodesHomestead, "BlockchainTests/GeneralStateTests/stCallDelegateCodesHomestead/"}
+	declare_test!{BlockchainTests_GeneralStateTest_stChangedEIP150, "BlockchainTests/GeneralStateTests/stChangedEIP150/"}
+	declare_test!{BlockchainTests_GeneralStateTest_stCodeSizeLimit, "BlockchainTests/GeneralStateTests/stCodeSizeLimit/"}
+	declare_test!{BlockchainTests_GeneralStateTest_stCreateTest, "BlockchainTests/GeneralStateTests/stCreateTest/"}
+	declare_test!{BlockchainTests_GeneralStateTest_stDelegatecallTestHomestead, "BlockchainTests/GeneralStateTests/stDelegatecallTestHomestead/"}
+	declare_test!{BlockchainTests_GeneralStateTest_stEIP150singleCodeGasPrices, "BlockchainTests/GeneralStateTests/stEIP150singleCodeGasPrices/"}
+	declare_test!{BlockchainTests_GeneralStateTest_stEIP150Specific, "BlockchainTests/GeneralStateTests/stEIP150Specific/"}
+	declare_test!{BlockchainTests_GeneralStateTest_stEIP158Specific, "BlockchainTests/GeneralStateTests/stEIP158Specific/"}
+	declare_test!{BlockchainTests_GeneralStateTest_stExample, "BlockchainTests/GeneralStateTests/stExample/"}
+	declare_test!{BlockchainTests_GeneralStateTest_stHomesteadSpecific, "BlockchainTests/GeneralStateTests/stHomesteadSpecific/"}
+	declare_test!{BlockchainTests_GeneralStateTest_stInitCodeTest, "BlockchainTests/GeneralStateTests/stInitCodeTest/"}
+	declare_test!{BlockchainTests_GeneralStateTest_stLogTests, "BlockchainTests/GeneralStateTests/stLogTests/"}
+	declare_test!{BlockchainTests_GeneralStateTest_stMemExpandingEIP150Calls, "BlockchainTests/GeneralStateTests/stMemExpandingEIP150Calls/"}
+	declare_test!{heavy => BlockchainTests_GeneralStateTest_stMemoryStressTest, "BlockchainTests/GeneralStateTests/stMemoryStressTest/"}
+	declare_test!{BlockchainTests_GeneralStateTest_stMemoryTest, "BlockchainTests/GeneralStateTests/stMemoryTest/"}
+	declare_test!{BlockchainTests_GeneralStateTest_stNonZeroCallsTest, "BlockchainTests/GeneralStateTests/stNonZeroCallsTest/"}
+	declare_test!{BlockchainTests_GeneralStateTest_stPreCompiledContracts, "BlockchainTests/GeneralStateTests/stPreCompiledContracts/"}
+	declare_test!{heavy => BlockchainTests_GeneralStateTest_stQuadraticComplexityTest, "BlockchainTests/GeneralStateTests/stQuadraticComplexityTest/"}
+	declare_test!{BlockchainTests_GeneralStateTest_stRandom, "BlockchainTests/GeneralStateTests/stRandom/"}
+	declare_test!{BlockchainTests_GeneralStateTest_stRecursiveCreate, "BlockchainTests/GeneralStateTests/stRecursiveCreate/"}
+	declare_test!{BlockchainTests_GeneralStateTest_stRefundTest, "BlockchainTests/GeneralStateTests/stRefundTest/"}
+	declare_test!{BlockchainTests_GeneralStateTest_stReturnDataTest, "BlockchainTests/GeneralStateTests/stReturnDataTest/"}
+	declare_test!{BlockchainTests_GeneralStateTest_stRevertTest, "BlockchainTests/GeneralStateTests/stRevertTest/"}
+	declare_test!{BlockchainTests_GeneralStateTest_stSolidityTest, "BlockchainTests/GeneralStateTests/stSolidityTest/"}
+	declare_test!{BlockchainTests_GeneralStateTest_stSpecialTest, "BlockchainTests/GeneralStateTests/stSpecialTest/"}
+	declare_test!{BlockchainTests_GeneralStateTest_stStackTests, "BlockchainTests/GeneralStateTests/stStackTests/"}
+	declare_test!{BlockchainTests_GeneralStateTest_stStaticCall, "BlockchainTests/GeneralStateTests/stStaticCall/"}
+	declare_test!{BlockchainTests_GeneralStateTest_stSystemOperationsTest, "BlockchainTests/GeneralStateTests/stSystemOperationsTest/"}
+	declare_test!{BlockchainTests_GeneralStateTest_stTransactionTest, "BlockchainTests/GeneralStateTests/stTransactionTest/"}
+	declare_test!{BlockchainTests_GeneralStateTest_stTransitionTest, "BlockchainTests/GeneralStateTests/stTransitionTest/"}
+	declare_test!{BlockchainTests_GeneralStateTest_stWalletTest, "BlockchainTests/GeneralStateTests/stWalletTest/"}
+	declare_test!{BlockchainTests_GeneralStateTest_stZeroCallsRevert, "BlockchainTests/GeneralStateTests/stZeroCallsRevert/"}
+	declare_test!{BlockchainTests_GeneralStateTest_stZeroCallsTest, "BlockchainTests/GeneralStateTests/stZeroCallsTest/"}
+	declare_test!{BlockchainTests_GeneralStateTest_stZeroKnowledge, "BlockchainTests/GeneralStateTests/stZeroKnowledge/"}
+
+	declare_test!{BlockchainTests_TransitionTests_bcEIP158ToByzantium, "BlockchainTests/TransitionTests/bcEIP158ToByzantium/"}
+	declare_test!{BlockchainTests_TransitionTests_bcFrontierToHomestead, "BlockchainTests/TransitionTests/bcFrontierToHomestead/"}
+	declare_test!{BlockchainTests_TransitionTests_bcHomesteadToDao, "BlockchainTests/TransitionTests/bcHomesteadToDao/"}
+	declare_test!{BlockchainTests_TransitionTests_bcHomesteadToEIP150, "BlockchainTests/TransitionTests/bcHomesteadToEIP150/"}
 }
 
-mod transition_tests {
-	use tests::helpers::*;
-	use super::json_chain_test;
-
-	fn do_json_test(json_data: &[u8]) -> Vec<String> {
-		json_chain_test(json_data, ChainEra::TransitionTest)
-	}
-
-	declare_test!{BlockchainTests_TestNetwork_bcSimpleTransitionTest, "BlockchainTests/TestNetwork/bcSimpleTransitionTest"}
-	declare_test!{BlockchainTests_TestNetwork_bcTheDaoTest, "BlockchainTests/TestNetwork/bcTheDaoTest"}
-	declare_test!{BlockchainTests_TestNetwork_bcEIP150Test, "BlockchainTests/TestNetwork/bcEIP150Test"}
-}
-
-mod eip150_blockchain_tests {
-	use tests::helpers::*;
-	use super::json_chain_test;
-
-	fn do_json_test(json_data: &[u8]) -> Vec<String> {
-		json_chain_test(json_data, ChainEra::Eip150)
-	}
-
-	declare_test!{BlockchainTests_EIP150_bcBlockGasLimitTest, "BlockchainTests/EIP150/bcBlockGasLimitTest"}
-	declare_test!{BlockchainTests_EIP150_bcForkStressTest, "BlockchainTests/EIP150/bcForkStressTest"}
-	declare_test!{BlockchainTests_EIP150_bcGasPricerTest, "BlockchainTests/EIP150/bcGasPricerTest"}
-	declare_test!{BlockchainTests_EIP150_bcInvalidHeaderTest, "BlockchainTests/EIP150/bcInvalidHeaderTest"}
-	declare_test!{BlockchainTests_EIP150_bcInvalidRLPTest, "BlockchainTests/EIP150/bcInvalidRLPTest"}
-	declare_test!{BlockchainTests_EIP150_bcMultiChainTest, "BlockchainTests/EIP150/bcMultiChainTest"}
-	declare_test!{BlockchainTests_EIP150_bcRPC_API_Test, "BlockchainTests/EIP150/bcRPC_API_Test"}
-	declare_test!{BlockchainTests_EIP150_bcStateTest, "BlockchainTests/EIP150/bcStateTest"}
-	declare_test!{BlockchainTests_EIP150_bcTotalDifficultyTest, "BlockchainTests/EIP150/bcTotalDifficultyTest"}
-	declare_test!{BlockchainTests_EIP150_bcUncleHeaderValiditiy, "BlockchainTests/EIP150/bcUncleHeaderValiditiy"}
-	declare_test!{BlockchainTests_EIP150_bcUncleTest, "BlockchainTests/EIP150/bcUncleTest"}
-	declare_test!{BlockchainTests_EIP150_bcValidBlockTest, "BlockchainTests/EIP150/bcValidBlockTest"}
-	declare_test!{BlockchainTests_EIP150_bcWalletTest, "BlockchainTests/EIP150/bcWalletTest"}
-}

@@ -1,18 +1,20 @@
 {
-	"name": "Metropolis (Test)",
+	"name": "Byzantium (Test)",
 	"engine": {
 		"Ethash": {
 			"params": {
 				"minimumDifficulty": "0x020000",
 				"difficultyBoundDivisor": "0x0800",
 				"durationLimit": "0x0d",
-
 				"homesteadTransition": "0x0",
 				"eip150Transition": "0x0",
 				"eip160Transition": "0x0",
 				"eip161abcTransition": "0x0",
 				"eip161dTransition": "0x0",
-				"maxCodeSize": 24576
+				"maxCodeSize": 24576,
+				"eip649Reward": "0x29A2241AF62C0000",
+				"eip100bTransition": "0x0",
+				"eip649Transition": "0x0"
 			}
 		}
 	},
@@ -24,11 +26,12 @@
 		"maximumExtraDataSize": "0x20",
 		"minGasLimit": "0x1388",
 		"networkID" : "0x1",
-		"eip98Transition": "0x0",
-		"eip86Transition": "0x0",
+		"eip98Transition": "0xffffffffffffffff",
 		"eip140Transition": "0x0",
-		"eip210Transition": "0x0",
-		"eip155Transition": "0x0"
+		"eip211Transition": "0x0",
+		"eip214Transition": "0x0",
+		"eip155Transition": "0x0",
+		"eip658Transition": "0x0"
 	},
 	"genesis": {
 		"seal": {
@@ -48,6 +51,10 @@
 		"0000000000000000000000000000000000000001": { "balance": "1", "builtin": { "name": "ecrecover", "pricing": { "linear": { "base": 3000, "word": 0 } } } },
 		"0000000000000000000000000000000000000002": { "balance": "1", "builtin": { "name": "sha256", "pricing": { "linear": { "base": 60, "word": 12 } } } },
 		"0000000000000000000000000000000000000003": { "balance": "1", "builtin": { "name": "ripemd160", "pricing": { "linear": { "base": 600, "word": 120 } } } },
-		"0000000000000000000000000000000000000004": { "balance": "1", "builtin": { "name": "identity", "pricing": { "linear": { "base": 15, "word": 3 } } } }
+		"0000000000000000000000000000000000000004": { "balance": "1", "builtin": { "name": "identity", "pricing": { "linear": { "base": 15, "word": 3 } } } },
+		"0000000000000000000000000000000000000005": { "builtin": { "name": "modexp", "activate_at": "0x00", "pricing": { "modexp": { "divisor": 20 } } } },
+		"0000000000000000000000000000000000000006": { "builtin": { "name": "alt_bn128_add", "activate_at": "0x00", "pricing": { "linear": { "base": 500, "word": 0 } } } },
+		"0000000000000000000000000000000000000007": { "builtin": { "name": "alt_bn128_mul", "activate_at": "0x00", "pricing": { "linear": { "base": 40000, "word": 0 } } } },
+		"0000000000000000000000000000000000000008": { "builtin": { "name": "alt_bn128_pairing", "activate_at": "0x00", "pricing": { "alt_bn128_pairing": { "base": 100000, "pair": 80000 } } } }
 	}
 }
