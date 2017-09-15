@@ -18,7 +18,7 @@ use devtools::http_client;
 use jsonrpc_core::MetaIoHandler;
 use http::{self, hyper};
 
-use {HttpSettings, HttpServer};
+use {HttpServer};
 use tests::helpers::Server;
 use v1::{extractors, Metadata};
 
@@ -33,11 +33,13 @@ fn serve(handler: Option<MetaIoHandler<Metadata>>) -> Server<HttpServer> {
 		handler,
 		remote,
 		extractors::RpcExtractor,
-		HttpSettings::Dapps(Some(|_req: &hyper::server::Request<hyper::net::HttpStream>, _control: &hyper::Control| {
+		Some(|request: hyper::Request| {
 			http::RequestMiddlewareAction::Proceed {
-				should_continue_on_invalid_cors: false
+				should_continue_on_invalid_cors: false,
+				request,
 			}
-		})),
+		}),
+		1,
 	).unwrap())
 }
 
@@ -49,7 +51,6 @@ fn request(server: Server<HttpServer>, request: &str) -> http_client::Response {
 #[cfg(test)]
 mod testsing {
 	use jsonrpc_core::{MetaIoHandler, Value};
-	use jsonrpc_core::futures::{Future, future};
 	use v1::Metadata;
 	use super::{request, Server};
 

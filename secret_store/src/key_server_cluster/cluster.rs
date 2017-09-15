@@ -20,7 +20,7 @@ use std::sync::Arc;
 use std::collections::{BTreeMap, BTreeSet};
 use std::collections::btree_map::Entry;
 use std::net::{SocketAddr, IpAddr};
-use futures::{finished, failed, Future, Stream, BoxFuture};
+use futures::{finished, failed, Future, Stream};
 use futures_cpupool::CpuPool;
 use parking_lot::{RwLock, Mutex};
 use tokio_io::IoFuture;
@@ -57,7 +57,7 @@ const KEEP_ALIVE_DISCONNECT_INTERVAL: u64 = 60;
 
 /// Encryption sesion timeout interval. It works
 /// Empty future.
-type BoxedEmptyFuture = BoxFuture<(), ()>;
+type BoxedEmptyFuture = Box<Future<Item = (), Error = ()> + Send + 'static>;
 
 /// Cluster interface for external clients.
 pub trait ClusterClient: Send + Sync {
@@ -277,6 +277,7 @@ impl ClusterCore {
 			})
 			.for_each(|_| Ok(()))
 			.then(|_| finished(()))))
+	}
 
 	/// Accept connection.
 	fn accept_connection(data: Arc<ClusterData>, stream: TcpStream, node_address: SocketAddr) {

@@ -326,7 +326,7 @@ mod tests {
 	use tokio_core::reactor::{Core, Timeout};
 	use tokio_core::net::TcpStream;
 	use tokio_core::io;
-	use futures::{Future, future};
+	use jsonrpc_core::futures::{Future, future};
 
 	use ethcore_logger::init_log;
 

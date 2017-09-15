@@ -331,7 +331,7 @@ pub mod tests {
 		// then
 		assert_eq!(res, Some(URLHintResult::Content(Content {
 			url: "https://parity.io/assets/images/ethcore-black-horizontal.png".into(),
-			mime: mime!(Image/Png),
+			mime: mime::IMAGE_PNG,
 			owner: Address::from_str("deadcafebeefbeefcafedeaddeedfeedffffffff").unwrap(),
 		})))
 	}
@@ -363,9 +363,9 @@ pub mod tests {
 
 
 		assert_eq!(guess_mime_type(url1), None);
-		assert_eq!(guess_mime_type(url2), Some(mime!(Image/Png)));
-		assert_eq!(guess_mime_type(url3), Some(mime!(Image/Png)));
-		assert_eq!(guess_mime_type(url4), Some(mime!(Image/Jpeg)));
-		assert_eq!(guess_mime_type(url5), Some(mime!(Image/Png)));
+		assert_eq!(guess_mime_type(url2), Some(mime::IMAGE_PNG));
+		assert_eq!(guess_mime_type(url3), Some(mime::IMAGE_PNG));
+		assert_eq!(guess_mime_type(url4), Some(mime::IMAGE_JPEG));
+		assert_eq!(guess_mime_type(url5), Some(mime::IMAGE_PNG));
 	}
 }

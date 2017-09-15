@@ -25,7 +25,7 @@ use fetch::{self, Fetch};
 pub struct TestFetch;
 
 impl Fetch for TestFetch {
-	type Result = futures::BoxFuture<fetch::Response, fetch::Error>;
+	type Result = Box<Future<Item = fetch::Response, Error = fetch::Error> + Send + 'static>;
 
 	fn new() -> Result<Self, fetch::Error> where Self: Sized {
 		Ok(TestFetch)
