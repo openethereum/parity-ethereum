@@ -27,8 +27,8 @@ use super::verification;
 pub struct CanonVerifier;
 
 impl Verifier for CanonVerifier {
-	fn verify_block_family(&self, header: &Header, bytes: &[u8], engine: &EthEngine, bc: &BlockProvider) -> Result<(), Error> {
-		verification::verify_block_family(header, bytes, engine, bc)
+	fn verify_block_family(&self, header: &Header, parent: &Header, engine: &EthEngine, do_full: Option<(&[u8], &BlockProvider)>) -> Result<(), Error> {
+		verification::verify_block_family(header, parent, engine, do_full)
 	}
 
 	fn verify_block_final(&self, expected: &Header, got: &Header) -> Result<(), Error> {

@@ -305,11 +305,12 @@ impl EthereumMachine {
 		}
 	}
 
-	/// Verify a particular transaction is valid.
-	pub fn verify_transaction(&self, t: UnverifiedTransaction, _header: &Header) -> Result<SignedTransaction, Error> {
+	/// Verify a particular transaction is valid, regardless of order.
+	pub fn verify_transaction_unordered(&self, t: UnverifiedTransaction, _header: &Header) -> Result<SignedTransaction, Error> {
 		SignedTransaction::new(t)
 	}
 
+	/// Does basic verification of the transaction.
 	pub fn verify_transaction_basic(&self, t: &UnverifiedTransaction, header: &Header) -> Result<(), Error> {
 		use error::TransactionError;
 

@@ -19,7 +19,7 @@
 use std::sync::Arc;
 
 use blockchain::BlockChain;
-use engines::{Engine, EthEngine, EpochVerifier};
+use engines::{EthEngine, EpochVerifier};
 use header::Header;
 use machine::EthereumMachine;
 

@@ -17,8 +17,6 @@
 //! Epoch verifiers and transitions.
 
 use bigint::hash::H256;
-use error::Error;
-use header::Header;
 
 /// A full epoch transition.
 #[derive(Debug, Clone, RlpEncodable, RlpDecodable)]

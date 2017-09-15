@@ -661,7 +661,7 @@ impl Miner {
 					return Err(Error::Transaction(TransactionError::AlreadyImported));
 				}
 				match self.engine.verify_transaction_basic(&tx, &best_block_header)
-					.and_then(|_| self.engine.verify_transaction(tx, &best_block_header))
+					.and_then(|_| self.engine.verify_transaction_unordered(tx, &best_block_header))
 				{
 					Err(e) => {
 						debug!(target: "miner", "Rejected tx {:?} with invalid signature: {:?}", hash, e);

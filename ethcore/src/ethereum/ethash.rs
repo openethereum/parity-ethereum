@@ -25,23 +25,15 @@ use bigint::hash::{H256, H64};
 use util::*;
 use unexpected::{OutOfBounds, Mismatch};
 use block::*;
-use builtin::Builtin;
-use vm::EnvInfo;
-use error::{BlockError, Error, TransactionError};
-use trace::{Tracer, ExecutiveTracer, RewardType};
-use header::{Header, BlockNumber};
-use state::CleanupMode;
-use spec::CommonParams;
-use transaction::{UnverifiedTransaction, SignedTransaction};
+use error::{BlockError, Error};
+use header::Header;
 use engines::{self, Engine, EthEngine};
-use evm::Schedule;
 use ethjson;
 use rlp::{self, UntrustedRlp};
 use vm::LastHashes;
 use machine::EthereumMachine;
 use parity_machine;
 use semantic_version::SemanticVersion;
-use tx_filter::{TransactionFilter};
 use client::EngineClient;
 
 /// Number of blocks in an ethash snapshot.
@@ -131,7 +123,6 @@ pub struct Ethash {
 	ethash_params: EthashParams,
 	pow: EthashManager,
 	machine: EthereumMachine,
-	tx_filter: Option<TransactionFilter>,
 }
 
 impl Ethash {
@@ -142,7 +133,6 @@ impl Ethash {
 		machine: EthereumMachine,
 	) -> Arc<Self> {
 		Arc::new(Ethash {
-			tx_filter: unimplemented!(),
 			ethash_params,
 			machine,
 			pow: EthashManager::new(cache_dir),
@@ -194,7 +184,7 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 
 	fn on_new_block(
 		&self,
-		block: &mut ExecutedBlock,
+		_block: &mut ExecutedBlock,
 		_begins_epoch: bool,
 	) -> Result<(), Error> {
 		Ok(())
@@ -238,9 +228,7 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 		}
 
 		// note and trace.
-		self.machine.note_rewards(block, &[(author, result_block_reward)], &uncle_rewards);
-
-		Ok(())
+		self.machine.note_rewards(block, &[(author, result_block_reward)], &uncle_rewards)
 	}
 
 	fn verify_block_basic(&self, header: &Header) -> Result<(), Error> {
@@ -312,14 +300,6 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 			return Err(From::from(BlockError::InvalidDifficulty(Mismatch { expected: expected_difficulty, found: header.difficulty().clone() })))
 		}
 
-		let gas_limit_divisor = self.params().gas_limit_bound_divisor;
-		let parent_gas_limit = *parent.gas_limit();
-		let min_gas = parent_gas_limit - parent_gas_limit / gas_limit_divisor;
-		let max_gas = parent_gas_limit + parent_gas_limit / gas_limit_divisor;
-		if header.gas_limit() <= &min_gas || header.gas_limit() >= &max_gas {
-			return Err(From::from(BlockError::InvalidGasLimit(OutOfBounds { min: Some(min_gas), max: Some(max_gas), found: header.gas_limit().clone() })));
-		}
-
 		Ok(())
 	}
 
@@ -329,12 +309,6 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 
 	fn snapshot_components(&self) -> Option<Box<::snapshot::SnapshotComponents>> {
 		Some(Box::new(::snapshot::PowSnapshot::new(SNAPSHOT_BLOCKS, MAX_SNAPSHOT_BLOCKS)))
-	}
-
-	fn register_client(&self, client: Weak<EngineClient>) {
-		if let Some(ref filter) = self.tx_filter {
-			filter.register_client(client);
-		}
 	}
 }
 

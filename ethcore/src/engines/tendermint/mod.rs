@@ -571,20 +571,7 @@ impl Engine for Tendermint {
 		Ok(())
 	}
 
-	/// Verify gas limit.
-	fn verify_block_family(&self, header: &Header, parent: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
-		if header.number() == 0 {
-			return Err(BlockError::RidiculousNumber(OutOfBounds { min: Some(1), max: None, found: header.number() }).into());
-		}
-
-		let gas_limit_divisor = self.params().gas_limit_bound_divisor;
-		let min_gas = parent.gas_limit().clone() - parent.gas_limit().clone() / gas_limit_divisor;
-		let max_gas = parent.gas_limit().clone() + parent.gas_limit().clone() / gas_limit_divisor;
-		if header.gas_limit() <= &min_gas || header.gas_limit() >= &max_gas {
-			self.validators.report_malicious(header.author(), header.number(), header.number(), Default::default());
-			return Err(BlockError::InvalidGasLimit(OutOfBounds { min: Some(min_gas), max: Some(max_gas), found: header.gas_limit().clone() }).into());
-		}
-
+	fn verify_block_family(&self, _header: &Header, _parent: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
 		Ok(())
 	}
 

@@ -22,20 +22,23 @@
 //! 3. Final verification against the blockchain done before enactment.
 
 use std::collections::HashSet;
-use hash::keccak;
-use triehash::ordered_trie_root;
-use heapsize::HeapSizeOf;
-use bigint::hash::H256;
-use util::*;
-use unexpected::{Mismatch, OutOfBounds};
+
+use blockchain::*;
 use engines::{Engine, EthEngine};
 use error::{BlockError, Error};
-use blockchain::*;
 use header::{BlockNumber, Header};
-use rlp::UntrustedRlp;
 use transaction::SignedTransaction;
 use views::BlockView;
+
+use bigint::hash::H256;
+use bigint::prelude::U256;
+use hash::keccak;
+use heapsize::HeapSizeOf;
+use rlp::UntrustedRlp;
 use time::get_time;
+use triehash::ordered_trie_root;
+use unexpected::{Mismatch, OutOfBounds};
+use util::*;
 
 /// Preprocessed block data gathered in `verify_block_unordered` call
 pub struct PreverifiedBlock {
@@ -92,7 +95,7 @@ pub fn verify_block_unordered(header: Header, bytes: Bytes, engine: &EthEngine, 
 	{
 		let v = BlockView::new(&bytes);
 		for t in v.transactions() {
-			let t = engine.verify_transaction(t, &header)?;
+			let t = engine.verify_transaction_unordered(t, &header)?;
 			if let Some(max_nonce) = nonce_cap {
 				if t.nonce >= max_nonce {
 					return Err(BlockError::TooManyTransactions(t.sender()).into());
@@ -109,11 +112,17 @@ pub fn verify_block_unordered(header: Header, bytes: Bytes, engine: &EthEngine, 
 }
 
 /// Phase 3 verification. Check block information against parent and uncles.
-pub fn verify_block_family(header: &Header, bytes: &[u8], engine: &EthEngine, bc: &BlockProvider) -> Result<(), Error> {
+pub fn verify_block_family(header: &Header, parent: &Header, engine: &EthEngine, do_full: Option<(&[u8], &BlockProvider)>) -> Result<(), Error> {
 	// TODO: verify timestamp
-	let parent = bc.block_header(&header.parent_hash()).ok_or_else(|| Error::from(BlockError::UnknownParent(header.parent_hash().clone())))?;
-	verify_parent(&header, &parent)?;
+	let gas_limit_bound_divisor = engine.params().gas_limit_bound_divisor;
+
+	verify_parent(&header, &parent, gas_limit_bound_divisor)?;
 	engine.verify_block_family(&header, &parent)?;
+
+	let (bytes, bc) = match do_full {
+		Some(x) => x,
+		None => return Ok(()),
+	};
 
 	let num_uncles = UntrustedRlp::new(bytes).at(2)?.item_count()?;
 	if num_uncles != 0 {
@@ -189,7 +198,7 @@ pub fn verify_block_family(header: &Header, bytes: &[u8], engine: &EthEngine, bc
 				return Err(From::from(BlockError::UncleParentNotInChain(uncle_parent.hash())));
 			}
 
-			verify_parent(&uncle, &uncle_parent)?;
+			verify_parent(&uncle, &uncle_parent, gas_limit_bound_divisor)?;
 			engine.verify_block_family(&uncle, &uncle_parent)?;
 			verified.insert(uncle.hash());
 		}
@@ -240,7 +249,7 @@ pub fn verify_header_params(header: &Header, engine: &EthEngine, is_full: bool) 
 }
 
 /// Check header parameters agains parent header.
-fn verify_parent(header: &Header, parent: &Header) -> Result<(), Error> {
+fn verify_parent(header: &Header, parent: &Header, gas_limit_divisor: U256) -> Result<(), Error> {
 	if !header.parent_hash().is_zero() && &parent.hash() != header.parent_hash() {
 		return Err(From::from(BlockError::InvalidParentHash(Mismatch { expected: parent.hash(), found: header.parent_hash().clone() })))
 	}
@@ -250,6 +259,18 @@ fn verify_parent(header: &Header, parent: &Header) -> Result<(), Error> {
 	if header.number() != parent.number() + 1 {
 		return Err(From::from(BlockError::InvalidNumber(Mismatch { expected: parent.number() + 1, found: header.number() })));
 	}
+
+	if header.number() == 0 {
+		return Err(BlockError::RidiculousNumber(OutOfBounds { min: Some(1), max: None, found: header.number() }).into());
+	}
+
+	let parent_gas_limit = *parent.gas_limit();
+	let min_gas = parent_gas_limit - parent_gas_limit / gas_limit_divisor;
+	let max_gas = parent_gas_limit + parent_gas_limit / gas_limit_divisor;
+	if header.gas_limit() <= &min_gas || header.gas_limit() >= &max_gas {
+		return Err(From::from(BlockError::InvalidGasLimit(OutOfBounds { min: Some(min_gas), max: Some(max_gas), found: header.gas_limit().clone() })));
+	}
+
 	Ok(())
 }
 

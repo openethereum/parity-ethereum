@@ -42,10 +42,9 @@ use std::fmt;
 use self::epoch::PendingTransition;
 
 use account_provider::AccountProvider;
-use block::ExecutedBlock;
 use builtin::Builtin;
 use client::EngineClient;
-use vm::{EnvInfo, LastHashes, Schedule, CreateContractAddress};
+use vm::{EnvInfo, Schedule, CreateContractAddress};
 use error::Error;
 use header::{Header, BlockNumber};
 use receipt::Receipt;
@@ -377,8 +376,8 @@ pub trait EthEngine: Engine<::machine::EthereumMachine> {
 	}
 
 	/// Verify a particular transaction is valid.
-	fn verify_transaction(&self, t: UnverifiedTransaction, header: &Header) -> Result<SignedTransaction, Error> {
-		self.machine().verify_transaction(t, header)
+	fn verify_transaction_unordered(&self, t: UnverifiedTransaction, header: &Header) -> Result<SignedTransaction, Error> {
+		self.machine().verify_transaction_unordered(t, header)
 	}
 
 	/// Additional verification for transactions in blocks.
@@ -399,20 +398,12 @@ impl<T> EthEngine for T where T: Engine<::machine::EthereumMachine> { }
 
 /// Common engine utilities
 pub mod common {
-	use std::sync::Arc;
 	use block::ExecutedBlock;
 	use error::Error;
-	use transaction::SYSTEM_ADDRESS;
-	use executive::Executive;
-	use vm::{CallType, ActionParams, ActionValue, EnvInfo, LastHashes};
-	use trace::{NoopTracer, NoopVMTracer, Tracer, ExecutiveTracer, RewardType};
-	use state::Substate;
+	use trace::{Tracer, ExecutiveTracer, RewardType};
 	use state::CleanupMode;
 
 	use bigint::prelude::U256;
-	use bigint::hash::H256;
-	use util::*;
-	use spec::CommonParams;
 
 	/// Give reward and trace.
 	pub fn bestow_block_reward(block: &mut ExecutedBlock, reward: U256) -> Result<(), Error> {

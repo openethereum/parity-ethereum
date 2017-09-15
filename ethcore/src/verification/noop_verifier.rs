@@ -27,7 +27,7 @@ use super::Verifier;
 pub struct NoopVerifier;
 
 impl Verifier for NoopVerifier {
-	fn verify_block_family(&self, _header: &Header, _bytes: &[u8], _engine: &EthEngine, _bc: &BlockProvider) -> Result<(), Error> {
+	fn verify_block_family(&self, _: &Header, _t: &Header, _: &EthEngine, _: Option<(&[u8], &BlockProvider)>) -> Result<(), Error> {
 		Ok(())
 	}
 

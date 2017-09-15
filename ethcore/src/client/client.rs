@@ -422,8 +422,23 @@ impl Client {
 			return Err(());
 		}
 
+		// Check if parent is in chain
+		let parent = match chain.block_header(header.parent_hash()) {
+			Some(h) => h,
+			None => {
+				warn!(target: "client", "Block import failed for #{} ({}): Parent not found ({}) ", header.number(), header.hash(), header.parent_hash());
+				return Err(());
+			}
+		};
+
 		// Verify Block Family
-		let verify_family_result = self.verifier.verify_block_family(header, &block.bytes, engine, &**chain);
+		let verify_family_result = self.verifier.verify_block_family(
+			header,
+			&parent,
+			engine,
+			Some((&block.bytes, &**chain)),
+		);
+
 		if let Err(e) = verify_family_result {
 			warn!(target: "client", "Stage 3 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 			return Err(());
@@ -435,42 +450,35 @@ impl Client {
 			return Err(());
 		};
 
-		// Check if Parent is in chain
-		let chain_has_parent = chain.block_header(header.parent_hash());
-		if let Some(parent) = chain_has_parent {
-			// Enact Verified Block
-			let last_hashes = self.build_last_hashes(header.parent_hash().clone());
-			let db = self.state_db.lock().boxed_clone_canon(header.parent_hash());
+		// Enact Verified Block
+		let last_hashes = self.build_last_hashes(header.parent_hash().clone());
+		let db = self.state_db.lock().boxed_clone_canon(header.parent_hash());
 
-			let is_epoch_begin = chain.epoch_transition(parent.number(), *header.parent_hash()).is_some();
-			let enact_result = enact_verified(block,
-				engine,
-				self.tracedb.read().tracing_enabled(),
-				db,
-				&parent,
-				last_hashes,
-				self.factories.clone(),
-				is_epoch_begin,
-			);
-			let mut locked_block = enact_result.map_err(|e| {
-				warn!(target: "client", "Block import failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
-			})?;
+		let is_epoch_begin = chain.epoch_transition(parent.number(), *header.parent_hash()).is_some();
+		let enact_result = enact_verified(block,
+			engine,
+			self.tracedb.read().tracing_enabled(),
+			db,
+			&parent,
+			last_hashes,
+			self.factories.clone(),
+			is_epoch_begin,
+		);
+		let mut locked_block = enact_result.map_err(|e| {
+			warn!(target: "client", "Block import failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
+		})?;
 
-			if header.number() < self.engine().params().validate_receipts_transition && header.receipts_root() != locked_block.block().header().receipts_root() {
-				locked_block = locked_block.strip_receipts();
-			}
-
-			// Final Verification
-			if let Err(e) = self.verifier.verify_block_final(header, locked_block.block().header()) {
-				warn!(target: "client", "Stage 5 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
-				return Err(());
-			}
-
-			Ok(locked_block)
-		} else {
-			warn!(target: "client", "Block import failed for #{} ({}): Parent not found ({}) ", header.number(), header.hash(), header.parent_hash());
-			Err(())
+		if header.number() < self.engine().params().validate_receipts_transition && header.receipts_root() != locked_block.block().header().receipts_root() {
+			locked_block = locked_block.strip_receipts();
 		}
+
+		// Final Verification
+		if let Err(e) = self.verifier.verify_block_final(header, locked_block.block().header()) {
+			warn!(target: "client", "Stage 5 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
+			return Err(());
+		}
+
+		Ok(locked_block)
 	}
 
 	fn calculate_enacted_retracted(&self, import_results: &[ImportRoute]) -> (Vec<H256>, Vec<H256>) {
