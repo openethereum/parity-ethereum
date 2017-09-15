@@ -24,7 +24,7 @@ use hyper;
 
 type Sender = mpsc::Sender<Result<hyper::Chunk, hyper::Error>>;
 
-const MAX_CHUNK_SIZE: usize = 8 * 1024;
+const MAX_CHUNK_SIZE: usize = 32 * 1024;
 
 pub struct Reader<R: io::Read> {
 	buffer: [u8; MAX_CHUNK_SIZE],
