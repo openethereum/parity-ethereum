@@ -47,7 +47,7 @@ use client::{
 	ChainNotify, PruningInfo, ProvingBlockChainClient,
 };
 use encoded;
-use engines::{Engine, EthEngine, EpochTransition};
+use engines::{EthEngine, EpochTransition};
 use error::{ImportError, ExecutionError, CallError, BlockError, ImportResult, Error as EthcoreError};
 use vm::{EnvInfo, LastHashes};
 use evm::{Factory as EvmFactory, Schedule};
@@ -436,7 +436,7 @@ impl Client {
 			header,
 			&parent,
 			engine,
-			Some((&block.bytes, &**chain)),
+			Some((&block.bytes, &block.transactions, &**chain, self)),
 		);
 
 		if let Err(e) = verify_family_result {

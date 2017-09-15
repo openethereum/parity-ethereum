@@ -28,7 +28,7 @@ use bigint::hash::H256;
 use parking_lot::{Condvar, Mutex, RwLock};
 use io::*;
 use error::*;
-use engines::{Engine, EthEngine};
+use engines::EthEngine;
 use service::*;
 
 use self::kind::{BlockLike, Kind};

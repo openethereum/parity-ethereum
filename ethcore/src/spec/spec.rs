@@ -284,9 +284,9 @@ impl Spec {
 		use machine::EthereumMachine;
 
 		let _machine = if let ethjson::spec::Engine::Ethash(ref ethash) = engine_spec {
-			EthereumMachine::WithEthashExtensions(params, builtins, ethash.params.clone().into())
+			EthereumMachine::with_ethash_extensions(params, builtins, ethash.params.clone().into())
 		} else {
-			EthereumMachine::Regular(params, builtins)
+			EthereumMachine::regular(params, builtins)
 		};
 
 		// TODO: instantiate ethash-specific params.

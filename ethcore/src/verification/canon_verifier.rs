@@ -16,7 +16,6 @@
 
 //! Canonical verifier.
 
-use blockchain::BlockProvider;
 use engines::EthEngine;
 use error::Error;
 use header::Header;
@@ -27,7 +26,13 @@ use super::verification;
 pub struct CanonVerifier;
 
 impl Verifier for CanonVerifier {
-	fn verify_block_family(&self, header: &Header, parent: &Header, engine: &EthEngine, do_full: Option<(&[u8], &BlockProvider)>) -> Result<(), Error> {
+	fn verify_block_family(
+		&self,
+		header: &Header,
+		parent: &Header,
+		engine: &EthEngine,
+		do_full: Option<verification::FullFamilyParams>,
+	) -> Result<(), Error> {
 		verification::verify_block_family(header, parent, engine, do_full)
 	}
 

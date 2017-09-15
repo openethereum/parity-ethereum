@@ -22,13 +22,15 @@ use std::sync::Arc;
 
 use block::ExecutedBlock;
 use builtin::Builtin;
-use error::Error;
+use client::BlockChainClient;
+use error::{Error, TransactionError};
 use executive::Executive;
 use header::{BlockNumber, Header};
 use spec::CommonParams;
 use state::{CleanupMode, Substate};
 use trace::{NoopTracer, NoopVMTracer, Tracer, ExecutiveTracer, RewardType};
 use transaction::{SYSTEM_ADDRESS, UnverifiedTransaction, SignedTransaction};
+use tx_filter::TransactionFilter;
 
 use bigint::hash::H256;
 use bigint::prelude::U256;
@@ -75,14 +77,33 @@ impl From<::ethjson::spec::EthashParams> for EthashExtensions {
 }
 
 /// An ethereum-like state machine.
-pub enum EthereumMachine {
-	/// Regular ethereum-like state machine
-	Regular(CommonParams, BTreeMap<Address, Builtin>),
-	/// A machine with Ethash extensions.
-	// TODO: unify with regular. at the time of writing, we've only had to do
-	// significant hard forks for ethash engines, but we don't want to end up
-	// with a variant for each consensus mode.
-	WithEthashExtensions(CommonParams, BTreeMap<Address, Builtin>, EthashExtensions),
+pub struct EthereumMachine {
+	params: CommonParams,
+	builtins: BTreeMap<Address, Builtin>,
+	tx_filter: Option<TransactionFilter>,
+	ethash_extensions: Option<EthashExtensions>,
+}
+
+impl EthereumMachine {
+	/// Regular ethereum machine.
+	pub fn regular(params: CommonParams, builtins: BTreeMap<Address, Builtin>) -> EthereumMachine {
+		let tx_filter = TransactionFilter::from_params(&params);
+		EthereumMachine {
+			params: params,
+			builtins: builtins,
+			tx_filter: tx_filter,
+			ethash_extensions: None,
+		}
+	}
+
+	/// Ethereum machine with ethash extensions.
+	// TODO: either unify or specify to mainnet specifically and include other specific-chain HFs?
+	pub fn with_ethash_extensions(params: CommonParams, builtins: BTreeMap<Address, Builtin>, extensions: EthashExtensions) -> EthereumMachine {
+		let mut machine = EthereumMachine::regular(params, builtins);
+		machine.ethash_extensions = Some(extensions);
+		machine
+	}
+
 }
 
 impl EthereumMachine {
@@ -157,7 +178,7 @@ impl EthereumMachine {
 	pub fn on_new_block(&self, block: &mut ExecutedBlock, last_hashes: Arc<LastHashes>) -> Result<(), Error> {
 		self.push_last_hash(block, last_hashes);
 
-		if let EthereumMachine::WithEthashExtensions(ref params, _, ref ethash_params) = *self {
+		if let Some(ref ethash_params) = self.ethash_extensions {
 			if block.fields().header.number() == ethash_params.dao_hardfork_transition {
 				let state = block.fields_mut().state;
 				for child in &ethash_params.dao_hardfork_accounts {
@@ -177,7 +198,7 @@ impl EthereumMachine {
 	pub fn populate_from_parent(&self, header: &mut Header, parent: &Header, gas_floor_target: U256, gas_ceil_target: U256) {
 		header.set_difficulty(parent.difficulty().clone());
 
-		if let EthereumMachine::WithEthashExtensions(ref params, _, ref ethash_params) = *self {
+		if let Some(ref ethash_params) = self.ethash_extensions {
 			let gas_limit = {
 				let gas_limit = parent.gas_limit().clone();
 				let bound_divisor = self.params().gas_limit_bound_divisor;
@@ -223,30 +244,27 @@ impl EthereumMachine {
 
 	/// Get the general parameters of the chain.
 	pub fn params(&self) -> &CommonParams {
-		match *self {
-			EthereumMachine::Regular(ref params, _) => params,
-			EthereumMachine::WithEthashExtensions(ref params, _, _) => params,
-		}
+		&self.params
 	}
 
 	/// Get the EVM schedule for the given block number.
 	pub fn schedule(&self, block_number: BlockNumber) -> Schedule {
-		match *self {
-			EthereumMachine::Regular(ref params, _) => params.schedule(block_number),
-			EthereumMachine::WithEthashExtensions(ref params, _, ref ext) => {
+		match self.ethash_extensions {
+			None => self.params.schedule(block_number),
+			Some(ref ext) => {
 				if block_number < ext.homestead_transition {
 					Schedule::new_frontier()
 				} else if block_number < ext.eip150_transition {
 					Schedule::new_homestead()
 				} else {
 					let mut schedule = Schedule::new_post_eip150(
-						params.max_code_size as _,
+						self.params.max_code_size as _,
 						block_number >= ext.eip160_transition,
 						block_number >= ext.eip161abc_transition,
 						block_number >= ext.eip161d_transition
 					);
 
-					params.update_schedule(block_number, &mut schedule);
+					self.params.update_schedule(block_number, &mut schedule);
 					schedule
 				}
 			}
@@ -255,10 +273,7 @@ impl EthereumMachine {
 
 	/// Builtin-contracts for the chain..
 	pub fn builtins(&self) -> &BTreeMap<Address, Builtin> {
-		match *self {
-			EthereumMachine::Regular(_, ref builtins) => builtins,
-			EthereumMachine::WithEthashExtensions(_, ref builtins, _) => builtins,
-		}
+		&self.builtins
 	}
 
 	/// Attempt to get a handle to a built-in contract.
@@ -312,13 +327,24 @@ impl EthereumMachine {
 
 	/// Does basic verification of the transaction.
 	pub fn verify_transaction_basic(&self, t: &UnverifiedTransaction, header: &Header) -> Result<(), Error> {
-		use error::TransactionError;
-
 		t.check_low_s()?;
 
 		if let Some(n) = t.chain_id() {
 			if header.number() >= self.params().eip155_transition && n != self.params().chain_id {
 				return Err(TransactionError::InvalidChainId.into());
+			}
+		}
+
+		Ok(())
+	}
+
+	/// Does verification of the transaction against the parent state.
+	// TODO: refine the bound here to be a "state provider" or similar as opposed
+	// to full client functionality.
+	pub fn verify_transaction(&self, t: &SignedTransaction, header: &Header, client: &BlockChainClient) -> Result<(), Error> {
+		if let Some(ref filter) = self.tx_filter {
+			if !filter.transaction_allowed(header.parent_hash(), t, client) {
+				return Err(TransactionError::NotAllowed.into())
 			}
 		}
 

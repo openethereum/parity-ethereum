@@ -16,18 +16,23 @@
 
 //! No-op verifier.
 
-use blockchain::BlockProvider;
 use engines::EthEngine;
 use error::Error;
 use header::Header;
-use super::Verifier;
+use super::{verification, Verifier};
 
 /// A no-op verifier -- this will verify everything it's given immediately.
 #[allow(dead_code)]
 pub struct NoopVerifier;
 
 impl Verifier for NoopVerifier {
-	fn verify_block_family(&self, _: &Header, _t: &Header, _: &EthEngine, _: Option<(&[u8], &BlockProvider)>) -> Result<(), Error> {
+	fn verify_block_family(
+		&self,
+		_: &Header,
+		_t: &Header,
+		_: &EthEngine,
+		_: Option<verification::FullFamilyParams>
+	) -> Result<(), Error> {
 		Ok(())
 	}
 

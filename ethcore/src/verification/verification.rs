@@ -24,6 +24,7 @@
 use std::collections::HashSet;
 
 use blockchain::*;
+use client::BlockChainClient;
 use engines::{Engine, EthEngine};
 use error::{BlockError, Error};
 use header::{BlockNumber, Header};
@@ -111,19 +112,30 @@ pub fn verify_block_unordered(header: Header, bytes: Bytes, engine: &EthEngine, 
 	})
 }
 
-/// Phase 3 verification. Check block information against parent and uncles.
-pub fn verify_block_family(header: &Header, parent: &Header, engine: &EthEngine, do_full: Option<(&[u8], &BlockProvider)>) -> Result<(), Error> {
-	// TODO: verify timestamp
-	let gas_limit_bound_divisor = engine.params().gas_limit_bound_divisor;
+/// Parameters for full verification of block family: block bytes, transactions, blockchain, and state access.
+pub type FullFamilyParams<'a> = (&'a [u8], &'a [SignedTransaction], &'a BlockProvider, &'a BlockChainClient);
 
-	verify_parent(&header, &parent, gas_limit_bound_divisor)?;
+/// Phase 3 verification. Check block information against parent and uncles.
+pub fn verify_block_family(header: &Header, parent: &Header, engine: &EthEngine, do_full: Option<FullFamilyParams>) -> Result<(), Error> {
+	// TODO: verify timestamp
+	verify_parent(&header, &parent, engine.params().gas_limit_bound_divisor)?;
 	engine.verify_block_family(&header, &parent)?;
 
-	let (bytes, bc) = match do_full {
+	let (bytes, txs, bc, client) = match do_full {
 		Some(x) => x,
 		None => return Ok(()),
 	};
 
+	verify_uncles(header, bytes, bc, engine)?;
+
+	for transaction in txs {
+		engine.machine().verify_transaction(transaction, header, client)?;
+	}
+
+	Ok(())
+}
+
+fn verify_uncles(header: &Header, bytes: &[u8], bc: &BlockProvider, engine: &EthEngine) -> Result<(), Error> {
 	let num_uncles = UntrustedRlp::new(bytes).at(2)?.item_count()?;
 	if num_uncles != 0 {
 		if num_uncles > engine.maximum_uncle_count() {
@@ -198,11 +210,12 @@ pub fn verify_block_family(header: &Header, parent: &Header, engine: &EthEngine,
 				return Err(From::from(BlockError::UncleParentNotInChain(uncle_parent.hash())));
 			}
 
-			verify_parent(&uncle, &uncle_parent, gas_limit_bound_divisor)?;
+			verify_parent(&uncle, &uncle_parent, engine.params().gas_limit_bound_divisor)?;
 			engine.verify_block_family(&uncle, &uncle_parent)?;
 			verified.insert(uncle.hash());
 		}
 	}
+
 	Ok(())
 }
 
