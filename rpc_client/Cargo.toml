@@ -14,7 +14,7 @@ serde_json = "1.0"
 url = "1.2.0"
 matches = "0.1"
 parking_lot = "0.4"
-jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "td-remove-boxfuture" }
-jsonrpc-ws-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "td-remove-boxfuture" }
+jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.8" }
+jsonrpc-ws-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.8" }
 parity-rpc = { path = "../rpc" }
 hash = { path = "../util/hash" }

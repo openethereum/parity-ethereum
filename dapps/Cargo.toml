@@ -25,8 +25,8 @@ unicase = "1.4"
 zip = { version = "0.1", default-features = false }
 itertools = "0.5"
 
-jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "td-remove-boxfuture" }
-jsonrpc-http-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "td-remove-boxfuture" }
+jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.8" }
+jsonrpc-http-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.8" }
 
 ethcore-util = { path = "../util" }
 ethcore-bigint = { path = "../util/bigint" }
