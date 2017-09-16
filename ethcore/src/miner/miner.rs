@@ -742,8 +742,12 @@ impl MinerService for Miner {
 					state.add_balance(&sender, &(needed_balance - balance), CleanupMode::NoEmpty)
 						.map_err(ExecutionError::from)?;
 				}
-				let options = TransactOptions { tracing: analytics.transaction_tracing, vm_tracing: analytics.vm_tracing, check_nonce: false, output_from_init_contract: true };
-				let mut ret = Executive::new(&mut state, &env_info, &*self.engine).transact(t, options)?;
+				let mut ret = match (analytics.transaction_tracing, analytics.vm_tracing) {
+					(true, true) => Executive::new(&mut state, &env_info, &*self.engine).transact(t, TransactOptions::with_tracing_and_vm_tracing())?,
+					(true, false) => Executive::new(&mut state, &env_info, &*self.engine).transact(t, TransactOptions::with_tracing())?,
+					(false, true) => Executive::new(&mut state, &env_info, &*self.engine).transact(t, TransactOptions::with_vm_tracing())?,
+					(false, false) => Executive::new(&mut state, &env_info, &*self.engine).transact(t, TransactOptions::with_no_tracing())?,
+				};
 
 				// TODO gav move this into Executive.
 				if let Some(original) = original_state {

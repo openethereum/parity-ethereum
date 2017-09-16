@@ -1120,6 +1120,41 @@ impl Client {
 			BlockId::Latest | BlockId::Pending => Some(self.chain.read().best_block_number()),
 		}
 	}
+
+	fn do_virtual_call(&self, env_info: &EnvInfo, state: &mut State<StateDB>, t: &SignedTransaction, analytics: CallAnalytics) -> Result<Executed, CallError> {
+		fn call<E, V, T>(
+			state: &mut State<StateDB>,
+			env_info: &EnvInfo,
+			engine: &E,
+			state_diff: bool,
+			transaction: &SignedTransaction,
+			options: TransactOptions<T, V>,
+		) -> Result<Executed, CallError> where
+			E: Engine + ?Sized,
+			T: trace::Tracer,
+			V: trace::VMTracer,
+		{
+			let options = options.dont_check_nonce();
+			let original_state = if state_diff { Some(state.clone()) } else { None };
+
+			let mut ret = Executive::new(state, env_info, engine).transact_virtual(transaction, options)?;
+
+			if let Some(original) = original_state {
+				ret.state_diff = Some(state.diff_from(original).map_err(ExecutionError::from)?);
+			}
+			Ok(ret)
+		}
+
+		let state_diff = analytics.state_diffing;
+		let engine = &*self.engine;
+
+		match (analytics.transaction_tracing, analytics.vm_tracing) {
+			(true, true) => call(state, env_info, engine, state_diff, t, TransactOptions::with_tracing_and_vm_tracing()),
+			(true, false) => call(state, env_info, engine, state_diff, t, TransactOptions::with_tracing()),
+			(false, true) => call(state, env_info, engine, state_diff, t, TransactOptions::with_vm_tracing()),
+			(false, false) => call(state, env_info, engine, state_diff, t, TransactOptions::with_no_tracing()),
+		}
+	}
 }
 
 impl snapshot::DatabaseRestore for Client {
@@ -1150,19 +1185,8 @@ impl BlockChainClient for Client {
 
 		// that's just a copy of the state.
 		let mut state = self.state_at(block).ok_or(CallError::StatePruned)?;
-		let original_state = if analytics.state_diffing { Some(state.clone()) } else { None };
 
-		let options = TransactOptions::new(analytics.transaction_tracing, analytics.vm_tracing)
-			.dont_check_nonce()
-			.save_output_from_contract();
-		let mut ret = Executive::new(&mut state, &env_info, &*self.engine).transact_virtual(t, options)?;
-
-		// TODO gav move this into Executive.
-		if let Some(original) = original_state {
-			ret.state_diff = Some(state.diff_from(original).map_err(ExecutionError::from)?);
-		}
-
-		Ok(ret)
+		self.do_virtual_call(&env_info, &mut state, t, analytics)
 	}
 
 	fn estimate_gas(&self, t: &SignedTransaction, block: BlockId) -> Result<U256, CallError> {
@@ -1177,7 +1201,7 @@ impl BlockChainClient for Client {
 		// that's just a copy of the state.
 		let original_state = self.state_at(block).ok_or(CallError::StatePruned)?;
 		let sender = t.sender();
-		let options = TransactOptions::with_tracing().dont_check_nonce();
+		let options = || TransactOptions::with_tracing();
 
 		let cond = |gas| {
 			let mut tx = t.as_unsigned().clone();
@@ -1186,7 +1210,7 @@ impl BlockChainClient for Client {
 
 			let mut state = original_state.clone();
 			Ok(Executive::new(&mut state, &env_info, &*self.engine)
-				.transact_virtual(&tx, options.clone())
+				.transact_virtual(&tx, options())
 				.map(|r| r.exception.is_none())
 				.unwrap_or(false))
 		};
@@ -1242,24 +1266,17 @@ impl BlockChainClient for Client {
 			return Err(CallError::TransactionNotFound);
 		}
 
-		let options = TransactOptions::new(analytics.transaction_tracing, analytics.vm_tracing)
-			.dont_check_nonce()
-			.save_output_from_contract();
 		const PROOF: &'static str = "Transactions fetched from blockchain; blockchain transactions are valid; qed";
 		let rest = txs.split_off(address.index);
 		for t in txs {
 			let t = SignedTransaction::new(t).expect(PROOF);
-			let x = Executive::new(&mut state, &env_info, &*self.engine).transact(&t, Default::default())?;
+			let x = Executive::new(&mut state, &env_info, &*self.engine).transact(&t, TransactOptions::with_no_tracing())?;
 			env_info.gas_used = env_info.gas_used + x.gas_used;
 		}
 		let first = rest.into_iter().next().expect("We split off < `address.index`; Length is checked earlier; qed");
 		let t = SignedTransaction::new(first).expect(PROOF);
-		let original_state = if analytics.state_diffing { Some(state.clone()) } else { None };
-		let mut ret = Executive::new(&mut state, &env_info, &*self.engine).transact(&t, options)?;
-		if let Some(original) = original_state {
-			ret.state_diff = Some(state.diff_from(original).map_err(ExecutionError::from)?)
-		}
-		Ok(ret)
+
+		self.do_virtual_call(&env_info, &mut state, &t, analytics)
 	}
 
 	fn mode(&self) -> IpcMode {
@@ -2047,11 +2064,13 @@ mod tests {
 		}];
 		let receipts = vec![Receipt {
 			state_root: state_root,
+			status_code: None,
 			gas_used: 5.into(),
 			log_bloom: Default::default(),
 			logs: vec![logs[0].clone()],
 		}, Receipt {
 			state_root: state_root,
+			status_code: None,
 			gas_used: gas_used,
 			log_bloom: Default::default(),
 			logs: logs.clone(),
