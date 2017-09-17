@@ -1,15 +1,58 @@
-## Parity [v1.7.2](https://github.com/paritytech/parity/releases/tag/v1.7.2) (2017-09-12)
+## Parity [v1.7.2](https://github.com/paritytech/parity/releases/tag/v1.7.2) (2017-09-18)
 
-Parity 1.7.2 is a bug-fix release to improve performance and stability. Among others, it addresses the following issues:
+Parity 1.7.2 is a bug-fix release to improve performance and stability. Among others, it addresses the following:
 
-- Significantly increased token registry performance and token balance lookups.
+- Byzantium fork support for Ropsten and Foundation networks.
+- Added support for the ConsenSys multi-signature wallet.
+- Significantly increased token registry and token balance lookup performance.
 - Fixed issues with the health status indicator in the wallet.
 - Tweaked warp-sync to quickly catch up with chains fallen back more than 5,000 blocks.
-- Added support for the ConsenSys multi-signature wallet.
 - Fixes to the Chrome extension and macOS installer upgrades.
 
 Full list of included changes:
 
+- Byzantium updates ([#6529](https://github.com/paritytech/parity/pull/6529))
+  - Fix modexp bug: return 0 if base=0 ([#6424](https://github.com/paritytech/parity/pull/6424))
+  - Running state test using parity-evm ([#6355](https://github.com/paritytech/parity/pull/6355))
+    - Initial version of state tests.
+    - Refactor state to support tracing.
+    - Unify TransactResult.
+    - Add test.
+  - Byzantium updates ([#5855](https://github.com/paritytech/parity/pull/5855))
+    - EIP-211 updates
+    - Benchmarks
+    - Blockhash instruction gas cost updated
+    - More benches
+    - EIP-684
+    - EIP-649
+    - EIP-658
+    - Updated some tests
+    - Modexp fixes
+    - STATICCALL fixes
+    - Pairing fixes
+    - More STATICALL fixes
+    - Use paritytech/bn
+    - Fixed REVERTing of contract creation
+    - Fixed more tests
+    - Fixed more tests
+    - Blockchain tests
+    - Enable previously broken tests
+    - Transition test
+    - Updated tests
+    - Fixed modexp reading huge numbers
+    - Enabled max_code_size test
+    - Review fixes
+    - Updated pairing pricing
+    - Missing commas (style)
+    - Update test.rs
+    - Small improvements
+    - Eip161abc
+- Fix extension detection ([#6452](https://github.com/paritytech/parity/pull/6452)) ([#6524](https://github.com/paritytech/parity/pull/6524))
+  - Fix extension detection.
+  - Fix mobx quirks.
+  - Update submodule.
+- Fix detecting hardware wallets. ([#6509](https://github.com/paritytech/parity/pull/6509))
+- Allow hardware device reads without lock. ([#6517](https://github.com/paritytech/parity/pull/6517))
 - Backports [#6497](https://github.com/paritytech/parity/pull/6497)
   - Fix slow balances ([#6471](https://github.com/paritytech/parity/pull/6471))
     - Update token updates
