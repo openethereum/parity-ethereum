@@ -6,7 +6,7 @@ Parity 1.7.2 is a bug-fix release to improve performance and stability. Among ot
 - Added support for the ConsenSys multi-signature wallet.
 - Significantly increased token registry and token balance lookup performance.
 - Fixed issues with the health status indicator in the wallet.
-- Tweaked warp-sync to quickly catch up with chains fallen back more than 5,000 blocks.
+- Tweaked warp-sync to quickly catch up with chains fallen back more than 10,000 blocks.
 - Fixes to the Chrome extension and macOS installer upgrades.
 
 Full list of included changes:
