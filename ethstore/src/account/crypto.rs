@@ -104,7 +104,7 @@ impl Crypto {
 			cipher: Cipher::Aes128Ctr(Aes128Ctr {
 				iv: iv,
 			}),
-			ciphertext: (*ciphertext).to_vec(),
+			ciphertext: ciphertext.into_vec(),
 			kdf: Kdf::Pbkdf2(Pbkdf2 {
 				dklen: crypto::KEY_LENGTH as u32,
 				salt: salt,
@@ -122,7 +122,7 @@ impl Crypto {
 		}
 
 		let secret = self.do_decrypt(password, 32)?;
-		Ok(Secret::from_slice(&secret)?)
+		Ok(Secret::from_unsafe_slice(&secret)?)
 	}
 
 	/// Try to decrypt and return result as is

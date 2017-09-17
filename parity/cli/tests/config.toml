@@ -1,0 +1,90 @@
+[parity]
+mode = "dark"
+mode_timeout = 15
+mode_alarm = 10
+chain = "./chain.json"
+
+[account]
+unlock = ["0x1", "0x2", "0x3"]
+password = ["passwdfile path"]
+
+[ui]
+disable = true
+
+[network]
+warp = false
+discovery = true
+nat = "any"
+min_peers = 10
+max_peers = 20
+max_pending_peers = 30
+snapshot_peers = 40
+allow_ips = "public"
+
+reserved_only = true
+reserved_peers = "./path/to/reserved_peers"
+
+[websockets]
+disable = true
+origins = ["none"]
+
+[rpc]
+disable = true
+port = 8180
+
+[ipc]
+apis = ["rpc", "eth"]
+
+[dapps]
+port = 8080
+user = "username"
+pass = "password"
+
+[secretstore]
+http_port = 8082
+port = 8083
+
+[ipfs]
+enable = false
+port = 5001
+
+[mining]
+author = "0xdeadbeefcafe0000000000000000000000000001"
+engine_signer = "0xdeadbeefcafe0000000000000000000000000001"
+force_sealing = true
+reseal_on_txs = "all"
+reseal_min_period = 4000
+reseal_max_period = 60000
+price_update_period = "hourly"
+tx_queue_size = 8192
+tx_queue_gas = "off"
+
+[footprint]
+tracing = "on"
+pruning = "fast"
+pruning_history = 64
+cache_size_db = 128
+cache_size_blocks = 16
+cache_size_queue = 100
+cache_size_state = 25
+db_compaction = "ssd"
+fat_db = "off"
+scale_verifiers = false
+
+[snapshots]
+disable_periodic = true
+
+[vm]
+jit = false
+
+[misc]
+ntp_servers = ["0.parity.pool.ntp.org:123"]
+logging = "own_tx=trace"
+log_file = "/var/log/parity.log"
+color = true
+ports_shift = 0
+unsafe_expose = false
+
+[whisper]
+enabled = true
+pool_size = 50

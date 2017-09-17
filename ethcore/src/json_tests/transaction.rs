@@ -25,7 +25,7 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 	let mut failed = Vec::new();
 	let frontier_schedule = evm::Schedule::new_frontier();
 	let homestead_schedule = evm::Schedule::new_homestead();
-	let metropolis_schedule = evm::Schedule::new_metropolis();
+	let byzantium_schedule = evm::Schedule::new_byzantium();
 	for (name, test) in tests.into_iter() {
 		let mut fail_unless = |cond: bool, title: &str| if !cond { failed.push(name.clone()); println!("Transaction failed: {:?}: {:?}", name, title); };
 
@@ -34,27 +34,27 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 			None => &frontier_schedule,
 			Some(x) if x < 1_150_000 => &frontier_schedule,
 			Some(x) if x < 3_000_000 => &homestead_schedule,
-			Some(_) => &metropolis_schedule
+			Some(_) => &byzantium_schedule
 		};
-		let allow_network_id_of_one = number.map_or(false, |n| n >= 2_675_000);
+		let allow_chain_id_of_one = number.map_or(false, |n| n >= 2_675_000);
 		let allow_unsigned = number.map_or(false, |n| n >= 3_000_000);
 
 		let rlp: Vec<u8> = test.rlp.into();
 		let res = UntrustedRlp::new(&rlp)
 			.as_val()
 			.map_err(From::from)
-			.and_then(|t: UnverifiedTransaction| t.validate(schedule, schedule.have_delegate_call, allow_network_id_of_one, allow_unsigned));
+			.and_then(|t: UnverifiedTransaction| t.validate(schedule, schedule.have_delegate_call, allow_chain_id_of_one, allow_unsigned));
 
 		fail_unless(test.transaction.is_none() == res.is_err(), "Validity different");
 		if let (Some(tx), Some(sender)) = (test.transaction, test.sender) {
 			let t = res.unwrap();
 			fail_unless(SignedTransaction::new(t.clone()).unwrap().sender() == sender.into(), "sender mismatch");
-			let is_acceptable_network_id = match t.network_id() {
+			let is_acceptable_chain_id = match t.chain_id() {
 				None => true,
-				Some(1) if allow_network_id_of_one => true,
+				Some(1) if allow_chain_id_of_one => true,
 				_ => false,
 			};
-			fail_unless(is_acceptable_network_id, "Network ID unacceptable");
+			fail_unless(is_acceptable_chain_id, "Network ID unacceptable");
 			let data: Vec<u8> = tx.data.into();
 			fail_unless(t.data == data, "data mismatch");
 			fail_unless(t.gas_price == tx.gas_price.into(), "gas_price mismatch");
@@ -75,18 +75,13 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 	failed
 }
 
-declare_test!{TransactionTests_ttTransactionTest, "TransactionTests/ttTransactionTest"}
-declare_test!{heavy => TransactionTests_tt10mbDataField, "TransactionTests/tt10mbDataField"}
-declare_test!{TransactionTests_ttWrongRLPTransaction, "TransactionTests/ttWrongRLPTransaction"}
-declare_test!{TransactionTests_Homestead_ttTransactionTest, "TransactionTests/Homestead/ttTransactionTest"}
-declare_test!{heavy => TransactionTests_Homestead_tt10mbDataField, "TransactionTests/Homestead/tt10mbDataField"}
-declare_test!{TransactionTests_Homestead_ttWrongRLPTransaction, "TransactionTests/Homestead/ttWrongRLPTransaction"}
-declare_test!{TransactionTests_RandomTests_tr201506052141PYTHON, "TransactionTests/RandomTests/tr201506052141PYTHON"}
-declare_test!{TransactionTests_Homestead_ttTransactionTestEip155VitaliksTests, "TransactionTests/Homestead/ttTransactionTestEip155VitaliksTests"}
-declare_test!{TransactionTests_EIP155_ttTransactionTest, "TransactionTests/EIP155/ttTransactionTest"}
-declare_test!{TransactionTests_EIP155_ttTransactionTestEip155VitaliksTests, "TransactionTests/EIP155/ttTransactionTestEip155VitaliksTests"}
-declare_test!{TransactionTests_EIP155_ttTransactionTestVRule, "TransactionTests/EIP155/ttTransactionTestVRule"}
-
-declare_test!{TransactionTests_Metropolis_ttMetropolisTest, "TransactionTests/Metropolis/ttMetropolisTest"}
-declare_test!{TransactionTests_Metropolis_ttTransactionTest, "TransactionTests/Metropolis/ttTransactionTest"}
-declare_test!{TransactionTests_Metropolis_ttTransactionTestZeroSig, "TransactionTests/Metropolis/ttTransactionTestZeroSig"}
+declare_test!{TransactionTests_ttEip155VitaliksHomesead, "TransactionTests/ttEip155VitaliksHomesead"}
+declare_test!{TransactionTests_ttEip155VitaliksEip158, "TransactionTests/ttEip155VitaliksEip158"}
+declare_test!{TransactionTests_ttEip158, "TransactionTests/ttEip158"}
+declare_test!{TransactionTests_ttFrontier, "TransactionTests/ttFrontier"}
+declare_test!{TransactionTests_ttHomestead, "TransactionTests/ttHomestead"}
+declare_test!{TransactionTests_ttVRuleEip158, "TransactionTests/ttVRuleEip158"}
+declare_test!{TransactionTests_ttWrongRLPFrontier, "TransactionTests/ttWrongRLPFrontier"}
+declare_test!{TransactionTests_ttWrongRLPHomestead, "TransactionTests/ttWrongRLPHomestead"}
+declare_test!{TransactionTests_ttConstantinople, "TransactionTests/ttConstantinople"}
+declare_test!{TransactionTests_ttSpecConstantinople, "TransactionTests/ttSpecConstantinople"}

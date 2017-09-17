@@ -35,7 +35,12 @@ export default class Dapp extends Component {
   }
 
   componentWillMount () {
+    this.isInactive = false;
     return this.loadApp();
+  }
+
+  componentWillUnmount () {
+    this.isInactive = true;
   }
 
   render () {
@@ -83,6 +88,10 @@ export default class Dapp extends Component {
     return store
       .loadApp(id)
       .then((dapp) => {
+        if (this.isInactive) {
+          return;
+        }
+
         this.setState({ dapp });
       });
   }

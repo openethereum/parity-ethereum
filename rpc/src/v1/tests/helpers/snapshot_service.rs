@@ -16,8 +16,9 @@
 
 use ethcore::snapshot::{ManifestData, RestorationStatus, SnapshotService};
 
-use util::{Bytes, Mutex};
-use util::hash::H256;
+use bytes::Bytes;
+use bigint::hash::H256;
+use parking_lot::Mutex;
 
 /// Mocked snapshot service (used for sync info extensions).
 pub struct TestSnapshotService {
@@ -41,6 +42,7 @@ impl TestSnapshotService {
 
 impl SnapshotService for TestSnapshotService {
 	fn manifest(&self) -> Option<ManifestData> { None }
+	fn supported_versions(&self) -> Option<(u64, u64)> { None }
 	fn chunk(&self, _hash: H256) -> Option<Bytes> { None }
 	fn status(&self) -> RestorationStatus { self.status.lock().clone() }
 	fn begin_restore(&self, _manifest: ManifestData) { }

@@ -50,13 +50,27 @@ export class Balance extends Component {
     }
 
     let body = Object.keys(balance)
+      .sort((tokenIdA, tokenIdB) => {
+        const tokenA = tokens[tokenIdA];
+        const tokenB = tokens[tokenIdB];
+
+        if (tokenA.native) {
+          return -1;
+        }
+
+        if (tokenB.native) {
+          return 1;
+        }
+
+        return (tokenA.name || tokenA.tag || '').localeCompare(tokenB.name || tokenB.tag || '');
+      })
       .map((tokenId) => {
         const token = tokens[tokenId];
         const balanceValue = balance[tokenId];
 
         const isEthToken = token.native;
         const isFullToken = !showOnlyEth || isEthToken;
-        const hasBalance = balanceValue.gt(0);
+        const hasBalance = (balanceValue instanceof BigNumber) && balanceValue.gt(0);
 
         if (!hasBalance && !isEthToken) {
           return null;
@@ -73,7 +87,8 @@ export class Balance extends Component {
           decimals = 1;
         }
 
-        const value = new BigNumber(balanceValue).div(bnf).toFormat(decimals);
+        const rawValue = new BigNumber(balanceValue).div(bnf);
+        const value = rawValue.toFormat(decimals);
 
         const classNames = [styles.balance];
         let details = null;
@@ -85,7 +100,7 @@ export class Balance extends Component {
               className={ styles.value }
               key='value'
             >
-              <span title={ value }>
+              <span title={ `${rawValue.toFormat()} ${token.tag}` }>
                 { value }
               </span>
             </div>,

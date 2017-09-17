@@ -24,7 +24,7 @@ import { connect } from 'react-redux';
 import { DappPermissions, DappsVisible } from '~/modals';
 import PermissionStore from '~/modals/DappPermissions/store';
 import { Actionbar, Button, DappCard, Page, SectionList } from '~/ui';
-import { LockedIcon, VisibleIcon } from '~/ui/Icons';
+import { LockedIcon, RefreshIcon, VisibleIcon } from '~/ui/Icons';
 
 import DappsStore from './dappsStore';
 
@@ -34,10 +34,11 @@ import styles from './dapps.css';
 class Dapps extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
-  }
+  };
 
   static propTypes = {
-    accounts: PropTypes.object.isRequired
+    accounts: PropTypes.object.isRequired,
+    availability: PropTypes.string.isRequired
   };
 
   store = DappsStore.get(this.context.api);
@@ -90,6 +91,17 @@ class Dapps extends Component {
           }
           buttons={ [
             <Button
+              icon={ <RefreshIcon /> }
+              key='refresh'
+              label={
+                <FormattedMessage
+                  id='dapps.button.dapp.refresh'
+                  defaultMessage='refresh'
+                />
+              }
+              onClick={ this.store.refreshDapps }
+            />,
+            <Button
               icon={ <VisibleIcon /> }
               key='edit'
               label={
@@ -133,6 +145,10 @@ class Dapps extends Component {
   }
 
   renderApp = (app) => {
+    if (app.onlyPersonal && this.props.availability !== 'personal') {
+      return null;
+    }
+
     return (
       <DappCard
         app={ app }
@@ -156,6 +172,7 @@ class Dapps extends Component {
 
 function mapStateToProps (state) {
   const { accounts } = state.personal;
+  const { availability = 'unknown' } = state.nodeStatus.nodeKind || {};
 
   /**
    * Do not show the Wallet Accounts in the Dapps
@@ -165,7 +182,8 @@ function mapStateToProps (state) {
   const _accounts = omitBy(accounts, (account) => account.wallet);
 
   return {
-    accounts: _accounts
+    accounts: _accounts,
+    availability
   };
 }
 

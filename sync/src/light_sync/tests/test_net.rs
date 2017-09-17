@@ -25,17 +25,18 @@ use tests::helpers::{TestNet, Peer as PeerLike, TestPacket};
 use ethcore::client::TestBlockChainClient;
 use ethcore::spec::Spec;
 use io::IoChannel;
-use light::client::Client as LightClient;
+use light::client::fetch::{self, Unavailable};
 use light::net::{LightProtocol, IoContext, Capabilities, Params as LightParams};
-use light::net::request_credits::FlowParams;
 use light::provider::LightProvider;
 use network::{NodeId, PeerId};
-use util::RwLock;
+use parking_lot::RwLock;
 
 use time::Duration;
 use light::cache::Cache;
 
 const NETWORK_ID: u64 = 0xcafebabe;
+
+pub type LightClient = ::light::client::Client<Unavailable>;
 
 struct TestIoContext<'a> {
 	queue: &'a RwLock<VecDeque<TestPacket>>,
@@ -88,13 +89,14 @@ impl Peer {
 	pub fn new_full(chain: Arc<TestBlockChainClient>) -> Self {
 		let params = LightParams {
 			network_id: NETWORK_ID,
-			flow_params: FlowParams::free(),
+			config: Default::default(),
 			capabilities: Capabilities {
 				serve_headers: true,
 				serve_chain_since: None,
 				serve_state_since: None,
 				tx_relay: true,
 			},
+			sample_store: None,
 		};
 
 		let proto = LightProtocol::new(chain.clone(), params);
@@ -110,13 +112,14 @@ impl Peer {
 		let sync = Arc::new(LightSync::new(chain.clone()).unwrap());
 		let params = LightParams {
 			network_id: NETWORK_ID,
-			flow_params: FlowParams::default(),
+			config: Default::default(),
 			capabilities: Capabilities {
 				serve_headers: false,
 				serve_chain_since: None,
 				serve_state_since: None,
 				tx_relay: false,
 			},
+			sample_store: None,
 		};
 
 		let provider = LightProvider::new(chain.clone(), Arc::new(RwLock::new(Default::default())));
@@ -210,8 +213,19 @@ impl TestNet<Peer> {
 	pub fn light(n_light: usize, n_full: usize) -> Self {
 		let mut peers = Vec::with_capacity(n_light + n_full);
 		for _ in 0..n_light {
+			let mut config = ::light::client::Config::default();
+
+			// skip full verification because the blocks are bad.
+			config.verify_full = false;
 			let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::hours(6))));
-			let client = LightClient::in_memory(Default::default(), &Spec::new_test(), IoChannel::disconnected(), cache);
+			let client = LightClient::in_memory(
+				config,
+				&Spec::new_test(),
+				fetch::unavailable(), // TODO: allow fetch from full nodes.
+				IoChannel::disconnected(),
+				cache
+			);
+
 			peers.push(Arc::new(Peer::new_light(Arc::new(client))))
 		}
 

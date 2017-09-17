@@ -16,7 +16,16 @@
 
 //! Blockchain database.
 
+use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
+use std::mem;
+use itertools::Itertools;
 use bloomchain as bc;
+use heapsize::HeapSizeOf;
+use bigint::prelude::U256;
+use bigint::hash::{H256, H2048};
+use parking_lot::{Mutex, RwLock};
+use bytes::Bytes;
 use util::*;
 use rlp::*;
 use header::*;
@@ -35,6 +44,9 @@ use blockchain::{CacheSize, ImportRoute, Config};
 use db::{self, Writable, Readable, CacheUpdatePolicy};
 use cache_manager::CacheManager;
 use encoded;
+use engines::epoch::{Transition as EpochTransition, PendingTransition as PendingEpochTransition};
+use rayon::prelude::*;
+use ansi_term::Colour;
 
 const LOG_BLOOMS_LEVELS: usize = 3;
 const LOG_BLOOMS_ELEMENTS_PER_INDEX: usize = 16;
@@ -142,7 +154,11 @@ pub trait BlockProvider {
 
 	/// Returns logs matching given filter.
 	fn logs<F>(&self, blocks: Vec<BlockNumber>, matches: F, limit: Option<usize>) -> Vec<LocalizedLogEntry>
-		where F: Fn(&LogEntry) -> bool, Self: Sized;
+		where F: Fn(&LogEntry) -> bool + Send + Sync, Self: Sized;
+}
+
+macro_rules! otry {
+	($e:expr) => { match $e { Some(x) => x, None => return None } }
 }
 
 #[derive(Debug, Hash, Eq, PartialEq, Clone)]
@@ -261,7 +277,7 @@ impl BlockProvider for BlockChain {
 
 		let result = match opt {
 			Some(b) => {
-				let bytes: Bytes = UntrustedRlp::new(&b).decompress(RlpType::Blocks).to_vec();
+				let bytes: Bytes = UntrustedRlp::new(&b).decompress(RlpType::Blocks).into_vec();
 				let mut write = self.block_headers.write();
 				write.insert(hash.clone(), bytes.clone());
 				Some(encoded::Header::new(bytes))
@@ -297,7 +313,7 @@ impl BlockProvider for BlockChain {
 
 		let result = match opt {
 			Some(b) => {
-				let bytes: Bytes = UntrustedRlp::new(&b).decompress(RlpType::Blocks).to_vec();
+				let bytes: Bytes = UntrustedRlp::new(&b).decompress(RlpType::Blocks).into_vec();
 				let mut write = self.block_bodies.write();
 				write.insert(hash.clone(), bytes.clone());
 				Some(encoded::Body::new(bytes))
@@ -349,50 +365,56 @@ impl BlockProvider for BlockChain {
 	}
 
 	fn logs<F>(&self, mut blocks: Vec<BlockNumber>, matches: F, limit: Option<usize>) -> Vec<LocalizedLogEntry>
-		where F: Fn(&LogEntry) -> bool, Self: Sized {
+		where F: Fn(&LogEntry) -> bool + Send + Sync, Self: Sized {
 		// sort in reverse order
 		blocks.sort_by(|a, b| b.cmp(a));
 
-		let mut log_index = 0;
-		let mut logs = blocks.into_iter()
-			.filter_map(|number| self.block_hash(number).map(|hash| (number, hash)))
-			.filter_map(|(number, hash)| self.block_receipts(&hash).map(|r| (number, hash, r.receipts)))
-			.filter_map(|(number, hash, receipts)| self.block_body(&hash).map(|ref b| (number, hash, receipts, b.transaction_hashes())))
-			.flat_map(|(number, hash, mut receipts, mut hashes)| {
-				if receipts.len() != hashes.len() {
-					warn!("Block {} ({}) has different number of receipts ({}) to transactions ({}). Database corrupt?", number, hash, receipts.len(), hashes.len());
-					assert!(false);
-				}
-				log_index = receipts.iter().fold(0, |sum, receipt| sum + receipt.logs.len());
+		let mut logs = blocks
+			.chunks(128)
+			.flat_map(move |blocks_chunk| {
+				blocks_chunk.into_par_iter()
+					.filter_map(|number| self.block_hash(*number).map(|hash| (*number, hash)))
+					.filter_map(|(number, hash)| self.block_receipts(&hash).map(|r| (number, hash, r.receipts)))
+					.filter_map(|(number, hash, receipts)| self.block_body(&hash).map(|ref b| (number, hash, receipts, b.transaction_hashes())))
+					.flat_map(|(number, hash, mut receipts, mut hashes)| {
+						if receipts.len() != hashes.len() {
+							warn!("Block {} ({}) has different number of receipts ({}) to transactions ({}). Database corrupt?", number, hash, receipts.len(), hashes.len());
+							assert!(false);
+						}
+						let mut log_index = receipts.iter().fold(0, |sum, receipt| sum + receipt.logs.len());
 
-				let receipts_len = receipts.len();
-				hashes.reverse();
-				receipts.reverse();
-				receipts.into_iter()
-					.map(|receipt| receipt.logs)
-					.zip(hashes)
-					.enumerate()
-					.flat_map(move |(index, (mut logs, tx_hash))| {
-						let current_log_index = log_index;
-						let no_of_logs = logs.len();
-						log_index -= no_of_logs;
-
-						logs.reverse();
-						logs.into_iter()
+						let receipts_len = receipts.len();
+						hashes.reverse();
+						receipts.reverse();
+						receipts.into_iter()
+							.map(|receipt| receipt.logs)
+							.zip(hashes)
 							.enumerate()
-							.map(move |(i, log)| LocalizedLogEntry {
-								entry: log,
-								block_hash: hash,
-								block_number: number,
-								transaction_hash: tx_hash,
-								// iterating in reverse order
-								transaction_index: receipts_len - index - 1,
-								transaction_log_index: no_of_logs - i - 1,
-								log_index: current_log_index - i - 1,
+							.flat_map(move |(index, (mut logs, tx_hash))| {
+								let current_log_index = log_index;
+								let no_of_logs = logs.len();
+								log_index -= no_of_logs;
+
+								logs.reverse();
+								logs.into_iter()
+									.enumerate()
+									.map(move |(i, log)| LocalizedLogEntry {
+										entry: log,
+										block_hash: hash,
+										block_number: number,
+										transaction_hash: tx_hash,
+										// iterating in reverse order
+										transaction_index: receipts_len - index - 1,
+										transaction_log_index: no_of_logs - i - 1,
+										log_index: current_log_index - i - 1,
+									})
 							})
+							.filter(|log_entry| matches(&log_entry.entry))
+							.take(limit.unwrap_or(::std::usize::MAX))
+							.collect::<Vec<_>>()
 					})
+					.collect::<Vec<_>>()
 			})
-			.filter(|log_entry| matches(&log_entry.entry))
 			.take(limit.unwrap_or(::std::usize::MAX))
 			.collect::<Vec<LocalizedLogEntry>>();
 		logs.reverse();
@@ -445,7 +467,12 @@ impl<'a> Iterator for EpochTransitionIter<'a> {
 						let is_in_canon_chain = self.chain.block_hash(transition.block_number)
 							.map_or(false, |hash| hash == transition.block_hash);
 
-						if is_in_canon_chain {
+						// if the transition is within the block gap, there will only be
+						// one candidate, and it will be from a snapshot restored from.
+						let is_ancient = self.chain.first_block_number()
+							.map_or(false, |first| first > transition.block_number);
+
+						if is_ancient || is_in_canon_chain {
 							return Some((transitions.number, transition))
 						}
 					}
@@ -497,13 +524,13 @@ impl BlockChain {
 				// we need to insert genesis into the cache
 				let block = BlockView::new(genesis);
 				let header = block.header_view();
-				let hash = block.sha3();
+				let hash = block.hash();
 
 				let details = BlockDetails {
 					number: header.number(),
 					total_difficulty: header.difficulty(),
 					parent: header.parent_hash(),
-					children: vec![]
+					children: vec![],
 				};
 
 				let mut batch = DBTransaction::new();
@@ -526,7 +553,7 @@ impl BlockChain {
 			let best_block_rlp = bc.block(&best_block_hash).unwrap().into_inner();
 			let best_block_timestamp = BlockView::new(&best_block_rlp).header().timestamp();
 
-			let raw_first = bc.db.get(db::COL_EXTRA, b"first").unwrap().map(|v| v.to_vec());
+			let raw_first = bc.db.get(db::COL_EXTRA, b"first").unwrap().map(|v| v.into_vec());
 			let mut best_ancient = bc.db.get(db::COL_EXTRA, b"ancient").unwrap().map(|h| H256::from_slice(&h));
 			let best_ancient_number;
 			if best_ancient.is_none() && best_block_number > 1 && bc.block_hash(1).is_none() {
@@ -607,7 +634,7 @@ impl BlockChain {
 				return None;
 			}
 			if let Some(extras) = self.db.read(db::COL_EXTRA, &best_block_hash) as Option<BlockDetails> {
-				type DetailsKey = Key<BlockDetails, Target=H264>;
+				type DetailsKey = Key<BlockDetails, Target=::bigint::hash::H264>;
 				batch.delete(db::COL_EXTRA, &(DetailsKey::key(&best_block_hash)));
 				let hash = extras.parent;
 				let range = extras.number as bc::Number .. extras.number as bc::Number;
@@ -693,10 +720,6 @@ impl BlockChain {
 	/// If the tree route verges into pruned or unknown blocks,
 	/// `None` is returned.
 	pub fn tree_route(&self, from: H256, to: H256) -> Option<TreeRoute> {
-		macro_rules! otry {
-			($e:expr) => { match $e { Some(x) => x, None => return None } }
-		}
-
 		let mut from_branch = vec![];
 		let mut to_branch = vec![];
 
@@ -753,7 +776,7 @@ impl BlockChain {
 	pub fn insert_unordered_block(&self, batch: &mut DBTransaction, bytes: &[u8], receipts: Vec<Receipt>, parent_td: Option<U256>, is_best: bool, is_ancient: bool) -> bool {
 		let block = BlockView::new(bytes);
 		let header = block.header_view();
-		let hash = header.sha3();
+		let hash = header.hash();
 
 		if self.is_known(&hash) {
 			return false;
@@ -864,12 +887,67 @@ impl BlockChain {
 	}
 
 	/// Iterate over all epoch transitions.
+	/// This will only return transitions within the canonical chain.
 	pub fn epoch_transitions(&self) -> EpochTransitionIter {
 		let iter = self.db.iter_from_prefix(db::COL_EXTRA, &EPOCH_KEY_PREFIX[..]);
 		EpochTransitionIter {
 			chain: self,
 			prefix_iter: iter,
 		}
+	}
+
+	/// Get a specific epoch transition by block number and provided block hash.
+	pub fn epoch_transition(&self, block_num: u64, block_hash: H256) -> Option<EpochTransition> {
+		trace!(target: "blockchain", "Loading epoch transition at block {}, {}",
+			block_num, block_hash);
+
+		self.db.read(db::COL_EXTRA, &block_num).and_then(|transitions: EpochTransitions| {
+			transitions.candidates.into_iter().find(|c| c.block_hash == block_hash)
+		})
+	}
+
+	/// Get the transition to the epoch the given parent hash is part of
+	/// or transitions to.
+	/// This will give the epoch that any children of this parent belong to.
+	///
+	/// The block corresponding the the parent hash must be stored already.
+	pub fn epoch_transition_for(&self, parent_hash: H256) -> Option<EpochTransition> {
+		// slow path: loop back block by block
+		for hash in otry!(self.ancestry_iter(parent_hash)) {
+			let details = otry!(self.block_details(&hash));
+
+			// look for transition in database.
+			if let Some(transition) = self.epoch_transition(details.number, hash) {
+				return Some(transition)
+			}
+
+			// canonical hash -> fast breakout:
+			// get the last epoch transition up to this block.
+			//
+			// if `block_hash` is canonical it will only return transitions up to
+			// the parent.
+			if otry!(self.block_hash(details.number)) == hash {
+				return self.epoch_transitions()
+					.map(|(_, t)| t)
+					.take_while(|t| t.block_number <= details.number)
+					.last()
+			}
+		}
+
+		// should never happen as the loop will encounter genesis before concluding.
+		None
+	}
+
+	/// Write a pending epoch transition by block hash.
+	pub fn insert_pending_transition(&self, batch: &mut DBTransaction, hash: H256, t: PendingEpochTransition) {
+		batch.write(db::COL_EXTRA, &hash, &t);
+	}
+
+	/// Get a pending epoch transition by block hash.
+	// TODO: implement removal safely: this can only be done upon finality of a block
+	// that _uses_ the pending transition.
+	pub fn get_pending_transition(&self, hash: H256) -> Option<PendingEpochTransition> {
+		self.db.read(db::COL_EXTRA, &hash)
 	}
 
 	/// Add a child to a given block. Assumes that the block hash is in
@@ -900,7 +978,7 @@ impl BlockChain {
 		// create views onto rlp
 		let block = BlockView::new(bytes);
 		let header = block.header_view();
-		let hash = header.sha3();
+		let hash = header.hash();
 
 		if self.is_known_child(&header.parent_hash(), &hash) {
 			return ImportRoute::none();
@@ -939,7 +1017,7 @@ impl BlockChain {
 
 	/// Get inserted block info which is critical to prepare extras updates.
 	fn block_info(&self, header: &HeaderView) -> BlockInfo {
-		let hash = header.sha3();
+		let hash = header.hash();
 		let number = header.number();
 		let parent_hash = header.parent_hash();
 		let parent_details = self.block_details(&parent_hash).unwrap_or_else(|| panic!("Invalid parent hash: {:?}", parent_hash));
@@ -1149,12 +1227,12 @@ impl BlockChain {
 		let mut parent_details = self.block_details(&parent_hash).unwrap_or_else(|| panic!("Invalid parent hash: {:?}", parent_hash));
 		parent_details.children.push(info.hash.clone());
 
-		// create current block details
+		// create current block details.
 		let details = BlockDetails {
 			number: header.number(),
 			total_difficulty: info.total_difficulty,
 			parent: parent_hash.clone(),
-			children: vec![]
+			children: vec![],
 		};
 
 		// write to batch
@@ -1399,10 +1477,10 @@ impl BlockChain {
 mod tests {
 	#![cfg_attr(feature="dev", allow(similar_names))]
 	use std::sync::Arc;
-	use rustc_serialize::hex::FromHex;
+	use rustc_hex::FromHex;
+	use hash::keccak;
 	use util::kvdb::KeyValueDB;
-	use util::hash::*;
-	use util::sha3::Hashable;
+	use bigint::hash::*;
 	use receipt::Receipt;
 	use blockchain::{BlockProvider, BlockChain, Config, ImportRoute};
 	use tests::helpers::*;
@@ -1452,8 +1530,8 @@ mod tests {
 		let mut finalizer = BlockFinalizer::default();
 		let genesis = canon_chain.generate(&mut finalizer).unwrap();
 		let first = canon_chain.generate(&mut finalizer).unwrap();
-		let genesis_hash = BlockView::new(&genesis).header_view().sha3();
-		let first_hash = BlockView::new(&first).header_view().sha3();
+		let genesis_hash = BlockView::new(&genesis).header_view().hash();
+		let first_hash = BlockView::new(&first).header_view().hash();
 
 		let db = new_db();
 		let bc = new_chain(&genesis, db.clone());
@@ -1483,7 +1561,7 @@ mod tests {
 		let mut canon_chain = ChainGenerator::default();
 		let mut finalizer = BlockFinalizer::default();
 		let genesis = canon_chain.generate(&mut finalizer).unwrap();
-		let genesis_hash = BlockView::new(&genesis).header_view().sha3();
+		let genesis_hash = BlockView::new(&genesis).header_view().hash();
 
 		let db = new_db();
 		let bc = new_chain(&genesis, db.clone());
@@ -1492,7 +1570,7 @@ mod tests {
 		let mut batch = db.transaction();
 		for _ in 0..10 {
 			let block = canon_chain.generate(&mut finalizer).unwrap();
-			block_hashes.push(BlockView::new(&block).header_view().sha3());
+			block_hashes.push(BlockView::new(&block).header_view().hash());
 			bc.insert_block(&mut batch, &block, vec![]);
 			bc.commit();
 		}
@@ -1541,14 +1619,14 @@ mod tests {
 
 		assert_eq!(
 			[&b4b, &b3b, &b2b].iter().map(|b| BlockView::new(b).header()).collect::<Vec<_>>(),
-			bc.find_uncle_headers(&BlockView::new(&b4a).header_view().sha3(), 3).unwrap()
+			bc.find_uncle_headers(&BlockView::new(&b4a).header_view().hash(), 3).unwrap()
 		);
 
 		// TODO: insert block that already includes one of them as an uncle to check it's not allowed.
 	}
 
 	fn secret() -> Secret {
-		Secret::from_slice(&"".sha3()).unwrap()
+		keccak("").into()
 	}
 
 	#[test]
@@ -1580,8 +1658,8 @@ mod tests {
 		let b2 = fork_chain
 			.generate(&mut fork_finalizer).unwrap();
 
-		let b1a_hash = BlockView::new(&b1a).header_view().sha3();
-		let b2_hash = BlockView::new(&b2).header_view().sha3();
+		let b1a_hash = BlockView::new(&b1a).header_view().hash();
+		let b2_hash = BlockView::new(&b2).header_view().hash();
 
 		let t1_hash = t1.hash();
 
@@ -1664,9 +1742,9 @@ mod tests {
 			.with_transaction(t3.clone())
 			.generate(&mut fork_finalizer).unwrap();
 
-		let b1a_hash = BlockView::new(&b1a).header_view().sha3();
-		let b1b_hash = BlockView::new(&b1b).header_view().sha3();
-		let b2_hash = BlockView::new(&b2).header_view().sha3();
+		let b1a_hash = BlockView::new(&b1a).header_view().hash();
+		let b1b_hash = BlockView::new(&b1b).header_view().hash();
+		let b2_hash = BlockView::new(&b2).header_view().hash();
 
 		let t1_hash = t1.hash();
 		let t2_hash = t2.hash();
@@ -1724,11 +1802,11 @@ mod tests {
 		let b3b = canon_chain.fork(1).generate(&mut finalizer.fork()).unwrap();
 		let b3a = canon_chain.generate(&mut finalizer).unwrap();
 
-		let genesis_hash = BlockView::new(&genesis).header_view().sha3();
-		let b1_hash= BlockView::new(&b1).header_view().sha3();
-		let b2_hash= BlockView::new(&b2).header_view().sha3();
-		let b3a_hash= BlockView::new(&b3a).header_view().sha3();
-		let b3b_hash= BlockView::new(&b3b).header_view().sha3();
+		let genesis_hash = BlockView::new(&genesis).header_view().hash();
+		let b1_hash= BlockView::new(&b1).header_view().hash();
+		let b2_hash= BlockView::new(&b2).header_view().hash();
+		let b3a_hash= BlockView::new(&b3a).header_view().hash();
+		let b3b_hash= BlockView::new(&b3b).header_view().hash();
 
 		// b3a is a part of canon chain, whereas b3b is part of sidechain
 		let best_block_hash = b3a_hash.clone();
@@ -1844,8 +1922,8 @@ mod tests {
 		let mut finalizer = BlockFinalizer::default();
 		let genesis = canon_chain.generate(&mut finalizer).unwrap();
 		let first = canon_chain.generate(&mut finalizer).unwrap();
-		let genesis_hash = BlockView::new(&genesis).header_view().sha3();
-		let first_hash = BlockView::new(&first).header_view().sha3();
+		let genesis_hash = BlockView::new(&genesis).header_view().hash();
+		let first_hash = BlockView::new(&first).header_view().hash();
 		let db = new_db();
 
 		{
@@ -1971,6 +2049,7 @@ mod tests {
 		let bc = new_chain(&genesis, db.clone());
 		insert_block(&db, &bc, &b1, vec![Receipt {
 			state_root: Some(H256::default()),
+			status_code: None,
 			gas_used: 10_000.into(),
 			log_bloom: Default::default(),
 			logs: vec![
@@ -1980,6 +2059,7 @@ mod tests {
 		},
 		Receipt {
 			state_root: Some(H256::default()),
+			status_code: None,
 			gas_used: 10_000.into(),
 			log_bloom: Default::default(),
 			logs: vec![
@@ -1989,6 +2069,7 @@ mod tests {
 		insert_block(&db, &bc, &b2, vec![
 			Receipt {
 				state_root: Some(H256::default()),
+				status_code: None,
 				gas_used: 10_000.into(),
 				log_bloom: Default::default(),
 				logs: vec![
@@ -2160,9 +2241,9 @@ mod tests {
 		let genesis = canon_chain.generate(&mut finalizer).unwrap();
 		let first = canon_chain.generate(&mut finalizer).unwrap();
 		let second = canon_chain.generate(&mut finalizer).unwrap();
-		let genesis_hash = BlockView::new(&genesis).header_view().sha3();
-		let first_hash = BlockView::new(&first).header_view().sha3();
-		let second_hash = BlockView::new(&second).header_view().sha3();
+		let genesis_hash = BlockView::new(&genesis).header_view().hash();
+		let first_hash = BlockView::new(&first).header_view().hash();
+		let second_hash = BlockView::new(&second).header_view().hash();
 
 		let db = new_db();
 		let bc = new_chain(&genesis, db.clone());
@@ -2185,7 +2266,7 @@ mod tests {
 
 	#[test]
 	fn epoch_transitions_iter() {
-		use blockchain::extras::EpochTransition;
+		use ::engines::EpochTransition;
 
 		let mut canon_chain = ChainGenerator::default();
 		let mut finalizer = BlockFinalizer::default();
@@ -2200,27 +2281,25 @@ mod tests {
 			// create a longer fork
 			for i in 0..5 {
 				let canon_block = canon_chain.generate(&mut finalizer).unwrap();
-				let hash = BlockView::new(&canon_block).header_view().sha3();
+				let hash = BlockView::new(&canon_block).header_view().hash();
 
 				bc.insert_block(&mut batch, &canon_block, vec![]);
 				bc.insert_epoch_transition(&mut batch, i, EpochTransition {
 					block_hash: hash,
 					block_number: i + 1,
 					proof: vec![],
-					state_proof: vec![],
 				});
 				bc.commit();
 			}
 
 			assert_eq!(bc.best_block_number(), 5);
 
-			let hash = BlockView::new(&uncle).header_view().sha3();
+			let hash = BlockView::new(&uncle).header_view().hash();
 			bc.insert_block(&mut batch, &uncle, vec![]);
 			bc.insert_epoch_transition(&mut batch, 999, EpochTransition {
 				block_hash: hash,
 				block_number: 1,
 				proof: vec![],
-				state_proof: vec![]
 			});
 
 			db.write(batch).unwrap();
@@ -2235,5 +2314,86 @@ mod tests {
 
 		assert_eq!(bc.best_block_number(), 5);
 		assert_eq!(bc.epoch_transitions().map(|(i, _)| i).collect::<Vec<_>>(), vec![0, 1, 2, 3, 4]);
+	}
+
+	#[test]
+	fn epoch_transition_for() {
+		use ::engines::EpochTransition;
+
+		let mut canon_chain = ChainGenerator::default();
+		let mut finalizer = BlockFinalizer::default();
+		let genesis = canon_chain.generate(&mut finalizer).unwrap();
+
+		let db = new_db();
+
+		let bc = new_chain(&genesis, db.clone());
+
+		let mut batch = db.transaction();
+		bc.insert_epoch_transition(&mut batch, 0, EpochTransition {
+			block_hash: bc.genesis_hash(),
+			block_number: 0,
+			proof: vec![],
+		});
+		db.write(batch).unwrap();
+
+		// set up a chain where we have a canonical chain of 10 blocks
+		// and a non-canonical fork of 8 from genesis.
+		let fork_hash = {
+			let mut fork_chain = canon_chain.fork(1);
+			let mut fork_finalizer = finalizer.fork();
+
+			for _ in 0..7 {
+				let mut batch = db.transaction();
+				let fork_block = fork_chain.generate(&mut fork_finalizer).unwrap();
+
+				bc.insert_block(&mut batch, &fork_block, vec![]);
+				bc.commit();
+				db.write(batch).unwrap();
+			}
+
+			assert_eq!(bc.best_block_number(), 7);
+			bc.chain_info().best_block_hash
+		};
+
+		for _ in 0..10 {
+			let mut batch = db.transaction();
+			let canon_block = canon_chain.generate(&mut finalizer).unwrap();
+
+			bc.insert_block(&mut batch, &canon_block, vec![]);
+			bc.commit();
+
+			db.write(batch).unwrap();
+		}
+
+		assert_eq!(bc.best_block_number(), 10);
+
+		let mut batch = db.transaction();
+		bc.insert_epoch_transition(&mut batch, 4, EpochTransition {
+			block_hash: bc.block_hash(4).unwrap(),
+			block_number: 4,
+			proof: vec![],
+		});
+		db.write(batch).unwrap();
+
+		// blocks where the parent is one of the first 4 will be part of genesis epoch.
+		for i in 0..4 {
+			let hash = bc.block_hash(i).unwrap();
+			assert_eq!(bc.epoch_transition_for(hash).unwrap().block_number, 0);
+		}
+
+		// blocks where the parent is the transition at 4 or after will be
+		// part of that epoch.
+		for i in 4..11 {
+			let hash = bc.block_hash(i).unwrap();
+			assert_eq!(bc.epoch_transition_for(hash).unwrap().block_number, 4);
+		}
+
+		let fork_hashes = bc.ancestry_iter(fork_hash).unwrap().collect::<Vec<_>>();
+		assert_eq!(fork_hashes.len(), 8);
+
+		// non-canonical fork blocks should all have genesis transition
+		for fork_hash in fork_hashes {
+			assert_eq!(bc.epoch_transition_for(fork_hash).unwrap().block_number, 0);
+		}
 	}
 }

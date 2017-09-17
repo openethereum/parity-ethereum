@@ -20,8 +20,8 @@ use std::fmt;
 
 use ids::BlockId;
 
-use util::H256;
-use util::trie::TrieError;
+use bigint::hash::H256;
+use trie::TrieError;
 use rlp::DecoderError;
 
 /// Snapshot-related errors.
@@ -59,6 +59,10 @@ pub enum Error {
 	ChunkTooSmall,
 	/// Snapshots not supported by the consensus engine.
 	SnapshotsUnsupported,
+	/// Bad epoch transition.
+	BadEpochProof(u64),
+	/// Wrong chunk format.
+	WrongChunkFormat(String),
 }
 
 impl fmt::Display for Error {
@@ -82,6 +86,8 @@ impl fmt::Display for Error {
 			Error::VersionNotSupported(ref ver) => write!(f, "Snapshot version {} is not supprted.", ver),
 			Error::ChunkTooSmall => write!(f, "Chunk size is too small."),
 			Error::SnapshotsUnsupported => write!(f, "Snapshots unsupported by consensus engine."),
+			Error::BadEpochProof(i) => write!(f, "Bad epoch proof for transition to epoch {}", i),
+			Error::WrongChunkFormat(ref msg) => write!(f, "Wrong chunk format: {}", msg),
 		}
 	}
 }

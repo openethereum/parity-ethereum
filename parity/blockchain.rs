@@ -20,9 +20,12 @@ use std::io::{BufReader, BufRead};
 use std::time::{Instant, Duration};
 use std::thread::sleep;
 use std::sync::Arc;
-use rustc_serialize::hex::FromHex;
-use io::{PanicHandler, ForwardPanic};
-use util::{ToPretty, Uint, U256, H256, Address, Hashable};
+use rustc_hex::FromHex;
+use hash::{keccak, KECCAK_NULL_RLP};
+use bigint::prelude::U256;
+use bigint::hash::H256;
+use util::Address;
+use bytes::ToPretty;
 use rlp::PayloadInfo;
 use ethcore::service::ClientService;
 use ethcore::client::{Mode, DatabaseCompactionProfile, VMType, BlockImportError, BlockChainClient, BlockId};
@@ -30,7 +33,7 @@ use ethcore::error::ImportError;
 use ethcore::miner::Miner;
 use ethcore::verification::queue::VerifierSettings;
 use cache::CacheConfig;
-use informant::{Informant, MillisecondDuration};
+use informant::{Informant, FullNodeInformantData, MillisecondDuration};
 use params::{SpecType, Pruning, Switch, tracing_switch_to_bool, fatdb_switch_to_bool};
 use helpers::{to_client_config, execute_upgrades};
 use dir::Directories;
@@ -94,6 +97,7 @@ pub struct ImportBlockchain {
 	pub check_seal: bool,
 	pub with_color: bool,
 	pub verifier_settings: VerifierSettings,
+	pub light: bool,
 }
 
 #[derive(Debug, PartialEq)]
@@ -139,20 +143,173 @@ pub struct ExportState {
 pub fn execute(cmd: BlockchainCmd) -> Result<(), String> {
 	match cmd {
 		BlockchainCmd::Kill(kill_cmd) => kill_db(kill_cmd),
-		BlockchainCmd::Import(import_cmd) => execute_import(import_cmd),
+		BlockchainCmd::Import(import_cmd) => {
+			if import_cmd.light {
+				execute_import_light(import_cmd)
+			} else {
+				execute_import(import_cmd)
+			}
+		}
 		BlockchainCmd::Export(export_cmd) => execute_export(export_cmd),
 		BlockchainCmd::ExportState(export_cmd) => execute_export_state(export_cmd),
 	}
 }
 
+fn execute_import_light(cmd: ImportBlockchain) -> Result<(), String> {
+	use light::client::{Service as LightClientService, Config as LightClientConfig};
+	use light::cache::Cache as LightDataCache;
+	use parking_lot::Mutex;
+
+	let timer = Instant::now();
+
+	// load spec file
+	let spec = cmd.spec.spec(&cmd.dirs.cache)?;
+
+	// load genesis hash
+	let genesis_hash = spec.genesis_header().hash();
+
+	// database paths
+	let db_dirs = cmd.dirs.database(genesis_hash, None, spec.data_dir.clone());
+
+	// user defaults path
+	let user_defaults_path = db_dirs.user_defaults_path();
+
+	// load user defaults
+	let user_defaults = UserDefaults::load(&user_defaults_path)?;
+
+	fdlimit::raise_fd_limit();
+
+	// select pruning algorithm
+	let algorithm = cmd.pruning.to_algorithm(&user_defaults);
+
+	// prepare client and snapshot paths.
+	let client_path = db_dirs.client_path(algorithm);
+
+	// execute upgrades
+	let compaction = cmd.compaction.compaction_profile(db_dirs.db_root_path().as_path());
+	execute_upgrades(&cmd.dirs.base, &db_dirs, algorithm, compaction)?;
+
+	// create dirs used by parity
+	cmd.dirs.create_dirs(false, false, false)?;
+
+	let cache = Arc::new(Mutex::new(
+		LightDataCache::new(Default::default(), ::time::Duration::seconds(0))
+	));
+
+	let mut config = LightClientConfig {
+		queue: Default::default(),
+		chain_column: ::ethcore::db::COL_LIGHT_CHAIN,
+		db_cache_size: Some(cmd.cache_config.blockchain() as usize * 1024 * 1024),
+		db_compaction: compaction,
+		db_wal: cmd.wal,
+		verify_full: true,
+		check_seal: cmd.check_seal,
+	};
+
+	config.queue.max_mem_use = cmd.cache_config.queue() as usize * 1024 * 1024;
+	config.queue.verifier_settings = cmd.verifier_settings;
+
+	// TODO: could epoch signals be avilable at the end of the file?
+	let fetch = ::light::client::fetch::unavailable();
+	let service = LightClientService::start(config, &spec, fetch, &client_path, cache)
+		.map_err(|e| format!("Failed to start client: {}", e))?;
+
+	// free up the spec in memory.
+	drop(spec);
+
+	let client = service.client();
+
+	let mut instream: Box<io::Read> = match cmd.file_path {
+		Some(f) => Box::new(fs::File::open(&f).map_err(|_| format!("Cannot open given file: {}", f))?),
+		None => Box::new(io::stdin()),
+	};
+
+	const READAHEAD_BYTES: usize = 8;
+
+	let mut first_bytes: Vec<u8> = vec![0; READAHEAD_BYTES];
+	let mut first_read = 0;
+
+	let format = match cmd.format {
+		Some(format) => format,
+		None => {
+			first_read = instream.read(&mut first_bytes).map_err(|_| "Error reading from the file/stream.")?;
+			match first_bytes[0] {
+				0xf9 => DataFormat::Binary,
+				_ => DataFormat::Hex,
+			}
+		}
+	};
+
+	let do_import = |bytes: Vec<u8>| {
+		while client.queue_info().is_full() { sleep(Duration::from_secs(1)); }
+
+		let header: ::ethcore::header::Header = ::rlp::UntrustedRlp::new(&bytes).val_at(0)
+			.map_err(|e| format!("Bad block: {}", e))?;
+
+		if client.best_block_header().number() >= header.number() { return Ok(()) }
+
+		if header.number() % 10000 == 0 {
+			info!("#{}", header.number());
+		}
+
+		match client.import_header(header) {
+			Err(BlockImportError::Import(ImportError::AlreadyInChain)) => {
+				trace!("Skipping block already in chain.");
+			}
+			Err(e) => {
+				return Err(format!("Cannot import block: {:?}", e));
+			},
+			Ok(_) => {},
+		}
+		Ok(())
+	};
+
+	match format {
+		DataFormat::Binary => {
+			loop {
+				let mut bytes = if first_read > 0 {first_bytes.clone()} else {vec![0; READAHEAD_BYTES]};
+				let n = if first_read > 0 {
+					first_read
+				} else {
+					instream.read(&mut bytes).map_err(|_| "Error reading from the file/stream.")?
+				};
+				if n == 0 { break; }
+				first_read = 0;
+				let s = PayloadInfo::from(&bytes).map_err(|e| format!("Invalid RLP in the file/stream: {:?}", e))?.total();
+				bytes.resize(s, 0);
+				instream.read_exact(&mut bytes[n..]).map_err(|_| "Error reading from the file/stream.")?;
+				do_import(bytes)?;
+			}
+		}
+		DataFormat::Hex => {
+			for line in BufReader::new(instream).lines() {
+				let s = line.map_err(|_| "Error reading from the file/stream.")?;
+				let s = if first_read > 0 {from_utf8(&first_bytes).unwrap().to_owned() + &(s[..])} else {s};
+				first_read = 0;
+				let bytes = s.from_hex().map_err(|_| "Invalid hex in file/stream.")?;
+				do_import(bytes)?;
+			}
+		}
+	}
+	client.flush_queue();
+
+	let ms = timer.elapsed().as_milliseconds();
+	let report = client.report();
+
+	info!("Import completed in {} seconds, {} headers, {} hdr/s",
+		ms / 1000,
+		report.blocks_imported,
+		(report.blocks_imported * 1000) as u64 / ms,
+	);
+
+	Ok(())
+}
+
 fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {
 	let timer = Instant::now();
 
-	// Setup panic handler
-	let panic_handler = PanicHandler::new_in_arc();
-
 	// load spec file
-	let spec = cmd.spec.spec()?;
+	let spec = cmd.spec.spec(&cmd.dirs.cache)?;
 
 	// load genesis hash
 	let genesis_hash = spec.genesis_header().hash();
@@ -219,7 +376,6 @@ fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {
 	// free up the spec in memory.
 	drop(spec);
 
-	panic_handler.forward_from(&service);
 	let client = service.client();
 
 	let mut instream: Box<io::Read> = match cmd.file_path {
@@ -243,7 +399,17 @@ fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {
 		}
 	};
 
-	let informant = Arc::new(Informant::new(client.clone(), None, None, None, None, cmd.with_color));
+	let informant = Arc::new(Informant::new(
+		FullNodeInformantData {
+			client: client.clone(),
+			sync: None,
+			net: None,
+		},
+		None,
+		None,
+		cmd.with_color,
+	));
+
 	service.register_io_handler(informant).map_err(|_| "Unable to register informant handler".to_owned())?;
 
 	let do_import = |bytes| {
@@ -320,11 +486,12 @@ fn start_client(
 	fat_db: Switch,
 	compaction: DatabaseCompactionProfile,
 	wal: bool,
-	cache_config: CacheConfig
+	cache_config: CacheConfig,
+	require_fat_db: bool,
 ) -> Result<ClientService, String> {
 
 	// load spec file
-	let spec = spec.spec()?;
+	let spec = spec.spec(&dirs.cache)?;
 
 	// load genesis hash
 	let genesis_hash = spec.genesis_header().hash();
@@ -348,6 +515,9 @@ fn start_client(
 
 	// check if fatdb is on
 	let fat_db = fatdb_switch_to_bool(fat_db, &user_defaults, algorithm)?;
+	if !fat_db && require_fat_db {
+		return Err("This command requires Parity to be synced with --fat-db on.".to_owned());
+	}
 
 	// prepare client and snapshot paths.
 	let client_path = db_dirs.client_path(algorithm);
@@ -390,7 +560,6 @@ fn start_client(
 }
 
 fn execute_export(cmd: ExportBlockchain) -> Result<(), String> {
-	// Setup panic handler
 	let service = start_client(
 		cmd.dirs,
 		cmd.spec,
@@ -401,12 +570,11 @@ fn execute_export(cmd: ExportBlockchain) -> Result<(), String> {
 		cmd.fat_db,
 		cmd.compaction,
 		cmd.wal,
-		cmd.cache_config
+		cmd.cache_config,
+		false,
 	)?;
-	let panic_handler = PanicHandler::new_in_arc();
 	let format = cmd.format.unwrap_or_default();
 
-	panic_handler.forward_from(&service);
 	let client = service.client();
 
 	let mut out: Box<io::Write> = match cmd.file_path {
@@ -433,7 +601,6 @@ fn execute_export(cmd: ExportBlockchain) -> Result<(), String> {
 }
 
 fn execute_export_state(cmd: ExportState) -> Result<(), String> {
-	// Setup panic handler
 	let service = start_client(
 		cmd.dirs,
 		cmd.spec,
@@ -444,12 +611,10 @@ fn execute_export_state(cmd: ExportState) -> Result<(), String> {
 		cmd.fat_db,
 		cmd.compaction,
 		cmd.wal,
-		cmd.cache_config
+		cmd.cache_config,
+		true
 	)?;
 
-	let panic_handler = PanicHandler::new_in_arc();
-
-	panic_handler.forward_from(&service);
 	let client = service.client();
 
 	let mut out: Box<io::Write> = match cmd.file_path {
@@ -481,13 +646,13 @@ fn execute_export_state(cmd: ExportState) -> Result<(), String> {
 			out.write_fmt(format_args!("\n\"0x{}\": {{\"balance\": \"{:x}\", \"nonce\": \"{:x}\"", account.hex(), balance, client.nonce(&account, at).unwrap_or_else(U256::zero))).expect("Write error");
 			let code = client.code(&account, at).unwrap_or(None).unwrap_or_else(Vec::new);
 			if !code.is_empty() {
-				out.write_fmt(format_args!(", \"code_hash\": \"0x{}\"", code.sha3().hex())).expect("Write error");
+				out.write_fmt(format_args!(", \"code_hash\": \"0x{}\"", keccak(&code).hex())).expect("Write error");
 				if cmd.code {
 					out.write_fmt(format_args!(", \"code\": \"{}\"", code.to_hex())).expect("Write error");
 				}
 			}
-			let storage_root = client.storage_root(&account, at).unwrap_or(::util::SHA3_NULL_RLP);
-			if storage_root != ::util::SHA3_NULL_RLP {
+			let storage_root = client.storage_root(&account, at).unwrap_or(KECCAK_NULL_RLP);
+			if storage_root != KECCAK_NULL_RLP {
 				out.write_fmt(format_args!(", \"storage_root\": \"0x{}\"", storage_root.hex())).expect("Write error");
 				if cmd.storage {
 					out.write_fmt(format_args!(", \"storage\": {{")).expect("Write error");
@@ -523,14 +688,16 @@ fn execute_export_state(cmd: ExportState) -> Result<(), String> {
 }
 
 pub fn kill_db(cmd: KillBlockchain) -> Result<(), String> {
-	let spec = cmd.spec.spec()?;
+	let spec = cmd.spec.spec(&cmd.dirs.cache)?;
 	let genesis_hash = spec.genesis_header().hash();
 	let db_dirs = cmd.dirs.database(genesis_hash, None, spec.data_dir);
 	let user_defaults_path = db_dirs.user_defaults_path();
-	let user_defaults = UserDefaults::load(&user_defaults_path)?;
+	let mut user_defaults = UserDefaults::load(&user_defaults_path)?;
 	let algorithm = cmd.pruning.to_algorithm(&user_defaults);
 	let dir = db_dirs.db_path(algorithm);
 	fs::remove_dir_all(&dir).map_err(|e| format!("Error removing database: {:?}", e))?;
+	user_defaults.is_first_launch = true;
+	user_defaults.save(&user_defaults_path)?;
 	info!("Database deleted.");
 	Ok(())
 }

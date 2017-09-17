@@ -32,7 +32,7 @@
 //! use ethcore::miner::{Miner, MinerService};
 //!
 //! fn main() {
-//!		let miner: Miner = Miner::with_spec(&ethereum::new_foundation());
+//!		let miner: Miner = Miner::with_spec(&ethereum::new_foundation(&env::temp_dir()));
 //!		// get status
 //!		assert_eq!(miner.status().transactions_in_pending_queue, 0);
 //!
@@ -45,7 +45,6 @@ mod banning_queue;
 mod external;
 mod local_transactions;
 mod miner;
-mod price_info;
 mod service_transaction_checker;
 mod transaction_queue;
 mod work_notify;
@@ -62,13 +61,16 @@ pub use self::work_notify::NotifyWork;
 pub use self::stratum::{Stratum, Error as StratumError, Options as StratumOptions};
 
 use std::collections::BTreeMap;
-use util::{H256, U256, Address, Bytes};
-use client::{MiningBlockChainClient, Executed, CallAnalytics};
+use bigint::prelude::U256;
+use bigint::hash::H256;
+use util::Address;
+use bytes::Bytes;
+use client::{MiningBlockChainClient};
 use block::ClosedBlock;
 use header::BlockNumber;
 use receipt::{RichReceipt, Receipt};
-use error::{Error, CallError};
-use transaction::{UnverifiedTransaction, PendingTransaction, SignedTransaction};
+use error::{Error};
+use transaction::{UnverifiedTransaction, PendingTransaction};
 
 /// Miner client API
 pub trait MinerService : Send + Sync {
@@ -136,6 +138,9 @@ pub trait MinerService : Send + Sync {
 	/// Called when blocks are imported to chain, updates transactions queue.
 	fn chain_new_blocks(&self, chain: &MiningBlockChainClient, imported: &[H256], invalid: &[H256], enacted: &[H256], retracted: &[H256]);
 
+	/// PoW chain - can produce work package
+	fn can_produce_work_package(&self) -> bool;
+
 	/// New chain head event. Restart mining operation.
 	fn update_sealing(&self, chain: &MiningBlockChainClient);
 
@@ -176,28 +181,13 @@ pub trait MinerService : Send + Sync {
 	fn last_nonce(&self, address: &Address) -> Option<U256>;
 
 	/// Is it currently sealing?
-	fn is_sealing(&self) -> bool;
+	fn is_currently_sealing(&self) -> bool;
 
 	/// Suggested gas price.
 	fn sensible_gas_price(&self) -> U256;
 
 	/// Suggested gas limit.
 	fn sensible_gas_limit(&self) -> U256 { 21000.into() }
-
-	/// Latest account balance in pending state.
-	fn balance(&self, chain: &MiningBlockChainClient, address: &Address) -> Option<U256>;
-
-	/// Call into contract code using pending state.
-	fn call(&self, chain: &MiningBlockChainClient, t: &SignedTransaction, analytics: CallAnalytics) -> Result<Executed, CallError>;
-
-	/// Get storage value in pending state.
-	fn storage_at(&self, chain: &MiningBlockChainClient, address: &Address, position: &H256) -> Option<H256>;
-
-	/// Get account nonce in pending state.
-	fn nonce(&self, chain: &MiningBlockChainClient, address: &Address) -> Option<U256>;
-
-	/// Get contract code in pending state.
-	fn code(&self, chain: &MiningBlockChainClient, address: &Address) -> Option<Option<Bytes>>;
 }
 
 /// Mining status

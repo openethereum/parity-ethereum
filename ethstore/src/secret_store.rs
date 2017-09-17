@@ -20,6 +20,7 @@ use ethkey::{Address, Message, Signature, Secret, Public};
 use Error;
 use json::{Uuid, OpaqueKeyFile};
 use bigint::hash::H256;
+use OpaqueSecret;
 
 /// Key directory reference
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -59,6 +60,8 @@ pub trait SimpleSecretStore: Send + Sync {
 	fn sign_derived(&self, account_ref: &StoreAccountRef, password: &str, derivation: Derivation, message: &Message) -> Result<Signature, Error>;
 	/// Decrypt a messages with given account.
 	fn decrypt(&self, account: &StoreAccountRef, password: &str, shared_mac: &[u8], message: &[u8]) -> Result<Vec<u8>, Error>;
+	/// Agree on shared key.
+	fn agree(&self, account: &StoreAccountRef, password: &str, other: &Public) -> Result<Secret, Error>;
 
 	/// Returns all accounts in this secret store.
 	fn accounts(&self) -> Result<Vec<StoreAccountRef>, Error>;
@@ -88,6 +91,15 @@ pub trait SimpleSecretStore: Send + Sync {
 
 /// Secret Store API
 pub trait SecretStore: SimpleSecretStore {
+
+	/// Returns a raw opaque Secret that can be later used to sign a message.
+	fn raw_secret(&self, account: &StoreAccountRef, password: &str) -> Result<OpaqueSecret, Error>;
+
+	/// Signs a message with raw secret.
+	fn sign_with_secret(&self, secret: &OpaqueSecret, message: &Message) -> Result<Signature, Error> {
+		Ok(::ethkey::sign(&secret.0, message)?)
+	}
+
 	/// Imports presale wallet
 	fn import_presale(&self, vault: SecretVaultRef, json: &[u8], password: &str) -> Result<StoreAccountRef, Error>;
 	/// Imports existing JSON wallet

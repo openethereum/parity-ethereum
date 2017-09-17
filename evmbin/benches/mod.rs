@@ -26,14 +26,15 @@ extern crate test;
 extern crate ethcore;
 extern crate evm;
 extern crate ethcore_util;
-extern crate rustc_serialize;
+extern crate ethcore_bigint;
+extern crate rustc_hex;
 
 use self::test::{Bencher, black_box};
 
 use evm::run_vm;
-use ethcore::action_params::ActionParams;
-use ethcore_util::{U256, Uint};
-use rustc_serialize::hex::FromHex;
+use ethcore::vm::ActionParams;
+use ethcore_bigint::prelude::U256;
+use rustc_hex::FromHex;
 
 #[bench]
 fn simple_loop_usize(b: &mut Bencher) {

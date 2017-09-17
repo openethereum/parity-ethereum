@@ -15,12 +15,14 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Account management (personal) rpc implementation
-use std::sync::{Arc, Weak};
+use std::sync::Arc;
 
 use ethcore::account_provider::AccountProvider;
 use ethcore::transaction::PendingTransaction;
 
-use util::{Address, U128, Uint, ToPretty};
+use bigint::prelude::U128;
+use util::Address;
+use bytes::ToPretty;
 
 use futures::{future, Future, BoxFuture};
 use jsonrpc_core::Error;
@@ -33,7 +35,7 @@ use v1::metadata::Metadata;
 
 /// Account management (personal) rpc implementation.
 pub struct PersonalClient<D: Dispatcher> {
-	accounts: Option<Weak<AccountProvider>>,
+	accounts: Option<Arc<AccountProvider>>,
 	dispatcher: D,
 	allow_perm_unlock: bool,
 }
@@ -42,7 +44,7 @@ impl<D: Dispatcher> PersonalClient<D> {
 	/// Creates new PersonalClient
 	pub fn new(store: &Option<Arc<AccountProvider>>, dispatcher: D, allow_perm_unlock: bool) -> Self {
 		PersonalClient {
-			accounts: store.as_ref().map(Arc::downgrade),
+			accounts: store.clone(),
 			dispatcher: dispatcher,
 			allow_perm_unlock: allow_perm_unlock,
 		}
@@ -124,9 +126,9 @@ impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 					.map(move |tx| (tx, dispatcher))
 			})
 			.and_then(|(pending_tx, dispatcher)| {
-				let network_id = pending_tx.network_id();
-				trace!(target: "miner", "send_transaction: dispatching tx: {} for network ID {:?}",
-					::rlp::encode(&*pending_tx).to_vec().pretty(), network_id);
+				let chain_id = pending_tx.chain_id();
+				trace!(target: "miner", "send_transaction: dispatching tx: {} for chain ID {:?}",
+					::rlp::encode(&*pending_tx).into_vec().pretty(), chain_id);
 
 				dispatcher.dispatch_transaction(pending_tx).map(Into::into)
 			})

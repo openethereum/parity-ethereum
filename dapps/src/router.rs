@@ -17,20 +17,21 @@
 //! Router implementation
 //! Dispatch requests to proper application.
 
-use address;
 use std::cmp;
 use std::sync::Arc;
 use std::collections::HashMap;
 
 use url::{Url, Host};
-use hyper::{self, server, header, Control, StatusCode};
+use hyper::{self, server, header, Control};
 use hyper::net::HttpStream;
 use jsonrpc_http_server as http;
 
-use apps::{self, DAPPS_DOMAIN};
+use apps;
 use apps::fetcher::Fetcher;
-use endpoint::{Endpoint, Endpoints, EndpointPath, Handler};
-use handlers::{self, Redirection, ContentHandler};
+use endpoint::{Endpoint, EndpointPath, Handler};
+use Endpoints;
+use handlers;
+use Embeddable;
 
 /// Special endpoints are accessible on every domain (every dapp)
 #[derive(Debug, PartialEq, Hash, Eq)]
@@ -38,36 +39,39 @@ pub enum SpecialEndpoint {
 	Rpc,
 	Api,
 	Utils,
+	Home,
 	None,
 }
 
 pub struct Router {
-	signer_address: Option<(String, u16)>,
-	endpoints: Endpoints,
+	endpoints: Option<Endpoints>,
 	fetch: Arc<Fetcher>,
 	special: HashMap<SpecialEndpoint, Option<Box<Endpoint>>>,
+	embeddable_on: Embeddable,
+	dapps_domain: String,
 }
 
-impl http::RequestMiddleware for Router {
-	fn on_request(&self, req: &server::Request<HttpStream>, control: &Control) -> http::RequestMiddlewareAction {
+impl Router {
+	fn resolve_request(&self, req: &server::Request<HttpStream>, control: Control, refresh_dapps: bool) -> (bool, Option<Box<Handler>>) {
 		// Choose proper handler depending on path / domain
 		let url = handlers::extract_url(req);
-		let endpoint = extract_endpoint(&url);
-		let referer = extract_referer_endpoint(req);
+		let endpoint = extract_endpoint(&url, &self.dapps_domain);
+		let referer = extract_referer_endpoint(req, &self.dapps_domain);
 		let is_utils = endpoint.1 == SpecialEndpoint::Utils;
-		let is_dapps_domain = endpoint.0.as_ref().map(|endpoint| endpoint.using_dapps_domains).unwrap_or(false);
-		let is_origin_set = req.headers().get::<http::hyper::header::Origin>().is_some();
 		let is_get_request = *req.method() == hyper::Method::Get;
+		let is_head_request = *req.method() == hyper::Method::Head;
+		let has_dapp = |dapp: &str| self.endpoints
+			.as_ref()
+			.map_or(false, |endpoints| endpoints.endpoints.read().contains_key(dapp));
 
 		trace!(target: "dapps", "Routing request to {:?}. Details: {:?}", url, req);
-
-		let control = control.clone();
 		debug!(target: "dapps", "Handling endpoint request: {:?}", endpoint);
-		let handler: Option<Box<Handler>> = match (endpoint.0, endpoint.1, referer) {
+
+		(is_utils, match (endpoint.0, endpoint.1, referer) {
 			// Handle invalid web requests that we can recover from
 			(ref path, SpecialEndpoint::None, Some((ref referer, ref referer_url)))
 				if referer.app_id == apps::WEB_PATH
-					&& self.endpoints.contains_key(apps::WEB_PATH)
+					&& has_dapp(apps::WEB_PATH)
 					&& !is_web_endpoint(path)
 				=>
 			{
@@ -75,7 +79,7 @@ impl http::RequestMiddleware for Router {
 				let len = cmp::min(referer_url.path.len(), 2); // /web/<encoded>/
 				let base = referer_url.path[..len].join("/");
 				let requested = url.map(|u| u.path.join("/")).unwrap_or_default();
-				Some(Redirection::boxed(&format!("/{}/{}", base, requested)))
+				Some(handlers::Redirection::boxed(&format!("/{}/{}", base, requested)))
 			},
 			// First check special endpoints
 			(ref path, ref endpoint, _) if self.special.contains_key(endpoint) => {
@@ -86,9 +90,14 @@ impl http::RequestMiddleware for Router {
 					.map(|special| special.to_async_handler(path.clone().unwrap_or_default(), control))
 			},
 			// Then delegate to dapp
-			(Some(ref path), _, _) if self.endpoints.contains_key(&path.app_id) => {
+			(Some(ref path), _, _) if has_dapp(&path.app_id) => {
 				trace!(target: "dapps", "Resolving to local/builtin dapp.");
-				Some(self.endpoints.get(&path.app_id)
+				Some(self.endpoints
+					.as_ref()
+					.expect("endpoints known to be set; qed")
+					.endpoints
+					.read()
+					.get(&path.app_id)
 					.expect("endpoints known to contain key; qed")
 					.to_async_handler(path.clone(), control))
 			},
@@ -97,47 +106,52 @@ impl http::RequestMiddleware for Router {
 				trace!(target: "dapps", "Resolving to fetchable content.");
 				Some(self.fetch.to_async_handler(path.clone(), control))
 			},
-			// NOTE [todr] /home is redirected to home page since some users may have the redirection cached
-			// (in the past we used 301 instead of 302)
-			// It should be safe to remove it in (near) future.
-			//
-			// 404 for non-existent content
-			(Some(ref path), _, _) if is_get_request && path.app_id != "home" => {
+			// 404 for non-existent content (only if serving endpoints and not homepage)
+			(Some(ref path), _, _)
+				if (is_get_request || is_head_request)
+					&& self.endpoints.is_some()
+					&& path.app_id != apps::HOME_PAGE
+				=>
+			{
 				trace!(target: "dapps", "Resolving to 404.");
-				Some(Box::new(ContentHandler::error(
-					StatusCode::NotFound,
-					"404 Not Found",
-					"Requested content was not found.",
-					None,
-					self.signer_address.clone(),
-				)))
-			},
-			// Redirect any other GET request to signer.
-			_ if is_get_request => {
-				if let Some(ref signer_address) = self.signer_address {
-					trace!(target: "dapps", "Redirecting to signer interface.");
-					Some(Redirection::boxed(&format!("http://{}", address(signer_address))))
+				if refresh_dapps {
+					debug!(target: "dapps", "Refreshing dapps and re-trying.");
+					self.endpoints.as_ref().map(|endpoints| endpoints.refresh_local_dapps());
+					return self.resolve_request(req, control, false)
 				} else {
-					trace!(target: "dapps", "Signer disabled, returning 404.");
-					Some(Box::new(ContentHandler::error(
-						StatusCode::NotFound,
+					Some(Box::new(handlers::ContentHandler::error(
+						hyper::StatusCode::NotFound,
 						"404 Not Found",
-						"Your homepage is not available when Trusted Signer is disabled.",
-						Some("You can still access dapps by writing a correct address, though. Re-enable Signer to get your homepage back."),
-						self.signer_address.clone(),
+						"Requested content was not found.",
+						None,
+						self.embeddable_on.clone(),
 					)))
 				}
+			},
+			// Any other GET|HEAD requests to home page.
+			_ if (is_get_request || is_head_request) && self.special.contains_key(&SpecialEndpoint::Home) => {
+				self.special.get(&SpecialEndpoint::Home)
+					.expect("special known to contain key; qed")
+					.as_ref()
+					.map(|special| special.to_async_handler(Default::default(), control))
 			},
 			// RPC by default
 			_ => {
 				trace!(target: "dapps", "Resolving to RPC call.");
 				None
 			}
-		};
+		})
+	}
+}
 
+impl http::RequestMiddleware for Router {
+	fn on_request(&self, req: &server::Request<HttpStream>, control: &Control) -> http::RequestMiddlewareAction {
+		let control = control.clone();
+		let is_origin_set = req.headers().get::<header::Origin>().is_some();
+		let (is_utils, handler) = self.resolve_request(req, control, self.endpoints.is_some());
 		match handler {
 			Some(handler) => http::RequestMiddlewareAction::Respond {
-				should_validate_hosts: !(is_utils || is_dapps_domain),
+				should_validate_hosts: !is_utils,
 				handler: handler,
 			},
 			None => http::RequestMiddlewareAction::Proceed {
@@ -149,16 +163,18 @@ impl http::RequestMiddleware for Router {
 
 impl Router {
 	pub fn new(
-		signer_address: Option<(String, u16)>,
 		content_fetcher: Arc<Fetcher>,
-		endpoints: Endpoints,
+		endpoints: Option<Endpoints>,
 		special: HashMap<SpecialEndpoint, Option<Box<Endpoint>>>,
+		embeddable_on: Embeddable,
+		dapps_domain: String,
 	) -> Self {
 		Router {
-			signer_address: signer_address,
 			endpoints: endpoints,
 			fetch: content_fetcher,
 			special: special,
+			embeddable_on: embeddable_on,
+			dapps_domain: format!(".{}", dapps_domain),
 		}
 	}
 }
@@ -170,19 +186,19 @@ fn is_web_endpoint(path: &Option<EndpointPath>) -> bool {
 	}
 }
 
-fn extract_referer_endpoint(req: &server::Request<HttpStream>) -> Option<(EndpointPath, Url)> {
+fn extract_referer_endpoint(req: &server::Request<HttpStream>, dapps_domain: &str) -> Option<(EndpointPath, Url)> {
 	let referer = req.headers().get::<header::Referer>();
 
 	let url = referer.and_then(|referer| Url::parse(&referer.0).ok());
 	url.and_then(|url| {
 		let option = Some(url);
-		extract_url_referer_endpoint(&option).or_else(|| {
-			extract_endpoint(&option).0.map(|endpoint| (endpoint, option.expect("Just wrapped; qed")))
+		extract_url_referer_endpoint(&option, dapps_domain).or_else(|| {
+			extract_endpoint(&option, dapps_domain).0.map(|endpoint| (endpoint, option.expect("Just wrapped; qed")))
 		})
 	})
 }
 
-fn extract_url_referer_endpoint(url: &Option<Url>) -> Option<(EndpointPath, Url)> {
+fn extract_url_referer_endpoint(url: &Option<Url>, dapps_domain: &str) -> Option<(EndpointPath, Url)> {
 	let query = url.as_ref().and_then(|url| url.query.as_ref());
 	match (url, query) {
 		(&Some(ref url), Some(ref query)) if query.starts_with(apps::URL_REFERER) => {
@@ -190,7 +206,7 @@ fn extract_url_referer_endpoint(url: &Option<Url>) -> Option<(EndpointPath, Url)
 			debug!(target: "dapps", "Recovering referer from query parameter: {}", referer_url);
 
 			let referer_url = Url::parse(&referer_url).ok();
-			extract_endpoint(&referer_url).0.map(|endpoint| {
+			extract_endpoint(&referer_url, dapps_domain).0.map(|endpoint| {
 				(endpoint, referer_url.expect("Endpoint returned only when url `is_some`").clone())
 			})
 		},
@@ -198,7 +214,7 @@ fn extract_url_referer_endpoint(url: &Option<Url>) -> Option<(EndpointPath, Url)
 	}
 }
 
-fn extract_endpoint(url: &Option<Url>) -> (Option<EndpointPath>, SpecialEndpoint) {
+fn extract_endpoint(url: &Option<Url>, dapps_domain: &str) -> (Option<EndpointPath>, SpecialEndpoint) {
 	fn special_endpoint(url: &Url) -> SpecialEndpoint {
 		if url.path.len() <= 1 {
 			return SpecialEndpoint::None;
@@ -208,14 +224,15 @@ fn extract_endpoint(url: &Option<Url>) -> (Option<EndpointPath>, SpecialEndpoint
 			apps::RPC_PATH => SpecialEndpoint::Rpc,
 			apps::API_PATH => SpecialEndpoint::Api,
 			apps::UTILS_PATH => SpecialEndpoint::Utils,
+			apps::HOME_PAGE => SpecialEndpoint::Home,
 			_ => SpecialEndpoint::None,
 		}
 	}
 
 	match *url {
 		Some(ref url) => match url.host {
-			Host::Domain(ref domain) if domain.ends_with(DAPPS_DOMAIN) => {
-				let id = &domain[0..(domain.len() - DAPPS_DOMAIN.len())];
+			Host::Domain(ref domain) if domain.ends_with(dapps_domain) => {
+				let id = &domain[0..(domain.len() - dapps_domain.len())];
 				let (id, params) = if let Some(split) = id.rfind('.') {
 					let (params, id) = id.split_at(split);
 					(id[1..].to_owned(), [params.to_owned()].into_iter().chain(&url.path).cloned().collect())
@@ -249,11 +266,12 @@ fn extract_endpoint(url: &Option<Url>) -> (Option<EndpointPath>, SpecialEndpoint
 
 #[test]
 fn should_extract_endpoint() {
-	assert_eq!(extract_endpoint(&None), (None, SpecialEndpoint::None));
+	let dapps_domain = ".web3.site";
+	assert_eq!(extract_endpoint(&None, dapps_domain), (None, SpecialEndpoint::None));
 
 	// With path prefix
 	assert_eq!(
-		extract_endpoint(&Url::parse("http://localhost:8080/status/index.html").ok()),
+		extract_endpoint(&Url::parse("http://localhost:8080/status/index.html").ok(), dapps_domain),
 		(Some(EndpointPath {
 			app_id: "status".to_owned(),
 			app_params: vec!["index.html".to_owned()],
@@ -265,7 +283,7 @@ fn should_extract_endpoint() {
 
 	// With path prefix
 	assert_eq!(
-		extract_endpoint(&Url::parse("http://localhost:8080/rpc/").ok()),
+		extract_endpoint(&Url::parse("http://localhost:8080/rpc/").ok(), dapps_domain),
 		(Some(EndpointPath {
 			app_id: "rpc".to_owned(),
 			app_params: vec!["".to_owned()],
@@ -276,7 +294,7 @@ fn should_extract_endpoint() {
 	);
 
 	assert_eq!(
-		extract_endpoint(&Url::parse("http://my.status.web3.site/parity-utils/inject.js").ok()),
+		extract_endpoint(&Url::parse("http://my.status.web3.site/parity-utils/inject.js").ok(), dapps_domain),
 		(Some(EndpointPath {
 			app_id: "status".to_owned(),
 			app_params: vec!["my".to_owned(), "parity-utils".into(), "inject.js".into()],
@@ -288,7 +306,7 @@ fn should_extract_endpoint() {
 
 	// By Subdomain
 	assert_eq!(
-		extract_endpoint(&Url::parse("http://status.web3.site/test.html").ok()),
+		extract_endpoint(&Url::parse("http://status.web3.site/test.html").ok(), dapps_domain),
 		(Some(EndpointPath {
 			app_id: "status".to_owned(),
 			app_params: vec!["test.html".to_owned()],
@@ -300,7 +318,7 @@ fn should_extract_endpoint() {
 
 	// RPC by subdomain
 	assert_eq!(
-		extract_endpoint(&Url::parse("http://my.status.web3.site/rpc/").ok()),
+		extract_endpoint(&Url::parse("http://my.status.web3.site/rpc/").ok(), dapps_domain),
 		(Some(EndpointPath {
 			app_id: "status".to_owned(),
 			app_params: vec!["my".to_owned(), "rpc".into(), "".into()],
@@ -312,7 +330,7 @@ fn should_extract_endpoint() {
 
 	// API by subdomain
 	assert_eq!(
-		extract_endpoint(&Url::parse("http://my.status.web3.site/api/").ok()),
+		extract_endpoint(&Url::parse("http://my.status.web3.site/api/").ok(), dapps_domain),
 		(Some(EndpointPath {
 			app_id: "status".to_owned(),
 			app_params: vec!["my".to_owned(), "api".into(), "".into()],

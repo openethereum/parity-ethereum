@@ -14,7 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use util::*;
+use std::collections::HashMap;
+use std::sync::Arc;
+use hash::keccak;
+use bigint::hash::H256;
+use parking_lot::Mutex;
+use bytes::Bytes;
 use ethcore::snapshot::{SnapshotService, ManifestData, RestorationStatus};
 use ethcore::header::BlockNumber;
 use ethcore::client::{EachBlockWith};
@@ -48,14 +53,14 @@ impl TestSnapshotService {
 		let block_chunks: Vec<Bytes> = (0..num_block_chunks).map(|_| H256::random().to_vec()).collect();
 		let manifest = ManifestData {
 			version: 2,
-			state_hashes: state_chunks.iter().map(|data| data.sha3()).collect(),
-			block_hashes: block_chunks.iter().map(|data| data.sha3()).collect(),
+			state_hashes: state_chunks.iter().map(|data| keccak(data)).collect(),
+			block_hashes: block_chunks.iter().map(|data| keccak(data)).collect(),
 			state_root: H256::new(),
 			block_number: block_number,
 			block_hash: block_hash,
 		};
-		let mut chunks: HashMap<H256, Bytes> = state_chunks.into_iter().map(|data| (data.sha3(), data)).collect();
-		chunks.extend(block_chunks.into_iter().map(|data| (data.sha3(), data)));
+		let mut chunks: HashMap<H256, Bytes> = state_chunks.into_iter().map(|data| (keccak(&data), data)).collect();
+		chunks.extend(block_chunks.into_iter().map(|data| (keccak(&data), data)));
 		TestSnapshotService {
 			manifest: Some(manifest),
 			chunks: chunks,
@@ -69,6 +74,10 @@ impl TestSnapshotService {
 impl SnapshotService for TestSnapshotService {
 	fn manifest(&self) -> Option<ManifestData> {
 		self.manifest.as_ref().cloned()
+	}
+
+	fn supported_versions(&self) -> Option<(u64, u64)> {
+		Some((1, 2))
 	}
 
 	fn chunk(&self, hash: H256) -> Option<Bytes> {

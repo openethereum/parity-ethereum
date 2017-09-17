@@ -15,7 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use super::{ManifestData, RestorationStatus};
-use util::{Bytes, H256};
+use bigint::hash::H256;
+use bytes::Bytes;
 use ipc::IpcConfig;
 
 /// The interface for a snapshot network service.
@@ -26,6 +27,10 @@ use ipc::IpcConfig;
 pub trait SnapshotService : Sync + Send {
 	/// Query the most recent manifest data.
 	fn manifest(&self) -> Option<ManifestData>;
+
+	/// Get the supported range of snapshot version numbers.
+	/// `None` indicates warp sync isn't supported by the consensus engine.
+	fn supported_versions(&self) -> Option<(u64, u64)>;
 
 	/// Get raw chunk for a given hash.
 	fn chunk(&self, hash: H256) -> Option<Bytes>;

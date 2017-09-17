@@ -21,8 +21,11 @@
 //! we discarded.
 
 use ethcore::ids::BlockId;
-use util::{Bytes, H256, U256, HashDB, MemoryDB};
-use util::trie::{self, TrieMut, TrieDBMut, Trie, TrieDB, Recorder};
+use bigint::prelude::U256;
+use bigint::hash::H256;
+use util::{HashDB, MemoryDB};
+use bytes::Bytes;
+use trie::{self, TrieMut, TrieDBMut, Trie, TrieDB, Recorder};
 use rlp::{RlpStream, UntrustedRlp};
 
 // encode a key.
@@ -126,11 +129,11 @@ pub fn compute_root<I>(cht_num: u64, iterable: I) -> Option<H256>
 	let start_num = start_number(cht_num) as usize;
 
 	for (i, (h, td)) in iterable.into_iter().take(SIZE as usize).enumerate() {
-		v.push((key!(i + start_num).to_vec(), val!(h, td).to_vec()))
+		v.push((key!(i + start_num).into_vec(), val!(h, td).into_vec()))
 	}
 
 	if v.len() == SIZE as usize {
-		Some(::util::triehash::trie_root(v))
+		Some(::triehash::trie_root(v))
 	} else {
 		None
 	}

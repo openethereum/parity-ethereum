@@ -18,7 +18,10 @@
 /// Blockchain downloader
 ///
 
-use util::*;
+use std::collections::{HashSet, VecDeque};
+use std::cmp;
+use heapsize::HeapSizeOf;
+use bigint::hash::H256;
 use rlp::*;
 use ethcore::views::{BlockView};
 use ethcore::header::{BlockNumber, Header as BlockHeader};
@@ -265,7 +268,7 @@ impl BlockDownloader {
 				BlockStatus::Bad => {
 					return Err(BlockDownloaderImportError::Invalid);
 				},
-				BlockStatus::Unknown => {
+				BlockStatus::Unknown | BlockStatus::Pending => {
 					headers.push(hdr.as_raw().to_vec());
 					hashes.push(hash);
 				}
@@ -386,7 +389,7 @@ impl BlockDownloader {
 						debug!(target: "sync", "Could not revert to previous ancient block, last: {} ({})", start, start_hash);
 						self.reset();
 					} else {
-						let n = start - min(self.retract_step, start);
+						let n = start - cmp::min(self.retract_step, start);
 						self.retract_step *= 2;
 						match io.chain().block_hash(BlockId::Number(n)) {
 							Some(h) => {
@@ -476,7 +479,7 @@ impl BlockDownloader {
 			let receipts = block_and_receipts.receipts;
 			let (h, number, parent) = {
 				let header = BlockView::new(&block).header_view();
-				(header.sha3(), header.number(), header.parent_hash())
+				(header.hash(), header.number(), header.parent_hash())
 			};
 
 			// Perform basic block verification

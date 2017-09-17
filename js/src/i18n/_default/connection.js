@@ -19,6 +19,7 @@ export default {
   connectingNode: `Connecting to the Parity Node. If this informational message persists, please ensure that your Parity node is running and reachable on the network.`,
   invalidToken: `invalid signer token`,
   noConnection: `Unable to make a connection to the Parity Secure API. To update your secure token or to generate a new one, run {newToken} and paste the generated token into the space below.`,
+  timestamp: `Ensure that both the Parity node and this machine connecting have computer clocks in-sync with each other and with a timestamp server, ensuring both successful token validation and block operations.`,
   token: {
     hint: `a generated token from Parity`,
     label: `secure token`

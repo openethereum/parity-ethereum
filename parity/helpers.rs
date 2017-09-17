@@ -18,7 +18,9 @@ use std::{io, env};
 use std::io::{Write, BufReader, BufRead};
 use std::time::Duration;
 use std::fs::File;
-use util::{clean_0x, U256, Uint, Address, CompactionProfile};
+use bigint::prelude::U256;
+use bigint::hash::clean_0x;
+use util::{Address, CompactionProfile};
 use util::journaldb::Algorithm;
 use ethcore::client::{Mode, BlockId, VMType, DatabaseCompactionProfile, ClientConfig, VerifierType};
 use ethcore::miner::{PendingSet, GasLimit, PrioritizationStrategy};
@@ -140,7 +142,7 @@ pub fn replace_home(base: &str, arg: &str) -> String {
 	r.replace("/", &::std::path::MAIN_SEPARATOR.to_string())
 }
 
-pub fn replace_home_for_db(base: &str, local: &str, arg: &str) -> String {
+pub fn replace_home_and_local(base: &str, local: &str, arg: &str) -> String {
 	let r = replace_home(base, arg);
 	r.replace("$LOCAL", local)
 }
@@ -166,13 +168,12 @@ pub fn geth_ipc_path(testnet: bool) -> String {
 }
 
 /// Formats and returns parity ipc path.
-pub fn parity_ipc_path(base: &str, s: &str) -> String {
-	// Windows path should not be hardcoded here.
-	if cfg!(windows) {
-		return r"\\.\pipe\parity.jsonrpc".to_owned();
+pub fn parity_ipc_path(base: &str, path: &str, shift: u16) -> String {
+	let mut path = path.to_owned();
+	if shift != 0 {
+		path = path.replace("jsonrpc.ipc", &format!("jsonrpc-{}.ipc", shift));
 	}
-
-	replace_home(base, s)
+	replace_home(base, &path)
 }
 
 /// Validates and formats bootnodes option.
@@ -192,7 +193,8 @@ pub fn to_bootnodes(bootnodes: &Option<String>) -> Result<Vec<String>, String> {
 
 #[cfg(test)]
 pub fn default_network_config() -> ::ethsync::NetworkConfiguration {
-	use ethsync::{NetworkConfiguration, AllowIP};
+	use ethsync::{NetworkConfiguration};
+	use super::network::IpFilter;
 	NetworkConfiguration {
 		config_path: Some(replace_home(&::dir::default_data_path(), "$BASE/network")),
 		net_config_path: None,
@@ -207,7 +209,7 @@ pub fn default_network_config() -> ::ethsync::NetworkConfiguration {
 		min_peers: 25,
 		snapshot_peers: 0,
 		max_pending_peers: 64,
-		allow_ips: AllowIP::All,
+		ip_filter: IpFilter::default(),
 		reserved_nodes: Vec::new(),
 		allow_non_reserved: true,
 	}
@@ -341,7 +343,7 @@ mod tests {
 	use std::fs::File;
 	use std::io::Write;
 	use devtools::RandomTempPath;
-	use util::{U256};
+	use bigint::prelude::U256;
 	use ethcore::client::{Mode, BlockId};
 	use ethcore::miner::PendingSet;
 	use super::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_address, to_addresses, to_price, geth_ipc_path, to_bootnodes, password_from_file};

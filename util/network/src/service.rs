@@ -22,6 +22,7 @@ use io::*;
 use parking_lot::RwLock;
 use std::sync::Arc;
 use ansi_term::Colour;
+use connection_filter::ConnectionFilter;
 
 struct HostHandler {
 	public_url: RwLock<Option<String>>
@@ -46,18 +47,16 @@ pub struct NetworkService {
 	host_info: String,
 	host: RwLock<Option<Arc<Host>>>,
 	stats: Arc<NetworkStats>,
-	panic_handler: Arc<PanicHandler>,
 	host_handler: Arc<HostHandler>,
 	config: NetworkConfiguration,
+	filter: Option<Arc<ConnectionFilter>>,
 }
 
 impl NetworkService {
 	/// Starts IO event loop
-	pub fn new(config: NetworkConfiguration) -> Result<NetworkService, NetworkError> {
+	pub fn new(config: NetworkConfiguration, filter: Option<Arc<ConnectionFilter>>) -> Result<NetworkService, NetworkError> {
 		let host_handler = Arc::new(HostHandler { public_url: RwLock::new(None) });
-		let panic_handler = PanicHandler::new_in_arc();
 		let io_service = IoService::<NetworkIoMessage>::start()?;
-		panic_handler.forward_from(&io_service);
 
 		let stats = Arc::new(NetworkStats::new());
 		let host_info = Host::client_version();
@@ -65,10 +64,10 @@ impl NetworkService {
 			io_service: io_service,
 			host_info: host_info,
 			stats: stats,
-			panic_handler: panic_handler,
 			host: RwLock::new(None),
 			config: config,
 			host_handler: host_handler,
+			filter: filter,
 		})
 	}
 
@@ -119,7 +118,7 @@ impl NetworkService {
 	pub fn start(&self) -> Result<(), NetworkError> {
 		let mut host = self.host.write();
 		if host.is_none() {
-			let h = Arc::new(Host::new(self.config.clone(), self.stats.clone())?);
+			let h = Arc::new(Host::new(self.config.clone(), self.stats.clone(), self.filter.clone())?);
 			self.io_service.register_handler(h.clone())?;
 			*host = Some(h);
 		}
@@ -190,11 +189,5 @@ impl NetworkService {
 		let io = IoContext::new(self.io_service.channel(), 0);
 		let host = self.host.read();
 		host.as_ref().map(|ref host| host.with_context_eval(protocol, &io, action))
-	}
-}
-
-impl MayPanic for NetworkService {
-	fn on_panic<F>(&self, closure: F) where F: OnPanicListener {
-		self.panic_handler.on_panic(closure);
 	}
 }

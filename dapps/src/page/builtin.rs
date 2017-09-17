@@ -18,6 +18,7 @@ use page::{handler, PageCache};
 use std::sync::Arc;
 use endpoint::{Endpoint, EndpointInfo, EndpointPath, Handler};
 use parity_dapps::{WebApp, File, Info};
+use Embeddable;
 
 pub struct PageEndpoint<T : WebApp + 'static> {
 	/// Content of the files
@@ -25,8 +26,9 @@ pub struct PageEndpoint<T : WebApp + 'static> {
 	/// Prefix to strip from the path (when `None` deducted from `app_id`)
 	pub prefix: Option<String>,
 	/// Safe to be loaded in frame by other origin. (use wisely!)
-	safe_to_embed_on: Option<(String, u16)>,
+	safe_to_embed_on: Embeddable,
 	info: EndpointInfo,
+	fallback_to_index_html: bool,
 }
 
 impl<T: WebApp + 'static> PageEndpoint<T> {
@@ -38,6 +40,20 @@ impl<T: WebApp + 'static> PageEndpoint<T> {
 			prefix: None,
 			safe_to_embed_on: None,
 			info: EndpointInfo::from(info),
+			fallback_to_index_html: false,
+		}
+	}
+
+	/// Creates a new `PageEndpoint` for builtin (compile time) Dapp.
+	/// Instead of returning 404 this endpoint will always server index.html.
+	pub fn with_fallback_to_index(app: T) -> Self {
+		let info = app.info();
+		PageEndpoint {
+			app: Arc::new(app),
+			prefix: None,
+			safe_to_embed_on: None,
+			info: EndpointInfo::from(info),
+			fallback_to_index_html: true,
 		}
 	}
 
@@ -51,19 +67,21 @@ impl<T: WebApp + 'static> PageEndpoint<T> {
 			prefix: Some(prefix),
 			safe_to_embed_on: None,
 			info: EndpointInfo::from(info),
+			fallback_to_index_html: false,
 		}
 	}
 
 	/// Creates new `PageEndpoint` which can be safely used in iframe
 	/// even from different origin. It might be dangerous (clickjacking).
 	/// Use wisely!
-	pub fn new_safe_to_embed(app: T, address: Option<(String, u16)>) -> Self {
+	pub fn new_safe_to_embed(app: T, address: Embeddable) -> Self {
 		let info = app.info();
 		PageEndpoint {
 			app: Arc::new(app),
 			prefix: None,
 			safe_to_embed_on: address,
 			info: EndpointInfo::from(info),
+			fallback_to_index_html: false,
 		}
 	}
 }
@@ -76,7 +94,7 @@ impl<T: WebApp> Endpoint for PageEndpoint<T> {
 
 	fn to_handler(&self, path: EndpointPath) -> Box<Handler> {
 		Box::new(handler::PageHandler {
-			app: BuiltinDapp::new(self.app.clone()),
+			app: BuiltinDapp::new(self.app.clone(), self.fallback_to_index_html),
 			prefix: self.prefix.clone(),
 			path: path,
 			file: handler::ServedFile::new(self.safe_to_embed_on.clone()),
@@ -100,12 +118,14 @@ impl From<Info> for EndpointInfo {
 
 struct BuiltinDapp<T: WebApp + 'static> {
 	app: Arc<T>,
+	fallback_to_index_html: bool,
 }
 
 impl<T: WebApp + 'static> BuiltinDapp<T> {
-	fn new(app: Arc<T>) -> Self {
+	fn new(app: Arc<T>, fallback_to_index_html: bool) -> Self {
 		BuiltinDapp {
 			app: app,
+			fallback_to_index_html: fallback_to_index_html,
 		}
 	}
 }
@@ -114,13 +134,19 @@ impl<T: WebApp + 'static> handler::Dapp for BuiltinDapp<T> {
 	type DappFile = BuiltinDappFile<T>;
 
 	fn file(&self, path: &str) -> Option<Self::DappFile> {
-		self.app.file(path).map(|_| {
+		let file = |path| self.app.file(path).map(|_| {
 			BuiltinDappFile {
 				app: self.app.clone(),
 				path: path.into(),
 				write_pos: 0,
 			}
-		})
+		});
+		let res = file(path);
+		if self.fallback_to_index_html {
+			res.or_else(|| file("index.html"))
+		} else {
+			res
+		}
 	}
 }
 

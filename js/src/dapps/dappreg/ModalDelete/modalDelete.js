@@ -43,7 +43,7 @@ export default class ModalDelete extends Component {
         secondary
       >
         <div className={ styles.section }>
-          You are about to remove a distributed application from the registry,
+          You are about to remove a decentralized application from the registry,
           the details of this application is given below. Removal does not return any fees,
           however the application will not be available to users anymore.
         </div>

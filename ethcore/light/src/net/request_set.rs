@@ -25,9 +25,9 @@ use std::collections::{BTreeMap, HashMap};
 use std::iter::FromIterator;
 
 use request::Request;
-use request::Requests;
+use request::NetworkRequests as Requests;
 use net::{timeout, ReqId};
-use util::U256;
+use bigint::prelude::U256;
 
 use time::{Duration, SteadyTime};
 
@@ -120,6 +120,8 @@ impl RequestSet {
 	pub fn is_empty(&self) -> bool { self.len() == 0 }
 
 	/// The cumulative cost of all requests in the set.
+	// this may be useful later for load balancing.
+	#[allow(dead_code)]
 	pub fn cumulative_cost(&self) -> U256 { self.cumulative_cost }
 }
 
@@ -130,12 +132,14 @@ fn compute_timeout(reqs: &Requests) -> Duration {
 		tm + match *req {
 			Request::Headers(_) => timeout::HEADERS,
 			Request::HeaderProof(_) => timeout::HEADER_PROOF,
+			Request::TransactionIndex(_) => timeout::TRANSACTION_INDEX,
 			Request::Receipts(_) => timeout::RECEIPT,
 			Request::Body(_) => timeout::BODY,
 			Request::Account(_) => timeout::PROOF,
 			Request::Storage(_) => timeout::PROOF,
 			Request::Code(_) => timeout::CONTRACT_CODE,
 			Request::Execution(_) => timeout::TRANSACTION_PROOF,
+			Request::Signal(_) => timeout::EPOCH_SIGNAL,
 		}
 	}))
 }

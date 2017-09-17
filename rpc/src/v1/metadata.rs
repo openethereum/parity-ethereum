@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+//! Parity RPC requests Metadata.
 use std::sync::Arc;
 
 use jsonrpc_core;
@@ -35,8 +36,19 @@ impl Metadata {
 	pub fn dapp_id(&self) -> DappId {
 		// TODO [ToDr] Extract dapp info from Ws connections.
 		match self.origin {
-			Origin::Dapps(ref dapp_id) => dapp_id.clone(),
+			Origin::Dapps(ref dapp) => dapp.clone(),
+			Origin::Ws { ref dapp, .. } => dapp.clone(),
+			Origin::Signer { ref dapp, .. } => dapp.clone(),
 			_ => DappId::default(),
+		}
+	}
+
+	/// Returns true if the request originates from a Dapp.
+	pub fn is_dapp(&self) -> bool {
+		if let Origin::Dapps(_) = self.origin {
+			true
+		} else {
+			false
 		}
 	}
 }

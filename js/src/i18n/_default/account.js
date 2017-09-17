@@ -18,11 +18,28 @@ export default {
   button: {
     delete: `delete`,
     edit: `edit`,
+    export: `export`,
     faucet: `Kovan ETH`,
+    forget: `forget`,
     password: `password`,
     shapeshift: `shapeshift`,
     transfer: `transfer`,
     verify: `verify`
+  },
+  export: {
+    info: `Export your account as a JSON file. Please enter the password linked with this account.`,
+    password: {
+      hint: `The password specified when creating this account`,
+      label: `Account password`
+    },
+    setPassword: {
+      hint: `Enter password Here`,
+      label: `Password`
+    },
+    title: `Export Account`
+  },
+  external: {
+    confirmDelete: `Are you sure you want to remove the following external address from your account list?`
   },
   hardware: {
     confirmDelete: `Are you sure you want to remove the following hardware address from your account list?`

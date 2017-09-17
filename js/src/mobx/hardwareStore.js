@@ -24,13 +24,20 @@ let instance = null;
 export default class HardwareStore {
   @observable isScanning = false;
   @observable wallets = {};
+  @observable pinMatrixRequest = [];
 
   constructor (api) {
     this._api = api;
     this._ledger = Ledger.create(api);
     this._pollId = null;
+    this.hwAccounts = {};
+    this.ledgerAccounts = {};
 
     this._pollScan();
+    this._subscribeParity();
+    this._api.transport.on('close', () => {
+      this._subscribeParity();
+    });
   }
 
   isConnected (address) {
@@ -45,10 +52,29 @@ export default class HardwareStore {
     this.wallets = wallets;
   }
 
+  @action setPinMatrixRequest = (requests) => {
+    this.pinMatrixRequest = requests;
+  }
+
   _pollScan = () => {
     this._pollId = setTimeout(() => {
       this.scan().then(this._pollScan);
     }, HW_SCAN_INTERVAL);
+  }
+
+  scanTrezor () {
+    return this._api.parity
+      .lockedHardwareAccountsInfo()
+      .then((paths) => {
+        this.setPinMatrixRequest(paths.map((path) => {
+          return { path: path, manufacturer: 'Trezor' };
+        }));
+        return {};
+      })
+      .catch((err) => {
+        console.warn('HardwareStore::scanTrezor', err);
+        return {};
+      });
   }
 
   scanLedger () {
@@ -78,46 +104,55 @@ export default class HardwareStore {
       });
   }
 
-  scanParity () {
-    return this._api.parity
-      .hardwareAccountsInfo()
-      .then((hwInfo) => {
-        Object
-          .keys(hwInfo)
-          .forEach((address) => {
-            const info = hwInfo[address];
+  _subscribeParity () {
+    const onError = error => {
+      console.warn('HardwareStore::scanParity', error);
 
-            info.address = address;
-            info.via = 'parity';
-          });
+      return {};
+    };
 
-        return hwInfo;
-      })
-      .catch((error) => {
-        console.warn('HardwareStore::scanParity', error);
+    return this._api.pubsub
+      .subscribeAndGetResult(
+        callback => this._api.pubsub.parity.hardwareAccountsInfo(callback),
+        hwInfo => {
+          Object
+            .keys(hwInfo)
+            .forEach((address) => {
+              const info = hwInfo[address];
 
-        return {};
-      });
+              info.address = address;
+              info.via = 'parity';
+            });
+          this.hwAccounts = hwInfo;
+          this.updateWallets();
+          return hwInfo;
+        },
+        onError
+      ).catch(onError);
   }
 
   scan () {
     this.setScanning(true);
+    // This only scans for locked devices and does not return open devices,
+    // so no need to actually wait for any results here.
+    this.scanTrezor();
 
     // NOTE: Depending on how the hardware is configured and how the local env setup
     // is done, different results will be retrieved via Parity vs. the browser APIs
     // (latter is Chrome-only, needs the browser app enabled on a Ledger, former is
     // not intended as a network call, i.e. hw wallet is with the user)
-    return Promise
-      .all([
-        this.scanParity(),
-        this.scanLedger()
-      ])
-      .then(([hwAccounts, ledgerAccounts]) => {
+    return this.scanLedger()
+      .then((ledgerAccounts) => {
+        this.ledgerAccounts = ledgerAccounts;
         transaction(() => {
-          this.setWallets(Object.assign({}, hwAccounts, ledgerAccounts));
+          this.updateWallets();
           this.setScanning(false);
         });
       });
+  }
+
+  updateWallets () {
+    this.setWallets(Object.assign({}, this.hwAccounts, this.ledgerAccounts));
   }
 
   createAccountInfo (entry, original = {}) {
@@ -145,6 +180,15 @@ export default class HardwareStore {
 
   signLedger (transaction) {
     return this._ledger.signTransaction(transaction);
+  }
+
+  pinMatrixAck (device, passcode) {
+    return this._api.parity
+      .hardwarePinMatrixAck(device.path, passcode)
+      .then((success) => {
+        this.scan();
+        return success;
+      });
   }
 
   static get (api) {

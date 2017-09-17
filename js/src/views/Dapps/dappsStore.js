@@ -89,7 +89,7 @@ export default class DappsStore extends EventEmitter {
     return Promise
       .all([
         this.fetchBuiltinApps().then((apps) => this.addApps(apps)),
-        this.fetchLocalApps().then((apps) => this.addApps(apps))
+        this.fetchLocalApps().then((apps) => this.addApps(apps, true))
       ]);
   }
 
@@ -227,6 +227,20 @@ export default class DappsStore extends EventEmitter {
     return this.visibleApps.filter((app) => app.type === 'network');
   }
 
+  @action refreshDapps = () => {
+    const self = this;
+
+    self._api.parity.dappsRefresh()
+      .then((res) => {
+        if (res === true) {
+          self.loadAllApps();
+        }
+      })
+      .catch((err) => {
+        console.log(err);
+      });
+  }
+
   @action openModal = () => {
     this.modalOpen = true;
   }
@@ -266,7 +280,7 @@ export default class DappsStore extends EventEmitter {
     this.displayApps = Object.assign({}, this.displayApps, displayApps);
   };
 
-  @action addApps = (_apps = []) => {
+  @action addApps = (_apps = [], _local = false) => {
     transaction(() => {
       const apps = _apps.filter((app) => app);
 
@@ -277,6 +291,7 @@ export default class DappsStore extends EventEmitter {
 
       this.apps = this.apps
         .filter((app) => !app.id || !newAppsIds.includes(app.id))
+        .filter((app) => !(app.type === 'local' && _local && apps.indexOf(app) === -1))
         .concat(apps || [])
         .sort((a, b) => a.name.localeCompare(b.name));
 

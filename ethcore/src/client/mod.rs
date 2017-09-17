@@ -16,8 +16,10 @@
 
 //! Blockchain database client.
 
+mod ancient_import;
 mod config;
 mod error;
+mod evm_test_client;
 mod test_client;
 mod trace;
 mod client;
@@ -25,6 +27,7 @@ mod client;
 pub use self::client::*;
 pub use self::config::{Mode, ClientConfig, DatabaseCompactionProfile, BlockChainConfig, VMType};
 pub use self::error::Error;
+pub use self::evm_test_client::{EvmTestClient, EvmTestError, TransactResult};
 pub use self::test_client::{TestBlockChainClient, EachBlockWith};
 pub use self::chain_notify::ChainNotify;
 pub use self::traits::{BlockChainClient, MiningBlockChainClient, EngineClient};
@@ -37,11 +40,9 @@ pub use types::pruning_info::PruningInfo;
 pub use types::call_analytics::CallAnalytics;
 
 pub use executive::{Executed, Executive, TransactOptions};
-pub use env_info::{LastHashes, EnvInfo};
+pub use vm::{LastHashes, EnvInfo};
 
-pub use block_import_error::BlockImportError;
-pub use transaction_import::TransactionImportResult;
-pub use transaction_import::TransactionImportError;
+pub use error::{BlockImportError, TransactionImportError, TransactionImportResult};
 pub use verification::VerifierType;
 
 /// IPC interfaces

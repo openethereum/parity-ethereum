@@ -19,18 +19,19 @@
 
 use std::collections::HashMap;
 
-use util::Bytes;
-use util::{Address, H256};
+use bigint::hash::H256;
+use util::Address;
+use bytes::Bytes;
 use util::kvdb::Database;
 use util::migration::{Batch, Config, Error, Migration, SimpleMigration, Progress};
-use util::sha3::Hashable;
+use hash::keccak;
 use std::sync::Arc;
 
 use rlp::{decode, Rlp, RlpStream};
 
 // attempt to migrate a key, value pair. None if migration not possible.
 fn attempt_migrate(mut key_h: H256, val: &[u8]) -> Option<H256> {
-	let val_hash = val.sha3();
+	let val_hash = keccak(val);
 
 	if key_h != val_hash {
 		// this is a key which has been xor'd with an address.
@@ -43,7 +44,7 @@ fn attempt_migrate(mut key_h: H256, val: &[u8]) -> Option<H256> {
 			return None;
 		}
 
-		let address_hash = Address::from(address).sha3();
+		let address_hash = keccak(Address::from(address));
 
 		// create the xor'd key in place.
 		key_h.copy_from_slice(&*val_hash);
@@ -153,7 +154,7 @@ impl OverlayRecentV7 {
 	// and commit the altered entries.
 	fn migrate_journal(&self, source: Arc<Database>, mut batch: Batch, dest: &mut Database) -> Result<(), Error> {
 		if let Some(val) = source.get(None, V7_LATEST_ERA_KEY).map_err(Error::Custom)? {
-			batch.insert(V7_LATEST_ERA_KEY.into(), val.clone().to_vec(), dest)?;
+			batch.insert(V7_LATEST_ERA_KEY.into(), val.clone().into_vec(), dest)?;
 
 			let mut era = decode::<u64>(&val);
 			loop {

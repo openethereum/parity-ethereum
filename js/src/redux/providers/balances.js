@@ -16,12 +16,11 @@
 
 import { throttle } from 'lodash';
 
-import { fetchBalances, fetchTokensBalances, queryTokensFilter } from './balancesActions';
-import { loadTokens, fetchTokens } from './tokensActions';
-import { padRight } from '~/api/util/format';
+import { LOG_KEYS, getLogger } from '~/config';
 
-import Contracts from '~/contracts';
+import { fetchBalances, queryTokensFilter, updateTokensFilter } from './balancesActions';
 
+const log = getLogger(LOG_KEYS.Balances);
 let instance = null;
 
 export default class Balances {
@@ -29,40 +28,20 @@ export default class Balances {
     this._api = api;
     this._store = store;
 
-    this._tokenreg = null;
-    this._tokenregSID = null;
-    this._tokenMetaSID = null;
+    this._apiSubs = [];
 
-    this._blockNumberSID = null;
-    this._accountsInfoSID = null;
-
-    // Throtthled load tokens (no more than once
-    // every minute)
-    this.loadTokens = throttle(
-      this._loadTokens,
-      60 * 1000,
-      { leading: true, trailing: true }
-    );
-
-    // Throttled `_fetchBalances` function
+    // Throttled `_fetchEthBalances` function
     // that gets called max once every 40s
     this.longThrottledFetch = throttle(
-      this._fetchBalances,
+      this._fetchEthBalances,
       40 * 1000,
-      { leading: false, trailing: true }
+      { leading: true, trailing: false }
     );
 
     this.shortThrottledFetch = throttle(
-      this._fetchBalances,
+      this._fetchEthBalances,
       2 * 1000,
-      { leading: false, trailing: true }
-    );
-
-    // Fetch all tokens every 2 minutes
-    this.throttledTokensFetch = throttle(
-      this._fetchTokens,
-      2 * 60 * 1000,
-      { leading: false, trailing: true }
+      { leading: true, trailing: false }
     );
 
     // Unsubscribe previous instance if it exists
@@ -71,17 +50,19 @@ export default class Balances {
     }
   }
 
-  static get (store = {}) {
+  static get (store) {
     if (!instance && store) {
-      const { api } = store.getState();
-
-      return Balances.instantiate(store, api);
+      return Balances.init(store);
+    } else if (!instance) {
+      throw new Error('The Balances Provider has not been initialized yet');
     }
 
     return instance;
   }
 
-  static instantiate (store, api) {
+  static init (store) {
+    const { api } = store.getState();
+
     if (!instance) {
       instance = new Balances(store, api);
     }
@@ -91,15 +72,13 @@ export default class Balances {
 
   static start () {
     if (!instance) {
-      return Promise.reject('BalancesProvider has not been intiated yet');
+      return Promise.reject('BalancesProvider has not been initiated yet');
     }
 
     const self = instance;
 
     // Unsubscribe from previous subscriptions
-    return Balances
-      .stop()
-      .then(() => self.loadTokens())
+    return Balances.stop()
       .then(() => {
         const promises = [
           self.subscribeBlockNumber(),
@@ -107,7 +86,8 @@ export default class Balances {
         ];
 
         return Promise.all(promises);
-      });
+      })
+      .then(() => self.fetchEthBalances());
   }
 
   static stop () {
@@ -116,71 +96,35 @@ export default class Balances {
     }
 
     const self = instance;
-    const promises = [];
+    const promises = self._apiSubs.map((subId) => self._api.unsubscribe(subId));
 
-    if (self._blockNumberSID) {
-      const p = self._api
-        .unsubscribe(self._blockNumberSID)
-        .then(() => {
-          self._blockNumberSID = null;
-        });
-
-      promises.push(p);
-    }
-
-    if (self._accountsInfoSID) {
-      const p = self._api
-        .unsubscribe(self._accountsInfoSID)
-        .then(() => {
-          self._accountsInfoSID = null;
-        });
-
-      promises.push(p);
-    }
-
-    // Unsubscribe without adding the promises
-    // to the result, since it would have to wait for a
-    // reconnection to resolve if the Node is disconnected
-    if (self._tokenreg) {
-      if (self._tokenregSID) {
-        const tokenregSID = self._tokenregSID;
-
-        self._tokenreg
-          .unsubscribe(tokenregSID)
-          .then(() => {
-            if (self._tokenregSID === tokenregSID) {
-              self._tokenregSID = null;
-            }
-          });
-      }
-
-      if (self._tokenMetaSID) {
-        const tokenMetaSID = self._tokenMetaSID;
-
-        self._tokenreg
-          .unsubscribe(tokenMetaSID)
-          .then(() => {
-            if (self._tokenMetaSID === tokenMetaSID) {
-              self._tokenMetaSID = null;
-            }
-          });
-      }
-    }
-
-    return Promise.all(promises);
+    return Promise.all(promises)
+      .then(() => {
+        self._apiSubs = [];
+      });
   }
 
   subscribeAccountsInfo () {
+    // Don't trigger the balances updates on first call (when the
+    // subscriptions are setup)
+    let firstcall = true;
+
     return this._api
       .subscribe('parity_allAccountsInfo', (error, accountsInfo) => {
         if (error) {
+          return console.warn('balances::subscribeAccountsInfo', error);
+        }
+
+        if (firstcall) {
+          firstcall = false;
           return;
         }
 
-        this.fetchAllBalances();
+        this._store.dispatch(updateTokensFilter());
+        this.fetchEthBalances();
       })
-      .then((accountsInfoSID) => {
-        this._accountsInfoSID = accountsInfoSID;
+      .then((subId) => {
+        this._apiSubs.push(subId);
       })
       .catch((error) => {
         console.warn('_subscribeAccountsInfo', error);
@@ -188,161 +132,57 @@ export default class Balances {
   }
 
   subscribeBlockNumber () {
+    // Don't trigger the balances updates on first call (when the
+    // subscriptions are setup)
+    let firstcall = true;
+
     return this._api
-      .subscribe('eth_blockNumber', (error) => {
+      .subscribe('eth_blockNumber', (error, block) => {
         if (error) {
-          return console.warn('_subscribeBlockNumber', error);
+          return console.warn('balances::subscribeBlockNumber', error);
+        }
+
+        if (firstcall) {
+          firstcall = false;
+          return;
         }
 
         this._store.dispatch(queryTokensFilter());
-        return this.fetchAllBalances();
+        return this.fetchEthBalances();
       })
-      .then((blockNumberSID) => {
-        this._blockNumberSID = blockNumberSID;
+      .then((subId) => {
+        this._apiSubs.push(subId);
       })
       .catch((error) => {
         console.warn('_subscribeBlockNumber', error);
       });
   }
 
-  fetchAllBalances (options = {}) {
-    // If it's a network change, reload the tokens
-    // ( and then fetch the tokens balances ) and fetch
-    // the accounts balances
-    if (options.changedNetwork) {
-      this.loadTokens({ skipNotifications: true });
-      this.loadTokens.flush();
+  fetchEthBalances (options = {}) {
+    log.debug('fetching eth balances (throttled)...');
 
-      this.fetchBalances({
-        force: true,
-        skipNotifications: true
-      });
-
-      return;
-    }
-
-    this.fetchTokensBalances(options);
-    this.fetchBalances(options);
-  }
-
-  fetchTokensBalances (options) {
-    const { skipNotifications = false, force = false } = options;
-
-    this.throttledTokensFetch(skipNotifications);
-
-    if (force) {
-      this.throttledTokensFetch.flush();
-    }
-  }
-
-  fetchBalances (options) {
-    const { skipNotifications = false, force = false } = options;
     const { syncing } = this._store.getState().nodeStatus;
+
+    if (options.force) {
+      return this._fetchEthBalances();
+    }
 
     // If syncing, only retrieve balances once every
     // few seconds
     if (syncing || syncing === null) {
       this.shortThrottledFetch.cancel();
-      this.longThrottledFetch(skipNotifications);
-
-      if (force) {
-        this.longThrottledFetch.flush();
-      }
-
-      return;
+      return this.longThrottledFetch();
     }
 
     this.longThrottledFetch.cancel();
-    this.shortThrottledFetch(skipNotifications);
-
-    if (force) {
-      this.shortThrottledFetch.flush();
-    }
+    return this.shortThrottledFetch();
   }
 
-  _fetchBalances (skipNotifications = false) {
-    this._store.dispatch(fetchBalances(null, skipNotifications));
-  }
+  _fetchEthBalances (skipNotifications = false) {
+    log.debug('fetching eth balances (real)...');
 
-  _fetchTokens (skipNotifications = false) {
-    this._store.dispatch(fetchTokensBalances(null, null, skipNotifications));
-  }
+    const { dispatch, getState } = this._store;
 
-  getTokenRegistry () {
-    return Contracts.get().tokenReg.getContract();
-  }
-
-  _loadTokens (options = {}) {
-    return this
-      .getTokenRegistry()
-      .then((tokenreg) => {
-        this._tokenreg = tokenreg;
-
-        this._store.dispatch(loadTokens(options));
-
-        return this.attachToTokens(tokenreg);
-      })
-      .catch((error) => {
-        console.warn('balances::loadTokens', error);
-      });
-  }
-
-  attachToTokens (tokenreg) {
-    return Promise
-      .all([
-        this.attachToTokenMetaChange(tokenreg),
-        this.attachToNewToken(tokenreg)
-      ]);
-  }
-
-  attachToNewToken (tokenreg) {
-    if (this._tokenregSID) {
-      return Promise.resolve();
-    }
-
-    return tokenreg.instance.Registered
-      .subscribe({
-        fromBlock: 0,
-        toBlock: 'latest',
-        skipInitFetch: true
-      }, (error, logs) => {
-        if (error) {
-          return console.error('balances::attachToNewToken', 'failed to attach to tokenreg Registered', error.toString(), error.stack);
-        }
-
-        this.handleTokensLogs(logs);
-      })
-      .then((tokenregSID) => {
-        this._tokenregSID = tokenregSID;
-      });
-  }
-
-  attachToTokenMetaChange (tokenreg) {
-    if (this._tokenMetaSID) {
-      return Promise.resolve();
-    }
-
-    return tokenreg.instance.MetaChanged
-      .subscribe({
-        fromBlock: 0,
-        toBlock: 'latest',
-        topics: [ null, padRight(this._api.util.asciiToHex('IMG'), 32) ],
-        skipInitFetch: true
-      }, (error, logs) => {
-        if (error) {
-          return console.error('balances::attachToTokenMetaChange', 'failed to attach to tokenreg MetaChanged', error.toString(), error.stack);
-        }
-
-        this.handleTokensLogs(logs);
-      })
-      .then((tokenMetaSID) => {
-        this._tokenMetaSID = tokenMetaSID;
-      });
-  }
-
-  handleTokensLogs (logs) {
-    const tokenIds = logs.map((log) => log.params.id.value.toNumber());
-
-    this._store.dispatch(fetchTokens(tokenIds));
+    return fetchBalances(null, skipNotifications)(dispatch, getState);
   }
 }

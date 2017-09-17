@@ -1,12 +1,16 @@
 [package]
 name = "ethash"
-version = "1.7.0"
+version = "1.8.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [lib]
 
 [dependencies]
 log = "0.3"
-sha3 = { path = "../util/sha3" }
+hash = { path = "../util/hash" }
 primal = "0.2.3"
 parking_lot = "0.4"
+crunchy = "0.1.0"
+
+[features]
+benches = []

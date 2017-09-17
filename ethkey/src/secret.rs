@@ -17,6 +17,7 @@
 use std::fmt;
 use std::ops::Deref;
 use std::str::FromStr;
+use rustc_hex::ToHex;
 use secp256k1::key;
 use bigint::hash::H256;
 use {Error, SECP256K1};
@@ -26,6 +27,12 @@ pub struct Secret {
 	inner: H256,
 }
 
+impl ToHex for Secret {
+	fn to_hex(&self) -> String {
+		self.inner.to_hex()
+	}
+}
+
 impl fmt::Debug for Secret {
 	fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
 		write!(fmt, "Secret: 0x{:x}{:x}..{:x}{:x}", self.inner[0], self.inner[1], self.inner[30], self.inner[31])
@@ -33,7 +40,7 @@ impl fmt::Debug for Secret {
 }
 
 impl Secret {
-	fn from_slice_unchecked(key: &[u8]) -> Self {
+	pub fn from_slice(key: &[u8]) -> Self {
 		assert_eq!(32, key.len(), "Caller should provide 32-byte length slice");
 
 		let mut h = H256::default();
@@ -41,9 +48,15 @@ impl Secret {
 		Secret { inner: h }
 	}
 
-	pub fn from_slice(key: &[u8]) -> Result<Self, Error> {
+	/// Imports and validates the key.
+	pub fn from_unsafe_slice(key: &[u8]) -> Result<Self, Error> {
 		let secret = key::SecretKey::from_slice(&super::SECP256K1, key)?;
 		Ok(secret.into())
+	}
+
+	/// Checks validity of this key.
+	pub fn check_validity(&self) -> Result<(), Error> {
+		self.to_secp256k1_secret().map(|_| ())
 	}
 
 	/// Inplace add one secret key to another (scalar + scalar)
@@ -86,6 +99,15 @@ impl Secret {
 		Ok(())
 	}
 
+	/// Inplace negate secret key (-scalar)
+	pub fn neg(&mut self) -> Result<(), Error> {
+		let mut key_secret = self.to_secp256k1_secret()?;
+		key_secret.mul_assign(&SECP256K1, &key::MINUS_ONE_KEY)?;
+
+		*self = key_secret.into();
+		Ok(())
+	}
+
 	/// Inplace inverse secret key (1 / scalar)
 	pub fn inv(&mut self) -> Result<(), Error> {
 		let mut key_secret = self.to_secp256k1_secret()?;
@@ -121,14 +143,25 @@ impl Secret {
 impl FromStr for Secret {
 	type Err = Error;
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
-		let hash = H256::from_str(s).map_err(|e| Error::Custom(format!("{:?}", e)))?;
-		Self::from_slice(&hash)
+		Ok(H256::from_str(s).map_err(|e| Error::Custom(format!("{:?}", e)))?.into())
+	}
+}
+
+impl From<H256> for Secret {
+	fn from(s: H256) -> Self {
+		Secret::from_slice(&s)
+	}
+}
+
+impl From<&'static str> for Secret {
+	fn from(s: &'static str) -> Self {
+		s.parse().expect(&format!("invalid string literal for {}: '{}'", stringify!(Self), s))
 	}
 }
 
 impl From<key::SecretKey> for Secret {
 	fn from(key: key::SecretKey) -> Self {
-		Self::from_slice_unchecked(&key[0..32])
+		Self::from_slice(&key[0..32])
 	}
 }
 

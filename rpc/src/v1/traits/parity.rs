@@ -22,8 +22,9 @@ use jsonrpc_core::Error;
 use jsonrpc_macros::Trailing;
 use futures::BoxFuture;
 
+use node_health::Health;
 use v1::types::{
-	H160, H256, H512, U256, Bytes,
+	H160, H256, H512, U256, Bytes, CallRequest,
 	Peers, Transaction, RpcSettings, Histogram,
 	TransactionStats, LocalTransactionStatus,
 	BlockNumber, ConsensusCapability, VersionInfo,
@@ -43,6 +44,10 @@ build_rpc_trait! {
 		/// Returns hardware accounts information.
 		#[rpc(name = "parity_hardwareAccountsInfo")]
 		fn hardware_accounts_info(&self) -> Result<BTreeMap<H160, HwAccountInfo>, Error>;
+
+		/// Get a list of paths to locked hardware wallets
+		#[rpc(name = "parity_lockedHardwareAccountsInfo")]
+		fn locked_hardware_accounts_info(&self) -> Result<Vec<String>, Error>;
 
 		/// Returns default account for dapp.
 		#[rpc(meta, name = "parity_defaultAccount")]
@@ -151,17 +156,13 @@ build_rpc_trait! {
 		#[rpc(name = "parity_localTransactions")]
 		fn local_transactions(&self) -> Result<BTreeMap<H256, LocalTransactionStatus>, Error>;
 
-		/// Returns current Trusted Signer port or an error if signer is disabled.
-		#[rpc(name = "parity_signerPort")]
-		fn signer_port(&self) -> Result<u16, Error>;
+		/// Returns current Dapps Server interface and port or an error if dapps server is disabled.
+		#[rpc(name = "parity_dappsUrl")]
+		fn dapps_url(&self) -> Result<String, Error>;
 
-		/// Returns current Dapps Server port or an error if dapps server is disabled.
-		#[rpc(name = "parity_dappsPort")]
-		fn dapps_port(&self) -> Result<u16, Error>;
-
-		/// Returns current Dapps Server interface address or an error if dapps server is disabled.
-		#[rpc(name = "parity_dappsInterface")]
-		fn dapps_interface(&self) -> Result<String, Error>;
+		/// Returns current WS Server interface and port or an error if ws server is disabled.
+		#[rpc(name = "parity_wsUrl")]
+		fn ws_url(&self) -> Result<String, Error>;
 
 		/// Returns next nonce for particular sender. Should include all transactions in the queue.
 		#[rpc(async, name = "parity_nextNonce")]
@@ -208,10 +209,18 @@ build_rpc_trait! {
 		/// Get block header.
 		/// Same as `eth_getBlockByNumber` but without uncles and transactions.
 		#[rpc(async, name = "parity_getBlockHeaderByNumber")]
-		fn block_header(&self, Trailing<BlockNumber>) -> BoxFuture<Option<RichHeader>, Error>;
+		fn block_header(&self, Trailing<BlockNumber>) -> BoxFuture<RichHeader, Error>;
 
 		/// Get IPFS CIDv0 given protobuf encoded bytes.
 		#[rpc(name = "parity_cidV0")]
 		fn ipfs_cid(&self, Bytes) -> Result<String, Error>;
+
+		/// Call contract, returning the output data.
+		#[rpc(meta, name = "parity_call")]
+		fn call(&self, Self::Metadata, Vec<CallRequest>, Trailing<BlockNumber>) -> BoxFuture<Vec<Bytes>, Error>;
+
+		/// Returns node's health report.
+		#[rpc(async, name = "parity_nodeHealth")]
+		fn node_health(&self) -> BoxFuture<Health, Error>;
 	}
 }

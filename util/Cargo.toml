@@ -3,39 +3,39 @@ description = "Ethcore utility library"
 homepage = "http://parity.io"
 license = "GPL-3.0"
 name = "ethcore-util"
-version = "1.7.0"
+version = "1.8.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 build = "build.rs"
 
 [dependencies]
 log = "0.3"
 env_logger = "0.4"
-rustc-serialize = "0.3"
-rand = "0.3.12"
-time = "0.1.34"
+rustc-hex = "1.0"
 rocksdb = { git = "https://github.com/paritytech/rust-rocksdb" }
 eth-secp256k1 = { git = "https://github.com/paritytech/rust-secp256k1" }
-rust-crypto = "0.2.34"
-elastic-array = "0.7.0"
+elastic-array = "0.9"
 rlp = { path = "rlp" }
-heapsize = { version = "0.3", features = ["unstable"] }
-itertools = "0.5"
-sha3 = { path = "sha3" }
+heapsize = "0.4"
+hash = { path = "hash" }
 clippy = { version = "0.0.103", optional = true}
 ethcore-devtools = { path = "../devtools" }
 libc = "0.2.7"
-vergen = "0.1"
 target_info = "0.1"
-ethcore-bigint = "0.1.2"
+ethcore-bigint = { path = "bigint", features = ["heapsizeof"] }
 parking_lot = "0.4"
-using_queue = { path = "using_queue" }
-table = { path = "table" }
-ansi_term = "0.9"
 tiny-keccak= "1.0"
 ethcore-bloom-journal = { path = "bloom" }
 regex = "0.2"
 lru-cache = "0.1.0"
 ethcore-logger = { path = "../logger" }
+triehash = { path = "triehash" }
+error-chain = "0.11.0-rc.2"
+hashdb = { path = "hashdb" }
+patricia_trie = { path = "patricia_trie" }
+nibbleslice = { path = "nibbleslice" }
+nibblevec = { path = "nibblevec" }
+ethcore-bytes = { path = "bytes" }
+memorydb = { path = "memorydb" }
 
 [features]
 default = []
@@ -43,5 +43,5 @@ dev = ["clippy"]
 final = []
 
 [build-dependencies]
-vergen = "*"
+vergen = "0.1"
 rustc_version = "0.1.0"

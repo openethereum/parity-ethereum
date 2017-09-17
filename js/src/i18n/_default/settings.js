@@ -36,7 +36,7 @@ export default {
     },
     languages: {
       hint: `the language this interface is displayed with`,
-      label: `UI language`
+      label: `language`
     },
     loglevels: `Choose the different logs level.`,
     modes: {
@@ -51,7 +51,7 @@ export default {
     label: `parity`
   },
   proxy: {
-    details_0: `Instead of accessing Parity via the IP address and port, you will be able to access it via the .parity subdomain, by visiting {homeProxy}. To setup subdomain-based routing, you need to add the relevant proxy entries to your browser,`,
+    details_0: `Instead of accessing Parity via the IP address and port, you will be able to access it via the .web3.site subdomain, by visiting {homeProxy}. To setup subdomain-based routing, you need to add the relevant proxy entries to your browser,`,
     details_1: `To learn how to configure the proxy, instructions are provided for {windowsLink}, {macOSLink} or {ubuntuLink}.`,
     details_macos: `macOS`,
     details_ubuntu: `Ubuntu`,
@@ -69,7 +69,7 @@ export default {
       label: `Addressbook`
     },
     apps: {
-      description: `Distributed applications that interact with the underlying network. Add applications, manage you application portfolio and interact with application from around the network.`,
+      description: `Decentralized applications that interact with the underlying network. Add applications, manage you application portfolio and interact with application from around the network.`,
       label: `Applications`
     },
     contracts: {
@@ -85,16 +85,15 @@ export default {
       label: `Settings`
     },
     signer: {
-      description: `The secure transaction management area of the application where you can approve any outgoing transactions made from the application as well as those placed into the queue by distributed applications.`,
+      description: `The secure transaction management area of the application where you can approve any outgoing transactions made from the application as well as those placed into the queue by decentralized applications.`,
       label: `Signer`
-    },
-    status: {
-      description: `See how the Parity node is performing in terms of connections to the network, logs from the actual running instance and details of mining (if enabled and configured).`,
-      label: `Status`
     },
     label: `views`,
     home: {
       label: `Home`
+    },
+    status: {
+      label: `Status`
     }
   },
   label: `settings`

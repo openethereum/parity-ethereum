@@ -22,21 +22,27 @@ mod db;
 mod executive_tracer;
 mod import;
 mod noop_tracer;
+mod types;
 
-pub use types::trace_types::{filter, flat, localized, trace};
-pub use types::trace_types::error::Error as TraceError;
 pub use self::config::Config;
 pub use self::db::TraceDB;
-pub use types::trace_types::trace::{VMTrace, VMOperation, VMExecutedOperation, MemoryDiff, StorageDiff};
-pub use types::trace_types::flat::{FlatTrace, FlatTransactionTraces, FlatBlockTraces};
 pub use self::noop_tracer::{NoopTracer, NoopVMTracer};
 pub use self::executive_tracer::{ExecutiveTracer, ExecutiveVMTracer};
-pub use types::trace_types::filter::{Filter, AddressesFilter};
 pub use self::import::ImportRequest;
 pub use self::localized::LocalizedTrace;
-use util::{Bytes, Address, U256, H256, DBTransaction};
+
+pub use self::types::{filter, flat, localized, trace};
+pub use self::types::error::Error as TraceError;
+pub use self::types::trace::{VMTrace, VMOperation, VMExecutedOperation, MemoryDiff, StorageDiff, RewardType};
+pub use self::types::flat::{FlatTrace, FlatTransactionTraces, FlatBlockTraces};
+pub use self::types::filter::{Filter, AddressesFilter};
+
+use bigint::prelude::U256;
+use bigint::hash::H256;
+use util::{Address, DBTransaction};
+use bytes::Bytes;
 use self::trace::{Call, Create};
-use action_params::ActionParams;
+use vm::ActionParams;
 use header::BlockNumber;
 
 /// This trait is used by executive to build traces.
@@ -78,26 +84,34 @@ pub trait Tracer: Send {
 	/// Stores suicide info.
 	fn trace_suicide(&mut self, address: Address, balance: U256, refund_address: Address);
 
+	/// Stores reward info.
+	fn trace_reward(&mut self, author: Address, value: U256, reward_type: RewardType);
+
 	/// Spawn subtracer which will be used to trace deeper levels of execution.
 	fn subtracer(&self) -> Self where Self: Sized;
 
 	/// Consumes self and returns all traces.
-	fn traces(self) -> Vec<FlatTrace>;
+	fn drain(self) -> Vec<FlatTrace>;
 }
 
 /// Used by executive to build VM traces.
 pub trait VMTracer: Send {
-	/// Trace the preparation to execute a single instruction.
-	/// @returns true if `trace_executed` should be called.
-	fn trace_prepare_execute(&mut self, _pc: usize, _instruction: u8, _gas_cost: &U256) -> bool { false }
 
-	/// Trace the finalised execution of a single instruction.
+	/// Trace the progression of interpreter to next instruction.
+	/// If tracer returns `false` it won't be called again.
+	/// @returns true if `trace_prepare_execute` and `trace_executed` should be called.
+	fn trace_next_instruction(&mut self, _pc: usize, _instruction: u8) -> bool { false }
+
+	/// Trace the preparation to execute a single valid instruction.
+	fn trace_prepare_execute(&mut self, _pc: usize, _instruction: u8, _gas_cost: U256) {}
+
+	/// Trace the finalised execution of a single valid instruction.
 	fn trace_executed(&mut self, _gas_used: U256, _stack_push: &[U256], _mem_diff: Option<(usize, &[u8])>, _store_diff: Option<(U256, U256)>) {}
 
 	/// Spawn subtracer which will be used to trace deeper levels of execution.
 	fn prepare_subtrace(&self, code: &[u8]) -> Self where Self: Sized;
 
-	/// Spawn subtracer which will be used to trace deeper levels of execution.
+	/// Finalize subtracer.
 	fn done_subtrace(&mut self, sub: Self) where Self: Sized;
 
 	/// Consumes self and returns the VM trace.

@@ -15,8 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use rlp::*;
-use util::{H256, H2048};
-use util::bytes::Bytes;
+use bigint::hash::{H256, H2048};
+use bytes::Bytes;
 use header::Header;
 use transaction::SignedTransaction;
 
@@ -67,6 +67,6 @@ impl WithTransaction for Block {
 impl CompleteBlock for Block {
 	fn complete(mut self, parent_hash: H256) -> Bytes {
 		self.header.set_parent_hash(parent_hash);
-		encode(&self).to_vec()
+		encode(&self).into_vec()
 	}
 }

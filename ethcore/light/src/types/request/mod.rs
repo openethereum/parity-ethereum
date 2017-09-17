@@ -17,7 +17,7 @@
 //! Light protocol request types.
 
 use rlp::{Encodable, Decodable, DecoderError, RlpStream, UntrustedRlp};
-use util::H256;
+use bigint::hash::H256;
 
 mod builder;
 
@@ -31,6 +31,11 @@ pub use self::header_proof::{
 	Complete as CompleteHeaderProofRequest,
 	Incomplete as IncompleteHeaderProofRequest,
 	Response as HeaderProofResponse
+};
+pub use self::transaction_index::{
+	Complete as CompleteTransactionIndexRequest,
+	Incomplete as IncompleteTransactionIndexRequest,
+	Response as TransactionIndexResponse
 };
 pub use self::block_body::{
 	Complete as CompleteBodyRequest,
@@ -62,6 +67,11 @@ pub use self::execution::{
 	Incomplete as IncompleteExecutionRequest,
 	Response as ExecutionResponse,
 };
+pub use self::epoch_signal::{
+	Complete as CompleteSignalRequest,
+	Incomplete as IncompleteSignalRequest,
+	Response as SignalResponse,
+};
 
 pub use self::builder::{RequestBuilder, Requests};
 
@@ -69,17 +79,21 @@ pub use self::builder::{RequestBuilder, Requests};
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct NoSuchOutput;
 
+/// Wrong kind of response corresponding to request.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct WrongKind;
+
 /// Error on processing a response.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ResponseError {
-	/// Wrong kind of response.
-	WrongKind,
+pub enum ResponseError<T> {
+	/// Error in validity.
+	Validity(T),
 	/// No responses expected.
 	Unexpected,
 }
 
 /// An input to a request.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Field<T> {
 	/// A pre-specified input.
 	Scalar(T),
@@ -89,11 +103,40 @@ pub enum Field<T> {
 }
 
 impl<T> Field<T> {
+	/// Helper for creating a new back-reference field.
+	pub fn back_ref(idx: usize, req: usize) -> Self {
+		Field::BackReference(idx, req)
+	}
+
+	/// map a scalar into some other item.
+	pub fn map<F, U>(self, f: F) -> Field<U> where F: FnOnce(T) -> U {
+		match self {
+			Field::Scalar(x) => Field::Scalar(f(x)),
+			Field::BackReference(req, idx) => Field::BackReference(req, idx),
+		}
+	}
+
+	/// Attempt to get a reference to the inner scalar.
+	pub fn as_ref(&self) -> Option<&T> {
+		match *self {
+			Field::Scalar(ref x) => Some(x),
+			Field::BackReference(_, _) => None,
+		}
+	}
+
+
+
 	// attempt conversion into scalar value.
 	fn into_scalar(self) -> Result<T, NoSuchOutput> {
 		match self {
 			Field::Scalar(val) => Ok(val),
 			_ => Err(NoSuchOutput),
+		}
+	}
+
+	fn adjust_req<F>(&mut self, mut mapping: F) where F: FnMut(usize) -> usize {
+		if let Field::BackReference(ref mut req_idx, _) = *self {
+			*req_idx = mapping(*req_idx)
 		}
 	}
 }
@@ -197,6 +240,9 @@ impl Encodable for HashOrNumber {
 	}
 }
 
+/// Type alias for "network requests".
+pub type NetworkRequests = Requests<Request>;
+
 /// All request types, as they're sent over the network.
 /// They may be incomplete, with back-references to outputs
 /// of prior requests.
@@ -206,7 +252,8 @@ pub enum Request {
 	Headers(IncompleteHeadersRequest),
 	/// A request for a header proof (from a CHT)
 	HeaderProof(IncompleteHeaderProofRequest),
-	// TransactionIndex,
+	/// A request for a transaction index by hash.
+	TransactionIndex(IncompleteTransactionIndexRequest),
 	/// A request for a block's receipts.
 	Receipts(IncompleteReceiptsRequest),
 	/// A request for a block body.
@@ -219,6 +266,8 @@ pub enum Request {
 	Code(IncompleteCodeRequest),
 	/// A request for proof of execution,
 	Execution(IncompleteExecutionRequest),
+	/// A request for an epoch signal.
+	Signal(IncompleteSignalRequest),
 }
 
 /// All request types, in an answerable state.
@@ -228,7 +277,8 @@ pub enum CompleteRequest {
 	Headers(CompleteHeadersRequest),
 	/// A request for a header proof (from a CHT)
 	HeaderProof(CompleteHeaderProofRequest),
-	// TransactionIndex,
+	/// A request for a transaction index by hash.
+	TransactionIndex(CompleteTransactionIndexRequest),
 	/// A request for a block's receipts.
 	Receipts(CompleteReceiptsRequest),
 	/// A request for a block body.
@@ -241,6 +291,26 @@ pub enum CompleteRequest {
 	Code(CompleteCodeRequest),
 	/// A request for proof of execution,
 	Execution(CompleteExecutionRequest),
+	/// A request for an epoch signal.
+	Signal(CompleteSignalRequest),
+}
+
+impl CompleteRequest {
+	/// Inspect the kind of this response.
+	pub fn kind(&self) -> Kind {
+		match *self {
+			CompleteRequest::Headers(_) => Kind::Headers,
+			CompleteRequest::HeaderProof(_) => Kind::HeaderProof,
+			CompleteRequest::TransactionIndex(_) => Kind::TransactionIndex,
+			CompleteRequest::Receipts(_) => Kind::Receipts,
+			CompleteRequest::Body(_) => Kind::Body,
+			CompleteRequest::Account(_) => Kind::Account,
+			CompleteRequest::Storage(_) => Kind::Storage,
+			CompleteRequest::Code(_) => Kind::Code,
+			CompleteRequest::Execution(_) => Kind::Execution,
+			CompleteRequest::Signal(_) => Kind::Signal,
+		}
+	}
 }
 
 impl Request {
@@ -249,12 +319,14 @@ impl Request {
 		match *self {
 			Request::Headers(_) => Kind::Headers,
 			Request::HeaderProof(_) => Kind::HeaderProof,
+			Request::TransactionIndex(_) => Kind::TransactionIndex,
 			Request::Receipts(_) => Kind::Receipts,
 			Request::Body(_) => Kind::Body,
 			Request::Account(_) => Kind::Account,
 			Request::Storage(_) => Kind::Storage,
 			Request::Code(_) => Kind::Code,
 			Request::Execution(_) => Kind::Execution,
+			Request::Signal(_) => Kind::Signal,
 		}
 	}
 }
@@ -264,12 +336,14 @@ impl Decodable for Request {
 		match rlp.val_at::<Kind>(0)? {
 			Kind::Headers => Ok(Request::Headers(rlp.val_at(1)?)),
 			Kind::HeaderProof => Ok(Request::HeaderProof(rlp.val_at(1)?)),
+			Kind::TransactionIndex => Ok(Request::TransactionIndex(rlp.val_at(1)?)),
 			Kind::Receipts => Ok(Request::Receipts(rlp.val_at(1)?)),
 			Kind::Body => Ok(Request::Body(rlp.val_at(1)?)),
 			Kind::Account => Ok(Request::Account(rlp.val_at(1)?)),
 			Kind::Storage => Ok(Request::Storage(rlp.val_at(1)?)),
 			Kind::Code => Ok(Request::Code(rlp.val_at(1)?)),
 			Kind::Execution => Ok(Request::Execution(rlp.val_at(1)?)),
+			Kind::Signal => Ok(Request::Signal(rlp.val_at(1)?)),
 		}
 	}
 }
@@ -284,18 +358,21 @@ impl Encodable for Request {
 		match *self {
 			Request::Headers(ref req) => s.append(req),
 			Request::HeaderProof(ref req) => s.append(req),
+			Request::TransactionIndex(ref req) => s.append(req),
 			Request::Receipts(ref req) => s.append(req),
 			Request::Body(ref req) => s.append(req),
 			Request::Account(ref req) => s.append(req),
 			Request::Storage(ref req) => s.append(req),
 			Request::Code(ref req) => s.append(req),
 			Request::Execution(ref req) => s.append(req),
+			Request::Signal(ref req) => s.append(req),
 		};
 	}
 }
 
 impl IncompleteRequest for Request {
 	type Complete = CompleteRequest;
+	type Response = Response;
 
 	fn check_outputs<F>(&self, f: F) -> Result<(), NoSuchOutput>
 		where F: FnMut(usize, usize, OutputKind) -> Result<(), NoSuchOutput>
@@ -303,12 +380,14 @@ impl IncompleteRequest for Request {
 		match *self {
 			Request::Headers(ref req) => req.check_outputs(f),
 			Request::HeaderProof(ref req) => req.check_outputs(f),
+			Request::TransactionIndex(ref req) => req.check_outputs(f),
 			Request::Receipts(ref req) => req.check_outputs(f),
 			Request::Body(ref req) => req.check_outputs(f),
 			Request::Account(ref req) => req.check_outputs(f),
 			Request::Storage(ref req) => req.check_outputs(f),
 			Request::Code(ref req) => req.check_outputs(f),
 			Request::Execution(ref req) => req.check_outputs(f),
+			Request::Signal(ref req) => req.check_outputs(f),
 		}
 	}
 
@@ -316,12 +395,14 @@ impl IncompleteRequest for Request {
 		match *self {
 			Request::Headers(ref req) => req.note_outputs(f),
 			Request::HeaderProof(ref req) => req.note_outputs(f),
+			Request::TransactionIndex(ref req) => req.note_outputs(f),
 			Request::Receipts(ref req) => req.note_outputs(f),
 			Request::Body(ref req) => req.note_outputs(f),
 			Request::Account(ref req) => req.note_outputs(f),
 			Request::Storage(ref req) => req.note_outputs(f),
 			Request::Code(ref req) => req.note_outputs(f),
 			Request::Execution(ref req) => req.note_outputs(f),
+			Request::Signal(ref req) => req.note_outputs(f),
 		}
 	}
 
@@ -329,12 +410,14 @@ impl IncompleteRequest for Request {
 		match *self {
 			Request::Headers(ref mut req) => req.fill(oracle),
 			Request::HeaderProof(ref mut req) => req.fill(oracle),
+			Request::TransactionIndex(ref mut req) => req.fill(oracle),
 			Request::Receipts(ref mut req) => req.fill(oracle),
 			Request::Body(ref mut req) => req.fill(oracle),
 			Request::Account(ref mut req) => req.fill(oracle),
 			Request::Storage(ref mut req) => req.fill(oracle),
 			Request::Code(ref mut req) => req.fill(oracle),
 			Request::Execution(ref mut req) => req.fill(oracle),
+			Request::Signal(ref mut req) => req.fill(oracle),
 		}
 	}
 
@@ -342,12 +425,43 @@ impl IncompleteRequest for Request {
 		match self {
 			Request::Headers(req) => req.complete().map(CompleteRequest::Headers),
 			Request::HeaderProof(req) => req.complete().map(CompleteRequest::HeaderProof),
+			Request::TransactionIndex(req) => req.complete().map(CompleteRequest::TransactionIndex),
 			Request::Receipts(req) => req.complete().map(CompleteRequest::Receipts),
 			Request::Body(req) => req.complete().map(CompleteRequest::Body),
 			Request::Account(req) => req.complete().map(CompleteRequest::Account),
 			Request::Storage(req) => req.complete().map(CompleteRequest::Storage),
 			Request::Code(req) => req.complete().map(CompleteRequest::Code),
 			Request::Execution(req) => req.complete().map(CompleteRequest::Execution),
+			Request::Signal(req) => req.complete().map(CompleteRequest::Signal),
+		}
+	}
+
+	fn adjust_refs<F>(&mut self, mapping: F) where F: FnMut(usize) -> usize {
+		match *self {
+			Request::Headers(ref mut req) => req.adjust_refs(mapping),
+			Request::HeaderProof(ref mut req) => req.adjust_refs(mapping),
+			Request::TransactionIndex(ref mut req) => req.adjust_refs(mapping),
+			Request::Receipts(ref mut req) => req.adjust_refs(mapping),
+			Request::Body(ref mut req) => req.adjust_refs(mapping),
+			Request::Account(ref mut req) => req.adjust_refs(mapping),
+			Request::Storage(ref mut req) => req.adjust_refs(mapping),
+			Request::Code(ref mut req) => req.adjust_refs(mapping),
+			Request::Execution(ref mut req) => req.adjust_refs(mapping),
+			Request::Signal(ref mut req) => req.adjust_refs(mapping),
+		}
+	}
+}
+
+impl CheckedRequest for Request {
+	type Extract = ();
+	type Error = WrongKind;
+	type Environment = ();
+
+	fn check_response(&self, _: &Self::Complete, _: &(), response: &Response) -> Result<(), WrongKind> {
+		if self.kind() == response.kind() {
+			Ok(())
+		} else {
+			Err(WrongKind)
 		}
 	}
 }
@@ -355,13 +469,14 @@ impl IncompleteRequest for Request {
 /// Kinds of requests.
 /// Doubles as the "ID" field of the request.
 #[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Kind {
 	/// A request for headers.
 	Headers = 0,
 	/// A request for a header proof.
 	HeaderProof = 1,
-	// TransactionIndex = 2,
+	/// A request for a transaction index.
+	TransactionIndex = 2,
 	/// A request for block receipts.
 	Receipts = 3,
 	/// A request for a block body.
@@ -374,6 +489,8 @@ pub enum Kind {
 	Code = 7,
 	/// A request for transaction execution + state proof.
 	Execution = 8,
+	/// A request for epoch transition signal.
+	Signal = 9,
 }
 
 impl Decodable for Kind {
@@ -381,13 +498,14 @@ impl Decodable for Kind {
 		match rlp.as_val::<u8>()? {
 			0 => Ok(Kind::Headers),
 			1 => Ok(Kind::HeaderProof),
-			// 2 => Ok(Kind::TransactionIndex),
+			2 => Ok(Kind::TransactionIndex),
 			3 => Ok(Kind::Receipts),
 			4 => Ok(Kind::Body),
 			5 => Ok(Kind::Account),
 			6 => Ok(Kind::Storage),
 			7 => Ok(Kind::Code),
 			8 => Ok(Kind::Execution),
+			9 => Ok(Kind::Signal),
 			_ => Err(DecoderError::Custom("Unknown PIP request ID.")),
 		}
 	}
@@ -406,7 +524,8 @@ pub enum Response {
 	Headers(HeadersResponse),
 	/// A response for a header proof (from a CHT)
 	HeaderProof(HeaderProofResponse),
-	// TransactionIndex,
+	/// A response for a transaction index.
+	TransactionIndex(TransactionIndexResponse),
 	/// A response for a block's receipts.
 	Receipts(ReceiptsResponse),
 	/// A response for a block body.
@@ -419,34 +538,42 @@ pub enum Response {
 	Code(CodeResponse),
 	/// A response for proof of execution,
 	Execution(ExecutionResponse),
+	/// A response for epoch change signal.
+	Signal(SignalResponse),
 }
 
-impl Response {
+impl ResponseLike for Response {
 	/// Fill reusable outputs by writing them into the function.
-	pub fn fill_outputs<F>(&self, f: F) where F: FnMut(usize, Output) {
+	fn fill_outputs<F>(&self, f: F) where F: FnMut(usize, Output) {
 		match *self {
 			Response::Headers(ref res) => res.fill_outputs(f),
 			Response::HeaderProof(ref res) => res.fill_outputs(f),
+			Response::TransactionIndex(ref res) => res.fill_outputs(f),
 			Response::Receipts(ref res) => res.fill_outputs(f),
 			Response::Body(ref res) => res.fill_outputs(f),
 			Response::Account(ref res) => res.fill_outputs(f),
 			Response::Storage(ref res) => res.fill_outputs(f),
 			Response::Code(ref res) => res.fill_outputs(f),
 			Response::Execution(ref res) => res.fill_outputs(f),
+			Response::Signal(ref res) => res.fill_outputs(f),
 		}
 	}
+}
 
+impl Response {
 	/// Inspect the kind of this response.
 	pub fn kind(&self) -> Kind {
 		match *self {
 			Response::Headers(_) => Kind::Headers,
 			Response::HeaderProof(_) => Kind::HeaderProof,
+			Response::TransactionIndex(_) => Kind::TransactionIndex,
 			Response::Receipts(_) => Kind::Receipts,
 			Response::Body(_) => Kind::Body,
 			Response::Account(_) => Kind::Account,
 			Response::Storage(_) => Kind::Storage,
 			Response::Code(_) => Kind::Code,
 			Response::Execution(_) => Kind::Execution,
+			Response::Signal(_) => Kind::Signal,
 		}
 	}
 }
@@ -456,12 +583,14 @@ impl Decodable for Response {
 		match rlp.val_at::<Kind>(0)? {
 			Kind::Headers => Ok(Response::Headers(rlp.val_at(1)?)),
 			Kind::HeaderProof => Ok(Response::HeaderProof(rlp.val_at(1)?)),
+			Kind::TransactionIndex => Ok(Response::TransactionIndex(rlp.val_at(1)?)),
 			Kind::Receipts => Ok(Response::Receipts(rlp.val_at(1)?)),
 			Kind::Body => Ok(Response::Body(rlp.val_at(1)?)),
 			Kind::Account => Ok(Response::Account(rlp.val_at(1)?)),
 			Kind::Storage => Ok(Response::Storage(rlp.val_at(1)?)),
 			Kind::Code => Ok(Response::Code(rlp.val_at(1)?)),
 			Kind::Execution => Ok(Response::Execution(rlp.val_at(1)?)),
+			Kind::Signal => Ok(Response::Signal(rlp.val_at(1)?)),
 		}
 	}
 }
@@ -476,12 +605,14 @@ impl Encodable for Response {
 		match *self {
 			Response::Headers(ref res) => s.append(res),
 			Response::HeaderProof(ref res) => s.append(res),
+			Response::TransactionIndex(ref res) => s.append(res),
 			Response::Receipts(ref res) => s.append(res),
 			Response::Body(ref res) => s.append(res),
 			Response::Account(ref res) => s.append(res),
 			Response::Storage(ref res) => s.append(res),
 			Response::Code(ref res) => s.append(res),
 			Response::Execution(ref res) => s.append(res),
+			Response::Signal(ref res) => s.append(res),
 		};
 	}
 }
@@ -490,6 +621,8 @@ impl Encodable for Response {
 pub trait IncompleteRequest: Sized {
 	/// The complete variant of this request.
 	type Complete;
+	/// The response to this request.
+	type Response: ResponseLike;
 
 	/// Check prior outputs against the needed inputs.
 	///
@@ -511,6 +644,30 @@ pub trait IncompleteRequest: Sized {
 	/// Attempt to convert this request into its complete variant.
 	/// Will succeed if all fields have been filled, will fail otherwise.
 	fn complete(self) -> Result<Self::Complete, NoSuchOutput>;
+
+	/// Adjust back-reference request indices.
+	fn adjust_refs<F>(&mut self, mapping: F) where F: FnMut(usize) -> usize;
+}
+
+/// A request which can be checked against its response for more validity.
+pub trait CheckedRequest: IncompleteRequest {
+	/// Data extracted during the check.
+	type Extract;
+	/// Error encountered during the check.
+	type Error;
+	/// Environment passed to response check.
+	type Environment;
+
+	/// Check whether the response matches (beyond the type).
+	fn check_response(&self, &Self::Complete, &Self::Environment, &Self::Response) -> Result<Self::Extract, Self::Error>;
+}
+
+/// A response-like object.
+///
+/// These contain re-usable outputs.
+pub trait ResponseLike {
+	/// Write all re-usable outputs into the provided function.
+	fn fill_outputs<F>(&self, output_store: F) where F: FnMut(usize, Output);
 }
 
 /// Header request.
@@ -520,7 +677,7 @@ pub mod header {
 	use rlp::{Encodable, Decodable, DecoderError, RlpStream, UntrustedRlp};
 
 	/// Potentially incomplete headers request.
-	#[derive(Debug, Clone, PartialEq, Eq)]
+	#[derive(Debug, Clone, PartialEq, Eq, RlpEncodable, RlpDecodable)]
 	pub struct Incomplete {
 		/// Start block.
 		pub start: Field<HashOrNumber>,
@@ -532,29 +689,9 @@ pub mod header {
 		pub reverse: bool,
 	}
 
-	impl Decodable for Incomplete {
-		fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
-			Ok(Incomplete {
-				start: rlp.val_at(0)?,
-				skip: rlp.val_at(1)?,
-				max: rlp.val_at(2)?,
-				reverse: rlp.val_at(3)?
-			})
-		}
-	}
-
-	impl Encodable for Incomplete {
-		fn rlp_append(&self, s: &mut RlpStream) {
-			s.begin_list(4)
-				.append(&self.start)
-				.append(&self.skip)
-				.append(&self.max)
-				.append(&self.reverse);
-		}
-	}
-
 	impl super::IncompleteRequest for Incomplete {
 		type Complete = Complete;
+		type Response = Response;
 
 		fn check_outputs<F>(&self, mut f: F) -> Result<(), NoSuchOutput>
 			where F: FnMut(usize, usize, OutputKind) -> Result<(), NoSuchOutput>
@@ -586,6 +723,10 @@ pub mod header {
 				reverse: self.reverse,
 			})
 		}
+
+		fn adjust_refs<F>(&mut self, mapping: F) where F: FnMut(usize) -> usize {
+			self.start.adjust_req(mapping)
+		}
 	}
 
 	/// A complete header request.
@@ -608,9 +749,9 @@ pub mod header {
 		pub headers: Vec<encoded::Header>,
 	}
 
-	impl Response {
+	impl super::ResponseLike for Response {
 		/// Fill reusable outputs by writing them into the function.
-		pub fn fill_outputs<F>(&self, _: F) where F: FnMut(usize, Output) { }
+		fn fill_outputs<F>(&self, _: F) where F: FnMut(usize, Output) { }
 	}
 
 	impl Decodable for Response {
@@ -646,31 +787,20 @@ pub mod header {
 pub mod header_proof {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
 	use rlp::{Encodable, Decodable, DecoderError, RlpStream, UntrustedRlp};
-	use util::{Bytes, U256, H256};
+	use bigint::prelude::U256;
+	use bigint::hash::H256;
+	use bytes::Bytes;
 
 	/// Potentially incomplete header proof request.
-	#[derive(Debug, Clone, PartialEq, Eq)]
+	#[derive(Debug, Clone, PartialEq, Eq, RlpEncodable, RlpDecodable)]
 	pub struct Incomplete {
 		/// Block number.
 		pub num: Field<u64>,
 	}
 
-	impl Decodable for Incomplete {
-		fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
-			Ok(Incomplete {
-				num: rlp.val_at(0)?,
-			})
-		}
-	}
-
-	impl Encodable for Incomplete {
-		fn rlp_append(&self, s: &mut RlpStream) {
-			s.begin_list(1).append(&self.num);
-		}
-	}
-
 	impl super::IncompleteRequest for Incomplete {
 		type Complete = Complete;
+		type Response = Response;
 
 		fn check_outputs<F>(&self, mut f: F) -> Result<(), NoSuchOutput>
 			where F: FnMut(usize, usize, OutputKind) -> Result<(), NoSuchOutput>
@@ -699,6 +829,10 @@ pub mod header_proof {
 				num: self.num.into_scalar()?,
 			})
 		}
+
+		fn adjust_refs<F>(&mut self, mapping: F) where F: FnMut(usize) -> usize {
+			self.num.adjust_req(mapping)
+		}
 	}
 
 	/// A complete header proof request.
@@ -719,9 +853,9 @@ pub mod header_proof {
 		pub td: U256,
 	}
 
-	impl Response {
+	impl super::ResponseLike for Response {
 		/// Fill reusable outputs by providing them to the function.
-		pub fn fill_outputs<F>(&self, mut f: F) where F: FnMut(usize, Output) {
+		fn fill_outputs<F>(&self, mut f: F) where F: FnMut(usize, Output) {
 			f(0, Output::Hash(self.hash));
 		}
 	}
@@ -746,36 +880,99 @@ pub mod header_proof {
 	}
 }
 
+/// Request and response for transaction index.
+pub mod transaction_index {
+	use super::{Field, NoSuchOutput, OutputKind, Output};
+	use bigint::hash::H256;
+
+	/// Potentially incomplete transaction index request.
+	#[derive(Debug, Clone, PartialEq, Eq, RlpEncodable, RlpDecodable)]
+	pub struct Incomplete {
+		/// Transaction hash to get index for.
+		pub hash: Field<H256>,
+	}
+
+	impl super::IncompleteRequest for Incomplete {
+		type Complete = Complete;
+		type Response = Response;
+
+		fn check_outputs<F>(&self, mut f: F) -> Result<(), NoSuchOutput>
+			where F: FnMut(usize, usize, OutputKind) -> Result<(), NoSuchOutput>
+		{
+			match self.hash {
+				Field::Scalar(_) => Ok(()),
+				Field::BackReference(req, idx) => f(req, idx, OutputKind::Hash),
+			}
+		}
+
+		fn note_outputs<F>(&self, mut f: F) where F: FnMut(usize, OutputKind) {
+			f(0, OutputKind::Number);
+			f(1, OutputKind::Hash);
+		}
+
+		fn fill<F>(&mut self, oracle: F) where F: Fn(usize, usize) -> Result<Output, NoSuchOutput> {
+			if let Field::BackReference(req, idx) = self.hash {
+				self.hash = match oracle(req, idx) {
+					Ok(Output::Number(hash)) => Field::Scalar(hash.into()),
+					_ => Field::BackReference(req, idx),
+				}
+			}
+		}
+
+		fn complete(self) -> Result<Self::Complete, NoSuchOutput> {
+			Ok(Complete {
+				hash: self.hash.into_scalar()?,
+			})
+		}
+
+		fn adjust_refs<F>(&mut self, mapping: F) where F: FnMut(usize) -> usize {
+			self.hash.adjust_req(mapping)
+		}
+	}
+
+	/// A complete transaction index request.
+	#[derive(Debug, Clone, PartialEq, Eq)]
+	pub struct Complete {
+		/// The transaction hash to get index for.
+		pub hash: H256,
+	}
+
+	/// The output of a request for transaction index.
+	#[derive(Debug, Clone, PartialEq, Eq, RlpEncodable, RlpDecodable)]
+	pub struct Response {
+		/// Block number.
+		pub num: u64,
+		/// Block hash
+		pub hash: H256,
+		/// Index in block.
+		pub index: u64,
+	}
+
+	impl super::ResponseLike for Response {
+		/// Fill reusable outputs by providing them to the function.
+		fn fill_outputs<F>(&self, mut f: F) where F: FnMut(usize, Output) {
+			f(0, Output::Number(self.num));
+			f(1, Output::Hash(self.hash));
+		}
+	}
+}
+
 /// Request and response for block receipts
 pub mod block_receipts {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
 	use ethcore::receipt::Receipt;
-	use rlp::{Encodable, Decodable, DecoderError, RlpStream, UntrustedRlp};
-	use util::H256;
+	use bigint::hash::H256;
 
 	/// Potentially incomplete block receipts request.
-	#[derive(Debug, Clone, PartialEq, Eq)]
+	#[derive(Debug, Clone, PartialEq, Eq, RlpEncodable, RlpDecodable)]
 	pub struct Incomplete {
 		/// Block hash to get receipts for.
 		pub hash: Field<H256>,
 	}
 
-	impl Decodable for Incomplete {
-		fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
-			Ok(Incomplete {
-				hash: rlp.val_at(0)?,
-			})
-		}
-	}
-
-	impl Encodable for Incomplete {
-		fn rlp_append(&self, s: &mut RlpStream) {
-			s.begin_list(1).append(&self.hash);
-		}
-	}
-
 	impl super::IncompleteRequest for Incomplete {
 		type Complete = Complete;
+		type Response = Response;
 
 		fn check_outputs<F>(&self, mut f: F) -> Result<(), NoSuchOutput>
 			where F: FnMut(usize, usize, OutputKind) -> Result<(), NoSuchOutput>
@@ -802,6 +999,10 @@ pub mod block_receipts {
 				hash: self.hash.into_scalar()?,
 			})
 		}
+
+		fn adjust_refs<F>(&mut self, mapping: F) where F: FnMut(usize) -> usize {
+			self.hash.adjust_req(mapping)
+		}
 	}
 
 	/// A complete block receipts request.
@@ -812,29 +1013,15 @@ pub mod block_receipts {
 	}
 
 	/// The output of a request for block receipts.
-	#[derive(Debug, Clone, PartialEq, Eq)]
+	#[derive(Debug, Clone, PartialEq, Eq, RlpEncodableWrapper, RlpDecodableWrapper)]
 	pub struct Response {
 		/// The block receipts.
 		pub receipts: Vec<Receipt>
 	}
 
-	impl Response {
+	impl super::ResponseLike for Response {
 		/// Fill reusable outputs by providing them to the function.
-		pub fn fill_outputs<F>(&self, _: F) where F: FnMut(usize, Output) {}
-	}
-
-	impl Decodable for Response {
-		fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
-			Ok(Response {
-				receipts: rlp.as_list()?,
-			})
-		}
-	}
-
-	impl Encodable for Response {
-		fn rlp_append(&self, s: &mut RlpStream) {
-			s.append_list(&self.receipts);
-		}
+		fn fill_outputs<F>(&self, _: F) where F: FnMut(usize, Output) {}
 	}
 }
 
@@ -843,31 +1030,18 @@ pub mod block_body {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
 	use ethcore::encoded;
 	use rlp::{Encodable, Decodable, DecoderError, RlpStream, UntrustedRlp};
-	use util::H256;
+	use bigint::hash::H256;
 
 	/// Potentially incomplete block body request.
-	#[derive(Debug, Clone, PartialEq, Eq)]
+	#[derive(Debug, Clone, PartialEq, Eq, RlpEncodable, RlpDecodable)]
 	pub struct Incomplete {
 		/// Block hash to get receipts for.
 		pub hash: Field<H256>,
 	}
 
-	impl Decodable for Incomplete {
-		fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
-			Ok(Incomplete {
-				hash: rlp.val_at(0)?,
-			})
-		}
-	}
-
-	impl Encodable for Incomplete {
-		fn rlp_append(&self, s: &mut RlpStream) {
-			s.begin_list(1).append(&self.hash);
-		}
-	}
-
 	impl super::IncompleteRequest for Incomplete {
 		type Complete = Complete;
+		type Response = Response;
 
 		fn check_outputs<F>(&self, mut f: F) -> Result<(), NoSuchOutput>
 			where F: FnMut(usize, usize, OutputKind) -> Result<(), NoSuchOutput>
@@ -894,6 +1068,10 @@ pub mod block_body {
 				hash: self.hash.into_scalar()?,
 			})
 		}
+
+		fn adjust_refs<F>(&mut self, mapping: F) where F: FnMut(usize) -> usize {
+			self.hash.adjust_req(mapping)
+		}
 	}
 
 	/// A complete block body request.
@@ -910,9 +1088,9 @@ pub mod block_body {
 		pub body: encoded::Body,
 	}
 
-	impl Response {
+	impl super::ResponseLike for Response {
 		/// Fill reusable outputs by providing them to the function.
-		pub fn fill_outputs<F>(&self, _: F) where F: FnMut(usize, Output) {}
+		fn fill_outputs<F>(&self, _: F) where F: FnMut(usize, Output) {}
 	}
 
 	impl Decodable for Response {
@@ -940,11 +1118,12 @@ pub mod block_body {
 /// A request for an account proof.
 pub mod account {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
-	use rlp::{Encodable, Decodable, DecoderError, RlpStream, UntrustedRlp};
-	use util::{Bytes, U256, H256};
+	use bigint::prelude::U256;
+	use bigint::hash::H256;
+	use bytes::Bytes;
 
 	/// Potentially incomplete request for an account proof.
-	#[derive(Debug, Clone, PartialEq, Eq)]
+	#[derive(Debug, Clone, PartialEq, Eq, RlpEncodable, RlpDecodable)]
 	pub struct Incomplete {
 		/// Block hash to request state proof for.
 		pub block_hash: Field<H256>,
@@ -952,25 +1131,9 @@ pub mod account {
 		pub address_hash: Field<H256>,
 	}
 
-	impl Decodable for Incomplete {
-		fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
-			Ok(Incomplete {
-				block_hash: rlp.val_at(0)?,
-				address_hash: rlp.val_at(1)?,
-			})
-		}
-	}
-
-	impl Encodable for Incomplete {
-		fn rlp_append(&self, s: &mut RlpStream) {
-			s.begin_list(2)
-				.append(&self.block_hash)
-				.append(&self.address_hash);
-		}
-	}
-
 	impl super::IncompleteRequest for Incomplete {
 		type Complete = Complete;
+		type Response = Response;
 
 		fn check_outputs<F>(&self, mut f: F) -> Result<(), NoSuchOutput>
 			where F: FnMut(usize, usize, OutputKind) -> Result<(), NoSuchOutput>
@@ -1013,6 +1176,11 @@ pub mod account {
 				address_hash: self.address_hash.into_scalar()?,
 			})
 		}
+
+		fn adjust_refs<F>(&mut self, mut mapping: F) where F: FnMut(usize) -> usize {
+			self.block_hash.adjust_req(&mut mapping);
+			self.address_hash.adjust_req(&mut mapping);
+		}
 	}
 
 	/// A complete request for an account.
@@ -1025,7 +1193,7 @@ pub mod account {
 	}
 
 	/// The output of a request for an account state proof.
-	#[derive(Debug, Clone, PartialEq, Eq)]
+	#[derive(Debug, Clone, PartialEq, Eq, RlpEncodable, RlpDecodable)]
 	pub struct Response {
 		/// Inclusion/exclusion proof
 		pub proof: Vec<Bytes>,
@@ -1039,34 +1207,11 @@ pub mod account {
 		pub storage_root: H256,
 	}
 
-	impl Response {
+	impl super::ResponseLike for Response {
 		/// Fill reusable outputs by providing them to the function.
-		pub fn fill_outputs<F>(&self, mut f: F) where F: FnMut(usize, Output) {
+		fn fill_outputs<F>(&self, mut f: F) where F: FnMut(usize, Output) {
 			f(0, Output::Hash(self.code_hash));
 			f(1, Output::Hash(self.storage_root));
-		}
-	}
-
-	impl Decodable for Response {
-		fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
-			Ok(Response {
-				proof: rlp.list_at(0)?,
-				nonce: rlp.val_at(1)?,
-				balance: rlp.val_at(2)?,
-				code_hash: rlp.val_at(3)?,
-				storage_root: rlp.val_at(4)?
-			})
-		}
-	}
-
-	impl Encodable for Response {
-		fn rlp_append(&self, s: &mut RlpStream) {
-			s.begin_list(5)
-				.append_list::<Vec<u8>,_>(&self.proof[..])
-				.append(&self.nonce)
-				.append(&self.balance)
-				.append(&self.code_hash)
-				.append(&self.storage_root);
 		}
 	}
 }
@@ -1074,11 +1219,11 @@ pub mod account {
 /// A request for a storage proof.
 pub mod storage {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
-	use rlp::{Encodable, Decodable, DecoderError, RlpStream, UntrustedRlp};
-	use util::{Bytes, H256};
+	use bigint::hash::H256;
+	use bytes::Bytes;
 
 	/// Potentially incomplete request for an storage proof.
-	#[derive(Debug, Clone, PartialEq, Eq)]
+	#[derive(Debug, Clone, PartialEq, Eq, RlpEncodable, RlpDecodable)]
 	pub struct Incomplete {
 		/// Block hash to request state proof for.
 		pub block_hash: Field<H256>,
@@ -1088,27 +1233,9 @@ pub mod storage {
 		pub key_hash: Field<H256>,
 	}
 
-	impl Decodable for Incomplete {
-		fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
-			Ok(Incomplete {
-				block_hash: rlp.val_at(0)?,
-				address_hash: rlp.val_at(1)?,
-				key_hash: rlp.val_at(2)?,
-			})
-		}
-	}
-
-	impl Encodable for Incomplete {
-		fn rlp_append(&self, s: &mut RlpStream) {
-			s.begin_list(3)
-				.append(&self.block_hash)
-				.append(&self.address_hash)
-				.append(&self.key_hash);
-		}
-	}
-
 	impl super::IncompleteRequest for Incomplete {
 		type Complete = Complete;
+		type Response = Response;
 
 		fn check_outputs<F>(&self, mut f: F) -> Result<(), NoSuchOutput>
 			where F: FnMut(usize, usize, OutputKind) -> Result<(), NoSuchOutput>
@@ -1162,6 +1289,12 @@ pub mod storage {
 				key_hash: self.key_hash.into_scalar()?,
 			})
 		}
+
+		fn adjust_refs<F>(&mut self, mut mapping: F) where F: FnMut(usize) -> usize {
+			self.block_hash.adjust_req(&mut mapping);
+			self.address_hash.adjust_req(&mut mapping);
+			self.key_hash.adjust_req(&mut mapping);
+		}
 	}
 
 	/// A complete request for a storage proof.
@@ -1176,7 +1309,7 @@ pub mod storage {
 	}
 
 	/// The output of a request for an account state proof.
-	#[derive(Debug, Clone, PartialEq, Eq)]
+	#[derive(Debug, Clone, PartialEq, Eq, RlpEncodable, RlpDecodable)]
 	pub struct Response {
 		/// Inclusion/exclusion proof
 		pub proof: Vec<Bytes>,
@@ -1184,27 +1317,10 @@ pub mod storage {
 		pub value: H256,
 	}
 
-	impl Response {
+	impl super::ResponseLike for Response {
 		/// Fill reusable outputs by providing them to the function.
-		pub fn fill_outputs<F>(&self, mut f: F) where F: FnMut(usize, Output) {
+		fn fill_outputs<F>(&self, mut f: F) where F: FnMut(usize, Output) {
 			f(0, Output::Hash(self.value));
-		}
-	}
-
-	impl Decodable for Response {
-		fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
-			Ok(Response {
-				proof: rlp.list_at(0)?,
-				value: rlp.val_at(1)?,
-			})
-		}
-	}
-
-	impl Encodable for Response {
-		fn rlp_append(&self, s: &mut RlpStream) {
-			s.begin_list(2)
-				.append_list::<Vec<u8>,_>(&self.proof[..])
-				.append(&self.value);
 		}
 	}
 }
@@ -1212,11 +1328,11 @@ pub mod storage {
 /// A request for contract code.
 pub mod contract_code {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
-	use rlp::{Encodable, Decodable, DecoderError, RlpStream, UntrustedRlp};
-	use util::{Bytes, H256};
+	use bigint::hash::H256;
+	use bytes::Bytes;
 
 	/// Potentially incomplete contract code request.
-	#[derive(Debug, Clone, PartialEq, Eq)]
+	#[derive(Debug, Clone, PartialEq, Eq, RlpEncodable, RlpDecodable)]
 	pub struct Incomplete {
 		/// The block hash to request the state for.
 		pub block_hash: Field<H256>,
@@ -1224,25 +1340,9 @@ pub mod contract_code {
 		pub code_hash: Field<H256>,
 	}
 
-	impl Decodable for Incomplete {
-		fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
-			Ok(Incomplete {
-				block_hash: rlp.val_at(0)?,
-				code_hash: rlp.val_at(1)?,
-			})
-		}
-	}
-
-	impl Encodable for Incomplete {
-		fn rlp_append(&self, s: &mut RlpStream) {
-			s.begin_list(2)
-				.append(&self.block_hash)
-				.append(&self.code_hash);
-		}
-	}
-
 	impl super::IncompleteRequest for Incomplete {
 		type Complete = Complete;
+		type Response = Response;
 
 		fn check_outputs<F>(&self, mut f: F) -> Result<(), NoSuchOutput>
 			where F: FnMut(usize, usize, OutputKind) -> Result<(), NoSuchOutput>
@@ -1281,6 +1381,11 @@ pub mod contract_code {
 				code_hash: self.code_hash.into_scalar()?,
 			})
 		}
+
+		fn adjust_refs<F>(&mut self, mut mapping: F) where F: FnMut(usize) -> usize {
+			self.block_hash.adjust_req(&mut mapping);
+			self.code_hash.adjust_req(&mut mapping);
+		}
 	}
 
 	/// A complete request.
@@ -1293,30 +1398,15 @@ pub mod contract_code {
 	}
 
 	/// The output of a request for
-	#[derive(Debug, Clone, PartialEq, Eq)]
+	#[derive(Debug, Clone, PartialEq, Eq, RlpEncodableWrapper, RlpDecodableWrapper)]
 	pub struct Response {
 		/// The requested code.
 		pub code: Bytes,
 	}
 
-	impl Response {
+	impl super::ResponseLike for Response {
 		/// Fill reusable outputs by providing them to the function.
-		pub fn fill_outputs<F>(&self, _: F) where F: FnMut(usize, Output) {}
-	}
-
-	impl Decodable for Response {
-		fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
-
-			Ok(Response {
-				code: rlp.as_val()?,
-			})
-		}
-	}
-
-	impl Encodable for Response {
-		fn rlp_append(&self, s: &mut RlpStream) {
-			s.append(&self.code);
-		}
+		fn fill_outputs<F>(&self, _: F) where F: FnMut(usize, Output) {}
 	}
 }
 
@@ -1325,10 +1415,13 @@ pub mod execution {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
 	use ethcore::transaction::Action;
 	use rlp::{Encodable, Decodable, DecoderError, RlpStream, UntrustedRlp};
-	use util::{Bytes, Address, U256, H256, DBValue};
+	use bigint::prelude::U256;
+	use bigint::hash::H256;
+	use util::{Address, DBValue};
+	use bytes::Bytes;
 
 	/// Potentially incomplete execution proof request.
-	#[derive(Debug, Clone, PartialEq, Eq)]
+	#[derive(Debug, Clone, PartialEq, Eq, RlpEncodable, RlpDecodable)]
 	pub struct Incomplete {
 		/// The block hash to request the state for.
 		pub block_hash: Field<H256>,
@@ -1346,40 +1439,9 @@ pub mod execution {
 		pub data: Bytes,
 	}
 
-	impl Decodable for Incomplete {
-		fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
-			Ok(Incomplete {
-				block_hash: rlp.val_at(0)?,
-				from: rlp.val_at(1)?,
-				action: rlp.val_at(2)?,
-				gas: rlp.val_at(3)?,
-				gas_price: rlp.val_at(4)?,
-				value: rlp.val_at(5)?,
-				data: rlp.val_at(6)?,
-			})
-		}
-	}
-
-	impl Encodable for Incomplete {
-		fn rlp_append(&self, s: &mut RlpStream) {
-			s.begin_list(7)
-				.append(&self.block_hash)
-				.append(&self.from);
-
-			match self.action {
-				Action::Create => s.append_empty_data(),
-				Action::Call(ref addr) => s.append(addr),
-			};
-
-			s.append(&self.gas)
-				.append(&self.gas_price)
-				.append(&self.value)
-				.append(&self.data);
-		}
-	}
-
 	impl super::IncompleteRequest for Incomplete {
 		type Complete = Complete;
+		type Response = Response;
 
 		fn check_outputs<F>(&self, mut f: F) -> Result<(), NoSuchOutput>
 			where F: FnMut(usize, usize, OutputKind) -> Result<(), NoSuchOutput>
@@ -1412,6 +1474,10 @@ pub mod execution {
 				data: self.data,
 			})
 		}
+
+		fn adjust_refs<F>(&mut self, mapping: F) where F: FnMut(usize) -> usize {
+			self.block_hash.adjust_req(mapping);
+		}
 	}
 
 	/// A complete request.
@@ -1440,9 +1506,9 @@ pub mod execution {
 		pub items: Vec<DBValue>,
 	}
 
-	impl Response {
+	impl super::ResponseLike for Response {
 		/// Fill reusable outputs by providing them to the function.
-		pub fn fill_outputs<F>(&self, _: F) where F: FnMut(usize, Output) {}
+		fn fill_outputs<F>(&self, _: F) where F: FnMut(usize, Output) {}
 	}
 
 	impl Decodable for Response {
@@ -1467,6 +1533,105 @@ pub mod execution {
 			for item in &self.items {
 				s.append(&&**item);
 			}
+		}
+	}
+}
+
+/// A request for epoch signal data.
+pub mod epoch_signal {
+	use super::{Field, NoSuchOutput, OutputKind, Output};
+	use rlp::{Encodable, Decodable, DecoderError, RlpStream, UntrustedRlp};
+	use bigint::hash::H256;
+	use bytes::Bytes;
+
+	/// Potentially incomplete epoch signal request.
+	#[derive(Debug, Clone, PartialEq, Eq)]
+	pub struct Incomplete {
+		/// The block hash to request the signal for.
+		pub block_hash: Field<H256>,
+	}
+
+	impl Decodable for Incomplete {
+		fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+			Ok(Incomplete {
+				block_hash: rlp.val_at(0)?,
+			})
+		}
+	}
+
+	impl Encodable for Incomplete {
+		fn rlp_append(&self, s: &mut RlpStream) {
+			s.begin_list(1).append(&self.block_hash);
+		}
+	}
+
+	impl super::IncompleteRequest for Incomplete {
+		type Complete = Complete;
+		type Response = Response;
+
+		fn check_outputs<F>(&self, mut f: F) -> Result<(), NoSuchOutput>
+			where F: FnMut(usize, usize, OutputKind) -> Result<(), NoSuchOutput>
+		{
+			if let Field::BackReference(req, idx) = self.block_hash {
+				f(req, idx, OutputKind::Hash)?;
+			}
+
+			Ok(())
+		}
+
+		fn note_outputs<F>(&self, _: F) where F: FnMut(usize, OutputKind) {}
+
+		fn fill<F>(&mut self, oracle: F) where F: Fn(usize, usize) -> Result<Output, NoSuchOutput> {
+			if let Field::BackReference(req, idx) = self.block_hash {
+				self.block_hash = match oracle(req, idx) {
+					Ok(Output::Hash(block_hash)) => Field::Scalar(block_hash.into()),
+					_ => Field::BackReference(req, idx),
+				}
+			}
+		}
+
+		fn complete(self) -> Result<Self::Complete, NoSuchOutput> {
+			Ok(Complete {
+				block_hash: self.block_hash.into_scalar()?,
+			})
+		}
+
+		fn adjust_refs<F>(&mut self, mut mapping: F) where F: FnMut(usize) -> usize {
+			self.block_hash.adjust_req(&mut mapping);
+		}
+	}
+
+	/// A complete request.
+	#[derive(Debug, Clone, PartialEq, Eq)]
+	pub struct Complete {
+		/// The block hash to request the epoch signal for.
+		pub block_hash: H256,
+	}
+
+	/// The output of a request for an epoch signal.
+	#[derive(Debug, Clone, PartialEq, Eq)]
+	pub struct Response {
+		/// The requested epoch signal.
+		pub signal: Bytes,
+	}
+
+	impl super::ResponseLike for Response {
+		/// Fill reusable outputs by providing them to the function.
+		fn fill_outputs<F>(&self, _: F) where F: FnMut(usize, Output) {}
+	}
+
+	impl Decodable for Response {
+		fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+
+			Ok(Response {
+				signal: rlp.as_val()?,
+			})
+		}
+	}
+
+	impl Encodable for Response {
+		fn rlp_append(&self, s: &mut RlpStream) {
+			s.append(&self.signal);
 		}
 	}
 }
@@ -1521,7 +1686,7 @@ mod tests {
 		let full_req = Request::Headers(req.clone());
 		let res = HeadersResponse {
 			headers: vec![
-				::ethcore::encoded::Header::new(::rlp::encode(&Header::default()).to_vec())
+				::ethcore::encoded::Header::new(::rlp::encode(&Header::default()).into_vec())
 			]
 		};
 		let full_res = Response::Headers(res.clone());
@@ -1545,6 +1710,26 @@ mod tests {
 			td: 100.into(),
 		};
 		let full_res = Response::HeaderProof(res.clone());
+
+		check_roundtrip(req);
+		check_roundtrip(full_req);
+		check_roundtrip(res);
+		check_roundtrip(full_res);
+	}
+
+	#[test]
+	fn transaction_index_roundtrip() {
+		let req = IncompleteTransactionIndexRequest {
+			hash: Field::Scalar(Default::default()),
+		};
+
+		let full_req = Request::TransactionIndex(req.clone());
+		let res = TransactionIndexResponse {
+			num: 1000,
+			hash: ::bigint::hash::H256::random(),
+			index: 4,
+		};
+		let full_res = Response::TransactionIndex(res.clone());
 
 		check_roundtrip(req);
 		check_roundtrip(full_req);
@@ -1738,5 +1923,23 @@ mod tests {
 
 		let raw = ::rlp::encode_list(&reqs);
 		assert_eq!(::rlp::decode_list::<Response>(&raw), reqs);
+	}
+
+	#[test]
+	fn epoch_signal_roundtrip() {
+		let req = IncompleteSignalRequest {
+			block_hash: Field::Scalar(Default::default()),
+		};
+
+		let full_req = Request::Signal(req.clone());
+		let res = SignalResponse {
+			signal: vec![1, 2, 3, 4, 5, 6, 7, 6, 5, 4],
+		};
+		let full_res = Response::Signal(res.clone());
+
+		check_roundtrip(req);
+		check_roundtrip(full_req);
+		check_roundtrip(res);
+		check_roundtrip(full_res);
 	}
 }

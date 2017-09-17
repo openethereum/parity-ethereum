@@ -33,12 +33,22 @@ pub enum Origin {
 	/// IPC server (includes session hash)
 	#[serde(rename="ipc")]
 	Ipc(H256),
-	/// WS server (includes session hash)
+	/// WS server
 	#[serde(rename="ws")]
-	Ws(H256),
-	/// Signer (includes session hash)
+	Ws {
+		/// Dapp id
+		dapp: DappId,
+		/// Session id
+		session: H256,
+	},
+	/// Signer (authorized WS server)
 	#[serde(rename="signer")]
-	Signer(H256),
+	Signer {
+		/// Dapp id
+		dapp: DappId,
+		/// Session id
+		session: H256
+	},
 	/// Unknown
 	#[serde(rename="unknown")]
 	Unknown,
@@ -53,11 +63,11 @@ impl Default for Origin {
 impl fmt::Display for Origin {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match *self {
-			Origin::Rpc(ref origin) => write!(f, "RPC (service: {})", origin),
+			Origin::Rpc(ref origin) => write!(f, "{} via RPC", origin),
 			Origin::Dapps(ref origin) => write!(f, "Dapp {}", origin),
 			Origin::Ipc(ref session) => write!(f, "IPC (session: {})", session),
-			Origin::Ws(ref session) => write!(f, "WebSocket (session: {})", session),
-			Origin::Signer(ref session) => write!(f, "UI (session: {})", session),
+			Origin::Ws { ref session, ref dapp } => write!(f, "{} via WebSocket (session: {})", dapp, session),
+			Origin::Signer { ref session, ref dapp } => write!(f, "{} via UI (session: {})", dapp, session),
 			Origin::Unknown => write!(f, "unknown origin"),
 		}
 	}
@@ -114,9 +124,15 @@ mod tests {
 		let o1 = Origin::Rpc("test service".into());
 		let o2 = Origin::Dapps("http://parity.io".into());
 		let o3 = Origin::Ipc(5.into());
-		let o4 = Origin::Signer(10.into());
+		let o4 = Origin::Signer {
+			dapp: "http://parity.io".into(),
+			session: 10.into(),
+		};
 		let o5 = Origin::Unknown;
-		let o6 = Origin::Ws(5.into());
+		let o6 = Origin::Ws {
+			dapp: "http://parity.io".into(),
+			session: 5.into(),
+		};
 
 		// when
 		let res1 = serde_json::to_string(&o1).unwrap();
@@ -130,9 +146,9 @@ mod tests {
 		assert_eq!(res1, r#"{"rpc":"test service"}"#);
 		assert_eq!(res2, r#"{"dapp":"http://parity.io"}"#);
 		assert_eq!(res3, r#"{"ipc":"0x0000000000000000000000000000000000000000000000000000000000000005"}"#);
-		assert_eq!(res4, r#"{"signer":"0x000000000000000000000000000000000000000000000000000000000000000a"}"#);
+		assert_eq!(res4, r#"{"signer":{"dapp":"http://parity.io","session":"0x000000000000000000000000000000000000000000000000000000000000000a"}}"#);
 		assert_eq!(res5, r#""unknown""#);
-		assert_eq!(res6, r#"{"ws":"0x0000000000000000000000000000000000000000000000000000000000000005"}"#);
+		assert_eq!(res6, r#"{"ws":{"dapp":"http://parity.io","session":"0x0000000000000000000000000000000000000000000000000000000000000005"}}"#);
 	}
 
 	#[test]

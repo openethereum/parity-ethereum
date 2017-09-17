@@ -16,7 +16,9 @@
 
 //! Binary representation of types
 
-use util::{U256, U512, H256, H512, H2048, Address};
+use bigint::prelude::{U256, U512};
+use bigint::hash::{H256, H512, H2048};
+use util::{Address};
 use std::mem;
 use std::collections::{VecDeque, BTreeMap};
 use std::ops::Range;

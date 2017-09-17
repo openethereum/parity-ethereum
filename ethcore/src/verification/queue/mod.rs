@@ -19,8 +19,13 @@
 
 use std::thread::{self, JoinHandle};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering as AtomicOrdering};
-use std::sync::{Condvar as SCondvar, Mutex as SMutex};
-use util::*;
+use std::sync::{Condvar as SCondvar, Mutex as SMutex, Arc};
+use std::cmp;
+use std::collections::{VecDeque, HashSet, HashMap};
+use heapsize::HeapSizeOf;
+use bigint::prelude::U256;
+use bigint::hash::H256;
+use parking_lot::{Condvar, Mutex, RwLock};
 use io::*;
 use error::*;
 use engines::Engine;
@@ -115,6 +120,17 @@ pub enum Status {
 	Unknown,
 }
 
+impl Into<::block_status::BlockStatus> for Status {
+	fn into(self) -> ::block_status::BlockStatus {
+		use ::block_status::BlockStatus;
+		match self {
+			Status::Queued => BlockStatus::Queued,
+			Status::Bad => BlockStatus::Bad,
+			Status::Unknown => BlockStatus::Unknown,
+		}
+	}
+}
+
 // the internal queue sizes.
 struct Sizes {
 	unverified: AtomicUsize,
@@ -125,7 +141,6 @@ struct Sizes {
 /// A queue of items to be verified. Sits between network or other I/O and the `BlockChain`.
 /// Keeps them in the same order as inserted, minus invalid items.
 pub struct VerificationQueue<K: Kind> {
-	panic_handler: Arc<PanicHandler>,
 	engine: Arc<Engine>,
 	more_to_verify: Arc<SCondvar>,
 	verification: Arc<Verification<K>>,
@@ -221,12 +236,11 @@ impl<K: Kind> VerificationQueue<K> {
 			message_channel: Mutex::new(message_channel),
 		});
 		let empty = Arc::new(SCondvar::new());
-		let panic_handler = PanicHandler::new_in_arc();
 		let scale_verifiers = config.verifier_settings.scale_verifiers;
 
 		let num_cpus = ::num_cpus::get();
-		let max_verifiers = min(num_cpus, MAX_VERIFIERS);
-		let default_amount = max(1, min(max_verifiers, config.verifier_settings.num_verifiers));
+		let max_verifiers = cmp::min(num_cpus, MAX_VERIFIERS);
+		let default_amount = cmp::max(1, cmp::min(max_verifiers, config.verifier_settings.num_verifiers));
 		let state = Arc::new((Mutex::new(State::Work(default_amount)), Condvar::new()));
 		let mut verifier_handles = Vec::with_capacity(max_verifiers);
 
@@ -236,7 +250,6 @@ impl<K: Kind> VerificationQueue<K> {
 		for i in 0..max_verifiers {
 			debug!(target: "verification", "Adding verification thread #{}", i);
 
-			let panic_handler = panic_handler.clone();
 			let verification = verification.clone();
 			let engine = engine.clone();
 			let wait = more_to_verify.clone();
@@ -247,17 +260,15 @@ impl<K: Kind> VerificationQueue<K> {
 			let handle = thread::Builder::new()
 				.name(format!("Verifier #{}", i))
 				.spawn(move || {
-					panic_handler.catch_panic(move || {
-						VerificationQueue::verify(
-							verification,
-							engine,
-							wait,
-							ready,
-							empty,
-							state,
-							i,
-						)
-					}).unwrap()
+					VerificationQueue::verify(
+						verification,
+						engine,
+						wait,
+						ready,
+						empty,
+						state,
+						i,
+					)
 				})
 				.expect("Failed to create verifier thread.");
 			verifier_handles.push(handle);
@@ -265,7 +276,6 @@ impl<K: Kind> VerificationQueue<K> {
 
 		VerificationQueue {
 			engine: engine,
-			panic_handler: panic_handler,
 			ready_signal: ready_signal,
 			more_to_verify: more_to_verify,
 			verification: verification,
@@ -273,8 +283,8 @@ impl<K: Kind> VerificationQueue<K> {
 			processing: RwLock::new(HashMap::new()),
 			empty: empty,
 			ticks_since_adjustment: AtomicUsize::new(0),
-			max_queue_size: max(config.max_queue_size, MIN_QUEUE_LIMIT),
-			max_mem_use: max(config.max_mem_use, MIN_MEM_LIMIT),
+			max_queue_size: cmp::max(config.max_queue_size, MIN_QUEUE_LIMIT),
+			max_mem_use: cmp::max(config.max_mem_use, MIN_MEM_LIMIT),
 			scale_verifiers: scale_verifiers,
 			verifier_handles: verifier_handles,
 			state: state,
@@ -562,7 +572,7 @@ impl<K: Kind> VerificationQueue<K> {
 	/// Removes up to `max` verified items from the queue
 	pub fn drain(&self, max: usize) -> Vec<K::Verified> {
 		let mut verified = self.verification.verified.lock();
-		let count = min(max, verified.len());
+		let count = cmp::min(max, verified.len());
 		let result = verified.drain(..count).collect::<Vec<_>>();
 
 		let drained_size = result.iter().map(HeapSizeOf::heap_size_of_children).fold(0, |a, c| a + c);
@@ -682,19 +692,13 @@ impl<K: Kind> VerificationQueue<K> {
 	// or below 1.
 	fn scale_verifiers(&self, target: usize) {
 		let current = self.num_verifiers();
-		let target = min(self.verifier_handles.len(), target);
-		let target = max(1, target);
+		let target = cmp::min(self.verifier_handles.len(), target);
+		let target = cmp::max(1, target);
 
 		debug!(target: "verification", "Scaling from {} to {} verifiers", current, target);
 
 		*self.state.0.lock() = State::Work(target);
 		self.state.1.notify_all();
-	}
-}
-
-impl<K: Kind> MayPanic for VerificationQueue<K> {
-	fn on_panic<F>(&self, closure: F) where F: OnPanicListener {
-		self.panic_handler.on_panic(closure);
 	}
 }
 
@@ -726,7 +730,6 @@ impl<K: Kind> Drop for VerificationQueue<K> {
 
 #[cfg(test)]
 mod tests {
-	use util::*;
 	use io::*;
 	use spec::*;
 	use super::{BlockQueue, Config, State};

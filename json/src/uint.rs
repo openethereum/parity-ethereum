@@ -20,7 +20,7 @@ use std::fmt;
 use std::str::FromStr;
 use serde::{Deserialize, Deserializer};
 use serde::de::{Error, Visitor};
-use util::{U256, Uint as U};
+use bigint::prelude::U256;
 
 /// Lenient uint json deserialization for test json files.
 #[derive(Default, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy)]
@@ -50,16 +50,16 @@ impl Into<u8> for Uint {
 	}
 }
 
-impl Deserialize for Uint {
+impl<'a> Deserialize<'a> for Uint {
 	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-		where D: Deserializer {
-		deserializer.deserialize(UintVisitor)
+		where D: Deserializer<'a> {
+		deserializer.deserialize_any(UintVisitor)
 	}
 }
 
 struct UintVisitor;
 
-impl Visitor for UintVisitor {
+impl<'a> Visitor<'a> for UintVisitor {
 	type Value = Uint;
 
 	fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -93,7 +93,7 @@ impl Visitor for UintVisitor {
 #[cfg(test)]
 mod test {
 	use serde_json;
-	use util::U256;
+	use bigint::prelude::U256;
 	use uint::Uint;
 
 	#[test]

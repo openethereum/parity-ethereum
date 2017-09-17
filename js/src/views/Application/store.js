@@ -28,11 +28,18 @@ export default class Store {
     this._migrateStore();
 
     this._api = api;
-    // Show the first run if it hasn't been shown before
-    // (thus an undefined value)
-    this.firstrunVisible = store.get(LS_FIRST_RUN_KEY) === undefined;
 
-    this._checkAccounts();
+    // Show the first run the storage doesn't hold `false` value
+    const firstrunVisible = store.get(LS_FIRST_RUN_KEY) !== false;
+
+    // Only check accounts if we might show the first run
+    if (firstrunVisible) {
+      api.transport.once('open', () => {
+        this._checkAccounts();
+      });
+    } else {
+      this.firstrunVisible = false;
+    }
   }
 
   @action closeFirstrun = () => {
@@ -50,7 +57,7 @@ export default class Store {
   }
 
   /**
-   * Migrate the old LocalStorage ket format
+   * Migrate the old LocalStorage key format
    * to the new one
    */
   _migrateStore () {
@@ -70,12 +77,16 @@ export default class Store {
         this._api.parity.allAccountsInfo()
       ])
       .then(([ vaults, info ]) => {
-        const accounts = Object.keys(info).filter((address) => info[address].uuid);
+        const accounts = Object.keys(info)
+          .filter((address) => info[address].uuid)
+          // In DEV mode, the empty phrase account is already added
+          .filter((address) => address.toLowerCase() !== '0x00a329c0648769a73afac7f9381e08fb43dbea72');
+
         // Has accounts if any vaults or accounts
         const hasAccounts = (accounts && accounts.length > 0) || (vaults && vaults.length > 0);
 
         // Show First Run if no accounts and no vaults
-        this.toggleFirstrun(this.firstrunVisible || !hasAccounts);
+        this.toggleFirstrun(!hasAccounts);
       })
       .catch((error) => {
         console.error('checkAccounts', error);

@@ -23,24 +23,27 @@ use std::sync::Arc;
 use ethsync::ManageNetwork;
 use fetch::Fetch;
 use futures::{BoxFuture, Future};
-use util::sha3;
+use hash::keccak_buffer;
 
 use jsonrpc_core::Error;
+use v1::helpers::dapps::DappsService;
 use v1::helpers::errors;
 use v1::traits::ParitySet;
-use v1::types::{Bytes, H160, H256, U256, ReleaseInfo, Transaction};
+use v1::types::{Bytes, H160, H256, U256, ReleaseInfo, Transaction, LocalDapp};
 
 /// Parity-specific rpc interface for operations altering the settings.
 pub struct ParitySetClient<F> {
 	net: Arc<ManageNetwork>,
+	dapps: Option<Arc<DappsService>>,
 	fetch: F,
 }
 
 impl<F: Fetch> ParitySetClient<F> {
 	/// Creates new `ParitySetClient` with given `Fetch`.
-	pub fn new(net: Arc<ManageNetwork>, fetch: F) -> Self {
+	pub fn new(net: Arc<ManageNetwork>, dapps: Option<Arc<DappsService>>, fetch: F) -> Self {
 		ParitySetClient {
 			net: net,
+			dapps: dapps,
 			fetch: fetch,
 		}
 	}
@@ -124,12 +127,20 @@ impl<F: Fetch> ParitySet for ParitySetClient<F> {
 	fn hash_content(&self, url: String) -> BoxFuture<H256, Error> {
 		self.fetch.process(self.fetch.fetch(&url).then(move |result| {
 			result
-				.map_err(errors::from_fetch_error)
+				.map_err(errors::fetch)
 				.and_then(|response| {
-					sha3(&mut io::BufReader::new(response)).map_err(errors::from_fetch_error)
+					keccak_buffer(&mut io::BufReader::new(response)).map_err(errors::fetch)
 				})
 				.map(Into::into)
 		}))
+	}
+
+	fn dapps_refresh(&self) -> Result<bool, Error> {
+		self.dapps.as_ref().map(|dapps| dapps.refresh_local_dapps()).ok_or_else(errors::dapps_disabled)
+	}
+
+	fn dapps_list(&self) -> Result<Vec<LocalDapp>, Error> {
+		self.dapps.as_ref().map(|dapps| dapps.list_dapps()).ok_or_else(errors::dapps_disabled)
 	}
 
 	fn upgrade_ready(&self) -> Result<Option<ReleaseInfo>, Error> {

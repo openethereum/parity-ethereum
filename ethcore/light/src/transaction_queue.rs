@@ -26,10 +26,11 @@
 use std::collections::{BTreeMap, HashMap};
 use std::collections::hash_map::Entry;
 
-use ethcore::error::TransactionError;
+use ethcore::error::{TransactionError, TransactionImportResult};
 use ethcore::transaction::{Condition, PendingTransaction, SignedTransaction};
-use ethcore::transaction_import::TransactionImportResult;
-use util::{Address, U256, H256, H256FastMap};
+use bigint::prelude::U256;
+use bigint::hash::{H256, H256FastMap};
+use util::Address;
 
 // Knowledge of an account's current nonce.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -131,7 +132,7 @@ impl TransactionQueue {
 
 		if self.by_hash.contains_key(&hash) { return Err(TransactionError::AlreadyImported) }
 
-	    let res = match self.by_account.entry(sender) {
+		let res = match self.by_account.entry(sender) {
 			Entry::Vacant(entry) => {
 				entry.insert(AccountTransactions {
 					cur_nonce: CurrentNonce::Assumed(nonce),

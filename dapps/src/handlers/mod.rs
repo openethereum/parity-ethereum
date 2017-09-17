@@ -16,37 +16,104 @@
 
 //! Hyper handlers implementations.
 
+mod async;
 mod content;
 mod echo;
 mod fetch;
 mod redirect;
 mod streaming;
 
+pub use self::async::AsyncHandler;
 pub use self::content::ContentHandler;
 pub use self::echo::EchoHandler;
 pub use self::fetch::{ContentFetcherHandler, ContentValidator, FetchControl, ValidatorResponse};
 pub use self::redirect::Redirection;
 pub use self::streaming::StreamingHandler;
 
+use std::iter;
+use itertools::Itertools;
 use url::Url;
 use hyper::{server, header, net, uri};
-use address;
+use {apps, address, Embeddable};
 
 /// Adds security-related headers to the Response.
-pub fn add_security_headers(headers: &mut header::Headers, embeddable_on: Option<(String, u16)>) {
+pub fn add_security_headers(headers: &mut header::Headers, embeddable_on: Embeddable) {
 	headers.set_raw("X-XSS-Protection", vec![b"1; mode=block".to_vec()]);
 	headers.set_raw("X-Content-Type-Options", vec![b"nosniff".to_vec()]);
 
 	// Embedding header:
-	if let Some(embeddable_on) = embeddable_on {
-		headers.set_raw(
-			"X-Frame-Options",
-			vec![format!("ALLOW-FROM http://{}", address(&embeddable_on)).into_bytes()]
-			);
-	} else {
-		// TODO [ToDr] Should we be more strict here (DENY?)?
+	if let None = embeddable_on {
 		headers.set_raw("X-Frame-Options",  vec![b"SAMEORIGIN".to_vec()]);
 	}
+
+	// Content Security Policy headers
+	headers.set_raw("Content-Security-Policy", vec![
+		// Allow connecting to WS servers and HTTP(S) servers.
+		// We could be more restrictive and allow only RPC server URL.
+		b"connect-src http: https: ws: wss:;".to_vec(),
+		// Allow framing any content from HTTP(S).
+		// Again we could only allow embedding from RPC server URL.
+		// (deprecated)
+		b"frame-src 'self' http: https:;".to_vec(),
+		// Allow framing and web workers from HTTP(S).
+		b"child-src 'self' http: https:;".to_vec(),
+		// We allow data: blob: and HTTP(s) images.
+		// We could get rid of wildcarding HTTP and only allow RPC server URL.
+		// (http required for local dapps icons)
+		b"img-src 'self' 'unsafe-inline' data: blob: http: https:;".to_vec(),
+		// Allow style from data: blob: and HTTPS.
+		b"style-src 'self' 'unsafe-inline' data: blob: https:;".to_vec(),
+		// Allow fonts from data: and HTTPS.
+		b"font-src 'self' data: https:;".to_vec(),
+		// Allow inline scripts and scripts eval (webpack/jsconsole)
+		{
+			let script_src = embeddable_on.as_ref()
+				.map(|e| e.extra_script_src.iter()
+					 .map(|&(ref host, port)| address(host, port))
+					 .join(" ")
+				).unwrap_or_default();
+			format!(
+				"script-src 'self' 'unsafe-inline' 'unsafe-eval' {};",
+				script_src
+			).into_bytes()
+		},
+		// Same restrictions as script-src with additional
+		// blob: that is required for camera access (worker)
+		b"worker-src 'self' 'unsafe-inline' 'unsafe-eval' https: blob:;".to_vec(),
+		// Restrict everything else to the same origin.
+		b"default-src 'self';".to_vec(),
+		// Run in sandbox mode (although it's not fully safe since we allow same-origin and script)
+		b"sandbox allow-same-origin allow-forms allow-modals allow-popups allow-presentation allow-scripts;".to_vec(),
+		// Disallow subitting forms from any dapps
+		b"form-action 'none';".to_vec(),
+		// Never allow mixed content
+		b"block-all-mixed-content;".to_vec(),
+		// Specify if the site can be embedded.
+		match embeddable_on {
+			Some(ref embed) => {
+				let std = address(&embed.host, embed.port);
+				let proxy = format!("{}.{}", apps::HOME_PAGE, embed.dapps_domain);
+				let domain = format!("*.{}:{}", embed.dapps_domain, embed.port);
+
+				let mut ancestors = vec![std, domain, proxy]
+					.into_iter()
+					.chain(embed.extra_embed_on
+						.iter()
+						.map(|&(ref host, port)| address(host, port))
+					);
+
+				let ancestors = if embed.host == "127.0.0.1" {
+					let localhost = address("localhost", embed.port);
+					ancestors.chain(iter::once(localhost)).join(" ")
+				} else {
+					ancestors.join(" ")
+				};
+
+				format!("frame-ancestors {};", ancestors)
+			},
+			None => format!("frame-ancestors 'self';"),
+		}.into_bytes(),
+	]);
 }
 
 
@@ -85,4 +152,3 @@ pub fn convert_uri_to_url(uri: &uri::RequestUri, host: Option<&header::Host>) ->
 		_ => None,
 	}
 }
-

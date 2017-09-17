@@ -18,12 +18,12 @@ use std::sync::Arc;
 use std::collections::VecDeque;
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
+use hash::{keccak, write_keccak};
 use mio::{Token, Ready, PollOpt};
 use mio::deprecated::{Handler, EventLoop, TryRead, TryWrite};
 use mio::tcp::*;
-use util::hash::*;
-use util::sha3::*;
-use util::bytes::*;
+use bigint::hash::*;
+use ethcore_bytes::*;
 use rlp::*;
 use std::io::{self, Cursor, Read, Write};
 use error::*;
@@ -35,7 +35,7 @@ use rcrypto::aessafe::*;
 use rcrypto::symmetriccipher::*;
 use rcrypto::buffer::*;
 use tiny_keccak::Keccak;
-use bytes::{Buf, MutBuf};
+use bytes::{Buf, BufMut};
 use crypto;
 
 const ENCRYPTED_HEADER_LEN: usize = 32;
@@ -83,9 +83,9 @@ impl<Socket: GenericSocket> GenericConnection<Socket> {
 		let sock_ref = <Socket as Read>::by_ref(&mut self.socket);
 		loop {
 			let max = self.rec_size - self.rec_buf.len();
-			match sock_ref.take(max as u64).try_read(unsafe { self.rec_buf.mut_bytes() }) {
+			match sock_ref.take(max as u64).try_read(unsafe { self.rec_buf.bytes_mut() }) {
 				Ok(Some(size)) if size != 0  => {
-					unsafe { self.rec_buf.advance(size); }
+					unsafe { self.rec_buf.advance_mut(size); }
 					self.stats.inc_recv(size);
 					trace!(target:"network", "{}: Read {} of {} bytes", self.token, self.rec_buf.len(), self.rec_size);
 					if self.rec_size != 0 && self.rec_buf.len() == self.rec_size {
@@ -136,8 +136,8 @@ impl<Socket: GenericSocket> GenericConnection<Socket> {
 				warn!(target:"net", "Unexpected connection data");
 				return Ok(WriteStatus::Complete)
 			}
-			let buf = buf as &mut Buf;
-			match self.socket.try_write(buf.bytes()) {
+
+			match self.socket.try_write(Buf::bytes(&buf)) {
 				Ok(Some(size)) if (pos + size) < send_size => {
 					buf.advance(size);
 					self.stats.inc_send(size);
@@ -312,16 +312,16 @@ impl EncryptedConnection {
 		}
 		let mut key_material = H512::new();
 		shared.copy_to(&mut key_material[0..32]);
-		nonce_material.sha3_into(&mut key_material[32..64]);
-		key_material.sha3().copy_to(&mut key_material[32..64]);
-		key_material.sha3().copy_to(&mut key_material[32..64]);
+		write_keccak(&nonce_material, &mut key_material[32..64]);
+		keccak(&key_material).copy_to(&mut key_material[32..64]);
+		keccak(&key_material).copy_to(&mut key_material[32..64]);
 
 		let iv = vec![0u8; 16];
 		let encoder = CtrMode::new(AesSafe256Encryptor::new(&key_material[32..64]), iv);
 		let iv = vec![0u8; 16];
 		let decoder = CtrMode::new(AesSafe256Encryptor::new(&key_material[32..64]), iv);
 
-		key_material.sha3().copy_to(&mut key_material[32..64]);
+		keccak(&key_material).copy_to(&mut key_material[32..64]);
 		let mac_encoder = EcbEncryptor::new(AesSafe256Encryptor::new(&key_material[32..64]), NoPadding);
 
 		let mut egress_mac = Keccak::new_keccak256();
@@ -481,7 +481,7 @@ impl EncryptedConnection {
 
 #[test]
 pub fn test_encryption() {
-	use util::hash::*;
+	use bigint::hash::*;
 	use std::str::FromStr;
 	let key = H256::from_str("2212767d793a7a3d66f869ae324dd11bd17044b82c9f463b8a541a4d089efec5").unwrap();
 	let before = H128::from_str("12532abaec065082a3cf1da7d0136f15").unwrap();
@@ -510,7 +510,7 @@ mod tests {
 	use std::io::{Read, Write, Error, Cursor, ErrorKind};
 	use mio::{Ready};
 	use std::collections::VecDeque;
-	use util::bytes::Bytes;
+	use ethcore_bytes::Bytes;
 	use devtools::*;
 	use io::*;
 

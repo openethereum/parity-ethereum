@@ -44,7 +44,7 @@ export default class Extension extends Component {
         <p>
           <FormattedMessage
             id='extension.intro'
-            defaultMessage='Parity now has an extension available for Chrome that allows safe browsing of Ethereum-enabled distributed applications. It is highly recommended that you install this extension to further enhance your Parity experience.'
+            defaultMessage='Parity now has an extension available for Chrome that allows safe browsing of Ethereum-enabled decentralized applications. It is highly recommended that you install this extension to further enhance your Parity experience.'
           />
         </p>
         <p className={ styles.buttonrow }>

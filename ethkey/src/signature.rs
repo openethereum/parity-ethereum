@@ -21,7 +21,7 @@ use std::str::FromStr;
 use std::hash::{Hash, Hasher};
 use secp256k1::{Message as SecpMessage, RecoverableSignature, RecoveryId, Error as SecpError};
 use secp256k1::key::{SecretKey, PublicKey};
-use rustc_serialize::hex::{ToHex, FromHex};
+use rustc_hex::{ToHex, FromHex};
 use bigint::hash::{H520, H256};
 use {Secret, Public, SECP256K1, Error, Message, public_to_address, Address};
 
@@ -54,7 +54,7 @@ impl Signature {
 	/// Parse bytes as a signature encoded as RSV (V in "Electrum" notation).
 	/// May return empty (invalid) signature if given data has invalid length.
 	pub fn from_electrum(data: &[u8]) -> Self {
-		if data.len() != 65 || data[0] < 27 {
+		if data.len() != 65 || data[64] < 27 {
 			// fallback to empty (invalid) signature
 			return Signature::default();
 		}

@@ -16,7 +16,11 @@
 
 //! Creates and registers client and network services.
 
+use std::sync::Arc;
+use std::path::Path;
+use bigint::hash::H256;
 use util::*;
+use bytes::Bytes;
 use io::*;
 use spec::Spec;
 use error::*;
@@ -26,6 +30,7 @@ use miner::Miner;
 use snapshot::ManifestData;
 use snapshot::service::{Service as SnapshotService, ServiceParams as SnapServiceParams};
 use std::sync::atomic::AtomicBool;
+use ansi_term::Colour;
 
 #[cfg(feature="ipc")]
 use nanoipc;
@@ -56,7 +61,6 @@ pub struct ClientService {
 	io_service: Arc<IoService<ClientIoMessage>>,
 	client: Arc<Client>,
 	snapshot: Arc<SnapshotService>,
-	panic_handler: Arc<PanicHandler>,
 	database: Arc<Database>,
 	_stop_guard: ::devtools::StopGuard,
 }
@@ -72,9 +76,7 @@ impl ClientService {
 		miner: Arc<Miner>,
 		) -> Result<ClientService, Error>
 	{
-		let panic_handler = PanicHandler::new_in_arc();
 		let io_service = IoService::<ClientIoMessage>::start()?;
-		panic_handler.forward_from(&io_service);
 
 		info!("Configured for {} using {} engine", Colour::White.bold().paint(spec.name.clone()), Colour::Yellow.bold().paint(spec.engine.name()));
 
@@ -109,14 +111,13 @@ impl ClientService {
 		};
 		let snapshot = Arc::new(SnapshotService::new(snapshot_params)?);
 
-		panic_handler.forward_from(&*client);
 		let client_io = Arc::new(ClientIoHandler {
 			client: client.clone(),
 			snapshot: snapshot.clone(),
 		});
 		io_service.register_handler(client_io)?;
 
-		spec.engine.register_client(Arc::downgrade(&client));
+		spec.engine.register_client(Arc::downgrade(&client) as _);
 
 		let stop_guard = ::devtools::StopGuard::new();
 		run_ipc(ipc_path, client.clone(), snapshot.clone(), stop_guard.share());
@@ -125,7 +126,6 @@ impl ClientService {
 			io_service: Arc::new(io_service),
 			client: client,
 			snapshot: snapshot,
-			panic_handler: panic_handler,
 			database: db,
 			_stop_guard: stop_guard,
 		})
@@ -158,12 +158,6 @@ impl ClientService {
 
 	/// Get a handle to the database.
 	pub fn db(&self) -> Arc<KeyValueDB> { self.database.clone() }
-}
-
-impl MayPanic for ClientService {
-	fn on_panic<F>(&self, closure: F) where F: OnPanicListener {
-		self.panic_handler.on_panic(closure);
-	}
 }
 
 /// IO interface for the Client handler

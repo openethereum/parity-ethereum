@@ -25,12 +25,18 @@ extern crate mime;
 
 extern crate ethabi;
 extern crate ethcore_util as util;
-pub extern crate fetch;
+extern crate ethcore_bigint as bigint;
+extern crate ethcore_bytes as bytes;
 extern crate futures;
 extern crate mime_guess;
-extern crate rand;
-extern crate rustc_serialize;
+extern crate native_contracts;
 extern crate parity_reactor;
+extern crate parking_lot;
+extern crate rand;
+extern crate rustc_hex;
+extern crate hash;
+
+pub extern crate fetch;
 
 mod client;
 

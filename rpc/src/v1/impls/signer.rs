@@ -16,40 +16,64 @@
 
 //! Transactions Confirmations rpc implementation
 
-use std::sync::{Arc, Weak};
+use std::sync::Arc;
 
-use rlp::UntrustedRlp;
 use ethcore::account_provider::AccountProvider;
 use ethcore::transaction::{SignedTransaction, PendingTransaction};
 use ethkey;
 use futures::{future, BoxFuture, Future, IntoFuture};
+use parity_reactor::Remote;
+use rlp::UntrustedRlp;
+use parking_lot::Mutex;
 
-use jsonrpc_core::Error;
+use jsonrpc_core::{futures, Error};
+use jsonrpc_pubsub::SubscriptionId;
+use jsonrpc_macros::pubsub::{Sink, Subscriber};
 use v1::helpers::accounts::unwrap_provider;
 use v1::helpers::dispatch::{self, Dispatcher, WithToken, eth_data_hash};
-use v1::helpers::{errors, SignerService, SigningQueue, ConfirmationPayload, FilledTransactionRequest};
+use v1::helpers::{errors, SignerService, SigningQueue, ConfirmationPayload, FilledTransactionRequest, Subscribers};
+use v1::metadata::Metadata;
 use v1::traits::Signer;
 use v1::types::{TransactionModification, ConfirmationRequest, ConfirmationResponse, ConfirmationResponseWithToken, U256, Bytes};
 
 /// Transactions confirmation (personal) rpc implementation.
 pub struct SignerClient<D: Dispatcher> {
-	signer: Weak<SignerService>,
-	accounts: Option<Weak<AccountProvider>>,
-	dispatcher: D
+	signer: Arc<SignerService>,
+	accounts: Option<Arc<AccountProvider>>,
+	dispatcher: D,
+	subscribers: Arc<Mutex<Subscribers<Sink<Vec<ConfirmationRequest>>>>>,
 }
 
 impl<D: Dispatcher + 'static> SignerClient<D> {
-
 	/// Create new instance of signer client.
 	pub fn new(
 		store: &Option<Arc<AccountProvider>>,
 		dispatcher: D,
 		signer: &Arc<SignerService>,
+		remote: Remote,
 	) -> Self {
+		let subscribers = Arc::new(Mutex::new(Subscribers::default()));
+		let subs = Arc::downgrade(&subscribers);
+		let s = Arc::downgrade(signer);
+		signer.queue().on_event(move |_event| {
+			if let (Some(s), Some(subs)) = (s.upgrade(), subs.upgrade()) {
+				let requests = s.requests().into_iter().map(Into::into).collect::<Vec<ConfirmationRequest>>();
+				for subscription in subs.lock().values() {
+					let subscription: &Sink<_> = subscription;
+					remote.spawn(subscription
+						.notify(Ok(requests.clone()))
+						.map(|_| ())
+						.map_err(|e| warn!(target: "rpc", "Unable to send notification: {}", e))
+					);
+				}
+			}
+		});
+
 		SignerClient {
-			signer: Arc::downgrade(signer),
-			accounts: store.as_ref().map(Arc::downgrade),
+			signer: signer.clone(),
+			accounts: store.clone(),
 			dispatcher: dispatcher,
+			subscribers: subscribers,
 		}
 	}
 
@@ -66,7 +90,7 @@ impl<D: Dispatcher + 'static> SignerClient<D> {
 		let dispatcher = self.dispatcher.clone();
 
 		let setup = || {
-			Ok((self.account_provider()?, take_weak!(self.signer)))
+			Ok((self.account_provider()?, self.signer.clone()))
 		};
 
 		let (accounts, signer) = match setup() {
@@ -109,7 +133,7 @@ impl<D: Dispatcher + 'static> SignerClient<D> {
 	fn verify_transaction<F>(bytes: Bytes, request: FilledTransactionRequest, process: F) -> Result<ConfirmationResponse, Error> where
 		F: FnOnce(PendingTransaction) -> Result<ConfirmationResponse, Error>,
 	{
-		let signed_transaction = UntrustedRlp::new(&bytes.0).as_val().map_err(errors::from_rlp_error)?;
+		let signed_transaction = UntrustedRlp::new(&bytes.0).as_val().map_err(errors::rlp)?;
 		let signed_transaction = SignedTransaction::new(signed_transaction).map_err(|e| errors::invalid_params("Invalid signature.", e))?;
 		let sender = signed_transaction.sender();
 
@@ -139,11 +163,10 @@ impl<D: Dispatcher + 'static> SignerClient<D> {
 }
 
 impl<D: Dispatcher + 'static> Signer for SignerClient<D> {
+	type Metadata = Metadata;
 
 	fn requests_to_confirm(&self) -> Result<Vec<ConfirmationRequest>, Error> {
-		let signer = take_weak!(self.signer);
-
-		Ok(signer.requests()
+		Ok(self.signer.requests()
 			.into_iter()
 			.map(Into::into)
 			.collect()
@@ -176,9 +199,8 @@ impl<D: Dispatcher + 'static> Signer for SignerClient<D> {
 
 	fn confirm_request_raw(&self, id: U256, bytes: Bytes) -> Result<ConfirmationResponse, Error> {
 		let id = id.into();
-		let signer = take_weak!(self.signer);
 
-		signer.peek(&id).map(|confirmation| {
+		self.signer.peek(&id).map(|confirmation| {
 			let result = match confirmation.payload {
 				ConfirmationPayload::SendTransaction(request) => {
 					Self::verify_transaction(bytes, request, |pending_transaction| {
@@ -201,34 +223,38 @@ impl<D: Dispatcher + 'static> Signer for SignerClient<D> {
 						Err(err) => Err(errors::invalid_params("Invalid signature received.", err)),
 					}
 				},
-				// TODO [ToDr]: Decrypt - pass through?
-				_ => Err(errors::unimplemented(Some("Non-transaction requests does not support RAW signing yet.".into()))),
+				ConfirmationPayload::Decrypt(_address, _data) => {
+					// TODO [ToDr]: Decrypt can we verify if the answer is correct?
+					Ok(ConfirmationResponse::Decrypt(bytes))
+				},
 			};
 			if let Ok(ref response) = result {
-				signer.request_confirmed(id, Ok(response.clone()));
+				self.signer.request_confirmed(id, Ok(response.clone()));
 			}
 			result
 		}).unwrap_or_else(|| Err(errors::invalid_params("Unknown RequestID", id)))
 	}
 
 	fn reject_request(&self, id: U256) -> Result<bool, Error> {
-		let signer = take_weak!(self.signer);
-
-		let res = signer.request_rejected(id.into());
+		let res = self.signer.request_rejected(id.into());
 		Ok(res.is_some())
 	}
 
 	fn generate_token(&self) -> Result<String, Error> {
-		let signer = take_weak!(self.signer);
-
-		signer.generate_token()
+		self.signer.generate_token()
 			.map_err(|e| errors::token(e))
 	}
 
-	fn generate_web_proxy_token(&self) -> Result<String, Error> {
-		let signer = take_weak!(self.signer);
+	fn generate_web_proxy_token(&self, domain: String) -> Result<String, Error> {
+		Ok(self.signer.generate_web_proxy_access_token(domain.into()))
+	}
 
-		Ok(signer.generate_web_proxy_access_token())
+	fn subscribe_pending(&self, _meta: Self::Metadata, sub: Subscriber<Vec<ConfirmationRequest>>) {
+		self.subscribers.lock().push(sub)
+	}
+
+	fn unsubscribe_pending(&self, id: SubscriptionId) -> BoxFuture<bool, Error> {
+		let res = self.subscribers.lock().remove(&id).is_some();
+		futures::future::ok(res).boxed()
 	}
 }
-

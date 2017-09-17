@@ -9,11 +9,12 @@ use std::thread;
 use std::time;
 
 use std::path::PathBuf;
-use util::{Hashable, Mutex};
+use hash::keccak;
+use parking_lot::Mutex;
 use url::Url;
 use std::fs::File;
 
-use ws::{
+use ws::ws::{
 	self,
 	Request,
 	Handler,
@@ -25,7 +26,7 @@ use ws::{
 	Result as WsResult,
 };
 
-use serde::Deserialize;
+use serde::de::DeserializeOwned;
 use serde_json::{
 	self as json,
 	Value as JsonValue,
@@ -72,7 +73,7 @@ impl Handler for RpcHandler {
 					WsError::new(WsErrorKind::Internal, format!("{}", err))
 				})?;
 				let secs = timestamp.as_secs();
-				let hashed = format!("{}:{}", self.auth_code, secs).sha3();
+				let hashed = keccak(format!("{}:{}", self.auth_code, secs));
 				let proto = format!("{:?}_{}", hashed, secs);
 				r.add_protocol(&proto);
 				Ok(r)
@@ -204,6 +205,7 @@ impl Rpc {
 		let rpc = Self::connect(url, authpath).map(|rpc| rpc).wait()?;
 		rpc
 	}
+
 	/// Non-blocking, returns a future
 	pub fn connect(
 		url: &str, authpath: &PathBuf
@@ -241,11 +243,12 @@ impl Rpc {
 			}
 		}
 	}
+
 	/// Non-blocking, returns a future of the request response
 	pub fn request<T>(
 		&mut self, method: &'static str, params: Vec<JsonValue>
 	) -> BoxFuture<Result<T, RpcError>, Canceled>
-		where T: Deserialize + Send + Sized {
+		where T: DeserializeOwned + Send + Sized {
 
 		let (c, p) = oneshot::<Result<JsonValue, RpcError>>();
 

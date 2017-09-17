@@ -31,9 +31,7 @@ use handlers::{
 	StreamingHandler, extract_url,
 };
 use url::Url;
-use WebProxyTokens;
-
-pub type Embeddable = Option<(String, u16)>;
+use {Embeddable, WebProxyTokens};
 
 pub struct Web<F> {
 	embeddable_on: Embeddable,
@@ -43,12 +41,17 @@ pub struct Web<F> {
 }
 
 impl<F: Fetch> Web<F> {
-	pub fn boxed(embeddable_on: Embeddable, web_proxy_tokens: Arc<WebProxyTokens>, remote: Remote, fetch: F) -> Box<Endpoint> {
+	pub fn boxed(
+		embeddable_on: Embeddable,
+		web_proxy_tokens: Arc<WebProxyTokens>,
+		remote: Remote,
+		fetch: F,
+	) -> Box<Endpoint> {
 		Box::new(Web {
-			embeddable_on: embeddable_on,
-			web_proxy_tokens: web_proxy_tokens,
-			remote: remote,
-			fetch: fetch,
+			embeddable_on,
+			web_proxy_tokens,
+			remote,
+			fetch,
 		})
 	}
 }
@@ -133,14 +136,14 @@ impl<F: Fetch> WebHandler<F> {
 		let target_url = token_it.next();
 
 		// Check if token supplied in URL is correct.
-		match token {
-			Some(token) if self.web_proxy_tokens.is_web_proxy_token_valid(token) => {},
+		let domain = match token.and_then(|token| self.web_proxy_tokens.domain(token)) {
+			Some(domain) => domain,
 			_ => {
 				return Err(State::Error(ContentHandler::error(
 					StatusCode::BadRequest, "Invalid Access Token", "Invalid or old web proxy access token supplied.", Some("Try refreshing the page."), self.embeddable_on.clone()
 				)));
 			}
-		}
+		};
 
 		// Validate protocol
 		let mut target_url = match target_url {
@@ -151,6 +154,12 @@ impl<F: Fetch> WebHandler<F> {
 				)));
 			}
 		};
+
+		if !target_url.starts_with(&*domain) {
+			return Err(State::Error(ContentHandler::error(
+				StatusCode::BadRequest, "Invalid Domain", "Dapp attempted to access invalid domain.", Some(&target_url), self.embeddable_on.clone(),
+			)));
+		}
 
 		if !target_url.ends_with("/") {
 			target_url = format!("{}/", target_url);
@@ -232,5 +241,3 @@ impl<F: Fetch> server::Handler<net::HttpStream> for WebHandler<F> {
 		}
 	}
 }
-
-

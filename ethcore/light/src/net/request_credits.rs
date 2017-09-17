@@ -30,7 +30,7 @@ use request::{self, Request};
 use super::error::Error;
 
 use rlp::*;
-use util::U256;
+use bigint::prelude::U256;
 use time::{Duration, SteadyTime};
 
 /// Credits value.
@@ -56,6 +56,11 @@ impl Credits {
 		self.recharge_point = SteadyTime::now();
 	}
 
+	/// Maintain ratio to current limit against an old limit.
+	pub fn maintain_ratio(&mut self, old_limit: U256, new_limit: U256) {
+		self.estimate = (new_limit * self.estimate) / old_limit;
+	}
+
 	/// Attempt to apply the given cost to the amount of credits.
 	///
 	/// If successful, the cost will be deducted successfully.
@@ -78,6 +83,7 @@ impl Credits {
 pub struct CostTable {
 	base: U256, // cost per packet.
 	headers: U256, // cost per header
+	transaction_index: U256,
 	body: U256,
 	receipts: U256,
 	account: U256,
@@ -85,6 +91,7 @@ pub struct CostTable {
 	code: U256,
 	header_proof: U256,
 	transaction_proof: U256, // cost per gas.
+	epoch_signal: U256,
 }
 
 impl Default for CostTable {
@@ -93,6 +100,7 @@ impl Default for CostTable {
 		CostTable {
 			base: 100000.into(),
 			headers: 10000.into(),
+			transaction_index: 10000.into(),
 			body: 15000.into(),
 			receipts: 5000.into(),
 			account: 25000.into(),
@@ -100,6 +108,7 @@ impl Default for CostTable {
 			code: 20000.into(),
 			header_proof: 15000.into(),
 			transaction_proof: 2.into(),
+			epoch_signal: 10000.into(),
 		}
 	}
 }
@@ -114,8 +123,9 @@ impl Encodable for CostTable {
 			s.append(cost);
 		}
 
-		s.begin_list(9).append(&self.base);
+		s.begin_list(11).append(&self.base);
 		append_cost(s, &self.headers, request::Kind::Headers);
+		append_cost(s, &self.transaction_index, request::Kind::TransactionIndex);
 		append_cost(s, &self.body, request::Kind::Body);
 		append_cost(s, &self.receipts, request::Kind::Receipts);
 		append_cost(s, &self.account, request::Kind::Account);
@@ -123,6 +133,7 @@ impl Encodable for CostTable {
 		append_cost(s, &self.code, request::Kind::Code);
 		append_cost(s, &self.header_proof, request::Kind::HeaderProof);
 		append_cost(s, &self.transaction_proof, request::Kind::Execution);
+		append_cost(s, &self.epoch_signal, request::Kind::Signal);
 	}
 }
 
@@ -131,6 +142,7 @@ impl Decodable for CostTable {
 		let base = rlp.val_at(0)?;
 
 		let mut headers = None;
+		let mut transaction_index = None;
 		let mut body = None;
 		let mut receipts = None;
 		let mut account = None;
@@ -138,11 +150,13 @@ impl Decodable for CostTable {
 		let mut code = None;
 		let mut header_proof = None;
 		let mut transaction_proof = None;
+		let mut epoch_signal = None;
 
 		for cost_list in rlp.iter().skip(1) {
 			let cost = cost_list.val_at(1)?;
 			match cost_list.val_at(0)? {
 				request::Kind::Headers => headers = Some(cost),
+				request::Kind::TransactionIndex => transaction_index = Some(cost),
 				request::Kind::Body => body = Some(cost),
 				request::Kind::Receipts => receipts = Some(cost),
 				request::Kind::Account => account = Some(cost),
@@ -150,6 +164,7 @@ impl Decodable for CostTable {
 				request::Kind::Code => code = Some(cost),
 				request::Kind::HeaderProof => header_proof = Some(cost),
 				request::Kind::Execution => transaction_proof = Some(cost),
+				request::Kind::Signal => epoch_signal = Some(cost),
 			}
 		}
 
@@ -158,6 +173,7 @@ impl Decodable for CostTable {
 		Ok(CostTable {
 			base: base,
 			headers: unwrap_cost(headers)?,
+			transaction_index: unwrap_cost(transaction_index)?,
 			body: unwrap_cost(body)?,
 			receipts: unwrap_cost(receipts)?,
 			account: unwrap_cost(account)?,
@@ -165,6 +181,7 @@ impl Decodable for CostTable {
 			code: unwrap_cost(code)?,
 			header_proof: unwrap_cost(header_proof)?,
 			transaction_proof: unwrap_cost(transaction_proof)?,
+			epoch_signal: unwrap_cost(epoch_signal)?,
 		})
 	}
 }
@@ -188,6 +205,55 @@ impl FlowParams {
 		}
 	}
 
+	/// Create new flow parameters from ,
+	/// proportion of total capacity which should be given to a peer,
+	/// and number of seconds of stored capacity a peer can accumulate.
+	pub fn from_request_times<F: Fn(::request::Kind) -> u64>(
+		request_time_ns: F,
+		load_share: f64,
+		max_stored_seconds: u64
+	) -> Self {
+		use request::Kind;
+
+		let load_share = load_share.abs();
+
+		let recharge: u64 = 100_000_000;
+		let max = recharge.saturating_mul(max_stored_seconds);
+
+		let cost_for_kind = |kind| {
+			// how many requests we can handle per second
+			let ns = request_time_ns(kind);
+			let second_duration = 1_000_000_000f64 / ns as f64;
+
+			// scale by share of the load given to this peer.
+			let serve_per_second = second_duration * load_share;
+			let serve_per_second = serve_per_second.max(1.0 / 10_000.0);
+
+			// as a percentage of the recharge per second.
+			U256::from((recharge as f64 / serve_per_second) as u64)
+		};
+
+		let costs = CostTable {
+			base: 0.into(),
+			headers: cost_for_kind(Kind::Headers),
+			transaction_index: cost_for_kind(Kind::TransactionIndex),
+			body: cost_for_kind(Kind::Body),
+			receipts: cost_for_kind(Kind::Receipts),
+			account: cost_for_kind(Kind::Account),
+			storage: cost_for_kind(Kind::Storage),
+			code: cost_for_kind(Kind::Code),
+			header_proof: cost_for_kind(Kind::HeaderProof),
+			transaction_proof: cost_for_kind(Kind::Execution),
+			epoch_signal: cost_for_kind(Kind::Signal),
+		};
+
+		FlowParams {
+			costs: costs,
+			limit: max.into(),
+			recharge: recharge.into(),
+		}
+	}
+
 	/// Create effectively infinite flow params.
 	pub fn free() -> Self {
 		let free_cost: U256 = 0.into();
@@ -197,13 +263,15 @@ impl FlowParams {
 			costs: CostTable {
 				base: free_cost.clone(),
 				headers: free_cost.clone(),
+				transaction_index: free_cost.clone(),
 				body: free_cost.clone(),
 				receipts: free_cost.clone(),
 				account: free_cost.clone(),
 				storage: free_cost.clone(),
 				code: free_cost.clone(),
 				header_proof: free_cost.clone(),
-				transaction_proof: free_cost,
+				transaction_proof: free_cost.clone(),
+				epoch_signal: free_cost,
 			}
 		}
 	}
@@ -226,12 +294,14 @@ impl FlowParams {
 		match *request {
 			Request::Headers(ref req) => self.costs.headers * req.max.into(),
 			Request::HeaderProof(_) => self.costs.header_proof,
+			Request::TransactionIndex(_) => self.costs.transaction_index,
 			Request::Body(_) => self.costs.body,
 			Request::Receipts(_) => self.costs.receipts,
 			Request::Account(_) => self.costs.account,
 			Request::Storage(_) => self.costs.storage,
 			Request::Code(_) => self.costs.code,
 			Request::Execution(ref req) => self.costs.transaction_proof * req.gas,
+			Request::Signal(_) => self.costs.epoch_signal,
 		}
 	}
 
@@ -315,5 +385,29 @@ mod tests {
 		flow_params.recharge(&mut credits);
 
 		assert_eq!(credits.estimate, 100.into());
+	}
+
+	#[test]
+	fn scale_by_load_share_and_time() {
+		let flow_params = FlowParams::from_request_times(
+			|_| 10_000,
+			0.05,
+			60,
+		);
+
+		let flow_params2 = FlowParams::from_request_times(
+			|_| 10_000,
+			0.1,
+			60,
+		);
+
+		let flow_params3 = FlowParams::from_request_times(
+			|_| 5_000,
+			0.05,
+			60,
+		);
+
+		assert_eq!(flow_params2.costs, flow_params3.costs);
+		assert_eq!(flow_params.costs.headers, flow_params2.costs.headers * 2.into());
 	}
 }

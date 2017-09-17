@@ -15,7 +15,11 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import EventEmitter from 'eventemitter3';
+
 import { Logging } from '../subscriptions';
+import logger from './logger';
+
+const LOGGER_ENABLED = process.env.NODE_ENV !== 'production';
 
 export default class JsonRpcBase extends EventEmitter {
   constructor () {
@@ -75,6 +79,14 @@ export default class JsonRpcBase extends EventEmitter {
   }
 
   execute (method, ...params) {
+    let start;
+    let logId;
+
+    if (LOGGER_ENABLED) {
+      start = Date.now();
+      logId = logger.log({ method, params });
+    }
+
     return this._middlewareList.then((middlewareList) => {
       for (const middleware of middlewareList) {
         const res = middleware.handle(method, params);
@@ -93,7 +105,18 @@ export default class JsonRpcBase extends EventEmitter {
         }
       }
 
-      return this._execute(method, params);
+      const result = this._execute(method, params);
+
+      if (!LOGGER_ENABLED) {
+        return result;
+      }
+
+      return result
+        .then((result) => {
+          logger.set(logId, { result, time: Date.now() - start });
+
+          return result;
+        });
     });
   }
 

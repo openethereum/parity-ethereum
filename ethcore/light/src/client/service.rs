@@ -28,9 +28,9 @@ use io::{IoContext, IoError, IoHandler, IoService};
 use util::kvdb::{Database, DatabaseConfig};
 
 use cache::Cache;
-use util::Mutex;
+use parking_lot::Mutex;
 
-use super::{Client, Config as ClientConfig};
+use super::{ChainDataFetcher, Client, Config as ClientConfig};
 
 /// Errors on service initialization.
 #[derive(Debug)]
@@ -51,14 +51,14 @@ impl fmt::Display for Error {
 }
 
 /// Light client service.
-pub struct Service {
-	client: Arc<Client>,
+pub struct Service<T> {
+	client: Arc<Client<T>>,
 	io_service: IoService<ClientIoMessage>,
 }
 
-impl Service {
+impl<T: ChainDataFetcher> Service<T> {
 	/// Start the service: initialize I/O workers and client itself.
-	pub fn start(config: ClientConfig, spec: &Spec, path: &Path, cache: Arc<Mutex<Cache>>) -> Result<Self, Error> {
+	pub fn start(config: ClientConfig, spec: &Spec, fetcher: T, path: &Path, cache: Arc<Mutex<Cache>>) -> Result<Self, Error> {
 
 		// initialize database.
 		let mut db_config = DatabaseConfig::with_columns(db::NUM_COLUMNS);
@@ -81,10 +81,14 @@ impl Service {
 			db,
 			db::COL_LIGHT_CHAIN,
 			spec,
+			fetcher,
 			io_service.channel(),
 			cache,
 		).map_err(Error::Database)?);
+
 		io_service.register_handler(Arc::new(ImportBlocks(client.clone()))).map_err(Error::Io)?;
+		spec.engine.register_client(Arc::downgrade(&client) as _);
+
 		Ok(Service {
 			client: client,
 			io_service: io_service,
@@ -97,14 +101,14 @@ impl Service {
 	}
 
 	/// Get a handle to the client.
-	pub fn client(&self) -> &Arc<Client> {
+	pub fn client(&self) -> &Arc<Client<T>> {
 		&self.client
 	}
 }
 
-struct ImportBlocks(Arc<Client>);
+struct ImportBlocks<T>(Arc<Client<T>>);
 
-impl IoHandler<ClientIoMessage> for ImportBlocks {
+impl<T: ChainDataFetcher> IoHandler<ClientIoMessage> for ImportBlocks<T> {
 	fn message(&self, _io: &IoContext<ClientIoMessage>, message: &ClientIoMessage) {
 		if let ClientIoMessage::BlockVerified = *message {
 			self.0.import_verified();
@@ -117,11 +121,12 @@ mod tests {
 	use super::Service;
 	use devtools::RandomTempPath;
 	use ethcore::spec::Spec;
-	
+
 	use std::sync::Arc;
 	use cache::Cache;
+	use client::fetch;
 	use time::Duration;
-	use util::Mutex;
+	use parking_lot::Mutex;
 
 	#[test]
 	fn it_works() {
@@ -129,6 +134,6 @@ mod tests {
 		let temp_path = RandomTempPath::new();
 		let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::hours(6))));
 
-		Service::start(Default::default(), &spec, temp_path.as_path(), cache).unwrap();
+		Service::start(Default::default(), &spec, fetch::unavailable(), temp_path.as_path(), cache).unwrap();
 	}
 }

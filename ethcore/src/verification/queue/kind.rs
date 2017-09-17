@@ -19,7 +19,9 @@
 use engines::Engine;
 use error::Error;
 
-use util::{HeapSizeOf, H256, U256};
+use heapsize::HeapSizeOf;
+use bigint::prelude::U256;
+use bigint::hash::H256;
 
 pub use self::blocks::Blocks;
 pub use self::headers::Headers;
@@ -72,7 +74,10 @@ pub mod blocks {
 	use header::Header;
 	use verification::{PreverifiedBlock, verify_block_basic, verify_block_unordered};
 
-	use util::{Bytes, HeapSizeOf, H256, U256};
+	use heapsize::HeapSizeOf;
+	use bigint::prelude::U256;
+	use bigint::hash::H256;
+	use bytes::Bytes;
 
 	/// A mode for verifying blocks.
 	pub struct Blocks;
@@ -167,8 +172,8 @@ pub mod headers {
 	use header::Header;
 	use verification::verify_header_params;
 
-	use util::hash::H256;
-	use util::U256;
+	use bigint::prelude::U256;
+	use bigint::hash::H256;
 
 	impl BlockLike for Header {
 		fn hash(&self) -> H256 { self.hash() }

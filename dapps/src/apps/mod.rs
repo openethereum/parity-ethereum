@@ -16,6 +16,7 @@
 
 use std::path::PathBuf;
 use std::sync::Arc;
+
 use endpoint::{Endpoints, Endpoint};
 use page::PageEndpoint;
 use proxypac::ProxyPac;
@@ -23,17 +24,19 @@ use web::Web;
 use fetch::Fetch;
 use parity_dapps::WebApp;
 use parity_reactor::Remote;
-use {WebProxyTokens};
+use parity_ui;
+use {WebProxyTokens, ParentFrameSettings};
 
+mod app;
 mod cache;
-mod fs;
+mod ui;
+pub mod fs;
 pub mod fetcher;
 pub mod manifest;
 
-extern crate parity_ui;
+pub use self::app::App;
 
-pub const HOME_PAGE: &'static str = "parity";
-pub const DAPPS_DOMAIN: &'static str = ".web3.site";
+pub const HOME_PAGE: &'static str = "home";
 pub const RPC_PATH: &'static str =  "rpc";
 pub const API_PATH: &'static str =  "api";
 pub const UTILS_PATH: &'static str =  "parity-utils";
@@ -44,18 +47,28 @@ pub fn utils() -> Box<Endpoint> {
 	Box::new(PageEndpoint::with_prefix(parity_ui::App::default(), UTILS_PATH.to_owned()))
 }
 
+pub fn ui() -> Box<Endpoint> {
+	Box::new(PageEndpoint::with_fallback_to_index(parity_ui::App::default()))
+}
+
+pub fn ui_redirection(embeddable: Option<ParentFrameSettings>) -> Box<Endpoint> {
+	Box::new(ui::Redirection::new(embeddable))
+}
+
 pub fn all_endpoints<F: Fetch>(
 	dapps_path: PathBuf,
 	extra_dapps: Vec<PathBuf>,
-	signer_address: Option<(String, u16)>,
+	dapps_domain: &str,
+	embeddable: Option<ParentFrameSettings>,
 	web_proxy_tokens: Arc<WebProxyTokens>,
 	remote: Remote,
 	fetch: F,
-) -> Endpoints {
+) -> (Vec<String>, Endpoints) {
 	// fetch fs dapps at first to avoid overwriting builtins
-	let mut pages = fs::local_endpoints(dapps_path, signer_address.clone());
+	let mut pages = fs::local_endpoints(dapps_path.clone(), embeddable.clone());
+	let local_endpoints: Vec<String> = pages.keys().cloned().collect();
 	for path in extra_dapps {
-		if let Some((id, endpoint)) = fs::local_endpoint(path.clone(), signer_address.clone()) {
+		if let Some((id, endpoint)) = fs::local_endpoint(path.clone(), embeddable.clone()) {
 			pages.insert(id, endpoint);
 		} else {
 			warn!(target: "dapps", "Ignoring invalid dapp at {}", path.display());
@@ -63,11 +76,11 @@ pub fn all_endpoints<F: Fetch>(
 	}
 
 	// NOTE [ToDr] Dapps will be currently embeded on 8180
-	insert::<parity_ui::App>(&mut pages, "ui", Embeddable::Yes(signer_address.clone()));
-	pages.insert("proxy".into(), ProxyPac::boxed(signer_address.clone()));
-	pages.insert(WEB_PATH.into(), Web::boxed(signer_address.clone(), web_proxy_tokens.clone(), remote.clone(), fetch.clone()));
+	insert::<parity_ui::App>(&mut pages, "ui", Embeddable::Yes(embeddable.clone()));
+	pages.insert("proxy".into(), ProxyPac::boxed(embeddable.clone(), dapps_domain.to_owned()));
+	pages.insert(WEB_PATH.into(), Web::boxed(embeddable.clone(), web_proxy_tokens.clone(), remote.clone(), fetch.clone()));
 
-	pages
+	(local_endpoints, pages)
 }
 
 fn insert<T : WebApp + Default + 'static>(pages: &mut Endpoints, id: &str, embed_at: Embeddable) {
@@ -78,7 +91,7 @@ fn insert<T : WebApp + Default + 'static>(pages: &mut Endpoints, id: &str, embed
 }
 
 enum Embeddable {
-	Yes(Option<(String, u16)>),
+	Yes(Option<ParentFrameSettings>),
 	#[allow(dead_code)]
 	No,
 }

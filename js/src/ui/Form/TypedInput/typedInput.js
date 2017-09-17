@@ -360,10 +360,10 @@ export default class TypedInput extends Component {
 
   renderBoolean () {
     const { allowCopy, className, label, error, hint, readOnly } = this.props;
-    const value = this.getValue();
+    const value = this.getValue() ? 'true' : 'false';
 
     if (readOnly) {
-      return this.renderDefault();
+      return this.renderDefault(value);
     }
 
     const boolitems = ['false', 'true'].map((bool) => {
@@ -386,11 +386,7 @@ export default class TypedInput extends Component {
         hint={ hint }
         label={ label }
         onChange={ this.onChangeBool }
-        value={
-          value
-            ? 'true'
-            : 'false'
-        }
+        value={ value }
       >
         { boolitems }
       </Select>

@@ -16,7 +16,9 @@
 
 //! View onto block body rlp.
 
-use util::*;
+use hash::keccak;
+use bigint::hash::H256;
+use bytes::Bytes;
 use header::*;
 use transaction::*;
 use super::{TransactionView, HeaderView};
@@ -78,7 +80,7 @@ impl<'a> BodyView<'a> {
 
 	/// Return transaction hashes.
 	pub fn transaction_hashes(&self) -> Vec<H256> {
-		self.rlp.at(0).iter().map(|rlp| rlp.as_raw().sha3()).collect()
+		self.rlp.at(0).iter().map(|rlp| keccak(rlp.as_raw())).collect()
 	}
 
 	/// Returns transaction at given index without deserializing unnecessary data.
@@ -114,7 +116,7 @@ impl<'a> BodyView<'a> {
 
 	/// Return list of uncle hashes of given block.
 	pub fn uncle_hashes(&self) -> Vec<H256> {
-		self.rlp.at(1).iter().map(|rlp| rlp.as_raw().sha3()).collect()
+		self.rlp.at(1).iter().map(|rlp| keccak(rlp.as_raw())).collect()
 	}
 
 	/// Return nth uncle.
@@ -130,7 +132,7 @@ impl<'a> BodyView<'a> {
 
 #[cfg(test)]
 mod tests {
-	use util::*;
+	use rustc_hex::FromHex;
 	use super::BodyView;
 	use blockchain::BlockChain;
 

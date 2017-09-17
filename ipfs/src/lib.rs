@@ -22,6 +22,8 @@ extern crate cid;
 extern crate rlp;
 extern crate ethcore;
 extern crate ethcore_util as util;
+extern crate ethcore_bigint as bigint;
+extern crate ethcore_bytes as bytes;
 extern crate jsonrpc_http_server as http;
 
 pub mod error;
@@ -77,10 +79,10 @@ impl IpfsHandler {
 /// Implement Hyper's HTTP handler
 impl Handler<HttpStream> for IpfsHandler {
 	fn on_request(&mut self, req: Request<HttpStream>) -> Next {
-		if *req.method() != Method::Get {
-			return Next::write();
+		match *req.method() {
+			Method::Get | Method::Post => {},
+			_ => return Next::write()
 		}
-
 
 		if !http::is_host_allowed(&req, &self.allowed_hosts) {
 			self.out = Out::Bad("Disallowed Host header");

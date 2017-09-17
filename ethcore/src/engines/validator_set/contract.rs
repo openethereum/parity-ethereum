@@ -18,23 +18,26 @@
 /// It can also report validators for misbehaviour with two levels: `reportMalicious` and `reportBenign`.
 
 use std::sync::Weak;
+use bigint::hash::H256;
+use parking_lot::RwLock;
 use util::*;
+use bytes::Bytes;
 
 use futures::Future;
 use native_contracts::ValidatorReport as Provider;
 
-use client::{Client, BlockChainClient};
-use engines::Call;
+use client::EngineClient;
+use engines::{Call, Engine};
 use header::{Header, BlockNumber};
 
-use super::ValidatorSet;
+use super::{ValidatorSet, SimpleList, SystemCall};
 use super::safe_contract::ValidatorSafeContract;
 
 /// A validator contract with reporting.
 pub struct ValidatorContract {
 	validators: ValidatorSafeContract,
 	provider: Provider,
-	client: RwLock<Option<Weak<Client>>>, // TODO [keorn]: remove
+	client: RwLock<Option<Weak<EngineClient>>>, // TODO [keorn]: remove
 }
 
 impl ValidatorContract {
@@ -51,12 +54,18 @@ impl ValidatorContract {
 	// could be `impl Trait`.
 	// note: dispatches transactions to network as well as execute.
 	// TODO [keorn]: Make more general.
-	fn transact(&self) -> Box<Call> {
+	fn transact(&self) -> Box<Fn(Address, Bytes) -> Result<Bytes, String>> {
 		let client = self.client.read().clone();
 		Box::new(move |a, d| client.as_ref()
 			.and_then(Weak::upgrade)
 			.ok_or("No client!".into())
-			.and_then(|c| c.transact_contract(a, d).map_err(|e| format!("Transaction import error: {}", e)))
+			.and_then(|c| {
+				match c.as_full_client() {
+					Some(c) => c.transact_contract(a, d)
+						.map_err(|e| format!("Transaction import error: {}", e)),
+					None => Err("No full client!".into()),
+				}
+			})
 			.map(|_| Default::default()))
 	}
 }
@@ -66,18 +75,30 @@ impl ValidatorSet for ValidatorContract {
 		self.validators.default_caller(id)
 	}
 
-	fn is_epoch_end(&self, header: &Header, block: Option<&[u8]>, receipts: Option<&[::receipt::Receipt]>)
-		-> ::engines::EpochChange
-	{
-		self.validators.is_epoch_end(header, block, receipts)
+	fn on_epoch_begin(&self, first: bool, header: &Header, call: &mut SystemCall) -> Result<(), ::error::Error> {
+		self.validators.on_epoch_begin(first, header, call)
 	}
 
-	fn epoch_proof(&self, header: &Header, caller: &Call) -> Result<Vec<u8>, String> {
-		self.validators.epoch_proof(header, caller)
+	fn genesis_epoch_data(&self, header: &Header, call: &Call) -> Result<Vec<u8>, String> {
+		self.validators.genesis_epoch_data(header, call)
 	}
 
-	fn epoch_set(&self, header: &Header, proof: &[u8]) -> Result<(u64, super::SimpleList), ::error::Error> {
-		self.validators.epoch_set(header, proof)
+	fn is_epoch_end(&self, first: bool, chain_head: &Header) -> Option<Vec<u8>> {
+		self.validators.is_epoch_end(first, chain_head)
+	}
+
+	fn signals_epoch_end(
+		&self,
+		first: bool,
+		header: &Header,
+		block: Option<&[u8]>,
+		receipts: Option<&[::receipt::Receipt]>,
+	) -> ::engines::EpochChange {
+		self.validators.signals_epoch_end(first, header, block, receipts)
+	}
+
+	fn epoch_set(&self, first: bool, engine: &Engine, number: BlockNumber, proof: &[u8]) -> Result<(SimpleList, Option<H256>), ::error::Error> {
+		self.validators.epoch_set(first, engine, number, proof)
 	}
 
 	fn contains_with_caller(&self, bh: &H256, address: &Address, caller: &Call) -> bool {
@@ -92,31 +113,35 @@ impl ValidatorSet for ValidatorContract {
 		self.validators.count_with_caller(bh, caller)
 	}
 
-	fn report_malicious(&self, address: &Address, block: BlockNumber, proof: Bytes) {
+	fn report_malicious(&self, address: &Address, _set_block: BlockNumber, block: BlockNumber, proof: Bytes) {
 		match self.provider.report_malicious(&*self.transact(), *address, block.into(), proof).wait() {
 			Ok(_) => warn!(target: "engine", "Reported malicious validator {}", address),
 			Err(s) => warn!(target: "engine", "Validator {} could not be reported {}", address, s),
 		}
 	}
 
-	fn report_benign(&self, address: &Address, block: BlockNumber) {
+	fn report_benign(&self, address: &Address, _set_block: BlockNumber, block: BlockNumber) {
 		match self.provider.report_benign(&*self.transact(), *address, block.into()).wait() {
 			Ok(_) => warn!(target: "engine", "Reported benign validator misbehaviour {}", address),
 			Err(s) => warn!(target: "engine", "Validator {} could not be reported {}", address, s),
 		}
 	}
 
-	fn register_contract(&self, client: Weak<Client>) {
-		self.validators.register_contract(client.clone());
+	fn register_client(&self, client: Weak<EngineClient>) {
+		self.validators.register_client(client.clone());
 		*self.client.write() = Some(client);
 	}
 }
 
 #[cfg(test)]
 mod tests {
+	use std::sync::Arc;
+	use rustc_hex::FromHex;
+	use hash::keccak;
+	use bigint::hash::H520;
 	use util::*;
+	use bytes::ToPretty;
 	use rlp::encode;
-	use ethkey::Secret;
 	use spec::Spec;
 	use header::Header;
 	use account_provider::AccountProvider;
@@ -130,27 +155,27 @@ mod tests {
 	#[test]
 	fn fetches_validators() {
 		let client = generate_dummy_client_with_spec_and_accounts(Spec::new_validator_contract, None);
-		let vc = Arc::new(ValidatorContract::new(Address::from_str("0000000000000000000000000000000000000005").unwrap()));
-		vc.register_contract(Arc::downgrade(&client));
+		let vc = Arc::new(ValidatorContract::new("0000000000000000000000000000000000000005".parse::<Address>().unwrap()));
+		vc.register_client(Arc::downgrade(&client) as _);
 		let last_hash = client.best_block_header().hash();
-		assert!(vc.contains(&last_hash, &Address::from_str("7d577a597b2742b498cb5cf0c26cdcd726d39e6e").unwrap()));
-		assert!(vc.contains(&last_hash, &Address::from_str("82a978b3f5962a5b0957d9ee9eef472ee55b42f1").unwrap()));
+		assert!(vc.contains(&last_hash, &"7d577a597b2742b498cb5cf0c26cdcd726d39e6e".parse::<Address>().unwrap()));
+		assert!(vc.contains(&last_hash, &"82a978b3f5962a5b0957d9ee9eef472ee55b42f1".parse::<Address>().unwrap()));
 	}
 
 	#[test]
 	fn reports_validators() {
 		let tap = Arc::new(AccountProvider::transient_provider());
-		let v1 = tap.insert_account(Secret::from_slice(&"1".sha3()).unwrap(), "").unwrap();
+		let v1 = tap.insert_account(keccak("1").into(), "").unwrap();
 		let client = generate_dummy_client_with_spec_and_accounts(Spec::new_validator_contract, Some(tap.clone()));
-		client.engine().register_client(Arc::downgrade(&client));
-		let validator_contract = Address::from_str("0000000000000000000000000000000000000005").unwrap();
+		client.engine().register_client(Arc::downgrade(&client) as _);
+		let validator_contract = "0000000000000000000000000000000000000005".parse::<Address>().unwrap();
 
 		// Make sure reporting can be done.
 		client.miner().set_gas_floor_target(1_000_000.into());
 
 		client.miner().set_engine_signer(v1, "".into()).unwrap();
 		let mut header = Header::default();
-		let seal = vec![encode(&5u8).to_vec(), encode(&(&H520::default() as &[u8])).to_vec()];
+		let seal = vec![encode(&5u8).into_vec(), encode(&(&H520::default() as &[u8])).into_vec()];
 		header.set_seal(seal);
 		header.set_author(v1);
 		header.set_number(2);

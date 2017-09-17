@@ -16,7 +16,16 @@
 
 //! Single account in the system.
 
+use std::fmt;
+use std::sync::Arc;
+use std::collections::HashMap;
+use hash::{KECCAK_EMPTY, KECCAK_NULL_RLP, keccak};
+use bigint::prelude::U256;
+use bigint::hash::H256;
 use util::*;
+use bytes::{Bytes, ToPretty};
+use trie;
+use trie::{SecTrieDB, Trie, TrieFactory, TrieError};
 use pod_account::*;
 use rlp::*;
 use lru_cache::LruCache;
@@ -78,10 +87,10 @@ impl Account {
 		Account {
 			balance: balance,
 			nonce: nonce,
-			storage_root: SHA3_NULL_RLP,
+			storage_root: KECCAK_NULL_RLP,
 			storage_cache: Self::empty_storage_cache(),
 			storage_changes: storage,
-			code_hash: code.sha3(),
+			code_hash: keccak(&code),
 			code_size: Some(code.len()),
 			code_cache: Arc::new(code),
 			code_filth: Filth::Dirty,
@@ -98,10 +107,10 @@ impl Account {
 		Account {
 			balance: pod.balance,
 			nonce: pod.nonce,
-			storage_root: SHA3_NULL_RLP,
+			storage_root: KECCAK_NULL_RLP,
 			storage_cache: Self::empty_storage_cache(),
 			storage_changes: pod.storage.into_iter().collect(),
-			code_hash: pod.code.as_ref().map_or(SHA3_EMPTY, |c| c.sha3()),
+			code_hash: pod.code.as_ref().map_or(KECCAK_EMPTY, |c| keccak(c)),
 			code_filth: Filth::Dirty,
 			code_size: Some(pod.code.as_ref().map_or(0, |c| c.len())),
 			code_cache: Arc::new(pod.code.map_or_else(|| { warn!("POD account with unknown code is being created! Assuming no code."); vec![] }, |c| c)),
@@ -114,10 +123,10 @@ impl Account {
 		Account {
 			balance: balance,
 			nonce: nonce,
-			storage_root: SHA3_NULL_RLP,
+			storage_root: KECCAK_NULL_RLP,
 			storage_cache: Self::empty_storage_cache(),
 			storage_changes: HashMap::new(),
-			code_hash: SHA3_EMPTY,
+			code_hash: KECCAK_EMPTY,
 			code_cache: Arc::new(vec![]),
 			code_size: Some(0),
 			code_filth: Filth::Clean,
@@ -137,10 +146,10 @@ impl Account {
 		Account {
 			balance: balance,
 			nonce: nonce,
-			storage_root: SHA3_NULL_RLP,
+			storage_root: KECCAK_NULL_RLP,
 			storage_cache: Self::empty_storage_cache(),
 			storage_changes: HashMap::new(),
-			code_hash: SHA3_EMPTY,
+			code_hash: KECCAK_EMPTY,
 			code_cache: Arc::new(vec![]),
 			code_size: None,
 			code_filth: Filth::Clean,
@@ -151,7 +160,7 @@ impl Account {
 	/// Set this account's code to the given code.
 	/// NOTE: Account should have been created with `new_contract()`
 	pub fn init_code(&mut self, code: Bytes) {
-		self.code_hash = code.sha3();
+		self.code_hash = keccak(&code);
 		self.code_cache = Arc::new(code);
 		self.code_size = Some(self.code_cache.len());
 		self.code_filth = Filth::Dirty;
@@ -208,7 +217,7 @@ impl Account {
 	pub fn address_hash(&self, address: &Address) -> H256 {
 		let hash = self.address_hash.get();
 		hash.unwrap_or_else(|| {
-			let hash = address.sha3();
+			let hash = keccak(address);
 			self.address_hash.set(Some(hash.clone()));
 			hash
 		})
@@ -217,7 +226,7 @@ impl Account {
 	/// returns the account's code. If `None` then the code cache isn't available -
 	/// get someone who knows to call `note_code`.
 	pub fn code(&self) -> Option<Arc<Bytes>> {
-		if self.code_hash != SHA3_EMPTY && self.code_cache.is_empty() {
+		if self.code_hash != KECCAK_EMPTY && self.code_cache.is_empty() {
 			return None;
 		}
 		Some(self.code_cache.clone())
@@ -232,7 +241,7 @@ impl Account {
 	#[cfg(test)]
 	/// Provide a byte array which hashes to the `code_hash`. returns the hash as a result.
 	pub fn note_code(&mut self, code: Bytes) -> Result<(), H256> {
-		let h = code.sha3();
+		let h = keccak(&code);
 		if self.code_hash == h {
 			self.code_cache = Arc::new(code);
 			self.code_size = Some(self.code_cache.len());
@@ -244,7 +253,7 @@ impl Account {
 
 	/// Is `code_cache` valid; such that code is going to return Some?
 	pub fn is_cached(&self) -> bool {
-		!self.code_cache.is_empty() || (self.code_cache.is_empty() && self.code_hash == SHA3_EMPTY)
+		!self.code_cache.is_empty() || (self.code_cache.is_empty() && self.code_hash == KECCAK_EMPTY)
 	}
 
 	/// Provide a database to get `code_hash`. Should not be called if it is a contract without code.
@@ -257,7 +266,7 @@ impl Account {
 		match db.get(&self.code_hash) {
 			Some(x) => {
 				self.code_size = Some(x.len());
-				self.code_cache = Arc::new(x.to_vec());
+				self.code_cache = Arc::new(x.into_vec());
 				Some(self.code_cache.clone())
 			},
 			_ => {
@@ -281,7 +290,7 @@ impl Account {
 		// TODO: fill out self.code_cache;
 		trace!("Account::cache_code_size: ic={}; self.code_hash={:?}, self.code_cache={}", self.is_cached(), self.code_hash, self.code_cache.pretty());
 		self.code_size.is_some() ||
-			if self.code_hash != SHA3_EMPTY {
+			if self.code_hash != KECCAK_EMPTY {
 				match db.get(&self.code_hash) {
 					Some(x) => {
 						self.code_size = Some(x.len());
@@ -305,14 +314,19 @@ impl Account {
 	/// NOTE: Will panic if `!self.storage_is_clean()`
 	pub fn is_empty(&self) -> bool {
 		assert!(self.storage_is_clean(), "Account::is_empty() may only legally be called when storage is clean.");
-		self.is_null() && self.storage_root == SHA3_NULL_RLP
+		self.is_null() && self.storage_root == KECCAK_NULL_RLP
 	}
 
 	/// Check if account has zero nonce, balance, no code.
 	pub fn is_null(&self) -> bool {
 		self.balance.is_zero() &&
 		self.nonce.is_zero() &&
-		self.code_hash == SHA3_EMPTY
+		self.code_hash == KECCAK_EMPTY
+	}
+
+	/// Check if account is basic (Has no code).
+	pub fn is_basic(&self) -> bool {
+		self.code_hash == KECCAK_EMPTY
 	}
 
 	/// Return the storage root associated with this account or None if it has been altered via the overlay.
@@ -439,8 +453,8 @@ impl Account {
 	/// `storage_key` is the hash of the desired storage key, meaning
 	/// this will only work correctly under a secure trie.
 	pub fn prove_storage(&self, db: &HashDB, storage_key: H256) -> Result<(Vec<Bytes>, H256), Box<TrieError>> {
-		use util::trie::{Trie, TrieDB};
-		use util::trie::recorder::Recorder;
+		use trie::{Trie, TrieDB};
+		use trie::recorder::Recorder;
 
 		let mut recorder = Recorder::new();
 
@@ -464,6 +478,7 @@ impl fmt::Debug for Account {
 mod tests {
 	use rlp::{UntrustedRlp, RlpType, Compressible};
 	use util::*;
+	use bytes::Bytes;
 	use super::*;
 	use account_db::*;
 
@@ -471,10 +486,10 @@ mod tests {
 	fn account_compress() {
 		let raw = Account::new_basic(2.into(), 4.into()).rlp();
 		let rlp = UntrustedRlp::new(&raw);
-		let compact_vec = rlp.compress(RlpType::Snapshot).to_vec();
+		let compact_vec = rlp.compress(RlpType::Snapshot).into_vec();
 		assert!(raw.len() > compact_vec.len());
 		let again_raw = UntrustedRlp::new(&compact_vec).decompress(RlpType::Snapshot);
-		assert_eq!(raw, again_raw.to_vec());
+		assert_eq!(raw, again_raw.into_vec());
     }
 
 	#[test]
@@ -584,8 +599,8 @@ mod tests {
 		assert_eq!(a.rlp().to_hex(), "f8448045a056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421a0c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470");
 		assert_eq!(a.balance(), &U256::from(69u8));
 		assert_eq!(a.nonce(), &U256::from(0u8));
-		assert_eq!(a.code_hash(), SHA3_EMPTY);
-		assert_eq!(a.storage_root().unwrap(), &SHA3_NULL_RLP);
+		assert_eq!(a.code_hash(), KECCAK_EMPTY);
+		assert_eq!(a.storage_root().unwrap(), &KECCAK_NULL_RLP);
 	}
 
 	#[test]

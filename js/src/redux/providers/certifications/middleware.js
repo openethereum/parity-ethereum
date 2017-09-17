@@ -38,7 +38,7 @@ const updatableFilter = (api, onFilter) => {
 
     filter = (filter || Promise.resolve())
       .then(() => api.eth.newFilter({
-        fromBlock: 0,
+        fromBlock: 'latest',
         toBlock: 'latest',
         address,
         topics

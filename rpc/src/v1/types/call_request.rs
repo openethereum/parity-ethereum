@@ -55,7 +55,7 @@ impl Into<Request> for CallRequest {
 #[cfg(test)]
 mod tests {
 	use std::str::FromStr;
-	use rustc_serialize::hex::FromHex;
+	use rustc_hex::FromHex;
 	use serde_json;
 	use v1::types::{U256, H160};
 	use super::CallRequest;

@@ -17,14 +17,24 @@
 //! Test client.
 
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrder};
+use std::sync::Arc;
+use std::collections::{HashMap, BTreeMap};
+use std::mem;
+use itertools::Itertools;
+use rustc_hex::FromHex;
+use hash::keccak;
+use bigint::prelude::U256;
+use bigint::hash::H256;
+use parking_lot::RwLock;
 use util::*;
+use bytes::Bytes;
 use rlp::*;
 use ethkey::{Generator, Random};
 use devtools::*;
 use transaction::{Transaction, LocalizedTransaction, PendingTransaction, SignedTransaction, Action};
 use blockchain::TreeRoute;
 use client::{
-	BlockChainClient, MiningBlockChainClient, EngineClient, BlockChainInfo, BlockStatus, BlockId,
+	BlockChainClient, MiningBlockChainClient, BlockChainInfo, BlockStatus, BlockId,
 	TransactionId, UncleId, TraceId, TraceFilter, LastHashes, CallAnalytics, BlockImportError,
 	ProvingBlockChainClient,
 };
@@ -35,7 +45,8 @@ use log_entry::LocalizedLogEntry;
 use receipt::{Receipt, LocalizedReceipt};
 use blockchain::extras::BlockReceipts;
 use error::{ImportResult, Error as EthcoreError};
-use evm::{Factory as EvmFactory, VMType, Schedule};
+use evm::{Factory as EvmFactory, VMType};
+use vm::Schedule;
 use miner::{Miner, MinerService, TransactionImportResult};
 use spec::Spec;
 use types::basic_account::BasicAccount;
@@ -43,7 +54,7 @@ use types::mode::Mode;
 use types::pruning_info::PruningInfo;
 
 use verification::queue::QueueInfo;
-use block::{OpenBlock, SealedBlock};
+use block::{OpenBlock, SealedBlock, ClosedBlock};
 use executive::Executed;
 use error::CallError;
 use trace::LocalizedTrace;
@@ -55,7 +66,7 @@ pub struct TestBlockChainClient {
 	/// Blocks.
 	pub blocks: RwLock<HashMap<H256, Bytes>>,
 	/// Mapping of numbers to hashes.
- 	pub numbers: RwLock<HashMap<usize, H256>>,
+	pub numbers: RwLock<HashMap<usize, H256>>,
 	/// Genesis block hash.
 	pub genesis_hash: H256,
 	/// Last block hash.
@@ -235,7 +246,7 @@ impl TestBlockChainClient {
 					uncle_header.set_parent_hash(self.last_hash.read().clone());
 					uncle_header.set_number(n as BlockNumber);
 					uncles.append(&uncle_header);
-					header.set_uncles_hash(uncles.as_raw().sha3());
+					header.set_uncles_hash(keccak(uncles.as_raw()));
 					uncles
 				},
 				_ => RlpStream::new_list(0)
@@ -353,7 +364,7 @@ pub fn get_temp_state_db() -> GuardedTempResult<StateDB> {
 
 impl MiningBlockChainClient for TestBlockChainClient {
 	fn latest_schedule(&self) -> Schedule {
-		Schedule::new_post_eip150(24576, true, true, true, true)
+		Schedule::new_post_eip150(24576, true, true, true)
 	}
 
 	fn prepare_open_block(&self, author: Address, gas_range_target: (U256, U256), extra_data: Bytes) -> OpenBlock {
@@ -372,11 +383,16 @@ impl MiningBlockChainClient for TestBlockChainClient {
 			Arc::new(last_hashes),
 			author,
 			gas_range_target,
-			extra_data
+			extra_data,
+			false,
 		).expect("Opening block for tests will not fail.");
 		// TODO [todr] Override timestamp for predictability (set_timestamp_now kind of sucks)
 		open_block.set_timestamp(*self.latest_block_timestamp.read());
 		open_block
+	}
+
+	fn reopen_block(&self, block: ClosedBlock) -> OpenBlock {
+		block.reopen(&*self.spec.engine)
 	}
 
 	fn vm_factory(&self) -> &EvmFactory {
@@ -391,8 +407,16 @@ impl MiningBlockChainClient for TestBlockChainClient {
 }
 
 impl BlockChainClient for TestBlockChainClient {
-	fn call(&self, _t: &SignedTransaction, _block: BlockId, _analytics: CallAnalytics) -> Result<Executed, CallError> {
+	fn call(&self, _t: &SignedTransaction, _analytics: CallAnalytics, _block: BlockId) -> Result<Executed, CallError> {
 		self.execution_result.read().clone().unwrap()
+	}
+
+	fn call_many(&self, txs: &[(SignedTransaction, CallAnalytics)], block: BlockId) -> Result<Vec<Executed>, CallError> {
+		let mut res = Vec::with_capacity(txs.len());
+		for &(ref tx, analytics) in txs {
+			res.push(self.call(tx, analytics, block)?);
+		}
+		Ok(res)
 	}
 
 	fn estimate_gas(&self, _t: &SignedTransaction, _block: BlockId) -> Result<U256, CallError> {
@@ -413,7 +437,7 @@ impl BlockChainClient for TestBlockChainClient {
 
 	fn nonce(&self, address: &Address, id: BlockId) -> Option<U256> {
 		match id {
-			BlockId::Latest => Some(self.nonces.read().get(address).cloned().unwrap_or(self.spec.params.account_start_nonce)),
+			BlockId::Latest | BlockId::Pending => Some(self.nonces.read().get(address).cloned().unwrap_or(self.spec.params().account_start_nonce)),
 			_ => None,
 		}
 	}
@@ -428,16 +452,22 @@ impl BlockChainClient for TestBlockChainClient {
 
 	fn code(&self, address: &Address, id: BlockId) -> Option<Option<Bytes>> {
 		match id {
-			BlockId::Latest => Some(self.code.read().get(address).cloned()),
+			BlockId::Latest | BlockId::Pending => Some(self.code.read().get(address).cloned()),
+			_ => None,
+		}
+	}
+
+	fn code_hash(&self, address: &Address, id: BlockId) -> Option<H256> {
+		match id {
+			BlockId::Latest | BlockId::Pending => self.code.read().get(address).map(|c| keccak(&c)),
 			_ => None,
 		}
 	}
 
 	fn balance(&self, address: &Address, id: BlockId) -> Option<U256> {
-		if let BlockId::Latest = id {
-			Some(self.balances.read().get(address).cloned().unwrap_or_else(U256::zero))
-		} else {
-			None
+		match id {
+			BlockId::Latest | BlockId::Pending => Some(self.balances.read().get(address).cloned().unwrap_or_else(U256::zero)),
+			_ => None,
 		}
 	}
 
@@ -446,10 +476,9 @@ impl BlockChainClient for TestBlockChainClient {
 	}
 
 	fn storage_at(&self, address: &Address, position: &H256, id: BlockId) -> Option<H256> {
-		if let BlockId::Latest = id {
-			Some(self.storage.read().get(&(address.clone(), position.clone())).cloned().unwrap_or_else(H256::new))
-		} else {
-			None
+		match id {
+			BlockId::Latest | BlockId::Pending => Some(self.storage.read().get(&(address.clone(), position.clone())).cloned().unwrap_or_else(H256::new)),
+			_ => None,
 		}
 	}
 
@@ -478,10 +507,6 @@ impl BlockChainClient for TestBlockChainClient {
 
 	fn transaction_receipt(&self, id: TransactionId) -> Option<LocalizedReceipt> {
 		self.receipts.read().get(&id).cloned()
-	}
-
-	fn blocks_with_bloom(&self, _bloom: &H2048, _from_block: BlockId, _to_block: BlockId) -> Option<Vec<BlockNumber>> {
-		unimplemented!();
 	}
 
 	fn logs(&self, filter: Filter) -> Vec<LocalizedLogEntry> {
@@ -538,7 +563,8 @@ impl BlockChainClient for TestBlockChainClient {
 		match id {
 			BlockId::Number(number) if (number as usize) < self.blocks.read().len() => BlockStatus::InChain,
 			BlockId::Hash(ref hash) if self.blocks.read().get(hash).is_some() => BlockStatus::InChain,
-			BlockId::Latest | BlockId::Pending | BlockId::Earliest => BlockStatus::InChain,
+			BlockId::Latest | BlockId::Earliest => BlockStatus::InChain,
+			BlockId::Pending => BlockStatus::Pending,
 			_ => BlockStatus::Unknown,
 		}
 	}
@@ -593,6 +619,7 @@ impl BlockChainClient for TestBlockChainClient {
 		if *hash > H256::from("f000000000000000000000000000000000000000000000000000000000000000") {
 			let receipt = BlockReceipts::new(vec![Receipt::new(
 				Some(H256::zero()),
+				None,
 				U256::zero(),
 				vec![])]);
 			let mut rlp = RlpStream::new();
@@ -716,7 +743,7 @@ impl BlockChainClient for TestBlockChainClient {
 		self.miner.ready_transactions(info.best_block_number, info.best_block_timestamp)
 	}
 
-	fn signing_network_id(&self) -> Option<u64> { None }
+	fn signing_chain_id(&self) -> Option<u64> { None }
 
 	fn mode(&self) -> Mode { Mode::Active }
 
@@ -747,9 +774,9 @@ impl BlockChainClient for TestBlockChainClient {
 			value: U256::default(),
 			data: data,
 		};
-		let network_id = Some(self.spec.params.network_id);
-		let sig = self.spec.engine.sign(transaction.hash(network_id)).unwrap();
-		let signed = SignedTransaction::new(transaction.with_signature(sig, network_id)).unwrap();
+		let chain_id = Some(self.spec.chain_id());
+		let sig = self.spec.engine.sign(transaction.hash(chain_id)).unwrap();
+		let signed = SignedTransaction::new(transaction.with_signature(sig, chain_id)).unwrap();
 		self.miner.import_own_transaction(self, signed.into())
 	}
 
@@ -772,9 +799,13 @@ impl ProvingBlockChainClient for TestBlockChainClient {
 	fn prove_transaction(&self, _: SignedTransaction, _: BlockId) -> Option<(Bytes, Vec<DBValue>)> {
 		None
 	}
+
+	fn epoch_signal(&self, _: H256) -> Option<Vec<u8>> {
+		None
+	}
 }
 
-impl EngineClient for TestBlockChainClient {
+impl super::traits::EngineClient for TestBlockChainClient {
 	fn update_sealing(&self) {
 		self.miner.update_sealing(self)
 	}
@@ -786,4 +817,18 @@ impl EngineClient for TestBlockChainClient {
 	}
 
 	fn broadcast_consensus_message(&self, _message: Bytes) {}
+
+	fn epoch_transition_for(&self, _block_hash: H256) -> Option<::engines::EpochTransition> {
+		None
+	}
+
+	fn chain_info(&self) -> BlockChainInfo {
+		BlockChainClient::chain_info(self)
+	}
+
+	fn as_full_client(&self) -> Option<&BlockChainClient> { Some(self) }
+
+	fn block_number(&self, id: BlockId) -> Option<BlockNumber> {
+		BlockChainClient::block_number(self, id)
+	}
 }

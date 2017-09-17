@@ -24,7 +24,6 @@ use crossbeam::sync::chase_lev;
 use slab::Slab;
 use {IoError, IoHandler};
 use worker::{Worker, Work, WorkType};
-use panics::*;
 use parking_lot::{RwLock, Mutex};
 use std::sync::{Condvar as SCondvar, Mutex as SMutex};
 use std::time::Duration;
@@ -191,7 +190,6 @@ pub struct IoManager<Message> where Message: Send + Sync {
 impl<Message> IoManager<Message> where Message: Send + Sync + Clone + 'static {
 	/// Creates a new instance and registers it with the event loop.
 	pub fn start(
-		panic_handler: Arc<PanicHandler>, 
 		event_loop: &mut EventLoop<IoManager<Message>>,
 		handlers: Arc<RwLock<Slab<Arc<IoHandler<Message>>, HandlerId>>>
 	) -> Result<(), IoError> {
@@ -206,7 +204,6 @@ impl<Message> IoManager<Message> where Message: Send + Sync + Clone + 'static {
 				IoChannel::new(event_loop.channel(), Arc::downgrade(&handlers)),
 				work_ready.clone(),
 				work_ready_mutex.clone(),
-				panic_handler.clone(),
 			)
 		).collect();
 
@@ -417,37 +414,24 @@ impl<Message> IoChannel<Message> where Message: Send + Clone + Sync + 'static {
 /// General IO Service. Starts an event loop and dispatches IO requests.
 /// 'Message' is a notification message type
 pub struct IoService<Message> where Message: Send + Sync + Clone + 'static {
-	panic_handler: Arc<PanicHandler>,
 	thread: Mutex<Option<JoinHandle<()>>>,
 	host_channel: Mutex<Sender<IoMessage<Message>>>,
 	handlers: Arc<RwLock<Slab<Arc<IoHandler<Message>>, HandlerId>>>,
 }
 
-impl<Message> MayPanic for IoService<Message> where Message: Send + Sync + Clone + 'static {
-	fn on_panic<F>(&self, closure: F) where F: OnPanicListener {
-		self.panic_handler.on_panic(closure);
-	}
-}
-
 impl<Message> IoService<Message> where Message: Send + Sync + Clone + 'static {
 	/// Starts IO event loop
 	pub fn start() -> Result<IoService<Message>, IoError> {
-		let panic_handler = PanicHandler::new_in_arc();
 		let mut config = EventLoopBuilder::new();
 		config.messages_per_tick(1024);
 		let mut event_loop = config.build().expect("Error creating event loop");
 		let channel = event_loop.channel();
-		let panic = panic_handler.clone();
 		let handlers = Arc::new(RwLock::new(Slab::new(MAX_HANDLERS)));
 		let h = handlers.clone();
 		let thread = thread::spawn(move || {
-			let p = panic.clone();
-			panic.catch_panic(move || {
-				IoManager::<Message>::start(p, &mut event_loop, h).expect("Error starting IO service");
-			}).expect("Error starting panic handler")
+			IoManager::<Message>::start(&mut event_loop, h).expect("Error starting IO service");
 		});
 		Ok(IoService {
-			panic_handler: panic_handler,
 			thread: Mutex::new(Some(thread)),
 			host_channel: Mutex::new(channel),
 			handlers: handlers,

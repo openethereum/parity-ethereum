@@ -39,9 +39,18 @@ export default class Parity {
       .then(outAccountInfo);
   }
 
-  addReservedPeer (encode) {
+  addReservedPeer (enode) {
     return this._transport
-      .execute('parity_addReservedPeer', encode);
+      .execute('parity_addReservedPeer', enode);
+  }
+
+  call (requests, blockNumber = 'latest') {
+    return this._transport
+      .execute(
+        'parity_call',
+        requests.map((options) => inOptions(options)),
+        inBlockNumber(blockNumber)
+      );
   }
 
   chainId () {
@@ -95,15 +104,19 @@ export default class Parity {
       .execute('parity_consensusCapability');
   }
 
-  dappsPort () {
+  dappsList () {
     return this._transport
-      .execute('parity_dappsPort')
-      .then(outNumber);
+      .execute('parity_dappsList');
   }
 
-  dappsInterface () {
+  dappsRefresh () {
     return this._transport
-      .execute('parity_dappsInterface');
+      .execute('parity_dappsRefresh');
+  }
+
+  dappsUrl () {
+    return this._transport
+      .execute('parity_dappsUrl');
   }
 
   decryptMessage (address, data) {
@@ -242,6 +255,16 @@ export default class Parity {
     return this._transport
       .execute('parity_hardwareAccountsInfo')
       .then(outHwAccountInfo);
+  }
+
+  lockedHardwareAccountsInfo () {
+    return this._transport
+      .execute('parity_lockedHardwareAccountsInfo');
+  }
+
+  hardwarePinMatrixAck (path, pin) {
+    return this._transport
+      .execute('parity_hardwarePinMatrixAck', path, pin);
   }
 
   hashContent (url) {
@@ -386,6 +409,11 @@ export default class Parity {
       .then(outNumber);
   }
 
+  nodeHealth () {
+    return this._transport
+      .execute('parity_nodeHealth');
+  }
+
   nodeName () {
     return this._transport
       .execute('parity_nodeName');
@@ -434,9 +462,9 @@ export default class Parity {
       .execute('parity_releasesInfo');
   }
 
-  removeReservedPeer (encode) {
+  removeReservedPeer (enode) {
     return this._transport
-      .execute('parity_removeReservedPeer', encode);
+      .execute('parity_removeReservedPeer', enode);
   }
 
   removeTransaction (hash) {
@@ -535,12 +563,6 @@ export default class Parity {
       .execute('parity_setVaultMeta', vaultName, JSON.stringify(meta));
   }
 
-  signerPort () {
-    return this._transport
-      .execute('parity_signerPort')
-      .then(outNumber);
-  }
-
   signMessage (address, password, messageHash) {
     return this._transport
       .execute('parity_signMessage', inAddress(address), password, inHex(messageHash));
@@ -571,5 +593,10 @@ export default class Parity {
   versionInfo () {
     return this._transport
       .execute('parity_versionInfo');
+  }
+
+  wsUrl () {
+    return this._transport
+      .execute('parity_wsUrl');
   }
 }

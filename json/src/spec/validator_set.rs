@@ -40,6 +40,9 @@ pub enum ValidatorSet {
 #[cfg(test)]
 mod tests {
 	use serde_json;
+	use uint::Uint;
+	use bigint::prelude::{H160, U256};
+	use hash::Address;
 	use spec::validator_set::ValidatorSet;
 
 	#[test]
@@ -58,6 +61,20 @@ mod tests {
 			}
 		}]"#;
 
-		let _deserialized: Vec<ValidatorSet> = serde_json::from_str(s).unwrap();
+		let deserialized: Vec<ValidatorSet> = serde_json::from_str(s).unwrap();
+		assert_eq!(deserialized.len(), 4);
+
+		assert_eq!(deserialized[0], ValidatorSet::List(vec![Address(H160::from("0xc6d9d2cd449a754c494264e1809c50e34d64562b"))]));
+		assert_eq!(deserialized[1], ValidatorSet::SafeContract(Address(H160::from("0xc6d9d2cd449a754c494264e1809c50e34d64562b"))));
+		assert_eq!(deserialized[2], ValidatorSet::Contract(Address(H160::from("0xc6d9d2cd449a754c494264e1809c50e34d64562b"))));
+		match deserialized[3] {
+			ValidatorSet::Multi(ref map) => {
+				assert_eq!(map.len(), 3);
+				assert!(map.contains_key(&Uint(U256::from(0))));
+				assert!(map.contains_key(&Uint(U256::from(10))));
+				assert!(map.contains_key(&Uint(U256::from(20))));
+			},
+			_ => assert!(false),
+		}
 	}
 }

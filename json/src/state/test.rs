@@ -104,7 +104,12 @@ pub enum ForkSpec {
 	EIP158,
 	Frontier,
 	Homestead,
-	Metropolis,
+	Byzantium,
+	Constantinople,
+	EIP158ToByzantiumAt5,
+	FrontierToHomesteadAt5,
+	HomesteadToDaoAt5,
+	HomesteadToEIP150At5,
 }
 
 /// State test indexes deserialization.
@@ -161,7 +166,7 @@ mod tests {
 				"EIP150" : [
 					{
 						"hash" : "3e6dacc1575c6a8c76422255eca03529bbf4c0dda75dfc110b22d6dc4152396f",
-						"indexes" : { "data" : 0, "gas" : 0,  "value" : 0 } 
+						"indexes" : { "data" : 0, "gas" : 0,  "value" : 0 }
 					},
 					{
 						"hash" : "99a450d8ce5b987a71346d8a0a1203711f770745c7ef326912e46761f14cd764",

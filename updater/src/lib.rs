@@ -18,12 +18,16 @@
 
 #[macro_use] extern crate log;
 extern crate ethcore_util as util;
+extern crate ethcore_bigint as bigint;
+extern crate ethcore_bytes as bytes;
 extern crate ipc_common_types;
+extern crate parking_lot;
 extern crate parity_hash_fetch as hash_fetch;
 extern crate ethcore;
 extern crate ethabi;
 extern crate ethsync;
 extern crate ethcore_ipc as ipc;
+extern crate futures;
 extern crate target_info;
 extern crate parity_reactor;
 extern crate path;

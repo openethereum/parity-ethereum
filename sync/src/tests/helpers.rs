@@ -14,7 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use util::*;
+use std::collections::{VecDeque, HashSet, HashMap};
+use std::sync::Arc;
+use bigint::hash::H256;
+use parking_lot::RwLock;
+use bytes::Bytes;
 use network::*;
 use tests::snapshot::*;
 use ethcore::client::{TestBlockChainClient, BlockChainClient, Client as EthcoreClient, ClientConfig, ChainNotify};

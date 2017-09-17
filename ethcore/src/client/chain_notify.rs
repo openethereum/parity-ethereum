@@ -15,13 +15,15 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use ipc::IpcConfig;
-use util::{H256, Bytes};
+use bigint::hash::H256;
+use bytes::Bytes;
 
 /// Represents what has to be handled by actor listening to chain events
 #[ipc]
 pub trait ChainNotify : Send + Sync {
 	/// fires when chain has new blocks.
-	fn new_blocks(&self,
+	fn new_blocks(
+		&self,
 		_imported: Vec<H256>,
 		_invalid: Vec<H256>,
 		_enacted: Vec<H256>,
@@ -29,7 +31,8 @@ pub trait ChainNotify : Send + Sync {
 		_sealed: Vec<H256>,
 		// Block bytes.
 		_proposed: Vec<Bytes>,
-		_duration: u64) {
+		_duration: u64,
+	) {
 		// does nothing by default
 	}
 

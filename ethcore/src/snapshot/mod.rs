@@ -22,6 +22,7 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use hash::{keccak, KECCAK_NULL_RLP, KECCAK_EMPTY};
 
 use account_db::{AccountDB, AccountDBMut};
 use blockchain::{BlockChain, BlockProvider};
@@ -29,13 +30,14 @@ use engines::Engine;
 use header::Header;
 use ids::BlockId;
 
-use util::{Bytes, Hashable, HashDB, DBValue, snappy, U256, Uint};
-use util::Mutex;
-use util::hash::{H256};
+use bigint::prelude::U256;
+use bigint::hash::H256;
+use util::{HashDB, DBValue, snappy};
+use bytes::Bytes;
+use parking_lot::Mutex;
 use util::journaldb::{self, Algorithm, JournalDB};
-use util::kvdb::Database;
-use util::trie::{TrieDB, TrieDBMut, Trie, TrieMut};
-use util::sha3::SHA3_NULL_RLP;
+use util::kvdb::KeyValueDB;
+use trie::{TrieDB, TrieDBMut, Trie, TrieMut};
 use rlp::{RlpStream, UntrustedRlp};
 use bloom_journal::Bloom;
 
@@ -82,6 +84,11 @@ mod traits {
 
 // Try to have chunks be around 4MB (before compression)
 const PREFERRED_CHUNK_SIZE: usize = 4 * 1024 * 1024;
+
+// Minimum supported state chunk version.
+const MIN_SUPPORTED_STATE_CHUNK_VERSION: u64 = 1;
+// current state chunk version.
+const STATE_CHUNK_VERSION: u64 = 2;
 
 /// A progress indicator for snapshots.
 #[derive(Debug, Default)]
@@ -135,6 +142,7 @@ pub fn take_snapshot<W: SnapshotWriter + Send>(
 
 	let writer = Mutex::new(writer);
 	let chunker = engine.snapshot_components().ok_or(Error::SnapshotsUnsupported)?;
+	let snapshot_version = chunker.current_version();
 	let (state_hashes, block_hashes) = scope(|scope| {
 		let writer = &writer;
 		let block_guard = scope.spawn(move || chunk_secondary(chunker, chain, block_at, writer, p));
@@ -148,7 +156,7 @@ pub fn take_snapshot<W: SnapshotWriter + Send>(
 	info!("produced {} state chunks and {} block chunks.", state_hashes.len(), block_hashes.len());
 
 	let manifest_data = ManifestData {
-		version: 2,
+		version: snapshot_version,
 		state_hashes: state_hashes,
 		block_hashes: block_hashes,
 		state_root: *state_root,
@@ -177,7 +185,7 @@ pub fn chunk_secondary<'a>(mut chunker: Box<SnapshotComponents>, chain: &'a Bloc
 		let mut chunk_sink = |raw_data: &[u8]| {
 			let compressed_size = snappy::compress_into(raw_data, &mut snappy_buffer);
 			let compressed = &snappy_buffer[..compressed_size];
-			let hash = compressed.sha3();
+			let hash = keccak(&compressed);
 			let size = compressed.len();
 
 			writer.lock().write_block_chunk(hash, compressed)?;
@@ -234,7 +242,7 @@ impl<'a> StateChunker<'a> {
 
 		let compressed_size = snappy::compress_into(&raw_data, &mut self.snappy_buffer);
 		let compressed = &self.snappy_buffer[..compressed_size];
-		let hash = compressed.sha3();
+		let hash = keccak(&compressed);
 
 		self.writer.lock().write_state_chunk(hash, compressed)?;
 		trace!(target: "snapshot", "wrote state chunk. size: {}, uncompressed size: {}", compressed_size, raw_data.len());
@@ -309,10 +317,10 @@ pub struct StateRebuilder {
 
 impl StateRebuilder {
 	/// Create a new state rebuilder to write into the given backing DB.
-	pub fn new(db: Arc<Database>, pruning: Algorithm) -> Self {
+	pub fn new(db: Arc<KeyValueDB>, pruning: Algorithm) -> Self {
 		StateRebuilder {
 			db: journaldb::new(db.clone(), pruning, ::db::COL_STATE),
-			state_root: SHA3_NULL_RLP,
+			state_root: KECCAK_NULL_RLP,
 			known_code: HashMap::new(),
 			missing_code: HashMap::new(),
 			bloom: StateDB::load_bloom(&*db),
@@ -356,7 +364,7 @@ impl StateRebuilder {
 
 		// batch trie writes
 		{
-			let mut account_trie = if self.state_root != SHA3_NULL_RLP {
+			let mut account_trie = if self.state_root != KECCAK_NULL_RLP {
 				TrieDBMut::from_existing(self.db.as_hashdb_mut(), &mut self.state_root)?
 			} else {
 				TrieDBMut::new(self.db.as_hashdb_mut(), &mut self.state_root)
@@ -384,7 +392,7 @@ impl StateRebuilder {
 	/// Finalize the restoration. Check for accounts missing code and make a dummy
 	/// journal entry.
 	/// Once all chunks have been fed, there should be nothing missing.
-	pub fn finalize(mut self, era: u64, id: H256) -> Result<(), ::error::Error> {
+	pub fn finalize(mut self, era: u64, id: H256) -> Result<Box<JournalDB>, ::error::Error> {
 		let missing = self.missing_code.keys().cloned().collect::<Vec<_>>();
 		if !missing.is_empty() { return Err(Error::MissingCode(missing).into()) }
 
@@ -392,7 +400,7 @@ impl StateRebuilder {
 		self.db.journal_under(&mut batch, era, &id)?;
 		self.db.backing().write_buffered(batch);
 
-		Ok(())
+		Ok(self.db)
 	}
 
 	/// Get the state root of the rebuilder.
@@ -437,7 +445,7 @@ fn rebuild_accounts(
 				// new inline code
 				Some(code) => status.new_code.push((code_hash, code, hash)),
 				None => {
-					if code_hash != ::util::SHA3_EMPTY {
+					if code_hash != KECCAK_EMPTY {
 						// see if this code has already been included inline
 						match known_code.get(&code_hash) {
 							Some(&first_with) => {
@@ -456,7 +464,7 @@ fn rebuild_accounts(
 				}
 			}
 
-			::rlp::encode(&acc).to_vec()
+			::rlp::encode(&acc).into_vec()
 		};
 
 		*out = (hash, thin_rlp);

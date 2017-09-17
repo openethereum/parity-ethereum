@@ -17,15 +17,11 @@
 //! Tendermint params deserialization.
 
 use uint::Uint;
-use hash::Address;
 use super::ValidatorSet;
 
 /// Tendermint params deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct TendermintParams {
-	/// Gas limit divisor.
-	#[serde(rename="gasLimitBoundDivisor")]
-	pub gas_limit_bound_divisor: Uint,
 	/// Valid validators.
 	pub validators: ValidatorSet,
 	/// Propose step timeout in milliseconds.
@@ -40,11 +36,6 @@ pub struct TendermintParams {
 	/// Commit step timeout in milliseconds.
 	#[serde(rename="timeoutCommit")]
 	pub timeout_commit: Option<Uint>,
-	/// Block reward.
-	#[serde(rename="blockReward")]
-	pub block_reward: Option<Uint>,
-	/// Address of the registrar contract.
-	pub registrar: Option<Address>,
 }
 
 /// Tendermint engine deserialization.
@@ -57,20 +48,23 @@ pub struct Tendermint {
 #[cfg(test)]
 mod tests {
 	use serde_json;
+	use bigint::prelude::H160;
+	use hash::Address;
 	use spec::tendermint::Tendermint;
+	use spec::validator_set::ValidatorSet;
 
 	#[test]
 	fn tendermint_deserialization() {
 		let s = r#"{
 			"params": {
-				"gasLimitBoundDivisor": "0x0400",
 				"validators": {
 					"list": ["0xc6d9d2cd449a754c494264e1809c50e34d64562b"]
-				},
-				"blockReward": "0x50"
+				}
 			}
 		}"#;
 
-		let _deserialized: Tendermint = serde_json::from_str(s).unwrap();
+		let deserialized: Tendermint = serde_json::from_str(s).unwrap();
+		let vs = ValidatorSet::List(vec![Address(H160::from("0xc6d9d2cd449a754c494264e1809c50e34d64562b"))]);
+		assert_eq!(deserialized.params.validators, vs);
 	}
 }

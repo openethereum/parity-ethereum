@@ -28,6 +28,8 @@
 //!
 
 extern crate ethcore_network as network;
+extern crate ethcore_bigint as bigint;
+extern crate ethcore_bytes as bytes;
 extern crate ethcore_io as io;
 extern crate ethcore;
 extern crate env_logger;
@@ -37,6 +39,9 @@ extern crate semver;
 extern crate parking_lot;
 extern crate smallvec;
 extern crate rlp;
+extern crate ipnetwork;
+extern crate hash;
+extern crate triehash;
 
 extern crate ethcore_light as light;
 
@@ -75,7 +80,7 @@ mod api;
 
 pub use api::*;
 pub use chain::{SyncStatus, SyncState};
-pub use network::{is_valid_node_url, NonReservedPeerMode, NetworkError};
+pub use network::{is_valid_node_url, NonReservedPeerMode, NetworkError, ConnectionFilter, ConnectionDirection};
 
 /// IPC interfaces
 #[cfg(feature="ipc")]

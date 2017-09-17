@@ -16,11 +16,14 @@
 
 use std::sync::Arc;
 use std::str::FromStr;
-use util::{U256, Uint, Address, ToPretty};
+use bigint::prelude::U256;
+use util::Address;
+use bytes::ToPretty;
 
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::TestBlockChainClient;
 use ethcore::transaction::{Transaction, Action, SignedTransaction};
+use parity_reactor::EventLoop;
 use rlp::encode;
 
 use serde_json;
@@ -28,7 +31,7 @@ use jsonrpc_core::IoHandler;
 use v1::{SignerClient, Signer, Origin};
 use v1::metadata::Metadata;
 use v1::tests::helpers::TestMinerService;
-use v1::types::H520;
+use v1::types::{Bytes as RpcBytes, H520};
 use v1::helpers::{SigningQueue, SignerService, FilledTransactionRequest, ConfirmationPayload};
 use v1::helpers::dispatch::{FullDispatcher, eth_data_hash};
 
@@ -37,9 +40,6 @@ struct SignerTester {
 	accounts: Arc<AccountProvider>,
 	io: IoHandler<Metadata>,
 	miner: Arc<TestMinerService>,
-	// these unused fields are necessary to keep the data alive
-	// as the handler has only weak pointers.
-	_client: Arc<TestBlockChainClient>,
 }
 
 fn blockchain_client() -> Arc<TestBlockChainClient> {
@@ -56,22 +56,22 @@ fn miner_service() -> Arc<TestMinerService> {
 }
 
 fn signer_tester() -> SignerTester {
-	let signer = Arc::new(SignerService::new_test(None));
+	let signer = Arc::new(SignerService::new_test(false));
 	let accounts = accounts_provider();
 	let opt_accounts = Some(accounts.clone());
 	let client = blockchain_client();
 	let miner = miner_service();
+	let event_loop = EventLoop::spawn();
 
-	let dispatcher = FullDispatcher::new(Arc::downgrade(&client), Arc::downgrade(&miner));
+	let dispatcher = FullDispatcher::new(client, miner.clone());
 	let mut io = IoHandler::default();
-	io.extend_with(SignerClient::new(&opt_accounts, dispatcher, &signer).to_delegate());
+	io.extend_with(SignerClient::new(&opt_accounts, dispatcher, &signer, event_loop.remote()).to_delegate());
 
 	SignerTester {
 		signer: signer,
 		accounts: accounts,
 		io: io,
 		miner: miner,
-		_client: client,
 	}
 }
 
@@ -456,12 +456,13 @@ fn should_confirm_sign_transaction_with_rlp() {
 	let response = r#"{"jsonrpc":"2.0","result":{"#.to_owned() +
 		r#""raw":"0x"# + &rlp.to_hex() + r#"","# +
 		r#""tx":{"# +
-		r#""blockHash":null,"blockNumber":null,"condition":null,"creates":null,"# +
+		r#""blockHash":null,"blockNumber":null,"# +
+		&format!("\"chainId\":{},", t.chain_id().map_or("null".to_owned(), |n| format!("{}", n))) +
+		r#""condition":null,"creates":null,"# +
 		&format!("\"from\":\"0x{:?}\",", &address) +
 		r#""gas":"0x989680","gasPrice":"0x1000","# +
 		&format!("\"hash\":\"0x{:?}\",", t.hash()) +
 		r#""input":"0x","# +
-		&format!("\"networkId\":{},", t.network_id().map_or("null".to_owned(), |n| format!("{}", n))) +
 		r#""nonce":"0x0","# +
 		&format!("\"publicKey\":\"0x{:?}\",", t.public_key().unwrap()) +
 		&format!("\"r\":\"0x{}\",", U256::from(signature.r()).to_hex()) +
@@ -478,7 +479,6 @@ fn should_confirm_sign_transaction_with_rlp() {
 	assert_eq!(tester.signer.requests().len(), 0);
 	assert_eq!(tester.miner.imported_transactions.lock().len(), 0);
 }
-
 
 #[test]
 fn should_confirm_data_sign_with_signature() {
@@ -503,6 +503,34 @@ fn should_confirm_data_sign_with_signature() {
 		"id":1
 	}"#;
 	let response = r#"{"jsonrpc":"2.0","result":""#.to_owned() + &signature + r#"","id":1}"#;
+
+	// then
+	assert_eq!(tester.io.handle_request_sync(&request), Some(response.to_owned()));
+	assert_eq!(tester.signer.requests().len(), 0);
+	assert_eq!(tester.miner.imported_transactions.lock().len(), 0);
+}
+
+#[test]
+fn should_confirm_decrypt_with_phrase() {
+	// given
+	let tester = signer_tester();
+	let address = tester.accounts.new_account("test").unwrap();
+	tester.signer.add_request(ConfirmationPayload::Decrypt(
+		address,
+		vec![1, 2, 3, 4].into(),
+	), Origin::Unknown).unwrap();
+	assert_eq!(tester.signer.requests().len(), 1);
+
+	let decrypted = serde_json::to_string(&RpcBytes::new(b"phrase".to_vec())).unwrap();
+
+	// when
+	let request = r#"{
+		"jsonrpc":"2.0",
+		"method":"signer_confirmRequestRaw",
+		"params":["0x1", "#.to_owned() + &decrypted + r#"],
+		"id":1
+	}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"#.to_owned() + &decrypted + r#","id":1}"#;
 
 	// then
 	assert_eq!(tester.io.handle_request_sync(&request), Some(response.to_owned()));
@@ -538,7 +566,7 @@ fn should_generate_new_web_proxy_token() {
 	let request = r#"{
 		"jsonrpc":"2.0",
 		"method":"signer_generateWebProxyAccessToken",
-		"params":[],
+		"params":["https://parity.io"],
 		"id":1
 	}"#;
 	let response = tester.io.handle_request_sync(&request).unwrap();
@@ -546,7 +574,7 @@ fn should_generate_new_web_proxy_token() {
 
 	if let Response::Single(Output::Success(ref success)) = result {
 		if let Value::String(ref token) = success.result {
-			assert!(tester.signer.is_valid_web_proxy_access_token(&token), "It should return valid web proxy token.");
+			assert_eq!(tester.signer.web_proxy_access_token_domain(&token), Some("https://parity.io".into()));
 			return;
 		}
 	}

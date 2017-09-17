@@ -16,6 +16,9 @@
 
 use std::ops::Deref;
 use std::collections::BTreeMap;
+
+use ethcore::encoded::Header as EthHeader;
+
 use serde::{Serialize, Serializer};
 use serde::ser::Error;
 use v1::types::{Bytes, Transaction, H160, H256, H2048, U256};
@@ -97,7 +100,7 @@ pub struct Block {
 }
 
 /// Block header representation.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub struct Header {
 	/// Hash of the block
 	pub hash: Option<H256>,
@@ -146,6 +149,36 @@ pub struct Header {
 	pub size: Option<U256>,
 }
 
+impl From<EthHeader> for Header {
+	fn from(h: EthHeader) -> Self {
+		(&h).into()
+	}
+}
+
+impl<'a> From<&'a EthHeader> for Header {
+	fn from(h: &'a EthHeader) -> Self {
+		Header {
+			hash: Some(h.hash().into()),
+			size: Some(h.rlp().as_raw().len().into()),
+			parent_hash: h.parent_hash().into(),
+			uncles_hash: h.uncles_hash().into(),
+			author: h.author().into(),
+			miner: h.author().into(),
+			state_root: h.state_root().into(),
+			transactions_root: h.transactions_root().into(),
+			receipts_root: h.receipts_root().into(),
+			number: Some(h.number().into()),
+			gas_used: h.gas_used().into(),
+			gas_limit: h.gas_limit().into(),
+			logs_bloom: h.log_bloom().into(),
+			timestamp: h.timestamp().into(),
+			difficulty: h.difficulty().into(),
+			seal_fields: h.seal().into_iter().map(Into::into).collect(),
+			extra_data: h.extra_data().into(),
+		}
+	}
+}
+
 /// Block representation with additional info.
 pub type RichBlock = Rich<Block>;
 
@@ -153,7 +186,7 @@ pub type RichBlock = Rich<Block>;
 pub type RichHeader = Rich<Header>;
 
 /// Value representation with additional info
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Rich<T> {
 	/// Standard value.
 	pub inner: T,
@@ -181,7 +214,7 @@ impl<T: Serialize> Serialize for Rich<T> {
 			// and serialize
 			value.serialize(serializer)
 		} else {
-			Err(S::Error::custom("Unserializable structures."))
+			Err(S::Error::custom("Unserializable structures: expected objects"))
 		}
 	}
 }
@@ -197,7 +230,7 @@ mod tests {
 	fn test_serialize_block_transactions() {
 		let t = BlockTransactions::Full(vec![Transaction::default()]);
 		let serialized = serde_json::to_string(&t).unwrap();
-		assert_eq!(serialized, r#"[{"hash":"0x0000000000000000000000000000000000000000000000000000000000000000","nonce":"0x0","blockHash":null,"blockNumber":null,"transactionIndex":null,"from":"0x0000000000000000000000000000000000000000","to":null,"value":"0x0","gasPrice":"0x0","gas":"0x0","input":"0x","creates":null,"raw":"0x","publicKey":null,"networkId":null,"standardV":"0x0","v":"0x0","r":"0x0","s":"0x0","condition":null}]"#);
+		assert_eq!(serialized, r#"[{"hash":"0x0000000000000000000000000000000000000000000000000000000000000000","nonce":"0x0","blockHash":null,"blockNumber":null,"transactionIndex":null,"from":"0x0000000000000000000000000000000000000000","to":null,"value":"0x0","gasPrice":"0x0","gas":"0x0","input":"0x","creates":null,"raw":"0x","publicKey":null,"chainId":null,"standardV":"0x0","v":"0x0","r":"0x0","s":"0x0","condition":null}]"#);
 
 		let t = BlockTransactions::Hashes(vec![H256::default().into()]);
 		let serialized = serde_json::to_string(&t).unwrap();

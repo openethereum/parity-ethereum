@@ -16,9 +16,12 @@
 
 //! Disk-backed `HashDB` implementation.
 
-use common::*;
+use std::sync::Arc;
 use hashdb::*;
 use kvdb::{self, DBTransaction};
+use bigint::hash::H256;
+use UtilError;
+use bytes::Bytes;
 
 /// A `HashDB` which can manage a short-term journal potentially containing many forks of mutually
 /// exclusive actions.

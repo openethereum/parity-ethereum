@@ -19,14 +19,14 @@ use std::collections::BTreeMap;
 
 use jsonrpc_core::Error;
 use ethstore::KeyFile;
-use v1::types::{H160, H256, H520, DappId, DeriveHash, DeriveHierarchical};
+use v1::types::{H160, H256, H520, DappId, DeriveHash, DeriveHierarchical, ExtAccountInfo};
 
 build_rpc_trait! {
 	/// Personal Parity rpc interface.
 	pub trait ParityAccounts {
 		/// Returns accounts information.
 		#[rpc(name = "parity_allAccountsInfo")]
-		fn all_accounts_info(&self) -> Result<BTreeMap<H160, BTreeMap<String, String>>, Error>;
+		fn all_accounts_info(&self) -> Result<BTreeMap<H160, ExtAccountInfo>, Error>;
 
 		/// Creates new account from the given phrase using standard brainwallet mechanism.
 		/// Second parameter is password for the new account.
@@ -184,5 +184,9 @@ build_rpc_trait! {
 		/// Sign raw hash with the key corresponding to address and password.
 		#[rpc(name = "parity_signMessage")]
 		fn sign_message(&self, H160, String, H256) -> Result<H520, Error>;
+
+		/// Send a PinMatrixAck to a hardware wallet, unlocking it
+		#[rpc(name = "parity_hardwarePinMatrixAck")]
+		fn hardware_pin_matrix_ack(&self, String, String) -> Result<bool, Error>;
 	}
 }

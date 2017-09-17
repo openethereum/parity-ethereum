@@ -19,7 +19,8 @@ use error::{Error, Result};
 use cid::{ToCid, Codec};
 
 use multihash::Hash;
-use util::{Bytes, H256};
+use bigint::hash::H256;
+use bytes::Bytes;
 use ethcore::client::{BlockId, TransactionId};
 
 type Reason = &'static str;
@@ -79,7 +80,7 @@ impl IpfsHandler {
 	fn block_list(&self, hash: H256) -> Result<Out> {
 		let uncles = self.client().find_uncles(&hash).ok_or(Error::BlockNotFound)?;
 
-		Ok(Out::OctetStream(rlp::encode_list(&uncles).to_vec()))
+		Ok(Out::OctetStream(rlp::encode_list(&uncles).into_vec()))
 	}
 
 	/// Get transaction by hash and return as raw binary.
@@ -87,7 +88,7 @@ impl IpfsHandler {
 		let tx_id = TransactionId::Hash(hash);
 		let tx = self.client().transaction(tx_id).ok_or(Error::TransactionNotFound)?;
 
-		Ok(Out::OctetStream(rlp::encode(&*tx).to_vec()))
+		Ok(Out::OctetStream(rlp::encode(&*tx).into_vec()))
 	}
 
 	/// Get state trie node by hash and return as raw binary.
@@ -119,7 +120,7 @@ mod tests {
 	use ethcore::client::TestBlockChainClient;
 
 	fn get_mocked_handler() -> IpfsHandler {
-		IpfsHandler::new(None, None, Arc::new(TestBlockChainClient::new()))
+		IpfsHandler::new(None.into(), None.into(), Arc::new(TestBlockChainClient::new()))
 	}
 
 	#[test]

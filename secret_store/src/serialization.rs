@@ -17,15 +17,19 @@
 use std::fmt;
 use std::cmp::{Ord, PartialOrd, Ordering};
 use std::ops::Deref;
-use rustc_serialize::hex::{ToHex, FromHex};
+use rustc_hex::{ToHex, FromHex};
 use serde::{Serialize, Deserialize, Serializer, Deserializer};
 use serde::de::{Visitor, Error as SerdeError};
 use ethkey::{Public, Secret, Signature};
-use util::{H256, Bytes};
+use bigint::hash::H256;
+use bytes::Bytes;
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+/// Serializable message hash.
+pub type SerializableMessageHash = SerializableH256;
+
 /// Serializable shadow decryption result.
-pub struct SerializableDocumentEncryptedKeyShadow {
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct SerializableEncryptedDocumentKeyShadow {
 	/// Decrypted secret point. It is partially decrypted if shadow decrpytion was requested.
 	pub decrypted_secret: SerializablePublic,
 	/// Shared common point.
@@ -34,8 +38,8 @@ pub struct SerializableDocumentEncryptedKeyShadow {
 	pub decrypt_shadows: Vec<SerializableBytes>,
 }
 
-#[derive(Clone, Debug, PartialEq)]
 /// Serializable Bytes.
+#[derive(Clone, Debug, PartialEq)]
 pub struct SerializableBytes(pub Bytes);
 
 impl<T> From<T> for SerializableBytes where Bytes: From<T> {
@@ -66,9 +70,9 @@ impl Serialize for SerializableBytes {
 	}
 }
 
-impl Deserialize for SerializableBytes {
+impl<'a> Deserialize<'a> for SerializableBytes {
 	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-		where D: Deserializer
+		where D: Deserializer<'a>
 	{
 		let s = String::deserialize(deserializer)?;
 		if s.len() >= 2 && &s[0..2] == "0x" && s.len() & 1 == 0 {
@@ -80,8 +84,8 @@ impl Deserialize for SerializableBytes {
 	}
 }
 
-#[derive(Clone, Debug)]
 /// Serializable Signature.
+#[derive(Clone, Debug)]
 pub struct SerializableSignature(pub Signature);
 
 impl<T> From<T> for SerializableSignature where Signature: From<T> {
@@ -112,11 +116,11 @@ impl Serialize for SerializableSignature {
 	}
 }
 
-impl Deserialize for SerializableSignature {
-	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: Deserializer {
+impl<'a> Deserialize<'a> for SerializableSignature {
+	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: Deserializer<'a> {
 		struct HashVisitor;
 
-		impl Visitor for HashVisitor {
+		impl<'b> Visitor<'b> for HashVisitor {
 			type Value = SerializableSignature;
 
 			fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -136,12 +140,12 @@ impl Deserialize for SerializableSignature {
 			}
 		}
 
-		deserializer.deserialize(HashVisitor)
+		deserializer.deserialize_any(HashVisitor)
 	}
 }
 
-#[derive(Clone, Debug)]
 /// Serializable H256.
+#[derive(Clone, Debug)]
 pub struct SerializableH256(pub H256);
 
 impl<T> From<T> for SerializableH256 where H256: From<T> {
@@ -172,11 +176,11 @@ impl Serialize for SerializableH256 {
 	}
 }
 
-impl Deserialize for SerializableH256 {
-	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: Deserializer {
+impl<'a> Deserialize<'a> for SerializableH256 {
+	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: Deserializer<'a> {
 		struct HashVisitor;
 
-		impl Visitor for HashVisitor {
+		impl<'b> Visitor<'b> for HashVisitor {
 			type Value = SerializableH256;
 
 			fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -196,12 +200,12 @@ impl Deserialize for SerializableH256 {
 			}
 		}
 
-		deserializer.deserialize(HashVisitor)
+		deserializer.deserialize_any(HashVisitor)
 	}
 }
 
-#[derive(Clone, Debug)]
 /// Serializable EC scalar/secret key.
+#[derive(Clone, Debug)]
 pub struct SerializableSecret(pub Secret);
 
 impl<T> From<T> for SerializableSecret where Secret: From<T> {
@@ -232,11 +236,11 @@ impl Serialize for SerializableSecret {
 	}
 }
 
-impl Deserialize for SerializableSecret {
-	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: Deserializer {
+impl<'a> Deserialize<'a> for SerializableSecret {
+	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: Deserializer<'a> {
 		struct HashVisitor;
 
-		impl Visitor for HashVisitor {
+		impl<'b> Visitor<'b> for HashVisitor {
 			type Value = SerializableSecret;
 
 			fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -256,12 +260,12 @@ impl Deserialize for SerializableSecret {
 			}
 		}
 
-		deserializer.deserialize(HashVisitor)
+		deserializer.deserialize_any(HashVisitor)
 	}
 }
 
-#[derive(Clone, Debug)]
 /// Serializable EC point/public key.
+#[derive(Clone, Debug)]
 pub struct SerializablePublic(pub Public);
 
 impl<T> From<T> for SerializablePublic where Public: From<T> {
@@ -312,11 +316,11 @@ impl Serialize for SerializablePublic {
 	}
 }
 
-impl Deserialize for SerializablePublic {
-	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: Deserializer {
+impl<'a> Deserialize<'a> for SerializablePublic {
+	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: Deserializer<'a> {
 		struct HashVisitor;
 
-		impl Visitor for HashVisitor {
+		impl<'b> Visitor<'b> for HashVisitor {
 			type Value = SerializablePublic;
 
 			fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -336,7 +340,7 @@ impl Deserialize for SerializablePublic {
 			}
 		}
 
-		deserializer.deserialize(HashVisitor)
+		deserializer.deserialize_any(HashVisitor)
 	}
 }
 

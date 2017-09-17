@@ -87,71 +87,52 @@
 //!   cargo build --release
 //!   ```
 
-extern crate rustc_serialize;
-extern crate rand;
+extern crate rustc_hex;
 extern crate rocksdb;
 extern crate env_logger;
-extern crate crypto as rcrypto;
 extern crate secp256k1;
 extern crate elastic_array;
-extern crate time;
 extern crate ethcore_devtools as devtools;
 extern crate libc;
 extern crate target_info;
 extern crate ethcore_bigint as bigint;
+extern crate ethcore_bytes as bytes;
 extern crate parking_lot;
-extern crate ansi_term;
 extern crate tiny_keccak;
 extern crate rlp;
 extern crate regex;
 extern crate lru_cache;
 extern crate heapsize;
-extern crate itertools;
 extern crate ethcore_logger;
+extern crate hash as keccak;
+extern crate hashdb;
+extern crate memorydb;
+extern crate patricia_trie as trie;
+
+#[macro_use]
+extern crate error_chain;
 
 #[macro_use]
 extern crate log as rlog;
 
-pub extern crate using_queue;
-pub extern crate table;
-
-pub mod bloom;
-pub mod standard;
 #[macro_use]
 pub mod common;
 pub mod error;
-pub mod bytes;
 pub mod misc;
-pub mod vector;
-pub mod sha3;
-pub mod hashdb;
-pub mod memorydb;
 pub mod migration;
 pub mod overlaydb;
 pub mod journaldb;
 pub mod kvdb;
-pub mod triehash;
-pub mod trie;
-pub mod nibbleslice;
-pub mod nibblevec;
-pub mod semantic_version;
 pub mod snappy;
 pub mod cache;
-mod timer;
 
-pub use common::*;
 pub use misc::*;
 pub use hashdb::*;
 pub use memorydb::MemoryDB;
 pub use overlaydb::*;
 pub use journaldb::JournalDB;
-pub use triehash::*;
-pub use trie::{Trie, TrieMut, TrieDB, TrieDBMut, TrieFactory, TrieError, SecTrieDB, SecTrieDBMut};
-pub use nibbleslice::*;
-pub use semantic_version::*;
 pub use kvdb::*;
-pub use timer::*;
-pub use ansi_term::{Colour, Style};
+pub use error::UtilError;
 
 /// 160-bit integer representing account address
-pub type Address = H160;
+pub type Address = bigint::hash::H160;

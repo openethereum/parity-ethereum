@@ -20,6 +20,7 @@ use std::time::Duration;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use hash::keccak;
 use ethcore::snapshot::{Progress, RestorationStatus, SnapshotService as SS};
 use ethcore::snapshot::io::{SnapshotReader, PackedReader, PackedWriter};
 use ethcore::snapshot::service::Service as SnapshotService;
@@ -34,8 +35,6 @@ use helpers::{to_client_config, execute_upgrades};
 use dir::Directories;
 use user_defaults::UserDefaults;
 use fdlimit;
-
-use io::PanicHandler;
 
 /// Kinds of snapshot commands.
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -67,8 +66,6 @@ pub struct SnapshotCommand {
 // helper for reading chunks from arbitrary reader and feeding them into the
 // service.
 fn restore_using<R: SnapshotReader>(snapshot: Arc<SnapshotService>, reader: &R, recover: bool) -> Result<(), String> {
-	use util::sha3::Hashable;
-
 	let manifest = reader.manifest();
 
 	info!("Restoring to block #{} (0x{:?})", manifest.block_number, manifest.block_hash);
@@ -97,7 +94,7 @@ fn restore_using<R: SnapshotReader>(snapshot: Arc<SnapshotService>, reader: &R, 
  		let chunk = reader.chunk(state_hash)
 			.map_err(|e| format!("Encountered error while reading chunk {:?}: {}", state_hash, e))?;
 
-		let hash = chunk.sha3();
+		let hash = keccak(&chunk);
 		if hash != state_hash {
 			return Err(format!("Mismatched chunk hash. Expected {:?}, got {:?}", state_hash, hash));
 		}
@@ -114,7 +111,7 @@ fn restore_using<R: SnapshotReader>(snapshot: Arc<SnapshotService>, reader: &R, 
  		let chunk = reader.chunk(block_hash)
 			.map_err(|e| format!("Encountered error while reading chunk {:?}: {}", block_hash, e))?;
 
-		let hash = chunk.sha3();
+		let hash = keccak(&chunk);
 		if hash != block_hash {
 			return Err(format!("Mismatched chunk hash. Expected {:?}, got {:?}", block_hash, hash));
 		}
@@ -133,12 +130,9 @@ fn restore_using<R: SnapshotReader>(snapshot: Arc<SnapshotService>, reader: &R, 
 
 impl SnapshotCommand {
 	// shared portion of snapshot commands: start the client service
-	fn start_service(self) -> Result<(ClientService, Arc<PanicHandler>), String> {
-		// Setup panic handler
-		let panic_handler = PanicHandler::new_in_arc();
-
+	fn start_service(self) -> Result<ClientService, String> {
 		// load spec file
-		let spec = self.spec.spec()?;
+		let spec = self.spec.spec(&self.dirs.cache)?;
 
 		// load genesis hash
 		let genesis_hash = spec.genesis_header().hash();
@@ -196,12 +190,12 @@ impl SnapshotCommand {
 			Arc::new(Miner::with_spec(&spec))
 		).map_err(|e| format!("Client service error: {:?}", e))?;
 
-		Ok((service, panic_handler))
+		Ok(service)
 	}
 	/// restore from a snapshot
 	pub fn restore(self) -> Result<(), String> {
 		let file = self.file_path.clone();
-		let (service, _panic_handler) = self.start_service()?;
+		let service = self.start_service()?;
 
 		warn!("Snapshot restoration is experimental and the format may be subject to change.");
 		warn!("On encountering an unexpected error, please ensure that you have a recent snapshot.");
@@ -236,7 +230,7 @@ impl SnapshotCommand {
 		let file_path = self.file_path.clone().ok_or("No file path provided.".to_owned())?;
 		let file_path: PathBuf = file_path.into();
 		let block_at = self.block_at;
-		let (service, _panic_handler) = self.start_service()?;
+		let service = self.start_service()?;
 
 		warn!("Snapshots are currently experimental. File formats may be subject to change.");
 

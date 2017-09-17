@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import 'babel-polyfill';
 import 'whatwg-fetch';
 
 import es6Promise from 'es6-promise';
@@ -36,8 +35,7 @@ import ContextProvider from '~/ui/ContextProvider';
 import muiTheme from '~/ui/Theme';
 import MainApplication from './main';
 
-import { patchApi } from '~/util/tx';
-import { setApi } from '~/redux/providers/apiActions';
+import { loadSender, patchApi } from '~/util/tx';
 
 import './environment';
 
@@ -54,8 +52,6 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 const AUTH_HASH = '#/auth?';
-const parityUrl = process.env.PARITY_URL || window.location.host;
-const urlScheme = window.location.href.match(/^https/) ? 'wss://' : 'ws://';
 
 let token = null;
 
@@ -63,15 +59,14 @@ if (window.location.hash && window.location.hash.indexOf(AUTH_HASH) === 0) {
   token = qs.parse(window.location.hash.substr(AUTH_HASH.length)).token;
 }
 
-const api = new SecureApi(`${urlScheme}${parityUrl}`, token);
+const uiUrl = window.location.host;
+const api = new SecureApi(uiUrl, token);
 
 patchApi(api);
+loadSender(api);
 ContractInstances.create(api);
 
 const store = initStore(api, hashHistory);
-
-store.dispatch({ type: 'initAll', api });
-store.dispatch(setApi(api));
 
 window.secureApi = api;
 

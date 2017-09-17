@@ -1,28 +1,32 @@
 [package]
 description = "Parity JSON-RPC servers."
 name = "parity-rpc"
-version = "1.7.0"
+version = "1.8.0"
 license = "GPL-3.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [lib]
 
 [dependencies]
+ansi_term = "0.9"
+cid = "0.2"
 futures = "0.1"
+futures-cpupool = "0.1"
 log = "0.3"
+multihash ="0.6"
 order-stat = "0.1"
-rustc-serialize = "0.3"
+parking_lot = "0.4"
+rand = "0.3"
+rust-crypto = "0.2"
+rustc-hex = "1.0"
 semver = "0.6"
-serde = "0.9"
-serde_derive = "0.9"
-serde_json = "0.9"
+serde = "1.0"
+serde_derive = "1.0"
+serde_json = "1.0"
 time = "0.1"
 tokio-timer = "0.1"
 transient-hashmap = "0.4"
-cid = "0.2.1"
-multihash = "0.5"
-rust-crypto = "0.2.36"
-rand = "0.3"
+itertools = "0.5"
 
 jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
 jsonrpc-http-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
@@ -35,6 +39,8 @@ jsonrpc-pubsub = { git = "https://github.com/paritytech/jsonrpc.git", branch = "
 ethcore-io = { path = "../util/io" }
 ethcore-ipc = { path = "../ipc/rpc" }
 ethcore-util = { path = "../util" }
+ethcore-bigint = { path = "../util/bigint" }
+ethcore-bytes = { path = "../util/bytes" }
 ethcore = { path = "../ethcore" }
 ethcrypto = { path = "../ethcrypto" }
 ethkey = { path = "../ethkey" }
@@ -45,14 +51,21 @@ ethjson = { path = "../json" }
 ethcore-devtools = { path = "../devtools" }
 ethcore-light = { path = "../ethcore/light" }
 ethcore-logger = { path = "../logger" }
-parity-updater = { path = "../updater" }
-parity-reactor = { path = "../util/reactor" }
-rlp = { path = "../util/rlp" }
 fetch = { path = "../util/fetch" }
+node-health = { path = "../dapps/node-health" }
+parity-reactor = { path = "../util/reactor" }
+parity-updater = { path = "../updater" }
+rlp = { path = "../util/rlp" }
 stats = { path = "../util/stats" }
+vm = { path = "../ethcore/vm" }
+hash = { path = "../util/hash" }
+hardware-wallet = { path = "../hw" }
 
 clippy = { version = "0.0.103", optional = true}
 pretty_assertions = "0.1"
+
+[dev-dependencies]
+ethcore-network = { path = "../util/network" }
 
 [features]
 dev = ["clippy", "ethcore/dev", "ethcore-util/dev", "ethsync/dev"]

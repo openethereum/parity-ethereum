@@ -20,10 +20,9 @@ export default {
   },
   status: {
     consensus: {
-      capable: `Capable`,
-      capableUntil: `Capable until #{blockNumber}`,
-      incapableSince: `Incapable since #{blockNumber}`,
-      unknown: `Unknown capability`
+      capable: `Upgrade not required.`,
+      capableUntil: `Upgrade required before #{blockNumber}`,
+      incapableSince: `Upgrade required since #{blockNumber}`
     },
     upgrade: `Upgrade`
   }

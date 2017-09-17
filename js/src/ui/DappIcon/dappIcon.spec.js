@@ -64,7 +64,7 @@ describe('ui/DappIcon', () => {
 
   it('renders other apps with correct URL', () => {
     expect(render({ app: { id: 'test', image: '/test.img' } }).props().src).to.equal(
-      `${DAPPS_URL}/test.img`
+      `/test.img`
     );
   });
 });

@@ -18,7 +18,6 @@
 
 mod authority_round;
 mod basic_authority;
-mod epoch_verifier;
 mod instant_seal;
 mod null_engine;
 mod signer;
@@ -27,36 +26,49 @@ mod transition;
 mod validator_set;
 mod vote_collector;
 
+pub mod epoch;
+
 pub use self::authority_round::AuthorityRound;
 pub use self::basic_authority::BasicAuthority;
-pub use self::epoch_verifier::EpochVerifier;
+pub use self::epoch::{EpochVerifier, Transition as EpochTransition};
 pub use self::instant_seal::InstantSeal;
 pub use self::null_engine::NullEngine;
 pub use self::tendermint::Tendermint;
 
-use std::sync::Weak;
+use std::sync::{Weak, Arc};
+use std::collections::{BTreeMap, HashMap};
+use std::fmt;
+
+use self::epoch::PendingTransition;
 
 use account_provider::AccountProvider;
 use block::ExecutedBlock;
 use builtin::Builtin;
-use client::Client;
-use env_info::EnvInfo;
+use client::EngineClient;
+use vm::{EnvInfo, LastHashes, Schedule, CreateContractAddress};
 use error::Error;
-use evm::Schedule;
 use header::{Header, BlockNumber};
 use receipt::Receipt;
 use snapshot::SnapshotComponents;
 use spec::CommonParams;
 use transaction::{UnverifiedTransaction, SignedTransaction};
-use evm::CreateContractAddress;
 
 use ethkey::Signature;
+use bigint::prelude::U256;
+use bigint::hash::H256;
+use semantic_version::SemanticVersion;
 use util::*;
+use unexpected::{Mismatch, OutOfBounds};
+use bytes::Bytes;
+
+/// Default EIP-210 contrat code.
+/// As defined in https://github.com/ethereum/EIPs/pull/210
+pub const DEFAULT_BLOCKHASH_CONTRACT: &'static str = "73fffffffffffffffffffffffffffffffffffffffe33141561006a5760014303600035610100820755610100810715156100455760003561010061010083050761010001555b6201000081071515610064576000356101006201000083050761020001555b5061013e565b4360003512151561008457600060405260206040f361013d565b61010060003543031315156100a857610100600035075460605260206060f361013c565b6101006000350715156100c55762010000600035430313156100c8565b60005b156100ea576101006101006000350507610100015460805260206080f361013b565b620100006000350715156101095763010000006000354303131561010c565b60005b1561012f57610100620100006000350507610200015460a052602060a0f361013a565b600060c052602060c0f35b5b5b5b5b";
 
 /// Voting errors.
 #[derive(Debug)]
 pub enum EngineError {
-	/// Signature does not belong to an authority.
+	/// Signature or author field does not belong to an authority.
 	NotAuthorized(Address),
 	/// The same author issued different votes at the same step.
 	DoubleVote(Address),
@@ -68,6 +80,10 @@ pub enum EngineError {
 	BadSealFieldSize(OutOfBounds<usize>),
 	/// Validation proof insufficient.
 	InsufficientProof(String),
+	/// Failed system call.
+	FailedSystemCall(String),
+	/// Requires client ref, but none registered.
+	RequiresClient,
 }
 
 impl fmt::Display for EngineError {
@@ -80,6 +96,8 @@ impl fmt::Display for EngineError {
 			UnexpectedMessage => "This Engine should not be fed messages.".into(),
 			BadSealFieldSize(ref oob) => format!("Seal field has an unexpected length: {}", oob),
 			InsufficientProof(ref msg) => format!("Insufficient validation proof: {}", msg),
+			FailedSystemCall(ref msg) => format!("Failed to make system call: {}", msg),
+			RequiresClient => format!("Call requires client but none registered"),
 		};
 
 		f.write_fmt(format_args!("Engine error ({})", msg))
@@ -98,17 +116,63 @@ pub enum Seal {
 }
 
 /// Type alias for a function we can make calls through synchronously.
-pub type Call<'a> = Fn(Address, Bytes) -> Result<Bytes, String> + 'a;
+/// Returns the call result and state proof for each call.
+pub type Call<'a> = Fn(Address, Bytes) -> Result<(Bytes, Vec<Vec<u8>>), String> + 'a;
+
+/// Type alias for a function we can get headers by hash through.
+pub type Headers<'a> = Fn(H256) -> Option<Header> + 'a;
+
+/// Type alias for a function we can query pending transitions by block hash through.
+pub type PendingTransitionStore<'a> = Fn(H256) -> Option<PendingTransition> + 'a;
+
+/// Proof dependent on state.
+pub trait StateDependentProof: Send + Sync {
+	/// Generate a proof, given the state.
+	fn generate_proof(&self, caller: &Call) -> Result<Vec<u8>, String>;
+	/// Check a proof generated elsewhere (potentially by a peer).
+	// `engine` needed to check state proofs, while really this should
+	// just be state machine params.
+	fn check_proof(&self, engine: &Engine, proof: &[u8]) -> Result<(), String>;
+}
+
+/// Proof generated on epoch change.
+pub enum Proof {
+	/// Known proof (extracted from signal)
+	Known(Vec<u8>),
+	/// State dependent proof.
+	WithState(Arc<StateDependentProof>),
+}
+
+/// Generated epoch verifier.
+pub enum ConstructedVerifier<'a> {
+	/// Fully trusted verifier.
+	Trusted(Box<EpochVerifier>),
+	/// Verifier unconfirmed. Check whether given finality proof finalizes given hash
+	/// under previous epoch.
+	Unconfirmed(Box<EpochVerifier>, &'a [u8], H256),
+	/// Error constructing verifier.
+	Err(Error),
+}
+
+impl<'a> ConstructedVerifier<'a> {
+	/// Convert to a result, indicating that any necessary confirmation has been done
+	/// already.
+	pub fn known_confirmed(self) -> Result<Box<EpochVerifier>, Error> {
+		match self {
+			ConstructedVerifier::Trusted(v) | ConstructedVerifier::Unconfirmed(v, _, _) => Ok(v),
+			ConstructedVerifier::Err(e) => Err(e),
+		}
+	}
+}
 
 /// Results of a query of whether an epoch change occurred at the given block.
-#[derive(Debug, Clone, PartialEq)]
 pub enum EpochChange {
 	/// Cannot determine until more data is passed.
 	Unsure(Unsure),
 	/// No epoch change.
 	No,
-	/// Validation proof required, and the new epoch number and expected proof.
-	Yes(u64, Bytes),
+	/// The epoch will change, with proof.
+	Yes(Proof),
 }
 
 /// More data required to determine if an epoch change occurred at a given block.
@@ -143,7 +207,9 @@ pub trait Engine : Sync + Send {
 	fn params(&self) -> &CommonParams;
 
 	/// Get the EVM schedule for the given `block_number`.
-	fn schedule(&self, block_number: BlockNumber) -> Schedule;
+	fn schedule(&self, block_number: BlockNumber) -> Schedule {
+		self.params().schedule(block_number)
+	}
 
 	/// Builtin-contracts we would like to see in the chain.
 	/// (In principle these are just hints for the engine since that has the last word on them.)
@@ -155,13 +221,31 @@ pub trait Engine : Sync + Send {
 	fn maximum_uncle_count(&self) -> usize { 2 }
 	/// The number of generations back that uncles can be.
 	fn maximum_uncle_age(&self) -> usize { 6 }
-	/// The nonce with which accounts begin.
-	fn account_start_nonce(&self) -> U256 { self.params().account_start_nonce }
+	/// The nonce with which accounts begin at given block.
+	fn account_start_nonce(&self, block: u64) -> U256 {
+		if block >= self.params().dust_protection_transition {
+			U256::from(self.params().nonce_cap_increment) * U256::from(block)
+		} else {
+			self.params().account_start_nonce
+		}
+	}
 
 	/// Block transformation functions, before the transactions.
-	fn on_new_block(&self, _block: &mut ExecutedBlock) {}
+	/// `epoch_begin` set to true if this block kicks off an epoch.
+	fn on_new_block(
+		&self,
+		block: &mut ExecutedBlock,
+		last_hashes: Arc<LastHashes>,
+		_epoch_begin: bool,
+	) -> Result<(), Error> {
+		let parent_hash = block.fields().header.parent_hash().clone();
+		common::push_last_hash(block, last_hashes, self, &parent_hash)
+	}
+
 	/// Block transformation functions, after the transactions.
-	fn on_close_block(&self, _block: &mut ExecutedBlock) {}
+	fn on_close_block(&self, _block: &mut ExecutedBlock) -> Result<(), Error> {
+		Ok(())
+	}
 
 	/// None means that it requires external input (e.g. PoW) to seal a block.
 	/// Some(true) means the engine is currently prime for seal generation (i.e. node is the current validator).
@@ -194,7 +278,7 @@ pub trait Engine : Sync + Send {
 	// TODO: Add flags for which bits of the transaction to check.
 	// TODO: consider including State in the params.
 	fn verify_transaction_basic(&self, t: &UnverifiedTransaction, _header: &Header) -> Result<(), Error> {
-		t.verify_basic(true, Some(self.params().network_id), true)?;
+		t.verify_basic(true, Some(self.params().chain_id), true)?;
 		Ok(())
 	}
 
@@ -204,7 +288,7 @@ pub trait Engine : Sync + Send {
 	}
 
 	/// The network ID that transactions should be signed with.
-	fn signing_network_id(&self, _env_info: &EnvInfo) -> Option<u64> {
+	fn signing_chain_id(&self, _env_info: &EnvInfo) -> Option<u64> {
 		Some(self.params().chain_id)
 	}
 
@@ -215,38 +299,44 @@ pub trait Engine : Sync + Send {
 		self.verify_block_basic(header, None).and_then(|_| self.verify_block_unordered(header, None))
 	}
 
-	/// Generate epoch change proof.
-	///
-	/// This will be used to generate proofs of epoch change as well as verify them.
-	/// Must be called on blocks that have already passed basic verification.
-	///
-	/// Return the "epoch proof" generated.
-	/// This must be usable to generate a `EpochVerifier` for verifying all blocks
-	/// from the supplied header up to the next one where proof is required.
-	///
-	/// For example, for PoA chains the proof will be a validator set,
-	/// and the corresponding `EpochVerifier` can be used to correctly validate
-	/// all blocks produced under that `ValidatorSet`
-	fn epoch_proof(&self, _header: &Header, _caller: &Call)
-		-> Result<Vec<u8>, Error>
-	{
-		Ok(Vec::new())
-	}
+	/// Genesis epoch data.
+	fn genesis_epoch_data(&self, _header: &Header, _call: &Call) -> Result<Vec<u8>, String> { Ok(Vec::new()) }
 
-	/// Whether an epoch change occurred at the given header.
+	/// Whether an epoch change is signalled at the given header but will require finality.
+	/// If a change can be enacted immediately then return `No` from this function but
+	/// `Yes` from `is_epoch_end`.
+	///
+	/// If the block or receipts are required, return `Unsure` and the function will be
+	/// called again with them.
+	/// Return `Yes` or `No` when the answer is definitively known.
+	///
 	/// Should not interact with state.
-	fn is_epoch_end(&self, _header: &Header, _block: Option<&[u8]>, _receipts: Option<&[Receipt]>)
+	fn signals_epoch_end(&self, _header: &Header, _block: Option<&[u8]>, _receipts: Option<&[Receipt]>)
 		-> EpochChange
 	{
 		EpochChange::No
 	}
 
-	/// Create an epoch verifier from validation proof.
+	/// Whether a block is the end of an epoch.
 	///
-	/// The proof should be one generated by `epoch_proof`.
-	/// See docs of `epoch_proof` for description.
-	fn epoch_verifier(&self, _header: &Header, _proof: &[u8]) -> Result<Box<EpochVerifier>, Error> {
-		Ok(Box::new(self::epoch_verifier::NoOp))
+	/// This either means that an immediate transition occurs or a block signalling transition
+	/// has reached finality. The `Headers` given are not guaranteed to return any blocks
+	/// from any epoch other than the current.
+	///
+	/// Return optional transition proof.
+	fn is_epoch_end(
+		&self,
+		_chain_head: &Header,
+		_chain: &Headers,
+		_transition_store: &PendingTransitionStore,
+	) -> Option<Vec<u8>> {
+		None
+	}
+
+	/// Create an epoch verifier from validation proof and a flag indicating
+	/// whether finality is required.
+	fn epoch_verifier<'a>(&self, _header: &Header, _proof: &'a [u8]) -> ConstructedVerifier<'a> {
+		ConstructedVerifier::Trusted(Box::new(self::epoch::NoOp))
 	}
 
 	/// Populate a header's fields based on its parent's header.
@@ -282,7 +372,7 @@ pub trait Engine : Sync + Send {
 	fn sign(&self, _hash: H256) -> Result<Signature, Error> { unimplemented!() }
 
 	/// Add Client which can be used for sealing, querying the state and sending messages.
-	fn register_client(&self, _client: Weak<Client>) {}
+	fn register_client(&self, _client: Weak<EngineClient>) {}
 
 	/// Trigger next step of the consensus engine.
 	fn step(&self) {}
@@ -301,8 +391,124 @@ pub trait Engine : Sync + Send {
 		self.snapshot_components().is_some()
 	}
 
+	/// If this engine supports wasm contracts.
+	fn supports_wasm(&self) -> bool {
+		self.params().wasm
+	}
+
 	/// Returns new contract address generation scheme at given block number.
 	fn create_address_scheme(&self, number: BlockNumber) -> CreateContractAddress {
-		if number >= self.params().eip86_transition { CreateContractAddress::FromCodeHash } else { CreateContractAddress::FromSenderAndNonce }
+		if number >= self.params().eip86_transition {
+			CreateContractAddress::FromCodeHash
+		} else {
+			CreateContractAddress::FromSenderAndNonce
+		}
+	}
+}
+
+/// Common engine utilities
+pub mod common {
+	use std::sync::Arc;
+	use block::ExecutedBlock;
+	use error::Error;
+	use transaction::SYSTEM_ADDRESS;
+	use executive::Executive;
+	use vm::{CallType, ActionParams, ActionValue, EnvInfo, LastHashes};
+	use trace::{NoopTracer, NoopVMTracer, Tracer, ExecutiveTracer, RewardType};
+	use state::Substate;
+	use state::CleanupMode;
+
+	use bigint::prelude::U256;
+	use bigint::hash::H256;
+	use util::*;
+	use bytes::{Bytes, BytesRef};
+	use super::Engine;
+
+	/// Execute a call as the system address.
+	pub fn execute_as_system<E: Engine + ?Sized>(
+		block: &mut ExecutedBlock,
+		last_hashes: Arc<LastHashes>,
+		engine: &E,
+		contract_address: Address,
+		gas: U256,
+		data: Option<Bytes>,
+	) -> Result<Bytes, Error> {
+		let env_info = {
+			let header = block.fields().header;
+			EnvInfo {
+				number: header.number(),
+				author: header.author().clone(),
+				timestamp: header.timestamp(),
+				difficulty: header.difficulty().clone(),
+				last_hashes: last_hashes,
+				gas_used: U256::zero(),
+				gas_limit: gas,
+			}
+		};
+
+		let mut state = block.fields_mut().state;
+		let params = ActionParams {
+			code_address: contract_address.clone(),
+			address: contract_address.clone(),
+			sender: SYSTEM_ADDRESS.clone(),
+			origin: SYSTEM_ADDRESS.clone(),
+			gas: gas,
+			gas_price: 0.into(),
+			value: ActionValue::Transfer(0.into()),
+			code: state.code(&contract_address)?,
+			code_hash: Some(state.code_hash(&contract_address)?),
+			data: data,
+			call_type: CallType::Call,
+		};
+		let mut ex = Executive::new(&mut state, &env_info, engine);
+		let mut substate = Substate::new();
+		let mut output = Vec::new();
+		if let Err(e) = ex.call(params, &mut substate, BytesRef::Flexible(&mut output), &mut NoopTracer, &mut NoopVMTracer) {
+			warn!("Encountered error on making system call: {}", e);
+		}
+
+		Ok(output)
+	}
+
+	/// Push last known block hash to the state.
+	pub fn push_last_hash<E: Engine + ?Sized>(block: &mut ExecutedBlock, last_hashes: Arc<LastHashes>, engine: &E, hash: &H256) -> Result<(), Error> {
+		if block.fields().header.number() == engine.params().eip210_transition {
+			let state = block.fields_mut().state;
+			state.init_code(&engine.params().eip210_contract_address, engine.params().eip210_contract_code.clone())?;
+		}
+		if block.fields().header.number() >= engine.params().eip210_transition {
+			let _ = execute_as_system(
+				block,
+				last_hashes,
+				engine,
+				engine.params().eip210_contract_address,
+				engine.params().eip210_contract_gas,
+				Some(hash.to_vec()),
+			)?;
+		}
+		Ok(())
+	}
+
+	/// Trace rewards on closing block
+	pub fn bestow_block_reward<E: Engine + ?Sized>(block: &mut ExecutedBlock, engine: &E) -> Result<(), Error> {
+		let fields = block.fields_mut();
+		// Bestow block reward
+		let reward = engine.params().block_reward;
+		let res = fields.state.add_balance(fields.header.author(), &reward, CleanupMode::NoEmpty)
+			.map_err(::error::Error::from)
+			.and_then(|_| fields.state.commit());
+
+		let block_author = fields.header.author().clone();
+		fields.traces.as_mut().map(|mut traces| {
+  			let mut tracer = ExecutiveTracer::default();
+  			tracer.trace_reward(block_author, engine.params().block_reward, RewardType::Block);
+  			traces.push(tracer.drain())
+		});
+
+		// Commit state so that we can actually figure out the state root.
+		if let Err(ref e) = res {
+			warn!("Encountered error on bestowing reward: {}", e);
+		}
+		res
 	}
 }

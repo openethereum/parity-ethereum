@@ -19,19 +19,22 @@ use std::u16;
 use std::ops::Deref;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use serde_json;
-use ethcrypto::ecdh::agree;
 use ethcrypto::ecies::{encrypt_single_message, decrypt_single_message};
-use ethkey::{Public, Secret, KeyPair};
+use ethkey::{Secret, KeyPair};
 use ethkey::math::curve_order;
-use util::{H256, U256};
+use bigint::prelude::U256;
+use bigint::hash::H256;
 use key_server_cluster::Error;
-use key_server_cluster::message::{Message, ClusterMessage, EncryptionMessage, DecryptionMessage};
+use key_server_cluster::message::{Message, ClusterMessage, GenerationMessage, EncryptionMessage,
+	DecryptionMessage, SigningMessage};
 
 /// Size of serialized header.
 pub const MESSAGE_HEADER_SIZE: usize = 4;
+/// Current header version.
+pub const CURRENT_HEADER_VERSION: u8 = 1;
 
-#[derive(Debug, PartialEq)]
 /// Message header.
+#[derive(Debug, PartialEq)]
 pub struct MessageHeader {
 	/// Message/Header version.
 	pub version: u8,
@@ -41,8 +44,8 @@ pub struct MessageHeader {
 	pub size: u16,
 }
 
-#[derive(Debug, Clone, PartialEq)]
 /// Serialized message.
+#[derive(Debug, Clone, PartialEq)]
 pub struct SerializedMessage(Vec<u8>);
 
 impl Deref for SerializedMessage {
@@ -67,26 +70,36 @@ pub fn serialize_message(message: Message) -> Result<SerializedMessage, Error> {
 		Message::Cluster(ClusterMessage::KeepAlive(payload))								=> (3, serde_json::to_vec(&payload)),
 		Message::Cluster(ClusterMessage::KeepAliveResponse(payload))						=> (4, serde_json::to_vec(&payload)),
 
-		Message::Encryption(EncryptionMessage::InitializeSession(payload))					=> (50, serde_json::to_vec(&payload)),
-		Message::Encryption(EncryptionMessage::ConfirmInitialization(payload))				=> (51, serde_json::to_vec(&payload)),
-		Message::Encryption(EncryptionMessage::CompleteInitialization(payload))				=> (52, serde_json::to_vec(&payload)),
-		Message::Encryption(EncryptionMessage::KeysDissemination(payload))					=> (53, serde_json::to_vec(&payload)),
-		Message::Encryption(EncryptionMessage::PublicKeyShare(payload))						=> (54, serde_json::to_vec(&payload)),
-		Message::Encryption(EncryptionMessage::SessionError(payload))						=> (55, serde_json::to_vec(&payload)),
-		Message::Encryption(EncryptionMessage::SessionCompleted(payload))					=> (56, serde_json::to_vec(&payload)),
+		Message::Generation(GenerationMessage::InitializeSession(payload))					=> (50, serde_json::to_vec(&payload)),
+		Message::Generation(GenerationMessage::ConfirmInitialization(payload))				=> (51, serde_json::to_vec(&payload)),
+		Message::Generation(GenerationMessage::CompleteInitialization(payload))				=> (52, serde_json::to_vec(&payload)),
+		Message::Generation(GenerationMessage::KeysDissemination(payload))					=> (53, serde_json::to_vec(&payload)),
+		Message::Generation(GenerationMessage::PublicKeyShare(payload))						=> (54, serde_json::to_vec(&payload)),
+		Message::Generation(GenerationMessage::SessionError(payload))						=> (55, serde_json::to_vec(&payload)),
+		Message::Generation(GenerationMessage::SessionCompleted(payload))					=> (56, serde_json::to_vec(&payload)),
 
-		Message::Decryption(DecryptionMessage::InitializeDecryptionSession(payload))		=> (100, serde_json::to_vec(&payload)),
-		Message::Decryption(DecryptionMessage::ConfirmDecryptionInitialization(payload))	=> (101, serde_json::to_vec(&payload)),
-		Message::Decryption(DecryptionMessage::RequestPartialDecryption(payload))			=> (102, serde_json::to_vec(&payload)),
-		Message::Decryption(DecryptionMessage::PartialDecryption(payload))					=> (103, serde_json::to_vec(&payload)),
-		Message::Decryption(DecryptionMessage::DecryptionSessionError(payload))				=> (104, serde_json::to_vec(&payload)),
-		Message::Decryption(DecryptionMessage::DecryptionSessionCompleted(payload))			=> (105, serde_json::to_vec(&payload)),
+		Message::Encryption(EncryptionMessage::InitializeEncryptionSession(payload))		=> (100, serde_json::to_vec(&payload)),
+		Message::Encryption(EncryptionMessage::ConfirmEncryptionInitialization(payload))	=> (101, serde_json::to_vec(&payload)),
+		Message::Encryption(EncryptionMessage::EncryptionSessionError(payload))				=> (102, serde_json::to_vec(&payload)),
+
+		Message::Decryption(DecryptionMessage::DecryptionConsensusMessage(payload))			=> (150, serde_json::to_vec(&payload)),
+		Message::Decryption(DecryptionMessage::RequestPartialDecryption(payload))			=> (151, serde_json::to_vec(&payload)),
+		Message::Decryption(DecryptionMessage::PartialDecryption(payload))					=> (152, serde_json::to_vec(&payload)),
+		Message::Decryption(DecryptionMessage::DecryptionSessionError(payload))				=> (153, serde_json::to_vec(&payload)),
+		Message::Decryption(DecryptionMessage::DecryptionSessionCompleted(payload))			=> (154, serde_json::to_vec(&payload)),
+
+		Message::Signing(SigningMessage::SigningConsensusMessage(payload))					=> (200, serde_json::to_vec(&payload)),
+		Message::Signing(SigningMessage::SigningGenerationMessage(payload))					=> (201, serde_json::to_vec(&payload)),
+		Message::Signing(SigningMessage::RequestPartialSignature(payload))					=> (202, serde_json::to_vec(&payload)),
+		Message::Signing(SigningMessage::PartialSignature(payload))							=> (203, serde_json::to_vec(&payload)),
+		Message::Signing(SigningMessage::SigningSessionError(payload))						=> (204, serde_json::to_vec(&payload)),
+		Message::Signing(SigningMessage::SigningSessionCompleted(payload))					=> (205, serde_json::to_vec(&payload)),
 	};
 
 	let payload = payload.map_err(|err| Error::Serde(err.to_string()))?;
 	build_serialized_message(MessageHeader {
 		kind: message_kind,
-		version: 1,
+		version: CURRENT_HEADER_VERSION,
 		size: 0,
 	}, payload)
 }
@@ -99,20 +112,30 @@ pub fn deserialize_message(header: &MessageHeader, payload: Vec<u8>) -> Result<M
 		3	=> Message::Cluster(ClusterMessage::KeepAlive(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
 		4	=> Message::Cluster(ClusterMessage::KeepAliveResponse(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
 
-		50	=> Message::Encryption(EncryptionMessage::InitializeSession(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
-		51	=> Message::Encryption(EncryptionMessage::ConfirmInitialization(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
-		52	=> Message::Encryption(EncryptionMessage::CompleteInitialization(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
-		53	=> Message::Encryption(EncryptionMessage::KeysDissemination(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
-		54	=> Message::Encryption(EncryptionMessage::PublicKeyShare(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
-		55	=> Message::Encryption(EncryptionMessage::SessionError(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
-		56	=> Message::Encryption(EncryptionMessage::SessionCompleted(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		50	=> Message::Generation(GenerationMessage::InitializeSession(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		51	=> Message::Generation(GenerationMessage::ConfirmInitialization(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		52	=> Message::Generation(GenerationMessage::CompleteInitialization(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		53	=> Message::Generation(GenerationMessage::KeysDissemination(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		54	=> Message::Generation(GenerationMessage::PublicKeyShare(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		55	=> Message::Generation(GenerationMessage::SessionError(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		56	=> Message::Generation(GenerationMessage::SessionCompleted(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
 
-		100	=> Message::Decryption(DecryptionMessage::InitializeDecryptionSession(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
-		101	=> Message::Decryption(DecryptionMessage::ConfirmDecryptionInitialization(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
-		102	=> Message::Decryption(DecryptionMessage::RequestPartialDecryption(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
-		103	=> Message::Decryption(DecryptionMessage::PartialDecryption(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
-		104	=> Message::Decryption(DecryptionMessage::DecryptionSessionError(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
-		105	=> Message::Decryption(DecryptionMessage::DecryptionSessionCompleted(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		100	=> Message::Encryption(EncryptionMessage::InitializeEncryptionSession(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		101	=> Message::Encryption(EncryptionMessage::ConfirmEncryptionInitialization(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		102	=> Message::Encryption(EncryptionMessage::EncryptionSessionError(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+
+		150	=> Message::Decryption(DecryptionMessage::DecryptionConsensusMessage(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		151	=> Message::Decryption(DecryptionMessage::RequestPartialDecryption(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		152	=> Message::Decryption(DecryptionMessage::PartialDecryption(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		153	=> Message::Decryption(DecryptionMessage::DecryptionSessionError(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		154	=> Message::Decryption(DecryptionMessage::DecryptionSessionCompleted(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+
+		200	=> Message::Signing(SigningMessage::SigningConsensusMessage(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		201	=> Message::Signing(SigningMessage::SigningGenerationMessage(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		202	=> Message::Signing(SigningMessage::RequestPartialSignature(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		203	=> Message::Signing(SigningMessage::PartialSignature(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		204	=> Message::Signing(SigningMessage::SigningSessionError(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		205	=> Message::Signing(SigningMessage::SigningSessionCompleted(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
 
 		_ => return Err(Error::Serde(format!("unknown message type {}", header.kind))),
 	})
@@ -133,12 +156,11 @@ pub fn decrypt_message(key: &KeyPair, payload: Vec<u8>) -> Result<Vec<u8>, Error
 	Ok(decrypt_single_message(key.secret(), &payload)?)
 }
 
-/// Compute shared encryption key.
-pub fn compute_shared_key(self_secret: &Secret, other_public: &Public) -> Result<KeyPair, Error> {
+/// Fix shared encryption key.
+pub fn fix_shared_key(shared_secret: &Secret) -> Result<KeyPair, Error> {
 	// secret key created in agree function is invalid, as it is not calculated mod EC.field.n
 	// => let's do it manually
-	let shared_secret = agree(self_secret, other_public)?;
-	let shared_secret: H256 = (*shared_secret).into();
+	let shared_secret: H256 = (**shared_secret).into();
 	let shared_secret: U256 = shared_secret.into();
 	let shared_secret: H256 = (shared_secret % curve_order()).into();
 	let shared_key_pair = KeyPair::from_secret_slice(&*shared_secret)?;
@@ -157,8 +179,13 @@ fn serialize_header(header: &MessageHeader) -> Result<Vec<u8>, Error> {
 /// Deserialize message header.
 pub fn deserialize_header(data: &[u8]) -> Result<MessageHeader, Error> {
 	let mut reader = Cursor::new(data);
+	let version = reader.read_u8()?;
+	if version != CURRENT_HEADER_VERSION {
+		return Err(Error::InvalidMessageVersion);
+	}
+
 	Ok(MessageHeader {
-		version: reader.read_u8()?,
+		version: version,
 		kind: reader.read_u8()?,
 		size: reader.read_u16::<LittleEndian>()?,
 	})
@@ -182,24 +209,34 @@ pub mod tests {
 	use std::io;
 	use futures::Poll;
 	use tokio_io::{AsyncRead, AsyncWrite};
-	use ethkey::{KeyPair, Public};
+	use ethkey::{Random, Generator, KeyPair};
+	use ethcrypto::ecdh::agree;
+	use key_server_cluster::Error;
 	use key_server_cluster::message::Message;
-	use super::{MESSAGE_HEADER_SIZE, MessageHeader, compute_shared_key, encrypt_message, serialize_message,
-		serialize_header, deserialize_header};
+	use super::{MESSAGE_HEADER_SIZE, CURRENT_HEADER_VERSION, MessageHeader, fix_shared_key, encrypt_message,
+		serialize_message, serialize_header, deserialize_header};
 
 	pub struct TestIo {
 		self_key_pair: KeyPair,
-		peer_public: Public,
+		self_session_key_pair: KeyPair,
+		peer_key_pair: KeyPair,
+		peer_session_key_pair: KeyPair,
 		shared_key_pair: KeyPair,
 		input_buffer: io::Cursor<Vec<u8>>,
 	}
 
 	impl TestIo {
-		pub fn new(self_key_pair: KeyPair, peer_public: Public) -> Self {
-			let shared_key_pair = compute_shared_key(self_key_pair.secret(), &peer_public).unwrap();
+		pub fn new() -> Self {
+			let self_session_key_pair = Random.generate().unwrap();
+			let peer_session_key_pair = Random.generate().unwrap();
+			let self_key_pair = Random.generate().unwrap();
+			let peer_key_pair = Random.generate().unwrap();
+			let shared_key_pair = fix_shared_key(&agree(self_session_key_pair.secret(), peer_session_key_pair.public()).unwrap()).unwrap();
 			TestIo {
 				self_key_pair: self_key_pair,
-				peer_public: peer_public,
+				self_session_key_pair: self_session_key_pair,
+				peer_key_pair: peer_key_pair,
+				peer_session_key_pair: peer_session_key_pair,
 				shared_key_pair: shared_key_pair,
 				input_buffer: io::Cursor::new(Vec::new()),
 			}
@@ -209,8 +246,20 @@ pub mod tests {
 			&self.self_key_pair
 		}
 
-		pub fn peer_public(&self) -> &Public {
-			&self.peer_public
+		pub fn self_session_key_pair(&self) -> &KeyPair {
+			&self.self_session_key_pair
+		}
+
+		pub fn peer_key_pair(&self) -> &KeyPair {
+			&self.peer_key_pair
+		}
+
+		pub fn peer_session_key_pair(&self) -> &KeyPair {
+			&self.peer_session_key_pair
+		}
+
+		pub fn shared_key_pair(&self) -> &KeyPair {
+			&self.shared_key_pair
 		}
 
 		pub fn add_input_message(&mut self, message: Message) {
@@ -260,7 +309,7 @@ pub mod tests {
 	fn header_serialization_works() {
 		let header = MessageHeader {
 			kind: 1,
-			version: 2,
+			version: CURRENT_HEADER_VERSION,
 			size: 3,
 		};
 
@@ -269,5 +318,16 @@ pub mod tests {
 
 		let deserialized_header = deserialize_header(&serialized_header).unwrap();
 		assert_eq!(deserialized_header, header);
+	}
+
+	#[test]
+	fn deserializing_header_of_wrong_version_fails() {
+		let header = MessageHeader {
+			kind: 1,
+			version: CURRENT_HEADER_VERSION + 1,
+			size: 3,
+		};
+
+		assert_eq!(deserialize_header(&serialize_header(&header).unwrap()).unwrap_err(), Error::InvalidMessageVersion);
 	}
 }

@@ -18,14 +18,15 @@
 
 use std::thread;
 use std::time::{Instant, Duration};
-use std::sync::{Arc, Weak};
+use std::sync::Arc;
 
 use futures::{self, future, BoxFuture, Future};
 use rlp::{self, UntrustedRlp};
 use time::get_time;
-use util::{H160, H256, Address, U256, H64};
-use util::sha3::Hashable;
-use util::Mutex;
+use bigint::prelude::U256;
+use bigint::hash::{H64, H160, H256};
+use util::Address;
+use parking_lot::Mutex;
 
 use ethash::SeedHashCompute;
 use ethcore::account_provider::{AccountProvider, DappId};
@@ -95,11 +96,11 @@ pub struct EthClient<C, SN: ?Sized, S: ?Sized, M, EM> where
 	M: MinerService,
 	EM: ExternalMinerService {
 
-	client: Weak<C>,
-	snapshot: Weak<SN>,
-	sync: Weak<S>,
-	accounts: Option<Weak<AccountProvider>>,
-	miner: Weak<M>,
+	client: Arc<C>,
+	snapshot: Arc<SN>,
+	sync: Arc<S>,
+	accounts: Option<Arc<AccountProvider>>,
+	miner: Arc<M>,
 	external_miner: Arc<EM>,
 	seed_compute: Mutex<SeedHashCompute>,
 	options: EthClientOptions,
@@ -124,11 +125,11 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> EthClient<C, SN, S, M, EM> where
 		options: EthClientOptions
 	) -> Self {
 		EthClient {
-			client: Arc::downgrade(client),
-			snapshot: Arc::downgrade(snapshot),
-			sync: Arc::downgrade(sync),
-			miner: Arc::downgrade(miner),
-			accounts: accounts.as_ref().map(Arc::downgrade),
+			client: client.clone(),
+			snapshot: snapshot.clone(),
+			sync: sync.clone(),
+			miner: miner.clone(),
+			accounts: accounts.clone(),
 			external_miner: em.clone(),
 			seed_compute: Mutex::new(SeedHashCompute::new()),
 			options: options,
@@ -137,19 +138,19 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> EthClient<C, SN, S, M, EM> where
 	}
 
 	/// Attempt to get the `Arc<AccountProvider>`, errors if provider was not
-	/// set, or if upgrading the weak reference failed.
+	/// set.
 	fn account_provider(&self) -> Result<Arc<AccountProvider>, Error> {
 		unwrap_provider(&self.accounts)
 	}
 
 	fn block(&self, id: BlockId, include_txs: bool) -> Result<Option<RichBlock>, Error> {
-		let client = take_weak!(self.client);
+		let client = &self.client;
 		match (client.block(id.clone()), client.block_total_difficulty(id)) {
 			(Some(block), Some(total_difficulty)) => {
 				let view = block.header_view();
 				Ok(Some(RichBlock {
 					inner: Block {
-						hash: Some(view.sha3().into()),
+						hash: Some(view.hash().into()),
 						size: Some(block.rlp().as_raw().len().into()),
 						parent_hash: view.parent_hash().into(),
 						uncles_hash: view.uncles_hash().into(),
@@ -181,14 +182,14 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> EthClient<C, SN, S, M, EM> where
 	}
 
 	fn transaction(&self, id: TransactionId) -> Result<Option<Transaction>, Error> {
-		match take_weak!(self.client).transaction(id) {
+		match self.client.transaction(id) {
 			Some(t) => Ok(Some(Transaction::from_localized(t, self.eip86_transition))),
 			None => Ok(None),
 		}
 	}
 
 	fn uncle(&self, id: UncleId) -> Result<Option<RichBlock>, Error> {
-		let client = take_weak!(self.client);
+		let client = &self.client;
 		let uncle: BlockHeader = match client.uncle(id) {
 			Some(hdr) => hdr.decode(),
 			None => { return Ok(None); }
@@ -264,6 +265,7 @@ fn check_known<C>(client: &C, number: BlockNumber) -> Result<(), Error> where C:
 
 	match client.block_status(number.into()) {
 		BlockStatus::InChain => Ok(()),
+		BlockStatus::Pending => Ok(()),
 		_ => Err(errors::unknown_block()),
 	}
 }
@@ -280,16 +282,16 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 	type Metadata = Metadata;
 
 	fn protocol_version(&self) -> Result<String, Error> {
-		let version = take_weak!(self.sync).status().protocol_version.to_owned();
+		let version = self.sync.status().protocol_version.to_owned();
 		Ok(format!("{}", version))
 	}
 
 	fn syncing(&self) -> Result<SyncStatus, Error> {
 		use ethcore::snapshot::RestorationStatus;
 
-		let status = take_weak!(self.sync).status();
-		let client = take_weak!(self.client);
-		let snapshot_status = take_weak!(self.snapshot).status();
+		let status = self.sync.status();
+		let client = &self.client;
+		let snapshot_status = self.snapshot.status();
 
 		let (warping, warp_chunks_amount, warp_chunks_processed) = match snapshot_status {
 			RestorationStatus::Ongoing { state_chunks, block_chunks, state_chunks_done, block_chunks_done } =>
@@ -320,7 +322,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 		let dapp = meta.dapp_id();
 
 		let author = move || {
-			let mut miner = take_weak!(self.miner).author();
+			let mut miner = self.miner.author();
 			if miner == 0.into() {
 				miner = self.dapp_accounts(dapp.into())?.get(0).cloned().unwrap_or_default();
 			}
@@ -332,7 +334,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 	}
 
 	fn is_mining(&self) -> Result<bool, Error> {
-		Ok(take_weak!(self.miner).is_sealing())
+		Ok(self.miner.is_currently_sealing())
 	}
 
 	fn hashrate(&self) -> Result<RpcU256, Error> {
@@ -340,8 +342,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 	}
 
 	fn gas_price(&self) -> Result<RpcU256, Error> {
-		let (client, miner) = (take_weak!(self.client), take_weak!(self.miner));
-		Ok(RpcU256::from(default_gas_price(&*client, &*miner)))
+		Ok(RpcU256::from(default_gas_price(&*self.client, &*self.miner)))
 	}
 
 	fn accounts(&self, meta: Metadata) -> BoxFuture<Vec<RpcH160>, Error> {
@@ -356,27 +357,18 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 	}
 
 	fn block_number(&self) -> Result<RpcU256, Error> {
-		Ok(RpcU256::from(take_weak!(self.client).chain_info().best_block_number))
+		Ok(RpcU256::from(self.client.chain_info().best_block_number))
 	}
 
 	fn balance(&self, address: RpcH160, num: Trailing<BlockNumber>) -> BoxFuture<RpcU256, Error> {
 		let address = address.into();
-		let client = take_weakf!(self.client);
 
-		let res = match num.0.clone() {
-			BlockNumber::Pending => {
-				match take_weakf!(self.miner).balance(&*client, &address) {
-					Some(balance) => Ok(balance.into()),
-					None => Err(errors::database_error("latest balance missing"))
-				}
-			}
-			id => {
-				try_bf!(check_known(&*client, id.clone()));
-				match client.balance(&address, id.into()) {
-					Some(balance) => Ok(balance.into()),
-					None => Err(errors::state_pruned()),
-				}
-			}
+		let id = num.unwrap_or_default();
+
+		try_bf!(check_known(&*self.client, id.clone()));
+		let res = match self.client.balance(&address, id.into()) {
+			Some(balance) => Ok(balance.into()),
+			None => Err(errors::state_pruned()),
 		};
 
 		future::done(res).boxed()
@@ -386,23 +378,12 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 		let address: Address = RpcH160::into(address);
 		let position: U256 = RpcU256::into(pos);
 
-		let res = match num.0.clone() {
-			BlockNumber::Pending => {
-				let client = take_weakf!(self.client);
-				match take_weakf!(self.miner).storage_at(&*client, &address, &H256::from(position)) {
-					Some(s) => Ok(s.into()),
-					None => Err(errors::database_error("latest storage missing"))
-				}
-			}
-			id => {
-				let client = take_weakf!(self.client);
+		let id = num.unwrap_or_default();
 
-				try_bf!(check_known(&*client, id.clone()));
-				match client.storage_at(&address, &H256::from(position), id.into()) {
-					Some(s) => Ok(s.into()),
-					None => Err(errors::state_pruned()),
-				}
-			}
+		try_bf!(check_known(&*self.client, id.clone()));
+		let res = match self.client.storage_at(&address, &H256::from(position), id.into()) {
+			Some(s) => Ok(s.into()),
+			None => Err(errors::state_pruned()),
 		};
 
 		future::done(res).boxed()
@@ -410,28 +391,20 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 
 	fn transaction_count(&self, address: RpcH160, num: Trailing<BlockNumber>) -> BoxFuture<RpcU256, Error> {
 		let address: Address = RpcH160::into(address);
-		let client = take_weakf!(self.client);
-		let miner = take_weakf!(self.miner);
 
-		let res = match num.0.clone() {
+		let res = match num.unwrap_or_default() {
 			BlockNumber::Pending if self.options.pending_nonce_from_queue => {
-				let nonce = miner.last_nonce(&address)
+				let nonce = self.miner.last_nonce(&address)
 					.map(|n| n + 1.into())
-					.or_else(|| miner.nonce(&*client, &address));
+					.or_else(|| self.client.nonce(&address, BlockNumber::Pending.into()));
 				match nonce {
 					Some(nonce) => Ok(nonce.into()),
-					None => Err(errors::database_error("latest nonce missing"))
-				}
-			}
-			BlockNumber::Pending => {
-				match miner.nonce(&*client, &address) {
-					Some(nonce) => Ok(nonce.into()),
-					None => Err(errors::database_error("latest nonce missing"))
+					None => Err(errors::database("latest nonce missing"))
 				}
 			}
 			id => {
-				try_bf!(check_known(&*client, id.clone()));
-				match client.nonce(&address, id.into()) {
+				try_bf!(check_known(&*self.client, id.clone()));
+				match self.client.nonce(&address, id.into()) {
 					Some(nonce) => Ok(nonce.into()),
 					None => Err(errors::state_pruned()),
 				}
@@ -442,23 +415,23 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 	}
 
 	fn block_transaction_count_by_hash(&self, hash: RpcH256) -> BoxFuture<Option<RpcU256>, Error> {
-		future::ok(take_weakf!(self.client).block(BlockId::Hash(hash.into()))
+		future::ok(self.client.block(BlockId::Hash(hash.into()))
 			.map(|block| block.transactions_count().into())).boxed()
 	}
 
 	fn block_transaction_count_by_number(&self, num: BlockNumber) -> BoxFuture<Option<RpcU256>, Error> {
 		future::ok(match num {
 			BlockNumber::Pending => Some(
-				take_weakf!(self.miner).status().transactions_in_pending_block.into()
+				self.miner.status().transactions_in_pending_block.into()
 			),
 			_ =>
-				take_weakf!(self.client).block(num.into())
+				self.client.block(num.into())
 					.map(|block| block.transactions_count().into())
 		}).boxed()
 	}
 
 	fn block_uncles_count_by_hash(&self, hash: RpcH256) -> BoxFuture<Option<RpcU256>, Error> {
-			future::ok(take_weakf!(self.client).block(BlockId::Hash(hash.into()))
+			future::ok(self.client.block(BlockId::Hash(hash.into()))
 				.map(|block| block.uncles_count().into()))
 				.boxed()
 	}
@@ -466,7 +439,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 	fn block_uncles_count_by_number(&self, num: BlockNumber) -> BoxFuture<Option<RpcU256>, Error> {
 		future::ok(match num {
 			BlockNumber::Pending => Some(0.into()),
-			_ => take_weakf!(self.client).block(num.into())
+			_ => self.client.block(num.into())
 					.map(|block| block.uncles_count().into()
 			),
 		}).boxed()
@@ -475,23 +448,12 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 	fn code_at(&self, address: RpcH160, num: Trailing<BlockNumber>) -> BoxFuture<Bytes, Error> {
 		let address: Address = RpcH160::into(address);
 
-		let res = match num.0.clone() {
-			BlockNumber::Pending => {
-				let client = take_weakf!(self.client);
-				match take_weakf!(self.miner).code(&*client, &address) {
-					Some(code) => Ok(code.map_or_else(Bytes::default, Bytes::new)),
-					None => Err(errors::database_error("latest code missing"))
-				}
-			}
-			id => {
-				let client = take_weakf!(self.client);
+		let id = num.unwrap_or_default();
+		try_bf!(check_known(&*self.client, id.clone()));
 
-				try_bf!(check_known(&*client, id.clone()));
-				match client.code(&address, id.into()) {
-					Some(code) => Ok(code.map_or_else(Bytes::default, Bytes::new)),
-					None => Err(errors::state_pruned()),
-				}
-			}
+		let res = match self.client.code(&address, id.into()) {
+			Some(code) => Ok(code.map_or_else(Bytes::default, Bytes::new)),
+			None => Err(errors::state_pruned()),
 		};
 
 		future::done(res).boxed()
@@ -507,10 +469,8 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 
 	fn transaction_by_hash(&self, hash: RpcH256) -> Result<Option<Transaction>, Error> {
 		let hash: H256 = hash.into();
-		let miner = take_weak!(self.miner);
-		let client = take_weak!(self.client);
-		let block_number = client.chain_info().best_block_number;
-		Ok(self.transaction(TransactionId::Hash(hash))?.or_else(|| miner.transaction(block_number, &hash).map(|t| Transaction::from_pending(t, block_number, self.eip86_transition))))
+		let block_number = self.client.chain_info().best_block_number;
+		Ok(self.transaction(TransactionId::Hash(hash))?.or_else(|| self.miner.transaction(block_number, &hash).map(|t| Transaction::from_pending(t, block_number, self.eip86_transition))))
 	}
 
 	fn transaction_by_block_hash_and_index(&self, hash: RpcH256, index: Index) -> Result<Option<Transaction>, Error> {
@@ -522,14 +482,12 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 	}
 
 	fn transaction_receipt(&self, hash: RpcH256) -> Result<Option<Receipt>, Error> {
-		let miner = take_weak!(self.miner);
-		let best_block = take_weak!(self.client).chain_info().best_block_number;
+		let best_block = self.client.chain_info().best_block_number;
 		let hash: H256 = hash.into();
-		match (miner.pending_receipt(best_block, &hash), self.options.allow_pending_receipt_query) {
+		match (self.miner.pending_receipt(best_block, &hash), self.options.allow_pending_receipt_query) {
 			(Some(receipt), true) => Ok(Some(receipt.into())),
 			_ => {
-				let client = take_weak!(self.client);
-				let receipt = client.transaction_receipt(TransactionId::Hash(hash));
+				let receipt = self.client.transaction_receipt(TransactionId::Hash(hash));
 				Ok(receipt.map(Into::into))
 			}
 		}
@@ -550,14 +508,14 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 	fn logs(&self, filter: Filter) -> BoxFuture<Vec<Log>, Error> {
 		let include_pending = filter.to_block == Some(BlockNumber::Pending);
 		let filter: EthcoreFilter = filter.into();
-		let mut logs = take_weakf!(self.client).logs(filter.clone())
+		let mut logs = self.client.logs(filter.clone())
 			.into_iter()
 			.map(From::from)
 			.collect::<Vec<Log>>();
 
 		if include_pending {
-			let best_block = take_weakf!(self.client).chain_info().best_block_number;
-			let pending = pending_logs(&*take_weakf!(self.miner), best_block, &filter);
+			let best_block = self.client.chain_info().best_block_number;
+			let pending = pending_logs(&*self.miner, best_block, &filter);
 			logs.extend(pending);
 		}
 
@@ -567,31 +525,34 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 	}
 
 	fn work(&self, no_new_work_timeout: Trailing<u64>) -> Result<Work, Error> {
-		let no_new_work_timeout = no_new_work_timeout.0;
+		if !self.miner.can_produce_work_package() {
+			warn!(target: "miner", "Cannot give work package - engine seals internally.");
+			return Err(errors::no_work_required())
+		}
 
-		let client = take_weak!(self.client);
+		let no_new_work_timeout = no_new_work_timeout.unwrap_or_default();
+
 		// check if we're still syncing and return empty strings in that case
 		{
 			//TODO: check if initial sync is complete here
-			//let sync = take_weak!(self.sync);
-			if /*sync.status().state != SyncState::Idle ||*/ client.queue_info().total_queue_size() > MAX_QUEUE_SIZE_TO_MINE_ON {
+			//let sync = self.sync;
+			if /*sync.status().state != SyncState::Idle ||*/ self.client.queue_info().total_queue_size() > MAX_QUEUE_SIZE_TO_MINE_ON {
 				trace!(target: "miner", "Syncing. Cannot give any work.");
 				return Err(errors::no_work());
 			}
 
 			// Otherwise spin until our submitted block has been included.
 			let timeout = Instant::now() + Duration::from_millis(1000);
-			while Instant::now() < timeout && client.queue_info().total_queue_size() > 0 {
+			while Instant::now() < timeout && self.client.queue_info().total_queue_size() > 0 {
 				thread::sleep(Duration::from_millis(1));
 			}
 		}
 
-		let miner = take_weak!(self.miner);
-		if miner.author().is_zero() {
+		if self.miner.author().is_zero() {
 			warn!(target: "miner", "Cannot give work package - no author is configured. Use --author to configure!");
 			return Err(errors::no_author())
 		}
-		miner.map_sealing_work(&*client, |b| {
+		self.miner.map_sealing_work(&*self.client, |b| {
 			let pow_hash = b.hash();
 			let target = Ethash::difficulty_to_boundary(b.block().header().difficulty());
 			let seed_hash = self.seed_compute.lock().get_seedhash(b.block().header().number());
@@ -618,15 +579,18 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 	}
 
 	fn submit_work(&self, nonce: RpcH64, pow_hash: RpcH256, mix_hash: RpcH256) -> Result<bool, Error> {
+		if !self.miner.can_produce_work_package() {
+			warn!(target: "miner", "Cannot submit work - engine seals internally.");
+			return Err(errors::no_work_required())
+		}
+
 		let nonce: H64 = nonce.into();
 		let pow_hash: H256 = pow_hash.into();
 		let mix_hash: H256 = mix_hash.into();
 		trace!(target: "miner", "submit_work: Decoded: nonce={}, pow_hash={}, mix_hash={}", nonce, pow_hash, mix_hash);
 
-		let miner = take_weak!(self.miner);
-		let client = take_weak!(self.client);
-		let seal = vec![rlp::encode(&mix_hash).to_vec(), rlp::encode(&nonce).to_vec()];
-		Ok(miner.submit_seal(&*client, pow_hash, seal).is_ok())
+		let seal = vec![rlp::encode(&mix_hash).into_vec(), rlp::encode(&nonce).into_vec()];
+		Ok(self.miner.submit_seal(&*self.client, pow_hash, seal).is_ok())
 	}
 
 	fn submit_hashrate(&self, rate: RpcU256, id: RpcH256) -> Result<bool, Error> {
@@ -636,8 +600,8 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 
 	fn send_raw_transaction(&self, raw: Bytes) -> Result<RpcH256, Error> {
 		UntrustedRlp::new(&raw.into_vec()).as_val()
-			.map_err(errors::from_rlp_error)
-			.and_then(|tx| SignedTransaction::new(tx).map_err(errors::from_transaction_error))
+			.map_err(errors::rlp)
+			.and_then(|tx| SignedTransaction::new(tx).map_err(errors::transaction))
 			.and_then(|signed_transaction| {
 				FullDispatcher::new(self.client.clone(), self.miner.clone())
 					.dispatch_transaction(signed_transaction.into())
@@ -649,33 +613,31 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 		self.send_raw_transaction(raw)
 	}
 
-	fn call(&self, request: CallRequest, num: Trailing<BlockNumber>) -> BoxFuture<Bytes, Error> {
+	fn call(&self, meta: Self::Metadata, request: CallRequest, num: Trailing<BlockNumber>) -> BoxFuture<Bytes, Error> {
 		let request = CallRequest::into(request);
-		let signed = match fake_sign::sign_call(&self.client, &self.miner, request) {
+		let signed = match fake_sign::sign_call(&self.client, &self.miner, request, meta.is_dapp()) {
 			Ok(signed) => signed,
 			Err(e) => return future::err(e).boxed(),
 		};
 
-		let result = match num.0 {
-			BlockNumber::Pending => take_weakf!(self.miner).call(&*take_weakf!(self.client), &signed, Default::default()),
-			num => take_weakf!(self.client).call(&signed, num.into(), Default::default()),
-		};
+		let num = num.unwrap_or_default();
+		let result = self.client.call(&signed, Default::default(), num.into());
 
 		future::done(result
 			.map(|b| b.output.into())
-			.map_err(errors::from_call_error)
+			.map_err(errors::call)
 		).boxed()
 	}
 
-	fn estimate_gas(&self, request: CallRequest, num: Trailing<BlockNumber>) -> BoxFuture<RpcU256, Error> {
+	fn estimate_gas(&self, meta: Self::Metadata, request: CallRequest, num: Trailing<BlockNumber>) -> BoxFuture<RpcU256, Error> {
 		let request = CallRequest::into(request);
-		let signed = match fake_sign::sign_call(&self.client, &self.miner, request) {
+		let signed = match fake_sign::sign_call(&self.client, &self.miner, request, meta.is_dapp()) {
 			Ok(signed) => signed,
 			Err(e) => return future::err(e).boxed(),
 		};
-		future::done(take_weakf!(self.client).estimate_gas(&signed, num.0.into())
+		future::done(self.client.estimate_gas(&signed, num.unwrap_or_default().into())
 			.map(Into::into)
-			.map_err(errors::from_call_error)
+			.map_err(errors::call)
 		).boxed()
 	}
 

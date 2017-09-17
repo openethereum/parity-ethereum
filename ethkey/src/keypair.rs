@@ -16,7 +16,7 @@
 
 use std::fmt;
 use secp256k1::key;
-use rustc_serialize::hex::ToHex;
+use rustc_hex::ToHex;
 use keccak::Keccak256;
 use super::{Secret, Public, Address, SECP256K1, Error};
 
@@ -62,7 +62,7 @@ impl KeyPair {
 	}
 
 	pub fn from_secret_slice(slice: &[u8]) -> Result<KeyPair, Error> {
-		Self::from_secret(Secret::from_slice(slice)?)
+		Self::from_secret(Secret::from_unsafe_slice(slice)?)
 	}
 
 	pub fn from_keypair(sec: key::SecretKey, publ: key::PublicKey) -> Self {

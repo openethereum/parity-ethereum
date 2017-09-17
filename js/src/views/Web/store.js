@@ -59,14 +59,13 @@ export default class Store {
   }
 
   @action gotoUrl = (_url) => {
-    transaction(() => {
-      let url = (_url || this.nextUrl).trim().replace(/\/+$/, '');
+    let url = (_url || this.nextUrl).trim().replace(/\/+$/, '');
 
-      if (!hasProtocol.test(url)) {
-        url = `https://${url}`;
-      }
-
-      this.setNextUrl(url);
+    if (!hasProtocol.test(url)) {
+      url = `https://${url}`;
+    }
+    this.setNextUrl(url);
+    return this.generateToken(url).then(() => {
       this.setCurrentUrl(this.nextUrl);
     });
   }
@@ -134,11 +133,11 @@ export default class Store {
     this.nextUrl = url;
   }
 
-  generateToken = () => {
+  generateToken = (_url) => {
     this.setToken(null);
 
     return this._api.signer
-      .generateWebProxyAccessToken()
+      .generateWebProxyAccessToken(_url)
       .then((token) => {
         this.setToken(token);
       })

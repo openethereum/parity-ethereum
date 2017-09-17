@@ -21,10 +21,12 @@
 
 extern crate base32;
 extern crate futures;
+extern crate itertools;
 extern crate linked_hash_map;
 extern crate mime_guess;
+extern crate parking_lot;
 extern crate rand;
-extern crate rustc_serialize;
+extern crate rustc_hex;
 extern crate serde;
 extern crate serde_json;
 extern crate time;
@@ -36,10 +38,15 @@ extern crate jsonrpc_core;
 extern crate jsonrpc_http_server;
 
 extern crate ethcore_util as util;
+extern crate ethcore_bigint as bigint;
+extern crate ethcore_bytes as bytes;
 extern crate fetch;
+extern crate node_health;
 extern crate parity_dapps_glue as parity_dapps;
 extern crate parity_hash_fetch as hash_fetch;
 extern crate parity_reactor;
+extern crate parity_ui;
+extern crate hash;
 
 #[macro_use]
 extern crate log;
@@ -53,7 +60,6 @@ extern crate ethcore_devtools as devtools;
 #[cfg(test)]
 extern crate env_logger;
 
-
 mod endpoint;
 mod apps;
 mod page;
@@ -66,96 +72,183 @@ mod web;
 #[cfg(test)]
 mod tests;
 
+use std::collections::HashMap;
+use std::mem;
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::collections::HashMap;
+use parking_lot::RwLock;
 
-use jsonrpc_http_server::{self as http, hyper, AccessControlAllowOrigin};
+use jsonrpc_http_server::{self as http, hyper, Origin};
 
 use fetch::Fetch;
+use node_health::NodeHealth;
 use parity_reactor::Remote;
 
 pub use hash_fetch::urlhint::ContractClient;
+pub use node_health::SyncStatus;
 
-/// Indicates sync status
-pub trait SyncStatus: Send + Sync {
-	/// Returns true if there is a major sync happening.
-	fn is_major_importing(&self) -> bool;
-}
-
-impl<F> SyncStatus for F where F: Fn() -> bool + Send + Sync {
-	fn is_major_importing(&self) -> bool { self() }
-}
 
 /// Validates Web Proxy tokens
 pub trait WebProxyTokens: Send + Sync {
-	/// Should return true if token is a valid web proxy access token.
-	fn is_web_proxy_token_valid(&self, token: &str) -> bool;
+	/// Should return a domain allowed to be accessed by this token or `None` if the token is not valid
+	fn domain(&self, token: &str) -> Option<Origin>;
 }
 
-impl<F> WebProxyTokens for F where F: Fn(String) -> bool + Send + Sync {
-	fn is_web_proxy_token_valid(&self, token: &str) -> bool { self(token.to_owned()) }
+impl<F> WebProxyTokens for F where F: Fn(String) -> Option<Origin> + Send + Sync {
+	fn domain(&self, token: &str) -> Option<Origin> { self(token.to_owned()) }
+}
+
+/// Current supported endpoints.
+#[derive(Default, Clone)]
+pub struct Endpoints {
+	local_endpoints: Arc<RwLock<Vec<String>>>,
+	endpoints: Arc<RwLock<endpoint::Endpoints>>,
+	dapps_path: PathBuf,
+	embeddable: Option<ParentFrameSettings>,
+}
+
+impl Endpoints {
+	/// Returns a current list of app endpoints.
+	pub fn list(&self) -> Vec<apps::App> {
+		self.endpoints.read().iter().filter_map(|(ref k, ref e)| {
+			e.info().map(|ref info| apps::App::from_info(k, info))
+		}).collect()
+	}
+
+	/// Check for any changes in the local dapps folder and update.
+	pub fn refresh_local_dapps(&self) {
+		let new_local = apps::fs::local_endpoints(&self.dapps_path, self.embeddable.clone());
+		let old_local = mem::replace(&mut *self.local_endpoints.write(), new_local.keys().cloned().collect());
+		let (_, to_remove): (_, Vec<_>) = old_local
+			.into_iter()
+			.partition(|k| new_local.contains_key(&k.clone()));
+
+		let mut endpoints = self.endpoints.write();
+		// remove the dead dapps
+		for k in to_remove {
+			endpoints.remove(&k);
+		}
+		// new dapps to be added
+		for (k, v) in new_local {
+			if !endpoints.contains_key(&k) {
+				endpoints.insert(k, v);
+			}
+		}
+	}
 }
 
 /// Dapps server as `jsonrpc-http-server` request middleware.
 pub struct Middleware {
+	endpoints: Endpoints,
 	router: router::Router,
 }
 
 impl Middleware {
-	/// Creates new Dapps server middleware.
-	pub fn new<F: Fetch + Clone>(
+	/// Get local endpoints handle.
+	pub fn endpoints(&self) -> &Endpoints {
+		&self.endpoints
+	}
+
+	/// Creates new middleware for UI server.
+	pub fn ui<F: Fetch>(
+		health: NodeHealth,
 		remote: Remote,
-		signer_address: Option<(String, u16)>,
+		dapps_domain: &str,
+		registrar: Arc<ContractClient>,
+		sync_status: Arc<SyncStatus>,
+		fetch: F,
+	) -> Self {
+		let content_fetcher = Arc::new(apps::fetcher::ContentFetcher::new(
+			hash_fetch::urlhint::URLHintContract::new(registrar),
+			sync_status.clone(),
+			remote.clone(),
+			fetch.clone(),
+		).embeddable_on(None).allow_dapps(false));
+		let special = {
+			let mut special = special_endpoints(
+				health,
+				content_fetcher.clone(),
+				remote.clone(),
+			);
+			special.insert(router::SpecialEndpoint::Home, Some(apps::ui()));
+			special
+		};
+		let router = router::Router::new(
+			content_fetcher,
+			None,
+			special,
+			None,
+			dapps_domain.to_owned(),
+		);
+
+		Middleware {
+			endpoints: Default::default(),
+			router: router,
+		}
+	}
+
+	/// Creates new Dapps server middleware.
+	pub fn dapps<F: Fetch>(
+		health: NodeHealth,
+		remote: Remote,
+		ui_address: Option<(String, u16)>,
+		extra_embed_on: Vec<(String, u16)>,
+		extra_script_src: Vec<(String, u16)>,
 		dapps_path: PathBuf,
 		extra_dapps: Vec<PathBuf>,
+		dapps_domain: &str,
 		registrar: Arc<ContractClient>,
 		sync_status: Arc<SyncStatus>,
 		web_proxy_tokens: Arc<WebProxyTokens>,
 		fetch: F,
 	) -> Self {
+		let embeddable = as_embeddable(ui_address, extra_embed_on, extra_script_src, dapps_domain);
 		let content_fetcher = Arc::new(apps::fetcher::ContentFetcher::new(
 			hash_fetch::urlhint::URLHintContract::new(registrar),
-			sync_status,
-			signer_address.clone(),
+			sync_status.clone(),
 			remote.clone(),
 			fetch.clone(),
-		));
-		let endpoints = apps::all_endpoints(
-			dapps_path,
+		).embeddable_on(embeddable.clone()).allow_dapps(true));
+		let (local_endpoints, endpoints) = apps::all_endpoints(
+			dapps_path.clone(),
 			extra_dapps,
-			signer_address.clone(),
+			dapps_domain,
+			embeddable.clone(),
 			web_proxy_tokens,
 			remote.clone(),
 			fetch.clone(),
 		);
-
-		let cors_domains = cors_domains(signer_address.clone());
+		let endpoints = Endpoints {
+			endpoints: Arc::new(RwLock::new(endpoints)),
+			dapps_path,
+			local_endpoints: Arc::new(RwLock::new(local_endpoints)),
+			embeddable: embeddable.clone(),
+		};
 
 		let special = {
-			let mut special = HashMap::new();
-			special.insert(router::SpecialEndpoint::Rpc, None);
-			special.insert(router::SpecialEndpoint::Utils, Some(apps::utils()));
+			let mut special = special_endpoints(
+				health,
+				content_fetcher.clone(),
+				remote.clone(),
+			);
 			special.insert(
-				router::SpecialEndpoint::Api,
-				Some(api::RestApi::new(
-					cors_domains.clone(),
-					&endpoints,
-					content_fetcher.clone()
-				)),
+				router::SpecialEndpoint::Home,
+				Some(apps::ui_redirection(embeddable.clone())),
 			);
 			special
 		};
 
 		let router = router::Router::new(
-			signer_address,
 			content_fetcher,
-			endpoints,
+			Some(endpoints.clone()),
 			special,
+			embeddable,
+			dapps_domain.to_owned(),
 		);
 
 		Middleware {
-			router: router,
+			endpoints,
+			router,
 		}
 	}
 }
@@ -166,25 +259,39 @@ impl http::RequestMiddleware for Middleware {
 	}
 }
 
-/// Returns a list of CORS domains for API endpoint.
-fn cors_domains(signer_address: Option<(String, u16)>) -> Vec<AccessControlAllowOrigin> {
-	use self::apps::{HOME_PAGE, DAPPS_DOMAIN};
-
-	match signer_address {
-		Some(signer_address) => [
-			format!("http://{}{}", HOME_PAGE, DAPPS_DOMAIN),
-			format!("http://{}{}:{}", HOME_PAGE, DAPPS_DOMAIN, signer_address.1),
-			format!("http://{}", address(&signer_address)),
-			format!("https://{}{}", HOME_PAGE, DAPPS_DOMAIN),
-			format!("https://{}{}:{}", HOME_PAGE, DAPPS_DOMAIN, signer_address.1),
-			format!("https://{}", address(&signer_address)),
-		].into_iter().map(|val| AccessControlAllowOrigin::Value(val.into())).collect(),
-		None => vec![],
-	}
+fn special_endpoints(
+	health: NodeHealth,
+	content_fetcher: Arc<apps::fetcher::Fetcher>,
+	remote: Remote,
+) -> HashMap<router::SpecialEndpoint, Option<Box<endpoint::Endpoint>>> {
+	let mut special = HashMap::new();
+	special.insert(router::SpecialEndpoint::Rpc, None);
+	special.insert(router::SpecialEndpoint::Utils, Some(apps::utils()));
+	special.insert(router::SpecialEndpoint::Api, Some(api::RestApi::new(
+		content_fetcher,
+		health,
+		remote,
+	)));
+	special
 }
 
-fn address(address: &(String, u16)) -> String {
-	format!("{}:{}", address.0, address.1)
+fn address(host: &str, port: u16) -> String {
+	format!("{}:{}", host, port)
+}
+
+fn as_embeddable(
+	ui_address: Option<(String, u16)>,
+	extra_embed_on: Vec<(String, u16)>,
+	extra_script_src: Vec<(String, u16)>,
+	dapps_domain: &str,
+) -> Option<ParentFrameSettings> {
+	ui_address.map(|(host, port)| ParentFrameSettings {
+		host,
+		port,
+		extra_embed_on,
+		extra_script_src,
+		dapps_domain: dapps_domain.to_owned(),
+	})
 }
 
 /// Random filename
@@ -194,28 +301,19 @@ fn random_filename() -> String {
 	rng.gen_ascii_chars().take(12).collect()
 }
 
-#[cfg(test)]
-mod util_tests {
-	use super::cors_domains;
-	use jsonrpc_http_server::AccessControlAllowOrigin;
+type Embeddable = Option<ParentFrameSettings>;
 
-	#[test]
-	fn should_return_cors_domains() {
-		// given
-
-		// when
-		let none = cors_domains(None);
-		let some = cors_domains(Some(("127.0.0.1".into(), 18180)));
-
-		// then
-		assert_eq!(none, Vec::<AccessControlAllowOrigin>::new());
-		assert_eq!(some, vec![
-			"http://parity.web3.site".into(),
-			"http://parity.web3.site:18180".into(),
-			"http://127.0.0.1:18180".into(),
-			"https://parity.web3.site".into(),
-			"https://parity.web3.site:18180".into(),
-			"https://127.0.0.1:18180".into(),
-		]);
-	}
+/// Parent frame host and port allowed to embed the content.
+#[derive(Debug, Clone)]
+pub struct ParentFrameSettings {
+	/// Hostname
+	pub host: String,
+	/// Port
+	pub port: u16,
+	/// Additional URLs the dapps can be embedded on.
+	pub extra_embed_on: Vec<(String, u16)>,
+	/// Additional URLs the dapp scripts can be loaded from.
+	pub extra_script_src: Vec<(String, u16)>,
+	/// Dapps Domain (web3.site)
+	pub dapps_domain: String,
 }

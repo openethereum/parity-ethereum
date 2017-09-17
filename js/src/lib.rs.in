@@ -42,7 +42,7 @@ impl WebApp for App {
 		Info {
 			name: "Parity UI",
 			version: env!("CARGO_PKG_VERSION"),
-			author: "Ethcore <admin@parity.io>",
+			author: "Parity <admin@parity.io>",
 			description: "New UI for Parity.",
 			icon_url: "icon.png",
 		}
@@ -51,5 +51,5 @@ impl WebApp for App {
 
 #[test]
 fn test_js() {
-	parity_dapps_glue::js::build(env!("CARGO_MANIFEST_DIR"));
+	parity_dapps_glue::js::build(env!("CARGO_MANIFEST_DIR"), "build");
 }

@@ -31,6 +31,12 @@ let store;
 
 function createApi () {
   api = {
+    transport: {
+      on: sinon.stub()
+    },
+    pubsub: {
+      subscribeAndGetResult: sinon.stub().returns(Promise.reject(new Error('not connected')))
+    },
     parity: {
       hardwareAccountsInfo: sinon.stub().resolves({ ADDRESS: WALLET }),
       setAccountMeta: sinon.stub().resolves(true),
@@ -195,22 +201,11 @@ describe('mobx/HardwareStore', () => {
       });
     });
 
-    describe('scanParity', () => {
-      beforeEach(() => {
-        return store.scanParity();
-      });
-
-      it('calls parity_hardwareAccountsInfo', () => {
-        expect(api.parity.hardwareAccountsInfo).to.have.been.called;
-      });
-    });
-
     describe('scan', () => {
       beforeEach(() => {
         sinon.spy(store, 'setScanning');
         sinon.spy(store, 'setWallets');
         sinon.spy(store, 'scanLedger');
-        sinon.spy(store, 'scanParity');
 
         return store.scan();
       });
@@ -219,15 +214,10 @@ describe('mobx/HardwareStore', () => {
         store.setScanning.restore();
         store.setWallets.restore();
         store.scanLedger.restore();
-        store.scanParity.restore();
       });
 
       it('calls scanLedger', () => {
         expect(store.scanLedger).to.have.been.called;
-      });
-
-      it('calls scanParity', () => {
-        expect(store.scanParity).to.have.been.called;
       });
 
       it('sets and resets the scanning state', () => {

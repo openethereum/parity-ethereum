@@ -16,10 +16,12 @@
 
 //! Nonoperative tracer.
 
-use util::{Bytes, Address, U256};
-use action_params::ActionParams;
+use bigint::prelude::U256;
+use util::Address;
+use bytes::Bytes;
+use vm::ActionParams;
 use trace::{Tracer, VMTracer, FlatTrace, TraceError};
-use trace::trace::{Call, Create, VMTrace};
+use trace::trace::{Call, Create, VMTrace, RewardType};
 
 /// Nonoperative tracer. Does not trace anything.
 pub struct NoopTracer;
@@ -58,11 +60,14 @@ impl Tracer for NoopTracer {
 	fn trace_suicide(&mut self, _address: Address, _balance: U256, _refund_address: Address) {
 	}
 
+	fn trace_reward(&mut self, _: Address, _: U256, _: RewardType) {
+	}
+
 	fn subtracer(&self) -> Self {
 		NoopTracer
 	}
 
-	fn traces(self) -> Vec<FlatTrace> {
+	fn drain(self) -> Vec<FlatTrace> {
 		vec![]
 	}
 }
@@ -71,18 +76,15 @@ impl Tracer for NoopTracer {
 pub struct NoopVMTracer;
 
 impl VMTracer for NoopVMTracer {
-	/// Trace the preparation to execute a single instruction.
-	fn trace_prepare_execute(&mut self, _pc: usize, _instruction: u8, _gas_cost: &U256) -> bool { false }
+	fn trace_next_instruction(&mut self, _pc: usize, _instruction: u8) -> bool { false }
 
-	/// Trace the finalised execution of a single instruction.
+	fn trace_prepare_execute(&mut self, _pc: usize, _instruction: u8, _gas_cost: U256) {}
+
 	fn trace_executed(&mut self, _gas_used: U256, _stack_push: &[U256], _mem_diff: Option<(usize, &[u8])>, _store_diff: Option<(U256, U256)>) {}
 
-	/// Spawn subtracer which will be used to trace deeper levels of execution.
 	fn prepare_subtrace(&self, _code: &[u8]) -> Self { NoopVMTracer }
 
-	/// Spawn subtracer which will be used to trace deeper levels of execution.
 	fn done_subtrace(&mut self, _sub: Self) {}
 
-	/// Consumes self and returns all VM traces.
 	fn drain(self) -> Option<VMTrace> { None }
 }

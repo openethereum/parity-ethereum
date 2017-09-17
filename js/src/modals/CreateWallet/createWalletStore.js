@@ -21,12 +21,12 @@ import { FormattedMessage } from 'react-intl';
 
 import Contract from '~/api/contract';
 import Contracts from '~/contracts';
-import { wallet as walletAbi } from '~/contracts/abi';
+import { foundationWallet as walletAbi } from '~/contracts/abi';
 import { wallet as walletCode, walletLibrary as walletLibraryCode, walletLibraryRegKey, fullWalletCode } from '~/contracts/code/wallet';
 
 import { validateUint, validateAddress, validateName } from '~/util/validation';
 import { toWei } from '~/api/util/wei';
-import { deploy } from '~/util/tx';
+import { deploy, getSender, loadSender, setSender } from '~/util/tx';
 import WalletsUtils from '~/util/wallets';
 
 const STEPS = {
@@ -120,10 +120,17 @@ export default class CreateWalletStore {
     this.api = api;
 
     this.step = this.stepsKeys[0];
-    this.wallet.account = Object.values(accounts)[0].address;
+    this.wallet.account = getSender() || Object.values(accounts)[0].address;
     this.validateWallet(this.wallet);
     this.onClose = onClose;
     this.onSetRequest = onSetRequest;
+
+    loadSender(this.api)
+      .then((defaultAccount) => {
+        if (defaultAccount !== this.wallet.account) {
+          this.onChange({ account: defaultAccount });
+        }
+      });
   }
 
   @action onTypeChange = (type) => {
@@ -156,11 +163,11 @@ export default class CreateWalletStore {
         WalletsUtils.fetchOwners(walletContract),
         WalletsUtils.fetchDailylimit(walletContract)
       ])
-      .then(([ require, owners, dailylimit ]) => {
+      .then(([ require, owners, daylimit ]) => {
         transaction(() => {
           this.wallet.owners = owners;
           this.wallet.required = require.toNumber();
-          this.wallet.dailylimit = dailylimit.limit;
+          this.wallet.daylimit = daylimit.limit;
 
           this.wallet = this.getWalletWithMeta(this.wallet);
         });
@@ -184,6 +191,8 @@ export default class CreateWalletStore {
         return null; // exception when registry is not available
       })
       .then((address) => {
+        console.warn('WalletLibrary address in registry', address);
+
         if (!address || /^(0x)?0*$/.test(address)) {
           return null;
         }
@@ -221,6 +230,7 @@ export default class CreateWalletStore {
 
         const contract = this.api.newContract(walletAbi);
 
+        setSender(account);
         this.wallet = this.getWalletWithMeta(this.wallet);
         this.onClose();
         return deploy(contract, options, [ owners, required, daylimit ])

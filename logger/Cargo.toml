@@ -1,7 +1,7 @@
 [package]
 description = "Ethcore client."
 name = "ethcore-logger"
-version = "1.7.0"
+version = "1.8.0"
 license = "GPL-3.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
@@ -15,7 +15,3 @@ time = "0.1"
 parking_lot = "0.4"
 arrayvec = "0.3"
 ansi_term = "0.9"
-
-[profile.release]
-debug = true
-lto = false
