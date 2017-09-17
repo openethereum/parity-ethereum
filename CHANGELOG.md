@@ -2,8 +2,8 @@
 
 Parity 1.7.2 is a bug-fix release to improve performance and stability. Among others, it addresses the following:
 
-- Byzantium fork support for Ropsten and Foundation networks.
-- Added support for the ConsenSys multi-signature wallet.
+- Byzantium fork support for the Ropsten and Foundation networks.
+- Added support for the ConsenSys and Gnosis multi-signature wallets.
 - Significantly increased token registry and token balance lookup performance.
 - Fixed issues with the health status indicator in the wallet.
 - Tweaked warp-sync to quickly catch up with chains fallen back more than 10,000 blocks.
