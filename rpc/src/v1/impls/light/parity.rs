@@ -322,8 +322,8 @@ impl Parity for ParityClient {
 		Err(errors::light_unimplemented(None))
 	}
 
-	fn chain_id(&self) -> Result<Option<u64>, Error> {
-		Ok(self.client.signing_network_id())
+	fn chain_id(&self) -> Result<Option<U256>, Error> {
+		Ok(self.client.signing_chain_id().map(U256::from))
 	}
 
 	fn chain(&self) -> Result<String, Error> {

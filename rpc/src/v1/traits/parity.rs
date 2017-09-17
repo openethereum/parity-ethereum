@@ -176,7 +176,7 @@ build_rpc_trait! {
 		/// current best block. An empty string is returned if not
 		/// available.
 		#[rpc(name = "parity_chainId")]
-		fn chain_id(&self) -> Result<Option<u64>, Error>;
+		fn chain_id(&self) -> Result<Option<U256>, Error>;
 
 		/// Get the chain name. Returns one of: "foundation", "kovan", &c. of a filename.
 		#[rpc(name = "parity_chain")]
