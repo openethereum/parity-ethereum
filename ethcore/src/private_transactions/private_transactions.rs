@@ -21,22 +21,34 @@ use parking_lot::RwLock;
 /// Storage for private transactions
 pub struct PrivateTransactions {
 	transactions: RwLock<Vec<UnverifiedTransaction>>,
+	signed_transactions:  RwLock<Vec<UnverifiedTransaction>>,
 }
 
 impl PrivateTransactions {
 	pub fn new() -> Self {
 		PrivateTransactions {
 			transactions: RwLock::new(Vec::new()),
+			signed_transactions: RwLock::new(Vec::new()),
 		}
 	}
 
-	pub fn import(&self, transaction: UnverifiedTransaction, _peer_id: usize) -> Result<(), Error> {
+	pub fn import_transaction(&self, transaction: UnverifiedTransaction, _peer_id: usize) -> Result<(), Error> {
 		let mut transactions = self.transactions.write();
 		transactions.push(transaction);
 		Ok(())
 	}
 
-	pub fn get_list(&self) -> Vec<UnverifiedTransaction> {
+	pub fn import_signed_transaction(&self, transaction: UnverifiedTransaction, _peer_id: usize) -> Result<(), Error> {
+		let mut signed_transactions = self.signed_transactions.write();
+		signed_transactions.push(transaction);
+		Ok(())
+	}
+
+	pub fn get_transactions_list(&self) -> Vec<UnverifiedTransaction> {
 		self.transactions.read().clone()
+	}
+
+	pub fn get_signed_transactions_list(&self) -> Vec<UnverifiedTransaction> {
+		self.signed_transactions.read().clone()
 	}
 }

@@ -444,6 +444,7 @@ impl ChainNotify for EthPeer<EthcoreClient> {
 		match message_type {
 			ChainMessageType::Consensus => self.sync.write().propagate_consensus_packet(&mut io, message.clone()),
 			ChainMessageType::PrivateTransaction => self.sync.write().propagate_private_transaction(&mut io, message.clone()),
+			ChainMessageType::SignedPrivateTransaction => self.sync.write().propagate_signed_private_transaction(&mut io, message.clone()),
 		}
 	}
 }

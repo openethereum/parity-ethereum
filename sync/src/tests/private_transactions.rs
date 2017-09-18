@@ -68,4 +68,23 @@ pub fn send_private_transaction() {
 	net.sync();
 
 	assert_eq!(net.peer(1).chain.get_private_transactions_provider().private_transactions().len(), 1);
+
+	// broadcast signed private transaction back
+	let signed_transaction = Transaction {
+		nonce: 0.into(),
+		gas_price: 0.into(),
+		gas: 21000.into(),
+		action: Action::Call(Address::default()),
+		value: 0.into(),
+		data: Vec::new(),
+	};
+	let signature_for_signed = net.peer(1).chain.engine().sign(signed_transaction.hash(Some(chain_id)));
+	let signed_message = signed_transaction.with_signature(signature_for_signed.unwrap(), Some(chain_id)).rlp_bytes();
+	net.peer(1).chain.get_private_transactions_provider().broadcast_signed_private_transaction(signed_message.into_vec());
+	net.sync();
+	net.peer(1).chain.engine().step();
+	net.peer(0).chain.engine().step();
+	net.sync();
+
+	assert_eq!(net.peer(0).chain.get_private_transactions_provider().signed_private_transactions().len(), 1);
 }
