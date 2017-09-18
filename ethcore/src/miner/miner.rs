@@ -743,10 +743,10 @@ impl MinerService for Miner {
 						.map_err(ExecutionError::from)?;
 				}
 				let mut ret = match (analytics.transaction_tracing, analytics.vm_tracing) {
-					(true, true) => Executive::new(&mut state, &env_info, &*self.engine).transact(t, TransactOptions::with_tracing_and_vm_tracing())?,
-					(true, false) => Executive::new(&mut state, &env_info, &*self.engine).transact(t, TransactOptions::with_tracing())?,
-					(false, true) => Executive::new(&mut state, &env_info, &*self.engine).transact(t, TransactOptions::with_vm_tracing())?,
-					(false, false) => Executive::new(&mut state, &env_info, &*self.engine).transact(t, TransactOptions::with_no_tracing())?,
+					(true, true) => Executive::new(&mut state, &env_info, &*self.engine).transact(t, TransactOptions::with_tracing_and_vm_tracing().save_output_from_contract())?,
+					(true, false) => Executive::new(&mut state, &env_info, &*self.engine).transact(t, TransactOptions::with_tracing().save_output_from_contract())?,
+					(false, true) => Executive::new(&mut state, &env_info, &*self.engine).transact(t, TransactOptions::with_vm_tracing().save_output_from_contract())?,
+					(false, false) => Executive::new(&mut state, &env_info, &*self.engine).transact(t, TransactOptions::with_no_tracing().save_output_from_contract())?,
 				};
 
 				// TODO gav move this into Executive.
