@@ -1,8 +1,6 @@
 {
   "presets": [
-    "es2017",
-    "es2016",
-    ["es2015", { "modules": false }],
+    "env",
     "stage-0",
     "react"
   ],
@@ -10,10 +8,12 @@
     "transform-decorators-legacy",
     "transform-class-properties",
     "transform-object-rest-spread",
-    "transform-es2015-modules-commonjs"
+    "transform-es2015-modules-commonjs",
+    "transform-runtime"
   ],
   "retainLines": true,
   "env": {
+    "modules": false,
     "production": {
       "plugins": [
         "transform-react-remove-prop-types"
@@ -26,9 +26,6 @@
       ]
     },
     "test": {
-      "plugins": [
-        ["babel-plugin-webpack-alias", { "config": "webpack/test.js" }]
-      ]
     }
   }
 }

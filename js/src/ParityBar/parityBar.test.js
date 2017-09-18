@@ -37,6 +37,7 @@ function createApi () {
       defaultAccount: sinon.stub().resolves(ACCOUNT_DEFAULT),
       allAccountsInfo: sinon.stub().resolves(ACCOUNTS),
       getNewDappsAddresses: sinon.stub().resolves(null),
+      registryAddress: sinon.stub().resolves(null),
       setNewDappsAddresses: sinon.stub().resolves(true),
       setNewDappsDefaultAddress: sinon.stub().resolves(true)
     }
