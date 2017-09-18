@@ -21,6 +21,7 @@ use bytes::Bytes;
 pub enum ChainMessageType {
 	Consensus,
 	PrivateTransaction,
+	SignedPrivateTransaction,
 }
 
 /// Represents what has to be handled by actor listening to chain events

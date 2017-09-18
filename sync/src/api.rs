@@ -460,6 +460,7 @@ impl ChainNotify for EthSync {
 			match message_type {
 				ChainMessageType::Consensus => self.eth_handler.sync.write().propagate_consensus_packet(&mut sync_io, message.clone()),
 				ChainMessageType::PrivateTransaction => self.eth_handler.sync.write().propagate_private_transaction(&mut sync_io, message.clone()),
+				ChainMessageType::SignedPrivateTransaction => self.eth_handler.sync.write().propagate_signed_private_transaction(&mut sync_io, message.clone()),
 			}
 		});
 	}
