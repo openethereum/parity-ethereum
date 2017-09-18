@@ -1,3 +1,152 @@
+## Parity [v1.7.2](https://github.com/paritytech/parity/releases/tag/v1.7.2) (2017-09-18)
+
+Parity 1.7.2 is a bug-fix release to improve performance and stability. Among others, it addresses the following:
+
+- Byzantium fork support for the Ropsten and Foundation networks.
+- Added support for the ConsenSys and Gnosis multi-signature wallets.
+- Significantly increased token registry and token balance lookup performance.
+- Fixed issues with the health status indicator in the wallet.
+- Tweaked warp-sync to quickly catch up with chains fallen back more than 10,000 blocks.
+- Fixes to the Chrome extension and macOS installer upgrades.
+
+Full list of included changes:
+
+- Fix output from eth_call. ([#6538](https://github.com/paritytech/parity/pull/6538))
+- Ropsten fork ([#6532](https://github.com/paritytech/parity/pull/6532))
+- Byzantium updates ([#6529](https://github.com/paritytech/parity/pull/6529))
+  - Fix modexp bug: return 0 if base=0 ([#6424](https://github.com/paritytech/parity/pull/6424))
+  - Running state test using parity-evm ([#6355](https://github.com/paritytech/parity/pull/6355))
+    - Initial version of state tests.
+    - Refactor state to support tracing.
+    - Unify TransactResult.
+    - Add test.
+  - Byzantium updates ([#5855](https://github.com/paritytech/parity/pull/5855))
+    - EIP-211 updates
+    - Benchmarks
+    - Blockhash instruction gas cost updated
+    - More benches
+    - EIP-684
+    - EIP-649
+    - EIP-658
+    - Updated some tests
+    - Modexp fixes
+    - STATICCALL fixes
+    - Pairing fixes
+    - More STATICALL fixes
+    - Use paritytech/bn
+    - Fixed REVERTing of contract creation
+    - Fixed more tests
+    - Fixed more tests
+    - Blockchain tests
+    - Enable previously broken tests
+    - Transition test
+    - Updated tests
+    - Fixed modexp reading huge numbers
+    - Enabled max_code_size test
+    - Review fixes
+    - Updated pairing pricing
+    - Missing commas (style)
+    - Update test.rs
+    - Small improvements
+    - Eip161abc
+- Fix extension detection ([#6452](https://github.com/paritytech/parity/pull/6452)) ([#6524](https://github.com/paritytech/parity/pull/6524))
+  - Fix extension detection.
+  - Fix mobx quirks.
+  - Update submodule.
+- Fix detecting hardware wallets. ([#6509](https://github.com/paritytech/parity/pull/6509))
+- Allow hardware device reads without lock. ([#6517](https://github.com/paritytech/parity/pull/6517))
+- Backports [#6497](https://github.com/paritytech/parity/pull/6497)
+  - Fix slow balances ([#6471](https://github.com/paritytech/parity/pull/6471))
+    - Update token updates
+    - Update token info fetching
+    - Update logger
+    - Minor fixes to updates and notifications for balances
+    - Use Pubsub
+    - Fix timeout.
+    - Use pubsub for status.
+    - Fix signer subscription.
+    - Process tokens in chunks.
+    - Fix tokens loaded by chunks
+    - Dispatch tokens asap
+    - Fix chunks processing.
+    - Better filter options
+    - Parallel log fetching.
+    - Fix signer polling.
+    - Fix initial block query.
+    - Token balances updates : the right(er) way
+    - Better tokens info fetching
+    - Fixes in token data fetching
+    - Only fetch what's needed (tokens)
+    - Fix linting issues
+    - Update wasm-tests.
+    - Fixing balances fetching
+    - Fix requests tracking in UI
+    - Fix request watching
+    - Update the Logger
+    - PR Grumbles Fixes
+  - Eth_call returns output of contract creations ([#6420](https://github.com/paritytech/parity/pull/6420))
+    - Eth_call returns output of contract creations
+    - Fix parameters order.
+    - Save outputs for light client as well.
+  - Don't accept transactions above block gas limit.
+  - Expose health status over RPC ([#6274](https://github.com/paritytech/parity/pull/6274))
+     - Node-health to a separate crate.
+     - Initialize node_health outside of dapps.
+     - Expose health over RPC.
+     - Bring back 412 and fix JS.
+     - Add health to workspace and tests.
+     - Fix compilation without default features.
+     - Fix borked merge.
+     - Revert to generics to avoid virtual calls.
+     - Fix node-health tests.
+     - Add missing trailing comma.
+  - Fixing/removing failing JS tests.
+  - Do not activate genesis epoch in immediate transition validator contract ([#6349](https://github.com/paritytech/parity/pull/6349))
+  - Fix memory tracing.
+  - Add test to cover that.
+  - Ensure balances of constructor accounts are kept
+  - Test balance of spec-constructed account is kept
+- Fix warning spam. [#6369](https://github.com/paritytech/parity/pull/6369)
+- Bump to 1.7.2
+- Fix eth_call [#6366](https://github.com/paritytech/parity/pull/6366)
+- Backporting [#6352](https://github.com/paritytech/parity/pull/6352)
+  - Better check the created accounts before showing Startup Wizard [#6331](https://github.com/paritytech/parity/pull/6331)
+  - Tweaked snapshot params [#6344](https://github.com/paritytech/parity/pull/6344)
+- Increase default gas limit for eth_call [#6337](https://github.com/paritytech/parity/pull/6337)
+  - Fix balance increase.
+  - Cap gas limit for dapp-originating requests.
+- Backports [#6333](https://github.com/paritytech/parity/pull/6333)
+  - Overflow check in addition
+  - Unexpose methods on UI RPC. [#6295](https://github.com/paritytech/parity/pull/6295)
+  - Add more descriptive error when signing/decrypting using hw wallet.
+  - Format instant change proofs correctly
+  - Propagate stratum submit share error upstream [#6260](https://github.com/paritytech/parity/pull/6260)
+  - Updated jsonrpc [#6264](https://github.com/paritytech/parity/pull/6264)
+  - Using multiple NTP servers [#6173](https://github.com/paritytech/parity/pull/6173)
+    - Small improvements to time estimation.
+    - Allow multiple NTP servers to be used.
+    - Removing boxing.
+    - Update list of servers and add reference.
+  - Fix dapps CSP when UI is exposed externally [#6178](https://github.com/paritytech/parity/pull/6178)
+    - Allow embeding on any page when ui-hosts=all and fix dev_ui
+  - Fix cache path when using --base-path [#6212](https://github.com/paritytech/parity/pull/6212)
+  - Bump to v1.7.1
+- UI backports [#6332](https://github.com/paritytech/parity/pull/6332)
+  - Time should not contribue to overall status. [#6276](https://github.com/paritytech/parity/pull/6276)
+  - Add warning to web browser and fix links. [#6232](https://github.com/paritytech/parity/pull/6232)
+  - Extension fixes [#6284](https://github.com/paritytech/parity/pull/6284)
+    - Fix token symbols in extension.
+    - Allow connections from firefox extension.
+  - Add support for ConsenSys multisig wallet [#6153](https://github.com/paritytech/parity/pull/6153)
+    - First draft of ConsenSys wallet
+    - Fix transfer store // WIP Consensys Wallet
+    - Rename walletABI JSON file
+    - Fix wrong daylimit in wallet modal
+    - Confirm/Revoke ConsensysWallet txs
+    - Change of settings for the Multisig Wallet
+- Update README for beta [#6270](https://github.com/paritytech/parity/pull/6270)
+- Fixed macOS installer upgrade [#6221](https://github.com/paritytech/parity/pull/6221)
+
 ## Parity [v1.7.0](https://github.com/paritytech/parity/releases/tag/v1.7.0) (2017-07-28)
 
 Parity 1.7.0 is a major release introducing several important features:
