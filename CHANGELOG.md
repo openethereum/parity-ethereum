@@ -11,7 +11,8 @@ Parity 1.7.2 is a bug-fix release to improve performance and stability. Among ot
 
 Full list of included changes:
 
-- Ropsten fork [#6532](https://github.com/paritytech/parity/pull/6532)
+- Fix output from eth_call. ([#6538](https://github.com/paritytech/parity/pull/6538))
+- Ropsten fork ([#6532](https://github.com/paritytech/parity/pull/6532))
 - Byzantium updates ([#6529](https://github.com/paritytech/parity/pull/6529))
   - Fix modexp bug: return 0 if base=0 ([#6424](https://github.com/paritytech/parity/pull/6424))
   - Running state test using parity-evm ([#6355](https://github.com/paritytech/parity/pull/6355))
