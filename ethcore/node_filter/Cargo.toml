@@ -10,6 +10,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 ethcore = { path = ".."}
 ethcore-util = { path = "../../util" }
 ethcore-bigint = { path = "../../util/bigint" }
+ethcore-bytes = { path = "../../util/bytes" }
 ethcore-io = { path = "../../util/io" }
 ethcore-network = { path = "../../util/network" }
 native-contracts = { path = "../native_contracts" }

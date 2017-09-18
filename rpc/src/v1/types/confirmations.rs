@@ -19,7 +19,7 @@
 use std::fmt;
 use serde::{Serialize, Serializer};
 use ansi_term::Colour;
-use util::bytes::ToPretty;
+use bytes::ToPretty;
 
 use v1::types::{U256, TransactionRequest, RichRawTransaction, H160, H256, H520, Bytes, TransactionCondition, Origin};
 use v1::helpers;

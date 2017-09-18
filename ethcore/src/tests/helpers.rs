@@ -23,6 +23,7 @@ use client::{BlockChainClient, Client, ClientConfig};
 use bigint::prelude::U256;
 use bigint::hash::H256;
 use util::*;
+use bytes::Bytes;
 use spec::*;
 use account_provider::AccountProvider;
 use state_db::StateDB;
@@ -41,15 +42,6 @@ use transaction::{Action, Transaction, SignedTransaction};
 use rlp::{self, RlpStream};
 use views::BlockView;
 
-#[cfg(feature = "json-tests")]
-pub enum ChainEra {
-	Frontier,
-	Homestead,
-	Eip150,
-	_Eip161,
-	TransitionTest,
-}
-
 pub struct TestEngine {
 	engine: Arc<Engine>,
 	max_depth: usize,
@@ -63,9 +55,16 @@ impl TestEngine {
 		}
 	}
 
-	pub fn new_metropolis() -> TestEngine {
+	pub fn new_byzantium() -> TestEngine {
 		TestEngine {
-			engine: ethereum::new_metropolis_test().engine,
+			engine: ethereum::new_byzantium_test().engine,
+			max_depth: 0,
+		}
+	}
+
+	pub fn new_constantinople() -> TestEngine {
+		TestEngine {
+			engine: ethereum::new_constantinople_test().engine,
 			max_depth: 0,
 		}
 	}
@@ -426,5 +425,8 @@ pub fn get_default_ethash_params() -> EthashParams {
 		max_gas_limit: U256::max_value(),
 		min_gas_price_transition: u64::max_value(),
 		min_gas_price: U256::zero(),
+		eip649_transition: u64::max_value(),
+		eip649_delay: 3_000_000,
+		eip649_reward: None,
 	}
 }

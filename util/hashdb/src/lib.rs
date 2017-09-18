@@ -15,6 +15,9 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Database of byte-slices keyed to their Keccak hash.
+extern crate elastic_array;
+extern crate ethcore_bigint as bigint;
+
 use bigint::hash::*;
 use std::collections::HashMap;
 use elastic_array::ElasticArray128;
@@ -29,59 +32,14 @@ pub trait HashDB: AsHashDB + Send + Sync {
 
 	/// Look up a given hash into the bytes that hash to it, returning None if the
 	/// hash is not known.
-	///
-	/// # Examples
-	/// ```rust
-	/// extern crate ethcore_util;
-	/// use ethcore_util::hashdb::*;
-	/// use ethcore_util::memorydb::*;
-	/// fn main() {
-	///   let mut m = MemoryDB::new();
-	///   let hello_bytes = "Hello world!".as_bytes();
-	///   let hash = m.insert(hello_bytes);
-	///   assert_eq!(m.get(&hash).unwrap(), hello_bytes);
-	/// }
-	/// ```
 	fn get(&self, key: &H256) -> Option<DBValue>;
 
 	/// Check for the existance of a hash-key.
-	///
-	/// # Examples
-	/// ```rust
-	/// extern crate hash;
-	/// extern crate ethcore_util;
-	/// use ethcore_util::hashdb::*;
-	/// use ethcore_util::memorydb::*;
-	/// use hash::keccak;
-	/// fn main() {
-	///   let mut m = MemoryDB::new();
-	///   let hello_bytes = "Hello world!".as_bytes();
-	///   assert!(!m.contains(&keccak(hello_bytes)));
-	///   let key = m.insert(hello_bytes);
-	///   assert!(m.contains(&key));
-	///   m.remove(&key);
-	///   assert!(!m.contains(&key));
-	/// }
-	/// ```
 	fn contains(&self, key: &H256) -> bool;
 
 	/// Insert a datum item into the DB and return the datum's hash for a later lookup. Insertions
 	/// are counted and the equivalent number of `remove()`s must be performed before the data
 	/// is considered dead.
-	///
-	/// # Examples
-	/// ```rust
-	/// extern crate ethcore_util;
-	/// extern crate ethcore_bigint;
-	/// use ethcore_util::hashdb::*;
-	/// use ethcore_util::memorydb::*;
-	/// use ethcore_bigint::hash::*;
-	/// fn main() {
-	///   let mut m = MemoryDB::new();
-	///   let key = m.insert("Hello world!".as_bytes());
-	///   assert!(m.contains(&key));
-	/// }
-	/// ```
 	fn insert(&mut self, value: &[u8]) -> H256;
 
 	/// Like `insert()` , except you provide the key and the data is all moved.
@@ -89,30 +47,6 @@ pub trait HashDB: AsHashDB + Send + Sync {
 
 	/// Remove a datum previously inserted. Insertions can be "owed" such that the same number of `insert()`s may
 	/// happen without the data being eventually being inserted into the DB. It can be "owed" more than once.
-	///
-	/// # Examples
-	/// ```rust
-	/// extern crate ethcore_util;
-	/// extern crate hash;
-	/// use ethcore_util::hashdb::*;
-	/// use ethcore_util::memorydb::*;
-	/// use hash::keccak;
-	/// fn main() {
-	///   let mut m = MemoryDB::new();
-	///   let d = "Hello world!".as_bytes();
-	///   let key = &keccak(d);
-	///   m.remove(key);	// OK - we now owe an insertion.
-	///   assert!(!m.contains(key));
-	///   m.remove(key);	// OK - we now owe two insertions.
-	///   assert!(!m.contains(key));
-	///   m.insert(d);	// OK - still owed.
-	///   assert!(!m.contains(key));
-	///   m.insert(d);	// OK - now it's "empty" again.
-	///   assert!(!m.contains(key));
-	///   m.insert(d);	// OK - now we've
-	///   assert_eq!(m.get(key).unwrap(), d);
-	/// }
-	/// ```
 	fn remove(&mut self, key: &H256);
 }
 

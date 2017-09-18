@@ -26,7 +26,7 @@ use num::{BigUint, Zero, One};
 use hash::keccak;
 use bigint::prelude::U256;
 use bigint::hash::H256;
-use util::BytesRef;
+use bytes::BytesRef;
 use ethkey::{Signature, recover as ec_recover};
 use ethjson;
 
@@ -64,7 +64,7 @@ struct Linear {
 }
 
 /// A special pricing model for modular exponentiation.
-struct Modexp {
+struct ModexpPricer {
 	divisor: usize,
 }
 
@@ -74,7 +74,20 @@ impl Pricer for Linear {
 	}
 }
 
-impl Pricer for Modexp {
+/// A alt_bn128_parinig pricing model. This computes a price using a base cost and a cost per pair.
+struct AltBn128PairingPricer {
+	base: usize,
+	pair: usize,
+}
+
+impl Pricer for AltBn128PairingPricer {
+	fn cost(&self, input: &[u8]) -> U256 {
+		let cost = U256::from(self.base) + U256::from(self.pair) * U256::from(input.len() / 192);
+		cost
+	}
+}
+
+impl Pricer for ModexpPricer {
 	fn cost(&self, input: &[u8]) -> U256 {
 		let mut reader = input.chain(io::repeat(0));
 		let mut buf = [0; 32];
@@ -88,17 +101,49 @@ impl Pricer for Modexp {
 		let exp_len = read_len();
 		let mod_len = read_len();
 
-		// floor(max(length_of_MODULUS, length_of_BASE) ** 2 * max(length_of_EXPONENT, 1) / GQUADDIVISOR)
-		// TODO: is saturating the best behavior here?
+		let max_len = U256::from(u32::max_value() / 2);
+		if base_len > max_len || mod_len > max_len {
+			return U256::max_value();
+		}
+
+		let base_len = base_len.low_u64();
+		let exp_len = exp_len.low_u64();
+		let mod_len = mod_len.low_u64();
 		let m = max(mod_len, base_len);
-		match m.overflowing_mul(m) {
-			(_, true) => U256::max_value(),
-			(val, _) => {
-				match val.overflowing_mul(max(exp_len, U256::one())) {
-					(_, true) => U256::max_value(),
-					(val, _) => val / (self.divisor as u64).into()
-				}
-			}
+		if m == 0 {
+			return U256::zero();
+		}
+		// read fist 32-byte word of the exponent.
+		let exp_low = if base_len + 96 >= input.len() as u64 { U256::zero() } else {
+			let mut buf = [0; 32];
+			let mut reader = input[(96 + base_len as usize)..].chain(io::repeat(0));
+			let len = min(exp_len, 32) as usize;
+			reader.read_exact(&mut buf[(32 - len)..]).expect("reading from zero-extended memory cannot fail; qed");
+			U256::from(H256::from_slice(&buf[..]))
+		};
+
+		let adjusted_exp_len = Self::adjusted_exp_len(exp_len, exp_low);
+
+		(Self::mult_complexity(m) * max(adjusted_exp_len, 1) / self.divisor as u64).into()
+	}
+}
+
+impl ModexpPricer {
+	fn adjusted_exp_len(len: u64, exp_low: U256) -> u64 {
+		let bit_index = if exp_low.is_zero() { 0 } else { (255 - exp_low.leading_zeros()) as u64 };
+		if len <= 32 {
+			bit_index
+		}
+		else {
+			8 * (len - 32) + bit_index
+		}
+	}
+
+	fn mult_complexity(x: u64) -> u64 {
+		match x {
+			x if x <= 64 => x * x,
+			x if x <= 1024 => (x * x) / 4 + 96 * x - 3072,
+			x => (x * x) / 16 + 480 * x - 199680,
 		}
 	}
 }
@@ -138,13 +183,19 @@ impl From<ethjson::spec::Builtin> for Builtin {
 				})
 			}
 			ethjson::spec::Pricing::Modexp(exp) => {
-				Box::new(Modexp {
+				Box::new(ModexpPricer {
 					divisor: if exp.divisor == 0 {
 						warn!("Zero modexp divisor specified. Falling back to default.");
 						10
 					} else {
 						exp.divisor
 					}
+				})
+			}
+			ethjson::spec::Pricing::AltBn128Pairing(pricer) => {
+				Box::new(AltBn128PairingPricer {
+					base: pricer.base,
+					pair: pricer.pair,
 				})
 			}
 		};
@@ -165,9 +216,9 @@ fn ethereum_builtin(name: &str) -> Box<Impl> {
 		"sha256" => Box::new(Sha256) as Box<Impl>,
 		"ripemd160" => Box::new(Ripemd160) as Box<Impl>,
 		"modexp" => Box::new(ModexpImpl) as Box<Impl>,
-		"bn128_add" => Box::new(Bn128AddImpl) as Box<Impl>,
-		"bn128_mul" => Box::new(Bn128MulImpl) as Box<Impl>,
-		"bn128_pairing" => Box::new(Bn128PairingImpl) as Box<Impl>,
+		"alt_bn128_add" => Box::new(Bn128AddImpl) as Box<Impl>,
+		"alt_bn128_mul" => Box::new(Bn128MulImpl) as Box<Impl>,
+		"alt_bn128_pairing" => Box::new(Bn128PairingImpl) as Box<Impl>,
 		_ => panic!("invalid builtin name: {}", name),
 	}
 }
@@ -273,11 +324,16 @@ impl Impl for Ripemd160 {
 fn modexp(mut base: BigUint, mut exp: BigUint, modulus: BigUint) -> BigUint {
 	use num::Integer;
 
-	match (base.is_zero(), exp.is_zero()) {
-		(_, true) => return BigUint::one(), // n^0 % m
-		(true, false) => return BigUint::zero(), // 0^n % m, n>0
-		(false, false) if modulus <= BigUint::one() => return BigUint::zero(), // a^b % 1 = 0.
-		_ => {}
+	if modulus <= BigUint::one() { // n^m % 0 || n^m % 1
+		return BigUint::zero();
+	}
+
+	if exp.is_zero() { // n^0 % m
+		return BigUint::one();
+	}
+
+	if base.is_zero() { // 0^n % m, n>0
+		return BigUint::zero();
 	}
 
 	let mut result = BigUint::one();
@@ -293,7 +349,6 @@ fn modexp(mut base: BigUint, mut exp: BigUint, modulus: BigUint) -> BigUint {
 		exp = exp >> 1;
 		base = (base.clone() * base) % &modulus;
 	}
-
 	result
 }
 
@@ -314,19 +369,25 @@ impl Impl for ModexpImpl {
 		let exp_len = read_len(&mut reader);
 		let mod_len = read_len(&mut reader);
 
-		// read the numbers themselves.
-		let mut buf = vec![0; max(mod_len, max(base_len, exp_len))];
-		let mut read_num = |len| {
-			reader.read_exact(&mut buf[..len]).expect("reading from zero-extended memory cannot fail; qed");
-			BigUint::from_bytes_be(&buf[..len])
+		// Gas formula allows arbitrary large exp_len when base and modulus are empty, so we need to handle empty base first.
+		let r = if base_len == 0 && mod_len == 0 {
+			BigUint::zero()
+		} else {
+			// read the numbers themselves.
+			let mut buf = vec![0; max(mod_len, max(base_len, exp_len))];
+			let mut read_num = |len| {
+				reader.read_exact(&mut buf[..len]).expect("reading from zero-extended memory cannot fail; qed");
+				BigUint::from_bytes_be(&buf[..len])
+			};
+
+			let base = read_num(base_len);
+			let exp = read_num(exp_len);
+			let modulus = read_num(mod_len);
+			modexp(base, exp, modulus)
 		};
 
-		let base = read_num(base_len);
-		let exp = read_num(exp_len);
-		let modulus = read_num(mod_len);
-
 		// write output to given memory, left padded and same length as the modulus.
-		let bytes = modexp(base, exp, modulus).to_bytes_be();
+		let bytes = r.to_bytes_be();
 
 		// always true except in the case of zero-length modulus, which leads to
 		// output of length and value 1.
@@ -356,7 +417,6 @@ fn read_point(reader: &mut io::Chain<&[u8], io::Repeat>) -> Result<::bn::G1, Err
 
 	reader.read_exact(&mut buf[..]).expect("reading from zero-extended memory cannot fail; qed");
 	let py = Fq::from_slice(&buf[0..32]).map_err(|_| Error::from("Invalid point y coordinate"))?;
-
 	Ok(
 		if px == Fq::zero() && py == Fq::zero() {
 			G1::zero()
@@ -407,50 +467,29 @@ impl Impl for Bn128MulImpl {
 	}
 }
 
-mod bn128_gen {
-	use bn::{AffineG1, AffineG2, Fq, Fq2, G1, G2, Gt, pairing};
-
-	lazy_static! {
-		pub static ref P1: G1 = G1::from(AffineG1::new(
-			Fq::from_str("1").expect("1 is a valid field element"),
-			Fq::from_str("2").expect("2 is a valid field element"),
-		).expect("Generator P1(1, 2) is a valid curve point"));
-	}
-
-	lazy_static! {
-		pub static ref P2: G2 = G2::from(AffineG2::new(
-			Fq2::new(
-				Fq::from_str("10857046999023057135944570762232829481370756359578518086990519993285655852781")
-					.expect("a valid field element"),
-				Fq::from_str("11559732032986387107991004021392285783925812861821192530917403151452391805634")
-					.expect("a valid field element"),
-			),
-			Fq2::new(
-				Fq::from_str("8495653923123431417604973247489272438418190587263600148770280649306958101930")
-					.expect("a valid field element"),
-				Fq::from_str("4082367875863433681332203403145435568316851327593401208105741076214120093531")
-					.expect("a valid field element"),
-			),
-		).expect("the generator P2(10857046999023057135944570762232829481370756359578518086990519993285655852781 + 11559732032986387107991004021392285783925812861821192530917403151452391805634i, 8495653923123431417604973247489272438418190587263600148770280649306958101930 + 4082367875863433681332203403145435568316851327593401208105741076214120093531i) is a valid curve point"));
-	}
-
-	lazy_static! {
-		pub static ref P1_P2_PAIRING: Gt = pairing(P1.clone(), P2.clone());
-	}
-}
-
 impl Impl for Bn128PairingImpl {
 	/// Can fail if:
 	///     - input length is not a multiple of 192
 	///     - any of odd points does not belong to bn128 curve
 	///     - any of even points does not belong to the twisted bn128 curve over the field F_p^2 = F_p[i] / (i^2 + 1)
 	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), Error> {
-		use bn::{AffineG1, AffineG2, Fq, Fq2, pairing, G1, G2, Gt};
-
-		let elements = input.len() / 192; // (a, b_a, b_b - each 64-byte affine coordinates)
 		if input.len() % 192 != 0 {
 			return Err("Invalid input length, must be multiple of 192 (3 * (32*2))".into())
 		}
+
+		if let Err(err) = self.execute_with_error(input, output) {
+			trace!("Pairining error: {:?}", err);
+			return Err(err)
+		}
+		Ok(())
+	}
+}
+
+impl Bn128PairingImpl {
+	fn execute_with_error(&self, input: &[u8], output: &mut BytesRef) -> Result<(), Error> {
+		use bn::{AffineG1, AffineG2, Fq, Fq2, pairing, G1, G2, Gt, Group};
+
+		let elements = input.len() / 192; // (a, b_a, b_b - each 64-byte affine coordinates)
 		let ret_val = if input.len() == 0 {
 			U256::one()
 		} else {
@@ -462,34 +501,36 @@ impl Impl for Bn128PairingImpl {
 				let a_y = Fq::from_slice(&input[idx*192+32..idx*192+64])
 					.map_err(|_| Error::from("Invalid a argument y coordinate"))?;
 
-				let b_b_x = Fq::from_slice(&input[idx*192+64..idx*192+96])
+				let b_a_y = Fq::from_slice(&input[idx*192+64..idx*192+96])
 					.map_err(|_| Error::from("Invalid b argument imaginary coeff x coordinate"))?;
 
-				let b_b_y = Fq::from_slice(&input[idx*192+96..idx*192+128])
+				let b_a_x = Fq::from_slice(&input[idx*192+96..idx*192+128])
 					.map_err(|_| Error::from("Invalid b argument imaginary coeff y coordinate"))?;
 
-				let b_a_x = Fq::from_slice(&input[idx*192+128..idx*192+160])
+				let b_b_y = Fq::from_slice(&input[idx*192+128..idx*192+160])
 					.map_err(|_| Error::from("Invalid b argument real coeff x coordinate"))?;
 
-				let b_a_y = Fq::from_slice(&input[idx*192+160..idx*192+192])
+				let b_b_x = Fq::from_slice(&input[idx*192+160..idx*192+192])
 					.map_err(|_| Error::from("Invalid b argument real coeff y coordinate"))?;
 
-				vals.push((
-					G1::from(
-						AffineG1::new(a_x, a_y).map_err(|_| Error::from("Invalid a argument - not on curve"))?
-					),
-					G2::from(
-						AffineG2::new(
-							Fq2::new(b_a_x, b_a_y),
-							Fq2::new(b_b_x, b_b_y),
-						).map_err(|_| Error::from("Invalid b argument - not on curve"))?
-					),
-				));
+				let b_a = Fq2::new(b_a_x, b_a_y);
+				let b_b = Fq2::new(b_b_x, b_b_y);
+				let b = if b_a.is_zero() && b_b.is_zero() {
+					G2::zero()
+				} else {
+					G2::from(AffineG2::new(b_a, b_b).map_err(|_| Error::from("Invalid b argument - not on curve"))?)
+				};
+				let a = if a_x.is_zero() && a_y.is_zero() {
+					G1::zero()
+				} else {
+					G1::from(AffineG1::new(a_x, a_y).map_err(|_| Error::from("Invalid a argument - not on curve"))?)
+				};
+				vals.push((a, b));
 			};
 
 			let mul = vals.into_iter().fold(Gt::one(), |s, (a, b)| s * pairing(a, b));
 
-			if mul == *bn128_gen::P1_P2_PAIRING {
+			if mul == Gt::one() {
 				U256::one()
 			} else {
 				U256::zero()
@@ -506,10 +547,10 @@ impl Impl for Bn128PairingImpl {
 
 #[cfg(test)]
 mod tests {
-	use super::{Builtin, Linear, ethereum_builtin, Pricer, Modexp, modexp as me};
+	use super::{Builtin, Linear, ethereum_builtin, Pricer, ModexpPricer, modexp as me};
 	use ethjson;
 	use bigint::prelude::U256;
-	use util::BytesRef;
+	use bytes::BytesRef;
 	use rustc_hex::FromHex;
 	use num::{BigUint, Zero, One};
 
@@ -662,7 +703,7 @@ mod tests {
 	fn modexp() {
 
 		let f = Builtin {
-			pricer: Box::new(Modexp { divisor: 20 }),
+			pricer: Box::new(ModexpPricer { divisor: 20 }),
 			native: ethereum_builtin("modexp"),
 			activate_at: 0,
 		};
@@ -679,7 +720,7 @@ mod tests {
 
 			let mut output = vec![0u8; 32];
 			let expected = FromHex::from_hex("0000000000000000000000000000000000000000000000000000000000000001").unwrap();
-			let expected_cost = 1638;
+			let expected_cost = 13056;
 
 			f.execute(&input[..], &mut BytesRef::Fixed(&mut output[..])).expect("Builtin should not fail");
 			assert_eq!(output, expected);
@@ -690,15 +731,15 @@ mod tests {
 		{
 			let input = FromHex::from_hex("\
 				0000000000000000000000000000000000000000000000000000000000000000\
- 				0000000000000000000000000000000000000000000000000000000000000020\
- 				0000000000000000000000000000000000000000000000000000000000000020\
- 				fffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2e\
- 				fffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f"
+				0000000000000000000000000000000000000000000000000000000000000020\
+				0000000000000000000000000000000000000000000000000000000000000020\
+				fffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2e\
+				fffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f"
 			).unwrap();
 
 			let mut output = vec![0u8; 32];
 			let expected = FromHex::from_hex("0000000000000000000000000000000000000000000000000000000000000000").unwrap();
-			let expected_cost = 1638;
+			let expected_cost = 13056;
 
 			f.execute(&input[..], &mut BytesRef::Fixed(&mut output[..])).expect("Builtin should not fail");
 			assert_eq!(output, expected);
@@ -718,7 +759,7 @@ mod tests {
 
 			let mut output = vec![0u8; 32];
 			let expected = FromHex::from_hex("3b01b01ac41f2d6e917c6d6a221ce793802469026d9ab7578fa2e79e4da6aaab").unwrap();
-			let expected_cost = 102;
+			let expected_cost = 768;
 
 			f.execute(&input[..], &mut BytesRef::Fixed(&mut output[..])).expect("Builtin should not fail");
 			assert_eq!(output, expected);
@@ -749,7 +790,7 @@ mod tests {
 
 		let f = Builtin {
 			pricer: Box::new(Linear { base: 0, word: 0 }),
-			native: ethereum_builtin("bn128_add"),
+			native: ethereum_builtin("alt_bn128_add"),
 			activate_at: 0,
 		};
 
@@ -810,7 +851,7 @@ mod tests {
 
 		let f = Builtin {
 			pricer: Box::new(Linear { base: 0, word: 0 }),
-			native: ethereum_builtin("bn128_mul"),
+			native: ethereum_builtin("alt_bn128_mul"),
 			activate_at: 0,
 		};
 
@@ -850,7 +891,7 @@ mod tests {
 	fn builtin_pairing() -> Builtin {
 		Builtin {
 			pricer: Box::new(Linear { base: 0, word: 0 }),
-			native: ethereum_builtin("bn128_pairing"),
+			native: ethereum_builtin("alt_bn128_pairing"),
 			activate_at: 0,
 		}
 	}

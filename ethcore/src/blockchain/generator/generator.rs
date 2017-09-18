@@ -16,7 +16,7 @@
 
 use bigint::prelude::U256;
 use bigint::hash::H2048;
-use util::Bytes;
+use bytes::Bytes;
 use header::BlockNumber;
 use transaction::SignedTransaction;
 use super::fork::Fork;

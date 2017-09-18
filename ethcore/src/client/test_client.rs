@@ -27,6 +27,7 @@ use bigint::prelude::U256;
 use bigint::hash::H256;
 use parking_lot::RwLock;
 use util::*;
+use bytes::Bytes;
 use rlp::*;
 use ethkey::{Generator, Random};
 use devtools::*;
@@ -618,6 +619,7 @@ impl BlockChainClient for TestBlockChainClient {
 		if *hash > H256::from("f000000000000000000000000000000000000000000000000000000000000000") {
 			let receipt = BlockReceipts::new(vec![Receipt::new(
 				Some(H256::zero()),
+				None,
 				U256::zero(),
 				vec![])]);
 			let mut rlp = RlpStream::new();

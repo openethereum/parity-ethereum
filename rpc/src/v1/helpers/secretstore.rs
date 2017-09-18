@@ -18,7 +18,7 @@ use std::iter::repeat;
 use rand::{Rng, OsRng};
 use ethkey::{Public, Secret, math};
 use crypto;
-use util::Bytes;
+use bytes::Bytes;
 use jsonrpc_core::Error;
 use v1::helpers::errors;
 
@@ -98,7 +98,7 @@ fn decrypt_with_shadow_coefficients(mut decrypted_shadow: Public, mut common_sha
 
 #[cfg(test)]
 mod tests {
-	use util::Bytes;
+	use bytes::Bytes;
 	use rustc_hex::FromHex;
 	use super::{encrypt_document, decrypt_document, decrypt_document_with_shadow};
 

@@ -23,7 +23,7 @@ use mio::{Token, Ready, PollOpt};
 use mio::deprecated::{Handler, EventLoop, TryRead, TryWrite};
 use mio::tcp::*;
 use bigint::hash::*;
-use util::bytes::*;
+use ethcore_bytes::*;
 use rlp::*;
 use std::io::{self, Cursor, Read, Write};
 use error::*;
@@ -510,7 +510,7 @@ mod tests {
 	use std::io::{Read, Write, Error, Cursor, ErrorKind};
 	use mio::{Ready};
 	use std::collections::VecDeque;
-	use util::bytes::Bytes;
+	use ethcore_bytes::Bytes;
 	use devtools::*;
 	use io::*;
 

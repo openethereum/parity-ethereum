@@ -25,11 +25,10 @@ use itertools::Itertools;
 // util
 use hash::keccak;
 use timer::PerfTimer;
-use util::UtilError;
-use util::Bytes;
-use util::{journaldb, DBValue, TrieFactory, Trie};
-use util::Address;
-use util::trie::TrieSpec;
+use bytes::Bytes;
+use util::{journaldb, DBValue};
+use util::{Address, UtilError};
+use trie::{TrieSpec, TrieFactory, Trie};
 use util::kvdb::*;
 
 // other
@@ -2141,11 +2140,13 @@ mod tests {
 		}];
 		let receipts = vec![Receipt {
 			state_root: state_root,
+			status_code: None,
 			gas_used: 5.into(),
 			log_bloom: Default::default(),
 			logs: vec![logs[0].clone()],
 		}, Receipt {
 			state_root: state_root,
+			status_code: None,
 			gas_used: gas_used,
 			log_bloom: Default::default(),
 			logs: logs.clone(),

@@ -21,6 +21,7 @@ use bigint::prelude::U256;
 use bigint::hash::H256;
 use util::*;
 use unexpected::{Mismatch, OutOfBounds};
+use trie::TrieError;
 use io::*;
 use header::BlockNumber;
 use basic_types::LogBloom;

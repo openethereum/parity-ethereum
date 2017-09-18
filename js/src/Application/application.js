@@ -20,6 +20,7 @@ import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import PropTypes from 'prop-types';
 
+import HardwareStore from '@parity/shared/mobx/hardwareStore';
 import UpgradeStore from '@parity/shared/mobx/upgradeParity';
 import Errors from '@parity/ui/Errors';
 
@@ -28,6 +29,7 @@ import DappRequests from '../DappRequests';
 import Extension from '../Extension';
 import FirstRun from '../FirstRun';
 import ParityBar from '../ParityBar';
+import PinMatrix from '../PinMatrix';
 import Requests from '../Requests';
 import Snackbar from '../Snackbar';
 import Status from '../Status';
@@ -54,11 +56,13 @@ class Application extends Component {
   }
 
   store = new Store(this.context.api);
+  hwstore = HardwareStore.get(this.context.api);
   upgradeStore = UpgradeStore.get(this.context.api);
 
   render () {
     const [root] = (window.location.hash || '').replace('#/', '').split('/');
     const isMinimized = root !== '';
+    const { pinMatrixRequest } = this.hwstore;
 
     if (inFrame) {
       return (
@@ -85,6 +89,16 @@ class Application extends Component {
         }
         <Connection />
         <DappRequests />
+        {
+          (pinMatrixRequest.length > 0)
+            ? (
+              <PinMatrix
+                device={ pinMatrixRequest[0] }
+                store={ this.hwstore }
+              />
+            )
+            : null
+        }
         <Requests />
         <ParityBar dapp={ isMinimized } />
       </div>

@@ -45,9 +45,12 @@ use evm::{Factory as EvmFactory};
 use bigint::prelude::U256;
 use bigint::hash::H256;
 use util::*;
+use bytes::Bytes;
 
-use util::trie;
-use util::trie::recorder::Recorder;
+use trie;
+use trie::{Trie, TrieError, TrieDB};
+use trie::recorder::Recorder;
+
 
 mod account;
 mod substate;
@@ -500,9 +503,10 @@ impl<B: Backend> State<B> {
 		self.ensure_cached(a, RequireCache::None, false, |a| a.map_or(false, |a| !a.is_null()))
 	}
 
-	/// Determine whether an account exists and has code.
-	pub fn exists_and_has_code(&self, a: &Address) -> trie::Result<bool> {
-		self.ensure_cached(a, RequireCache::CodeSize, false, |a| a.map_or(false, |a| a.code_size().map_or(false, |size| size != 0)))
+	/// Determine whether an account exists and has code or non-zero nonce.
+	pub fn exists_and_has_code_or_nonce(&self, a: &Address) -> trie::Result<bool> {
+		self.ensure_cached(a, RequireCache::CodeSize, false,
+			|a| a.map_or(false, |a| a.code_hash() != KECCAK_EMPTY || *a.nonce() != self.account_start_nonce))
 	}
 
 	/// Get the balance of account `a`.
@@ -694,15 +698,26 @@ impl<B: Backend> State<B> {
 		let options = TransactOptions::new(tracer, vm_tracer);
 		let e = self.execute(env_info, engine, t, options, false)?;
 
-		let state_root = if env_info.number < engine.params().eip98_transition || env_info.number < engine.params().validate_receipts_transition {
+		let eip658 = env_info.number >= engine.params().eip658_transition;
+		let no_intermediate_commits =
+			eip658 ||
+			(env_info.number >= engine.params().eip98_transition && env_info.number >= engine.params().validate_receipts_transition);
+
+		let state_root = if no_intermediate_commits {
+			None
+		} else {
 			self.commit()?;
 			Some(self.root().clone())
+		};
+
+		let status_byte = if eip658 {
+			Some(if e.exception.is_some() { 0 } else { 1 })
 		} else {
 			None
 		};
 
 		let output = e.output;
-		let receipt = Receipt::new(state_root, e.cumulative_gas_used, e.logs);
+		let receipt = Receipt::new(state_root, status_byte, e.cumulative_gas_used, e.logs);
 		trace!(target: "state", "Transaction receipt: {:?}", receipt);
 
 		Ok(ApplyOutcome {

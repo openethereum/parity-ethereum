@@ -59,6 +59,7 @@ extern crate ethcore_light as light;
 extern crate ethcore_logger;
 extern crate ethcore_util as util;
 extern crate ethcore_bigint as bigint;
+extern crate ethcore_bytes as bytes;
 extern crate ethcore_network as network;
 extern crate ethkey;
 extern crate ethsync;

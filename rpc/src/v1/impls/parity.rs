@@ -151,6 +151,11 @@ impl<C, M, U> Parity for ParityClient<C, M, U> where
 		)
 	}
 
+	fn locked_hardware_accounts_info(&self) -> Result<Vec<String>, Error> {
+		let store = self.account_provider()?;
+		Ok(store.locked_hardware_accounts().map_err(|e| errors::account("Error communicating with hardware wallet.", e))?)
+	}
+
 	fn default_account(&self, meta: Self::Metadata) -> BoxFuture<H160, Error> {
 		let dapp_id = meta.dapp_id();
 		future::ok(
