@@ -39,7 +39,7 @@ use v1::helpers::light_fetch::LightFetch;
 use v1::metadata::Metadata;
 use v1::traits::Parity;
 use v1::types::{
-	Bytes, U256, H160, H256, H512, CallRequest,
+	Bytes, U256, U64, H160, H256, H512, CallRequest,
 	Peers, Transaction, RpcSettings, Histogram,
 	TransactionStats, LocalTransactionStatus,
 	BlockNumber, ConsensusCapability, VersionInfo,
@@ -322,8 +322,8 @@ impl Parity for ParityClient {
 		Err(errors::light_unimplemented(None))
 	}
 
-	fn chain_id(&self) -> Result<Option<U256>, Error> {
-		Ok(self.client.signing_chain_id().map(U256::from))
+	fn chain_id(&self) -> Result<Option<U64>, Error> {
+		Ok(self.client.signing_chain_id().map(U64::from))
 	}
 
 	fn chain(&self) -> Result<String, Error> {
