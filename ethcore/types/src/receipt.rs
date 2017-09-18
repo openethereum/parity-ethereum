@@ -36,23 +36,29 @@ pub struct Receipt {
 	pub log_bloom: LogBloom,
 	/// The logs stemming from this transaction.
 	pub logs: Vec<LogEntry>,
+	/// Status byte. Optional before EIP-658.
+	pub status_code: Option<u8>,
 }
 
 impl Receipt {
 	/// Create a new receipt.
-	pub fn new(state_root: Option<H256>, gas_used: U256, logs: Vec<LogEntry>) -> Receipt {
+	pub fn new(state_root: Option<H256>, status_code: Option<u8>, gas_used: U256, logs: Vec<LogEntry>) -> Receipt {
 		Receipt {
 			state_root: state_root,
 			gas_used: gas_used,
 			log_bloom: logs.iter().fold(LogBloom::default(), |mut b, l| { b = &b | &l.bloom(); b }), //TODO: use |= operator
 			logs: logs,
+			status_code: status_code,
 		}
 	}
 }
 
 impl Encodable for Receipt {
 	fn rlp_append(&self, s: &mut RlpStream) {
-		if let Some(ref root) = self.state_root {
+		if let Some(ref status) = self.status_code {
+			s.begin_list(4);
+			s.append(status);
+		} else if let Some(ref root) = self.state_root {
 			s.begin_list(4);
 			s.append(root);
 		} else {
@@ -69,17 +75,27 @@ impl Decodable for Receipt {
 		if rlp.item_count()? == 3 {
 			Ok(Receipt {
 				state_root: None,
+				status_code: None,
 				gas_used: rlp.val_at(0)?,
 				log_bloom: rlp.val_at(1)?,
 				logs: rlp.list_at(2)?,
 			})
 		} else {
-			Ok(Receipt {
-				state_root: Some(rlp.val_at(0)?),
+			let mut receipt = Receipt {
 				gas_used: rlp.val_at(1)?,
 				log_bloom: rlp.val_at(2)?,
 				logs: rlp.list_at(3)?,
-			})
+				state_root: None,
+				status_code: None,
+			};
+
+			let first = rlp.at(0)?;
+			if first.is_data() && first.data()?.len() == 1 {
+				receipt.status_code = Some(first.as_val()?);
+			} else {
+				receipt.state_root = Some(first.as_val()?);
+			}
+			Ok(receipt)
 		}
 	}
 }
@@ -146,6 +162,7 @@ mod tests {
 		let expected = ::rustc_hex::FromHex::from_hex("f9014183040caeb9010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000f838f794dcf421d093428b096ca501a7cd1a740855a7976fc0a00000000000000000000000000000000000000000000000000000000000000000").unwrap();
 		let r = Receipt::new(
 			None,
+			None,
 			0x40cae.into(),
 			vec![LogEntry {
 				address: "dcf421d093428b096ca501a7cd1a740855a7976f".into(),
@@ -161,6 +178,7 @@ mod tests {
 		let expected = ::rustc_hex::FromHex::from_hex("f90162a02f697d671e9ae4ee24a43c4b0d7e15f1cb4ba6de1561120d43b9a4e8c4a8a6ee83040caeb9010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000f838f794dcf421d093428b096ca501a7cd1a740855a7976fc0a00000000000000000000000000000000000000000000000000000000000000000").unwrap();
 		let r = Receipt::new(
 			Some("2f697d671e9ae4ee24a43c4b0d7e15f1cb4ba6de1561120d43b9a4e8c4a8a6ee".into()),
+			None,
 			0x40cae.into(),
 			vec![LogEntry {
 				address: "dcf421d093428b096ca501a7cd1a740855a7976f".into(),

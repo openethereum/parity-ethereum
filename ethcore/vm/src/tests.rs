@@ -164,7 +164,7 @@ impl Ext for FakeExt {
 		Ok(())
 	}
 
-	fn ret(self, _gas: &U256, _data: &ReturnData) -> Result<U256> {
+	fn ret(self, _gas: &U256, _data: &ReturnData, _apply_state: bool) -> Result<U256> {
 		unimplemented!();
 	}
 
@@ -183,6 +183,10 @@ impl Ext for FakeExt {
 
 	fn depth(&self) -> usize {
 		self.depth
+	}
+
+	fn is_static(&self) -> bool {
+		false
 	}
 
 	fn inc_sstore_clears(&mut self) {

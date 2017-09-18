@@ -51,6 +51,7 @@ const SNAPSHOT_BLOCKS: u64 = 5000;
 /// Maximum number of blocks allowed in an ethash snapshot.
 const MAX_SNAPSHOT_BLOCKS: u64 = 30000;
 
+const DEFAULT_EIP649_DELAY: u64 = 3_000_000;
 
 /// Ethash params.
 #[derive(Debug, PartialEq)]
@@ -105,6 +106,12 @@ pub struct EthashParams {
 	pub min_gas_price_transition: u64,
 	/// Do not alow transactions with lower gas price.
 	pub min_gas_price: U256,
+	/// EIP-649 transition block.
+	pub eip649_transition: u64,
+	/// EIP-649 bomb delay.
+	pub eip649_delay: u64,
+	/// EIP-649 base reward.
+	pub eip649_reward: Option<U256>,
 }
 
 impl From<ethjson::spec::EthashParams> for EthashParams {
@@ -135,6 +142,9 @@ impl From<ethjson::spec::EthashParams> for EthashParams {
 			max_gas_limit: p.max_gas_limit.map_or(U256::max_value(), Into::into),
 			min_gas_price_transition: p.min_gas_price_transition.map_or(u64::max_value(), Into::into),
 			min_gas_price: p.min_gas_price.map_or(U256::zero(), Into::into),
+			eip649_transition: p.eip649_transition.map_or(u64::max_value(), Into::into),
+			eip649_delay: p.eip649_delay.map_or(DEFAULT_EIP649_DELAY, Into::into),
+			eip649_reward: p.eip649_reward.map(Into::into),
 		}
 	}
 }
@@ -215,8 +225,10 @@ impl Engine for Arc<Ethash> {
 		} else if block_number < self.ethash_params.eip150_transition {
 			Schedule::new_homestead()
 		} else {
+			/// There's no max_code_size transition so we tie it to eip161abc
+			let max_code_size = if block_number >= self.ethash_params.eip161abc_transition { self.ethash_params.max_code_size as usize } else { usize::max_value() };
 			let mut schedule = Schedule::new_post_eip150(
-				self.ethash_params.max_code_size as usize,
+				max_code_size,
 				block_number >= self.ethash_params.eip160_transition,
 				block_number >= self.ethash_params.eip161abc_transition,
 				block_number >= self.ethash_params.eip161d_transition);
@@ -296,9 +308,14 @@ impl Engine for Arc<Ethash> {
 	/// This assumes that all uncles are valid uncles (i.e. of at least one generation before the current).
 	fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<(), Error> {
 		use std::ops::Shr;
-		let reward = self.params().block_reward;
 		let tracing_enabled = block.tracing_enabled();
 		let fields = block.fields_mut();
+		let reward = if fields.header.number() >= self.ethash_params.eip649_transition {
+			self.ethash_params.eip649_reward.unwrap_or(self.params().block_reward)
+		} else {
+			self.params().block_reward
+		};
+
 		let eras_rounds = self.ethash_params.ecip1017_era_rounds;
 		let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, reward, fields.header.number());
 		let mut tracer = ExecutiveTracer::default();
@@ -500,7 +517,7 @@ fn ecip1017_eras_block_reward(era_rounds: u64, mut reward: U256, block_number:u6
 #[cfg_attr(feature="dev", allow(wrong_self_convention))]
 impl Ethash {
 	fn calculate_difficulty(&self, header: &Header, parent: &Header) -> U256 {
-		const EXP_DIFF_PERIOD: u64 = 100000;
+		const EXP_DIFF_PERIOD: u64 = 100_000;
 		if header.number() == 0 {
 			panic!("Can't calculate genesis block difficulty");
 		}
@@ -550,7 +567,11 @@ impl Ethash {
 		target = cmp::max(min_difficulty, target);
 		if header.number() < self.ethash_params.bomb_defuse_transition {
 			if header.number() < self.ethash_params.ecip1010_pause_transition {
-				let period = ((parent.number() + 1) / EXP_DIFF_PERIOD) as usize;
+				let mut number = header.number();
+				if number >= self.ethash_params.eip649_transition {
+					number = number.saturating_sub(self.ethash_params.eip649_delay);
+				}
+				let period = (number / EXP_DIFF_PERIOD) as usize;
 				if period > 1 {
 					target = cmp::max(min_difficulty, target + (U256::from(1) << (period - 2)));
 				}

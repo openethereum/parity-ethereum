@@ -191,10 +191,10 @@
 		"0000000000000000000000000000000000000002": { "builtin": { "name": "sha256", "pricing": { "linear": { "base": 60, "word": 12 } } } },
 		"0000000000000000000000000000000000000003": { "builtin": { "name": "ripemd160", "pricing": { "linear": { "base": 600, "word": 120 } } } },
 		"0000000000000000000000000000000000000004": { "builtin": { "name": "identity", "pricing": { "linear": { "base": 15, "word": 3 } } } },
-		"0000000000000000000000000000000000000005": { "builtin": { "name": "modexp", "activate_at": "0x7fffffffffffff", "pricing": { "modexp": { "divisor": 20 } } } },
-		"0000000000000000000000000000000000000006": { "builtin": { "name": "bn128_add", "activate_at": "0x7fffffffffffff", "pricing": { "linear": { "base": 999999, "word": 0 } } } },
-		"0000000000000000000000000000000000000007": { "builtin": { "name": "bn128_mul", "activate_at": "0x7fffffffffffff", "pricing": { "linear": { "base": 999999, "word": 0 } } } },
-		"0000000000000000000000000000000000000008": { "builtin": { "name": "bn128_pairing", "activate_at": "0x7fffffffffffff", "pricing": { "linear": { "base": 999999, "word": 0 } } } },
+		"0000000000000000000000000000000000000005": { "builtin": { "name": "modexp", "activate_at": "0x7fffffffffffff", "pricing": { "modexp": { "divisor": 100 } } } },
+		"0000000000000000000000000000000000000006": { "builtin": { "name": "alt_bn128_add", "activate_at": "0x7fffffffffffff", "pricing": { "linear": { "base": 500, "word": 0 } } } },
+		"0000000000000000000000000000000000000007": { "builtin": { "name": "alt_bn128_mul", "activate_at": "0x7fffffffffffff", "pricing": { "linear": { "base": 2000, "word": 0 } } } },
+		"0000000000000000000000000000000000000008": { "builtin": { "name": "alt_bn128_pairing", "activate_at": "0x7fffffffffffff", "pricing": { "alt_bn128_pairing": { "base": 100000, "pair": 80000 } } } },
 		"3282791d6fd713f1e94f4bfd565eaa78b3a0599d": {
 			"balance": "1337000000000000000000"
 		},

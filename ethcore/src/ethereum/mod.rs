@@ -87,8 +87,11 @@ pub fn new_transition_test() -> Spec { load(None, include_bytes!("../../res/ethe
 /// Create a new Foundation Mainnet chain spec without genesis accounts.
 pub fn new_mainnet_like() -> Spec { load(None, include_bytes!("../../res/ethereum/frontier_like_test.json")) }
 
-/// Create a new Foundation Metropolis era spec.
-pub fn new_metropolis_test() -> Spec { load(None, include_bytes!("../../res/ethereum/metropolis_test.json")) }
+/// Create a new Foundation Byzantium era spec.
+pub fn new_byzantium_test() -> Spec { load(None, include_bytes!("../../res/ethereum/byzantium_test.json")) }
+
+/// Create a new Foundation Constantinople era spec.
+pub fn new_constantinople_test() -> Spec { load(None, include_bytes!("../../res/ethereum/constantinople_test.json")) }
 
 #[cfg(test)]
 mod tests {

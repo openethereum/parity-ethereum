@@ -26,7 +26,7 @@ use bytes;
 use util::kvdb::{self, KeyValueDB};
 use {state, state_db, client, executive, trace, transaction, db, spec, pod_state};
 use factory::Factories;
-use evm::{self, VMType};
+use evm::{self, VMType, FinalizationResult};
 use vm::{self, ActionParams};
 
 /// EVM test Error.
@@ -72,7 +72,8 @@ lazy_static! {
 	pub static ref HOMESTEAD: spec::Spec = ethereum::new_homestead_test();
 	pub static ref EIP150: spec::Spec = ethereum::new_eip150_test();
 	pub static ref EIP161: spec::Spec = ethereum::new_eip161_test();
-	pub static ref _METROPOLIS: spec::Spec = ethereum::new_metropolis_test();
+	pub static ref BYZANTIUM: spec::Spec = ethereum::new_byzantium_test();
+	pub static ref BYZANTIUM_TRANSITION: spec::Spec = ethereum::new_transition_test();
 }
 
 /// Simplified, single-block EVM test client.
@@ -89,7 +90,10 @@ impl<'a> EvmTestClient<'a> {
 			ForkSpec::Homestead => Some(&*HOMESTEAD),
 			ForkSpec::EIP150 => Some(&*EIP150),
 			ForkSpec::EIP158 => Some(&*EIP161),
-			ForkSpec::Metropolis | ForkSpec::Byzantium | ForkSpec::Constantinople => None,
+			ForkSpec::Byzantium => Some(&*BYZANTIUM),
+			ForkSpec::EIP158ToByzantiumAt5 => Some(&BYZANTIUM_TRANSITION),
+			ForkSpec::FrontierToHomesteadAt5 | ForkSpec::HomesteadToDaoAt5 | ForkSpec::HomesteadToEIP150At5 => None,
+			_ => None,
 		}
 	}
 
@@ -162,7 +166,7 @@ impl<'a> EvmTestClient<'a> {
 	/// Execute the VM given ActionParams and tracer.
 	/// Returns amount of gas left and the output.
 	pub fn call<T: trace::VMTracer>(&mut self, params: ActionParams, vm_tracer: &mut T)
-		-> Result<(U256, Vec<u8>), EvmTestError>
+		-> Result<FinalizationResult, EvmTestError>
 	{
 		let genesis = self.spec.genesis_header();
 		let info = client::EnvInfo {
@@ -178,15 +182,13 @@ impl<'a> EvmTestClient<'a> {
 		let mut tracer = trace::NoopTracer;
 		let mut output = vec![];
 		let mut executive = executive::Executive::new(&mut self.state, &info, &*self.spec.engine);
-		let (gas_left, _) = executive.call(
+		executive.call(
 			params,
 			&mut substate,
 			bytes::BytesRef::Flexible(&mut output),
 			&mut tracer,
 			vm_tracer,
-		).map_err(EvmTestError::Evm)?;
-
-		Ok((gas_left, output))
+		).map_err(EvmTestError::Evm)
 	}
 
 	/// Executes a SignedTransaction within context of the provided state and `EnvInfo`.
@@ -212,10 +214,13 @@ impl<'a> EvmTestClient<'a> {
 		let result = self.state.apply_with_tracing(&env_info, &*self.spec.engine, &transaction, tracer, vm_tracer);
 
 		match result {
-			Ok(result) => TransactResult::Ok {
-				state_root: *self.state.root(),
-				gas_left: initial_gas - result.receipt.gas_used,
-				output: result.output
+			Ok(result) => {
+				self.state.commit().ok();
+				TransactResult::Ok {
+					state_root: *self.state.root(),
+					gas_left: initial_gas - result.receipt.gas_used,
+					output: result.output
+				}
 			},
 			Err(error) => TransactResult::Err {
 				state_root: *self.state.root(),
