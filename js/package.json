@@ -142,6 +142,7 @@
     "yargs": "6.6.0"
   },
   "dependencies": {
+    "@parity/abi": "paritytech/js-abi",
     "@parity/api": "paritytech/js-api",
     "@parity/dapp-account": "paritytech/dapp-account",
     "@parity/dapp-accounts": "paritytech/dapp-accounts",
