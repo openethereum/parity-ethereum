@@ -15,8 +15,10 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+$backgroundOne: #f80;
+$backgroundTwo: #e57a00;
+
 .requests {
-  background: #f80;
   color: white;
   position: fixed;
   left: 0;
@@ -26,6 +28,8 @@
 
   .request {
     align-items: center;
+    background: $backgroundOne;
+    background: linear-gradient($backgroundOne, $backgroundTwo);
     display: flex;
     justify-content: flex-end;
     padding: 0.5em;
