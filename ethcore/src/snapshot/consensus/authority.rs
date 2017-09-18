@@ -25,7 +25,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 use blockchain::{BlockChain, BlockProvider};
-use engines::{Engine, EthEngine, EpochVerifier, EpochTransition};
+use engines::{EthEngine, EpochVerifier, EpochTransition};
 use machine::EthereumMachine;
 use ids::BlockId;
 use header::Header;

@@ -32,7 +32,6 @@ use trace::{NoopTracer, NoopVMTracer, Tracer, ExecutiveTracer, RewardType};
 use transaction::{SYSTEM_ADDRESS, UnverifiedTransaction, SignedTransaction};
 use tx_filter::TransactionFilter;
 
-use bigint::hash::H256;
 use bigint::prelude::U256;
 use util::{Address, BytesRef};
 use vm::{CallType, ActionParams, ActionValue, LastHashes};
@@ -176,7 +175,7 @@ impl EthereumMachine {
 	/// Logic to perform on a new block: updating last hashes and the DAO
 	/// fork, for ethash.
 	pub fn on_new_block(&self, block: &mut ExecutedBlock, last_hashes: Arc<LastHashes>) -> Result<(), Error> {
-		self.push_last_hash(block, last_hashes);
+		self.push_last_hash(block, last_hashes)?;
 
 		if let Some(ref ethash_params) = self.ethash_extensions {
 			if block.fields().header.number() == ethash_params.dao_hardfork_transition {

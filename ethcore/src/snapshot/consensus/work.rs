@@ -27,7 +27,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 use blockchain::{BlockChain, BlockProvider};
-use engines::{Engine, EthEngine};
+use engines::EthEngine;
 use snapshot::{Error, ManifestData};
 use snapshot::block::AbridgedBlock;
 use bigint::hash::H256;

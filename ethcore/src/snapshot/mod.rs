@@ -26,7 +26,7 @@ use hash::{keccak, KECCAK_NULL_RLP, KECCAK_EMPTY};
 
 use account_db::{AccountDB, AccountDBMut};
 use blockchain::{BlockChain, BlockProvider};
-use engines::{Engine, EthEngine};
+use engines::EthEngine;
 use header::Header;
 use ids::BlockId;
 

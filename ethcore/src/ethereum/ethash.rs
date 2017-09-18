@@ -17,7 +17,7 @@
 use std::path::Path;
 use std::cmp;
 use std::collections::{BTreeMap, HashMap};
-use std::sync::{Arc, Weak};
+use std::sync::Arc;
 use hash::{KECCAK_EMPTY_LIST_RLP};
 use ethash::{quick_get_difficulty, slow_get_seedhash, EthashManager};
 use bigint::prelude::U256;
@@ -30,11 +30,9 @@ use header::Header;
 use engines::{self, Engine, EthEngine};
 use ethjson;
 use rlp::{self, UntrustedRlp};
-use vm::LastHashes;
 use machine::EthereumMachine;
 use parity_machine;
 use semantic_version::SemanticVersion;
-use client::EngineClient;
 
 /// Number of blocks in an ethash snapshot.
 // make dependent on difficulty incrment divisor?

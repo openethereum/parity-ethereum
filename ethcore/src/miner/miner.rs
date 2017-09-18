@@ -34,7 +34,7 @@ use error::*;
 use transaction::{Action, UnverifiedTransaction, PendingTransaction, SignedTransaction, Condition as TransactionCondition};
 use receipt::{Receipt, RichReceipt};
 use spec::Spec;
-use engines::{Engine, EthEngine, Seal};
+use engines::{EthEngine, Seal};
 use miner::{MinerService, MinerStatus, TransactionQueue, RemovalReason, TransactionQueueDetailsProvider, PrioritizationStrategy,
 	AccountDetails, TransactionOrigin};
 use miner::banning_queue::{BanningTransactionQueue, Threshold};

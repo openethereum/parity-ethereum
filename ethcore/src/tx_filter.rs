@@ -16,7 +16,6 @@
 
 //! Smart contract based transaction filter.
 
-use std::sync::Weak;
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use bigint::hash::H256;

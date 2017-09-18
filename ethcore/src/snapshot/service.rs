@@ -28,7 +28,7 @@ use super::io::{SnapshotReader, LooseReader, SnapshotWriter, LooseWriter};
 
 use blockchain::BlockChain;
 use client::{BlockChainClient, Client};
-use engines::{Engine, EthEngine};
+use engines::EthEngine;
 use error::Error;
 use ids::BlockId;
 use service::ClientIoMessage;
