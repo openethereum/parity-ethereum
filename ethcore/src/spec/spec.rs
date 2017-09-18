@@ -43,6 +43,7 @@ use bigint::prelude::U256;
 use bigint::hash::{H256, H2048};
 use parking_lot::RwLock;
 use util::*;
+use bytes::Bytes;
 
 /// Parameters common to ethereum-like blockchains.
 /// NOTE: when adding bugfix hard-fork parameters,
@@ -69,6 +70,8 @@ pub struct CommonParams {
 	pub fork_block: Option<(BlockNumber, H256)>,
 	/// Number of first block where EIP-98 rules begin.
 	pub eip98_transition: BlockNumber,
+	/// Number of first block where EIP-658 rules begin.
+	pub eip658_transition: BlockNumber,
 	/// Number of first block where EIP-155 rules begin.
 	pub eip155_transition: BlockNumber,
 	/// Validate block receipts root.
@@ -124,7 +127,7 @@ impl CommonParams {
 		schedule.have_static_call = block_number >= self.eip214_transition;
 		schedule.have_return_data = block_number >= self.eip211_transition;
 		if block_number >= self.eip210_transition {
-			schedule.blockhash_gas = 350;
+			schedule.blockhash_gas = 800;
 		}
 		if block_number >= self.dust_protection_transition {
 			schedule.kill_dust = match self.remove_dust_contracts {
@@ -171,6 +174,7 @@ impl From<ethjson::spec::Params> for CommonParams {
 			eip210_contract_gas: p.eip210_contract_gas.map_or(1000000.into(), Into::into),
 			eip211_transition: p.eip211_transition.map_or(BlockNumber::max_value(), Into::into),
 			eip214_transition: p.eip214_transition.map_or(BlockNumber::max_value(), Into::into),
+			eip658_transition: p.eip658_transition.map_or(BlockNumber::max_value(), Into::into),
 			dust_protection_transition: p.dust_protection_transition.map_or(BlockNumber::max_value(), Into::into),
 			nonce_cap_increment: p.nonce_cap_increment.map_or(64, Into::into),
 			remove_dust_contracts: p.remove_dust_contracts.unwrap_or(false),
@@ -228,7 +232,33 @@ pub struct Spec {
 	genesis_state: PodState,
 }
 
-fn load_from<T: AsRef<Path>>(cache_dir: T, s: ethjson::spec::Spec) -> Result<Spec, Error> {
+#[cfg(test)]
+impl Clone for Spec {
+	fn clone(&self) -> Spec {
+		Spec {
+			name: self.name.clone(),
+			engine: self.engine.clone(),
+			data_dir: self.data_dir.clone(),
+			nodes: self.nodes.clone(),
+			parent_hash: self.parent_hash.clone(),
+			transactions_root: self.transactions_root.clone(),
+			receipts_root: self.receipts_root.clone(),
+			author: self.author.clone(),
+			difficulty: self.difficulty.clone(),
+			gas_limit: self.gas_limit.clone(),
+			gas_used: self.gas_used.clone(),
+			timestamp: self.timestamp.clone(),
+			extra_data: self.extra_data.clone(),
+			seal_rlp: self.seal_rlp.clone(),
+			constructors: self.constructors.clone(),
+			state_root_memo: RwLock::new(*self.state_root_memo.read()),
+			genesis_state: self.genesis_state.clone(),
+		}
+	}
+}
+
+/// Load from JSON object.
+pub fn load_from<T: AsRef<Path>>(cache_dir: T, s: ethjson::spec::Spec) -> Result<Spec, Error> {
 	let builtins = s.accounts.builtins().into_iter().map(|p| (p.0.into(), From::from(p.1))).collect();
 	let g = Genesis::from(s.genesis);
 	let GenericSeal(seal_rlp) = g.seal.into();

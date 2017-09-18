@@ -31,7 +31,8 @@ use ethstore::{
 use ethstore::dir::MemoryDirectory;
 use ethstore::ethkey::{Address, Message, Public, Secret, Random, Generator};
 use ethjson::misc::AccountMeta;
-use hardware_wallet::{Error as HardwareError, HardwareWalletManager, KeyPath};
+use hardware_wallet::{Error as HardwareError, HardwareWalletManager, KeyPath, TransactionInfo};
+use super::transaction::{Action, Transaction};
 pub use ethstore::ethkey::Signature;
 pub use ethstore::{Derivation, IndexDerivation, KeyFile};
 
@@ -286,6 +287,24 @@ impl AccountProvider {
 	pub fn hardware_accounts(&self) -> Result<Vec<Address>, Error> {
 		let accounts = self.hardware_store.as_ref().map_or(Vec::new(), |h| h.list_wallets());
 		Ok(accounts.into_iter().map(|a| a.address).collect())
+	}
+
+	/// Get a list of paths to locked hardware wallets
+	pub fn locked_hardware_accounts(&self) -> Result<Vec<String>, SignError> {
+		match self.hardware_store.as_ref().map(|h| h.list_locked_wallets()) {
+			None => Err(SignError::NotFound),
+			Some(Err(e)) => Err(SignError::Hardware(e)),
+			Some(Ok(s)) => Ok(s),
+		}
+	}
+
+	/// Provide a pin to a locked hardware wallet on USB path to unlock it
+	pub fn hardware_pin_matrix_ack(&self, path: &str, pin: &str) -> Result<bool, SignError> {
+		match self.hardware_store.as_ref().map(|h| h.pin_matrix_ack(path, pin)) {
+			None => Err(SignError::NotFound),
+			Some(Err(e)) => Err(SignError::Hardware(e)),
+			Some(Ok(s)) => Ok(s),
+		}
 	}
 
 	/// Sets addresses of accounts exposed for unknown dapps.
@@ -779,8 +798,20 @@ impl AccountProvider {
 	}
 
 	/// Sign transaction with hardware wallet.
-	pub fn sign_with_hardware(&self, address: Address, transaction: &[u8]) -> Result<Signature, SignError> {
-		match self.hardware_store.as_ref().map(|s| s.sign_transaction(&address, transaction)) {
+	pub fn sign_with_hardware(&self, address: Address, transaction: &Transaction, chain_id: Option<u64>, rlp_encoded_transaction: &[u8]) -> Result<Signature, SignError> {
+		let t_info = TransactionInfo {
+			nonce: transaction.nonce,
+			gas_price: transaction.gas_price,
+			gas_limit: transaction.gas,
+			to: match transaction.action {
+				Action::Create => None,
+				Action::Call(ref to) => Some(to.clone()),
+			},
+			value: transaction.value,
+			data: transaction.data.to_vec(),
+			chain_id: chain_id,
+		};
+		match self.hardware_store.as_ref().map(|s| s.sign_transaction(&address, &t_info, rlp_encoded_transaction)) {
 			None | Some(Err(HardwareError::KeyNotFound)) => Err(SignError::NotFound),
 			Some(Err(e)) => Err(From::from(e)),
 			Some(Ok(s)) => Ok(s),

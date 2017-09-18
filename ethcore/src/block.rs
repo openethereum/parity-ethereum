@@ -25,7 +25,8 @@ use triehash::ordered_trie_root;
 use rlp::{UntrustedRlp, RlpStream, Encodable, Decodable, DecoderError};
 use bigint::prelude::U256;
 use bigint::hash::H256;
-use util::{Bytes, Address};
+use util::Address;
+use bytes::Bytes;
 use unexpected::{Mismatch, OutOfBounds};
 
 use basic_types::{LogBloom, Seal};

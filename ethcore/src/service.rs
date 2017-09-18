@@ -20,6 +20,7 @@ use std::sync::Arc;
 use std::path::Path;
 use bigint::hash::H256;
 use util::*;
+use bytes::Bytes;
 use io::*;
 use spec::Spec;
 use error::*;

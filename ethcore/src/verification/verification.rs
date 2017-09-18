@@ -25,7 +25,7 @@ use std::collections::HashSet;
 
 use blockchain::*;
 use client::BlockChainClient;
-use engines::EthEngine;
+use engines::{Engine, EthEngine};
 use error::{BlockError, Error};
 use header::{BlockNumber, Header};
 use transaction::SignedTransaction;
@@ -33,13 +33,13 @@ use views::BlockView;
 
 use bigint::hash::H256;
 use bigint::prelude::U256;
+use bytes::Bytes;
 use hash::keccak;
 use heapsize::HeapSizeOf;
 use rlp::UntrustedRlp;
 use time::get_time;
 use triehash::ordered_trie_root;
 use unexpected::{Mismatch, OutOfBounds};
-use util::*;
 
 /// Preprocessed block data gathered in `verify_block_unordered` call
 pub struct PreverifiedBlock {
@@ -310,7 +310,7 @@ mod tests {
 	use bigint::hash::{H256, H2048};
 	use triehash::ordered_trie_root;
 	use unexpected::{Mismatch, OutOfBounds};
-	use util::*;
+	use bytes::Bytes;
 	use ethkey::{Random, Generator};
 	use header::*;
 	use verification::*;

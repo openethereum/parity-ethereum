@@ -22,6 +22,7 @@ extern crate semver;
 extern crate nanomsg;
 extern crate ethcore_ipc_nano as nanoipc;
 extern crate ethcore_util as util;
+extern crate ethcore_bytes as bytes;
 #[macro_use] extern crate log;
 
 pub mod service;

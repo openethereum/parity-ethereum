@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use bigint::hash::H256;
-use util::bytes::Bytes;
+use bytes::Bytes;
 use views::BlockView;
 
 #[derive(Default, Clone)]

@@ -21,7 +21,7 @@ use util::cache::MemoryLruCache;
 use util::journaldb::JournalDB;
 use util::kvdb::KeyValueDB;
 use bigint::hash::H256;
-use util::hashdb::HashDB;
+use hashdb::HashDB;
 use state::{self, Account};
 use header::BlockNumber;
 use hash::keccak;

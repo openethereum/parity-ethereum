@@ -88,7 +88,7 @@ fn logger() {
 	};
 
 	println!("ext.store: {:?}", ext.store);
-	assert_eq!(gas_left, U256::from(99529));
+	assert_eq!(gas_left, U256::from(98417));
 	let address_val: H256 = address.into();
 	assert_eq!(
 		ext.store.get(&"0100000000000000000000000000000000000000000000000000000000000000".parse().unwrap()).expect("storage key to exist"),
@@ -139,7 +139,7 @@ fn identity() {
 		}
 	};
 
-	assert_eq!(gas_left, U256::from(99_762));
+	assert_eq!(gas_left, U256::from(99_732));
 
 	assert_eq!(
 		Address::from_slice(&result),
@@ -173,7 +173,7 @@ fn dispersion() {
 		}
 	};
 
-	assert_eq!(gas_left, U256::from(99_360));
+	assert_eq!(gas_left, U256::from(99_421));
 
 	assert_eq!(
 		result,
@@ -202,7 +202,7 @@ fn suicide_not() {
 		}
 	};
 
-	assert_eq!(gas_left, U256::from(99_668));
+	assert_eq!(gas_left, U256::from(99_664));
 
 	assert_eq!(
 		result,
@@ -236,7 +236,7 @@ fn suicide() {
 		}
 	};
 
-	assert_eq!(gas_left, U256::from(99_699));
+	assert_eq!(gas_left, U256::from(99_420));
 	assert!(ext.suicides.contains(&refund));
 }
 
@@ -267,7 +267,7 @@ fn create() {
 	assert!(ext.calls.contains(
 		&FakeCall {
 			call_type: FakeCallType::Create,
-			gas: U256::from(99_734),
+			gas: U256::from(98_908),
 			sender_address: None,
 			receive_address: None,
 			value: Some(1_000_000_000.into()),
@@ -275,7 +275,7 @@ fn create() {
 			code_address: None,
 		}
 	));
-	assert_eq!(gas_left, U256::from(99_686));
+	assert_eq!(gas_left, U256::from(98_860));
 }
 
 
@@ -309,7 +309,7 @@ fn call_code() {
 	assert!(ext.calls.contains(
 		&FakeCall {
 			call_type: FakeCallType::Call,
-			gas: U256::from(99_129),
+			gas: U256::from(99_108),
 			sender_address: Some(sender),
 			receive_address: Some(receiver),
 			value: None,
@@ -317,7 +317,7 @@ fn call_code() {
 			code_address: Some("0d13710000000000000000000000000000000000".parse().unwrap()),
 		}
 	));
-	assert_eq!(gas_left, U256::from(94262));
+	assert_eq!(gas_left, U256::from(94_241));
 
 	// siphash result
 	let res = LittleEndian::read_u32(&result[..]);
@@ -354,7 +354,7 @@ fn call_static() {
 	assert!(ext.calls.contains(
 		&FakeCall {
 			call_type: FakeCallType::Call,
-			gas: U256::from(99_129),
+			gas: U256::from(99_108),
 			sender_address: Some(sender),
 			receive_address: Some(receiver),
 			value: None,
@@ -362,7 +362,7 @@ fn call_static() {
 			code_address: Some("13077bfb00000000000000000000000000000000".parse().unwrap()),
 		}
 	));
-	assert_eq!(gas_left, U256::from(94262));
+	assert_eq!(gas_left, U256::from(94_241));
 
 	// siphash result
 	let res = LittleEndian::read_u32(&result[..]);
@@ -388,7 +388,7 @@ fn realloc() {
 				GasLeft::NeedsReturn { gas_left: gas, data: result, apply_state: _apply } => (gas, result.to_vec()),
 		}
 	};
-	assert_eq!(gas_left, U256::from(99522));
+	assert_eq!(gas_left, U256::from(99_562));
 	assert_eq!(result, vec![0u8; 2]);
 }
 
@@ -414,9 +414,36 @@ fn storage_read() {
 		}
 	};
 
-	assert_eq!(gas_left, U256::from(99800));
+	assert_eq!(gas_left, U256::from(99_673));
 	assert_eq!(Address::from(&result[12..32]), address);
 }
+
+// Tests keccak calculation
+// keccak.wasm runs wasm-std::keccak function on data param and returns hash
+#[test]
+fn keccak() {
+	::ethcore_logger::init_log();
+	let code = load_sample!("keccak.wasm");
+
+	let mut params = ActionParams::default();
+	params.gas = U256::from(100_000);
+	params.code = Some(Arc::new(code));
+	params.data = Some(b"something".to_vec());
+	let mut ext = FakeExt::new();
+
+	let (gas_left, result) = {
+		let mut interpreter = wasm_interpreter();
+		let result = interpreter.exec(params, &mut ext).expect("Interpreter to execute without any errors");
+		match result {
+				GasLeft::Known(_) => { panic!("keccak should return payload"); },
+				GasLeft::NeedsReturn { gas_left: gas, data: result, apply_state: _apply } => (gas, result.to_vec()),
+		}
+	};
+
+	assert_eq!(H256::from_slice(&result), H256::from("68371d7e884c168ae2022c82bd837d51837718a7f7dfb7aa3f753074a35e1d87"));
+	assert_eq!(gas_left, U256::from(84003));
+}
+
 
 macro_rules! reqrep_test {
 	($name: expr, $input: expr) => {
@@ -551,7 +578,7 @@ fn math_div() {
 		}
 	).expect("Interpreter to execute without any errors");
 
-	assert_eq!(gas_left, U256::from(91510));
+	assert_eq!(gas_left, U256::from(91_562));
 	assert_eq!(
 		U256::from_dec_str("1125000").unwrap(),
 		(&result[..]).into()
@@ -643,5 +670,5 @@ fn externs() {
 		"Gas limit requested and returned does not match"
 	);
 
-	assert_eq!(gas_left, U256::from(97588));
+	assert_eq!(gas_left, U256::from(95_999));
 }

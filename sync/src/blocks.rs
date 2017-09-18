@@ -22,6 +22,7 @@ use heapsize::HeapSizeOf;
 use bigint::hash::H256;
 use triehash::ordered_trie_root;
 use util::*;
+use bytes::Bytes;
 use rlp::*;
 use network::NetworkError;
 use ethcore::header::Header as BlockHeader;

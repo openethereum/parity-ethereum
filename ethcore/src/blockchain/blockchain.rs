@@ -25,6 +25,7 @@ use heapsize::HeapSizeOf;
 use bigint::prelude::U256;
 use bigint::hash::{H256, H2048};
 use parking_lot::{Mutex, RwLock};
+use bytes::Bytes;
 use util::*;
 use rlp::*;
 use header::*;
@@ -2048,6 +2049,7 @@ mod tests {
 		let bc = new_chain(&genesis, db.clone());
 		insert_block(&db, &bc, &b1, vec![Receipt {
 			state_root: Some(H256::default()),
+			status_code: None,
 			gas_used: 10_000.into(),
 			log_bloom: Default::default(),
 			logs: vec![
@@ -2057,6 +2059,7 @@ mod tests {
 		},
 		Receipt {
 			state_root: Some(H256::default()),
+			status_code: None,
 			gas_used: 10_000.into(),
 			log_bloom: Default::default(),
 			logs: vec![
@@ -2066,6 +2069,7 @@ mod tests {
 		insert_block(&db, &bc, &b2, vec![
 			Receipt {
 				state_root: Some(H256::default()),
+				status_code: None,
 				gas_used: 10_000.into(),
 				log_bloom: Default::default(),
 				logs: vec![

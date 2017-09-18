@@ -40,6 +40,8 @@ const SNAPSHOT_BLOCKS: u64 = 5000;
 /// Maximum number of blocks allowed in an ethash snapshot.
 const MAX_SNAPSHOT_BLOCKS: u64 = 30000;
 
+const DEFAULT_EIP649_DELAY: u64 = 3_000_000;
+
 /// Ethash params.
 #[derive(Debug, PartialEq)]
 pub struct EthashParams {
@@ -85,6 +87,12 @@ pub struct EthashParams {
 	pub ecip1017_era_rounds: u64,
 	/// Block reward in base units.
 	pub block_reward: U256,
+	/// EIP-649 transition block.
+	pub eip649_transition: u64,
+	/// EIP-649 bomb delay.
+	pub eip649_delay: u64,
+	/// EIP-649 base reward.
+	pub eip649_reward: Option<U256>,
 }
 
 impl From<ethjson::spec::EthashParams> for EthashParams {
@@ -111,6 +119,9 @@ impl From<ethjson::spec::EthashParams> for EthashParams {
 			ecip1010_continue_transition: p.ecip1010_continue_transition.map_or(u64::max_value(), Into::into),
 			ecip1017_era_rounds: p.ecip1017_era_rounds.map_or(u64::max_value(), Into::into),
 			block_reward: p.block_reward.map_or_else(Default::default, Into::into),
+			eip649_transition: p.eip649_transition.map_or(u64::max_value(), Into::into),
+			eip649_delay: p.eip649_delay.map_or(DEFAULT_EIP649_DELAY, Into::into),
+			eip649_reward: p.eip649_reward.map(Into::into),
 		}
 	}
 }
@@ -194,9 +205,13 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 		use std::ops::Shr;
 		use parity_machine::{WithUncles, WithBalances};
 
-		let reward = self.ethash_params.block_reward;
 		let author = *block.header().author();
 		let number = block.header().number();
+		let reward = if number >= self.ethash_params.eip649_transition {
+			self.ethash_params.eip649_reward.unwrap_or(self.ethash_params.block_reward)
+		} else {
+			self.ethash_params.block_reward
+		};
 
 		let eras_rounds = self.ethash_params.ecip1017_era_rounds;
 		let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, reward, number);
@@ -313,7 +328,7 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 #[cfg_attr(feature="dev", allow(wrong_self_convention))]
 impl Ethash {
 	fn calculate_difficulty(&self, header: &Header, parent: &Header) -> U256 {
-		const EXP_DIFF_PERIOD: u64 = 100000;
+		const EXP_DIFF_PERIOD: u64 = 100_000;
 		if header.number() == 0 {
 			panic!("Can't calculate genesis block difficulty");
 		}
@@ -363,7 +378,11 @@ impl Ethash {
 		target = cmp::max(min_difficulty, target);
 		if header.number() < self.ethash_params.bomb_defuse_transition {
 			if header.number() < self.ethash_params.ecip1010_pause_transition {
-				let period = ((parent.number() + 1) / EXP_DIFF_PERIOD) as usize;
+				let mut number = header.number();
+				if number >= self.ethash_params.eip649_transition {
+					number = number.saturating_sub(self.ethash_params.eip649_delay);
+				}
+				let period = (number / EXP_DIFF_PERIOD) as usize;
 				if period > 1 {
 					target = cmp::max(min_difficulty, target + (U256::from(1) << (period - 2)));
 				}

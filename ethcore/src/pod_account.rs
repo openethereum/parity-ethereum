@@ -22,6 +22,8 @@ use bigint::prelude::U256;
 use bigint::hash::H256;
 use triehash::sec_trie_root;
 use util::*;
+use bytes::Bytes;
+use trie::TrieFactory;
 use state::Account;
 use ethjson;
 use types::account_diff::*;

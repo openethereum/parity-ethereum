@@ -30,7 +30,7 @@ use super::traits::JournalDB;
 use kvdb::{KeyValueDB, DBTransaction};
 use bigint::hash::H256;
 use error::{BaseDataError, UtilError};
-use {Bytes};
+use bytes::Bytes;
 
 #[derive(Clone, PartialEq, Eq)]
 struct RefInfo {

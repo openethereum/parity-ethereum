@@ -19,16 +19,19 @@
 extern crate test;
 extern crate triehash;
 extern crate ethcore_util;
+extern crate ethcore_bytes;
 extern crate ethcore_bigint;
+extern crate memorydb;
+extern crate patricia_trie as trie;
 #[macro_use]
 extern crate log;
 extern crate hash;
 
 use test::{Bencher, black_box};
 use ethcore_bigint::hash::*;
-use ethcore_util::bytes::*;
-use ethcore_util::trie::*;
-use ethcore_util::memorydb::*;
+use ethcore_bytes::*;
+use trie::*;
+use memorydb::*;
 use triehash::*;
 use hash::keccak;
 

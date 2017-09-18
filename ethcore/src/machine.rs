@@ -33,7 +33,8 @@ use transaction::{SYSTEM_ADDRESS, UnverifiedTransaction, SignedTransaction};
 use tx_filter::TransactionFilter;
 
 use bigint::prelude::U256;
-use util::{Address, BytesRef};
+use bytes::BytesRef;
+use util::Address;
 use vm::{CallType, ActionParams, ActionValue, LastHashes};
 use vm::{EnvInfo, Schedule, CreateContractAddress};
 
@@ -256,8 +257,15 @@ impl EthereumMachine {
 				} else if block_number < ext.eip150_transition {
 					Schedule::new_homestead()
 				} else {
+					/// There's no max_code_size transition so we tie it to eip161abc
+					let max_code_size = if block_number >= ext.eip161abc_transition {
+						self.params.max_code_size as usize
+					} else {
+						usize::max_value()
+					};
+
 					let mut schedule = Schedule::new_post_eip150(
-						self.params.max_code_size as _,
+						max_code_size,
 						block_number >= ext.eip160_transition,
 						block_number >= ext.eip161abc_transition,
 						block_number >= ext.eip161d_transition

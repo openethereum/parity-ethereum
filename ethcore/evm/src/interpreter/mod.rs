@@ -328,6 +328,9 @@ impl<Cost: CostType> Interpreter<Cost> {
 				let contract_code = self.mem.read_slice(init_off, init_size);
 				let can_create = ext.balance(&params.address)? >= endowment && ext.depth() < ext.schedule().max_depth;
 
+				// clear return data buffer before creating new call frame.
+				self.return_data = ReturnData::empty();
+
 				if !can_create {
 					stack.push(U256::zero());
 					return Ok(InstructionResult::UnusedGas(create_gas));
@@ -339,10 +342,18 @@ impl<Cost: CostType> Interpreter<Cost> {
 						stack.push(address_to_u256(address));
 						Ok(InstructionResult::UnusedGas(Cost::from_u256(gas_left).expect("Gas left cannot be greater.")))
 					},
+					ContractCreateResult::Reverted(gas_left, return_data) => {
+						stack.push(U256::zero());
+						self.return_data = return_data;
+						Ok(InstructionResult::UnusedGas(Cost::from_u256(gas_left).expect("Gas left cannot be greater.")))
+					},
 					ContractCreateResult::Failed => {
 						stack.push(U256::zero());
 						Ok(InstructionResult::Ok)
-					}
+					},
+					ContractCreateResult::FailedInStaticCall => {
+						Err(vm::Error::MutableCallInStaticContext)
+					},
 				};
 			},
 			instructions::CALL | instructions::CALLCODE | instructions::DELEGATECALL | instructions::STATICCALL => {
@@ -353,8 +364,10 @@ impl<Cost: CostType> Interpreter<Cost> {
 				let code_address = stack.pop_back();
 				let code_address = u256_to_address(&code_address);
 
-				let value = if instruction == instructions::DELEGATECALL || instruction == instructions::STATICCALL {
+				let value = if instruction == instructions::DELEGATECALL {
 					None
+				} else if instruction == instructions::STATICCALL {
+					Some(U256::zero())
 				} else {
 					Some(stack.pop_back())
 				};
@@ -373,6 +386,9 @@ impl<Cost: CostType> Interpreter<Cost> {
 				// Get sender & receive addresses, check if we have balance
 				let (sender_address, receive_address, has_balance, call_type) = match instruction {
 					instructions::CALL => {
+						if ext.is_static() && value.map_or(false, |v| !v.is_zero()) {
+							return Err(vm::Error::MutableCallInStaticContext);
+						}
 						let has_balance = ext.balance(&params.address)? >= value.expect("value set for all but delegate call; qed");
 						(&params.address, &code_address, has_balance, CallType::Call)
 					},
@@ -381,9 +397,12 @@ impl<Cost: CostType> Interpreter<Cost> {
 						(&params.address, &params.address, has_balance, CallType::CallCode)
 					},
 					instructions::DELEGATECALL => (&params.sender, &params.address, true, CallType::DelegateCall),
-					instructions::STATICCALL => (&params.sender, &params.address, true, CallType::StaticCall),
+					instructions::STATICCALL => (&params.address, &code_address, true, CallType::StaticCall),
 					_ => panic!(format!("Unexpected instruction {} in CALL branch.", instruction))
 				};
+
+				// clear return data buffer before creating new call frame.
+				self.return_data = ReturnData::empty();
 
 				let can_call = has_balance && ext.depth() < ext.schedule().max_depth;
 				if !can_call {
@@ -403,12 +422,17 @@ impl<Cost: CostType> Interpreter<Cost> {
 					MessageCallResult::Success(gas_left, data) => {
 						stack.push(U256::one());
 						self.return_data = data;
-						Ok(InstructionResult::UnusedGas(Cost::from_u256(gas_left).expect("Gas left cannot be greater then current one")))
+						Ok(InstructionResult::UnusedGas(Cost::from_u256(gas_left).expect("Gas left cannot be greater than current one")))
+					},
+					MessageCallResult::Reverted(gas_left, data) => {
+						stack.push(U256::zero());
+						self.return_data = data;
+						Ok(InstructionResult::UnusedGas(Cost::from_u256(gas_left).expect("Gas left cannot be greater than current one")))
 					},
 					MessageCallResult::Failed  => {
 						stack.push(U256::zero());
 						Ok(InstructionResult::Ok)
-					}
+					},
 				};
 			},
 			instructions::RETURN => {
@@ -546,6 +570,14 @@ impl<Cost: CostType> Interpreter<Cost> {
 				Self::copy_data_to_memory(&mut self.mem, stack, params.data.as_ref().map_or_else(|| &[] as &[u8], |d| &*d as &[u8]));
 			},
 			instructions::RETURNDATACOPY => {
+				{
+					let source_offset = stack.peek(1);
+					let size = stack.peek(2);
+					let return_data_len = U256::from(self.return_data.len());
+					if source_offset.overflow_add(*size).0 > return_data_len {
+						return Err(vm::Error::OutOfBounds);
+					}
+				}
 				Self::copy_data_to_memory(&mut self.mem, stack, &*self.return_data);
 			},
 			instructions::CODECOPY => {

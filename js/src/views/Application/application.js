@@ -19,6 +19,8 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 
 import UpgradeStore from '~/modals/UpgradeParity/store';
+import { PinMatrix } from '~/modals';
+import HardwareStore from '~/mobx/hardwareStore';
 
 import Connection from '../Connection';
 import ParityBar from '../ParityBar';
@@ -52,12 +54,15 @@ class Application extends Component {
     pending: PropTypes.array
   }
 
+  hwstore = HardwareStore.get(this.context.api);
+
   store = new Store(this.context.api);
   upgradeStore = UpgradeStore.get(this.context.api);
 
   render () {
     const [root] = (window.location.hash || '').replace('#/', '').split('/');
     const isMinimized = root === 'app' || root === 'web';
+    const { pinMatrixRequest } = this.hwstore;
 
     if (process.env.NODE_ENV !== 'production' && root === 'playground') {
       return (
@@ -86,6 +91,7 @@ class Application extends Component {
           : null
         }
         <Connection />
+        { (pinMatrixRequest.length > 0) ? <PinMatrix device={ pinMatrixRequest[0] } store={ this.hwstore } /> : null }
         <Requests />
         <ParityBar dapp={ isMinimized } />
       </div>

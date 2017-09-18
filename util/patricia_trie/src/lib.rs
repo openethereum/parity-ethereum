@@ -15,6 +15,20 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Trie interface and implementation.
+extern crate rand;
+extern crate ethcore_bigint as bigint;
+extern crate hash as keccak;
+extern crate rlp;
+extern crate hashdb;
+extern crate ethcore_bytes as bytes;
+extern crate nibbleslice;
+extern crate nibblevec;
+extern crate elastic_array;
+extern crate memorydb;
+extern crate ethcore_logger;
+
+#[macro_use]
+extern crate log;
 
 use std::fmt;
 use bigint::hash::H256;

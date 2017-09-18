@@ -22,6 +22,7 @@ use bigint::prelude::U256;
 use bigint::hash::H256;
 use parking_lot::{Mutex, RwLock};
 use util::*;
+use bytes::Bytes;
 use timer::PerfTimer;
 use using_queue::{UsingQueue, GetAction};
 use account_provider::{AccountProvider, SignError as AccountError};

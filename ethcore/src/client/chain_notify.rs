@@ -16,7 +16,7 @@
 
 use ipc::IpcConfig;
 use bigint::hash::H256;
-use util::Bytes;
+use bytes::Bytes;
 
 /// Represents what has to be handled by actor listening to chain events
 #[ipc]

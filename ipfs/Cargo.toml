@@ -9,6 +9,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 ethcore = { path = "../ethcore" }
 ethcore-util = { path = "../util" }
 ethcore-bigint = { path = "../util/bigint" }
+ethcore-bytes = { path = "../util/bytes" }
 jsonrpc-http-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
 rlp = { path = "../util/rlp" }
 mime = "0.2"
