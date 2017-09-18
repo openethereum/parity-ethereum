@@ -33,7 +33,7 @@
   min-height: 200px;
   background: rgba(25, 25, 25, 0.75);
   color: rgb(208, 208, 208);
-  box-shadow: rgba(0, 0, 0, 0.25) 0px 14px 45px, rgba(0, 0, 0, 0.22) 0px 10px 18px;
+  box-shadow: rgba(0, 0, 0, 0.25) 0 14px 45px, rgba(0, 0, 0, 0.22) 0 10px 18px;
 }
 
 .passcodeBoxes {
@@ -81,22 +81,21 @@
 }
 
 .clearThik {
+  border: solid 3px rgba(0, 0, 0, 0.5);
+  border-bottom-right-radius: 3px;
+  border-top-right-radius: 3px;
   color: rgba(0, 0, 0, 0.5);
+  cursor: pointer;
   font: 14px/100% arial, sans-serif;
+  line-height: 20px;
   position: absolute;
   right: 150px;
   text-decoration: none;
   top: -5px;
-  border: solid 3px rgba(0, 0, 0, 0.5);
   width: 18px;
   height: 18px;
-  border-bottom-right-radius: 3px;
-  border-top-right-radius: 3px;
-  position: absolute;
-  line-height: 20px;
-  cursor: pointer;
 
-  &:after {
+  &::after {
     right: 100%;
     top: 50%;
     border: solid transparent;
@@ -111,7 +110,7 @@
     margin-right: 3px;
   }
 
-  &:before {
+  &::before {
     content: '\2716';
     padding-left: 2px;
   }
