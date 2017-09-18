@@ -214,11 +214,11 @@ export default class Store {
   executePubsubCall = ({ api, id, from, token, params }, source) => {
     const callback = this._methodCallbackPost(id, from, source, token);
 
-    // TODO: enable security pubsub
-    this.provider.subscribe(api, callback, params).then((v, e) => {
-      console.log('Error and result', v, e);
-      this._methodCallbackPost(id, from, source, token)(null, v);
-    });
+    this.provider
+      .subscribe(api, callback, params)
+      .then((result, error) => {
+        this._methodCallbackPost(id, from, source, token)(null, result);
+      });
   }
 
   executeMethodCall = ({ id, from, method, params, token }, source) => {
