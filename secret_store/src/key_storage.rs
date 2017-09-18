@@ -312,7 +312,7 @@ pub mod tests {
 		}
 
 		fn iter<'a>(&'a self) -> Box<Iterator<Item=(ServerKeyId, DocumentKeyShare)> + 'a> {
-			unimplemented!()
+			Box::new(self.keys.read().clone().into_iter())
 		}
 	}
 

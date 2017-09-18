@@ -99,16 +99,19 @@ pub fn serialize_message(message: Message) -> Result<SerializedMessage, Error> {
 																							=> (250, serde_json::to_vec(&payload)),
 		Message::ServersSetChange(ServersSetChangeMessage::UnknownSessionsRequest(payload)) => (251, serde_json::to_vec(&payload)),
 		Message::ServersSetChange(ServersSetChangeMessage::UnknownSessions(payload))		=> (252, serde_json::to_vec(&payload)),
-		/*Message::ServersSetChange(ServersSetChangeMessage::UnknownSessionDetails(payload))	=> (253, serde_json::to_vec(&payload)),
-		Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeShareAddMessage(payload))
+		Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeDelegate(payload))
+																							=> (253, serde_json::to_vec(&payload)),
+		Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeDelegateResponse(payload))
 																							=> (254, serde_json::to_vec(&payload)),
-		Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeShareMoveMessage(payload))
+		Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeShareAddMessage(payload))
 																							=> (255, serde_json::to_vec(&payload)),
-		Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeShareRemoveMessage(payload))
+		Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeShareMoveMessage(payload))
 																							=> (256, serde_json::to_vec(&payload)),
-		Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeError(payload))	=> (257, serde_json::to_vec(&payload)),
+		Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeShareRemoveMessage(payload))
+																							=> (257, serde_json::to_vec(&payload)),
+		Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeError(payload))	=> (258, serde_json::to_vec(&payload)),
 		Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeCompleted(payload))
-																							=> (258, serde_json::to_vec(&payload)),*/
+																							=> (259, serde_json::to_vec(&payload)),
 	};
 
 	let payload = payload.map_err(|err| Error::Serde(err.to_string()))?;
@@ -155,12 +158,13 @@ pub fn deserialize_message(header: &MessageHeader, payload: Vec<u8>) -> Result<M
 		250	=> Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeConsensusMessage(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
 		251	=> Message::ServersSetChange(ServersSetChangeMessage::UnknownSessionsRequest(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
 		252	=> Message::ServersSetChange(ServersSetChangeMessage::UnknownSessions(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
-		/*253	=> Message::ServersSetChange(ServersSetChangeMessage::UnknownSessionDetails(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
-		254	=> Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeShareAddMessage(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
-		255	=> Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeShareMoveMessage(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
-		256	=> Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeShareRemoveMessage(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
-		257	=> Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeError(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
-		258	=> Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeCompleted(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),*/
+		253	=> Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeDelegate(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		254	=> Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeDelegateResponse(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		255	=> Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeShareAddMessage(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		256	=> Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeShareMoveMessage(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		257	=> Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeShareRemoveMessage(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		258	=> Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeError(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		259	=> Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeCompleted(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
 
 		_ => return Err(Error::Serde(format!("unknown message type {}", header.kind))),
 	})

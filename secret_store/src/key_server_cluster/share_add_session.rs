@@ -72,6 +72,7 @@ struct SessionCore<T: SessionTransport> {
 }
 
 /// Mutable session data.
+#[derive(Debug)]
 struct SessionData {
 	/// Session state.
 	pub state: SessionState,
@@ -88,6 +89,7 @@ struct SessionData {
 }
 
 /// Single node data.
+#[derive(Debug)]
 struct NodeData {
 	// === Values, filled during initialization phase ===
 	/// Random unique scalar. Persistent.
@@ -308,6 +310,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 
 		// all nodes have confirmed initialization => send absolute term shares to new nodes && start keys dissemination
 		data.state = SessionState::WaitingForKeysDissemination;
+		Self::disseminate_common_share_data(&self.core, &*data)?;
 		Self::disseminate_absolute_term_shares(&self.core, &mut *data)?;
 		Self::disseminate_keys(&self.core, &mut *data)
 	}
@@ -407,6 +410,8 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		// check state
 		if data.state == SessionState::WaitingForInitializationConfirm {
 			data.state = SessionState::WaitingForKeysDissemination;
+		} else if data.state == SessionState::WaitingForAbsoluteTermShare {
+			return Err(Error::TooEarlyForRequest);
 		} else if data.state != SessionState::WaitingForKeysDissemination {
 			return Err(Error::InvalidStateForRequest);
 		}
@@ -478,6 +483,24 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		Ok(())
 	}
 
+	/// Send common share data to evey new node.
+	fn disseminate_common_share_data(core: &SessionCore<T>, data: &SessionData) -> Result<(), Error> {
+		let old_key_share = core.key_share.as_ref()
+			.expect("disseminate_common_share_data is only called on master node; key_share is filled in initialization phase on master node; qed");
+		for new_node in data.nodes.iter().filter(|&(_, nd)| nd.is_new_node).map(|(n, _)| n) {
+			core.transport.send(new_node, ShareAddMessage::KeyShareCommon(KeyShareCommon {
+				session: core.meta.id.clone().into(),
+				sub_session: core.sub_session.clone().into(),
+				session_nonce: core.nonce,
+				author: old_key_share.author.clone().into(),
+				common_point: old_key_share.common_point.clone().map(Into::into),
+				encrypted_point: old_key_share.encrypted_point.clone().map(Into::into),
+			}))?;
+		}
+
+		Ok(())
+	}
+
 	/// Disseminate key refreshing data.
 	fn disseminate_keys(core: &SessionCore<T>, data: &mut SessionData) -> Result<(), Error> {
 		// send required messages
@@ -536,7 +559,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 			id_numbers: data.nodes.iter().map(|(node_id, node_data)| (node_id.clone(), node_data.id_number.clone())).collect(),
 			polynom1: data.refreshed_polynom1_sum.clone().expect("this field is filled during KRD; session is completed after KRD; qed"),
 			secret_share: math::compute_secret_share(data.nodes.values()
-				.map(|nd| nd.refreshed_secret1.as_ref().expect("this field is filled during KRD; session is completed after KRD; qed")))?,
+				.filter_map(|nd| nd.refreshed_secret1.as_ref()))?,
 		};
 
 		// save encrypted data to the key storage
@@ -594,3 +617,15 @@ fn generate_refreshed_polynoms_for_new_nodes<'a, I>(absolute_term_shares: I, thr
 	new_polynom1[0] = new_polynom_absolute_term;
 	Ok(new_polynom1)
 }
+
+/*
+SessionData {
+state: WaitingForKeysDissemination,
+nodes: {
+	7e6994a20cdbd7d37ed6b03cd08279f0ca3a99506d9f688e576e410cc2475837d0277f9217835add61b9ac265f3ca73b9968434db54770e822d58e43603c8e97: NodeData { id_number: Secret: 0x2750..7914, is_initialization_confirmed: false, is_new_node: false, absolute_term_share: Some(Secret: 0xda27..b91), refreshed_secret1: Some(Secret: 0x6cb..8cd6), refreshed_publics: Some([474e776bccf9b3dd026ffcbbb6155a54adc6fa6894b8e912c59eb9810db3de36656b3367a4bee6fe22c31d0df7d6932697077befe322ea68dad96a624f18f18b]) },
+	b070fe7c4c65bbde1e58cfd1bc92aac5a5eba6519af545ad64cae46472671753cff7c9c645752ec13d3e3296bfb14a6601b82af709fdb51ff609128f821f2d08: NodeData { id_number: Secret: 0x87d3..622e, is_initialization_confirmed: false, is_new_node: false, absolute_term_share: Some(Secret: 0x4e1c..9c10), refreshed_secret1: Some(Secret: 0x64f1..d884), refreshed_publics: Some([6928b61162da77d76e4b28e55e9bc4f86a8a19cd6625dec4f0f623c6abd15cd9f544d7048bc5be18116d29dbd3af6f9ef9b79adcbd68613d089513b45fc69ea3]) },
+	d7cc64984f8ab856b25e23bed660f8737035b0d0a6f82de343f5c179c9ebf91323cd72ccf6f8fe10f97fa87fbf7963f55ba34e5bf38d8eb0067a75710479439e: NodeData { id_number: Secret: 0xcf0..248, is_initialization_confirmed: false, is_new_node: true, absolute_term_share: None, refreshed_secret1: None, refreshed_publics: None },
+	fba3093ec827fe7a419bd3befd6c0088471cf9b22457056917784ea539a133d94eb53df6161849c0e921162237cb7211bf3b2ce6db0c157ee2d692fe131556f9: NodeData { id_number: Secret: 0xcd7..7c58, is_initialization_confirmed: false, is_new_node: false, absolute_term_share: Some(Secret: 0x427d..b9c9), refreshed_secret1: Some(Secret: 0x9fa0..15a3), refreshed_publics: Some([9f4f07f09673060cc6ee26747ae3acbd675fa8d4d4d7df495816d5af271efb218a181b31e57773d5ccf2b63dba68268c7f6f7dabc0c4640e41cbe6eabc9715c6]) }},
+	refreshed_polynom1_sum: Some([Secret: 0x953e..73a8]), key_share_author: None, key_share_common_point: None, key_share_encrypted_point: None }
+
+*/

@@ -24,30 +24,30 @@ use key_server_cluster::math;
 use key_server_cluster::jobs::job_session::{JobPartialRequestAction, JobPartialResponseAction, JobExecutor};
 
 /// Unknown sessions report job.
-pub struct UnknownSessionsJob<'a> {
+pub struct UnknownSessionsJob {
 	/// Target node id.
 	target_node_id: Option<NodeId>,
 	/// Keys storage.
-	key_storage: Option<Arc<KeyStorage + 'a>>,
+	key_storage: Arc<KeyStorage>,
 }
 
-impl<'a> UnknownSessionsJob<'a> {
-	pub fn new_on_slave(key_storage: Arc<KeyStorage + 'a>) -> Self {
+impl UnknownSessionsJob {
+	pub fn new_on_slave(key_storage: Arc<KeyStorage>) -> Self {
 		UnknownSessionsJob {
 			target_node_id: None,
-			key_storage: Some(key_storage),
+			key_storage: key_storage,
 		}
 	}
 
-	pub fn new_on_master(self_node_id: NodeId) -> Self {
+	pub fn new_on_master(key_storage: Arc<KeyStorage>, self_node_id: NodeId) -> Self {
 		UnknownSessionsJob {
 			target_node_id: Some(self_node_id),
-			key_storage: None,
+			key_storage: key_storage,
 		}
 	}
 }
 
-impl<'a> JobExecutor for UnknownSessionsJob<'a> {
+impl JobExecutor for UnknownSessionsJob {
 	type PartialJobRequest = NodeId;
 	type PartialJobResponse = BTreeSet<SessionId>;
 	type JobResponse = BTreeMap<SessionId, BTreeSet<NodeId>>;
@@ -57,8 +57,7 @@ impl<'a> JobExecutor for UnknownSessionsJob<'a> {
 	}
 
 	fn process_partial_request(&self, partial_request: NodeId) -> Result<JobPartialRequestAction<BTreeSet<SessionId>>, Error> {
-		let key_storage = self.key_storage.as_ref().expect("process_partial_request is only called on slave nodes; this field is filled on slave nodes in constructor; qed");
-		Ok(JobPartialRequestAction::Respond(key_storage.iter()
+		Ok(JobPartialRequestAction::Respond(self.key_storage.iter()
 			.filter(|&(_, ref key_share)| !key_share.id_numbers.contains_key(&partial_request))
 			.map(|(id, _)| id.clone())
 			.collect()))

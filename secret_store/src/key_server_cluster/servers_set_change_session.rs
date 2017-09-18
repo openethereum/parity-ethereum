@@ -16,14 +16,18 @@
 
 use std::sync::Arc;
 use std::collections::{BTreeSet, BTreeMap};
+use std::collections::btree_map::Entry;
 use parking_lot::{Mutex, Condvar};
 use ethkey::Signature;
 use tiny_keccak::{keccak256, Keccak};
 use key_server_cluster::{Error, NodeId, SessionId, SessionMeta, KeyStorage, DummyAclStorage, DocumentKeyShare};
 use key_server_cluster::cluster::Cluster;
 use key_server_cluster::message::{MessageNodeId, Message, ConsensusMessage, InitializeConsensusSession, ServersSetChangeMessage,
-	ServersSetChangeConsensusMessage, ConfirmConsensusInitialization, UnknownSessionsRequest, UnknownSessions};
-use key_server_cluster::share_change_session::ShareChangeSession;
+	ServersSetChangeConsensusMessage, ConfirmConsensusInitialization, UnknownSessionsRequest, UnknownSessions,
+	ServersSetChangeShareAddMessage, ShareAddMessage, ServersSetChangeError, ServersSetChangeCompleted,
+	ShareMoveMessage, ShareRemoveMessage, ServersSetChangeShareMoveMessage, ServersSetChangeShareRemoveMessage,
+	ServersSetChangeDelegate, ServersSetChangeDelegateResponse};
+use key_server_cluster::share_change_session::{ShareChangeSession, ShareChangeSessionParams};
 use key_server_cluster::jobs::job_session::JobTransport;
 use key_server_cluster::jobs::unknown_sessions_job::{UnknownSessionsJob};
 use key_server_cluster::jobs::consensus_session::{ConsensusSessionParams, ConsensusSessionState, ConsensusSession};
@@ -48,11 +52,11 @@ pub trait Session: Send + Sync + 'static {
 /// 4) for each node1 in nodes_to_remove: select node2 from nodes_to_add and move all sessions from node1 to node2
 /// 5) for each node1 left in nodes_to_remove (if nodes_to_add.len() < nodes_to_remove.len()): run share removal protocol for each node1 session
 /// 6) for each node1 left in nodes_to_add (if nodes_to_add.len() > nodes_to_remove.len()): run share addition protocol for each node1 session
-pub struct SessionImpl<'a> {
+pub struct SessionImpl {
 	/// Session core.
 	core: SessionCore,
 	/// Session data.
-	data: Mutex<SessionData<'a>>,
+	data: Mutex<SessionData>,
 }
 
 /// Session state.
@@ -83,18 +87,18 @@ struct SessionCore {
 }
 
 /// Servers set change consensus session type.
-type ServersSetChangeConsensusSession<'a> = ConsensusSession<ServersSetChangeConsensusTransport, UnknownSessionsJob<'a>, UnknownSessionsJobTransport>;
+type ServersSetChangeConsensusSession = ConsensusSession<ServersSetChangeConsensusTransport, UnknownSessionsJob, UnknownSessionsJobTransport>;
 
 /// Mutable session data.
-struct SessionData<'a> {
+struct SessionData {
 	/// Session state.
 	pub state: SessionState,
 	/// Consensus-based servers set change session.
-	pub consensus_session: ServersSetChangeConsensusSession<'a>,
-	/// Unknown sessions (actual for master node only).
-	pub sessions_queue: Option<SessionsQueue<'a>>,
+	pub consensus_session: ServersSetChangeConsensusSession,
+	/// Sessions delegated to other node (valid only on master node).
+	pub delegated_sessions: BTreeMap<SessionId, NodeId>,
 	/// Active change sessions, where this node is a master.
-	pub master_sessions: Option<BTreeMap<SessionId, ShareChangeSession>>,
+	pub active_sessions: BTreeMap<SessionId, ShareChangeSession>,
 	/// Servers set change result.
 	pub result: Option<Result<(), Error>>,
 /*	/// Keys, unknown to master node.
@@ -124,9 +128,9 @@ pub struct SessionParams {
 }
 
 /// Share change sessions queue.
-struct SessionsQueue<'a> {
+struct SessionsQueue {
 	/// Known sessions iterator.
-	known_sessions: Option<Box<Iterator<Item=(SessionId, DocumentKeyShare)> + 'a>>,
+	known_sessions: Option<Box<Iterator<Item=(SessionId, DocumentKeyShare)>>>,
 	/// Unknown sessions.
 	unknown_sessions: Option<BTreeMap<SessionId, BTreeSet<NodeId>>>,
 }
@@ -153,7 +157,7 @@ struct UnknownSessionsJobTransport {
 	cluster: Arc<Cluster>,
 }
 
-impl<'a> SessionImpl<'a> {
+impl SessionImpl {
 	/// Create new servers set change session.
 	pub fn new(params: SessionParams, requester_signature: Option<Signature>) -> Result<Self, Error> {
 		// session id must be the hash of sorted nodes set
@@ -196,8 +200,8 @@ impl<'a> SessionImpl<'a> {
 						consensus_transport: consensus_transport,
 					})?,
 				},
-				sessions_queue: None,
-				master_sessions: None,
+				delegated_sessions: BTreeMap::new(),
+				active_sessions: BTreeMap::new(),
 				result: None,
 			}),
 		})
@@ -219,7 +223,7 @@ impl<'a> SessionImpl<'a> {
 	}
 
 	/// Process servers set change message.
-	pub fn process_message(&'a self, sender: &NodeId, message: &ServersSetChangeMessage) -> Result<(), Error> {
+	pub fn process_message(&self, sender: &NodeId, message: &ServersSetChangeMessage) -> Result<(), Error> {
 		if self.core.nonce != message.session_nonce() {
 			return Err(Error::ReplayProtection);
 		}
@@ -231,6 +235,20 @@ impl<'a> SessionImpl<'a> {
 				self.on_unknown_sessions_requested(sender, message),
 			&ServersSetChangeMessage::UnknownSessions(ref message) =>
 				self.on_unknown_sessions(sender, message),
+			&ServersSetChangeMessage::ServersSetChangeDelegate(ref message) =>
+				self.on_sessions_delegation(sender, message),
+			&ServersSetChangeMessage::ServersSetChangeDelegateResponse(ref message) =>
+				self.on_delegated_session_completed(sender, message),
+			&ServersSetChangeMessage::ServersSetChangeShareAddMessage(ref message) =>
+				self.on_share_add_message(sender, message),
+			&ServersSetChangeMessage::ServersSetChangeShareMoveMessage(ref message) =>
+				self.on_share_move_message(sender, message),
+			&ServersSetChangeMessage::ServersSetChangeShareRemoveMessage(ref message) =>
+				self.on_share_remove_message(sender, message),
+			&ServersSetChangeMessage::ServersSetChangeError(ref message) =>
+				self.on_session_error(sender, message),
+			&ServersSetChangeMessage::ServersSetChangeCompleted(ref message) => 
+				self.on_session_completed(sender, message),
 		}
 	}
 
@@ -248,7 +266,7 @@ impl<'a> SessionImpl<'a> {
 			return Ok(());
 		}
 
-		let unknown_sessions_job = UnknownSessionsJob::new_on_master(self.core.meta.self_node_id.clone());
+		let unknown_sessions_job = UnknownSessionsJob::new_on_master(self.core.key_storage.clone(), self.core.meta.self_node_id.clone());
 		data.consensus_session.disseminate_jobs(unknown_sessions_job, self.unknown_sessions_transport())
 	}
 
@@ -266,31 +284,114 @@ impl<'a> SessionImpl<'a> {
 	}
 
 	/// When unknown sessions are received.
-	pub fn on_unknown_sessions(&'a self, sender: &NodeId, message: &UnknownSessions) -> Result<(), Error> {
+	pub fn on_unknown_sessions(&self, sender: &NodeId, message: &UnknownSessions) -> Result<(), Error> {
 		debug_assert!(self.core.meta.id == *message.session);
 		debug_assert!(sender != &self.core.meta.self_node_id);
 
 		let mut data = self.data.lock();
 		data.consensus_session.on_job_response(sender, message.unknown_sessions.iter().cloned().map(Into::into).collect())?;
-
 		if data.consensus_session.state() != ConsensusSessionState::Finished {
 			return Ok(());
 		}
 
-		// all nodes has reported their unknown sessions
+		// all nodes have reported their unknown sessions
 		// => we are ready to start adding/moving/removing shares
-		// => take some sessions and start
-		let mut sessions_queue = SessionsQueue::new(&self.core, data.consensus_session.result()?);
-		for (session_id, session_nodes) in sessions_queue.dequeue(MAX_ACTIVE_SESSIONS) {
-			if session_nodes.contains(&self.core.meta.self_node_id) {
-				let change_session = Self::start_share_change_session(&self.core, &mut *data, session_id, session_nodes);
-			} else {
-				unimplemented!()
-			}
+
+		// delegate unknown sessions to other nodes
+		let unknown_sessions = data.consensus_session.result()?;
+		let new_nodes_set = self.core.new_nodes_set.as_ref().expect("TODO");
+		let mut unknown_sessions_by_master: BTreeMap<_, BTreeSet<_>> = BTreeMap::new();
+		for (unknown_session_id, unknown_session_nodes) in unknown_sessions {
+			let unknown_master_node = unknown_session_nodes.into_iter().nth(0).expect("TODO"); // TODO: check && select randomly
+			data.delegated_sessions.insert(unknown_session_id.clone(), unknown_master_node.clone());
+			unknown_sessions_by_master.entry(unknown_master_node).or_insert_with(Default::default).insert(unknown_session_id);
 		}
-		data.sessions_queue = Some(sessions_queue);
+		for (master, unknown_sessions) in unknown_sessions_by_master{
+			self.core.cluster.send(&master, Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeDelegate(ServersSetChangeDelegate {
+				session: self.core.meta.id.clone().into(),
+				session_nonce: self.core.nonce,
+				new_nodes_set: new_nodes_set.iter().cloned().map(Into::into).collect(),
+				unknown_sessions: unknown_sessions.into_iter().map(Into::into).collect(),
+			})))?
+		}
+
+		// start known sessions
+		for (known_session_id, key_share) in self.core.key_storage.iter() {
+			let session_nodes = key_share.id_numbers.keys().cloned().collect();
+			let mut change_session = Self::start_share_change_session(&self.core, &mut *data, known_session_id.clone(), session_nodes)?;
+			change_session.initialize()?;
+			data.active_sessions.insert(known_session_id, change_session);
+		}
 
 		Ok(())
+	}
+
+	/// When sessions execution is delegated to this node.
+	pub fn on_sessions_delegation(&self, _sender: &NodeId, _message: &ServersSetChangeDelegate) -> Result<(), Error> {
+		unimplemented!()
+	}
+
+	/// When delegated session execution is completed.
+	pub fn on_delegated_session_completed(&self, _sender: &NodeId, _message: &ServersSetChangeDelegateResponse) -> Result<(), Error> {
+		unimplemented!()
+	}
+
+	/// When share add message is received.
+	pub fn on_share_add_message(&self, sender: &NodeId, message: &ServersSetChangeShareAddMessage) -> Result<(), Error> {
+		let mut data = self.data.lock();
+
+		// start session if not started yet
+		if let &ShareAddMessage::InitializeShareAddSession(ref message) = &message.message {
+			match data.active_sessions.entry(message.session.clone().into()) {
+				Entry::Occupied(_) => return Err(Error::InvalidMessage),
+				Entry::Vacant(entry) => entry.insert(Self::join_share_change_session(&self.core, sender, message.session.clone().into())?),
+			};
+		}
+
+		let mut change_session = data.active_sessions.get_mut(&message.message.session().clone().into()).ok_or(Error::InvalidMessage)?;
+		change_session.on_share_add_message(sender, &message.message)
+	}
+
+	/// When share move message is received.
+	pub fn on_share_move_message(&self, sender: &NodeId, message: &ServersSetChangeShareMoveMessage) -> Result<(), Error> {
+		let mut data = self.data.lock();
+
+		// start session if not started yet
+		if let &ShareMoveMessage::InitializeShareMoveSession(ref message) = &message.message {
+			match data.active_sessions.entry(message.session.clone().into()) {
+				Entry::Occupied(_) => return Err(Error::InvalidMessage),
+				Entry::Vacant(entry) => entry.insert(Self::join_share_change_session(&self.core, sender, message.session.clone().into())?),
+			};
+		}
+
+		let mut change_session = data.active_sessions.get_mut(&message.message.session().clone().into()).ok_or(Error::InvalidMessage)?;
+		change_session.on_share_move_message(sender, &message.message)
+	}
+
+	/// When share remove message is received.
+	pub fn on_share_remove_message(&self, sender: &NodeId, message: &ServersSetChangeShareRemoveMessage) -> Result<(), Error> {
+		let mut data = self.data.lock();
+
+		// start session if not started yet
+		if let &ShareRemoveMessage::InitializeShareRemoveSession(ref message) = &message.message {
+			match data.active_sessions.entry(message.session.clone().into()) {
+				Entry::Occupied(_) => return Err(Error::InvalidMessage),
+				Entry::Vacant(entry) => entry.insert(Self::join_share_change_session(&self.core, sender, message.session.clone().into())?),
+			};
+		}
+
+		let mut change_session = data.active_sessions.get_mut(&message.message.session().clone().into()).ok_or(Error::InvalidMessage)?;
+		change_session.on_share_remove_message(sender, &message.message)
+	}
+
+	/// When error has occured on another node.
+	pub fn on_session_error(&self, _sender: &NodeId, _message: &ServersSetChangeError) -> Result<(), Error> {
+		unimplemented!()
+	}
+
+	/// When session completion message is received.
+	pub fn on_session_completed(&self, _sender: &NodeId, _message: &ServersSetChangeCompleted) -> Result<(), Error> {
+		unimplemented!()
 	}
 
 	/// Create unknown sessions transport.
@@ -302,55 +403,48 @@ impl<'a> SessionImpl<'a> {
 		}
 	}
 
-	/// Start share change session.
-	fn start_share_change_session(core: &SessionCore, data: &mut SessionData<'a>, session_id: SessionId, session_nodes: BTreeSet<NodeId>) -> Result<ShareChangeSession, Error> {
-		unimplemented!()
+	/// Start share change session (called on master node).
+	fn start_share_change_session(core: &SessionCore, data: &mut SessionData, key_id: SessionId, old_nodes_set: BTreeSet<NodeId>) -> Result<ShareChangeSession, Error> {
+		let new_nodes_set = core.new_nodes_set.as_ref().expect("TODO");
+		let mut nodes_to_add: BTreeSet<_> = new_nodes_set.difference(&old_nodes_set).cloned().collect();
+		let mut nodes_to_move = BTreeMap::new();
+		let mut nodes_to_remove: BTreeSet<_> = old_nodes_set.difference(&new_nodes_set).cloned().collect();
+		while !nodes_to_remove.is_empty() && !nodes_to_add.is_empty() {
+			let source_node = nodes_to_remove.iter().cloned().nth(0).expect("nodes_to_remove.is_empty is checked in while condition; qed");
+			let target_node = nodes_to_add.iter().cloned().nth(0).expect("nodes_to_add.is_empty is checked in while condition; qed");
+			nodes_to_remove.remove(&source_node);
+			nodes_to_add.remove(&target_node);
+			nodes_to_move.insert(source_node, target_node);
+		}
+
+		ShareChangeSession::new(ShareChangeSessionParams {
+			session_id: core.meta.id,
+			nonce: core.nonce,
+			key_id: key_id,
+			self_node_id: core.meta.self_node_id,
+			master_node_id: core.meta.self_node_id,
+			cluster: core.cluster.clone(),
+			key_storage: core.key_storage.clone(),
+			nodes_to_add: Some(nodes_to_add),
+			nodes_to_move: Some(nodes_to_move),
+			nodes_to_remove: Some(nodes_to_remove),
+		})
 	}
-}
 
-impl<'a> SessionsQueue<'a> {
-	/// Create new sessions queue.
-	pub fn new(core: &'a SessionCore, unknown_sessions: BTreeMap<SessionId, BTreeSet<NodeId>>) -> Self {
-		SessionsQueue {
-			known_sessions: Some(core.key_storage.iter()),
-			unknown_sessions: Some(unknown_sessions),
-		}
-	}
-
-	/// Dequeue at most N sessions.
-	pub fn dequeue(&mut self, mut n: usize) -> Vec<(SessionId, BTreeSet<NodeId>)> {
-		let mut result = Vec::with_capacity(n);
-		while n > 0 {
-			if let Some(s) = self.next() {
-				result.push(s);
-				n = n - 1;
-			} else {
-				break;
-			}
-		}
-		result
-	}
-}
-
-impl<'a> Iterator for SessionsQueue<'a> {
-	type Item = (SessionId, BTreeSet<NodeId>);
-
-	fn next(&mut self) -> Option<Self::Item> {
-		if let Some(known_sessions) = self.known_sessions.as_mut() {
-			if let Some(session) = known_sessions.next() {
-				return Some((session.0, session.1.id_numbers.into_iter().map(|(k, _)| k).collect()));
-			}
-		}
-		self.known_sessions = None;
-
-		if let Some(unknown_sessions) = self.unknown_sessions.as_mut() {
-			if let Some(session) = unknown_sessions.keys().cloned().nth(0).and_then(|k| unknown_sessions.remove(&k).map(|v| (k, v))) {
-				return Some(session);
-			}
-		}
-		self.unknown_sessions = None;
-
-		None
+	/// Join share change session (called on slave node).
+	fn join_share_change_session(core: &SessionCore, sender: &NodeId, key_id: SessionId) -> Result<ShareChangeSession, Error> {
+		ShareChangeSession::new(ShareChangeSessionParams {
+			session_id: core.meta.id,
+			nonce: core.nonce,
+			key_id: key_id,
+			self_node_id: core.meta.self_node_id,
+			master_node_id: sender.clone(),
+			cluster: core.cluster.clone(),
+			key_storage: core.key_storage.clone(),
+			nodes_to_add: None,
+			nodes_to_move: None,
+			nodes_to_remove: None,
+		})
 	}
 }
 
@@ -411,4 +505,171 @@ pub fn nodes_hash(nodes: &BTreeSet<NodeId>) -> SessionId {
 	nodes_keccak.finalize(&mut nodes_keccak_value);
 
 	nodes_keccak_value.into()
+}
+
+#[cfg(test)]
+mod tests {
+	use std::sync::Arc;
+	use std::collections::{VecDeque, BTreeMap, BTreeSet};
+	use ethkey::{Random, Generator, Public, KeyPair, sign};
+	use key_server_cluster::{NodeId, SessionId, Error, KeyStorage, DummyKeyStorage, SessionMeta};
+	use key_server_cluster::cluster::tests::DummyCluster;
+	use key_server_cluster::generation_session::tests::MessageLoop as GenerationMessageLoop;
+	use key_server_cluster::math;
+	use key_server_cluster::message::Message;
+	use super::{SessionImpl, SessionParams, nodes_hash};
+
+	pub struct Node {
+		pub cluster: Arc<DummyCluster>,
+		pub key_storage: Arc<DummyKeyStorage>,
+		pub session: SessionImpl,
+	}
+
+	struct MessageLoop {
+		pub session_id: SessionId,
+		pub nodes: BTreeMap<NodeId, Node>,
+		pub queue: VecDeque<(NodeId, NodeId, Message)>,
+	}
+
+	impl MessageLoop {
+		pub fn new(gml: GenerationMessageLoop, num_new_nodes: usize) -> Self {
+			let mut new_nodes_set: BTreeSet<_> = gml.nodes.keys().cloned().collect();
+			let new_nodes_ids: BTreeSet<_> = (0..num_new_nodes).map(|_| Random.generate().unwrap().public().clone()).collect();
+			new_nodes_set.extend(new_nodes_ids.iter().cloned());
+
+			let session_id = nodes_hash(&new_nodes_set);
+			let requester_signature = sign(Random.generate().unwrap().secret(), &session_id).unwrap();
+			let mut nodes = BTreeMap::new();
+			let master_node_id = gml.nodes.keys().cloned().nth(0).unwrap();
+			let meta = SessionMeta {
+				self_node_id: master_node_id.clone(),
+				master_node_id: master_node_id.clone(),
+				id: session_id.clone(),
+				threshold: new_nodes_set.len() - 1,
+			};
+			for (n, nd) in &gml.nodes {
+				let cluster = nd.cluster.clone();
+				let key_storage = nd.key_storage.clone();
+				let mut meta = meta.clone();
+				meta.self_node_id = n.clone();
+				let requester_signature = if meta.self_node_id == meta.master_node_id { Some(requester_signature.clone()) } else { None };
+				let session = SessionImpl::new(SessionParams {
+					meta: meta,
+					new_nodes_set: new_nodes_set.clone(),
+					cluster: nd.cluster.clone(),
+					key_storage: nd.key_storage.clone(),
+					nonce: 1,
+				}, requester_signature).unwrap();
+				nodes.insert(n.clone(), Node {
+					cluster: cluster,
+					key_storage: key_storage,
+					session: session,
+				});
+			}
+			for new_node_id in new_nodes_ids {
+				let cluster = Arc::new(DummyCluster::new(new_node_id.clone()));
+				let key_storage = Arc::new(DummyKeyStorage::default());
+				let mut meta = meta.clone();
+				meta.self_node_id = new_node_id;
+				let session = SessionImpl::new(SessionParams {
+					meta: meta,
+					new_nodes_set: new_nodes_set.clone(),
+					cluster: cluster.clone(),
+					key_storage: key_storage.clone(),
+					nonce: 1,
+				}, None).unwrap();
+				nodes.insert(new_node_id, Node {
+					cluster: cluster,
+					key_storage: key_storage,
+					session: session,
+				});
+			}
+
+			MessageLoop {
+				session_id: session_id,
+				nodes: nodes,
+				queue: Default::default(),
+			}
+		}
+
+		pub fn run(&mut self) {
+			while let Some((from, to, message)) = self.take_message() {
+println!("=== {:?}", (&from, &to, &message));
+				self.process_message((from, to, message)).unwrap();
+			}
+		}
+
+		pub fn take_message(&mut self) -> Option<(NodeId, NodeId, Message)> {
+			self.nodes.values()
+				.filter_map(|n| n.cluster.take_message().map(|m| (n.session.core.meta.self_node_id.clone(), m.0, m.1)))
+				.nth(0)
+				.or_else(|| self.queue.pop_front())
+		}
+
+		pub fn process_message(&mut self, msg: (NodeId, NodeId, Message)) -> Result<(), Error> {
+			match {
+				match msg.2 {
+					Message::ServersSetChange(ref message) => self.nodes[&msg.1].session.process_message(&msg.0, message),
+					_ => unreachable!("only servers set change messages are expected"),
+				}
+			} {
+				Ok(_) => Ok(()),
+				Err(Error::TooEarlyForRequest) => {
+					self.queue.push_back(msg);
+					Ok(())
+				},
+				Err(err) => Err(err),
+			}
+		}
+	}
+
+	fn generate_key(threshold: usize, num_nodes: usize) -> GenerationMessageLoop {
+		let mut gml = GenerationMessageLoop::new(num_nodes);
+		gml.master().initialize(Public::default(), threshold, gml.nodes.keys().cloned().collect()).unwrap();
+		while let Some((from, to, message)) = gml.take_message() {
+			gml.process_message((from, to, message)).unwrap();
+		}
+		gml
+	}
+
+	#[test]
+	fn node_added_using_servers_set_change() {
+		// initial 2-of-3 session
+		let gml = generate_key(1, 3);
+		let key_id = gml.session_id.clone();
+		let master = gml.nodes.keys().cloned().nth(0).unwrap();
+		let share0 = gml.nodes.values().nth(0).unwrap().key_storage.get(&key_id).unwrap();
+		let share1 = gml.nodes.values().nth(1).unwrap().key_storage.get(&key_id).unwrap();
+		let share2 = gml.nodes.values().nth(2).unwrap().key_storage.get(&key_id).unwrap();
+		let joint_secret = math::compute_joint_secret([share0.secret_share, share1.secret_share, share2.secret_share].iter()).unwrap();
+		let joint_key_pair = KeyPair::from_secret(joint_secret.clone()).unwrap();
+		// insert 1 node so that it becames 2-of-4 session
+//		let mut ml = MessageLoop::new(gml, 1);
+//		ml.nodes[&master].session.initialize(ml.nodes.keys().cloned().collect());
+//		ml.run();
+let ml = gml;
+		// try to recover secret for every possible combination of nodes && check that secret is the same
+		let document_secret_plain = math::generate_random_point().unwrap();
+		for n1 in 0..3 {
+			for n2 in n1+1..3 {
+println!("--- {:?} {:?}", n1, n2);
+				let share1 = ml.nodes.values().nth(n1).unwrap().key_storage.get(&key_id).unwrap();
+				let share2 = ml.nodes.values().nth(n2).unwrap().key_storage.get(&key_id).unwrap();
+				let id_number1 = share1.id_numbers[ml.nodes.keys().nth(n1).unwrap()].clone();
+				let id_number2 = share1.id_numbers[ml.nodes.keys().nth(n2).unwrap()].clone();
+				// now encrypt and decrypt data
+				let (document_secret_decrypted, document_secret_decrypted_test) =
+					math::tests::do_encryption_and_decryption(1,
+						joint_key_pair.public(),
+						&[id_number1, id_number2],
+						&[share1.secret_share, share2.secret_share],
+						Some(&joint_secret),
+						document_secret_plain.clone());
+println!("===1 {:?} {:?}", document_secret_plain, document_secret_decrypted_test);
+				assert_eq!(document_secret_plain, document_secret_decrypted_test);
+println!("===2 {:?} {:?}", document_secret_plain, document_secret_decrypted);
+				assert_eq!(document_secret_plain, document_secret_decrypted);
+			}
+		}
+	}
 }

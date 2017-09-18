@@ -309,11 +309,11 @@ pub fn decrypt_with_joint_shadow(threshold: usize, access_key: &Secret, encrypte
 	math::public_mul_secret(&mut mul, &inv_access_key)?;
 
 	let mut decrypted_point = encrypted_point.clone();
-	if threshold % 2 != 0 {
+	//if threshold % 2 != 0 {
 		math::public_add(&mut decrypted_point, &mul)?;
-	} else {
+	/*} else {
 		math::public_sub(&mut decrypted_point, &mul)?;
-	}
+	}*/
 
 	Ok(decrypted_point)
 }
@@ -600,10 +600,12 @@ pub mod tests {
 				.filter(|&(j, _)| j != i)
 				.take(t)
 				.map(|(_, id_number)| id_number)).unwrap()).collect();
+
 		let nodes_shadow_points: Vec<_> = nodes_shadows.iter()
 			.map(|s| compute_node_shadow_point(&access_key, &encrypted_secret.common_point, s, None).unwrap())
 			.map(|sp| sp.0)
 			.collect();
+println!("=== nodes_shadow_points = {:?}", nodes_shadow_points);
 		assert_eq!(nodes_shadows.len(), t + 1);
 		assert_eq!(nodes_shadow_points.len(), t + 1);
 
