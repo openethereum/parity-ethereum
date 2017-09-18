@@ -83,7 +83,7 @@ attach contract
 
 ```javascript
 const abi = [{ name: 'callMe', inputs: [{ type: 'bool', ...}, { type: 'string', ...}]}, ...abi...];
-const contract = new ethapi.newContract(abi);
+const contract = ethapi.newContract(abi);
 ```
 
 deploy
