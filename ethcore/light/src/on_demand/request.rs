@@ -21,7 +21,7 @@ use std::sync::Arc;
 use ethcore::basic_account::BasicAccount;
 use ethcore::encoded;
 use ethcore::engines::{Engine, StateDependentProof};
-use ethcore::receipt::Receipt;
+use ethcore::receipt::{Receipt, TransactionOutcome};
 use ethcore::state::{self, ProvedExecution};
 use ethcore::transaction::SignedTransaction;
 use vm::EnvInfo;
@@ -973,8 +973,7 @@ mod tests {
 	#[test]
 	fn check_receipts() {
 		let receipts = (0..5).map(|_| Receipt {
-			state_root: Some(H256::random()),
-			status_code: None,
+			outcome: TransactionOutcome::StateRoot(H256::random()),
 			gas_used: 21_000u64.into(),
 			log_bloom: Default::default(),
 			logs: Vec::new(),

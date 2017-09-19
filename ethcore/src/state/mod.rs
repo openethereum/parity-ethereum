@@ -26,7 +26,7 @@ use std::fmt;
 use std::sync::Arc;
 use hash::{KECCAK_NULL_RLP, KECCAK_EMPTY};
 
-use receipt::Receipt;
+use receipt::{Receipt, TransactionOutcome};
 use engines::Engine;
 use vm::EnvInfo;
 use error::Error;
@@ -699,21 +699,19 @@ impl<B: Backend> State<B> {
 			eip658 ||
 			(env_info.number >= engine.params().eip98_transition && env_info.number >= engine.params().validate_receipts_transition);
 
-		let state_root = if no_intermediate_commits {
-			None
+		let outcome = if no_intermediate_commits {
+			if eip658 {
+				TransactionOutcome::StatusCode(if e.exception.is_some() { 0 } else { 1 })
+			} else {
+				TransactionOutcome::Unknown
+			}
 		} else {
 			self.commit()?;
-			Some(self.root().clone())
-		};
-
-		let status_byte = if eip658 {
-			Some(if e.exception.is_some() { 0 } else { 1 })
-		} else {
-			None
+			TransactionOutcome::StateRoot(self.root().clone())
 		};
 
 		let output = e.output;
-		let receipt = Receipt::new(state_root, status_byte, e.cumulative_gas_used, e.logs);
+		let receipt = Receipt::new(outcome, e.cumulative_gas_used, e.logs);
 		trace!(target: "state", "Transaction receipt: {:?}", receipt);
 
 		Ok(ApplyOutcome {
