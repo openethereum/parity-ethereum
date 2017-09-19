@@ -656,8 +656,7 @@ pub mod tests {
 				let share2 = ml.nodes.values().nth(n2).unwrap().key_storage.get(&key_id).unwrap();
 				let id_number1 = share1.id_numbers[ml.nodes.keys().nth(n1).unwrap()].clone();
 				let id_number2 = share1.id_numbers[ml.nodes.keys().nth(n2).unwrap()].clone();
-println!("=== {:?} {:?}", n1, n2);
-println!("=== {:?} {:?}", id_number1, id_number2);
+
 				// now encrypt and decrypt data
 				let (document_secret_decrypted, document_secret_decrypted_test) =
 					math::tests::do_encryption_and_decryption(1,

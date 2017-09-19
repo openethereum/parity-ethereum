@@ -1,6 +1,7 @@
 // TODO: when anys session starts on the node, which doesn't have key share, do not fail session, but delegate it
 // TODO: add key share version to db? and never overwrite key share data, but add a new version. Version must be agreed on decryption/signing session start
 // TODO: add polynom1 to database. otherwise share add is not possible
+// TODO: duplicate NewKeysDissemination messages are sent!!!
 
 // Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
@@ -506,7 +507,6 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		// send required messages
 		let refreshed_polynom1_sum = data.refreshed_polynom1_sum.as_ref()
 			.expect("disseminate_keys is only called after generating refreshed_polynom1_sum; qed");
-println!("=== threshold = {} refreshed_polynom1_sum = {:?}", core.meta.threshold, refreshed_polynom1_sum);
 		let refreshed_publics = (0..core.meta.threshold+1)
 			.map(|i| math::compute_public_share(&refreshed_polynom1_sum[i]))
 			.collect::<Result<Vec<_>, _>>()?;
@@ -523,6 +523,12 @@ println!("=== threshold = {} refreshed_polynom1_sum = {:?}", core.meta.threshold
 				refreshed_publics: refreshed_publics.iter().cloned().map(Into::into).collect(),
 			}))?;
 		}
+
+		// 'receive' data from self
+		let self_node_data = data.nodes.get_mut(&core.meta.self_node_id)
+			.expect("data.nodes contains entry for every session node; this node is a part of the session; qed");
+		self_node_data.refreshed_secret1 = Some(math::compute_polynom(refreshed_polynom1_sum, &self_node_data.id_number)?);
+		self_node_data.refreshed_publics = Some(refreshed_publics);
 
 		Ok(())
 	}
@@ -712,7 +718,6 @@ mod tests {
 
 		pub fn run(&mut self) {
 			while let Some((from, to, message)) = self.take_message() {
-println!("=== {:?}", message);
 				self.process_message((from, to, message)).unwrap();
 			}
 		}
@@ -743,27 +748,30 @@ println!("=== {:?}", message);
 	}
 
 	#[test]
-	fn share_add_session_works() {
+	fn node_added_using_share_add() {
 		// initial 2-of-3 session
-		let gml = generate_key(1, 3);
+		let (t, n) = (1, 3);
+		let gml = generate_key(t, n);
 		let gml_nodes: BTreeSet<_> = gml.nodes.keys().cloned().collect();
 		let key_id = gml.session_id.clone();
 		let master = gml.nodes.keys().cloned().nth(0).unwrap();
-		let share0 = gml.nodes.values().nth(0).unwrap().key_storage.get(&key_id).unwrap();
-		let share1 = gml.nodes.values().nth(1).unwrap().key_storage.get(&key_id).unwrap();
-		let share2 = gml.nodes.values().nth(2).unwrap().key_storage.get(&key_id).unwrap();
-		let joint_secret = math::compute_joint_secret([share0.polynom1[0].clone(), share1.polynom1[0].clone(), share2.polynom1[0].clone()].iter()).unwrap();
+		let joint_secret = math::compute_joint_secret(gml.nodes.values()
+			.map(|nd| nd.key_storage.get(&key_id).unwrap().polynom1[0].clone())
+			.collect::<Vec<_>>()
+			.iter()).unwrap();
 		let joint_key_pair = KeyPair::from_secret(joint_secret.clone()).unwrap();
 
 		// insert 1 node so that it becames 2-of-4 session
-		let mut ml = MessageLoop::new(gml, 1, 1);
-		ml.nodes[&master].session.initialize(ml.nodes.keys().cloned().filter(|n| !gml_nodes.contains(n)).collect());
+		let mut ml = MessageLoop::new(gml, t, 1);
+		let new_nodes_set: BTreeSet<_> = ml.nodes.keys().cloned().filter(|n| !gml_nodes.contains(n)).collect();
+		assert_eq!(new_nodes_set.len(), 1);
+		ml.nodes[&master].session.initialize(new_nodes_set);
 		ml.run();
 
 		// try to recover secret for every possible combination of nodes && check that secret is the same
 		let document_secret_plain = math::generate_random_point().unwrap();
-		for n1 in 0..4 {
-			for n2 in n1+1..4 {
+		for n1 in 0..n+1 {
+			for n2 in n1+1..n+1 {
 				let share1 = ml.nodes.values().nth(n1).unwrap().key_storage.get(&key_id).unwrap();
 				let share2 = ml.nodes.values().nth(n2).unwrap().key_storage.get(&key_id).unwrap();
 				let id_number1 = share1.id_numbers[ml.nodes.keys().nth(n1).unwrap()].clone();
@@ -771,7 +779,7 @@ println!("=== {:?}", message);
 
 				// now encrypt and decrypt data
 				let (document_secret_decrypted, document_secret_decrypted_test) =
-					math::tests::do_encryption_and_decryption(1,
+					math::tests::do_encryption_and_decryption(t,
 						joint_key_pair.public(),
 						&[id_number1, id_number2],
 						&[share1.secret_share, share2.secret_share],

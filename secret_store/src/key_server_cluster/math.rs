@@ -757,14 +757,20 @@ pub mod tests {
 		// generate key using 6-of-10 session
 		let (t, n) = (5, 10);
 		let artifacts1 = run_key_generation(t, n, None);
+		let joint_secret1 = compute_joint_secret(artifacts1.polynoms1.iter().map(|p1| &p1[0])).unwrap();
+		let joint_key_pair = KeyPair::from_secret(joint_secret1.clone()).unwrap();
 
 		// let's say we want to include additional server to the set
 		// so that scheme becames 6-of-11
 		let artifacts2 = run_key_share_refreshing_and_add_new_nodes(t, n, 1, &artifacts1);
+		let joint_secret2 = compute_joint_secret(artifacts2.polynoms1.iter().map(|p1| &p1[0])).unwrap();
 		assert_eq!(artifacts1.joint_public, artifacts2.joint_public);
+		assert_eq!(joint_secret1, joint_secret2);
 
 		// include another couple of servers (6-of-13)
 		let artifacts3 = run_key_share_refreshing_and_add_new_nodes(t, n + 1, 2, &artifacts2);
+		let joint_secret3 = compute_joint_secret(artifacts3.polynoms1.iter().map(|p1| &p1[0])).unwrap();
 		assert_eq!(artifacts1.joint_public, artifacts3.joint_public);
+		assert_eq!(joint_secret1, joint_secret3);
 	}
 }
