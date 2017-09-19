@@ -55,6 +55,8 @@ pub struct ShareChangeSession {
 	nodes_to_move: Option<BTreeMap<NodeId, NodeId>>,
 	/// Share add session.
 	share_add_session: Option<ShareAddSessionImpl<ShareAddTransport>>,
+	/// Is finished.
+	is_finished: bool,
 }
 
 /// Session parameters.
@@ -109,7 +111,18 @@ impl ShareChangeSession {
 			nodes_to_remove: params.nodes_to_remove,
 			nodes_to_move: params.nodes_to_move,
 			share_add_session: None,
+			is_finished: false, // TODO: debug_assert that it is actually false
 		})
+	}
+
+	/// Is finished?.
+	pub fn is_finished(&self) -> bool {
+		self.is_finished
+	}
+
+	/// Is master node?.
+	pub fn is_master(&self) -> bool {
+		self.self_node_id == self.master_node_id
 	}
 
 	/// Initialize session (on master node).
@@ -121,9 +134,11 @@ impl ShareChangeSession {
 	pub fn on_share_add_message(&mut self, sender: &NodeId, message: &ShareAddMessage) -> Result<(), Error> {
 		if let &ShareAddMessage::InitializeShareAddSession(ref message) = message {
 			if self.share_add_session.is_some() {
+println!("=== 3");
 				return Err(Error::InvalidMessage);
 			}
 			if sender != &self.master_node_id {
+println!("=== 4");
 				return Err(Error::InvalidMessage);
 			}
 
@@ -198,6 +213,8 @@ impl ShareChangeSession {
 				return;
 			}
 		}*/
+
+		self.is_finished = true;
 
 		Ok(())
 	}

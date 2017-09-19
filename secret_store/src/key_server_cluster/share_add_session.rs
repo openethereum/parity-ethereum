@@ -240,18 +240,22 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 
 		// awaiting this message from master node only
 		if sender != &self.core.meta.master_node_id {
+println!("=== A");
 			return Err(Error::InvalidMessage);
 		}
 		// this node must be on final nodes set
 		if !message.nodes.contains_key(&self.core.meta.self_node_id.clone().into()) {
+println!("=== B");
 			return Err(Error::InvalidMessage);
 		}
 		// all new nodes must be on final nodes set
 		if message.new_nodes.iter().any(|n| !message.nodes.contains_key(n)) {
+println!("=== C");
 			return Err(Error::InvalidMessage);
 		}
 		// this node is either old on both (this && master) nodes, or new on both nodes
 		if self.core.key_share.is_some() != !message.new_nodes.contains(&self.core.meta.self_node_id.clone().into()) {
+println!("=== D");
 			return Err(Error::InvalidMessage);
 		}
 
@@ -290,6 +294,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 
 		// awaiting this message on master node only
 		if self.core.meta.self_node_id != self.core.meta.master_node_id {
+println!("=== 1");
 			return Err(Error::InvalidMessage);
 		}
 
@@ -419,6 +424,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 
 		// check message
 		if message.refreshed_publics.len() != self.core.meta.threshold + 1 {
+println!("=== E");
 			return Err(Error::InvalidMessage);
 		}
 
@@ -542,6 +548,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 			let is_key_verification_ok = math::refreshed_keys_verification(core.meta.threshold, &number_id, refreshed_secret1, refreshed_publics)?;
 
 			if !is_key_verification_ok {
+println!("=== XXX");
 				// node has sent us incorrect values. In original ECDKG protocol we should have sent complaint here.
 				return Err(Error::InvalidMessage);
 			}
