@@ -661,7 +661,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	if let Some(filter) = connection_filter {
 		service.add_notify(filter);
 	}
-	client.get_private_transactions_provider().add_notify(chain_notify.clone());
+	client.private_transactions_provider().add_notify(chain_notify.clone());
 
 	// start network
 	if network_enabled {

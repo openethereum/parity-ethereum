@@ -1218,8 +1218,8 @@ impl BlockChainClient for Client {
 		Ok(results)
 	}
 
-	fn get_private_transactions_provider(&self) -> Arc<PrivateTransactionsProvider> {
-		self.provider.clone()
+	fn private_transactions_provider(&self) -> &PrivateTransactionsProvider {
+		&*self.provider
 	}
 
 	fn estimate_gas(&self, t: &SignedTransaction, block: BlockId) -> Result<U256, CallError> {

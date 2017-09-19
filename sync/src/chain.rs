@@ -2216,7 +2216,7 @@ impl ChainSync {
 	/// Called when peer sends us new private transaction packet
 	fn on_private_transaction(io: &mut SyncIo, peer_id: PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
 		trace!(target: "sync", "Received private transaction packet from {:?}", peer_id);
-		if let Err(e) = io.chain().get_private_transactions_provider().import_private_transaction(r.as_raw(), peer_id) {
+		if let Err(e) = io.chain().private_transactions_provider().import_private_transaction(r.as_raw(), peer_id) {
 			debug!("Ignoring the message, error queueing: {}", e);
 		}
 		Ok(())
@@ -2234,7 +2234,7 @@ impl ChainSync {
 	/// Called when peer sends us signed private transaction packet
 	fn on_signed_private_transaction(io: &mut SyncIo, peer_id: PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
 		trace!(target: "sync", "Received signed private transaction packet from {:?}", peer_id);
-		if let Err(e) = io.chain().get_private_transactions_provider().import_signed_private_transaction(r.as_raw(), peer_id) {
+		if let Err(e) = io.chain().private_transactions_provider().import_signed_private_transaction(r.as_raw(), peer_id) {
 			debug!("Ignoring the message, error queueing: {}", e);
 		}
 		Ok(())

@@ -15,7 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::BTreeMap;
-use std::sync::Arc;
 use itertools::Itertools;
 
 use block::{OpenBlock, SealedBlock, ClosedBlock};
@@ -188,7 +187,7 @@ pub trait BlockChainClient : Sync + Send {
 	fn logs(&self, filter: Filter) -> Vec<LocalizedLogEntry>;
 
 	/// Get the private transactions provider.
-	fn get_private_transactions_provider(&self) -> Arc<PrivateTransactionsProvider>;
+	fn private_transactions_provider(&self) -> &PrivateTransactionsProvider;
 
 	/// Makes a non-persistent transaction call.
 	fn call(&self, tx: &SignedTransaction, analytics: CallAnalytics, block: BlockId) -> Result<Executed, CallError>;

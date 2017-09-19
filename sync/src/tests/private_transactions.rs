@@ -30,7 +30,7 @@ use tests::helpers::*;
 use SyncConfig;
 
 #[test]
-pub fn send_private_transaction() {
+fn send_private_transaction() {
 	// Setup two clients
 	let s0 = KeyPair::from_secret_slice(&keccak("1")).unwrap();
 	let s1 = KeyPair::from_secret_slice(&keccak("0")).unwrap();
@@ -61,13 +61,13 @@ pub fn send_private_transaction() {
 	};
 	let signature = net.peer(0).chain.engine().sign(transaction.hash(Some(chain_id)));
 	let message = transaction.with_signature(signature.unwrap(), Some(chain_id)).rlp_bytes();
-	net.peer(0).chain.get_private_transactions_provider().broadcast_private_transaction(message.into_vec());
+	net.peer(0).chain.private_transactions_provider().broadcast_private_transaction(message.into_vec());
 	net.sync();
 	net.peer(0).chain.engine().step();
 	net.peer(1).chain.engine().step();
 	net.sync();
 
-	assert_eq!(net.peer(1).chain.get_private_transactions_provider().private_transactions().len(), 1);
+	assert_eq!(net.peer(1).chain.private_transactions_provider().private_transactions().len(), 1);
 
 	// broadcast signed private transaction back
 	let signed_transaction = Transaction {
@@ -80,11 +80,11 @@ pub fn send_private_transaction() {
 	};
 	let signature_for_signed = net.peer(1).chain.engine().sign(signed_transaction.hash(Some(chain_id)));
 	let signed_message = signed_transaction.with_signature(signature_for_signed.unwrap(), Some(chain_id)).rlp_bytes();
-	net.peer(1).chain.get_private_transactions_provider().broadcast_signed_private_transaction(signed_message.into_vec());
+	net.peer(1).chain.private_transactions_provider().broadcast_signed_private_transaction(signed_message.into_vec());
 	net.sync();
 	net.peer(1).chain.engine().step();
 	net.peer(0).chain.engine().step();
 	net.sync();
 
-	assert_eq!(net.peer(0).chain.get_private_transactions_provider().signed_private_transactions().len(), 1);
+	assert_eq!(net.peer(0).chain.private_transactions_provider().signed_private_transactions().len(), 1);
 }

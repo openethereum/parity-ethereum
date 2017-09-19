@@ -16,39 +16,41 @@
 
 use transaction::UnverifiedTransaction;
 use error::Error;
-use parking_lot::RwLock;
 
 /// Storage for private transactions
 pub struct PrivateTransactions {
-	transactions: RwLock<Vec<UnverifiedTransaction>>,
-	signed_transactions:  RwLock<Vec<UnverifiedTransaction>>,
+	transactions: Vec<UnverifiedTransaction>,
+	signed_transactions: Vec<UnverifiedTransaction>,
 }
 
 impl PrivateTransactions {
+	/// Creates new store
 	pub fn new() -> Self {
 		PrivateTransactions {
-			transactions: RwLock::new(Vec::new()),
-			signed_transactions: RwLock::new(Vec::new()),
+			transactions: Vec::new(),
+			signed_transactions: Vec::new(),
 		}
 	}
 
-	pub fn import_transaction(&self, transaction: UnverifiedTransaction, _peer_id: usize) -> Result<(), Error> {
-		let mut transactions = self.transactions.write();
-		transactions.push(transaction);
+	/// Adds private transaction into the store
+	pub fn import_transaction(&mut self, transaction: UnverifiedTransaction, _peer_id: usize) -> Result<(), Error> {
+		self.transactions.push(transaction);
 		Ok(())
 	}
 
-	pub fn import_signed_transaction(&self, transaction: UnverifiedTransaction, _peer_id: usize) -> Result<(), Error> {
-		let mut signed_transactions = self.signed_transactions.write();
-		signed_transactions.push(transaction);
+	/// Adds signed private transaction into the store
+	pub fn import_signed_transaction(&mut self, transaction: UnverifiedTransaction, _peer_id: usize) -> Result<(), Error> {
+		self.signed_transactions.push(transaction);
 		Ok(())
 	}
 
-	pub fn get_transactions_list(&self) -> Vec<UnverifiedTransaction> {
-		self.transactions.read().clone()
+	/// Returns the list of all stored private transactions
+	pub fn transactions_list(&self) -> Vec<UnverifiedTransaction> {
+		self.transactions.clone()
 	}
 
-	pub fn get_signed_transactions_list(&self) -> Vec<UnverifiedTransaction> {
-		self.signed_transactions.read().clone()
+	/// Returns the list of all stored signed private transactions
+	pub fn signed_transactions_list(&self) -> Vec<UnverifiedTransaction> {
+		self.signed_transactions.clone()
 	}
 }

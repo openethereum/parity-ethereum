@@ -420,7 +420,7 @@ impl BlockChainClient for TestBlockChainClient {
 		Ok(res)
 	}
 
-	fn get_private_transactions_provider(&self) -> Arc<PrivateTransactionsProvider> {
+	fn private_transactions_provider(&self) -> &PrivateTransactionsProvider {
 		unimplemented!();
 	}
 

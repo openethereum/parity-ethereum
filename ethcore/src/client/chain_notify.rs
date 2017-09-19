@@ -18,9 +18,13 @@ use ipc::IpcConfig;
 use bigint::hash::H256;
 use bytes::Bytes;
 
+/// Messages to broadcast via chain
 pub enum ChainMessageType {
+	/// Consensus message
 	Consensus,
+	/// Message with private transaction
 	PrivateTransaction,
+	/// Message with signed private transaction
 	SignedPrivateTransaction,
 }
 

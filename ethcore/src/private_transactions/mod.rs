@@ -59,7 +59,6 @@ impl Provider {
 	/// Add private transaction into the store
 	pub fn import_private_transaction(&self, rlp: &[u8], peer_id: usize) -> Result<(), EthcoreError> {
 		let tx: UnverifiedTransaction = UntrustedRlp::new(rlp).as_val()?;
-		// TODO: notify engines about private transactions
 		self.private_transactions.lock().import_transaction(tx, peer_id)
 	}
 
@@ -81,11 +80,11 @@ impl Provider {
 
 	/// Returns the list of private transactions
 	pub fn private_transactions(&self) -> Vec<UnverifiedTransaction> {
-		self.private_transactions.lock().get_transactions_list()
+		self.private_transactions.lock().transactions_list()
 	}
 
 	/// Returns the list of signed private transactions
 	pub fn signed_private_transactions(&self) -> Vec<UnverifiedTransaction> {
-		self.private_transactions.lock().get_signed_transactions_list()
+		self.private_transactions.lock().signed_transactions_list()
 	}
 }
