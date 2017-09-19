@@ -306,7 +306,7 @@ impl TestNet<EthPeer<EthcoreClient>> {
 			queue: RwLock::new(VecDeque::new()),
 		});
 		peer.chain.add_notify(peer.clone());
-		peer.chain.get_private_transactions_provider().add_notify(peer.clone());
+		peer.chain.private_transactions_provider().add_notify(peer.clone());
 		self.peers.push(peer);
 	}
 }
