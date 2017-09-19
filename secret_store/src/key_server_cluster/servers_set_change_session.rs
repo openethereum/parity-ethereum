@@ -508,7 +508,7 @@ pub fn nodes_hash(nodes: &BTreeSet<NodeId>) -> SessionId {
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
 	use std::sync::Arc;
 	use std::collections::{VecDeque, BTreeMap, BTreeSet};
 	use ethkey::{Random, Generator, Public, KeyPair, sign};
@@ -519,7 +519,7 @@ mod tests {
 	use key_server_cluster::message::Message;
 	use super::{SessionImpl, SessionParams, nodes_hash};
 
-	pub struct Node {
+	struct Node {
 		pub cluster: Arc<DummyCluster>,
 		pub key_storage: Arc<DummyKeyStorage>,
 		pub session: SessionImpl,
@@ -594,7 +594,6 @@ mod tests {
 
 		pub fn run(&mut self) {
 			while let Some((from, to, message)) = self.take_message() {
-println!("=== {:?}", (&from, &to, &message));
 				self.process_message((from, to, message)).unwrap();
 			}
 		}
@@ -623,7 +622,7 @@ println!("=== {:?}", (&from, &to, &message));
 		}
 	}
 
-	fn generate_key(threshold: usize, num_nodes: usize) -> GenerationMessageLoop {
+	pub fn generate_key(threshold: usize, num_nodes: usize) -> GenerationMessageLoop {
 		let mut gml = GenerationMessageLoop::new(num_nodes);
 		gml.master().initialize(Public::default(), threshold, gml.nodes.keys().cloned().collect()).unwrap();
 		while let Some((from, to, message)) = gml.take_message() {
@@ -641,22 +640,24 @@ println!("=== {:?}", (&from, &to, &message));
 		let share0 = gml.nodes.values().nth(0).unwrap().key_storage.get(&key_id).unwrap();
 		let share1 = gml.nodes.values().nth(1).unwrap().key_storage.get(&key_id).unwrap();
 		let share2 = gml.nodes.values().nth(2).unwrap().key_storage.get(&key_id).unwrap();
-		let joint_secret = math::compute_joint_secret([share0.secret_share, share1.secret_share, share2.secret_share].iter()).unwrap();
+		let joint_secret = math::compute_joint_secret([share0.polynom1[0].clone(), share1.polynom1[0].clone(), share2.polynom1[0].clone()].iter()).unwrap();
 		let joint_key_pair = KeyPair::from_secret(joint_secret.clone()).unwrap();
+
 		// insert 1 node so that it becames 2-of-4 session
-//		let mut ml = MessageLoop::new(gml, 1);
-//		ml.nodes[&master].session.initialize(ml.nodes.keys().cloned().collect());
-//		ml.run();
-let ml = gml;
+		let mut ml = MessageLoop::new(gml, 1);
+		ml.nodes[&master].session.initialize(ml.nodes.keys().cloned().collect());
+		ml.run();
+
 		// try to recover secret for every possible combination of nodes && check that secret is the same
 		let document_secret_plain = math::generate_random_point().unwrap();
-		for n1 in 0..3 {
-			for n2 in n1+1..3 {
-println!("--- {:?} {:?}", n1, n2);
+		for n1 in 0..4 {
+			for n2 in n1+1..4 {
 				let share1 = ml.nodes.values().nth(n1).unwrap().key_storage.get(&key_id).unwrap();
 				let share2 = ml.nodes.values().nth(n2).unwrap().key_storage.get(&key_id).unwrap();
 				let id_number1 = share1.id_numbers[ml.nodes.keys().nth(n1).unwrap()].clone();
 				let id_number2 = share1.id_numbers[ml.nodes.keys().nth(n2).unwrap()].clone();
+println!("=== {:?} {:?}", n1, n2);
+println!("=== {:?} {:?}", id_number1, id_number2);
 				// now encrypt and decrypt data
 				let (document_secret_decrypted, document_secret_decrypted_test) =
 					math::tests::do_encryption_and_decryption(1,
@@ -665,9 +666,8 @@ println!("--- {:?} {:?}", n1, n2);
 						&[share1.secret_share, share2.secret_share],
 						Some(&joint_secret),
 						document_secret_plain.clone());
-println!("===1 {:?} {:?}", document_secret_plain, document_secret_decrypted_test);
+
 				assert_eq!(document_secret_plain, document_secret_decrypted_test);
-println!("===2 {:?} {:?}", document_secret_plain, document_secret_decrypted);
 				assert_eq!(document_secret_plain, document_secret_decrypted);
 			}
 		}

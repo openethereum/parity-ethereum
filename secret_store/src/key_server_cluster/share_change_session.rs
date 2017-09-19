@@ -82,7 +82,7 @@ pub struct ShareChangeSessionParams {
 }
 
 /// Share add session transport.
-struct ShareAddTransport {
+pub struct ShareAddTransport {
 	/// Servers set change session id.
 	session_id: SessionId,
 	/// Session nonce.
