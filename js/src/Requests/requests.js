@@ -110,6 +110,7 @@ class Requests extends Component {
             ? null
             : (
               <Progress
+                className={ styles.progress }
                 max={ 6 }
                 isDeterminate={ state.type !== WAITING_STATE }
                 value={

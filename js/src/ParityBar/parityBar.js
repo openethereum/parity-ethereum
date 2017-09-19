@@ -237,7 +237,6 @@ class ParityBar extends Component {
           icon={
             <IdentityIcon
               address={ this.accountStore.defaultAccount }
-              button
               center
               inline
             />

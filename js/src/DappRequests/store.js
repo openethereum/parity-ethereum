@@ -137,6 +137,10 @@ export default class Store {
   }
 
   @action rejectMessage = (source, { id, from, method, token }) => {
+    if (!source) {
+      return;
+    }
+
     source.postMessage({
       error: `Method ${method} not allowed`,
       id,
@@ -198,6 +202,10 @@ export default class Store {
 
   _methodCallbackPost = (id, from, source, token) => {
     return (error, result) => {
+      if (!source) {
+        return;
+      }
+
       source.postMessage({
         error: error
           ? error.message

@@ -208,10 +208,16 @@ module.exports = {
                     ? dapp.id
                     : Api.util.sha3(dapp.url);
 
-                  return ['index.html', 'dist.css', 'dist.css.map', 'dist.js', 'dist.js.map'].map((file) => ({
-                    from: path.join(dir, file),
+                  return [
+                    'index.html', 'dist.css', 'dist.css.map', 'dist.js', 'dist.js.map'
+                  ]
+                  .map((file) => path.join(dir, file))
+                  .filter((from) => fs.existsSync(from))
+                  .map((from) => ({
+                    from,
                     to: `dapps/${destination}/`
-                  })).concat({
+                  }))
+                  .concat({
                     from: path.join(dir, 'dist'),
                     to: `dapps/${destination}/dist/`
                   });
