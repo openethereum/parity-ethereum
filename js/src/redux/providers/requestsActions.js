@@ -72,7 +72,7 @@ export const trackRequest = (requestId, { transactionHash = null } = {}) => (dis
       const requestData = requests[requestId];
       let blockSubscriptionId = -1;
 
-      // Set the block height to 1 at the beggining (transaction mined,
+      // Set the block height to 1 at the beginning (transaction mined,
       // thus one confirmation)
       data.blockHeight = new BigNumber(1);
 
