@@ -219,40 +219,47 @@ export default class FoundationWalletUtils {
         ] ]
       })
       .then((logs) => {
-        const transactions = logs.map((log) => {
-          const signature = toHex(log.topics[0]);
+        const transactions = logs
+          .map((log) => {
+            const signature = toHex(log.topics[0]);
 
-          const value = log.params.value.value;
-          const from = signature === WalletSignatures.Deposit
-            ? log.params['_from'].value
-            : walletContract.address;
+            const value = log.params.value.value;
+            const from = signature === WalletSignatures.Deposit
+              ? log.params['_from'].value
+              : walletContract.address;
 
-          const to = signature === WalletSignatures.Deposit
-            ? walletContract.address
-            : log.params.to.value;
+            const to = signature === WalletSignatures.Deposit
+              ? walletContract.address
+              : log.params.to.value;
 
-          const transaction = {
-            transactionHash: log.transactionHash,
-            blockNumber: log.blockNumber,
-            from, to, value
-          };
+            const transaction = {
+              transactionHash: log.transactionHash,
+              blockNumber: log.blockNumber,
+              from, to, value
+            };
 
-          if (log.params.created && log.params.created.value && !/^(0x)?0*$/.test(log.params.created.value)) {
-            transaction.creates = log.params.created.value;
-            delete transaction.to;
-          }
+            if (!transaction.blockNumber) {
+              console.warn('log without block number', log);
+              return null;
+            }
 
-          if (log.params.operation) {
-            transaction.operation = bytesToHex(log.params.operation.value);
-            checkPendingOperation(api, log, transaction.operation);
-          }
+            if (log.params.created && log.params.created.value && !/^(0x)?0*$/.test(log.params.created.value)) {
+              transaction.creates = log.params.created.value;
+              delete transaction.to;
+            }
 
-          if (log.params.data) {
-            transaction.data = log.params.data.value;
-          }
+            if (log.params.operation) {
+              transaction.operation = bytesToHex(log.params.operation.value);
+              checkPendingOperation(api, log, transaction.operation);
+            }
 
-          return transaction;
-        });
+            if (log.params.data) {
+              transaction.data = log.params.data.value;
+            }
+
+            return transaction;
+          })
+          .filter((tx) => tx);
 
         return transactions;
       });
