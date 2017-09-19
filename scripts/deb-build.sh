@@ -25,7 +25,7 @@ echo "Homepage: https://parity.io" >> $control
 echo "Vcs-Git: git://github.com/paritytech/parity.git" >> $control
 echo "Vcs-Browser: https://github.com/paritytech/parity" >> $control
 echo "Architecture: $1" >> $control
-echo "Depends: libssl1.0.0 (>=1.0.0)" >> $control
+echo "Depends: libssl (>=1.1.0)" >> $control
 echo "Description: Ethereum network client by Parity Technologies" >> $control
 size=`du deb/|awk 'END {print $1}'`
 echo "Installed-Size: $size" >> $control
