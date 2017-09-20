@@ -34,7 +34,8 @@ pub enum SpecType {
 	Kovan,
 	Olympic,
 	Classic,
-	Expanse,
+  Expanse,
+	Musicoin,
 	Dev,
 	Custom(String),
 }
@@ -56,7 +57,8 @@ impl str::FromStr for SpecType {
 			"ropsten" => SpecType::Ropsten,
 			"kovan" | "testnet" => SpecType::Kovan,
 			"olympic" => SpecType::Olympic,
-			"expanse" => SpecType::Expanse,
+      "expanse" => SpecType::Expanse,
+			"musicoin" => SpecType::Musicoin,
 			"dev" => SpecType::Dev,
 			other => SpecType::Custom(other.into()),
 		};
@@ -72,7 +74,8 @@ impl fmt::Display for SpecType {
 			SpecType::Ropsten => "ropsten",
 			SpecType::Olympic => "olympic",
 			SpecType::Classic => "classic",
-			SpecType::Expanse => "expanse",
+      SpecType::Expanse => "expanse",
+			SpecType::Musicoin => "musicoin",
 			SpecType::Kovan => "kovan",
 			SpecType::Dev => "dev",
 			SpecType::Custom(ref custom) => custom,
@@ -89,7 +92,8 @@ impl SpecType {
 			SpecType::Ropsten => Ok(ethereum::new_ropsten(cache_dir)),
 			SpecType::Olympic => Ok(ethereum::new_olympic(cache_dir)),
 			SpecType::Classic => Ok(ethereum::new_classic(cache_dir)),
-			SpecType::Expanse => Ok(ethereum::new_expanse(cache_dir)),
+      SpecType::Expanse => Ok(ethereum::new_expanse(cache_dir)),
+			SpecType::Musicoin => Ok(ethereum::new_musicoin(cache_dir)),
 			SpecType::Kovan => Ok(ethereum::new_kovan(cache_dir)),
 			SpecType::Dev => Ok(Spec::new_instant()),
 			SpecType::Custom(ref filename) => {
@@ -102,7 +106,8 @@ impl SpecType {
 	pub fn legacy_fork_name(&self) -> Option<String> {
 		match *self {
 			SpecType::Classic => Some("classic".to_owned()),
-			SpecType::Expanse => Some("expanse".to_owned()),
+      SpecType::Expanse => Some("expanse".to_owned()),
+			SpecType::Musicoin => Some("musicoin".to_owned()),
 			_ => None,
 		}
 	}
@@ -352,7 +357,8 @@ mod tests {
 		assert_eq!(format!("{}", SpecType::Morden), "morden");
 		assert_eq!(format!("{}", SpecType::Olympic), "olympic");
 		assert_eq!(format!("{}", SpecType::Classic), "classic");
-		assert_eq!(format!("{}", SpecType::Expanse), "expanse");
+    assert_eq!(format!("{}", SpecType::Expanse), "expanse");
+		assert_eq!(format!("{}", SpecType::Musicoin), "musicoin");
 		assert_eq!(format!("{}", SpecType::Kovan), "kovan");
 		assert_eq!(format!("{}", SpecType::Dev), "dev");
 		assert_eq!(format!("{}", SpecType::Custom("foo/bar".into())), "foo/bar");

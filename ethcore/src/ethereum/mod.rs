@@ -58,6 +58,9 @@ pub fn new_classic(cache_dir: &Path) -> Spec { load(cache_dir, include_bytes!(".
 /// Create a new Expanse mainnet chain spec.
 pub fn new_expanse(cache_dir: &Path) -> Spec { load(cache_dir, include_bytes!("../../res/ethereum/expanse.json")) }
 
+/// Create a new Musicoin mainnet chain spec.
+pub fn new_musicoin(cache_dir: &Path) -> Spec { load(cache_dir, include_bytes!("../../res/ethereum/musicoin.json")) }
+
 /// Create a new Kovan testnet chain spec.
 pub fn new_kovan(cache_dir: &Path) -> Spec { load(cache_dir, include_bytes!("../../res/ethereum/kovan.json")) }
 
