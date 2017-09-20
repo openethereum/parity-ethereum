@@ -24,6 +24,7 @@ import ClientVersion from '@parity/ui/ClientVersion';
 import GradientBg from '@parity/ui/GradientBg';
 import NetChain from '@parity/ui/NetChain';
 import NetPeers from '@parity/ui/NetPeers';
+import SignerPending from '@parity/ui/SignerPending';
 import StatusIndicator from '@parity/ui/StatusIndicator';
 
 import Consensus from './Consensus';
@@ -48,6 +49,7 @@ function Status ({ className = '', upgradeStore }, { api }) {
             <Component key={ index } />
           ))
         }
+        <SignerPending />
         <StatusIndicator id='application.status.health' />
         <BlockNumber
           className={ styles.blockNumber }

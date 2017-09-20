@@ -25,12 +25,12 @@ import { connect } from 'react-redux';
 import store from 'store';
 
 import AccountCard from '@parity/ui/AccountCard';
-import Badge from '@parity/ui/Badge';
 import Button from '@parity/ui/Button';
 import ContainerTitle from '@parity/ui/Container/Title';
 import IdentityIcon from '@parity/ui/IdentityIcon';
 import GradientBg from '@parity/ui/GradientBg';
 import SelectionList from '@parity/ui/SectionList';
+import SignerPending from '@parity/ui/SignerPending';
 import { CancelIcon, FingerprintIcon } from '@parity/ui/Icons';
 
 import imagesEthcoreBlock from '@parity/shared/assets/images/parity-logo-white-no-text.svg';
@@ -399,25 +399,12 @@ class ParityBar extends Component {
   }
 
   renderSignerLabel () {
-    const { pending } = this.props;
-    let bubble = null;
-
-    if (pending && pending.length) {
-      bubble = (
-        <Badge
-          color='red'
-          className={ styles.labelBubble }
-          value={ pending.length }
-        />
-      );
-    }
-
     return this.renderLabel(
       <FormattedMessage
         id='parityBar.label.signer'
         defaultMessage='Signer'
       />,
-      bubble
+      <SignerPending className={ styles.labelBubble } />
     );
   }
 
