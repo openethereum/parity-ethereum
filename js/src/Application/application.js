@@ -60,6 +60,7 @@ class Application extends Component {
   upgradeStore = UpgradeStore.get(this.context.api);
 
   render () {
+    const { blockNumber } = this.props;
     const [root] = (window.location.hash || '').replace('#/', '').split('/');
     const isMinimized = root !== '';
     const { pinMatrixRequest } = this.hwstore;
@@ -76,7 +77,7 @@ class Application extends Component {
     }
 
     return (
-      <div>
+      <div className={ styles.application }>
         {
           isMinimized
             ? this.renderMinimized()
@@ -101,12 +102,17 @@ class Application extends Component {
         }
         <Requests />
         <ParityBar dapp={ isMinimized } />
+        {
+          blockNumber
+            ? <Status upgradeStore={ this.upgradeStore } />
+            : null
+        }
       </div>
     );
   }
 
   renderApp () {
-    const { blockNumber, children } = this.props;
+    const { children } = this.props;
 
     return (
       <div className={ styles.container }>
@@ -118,11 +124,6 @@ class Application extends Component {
         <Snackbar />
         <UpgradeParity upgradeStore={ this.upgradeStore } />
         <Errors />
-        {
-          blockNumber
-            ? <Status upgradeStore={ this.upgradeStore } />
-            : null
-        }
         <div className={ styles.content }>
           { children }
         </div>

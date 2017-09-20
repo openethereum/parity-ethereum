@@ -15,6 +15,9 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+.application {
+}
+
 .container {
   display: flex;
   flex-direction: column;

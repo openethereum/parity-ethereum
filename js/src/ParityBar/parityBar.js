@@ -31,7 +31,6 @@ import ContainerTitle from '@parity/ui/Container/Title';
 import IdentityIcon from '@parity/ui/IdentityIcon';
 import GradientBg from '@parity/ui/GradientBg';
 import SelectionList from '@parity/ui/SectionList';
-import StatusIndicator from '@parity/ui/StatusIndicator';
 import { CancelIcon, FingerprintIcon } from '@parity/ui/Icons';
 
 import imagesEthcoreBlock from '@parity/shared/assets/images/parity-logo-white-no-text.svg';
@@ -43,7 +42,7 @@ import AccountStore from './accountStore';
 import styles from './parityBar.css';
 
 const LS_STORE_KEY = '_parity::parityBar';
-const DEFAULT_POSITION = { right: '1em', bottom: 0 };
+const DEFAULT_POSITION = { right: '1em', bottom: '2.5em' };
 const DISPLAY_ACCOUNTS = 'accounts';
 const DISPLAY_SIGNER = 'signer';
 
@@ -184,7 +183,7 @@ class ParityBar extends Component {
       if (position.top !== undefined) {
         parityBgStyle.top = 0;
       } else {
-        parityBgStyle.bottom = 0;
+        parityBgStyle.bottom = '2.5em';
       }
 
       // Set at left or right of the screen
@@ -228,10 +227,6 @@ class ParityBar extends Component {
 
     return (
       <GradientBg className={ styles.cornercolor }>
-        <StatusIndicator
-          id='paritybar.health'
-          tooltipPlacement='right'
-        />
         <Button
           className={ styles.iconButton }
           icon={
