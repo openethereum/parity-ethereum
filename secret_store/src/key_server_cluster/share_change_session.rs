@@ -21,11 +21,14 @@ use key_server_cluster::{Error, NodeId, SessionId, SessionMeta, DocumentKeyShare
 use key_server_cluster::cluster::Cluster;
 use key_server_cluster::cluster_sessions::ClusterSession;
 use key_server_cluster::math;
-use key_server_cluster::message::{Message, ServersSetChangeMessage, ServersSetChangeShareAddMessage, ServersSetChangeShareMoveMessage};
+use key_server_cluster::message::{Message, ServersSetChangeMessage, ServersSetChangeShareAddMessage, ServersSetChangeShareMoveMessage,
+	ServersSetChangeShareRemoveMessage};
 use key_server_cluster::share_add_session::{SessionTransport as ShareAddSessionTransport,
 	SessionImpl as ShareAddSessionImpl, SessionParams as ShareAddSessionParams};
 use key_server_cluster::share_move_session::{SessionTransport as ShareMoveSessionTransport,
 	SessionImpl as ShareMoveSessionImpl, SessionParams as ShareMoveSessionParams};
+use key_server_cluster::share_remove_session::{SessionTransport as ShareRemoveSessionTransport,
+	SessionImpl as ShareRemoveSessionImpl, SessionParams as ShareRemoveSessionParams};
 use key_server_cluster::message::{ShareAddMessage, ShareMoveMessage, ShareRemoveMessage};
 
 /// Single session meta-change session. Brief overview:
@@ -288,6 +291,16 @@ impl ShareAddSessionTransport for ShareChangeTransport {
 impl ShareMoveSessionTransport for ShareChangeTransport {
 	fn send(&self, node: &NodeId, message: ShareMoveMessage) -> Result<(), Error> {
 		self.cluster.send(node, Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeShareMoveMessage(ServersSetChangeShareMoveMessage {
+			session: self.session_id.clone().into(),
+			session_nonce: self.nonce,
+			message: message,
+		})))
+	}
+}
+
+impl ShareRemoveSessionTransport for ShareChangeTransport {
+	fn send(&self, node: &NodeId, message: ShareRemoveMessage) -> Result<(), Error> {
+		self.cluster.send(node, Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeShareRemoveMessage(ServersSetChangeShareRemoveMessage {
 			session: self.session_id.clone().into(),
 			session_nonce: self.nonce,
 			message: message,

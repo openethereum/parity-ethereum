@@ -23,7 +23,7 @@ use key_server_cluster::cluster_sessions::ClusterSession;
 use key_server_cluster::message::{ShareMoveMessage, InitializeShareMoveSession, ConfirmShareMoveInitialization,
 	ShareMoveRequest, ShareMove, ShareMoveConfirm, ShareMoveError};
 
-/// Share addition session API.
+/// Share move session API.
 pub trait Session: Send + Sync + 'static {
 }
 
@@ -65,7 +65,7 @@ struct SessionData {
 	pub init_confirmations_to_receive: BTreeSet<NodeId>,
 	/// Move confirmations to receive.
 	pub move_confirmations_to_receive: BTreeSet<NodeId>,
-	/// Move confirmations to receive.
+	/// Shares to move.
 	pub shares_to_move: BTreeMap<NodeId, NodeId>,
 	/// Received key share (filled on destination nodes only).
 	pub received_key_share: Option<DocumentKeyShare>,
@@ -138,13 +138,11 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		}
 
 		// update state
-		let key_share = self.core.key_share.as_ref()
-			.expect("initialize is called on master node; master node have a share; qed");
 		data.state = SessionState::WaitingForInitializationConfirm;
 		data.shares_to_move.extend(shares_to_move.clone());
 		let move_confirmations_to_receive: Vec<_> = data.shares_to_move.values().cloned().collect();
 		data.move_confirmations_to_receive.extend(move_confirmations_to_receive);
-		data.init_confirmations_to_receive.extend(key_share.id_numbers.keys().cloned()
+		data.init_confirmations_to_receive.extend(old_key_share.id_numbers.keys().cloned()
 			.chain(shares_to_move.values().cloned()));
 		data.init_confirmations_to_receive.remove(&self.core.meta.self_node_id);
 
