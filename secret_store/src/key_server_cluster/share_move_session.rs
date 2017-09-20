@@ -19,6 +19,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use parking_lot::Mutex;
 use ethkey::{Secret, Signature};
 use key_server_cluster::{Error, NodeId, SessionMeta, DocumentKeyShare, KeyStorage};
+use key_server_cluster::cluster_sessions::ClusterSession;
 use key_server_cluster::message::{ShareMoveMessage, InitializeShareMoveSession, ConfirmShareMoveInitialization,
 	ShareMoveRequest, ShareMove, ShareMoveConfirm, ShareMoveError};
 
@@ -426,6 +427,20 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 	}
 }
 
+impl<T> ClusterSession for SessionImpl<T> where T: SessionTransport {
+	fn is_finished(&self) -> bool {
+		self.data.lock().state == SessionState::Finished
+	}
+
+	fn on_session_timeout(&self) {
+		unimplemented!()
+	}
+
+	fn on_node_timeout(&self, _node_id: &NodeId) {
+		unimplemented!()
+	}
+}
+
 fn check_shares_to_move(self_node_id: &NodeId, shares_to_move: &BTreeMap<NodeId, NodeId>, id_numbers: Option<&BTreeMap<NodeId, Secret>>) -> Result<(), Error> {
 	// shares to move must not be empty
 	if shares_to_move.is_empty() {
@@ -552,7 +567,6 @@ mod tests {
 
 		pub fn run(&mut self) {
 			while let Some((from, to, message)) = self.take_message() {
-println!("=== {} -> {}: {}", from, to, message);
 				self.process_message((from, to, message)).unwrap();
 			}
 		}

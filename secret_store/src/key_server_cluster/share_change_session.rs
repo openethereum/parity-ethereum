@@ -57,6 +57,8 @@ pub struct ShareChangeSession {
 	nodes_to_move: Option<BTreeMap<NodeId, NodeId>>,
 	/// Share add session.
 	share_add_session: Option<ShareAddSessionImpl<ShareChangeTransport>>,
+	/// Share move session.
+	share_move_session: Option<ShareMoveSessionImpl<ShareChangeTransport>>,
 	/// Is finished.
 	is_finished: bool,
 }
@@ -113,6 +115,7 @@ impl ShareChangeSession {
 			nodes_to_remove: params.nodes_to_remove,
 			nodes_to_move: params.nodes_to_move,
 			share_add_session: None,
+			share_move_session: None,
 			is_finished: false, // TODO: debug_assert that it is actually false
 		})
 	}
@@ -160,8 +163,30 @@ impl ShareChangeSession {
 	}
 
 	/// When share-move message is received.
-	pub fn on_share_move_message(&mut self, _sender: &NodeId, _message: &ShareMoveMessage) -> Result<(), Error> {
-		unimplemented!()
+	pub fn on_share_move_message(&mut self, sender: &NodeId, message: &ShareMoveMessage) -> Result<(), Error> {
+		if let &ShareMoveMessage::InitializeShareMoveSession(ref message) = message {
+			if self.share_move_session.is_some() {
+				return Err(Error::InvalidMessage);
+			}
+			if sender != &self.master_node_id {
+				return Err(Error::InvalidMessage);
+			}
+
+			self.create_share_move_session(&message.sub_session.clone().into())?;
+		}
+
+		let change_state_needed = self.share_move_session.as_ref()
+			.map(|share_move_session| {
+				let was_finished = share_move_session.is_finished();
+				share_move_session.process_message(sender, message)
+					.map(|_| share_move_session.is_finished() && !was_finished)
+			})
+			.unwrap_or(Err(Error::InvalidMessage))?;
+		if change_state_needed && self.self_node_id == self.master_node_id {
+			self.proceed_to_next_state(&math::generate_random_scalar()?)?;
+		}
+
+		Ok(())
 	}
 
 	/// When share-remove message is received.
@@ -171,7 +196,26 @@ impl ShareChangeSession {
 
 	/// Create new share add session.
 	fn create_share_add_session(&mut self, sub_session: &Secret) -> Result<(), Error> {
+panic!("---");
 		self.share_add_session = Some(ShareAddSessionImpl::new_nested(ShareAddSessionParams {
+			meta: SessionMeta {
+				id: self.key_id.clone(),
+				threshold: 0,
+				self_node_id: self.self_node_id.clone(),
+				master_node_id: self.master_node_id.clone(),
+			},
+			nonce: 0,
+			sub_session: sub_session.clone(),
+			transport: ShareChangeTransport::new(self.session_id, self.nonce, self.cluster.clone()),
+			key_storage: self.key_storage.clone(),
+			key_share: self.document_key_share.clone(),
+		})?);
+		Ok(())
+	}
+
+	/// Create new share move session.
+	fn create_share_move_session(&mut self, sub_session: &Secret) -> Result<(), Error> {
+		self.share_move_session = Some(ShareMoveSessionImpl::new_nested(ShareMoveSessionParams {
 			meta: SessionMeta {
 				id: self.key_id.clone(),
 				threshold: 0,
@@ -194,19 +238,20 @@ impl ShareChangeSession {
 		}
 
 		if let Some(nodes_to_add) = self.nodes_to_add.take() {
-			self.create_share_add_session(sub_session);
-			return self.share_add_session.as_ref().expect("TODO").initialize(nodes_to_add);
-		}
-
-		/*if self.state == State::AddShares {
-			self.state = State::MoveShares;
-			if !self.nodes_to_move.is_empty() {
-				self.share_move_session = Some(ShareMoveSessionImpl::new(self.key_share.clone(), self.nodes_to_move.clone()));
-				return;
+			if !nodes_to_add.is_empty() {
+				self.create_share_add_session(sub_session);
+				return self.share_add_session.as_ref().expect("TODO").initialize(nodes_to_add);
 			}
 		}
 
-		if self.state == State::MoveShares {
+		if let Some(nodes_to_move) = self.nodes_to_move.take() {
+			if !nodes_to_move.is_empty() {
+				self.create_share_move_session(sub_session);
+				return self.share_move_session.as_ref().expect("TODO").initialize(nodes_to_move);
+			}
+		}
+
+		/*if self.state == State::MoveShares {
 			self.state = State::RemoveShares;
 			if !self.nodes_to_remove.is_empty() {
 				self.share_remove_session = Some(ShareRemoveSessionImpl::new(self.key_share.clone(), self.nodes_to_remove.clone()));
