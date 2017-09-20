@@ -31,20 +31,17 @@ import IdentityIcon from '@parity/ui/IdentityIcon';
 import GradientBg from '@parity/ui/GradientBg';
 import SelectionList from '@parity/ui/SectionList';
 import SignerPending from '@parity/ui/SignerPending';
-import { CancelIcon, FingerprintIcon } from '@parity/ui/Icons';
-
-import imagesEthcoreBlock from '@parity/shared/assets/images/parity-logo-white-no-text.svg';
+import { CancelIcon } from '@parity/ui/Icons';
 
 import DappsStore from '@parity/shared/mobx/dappsStore';
 import Signer from '../Signer/Embedded';
 
 import AccountStore from './accountStore';
+import Store, { DISPLAY_ACCOUNTS, DISPLAY_SIGNER } from './store';
 import styles from './parityBar.css';
 
 const LS_STORE_KEY = '_parity::parityBar';
 const DEFAULT_POSITION = { right: '1em', bottom: '2.5em' };
-const DISPLAY_ACCOUNTS = 'accounts';
-const DISPLAY_SIGNER = 'signer';
 
 @observer
 class ParityBar extends Component {
@@ -57,15 +54,14 @@ class ParityBar extends Component {
   };
 
   static propTypes = {
+    alwaysHidden: PropTypes.bool,
     dapp: PropTypes.bool,
     externalLink: PropTypes.string,
     pending: PropTypes.array
   };
 
   state = {
-    displayType: DISPLAY_SIGNER,
     moving: false,
-    opened: false,
     position: DEFAULT_POSITION
   };
 
@@ -82,20 +78,20 @@ class ParityBar extends Component {
   componentWillMount () {
     const { api } = this.context;
 
-    this.accountStore = new AccountStore(api);
+    this.accountStore = AccountStore.get(this.context.api);
+    this.store = Store.get();
 
     // Hook to the dapp loaded event to position the
     // Parity Bar accordingly
     const dappsStore = DappsStore.get(api);
 
-    dappsStore
-      .on('loaded', (app) => {
-        this.app = app;
+    dappsStore.on('loaded', (app) => {
+      this.app = app;
 
-        if (this.props.dapp) {
-          this.loadPosition();
-        }
-      });
+      if (this.props.dapp) {
+        this.loadPosition();
+      }
+    });
 
     if (this.props.dapp) {
       this.loadPosition();
@@ -128,7 +124,8 @@ class ParityBar extends Component {
   }
 
   setOpened (opened, displayType = DISPLAY_SIGNER) {
-    this.setState({ displayType, opened });
+    this.store.setOpen(opened, displayType);
+
     this.dispatchOpenEvent(opened);
   }
 
@@ -151,18 +148,18 @@ class ParityBar extends Component {
   }
 
   render () {
-    const { moving, opened, position } = this.state;
+    const { moving, position } = this.state;
 
-    const containerClassNames = opened
+    const containerClassNames = this.store.isOpen
       ? [ styles.overlay ]
       : [ styles.bar ];
 
-    if (!opened && moving) {
+    if (!this.store.isOpen && moving) {
       containerClassNames.push(styles.moving);
     }
 
     const parityBgClassNames = [
-      opened
+      this.store.isOpen
         ? styles.expanded
         : styles.corner,
       styles.parityBg
@@ -178,7 +175,7 @@ class ParityBar extends Component {
 
     // Open the Signer at one of the four corners
     // of the screen
-    if (opened) {
+    if (this.store.isOpen) {
       // Set at top or bottom of the screen
       if (position.top !== undefined) {
         parityBgStyle.top = 0;
@@ -209,7 +206,7 @@ class ParityBar extends Component {
           style={ parityBgStyle }
         >
           {
-            opened
+            this.store.isOpen
               ? this.renderExpanded()
               : this.renderBar()
           }
@@ -219,9 +216,9 @@ class ParityBar extends Component {
   }
 
   renderBar () {
-    const { dapp } = this.props;
+    const { alwaysHidden, dapp } = this.props;
 
-    if (!dapp) {
+    if (alwaysHidden || !dapp) {
       return null;
     }
 
@@ -242,12 +239,6 @@ class ParityBar extends Component {
           this.renderLink(
             <Button
               className={ styles.parityButton }
-              icon={
-                <img
-                  className={ styles.parityIcon }
-                  src={ imagesEthcoreBlock }
-                />
-              }
               label={
                 this.renderLabel(
                   <FormattedMessage
@@ -261,7 +252,6 @@ class ParityBar extends Component {
         }
         <Button
           className={ styles.button }
-          icon={ <FingerprintIcon /> }
           label={ this.renderSignerLabel() }
           onClick={ this.toggleSignerDisplay }
         />
@@ -313,7 +303,6 @@ class ParityBar extends Component {
 
   renderExpanded () {
     const { externalLink } = this.props;
-    const { displayType } = this.state;
 
     return (
       <div className={ styles.container }>
@@ -321,7 +310,7 @@ class ParityBar extends Component {
           <div className={ styles.title }>
             <ContainerTitle
               title={
-                displayType === DISPLAY_ACCOUNTS
+                this.store.displayType === DISPLAY_ACCOUNTS
                   ? (
                     <FormattedMessage
                       id='parityBar.title.accounts'
@@ -352,7 +341,7 @@ class ParityBar extends Component {
         </GradientBg>
         <div className={ styles.content }>
           {
-            displayType === DISPLAY_ACCOUNTS
+            this.store.displayType === DISPLAY_ACCOUNTS
               ? (
                 <SelectionList
                   className={ styles.accountsSection }
@@ -589,15 +578,11 @@ class ParityBar extends Component {
   }
 
   toggleAccountsDisplay = () => {
-    const { opened } = this.state;
-
-    this.setOpened(!opened, DISPLAY_ACCOUNTS);
+    this.setOpened(!this.store.isOpen, DISPLAY_ACCOUNTS);
   }
 
   toggleSignerDisplay = () => {
-    const { opened } = this.state;
-
-    this.setOpened(!opened, DISPLAY_SIGNER);
+    this.setOpened(!this.store.isOpen, DISPLAY_SIGNER);
   }
 
   get config () {

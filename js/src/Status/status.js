@@ -22,20 +22,26 @@ import { FormattedMessage } from 'react-intl';
 import BlockNumber from '@parity/ui/BlockNumber';
 import ClientVersion from '@parity/ui/ClientVersion';
 import GradientBg from '@parity/ui/GradientBg';
+import IdentityIcon from '@parity/ui/IdentityIcon';
 import NetChain from '@parity/ui/NetChain';
 import NetPeers from '@parity/ui/NetPeers';
 import SignerPending from '@parity/ui/SignerPending';
 import StatusIndicator from '@parity/ui/StatusIndicator';
 
 import Consensus from './Consensus';
+import AccountStore from '../ParityBar/accountStore';
+import ParityBarStore from '../ParityBar/store';
 import PluginStore from './pluginStore';
 import Upgrade from './Upgrade';
 
 import styles from './status.css';
 
 const pluginStore = PluginStore.get();
+const parityBarStore = ParityBarStore.get();
 
 function Status ({ className = '', upgradeStore }, { api }) {
+  const accountStore = AccountStore.get(api);
+
   return (
     <GradientBg className={ [styles.status, className].join(' ') }>
       <ClientVersion className={ styles.version } />
@@ -49,7 +55,17 @@ function Status ({ className = '', upgradeStore }, { api }) {
             <Component key={ index } />
           ))
         }
-        <SignerPending />
+        <SignerPending
+          className={ styles.signerPending }
+          onClick={ parityBarStore.toggleOpenSigner }
+        />
+        <IdentityIcon
+          address={ accountStore.defaultAccount }
+          button
+          center
+          className={ styles.defaultAccount }
+          onClick={ parityBarStore.toggleOpenAccounts }
+        />
         <StatusIndicator id='application.status.health' />
         <BlockNumber
           className={ styles.blockNumber }

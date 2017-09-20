@@ -46,3 +46,8 @@ $textColor: #ccc;
     margin-left: 1em;
   }
 }
+
+.defaultAccount,
+.signerPending {
+  cursor: pointer;
+}

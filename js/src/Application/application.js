@@ -101,7 +101,10 @@ class Application extends Component {
             : null
         }
         <Requests />
-        <ParityBar dapp={ isMinimized } />
+        <ParityBar
+          alwaysHidden
+          dapp={ isMinimized }
+        />
         {
           blockNumber
             ? <Status upgradeStore={ this.upgradeStore } />

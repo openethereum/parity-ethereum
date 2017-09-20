@@ -16,6 +16,8 @@
 
 import { action, observable, transaction } from 'mobx';
 
+let instance;
+
 export default class AccountStore {
   @observable accounts = [];
   @observable defaultAccount = null;
@@ -24,7 +26,8 @@ export default class AccountStore {
   constructor (api) {
     this._api = api;
 
-    this.subscribeDefaultAccount()
+    this
+      .subscribeDefaultAccount()
       .then(() => this.loadAccounts());
   }
 
@@ -117,5 +120,13 @@ export default class AccountStore {
       });
 
     return Promise.all([ promiseDefaultAccount, promiseEthAccounts, promiseAccountsInfo ]);
+  }
+
+  static get (api) {
+    if (!instance) {
+      instance = new AccountStore(api);
+    }
+
+    return instance;
   }
 }
