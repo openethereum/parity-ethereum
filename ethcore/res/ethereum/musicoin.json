@@ -3,15 +3,11 @@
   "engine": {
     "Ethash": {
       "params": {
-        "gasLimitBoundDivisor": "0x400",
         "minimumDifficulty": "0x20000",
         "difficultyBoundDivisor": "0x800",
         "durationLimit": "0xd",
-        "blockReward": "0x1105A0185B50A80000",
-        "registrar": "0x00756cf8159095948496617f5fb17ed95059f536",
         "homesteadTransition": 9223372036854775807,
         "eip150Transition": 9223372036854775807,
-        "eip155Transition": 9223372036854775807,
         "eip160Transition": 9223372036854775807,
         "eip161abcTransition": 9223372036854775807,
         "eip161dTransition": 9223372036854775807
@@ -19,10 +15,14 @@
     }
   },
   "params": {
+    "gasLimitBoundDivisor": "0x400",
+    "blockReward": "0x1105A0185B50A80000",
+    "registrar": "0x00756cf8159095948496617f5fb17ed95059f536",
     "accountStartNonce": "0x0",
     "maximumExtraDataSize": "0x20",
     "minGasLimit": "0x1388",
-    "networkID": 7762959
+    "networkID": 7762959,
+    "eip155Transition": 9223372036854775807
   },
   "genesis": {
     "seal": {
