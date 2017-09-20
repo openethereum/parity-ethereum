@@ -162,19 +162,24 @@ impl Into<String> for Error {
 	}
 }
 
+mod admin_sessions;
+mod client_sessions;
+
+pub use self::admin_sessions::servers_set_change_session;
+pub use self::admin_sessions::share_add_session;
+pub use self::admin_sessions::share_change_session;
+pub use self::admin_sessions::share_move_session;
+pub use self::admin_sessions::share_remove_session;
+
+pub use self::client_sessions::decryption_session;
+pub use self::client_sessions::encryption_session;
+pub use self::client_sessions::generation_session;
+pub use self::client_sessions::signing_session;
+
 mod cluster;
 mod cluster_sessions;
-mod decryption_session;
-mod encryption_session;
-mod generation_session;
 mod io;
 mod jobs;
 pub mod math;
 mod message;
-mod servers_set_change_session;
-mod share_add_session;
-mod share_change_session;
-mod share_move_session;
-mod share_remove_session;
-mod signing_session;
 mod net;
