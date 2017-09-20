@@ -34,9 +34,9 @@ $textColor: #ccc;
   text-align: right;
   vertical-align: middle;
 
-  >div,
-  >img,
-  >span {
+  > div,
+  > img,
+  > span {
     display: inline-block !important;
     margin: 0 0 0 1em;
     vertical-align: middle;
