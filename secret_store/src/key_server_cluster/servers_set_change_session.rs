@@ -841,4 +841,57 @@ pub mod tests {
 			}
 		}
 	}
+
+	#[test]
+	fn node_removed_using_servers_set_change() {
+		// initial 2-of-3 session
+		let gml = generate_key(1, 3);
+		let key_id = gml.session_id.clone();
+		let master_node_id = gml.nodes.keys().cloned().nth(0).unwrap();
+		let joint_secret = math::compute_joint_secret(gml.nodes.values()
+			.map(|nd| nd.key_storage.get(&key_id).unwrap().polynom1[0].clone())
+			.collect::<Vec<_>>()
+			.iter()).unwrap();
+		let joint_key_pair = KeyPair::from_secret(joint_secret.clone()).unwrap();
+
+		// remove 1 node so that session becames 2-of-2
+		let nodes_to_remove: BTreeSet<_> = gml.nodes.keys().cloned().skip(1).take(1).collect();
+		let mut ml = MessageLoop::new(gml, master_node_id, BTreeSet::new(), nodes_to_remove.clone());
+		ml.nodes[&master_node_id].session.initialize(ml.nodes.keys().cloned().collect());
+		ml.run();
+
+		// try to recover secret for every possible combination of nodes && check that secret is the same
+		let document_secret_plain = math::generate_random_point().unwrap();
+		for n1 in 0..3 {
+			for n2 in n1+1..3 {
+				let node1 = ml.nodes.keys().nth(n1).unwrap();
+				let node2 = ml.nodes.keys().nth(n2).unwrap();
+				if nodes_to_remove.contains(node1) {
+					assert!(ml.nodes.values().nth(n1).unwrap().key_storage.get(&key_id).is_err());
+					continue;
+				}
+				if nodes_to_remove.contains(node2) {
+					assert!(ml.nodes.values().nth(n2).unwrap().key_storage.get(&key_id).is_err());
+					continue;
+				}
+
+				let share1 = ml.nodes.values().nth(n1).unwrap().key_storage.get(&key_id).unwrap();
+				let share2 = ml.nodes.values().nth(n2).unwrap().key_storage.get(&key_id).unwrap();
+				let id_number1 = share1.id_numbers[ml.nodes.keys().nth(n1).unwrap()].clone();
+				let id_number2 = share1.id_numbers[ml.nodes.keys().nth(n2).unwrap()].clone();
+
+				// now encrypt and decrypt data
+				let (document_secret_decrypted, document_secret_decrypted_test) =
+					math::tests::do_encryption_and_decryption(1,
+						joint_key_pair.public(),
+						&[id_number1, id_number2],
+						&[share1.secret_share, share2.secret_share],
+						Some(&joint_secret),
+						document_secret_plain.clone());
+
+				assert_eq!(document_secret_plain, document_secret_decrypted_test);
+				assert_eq!(document_secret_plain, document_secret_decrypted);
+			}
+		}
+	}
 }

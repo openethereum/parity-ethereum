@@ -62,6 +62,8 @@ pub struct ShareChangeSession {
 	share_add_session: Option<ShareAddSessionImpl<ShareChangeTransport>>,
 	/// Share move session.
 	share_move_session: Option<ShareMoveSessionImpl<ShareChangeTransport>>,
+	/// Share remove session.
+	share_remove_session: Option<ShareRemoveSessionImpl<ShareChangeTransport>>,
 	/// Is finished.
 	is_finished: bool,
 }
@@ -119,6 +121,7 @@ impl ShareChangeSession {
 			nodes_to_move: params.nodes_to_move,
 			share_add_session: None,
 			share_move_session: None,
+			share_remove_session: None,
 			is_finished: false, // TODO: debug_assert that it is actually false
 		})
 	}
@@ -193,13 +196,34 @@ impl ShareChangeSession {
 	}
 
 	/// When share-remove message is received.
-	pub fn on_share_remove_message(&mut self, _sender: &NodeId, _message: &ShareRemoveMessage) -> Result<(), Error> {
-		unimplemented!()
+	pub fn on_share_remove_message(&mut self, sender: &NodeId, message: &ShareRemoveMessage) -> Result<(), Error> {
+		if let &ShareRemoveMessage::InitializeShareRemoveSession(ref message) = message {
+			if self.share_remove_session.is_some() {
+				return Err(Error::InvalidMessage);
+			}
+			if sender != &self.master_node_id {
+				return Err(Error::InvalidMessage);
+			}
+
+			self.create_share_remove_session(&message.sub_session.clone().into())?;
+		}
+
+		let change_state_needed = self.share_remove_session.as_ref()
+			.map(|share_remove_session| {
+				let was_finished = share_remove_session.is_finished();
+				share_remove_session.process_message(sender, message)
+					.map(|_| share_remove_session.is_finished() && !was_finished)
+			})
+			.unwrap_or(Err(Error::InvalidMessage))?;
+		if change_state_needed && self.self_node_id == self.master_node_id {
+			self.proceed_to_next_state(&math::generate_random_scalar()?)?;
+		}
+
+		Ok(())
 	}
 
 	/// Create new share add session.
 	fn create_share_add_session(&mut self, sub_session: &Secret) -> Result<(), Error> {
-panic!("---");
 		self.share_add_session = Some(ShareAddSessionImpl::new_nested(ShareAddSessionParams {
 			meta: SessionMeta {
 				id: self.key_id.clone(),
@@ -234,6 +258,24 @@ panic!("---");
 		Ok(())
 	}
 
+	/// Create new share remove session.
+	fn create_share_remove_session(&mut self, sub_session: &Secret) -> Result<(), Error> {
+		self.share_remove_session = Some(ShareRemoveSessionImpl::new_nested(ShareRemoveSessionParams {
+			meta: SessionMeta {
+				id: self.key_id.clone(),
+				threshold: 0,
+				self_node_id: self.self_node_id.clone(),
+				master_node_id: self.master_node_id.clone(),
+			},
+			nonce: 0,
+			sub_session: sub_session.clone(),
+			transport: ShareChangeTransport::new(self.session_id, self.nonce, self.cluster.clone()),
+			key_storage: self.key_storage.clone(),
+			key_share: self.document_key_share.as_ref().expect("TODO").clone(),
+		})?);
+		Ok(())
+	}
+
 	/// Proceed to the next state (on master node).
 	fn proceed_to_next_state(&mut self, sub_session: &Secret) -> Result<(), Error> {
 		if self.self_node_id != self.master_node_id {
@@ -254,13 +296,12 @@ panic!("---");
 			}
 		}
 
-		/*if self.state == State::MoveShares {
-			self.state = State::RemoveShares;
-			if !self.nodes_to_remove.is_empty() {
-				self.share_remove_session = Some(ShareRemoveSessionImpl::new(self.key_share.clone(), self.nodes_to_remove.clone()));
-				return;
+		if let Some(nodes_to_remove) = self.nodes_to_remove.take() {
+			if !nodes_to_remove.is_empty() {
+				self.create_share_remove_session(sub_session);
+				return self.share_remove_session.as_ref().expect("TODO").initialize(nodes_to_remove);
 			}
-		}*/
+		}
 
 		self.is_finished = true;
 
