@@ -23,7 +23,7 @@ $backgroundTwo: #e57a00;
   position: fixed;
   left: 0;
   right: 0;
-  top: 0;
+  top: 2.75em;
   z-index: 760; /* sits above requests */
 
   .request {
