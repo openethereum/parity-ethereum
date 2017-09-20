@@ -138,13 +138,9 @@ describe('ParityBar', () => {
       expect(label.find('FormattedMessage').props().id).to.equal('parityBar.label.signer');
     });
 
-    it('does not render a badge when no pending requests', () => {
-      expect(label.find('Badge')).to.have.length(0);
-    });
-
     it('renders a badge when pending requests', () => {
       render({}, { signer: { pending: ['123', '456'] } });
-      expect(shallow(instance.renderSignerLabel()).find('Badge').props().value).to.equal(2);
+      expect(shallow(instance.renderSignerLabel()).find('SignerPending')).to.be.ok;
     });
   });
 
@@ -161,7 +157,7 @@ describe('ParityBar', () => {
 
     it('renders expanded with opened === true', () => {
       expect(instance.renderExpanded).not.to.have.been.called;
-      instance.setState({ opened: true });
+      instance.store.setOpen(true);
       expect(instance.renderExpanded).to.have.been.called;
     });
   });
