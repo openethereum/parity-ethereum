@@ -1,0 +1,96 @@
+{
+  "name": "Musicoin",
+  "engine": {
+    "Ethash": {
+      "params": {
+        "gasLimitBoundDivisor": "0x400",
+        "minimumDifficulty": "0x20000",
+        "difficultyBoundDivisor": "0x800",
+        "durationLimit": "0xd",
+        "blockReward": "0x1105A0185B50A80000",
+        "registrar": "0x00756cf8159095948496617f5fb17ed95059f536",
+        "homesteadTransition": 9223372036854775807,
+        "eip150Transition": 9223372036854775807,
+        "eip155Transition": 9223372036854775807,
+        "eip160Transition": 9223372036854775807,
+        "eip161abcTransition": 9223372036854775807,
+        "eip161dTransition": 9223372036854775807
+      }
+    }
+  },
+  "params": {
+    "accountStartNonce": "0x0",
+    "maximumExtraDataSize": "0x20",
+    "minGasLimit": "0x1388",
+    "networkID": 7762959
+  },
+  "genesis": {
+    "seal": {
+      "ethereum": {
+        "nonce": "0x000000000000002a",
+        "mixHash": "0x00000000000000000000000000000000000000647572616c65787365646c6578"
+      }
+    },
+    "difficulty": "0x3d0900",
+    "author": "0x0000000000000000000000000000000000000000",
+    "timestamp": "0x00",
+    "parentHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "extraData": "",
+    "gasLimit": "0x7a1200"
+  },
+  "nodes": [
+"enode://9df4a65f416195203a114534a270e42e72ef725447c575e083392f7d5264b280cc87ab173cfcc80bebae8c761624ef377a1c8f929db46440b38aff6432979b58@104.155.131.203:30301",
+"enode://0bc63520e065279b523c6acdb4022446be31f3adfe92d20108bf020d5bc8cd0daff41053afa8c393d650ee2a7061687e43f144320f962d8becc1e8a669a1f6d4@104.196.200.207:30301",
+"enode://f17004560aadb12b547e1b2512eee7cf29771d03bc896507a465b7b30b4803746247bb07784580f9d35696e6bd37c957ab33825527fed054ba46d83559fcd9c2@104.198.8.228:30301"
+],
+  "accounts": {
+    "0000000000000000000000000000000000000001": {
+      "balance": "1",
+      "builtin": {
+        "name": "ecrecover",
+        "pricing": {
+          "linear": {
+            "base": 3000,
+            "word": 0
+          }
+        }
+      }
+    },
+    "0000000000000000000000000000000000000002": {
+      "balance": "1",
+      "builtin": {
+        "name": "sha256",
+        "pricing": {
+          "linear": {
+            "base": 60,
+            "word": 12
+          }
+        }
+      }
+    },
+    "0000000000000000000000000000000000000003": {
+      "balance": "1",
+      "builtin": {
+        "name": "ripemd160",
+        "pricing": {
+          "linear": {
+            "base": 600,
+            "word": 120
+          }
+        }
+      }
+    },
+    "0000000000000000000000000000000000000004": {
+      "balance": "1",
+      "builtin": {
+        "name": "identity",
+        "pricing": {
+          "linear": {
+            "base": 15,
+            "word": 3
+          }
+        }
+      }
+    }
+  }
+}
