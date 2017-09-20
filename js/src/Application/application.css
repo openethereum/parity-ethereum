@@ -16,6 +16,7 @@
 */
 
 .application {
+  box-sizing: border-box;
 }
 
 .container {
