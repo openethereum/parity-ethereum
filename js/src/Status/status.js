@@ -55,6 +55,7 @@ function Status ({ className = '', upgradeStore }, { api }) {
             <Component key={ index } />
           ))
         }
+        <div className={ styles.divider } />
         <SignerPending
           className={ styles.signerPending }
           onClick={ parityBarStore.toggleOpenSigner }
@@ -66,7 +67,11 @@ function Status ({ className = '', upgradeStore }, { api }) {
           className={ styles.defaultAccount }
           onClick={ parityBarStore.toggleOpenAccounts }
         />
-        <StatusIndicator id='application.status.health' />
+        <StatusIndicator
+          className={ styles.health }
+          id='application.status.health'
+        />
+        <div className={ styles.divider } />
         <BlockNumber
           className={ styles.blockNumber }
           message={
@@ -85,7 +90,7 @@ function Status ({ className = '', upgradeStore }, { api }) {
             />
           }
         />
-        <NetChain />
+        <NetChain className={ styles.chain } />
       </div>
     </GradientBg>
   );
