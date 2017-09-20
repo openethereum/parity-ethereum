@@ -1,5 +1,6 @@
 // TODO: active_sessions -> key_session, session_id -> key_id, ...
 // TODO: when servers set change session is active, pause updating servers set from contract
+// TODO: do not need SessionError messages in nested sessions + do not need nonces + sub sessions
 
 // Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
@@ -338,7 +339,6 @@ impl SessionImpl {
 
 		// we only accept delegation requests from master node
 		if sender != &self.core.meta.master_node_id {
-println!("=== 1");
 			return Err(Error::InvalidMessage);
 		}
 
@@ -363,7 +363,6 @@ println!("=== 1");
 
 		// we only accept delegation requests on master node
 		if self.core.meta.self_node_id != self.core.meta.master_node_id {
-println!("=== 2");
 			return Err(Error::InvalidMessage);
 		}
 
@@ -374,13 +373,9 @@ println!("=== 2");
 			Entry::Occupied(entry) => if entry.get() == sender {
 				entry.remove()
 			} else {
-println!("=== 3");
 				return Err(Error::InvalidMessage);
 			},
-			_ => {
-println!("=== 4");
-				return Err(Error::InvalidMessage)
-			},
+			_ => return Err(Error::InvalidMessage),
 		};
 
 		// check if we need to complete the whole change session
@@ -398,24 +393,20 @@ println!("=== 4");
 		// start session if not started yet
 		if let &ShareAddMessage::InitializeShareAddSession(ref message) = &message.message {
 			match data.active_sessions.entry(message.session.clone().into()) {
-				Entry::Occupied(_) => {
-println!("=== 5");
-					return Err(Error::InvalidMessage)
-				},
+				Entry::Occupied(_) => return Err(Error::InvalidMessage),
 				Entry::Vacant(entry) => entry.insert(Self::join_share_change_session(&self.core, sender, message.session.clone().into())?),
 			};
 		}
 
 		let session_id = message.message.session().clone().into();
 		let (is_finished, is_master) = {
-			let mut change_session = data.active_sessions.get_mut(&session_id).ok_or(Error::InvalidMessage).map_err(|e| { println!("=== 6"); e })?;
+			let mut change_session = data.active_sessions.get_mut(&session_id).ok_or(Error::InvalidMessage)?;
 			change_session.on_share_add_message(sender, &message.message)?;
 			(change_session.is_finished(), change_session.is_master())
 		};
 		if is_finished {
 			data.active_sessions.remove(&session_id);
 			if is_master && self.core.meta.self_node_id != self.core.meta.master_node_id {
-println!("=== 2");
 				Self::return_delegated_session(&self.core, &session_id)?;
 			}
 		}
@@ -430,15 +421,12 @@ println!("=== 2");
 		// start session if not started yet
 		if let &ShareMoveMessage::InitializeShareMoveSession(ref message) = &message.message {
 			match data.active_sessions.entry(message.session.clone().into()) {
-				Entry::Occupied(_) => {
-println!("=== 7");
-					return Err(Error::InvalidMessage)
-				},
+				Entry::Occupied(_) => return Err(Error::InvalidMessage),
 				Entry::Vacant(entry) => entry.insert(Self::join_share_change_session(&self.core, sender, message.session.clone().into())?),
 			};
 		}
 
-		let mut change_session = data.active_sessions.get_mut(&message.message.session().clone().into()).ok_or(Error::InvalidMessage).map_err(|e| { println!("=== 8"); e })?;
+		let mut change_session = data.active_sessions.get_mut(&message.message.session().clone().into()).ok_or(Error::InvalidMessage)?;
 		change_session.on_share_move_message(sender, &message.message)
 	}
 
@@ -449,15 +437,12 @@ println!("=== 7");
 		// start session if not started yet
 		if let &ShareRemoveMessage::InitializeShareRemoveSession(ref message) = &message.message {
 			match data.active_sessions.entry(message.session.clone().into()) {
-				Entry::Occupied(_) => {
-println!("=== 9");
-					return Err(Error::InvalidMessage)
-				},
+				Entry::Occupied(_) => return Err(Error::InvalidMessage),
 				Entry::Vacant(entry) => entry.insert(Self::join_share_change_session(&self.core, sender, message.session.clone().into())?),
 			};
 		}
 
-		let mut change_session = data.active_sessions.get_mut(&message.message.session().clone().into()).ok_or(Error::InvalidMessage).map_err(|e| { println!("=== 10"); e })?;
+		let mut change_session = data.active_sessions.get_mut(&message.message.session().clone().into()).ok_or(Error::InvalidMessage)?;
 		change_session.on_share_remove_message(sender, &message.message)
 	}
 
@@ -472,7 +457,6 @@ println!("=== 9");
 		debug_assert!(sender != &self.core.meta.self_node_id);
 
 		if sender != &self.core.meta.master_node_id {
-println!("=== 11");
 			return Err(Error::InvalidMessage);
 		}
 
@@ -706,7 +690,6 @@ pub mod tests {
 
 		pub fn run(&mut self) {
 			while let Some((from, to, message)) = self.take_message() {
-println!("=== {} -> {}: {}", from, to, message);
 				self.process_message((from, to, message)).unwrap();
 			}
 		}

@@ -21,9 +21,11 @@ use key_server_cluster::{Error, NodeId, SessionId, SessionMeta, DocumentKeyShare
 use key_server_cluster::cluster::Cluster;
 use key_server_cluster::cluster_sessions::ClusterSession;
 use key_server_cluster::math;
-use key_server_cluster::message::{Message, ServersSetChangeMessage, ServersSetChangeShareAddMessage};
+use key_server_cluster::message::{Message, ServersSetChangeMessage, ServersSetChangeShareAddMessage, ServersSetChangeShareMoveMessage};
 use key_server_cluster::share_add_session::{SessionTransport as ShareAddSessionTransport,
 	SessionImpl as ShareAddSessionImpl, SessionParams as ShareAddSessionParams};
+use key_server_cluster::share_move_session::{SessionTransport as ShareMoveSessionTransport,
+	SessionImpl as ShareMoveSessionImpl, SessionParams as ShareMoveSessionParams};
 use key_server_cluster::message::{ShareAddMessage, ShareMoveMessage, ShareRemoveMessage};
 
 /// Single session meta-change session. Brief overview:
@@ -54,7 +56,7 @@ pub struct ShareChangeSession {
 	/// Nodes to move.
 	nodes_to_move: Option<BTreeMap<NodeId, NodeId>>,
 	/// Share add session.
-	share_add_session: Option<ShareAddSessionImpl<ShareAddTransport>>,
+	share_add_session: Option<ShareAddSessionImpl<ShareChangeTransport>>,
 	/// Is finished.
 	is_finished: bool,
 }
@@ -84,7 +86,7 @@ pub struct ShareChangeSessionParams {
 }
 
 /// Share add session transport.
-pub struct ShareAddTransport {
+pub struct ShareChangeTransport {
 	/// Servers set change session id.
 	session_id: SessionId,
 	/// Session nonce.
@@ -134,11 +136,9 @@ impl ShareChangeSession {
 	pub fn on_share_add_message(&mut self, sender: &NodeId, message: &ShareAddMessage) -> Result<(), Error> {
 		if let &ShareAddMessage::InitializeShareAddSession(ref message) = message {
 			if self.share_add_session.is_some() {
-println!("=== 3");
 				return Err(Error::InvalidMessage);
 			}
 			if sender != &self.master_node_id {
-println!("=== 4");
 				return Err(Error::InvalidMessage);
 			}
 
@@ -180,7 +180,7 @@ println!("=== 4");
 			},
 			nonce: 0,
 			sub_session: sub_session.clone(),
-			transport: ShareAddTransport::new(self.session_id, self.nonce, self.cluster.clone()),
+			transport: ShareChangeTransport::new(self.session_id, self.nonce, self.cluster.clone()),
 			key_storage: self.key_storage.clone(),
 			key_share: self.document_key_share.clone(),
 		})?);
@@ -220,9 +220,9 @@ println!("=== 4");
 	}
 }
 
-impl ShareAddTransport {
+impl ShareChangeTransport {
 	pub fn new(session_id: SessionId, nonce: u64, cluster: Arc<Cluster>) -> Self {
-		ShareAddTransport {
+		ShareChangeTransport {
 			session_id: session_id,
 			nonce: nonce,
 			cluster: cluster,
@@ -230,9 +230,19 @@ impl ShareAddTransport {
 	}
 }
 
-impl ShareAddSessionTransport for ShareAddTransport {
+impl ShareAddSessionTransport for ShareChangeTransport {
 	fn send(&self, node: &NodeId, message: ShareAddMessage) -> Result<(), Error> {
 		self.cluster.send(node, Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeShareAddMessage(ServersSetChangeShareAddMessage {
+			session: self.session_id.clone().into(),
+			session_nonce: self.nonce,
+			message: message,
+		})))
+	}
+}
+
+impl ShareMoveSessionTransport for ShareChangeTransport {
+	fn send(&self, node: &NodeId, message: ShareMoveMessage) -> Result<(), Error> {
+		self.cluster.send(node, Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeShareMoveMessage(ServersSetChangeShareMoveMessage {
 			session: self.session_id.clone().into(),
 			session_nonce: self.nonce,
 			message: message,

@@ -169,18 +169,18 @@ pub enum ShareAddMessage {
 /// All possible messages that can be sent during share move session.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum ShareMoveMessage {
-	/// Initialize share move session.
+	/// Share move session initialization.
 	InitializeShareMoveSession(InitializeShareMoveSession),
-	/// Consensus establishing message.
-	ShareMoveConsensusMessage(ShareMoveConsensusMessage),
+	/// Confirm initialization of share move session.
+	ConfirmShareMoveInitialization(ConfirmShareMoveInitialization),
+	/// Share move request.
+	ShareMoveRequest(ShareMoveRequest),
 	/// Share move.
 	ShareMove(ShareMove),
 	/// Share move confirmation.
 	ShareMoveConfirm(ShareMoveConfirm),
 	/// When session error has occured.
 	ShareMoveError(ShareMoveError),
-	/// When session is completed.
-	ShareMoveCompleted(ShareMoveCompleted),
 }
 
 /// All possible messages that can be sent during share remove session.
@@ -714,7 +714,7 @@ pub struct ShareAddError {
 	pub error: String,
 }
 
-/// Initialize new share move session.
+/// Share move session initialization.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct InitializeShareMoveSession {
 	/// Generation session Id.
@@ -723,21 +723,30 @@ pub struct InitializeShareMoveSession {
 	pub sub_session: SerializableSecret,
 	/// Session-level nonce.
 	pub session_nonce: u64,
-	/// Nodes pairs to move shares between.
-	pub nodes_pairs: BTreeMap<MessageNodeId, MessageNodeId>,
+	/// Shares to move.
+	pub shares_to_move: BTreeMap<MessageNodeId, MessageNodeId>,
 }
 
-/// Consensus-related share-move message.
+/// Share move session initialization is confirmed.
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct ShareMoveConsensusMessage {
+pub struct ConfirmShareMoveInitialization {
 	/// Generation session Id.
 	pub session: MessageSessionId,
 	/// Share move session Id.
 	pub sub_session: SerializableSecret,
 	/// Session-level nonce.
 	pub session_nonce: u64,
-	/// Consensus message.
-	pub message: ConsensusMessage,
+}
+
+/// Share move is requested.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ShareMoveRequest {
+	/// Generation session Id.
+	pub session: MessageSessionId,
+	/// Share move session Id.
+	pub sub_session: SerializableSecret,
+	/// Session-level nonce.
+	pub session_nonce: u64,
 }
 
 /// Share is moved from source to destination.
@@ -749,8 +758,20 @@ pub struct ShareMove {
 	pub sub_session: SerializableSecret,
 	/// Session-level nonce.
 	pub session_nonce: u64,
-
-	// TODO: share fields
+	/// Author of the entry.
+	pub author: SerializablePublic,
+	/// Decryption threshold.
+	pub threshold: usize,
+	/// Nodes ids numbers.
+	pub id_numbers: BTreeMap<MessageNodeId, SerializableSecret>,
+	/// Polynom1. TODO: check that it is not empty when starting share add session!!!
+	pub polynom1: Vec<SerializableSecret>,
+	/// Node secret share.
+	pub secret_share: SerializableSecret,
+	/// Common (shared) encryption point.
+	pub common_point: Option<SerializablePublic>,
+	/// Encrypted point.
+	pub encrypted_point: Option<SerializablePublic>,
 }
 
 /// Share move is confirmed (destination node confirms to all other nodes).
@@ -760,6 +781,8 @@ pub struct ShareMoveConfirm {
 	pub session: MessageSessionId,
 	/// Share move session Id.
 	pub sub_session: SerializableSecret,
+	/// Session-level nonce.
+	pub session_nonce: u64,
 }
 
 /// When share move session error has occured.
@@ -773,17 +796,6 @@ pub struct ShareMoveError {
 	pub session_nonce: u64,
 	/// Error message.
 	pub error: String,
-}
-
-/// When share move session is completed.
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct ShareMoveCompleted {
-	/// Generation session Id.
-	pub session: MessageSessionId,
-	/// Share move session Id.
-	pub sub_session: SerializableSecret,
-	/// Session-level nonce.
-	pub session_nonce: u64,
 }
 
 /// Initialize new share remove session.
@@ -1001,11 +1013,25 @@ impl ShareAddMessage {
 
 impl ShareMoveMessage {
 	pub fn session(&self) -> &SessionId {
-		unimplemented!()
+		match *self {
+			ShareMoveMessage::InitializeShareMoveSession(ref msg) => &msg.session,
+			ShareMoveMessage::ConfirmShareMoveInitialization(ref msg) => &msg.session,
+			ShareMoveMessage::ShareMoveRequest(ref msg) => &msg.session,
+			ShareMoveMessage::ShareMove(ref msg) => &msg.session,
+			ShareMoveMessage::ShareMoveConfirm(ref msg) => &msg.session,
+			ShareMoveMessage::ShareMoveError(ref msg) => &msg.session,
+		}
 	}
 
 	pub fn session_nonce(&self) -> u64 {
-		unimplemented!()
+		match *self {
+			ShareMoveMessage::InitializeShareMoveSession(ref msg) => msg.session_nonce,
+			ShareMoveMessage::ConfirmShareMoveInitialization(ref msg) => msg.session_nonce,
+			ShareMoveMessage::ShareMoveRequest(ref msg) => msg.session_nonce,
+			ShareMoveMessage::ShareMove(ref msg) => msg.session_nonce,
+			ShareMoveMessage::ShareMoveConfirm(ref msg) => msg.session_nonce,
+			ShareMoveMessage::ShareMoveError(ref msg) => msg.session_nonce,
+		}
 	}
 }
 
@@ -1136,11 +1162,11 @@ impl fmt::Display for ShareMoveMessage {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match *self {
 			ShareMoveMessage::InitializeShareMoveSession(_) => write!(f, "InitializeShareMoveSession"),
-			ShareMoveMessage::ShareMoveConsensusMessage(ref m) => write!(f, "ShareMoveConsensusMessage.{}", m.message),
+			ShareMoveMessage::ConfirmShareMoveInitialization(_) => write!(f, "ConfirmShareMoveInitialization"),
+			ShareMoveMessage::ShareMoveRequest(_) => write!(f, "ShareMoveRequest"),
 			ShareMoveMessage::ShareMove(_) => write!(f, "ShareMove"),
 			ShareMoveMessage::ShareMoveConfirm(_) => write!(f, "ShareMoveConfirm"),
 			ShareMoveMessage::ShareMoveError(_) => write!(f, "ShareMoveError"),
-			ShareMoveMessage::ShareMoveCompleted(_) => write!(f, "ShareMoveCompleted"),
 		}
 	}
 }

@@ -52,6 +52,8 @@ pub trait KeyStorage: Send + Sync {
 	fn update(&self, document: ServerKeyId, key: DocumentKeyShare) -> Result<(), Error>;
 	/// Get document encryption key
 	fn get(&self, document: &ServerKeyId) -> Result<DocumentKeyShare, Error>;
+	/// Remove document encryption key
+	fn remove(&self, document: &ServerKeyId) -> Result<(), Error>;
 	/// Check if storage contains document encryption key
 	fn contains(&self, document: &ServerKeyId) -> bool;
 	/// Iterate through storage
@@ -188,7 +190,7 @@ fn upgrade_db(db: Database) -> Result<Database, Error> {
 
 impl KeyStorage for PersistentKeyStorage {
 	fn insert(&self, document: ServerKeyId, key: DocumentKeyShare) -> Result<(), Error> {
-		let key: SerializableDocumentKeyShareV1 = key.into();
+		let key: SerializableDocumentKeyShareV2 = key.into();
 		let key = serde_json::to_vec(&key).map_err(|e| Error::Database(e.to_string()))?;
 		let mut batch = self.db.transaction();
 		batch.put(None, &document, &key);
@@ -206,6 +208,12 @@ impl KeyStorage for PersistentKeyStorage {
 			.map(|key| key.into_vec())
 			.and_then(|key| serde_json::from_slice::<SerializableDocumentKeyShareV2>(&key).map_err(|e| Error::Database(e.to_string())))
 			.map(Into::into)
+	}
+
+	fn remove(&self, document: &ServerKeyId) -> Result<(), Error> {
+		let mut batch = self.db.transaction();
+		batch.delete(None, &document);
+		self.db.write(batch).map_err(Error::Database)
 	}
 
 	fn contains(&self, document: &ServerKeyId) -> bool {
@@ -305,6 +313,11 @@ pub mod tests {
 
 		fn get(&self, document: &ServerKeyId) -> Result<DocumentKeyShare, Error> {
 			self.keys.read().get(document).cloned().ok_or(Error::DocumentNotFound)
+		}
+
+		fn remove(&self, document: &ServerKeyId) -> Result<(), Error> {
+			self.keys.write().remove(document);
+			Ok(())
 		}
 
 		fn contains(&self, document: &ServerKeyId) -> bool {
