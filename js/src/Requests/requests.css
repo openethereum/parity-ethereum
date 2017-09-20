@@ -21,7 +21,7 @@ $borderColor: rgba(0, 0, 0, 0.15);
 
 .requests {
   align-items: flex-end;
-  bottom: 2.75em;
+  bottom: 0;
   display: flex;
   flex-direction: column;
   position: fixed;

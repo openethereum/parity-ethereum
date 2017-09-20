@@ -17,6 +17,7 @@
 
 .application {
   box-sizing: border-box;
+  margin-top: 2.75em;
 }
 
 .container {
@@ -26,7 +27,7 @@
 }
 
 .content {
-  padding-bottom: 1.25em;
+  padding: 0;
 }
 
 .error {

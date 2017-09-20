@@ -41,7 +41,7 @@ import Store, { DISPLAY_ACCOUNTS, DISPLAY_SIGNER } from './store';
 import styles from './parityBar.css';
 
 const LS_STORE_KEY = '_parity::parityBar';
-const DEFAULT_POSITION = { right: '1em', bottom: '2.5em' };
+const DEFAULT_POSITION = { right: '1em', bottom: '0' };
 
 @observer
 class ParityBar extends Component {
@@ -180,7 +180,7 @@ class ParityBar extends Component {
       if (position.top !== undefined) {
         parityBgStyle.top = 0;
       } else {
-        parityBgStyle.bottom = '2.5em';
+        parityBgStyle.bottom = 0;
       }
 
       // Set at left or right of the screen
