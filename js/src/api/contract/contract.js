@@ -133,11 +133,11 @@ export default class Contract {
 
         return this._api.parity
           .postTransaction(encodedOptions)
-          .then((result) => {
-            if (result.length !== 66) {
-              statecb(null, { state: 'checkRequest', result });
-              return this._pollCheckRequest(result);
-            } else { return result; }
+          .then((requestId) => {
+            if (requestId.length !== 66) {
+              statecb(null, { state: 'checkRequest', requestId });
+              return this._pollCheckRequest(requestId);
+            } else { return requestId; }
           })
           .then((txhash) => {
             statecb(null, { state: 'getTransactionReceipt', txhash });
