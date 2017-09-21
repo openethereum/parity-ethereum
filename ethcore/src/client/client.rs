@@ -2054,7 +2054,7 @@ fn transaction_receipt(engine: &Engine, mut tx: LocalizedTransaction, mut receip
 			log_index: no_of_logs + i,
 		}).collect(),
 		log_bloom: receipt.log_bloom,
-		state_root: receipt.state_root,
+		outcome: receipt.outcome,
 	}
 }
 
@@ -2100,7 +2100,7 @@ mod tests {
 		use super::transaction_receipt;
 		use ethkey::KeyPair;
 		use log_entry::{LogEntry, LocalizedLogEntry};
-		use receipt::{Receipt, LocalizedReceipt};
+		use receipt::{Receipt, LocalizedReceipt, TransactionOutcome};
 		use transaction::{Transaction, LocalizedTransaction, Action};
 		use tests::helpers::TestEngine;
 
@@ -2111,7 +2111,7 @@ mod tests {
 
 		let block_number = 1;
 		let block_hash = 5.into();
-		let state_root = Some(99.into());
+		let state_root = 99.into();
 		let gas_used = 10.into();
 		let raw_tx = Transaction {
 			nonce: 0.into(),
@@ -2139,14 +2139,12 @@ mod tests {
 			data: vec![],
 		}];
 		let receipts = vec![Receipt {
-			state_root: state_root,
-			status_code: None,
+			outcome: TransactionOutcome::StateRoot(state_root),
 			gas_used: 5.into(),
 			log_bloom: Default::default(),
 			logs: vec![logs[0].clone()],
 		}, Receipt {
-			state_root: state_root,
-			status_code: None,
+			outcome: TransactionOutcome::StateRoot(state_root),
 			gas_used: gas_used,
 			log_bloom: Default::default(),
 			logs: logs.clone(),
@@ -2182,7 +2180,7 @@ mod tests {
 				log_index: 2,
 			}],
 			log_bloom: Default::default(),
-			state_root: state_root,
+			outcome: TransactionOutcome::StateRoot(state_root),
 		});
 	}
 }
