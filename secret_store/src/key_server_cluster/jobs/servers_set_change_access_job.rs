@@ -1,4 +1,4 @@
-/*// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -26,8 +26,12 @@ use key_server_cluster::jobs::job_session::{JobPartialResponseAction, JobPartial
 pub struct ServersSetChangeAccessJob {
 	/// Servers set administrator public key (this could be changed to ACL-based check later).
 	administrator: Public,
+	/// Current servers set (in session/cluster).
+	current_servers_set: BTreeSet<NodeId>,
+	/// Old servers set.
+	old_servers_set: Option<BTreeSet<NodeId>>
 	/// New servers set.
-	new_servers_set: Option<BTreeSet<NodeId>>,
+	servers_set: Option<BTreeSet<NodeId>>,
 	/// Requester signature.
 	signature: Option<Signature>,
 }
@@ -36,26 +40,36 @@ pub struct ServersSetChangeAccessJob {
 pub struct ServersSetChangeAccessRequest {
 	/// Session id.
 	session_id: SessionId,
+	/// Old servers set.
+	old_servers_set: BTreeSet<NodeId>,
 	/// New servers set.
 	new_servers_set: BTreeSet<NodeId>,
-	/// Requester signature.
-	signature: Signature,
+	/// Hash(old_servers_set), signed by requester.
+	old_set_signature: Signature,
+	/// Hash(new_servers_set), signed by requester.
+	new_set_signature: Signature,
 }
 
 impl ServersSetChangeAccessJob {
-	pub fn new_on_slave(administrator: Public) -> Self {
+	pub fn new_on_slave(administrator: Public, current_servers_set: BTreeSet<NodeId>) -> Self {
 		ServersSetChangeAccessJob {
 			administrator: administrator,
+			current_servers_set: current_servers_set,
+			old_servers_set: None,
 			new_servers_set: None,
-			signature: None,
+			old_set_signature: None,
+			new_set_signature: None,
 		}
 	}
 
-	pub fn new_on_master(administrator: Public, new_servers_set: BTreeSet<NodeId>, signature: Signature) -> Self {
+	pub fn new_on_master(administrator: Public, current_servers_set: BTreeSet<NodeId>, old_servers_set: BTreeSet<NodeId>, new_servers_set: BTreeSet<NodeId>, old_set_signature: Signature, new_set_signature: Signature) -> Self {
 		ServersSetChangeAccessJob {
 			administrator: administrator,
+			current_servers_set: current_servers_set,
+			old_servers_set: Some(old_servers_set),
 			new_servers_set: Some(new_servers_set),
-			signature: Some(signature),
+			old_set_signature: Some(old_set_signature),
+			new_set_signature: Some(new_set_signature),
 		}
 	}
 }
@@ -68,13 +82,26 @@ impl JobExecutor for ServersSetChangeAccessJob {
 	fn prepare_partial_request(&self, _node: &NodeId, _nodes: &BTreeSet<NodeId>) -> Result<ServersSetChangeAccessRequest, Error> {
 		let explanation = "prepare_partial_request is only called on master nodes; this field is filled on master nodes in constructor; qed";
 		Ok(ServersSetChangeAccessRequest {
+			old_servers_set: self.old_servers_set.clone().expect(explanation),
 			new_servers_set: self.new_servers_set.clone().expect(explanation),
-			signature: self.signature.clone().expect(explanation),
+			old_set_signature: self.old_set_signature.clone().expect(explanation),
+			new_set_signature: self.new_set_signature.clone().expect(explanation),
 		})
 	}
 
 	fn process_partial_request(&self, partial_request: ServersSetChangeAccessRequest) -> Result<JobPartialRequestAction<bool>, Error> {
-		let ServersSetChangeAccessRequest { new_servers_set: new_servers_set, signature: signature } = partial_request;
+		let ServersSetChangeAccessRequest {
+			old_servers_set: old_servers_set,
+			new_servers_set: new_servers_set,
+			old_set_signature: old_set_signature
+			new_set_signature: new_set_signature,
+		} = partial_request;
+
+		// check that current set is exactly the same set as old set
+		if self.current_servers_set.symmetric_difference(&old_servers_set).next().is_some() {
+			return Ok(JobPartialResponseAction::Reject(false));
+		}
+
 		let mut new_servers_set_keccak = Keccak::new_keccak256();
 		for new_server in new_servers_set {
 			new_servers_set_keccak.update(&*new_server);
@@ -96,4 +123,3 @@ impl JobExecutor for ServersSetChangeAccessJob {
 		Ok(partial_responses.keys().cloned().collect())
 	}
 }
-*/

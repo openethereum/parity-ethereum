@@ -988,8 +988,7 @@ impl ServersSetChangeMessage {
 impl ShareAddMessage {
 	pub fn session(&self) -> &SessionId {
 		match *self {
-			ShareAddMessage::InitializeShareAddSession(ref msg) => &msg.session,
-			ShareAddMessage::ConfirmShareAddInitialization(ref msg) => &msg.session,
+			ShareAddMessage::ShareAddConsensusMessage(ref msg) => &msg.session,
 			ShareAddMessage::KeyShareCommon(ref msg) => &msg.session,
 			ShareAddMessage::NewAbsoluteTermShare(ref msg) => &msg.session,
 			ShareAddMessage::NewKeysDissemination(ref msg) => &msg.session,
@@ -999,8 +998,7 @@ impl ShareAddMessage {
 
 	pub fn session_nonce(&self) -> u64 {
 		match *self {
-			ShareAddMessage::InitializeShareAddSession(ref msg) => msg.session_nonce,
-			ShareAddMessage::ConfirmShareAddInitialization(ref msg) => msg.session_nonce,
+			ShareAddMessage::ShareAddConsensusMessage(ref msg) => msg.session_nonce,
 			ShareAddMessage::KeyShareCommon(ref msg) => msg.session_nonce,
 			ShareAddMessage::NewAbsoluteTermShare(ref msg) => msg.session_nonce,
 			ShareAddMessage::NewKeysDissemination(ref msg) => msg.session_nonce,
@@ -1012,7 +1010,7 @@ impl ShareAddMessage {
 impl ShareMoveMessage {
 	pub fn session(&self) -> &SessionId {
 		match *self {
-			ShareMoveMessage::ShareMoveConsensusMessage(ref msg) => msg.session_nonce,
+			ShareMoveMessage::ShareMoveConsensusMessage(ref msg) => msg.&session,
 			ShareMoveMessage::ShareMoveRequest(ref msg) => &msg.session,
 			ShareMoveMessage::ShareMove(ref msg) => &msg.session,
 			ShareMoveMessage::ShareMoveConfirm(ref msg) => &msg.session,
@@ -1043,7 +1041,7 @@ impl ShareRemoveMessage {
 
 	pub fn session_nonce(&self) -> u64 {
 		match *self {
-			ShareRemoveMessage::ShareRemoveConsensusMessage(ref msg) => &msg.session,
+			ShareRemoveMessage::ShareRemoveConsensusMessage(ref msg) => msg.session_nonce,
 			ShareRemoveMessage::ShareRemoveRequest(ref msg) => msg.session_nonce,
 			ShareRemoveMessage::ShareRemoveConfirm(ref msg) => msg.session_nonce,
 			ShareRemoveMessage::ShareRemoveError(ref msg) => msg.session_nonce,
