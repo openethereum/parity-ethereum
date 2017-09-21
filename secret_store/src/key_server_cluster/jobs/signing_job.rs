@@ -101,7 +101,7 @@ impl JobExecutor for SigningJob {
 		})
 	}
 
-	fn process_partial_request(&self, partial_request: PartialSigningRequest) -> Result<JobPartialRequestAction<PartialSigningResponse>, Error> {
+	fn process_partial_request(&mut self, partial_request: PartialSigningRequest) -> Result<JobPartialRequestAction<PartialSigningResponse>, Error> {
 		if partial_request.other_nodes_ids.len() != self.key_share.threshold
 			|| partial_request.other_nodes_ids.contains(&self.self_node_id)
 			|| partial_request.other_nodes_ids.iter().any(|n| !self.key_share.id_numbers.contains_key(n)) {

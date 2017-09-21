@@ -27,15 +27,19 @@ use parking_lot::Mutex;
 use key_server_cluster::{Error, NodeId, SessionMeta, DocumentKeyShare, KeyStorage};
 use key_server_cluster::cluster_sessions::ClusterSession;
 use key_server_cluster::math;
-use key_server_cluster::message::{Message, ShareAddMessage, InitializeShareAddSession, ConfirmShareAddInitialization,
-	KeyShareCommon, NewAbsoluteTermShare, NewKeysDissemination, ShareAddError};
+use key_server_cluster::message::{Message, ShareAddMessage, ShareAddConsensusMessage, ConsensusMessageWithServersMap,
+	InitializeConsensusSessionWithServersMap, KeyShareCommon, NewAbsoluteTermShare, NewKeysDissemination, ShareAddError};
+use key_server_cluster::jobs::job_session::JobTransport;
+use key_server_cluster::jobs::dummy_job::{DummyJob, DummyJobTransport};
+use key_server_cluster::jobs::servers_set_change_access_job::{ServersSetChangeAccessJob, ServersSetChangeAccessRequest};
+use key_server_cluster::jobs::consensus_session::{ConsensusSessionParams, ConsensusSessionState, ConsensusSession};
 
 /// Share addition session API.
 pub trait Session: Send + Sync + 'static {
 }
 
 /// Share addition session transport.
-pub trait SessionTransport {
+pub trait SessionTransport: Clone + JobTransport<PartialJobRequest=ServersSetChangeAccessRequest, PartialJobResponse=bool> {
 	/// Send message to given node.
 	fn send(&self, node: &NodeId, message: ShareAddMessage) -> Result<(), Error>;
 }
@@ -53,7 +57,7 @@ pub struct SessionImpl<T: SessionTransport> {
 	/// Session core.
 	core: SessionCore<T>,
 	/// Session data.
-	data: Mutex<SessionData>,
+	data: Mutex<SessionData<T>>,
 }
 
 /// Immutable session data.
@@ -72,9 +76,15 @@ struct SessionCore<T: SessionTransport> {
 	pub key_storage: Arc<KeyStorage>,
 }
 
+/// Share add consensus session type.
+type ShareAddChangeConsensusSession<T: SessionTransport> = ConsensusSession<ServersSetChangeAccessJob, T, DummyJob, DummyJobTransport>;
+
 /// Mutable session data.
-#[derive(Debug)]
-struct SessionData {
+struct SessionData<T: SessionTransport> {
+	/// Is consensus reached?
+	pub is_consensus_pre_established: bool,
+	/// Consensus session.
+	pub consensus_session: Option<ShareAddChangeConsensusSession<T>>,
 	/// Session state.
 	pub state: SessionState,
 	/// Nodes-specific data.
@@ -112,10 +122,8 @@ struct NodeData {
 /// Session state.
 #[derive(Debug, PartialEq)]
 enum SessionState {
-	/// Every node starts in this state.
-	WaitingForInitialization,
-	/// Waiting for initialization confirmation.
-	WaitingForInitializationConfirm,
+	/// State when consensus is establishing.
+	ConsensusEstablishing,
 	/// Waiting for absolute term share.
 	WaitingForAbsoluteTermShare,
 	/// Waiting for keys dissemination.
@@ -138,24 +146,24 @@ pub struct SessionParams<T: SessionTransport> {
 	pub key_storage: Arc<KeyStorage>,
 	/// Session nonce.
 	pub nonce: u64,
-	/// Key share (some on existing nodes only).
-	pub key_share: Option<DocumentKeyShare>,
 }
 
 impl<T> SessionImpl<T> where T: SessionTransport {
-	/// Create new nested share addition session. Consensus is formed outside.
-	pub fn new_nested(params: SessionParams<T>) -> Result<Self, Error> {
+	/// Create new share addition session.
+	pub fn new(params: SessionParams<T>, is_consensus_pre_established: bool) -> Result<Self, Error> {
 		Ok(SessionImpl {
 			core: SessionCore {
-				meta: params.meta,
+				meta: params.meta.clone(),
 				sub_session: params.sub_session,
 				nonce: params.nonce,
-				key_share: params.key_share,
+				key_share: params.key_storage.get(&params.meta.id).ok(), // ignore error, it will be checked later
 				transport: params.transport,
 				key_storage: params.key_storage,
 			},
 			data: Mutex::new(SessionData {
-				state: SessionState::WaitingForInitialization,
+				is_consensus_pre_established: is_consensus_pre_established,
+				consensus_session: None,
+				state: SessionState::ConsensusEstablishing,
 				nodes: BTreeMap::new(),
 				refreshed_polynom1_sum: None,
 				key_share_author: None,
@@ -166,48 +174,52 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 	}
 
 	/// Initialize share add session on master node.
-	pub fn initialize(&self, nodes_to_add: BTreeSet<NodeId>) -> Result<(), Error> {
+	pub fn initialize(&self, new_nodes_set: BTreeSet<NodeId>, old_set_signature: Option<Signature>, new_set_signature: Option<Signature>) -> Result<(), Error> {
 		debug_assert_eq!(self.core.meta.self_node_id, self.core.meta.master_node_id);
-
-		// all nodes_to_add must be new nodes for the session
-		let old_key_share = self.core.key_share.as_ref()
-			.expect("initialize is called on master node; master node owns its own key share; qed");
-		if nodes_to_add.iter().any(|n| old_key_share.id_numbers.contains_key(n)) {
-			return Err(Error::InvalidNodesConfiguration);
-		}
 
 		let mut data = self.data.lock();
 
 		// check state
-		if data.state != SessionState::WaitingForInitialization {
+		if data.state != SessionState::ConsensusEstablishing || data.consensus_session.is_some() {
 			return Err(Error::InvalidStateForRequest);
 		}
 
-		// update state
-		let nodes_to_add = nodes_to_add.into_iter()
-			.map(|n| math::generate_random_scalar().map(|nn| (n, nn)))
+		// prepare set of nodes to add
+		let key_share = self.core.key_share.as_ref().ok_or(Error::KeyStorage("key share is not found on master node".into()))?;
+		let old_nodes_set: BTreeSet<_> = key_share.id_numbers.keys().cloned().collect();
+		let new_nodes_map = new_nodes_set.iter()
+			.map(|n| key_share.id_numbers.get(n)
+				.cloned()
+				.map(Ok)
+				.unwrap_or_else(|| math::generate_random_scalar())
+				.map(|nn| (n.clone(), nn)))
 			.collect::<Result<BTreeMap<_, _>, _>>()?;
-		data.state = SessionState::WaitingForInitializationConfirm;
-		data.nodes = old_key_share.id_numbers.iter().chain(nodes_to_add.iter())
-			.map(|(n, nn)| (n.clone(), NodeData::new(nn.clone(), nodes_to_add.contains_key(n))))
-			.collect();
-		data.nodes.get_mut(&self.core.meta.self_node_id)
-			.expect("initialize is called on master node; master node owns its own key share; all key shares are in data.nodes; qed")
-			.is_initialization_confirmed = true;
+		check_nodes_set(&old_nodes_set, &new_nodes_map)?;
 
-		// send initialization request to every node
-		for node in data.nodes.keys().filter(|n| **n != self.core.meta.self_node_id) {
-			self.core.transport.send(node, ShareAddMessage::InitializeShareAddSession(InitializeShareAddSession {
-				session: self.core.meta.id.clone().into(),
-				sub_session: self.core.sub_session.clone().into(),
-				session_nonce: self.core.nonce,
-				threshold: self.core.meta.threshold,
-				nodes: data.nodes.iter().map(|(n, nd)| (n.clone().into(), nd.id_number.clone().into())).collect(),
-				new_nodes: nodes_to_add.keys().cloned().map(Into::into).collect(),
-			}))?;
+		// if consensus is not yet established => start consensus session
+		if !data.is_consensus_pre_established {
+			let old_set_signature = old_set_signature.ok_or(Error::InvalidMessage)?;
+			let new_set_signature = new_set_signature.ok_or(Error::InvalidMessage)?;
+			let mut consensus_session = ConsensusSession::new(ConsensusSessionParams {
+				meta: self.core.meta.clone(),
+				consensus_executor: ServersSetChangeAccessJob::new_on_master(Public::default(), // TODO: admin key instead of default
+					key_share.id_numbers.keys().cloned().collect(),
+					key_share.id_numbers.keys().cloned().collect(),
+					new_nodes_set.clone(),
+					old_set_signature,
+					new_set_signature),
+				consensus_transport: self.core.transport.clone(),
+			})?;
+			consensus_session.initialize(new_nodes_set.clone())?;
+			data.consensus_session = Some(consensus_session);
+			data.nodes = new_nodes_map.into_iter()
+				.map(|(n, nn)| (n, NodeData::new(nn, new_nodes_set.contains(&n))))
+				.collect();
+			return Ok(());
 		}
 
-		Ok(())
+		// otherwise => start sending ShareAdd-specific messages
+		Self::on_consensus_established(&self.core, &mut *data, &old_nodes_set, &new_nodes_map)
 	}
 
 	/// Process single message.
@@ -217,10 +229,8 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		}
 
 		match message {
-			&ShareAddMessage::InitializeShareAddSession(ref message) =>
-				self.on_initialize_session(sender, message),
-			&ShareAddMessage::ConfirmShareAddInitialization(ref message) =>
-				self.on_confirm_initialization(sender, message),
+			&ShareAddMessage::ShareAddConsensusMessage(ref message) =>
+				self.on_consensus_message(sender, message),
 			&ShareAddMessage::KeyShareCommon(ref message) =>
 				self.on_common_key_share_data(sender, message),
 			&ShareAddMessage::NewAbsoluteTermShare(ref message) =>
@@ -232,7 +242,63 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		}
 	}
 
-	/// When initialization request is received.
+	/// When consensus-related message is received.
+	pub fn on_consensus_message(&self, sender: &NodeId, message: &ShareAddConsensusMessage) -> Result<(), Error> {
+		debug_assert!(self.core.meta.id == *message.session);
+		debug_assert!(self.core.sub_session == *message.sub_session);
+		debug_assert!(sender != &self.core.meta.self_node_id);
+
+		// only expect this message in non-nested session
+		let mut data = self.data.lock();
+		if data.is_consensus_pre_established {
+			return Err(Error::InvalidMessage);
+		}
+
+		// start slave consensus session if needed
+		if self.core.meta.self_node_id != self.core.meta.master_node_id {
+			if data.consensus_session.is_none() {
+				match &message.message {
+					&ConsensusMessageWithServersMap::InitializeConsensusSession(ref message) => {
+						let current_nodes_set = self.core.key_share.as_ref()
+							.map(|ks| ks.id_numbers.keys().cloned().collect())
+							.unwrap_or_else(|| message.old_nodes_set.clone().into_iter().map(Into::into).collect());
+						data.consensus_session = Some(ConsensusSession::new(ConsensusSessionParams {
+							meta: self.core.meta.clone(),
+							consensus_executor: ServersSetChangeAccessJob::new_on_slave(Public::default(), // TODO: administrator public
+								current_nodes_set,
+							),
+							consensus_transport: self.core.transport.clone(),
+						})?);
+					},
+					_ => return Err(Error::InvalidStateForRequest),
+				}
+			}
+		}
+
+		{
+			let consensus_session = data.consensus_session.as_mut().ok_or(Error::InvalidMessage)?;
+			let is_establishing_consensus = consensus_session.state() == ConsensusSessionState::EstablishingConsensus;
+			match &message.message {
+				&ConsensusMessageWithServersMap::InitializeConsensusSession(ref message) =>
+					consensus_session.on_consensus_partial_request(sender, ServersSetChangeAccessRequest::from(message))?,
+				&ConsensusMessageWithServersMap::ConfirmConsensusInitialization(ref message) =>
+					consensus_session.on_consensus_partial_response(sender, message.is_confirmed)?,
+			}
+
+			let is_consensus_established = consensus_session.state() == ConsensusSessionState::ConsensusEstablished;
+			if self.core.meta.self_node_id != self.core.meta.master_node_id || !is_establishing_consensus || !is_consensus_established {
+				return Ok(());
+			}
+		}
+
+		let key_share = self.core.key_share.as_ref()
+			.ok_or(Error::KeyStorage("key share is not found on master node".into()))?;
+		let old_nodes_set = key_share.id_numbers.keys().cloned().collect();
+		let new_nodes_set = data.nodes.iter().map(|(n, nd)| (n.clone(), nd.id_number.clone())).collect();
+		Self::on_consensus_established(&self.core, &mut *data, &old_nodes_set, &new_nodes_set)
+	}
+
+	/*/// When initialization request is received.
 	pub fn on_initialize_session(&self, sender: &NodeId, message: &InitializeShareAddSession) -> Result<(), Error> {
 		debug_assert!(self.core.meta.id == *message.session);
 		debug_assert!(self.core.sub_session == *message.sub_session);
@@ -314,7 +380,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		Self::disseminate_common_share_data(&self.core, &*data)?;
 		Self::disseminate_absolute_term_shares(&self.core, &mut *data)?;
 		Self::disseminate_keys(&self.core, &mut *data)
-	}
+	}*/
 
 	/// When common key share data is received by new node.
 	pub fn on_common_key_share_data(&self, sender: &NodeId, message: &KeyShareCommon) -> Result<(), Error> {
@@ -330,7 +396,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		let mut data = self.data.lock();
 
 		// check state
-		if data.state == SessionState::WaitingForInitializationConfirm {
+		if data.state == SessionState::ConsensusEstablishing {
 			data.state = SessionState::WaitingForAbsoluteTermShare;
 		} else if data.state != SessionState::WaitingForAbsoluteTermShare {
 			return Err(Error::InvalidStateForRequest);
@@ -362,7 +428,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		let mut data = self.data.lock();
 
 		// check state
-		if data.state == SessionState::WaitingForInitializationConfirm {
+		if data.state == SessionState::ConsensusEstablishing {
 			data.state = SessionState::WaitingForAbsoluteTermShare;
 		} else if data.state != SessionState::WaitingForAbsoluteTermShare {
 			return Err(Error::InvalidStateForRequest);
@@ -409,7 +475,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		let mut data = self.data.lock();
 
 		// check state
-		if data.state == SessionState::WaitingForInitializationConfirm {
+		if data.state == SessionState::ConsensusEstablishing {
 			data.state = SessionState::WaitingForKeysDissemination;
 		} else if data.state == SessionState::WaitingForAbsoluteTermShare {
 			return Err(Error::TooEarlyForRequest);
@@ -461,8 +527,36 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		Ok(())
 	}
 
+	/// Start sending ShareAdd-specific messages, when consensus is established.
+	fn on_consensus_established(core: &SessionCore<T>, data: &mut SessionData<T>, old_nodes_set: &BTreeSet<NodeId>, new_nodes_set: &BTreeMap<NodeId, Secret>) -> Result<(), Error> {
+		// update state
+		let is_old_node = old_nodes_set.contains(&core.meta.self_node_id);
+		data.state = if is_old_node { SessionState::WaitingForKeysDissemination } else { SessionState::WaitingForAbsoluteTermShare };
+		data.nodes = new_nodes_set.iter()
+			.map(|(node, node_id)| (node.clone(), NodeData::new(node_id.clone(), !old_nodes_set.contains(node))))
+			.collect();
+
+		// if on master node, send common shared data to every new node
+		let is_master_node = core.meta.self_node_id == core.meta.master_node_id;
+		if is_master_node {
+			Self::disseminate_common_share_data(core, data)?;
+		}
+
+		// if on old node, send absolute term shares to every new node
+		if is_old_node {
+			Self::disseminate_absolute_term_shares(core, data)?;
+		}
+
+		// if on old node, send keys to every node
+		if is_old_node {
+			Self::disseminate_keys(core, data)?;
+		}
+
+		Ok(())
+	}
+
 	/// Disseminate absolute term of polynom1 data.
-	fn disseminate_absolute_term_shares(core: &SessionCore<T>, data: &mut SessionData) -> Result<(), Error> {
+	fn disseminate_absolute_term_shares(core: &SessionCore<T>, data: &mut SessionData<T>) -> Result<(), Error> {
 		// compute/generate refreshed polynom1
 		let old_key_share = core.key_share.as_ref()
 			.expect("disseminate_absolute_term_shares is only called on old nodes; key_share is filled in initialization phase on old nodes; qed");
@@ -485,7 +579,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 	}
 
 	/// Send common share data to evey new node.
-	fn disseminate_common_share_data(core: &SessionCore<T>, data: &SessionData) -> Result<(), Error> {
+	fn disseminate_common_share_data(core: &SessionCore<T>, data: &SessionData<T>) -> Result<(), Error> {
 		let old_key_share = core.key_share.as_ref()
 			.expect("disseminate_common_share_data is only called on master node; key_share is filled in initialization phase on master node; qed");
 		for new_node in data.nodes.iter().filter(|&(_, nd)| nd.is_new_node).map(|(n, _)| n) {
@@ -503,7 +597,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 	}
 
 	/// Disseminate key refreshing data.
-	fn disseminate_keys(core: &SessionCore<T>, data: &mut SessionData) -> Result<(), Error> {
+	fn disseminate_keys(core: &SessionCore<T>, data: &mut SessionData<T>) -> Result<(), Error> {
 		// send required messages
 		let refreshed_polynom1_sum = data.refreshed_polynom1_sum.as_ref()
 			.expect("disseminate_keys is only called after generating refreshed_polynom1_sum; qed");
@@ -534,7 +628,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 	}
 
 	/// Verify received keys values.
-	fn verify_keys(core: &SessionCore<T>, data: &mut SessionData) -> Result<(), Error> {
+	fn verify_keys(core: &SessionCore<T>, data: &mut SessionData<T>) -> Result<(), Error> {
 		let number_id = &data.nodes[&core.meta.self_node_id].id_number;
 		for node_data in data.nodes.iter().filter(|&(n, _)| n != &core.meta.self_node_id).map(|(_, nd)| nd) {
 			let refreshed_secret1 = node_data.refreshed_secret1.as_ref().expect("keys received on KRD phase; KRV phase follows KRD phase; qed");
@@ -551,7 +645,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 	}
 
 	/// Complete session.
-	fn complete_session(core: &SessionCore<T>, data: &mut SessionData) -> Result<(), Error> {
+	fn complete_session(core: &SessionCore<T>, data: &mut SessionData<T>) -> Result<(), Error> {
 		// compose updated key share
 		let refreshed_key_share = DocumentKeyShare {
 			// values with the same value as before beginning of the session
@@ -607,6 +701,19 @@ impl NodeData {
 	}
 }
 
+fn check_nodes_set(old_nodes_set: &BTreeSet<NodeId>, new_nodes_set: &BTreeMap<NodeId, Secret>) -> Result<(), Error> {
+	// it is impossible to remove nodes using share add session
+	if old_nodes_set.iter().any(|n| !new_nodes_set.contains_key(n)) {
+		return Err(Error::InvalidNodesConfiguration);
+	}
+	// it is impossible to not to add any nodes using share add session
+	if new_nodes_set.len() == old_nodes_set.len() {
+		return Err(Error::InvalidNodesConfiguration);
+	}
+
+	Ok(())
+}
+
 fn generate_refreshed_polynoms_for_existing_nodes(new_nodes: usize, threshold: usize, existing_polynom1: &Vec<Secret>) -> Result<(Vec<Secret>, Vec<Secret>), Error> {
 	// TODO: could add secrets instead of polynoms
 	let refreshed_polynoms1 = (0..new_nodes).map(|_| math::generate_random_polynom(threshold)).collect::<Result<Vec<_>, _>>()?;
@@ -641,6 +748,7 @@ mod tests {
 	use key_server_cluster::message::{Message, ServersSetChangeMessage, ShareAddMessage};
 	use key_server_cluster::servers_set_change_session::tests::generate_key;
 	use key_server_cluster::share_change_session::ShareChangeTransport;
+	use key_server_cluster::jobs::servers_set_change_access_job::ordered_nodes_hash;
 	use super::{SessionImpl, SessionParams, SessionTransport};
 
 	struct Node {
@@ -678,14 +786,13 @@ mod tests {
 				let key_storage = nd.key_storage.clone();
 				let mut meta = meta.clone();
 				meta.self_node_id = n.clone();
-				let session = SessionImpl::new_nested(SessionParams {
+				let session = SessionImpl::new(SessionParams {
 					meta: meta,
 					sub_session: sub_session.clone(),
 					transport: ShareChangeTransport::new(session_id.clone(), 1, cluster.clone()),
 					key_storage: nd.key_storage.clone(),
 					nonce: 1,
-					key_share: Some(key_storage.get(&key_id).unwrap()),
-				}).unwrap();
+				}, false).unwrap();
 				nodes.insert(n.clone(), Node {
 					cluster: cluster,
 					key_storage: key_storage,
@@ -697,14 +804,13 @@ mod tests {
 				let key_storage = Arc::new(DummyKeyStorage::default());
 				let mut meta = meta.clone();
 				meta.self_node_id = new_node_id;
-				let session = SessionImpl::new_nested(SessionParams {
+				let session = SessionImpl::new(SessionParams {
 					meta: meta,
 					sub_session: sub_session.clone(),
 					transport: ShareChangeTransport::new(session_id.clone(), 1, cluster.clone()),
 					key_storage: key_storage.clone(),
 					nonce: 1,
-					key_share: None,
-				}).unwrap();
+				}, false).unwrap();
 				nodes.insert(new_node_id, Node {
 					cluster: cluster,
 					key_storage: key_storage,
@@ -721,6 +827,7 @@ mod tests {
 
 		pub fn run(&mut self) {
 			while let Some((from, to, message)) = self.take_message() {
+println!("=== {} -> {}: {}", from, to, message);
 				self.process_message((from, to, message)).unwrap();
 			}
 		}
@@ -765,10 +872,14 @@ mod tests {
 		let joint_key_pair = KeyPair::from_secret(joint_secret.clone()).unwrap();
 
 		// insert 1 node so that it becames 2-of-4 session
+		let old_nodes_set: BTreeSet<_> = gml.nodes.keys().cloned().collect();
+		let old_set_signature = sign(&joint_secret, &ordered_nodes_hash(&old_nodes_set)).unwrap();
 		let mut ml = MessageLoop::new(gml, t, 1);
-		let new_nodes_set: BTreeSet<_> = ml.nodes.keys().cloned().filter(|n| !gml_nodes.contains(n)).collect();
-		assert_eq!(new_nodes_set.len(), 1);
-		ml.nodes[&master].session.initialize(new_nodes_set);
+		let nodes_to_add: BTreeSet<_> = ml.nodes.keys().cloned().filter(|n| !gml_nodes.contains(n)).collect();
+		assert_eq!(nodes_to_add.len(), 1);
+		let new_nodes_set: BTreeSet<_> = old_nodes_set.into_iter().chain(nodes_to_add.into_iter()).collect();
+		let new_set_signature = sign(&joint_secret, &ordered_nodes_hash(&new_nodes_set)).unwrap();
+		ml.nodes[&master].session.initialize(new_nodes_set, None, None).unwrap();
 		ml.run();
 
 		// try to recover secret for every possible combination of nodes && check that secret is the same
@@ -776,7 +887,7 @@ mod tests {
 		for n1 in 0..n+1 {
 			for n2 in n1+1..n+1 {
 				let share1 = ml.nodes.values().nth(n1).unwrap().key_storage.get(&key_id).unwrap();
-				let share2 = ml.nodes.values().nth(n2).unwrap().key_storage.get(&key_id).unwrap();
+				let share2 = ml. nodes.values().nth(n2).unwrap().key_storage.get(&key_id).unwrap();
 				let id_number1 = share1.id_numbers[ml.nodes.keys().nth(n1).unwrap()].clone();
 				let id_number2 = share1.id_numbers[ml.nodes.keys().nth(n2).unwrap()].clone();
 

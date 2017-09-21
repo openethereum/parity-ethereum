@@ -56,7 +56,7 @@ impl JobExecutor for UnknownSessionsJob {
 		Ok(self.target_node_id.clone().expect("prepare_partial_request is only called on master nodes; this field is filled on master nodes in constructor; qed"))
 	}
 
-	fn process_partial_request(&self, partial_request: NodeId) -> Result<JobPartialRequestAction<BTreeSet<SessionId>>, Error> {
+	fn process_partial_request(&mut self, partial_request: NodeId) -> Result<JobPartialRequestAction<BTreeSet<SessionId>>, Error> {
 		Ok(JobPartialRequestAction::Respond(self.key_storage.iter()
 			.filter(|&(_, ref key_share)| !key_share.id_numbers.contains_key(&partial_request))
 			.map(|(id, _)| id.clone())

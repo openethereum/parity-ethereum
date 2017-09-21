@@ -26,7 +26,7 @@ use bigint::prelude::U256;
 use bigint::hash::H256;
 use key_server_cluster::Error;
 use key_server_cluster::message::{Message, ClusterMessage, GenerationMessage, EncryptionMessage,
-	DecryptionMessage, SigningMessage, ServersSetChangeMessage};
+	DecryptionMessage, SigningMessage, ServersSetChangeMessage, ShareAddMessage};
 
 /// Size of serialized header.
 pub const MESSAGE_HEADER_SIZE: usize = 18;
@@ -112,6 +112,12 @@ pub fn serialize_message(message: Message) -> Result<SerializedMessage, Error> {
 		Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeError(payload))	=> (258, serde_json::to_vec(&payload)),
 		Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeCompleted(payload))
 																							=> (259, serde_json::to_vec(&payload)),
+
+		Message::ShareAdd(ShareAddMessage::ShareAddConsensusMessage(payload))				=> (300, serde_json::to_vec(&payload)),
+		Message::ShareAdd(ShareAddMessage::KeyShareCommon(payload))							=> (301, serde_json::to_vec(&payload)),
+		Message::ShareAdd(ShareAddMessage::NewAbsoluteTermShare(payload))					=> (302, serde_json::to_vec(&payload)),
+		Message::ShareAdd(ShareAddMessage::NewKeysDissemination(payload))					=> (303, serde_json::to_vec(&payload)),
+		Message::ShareAdd(ShareAddMessage::ShareAddError(payload))							=> (304, serde_json::to_vec(&payload)),
 	};
 
 	let payload = payload.map_err(|err| Error::Serde(err.to_string()))?;
@@ -165,6 +171,12 @@ pub fn deserialize_message(header: &MessageHeader, payload: Vec<u8>) -> Result<M
 		257	=> Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeShareRemoveMessage(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
 		258	=> Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeError(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
 		259	=> Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeCompleted(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+
+		300 => Message::ShareAdd(ShareAddMessage::ShareAddConsensusMessage(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		301 => Message::ShareAdd(ShareAddMessage::KeyShareCommon(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		302 => Message::ShareAdd(ShareAddMessage::NewAbsoluteTermShare(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		303 => Message::ShareAdd(ShareAddMessage::NewKeysDissemination(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		304 => Message::ShareAdd(ShareAddMessage::ShareAddError(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
 
 		_ => return Err(Error::Serde(format!("unknown message type {}", header.kind))),
 	})

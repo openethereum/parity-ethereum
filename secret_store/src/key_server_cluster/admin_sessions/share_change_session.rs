@@ -21,6 +21,8 @@ use key_server_cluster::{Error, NodeId, SessionId, SessionMeta, DocumentKeyShare
 use key_server_cluster::cluster::Cluster;
 use key_server_cluster::cluster_sessions::ClusterSession;
 use key_server_cluster::math;
+use key_server_cluster::jobs::servers_set_change_access_job::ServersSetChangeAccessRequest;
+use key_server_cluster::jobs::job_session::JobTransport;
 use key_server_cluster::message::{Message, ServersSetChangeMessage, ServersSetChangeShareAddMessage, ServersSetChangeShareMoveMessage,
 	ServersSetChangeShareRemoveMessage};
 use key_server_cluster::share_add_session::{SessionTransport as ShareAddSessionTransport,
@@ -93,6 +95,7 @@ pub struct ShareChangeSessionParams {
 }
 
 /// Share add session transport.
+#[derive(Clone)]
 pub struct ShareChangeTransport {
 	/// Servers set change session id.
 	session_id: SessionId,
@@ -143,7 +146,7 @@ impl ShareChangeSession {
 
 	/// When share-add message is received.
 	pub fn on_share_add_message(&mut self, sender: &NodeId, message: &ShareAddMessage) -> Result<(), Error> {
-		if let &ShareAddMessage::InitializeShareAddSession(ref message) = message {
+/*		if let &ShareAddMessage::InitializeShareAddSession(ref message) = message {
 			if self.share_add_session.is_some() {
 				return Err(Error::InvalidMessage);
 			}
@@ -152,7 +155,7 @@ impl ShareChangeSession {
 			}
 
 			self.create_share_add_session(&message.sub_session.clone().into())?;
-		}
+		}*/
 
 		let change_state_needed = self.share_add_session.as_ref()
 			.map(|share_add_session| {
@@ -224,7 +227,7 @@ impl ShareChangeSession {
 
 	/// Create new share add session.
 	fn create_share_add_session(&mut self, sub_session: &Secret) -> Result<(), Error> {
-		self.share_add_session = Some(ShareAddSessionImpl::new_nested(ShareAddSessionParams {
+		self.share_add_session = Some(ShareAddSessionImpl::new(ShareAddSessionParams {
 			meta: SessionMeta {
 				id: self.key_id.clone(),
 				threshold: 0,
@@ -235,8 +238,7 @@ impl ShareChangeSession {
 			sub_session: sub_session.clone(),
 			transport: ShareChangeTransport::new(self.session_id, self.nonce, self.cluster.clone()),
 			key_storage: self.key_storage.clone(),
-			key_share: self.document_key_share.clone(),
-		})?);
+		}, true)?);
 		Ok(())
 	}
 
@@ -285,7 +287,8 @@ impl ShareChangeSession {
 		if let Some(nodes_to_add) = self.nodes_to_add.take() {
 			if !nodes_to_add.is_empty() {
 				self.create_share_add_session(sub_session);
-				return self.share_add_session.as_ref().expect("TODO").initialize(nodes_to_add);
+				return self.share_add_session.as_ref().expect("TODO")
+					.initialize(nodes_to_add, None, None);
 			}
 		}
 
@@ -317,6 +320,14 @@ impl ShareChangeTransport {
 			cluster: cluster,
 		}
 	}
+}
+
+impl JobTransport for ShareChangeTransport {
+	type PartialJobRequest = ServersSetChangeAccessRequest;
+	type PartialJobResponse = bool;
+
+	fn send_partial_request(&self, _node: &NodeId, request: ServersSetChangeAccessRequest) -> Result<(), Error> { unreachable!() }
+	fn send_partial_response(&self, _node: &NodeId, response: bool) -> Result<(), Error> { unreachable!() }
 }
 
 impl ShareAddSessionTransport for ShareChangeTransport {

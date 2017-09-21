@@ -20,6 +20,7 @@ use ethkey::{Public, Signature, recover};
 use hash::keccak_buffer;
 use tiny_keccak::{keccak256, Keccak};
 use key_server_cluster::{Error, NodeId, SessionId, AclStorage};
+use key_server_cluster::message::{InitializeConsensusSessionWithServersSet, InitializeConsensusSessionWithServersMap};
 use key_server_cluster::jobs::job_session::{JobPartialResponseAction, JobPartialRequestAction, JobExecutor};
 
 /// Purpose of this job is to check if requestor is administrator of SecretStore (i.e. it have access to change key servers set).
@@ -29,25 +30,47 @@ pub struct ServersSetChangeAccessJob {
 	/// Current servers set (in session/cluster).
 	current_servers_set: BTreeSet<NodeId>,
 	/// Old servers set.
-	old_servers_set: Option<BTreeSet<NodeId>>
+	old_servers_set: Option<BTreeSet<NodeId>>,
 	/// New servers set.
-	servers_set: Option<BTreeSet<NodeId>>,
-	/// Requester signature.
-	signature: Option<Signature>,
+	new_servers_set: Option<BTreeSet<NodeId>>,
+	/// Old servers set, signed by requester.
+	old_set_signature: Option<Signature>,
+	/// New servers set, signed by requester.
+	new_set_signature: Option<Signature>,
 }
 
 /// Servers set change job partial request.
 pub struct ServersSetChangeAccessRequest {
-	/// Session id.
-	session_id: SessionId,
 	/// Old servers set.
-	old_servers_set: BTreeSet<NodeId>,
+	pub old_servers_set: BTreeSet<NodeId>,
 	/// New servers set.
-	new_servers_set: BTreeSet<NodeId>,
+	pub new_servers_set: BTreeSet<NodeId>,
 	/// Hash(old_servers_set), signed by requester.
-	old_set_signature: Signature,
+	pub old_set_signature: Signature,
 	/// Hash(new_servers_set), signed by requester.
-	new_set_signature: Signature,
+	pub new_set_signature: Signature,
+}
+
+impl<'a> From<&'a InitializeConsensusSessionWithServersSet> for ServersSetChangeAccessRequest {
+	fn from(message: &InitializeConsensusSessionWithServersSet) -> Self {
+		ServersSetChangeAccessRequest {
+			old_servers_set: message.old_nodes_set.iter().cloned().map(Into::into).collect(),
+			new_servers_set: message.new_nodes_set.iter().cloned().map(Into::into).collect(),
+			old_set_signature: message.old_set_signature.clone().into(),
+			new_set_signature: message.new_set_signature.clone().into(),
+		}
+	}
+}
+
+impl<'a> From<&'a InitializeConsensusSessionWithServersMap> for ServersSetChangeAccessRequest {
+	fn from(message: &InitializeConsensusSessionWithServersMap) -> Self {
+		ServersSetChangeAccessRequest {
+			old_servers_set: message.old_nodes_set.iter().cloned().map(Into::into).collect(),
+			new_servers_set: message.new_nodes_set.keys().cloned().map(Into::into).collect(),
+			old_set_signature: message.old_set_signature.clone().into(),
+			new_set_signature: message.new_set_signature.clone().into(),
+		}
+	}
 }
 
 impl ServersSetChangeAccessJob {
@@ -72,6 +95,10 @@ impl ServersSetChangeAccessJob {
 			new_set_signature: Some(new_set_signature),
 		}
 	}
+
+	pub fn new_servers_set(&self) -> Option<&BTreeSet<NodeId>> {
+		self.new_servers_set.as_ref()
+	}
 }
 
 impl JobExecutor for ServersSetChangeAccessJob {
@@ -89,30 +116,26 @@ impl JobExecutor for ServersSetChangeAccessJob {
 		})
 	}
 
-	fn process_partial_request(&self, partial_request: ServersSetChangeAccessRequest) -> Result<JobPartialRequestAction<bool>, Error> {
+	fn process_partial_request(&mut self, partial_request: ServersSetChangeAccessRequest) -> Result<JobPartialRequestAction<bool>, Error> {
 		let ServersSetChangeAccessRequest {
 			old_servers_set: old_servers_set,
 			new_servers_set: new_servers_set,
-			old_set_signature: old_set_signature
+			old_set_signature: old_set_signature,
 			new_set_signature: new_set_signature,
 		} = partial_request;
 
 		// check that current set is exactly the same set as old set
 		if self.current_servers_set.symmetric_difference(&old_servers_set).next().is_some() {
-			return Ok(JobPartialResponseAction::Reject(false));
+			return Ok(JobPartialRequestAction::Reject(false));
 		}
 
-		let mut new_servers_set_keccak = Keccak::new_keccak256();
-		for new_server in new_servers_set {
-			new_servers_set_keccak.update(&*new_server);
-		}
+		// check old servers set signature
+		let old_actual_public = recover(&old_set_signature, &ordered_nodes_hash(&old_servers_set).into())?;
+		let new_actual_public = recover(&new_set_signature, &ordered_nodes_hash(&new_servers_set).into())?;
+		let is_administrator = old_actual_public == self.administrator && new_actual_public == self.administrator;
+		self.new_servers_set = Some(new_servers_set);
 
-		let mut new_servers_set_keccak_value = [0u8; 32];
-		new_servers_set_keccak.finalize(&mut new_servers_set_keccak_value);
-
-		let actual_public = recover(&signature, &new_servers_set_keccak_value.into())?;
-		let is_administrator_signature = actual_public == self.administrator;
-		Ok(if is_administrator_signature { JobPartialRequestAction::Respond(true) } else { JobPartialRequestAction::Reject(false) })
+		Ok(if is_administrator { JobPartialRequestAction::Respond(true) } else { JobPartialRequestAction::Reject(false) })
 	}
 
 	fn check_partial_response(&self, partial_response: &bool) -> Result<JobPartialResponseAction, Error> {
@@ -122,4 +145,16 @@ impl JobExecutor for ServersSetChangeAccessJob {
 	fn compute_response(&self, partial_responses: &BTreeMap<NodeId, bool>) -> Result<BTreeSet<NodeId>, Error> {
 		Ok(partial_responses.keys().cloned().collect())
 	}
+}
+
+pub fn ordered_nodes_hash(nodes: &BTreeSet<NodeId>) -> SessionId {
+	let mut nodes_keccak = Keccak::new_keccak256();
+	for node in nodes {
+		nodes_keccak.update(&*node);
+	}
+
+	let mut nodes_keccak_value = [0u8; 32];
+	nodes_keccak.finalize(&mut nodes_keccak_value);
+
+	nodes_keccak_value.into()
 }

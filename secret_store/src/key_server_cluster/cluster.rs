@@ -411,6 +411,7 @@ impl ClusterCore {
 			Message::Decryption(message) => ClusterCore::process_decryption_message(data, connection, message),
 			Message::Signing(message) => ClusterCore::process_signing_message(data, connection, message),
 			Message::ServersSetChange(message) => ClusterCore::process_servers_set_change_message(data, connection, message),
+			Message::ShareAdd(message) => unimplemented!(),
 			Message::Cluster(message) => ClusterCore::process_cluster_message(data, connection, message),
 		}
 	}
