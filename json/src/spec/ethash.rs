@@ -93,6 +93,25 @@ pub struct EthashParams {
 	pub ecip1017_era_rounds: Option<Uint>,
 
 	/// See main EthashParams docs.
+	#[serde(rename="mcip3Transition")]
+	pub mcip3_transition: Option<Uint>,
+	/// See main EthashParams docs.
+	#[serde(rename="mcip3MinerReward")]
+	pub mcip3_miner_reward: Option<Uint>,
+	/// See main EthashParams docs.
+	#[serde(rename="mcip3UbiReward")]
+	pub mcip3_ubi_reward: Option<Uint>,
+	/// See main EthashParams docs.
+	#[serde(rename="mcip3UbiContract")]
+	pub mcip3_ubi_contract: Option<Address>,
+	/// See main EthashParams docs.
+	#[serde(rename="mcip3DevReward")]
+	pub mcip3_dev_reward: Option<Uint>,
+	/// See main EthashParams docs.
+	#[serde(rename="mcip3DevContract")]
+	pub mcip3_dev_contract: Option<Address>,
+
+	/// See main EthashParams docs.
 	#[serde(rename="maxCodeSize")]
 	pub max_code_size: Option<Uint>,
 
