@@ -371,7 +371,7 @@ pub fn get_default_ethash_params() -> EthashParams {
 		metropolis_difficulty_increment_divisor: 9,
 		homestead_transition: 1150000,
 		duration_limit: 13,
-		block_reward: 1_000_000,
+		block_reward: 0.into(),
 		difficulty_hardfork_transition: u64::max_value(),
 		difficulty_hardfork_bound_divisor: U256::from(0),
 		bomb_defuse_transition: u64::max_value(),

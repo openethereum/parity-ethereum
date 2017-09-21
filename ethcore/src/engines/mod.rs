@@ -19,7 +19,7 @@
 // mod authority_round;
 // mod basic_authority;
 // mod instant_seal;
-// mod null_engine;
+mod null_engine;
 // mod signer;
 // mod tendermint;
 // mod transition;
@@ -32,7 +32,7 @@ pub mod epoch;
 // pub use self::basic_authority::BasicAuthority;
 pub use self::epoch::{EpochVerifier, Transition as EpochTransition};
 // pub use self::instant_seal::InstantSeal;
-// pub use self::null_engine::NullEngine;
+pub use self::null_engine::NullEngine;
 // pub use self::tendermint::Tendermint;
 
 use std::sync::{Weak, Arc};
@@ -200,9 +200,11 @@ pub trait Engine<M: Machine>: Sync + Send {
 	/// `epoch_begin` set to true if this block kicks off an epoch.
 	fn on_new_block(
 		&self,
-		block: &mut M::LiveBlock,
+		_block: &mut M::LiveBlock,
 		_epoch_begin: bool,
-	) -> Result<(), M::Error>;
+	) -> Result<(), M::Error> {
+		Ok(())
+	}
 
 	/// Block transformation functions, after the transactions.
 	fn on_close_block(&self, _block: &mut M::LiveBlock) -> Result<(), M::Error> {
@@ -276,8 +278,7 @@ pub trait Engine<M: Machine>: Sync + Send {
 
 	/// Populate a header's fields based on its parent's header.
 	/// Usually implements the chain scoring rule based on weight.
-	/// The gas floor target must not be lower than the engine's minimum gas limit.
-	fn populate_from_parent(&self, header: &mut M::Header, parent: &M::Header);
+	fn populate_from_parent(&self, _header: &mut M::Header, _parent: &M::Header) { }
 
 	/// Handle any potential consensus messages;
 	/// updating consensus state and potentially issuing a new one.

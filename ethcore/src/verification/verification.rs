@@ -470,8 +470,13 @@ mod tests {
 
 		let parent = bc.block_header(header.parent_hash()).expect("missing parent");
 
-		let full_params: FullFamilyParams = Some((bytes, &transactions[..], bc as _, &client as _));
-		verify_block_family(&header, &parent, engine, full_params)
+		let full_params: FullFamilyParams = (
+			bytes,
+			&transactions[..],
+			bc as &BlockProvider,
+			&client as &::client::BlockChainClient
+		);
+		verify_block_family(&header, &parent, engine, Some(full_params))
 	}
 
 	fn unordered_test(bytes: &[u8], engine: &EthEngine) -> Result<(), Error> {
@@ -655,6 +660,7 @@ mod tests {
 	fn dust_protection() {
 		use ethkey::{Generator, Random};
 		use transaction::{Transaction, Action};
+		use machine::EthereumMachine;
 		use engines::NullEngine;
 
 		let mut params = CommonParams::default();
@@ -676,7 +682,8 @@ mod tests {
 
 		let good_transactions = [bad_transactions[0].clone(), bad_transactions[1].clone()];
 
-		let engine = NullEngine::new(params, BTreeMap::new());
+		let machine = EthereumMachine::regular(params, BTreeMap::new());
+		let engine = NullEngine::new(machine);
 		check_fail(unordered_test(&create_test_block_with_data(&header, &bad_transactions, &[]), &engine), TooManyTransactions(keypair.address()));
 		unordered_test(&create_test_block_with_data(&header, &good_transactions, &[]), &engine).unwrap();
 	}

@@ -708,7 +708,7 @@ mod tests {
 
 	fn make_frontier_machine(max_depth: usize) -> EthereumMachine {
 		let mut machine = ::ethereum::new_frontier_test_machine();
-		machine.set_schedule_creation_rules(Box::new(|s, _| s.max_depth = max_depth));
+		machine.set_schedule_creation_rules(Box::new(move |s, _| s.max_depth = max_depth));
 		machine
 	}
 

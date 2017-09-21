@@ -35,7 +35,7 @@ use super::genesis::Genesis;
 use super::seal::Generic as GenericSeal;
 
 use builtin::Builtin;
-use engines::{EthEngine, /* NullEngine, InstantSeal, BasicAuthority, AuthorityRound, Tendermint, */ DEFAULT_BLOCKHASH_CONTRACT};
+use engines::{EthEngine, NullEngine, /* InstantSeal, BasicAuthority, AuthorityRound, Tendermint, */ DEFAULT_BLOCKHASH_CONTRACT};
 use error::Error;
 use executive::Executive;
 use factory::Factories;

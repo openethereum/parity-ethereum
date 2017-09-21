@@ -22,7 +22,6 @@ use hash::{KECCAK_EMPTY_LIST_RLP};
 use ethash::{quick_get_difficulty, slow_get_seedhash, EthashManager};
 use bigint::prelude::U256;
 use bigint::hash::{H256, H64};
-use util::*;
 use unexpected::{OutOfBounds, Mismatch};
 use block::*;
 use error::{BlockError, Error};
@@ -31,7 +30,6 @@ use engines::{self, Engine, EthEngine};
 use ethjson;
 use rlp::{self, UntrustedRlp};
 use machine::EthereumMachine;
-use parity_machine;
 use semantic_version::SemanticVersion;
 
 /// Number of blocks in an ethash snapshot.
