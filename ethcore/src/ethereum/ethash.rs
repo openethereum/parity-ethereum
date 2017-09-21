@@ -99,13 +99,13 @@ pub struct EthashParams {
 	/// Number of first block where MCIP-3 begins.
 	pub mcip3_transition: u64,
 	/// MCIP-3 Block reward coin-base for miners.
-	pub mcip3_miner_reward: u64,
+	pub mcip3_miner_reward: Option<U256>,
 	/// MCIP-3 Block reward ubi-base for basic income.
-	pub mcip3_ubi_reward: u64,
+	pub mcip3_ubi_reward: Option<U256>,
 	/// MCIP-3 contract address for universal basic income.
 	pub mcip3_ubi_contract: Address,
 	/// MCIP-3 Block reward dev-base for dev funds.
-	pub mcip3_dev_reward: u64,
+	pub mcip3_dev_reward: Option<U256>,
 	/// MCIP-3 contract address for the developer funds.
 	pub mcip3_dev_contract: Address,
 	/// Maximum amount of code that can be deploying into a contract.
@@ -150,10 +150,10 @@ impl From<ethjson::spec::EthashParams> for EthashParams {
 			ecip1010_continue_transition: p.ecip1010_continue_transition.map_or(u64::max_value(), Into::into),
 			ecip1017_era_rounds: p.ecip1017_era_rounds.map_or(u64::max_value(), Into::into),
 			mcip3_transition: p.mcip3_transition.map_or(u64::max_value(), Into::into),
-			mcip3_miner_reward: p.mcip3_miner_reward.map_or(u64::max_value(), Into::into),
-			mcip3_ubi_reward: p.mcip3_ubi_reward.map_or(u64::max_value(), Into::into),
+			mcip3_miner_reward: p.mcip3_miner_reward.map(Into::into),
+			mcip3_ubi_reward: p.mcip3_ubi_reward.map(Into::into),
 			mcip3_ubi_contract: p.mcip3_ubi_contract.map_or_else(Address::new, Into::into),
-			mcip3_dev_reward: p.mcip3_dev_reward.map_or(u64::max_value(), Into::into),
+			mcip3_dev_reward: p.mcip3_dev_reward.map(Into::into),
 			mcip3_dev_contract: p.mcip3_dev_contract.map_or_else(Address::new, Into::into),
 			max_code_size: p.max_code_size.map_or(u64::max_value(), Into::into),
 			max_gas_limit_transition: p.max_gas_limit_transition.map_or(u64::max_value(), Into::into),
