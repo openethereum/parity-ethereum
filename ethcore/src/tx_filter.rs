@@ -201,21 +201,21 @@ mod test {
 
 		let genesis = client.block_hash(BlockId::Latest).unwrap();
 
-		assert!(filter.transaction_allowed(&genesis, &basic_tx.clone().sign(key1.secret(), None), &client));
-		assert!(filter.transaction_allowed(&genesis, &create_tx.clone().sign(key1.secret(), None), &client));
-		assert!(filter.transaction_allowed(&genesis, &call_tx.clone().sign(key1.secret(), None), &client));
+		assert!(filter.transaction_allowed(&genesis, &basic_tx.clone().sign(key1.secret(), None), &*client));
+		assert!(filter.transaction_allowed(&genesis, &create_tx.clone().sign(key1.secret(), None), &*client));
+		assert!(filter.transaction_allowed(&genesis, &call_tx.clone().sign(key1.secret(), None), &*client));
 
-		assert!(filter.transaction_allowed(&genesis, &basic_tx.clone().sign(key2.secret(), None), &client));
-		assert!(!filter.transaction_allowed(&genesis, &create_tx.clone().sign(key2.secret(), None), &client));
-		assert!(filter.transaction_allowed(&genesis, &call_tx.clone().sign(key2.secret(), None), &client));
+		assert!(filter.transaction_allowed(&genesis, &basic_tx.clone().sign(key2.secret(), None), &*client));
+		assert!(!filter.transaction_allowed(&genesis, &create_tx.clone().sign(key2.secret(), None), &*client));
+		assert!(filter.transaction_allowed(&genesis, &call_tx.clone().sign(key2.secret(), None), &*client));
 
-		assert!(filter.transaction_allowed(&genesis, &basic_tx.clone().sign(key3.secret(), None), &client));
-		assert!(!filter.transaction_allowed(&genesis, &create_tx.clone().sign(key3.secret(), None), &client));
-		assert!(!filter.transaction_allowed(&genesis, &call_tx.clone().sign(key3.secret(), None), &client));
+		assert!(filter.transaction_allowed(&genesis, &basic_tx.clone().sign(key3.secret(), None), &*client));
+		assert!(!filter.transaction_allowed(&genesis, &create_tx.clone().sign(key3.secret(), None), &*client));
+		assert!(!filter.transaction_allowed(&genesis, &call_tx.clone().sign(key3.secret(), None), &*client));
 
-		assert!(!filter.transaction_allowed(&genesis, &basic_tx.clone().sign(key4.secret(), None), &client));
-		assert!(!filter.transaction_allowed(&genesis, &create_tx.clone().sign(key4.secret(), None), &client));
-		assert!(!filter.transaction_allowed(&genesis, &call_tx.clone().sign(key4.secret(), None), &client));
+		assert!(!filter.transaction_allowed(&genesis, &basic_tx.clone().sign(key4.secret(), None), &*client));
+		assert!(!filter.transaction_allowed(&genesis, &create_tx.clone().sign(key4.secret(), None), &*client));
+		assert!(!filter.transaction_allowed(&genesis, &call_tx.clone().sign(key4.secret(), None), &*client));
 	}
 }
 

@@ -34,6 +34,7 @@ use rlp::{UntrustedRlp, RlpStream};
 use basic_types::LogBloom;
 use client::EngineClient;
 use engines::{Call, Engine};
+use machine::AuxiliaryRequest;
 use header::Header;
 use ids::BlockId;
 use log_entry::LogEntry;
@@ -358,7 +359,7 @@ impl ValidatorSet for ValidatorSafeContract {
 		trace!(target: "engine", "detected epoch change event bloom");
 
 		match receipts {
-			None => ::engines::EpochChange::Unsure(::engines::Unsure::NeedsReceipts),
+			None => ::engines::EpochChange::Unsure(AuxiliaryRequest::Receipts),
 			Some(receipts) => match self.extract_from_event(bloom, header, receipts) {
 				None => ::engines::EpochChange::No,
 				Some(list) => {
@@ -561,7 +562,8 @@ mod tests {
 	#[test]
 	fn detects_bloom() {
 		use header::Header;
-		use engines::{EpochChange, Unsure};
+		use engines::EpochChange;
+		use machine::AuxiliaryRequest;
 		use log_entry::LogEntry;
 
 		let client = generate_dummy_client_with_spec_and_accounts(Spec::new_validator_safe_contract, None);
@@ -591,7 +593,7 @@ mod tests {
 		new_header.set_log_bloom(event.bloom());
 
 		match engine.signals_epoch_end(&new_header, None, None) {
-			EpochChange::Unsure(Unsure::NeedsReceipts) => {},
+			EpochChange::Unsure(AuxiliaryRequest::Receipts) => {},
 			_ => panic!("Expected bloom to be recognized."),
 		};
 	}

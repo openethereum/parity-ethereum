@@ -20,30 +20,36 @@ use std::io::Read;
 use std::collections::BTreeMap;
 use std::path::Path;
 use std::sync::Arc;
-use rustc_hex::FromHex;
+use bigint::hash::{H256, H2048};
+use bigint::prelude::U256;
+use bytes::Bytes;
+use ethjson;
 use hash::{KECCAK_NULL_RLP, keccak};
+use parking_lot::RwLock;
+use rlp::{Rlp, RlpStream};
+use rustc_hex::FromHex;
+use util::*;
+use vm::{EnvInfo, CallType, ActionValue, ActionParams};
+
 use super::genesis::Genesis;
 use super::seal::Generic as GenericSeal;
 
 use builtin::Builtin;
 use engines::{EthEngine, /* NullEngine, InstantSeal, BasicAuthority, AuthorityRound, Tendermint, */ DEFAULT_BLOCKHASH_CONTRACT};
-use vm::{EnvInfo, CallType, ActionValue, ActionParams};
 use error::Error;
-use ethereum;
-use ethjson;
 use executive::Executive;
 use factory::Factories;
 use header::{BlockNumber, Header};
+use machine::EthereumMachine;
 use pod_state::*;
-use rlp::{Rlp, RlpStream};
 use state::{Backend, State, Substate};
 use state::backend::Basic as BasicBackend;
 use trace::{NoopTracer, NoopVMTracer};
-use bigint::prelude::U256;
-use bigint::hash::{H256, H2048};
-use parking_lot::RwLock;
-use util::*;
-use bytes::Bytes;
+
+// helper for formatting errors.
+fn fmt_err<F: ::std::fmt::Display>(f: F) -> String {
+	format!("Spec json is invalid: {}", f)
+}
 
 /// Parameters common to ethereum-like blockchains.
 /// NOTE: when adding bugfix hard-fork parameters,
@@ -257,8 +263,15 @@ impl Clone for Spec {
 	}
 }
 
-/// Load from JSON object.
-pub fn load_from<T: AsRef<Path>>(cache_dir: T, s: ethjson::spec::Spec) -> Result<Spec, Error> {
+fn load_machine_from(s: ethjson::spec::Spec) -> EthereumMachine {
+	let builtins = s.accounts.builtins().into_iter().map(|p| (p.0.into(), From::from(p.1))).collect();
+	let params = CommonParams::from(s.params);
+
+	Spec::machine(&s.engine, params, builtins)
+}
+
+// Load from JSON object.
+fn load_from<T: AsRef<Path>>(cache_dir: T, s: ethjson::spec::Spec) -> Result<Spec, Error> {
 	let builtins = s.accounts.builtins().into_iter().map(|p| (p.0.into(), From::from(p.1))).collect();
 	let g = Genesis::from(s.genesis);
 	let GenericSeal(seal_rlp) = g.seal.into();
@@ -302,7 +315,28 @@ macro_rules! load_bundled {
 	};
 }
 
+macro_rules! load_machine_bundled {
+	($e:expr) => {
+		Spec::load_machine(
+			include_bytes!(concat!("../../res/", $e, ".json")) as &[u8]
+		).expect(concat!("Chain spec ", $e, " is invalid."))
+	};
+}
+
 impl Spec {
+	// create an instance of an Ethereum state machine, minus consensus logic.
+	fn machine(
+		engine_spec: &ethjson::spec::Engine,
+		params: CommonParams,
+		builtins: BTreeMap<Address, Builtin>,
+	) -> EthereumMachine {
+		if let ethjson::spec::Engine::Ethash(ref ethash) = *engine_spec {
+			EthereumMachine::with_ethash_extensions(params, builtins, ethash.params.clone().into())
+		} else {
+			EthereumMachine::regular(params, builtins)
+		}
+	}
+
 	/// Convert engine spec into a arc'd Engine of the right underlying type.
 	/// TODO avoid this hard-coded nastiness - use dynamic-linked plugin framework instead.
 	fn engine<T: AsRef<Path>>(
@@ -311,13 +345,7 @@ impl Spec {
 		params: CommonParams,
 		builtins: BTreeMap<Address, Builtin>,
 	) -> Arc<EthEngine> {
-		use machine::EthereumMachine;
-
-		let _machine = if let ethjson::spec::Engine::Ethash(ref ethash) = engine_spec {
-			EthereumMachine::with_ethash_extensions(params, builtins, ethash.params.clone().into())
-		} else {
-			EthereumMachine::regular(params, builtins)
-		};
+		let _machine = Self::machine(&engine_spec, params, builtins);
 
 		// TODO: instantiate ethash-specific params.
 		// match engine_spec {
@@ -518,12 +546,15 @@ impl Spec {
 	/// Loads spec from json file. Provide factories for executing contracts and ensuring
 	/// storage goes to the right place.
 	pub fn load<T: AsRef<Path>, R>(cache_dir: T, reader: R) -> Result<Self, String> where R: Read {
-		fn fmt<F: ::std::fmt::Display>(f: F) -> String {
-			format!("Spec json is invalid: {}", f)
-		}
+		ethjson::spec::Spec::load(reader).map_err(fmt_err)
+			.and_then(|x| load_from(cache_dir, x).map_err(fmt_err))
+	}
 
-		ethjson::spec::Spec::load(reader).map_err(fmt)
-			.and_then(|x| load_from(cache_dir, x).map_err(fmt))
+	/// Loads just the state machine from a json file.
+	pub fn load_machine<R: Read>(reader: R) -> Result<EthereumMachine, String> {
+		ethjson::spec::Spec::load(reader)
+			.map_err(fmt_err)
+			.map(load_machine_from)
 	}
 
 	/// initialize genesis epoch data, using in-memory database for
@@ -585,6 +616,10 @@ impl Spec {
 
 	/// Create a new Spec which conforms to the Frontier-era Morden chain except that it's a NullEngine consensus.
 	pub fn new_test() -> Spec { load_bundled!("null_morden") }
+
+	/// Create the EthereumMachine corresponding to Spec::new_test.
+	pub fn new_test_machine() -> EthereumMachine { load_machine_bundled!("null_morden") }
+
 
 	/// Create a new Spec which conforms to the Frontier-era Morden chain except that it's a NullEngine consensus with applying reward on block close.
 	pub fn new_test_with_reward() -> Spec { load_bundled!("null_morden_with_reward") }

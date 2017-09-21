@@ -42,6 +42,7 @@ use vm::{EnvInfo, Schedule, CreateContractAddress};
 pub const PARITY_GAS_LIMIT_DETERMINANT: U256 = U256([37, 0, 0, 0]);
 
 /// Ethash-specific extensions.
+#[derive(Debug, Clone)]
 pub struct EthashExtensions {
 	/// Homestead transition block number.
 	pub homestead_transition: BlockNumber,
@@ -63,7 +64,7 @@ pub struct EthashExtensions {
 
 impl From<::ethjson::spec::EthashParams> for EthashExtensions {
 	fn from(p: ::ethjson::spec::EthashParams) -> Self {
-		EthashExtensions{
+		EthashExtensions {
 			homestead_transition: p.homestead_transition.map_or(0, Into::into),
 			eip150_transition: p.eip150_transition.map_or(0, Into::into),
 			eip160_transition: p.eip160_transition.map_or(0, Into::into),
@@ -76,23 +77,28 @@ impl From<::ethjson::spec::EthashParams> for EthashExtensions {
 	}
 }
 
+/// Special rules to be applied to the schedule.
+pub type ScheduleCreationRules = Fn(&mut Schedule, BlockNumber) + Sync + Send;
+
 /// An ethereum-like state machine.
 pub struct EthereumMachine {
 	params: CommonParams,
-	builtins: BTreeMap<Address, Builtin>,
-	tx_filter: Option<TransactionFilter>,
+	builtins: Arc<BTreeMap<Address, Builtin>>,
+	tx_filter: Option<Arc<TransactionFilter>>,
 	ethash_extensions: Option<EthashExtensions>,
+	schedule_rules: Option<Box<ScheduleCreationRules>>,
 }
 
 impl EthereumMachine {
 	/// Regular ethereum machine.
 	pub fn regular(params: CommonParams, builtins: BTreeMap<Address, Builtin>) -> EthereumMachine {
-		let tx_filter = TransactionFilter::from_params(&params);
+		let tx_filter = TransactionFilter::from_params(&params).map(Arc::new);
 		EthereumMachine {
 			params: params,
-			builtins: builtins,
+			builtins: Arc::new(builtins),
 			tx_filter: tx_filter,
 			ethash_extensions: None,
+			schedule_rules: None,
 		}
 	}
 
@@ -104,6 +110,15 @@ impl EthereumMachine {
 		machine
 	}
 
+	/// Attach special rules to the creation of schedule.
+	pub fn set_schedule_creation_rules(&mut self, rules: Box<ScheduleCreationRules>) {
+		self.schedule_rules = Some(rules);
+	}
+
+	/// Get a reference to the ethash-specific extensions.
+	pub fn ethash_extensions(&self) -> Option<&EthashExtensions> {
+		self.ethash_extensions.as_ref()
+	}
 }
 
 impl EthereumMachine {
@@ -249,7 +264,7 @@ impl EthereumMachine {
 
 	/// Get the EVM schedule for the given block number.
 	pub fn schedule(&self, block_number: BlockNumber) -> Schedule {
-		match self.ethash_extensions {
+		let mut schedule = match self.ethash_extensions {
 			None => self.params.schedule(block_number),
 			Some(ref ext) => {
 				if block_number < ext.homestead_transition {
@@ -275,12 +290,18 @@ impl EthereumMachine {
 					schedule
 				}
 			}
+		};
+
+		if let Some(ref rules) = self.schedule_rules {
+			(rules)(&mut schedule, block_number)
 		}
+
+		schedule
 	}
 
 	/// Builtin-contracts for the chain..
 	pub fn builtins(&self) -> &BTreeMap<Address, Builtin> {
-		&self.builtins
+		&*self.builtins
 	}
 
 	/// Attempt to get a handle to a built-in contract.
@@ -349,7 +370,7 @@ impl EthereumMachine {
 	// TODO: refine the bound here to be a "state provider" or similar as opposed
 	// to full client functionality.
 	pub fn verify_transaction(&self, t: &SignedTransaction, header: &Header, client: &BlockChainClient) -> Result<(), Error> {
-		if let Some(ref filter) = self.tx_filter {
+		if let Some(ref filter) = self.tx_filter.as_ref() {
 			if !filter.transaction_allowed(header.parent_hash(), t, client) {
 				return Err(TransactionError::NotAllowed.into())
 			}
@@ -364,10 +385,44 @@ impl EthereumMachine {
 	}
 }
 
+/// Auxiliary data fetcher for an Ethereum machine. In Ethereum-like machines
+/// there are two kinds of auxiliary data: bodies and receipts.
+#[derive(Default, Clone)]
+pub struct AuxiliaryData<'a> {
+	/// The full block bytes, including the header.
+	pub bytes: Option<&'a [u8]>,
+	/// The block receipts.
+	pub receipts: Option<&'a [::receipt::Receipt]>,
+}
+
+/// Type alias for a function we can make calls through synchronously.
+/// Returns the call result and state proof for each call.
+pub type Call<'a> = Fn(Address, Vec<u8>) -> Result<(Vec<u8>, Vec<Vec<u8>>), String> + 'a;
+
+/// Request for auxiliary data of a block.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum AuxiliaryRequest {
+	/// Needs the body.
+	Body,
+	/// Needs the receipts.
+	Receipts,
+	/// Needs both body and receipts.
+	Both,
+}
+
 impl ::parity_machine::Machine for EthereumMachine {
 	type Header = Header;
+
 	type LiveBlock = ExecutedBlock;
+	type EngineClient = ::client::EngineClient;
+	type AuxiliaryRequest = AuxiliaryRequest;
+
 	type Error = Error;
+}
+
+impl<'a> ::parity_machine::LocalizedMachine<'a> for EthereumMachine {
+	type StateContext = Call<'a>;
+	type AuxiliaryData = AuxiliaryData<'a>;
 }
 
 impl ::parity_machine::WithBalances for EthereumMachine {
@@ -425,16 +480,23 @@ fn round_block_gas_limit(gas_limit: U256, lower_limit: U256, upper_limit: U256) 
 
 #[cfg(test)]
 mod tests {
-	use super::PARITY_GAS_LIMIT_DETERMINANT;
+	use super::*;
 
 	#[test]
-	fn gas_limit_is_multiple_of_determinant() {
-		let spec = new_homestead_test();
-		let ethparams = get_default_ethash_params();
-		let ethash = Ethash::new(&::std::env::temp_dir(), spec.params().clone(), ethparams, BTreeMap::new());
+	fn ethash_gas_limit_is_multiple_of_determinant() {
+		use bigint::prelude::U256;
 
-		let mut parent = Header::new();
-		let mut header = Header::new();
+		let spec = ::ethereum::new_homestead_test();
+		let ethparams = ::tests::helpers::get_default_ethash_extensions();
+
+		let machine = EthereumMachine::with_ethash_extensions(
+			spec.params().clone(),
+			Default::default(),
+			ethparams,
+		);
+
+		let mut parent = ::header::Header::new();
+		let mut header = ::header::Header::new();
 		header.set_number(1);
 
 		// this test will work for this constant only
@@ -442,25 +504,25 @@ mod tests {
 
 		// when parent.gas_limit < gas_floor_target:
 		parent.set_gas_limit(U256::from(50_000));
-		ethash.populate_from_parent(&mut header, &parent, U256::from(100_000), U256::from(200_000));
+		machine.populate_from_parent(&mut header, &parent, U256::from(100_000), U256::from(200_000));
 		assert_eq!(*header.gas_limit(), U256::from(50_024));
 
 		// when parent.gas_limit > gas_ceil_target:
 		parent.set_gas_limit(U256::from(250_000));
-		ethash.populate_from_parent(&mut header, &parent, U256::from(100_000), U256::from(200_000));
+		machine.populate_from_parent(&mut header, &parent, U256::from(100_000), U256::from(200_000));
 		assert_eq!(*header.gas_limit(), U256::from(249_787));
 
 		// when parent.gas_limit is in miner's range
 		header.set_gas_used(U256::from(150_000));
 		parent.set_gas_limit(U256::from(150_000));
-		ethash.populate_from_parent(&mut header, &parent, U256::from(100_000), U256::from(200_000));
+		machine.populate_from_parent(&mut header, &parent, U256::from(100_000), U256::from(200_000));
 		assert_eq!(*header.gas_limit(), U256::from(150_035));
 
 		// when parent.gas_limit is in miner's range
 		// && we can NOT increase it to be multiple of constant
 		header.set_gas_used(U256::from(150_000));
 		parent.set_gas_limit(U256::from(150_000));
-		ethash.populate_from_parent(&mut header, &parent, U256::from(100_000), U256::from(150_002));
+		machine.populate_from_parent(&mut header, &parent, U256::from(100_000), U256::from(150_002));
 		assert_eq!(*header.gas_limit(), U256::from(149_998));
 
 		// when parent.gas_limit is in miner's range
@@ -468,7 +530,7 @@ mod tests {
 		// && we can NOT decrease it to be multiple of constant
 		header.set_gas_used(U256::from(150_000));
 		parent.set_gas_limit(U256::from(150_000));
-		ethash.populate_from_parent(&mut header, &parent, U256::from(150_000), U256::from(150_002));
+		machine.populate_from_parent(&mut header, &parent, U256::from(150_000), U256::from(150_002));
 		assert_eq!(*header.gas_limit(), U256::from(150_002));
 	}
 }

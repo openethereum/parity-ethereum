@@ -252,6 +252,15 @@ pub fn verify_header_params(header: &Header, engine: &EthEngine, is_full: bool) 
 	if header.number() != 0 && header.extra_data().len() > maximum_extra_data_size {
 		return Err(From::from(BlockError::ExtraDataOutOfBounds(OutOfBounds { min: None, max: Some(maximum_extra_data_size), found: header.extra_data().len() })));
 	}
+
+	if let Some(ref ext) = engine.machine().ethash_extensions() {
+		if header.number() >= ext.dao_hardfork_transition &&
+			header.number() <= ext.dao_hardfork_transition + 9 &&
+			header.extra_data()[..] != b"dao-hard-fork"[..] {
+			return Err(From::from(BlockError::ExtraDataOutOfBounds(OutOfBounds { min: None, max: None, found: 0 })));
+		}
+	}
+
 	if is_full {
 		let max_time = get_time().sec as u64 + 30;
 		if header.timestamp() > max_time {
@@ -446,8 +455,23 @@ mod tests {
 	}
 
 	fn family_test<BC>(bytes: &[u8], engine: &EthEngine, bc: &BC) -> Result<(), Error> where BC: BlockProvider {
-		let header = BlockView::new(bytes).header();
-		verify_block_family(&header, bytes, engine, bc)
+		let view = BlockView::new(bytes);
+		let header = view.header();
+		let transactions: Vec<_> = view.transactions()
+			.into_iter()
+			.map(SignedTransaction::new)
+			.collect::<Result<_,_>>()?;
+
+		// TODO: client is really meant to be used for state query here by machine
+		// additions that need access to state (tx filter in specific)
+		// no existing tests need access to test, so having this not function
+		// is fine.
+		let client = ::client::TestBlockChainClient::default();
+
+		let parent = bc.block_header(header.parent_hash()).expect("missing parent");
+
+		let full_params: FullFamilyParams = Some((bytes, &transactions[..], bc as _, &client as _));
+		verify_block_family(&header, &parent, engine, full_params)
 	}
 
 	fn unordered_test(bytes: &[u8], engine: &EthEngine) -> Result<(), Error> {

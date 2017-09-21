@@ -57,12 +57,6 @@ pub struct EthashParams {
 	pub duration_limit: u64,
 	/// Homestead transition block number.
 	pub homestead_transition: u64,
-	/// DAO hard-fork transition block (X).
-	pub dao_hardfork_transition: u64,
-	/// DAO hard-fork refund contract address (C).
-	pub dao_hardfork_beneficiary: Address,
-	/// DAO hard-fork DAO accounts list (L)
-	pub dao_hardfork_accounts: Vec<Address>,
 	/// Transition block for a change of difficulty params (currently just bound_divisor).
 	pub difficulty_hardfork_transition: u64,
 	/// Difficulty param after the difficulty transition.
@@ -71,14 +65,6 @@ pub struct EthashParams {
 	pub bomb_defuse_transition: u64,
 	/// Number of first block where EIP-100 rules begin.
 	pub eip100b_transition: u64,
-	/// Number of first block where EIP-150 rules begin.
-	pub eip150_transition: u64,
-	/// Number of first block where EIP-160 rules begin.
-	pub eip160_transition: u64,
-	/// Number of first block where EIP-161.abc begin.
-	pub eip161abc_transition: u64,
-	/// Number of first block where EIP-161.d begins.
-	pub eip161d_transition: u64,
 	/// Number of first block where ECIP-1010 begins.
 	pub ecip1010_pause_transition: u64,
 	/// Number of first block where ECIP-1010 ends.
@@ -104,17 +90,10 @@ impl From<ethjson::spec::EthashParams> for EthashParams {
 			metropolis_difficulty_increment_divisor: p.metropolis_difficulty_increment_divisor.map_or(9, Into::into),
 			duration_limit: p.duration_limit.map_or(0, Into::into),
 			homestead_transition: p.homestead_transition.map_or(0, Into::into),
-			dao_hardfork_transition: p.dao_hardfork_transition.map_or(u64::max_value(), Into::into),
-			dao_hardfork_beneficiary: p.dao_hardfork_beneficiary.map_or_else(Address::new, Into::into),
-			dao_hardfork_accounts: p.dao_hardfork_accounts.unwrap_or_else(Vec::new).into_iter().map(Into::into).collect(),
 			difficulty_hardfork_transition: p.difficulty_hardfork_transition.map_or(u64::max_value(), Into::into),
 			difficulty_hardfork_bound_divisor: p.difficulty_hardfork_bound_divisor.map_or(p.difficulty_bound_divisor.into(), Into::into),
 			bomb_defuse_transition: p.bomb_defuse_transition.map_or(u64::max_value(), Into::into),
 			eip100b_transition: p.eip100b_transition.map_or(u64::max_value(), Into::into),
-			eip150_transition: p.eip150_transition.map_or(0, Into::into),
-			eip160_transition: p.eip160_transition.map_or(0, Into::into),
-			eip161abc_transition: p.eip161abc_transition.map_or(0, Into::into),
-			eip161d_transition: p.eip161d_transition.map_or(u64::max_value(), Into::into),
 			ecip1010_pause_transition: p.ecip1010_pause_transition.map_or(u64::max_value(), Into::into),
 			ecip1010_continue_transition: p.ecip1010_continue_transition.map_or(u64::max_value(), Into::into),
 			ecip1017_era_rounds: p.ecip1017_era_rounds.map_or(u64::max_value(), Into::into),
@@ -203,10 +182,11 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 	/// This assumes that all uncles are valid uncles (i.e. of at least one generation before the current).
 	fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<(), Error> {
 		use std::ops::Shr;
-		use parity_machine::{WithUncles, WithBalances};
+		use parity_machine::{LiveBlock, WithBalances};
 
-		let author = *block.header().author();
-		let number = block.header().number();
+		let author = *LiveBlock::header(&*block).author();
+		let number = LiveBlock::header(&*block).number();
+
 		let reward = if number >= self.ethash_params.eip649_transition {
 			self.ethash_params.eip649_reward.unwrap_or(self.ethash_params.block_reward)
 		} else {
@@ -216,7 +196,7 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 		let eras_rounds = self.ethash_params.ecip1017_era_rounds;
 		let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, reward, number);
 
-		let n_uncles = WithUncles::uncles(&*block).len();
+		let n_uncles = LiveBlock::uncles(&*block).len();
 
 		// Bestow block reward
 		let result_block_reward = reward + reward.shr(5) * U256::from(n_uncles);
@@ -225,7 +205,7 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 		self.machine.add_balance(block, &author, &result_block_reward)?;
 
 		// bestow uncle rewards.
-		for u in WithUncles::uncles(&*block) {
+		for u in LiveBlock::uncles(&*block) {
 			let uncle_author = u.author();
 			let result_uncle_reward = if eras == 0 {
 				(reward * U256::from(8 + u.number() - number)).shr(3)
@@ -267,12 +247,6 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 		)));
 		if &difficulty < header.difficulty() {
 			return Err(From::from(BlockError::InvalidProofOfWork(OutOfBounds { min: Some(header.difficulty().clone()), max: None, found: difficulty })));
-		}
-
-		if header.number() >= self.ethash_params.dao_hardfork_transition &&
-			header.number() <= self.ethash_params.dao_hardfork_transition + 9 &&
-			header.extra_data()[..] != b"dao-hard-fork"[..] {
-			return Err(From::from(BlockError::ExtraDataOutOfBounds(OutOfBounds { min: None, max: None, found: 0 })));
 		}
 
 		if header.gas_limit() > &0x7fffffffffffffffu64.into() {
@@ -458,8 +432,8 @@ mod tests {
 	use error::{BlockError, Error};
 	use header::Header;
 	use spec::Spec;
-	use super::super::{new_morden, new_homestead_test};
-	use super::{Ethash, EthashParams, PARITY_GAS_LIMIT_DETERMINANT, ecip1017_eras_block_reward};
+	use super::super::{new_morden, new_homestead_test_machine};
+	use super::{Ethash, EthashParams, ecip1017_eras_block_reward};
 	use rlp;
 
 	fn test_spec() -> Spec {
@@ -548,7 +522,6 @@ mod tests {
 	#[test]
 	fn can_do_seal_verification_fail() {
 		let engine = test_spec().engine;
-		//let engine = Ethash::new_test(test_spec());
 		let header: Header = Header::default();
 
 		let verify_result = engine.verify_block_basic(&header);
@@ -697,9 +670,9 @@ mod tests {
 
 	#[test]
 	fn difficulty_frontier() {
-		let spec = new_homestead_test();
+		let machine = new_homestead_test_machine();
 		let ethparams = get_default_ethash_params();
-		let ethash = Ethash::new(&::std::env::temp_dir(), spec.params().clone(), ethparams, BTreeMap::new());
+		let ethash = Ethash::new(&::std::env::temp_dir(), ethparams, machine);
 
 		let mut parent_header = Header::default();
 		parent_header.set_number(1000000);
@@ -715,9 +688,9 @@ mod tests {
 
 	#[test]
 	fn difficulty_homestead() {
-		let spec = new_homestead_test();
+		let machine = new_homestead_test_machine();
 		let ethparams = get_default_ethash_params();
-		let ethash = Ethash::new(&::std::env::temp_dir(), spec.params().clone(), ethparams, BTreeMap::new());
+		let ethash = Ethash::new(&::std::env::temp_dir(), ethparams, machine);
 
 		let mut parent_header = Header::default();
 		parent_header.set_number(1500000);
@@ -733,12 +706,12 @@ mod tests {
 
 	#[test]
 	fn difficulty_classic_bomb_delay() {
-		let spec = new_homestead_test();
+		let machine = new_homestead_test_machine();
 		let ethparams = EthashParams {
 			ecip1010_pause_transition: 3000000,
 			..get_default_ethash_params()
 		};
-		let ethash = Ethash::new(&::std::env::temp_dir(), spec.params().clone(), ethparams, BTreeMap::new());
+		let ethash = Ethash::new(&::std::env::temp_dir(), ethparams, machine);
 
 		let mut parent_header = Header::default();
 		parent_header.set_number(3500000);
@@ -766,13 +739,13 @@ mod tests {
 
 	#[test]
 	fn test_difficulty_bomb_continue() {
-		let spec = new_homestead_test();
+		let machine = new_homestead_test_machine();
 		let ethparams = EthashParams {
 			ecip1010_pause_transition: 3000000,
 			ecip1010_continue_transition: 5000000,
 			..get_default_ethash_params()
 		};
-		let ethash = Ethash::new(&::std::env::temp_dir(), spec.params().clone(), ethparams, BTreeMap::new());
+		let ethash = Ethash::new(&::std::env::temp_dir(), ethparams, machine);
 
 		let mut parent_header = Header::default();
 		parent_header.set_number(5000102);
@@ -816,9 +789,9 @@ mod tests {
 
 	#[test]
 	fn difficulty_max_timestamp() {
-		let spec = new_homestead_test();
+		let machine = new_homestead_test_machine();
 		let ethparams = get_default_ethash_params();
-		let ethash = Ethash::new(&::std::env::temp_dir(), spec.params().clone(), ethparams, BTreeMap::new());
+		let ethash = Ethash::new(&::std::env::temp_dir(), ethparams, machine);
 
 		let mut parent_header = Header::default();
 		parent_header.set_number(1000000);

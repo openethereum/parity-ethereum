@@ -31,9 +31,9 @@ use block::{OpenBlock, Drain};
 use blockchain::{BlockChain, Config as BlockChainConfig};
 use builtin::Builtin;
 use state::*;
+use machine::EthashExtensions;
 use evm::{Schedule, Factory as EvmFactory};
 use factory::Factories;
-use engines::Engine;
 use ethereum;
 use ethereum::ethash::EthashParams;
 use miner::Miner;
@@ -41,54 +41,6 @@ use header::Header;
 use transaction::{Action, Transaction, SignedTransaction};
 use rlp::{self, RlpStream};
 use views::BlockView;
-
-pub struct TestEngine {
-	engine: Arc<Engine>,
-	max_depth: usize,
-}
-
-impl TestEngine {
-	pub fn new(max_depth: usize) -> TestEngine {
-		TestEngine {
-			engine: ethereum::new_frontier_test().engine,
-			max_depth: max_depth,
-		}
-	}
-
-	pub fn new_byzantium() -> TestEngine {
-		TestEngine {
-			engine: ethereum::new_byzantium_test().engine,
-			max_depth: 0,
-		}
-	}
-
-	pub fn new_constantinople() -> TestEngine {
-		TestEngine {
-			engine: ethereum::new_constantinople_test().engine,
-			max_depth: 0,
-		}
-	}
-}
-
-impl Engine for TestEngine {
-	fn name(&self) -> &str {
-		"TestEngine"
-	}
-
-	fn params(&self) -> &CommonParams {
-		self.engine.params()
-	}
-
-	fn builtins(&self) -> &BTreeMap<Address, Builtin> {
-		self.engine.builtins()
-	}
-
-	fn schedule(&self, _block_number: u64) -> Schedule {
-		let mut schedule = self.engine.schedule(0);
-		schedule.max_depth = self.max_depth;
-		schedule
-	}
-}
 
 // TODO: move everything over to get_null_spec.
 pub fn get_test_spec() -> Spec {
@@ -398,33 +350,35 @@ pub fn get_bad_state_dummy_block() -> Bytes {
 	create_test_block(&block_header)
 }
 
+pub fn get_default_ethash_extensions() -> EthashExtensions {
+	EthashExtensions {
+		homestead_transition: 1150000,
+		eip150_transition: u64::max_value(),
+		eip160_transition: u64::max_value(),
+		eip161abc_transition: u64::max_value(),
+		eip161d_transition: u64::max_value(),
+		dao_hardfork_transition: u64::max_value(),
+		dao_hardfork_beneficiary: "0000000000000000000000000000000000000001".into(),
+		dao_hardfork_accounts: Vec::new(),
+	}
+}
+
 pub fn get_default_ethash_params() -> EthashParams {
 	EthashParams {
 		minimum_difficulty: U256::from(131072),
 		difficulty_bound_divisor: U256::from(2048),
 		difficulty_increment_divisor: 10,
 		metropolis_difficulty_increment_divisor: 9,
-		duration_limit: 13,
 		homestead_transition: 1150000,
-		dao_hardfork_transition: u64::max_value(),
-		dao_hardfork_beneficiary: "0000000000000000000000000000000000000001".into(),
-		dao_hardfork_accounts: vec![],
+		duration_limit: 13,
+		block_reward: 1_000_000,
 		difficulty_hardfork_transition: u64::max_value(),
 		difficulty_hardfork_bound_divisor: U256::from(0),
 		bomb_defuse_transition: u64::max_value(),
 		eip100b_transition: u64::max_value(),
-		eip150_transition: u64::max_value(),
-		eip160_transition: u64::max_value(),
-		eip161abc_transition: u64::max_value(),
-		eip161d_transition: u64::max_value(),
 		ecip1010_pause_transition: u64::max_value(),
 		ecip1010_continue_transition: u64::max_value(),
 		ecip1017_era_rounds: u64::max_value(),
-		max_code_size: u64::max_value(),
-		max_gas_limit_transition: u64::max_value(),
-		max_gas_limit: U256::max_value(),
-		min_gas_price_transition: u64::max_value(),
-		min_gas_price: U256::zero(),
 		eip649_transition: u64::max_value(),
 		eip649_delay: 3_000_000,
 		eip649_reward: None,

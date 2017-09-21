@@ -43,17 +43,15 @@ use self::epoch::PendingTransition;
 
 use account_provider::AccountProvider;
 use builtin::Builtin;
-use client::EngineClient;
 use vm::{EnvInfo, Schedule, CreateContractAddress};
 use error::Error;
 use header::{Header, BlockNumber};
-use receipt::Receipt;
 use snapshot::SnapshotComponents;
 use spec::CommonParams;
 use transaction::{UnverifiedTransaction, SignedTransaction};
 
 use ethkey::Signature;
-use parity_machine::Machine;
+use parity_machine::{Machine, LocalizedMachine as Localized};
 use bigint::prelude::U256;
 use bigint::hash::H256;
 use semantic_version::SemanticVersion;
@@ -115,10 +113,6 @@ pub enum Seal {
 	None,
 }
 
-/// Type alias for a function we can make calls through synchronously.
-/// Returns the call result and state proof for each call.
-pub type Call<'a> = Fn(Address, Bytes) -> Result<(Bytes, Vec<Vec<u8>>), String> + 'a;
-
 /// Type alias for a function we can get headers by hash through.
 pub type Headers<'a> = Fn(H256) -> Option<Header> + 'a;
 
@@ -126,21 +120,22 @@ pub type Headers<'a> = Fn(H256) -> Option<Header> + 'a;
 pub type PendingTransitionStore<'a> = Fn(H256) -> Option<PendingTransition> + 'a;
 
 /// Proof dependent on state.
-pub trait StateDependentProof: Send + Sync {
+pub trait StateDependentProof<M: Machine>: Send + Sync {
 	/// Generate a proof, given the state.
-	fn generate_proof(&self, caller: &Call) -> Result<Vec<u8>, String>;
+	// TODO: make this into an &M::StateContext
+	fn generate_proof<'a>(&self, state: &<M as Localized<'a>>::StateContext) -> Result<Vec<u8>, String>;
 	/// Check a proof generated elsewhere (potentially by a peer).
 	// `engine` needed to check state proofs, while really this should
 	// just be state machine params.
-	fn check_proof(&self, engine: &EthEngine, proof: &[u8]) -> Result<(), String>;
+	fn check_proof(&self, machine: &M, proof: &[u8]) -> Result<(), String>;
 }
 
 /// Proof generated on epoch change.
-pub enum Proof {
+pub enum Proof<M: Machine> {
 	/// Known proof (extracted from signal)
 	Known(Vec<u8>),
 	/// State dependent proof.
-	WithState(Arc<StateDependentProof>),
+	WithState(Arc<StateDependentProof<M>>),
 }
 
 /// Generated epoch verifier.
@@ -166,24 +161,13 @@ impl<'a, M: Machine> ConstructedVerifier<'a, M> {
 }
 
 /// Results of a query of whether an epoch change occurred at the given block.
-pub enum EpochChange {
+pub enum EpochChange<M: Machine> {
 	/// Cannot determine until more data is passed.
-	Unsure(Unsure),
+	Unsure(M::AuxiliaryRequest),
 	/// No epoch change.
 	No,
 	/// The epoch will change, with proof.
-	Yes(Proof),
-}
-
-/// More data required to determine if an epoch change occurred at a given block.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum Unsure {
-	/// Needs the body.
-	NeedsBody,
-	/// Needs the receipts.
-	NeedsReceipts,
-	/// Needs both body and receipts.
-	NeedsBoth,
+	Yes(Proof<M>),
 }
 
 /// A consensus mechanism for the chain. Generally either proof-of-work or proof-of-stake-based.
@@ -244,26 +228,26 @@ pub trait Engine<M: Machine>: Sync + Send {
 	/// Phase 2 verification. Perform costly checks such as transaction signatures. Returns either a null `Ok` or a general error detailing the problem with import.
 	fn verify_block_unordered(&self, _header: &M::Header) -> Result<(), M::Error> { Ok(()) }
 
-	/// Phase 3 verification. Check block information against parent and uncles. Returns either a null `Ok` or a general error detailing the problem with import.
-	fn verify_block_family(&self, _header: &M::Header, _parent: &Header) -> Result<(), Error> { Ok(()) }
+	/// Phase 3 verification. Check block information against parent. Returns either a null `Ok` or a general error detailing the problem with import.
+	fn verify_block_family(&self, _header: &M::Header, _parent: &M::Header) -> Result<(), Error> { Ok(()) }
 
 	/// Phase 4 verification. Verify block header against potentially external data.
 	fn verify_block_external(&self, _header: &M::Header) -> Result<(), Error> { Ok(()) }
 
 	/// Genesis epoch data.
-	fn genesis_epoch_data(&self, _header: &M::Header, _call: &Call) -> Result<Vec<u8>, String> { Ok(Vec::new()) }
+	fn genesis_epoch_data<'a>(&self, _header: &M::Header, _state: &<M as Localized<'a>>::StateContext) -> Result<Vec<u8>, String> { Ok(Vec::new()) }
 
 	/// Whether an epoch change is signalled at the given header but will require finality.
 	/// If a change can be enacted immediately then return `No` from this function but
 	/// `Yes` from `is_epoch_end`.
 	///
-	/// If the block or receipts are required, return `Unsure` and the function will be
+	/// If auxiliary data of the block is required, return an auxiliary request and the function will be
 	/// called again with them.
 	/// Return `Yes` or `No` when the answer is definitively known.
 	///
 	/// Should not interact with state.
-	fn signals_epoch_end(&self, _header: &M::Header, _block: Option<&[u8]>, _receipts: Option<&[Receipt]>)
-		-> EpochChange
+	fn signals_epoch_end<'a>(&self, _header: &M::Header, _aux: <M as Localized<'a>>::AuxiliaryData)
+		-> EpochChange<M>
 	{
 		EpochChange::No
 	}
@@ -310,7 +294,7 @@ pub trait Engine<M: Machine>: Sync + Send {
 	fn sign(&self, _hash: H256) -> Result<Signature, Error> { unimplemented!() }
 
 	/// Add Client which can be used for sealing, potentially querying the state and sending messages.
-	fn register_client(&self, _client: Weak<EngineClient>) {}
+	fn register_client(&self, _client: Weak<M::EngineClient>) {}
 
 	/// Trigger next step of the consensus engine.
 	fn step(&self) {}

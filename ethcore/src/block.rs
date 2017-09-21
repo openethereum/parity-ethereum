@@ -233,9 +233,7 @@ impl ::parity_machine::LiveBlock for ExecutedBlock {
 	fn header(&self) -> &Header {
 		&self.header
 	}
-}
 
-impl ::parity_machine::WithUncles for ExecutedBlock {
 	fn uncles(&self) -> &[Header] {
 		&self.uncles
 	}
