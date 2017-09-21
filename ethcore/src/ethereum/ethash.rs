@@ -16,7 +16,7 @@
 
 use std::path::Path;
 use std::cmp;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 use hash::{KECCAK_EMPTY_LIST_RLP};
 use ethash::{quick_get_difficulty, slow_get_seedhash, EthashManager};
@@ -419,14 +419,12 @@ fn ecip1017_eras_block_reward(era_rounds: u64, mut reward: U256, block_number:u6
 #[cfg(test)]
 mod tests {
 	use std::str::FromStr;
-	use std::collections::BTreeMap;
 	use std::sync::Arc;
 	use bigint::prelude::U256;
 	use bigint::hash::{H64, H256};
 	use util::*;
 	use block::*;
 	use tests::helpers::*;
-	use engines::Engine;
 	use error::{BlockError, Error};
 	use header::Header;
 	use spec::Spec;

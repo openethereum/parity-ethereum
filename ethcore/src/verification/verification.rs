@@ -328,7 +328,7 @@ mod tests {
 	use error::BlockError::*;
 	use views::*;
 	use blockchain::*;
-	use engines::{Engine, EthEngine};
+	use engines::EthEngine;
 	use spec::*;
 	use transaction::*;
 	use tests::helpers::*;

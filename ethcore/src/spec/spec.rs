@@ -345,18 +345,17 @@ impl Spec {
 		params: CommonParams,
 		builtins: BTreeMap<Address, Builtin>,
 	) -> Arc<EthEngine> {
-		let _machine = Self::machine(&engine_spec, params, builtins);
+		let machine = Self::machine(&engine_spec, params, builtins);
 
-		// TODO: instantiate ethash-specific params.
-		// match engine_spec {
-		// 	ethjson::spec::Engine::Null => Arc::new(NullEngine::new(params, builtins)),
-		// 	ethjson::spec::Engine::InstantSeal => Arc::new(InstantSeal::new(params, builtins)),
-		// 	ethjson::spec::Engine::Ethash(ethash) => Arc::new(ethereum::Ethash::new(cache_dir, params, From::from(ethash.params), builtins)),
-		// 	ethjson::spec::Engine::BasicAuthority(basic_authority) => Arc::new(BasicAuthority::new(params, From::from(basic_authority.params), builtins)),
-		// 	ethjson::spec::Engine::AuthorityRound(authority_round) => AuthorityRound::new(params, From::from(authority_round.params), builtins).expect("Failed to start AuthorityRound consensus engine."),
-		// 	ethjson::spec::Engine::Tendermint(tendermint) => Tendermint::new(params, From::from(tendermint.params), builtins).expect("Failed to start the Tendermint consensus engine."),
-		// }
-		unimplemented!()
+		match engine_spec {
+			ethjson::spec::Engine::Null => Arc::new(NullEngine::new(machine)),
+			ethjson::spec::Engine::Ethash(ethash) => Arc::new(::ethereum::Ethash::new(cache_dir, ethash.params.into(), machine)),
+			_ => unimplemented!()
+			// ethjson::spec::Engine::InstantSeal => Arc::new(InstantSeal::new(params, builtins)),
+			// ethjson::spec::Engine::BasicAuthority(basic_authority) => Arc::new(BasicAuthority::new(params, From::from(basic_authority.params), builtins)),
+			// ethjson::spec::Engine::AuthorityRound(authority_round) => AuthorityRound::new(params, From::from(authority_round.params), builtins).expect("Failed to start AuthorityRound consensus engine."),
+			// ethjson::spec::Engine::Tendermint(tendermint) => Tendermint::new(params, From::from(tendermint.params), builtins).expect("Failed to start the Tendermint consensus engine."),
+		}
 	}
 
 	// given a pre-constructor state, run all the given constructors and produce a new state and state root.
