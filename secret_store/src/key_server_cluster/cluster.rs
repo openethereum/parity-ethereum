@@ -1195,16 +1195,18 @@ pub mod tests {
 
 		// start && wait for generation session to fail
 		let session = clusters[0].client().new_generation_session(SessionId::default(), Public::default(), 1).unwrap();
-		loop_until(&mut core, time::Duration::from_millis(300), || session.joint_public_and_secret().is_some());
+		loop_until(&mut core, time::Duration::from_millis(300), || session.joint_public_and_secret().is_some()
+			&& clusters[0].client().generation_session(&SessionId::default()).is_none());
 		assert!(session.joint_public_and_secret().unwrap().is_err());
 
 		// check that faulty session is either removed from all nodes, or nonexistent (already removed)
-		assert!(clusters[0].client().generation_session(&SessionId::default()).is_none());
 		for i in 1..3 {
 			if let Some(session) = clusters[i].client().generation_session(&SessionId::default()) {
-				loop_until(&mut core, time::Duration::from_millis(300), || session.joint_public_and_secret().is_some());
+				// wait for both session completion && session removal (session completion event is fired
+				// before session is removed from its own container by cluster)
+				loop_until(&mut core, time::Duration::from_millis(300), || session.joint_public_and_secret().is_some()
+					&& clusters[i].client().generation_session(&SessionId::default()).is_none());
 				assert!(session.joint_public_and_secret().unwrap().is_err());
-				assert!(clusters[i].client().generation_session(&SessionId::default()).is_none());
 			}
 		}
 	}
@@ -1219,18 +1221,18 @@ pub mod tests {
 
 		// start && wait for generation session to complete
 		let session = clusters[0].client().new_generation_session(SessionId::default(), Public::default(), 1).unwrap();
-		loop_until(&mut core, time::Duration::from_millis(300), || session.state() == GenerationSessionState::Finished
-			|| session.state() == GenerationSessionState::Failed);
+		loop_until(&mut core, time::Duration::from_millis(300), || (session.state() == GenerationSessionState::Finished
+			|| session.state() == GenerationSessionState::Failed)
+			&& clusters[0].client().generation_session(&SessionId::default()).is_none());
 		assert!(session.joint_public_and_secret().unwrap().is_ok());
 
 		// check that session is either removed from all nodes, or nonexistent (already removed)
-		assert!(clusters[0].client().generation_session(&SessionId::default()).is_none());
 		for i in 1..3 {
 			if let Some(session) = clusters[i].client().generation_session(&SessionId::default()) {
-				loop_until(&mut core, time::Duration::from_millis(300), || session.state() == GenerationSessionState::Finished
-					|| session.state() == GenerationSessionState::Failed);
+				loop_until(&mut core, time::Duration::from_millis(300), || (session.state() == GenerationSessionState::Finished
+					|| session.state() == GenerationSessionState::Failed)
+					&& clusters[i].client().generation_session(&SessionId::default()).is_none());
 				assert!(session.joint_public_and_secret().unwrap().is_err());
-				assert!(clusters[i].client().generation_session(&SessionId::default()).is_none());
 			}
 		}
 	}
