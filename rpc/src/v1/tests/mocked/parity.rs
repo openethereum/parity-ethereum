@@ -31,6 +31,7 @@ use v1::metadata::Metadata;
 use v1::helpers::{SignerService, NetworkSettings};
 use v1::tests::helpers::{TestSyncProvider, Config, TestMinerService, TestUpdater};
 use super::manage_network::TestManageNetwork;
+use Host;
 
 pub type TestParityClient = ParityClient<TestBlockChainClient, TestMinerService, TestUpdater>;
 
@@ -44,8 +45,8 @@ pub struct Dependencies {
 	pub settings: Arc<NetworkSettings>,
 	pub network: Arc<ManageNetwork>,
 	pub accounts: Arc<AccountProvider>,
-	pub dapps_address: Option<(String, u16)>,
-	pub ws_address: Option<(String, u16)>,
+	pub dapps_address: Option<Host>,
+	pub ws_address: Option<Host>,
 }
 
 impl Dependencies {
@@ -74,8 +75,8 @@ impl Dependencies {
 			}),
 			network: Arc::new(TestManageNetwork),
 			accounts: Arc::new(AccountProvider::transient_provider()),
-			dapps_address: Some(("127.0.0.1".into(), 18080)),
-			ws_address: Some(("127.0.0.1".into(), 18546)),
+			dapps_address: Some("127.0.0.1:18080".into()),
+			ws_address: Some("127.0.0.1:18546".into()),
 		}
 	}
 
