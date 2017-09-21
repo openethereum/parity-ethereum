@@ -88,6 +88,7 @@ pub struct SyncInfo {
 	last_imported_old_block_number: Option<BlockNumber>,
 	num_peers: usize,
 	max_peers: u32,
+	snapshot_sync: bool,
 }
 
 pub struct Report {
@@ -150,6 +151,7 @@ impl InformantData for FullNodeInformantData {
 					last_imported_old_block_number: status.last_imported_old_block_number,
 					num_peers: status.num_peers,
 					max_peers: status.current_max_peers(net_config.min_peers, net_config.max_peers),
+					snapshot_sync: status.is_snapshot_syncing(),
 				}))
 			}
 			_ => (is_major_importing(self.sync.as_ref().map(|s| s.status().state), queue_info.clone()), None),
@@ -194,6 +196,7 @@ impl InformantData for LightNodeInformantData {
 			last_imported_old_block_number: None,
 			num_peers: peer_numbers.connected,
 			max_peers: peer_numbers.max as u32,
+			snapshot_sync: false,
 		});
 
 		Report {
@@ -280,7 +283,7 @@ impl<T: InformantData> Informant<T> {
 				_ => (false, 0, 0),
 			}
 		);
-
+		let snapshot_sync = snapshot_sync && sync_info.as_ref().map_or(false, |s| s.snapshot_sync);
 		if !importing && !snapshot_sync && elapsed < Duration::from_secs(30) {
 			return;
 		}
