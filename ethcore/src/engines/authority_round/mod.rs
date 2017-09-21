@@ -514,6 +514,10 @@ impl Engine for AuthorityRound {
 		Seal::None
 	}
 
+	fn verify_local_seal(&self, _header: &Header) -> Result<(), Error> {
+		Ok(())
+	}
+
 	fn on_new_block(
 		&self,
 		block: &mut ExecutedBlock,

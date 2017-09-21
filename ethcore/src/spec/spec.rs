@@ -35,7 +35,7 @@ use super::genesis::Genesis;
 use super::seal::Generic as GenericSeal;
 
 use builtin::Builtin;
-use engines::{EthEngine, NullEngine, InstantSeal, /* BasicAuthority, AuthorityRound, Tendermint, */ DEFAULT_BLOCKHASH_CONTRACT};
+use engines::{EthEngine, NullEngine, InstantSeal, BasicAuthority, /* AuthorityRound, Tendermint, */ DEFAULT_BLOCKHASH_CONTRACT};
 use error::Error;
 use executive::Executive;
 use factory::Factories;
@@ -351,8 +351,8 @@ impl Spec {
 			ethjson::spec::Engine::Null => Arc::new(NullEngine::new(machine)),
 			ethjson::spec::Engine::Ethash(ethash) => Arc::new(::ethereum::Ethash::new(cache_dir, ethash.params.into(), machine)),
 			ethjson::spec::Engine::InstantSeal => Arc::new(InstantSeal::new(machine)),
+			ethjson::spec::Engine::BasicAuthority(basic_authority) => Arc::new(BasicAuthority::new(basic_authority.params.into(), machine)),
 			_ => unimplemented!()
-			// ethjson::spec::Engine::BasicAuthority(basic_authority) => Arc::new(BasicAuthority::new(params, From::from(basic_authority.params), builtins)),
 			// ethjson::spec::Engine::AuthorityRound(authority_round) => AuthorityRound::new(params, From::from(authority_round.params), builtins).expect("Failed to start AuthorityRound consensus engine."),
 			// ethjson::spec::Engine::Tendermint(tendermint) => Tendermint::new(params, From::from(tendermint.params), builtins).expect("Failed to start the Tendermint consensus engine."),
 		}

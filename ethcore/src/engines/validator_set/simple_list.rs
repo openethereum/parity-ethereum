@@ -20,7 +20,7 @@ use heapsize::HeapSizeOf;
 use bigint::hash::H256;
 use util::Address;
 
-use machine::{Call, EthereumMachine};
+use machine::{AuxiliaryData, Call, EthereumMachine};
 use header::{BlockNumber, Header};
 use super::ValidatorSet;
 
@@ -76,7 +76,7 @@ impl ValidatorSet for SimpleList {
 		}
 	}
 
-	fn signals_epoch_end(&self, _: bool, _: &Header, _: Option<&[u8]>, _: Option<&[::receipt::Receipt]>)
+	fn signals_epoch_end(&self, _: bool, _: &Header, _: AuxiliaryData)
 		-> ::engines::EpochChange<EthereumMachine>
 	{
 		::engines::EpochChange::No

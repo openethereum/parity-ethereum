@@ -33,7 +33,7 @@ use rlp::{UntrustedRlp, RlpStream};
 
 use basic_types::LogBloom;
 use client::EngineClient;
-use machine::{Call, EthereumMachine, AuxiliaryRequest};
+use machine::{AuxiliaryData, Call, EthereumMachine, AuxiliaryRequest};
 use header::Header;
 use ids::BlockId;
 use log_entry::LogEntry;
@@ -336,9 +336,11 @@ impl ValidatorSet for ValidatorSafeContract {
 		None // no immediate transitions to contract.
 	}
 
-	fn signals_epoch_end(&self, first: bool, header: &Header, _block: Option<&[u8]>, receipts: Option<&[Receipt]>)
+	fn signals_epoch_end(&self, first: bool, header: &Header, aux: AuxiliaryData)
 		-> ::engines::EpochChange<EthereumMachine>
 	{
+		let receipts = aux.receipts;
+
 		// transition to the first block of a contract requires finality but has no log event.
 		if first {
 			debug!(target: "engine", "signalling transition to fresh contract.");
@@ -582,7 +584,7 @@ mod tests {
 		};
 
 		new_header.set_log_bloom(event.bloom());
-		match engine.signals_epoch_end(&new_header, None, None) {
+		match engine.signals_epoch_end(&new_header, Default::default()) {
 			EpochChange::No => {},
 			_ => panic!("Expected bloom to be unrecognized."),
 		};
@@ -591,7 +593,7 @@ mod tests {
 		event.topics.push(last_hash);
 		new_header.set_log_bloom(event.bloom());
 
-		match engine.signals_epoch_end(&new_header, None, None) {
+		match engine.signals_epoch_end(&new_header, Default::default()) {
 			EpochChange::Unsure(AuxiliaryRequest::Receipts) => {},
 			_ => panic!("Expected bloom to be recognized."),
 		};
@@ -608,7 +610,7 @@ mod tests {
 		let mut new_header = Header::default();
 		new_header.set_number(0); // so the validator set doesn't look for a log
 
-		match engine.signals_epoch_end(&new_header, None, None) {
+		match engine.signals_epoch_end(&new_header, Default::default()) {
 			EpochChange::Yes(Proof::WithState(_)) => {},
 			_ => panic!("Expected state to be required to prove initial signal"),
 		};

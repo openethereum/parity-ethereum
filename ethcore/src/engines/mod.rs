@@ -17,7 +17,7 @@
 //! Consensus engine specification and basic implementations.
 
 // mod authority_round;
-// mod basic_authority;
+mod basic_authority;
 mod instant_seal;
 mod null_engine;
 mod signer;
@@ -29,7 +29,7 @@ mod vote_collector;
 pub mod epoch;
 
 // pub use self::authority_round::AuthorityRound;
-// pub use self::basic_authority::BasicAuthority;
+pub use self::basic_authority::BasicAuthority;
 pub use self::epoch::{EpochVerifier, Transition as EpochTransition};
 pub use self::instant_seal::InstantSeal;
 pub use self::null_engine::NullEngine;
@@ -114,7 +114,7 @@ pub enum Seal {
 }
 
 /// Type alias for a function we can get headers by hash through.
-pub type Headers<'a> = Fn(H256) -> Option<Header> + 'a;
+pub type Headers<'a, H> = Fn(H256) -> Option<H> + 'a;
 
 /// Type alias for a function we can query pending transitions by block hash through.
 pub type PendingTransitionStore<'a> = Fn(H256) -> Option<PendingTransition> + 'a;
@@ -249,6 +249,7 @@ pub trait Engine<M: Machine>: Sync + Send {
 	fn verify_block_family(&self, _header: &M::Header, _parent: &M::Header) -> Result<(), Error> { Ok(()) }
 
 	/// Phase 4 verification. Verify block header against potentially external data.
+	/// Should only be called when `register_client` has been called previously.
 	fn verify_block_external(&self, _header: &M::Header) -> Result<(), Error> { Ok(()) }
 
 	/// Genesis epoch data.
@@ -279,7 +280,7 @@ pub trait Engine<M: Machine>: Sync + Send {
 	fn is_epoch_end(
 		&self,
 		_chain_head: &M::Header,
-		_chain: &Headers,
+		_chain: &Headers<M::Header>,
 		_transition_store: &PendingTransitionStore,
 	) -> Option<Vec<u8>> {
 		None

@@ -238,6 +238,12 @@ pub fn verify_block_final(expected: &Header, got: &Header) -> Result<(), Error> 
 
 /// Check basic header parameters.
 pub fn verify_header_params(header: &Header, engine: &EthEngine, is_full: bool) -> Result<(), Error> {
+	if header.seal().len() != engine.seal_fields() {
+		return Err(From::from(BlockError::InvalidSealArity(
+			Mismatch { expected: engine.seal_fields(), found: header.seal().len() }
+		)));
+	}
+
 	if header.number() >= From::from(BlockNumber::max_value()) {
 		return Err(From::from(BlockError::RidiculousNumber(OutOfBounds { max: Some(From::from(BlockNumber::max_value())), min: None, found: header.number() })))
 	}

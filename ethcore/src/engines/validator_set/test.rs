@@ -24,7 +24,7 @@ use bigint::hash::H256;
 use util::Address;
 use bytes::Bytes;
 
-use machine::{Call, EthereumMachine};
+use machine::{AuxiliaryData, Call, EthereumMachine};
 use header::{Header, BlockNumber};
 use super::{ValidatorSet, SimpleList};
 
@@ -58,7 +58,7 @@ impl ValidatorSet for TestSet {
 
 	fn is_epoch_end(&self, _first: bool, _chain_head: &Header) -> Option<Vec<u8>> { None }
 
-	fn signals_epoch_end(&self, _: bool, _: &Header, _: Option<&[u8]>, _: Option<&[::receipt::Receipt]>)
+	fn signals_epoch_end(&self, _: bool, _: &Header, _: AuxiliaryData)
 		-> ::engines::EpochChange<EthereumMachine>
 	{
 		::engines::EpochChange::No

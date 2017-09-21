@@ -31,7 +31,7 @@ use bytes::Bytes;
 use ethjson::spec::ValidatorSet as ValidatorSpec;
 use client::EngineClient;
 use header::{Header, BlockNumber};
-use machine::{Call, EthereumMachine};
+use machine::{AuxiliaryData, Call, EthereumMachine};
 
 #[cfg(test)]
 pub use self::test::TestSet;
@@ -112,8 +112,7 @@ pub trait ValidatorSet: Send + Sync {
 		&self,
 		first: bool,
 		header: &Header,
-		block: Option<&[u8]>,
-		receipts: Option<&[::receipt::Receipt]>,
+		aux: AuxiliaryData,
 	) -> ::engines::EpochChange<EthereumMachine>;
 
 	/// Recover the validator set from the given proof, the block number, and
