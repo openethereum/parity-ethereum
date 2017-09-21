@@ -25,7 +25,7 @@ use std::collections::HashSet;
 
 use blockchain::*;
 use client::BlockChainClient;
-use engines::{Engine, EthEngine};
+use engines::EthEngine;
 use error::{BlockError, Error};
 use header::{BlockNumber, Header};
 use transaction::SignedTransaction;

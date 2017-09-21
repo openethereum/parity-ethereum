@@ -118,7 +118,7 @@ impl ChainNotify for TransactionFilter {
 
 #[cfg(test)]
 mod test {
-	use std::sync::{Arc, Weak};
+	use std::sync::Arc;
 	use spec::Spec;
 	use client::{BlockChainClient, Client, ClientConfig, BlockId};
 	use miner::Miner;

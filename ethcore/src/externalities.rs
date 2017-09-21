@@ -414,7 +414,6 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 #[cfg(test)]
 mod tests {
 	use util::*;
-	use engines::EthEngine;
 	use evm::{EnvInfo, Ext, CallType};
 	use state::{State, Substate};
 	use tests::helpers::*;

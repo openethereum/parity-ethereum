@@ -16,7 +16,7 @@
 
 use std::path::Path;
 use std::cmp;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 use std::sync::Arc;
 use hash::{KECCAK_EMPTY_LIST_RLP};
 use ethash::{quick_get_difficulty, slow_get_seedhash, EthashManager};

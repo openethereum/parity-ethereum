@@ -14,32 +14,29 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::collections::BTreeMap;
-use std::sync::Arc;
-use hash::keccak;
-use ethkey::KeyPair;
-use io::*;
-use client::{BlockChainClient, Client, ClientConfig};
-use bigint::prelude::U256;
-use bigint::hash::H256;
-use util::*;
-use bytes::Bytes;
-use spec::*;
 use account_provider::AccountProvider;
-use state_db::StateDB;
+use bigint::hash::H256;
+use bigint::prelude::U256;
 use block::{OpenBlock, Drain};
 use blockchain::{BlockChain, Config as BlockChainConfig};
-use builtin::Builtin;
-use state::*;
-use machine::EthashExtensions;
-use evm::{Schedule, Factory as EvmFactory};
-use factory::Factories;
-use ethereum;
+use bytes::Bytes;
+use client::{BlockChainClient, Client, ClientConfig};
 use ethereum::ethash::EthashParams;
-use miner::Miner;
+use ethkey::KeyPair;
+use evm::Factory as EvmFactory;
+use factory::Factories;
+use hash::keccak;
 use header::Header;
-use transaction::{Action, Transaction, SignedTransaction};
+use io::*;
+use machine::EthashExtensions;
+use miner::Miner;
 use rlp::{self, RlpStream};
+use spec::*;
+use state_db::StateDB;
+use state::*;
+use std::sync::Arc;
+use transaction::{Action, Transaction, SignedTransaction};
+use util::*;
 use views::BlockView;
 
 // TODO: move everything over to get_null_spec.
