@@ -27,8 +27,8 @@ use futures::Future;
 use native_contracts::ValidatorReport as Provider;
 
 use client::EngineClient;
-use engines::{Call, Engine};
 use header::{Header, BlockNumber};
+use machine::{Call, EthereumMachine};
 
 use super::{ValidatorSet, SimpleList, SystemCall};
 use super::safe_contract::ValidatorSafeContract;
@@ -93,12 +93,12 @@ impl ValidatorSet for ValidatorContract {
 		header: &Header,
 		block: Option<&[u8]>,
 		receipts: Option<&[::receipt::Receipt]>,
-	) -> ::engines::EpochChange {
+	) -> ::engines::EpochChange<EthereumMachine> {
 		self.validators.signals_epoch_end(first, header, block, receipts)
 	}
 
-	fn epoch_set(&self, first: bool, engine: &Engine, number: BlockNumber, proof: &[u8]) -> Result<(SimpleList, Option<H256>), ::error::Error> {
-		self.validators.epoch_set(first, engine, number, proof)
+	fn epoch_set(&self, first: bool, machine: &EthereumMachine, number: BlockNumber, proof: &[u8]) -> Result<(SimpleList, Option<H256>), ::error::Error> {
+		self.validators.epoch_set(first, machine, number, proof)
 	}
 
 	fn contains_with_caller(&self, bh: &H256, address: &Address, caller: &Call) -> bool {

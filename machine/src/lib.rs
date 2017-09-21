@@ -67,6 +67,15 @@ pub trait LiveBlock: 'static {
 	fn uncles(&self) -> &[Self::Header];
 }
 
+/// Trait for blocks which have a transaction type.
+pub trait Transactions: LiveBlock {
+	/// The transaction type.
+	type Transaction;
+
+	/// Get a reference to the transactions in this block.
+	fn transactions(&self) -> &[Self::Transaction];
+}
+
 /// Generalization of types surrounding blockchain-suitable state machines.
 pub trait Machine: for<'a> LocalizedMachine<'a> {
 	/// The block header type.

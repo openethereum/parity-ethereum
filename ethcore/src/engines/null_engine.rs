@@ -43,6 +43,10 @@ impl<M: ::parity_machine::Machine> Engine<M> for NullEngine<M> {
 
 	fn machine(&self) -> &M { &self.machine }
 
+	fn verify_local_seal(&self, _header: &M::Header) -> Result<(), M::Error> {
+		Ok(())
+	}
+
 	fn snapshot_components(&self) -> Option<Box<::snapshot::SnapshotComponents>> {
 		Some(Box::new(::snapshot::PowSnapshot::new(10000, 10000)))
 	}

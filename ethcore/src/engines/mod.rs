@@ -18,20 +18,20 @@
 
 // mod authority_round;
 // mod basic_authority;
-// mod instant_seal;
+mod instant_seal;
 mod null_engine;
-// mod signer;
+mod signer;
 // mod tendermint;
-// mod transition;
-// mod validator_set;
-// mod vote_collector;
+mod transition;
+mod validator_set;
+mod vote_collector;
 
 pub mod epoch;
 
 // pub use self::authority_round::AuthorityRound;
 // pub use self::basic_authority::BasicAuthority;
 pub use self::epoch::{EpochVerifier, Transition as EpochTransition};
-// pub use self::instant_seal::InstantSeal;
+pub use self::instant_seal::InstantSeal;
 pub use self::null_engine::NullEngine;
 // pub use self::tendermint::Tendermint;
 
@@ -222,7 +222,22 @@ pub trait Engine<M: Machine>: Sync + Send {
 	///
 	/// This operation is synchronous and may (quite reasonably) not be available, in which None will
 	/// be returned.
+	///
+	/// It is fine to require access to state or a full client for this function, since
+	/// light clients do not generate seals.
 	fn generate_seal(&self, _block: &M::LiveBlock) -> Seal { Seal::None }
+
+	/// Verify a locally-generated seal of a header.
+	///
+	/// If this engine seals internally,
+	/// no checks have to be done here, since all internally generated seals
+	/// should be valid.
+	///
+	/// Externally-generated seals (e.g. PoW) will need to be checked for validity.
+	///
+	/// It is fine to require access to state or a full client for this function, since
+	/// light clients do not generate seals.
+	fn verify_local_seal(&self, header: &M::Header) -> Result<(), M::Error>;
 
 	/// Phase 1 quick block verification. Only does checks that are cheap. Returns either a null `Ok` or a general error detailing the problem with import.
 	fn verify_block_basic(&self, _header: &M::Header) -> Result<(), M::Error> { Ok(()) }

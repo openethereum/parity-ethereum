@@ -222,6 +222,11 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 		self.machine.note_rewards(block, &[(author, result_block_reward)], &uncle_rewards)
 	}
 
+	fn verify_local_seal(&self, header: &Header) -> Result<(), Error> {
+		self.verify_block_basic(header)
+			.and_then(|_| self.verify_block_unordered(header))
+	}
+
 	fn verify_block_basic(&self, header: &Header) -> Result<(), Error> {
 		// check the seal fields.
 		if header.seal().len() != self.seal_fields() {
