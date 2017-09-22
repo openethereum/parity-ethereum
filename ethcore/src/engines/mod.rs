@@ -21,7 +21,7 @@ mod basic_authority;
 mod instant_seal;
 mod null_engine;
 mod signer;
-// mod tendermint;
+mod tendermint;
 mod transition;
 mod validator_set;
 mod vote_collector;
@@ -33,7 +33,7 @@ pub use self::basic_authority::BasicAuthority;
 pub use self::epoch::{EpochVerifier, Transition as EpochTransition};
 pub use self::instant_seal::InstantSeal;
 pub use self::null_engine::NullEngine;
-// pub use self::tendermint::Tendermint;
+pub use self::tendermint::Tendermint;
 
 use std::sync::{Weak, Arc};
 use std::collections::{BTreeMap, HashMap};
@@ -80,6 +80,8 @@ pub enum EngineError {
 	InsufficientProof(String),
 	/// Failed system call.
 	FailedSystemCall(String),
+	/// Malformed consensus message.
+	MalformedMessage(String),
 	/// Requires client ref, but none registered.
 	RequiresClient,
 }
@@ -95,6 +97,7 @@ impl fmt::Display for EngineError {
 			BadSealFieldSize(ref oob) => format!("Seal field has an unexpected length: {}", oob),
 			InsufficientProof(ref msg) => format!("Insufficient validation proof: {}", msg),
 			FailedSystemCall(ref msg) => format!("Failed to make system call: {}", msg),
+			MalformedMessage(ref msg) => format!("Received malformed consensus message: {}", msg),
 			RequiresClient => format!("Call requires client but none registered"),
 		};
 

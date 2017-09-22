@@ -518,7 +518,6 @@ impl Engine<EthereumMachine> for AuthorityRound {
 		let header = block.fields().header.clone();
 		let first = header.number() == 0;
 
-		// TODO: just pass machine to the validator set.
 		let mut call = |to, data| {
 			let result = self.machine.execute_as_system(
 				block,
