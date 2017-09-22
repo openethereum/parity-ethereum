@@ -117,6 +117,7 @@ impl JobExecutor for ServersSetChangeAccessJob {
 	}
 
 	fn process_partial_request(&mut self, partial_request: ServersSetChangeAccessRequest) -> Result<JobPartialRequestAction<bool>, Error> {
+return Ok(JobPartialRequestAction::Respond(true)); // TODO: remove me
 		let ServersSetChangeAccessRequest {
 			old_servers_set: old_servers_set,
 			new_servers_set: new_servers_set,

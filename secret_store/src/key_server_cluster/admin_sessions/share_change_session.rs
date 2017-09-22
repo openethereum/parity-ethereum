@@ -238,7 +238,7 @@ impl ShareChangeSession {
 			sub_session: sub_session.clone(),
 			transport: ShareChangeTransport::new(self.session_id, self.nonce, self.cluster.clone()),
 			key_storage: self.key_storage.clone(),
-		}, true)?);
+		})?);
 		Ok(())
 	}
 
@@ -331,6 +331,10 @@ impl JobTransport for ShareChangeTransport {
 }
 
 impl ShareAddSessionTransport for ShareChangeTransport {
+	fn set_id_numbers(&mut self, _id_numbers: BTreeMap<NodeId, Secret>) {
+		unreachable!()
+	}
+
 	fn send(&self, node: &NodeId, message: ShareAddMessage) -> Result<(), Error> {
 		self.cluster.send(node, Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeShareAddMessage(ServersSetChangeShareAddMessage {
 			session: self.session_id.clone().into(),
