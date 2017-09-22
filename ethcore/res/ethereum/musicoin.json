@@ -1,5 +1,6 @@
 {
   "name": "Musicoin",
+  "dataDir": "musicoin",
   "engine": {
     "Ethash": {
       "params": {
@@ -11,7 +12,7 @@
         "eip160Transition": "0x7fffffffffffff",
         "eip161abcTransition": "0x7fffffffffffff",
         "eip161dTransition": "0x7fffffffffffff",
-        "mcip3Transition": "0x124f80",
+        "mcip3Transition": "0x124f81",
         "mcip3MinerReward": "0xf2dc7d47f15600000",
         "mcip3UbiReward": "0x1a055690d9db80000",
         "mcip3UbiContract": "0x00eFdd5883eC628983E9063c7d969fE268BBf310",
@@ -23,7 +24,7 @@
   "params": {
     "gasLimitBoundDivisor": "0x400",
     "blockReward": "0x1105a0185b50a80000",
-    "registrar": "0x00756cf8159095948496617f5fb17ed95059f536",
+    "registrar": "0x3bb2bb5c6c9c9b7f4ef430b47dc7e026310042ea",
     "accountStartNonce": "0x0",
     "maximumExtraDataSize": "0x20",
     "minGasLimit": "0x1388",
