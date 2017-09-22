@@ -24,6 +24,7 @@ extern crate ethcore_network as network;
 extern crate native_contracts;
 extern crate futures;
 extern crate parking_lot;
+extern crate kvdb;
 #[cfg(test)] extern crate ethcore_io as io;
 #[macro_use] extern crate log;
 
@@ -134,7 +135,7 @@ mod test {
 		let contract_addr = Address::from_str("0000000000000000000000000000000000000005").unwrap();
 		let data = include_bytes!("../res/node_filter.json");
 		let spec = Spec::load(&::std::env::temp_dir(), &data[..]).unwrap();
-		let client_db = Arc::new(::util::kvdb::in_memory(::ethcore::db::NUM_COLUMNS.unwrap_or(0)));
+		let client_db = Arc::new(::kvdb::in_memory(::ethcore::db::NUM_COLUMNS.unwrap_or(0)));
 
 		let client = Client::new(
 			ClientConfig::default(),

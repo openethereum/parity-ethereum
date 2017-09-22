@@ -57,6 +57,8 @@ rlp = { path = "../util/rlp" }
 stats = { path = "../util/stats" }
 vm = { path = "../ethcore/vm" }
 hash = { path = "../util/hash" }
+kvdb = { path = "../util/kvdb" }
+common = { path = "../util/common" }
 hardware-wallet = { path = "../hw" }
 
 clippy = { version = "0.0.103", optional = true}

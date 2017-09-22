@@ -20,6 +20,8 @@ use std::fmt;
 use bigint::prelude::U256;
 use bigint::hash::H256;
 use util::*;
+use ethcore_error::UtilError;
+use snappy::InvalidInput;
 use unexpected::{Mismatch, OutOfBounds};
 use trie::TrieError;
 use io::*;
@@ -322,7 +324,7 @@ pub enum Error {
 	/// Standard io error.
 	StdIo(::std::io::Error),
 	/// Snappy error.
-	Snappy(::util::snappy::InvalidInput),
+	Snappy(InvalidInput),
 	/// Snapshot error.
 	Snapshot(SnapshotError),
 	/// Consensus vote error.
@@ -434,8 +436,8 @@ impl From<BlockImportError> for Error {
 	}
 }
 
-impl From<snappy::InvalidInput> for Error {
-	fn from(err: snappy::InvalidInput) -> Error {
+impl From<::snappy::InvalidInput> for Error {
+	fn from(err: ::snappy::InvalidInput) -> Error {
 		Error::Snappy(err)
 	}
 }

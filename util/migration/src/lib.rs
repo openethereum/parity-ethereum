@@ -18,13 +18,22 @@
 #[cfg(test)]
 mod tests;
 
+#[macro_use]
+extern crate log;
+#[macro_use]
+extern crate common;
+
+extern crate ethcore_devtools as devtools;
+extern crate kvdb;
+
+
 use std::collections::BTreeMap;
 use std::fs;
 use std::fmt;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use ::kvdb::{CompactionProfile, Database, DatabaseConfig, DBTransaction};
+use kvdb::{CompactionProfile, Database, DatabaseConfig, DBTransaction};
 
 /// Migration config.
 #[derive(Clone)]

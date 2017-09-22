@@ -36,6 +36,11 @@ nibbleslice = { path = "nibbleslice" }
 nibblevec = { path = "nibblevec" }
 ethcore-bytes = { path = "bytes" }
 memorydb = { path = "memorydb" }
+ethcore-error = { path = "error" }
+migration = { path = "migration" }
+kvdb = { path = "kvdb" }
+snappy = { path = "snappy" }
+common = { path = "common" }
 
 [features]
 default = []
