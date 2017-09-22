@@ -3476,7 +3476,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "wasm-utils"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/wasm-utils#c69d8327c805c3f904feb3da425eafbd73e68d9f"
+source = "git+https://github.com/paritytech/wasm-utils#a6b6d75be0680568209813924a5ec0ad89e86697"
 dependencies = [
  "clap 2.26.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)",

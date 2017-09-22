@@ -113,13 +113,15 @@ impl vm::Vm for WasmInterpreter {
 
 		let mut cursor = ::std::io::Cursor::new(&*code);
 
-		let contract_module = wasm_utils::inject_gas_counter(
-			elements::Module::deserialize(
-				&mut cursor
-			).map_err(|err| {
-				vm::Error::Wasm(format!("Error deserializing contract code ({:?})", err))
-			})?
-		);
+		let raw_module = elements::Module::deserialize(&mut cursor).map_err(|err| {
+			vm::Error::Wasm(format!("Error deserializing contract code ({:?})", err))
+		})?;
+
+		if !wasm_utils::is_deterministic(&raw_module) {
+			return Err(vm::Error::Wasm(format!("Contract code contains nondeterministic operations")));
+		}
+
+		let contract_module = wasm_utils::inject_gas_counter(raw_module);
 
 		let d_ptr = runtime.write_descriptor(
 			call_args::CallArgs::new(
