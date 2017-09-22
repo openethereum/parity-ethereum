@@ -97,6 +97,7 @@ pub struct ExecutedBlock {
 	transactions_set: HashSet<H256>,
 	state: State<StateDB>,
 	traces: Option<Vec<Vec<FlatTrace>>>,
+	last_hashes: Arc<LastHashes>,
 }
 
 /// A set of references to `ExecutedBlock` fields that are publicly accessible.
@@ -144,7 +145,7 @@ pub struct BlockRef<'a> {
 
 impl ExecutedBlock {
 	/// Create a new block from the given `state`.
-	fn new(state: State<StateDB>, tracing: bool) -> ExecutedBlock {
+	fn new(state: State<StateDB>, last_hashes: Arc<LastHashes>, tracing: bool) -> ExecutedBlock {
 		ExecutedBlock {
 			header: Default::default(),
 			transactions: Default::default(),
@@ -153,6 +154,7 @@ impl ExecutedBlock {
 			transactions_set: Default::default(),
 			state: state,
 			traces: if tracing {Some(Vec::new())} else {None},
+			last_hashes: last_hashes,
 		}
 	}
 
@@ -177,6 +179,20 @@ impl ExecutedBlock {
 			state: &self.state,
 			receipts: &self.receipts,
 			traces: &self.traces,
+		}
+	}
+
+	/// Get the environment info concerning this block.
+	pub fn env_info(&self) -> EnvInfo {
+		// TODO: memoise.
+		EnvInfo {
+			number: self.header.number(),
+			author: self.header.author().clone(),
+			timestamp: self.header.timestamp(),
+			difficulty: self.header.difficulty().clone(),
+			last_hashes: self.last_hashes.clone(),
+			gas_used: self.receipts.last().map_or(U256::zero(), |r| r.gas_used),
+			gas_limit: self.header.gas_limit().clone(),
 		}
 	}
 }
@@ -254,7 +270,6 @@ impl ::parity_machine::Transactions for ExecutedBlock {
 pub struct OpenBlock<'x> {
 	block: ExecutedBlock,
 	engine: &'x EthEngine,
-	last_hashes: Arc<LastHashes>,
 }
 
 /// Just like `OpenBlock`, except that we've applied `Engine::on_close_block`, finished up the non-seal header fields,
@@ -265,7 +280,6 @@ pub struct OpenBlock<'x> {
 pub struct ClosedBlock {
 	block: ExecutedBlock,
 	uncle_bytes: Bytes,
-	last_hashes: Arc<LastHashes>,
 	unclosed_state: State<StateDB>,
 }
 
@@ -304,9 +318,8 @@ impl<'x> OpenBlock<'x> {
 		let number = parent.number() + 1;
 		let state = State::from_existing(db, parent.state_root().clone(), engine.account_start_nonce(number), factories)?;
 		let mut r = OpenBlock {
-			block: ExecutedBlock::new(state, tracing),
+			block: ExecutedBlock::new(state, last_hashes, tracing),
 			engine: engine,
-			last_hashes: last_hashes.clone(),
 		};
 
 		r.block.header.set_parent_hash(parent.hash());
@@ -322,7 +335,7 @@ impl<'x> OpenBlock<'x> {
 		engine.machine().populate_from_parent(&mut r.block.header, parent, gas_floor_target, gas_ceil_target);
 		engine.populate_from_parent(&mut r.block.header, parent);
 
-		engine.machine().on_new_block(&mut r.block, last_hashes)?;
+		engine.machine().on_new_block(&mut r.block)?;
 		engine.on_new_block(&mut r.block, is_epoch_begin)?;
 
 		Ok(r)
@@ -378,16 +391,7 @@ impl<'x> OpenBlock<'x> {
 
 	/// Get the environment info concerning this block.
 	pub fn env_info(&self) -> EnvInfo {
-		// TODO: memoise.
-		EnvInfo {
-			number: self.block.header.number(),
-			author: self.block.header.author().clone(),
-			timestamp: self.block.header.timestamp(),
-			difficulty: self.block.header.difficulty().clone(),
-			last_hashes: self.last_hashes.clone(),
-			gas_used: self.block.receipts.last().map_or(U256::zero(), |r| r.gas_used),
-			gas_limit: self.block.header.gas_limit().clone(),
-		}
+		self.block.env_info()
 	}
 
 	/// Push a transaction into the block.
@@ -453,7 +457,6 @@ impl<'x> OpenBlock<'x> {
 		ClosedBlock {
 			block: s.block,
 			uncle_bytes: uncle_bytes,
-			last_hashes: s.last_hashes,
 			unclosed_state: unclosed_state,
 		}
 	}
@@ -527,7 +530,6 @@ impl ClosedBlock {
 		OpenBlock {
 			block: block,
 			engine: engine,
-			last_hashes: self.last_hashes,
 		}
 	}
 }

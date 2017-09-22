@@ -202,7 +202,6 @@ mod tests {
 	use hash::keccak;
 	use bigint::hash::H520;
 	use block::*;
-	use error::{BlockError, Error};
 	use tests::helpers::*;
 	use account_provider::AccountProvider;
 	use header::Header;

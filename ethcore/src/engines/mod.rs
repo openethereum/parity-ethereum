@@ -16,7 +16,7 @@
 
 //! Consensus engine specification and basic implementations.
 
-// mod authority_round;
+mod authority_round;
 mod basic_authority;
 mod instant_seal;
 mod null_engine;
@@ -28,7 +28,7 @@ mod vote_collector;
 
 pub mod epoch;
 
-// pub use self::authority_round::AuthorityRound;
+pub use self::authority_round::AuthorityRound;
 pub use self::basic_authority::BasicAuthority;
 pub use self::epoch::{EpochVerifier, Transition as EpochTransition};
 pub use self::instant_seal::InstantSeal;

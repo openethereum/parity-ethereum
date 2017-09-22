@@ -35,7 +35,7 @@ use tx_filter::TransactionFilter;
 use bigint::prelude::U256;
 use bytes::BytesRef;
 use util::Address;
-use vm::{CallType, ActionParams, ActionValue, LastHashes};
+use vm::{CallType, ActionParams, ActionValue};
 use vm::{EnvInfo, Schedule, CreateContractAddress};
 
 /// Parity tries to round block.gas_limit to multiple of this constant
@@ -126,22 +126,14 @@ impl EthereumMachine {
 	pub fn execute_as_system(
 		&self,
 		block: &mut ExecutedBlock,
-		last_hashes: Arc<LastHashes>,
 		contract_address: Address,
 		gas: U256,
 		data: Option<Vec<u8>>,
 	) -> Result<Vec<u8>, Error> {
 		let env_info = {
-			let header = block.fields().header;
-			EnvInfo {
-				number: header.number(),
-				author: header.author().clone(),
-				timestamp: header.timestamp(),
-				difficulty: header.difficulty().clone(),
-				last_hashes: last_hashes,
-				gas_used: U256::zero(),
-				gas_limit: gas,
-			}
+			let mut env_info = block.env_info();
+			env_info.gas_limit = env_info.gas_used + gas;
+			env_info
 		};
 
 		let mut state = block.fields_mut().state;
@@ -169,7 +161,7 @@ impl EthereumMachine {
 	}
 
 	/// Push last known block hash to the state.
-	fn push_last_hash(&self, block: &mut ExecutedBlock, last_hashes: Arc<LastHashes>) -> Result<(), Error> {
+	fn push_last_hash(&self, block: &mut ExecutedBlock) -> Result<(), Error> {
 		let params = self.params();
 		if block.fields().header.number() == params.eip210_transition {
 			let state = block.fields_mut().state;
@@ -179,7 +171,6 @@ impl EthereumMachine {
 			let parent_hash = block.fields().header.parent_hash().clone();
 			let _ = self.execute_as_system(
 				block,
-				last_hashes,
 				params.eip210_contract_address,
 				params.eip210_contract_gas,
 				Some(parent_hash.to_vec()),
@@ -190,8 +181,8 @@ impl EthereumMachine {
 
 	/// Logic to perform on a new block: updating last hashes and the DAO
 	/// fork, for ethash.
-	pub fn on_new_block(&self, block: &mut ExecutedBlock, last_hashes: Arc<LastHashes>) -> Result<(), Error> {
-		self.push_last_hash(block, last_hashes)?;
+	pub fn on_new_block(&self, block: &mut ExecutedBlock) -> Result<(), Error> {
+		self.push_last_hash(block)?;
 
 		if let Some(ref ethash_params) = self.ethash_extensions {
 			if block.fields().header.number() == ethash_params.dao_hardfork_transition {
