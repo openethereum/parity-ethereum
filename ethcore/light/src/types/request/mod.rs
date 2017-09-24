@@ -19,7 +19,7 @@
 use rlp::{Encodable, Decodable, DecoderError, RlpStream, UntrustedRlp};
 use bigint::hash::H256;
 
-mod builder;
+mod batch;
 
 // re-exports of request types.
 pub use self::header::{
@@ -73,7 +73,7 @@ pub use self::epoch_signal::{
 	Response as SignalResponse,
 };
 
-pub use self::builder::{Builder, Requests};
+pub use self::batch::{Batch, Builder};
 
 /// Error indicating a reference to a non-existent or wrongly-typed output.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
