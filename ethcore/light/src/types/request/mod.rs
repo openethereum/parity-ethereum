@@ -73,7 +73,7 @@ pub use self::epoch_signal::{
 	Response as SignalResponse,
 };
 
-pub use self::builder::{RequestBuilder, Requests};
+pub use self::builder::{Builder, Requests};
 
 /// Error indicating a reference to a non-existent or wrongly-typed output.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -241,7 +241,7 @@ impl Encodable for HashOrNumber {
 }
 
 /// Type alias for "network requests".
-pub type NetworkRequests = Requests<Request>;
+pub type NetworkRequests = Batch<Request>;
 
 /// All request types, as they're sent over the network.
 /// They may be incomplete, with back-references to outputs
