@@ -196,7 +196,7 @@ mod test {
 		}
 		"#;
 
-		let spec = Spec::load(::std::env::temp_dir(), spec_data.as_bytes()).unwrap();
+		let spec = Spec::load(&::std::env::temp_dir(), spec_data.as_bytes()).unwrap();
 		let client_db = Arc::new(::util::kvdb::in_memory(::db::NUM_COLUMNS.unwrap_or(0)));
 
 		let client = Client::new(
