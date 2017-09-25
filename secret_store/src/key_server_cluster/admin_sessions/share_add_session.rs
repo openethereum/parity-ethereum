@@ -106,7 +106,7 @@ struct SessionData<T: SessionTransport> {
 struct NodeData {
 	// === Values, filled during initialization phase ===
 	/// Random unique scalar. Persistent.
-	pub id_number: Secret,
+	pub id_number: Option<Secret>,
 	/// Has node confirmed session initialization?
 	pub is_initialization_confirmed: bool,
 	/// Is this a new node?
@@ -190,7 +190,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 	}
 
 	/// Set pre-established consensus data.
-	pub fn set_consensus_output(&self, old_nodes_set: BTreeSet<NodeId>, new_nodes_set: BTreeMap<NodeId, Secret>) -> Result<(), Error> {
+	pub fn set_consensus_output(&self, old_nodes_set: BTreeSet<NodeId>, new_nodes_set: BTreeMap<NodeId, Option<Secret>>) -> Result<(), Error> {
 		let mut data = self.data.lock();
 
 		// check state
@@ -228,14 +228,16 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 					.cloned()
 					.map(Ok)
 					.unwrap_or_else(|| math::generate_random_scalar())
-					.map(|nn| (n.clone(), nn)))
+					.map(|nn| (n.clone(), Some(nn))))
 				.collect::<Result<BTreeMap<_, _>, _>>()?;
 			check_nodes_set(&old_nodes_set, &new_nodes_map)?;
 
 			let old_set_signature = old_set_signature.ok_or(Error::InvalidMessage)?;
 			let new_set_signature = new_set_signature.ok_or(Error::InvalidMessage)?;
 			let mut consensus_transport = self.core.transport.clone();
-			consensus_transport.set_id_numbers(new_nodes_map.clone());
+			consensus_transport.set_id_numbers(new_nodes_map.iter()
+				.map(|(k, v)| (k.clone(), v.clone().expect("TODO")))
+				.collect());
 			let mut consensus_session = ConsensusSession::new(ConsensusSessionParams {
 				meta: self.core.meta.clone(),
 				consensus_executor: ServersSetChangeAccessJob::new_on_master(Public::default(), // TODO: admin key instead of default
@@ -313,7 +315,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 				&ConsensusMessageWithServersMap::InitializeConsensusSession(ref message) => {
 					consensus_session.on_consensus_partial_request(sender, ServersSetChangeAccessRequest::from(message))?;
 					Some(message.new_nodes_set.iter()
-						.map(|(n, nn)| (n.clone().into(), NodeData::new(nn.clone().into(), !message.old_nodes_set.contains(n))))
+						.map(|(n, nn)| (n.clone().into(), NodeData::new(Some(nn.clone().into()), !message.old_nodes_set.contains(n))))
 						.collect())
 				},
 				&ConsensusMessageWithServersMap::ConfirmConsensusInitialization(ref message) => {
@@ -492,7 +494,13 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 				if node_data.absolute_term_share.is_some() {
 					return Err(Error::InvalidStateForRequest);
 				}
+				if node_data.id_number.is_some() {
+					if node_data.id_number != Some(message.sender_id.clone().into()) {
+						return Err(Error::InvalidMessage);
+					}
+				}
 
+				node_data.id_number = Some(message.sender_id.clone().into());
 				node_data.absolute_term_share = Some(message.absolute_term_share.clone().into());
 			}
 
@@ -623,11 +631,13 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		data.refreshed_polynom1_sum = Some(refreshed_polynom1_sum);
 
 		// send absolute term share to every new node
+		let sender_id: &Secret = nodes[&core.meta.self_node_id].id_number.as_ref().expect("TODO");
 		for (i, new_node) in nodes.iter().filter(|&(_, nd)| nd.is_new_node).map(|(n, _)| n).enumerate() {
 			core.transport.send(new_node, ShareAddMessage::NewAbsoluteTermShare(NewAbsoluteTermShare {
 				session: core.meta.id.clone().into(),
 				sub_session: core.sub_session.clone().into(),
 				session_nonce: core.nonce,
+				sender_id: sender_id.clone().into(),
 				absolute_term_share: absolute_term_shares[i].clone().into(),
 			}))?;
 		}
@@ -669,7 +679,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 			.expect("nodes are filled during consensus establishing; keys are disseminated after consensus is established; qed");
 		for (node, node_number) in nodes.iter().filter(|&(n, _)| n != &core.meta.self_node_id).map(|(n, nd)| (n, &nd.id_number)) {
 			// also send keys to every other node
-			let refreshed_secret1 = math::compute_polynom(refreshed_polynom1_sum, node_number)?;
+			let refreshed_secret1 = math::compute_polynom(refreshed_polynom1_sum, node_number.as_ref().expect("TODO"))?;
 			core.transport.send(node, ShareAddMessage::NewKeysDissemination(NewKeysDissemination {
 				session: core.meta.id.clone().into(),
 				sub_session: core.sub_session.clone().into(),
@@ -682,7 +692,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		// 'receive' data from self
 		let self_node_data = nodes.get_mut(&core.meta.self_node_id)
 			.expect("data.nodes contains entry for every session node; this node is a part of the session; qed");
-		self_node_data.refreshed_secret1 = Some(math::compute_polynom(refreshed_polynom1_sum, &self_node_data.id_number)?);
+		self_node_data.refreshed_secret1 = Some(math::compute_polynom(refreshed_polynom1_sum, &self_node_data.id_number.as_ref().expect("TODO"))?);
 		self_node_data.refreshed_publics = Some(refreshed_publics);
 
 		Ok(())
@@ -692,7 +702,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 	fn verify_keys(core: &SessionCore<T>, data: &mut SessionData<T>) -> Result<(), Error> {
 		let nodes = data.nodes.as_ref()
 			.expect("nodes are filled during consensus establishing; keys are verified after consensus is established; qed");
-		let number_id = &nodes[&core.meta.self_node_id].id_number;
+		let number_id = nodes[&core.meta.self_node_id].id_number.as_ref().expect("TODO");
 		for node_data in nodes.iter().filter(|&(n, _)| n != &core.meta.self_node_id).map(|(_, nd)| nd) {
 			let refreshed_secret1 = node_data.refreshed_secret1.as_ref().expect("keys received on KRD phase; KRV phase follows KRD phase; qed");
 			let refreshed_publics = node_data.refreshed_publics.as_ref().expect("keys received on KRD phase; KRV phase follows KRD phase; qed");
@@ -722,7 +732,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 			encrypted_point: core.key_share.as_ref().map(|ks| ks.encrypted_point.clone())
 				.unwrap_or_else(|| data.key_share_encrypted_point.clone()),
 			// below are updated values
-			id_numbers: nodes.iter().map(|(node_id, node_data)| (node_id.clone(), node_data.id_number.clone())).collect(),
+			id_numbers: nodes.iter().map(|(node_id, node_data)| (node_id.clone(), node_data.id_number.as_ref().expect("TODO").clone())).collect(),
 			polynom1: data.refreshed_polynom1_sum.clone().expect("this field is filled during KRD; session is completed after KRD; qed"),
 			secret_share: math::compute_secret_share(nodes.values()
 				.filter_map(|nd| nd.refreshed_secret1.as_ref()))?,
@@ -754,7 +764,7 @@ impl<T> ClusterSession for SessionImpl<T> where T: SessionTransport {
 
 impl NodeData {
 	/// Create new node data.
-	pub fn new(id_number: Secret, is_new_node: bool) -> Self {
+	pub fn new(id_number: Option<Secret>, is_new_node: bool) -> Self {
 		NodeData {
 			id_number: id_number,
 			is_initialization_confirmed: false,
@@ -807,7 +817,7 @@ impl SessionTransport for IsolatedSessionTransport {
 	}
 }
 
-fn check_nodes_set(old_nodes_set: &BTreeSet<NodeId>, new_nodes_set: &BTreeMap<NodeId, Secret>) -> Result<(), Error> {
+fn check_nodes_set(old_nodes_set: &BTreeSet<NodeId>, new_nodes_set: &BTreeMap<NodeId, Option<Secret>>) -> Result<(), Error> {
 	// it is impossible to remove nodes using share add session
 	if old_nodes_set.iter().any(|n| !new_nodes_set.contains_key(n)) {
 		return Err(Error::InvalidNodesConfiguration);

@@ -54,12 +54,14 @@ pub struct ShareChangeSession {
 	cluster: Arc<Cluster>,
 	/// Key storage.
 	key_storage: Arc<KeyStorage>,
-	/// Nodes to add to session.
-	nodes_to_add: Option<BTreeSet<NodeId>>,
-	/// Nodes to remove from session.
-	nodes_to_remove: Option<BTreeSet<NodeId>>,
-	/// Nodes to move.
+	/// Old nodes set.
+	old_nodes_set: BTreeSet<NodeId>,
+	/// Nodes to add shares for.
+	nodes_to_add: Option<BTreeMap<NodeId, Secret>>,
+	/// Nodes to move shares from/to.
 	nodes_to_move: Option<BTreeMap<NodeId, NodeId>>,
+	/// Nodes to remove shares from.
+	nodes_to_remove: Option<BTreeSet<NodeId>>,
 	/// Share add session.
 	share_add_session: Option<ShareAddSessionImpl<ShareChangeTransport>>,
 	/// Share move session.
@@ -68,6 +70,16 @@ pub struct ShareChangeSession {
 	share_remove_session: Option<ShareRemoveSessionImpl<ShareChangeTransport>>,
 	/// Is finished.
 	is_finished: bool,
+}
+
+/// Share change session plan.
+pub struct ShareChangeSessionPlan {
+	/// Nodes to add shares for.
+	pub nodes_to_add: BTreeMap<NodeId, Secret>,
+	/// Nodes to move shares from/to.
+	pub nodes_to_move: BTreeMap<NodeId, NodeId>,
+	/// Nodes to remove shares from.
+	pub nodes_to_remove: BTreeSet<NodeId>,
 }
 
 /// Session parameters.
@@ -86,12 +98,10 @@ pub struct ShareChangeSessionParams {
 	pub cluster: Arc<Cluster>,
 	/// Keys storage.
 	pub key_storage: Arc<KeyStorage>,
-	/// Nodes to add shares for.
-	pub nodes_to_add: Option<BTreeSet<NodeId>>,
-	/// Nodes to move shares from/to.
-	pub nodes_to_move: Option<BTreeMap<NodeId, NodeId>>,
-	/// Nodes to remove shares from.
-	pub nodes_to_remove: Option<BTreeSet<NodeId>>,
+	/// Old nodes set.
+	pub old_nodes_set: BTreeSet<NodeId>,
+	/// Session plan.
+	pub plan: ShareChangeSessionPlan,
 }
 
 /// Share add session transport.
@@ -119,9 +129,10 @@ impl ShareChangeSession {
 				.ok(),
 			cluster: params.cluster,
 			key_storage: params.key_storage,
-			nodes_to_add: params.nodes_to_add,
-			nodes_to_remove: params.nodes_to_remove,
-			nodes_to_move: params.nodes_to_move,
+			old_nodes_set: params.old_nodes_set,
+			nodes_to_add: Some(params.plan.nodes_to_add),
+			nodes_to_remove: Some(params.plan.nodes_to_remove),
+			nodes_to_move: Some(params.plan.nodes_to_move),
 			share_add_session: None,
 			share_move_session: None,
 			share_remove_session: None,
@@ -287,8 +298,12 @@ impl ShareChangeSession {
 		if let Some(nodes_to_add) = self.nodes_to_add.take() {
 			if !nodes_to_add.is_empty() {
 				self.create_share_add_session(sub_session);
-				return self.share_add_session.as_ref().expect("TODO")
-					.initialize(nodes_to_add, None, None);
+				let share_add_session = self.share_add_session.as_ref().expect("TODO");
+				let new_nodes_set = self.old_nodes_set.iter().map(|n| (n.clone(), None))
+					.chain(nodes_to_add.clone().into_iter().map(|(k, v)| (k, Some(v))))
+					.collect();
+				share_add_session.set_consensus_output(self.old_nodes_set.clone(), new_nodes_set)?;
+				share_add_session.initialize(nodes_to_add.keys().cloned().collect(), None, None)?;
 			}
 		}
 
@@ -362,4 +377,25 @@ impl ShareRemoveSessionTransport for ShareChangeTransport {
 			message: message,
 		})))
 	}
+}
+
+pub fn prepare_share_change_session_plan(session_nodes: &BTreeSet<NodeId>, new_nodes_set: &BTreeSet<NodeId>) -> Result<ShareChangeSessionPlan, Error> {
+	let mut nodes_to_add: BTreeSet<_> = new_nodes_set.difference(&session_nodes).cloned().collect();
+	let mut nodes_to_move = BTreeMap::new();
+	let mut nodes_to_remove: BTreeSet<_> = session_nodes.difference(&new_nodes_set).cloned().collect();
+	while !nodes_to_remove.is_empty() && !nodes_to_add.is_empty() {
+		let source_node = nodes_to_remove.iter().cloned().nth(0).expect("nodes_to_remove.is_empty is checked in while condition; qed");
+		let target_node = nodes_to_add.iter().cloned().nth(0).expect("nodes_to_add.is_empty is checked in while condition; qed");
+		nodes_to_remove.remove(&source_node);
+		nodes_to_add.remove(&target_node);
+		nodes_to_move.insert(source_node, target_node);
+	}
+
+	Ok(ShareChangeSessionPlan {
+		nodes_to_add: nodes_to_add.into_iter()
+			.map(|n| math::generate_random_scalar().map(|s| (n, s)))
+			.collect::<Result<BTreeMap<_, _>, _>>()?,
+		nodes_to_move: nodes_to_move,
+		nodes_to_remove: nodes_to_remove,
+	})
 }

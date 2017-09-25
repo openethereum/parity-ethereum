@@ -157,6 +157,10 @@ pub enum ServersSetChangeMessage {
 	UnknownSessionsRequest(UnknownSessionsRequest),
 	/// Unknown sessions ids.
 	UnknownSessions(UnknownSessions),
+	/// Initialize share change session(s).
+	InitializeShareChangeSession(InitializeShareChangeSession),
+	/// Confirm share change session(s) initialization.
+	ConfirmShareChangeSessionInitialization(ConfirmShareChangeSessionInitialization),
 	/// Share change session delegation.
 	ServersSetChangeDelegate(ServersSetChangeDelegate),
 	/// Share change session delegation response.
@@ -593,6 +597,38 @@ pub struct UnknownSessions {
 	pub unknown_sessions: BTreeSet<MessageSessionId>,
 }
 
+/// Master node opens share initialize session on other nodes.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct InitializeShareChangeSession {
+	/// Servers set change session Id.
+	pub session: MessageSessionId,
+	/// Session-level nonce.
+	pub session_nonce: u64,
+	/// Key id.
+	pub key_id: MessageSessionId,
+	/// Master node.
+	pub master_node_id: MessageNodeId,
+	/// Old nodes set.
+	pub old_shares_set: BTreeSet<MessageNodeId>,
+	/// Shares to add. Values are filled for new nodes only.
+	pub shares_to_add: BTreeMap<MessageNodeId, SerializableSecret>,
+	/// Shares to move.
+	pub shares_to_move: BTreeMap<MessageNodeId, MessageNodeId>,
+	/// Shares to remove.
+	pub shares_to_remove: BTreeSet<MessageNodeId>,
+}
+
+/// Slave node confirms session initialization.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ConfirmShareChangeSessionInitialization {
+	/// Servers set change session Id.
+	pub session: MessageSessionId,
+	/// Session-level nonce.
+	pub session_nonce: u64,
+	/// Sessions that are confirmed.
+	pub key_id: MessageSessionId,
+}
+
 /// Share change is requested.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ServersSetChangeDelegate {
@@ -600,10 +636,8 @@ pub struct ServersSetChangeDelegate {
 	pub session: MessageSessionId,
 	/// Session-level nonce.
 	pub session_nonce: u64,
-	/// New nodes set.
-	pub new_nodes_set: BTreeSet<MessageNodeId>, // TODO: can possibly be taken from consenus session
-	/// Unknown session ids.
-	pub unknown_sessions: BTreeSet<MessageSessionId>,
+	/// Key id.
+	pub key_id: MessageSessionId,
 }
 
 /// Share change is completed.
@@ -613,8 +647,8 @@ pub struct ServersSetChangeDelegateResponse {
 	pub session: MessageSessionId,
 	/// Session-level nonce.
 	pub session_nonce: u64,
-	/// Unknown session id.
-	pub unknown_session: MessageSessionId,
+	/// Key id.
+	pub key_id: MessageSessionId,
 }
 
 /// Servers set change share add message.
@@ -683,34 +717,6 @@ pub struct ShareAddConsensusMessage {
 	pub message: ConsensusMessageWithServersMap,
 }
 
-/// Initialize new share add session.
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct InitializeShareAddSession {
-	/// Generation session Id.
-	pub session: MessageSessionId,
-	/// Share add session Id.
-	pub sub_session: SerializableSecret,
-	/// Session-level nonce.
-	pub session_nonce: u64,
-	/// Threshold.
-	pub threshold: usize,
-	/// Updated key shares nodes set.
-	pub nodes: BTreeMap<MessageNodeId, SerializableSecret>,
-	/// New nodes ids.
-	pub new_nodes: BTreeSet<MessageNodeId>,
-}
-
-/// Confirm initialization of share add session.
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct ConfirmShareAddInitialization {
-	/// Generation session Id.
-	pub session: MessageSessionId,
-	/// Share add session Id.
-	pub sub_session: SerializableSecret,
-	/// Session-level nonce.
-	pub session_nonce: u64,
-}
-
 /// Key share common data is passed to new node.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct KeyShareCommon {
@@ -735,6 +741,8 @@ pub struct NewAbsoluteTermShare {
 	pub session: MessageSessionId,
 	/// Share add session Id.
 	pub sub_session: SerializableSecret,
+	/// Sender id number.
+	pub sender_id: SerializableSecret,
 	/// Session-level nonce.
 	pub session_nonce: u64,
 	/// Absolute term share.
@@ -1029,6 +1037,8 @@ impl ServersSetChangeMessage {
 			ServersSetChangeMessage::ServersSetChangeConsensusMessage(ref msg) => msg.session_nonce,
 			ServersSetChangeMessage::UnknownSessionsRequest(ref msg) => msg.session_nonce,
 			ServersSetChangeMessage::UnknownSessions(ref msg) => msg.session_nonce,
+			ServersSetChangeMessage::InitializeShareChangeSession(ref msg) => msg.session_nonce,
+			ServersSetChangeMessage::ConfirmShareChangeSessionInitialization(ref msg) => msg.session_nonce,
 			ServersSetChangeMessage::ServersSetChangeDelegate(ref msg) => msg.session_nonce,
 			ServersSetChangeMessage::ServersSetChangeDelegateResponse(ref msg) => msg.session_nonce,
 			ServersSetChangeMessage::ServersSetChangeShareAddMessage(ref msg) => msg.session_nonce,
@@ -1215,6 +1225,8 @@ impl fmt::Display for ServersSetChangeMessage {
 			ServersSetChangeMessage::ServersSetChangeConsensusMessage(ref m) => write!(f, "ServersSetChangeConsensusMessage.{}", m.message),
 			ServersSetChangeMessage::UnknownSessionsRequest(_) => write!(f, "UnknownSessionsRequest"),
 			ServersSetChangeMessage::UnknownSessions(_) => write!(f, "UnknownSessions"),
+			ServersSetChangeMessage::InitializeShareChangeSession(ref msg) => write!(f, "InitializeShareChangeSession"),
+			ServersSetChangeMessage::ConfirmShareChangeSessionInitialization(ref msg) => write!(f, "ConfirmShareChangeSessionInitialization"),
 			ServersSetChangeMessage::ServersSetChangeDelegate(_) => write!(f, "ServersSetChangeDelegate"),
 			ServersSetChangeMessage::ServersSetChangeDelegateResponse(_) => write!(f, "ServersSetChangeDelegateResponse"),
 			ServersSetChangeMessage::ServersSetChangeShareAddMessage(ref m) => write!(f, "ServersSetChangeShareAddMessage.{}", m.message),
