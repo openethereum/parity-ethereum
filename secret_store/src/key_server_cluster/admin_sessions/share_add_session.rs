@@ -460,6 +460,7 @@ println!("=== SA: replay protection({} != {})", self.core.nonce, message.session
 
 		// only master can send this message
 		if sender != &self.core.meta.master_node_id {
+println!("=== 888");
 			return Err(Error::InvalidMessage);
 		}
 
@@ -477,6 +478,7 @@ println!("=== SA: replay protection({} != {})", self.core.nonce, message.session
 			let nodes = data.nodes.as_ref()
 				.expect("nodes are filled during consensus establishing; WaitingForAbsoluteTermShare starts after consensus is established; qed");
 			if !nodes[&self.core.meta.self_node_id].is_new_node {
+println!("=== 999");
 				return Err(Error::InvalidMessage);
 			}
 

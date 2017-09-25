@@ -433,11 +433,15 @@ println!("=== INITIALIZING AFTER RECEIVING CONFIRMATION");
 
 		// we only accept delegation requests from master node
 		if sender != &self.core.meta.master_node_id {
+println!("=== 111");
 			return Err(Error::InvalidMessage);
 		}
 
 		// start session
 		let mut data = self.data.lock();
+if !data.active_sessions.contains_key(&message.key_id.clone().into()) {
+println!("=== 222");
+}
 		let session = data.active_sessions.get_mut(&message.key_id.clone().into()).ok_or(Error::InvalidMessage)?;
 println!("=== INITIALIZING BECAUSE OF DELEGATION");
 		session.initialize()
@@ -479,6 +483,9 @@ println!("=== INITIALIZING BECAUSE OF DELEGATION");
 
 		let session_id = message.message.session().clone().into();
 		let (is_finished, is_master) = {
+if !data.active_sessions.contains_key(&session_id) {
+println!("=== 333");
+}
 			let mut change_session = data.active_sessions.get_mut(&session_id).ok_or(Error::InvalidMessage)?;
 			change_session.on_share_add_message(sender, &message.message)?;
 			(change_session.is_finished(), change_session.is_master())
@@ -583,7 +590,7 @@ println!("=== INITIALIZING BECAUSE OF DELEGATION");
 					.chain(session_plan.nodes_to_add.keys().cloned())
 					.chain(session_plan.nodes_to_move.values().cloned())
 					.collect();
-				confirmations.remove(&core.meta.self_node_id);
+				let need_create_session = confirmations.remove(&core.meta.self_node_id);
 				for node in &confirmations {
 					core.cluster.send(&node, Message::ServersSetChange(ServersSetChangeMessage::InitializeShareChangeSession(InitializeShareChangeSession {
 						session: core.meta.id.clone().into(),
@@ -602,16 +609,16 @@ println!("=== INITIALIZING BECAUSE OF DELEGATION");
 				}
 
 				// create session if required
-				if let &QueuedSession::Known(_, ref key_share) = &session {
+				if need_create_session {
 					data.active_sessions.insert(session_id.clone(), ShareChangeSession::new(ShareChangeSessionParams {
 						session_id: session_id.clone(),
 						nonce: core.nonce,
 						key_id: session_id.clone(),
 						self_node_id: core.meta.self_node_id.clone(),
-						master_node_id: core.meta.self_node_id.clone(),
+						master_node_id: session_master.clone(),
 						cluster: core.cluster.clone(),
 						key_storage: core.key_storage.clone(),
-						old_nodes_set: key_share.id_numbers.keys().cloned().collect(),
+						old_nodes_set: session.nodes(),
 						plan: session_plan,
 					})?);
 				}
