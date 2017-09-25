@@ -14,13 +14,14 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use compute::Light;
 use either::Either;
-use keccak::{keccak_512, H256};
+use keccak::{H256, keccak_512};
 use memmap::{Mmap, Protection};
 use parking_lot::Mutex;
 use seed_compute::SeedHashCompute;
 
-use shared::{get_cache_size, epoch, to_hex, Node, NODE_BYTES, NODE_DWORDS, ETHASH_CACHE_ROUNDS};
+use shared::{ETHASH_CACHE_ROUNDS, NODE_BYTES, NODE_DWORDS, Node, epoch, get_cache_size, to_hex};
 
 use std::borrow::Cow;
 use std::fs;
@@ -58,7 +59,9 @@ fn new_buffer(path: &Path, num_nodes: usize, ident: &H256, optimize_for: Optimiz
 		OptimizeFor::Memory => make_memmapped_cache(path, num_nodes, ident).ok(),
 	};
 
-	memmap.map(Either::Right).unwrap_or_else(|| Either::Left(make_memory_cache(num_nodes, ident)))
+	memmap.map(Either::Right).unwrap_or_else(|| {
+		Either::Left(make_memory_cache(num_nodes, ident))
+	})
 }
 
 #[derive(Clone)]
@@ -78,6 +81,14 @@ pub struct NodeCache {
 }
 
 impl NodeCacheBuilder {
+	pub fn light(&self, cache_dir: &Path, block_number: u64) -> Light {
+		Light::new_with_builder(self, cache_dir, block_number)
+	}
+
+	pub fn light_from_file(&self, cache_dir: &Path, block_number: u64) -> io::Result<Light> {
+		Light::from_file_with_builder(self, cache_dir, block_number)
+	}
+
 	pub fn new<T: Into<Option<OptimizeFor>>>(optimize_for: T) -> Self {
 		NodeCacheBuilder {
 			seedhash: Arc::new(Mutex::new(SeedHashCompute::new())),
@@ -115,7 +126,10 @@ impl NodeCacheBuilder {
 				cache: cache,
 			})
 		} else {
-			Err(io::Error::new(io::ErrorKind::InvalidData, "Node cache is of incorrect size"))
+			Err(io::Error::new(
+				io::ErrorKind::InvalidData,
+				"Node cache is of incorrect size",
+			))
 		}
 	}
 
@@ -170,7 +184,11 @@ impl NodeCache {
 fn make_memmapped_cache(path: &Path, num_nodes: usize, ident: &H256) -> io::Result<Mmap> {
 	use std::fs::OpenOptions;
 
-	let file = OpenOptions::new().read(true).write(true).create(true).open(&path)?;
+	let file = OpenOptions::new()
+		.read(true)
+		.write(true)
+		.create(true)
+		.open(&path)?;
 	file.set_len((num_nodes * NODE_BYTES) as _)?;
 
 	let mut memmap = Mmap::open(&file, Protection::ReadWrite)?;
@@ -202,7 +220,11 @@ fn consume_cache(cache: &mut Cache, path: &Path) -> io::Result<()> {
 
 	match *cache {
 		Either::Left(ref mut vec) => {
-			let mut file = OpenOptions::new().read(true).write(true).create(true).open(&path)?;
+			let mut file = OpenOptions::new()
+				.read(true)
+				.write(true)
+				.create(true)
+				.open(&path)?;
 
 			let buf = unsafe {
 				slice::from_raw_parts_mut(vec.as_mut_ptr() as *mut u8, vec.len() * NODE_BYTES)
@@ -222,7 +244,9 @@ fn cache_from_path(path: &Path, optimize_for: OptimizeFor) -> io::Result<Cache> 
 		OptimizeFor::Memory => Mmap::open_path(path, Protection::ReadWrite).ok(),
 	};
 
-	memmap.map(Either::Right).ok_or(()).or_else(|_| read_from_path(path).map(Either::Left))
+	memmap.map(Either::Right).ok_or(()).or_else(|_| {
+		read_from_path(path).map(Either::Left)
+	})
 }
 
 fn read_from_path(path: &Path) -> io::Result<Vec<Node>> {
@@ -239,9 +263,10 @@ fn read_from_path(path: &Path) -> io::Result<Vec<Node>> {
 	nodes.shrink_to_fit();
 
 	if nodes.len() % NODE_BYTES != 0 || nodes.capacity() % NODE_BYTES != 0 {
-		return Err(
-			io::Error::new(io::ErrorKind::Other, "Node cache is not a multiple of node size")
-		);
+		return Err(io::Error::new(
+			io::ErrorKind::Other,
+			"Node cache is not a multiple of node size",
+		));
 	}
 
 	let out: Vec<Node> = unsafe {

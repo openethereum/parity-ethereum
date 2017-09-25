@@ -52,7 +52,7 @@ impl Light {
 		builder: &NodeCacheBuilder,
 		cache_dir: &Path,
 		block_number: u64,
-	) -> Light {
+	) -> Self {
 		let cache = builder.new_cache(cache_dir.to_path_buf(), block_number);
 
 		Light {
@@ -72,7 +72,7 @@ impl Light {
 		builder: &NodeCacheBuilder,
 		cache_dir: &Path,
 		block_number: u64,
-	) -> io::Result<Light> {
+	) -> io::Result<Self> {
 		let cache = builder.from_file(cache_dir.to_path_buf(), block_number)?;
 		Ok(Light {
 			block_number: block_number,
@@ -387,7 +387,7 @@ mod test {
 		];
 		let nonce = 0xd7b3ac70a301a249;
 		// difficulty = 0x085657254bd9u64;
-		let light = Light::new(&::std::env::temp_dir(), 486382);
+		let light = NodeCacheBuilder::new(None).light(&::std::env::temp_dir(), 486382);
 		let result = light_compute(&light, &hash, nonce);
 		assert_eq!(result.mix_hash[..], mix_hash[..]);
 		assert_eq!(result.value[..], boundary[..]);
@@ -396,17 +396,17 @@ mod test {
 	#[test]
 	fn test_drop_old_data() {
 		let path = ::std::env::temp_dir();
-		let first = Light::new(&path, 0).to_file().unwrap().to_owned();
+		let builder = NodeCacheBuilder::new(None);
+		let first = builder.light(&path, 0).to_file().unwrap().to_owned();
 
-		let second = Light::new(&path, ETHASH_EPOCH_LENGTH).to_file().unwrap().to_owned();
+		let second = builder.light(&path, ETHASH_EPOCH_LENGTH).to_file().unwrap().to_owned();
 		assert!(fs::metadata(&first).is_ok());
 
-		let _ = Light::new(&path, ETHASH_EPOCH_LENGTH * 2).to_file();
+		let _ = builder.light(&path, ETHASH_EPOCH_LENGTH * 2).to_file();
 		assert!(fs::metadata(&first).is_err());
 		assert!(fs::metadata(&second).is_ok());
 
-		let _ = Light::new(&path, ETHASH_EPOCH_LENGTH * 3).to_file();
+		let _ = builder.light(&path, ETHASH_EPOCH_LENGTH * 3).to_file();
 		assert!(fs::metadata(&second).is_err());
 	}
-
 }
