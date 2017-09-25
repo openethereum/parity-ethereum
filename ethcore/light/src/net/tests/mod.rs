@@ -41,7 +41,7 @@ use std::sync::Arc;
 // helper for encoding a single request into a packet.
 // panics on bad backreference.
 fn encode_single(request: Request) -> NetworkRequests {
-	let mut builder = RequestBuilder::default();
+	let mut builder = Builder::default();
 	builder.push(request).unwrap();
 	builder.build()
 }
@@ -344,7 +344,7 @@ fn get_block_bodies() {
 		proto.handle_packet(&Expect::Nothing, &1, packet::STATUS, &my_status);
 	}
 
-	let mut builder = RequestBuilder::default();
+	let mut builder = Builder::default();
 	let mut bodies = Vec::new();
 
 	for i in 0..10 {
@@ -400,7 +400,7 @@ fn get_block_receipts() {
 		.take(10)
 		.collect();
 
-	let mut builder = RequestBuilder::default();
+	let mut builder = Builder::default();
 	let mut receipts = Vec::new();
 	for hash in block_hashes.iter().cloned() {
 		builder.push(Request::Receipts(IncompleteReceiptsRequest { hash: hash.into() })).unwrap();
@@ -448,7 +448,7 @@ fn get_state_proofs() {
 	let key1: H256 = U256::from(11223344).into();
 	let key2: H256 = U256::from(99988887).into();
 
-	let mut builder = RequestBuilder::default();
+	let mut builder = Builder::default();
 	builder.push(Request::Account(IncompleteAccountRequest {
 		block_hash: H256::default().into(),
 		address_hash: key1.into(),
