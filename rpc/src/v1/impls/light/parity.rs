@@ -46,6 +46,7 @@ use v1::types::{
 	OperationsInfo, DappId, ChainStatus,
 	AccountInfo, HwAccountInfo, Header, RichHeader,
 };
+use Host;
 
 /// Parity implementation for light client.
 pub struct ParityClient {
@@ -55,8 +56,8 @@ pub struct ParityClient {
 	settings: Arc<NetworkSettings>,
 	health: NodeHealth,
 	signer: Option<Arc<SignerService>>,
-	dapps_address: Option<(String, u16)>,
-	ws_address: Option<(String, u16)>,
+	dapps_address: Option<Host>,
+	ws_address: Option<Host>,
 	eip86_transition: u64,
 }
 
@@ -70,8 +71,8 @@ impl ParityClient {
 		settings: Arc<NetworkSettings>,
 		health: NodeHealth,
 		signer: Option<Arc<SignerService>>,
-		dapps_address: Option<(String, u16)>,
-		ws_address: Option<(String, u16)>,
+		dapps_address: Option<Host>,
+		ws_address: Option<Host>,
 	) -> Self {
 		ParityClient {
 			light_dispatch,

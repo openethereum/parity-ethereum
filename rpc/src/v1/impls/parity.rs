@@ -51,6 +51,7 @@ use v1::types::{
 	OperationsInfo, DappId, ChainStatus,
 	AccountInfo, HwAccountInfo, RichHeader
 };
+use Host;
 
 /// Parity implementation.
 pub struct ParityClient<C, M, U>  {
@@ -64,8 +65,8 @@ pub struct ParityClient<C, M, U>  {
 	logger: Arc<RotatingLogger>,
 	settings: Arc<NetworkSettings>,
 	signer: Option<Arc<SignerService>>,
-	dapps_address: Option<(String, u16)>,
-	ws_address: Option<(String, u16)>,
+	dapps_address: Option<Host>,
+	ws_address: Option<Host>,
 	eip86_transition: u64,
 }
 
@@ -84,8 +85,8 @@ impl<C, M, U> ParityClient<C, M, U> where
 		logger: Arc<RotatingLogger>,
 		settings: Arc<NetworkSettings>,
 		signer: Option<Arc<SignerService>>,
-		dapps_address: Option<(String, u16)>,
-		ws_address: Option<(String, u16)>,
+		dapps_address: Option<Host>,
+		ws_address: Option<Host>,
 	) -> Self {
 		let eip86_transition = client.eip86_transition();
 		ParityClient {
