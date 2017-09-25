@@ -39,6 +39,7 @@ function createApi () {
     },
     parity: {
       hardwareAccountsInfo: sinon.stub().resolves({ ADDRESS: WALLET }),
+      lockedHardwareAccountsInfo: sinon.stub().resolves({}),
       setAccountMeta: sinon.stub().resolves(true),
       setAccountName: sinon.stub().resolves(true)
     }

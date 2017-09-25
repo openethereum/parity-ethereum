@@ -695,7 +695,7 @@ impl ChainSync {
 						}
 					} else {
 						trace!(target: "sync", "{}: Fork mismatch", peer_id);
-						io.disconnect_peer(peer_id);
+						io.disable_peer(peer_id);
 						return Ok(());
 					}
 				}
@@ -1153,7 +1153,7 @@ impl ChainSync {
 		trace!(target: "sync", "== Connected {}: {}", peer, io.peer_info(peer));
 		if let Err(e) = self.send_status(io, peer) {
 			debug!(target:"sync", "Error sending status request: {:?}", e);
-			io.disable_peer(peer);
+			io.disconnect_peer(peer);
 		} else {
 			self.handshaking_peers.insert(peer, time::precise_time_ns());
 		}
@@ -1454,7 +1454,7 @@ impl ChainSync {
 			};
 			if let Err(e) = result {
 				debug!(target:"sync", "Error sending request: {:?}", e);
-				sync.disable_peer(peer_id);
+				sync.disconnect_peer(peer_id);
 			}
 		}
 	}
@@ -1463,7 +1463,7 @@ impl ChainSync {
 	fn send_packet(&mut self, sync: &mut SyncIo, peer_id: PeerId, packet_id: PacketId, packet: Bytes) {
 		if let Err(e) = sync.send(peer_id, packet_id, packet) {
 			debug!(target:"sync", "Error sending packet: {:?}", e);
-			sync.disable_peer(peer_id);
+			sync.disconnect_peer(peer_id);
 		}
 	}
 

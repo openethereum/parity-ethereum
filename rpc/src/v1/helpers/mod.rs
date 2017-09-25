@@ -51,6 +51,6 @@ pub use self::signer::SignerService;
 pub use self::subscribers::Subscribers;
 pub use self::subscription_manager::GenericPollManager;
 
-pub fn to_url(address: &Option<(String, u16)>) -> Option<String> {
-	address.as_ref().map(|&(ref iface, ref port)| format!("{}:{}", iface, port))
+pub fn to_url(address: &Option<::Host>) -> Option<String> {
+	address.as_ref().map(|host| (**host).to_owned())
 }

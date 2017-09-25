@@ -37,7 +37,7 @@ use node_health::NodeHealth;
 use parity_reactor;
 use parity_rpc::dispatch::{FullDispatcher, LightDispatcher};
 use parity_rpc::informant::{ActivityNotifier, ClientNotifier};
-use parity_rpc::{Metadata, NetworkSettings};
+use parity_rpc::{Metadata, NetworkSettings, Host};
 use updater::Updater;
 use parking_lot::{Mutex, RwLock};
 
@@ -222,8 +222,8 @@ pub struct FullDependencies {
 	pub health: NodeHealth,
 	pub geth_compatibility: bool,
 	pub dapps_service: Option<Arc<DappsService>>,
-	pub dapps_address: Option<(String, u16)>,
-	pub ws_address: Option<(String, u16)>,
+	pub dapps_address: Option<Host>,
+	pub ws_address: Option<Host>,
 	pub fetch: FetchClient,
 	pub remote: parity_reactor::Remote,
 	pub whisper_rpc: Option<::whisper::RpcFactory>,
@@ -412,8 +412,8 @@ pub struct LightDependencies<T> {
 	pub cache: Arc<Mutex<LightDataCache>>,
 	pub transaction_queue: Arc<RwLock<LightTransactionQueue>>,
 	pub dapps_service: Option<Arc<DappsService>>,
-	pub dapps_address: Option<(String, u16)>,
-	pub ws_address: Option<(String, u16)>,
+	pub dapps_address: Option<Host>,
+	pub ws_address: Option<Host>,
 	pub fetch: FetchClient,
 	pub geth_compatibility: bool,
 	pub remote: parity_reactor::Remote,

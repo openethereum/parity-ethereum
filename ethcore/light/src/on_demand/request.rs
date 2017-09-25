@@ -905,7 +905,7 @@ mod tests {
 	use ethcore::client::{BlockChainClient, TestBlockChainClient, EachBlockWith};
 	use ethcore::header::Header;
 	use ethcore::encoded;
-	use ethcore::receipt::Receipt;
+	use ethcore::receipt::{Receipt, TransactionOutcome};
 
 	fn make_cache() -> ::cache::Cache {
 		::cache::Cache::new(Default::default(), ::time::Duration::seconds(1))
@@ -974,8 +974,7 @@ mod tests {
 	#[test]
 	fn check_receipts() {
 		let receipts = (0..5).map(|_| Receipt {
-			state_root: Some(H256::random()),
-			status_code: None,
+			outcome: TransactionOutcome::StateRoot(H256::random()),
 			gas_used: 21_000u64.into(),
 			log_bloom: Default::default(),
 			logs: Vec::new(),
