@@ -157,6 +157,9 @@ impl ShareChangeSession {
 
 	/// When share-add message is received.
 	pub fn on_share_add_message(&mut self, sender: &NodeId, message: &ShareAddMessage) -> Result<(), Error> {
+		if self.share_add_session.is_none() {
+			self.create_share_add_session(&message.sub_session().clone().into())?;
+		}
 /*		if let &ShareAddMessage::InitializeShareAddSession(ref message) = message {
 			if self.share_add_session.is_some() {
 				return Err(Error::InvalidMessage);
@@ -167,7 +170,6 @@ impl ShareChangeSession {
 
 			self.create_share_add_session(&message.sub_session.clone().into())?;
 		}*/
-
 		let change_state_needed = self.share_add_session.as_ref()
 			.map(|share_add_session| {
 				let was_finished = share_add_session.is_finished();
@@ -238,18 +240,24 @@ impl ShareChangeSession {
 
 	/// Create new share add session.
 	fn create_share_add_session(&mut self, sub_session: &Secret) -> Result<(), Error> {
-		self.share_add_session = Some(ShareAddSessionImpl::new(ShareAddSessionParams {
+		let nodes_to_add = self.nodes_to_add.take().ok_or(Error::InvalidStateForRequest)?;
+		let new_nodes_set = self.old_nodes_set.iter().map(|n| (n.clone(), None))
+			.chain(nodes_to_add.clone().into_iter().map(|(k, v)| (k, Some(v))))
+			.collect();
+		let share_add_session = ShareAddSessionImpl::new(ShareAddSessionParams {
 			meta: SessionMeta {
 				id: self.key_id.clone(),
 				threshold: 0,
 				self_node_id: self.self_node_id.clone(),
 				master_node_id: self.master_node_id.clone(),
 			},
-			nonce: 0,
+			nonce: self.nonce,
 			sub_session: sub_session.clone(),
 			transport: ShareChangeTransport::new(self.session_id, self.nonce, self.cluster.clone()),
 			key_storage: self.key_storage.clone(),
-		})?);
+		})?;
+		share_add_session.set_consensus_output(self.old_nodes_set.clone(), new_nodes_set)?;
+		self.share_add_session = Some(share_add_session);
 		Ok(())
 	}
 
@@ -262,7 +270,7 @@ impl ShareChangeSession {
 				self_node_id: self.self_node_id.clone(),
 				master_node_id: self.master_node_id.clone(),
 			},
-			nonce: 0,
+			nonce: self.nonce,
 			sub_session: sub_session.clone(),
 			transport: ShareChangeTransport::new(self.session_id, self.nonce, self.cluster.clone()),
 			key_storage: self.key_storage.clone(),
@@ -280,7 +288,7 @@ impl ShareChangeSession {
 				self_node_id: self.self_node_id.clone(),
 				master_node_id: self.master_node_id.clone(),
 			},
-			nonce: 0,
+			nonce: self.nonce,
 			sub_session: sub_session.clone(),
 			transport: ShareChangeTransport::new(self.session_id, self.nonce, self.cluster.clone()),
 			key_storage: self.key_storage.clone(),
@@ -295,28 +303,23 @@ impl ShareChangeSession {
 			return Ok(());
 		}
 
-		if let Some(nodes_to_add) = self.nodes_to_add.take() {
+		if let Some(nodes_to_add) = self.nodes_to_add.clone() { // TODO: clone
 			if !nodes_to_add.is_empty() {
-				self.create_share_add_session(sub_session);
-				let share_add_session = self.share_add_session.as_ref().expect("TODO");
-				let new_nodes_set = self.old_nodes_set.iter().map(|n| (n.clone(), None))
-					.chain(nodes_to_add.clone().into_iter().map(|(k, v)| (k, Some(v))))
-					.collect();
-				share_add_session.set_consensus_output(self.old_nodes_set.clone(), new_nodes_set)?;
-				share_add_session.initialize(nodes_to_add.keys().cloned().collect(), None, None)?;
+				self.create_share_add_session(sub_session)?;
+				return self.share_add_session.as_ref().expect("TODO").initialize(nodes_to_add.keys().cloned().collect(), None, None);
 			}
 		}
 
 		if let Some(nodes_to_move) = self.nodes_to_move.take() {
 			if !nodes_to_move.is_empty() {
-				self.create_share_move_session(sub_session);
+				self.create_share_move_session(sub_session)?;
 				return self.share_move_session.as_ref().expect("TODO").initialize(nodes_to_move);
 			}
 		}
 
 		if let Some(nodes_to_remove) = self.nodes_to_remove.take() {
 			if !nodes_to_remove.is_empty() {
-				self.create_share_remove_session(sub_session);
+				self.create_share_remove_session(sub_session)?;
 				return self.share_remove_session.as_ref().expect("TODO").initialize(nodes_to_remove);
 			}
 		}

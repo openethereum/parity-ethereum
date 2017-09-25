@@ -190,12 +190,39 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 	}
 
 	/// Set pre-established consensus data.
-	pub fn set_consensus_output(&self, old_nodes_set: BTreeSet<NodeId>, new_nodes_set: BTreeMap<NodeId, Option<Secret>>) -> Result<(), Error> {
+	pub fn set_consensus_output(&self, old_nodes_set: BTreeSet<NodeId>, mut new_nodes_set: BTreeMap<NodeId, Option<Secret>>) -> Result<(), Error> {
 		let mut data = self.data.lock();
 
 		// check state
 		if data.state != SessionState::ConsensusEstablishing || data.consensus_session.is_some() || data.nodes.is_some() {
 			return Err(Error::InvalidStateForRequest);
+		}
+
+		// check && updatre passed data
+		match self.core.key_share.as_ref() {
+			Some(key_share) => {
+				if old_nodes_set.symmetric_difference(&key_share.id_numbers.keys().cloned().collect()).nth(0).is_some() {
+println!("=== 1");
+					return Err(Error::InvalidNodesConfiguration);
+				}
+				for (new_node, new_node_id) in new_nodes_set.iter_mut() {
+					if new_node_id.is_none() {
+						match key_share.id_numbers.get(new_node) {
+							Some(old_node_id) => *new_node_id = Some(old_node_id.clone()),
+							None => {
+println!("=== 2");
+								return Err(Error::InvalidNodesConfiguration) },
+						}
+					}
+				}
+			},
+			None => {
+				if old_nodes_set.contains(&self.core.meta.self_node_id)
+					|| !new_nodes_set.contains_key(&self.core.meta.self_node_id) {
+println!("=== 3");
+					return Err(Error::InvalidNodesConfiguration);
+				}
+			},
 		}
 
 		check_nodes_set(&old_nodes_set, &new_nodes_set)?;
@@ -263,6 +290,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 	/// Process single message.
 	pub fn process_message(&self, sender: &NodeId, message: &ShareAddMessage) -> Result<(), Error> {
 		if self.core.nonce != message.session_nonce() {
+println!("=== SA: replay protection({} != {})", self.core.nonce, message.session_nonce());
 			return Err(Error::ReplayProtection);
 		}
 
@@ -820,10 +848,12 @@ impl SessionTransport for IsolatedSessionTransport {
 fn check_nodes_set(old_nodes_set: &BTreeSet<NodeId>, new_nodes_set: &BTreeMap<NodeId, Option<Secret>>) -> Result<(), Error> {
 	// it is impossible to remove nodes using share add session
 	if old_nodes_set.iter().any(|n| !new_nodes_set.contains_key(n)) {
+println!("=== 4");
 		return Err(Error::InvalidNodesConfiguration);
 	}
 	// it is impossible to not to add any nodes using share add session
 	if new_nodes_set.len() == old_nodes_set.len() {
+println!("=== 5");
 		return Err(Error::InvalidNodesConfiguration);
 	}
 

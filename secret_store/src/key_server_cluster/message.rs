@@ -1061,6 +1061,16 @@ impl ShareAddMessage {
 		}
 	}
 
+	pub fn sub_session(&self) -> &Secret {
+		match *self {
+			ShareAddMessage::ShareAddConsensusMessage(ref msg) => &msg.sub_session,
+			ShareAddMessage::KeyShareCommon(ref msg) => &msg.sub_session,
+			ShareAddMessage::NewAbsoluteTermShare(ref msg) => &msg.sub_session,
+			ShareAddMessage::NewKeysDissemination(ref msg) => &msg.sub_session,
+			ShareAddMessage::ShareAddError(ref msg) => &msg.sub_session,
+		}
+	}
+
 	pub fn session_nonce(&self) -> u64 {
 		match *self {
 			ShareAddMessage::ShareAddConsensusMessage(ref msg) => msg.session_nonce,

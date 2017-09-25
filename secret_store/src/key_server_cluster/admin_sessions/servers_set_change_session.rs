@@ -225,6 +225,7 @@ impl SessionImpl {
 	/// Process servers set change message.
 	pub fn process_message(&self, sender: &NodeId, message: &ServersSetChangeMessage) -> Result<(), Error> {
 		if self.core.nonce != message.session_nonce() {
+println!("=== SSC: replay protection({} != {})", self.core.nonce, message.session_nonce());
 			return Err(Error::ReplayProtection);
 		}
 
@@ -360,7 +361,7 @@ impl SessionImpl {
 			Entry::Occupied(_) => return Err(Error::InvalidMessage),
 			Entry::Vacant(entry) => entry.insert(ShareChangeSession::new(ShareChangeSessionParams {
 				session_id: message.key_id.clone().into(),
-				nonce: 0,
+				nonce: self.core.nonce,
 				key_id: message.key_id.clone().into(),
 				self_node_id: self.core.meta.self_node_id.clone(),
 				master_node_id: message.master_node_id.clone().into(),
@@ -421,6 +422,7 @@ impl SessionImpl {
 		}
 
 		let session = data.active_sessions.get_mut(&key_id).ok_or(Error::InvalidMessage)?;
+println!("=== INITIALIZING AFTER RECEIVING CONFIRMATION");
 		session.initialize()
 	}
 
@@ -437,6 +439,7 @@ impl SessionImpl {
 		// start session
 		let mut data = self.data.lock();
 		let session = data.active_sessions.get_mut(&message.key_id.clone().into()).ok_or(Error::InvalidMessage)?;
+println!("=== INITIALIZING BECAUSE OF DELEGATION");
 		session.initialize()
 	}
 
@@ -602,7 +605,7 @@ impl SessionImpl {
 				if let &QueuedSession::Known(_, ref key_share) = &session {
 					data.active_sessions.insert(session_id.clone(), ShareChangeSession::new(ShareChangeSessionParams {
 						session_id: session_id.clone(),
-						nonce: 0,
+						nonce: core.nonce,
 						key_id: session_id.clone(),
 						self_node_id: core.meta.self_node_id.clone(),
 						master_node_id: core.meta.self_node_id.clone(),
@@ -614,12 +617,13 @@ impl SessionImpl {
 				}
 
 				// initialize session if required
-				let wait_for_confirmations = confirmations.is_empty();
+				let wait_for_confirmations = !confirmations.is_empty();
 				data.sessions_initialization_state.insert(session_id.clone(), SessionInitializationData {
 					master: session_master,
 					confirmations: confirmations,
 				});
 				if !wait_for_confirmations {
+println!("=== INITIALIZING AS NO CONFIRMATIONS REQUIRED");
 					data.active_sessions.get_mut(&session_id).expect("TODO").initialize()?;
 				}
 			}
@@ -820,6 +824,7 @@ pub mod tests {
 
 		pub fn run(&mut self) {
 			while let Some((from, to, message)) = self.take_message() {
+println!("=== {} -> {}: {}", from, to, message);
 				self.process_message((from, to, message)).unwrap();
 			}
 		}
