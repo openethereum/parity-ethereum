@@ -147,7 +147,7 @@ fn compute_timeout(reqs: &Requests) -> Duration {
 #[cfg(test)]
 mod tests {
 	use net::ReqId;
-	use request::RequestBuilder;
+	use request::Builder;
 	use time::{SteadyTime, Duration};
 	use super::{RequestSet, compute_timeout};
 
@@ -156,7 +156,7 @@ mod tests {
 		let test_begin = SteadyTime::now();
 		let mut req_set = RequestSet::default();
 
-		let the_req = RequestBuilder::default().build();
+		let the_req = Builder::default().build();
 		let req_time = compute_timeout(&the_req);
 		req_set.insert(ReqId(0), the_req.clone(), 0.into(), test_begin);
 		req_set.insert(ReqId(1), the_req, 0.into(), test_begin + Duration::seconds(1));
@@ -173,7 +173,7 @@ mod tests {
 
 	#[test]
 	fn cumulative_cost() {
-		let the_req = RequestBuilder::default().build();
+		let the_req = Builder::default().build();
 		let test_begin = SteadyTime::now();
 		let test_end = test_begin + Duration::seconds(1);
 		let mut req_set = RequestSet::default();

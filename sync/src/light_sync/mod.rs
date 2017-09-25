@@ -522,7 +522,7 @@ impl<L: AsLightClient> LightSync<L> {
 				rng.shuffle(&mut peer_ids);
 
 				let request = {
-					let mut builder = request::RequestBuilder::default();
+					let mut builder = request::Builder::default();
 					builder.push(request::Request::Headers(request::IncompleteHeadersRequest {
 						start: req.start.into(),
 						skip: req.skip,
