@@ -129,7 +129,6 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 
 		// check state
 		if data.state != SessionState::WaitingForInitialization {
-println!("=== 1");
 			return Err(Error::InvalidStateForRequest);
 		}
 
@@ -192,7 +191,6 @@ println!("=== 1");
 		// update state
 		let mut data = self.data.lock();
 		if data.state != SessionState::WaitingForInitialization {
-println!("=== 2");
 			return Err(Error::InvalidStateForRequest);
 		}
 		data.state = SessionState::WaitingForRemoveConfirmation;
@@ -225,7 +223,6 @@ println!("=== 2");
 		// check state
 		let mut data = self.data.lock();
 		if data.state != SessionState::WaitingForInitializationConfirm {
-println!("=== 3");
 			return Err(Error::InvalidStateForRequest);
 		}
 		// do not expect double confirmations
@@ -266,7 +263,6 @@ println!("=== 3");
 		// check state
 		let mut data = self.data.lock();
 		if data.state != SessionState::WaitingForRemoveConfirmation {
-println!("=== 4");
 			return Err(Error::InvalidStateForRequest);
 		}
 		// only process if we are waiting for this request
@@ -295,7 +291,6 @@ println!("=== 4");
 		// check state
 		let mut data = self.data.lock();
 		if data.state != SessionState::WaitingForRemoveConfirmation {
-println!("=== 5: {:?}", data.state);
 			return Err(Error::InvalidStateForRequest);
 		}
 		// find share source
@@ -439,7 +434,6 @@ mod tests {
 
 		pub fn run(&mut self) {
 			while let Some((from, to, message)) = self.take_message() {
-println!("=== {} -> {}: {}", from, to, message);
 				self.process_message((from, to, message)).unwrap();
 			}
 		}

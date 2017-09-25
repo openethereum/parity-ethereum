@@ -225,7 +225,6 @@ impl SessionImpl {
 	/// Process servers set change message.
 	pub fn process_message(&self, sender: &NodeId, message: &ServersSetChangeMessage) -> Result<(), Error> {
 		if self.core.nonce != message.session_nonce() {
-println!("=== SSC: replay protection({} != {})", self.core.nonce, message.session_nonce());
 			return Err(Error::ReplayProtection);
 		}
 
@@ -422,7 +421,6 @@ println!("=== SSC: replay protection({} != {})", self.core.nonce, message.sessio
 		}
 
 		let session = data.active_sessions.get_mut(&key_id).ok_or(Error::InvalidMessage)?;
-println!("=== INITIALIZING AFTER RECEIVING CONFIRMATION");
 		session.initialize()
 	}
 
@@ -433,17 +431,12 @@ println!("=== INITIALIZING AFTER RECEIVING CONFIRMATION");
 
 		// we only accept delegation requests from master node
 		if sender != &self.core.meta.master_node_id {
-println!("=== 111");
 			return Err(Error::InvalidMessage);
 		}
 
 		// start session
 		let mut data = self.data.lock();
-if !data.active_sessions.contains_key(&message.key_id.clone().into()) {
-println!("=== 222");
-}
 		let session = data.active_sessions.get_mut(&message.key_id.clone().into()).ok_or(Error::InvalidMessage)?;
-println!("=== INITIALIZING BECAUSE OF DELEGATION");
 		session.initialize()
 	}
 
@@ -483,9 +476,6 @@ println!("=== INITIALIZING BECAUSE OF DELEGATION");
 
 		let session_id = message.message.session().clone().into();
 		let (is_finished, is_master) = {
-if !data.active_sessions.contains_key(&session_id) {
-println!("=== 333");
-}
 			let mut change_session = data.active_sessions.get_mut(&session_id).ok_or(Error::InvalidMessage)?;
 			change_session.on_share_add_message(sender, &message.message)?;
 			(change_session.is_finished(), change_session.is_master())
@@ -630,7 +620,6 @@ println!("=== 333");
 					confirmations: confirmations,
 				});
 				if !wait_for_confirmations {
-println!("=== INITIALIZING AS NO CONFIRMATIONS REQUIRED");
 					data.active_sessions.get_mut(&session_id).expect("TODO").initialize()?;
 				}
 			}
@@ -642,34 +631,6 @@ println!("=== INITIALIZING AS NO CONFIRMATIONS REQUIRED");
 		Ok(())
 	}
 
-/*
-
-		// delegate unknown sessions to other nodes
-		let mut unknown_sessions_by_master: BTreeMap<_, BTreeSet<_>> = BTreeMap::new();
-		for (unknown_session_id, unknown_session_nodes) in unknown_sessions {
-			let unknown_master_node = unknown_session_nodes.into_iter().nth(0).expect("TODO"); // TODO: check && select randomly
-			data.delegated_sessions.insert(unknown_session_id.clone(), unknown_master_node.clone());
-			unknown_sessions_by_master.entry(unknown_master_node).or_insert_with(Default::default).insert(unknown_session_id);
-		}
-		for (master, unknown_sessions) in unknown_sessions_by_master {
-			self.core.cluster.send(&master, Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeDelegate(ServersSetChangeDelegate {
-				session: self.core.meta.id.clone().into(),
-				session_nonce: self.core.nonce,
-				new_nodes_set: new_nodes_set.iter().cloned().map(Into::into).collect(),
-				unknown_sessions: unknown_sessions.into_iter().map(Into::into).collect(),
-			})))?
-		}
-
-		// start known sessions
-		for (known_session_id, key_share) in self.core.key_storage.iter() {
-			let session_nodes = key_share.id_numbers.keys().cloned().collect();
-			let mut change_session = Self::start_share_change_session(&self.core, &mut *data, known_session_id.clone(), session_nodes)?;
-			change_session.initialize()?;
-			data.active_sessions.insert(known_session_id, change_session);
-		}
-
-		Ok(())
-*/
 
 	/// Return delegated session to master.
 	fn return_delegated_session(core: &SessionCore, key_id: &SessionId) -> Result<(), Error> {
@@ -831,7 +792,6 @@ pub mod tests {
 
 		pub fn run(&mut self) {
 			while let Some((from, to, message)) = self.take_message() {
-println!("=== {} -> {}: {}", from, to, message);
 				self.process_message((from, to, message)).unwrap();
 			}
 		}

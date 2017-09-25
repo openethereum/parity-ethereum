@@ -202,7 +202,6 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		match self.core.key_share.as_ref() {
 			Some(key_share) => {
 				if old_nodes_set.symmetric_difference(&key_share.id_numbers.keys().cloned().collect()).nth(0).is_some() {
-println!("=== 1");
 					return Err(Error::InvalidNodesConfiguration);
 				}
 				for (new_node, new_node_id) in new_nodes_set.iter_mut() {
@@ -210,7 +209,6 @@ println!("=== 1");
 						match key_share.id_numbers.get(new_node) {
 							Some(old_node_id) => *new_node_id = Some(old_node_id.clone()),
 							None => {
-println!("=== 2");
 								return Err(Error::InvalidNodesConfiguration) },
 						}
 					}
@@ -219,7 +217,6 @@ println!("=== 2");
 			None => {
 				if old_nodes_set.contains(&self.core.meta.self_node_id)
 					|| !new_nodes_set.contains_key(&self.core.meta.self_node_id) {
-println!("=== 3");
 					return Err(Error::InvalidNodesConfiguration);
 				}
 			},
@@ -290,7 +287,6 @@ println!("=== 3");
 	/// Process single message.
 	pub fn process_message(&self, sender: &NodeId, message: &ShareAddMessage) -> Result<(), Error> {
 		if self.core.nonce != message.session_nonce() {
-println!("=== SA: replay protection({} != {})", self.core.nonce, message.session_nonce());
 			return Err(Error::ReplayProtection);
 		}
 
@@ -368,90 +364,6 @@ println!("=== SA: replay protection({} != {})", self.core.nonce, message.session
 		Self::on_consensus_established(&self.core, &mut *data)
 	}
 
-	/*/// When initialization request is received.
-	pub fn on_initialize_session(&self, sender: &NodeId, message: &InitializeShareAddSession) -> Result<(), Error> {
-		debug_assert!(self.core.meta.id == *message.session);
-		debug_assert!(self.core.sub_session == *message.sub_session);
-		debug_assert!(sender != &self.core.meta.self_node_id);
-
-		// awaiting this message from master node only
-		if sender != &self.core.meta.master_node_id {
-			return Err(Error::InvalidMessage);
-		}
-		// this node must be on final nodes set
-		if !message.nodes.contains_key(&self.core.meta.self_node_id.clone().into()) {
-			return Err(Error::InvalidMessage);
-		}
-		// all new nodes must be on final nodes set
-		if message.new_nodes.iter().any(|n| !message.nodes.contains_key(n)) {
-			return Err(Error::InvalidMessage);
-		}
-		// this node is either old on both (this && master) nodes, or new on both nodes
-		if self.core.key_share.is_some() != !message.new_nodes.contains(&self.core.meta.self_node_id.clone().into()) {
-			return Err(Error::InvalidMessage);
-		}
-
-		let mut data = self.data.lock();
-
-		// check state
-		if data.state != SessionState::WaitingForInitialization {
-			return Err(Error::InvalidStateForRequest);
-		}
-
-		// update state
-		data.state = SessionState::WaitingForInitializationConfirm;
-		data.nodes = message.nodes.iter()
-			.map(|(n, nn)| (
-				n.clone().into(),
-				NodeData::new(
-					nn.clone().into(),
-					message.new_nodes.contains(n),
-				)
-			))
-			.collect();
-
-		// confirm initialization
-		self.core.transport.send(sender, ShareAddMessage::ConfirmShareAddInitialization(ConfirmShareAddInitialization {
-			session: self.core.meta.id.clone().into(),
-			sub_session: self.core.sub_session.clone().into(),
-			session_nonce: self.core.nonce,
-		}))
-	}
-
-	/// When session initialization confirmation message is received.
-	pub fn on_confirm_initialization(&self, sender: &NodeId, message: &ConfirmShareAddInitialization) -> Result<(), Error> {
-		debug_assert!(self.core.meta.id == *message.session);
-		debug_assert!(self.core.sub_session == *message.sub_session);
-		debug_assert!(sender != &self.core.meta.self_node_id);
-
-		// awaiting this message on master node only
-		if self.core.meta.self_node_id != self.core.meta.master_node_id {
-			return Err(Error::InvalidMessage);
-		}
-
-		// update node data
-		let mut data = self.data.lock();
-		{
-			let node_data = data.nodes.get_mut(sender).ok_or(Error::InvalidMessage)?;
-			if node_data.is_initialization_confirmed {
-				return Err(Error::InvalidStateForRequest);
-			}
-
-			node_data.is_initialization_confirmed = true;
-		}
-
-		// if we haven't received confirmations from all old nodes => wait for more
-		if data.nodes.values().any(|nd| !nd.is_initialization_confirmed) {
-			return Ok(());
-		}
-
-		// all nodes have confirmed initialization => send absolute term shares to new nodes && start keys dissemination
-		data.state = SessionState::WaitingForKeysDissemination;
-		Self::disseminate_common_share_data(&self.core, &*data)?;
-		Self::disseminate_absolute_term_shares(&self.core, &mut *data)?;
-		Self::disseminate_keys(&self.core, &mut *data)
-	}*/
-
 	/// When common key share data is received by new node.
 	pub fn on_common_key_share_data(&self, sender: &NodeId, message: &KeyShareCommon) -> Result<(), Error> {
 		debug_assert!(self.core.meta.id == *message.session);
@@ -460,7 +372,6 @@ println!("=== SA: replay protection({} != {})", self.core.nonce, message.session
 
 		// only master can send this message
 		if sender != &self.core.meta.master_node_id {
-println!("=== 888");
 			return Err(Error::InvalidMessage);
 		}
 
@@ -478,7 +389,6 @@ println!("=== 888");
 			let nodes = data.nodes.as_ref()
 				.expect("nodes are filled during consensus establishing; WaitingForAbsoluteTermShare starts after consensus is established; qed");
 			if !nodes[&self.core.meta.self_node_id].is_new_node {
-println!("=== 999");
 				return Err(Error::InvalidMessage);
 			}
 
@@ -850,12 +760,10 @@ impl SessionTransport for IsolatedSessionTransport {
 fn check_nodes_set(old_nodes_set: &BTreeSet<NodeId>, new_nodes_set: &BTreeMap<NodeId, Option<Secret>>) -> Result<(), Error> {
 	// it is impossible to remove nodes using share add session
 	if old_nodes_set.iter().any(|n| !new_nodes_set.contains_key(n)) {
-println!("=== 4");
 		return Err(Error::InvalidNodesConfiguration);
 	}
 	// it is impossible to not to add any nodes using share add session
 	if new_nodes_set.len() == old_nodes_set.len() {
-println!("=== 5");
 		return Err(Error::InvalidNodesConfiguration);
 	}
 
@@ -986,7 +894,6 @@ mod tests {
 
 		pub fn run(&mut self) {
 			while let Some((from, to, message)) = self.take_message() {
-println!("=== {} -> {}: {}", from, to, message);
 				self.process_message((from, to, message)).unwrap();
 			}
 		}
