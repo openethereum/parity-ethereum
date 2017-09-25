@@ -28,8 +28,8 @@ use key_server_cluster::{Error, SessionId, NodeId, SessionMeta, DocumentKeyShare
 use key_server_cluster::cluster::Cluster;
 use key_server_cluster::cluster_sessions::ClusterSession;
 use key_server_cluster::math;
-use key_server_cluster::message::{Message, ShareAddMessage, ShareAddConsensusMessage, ConsensusMessageWithServersMap,
-	InitializeConsensusSessionWithServersMap, KeyShareCommon, NewAbsoluteTermShare, NewKeysDissemination, ShareAddError,
+use key_server_cluster::message::{Message, ShareAddMessage, ShareAddConsensusMessage, ConsensusMessageWithServersSecretMap,
+	InitializeConsensusSessionWithServersSecretMap, KeyShareCommon, NewAbsoluteTermShare, NewKeysDissemination, ShareAddError,
 	ConfirmConsensusInitialization};
 use key_server_cluster::jobs::job_session::JobTransport;
 use key_server_cluster::jobs::dummy_job::{DummyJob, DummyJobTransport};
@@ -263,7 +263,12 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 				.map(|(k, v)| (k.clone(), v.clone().expect("TODO")))
 				.collect());
 			let mut consensus_session = ConsensusSession::new(ConsensusSessionParams {
-				meta: self.core.meta.clone(),
+				meta: SessionMeta {
+					self_node_id: self.core.meta.self_node_id.clone(),
+					master_node_id: self.core.meta.master_node_id.clone(),
+					id: self.core.meta.id.clone(),
+					threshold: new_nodes_set.len() - 1,
+				},
 				consensus_executor: ServersSetChangeAccessJob::new_on_master(Public::default(), // TODO: admin key instead of default
 					key_share.id_numbers.keys().cloned().collect(),
 					key_share.id_numbers.keys().cloned().collect(),
@@ -272,7 +277,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 					new_set_signature),
 				consensus_transport: consensus_transport,
 			})?;
-			consensus_session.initialize(new_nodes_set.clone())?;
+			consensus_session.initialize(new_nodes_set)?;
 			data.consensus_session = Some(consensus_session);
 			data.nodes = Some(new_nodes_map.into_iter()
 				.map(|(n, nn)| (n, NodeData::new(nn, !old_nodes_set.contains(&n))))
@@ -315,12 +320,17 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		if self.core.meta.self_node_id != self.core.meta.master_node_id {
 			if data.consensus_session.is_none() {
 				match &message.message {
-					&ConsensusMessageWithServersMap::InitializeConsensusSession(ref message) => {
+					&ConsensusMessageWithServersSecretMap::InitializeConsensusSession(ref message) => {
 						let current_nodes_set = self.core.key_share.as_ref()
 							.map(|ks| ks.id_numbers.keys().cloned().collect())
 							.unwrap_or_else(|| message.old_nodes_set.clone().into_iter().map(Into::into).collect());
 						data.consensus_session = Some(ConsensusSession::new(ConsensusSessionParams {
-							meta: self.core.meta.clone(),
+							meta: SessionMeta {
+								self_node_id: self.core.meta.self_node_id.clone(),
+								master_node_id: sender.clone(),
+								id: self.core.meta.id.clone(),
+								threshold: message.new_nodes_set.len() - 1,
+							},
 							consensus_executor: ServersSetChangeAccessJob::new_on_slave(Public::default(), // TODO: administrator public
 								current_nodes_set,
 							),
@@ -336,13 +346,13 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 			let consensus_session = data.consensus_session.as_mut().ok_or(Error::InvalidMessage)?;
 			let is_establishing_consensus = consensus_session.state() == ConsensusSessionState::EstablishingConsensus;
 			let new_nodes_set = match &message.message {
-				&ConsensusMessageWithServersMap::InitializeConsensusSession(ref message) => {
+				&ConsensusMessageWithServersSecretMap::InitializeConsensusSession(ref message) => {
 					consensus_session.on_consensus_partial_request(sender, ServersSetChangeAccessRequest::from(message))?;
 					Some(message.new_nodes_set.iter()
 						.map(|(n, nn)| (n.clone().into(), NodeData::new(Some(nn.clone().into()), !message.old_nodes_set.contains(n))))
 						.collect())
 				},
-				&ConsensusMessageWithServersMap::ConfirmConsensusInitialization(ref message) => {
+				&ConsensusMessageWithServersSecretMap::ConfirmConsensusInitialization(ref message) => {
 					consensus_session.on_consensus_partial_response(sender, message.is_confirmed)?;
 					None
 				},
@@ -726,7 +736,7 @@ impl JobTransport for IsolatedSessionTransport {
 			session: self.session.clone().into(),
 			sub_session: self.sub_session.clone().into(),
 			session_nonce: self.nonce,
-			message: ConsensusMessageWithServersMap::InitializeConsensusSession(InitializeConsensusSessionWithServersMap {
+			message: ConsensusMessageWithServersSecretMap::InitializeConsensusSession(InitializeConsensusSessionWithServersSecretMap {
 				old_nodes_set: request.old_servers_set.into_iter().map(Into::into).collect(),
 				new_nodes_set: request.new_servers_set.into_iter().map(|n| (n.into(), id_numbers[&n].clone().into())).collect(),
 				old_set_signature: request.old_set_signature.into(),
@@ -740,7 +750,7 @@ impl JobTransport for IsolatedSessionTransport {
 			session: self.session.clone().into(),
 			sub_session: self.sub_session.clone().into(),
 			session_nonce: self.nonce,
-			message: ConsensusMessageWithServersMap::ConfirmConsensusInitialization(ConfirmConsensusInitialization {
+			message: ConsensusMessageWithServersSecretMap::ConfirmConsensusInitialization(ConfirmConsensusInitialization {
 				is_confirmed: response,
 			}),
 		})))

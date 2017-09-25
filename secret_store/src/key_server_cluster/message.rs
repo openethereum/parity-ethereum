@@ -38,10 +38,10 @@ pub enum Message {
 	Signing(SigningMessage),
 	/// Share add message.
 	ShareAdd(ShareAddMessage),
-/*	/// Share move message.
+	/// Share move message.
 	ShareMove(ShareMoveMessage),
 	/// Share add message.
-	ShareRemove(ShareRemoveMessage),*/
+	/*ShareRemove(ShareRemoveMessage),*/
 	/// Servers set change message.
 	ServersSetChange(ServersSetChangeMessage),
 }
@@ -112,6 +112,15 @@ pub enum ConsensusMessageWithServersSet {
 pub enum ConsensusMessageWithServersMap {
 	/// Initialize consensus session.
 	InitializeConsensusSession(InitializeConsensusSessionWithServersMap),
+	/// Confirm/reject consensus session initialization.
+	ConfirmConsensusInitialization(ConfirmConsensusInitialization),
+}
+
+/// All possible messages that can be sent during share add consensus establishing.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum ConsensusMessageWithServersSecretMap {
+	/// Initialize consensus session.
+	InitializeConsensusSession(InitializeConsensusSessionWithServersSecretMap),
 	/// Confirm/reject consensus session initialization.
 	ConfirmConsensusInitialization(ConfirmConsensusInitialization),
 }
@@ -195,8 +204,8 @@ pub enum ShareAddMessage {
 /// All possible messages that can be sent during share move session.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum ShareMoveMessage {
-	InitializeShareMoveSession(InitializeShareMoveSession),
-	ConfirmShareMoveInitialization(ConfirmShareMoveInitialization),
+	/// Consensus establishing message.
+	ShareMoveConsensusMessage(ShareMoveConsensusMessage),
 	/// Share move request.
 	ShareMoveRequest(ShareMoveRequest),
 	/// Share move.
@@ -401,11 +410,24 @@ pub struct InitializeConsensusSessionWithServersSet {
 
 /// Node is asked to be part of servers-set consensus group.
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct InitializeConsensusSessionWithServersMap {
+pub struct InitializeConsensusSessionWithServersSecretMap {
 	/// Old nodes set.
 	pub old_nodes_set: BTreeSet<MessageNodeId>,
 	/// New nodes set.
 	pub new_nodes_set: BTreeMap<MessageNodeId, SerializableSecret>,
+	/// Old server set, signed by requester.
+	pub old_set_signature: SerializableSignature,
+	/// New server set, signed by requester.
+	pub new_set_signature: SerializableSignature,
+}
+
+/// Node is asked to be part of servers-set consensus group.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct InitializeConsensusSessionWithServersMap {
+	/// Old nodes set.
+	pub old_nodes_set: BTreeSet<MessageNodeId>,
+	/// New nodes set (keys() = new_nodes_set, values = old nodes [differs from new if share is moved]).
+	pub new_nodes_set: BTreeMap<MessageNodeId, MessageNodeId>,
 	/// Old server set, signed by requester.
 	pub old_set_signature: SerializableSignature,
 	/// New server set, signed by requester.
@@ -714,7 +736,7 @@ pub struct ShareAddConsensusMessage {
 	/// Session-level nonce.
 	pub session_nonce: u64,
 	/// Consensus message.
-	pub message: ConsensusMessageWithServersMap,
+	pub message: ConsensusMessageWithServersSecretMap,
 }
 
 /// Key share common data is passed to new node.
@@ -777,28 +799,17 @@ pub struct ShareAddError {
 	pub error: String,
 }
 
-/// Share move session initialization.
+/// Consensus-related share move session message.
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct InitializeShareMoveSession {
-	/// Generation session Id.
-	pub session: MessageSessionId,
+pub struct ShareMoveConsensusMessage {
 	/// Share move session Id.
+	pub session: MessageSessionId,
+	/// Servers set change session Id.
 	pub sub_session: SerializableSecret,
 	/// Session-level nonce.
 	pub session_nonce: u64,
-	/// Shares to move.
-	pub shares_to_move: BTreeMap<MessageNodeId, MessageNodeId>,
-}
-
-/// Share move session initialization is confirmed.
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct ConfirmShareMoveInitialization {
-	/// Generation session Id.
-	pub session: MessageSessionId,
-	/// Share move session Id.
-	pub sub_session: SerializableSecret,
-	/// Session-level nonce.
-	pub session_nonce: u64,
+	/// Consensus message.
+	pub message: ConsensusMessageWithServersMap,
 }
 
 /// Share move is requested.
@@ -1085,8 +1096,7 @@ impl ShareAddMessage {
 impl ShareMoveMessage {
 	pub fn session(&self) -> &SessionId {
 		match *self {
-			ShareMoveMessage::InitializeShareMoveSession(ref msg) => &msg.session,
-			ShareMoveMessage::ConfirmShareMoveInitialization(ref msg) => &msg.session,
+			ShareMoveMessage::ShareMoveConsensusMessage(ref msg) => &msg.session,
 			ShareMoveMessage::ShareMoveRequest(ref msg) => &msg.session,
 			ShareMoveMessage::ShareMove(ref msg) => &msg.session,
 			ShareMoveMessage::ShareMoveConfirm(ref msg) => &msg.session,
@@ -1094,10 +1104,19 @@ impl ShareMoveMessage {
 		}
 	}
 
+	pub fn sub_session(&self) -> &Secret {
+		match *self {
+			ShareMoveMessage::ShareMoveConsensusMessage(ref msg) => &msg.sub_session,
+			ShareMoveMessage::ShareMoveRequest(ref msg) => &msg.sub_session,
+			ShareMoveMessage::ShareMove(ref msg) => &msg.sub_session,
+			ShareMoveMessage::ShareMoveConfirm(ref msg) => &msg.sub_session,
+			ShareMoveMessage::ShareMoveError(ref msg) => &msg.sub_session,
+		}
+	}
+
 	pub fn session_nonce(&self) -> u64 {
 		match *self {
-			ShareMoveMessage::InitializeShareMoveSession(ref msg) => msg.session_nonce,
-			ShareMoveMessage::ConfirmShareMoveInitialization(ref msg) => msg.session_nonce,
+			ShareMoveMessage::ShareMoveConsensusMessage(ref msg) => msg.session_nonce,
 			ShareMoveMessage::ShareMoveRequest(ref msg) => msg.session_nonce,
 			ShareMoveMessage::ShareMove(ref msg) => msg.session_nonce,
 			ShareMoveMessage::ShareMoveConfirm(ref msg) => msg.session_nonce,
@@ -1138,6 +1157,7 @@ impl fmt::Display for Message {
 			Message::Signing(ref message) => write!(f, "Signing.{}", message),
 			Message::ServersSetChange(ref message) => write!(f, "ServersSetChange.{}", message),
 			Message::ShareAdd(ref message) => write!(f, "ShareAdd.{}", message),
+			Message::ShareMove(ref message) => write!(f, "ShareMove.{}", message),
 		}
 	}
 }
@@ -1204,6 +1224,15 @@ impl fmt::Display for ConsensusMessageWithServersMap {
 	}
 }
 
+impl fmt::Display for ConsensusMessageWithServersSecretMap {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		match *self {
+			ConsensusMessageWithServersSecretMap::InitializeConsensusSession(_) => write!(f, "InitializeConsensusSession"),
+			ConsensusMessageWithServersSecretMap::ConfirmConsensusInitialization(_) => write!(f, "ConfirmConsensusInitialization"),
+		}
+	}
+}
+
 impl fmt::Display for DecryptionMessage {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match *self {
@@ -1264,8 +1293,7 @@ impl fmt::Display for ShareAddMessage {
 impl fmt::Display for ShareMoveMessage {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match *self {
-			ShareMoveMessage::InitializeShareMoveSession(_) => write!(f, "InitializeShareMoveSession"),
-			ShareMoveMessage::ConfirmShareMoveInitialization(_) => write!(f, "ConfirmShareMoveInitialization"),
+			ShareMoveMessage::ShareMoveConsensusMessage(ref m) => write!(f, "ShareMoveConsensusMessage.{}", m.message),
 			ShareMoveMessage::ShareMoveRequest(_) => write!(f, "ShareMoveRequest"),
 			ShareMoveMessage::ShareMove(_) => write!(f, "ShareMove"),
 			ShareMoveMessage::ShareMoveConfirm(_) => write!(f, "ShareMoveConfirm"),

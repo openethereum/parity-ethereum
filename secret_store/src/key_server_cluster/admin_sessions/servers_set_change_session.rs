@@ -198,8 +198,8 @@ impl SessionImpl {
 	pub fn initialize(&self, new_nodes_set: BTreeSet<NodeId>, all_set_signature: Signature, new_set_signature: Signature) -> Result<(), Error> {
 		// TODO: check that all_nodes_set.contains(new_nodes_set)
 		// TODO: check that threshold + 1 == all_nodes_set.len()
-
 		let mut data = self.data.lock();
+println!("=== consensus.threshold = {}", self.core.meta.threshold);
 		let mut consensus_session = ConsensusSession::new(ConsensusSessionParams {
 			meta: self.core.meta.clone(),
 			consensus_executor: ServersSetChangeAccessJob::new_on_master(Public::default(), // TODO: admin key instead of default
@@ -214,6 +214,7 @@ impl SessionImpl {
 				cluster: self.core.cluster.clone(),
 			},
 		})?;
+println!("=== consensus.self.core.all_nodes_set.len() = {}", self.core.all_nodes_set.len());
 		consensus_session.initialize(self.core.all_nodes_set.clone())?;
 		debug_assert!(consensus_session.state() != ConsensusSessionState::ConsensusEstablished);
 		data.consensus_session = Some(consensus_session);
@@ -492,19 +493,22 @@ impl SessionImpl {
 
 	/// When share move message is received.
 	pub fn on_share_move_message(&self, sender: &NodeId, message: &ServersSetChangeShareMoveMessage) -> Result<(), Error> {
-		/*let mut data = self.data.lock();
+		let mut data = self.data.lock();
 
-		// start session if not started yet
-		if let &ShareMoveMessage::InitializeShareMoveSession(ref message) = &message.message {
-			match data.active_sessions.entry(message.session.clone().into()) {
-				Entry::Occupied(_) => return Err(Error::InvalidMessage),
-				Entry::Vacant(entry) => entry.insert(Self::join_share_change_session(&self.core, sender, message.session.clone().into())?),
-			};
+		let session_id = message.message.session().clone().into();
+		let (is_finished, is_master) = {
+			let mut change_session = data.active_sessions.get_mut(&session_id).ok_or(Error::InvalidMessage)?;
+			change_session.on_share_move_message(sender, &message.message)?;
+			(change_session.is_finished(), change_session.is_master())
+		};
+		if is_finished {
+			data.active_sessions.remove(&session_id);
+			if is_master && self.core.meta.self_node_id != self.core.meta.master_node_id {
+				Self::return_delegated_session(&self.core, &session_id)?;
+			}
 		}
 
-		let mut change_session = data.active_sessions.get_mut(&message.message.session().clone().into()).ok_or(Error::InvalidMessage)?;
-		change_session.on_share_move_message(sender, &message.message)*/
-		unimplemented!()
+		Ok(())
 	}
 
 	/// When share remove message is received.
@@ -578,7 +582,7 @@ impl SessionImpl {
 				let session_plan = prepare_share_change_session_plan(&old_nodes_set, new_nodes_set)?;
 				let mut confirmations: BTreeSet<_> = old_nodes_set.iter().cloned()
 					.chain(session_plan.nodes_to_add.keys().cloned())
-					.chain(session_plan.nodes_to_move.values().cloned())
+					.chain(session_plan.nodes_to_move.keys().cloned())
 					.collect();
 				let need_create_session = confirmations.remove(&core.meta.self_node_id);
 				for node in &confirmations {
@@ -792,6 +796,7 @@ pub mod tests {
 
 		pub fn run(&mut self) {
 			while let Some((from, to, message)) = self.take_message() {
+println!("=== {} -> {}: {}", from, to, message);
 				self.process_message((from, to, message)).unwrap();
 			}
 		}
@@ -905,7 +910,8 @@ pub mod tests {
 		let nodes_to_remove: BTreeSet<_> = gml.nodes.keys().cloned().skip(1).take(1).collect();
 		let nodes_to_add: BTreeSet<_> = (0..1).map(|_| Random.generate().unwrap().public().clone()).collect();
 		let mut ml = MessageLoop::new(gml, master_node_id, nodes_to_add.clone(), nodes_to_remove.clone());
-		ml.nodes[&master_node_id].session.initialize(ml.nodes.keys().cloned().collect(), Signature::default(), Signature::default());
+		let new_nodes_set = ml.nodes.keys().cloned().filter(|n| !nodes_to_remove.contains(n)).collect();
+		ml.nodes[&master_node_id].session.initialize(new_nodes_set, Signature::default(), Signature::default());
 		ml.run();
 
 		// try to recover secret for every possible combination of nodes && check that secret is the same

@@ -76,7 +76,7 @@ pub struct ShareChangeSession {
 pub struct ShareChangeSessionPlan {
 	/// Nodes to add shares for.
 	pub nodes_to_add: BTreeMap<NodeId, Secret>,
-	/// Nodes to move shares from/to.
+	/// Nodes to move shares from/to (keys = target nodes, values = source nodes).
 	pub nodes_to_move: BTreeMap<NodeId, NodeId>,
 	/// Nodes to remove shares from.
 	pub nodes_to_remove: BTreeSet<NodeId>,
@@ -160,16 +160,7 @@ impl ShareChangeSession {
 		if self.share_add_session.is_none() {
 			self.create_share_add_session(&message.sub_session().clone().into())?;
 		}
-/*		if let &ShareAddMessage::InitializeShareAddSession(ref message) = message {
-			if self.share_add_session.is_some() {
-				return Err(Error::InvalidMessage);
-			}
-			if sender != &self.master_node_id {
-				return Err(Error::InvalidMessage);
-			}
 
-			self.create_share_add_session(&message.sub_session.clone().into())?;
-		}*/
 		let change_state_needed = self.share_add_session.as_ref()
 			.map(|share_add_session| {
 				let was_finished = share_add_session.is_finished();
@@ -186,15 +177,8 @@ impl ShareChangeSession {
 
 	/// When share-move message is received.
 	pub fn on_share_move_message(&mut self, sender: &NodeId, message: &ShareMoveMessage) -> Result<(), Error> {
-		if let &ShareMoveMessage::InitializeShareMoveSession(ref message) = message {
-			if self.share_move_session.is_some() {
-				return Err(Error::InvalidMessage);
-			}
-			if sender != &self.master_node_id {
-				return Err(Error::InvalidMessage);
-			}
-
-			self.create_share_move_session(&message.sub_session.clone().into())?;
+		if self.share_move_session.is_none() {
+			self.create_share_move_session(&message.sub_session().clone().into())?;
 		}
 
 		let change_state_needed = self.share_move_session.as_ref()
@@ -263,7 +247,8 @@ impl ShareChangeSession {
 
 	/// Create new share move session.
 	fn create_share_move_session(&mut self, sub_session: &Secret) -> Result<(), Error> {
-		self.share_move_session = Some(ShareMoveSessionImpl::new_nested(ShareMoveSessionParams {
+		let nodes_to_move = self.nodes_to_move.take().ok_or(Error::InvalidStateForRequest)?;
+		let share_move_session = ShareMoveSessionImpl::new(ShareMoveSessionParams {
 			meta: SessionMeta {
 				id: self.key_id.clone(),
 				threshold: 0,
@@ -274,8 +259,9 @@ impl ShareChangeSession {
 			sub_session: sub_session.clone(),
 			transport: ShareChangeTransport::new(self.session_id, self.nonce, self.cluster.clone()),
 			key_storage: self.key_storage.clone(),
-			key_share: self.document_key_share.clone(),
-		})?);
+		})?;
+		share_move_session.set_consensus_output(nodes_to_move)?;
+		self.share_move_session = Some(share_move_session);
 		Ok(())
 	}
 
@@ -310,10 +296,10 @@ impl ShareChangeSession {
 			}
 		}
 
-		if let Some(nodes_to_move) = self.nodes_to_move.take() {
+		if let Some(nodes_to_move) = self.nodes_to_move.clone() {
 			if !nodes_to_move.is_empty() {
 				self.create_share_move_session(sub_session)?;
-				return self.share_move_session.as_ref().expect("TODO").initialize(nodes_to_move);
+				return self.share_move_session.as_ref().expect("TODO").initialize(nodes_to_move, None, None);
 			}
 		}
 
@@ -363,6 +349,10 @@ impl ShareAddSessionTransport for ShareChangeTransport {
 }
 
 impl ShareMoveSessionTransport for ShareChangeTransport {
+	fn set_shares_to_move(&mut self, shares_to_move: BTreeMap<NodeId, NodeId>) {
+		unreachable!()
+	}
+
 	fn send(&self, node: &NodeId, message: ShareMoveMessage) -> Result<(), Error> {
 		self.cluster.send(node, Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeShareMoveMessage(ServersSetChangeShareMoveMessage {
 			session: self.session_id.clone().into(),
@@ -391,9 +381,13 @@ pub fn prepare_share_change_session_plan(session_nodes: &BTreeSet<NodeId>, new_n
 		let target_node = nodes_to_add.iter().cloned().nth(0).expect("nodes_to_add.is_empty is checked in while condition; qed");
 		nodes_to_remove.remove(&source_node);
 		nodes_to_add.remove(&target_node);
-		nodes_to_move.insert(source_node, target_node);
+		nodes_to_move.insert(target_node, source_node);
 	}
-
+println!("=== session_nodes = {:?}", session_nodes);
+println!("=== new_nodes_set = {:?}", new_nodes_set);
+println!("=== nodes_to_add = {:?}", nodes_to_add);
+println!("=== nodes_to_move = {:?}", nodes_to_move);
+println!("=== nodes_to_remove = {:?}", nodes_to_remove);
 	Ok(ShareChangeSessionPlan {
 		nodes_to_add: nodes_to_add.into_iter()
 			.map(|n| math::generate_random_scalar().map(|s| (n, s)))
