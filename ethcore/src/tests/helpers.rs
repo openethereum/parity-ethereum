@@ -182,9 +182,9 @@ pub fn generate_dummy_client_with_spec_accounts_and_data<F>(get_test_spec: F, ac
 
 pub fn push_blocks_to_client(client: &Arc<Client>, timestamp_salt: u64, starting_number: usize, block_number: usize) {
 	let test_spec = get_test_spec();
-	let test_engine = &test_spec.engine;
-	//let test_engine = test_spec.to_engine().unwrap();
 	let state_root = test_spec.genesis_header().state_root().clone();
+	let genesis_gas = test_spec.genesis_header().gas_limit().clone();
+
 	let mut rolling_hash = client.chain_info().best_block_hash;
 	let mut rolling_block_number = starting_number as u64;
 	let mut rolling_timestamp = timestamp_salt + starting_number as u64 * 10;
@@ -192,7 +192,7 @@ pub fn push_blocks_to_client(client: &Arc<Client>, timestamp_salt: u64, starting
 	for _ in 0..block_number {
 		let mut header = Header::new();
 
-		header.set_gas_limit(test_engine.params().min_gas_limit);
+		header.set_gas_limit(genesis_gas);
 		header.set_difficulty(U256::from(0x20000));
 		header.set_timestamp(rolling_timestamp);
 		header.set_number(rolling_block_number);
@@ -221,9 +221,9 @@ pub fn get_test_client_with_blocks(blocks: Vec<Bytes>) -> Arc<Client> {
 		IoChannel::disconnected(),
 	).unwrap();
 
-	for block in &blocks {
-		if client.import_block(block.clone()).is_err() {
-			panic!("panic importing block which is well-formed");
+	for block in blocks {
+		if let Err(e) = client.import_block(block) {
+			panic!("error importing block which is well-formed: {:?}", e);
 		}
 	}
 	client.flush_queue();
@@ -293,13 +293,13 @@ pub fn get_good_dummy_block_seq(count: usize) -> Vec<Bytes> {
 
 pub fn get_good_dummy_block_fork_seq(start_number: usize, count: usize, parent_hash: &H256) -> Vec<Bytes> {
 	let test_spec = get_test_spec();
-	let test_engine = &test_spec.engine;
+	let genesis_gas = test_spec.genesis_header().gas_limit().clone();
 	let mut rolling_timestamp = start_number as u64 * 10;
 	let mut parent = *parent_hash;
 	let mut r = Vec::new();
 	for i in start_number .. start_number + count + 1 {
 		let mut block_header = Header::new();
-		block_header.set_gas_limit(test_engine.params().min_gas_limit);
+		block_header.set_gas_limit(genesis_gas);
 		block_header.set_difficulty(U256::from(i) * U256([0, 1, 0, 0]));
 		block_header.set_timestamp(rolling_timestamp);
 		block_header.set_number(i as u64);
@@ -317,8 +317,8 @@ pub fn get_good_dummy_block_fork_seq(start_number: usize, count: usize, parent_h
 pub fn get_good_dummy_block_hash() -> (H256, Bytes) {
 	let mut block_header = Header::new();
 	let test_spec = get_test_spec();
-	let test_engine = &test_spec.engine;
-	block_header.set_gas_limit(test_engine.params().min_gas_limit);
+	let genesis_gas = test_spec.genesis_header().gas_limit().clone();
+	block_header.set_gas_limit(genesis_gas);
 	block_header.set_difficulty(U256::from(0x20000));
 	block_header.set_timestamp(40);
 	block_header.set_number(1);
@@ -336,8 +336,9 @@ pub fn get_good_dummy_block() -> Bytes {
 pub fn get_bad_state_dummy_block() -> Bytes {
 	let mut block_header = Header::new();
 	let test_spec = get_test_spec();
-	let test_engine = &test_spec.engine;
-	block_header.set_gas_limit(test_engine.params().min_gas_limit);
+	let genesis_gas = test_spec.genesis_header().gas_limit().clone();
+
+	block_header.set_gas_limit(genesis_gas);
 	block_header.set_difficulty(U256::from(0x20000));
 	block_header.set_timestamp(40);
 	block_header.set_number(1);

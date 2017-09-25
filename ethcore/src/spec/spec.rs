@@ -348,7 +348,7 @@ impl Spec {
 		let machine = Self::machine(&engine_spec, params, builtins);
 
 		match engine_spec {
-			ethjson::spec::Engine::Null => Arc::new(NullEngine::new(machine)),
+			ethjson::spec::Engine::Null(null) => Arc::new(NullEngine::new(null.params.into(), machine)),
 			ethjson::spec::Engine::Ethash(ethash) => Arc::new(::ethereum::Ethash::new(cache_dir, ethash.params.into(), machine)),
 			ethjson::spec::Engine::InstantSeal => Arc::new(InstantSeal::new(machine)),
 			ethjson::spec::Engine::BasicAuthority(basic_authority) => Arc::new(BasicAuthority::new(basic_authority.params.into(), machine)),

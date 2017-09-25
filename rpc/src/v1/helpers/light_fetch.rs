@@ -330,7 +330,7 @@ struct ExecuteParams {
 	tx: EthTransaction,
 	hdr: encoded::Header,
 	env_info: ::vm::EnvInfo,
-	engine: Arc<::ethcore::engines::Engine>,
+	engine: Arc<::ethcore::engines::EthEngine>,
 	on_demand: Arc<OnDemand>,
 	sync: Arc<LightSync>,
 }

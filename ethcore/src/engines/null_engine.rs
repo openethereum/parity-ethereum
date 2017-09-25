@@ -14,17 +14,36 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use bigint::prelude::U256;
 use engines::Engine;
+use parity_machine::{Header, LiveBlock, WithBalances};
+
+/// Params for a null engine.
+#[derive(Clone, Default)]
+pub struct NullEngineParams {
+	/// base reward for a block.
+	pub block_reward: U256,
+}
+
+impl From<::ethjson::spec::NullEngineParams> for NullEngineParams {
+	fn from(p: ::ethjson::spec::NullEngineParams) -> Self {
+		NullEngineParams {
+			block_reward: p.block_reward.map_or_else(Default::default, Into::into),
+		}
+	}
+}
 
 /// An engine which does not provide any consensus mechanism and does not seal blocks.
 pub struct NullEngine<M> {
+	params: NullEngineParams,
 	machine: M,
 }
 
 impl<M> NullEngine<M> {
 	/// Returns new instance of NullEngine with default VM Factory
-	pub fn new(machine: M) -> Self {
+	pub fn new(params: NullEngineParams, machine: M) -> Self {
 		NullEngine {
+			params: params,
 			machine: machine,
 		}
 	}
@@ -32,16 +51,49 @@ impl<M> NullEngine<M> {
 
 impl<M: Default> Default for NullEngine<M> {
 	fn default() -> Self {
-		Self::new(Default::default())
+		Self::new(Default::default(), Default::default())
 	}
 }
 
-impl<M: ::parity_machine::Machine> Engine<M> for NullEngine<M> {
+impl<M: WithBalances> Engine<M> for NullEngine<M> {
 	fn name(&self) -> &str {
 		"NullEngine"
 	}
 
 	fn machine(&self) -> &M { &self.machine }
+
+	fn on_close_block(&self, block: &mut M::LiveBlock) -> Result<(), M::Error> {
+		use std::ops::Shr;
+
+		let author = *LiveBlock::header(&*block).author();
+		let number = LiveBlock::header(&*block).number();
+
+		let reward = self.params.block_reward;
+		if reward == U256::zero() { return Ok(()) }
+
+		let n_uncles = LiveBlock::uncles(&*block).len();
+
+		// Bestow block reward
+		let result_block_reward = reward + reward.shr(5) * U256::from(n_uncles);
+		let mut uncle_rewards = Vec::with_capacity(n_uncles);
+
+		self.machine.add_balance(block, &author, &result_block_reward)?;
+
+		// bestow uncle rewards.
+		for u in LiveBlock::uncles(&*block) {
+			let uncle_author = u.author();
+			let result_uncle_reward = (reward * U256::from(8 + u.number() - number)).shr(3);
+
+			uncle_rewards.push((*uncle_author, result_uncle_reward));
+		}
+
+		for &(ref a, ref reward) in &uncle_rewards {
+			self.machine.add_balance(block, a, reward)?;
+		}
+
+		// note and trace.
+		self.machine.note_rewards(block, &[(author, result_block_reward)], &uncle_rewards)
+	}
 
 	fn verify_local_seal(&self, _header: &M::Header) -> Result<(), M::Error> {
 		Ok(())

@@ -1345,7 +1345,7 @@ mod tests {
 				call_type: CallType::Call,
 			}),
 			result: trace::Res::Call(trace::CallResult {
-				gas_used: U256::from(28_061),
+				gas_used: U256::from(3_721), // in post-eip150
 				output: vec![]
 			}),
 			subtraces: 0,
@@ -1389,7 +1389,7 @@ mod tests {
 				call_type: CallType::Call,
 			}),
 			result: trace::Res::Call(trace::CallResult {
-				gas_used: 64.into(),
+				gas_used: 724.into(), // in post-eip150
 				output: vec![]
 			}),
 		}, FlatTrace {
@@ -1448,7 +1448,7 @@ mod tests {
 				call_type: CallType::Call,
 			}),
 			result: trace::Res::Call(trace::CallResult {
-				gas_used: U256::from(61),
+				gas_used: U256::from(721), // in post-eip150
 				output: vec![]
 			}),
 		}, FlatTrace {

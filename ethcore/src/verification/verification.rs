@@ -474,7 +474,8 @@ mod tests {
 		// is fine.
 		let client = ::client::TestBlockChainClient::default();
 
-		let parent = bc.block_header(header.parent_hash()).expect("missing parent");
+		let parent = bc.block_header(header.parent_hash())
+			.ok_or(BlockError::UnknownParent(header.parent_hash().clone()))?;
 
 		let full_params: FullFamilyParams = (
 			bytes,
@@ -659,6 +660,15 @@ mod tests {
 		check_fail(family_test(&create_test_block_with_data(&header, &good_transactions, &bad_uncles), engine, &bc),
 			DuplicateUncle(good_uncle1.hash()));
 
+		header = good.clone();
+		header.set_gas_limit(0.into());
+		header.set_difficulty("0000000000000000000000000000000000000000000000000000000000020000".parse::<U256>().unwrap());
+		match family_test(&create_test_block(&header), engine, &bc) {
+			Err(Error::Block(InvalidGasLimit(_))) => {},
+			Err(_) => { panic!("should be invalid difficulty fail"); },
+			_ => { panic!("Should be error, got Ok"); },
+		}
+
 		// TODO: some additional uncle checks
 	}
 
@@ -689,7 +699,7 @@ mod tests {
 		let good_transactions = [bad_transactions[0].clone(), bad_transactions[1].clone()];
 
 		let machine = EthereumMachine::regular(params, BTreeMap::new());
-		let engine = NullEngine::new(machine);
+		let engine = NullEngine::new(Default::default(), machine);
 		check_fail(unordered_test(&create_test_block_with_data(&header, &bad_transactions, &[]), &engine), TooManyTransactions(keypair.address()));
 		unordered_test(&create_test_block_with_data(&header, &good_transactions, &[]), &engine).unwrap();
 	}

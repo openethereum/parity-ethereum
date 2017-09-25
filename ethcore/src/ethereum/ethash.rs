@@ -642,24 +642,6 @@ mod tests {
 	}
 
 	#[test]
-	fn can_verify_block_family_gas_fail() {
-		let engine = test_spec().engine;
-		let mut header: Header = Header::default();
-		header.set_number(2);
-		header.set_difficulty(U256::from_str("0000000000000000000000000000000000000000000000000000000000020000").unwrap());
-		let mut parent_header: Header = Header::default();
-		parent_header.set_number(1);
-
-		let verify_result = engine.verify_block_family(&header, &parent_header);
-
-		match verify_result {
-			Err(Error::Block(BlockError::InvalidGasLimit(_))) => {},
-			Err(_) => { panic!("should be invalid difficulty fail (got {:?})", verify_result); },
-			_ => { panic!("Should be error, got Ok"); },
-		}
-	}
-
-	#[test]
 	fn test_difficulty_to_boundary() {
 		// result of f(0) is undefined, so do not assert the result
 		let _ = Ethash::difficulty_to_boundary(&U256::from(0));

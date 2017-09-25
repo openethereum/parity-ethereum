@@ -76,9 +76,9 @@ impl ChainDataFetcher for Unavailable {
 
 	fn epoch_transition(
 		&self,
-		hash: H256,
-		engine: Arc<EthEngine>,
-		checker: Arc<StateDependentProof<EthereumMachine>>
+		_hash: H256,
+		_engine: Arc<EthEngine>,
+		_checker: Arc<StateDependentProof<EthereumMachine>>
 	) -> Self::Transition {
 		Err("fetching epoch transition proofs unavailable")
 	}
