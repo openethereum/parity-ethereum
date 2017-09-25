@@ -21,7 +21,7 @@ pub type H256 = [u8; 32];
 pub mod keccak_512 {
 	use super::hash;
 
-	pub use self::hash::keccak_256 as unchecked;
+	pub use self::hash::keccak_512 as unchecked;
 
 	pub fn write(input: &[u8], output: &mut [u8]) {
 		unsafe { hash::keccak_512(output.as_mut_ptr(), output.len(), input.as_ptr(), input.len()) };
