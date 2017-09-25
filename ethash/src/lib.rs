@@ -20,19 +20,28 @@
 #![cfg_attr(feature = "benches", feature(test))]
 
 extern crate primal;
-extern crate hash;
 extern crate parking_lot;
+extern crate either;
+extern crate memmap;
 
 #[macro_use]
 extern crate crunchy;
 #[macro_use]
 extern crate log;
+
 mod compute;
+mod seed_compute;
+mod cache;
+mod keccak;
+mod shared;
 
 use std::mem;
 use std::path::{Path, PathBuf};
 use compute::Light;
-pub use compute::{ETHASH_EPOCH_LENGTH, H256, ProofOfWork, SeedHashCompute, quick_get_difficulty, slow_get_seedhash};
+pub use seed_compute::SeedHashCompute;
+pub use shared::ETHASH_EPOCH_LENGTH;
+use keccak::H256;
+pub use compute::{ProofOfWork, quick_get_difficulty, slow_hash_block_number};
 
 use std::sync::Arc;
 use parking_lot::Mutex;
@@ -100,7 +109,7 @@ impl EthashManager {
 						Ok(light) => Arc::new(light),
 						Err(e) => {
 							debug!("Light cache file not found for {}:{}", block_number, e);
-							let light = Light::new(&self.cache_dir, block_number);
+							let mut light = Light::new(&self.cache_dir, block_number);
 							if let Err(e) = light.to_file() {
 								warn!("Light cache file write error: {}", e);
 							}
