@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use util::bytes::Bytes;
+use ethcore_bytes::Bytes;
 use std::net::SocketAddr;
 use std::collections::{HashSet, HashMap, BTreeMap, VecDeque};
 use std::mem;

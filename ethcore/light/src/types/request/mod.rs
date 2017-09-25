@@ -789,7 +789,7 @@ pub mod header_proof {
 	use rlp::{Encodable, Decodable, DecoderError, RlpStream, UntrustedRlp};
 	use bigint::prelude::U256;
 	use bigint::hash::H256;
-	use util::Bytes;
+	use bytes::Bytes;
 
 	/// Potentially incomplete header proof request.
 	#[derive(Debug, Clone, PartialEq, Eq, RlpEncodable, RlpDecodable)]
@@ -1120,7 +1120,7 @@ pub mod account {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
 	use bigint::prelude::U256;
 	use bigint::hash::H256;
-	use util::Bytes;
+	use bytes::Bytes;
 
 	/// Potentially incomplete request for an account proof.
 	#[derive(Debug, Clone, PartialEq, Eq, RlpEncodable, RlpDecodable)]
@@ -1220,7 +1220,7 @@ pub mod account {
 pub mod storage {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
 	use bigint::hash::H256;
-	use util::Bytes;
+	use bytes::Bytes;
 
 	/// Potentially incomplete request for an storage proof.
 	#[derive(Debug, Clone, PartialEq, Eq, RlpEncodable, RlpDecodable)]
@@ -1329,7 +1329,7 @@ pub mod storage {
 pub mod contract_code {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
 	use bigint::hash::H256;
-	use util::Bytes;
+	use bytes::Bytes;
 
 	/// Potentially incomplete contract code request.
 	#[derive(Debug, Clone, PartialEq, Eq, RlpEncodable, RlpDecodable)]
@@ -1417,7 +1417,8 @@ pub mod execution {
 	use rlp::{Encodable, Decodable, DecoderError, RlpStream, UntrustedRlp};
 	use bigint::prelude::U256;
 	use bigint::hash::H256;
-	use util::{Bytes, Address, DBValue};
+	use util::{Address, DBValue};
+	use bytes::Bytes;
 
 	/// Potentially incomplete execution proof request.
 	#[derive(Debug, Clone, PartialEq, Eq, RlpEncodable, RlpDecodable)]
@@ -1541,7 +1542,7 @@ pub mod epoch_signal {
 	use super::{Field, NoSuchOutput, OutputKind, Output};
 	use rlp::{Encodable, Decodable, DecoderError, RlpStream, UntrustedRlp};
 	use bigint::hash::H256;
-	use util::Bytes;
+	use bytes::Bytes;
 
 	/// Potentially incomplete epoch signal request.
 	#[derive(Debug, Clone, PartialEq, Eq)]
@@ -1738,13 +1739,15 @@ mod tests {
 
 	#[test]
 	fn receipts_roundtrip() {
+		use ethcore::receipt::{Receipt, TransactionOutcome};
 		let req = IncompleteReceiptsRequest {
 			hash: Field::Scalar(Default::default()),
 		};
 
 		let full_req = Request::Receipts(req.clone());
+		let receipt = Receipt::new(TransactionOutcome::Unknown, Default::default(), Vec::new());
 		let res = ReceiptsResponse {
-			receipts: vec![Default::default(), Default::default()],
+			receipts: vec![receipt.clone(), receipt],
 		};
 		let full_res = Response::Receipts(res.clone());
 
@@ -1899,6 +1902,7 @@ mod tests {
 
 	#[test]
 	fn responses_vec() {
+		use ethcore::receipt::{Receipt, TransactionOutcome};
 		let mut stream = RlpStream::new_list(2);
 				stream.begin_list(0).begin_list(0);
 
@@ -1906,7 +1910,7 @@ mod tests {
 		let reqs = vec![
 			Response::Headers(HeadersResponse { headers: vec![] }),
 			Response::HeaderProof(HeaderProofResponse { proof: vec![], hash: Default::default(), td: 100.into()}),
-			Response::Receipts(ReceiptsResponse { receipts: vec![Default::default()] }),
+			Response::Receipts(ReceiptsResponse { receipts: vec![Receipt::new(TransactionOutcome::Unknown, Default::default(), Vec::new())] }),
 			Response::Body(BodyResponse { body: body }),
 			Response::Account(AccountResponse {
 				proof: vec![],

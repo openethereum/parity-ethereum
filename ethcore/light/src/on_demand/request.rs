@@ -21,7 +21,7 @@ use std::sync::Arc;
 use ethcore::basic_account::BasicAccount;
 use ethcore::encoded;
 use ethcore::engines::{Engine, StateDependentProof};
-use ethcore::receipt::Receipt;
+use ethcore::receipt::{Receipt, TransactionOutcome};
 use ethcore::state::{self, ProvedExecution};
 use ethcore::transaction::SignedTransaction;
 use vm::EnvInfo;
@@ -33,9 +33,10 @@ use rlp::{RlpStream, UntrustedRlp};
 use bigint::prelude::U256;
 use bigint::hash::H256;
 use parking_lot::Mutex;
-use util::{Address, Bytes, DBValue, HashDB};
-use util::memorydb::MemoryDB;
-use util::trie::{Trie, TrieDB, TrieError};
+use util::{Address, DBValue, HashDB};
+use bytes::Bytes;
+use memorydb::MemoryDB;
+use trie::{Trie, TrieDB, TrieError};
 
 const SUPPLIED_MATCHES: &'static str = "supplied responses always match produced requests; enforced by `check_response`; qed";
 
@@ -896,8 +897,8 @@ mod tests {
 	use bigint::hash::H256;
 	use util::{MemoryDB, Address};
 	use parking_lot::Mutex;
-	use util::trie::{Trie, TrieMut, SecTrieDB, SecTrieDBMut};
-	use util::trie::recorder::Recorder;
+	use trie::{Trie, TrieMut, SecTrieDB, SecTrieDBMut};
+	use trie::recorder::Recorder;
 	use hash::keccak;
 
 	use ethcore::client::{BlockChainClient, TestBlockChainClient, EachBlockWith};
@@ -972,7 +973,7 @@ mod tests {
 	#[test]
 	fn check_receipts() {
 		let receipts = (0..5).map(|_| Receipt {
-			state_root: Some(H256::random()),
+			outcome: TransactionOutcome::StateRoot(H256::random()),
 			gas_used: 21_000u64.into(),
 			log_bloom: Default::default(),
 			logs: Vec::new(),

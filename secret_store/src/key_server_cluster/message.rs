@@ -127,8 +127,10 @@ pub enum SigningMessage {
 pub struct NodePublicKey {
 	/// Node identifier (aka node public key).
 	pub node_id: MessageNodeId,
-	/// Data, which must be signed by peer to prove that he owns the corresponding private key. 
+	/// Random data, which must be signed by peer to prove that he owns the corresponding private key. 
 	pub confirmation_plain: SerializableH256,
+	/// The same random `confirmation_plain`, signed with one-time session key.
+	pub confirmation_signed_session: SerializableSignature,
 }
 
 /// Confirm that node owns the private key of previously passed public key (aka node id).
@@ -137,7 +139,6 @@ pub struct NodePrivateKeySignature {
 	/// Previously passed `confirmation_plain`, signed with node private key.
 	pub confirmation_signed: SerializableSignature,
 }
-
 
 /// Ask if the node is still alive.
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -154,6 +155,8 @@ pub struct KeepAliveResponse {
 pub struct InitializeSession {
 	/// Session Id.
 	pub session: MessageSessionId,
+	/// Session-level nonce.
+	pub session_nonce: u64,
 	/// Session author.
 	pub author: SerializablePublic,
 	/// All session participants along with their identification numbers.
@@ -173,6 +176,8 @@ pub struct InitializeSession {
 pub struct ConfirmInitialization {
 	/// Session Id.
 	pub session: MessageSessionId,
+	/// Session-level nonce.
+	pub session_nonce: u64,
 	/// Derived generation point.
 	pub derived_point: SerializablePublic,
 }
@@ -182,6 +187,8 @@ pub struct ConfirmInitialization {
 pub struct CompleteInitialization {
 	/// Session Id.
 	pub session: MessageSessionId,
+	/// Session-level nonce.
+	pub session_nonce: u64,
 	/// Derived generation point.
 	pub derived_point: SerializablePublic,
 }
@@ -191,6 +198,8 @@ pub struct CompleteInitialization {
 pub struct KeysDissemination {
 	/// Session Id.
 	pub session: MessageSessionId,
+	/// Session-level nonce.
+	pub session_nonce: u64,
 	/// Secret 1.
 	pub secret1: SerializableSecret,
 	/// Secret 2.
@@ -204,6 +213,8 @@ pub struct KeysDissemination {
 pub struct PublicKeyShare {
 	/// Session Id.
 	pub session: MessageSessionId,
+	/// Session-level nonce.
+	pub session_nonce: u64,
 	/// Public key share.
 	pub public_share: SerializablePublic,
 }
@@ -213,6 +224,8 @@ pub struct PublicKeyShare {
 pub struct SessionError {
 	/// Session Id.
 	pub session: MessageSessionId,
+	/// Session-level nonce.
+	pub session_nonce: u64,
 	/// Public key share.
 	pub error: String,
 }
@@ -222,6 +235,8 @@ pub struct SessionError {
 pub struct SessionCompleted {
 	/// Session Id.
 	pub session: MessageSessionId,
+	/// Session-level nonce.
+	pub session_nonce: u64,
 }
 
 /// Node is requested to prepare for saving encrypted data.
@@ -229,6 +244,8 @@ pub struct SessionCompleted {
 pub struct InitializeEncryptionSession {
 	/// Encryption session Id.
 	pub session: MessageSessionId,
+	/// Session-level nonce.
+	pub session_nonce: u64,
 	/// Requestor signature.
 	pub requestor_signature: SerializableSignature,
 	/// Common point.
@@ -242,6 +259,8 @@ pub struct InitializeEncryptionSession {
 pub struct ConfirmEncryptionInitialization {
 	/// Encryption session Id.
 	pub session: MessageSessionId,
+	/// Session-level nonce.
+	pub session_nonce: u64,
 }
 
 /// When encryption session error has occured.
@@ -249,6 +268,8 @@ pub struct ConfirmEncryptionInitialization {
 pub struct EncryptionSessionError {
 	/// Encryption session Id.
 	pub session: MessageSessionId,
+	/// Session-level nonce.
+	pub session_nonce: u64,
 	/// Error message.
 	pub error: String,
 }
@@ -274,6 +295,8 @@ pub struct SigningConsensusMessage {
 	pub session: MessageSessionId,
 	/// Signing session Id.
 	pub sub_session: SerializableSecret,
+	/// Session-level nonce.
+	pub session_nonce: u64,
 	/// Consensus message.
 	pub message: ConsensusMessage,
 }
@@ -285,6 +308,8 @@ pub struct SigningGenerationMessage {
 	pub session: MessageSessionId,
 	/// Signing session Id.
 	pub sub_session: SerializableSecret,
+	/// Session-level nonce.
+	pub session_nonce: u64,
 	/// Generation message.
 	pub message: GenerationMessage,
 }
@@ -296,6 +321,8 @@ pub struct RequestPartialSignature {
 	pub session: MessageSessionId,
 	/// Signing session Id.
 	pub sub_session: SerializableSecret,
+	/// Session-level nonce.
+	pub session_nonce: u64,
 	/// Request id.
 	pub request_id: SerializableSecret,
 	/// Message hash.
@@ -311,6 +338,8 @@ pub struct PartialSignature {
 	pub session: MessageSessionId,
 	/// Signing session Id.
 	pub sub_session: SerializableSecret,
+	/// Session-level nonce.
+	pub session_nonce: u64,
 	/// Request id.
 	pub request_id: SerializableSecret,
 	/// S part of signature.
@@ -324,6 +353,8 @@ pub struct SigningSessionError {
 	pub session: MessageSessionId,
 	/// Signing session Id.
 	pub sub_session: SerializableSecret,
+	/// Session-level nonce.
+	pub session_nonce: u64,
 	/// Error description.
 	pub error: String,
 }
@@ -335,6 +366,8 @@ pub struct SigningSessionCompleted {
 	pub session: MessageSessionId,
 	/// Signing session Id.
 	pub sub_session: SerializableSecret,
+	/// Session-level nonce.
+	pub session_nonce: u64,
 }
 
 /// Consensus-related decryption message.
@@ -344,6 +377,8 @@ pub struct DecryptionConsensusMessage {
 	pub session: MessageSessionId,
 	/// Signing session Id.
 	pub sub_session: SerializableSecret,
+	/// Session-level nonce.
+	pub session_nonce: u64,
 	/// Consensus message.
 	pub message: ConsensusMessage,
 }
@@ -355,6 +390,8 @@ pub struct RequestPartialDecryption {
 	pub session: MessageSessionId,
 	/// Decryption session Id.
 	pub sub_session: SerializableSecret,
+	/// Session-level nonce.
+	pub session_nonce: u64,
 	/// Request id.
 	pub request_id: SerializableSecret,
 	/// Is shadow decryption requested? When true, decryption result
@@ -371,6 +408,8 @@ pub struct PartialDecryption {
 	pub session: MessageSessionId,
 	/// Decryption session Id.
 	pub sub_session: SerializableSecret,
+	/// Session-level nonce.
+	pub session_nonce: u64,
 	/// Request id.
 	pub request_id: SerializableSecret,
 	/// Partially decrypted secret.
@@ -386,6 +425,8 @@ pub struct DecryptionSessionError {
 	pub session: MessageSessionId,
 	/// Decryption session Id.
 	pub sub_session: SerializableSecret,
+	/// Session-level nonce.
+	pub session_nonce: u64,
 	/// Public key share.
 	pub error: String,
 }
@@ -397,6 +438,8 @@ pub struct DecryptionSessionCompleted {
 	pub session: MessageSessionId,
 	/// Decryption session Id.
 	pub sub_session: SerializableSecret,
+	/// Session-level nonce.
+	pub session_nonce: u64,
 }
 
 impl GenerationMessage {
@@ -411,6 +454,18 @@ impl GenerationMessage {
 			GenerationMessage::SessionCompleted(ref msg) => &msg.session,
 		}
 	}
+
+	pub fn session_nonce(&self) -> u64 {
+		match *self {
+			GenerationMessage::InitializeSession(ref msg) => msg.session_nonce,
+			GenerationMessage::ConfirmInitialization(ref msg) => msg.session_nonce,
+			GenerationMessage::CompleteInitialization(ref msg) => msg.session_nonce,
+			GenerationMessage::KeysDissemination(ref msg) => msg.session_nonce,
+			GenerationMessage::PublicKeyShare(ref msg) => msg.session_nonce,
+			GenerationMessage::SessionError(ref msg) => msg.session_nonce,
+			GenerationMessage::SessionCompleted(ref msg) => msg.session_nonce,
+		}
+	}
 }
 
 impl EncryptionMessage {
@@ -419,6 +474,14 @@ impl EncryptionMessage {
 			EncryptionMessage::InitializeEncryptionSession(ref msg) => &msg.session,
 			EncryptionMessage::ConfirmEncryptionInitialization(ref msg) => &msg.session,
 			EncryptionMessage::EncryptionSessionError(ref msg) => &msg.session,
+		}
+	}
+
+	pub fn session_nonce(&self) -> u64 {
+		match *self {
+			EncryptionMessage::InitializeEncryptionSession(ref msg) => msg.session_nonce,
+			EncryptionMessage::ConfirmEncryptionInitialization(ref msg) => msg.session_nonce,
+			EncryptionMessage::EncryptionSessionError(ref msg) => msg.session_nonce,
 		}
 	}
 }
@@ -443,6 +506,16 @@ impl DecryptionMessage {
 			DecryptionMessage::DecryptionSessionCompleted(ref msg) => &msg.sub_session,
 		}
 	}
+
+	pub fn session_nonce(&self) -> u64 {
+		match *self {
+			DecryptionMessage::DecryptionConsensusMessage(ref msg) => msg.session_nonce,
+			DecryptionMessage::RequestPartialDecryption(ref msg) => msg.session_nonce,
+			DecryptionMessage::PartialDecryption(ref msg) => msg.session_nonce,
+			DecryptionMessage::DecryptionSessionError(ref msg) => msg.session_nonce,
+			DecryptionMessage::DecryptionSessionCompleted(ref msg) => msg.session_nonce,
+		}
+	}
 }
 
 impl SigningMessage {
@@ -465,6 +538,17 @@ impl SigningMessage {
 			SigningMessage::PartialSignature(ref msg) => &msg.sub_session,
 			SigningMessage::SigningSessionError(ref msg) => &msg.sub_session,
 			SigningMessage::SigningSessionCompleted(ref msg) => &msg.sub_session,
+		}
+	}
+
+	pub fn session_nonce(&self) -> u64 {
+		match *self {
+			SigningMessage::SigningConsensusMessage(ref msg) => msg.session_nonce,
+			SigningMessage::SigningGenerationMessage(ref msg) => msg.session_nonce,
+			SigningMessage::RequestPartialSignature(ref msg) => msg.session_nonce,
+			SigningMessage::PartialSignature(ref msg) => msg.session_nonce,
+			SigningMessage::SigningSessionError(ref msg) => msg.session_nonce,
+			SigningMessage::SigningSessionCompleted(ref msg) => msg.session_nonce,
 		}
 	}
 }

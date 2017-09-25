@@ -27,6 +27,7 @@ use bigint::prelude::U256;
 use bigint::hash::H256;
 use parking_lot::RwLock;
 use util::*;
+use bytes::Bytes;
 use rlp::*;
 use ethkey::{Generator, Random};
 use devtools::*;
@@ -41,7 +42,7 @@ use db::{NUM_COLUMNS, COL_STATE};
 use header::{Header as BlockHeader, BlockNumber};
 use filter::Filter;
 use log_entry::LocalizedLogEntry;
-use receipt::{Receipt, LocalizedReceipt};
+use receipt::{Receipt, LocalizedReceipt, TransactionOutcome};
 use blockchain::extras::BlockReceipts;
 use error::{ImportResult, Error as EthcoreError};
 use evm::{Factory as EvmFactory, VMType};
@@ -617,7 +618,7 @@ impl BlockChainClient for TestBlockChainClient {
 		// starts with 'f' ?
 		if *hash > H256::from("f000000000000000000000000000000000000000000000000000000000000000") {
 			let receipt = BlockReceipts::new(vec![Receipt::new(
-				Some(H256::zero()),
+				TransactionOutcome::StateRoot(H256::zero()),
 				U256::zero(),
 				vec![])]);
 			let mut rlp = RlpStream::new();

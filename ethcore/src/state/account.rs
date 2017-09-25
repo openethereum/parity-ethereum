@@ -23,6 +23,9 @@ use hash::{KECCAK_EMPTY, KECCAK_NULL_RLP, keccak};
 use bigint::prelude::U256;
 use bigint::hash::H256;
 use util::*;
+use bytes::{Bytes, ToPretty};
+use trie;
+use trie::{SecTrieDB, Trie, TrieFactory, TrieError};
 use pod_account::*;
 use rlp::*;
 use lru_cache::LruCache;
@@ -450,8 +453,8 @@ impl Account {
 	/// `storage_key` is the hash of the desired storage key, meaning
 	/// this will only work correctly under a secure trie.
 	pub fn prove_storage(&self, db: &HashDB, storage_key: H256) -> Result<(Vec<Bytes>, H256), Box<TrieError>> {
-		use util::trie::{Trie, TrieDB};
-		use util::trie::recorder::Recorder;
+		use trie::{Trie, TrieDB};
+		use trie::recorder::Recorder;
 
 		let mut recorder = Recorder::new();
 
@@ -475,6 +478,7 @@ impl fmt::Debug for Account {
 mod tests {
 	use rlp::{UntrustedRlp, RlpType, Compressible};
 	use util::*;
+	use bytes::Bytes;
 	use super::*;
 	use account_db::*;
 

@@ -1,0 +1,13 @@
+[package]
+name = "memorydb"
+version = "0.1.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+
+[dependencies]
+bigint = "4.0"
+elastic-array = "0.9"
+heapsize = "0.4"
+ethcore-bigint = { path = "../bigint", features = ["heapsizeof"] }
+hash = { path = "../hash" }
+hashdb = { path = "../hashdb" }
+rlp = { path = "../rlp" }

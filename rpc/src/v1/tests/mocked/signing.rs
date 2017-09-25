@@ -29,7 +29,8 @@ use v1::tests::helpers::TestMinerService;
 use v1::tests::mocked::parity;
 
 use bigint::prelude::U256;
-use util::{Address, ToPretty};
+use util::Address;
+use bytes::ToPretty;
 use ethkey::Secret;
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::TestBlockChainClient;

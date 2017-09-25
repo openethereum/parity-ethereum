@@ -25,6 +25,7 @@ rustc-serialize = "0.3"
 ethcore-io = { path = "../io" }
 ethcore-util = { path = ".." }
 ethcore-bigint = { path = "../bigint" }
+ethcore-bytes = { path = "../bytes" }
 ethcore-devtools = { path = "../../devtools" }
 ethkey = { path = "../../ethkey" }
 ethcrypto = { path = "../../ethcrypto" }

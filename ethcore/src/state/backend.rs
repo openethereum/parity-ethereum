@@ -28,7 +28,7 @@ use state::Account;
 use bigint::hash::H256;
 use parking_lot::Mutex;
 use util::{Address, MemoryDB};
-use util::hashdb::{AsHashDB, HashDB, DBValue};
+use hashdb::{AsHashDB, HashDB, DBValue};
 
 /// State backend. See module docs for more details.
 pub trait Backend: Send {

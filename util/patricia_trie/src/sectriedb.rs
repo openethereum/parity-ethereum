@@ -71,7 +71,7 @@ fn trie_to_sectrie() {
 	use memorydb::MemoryDB;
 	use hashdb::DBValue;
 	use super::triedbmut::TrieDBMut;
-	use super::super::TrieMut;
+	use super::TrieMut;
 
 	let mut memdb = MemoryDB::new();
 	let mut root = H256::default();

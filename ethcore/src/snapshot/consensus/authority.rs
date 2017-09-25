@@ -34,7 +34,8 @@ use snapshot::{Error, ManifestData};
 use itertools::{Position, Itertools};
 use rlp::{RlpStream, UntrustedRlp};
 use bigint::hash::H256;
-use util::{Bytes, KeyValueDB};
+use util::KeyValueDB;
+use bytes::Bytes;
 
 /// Snapshot creation and restoration for PoA chains.
 /// Chunk format:

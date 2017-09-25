@@ -31,7 +31,8 @@ use engines::Engine;
 use snapshot::{Error, ManifestData};
 use snapshot::block::AbridgedBlock;
 use bigint::hash::H256;
-use util::{Bytes, KeyValueDB};
+use util::KeyValueDB;
+use bytes::Bytes;
 use rlp::{RlpStream, UntrustedRlp};
 use rand::OsRng;
 

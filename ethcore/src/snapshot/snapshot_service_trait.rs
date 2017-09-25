@@ -16,7 +16,7 @@
 
 use super::{ManifestData, RestorationStatus};
 use bigint::hash::H256;
-use util::Bytes;
+use bytes::Bytes;
 use ipc::IpcConfig;
 
 /// The interface for a snapshot network service.

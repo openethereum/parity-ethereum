@@ -360,6 +360,37 @@ export default {
     }
   },
 
+  lockedHardwareAccountsInfo: {
+    desc: 'Provides a list of paths to locked hardware wallets',
+    params: [],
+    returns: {
+      type: Array,
+      desc: 'Paths of all locked hardware wallets',
+      example: "['/dev/hidraw0']"
+    }
+  },
+
+  hardwarePinMatrixAck: {
+    desc: 'Send a pin to a hardware wallet at a specific path to unlock it',
+    params: [
+      {
+        type: String,
+        desc: 'path to the device',
+        example: 'USB_2b24_0001_14100000'
+      },
+      {
+        type: String,
+        desc: 'the pin as recieved from the pin matrix',
+        example: '1234'
+      }
+    ],
+    returns: {
+      type: Boolean,
+      desc: 'Whether or not the pin entry successfully unlocked the device',
+      example: true
+    }
+  },
+
   listOpenedVaults: {
     desc: 'Returns a list of all opened vaults',
     params: [],

@@ -16,7 +16,7 @@
 
 use std::collections::HashMap;
 use network::{NetworkContext, PeerId, PacketId, NetworkError, SessionInfo, ProtocolId};
-use util::Bytes;
+use bytes::Bytes;
 use ethcore::client::BlockChainClient;
 use ethcore::header::BlockNumber;
 use ethcore::snapshot::SnapshotService;

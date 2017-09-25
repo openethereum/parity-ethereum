@@ -111,6 +111,18 @@ pub struct EthashParams {
 	/// See main EthashParams docs.
 	#[serde(rename="minGasPrice")]
 	pub min_gas_price: Option<Uint>,
+
+	/// EIP-649 transition block.
+	#[serde(rename="eip649Transition")]
+	pub eip649_transition: Option<Uint>,
+
+	/// EIP-649 bomb delay.
+	#[serde(rename="eip649Delay")]
+	pub eip649_delay: Option<Uint>,
+
+	/// EIP-649 base reward.
+	#[serde(rename="eip649Reward")]
+	pub eip649_reward: Option<Uint>,
 }
 
 /// Ethash engine deserialization.
@@ -221,6 +233,9 @@ mod tests {
 				max_gas_limit: None,
 				min_gas_price_transition: None,
 				min_gas_price: None,
+				eip649_transition: None,
+				eip649_delay: None,
+				eip649_reward: None,
 			}
 		});
 	}
@@ -262,6 +277,9 @@ mod tests {
 				max_gas_limit: None,
 				min_gas_price_transition: None,
 				min_gas_price: None,
+				eip649_transition: None,
+				eip649_delay: None,
+				eip649_reward: None,
 			}
 		});
 	}

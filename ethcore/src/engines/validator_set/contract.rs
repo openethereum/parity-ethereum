@@ -21,6 +21,7 @@ use std::sync::Weak;
 use bigint::hash::H256;
 use parking_lot::RwLock;
 use util::*;
+use bytes::Bytes;
 
 use futures::Future;
 use native_contracts::ValidatorReport as Provider;
@@ -139,6 +140,7 @@ mod tests {
 	use hash::keccak;
 	use bigint::hash::H520;
 	use util::*;
+	use bytes::ToPretty;
 	use rlp::encode;
 	use spec::Spec;
 	use header::Header;

@@ -7,6 +7,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [dependencies]
 rlp = { path = "../../util/rlp" }
 rlp_derive = { path = "../../util/rlp_derive" }
+ethcore-bytes = { path = "../../util/bytes" }
 ethcore-util = { path = "../../util" }
 ethcore-bigint = { path = "../../util/bigint" }
 ethjson = { path = "../../json" }

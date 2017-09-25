@@ -45,6 +45,10 @@ build_rpc_trait! {
 		#[rpc(name = "parity_hardwareAccountsInfo")]
 		fn hardware_accounts_info(&self) -> Result<BTreeMap<H160, HwAccountInfo>, Error>;
 
+		/// Get a list of paths to locked hardware wallets
+		#[rpc(name = "parity_lockedHardwareAccountsInfo")]
+		fn locked_hardware_accounts_info(&self) -> Result<Vec<String>, Error>;
+
 		/// Returns default account for dapp.
 		#[rpc(meta, name = "parity_defaultAccount")]
 		fn default_account(&self, Self::Metadata) -> BoxFuture<H160, Error>;

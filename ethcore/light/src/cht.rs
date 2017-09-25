@@ -23,8 +23,9 @@
 use ethcore::ids::BlockId;
 use bigint::prelude::U256;
 use bigint::hash::H256;
-use util::{Bytes, HashDB, MemoryDB};
-use util::trie::{self, TrieMut, TrieDBMut, Trie, TrieDB, Recorder};
+use util::{HashDB, MemoryDB};
+use bytes::Bytes;
+use trie::{self, TrieMut, TrieDBMut, Trie, TrieDB, Recorder};
 use rlp::{RlpStream, UntrustedRlp};
 
 // encode a key.

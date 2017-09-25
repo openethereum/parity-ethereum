@@ -22,6 +22,7 @@ use bigint::prelude::U256;
 use bigint::hash::H256;
 use parking_lot::{Mutex, RwLock};
 use util::*;
+use bytes::Bytes;
 use timer::PerfTimer;
 use using_queue::{UsingQueue, GetAction};
 use account_provider::{AccountProvider, SignError as AccountError};
@@ -1021,7 +1022,7 @@ impl MinerService for Miner {
 							},
 							logs: receipt.logs.clone(),
 							log_bloom: receipt.log_bloom,
-							state_root: receipt.state_root,
+							outcome: receipt.outcome.clone(),
 						}
 					})
 			}

@@ -220,7 +220,16 @@ impl<'a, 'b> Runtime<'a, 'b> {
 			vm::ContractCreateResult::Failed => {
 				trace!(target: "wasm", "runtime: create contract fail");
 				Ok(Some((-1i32).into()))
-			}
+			},
+			vm::ContractCreateResult::Reverted(gas_left, _) => {
+				trace!(target: "wasm", "runtime: create contract reverted");
+				self.gas_counter = self.gas_limit - gas_left.low_u64();
+				Ok(Some((-1i32).into()))
+			},
+			vm::ContractCreateResult::FailedInStaticCall => {
+				trace!(target: "wasm", "runtime: create contract called in static context");
+				Err(interpreter::Error::Trap("CREATE in static context".to_owned()))
+			},
 		}
 	}
 
@@ -322,6 +331,11 @@ impl<'a, 'b> Runtime<'a, 'b> {
 				self.gas_counter = self.gas_limit - gas_left.low_u64();
 				self.memory.set(result_ptr, &result)?;
 				Ok(Some(0i32.into()))
+			},
+			vm::MessageCallResult::Reverted(gas_left, _) => {
+				self.gas_counter = self.gas_limit - gas_left.low_u64();
+				self.memory.set(result_ptr, &result)?;
+				Ok(Some((-1i32).into()))
 			},
 			vm::MessageCallResult::Failed  => {
 				Ok(Some((-1i32).into()))
