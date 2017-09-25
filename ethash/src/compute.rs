@@ -247,7 +247,7 @@ fn hash_compute(light: &Light, full_size: usize, header_hash: &H256, nonce: u64)
 		// times and set each index, leaving the array fully initialized. THIS ONLY WORKS ON LITTLE-
 		// ENDIAN MACHINES. See a future PR to make this and the rest of the code work correctly on
 		// big-endian arches like mips.
-		let mut compress: &mut [u32; MIX_WORDS / 4] =
+		let compress: &mut [u32; MIX_WORDS / 4] =
 			unsafe { make_const_array!(MIX_WORDS / 4, &mut buf.compress_bytes) };
 
 		// Compress mix
@@ -291,7 +291,7 @@ fn calculate_dag_item(node_index: u32, cache: &[Node]) -> Node {
 	let mut ret = cache[node_index as usize % num_parent_nodes].clone();
 	ret.as_words_mut()[0] ^= node_index;
 
-	keccak_512::inplace(&mut ret.bytes);
+	keccak_512::inplace(ret.as_bytes_mut());
 
 	debug_assert_eq!(NODE_WORDS, 16);
 	for i in 0..ETHASH_DATASET_PARENTS as u32 {
@@ -306,7 +306,7 @@ fn calculate_dag_item(node_index: u32, cache: &[Node]) -> Node {
 		}
 	}
 
-	keccak_512::inplace(&mut ret.bytes);
+	keccak_512::inplace(ret.as_bytes_mut());
 
 	ret
 }
