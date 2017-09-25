@@ -158,13 +158,39 @@ export default class FoundationWalletUtils {
       })
       .then((logs) => {
         return logs.sort((logA, logB) => {
-          const comp = logA.blockNumber.comparedTo(logB.blockNumber);
+          const bnA = logA.blockNumber;
+          const bnB = logA.blockNumber;
+
+          if (!bnA) {
+            console.warn('could not find block number in log', logA);
+            return 1;
+          }
+
+          if (!bnB) {
+            console.warn('could not find block number in log', logB);
+            return -1;
+          }
+
+          const comp = bnA.comparedTo(bnB);
 
           if (comp !== 0) {
             return comp;
           }
 
-          return logA.transactionIndex.comparedTo(logB.transactionIndex);
+          const txIdxA = logA.transactionIndex;
+          const txIdxB = logB.transactionIndex;
+
+          if (!txIdxA) {
+            console.warn('could not find transaction index in log', logA);
+            return 1;
+          }
+
+          if (!txIdxB) {
+            console.warn('could not find transaction index in log', logB);
+            return -1;
+          }
+
+          return txIdxA.comparedTo(txIdxB);
         });
       })
       .then((pendingTxs) => {
