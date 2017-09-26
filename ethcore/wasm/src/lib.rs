@@ -125,8 +125,8 @@ impl vm::Vm for WasmInterpreter {
 			})?
 		);
 
-		let d_ptr = runtime.write_descriptor(params.data.unwrap_or(Vec::with_capacity(0)))
-			.map_err(|e| Error(e))?;
+		let d_ptr = runtime.write_descriptor(&params.data.unwrap_or_default())
+			.map_err(Error)?;
 
 		{
 			let execution_params = runtime.execution_params()

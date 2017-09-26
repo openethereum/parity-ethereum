@@ -434,7 +434,7 @@ impl<'a, 'b> Runtime<'a, 'b> {
 	}
 
 	/// Write call descriptor to wasm memory
-	pub fn write_descriptor(&mut self, input: Vec<u8>) -> Result<WasmPtr, InterpreterError> {
+	pub fn write_descriptor(&mut self, input: &[u8]) -> Result<WasmPtr, InterpreterError> {
 		let d_ptr = self.alloc(16)?;
 
 		let args_len = input.len() as u32;
