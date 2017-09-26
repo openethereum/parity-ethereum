@@ -12,7 +12,6 @@
 				"eip160Transition": "0",
 				"eip161abcTransition": "0",
 				"eip161dTransition": "0",
-				"maxCodeSize": 24576,
 				"eip649Reward": "0x29A2241AF62C0000",
 				"eip100bTransition": "5",
 				"eip649Transition": "5"
@@ -26,6 +25,7 @@
 		"maximumExtraDataSize": "0x20",
 		"minGasLimit": "0x1388",
 		"networkID" : "0x1",
+		"maxCodeSize": 24576,
 		"eip98Transition": "5",
 		"eip140Transition": "5",
 		"eip211Transition": "5",
