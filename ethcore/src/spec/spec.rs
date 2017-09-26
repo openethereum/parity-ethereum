@@ -38,7 +38,6 @@ use super::seal::Generic as GenericSeal;
 use builtin::Builtin;
 use engines::{EthEngine, NullEngine, InstantSeal, BasicAuthority, AuthorityRound, Tendermint, DEFAULT_BLOCKHASH_CONTRACT};
 use error::Error;
-use ethash::OptimizeFor;
 use executive::Executive;
 use factory::Factories;
 use header::{BlockNumber, Header};
@@ -47,6 +46,8 @@ use pod_state::*;
 use state::{Backend, State, Substate};
 use state::backend::Basic as BasicBackend;
 use trace::{NoopTracer, NoopVMTracer};
+
+pub use ethash::OptimizeFor;
 
 // helper for formatting errors.
 fn fmt_err<F: ::std::fmt::Display>(f: F) -> String {
