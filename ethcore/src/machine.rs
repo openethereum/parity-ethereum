@@ -346,13 +346,17 @@ impl EthereumMachine {
 
 	/// Does basic verification of the transaction.
 	pub fn verify_transaction_basic(&self, t: &UnverifiedTransaction, header: &Header) -> Result<(), Error> {
-		t.check_low_s()?;
+		let check_low_s = match self.ethash_extensions {
+			Some(ref ext) => header.number() >= ext.homestead_transition,
+			None => true,
+		};
 
-		if let Some(n) = t.chain_id() {
-			if header.number() >= self.params().eip155_transition && n != self.params().chain_id {
-				return Err(TransactionError::InvalidChainId.into());
-			}
-		}
+		let chain_id = if header.number() >= self.params().eip155_transition {
+			Some(self.params().chain_id)
+		} else {
+			None
+		};
+		t.verify_basic(check_low_s, chain_id, false)?;
 
 		Ok(())
 	}
