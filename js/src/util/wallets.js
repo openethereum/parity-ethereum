@@ -77,9 +77,6 @@ export default class WalletsUtils {
     return WalletsUtils
       .delegateCall(api, walletContract.address, 'fetchTransactions', [ walletContract ])
       .then((transactions) => {
-        console.warn('tx list');
-        console.warn(JSON.stringify(transactions, null, 2));
-
         return transactions.sort((txA, txB) => {
           const bnA = txA.blockNumber;
           const bnB = txB.blockNumber;
