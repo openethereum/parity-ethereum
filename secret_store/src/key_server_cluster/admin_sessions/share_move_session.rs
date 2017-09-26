@@ -627,6 +627,7 @@ mod tests {
 	use key_server_cluster::servers_set_change_session::tests::generate_key;
 	use key_server_cluster::jobs::servers_set_change_access_job::ordered_nodes_hash;
 	use key_server_cluster::admin_sessions::ShareChangeSessionMeta;
+	use key_server_cluster::admin_sessions::share_add_session::tests::check_secret_is_preserved;
 	use super::{SessionImpl, SessionParams, SessionTransport, IsolatedSessionTransport};
 
 	struct Node {
@@ -764,14 +765,17 @@ mod tests {
 			let mut ml = MessageLoop::new(1, master_node_id.clone(), old_nodes_set, shares_to_move.clone());
 
 			// initialize session on master node && run to completion
-			ml.nodes[&master_node_id].session.initialize(shares_to_move, Some(ml.old_set_signature.clone()), Some(ml.new_set_signature.clone())).unwrap();
+			ml.nodes[&master_node_id].session.initialize(shares_to_move.clone(), Some(ml.old_set_signature.clone()), Some(ml.new_set_signature.clone())).unwrap();
 			ml.run();
 
 			// check that session has completed on all nodes
 			assert!(ml.nodes.values().all(|n| n.session.is_finished()));
 			
 			// check that secret is still the same as before adding the share
-			//check_secret_is_preserved(ml.original_key_pair.clone(), ml.nodes.iter().map(|(k, v)| (k.clone(), v.key_storage.clone())).collect());
+			check_secret_is_preserved(ml.original_key_pair.clone(), ml.nodes.iter()
+				.filter(|&(k, _)| !shares_to_move.values().any(|v| v == k))
+				.map(|(k, v)| (k.clone(), v.key_storage.clone()))
+				.collect());
 		}
 	}
 }

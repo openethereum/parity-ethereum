@@ -810,7 +810,7 @@ fn generate_refreshed_polynoms_for_new_nodes<'a, I>(absolute_term_shares: I, thr
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
 	use std::sync::Arc;
 	use std::collections::{VecDeque, BTreeMap, BTreeSet};
 	use ethkey::{Random, Generator, Public, Secret, KeyPair, Signature, sign};
@@ -864,7 +864,7 @@ mod tests {
 	}
 
 	/// This only works for schemes where threshold = 1
-	fn check_secret_is_preserved(joint_key_pair: KeyPair, nodes: BTreeMap<NodeId, Arc<DummyKeyStorage>>) {
+	pub fn check_secret_is_preserved(joint_key_pair: KeyPair, nodes: BTreeMap<NodeId, Arc<DummyKeyStorage>>) {
 		let n = nodes.len();
 		let document_secret_plain = math::generate_random_point().unwrap();
 		for n1 in 0..n {
