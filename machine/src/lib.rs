@@ -28,13 +28,13 @@ use util::Address;
 /// "seal" that indicates validity to a consensus engine.
 pub trait Header {
 	/// Cryptographic hash of the header, excluding the seal.
-    fn bare_hash(&self) -> H256;
+	fn bare_hash(&self) -> H256;
 
 	/// Cryptographic hash of the header, including the seal.
-    fn hash(&self) -> H256;
+	fn hash(&self) -> H256;
 
 	/// Get a reference to the seal fields.
-    fn seal(&self) -> &[Vec<u8>];
+	fn seal(&self) -> &[Vec<u8>];
 
 	/// The author of the header.
 	fn author(&self) -> &Address;
@@ -46,7 +46,7 @@ pub trait Header {
 /// a header with an associated score (difficulty in PoW terms)
 pub trait ScoredHeader: Header {
 	/// Get the score of this header.
-    fn score(&self) -> &U256;
+	fn score(&self) -> &U256;
 
 	/// Set the score of this header.
 	fn set_score(&mut self, score: U256);
@@ -79,7 +79,7 @@ pub trait Transactions: LiveBlock {
 /// Generalization of types surrounding blockchain-suitable state machines.
 pub trait Machine: for<'a> LocalizedMachine<'a> {
 	/// The block header type.
-    type Header: Header;
+	type Header: Header;
 	/// The live block type.
 	type LiveBlock: LiveBlock<Header=Self::Header>;
 	/// A handle to a blockchain client for this machine.
