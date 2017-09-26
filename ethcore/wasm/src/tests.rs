@@ -88,7 +88,7 @@ fn logger() {
 	};
 
 	println!("ext.store: {:?}", ext.store);
-	assert_eq!(gas_left, U256::from(98731));
+	assert_eq!(gas_left, U256::from(98_731));
 	let address_val: H256 = address.into();
 	assert_eq!(
 		ext.store.get(&"0100000000000000000000000000000000000000000000000000000000000000".parse().unwrap()).expect("storage key to exist"),
@@ -277,7 +277,7 @@ fn create() {
 			code_address: None,
 		}
 	));
-	assert_eq!(gas_left, U256::from(99113));
+	assert_eq!(gas_left, U256::from(99_113));
 }
 
 
@@ -443,7 +443,7 @@ fn keccak() {
 	};
 
 	assert_eq!(H256::from_slice(&result), H256::from("68371d7e884c168ae2022c82bd837d51837718a7f7dfb7aa3f753074a35e1d87"));
-	assert_eq!(gas_left, U256::from(84026));
+	assert_eq!(gas_left, U256::from(84_026));
 }
 
 
@@ -497,7 +497,7 @@ fn math_add() {
 		}
 	).expect("Interpreter to execute without any errors");
 
-	assert_eq!(gas_left, U256::from(98241));
+	assert_eq!(gas_left, U256::from(98_241));
 	assert_eq!(
 		U256::from_dec_str("1888888888888888888888888888887").unwrap(),
 		(&result[..]).into()
@@ -519,7 +519,7 @@ fn math_mul() {
 		}
 	).expect("Interpreter to execute without any errors");
 
-	assert_eq!(gas_left, U256::from(97390));
+	assert_eq!(gas_left, U256::from(97_390));
 	assert_eq!(
 		U256::from_dec_str("888888888888888888888888888887111111111111111111111111111112").unwrap(),
 		(&result[..]).into()
@@ -541,7 +541,7 @@ fn math_sub() {
 		}
 	).expect("Interpreter to execute without any errors");
 
-	assert_eq!(gas_left, U256::from(98285));
+	assert_eq!(gas_left, U256::from(98_285));
 	assert_eq!(
 		U256::from_dec_str("111111111111111111111111111111").unwrap(),
 		(&result[..]).into()
