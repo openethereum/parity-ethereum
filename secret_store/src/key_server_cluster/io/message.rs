@@ -26,7 +26,8 @@ use bigint::prelude::U256;
 use bigint::hash::H256;
 use key_server_cluster::Error;
 use key_server_cluster::message::{Message, ClusterMessage, GenerationMessage, EncryptionMessage,
-	DecryptionMessage, SigningMessage, ServersSetChangeMessage, ShareAddMessage, ShareMoveMessage};
+	DecryptionMessage, SigningMessage, ServersSetChangeMessage, ShareAddMessage, ShareMoveMessage,
+	ShareRemoveMessage};
 
 /// Size of serialized header.
 pub const MESSAGE_HEADER_SIZE: usize = 18;
@@ -128,6 +129,11 @@ pub fn serialize_message(message: Message) -> Result<SerializedMessage, Error> {
 		Message::ShareMove(ShareMoveMessage::ShareMove(payload))							=> (352, serde_json::to_vec(&payload)),
 		Message::ShareMove(ShareMoveMessage::ShareMoveConfirm(payload))						=> (353, serde_json::to_vec(&payload)),
 		Message::ShareMove(ShareMoveMessage::ShareMoveError(payload))						=> (354, serde_json::to_vec(&payload)),
+
+		Message::ShareRemove(ShareRemoveMessage::ShareRemoveConsensusMessage(payload))		=> (400, serde_json::to_vec(&payload)),
+		Message::ShareRemove(ShareRemoveMessage::ShareRemoveRequest(payload))				=> (401, serde_json::to_vec(&payload)),
+		Message::ShareRemove(ShareRemoveMessage::ShareRemoveConfirm(payload))				=> (402, serde_json::to_vec(&payload)),
+		Message::ShareRemove(ShareRemoveMessage::ShareRemoveError(payload))					=> (403, serde_json::to_vec(&payload)),
 	};
 
 	let payload = payload.map_err(|err| Error::Serde(err.to_string()))?;
@@ -195,6 +201,11 @@ pub fn deserialize_message(header: &MessageHeader, payload: Vec<u8>) -> Result<M
 		352 => Message::ShareMove(ShareMoveMessage::ShareMove(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
 		353 => Message::ShareMove(ShareMoveMessage::ShareMoveConfirm(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
 		354 => Message::ShareMove(ShareMoveMessage::ShareMoveError(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+
+		400 => Message::ShareRemove(ShareRemoveMessage::ShareRemoveConsensusMessage(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		401 => Message::ShareRemove(ShareRemoveMessage::ShareRemoveRequest(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		403 => Message::ShareRemove(ShareRemoveMessage::ShareRemoveConfirm(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		404 => Message::ShareRemove(ShareRemoveMessage::ShareRemoveError(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
 
 		_ => return Err(Error::Serde(format!("unknown message type {}", header.kind))),
 	})

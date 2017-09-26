@@ -197,15 +197,8 @@ impl ShareChangeSession {
 
 	/// When share-remove message is received.
 	pub fn on_share_remove_message(&mut self, sender: &NodeId, message: &ShareRemoveMessage) -> Result<(), Error> {
-		if let &ShareRemoveMessage::InitializeShareRemoveSession(ref message) = message {
-			if self.share_remove_session.is_some() {
-				return Err(Error::InvalidMessage);
-			}
-			if sender != &self.master_node_id {
-				return Err(Error::InvalidMessage);
-			}
-
-			self.create_share_remove_session(&message.sub_session.clone().into())?;
+		if self.share_remove_session.is_none() {
+			self.create_share_remove_session(&message.sub_session().clone().into())?;
 		}
 
 		let change_state_needed = self.share_remove_session.as_ref()
@@ -267,7 +260,8 @@ impl ShareChangeSession {
 
 	/// Create new share remove session.
 	fn create_share_remove_session(&mut self, sub_session: &Secret) -> Result<(), Error> {
-		self.share_remove_session = Some(ShareRemoveSessionImpl::new_nested(ShareRemoveSessionParams {
+		let nodes_to_remove = self.nodes_to_remove.take().ok_or(Error::InvalidStateForRequest)?;
+		let share_remove_session = ShareRemoveSessionImpl::new(ShareRemoveSessionParams {
 			meta: SessionMeta {
 				id: self.key_id.clone(),
 				threshold: 0,
@@ -278,8 +272,11 @@ impl ShareChangeSession {
 			sub_session: sub_session.clone(),
 			transport: ShareChangeTransport::new(self.session_id, self.nonce, self.cluster.clone()),
 			key_storage: self.key_storage.clone(),
-			key_share: self.document_key_share.as_ref().expect("TODO").clone(),
-		})?);
+		})?;
+println!("===");
+		share_remove_session.set_consensus_output(nodes_to_remove)?;
+println!("===---");
+		self.share_remove_session = Some(share_remove_session);
 		Ok(())
 	}
 
@@ -303,10 +300,10 @@ impl ShareChangeSession {
 			}
 		}
 
-		if let Some(nodes_to_remove) = self.nodes_to_remove.take() {
+		if let Some(nodes_to_remove) = self.nodes_to_remove.clone() {
 			if !nodes_to_remove.is_empty() {
 				self.create_share_remove_session(sub_session)?;
-				return self.share_remove_session.as_ref().expect("TODO").initialize(nodes_to_remove);
+				return self.share_remove_session.as_ref().expect("TODO").initialize(nodes_to_remove, None, None);
 			}
 		}
 

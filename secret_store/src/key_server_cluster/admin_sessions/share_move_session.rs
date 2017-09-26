@@ -107,7 +107,7 @@ enum SessionState {
 	Finished,
 }
 
-/// Isolated ShareAdd session transport.
+/// Isolated ShareMove session transport.
 #[derive(Clone)]
 pub struct IsolatedSessionTransport {
 	/// Key id.
@@ -123,7 +123,7 @@ pub struct IsolatedSessionTransport {
 }
 
 impl<T> SessionImpl<T> where T: SessionTransport {
-	/// Create new share addition session.
+	/// Create new share move session.
 	pub fn new(params: SessionParams<T>) -> Result<Self, Error> {
 		Ok(SessionImpl {
 			core: SessionCore {
@@ -208,7 +208,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 			return Ok(());
 		}
 
-		// otherwise => start sending ShareAdd-specific messages
+		// otherwise => start sending ShareMove-specific messages
 		Self::on_consensus_established(&self.core, &mut *data)
 	}
 

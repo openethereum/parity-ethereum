@@ -413,6 +413,7 @@ impl ClusterCore {
 			Message::ServersSetChange(message) => ClusterCore::process_servers_set_change_message(data, connection, message),
 			Message::ShareAdd(message) => unimplemented!(),
 			Message::ShareMove(message) => unimplemented!(),
+			Message::ShareRemove(message) => unimplemented!(),
 			Message::Cluster(message) => ClusterCore::process_cluster_message(data, connection, message),
 		}
 	}

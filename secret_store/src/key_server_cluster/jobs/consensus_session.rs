@@ -127,6 +127,7 @@ impl<ConsensusExecutor, ConsensusTransport, ComputationExecutor, ComputationTran
 	pub fn result(&self) -> Result<ComputationExecutor::JobResponse, Error> {
 		debug_assert!(self.meta.self_node_id == self.meta.master_node_id);
 		if self.state != ConsensusSessionState::Finished {
+println!("=== 1");
 			return Err(Error::InvalidStateForRequest);
 		}
 
@@ -159,6 +160,7 @@ impl<ConsensusExecutor, ConsensusTransport, ComputationExecutor, ComputationTran
 	pub fn select_consensus_group(&mut self) -> Result<&BTreeSet<NodeId>, Error> {
 		debug_assert!(self.meta.self_node_id == self.meta.master_node_id);
 		if self.state != ConsensusSessionState::ConsensusEstablished {
+println!("=== 2");
 			return Err(Error::InvalidStateForRequest);
 		}
 
@@ -194,6 +196,7 @@ impl<ConsensusExecutor, ConsensusTransport, ComputationExecutor, ComputationTran
 			return Err(Error::InvalidMessage);
 		}
 		if self.state != ConsensusSessionState::ConsensusEstablished {
+println!("=== 3");
 			return Err(Error::InvalidStateForRequest);
 		}
 
@@ -203,6 +206,7 @@ impl<ConsensusExecutor, ConsensusTransport, ComputationExecutor, ComputationTran
 	/// Process job response on slave node.
 	pub fn on_job_response(&mut self, node: &NodeId, response: ComputationExecutor::PartialJobResponse) -> Result<(), Error> {
 		if self.state != ConsensusSessionState::WaitingForPartialResults {
+println!("=== 4");
 			return Err(Error::InvalidStateForRequest);
 		}
 
@@ -218,6 +222,7 @@ impl<ConsensusExecutor, ConsensusTransport, ComputationExecutor, ComputationTran
 			return Err(Error::InvalidMessage);
 		}
 		if self.state != ConsensusSessionState::ConsensusEstablished {
+println!("=== 5");
 			return Err(Error::InvalidStateForRequest);
 		}
 

@@ -41,7 +41,7 @@ pub enum Message {
 	/// Share move message.
 	ShareMove(ShareMoveMessage),
 	/// Share add message.
-	/*ShareRemove(ShareRemoveMessage),*/
+	ShareRemove(ShareRemoveMessage),
 	/// Servers set change message.
 	ServersSetChange(ServersSetChangeMessage),
 }
@@ -219,8 +219,8 @@ pub enum ShareMoveMessage {
 /// All possible messages that can be sent during share remove session.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum ShareRemoveMessage {
-	InitializeShareRemoveSession(InitializeShareRemoveSession),
-	ConfirmShareRemoveInitialization(ConfirmShareRemoveInitialization),
+	/// Consensus establishing message.
+	ShareRemoveConsensusMessage(ShareRemoveConsensusMessage),
 	/// Share remove request.
 	ShareRemoveRequest(ShareRemoveRequest),
 	/// Share remove confirmation.
@@ -872,28 +872,17 @@ pub struct ShareMoveError {
 	pub error: String,
 }
 
-/// Initialize new share remove session.
+/// Consensus-related share remove session message.
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct InitializeShareRemoveSession {
-	/// Generation session Id.
-	pub session: MessageSessionId,
-	/// Share remove session Id.
-	pub sub_session: SerializableSecret,
-	/// Session-level nonce.
-	pub session_nonce: u64,
-	/// Nodes to remove from session.
-	pub shares_to_remove: BTreeSet<MessageNodeId>,
-}
-
-/// Share remove session initialization is confirmed.
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct ConfirmShareRemoveInitialization {
-	/// Generation session Id.
-	pub session: MessageSessionId,
+pub struct ShareRemoveConsensusMessage {
 	/// Share move session Id.
+	pub session: MessageSessionId,
+	/// Servers set change session Id.
 	pub sub_session: SerializableSecret,
 	/// Session-level nonce.
 	pub session_nonce: u64,
+	/// Consensus message.
+	pub message: ConsensusMessageWithServersSet,
 }
 
 /// Share remove is requested.
@@ -1128,18 +1117,25 @@ impl ShareMoveMessage {
 impl ShareRemoveMessage {
 	pub fn session(&self) -> &SessionId {
 		match *self {
-			ShareRemoveMessage::InitializeShareRemoveSession(ref msg) => &msg.session,
-			ShareRemoveMessage::ConfirmShareRemoveInitialization(ref msg) => &msg.session,
+			ShareRemoveMessage::ShareRemoveConsensusMessage(ref msg) => &msg.session,
 			ShareRemoveMessage::ShareRemoveRequest(ref msg) => &msg.session,
 			ShareRemoveMessage::ShareRemoveConfirm(ref msg) => &msg.session,
 			ShareRemoveMessage::ShareRemoveError(ref msg) => &msg.session,
 		}
 	}
 
+	pub fn sub_session(&self) -> &Secret {
+		match *self {
+			ShareRemoveMessage::ShareRemoveConsensusMessage(ref msg) => &msg.sub_session,
+			ShareRemoveMessage::ShareRemoveRequest(ref msg) => &msg.sub_session,
+			ShareRemoveMessage::ShareRemoveConfirm(ref msg) => &msg.sub_session,
+			ShareRemoveMessage::ShareRemoveError(ref msg) => &msg.sub_session,
+		}
+	}
+
 	pub fn session_nonce(&self) -> u64 {
 		match *self {
-			ShareRemoveMessage::InitializeShareRemoveSession(ref msg) => msg.session_nonce,
-			ShareRemoveMessage::ConfirmShareRemoveInitialization(ref msg) => msg.session_nonce,
+			ShareRemoveMessage::ShareRemoveConsensusMessage(ref msg) => msg.session_nonce,
 			ShareRemoveMessage::ShareRemoveRequest(ref msg) => msg.session_nonce,
 			ShareRemoveMessage::ShareRemoveConfirm(ref msg) => msg.session_nonce,
 			ShareRemoveMessage::ShareRemoveError(ref msg) => msg.session_nonce,
@@ -1158,6 +1154,7 @@ impl fmt::Display for Message {
 			Message::ServersSetChange(ref message) => write!(f, "ServersSetChange.{}", message),
 			Message::ShareAdd(ref message) => write!(f, "ShareAdd.{}", message),
 			Message::ShareMove(ref message) => write!(f, "ShareMove.{}", message),
+			Message::ShareRemove(ref message) => write!(f, "ShareRemove.{}", message),
 		}
 	}
 }
@@ -1305,8 +1302,7 @@ impl fmt::Display for ShareMoveMessage {
 impl fmt::Display for ShareRemoveMessage {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match *self {
-			ShareRemoveMessage::InitializeShareRemoveSession(_) => write!(f, "InitializeShareRemoveSession"),
-			ShareRemoveMessage::ConfirmShareRemoveInitialization(_) => write!(f, "ConfirmShareRemoveInitialization"),
+			ShareRemoveMessage::ShareRemoveConsensusMessage(ref m) => write!(f, "InitializeShareRemoveSession.{}", m.message),
 			ShareRemoveMessage::ShareRemoveRequest(_) => write!(f, "ShareRemoveRequest"),
 			ShareRemoveMessage::ShareRemoveConfirm(_) => write!(f, "ShareRemoveConfirm"),
 			ShareRemoveMessage::ShareRemoveError(_) => write!(f, "ShareRemoveError"),

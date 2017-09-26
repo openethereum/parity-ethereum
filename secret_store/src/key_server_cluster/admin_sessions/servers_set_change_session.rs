@@ -279,7 +279,9 @@ println!("=== consensus.self.core.all_nodes_set.len() = {}", self.core.all_nodes
 							},
 						})?);
 					},
-					_ => return Err(Error::InvalidStateForRequest),
+					_ => {
+println!("=== 1");
+						return Err(Error::InvalidStateForRequest) },
 				}
 			}
 		}
@@ -298,8 +300,9 @@ println!("=== consensus.self.core.all_nodes_set.len() = {}", self.core.all_nodes
 		if self.core.meta.self_node_id != self.core.meta.master_node_id || !is_establishing_consensus || !is_consensus_established {
 			return Ok(());
 		}
-
+println!("=== 2");
 		let unknown_sessions_job = UnknownSessionsJob::new_on_master(self.core.key_storage.clone(), self.core.meta.self_node_id.clone());
+println!("=== 3");
 		consensus_session.disseminate_jobs(unknown_sessions_job, self.unknown_sessions_transport())
 	}
 
@@ -513,19 +516,23 @@ println!("=== consensus.self.core.all_nodes_set.len() = {}", self.core.all_nodes
 
 	/// When share remove message is received.
 	pub fn on_share_remove_message(&self, sender: &NodeId, message: &ServersSetChangeShareRemoveMessage) -> Result<(), Error> {
-/*		let mut data = self.data.lock();
+		let mut data = self.data.lock();
 
-		// start session if not started yet
-		if let &ShareRemoveMessage::InitializeShareRemoveSession(ref message) = &message.message {
-			match data.active_sessions.entry(message.session.clone().into()) {
-				Entry::Occupied(_) => return Err(Error::InvalidMessage),
-				Entry::Vacant(entry) => entry.insert(Self::join_share_change_session(&self.core, sender, message.session.clone().into())?),
-			};
+		let session_id = message.message.session().clone().into();
+		let (is_finished, is_master) = {
+			let mut change_session = data.active_sessions.get_mut(&session_id).ok_or(Error::InvalidMessage)?;
+			change_session.on_share_remove_message(sender, &message.message)?;
+			(change_session.is_finished(), change_session.is_master())
+		};
+		if is_finished {
+			data.active_sessions.remove(&session_id);
+			if is_master && self.core.meta.self_node_id != self.core.meta.master_node_id {
+				Self::return_delegated_session(&self.core, &session_id)?;
+			}
 		}
 
-		let mut change_session = data.active_sessions.get_mut(&message.message.session().clone().into()).ok_or(Error::InvalidMessage)?;
-		change_session.on_share_remove_message(sender, &message.message)*/
-		unimplemented!()
+		Ok(())
+
 	}
 
 	/// When error has occured on another node.
@@ -963,8 +970,9 @@ println!("=== {} -> {}: {}", from, to, message);
 
 		// remove 1 node so that session becames 2-of-2
 		let nodes_to_remove: BTreeSet<_> = gml.nodes.keys().cloned().skip(1).take(1).collect();
+		let new_nodes_set: BTreeSet<_> = gml.nodes.keys().cloned().filter(|n| !nodes_to_remove.contains(&n)).collect();
 		let mut ml = MessageLoop::new(gml, master_node_id, BTreeSet::new(), nodes_to_remove.clone());
-		ml.nodes[&master_node_id].session.initialize(ml.nodes.keys().cloned().collect(), Signature::default(), Signature::default());
+		ml.nodes[&master_node_id].session.initialize(new_nodes_set, Signature::default(), Signature::default());
 		ml.run();
 
 		// try to recover secret for every possible combination of nodes && check that secret is the same
