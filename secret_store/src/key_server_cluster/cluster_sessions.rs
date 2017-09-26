@@ -401,7 +401,7 @@ impl ClusterSessions {
 			},
 			transport: ShareMoveTransport::new(session_id.clone(), nonce, cluster),
 			key_storage: self.key_storage.clone(),
-			//admin_public: Public::default(), // TODO
+			admin_public: Public::default(), // TODO
 			nonce: nonce,
 		}))
 	}

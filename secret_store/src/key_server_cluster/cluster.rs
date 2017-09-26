@@ -1288,10 +1288,10 @@ impl ClusterClient for ClusterClientImpl {
 		}
 
 		let old_nodes_set: BTreeSet<_> = key_share.id_numbers.keys().cloned().collect();
-		let nodes_to_move: BTreeSet<_> = new_nodes_set.difference(&old_nodes_set).collect();
-		let mut nodes_to_move_map = BTreeMap::new();
-		for (target_node, source_node) in nodes_to_move.into_iter().zip(key_share.id_numbers.keys()) {
-			nodes_to_move_map.insert(target_node.clone(), source_node.clone());
+		let nodes_to_add: BTreeSet<_> = new_nodes_set.difference(&old_nodes_set).collect();
+		let mut shares_to_move = BTreeMap::new();
+		for (target_node, source_node) in nodes_to_add.into_iter().zip(key_share.id_numbers.keys()) {
+			shares_to_move.insert(target_node.clone(), source_node.clone());
 		}
 
 		let mut connected_nodes = self.data.connections.connected_nodes();
@@ -1299,7 +1299,7 @@ impl ClusterClient for ClusterClientImpl {
 
 		let cluster = Arc::new(ClusterView::new(self.data.clone(), connected_nodes.clone()));
 		let session = self.data.sessions.new_share_move_session(self.data.self_key_pair.public().clone(), session_id, None, cluster)?;
-		session.initialize(nodes_to_move_map, Some(old_set_signature), Some(new_set_signature))?;
+		session.initialize(shares_to_move, Some(old_set_signature), Some(new_set_signature))?;
 		Ok(ShareMoveSessionWrapper::new(Arc::downgrade(&self.data), session_id, session))
 	}
 
