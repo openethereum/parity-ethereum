@@ -153,7 +153,7 @@ impl ShareChangeSession {
 
 	/// Initialize session (on master node).
 	pub fn initialize(&mut self) -> Result<(), Error> {
-		self.proceed_to_next_state(&math::generate_random_scalar()?)
+		self.proceed_to_next_state()
 	}
 
 	/// When share-add message is received.
@@ -170,7 +170,7 @@ impl ShareChangeSession {
 			})
 			.unwrap_or(Err(Error::InvalidMessage))?;
 		if change_state_needed && self.self_node_id == self.master_node_id {
-			self.proceed_to_next_state(&math::generate_random_scalar()?)?;
+			self.proceed_to_next_state()?;
 		}
 
 		Ok(())
@@ -179,7 +179,7 @@ impl ShareChangeSession {
 	/// When share-move message is received.
 	pub fn on_share_move_message(&mut self, sender: &NodeId, message: &ShareMoveMessage) -> Result<(), Error> {
 		if self.share_move_session.is_none() {
-			self.create_share_move_session(&message.sub_session().clone().into())?;
+			self.create_share_move_session()?;
 		}
 
 		let change_state_needed = self.share_move_session.as_ref()
@@ -190,7 +190,7 @@ impl ShareChangeSession {
 			})
 			.unwrap_or(Err(Error::InvalidMessage))?;
 		if change_state_needed && self.self_node_id == self.master_node_id {
-			self.proceed_to_next_state(&math::generate_random_scalar()?)?;
+			self.proceed_to_next_state()?;
 		}
 
 		Ok(())
@@ -199,7 +199,7 @@ impl ShareChangeSession {
 	/// When share-remove message is received.
 	pub fn on_share_remove_message(&mut self, sender: &NodeId, message: &ShareRemoveMessage) -> Result<(), Error> {
 		if self.share_remove_session.is_none() {
-			self.create_share_remove_session(&message.sub_session().clone().into())?;
+			self.create_share_remove_session()?;
 		}
 
 		let change_state_needed = self.share_remove_session.as_ref()
@@ -210,7 +210,7 @@ impl ShareChangeSession {
 			})
 			.unwrap_or(Err(Error::InvalidMessage))?;
 		if change_state_needed && self.self_node_id == self.master_node_id {
-			self.proceed_to_next_state(&math::generate_random_scalar()?)?;
+			self.proceed_to_next_state()?;
 		}
 
 		Ok(())
@@ -239,17 +239,15 @@ impl ShareChangeSession {
 	}
 
 	/// Create new share move session.
-	fn create_share_move_session(&mut self, sub_session: &Secret) -> Result<(), Error> {
+	fn create_share_move_session(&mut self) -> Result<(), Error> {
 		let nodes_to_move = self.nodes_to_move.take().ok_or(Error::InvalidStateForRequest)?;
 		let share_move_session = ShareMoveSessionImpl::new(ShareMoveSessionParams {
-			meta: SessionMeta {
+			meta: ShareChangeSessionMeta {
 				id: self.key_id.clone(),
-				threshold: 0,
 				self_node_id: self.self_node_id.clone(),
 				master_node_id: self.master_node_id.clone(),
 			},
 			nonce: self.nonce,
-			sub_session: sub_session.clone(),
 			transport: ShareChangeTransport::new(self.session_id, self.nonce, self.cluster.clone()),
 			key_storage: self.key_storage.clone(),
 		})?;
@@ -259,17 +257,15 @@ impl ShareChangeSession {
 	}
 
 	/// Create new share remove session.
-	fn create_share_remove_session(&mut self, sub_session: &Secret) -> Result<(), Error> {
+	fn create_share_remove_session(&mut self) -> Result<(), Error> {
 		let nodes_to_remove = self.nodes_to_remove.take().ok_or(Error::InvalidStateForRequest)?;
 		let share_remove_session = ShareRemoveSessionImpl::new(ShareRemoveSessionParams {
-			meta: SessionMeta {
+			meta: ShareChangeSessionMeta {
 				id: self.key_id.clone(),
-				threshold: 0,
 				self_node_id: self.self_node_id.clone(),
 				master_node_id: self.master_node_id.clone(),
 			},
 			nonce: self.nonce,
-			sub_session: sub_session.clone(),
 			transport: ShareChangeTransport::new(self.session_id, self.nonce, self.cluster.clone()),
 			key_storage: self.key_storage.clone(),
 		})?;
@@ -281,7 +277,7 @@ println!("===---");
 	}
 
 	/// Proceed to the next state (on master node).
-	fn proceed_to_next_state(&mut self, sub_session: &Secret) -> Result<(), Error> {
+	fn proceed_to_next_state(&mut self) -> Result<(), Error> {
 		if self.self_node_id != self.master_node_id {
 			return Ok(());
 		}
@@ -295,14 +291,14 @@ println!("===---");
 
 		if let Some(nodes_to_move) = self.nodes_to_move.clone() {
 			if !nodes_to_move.is_empty() {
-				self.create_share_move_session(sub_session)?;
+				self.create_share_move_session()?;
 				return self.share_move_session.as_ref().expect("TODO").initialize(nodes_to_move, None, None);
 			}
 		}
 
 		if let Some(nodes_to_remove) = self.nodes_to_remove.clone() {
 			if !nodes_to_remove.is_empty() {
-				self.create_share_remove_session(sub_session)?;
+				self.create_share_remove_session()?;
 				return self.share_remove_session.as_ref().expect("TODO").initialize(nodes_to_remove, None, None);
 			}
 		}

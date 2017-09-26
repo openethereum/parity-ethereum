@@ -796,8 +796,6 @@ pub struct ShareAddError {
 pub struct ShareMoveConsensusMessage {
 	/// Share move session Id.
 	pub session: MessageSessionId,
-	/// Servers set change session Id.
-	pub sub_session: SerializableSecret,
 	/// Session-level nonce.
 	pub session_nonce: u64,
 	/// Consensus message.
@@ -809,8 +807,6 @@ pub struct ShareMoveConsensusMessage {
 pub struct ShareMoveRequest {
 	/// Generation session Id.
 	pub session: MessageSessionId,
-	/// Share move session Id.
-	pub sub_session: SerializableSecret,
 	/// Session-level nonce.
 	pub session_nonce: u64,
 }
@@ -820,8 +816,6 @@ pub struct ShareMoveRequest {
 pub struct ShareMove {
 	/// Generation session Id.
 	pub session: MessageSessionId,
-	/// Share move session Id.
-	pub sub_session: SerializableSecret,
 	/// Session-level nonce.
 	pub session_nonce: u64,
 	/// Author of the entry.
@@ -845,8 +839,6 @@ pub struct ShareMove {
 pub struct ShareMoveConfirm {
 	/// Generation session Id.
 	pub session: MessageSessionId,
-	/// Share move session Id.
-	pub sub_session: SerializableSecret,
 	/// Session-level nonce.
 	pub session_nonce: u64,
 }
@@ -856,8 +848,6 @@ pub struct ShareMoveConfirm {
 pub struct ShareMoveError {
 	/// Generation session Id.
 	pub session: MessageSessionId,
-	/// Share move session Id.
-	pub sub_session: SerializableSecret,
 	/// Session-level nonce.
 	pub session_nonce: u64,
 	/// Error message.
@@ -869,8 +859,6 @@ pub struct ShareMoveError {
 pub struct ShareRemoveConsensusMessage {
 	/// Share move session Id.
 	pub session: MessageSessionId,
-	/// Servers set change session Id.
-	pub sub_session: SerializableSecret,
 	/// Session-level nonce.
 	pub session_nonce: u64,
 	/// Consensus message.
@@ -882,8 +870,6 @@ pub struct ShareRemoveConsensusMessage {
 pub struct ShareRemoveRequest {
 	/// Generation session Id.
 	pub session: MessageSessionId,
-	/// Share move session Id.
-	pub sub_session: SerializableSecret,
 	/// Session-level nonce.
 	pub session_nonce: u64,
 }
@@ -893,8 +879,6 @@ pub struct ShareRemoveRequest {
 pub struct ShareRemoveConfirm {
 	/// Generation session Id.
 	pub session: MessageSessionId,
-	/// Share move session Id.
-	pub sub_session: SerializableSecret,
 	/// Session-level nonce.
 	pub session_nonce: u64,
 }
@@ -904,8 +888,6 @@ pub struct ShareRemoveConfirm {
 pub struct ShareRemoveError {
 	/// Generation session Id.
 	pub session: MessageSessionId,
-	/// Share move session Id.
-	pub sub_session: SerializableSecret,
 	/// Session-level nonce.
 	pub session_nonce: u64,
 	/// Error message.
@@ -1065,23 +1047,13 @@ impl ShareAddMessage {
 }
 
 impl ShareMoveMessage {
-	pub fn session(&self) -> &SessionId {
+	pub fn session_id(&self) -> &SessionId {
 		match *self {
 			ShareMoveMessage::ShareMoveConsensusMessage(ref msg) => &msg.session,
 			ShareMoveMessage::ShareMoveRequest(ref msg) => &msg.session,
 			ShareMoveMessage::ShareMove(ref msg) => &msg.session,
 			ShareMoveMessage::ShareMoveConfirm(ref msg) => &msg.session,
 			ShareMoveMessage::ShareMoveError(ref msg) => &msg.session,
-		}
-	}
-
-	pub fn sub_session(&self) -> &Secret {
-		match *self {
-			ShareMoveMessage::ShareMoveConsensusMessage(ref msg) => &msg.sub_session,
-			ShareMoveMessage::ShareMoveRequest(ref msg) => &msg.sub_session,
-			ShareMoveMessage::ShareMove(ref msg) => &msg.sub_session,
-			ShareMoveMessage::ShareMoveConfirm(ref msg) => &msg.sub_session,
-			ShareMoveMessage::ShareMoveError(ref msg) => &msg.sub_session,
 		}
 	}
 
@@ -1097,21 +1069,12 @@ impl ShareMoveMessage {
 }
 
 impl ShareRemoveMessage {
-	pub fn session(&self) -> &SessionId {
+	pub fn session_id(&self) -> &SessionId {
 		match *self {
 			ShareRemoveMessage::ShareRemoveConsensusMessage(ref msg) => &msg.session,
 			ShareRemoveMessage::ShareRemoveRequest(ref msg) => &msg.session,
 			ShareRemoveMessage::ShareRemoveConfirm(ref msg) => &msg.session,
 			ShareRemoveMessage::ShareRemoveError(ref msg) => &msg.session,
-		}
-	}
-
-	pub fn sub_session(&self) -> &Secret {
-		match *self {
-			ShareRemoveMessage::ShareRemoveConsensusMessage(ref msg) => &msg.sub_session,
-			ShareRemoveMessage::ShareRemoveRequest(ref msg) => &msg.sub_session,
-			ShareRemoveMessage::ShareRemoveConfirm(ref msg) => &msg.sub_session,
-			ShareRemoveMessage::ShareRemoveError(ref msg) => &msg.sub_session,
 		}
 	}
 

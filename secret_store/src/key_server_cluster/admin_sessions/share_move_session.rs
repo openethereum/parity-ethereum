@@ -28,9 +28,12 @@ use key_server_cluster::jobs::job_session::JobTransport;
 use key_server_cluster::jobs::dummy_job::{DummyJob, DummyJobTransport};
 use key_server_cluster::jobs::servers_set_change_access_job::{ServersSetChangeAccessJob, ServersSetChangeAccessRequest};
 use key_server_cluster::jobs::consensus_session::{ConsensusSessionParams, ConsensusSessionState, ConsensusSession};
+use key_server_cluster::admin_sessions::ShareChangeSessionMeta;
 
 /// Share move session API.
 pub trait Session: Send + Sync + 'static {
+	/// Wait until session is completed.
+	fn wait(&self) -> Result<(), Error>;
 }
 
 /// Share move session transport.
@@ -52,9 +55,7 @@ pub struct SessionImpl<T: SessionTransport> {
 /// Immutable session data.
 struct SessionCore<T: SessionTransport> {
 	/// Session metadata.
-	pub meta: SessionMeta,
-	/// Share add session id.
-	pub sub_session: Secret,
+	pub meta: ShareChangeSessionMeta,
 	/// Session-level nonce.
 	pub nonce: u64,
 	/// Original key share (for old nodes only). TODO: is it possible to read from key_storage
@@ -85,9 +86,7 @@ struct SessionData<T: SessionTransport> {
 /// SessionImpl creation parameters
 pub struct SessionParams<T: SessionTransport> {
 	/// Session meta.
-	pub meta: SessionMeta,
-	/// Sub session identifier.
-	pub sub_session: Secret,
+	pub meta: ShareChangeSessionMeta,
 	/// Session nonce.
 	pub nonce: u64,
 	/// Session transport to communicate to other cluster nodes.
@@ -112,8 +111,6 @@ enum SessionState {
 pub struct IsolatedSessionTransport {
 	/// Key id.
 	session: SessionId,
-	/// Session id.
-	sub_session: Secret,
 	/// Session-level nonce.
 	nonce: u64,
 	/// Shares to move between.
@@ -128,7 +125,6 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		Ok(SessionImpl {
 			core: SessionCore {
 				meta: params.meta.clone(),
-				sub_session: params.sub_session,
 				nonce: params.nonce,
 				key_share: params.key_storage.get(&params.meta.id).ok(), // ignore error, it will be checked later
 				transport: params.transport,
@@ -192,7 +188,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 			consensus_transport.set_shares_to_move(shares_to_move.clone());
 
 			let mut consensus_session = ConsensusSession::new(ConsensusSessionParams {
-				meta: self.core.meta.clone(),
+				meta: self.core.meta.clone().into_consensus_meta(all_nodes_set.len()),
 				consensus_executor: ServersSetChangeAccessJob::new_on_master(Public::default(), // TODO: admin key instead of default
 					key_share.id_numbers.keys().cloned().collect(),
 					key_share.id_numbers.keys().cloned().collect(),
@@ -235,7 +231,6 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 	/// When consensus-related message is received.
 	pub fn on_consensus_message(&self, sender: &NodeId, message: &ShareMoveConsensusMessage) -> Result<(), Error> {
 		debug_assert!(self.core.meta.id == *message.session);
-		debug_assert!(self.core.sub_session == *message.sub_session);
 		debug_assert!(sender != &self.core.meta.self_node_id);
 
 		// start slave consensus session if needed
@@ -246,8 +241,9 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 					let current_nodes_set = self.core.key_share.as_ref()
 						.map(|ks| ks.id_numbers.keys().cloned().collect())
 						.unwrap_or_else(|| message.old_nodes_set.clone().into_iter().map(Into::into).collect());
+					let all_nodes_set_len = message.new_nodes_set.keys().chain(message.old_nodes_set.iter()).collect::<BTreeSet<_>>().len();
 					data.consensus_session = Some(ConsensusSession::new(ConsensusSessionParams {
-						meta: self.core.meta.clone(),
+						meta: self.core.meta.clone().into_consensus_meta(all_nodes_set_len),
 						consensus_executor: ServersSetChangeAccessJob::new_on_slave(Public::default(), // TODO: administrator public
 							current_nodes_set,
 						),
@@ -293,102 +289,9 @@ println!("=== {}: {:?}", self.core.meta.self_node_id, shares_to_move);
 		Self::on_consensus_established(&self.core, &mut *data)
 	}
 
-	/*/// When initialization request is received.
-	pub fn on_initialize_session(&self, sender: &NodeId, message: &InitializeShareMoveSession) -> Result<(), Error> {
-		debug_assert!(self.core.meta.id == *message.session);
-		debug_assert!(self.core.sub_session == *message.sub_session);
-		debug_assert!(sender != &self.core.meta.self_node_id);
-
-		// awaiting this message from master node only
-		if sender != &self.core.meta.master_node_id {
-			return Err(Error::InvalidMessage);
-		}
-
-		// check shares_to_move
-		let shares_to_move = message.shares_to_move.clone().into_iter().map(|(k, v)| (k.into(), v.into())).collect();
-		check_shares_to_move(&self.core.meta.self_node_id, &shares_to_move, self.core.key_share.as_ref().map(|ks| &ks.id_numbers))?;
-
-		// this node is either old on both (this && master) nodes, or new on both nodes
-		let key_share = if let Some(share_destination) = shares_to_move.get(&self.core.meta.self_node_id) {
-			Some(self.core.key_share.as_ref()
-				.ok_or(Error::InvalidMessage)?)
-		} else {
-			if shares_to_move.values().any(|n| n == &self.core.meta.self_node_id) {
-				if self.core.key_share.is_some() {
-					return Err(Error::InvalidMessage);
-				}
-			}
-
-			None
-		};
-
-		// update state
-		let mut data = self.data.lock();
-		if data.state != SessionState::WaitingForInitialization {
-			return Err(Error::InvalidStateForRequest);
-		}
-		data.state = SessionState::WaitingForMoveConfirmation;
-		data.shares_to_move.extend(shares_to_move);
-		let move_confirmations_to_receive: Vec<_> = data.shares_to_move.values().cloned().collect();
-		data.move_confirmations_to_receive.extend(move_confirmations_to_receive);
-
-		// confirm initialization
-		self.core.transport.send(sender, ShareMoveMessage::ConfirmShareMoveInitialization(ConfirmShareMoveInitialization {
-			session: self.core.meta.id.clone().into(),
-			sub_session: self.core.sub_session.clone().into(),
-			session_nonce: self.core.nonce,
-		}))?;
-
-		Ok(())
-	}
-
-	/// When session initialization confirmation message is received.
-	pub fn on_confirm_initialization(&self, sender: &NodeId, message: &ConfirmShareMoveInitialization) -> Result<(), Error> {
-		debug_assert!(self.core.meta.id == *message.session);
-		debug_assert!(self.core.sub_session == *message.sub_session);
-		debug_assert!(sender != &self.core.meta.self_node_id);
-
-		// awaiting this message on master node only
-		if self.core.meta.self_node_id != self.core.meta.master_node_id {
-			return Err(Error::InvalidMessage);
-		}
-
-		// check state
-		let mut data = self.data.lock();
-		if data.state != SessionState::WaitingForInitializationConfirm {
-			return Err(Error::InvalidStateForRequest);
-		}
-		// do not expect double confirmations
-		if !data.init_confirmations_to_receive.remove(sender) {
-			return Err(Error::InvalidMessage);
-		}
-		// if not all init confirmations are received => return
-		if !data.init_confirmations_to_receive.is_empty() {
-			return Ok(());
-		}
-
-		// update state
-		data.state = SessionState::WaitingForMoveConfirmation;
-		// send share move requests
-		for share_source in data.shares_to_move.keys().filter(|n| **n != self.core.meta.self_node_id) {
-			self.core.transport.send(share_source, ShareMoveMessage::ShareMoveRequest(ShareMoveRequest {
-				session: self.core.meta.id.clone().into(),
-				sub_session: self.core.sub_session.clone().into(),
-				session_nonce: self.core.nonce,
-			}))?;
-		}
-		// move share if required
-		if let Some(share_destination) = data.shares_to_move.get(&self.core.meta.self_node_id) {
-			Self::move_share(&self.core, share_destination)?;
-		}
-
-		Ok(())
-	}*/
-
 	/// When share move request is received.
 	pub fn on_share_move_request(&self, sender: &NodeId, message: &ShareMoveRequest) -> Result<(), Error> {
 		debug_assert!(self.core.meta.id == *message.session);
-		debug_assert!(self.core.sub_session == *message.sub_session);
 		debug_assert!(sender != &self.core.meta.self_node_id);
 
 		// awaiting this message from master node only
@@ -416,7 +319,6 @@ println!("=== {}: {:?}", self.core.meta.self_node_id, shares_to_move);
 	/// When moving share is received.
 	pub fn on_share_move(&self, sender: &NodeId, message: &ShareMove) -> Result<(), Error> {
 		debug_assert!(self.core.meta.id == *message.session);
-		debug_assert!(self.core.sub_session == *message.sub_session);
 		debug_assert!(sender != &self.core.meta.self_node_id);
 
 		// check state
@@ -453,7 +355,6 @@ println!("=== {}: {:?}", self.core.meta.self_node_id, shares_to_move);
 			for node in all_nodes_set.into_iter().filter(|n| n != &self.core.meta.self_node_id) {
 				self.core.transport.send(&node, ShareMoveMessage::ShareMoveConfirm(ShareMoveConfirm {
 					session: self.core.meta.id.clone().into(),
-					sub_session: self.core.sub_session.clone().into(),
 					session_nonce: self.core.nonce,
 				}))?;
 			}
@@ -470,7 +371,6 @@ println!("=== {}: {:?}", self.core.meta.self_node_id, shares_to_move);
 	/// When share is received from destination node.
 	pub fn on_share_move_confirmation(&self, sender: &NodeId, message: &ShareMoveConfirm) -> Result<(), Error> {
 		debug_assert!(self.core.meta.id == *message.session);
-		debug_assert!(self.core.sub_session == *message.sub_session);
 		debug_assert!(sender != &self.core.meta.self_node_id);
 
 		// check state
@@ -535,7 +435,6 @@ println!("=== {}: {:?}", self.core.meta.self_node_id, shares_to_move);
 		for share_source in shares_to_move.values().filter(|n| **n != core.meta.self_node_id) {
 			core.transport.send(share_source, ShareMoveMessage::ShareMoveRequest(ShareMoveRequest {
 				session: core.meta.id.clone().into(),
-				sub_session: core.sub_session.clone().into(),
 				session_nonce: core.nonce,
 			}))?;
 		}
@@ -549,7 +448,6 @@ println!("=== {}: {:?}", self.core.meta.self_node_id, shares_to_move);
 			.expect("move_share is called on nodes from shares_to_move.keys(); all 'key' nodes have shares; qed");
 		core.transport.send(share_destination, ShareMoveMessage::ShareMove(ShareMove {
 			session: core.meta.id.clone().into(),
-			sub_session: core.sub_session.clone().into(),
 			session_nonce: core.nonce,
 			author: key_share.author.clone().into(),
 			threshold: key_share.threshold,
@@ -591,6 +489,12 @@ println!("=== {}: {:?}", self.core.meta.self_node_id, shares_to_move);
 	}
 }
 
+impl<T> Session for SessionImpl<T> where T: SessionTransport + Send + Sync + 'static {
+	fn wait(&self) -> Result<(), Error> {
+		unimplemented!()
+	}
+}
+
 impl<T> ClusterSession for SessionImpl<T> where T: SessionTransport {
 	fn is_finished(&self) -> bool {
 		self.data.lock().state == SessionState::Finished
@@ -605,6 +509,17 @@ impl<T> ClusterSession for SessionImpl<T> where T: SessionTransport {
 	}
 }
 
+impl IsolatedSessionTransport {
+	pub fn new(session_id: SessionId, nonce: u64, cluster: Arc<Cluster>) -> Self {
+		IsolatedSessionTransport {
+			session: session_id,
+			nonce: nonce,
+			cluster: cluster,
+			shares_to_move: None,
+		}
+	}
+}
+
 impl JobTransport for IsolatedSessionTransport {
 	type PartialJobRequest = ServersSetChangeAccessRequest;
 	type PartialJobResponse = bool;
@@ -613,7 +528,6 @@ impl JobTransport for IsolatedSessionTransport {
 		let shares_to_move = self.shares_to_move.as_ref().expect("TODO");
 		self.cluster.send(node, Message::ShareMove(ShareMoveMessage::ShareMoveConsensusMessage(ShareMoveConsensusMessage {
 			session: self.session.clone().into(),
-			sub_session: self.sub_session.clone().into(),
 			session_nonce: self.nonce,
 			message: ConsensusMessageWithServersMap::InitializeConsensusSession(InitializeConsensusSessionWithServersMap {
 				old_nodes_set: request.old_servers_set.into_iter().map(Into::into).collect(),
@@ -628,7 +542,6 @@ impl JobTransport for IsolatedSessionTransport {
 	fn send_partial_response(&self, node: &NodeId, response: bool) -> Result<(), Error> {
 		self.cluster.send(node, Message::ShareMove(ShareMoveMessage::ShareMoveConsensusMessage(ShareMoveConsensusMessage {
 			session: self.session.clone().into(),
-			sub_session: self.sub_session.clone().into(),
 			session_nonce: self.nonce,
 			message: ConsensusMessageWithServersMap::ConfirmConsensusInitialization(ConfirmConsensusInitialization {
 				is_confirmed: response,
@@ -694,6 +607,7 @@ mod tests {
 	use key_server_cluster::message::{Message, ServersSetChangeMessage, ShareAddMessage};
 	use key_server_cluster::servers_set_change_session::tests::generate_key;
 	use key_server_cluster::jobs::servers_set_change_access_job::ordered_nodes_hash;
+	use key_server_cluster::admin_sessions::ShareChangeSessionMeta;
 	use super::{SessionImpl, SessionParams, SessionTransport, IsolatedSessionTransport};
 
 	struct Node {
@@ -715,14 +629,12 @@ mod tests {
 
 			let key_id = gml.session_id.clone();
 			let session_id = SessionId::default();
-			let sub_session = Random.generate().unwrap().secret().clone();
 			let mut nodes = BTreeMap::new();
 			let master_node_id = gml.nodes.keys().cloned().nth(0).unwrap();
-			let meta = SessionMeta {
+			let meta = ShareChangeSessionMeta {
 				self_node_id: master_node_id.clone(),
 				master_node_id: master_node_id.clone(),
 				id: session_id.clone(),
-				threshold: threshold,
 			};
  
 			for (n, nd) in &gml.nodes {
@@ -732,10 +644,8 @@ mod tests {
 				meta.self_node_id = n.clone();
 				let session = SessionImpl::new(SessionParams {
 					meta: meta.clone(),
-					sub_session: sub_session.clone(),
 					transport: IsolatedSessionTransport {
 						session: meta.id.clone(),
-						sub_session: sub_session.clone(),
 						nonce: 1,
 						shares_to_move: None,
 						cluster: cluster.clone(),
@@ -756,10 +666,8 @@ mod tests {
 				meta.self_node_id = new_node_id;
 				let session = SessionImpl::new(SessionParams {
 					meta: meta.clone(),
-					sub_session: sub_session.clone(),
 					transport: IsolatedSessionTransport {
 						session: meta.id.clone(),
-						sub_session: sub_session.clone(),
 						nonce: 1,
 						shares_to_move: None,
 						cluster: cluster.clone(),

@@ -2,6 +2,7 @@
 // TODO: when servers set change session is active, pause updating servers set from contract
 // TODO: do not need SessionError messages in nested sessions + do not need nonces + sub sessions
 // TODO: even if node was lost, it is still required for share removal, ...
+// TODO: before setting pre-established consensus - check that old nodes are in general old set && new nodes are in general new set
 
 // Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
@@ -497,7 +498,7 @@ println!("=== 3");
 	pub fn on_share_move_message(&self, sender: &NodeId, message: &ServersSetChangeShareMoveMessage) -> Result<(), Error> {
 		let mut data = self.data.lock();
 
-		let session_id = message.message.session().clone().into();
+		let session_id = message.message.session_id().clone().into();
 		let (is_finished, is_master) = {
 			let mut change_session = data.active_sessions.get_mut(&session_id).ok_or(Error::InvalidMessage)?;
 			change_session.on_share_move_message(sender, &message.message)?;
@@ -517,7 +518,7 @@ println!("=== 3");
 	pub fn on_share_remove_message(&self, sender: &NodeId, message: &ServersSetChangeShareRemoveMessage) -> Result<(), Error> {
 		let mut data = self.data.lock();
 
-		let session_id = message.message.session().clone().into();
+		let session_id = message.message.session_id().clone().into();
 		let (is_finished, is_master) = {
 			let mut change_session = data.active_sessions.get_mut(&session_id).ok_or(Error::InvalidMessage)?;
 			change_session.on_share_remove_message(sender, &message.message)?;
