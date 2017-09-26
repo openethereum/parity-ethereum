@@ -16,15 +16,14 @@
 
 //! Smart contract based transaction filter.
 
-use std::sync::Weak;
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 use bigint::hash::H256;
 use native_contracts::TransactAcl as Contract;
-use client::{EngineClient, BlockId, ChainNotify};
+use client::{BlockChainClient, BlockId, ChainNotify};
 use util::Address;
 use bytes::Bytes;
-use parking_lot::{Mutex, RwLock};
+use parking_lot::Mutex;
 use futures::{self, Future};
 use spec::CommonParams;
 use transaction::{Action, SignedTransaction};
@@ -44,7 +43,6 @@ mod tx_permissions {
 /// Connection filter that uses a contract to manage permissions.
 pub struct TransactionFilter {
 	contract: Mutex<Option<Contract>>,
-	client: RwLock<Option<Weak<EngineClient>>>,
 	contract_address: Address,
 	permission_cache: Mutex<HashMap<(H256, Address), u32>>,
 }
@@ -55,7 +53,6 @@ impl TransactionFilter {
 		params.transaction_permission_contract.map(|address|
 			TransactionFilter {
 				contract: Mutex::new(None),
-				client: RwLock::new(None),
 				contract_address: address,
 				permission_cache: Mutex::new(HashMap::new()),
 			}
@@ -67,63 +64,47 @@ impl TransactionFilter {
 		self.permission_cache.lock().clear();
 	}
 
-	/// Set client reference to be used for contract call.
-	pub fn register_client(&self, client: Weak<EngineClient>) {
-		*self.client.write() = Some(client);
-	}
-
 	/// Check if transaction is allowed at given block.
-	pub fn transaction_allowed(&self, parent_hash: &H256, transaction: &SignedTransaction) -> bool {
-		self.client.read().as_ref().map_or(false, |client| {
-			let mut cache = self.permission_cache.lock(); let len = cache.len();
-			let client = match client.upgrade() {
-				Some(client) => client,
-				_ => return false,
-			};
+	pub fn transaction_allowed(&self, parent_hash: &H256, transaction: &SignedTransaction, client: &BlockChainClient) -> bool {
+		let mut cache = self.permission_cache.lock(); let len = cache.len();
 
-			let client = match client.as_full_client() {
-				Some(client) => client,
-				_ => return false, // TODO: how to handle verification for light clients?
-			};
-
-			let tx_type = match transaction.action {
-				Action::Create => tx_permissions::CREATE,
-				Action::Call(address) => if client.code_hash(&address, BlockId::Hash(*parent_hash)).map_or(false, |c| c != KECCAK_EMPTY) {
-					tx_permissions::CALL
-				} else {
-					tx_permissions::BASIC
-				}
-			};
-			let sender = transaction.sender();
-			match cache.entry((*parent_hash, sender)) {
-				Entry::Occupied(entry) => *entry.get() & tx_type != 0,
-				Entry::Vacant(entry) => {
-					let mut contract = self.contract.lock();
-					if contract.is_none() {
-						*contract = Some(Contract::new(self.contract_address));
-					}
-
-					let permissions = match &*contract {
-						&Some(ref contract) => {
-							contract.allowed_tx_types(
-								|addr, data| futures::done(client.call_contract(BlockId::Hash(*parent_hash), addr, data)),
-								sender,
-							).wait().unwrap_or_else(|e| {
-								debug!("Error callling tx permissions contract: {:?}", e);
-								tx_permissions::NONE
-							})
-						}
-						_ => tx_permissions::NONE,
-					};
-
-					if len < MAX_CACHE_SIZE {
-						entry.insert(permissions);
-					}
-					trace!("Permissions required: {}, got: {}", tx_type, permissions);
-					permissions & tx_type != 0
-				}
+		let tx_type = match transaction.action {
+			Action::Create => tx_permissions::CREATE,
+			Action::Call(address) => if client.code_hash(&address, BlockId::Hash(*parent_hash)).map_or(false, |c| c != KECCAK_EMPTY) {
+				tx_permissions::CALL
+			} else {
+				tx_permissions::BASIC
 			}
-		})
+		};
+		let sender = transaction.sender();
+		match cache.entry((*parent_hash, sender)) {
+			Entry::Occupied(entry) => *entry.get() & tx_type != 0,
+			Entry::Vacant(entry) => {
+				let mut contract = self.contract.lock();
+				if contract.is_none() {
+					*contract = Some(Contract::new(self.contract_address));
+				}
+
+				let permissions = match &*contract {
+					&Some(ref contract) => {
+						contract.allowed_tx_types(
+							|addr, data| futures::done(client.call_contract(BlockId::Hash(*parent_hash), addr, data)),
+							sender,
+						).wait().unwrap_or_else(|e| {
+							debug!("Error callling tx permissions contract: {:?}", e);
+							tx_permissions::NONE
+						})
+					}
+					_ => tx_permissions::NONE,
+				};
+
+				if len < MAX_CACHE_SIZE {
+					entry.insert(permissions);
+				}
+				trace!("Permissions required: {}, got: {}", tx_type, permissions);
+				permissions & tx_type != 0
+			}
+		}
 	}
 }
 
@@ -137,7 +118,7 @@ impl ChainNotify for TransactionFilter {
 
 #[cfg(test)]
 mod test {
-	use std::sync::{Arc, Weak};
+	use std::sync::Arc;
 	use spec::Spec;
 	use client::{BlockChainClient, Client, ClientConfig, BlockId};
 	use miner::Miner;
@@ -212,7 +193,6 @@ mod test {
 		let key4 = KeyPair::from_secret(Secret::from("0000000000000000000000000000000000000000000000000000000000000004")).unwrap();
 
 		let filter = TransactionFilter::from_params(spec.params()).unwrap();
-		filter.register_client(Arc::downgrade(&client) as Weak<_>);
 		let mut basic_tx = Transaction::default();
 		basic_tx.action = Action::Call(Address::from("000000000000000000000000000000000000032"));
 		let create_tx = Transaction::default();
@@ -221,21 +201,21 @@ mod test {
 
 		let genesis = client.block_hash(BlockId::Latest).unwrap();
 
-		assert!(filter.transaction_allowed(&genesis, &basic_tx.clone().sign(key1.secret(), None)));
-		assert!(filter.transaction_allowed(&genesis, &create_tx.clone().sign(key1.secret(), None)));
-		assert!(filter.transaction_allowed(&genesis, &call_tx.clone().sign(key1.secret(), None)));
+		assert!(filter.transaction_allowed(&genesis, &basic_tx.clone().sign(key1.secret(), None), &*client));
+		assert!(filter.transaction_allowed(&genesis, &create_tx.clone().sign(key1.secret(), None), &*client));
+		assert!(filter.transaction_allowed(&genesis, &call_tx.clone().sign(key1.secret(), None), &*client));
 
-		assert!(filter.transaction_allowed(&genesis, &basic_tx.clone().sign(key2.secret(), None)));
-		assert!(!filter.transaction_allowed(&genesis, &create_tx.clone().sign(key2.secret(), None)));
-		assert!(filter.transaction_allowed(&genesis, &call_tx.clone().sign(key2.secret(), None)));
+		assert!(filter.transaction_allowed(&genesis, &basic_tx.clone().sign(key2.secret(), None), &*client));
+		assert!(!filter.transaction_allowed(&genesis, &create_tx.clone().sign(key2.secret(), None), &*client));
+		assert!(filter.transaction_allowed(&genesis, &call_tx.clone().sign(key2.secret(), None), &*client));
 
-		assert!(filter.transaction_allowed(&genesis, &basic_tx.clone().sign(key3.secret(), None)));
-		assert!(!filter.transaction_allowed(&genesis, &create_tx.clone().sign(key3.secret(), None)));
-		assert!(!filter.transaction_allowed(&genesis, &call_tx.clone().sign(key3.secret(), None)));
+		assert!(filter.transaction_allowed(&genesis, &basic_tx.clone().sign(key3.secret(), None), &*client));
+		assert!(!filter.transaction_allowed(&genesis, &create_tx.clone().sign(key3.secret(), None), &*client));
+		assert!(!filter.transaction_allowed(&genesis, &call_tx.clone().sign(key3.secret(), None), &*client));
 
-		assert!(!filter.transaction_allowed(&genesis, &basic_tx.clone().sign(key4.secret(), None)));
-		assert!(!filter.transaction_allowed(&genesis, &create_tx.clone().sign(key4.secret(), None)));
-		assert!(!filter.transaction_allowed(&genesis, &call_tx.clone().sign(key4.secret(), None)));
+		assert!(!filter.transaction_allowed(&genesis, &basic_tx.clone().sign(key4.secret(), None), &*client));
+		assert!(!filter.transaction_allowed(&genesis, &create_tx.clone().sign(key4.secret(), None), &*client));
+		assert!(!filter.transaction_allowed(&genesis, &call_tx.clone().sign(key4.secret(), None), &*client));
 	}
 }
 

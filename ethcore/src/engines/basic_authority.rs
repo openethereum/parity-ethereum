@@ -17,24 +17,18 @@
 //! A blockchain engine that supports a basic, non-BFT proof-of-authority.
 
 use std::sync::{Weak, Arc};
-use std::collections::BTreeMap;
-use std::cmp;
-use bigint::prelude::U256;
 use bigint::hash::{H256, H520};
 use parking_lot::RwLock;
 use util::*;
-use unexpected::{Mismatch, OutOfBounds};
 use ethkey::{recover, public_to_address, Signature};
 use account_provider::AccountProvider;
 use block::*;
-use builtin::Builtin;
-use spec::CommonParams;
-use engines::{Engine, Seal, Call, ConstructedVerifier, EngineError};
+use engines::{Engine, Seal, ConstructedVerifier, EngineError};
 use error::{BlockError, Error};
-use evm::Schedule;
 use ethjson;
-use header::{Header, BlockNumber};
+use header::Header;
 use client::EngineClient;
+use machine::{AuxiliaryData, Call, EthereumMachine};
 use semantic_version::SemanticVersion;
 use super::signer::EngineSigner;
 use super::validator_set::{ValidatorSet, SimpleList, new_validator_set};
@@ -58,7 +52,7 @@ struct EpochVerifier {
 	list: SimpleList,
 }
 
-impl super::EpochVerifier for EpochVerifier {
+impl super::EpochVerifier<EthereumMachine> for EpochVerifier {
 	fn verify_light(&self, header: &Header) -> Result<(), Error> {
 		verify_external(header, &self.list)
 	}
@@ -83,52 +77,30 @@ fn verify_external(header: &Header, validators: &ValidatorSet) -> Result<(), Err
 
 /// Engine using `BasicAuthority`, trivial proof-of-authority consensus.
 pub struct BasicAuthority {
-	params: CommonParams,
-	builtins: BTreeMap<Address, Builtin>,
+	machine: EthereumMachine,
 	signer: RwLock<EngineSigner>,
 	validators: Box<ValidatorSet>,
 }
 
 impl BasicAuthority {
 	/// Create a new instance of BasicAuthority engine
-	pub fn new(params: CommonParams, our_params: BasicAuthorityParams, builtins: BTreeMap<Address, Builtin>) -> Self {
+	pub fn new(our_params: BasicAuthorityParams, machine: EthereumMachine) -> Self {
 		BasicAuthority {
-			params: params,
-			builtins: builtins,
-			validators: new_validator_set(our_params.validators),
+			machine: machine,
 			signer: Default::default(),
+			validators: new_validator_set(our_params.validators),
 		}
 	}
 }
 
-impl Engine for BasicAuthority {
+impl Engine<EthereumMachine> for BasicAuthority {
 	fn name(&self) -> &str { "BasicAuthority" }
 	fn version(&self) -> SemanticVersion { SemanticVersion::new(1, 0, 0) }
+
+	fn machine(&self) -> &EthereumMachine { &self.machine }
+
 	// One field - the signature
 	fn seal_fields(&self) -> usize { 1 }
-
-	fn params(&self) -> &CommonParams { &self.params }
-	fn builtins(&self) -> &BTreeMap<Address, Builtin> { &self.builtins }
-
-	/// Additional engine-specific information for the user/developer concerning `header`.
-	fn extra_info(&self, _header: &Header) -> BTreeMap<String, String> { map!["signature".to_owned() => "TODO".to_owned()] }
-
-	fn schedule(&self, _block_number: BlockNumber) -> Schedule {
-		Schedule::new_homestead()
-	}
-
-	fn populate_from_parent(&self, header: &mut Header, parent: &Header, gas_floor_target: U256, _gas_ceil_target: U256) {
-		header.set_difficulty(parent.difficulty().clone());
-		header.set_gas_limit({
-			let gas_limit = parent.gas_limit().clone();
-			let bound_divisor = self.params().gas_limit_bound_divisor;
-			if gas_limit < gas_floor_target {
-				cmp::min(gas_floor_target, gas_limit + gas_limit / bound_divisor - 1.into())
-			} else {
-				cmp::max(gas_floor_target, gas_limit - gas_limit / bound_divisor + 1.into())
-			}
-		});
-	}
 
 	fn seals_internally(&self) -> Option<bool> {
 		Some(self.signer.read().is_some())
@@ -149,41 +121,11 @@ impl Engine for BasicAuthority {
 		Seal::None
 	}
 
-	fn verify_block_basic(&self, header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
-		// check the seal fields.
-		// TODO: pull this out into common code.
-		if header.seal().len() != self.seal_fields() {
-			return Err(From::from(BlockError::InvalidSealArity(
-				Mismatch { expected: self.seal_fields(), found: header.seal().len() }
-			)));
-		}
+	fn verify_local_seal(&self, _header: &Header) -> Result<(), Error> {
 		Ok(())
 	}
 
-	fn verify_block_unordered(&self, _header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
-		Ok(())
-	}
-
-	fn verify_block_family(&self, header: &Header, parent: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
-		// Do not calculate difficulty for genesis blocks.
-		if header.number() == 0 {
-			return Err(From::from(BlockError::RidiculousNumber(OutOfBounds { min: Some(1), max: None, found: header.number() })));
-		}
-
-		// Check difficulty is correct given the two timestamps.
-		if header.difficulty() != parent.difficulty() {
-			return Err(From::from(BlockError::InvalidDifficulty(Mismatch { expected: *parent.difficulty(), found: *header.difficulty() })))
-		}
-		let gas_limit_divisor = self.params().gas_limit_bound_divisor;
-		let min_gas = parent.gas_limit().clone() - parent.gas_limit().clone() / gas_limit_divisor;
-		let max_gas = parent.gas_limit().clone() + parent.gas_limit().clone() / gas_limit_divisor;
-		if header.gas_limit() <= &min_gas || header.gas_limit() >= &max_gas {
-			return Err(From::from(BlockError::InvalidGasLimit(OutOfBounds { min: Some(min_gas), max: Some(max_gas), found: header.gas_limit().clone() })));
-		}
-		Ok(())
-	}
-
-	fn verify_block_external(&self, header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
+	fn verify_block_external(&self, header: &Header) -> Result<(), Error> {
 		verify_external(header, &*self.validators)
 	}
 
@@ -192,26 +134,26 @@ impl Engine for BasicAuthority {
 	}
 
 	#[cfg(not(test))]
-	fn signals_epoch_end(&self, _header: &Header, _block: Option<&[u8]>, _receipts: Option<&[::receipt::Receipt]>)
-		-> super::EpochChange
+	fn signals_epoch_end(&self, _header: &Header, _auxiliary: AuxiliaryData)
+		-> super::EpochChange<EthereumMachine>
 	{
 		// don't bother signalling even though a contract might try.
 		super::EpochChange::No
 	}
 
 	#[cfg(test)]
-	fn signals_epoch_end(&self, header: &Header, block: Option<&[u8]>, receipts: Option<&[::receipt::Receipt]>)
-		-> super::EpochChange
+	fn signals_epoch_end(&self, header: &Header, auxiliary: AuxiliaryData)
+		-> super::EpochChange<EthereumMachine>
 	{
 		// in test mode, always signal even though they don't be finalized.
 		let first = header.number() == 0;
-		self.validators.signals_epoch_end(first, header, block, receipts)
+		self.validators.signals_epoch_end(first, header, auxiliary)
 	}
 
 	fn is_epoch_end(
 		&self,
 		chain_head: &Header,
-		_chain: &super::Headers,
+		_chain: &super::Headers<Header>,
 		_transition_store: &super::PendingTransitionStore,
 	) -> Option<Vec<u8>> {
 		let first = chain_head.number() == 0;
@@ -220,10 +162,10 @@ impl Engine for BasicAuthority {
 		self.validators.is_epoch_end(first, chain_head)
 	}
 
-	fn epoch_verifier<'a>(&self, header: &Header, proof: &'a [u8]) -> ConstructedVerifier<'a> {
+	fn epoch_verifier<'a>(&self, header: &Header, proof: &'a [u8]) -> ConstructedVerifier<'a, EthereumMachine> {
 		let first = header.number() == 0;
 
-		match self.validators.epoch_set(first, self, header.number(), proof) {
+		match self.validators.epoch_set(first, &self.machine, header.number(), proof) {
 			Ok((list, finalize)) => {
 				let verifier = Box::new(EpochVerifier { list: list });
 
@@ -260,7 +202,6 @@ mod tests {
 	use hash::keccak;
 	use bigint::hash::H520;
 	use block::*;
-	use error::{BlockError, Error};
 	use tests::helpers::*;
 	use account_provider::AccountProvider;
 	use header::Header;
@@ -288,26 +229,12 @@ mod tests {
 	}
 
 	#[test]
-	fn can_do_seal_verification_fail() {
-		let engine = new_test_authority().engine;
-		let header: Header = Header::default();
-
-		let verify_result = engine.verify_block_basic(&header, None);
-
-		match verify_result {
-			Err(Error::Block(BlockError::InvalidSealArity(_))) => {},
-			Err(_) => { panic!("should be block seal-arity mismatch error (got {:?})", verify_result); },
-			_ => { panic!("Should be error, got Ok"); },
-		}
-	}
-
-	#[test]
 	fn can_do_signature_verification_fail() {
 		let engine = new_test_authority().engine;
 		let mut header: Header = Header::default();
 		header.set_seal(vec![::rlp::encode(&H520::default()).into_vec()]);
 
-		let verify_result = engine.verify_block_family(&header, &Default::default(), None);
+		let verify_result = engine.verify_block_external(&header);
 		assert!(verify_result.is_err());
 	}
 

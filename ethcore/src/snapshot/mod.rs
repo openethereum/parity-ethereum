@@ -26,7 +26,7 @@ use hash::{keccak, KECCAK_NULL_RLP, KECCAK_EMPTY};
 
 use account_db::{AccountDB, AccountDBMut};
 use blockchain::{BlockChain, BlockProvider};
-use engines::Engine;
+use engines::EthEngine;
 use header::Header;
 use ids::BlockId;
 
@@ -126,7 +126,7 @@ impl Progress {
 }
 /// Take a snapshot using the given blockchain, starting block hash, and database, writing into the given writer.
 pub fn take_snapshot<W: SnapshotWriter + Send>(
-	engine: &Engine,
+	engine: &EthEngine,
 	chain: &BlockChain,
 	block_at: H256,
 	state_db: &HashDB,
@@ -484,13 +484,13 @@ const POW_VERIFY_RATE: f32 = 0.02;
 /// Verify an old block with the given header, engine, blockchain, body. If `always` is set, it will perform
 /// the fullest verification possible. If not, it will take a random sample to determine whether it will
 /// do heavy or light verification.
-pub fn verify_old_block(rng: &mut OsRng, header: &Header, engine: &Engine, chain: &BlockChain, body: Option<&[u8]>, always: bool) -> Result<(), ::error::Error> {
-	engine.verify_block_basic(header, body)?;
+pub fn verify_old_block(rng: &mut OsRng, header: &Header, engine: &EthEngine, chain: &BlockChain, always: bool) -> Result<(), ::error::Error> {
+	engine.verify_block_basic(header)?;
 
 	if always || rng.gen::<f32>() <= POW_VERIFY_RATE {
-		engine.verify_block_unordered(header, body)?;
+		engine.verify_block_unordered(header)?;
 		match chain.block_header(header.parent_hash()) {
-			Some(parent) => engine.verify_block_family(header, &parent, body),
+			Some(parent) => engine.verify_block_family(header, &parent),
 			None => Ok(()),
 		}
 	} else {

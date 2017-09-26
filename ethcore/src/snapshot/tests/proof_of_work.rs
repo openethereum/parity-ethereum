@@ -38,7 +38,7 @@ fn chunk_and_restore(amount: u64) {
 	let mut finalizer = BlockFinalizer::default();
 	let genesis = canon_chain.generate(&mut finalizer).unwrap();
 
-	let engine = Arc::new(::engines::NullEngine::default());
+	let engine = ::spec::Spec::new_test().engine;
 	let new_path = RandomTempPath::create_dir();
 	let mut snapshot_path = new_path.as_path().to_owned();
 	snapshot_path.push("SNAP");
@@ -128,7 +128,7 @@ fn checks_flag() {
 	let chunk = stream.out();
 
 	let db = Arc::new(kvdb::in_memory(::db::NUM_COLUMNS.unwrap_or(0)));
-	let engine = Arc::new(::engines::NullEngine::default());
+	let engine = ::spec::Spec::new_test().engine;
 	let chain = BlockChain::new(Default::default(), &genesis, db.clone());
 
 	let manifest = ::snapshot::ManifestData {

@@ -51,6 +51,7 @@ lru-cache = "0.1.0"
 native-contracts = { path = "native_contracts" }
 num = "0.1"
 num_cpus = "1.2"
+parity-machine = { path = "../machine" }
 parking_lot = "0.4"
 price-info = { path = "../price-info" }
 rayon = "0.8"

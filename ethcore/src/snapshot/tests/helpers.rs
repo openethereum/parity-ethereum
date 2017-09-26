@@ -24,7 +24,7 @@ use account_db::AccountDBMut;
 use basic_account::BasicAccount;
 use blockchain::BlockChain;
 use client::{BlockChainClient, Client};
-use engines::Engine;
+use engines::EthEngine;
 use snapshot::{StateRebuilder};
 use snapshot::io::{SnapshotReader, PackedWriter, PackedReader};
 
@@ -160,7 +160,7 @@ pub fn snap(client: &Client) -> GuardedTempResult<Box<SnapshotReader>> {
 /// write into the given database.
 pub fn restore(
 	db: Arc<KeyValueDB>,
-	engine: &Engine,
+	engine: &EthEngine,
 	reader: &SnapshotReader,
 	genesis: &[u8],
 ) -> Result<(), ::error::Error> {

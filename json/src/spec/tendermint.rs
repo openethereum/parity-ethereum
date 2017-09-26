@@ -36,6 +36,9 @@ pub struct TendermintParams {
 	/// Commit step timeout in milliseconds.
 	#[serde(rename="timeoutCommit")]
 	pub timeout_commit: Option<Uint>,
+	/// Reward per block.
+	#[serde(rename="blockReward")]
+	pub block_reward: Option<Uint>,
 }
 
 /// Tendermint engine deserialization.
