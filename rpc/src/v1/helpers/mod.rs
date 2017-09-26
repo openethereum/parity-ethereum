@@ -35,6 +35,7 @@ mod signer;
 mod signing_queue;
 mod subscribers;
 mod subscription_manager;
+mod nonce;
 
 pub use self::dispatch::{Dispatcher, FullDispatcher};
 pub use self::network_settings::NetworkSettings;
