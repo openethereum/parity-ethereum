@@ -449,7 +449,7 @@ impl<'a, 'b> Runtime<'a, 'b> {
 		self.memory.set(d_ptr, &d_buf)?;
 
 		// write call args to memory
-		self.memory.set(args_ptr, &input)?;
+		self.memory.set(args_ptr, input)?;
 
 		Ok(d_ptr.into())
 	}
