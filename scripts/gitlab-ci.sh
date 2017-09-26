@@ -457,3 +457,9 @@ push-release()
    curl --data "secret=$RELEASES_SECRET" http://update.parity.io:1338/push-release/$CI_BUILD_REF_NAME/$CI_BUILD_REF
 }
 
+numargs=$#
+for ((i=1 ; i <= numargs ; i++))
+do
+  $1
+  shift
+done
