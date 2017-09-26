@@ -361,7 +361,7 @@ println!("=== ppp");
 
 		// check state
 		let mut data = self.data.lock();
-		if data.state == SessionState::ConsensusEstablishing {
+		if data.state == SessionState::ConsensusEstablishing && data.shares_to_remove.is_some() {
 			data.state = SessionState::WaitingForRemoveConfirmation;
 		} else if data.state != SessionState::WaitingForRemoveConfirmation {
 			return Err(Error::InvalidStateForRequest);
@@ -396,7 +396,7 @@ println!("=== ppp");
 
 		// check state
 		let mut data = self.data.lock();
-		if data.state == SessionState::ConsensusEstablishing {
+		if data.state == SessionState::ConsensusEstablishing && data.shares_to_remove.is_some() {
 			data.state = SessionState::WaitingForRemoveConfirmation;
 		} else if data.state != SessionState::WaitingForRemoveConfirmation {
 			return Err(Error::InvalidStateForRequest);

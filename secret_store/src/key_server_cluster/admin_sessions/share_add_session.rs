@@ -210,16 +210,15 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		// check && update passed data
 		match self.core.key_share.as_ref() {
 			Some(key_share) => {
+				// old_nodes_set should be exactly the same as when key was generated
 				if old_nodes_set.symmetric_difference(&key_share.id_numbers.keys().cloned().collect()).nth(0).is_some() {
 					return Err(Error::InvalidNodesConfiguration);
 				}
-				for (new_node, new_node_id) in new_nodes_set.iter_mut() {
-					if new_node_id.is_none() {
-						match key_share.id_numbers.get(new_node) {
-							Some(old_node_id) => *new_node_id = Some(old_node_id.clone()),
-							None => {
-								return Err(Error::InvalidNodesConfiguration) },
-						}
+				// update id_numbers for old nodes
+				for (new_node, new_node_id) in new_nodes_set.iter_mut().filter(|&(_, ref v)| v.is_none()) {
+					match key_share.id_numbers.get(new_node) {
+						Some(old_node_id) => *new_node_id = Some(old_node_id.clone()),
+						None => return Err(Error::InvalidNodesConfiguration),
 					}
 				}
 			},
@@ -253,7 +252,6 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		// if consensus is not yet established => start consensus session
 		let is_consensus_pre_established = data.nodes.is_some();
 		if !is_consensus_pre_established {
-			// prepare set of nodes to add
 			let key_share = self.core.key_share.as_ref().ok_or(Error::KeyStorage("key share is not found on master node".into()))?;
 			let old_nodes_set: BTreeSet<_> = key_share.id_numbers.keys().cloned().collect();
 			let new_nodes_map = new_nodes_set.iter()
@@ -385,7 +383,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		let mut data = self.data.lock();
 
 		// check state
-		if data.state == SessionState::ConsensusEstablishing {
+		if data.state == SessionState::ConsensusEstablishing && data.nodes.is_some() {
 			data.state = SessionState::WaitingForAbsoluteTermShare;
 		} else if data.state != SessionState::WaitingForAbsoluteTermShare {
 			return Err(Error::InvalidStateForRequest);
@@ -422,7 +420,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		let mut data = self.data.lock();
 
 		// check state
-		if data.state == SessionState::ConsensusEstablishing {
+		if data.state == SessionState::ConsensusEstablishing && data.nodes.is_some() {
 			data.state = SessionState::WaitingForAbsoluteTermShare;
 		} else if data.state != SessionState::WaitingForAbsoluteTermShare {
 			return Err(Error::InvalidStateForRequest);
@@ -480,7 +478,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		let mut data = self.data.lock();
 
 		// check state
-		if data.state == SessionState::ConsensusEstablishing {
+		if data.state == SessionState::ConsensusEstablishing && data.nodes.is_some() {
 			data.state = SessionState::WaitingForKeysDissemination;
 		} else if data.state == SessionState::WaitingForAbsoluteTermShare {
 			return Err(Error::TooEarlyForRequest);
@@ -871,15 +869,16 @@ mod tests {
 		}
 	}
 
-	fn check_secret_is_preserved(joint_key_pair: KeyPair, ml: MessageLoop) {
-		let n = ml.nodes.len();
+	/// This only works for schemes where threshold = 1
+	fn check_secret_is_preserved(joint_key_pair: KeyPair, nodes: BTreeMap<NodeId, Arc<DummyKeyStorage>>) {
+		let n = nodes.len();
 		let document_secret_plain = math::generate_random_point().unwrap();
 		for n1 in 0..n {
 			for n2 in n1+1..n {
-				let share1 = ml.nodes.values().nth(n1).unwrap().key_storage.get(&SessionId::default()).unwrap();
-				let share2 = ml.nodes.values().nth(n2).unwrap().key_storage.get(&SessionId::default()).unwrap();
-				let id_number1 = share1.id_numbers[ml.nodes.keys().nth(n1).unwrap()].clone();
-				let id_number2 = share1.id_numbers[ml.nodes.keys().nth(n2).unwrap()].clone();
+				let share1 = nodes.values().nth(n1).unwrap().get(&SessionId::default()).unwrap();
+				let share2 = nodes.values().nth(n2).unwrap().get(&SessionId::default()).unwrap();
+				let id_number1 = share1.id_numbers[nodes.keys().nth(n1).unwrap()].clone();
+				let id_number2 = share1.id_numbers[nodes.keys().nth(n2).unwrap()].clone();
 
 				// now encrypt and decrypt data
 				let (document_secret_decrypted, document_secret_decrypted_test) =
@@ -959,13 +958,11 @@ mod tests {
 		}
 
 		pub fn process_message(&mut self, msg: (NodeId, NodeId, Message)) -> Result<(), Error> {
-			match {
-				match msg.2 {
-					Message::ShareAdd(ref message) =>
-						self.nodes[&msg.1].session.process_message(&msg.0, message),
-					_ => unreachable!("only servers set change messages are expected"),
-				}
-			} {
+			match { match msg.2 {
+				Message::ShareAdd(ref message) =>
+					self.nodes[&msg.1].session.process_message(&msg.0, message),
+				_ => unreachable!("only servers set change messages are expected"),
+			} } {
 				Ok(_) => Ok(()),
 				Err(Error::TooEarlyForRequest) => {
 					self.queue.push_back(msg);
@@ -974,6 +971,32 @@ mod tests {
 				Err(err) => Err(err),
 			}
 		}
+	}
+
+	#[test]
+	fn node_add_fails_if_nodes_removed() {
+		let old_nodes_set = generate_nodes_ids(3);
+		let master_node_id = old_nodes_set.iter().cloned().nth(0).unwrap();
+		let node_to_remove_id = old_nodes_set.iter().cloned().nth(1).unwrap();
+		let mut new_nodes_set: BTreeSet<_> = old_nodes_set.clone().into_iter().chain(generate_nodes_ids(1)).collect();
+		new_nodes_set.remove(&node_to_remove_id);
+		let mut ml = MessageLoop::new(1, master_node_id.clone(), old_nodes_set, new_nodes_set.clone());
+		assert_eq!(ml.nodes[&master_node_id].session.initialize(new_nodes_set,
+			Some(ml.old_set_signature.clone()),
+			Some(ml.new_set_signature.clone())
+		).unwrap_err(), Error::InvalidNodesConfiguration);
+	}
+
+	#[test]
+	fn node_add_fails_if_no_nodes_added() {
+		let old_nodes_set = generate_nodes_ids(3);
+		let master_node_id = old_nodes_set.iter().cloned().nth(0).unwrap();
+		let new_nodes_set = old_nodes_set.clone();
+		let mut ml = MessageLoop::new(1, master_node_id.clone(), old_nodes_set, new_nodes_set.clone());
+		assert_eq!(ml.nodes[&master_node_id].session.initialize(new_nodes_set,
+			Some(ml.old_set_signature.clone()),
+			Some(ml.new_set_signature.clone())
+		).unwrap_err(), Error::InvalidNodesConfiguration);
 	}
 
 	#[test]
@@ -1006,6 +1029,15 @@ mod tests {
 	}
 
 	#[test]
+	fn node_add_fails_if_started_without_signatures() {
+		let old_nodes_set = generate_nodes_ids(3);
+		let master_node_id = old_nodes_set.iter().cloned().nth(0).unwrap();
+		let new_nodes_set: BTreeSet<_> = old_nodes_set.clone().into_iter().chain(generate_nodes_ids(1)).collect();
+		let mut ml = MessageLoop::new(1, master_node_id.clone(), old_nodes_set, new_nodes_set.clone());
+		assert_eq!(ml.nodes[&master_node_id].session.initialize(new_nodes_set.clone(), None, None), Err(Error::InvalidMessage));
+	}
+
+	#[test]
 	fn nodes_added_using_share_add() {
 		let test_cases = vec![(3, 1), (3, 3)];
 		for (n, nodes_to_add) in test_cases {
@@ -1023,7 +1055,7 @@ mod tests {
 			assert!(ml.nodes.values().all(|n| n.session.is_finished()));
 			
 			// check that secret is still the same as before adding the share
-			check_secret_is_preserved(ml.original_key_pair.clone(), ml);
+			check_secret_is_preserved(ml.original_key_pair.clone(), ml.nodes.iter().map(|(k, v)| (k.clone(), v.key_storage.clone())).collect());
 		}
 	}
 }

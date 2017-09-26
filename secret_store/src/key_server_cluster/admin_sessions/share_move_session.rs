@@ -398,10 +398,9 @@ println!("=== {}: {:?}", self.core.meta.self_node_id, shares_to_move);
 
 		// check state
 		let mut data = self.data.lock();
-		if data.state == SessionState::ConsensusEstablishing {
+		if data.state == SessionState::ConsensusEstablishing && data.shares_to_move.is_some() {
 			data.state = SessionState::WaitingForMoveConfirmation;
-		}
-		else if data.state != SessionState::WaitingForMoveConfirmation {
+		} else if data.state != SessionState::WaitingForMoveConfirmation {
 			return Err(Error::InvalidStateForRequest);
 		}
 
@@ -422,7 +421,7 @@ println!("=== {}: {:?}", self.core.meta.self_node_id, shares_to_move);
 
 		// check state
 		let mut data = self.data.lock();
-		if data.state == SessionState::ConsensusEstablishing {
+		if data.state == SessionState::ConsensusEstablishing && data.shares_to_move.is_some() {
 			data.state = SessionState::WaitingForMoveConfirmation;
 		} else if data.state != SessionState::WaitingForMoveConfirmation {
 			return Err(Error::InvalidStateForRequest);
@@ -476,7 +475,7 @@ println!("=== {}: {:?}", self.core.meta.self_node_id, shares_to_move);
 
 		// check state
 		let mut data = self.data.lock();
-		if data.state == SessionState::ConsensusEstablishing {
+		if data.state == SessionState::ConsensusEstablishing && data.shares_to_move.is_some() {
 			data.state = SessionState::WaitingForMoveConfirmation;
 		} else if data.state != SessionState::WaitingForMoveConfirmation {
 			return Err(Error::InvalidStateForRequest);
