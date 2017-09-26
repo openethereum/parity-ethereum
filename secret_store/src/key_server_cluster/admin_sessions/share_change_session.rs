@@ -269,10 +269,9 @@ impl ShareChangeSession {
 			nonce: self.nonce,
 			transport: ShareChangeTransport::new(self.session_id, self.nonce, self.cluster.clone()),
 			key_storage: self.key_storage.clone(),
+			admin_public: Public::default(), // TODO
 		})?;
-println!("===");
 		share_remove_session.set_consensus_output(nodes_to_remove)?;
-println!("===---");
 		self.share_remove_session = Some(share_remove_session);
 		Ok(())
 	}
