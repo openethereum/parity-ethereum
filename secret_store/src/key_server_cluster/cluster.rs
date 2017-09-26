@@ -30,15 +30,16 @@ use ethkey::{Public, KeyPair, Signature, Random, Generator};
 use bigint::hash::H256;
 use key_server_cluster::{Error, NodeId, SessionId, AclStorage, KeyStorage, KeyServerSet, NodeKeyPair};
 use key_server_cluster::cluster_sessions::{ClusterSession, ClusterSessions, GenerationSessionWrapper, EncryptionSessionWrapper,
-	DecryptionSessionWrapper, SigningSessionWrapper};
+	DecryptionSessionWrapper, SigningSessionWrapper, ShareAddSessionWrapper};
 use key_server_cluster::message::{self, Message, ClusterMessage, GenerationMessage, EncryptionMessage, DecryptionMessage,
-	SigningMessage, ServersSetChangeMessage, ConsensusMessage};
+	SigningMessage, ServersSetChangeMessage, ConsensusMessage, ShareAddMessage, ConsensusMessageWithServersSecretMap};
 use key_server_cluster::generation_session::{Session as GenerationSession, SessionState as GenerationSessionState};
 #[cfg(test)]
 use key_server_cluster::generation_session::SessionImpl as GenerationSessionImpl;
 use key_server_cluster::decryption_session::{Session as DecryptionSession, DecryptionSessionId};
 use key_server_cluster::encryption_session::{Session as EncryptionSession, SessionState as EncryptionSessionState};
 use key_server_cluster::signing_session::{Session as SigningSession, SigningSessionId};
+use key_server_cluster::share_add_session::Session as ShareAddSession;
 use key_server_cluster::io::{DeadlineStatus, ReadMessage, SharedTcpStream, read_encrypted_message, WriteMessage, write_encrypted_message};
 use key_server_cluster::net::{accept_connection as net_accept_connection, connect as net_connect, Connection as NetConnection};
 
@@ -71,6 +72,8 @@ pub trait ClusterClient: Send + Sync {
 	fn new_decryption_session(&self, session_id: SessionId, requestor_signature: Signature, is_shadow_decryption: bool) -> Result<Arc<DecryptionSession>, Error>;
 	/// Start new signing session.
 	fn new_signing_session(&self, session_id: SessionId, requestor_signature: Signature, message_hash: H256) -> Result<Arc<SigningSession>, Error>;
+	/// Start new share add session.
+	fn new_share_add_session(&self, session_id: SessionId, new_nodes_set: BTreeSet<NodeId>, old_set_signature: Signature, new_set_signature: Signature) -> Result<Arc<ShareAddSession>, Error>;
 
 	/// Ask node to make 'faulty' generation sessions.
 	#[cfg(test)]
@@ -83,7 +86,7 @@ pub trait ClusterClient: Send + Sync {
 	fn connect(&self);
 }
 
-/// Cluster access for single encryption/decryption/signing participant.
+/// Cluster access for single session participant.
 pub trait Cluster: Send + Sync {
 	/// Broadcast message to all other nodes.
 	fn broadcast(&self, message: Message) -> Result<(), Error>;
@@ -411,7 +414,7 @@ impl ClusterCore {
 			Message::Decryption(message) => ClusterCore::process_decryption_message(data, connection, message),
 			Message::Signing(message) => ClusterCore::process_signing_message(data, connection, message),
 			Message::ServersSetChange(message) => ClusterCore::process_servers_set_change_message(data, connection, message),
-			Message::ShareAdd(message) => unimplemented!(),
+			Message::ShareAdd(message) => ClusterCore::process_share_add_message(data, connection, message),
 			Message::ShareMove(message) => unimplemented!(),
 			Message::ShareRemove(message) => unimplemented!(),
 			Message::Cluster(message) => ClusterCore::process_cluster_message(data, connection, message),
@@ -736,6 +739,82 @@ impl ClusterCore {
 		unimplemented!()
 	}
 
+	/// Process single share add message from the connection.
+	fn process_share_add_message(data: Arc<ClusterData>, connection: Arc<Connection>, mut message: ShareAddMessage) {
+		let session_id = message.session_id().clone();
+		let session_nonce = message.session_nonce();
+		let mut sender = connection.node_id().clone();
+		let session = match message {
+			ShareAddMessage::ShareAddConsensusMessage(ref message) if match message.message {
+				ConsensusMessageWithServersSecretMap::InitializeConsensusSession(_) => true,
+				_ => false,
+			} => {
+				let mut connected_nodes = data.connections.connected_nodes();
+				connected_nodes.insert(data.self_key_pair.public().clone());
+
+				let cluster = Arc::new(ClusterView::new(data.clone(), connected_nodes));
+				match data.sessions.new_share_add_session(sender.clone(), session_id.clone(), Some(session_nonce), cluster) {
+					Ok(session) => Ok(session),
+					Err(err) => {
+						// this is new session => it is not yet in container
+						warn!(target: "secretstore_net", "{}: share add session initialization error '{}' when requested for new session from node {}", data.self_key_pair.public(), err, sender);
+						data.spawn(connection.send_message(Message::ShareAdd(ShareAddMessage::ShareAddError(message::ShareAddError {
+							session: session_id.into(),
+							session_nonce: session_nonce,
+							error: format!("{:?}", err),
+						}))));
+						return;
+					},
+				}
+			},
+			_ => {
+				data.sessions.share_add_sessions.get(&session_id)
+					.ok_or(Error::InvalidSessionId)
+			},
+		};
+
+		let mut is_queued_message = false;
+		loop {
+			match session.clone().and_then(|session| session.process_message(&sender, &message)) {
+				Ok(_) => {
+					// if session is completed => stop
+					let session = session.clone().expect("session.method() call finished with success; session exists; qed");
+					if session.is_finished() {
+						info!(target: "secretstore_net", "{}: share add session completed", data.self_key_pair.public());
+						data.sessions.share_add_sessions.remove(&session_id);
+						break;
+					}
+
+					// try to dequeue message
+					match data.sessions.share_add_sessions.dequeue_message(&session_id) {
+						Some((msg_sender, msg)) => {
+							is_queued_message = true;
+							sender = msg_sender;
+							message = msg;
+						},
+						None => break,
+					}
+				},
+				Err(Error::TooEarlyForRequest) => {
+					data.sessions.share_add_sessions.enqueue_message(&session_id, sender, message, is_queued_message);
+					break;
+				},
+				Err(err) => {
+					warn!(target: "secretstore_net", "{}: share add session error '{}' when processing message {} from node {}", data.self_key_pair.public(), err, message, sender);
+					data.sessions.respond_with_share_add_error(&session_id, &sender, message::ShareAddError {
+						session: session_id.clone().into(),
+						session_nonce: session_nonce,
+						error: format!("{:?}", err),
+					});
+					if err != Error::InvalidSessionId {
+						data.sessions.share_add_sessions.remove(&session_id);
+					}
+					break;
+				},
+			}
+		}
+	}
+
 	/// Process single cluster message from the connection.
 	fn process_cluster_message(data: Arc<ClusterData>, connection: Arc<Connection>, message: ClusterMessage) {
 		match message {
@@ -1031,6 +1110,16 @@ impl ClusterClient for ClusterClientImpl {
 		let session = self.data.sessions.new_signing_session(self.data.self_key_pair.public().clone(), session_id, access_key.clone(), None, cluster, Some(requestor_signature))?;
 		session.initialize(message_hash)?;
 		Ok(SigningSessionWrapper::new(Arc::downgrade(&self.data), SigningSessionId::new(session_id, access_key), session))
+	}
+
+	fn new_share_add_session(&self, session_id: SessionId, new_nodes_set: BTreeSet<NodeId>, old_set_signature: Signature, new_set_signature: Signature) -> Result<Arc<ShareAddSession>, Error> {
+		let mut connected_nodes = self.data.connections.connected_nodes();
+		connected_nodes.insert(self.data.self_key_pair.public().clone());
+
+		let cluster = Arc::new(ClusterView::new(self.data.clone(), connected_nodes.clone()));
+		let session = self.data.sessions.new_share_add_session(self.data.self_key_pair.public().clone(), session_id, None, cluster)?;
+		session.initialize(new_nodes_set, Some(old_set_signature), Some(new_set_signature))?;
+		Ok(ShareAddSessionWrapper::new(Arc::downgrade(&self.data), session_id, session))
 	}
 
 	#[cfg(test)]

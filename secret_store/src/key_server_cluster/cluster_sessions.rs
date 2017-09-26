@@ -22,7 +22,8 @@ use parking_lot::RwLock;
 use ethkey::{Public, Secret, Signature};
 use key_server_cluster::{Error, NodeId, SessionId, AclStorage, KeyStorage, DocumentKeyShare, EncryptedDocumentKeyShadow, SessionMeta};
 use key_server_cluster::cluster::{Cluster, ClusterData, ClusterView, ClusterConfiguration};
-use key_server_cluster::message::{self, Message, GenerationMessage, EncryptionMessage, DecryptionMessage, SigningMessage};
+use key_server_cluster::message::{self, Message, GenerationMessage, EncryptionMessage, DecryptionMessage, SigningMessage,
+	ShareAddMessage};
 use key_server_cluster::generation_session::{Session as GenerationSession, SessionImpl as GenerationSessionImpl,
 	SessionParams as GenerationSessionParams, SessionState as GenerationSessionState};
 use key_server_cluster::decryption_session::{Session as DecryptionSession, SessionImpl as DecryptionSessionImpl,
@@ -31,6 +32,9 @@ use key_server_cluster::encryption_session::{Session as EncryptionSession, Sessi
 	SessionParams as EncryptionSessionParams, SessionState as EncryptionSessionState};
 use key_server_cluster::signing_session::{Session as SigningSession, SessionImpl as SigningSessionImpl,
 	SigningSessionId, SessionParams as SigningSessionParams};
+use key_server_cluster::share_add_session::{Session as ShareAddSession, SessionImpl as ShareAddSessionImpl,
+	SessionParams as ShareAddSessionParams, IsolatedSessionTransport as ShareAddTransport};
+use key_server_cluster::admin_sessions::ShareChangeSessionMeta;
 
 /// When there are no session-related messages for SESSION_TIMEOUT_INTERVAL seconds,
 /// we must treat this session as stalled && finish it with an error.
@@ -58,6 +62,8 @@ pub struct ClusterSessions {
 	pub decryption_sessions: ClusterSessionsContainer<DecryptionSessionId, DecryptionSessionImpl, DecryptionMessage>,
 	/// Signing sessions.
 	pub signing_sessions: ClusterSessionsContainer<SigningSessionId, SigningSessionImpl, SigningMessage>,
+	/// Share add sessions.
+	pub share_add_sessions: ClusterSessionsContainer<SessionId, ShareAddSessionImpl<ShareAddTransport>, ShareAddMessage>,
 	/// Self node id.
 	self_node_id: NodeId,
 	/// All nodes ids.
@@ -142,6 +148,16 @@ pub struct SigningSessionWrapper {
 	cluster: Weak<ClusterData>,
 }
 
+/// Share add session implementation, which removes session from cluster on drop.
+pub struct ShareAddSessionWrapper {
+	/// Wrapped session.
+	session: Arc<ShareAddSession>,
+	/// Session Id.
+	session_id: SessionId,
+	/// Cluster data reference.
+	cluster: Weak<ClusterData>,
+}
+
 impl ClusterSessions {
 	/// Create new cluster sessions container.
 	pub fn new(config: &ClusterConfiguration) -> Self {
@@ -154,6 +170,7 @@ impl ClusterSessions {
 			encryption_sessions: ClusterSessionsContainer::new(),
 			decryption_sessions: ClusterSessionsContainer::new(),
 			signing_sessions: ClusterSessionsContainer::new(),
+			share_add_sessions: ClusterSessionsContainer::new(),
 			make_faulty_generation_sessions: AtomicBool::new(false),
 			session_counter: AtomicUsize::new(0),
 			max_nonce: RwLock::new(BTreeMap::new()),
@@ -313,12 +330,42 @@ impl ClusterSessions {
 			});
 	}
 
+	/// Create new share add session.
+	pub fn new_share_add_session(&self, master: NodeId, session_id: SessionId, nonce: Option<u64>, cluster: Arc<ClusterView>) -> Result<Arc<ShareAddSessionImpl<ShareAddTransport>>, Error> {
+		let nonce = self.check_session_nonce(&master, nonce)?;
+
+		self.share_add_sessions.insert(master, session_id.clone(), cluster.clone(), move || ShareAddSessionImpl::new(ShareAddSessionParams {
+			meta: ShareChangeSessionMeta {
+				id: session_id,
+				self_node_id: self.self_node_id.clone(),
+				master_node_id: master,
+			},
+			transport: ShareAddTransport::new(session_id.clone(), nonce, cluster),
+			key_storage: self.key_storage.clone(),
+			admin_public: Public::default(), // TODO
+			nonce: nonce,
+		}))
+	}
+
+	/// Send share add session error.
+	pub fn respond_with_share_add_error(&self, session_id: &SessionId, to: &NodeId, error: message::ShareAddError) {
+		self.share_add_sessions.sessions.read().get(&session_id)
+			.map(|s| {
+				// error in any share change session is considered fatal
+				// => broadcast error
+
+				// do not bother processing send error, as we already processing error
+				let _ = s.cluster_view.broadcast(Message::ShareAdd(ShareAddMessage::ShareAddError(error)));
+			});
+	}
+
 	/// Stop sessions that are stalling.
 	pub fn stop_stalled_sessions(&self) {
 		self.generation_sessions.stop_stalled_sessions();
 		self.encryption_sessions.stop_stalled_sessions();
 		self.decryption_sessions.stop_stalled_sessions();
 		self.signing_sessions.stop_stalled_sessions();
+		self.share_add_sessions.stop_stalled_sessions();
 	}
 
 	/// When connection to node is lost.
@@ -327,6 +374,7 @@ impl ClusterSessions {
 		self.encryption_sessions.on_connection_timeout(node_id);
 		self.decryption_sessions.on_connection_timeout(node_id);
 		self.signing_sessions.on_connection_timeout(node_id);
+		self.share_add_sessions.on_connection_timeout(node_id);
 		self.max_nonce.write().remove(node_id);
 	}
 
@@ -544,3 +592,28 @@ impl Drop for SigningSessionWrapper {
 		}
 	}
 }
+
+impl ShareAddSessionWrapper {
+	pub fn new(cluster: Weak<ClusterData>, session_id: SessionId, session: Arc<ShareAddSession>) -> Arc<Self> {
+		Arc::new(ShareAddSessionWrapper {
+			session: session,
+			session_id: session_id,
+			cluster: cluster,
+		})
+	}
+}
+
+impl ShareAddSession for ShareAddSessionWrapper {
+	fn wait(&self) -> Result<(), Error> {
+		self.session.wait()
+	}
+}
+
+impl Drop for ShareAddSessionWrapper {
+	fn drop(&mut self) {
+		if let Some(cluster) = self.cluster.upgrade() {
+			cluster.sessions().share_add_sessions.remove(&self.session_id);
+		}
+	}
+}
+

@@ -39,6 +39,8 @@ use key_server_cluster::admin_sessions::ShareChangeSessionMeta;
 
 /// Share addition session API.
 pub trait Session: Send + Sync + 'static {
+	/// Wait until session is completed.
+	fn wait(&self) -> Result<(), Error>;
 }
 
 /// Share addition session transport.
@@ -68,8 +70,6 @@ pub struct SessionImpl<T: SessionTransport> {
 struct SessionCore<T: SessionTransport> {
 	/// Session metadata.
 	pub meta: ShareChangeSessionMeta,
-	/// Share add session id.
-	pub sub_session: Secret,
 	/// Session-level nonce.
 	pub nonce: u64,
 	/// Original key share (for old nodes only). TODO: is it possible to read from key_storage
@@ -144,8 +144,6 @@ enum SessionState {
 pub struct SessionParams<T: SessionTransport> {
 	/// Session metadata.
 	pub meta: ShareChangeSessionMeta,
-	/// Sub session identifier.
-	pub sub_session: Secret,
 	/// Session transport.
 	pub transport: T,
 	/// Key storage.
@@ -161,8 +159,6 @@ pub struct SessionParams<T: SessionTransport> {
 pub struct IsolatedSessionTransport {
 	/// Key id.
 	session: SessionId,
-	/// Session id.
-	sub_session: Secret,
 	/// Session-level nonce.
 	nonce: u64,
 	/// ID numbers of all participating nodes.
@@ -178,7 +174,6 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		Ok(SessionImpl {
 			core: SessionCore {
 				meta: params.meta,
-				sub_session: params.sub_session,
 				nonce: params.nonce,
 				key_share: params.key_storage.get(&key_id).ok(), // ignore error, it will be checked later
 				transport: params.transport,
@@ -314,7 +309,6 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 	/// When consensus-related message is received.
 	pub fn on_consensus_message(&self, sender: &NodeId, message: &ShareAddConsensusMessage) -> Result<(), Error> {
 		debug_assert!(self.core.meta.id == *message.session);
-		debug_assert!(self.core.sub_session == *message.sub_session);
 		debug_assert!(sender != &self.core.meta.self_node_id);
 
 		// start slave consensus session if needed
@@ -372,7 +366,6 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 	/// When common key share data is received by new node.
 	pub fn on_common_key_share_data(&self, sender: &NodeId, message: &KeyShareCommon) -> Result<(), Error> {
 		debug_assert!(self.core.meta.id == *message.session);
-		debug_assert!(self.core.sub_session == *message.sub_session);
 		debug_assert!(sender != &self.core.meta.self_node_id);
 
 		// only master can send this message
@@ -414,7 +407,6 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 	/// When absolute term share is received.
 	pub fn on_new_absolute_term(&self, sender: &NodeId, message: &NewAbsoluteTermShare) -> Result<(), Error> {
 		debug_assert!(self.core.meta.id == *message.session);
-		debug_assert!(self.core.sub_session == *message.sub_session);
 		debug_assert!(sender != &self.core.meta.self_node_id);
 
 		let mut data = self.data.lock();
@@ -472,7 +464,6 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 	/// When keys dissemination message is received.
 	pub fn on_new_keys_dissemination(&self, sender: &NodeId, message: &NewKeysDissemination) -> Result<(), Error> {
 		debug_assert!(self.core.meta.id == *message.session);
-		debug_assert!(self.core.sub_session == *message.sub_session);
 		debug_assert!(sender != &self.core.meta.self_node_id);
 
 		let mut data = self.data.lock();
@@ -584,7 +575,6 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		for (i, new_node) in nodes.iter().filter(|&(_, nd)| nd.is_new_node).map(|(n, _)| n).enumerate() {
 			core.transport.send(new_node, ShareAddMessage::NewAbsoluteTermShare(NewAbsoluteTermShare {
 				session: core.meta.id.clone().into(),
-				sub_session: core.sub_session.clone().into(),
 				session_nonce: core.nonce,
 				sender_id: sender_id.clone().into(),
 				absolute_term_share: absolute_term_shares[i].clone().into(),
@@ -603,7 +593,6 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		for new_node in nodes.iter().filter(|&(_, nd)| nd.is_new_node).map(|(n, _)| n) {
 			core.transport.send(new_node, ShareAddMessage::KeyShareCommon(KeyShareCommon {
 				session: core.meta.id.clone().into(),
-				sub_session: core.sub_session.clone().into(),
 				session_nonce: core.nonce,
 				threshold: old_key_share.threshold,
 				author: old_key_share.author.clone().into(),
@@ -634,7 +623,6 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 			let refreshed_secret1 = math::compute_polynom(refreshed_polynom1_sum, node_number.as_ref().expect("TODO"))?;
 			core.transport.send(node, ShareAddMessage::NewKeysDissemination(NewKeysDissemination {
 				session: core.meta.id.clone().into(),
-				sub_session: core.sub_session.clone().into(),
 				session_nonce: core.nonce,
 				refreshed_secret1: refreshed_secret1.into(),
 				refreshed_publics: refreshed_publics.iter().cloned().map(Into::into).collect(),
@@ -703,6 +691,12 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 	}
 }
 
+impl<T> Session for SessionImpl<T> where T: SessionTransport + Send + Sync + 'static {
+	fn wait(&self) -> Result<(), Error> {
+		unimplemented!()
+	}
+}
+
 impl<T> ClusterSession for SessionImpl<T> where T: SessionTransport {
 	fn is_finished(&self) -> bool {
 		self.data.lock().state == SessionState::Finished
@@ -731,6 +725,17 @@ impl NodeData {
 	}
 }
 
+impl IsolatedSessionTransport {
+	pub fn new(session_id: SessionId, nonce: u64, cluster: Arc<Cluster>) -> Self {
+		IsolatedSessionTransport {
+			session: session_id,
+			nonce: nonce,
+			cluster: cluster,
+			id_numbers: None,
+		}
+	}
+}
+
 impl JobTransport for IsolatedSessionTransport {
 	type PartialJobRequest = ServersSetChangeAccessRequest;
 	type PartialJobResponse = bool;
@@ -739,7 +744,6 @@ impl JobTransport for IsolatedSessionTransport {
 		let id_numbers = self.id_numbers.as_ref().expect("TODO");
 		self.cluster.send(node, Message::ShareAdd(ShareAddMessage::ShareAddConsensusMessage(ShareAddConsensusMessage {
 			session: self.session.clone().into(),
-			sub_session: self.sub_session.clone().into(),
 			session_nonce: self.nonce,
 			message: ConsensusMessageWithServersSecretMap::InitializeConsensusSession(InitializeConsensusSessionWithServersSecretMap {
 				old_nodes_set: request.old_servers_set.into_iter().map(Into::into).collect(),
@@ -753,7 +757,6 @@ impl JobTransport for IsolatedSessionTransport {
 	fn send_partial_response(&self, node: &NodeId, response: bool) -> Result<(), Error> {
 		self.cluster.send(node, Message::ShareAdd(ShareAddMessage::ShareAddConsensusMessage(ShareAddConsensusMessage {
 			session: self.session.clone().into(),
-			sub_session: self.sub_session.clone().into(),
 			session_nonce: self.nonce,
 			message: ConsensusMessageWithServersSecretMap::ConfirmConsensusInitialization(ConfirmConsensusInitialization {
 				is_confirmed: response,
@@ -843,18 +846,10 @@ mod tests {
 
 	fn create_session(mut meta: ShareChangeSessionMeta, admin_public: Public, self_node_id: NodeId, cluster: Arc<Cluster>, key_storage: Arc<KeyStorage>) -> SessionImpl<IsolatedSessionTransport> {
 		let session_id = meta.id.clone();
-		let sub_session: Secret = "0000000000000000000000000000000000000000000000000000000000000042".parse().unwrap();
 		meta.self_node_id = self_node_id;
 		SessionImpl::new(SessionParams {
 			meta: meta.clone(),
-			sub_session: sub_session.clone(),
-			transport: IsolatedSessionTransport {
-				session: session_id,
-				sub_session: sub_session,
-				nonce: 1,
-				id_numbers: None,
-				cluster: cluster,
-			},
+			transport: IsolatedSessionTransport::new(session_id, 1, cluster),
 			key_storage: key_storage,
 			admin_public: admin_public,
 			nonce: 1,

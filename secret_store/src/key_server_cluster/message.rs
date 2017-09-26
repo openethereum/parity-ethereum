@@ -731,8 +731,6 @@ pub struct ServersSetChangeCompleted {
 pub struct ShareAddConsensusMessage {
 	/// Share add session Id.
 	pub session: MessageSessionId,
-	/// Servers set change session Id.
-	pub sub_session: SerializableSecret,
 	/// Session-level nonce.
 	pub session_nonce: u64,
 	/// Consensus message.
@@ -744,8 +742,6 @@ pub struct ShareAddConsensusMessage {
 pub struct KeyShareCommon {
 	/// Generation session Id.
 	pub session: MessageSessionId,
-	/// Share add session Id.
-	pub sub_session: SerializableSecret,
 	/// Session-level nonce.
 	pub session_nonce: u64,
 	/// Key threshold.
@@ -763,8 +759,6 @@ pub struct KeyShareCommon {
 pub struct NewAbsoluteTermShare {
 	/// Generation session Id.
 	pub session: MessageSessionId,
-	/// Share add session Id.
-	pub sub_session: SerializableSecret,
 	/// Sender id number.
 	pub sender_id: SerializableSecret,
 	/// Session-level nonce.
@@ -778,8 +772,6 @@ pub struct NewAbsoluteTermShare {
 pub struct NewKeysDissemination {
 	/// Generation session Id.
 	pub session: MessageSessionId,
-	/// Share add session Id.
-	pub sub_session: SerializableSecret,
 	/// Session-level nonce.
 	pub session_nonce: u64,
 	/// Refreshed secret1 value.
@@ -793,8 +785,6 @@ pub struct NewKeysDissemination {
 pub struct ShareAddError {
 	/// Generation session Id.
 	pub session: MessageSessionId,
-	/// Share add session Id.
-	pub sub_session: SerializableSecret,
 	/// Session-level nonce.
 	pub session_nonce: u64,
 	/// Error message.
@@ -1053,23 +1043,13 @@ impl ServersSetChangeMessage {
 }
 
 impl ShareAddMessage {
-	pub fn session(&self) -> &SessionId {
+	pub fn session_id(&self) -> &SessionId {
 		match *self {
 			ShareAddMessage::ShareAddConsensusMessage(ref msg) => &msg.session,
 			ShareAddMessage::KeyShareCommon(ref msg) => &msg.session,
 			ShareAddMessage::NewAbsoluteTermShare(ref msg) => &msg.session,
 			ShareAddMessage::NewKeysDissemination(ref msg) => &msg.session,
 			ShareAddMessage::ShareAddError(ref msg) => &msg.session,
-		}
-	}
-
-	pub fn sub_session(&self) -> &Secret {
-		match *self {
-			ShareAddMessage::ShareAddConsensusMessage(ref msg) => &msg.sub_session,
-			ShareAddMessage::KeyShareCommon(ref msg) => &msg.sub_session,
-			ShareAddMessage::NewAbsoluteTermShare(ref msg) => &msg.sub_session,
-			ShareAddMessage::NewKeysDissemination(ref msg) => &msg.sub_session,
-			ShareAddMessage::ShareAddError(ref msg) => &msg.sub_session,
 		}
 	}
 

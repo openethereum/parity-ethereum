@@ -159,7 +159,7 @@ impl ShareChangeSession {
 	/// When share-add message is received.
 	pub fn on_share_add_message(&mut self, sender: &NodeId, message: &ShareAddMessage) -> Result<(), Error> {
 		if self.share_add_session.is_none() {
-			self.create_share_add_session(&message.sub_session().clone().into())?;
+			self.create_share_add_session()?;
 		}
 
 		let change_state_needed = self.share_add_session.as_ref()
@@ -217,7 +217,7 @@ impl ShareChangeSession {
 	}
 
 	/// Create new share add session.
-	fn create_share_add_session(&mut self, sub_session: &Secret) -> Result<(), Error> {
+	fn create_share_add_session(&mut self) -> Result<(), Error> {
 		let nodes_to_add = self.nodes_to_add.take().ok_or(Error::InvalidStateForRequest)?;
 		let new_nodes_set = self.old_nodes_set.iter().map(|n| (n.clone(), None))
 			.chain(nodes_to_add.clone().into_iter().map(|(k, v)| (k, Some(v))))
@@ -229,7 +229,6 @@ impl ShareChangeSession {
 				master_node_id: self.master_node_id.clone(),
 			},
 			nonce: self.nonce,
-			sub_session: sub_session.clone(),
 			transport: ShareChangeTransport::new(self.session_id, self.nonce, self.cluster.clone()),
 			key_storage: self.key_storage.clone(),
 			admin_public: Public::default(), // TODO
@@ -289,7 +288,7 @@ println!("===---");
 
 		if let Some(nodes_to_add) = self.nodes_to_add.clone() { // TODO: clone
 			if !nodes_to_add.is_empty() {
-				self.create_share_add_session(sub_session)?;
+				self.create_share_add_session()?;
 				return self.share_add_session.as_ref().expect("TODO").initialize(nodes_to_add.keys().cloned().collect(), None, None);
 			}
 		}

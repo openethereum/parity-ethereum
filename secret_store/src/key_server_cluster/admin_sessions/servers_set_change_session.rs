@@ -477,7 +477,7 @@ println!("=== 3");
 	pub fn on_share_add_message(&self, sender: &NodeId, message: &ServersSetChangeShareAddMessage) -> Result<(), Error> {
 		let mut data = self.data.lock();
 
-		let session_id = message.message.session().clone().into();
+		let session_id = message.message.session_id().clone().into();
 		let (is_finished, is_master) = {
 			let mut change_session = data.active_sessions.get_mut(&session_id).ok_or(Error::InvalidMessage)?;
 			change_session.on_share_add_message(sender, &message.message)?;
