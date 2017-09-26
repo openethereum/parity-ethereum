@@ -20,6 +20,7 @@ use std::sync::Weak;
 use time::Duration;
 use io::{IoContext, IoHandler, TimerToken};
 use engines::Engine;
+use parity_machine::Machine;
 
 /// Timeouts lookup
 pub trait Timeouts<S: Sync + Send + Clone>: Send + Sync {
@@ -31,14 +32,14 @@ pub trait Timeouts<S: Sync + Send + Clone>: Send + Sync {
 }
 
 /// Timeout transition handling.
-pub struct TransitionHandler<S: Sync + Send + Clone>  {
-	engine: Weak<Engine>,
+pub struct TransitionHandler<S: Sync + Send + Clone, M: Machine>  {
+	engine: Weak<Engine<M>>,
 	timeouts: Box<Timeouts<S>>,
 }
 
-impl<S> TransitionHandler<S> where S: Sync + Send + Clone {
+impl<S, M: Machine> TransitionHandler<S, M> where S: Sync + Send + Clone {
 	/// New step caller by timeouts.
-	pub fn new(engine: Weak<Engine>, timeouts: Box<Timeouts<S>>) -> Self {
+	pub fn new(engine: Weak<Engine<M>>, timeouts: Box<Timeouts<S>>) -> Self {
 		TransitionHandler {
 			engine: engine,
 			timeouts: timeouts,
@@ -54,7 +55,9 @@ fn set_timeout<S: Sync + Send + Clone>(io: &IoContext<S>, timeout: Duration) {
 		.unwrap_or_else(|e| warn!(target: "engine", "Failed to set consensus step timeout: {}.", e))
 }
 
-impl<S> IoHandler<S> for TransitionHandler<S> where S: Sync + Send + Clone + 'static {
+impl<S, M> IoHandler<S> for TransitionHandler<S, M>
+	where S: Sync + Send + Clone + 'static, M: Machine
+{
 	fn initialize(&self, io: &IoContext<S>) {
 		let initial = self.timeouts.initial();
 		trace!(target: "engine", "Setting the initial timeout to {}.", initial);

@@ -33,7 +33,7 @@ use rlp::{UntrustedRlp, RlpStream};
 
 use basic_types::LogBloom;
 use client::EngineClient;
-use engines::{Call, Engine};
+use machine::{AuxiliaryData, Call, EthereumMachine, AuxiliaryRequest};
 use header::Header;
 use ids::BlockId;
 use log_entry::LogEntry;
@@ -58,19 +58,19 @@ struct StateProof {
 	provider: Provider,
 }
 
-impl ::engines::StateDependentProof for StateProof {
+impl ::engines::StateDependentProof<EthereumMachine> for StateProof {
 	fn generate_proof(&self, caller: &Call) -> Result<Vec<u8>, String> {
 		prove_initial(&self.provider, &*self.header.lock(), caller)
 	}
 
-	fn check_proof(&self, engine: &Engine, proof: &[u8]) -> Result<(), String> {
+	fn check_proof(&self, machine: &EthereumMachine, proof: &[u8]) -> Result<(), String> {
 		let (header, state_items) = decode_first_proof(&UntrustedRlp::new(proof))
 			.map_err(|e| format!("proof incorrectly encoded: {}", e))?;
 		if &header != &*self.header.lock(){
 			return Err("wrong header in proof".into());
 		}
 
-		check_first_proof(engine, &self.provider, header, &state_items).map(|_| ())
+		check_first_proof(machine, &self.provider, header, &state_items).map(|_| ())
 	}
 }
 
@@ -94,7 +94,7 @@ fn encode_first_proof(header: &Header, state_items: &[Vec<u8>]) -> Bytes {
 }
 
 // check a first proof: fetch the validator set at the given block.
-fn check_first_proof(engine: &Engine, provider: &Provider, old_header: Header, state_items: &[DBValue])
+fn check_first_proof(machine: &EthereumMachine, provider: &Provider, old_header: Header, state_items: &[DBValue])
 	-> Result<Vec<Address>, String>
 {
 	use transaction::{Action, Transaction};
@@ -117,12 +117,12 @@ fn check_first_proof(engine: &Engine, provider: &Provider, old_header: Header, s
 		gas_used: 0.into(),
 	};
 
-	// check state proof using given engine.
+	// check state proof using given machine.
 	let number = old_header.number();
 	provider.get_validators(move |a, d| {
 		let from = Address::default();
 		let tx = Transaction {
-			nonce: engine.account_start_nonce(number),
+			nonce: machine.account_start_nonce(number),
 			action: Action::Call(a),
 			gas: PROVIDED_GAS.into(),
 			gas_price: U256::default(),
@@ -134,7 +134,7 @@ fn check_first_proof(engine: &Engine, provider: &Provider, old_header: Header, s
 			state_items,
 			*old_header.state_root(),
 			&tx,
-			engine,
+			machine,
 			&env_info,
 		);
 
@@ -336,9 +336,11 @@ impl ValidatorSet for ValidatorSafeContract {
 		None // no immediate transitions to contract.
 	}
 
-	fn signals_epoch_end(&self, first: bool, header: &Header, _block: Option<&[u8]>, receipts: Option<&[Receipt]>)
-		-> ::engines::EpochChange
+	fn signals_epoch_end(&self, first: bool, header: &Header, aux: AuxiliaryData)
+		-> ::engines::EpochChange<EthereumMachine>
 	{
+		let receipts = aux.receipts;
+
 		// transition to the first block of a contract requires finality but has no log event.
 		if first {
 			debug!(target: "engine", "signalling transition to fresh contract.");
@@ -358,7 +360,7 @@ impl ValidatorSet for ValidatorSafeContract {
 		trace!(target: "engine", "detected epoch change event bloom");
 
 		match receipts {
-			None => ::engines::EpochChange::Unsure(::engines::Unsure::NeedsReceipts),
+			None => ::engines::EpochChange::Unsure(AuxiliaryRequest::Receipts),
 			Some(receipts) => match self.extract_from_event(bloom, header, receipts) {
 				None => ::engines::EpochChange::No,
 				Some(list) => {
@@ -372,7 +374,7 @@ impl ValidatorSet for ValidatorSafeContract {
 		}
 	}
 
-	fn epoch_set(&self, first: bool, engine: &Engine, _number: ::header::BlockNumber, proof: &[u8])
+	fn epoch_set(&self, first: bool, machine: &EthereumMachine, _number: ::header::BlockNumber, proof: &[u8])
 		-> Result<(SimpleList, Option<H256>), ::error::Error>
 	{
 		let rlp = UntrustedRlp::new(proof);
@@ -383,7 +385,7 @@ impl ValidatorSet for ValidatorSafeContract {
 			let (old_header, state_items) = decode_first_proof(&rlp)?;
 			let number = old_header.number();
 			let old_hash = old_header.hash();
-			let addresses = check_first_proof(engine, &self.provider, old_header, &state_items)
+			let addresses = check_first_proof(machine, &self.provider, old_header, &state_items)
 				.map_err(::engines::EngineError::InsufficientProof)?;
 
 			trace!(target: "engine", "extracted epoch set at #{}: {} addresses",
@@ -561,7 +563,8 @@ mod tests {
 	#[test]
 	fn detects_bloom() {
 		use header::Header;
-		use engines::{EpochChange, Unsure};
+		use engines::EpochChange;
+		use machine::AuxiliaryRequest;
 		use log_entry::LogEntry;
 
 		let client = generate_dummy_client_with_spec_and_accounts(Spec::new_validator_safe_contract, None);
@@ -581,7 +584,7 @@ mod tests {
 		};
 
 		new_header.set_log_bloom(event.bloom());
-		match engine.signals_epoch_end(&new_header, None, None) {
+		match engine.signals_epoch_end(&new_header, Default::default()) {
 			EpochChange::No => {},
 			_ => panic!("Expected bloom to be unrecognized."),
 		};
@@ -590,8 +593,8 @@ mod tests {
 		event.topics.push(last_hash);
 		new_header.set_log_bloom(event.bloom());
 
-		match engine.signals_epoch_end(&new_header, None, None) {
-			EpochChange::Unsure(Unsure::NeedsReceipts) => {},
+		match engine.signals_epoch_end(&new_header, Default::default()) {
+			EpochChange::Unsure(AuxiliaryRequest::Receipts) => {},
 			_ => panic!("Expected bloom to be recognized."),
 		};
 	}
@@ -607,7 +610,7 @@ mod tests {
 		let mut new_header = Header::default();
 		new_header.set_number(0); // so the validator set doesn't look for a log
 
-		match engine.signals_epoch_end(&new_header, None, None) {
+		match engine.signals_epoch_end(&new_header, Default::default()) {
 			EpochChange::Yes(Proof::WithState(_)) => {},
 			_ => panic!("Expected state to be required to prove initial signal"),
 		};

@@ -18,6 +18,7 @@
 
 use ethjson;
 use time::Duration;
+use bigint::prelude::U256;
 use super::super::validator_set::{ValidatorSet, new_validator_set};
 use super::super::transition::Timeouts;
 use super::Step;
@@ -28,6 +29,8 @@ pub struct TendermintParams {
 	pub validators: Box<ValidatorSet>,
 	/// Timeout durations for different steps.
 	pub timeouts: TendermintTimeouts,
+	/// Reward per block in base units.
+	pub block_reward: U256,
 }
 
 /// Base timeout of each step in ms.
@@ -81,6 +84,7 @@ impl From<ethjson::spec::TendermintParams> for TendermintParams {
 				precommit: p.timeout_precommit.map_or(dt.precommit, to_duration),
 				commit: p.timeout_commit.map_or(dt.commit, to_duration),
 			},
+			block_reward: p.block_reward.map_or(U256::default(), Into::into),
 		}
 	}
 }

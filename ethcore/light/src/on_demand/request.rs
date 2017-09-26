@@ -20,8 +20,9 @@ use std::sync::Arc;
 
 use ethcore::basic_account::BasicAccount;
 use ethcore::encoded;
-use ethcore::engines::{Engine, StateDependentProof};
-use ethcore::receipt::{Receipt, TransactionOutcome};
+use ethcore::engines::{EthEngine, StateDependentProof};
+use ethcore::machine::EthereumMachine;
+use ethcore::receipt::Receipt;
 use ethcore::state::{self, ProvedExecution};
 use ethcore::transaction::SignedTransaction;
 use vm::EnvInfo;
@@ -843,7 +844,7 @@ pub struct TransactionProof {
 	// TODO: it's not really possible to provide this if the header is unknown.
 	pub env_info: EnvInfo,
 	/// Consensus engine.
-	pub engine: Arc<Engine>,
+	pub engine: Arc<EthEngine>,
 }
 
 impl TransactionProof {
@@ -858,7 +859,7 @@ impl TransactionProof {
 			state_items,
 			root,
 			&self.tx,
-			&*self.engine,
+			self.engine.machine(),
 			&self.env_info,
 		);
 
@@ -877,15 +878,15 @@ pub struct Signal {
 	/// Block hash and number to fetch proof for.
 	pub hash: H256,
 	/// Consensus engine, used to check the proof.
-	pub engine: Arc<Engine>,
+	pub engine: Arc<EthEngine>,
 	/// Special checker for the proof.
-	pub proof_check: Arc<StateDependentProof>,
+	pub proof_check: Arc<StateDependentProof<EthereumMachine>>,
 }
 
 impl Signal {
 	/// Check the signal, returning the signal or indicate that it's bad.
 	pub fn check_response(&self, _: &Mutex<::cache::Cache>, signal: &[u8]) -> Result<Vec<u8>, Error> {
-		self.proof_check.check_proof(&*self.engine, signal)
+		self.proof_check.check_proof(self.engine.machine(), signal)
 			.map(|_| signal.to_owned())
 			.map_err(|_| Error::BadProof)
 	}
@@ -904,7 +905,7 @@ mod tests {
 	use ethcore::client::{BlockChainClient, TestBlockChainClient, EachBlockWith};
 	use ethcore::header::Header;
 	use ethcore::encoded;
-	use ethcore::receipt::Receipt;
+	use ethcore::receipt::{Receipt, TransactionOutcome};
 
 	fn make_cache() -> ::cache::Cache {
 		::cache::Cache::new(Default::default(), ::time::Duration::seconds(1))

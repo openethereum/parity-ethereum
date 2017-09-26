@@ -594,6 +594,7 @@ dependencies = [
  "native-contracts 0.1.0",
  "num 0.1.40 (registry+https://github.com/rust-lang/crates.io-index)",
  "num_cpus 1.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "parity-machine 0.1.0",
  "parking_lot 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "patricia_trie 0.1.0",
  "price-info 1.7.0",
@@ -2195,6 +2196,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "parity-machine"
+version = "0.1.0"
+dependencies = [
+ "ethcore-bigint 0.1.3",
+ "ethcore-util 1.8.0",
+]
+
+[[package]]
 name = "parity-reactor"
 version = "0.1.0"
 dependencies = [
@@ -2317,7 +2326,7 @@ dependencies = [
 [[package]]
 name = "parity-ui-precompiled"
 version = "1.4.0"
-source = "git+https://github.com/paritytech/js-precompiled.git#f86d1a2c442a441e79f695da844addb70cf10bd6"
+source = "git+https://github.com/paritytech/js-precompiled.git#65e8765dc8df7a0b23894c695a9f6be8138a1d1c"
 dependencies = [
  "parity-dapps-glue 1.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]

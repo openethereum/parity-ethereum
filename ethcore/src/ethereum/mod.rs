@@ -27,6 +27,7 @@ pub mod denominations;
 pub use self::ethash::{Ethash};
 pub use self::denominations::*;
 
+use machine::EthereumMachine;
 use super::spec::*;
 
 /// Most recent fork block that we support on Mainnet.
@@ -43,6 +44,10 @@ fn load<'a, T: Into<Option<SpecParams<'a>>>>(params: T, b: &[u8]) -> Spec {
 		Some(params) => Spec::load(params, b),
 		None => Spec::load(&::std::env::temp_dir(), b)
 	}.expect("chain spec is invalid")
+}
+
+fn load_machine(b: &[u8]) -> EthereumMachine {
+	Spec::load_machine(b).expect("chain spec is invalid")
 }
 
 /// Create a new Foundation Olympic chain spec.
@@ -105,6 +110,20 @@ pub fn new_byzantium_test() -> Spec { load(None, include_bytes!("../../res/ether
 
 /// Create a new Foundation Constantinople era spec.
 pub fn new_constantinople_test() -> Spec { load(None, include_bytes!("../../res/ethereum/constantinople_test.json")) }
+
+// For tests
+
+/// Create a new Foundation Frontier-era chain spec as though it never changes to Homestead.
+pub fn new_frontier_test_machine() -> EthereumMachine { load_machine(include_bytes!("../../res/ethereum/frontier_test.json")) }
+
+/// Create a new Foundation Homestead-era chain spec as though it never changed from Frontier.
+pub fn new_homestead_test_machine() -> EthereumMachine { load_machine(include_bytes!("../../res/ethereum/homestead_test.json")) }
+
+/// Create a new Foundation Byzantium era spec.
+pub fn new_byzantium_test_machine() -> EthereumMachine { load_machine(include_bytes!("../../res/ethereum/byzantium_test.json")) }
+
+/// Create a new Foundation Constantinople era spec.
+pub fn new_constantinople_test_machine() -> EthereumMachine { load_machine(include_bytes!("../../res/ethereum/constantinople_test.json")) }
 
 #[cfg(test)]
 mod tests {

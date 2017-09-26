@@ -18,7 +18,6 @@
 
 use std::collections::BTreeMap;
 use std::sync::Weak;
-use engines::{Call, Engine};
 use bigint::hash::H256;
 use parking_lot::RwLock;
 use util::Address;
@@ -26,6 +25,7 @@ use bytes::Bytes;
 use ids::BlockId;
 use header::{BlockNumber, Header};
 use client::EngineClient;
+use machine::{AuxiliaryData, Call, EthereumMachine};
 use super::{SystemCall, ValidatorSet};
 
 type BlockNumberLookup = Box<Fn(BlockId) -> Result<BlockNumber, String> + Send + Sync + 'static>;
@@ -93,20 +93,20 @@ impl ValidatorSet for Multi {
 		set.is_epoch_end(first, chain_head)
 	}
 
-	fn signals_epoch_end(&self, _first: bool, header: &Header, block: Option<&[u8]>, receipts: Option<&[::receipt::Receipt]>)
-		-> ::engines::EpochChange
+	fn signals_epoch_end(&self, _first: bool, header: &Header, aux: AuxiliaryData)
+		-> ::engines::EpochChange<EthereumMachine>
 	{
 		let (set_block, set) = self.correct_set_by_number(header.number());
 		let first = set_block == header.number();
 
-		set.signals_epoch_end(first, header, block, receipts)
+		set.signals_epoch_end(first, header, aux)
 	}
 
-	fn epoch_set(&self, _first: bool, engine: &Engine, number: BlockNumber, proof: &[u8]) -> Result<(super::SimpleList, Option<H256>), ::error::Error> {
+	fn epoch_set(&self, _first: bool, machine: &EthereumMachine, number: BlockNumber, proof: &[u8]) -> Result<(super::SimpleList, Option<H256>), ::error::Error> {
 		let (set_block, set) = self.correct_set_by_number(number);
 		let first = set_block == number;
 
-		set.epoch_set(first, engine, number, proof)
+		set.epoch_set(first, machine, number, proof)
 	}
 
 	fn contains_with_caller(&self, bh: &H256, address: &Address, caller: &Call) -> bool {
@@ -227,7 +227,7 @@ mod tests {
 		let mut header = Header::new();
 		header.set_number(499);
 
-		match multi.signals_epoch_end(false, &header, None, None) {
+		match multi.signals_epoch_end(false, &header, Default::default()) {
 			EpochChange::No => {},
 			_ => panic!("Expected no epoch signal change."),
 		}
@@ -235,7 +235,7 @@ mod tests {
 
 		header.set_number(500);
 
-		match multi.signals_epoch_end(false, &header, None, None) {
+		match multi.signals_epoch_end(false, &header, Default::default()) {
 			EpochChange::No => {},
 			_ => panic!("Expected no epoch signal change."),
 		}

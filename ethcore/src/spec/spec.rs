@@ -16,37 +16,43 @@
 
 //! Parameters for a block chain.
 
-use super::genesis::Genesis;
-use super::seal::Generic as GenericSeal;
-use bigint::hash::{H2048, H256};
-use bigint::prelude::U256;
-
-use builtin::Builtin;
-use bytes::Bytes;
-use engines::{AuthorityRound, BasicAuthority, DEFAULT_BLOCKHASH_CONTRACT, Engine, InstantSeal,
-              NullEngine, Tendermint};
-use error::Error;
-
-pub use ethash::OptimizeFor;
-use ethereum;
-use ethjson;
-use executive::Executive;
-use factory::Factories;
-use hash::{KECCAK_NULL_RLP, keccak};
-use header::{BlockNumber, Header};
-use parking_lot::RwLock;
-use pod_state::*;
-use rlp::{Rlp, RlpStream};
-use rustc_hex::FromHex;
-use state::{Backend, State, Substate};
-use state::backend::Basic as BasicBackend;
-use std::collections::BTreeMap;
 use std::io::Read;
+use std::collections::BTreeMap;
 use std::path::Path;
 use std::sync::Arc;
-use trace::{NoopTracer, NoopVMTracer};
+
+use bigint::hash::{H256, H2048};
+use bigint::prelude::U256;
+use bytes::Bytes;
+use ethjson;
+use hash::{KECCAK_NULL_RLP, keccak};
+use parking_lot::RwLock;
+use rlp::{Rlp, RlpStream};
+use rustc_hex::FromHex;
 use util::*;
-use vm::{ActionParams, ActionValue, CallType, EnvInfo};
+use vm::{EnvInfo, CallType, ActionValue, ActionParams};
+
+use super::genesis::Genesis;
+use super::seal::Generic as GenericSeal;
+
+use builtin::Builtin;
+use engines::{EthEngine, NullEngine, InstantSeal, BasicAuthority, AuthorityRound, Tendermint, DEFAULT_BLOCKHASH_CONTRACT};
+use error::Error;
+use executive::Executive;
+use factory::Factories;
+use header::{BlockNumber, Header};
+use machine::EthereumMachine;
+use pod_state::*;
+use state::{Backend, State, Substate};
+use state::backend::Basic as BasicBackend;
+use trace::{NoopTracer, NoopVMTracer};
+
+pub use ethash::OptimizeFor;
+
+// helper for formatting errors.
+fn fmt_err<F: ::std::fmt::Display>(f: F) -> String {
+	format!("Spec json is invalid: {}", f)
+}
 
 /// Parameters common to ethereum-like blockchains.
 /// NOTE: when adding bugfix hard-fork parameters,
@@ -106,12 +112,12 @@ pub struct CommonParams {
 	pub wasm: bool,
 	/// Gas limit bound divisor (how much gas limit can change per block)
 	pub gas_limit_bound_divisor: U256,
-	/// Block reward in wei.
-	pub block_reward: U256,
 	/// Registrar contract address.
 	pub registrar: Address,
 	/// Node permission managing contract address.
 	pub node_permission_contract: Option<Address>,
+	/// Maximum contract code size that can be deployed.
+	pub max_code_size: u64,
 	/// Transaction permission managing contract address.
 	pub transaction_permission_contract: Option<Address>,
 }
@@ -119,7 +125,7 @@ pub struct CommonParams {
 impl CommonParams {
 	/// Schedule for an EVM in the post-EIP-150-era of the Ethereum main net.
 	pub fn schedule(&self, block_number: u64) -> ::vm::Schedule {
-		let mut schedule = ::vm::Schedule::new_post_eip150(usize::max_value(), true, true, true);
+		let mut schedule = ::vm::Schedule::new_post_eip150(self.max_code_size as _, true, true, true);
 		self.update_schedule(block_number, &mut schedule);
 		schedule
 	}
@@ -214,9 +220,9 @@ impl From<ethjson::spec::Params> for CommonParams {
 			remove_dust_contracts: p.remove_dust_contracts.unwrap_or(false),
 			wasm: p.wasm.unwrap_or(false),
 			gas_limit_bound_divisor: p.gas_limit_bound_divisor.into(),
-			block_reward: p.block_reward.map_or_else(U256::zero, Into::into),
 			registrar: p.registrar.map_or_else(Address::new, Into::into),
 			node_permission_contract: p.node_permission_contract.map(Into::into),
+			max_code_size: p.max_code_size.map_or(u64::max_value(), Into::into),
 			transaction_permission_contract: p.transaction_permission_contract.map(Into::into),
 		}
 	}
@@ -266,7 +272,7 @@ pub struct Spec {
 	/// User friendly spec name
 	pub name: String,
 	/// What engine are we using for this?
-	pub engine: Arc<Engine>,
+	pub engine: Arc<EthEngine>,
 	/// Name of the subdir inside the main data dir to use for chain data and settings.
 	pub data_dir: String,
 
@@ -329,6 +335,13 @@ impl Clone for Spec {
 	}
 }
 
+fn load_machine_from(s: ethjson::spec::Spec) -> EthereumMachine {
+	let builtins = s.accounts.builtins().into_iter().map(|p| (p.0.into(), From::from(p.1))).collect();
+	let params = CommonParams::from(s.params);
+
+	Spec::machine(&s.engine, params, builtins)
+}
+
 /// Load from JSON object.
 fn load_from(spec_params: SpecParams, s: ethjson::spec::Spec) -> Result<Spec, Error> {
 	let builtins = s.accounts
@@ -387,7 +400,28 @@ macro_rules! load_bundled {
 	};
 }
 
+macro_rules! load_machine_bundled {
+	($e:expr) => {
+		Spec::load_machine(
+			include_bytes!(concat!("../../res/", $e, ".json")) as &[u8]
+		).expect(concat!("Chain spec ", $e, " is invalid."))
+	};
+}
+
 impl Spec {
+	// create an instance of an Ethereum state machine, minus consensus logic.
+	fn machine(
+		engine_spec: &ethjson::spec::Engine,
+		params: CommonParams,
+		builtins: BTreeMap<Address, Builtin>,
+	) -> EthereumMachine {
+		if let ethjson::spec::Engine::Ethash(ref ethash) = *engine_spec {
+			EthereumMachine::with_ethash_extensions(params, builtins, ethash.params.clone().into())
+		} else {
+			EthereumMachine::regular(params, builtins)
+		}
+	}
+
 	/// Convert engine spec into a arc'd Engine of the right underlying type.
 	/// TODO avoid this hard-coded nastiness - use dynamic-linked plugin framework instead.
 	fn engine(
@@ -395,42 +429,18 @@ impl Spec {
 		engine_spec: ethjson::spec::Engine,
 		params: CommonParams,
 		builtins: BTreeMap<Address, Builtin>,
-	) -> Arc<Engine> {
+	) -> Arc<EthEngine> {
+		let machine = Self::machine(&engine_spec, params, builtins);
+
 		match engine_spec {
-			ethjson::spec::Engine::Null => Arc::new(NullEngine::new(params, builtins)),
-			ethjson::spec::Engine::InstantSeal => Arc::new(InstantSeal::new(params, builtins)),
-			ethjson::spec::Engine::Ethash(ethash) => Arc::new(ethereum::Ethash::new(
-				spec_params.cache_dir,
-				params,
-				From::from(ethash.params),
-				builtins,
-				spec_params.optimization_setting,
-			)),
-			ethjson::spec::Engine::BasicAuthority(basic_authority) => Arc::new(
-				BasicAuthority::new(
-					params,
-					From::from(
-						basic_authority.params,
-					),
-					builtins,
-				),
-			),
-			ethjson::spec::Engine::AuthorityRound(authority_round) => AuthorityRound::new(
-				params,
-				From::from(
-					authority_round.params,
-				),
-				builtins,
-			).expect(
-				"Failed to start AuthorityRound consensus engine.",
-			),
-			ethjson::spec::Engine::Tendermint(tendermint) => Tendermint::new(
-				params,
-				From::from(tendermint.params),
-				builtins,
-			).expect(
-				"Failed to start the Tendermint consensus engine.",
-			),
+			ethjson::spec::Engine::Null(null) => Arc::new(NullEngine::new(null.params.into(), machine)),
+			ethjson::spec::Engine::Ethash(ethash) => Arc::new(::ethereum::Ethash::new(spec_params.cache_dir, ethash.params.into(), machine, spec_params.optimization_setting)),
+			ethjson::spec::Engine::InstantSeal => Arc::new(InstantSeal::new(machine)),
+			ethjson::spec::Engine::BasicAuthority(basic_authority) => Arc::new(BasicAuthority::new(basic_authority.params.into(), machine)),
+			ethjson::spec::Engine::AuthorityRound(authority_round) => AuthorityRound::new(authority_round.params.into(), machine)
+				.expect("Failed to start AuthorityRound consensus engine."),
+			ethjson::spec::Engine::Tendermint(tendermint) => Tendermint::new(tendermint.params.into(), machine)
+				.expect("Failed to start the Tendermint consensus engine."),
 		}
 	}
 
@@ -496,15 +506,8 @@ impl Spec {
 				let mut substate = Substate::new();
 
 				{
-					let mut exec = Executive::new(&mut state, &env_info, self.engine.as_ref());
-					if let Err(e) = exec.create(
-						params,
-						&mut substate,
-						&mut None,
-						&mut NoopTracer,
-						&mut NoopVMTracer,
-					)
-					{
+					let mut exec = Executive::new(&mut state, &env_info, self.engine.machine());
+					if let Err(e) = exec.create(params, &mut substate, &mut None, &mut NoopTracer, &mut NoopVMTracer) {
 						warn!(target: "spec", "Genesis constructor execution at {} failed: {}.", address, e);
 					}
 				}
@@ -639,19 +642,23 @@ impl Spec {
 		Ok(db)
 	}
 
+	/// Loads just the state machine from a json file.
+	pub fn load_machine<R: Read>(reader: R) -> Result<EthereumMachine, String> {
+		ethjson::spec::Spec::load(reader)
+			.map_err(fmt_err)
+			.map(load_machine_from)
+
+	}
+
 	/// Loads spec from json file. Provide factories for executing contracts and ensuring
 	/// storage goes to the right place.
 	pub fn load<'a, T: Into<SpecParams<'a>>, R>(params: T, reader: R) -> Result<Self, String>
 	where
 		R: Read,
 	{
-		fn fmt<F: ::std::fmt::Display>(f: F) -> String {
-			format!("Spec json is invalid: {}", f)
-		}
-
-		ethjson::spec::Spec::load(reader).map_err(fmt).and_then(
+		ethjson::spec::Spec::load(reader).map_err(fmt_err).and_then(
 			|x| {
-				load_from(params.into(), x).map_err(fmt)
+				load_from(params.into(), x).map_err(fmt_err)
 			},
 		)
 	}
@@ -700,7 +707,7 @@ impl Spec {
 				db.as_hashdb_mut(),
 				*genesis.state_root(),
 				&tx,
-				&*self.engine,
+				self.engine.machine(),
 				&env_info,
 				factories.clone(),
 				true,
@@ -720,11 +727,12 @@ impl Spec {
 		load_bundled!("null_morden")
 	}
 
-	/// Create a new Spec which conforms to the Frontier-era Morden chain except that it's a
-	/// NullEngine consensus with applying reward on block close.
-	pub fn new_test_with_reward() -> Spec {
-		load_bundled!("null_morden_with_reward")
-	}
+	/// Create the EthereumMachine corresponding to Spec::new_test.
+	pub fn new_test_machine() -> EthereumMachine { load_machine_bundled!("null_morden") }
+
+
+	/// Create a new Spec which conforms to the Frontier-era Morden chain except that it's a NullEngine consensus with applying reward on block close.
+	pub fn new_test_with_reward() -> Spec { load_bundled!("null_morden_with_reward") }
 
 	/// Create a new Spec which is a NullEngine consensus with a premine of address whose
 	/// secret is keccak('').
@@ -796,7 +804,6 @@ mod tests {
 	use state::State;
 	use std::str::FromStr;
 	use tests::helpers::get_temp_state_db;
-	use util::*;
 	use views::*;
 
 	// https://github.com/paritytech/parity/issues/1840

@@ -188,6 +188,10 @@ export default class LocalAccountsMiddleware extends Middleware {
       return [];
     });
 
+    register('parity_lockedHardwareAccountsInfo', () => {
+      return [];
+    });
+
     register('parity_hashContent', () => {
       throw new Error('Functionality unavailable on a public wallet.');
     });
