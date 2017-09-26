@@ -283,7 +283,8 @@ export default class CreateWalletStore {
 
     const owners = _wallet.owners.filter((owner) => !/^(0x)?0*$/.test(owner));
 
-    if (_wallet.required > owners.length) {
+    // Real number of owners is owners + creator
+    if (_wallet.required > owners.length + 1) {
       requiredValidation.valueError = 'the number of required validators should be lower or equal the number of owners';
     }
 

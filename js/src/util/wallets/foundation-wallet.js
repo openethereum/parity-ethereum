@@ -260,6 +260,7 @@ export default class FoundationWalletUtils {
 
             const transaction = {
               transactionHash: log.transactionHash,
+              transactionIndex: log.transactionIndex,
               blockNumber: log.blockNumber,
               from, to, value
             };
