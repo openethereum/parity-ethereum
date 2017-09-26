@@ -24,14 +24,13 @@ use std::collections::{BTreeSet, BTreeMap};
 use std::collections::btree_map::Entry;
 use parking_lot::{Mutex, Condvar};
 use ethkey::{Public, Signature};
-use tiny_keccak::{keccak256, Keccak};
-use key_server_cluster::{Error, NodeId, SessionId, SessionMeta, KeyStorage, DummyAclStorage, DocumentKeyShare};
+use key_server_cluster::{Error, NodeId, SessionId, SessionMeta, KeyStorage};
 use key_server_cluster::cluster::Cluster;
-use key_server_cluster::message::{MessageNodeId, Message, ServersSetChangeMessage,
+use key_server_cluster::message::{Message, ServersSetChangeMessage,
 	ConsensusMessageWithServersSet, InitializeConsensusSessionWithServersSet,
 	ServersSetChangeConsensusMessage, ConfirmConsensusInitialization, UnknownSessionsRequest, UnknownSessions,
-	ServersSetChangeShareAddMessage, ShareAddMessage, ServersSetChangeError, ServersSetChangeCompleted,
-	ShareMoveMessage, ShareRemoveMessage, ServersSetChangeShareMoveMessage, ServersSetChangeShareRemoveMessage,
+	ServersSetChangeShareAddMessage, ServersSetChangeError, ServersSetChangeCompleted,
+	ServersSetChangeShareMoveMessage, ServersSetChangeShareRemoveMessage,
 	ServersSetChangeDelegate, ServersSetChangeDelegateResponse, InitializeShareChangeSession,
 	ConfirmShareChangeSessionInitialization};
 use key_server_cluster::share_change_session::{ShareChangeSession, ShareChangeSessionParams, ShareChangeSessionPlan,
@@ -723,7 +722,7 @@ pub mod tests {
 	use ethkey::{Random, Generator, Public, Signature, KeyPair, sign};
 	use key_server_cluster::{NodeId, SessionId, Error, KeyStorage, DummyKeyStorage, SessionMeta};
 	use key_server_cluster::cluster::tests::DummyCluster;
-	use key_server_cluster::generation_session::tests::MessageLoop as GenerationMessageLoop;
+	use key_server_cluster::generation_session::tests::{MessageLoop as GenerationMessageLoop, generate_nodes_ids};
 	use key_server_cluster::math;
 	use key_server_cluster::message::Message;
 	use super::{SessionImpl, SessionParams};
@@ -832,8 +831,8 @@ println!("=== {} -> {}: {}", from, to, message);
 		}
 	}
 
-	pub fn generate_key(threshold: usize, num_nodes: usize) -> GenerationMessageLoop {
-		let mut gml = GenerationMessageLoop::new(num_nodes);
+	pub fn generate_key(threshold: usize, nodes_ids: BTreeSet<NodeId>) -> GenerationMessageLoop {
+		let mut gml = GenerationMessageLoop::with_nodes_ids(nodes_ids);
 		gml.master().initialize(Public::default(), threshold, gml.nodes.keys().cloned().collect()).unwrap();
 		while let Some((from, to, message)) = gml.take_message() {
 			gml.process_message((from, to, message)).unwrap();
@@ -844,7 +843,7 @@ println!("=== {} -> {}: {}", from, to, message);
 	#[test]
 	fn node_added_using_servers_set_change() {
 		// initial 2-of-3 session
-		let gml = generate_key(1, 3);
+		let gml = generate_key(1, generate_nodes_ids(3));
 		let key_id = gml.session_id.clone();
 		let master_node_id = gml.nodes.keys().cloned().nth(0).unwrap();
 		let joint_secret = math::compute_joint_secret(gml.nodes.values()
@@ -886,7 +885,7 @@ println!("=== {} -> {}: {}", from, to, message);
 	#[test]
 	fn node_added_using_server_set_change_from_this_node() {
 		// initial 2-of-3 session
-		let gml = generate_key(1, 3);
+		let gml = generate_key(1, generate_nodes_ids(3));
 		let key_id = gml.session_id.clone();
 
 		// insert 1 node so that it becames 2-of-4 session
@@ -904,7 +903,7 @@ println!("=== {} -> {}: {}", from, to, message);
 	#[test]
 	fn node_moved_using_servers_set_change() {
 		// initial 2-of-3 session
-		let gml = generate_key(1, 3);
+		let gml = generate_key(1, generate_nodes_ids(3));
 		let key_id = gml.session_id.clone();
 		let master_node_id = gml.nodes.keys().cloned().nth(0).unwrap();
 		let joint_secret = math::compute_joint_secret(gml.nodes.values()
@@ -959,7 +958,7 @@ println!("=== {} -> {}: {}", from, to, message);
 	#[test]
 	fn node_removed_using_servers_set_change() {
 		// initial 2-of-3 session
-		let gml = generate_key(1, 3);
+		let gml = generate_key(1, generate_nodes_ids(3));
 		let key_id = gml.session_id.clone();
 		let master_node_id = gml.nodes.keys().cloned().nth(0).unwrap();
 		let joint_secret = math::compute_joint_secret(gml.nodes.values()

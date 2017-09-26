@@ -16,7 +16,7 @@
 
 use std::sync::Arc;
 use std::collections::{BTreeSet, BTreeMap};
-use ethkey::Secret;
+use ethkey::{Public, Secret};
 use key_server_cluster::{Error, NodeId, SessionId, SessionMeta, DocumentKeyShare, KeyStorage};
 use key_server_cluster::cluster::Cluster;
 use key_server_cluster::cluster_sessions::ClusterSession;
@@ -32,6 +32,7 @@ use key_server_cluster::share_move_session::{SessionTransport as ShareMoveSessio
 use key_server_cluster::share_remove_session::{SessionTransport as ShareRemoveSessionTransport,
 	SessionImpl as ShareRemoveSessionImpl, SessionParams as ShareRemoveSessionParams};
 use key_server_cluster::message::{ShareAddMessage, ShareMoveMessage, ShareRemoveMessage};
+use key_server_cluster::admin_sessions::ShareChangeSessionMeta;
 
 /// Single session meta-change session. Brief overview:
 /// 1) new shares are added to the session
@@ -222,9 +223,8 @@ impl ShareChangeSession {
 			.chain(nodes_to_add.clone().into_iter().map(|(k, v)| (k, Some(v))))
 			.collect();
 		let share_add_session = ShareAddSessionImpl::new(ShareAddSessionParams {
-			meta: SessionMeta {
+			meta: ShareChangeSessionMeta {
 				id: self.key_id.clone(),
-				threshold: 0,
 				self_node_id: self.self_node_id.clone(),
 				master_node_id: self.master_node_id.clone(),
 			},
@@ -232,6 +232,7 @@ impl ShareChangeSession {
 			sub_session: sub_session.clone(),
 			transport: ShareChangeTransport::new(self.session_id, self.nonce, self.cluster.clone()),
 			key_storage: self.key_storage.clone(),
+			admin_public: Public::default(), // TODO
 		})?;
 		share_add_session.set_consensus_output(self.old_nodes_set.clone(), new_nodes_set)?;
 		self.share_add_session = Some(share_add_session);

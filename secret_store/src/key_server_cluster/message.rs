@@ -748,6 +748,8 @@ pub struct KeyShareCommon {
 	pub sub_session: SerializableSecret,
 	/// Session-level nonce.
 	pub session_nonce: u64,
+	/// Key threshold.
+	pub threshold: usize,
 	/// Author of key share entry.
 	pub author: SerializablePublic,
 	/// Common (shared) encryption point.

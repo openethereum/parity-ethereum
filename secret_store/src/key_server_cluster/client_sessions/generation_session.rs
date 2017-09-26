@@ -873,13 +873,19 @@ pub mod tests {
 		pub queue: VecDeque<(NodeId, NodeId, Message)>,
 	}
 
+	pub fn generate_nodes_ids(n: usize) -> BTreeSet<NodeId> {
+		(0..n).map(|_| math::generate_random_point().unwrap()).collect()
+	}
+
 	impl MessageLoop {
 		pub fn new(nodes_num: usize) -> Self {
+			Self::with_nodes_ids(generate_nodes_ids(nodes_num))
+		}
+
+		pub fn with_nodes_ids(nodes_ids: BTreeSet<NodeId>) -> Self {
 			let mut nodes = BTreeMap::new();
 			let session_id = SessionId::default();
-			for _ in 0..nodes_num {
-				let key_pair = Random.generate().unwrap();
-				let node_id = key_pair.public().clone();
+			for node_id in nodes_ids {
 				let cluster = Arc::new(DummyCluster::new(node_id.clone()));
 				let key_storage = Arc::new(DummyKeyStorage::default());
 				let session = SessionImpl::new(SessionParams {

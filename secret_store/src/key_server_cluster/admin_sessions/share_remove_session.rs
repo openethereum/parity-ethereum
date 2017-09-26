@@ -224,21 +224,19 @@ println!("=== ppp");
 
 		// start slave consensus session if needed
 		let mut data = self.data.lock();
-		if self.core.meta.self_node_id != self.core.meta.master_node_id {
-			if data.consensus_session.is_none() {
-				match &message.message {
-					&ConsensusMessageWithServersSet::InitializeConsensusSession(ref message) => {
-						let current_nodes_set = self.core.key_share.id_numbers.keys().cloned().collect();
-						data.consensus_session = Some(ConsensusSession::new(ConsensusSessionParams {
-							meta: self.core.meta.clone(),
-							consensus_executor: ServersSetChangeAccessJob::new_on_slave(Public::default(), // TODO: administrator public
-								current_nodes_set,
-							),
-							consensus_transport: self.core.transport.clone(),
-						})?);
-					},
-					_ => return Err(Error::InvalidStateForRequest),
-				}
+		if data.consensus_session.is_none() && sender == &self.core.meta.master_node_id {
+			match &message.message {
+				&ConsensusMessageWithServersSet::InitializeConsensusSession(ref message) => {
+					let current_nodes_set = self.core.key_share.id_numbers.keys().cloned().collect();
+					data.consensus_session = Some(ConsensusSession::new(ConsensusSessionParams {
+						meta: self.core.meta.clone(),
+						consensus_executor: ServersSetChangeAccessJob::new_on_slave(Public::default(), // TODO: administrator public
+							current_nodes_set,
+						),
+						consensus_transport: self.core.transport.clone(),
+					})?);
+				},
+				_ => return Err(Error::InvalidStateForRequest),
 			}
 		}
 
@@ -545,7 +543,7 @@ mod tests {
 	use key_server_cluster::{NodeId, SessionId, Error, KeyStorage, DummyKeyStorage, SessionMeta};
 	use key_server_cluster::cluster::Cluster;
 	use key_server_cluster::cluster::tests::DummyCluster;
-	use key_server_cluster::generation_session::tests::MessageLoop as GenerationMessageLoop;
+	use key_server_cluster::generation_session::tests::{MessageLoop as GenerationMessageLoop, generate_nodes_ids};
 	use key_server_cluster::math;
 	use key_server_cluster::message::{Message, ServersSetChangeMessage, ShareAddMessage};
 	use key_server_cluster::servers_set_change_session::tests::generate_key;
@@ -645,7 +643,7 @@ println!("=== {} -> {}: {}", from, to, message);
 	fn node_removed_using_share_remove() {
 		// initial 2-of-3 session
 		let (t, n) = (1, 3);
-		let gml = generate_key(t, n);
+		let gml = generate_key(t, generate_nodes_ids(n));
 		let gml_nodes: BTreeSet<_> = gml.nodes.keys().cloned().collect();
 		let key_id = gml.session_id.clone();
 		let master = gml.nodes.keys().cloned().nth(0).unwrap();
