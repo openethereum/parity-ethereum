@@ -17,7 +17,7 @@
 use std::sync::Arc;
 use std::collections::{BTreeSet, BTreeMap};
 use ethkey::{Public, Secret};
-use key_server_cluster::{Error, NodeId, SessionId, SessionMeta, DocumentKeyShare, KeyStorage};
+use key_server_cluster::{Error, NodeId, SessionId, KeyStorage};
 use key_server_cluster::cluster::Cluster;
 use key_server_cluster::cluster_sessions::ClusterSession;
 use key_server_cluster::math;
@@ -49,8 +49,6 @@ pub struct ShareChangeSession {
 	self_node_id: NodeId,
 	/// Master node id.
 	master_node_id: NodeId,
-	/// Document key share.
-	document_key_share: Option<DocumentKeyShare>,
 	/// Cluster.
 	cluster: Arc<Cluster>,
 	/// Key storage.
@@ -125,9 +123,6 @@ impl ShareChangeSession {
 			key_id: params.key_id,
 			self_node_id: params.self_node_id,
 			master_node_id: params.master_node_id,
-			document_key_share: params.key_storage
-				.get(&params.key_id)
-				.ok(),
 			cluster: params.cluster,
 			key_storage: params.key_storage,
 			old_nodes_set: params.old_nodes_set,
@@ -323,13 +318,18 @@ impl JobTransport for ShareChangeTransport {
 	type PartialJobRequest = ServersSetChangeAccessRequest;
 	type PartialJobResponse = bool;
 
-	fn send_partial_request(&self, _node: &NodeId, request: ServersSetChangeAccessRequest) -> Result<(), Error> { unreachable!() }
-	fn send_partial_response(&self, _node: &NodeId, response: bool) -> Result<(), Error> { unreachable!() }
+	fn send_partial_request(&self, _node: &NodeId, _request: ServersSetChangeAccessRequest) -> Result<(), Error> {
+		unreachable!("only called when establishing consensus; this transport is never used for establishing consensus; qed")
+	}
+
+	fn send_partial_response(&self, _node: &NodeId, _response: bool) -> Result<(), Error> {
+		unreachable!("only called when establishing consensus; this transport is never used for establishing consensus; qed")
+	}
 }
 
 impl ShareAddSessionTransport for ShareChangeTransport {
 	fn set_id_numbers(&mut self, _id_numbers: BTreeMap<NodeId, Secret>) {
-		unreachable!()
+		unreachable!("only called when establishing consensus; this transport is never used for establishing consensus; qed")
 	}
 
 	fn send(&self, node: &NodeId, message: ShareAddMessage) -> Result<(), Error> {
@@ -342,8 +342,8 @@ impl ShareAddSessionTransport for ShareChangeTransport {
 }
 
 impl ShareMoveSessionTransport for ShareChangeTransport {
-	fn set_shares_to_move(&mut self, shares_to_move: BTreeMap<NodeId, NodeId>) {
-		unreachable!()
+	fn set_shares_to_move(&mut self, _shares_to_move: BTreeMap<NodeId, NodeId>) {
+		unreachable!("only called when establishing consensus; this transport is never used for establishing consensus; qed")
 	}
 
 	fn send(&self, node: &NodeId, message: ShareMoveMessage) -> Result<(), Error> {

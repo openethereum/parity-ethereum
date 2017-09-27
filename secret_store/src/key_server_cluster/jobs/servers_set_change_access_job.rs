@@ -14,12 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::sync::Arc;
 use std::collections::{BTreeSet, BTreeMap};
 use ethkey::{Public, Signature, recover};
-use hash::keccak_buffer;
-use tiny_keccak::{keccak256, Keccak};
-use key_server_cluster::{Error, NodeId, SessionId, AclStorage};
+use tiny_keccak::Keccak;
+use key_server_cluster::{Error, NodeId, SessionId};
 use key_server_cluster::message::{InitializeConsensusSessionWithServersSet, InitializeConsensusSessionWithServersMap,
 	InitializeConsensusSessionWithServersSecretMap};
 use key_server_cluster::jobs::job_session::{JobPartialResponseAction, JobPartialRequestAction, JobExecutor};

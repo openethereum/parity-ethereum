@@ -20,7 +20,7 @@ use std::sync::Arc;
 use std::collections::{BTreeMap, BTreeSet};
 use parking_lot::Mutex;
 use ethkey::{Public, Secret, Signature};
-use key_server_cluster::{Error, NodeId, SessionId, SessionMeta, DocumentKeyShare, KeyStorage};
+use key_server_cluster::{Error, NodeId, SessionId, DocumentKeyShare, KeyStorage};
 use key_server_cluster::cluster::Cluster;
 use key_server_cluster::cluster_sessions::ClusterSession;
 use key_server_cluster::message::{Message, ShareMoveMessage, ShareMoveConsensusMessage,

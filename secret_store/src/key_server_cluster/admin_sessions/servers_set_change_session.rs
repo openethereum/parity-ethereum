@@ -26,7 +26,7 @@ use std::collections::{BTreeSet, BTreeMap};
 use std::collections::btree_map::Entry;
 use parking_lot::{Mutex, Condvar};
 use ethkey::{Public, Signature};
-use key_server_cluster::{Error, NodeId, SessionId, SessionMeta, KeyStorage};
+use key_server_cluster::{Error, NodeId, SessionId, KeyStorage};
 use key_server_cluster::cluster::Cluster;
 use key_server_cluster::cluster_sessions::ClusterSession;
 use key_server_cluster::message::{Message, ServersSetChangeMessage,
@@ -268,7 +268,7 @@ impl SessionImpl {
 		if self.core.meta.self_node_id != self.core.meta.master_node_id {
 			if data.consensus_session.is_none() {
 				match &message.message {
-					&ConsensusMessageWithServersSet::InitializeConsensusSession(ref message) => {
+					&ConsensusMessageWithServersSet::InitializeConsensusSession(_) => {
 						data.consensus_session = Some(ConsensusSession::new(ConsensusSessionParams {
 							meta: self.core.meta.clone().into_consensus_meta(self.core.all_nodes_set.len()),
 							consensus_executor: ServersSetChangeAccessJob::new_on_slave(Public::default(), // TODO: administrator public
@@ -633,12 +633,14 @@ impl SessionImpl {
 					data.active_sessions.get_mut(&session_id).expect("TODO").initialize()?;
 				}
 			}
+
+			if number_of_sessions_to_start > 0 {
+				return Ok(());
+			}
 		}
 
-// TODO: complete when last session is completed!!!
-//		data.sessions_queue = None;
-//		return Self::complete_session(core, data);
-		Ok(())
+		data.sessions_queue = None;
+		Self::complete_session(core, data)
 	}
 
 
@@ -719,7 +721,7 @@ impl JobTransport for UnknownSessionsJobTransport {
 	type PartialJobRequest=NodeId;
 	type PartialJobResponse=BTreeSet<SessionId>;
 
-	fn send_partial_request(&self, node: &NodeId, request: NodeId) -> Result<(), Error> {
+	fn send_partial_request(&self, node: &NodeId, _request: NodeId) -> Result<(), Error> {
 		self.cluster.send(node, Message::ServersSetChange(ServersSetChangeMessage::UnknownSessionsRequest(UnknownSessionsRequest {
 			session: self.id.clone().into(),
 			session_nonce: self.nonce,

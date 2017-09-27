@@ -15,10 +15,10 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeSet;
 use parking_lot::Mutex;
-use ethkey::{Public, Secret, Signature};
-use key_server_cluster::{Error, NodeId, SessionId, SessionMeta, DocumentKeyShare, KeyStorage};
+use ethkey::{Public, Signature};
+use key_server_cluster::{Error, NodeId, SessionId, DocumentKeyShare, KeyStorage};
 use key_server_cluster::cluster::Cluster;
 use key_server_cluster::cluster_sessions::ClusterSession;
 use key_server_cluster::message::{Message, ShareRemoveMessage, ShareRemoveConsensusMessage, ConsensusMessageWithServersSet,
@@ -172,8 +172,8 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 
 			let old_set_signature = old_set_signature.ok_or(Error::InvalidMessage)?;
 			let new_set_signature = new_set_signature.ok_or(Error::InvalidMessage)?;
-			let mut all_nodes_set: BTreeSet<_> = self.core.key_share.id_numbers.keys().cloned().collect();
-			let mut new_nodes_set: BTreeSet<_> = all_nodes_set.iter().cloned().filter(|n| !shares_to_remove.contains(&n)).collect();
+			let all_nodes_set: BTreeSet<_> = self.core.key_share.id_numbers.keys().cloned().collect();
+			let new_nodes_set: BTreeSet<_> = all_nodes_set.iter().cloned().filter(|n| !shares_to_remove.contains(&n)).collect();
 
 			let mut consensus_session = ConsensusSession::new(ConsensusSessionParams {
 				meta: self.core.meta.clone().into_consensus_meta(all_nodes_set.len()),

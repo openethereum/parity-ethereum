@@ -393,7 +393,7 @@ impl ClusterSessions {
 	}
 
 	/// Send share add session error.
-	pub fn respond_with_share_add_error(&self, session_id: &SessionId, to: &NodeId, error: message::ShareAddError) {
+	pub fn respond_with_share_add_error(&self, session_id: &SessionId, error: message::ShareAddError) {
 		self.share_add_sessions.sessions.read().get(&session_id)
 			.map(|s| {
 				// error in any share change session is considered fatal
@@ -422,7 +422,7 @@ impl ClusterSessions {
 	}
 
 	/// Send share move session error.
-	pub fn respond_with_share_move_error(&self, session_id: &SessionId, to: &NodeId, error: message::ShareMoveError) {
+	pub fn respond_with_share_move_error(&self, session_id: &SessionId, error: message::ShareMoveError) {
 		self.share_move_sessions.sessions.read().get(&session_id)
 			.map(|s| {
 				// error in any share change session is considered fatal
@@ -451,7 +451,7 @@ impl ClusterSessions {
 	}
 
 	/// Send share remove session error.
-	pub fn respond_with_share_remove_error(&self, session_id: &SessionId, to: &NodeId, error: message::ShareRemoveError) {
+	pub fn respond_with_share_remove_error(&self, session_id: &SessionId, error: message::ShareRemoveError) {
 		self.share_remove_sessions.sessions.read().get(&session_id)
 			.map(|s| {
 				// error in any share change session is considered fatal
@@ -481,7 +481,7 @@ impl ClusterSessions {
 	}
 
 	/// Send share remove session error.
-	pub fn respond_with_servers_set_change_error(&self, session_id: &SessionId, to: &NodeId, error: message::ServersSetChangeError) {
+	pub fn respond_with_servers_set_change_error(&self, session_id: &SessionId, error: message::ServersSetChangeError) {
 		self.servers_set_change_sessions.sessions.read().get(&session_id)
 			.map(|s| {
 				// error in any share change session is considered fatal

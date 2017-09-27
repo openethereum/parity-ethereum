@@ -758,7 +758,6 @@ pub mod tests {
 		let (t, n) = (5, 10);
 		let artifacts1 = run_key_generation(t, n, None);
 		let joint_secret1 = compute_joint_secret(artifacts1.polynoms1.iter().map(|p1| &p1[0])).unwrap();
-		let joint_key_pair = KeyPair::from_secret(joint_secret1.clone()).unwrap();
 
 		// let's say we want to include additional server to the set
 		// so that scheme becames 6-of-11

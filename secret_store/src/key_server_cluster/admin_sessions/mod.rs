@@ -22,7 +22,6 @@ pub mod share_remove_session;
 
 mod sessions_queue;
 
-use std::collections::BTreeSet;
 use key_server_cluster::{SessionId, NodeId, SessionMeta};
 
 /// Share change session metadata.

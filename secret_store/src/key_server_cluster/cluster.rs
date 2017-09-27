@@ -807,7 +807,7 @@ impl ClusterCore {
 				},
 				Err(err) => {
 					warn!(target: "secretstore_net", "{}: servers set change session error '{}' when processing message {} from node {}", data.self_key_pair.public(), err, message, sender);
-					data.sessions.respond_with_servers_set_change_error(&session_id, &sender, message::ServersSetChangeError {
+					data.sessions.respond_with_servers_set_change_error(&session_id, message::ServersSetChangeError {
 						session: session_id.clone().into(),
 						session_nonce: session_nonce,
 						error: format!("{:?}", err),
@@ -883,7 +883,7 @@ impl ClusterCore {
 				},
 				Err(err) => {
 					warn!(target: "secretstore_net", "{}: share add session error '{}' when processing message {} from node {}", data.self_key_pair.public(), err, message, sender);
-					data.sessions.respond_with_share_add_error(&session_id, &sender, message::ShareAddError {
+					data.sessions.respond_with_share_add_error(&session_id, message::ShareAddError {
 						session: session_id.clone().into(),
 						session_nonce: session_nonce,
 						error: format!("{:?}", err),
@@ -959,7 +959,7 @@ impl ClusterCore {
 				},
 				Err(err) => {
 					warn!(target: "secretstore_net", "{}: share move session error '{}' when processing message {} from node {}", data.self_key_pair.public(), err, message, sender);
-					data.sessions.respond_with_share_move_error(&session_id, &sender, message::ShareMoveError {
+					data.sessions.respond_with_share_move_error(&session_id, message::ShareMoveError {
 						session: session_id.clone().into(),
 						session_nonce: session_nonce,
 						error: format!("{:?}", err),
@@ -1035,7 +1035,7 @@ impl ClusterCore {
 				},
 				Err(err) => {
 					warn!(target: "secretstore_net", "{}: share remove session error '{}' when processing message {} from node {}", data.self_key_pair.public(), err, message, sender);
-					data.sessions.respond_with_share_remove_error(&session_id, &sender, message::ShareRemoveError {
+					data.sessions.respond_with_share_remove_error(&session_id, message::ShareRemoveError {
 						session: session_id.clone().into(),
 						session_nonce: session_nonce,
 						error: format!("{:?}", err),

@@ -21,10 +21,9 @@
 
 use std::sync::Arc;
 use std::collections::{BTreeSet, BTreeMap};
-use std::collections::btree_map::Entry;
 use ethkey::{Public, Secret, Signature};
 use parking_lot::Mutex;
-use key_server_cluster::{Error, SessionId, NodeId, SessionMeta, DocumentKeyShare, KeyStorage};
+use key_server_cluster::{Error, SessionId, NodeId, DocumentKeyShare, KeyStorage};
 use key_server_cluster::cluster::Cluster;
 use key_server_cluster::cluster_sessions::ClusterSession;
 use key_server_cluster::math;
@@ -134,8 +133,6 @@ enum SessionState {
 	WaitingForAbsoluteTermShare,
 	/// Waiting for keys dissemination.
 	WaitingForKeysDissemination,
-	/// Waiting for public share from every other node.
-	WaitingForPublicKeyShare,
 	/// Session is completed.
 	Finished,
 }
@@ -353,7 +350,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 				new_nodes_set
 			)
 		};
-		if let Some(mut new_nodes_set) = new_nodes_set {
+		if let Some(new_nodes_set) = new_nodes_set {
 			data.nodes = Some(new_nodes_set);
 		}
 		if self.core.meta.self_node_id != self.core.meta.master_node_id || !is_establishing_consensus || !is_consensus_established {
@@ -611,9 +608,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 			.unwrap_or_else(|| data.key_share_threshold.clone().expect("this is new node; on new nodes this field is filled before KRD; session is completed after KRD; qed"));
 		let refreshed_polynom1_sum = data.refreshed_polynom1_sum.as_ref()
 			.expect("disseminate_keys is only called after generating refreshed_polynom1_sum; qed");
-		let refreshed_publics = (0..threshold+1)
-			.map(|i| math::compute_public_share(&refreshed_polynom1_sum[i]))
-			.collect::<Result<Vec<_>, _>>()?;
+		let refreshed_publics = math::refreshed_public_values_generation(threshold, &refreshed_polynom1_sum)?;
 
 		// send calculated values
 		let nodes = data.nodes.as_mut()

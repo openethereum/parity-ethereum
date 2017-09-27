@@ -16,11 +16,7 @@
 
 use std::sync::Arc;
 use std::collections::{BTreeSet, BTreeMap};
-use ethkey::{Public, Secret};
-use ethcrypto::ecies::encrypt;
-use ethcrypto::DEFAULT_MAC;
-use key_server_cluster::{Error, NodeId, SessionId, DocumentKeyShare, EncryptedDocumentKeyShadow, KeyStorage};
-use key_server_cluster::math;
+use key_server_cluster::{Error, NodeId, SessionId, KeyStorage};
 use key_server_cluster::jobs::job_session::{JobPartialRequestAction, JobPartialResponseAction, JobExecutor};
 
 /// Unknown sessions report job.

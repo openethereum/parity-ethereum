@@ -15,12 +15,10 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::BTreeSet;
-use std::sync::Arc;
-use ethkey::{Public, Signature, recover};
-use key_server_cluster::{Error, NodeId, SessionMeta, AclStorage};
+use ethkey::Signature;
+use key_server_cluster::{Error, NodeId, SessionMeta};
 use key_server_cluster::message::ConsensusMessage;
 use key_server_cluster::jobs::job_session::{JobSession, JobSessionState, JobTransport, JobExecutor};
-use key_server_cluster::jobs::key_access_job::KeyAccessJob;
 
 /// Consensus session state.
 #[derive(Debug, Clone, Copy, PartialEq)]
