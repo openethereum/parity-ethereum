@@ -226,7 +226,7 @@ impl Ord for SerializableH256 {
 }
 
 /// Serializable EC scalar/secret key.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct SerializableSecret(pub Secret);
 
 impl<T> From<T> for SerializableSecret where Secret: From<T> {

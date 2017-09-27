@@ -146,7 +146,7 @@ fn upgrade_db(db: Database) -> Result<Database, Error> {
 		0 => {
 			let mut batch = db.transaction();
 			batch.put(None, DB_META_KEY_VERSION, &[CURRENT_VERSION]);
-			for (db_key, db_value) in db.iter(None).into_iter().flat_map(|inner| inner) {
+			for (db_key, db_value) in db.iter(None).into_iter().flat_map(|inner| inner).filter(|&(ref k, _)| **k != *DB_META_KEY_VERSION) {
 				let v0_key = serde_json::from_slice::<SerializableDocumentKeyShareV0>(&db_value).map_err(|e| Error::Database(e.to_string()))?;
 				let v2_key = SerializableDocumentKeyShareV2 {
 					// author is used in separate generation + encrypt sessions.
@@ -168,7 +168,7 @@ fn upgrade_db(db: Database) -> Result<Database, Error> {
 		1 => {
 			let mut batch = db.transaction();
 			batch.put(None, DB_META_KEY_VERSION, &[CURRENT_VERSION]);
-			for (db_key, db_value) in db.iter(None).into_iter().flat_map(|inner| inner) {
+			for (db_key, db_value) in db.iter(None).into_iter().flat_map(|inner| inner).filter(|&(ref k, _)| **k != *DB_META_KEY_VERSION) {
 				let v1_key = serde_json::from_slice::<SerializableDocumentKeyShareV1>(&db_value).map_err(|e| Error::Database(e.to_string()))?;
 				let v2_key = SerializableDocumentKeyShareV2 {
 					author: v1_key.author, // added in v1
@@ -293,8 +293,8 @@ pub mod tests {
 	use ethkey::{Random, Generator, Public, Secret};
 	use util::Database;
 	use types::all::{Error, NodeAddress, ServiceConfiguration, ClusterConfiguration, ServerKeyId};
-	use super::{DB_META_KEY_VERSION, KeyStorage, PersistentKeyStorage, DocumentKeyShare,
-		SerializableDocumentKeyShareV0, SerializableDocumentKeyShareV1, upgrade_db};
+	use super::{DB_META_KEY_VERSION, CURRENT_VERSION, KeyStorage, PersistentKeyStorage, DocumentKeyShare,
+		SerializableDocumentKeyShareV0, SerializableDocumentKeyShareV1, SerializableDocumentKeyShareV2, upgrade_db};
 
 	/// In-memory document encryption keys storage
 	#[derive(Default)]
@@ -390,7 +390,7 @@ pub mod tests {
 	}
 
 	#[test]
-	fn upgrade_db_0_to_1() {
+	fn upgrade_db_from_0() {
 		let db_path = RandomTempPath::create_dir();
 		let db = Database::open_default(db_path.as_str()).unwrap();
 
@@ -415,8 +415,8 @@ pub mod tests {
 		let db = upgrade_db(db).unwrap();
 
 		// check upgrade
-		assert_eq!(db.get(None, DB_META_KEY_VERSION).unwrap().unwrap()[0], 1);
-		let key = serde_json::from_slice::<SerializableDocumentKeyShareV1>(&db.get(None, &[7]).unwrap().map(|key| key.to_vec()).unwrap()).unwrap();
+		assert_eq!(db.get(None, DB_META_KEY_VERSION).unwrap().unwrap()[0], CURRENT_VERSION);
+		let key = serde_json::from_slice::<SerializableDocumentKeyShareV2>(&db.get(None, &[7]).unwrap().map(|key| key.to_vec()).unwrap()).unwrap();
 		assert_eq!(Public::default(), key.author.clone().into());
 		assert_eq!(777, key.threshold);
 		assert_eq!(vec![(
@@ -429,7 +429,44 @@ pub mod tests {
 	}
 
 	#[test]
-	fn upgrade_db_1_to_2() {
-		// TODO
+	fn upgrade_db_from_1() {
+		let db_path = RandomTempPath::create_dir();
+		let db = Database::open_default(db_path.as_str()).unwrap();
+
+		// prepare v1 database
+		{
+			let key = serde_json::to_vec(&SerializableDocumentKeyShareV1 {
+				author: "b486d3840218837b035c66196ecb15e6b067ca20101e11bd5e626288ab6806ecc70b8307012626bd512bad1559112d11d21025cef48cc7a1d2f3976da08f36c8".into(),
+				threshold: 777,
+				id_numbers: vec![(
+					"b486d3840218837b035c66196ecb15e6b067ca20101e11bd5e626288ab6806ecc70b8307012626bd512bad1559112d11d21025cef48cc7a1d2f3976da08f36c8".into(),
+					"281b6bf43cb86d0dc7b98e1b7def4a80f3ce16d28d2308f934f116767306f06c".parse::<Secret>().unwrap().into(),
+				)].into_iter().collect(),
+				secret_share: "00125d85a05e5e63e214cb60fe63f132eec8a103aa29266b7e6e6c5b7597230b".parse::<Secret>().unwrap().into(),
+				common_point: Some("99e82b163b062d55a64085bacfd407bb55f194ba5fb7a1af9c34b84435455520f1372e0e650a4f91aed0058cb823f62146ccb5599c8d13372c300dea866b69fc".into()),
+				encrypted_point: Some("7e05df9dd077ec21ed4bc45c9fe9e0a43d65fa4be540630de615ced5e95cf5c3003035eb713317237d7667feeeb64335525158f5f7411f67aca9645169ea554c".into()),
+			}).unwrap();
+			let mut batch = db.transaction();
+			batch.put(None, DB_META_KEY_VERSION, &[1]);
+			batch.put(None, &[7], &key);
+			db.write(batch).unwrap();
+		}
+
+		// upgrade database
+		let db = upgrade_db(db).unwrap();
+
+		// check upgrade
+		assert_eq!(db.get(None, DB_META_KEY_VERSION).unwrap().unwrap()[0], CURRENT_VERSION);
+		let key = serde_json::from_slice::<SerializableDocumentKeyShareV2>(&db.get(None, &[7]).unwrap().map(|key| key.to_vec()).unwrap()).unwrap();
+		assert_eq!(777, key.threshold);
+		assert_eq!(vec![(
+			"b486d3840218837b035c66196ecb15e6b067ca20101e11bd5e626288ab6806ecc70b8307012626bd512bad1559112d11d21025cef48cc7a1d2f3976da08f36c8".parse::<Public>().unwrap(),
+			"281b6bf43cb86d0dc7b98e1b7def4a80f3ce16d28d2308f934f116767306f06c".parse::<Secret>().unwrap(),
+		)], key.id_numbers.clone().into_iter().map(|(k, v)| (k.into(), v.into())).collect::<Vec<(Public, Secret)>>());
+		assert_eq!("00125d85a05e5e63e214cb60fe63f132eec8a103aa29266b7e6e6c5b7597230b".parse::<Secret>().unwrap(), key.secret_share.into());
+		assert_eq!(Some("99e82b163b062d55a64085bacfd407bb55f194ba5fb7a1af9c34b84435455520f1372e0e650a4f91aed0058cb823f62146ccb5599c8d13372c300dea866b69fc".parse::<Public>().unwrap()), key.common_point.clone().map(Into::into));
+		assert_eq!(Some("7e05df9dd077ec21ed4bc45c9fe9e0a43d65fa4be540630de615ced5e95cf5c3003035eb713317237d7667feeeb64335525158f5f7411f67aca9645169ea554c".parse::<Public>().unwrap()), key.encrypted_point.clone().map(Into::into));
+		assert_eq!(key.author, "b486d3840218837b035c66196ecb15e6b067ca20101e11bd5e626288ab6806ecc70b8307012626bd512bad1559112d11d21025cef48cc7a1d2f3976da08f36c8".into());
+		assert_eq!(key.polynom1, vec![]);
 	}
 }
