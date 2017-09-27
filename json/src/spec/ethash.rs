@@ -20,7 +20,7 @@ use uint::Uint;
 use hash::Address;
 
 /// Deserializable doppelganger of EthashParams.
-#[derive(Debug, PartialEq, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize)]
 pub struct EthashParams {
 	/// See main EthashParams docs.
 	#[serde(rename="minimumDifficulty")]
@@ -41,6 +41,9 @@ pub struct EthashParams {
 	/// See main EthashParams docs.
 	#[serde(rename="homesteadTransition")]
 	pub homestead_transition: Option<Uint>,
+	/// Reward per block in wei.
+	#[serde(rename="blockReward")]
+	pub block_reward: Option<Uint>,
 
 	/// See main EthashParams docs.
 	#[serde(rename="daoHardforkTransition")]
@@ -111,26 +114,6 @@ pub struct EthashParams {
 	#[serde(rename="mcip3DevContract")]
 	pub mcip3_dev_contract: Option<Address>,
 
-	/// See main EthashParams docs.
-	#[serde(rename="maxCodeSize")]
-	pub max_code_size: Option<Uint>,
-
-	/// See main EthashParams docs.
-	#[serde(rename="maxGasLimitTransition")]
-	pub max_gas_limit_transition: Option<Uint>,
-
-	/// See main EthashParams docs.
-	#[serde(rename="maxGasLimit")]
-	pub max_gas_limit: Option<Uint>,
-
-	/// See main EthashParams docs.
-	#[serde(rename="minGasPriceTransition")]
-	pub min_gas_price_transition: Option<Uint>,
-
-	/// See main EthashParams docs.
-	#[serde(rename="minGasPrice")]
-	pub min_gas_price: Option<Uint>,
-
 	/// EIP-649 transition block.
 	#[serde(rename="eip649Transition")]
 	pub eip649_transition: Option<Uint>,
@@ -167,6 +150,7 @@ mod tests {
 				"difficultyBoundDivisor": "0x0800",
 				"durationLimit": "0x0d",
 				"homesteadTransition": "0x42",
+				"blockReward": "0x100",
 				"daoHardforkTransition": "0x08",
 				"daoHardforkBeneficiary": "0xabcabcabcabcabcabcabcabcabcabcabcabcabca",
 				"daoHardforkAccounts": [
@@ -212,6 +196,7 @@ mod tests {
 				metropolis_difficulty_increment_divisor: None,
 				duration_limit: Some(Uint(U256::from(0x0d))),
 				homestead_transition: Some(Uint(U256::from(0x42))),
+				block_reward: Some(Uint(U256::from(0x100))),
 				dao_hardfork_transition: Some(Uint(U256::from(0x08))),
 				dao_hardfork_beneficiary: Some(Address(H160::from("0xabcabcabcabcabcabcabcabcabcabcabcabcabca"))),
 				dao_hardfork_accounts: Some(vec![
@@ -247,11 +232,6 @@ mod tests {
 				ecip1010_pause_transition: None,
 				ecip1010_continue_transition: None,
 				ecip1017_era_rounds: None,
-				max_code_size: None,
-				max_gas_limit_transition: None,
-				max_gas_limit: None,
-				min_gas_price_transition: None,
-				min_gas_price: None,
 				eip649_transition: None,
 				eip649_delay: None,
 				eip649_reward: None,
@@ -277,6 +257,7 @@ mod tests {
 				metropolis_difficulty_increment_divisor: None,
 				duration_limit: None,
 				homestead_transition: None,
+				block_reward: None,
 				dao_hardfork_transition: None,
 				dao_hardfork_beneficiary: None,
 				dao_hardfork_accounts: None,
@@ -291,11 +272,6 @@ mod tests {
 				ecip1010_pause_transition: None,
 				ecip1010_continue_transition: None,
 				ecip1017_era_rounds: None,
-				max_code_size: None,
-				max_gas_limit_transition: None,
-				max_gas_limit: None,
-				min_gas_price_transition: None,
-				min_gas_price: None,
 				eip649_transition: None,
 				eip649_delay: None,
 				eip649_reward: None,

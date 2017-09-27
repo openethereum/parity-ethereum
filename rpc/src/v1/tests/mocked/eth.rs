@@ -1097,7 +1097,7 @@ fn rpc_get_work_returns_correct_work_package() {
 	eth_tester.miner.set_author(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap());
 
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_getWork", "params": [], "id": 1}"#;
-	let response = r#"{"jsonrpc":"2.0","result":["0x3bbe93f74e7b97ae00784aeff8819c5cb600dd87e8b282a5d3446f3f871f0347","0x0000000000000000000000000000000000000000000000000000000000000000","0x0000800000000000000000000000000000000000000000000000000000000000","0x1"],"id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":["0x76c7bd86693aee93d1a80a408a09a0585b1a1292afcb56192f171d925ea18e2d","0x0000000000000000000000000000000000000000000000000000000000000000","0x0000800000000000000000000000000000000000000000000000000000000000","0x1"],"id":1}"#;
 
 	assert_eq!(eth_tester.io.handle_request_sync(request), Some(response.to_owned()));
 }
@@ -1110,7 +1110,7 @@ fn rpc_get_work_should_not_return_block_number() {
 	eth_tester.miner.set_author(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap());
 
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_getWork", "params": [], "id": 1}"#;
-	let response = r#"{"jsonrpc":"2.0","result":["0x3bbe93f74e7b97ae00784aeff8819c5cb600dd87e8b282a5d3446f3f871f0347","0x0000000000000000000000000000000000000000000000000000000000000000","0x0000800000000000000000000000000000000000000000000000000000000000"],"id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":["0x76c7bd86693aee93d1a80a408a09a0585b1a1292afcb56192f171d925ea18e2d","0x0000000000000000000000000000000000000000000000000000000000000000","0x0000800000000000000000000000000000000000000000000000000000000000"],"id":1}"#;
 
 	assert_eq!(eth_tester.io.handle_request_sync(request), Some(response.to_owned()));
 }

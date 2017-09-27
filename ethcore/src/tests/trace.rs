@@ -65,6 +65,8 @@ fn can_trace_block_and_uncle_reward() {
 	// block with transaction and uncle
 
 	let genesis_header = spec.genesis_header();
+	let genesis_gas = genesis_header.gas_limit().clone();
+
 	let mut db = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
 	let mut rolling_timestamp = 40;
 	let mut last_hashes = vec![];
@@ -165,7 +167,7 @@ fn can_trace_block_and_uncle_reward() {
 	let uncle_author: Address = "ef2d6d194084c2de36e0dabfce45d046b37d1106".into();
 	uncle.set_author(uncle_author);
 	uncle.set_parent_hash(root_header.hash());
-	uncle.set_gas_limit(U256::from(50_000));
+	uncle.set_gas_limit(genesis_gas);
 	uncle.set_number(root_header.number() + 1);
 	uncle.set_timestamp(rolling_timestamp);
 	block.push_uncle(uncle).unwrap();

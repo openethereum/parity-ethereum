@@ -47,11 +47,8 @@ pub struct HttpConfiguration {
 }
 
 impl HttpConfiguration {
-	pub fn address(&self) -> Option<(String, u16)> {
-		match self.enabled {
-			true => Some((self.interface.clone(), self.port)),
-			false => None,
-		}
+	pub fn address(&self) -> Option<rpc::Host> {
+		address(self.enabled, &self.interface, self.port, &self.hosts)
 	}
 }
 
@@ -79,11 +76,18 @@ pub struct UiConfiguration {
 }
 
 impl UiConfiguration {
-	pub fn address(&self) -> Option<(String, u16)> {
-		match self.enabled {
-			true => Some((self.interface.clone(), self.port)),
-			false => None,
-		}
+	pub fn address(&self) -> Option<rpc::Host> {
+		address(self.enabled, &self.interface, self.port, &self.hosts)
+	}
+
+	pub fn redirection_address(&self) -> Option<(String, u16)> {
+		self.address().map(|host| {
+			let mut it = host.split(':');
+			let hostname: Option<String> = it.next().map(|s| s.to_owned());
+			let port: Option<u16> = it.next().and_then(|s| s.parse().ok());
+
+			(hostname.unwrap_or_else(|| "localhost".into()), port.unwrap_or(8180))
+		})
 	}
 }
 
@@ -145,7 +149,7 @@ pub struct WsConfiguration {
 	pub hosts: Option<Vec<String>>,
 	pub signer_path: PathBuf,
 	pub support_token_api: bool,
-	pub ui_address: Option<(String, u16)>,
+	pub ui_address: Option<rpc::Host>,
 }
 
 impl Default for WsConfiguration {
@@ -160,17 +164,25 @@ impl Default for WsConfiguration {
 			hosts: Some(Vec::new()),
 			signer_path: replace_home(&data_dir, "$BASE/signer").into(),
 			support_token_api: true,
-			ui_address: Some(("127.0.0.1".to_owned(), 8180)),
+			ui_address: Some("127.0.0.1:8180".into()),
 		}
 	}
 }
 
 impl WsConfiguration {
-	pub fn address(&self) -> Option<(String, u16)> {
-		match self.enabled {
-			true => Some((self.interface.clone(), self.port)),
-			false => None,
-		}
+	pub fn address(&self) -> Option<rpc::Host> {
+		address(self.enabled, &self.interface, self.port, &self.hosts)
+	}
+}
+
+fn address(enabled: bool, bind_iface: &str, bind_port: u16, hosts: &Option<Vec<String>>) -> Option<rpc::Host> {
+	if !enabled {
+		return None;
+	}
+
+	match *hosts {
+		Some(ref hosts) if !hosts.is_empty() => Some(hosts[0].clone().into()),
+		_ => Some(format!("{}:{}", bind_iface, bind_port).into()),
 	}
 }
 
@@ -190,17 +202,15 @@ pub fn new_ws<D: rpc_apis::Dependencies>(
 	}
 
 	let domain = DAPPS_DOMAIN;
-	let ws_address = (conf.interface, conf.port);
-	let url = format!("{}:{}", ws_address.0, ws_address.1);
+	let url = format!("{}:{}", conf.interface, conf.port);
 	let addr = url.parse().map_err(|_| format!("Invalid WebSockets listen host/port given: {}", url))?;
 
 
-	let pool = deps.pool.clone();
-	let full_handler = setup_apis(rpc_apis::ApiSet::SafeContext, deps, pool.clone());
+	let full_handler = setup_apis(rpc_apis::ApiSet::SafeContext, deps);
 	let handler = {
 		let mut handler = MetaIoHandler::with_middleware((
 			rpc::WsDispatcher::new(full_handler),
-			Middleware::new(deps.stats.clone(), deps.apis.activity_notifier(), pool)
+			Middleware::new(deps.stats.clone(), deps.apis.activity_notifier(), deps.pool.clone())
 		));
 		let apis = conf.apis.list_apis();
 		deps.apis.extend_with_set(&mut handler, &apis);
@@ -210,8 +220,8 @@ pub fn new_ws<D: rpc_apis::Dependencies>(
 
 	let remote = deps.remote.clone();
 	let ui_address = conf.ui_address.clone();
-	let allowed_origins = into_domains(with_domain(conf.origins, domain, &[ui_address]));
-	let allowed_hosts = into_domains(with_domain(conf.hosts, domain, &[Some(ws_address)]));
+	let allowed_origins = into_domains(with_domain(conf.origins, domain, &ui_address));
+	let allowed_hosts = into_domains(with_domain(conf.hosts, domain, &Some(url.clone().into())));
 
 	let signer_path;
 	let path = match conf.support_token_api && conf.ui_address.is_some() {
@@ -253,15 +263,13 @@ pub fn new_http<D: rpc_apis::Dependencies>(
 	}
 
 	let domain = DAPPS_DOMAIN;
-	let http_address = (conf.interface, conf.port);
-	let url = format!("{}:{}", http_address.0, http_address.1);
+	let url = format!("{}:{}", conf.interface, conf.port);
 	let addr = url.parse().map_err(|_| format!("Invalid {} listen host/port given: {}", id, url))?;
-	let pool = deps.pool.clone();
-	let handler = setup_apis(conf.apis, deps, pool);
+	let handler = setup_apis(conf.apis, deps);
 	let remote = deps.remote.clone();
 
 	let cors_domains = into_domains(conf.cors);
-	let allowed_hosts = into_domains(with_domain(conf.hosts, domain, &[Some(http_address)]));
+	let allowed_hosts = into_domains(with_domain(conf.hosts, domain, &Some(url.clone().into())));
 
 	let start_result = rpc::start_http(
 		&addr,
@@ -296,8 +304,7 @@ pub fn new_ipc<D: rpc_apis::Dependencies>(
 		return Ok(None);
 	}
 
-	let pool = dependencies.pool.clone();
-	let handler = setup_apis(conf.apis, dependencies, pool);
+	let handler = setup_apis(conf.apis, dependencies);
 	let remote = dependencies.remote.clone();
 	match rpc::start_ipc(&conf.socket_addr, handler, remote, rpc::RpcExtractor) {
 		Ok(server) => Ok(Some(server)),
@@ -309,29 +316,46 @@ fn into_domains<T: From<String>>(items: Option<Vec<String>>) -> DomainsValidatio
 	items.map(|vals| vals.into_iter().map(T::from).collect()).into()
 }
 
-fn with_domain(items: Option<Vec<String>>, domain: &str, addresses: &[Option<(String, u16)>]) -> Option<Vec<String>> {
+fn with_domain(items: Option<Vec<String>>, domain: &str, address: &Option<rpc::Host>) -> Option<Vec<String>> {
+	fn extract_port(s: &str) -> Option<u16> {
+		s.split(':').nth(1).and_then(|s| s.parse().ok())
+	}
+
 	items.map(move |items| {
 		let mut items = items.into_iter().collect::<HashSet<_>>();
-		for address in addresses {
-			if let Some((host, port)) = address.clone() {
-				items.insert(format!("{}:{}", host, port));
-				items.insert(format!("{}:{}", host.replace("127.0.0.1", "localhost"), port));
+		if let Some(host) = address.clone() {
+			items.insert(host.to_string());
+			items.insert(host.replace("127.0.0.1", "localhost"));
+			items.insert(format!("http://*.{}", domain)); //proxypac
+			if let Some(port) = extract_port(&*host) {
 				items.insert(format!("http://*.{}:{}", domain, port));
-				items.insert(format!("http://*.{}", domain)); //proxypac
 			}
 		}
 		items.into_iter().collect()
 	})
 }
 
-fn setup_apis<D>(apis: ApiSet, deps: &Dependencies<D>, pool: Option<CpuPool>) -> MetaIoHandler<Metadata, Middleware<D::Notifier>>
+fn setup_apis<D>(apis: ApiSet, deps: &Dependencies<D>) -> MetaIoHandler<Metadata, Middleware<D::Notifier>>
 	where D: rpc_apis::Dependencies
 {
 	let mut handler = MetaIoHandler::with_middleware(
-		Middleware::new(deps.stats.clone(), deps.apis.activity_notifier(), pool)
+		Middleware::new(deps.stats.clone(), deps.apis.activity_notifier(), deps.pool.clone())
 	);
 	let apis = apis.list_apis();
 	deps.apis.extend_with_set(&mut handler, &apis);
 
 	handler
+}
+
+#[cfg(test)]
+mod tests {
+	use super::address;
+
+	#[test]
+	fn should_return_proper_address() {
+		assert_eq!(address(false, "localhost", 8180, &None), None);
+		assert_eq!(address(true, "localhost", 8180, &None), Some("localhost:8180".into()));
+		assert_eq!(address(true, "localhost", 8180, &Some(vec!["host:443".into()])), Some("host:443".into()));
+		assert_eq!(address(true, "localhost", 8180, &Some(vec!["host".into()])), Some("host".into()));
+	}
 }

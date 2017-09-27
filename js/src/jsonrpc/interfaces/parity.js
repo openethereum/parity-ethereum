@@ -56,6 +56,16 @@ export default {
     }
   },
 
+  chainId: {
+    desc: 'Returns the current chain ID used for tranaction signing.',
+    params: [],
+    returns: {
+      type: Quantity,
+      desc: 'The current blockchain chain ID',
+      example: '0x1'
+    }
+  },
+
   chainStatus: {
     section: SECTION_NET,
     desc: 'Returns the information on warp sync blocks',
