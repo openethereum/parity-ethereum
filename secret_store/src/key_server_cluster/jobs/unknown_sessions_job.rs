@@ -63,7 +63,8 @@ impl JobExecutor for UnknownSessionsJob {
 		Ok(JobPartialResponseAction::Accept)
 	}
 
-	// TODO: add partial response computation + partial-partial responses
+	// TODO: optimizations:
+	// currently ALL unknown sessions are sent at once - it is better to limit messages by size/len => add partial-partial responses
 	fn compute_response(&self, partial_responses: &BTreeMap<NodeId, BTreeSet<SessionId>>) -> Result<BTreeMap<SessionId, BTreeSet<NodeId>>, Error> {
 		let mut result: BTreeMap<SessionId, BTreeSet<NodeId>> = BTreeMap::new();
 		for (node_id, node_sessions) in partial_responses {

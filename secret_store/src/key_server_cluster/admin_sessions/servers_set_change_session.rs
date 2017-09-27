@@ -365,7 +365,10 @@ impl SessionImpl {
 			// => we are ready to start adding/moving/removing shares
 			(
 				consensus_session.result()?,
-				consensus_session.consensus_job().executor().new_servers_set().expect("TODO").clone(),
+				consensus_session.consensus_job().executor()
+					.new_servers_set()
+					.expect("consensus session is finished; new_servers_set is intermediate result of consensus session; qed")
+					.clone(),
 			)
 		};
 
@@ -621,7 +624,8 @@ impl SessionImpl {
 		debug_assert_eq!(core.meta.self_node_id, core.meta.master_node_id);
 		if let Some(sessions_queue) = data.sessions_queue.as_mut() {
 			let mut number_of_sessions_to_start = MAX_ACTIVE_SESSIONS.saturating_sub(data.active_sessions.len() + data.delegated_sessions.len());
-			let new_nodes_set = data.new_nodes_set.as_ref().expect("TODO");
+			let new_nodes_set = data.new_nodes_set.as_ref()
+				.expect("this method is called after consensus estabished; new_nodes_set is a result of consensus session; qed");
 			while number_of_sessions_to_start > 0 {
 				let session = match sessions_queue.next() {
 					None => break, // complete session
@@ -633,7 +637,8 @@ impl SessionImpl {
 				// select master for this session
 				let session_master = match &session {
 					&QueuedSession::Known(_, _) => core.meta.self_node_id.clone(),
-					&QueuedSession::Unknown(_, ref nodes) => nodes.iter().cloned().nth(0).expect("TODO"),
+					&QueuedSession::Unknown(_, ref nodes) => nodes.iter().cloned().nth(0)
+						.expect("unknown session is received is reported by at least one node; qed"),
 				};
 
 				// send confirmations requests
@@ -686,7 +691,9 @@ impl SessionImpl {
 					confirmations: confirmations,
 				});
 				if !wait_for_confirmations {
-					data.active_sessions.get_mut(&session_id).expect("TODO").initialize()?;
+					data.active_sessions.get_mut(&session_id)
+						.expect("!wait_for_confirmations is true only if this is the only session participant; if this is session participant, session is created above; qed")
+						.initialize()?;
 				}
 			}
 

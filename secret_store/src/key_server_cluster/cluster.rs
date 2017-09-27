@@ -1358,7 +1358,7 @@ impl ClusterClient for ClusterClientImpl {
 
 	fn new_share_move_session(&self, session_id: SessionId, new_nodes_set: BTreeSet<NodeId>, old_set_signature: Signature, new_set_signature: Signature) -> Result<Arc<ShareMoveSession>, Error> {
 		let key_share = self.data.config.key_storage.get(&session_id).map_err(|e| Error::KeyStorage(e.into()))?;
-		if new_nodes_set.len() != key_share.id_numbers.len() { // TODO: add this check to move session???
+		if new_nodes_set.len() != key_share.id_numbers.len() {
 			return Err(Error::InvalidNodesConfiguration);
 		}
 

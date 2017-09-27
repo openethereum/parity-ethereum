@@ -824,7 +824,7 @@ pub struct ShareMove {
 	pub threshold: usize,
 	/// Nodes ids numbers.
 	pub id_numbers: BTreeMap<MessageNodeId, SerializableSecret>,
-	/// Polynom1. TODO: check that it is not empty when starting share add session!!!
+	/// Polynom1.
 	pub polynom1: Vec<SerializableSecret>,
 	/// Node secret share.
 	pub secret_share: SerializableSecret,
