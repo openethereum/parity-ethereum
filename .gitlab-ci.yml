@@ -22,6 +22,7 @@ linux-stable:
     - stable
     - triggers
   script:
+    - chmod +x ./scripts/gitlab-ci.sh
     - ./scripts/gitlab-ci.sh linux-stable
   tags:
     - rust
@@ -42,6 +43,7 @@ linux-snap:
     - tags
     - triggers
   script:
+    - chmod +x ./scripts/gitlab-ci.sh
     - ./scripts/gitlab-ci.sh linux-snap
   tags:
     - rust
@@ -60,6 +62,7 @@ linux-stable-debian:
     - stable
     - triggers
   script:
+    - chmod +x ./scripts/gitlab-ci.sh
     - ./scripts/gitlab-ci.sh linux-stable-debian
   tags:
     - rust
@@ -77,6 +80,7 @@ linux-beta:
     - stable
     - triggers
   script:
+    - chmod +x ./scripts/gitlab-ci.sh
     - ./scripts/gitlab-ci.sh linux-beta
   tags:
     - rust
@@ -95,6 +99,7 @@ linux-nightly:
     - stable
     - triggers
   script:
+    - chmod +x ./scripts/gitlab-ci.sh
     - ./scripts/gitlab-ci.sh linux-nightly
   tags:
     - rust
@@ -113,6 +118,7 @@ linux-centos:
     - stable
     - triggers
   script:
+    - chmod +x ./scripts/gitlab-ci.sh
     - ./scripts/gitlab-ci.sh linux-centos
   tags:
     - rust
@@ -130,6 +136,7 @@ linux-i686:
     - stable
     - triggers
   script:
+    - chmod +x ./scripts/gitlab-ci.sh
     - ./scripts/gitlab-ci.sh linux-i686
   tags:
     - rust
@@ -148,6 +155,7 @@ linux-armv7:
     - stable
     - triggers
   script:
+    - chmod +x ./scripts/gitlab-ci.sh
     - ./scripts/gitlab-ci.sh linux-armv7
   tags:
     - rust
@@ -166,6 +174,7 @@ linux-arm:
     - stable
     - triggers
   script:
+    - chmod +x ./scripts/gitlab-ci.sh
     - ./scripts/gitlab-ci.sh linux-arm
   tags:
     - rust
@@ -184,6 +193,7 @@ linux-aarch64:
     - stable
     - triggers
   script:
+    - chmod +x ./scripts/gitlab-ci.sh
     - ./scripts/gitlab-ci.sh linux-aarch64
   tags:
     - rust
@@ -201,6 +211,7 @@ darwin:
     - stable
     - triggers
   script:
+    - chmod +x ./scripts/gitlab-ci.sh
     - ./scripts/gitlab-ci.sh darwin
   tags:
     - osx
@@ -219,6 +230,7 @@ windows:
     - stable
     - triggers
   script:
+    - chmod +x ./scripts/gitlab-ci.sh
     - ./scripts/gitlab-ci.sh windows
   tags:
    - rust-windows
@@ -236,6 +248,7 @@ docker-build:
   before_script:
     - docker info
   script:
+    - chmod +x ./scripts/gitlab-ci.sh
     - ./scripts/gitlab-ci.sh docker-build
   tags:
     - docker
@@ -244,6 +257,7 @@ test-coverage:
   only:
     - master
   script:
+    - chmod +x ./scripts/gitlab-ci.sh
     - ./scripts/gitlab-ci.sh test-coverage
   tags:
     - kcov
@@ -256,6 +270,7 @@ test-darwin:
     - git submodule update --init --recursive
     - export RUST_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep -v -e "^js/" -e ^\\. -e ^LICENSE -e ^README.md -e ^appveyor.yml -e ^test.sh -e ^windows/ -e ^scripts/ -e^mac/ -e ^nsis/ | wc -l)
   script:
+    - chmod +x ./scripts/gitlab-ci.sh
     - ./scripts/gitlab-ci.sh test-darwin
   tags:
     - osx
@@ -267,6 +282,7 @@ test-windows:
   before_script:
     - git submodule update --init --recursive
   script:
+    - chmod +x ./scripts/gitlab-ci.sh
     - ./scripts/gitlab-ci.sh test-windows
   tags:
     - rust-windows
@@ -278,6 +294,7 @@ test-rust-stable:
     - git submodule update --init --recursive
     - export RUST_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep -v -e ^js -e ^\\. -e ^LICENSE -e ^README.md -e ^test.sh -e ^windows/ -e ^scripts/ -e^mac/ -e ^nsis/ | wc -l)
   script:
+    - chmod +x ./scripts/gitlab-ci.sh
     - ./scripts/gitlab-ci.sh test-rust-stable
   tags:
     - rust
@@ -290,6 +307,7 @@ js-test:
     - export JS_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep ^js/ | wc -l)
     - if [ $JS_FILES_MODIFIED -eq 0 ]; then echo "Skipping JS deps install since no JS files modified."; else ./js/scripts/install-deps.sh;fi
   script:
+    - chmod +x ./scripts/gitlab-ci.sh
     - ./scripts/gitlab-ci.sh js-test
   tags:
     - rust
@@ -304,6 +322,7 @@ test-rust-beta:
     - git submodule update --init --recursive
     - export RUST_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep -v -e ^js -e ^\\. -e ^LICENSE -e ^README.md -e ^appveyor.yml -e ^test.sh -e ^windows/ -e ^scripts/ -e^mac/ -e ^nsis/ | wc -l)
   script:
+    - chmod +x ./scripts/gitlab-ci.sh
     - ./scripts/gitlab-ci.sh test-rust-beta
   tags:
     - rust
@@ -319,6 +338,7 @@ test-rust-nightly:
     - git submodule update --init --recursive
     - export RUST_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep -v -e ^js -e ^\\. -e ^LICENSE -e ^README.md -e ^appveyor.yml -e ^test.sh -e ^windows/ -e ^scripts/ -e^mac/ -e ^nsis/ | wc -l)
   script:
+    - chmod +x ./scripts/gitlab-ci.sh
     - ./scripts/gitlab-ci.sh test-rust-nightly
   tags:
     - rust
@@ -338,6 +358,7 @@ js-release:
     - echo $JS_FILES_MODIFIED
     - if [ $JS_FILES_MODIFIED -eq 0  ]; then echo "Skipping JS deps install since no JS files modified."; else ./js/scripts/install-deps.sh;fi
   script:
+    - chmod +x ./scripts/gitlab-ci.sh
     - ./scripts/gitlab-ci.sh js-release
   tags:
     - javascript
@@ -348,6 +369,7 @@ push-release:
     - triggers
   image: parity/rust:gitlab-ci
   script:
+    - chmod +x ./scripts/gitlab-ci.sh
     - ./scripts/gitlab-ci.sh push-release
   tags:
     - curl
