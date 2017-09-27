@@ -298,7 +298,6 @@ linux-aarch64()
 
 darwin()
 {
-  |
       export COMMIT=$(git rev-parse HEAD)
       export PLATFORM=x86_64-apple-darwin
       rustup default stable
