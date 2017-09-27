@@ -4,6 +4,7 @@
 // TODO: even if node was lost, it is still required for share removal, ...
 // TODO: before setting pre-established consensus - check that old nodes are in general old set && new nodes are in general new set
 // TODO: in long session some nodes (that are not participating in share change sessions) can stop session as stalled
+// TODO: check servers set
 
 // Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
@@ -75,7 +76,11 @@ pub struct SessionImpl {
 /// Session state.
 #[derive(PartialEq)]
 enum SessionState {
-	GatheringUnknownSessions,
+	/// Establishing consensus.
+	EstablishingConsensus,
+	/// Running share change sessions.
+	RunningShareChangeSessions,
+	/// Session is completed.
 	Finished,
 }
 
@@ -185,7 +190,7 @@ impl SessionImpl {
 				completed: Condvar::new(),
 			},
 			data: Mutex::new(SessionData {
-				state: SessionState::GatheringUnknownSessions,
+				state: SessionState::EstablishingConsensus,
 				consensus_session: None,
 				new_nodes_set: None,
 				sessions_queue: None,
@@ -202,6 +207,10 @@ impl SessionImpl {
 		// TODO: check that all_nodes_set.contains(new_nodes_set)
 		// TODO: check that threshold + 1 == all_nodes_set.len()
 		let mut data = self.data.lock();
+		if data.state != SessionState::EstablishingConsensus || data.consensus_session.is_some() {
+			return Err(Error::InvalidStateForRequest);
+		}
+
 		let mut consensus_session = ConsensusSession::new(ConsensusSessionParams {
 			meta: self.core.meta.clone().into_consensus_meta(self.core.all_nodes_set.len()),
 			consensus_executor: ServersSetChangeAccessJob::new_on_master(self.core.admin_public.clone(),
@@ -263,8 +272,13 @@ impl SessionImpl {
 	pub fn on_consensus_message(&self, sender: &NodeId, message: &ServersSetChangeConsensusMessage) -> Result<(), Error> {
 		debug_assert!(self.core.meta.id == *message.session);
 
-		// start slave consensus session if needed
+		// check state
 		let mut data = self.data.lock();
+		if data.state != SessionState::EstablishingConsensus {
+			return Err(Error::InvalidStateForRequest);
+		}
+
+		// start slave consensus session if needed
 		if self.core.meta.self_node_id != self.core.meta.master_node_id {
 			if data.consensus_session.is_none() {
 				match &message.message {
@@ -286,6 +300,7 @@ impl SessionImpl {
 			}
 		}
 
+		// process consensus message
 		let consensus_session = data.consensus_session.as_mut().ok_or(Error::InvalidMessage)?;
 		let is_establishing_consensus = consensus_session.state() == ConsensusSessionState::EstablishingConsensus;
 		match &message.message {
@@ -311,11 +326,20 @@ impl SessionImpl {
 		debug_assert!(sender != &self.core.meta.self_node_id);
 
 		let mut data = self.data.lock();
-		let consensus_session = data.consensus_session.as_mut().ok_or(Error::InvalidMessage)?;
-		let unknown_sessions_job = UnknownSessionsJob::new_on_slave(self.core.key_storage.clone());
-		let unknown_sessions_transport = self.unknown_sessions_transport();
 
-		consensus_session.on_job_request(&sender, sender.clone(), unknown_sessions_job, unknown_sessions_transport)
+		{
+			let consensus_session = data.consensus_session.as_mut().ok_or(Error::InvalidMessage)?;
+			let unknown_sessions_job = UnknownSessionsJob::new_on_slave(self.core.key_storage.clone());
+			let unknown_sessions_transport = self.unknown_sessions_transport();
+
+			// and respond with unknown sessions
+			consensus_session.on_job_request(&sender, sender.clone(), unknown_sessions_job, unknown_sessions_transport)?;
+		}
+
+		// update state
+		data.state = SessionState::RunningShareChangeSessions;
+
+		Ok(())
 	}
 
 	/// When unknown sessions are received.
@@ -323,7 +347,13 @@ impl SessionImpl {
 		debug_assert!(self.core.meta.id == *message.session);
 		debug_assert!(sender != &self.core.meta.self_node_id);
 
+		// check state
 		let mut data = self.data.lock();
+		if data.state != SessionState::EstablishingConsensus {
+			return Err(Error::InvalidStateForRequest);
+		}
+
+		// process message
 		let (unknown_sessions, new_nodes_set) = {
 			let consensus_session = data.consensus_session.as_mut().ok_or(Error::InvalidMessage)?;
 			consensus_session.on_job_response(sender, message.unknown_sessions.iter().cloned().map(Into::into).collect())?;
@@ -340,6 +370,7 @@ impl SessionImpl {
 		};
 
 		// initialize sessions queue
+		data.state = SessionState::RunningShareChangeSessions;
 		data.new_nodes_set = Some(new_nodes_set);
 		data.sessions_queue = Some(SessionsQueue::new(self.core.key_storage.clone(), unknown_sessions));
 
@@ -357,8 +388,13 @@ impl SessionImpl {
 			return Err(Error::InvalidMessage);
 		}
 
-		// insert new session
+		// check state
 		let mut data = self.data.lock();
+		if data.state != SessionState::RunningShareChangeSessions {
+			return Err(Error::InvalidStateForRequest);
+		}
+
+		// insert new session
 		match data.active_sessions.entry(message.key_id.clone().into()) {
 			Entry::Occupied(_) => return Err(Error::InvalidMessage),
 			Entry::Vacant(entry) => entry.insert(ShareChangeSession::new(ShareChangeSessionParams {
@@ -398,8 +434,13 @@ impl SessionImpl {
 			return Err(Error::InvalidMessage);
 		}
 
-		// add confirmation
+		// check state
 		let mut data = self.data.lock();
+		if data.state != SessionState::RunningShareChangeSessions {
+			return Err(Error::InvalidStateForRequest);
+		}
+
+		// add confirmation
 		let key_id = message.key_id.clone().into();
 		let session_master = {
 			let session_init_data = data.sessions_initialization_state.get_mut(&key_id).ok_or(Error::InvalidMessage)?;
@@ -439,8 +480,13 @@ impl SessionImpl {
 			return Err(Error::InvalidMessage);
 		}
 
-		// start session
+		// check state
 		let mut data = self.data.lock();
+		if data.state != SessionState::RunningShareChangeSessions {
+			return Err(Error::InvalidStateForRequest);
+		}
+
+		// start session
 		let session = data.active_sessions.get_mut(&message.key_id.clone().into()).ok_or(Error::InvalidMessage)?;
 		session.initialize()
 	}
@@ -455,9 +501,14 @@ impl SessionImpl {
 			return Err(Error::InvalidMessage);
 		}
 
+		// check state
+		let mut data = self.data.lock();
+		if data.state != SessionState::RunningShareChangeSessions {
+			return Err(Error::InvalidStateForRequest);
+		}
+
 		// forget delegated session
 		let key_id = message.key_id.clone().into();
-		let mut data = self.data.lock();
 		match data.delegated_sessions.entry(key_id) {
 			Entry::Occupied(entry) => if entry.get() == sender {
 				entry.remove()
@@ -468,77 +519,38 @@ impl SessionImpl {
 		};
 
 		// check if we need to complete the whole change session
-		if data.delegated_sessions.is_empty() && data.active_sessions.is_empty() {
-			Self::disseminate_session_initialization_requests(&self.core, &mut *data)?;
-		}
-
-		Ok(())
+		Self::disseminate_session_initialization_requests(&self.core, &mut *data)
 	}
 
 	/// When share add message is received.
 	pub fn on_share_add_message(&self, sender: &NodeId, message: &ServersSetChangeShareAddMessage) -> Result<(), Error> {
-		let mut data = self.data.lock();
-
-		let session_id = message.message.session_id().clone().into();
-		let (is_finished, is_master) = {
-			let mut change_session = data.active_sessions.get_mut(&session_id).ok_or(Error::InvalidMessage)?;
-			change_session.on_share_add_message(sender, &message.message)?;
-			(change_session.is_finished(), change_session.is_master())
-		};
-		if is_finished {
-			data.active_sessions.remove(&session_id);
-			if is_master && self.core.meta.self_node_id != self.core.meta.master_node_id {
-				Self::return_delegated_session(&self.core, &session_id)?;
-			}
-		}
-
-		Ok(())
+		self.on_share_change_message(message.message.session_id().clone().into(), |session|
+			session.on_share_add_message(sender, &message.message))
 	}
 
 	/// When share move message is received.
 	pub fn on_share_move_message(&self, sender: &NodeId, message: &ServersSetChangeShareMoveMessage) -> Result<(), Error> {
-		let mut data = self.data.lock();
-
-		let session_id = message.message.session_id().clone().into();
-		let (is_finished, is_master) = {
-			let mut change_session = data.active_sessions.get_mut(&session_id).ok_or(Error::InvalidMessage)?;
-			change_session.on_share_move_message(sender, &message.message)?;
-			(change_session.is_finished(), change_session.is_master())
-		};
-		if is_finished {
-			data.active_sessions.remove(&session_id);
-			if is_master && self.core.meta.self_node_id != self.core.meta.master_node_id {
-				Self::return_delegated_session(&self.core, &session_id)?;
-			}
-		}
-
-		Ok(())
+		self.on_share_change_message(message.message.session_id().clone().into(), |session|
+			session.on_share_move_message(sender, &message.message))
 	}
 
 	/// When share remove message is received.
 	pub fn on_share_remove_message(&self, sender: &NodeId, message: &ServersSetChangeShareRemoveMessage) -> Result<(), Error> {
-		let mut data = self.data.lock();
-
-		let session_id = message.message.session_id().clone().into();
-		let (is_finished, is_master) = {
-			let mut change_session = data.active_sessions.get_mut(&session_id).ok_or(Error::InvalidMessage)?;
-			change_session.on_share_remove_message(sender, &message.message)?;
-			(change_session.is_finished(), change_session.is_master())
-		};
-		if is_finished {
-			data.active_sessions.remove(&session_id);
-			if is_master && self.core.meta.self_node_id != self.core.meta.master_node_id {
-				Self::return_delegated_session(&self.core, &session_id)?;
-			}
-		}
-
-		Ok(())
-
+		self.on_share_change_message(message.message.session_id().clone().into(), |session|
+			session.on_share_remove_message(sender, &message.message))
 	}
 
 	/// When error has occured on another node.
-	pub fn on_session_error(&self, _sender: &NodeId, _message: &ServersSetChangeError) -> Result<(), Error> {
-		unimplemented!()
+	pub fn on_session_error(&self, sender: &NodeId, message: &ServersSetChangeError) -> Result<(), Error> {
+		let mut data = self.data.lock();
+
+		warn!("{}: servers set change session failed with error: {} from {}", self.core.meta.self_node_id, message.error, sender);
+
+		data.state = SessionState::Finished;
+		data.result = Some(Err(Error::Io(message.error.clone())));
+		self.core.completed.notify_all();
+
+		Ok(())
 	}
 
 	/// When session completion message is received.
@@ -551,8 +563,13 @@ impl SessionImpl {
 		}
 
 		let mut data = self.data.lock();
+		data.result = Some(Ok(()));
+		if data.active_sessions.len() != 0 {
+			return Err(Error::TooEarlyForRequest);
+		}
 
 		data.state = SessionState::Finished;
+		self.core.completed.notify_all();
 
 		Ok(())
 	}
@@ -566,7 +583,42 @@ impl SessionImpl {
 		}
 	}
 
+	/// When share change message is received.
+	fn on_share_change_message<F: Fn(&mut ShareChangeSession) -> Result<(), Error>>(&self, session_id: SessionId, message_processor: F) -> Result<(), Error> {
+		// check state
+		let mut data = self.data.lock();
+		if data.state != SessionState::RunningShareChangeSessions {
+			return Err(Error::InvalidStateForRequest);
+		}
+
+		// process message
+		let (is_finished, is_master) = {
+			let change_session = data.active_sessions.get_mut(&session_id).ok_or(Error::InvalidMessage)?;
+			message_processor(change_session)?;
+			(change_session.is_finished(), change_session.is_master())
+		};
+
+		if is_finished {
+			data.active_sessions.remove(&session_id);
+			let is_general_master = self.core.meta.self_node_id == self.core.meta.master_node_id;
+			if is_master && !is_general_master {
+				Self::return_delegated_session(&self.core, &session_id)?;
+			}
+			if is_general_master {
+				Self::disseminate_session_initialization_requests(&self.core, &mut *data)?;
+			}
+
+			if data.result.is_some() && data.active_sessions.len() == 0 {
+				data.state = SessionState::Finished;
+				self.core.completed.notify_all();
+			}
+		}
+
+		Ok(())
+	}
+
 	fn disseminate_session_initialization_requests(core: &SessionCore, data: &mut SessionData) -> Result<(), Error> {
+		debug_assert_eq!(core.meta.self_node_id, core.meta.master_node_id);
 		if let Some(sessions_queue) = data.sessions_queue.as_mut() {
 			let mut number_of_sessions_to_start = MAX_ACTIVE_SESSIONS.saturating_sub(data.active_sessions.len() + data.delegated_sessions.len());
 			let new_nodes_set = data.new_nodes_set.as_ref().expect("TODO");
@@ -638,15 +690,18 @@ impl SessionImpl {
 				}
 			}
 
-			if number_of_sessions_to_start > 0 {
+			if number_of_sessions_to_start == 0 {
 				return Ok(());
 			}
 		}
 
 		data.sessions_queue = None;
-		Self::complete_session(core, data)
-	}
+		if data.active_sessions.len() == 0 && data.delegated_sessions.len() == 0 {
+			Self::complete_session(core, data)?;
+		}
 
+		Ok(())
+	}
 
 	/// Return delegated session to master.
 	fn return_delegated_session(core: &SessionCore, key_id: &SessionId) -> Result<(), Error> {
@@ -666,6 +721,7 @@ impl SessionImpl {
 			session_nonce: core.nonce,
 		})))?;
 
+		data.state = SessionState::Finished;
 		data.result = Some(Ok(()));
 		core.completed.notify_all();
 
@@ -675,7 +731,13 @@ impl SessionImpl {
 
 impl Session for SessionImpl {
 	fn wait(&self) -> Result<(), Error> {
-		unimplemented!()
+		let mut data = self.data.lock();
+		if !data.result.is_some() {
+			self.core.completed.wait(&mut data);
+		}
+
+		data.result.clone()
+			.expect("checked above or waited for completed; completed is only signaled when result.is_some(); qed")
 	}
 }
 
@@ -685,11 +747,23 @@ impl ClusterSession for SessionImpl {
 	}
 
 	fn on_session_timeout(&self) {
-		unimplemented!()
+		let mut data = self.data.lock();
+
+		warn!("{}: servers set change session failed with timeout", self.core.meta.self_node_id);
+
+		data.state = SessionState::Finished;
+		data.result = Some(Err(Error::NodeDisconnected));
+		self.core.completed.notify_all();
 	}
 
-	fn on_node_timeout(&self, _node_id: &NodeId) {
-		unimplemented!()
+	fn on_node_timeout(&self, node: &NodeId) {
+		let mut data = self.data.lock();
+
+		warn!("{}: servers set change session failed because {} connection has timeouted", self.core.meta.self_node_id, node);
+
+		data.state = SessionState::Finished;
+		data.result = Some(Err(Error::NodeDisconnected));
+		self.core.completed.notify_all();
 	}
 }
 
@@ -748,6 +822,7 @@ pub mod tests {
 	use ethkey::{Random, Generator, Public, Signature, KeyPair, sign};
 	use key_server_cluster::{NodeId, SessionId, Error, KeyStorage, DummyKeyStorage};
 	use key_server_cluster::cluster::Cluster;
+	use key_server_cluster::cluster_sessions::ClusterSession;
 	use key_server_cluster::cluster::tests::DummyCluster;
 	use key_server_cluster::generation_session::tests::{MessageLoop as GenerationMessageLoop, Node as GenerationNode, generate_nodes_ids};
 	use key_server_cluster::math;
@@ -787,6 +862,10 @@ pub mod tests {
 	}
 
 	fn create_node(meta: ShareChangeSessionMeta, admin_public: Public, all_nodes_set: BTreeSet<NodeId>, node: GenerationNode) -> Node {
+		for n in &all_nodes_set {
+			node.cluster.add_node(n.clone());
+		}
+
 		Node {
 			cluster: node.cluster.clone(),
 			key_storage: node.key_storage.clone(),
@@ -823,6 +902,10 @@ pub mod tests {
 			let old_nodes = gml.nodes.into_iter().map(|n| create_node(meta.clone(), admin_public.clone(), all_nodes_set.clone(), n.1));
 			let new_nodes = new_nodes_ids.into_iter().map(|new_node_id| {
 				let new_node_cluster = Arc::new(DummyCluster::new(new_node_id.clone()));
+				for node in &all_nodes_set {
+					new_node_cluster.add_node(node.clone());
+				}
+
 				let new_node_key_storage = Arc::new(DummyKeyStorage::default());
 				let new_node_session = create_session(meta.clone(), new_node_id, admin_public.clone(), all_nodes_set.clone(), new_node_cluster.clone(), new_node_key_storage.clone());
 				Node {
@@ -898,7 +981,10 @@ pub mod tests {
 		ml.run();
 
 		// try to recover secret for every possible combination of nodes && check that secret is the same
-		check_secret_is_preserved(ml.original_key_pair.clone(), ml.nodes.iter().map(|(k, v)| (k.clone(), v.key_storage.clone())).collect())
+		check_secret_is_preserved(ml.original_key_pair.clone(), ml.nodes.iter().map(|(k, v)| (k.clone(), v.key_storage.clone())).collect());
+
+		// check that all sessions have finished
+		assert!(ml.nodes.values().all(|n| n.session.is_finished()));
 	}
 
 	#[test]
@@ -916,6 +1002,9 @@ pub mod tests {
 		let mut ml = MessageLoop::new(gml, master_node_id, nodes_to_add, BTreeSet::new());
 		ml.nodes[&master_node_id].session.initialize(ml.nodes.keys().cloned().collect(), ml.all_set_signature.clone(), ml.new_set_signature.clone()).unwrap();
 		ml.run();
+
+		// check that all sessions have finished
+		assert!(ml.nodes.values().all(|n| n.session.is_finished()));
 	}
 
 	#[test]
@@ -940,6 +1029,9 @@ pub mod tests {
 
 		// check that all removed nodes do not own key share
 		assert!(ml.nodes.iter().filter(|&(k, _)| nodes_to_remove.contains(k)).all(|(_, v)| v.key_storage.get(&SessionId::default()).is_err()));
+
+		// check that all sessions have finished
+		assert!(ml.nodes.values().all(|n| n.session.is_finished()));
 	}
 
 	#[test]
@@ -963,5 +1055,8 @@ pub mod tests {
 
 		// check that all removed nodes do not own key share
 		assert!(ml.nodes.iter().filter(|&(k, _)| nodes_to_remove.contains(k)).all(|(_, v)| v.key_storage.get(&SessionId::default()).is_err()));
+
+		// check that all sessions have finished
+		assert!(ml.nodes.values().all(|n| n.session.is_finished()));
 	}
 }

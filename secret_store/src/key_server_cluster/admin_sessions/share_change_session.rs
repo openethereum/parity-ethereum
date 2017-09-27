@@ -116,9 +116,9 @@ impl ShareChangeSession {
 			cluster: params.cluster,
 			key_storage: params.key_storage,
 			old_nodes_set: params.old_nodes_set,
-			nodes_to_add: Some(params.plan.nodes_to_add),
-			nodes_to_remove: Some(params.plan.nodes_to_remove),
-			nodes_to_move: Some(params.plan.nodes_to_move),
+			nodes_to_add: if !params.plan.nodes_to_add.is_empty() { Some(params.plan.nodes_to_add) } else { None },
+			nodes_to_remove: if !params.plan.nodes_to_remove.is_empty() { Some(params.plan.nodes_to_remove) } else { None },
+			nodes_to_move: if !params.plan.nodes_to_move.is_empty() { Some(params.plan.nodes_to_move) } else { None },
 			share_add_session: None,
 			share_move_session: None,
 			share_remove_session: None,
@@ -154,7 +154,7 @@ impl ShareChangeSession {
 					.map(|_| share_add_session.is_finished() && !was_finished)
 			})
 			.unwrap_or(Err(Error::InvalidMessage))?;
-		if change_state_needed && self.meta.self_node_id == self.meta.master_node_id {
+		if change_state_needed {
 			self.proceed_to_next_state()?;
 		}
 
@@ -174,7 +174,7 @@ impl ShareChangeSession {
 					.map(|_| share_move_session.is_finished() && !was_finished)
 			})
 			.unwrap_or(Err(Error::InvalidMessage))?;
-		if change_state_needed && self.meta.self_node_id == self.meta.master_node_id {
+		if change_state_needed {
 			self.proceed_to_next_state()?;
 		}
 
@@ -194,7 +194,7 @@ impl ShareChangeSession {
 					.map(|_| share_remove_session.is_finished() && !was_finished)
 			})
 			.unwrap_or(Err(Error::InvalidMessage))?;
-		if change_state_needed && self.meta.self_node_id == self.meta.master_node_id {
+		if change_state_needed {
 			self.proceed_to_next_state()?;
 		}
 
@@ -252,6 +252,9 @@ impl ShareChangeSession {
 	/// Proceed to the next state (on master node).
 	fn proceed_to_next_state(&mut self) -> Result<(), Error> {
 		if self.meta.self_node_id != self.meta.master_node_id {
+			if self.nodes_to_add.is_none() && self.nodes_to_move.is_none() && self.nodes_to_remove.is_none() {
+				self.is_finished = true;
+			}
 			return Ok(());
 		}
 
