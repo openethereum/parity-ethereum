@@ -1,5 +1,3 @@
-// TODO: do not allow nodes.len() < threshold + 1
-
 // Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
@@ -179,7 +177,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 
 			let mut consensus_session = ConsensusSession::new(ConsensusSessionParams {
 				meta: self.core.meta.clone().into_consensus_meta(all_nodes_set.len()),
-				consensus_executor: ServersSetChangeAccessJob::new_on_master(Public::default(), // TODO: admin key instead of default
+				consensus_executor: ServersSetChangeAccessJob::new_on_master(self.core.admin_public.clone(),
 					self.core.key_share.id_numbers.keys().cloned().collect(),
 					self.core.key_share.id_numbers.keys().cloned().collect(),
 					new_nodes_set.clone(),
@@ -229,7 +227,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 					let current_nodes_set = self.core.key_share.id_numbers.keys().cloned().collect();
 					data.consensus_session = Some(ConsensusSession::new(ConsensusSessionParams {
 						meta: self.core.meta.clone().into_consensus_meta(message.old_nodes_set.len()),
-						consensus_executor: ServersSetChangeAccessJob::new_on_slave(Public::default(), // TODO: administrator public
+						consensus_executor: ServersSetChangeAccessJob::new_on_slave(self.core.admin_public.clone(),
 							current_nodes_set,
 						),
 						consensus_transport: self.core.transport.clone(),
@@ -290,7 +288,8 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		}
 		// only process if we are waiting for this request
 		{
-			let shares_to_remove = data.shares_to_remove.as_ref().expect("TODO");
+			let shares_to_remove = data.shares_to_remove.as_ref()
+				.expect("shares_to_remove is filled when consensus is established; we only process share move request after consensus is established; qed");
 			if !shares_to_remove.contains(&self.core.meta.self_node_id) {
 				return Err(Error::InvalidMessage);
 			}
@@ -314,7 +313,8 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		}
 		// find share source
 		{
-			let remove_confirmations_to_receive = data.remove_confirmations_to_receive.as_mut().expect("TODO");
+			let remove_confirmations_to_receive = data.remove_confirmations_to_receive.as_mut()
+				.expect("remove_confirmations_to_receive is filled when consensus is established; we only process share move confirmations after consensus is established; qed");
 			if !remove_confirmations_to_receive.remove(sender) {
 				return Err(Error::InvalidMessage);
 			}
@@ -347,7 +347,8 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		Self::disseminate_share_remove_requests(core, data)?;
 
 		{
-			let shares_to_remove = data.shares_to_remove.as_ref().expect("TODO");
+			let shares_to_remove = data.shares_to_remove.as_ref()
+				.expect("shares_to_remove is filled when consensus is established; on_consensus_established is called after consensus is established; qed");
 			if !shares_to_remove.contains(&core.meta.self_node_id) {
 				// remember remove confirmations to receive
 				data.remove_confirmations_to_receive = Some(shares_to_remove.iter().cloned().collect());
@@ -361,7 +362,8 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 
 	/// Disseminate share remove requests.
 	fn disseminate_share_remove_requests(core: &SessionCore<T>, data: &mut SessionData<T>) -> Result<(), Error> {
-		let shares_to_remove = data.shares_to_remove.as_ref().expect("TODO");
+		let shares_to_remove = data.shares_to_remove.as_ref()
+			.expect("shares_to_remove is filled when consensus is established; disseminate_share_remove_requests is called after consensus is established; qed");
 		for node in shares_to_remove.iter().filter(|n| **n != core.meta.self_node_id) {
 			core.transport.send(node, ShareRemoveMessage::ShareRemoveRequest(ShareRemoveRequest {
 				session: core.meta.id.clone().into(),
@@ -378,7 +380,8 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		data.state = SessionState::Finished;
 
 		// if we are 'removing' node => remove share from storage
-		let shares_to_remove = data.shares_to_remove.as_ref().expect("TODO");
+		let shares_to_remove = data.shares_to_remove.as_ref()
+			.expect("shares_to_remove is filled when consensus is established; complete_session is called after consensus is established; qed");
 		if shares_to_remove.contains(&core.meta.self_node_id) {
 			// send confirmation to all other nodes
 			let new_nodes_set = core.key_share.id_numbers.keys().filter(|n| !shares_to_remove.contains(n)).collect::<Vec<_>>();
@@ -398,7 +401,6 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		for share_to_remove in shares_to_remove {
 			key_share.id_numbers.remove(share_to_remove);
 		}
-		// TODO: case when if all nodes are removed
 
 		// ... and update key share in storage
 		core.key_storage.update(core.meta.id.clone(), key_share)
@@ -481,6 +483,12 @@ fn check_shares_to_remove<T: SessionTransport>(core: &SessionCore<T>, shares_to_
 		return Err(Error::InvalidNodesConfiguration);
 	}
 
+	// do not allow removing more shares than possible
+	let nodes_left = core.key_share.id_numbers.len() - shares_to_remove.len();
+	if core.key_share.threshold + 1 > nodes_left {
+		return Err(Error::InvalidNodesConfiguration);
+	}
+
 	Ok(())
 }
 
@@ -495,7 +503,7 @@ mod tests {
 	use key_server_cluster::cluster::tests::DummyCluster;
 	use key_server_cluster::generation_session::tests::{MessageLoop as GenerationMessageLoop, Node as GenerationNode, generate_nodes_ids};
 	use key_server_cluster::math;
-	use key_server_cluster::message::{Message, ServersSetChangeMessage, ShareAddMessage};
+	use key_server_cluster::message::{Message, ServersSetChangeMessage};
 	use key_server_cluster::servers_set_change_session::tests::generate_key;
 	use key_server_cluster::jobs::servers_set_change_access_job::ordered_nodes_hash;
 	use key_server_cluster::admin_sessions::ShareChangeSessionMeta;
@@ -610,14 +618,74 @@ mod tests {
 	}
 
 	#[test]
+	fn remove_session_fails_if_no_nodes_are_removed() {
+		let (t, n) = (1, 3);
+		let old_nodes_set = generate_nodes_ids(n);
+		let master_node_id = old_nodes_set.iter().cloned().nth(0).unwrap();
+		let nodes_to_remove = BTreeSet::new();
+		let mut ml = MessageLoop::new(t, master_node_id.clone(), old_nodes_set, nodes_to_remove.clone());
+		assert_eq!(ml.nodes[&master_node_id].session.initialize(nodes_to_remove.clone(), Some(ml.old_set_signature.clone()), Some(ml.new_set_signature.clone())),
+			Err(Error::InvalidMessage));
+	}
+
+	#[test]
+	fn remove_session_fails_if_foreign_nodes_are_removed() {
+		let (t, n) = (1, 3);
+		let old_nodes_set = generate_nodes_ids(n);
+		let master_node_id = old_nodes_set.iter().cloned().nth(0).unwrap();
+		let nodes_to_remove: BTreeSet<_> = vec![math::generate_random_point().unwrap()].into_iter().collect();
+		let mut ml = MessageLoop::new(t, master_node_id.clone(), old_nodes_set, nodes_to_remove.clone());
+		assert_eq!(ml.nodes[&master_node_id].session.initialize(nodes_to_remove.clone(), Some(ml.old_set_signature.clone()), Some(ml.new_set_signature.clone())),
+			Err(Error::InvalidNodesConfiguration));
+	}
+
+	#[test]
+	fn remove_session_fails_if_too_many_nodes_are_removed() {
+		let (t, n) = (1, 3);
+		let old_nodes_set = generate_nodes_ids(n);
+		let master_node_id = old_nodes_set.iter().cloned().nth(0).unwrap();
+		let nodes_to_remove: BTreeSet<_> = old_nodes_set.iter().cloned().take(2).collect();
+		let mut ml = MessageLoop::new(t, master_node_id.clone(), old_nodes_set, nodes_to_remove.clone());
+		assert_eq!(ml.nodes[&master_node_id].session.initialize(nodes_to_remove.clone(), Some(ml.old_set_signature.clone()), Some(ml.new_set_signature.clone())),
+			Err(Error::InvalidNodesConfiguration));
+	}
+
+	#[test]
 	fn nodes_removed_using_share_remove_from_master_node() {
+		let t = 1;
 		let test_cases = vec![(3, 1), (5, 3)];
 		for (n, nodes_to_remove) in test_cases {
-			// generate key && prepare ShareAdd sessions
+			// generate key && prepare ShareMove sessions
 			let old_nodes_set = generate_nodes_ids(n);
 			let master_node_id = old_nodes_set.iter().cloned().nth(0).unwrap();
 			let nodes_to_remove: BTreeSet<_> = old_nodes_set.iter().cloned().take(nodes_to_remove).collect();
-			let mut ml = MessageLoop::new(1, master_node_id.clone(), old_nodes_set, nodes_to_remove.clone());
+			let mut ml = MessageLoop::new(t, master_node_id.clone(), old_nodes_set, nodes_to_remove.clone());
+
+			// initialize session on master node && run to completion
+			ml.nodes[&master_node_id].session.initialize(nodes_to_remove.clone(), Some(ml.old_set_signature.clone()), Some(ml.new_set_signature.clone())).unwrap();
+			ml.run();
+
+			// check that session has completed on all nodes
+			assert!(ml.nodes.values().all(|n| n.session.is_finished()));
+			
+			// check that secret is still the same as before adding the share
+			check_secret_is_preserved(ml.original_key_pair.clone(), ml.nodes.iter()
+				.filter(|&(k, _)| !nodes_to_remove.contains(k))
+				.map(|(k, v)| (k.clone(), v.key_storage.clone()))
+				.collect());
+		}
+	}
+
+	#[test]
+	fn nodes_removed_using_share_remove_from_non_master_node() {
+		let t = 1;
+		let test_cases = vec![(3, 1), (5, 3)];
+		for (n, nodes_to_remove) in test_cases {
+			// generate key && prepare ShareMove sessions
+			let old_nodes_set = generate_nodes_ids(n);
+			let master_node_id = old_nodes_set.iter().cloned().nth(0).unwrap();
+			let nodes_to_remove: BTreeSet<_> = old_nodes_set.iter().cloned().skip(1).take(nodes_to_remove).collect();
+			let mut ml = MessageLoop::new(t, master_node_id.clone(), old_nodes_set, nodes_to_remove.clone());
 
 			// initialize session on master node && run to completion
 			ml.nodes[&master_node_id].session.initialize(nodes_to_remove.clone(), Some(ml.old_set_signature.clone()), Some(ml.new_set_signature.clone())).unwrap();

@@ -376,11 +376,7 @@ pub fn prepare_share_change_session_plan(session_nodes: &BTreeSet<NodeId>, new_n
 		nodes_to_add.remove(&target_node);
 		nodes_to_move.insert(target_node, source_node);
 	}
-println!("=== session_nodes = {:?}", session_nodes);
-println!("=== new_nodes_set = {:?}", new_nodes_set);
-println!("=== nodes_to_add = {:?}", nodes_to_add);
-println!("=== nodes_to_move = {:?}", nodes_to_move);
-println!("=== nodes_to_remove = {:?}", nodes_to_remove);
+
 	Ok(ShareChangeSessionPlan {
 		nodes_to_add: nodes_to_add.into_iter()
 			.map(|n| math::generate_random_scalar().map(|s| (n, s)))

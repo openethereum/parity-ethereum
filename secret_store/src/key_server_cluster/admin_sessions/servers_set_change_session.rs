@@ -300,9 +300,8 @@ impl SessionImpl {
 		if self.core.meta.self_node_id != self.core.meta.master_node_id || !is_establishing_consensus || !is_consensus_established {
 			return Ok(());
 		}
-println!("=== 2");
+
 		let unknown_sessions_job = UnknownSessionsJob::new_on_master(self.core.key_storage.clone(), self.core.meta.self_node_id.clone());
-println!("=== 3");
 		consensus_session.disseminate_jobs(unknown_sessions_job, self.unknown_sessions_transport())
 	}
 
