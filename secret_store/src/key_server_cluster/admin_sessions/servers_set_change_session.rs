@@ -199,7 +199,6 @@ impl SessionImpl {
 
 	/// Initialize servers set change session on master node.
 	pub fn initialize(&self, new_nodes_set: BTreeSet<NodeId>, all_set_signature: Signature, new_set_signature: Signature) -> Result<(), Error> {
-println!("=== initialize({:?})", new_nodes_set);
 		// TODO: check that all_nodes_set.contains(new_nodes_set)
 		// TODO: check that threshold + 1 == all_nodes_set.len()
 		let mut data = self.data.lock();
@@ -341,7 +340,6 @@ println!("=== initialize({:?})", new_nodes_set);
 		};
 
 		// initialize sessions queue
-println!("=== consensus established({:?})", new_nodes_set);
 		data.new_nodes_set = Some(new_nodes_set);
 		data.sessions_queue = Some(SessionsQueue::new(self.core.key_storage.clone(), unknown_sessions));
 
@@ -852,7 +850,6 @@ pub mod tests {
 
 		pub fn run(&mut self) {
 			while let Some((from, to, message)) = self.take_message() {
-println!("=== {} -> {}: {}", from, to, message);
 				self.process_message((from, to, message)).unwrap();
 			}
 		}

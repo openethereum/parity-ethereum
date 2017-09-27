@@ -24,6 +24,8 @@ use serialization::{SerializablePublic, SerializableSecret};
 
 /// Key of version value.
 const DB_META_KEY_VERSION: &'static [u8; 7] = b"version";
+/// Current db version.
+const CURRENT_VERSION: u8 = 2;
 
 /// Encrypted key share, stored by key storage on the single key server.
 #[derive(Debug, Clone, PartialEq)]
@@ -143,7 +145,7 @@ fn upgrade_db(db: Database) -> Result<Database, Error> {
 	match version {
 		0 => {
 			let mut batch = db.transaction();
-			batch.put(None, DB_META_KEY_VERSION, &[1]);
+			batch.put(None, DB_META_KEY_VERSION, &[CURRENT_VERSION]);
 			for (db_key, db_value) in db.iter(None).into_iter().flat_map(|inner| inner) {
 				let v0_key = serde_json::from_slice::<SerializableDocumentKeyShareV0>(&db_value).map_err(|e| Error::Database(e.to_string()))?;
 				let v2_key = SerializableDocumentKeyShareV2 {
@@ -165,7 +167,7 @@ fn upgrade_db(db: Database) -> Result<Database, Error> {
 		},
 		1 => {
 			let mut batch = db.transaction();
-			batch.put(None, DB_META_KEY_VERSION, &[2]);
+			batch.put(None, DB_META_KEY_VERSION, &[CURRENT_VERSION]);
 			for (db_key, db_value) in db.iter(None).into_iter().flat_map(|inner| inner) {
 				let v1_key = serde_json::from_slice::<SerializableDocumentKeyShareV1>(&db_value).map_err(|e| Error::Database(e.to_string()))?;
 				let v2_key = SerializableDocumentKeyShareV2 {
