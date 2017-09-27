@@ -16,14 +16,14 @@
 
 //! Engine deserialization.
 
-use super::{Ethash, BasicAuthority, AuthorityRound, Tendermint};
+use super::{Ethash, BasicAuthority, AuthorityRound, Tendermint, NullEngine};
 
 /// Engine deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
 pub enum Engine {
 	/// Null engine.
 	#[serde(rename="null")]
-	Null,
+	Null(NullEngine),
 	/// Instantly sealing engine.
 	#[serde(rename="instantSeal")]
 	InstantSeal,
@@ -48,11 +48,18 @@ mod tests {
 	#[test]
 	fn engine_deserialization() {
 		let s = r#"{
-			"null": null
+			"null": {
+				"params": {
+					"blockReward": "0x0d"
+				}
+			}
 		}"#;
 
 		let deserialized: Engine = serde_json::from_str(s).unwrap();
-		assert_eq!(Engine::Null, deserialized);
+		match deserialized {
+			Engine::Null(_) => {}, // unit test in its own file.
+			_ => panic!(),
+		}
 
 		let s = r#"{
 			"instantSeal": null
@@ -61,7 +68,7 @@ mod tests {
 		let deserialized: Engine = serde_json::from_str(s).unwrap();
 		match deserialized {
 			Engine::InstantSeal => {},	// instant seal is unit tested in its own file.
-			_ => assert!(false),
+			_ => panic!(),
 		};
 
 		let s = r#"{
@@ -82,7 +89,7 @@ mod tests {
 		let deserialized: Engine = serde_json::from_str(s).unwrap();
 		match deserialized {
 			Engine::Ethash(_) => {},	// ethash is unit tested in its own file.
-			_ => assert!(false),
+			_ => panic!(),
 		};
 
 		let s = r#"{
@@ -98,7 +105,7 @@ mod tests {
 		let deserialized: Engine = serde_json::from_str(s).unwrap();
 		match deserialized {
 			Engine::BasicAuthority(_) => {}, // basicAuthority is unit tested in its own file.
-			_ => assert!(false),
+			_ => panic!(),
 		};
 
 		let s = r#"{
@@ -116,7 +123,7 @@ mod tests {
 		let deserialized: Engine = serde_json::from_str(s).unwrap();
 		match deserialized {
 			Engine::AuthorityRound(_) => {}, // AuthorityRound is unit tested in its own file.
-			_ => assert!(false),
+			_ => panic!(),
 		};
 
 		let s = r#"{
@@ -131,7 +138,7 @@ mod tests {
 		let deserialized: Engine = serde_json::from_str(s).unwrap();
 		match deserialized {
 			Engine::Tendermint(_) => {}, // Tendermint is unit tested in its own file.
-			_ => assert!(false),
+			_ => panic!(),
 		};
 	}
 }

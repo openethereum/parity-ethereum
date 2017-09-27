@@ -20,7 +20,8 @@ use std::sync::{Weak, Arc};
 
 use ethcore::block_status::BlockStatus;
 use ethcore::client::{ClientReport, EnvInfo};
-use ethcore::engines::{epoch, Engine, EpochChange, EpochTransition, Proof, Unsure};
+use ethcore::engines::{epoch, EthEngine, EpochChange, EpochTransition, Proof};
+use ethcore::machine::EthereumMachine;
 use ethcore::error::BlockImportError;
 use ethcore::ids::BlockId;
 use ethcore::header::{BlockNumber, Header};
@@ -117,7 +118,7 @@ pub trait LightChainClient: Send + Sync {
 	fn env_info(&self, id: BlockId) -> Option<EnvInfo>;
 
 	/// Get a handle to the consensus engine.
-	fn engine(&self) -> &Arc<Engine>;
+	fn engine(&self) -> &Arc<EthEngine>;
 
 	/// Query whether a block is known.
 	fn is_known(&self, hash: &H256) -> bool;
@@ -165,7 +166,7 @@ impl<T: LightChainClient> AsLightClient for T {
 /// Light client implementation.
 pub struct Client<T> {
 	queue: HeaderQueue,
-	engine: Arc<Engine>,
+	engine: Arc<EthEngine>,
 	chain: HeaderChain,
 	report: RwLock<ClientReport>,
 	import_lock: Mutex<()>,
@@ -381,7 +382,7 @@ impl<T: ChainDataFetcher> Client<T> {
 	}
 
 	/// Get a handle to the verification engine.
-	pub fn engine(&self) -> &Arc<Engine> {
+	pub fn engine(&self) -> &Arc<EthEngine> {
 		&self.engine
 	}
 
@@ -444,7 +445,7 @@ impl<T: ChainDataFetcher> Client<T> {
 		};
 
 		// Verify Block Family
-		let verify_family_result = self.engine.verify_block_family(&verified_header, &parent_header.decode(), None);
+		let verify_family_result = self.engine.verify_block_family(&verified_header, &parent_header.decode());
 		if let Err(e) = verify_family_result {
 			warn!(target: "client", "Stage 3 block verification failed for #{} ({})\nError: {:?}",
 				verified_header.number(), verified_header.hash(), e);
@@ -453,7 +454,7 @@ impl<T: ChainDataFetcher> Client<T> {
 		};
 
 		// "external" verification.
-		let verify_external_result = self.engine.verify_block_external(&verified_header, None);
+		let verify_external_result = self.engine.verify_block_external(&verified_header);
 		if let Err(e) = verify_external_result {
 			warn!(target: "client", "Stage 4 block verification failed for #{} ({})\nError: {:?}",
 				verified_header.number(), verified_header.hash(), e);
@@ -465,50 +466,54 @@ impl<T: ChainDataFetcher> Client<T> {
 		true
 	}
 
-	fn check_epoch_signal(&self, verified_header: &Header) -> Result<Option<Proof>, T::Error> {
-		let (mut block, mut receipts) = (None, None);
+	fn check_epoch_signal(&self, verified_header: &Header) -> Result<Option<Proof<EthereumMachine>>, T::Error> {
+		use ethcore::machine::{AuxiliaryRequest, AuxiliaryData};
 
-		// First, check without providing auxiliary data.
-		match self.engine.signals_epoch_end(verified_header, None, None) {
-			EpochChange::No => return Ok(None),
-			EpochChange::Yes(proof) => return Ok(Some(proof)),
-			EpochChange::Unsure(unsure) => {
-				let (b, r) = match unsure {
-					Unsure::NeedsBody =>
-						(Some(self.fetcher.block_body(verified_header)), None),
-					Unsure::NeedsReceipts =>
-						(None, Some(self.fetcher.block_receipts(verified_header))),
-					Unsure::NeedsBoth => (
-						Some(self.fetcher.block_body(verified_header)),
-						Some(self.fetcher.block_receipts(verified_header)),
-					),
+		let mut block: Option<Vec<u8>> = None;
+		let mut receipts: Option<Vec<_>> = None;
+
+		loop {
+
+
+			let is_signal = {
+				let auxiliary = AuxiliaryData {
+					bytes: block.as_ref().map(|x| &x[..]),
+					receipts: receipts.as_ref().map(|x| &x[..]),
 				};
 
-				if let Some(b) = b {
-					block = Some(b.into_future().wait()?.into_inner());
-				}
+				self.engine.signals_epoch_end(verified_header, auxiliary)
+			};
 
-				if let Some(r) = r {
-					receipts = Some(r.into_future().wait()?);
+			// check with any auxiliary data fetched so far
+			match is_signal {
+				EpochChange::No => return Ok(None),
+				EpochChange::Yes(proof) => return Ok(Some(proof)),
+				EpochChange::Unsure(unsure) => {
+					let (b, r) = match unsure {
+						AuxiliaryRequest::Body =>
+							(Some(self.fetcher.block_body(verified_header)), None),
+						AuxiliaryRequest::Receipts =>
+							(None, Some(self.fetcher.block_receipts(verified_header))),
+						AuxiliaryRequest::Both => (
+							Some(self.fetcher.block_body(verified_header)),
+							Some(self.fetcher.block_receipts(verified_header)),
+						),
+					};
+
+					if let Some(b) = b {
+						block = Some(b.into_future().wait()?.into_inner());
+					}
+
+					if let Some(r) = r {
+						receipts = Some(r.into_future().wait()?);
+					}
 				}
 			}
-		}
-
-		let block = block.as_ref().map(|x| &x[..]);
-		let receipts = receipts.as_ref().map(|x| &x[..]);
-
-		// Check again now that required data has been fetched.
-		match self.engine.signals_epoch_end(verified_header, block, receipts) {
-			EpochChange::No => return Ok(None),
-			EpochChange::Yes(proof) => return Ok(Some(proof)),
-			EpochChange::Unsure(_) =>
-				panic!("Detected faulty engine implementation: requests additional \
-					data to check epoch end signal when everything necessary provided"),
 		}
 	}
 
 	// attempts to fetch the epoch proof from the network until successful.
-	fn write_pending_proof(&self, header: &Header, proof: Proof) -> Result<(), T::Error> {
+	fn write_pending_proof(&self, header: &Header, proof: Proof<EthereumMachine>) -> Result<(), T::Error> {
 		let proof = match proof {
 			Proof::Known(known) => known,
 			Proof::WithState(state_dependent) => {
@@ -568,7 +573,7 @@ impl<T: ChainDataFetcher> LightChainClient for Client<T> {
 		Client::env_info(self, id)
 	}
 
-	fn engine(&self) -> &Arc<Engine> {
+	fn engine(&self) -> &Arc<EthEngine> {
 		Client::engine(self)
 	}
 

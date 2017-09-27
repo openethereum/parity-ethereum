@@ -1,7 +1,9 @@
 {
 	"name": "GenesisConstructor",
 	"engine": {
-		"null": null
+		"null": {
+			"params": {}
+		}
 	},
 	"params": {
 		"gasLimitBoundDivisor": "0x0400",
