@@ -22,6 +22,7 @@ use hash::{KECCAK_EMPTY_LIST_RLP};
 use ethash::{quick_get_difficulty, slow_hash_block_number, EthashManager, OptimizeFor};
 use bigint::prelude::U256;
 use bigint::hash::{H256, H64};
+use util::Address;
 use unexpected::{OutOfBounds, Mismatch};
 use block::*;
 use error::{BlockError, Error};

@@ -71,7 +71,9 @@ pub fn new_expanse<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
 }
 
 /// Create a new Musicoin mainnet chain spec.
-pub fn new_musicoin(cache_dir: &Path) -> Spec { load(cache_dir, include_bytes!("../../res/ethereum/musicoin.json")) }
+pub fn new_musicoin<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
+	load(params.into(), include_bytes!("../../res/ethereum/musicoin.json"))
+}
 
 /// Create a new Kovan testnet chain spec.
 pub fn new_kovan<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
