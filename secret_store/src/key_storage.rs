@@ -36,7 +36,7 @@ pub struct DocumentKeyShare {
 	pub threshold: usize,
 	/// Nodes ids numbers.
 	pub id_numbers: BTreeMap<NodeId, Secret>,
-	/// Polynom1. TODO: check that it is not empty when starting share add session!!!
+	/// Polynom1.
 	pub polynom1: Vec<Secret>,
 	/// Node secret share.
 	pub secret_share: Secret,

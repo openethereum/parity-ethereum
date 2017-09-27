@@ -168,11 +168,17 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 	/// Create new share addition session.
 	pub fn new(params: SessionParams<T>) -> Result<Self, Error> {
 		let key_id = params.meta.id.clone();
+		// it is ok for new nodes not to have key shares => ignore here
+		let key_share = params.key_storage.get(&key_id).ok();
+		if key_share.as_ref().map(|ks| ks.polynom1.len() != ks.threshold + 1).unwrap_or_default() {
+			return Err(Error::KeyStorage("unsupported key share in storage".into()));
+		}
+
 		Ok(SessionImpl {
 			core: SessionCore {
 				meta: params.meta,
 				nonce: params.nonce,
-				key_share: params.key_storage.get(&key_id).ok(), // ignore error, it will be checked later
+				key_share: key_share,
 				transport: params.transport,
 				key_storage: params.key_storage,
 				admin_public: params.admin_public,
