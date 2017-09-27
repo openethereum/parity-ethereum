@@ -205,24 +205,39 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 		let author = *LiveBlock::header(&*block).author();
 		let number = LiveBlock::header(&*block).number();
 
+		// Assumes EIP-649 and MCIP-3 are mutual exclusive
 		let reward = if number >= self.ethash_params.eip649_transition {
 			self.ethash_params.eip649_reward.unwrap_or(self.ethash_params.block_reward)
+		} else if number >= self.ethash_params.mcip3_transition {
+			self.ethash_params.mcip3_miner_reward.unwrap_or(self.ethash_params.block_reward)
 		} else {
 			self.ethash_params.block_reward
 		};
 
+		// Applies ECIP-1017 eras.
 		let eras_rounds = self.ethash_params.ecip1017_era_rounds;
 		let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, reward, number);
 
 		let n_uncles = LiveBlock::uncles(&*block).len();
 
-		// Bestow block reward
+		// Bestow block rewards.
 		let result_block_reward = reward + reward.shr(5) * U256::from(n_uncles);
 		let mut uncle_rewards = Vec::with_capacity(n_uncles);
 
 		self.machine.add_balance(block, &author, &result_block_reward)?;
 
-		// bestow uncle rewards.
+		// Bestow additional MCIP-3 rewards.
+		if number >= self.ethash_params.mcip3_transition {
+			let ubi_contract = self.ethash_params.mcip3_ubi_contract;
+			let ubi_reward = self.ethash_params.mcip3_ubi_reward.unwrap();
+			self.machine.add_balance(block, &ubi_contract, &ubi_reward?;
+
+			let dev_contract = self.ethash_params.mcip3_dev_contract;
+			let dev_reward = self.ethash_params.mcip3_dev_reward.unwrap();
+			self.machine.add_balance(block, &dev_contract, &dev_reward?;
+		}
+
+		// Bestow uncle rewards.
 		for u in LiveBlock::uncles(&*block) {
 			let uncle_author = u.author();
 			let result_uncle_reward = if eras == 0 {
@@ -238,7 +253,7 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 			self.machine.add_balance(block, a, reward)?;
 		}
 
-		// note and trace.
+		// Note and trace.
 		self.machine.note_rewards(block, &[(author, result_block_reward)], &uncle_rewards)
 	}
 
