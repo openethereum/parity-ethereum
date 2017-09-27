@@ -3,6 +3,7 @@
 // TODO: do not need SessionError messages in nested sessions + do not need nonces + sub sessions
 // TODO: even if node was lost, it is still required for share removal, ...
 // TODO: before setting pre-established consensus - check that old nodes are in general old set && new nodes are in general new set
+// TODO: in long session some nodes (that are not participating in share change sessions) can stop session as stalled
 
 // Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
@@ -27,6 +28,7 @@ use parking_lot::{Mutex, Condvar};
 use ethkey::{Public, Signature};
 use key_server_cluster::{Error, NodeId, SessionId, SessionMeta, KeyStorage};
 use key_server_cluster::cluster::Cluster;
+use key_server_cluster::cluster_sessions::ClusterSession;
 use key_server_cluster::message::{Message, ServersSetChangeMessage,
 	ConsensusMessageWithServersSet, InitializeConsensusSessionWithServersSet,
 	ServersSetChangeConsensusMessage, ConfirmConsensusInitialization, UnknownSessionsRequest, UnknownSessions,
@@ -41,6 +43,7 @@ use key_server_cluster::jobs::servers_set_change_access_job::{ServersSetChangeAc
 use key_server_cluster::jobs::unknown_sessions_job::{UnknownSessionsJob};
 use key_server_cluster::jobs::consensus_session::{ConsensusSessionParams, ConsensusSessionState, ConsensusSession};
 use key_server_cluster::admin_sessions::sessions_queue::{SessionsQueue, QueuedSession};
+use key_server_cluster::admin_sessions::ShareChangeSessionMeta;
 
 /// Maximal number of active share change sessions.
 const MAX_ACTIVE_SESSIONS: usize = 64;
@@ -70,6 +73,7 @@ pub struct SessionImpl {
 }
 
 /// Session state.
+#[derive(PartialEq)]
 enum SessionState {
 	GatheringUnknownSessions,
 	Finished,
@@ -78,7 +82,7 @@ enum SessionState {
 /// Immutable session data.
 struct SessionCore {
 	/// Servers set change session meta (id is computed from new_nodes_set).
-	pub meta: SessionMeta,
+	pub meta: ShareChangeSessionMeta,
 	/// Cluster which allows this node to send messages to other nodes in the cluster.
 	pub cluster: Arc<Cluster>,
 	/// Keys storage.
@@ -87,14 +91,10 @@ struct SessionCore {
 	pub nonce: u64,
 	/// All known nodes.
 	pub all_nodes_set: BTreeSet<NodeId>,
+	/// Administrator public key.
+	pub admin_public: Public,
 	/// SessionImpl completion condvar.
 	pub completed: Condvar,
-/*	/// Nodes to remove from the set.
-	pub nodes_to_remove: BTreeSet<NodeId>,
-	/// Nodes to add to the set.
-	pub nodes_to_add: BTreeSet<NodeId>,
-	/// Nodes staying in the set.
-	pub nodes_to_move: BTreeMap<NodeId, NodeId>,*/
 }
 
 /// Servers set change consensus session type.
@@ -131,7 +131,7 @@ struct SessionInitializationData {
 /// SessionImpl creation parameters
 pub struct SessionParams {
 	/// Session meta (artificial).
-	pub meta: SessionMeta,
+	pub meta: ShareChangeSessionMeta,
 	/// Cluster.
 	pub cluster: Arc<Cluster>,
 	/// Keys storage.
@@ -140,6 +140,8 @@ pub struct SessionParams {
 	pub nonce: u64,
 	/// All known nodes.
 	pub all_nodes_set: BTreeSet<NodeId>,
+	/// Administrator public key.
+	pub admin_public: Public,
 }
 
 /// Servers set change consensus transport.
@@ -179,6 +181,7 @@ impl SessionImpl {
 				key_storage: params.key_storage,
 				nonce: params.nonce,
 				all_nodes_set: params.all_nodes_set,
+				admin_public: params.admin_public,
 				completed: Condvar::new(),
 			},
 			data: Mutex::new(SessionData {
@@ -199,9 +202,8 @@ impl SessionImpl {
 		// TODO: check that all_nodes_set.contains(new_nodes_set)
 		// TODO: check that threshold + 1 == all_nodes_set.len()
 		let mut data = self.data.lock();
-println!("=== consensus.threshold = {}", self.core.meta.threshold);
 		let mut consensus_session = ConsensusSession::new(ConsensusSessionParams {
-			meta: self.core.meta.clone(),
+			meta: self.core.meta.clone().into_consensus_meta(self.core.all_nodes_set.len()),
 			consensus_executor: ServersSetChangeAccessJob::new_on_master(Public::default(), // TODO: admin key instead of default
 				self.core.all_nodes_set.clone(),
 				self.core.all_nodes_set.clone(),
@@ -214,7 +216,7 @@ println!("=== consensus.threshold = {}", self.core.meta.threshold);
 				cluster: self.core.cluster.clone(),
 			},
 		})?;
-println!("=== consensus.self.core.all_nodes_set.len() = {}", self.core.all_nodes_set.len());
+
 		consensus_session.initialize(self.core.all_nodes_set.clone())?;
 		debug_assert!(consensus_session.state() != ConsensusSessionState::ConsensusEstablished);
 		data.consensus_session = Some(consensus_session);
@@ -268,7 +270,7 @@ println!("=== consensus.self.core.all_nodes_set.len() = {}", self.core.all_nodes
 				match &message.message {
 					&ConsensusMessageWithServersSet::InitializeConsensusSession(ref message) => {
 						data.consensus_session = Some(ConsensusSession::new(ConsensusSessionParams {
-							meta: self.core.meta.clone(),
+							meta: self.core.meta.clone().into_consensus_meta(self.core.all_nodes_set.len()),
 							consensus_executor: ServersSetChangeAccessJob::new_on_slave(Public::default(), // TODO: administrator public
 								self.core.all_nodes_set.clone(),
 							),
@@ -279,9 +281,7 @@ println!("=== consensus.self.core.all_nodes_set.len() = {}", self.core.all_nodes
 							},
 						})?);
 					},
-					_ => {
-println!("=== 1");
-						return Err(Error::InvalidStateForRequest) },
+					_ => return Err(Error::InvalidStateForRequest),
 				}
 			}
 		}
@@ -668,6 +668,26 @@ println!("=== 3");
 	}
 }
 
+impl Session for SessionImpl {
+	fn wait(&self) -> Result<(), Error> {
+		unimplemented!()
+	}
+}
+
+impl ClusterSession for SessionImpl {
+	fn is_finished(&self) -> bool {
+		self.data.lock().state == SessionState::Finished
+	}
+
+	fn on_session_timeout(&self) {
+		unimplemented!()
+	}
+
+	fn on_node_timeout(&self, _node_id: &NodeId) {
+		unimplemented!()
+	}
+}
+
 impl JobTransport for ServersSetChangeConsensusTransport {
 	type PartialJobRequest=ServersSetChangeAccessRequest;
 	type PartialJobResponse=bool;
@@ -726,6 +746,7 @@ pub mod tests {
 	use key_server_cluster::generation_session::tests::{MessageLoop as GenerationMessageLoop, generate_nodes_ids};
 	use key_server_cluster::math;
 	use key_server_cluster::message::Message;
+	use key_server_cluster::admin_sessions::ShareChangeSessionMeta;
 	use super::{SessionImpl, SessionParams};
 
 	struct Node {
@@ -749,11 +770,10 @@ pub mod tests {
 			let session_id = *math::generate_random_scalar().unwrap();
 			let requester_signature = sign(Random.generate().unwrap().secret(), &session_id).unwrap();
 			let mut nodes = BTreeMap::new();
-			let meta = SessionMeta {
+			let meta = ShareChangeSessionMeta {
 				self_node_id: master_node_id.clone(),
 				master_node_id: master_node_id.clone(),
 				id: session_id.clone(),
-				threshold: all_nodes_set.len() - 1,
 			};
 			for (n, nd) in &gml.nodes {
 				let cluster = nd.cluster.clone();
@@ -767,6 +787,7 @@ pub mod tests {
 					cluster: nd.cluster.clone(),
 					key_storage: nd.key_storage.clone(),
 					nonce: 1,
+					admin_public: Public::default(),
 				}).unwrap();
 				nodes.insert(n.clone(), Node {
 					cluster: cluster,
@@ -786,6 +807,7 @@ pub mod tests {
 					cluster: cluster.clone(),
 					key_storage: key_storage.clone(),
 					nonce: 1,
+					admin_public: Public::default(),
 				}).unwrap();
 				nodes.insert(new_node_id, Node {
 					cluster: cluster,

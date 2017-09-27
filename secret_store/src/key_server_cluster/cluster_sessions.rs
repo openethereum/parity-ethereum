@@ -23,7 +23,7 @@ use ethkey::{Public, Secret, Signature};
 use key_server_cluster::{Error, NodeId, SessionId, AclStorage, KeyStorage, DocumentKeyShare, EncryptedDocumentKeyShadow, SessionMeta};
 use key_server_cluster::cluster::{Cluster, ClusterData, ClusterView, ClusterConfiguration};
 use key_server_cluster::message::{self, Message, GenerationMessage, EncryptionMessage, DecryptionMessage, SigningMessage,
-	ShareAddMessage, ShareMoveMessage, ShareRemoveMessage};
+	ShareAddMessage, ShareMoveMessage, ShareRemoveMessage, ServersSetChangeMessage};
 use key_server_cluster::generation_session::{Session as GenerationSession, SessionImpl as GenerationSessionImpl,
 	SessionParams as GenerationSessionParams, SessionState as GenerationSessionState};
 use key_server_cluster::decryption_session::{Session as DecryptionSession, SessionImpl as DecryptionSessionImpl,
@@ -38,6 +38,8 @@ use key_server_cluster::share_move_session::{Session as ShareMoveSession, Sessio
 	SessionParams as ShareMoveSessionParams, IsolatedSessionTransport as ShareMoveTransport};
 use key_server_cluster::share_remove_session::{Session as ShareRemoveSession, SessionImpl as ShareRemoveSessionImpl,
 	SessionParams as ShareRemoveSessionParams, IsolatedSessionTransport as ShareRemoveTransport};
+use key_server_cluster::servers_set_change_session::{Session as ServersSetChangeSession, SessionImpl as ServersSetChangeSessionImpl,
+	SessionParams as ServersSetChangeSessionParams};
 use key_server_cluster::admin_sessions::ShareChangeSessionMeta;
 
 /// When there are no session-related messages for SESSION_TIMEOUT_INTERVAL seconds,
@@ -72,6 +74,8 @@ pub struct ClusterSessions {
 	pub share_move_sessions: ClusterSessionsContainer<SessionId, ShareMoveSessionImpl<ShareMoveTransport>, ShareMoveMessage>,
 	/// Share remove sessions.
 	pub share_remove_sessions: ClusterSessionsContainer<SessionId, ShareRemoveSessionImpl<ShareRemoveTransport>, ShareRemoveMessage>,
+	/// Servers set change sessions.
+	pub servers_set_change_sessions: ClusterSessionsContainer<SessionId, ServersSetChangeSessionImpl, ServersSetChangeMessage>,
 	/// Self node id.
 	self_node_id: NodeId,
 	/// All nodes ids.
@@ -186,6 +190,16 @@ pub struct ShareRemoveSessionWrapper {
 	cluster: Weak<ClusterData>,
 }
 
+/// Servers set change session implementation, which removes session from cluster on drop.
+pub struct ServersSetChangeSessionWrapper {
+	/// Wrapped session.
+	session: Arc<ServersSetChangeSession>,
+	/// Session Id.
+	session_id: SessionId,
+	/// Cluster data reference.
+	cluster: Weak<ClusterData>,
+}
+
 impl ClusterSessions {
 	/// Create new cluster sessions container.
 	pub fn new(config: &ClusterConfiguration) -> Self {
@@ -201,6 +215,7 @@ impl ClusterSessions {
 			share_add_sessions: ClusterSessionsContainer::new(),
 			share_move_sessions: ClusterSessionsContainer::new(),
 			share_remove_sessions: ClusterSessionsContainer::new(),
+			servers_set_change_sessions: ClusterSessionsContainer::new(),
 			make_faulty_generation_sessions: AtomicBool::new(false),
 			session_counter: AtomicUsize::new(0),
 			max_nonce: RwLock::new(BTreeMap::new()),
@@ -447,6 +462,36 @@ impl ClusterSessions {
 			});
 	}
 
+	/// Create new servers set change session.
+	pub fn new_servers_set_change_session(&self, master: NodeId, session_id: SessionId, nonce: Option<u64>, cluster: Arc<ClusterView>, all_nodes_set: BTreeSet<NodeId>) -> Result<Arc<ServersSetChangeSessionImpl>, Error> {
+		let nonce = self.check_session_nonce(&master, nonce)?;
+
+		self.servers_set_change_sessions.insert(master, session_id.clone(), cluster.clone(), move || ServersSetChangeSessionImpl::new(ServersSetChangeSessionParams {
+			meta: ShareChangeSessionMeta {
+				id: session_id,
+				self_node_id: self.self_node_id.clone(),
+				master_node_id: master,
+			},
+			cluster: cluster,
+			key_storage: self.key_storage.clone(),
+			admin_public: Public::default(), // TODO
+			nonce: nonce,
+			all_nodes_set: all_nodes_set,
+		}))
+	}
+
+	/// Send share remove session error.
+	pub fn respond_with_servers_set_change_error(&self, session_id: &SessionId, to: &NodeId, error: message::ServersSetChangeError) {
+		self.servers_set_change_sessions.sessions.read().get(&session_id)
+			.map(|s| {
+				// error in any share change session is considered fatal
+				// => broadcast error
+
+				// do not bother processing send error, as we already processing error
+				let _ = s.cluster_view.broadcast(Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeError(error)));
+			});
+	}
+
 	/// Stop sessions that are stalling.
 	pub fn stop_stalled_sessions(&self) {
 		self.generation_sessions.stop_stalled_sessions();
@@ -454,6 +499,9 @@ impl ClusterSessions {
 		self.decryption_sessions.stop_stalled_sessions();
 		self.signing_sessions.stop_stalled_sessions();
 		self.share_add_sessions.stop_stalled_sessions();
+		self.share_move_sessions.stop_stalled_sessions();
+		self.share_remove_sessions.stop_stalled_sessions();
+		self.servers_set_change_sessions.stop_stalled_sessions();
 	}
 
 	/// When connection to node is lost.
@@ -463,6 +511,9 @@ impl ClusterSessions {
 		self.decryption_sessions.on_connection_timeout(node_id);
 		self.signing_sessions.on_connection_timeout(node_id);
 		self.share_add_sessions.on_connection_timeout(node_id);
+		self.share_move_sessions.on_connection_timeout(node_id);
+		self.share_remove_sessions.on_connection_timeout(node_id);
+		self.servers_set_change_sessions.on_connection_timeout(node_id);
 		self.max_nonce.write().remove(node_id);
 	}
 
@@ -749,6 +800,30 @@ impl Drop for ShareRemoveSessionWrapper {
 	fn drop(&mut self) {
 		if let Some(cluster) = self.cluster.upgrade() {
 			cluster.sessions().share_remove_sessions.remove(&self.session_id);
+		}
+	}
+}
+
+impl ServersSetChangeSessionWrapper {
+	pub fn new(cluster: Weak<ClusterData>, session_id: SessionId, session: Arc<ServersSetChangeSession>) -> Arc<Self> {
+		Arc::new(ServersSetChangeSessionWrapper {
+			session: session,
+			session_id: session_id,
+			cluster: cluster,
+		})
+	}
+}
+
+impl ServersSetChangeSession for ServersSetChangeSessionWrapper {
+	fn wait(&self) -> Result<(), Error> {
+		self.session.wait()
+	}
+}
+
+impl Drop for ServersSetChangeSessionWrapper {
+	fn drop(&mut self) {
+		if let Some(cluster) = self.cluster.upgrade() {
+			cluster.sessions().servers_set_change_sessions.remove(&self.session_id);
 		}
 	}
 }

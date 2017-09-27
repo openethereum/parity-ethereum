@@ -30,7 +30,8 @@ use ethkey::{Public, KeyPair, Signature, Random, Generator};
 use bigint::hash::H256;
 use key_server_cluster::{Error, NodeId, SessionId, AclStorage, KeyStorage, KeyServerSet, NodeKeyPair};
 use key_server_cluster::cluster_sessions::{ClusterSession, ClusterSessions, GenerationSessionWrapper, EncryptionSessionWrapper,
-	DecryptionSessionWrapper, SigningSessionWrapper, ShareAddSessionWrapper, ShareMoveSessionWrapper, ShareRemoveSessionWrapper};
+	DecryptionSessionWrapper, SigningSessionWrapper, ShareAddSessionWrapper, ShareMoveSessionWrapper, ShareRemoveSessionWrapper,
+	ServersSetChangeSessionWrapper};
 use key_server_cluster::message::{self, Message, ClusterMessage, GenerationMessage, EncryptionMessage, DecryptionMessage,
 	SigningMessage, ServersSetChangeMessage, ConsensusMessage, ShareAddMessage, ShareMoveMessage, ShareRemoveMessage,
 	ConsensusMessageWithServersSecretMap, ConsensusMessageWithServersMap, ConsensusMessageWithServersSet};
@@ -43,6 +44,7 @@ use key_server_cluster::signing_session::{Session as SigningSession, SigningSess
 use key_server_cluster::share_add_session::Session as ShareAddSession;
 use key_server_cluster::share_move_session::Session as ShareMoveSession;
 use key_server_cluster::share_remove_session::Session as ShareRemoveSession;
+use key_server_cluster::servers_set_change_session::Session as ServersSetChangeSession;
 use key_server_cluster::io::{DeadlineStatus, ReadMessage, SharedTcpStream, read_encrypted_message, WriteMessage, write_encrypted_message};
 use key_server_cluster::net::{accept_connection as net_accept_connection, connect as net_connect, Connection as NetConnection};
 
@@ -81,6 +83,8 @@ pub trait ClusterClient: Send + Sync {
 	fn new_share_move_session(&self, session_id: SessionId, shares_to_move: BTreeSet<NodeId>, old_set_signature: Signature, new_set_signature: Signature) -> Result<Arc<ShareMoveSession>, Error>;
 	/// Start new share remove session.
 	fn new_share_remove_session(&self, session_id: SessionId, new_nodes_set: BTreeSet<NodeId>, old_set_signature: Signature, new_set_signature: Signature) -> Result<Arc<ShareRemoveSession>, Error>;
+	/// Start new servers set change session.
+	fn new_servers_set_change_session(&self, session_id: SessionId, new_nodes_set: BTreeSet<NodeId>, old_set_signature: Signature, new_set_signature: Signature) -> Result<Arc<ServersSetChangeSession>, Error>;
 
 	/// Ask node to make 'faulty' generation sessions.
 	#[cfg(test)]
@@ -743,7 +747,78 @@ impl ClusterCore {
 
 	/// Process singlesigning message from the connection.
 	fn process_servers_set_change_message(data: Arc<ClusterData>, connection: Arc<Connection>, mut message: ServersSetChangeMessage) {
-		unimplemented!()
+		let session_id = message.session_id().clone();
+		let session_nonce = message.session_nonce();
+		let mut sender = connection.node_id().clone();
+		let session = match message {
+			ServersSetChangeMessage::ServersSetChangeConsensusMessage(ref message) if match message.message {
+				ConsensusMessageWithServersSet::InitializeConsensusSession(_) => true,
+				_ => false,
+			} => {
+				let mut connected_nodes = data.connections.connected_nodes();
+				connected_nodes.insert(data.self_key_pair.public().clone());
+
+				let cluster = Arc::new(ClusterView::new(data.clone(), connected_nodes.clone()));
+				match data.sessions.new_servers_set_change_session(sender.clone(), session_id.clone(), Some(session_nonce), cluster, connected_nodes) {
+					Ok(session) => Ok(session),
+					Err(err) => {
+						// this is new session => it is not yet in container
+						warn!(target: "secretstore_net", "{}: servers set change session initialization error '{}' when requested for new session from node {}", data.self_key_pair.public(), err, sender);
+						data.spawn(connection.send_message(Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeError(message::ServersSetChangeError {
+							session: session_id.into(),
+							session_nonce: session_nonce,
+							error: format!("{:?}", err),
+						}))));
+						return;
+					},
+				}
+			},
+			_ => {
+				data.sessions.servers_set_change_sessions.get(&session_id)
+					.ok_or(Error::InvalidSessionId)
+			},
+		};
+
+		let mut is_queued_message = false;
+		loop {
+			match session.clone().and_then(|session| session.process_message(&sender, &message)) {
+				Ok(_) => {
+					// if session is completed => stop
+					let session = session.clone().expect("session.method() call finished with success; session exists; qed");
+					if session.is_finished() {
+						info!(target: "secretstore_net", "{}: servers set change session completed", data.self_key_pair.public());
+						data.sessions.servers_set_change_sessions.remove(&session_id);
+						break;
+					}
+
+					// try to dequeue message
+					match data.sessions.servers_set_change_sessions.dequeue_message(&session_id) {
+						Some((msg_sender, msg)) => {
+							is_queued_message = true;
+							sender = msg_sender;
+							message = msg;
+						},
+						None => break,
+					}
+				},
+				Err(Error::TooEarlyForRequest) => {
+					data.sessions.servers_set_change_sessions.enqueue_message(&session_id, sender, message, is_queued_message);
+					break;
+				},
+				Err(err) => {
+					warn!(target: "secretstore_net", "{}: servers set change session error '{}' when processing message {} from node {}", data.self_key_pair.public(), err, message, sender);
+					data.sessions.respond_with_servers_set_change_error(&session_id, &sender, message::ServersSetChangeError {
+						session: session_id.clone().into(),
+						session_nonce: session_nonce,
+						error: format!("{:?}", err),
+					});
+					if err != Error::InvalidSessionId {
+						data.sessions.servers_set_change_sessions.remove(&session_id);
+					}
+					break;
+				},
+			}
+		}
 	}
 
 	/// Process single share add message from the connection.
@@ -1243,7 +1318,7 @@ impl ClusterClient for ClusterClientImpl {
 		let mut connected_nodes = self.data.connections.connected_nodes();
 		connected_nodes.insert(self.data.self_key_pair.public().clone());
 
-		let cluster = Arc::new(ClusterView::new(self.data.clone(), connected_nodes.clone()));
+		let cluster = Arc::new(ClusterView::new(self.data.clone(), connected_nodes));
 		let session = self.data.sessions.new_encryption_session(self.data.self_key_pair.public().clone(), session_id, None, cluster)?;
 		session.initialize(requestor_signature, common_point, encrypted_point)?;
 		Ok(EncryptionSessionWrapper::new(Arc::downgrade(&self.data), session_id, session))
@@ -1254,7 +1329,7 @@ impl ClusterClient for ClusterClientImpl {
 		connected_nodes.insert(self.data.self_key_pair.public().clone());
 
 		let access_key = Random.generate()?.secret().clone();
-		let cluster = Arc::new(ClusterView::new(self.data.clone(), connected_nodes.clone()));
+		let cluster = Arc::new(ClusterView::new(self.data.clone(), connected_nodes));
 		let session = self.data.sessions.new_decryption_session(self.data.self_key_pair.public().clone(), session_id, access_key.clone(), None, cluster, Some(requestor_signature))?;
 		session.initialize(is_shadow_decryption)?;
 		Ok(DecryptionSessionWrapper::new(Arc::downgrade(&self.data), DecryptionSessionId::new(session_id, access_key), session))
@@ -1265,7 +1340,7 @@ impl ClusterClient for ClusterClientImpl {
 		connected_nodes.insert(self.data.self_key_pair.public().clone());
 
 		let access_key = Random.generate()?.secret().clone();
-		let cluster = Arc::new(ClusterView::new(self.data.clone(), connected_nodes.clone()));
+		let cluster = Arc::new(ClusterView::new(self.data.clone(), connected_nodes));
 		let session = self.data.sessions.new_signing_session(self.data.self_key_pair.public().clone(), session_id, access_key.clone(), None, cluster, Some(requestor_signature))?;
 		session.initialize(message_hash)?;
 		Ok(SigningSessionWrapper::new(Arc::downgrade(&self.data), SigningSessionId::new(session_id, access_key), session))
@@ -1275,7 +1350,7 @@ impl ClusterClient for ClusterClientImpl {
 		let mut connected_nodes = self.data.connections.connected_nodes();
 		connected_nodes.insert(self.data.self_key_pair.public().clone());
 
-		let cluster = Arc::new(ClusterView::new(self.data.clone(), connected_nodes.clone()));
+		let cluster = Arc::new(ClusterView::new(self.data.clone(), connected_nodes));
 		let session = self.data.sessions.new_share_add_session(self.data.self_key_pair.public().clone(), session_id, None, cluster)?;
 		session.initialize(new_nodes_set, Some(old_set_signature), Some(new_set_signature))?;
 		Ok(ShareAddSessionWrapper::new(Arc::downgrade(&self.data), session_id, session))
@@ -1297,7 +1372,7 @@ impl ClusterClient for ClusterClientImpl {
 		let mut connected_nodes = self.data.connections.connected_nodes();
 		connected_nodes.insert(self.data.self_key_pair.public().clone());
 
-		let cluster = Arc::new(ClusterView::new(self.data.clone(), connected_nodes.clone()));
+		let cluster = Arc::new(ClusterView::new(self.data.clone(), connected_nodes));
 		let session = self.data.sessions.new_share_move_session(self.data.self_key_pair.public().clone(), session_id, None, cluster)?;
 		session.initialize(shares_to_move, Some(old_set_signature), Some(new_set_signature))?;
 		Ok(ShareMoveSessionWrapper::new(Arc::downgrade(&self.data), session_id, session))
@@ -1307,10 +1382,21 @@ impl ClusterClient for ClusterClientImpl {
 		let mut connected_nodes = self.data.connections.connected_nodes();
 		connected_nodes.insert(self.data.self_key_pair.public().clone());
 
-		let cluster = Arc::new(ClusterView::new(self.data.clone(), connected_nodes.clone()));
+		let cluster = Arc::new(ClusterView::new(self.data.clone(), connected_nodes));
 		let session = self.data.sessions.new_share_remove_session(self.data.self_key_pair.public().clone(), session_id, None, cluster)?;
 		session.initialize(new_nodes_set, Some(old_set_signature), Some(new_set_signature))?;
 		Ok(ShareRemoveSessionWrapper::new(Arc::downgrade(&self.data), session_id, session))
+	}
+
+	fn new_servers_set_change_session(&self, session_id: SessionId, new_nodes_set: BTreeSet<NodeId>, old_set_signature: Signature, new_set_signature: Signature) -> Result<Arc<ServersSetChangeSession>, Error> {
+		let mut connected_nodes = self.data.connections.connected_nodes();
+		connected_nodes.insert(self.data.self_key_pair.public().clone());
+
+		let cluster = Arc::new(ClusterView::new(self.data.clone(), connected_nodes.clone()));
+		let session = self.data.sessions.new_servers_set_change_session(self.data.self_key_pair.public().clone(), session_id, None, cluster, connected_nodes)?;
+		session.initialize(new_nodes_set, old_set_signature, new_set_signature)?;
+		Ok(ServersSetChangeSessionWrapper::new(Arc::downgrade(&self.data), session_id, session))
+
 	}
 
 	#[cfg(test)]

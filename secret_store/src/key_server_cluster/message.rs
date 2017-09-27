@@ -1006,6 +1006,23 @@ impl SigningMessage {
 }
 
 impl ServersSetChangeMessage {
+	pub fn session_id(&self) -> &SessionId {
+		match *self {
+			ServersSetChangeMessage::ServersSetChangeConsensusMessage(ref msg) => &msg.session,
+			ServersSetChangeMessage::UnknownSessionsRequest(ref msg) => &msg.session,
+			ServersSetChangeMessage::UnknownSessions(ref msg) => &msg.session,
+			ServersSetChangeMessage::InitializeShareChangeSession(ref msg) => &msg.session,
+			ServersSetChangeMessage::ConfirmShareChangeSessionInitialization(ref msg) => &msg.session,
+			ServersSetChangeMessage::ServersSetChangeDelegate(ref msg) => &msg.session,
+			ServersSetChangeMessage::ServersSetChangeDelegateResponse(ref msg) => &msg.session,
+			ServersSetChangeMessage::ServersSetChangeShareAddMessage(ref msg) => &msg.session,
+			ServersSetChangeMessage::ServersSetChangeShareMoveMessage(ref msg) => &msg.session,
+			ServersSetChangeMessage::ServersSetChangeShareRemoveMessage(ref msg) => &msg.session,
+			ServersSetChangeMessage::ServersSetChangeError(ref msg) => &msg.session,
+			ServersSetChangeMessage::ServersSetChangeCompleted(ref msg) => &msg.session,
+		}
+	}
+
 	pub fn session_nonce(&self) -> u64 {
 		match *self {
 			ServersSetChangeMessage::ServersSetChangeConsensusMessage(ref msg) => msg.session_nonce,
