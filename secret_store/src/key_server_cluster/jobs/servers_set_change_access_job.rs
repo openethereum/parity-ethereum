@@ -127,20 +127,23 @@ impl JobExecutor for ServersSetChangeAccessJob {
 	}
 
 	fn process_partial_request(&mut self, partial_request: ServersSetChangeAccessRequest) -> Result<JobPartialRequestAction<bool>, Error> {
-return Ok(JobPartialRequestAction::Respond(true)); // TODO: remove me
 		let ServersSetChangeAccessRequest {
-			old_servers_set: old_servers_set,
-			new_servers_set: new_servers_set,
-			old_set_signature: old_set_signature,
-			new_set_signature: new_set_signature,
+			old_servers_set,
+			new_servers_set,
+			old_set_signature,
+			new_set_signature,
 		} = partial_request;
-
+println!("=== old_nodes_set2 = {:?}", old_servers_set);
+println!("=== new_nodes_set2 = {:?}", new_servers_set);
 		// check that current set is exactly the same set as old set
 		if self.current_servers_set.symmetric_difference(&old_servers_set).next().is_some() {
+println!("=== aaa");
 			return Ok(JobPartialRequestAction::Reject(false));
 		}
 
 		// check old servers set signature
+println!("=== old_set_signature2 = {}", old_set_signature);
+println!("=== new_set_signature2 = {}", new_set_signature);
 		let old_actual_public = recover(&old_set_signature, &ordered_nodes_hash(&old_servers_set).into())?;
 		let new_actual_public = recover(&new_set_signature, &ordered_nodes_hash(&new_servers_set).into())?;
 		let is_administrator = old_actual_public == self.administrator && new_actual_public == self.administrator;

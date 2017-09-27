@@ -199,12 +199,13 @@ impl SessionImpl {
 
 	/// Initialize servers set change session on master node.
 	pub fn initialize(&self, new_nodes_set: BTreeSet<NodeId>, all_set_signature: Signature, new_set_signature: Signature) -> Result<(), Error> {
+println!("=== initialize({:?})", new_nodes_set);
 		// TODO: check that all_nodes_set.contains(new_nodes_set)
 		// TODO: check that threshold + 1 == all_nodes_set.len()
 		let mut data = self.data.lock();
 		let mut consensus_session = ConsensusSession::new(ConsensusSessionParams {
 			meta: self.core.meta.clone().into_consensus_meta(self.core.all_nodes_set.len()),
-			consensus_executor: ServersSetChangeAccessJob::new_on_master(Public::default(), // TODO: admin key instead of default
+			consensus_executor: ServersSetChangeAccessJob::new_on_master(self.core.admin_public.clone(),
 				self.core.all_nodes_set.clone(),
 				self.core.all_nodes_set.clone(),
 				new_nodes_set.clone(),
@@ -271,7 +272,7 @@ impl SessionImpl {
 					&ConsensusMessageWithServersSet::InitializeConsensusSession(_) => {
 						data.consensus_session = Some(ConsensusSession::new(ConsensusSessionParams {
 							meta: self.core.meta.clone().into_consensus_meta(self.core.all_nodes_set.len()),
-							consensus_executor: ServersSetChangeAccessJob::new_on_slave(Public::default(), // TODO: administrator public
+							consensus_executor: ServersSetChangeAccessJob::new_on_slave(self.core.admin_public.clone(),
 								self.core.all_nodes_set.clone(),
 							),
 							consensus_transport: ServersSetChangeConsensusTransport {
@@ -340,6 +341,7 @@ impl SessionImpl {
 		};
 
 		// initialize sessions queue
+println!("=== consensus established({:?})", new_nodes_set);
 		data.new_nodes_set = Some(new_nodes_set);
 		data.sessions_queue = Some(SessionsQueue::new(self.core.key_storage.clone(), unknown_sessions));
 
@@ -364,9 +366,11 @@ impl SessionImpl {
 			Entry::Vacant(entry) => entry.insert(ShareChangeSession::new(ShareChangeSessionParams {
 				session_id: message.key_id.clone().into(),
 				nonce: self.core.nonce,
-				key_id: message.key_id.clone().into(),
-				self_node_id: self.core.meta.self_node_id.clone(),
-				master_node_id: message.master_node_id.clone().into(),
+				meta: ShareChangeSessionMeta {
+					id: message.key_id.clone().into(),
+					self_node_id: self.core.meta.self_node_id.clone(),
+					master_node_id: message.master_node_id.clone().into(),
+				},
 				cluster: self.core.cluster.clone(),
 				key_storage: self.core.key_storage.clone(),
 				old_nodes_set: message.old_shares_set.iter().cloned().map(Into::into).collect(),
@@ -613,9 +617,11 @@ impl SessionImpl {
 					data.active_sessions.insert(session_id.clone(), ShareChangeSession::new(ShareChangeSessionParams {
 						session_id: session_id.clone(),
 						nonce: core.nonce,
-						key_id: session_id.clone(),
-						self_node_id: core.meta.self_node_id.clone(),
-						master_node_id: session_master.clone(),
+						meta: ShareChangeSessionMeta {
+							id: session_id.clone(),
+							self_node_id: core.meta.self_node_id.clone(),
+							master_node_id: session_master.clone(),
+						},
 						cluster: core.cluster.clone(),
 						key_storage: core.key_storage.clone(),
 						old_nodes_set: session.nodes(),
@@ -742,7 +748,7 @@ pub mod tests {
 	use std::sync::Arc;
 	use std::collections::{VecDeque, BTreeMap, BTreeSet};
 	use ethkey::{Random, Generator, Public, Signature, KeyPair, sign};
-	use key_server_cluster::{NodeId, SessionId, Error, KeyStorage, DummyKeyStorage, SessionMeta};
+	use key_server_cluster::{NodeId, SessionId, Error, KeyStorage, DummyKeyStorage};
 	use key_server_cluster::cluster::Cluster;
 	use key_server_cluster::cluster::tests::DummyCluster;
 	use key_server_cluster::generation_session::tests::{MessageLoop as GenerationMessageLoop, Node as GenerationNode, generate_nodes_ids};
@@ -762,9 +768,9 @@ pub mod tests {
 	struct MessageLoop {
 		pub admin_key_pair: KeyPair,
 		pub original_key_pair: KeyPair,
-		pub old_nodes_set: BTreeSet<NodeId>,
+		pub all_nodes_set: BTreeSet<NodeId>,
 		pub new_nodes_set: BTreeSet<NodeId>,
-		pub old_set_signature: Signature,
+		pub all_set_signature: Signature,
 		pub new_set_signature: Signature,
 		pub nodes: BTreeMap<NodeId, Node>,
 		pub queue: VecDeque<(NodeId, NodeId, Message)>,
@@ -778,7 +784,7 @@ pub mod tests {
 			cluster: cluster,
 			key_storage: key_storage,
 			nonce: 1,
-			admin_public: Public::default(),
+			admin_public: admin_public,
 		}).unwrap()
 	}
 
@@ -803,20 +809,17 @@ pub mod tests {
 				.iter()).unwrap();
 			let original_key_pair = KeyPair::from_secret(original_secret).unwrap();
 
-			let old_nodes_set: BTreeSet<_> = gml.nodes.keys().cloned().collect();
-			let new_nodes_set: BTreeSet<NodeId> = old_nodes_set.iter().cloned()
+			let mut all_nodes_set: BTreeSet<_> = gml.nodes.keys().cloned().collect();
+			let new_nodes_set: BTreeSet<NodeId> = all_nodes_set.iter().cloned()
 				.chain(new_nodes_ids.iter().cloned())
 				.filter(|n| !removed_nodes_ids.contains(n))
 				.collect();
-
-			let mut all_nodes_set = old_nodes_set.clone();
 			all_nodes_set.extend(new_nodes_ids.iter().cloned());
-			let session_id = *math::generate_random_scalar().unwrap();
-			let requester_signature = sign(Random.generate().unwrap().secret(), &session_id).unwrap();
+
 			let meta = ShareChangeSessionMeta {
 				self_node_id: master_node_id.clone(),
 				master_node_id: master_node_id.clone(),
-				id: session_id.clone(),
+				id: SessionId::default(),
 			};
 
 			let old_nodes = gml.nodes.into_iter().map(|n| create_node(meta.clone(), admin_public.clone(), all_nodes_set.clone(), n.1));
@@ -832,14 +835,15 @@ pub mod tests {
 			});
 			let nodes: BTreeMap<_, _> = old_nodes.chain(new_nodes).map(|n| (n.session.core.meta.self_node_id.clone(), n)).collect();
 
-			let old_set_signature = sign(admin_key_pair.secret(), &ordered_nodes_hash(&old_nodes_set)).unwrap();
+			let all_set_signature = sign(admin_key_pair.secret(), &ordered_nodes_hash(&all_nodes_set)).unwrap();
 			let new_set_signature = sign(admin_key_pair.secret(), &ordered_nodes_hash(&new_nodes_set)).unwrap();
+
 			MessageLoop {
 				admin_key_pair: admin_key_pair,
 				original_key_pair: original_key_pair,
-				old_nodes_set: old_nodes_set.clone(),
-				new_nodes_set: new_nodes_set.clone(),
-				old_set_signature: old_set_signature,
+				all_nodes_set: all_nodes_set.clone(),
+				new_nodes_set: new_nodes_set,
+				all_set_signature: all_set_signature,
 				new_set_signature: new_set_signature,
 				nodes: nodes,
 				queue: Default::default(),
@@ -848,6 +852,7 @@ pub mod tests {
 
 		pub fn run(&mut self) {
 			while let Some((from, to, message)) = self.take_message() {
+println!("=== {} -> {}: {}", from, to, message);
 				self.process_message((from, to, message)).unwrap();
 			}
 		}
@@ -887,18 +892,12 @@ pub mod tests {
 	fn node_added_using_servers_set_change() {
 		// initial 2-of-3 session
 		let gml = generate_key(1, generate_nodes_ids(3));
-		let key_id = gml.session_id.clone();
 		let master_node_id = gml.nodes.keys().cloned().nth(0).unwrap();
-		let joint_secret = math::compute_joint_secret(gml.nodes.values()
-			.map(|nd| nd.key_storage.get(&key_id).unwrap().polynom1[0].clone())
-			.collect::<Vec<_>>()
-			.iter()).unwrap();
-		let joint_key_pair = KeyPair::from_secret(joint_secret.clone()).unwrap();
 
 		// insert 1 node so that it becames 2-of-4 session
 		let nodes_to_add: BTreeSet<_> = (0..1).map(|_| Random.generate().unwrap().public().clone()).collect();
 		let mut ml = MessageLoop::new(gml, master_node_id, nodes_to_add, BTreeSet::new());
-		ml.nodes[&master_node_id].session.initialize(ml.nodes.keys().cloned().collect(), Signature::default(), Signature::default());
+		ml.nodes[&master_node_id].session.initialize(ml.nodes.keys().cloned().collect(), ml.all_set_signature.clone(), ml.new_set_signature.clone()).unwrap();
 		ml.run();
 
 		// try to recover secret for every possible combination of nodes && check that secret is the same
@@ -909,7 +908,6 @@ pub mod tests {
 	fn node_added_using_server_set_change_from_this_node() {
 		// initial 2-of-3 session
 		let gml = generate_key(1, generate_nodes_ids(3));
-		let key_id = gml.session_id.clone();
 
 		// insert 1 node so that it becames 2-of-4 session
 		// master node is the node we are adding =>
@@ -919,7 +917,7 @@ pub mod tests {
 		let nodes_to_add: BTreeSet<_> = (0..1).map(|_| Random.generate().unwrap().public().clone()).collect();
 		let master_node_id = nodes_to_add.iter().cloned().nth(0).unwrap();
 		let mut ml = MessageLoop::new(gml, master_node_id, nodes_to_add, BTreeSet::new());
-		ml.nodes[&master_node_id].session.initialize(ml.nodes.keys().cloned().collect(), Signature::default(), Signature::default());
+		ml.nodes[&master_node_id].session.initialize(ml.nodes.keys().cloned().collect(), ml.all_set_signature.clone(), ml.new_set_signature.clone()).unwrap();
 		ml.run();
 	}
 
@@ -927,20 +925,14 @@ pub mod tests {
 	fn node_moved_using_servers_set_change() {
 		// initial 2-of-3 session
 		let gml = generate_key(1, generate_nodes_ids(3));
-		let key_id = gml.session_id.clone();
 		let master_node_id = gml.nodes.keys().cloned().nth(0).unwrap();
-		let joint_secret = math::compute_joint_secret(gml.nodes.values()
-			.map(|nd| nd.key_storage.get(&key_id).unwrap().polynom1[0].clone())
-			.collect::<Vec<_>>()
-			.iter()).unwrap();
-		let joint_key_pair = KeyPair::from_secret(joint_secret.clone()).unwrap();
 
 		// remove 1 node && insert 1 node so that one share is moved
 		let nodes_to_remove: BTreeSet<_> = gml.nodes.keys().cloned().skip(1).take(1).collect();
 		let nodes_to_add: BTreeSet<_> = (0..1).map(|_| Random.generate().unwrap().public().clone()).collect();
 		let mut ml = MessageLoop::new(gml, master_node_id, nodes_to_add.clone(), nodes_to_remove.clone());
 		let new_nodes_set = ml.nodes.keys().cloned().filter(|n| !nodes_to_remove.contains(n)).collect();
-		ml.nodes[&master_node_id].session.initialize(new_nodes_set, Signature::default(), Signature::default());
+		ml.nodes[&master_node_id].session.initialize(new_nodes_set, ml.all_set_signature.clone(), ml.new_set_signature.clone()).unwrap();
 		ml.run();
 
 		// check that secret is still the same as before moving the share
@@ -957,19 +949,13 @@ pub mod tests {
 	fn node_removed_using_servers_set_change() {
 		// initial 2-of-3 session
 		let gml = generate_key(1, generate_nodes_ids(3));
-		let key_id = gml.session_id.clone();
 		let master_node_id = gml.nodes.keys().cloned().nth(0).unwrap();
-		let joint_secret = math::compute_joint_secret(gml.nodes.values()
-			.map(|nd| nd.key_storage.get(&key_id).unwrap().polynom1[0].clone())
-			.collect::<Vec<_>>()
-			.iter()).unwrap();
-		let joint_key_pair = KeyPair::from_secret(joint_secret.clone()).unwrap();
 
 		// remove 1 node so that session becames 2-of-2
 		let nodes_to_remove: BTreeSet<_> = gml.nodes.keys().cloned().skip(1).take(1).collect();
 		let new_nodes_set: BTreeSet<_> = gml.nodes.keys().cloned().filter(|n| !nodes_to_remove.contains(&n)).collect();
 		let mut ml = MessageLoop::new(gml, master_node_id, BTreeSet::new(), nodes_to_remove.clone());
-		ml.nodes[&master_node_id].session.initialize(new_nodes_set, Signature::default(), Signature::default());
+		ml.nodes[&master_node_id].session.initialize(new_nodes_set, ml.all_set_signature.clone(), ml.new_set_signature.clone()).unwrap();
 		ml.run();
 
 		// try to recover secret for every possible combination of nodes && check that secret is the same

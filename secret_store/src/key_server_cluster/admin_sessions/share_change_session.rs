@@ -16,7 +16,7 @@
 
 use std::sync::Arc;
 use std::collections::{BTreeSet, BTreeMap};
-use ethkey::{Public, Secret};
+use ethkey::Secret;
 use key_server_cluster::{Error, NodeId, SessionId, KeyStorage};
 use key_server_cluster::cluster::Cluster;
 use key_server_cluster::cluster_sessions::ClusterSession;
@@ -43,12 +43,8 @@ pub struct ShareChangeSession {
 	session_id: SessionId,
 	/// Session nonce.
 	nonce: u64,
-	/// Session (key) id.
-	key_id: SessionId,
-	/// This node id.
-	self_node_id: NodeId,
-	/// Master node id.
-	master_node_id: NodeId,
+	/// Share change session meta.
+	meta: ShareChangeSessionMeta,
 	/// Cluster.
 	cluster: Arc<Cluster>,
 	/// Key storage.
@@ -87,12 +83,8 @@ pub struct ShareChangeSessionParams {
 	pub session_id: SessionId,
 	/// Session nonce.
 	pub nonce: u64,
-	/// Session (key) id.
-	pub key_id: SessionId,
-	/// This node id.
-	pub self_node_id: NodeId,
-	/// Master node id.
-	pub master_node_id: NodeId,
+	/// Share change session meta.
+	pub meta: ShareChangeSessionMeta,
 	/// Cluster.
 	pub cluster: Arc<Cluster>,
 	/// Keys storage.
@@ -120,9 +112,7 @@ impl ShareChangeSession {
 		Ok(ShareChangeSession {
 			session_id: params.session_id,
 			nonce: params.nonce,
-			key_id: params.key_id,
-			self_node_id: params.self_node_id,
-			master_node_id: params.master_node_id,
+			meta: params.meta,
 			cluster: params.cluster,
 			key_storage: params.key_storage,
 			old_nodes_set: params.old_nodes_set,
@@ -143,7 +133,7 @@ impl ShareChangeSession {
 
 	/// Is master node?.
 	pub fn is_master(&self) -> bool {
-		self.self_node_id == self.master_node_id
+		self.meta.self_node_id == self.meta.master_node_id
 	}
 
 	/// Initialize session (on master node).
@@ -164,7 +154,7 @@ impl ShareChangeSession {
 					.map(|_| share_add_session.is_finished() && !was_finished)
 			})
 			.unwrap_or(Err(Error::InvalidMessage))?;
-		if change_state_needed && self.self_node_id == self.master_node_id {
+		if change_state_needed && self.meta.self_node_id == self.meta.master_node_id {
 			self.proceed_to_next_state()?;
 		}
 
@@ -184,7 +174,7 @@ impl ShareChangeSession {
 					.map(|_| share_move_session.is_finished() && !was_finished)
 			})
 			.unwrap_or(Err(Error::InvalidMessage))?;
-		if change_state_needed && self.self_node_id == self.master_node_id {
+		if change_state_needed && self.meta.self_node_id == self.meta.master_node_id {
 			self.proceed_to_next_state()?;
 		}
 
@@ -204,7 +194,7 @@ impl ShareChangeSession {
 					.map(|_| share_remove_session.is_finished() && !was_finished)
 			})
 			.unwrap_or(Err(Error::InvalidMessage))?;
-		if change_state_needed && self.self_node_id == self.master_node_id {
+		if change_state_needed && self.meta.self_node_id == self.meta.master_node_id {
 			self.proceed_to_next_state()?;
 		}
 
@@ -218,15 +208,11 @@ impl ShareChangeSession {
 			.chain(nodes_to_add.clone().into_iter().map(|(k, v)| (k, Some(v))))
 			.collect();
 		let share_add_session = ShareAddSessionImpl::new(ShareAddSessionParams {
-			meta: ShareChangeSessionMeta {
-				id: self.key_id.clone(),
-				self_node_id: self.self_node_id.clone(),
-				master_node_id: self.master_node_id.clone(),
-			},
+			meta: self.meta.clone(),
 			nonce: self.nonce,
 			transport: ShareChangeTransport::new(self.session_id, self.nonce, self.cluster.clone()),
 			key_storage: self.key_storage.clone(),
-			admin_public: Public::default(), // TODO
+			admin_public: None,
 		})?;
 		share_add_session.set_consensus_output(self.old_nodes_set.clone(), new_nodes_set)?;
 		self.share_add_session = Some(share_add_session);
@@ -237,15 +223,11 @@ impl ShareChangeSession {
 	fn create_share_move_session(&mut self) -> Result<(), Error> {
 		let nodes_to_move = self.nodes_to_move.take().ok_or(Error::InvalidStateForRequest)?;
 		let share_move_session = ShareMoveSessionImpl::new(ShareMoveSessionParams {
-			meta: ShareChangeSessionMeta {
-				id: self.key_id.clone(),
-				self_node_id: self.self_node_id.clone(),
-				master_node_id: self.master_node_id.clone(),
-			},
+			meta: self.meta.clone(),
 			nonce: self.nonce,
 			transport: ShareChangeTransport::new(self.session_id, self.nonce, self.cluster.clone()),
 			key_storage: self.key_storage.clone(),
-			admin_public: Public::default(), // TODO
+			admin_public: None,
 		})?;
 		share_move_session.set_consensus_output(nodes_to_move)?;
 		self.share_move_session = Some(share_move_session);
@@ -256,15 +238,11 @@ impl ShareChangeSession {
 	fn create_share_remove_session(&mut self) -> Result<(), Error> {
 		let nodes_to_remove = self.nodes_to_remove.take().ok_or(Error::InvalidStateForRequest)?;
 		let share_remove_session = ShareRemoveSessionImpl::new(ShareRemoveSessionParams {
-			meta: ShareChangeSessionMeta {
-				id: self.key_id.clone(),
-				self_node_id: self.self_node_id.clone(),
-				master_node_id: self.master_node_id.clone(),
-			},
+			meta: self.meta.clone(),
 			nonce: self.nonce,
 			transport: ShareChangeTransport::new(self.session_id, self.nonce, self.cluster.clone()),
 			key_storage: self.key_storage.clone(),
-			admin_public: Public::default(), // TODO
+			admin_public: None,
 		})?;
 		share_remove_session.set_consensus_output(nodes_to_remove)?;
 		self.share_remove_session = Some(share_remove_session);
@@ -273,7 +251,7 @@ impl ShareChangeSession {
 
 	/// Proceed to the next state (on master node).
 	fn proceed_to_next_state(&mut self) -> Result<(), Error> {
-		if self.self_node_id != self.master_node_id {
+		if self.meta.self_node_id != self.meta.master_node_id {
 			return Ok(());
 		}
 

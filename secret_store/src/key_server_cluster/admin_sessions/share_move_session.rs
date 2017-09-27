@@ -67,7 +67,7 @@ struct SessionCore<T: SessionTransport> {
 	/// Key storage.
 	pub key_storage: Arc<KeyStorage>,
 	/// Administrator public key.
-	pub admin_public: Public,
+	pub admin_public: Option<Public>,
 }
 
 /// Share move consensus session type.
@@ -98,7 +98,7 @@ pub struct SessionParams<T: SessionTransport> {
 	/// Key storage.
 	pub key_storage: Arc<KeyStorage>,
 	/// Administrator public key.
-	pub admin_public: Public,
+	pub admin_public: Option<Public>,
 }
 
 /// Share move session state.
@@ -184,6 +184,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 
 			let old_set_signature = old_set_signature.ok_or(Error::InvalidMessage)?;
 			let new_set_signature = new_set_signature.ok_or(Error::InvalidMessage)?;
+			let admin_public = self.core.admin_public.clone().ok_or(Error::InvalidMessage)?;
 			let mut all_nodes_set: BTreeSet<_> = key_share.id_numbers.keys().cloned().collect();
 			let mut new_nodes_set: BTreeSet<_> = all_nodes_set.clone();
 			for (target, source) in &shares_to_move {
@@ -196,7 +197,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 
 			let mut consensus_session = ConsensusSession::new(ConsensusSessionParams {
 				meta: self.core.meta.clone().into_consensus_meta(all_nodes_set.len()),
-				consensus_executor: ServersSetChangeAccessJob::new_on_master(self.core.admin_public.clone(),
+				consensus_executor: ServersSetChangeAccessJob::new_on_master(admin_public,
 					key_share.id_numbers.keys().cloned().collect(),
 					key_share.id_numbers.keys().cloned().collect(),
 					new_nodes_set.clone(),
@@ -245,15 +246,14 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		if data.consensus_session.is_none() && sender == &self.core.meta.master_node_id {
 			match &message.message {
 				&ConsensusMessageWithServersMap::InitializeConsensusSession(ref message) => {
+					let admin_public = self.core.admin_public.clone().ok_or(Error::InvalidMessage)?;
 					let current_nodes_set = self.core.key_share.as_ref()
 						.map(|ks| ks.id_numbers.keys().cloned().collect())
 						.unwrap_or_else(|| message.old_nodes_set.clone().into_iter().map(Into::into).collect());
 					let all_nodes_set_len = message.new_nodes_set.keys().chain(message.old_nodes_set.iter()).collect::<BTreeSet<_>>().len();
 					data.consensus_session = Some(ConsensusSession::new(ConsensusSessionParams {
 						meta: self.core.meta.clone().into_consensus_meta(all_nodes_set_len),
-						consensus_executor: ServersSetChangeAccessJob::new_on_slave(self.core.admin_public.clone(),
-							current_nodes_set,
-						),
+						consensus_executor: ServersSetChangeAccessJob::new_on_slave(admin_public, current_nodes_set),
 						consensus_transport: self.core.transport.clone(),
 					})?);
 				},
@@ -617,18 +617,18 @@ mod tests {
 	use std::sync::Arc;
 	use std::collections::{VecDeque, BTreeMap, BTreeSet};
 	use ethkey::{Random, Generator, Public, Signature, KeyPair, sign};
-	use key_server_cluster::{NodeId, SessionId, Error, KeyStorage, DummyKeyStorage, SessionMeta};
+	use key_server_cluster::{NodeId, SessionId, Error, KeyStorage, DummyKeyStorage};
 	use key_server_cluster::cluster::Cluster;
 	use key_server_cluster::cluster_sessions::ClusterSession;
 	use key_server_cluster::cluster::tests::DummyCluster;
-	use key_server_cluster::generation_session::tests::{MessageLoop as GenerationMessageLoop, Node as GenerationNode, generate_nodes_ids};
+	use key_server_cluster::generation_session::tests::{Node as GenerationNode, generate_nodes_ids};
 	use key_server_cluster::math;
-	use key_server_cluster::message::{Message, ServersSetChangeMessage, ShareAddMessage};
+	use key_server_cluster::message::Message;
 	use key_server_cluster::servers_set_change_session::tests::generate_key;
 	use key_server_cluster::jobs::servers_set_change_access_job::ordered_nodes_hash;
 	use key_server_cluster::admin_sessions::ShareChangeSessionMeta;
 	use key_server_cluster::admin_sessions::share_add_session::tests::check_secret_is_preserved;
-	use super::{SessionImpl, SessionParams, SessionTransport, IsolatedSessionTransport};
+	use super::{SessionImpl, SessionParams, IsolatedSessionTransport};
 
 	struct Node {
 		pub cluster: Arc<DummyCluster>,
@@ -654,7 +654,7 @@ mod tests {
 			meta: meta.clone(),
 			transport: IsolatedSessionTransport::new(session_id, 1, cluster),
 			key_storage: key_storage,
-			admin_public: admin_public,
+			admin_public: Some(admin_public),
 			nonce: 1,
 		}).unwrap()
 	}

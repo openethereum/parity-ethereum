@@ -84,6 +84,8 @@ pub struct ClusterSessions {
 	key_storage: Arc<KeyStorage>,
 	/// Reference to ACL storage
 	acl_storage: Arc<AclStorage>,
+	/// Administrator public.
+	admin_public: Option<Public>,
 	/// Make faulty generation sessions.
 	make_faulty_generation_sessions: AtomicBool,
 	/// Always-increasing sessions counter. Is used as session nonce to prevent replay attacks:
@@ -208,6 +210,7 @@ impl ClusterSessions {
 			nodes: config.key_server_set.get().keys().cloned().collect(),
 			acl_storage: config.acl_storage.clone(),
 			key_storage: config.key_storage.clone(),
+			admin_public: None, // TODO
 			generation_sessions: ClusterSessionsContainer::new(),
 			encryption_sessions: ClusterSessionsContainer::new(),
 			decryption_sessions: ClusterSessionsContainer::new(),
@@ -378,6 +381,7 @@ impl ClusterSessions {
 	/// Create new share add session.
 	pub fn new_share_add_session(&self, master: NodeId, session_id: SessionId, nonce: Option<u64>, cluster: Arc<ClusterView>) -> Result<Arc<ShareAddSessionImpl<ShareAddTransport>>, Error> {
 		let nonce = self.check_session_nonce(&master, nonce)?;
+		let admin_public = self.admin_public.clone().ok_or(Error::AccessDenied)?;
 
 		self.share_add_sessions.insert(master, session_id.clone(), cluster.clone(), move || ShareAddSessionImpl::new(ShareAddSessionParams {
 			meta: ShareChangeSessionMeta {
@@ -387,7 +391,7 @@ impl ClusterSessions {
 			},
 			transport: ShareAddTransport::new(session_id.clone(), nonce, cluster),
 			key_storage: self.key_storage.clone(),
-			admin_public: Public::default(), // TODO
+			admin_public: Some(admin_public),
 			nonce: nonce,
 		}))
 	}
@@ -407,6 +411,7 @@ impl ClusterSessions {
 	/// Create new share move session.
 	pub fn new_share_move_session(&self, master: NodeId, session_id: SessionId, nonce: Option<u64>, cluster: Arc<ClusterView>) -> Result<Arc<ShareMoveSessionImpl<ShareMoveTransport>>, Error> {
 		let nonce = self.check_session_nonce(&master, nonce)?;
+		let admin_public = self.admin_public.clone().ok_or(Error::AccessDenied)?;
 
 		self.share_move_sessions.insert(master, session_id.clone(), cluster.clone(), move || ShareMoveSessionImpl::new(ShareMoveSessionParams {
 			meta: ShareChangeSessionMeta {
@@ -416,7 +421,7 @@ impl ClusterSessions {
 			},
 			transport: ShareMoveTransport::new(session_id.clone(), nonce, cluster),
 			key_storage: self.key_storage.clone(),
-			admin_public: Public::default(), // TODO
+			admin_public: Some(admin_public),
 			nonce: nonce,
 		}))
 	}
@@ -436,6 +441,7 @@ impl ClusterSessions {
 	/// Create new share remove session.
 	pub fn new_share_remove_session(&self, master: NodeId, session_id: SessionId, nonce: Option<u64>, cluster: Arc<ClusterView>) -> Result<Arc<ShareRemoveSessionImpl<ShareRemoveTransport>>, Error> {
 		let nonce = self.check_session_nonce(&master, nonce)?;
+		let admin_public = self.admin_public.clone().ok_or(Error::AccessDenied)?;
 
 		self.share_remove_sessions.insert(master, session_id.clone(), cluster.clone(), move || ShareRemoveSessionImpl::new(ShareRemoveSessionParams {
 			meta: ShareChangeSessionMeta {
@@ -445,7 +451,7 @@ impl ClusterSessions {
 			},
 			transport: ShareRemoveTransport::new(session_id.clone(), nonce, cluster),
 			key_storage: self.key_storage.clone(),
-			admin_public: Public::default(), // TODO
+			admin_public: Some(admin_public),
 			nonce: nonce,
 		}))
 	}
@@ -465,6 +471,7 @@ impl ClusterSessions {
 	/// Create new servers set change session.
 	pub fn new_servers_set_change_session(&self, master: NodeId, session_id: SessionId, nonce: Option<u64>, cluster: Arc<ClusterView>, all_nodes_set: BTreeSet<NodeId>) -> Result<Arc<ServersSetChangeSessionImpl>, Error> {
 		let nonce = self.check_session_nonce(&master, nonce)?;
+		let admin_public = self.admin_public.clone().ok_or(Error::AccessDenied)?;
 
 		self.servers_set_change_sessions.insert(master, session_id.clone(), cluster.clone(), move || ServersSetChangeSessionImpl::new(ServersSetChangeSessionParams {
 			meta: ShareChangeSessionMeta {
@@ -474,7 +481,7 @@ impl ClusterSessions {
 			},
 			cluster: cluster,
 			key_storage: self.key_storage.clone(),
-			admin_public: Public::default(), // TODO
+			admin_public: admin_public,
 			nonce: nonce,
 			all_nodes_set: all_nodes_set,
 		}))
