@@ -742,11 +742,14 @@ pub mod tests {
 	use std::collections::{VecDeque, BTreeMap, BTreeSet};
 	use ethkey::{Random, Generator, Public, Signature, KeyPair, sign};
 	use key_server_cluster::{NodeId, SessionId, Error, KeyStorage, DummyKeyStorage, SessionMeta};
+	use key_server_cluster::cluster::Cluster;
 	use key_server_cluster::cluster::tests::DummyCluster;
-	use key_server_cluster::generation_session::tests::{MessageLoop as GenerationMessageLoop, generate_nodes_ids};
+	use key_server_cluster::generation_session::tests::{MessageLoop as GenerationMessageLoop, Node as GenerationNode, generate_nodes_ids};
 	use key_server_cluster::math;
 	use key_server_cluster::message::Message;
 	use key_server_cluster::admin_sessions::ShareChangeSessionMeta;
+	use key_server_cluster::admin_sessions::share_add_session::tests::check_secret_is_preserved;
+	use key_server_cluster::jobs::servers_set_change_access_job::ordered_nodes_hash;
 	use super::{SessionImpl, SessionParams};
 
 	struct Node {
@@ -756,68 +759,87 @@ pub mod tests {
 	}
 
 	struct MessageLoop {
-		pub session_id: SessionId,
+		pub admin_key_pair: KeyPair,
+		pub original_key_pair: KeyPair,
+		pub old_nodes_set: BTreeSet<NodeId>,
+		pub new_nodes_set: BTreeSet<NodeId>,
+		pub old_set_signature: Signature,
+		pub new_set_signature: Signature,
 		pub nodes: BTreeMap<NodeId, Node>,
 		pub queue: VecDeque<(NodeId, NodeId, Message)>,
 	}
 
+	fn create_session(mut meta: ShareChangeSessionMeta, self_node_id: NodeId, admin_public: Public, all_nodes_set: BTreeSet<NodeId>, cluster: Arc<Cluster>, key_storage: Arc<KeyStorage>) -> SessionImpl {
+		meta.self_node_id = self_node_id;
+		SessionImpl::new(SessionParams {
+			meta: meta,
+			all_nodes_set: all_nodes_set,
+			cluster: cluster,
+			key_storage: key_storage,
+			nonce: 1,
+			admin_public: Public::default(),
+		}).unwrap()
+	}
+
+	fn create_node(meta: ShareChangeSessionMeta, admin_public: Public, all_nodes_set: BTreeSet<NodeId>, node: GenerationNode) -> Node {
+		Node {
+			cluster: node.cluster.clone(),
+			key_storage: node.key_storage.clone(),
+			session: create_session(meta, node.session.node().clone(), admin_public, all_nodes_set, node.cluster, node.key_storage),
+		}
+	}
+
 	impl MessageLoop {
 		pub fn new(gml: GenerationMessageLoop, master_node_id: NodeId, new_nodes_ids: BTreeSet<NodeId>, removed_nodes_ids: BTreeSet<NodeId>) -> Self {
-			let mut all_nodes_set: BTreeSet<_> = gml.nodes.keys().cloned().collect();
-			all_nodes_set.extend(new_nodes_ids.iter().cloned());
-			//let mut new_nodes_set = all_nodes_set.iter().cloned().filter(|n| !removed_nodes_ids.contains(n)).collect();
+			// generate admin key pair
+			let admin_key_pair = Random.generate().unwrap();
+			let admin_public = admin_key_pair.public().clone();
 
+			// compute original secret key
+			let original_secret = math::compute_joint_secret(gml.nodes.values()
+				.map(|nd| nd.key_storage.get(&SessionId::default()).unwrap().polynom1[0].clone())
+				.collect::<Vec<_>>()
+				.iter()).unwrap();
+			let original_key_pair = KeyPair::from_secret(original_secret).unwrap();
+
+			let old_nodes_set: BTreeSet<_> = gml.nodes.keys().cloned().collect();
+			let new_nodes_set: BTreeSet<NodeId> = old_nodes_set.iter().cloned()
+				.chain(new_nodes_ids.iter().cloned())
+				.filter(|n| !removed_nodes_ids.contains(n))
+				.collect();
+
+			let mut all_nodes_set = old_nodes_set.clone();
+			all_nodes_set.extend(new_nodes_ids.iter().cloned());
 			let session_id = *math::generate_random_scalar().unwrap();
 			let requester_signature = sign(Random.generate().unwrap().secret(), &session_id).unwrap();
-			let mut nodes = BTreeMap::new();
 			let meta = ShareChangeSessionMeta {
 				self_node_id: master_node_id.clone(),
 				master_node_id: master_node_id.clone(),
 				id: session_id.clone(),
 			};
-			for (n, nd) in &gml.nodes {
-				let cluster = nd.cluster.clone();
-				let key_storage = nd.key_storage.clone();
-				let mut meta = meta.clone();
-				meta.self_node_id = n.clone();
-				let requester_signature = if meta.self_node_id == meta.master_node_id { Some(requester_signature.clone()) } else { None };
-				let session = SessionImpl::new(SessionParams {
-					meta: meta,
-					all_nodes_set: all_nodes_set.clone(),
-					cluster: nd.cluster.clone(),
-					key_storage: nd.key_storage.clone(),
-					nonce: 1,
-					admin_public: Public::default(),
-				}).unwrap();
-				nodes.insert(n.clone(), Node {
-					cluster: cluster,
-					key_storage: key_storage,
-					session: session,
-				});
-			}
-			for new_node_id in new_nodes_ids {
-				let cluster = Arc::new(DummyCluster::new(new_node_id.clone()));
-				let key_storage = Arc::new(DummyKeyStorage::default());
-				let mut meta = meta.clone();
-				meta.self_node_id = new_node_id;
-				let requester_signature = if meta.self_node_id == meta.master_node_id { Some(requester_signature.clone()) } else { None };
-				let session = SessionImpl::new(SessionParams {
-					meta: meta,
-					all_nodes_set: all_nodes_set.clone(),
-					cluster: cluster.clone(),
-					key_storage: key_storage.clone(),
-					nonce: 1,
-					admin_public: Public::default(),
-				}).unwrap();
-				nodes.insert(new_node_id, Node {
-					cluster: cluster,
-					key_storage: key_storage,
-					session: session,
-				});
-			}
 
+			let old_nodes = gml.nodes.into_iter().map(|n| create_node(meta.clone(), admin_public.clone(), all_nodes_set.clone(), n.1));
+			let new_nodes = new_nodes_ids.into_iter().map(|new_node_id| {
+				let new_node_cluster = Arc::new(DummyCluster::new(new_node_id.clone()));
+				let new_node_key_storage = Arc::new(DummyKeyStorage::default());
+				let new_node_session = create_session(meta.clone(), new_node_id, admin_public.clone(), all_nodes_set.clone(), new_node_cluster.clone(), new_node_key_storage.clone());
+				Node {
+					cluster: new_node_cluster,
+					key_storage: new_node_key_storage,
+					session: new_node_session,
+				}
+			});
+			let nodes: BTreeMap<_, _> = old_nodes.chain(new_nodes).map(|n| (n.session.core.meta.self_node_id.clone(), n)).collect();
+
+			let old_set_signature = sign(admin_key_pair.secret(), &ordered_nodes_hash(&old_nodes_set)).unwrap();
+			let new_set_signature = sign(admin_key_pair.secret(), &ordered_nodes_hash(&new_nodes_set)).unwrap();
 			MessageLoop {
-				session_id: session_id,
+				admin_key_pair: admin_key_pair,
+				original_key_pair: original_key_pair,
+				old_nodes_set: old_nodes_set.clone(),
+				new_nodes_set: new_nodes_set.clone(),
+				old_set_signature: old_set_signature,
+				new_set_signature: new_set_signature,
 				nodes: nodes,
 				queue: Default::default(),
 			}
@@ -825,7 +847,6 @@ pub mod tests {
 
 		pub fn run(&mut self) {
 			while let Some((from, to, message)) = self.take_message() {
-println!("=== {} -> {}: {}", from, to, message);
 				self.process_message((from, to, message)).unwrap();
 			}
 		}
@@ -838,12 +859,10 @@ println!("=== {} -> {}: {}", from, to, message);
 		}
 
 		pub fn process_message(&mut self, msg: (NodeId, NodeId, Message)) -> Result<(), Error> {
-			match {
-				match msg.2 {
-					Message::ServersSetChange(ref message) => self.nodes[&msg.1].session.process_message(&msg.0, message),
-					_ => unreachable!("only servers set change messages are expected"),
-				}
-			} {
+			match { match msg.2 {
+				Message::ServersSetChange(ref message) => self.nodes[&msg.1].session.process_message(&msg.0, message),
+				_ => unreachable!("only servers set change messages are expected"),
+			} } {
 				Ok(_) => Ok(()),
 				Err(Error::TooEarlyForRequest) => {
 					self.queue.push_back(msg);
@@ -882,27 +901,7 @@ println!("=== {} -> {}: {}", from, to, message);
 		ml.run();
 
 		// try to recover secret for every possible combination of nodes && check that secret is the same
-		let document_secret_plain = math::generate_random_point().unwrap();
-		for n1 in 0..4 {
-			for n2 in n1+1..4 {
-				let share1 = ml.nodes.values().nth(n1).unwrap().key_storage.get(&key_id).unwrap();
-				let share2 = ml.nodes.values().nth(n2).unwrap().key_storage.get(&key_id).unwrap();
-				let id_number1 = share1.id_numbers[ml.nodes.keys().nth(n1).unwrap()].clone();
-				let id_number2 = share1.id_numbers[ml.nodes.keys().nth(n2).unwrap()].clone();
-
-				// now encrypt and decrypt data
-				let (document_secret_decrypted, document_secret_decrypted_test) =
-					math::tests::do_encryption_and_decryption(1,
-						joint_key_pair.public(),
-						&[id_number1, id_number2],
-						&[share1.secret_share, share2.secret_share],
-						Some(&joint_secret),
-						document_secret_plain.clone());
-
-				assert_eq!(document_secret_plain, document_secret_decrypted_test);
-				assert_eq!(document_secret_plain, document_secret_decrypted);
-			}
-		}
+		check_secret_is_preserved(ml.original_key_pair.clone(), ml.nodes.iter().map(|(k, v)| (k.clone(), v.key_storage.clone())).collect())
 	}
 
 	#[test]
@@ -943,39 +942,14 @@ println!("=== {} -> {}: {}", from, to, message);
 		ml.nodes[&master_node_id].session.initialize(new_nodes_set, Signature::default(), Signature::default());
 		ml.run();
 
-		// try to recover secret for every possible combination of nodes && check that secret is the same
-		let document_secret_plain = math::generate_random_point().unwrap();
-		for n1 in 0..4 {
-			for n2 in n1+1..4 {
-				let node1 = ml.nodes.keys().nth(n1).unwrap();
-				let node2 = ml.nodes.keys().nth(n2).unwrap();
-				if nodes_to_remove.contains(node1) {
-					assert!(ml.nodes.values().nth(n1).unwrap().key_storage.get(&key_id).is_err());
-					continue;
-				}
-				if nodes_to_remove.contains(node2) {
-					assert!(ml.nodes.values().nth(n2).unwrap().key_storage.get(&key_id).is_err());
-					continue;
-				}
+		// check that secret is still the same as before moving the share
+		check_secret_is_preserved(ml.original_key_pair.clone(), ml.nodes.iter()
+			.filter(|&(k, _)| !nodes_to_remove.contains(k))
+			.map(|(k, v)| (k.clone(), v.key_storage.clone()))
+			.collect());
 
-				let share1 = ml.nodes.values().nth(n1).unwrap().key_storage.get(&key_id).unwrap();
-				let share2 = ml.nodes.values().nth(n2).unwrap().key_storage.get(&key_id).unwrap();
-				let id_number1 = share1.id_numbers[ml.nodes.keys().nth(n1).unwrap()].clone();
-				let id_number2 = share1.id_numbers[ml.nodes.keys().nth(n2).unwrap()].clone();
-
-				// now encrypt and decrypt data
-				let (document_secret_decrypted, document_secret_decrypted_test) =
-					math::tests::do_encryption_and_decryption(1,
-						joint_key_pair.public(),
-						&[id_number1, id_number2],
-						&[share1.secret_share, share2.secret_share],
-						Some(&joint_secret),
-						document_secret_plain.clone());
-
-				assert_eq!(document_secret_plain, document_secret_decrypted_test);
-				assert_eq!(document_secret_plain, document_secret_decrypted);
-			}
-		}
+		// check that all removed nodes do not own key share
+		assert!(ml.nodes.iter().filter(|&(k, _)| nodes_to_remove.contains(k)).all(|(_, v)| v.key_storage.get(&SessionId::default()).is_err()));
 	}
 
 	#[test]
@@ -998,37 +972,12 @@ println!("=== {} -> {}: {}", from, to, message);
 		ml.run();
 
 		// try to recover secret for every possible combination of nodes && check that secret is the same
-		let document_secret_plain = math::generate_random_point().unwrap();
-		for n1 in 0..3 {
-			for n2 in n1+1..3 {
-				let node1 = ml.nodes.keys().nth(n1).unwrap();
-				let node2 = ml.nodes.keys().nth(n2).unwrap();
-				if nodes_to_remove.contains(node1) {
-					assert!(ml.nodes.values().nth(n1).unwrap().key_storage.get(&key_id).is_err());
-					continue;
-				}
-				if nodes_to_remove.contains(node2) {
-					assert!(ml.nodes.values().nth(n2).unwrap().key_storage.get(&key_id).is_err());
-					continue;
-				}
+		check_secret_is_preserved(ml.original_key_pair.clone(), ml.nodes.iter()
+			.filter(|&(k, _)| !nodes_to_remove.contains(k))
+			.map(|(k, v)| (k.clone(), v.key_storage.clone()))
+			.collect());
 
-				let share1 = ml.nodes.values().nth(n1).unwrap().key_storage.get(&key_id).unwrap();
-				let share2 = ml.nodes.values().nth(n2).unwrap().key_storage.get(&key_id).unwrap();
-				let id_number1 = share1.id_numbers[ml.nodes.keys().nth(n1).unwrap()].clone();
-				let id_number2 = share1.id_numbers[ml.nodes.keys().nth(n2).unwrap()].clone();
-
-				// now encrypt and decrypt data
-				let (document_secret_decrypted, document_secret_decrypted_test) =
-					math::tests::do_encryption_and_decryption(1,
-						joint_key_pair.public(),
-						&[id_number1, id_number2],
-						&[share1.secret_share, share2.secret_share],
-						Some(&joint_secret),
-						document_secret_plain.clone());
-
-				assert_eq!(document_secret_plain, document_secret_decrypted_test);
-				assert_eq!(document_secret_plain, document_secret_decrypted);
-			}
-		}
+		// check that all removed nodes do not own key share
+		assert!(ml.nodes.iter().filter(|&(k, _)| nodes_to_remove.contains(k)).all(|(_, v)| v.key_storage.get(&SessionId::default()).is_err()));
 	}
 }
