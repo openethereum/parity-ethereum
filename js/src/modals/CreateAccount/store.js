@@ -35,6 +35,7 @@ export default class Store {
   @observable gethAddresses = [];
   @observable gethImported = [];
   @observable isBusy = false;
+  @observable isTest = false;
   @observable isWindowsPhrase = false;
   @observable name = '';
   @observable nameError = ERRORS.noName;
@@ -308,6 +309,10 @@ export default class Store {
 
   @action prevStage = () => {
     this.stage--;
+  }
+
+  @action setIsTest = isTest => {
+    this.isTest = isTest;
   }
 
   createAccount = (vaultStore) => {
