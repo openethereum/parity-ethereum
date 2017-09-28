@@ -373,3 +373,12 @@ pub fn prepare_share_change_session_plan(session_nodes: &BTreeSet<NodeId>, new_n
 		nodes_to_remove: nodes_to_remove,
 	})
 }
+
+impl ShareChangeSessionPlan {
+	/// Is empty (nothing-to-do) plan?
+	pub fn is_empty(&self) -> bool {
+		self.nodes_to_add.is_empty()
+			&& self.nodes_to_move.is_empty()
+			&& self.nodes_to_remove.is_empty()
+	}
+}

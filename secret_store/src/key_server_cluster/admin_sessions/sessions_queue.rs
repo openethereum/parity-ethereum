@@ -18,11 +18,15 @@ use std::sync::Arc;
 use std::collections::{VecDeque, BTreeSet, BTreeMap};
 use key_server_cluster::{Error, NodeId, SessionId, KeyStorage, DocumentKeyShare};
 
+/// Session, queued for change.
 pub enum QueuedSession {
+	/// Session is known on this node.
 	Known(SessionId, DocumentKeyShare),
+	/// Session is unknown on this node.
 	Unknown(SessionId, BTreeSet<NodeId>),
 }
 
+/// Queue of share change sessions.
 pub struct SessionsQueue {
 	/// Key storage.
 	key_storage: Arc<KeyStorage>,

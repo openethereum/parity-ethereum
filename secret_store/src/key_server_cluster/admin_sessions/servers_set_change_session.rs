@@ -1,8 +1,6 @@
-// TODO: active_sessions -> key_session, session_id -> key_id, ...
 // TODO: when servers set change session is active, pause updating servers set from contract
 // TODO: even if node was lost, it is still required for share removal, ...
 // TODO: in long session some nodes (that are not participating in share change sessions) can stop session as stalled
-// TODO: check servers set
 
 // Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
@@ -45,7 +43,7 @@ use key_server_cluster::admin_sessions::sessions_queue::{SessionsQueue, QueuedSe
 use key_server_cluster::admin_sessions::ShareChangeSessionMeta;
 
 /// Maximal number of active share change sessions.
-const MAX_ACTIVE_SESSIONS: usize = 64;
+const MAX_ACTIVE_KEY_SESSIONS: usize = 64;
 
 /// Servers set change session API.
 pub trait Session: Send + Sync + 'static {
@@ -116,9 +114,9 @@ struct SessionData {
 	/// Share change sessions initialization state (valid on master nodes only).
 	pub sessions_initialization_state: BTreeMap<SessionId, SessionInitializationData>,
 	/// Sessions delegated to other nodes (valid on master node only).
-	pub delegated_sessions: BTreeMap<SessionId, NodeId>,
+	pub delegated_key_sessions: BTreeMap<SessionId, NodeId>,
 	/// Active share change sessions.
-	pub active_sessions: BTreeMap<SessionId, ShareChangeSession>,
+	pub active_key_sessions: BTreeMap<SessionId, ShareChangeSession>,
 	/// Servers set change result.
 	pub result: Option<Result<(), Error>>,
 }
@@ -186,8 +184,8 @@ impl SessionImpl {
 				new_nodes_set: None,
 				sessions_queue: None,
 				sessions_initialization_state: BTreeMap::new(),
-				delegated_sessions: BTreeMap::new(),
-				active_sessions: BTreeMap::new(),
+				delegated_key_sessions: BTreeMap::new(),
+				active_key_sessions: BTreeMap::new(),
 				result: None,
 			}),
 		})
@@ -389,7 +387,7 @@ impl SessionImpl {
 
 		// insert new session
 		let key_id = message.key_id.clone().into();
-		match data.active_sessions.contains_key(&key_id) {
+		match data.active_key_sessions.contains_key(&key_id) {
 			true => return Err(Error::InvalidMessage),
 			false => {
 				let master_plan = ShareChangeSessionPlan {
@@ -397,6 +395,11 @@ impl SessionImpl {
 					nodes_to_move: message.shares_to_move.iter().map(|(k, v)| (k.clone().into(), v.clone().into())).collect(),
 					nodes_to_remove: message.shares_to_remove.iter().cloned().map(Into::into).collect(),
 				};
+
+				// if master plan is empty, it is cheating
+				if master_plan.is_empty() {
+					return Err(Error::InvalidMessage);
+				}
 
 				// on nodes, which have their own key share, we could check if master node plan is correct
 				if let Ok(key_share) = self.core.key_storage.get(&message.key_id.clone().into()) {
@@ -411,19 +414,10 @@ impl SessionImpl {
 					}
 				}
 
-				data.active_sessions.insert(key_id.clone(), ShareChangeSession::new(ShareChangeSessionParams {
-					session_id: key_id.clone(),
-					nonce: self.core.nonce,
-					meta: ShareChangeSessionMeta {
-						id: key_id,
-						self_node_id: self.core.meta.self_node_id.clone(),
-						master_node_id: message.master_node_id.clone().into(),
-					},
-					cluster: self.core.cluster.clone(),
-					key_storage: self.core.key_storage.clone(),
-					old_nodes_set: message.old_shares_set.iter().cloned().map(Into::into).collect(),
-					plan: master_plan,
-				})?);
+				data.active_key_sessions.insert(key_id.clone(), Self::create_share_change_session(&self.core, key_id,
+					message.master_node_id.clone().into(),
+					message.old_shares_set.iter().cloned().map(Into::into).collect(),
+					master_plan)?);
 			},
 		};
 
@@ -469,7 +463,7 @@ impl SessionImpl {
 		// and start/delegate session if required
 		data.sessions_initialization_state.remove(&key_id);
 		if self.core.meta.self_node_id != session_master {
-			data.delegated_sessions.insert(key_id, session_master.clone());
+			data.delegated_key_sessions.insert(key_id, session_master.clone());
 			return self.core.cluster.send(&session_master, Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeDelegate(ServersSetChangeDelegate {
 				session: self.core.meta.id.clone().into(),
 				session_nonce: self.core.nonce,
@@ -477,8 +471,8 @@ impl SessionImpl {
 			})));
 		}
 
-		let session = data.active_sessions.get_mut(&key_id).ok_or(Error::InvalidMessage)?;
-		session.initialize()
+		let key_session = data.active_key_sessions.get_mut(&key_id).ok_or(Error::InvalidMessage)?;
+		key_session.initialize()
 	}
 
 	/// When sessions execution is delegated to this node.
@@ -498,8 +492,8 @@ impl SessionImpl {
 		}
 
 		// start session
-		let session = data.active_sessions.get_mut(&message.key_id.clone().into()).ok_or(Error::InvalidMessage)?;
-		session.initialize()
+		let key_session = data.active_key_sessions.get_mut(&message.key_id.clone().into()).ok_or(Error::InvalidMessage)?;
+		key_session.initialize()
 	}
 
 	/// When delegated session execution is completed.
@@ -520,7 +514,7 @@ impl SessionImpl {
 
 		// forget delegated session
 		let key_id = message.key_id.clone().into();
-		match data.delegated_sessions.entry(key_id) {
+		match data.delegated_key_sessions.entry(key_id) {
 			Entry::Occupied(entry) => if entry.get() == sender {
 				entry.remove()
 			} else {
@@ -575,7 +569,7 @@ impl SessionImpl {
 
 		let mut data = self.data.lock();
 		data.result = Some(Ok(()));
-		if data.active_sessions.len() != 0 {
+		if data.active_key_sessions.len() != 0 {
 			return Err(Error::TooEarlyForRequest);
 		}
 
@@ -604,13 +598,13 @@ impl SessionImpl {
 
 		// process message
 		let (is_finished, is_master) = {
-			let change_session = data.active_sessions.get_mut(&session_id).ok_or(Error::InvalidMessage)?;
-			message_processor(change_session)?;
-			(change_session.is_finished(), change_session.is_master())
+			let key_session = data.active_key_sessions.get_mut(&session_id).ok_or(Error::InvalidMessage)?;
+			message_processor(key_session)?;
+			(key_session.is_finished(), key_session.is_master())
 		};
 
 		if is_finished {
-			data.active_sessions.remove(&session_id);
+			data.active_key_sessions.remove(&session_id);
 			let is_general_master = self.core.meta.self_node_id == self.core.meta.master_node_id;
 			if is_master && !is_general_master {
 				Self::return_delegated_session(&self.core, &session_id)?;
@@ -619,7 +613,7 @@ impl SessionImpl {
 				Self::disseminate_session_initialization_requests(&self.core, &mut *data)?;
 			}
 
-			if data.result.is_some() && data.active_sessions.len() == 0 {
+			if data.result.is_some() && data.active_key_sessions.len() == 0 {
 				data.state = SessionState::Finished;
 				self.core.completed.notify_all();
 			}
@@ -628,91 +622,112 @@ impl SessionImpl {
 		Ok(())
 	}
 
+	/// Create share change session.
+	fn create_share_change_session(core: &SessionCore, key_id: SessionId, master_node_id: NodeId, old_nodes_set: BTreeSet<NodeId>, session_plan: ShareChangeSessionPlan) -> Result<ShareChangeSession, Error> {
+		ShareChangeSession::new(ShareChangeSessionParams {
+			session_id: key_id.clone(),
+			nonce: core.nonce,
+			meta: ShareChangeSessionMeta {
+				id: key_id,
+				self_node_id: core.meta.self_node_id.clone(),
+				master_node_id: master_node_id,
+			},
+			cluster: core.cluster.clone(),
+			key_storage: core.key_storage.clone(),
+			old_nodes_set: old_nodes_set,
+			plan: session_plan,
+		})
+	}
+
+	/// Disseminate session initialization requests.
 	fn disseminate_session_initialization_requests(core: &SessionCore, data: &mut SessionData) -> Result<(), Error> {
 		debug_assert_eq!(core.meta.self_node_id, core.meta.master_node_id);
 		if let Some(sessions_queue) = data.sessions_queue.as_mut() {
-			let mut number_of_sessions_to_start = MAX_ACTIVE_SESSIONS.saturating_sub(data.active_sessions.len() + data.delegated_sessions.len());
+			let mut number_of_sessions_to_start = MAX_ACTIVE_KEY_SESSIONS.saturating_sub(data.active_key_sessions.len() + data.delegated_key_sessions.len());
 			let new_nodes_set = data.new_nodes_set.as_ref()
 				.expect("this method is called after consensus estabished; new_nodes_set is a result of consensus session; qed");
 			while number_of_sessions_to_start > 0 {
-				let session = match sessions_queue.next() {
+				let queued_session = match sessions_queue.next() {
 					None => break, // complete session
 					Some(Err(e)) => return Err(e),
 					Some(Ok(session)) => session,
 				};
-				number_of_sessions_to_start = number_of_sessions_to_start - 1;
+
+				// prepare session change plan && check if something needs to be changed
+				let old_nodes_set = queued_session.nodes();
+				let session_plan = prepare_share_change_session_plan(&old_nodes_set, new_nodes_set)?;
+				if session_plan.is_empty() {
+					continue;
+				}
 
 				// select master for this session
-				let session_master = match &session {
+				let session_master = match &queued_session {
 					&QueuedSession::Known(_, _) => core.meta.self_node_id.clone(),
 					&QueuedSession::Unknown(_, ref nodes) => nodes.iter().cloned().nth(0)
 						.expect("unknown session is received is reported by at least one node; qed"),
 				};
 
-				// send confirmations requests
-				let old_nodes_set = session.nodes();
-				let session_id = session.id().clone();
-				let session_plan = prepare_share_change_session_plan(&old_nodes_set, new_nodes_set)?;
+				// send key session initialization requests
+				let key_id = queued_session.id().clone();
 				let mut confirmations: BTreeSet<_> = old_nodes_set.iter().cloned()
 					.chain(session_plan.nodes_to_add.keys().cloned())
 					.chain(session_plan.nodes_to_move.keys().cloned())
 					.collect();
 				let need_create_session = confirmations.remove(&core.meta.self_node_id);
+				let initialization_message = Message::ServersSetChange(ServersSetChangeMessage::InitializeShareChangeSession(InitializeShareChangeSession {
+					session: core.meta.id.clone().into(),
+					session_nonce: core.nonce,
+					key_id: key_id.clone().into(),
+					master_node_id: session_master.clone().into(),
+					old_shares_set: old_nodes_set.iter().cloned().map(Into::into).collect(),
+					shares_to_add: session_plan.nodes_to_add.iter()
+						.map(|(n, nid)| (n.clone().into(), nid.clone().into()))
+						.collect(),
+					shares_to_move: session_plan.nodes_to_move.iter()
+						.map(|(source, target)| (source.clone().into(), target.clone().into()))
+						.collect(),
+					shares_to_remove: session_plan.nodes_to_remove.iter().cloned().map(Into::into).collect(),
+				}));
 				for node in &confirmations {
-					core.cluster.send(&node, Message::ServersSetChange(ServersSetChangeMessage::InitializeShareChangeSession(InitializeShareChangeSession {
-						session: core.meta.id.clone().into(),
-						session_nonce: core.nonce,
-						key_id: session_id.clone().into(),
-						master_node_id: session_master.clone().into(),
-						old_shares_set: old_nodes_set.iter().cloned().map(Into::into).collect(),
-						shares_to_add: session_plan.nodes_to_add.iter()
-							.map(|(n, nid)| (n.clone().into(), nid.clone().into()))
-							.collect(),
-						shares_to_move: session_plan.nodes_to_move.iter()
-							.map(|(source, target)| (source.clone().into(), target.clone().into()))
-							.collect(),
-						shares_to_remove: session_plan.nodes_to_remove.iter().cloned().map(Into::into).collect(),
-					})))?;
+					core.cluster.send(&node, initialization_message.clone())?;
 				}
 
-				// create session if required
+				// create session on this node if required
 				if need_create_session {
-					data.active_sessions.insert(session_id.clone(), ShareChangeSession::new(ShareChangeSessionParams {
-						session_id: session_id.clone(),
-						nonce: core.nonce,
-						meta: ShareChangeSessionMeta {
-							id: session_id.clone(),
-							self_node_id: core.meta.self_node_id.clone(),
-							master_node_id: session_master.clone(),
-						},
-						cluster: core.cluster.clone(),
-						key_storage: core.key_storage.clone(),
-						old_nodes_set: session.nodes(),
-						plan: session_plan,
-					})?);
+					data.active_key_sessions.insert(key_id.clone(), Self::create_share_change_session(core, key_id,
+						session_master.clone(),
+						queued_session.nodes(),
+						session_plan)?);
 				}
 
 				// initialize session if required
 				let wait_for_confirmations = !confirmations.is_empty();
-				data.sessions_initialization_state.insert(session_id.clone(), SessionInitializationData {
-					master: session_master,
-					confirmations: confirmations,
-				});
 				if !wait_for_confirmations {
-					data.active_sessions.get_mut(&session_id)
+					data.active_key_sessions.get_mut(&key_id)
 						.expect("!wait_for_confirmations is true only if this is the only session participant; if this is session participant, session is created above; qed")
 						.initialize()?;
+				} else {
+					data.sessions_initialization_state.insert(key_id.clone(), SessionInitializationData {
+						master: session_master,
+						confirmations: confirmations,
+					});
 				}
+
+				number_of_sessions_to_start = number_of_sessions_to_start - 1;
 			}
 
+			// if iteration is not yet finished => return
 			if number_of_sessions_to_start == 0 {
 				return Ok(());
 			}
 		}
 
-		data.sessions_queue = None;
-		if data.active_sessions.len() == 0 && data.delegated_sessions.len() == 0 {
-			Self::complete_session(core, data)?;
+		// iteration is finished => complete session
+		if data.state != SessionState::Finished {
+			data.sessions_queue = None;
+			if data.active_key_sessions.len() == 0 && data.delegated_key_sessions.len() == 0 {
+				Self::complete_session(core, data)?;
+			}
 		}
 
 		Ok(())
