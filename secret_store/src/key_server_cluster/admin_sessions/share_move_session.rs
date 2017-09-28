@@ -1,5 +1,3 @@
-// TODO: check all clones(), collect(), values().filter, ...
-
 // Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
@@ -60,7 +58,7 @@ struct SessionCore<T: SessionTransport> {
 	pub meta: ShareChangeSessionMeta,
 	/// Session-level nonce.
 	pub nonce: u64,
-	/// Original key share (for old nodes only). TODO: is it possible to read from key_storage
+	/// Original key share (for old nodes only).
 	pub key_share: Option<DocumentKeyShare>,
 	/// Session transport to communicate to other cluster nodes.
 	pub transport: T,
@@ -317,7 +315,8 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 
 		// move share
 		{
-			let shares_to_move = data.shares_to_move.as_ref().expect("TODO");
+			let shares_to_move = data.shares_to_move.as_ref()
+				.expect("shares_to_move are filled during consensus establishing; share move requests are processed after this; qed");
 			if let Some(share_destination) = shares_to_move.iter().filter(|&(_, v)| v == &self.core.meta.self_node_id).map(|(k, _)| k).nth(0) {
 				Self::move_share(&self.core, share_destination)?;
 			} else {
@@ -343,12 +342,19 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		}
 
 		// check that we are expecting this share
-		if data.shares_to_move.as_ref().expect("TODO").get(&self.core.meta.self_node_id) != Some(sender) {
+		if data.shares_to_move.as_ref()
+			.expect("shares_to_move are filled during consensus establishing; share moves are processed after this; qed")
+			.get(&self.core.meta.self_node_id) != Some(sender) {
 			return Err(Error::InvalidMessage);
 		}
 
 		// update state
-		data.move_confirmations_to_receive.as_mut().expect("TODO").remove(&self.core.meta.self_node_id);
+		let is_last_confirmation = {
+			let move_confirmations_to_receive = data.move_confirmations_to_receive.as_mut()
+				.expect("move_confirmations_to_receive are filled during consensus establishing; share moves are processed after this; qed");
+				move_confirmations_to_receive.remove(&self.core.meta.self_node_id);
+				move_confirmations_to_receive.is_empty()
+		};
 		data.received_key_share = Some(DocumentKeyShare {
 			author: message.author.clone().into(),
 			threshold: message.threshold,
@@ -361,7 +367,8 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 
 		// send confirmation to all other nodes
 		{
-			let shares_to_move = data.shares_to_move.as_ref().expect("TODO");
+			let shares_to_move = data.shares_to_move.as_ref()
+				.expect("shares_to_move are filled during consensus establishing; share moves are processed after this; qed");
 			let new_nodes_set: BTreeSet<_> = shares_to_move.keys().cloned()
 				.chain(message.id_numbers.keys().filter(|n| !shares_to_move.values().any(|n2| n2 == &(*n).clone().into())).cloned().map(Into::into))
 				.collect();
@@ -375,7 +382,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		}
 
 		// complete session if this was last share
-		if data.move_confirmations_to_receive.as_ref().expect("TODO").is_empty() {
+		if is_last_confirmation {
 			Self::complete_session(&self.core, &mut *data)?;
 		}
 
@@ -397,7 +404,8 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 
 		// find share source
 		{
-			let mut move_confirmations_to_receive = data.move_confirmations_to_receive.as_mut().expect("TODO");
+			let mut move_confirmations_to_receive = data.move_confirmations_to_receive.as_mut()
+				.expect("move_confirmations_to_receive are filled during consensus establishing; move confirmations are processed after this; qed");
 			if !move_confirmations_to_receive.remove(sender) {
 				return Err(Error::InvalidMessage);
 			}
@@ -430,7 +438,8 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		Self::disseminate_share_move_requests(core, data)?;
 
 		{
-			let shares_to_move = data.shares_to_move.as_ref().expect("TODO");
+			let shares_to_move = data.shares_to_move.as_ref()
+				.expect("shares_to_move are filled during consensus establishing; this method is called after consensus established; qed");
 			if let Some(share_destination) = shares_to_move.iter().filter(|&(_, v)| v == &core.meta.self_node_id).map(|(k, _)| k).nth(0) {
 				// move share
 				Self::move_share(core, share_destination)?;
@@ -447,7 +456,8 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 
 	/// Disseminate share move requests.
 	fn disseminate_share_move_requests(core: &SessionCore<T>, data: &mut SessionData<T>) -> Result<(), Error> {
-		let shares_to_move = data.shares_to_move.as_ref().expect("TODO");
+		let shares_to_move = data.shares_to_move.as_ref()
+			.expect("shares_to_move are filled during consensus establishing; this method is called after consensus established; qed");
 		for share_source in shares_to_move.values().filter(|n| **n != core.meta.self_node_id) {
 			core.transport.send(share_source, ShareMoveMessage::ShareMoveRequest(ShareMoveRequest {
 				session: core.meta.id.clone().into(),
@@ -481,7 +491,8 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		data.state = SessionState::Finished;
 
 		// if we are source node => remove share from storage
-		let shares_to_move = data.shares_to_move.as_ref().expect("TODO");
+		let shares_to_move = data.shares_to_move.as_ref()
+			.expect("shares_to_move are filled during consensus establishing; this method is called after consensus established; qed");
 		if shares_to_move.values().any(|n| n == &core.meta.self_node_id) {
 			return core.key_storage.remove(&core.meta.id)
 				.map_err(|e| Error::KeyStorage(e.into()));
@@ -544,7 +555,8 @@ impl JobTransport for IsolatedSessionTransport {
 	type PartialJobResponse = bool;
 
 	fn send_partial_request(&self, node: &NodeId, request: ServersSetChangeAccessRequest) -> Result<(), Error> {
-		let shares_to_move = self.shares_to_move.as_ref().expect("TODO");
+		let shares_to_move = self.shares_to_move.as_ref()
+			.expect("partial requests are sent from master node only; on master node shares_to_move are filled during creation; qed");
 		self.cluster.send(node, Message::ShareMove(ShareMoveMessage::ShareMoveConsensusMessage(ShareMoveConsensusMessage {
 			session: self.session.clone().into(),
 			session_nonce: self.nonce,

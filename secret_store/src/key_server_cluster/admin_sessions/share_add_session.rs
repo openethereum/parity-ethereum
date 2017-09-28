@@ -1,8 +1,3 @@
-// TODO: when anys session starts on the node, which doesn't have key share, do not fail session, but delegate it
-// TODO: add key share version to db? and never overwrite key share data, but add a new version. Version must be agreed on decryption/signing session start
-// TODO: add polynom1 to database. otherwise share add is not possible
-// TODO: duplicate NewKeysDissemination messages are sent!!!
-
 // Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
@@ -71,7 +66,7 @@ struct SessionCore<T: SessionTransport> {
 	pub meta: ShareChangeSessionMeta,
 	/// Session-level nonce.
 	pub nonce: u64,
-	/// Original key share (for old nodes only). TODO: is it possible to read from key_storage
+	/// Original key share (for old nodes only).
 	pub key_share: Option<DocumentKeyShare>,
 	/// Session transport to communicate to other cluster nodes.
 	pub transport: T,
@@ -250,8 +245,10 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		// if consensus is not yet established => start consensus session
 		let is_consensus_pre_established = data.nodes.is_some();
 		if !is_consensus_pre_established {
-			let new_nodes_set = new_nodes_set.ok_or(Error::InvalidMessage)?;
+			// TODO: when session is started on the node, which doesn't have share, it must be delegated to another node
+			// this is also true for other sessions (signing, decryption, ...)
 			let key_share = self.core.key_share.as_ref().ok_or(Error::KeyStorage("key share is not found on master node".into()))?;
+			let new_nodes_set = new_nodes_set.ok_or(Error::InvalidMessage)?;
 			let old_nodes_set: BTreeSet<_> = key_share.id_numbers.keys().cloned().collect();
 			let new_nodes_map = new_nodes_set.iter()
 				.map(|n| key_share.id_numbers.get(n)
@@ -267,7 +264,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 			let admin_public = self.core.admin_public.clone().ok_or(Error::InvalidMessage)?;
 			let mut consensus_transport = self.core.transport.clone();
 			consensus_transport.set_id_numbers(new_nodes_map.iter()
-				.map(|(k, v)| (k.clone(), v.clone().expect("TODO")))
+				.map(|(k, v)| (k.clone(), v.clone().expect("new_nodes_map is updated above so that every value is_some; qed")))
 				.collect());
 			let mut consensus_session = ConsensusSession::new(ConsensusSessionParams {
 				meta: self.core.meta.clone().into_consensus_meta(new_nodes_set.len()),
@@ -483,7 +480,8 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 
 		// check message
 		let threshold = self.core.key_share.as_ref().map(|ks| ks.threshold)
-			.unwrap_or_else(|| data.key_share_threshold.clone().expect("TODO"));
+			.unwrap_or_else(|| data.key_share_threshold.clone()
+				.expect("on old nodes key_share is_some; on new nodes key_share_threshold is_some after common share data is received; qed"));
 		if message.refreshed_publics.len() != threshold + 1 {
 			return Err(Error::InvalidMessage);
 		}
@@ -575,7 +573,8 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		data.refreshed_polynom1_sum = Some(refreshed_polynom1_sum);
 
 		// send absolute term share to every new node
-		let sender_id: &Secret = nodes[&core.meta.self_node_id].id_number.as_ref().expect("TODO");
+		let sender_id: &Secret = nodes[&core.meta.self_node_id].id_number.as_ref()
+			.expect("id_numbers are filled during consensus establishing; this method is called after consensus establishing; qed");
 		for (i, new_node) in nodes.iter().filter(|&(_, nd)| nd.is_new_node).map(|(n, _)| n).enumerate() {
 			core.transport.send(new_node, ShareAddMessage::NewAbsoluteTermShare(NewAbsoluteTermShare {
 				session: core.meta.id.clone().into(),
@@ -622,7 +621,8 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 			.expect("nodes are filled during consensus establishing; keys are disseminated after consensus is established; qed");
 		for (node, node_number) in nodes.iter().filter(|&(n, _)| n != &core.meta.self_node_id).map(|(n, nd)| (n, &nd.id_number)) {
 			// also send keys to every other node
-			let refreshed_secret1 = math::compute_polynom(refreshed_polynom1_sum, node_number.as_ref().expect("TODO"))?;
+			let refreshed_secret1 = math::compute_polynom(refreshed_polynom1_sum, node_number.as_ref()
+				.expect("id_numbers are filled during consensus establishing; keys are disseminated after consensus is established; qed"))?;
 			core.transport.send(node, ShareAddMessage::NewKeysDissemination(NewKeysDissemination {
 				session: core.meta.id.clone().into(),
 				session_nonce: core.nonce,
@@ -634,7 +634,8 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		// 'receive' data from self
 		let self_node_data = nodes.get_mut(&core.meta.self_node_id)
 			.expect("data.nodes contains entry for every session node; this node is a part of the session; qed");
-		self_node_data.refreshed_secret1 = Some(math::compute_polynom(refreshed_polynom1_sum, &self_node_data.id_number.as_ref().expect("TODO"))?);
+		self_node_data.refreshed_secret1 = Some(math::compute_polynom(refreshed_polynom1_sum, &self_node_data.id_number.as_ref()
+			.expect("id_numbers are filled during consensus establishing; keys are disseminated after consensus is established; qed"))?);
 		self_node_data.refreshed_publics = Some(refreshed_publics);
 
 		Ok(())
@@ -643,10 +644,12 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 	/// Verify received keys values.
 	fn verify_keys(core: &SessionCore<T>, data: &mut SessionData<T>) -> Result<(), Error> {
 		let threshold = core.key_share.as_ref().map(|ks| ks.threshold)
-			.unwrap_or_else(|| data.key_share_threshold.clone().expect("TODO"));
+			.unwrap_or_else(|| data.key_share_threshold.clone()
+				.expect("on old nodes key_share is_some; on new nodes key_share_threshold is_some after common share data is received; qed"));
 		let nodes = data.nodes.as_ref()
 			.expect("nodes are filled during consensus establishing; keys are verified after consensus is established; qed");
-		let number_id = nodes[&core.meta.self_node_id].id_number.as_ref().expect("TODO");
+		let number_id = nodes[&core.meta.self_node_id].id_number.as_ref()
+			.expect("id_numbers are filled during consensus establishing; keys are verified after consensus is established; qed");
 		for node_data in nodes.iter().filter(|&(n, _)| n != &core.meta.self_node_id).map(|(_, nd)| nd) {
 			let refreshed_secret1 = node_data.refreshed_secret1.as_ref().expect("keys received on KRD phase; KRV phase follows KRD phase; qed");
 			let refreshed_publics = node_data.refreshed_publics.as_ref().expect("keys received on KRD phase; KRV phase follows KRD phase; qed");
@@ -677,7 +680,8 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 			encrypted_point: core.key_share.as_ref().map(|ks| ks.encrypted_point.clone())
 				.unwrap_or_else(|| data.key_share_encrypted_point.clone()),
 			// below are updated values
-			id_numbers: nodes.iter().map(|(node_id, node_data)| (node_id.clone(), node_data.id_number.as_ref().expect("TODO").clone())).collect(),
+			id_numbers: nodes.iter().map(|(node_id, node_data)| (node_id.clone(), node_data.id_number.as_ref()
+				.expect("id_numbers are filled during consensus establishing; session is completed after consensus is established; qed").clone())).collect(),
 			polynom1: data.refreshed_polynom1_sum.clone().expect("this field is filled during KRD; session is completed after KRD; qed"),
 			secret_share: math::compute_secret_share(nodes.values()
 				.filter_map(|nd| nd.refreshed_secret1.as_ref()))?,
@@ -686,6 +690,8 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		// save encrypted data to the key storage
 		data.state = SessionState::Finished;
 		if core.key_share.is_some() {
+			// TODO: if db was updated on some nodes && wasn't updated on others, this could lead to secret loss
+			// => need mechanism to confirm insert/update OR store all versions of shares and negotiate version on session start (part of consensus)
 			core.key_storage.update(core.meta.id.clone(), refreshed_key_share.clone())
 		} else {
 			core.key_storage.insert(core.meta.id.clone(), refreshed_key_share.clone())
@@ -743,7 +749,8 @@ impl JobTransport for IsolatedSessionTransport {
 	type PartialJobResponse = bool;
 
 	fn send_partial_request(&self, node: &NodeId, request: ServersSetChangeAccessRequest) -> Result<(), Error> {
-		let id_numbers = self.id_numbers.as_ref().expect("TODO");
+		let id_numbers = self.id_numbers.as_ref()
+			.expect("partial requests are sent from master node only; on master node id_numers are filled during creation; qed");
 		self.cluster.send(node, Message::ShareAdd(ShareAddMessage::ShareAddConsensusMessage(ShareAddConsensusMessage {
 			session: self.session.clone().into(),
 			session_nonce: self.nonce,
@@ -791,7 +798,7 @@ fn check_nodes_set(old_nodes_set: &BTreeSet<NodeId>, new_nodes_set: &BTreeMap<No
 }
 
 fn generate_refreshed_polynoms_for_existing_nodes(new_nodes: usize, threshold: usize, existing_polynom1: &Vec<Secret>) -> Result<(Vec<Secret>, Vec<Secret>), Error> {
-	// TODO: could add secrets instead of polynoms
+	// TODO: optimization: could add secrets instead of polynoms
 	let refreshed_polynoms1 = (0..new_nodes).map(|_| math::generate_random_polynom(threshold)).collect::<Result<Vec<_>, _>>()?;
 	let mut refreshed_polynom1_sum = existing_polynom1.clone();
 	for refreshed_polynom1 in &refreshed_polynoms1 {
