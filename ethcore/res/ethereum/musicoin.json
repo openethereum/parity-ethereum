@@ -24,7 +24,7 @@
   "params": {
     "gasLimitBoundDivisor": "0x400",
     "blockReward": "0x1105a0185b50a80000",
-    "registrar": "0x3bb2bb5c6c9c9b7f4ef430b47dc7e026310042ea",
+    "registrar": "0x5C271c4C9A67E7D73b7b3669d47504741354f21D",
     "accountStartNonce": "0x0",
     "maximumExtraDataSize": "0x20",
     "minGasLimit": "0x1388",
