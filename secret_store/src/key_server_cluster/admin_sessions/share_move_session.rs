@@ -271,10 +271,12 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 			let shares_to_move_reversed = match &message.message {
 				&ConsensusMessageWithServersMap::InitializeConsensusSession(ref message) => {
 					consensus_session.on_consensus_partial_request(sender, ServersSetChangeAccessRequest::from(message))?;
-					Some(message.new_nodes_set.iter()
+					let shares_to_move_reversed = message.new_nodes_set.iter()
 						.filter(|&(old, new)| old != new)
 						.map(|(old, new)| (old.clone().into(), new.clone().into()))
-						.collect::<BTreeMap<NodeId, NodeId>>())
+						.collect::<BTreeMap<NodeId, NodeId>>();
+					check_shares_to_move(&self.core.meta.self_node_id, &shares_to_move_reversed, self.core.key_share.as_ref().map(|ks| &ks.id_numbers))?;
+					Some(shares_to_move_reversed)
 				},
 				&ConsensusMessageWithServersMap::ConfirmConsensusInitialization(ref message) => {
 					consensus_session.on_consensus_partial_response(sender, message.is_confirmed)?;

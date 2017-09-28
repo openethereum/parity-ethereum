@@ -246,7 +246,9 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 			let shares_to_remove = match &message.message {
 				&ConsensusMessageWithServersSet::InitializeConsensusSession(ref message) => {
 					consensus_session.on_consensus_partial_request(sender, ServersSetChangeAccessRequest::from(message))?;
-					Some(message.old_nodes_set.difference(&message.new_nodes_set).cloned().map(Into::into).collect::<BTreeSet<_>>())
+					let shares_to_remove = message.old_nodes_set.difference(&message.new_nodes_set).cloned().map(Into::into).collect::<BTreeSet<_>>();
+					check_shares_to_remove(&self.core, &shares_to_remove)?;
+					Some(shares_to_remove)
 				},
 				&ConsensusMessageWithServersSet::ConfirmConsensusInitialization(ref message) => {
 					consensus_session.on_consensus_partial_response(sender, message.is_confirmed)?;

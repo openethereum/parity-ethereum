@@ -338,8 +338,15 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 			let new_nodes_set = match &message.message {
 				&ConsensusMessageWithServersSecretMap::InitializeConsensusSession(ref message) => {
 					consensus_session.on_consensus_partial_request(sender, ServersSetChangeAccessRequest::from(message))?;
-					Some(message.new_nodes_set.iter()
-						.map(|(n, nn)| (n.clone().into(), NodeData::new(Some(nn.clone().into()), !message.old_nodes_set.contains(n))))
+					let new_nodes_set = message.new_nodes_set.iter()
+						.map(|(n, nn)| (n.clone().into(), Some(nn.clone().into())))
+						.collect();
+					// check nodes set on old nodes
+					if let Some(key_share) = self.core.key_share.as_ref() {
+						check_nodes_set(&key_share.id_numbers.keys().cloned().collect(), &new_nodes_set)?;
+					}
+					Some(new_nodes_set.into_iter()
+						.map(|(n, nn)| (n, NodeData::new(nn, !message.old_nodes_set.contains(&n.clone().into()))))
 						.collect())
 				},
 				&ConsensusMessageWithServersSecretMap::ConfirmConsensusInitialization(ref message) => {
