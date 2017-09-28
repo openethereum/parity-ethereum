@@ -1672,7 +1672,7 @@ impl BlockChainClient for Client {
 
 				let traces = self.tracedb.read().filter(&db_filter);
 				if traces.is_empty() {
-					return None;
+					return Some(vec![]);
 				}
 
 				let traces_iter = traces.into_iter().skip(filter.after.unwrap_or(0));
