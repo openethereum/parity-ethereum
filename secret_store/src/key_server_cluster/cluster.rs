@@ -1352,7 +1352,7 @@ impl ClusterClient for ClusterClientImpl {
 
 		let cluster = Arc::new(ClusterView::new(self.data.clone(), connected_nodes));
 		let session = self.data.sessions.new_share_add_session(self.data.self_key_pair.public().clone(), session_id, None, cluster)?;
-		session.initialize(new_nodes_set, Some(old_set_signature), Some(new_set_signature))?;
+		session.initialize(Some(new_nodes_set), Some(old_set_signature), Some(new_set_signature))?;
 		Ok(ShareAddSessionWrapper::new(Arc::downgrade(&self.data), session_id, session))
 	}
 
@@ -1374,7 +1374,7 @@ impl ClusterClient for ClusterClientImpl {
 
 		let cluster = Arc::new(ClusterView::new(self.data.clone(), connected_nodes));
 		let session = self.data.sessions.new_share_move_session(self.data.self_key_pair.public().clone(), session_id, None, cluster)?;
-		session.initialize(shares_to_move, Some(old_set_signature), Some(new_set_signature))?;
+		session.initialize(Some(shares_to_move), Some(old_set_signature), Some(new_set_signature))?;
 		Ok(ShareMoveSessionWrapper::new(Arc::downgrade(&self.data), session_id, session))
 	}
 
@@ -1384,7 +1384,7 @@ impl ClusterClient for ClusterClientImpl {
 
 		let cluster = Arc::new(ClusterView::new(self.data.clone(), connected_nodes));
 		let session = self.data.sessions.new_share_remove_session(self.data.self_key_pair.public().clone(), session_id, None, cluster)?;
-		session.initialize(new_nodes_set, Some(old_set_signature), Some(new_set_signature))?;
+		session.initialize(Some(new_nodes_set), Some(old_set_signature), Some(new_set_signature))?;
 		Ok(ShareRemoveSessionWrapper::new(Arc::downgrade(&self.data), session_id, session))
 	}
 

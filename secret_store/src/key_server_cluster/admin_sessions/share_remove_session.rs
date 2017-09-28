@@ -156,7 +156,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 	}
 
 	/// Initialize share remove session on master node.
-	pub fn initialize(&self, shares_to_remove: BTreeSet<NodeId>, old_set_signature: Option<Signature>, new_set_signature: Option<Signature>) -> Result<(), Error> {
+	pub fn initialize(&self, shares_to_remove: Option<BTreeSet<NodeId>>, old_set_signature: Option<Signature>, new_set_signature: Option<Signature>) -> Result<(), Error> {
 		debug_assert_eq!(self.core.meta.self_node_id, self.core.meta.master_node_id);
 
 		let mut data = self.data.lock();
@@ -168,6 +168,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		// if consensus is not yet established => start consensus session
 		let is_consensus_pre_established = data.shares_to_remove.is_some();
 		if !is_consensus_pre_established {
+			let shares_to_remove = shares_to_remove.ok_or(Error::InvalidMessage)?;
 			check_shares_to_remove(&self.core, &shares_to_remove)?;
 
 			let old_set_signature = old_set_signature.ok_or(Error::InvalidMessage)?;
@@ -624,8 +625,9 @@ mod tests {
 		let master_node_id = old_nodes_set.iter().cloned().nth(0).unwrap();
 		let nodes_to_remove = BTreeSet::new();
 		let ml = MessageLoop::new(t, master_node_id.clone(), old_nodes_set, nodes_to_remove.clone());
-		assert_eq!(ml.nodes[&master_node_id].session.initialize(nodes_to_remove.clone(), Some(ml.old_set_signature.clone()), Some(ml.new_set_signature.clone())),
-			Err(Error::InvalidMessage));
+		assert_eq!(ml.nodes[&master_node_id].session.initialize(Some(nodes_to_remove.clone()),
+			Some(ml.old_set_signature.clone()),
+			Some(ml.new_set_signature.clone())), Err(Error::InvalidMessage));
 	}
 
 	#[test]
@@ -635,8 +637,9 @@ mod tests {
 		let master_node_id = old_nodes_set.iter().cloned().nth(0).unwrap();
 		let nodes_to_remove: BTreeSet<_> = vec![math::generate_random_point().unwrap()].into_iter().collect();
 		let ml = MessageLoop::new(t, master_node_id.clone(), old_nodes_set, nodes_to_remove.clone());
-		assert_eq!(ml.nodes[&master_node_id].session.initialize(nodes_to_remove.clone(), Some(ml.old_set_signature.clone()), Some(ml.new_set_signature.clone())),
-			Err(Error::InvalidNodesConfiguration));
+		assert_eq!(ml.nodes[&master_node_id].session.initialize(Some(nodes_to_remove.clone()),
+			Some(ml.old_set_signature.clone()),
+			Some(ml.new_set_signature.clone())), Err(Error::InvalidNodesConfiguration));
 	}
 
 	#[test]
@@ -646,8 +649,9 @@ mod tests {
 		let master_node_id = old_nodes_set.iter().cloned().nth(0).unwrap();
 		let nodes_to_remove: BTreeSet<_> = old_nodes_set.iter().cloned().take(2).collect();
 		let ml = MessageLoop::new(t, master_node_id.clone(), old_nodes_set, nodes_to_remove.clone());
-		assert_eq!(ml.nodes[&master_node_id].session.initialize(nodes_to_remove.clone(), Some(ml.old_set_signature.clone()), Some(ml.new_set_signature.clone())),
-			Err(Error::InvalidNodesConfiguration));
+		assert_eq!(ml.nodes[&master_node_id].session.initialize(Some(nodes_to_remove.clone()),
+			Some(ml.old_set_signature.clone()),
+			Some(ml.new_set_signature.clone())), Err(Error::InvalidNodesConfiguration));
 	}
 
 	#[test]
@@ -662,7 +666,9 @@ mod tests {
 			let mut ml = MessageLoop::new(t, master_node_id.clone(), old_nodes_set, nodes_to_remove.clone());
 
 			// initialize session on master node && run to completion
-			ml.nodes[&master_node_id].session.initialize(nodes_to_remove.clone(), Some(ml.old_set_signature.clone()), Some(ml.new_set_signature.clone())).unwrap();
+			ml.nodes[&master_node_id].session.initialize(Some(nodes_to_remove.clone()),
+				Some(ml.old_set_signature.clone()),
+				Some(ml.new_set_signature.clone())).unwrap();
 			ml.run();
 
 			// check that session has completed on all nodes
@@ -688,7 +694,9 @@ mod tests {
 			let mut ml = MessageLoop::new(t, master_node_id.clone(), old_nodes_set, nodes_to_remove.clone());
 
 			// initialize session on master node && run to completion
-			ml.nodes[&master_node_id].session.initialize(nodes_to_remove.clone(), Some(ml.old_set_signature.clone()), Some(ml.new_set_signature.clone())).unwrap();
+			ml.nodes[&master_node_id].session.initialize(Some(nodes_to_remove.clone()),
+				Some(ml.old_set_signature.clone()),
+				Some(ml.new_set_signature.clone())).unwrap();
 			ml.run();
 
 			// check that session has completed on all nodes

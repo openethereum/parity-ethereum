@@ -237,7 +237,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 	}
 
 	/// Initialize share add session on master node.
-	pub fn initialize(&self, new_nodes_set: BTreeSet<NodeId>, old_set_signature: Option<Signature>, new_set_signature: Option<Signature>) -> Result<(), Error> {
+	pub fn initialize(&self, new_nodes_set: Option<BTreeSet<NodeId>>, old_set_signature: Option<Signature>, new_set_signature: Option<Signature>) -> Result<(), Error> {
 		debug_assert_eq!(self.core.meta.self_node_id, self.core.meta.master_node_id);
 
 		let mut data = self.data.lock();
@@ -250,6 +250,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		// if consensus is not yet established => start consensus session
 		let is_consensus_pre_established = data.nodes.is_some();
 		if !is_consensus_pre_established {
+			let new_nodes_set = new_nodes_set.ok_or(Error::InvalidMessage)?;
 			let key_share = self.core.key_share.as_ref().ok_or(Error::KeyStorage("key share is not found on master node".into()))?;
 			let old_nodes_set: BTreeSet<_> = key_share.id_numbers.keys().cloned().collect();
 			let new_nodes_map = new_nodes_set.iter()
@@ -976,7 +977,7 @@ pub mod tests {
 		let mut new_nodes_set: BTreeSet<_> = old_nodes_set.clone().into_iter().chain(generate_nodes_ids(1)).collect();
 		new_nodes_set.remove(&node_to_remove_id);
 		let ml = MessageLoop::new(1, master_node_id.clone(), old_nodes_set, new_nodes_set.clone());
-		assert_eq!(ml.nodes[&master_node_id].session.initialize(new_nodes_set,
+		assert_eq!(ml.nodes[&master_node_id].session.initialize(Some(new_nodes_set),
 			Some(ml.old_set_signature.clone()),
 			Some(ml.new_set_signature.clone())
 		).unwrap_err(), Error::InvalidNodesConfiguration);
@@ -988,7 +989,7 @@ pub mod tests {
 		let master_node_id = old_nodes_set.iter().cloned().nth(0).unwrap();
 		let new_nodes_set = old_nodes_set.clone();
 		let ml = MessageLoop::new(1, master_node_id.clone(), old_nodes_set, new_nodes_set.clone());
-		assert_eq!(ml.nodes[&master_node_id].session.initialize(new_nodes_set,
+		assert_eq!(ml.nodes[&master_node_id].session.initialize(Some(new_nodes_set),
 			Some(ml.old_set_signature.clone()),
 			Some(ml.new_set_signature.clone())
 		).unwrap_err(), Error::InvalidNodesConfiguration);
@@ -1001,7 +1002,7 @@ pub mod tests {
 		let master_node_id = nodes_to_add_set.iter().cloned().nth(0).unwrap();
 		let new_nodes_set: BTreeSet<_> = old_nodes_set.clone().into_iter().chain(nodes_to_add_set.into_iter()).collect();
 		let ml = MessageLoop::new(1, master_node_id.clone(), old_nodes_set, new_nodes_set.clone());
-		assert_eq!(ml.nodes[&master_node_id].session.initialize(new_nodes_set,
+		assert_eq!(ml.nodes[&master_node_id].session.initialize(Some(new_nodes_set),
 			Some(ml.old_set_signature.clone()),
 			Some(ml.new_set_signature.clone())
 		).unwrap_err(), Error::KeyStorage("key share is not found on master node".into()));
@@ -1013,11 +1014,11 @@ pub mod tests {
 		let master_node_id = old_nodes_set.iter().cloned().nth(0).unwrap();
 		let new_nodes_set: BTreeSet<_> = old_nodes_set.clone().into_iter().chain(generate_nodes_ids(1)).collect();
 		let ml = MessageLoop::new(1, master_node_id.clone(), old_nodes_set, new_nodes_set.clone());
-		assert_eq!(ml.nodes[&master_node_id].session.initialize(new_nodes_set.clone(),
+		assert_eq!(ml.nodes[&master_node_id].session.initialize(Some(new_nodes_set.clone()),
 			Some(ml.old_set_signature.clone()),
 			Some(ml.new_set_signature.clone())
 		), Ok(()));
-		assert_eq!(ml.nodes[&master_node_id].session.initialize(new_nodes_set,
+		assert_eq!(ml.nodes[&master_node_id].session.initialize(Some(new_nodes_set),
 			Some(ml.old_set_signature.clone()),
 			Some(ml.new_set_signature.clone())
 		), Err(Error::InvalidStateForRequest));
@@ -1029,7 +1030,7 @@ pub mod tests {
 		let master_node_id = old_nodes_set.iter().cloned().nth(0).unwrap();
 		let new_nodes_set: BTreeSet<_> = old_nodes_set.clone().into_iter().chain(generate_nodes_ids(1)).collect();
 		let ml = MessageLoop::new(1, master_node_id.clone(), old_nodes_set, new_nodes_set.clone());
-		assert_eq!(ml.nodes[&master_node_id].session.initialize(new_nodes_set.clone(), None, None), Err(Error::InvalidMessage));
+		assert_eq!(ml.nodes[&master_node_id].session.initialize(None, None, None), Err(Error::InvalidMessage));
 	}
 
 	#[test]
@@ -1043,7 +1044,9 @@ pub mod tests {
 			let mut ml = MessageLoop::new(1, master_node_id.clone(), old_nodes_set, new_nodes_set.clone());
 
 			// initialize session on master node && run to completion
-			ml.nodes[&master_node_id].session.initialize(new_nodes_set, Some(ml.old_set_signature.clone()), Some(ml.new_set_signature.clone())).unwrap();
+			ml.nodes[&master_node_id].session.initialize(Some(new_nodes_set),
+				Some(ml.old_set_signature.clone()),
+				Some(ml.new_set_signature.clone())).unwrap();
 			ml.run();
 
 			// check that session has completed on all nodes

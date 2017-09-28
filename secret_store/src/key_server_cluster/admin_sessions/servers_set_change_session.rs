@@ -1,6 +1,5 @@
 // TODO: active_sessions -> key_session, session_id -> key_id, ...
 // TODO: when servers set change session is active, pause updating servers set from contract
-// TODO: do not need SessionError messages in nested sessions + do not need nonces + sub sessions
 // TODO: even if node was lost, it is still required for share removal, ...
 // TODO: before setting pre-established consensus - check that old nodes are in general old set && new nodes are in general new set
 // TODO: in long session some nodes (that are not participating in share change sessions) can stop session as stalled

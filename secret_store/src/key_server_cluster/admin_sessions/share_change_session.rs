@@ -109,6 +109,12 @@ pub struct ShareChangeTransport {
 impl ShareChangeSession {
 	/// Create new share change session.
 	pub fn new(params: ShareChangeSessionParams) -> Result<Self, Error> {
+		// we can't create sessions right now, because key share is read when session is created, but it can change in previous session
+		let nodes_to_add = if !params.plan.nodes_to_add.is_empty() { Some(params.plan.nodes_to_add) } else { None };
+		let nodes_to_remove = if !params.plan.nodes_to_remove.is_empty() { Some(params.plan.nodes_to_remove) } else { None };
+		let nodes_to_move = if !params.plan.nodes_to_move.is_empty() { Some(params.plan.nodes_to_move) } else { None };
+		debug_assert!(nodes_to_add.is_some() || nodes_to_move.is_some() || nodes_to_remove.is_some());
+
 		Ok(ShareChangeSession {
 			session_id: params.session_id,
 			nonce: params.nonce,
@@ -116,13 +122,13 @@ impl ShareChangeSession {
 			cluster: params.cluster,
 			key_storage: params.key_storage,
 			old_nodes_set: params.old_nodes_set,
-			nodes_to_add: if !params.plan.nodes_to_add.is_empty() { Some(params.plan.nodes_to_add) } else { None },
-			nodes_to_remove: if !params.plan.nodes_to_remove.is_empty() { Some(params.plan.nodes_to_remove) } else { None },
-			nodes_to_move: if !params.plan.nodes_to_move.is_empty() { Some(params.plan.nodes_to_move) } else { None },
+			nodes_to_add: nodes_to_add,
+			nodes_to_remove: nodes_to_remove,
+			nodes_to_move: nodes_to_move,
 			share_add_session: None,
 			share_move_session: None,
 			share_remove_session: None,
-			is_finished: false, // TODO: debug_assert that it is actually false
+			is_finished: false,
 		})
 	}
 
@@ -249,7 +255,7 @@ impl ShareChangeSession {
 		Ok(())
 	}
 
-	/// Proceed to the next state (on master node).
+	/// Proceed to the next state.
 	fn proceed_to_next_state(&mut self) -> Result<(), Error> {
 		if self.meta.self_node_id != self.meta.master_node_id {
 			if self.nodes_to_add.is_none() && self.nodes_to_move.is_none() && self.nodes_to_remove.is_none() {
@@ -258,25 +264,25 @@ impl ShareChangeSession {
 			return Ok(());
 		}
 
-		if let Some(nodes_to_add) = self.nodes_to_add.clone() { // TODO: clone
-			if !nodes_to_add.is_empty() {
-				self.create_share_add_session()?;
-				return self.share_add_session.as_ref().expect("TODO").initialize(nodes_to_add.keys().cloned().collect(), None, None);
-			}
+		if self.nodes_to_add.is_some() {
+			self.create_share_add_session()?;
+			return self.share_add_session.as_ref()
+				.expect("either create_share_add_session fails, or session is created; qed")
+				.initialize(None, None, None);
 		}
 
-		if let Some(nodes_to_move) = self.nodes_to_move.clone() {
-			if !nodes_to_move.is_empty() {
-				self.create_share_move_session()?;
-				return self.share_move_session.as_ref().expect("TODO").initialize(nodes_to_move, None, None);
-			}
+		if self.nodes_to_move.is_some() {
+			self.create_share_move_session()?;
+			return self.share_move_session.as_ref()
+				.expect("either create_share_move_session fails, or session is created; qed")
+				.initialize(None, None, None);
 		}
 
-		if let Some(nodes_to_remove) = self.nodes_to_remove.clone() {
-			if !nodes_to_remove.is_empty() {
-				self.create_share_remove_session()?;
-				return self.share_remove_session.as_ref().expect("TODO").initialize(nodes_to_remove, None, None);
-			}
+		if self.nodes_to_remove.is_some() {
+			self.create_share_remove_session()?;
+			return self.share_remove_session.as_ref()
+				.expect("either create_share_remove_session fails, or session is created; qed")
+				.initialize(None, None, None);
 		}
 
 		self.is_finished = true;
@@ -346,6 +352,7 @@ impl ShareRemoveSessionTransport for ShareChangeTransport {
 	}
 }
 
+/// Prepare share change plan for moving from old `session_nodes` to `new_nodes_set`.
 pub fn prepare_share_change_session_plan(session_nodes: &BTreeSet<NodeId>, new_nodes_set: &BTreeSet<NodeId>) -> Result<ShareChangeSessionPlan, Error> {
 	let mut nodes_to_add: BTreeSet<_> = new_nodes_set.difference(&session_nodes).cloned().collect();
 	let mut nodes_to_move = BTreeMap::new();

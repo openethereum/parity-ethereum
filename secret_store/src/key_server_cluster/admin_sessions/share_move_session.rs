@@ -166,7 +166,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 	}
 
 	/// Initialize share add session on master node.
-	pub fn initialize(&self, shares_to_move: BTreeMap<NodeId, NodeId>, old_set_signature: Option<Signature>, new_set_signature: Option<Signature>) -> Result<(), Error> {
+	pub fn initialize(&self, shares_to_move: Option<BTreeMap<NodeId, NodeId>>, old_set_signature: Option<Signature>, new_set_signature: Option<Signature>) -> Result<(), Error> {
 		debug_assert_eq!(self.core.meta.self_node_id, self.core.meta.master_node_id);
 
 		let mut data = self.data.lock();
@@ -179,6 +179,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		// if consensus is not yet established => start consensus session
 		let is_consensus_pre_established = data.shares_to_move.is_some();
 		if !is_consensus_pre_established {
+			let shares_to_move = shares_to_move.ok_or(Error::InvalidMessage)?;
 			let key_share = self.core.key_share.as_ref().ok_or(Error::KeyStorage("key share is not found on master node".into()))?;
 			check_shares_to_move(&self.core.meta.self_node_id, &shares_to_move, Some(&key_share.id_numbers))?;
 
@@ -765,7 +766,9 @@ mod tests {
 			let mut ml = MessageLoop::new(1, master_node_id.clone(), old_nodes_set, shares_to_move.clone());
 
 			// initialize session on master node && run to completion
-			ml.nodes[&master_node_id].session.initialize(shares_to_move.clone(), Some(ml.old_set_signature.clone()), Some(ml.new_set_signature.clone())).unwrap();
+			ml.nodes[&master_node_id].session.initialize(Some(shares_to_move.clone()),
+				Some(ml.old_set_signature.clone()),
+				Some(ml.new_set_signature.clone())).unwrap();
 			ml.run();
 
 			// check that session has completed on all nodes
