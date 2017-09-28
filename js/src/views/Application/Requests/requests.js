@@ -57,6 +57,11 @@ class Requests extends Component {
 
   renderRequest (request, extras = {}) {
     const { show, transaction } = request;
+
+    if (!transaction) {
+      return null;
+    }
+
     const state = this.getTransactionState(request);
     const displayedTransaction = { ...transaction };
 
@@ -156,9 +161,9 @@ class Requests extends Component {
       return (
         <FormattedMessage
           id='requests.status.transactionMined'
-          defaultMessage='Transaction mined at block #{blockNumber} ({blockHeight} blocks ago)'
+          defaultMessage='Transaction mined at block #{blockNumber} ({blockHeight} confirmations)'
           values={ {
-            blockHeight: +request.blockHeight,
+            blockHeight: (+request.blockHeight || 0).toString(),
             blockNumber: +transactionReceipt.blockNumber
           } }
         />

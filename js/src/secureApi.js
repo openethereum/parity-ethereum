@@ -82,7 +82,7 @@ export default class SecureApi extends Api {
 
     return {
       host,
-      port: parseInt(port, 10)
+      port: port ? parseInt(port, 10) : null
     };
   }
 
@@ -93,7 +93,9 @@ export default class SecureApi extends Api {
   get dappsUrl () {
     const { port } = this._dappsAddress;
 
-    return `${this.protocol()}//${this.hostname}:${port}`;
+    return port
+      ? `${this.protocol()}//${this.hostname}:${port}`
+      : `${this.protocol()}//${this.hostname}`;
   }
 
   get hostname () {

@@ -22,6 +22,7 @@ use std::hash::Hash;
 use bigint::hash::{H256, H520};
 use parking_lot:: RwLock;
 use util::*;
+use bytes::Bytes;
 use rlp::{Encodable, RlpStream};
 
 pub trait Message: Clone + PartialEq + Eq + Hash + Encodable + Debug {

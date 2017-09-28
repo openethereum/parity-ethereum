@@ -41,7 +41,7 @@ use std::sync::Arc;
 // helper for encoding a single request into a packet.
 // panics on bad backreference.
 fn encode_single(request: Request) -> NetworkRequests {
-	let mut builder = RequestBuilder::default();
+	let mut builder = Builder::default();
 	builder.push(request).unwrap();
 	builder.build()
 }
@@ -156,6 +156,12 @@ impl Provider for TestProvider {
 
 	fn transaction_proof(&self, _req: request::CompleteExecutionRequest) -> Option<request::ExecutionResponse> {
 		None
+	}
+
+	fn epoch_signal(&self, _req: request::CompleteSignalRequest) -> Option<request::SignalResponse> {
+		Some(request::SignalResponse {
+			signal: vec![1, 2, 3, 4],
+		})
 	}
 
 	fn ready_transactions(&self) -> Vec<PendingTransaction> {
@@ -338,7 +344,7 @@ fn get_block_bodies() {
 		proto.handle_packet(&Expect::Nothing, &1, packet::STATUS, &my_status);
 	}
 
-	let mut builder = RequestBuilder::default();
+	let mut builder = Builder::default();
 	let mut bodies = Vec::new();
 
 	for i in 0..10 {
@@ -394,7 +400,7 @@ fn get_block_receipts() {
 		.take(10)
 		.collect();
 
-	let mut builder = RequestBuilder::default();
+	let mut builder = Builder::default();
 	let mut receipts = Vec::new();
 	for hash in block_hashes.iter().cloned() {
 		builder.push(Request::Receipts(IncompleteReceiptsRequest { hash: hash.into() })).unwrap();
@@ -442,7 +448,7 @@ fn get_state_proofs() {
 	let key1: H256 = U256::from(11223344).into();
 	let key2: H256 = U256::from(99988887).into();
 
-	let mut builder = RequestBuilder::default();
+	let mut builder = Builder::default();
 	builder.push(Request::Account(IncompleteAccountRequest {
 		block_hash: H256::default().into(),
 		address_hash: key1.into(),
@@ -516,6 +522,50 @@ fn get_contract_code() {
 		let mut response_stream = RlpStream::new_list(3);
 
 		response_stream.append(&req_id).append(&new_creds).append_list(&response);
+		response_stream.out()
+	};
+
+	let expected = Expect::Respond(packet::RESPONSE, response);
+	proto.handle_packet(&expected, &1, packet::REQUEST, &request_body);
+}
+
+#[test]
+fn epoch_signal() {
+	let capabilities = capabilities();
+
+	let (provider, proto) = setup(capabilities.clone());
+	let flow_params = proto.flow_params.read().clone();
+
+	let cur_status = status(provider.client.chain_info());
+
+	{
+		let packet_body = write_handshake(&cur_status, &capabilities, &proto);
+		proto.on_connect(&1, &Expect::Send(1, packet::STATUS, packet_body.clone()));
+		proto.handle_packet(&Expect::Nothing, &1, packet::STATUS, &packet_body);
+	}
+
+	let req_id = 112;
+	let request = Request::Signal(request::IncompleteSignalRequest {
+		block_hash: H256([1; 32]).into(),
+	});
+
+	let requests = encode_single(request.clone());
+	let request_body = make_packet(req_id, &requests);
+
+	let response = {
+		let response = vec![Response::Signal(SignalResponse {
+			signal: vec![1, 2, 3, 4],
+		})];
+
+		let limit = *flow_params.limit();
+		let cost = flow_params.compute_cost_multi(requests.requests());
+
+		println!("limit = {}, cost = {}", limit, cost);
+		let new_creds = limit - cost;
+
+		let mut response_stream = RlpStream::new_list(3);
+		response_stream.append(&req_id).append(&new_creds).append_list(&response);
+
 		response_stream.out()
 	};
 

@@ -20,11 +20,12 @@ export default class PubsubBase {
     this._transport = transport;
   }
 
-  addListener (module, eventName, callback, eventParams) {
-    return eventParams
-     ? this._transport.subscribe(module, callback, eventName, eventParams)
-     : this._transport.subscribe(module, callback, eventName, []);
-    // this._transport.subscribe(module, callback, eventName);  After Patch from tomac is merged to master! =>  eth_subscribe does not support empty array as params
+  addListener (module, eventName, callback, eventParams = []) {
+    if (eventName) {
+      return this._transport.subscribe(module, callback, eventParams ? [eventName, eventParams] : [eventName]);
+    }
+
+    return this._transport.subscribe(module, callback, eventParams);
   }
 
   removeListener (subscriptionIds) {

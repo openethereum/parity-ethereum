@@ -20,7 +20,8 @@ use std::collections::{BTreeMap, HashMap};
 use std::collections::hash_map::Entry;
 use bigint::prelude::U256;
 use bigint::hash::H256;
-use util::{Address, Bytes};
+use util::Address;
+use bytes::Bytes;
 use parking_lot::{RwLock, Mutex};
 use ethcore::error::Error;
 use ethcore::client::MiningBlockChainClient;
@@ -260,7 +261,7 @@ impl MinerService for TestMinerService {
 				contract_address: None,
 				logs: r.logs.clone(),
 				log_bloom: r.log_bloom,
-				state_root: r.state_root,
+				outcome: r.outcome.clone(),
 			}
 		)
 	}

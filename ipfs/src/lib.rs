@@ -23,6 +23,7 @@ extern crate rlp;
 extern crate ethcore;
 extern crate ethcore_util as util;
 extern crate ethcore_bigint as bigint;
+extern crate ethcore_bytes as bytes;
 extern crate jsonrpc_http_server as http;
 
 pub mod error;

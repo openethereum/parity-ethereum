@@ -23,6 +23,13 @@ export default class Personal {
 
     this._lastDefaultAccount = '0x0';
     this._pollTimerId = null;
+
+    // Try to restart subscription if transport is closed
+    this._api.transport.on('close', () => {
+      if (this.isStarted) {
+        this.start();
+      }
+    });
   }
 
   get isStarted () {
@@ -32,12 +39,34 @@ export default class Personal {
   start () {
     this._started = true;
 
+    let defaultAccount = null;
+
+    if (this._api.isPubSub) {
+      defaultAccount = this._api.pubsub
+        .subscribeAndGetResult(
+          callback => this._api.pubsub.parity.defaultAccount(callback),
+          (defaultAccount) => {
+            this.updateDefaultAccount(defaultAccount);
+            return defaultAccount;
+          }
+        );
+    } else {
+      defaultAccount = this._defaultAccount();
+    }
+
     return Promise.all([
-      this._defaultAccount(),
+      defaultAccount,
       this._listAccounts(),
       this._accountsInfo(),
       this._loggingSubscribe()
     ]);
+  }
+
+  updateDefaultAccount (defaultAccount) {
+    if (this._lastDefaultAccount !== defaultAccount) {
+      this._lastDefaultAccount = defaultAccount;
+      this._updateSubscriptions('parity_defaultAccount', null, defaultAccount);
+    }
   }
 
   // FIXME: Because of the different API instances, the "wait for valid changes" approach
@@ -45,7 +74,7 @@ export default class Personal {
   // same way we do in ../eth (ala eth_blockNumber) and update. This should be moved
   // to pub-sub as it becomes available
   _defaultAccount = (timerDisabled = false) => {
-    const nextTimeout = (timeout = 1000) => {
+    const nextTimeout = (timeout = 3000) => {
       if (!timerDisabled) {
         this._pollTimerId = setTimeout(() => {
           this._defaultAccount();
@@ -61,11 +90,7 @@ export default class Personal {
     return this._api.parity
       .defaultAccount()
       .then((defaultAccount) => {
-        if (this._lastDefaultAccount !== defaultAccount) {
-          this._lastDefaultAccount = defaultAccount;
-          this._updateSubscriptions('parity_defaultAccount', null, defaultAccount);
-        }
-
+        this.updateDefaultAccount(defaultAccount);
         nextTimeout();
       })
       .catch(() => nextTimeout());

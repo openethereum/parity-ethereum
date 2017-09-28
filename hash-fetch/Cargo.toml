@@ -18,6 +18,7 @@ parking_lot = "0.4"
 fetch = { path = "../util/fetch" }
 ethcore-util = { path = "../util" }
 ethcore-bigint = { path = "../util/bigint" }
+ethcore-bytes = { path = "../util/bytes" }
 parity-reactor = { path = "../util/reactor" }
 native-contracts = { path = "../ethcore/native_contracts" }
 hash = { path = "../util/hash" }

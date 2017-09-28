@@ -57,6 +57,7 @@ class ExecuteContract extends Component {
   };
 
   static propTypes = {
+    availability: PropTypes.string.isRequired,
     accounts: PropTypes.object,
     contract: PropTypes.object.isRequired,
     fromAddress: PropTypes.string,
@@ -198,7 +199,7 @@ class ExecuteContract extends Component {
   }
 
   renderStep () {
-    const { accounts, contract, fromAddress, onFromAddressChange } = this.props;
+    const { availability, accounts, contract, fromAddress, onFromAddressChange } = this.props;
     const { step } = this.state;
 
     if (step === STEP_DETAILS) {
@@ -218,7 +219,10 @@ class ExecuteContract extends Component {
     }
 
     return (
-      <AdvancedStep gasStore={ this.gasStore } />
+      <AdvancedStep
+        availability={ availability }
+        gasStore={ this.gasStore }
+      />
     );
   }
 
@@ -337,9 +341,10 @@ class ExecuteContract extends Component {
 }
 
 function mapStateToProps (state) {
-  const { gasLimit } = state.nodeStatus;
+  const { gasLimit, nodeKind = {} } = state.nodeStatus;
+  const { availability = 'unknown' } = nodeKind;
 
-  return { gasLimit };
+  return { availability, gasLimit };
 }
 
 export default connect(

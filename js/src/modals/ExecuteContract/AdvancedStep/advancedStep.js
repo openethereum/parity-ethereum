@@ -22,15 +22,19 @@ import styles from '../executeContract.css';
 
 export default class AdvancedStep extends Component {
   static propTypes = {
+    availability: PropTypes.string.isRequired,
     gasStore: PropTypes.object.isRequired
   };
 
   render () {
-    const { gasStore } = this.props;
+    const { availability, gasStore } = this.props;
 
     return (
       <div className={ styles.gaseditor }>
-        <GasPriceEditor store={ gasStore } />
+        <GasPriceEditor
+          availability={ availability }
+          store={ gasStore }
+        />
       </div>
     );
   }

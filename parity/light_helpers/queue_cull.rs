@@ -23,7 +23,7 @@ use ethcore::service::ClientIoMessage;
 use ethsync::LightSync;
 use io::{IoContext, IoHandler, TimerToken};
 
-use light::client::Client;
+use light::client::LightChainClient;
 use light::on_demand::{request, OnDemand};
 use light::TransactionQueue;
 
@@ -41,9 +41,9 @@ const TIMEOUT_MS: u64 = 1000 * 60 * 10;
 const PURGE_TIMEOUT_MS: u64 = 1000 * 60 * 9;
 
 /// Periodically culls the transaction queue of mined transactions.
-pub struct QueueCull {
+pub struct QueueCull<T> {
 	/// A handle to the client, for getting the latest block header.
-	pub client: Arc<Client>,
+	pub client: Arc<T>,
 	/// A handle to the sync service.
 	pub sync: Arc<LightSync>,
 	/// The on-demand request service.
@@ -54,7 +54,7 @@ pub struct QueueCull {
 	pub remote: Remote,
 }
 
-impl IoHandler<ClientIoMessage> for QueueCull {
+impl<T: LightChainClient + 'static> IoHandler<ClientIoMessage> for QueueCull<T> {
 	fn initialize(&self, io: &IoContext<ClientIoMessage>) {
 		io.register_timer(TOKEN, TIMEOUT_MS).expect("Error registering timer");
 	}

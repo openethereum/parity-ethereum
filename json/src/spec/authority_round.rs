@@ -40,6 +40,9 @@ pub struct AuthorityRoundParams {
 	/// Whether transitions should be immediate.
 	#[serde(rename="immediateTransitions")]
 	pub immediate_transitions: Option<bool>,
+	/// Reward per block in wei.
+	#[serde(rename="blockReward")]
+	pub block_reward: Option<Uint>,
 }
 
 /// Authority engine deserialization.
@@ -67,7 +70,8 @@ mod tests {
 					"list" : ["0xc6d9d2cd449a754c494264e1809c50e34d64562b"]
 				},
 				"startStep" : 24,
-				"validateStepTransition": 150
+				"validateStepTransition": 150,
+				"blockReward": 5000000
 			}
 		}"#;
 
@@ -76,5 +80,6 @@ mod tests {
 		assert_eq!(deserialized.params.validators, ValidatorSet::List(vec![Address(H160::from("0xc6d9d2cd449a754c494264e1809c50e34d64562b"))]));
 		assert_eq!(deserialized.params.start_step, Some(Uint(U256::from(24))));
 		assert_eq!(deserialized.params.immediate_transitions, None);
+
 	}
 }

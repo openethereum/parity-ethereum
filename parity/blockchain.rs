@@ -24,7 +24,8 @@ use rustc_hex::FromHex;
 use hash::{keccak, KECCAK_NULL_RLP};
 use bigint::prelude::U256;
 use bigint::hash::H256;
-use util::{ToPretty, Address};
+use util::Address;
+use bytes::ToPretty;
 use rlp::PayloadInfo;
 use ethcore::service::ClientService;
 use ethcore::client::{Mode, DatabaseCompactionProfile, VMType, BlockImportError, BlockChainClient, BlockId};
@@ -208,7 +209,9 @@ fn execute_import_light(cmd: ImportBlockchain) -> Result<(), String> {
 	config.queue.max_mem_use = cmd.cache_config.queue() as usize * 1024 * 1024;
 	config.queue.verifier_settings = cmd.verifier_settings;
 
-	let service = LightClientService::start(config, &spec, &client_path, cache)
+	// TODO: could epoch signals be avilable at the end of the file?
+	let fetch = ::light::client::fetch::unavailable();
+	let service = LightClientService::start(config, &spec, fetch, &client_path, cache)
 		.map_err(|e| format!("Failed to start client: {}", e))?;
 
 	// free up the spec in memory.

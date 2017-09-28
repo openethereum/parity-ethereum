@@ -15,6 +15,11 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Reference-counted memory-based `HashDB` implementation.
+extern crate heapsize;
+extern crate ethcore_bigint as bigint;
+extern crate rlp;
+extern crate hash as keccak;
+extern crate hashdb;
 
 use std::mem;
 use std::collections::HashMap;
@@ -34,9 +39,10 @@ use hashdb::*;
 ///
 /// # Example
 /// ```rust
-/// extern crate ethcore_util;
-/// use ethcore_util::hashdb::*;
-/// use ethcore_util::memorydb::*;
+/// extern crate hashdb;
+/// extern crate memorydb;
+/// use hashdb::*;
+/// use memorydb::*;
 /// fn main() {
 ///   let mut m = MemoryDB::new();
 ///   let d = "Hello world!".as_bytes();
@@ -85,9 +91,10 @@ impl MemoryDB {
 	///
 	/// # Examples
 	/// ```rust
-	/// extern crate ethcore_util;
-	/// use ethcore_util::hashdb::*;
-	/// use ethcore_util::memorydb::*;
+	/// extern crate hashdb;
+	/// extern crate memorydb;
+	/// use hashdb::*;
+	/// use memorydb::*;
 	/// fn main() {
 	///   let mut m = MemoryDB::new();
 	///   let hello_bytes = "Hello world!".as_bytes();

@@ -44,6 +44,20 @@ export default class Parity {
       .execute('parity_addReservedPeer', enode);
   }
 
+  call (requests, blockNumber = 'latest') {
+    return this._transport
+      .execute(
+        'parity_call',
+        requests.map((options) => inOptions(options)),
+        inBlockNumber(blockNumber)
+      );
+  }
+
+  chainId () {
+    return this._transport
+      .execute('parity_chainId');
+  }
+
   chainStatus () {
     return this._transport
       .execute('parity_chainStatus')
@@ -241,6 +255,16 @@ export default class Parity {
     return this._transport
       .execute('parity_hardwareAccountsInfo')
       .then(outHwAccountInfo);
+  }
+
+  lockedHardwareAccountsInfo () {
+    return this._transport
+      .execute('parity_lockedHardwareAccountsInfo');
+  }
+
+  hardwarePinMatrixAck (path, pin) {
+    return this._transport
+      .execute('parity_hardwarePinMatrixAck', path, pin);
   }
 
   hashContent (url) {

@@ -25,7 +25,8 @@ use cli::{Args, ArgsError};
 use hash::keccak;
 use bigint::prelude::U256;
 use bigint::hash::H256;
-use util::{Bytes, version_data, Address};
+use util::{version_data, Address};
+use bytes::Bytes;
 use util::journaldb::Algorithm;
 use ansi_term::Colour;
 use ethsync::{NetworkConfiguration, is_valid_node_url};
@@ -1329,7 +1330,7 @@ mod tests {
 			origins: Some(vec!["chrome-extension://*".into(), "moz-extension://*".into()]),
 			hosts: Some(vec![]),
 			signer_path: expected.into(),
-			ui_address: Some(("127.0.0.1".to_owned(), 8180)),
+			ui_address: Some("127.0.0.1:8180".into()),
 			support_token_api: true
 		}, UiConfiguration {
 			enabled: true,

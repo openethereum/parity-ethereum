@@ -20,7 +20,8 @@ use std::sync::Arc;
 
 use ethcore::basic_account::BasicAccount;
 use ethcore::encoded;
-use ethcore::engines::Engine;
+use ethcore::engines::{EthEngine, StateDependentProof};
+use ethcore::machine::EthereumMachine;
 use ethcore::receipt::Receipt;
 use ethcore::state::{self, ProvedExecution};
 use ethcore::transaction::SignedTransaction;
@@ -33,9 +34,10 @@ use rlp::{RlpStream, UntrustedRlp};
 use bigint::prelude::U256;
 use bigint::hash::H256;
 use parking_lot::Mutex;
-use util::{Address, Bytes, DBValue, HashDB};
-use util::memorydb::MemoryDB;
-use util::trie::{Trie, TrieDB, TrieError};
+use util::{Address, DBValue, HashDB};
+use bytes::Bytes;
+use memorydb::MemoryDB;
+use trie::{Trie, TrieDB, TrieError};
 
 const SUPPLIED_MATCHES: &'static str = "supplied responses always match produced requests; enforced by `check_response`; qed";
 
@@ -56,6 +58,8 @@ pub enum Request {
 	Code(Code),
 	/// A request for proof of execution.
 	Execution(TransactionProof),
+	/// A request for epoch change signal.
+	Signal(Signal),
 }
 
 /// A request argument.
@@ -136,6 +140,7 @@ impl_single!(Body, Body, encoded::Block);
 impl_single!(Account, Account, Option<BasicAccount>);
 impl_single!(Code, Code, Bytes);
 impl_single!(Execution, TransactionProof, super::ExecutionResult);
+impl_single!(Signal, Signal, Vec<u8>);
 
 macro_rules! impl_args {
 	() => {
@@ -244,6 +249,7 @@ pub enum CheckedRequest {
 	Account(Account, net_request::IncompleteAccountRequest),
 	Code(Code, net_request::IncompleteCodeRequest),
 	Execution(TransactionProof, net_request::IncompleteExecutionRequest),
+	Signal(Signal, net_request::IncompleteSignalRequest)
 }
 
 impl From<Request> for CheckedRequest {
@@ -302,6 +308,12 @@ impl From<Request> for CheckedRequest {
 				};
 				CheckedRequest::Execution(req, net_req)
 			}
+			Request::Signal(req) => {
+				let net_req = net_request::IncompleteSignalRequest {
+					block_hash: req.hash.into(),
+				};
+				CheckedRequest::Signal(req, net_req)
+			}
 		}
 	}
 }
@@ -319,6 +331,7 @@ impl CheckedRequest {
 			CheckedRequest::Account(_, req) => NetRequest::Account(req),
 			CheckedRequest::Code(_, req) => NetRequest::Code(req),
 			CheckedRequest::Execution(_, req) => NetRequest::Execution(req),
+			CheckedRequest::Signal(_, req) => NetRequest::Signal(req),
 		}
 	}
 
@@ -446,6 +459,7 @@ macro_rules! match_me {
 			CheckedRequest::Account($check, $req) => $e,
 			CheckedRequest::Code($check, $req) => $e,
 			CheckedRequest::Execution($check, $req) => $e,
+			CheckedRequest::Signal($check, $req) => $e,
 		}
 	}
 }
@@ -473,6 +487,7 @@ impl IncompleteRequest for CheckedRequest {
 			CheckedRequest::Account(_, ref req) => req.check_outputs(f),
 			CheckedRequest::Code(_, ref req) => req.check_outputs(f),
 			CheckedRequest::Execution(_, ref req) => req.check_outputs(f),
+			CheckedRequest::Signal(_, ref req) => req.check_outputs(f),
 		}
 	}
 
@@ -493,6 +508,7 @@ impl IncompleteRequest for CheckedRequest {
 			CheckedRequest::Account(_, req) => req.complete().map(CompleteRequest::Account),
 			CheckedRequest::Code(_, req) => req.complete().map(CompleteRequest::Code),
 			CheckedRequest::Execution(_, req) => req.complete().map(CompleteRequest::Execution),
+			CheckedRequest::Signal(_, req) => req.complete().map(CompleteRequest::Signal),
 		}
 	}
 
@@ -544,6 +560,9 @@ impl net_request::CheckedRequest for CheckedRequest {
 			CheckedRequest::Execution(ref prover, _) =>
 				expect!((&NetResponse::Execution(ref res), _) =>
 					prover.check_response(cache, &res.items).map(Response::Execution)),
+			CheckedRequest::Signal(ref prover, _) =>
+				expect!((&NetResponse::Signal(ref res), _) =>
+					prover.check_response(cache, &res.signal).map(Response::Signal)),
 		}
 	 }
 }
@@ -567,6 +586,8 @@ pub enum Response {
 	Code(Vec<u8>),
 	/// Response to a request for proved execution.
 	Execution(super::ExecutionResult),
+	/// Response to a request for epoch change signal.
+	Signal(Vec<u8>),
 }
 
 impl net_request::ResponseLike for Response {
@@ -823,7 +844,7 @@ pub struct TransactionProof {
 	// TODO: it's not really possible to provide this if the header is unknown.
 	pub env_info: EnvInfo,
 	/// Consensus engine.
-	pub engine: Arc<Engine>,
+	pub engine: Arc<EthEngine>,
 }
 
 impl TransactionProof {
@@ -838,7 +859,7 @@ impl TransactionProof {
 			state_items,
 			root,
 			&self.tx,
-			&*self.engine,
+			self.engine.machine(),
 			&self.env_info,
 		);
 
@@ -850,20 +871,41 @@ impl TransactionProof {
 	}
 }
 
+/// Request for epoch signal.
+/// Provide engine and state-dependent proof checker.
+#[derive(Clone)]
+pub struct Signal {
+	/// Block hash and number to fetch proof for.
+	pub hash: H256,
+	/// Consensus engine, used to check the proof.
+	pub engine: Arc<EthEngine>,
+	/// Special checker for the proof.
+	pub proof_check: Arc<StateDependentProof<EthereumMachine>>,
+}
+
+impl Signal {
+	/// Check the signal, returning the signal or indicate that it's bad.
+	pub fn check_response(&self, _: &Mutex<::cache::Cache>, signal: &[u8]) -> Result<Vec<u8>, Error> {
+		self.proof_check.check_proof(self.engine.machine(), signal)
+			.map(|_| signal.to_owned())
+			.map_err(|_| Error::BadProof)
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;
 	use bigint::hash::H256;
 	use util::{MemoryDB, Address};
 	use parking_lot::Mutex;
-	use util::trie::{Trie, TrieMut, SecTrieDB, SecTrieDBMut};
-	use util::trie::recorder::Recorder;
+	use trie::{Trie, TrieMut, SecTrieDB, SecTrieDBMut};
+	use trie::recorder::Recorder;
 	use hash::keccak;
 
 	use ethcore::client::{BlockChainClient, TestBlockChainClient, EachBlockWith};
 	use ethcore::header::Header;
 	use ethcore::encoded;
-	use ethcore::receipt::Receipt;
+	use ethcore::receipt::{Receipt, TransactionOutcome};
 
 	fn make_cache() -> ::cache::Cache {
 		::cache::Cache::new(Default::default(), ::time::Duration::seconds(1))
@@ -932,7 +974,7 @@ mod tests {
 	#[test]
 	fn check_receipts() {
 		let receipts = (0..5).map(|_| Receipt {
-			state_root: Some(H256::random()),
+			outcome: TransactionOutcome::StateRoot(H256::random()),
 			gas_used: 21_000u64.into(),
 			log_bloom: Default::default(),
 			logs: Vec::new(),

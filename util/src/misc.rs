@@ -18,7 +18,7 @@
 
 use rlp::RlpStream;
 use target_info::Target;
-use Bytes;
+use bytes::Bytes;
 
 include!(concat!(env!("OUT_DIR"), "/version.rs"));
 include!(concat!(env!("OUT_DIR"), "/rustc_version.rs"));

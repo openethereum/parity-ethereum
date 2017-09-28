@@ -64,7 +64,8 @@ export default class GasPriceEditor extends Component {
   static propTypes = {
     children: PropTypes.node,
     onChange: PropTypes.func,
-    store: PropTypes.object.isRequired
+    store: PropTypes.object.isRequired,
+    availability: PropTypes.string.isRequired
   }
 
   static Store = Store;
@@ -72,7 +73,7 @@ export default class GasPriceEditor extends Component {
   render () {
     const { api } = this.context;
     const { children, store } = this.props;
-    const { conditionType, errorGas, errorPrice, errorTotal, estimated, gas, histogram, price, priceDefault, totalValue } = store;
+    const { errorGas, errorPrice, errorTotal, estimated, gas, histogram, price, priceDefault, totalValue } = store;
 
     const eth = api.util.fromWei(totalValue).toFormat();
     const gasLabel = `gas (estimated: ${new BigNumber(estimated).toFormat()})`;
@@ -80,18 +81,7 @@ export default class GasPriceEditor extends Component {
 
     return (
       <div className={ styles.container }>
-        <RadioButtons
-          className={ styles.conditionRadio }
-          label={
-            <FormattedMessage
-              id='txEditor.condition.label'
-              defaultMessage='Condition where transaction activates'
-            />
-          }
-          onChange={ this.onChangeConditionType }
-          value={ conditionType }
-          values={ CONDITION_VALUES }
-        />
+        { this.renderConditionRadioButtons() }
         { this.renderConditions() }
 
         <div className={ styles.graphContainer }>
@@ -148,10 +138,35 @@ export default class GasPriceEditor extends Component {
     );
   }
 
+  renderConditionRadioButtons () {
+    const { availability } = this.props;
+    const { conditionType } = this.props.store;
+
+    if (availability !== 'personal') {
+      return null;
+    }
+
+    return (
+      <RadioButtons
+        className={ styles.conditionRadio }
+        label={
+          <FormattedMessage
+            id='txEditor.condition.label'
+            defaultMessage='Condition where transaction activates'
+          />
+        }
+        onChange={ this.onChangeConditionType }
+        value={ conditionType }
+        values={ CONDITION_VALUES }
+      />
+    );
+  }
+
   renderConditions () {
+    const { availability } = this.props;
     const { conditionType, condition, conditionBlockError } = this.props.store;
 
-    if (conditionType === CONDITIONS.NONE) {
+    if (conditionType === CONDITIONS.NONE || availability !== 'personal') {
       return null;
     }
 

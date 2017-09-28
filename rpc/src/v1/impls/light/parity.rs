@@ -39,24 +39,26 @@ use v1::helpers::light_fetch::LightFetch;
 use v1::metadata::Metadata;
 use v1::traits::Parity;
 use v1::types::{
-	Bytes, U256, H160, H256, H512, CallRequest,
+	Bytes, U256, U64, H160, H256, H512, CallRequest,
 	Peers, Transaction, RpcSettings, Histogram,
 	TransactionStats, LocalTransactionStatus,
 	BlockNumber, ConsensusCapability, VersionInfo,
 	OperationsInfo, DappId, ChainStatus,
 	AccountInfo, HwAccountInfo, Header, RichHeader,
 };
+use Host;
 
 /// Parity implementation for light client.
 pub struct ParityClient {
+	client: Arc<LightChainClient>,
 	light_dispatch: Arc<LightDispatcher>,
 	accounts: Arc<AccountProvider>,
 	logger: Arc<RotatingLogger>,
 	settings: Arc<NetworkSettings>,
 	health: NodeHealth,
 	signer: Option<Arc<SignerService>>,
-	dapps_address: Option<(String, u16)>,
-	ws_address: Option<(String, u16)>,
+	dapps_address: Option<Host>,
+	ws_address: Option<Host>,
 	eip86_transition: u64,
 }
 
@@ -70,8 +72,8 @@ impl ParityClient {
 		settings: Arc<NetworkSettings>,
 		health: NodeHealth,
 		signer: Option<Arc<SignerService>>,
-		dapps_address: Option<(String, u16)>,
-		ws_address: Option<(String, u16)>,
+		dapps_address: Option<Host>,
+		ws_address: Option<Host>,
 	) -> Self {
 		ParityClient {
 			light_dispatch,
@@ -83,6 +85,7 @@ impl ParityClient {
 			dapps_address,
 			ws_address,
 			eip86_transition: client.eip86_transition(),
+			client: client,
 		}
 	}
 
@@ -130,6 +133,11 @@ impl Parity for ParityClient {
 			.map(|(a, v)| (H160::from(a), HwAccountInfo { name: v.name, manufacturer: v.meta }))
 			.collect()
 		)
+	}
+
+	fn locked_hardware_accounts_info(&self) -> Result<Vec<String>, Error> {
+		let store = &self.accounts;
+		Ok(store.locked_hardware_accounts().map_err(|e| errors::account("Error communicating with hardware wallet.", e))?)
 	}
 
 	fn default_account(&self, meta: Self::Metadata) -> BoxFuture<H160, Error> {
@@ -313,6 +321,10 @@ impl Parity for ParityClient {
 
 	fn mode(&self) -> Result<String, Error> {
 		Err(errors::light_unimplemented(None))
+	}
+
+	fn chain_id(&self) -> Result<Option<U64>, Error> {
+		Ok(self.client.signing_chain_id().map(U64::from))
 	}
 
 	fn chain(&self) -> Result<String, Error> {

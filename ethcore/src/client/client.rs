@@ -25,16 +25,15 @@ use itertools::Itertools;
 // util
 use hash::keccak;
 use timer::PerfTimer;
-use util::UtilError;
-use util::Bytes;
-use util::{journaldb, DBValue, TrieFactory, Trie};
-use util::Address;
-use util::trie::TrieSpec;
+use bytes::Bytes;
+use util::{journaldb, DBValue};
+use util::{Address, UtilError};
+use trie::{TrieSpec, TrieFactory, Trie};
 use util::kvdb::*;
 
 // other
 use bigint::prelude::U256;
-use bigint::hash::{H256, H2048};
+use bigint::hash::H256;
 use basic_types::Seal;
 use block::*;
 use blockchain::{BlockChain, BlockProvider,  TreeRoute, ImportRoute};
@@ -43,11 +42,11 @@ use client::ancient_import::AncientVerifier;
 use client::Error as ClientError;
 use client::{
 	BlockId, TransactionId, UncleId, TraceId, ClientConfig, BlockChainClient,
-	MiningBlockChainClient, EngineClient, TraceFilter, CallAnalytics, BlockImportError, Mode,
+	MiningBlockChainClient, TraceFilter, CallAnalytics, BlockImportError, Mode,
 	ChainNotify, PruningInfo, ProvingBlockChainClient,
 };
 use encoded;
-use engines::{Engine, EpochTransition};
+use engines::{EthEngine, EpochTransition};
 use error::{ImportError, ExecutionError, CallError, BlockError, ImportResult, Error as EthcoreError};
 use vm::{EnvInfo, LastHashes};
 use evm::{Factory as EvmFactory, Schedule};
@@ -148,7 +147,7 @@ pub struct Client {
 	mode: Mutex<Mode>,
 	chain: RwLock<Arc<BlockChain>>,
 	tracedb: RwLock<TraceDB<BlockChain>>,
-	engine: Arc<Engine>,
+	engine: Arc<EthEngine>,
 	config: ClientConfig,
 	pruning: journaldb::Algorithm,
 	db: RwLock<Arc<KeyValueDB>>,
@@ -333,7 +332,7 @@ impl Client {
 	}
 
 	/// Returns engine reference.
-	pub fn engine(&self) -> &Engine {
+	pub fn engine(&self) -> &EthEngine {
 		&*self.engine
 	}
 
@@ -422,55 +421,63 @@ impl Client {
 			return Err(());
 		}
 
+		// Check if parent is in chain
+		let parent = match chain.block_header(header.parent_hash()) {
+			Some(h) => h,
+			None => {
+				warn!(target: "client", "Block import failed for #{} ({}): Parent not found ({}) ", header.number(), header.hash(), header.parent_hash());
+				return Err(());
+			}
+		};
+
 		// Verify Block Family
-		let verify_family_result = self.verifier.verify_block_family(header, &block.bytes, engine, &**chain);
+		let verify_family_result = self.verifier.verify_block_family(
+			header,
+			&parent,
+			engine,
+			Some((&block.bytes, &block.transactions, &**chain, self)),
+		);
+
 		if let Err(e) = verify_family_result {
 			warn!(target: "client", "Stage 3 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 			return Err(());
 		};
 
-		let verify_external_result = self.verifier.verify_block_external(header, &block.bytes, engine);
+		let verify_external_result = self.verifier.verify_block_external(header, engine);
 		if let Err(e) = verify_external_result {
 			warn!(target: "client", "Stage 4 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 			return Err(());
 		};
 
-		// Check if Parent is in chain
-		let chain_has_parent = chain.block_header(header.parent_hash());
-		if let Some(parent) = chain_has_parent {
-			// Enact Verified Block
-			let last_hashes = self.build_last_hashes(header.parent_hash().clone());
-			let db = self.state_db.lock().boxed_clone_canon(header.parent_hash());
+		// Enact Verified Block
+		let last_hashes = self.build_last_hashes(header.parent_hash().clone());
+		let db = self.state_db.lock().boxed_clone_canon(header.parent_hash());
 
-			let is_epoch_begin = chain.epoch_transition(parent.number(), *header.parent_hash()).is_some();
-			let enact_result = enact_verified(block,
-				engine,
-				self.tracedb.read().tracing_enabled(),
-				db,
-				&parent,
-				last_hashes,
-				self.factories.clone(),
-				is_epoch_begin,
-			);
-			let mut locked_block = enact_result.map_err(|e| {
-				warn!(target: "client", "Block import failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
-			})?;
+		let is_epoch_begin = chain.epoch_transition(parent.number(), *header.parent_hash()).is_some();
+		let enact_result = enact_verified(block,
+			engine,
+			self.tracedb.read().tracing_enabled(),
+			db,
+			&parent,
+			last_hashes,
+			self.factories.clone(),
+			is_epoch_begin,
+		);
+		let mut locked_block = enact_result.map_err(|e| {
+			warn!(target: "client", "Block import failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
+		})?;
 
-			if header.number() < self.engine().params().validate_receipts_transition && header.receipts_root() != locked_block.block().header().receipts_root() {
-				locked_block = locked_block.strip_receipts();
-			}
-
-			// Final Verification
-			if let Err(e) = self.verifier.verify_block_final(header, locked_block.block().header()) {
-				warn!(target: "client", "Stage 5 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
-				return Err(());
-			}
-
-			Ok(locked_block)
-		} else {
-			warn!(target: "client", "Block import failed for #{} ({}): Parent not found ({}) ", header.number(), header.hash(), header.parent_hash());
-			Err(())
+		if header.number() < self.engine().params().validate_receipts_transition && header.receipts_root() != locked_block.block().header().receipts_root() {
+			locked_block = locked_block.strip_receipts();
 		}
+
+		// Final Verification
+		if let Err(e) = self.verifier.verify_block_final(header, locked_block.block().header()) {
+			warn!(target: "client", "Stage 5 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
+			return Err(());
+		}
+
+		Ok(locked_block)
 	}
 
 	fn calculate_enacted_retracted(&self, import_results: &[ImportRoute]) -> (Vec<H256>, Vec<H256>) {
@@ -722,7 +729,12 @@ impl Client {
 		use engines::EpochChange;
 
 		let hash = header.hash();
-		match self.engine.signals_epoch_end(header, Some(block_bytes), Some(&receipts)) {
+		let auxiliary = ::machine::AuxiliaryData {
+			bytes: Some(block_bytes),
+			receipts: Some(&receipts),
+		};
+
+		match self.engine.signals_epoch_end(header, auxiliary) {
 			EpochChange::Yes(proof) => {
 				use engines::epoch::PendingTransition;
 				use engines::Proof;
@@ -755,7 +767,7 @@ impl Client {
 							).expect("state known to be available for just-imported block; qed");
 
 							let options = TransactOptions::with_no_tracing().dont_check_nonce();
-							let res = Executive::new(&mut state, &env_info, &*self.engine)
+							let res = Executive::new(&mut state, &env_info, self.engine.machine())
 								.transact(&transaction, options);
 
 							let res = match res {
@@ -771,7 +783,7 @@ impl Client {
 							res.map(|(output, proof)| (output, proof.into_iter().map(|x| x.into_vec()).collect()))
 						};
 
-						match (with_state)(&call) {
+						match with_state.generate_proof(&call) {
 							Ok(proof) => proof,
 							Err(e) => {
 								warn!(target: "client", "Failed to generate transition proof for block {}: {}", hash, e);
@@ -822,7 +834,7 @@ impl Client {
 
 	// use a state-proving closure for the given block.
 	fn with_proving_caller<F, T>(&self, id: BlockId, with_call: F) -> T
-		where F: FnOnce(&::engines::Call) -> T
+		where F: FnOnce(&::machine::Call) -> T
 	{
 		let call = |a, d| {
 			let tx = self.contract_call_tx(id, a, d);
@@ -918,7 +930,7 @@ impl Client {
 			_ => {},
 		}
 
-		let block_number = match self.block_number(id.clone()) {
+		let block_number = match self.block_number(id) {
 			Some(num) => num,
 			None => return None,
 		};
@@ -1120,15 +1132,14 @@ impl Client {
 	}
 
 	fn do_virtual_call(&self, env_info: &EnvInfo, state: &mut State<StateDB>, t: &SignedTransaction, analytics: CallAnalytics) -> Result<Executed, CallError> {
-		fn call<E, V, T>(
+		fn call<V, T>(
 			state: &mut State<StateDB>,
 			env_info: &EnvInfo,
-			engine: &E,
+			machine: &::machine::EthereumMachine,
 			state_diff: bool,
 			transaction: &SignedTransaction,
 			options: TransactOptions<T, V>,
 		) -> Result<Executed, CallError> where
-			E: Engine + ?Sized,
 			T: trace::Tracer,
 			V: trace::VMTracer,
 		{
@@ -1137,7 +1148,7 @@ impl Client {
 				.save_output_from_contract();
 			let original_state = if state_diff { Some(state.clone()) } else { None };
 
-			let mut ret = Executive::new(state, env_info, engine).transact_virtual(transaction, options)?;
+			let mut ret = Executive::new(state, env_info, machine).transact_virtual(transaction, options)?;
 
 			if let Some(original) = original_state {
 				ret.state_diff = Some(state.diff_from(original).map_err(ExecutionError::from)?);
@@ -1146,13 +1157,23 @@ impl Client {
 		}
 
 		let state_diff = analytics.state_diffing;
-		let engine = &*self.engine;
+		let machine = self.engine.machine();
 
 		match (analytics.transaction_tracing, analytics.vm_tracing) {
-			(true, true) => call(state, env_info, engine, state_diff, t, TransactOptions::with_tracing_and_vm_tracing()),
-			(true, false) => call(state, env_info, engine, state_diff, t, TransactOptions::with_tracing()),
-			(false, true) => call(state, env_info, engine, state_diff, t, TransactOptions::with_vm_tracing()),
-			(false, false) => call(state, env_info, engine, state_diff, t, TransactOptions::with_no_tracing()),
+			(true, true) => call(state, env_info, machine, state_diff, t, TransactOptions::with_tracing_and_vm_tracing()),
+			(true, false) => call(state, env_info, machine, state_diff, t, TransactOptions::with_tracing()),
+			(false, true) => call(state, env_info, machine, state_diff, t, TransactOptions::with_vm_tracing()),
+			(false, false) => call(state, env_info, machine, state_diff, t, TransactOptions::with_no_tracing()),
+		}
+	}
+
+	fn block_number_ref(&self, id: &BlockId) -> Option<BlockNumber> {
+		match *id {
+			BlockId::Number(number) => Some(number),
+			BlockId::Hash(ref hash) => self.chain.read().block_number(hash),
+			BlockId::Earliest => Some(0),
+			BlockId::Latest => Some(self.chain.read().best_block_number()),
+			BlockId::Pending => Some(self.chain.read().best_block_number() + 1),
 		}
 	}
 }
@@ -1226,7 +1247,7 @@ impl BlockChainClient for Client {
 			let tx = tx.fake_sign(sender);
 
 			let mut state = original_state.clone();
-			Ok(Executive::new(&mut state, &env_info, &*self.engine)
+			Ok(Executive::new(&mut state, &env_info, self.engine.machine())
 				.transact_virtual(&tx, options())
 				.map(|r| r.exception.is_none())
 				.unwrap_or(false))
@@ -1287,7 +1308,7 @@ impl BlockChainClient for Client {
 		let rest = txs.split_off(address.index);
 		for t in txs {
 			let t = SignedTransaction::new(t).expect(PROOF);
-			let x = Executive::new(&mut state, &env_info, &*self.engine).transact(&t, TransactOptions::with_no_tracing())?;
+			let x = Executive::new(&mut state, &env_info, self.engine.machine()).transact(&t, TransactOptions::with_no_tracing())?;
 			env_info.gas_used = env_info.gas_used + x.gas_used;
 		}
 		let first = rest.into_iter().next().expect("We split off < `address.index`; Length is checked earlier; qed");
@@ -1364,13 +1385,7 @@ impl BlockChainClient for Client {
 	}
 
 	fn block_number(&self, id: BlockId) -> Option<BlockNumber> {
-		match id {
-			BlockId::Number(number) => Some(number),
-			BlockId::Hash(ref hash) => self.chain.read().block_number(hash),
-			BlockId::Earliest => Some(0),
-			BlockId::Latest => Some(self.chain.read().best_block_number()),
-			BlockId::Pending => Some(self.chain.read().best_block_number() + 1),
-		}
+		self.block_number_ref(&id)
 	}
 
 	fn block_body(&self, id: BlockId) -> Option<encoded::Body> {
@@ -1572,7 +1587,7 @@ impl BlockChainClient for Client {
 					.collect();
 				match (transaction, previous_receipts) {
 					(Some(transaction), Some(previous_receipts)) => {
-						Some(transaction_receipt(self.engine(), transaction, previous_receipts))
+						Some(transaction_receipt(self.engine().machine(), transaction, previous_receipts))
 					},
 					_ => None,
 				}
@@ -1651,16 +1666,17 @@ impl BlockChainClient for Client {
 		self.engine.additional_params().into_iter().collect()
 	}
 
-	fn blocks_with_bloom(&self, bloom: &H2048, from_block: BlockId, to_block: BlockId) -> Option<Vec<BlockNumber>> {
-		match (self.block_number(from_block), self.block_number(to_block)) {
-			(Some(from), Some(to)) => Some(self.chain.read().blocks_with_bloom(bloom, from, to)),
-			_ => None
-		}
-	}
-
 	fn logs(&self, filter: Filter) -> Vec<LocalizedLogEntry> {
+		let (from, to) = match (self.block_number_ref(&filter.from_block), self.block_number_ref(&filter.to_block)) {
+			(Some(from), Some(to)) => (from, to),
+			_ => return Vec::new(),
+		};
+
+		let chain = self.chain.read();
 		let blocks = filter.bloom_possibilities().iter()
-			.filter_map(|bloom| self.blocks_with_bloom(bloom, filter.from_block.clone(), filter.to_block.clone()))
+			.map(move |bloom| {
+				chain.blocks_with_bloom(bloom, from, to)
+			})
 			.flat_map(|m| m)
 			// remove duplicate elements
 			.collect::<HashSet<u64>>()
@@ -1937,7 +1953,7 @@ impl MiningBlockChainClient for Client {
 	}
 }
 
-impl EngineClient for Client {
+impl super::traits::EngineClient for Client {
 	fn update_sealing(&self) {
 		self.miner.update_sealing(self)
 	}
@@ -1955,6 +1971,16 @@ impl EngineClient for Client {
 	fn epoch_transition_for(&self, parent_hash: H256) -> Option<::engines::EpochTransition> {
 		self.chain.read().epoch_transition_for(parent_hash)
 	}
+
+	fn chain_info(&self) -> BlockChainInfo {
+		BlockChainClient::chain_info(self)
+	}
+
+	fn as_full_client(&self) -> Option<&BlockChainClient> { Some(self) }
+
+	fn block_number(&self, id: BlockId) -> Option<BlockNumber> {
+		BlockChainClient::block_number(self, id)
+	}
 }
 
 impl ProvingBlockChainClient for Client {
@@ -1969,27 +1995,30 @@ impl ProvingBlockChainClient for Client {
 	}
 
 	fn prove_transaction(&self, transaction: SignedTransaction, id: BlockId) -> Option<(Bytes, Vec<DBValue>)> {
-		let (state, mut env_info) = match (self.state_at(id), self.env_info(id)) {
+		let (header, mut env_info) = match (self.block_header(id), self.env_info(id)) {
 			(Some(s), Some(e)) => (s, e),
 			_ => return None,
 		};
 
 		env_info.gas_limit = transaction.gas.clone();
 		let mut jdb = self.state_db.lock().journal_db().boxed_clone();
-		let backend = state::backend::Proving::new(jdb.as_hashdb_mut());
 
-		let mut state = state.replace_backend(backend);
-		let options = TransactOptions::with_no_tracing().dont_check_nonce();
-		let res = Executive::new(&mut state, &env_info, &*self.engine).transact(&transaction, options);
+		state::prove_transaction(
+			jdb.as_hashdb_mut(),
+			header.state_root().clone(),
+			&transaction,
+			self.engine.machine(),
+			&env_info,
+			self.factories.clone(),
+			false,
+		)
+	}
 
-		match res {
-			Err(ExecutionError::Internal(_)) => None,
-			Err(e) => {
-				trace!(target: "client", "Proved call failed: {}", e);
-				Some((Vec::new(), state.drop().1.extract_proof()))
-			}
-			Ok(res) => Some((res.output, state.drop().1.extract_proof())),
-		}
+
+	fn epoch_signal(&self, hash: H256) -> Option<Vec<u8>> {
+		// pending transitions are never deleted, and do not contain
+		// finality proofs by definition.
+		self.chain.read().get_pending_transition(hash).map(|pending| pending.proof)
 	}
 }
 
@@ -2001,7 +2030,7 @@ impl Drop for Client {
 
 /// Returns `LocalizedReceipt` given `LocalizedTransaction`
 /// and a vector of receipts from given block up to transaction index.
-fn transaction_receipt(engine: &Engine, mut tx: LocalizedTransaction, mut receipts: Vec<Receipt>) -> LocalizedReceipt {
+fn transaction_receipt(machine: &::machine::EthereumMachine, mut tx: LocalizedTransaction, mut receipts: Vec<Receipt>) -> LocalizedReceipt {
 	assert_eq!(receipts.len(), tx.transaction_index + 1, "All previous receipts are provided.");
 
 	let sender = tx.sender();
@@ -2025,7 +2054,7 @@ fn transaction_receipt(engine: &Engine, mut tx: LocalizedTransaction, mut receip
 		gas_used: receipt.gas_used - prior_gas_used,
 		contract_address: match tx.action {
 			Action::Call(_) => None,
-			Action::Create => Some(contract_address(engine.create_address_scheme(block_number), &sender, &tx.nonce, &tx.data).0)
+			Action::Create => Some(contract_address(machine.create_address_scheme(block_number), &sender, &tx.nonce, &tx.data).0)
 		},
 		logs: receipt.logs.into_iter().enumerate().map(|(i, log)| LocalizedLogEntry {
 			entry: log,
@@ -2037,7 +2066,7 @@ fn transaction_receipt(engine: &Engine, mut tx: LocalizedTransaction, mut receip
 			log_index: no_of_logs + i,
 		}).collect(),
 		log_bloom: receipt.log_bloom,
-		state_root: receipt.state_root,
+		outcome: receipt.outcome,
 	}
 }
 
@@ -2083,18 +2112,17 @@ mod tests {
 		use super::transaction_receipt;
 		use ethkey::KeyPair;
 		use log_entry::{LogEntry, LocalizedLogEntry};
-		use receipt::{Receipt, LocalizedReceipt};
+		use receipt::{Receipt, LocalizedReceipt, TransactionOutcome};
 		use transaction::{Transaction, LocalizedTransaction, Action};
-		use tests::helpers::TestEngine;
 
 		// given
 		let key = KeyPair::from_secret_slice(&keccak("test")).unwrap();
 		let secret = key.secret();
-		let engine = TestEngine::new(0);
+		let machine = ::ethereum::new_frontier_test_machine();
 
 		let block_number = 1;
 		let block_hash = 5.into();
-		let state_root = Some(99.into());
+		let state_root = 99.into();
 		let gas_used = 10.into();
 		let raw_tx = Transaction {
 			nonce: 0.into(),
@@ -2122,19 +2150,19 @@ mod tests {
 			data: vec![],
 		}];
 		let receipts = vec![Receipt {
-			state_root: state_root,
+			outcome: TransactionOutcome::StateRoot(state_root),
 			gas_used: 5.into(),
 			log_bloom: Default::default(),
 			logs: vec![logs[0].clone()],
 		}, Receipt {
-			state_root: state_root,
+			outcome: TransactionOutcome::StateRoot(state_root),
 			gas_used: gas_used,
 			log_bloom: Default::default(),
 			logs: logs.clone(),
 		}];
 
 		// when
-		let receipt = transaction_receipt(&engine, transaction, receipts);
+		let receipt = transaction_receipt(&machine, transaction, receipts);
 
 		// then
 		assert_eq!(receipt, LocalizedReceipt {
@@ -2163,7 +2191,7 @@ mod tests {
 				log_index: 2,
 			}],
 			log_bloom: Default::default(),
-			state_root: state_root,
+			outcome: TransactionOutcome::StateRoot(state_root),
 		});
 	}
 }

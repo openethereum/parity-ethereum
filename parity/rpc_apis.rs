@@ -32,11 +32,12 @@ use ethsync::{ManageNetwork, SyncProvider, LightSync};
 use hash_fetch::fetch::Client as FetchClient;
 use jsonrpc_core::{self as core, MetaIoHandler};
 use light::{TransactionQueue as LightTransactionQueue, Cache as LightDataCache};
+use light::client::LightChainClient;
 use node_health::NodeHealth;
 use parity_reactor;
 use parity_rpc::dispatch::{FullDispatcher, LightDispatcher};
 use parity_rpc::informant::{ActivityNotifier, ClientNotifier};
-use parity_rpc::{Metadata, NetworkSettings};
+use parity_rpc::{Metadata, NetworkSettings, Host};
 use updater::Updater;
 use parking_lot::{Mutex, RwLock};
 
@@ -221,8 +222,8 @@ pub struct FullDependencies {
 	pub health: NodeHealth,
 	pub geth_compatibility: bool,
 	pub dapps_service: Option<Arc<DappsService>>,
-	pub dapps_address: Option<(String, u16)>,
-	pub ws_address: Option<(String, u16)>,
+	pub dapps_address: Option<Host>,
+	pub ws_address: Option<Host>,
 	pub fetch: FetchClient,
 	pub remote: parity_reactor::Remote,
 	pub whisper_rpc: Option<::whisper::RpcFactory>,
@@ -353,14 +354,14 @@ impl FullDependencies {
 				},
 				Api::Whisper => {
 					if let Some(ref whisper_rpc) = self.whisper_rpc {
-						let whisper = whisper_rpc.make_handler();
+						let whisper = whisper_rpc.make_handler(self.net.clone());
 						handler.extend_with(::parity_whisper::rpc::Whisper::to_delegate(whisper));
 					}
 				}
 				Api::WhisperPubSub => {
 					if !for_generic_pubsub {
 						if let Some(ref whisper_rpc) = self.whisper_rpc {
-							let whisper = whisper_rpc.make_handler();
+							let whisper = whisper_rpc.make_handler(self.net.clone());
 							handler.extend_with(
 								::parity_whisper::rpc::WhisperPubSub::to_delegate(whisper)
 							);
@@ -398,9 +399,9 @@ impl ActivityNotifier for LightClientNotifier {
 }
 
 /// RPC dependencies for a light client.
-pub struct LightDependencies {
+pub struct LightDependencies<T> {
 	pub signer_service: Arc<SignerService>,
-	pub client: Arc<::light::client::Client>,
+	pub client: Arc<T>,
 	pub sync: Arc<LightSync>,
 	pub net: Arc<ManageNetwork>,
 	pub secret_store: Arc<AccountProvider>,
@@ -411,15 +412,15 @@ pub struct LightDependencies {
 	pub cache: Arc<Mutex<LightDataCache>>,
 	pub transaction_queue: Arc<RwLock<LightTransactionQueue>>,
 	pub dapps_service: Option<Arc<DappsService>>,
-	pub dapps_address: Option<(String, u16)>,
-	pub ws_address: Option<(String, u16)>,
+	pub dapps_address: Option<Host>,
+	pub ws_address: Option<Host>,
 	pub fetch: FetchClient,
 	pub geth_compatibility: bool,
 	pub remote: parity_reactor::Remote,
 	pub whisper_rpc: Option<::whisper::RpcFactory>,
 }
 
-impl LightDependencies {
+impl<C: LightChainClient + 'static> LightDependencies<C> {
 	fn extend_api<T: core::Middleware<Metadata>>(
 		&self,
 		handler: &mut MetaIoHandler<Metadata, T>,
@@ -553,13 +554,13 @@ impl LightDependencies {
 				},
 				Api::Whisper => {
 					if let Some(ref whisper_rpc) = self.whisper_rpc {
-						let whisper = whisper_rpc.make_handler();
+						let whisper = whisper_rpc.make_handler(self.net.clone());
 						handler.extend_with(::parity_whisper::rpc::Whisper::to_delegate(whisper));
 					}
 				}
 				Api::WhisperPubSub => {
 					if let Some(ref whisper_rpc) = self.whisper_rpc {
-						let whisper = whisper_rpc.make_handler();
+						let whisper = whisper_rpc.make_handler(self.net.clone());
 						handler.extend_with(::parity_whisper::rpc::WhisperPubSub::to_delegate(whisper));
 					}
 				}
@@ -568,7 +569,7 @@ impl LightDependencies {
 	}
 }
 
-impl Dependencies for LightDependencies {
+impl<T: LightChainClient + 'static> Dependencies for LightDependencies<T> {
 	type Notifier = LightClientNotifier;
 
 	fn activity_notifier(&self) -> Self::Notifier { LightClientNotifier }

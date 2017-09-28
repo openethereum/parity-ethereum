@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 
-use util::Bytes;
+use bytes::Bytes;
 
 #[binary]
 pub enum Root {

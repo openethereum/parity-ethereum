@@ -21,7 +21,7 @@ use std::fmt;
 use ids::BlockId;
 
 use bigint::hash::H256;
-use util::trie::TrieError;
+use trie::TrieError;
 use rlp::DecoderError;
 
 /// Snapshot-related errors.

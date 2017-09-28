@@ -21,10 +21,10 @@ use super::lookup::Lookup;
 use super::node::Node as RlpNode;
 use super::node::NodeKey;
 
-use ::HashDB;
-use ::bytes::ToPretty;
-use ::nibbleslice::NibbleSlice;
-use ::rlp::{Rlp, RlpStream};
+use hashdb::HashDB;
+use bytes::ToPretty;
+use nibbleslice::NibbleSlice;
+use rlp::{Rlp, RlpStream};
 use hashdb::DBValue;
 
 use std::collections::{HashSet, VecDeque};
@@ -261,14 +261,16 @@ impl<'a> Index<&'a StorageHandle> for NodeStorage {
 ///
 /// # Example
 /// ```
-/// extern crate ethcore_util as util;
+/// extern crate patricia_trie as trie;
+/// extern crate hashdb;
+/// extern crate memorydb;
 /// extern crate ethcore_bigint as bigint;
 /// extern crate hash;
 ///
 /// use hash::KECCAK_NULL_RLP;
-/// use util::trie::*;
-/// use util::hashdb::*;
-/// use util::memorydb::*;
+/// use trie::*;
+/// use hashdb::*;
+/// use memorydb::*;
 /// use bigint::hash::*;
 ///
 /// fn main() {
