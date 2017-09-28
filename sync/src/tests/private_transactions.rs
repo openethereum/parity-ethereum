@@ -25,6 +25,7 @@ use ethcore::spec::Spec;
 use ethcore::miner::MinerService;
 use ethcore::transaction::*;
 use ethcore::account_provider::AccountProvider;
+use ethcore::private_transactions::{PrivateTransaction, SignedPrivateTransaction};
 use ethkey::KeyPair;
 use tests::helpers::*;
 use SyncConfig;
@@ -51,7 +52,8 @@ fn send_private_transaction() {
 	// Exhange statuses
 	net.sync();
 	// broadcast private transaction
-	let transaction = Transaction {
+	// sample regular transaction
+	let original_transaction = Transaction {
 		nonce: 0.into(),
 		gas_price: 0.into(),
 		gas: 21000.into(),
@@ -59,8 +61,11 @@ fn send_private_transaction() {
 		value: 0.into(),
 		data: Vec::new(),
 	};
-	let signature = net.peer(0).chain.engine().sign(transaction.hash(Some(chain_id)));
-	let message = transaction.with_signature(signature.unwrap(), Some(chain_id)).rlp_bytes();
+	// wrap it with private transaction
+	let signature = net.peer(0).chain.engine().sign(original_transaction.hash(Some(chain_id)));
+	let original_transaction_signed = original_transaction.with_signature(signature.unwrap(), Some(chain_id));
+	let original_hash = original_transaction_signed.hash();
+	let message = PrivateTransaction::create_from_signed(original_transaction_signed, s0.address()).unwrap().rlp_bytes();
 	net.peer(0).chain.private_transactions_provider().broadcast_private_transaction(message.into_vec());
 	net.sync();
 	net.peer(0).chain.engine().step();
@@ -68,18 +73,14 @@ fn send_private_transaction() {
 	net.sync();
 
 	assert_eq!(net.peer(1).chain.private_transactions_provider().private_transactions().len(), 1);
+	let private_transaction = net.peer(1).chain.private_transactions_provider().private_transactions()[0].clone();
+	let private_transaction_hash = private_transaction.hash();
+	let signed_transaction = private_transaction.extract_signed_transaction(s0.address());
+	assert_eq!(original_hash, signed_transaction.unwrap().hash());
 
 	// broadcast signed private transaction back
-	let signed_transaction = Transaction {
-		nonce: 0.into(),
-		gas_price: 0.into(),
-		gas: 21000.into(),
-		action: Action::Call(Address::default()),
-		value: 0.into(),
-		data: Vec::new(),
-	};
-	let signature_for_signed = net.peer(1).chain.engine().sign(signed_transaction.hash(Some(chain_id)));
-	let signed_message = signed_transaction.with_signature(signature_for_signed.unwrap(), Some(chain_id)).rlp_bytes();
+	let signature_for_signed = net.peer(1).chain.engine().sign(private_transaction.hash());
+	let signed_message = SignedPrivateTransaction::new(private_transaction, signature_for_signed.unwrap(), Some(chain_id)).rlp_bytes();
 	net.peer(1).chain.private_transactions_provider().broadcast_signed_private_transaction(signed_message.into_vec());
 	net.sync();
 	net.peer(1).chain.engine().step();
@@ -87,4 +88,6 @@ fn send_private_transaction() {
 	net.sync();
 
 	assert_eq!(net.peer(0).chain.private_transactions_provider().signed_private_transactions().len(), 1);
+	let signed_private = net.peer(0).chain.private_transactions_provider().signed_private_transactions()[0].clone();
+	assert_eq!(private_transaction_hash, signed_private.private_transaction_hash());
 }

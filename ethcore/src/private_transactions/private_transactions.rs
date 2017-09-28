@@ -14,13 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use transaction::UnverifiedTransaction;
+use private_transactions::{PrivateTransaction, SignedPrivateTransaction};
 use error::Error;
 
 /// Storage for private transactions
 pub struct PrivateTransactions {
-	transactions: Vec<UnverifiedTransaction>,
-	signed_transactions: Vec<UnverifiedTransaction>,
+	transactions: Vec<PrivateTransaction>,
+	signed_transactions: Vec<SignedPrivateTransaction>,
 }
 
 impl PrivateTransactions {
@@ -33,24 +33,24 @@ impl PrivateTransactions {
 	}
 
 	/// Adds private transaction into the store
-	pub fn import_transaction(&mut self, transaction: UnverifiedTransaction, _peer_id: usize) -> Result<(), Error> {
+	pub fn import_transaction(&mut self, transaction: PrivateTransaction, _peer_id: usize) -> Result<(), Error> {
 		self.transactions.push(transaction);
 		Ok(())
 	}
 
 	/// Adds signed private transaction into the store
-	pub fn import_signed_transaction(&mut self, transaction: UnverifiedTransaction, _peer_id: usize) -> Result<(), Error> {
+	pub fn import_signed_transaction(&mut self, transaction: SignedPrivateTransaction, _peer_id: usize) -> Result<(), Error> {
 		self.signed_transactions.push(transaction);
 		Ok(())
 	}
 
 	/// Returns the list of all stored private transactions
-	pub fn transactions_list(&self) -> Vec<UnverifiedTransaction> {
+	pub fn transactions_list(&self) -> Vec<PrivateTransaction> {
 		self.transactions.clone()
 	}
 
 	/// Returns the list of all stored signed private transactions
-	pub fn signed_transactions_list(&self) -> Vec<UnverifiedTransaction> {
+	pub fn signed_transactions_list(&self) -> Vec<SignedPrivateTransaction> {
 		self.signed_transactions.clone()
 	}
 }
