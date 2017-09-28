@@ -370,7 +370,13 @@ impl ClusterCore {
 
 	/// Try to connect to every disconnected node.
 	fn connect_disconnected_nodes(data: Arc<ClusterData>) {
-		data.connections.update_nodes_set();
+		// do not update nodes set if any admin session is active
+		// this could happen, but will possibly lead to admin session error
+		// => should be performed later
+		if data.sessions.admin_sessions.is_empty() {
+			data.connections.update_nodes_set();
+		}
+
 		for (node_id, node_address) in data.connections.disconnected_nodes() {
 			if data.config.allow_connecting_to_higher_nodes || data.self_key_pair.public() < &node_id {
 				ClusterCore::connect(data.clone(), node_address);

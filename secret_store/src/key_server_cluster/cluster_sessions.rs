@@ -542,6 +542,10 @@ impl<K, V, M> ClusterSessionsContainer<K, V, M> where K: Clone + Ord, V: Cluster
 		}
 	}
 
+	pub fn is_empty(&self) -> bool {
+		self.sessions.read().is_empty()
+	}
+
 	pub fn get(&self, session_id: &K) -> Option<Arc<V>> {
 		self.sessions.read().get(session_id).map(|s| s.session.clone())
 	}

@@ -1,4 +1,3 @@
-// TODO: when servers set change session is active, pause updating servers set from contract
 // TODO: even if node was lost, it is still required for share removal, ...
 // TODO: in long session some nodes (that are not participating in share change sessions) can stop session as stalled
 
