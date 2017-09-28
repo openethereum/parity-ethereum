@@ -191,6 +191,11 @@ impl SessionImpl {
 		})
 	}
 
+	/// Get session id.
+	pub fn id(&self) -> &SessionId {
+		&self.core.meta.id
+	}
+
 	/// Initialize servers set change session on master node.
 	pub fn initialize(&self, new_nodes_set: BTreeSet<NodeId>, all_set_signature: Signature, new_set_signature: Signature) -> Result<(), Error> {
 		check_nodes_set(&self.core.all_nodes_set, &new_nodes_set)?;
