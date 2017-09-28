@@ -23,6 +23,7 @@ import styles from '../transfer.css';
 
 export default class Extras extends Component {
   static propTypes = {
+    availability: PropTypes.string.isRequired,
     data: PropTypes.string,
     dataError: PropTypes.string,
     hideData: PropTypes.bool,
@@ -38,13 +39,14 @@ export default class Extras extends Component {
   };
 
   render () {
-    const { gasStore, onChange } = this.props;
+    const { availability, gasStore, onChange } = this.props;
 
     return (
       <Form>
         { this.renderData() }
         <div className={ styles.gaseditor }>
           <GasPriceEditor
+            availability={ availability }
             store={ gasStore }
             onChange={ onChange }
           />

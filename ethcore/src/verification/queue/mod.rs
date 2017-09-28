@@ -28,7 +28,7 @@ use bigint::hash::H256;
 use parking_lot::{Condvar, Mutex, RwLock};
 use io::*;
 use error::*;
-use engines::Engine;
+use engines::EthEngine;
 use service::*;
 
 use self::kind::{BlockLike, Kind};
@@ -141,7 +141,7 @@ struct Sizes {
 /// A queue of items to be verified. Sits between network or other I/O and the `BlockChain`.
 /// Keeps them in the same order as inserted, minus invalid items.
 pub struct VerificationQueue<K: Kind> {
-	engine: Arc<Engine>,
+	engine: Arc<EthEngine>,
 	more_to_verify: Arc<SCondvar>,
 	verification: Arc<Verification<K>>,
 	deleting: Arc<AtomicBool>,
@@ -213,7 +213,7 @@ struct Verification<K: Kind> {
 
 impl<K: Kind> VerificationQueue<K> {
 	/// Creates a new queue instance.
-	pub fn new(config: Config, engine: Arc<Engine>, message_channel: IoChannel<ClientIoMessage>, check_seal: bool) -> Self {
+	pub fn new(config: Config, engine: Arc<EthEngine>, message_channel: IoChannel<ClientIoMessage>, check_seal: bool) -> Self {
 		let verification = Arc::new(Verification {
 			unverified: Mutex::new(VecDeque::new()),
 			verifying: Mutex::new(VecDeque::new()),
@@ -294,7 +294,7 @@ impl<K: Kind> VerificationQueue<K> {
 
 	fn verify(
 		verification: Arc<Verification<K>>,
-		engine: Arc<Engine>,
+		engine: Arc<EthEngine>,
 		wait: Arc<SCondvar>,
 		ready: Arc<QueueSignal>,
 		empty: Arc<SCondvar>,

@@ -1322,7 +1322,7 @@ mod tests {
 			origins: Some(vec!["chrome-extension://*".into(), "moz-extension://*".into()]),
 			hosts: Some(vec![]),
 			signer_path: expected.into(),
-			ui_address: Some(("127.0.0.1".to_owned(), 8180)),
+			ui_address: Some("127.0.0.1:8180".into()),
 			support_token_api: true
 		}, UiConfiguration {
 			enabled: true,

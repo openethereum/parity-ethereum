@@ -59,12 +59,6 @@ macro_rules! impl_uint {
 			}
 		}
 
-		impl serde::Serialize for $name {
-			fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: serde::Serializer {
-				serializer.serialize_str(&format!("0x{}", self.0.to_hex()))
-			}
-		}
-
 		impl<'a> serde::Deserialize<'a> for $name {
 			fn deserialize<D>(deserializer: D) -> Result<$name, D::Error>
 			where D: serde::Deserializer<'a> {
@@ -104,7 +98,25 @@ macro_rules! impl_uint {
 
 impl_uint!(U128, EthU128, 2);
 impl_uint!(U256, EthU256, 4);
+impl_uint!(U64, u64, 1);
 
+impl serde::Serialize for U128 {
+	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: serde::Serializer {
+		serializer.serialize_str(&format!("0x{}", self.0.to_hex()))
+	}
+}
+
+impl serde::Serialize for U256 {
+	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: serde::Serializer {
+		serializer.serialize_str(&format!("0x{}", self.0.to_hex()))
+	}
+}
+
+impl serde::Serialize for U64 {
+	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: serde::Serializer {
+		serializer.serialize_str(&format!("0x{:x}", self.0))
+	}
+}
 
 #[cfg(test)]
 mod tests {

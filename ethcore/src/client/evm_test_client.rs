@@ -181,7 +181,7 @@ impl<'a> EvmTestClient<'a> {
 		let mut substate = state::Substate::new();
 		let mut tracer = trace::NoopTracer;
 		let mut output = vec![];
-		let mut executive = executive::Executive::new(&mut self.state, &info, &*self.spec.engine);
+		let mut executive = executive::Executive::new(&mut self.state, &info, self.spec.engine.machine());
 		executive.call(
 			params,
 			&mut substate,
@@ -211,7 +211,7 @@ impl<'a> EvmTestClient<'a> {
 
 		// Apply transaction
 		let tracer = trace::NoopTracer;
-		let result = self.state.apply_with_tracing(&env_info, &*self.spec.engine, &transaction, tracer, vm_tracer);
+		let result = self.state.apply_with_tracing(&env_info, self.spec.engine.machine(), &transaction, tracer, vm_tracer);
 
 		match result {
 			Ok(result) => {

@@ -25,23 +25,23 @@ use request::{
 };
 
 /// Build chained requests. Push them onto the series with `push`,
-/// and produce a `Requests` object with `build`. Outputs are checked for consistency.
+/// and produce a `Batch` object with `build`. Outputs are checked for consistency.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct RequestBuilder<T> {
+pub struct Builder<T> {
 	output_kinds: HashMap<(usize, usize), OutputKind>,
 	requests: Vec<T>,
 }
 
-impl<T> Default for RequestBuilder<T> {
+impl<T> Default for Builder<T> {
 	fn default() -> Self {
-		RequestBuilder {
+		Builder {
 			output_kinds: HashMap::new(),
 			requests: Vec::new(),
 		}
 	}
 }
 
-impl<T: IncompleteRequest> RequestBuilder<T> {
+impl<T: IncompleteRequest> Builder<T> {
 	/// Attempt to push a request onto the request chain. Fails if the request
 	/// references a non-existent output of a prior request.
 	pub fn push(&mut self, request: T) -> Result<(), NoSuchOutput> {
@@ -62,9 +62,9 @@ impl<T: IncompleteRequest> RequestBuilder<T> {
 		&self.output_kinds
 	}
 
-	/// Convert this into a "requests" object.
-	pub fn build(self) -> Requests<T> {
-		Requests {
+	/// Convert this into a "batch" object.
+	pub fn build(self) -> Batch<T> {
+		Batch {
 			outputs: HashMap::new(),
 			requests: self.requests,
 			answered: 0,
@@ -74,13 +74,13 @@ impl<T: IncompleteRequest> RequestBuilder<T> {
 
 /// Requests pending responses.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Requests<T> {
+pub struct Batch<T> {
 	outputs: HashMap<(usize, usize), Output>,
 	requests: Vec<T>,
 	answered: usize,
 }
 
-impl<T> Requests<T> {
+impl<T> Batch<T> {
 	/// Get access to the underlying slice of requests.
 	// TODO: unimplemented -> Vec<Request>, // do we _have to_ allocate?
 	pub fn requests(&self) -> &[T] { &self.requests }
@@ -94,10 +94,10 @@ impl<T> Requests<T> {
 	}
 
 	/// Map requests from one type into another.
-	pub fn map_requests<F, U>(self, f: F) -> Requests<U>
+	pub fn map_requests<F, U>(self, f: F) -> Batch<U>
 		where F: FnMut(T) -> U, U: IncompleteRequest
 	{
-		Requests {
+		Batch {
 			outputs: self.outputs,
 			requests: self.requests.into_iter().map(f).collect(),
 			answered: self.answered,
@@ -105,7 +105,7 @@ impl<T> Requests<T> {
 	}
 }
 
-impl<T: IncompleteRequest + Clone> Requests<T> {
+impl<T: IncompleteRequest + Clone> Batch<T> {
 	/// Get the next request as a filled request. Returns `None` when all requests answered.
 	pub fn next_complete(&self) -> Option<T::Complete> {
 		if self.is_complete() {
@@ -113,7 +113,7 @@ impl<T: IncompleteRequest + Clone> Requests<T> {
 		} else {
 			Some(self.requests[self.answered].clone()
 				.complete()
-				.expect("All outputs checked as invariant of `Requests` object; qed"))
+				.expect("All outputs checked as invariant of `Batch` object; qed"))
 		}
 	}
 
@@ -149,7 +149,7 @@ impl<T: IncompleteRequest + Clone> Requests<T> {
 	}
 }
 
-impl<T: super::CheckedRequest + Clone> Requests<T> {
+impl<T: super::CheckedRequest + Clone> Batch<T> {
 	/// Supply a response for the next request.
 	/// Fails on: wrong request kind, all requests answered already.
 	pub fn supply_response(&mut self, env: &T::Environment, response: &T::Response)
@@ -170,7 +170,7 @@ impl<T: super::CheckedRequest + Clone> Requests<T> {
 	}
 }
 
-impl Requests<super::Request> {
+impl Batch<super::Request> {
 	/// For each request, produce a response.
 	/// The responses vector produced goes up to the point where the responder
 	/// first returns `None`, an invalid response, or until all requests have been responded to.
@@ -193,7 +193,7 @@ impl Requests<super::Request> {
 	}
 }
 
-impl<T: IncompleteRequest> Deref for Requests<T> {
+impl<T: IncompleteRequest> Deref for Batch<T> {
 	type Target = [T];
 
 	fn deref(&self) -> &[T] {
@@ -201,7 +201,7 @@ impl<T: IncompleteRequest> Deref for Requests<T> {
 	}
 }
 
-impl<T: IncompleteRequest> DerefMut for Requests<T> {
+impl<T: IncompleteRequest> DerefMut for Batch<T> {
 	fn deref_mut(&mut self) -> &mut [T] {
 		&mut self.requests[..]
 	}
@@ -210,12 +210,12 @@ impl<T: IncompleteRequest> DerefMut for Requests<T> {
 #[cfg(test)]
 mod tests {
 	use request::*;
-	use super::RequestBuilder;
+	use super::Builder;
 	use bigint::hash::H256;
 
 	#[test]
 	fn all_scalar() {
-		let mut builder = RequestBuilder::default();
+		let mut builder = Builder::default();
 		builder.push(Request::HeaderProof(IncompleteHeaderProofRequest {
 			num: 100.into(),
 		})).unwrap();
@@ -227,7 +227,7 @@ mod tests {
 	#[test]
 	#[should_panic]
 	fn missing_backref() {
-		let mut builder = RequestBuilder::default();
+		let mut builder = Builder::default();
 		builder.push(Request::HeaderProof(IncompleteHeaderProofRequest {
 			num: Field::BackReference(100, 3),
 		})).unwrap();
@@ -236,7 +236,7 @@ mod tests {
 	#[test]
 	#[should_panic]
 	fn wrong_kind() {
-		let mut builder = RequestBuilder::default();
+		let mut builder = Builder::default();
 		assert!(builder.push(Request::HeaderProof(IncompleteHeaderProofRequest {
 			num: 100.into(),
 		})).is_ok());
@@ -247,7 +247,7 @@ mod tests {
 
 	#[test]
 	fn good_backreference() {
-		let mut builder = RequestBuilder::default();
+		let mut builder = Builder::default();
 		builder.push(Request::HeaderProof(IncompleteHeaderProofRequest {
 			num: 100.into(), // header proof puts hash at output 0.
 		})).unwrap();

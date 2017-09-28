@@ -74,8 +74,8 @@ impl Peer {
 
 // Attempted request info and sender to put received value.
 struct Pending {
-	requests: basic_request::Requests<CheckedRequest>,
-	net_requests: basic_request::Requests<NetworkRequest>,
+	requests: basic_request::Batch<CheckedRequest>,
+	net_requests: basic_request::Batch<NetworkRequest>,
 	required_capabilities: Capabilities,
 	responses: Vec<Response>,
 	sender: oneshot::Sender<Vec<Response>>,
@@ -151,7 +151,7 @@ impl Pending {
 	fn update_net_requests(&mut self) {
 		use request::IncompleteRequest;
 
-		let mut builder = basic_request::RequestBuilder::default();
+		let mut builder = basic_request::Builder::default();
 		let num_answered = self.requests.num_answered();
 		let mut mapping = move |idx| idx - num_answered;
 
@@ -281,7 +281,7 @@ impl OnDemand {
 			return Ok(receiver);
 		}
 
-		let mut builder = basic_request::RequestBuilder::default();
+		let mut builder = basic_request::Builder::default();
 
 		let responses = Vec::with_capacity(requests.len());
 

@@ -12,6 +12,7 @@
         "eip160Transition": "0x7fffffffffffff",
         "eip161abcTransition": "0x7fffffffffffff",
         "eip161dTransition": "0x7fffffffffffff",
+        "blockReward": "0x1105a0185b50a80000",
         "mcip3Transition": "0x124f81",
         "mcip3MinerReward": "0xf2dc7d47f15600000",
         "mcip3UbiReward": "0x1a055690d9db80000",
@@ -23,7 +24,6 @@
   },
   "params": {
     "gasLimitBoundDivisor": "0x400",
-    "blockReward": "0x1105a0185b50a80000",
     "registrar": "0x5C271c4C9A67E7D73b7b3669d47504741354f21D",
     "accountStartNonce": "0x0",
     "maximumExtraDataSize": "0x20",
