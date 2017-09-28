@@ -41,7 +41,7 @@ pub trait SessionTransport: Clone + JobTransport<PartialJobRequest=ServersSetCha
 	/// Send message to given node.
 	fn send(&self, node: &NodeId, message: ShareMoveMessage) -> Result<(), Error>;
 	/// Set share destinations.
-	fn set_shares_to_move(&mut self, shares_to_move: BTreeMap<NodeId, NodeId>);
+	fn set_shares_to_move_reversed(&mut self, shares_to_move_reversed: BTreeMap<NodeId, NodeId>);
 }
 
 /// Share move session.
@@ -77,7 +77,9 @@ struct SessionData<T: SessionTransport> {
 	pub state: SessionState,
 	/// Consensus session.
 	pub consensus_session: Option<ShareMoveChangeConsensusSession<T>>,
-	/// Shares to move.
+	/// Shares to move. Keys = new nodes, Values = old nodes.
+	pub shares_to_move_reversed: Option<BTreeMap<NodeId, NodeId>>,
+	/// Reversed shares to move. Keys = old nodes, Values = new nodes.
 	pub shares_to_move: Option<BTreeMap<NodeId, NodeId>>,
 	/// Move confirmations to receive.
 	pub move_confirmations_to_receive: Option<BTreeSet<NodeId>>,
@@ -117,8 +119,8 @@ pub struct IsolatedSessionTransport {
 	session: SessionId,
 	/// Session-level nonce.
 	nonce: u64,
-	/// Shares to move between.
-	shares_to_move: Option<BTreeMap<NodeId, NodeId>>,
+	/// Shares to move between. Keys = new nodes, values = old nodes.
+	shares_to_move_reversed: Option<BTreeMap<NodeId, NodeId>>,
 	/// Cluster.
 	cluster: Arc<Cluster>,
 }
@@ -138,6 +140,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 			data: Mutex::new(SessionData {
 				state: SessionState::ConsensusEstablishing,
 				consensus_session: None,
+				shares_to_move_reversed: None,
 				shares_to_move: None,
 				move_confirmations_to_receive: None,
 				received_key_share: None,
@@ -146,7 +149,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 	}
 
 	/// Set pre-established consensus data.
-	pub fn set_consensus_output(&self, shares_to_move: BTreeMap<NodeId, NodeId>) -> Result<(), Error> {
+	pub fn set_consensus_output(&self, shares_to_move_reversed: BTreeMap<NodeId, NodeId>) -> Result<(), Error> {
 		let mut data = self.data.lock();
 
 		// check state
@@ -155,16 +158,17 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		}
 
 		let old_id_numbers = self.core.key_share.as_ref().map(|ks| &ks.id_numbers);
-		check_shares_to_move(&self.core.meta.self_node_id, &shares_to_move, old_id_numbers)?;
+		check_shares_to_move(&self.core.meta.self_node_id, &shares_to_move_reversed, old_id_numbers)?;
 
-		data.move_confirmations_to_receive = Some(shares_to_move.keys().cloned().collect());
-		data.shares_to_move = Some(shares_to_move);
+		data.move_confirmations_to_receive = Some(shares_to_move_reversed.keys().cloned().collect());
+		data.shares_to_move = Some(shares_to_move_reversed.iter().map(|(k, v)| (v.clone(), k.clone())).collect());
+		data.shares_to_move_reversed = Some(shares_to_move_reversed);
 
 		Ok(())
 	}
 
 	/// Initialize share add session on master node.
-	pub fn initialize(&self, shares_to_move: Option<BTreeMap<NodeId, NodeId>>, old_set_signature: Option<Signature>, new_set_signature: Option<Signature>) -> Result<(), Error> {
+	pub fn initialize(&self, shares_to_move_reversed: Option<BTreeMap<NodeId, NodeId>>, old_set_signature: Option<Signature>, new_set_signature: Option<Signature>) -> Result<(), Error> {
 		debug_assert_eq!(self.core.meta.self_node_id, self.core.meta.master_node_id);
 
 		let mut data = self.data.lock();
@@ -177,22 +181,22 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		// if consensus is not yet established => start consensus session
 		let is_consensus_pre_established = data.shares_to_move.is_some();
 		if !is_consensus_pre_established {
-			let shares_to_move = shares_to_move.ok_or(Error::InvalidMessage)?;
+			let shares_to_move_reversed = shares_to_move_reversed.ok_or(Error::InvalidMessage)?;
 			let key_share = self.core.key_share.as_ref().ok_or(Error::KeyStorage("key share is not found on master node".into()))?;
-			check_shares_to_move(&self.core.meta.self_node_id, &shares_to_move, Some(&key_share.id_numbers))?;
+			check_shares_to_move(&self.core.meta.self_node_id, &shares_to_move_reversed, Some(&key_share.id_numbers))?;
 
 			let old_set_signature = old_set_signature.ok_or(Error::InvalidMessage)?;
 			let new_set_signature = new_set_signature.ok_or(Error::InvalidMessage)?;
 			let admin_public = self.core.admin_public.clone().ok_or(Error::InvalidMessage)?;
 			let mut all_nodes_set: BTreeSet<_> = key_share.id_numbers.keys().cloned().collect();
 			let mut new_nodes_set: BTreeSet<_> = all_nodes_set.clone();
-			for (target, source) in &shares_to_move {
+			for (target, source) in &shares_to_move_reversed {
 				new_nodes_set.remove(source);
 				new_nodes_set.insert(target.clone());
 				all_nodes_set.insert(target.clone());
 			}
 			let mut consensus_transport = self.core.transport.clone();
-			consensus_transport.set_shares_to_move(shares_to_move.clone());
+			consensus_transport.set_shares_to_move_reversed(shares_to_move_reversed.clone());
 
 			let mut consensus_session = ConsensusSession::new(ConsensusSessionParams {
 				meta: self.core.meta.clone().into_consensus_meta(all_nodes_set.len()),
@@ -206,8 +210,9 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 			})?;
 			consensus_session.initialize(all_nodes_set)?;
 			data.consensus_session = Some(consensus_session);
-			data.move_confirmations_to_receive = Some(shares_to_move.keys().cloned().collect());
-			data.shares_to_move = Some(shares_to_move);
+			data.move_confirmations_to_receive = Some(shares_to_move_reversed.keys().cloned().collect());
+			data.shares_to_move = Some(shares_to_move_reversed.iter().map(|(k, v)| (v.clone(), k.clone())).collect());
+			data.shares_to_move_reversed = Some(shares_to_move_reversed);
 			return Ok(());
 		}
 
@@ -260,16 +265,16 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 			}
 		}
 
-		let (is_establishing_consensus, is_consensus_established, shares_to_move) = {
+		let (is_establishing_consensus, is_consensus_established, shares_to_move_reversed) = {
 			let consensus_session = data.consensus_session.as_mut().ok_or(Error::InvalidMessage)?;
 			let is_establishing_consensus = consensus_session.state() == ConsensusSessionState::EstablishingConsensus;
-			let shares_to_move = match &message.message {
+			let shares_to_move_reversed = match &message.message {
 				&ConsensusMessageWithServersMap::InitializeConsensusSession(ref message) => {
 					consensus_session.on_consensus_partial_request(sender, ServersSetChangeAccessRequest::from(message))?;
 					Some(message.new_nodes_set.iter()
 						.filter(|&(old, new)| old != new)
 						.map(|(old, new)| (old.clone().into(), new.clone().into()))
-						.collect::<BTreeMap<_, _>>())
+						.collect::<BTreeMap<NodeId, NodeId>>())
 				},
 				&ConsensusMessageWithServersMap::ConfirmConsensusInitialization(ref message) => {
 					consensus_session.on_consensus_partial_response(sender, message.is_confirmed)?;
@@ -280,13 +285,14 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 			(
 				is_establishing_consensus,
 				consensus_session.state() == ConsensusSessionState::ConsensusEstablished,
-				shares_to_move
+				shares_to_move_reversed
 			)
 		};
 
-		if let Some(shares_to_move) = shares_to_move {
-			data.move_confirmations_to_receive = Some(shares_to_move.keys().cloned().collect());
-			data.shares_to_move = Some(shares_to_move);
+		if let Some(shares_to_move_reversed) = shares_to_move_reversed {
+			data.move_confirmations_to_receive = Some(shares_to_move_reversed.keys().cloned().collect());
+			data.shares_to_move = Some(shares_to_move_reversed.iter().map(|(k, v)| (v.clone(), k.clone())).collect());
+			data.shares_to_move_reversed = Some(shares_to_move_reversed);
 		}
 		if self.core.meta.self_node_id != self.core.meta.master_node_id || !is_establishing_consensus || !is_consensus_established {
 			return Ok(());
@@ -317,7 +323,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		{
 			let shares_to_move = data.shares_to_move.as_ref()
 				.expect("shares_to_move are filled during consensus establishing; share move requests are processed after this; qed");
-			if let Some(share_destination) = shares_to_move.iter().filter(|&(_, v)| v == &self.core.meta.self_node_id).map(|(k, _)| k).nth(0) {
+			if let Some(share_destination) = shares_to_move.get(&self.core.meta.self_node_id) {
 				Self::move_share(&self.core, share_destination)?;
 			} else {
 				return Err(Error::InvalidMessage);
@@ -342,7 +348,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		}
 
 		// check that we are expecting this share
-		if data.shares_to_move.as_ref()
+		if data.shares_to_move_reversed.as_ref()
 			.expect("shares_to_move are filled during consensus establishing; share moves are processed after this; qed")
 			.get(&self.core.meta.self_node_id) != Some(sender) {
 			return Err(Error::InvalidMessage);
@@ -369,8 +375,8 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		{
 			let shares_to_move = data.shares_to_move.as_ref()
 				.expect("shares_to_move are filled during consensus establishing; share moves are processed after this; qed");
-			let new_nodes_set: BTreeSet<_> = shares_to_move.keys().cloned()
-				.chain(message.id_numbers.keys().filter(|n| !shares_to_move.values().any(|n2| n2 == &(*n).clone().into())).cloned().map(Into::into))
+			let new_nodes_set: BTreeSet<_> = shares_to_move.values().cloned()
+				.chain(message.id_numbers.keys().filter(|n| !shares_to_move.contains_key(n)).cloned().map(Into::into))
 				.collect();
 
 			for node in new_nodes_set.into_iter().filter(|n| n != &self.core.meta.self_node_id) {
@@ -440,12 +446,12 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		{
 			let shares_to_move = data.shares_to_move.as_ref()
 				.expect("shares_to_move are filled during consensus establishing; this method is called after consensus established; qed");
-			if let Some(share_destination) = shares_to_move.iter().filter(|&(_, v)| v == &core.meta.self_node_id).map(|(k, _)| k).nth(0) {
+			if let Some(share_destination) = shares_to_move.get(&core.meta.self_node_id) {
 				// move share
 				Self::move_share(core, share_destination)?;
 			} else {
 				// remember move confirmations to receive
-				data.move_confirmations_to_receive = Some(shares_to_move.keys().cloned().collect());
+				data.move_confirmations_to_receive = Some(shares_to_move.values().cloned().collect());
 				return Ok(());
 			}
 		}
@@ -458,7 +464,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 	fn disseminate_share_move_requests(core: &SessionCore<T>, data: &mut SessionData<T>) -> Result<(), Error> {
 		let shares_to_move = data.shares_to_move.as_ref()
 			.expect("shares_to_move are filled during consensus establishing; this method is called after consensus established; qed");
-		for share_source in shares_to_move.values().filter(|n| **n != core.meta.self_node_id) {
+		for share_source in shares_to_move.keys().filter(|n| **n != core.meta.self_node_id) {
 			core.transport.send(share_source, ShareMoveMessage::ShareMoveRequest(ShareMoveRequest {
 				session: core.meta.id.clone().into(),
 				session_nonce: core.nonce,
@@ -471,7 +477,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 	/// Send share move message.
 	fn move_share(core: &SessionCore<T>, share_destination: &NodeId) -> Result<(), Error> {
 		let key_share = core.key_share.as_ref()
-			.expect("move_share is called on nodes from shares_to_move.keys(); all 'key' nodes have shares; qed");
+			.expect("move_share is called on nodes from shares_to_move.values(); all 'values' nodes have shares; qed");
 		core.transport.send(share_destination, ShareMoveMessage::ShareMove(ShareMove {
 			session: core.meta.id.clone().into(),
 			session_nonce: core.nonce,
@@ -493,7 +499,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		// if we are source node => remove share from storage
 		let shares_to_move = data.shares_to_move.as_ref()
 			.expect("shares_to_move are filled during consensus establishing; this method is called after consensus established; qed");
-		if shares_to_move.values().any(|n| n == &core.meta.self_node_id) {
+		if shares_to_move.contains_key(&core.meta.self_node_id) {
 			return core.key_storage.remove(&core.meta.id)
 				.map_err(|e| Error::KeyStorage(e.into()));
 		}
@@ -504,7 +510,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 			.unwrap_or_else(|| core.key_share.as_ref()
 				.expect("on target nodes received_key_share is non-empty; on old nodes key_share is not empty; qed")
 				.clone());
-		for (target_node, source_node) in shares_to_move {
+		for (source_node, target_node) in shares_to_move {
 			let id_number = key_share.id_numbers.remove(source_node)
 				.expect("source_node is old node; there's entry in id_numbers for each old node; qed");
 			key_share.id_numbers.insert(target_node.clone(), id_number);
@@ -545,7 +551,7 @@ impl IsolatedSessionTransport {
 			session: session_id,
 			nonce: nonce,
 			cluster: cluster,
-			shares_to_move: None,
+			shares_to_move_reversed: None,
 		}
 	}
 }
@@ -555,15 +561,15 @@ impl JobTransport for IsolatedSessionTransport {
 	type PartialJobResponse = bool;
 
 	fn send_partial_request(&self, node: &NodeId, request: ServersSetChangeAccessRequest) -> Result<(), Error> {
-		let shares_to_move = self.shares_to_move.as_ref()
-			.expect("partial requests are sent from master node only; on master node shares_to_move are filled during creation; qed");
+		let shares_to_move_reversed = self.shares_to_move_reversed.as_ref()
+			.expect("partial requests are sent from master node only; on master node shares_to_move_reversed are filled during creation; qed");
 		self.cluster.send(node, Message::ShareMove(ShareMoveMessage::ShareMoveConsensusMessage(ShareMoveConsensusMessage {
 			session: self.session.clone().into(),
 			session_nonce: self.nonce,
 			message: ConsensusMessageWithServersMap::InitializeConsensusSession(InitializeConsensusSessionWithServersMap {
 				old_nodes_set: request.old_servers_set.into_iter().map(Into::into).collect(),
 				new_nodes_set: request.new_servers_set.into_iter().map(|n| (n.into(),
-					shares_to_move.get(&n).cloned().unwrap_or_else(|| n.clone()).into())).collect(),
+					shares_to_move_reversed.get(&n).cloned().unwrap_or_else(|| n.clone()).into())).collect(),
 				old_set_signature: request.old_set_signature.into(),
 				new_set_signature: request.new_set_signature.into(),
 			}),
@@ -582,8 +588,8 @@ impl JobTransport for IsolatedSessionTransport {
 }
 
 impl SessionTransport for IsolatedSessionTransport {
-	fn set_shares_to_move(&mut self, shares_to_move: BTreeMap<NodeId, NodeId>) {
-		self.shares_to_move = Some(shares_to_move);
+	fn set_shares_to_move_reversed(&mut self, shares_to_move_reversed: BTreeMap<NodeId, NodeId>) {
+		self.shares_to_move_reversed = Some(shares_to_move_reversed);
 	}
 
 	fn send(&self, node: &NodeId, message: ShareMoveMessage) -> Result<(), Error> {
@@ -591,34 +597,34 @@ impl SessionTransport for IsolatedSessionTransport {
 	}
 }
 
-fn check_shares_to_move(self_node_id: &NodeId, shares_to_move: &BTreeMap<NodeId, NodeId>, id_numbers: Option<&BTreeMap<NodeId, Secret>>) -> Result<(), Error> {
+fn check_shares_to_move(self_node_id: &NodeId, shares_to_move_reversed: &BTreeMap<NodeId, NodeId>, id_numbers: Option<&BTreeMap<NodeId, Secret>>) -> Result<(), Error> {
 	// shares to move must not be empty
-	if shares_to_move.is_empty() {
+	if shares_to_move_reversed.is_empty() {
 		return Err(Error::InvalidMessage);
 	}
 
 	if let Some(id_numbers) = id_numbers {
-		// all values in shares_to_move must be old nodes of the session
-		if shares_to_move.values().any(|n| !id_numbers.contains_key(n)) {
+		// all values in share_to_move_reversed must be old nodes of the session
+		if shares_to_move_reversed.values().any(|n| !id_numbers.contains_key(n)) {
 			return Err(Error::InvalidNodesConfiguration);
 		}
-		// all keys in shares_to_move must be new nodes for the session
-		if shares_to_move.keys().any(|n| id_numbers.contains_key(n)) {
+		// all keys in share_to_move_reversed must be new nodes for the session
+		if shares_to_move_reversed.keys().any(|n| id_numbers.contains_key(n)) {
 			return Err(Error::InvalidNodesConfiguration);
 		}
 	} else {
-		// this node must NOT in values of shares_to_move
-		if shares_to_move.values().any(|n| n == self_node_id) {
+		// this node must NOT in values of share_to_move_reversed
+		if shares_to_move_reversed.values().any(|n| n == self_node_id) {
 			return Err(Error::InvalidMessage);
 		}
-		// this node must be in keys of share_to_move
-		if !shares_to_move.contains_key(self_node_id) {
+		// this node must be in keys of share_to_move_reversed
+		if !shares_to_move_reversed.contains_key(self_node_id) {
 			return Err(Error::InvalidMessage);
 		}
 	}
 
 	// all values of the shares_to_move must be distinct
-	if shares_to_move.values().collect::<BTreeSet<_>>().len() != shares_to_move.len() {
+	if shares_to_move_reversed.values().collect::<BTreeSet<_>>().len() != shares_to_move_reversed.len() {
 		return Err(Error::InvalidNodesConfiguration);
 	}
 

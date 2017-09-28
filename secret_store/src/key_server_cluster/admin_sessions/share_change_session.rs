@@ -329,7 +329,7 @@ impl ShareAddSessionTransport for ShareChangeTransport {
 }
 
 impl ShareMoveSessionTransport for ShareChangeTransport {
-	fn set_shares_to_move(&mut self, _shares_to_move: BTreeMap<NodeId, NodeId>) {
+	fn set_shares_to_move_reversed(&mut self, _shares_to_move: BTreeMap<NodeId, NodeId>) {
 		unreachable!("only called when establishing consensus; this transport is never used for establishing consensus; qed")
 	}
 
