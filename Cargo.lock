@@ -979,6 +979,7 @@ version = "0.1.0"
 dependencies = [
  "docopt 0.8.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethstore 0.1.0",
+ "num_cpus 1.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "panic_hook 0.1.0",
  "rustc-hex 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.15 (registry+https://github.com/rust-lang/crates.io-index)",
