@@ -1,6 +1,3 @@
-// TODO: even if node was lost, it is still required for share removal, ...
-// TODO: in long session some nodes (that are not participating in share change sessions) can stop session as stalled
-
 // Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
