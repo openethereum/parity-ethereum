@@ -193,7 +193,7 @@ impl ClusterSessions {
 			nodes: config.key_server_set.get().keys().cloned().collect(),
 			acl_storage: config.acl_storage.clone(),
 			key_storage: config.key_storage.clone(),
-			admin_public: None, // TODO
+			admin_public: config.admin_public.clone(),
 			generation_sessions: ClusterSessionsContainer::new(),
 			encryption_sessions: ClusterSessionsContainer::new(),
 			decryption_sessions: ClusterSessionsContainer::new(),

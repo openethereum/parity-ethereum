@@ -117,6 +117,8 @@ pub struct ClusterConfiguration {
 	pub key_storage: Arc<KeyStorage>,
 	/// Reference to ACL storage
 	pub acl_storage: Arc<AclStorage>,
+	/// Administrator public key.
+	pub admin_public: Option<Public>,
 }
 
 /// Cluster state.
@@ -1530,6 +1532,7 @@ pub mod tests {
 			allow_connecting_to_higher_nodes: false,
 			key_storage: Arc::new(DummyKeyStorage::default()),
 			acl_storage: Arc::new(DummyAclStorage::default()),
+			admin_public: None,
 		}).collect();
 		let clusters: Vec<_> = cluster_params.into_iter().enumerate()
 			.map(|(_, params)| ClusterCore::new(core.handle(), params).unwrap())

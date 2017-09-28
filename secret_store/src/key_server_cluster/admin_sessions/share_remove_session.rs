@@ -67,7 +67,7 @@ struct SessionCore<T: SessionTransport> {
 }
 
 /// Share remove consensus session type.
-type ShareRemoveChangeConsensusSession<T: SessionTransport> = ConsensusSession<ServersSetChangeAccessJob, T, DummyJob, DummyJobTransport>;
+type ShareRemoveChangeConsensusSession<T> = ConsensusSession<ServersSetChangeAccessJob, T, DummyJob, DummyJobTransport>;
 
 /// Mutable session data.
 struct SessionData<T: SessionTransport> {
