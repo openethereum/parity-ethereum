@@ -1,7 +1,6 @@
 // TODO: active_sessions -> key_session, session_id -> key_id, ...
 // TODO: when servers set change session is active, pause updating servers set from contract
 // TODO: even if node was lost, it is still required for share removal, ...
-// TODO: before setting pre-established consensus - check that old nodes are in general old set && new nodes are in general new set
 // TODO: in long session some nodes (that are not participating in share change sessions) can stop session as stalled
 // TODO: check servers set
 
@@ -171,13 +170,6 @@ struct UnknownSessionsJobTransport {
 impl SessionImpl {
 	/// Create new servers set change session.
 	pub fn new(params: SessionParams) -> Result<Self, Error> {
-		// TODO: threshold = all_nodes_len() - 1
-		// session id must be the hash of sorted nodes set
-		/*let new_nodes_set_hash = nodes_hash(&params.new_nodes_set);
-		if new_nodes_set_hash != params.meta.id {
-			return Err(Error::InvalidNodesConfiguration);
-		}*/
-
 		Ok(SessionImpl {
 			core: SessionCore {
 				meta: params.meta.clone(),
@@ -203,8 +195,8 @@ impl SessionImpl {
 
 	/// Initialize servers set change session on master node.
 	pub fn initialize(&self, new_nodes_set: BTreeSet<NodeId>, all_set_signature: Signature, new_set_signature: Signature) -> Result<(), Error> {
-		// TODO: check that all_nodes_set.contains(new_nodes_set)
-		// TODO: check that threshold + 1 == all_nodes_set.len()
+		check_nodes_set(&self.core.all_nodes_set, &new_nodes_set)?;
+
 		let mut data = self.data.lock();
 		if data.state != SessionState::EstablishingConsensus || data.consensus_session.is_some() {
 			return Err(Error::InvalidStateForRequest);
@@ -326,17 +318,23 @@ impl SessionImpl {
 
 		let mut data = self.data.lock();
 
-		{
+		let new_nodes_set = {
 			let consensus_session = data.consensus_session.as_mut().ok_or(Error::InvalidMessage)?;
 			let unknown_sessions_job = UnknownSessionsJob::new_on_slave(self.core.key_storage.clone());
 			let unknown_sessions_transport = self.unknown_sessions_transport();
 
 			// and respond with unknown sessions
 			consensus_session.on_job_request(&sender, sender.clone(), unknown_sessions_job, unknown_sessions_transport)?;
-		}
+
+			consensus_session.consensus_job().executor()
+				.new_servers_set()
+				.expect("consensus session is now completed; new_servers_set is intermediate result of consensus session; qed")
+				.clone()
+		};
 
 		// update state
 		data.state = SessionState::RunningShareChangeSessions;
+		data.new_nodes_set = Some(new_nodes_set);
 
 		Ok(())
 	}
@@ -353,7 +351,7 @@ impl SessionImpl {
 		}
 
 		// process message
-		let (unknown_sessions, new_nodes_set) = {
+		let unknown_sessions = {
 			let consensus_session = data.consensus_session.as_mut().ok_or(Error::InvalidMessage)?;
 			consensus_session.on_job_response(sender, message.unknown_sessions.iter().cloned().map(Into::into).collect())?;
 			if consensus_session.state() != ConsensusSessionState::Finished {
@@ -362,18 +360,11 @@ impl SessionImpl {
 
 			// all nodes have reported their unknown sessions
 			// => we are ready to start adding/moving/removing shares
-			(
-				consensus_session.result()?,
-				consensus_session.consensus_job().executor()
-					.new_servers_set()
-					.expect("consensus session is finished; new_servers_set is intermediate result of consensus session; qed")
-					.clone(),
-			)
+			consensus_session.result()?
 		};
 
 		// initialize sessions queue
 		data.state = SessionState::RunningShareChangeSessions;
-		data.new_nodes_set = Some(new_nodes_set);
 		data.sessions_queue = Some(SessionsQueue::new(self.core.key_storage.clone(), unknown_sessions));
 
 		// and disseminate session initialization requests
@@ -397,25 +388,43 @@ impl SessionImpl {
 		}
 
 		// insert new session
-		match data.active_sessions.entry(message.key_id.clone().into()) {
-			Entry::Occupied(_) => return Err(Error::InvalidMessage),
-			Entry::Vacant(entry) => entry.insert(ShareChangeSession::new(ShareChangeSessionParams {
-				session_id: message.key_id.clone().into(),
-				nonce: self.core.nonce,
-				meta: ShareChangeSessionMeta {
-					id: message.key_id.clone().into(),
-					self_node_id: self.core.meta.self_node_id.clone(),
-					master_node_id: message.master_node_id.clone().into(),
-				},
-				cluster: self.core.cluster.clone(),
-				key_storage: self.core.key_storage.clone(),
-				old_nodes_set: message.old_shares_set.iter().cloned().map(Into::into).collect(),
-				plan: ShareChangeSessionPlan {
+		let key_id = message.key_id.clone().into();
+		match data.active_sessions.contains_key(&key_id) {
+			true => return Err(Error::InvalidMessage),
+			false => {
+				let master_plan = ShareChangeSessionPlan {
 					nodes_to_add: message.shares_to_add.iter().map(|(k, v)| (k.clone().into(), v.clone().into())).collect(),
 					nodes_to_move: message.shares_to_move.iter().map(|(k, v)| (k.clone().into(), v.clone().into())).collect(),
 					nodes_to_remove: message.shares_to_remove.iter().cloned().map(Into::into).collect(),
-				},
-			})?),
+				};
+
+				// on nodes, which have their own key share, we could check if master node plan is correct
+				if let Ok(key_share) = self.core.key_storage.get(&message.key_id.clone().into()) {
+					let new_nodes_set = data.new_nodes_set.as_ref()
+						.expect("new_nodes_set is filled during consensus establishing; change sessions are running after this; qed");
+					let local_plan = prepare_share_change_session_plan(&key_share.id_numbers.keys().cloned().collect(), new_nodes_set)?;
+					if local_plan.nodes_to_add.keys().any(|n| !local_plan.nodes_to_add.contains_key(n))
+						|| local_plan.nodes_to_add.keys().any(|n| !master_plan.nodes_to_add.contains_key(n))
+						|| local_plan.nodes_to_move != master_plan.nodes_to_move
+						|| local_plan.nodes_to_remove != master_plan.nodes_to_remove {
+						return Err(Error::InvalidMessage);
+					}
+				}
+
+				data.active_sessions.insert(key_id.clone(), ShareChangeSession::new(ShareChangeSessionParams {
+					session_id: key_id.clone(),
+					nonce: self.core.nonce,
+					meta: ShareChangeSessionMeta {
+						id: key_id,
+						self_node_id: self.core.meta.self_node_id.clone(),
+						master_node_id: message.master_node_id.clone().into(),
+					},
+					cluster: self.core.cluster.clone(),
+					key_storage: self.core.key_storage.clone(),
+					old_nodes_set: message.old_shares_set.iter().cloned().map(Into::into).collect(),
+					plan: master_plan,
+				})?);
+			},
 		};
 
 		// send confirmation
@@ -818,6 +827,14 @@ impl JobTransport for UnknownSessionsJobTransport {
 			session_nonce: self.nonce,
 			unknown_sessions: response.into_iter().map(Into::into).collect(),
 		})))
+	}
+}
+
+fn check_nodes_set(all_nodes_set: &BTreeSet<NodeId>, new_nodes_set: &BTreeSet<NodeId>) -> Result<(), Error> {
+	// all new nodes must be a part of all nodes set
+	match new_nodes_set.iter().any(|n| !all_nodes_set.contains(n)) {
+		true => Err(Error::InvalidNodesConfiguration),
+		false => Ok(())
 	}
 }
 
