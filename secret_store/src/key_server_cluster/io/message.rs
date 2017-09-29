@@ -204,8 +204,8 @@ pub fn deserialize_message(header: &MessageHeader, payload: Vec<u8>) -> Result<M
 
 		400 => Message::ShareRemove(ShareRemoveMessage::ShareRemoveConsensusMessage(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
 		401 => Message::ShareRemove(ShareRemoveMessage::ShareRemoveRequest(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
-		403 => Message::ShareRemove(ShareRemoveMessage::ShareRemoveConfirm(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
-		404 => Message::ShareRemove(ShareRemoveMessage::ShareRemoveError(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		402 => Message::ShareRemove(ShareRemoveMessage::ShareRemoveConfirm(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		403 => Message::ShareRemove(ShareRemoveMessage::ShareRemoveError(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
 
 		_ => return Err(Error::Serde(format!("unknown message type {}", header.kind))),
 	})
