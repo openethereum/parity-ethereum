@@ -292,7 +292,7 @@ impl SessionImpl {
 			&GenerationMessage::PublicKeyShare(ref message) =>
 				self.on_public_key_share(sender.clone(), message),
 			&GenerationMessage::SessionError(ref message) =>
-				self.on_session_error(sender.clone(), message),
+				self.on_session_error(sender, message),
 			&GenerationMessage::SessionCompleted(ref message) => 
 				self.on_session_completed(sender.clone(), message),
 		}
@@ -547,7 +547,7 @@ impl SessionImpl {
 	}
 
 	/// When error has occured on another node.
-	pub fn on_session_error(&self, sender: NodeId, message: &SessionError) -> Result<(), Error> {
+	pub fn on_session_error(&self, sender: &NodeId, message: &SessionError) -> Result<(), Error> {
 		let mut data = self.data.lock();
 
 		warn!("{}: generation session failed with error: {} from {}", self.node(), message.error, sender);

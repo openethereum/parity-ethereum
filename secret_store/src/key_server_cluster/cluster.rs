@@ -492,11 +492,13 @@ impl ClusterCore {
 				},
 				Err(err) => {
 					warn!(target: "secretstore_net", "{}: generation session error '{}' when processing message {} from node {}", data.self_key_pair.public(), err, message, sender);
-					data.sessions.respond_with_generation_error(&session_id, message::SessionError {
+					let error_message = message::SessionError {
 						session: session_id.clone().into(),
 						session_nonce: session_nonce,
 						error: format!("{:?}", err),
-					});
+					};
+					let _ = session.and_then(|s| s.on_session_error(data.self_key_pair.public(), &error_message)); // processing error => ignore error
+					data.sessions.respond_with_generation_error(&session_id, error_message);
 					if err != Error::InvalidSessionId {
 						data.sessions.generation_sessions.remove(&session_id);
 					}
@@ -545,7 +547,7 @@ impl ClusterCore {
 				EncryptionMessage::ConfirmEncryptionInitialization(ref message) =>
 					session.on_confirm_initialization(sender.clone(), message),
 				EncryptionMessage::EncryptionSessionError(ref message) =>
-					session.on_session_error(sender.clone(), message),
+					session.on_session_error(&sender, message),
 			}) {
 				Ok(_) => {
 					// if session is completed => stop
@@ -575,11 +577,13 @@ impl ClusterCore {
 				},
 				Err(err) => {
 					warn!(target: "secretstore_net", "{}: encryption session error '{}' when processing message {} from node {}", data.self_key_pair.public(), err, message, sender);
-					data.sessions.respond_with_encryption_error(&session_id, message::EncryptionSessionError {
+					let error_message = message::EncryptionSessionError {
 						session: session_id.clone().into(),
 						session_nonce: session_nonce,
 						error: format!("{:?}", err),
-					});
+					};
+					let _ = session.and_then(|s| s.on_session_error(data.self_key_pair.public(), &error_message)); // processing error => ignore error
+					data.sessions.respond_with_encryption_error(&session_id, error_message);
 					if err != Error::InvalidSessionId {
 						data.sessions.encryption_sessions.remove(&session_id);
 					}
@@ -648,12 +652,14 @@ impl ClusterCore {
 				},
 				Err(err) => {
 					warn!(target: "secretstore_net", "{}: decryption session error '{}' when processing message {} from node {}", data.self_key_pair.public(), err, message, sender);
-					data.sessions.respond_with_decryption_error(&session_id, &sub_session_id, &sender, message::DecryptionSessionError {
+					let error_message = message::DecryptionSessionError {
 						session: session_id.clone().into(),
 						sub_session: sub_session_id.clone().into(),
 						session_nonce: session_nonce,
 						error: format!("{:?}", err),
-					});
+					};
+					let _ = session.and_then(|s| s.on_session_error(data.self_key_pair.public(), &error_message)); // processing error => ignore error
+					data.sessions.respond_with_decryption_error(&session_id, &sub_session_id, &sender, error_message);
 					if err != Error::InvalidSessionId {
 						data.sessions.decryption_sessions.remove(&decryption_session_id);
 					}
@@ -728,12 +734,14 @@ impl ClusterCore {
 				},
 				Err(err) => {
 					warn!(target: "secretstore_net", "{}: signing session error '{}' when processing message {} from node {}", data.self_key_pair.public(), err, message, sender);
-					data.sessions.respond_with_signing_error(&session_id, &sub_session_id, &sender, message::SigningSessionError {
+					let error_message = message::SigningSessionError {
 						session: session_id.clone().into(),
 						sub_session: sub_session_id.clone().into(),
 						session_nonce: session_nonce,
 						error: format!("{:?}", err),
-					});
+					};
+					let _ = session.and_then(|s| s.on_session_error(data.self_key_pair.public(), &error_message)); // processing error => ignore error
+					data.sessions.respond_with_signing_error(&session_id, &sub_session_id, &sender, error_message);
 					if err != Error::InvalidSessionId {
 						data.sessions.signing_sessions.remove(&signing_session_id);
 					}
@@ -806,11 +814,15 @@ impl ClusterCore {
 				},
 				Err(err) => {
 					warn!(target: "secretstore_net", "{}: servers set change session error '{}' when processing message {} from node {}", data.self_key_pair.public(), err, message, sender);
-					data.sessions.respond_with_servers_set_change_error(&session_id, message::ServersSetChangeError {
+					let error_message = message::ServersSetChangeError {
 						session: session_id.clone().into(),
 						session_nonce: session_nonce,
 						error: format!("{:?}", err),
-					});
+					};
+					let _ = session.and_then(|s| s.as_servers_set_change()
+						.ok_or(Error::InvalidMessage)
+						.and_then(|s| s.on_session_error(data.self_key_pair.public(), &error_message))); // processing error => ignore error
+					data.sessions.respond_with_servers_set_change_error(&session_id, error_message);
 					if err != Error::InvalidSessionId {
 						data.sessions.admin_sessions.remove(&session_id);
 					}
@@ -883,11 +895,15 @@ impl ClusterCore {
 				},
 				Err(err) => {
 					warn!(target: "secretstore_net", "{}: share add session error '{}' when processing message {} from node {}", data.self_key_pair.public(), err, message, sender);
-					data.sessions.respond_with_share_add_error(&session_id, message::ShareAddError {
+					let error_message = message::ShareAddError {
 						session: session_id.clone().into(),
 						session_nonce: session_nonce,
 						error: format!("{:?}", err),
-					});
+					};
+					let _ = session.and_then(|s| s.as_share_add()
+						.ok_or(Error::InvalidMessage)
+						.and_then(|s| s.on_session_error(data.self_key_pair.public(), &error_message))); // processing error => ignore error
+					data.sessions.respond_with_share_add_error(&session_id, error_message);
 					if err != Error::InvalidSessionId {
 						data.sessions.admin_sessions.remove(&session_id);
 					}
@@ -960,11 +976,15 @@ impl ClusterCore {
 				},
 				Err(err) => {
 					warn!(target: "secretstore_net", "{}: share move session error '{}' when processing message {} from node {}", data.self_key_pair.public(), err, message, sender);
-					data.sessions.respond_with_share_move_error(&session_id, message::ShareMoveError {
+					let error_message = message::ShareMoveError {
 						session: session_id.clone().into(),
 						session_nonce: session_nonce,
 						error: format!("{:?}", err),
-					});
+					};
+					let _ = session.and_then(|s| s.as_share_move()
+						.ok_or(Error::InvalidMessage)
+						.and_then(|s| s.on_session_error(data.self_key_pair.public(), &error_message))); // processing error => ignore error
+					data.sessions.respond_with_share_move_error(&session_id, error_message);
 					if err != Error::InvalidSessionId {
 						data.sessions.admin_sessions.remove(&session_id);
 					}
@@ -1037,11 +1057,15 @@ impl ClusterCore {
 				},
 				Err(err) => {
 					warn!(target: "secretstore_net", "{}: share remove session error '{}' when processing message {} from node {}", data.self_key_pair.public(), err, message, sender);
-					data.sessions.respond_with_share_remove_error(&session_id, message::ShareRemoveError {
+					let error_message = message::ShareRemoveError {
 						session: session_id.clone().into(),
 						session_nonce: session_nonce,
 						error: format!("{:?}", err),
-					});
+					};
+					let _ = session.and_then(|s| s.as_share_remove()
+						.ok_or(Error::InvalidMessage)
+						.and_then(|s| s.on_session_error(data.self_key_pair.public(), &error_message))); // processing error => ignore error
+					data.sessions.respond_with_share_remove_error(&session_id, error_message);
 					if err != Error::InvalidSessionId {
 						data.sessions.admin_sessions.remove(&session_id);
 					}
@@ -1574,6 +1598,35 @@ pub mod tests {
 
 		// ask one of nodes to produce faulty generation sessions
 		clusters[1].client().make_faulty_generation_sessions();
+
+		// start && wait for generation session to fail
+		let session = clusters[0].client().new_generation_session(SessionId::default(), Public::default(), 1).unwrap();
+		loop_until(&mut core, time::Duration::from_millis(300), || session.joint_public_and_secret().is_some()
+			&& clusters[0].client().generation_session(&SessionId::default()).is_none());
+		assert!(session.joint_public_and_secret().unwrap().is_err());
+
+		// check that faulty session is either removed from all nodes, or nonexistent (already removed)
+		for i in 1..3 {
+			if let Some(session) = clusters[i].client().generation_session(&SessionId::default()) {
+				// wait for both session completion && session removal (session completion event is fired
+				// before session is removed from its own container by cluster)
+				loop_until(&mut core, time::Duration::from_millis(300), || session.joint_public_and_secret().is_some()
+					&& clusters[i].client().generation_session(&SessionId::default()).is_none());
+				assert!(session.joint_public_and_secret().unwrap().is_err());
+			}
+		}
+	}
+
+	#[test]
+	fn generation_session_completion_signalled_if_failed_on_master() {
+		//::logger::init_log();
+		let mut core = Core::new().unwrap();
+		let clusters = make_clusters(&core, 6023, 3);
+		run_clusters(&clusters);
+		loop_until(&mut core, time::Duration::from_millis(300), || clusters.iter().all(all_connections_established));
+
+		// ask one of nodes to produce faulty generation sessions
+		clusters[0].client().make_faulty_generation_sessions();
 
 		// start && wait for generation session to fail
 		let session = clusters[0].client().new_generation_session(SessionId::default(), Public::default(), 1).unwrap();
