@@ -26,6 +26,8 @@ use serialization::{SerializablePublic, SerializableSecret};
 const DB_META_KEY_VERSION: &'static [u8; 7] = b"version";
 /// Current db version.
 const CURRENT_VERSION: u8 = 2;
+/// Current type of serialized key shares.
+type CurrentSerializableDocumentKeyShare = SerializableDocumentKeyShareV2;
 
 /// Encrypted key share, stored by key storage on the single key server.
 #[derive(Debug, Clone, PartialEq)]
@@ -148,7 +150,7 @@ fn upgrade_db(db: Database) -> Result<Database, Error> {
 			batch.put(None, DB_META_KEY_VERSION, &[CURRENT_VERSION]);
 			for (db_key, db_value) in db.iter(None).into_iter().flat_map(|inner| inner).filter(|&(ref k, _)| **k != *DB_META_KEY_VERSION) {
 				let v0_key = serde_json::from_slice::<SerializableDocumentKeyShareV0>(&db_value).map_err(|e| Error::Database(e.to_string()))?;
-				let v2_key = SerializableDocumentKeyShareV2 {
+				let v2_key = CurrentSerializableDocumentKeyShare {
 					// author is used in separate generation + encrypt sessions.
 					// in v0 there have been only simultaneous GenEnc sessions.
 					author: Public::default().into(), // added in v1 
@@ -170,7 +172,7 @@ fn upgrade_db(db: Database) -> Result<Database, Error> {
 			batch.put(None, DB_META_KEY_VERSION, &[CURRENT_VERSION]);
 			for (db_key, db_value) in db.iter(None).into_iter().flat_map(|inner| inner).filter(|&(ref k, _)| **k != *DB_META_KEY_VERSION) {
 				let v1_key = serde_json::from_slice::<SerializableDocumentKeyShareV1>(&db_value).map_err(|e| Error::Database(e.to_string()))?;
-				let v2_key = SerializableDocumentKeyShareV2 {
+				let v2_key = CurrentSerializableDocumentKeyShare {
 					author: v1_key.author, // added in v1
 					threshold: v1_key.threshold,
 					id_numbers: v1_key.id_numbers,
@@ -192,7 +194,7 @@ fn upgrade_db(db: Database) -> Result<Database, Error> {
 
 impl KeyStorage for PersistentKeyStorage {
 	fn insert(&self, document: ServerKeyId, key: DocumentKeyShare) -> Result<(), Error> {
-		let key: SerializableDocumentKeyShareV2 = key.into();
+		let key: CurrentSerializableDocumentKeyShare = key.into();
 		let key = serde_json::to_vec(&key).map_err(|e| Error::Database(e.to_string()))?;
 		let mut batch = self.db.transaction();
 		batch.put(None, &document, &key);
@@ -208,7 +210,7 @@ impl KeyStorage for PersistentKeyStorage {
 			.map_err(Error::Database)?
 			.ok_or(Error::DocumentNotFound)
 			.map(|key| key.into_vec())
-			.and_then(|key| serde_json::from_slice::<SerializableDocumentKeyShareV2>(&key).map_err(|e| Error::Database(e.to_string())))
+			.and_then(|key| serde_json::from_slice::<CurrentSerializableDocumentKeyShare>(&key).map_err(|e| Error::Database(e.to_string())))
 			.map(Into::into)
 	}
 
@@ -237,7 +239,7 @@ impl<'a> Iterator for PersistentKeyStorageIterator<'a> {
 	fn next(&mut self) -> Option<(ServerKeyId, DocumentKeyShare)> {
 		self.iter.as_mut()
 			.and_then(|iter| iter.next()
-				.and_then(|(db_key, db_val)| serde_json::from_slice::<SerializableDocumentKeyShareV2>(&db_val)
+				.and_then(|(db_key, db_val)| serde_json::from_slice::<CurrentSerializableDocumentKeyShare>(&db_val)
 					.ok()
 					.map(|key| ((*db_key).into(), key.into()))))
 	}
@@ -294,7 +296,8 @@ pub mod tests {
 	use util::Database;
 	use types::all::{Error, NodeAddress, ServiceConfiguration, ClusterConfiguration, ServerKeyId};
 	use super::{DB_META_KEY_VERSION, CURRENT_VERSION, KeyStorage, PersistentKeyStorage, DocumentKeyShare,
-		SerializableDocumentKeyShareV0, SerializableDocumentKeyShareV1, SerializableDocumentKeyShareV2, upgrade_db};
+		SerializableDocumentKeyShareV0, SerializableDocumentKeyShareV1, SerializableDocumentKeyShareV2,
+		CurrentSerializableDocumentKeyShare, upgrade_db};
 
 	/// In-memory document encryption keys storage
 	#[derive(Default)]
@@ -417,7 +420,7 @@ pub mod tests {
 
 		// check upgrade
 		assert_eq!(db.get(None, DB_META_KEY_VERSION).unwrap().unwrap()[0], CURRENT_VERSION);
-		let key = serde_json::from_slice::<SerializableDocumentKeyShareV2>(&db.get(None, &[7]).unwrap().map(|key| key.to_vec()).unwrap()).unwrap();
+		let key = serde_json::from_slice::<CurrentSerializableDocumentKeyShare>(&db.get(None, &[7]).unwrap().map(|key| key.to_vec()).unwrap()).unwrap();
 		assert_eq!(Public::default(), key.author.clone().into());
 		assert_eq!(777, key.threshold);
 		assert_eq!(vec![(
@@ -458,7 +461,7 @@ pub mod tests {
 
 		// check upgrade
 		assert_eq!(db.get(None, DB_META_KEY_VERSION).unwrap().unwrap()[0], CURRENT_VERSION);
-		let key = serde_json::from_slice::<SerializableDocumentKeyShareV2>(&db.get(None, &[7]).unwrap().map(|key| key.to_vec()).unwrap()).unwrap();
+		let key = serde_json::from_slice::<CurrentSerializableDocumentKeyShare>(&db.get(None, &[7]).unwrap().map(|key| key.to_vec()).unwrap()).unwrap();
 		assert_eq!(777, key.threshold);
 		assert_eq!(vec![(
 			"b486d3840218837b035c66196ecb15e6b067ca20101e11bd5e626288ab6806ecc70b8307012626bd512bad1559112d11d21025cef48cc7a1d2f3976da08f36c8".parse::<Public>().unwrap(),
