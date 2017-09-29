@@ -49,15 +49,18 @@ pub trait Session: Send + Sync + 'static {
 
 /// Servers set change session.
 /// Brief overview:
-/// 1) initialization: master node (which has received request for change) requests confirmation from ALL other nodes
-/// 2) all other nodes send information on session, missing from master node
-/// 3) master node splits all nodes from OLD set and from NEW set as follows:
-/// 3.1) nodes_to_remove: OLD.except(NEW)
-/// 3.2) nodes_to_add: NEW.except(OLD)
-/// 3.3) nodes_staying: OLD.intersect(NEW)
-/// 4) for each node1 in nodes_to_remove: select node2 from nodes_to_add and move all sessions from node1 to node2
-/// 5) for each node1 left in nodes_to_remove (if nodes_to_add.len() < nodes_to_remove.len()): run share removal protocol for each node1 session
-/// 6) for each node1 left in nodes_to_add (if nodes_to_add.len() > nodes_to_remove.len()): run share addition protocol for each node1 session
+/// 1) consensus establishing
+/// 2) master node requests all other nodes for sessions he is not participating (aka unknown sessions)
+/// 3) every slave node responds with sessions id => we are able to collect Map<SessionId, Set> of unknown sessions on master
+/// 4) for every known session (i.e. session that master participates in):
+/// 4.1) share change plan is created = nodes to add shares for, nodes to move shares from/to, nodes to remove shares from
+/// 4.2) share change session is started. Share change session = sequential execution of ShareAdd, then ShareMove && then ShareRemove sessions (order matters here) for single key
+/// 5) for every unknown session:
+/// 5.1) sub_master is selected from sessions participants
+/// 5.2) share change session is delegated from master to this sub_master
+/// 5.3) share change session is executed by this sub_master
+/// 5.4) share change confirm is sent from sub_master to master
+/// 6) upon completing all known share change sessions && receiving confirmations for all unknown share change sessions, session completion signal is sent to all slave nodes && session is completed
 pub struct SessionImpl {
 	/// Session core.
 	core: SessionCore,
