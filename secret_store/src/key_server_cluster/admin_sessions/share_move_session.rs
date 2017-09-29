@@ -16,7 +16,7 @@
 
 use std::sync::Arc;
 use std::collections::{BTreeMap, BTreeSet};
-use parking_lot::Mutex;
+use parking_lot::{Mutex, Condvar};
 use ethkey::{Public, Secret, Signature};
 use key_server_cluster::{Error, NodeId, SessionId, DocumentKeyShare, KeyStorage};
 use key_server_cluster::cluster::Cluster;
@@ -66,6 +66,8 @@ struct SessionCore<T: SessionTransport> {
 	pub key_storage: Arc<KeyStorage>,
 	/// Administrator public key.
 	pub admin_public: Option<Public>,
+	/// SessionImpl completion condvar.
+	pub completed: Condvar,
 }
 
 /// Share move consensus session type.
@@ -85,6 +87,8 @@ struct SessionData<T: SessionTransport> {
 	pub move_confirmations_to_receive: Option<BTreeSet<NodeId>>,
 	/// Received key share (filled on destination nodes only).
 	pub received_key_share: Option<DocumentKeyShare>,
+	/// Share move change result.
+	pub result: Option<Result<(), Error>>,
 }
 
 /// SessionImpl creation parameters
@@ -136,6 +140,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 				transport: params.transport,
 				key_storage: params.key_storage,
 				admin_public: params.admin_public,
+				completed: Condvar::new(),
 			},
 			data: Mutex::new(SessionData {
 				state: SessionState::ConsensusEstablishing,
@@ -144,6 +149,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 				shares_to_move: None,
 				move_confirmations_to_receive: None,
 				received_key_share: None,
+				result: None,
 			}),
 		})
 	}
@@ -188,8 +194,9 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 			let old_set_signature = old_set_signature.ok_or(Error::InvalidMessage)?;
 			let new_set_signature = new_set_signature.ok_or(Error::InvalidMessage)?;
 			let admin_public = self.core.admin_public.clone().ok_or(Error::InvalidMessage)?;
-			let mut all_nodes_set: BTreeSet<_> = key_share.id_numbers.keys().cloned().collect();
-			let mut new_nodes_set: BTreeSet<_> = all_nodes_set.clone();
+			let old_nodes_set: BTreeSet<_> = key_share.id_numbers.keys().cloned().collect();
+			let mut all_nodes_set = old_nodes_set.clone();
+			let mut new_nodes_set = all_nodes_set.clone();
 			for (target, source) in &shares_to_move_reversed {
 				new_nodes_set.remove(source);
 				new_nodes_set.insert(target.clone());
@@ -201,9 +208,9 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 			let mut consensus_session = ConsensusSession::new(ConsensusSessionParams {
 				meta: self.core.meta.clone().into_consensus_meta(all_nodes_set.len()),
 				consensus_executor: ServersSetChangeAccessJob::new_on_master(admin_public,
-					key_share.id_numbers.keys().cloned().collect(),
-					key_share.id_numbers.keys().cloned().collect(),
-					new_nodes_set.clone(),
+					old_nodes_set.clone(),
+					old_nodes_set.clone(),
+					new_nodes_set,
 					old_set_signature,
 					new_set_signature),
 				consensus_transport: consensus_transport,
@@ -529,7 +536,13 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 
 impl<T> Session for SessionImpl<T> where T: SessionTransport + Send + Sync + 'static {
 	fn wait(&self) -> Result<(), Error> {
-		unimplemented!()
+		let mut data = self.data.lock();
+		if !data.result.is_some() {
+			self.core.completed.wait(&mut data);
+		}
+
+		data.result.clone()
+			.expect("checked above or waited for completed; completed is only signaled when result.is_some(); qed")
 	}
 }
 
@@ -539,11 +552,23 @@ impl<T> ClusterSession for SessionImpl<T> where T: SessionTransport {
 	}
 
 	fn on_session_timeout(&self) {
-		unimplemented!()
+		let mut data = self.data.lock();
+
+		warn!("{}: share move session failed with timeout", self.core.meta.self_node_id);
+
+		data.state = SessionState::Finished;
+		data.result = Some(Err(Error::NodeDisconnected));
+		self.core.completed.notify_all();
 	}
 
-	fn on_node_timeout(&self, _node_id: &NodeId) {
-		unimplemented!()
+	fn on_node_timeout(&self, node: &NodeId) {
+		let mut data = self.data.lock();
+
+		warn!("{}: share move session failed because {} connection has timeouted", self.core.meta.self_node_id, node);
+
+		data.state = SessionState::Finished;
+		data.result = Some(Err(Error::NodeDisconnected));
+		self.core.completed.notify_all();
 	}
 }
 

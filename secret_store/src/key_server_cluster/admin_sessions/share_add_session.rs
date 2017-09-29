@@ -17,7 +17,7 @@
 use std::sync::Arc;
 use std::collections::{BTreeSet, BTreeMap};
 use ethkey::{Public, Secret, Signature};
-use parking_lot::Mutex;
+use parking_lot::{Mutex, Condvar};
 use key_server_cluster::{Error, SessionId, NodeId, DocumentKeyShare, KeyStorage};
 use key_server_cluster::cluster::Cluster;
 use key_server_cluster::cluster_sessions::ClusterSession;
@@ -74,6 +74,8 @@ struct SessionCore<T: SessionTransport> {
 	pub key_storage: Arc<KeyStorage>,
 	/// Administrator public key.
 	pub admin_public: Option<Public>,
+	/// SessionImpl completion condvar.
+	pub completed: Condvar,
 }
 
 /// Share add consensus session type.
@@ -97,6 +99,8 @@ struct SessionData<T: SessionTransport> {
 	pub key_share_common_point: Option<Public>,
 	/// NewKeyShare: Encrypted point.
 	pub key_share_encrypted_point: Option<Public>,
+	/// Share add change result.
+	pub result: Option<Result<(), Error>>,
 }
 
 /// Single node data.
@@ -177,6 +181,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 				transport: params.transport,
 				key_storage: params.key_storage,
 				admin_public: params.admin_public,
+				completed: Condvar::new(),
 			},
 			data: Mutex::new(SessionData {
 				consensus_session: None,
@@ -187,6 +192,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 				key_share_author: None,
 				key_share_common_point: None,
 				key_share_encrypted_point: None,
+				result: None,
 			}),
 		})
 	}
@@ -269,8 +275,8 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 			let mut consensus_session = ConsensusSession::new(ConsensusSessionParams {
 				meta: self.core.meta.clone().into_consensus_meta(new_nodes_set.len()),
 				consensus_executor: ServersSetChangeAccessJob::new_on_master(admin_public,
-					key_share.id_numbers.keys().cloned().collect(),
-					key_share.id_numbers.keys().cloned().collect(),
+					old_nodes_set.clone(),
+					old_nodes_set.clone(),
 					new_nodes_set.clone(),
 					old_set_signature,
 					new_set_signature),
@@ -536,6 +542,8 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		warn!("{}: share add session failed with error: {} from {}", self.core.meta.self_node_id, message.error, sender);
 
 		data.state = SessionState::Finished;
+		data.result = Some(Err(Error::Io(message.error.clone())));
+		self.core.completed.notify_all();
 
 		Ok(())
 	}
@@ -618,7 +626,8 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 	fn disseminate_keys(core: &SessionCore<T>, data: &mut SessionData<T>) -> Result<(), Error> {
 		// send required messages
 		let threshold = core.key_share.as_ref().map(|ks| ks.threshold)
-			.unwrap_or_else(|| data.key_share_threshold.clone().expect("this is new node; on new nodes this field is filled before KRD; session is completed after KRD; qed"));
+			.unwrap_or_else(|| data.key_share_threshold.clone()
+				.expect("this is new node; on new nodes this field is filled before KRD; session is completed after KRD; qed"));
 		let refreshed_polynom1_sum = data.refreshed_polynom1_sum.as_ref()
 			.expect("disseminate_keys is only called after generating refreshed_polynom1_sum; qed");
 		let refreshed_publics = math::refreshed_public_values_generation(threshold, &refreshed_polynom1_sum)?;
@@ -679,9 +688,11 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		let refreshed_key_share = DocumentKeyShare {
 			// values with the same value as before beginning of the session
 			threshold: core.key_share.as_ref().map(|ks| ks.threshold)
-				.unwrap_or_else(|| data.key_share_threshold.clone().expect("this is new node; on new nodes this field is filled before KRD; session is completed after KRD; qed")),
+				.unwrap_or_else(|| data.key_share_threshold.clone()
+					.expect("this is new node; on new nodes this field is filled before KRD; session is completed after KRD; qed")),
 			author: core.key_share.as_ref().map(|ks| ks.author.clone())
-				.unwrap_or_else(|| data.key_share_author.clone().expect("this is new node; on new nodes this field is filled before KRD; session is completed after KRD; qed")),
+				.unwrap_or_else(|| data.key_share_author.clone()
+					.expect("this is new node; on new nodes this field is filled before KRD; session is completed after KRD; qed")),
 			common_point: core.key_share.as_ref().map(|ks| ks.common_point.clone())
 				.unwrap_or_else(|| data.key_share_common_point.clone()),
 			encrypted_point: core.key_share.as_ref().map(|ks| ks.encrypted_point.clone())
@@ -702,13 +713,26 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 			core.key_storage.update(core.meta.id.clone(), refreshed_key_share.clone())
 		} else {
 			core.key_storage.insert(core.meta.id.clone(), refreshed_key_share.clone())
-		}.map_err(|e| Error::KeyStorage(e.into()))
+		}.map_err(|e| Error::KeyStorage(e.into()))?;
+
+		// signal session completion
+		data.state = SessionState::Finished;
+		data.result = Some(Ok(()));
+		core.completed.notify_all();
+
+		Ok(())
 	}
 }
 
 impl<T> Session for SessionImpl<T> where T: SessionTransport + Send + Sync + 'static {
 	fn wait(&self) -> Result<(), Error> {
-		unimplemented!()
+		let mut data = self.data.lock();
+		if !data.result.is_some() {
+			self.core.completed.wait(&mut data);
+		}
+
+		data.result.clone()
+			.expect("checked above or waited for completed; completed is only signaled when result.is_some(); qed")
 	}
 }
 
@@ -718,11 +742,23 @@ impl<T> ClusterSession for SessionImpl<T> where T: SessionTransport {
 	}
 
 	fn on_session_timeout(&self) {
-		unimplemented!()
+		let mut data = self.data.lock();
+
+		warn!("{}: share add session failed with timeout", self.core.meta.self_node_id);
+
+		data.state = SessionState::Finished;
+		data.result = Some(Err(Error::NodeDisconnected));
+		self.core.completed.notify_all();
 	}
 
-	fn on_node_timeout(&self, _node_id: &NodeId) {
-		unimplemented!()
+	fn on_node_timeout(&self, node: &NodeId) {
+		let mut data = self.data.lock();
+
+		warn!("{}: share add session failed because {} connection has timeouted", self.core.meta.self_node_id, node);
+
+		data.state = SessionState::Finished;
+		data.result = Some(Err(Error::NodeDisconnected));
+		self.core.completed.notify_all();
 	}
 }
 

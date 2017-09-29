@@ -69,6 +69,7 @@ impl Iterator for SessionsQueue {
 }
 
 impl QueuedSession {
+	/// Queued session (key) id.
 	pub fn id(&self) -> &SessionId {
 		match *self {
 			QueuedSession::Known(ref session_id, _) => session_id,
@@ -76,6 +77,7 @@ impl QueuedSession {
 		}
 	}
 
+	/// OWners of key shares (aka session nodes).
 	pub fn nodes(&self) -> BTreeSet<NodeId> {
 		match *self {
 			QueuedSession::Known(_, ref key_share) => key_share.id_numbers.keys().cloned().collect(),

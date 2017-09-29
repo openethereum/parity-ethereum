@@ -16,7 +16,7 @@
 
 use std::sync::Arc;
 use std::collections::BTreeSet;
-use parking_lot::Mutex;
+use parking_lot::{Mutex, Condvar};
 use ethkey::{Public, Signature};
 use key_server_cluster::{Error, NodeId, SessionId, DocumentKeyShare, KeyStorage};
 use key_server_cluster::cluster::Cluster;
@@ -64,6 +64,8 @@ struct SessionCore<T: SessionTransport> {
 	pub key_storage: Arc<KeyStorage>,
 	/// Administrator public key.
 	pub admin_public: Option<Public>,
+	/// SessionImpl completion condvar.
+	pub completed: Condvar,
 }
 
 /// Share remove consensus session type.
@@ -79,6 +81,8 @@ struct SessionData<T: SessionTransport> {
 	pub shares_to_remove: Option<BTreeSet<NodeId>>,
 	/// Remove confirmations to receive.
 	pub remove_confirmations_to_receive: Option<BTreeSet<NodeId>>,
+	/// Share remove change result.
+	pub result: Option<Result<(), Error>>,
 }
 
 /// SessionImpl creation parameters
@@ -128,12 +132,14 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 				transport: params.transport,
 				key_storage: params.key_storage,
 				admin_public: params.admin_public,
+				completed: Condvar::new(),
 			},
 			data: Mutex::new(SessionData {
 				state: SessionState::ConsensusEstablishing,
 				consensus_session: None,
 				shares_to_remove: None,
 				remove_confirmations_to_receive: None,
+				result: None,
 			}),
 		})
 	}
@@ -182,9 +188,9 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 			let mut consensus_session = ConsensusSession::new(ConsensusSessionParams {
 				meta: self.core.meta.clone().into_consensus_meta(all_nodes_set.len()),
 				consensus_executor: ServersSetChangeAccessJob::new_on_master(admin_public,
-					self.core.key_share.id_numbers.keys().cloned().collect(),
-					self.core.key_share.id_numbers.keys().cloned().collect(),
-					new_nodes_set.clone(),
+					all_nodes_set.clone(),
+					all_nodes_set.clone(),
+					new_nodes_set,
 					old_set_signature,
 					new_set_signature),
 				consensus_transport: self.core.transport.clone(),
@@ -415,7 +421,13 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 
 impl<T> Session for SessionImpl<T> where T: SessionTransport + Send + Sync + 'static {
 	fn wait(&self) -> Result<(), Error> {
-		unimplemented!()
+		let mut data = self.data.lock();
+		if !data.result.is_some() {
+			self.core.completed.wait(&mut data);
+		}
+
+		data.result.clone()
+			.expect("checked above or waited for completed; completed is only signaled when result.is_some(); qed")
 	}
 }
 
@@ -425,11 +437,23 @@ impl<T> ClusterSession for SessionImpl<T> where T: SessionTransport {
 	}
 
 	fn on_session_timeout(&self) {
-		unimplemented!()
+		let mut data = self.data.lock();
+
+		warn!("{}: share remove session failed with timeout", self.core.meta.self_node_id);
+
+		data.state = SessionState::Finished;
+		data.result = Some(Err(Error::NodeDisconnected));
+		self.core.completed.notify_all();
 	}
 
-	fn on_node_timeout(&self, _node_id: &NodeId) {
-		unimplemented!()
+	fn on_node_timeout(&self, node: &NodeId) {
+		let mut data = self.data.lock();
+
+		warn!("{}: share remove session failed because {} connection has timeouted", self.core.meta.self_node_id, node);
+
+		data.state = SessionState::Finished;
+		data.result = Some(Err(Error::NodeDisconnected));
+		self.core.completed.notify_all();
 	}
 }
 

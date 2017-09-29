@@ -166,7 +166,7 @@ impl SessionImpl {
 	pub fn new(params: SessionParams) -> Result<Self, Error> {
 		Ok(SessionImpl {
 			core: SessionCore {
-				meta: params.meta.clone(),
+				meta: params.meta,
 				cluster: params.cluster,
 				key_storage: params.key_storage,
 				nonce: params.nonce,
@@ -403,7 +403,7 @@ impl SessionImpl {
 				}
 
 				// on nodes, which have their own key share, we could check if master node plan is correct
-				if let Ok(key_share) = self.core.key_storage.get(&message.key_id.clone().into()) {
+				if let Ok(key_share) = self.core.key_storage.get(&key_id) {
 					let new_nodes_set = data.new_nodes_set.as_ref()
 						.expect("new_nodes_set is filled during consensus establishing; change sessions are running after this; qed");
 					let local_plan = prepare_share_change_session_plan(&key_share.id_numbers.keys().cloned().collect(), new_nodes_set)?;
@@ -708,7 +708,7 @@ impl SessionImpl {
 						.expect("!wait_for_confirmations is true only if this is the only session participant; if this is session participant, session is created above; qed")
 						.initialize()?;
 				} else {
-					data.sessions_initialization_state.insert(key_id.clone(), SessionInitializationData {
+					data.sessions_initialization_state.insert(key_id, SessionInitializationData {
 						master: session_master,
 						confirmations: confirmations,
 					});
