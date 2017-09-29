@@ -19,21 +19,23 @@ import SignerPluginStore from '../Signer/pluginStore';
 import StatusPluginStore from '../Status/pluginStore';
 
 function injectInterceptorPlugin (middleware) {
-  InterceptorStore.get().addMiddleware(middleware);
-
-  return true;
+  return InterceptorStore.get().addMiddleware(middleware);
 }
 
-function injectSignerPlugin (component) {
-  SignerPluginStore.get().addComponent(component);
+function injectSignerPlugin (component, isHandler) {
+  let isDefault;
 
-  return true;
+  try {
+    isDefault = isHandler(null, null, null) || false;
+  } catch (error) {
+    isDefault = false;
+  }
+
+  return SignerPluginStore.get().addComponent(component, isHandler, isDefault);
 }
 
 function injectStatusPlugin (component) {
-  StatusPluginStore.get().addComponent(component);
-
-  return true;
+  return StatusPluginStore.get().addComponent(component);
 }
 
 export function extendShell (options) {
@@ -42,7 +44,7 @@ export function extendShell (options) {
       return injectInterceptorPlugin(options.middleware);
 
     case 'signer':
-      return injectSignerPlugin(options.component);
+      return injectSignerPlugin(options.component, options.isHandler);
 
     case 'status':
       return injectStatusPlugin(options.component);

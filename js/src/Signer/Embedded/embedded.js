@@ -14,22 +14,23 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import BigNumber from 'bignumber.js';
 import React, { Component } from 'react';
 import PropTypes from 'prop-types';
-import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import { observer } from 'mobx-react';
 
 import * as RequestsActions from '@parity/shared/redux/providers/signerActions';
 import Container from '@parity/ui/Container';
-import RequestPending from '@parity/ui/Signer/RequestPending';
-import Store from '@parity/shared/mobx/signerStore';
 
-import PluginStore from '../pluginStore';
+import PendingList from '../PendingList';
+import PendingStore from '../pendingStore';
 
 import styles from './embedded.css';
+
+const CONTAINER_STYLE = {
+  background: 'transparent'
+};
 
 @observer
 class Embedded extends Component {
@@ -43,113 +44,41 @@ class Embedded extends Component {
       startConfirmRequest: PropTypes.func.isRequired,
       startRejectRequest: PropTypes.func.isRequired
     }).isRequired,
-    externalLink: PropTypes.string,
     gasLimit: PropTypes.object.isRequired,
-    netVersion: PropTypes.string.isRequired,
-    signer: PropTypes.shape({
-      finished: PropTypes.array.isRequired,
-      pending: PropTypes.array.isRequired
-    }).isRequired
+    netVersion: PropTypes.string.isRequired
   };
 
-  store = new Store(this.context.api, false, this.props.externalLink);
-  pluginStore = PluginStore.get();
+  pendingStore = PendingStore.get(this.context.api);
 
   render () {
+    const { accounts, actions, gasLimit, netVersion } = this.props;
+
     return (
-      <Container style={ { background: 'transparent' } }>
-        <div className={ styles.signer }>
-          { this.renderPendingRequests() }
-        </div>
+      <Container style={ CONTAINER_STYLE }>
+        <PendingList
+          accounts={ accounts }
+          className={ styles.signer }
+          gasLimit={ gasLimit }
+          netVersion={ netVersion }
+          onConfirm={ actions.startConfirmRequest }
+          onReject={ actions.startRejectRequest }
+          pendingItems={ this.pendingStore.pending }
+        />
       </Container>
     );
-  }
-
-  renderPendingRequests () {
-    const { signer } = this.props;
-    const { pending } = signer;
-
-    if (!pending.length) {
-      return (
-        <div className={ styles.none }>
-          <FormattedMessage
-            id='signer.embedded.noPending'
-            defaultMessage='There are currently no pending requests awaiting your confirmation'
-          />
-        </div>
-      );
-    }
-
-    return (
-      <div>
-        {
-          pending
-            .sort(this._sortRequests)
-            .map(this.renderPending)
-        }
-      </div>
-    );
-  }
-
-  findPluginHandler (data) {
-    const { accounts } = this.props;
-    const { payload } = data;
-
-    let account;
-
-    if (payload.decrypt) {
-      account = accounts[payload.decrypt.address];
-    } else if (payload.sign) {
-      account = accounts[payload.sign.address];
-    } else if (payload.sendTransaction) {
-      account = accounts[payload.sendTransaction.from];
-    } else if (payload.signTransaction) {
-      account = accounts[payload.signTransaction.from];
-    }
-
-    return this.pluginStore.findHandler(payload, account);
-  }
-
-  renderPending = (data, index) => {
-    const { actions, gasLimit, netVersion } = this.props;
-    const { date, id, isSending, payload, origin } = data;
-
-    return (
-      <RequestPending
-        className={ styles.request }
-        date={ date }
-        elementRequest={ this.findPluginHandler(data) }
-        focus={ index === 0 }
-        gasLimit={ gasLimit }
-        id={ id }
-        isSending={ isSending }
-        netVersion={ netVersion }
-        key={ id }
-        onConfirm={ actions.startConfirmRequest }
-        onReject={ actions.startRejectRequest }
-        origin={ origin }
-        payload={ payload }
-        signerStore={ this.store }
-      />
-    );
-  }
-
-  _sortRequests = (a, b) => {
-    return new BigNumber(a.id).cmp(b.id);
   }
 }
 
 function mapStateToProps (state) {
   const { gasLimit, netVersion } = state.nodeStatus;
   const { accounts } = state.personal;
-  const { actions, signer } = state;
+  const { actions } = state;
 
   return {
     accounts,
     actions,
     gasLimit,
-    netVersion,
-    signer
+    netVersion
   };
 }
 

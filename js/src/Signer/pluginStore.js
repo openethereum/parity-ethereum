@@ -19,20 +19,69 @@ import { action, observable } from 'mobx';
 let instance = null;
 
 export default class PluginStore {
-  @observable components = [];
+  @observable plugins = [];
 
-  @action addComponent (Component) {
-    if (!Component || (typeof Component.isHandler !== 'function')) {
-      throw new Error(`Unable to attach Signer component, 'isHandler' function is not defined`);
+  @action addComponent (Component, isHandler, isFallback) {
+    if (!Component || (typeof isHandler !== 'function')) {
+      throw new Error(`Unable to attach Signer plugin, 'React Component' or 'isHandler' function is not defined`);
     }
 
-    this.components.push(Component);
+    this.plugins.push({
+      Component,
+      isHandler,
+      isFallback
+    });
+
+    return true;
   }
 
-  findHandler (payload, account) {
-    return this.components.find((component) => {
-      return component.isHandler(payload, account);
+  findPayloadAccount (payload, accounts) {
+    if (payload.decrypt) {
+      return accounts[payload.decrypt.address];
+    } else if (payload.sign) {
+      return accounts[payload.sign.address];
+    } else if (payload.sendTransaction) {
+      return accounts[payload.sendTransaction.from];
+    } else if (payload.signTransaction) {
+      return accounts[payload.signTransaction.from];
+    }
+
+    return null;
+  }
+
+  findFallback (payload, accounts, account) {
+    const plugin = this.plugins.find((p) => {
+      try {
+        return !!(
+          p.isFallback &&
+          p.isHandler(payload, accounts, account)
+        );
+      } catch (error) {
+        return false;
+      }
     });
+
+    return plugin
+      ? plugin.Component
+      : null;
+  }
+
+  findHandler (payload, accounts) {
+    const account = this.findPayloadAccount(payload, accounts);
+    const plugin = this.plugins.find((p) => {
+      try {
+        return !!(
+          !p.isFallback &&
+          p.isHandler(payload, accounts, account)
+        );
+      } catch (error) {
+        return false;
+      }
+    });
+
+    return plugin
+      ? plugin.Component
+      : this.findFallback(payload, accounts, account);
   }
 
   static get () {

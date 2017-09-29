@@ -18,22 +18,40 @@ import { action, observable } from 'mobx';
 
 let instance = null;
 
-export default class PluginStore {
-  @observable components = [];
+export default class PendingStore {
+  @observable pending = [];
 
-  @action addComponent (Component) {
-    if (!Component) {
-      throw new Error('Unable to attach empty Component to status');
+  constructor (api) {
+    this._api = api;
+
+    api.on('connected', this.subscribePending);
+
+    if (api.isConnected) {
+      this.subscribePending();
     }
-
-    this.components.push(Component);
-
-    return true;
   }
 
-  static get () {
+  @action confirmRequest = (id, payload) => {
+  }
+
+  @action rejectRequest = (id) => {
+  }
+
+  @action setPending = (pending = []) => {
+    this.pending = pending;
+  }
+
+  subscribePending = () => {
+    this._api.subscribe('signer_requestsToConfirm', (error, pending) => {
+      if (!error) {
+        this.setPending(pending);
+      }
+    });
+  }
+
+  static get (api) {
     if (!instance) {
-      instance = new PluginStore();
+      instance = new PendingStore(api);
     }
 
     return instance;

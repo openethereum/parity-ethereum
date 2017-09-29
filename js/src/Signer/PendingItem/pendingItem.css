@@ -15,14 +15,8 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-@import '../_layout.css';
-
-.info {
-  padding: 1em 0;
-}
-
-.signer {
-  box-sizing: border-box;
-  padding: 0;
-  width: $embedWidth;
+.request {
+  &:nth-child(even) {
+    background: rgba(0, 0, 0, 0.04);
+  }
 }

@@ -43,7 +43,7 @@ function Status ({ className = '', upgradeStore }, { api }) {
   const accountStore = AccountStore.get(api);
 
   return (
-    <GradientBg className={ [styles.status, className].join(' ') }>
+    <GradientBg className={ `${styles.status} ${className}` }>
       <ClientVersion className={ styles.version } />
       <div className={ styles.upgrade }>
         <Consensus upgradeStore={ upgradeStore } />

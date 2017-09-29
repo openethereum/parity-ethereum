@@ -15,14 +15,4 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-@import '../_layout.css';
-
-.info {
-  padding: 1em 0;
-}
-
-.signer {
-  box-sizing: border-box;
-  padding: 0;
-  width: $embedWidth;
-}
+export default from './pendingItem';

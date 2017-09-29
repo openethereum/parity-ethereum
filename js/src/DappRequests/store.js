@@ -170,6 +170,8 @@ export default class Store {
     }
 
     this.middleware.push(middleware);
+
+    return true;
   }
 
   hasValidToken = (method, appId, token) => {

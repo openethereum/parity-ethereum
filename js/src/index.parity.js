@@ -81,5 +81,9 @@ ReactDOM.render(
 
 // testing, priceTicker gist
 injectExternalScript('https://cdn.rawgit.com/jacogr/396fc583e81b9404e21195a48dc862ca/raw/33e5058a4c0028cf9acf4b0662d75298e41ca6fa/priceTicker.js');
-// testing, signer plugin
-// injectExternalScript('https://rawgit.com/paritytech/plugin-sign-qr/master/dist.js');
+
+// testing, signer plugins
+import '@parity/plugin-signer-account';
+import '@parity/plugin-signer-default';
+import '@parity/plugin-signer-hardware';
+import '@parity/plugin-signer-qr';
