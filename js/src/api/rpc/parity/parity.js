@@ -53,6 +53,11 @@ export default class Parity {
       );
   }
 
+  chainId () {
+    return this._transport
+      .execute('parity_chainId');
+  }
+
   chainStatus () {
     return this._transport
       .execute('parity_chainStatus')

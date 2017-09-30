@@ -27,6 +27,7 @@ use ethcore::miner::{Miner, MinerService, ExternalMiner, MinerOptions};
 use ethcore::miner::{StratumOptions, Stratum};
 use ethcore::service::ClientService;
 use ethcore::snapshot;
+use ethcore::spec::{SpecParams, OptimizeFor};
 use ethcore::verification::queue::VerifierSettings;
 use ethsync::{self, SyncConfig};
 use fdlimit::raise_fd_limit;
@@ -175,7 +176,7 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 	use parking_lot::{Mutex, RwLock};
 
 	// load spec
-	let spec = cmd.spec.spec(&cmd.dirs.cache)?;
+	let spec = cmd.spec.spec(SpecParams::new(cmd.dirs.cache.as_ref(), OptimizeFor::Memory))?;
 
 	// load genesis hash
 	let genesis_hash = spec.genesis_header().hash();
@@ -328,7 +329,7 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 			contract_client: contract_client,
 			fetch: fetch.clone(),
 			signer: signer_service.clone(),
-			ui_address: cmd.ui_conf.address(),
+			ui_address: cmd.ui_conf.redirection_address(),
 		})
 	};
 
@@ -721,7 +722,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 			contract_client: contract_client,
 			fetch: fetch.clone(),
 			signer: signer_service.clone(),
-			ui_address: cmd.ui_conf.address(),
+			ui_address: cmd.ui_conf.redirection_address(),
 		})
 	};
 	let dapps_middleware = dapps::new(cmd.dapps_conf.clone(), dapps_deps.clone())?;

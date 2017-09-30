@@ -899,7 +899,7 @@ impl LightProtocol {
 		// the maximum amount of requests we'll fill in a single packet.
 		const MAX_REQUESTS: usize = 256;
 
-		use ::request::RequestBuilder;
+		use ::request::Builder;
 		use ::request::CompleteRequest;
 
 		let peers = self.peers.read();
@@ -914,7 +914,7 @@ impl LightProtocol {
 		let peer: &mut Peer = &mut *peer;
 
 		let req_id: u64 = raw.val_at(0)?;
-		let mut request_builder = RequestBuilder::default();
+		let mut request_builder = Builder::default();
 
 		trace!(target: "pip", "Received requests (id: {}) from peer {}", req_id, peer_id);
 

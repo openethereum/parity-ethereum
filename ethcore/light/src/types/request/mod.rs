@@ -19,7 +19,7 @@
 use rlp::{Encodable, Decodable, DecoderError, RlpStream, UntrustedRlp};
 use bigint::hash::H256;
 
-mod builder;
+mod batch;
 
 // re-exports of request types.
 pub use self::header::{
@@ -73,7 +73,7 @@ pub use self::epoch_signal::{
 	Response as SignalResponse,
 };
 
-pub use self::builder::{RequestBuilder, Requests};
+pub use self::batch::{Batch, Builder};
 
 /// Error indicating a reference to a non-existent or wrongly-typed output.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -241,7 +241,7 @@ impl Encodable for HashOrNumber {
 }
 
 /// Type alias for "network requests".
-pub type NetworkRequests = Requests<Request>;
+pub type NetworkRequests = Batch<Request>;
 
 /// All request types, as they're sent over the network.
 /// They may be incomplete, with back-references to outputs
@@ -1739,13 +1739,15 @@ mod tests {
 
 	#[test]
 	fn receipts_roundtrip() {
+		use ethcore::receipt::{Receipt, TransactionOutcome};
 		let req = IncompleteReceiptsRequest {
 			hash: Field::Scalar(Default::default()),
 		};
 
 		let full_req = Request::Receipts(req.clone());
+		let receipt = Receipt::new(TransactionOutcome::Unknown, Default::default(), Vec::new());
 		let res = ReceiptsResponse {
-			receipts: vec![Default::default(), Default::default()],
+			receipts: vec![receipt.clone(), receipt],
 		};
 		let full_res = Response::Receipts(res.clone());
 
@@ -1900,6 +1902,7 @@ mod tests {
 
 	#[test]
 	fn responses_vec() {
+		use ethcore::receipt::{Receipt, TransactionOutcome};
 		let mut stream = RlpStream::new_list(2);
 				stream.begin_list(0).begin_list(0);
 
@@ -1907,7 +1910,7 @@ mod tests {
 		let reqs = vec![
 			Response::Headers(HeadersResponse { headers: vec![] }),
 			Response::HeaderProof(HeaderProofResponse { proof: vec![], hash: Default::default(), td: 100.into()}),
-			Response::Receipts(ReceiptsResponse { receipts: vec![Default::default()] }),
+			Response::Receipts(ReceiptsResponse { receipts: vec![Receipt::new(TransactionOutcome::Unknown, Default::default(), Vec::new())] }),
 			Response::Body(BodyResponse { body: body }),
 			Response::Account(AccountResponse {
 				proof: vec![],

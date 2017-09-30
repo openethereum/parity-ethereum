@@ -230,7 +230,7 @@ impl Args {
 		Ok(match self.flag_chain {
 			Some(ref filename) =>  {
 				let file = fs::File::open(filename).map_err(|e| format!("{}", e))?;
-				spec::Spec::load(::std::env::temp_dir(), file)?
+				spec::Spec::load(&::std::env::temp_dir(), file)?
 			},
 			None => {
 				ethcore::ethereum::new_foundation(&::std::env::temp_dir())

@@ -57,7 +57,7 @@ impl Default for Configuration {
 }
 
 impl Configuration {
-	pub fn address(&self, address: Option<(String, u16)>) -> Option<(String, u16)> {
+	pub fn address(&self, address: Option<::parity_rpc::Host>) -> Option<::parity_rpc::Host> {
 		match self.enabled {
 			true => address,
 			false => None,

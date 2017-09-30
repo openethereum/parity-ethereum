@@ -312,6 +312,23 @@ impl HeapSizeOf for Header {
 	}
 }
 
+impl ::parity_machine::Header for Header {
+	fn bare_hash(&self) -> H256 { Header::bare_hash(self) }
+
+	fn hash(&self) -> H256 { Header::hash(self) }
+
+	fn seal(&self) -> &[Vec<u8>] { Header::seal(self) }
+
+	fn author(&self) -> &Address { Header::author(self) }
+
+	fn number(&self) -> BlockNumber { Header::number(self) }
+}
+
+impl ::parity_machine::ScoredHeader for Header {
+	fn score(&self) -> &U256 { self.difficulty() }
+	fn set_score(&mut self, score: U256) { self.set_difficulty(score) }
+}
+
 #[cfg(test)]
 mod tests {
 	use rustc_hex::FromHex;

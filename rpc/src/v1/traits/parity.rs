@@ -23,7 +23,7 @@ use jsonrpc_macros::Trailing;
 
 use node_health::Health;
 use v1::types::{
-	H160, H256, H512, U256, Bytes, CallRequest,
+	H160, H256, H512, U256, U64, Bytes, CallRequest,
 	Peers, Transaction, RpcSettings, Histogram,
 	TransactionStats, LocalTransactionStatus,
 	BlockNumber, ConsensusCapability, VersionInfo,
@@ -170,6 +170,12 @@ build_rpc_trait! {
 		/// Get the mode. Returns one of: "active", "passive", "dark", "offline".
 		#[rpc(name = "parity_mode")]
 		fn mode(&self) -> Result<String, Error>;
+
+		/// Returns the chain ID used for transaction signing at the
+		/// current best block. An empty string is returned if not
+		/// available.
+		#[rpc(name = "parity_chainId")]
+		fn chain_id(&self) -> Result<Option<U64>, Error>;
 
 		/// Get the chain name. Returns one of: "foundation", "kovan", &c. of a filename.
 		#[rpc(name = "parity_chain")]

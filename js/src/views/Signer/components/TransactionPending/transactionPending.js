@@ -36,6 +36,7 @@ class TransactionPending extends Component {
   };
 
   static propTypes = {
+    availability: PropTypes.string.isRequired,
     accounts: PropTypes.object.isRequired,
     className: PropTypes.string,
     date: PropTypes.instanceOf(Date).isRequired,
@@ -140,11 +141,11 @@ class TransactionPending extends Component {
   }
 
   renderTxEditor () {
-    const { className } = this.props;
+    const { availability, className } = this.props;
 
     return (
       <div className={ `${styles.container} ${className}` }>
-        <GasPriceEditor store={ this.gasStore }>
+        <GasPriceEditor availability={ availability } store={ this.gasStore }>
           <Button
             label={
               <FormattedMessage
@@ -190,9 +191,12 @@ class TransactionPending extends Component {
 }
 
 function mapStateToProps (state) {
+  const { nodeKind = {} } = state.nodeStatus;
   const { accounts } = state.personal;
+  const { availability = 'unknown' } = nodeKind;
 
   return {
+    availability,
     accounts
   };
 }
