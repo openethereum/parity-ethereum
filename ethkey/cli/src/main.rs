@@ -21,6 +21,7 @@ extern crate serde;
 extern crate serde_derive;
 extern crate ethkey;
 extern crate panic_hook;
+extern crate parity_wordlist;
 
 use std::{env, fmt, process};
 use std::num::ParseIntError;
@@ -38,6 +39,7 @@ Usage:
     ethkey generate random [options]
     ethkey generate prefix <prefix> <iterations> [options]
     ethkey generate brain <seed> [options]
+    ethkey find brain <address> <seed> [options]
     ethkey sign <secret> <message>
     ethkey verify public <public> <signature> <message>
     ethkey verify address <address> <signature> <message>
@@ -52,6 +54,7 @@ Options:
 Commands:
     info               Display public and address of the secret.
     generate           Generates new ethereum key.
+	find               Tries to find a brain wallet with given address and partial seed.
     random             Random generation.
     prefix             Random generation, but address must start with a prefix
     brain              Generate new key from string seed.
@@ -67,6 +70,7 @@ struct Args {
 	cmd_prefix: bool,
 	cmd_brain: bool,
 	cmd_sign: bool,
+	cmd_find: bool,
 	cmd_verify: bool,
 	cmd_public: bool,
 	cmd_address: bool,
@@ -199,6 +203,37 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 			unreachable!();
 		};
 		Ok(display(keypair, display_mode))
+	} else if args.cmd_find {
+		let words = args.arg_seed.split(' ').map(str::to_owned).collect::<Vec<String>>();
+
+		match parity_wordlist::validate_phrase(&arg.arg_seed, words.len()) {
+			Ok(_) => {},
+			Err(err) => {
+				return Ok(format!("{}", err))
+			}
+		}
+
+		let expected_number_of_words = 12;
+		if expected_number_of_words < words.len() {
+			return Ok(format!("Phrase is too long."));
+		}
+
+		let iterators = {
+			let mut iterators = Vec::new();
+			for _ in 0..expected_number_of_words - words.len() {
+				iterators.push(parity_wordlist::WORDS.iter());
+			}
+			iterators
+		};
+
+		loop {
+			let phrase = words.join(' ');
+			let mut last = iterators.pop();
+			while let Some(next) = last.next() {
+				Brain::new(&format!("{} {}", phrase, next))
+			}
+		}
+
 	} else if args.cmd_sign {
 		let secret = args.arg_secret.parse().map_err(|_| EthkeyError::InvalidSecret)?;
 		let message = args.arg_message.parse().map_err(|_| EthkeyError::InvalidMessage)?;
