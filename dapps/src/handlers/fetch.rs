@@ -358,6 +358,7 @@ impl Future for ContentFetcherHandler {
 				FetchState::Done(_, ref mut response) => {
 					return response.poll()
 				},
+				FetchState::Empty => panic!("Future polled twice."),
 				_ => unreachable!(),
 			};
 

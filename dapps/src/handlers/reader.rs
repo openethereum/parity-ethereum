@@ -26,6 +26,14 @@ type Sender = mpsc::Sender<Result<hyper::Chunk, hyper::Error>>;
 
 const MAX_CHUNK_SIZE: usize = 32 * 1024;
 
+/// A Reader is essentially a stream of `hyper::Chunks`.
+/// The chunks are read from given `io::Read` instance.
+///
+/// Unfortunately `hyper` doesn't allow you to pass `Stream`
+/// directly to the response, so you need to create
+/// a `Body::pair()` and send over chunks using `sink::Send`.
+/// Also `Chunks` need to take `Vec` by value, so we need
+/// to allocate it for each chunk being sent.
 pub struct Reader<R: io::Read> {
 	buffer: [u8; MAX_CHUNK_SIZE],
 	content: io::BufReader<R>,
