@@ -16,16 +16,16 @@
 
 use std::io;
 use std::time::Duration;
-use futures::{Future, Select, Poll, Async};
+use futures::{Future, Select, BoxFuture, Poll, Async};
 use tokio_core::reactor::{Handle, Timeout};
 
-type DeadlineBox<F> = ::std::boxed::Box<Future<Item = DeadlineStatus<<F as Future>::Item>, Error = <F as Future>::Error> + Send>;
+type DeadlineBox<F> = BoxFuture<DeadlineStatus<<F as Future>::Item>, <F as Future>::Error>;
 
 /// Complete a passed future or fail if it is not completed within timeout.
 pub fn deadline<F, T>(duration: Duration, handle: &Handle, future: F) -> Result<Deadline<F>, io::Error>
 	where F: Future<Item = T, Error = io::Error> + Send + 'static, T: 'static {
-	let timeout: DeadlineBox<F> = Box::new(Timeout::new(duration, handle)?.map(|_| DeadlineStatus::Timeout));
-	let future: DeadlineBox<F> = Box::new(future.map(DeadlineStatus::Meet));
+	let timeout = Timeout::new(duration, handle)?.map(|_| DeadlineStatus::Timeout).boxed();
+	let future = future.map(DeadlineStatus::Meet).boxed();
 	let deadline = Deadline {
 		future: timeout.select(future),
 	};
