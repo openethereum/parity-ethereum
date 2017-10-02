@@ -567,13 +567,16 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 		vm_tracer.done_subtrace(subvmtracer);
 
 		match res {
-			Ok(ref res) => tracer.trace_create(
-				trace_info,
-				gas - res.gas_left,
-				trace_output.map(|data| output.as_ref().map(|out| out.to_vec()).unwrap_or(data)),
-				created,
-				subtracer.drain()
-			),
+			Ok(ref res) => {
+				substate.contracts_created.push(created.clone());
+				tracer.trace_create(
+					trace_info,
+					gas - res.gas_left,
+					trace_output.map(|data| output.as_ref().map(|out| out.to_vec()).unwrap_or(data)),
+					created,
+					subtracer.drain()
+				);
+			},
 			Err(ref e) => tracer.trace_failed_create(trace_info, subtracer.drain(), e.into())
 		};
 

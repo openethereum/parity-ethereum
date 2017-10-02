@@ -32,6 +32,7 @@ mod validator_set;
 mod validator_report;
 mod peer_set;
 mod tx_acl;
+mod private;
 
 pub mod test_contracts;
 
@@ -44,3 +45,4 @@ pub use self::validator_set::ValidatorSet;
 pub use self::validator_report::ValidatorReport;
 pub use self::peer_set::PeerSet;
 pub use self::tx_acl::TransactAcl;
+pub use self::private::Private;

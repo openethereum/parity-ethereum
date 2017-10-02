@@ -20,7 +20,7 @@ clippy = { version = "0.0.103", optional = true}
 common-types = { path = "types" }
 crossbeam = "0.2.9"
 env_logger = "0.4"
-ethabi = "2.0"
+ethabi = "4.0"
 ethash = { path = "../ethash" }
 ethcore-bloom-journal = { path = "../util/bloom" }
 ethcore-bytes = { path = "../util/bytes" }

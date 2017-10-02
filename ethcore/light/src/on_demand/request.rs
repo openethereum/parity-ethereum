@@ -21,7 +21,7 @@ use std::sync::Arc;
 use ethcore::basic_account::BasicAccount;
 use ethcore::encoded;
 use ethcore::engines::{Engine, StateDependentProof};
-use ethcore::receipt::{Receipt, TransactionOutcome};
+use ethcore::receipt::{Receipt};
 use ethcore::state::{self, ProvedExecution};
 use ethcore::transaction::SignedTransaction;
 use vm::EnvInfo;

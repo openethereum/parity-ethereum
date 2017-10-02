@@ -117,6 +117,43 @@ impl fmt::Display for TransactionError {
 	}
 }
 
+#[derive(Debug, PartialEq, Clone)]
+/// Errors concerning private transaction processing.
+pub enum PrivateTransactionError {
+	/// Encryption error.
+	Encrypt(String),
+	/// Decryption error.
+	Decrypt(String),
+	/// Contract does not exist or is unavailable.
+	NotAuthorised(Address),
+	/// Transaction creates more than one contract.
+	TooManyContracts,
+	/// Contract call error.
+	Call(String),
+	/// State is not available.
+	StatePruned,
+	/// Wrong private transaction type.
+	BadTransactonType,
+	/// Contract does not exist or was not created.
+	ContractDoesNotExist,
+}
+
+impl fmt::Display for PrivateTransactionError {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		use self::PrivateTransactionError::*;
+		match *self {
+			Encrypt(ref msg) => f.write_fmt(format_args!("Encryption error. ({})", msg)),
+			Decrypt(ref msg) => f.write_fmt(format_args!("Decryption error. ({})", msg)),
+			NotAuthorised(address) => f.write_fmt(format_args!("Private trsnaction execution is not authorised for {}.", address)),
+			TooManyContracts => f.write_str("Private transaction created too many contracts."),
+			Call(ref msg) => f.write_fmt(format_args!("Contract call error. ({})", msg)),
+			StatePruned => f.write_str("State is not available."),
+			BadTransactonType => f.write_str("Bad transaction type."),
+			ContractDoesNotExist => f.write_str("Private contract does not exist."),
+		}
+	}
+}
+
 #[derive(Debug, PartialEq, Clone, Copy, Eq)]
 /// Errors concerning block processing.
 pub enum BlockError {
@@ -331,6 +368,8 @@ pub enum Error {
 	Ethkey(EthkeyError),
 	/// Account Provider error.
 	AccountProvider(AccountsError),
+	/// Private transaction error.
+	PrivateTransaction(PrivateTransactionError),
 }
 
 impl fmt::Display for Error {
@@ -354,6 +393,7 @@ impl fmt::Display for Error {
 			Error::Engine(ref err) => err.fmt(f),
 			Error::Ethkey(ref err) => err.fmt(f),
 			Error::AccountProvider(ref err) => err.fmt(f),
+			Error::PrivateTransaction(ref err) => err.fmt(f),
 		}
 	}
 }
@@ -373,6 +413,12 @@ impl From<ClientError> for Error {
 impl From<TransactionError> for Error {
 	fn from(err: TransactionError) -> Error {
 		Error::Transaction(err)
+	}
+}
+
+impl From<PrivateTransactionError> for Error {
+	fn from(err: PrivateTransactionError) -> Error {
+		Error::PrivateTransaction(err)
 	}
 }
 

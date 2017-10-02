@@ -19,7 +19,7 @@ use std::sync::Arc;
 use hash::keccak;
 use ethkey::KeyPair;
 use io::*;
-use client::{BlockChainClient, Client, ClientConfig};
+use client::{BlockChainClient, Client, ClientConfig, MiningBlockChainClient};
 use bigint::prelude::U256;
 use bigint::hash::H256;
 use util::*;
@@ -258,6 +258,28 @@ pub fn push_blocks_to_client(client: &Arc<Client>, timestamp_salt: u64, starting
 			panic!("error importing block which is valid by definition: {:?}", e);
 		}
 	}
+}
+
+pub fn push_block_with_transactions(client: &Arc<Client>, transactions: &[SignedTransaction]) {
+	let test_spec = get_test_spec();
+	let test_engine = &*test_spec.engine;
+	let block_number = client.chain_info().best_block_number as u64 + 1;
+
+	let mut b = client.prepare_open_block(Address::default(), (0.into(), 5000000.into()), Bytes::new());
+	b.set_difficulty(U256::from(0x20000));
+	b.set_timestamp(block_number * 10);
+
+	for t in transactions {
+		b.push_transaction(t.clone(), None).unwrap();
+	}
+	let b = b.close_and_lock().seal(test_engine, vec![]).unwrap();
+
+	if let Err(e) = client.import_block(b.rlp_bytes()) {
+		panic!("error importing block which is valid by definition: {:?}", e);
+	}
+
+	client.flush_queue();
+	client.import_verified_blocks();
 }
 
 pub fn get_test_client_with_blocks(blocks: Vec<Bytes>) -> Arc<Client> {
