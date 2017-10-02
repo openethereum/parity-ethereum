@@ -1,4 +1,4 @@
-# [Parity](https://parity.io/parity.html) - fast, light, and robust Ethereum client
+# [Parity](https://parity.io/) - fast, light, and robust Ethereum client
 
 [![build status](https://gitlab.parity.io/parity/parity/badges/master/build.svg)](https://gitlab.parity.io/parity/parity/commits/master)
 [![Snap Status](https://build.snapcraft.io/badge/paritytech/parity.svg)](https://build.snapcraft.io/user/paritytech/parity)
