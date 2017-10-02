@@ -252,7 +252,7 @@ impl SessionImpl {
 	}
 
 	/// When error has occured on another node.
-	pub fn on_session_error(&self, sender: NodeId, message: &EncryptionSessionError) -> Result<(), Error> {
+	pub fn on_session_error(&self, sender: &NodeId, message: &EncryptionSessionError) -> Result<(), Error> {
 		self.check_nonce(message.session_nonce)?;
 
 		let mut data = self.data.lock();

@@ -94,7 +94,6 @@ pub fn generate_random_polynom(threshold: usize) -> Result<Vec<Secret>, Error> {
 }
 
 /// Compute absolute term of additional polynom1 when new node is added to the existing generation node set
-#[cfg(test)]
 pub fn compute_additional_polynom1_absolute_term<'a, I>(secret_values: I) -> Result<Secret, Error> where I: Iterator<Item=&'a Secret> {
 	let mut absolute_term = compute_secret_sum(secret_values)?;
 	absolute_term.neg()?;
@@ -102,7 +101,6 @@ pub fn compute_additional_polynom1_absolute_term<'a, I>(secret_values: I) -> Res
 }
 
 /// Add two polynoms together (coeff = coeff1 + coeff2).
-#[cfg(test)]
 pub fn add_polynoms(polynom1: &[Secret], polynom2: &[Secret], is_absolute_term2_zero: bool) -> Result<Vec<Secret>, Error> {
 	polynom1.iter().zip(polynom2.iter())
 		.enumerate()
@@ -162,6 +160,13 @@ pub fn public_values_generation(threshold: usize, derived_point: &Public, polyno
 	Ok(publics)
 }
 
+/// Generate refreshed public keys for other participants.
+pub fn refreshed_public_values_generation(threshold: usize, refreshed_polynom1: &[Secret]) -> Result<Vec<Public>, Error> {
+	debug_assert_eq!(refreshed_polynom1.len(), threshold + 1);
+
+	(0..threshold + 1).map(|i| compute_public_share(&refreshed_polynom1[i])).collect()
+}
+
 /// Check keys passed by other participants.
 pub fn keys_verification(threshold: usize, derived_point: &Public, number_id: &Secret, secret1: &Secret, secret2: &Secret, publics: &[Public]) -> Result<bool, Error> {
 	// calculate left part
@@ -190,7 +195,6 @@ pub fn keys_verification(threshold: usize, derived_point: &Public, number_id: &S
 }
 
 /// Check refreshed keys passed by other participants.
-#[cfg(test)]
 pub fn refreshed_keys_verification(threshold: usize, number_id: &Secret, secret1: &Secret, publics: &[Public]) -> Result<bool, Error> {
 	// calculate left part
 	let mut left = math::generation_point();
@@ -545,7 +549,6 @@ pub mod tests {
 			new_nodes_polynom1.push(new_polynom1);
 		}
 
-
 		// new nodes sends its own information to all other nodes
 		let n = n + new_nodes;
 		id_numbers.extend((0..new_nodes).map(|_| Random.generate().unwrap().secret().clone()));
@@ -597,10 +600,12 @@ pub mod tests {
 				.filter(|&(j, _)| j != i)
 				.take(t)
 				.map(|(_, id_number)| id_number)).unwrap()).collect();
+
 		let nodes_shadow_points: Vec<_> = nodes_shadows.iter()
 			.map(|s| compute_node_shadow_point(&access_key, &encrypted_secret.common_point, s, None).unwrap())
 			.map(|sp| sp.0)
 			.collect();
+
 		assert_eq!(nodes_shadows.len(), t + 1);
 		assert_eq!(nodes_shadow_points.len(), t + 1);
 
@@ -752,14 +757,19 @@ pub mod tests {
 		// generate key using 6-of-10 session
 		let (t, n) = (5, 10);
 		let artifacts1 = run_key_generation(t, n, None);
+		let joint_secret1 = compute_joint_secret(artifacts1.polynoms1.iter().map(|p1| &p1[0])).unwrap();
 
 		// let's say we want to include additional server to the set
 		// so that scheme becames 6-of-11
 		let artifacts2 = run_key_share_refreshing_and_add_new_nodes(t, n, 1, &artifacts1);
+		let joint_secret2 = compute_joint_secret(artifacts2.polynoms1.iter().map(|p1| &p1[0])).unwrap();
 		assert_eq!(artifacts1.joint_public, artifacts2.joint_public);
+		assert_eq!(joint_secret1, joint_secret2);
 
 		// include another couple of servers (6-of-13)
 		let artifacts3 = run_key_share_refreshing_and_add_new_nodes(t, n + 1, 2, &artifacts2);
+		let joint_secret3 = compute_joint_secret(artifacts3.polynoms1.iter().map(|p1| &p1[0])).unwrap();
 		assert_eq!(artifacts1.joint_public, artifacts3.joint_public);
+		assert_eq!(joint_secret1, joint_secret3);
 	}
 }

@@ -14,11 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-pub mod consensus_session;
-pub mod decryption_job;
-pub mod dummy_job;
-pub mod job_session;
-pub mod key_access_job;
-pub mod servers_set_change_access_job;
-pub mod signing_job;
-pub mod unknown_sessions_job;
+pub mod decryption_session;
+pub mod encryption_session;
+pub mod generation_session;
+pub mod signing_session;
