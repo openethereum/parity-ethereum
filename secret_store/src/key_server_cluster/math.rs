@@ -93,6 +93,29 @@ pub fn generate_random_polynom(threshold: usize) -> Result<Vec<Secret>, Error> {
 		.collect()
 }
 
+/// Compute absolute term of additional polynom1 when new node is added to the existing generation node set
+#[cfg(test)]
+pub fn compute_additional_polynom1_absolute_term<'a, I>(secret_values: I) -> Result<Secret, Error> where I: Iterator<Item=&'a Secret> {
+	let mut absolute_term = compute_secret_sum(secret_values)?;
+	absolute_term.neg()?;
+	Ok(absolute_term)
+}
+
+/// Add two polynoms together (coeff = coeff1 + coeff2).
+#[cfg(test)]
+pub fn add_polynoms(polynom1: &[Secret], polynom2: &[Secret], is_absolute_term2_zero: bool) -> Result<Vec<Secret>, Error> {
+	polynom1.iter().zip(polynom2.iter())
+		.enumerate()
+		.map(|(i, (c1, c2))| {
+			let mut sum_coeff = c1.clone();
+			if !is_absolute_term2_zero || i != 0 {
+				sum_coeff.add(c2)?;
+			}
+			Ok(sum_coeff)
+		})
+		.collect()
+}
+
 /// Compute value of polynom, using `node_number` as argument
 pub fn compute_polynom(polynom: &[Secret], node_number: &Secret) -> Result<Secret, Error> {
 	debug_assert!(!polynom.is_empty());
@@ -150,6 +173,28 @@ pub fn keys_verification(threshold: usize, derived_point: &Public, number_id: &S
 
 	math::public_add(&mut multiplication1, &multiplication2)?;
 	let left = multiplication1;
+
+	// calculate right part
+	let mut right = publics[0].clone();
+	for i in 1..threshold + 1 {
+		let mut secret_pow = number_id.clone();
+		secret_pow.pow(i)?;
+
+		let mut public_k = publics[i].clone();
+		math::public_mul_secret(&mut public_k, &secret_pow)?;
+
+		math::public_add(&mut right, &public_k)?;
+	}
+
+	Ok(left == right)
+}
+
+/// Check refreshed keys passed by other participants.
+#[cfg(test)]
+pub fn refreshed_keys_verification(threshold: usize, number_id: &Secret, secret1: &Secret, publics: &[Public]) -> Result<bool, Error> {
+	// calculate left part
+	let mut left = math::generation_point();
+	math::public_mul_secret(&mut left, secret1)?;
 
 	// calculate right part
 	let mut right = publics[0].clone();
@@ -407,6 +452,7 @@ pub mod tests {
 		// === PART1: DKG ===
 
 		// data, gathered during initialization
+		let derived_point = Random.generate().unwrap().public().clone();
 		let id_numbers: Vec<_> = match id_numbers {
 			Some(id_numbers) => id_numbers,
 			None => (0..n).map(|_| generate_random_scalar().unwrap()).collect(),
@@ -415,6 +461,15 @@ pub mod tests {
 		// data, generated during keys dissemination
 		let polynoms1: Vec<_> = (0..n).map(|_| generate_random_polynom(t).unwrap()).collect();
 		let secrets1: Vec<_> = (0..n).map(|i| (0..n).map(|j| compute_polynom(&polynoms1[i], &id_numbers[j]).unwrap()).collect::<Vec<_>>()).collect();
+		// following data is used only on verification step
+		let polynoms2: Vec<_> = (0..n).map(|_| generate_random_polynom(t).unwrap()).collect();
+		let secrets2: Vec<_> = (0..n).map(|i| (0..n).map(|j| compute_polynom(&polynoms2[i], &id_numbers[j]).unwrap()).collect::<Vec<_>>()).collect();
+		let publics: Vec<_> = (0..n).map(|i| public_values_generation(t, &derived_point, &polynoms1[i], &polynoms2[i]).unwrap()).collect();
+
+		// keys verification
+		(0..n).map(|i| (0..n).map(|j| if i != j {
+			assert!(keys_verification(t, &derived_point, &id_numbers[i], &secrets1[j][i], &secrets2[j][i], &publics[j]).unwrap());
+		}).collect::<Vec<_>>()).collect::<Vec<_>>();
 
 		// data, generated during keys generation
 		let public_shares: Vec<_> = (0..n).map(|i| compute_public_share(&polynoms1[i][0]).unwrap()).collect();
@@ -427,6 +482,97 @@ pub mod tests {
 			id_numbers: id_numbers,
 			polynoms1: polynoms1,
 			secrets1: secrets1,
+			public_shares: public_shares,
+			secret_shares: secret_shares,
+			joint_public: joint_public,
+		}
+	}
+
+	fn run_key_share_refreshing(t: usize, n: usize, artifacts: &KeyGenerationArtifacts) -> KeyGenerationArtifacts {
+		// === share refreshing protocol from http://www.wu.ece.ufl.edu/mypapers/msig.pdf
+
+		// key refreshing distribution algorithm (KRD)
+		let refreshed_polynoms1: Vec<_> = (0..n).map(|_| generate_random_polynom(t).unwrap()).collect();
+		let refreshed_polynoms1_sum: Vec<_> = (0..n).map(|i| add_polynoms(&artifacts.polynoms1[i], &refreshed_polynoms1[i], true).unwrap()).collect();
+		let refreshed_secrets1: Vec<_> = (0..n).map(|i| (0..n).map(|j| compute_polynom(&refreshed_polynoms1_sum[i], &artifacts.id_numbers[j]).unwrap()).collect::<Vec<_>>()).collect();
+		let refreshed_publics: Vec<_> = (0..n).map(|i| {
+			(0..t+1).map(|j| compute_public_share(&refreshed_polynoms1_sum[i][j]).unwrap()).collect::<Vec<_>>()
+		}).collect();
+
+		// key refreshing verification algorithm (KRV)
+		(0..n).map(|i| (0..n).map(|j| if i != j {
+			assert!(refreshed_keys_verification(t, &artifacts.id_numbers[i], &refreshed_secrets1[j][i], &refreshed_publics[j]).unwrap())
+		}).collect::<Vec<_>>()).collect::<Vec<_>>();
+
+		// data, generated during keys generation
+		let public_shares: Vec<_> = (0..n).map(|i| compute_public_share(&refreshed_polynoms1_sum[i][0]).unwrap()).collect();
+		let secret_shares: Vec<_> = (0..n).map(|i| compute_secret_share(refreshed_secrets1.iter().map(|s| &s[i])).unwrap()).collect();
+
+		// joint public key, as a result of DKG
+		let joint_public = compute_joint_public(public_shares.iter()).unwrap();
+
+		KeyGenerationArtifacts {
+			id_numbers: artifacts.id_numbers.clone(),
+			polynoms1: refreshed_polynoms1_sum,
+			secrets1: refreshed_secrets1,
+			public_shares: public_shares,
+			secret_shares: secret_shares,
+			joint_public: joint_public,
+		}
+	}
+
+	fn run_key_share_refreshing_and_add_new_nodes(t: usize, n: usize, new_nodes: usize, artifacts: &KeyGenerationArtifacts) -> KeyGenerationArtifacts {
+		// === share refreshing protocol (with new node addition) from http://www.wu.ece.ufl.edu/mypapers/msig.pdf
+		let mut id_numbers: Vec<_> = artifacts.id_numbers.iter().cloned().collect();
+
+		// key refreshing distribution algorithm (KRD)
+		// for each new node: generate random polynom
+		let refreshed_polynoms1: Vec<_> = (0..n).map(|_| (0..new_nodes).map(|_| generate_random_polynom(t).unwrap()).collect::<Vec<_>>()).collect();
+		let mut refreshed_polynoms1_sum: Vec<_> = (0..n).map(|i| {
+			let mut refreshed_polynom1_sum = artifacts.polynoms1[i].clone();
+			for refreshed_polynom1 in &refreshed_polynoms1[i] {
+				refreshed_polynom1_sum = add_polynoms(&refreshed_polynom1_sum, refreshed_polynom1, false).unwrap();
+			}
+			refreshed_polynom1_sum
+		}).collect();
+
+		// new nodes receiving private information and generates its own polynom
+		let mut new_nodes_polynom1 = Vec::with_capacity(new_nodes);
+		for i in 0..new_nodes {
+			let mut new_polynom1 = generate_random_polynom(t).unwrap();
+			let new_polynom_absolute_term = compute_additional_polynom1_absolute_term(refreshed_polynoms1.iter().map(|polynom1| &polynom1[i][0])).unwrap();
+			new_polynom1[0] = new_polynom_absolute_term;
+			new_nodes_polynom1.push(new_polynom1);
+		}
+
+
+		// new nodes sends its own information to all other nodes
+		let n = n + new_nodes;
+		id_numbers.extend((0..new_nodes).map(|_| Random.generate().unwrap().secret().clone()));
+		refreshed_polynoms1_sum.extend(new_nodes_polynom1);
+
+		// the rest of protocol is the same as without new node
+		let refreshed_secrets1: Vec<_> = (0..n).map(|i| (0..n).map(|j| compute_polynom(&refreshed_polynoms1_sum[i], &id_numbers[j]).unwrap()).collect::<Vec<_>>()).collect();
+		let refreshed_publics: Vec<_> = (0..n).map(|i| {
+			(0..t+1).map(|j| compute_public_share(&refreshed_polynoms1_sum[i][j]).unwrap()).collect::<Vec<_>>()
+		}).collect();
+
+		// key refreshing verification algorithm (KRV)
+		(0..n).map(|i| (0..n).map(|j| if i != j {
+			assert!(refreshed_keys_verification(t, &id_numbers[i], &refreshed_secrets1[j][i], &refreshed_publics[j]).unwrap())
+		}).collect::<Vec<_>>()).collect::<Vec<_>>();
+
+		// data, generated during keys generation
+		let public_shares: Vec<_> = (0..n).map(|i| compute_public_share(&refreshed_polynoms1_sum[i][0]).unwrap()).collect();
+		let secret_shares: Vec<_> = (0..n).map(|i| compute_secret_share(refreshed_secrets1.iter().map(|s| &s[i])).unwrap()).collect();
+
+		// joint public key, as a result of DKG
+		let joint_public = compute_joint_public(public_shares.iter()).unwrap();
+
+		KeyGenerationArtifacts {
+			id_numbers: id_numbers,
+			polynoms1: refreshed_polynoms1_sum,
+			secrets1: refreshed_secrets1,
 			public_shares: public_shares,
 			secret_shares: secret_shares,
 			joint_public: joint_public,
@@ -582,5 +728,38 @@ pub mod tests {
 				assert_eq!(verify_signature(&artifacts.joint_public, signature, &message_hash), Ok(true));
 			}
 		}
+	}
+
+	#[test]
+	fn full_generation_math_session_with_refreshing_shares() {
+		// generate key using 6-of-10 session
+		let (t, n) = (5, 10);
+		let artifacts1 = run_key_generation(t, n, None);
+
+		// let's say we want to refresh existing secret shares
+		// by doing this every T seconds, and assuming that in each T-second period adversary KS is not able to collect t+1 secret shares
+		// we can be sure that the scheme is secure
+		let artifacts2 = run_key_share_refreshing(t, n, &artifacts1);
+		assert_eq!(artifacts1.joint_public, artifacts2.joint_public);
+
+		// refresh again
+		let artifacts3 = run_key_share_refreshing(t, n, &artifacts2);
+		assert_eq!(artifacts1.joint_public, artifacts3.joint_public);
+	}
+
+	#[test]
+	fn full_generation_math_session_with_adding_new_nodes() {
+		// generate key using 6-of-10 session
+		let (t, n) = (5, 10);
+		let artifacts1 = run_key_generation(t, n, None);
+
+		// let's say we want to include additional server to the set
+		// so that scheme becames 6-of-11
+		let artifacts2 = run_key_share_refreshing_and_add_new_nodes(t, n, 1, &artifacts1);
+		assert_eq!(artifacts1.joint_public, artifacts2.joint_public);
+
+		// include another couple of servers (6-of-13)
+		let artifacts3 = run_key_share_refreshing_and_add_new_nodes(t, n + 1, 2, &artifacts2);
+		assert_eq!(artifacts1.joint_public, artifacts3.joint_public);
 	}
 }
