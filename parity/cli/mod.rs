@@ -591,6 +591,10 @@ usage! {
 			"--secretstore-secret=[SECRET]",
 			"Hex-encoded secret key of this node.",
 
+			ARG arg_secretstore_admin_public: (Option<String>) = None, or |c: &Config| otry!(c.secretstore).admin_public.clone(),
+			"--secretstore-admin-public=[PUBLIC]",
+			"Hex-encoded public key of secret store administrator.",
+
 		["Sealing/Mining options"]
 			FLAG flag_force_sealing: (bool) = false, or |c: &Config| otry!(c.mining).force_sealing.clone(),
 			"--force-sealing",
@@ -1089,6 +1093,7 @@ struct SecretStore {
 	disable_http: Option<bool>,
 	disable_acl_check: Option<bool>,
 	self_secret: Option<String>,
+	admin_public: Option<String>,
 	nodes: Option<Vec<String>>,
 	interface: Option<String>,
 	port: Option<u16>,
@@ -1445,6 +1450,7 @@ mod tests {
 			flag_no_secretstore_http: false,
 			flag_no_secretstore_acl_check: false,
 			arg_secretstore_secret: None,
+			arg_secretstore_admin_public: None,
 			arg_secretstore_nodes: "".into(),
 			arg_secretstore_interface: "local".into(),
 			arg_secretstore_port: 8083u16,
@@ -1684,6 +1690,7 @@ mod tests {
 				disable_http: None,
 				disable_acl_check: None,
 				self_secret: None,
+				admin_public: None,
 				nodes: None,
 				interface: None,
 				port: Some(8083),

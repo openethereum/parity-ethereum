@@ -626,6 +626,7 @@ impl Configuration {
 			http_interface: self.secretstore_http_interface(),
 			http_port: self.args.arg_ports_shift + self.args.arg_secretstore_http_port,
 			data_path: self.directories().secretstore,
+			admin_public: self.secretstore_admin_public()?,
 		})
 	}
 
@@ -1033,6 +1034,13 @@ impl Configuration {
 			Some(ref s) if s.len() == 40 => Ok(Some(NodeSecretKey::KeyStore(s.parse()
 				.map_err(|e| format!("Invalid secret store secret address: {}. Error: {:?}", s, e))?))),
 			Some(_) => Err(format!("Invalid secret store secret. Must be either existing account address, or hex-encoded private key")),
+			None => Ok(None),
+		}
+	}
+
+	fn secretstore_admin_public(&self) -> Result<Option<Public>, String> {
+		match self.args.arg_secretstore_admin_public.as_ref() {
+			Some(admin_public) => Ok(Some(admin_public.parse().map_err(|e| format!("Invalid secret store admin public: {}", e))?)),
 			None => Ok(None),
 		}
 	}

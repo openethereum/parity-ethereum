@@ -18,12 +18,16 @@ use std::path::PathBuf;
 use std::collections::BTreeMap;
 use serde_json;
 use ethkey::{Secret, Public};
-use util::Database;
+use util::{Database, DatabaseIterator};
 use types::all::{Error, ServiceConfiguration, ServerKeyId, NodeId};
 use serialization::{SerializablePublic, SerializableSecret};
 
 /// Key of version value.
 const DB_META_KEY_VERSION: &'static [u8; 7] = b"version";
+/// Current db version.
+const CURRENT_VERSION: u8 = 2;
+/// Current type of serialized key shares.
+type CurrentSerializableDocumentKeyShare = SerializableDocumentKeyShareV2;
 
 /// Encrypted key share, stored by key storage on the single key server.
 #[derive(Debug, Clone, PartialEq)]
@@ -34,6 +38,8 @@ pub struct DocumentKeyShare {
 	pub threshold: usize,
 	/// Nodes ids numbers.
 	pub id_numbers: BTreeMap<NodeId, Secret>,
+	/// Polynom1.
+	pub polynom1: Vec<Secret>,
 	/// Node secret share.
 	pub secret_share: Secret,
 	/// Common (shared) encryption point.
@@ -50,13 +56,22 @@ pub trait KeyStorage: Send + Sync {
 	fn update(&self, document: ServerKeyId, key: DocumentKeyShare) -> Result<(), Error>;
 	/// Get document encryption key
 	fn get(&self, document: &ServerKeyId) -> Result<DocumentKeyShare, Error>;
+	/// Remove document encryption key
+	fn remove(&self, document: &ServerKeyId) -> Result<(), Error>;
 	/// Check if storage contains document encryption key
 	fn contains(&self, document: &ServerKeyId) -> bool;
+	/// Iterate through storage
+	fn iter<'a>(&'a self) -> Box<Iterator<Item=(ServerKeyId, DocumentKeyShare)> + 'a>;
 }
 
 /// Persistent document encryption keys storage
 pub struct PersistentKeyStorage {
 	db: Database,
+}
+
+/// Persistent document encryption keys storage iterator
+pub struct PersistentKeyStorageIterator<'a> {
+	iter: Option<DatabaseIterator<'a>>,
 }
 
 /// V0 of encrypted key share, as it is stored by key storage on the single key server.
@@ -91,6 +106,25 @@ struct SerializableDocumentKeyShareV1 {
 	pub encrypted_point: Option<SerializablePublic>,
 }
 
+/// V2 of encrypted key share, as it is stored by key storage on the single key server.
+#[derive(Serialize, Deserialize)]
+struct SerializableDocumentKeyShareV2 {
+	/// Authore of the entry.
+	pub author: SerializablePublic,
+	/// Decryption threshold (at least threshold + 1 nodes are required to decrypt data).
+	pub threshold: usize,
+	/// Nodes ids numbers.
+	pub id_numbers: BTreeMap<SerializablePublic, SerializableSecret>,
+	/// Polynom1.
+	pub polynom1: Vec<SerializableSecret>,
+	/// Node secret share.
+	pub secret_share: SerializableSecret,
+	/// Common (shared) encryption point.
+	pub common_point: Option<SerializablePublic>,
+	/// Encrypted point.
+	pub encrypted_point: Option<SerializablePublic>,
+}
+
 impl PersistentKeyStorage {
 	/// Create new persistent document encryption keys storage
 	pub fn new(config: &ServiceConfiguration) -> Result<Self, Error> {
@@ -113,33 +147,54 @@ fn upgrade_db(db: Database) -> Result<Database, Error> {
 	match version {
 		0 => {
 			let mut batch = db.transaction();
-			batch.put(None, DB_META_KEY_VERSION, &[1]);
-			for (db_key, db_value) in db.iter(None).into_iter().flat_map(|inner| inner) {
+			batch.put(None, DB_META_KEY_VERSION, &[CURRENT_VERSION]);
+			for (db_key, db_value) in db.iter(None).into_iter().flat_map(|inner| inner).filter(|&(ref k, _)| **k != *DB_META_KEY_VERSION) {
 				let v0_key = serde_json::from_slice::<SerializableDocumentKeyShareV0>(&db_value).map_err(|e| Error::Database(e.to_string()))?;
-				let v1_key = SerializableDocumentKeyShareV1 {
+				let v2_key = CurrentSerializableDocumentKeyShare {
 					// author is used in separate generation + encrypt sessions.
 					// in v0 there have been only simultaneous GenEnc sessions.
-					author: Public::default().into(), 
+					author: Public::default().into(), // added in v1 
 					threshold: v0_key.threshold,
 					id_numbers: v0_key.id_numbers,
 					secret_share: v0_key.secret_share,
+					polynom1: Vec::new(), // added in v2
 					common_point: Some(v0_key.common_point),
 					encrypted_point: Some(v0_key.encrypted_point),
 				};
-				let db_value = serde_json::to_vec(&v1_key).map_err(|e| Error::Database(e.to_string()))?;
+				let db_value = serde_json::to_vec(&v2_key).map_err(|e| Error::Database(e.to_string()))?;
 				batch.put(None, &*db_key, &*db_value);
 			}
 			db.write(batch).map_err(Error::Database)?;
 			Ok(db)
 		},
-		1 => Ok(db),
-		_ => Err(Error::Database(format!("unsupported SecretStore database version:? {}", version))),
+		1 => {
+			let mut batch = db.transaction();
+			batch.put(None, DB_META_KEY_VERSION, &[CURRENT_VERSION]);
+			for (db_key, db_value) in db.iter(None).into_iter().flat_map(|inner| inner).filter(|&(ref k, _)| **k != *DB_META_KEY_VERSION) {
+				let v1_key = serde_json::from_slice::<SerializableDocumentKeyShareV1>(&db_value).map_err(|e| Error::Database(e.to_string()))?;
+				let v2_key = CurrentSerializableDocumentKeyShare {
+					author: v1_key.author, // added in v1
+					threshold: v1_key.threshold,
+					id_numbers: v1_key.id_numbers,
+					secret_share: v1_key.secret_share,
+					polynom1: Vec::new(), // added in v2
+					common_point: v1_key.common_point,
+					encrypted_point: v1_key.encrypted_point,
+				};
+				let db_value = serde_json::to_vec(&v2_key).map_err(|e| Error::Database(e.to_string()))?;
+				batch.put(None, &*db_key, &*db_value);
+			}
+			db.write(batch).map_err(Error::Database)?;
+			Ok(db)
+		}
+		2 => Ok(db),
+		_ => Err(Error::Database(format!("unsupported SecretStore database version: {}", version))),
 	}
 }
 
 impl KeyStorage for PersistentKeyStorage {
 	fn insert(&self, document: ServerKeyId, key: DocumentKeyShare) -> Result<(), Error> {
-		let key: SerializableDocumentKeyShareV1 = key.into();
+		let key: CurrentSerializableDocumentKeyShare = key.into();
 		let key = serde_json::to_vec(&key).map_err(|e| Error::Database(e.to_string()))?;
 		let mut batch = self.db.transaction();
 		batch.put(None, &document, &key);
@@ -155,14 +210,52 @@ impl KeyStorage for PersistentKeyStorage {
 			.map_err(Error::Database)?
 			.ok_or(Error::DocumentNotFound)
 			.map(|key| key.into_vec())
-			.and_then(|key| serde_json::from_slice::<SerializableDocumentKeyShareV1>(&key).map_err(|e| Error::Database(e.to_string())))
+			.and_then(|key| serde_json::from_slice::<CurrentSerializableDocumentKeyShare>(&key).map_err(|e| Error::Database(e.to_string())))
 			.map(Into::into)
+	}
+
+	fn remove(&self, document: &ServerKeyId) -> Result<(), Error> {
+		let mut batch = self.db.transaction();
+		batch.delete(None, &document);
+		self.db.write(batch).map_err(Error::Database)
 	}
 
 	fn contains(&self, document: &ServerKeyId) -> bool {
 		self.db.get(None, document)
 			.map(|k| k.is_some())
 			.unwrap_or(false)
+	}
+
+	fn iter<'a>(&'a self) -> Box<Iterator<Item=(ServerKeyId, DocumentKeyShare)> + 'a> {
+		Box::new(PersistentKeyStorageIterator {
+			iter: self.db.iter(None),
+		})
+	}
+}
+
+impl<'a> Iterator for PersistentKeyStorageIterator<'a> {
+	type Item = (ServerKeyId, DocumentKeyShare);
+
+	fn next(&mut self) -> Option<(ServerKeyId, DocumentKeyShare)> {
+		self.iter.as_mut()
+			.and_then(|iter| iter.next()
+				.and_then(|(db_key, db_val)| serde_json::from_slice::<CurrentSerializableDocumentKeyShare>(&db_val)
+					.ok()
+					.map(|key| ((*db_key).into(), key.into()))))
+	}
+}
+
+impl From<DocumentKeyShare> for SerializableDocumentKeyShareV2 {
+	fn from(key: DocumentKeyShare) -> Self {
+		SerializableDocumentKeyShareV2 {
+			author: key.author.into(),
+			threshold: key.threshold,
+			id_numbers: key.id_numbers.into_iter().map(|(k, v)| (k.into(), v.into())).collect(),
+			secret_share: key.secret_share.into(),
+			polynom1: key.polynom1.into_iter().map(Into::into).collect(),
+			common_point: key.common_point.map(Into::into),
+			encrypted_point: key.encrypted_point.map(Into::into),
+		}
 	}
 }
 
@@ -179,13 +272,14 @@ impl From<DocumentKeyShare> for SerializableDocumentKeyShareV1 {
 	}
 }
 
-impl From<SerializableDocumentKeyShareV1> for DocumentKeyShare {
-	fn from(key: SerializableDocumentKeyShareV1) -> Self {
+impl From<SerializableDocumentKeyShareV2> for DocumentKeyShare {
+	fn from(key: SerializableDocumentKeyShareV2) -> Self {
 		DocumentKeyShare {
 			author: key.author.into(),
 			threshold: key.threshold,
 			id_numbers: key.id_numbers.into_iter().map(|(k, v)| (k.into(), v.into())).collect(),
 			secret_share: key.secret_share.into(),
+			polynom1: key.polynom1.into_iter().map(Into::into).collect(),
 			common_point: key.common_point.map(Into::into),
 			encrypted_point: key.encrypted_point.map(Into::into),
 		}
@@ -201,8 +295,9 @@ pub mod tests {
 	use ethkey::{Random, Generator, Public, Secret};
 	use util::Database;
 	use types::all::{Error, NodeAddress, ServiceConfiguration, ClusterConfiguration, ServerKeyId};
-	use super::{DB_META_KEY_VERSION, KeyStorage, PersistentKeyStorage, DocumentKeyShare,
-		SerializableDocumentKeyShareV0, SerializableDocumentKeyShareV1, upgrade_db};
+	use super::{DB_META_KEY_VERSION, CURRENT_VERSION, KeyStorage, PersistentKeyStorage, DocumentKeyShare,
+		SerializableDocumentKeyShareV0, SerializableDocumentKeyShareV1,
+		CurrentSerializableDocumentKeyShare, upgrade_db};
 
 	/// In-memory document encryption keys storage
 	#[derive(Default)]
@@ -225,8 +320,17 @@ pub mod tests {
 			self.keys.read().get(document).cloned().ok_or(Error::DocumentNotFound)
 		}
 
+		fn remove(&self, document: &ServerKeyId) -> Result<(), Error> {
+			self.keys.write().remove(document);
+			Ok(())
+		}
+
 		fn contains(&self, document: &ServerKeyId) -> bool {
 			self.keys.read().contains_key(document)
+		}
+
+		fn iter<'a>(&'a self) -> Box<Iterator<Item=(ServerKeyId, DocumentKeyShare)> + 'a> {
+			Box::new(self.keys.read().clone().into_iter())
 		}
 	}
 
@@ -245,6 +349,7 @@ pub mod tests {
 				},
 				nodes: BTreeMap::new(),
 				allow_connecting_to_higher_nodes: false,
+				admin_public: None,
 			},
 		};
 		
@@ -256,6 +361,7 @@ pub mod tests {
 				(Random.generate().unwrap().public().clone(), Random.generate().unwrap().secret().clone())
 			].into_iter().collect(),
 			secret_share: Random.generate().unwrap().secret().clone(),
+			polynom1: Vec::new(),
 			common_point: Some(Random.generate().unwrap().public().clone()),
 			encrypted_point: Some(Random.generate().unwrap().public().clone()),
 		};
@@ -267,6 +373,7 @@ pub mod tests {
 				(Random.generate().unwrap().public().clone(), Random.generate().unwrap().secret().clone())
 			].into_iter().collect(),
 			secret_share: Random.generate().unwrap().secret().clone(),
+			polynom1: Vec::new(),
 			common_point: Some(Random.generate().unwrap().public().clone()),
 			encrypted_point: Some(Random.generate().unwrap().public().clone()),
 		};
@@ -287,7 +394,7 @@ pub mod tests {
 	}
 
 	#[test]
-	fn upgrade_db_0_to_1() {
+	fn upgrade_db_from_0() {
 		let db_path = RandomTempPath::create_dir();
 		let db = Database::open_default(db_path.as_str()).unwrap();
 
@@ -312,8 +419,8 @@ pub mod tests {
 		let db = upgrade_db(db).unwrap();
 
 		// check upgrade
-		assert_eq!(db.get(None, DB_META_KEY_VERSION).unwrap().unwrap()[0], 1);
-		let key = serde_json::from_slice::<SerializableDocumentKeyShareV1>(&db.get(None, &[7]).unwrap().map(|key| key.to_vec()).unwrap()).unwrap();
+		assert_eq!(db.get(None, DB_META_KEY_VERSION).unwrap().unwrap()[0], CURRENT_VERSION);
+		let key = serde_json::from_slice::<CurrentSerializableDocumentKeyShare>(&db.get(None, &[7]).unwrap().map(|key| key.to_vec()).unwrap()).unwrap();
 		assert_eq!(Public::default(), key.author.clone().into());
 		assert_eq!(777, key.threshold);
 		assert_eq!(vec![(
@@ -323,5 +430,47 @@ pub mod tests {
 		assert_eq!("00125d85a05e5e63e214cb60fe63f132eec8a103aa29266b7e6e6c5b7597230b".parse::<Secret>().unwrap(), key.secret_share.into());
 		assert_eq!(Some("99e82b163b062d55a64085bacfd407bb55f194ba5fb7a1af9c34b84435455520f1372e0e650a4f91aed0058cb823f62146ccb5599c8d13372c300dea866b69fc".parse::<Public>().unwrap()), key.common_point.clone().map(Into::into));
 		assert_eq!(Some("7e05df9dd077ec21ed4bc45c9fe9e0a43d65fa4be540630de615ced5e95cf5c3003035eb713317237d7667feeeb64335525158f5f7411f67aca9645169ea554c".parse::<Public>().unwrap()), key.encrypted_point.clone().map(Into::into));
+	}
+
+	#[test]
+	fn upgrade_db_from_1() {
+		let db_path = RandomTempPath::create_dir();
+		let db = Database::open_default(db_path.as_str()).unwrap();
+
+		// prepare v1 database
+		{
+			let key = serde_json::to_vec(&SerializableDocumentKeyShareV1 {
+				author: "b486d3840218837b035c66196ecb15e6b067ca20101e11bd5e626288ab6806ecc70b8307012626bd512bad1559112d11d21025cef48cc7a1d2f3976da08f36c8".into(),
+				threshold: 777,
+				id_numbers: vec![(
+					"b486d3840218837b035c66196ecb15e6b067ca20101e11bd5e626288ab6806ecc70b8307012626bd512bad1559112d11d21025cef48cc7a1d2f3976da08f36c8".into(),
+					"281b6bf43cb86d0dc7b98e1b7def4a80f3ce16d28d2308f934f116767306f06c".parse::<Secret>().unwrap().into(),
+				)].into_iter().collect(),
+				secret_share: "00125d85a05e5e63e214cb60fe63f132eec8a103aa29266b7e6e6c5b7597230b".parse::<Secret>().unwrap().into(),
+				common_point: Some("99e82b163b062d55a64085bacfd407bb55f194ba5fb7a1af9c34b84435455520f1372e0e650a4f91aed0058cb823f62146ccb5599c8d13372c300dea866b69fc".into()),
+				encrypted_point: Some("7e05df9dd077ec21ed4bc45c9fe9e0a43d65fa4be540630de615ced5e95cf5c3003035eb713317237d7667feeeb64335525158f5f7411f67aca9645169ea554c".into()),
+			}).unwrap();
+			let mut batch = db.transaction();
+			batch.put(None, DB_META_KEY_VERSION, &[1]);
+			batch.put(None, &[7], &key);
+			db.write(batch).unwrap();
+		}
+
+		// upgrade database
+		let db = upgrade_db(db).unwrap();
+
+		// check upgrade
+		assert_eq!(db.get(None, DB_META_KEY_VERSION).unwrap().unwrap()[0], CURRENT_VERSION);
+		let key = serde_json::from_slice::<CurrentSerializableDocumentKeyShare>(&db.get(None, &[7]).unwrap().map(|key| key.to_vec()).unwrap()).unwrap();
+		assert_eq!(777, key.threshold);
+		assert_eq!(vec![(
+			"b486d3840218837b035c66196ecb15e6b067ca20101e11bd5e626288ab6806ecc70b8307012626bd512bad1559112d11d21025cef48cc7a1d2f3976da08f36c8".parse::<Public>().unwrap(),
+			"281b6bf43cb86d0dc7b98e1b7def4a80f3ce16d28d2308f934f116767306f06c".parse::<Secret>().unwrap(),
+		)], key.id_numbers.clone().into_iter().map(|(k, v)| (k.into(), v.into())).collect::<Vec<(Public, Secret)>>());
+		assert_eq!("00125d85a05e5e63e214cb60fe63f132eec8a103aa29266b7e6e6c5b7597230b".parse::<Secret>().unwrap(), key.secret_share.into());
+		assert_eq!(Some("99e82b163b062d55a64085bacfd407bb55f194ba5fb7a1af9c34b84435455520f1372e0e650a4f91aed0058cb823f62146ccb5599c8d13372c300dea866b69fc".parse::<Public>().unwrap()), key.common_point.clone().map(Into::into));
+		assert_eq!(Some("7e05df9dd077ec21ed4bc45c9fe9e0a43d65fa4be540630de615ced5e95cf5c3003035eb713317237d7667feeeb64335525158f5f7411f67aca9645169ea554c".parse::<Public>().unwrap()), key.encrypted_point.clone().map(Into::into));
+		assert_eq!(key.author, "b486d3840218837b035c66196ecb15e6b067ca20101e11bd5e626288ab6806ecc70b8307012626bd512bad1559112d11d21025cef48cc7a1d2f3976da08f36c8".into());
+		assert_eq!(key.polynom1, vec![]);
 	}
 }
