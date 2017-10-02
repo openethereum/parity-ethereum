@@ -30,6 +30,7 @@ const VALIDATOR_SET_ABI: &'static str = include_str!("res/validator_set.json");
 const VALIDATOR_REPORT_ABI: &'static str = include_str!("res/validator_report.json");
 const PEER_SET_ABI: &'static str = include_str!("res/peer_set.json");
 const TX_ACL_ABI: &'static str = include_str!("res/tx_acl.json");
+const PRIVATE_ABI: &'static str = include_str!("res/private.json");
 
 const TEST_VALIDATOR_SET_ABI: &'static str = include_str!("res/test_validator_set.json");
 
@@ -57,6 +58,7 @@ fn main() {
 	build_file("ValidatorReport", VALIDATOR_REPORT_ABI, "validator_report.rs");
 	build_file("PeerSet", PEER_SET_ABI, "peer_set.rs");
 	build_file("TransactAcl", TX_ACL_ABI, "tx_acl.rs");
+	build_file("Private", PRIVATE_ABI, "private.rs");
 
 	build_test_contracts();
 }
