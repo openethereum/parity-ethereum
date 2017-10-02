@@ -296,7 +296,7 @@ pub mod tests {
 	use util::Database;
 	use types::all::{Error, NodeAddress, ServiceConfiguration, ClusterConfiguration, ServerKeyId};
 	use super::{DB_META_KEY_VERSION, CURRENT_VERSION, KeyStorage, PersistentKeyStorage, DocumentKeyShare,
-		SerializableDocumentKeyShareV0, SerializableDocumentKeyShareV1, SerializableDocumentKeyShareV2,
+		SerializableDocumentKeyShareV0, SerializableDocumentKeyShareV1,
 		CurrentSerializableDocumentKeyShare, upgrade_db};
 
 	/// In-memory document encryption keys storage
