@@ -35,6 +35,9 @@ function createRedux () {
       return {
         personal: {
           hasAccounts: false
+        },
+        nodeStatus: {
+          isTest: false
         }
       };
     }
