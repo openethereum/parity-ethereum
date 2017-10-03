@@ -7,7 +7,7 @@
         "minimumDifficulty": "0x20000",
         "difficultyBoundDivisor": "0x800",
         "durationLimit": "0xd",
-        "homesteadTransition": "0x7fffffffffffff",
+        "homesteadTransition": "0x118c30",
         "eip150Transition": "0x7fffffffffffff",
         "eip160Transition": "0x7fffffffffffff",
         "eip161abcTransition": "0x7fffffffffffff",
