@@ -656,7 +656,7 @@ impl ClusterCore {
 				},
 				Err(err) => {
 					warn!(target: "secretstore_net", "{}: decryption session error '{}' when processing message {} from node {}", data.self_key_pair.public(), err, message, sender);
-let error_message = message::DecryptionSessionError {
+					let error_message = message::DecryptionSessionError {
 						session: session_id.clone().into(),
 						sub_session: sub_session_id.clone().into(),
 						session_nonce: session_nonce,
