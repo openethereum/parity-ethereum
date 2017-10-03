@@ -188,6 +188,8 @@ fn can_trace_block_and_uncle_reward() {
 		range: (BlockId::Number(1)..BlockId::Number(3)),
 		from_address: vec![],
 		to_address: vec![],
+		after: None,
+		count: None,
 	};
 
 	let traces = client.filter_traces(filter);
