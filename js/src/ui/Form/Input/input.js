@@ -18,6 +18,7 @@ import React, { Component, PropTypes } from 'react';
 import { TextField } from 'material-ui';
 import { noop } from 'lodash';
 import keycode from 'keycode';
+import localStore from 'store';
 
 import { nodeOrStringProptype } from '~/util/proptypes';
 import { toString } from '~/util/messages';
@@ -223,7 +224,9 @@ export default class Input extends Component {
   }
 
   onChange = (event, value) => {
-    if (!this.props.allowPaste) {
+    const isDev = localStore.get('allYourBaseAreBelongToUs') || false;
+
+    if (!this.props.allowPaste && !isDev) {
       if (value.length - this.state.value.length > 8) {
         return;
       }

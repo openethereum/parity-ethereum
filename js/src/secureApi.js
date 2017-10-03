@@ -248,7 +248,7 @@ export default class SecureApi extends Api {
           .then(() => true);
       })
       .catch((error) => {
-        log.error('unkown error in _connect', error);
+        log.error('unknown error in _connect', error);
         return false;
       });
   }

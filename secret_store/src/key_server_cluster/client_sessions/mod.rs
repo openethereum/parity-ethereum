@@ -14,22 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Trace filter related types
-
-use std::ops::Range;
-use util::{Address};
-use ids::BlockId;
-
-/// Easy to use trace filter.
-pub struct Filter {
-	/// Range of filtering.
-	pub range: Range<BlockId>,
-	/// From address.
-	pub from_address: Vec<Address>,
-	/// To address.
-	pub to_address: Vec<Address>,
-	/// Output offset
-	pub after: Option<usize>,
-	/// Output amount
-	pub count: Option<usize>,
-}
+pub mod decryption_session;
+pub mod encryption_session;
+pub mod generation_session;
+pub mod signing_session;

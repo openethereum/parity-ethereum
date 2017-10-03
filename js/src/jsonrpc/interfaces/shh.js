@@ -163,7 +163,7 @@ export default {
     ],
     returns: {
       type: Data,
-      desc: '`true` on successful removal, `false` on unkown identity'
+      desc: '`true` on successful removal, `false` on unknown identity'
     }
   },
 
@@ -285,7 +285,7 @@ export default {
     }],
     returns: {
       type: Boolean,
-      desc: '`true` on success, `false` on unkown subscription ID.'
+      desc: '`true` on success, `false` on unknown subscription ID.'
     }
   }
 };

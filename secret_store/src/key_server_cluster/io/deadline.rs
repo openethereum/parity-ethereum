@@ -19,8 +19,7 @@ use std::time::Duration;
 use futures::{Future, Select, Poll, Async};
 use tokio_core::reactor::{Handle, Timeout};
 
-type BoxFuture<T, E> = Box<Future<Item = T, Error = E> + Send + 'static>;
-type DeadlineBox<F> = BoxFuture<DeadlineStatus<<F as Future>::Item>, <F as Future>::Error>;
+type DeadlineBox<F> = Box<Future<Item = DeadlineStatus<<F as Future>::Item>, Error = <F as Future>::Error> + Send>;
 
 /// Complete a passed future or fail if it is not completed within timeout.
 pub fn deadline<F, T>(duration: Duration, handle: &Handle, future: F) -> Result<Deadline<F>, io::Error>

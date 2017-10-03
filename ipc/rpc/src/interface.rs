@@ -52,7 +52,7 @@ pub trait IpcConfig {
 /// Error in dispatching or invoking methods via IPC
 #[derive(Debug)]
 pub enum Error {
-	UnkownSystemCall,
+	UnknownSystemCall,
 	ClientUnsupported,
 	RemoteServiceUnsupported,
 	HandshakeFailed,
