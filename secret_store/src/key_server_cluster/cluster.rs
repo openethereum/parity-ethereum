@@ -274,10 +274,6 @@ impl ClusterCore {
 		Box::new(net_connect(&node_address, handle, data.self_key_pair.clone(), disconnected_nodes)
 			.then(move |result| ClusterCore::process_connection_result(data, Some(node_address), result))
 			.then(|_| finished(())))
-<<<<<<< HEAD
-
-=======
->>>>>>> master
 	}
 
 	/// Start listening for incoming connections.
