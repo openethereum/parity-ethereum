@@ -206,7 +206,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 			consensus_transport.set_shares_to_move_reversed(shares_to_move_reversed.clone());
 
 			let mut consensus_session = ConsensusSession::new(ConsensusSessionParams {
-				meta: self.core.meta.clone().into_consensus_meta(all_nodes_set.len()),
+				meta: self.core.meta.clone().into_consensus_meta(all_nodes_set.len())?,
 				consensus_executor: ServersSetChangeAccessJob::new_on_master(admin_public,
 					old_nodes_set.clone(),
 					old_nodes_set.clone(),
@@ -263,7 +263,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 						.unwrap_or_else(|| message.old_nodes_set.clone().into_iter().map(Into::into).collect());
 					let all_nodes_set_len = message.new_nodes_set.keys().chain(message.old_nodes_set.iter()).collect::<BTreeSet<_>>().len();
 					data.consensus_session = Some(ConsensusSession::new(ConsensusSessionParams {
-						meta: self.core.meta.clone().into_consensus_meta(all_nodes_set_len),
+						meta: self.core.meta.clone().into_consensus_meta(all_nodes_set_len)?,
 						consensus_executor: ServersSetChangeAccessJob::new_on_slave(admin_public, current_nodes_set),
 						consensus_transport: self.core.transport.clone(),
 					})?);

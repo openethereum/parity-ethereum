@@ -419,7 +419,7 @@ impl ClusterSessions {
 	}
 
 	/// Create new share remove session.
-	pub fn new_share_remove_session(&self, master: NodeId, session_id: SessionId, nonce: Option<u64>, cluster: Arc<ClusterView>) -> Result<Arc<AdminSession>, Error> {
+	pub fn new_share_remove_session(&self, master: NodeId, session_id: SessionId, nonce: Option<u64>, cluster: Arc<ClusterView>, all_nodes_set: BTreeSet<NodeId>) -> Result<Arc<AdminSession>, Error> {
 		let nonce = self.check_session_nonce(&master, nonce)?;
 		let admin_public = self.admin_public.clone().ok_or(Error::AccessDenied)?;
 
@@ -429,6 +429,7 @@ impl ClusterSessions {
 				self_node_id: self.self_node_id.clone(),
 				master_node_id: master,
 			},
+			cluster_nodes_set: all_nodes_set,
 			transport: ShareRemoveTransport::new(session_id.clone(), nonce, cluster),
 			key_storage: self.key_storage.clone(),
 			admin_public: Some(admin_public),
@@ -450,6 +451,12 @@ impl ClusterSessions {
 
 	/// Create new servers set change session.
 	pub fn new_servers_set_change_session(&self, master: NodeId, session_id: Option<SessionId>, nonce: Option<u64>, cluster: Arc<ClusterView>, all_nodes_set: BTreeSet<NodeId>) -> Result<Arc<AdminSession>, Error> {
+		// communicating to all other nodes is crucial for ServersSetChange session
+		// => check that we have connections to all cluster nodes
+		if self.nodes.iter().any(|n| !cluster.is_connected(n)) {
+			return Err(Error::NodeDisconnected);
+		}
+
 		// TODO: check if there's no other active sessions + do not allow to start other sessions when this session is active
 		let session_id = match session_id {
 			Some(session_id) => if session_id == *SERVERS_SET_CHANGE_SESSION_ID {

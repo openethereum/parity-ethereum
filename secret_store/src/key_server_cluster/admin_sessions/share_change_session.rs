@@ -51,6 +51,8 @@ pub struct ShareChangeSession {
 	key_storage: Arc<KeyStorage>,
 	/// Old nodes set.
 	old_nodes_set: BTreeSet<NodeId>,
+	/// All cluster nodes set.
+	cluster_nodes_set: BTreeSet<NodeId>,
 	/// Nodes to add shares for.
 	nodes_to_add: Option<BTreeMap<NodeId, Secret>>,
 	/// Nodes to move shares from/to.
@@ -89,6 +91,8 @@ pub struct ShareChangeSessionParams {
 	pub cluster: Arc<Cluster>,
 	/// Keys storage.
 	pub key_storage: Arc<KeyStorage>,
+	/// All cluster nodes set.
+	pub cluster_nodes_set: BTreeSet<NodeId>,
 	/// Old nodes set.
 	pub old_nodes_set: BTreeSet<NodeId>,
 	/// Session plan.
@@ -122,6 +126,7 @@ impl ShareChangeSession {
 			cluster: params.cluster,
 			key_storage: params.key_storage,
 			old_nodes_set: params.old_nodes_set,
+			cluster_nodes_set: params.cluster_nodes_set,
 			nodes_to_add: nodes_to_add,
 			nodes_to_remove: nodes_to_remove,
 			nodes_to_move: nodes_to_move,
@@ -246,6 +251,7 @@ impl ShareChangeSession {
 		let share_remove_session = ShareRemoveSessionImpl::new(ShareRemoveSessionParams {
 			meta: self.meta.clone(),
 			nonce: self.nonce,
+			cluster_nodes_set: self.cluster_nodes_set.clone(),
 			transport: ShareChangeTransport::new(self.session_id, self.nonce, self.cluster.clone()),
 			key_storage: self.key_storage.clone(),
 			admin_public: None,

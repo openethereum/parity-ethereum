@@ -205,7 +205,7 @@ impl SessionImpl {
 		}
 
 		let mut consensus_session = ConsensusSession::new(ConsensusSessionParams {
-			meta: self.core.meta.clone().into_consensus_meta(self.core.all_nodes_set.len()),
+			meta: self.core.meta.clone().into_consensus_meta(self.core.all_nodes_set.len())?,
 			consensus_executor: ServersSetChangeAccessJob::new_on_master(self.core.admin_public.clone(),
 				self.core.all_nodes_set.clone(),
 				self.core.all_nodes_set.clone(),
@@ -277,7 +277,7 @@ impl SessionImpl {
 				match &message.message {
 					&ConsensusMessageWithServersSet::InitializeConsensusSession(_) => {
 						data.consensus_session = Some(ConsensusSession::new(ConsensusSessionParams {
-							meta: self.core.meta.clone().into_consensus_meta(self.core.all_nodes_set.len()),
+							meta: self.core.meta.clone().into_consensus_meta(self.core.all_nodes_set.len())?,
 							consensus_executor: ServersSetChangeAccessJob::new_on_slave(self.core.admin_public.clone(),
 								self.core.all_nodes_set.clone(),
 							),
@@ -639,6 +639,7 @@ impl SessionImpl {
 			cluster: core.cluster.clone(),
 			key_storage: core.key_storage.clone(),
 			old_nodes_set: old_nodes_set,
+			cluster_nodes_set: core.all_nodes_set.clone(),
 			plan: session_plan,
 		})
 	}
