@@ -109,10 +109,10 @@ impl From<ethjson::spec::EthashParams> for EthashParams {
 			ecip1010_continue_transition: p.ecip1010_continue_transition.map_or(u64::max_value(), Into::into),
 			ecip1017_era_rounds: p.ecip1017_era_rounds.map_or(u64::max_value(), Into::into),
 			mcip3_transition: p.mcip3_transition.map_or(u64::max_value(), Into::into),
-			mcip3_miner_reward: p.mcip3_miner_reward.map(Into::into),
-			mcip3_ubi_reward: p.mcip3_ubi_reward.map(Into::into),
+			mcip3_miner_reward: p.mcip3_miner_reward.map_or(p.block_reward.into(), Into::into),
+			mcip3_ubi_reward: p.mcip3_ubi_reward.map_or(0, Into::into),
 			mcip3_ubi_contract: p.mcip3_ubi_contract.map_or_else(Address::new, Into::into),
-			mcip3_dev_reward: p.mcip3_dev_reward.map(Into::into),
+			mcip3_dev_reward: p.mcip3_dev_reward.map_or(0, Into::into),
 			mcip3_dev_contract: p.mcip3_dev_contract.map_or_else(Address::new, Into::into),
 			block_reward: p.block_reward.map_or_else(Default::default, Into::into),
 			eip649_transition: p.eip649_transition.map_or(u64::max_value(), Into::into),
@@ -223,11 +223,11 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 		let mut uncle_rewards = Vec::with_capacity(n_uncles);
 
 		if number >= self.ethash_params.mcip3_transition {
-			let miner_reward = self.ethash_params.mcip3_miner_reward.expect("mcip3MinerReward is always defined for mcip3Transition in chain spec.");
+			let miner_reward = self.ethash_params.mcip3_miner_reward.expect("mcip3MinerReward is either defined for mcip3Transition or uses default blockReward.");
 			let ubi_contract = self.ethash_params.mcip3_ubi_contract;
-			let ubi_reward = self.ethash_params.mcip3_ubi_reward.expect("mcip3UbiReward is always defined for mcip3Transition in chain spec.");
+			let ubi_reward = self.ethash_params.mcip3_ubi_reward.expect("mcip3UbiReward is either defined for mcip3Transition or 0.");
 			let dev_contract = self.ethash_params.mcip3_dev_contract;
-			let dev_reward = self.ethash_params.mcip3_dev_reward.expect("mcip3DevReward is always defined for mcip3Transition in chain spec.");
+			let dev_reward = self.ethash_params.mcip3_dev_reward.expect("mcip3DevReward is either defined for mcip3Transition or 0.");
 
 			self.machine.add_balance(block, &author, &miner_reward)?;
 			self.machine.add_balance(block, &ubi_contract, &ubi_reward)?;
