@@ -97,6 +97,10 @@ pub trait Cluster: Send + Sync {
 	fn broadcast(&self, message: Message) -> Result<(), Error>;
 	/// Send message to given node.
 	fn send(&self, to: &NodeId, message: Message) -> Result<(), Error>;
+	/// Is connected to given node?
+	fn is_connected(&self, node: &NodeId) -> bool;
+	/// Get a set of connected nodes.
+	fn nodes(&self) -> BTreeSet<NodeId>;
 }
 
 /// Cluster initialization parameters.
@@ -652,7 +656,7 @@ impl ClusterCore {
 				},
 				Err(err) => {
 					warn!(target: "secretstore_net", "{}: decryption session error '{}' when processing message {} from node {}", data.self_key_pair.public(), err, message, sender);
-					let error_message = message::DecryptionSessionError {
+let error_message = message::DecryptionSessionError {
 						session: session_id.clone().into(),
 						sub_session: sub_session_id.clone().into(),
 						session_nonce: session_nonce,
@@ -1287,14 +1291,6 @@ impl ClusterView {
 			})),
 		}
 	}
-
-	pub fn is_connected(&self, node: &NodeId) -> bool {
-		self.core.lock().nodes.contains(node)
-	}
-
-	pub fn nodes(&self) -> BTreeSet<NodeId> {
-		self.core.lock().nodes.clone()
-	}
 }
 
 impl Cluster for ClusterView {
@@ -1314,6 +1310,14 @@ impl Cluster for ClusterView {
 		let connection = core.cluster.connection(to).ok_or(Error::NodeDisconnected)?;
 		core.cluster.spawn(connection.send_message(message));
 		Ok(())
+	}
+
+	fn is_connected(&self, node: &NodeId) -> bool {
+		self.core.lock().nodes.contains(node)
+	}
+
+	fn nodes(&self) -> BTreeSet<NodeId> {
+		self.core.lock().nodes.clone()
 	}
 }
 
@@ -1460,7 +1464,7 @@ fn make_socket_address(address: &str, port: u16) -> Result<SocketAddr, Error> {
 pub mod tests {
 	use std::sync::Arc;
 	use std::time;
-	use std::collections::VecDeque;
+	use std::collections::{BTreeSet, VecDeque};
 	use parking_lot::Mutex;
 	use tokio_core::reactor::Core;
 	use ethkey::{Random, Generator, Public};
@@ -1516,6 +1520,15 @@ pub mod tests {
 			debug_assert!(&self.id != to);
 			self.data.lock().messages.push_back((to.clone(), message));
 			Ok(())
+		}
+
+		fn is_connected(&self, node: &NodeId) -> bool {
+			let data = self.data.lock();
+			&self.id == node || data.nodes.contains(node)
+		}
+
+		fn nodes(&self) -> BTreeSet<NodeId> {
+			self.data.lock().nodes.iter().cloned().collect()
 		}
 	}
 
