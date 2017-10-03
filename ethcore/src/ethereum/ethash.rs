@@ -73,13 +73,13 @@ pub struct EthashParams {
 	/// Number of first block where MCIP-3 begins.
 	pub mcip3_transition: u64,
 	/// MCIP-3 Block reward coin-base for miners.
-	pub mcip3_miner_reward: Option<U256>,
+	pub mcip3_miner_reward: U256,
 	/// MCIP-3 Block reward ubi-base for basic income.
-	pub mcip3_ubi_reward: Option<U256>,
+	pub mcip3_ubi_reward: U256,
 	/// MCIP-3 contract address for universal basic income.
 	pub mcip3_ubi_contract: Address,
 	/// MCIP-3 Block reward dev-base for dev funds.
-	pub mcip3_dev_reward: Option<U256>,
+	pub mcip3_dev_reward: U256,
 	/// MCIP-3 contract address for the developer funds.
 	pub mcip3_dev_contract: Address,
 	/// Block reward in base units.
@@ -109,10 +109,10 @@ impl From<ethjson::spec::EthashParams> for EthashParams {
 			ecip1010_continue_transition: p.ecip1010_continue_transition.map_or(u64::max_value(), Into::into),
 			ecip1017_era_rounds: p.ecip1017_era_rounds.map_or(u64::max_value(), Into::into),
 			mcip3_transition: p.mcip3_transition.map_or(u64::max_value(), Into::into),
-			mcip3_miner_reward: p.mcip3_miner_reward.map_or(p.block_reward.into(), Into::into),
-			mcip3_ubi_reward: p.mcip3_ubi_reward.map_or(0, Into::into),
+			mcip3_miner_reward: p.mcip3_miner_reward.map_or_else(Default::default, Into::into),
+			mcip3_ubi_reward: p.mcip3_ubi_reward.map_or(U256::from(0), Into::into),
 			mcip3_ubi_contract: p.mcip3_ubi_contract.map_or_else(Address::new, Into::into),
-			mcip3_dev_reward: p.mcip3_dev_reward.map_or(0, Into::into),
+			mcip3_dev_reward: p.mcip3_dev_reward.map_or(U256::from(0), Into::into),
 			mcip3_dev_contract: p.mcip3_dev_contract.map_or_else(Address::new, Into::into),
 			block_reward: p.block_reward.map_or_else(Default::default, Into::into),
 			eip649_transition: p.eip649_transition.map_or(u64::max_value(), Into::into),
@@ -223,11 +223,11 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 		let mut uncle_rewards = Vec::with_capacity(n_uncles);
 
 		if number >= self.ethash_params.mcip3_transition {
-			let miner_reward = self.ethash_params.mcip3_miner_reward.expect("mcip3MinerReward is either defined for mcip3Transition or uses default blockReward.");
+			let miner_reward = self.ethash_params.mcip3_miner_reward;
 			let ubi_contract = self.ethash_params.mcip3_ubi_contract;
-			let ubi_reward = self.ethash_params.mcip3_ubi_reward.expect("mcip3UbiReward is either defined for mcip3Transition or 0.");
+			let ubi_reward = self.ethash_params.mcip3_ubi_reward;
 			let dev_contract = self.ethash_params.mcip3_dev_contract;
-			let dev_reward = self.ethash_params.mcip3_dev_reward.expect("mcip3DevReward is either defined for mcip3Transition or 0.");
+			let dev_reward = self.ethash_params.mcip3_dev_reward;
 
 			self.machine.add_balance(block, &author, &miner_reward)?;
 			self.machine.add_balance(block, &ubi_contract, &ubi_reward)?;
