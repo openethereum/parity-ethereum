@@ -212,7 +212,6 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 				active_nodes_set.remove(&isolated_node);
 			}
 
-			// TODO: check threshold
 			let mut consensus_session = ConsensusSession::new(ConsensusSessionParams {
 				meta: self.core.meta.clone().into_consensus_meta(active_nodes_set.len())?,
 				consensus_executor: ServersSetChangeAccessJob::new_on_master(admin_public,

@@ -326,6 +326,9 @@ impl ShareChangeSession {
 		for isolated_node in &isolated_nodes {
 			key_share.id_numbers.remove(isolated_node);
 		}
+		if key_share.id_numbers.len() < key_share.threshold + 1 {
+			return Err(Error::InvalidNodesConfiguration);
+		}
 		key_storage.update(meta.id.clone(), key_share).map_err(|e| Error::KeyStorage(e.into()))
 	}
 }
