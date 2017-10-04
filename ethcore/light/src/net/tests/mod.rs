@@ -116,6 +116,16 @@ impl Provider for TestProvider {
 		self.0.client.block_header(id)
 	}
 
+	fn transaction_index(&self, req: request::CompleteTransactionIndexRequest)
+		-> Option<request::TransactionIndexResponse>
+	{
+		Some(request::TransactionIndexResponse {
+			num: 100,
+			hash: req.hash,
+			index: 55,
+		})
+	}
+
 	fn block_body(&self, req: request::CompleteBodyRequest) -> Option<request::BodyResponse> {
 		self.0.client.block_body(req)
 	}
@@ -712,4 +722,47 @@ fn id_guard() {
 		assert!(peer_info.pending_requests.collect_ids::<Vec<_>>().is_empty());
 		assert_eq!(peer_info.failed_requests, &[req_id_1]);
 	}
+}
+
+#[test]
+fn get_transaction_index() {
+	let capabilities = capabilities();
+
+	let (provider, proto) = setup(capabilities.clone());
+	let flow_params = proto.flow_params.read().clone();
+
+	let cur_status = status(provider.client.chain_info());
+
+	{
+		let packet_body = write_handshake(&cur_status, &capabilities, &proto);
+		proto.on_connect(&1, &Expect::Send(1, packet::STATUS, packet_body.clone()));
+		proto.handle_packet(&Expect::Nothing, &1, packet::STATUS, &packet_body);
+	}
+
+	let req_id = 112;
+	let key1: H256 = U256::from(11223344).into();
+
+	let request = Request::TransactionIndex(IncompleteTransactionIndexRequest {
+		hash: key1.into(),
+	});
+
+	let requests = encode_single(request.clone());
+	let request_body = make_packet(req_id, &requests);
+	let response = {
+		let response = vec![Response::TransactionIndex(TransactionIndexResponse {
+			num: 100,
+			hash: key1,
+			index: 55,
+		})];
+
+		let new_creds = *flow_params.limit() - flow_params.compute_cost_multi(requests.requests());
+
+		let mut response_stream = RlpStream::new_list(3);
+
+		response_stream.append(&req_id).append(&new_creds).append_list(&response);
+		response_stream.out()
+	};
+
+	let expected = Expect::Respond(packet::RESPONSE, response);
+	proto.handle_packet(&expected, &1, packet::REQUEST, &request_body);
 }
