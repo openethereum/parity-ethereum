@@ -16,104 +16,46 @@
 
 import React, { Component } from 'react';
 import PropTypes from 'prop-types';
-import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
-import store from 'store';
 
-import Button from '@parity/ui/Button';
-import Checkbox from '@parity/ui/Form/Checkbox';
-import GradientBg from '@parity/ui/GradientBg';
 import StatusIndicator from '@parity/ui/StatusIndicator';
 
 import styles from './syncWarning.css';
 
-const LS_DONT_SHOW_AGAIN = '_parity::syncWarning::dontShowAgain';
-
-export const showSyncWarning = () => {
-  const dontShowAgain = store.get(LS_DONT_SHOW_AGAIN);
-
-  if (dontShowAgain === undefined || dontShowAgain === null) {
-    return true;
-  }
-
-  return !dontShowAgain;
-};
-
 class SyncWarning extends Component {
   static propTypes = {
+    className: PropTypes.string,
     isOk: PropTypes.bool.isRequired,
     health: PropTypes.object.isRequired
   };
 
-  state = {
-    dontShowAgain: false,
-    show: true
-  };
-
   render () {
-    const { isOk, health } = this.props;
-    const { dontShowAgain, show } = this.state;
+    const { className, isOk, health } = this.props;
 
-    if (isOk || !show) {
+    if (isOk) {
       return null;
     }
 
     return (
-      <div>
-        <div className={ styles.overlay } />
-        <div className={ styles.modal }>
-          <GradientBg className={ styles.body }>
-            <div className={ styles.status }>
-              <StatusIndicator
-                type='signal'
-                id='healthWarning.indicator'
-                status={ health.overall.status }
-              />
-            </div>
-
-            {
-              health.overall.message.map(message => (
-                <p key={ message }>{ message }</p>
-              ))
-            }
-
-            <div className={ styles.button }>
-              <Checkbox
-                label={
-                  <FormattedMessage
-                    id='syncWarning.dontShowAgain.label'
-                    defaultMessage='Do not show this warning again'
-                  />
-                }
-                checked={ dontShowAgain }
-                onClick={ this.handleCheck }
-              />
-              <Button
-                label={
-                  <FormattedMessage
-                    id='syncWarning.understandBtn.label'
-                    defaultMessage='I understand'
-                  />
-                }
-                onClick={ this.handleAgreeClick }
-              />
-            </div>
-          </GradientBg>
+      <div className={ className }>
+        <div className={ styles.body }>
+          <div className={ styles.status }>
+            <StatusIndicator
+              type='signal'
+              id='healthWarning.indicator'
+              status={ health.overall.status }
+            />
+          </div>
+          {
+            health.overall.message.map((message) => (
+              <p key={ message }>
+                { message }
+              </p>
+            ))
+          }
         </div>
       </div>
     );
-  }
-
-  handleCheck = () => {
-    this.setState({ dontShowAgain: !this.state.dontShowAgain });
-  }
-
-  handleAgreeClick = () => {
-    if (this.state.dontShowAgain) {
-      store.set(LS_DONT_SHOW_AGAIN, true);
-    }
-
-    this.setState({ show: false });
   }
 }
 

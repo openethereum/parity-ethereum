@@ -17,16 +17,24 @@
 
 $textColor: #ccc;
 
-.status {
-  align-items: center;
+.container {
   color: $textColor;
-  display: flex;
   left: 0;
   padding: 0.5rem 0.75rem;
   position: fixed;
   right: 0;
   top: 0;
   z-index: 1000;
+
+  .status {
+    align-items: center;
+    display: flex;
+  }
+
+  .warning {
+    background: red;
+    display: block;
+  }
 }
 
 .plugins {
