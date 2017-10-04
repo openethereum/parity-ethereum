@@ -1,18 +1,18 @@
 {
-  "name": "MCIP3 Test",
-  "dataDir": "mcip3test",
-  "engine": {
-    "Ethash": {
-      "params": {
+  "name":"MCIP3 Test",
+  "dataDir":"mcip3test",
+  "engine":{
+    "Ethash":{
+      "params":{
         "minimumDifficulty":"0x020000",
         "difficultyBoundDivisor":"0x0800",
         "durationLimit":"0x0d",
         "homesteadTransition":"0x118c30",
-        "eip150Transition": "0x7fffffffffffff",
-        "eip160Transition": "0x7fffffffffffff",
-        "eip161abcTransition": "0x7fffffffffffff",
-        "eip161dTransition": "0x7fffffffffffff",
-        "blockReward": "0x1105a0185b50a80000",
+        "eip150Transition":"0x7fffffffffffff",
+        "eip160Transition":"0x7fffffffffffff",
+        "eip161abcTransition":"0x7fffffffffffff",
+        "eip161dTransition":"0x7fffffffffffff",
+        "blockReward":"0x1105a0185b50a80000",
         "mcip3Transition":"0x00",
         "mcip3MinerReward":"0xd8d726b7177a80000",
         "mcip3UbiReward":"0x2b5e3af16b1880000",
@@ -22,35 +22,35 @@
       }
     }
   },
-  "params": {
+  "params":{
     "gasLimitBoundDivisor":"0x0400",
-    "registrar": "0x5C271c4C9A67E7D73b7b3669d47504741354f21D",
+    "registrar":"0x5C271c4C9A67E7D73b7b3669d47504741354f21D",
     "accountStartNonce":"0x00",
-    "maximumExtraDataSize": "0x20",
-    "minGasLimit": "0x1388",
-    "networkID": "0x76740b",
-    "forkBlock": "0x5b6",
-    "forkCanonHash": "0xa5e88ad9e34d113e264e307bc27e8471452c8fc13780324bb3abb96fd0558343",
-    "eip155Transition": "0x7fffffffffffff",
-    "eip98Transition": "0x7fffffffffffff",
+    "maximumExtraDataSize":"0x20",
+    "minGasLimit":"0x1388",
+    "networkID":"0x76740b",
+    "forkBlock":"0x5b6",
+    "forkCanonHash":"0xa5e88ad9e34d113e264e307bc27e8471452c8fc13780324bb3abb96fd0558343",
+    "eip155Transition":"0x7fffffffffffff",
+    "eip98Transition":"0x7fffffffffffff",
     "eip86Transition":"0x7fffffffffffff",
     "maxCodeSize":"0x6000"
   },
-  "genesis": {
-    "seal": {
-      "ethereum": {
-        "nonce": "0x000000000000002a",
-        "mixHash": "0x00000000000000000000000000000000000000647572616c65787365646c6578"
+  "genesis":{
+    "seal":{
+      "ethereum":{
+        "nonce":"0x000000000000002a",
+        "mixHash":"0x00000000000000000000000000000000000000647572616c65787365646c6578"
       }
     },
-    "difficulty": "0x3d0900",
-    "author": "0x0000000000000000000000000000000000000000",
-    "timestamp": "0x00",
-    "parentHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
-    "extraData": "",
-    "gasLimit": "0x7a1200"
+    "difficulty":"0x3d0900",
+    "author":"0x0000000000000000000000000000000000000000",
+    "timestamp":"0x00",
+    "parentHash":"0x0000000000000000000000000000000000000000000000000000000000000000",
+    "extraData":"",
+    "gasLimit":"0x7a1200"
   },
-  "nodes": [
+  "nodes":[
     "enode://a979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c@52.16.188.185:30303",
     "enode://3f1d12044546b76342d59d4a05532c14b85aa669704bfe1f864fe079415aa2c02d743e03218e57a33fb94523adb54032871a6c51b2cc5514cb7c7e35b3ed0a99@13.93.211.84:30303",
     "enode://78de8a0916848093c73790ead81d1928bec737d565119932b98c6b100d944b7a95e94f847f689fc723399d2e31129d182f7ef3863f2b4c820abbf3ab2722344d@191.235.84.50:30303",
@@ -61,57 +61,56 @@
     "enode://c72564bce8331ae298fb8ece113a456e3927d7e5989c2be3e445678b3600579f722410ef9bbfe339335d676af77343cb21b5b1703b7bebc32be85fce937a2220@191.252.185.71:30303",
     "enode://e3ae4d25ee64791ff98bf17c37acf90933359f2505c00f65c84f6863231a32a94153cadb0a462e428f18f35ded6bd91cd91033d26576a28558c22678be9cfaee@5.63.158.137:35555"
   ],
-  "accounts": {
-    "0000000000000000000000000000000000000001": {
-      "balance": "1",
-      "builtin": {
-        "name": "ecrecover",
-        "pricing": {
-          "linear": {
-            "base": 3000,
-            "word": 0
+  "accounts":{
+    "0000000000000000000000000000000000000001":{
+      "balance":"1",
+      "builtin":{
+        "name":"ecrecover",
+        "pricing":{
+          "linear":{
+            "base":3000,
+            "word":0
           }
         }
       }
     },
-    "0000000000000000000000000000000000000002": {
-      "balance": "1",
-      "builtin": {
-        "name": "sha256",
-        "pricing": {
-          "linear": {
-            "base": 60,
-            "word": 12
+    "0000000000000000000000000000000000000002":{
+      "balance":"1",
+      "builtin":{
+        "name":"sha256",
+        "pricing":{
+          "linear":{
+            "base":60,
+            "word":12
           }
         }
       }
     },
-    "0000000000000000000000000000000000000003": {
-      "balance": "1",
-      "builtin": {
-        "name": "ripemd160",
-        "pricing": {
-          "linear": {
-            "base": 600,
-            "word": 120
+    "0000000000000000000000000000000000000003":{
+      "balance":"1",
+      "builtin":{
+        "name":"ripemd160",
+        "pricing":{
+          "linear":{
+            "base":600,
+            "word":120
           }
         }
       }
     },
-    "0000000000000000000000000000000000000004": {
-      "balance": "1",
-      "builtin": {
-        "name": "identity",
-        "pricing": {
-          "linear": {
-            "base": 15,
-            "word": 3
+    "0000000000000000000000000000000000000004":{
+      "balance":"1",
+      "builtin":{
+        "name":"identity",
+        "pricing":{
+          "linear":{
+            "base":15,
+            "word":3
           }
         }
       }
     },
     "0000000000000000000000000000000000000005":{
-      "balance":"1",
       "builtin":{
         "name":"modexp",
         "activate_at":"0x7fffffffffffff",
@@ -123,7 +122,6 @@
       }
     },
     "0000000000000000000000000000000000000006":{
-      "balance":"1",
       "builtin":{
         "name":"alt_bn128_add",
         "activate_at":"0x7fffffffffffff",
@@ -136,7 +134,6 @@
       }
     },
     "0000000000000000000000000000000000000007":{
-      "balance":"1",
       "builtin":{
         "name":"alt_bn128_mul",
         "activate_at":"0x7fffffffffffff",
@@ -149,7 +146,6 @@
       }
     },
     "0000000000000000000000000000000000000008":{
-      "balance":"1",
       "builtin":{
         "name":"alt_bn128_pairing",
         "activate_at":"0x7fffffffffffff",
