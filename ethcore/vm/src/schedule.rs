@@ -123,6 +123,8 @@ pub struct WasmCosts {
 	pub alloc: usize,
 	/// Div operations multiplier.
 	pub div: usize,
+	/// Div operations multiplier.
+	pub mul: usize,
 	/// Memory (load/store) operations multiplier.
 	pub mem: usize,
 	/// Memory copy operation.
@@ -141,13 +143,14 @@ impl Default for WasmCosts {
 	fn default() -> Self {
 		WasmCosts {
 			alloc: 2,
-			div: 10,
+			div: 16,
+			mul: 4,
 			mem: 2,
 			mem_copy: 1,
 			static_region: 1,
 
 			// due to runtime issues, this can be slow
-			static_u64: 64,
+			static_u64: 32,
 
 			static_u256: 64,
 			static_address: 40,

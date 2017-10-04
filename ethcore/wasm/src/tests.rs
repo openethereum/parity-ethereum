@@ -89,7 +89,7 @@ fn logger() {
 		test_finalize(interpreter.exec(params, &mut ext)).unwrap()
 	};
 
-	assert_eq!(gas_left, U256::from(15_049));
+	assert_eq!(gas_left, U256::from(15_177));
 	let address_val: H256 = address.into();
 	assert_eq!(
 		ext.store.get(&"0100000000000000000000000000000000000000000000000000000000000000".parse().unwrap()).expect("storage key to exist"),
@@ -176,7 +176,7 @@ fn dispersion() {
 		}
 	};
 
-	assert_eq!(gas_left, U256::from(96_573));
+	assert_eq!(gas_left, U256::from(96_543));
 
 	assert_eq!(
 		result,
@@ -272,7 +272,7 @@ fn create() {
 	assert!(ext.calls.contains(
 		&FakeCall {
 			call_type: FakeCallType::Create,
-			gas: U256::from(62_196),
+			gas: U256::from(62_324),
 			sender_address: None,
 			receive_address: None,
 			value: Some(1_000_000_000.into()),
@@ -280,7 +280,7 @@ fn create() {
 			code_address: None,
 		}
 	));
-	assert_eq!(gas_left, U256::from(62_161));
+	assert_eq!(gas_left, U256::from(62_289));
 }
 
 
@@ -500,7 +500,7 @@ fn math_add() {
 		}
 	).expect("Interpreter to execute without any errors");
 
-	assert_eq!(gas_left, U256::from(94_538));
+	assert_eq!(gas_left, U256::from(94_666));
 	assert_eq!(
 		U256::from_dec_str("1888888888888888888888888888887").unwrap(),
 		(&result[..]).into()
@@ -522,7 +522,7 @@ fn math_mul() {
 		}
 	).expect("Interpreter to execute without any errors");
 
-	assert_eq!(gas_left, U256::from(93_687));
+	assert_eq!(gas_left, U256::from(93_719));
 	assert_eq!(
 		U256::from_dec_str("888888888888888888888888888887111111111111111111111111111112").unwrap(),
 		(&result[..]).into()
@@ -544,7 +544,7 @@ fn math_sub() {
 		}
 	).expect("Interpreter to execute without any errors");
 
-	assert_eq!(gas_left, U256::from(94_590));
+	assert_eq!(gas_left, U256::from(94_718));
 	assert_eq!(
 		U256::from_dec_str("111111111111111111111111111111").unwrap(),
 		(&result[..]).into()
@@ -583,7 +583,7 @@ fn math_div() {
 		}
 	).expect("Interpreter to execute without any errors");
 
-	assert_eq!(gas_left, U256::from(86_868));
+	assert_eq!(gas_left, U256::from(86_996));
 	assert_eq!(
 		U256::from_dec_str("1125000").unwrap(),
 		(&result[..]).into()
@@ -675,5 +675,5 @@ fn externs() {
 		"Gas limit requested and returned does not match"
 	);
 
-	assert_eq!(gas_left, U256::from(91_537));
+	assert_eq!(gas_left, U256::from(91_857));
 }

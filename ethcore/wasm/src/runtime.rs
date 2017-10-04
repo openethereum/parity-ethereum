@@ -141,6 +141,7 @@ impl<'a, 'b> Runtime<'a, 'b> {
 				vals.insert(rules::InstructionType::Load, schedule.wasm.mem as u32);
 				vals.insert(rules::InstructionType::Store, schedule.wasm.mem as u32);
 				vals.insert(rules::InstructionType::Div, schedule.wasm.div as u32);
+				vals.insert(rules::InstructionType::Mul, schedule.wasm.mul as u32);
 				vals
 			})
 		};
