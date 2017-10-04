@@ -122,8 +122,16 @@ impl vm::Vm for WasmInterpreter {
 				&mut cursor
 			).map_err(|err| {
 				vm::Error::Wasm(format!("Error deserializing contract code ({:?})", err))
-			})?
+			})?,
+			runtime.gas_rules(),
 		);
+
+		let data_section_length = contract_module.data_section()
+			.map(|section| section.entries().iter().fold(0, |sum, entry| sum + entry.value().len()))
+			.unwrap_or(0);
+
+		let static_segment_cost = data_section_length * runtime.ext().schedule().wasm.static_region;
+		runtime.charge_gas_fallable(static_segment_cost).map_err(Error)?;
 
 		let d_ptr = runtime.write_descriptor(&params.data.unwrap_or_default())
 			.map_err(Error)?;

@@ -197,8 +197,10 @@ impl<'a, 'b> Runtime<'a, 'b> {
 		let refund_address = self.pop_address(&mut context)?;
 
 		if self.ext.exists(&refund_address).map_err(|_| UserTrap::SuicideAbort)? {
+			trace!(target: "wasm", "Suicide: refund to existing address {}", refund_address);
 			charge!(self, self.ext.schedule().suicide_gas);
 		} else {
+			trace!(target: "wasm", "Suicide: refund to new address {}", refund_address);
 			charge!(self, self.ext.schedule().suicide_to_new_account_cost);
 		}
 
@@ -432,7 +434,7 @@ impl<'a, 'b> Runtime<'a, 'b> {
 		}
 	}
 
-	fn charge_gas_fallable(&mut self, amount: usize) -> Result<(), InterpreterError> {
+	pub fn charge_gas_fallable(&mut self, amount: usize) -> Result<(), InterpreterError> {
 		if !self.charge_gas(amount as u64) {
 			Err(UserTrap::GasLimit.into())
 		} else {
@@ -596,9 +598,7 @@ impl<'a, 'b> Runtime<'a, 'b> {
 		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
 	{
 		let return_ptr = context.value_stack.pop_as::<i32>()? as u32;
-
 		charge!(self, self.ext.schedule().wasm.static_address);
-
 		self.memory.set(return_ptr, &*self.ext.env_info().author)?;
 		Ok(None)
 	}
@@ -607,6 +607,7 @@ impl<'a, 'b> Runtime<'a, 'b> {
 		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
 	{
 		let return_ptr = context.value_stack.pop_as::<i32>()? as u32;
+		charge!(self, self.ext.schedule().wasm.static_address);
 		self.memory.set(return_ptr, &*self.context.sender)?;
 		Ok(None)
 	}
@@ -615,6 +616,7 @@ impl<'a, 'b> Runtime<'a, 'b> {
 		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
 	{
 		let return_ptr = context.value_stack.pop_as::<i32>()? as u32;
+		charge!(self, self.ext.schedule().wasm.static_address);
 		self.memory.set(return_ptr, &*self.context.address)?;
 		Ok(None)
 	}
@@ -623,6 +625,7 @@ impl<'a, 'b> Runtime<'a, 'b> {
 		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
 	{
 		let return_ptr = context.value_stack.pop_as::<i32>()? as u32;
+		charge!(self, self.ext.schedule().wasm.static_address);
 		self.memory.set(return_ptr, &*self.context.origin)?;
 		Ok(None)
 	}
@@ -631,6 +634,9 @@ impl<'a, 'b> Runtime<'a, 'b> {
 		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
 	{
 		let return_ptr = context.value_stack.pop_as::<i32>()? as u32;
+
+		charge!(self, self.ext.schedule().wasm.static_u256);
+
 		let value: H256 = self.context.value.clone().into();
 		self.memory.set(return_ptr, &*value)?;
 		Ok(None)
@@ -706,6 +712,14 @@ impl<'a, 'b> Runtime<'a, 'b> {
 					.expect("Env module always exists; qed")
 			)
 		)
+	}
+
+	pub fn gas_rules(&self) -> &rules::Set {
+		&self.gas_rules
+	}
+
+	pub fn ext(&mut self) -> &mut vm::Ext {
+		self.ext
 	}
 }
 
