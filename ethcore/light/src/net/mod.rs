@@ -939,7 +939,7 @@ impl LightProtocol {
 			match complete_req {
 				CompleteRequest::Headers(req) => self.provider.block_headers(req).map(Response::Headers),
 				CompleteRequest::HeaderProof(req) => self.provider.header_proof(req).map(Response::HeaderProof),
-				CompleteRequest::TransactionIndex(_) => None, // don't answer these yet, but leave them in protocol.
+				CompleteRequest::TransactionIndex(req) => self.provider.transaction_index(req).map(Response::TransactionIndex),
 				CompleteRequest::Body(req) => self.provider.block_body(req).map(Response::Body),
 				CompleteRequest::Receipts(req) => self.provider.block_receipts(req).map(Response::Receipts),
 				CompleteRequest::Account(req) => self.provider.account_proof(req).map(Response::Account),
