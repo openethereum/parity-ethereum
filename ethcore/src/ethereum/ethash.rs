@@ -467,12 +467,16 @@ mod tests {
 	use error::{BlockError, Error};
 	use header::Header;
 	use spec::Spec;
-	use super::super::{new_morden, new_homestead_test_machine};
+	use super::super::{new_morden, new_mcip3_test, new_homestead_test_machine};
 	use super::{Ethash, EthashParams, ecip1017_eras_block_reward};
 	use rlp;
 
 	fn test_spec() -> Spec {
 		new_morden(&::std::env::temp_dir())
+	}
+
+	fn test_spec_mcip3() -> Spec {
+		new_mcip3_test(&::std::env::temp_dir())
 	}
 
 	#[test]
@@ -535,6 +539,23 @@ mod tests {
 		let b = b.close();
 		assert_eq!(b.state().balance(&Address::zero()).unwrap(), "478eae0e571ba000".into());
 		assert_eq!(b.state().balance(&uncle_author).unwrap(), "3cb71f51fc558000".into());
+	}
+
+	#[test]
+	fn has_valid_mcip3_era_block_rewards() {
+		let spec = test_spec_mcip3();
+		let engine = &*spec.engine;
+		let genesis_header = spec.genesis_header();
+		let db = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
+		let last_hashes = Arc::new(vec![genesis_header.hash()]);
+		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, Address::zero(), (3141562.into(), 31415620.into()), vec![], false).unwrap();
+		let b = b.close();
+
+		let ubi_contract: Address = "00efdd5883ec628983e9063c7d969fe268bbf310".into();
+		let dev_contract: Address = "00756cf8159095948496617f5fb17ed95059f536".into();
+		assert_eq!(b.state().balance(&Address::zero()).unwrap(), U256::from_str("d8d726b7177a80000").unwrap());
+		assert_eq!(b.state().balance(&ubi_contract).unwrap(), U256::from_str("2b5e3af16b1880000").unwrap());
+		assert_eq!(b.state().balance(&dev_contract).unwrap(), U256::from_str("c249fdd327780000").unwrap());
 	}
 
 	#[test]
