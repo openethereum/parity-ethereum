@@ -23,7 +23,8 @@ use ethcore::encoded;
 use ethcore::executed::{Executed, ExecutionError};
 use ethcore::ids::BlockId;
 use ethcore::filter::Filter as EthcoreFilter;
-use ethcore::transaction::{Action, Transaction as EthTransaction};
+use ethcore::transaction::{Action, Transaction as EthTransaction, SignedTransaction};
+use ethcore::receipt::Receipt;
 
 use futures::{future, Future, BoxFuture};
 use futures::future::Either;
@@ -38,14 +39,18 @@ use light::request::Field;
 
 use ethsync::LightSync;
 use bigint::prelude::U256;
+use hash::H256;
 use util::Address;
 use parking_lot::Mutex;
 
 use v1::helpers::{CallRequest as CallRequestHelper, errors, dispatch};
-use v1::types::{BlockNumber, CallRequest, Log};
+use v1::types::{BlockNumber, CallRequest, Log, Transaction};
+
+const NO_INVALID_BACK_REFS: &'static str = "Fails only on invalid back-references; back-references here known to be valid; qed";
 
 /// Helper for fetching blockchain data either from the light client or the network
 /// as necessary.
+#[derive(Clone)]
 pub struct LightFetch {
 	/// The light client.
 	pub client: Arc<LightChainClient>,
@@ -56,6 +61,19 @@ pub struct LightFetch {
 	/// The light data cache.
 	pub cache: Arc<Mutex<Cache>>,
 }
+
+/// Extract a transaction at given index.
+pub fn extract_transaction_at_index(block: encoded::Block, index: usize, eip86_transition: u64) -> Option<Transaction> {
+	block.transactions().into_iter().nth(index)
+		.and_then(|tx| SignedTransaction::new(tx).ok())
+		.map(|tx| Transaction::from_signed(tx, block.number(), eip86_transition))
+		.map(|mut tx| {
+			tx.block_hash = Some(block.hash().into());
+			tx.transaction_index = Some(index.into());
+			tx
+		})
+}
+
 
 /// Type alias for convenience.
 pub type ExecutionResult = Result<Executed, ExecutionError>;
@@ -249,9 +267,36 @@ impl LightFetch {
 
 		let maybe_future = self.sync.with_context(move |ctx| {
 			self.on_demand.request_raw(ctx, reqs)
-				.expect("all back-references known to be valid; qed")
+				.expect(NO_INVALID_BACK_REFS)
 				.map(|mut res| match res.pop() {
 					Some(OnDemandResponse::Body(b)) => b,
+					_ => panic!("responses correspond directly with requests in amount and type; qed"),
+				})
+				.map_err(errors::on_demand_cancel)
+				.boxed()
+		});
+
+		match maybe_future {
+			Some(recv) => recv,
+			None => future::err(errors::network_disabled()).boxed()
+		}
+	}
+
+	/// get the block receipts. fails on unknown block ID.
+	pub fn receipts(&self, id: BlockId) -> BoxFuture<Vec<Receipt>, Error> {
+		let mut reqs = Vec::new();
+		let header_ref = match self.make_header_requests(id, &mut reqs) {
+			Ok(r) => r,
+			Err(e) => return future::err(e).boxed(),
+		};
+
+		reqs.push(request::BlockReceipts(header_ref).into());
+
+		let maybe_future = self.sync.with_context(move |ctx| {
+			self.on_demand.request_raw(ctx, reqs)
+				.expect(NO_INVALID_BACK_REFS)
+				.map(|mut res| match res.pop() {
+					Some(OnDemandResponse::Receipts(b)) => b,
 					_ => panic!("responses correspond directly with requests in amount and type; qed"),
 				})
 				.map_err(errors::on_demand_cancel)
@@ -269,8 +314,6 @@ impl LightFetch {
 		use std::collections::BTreeMap;
 
 		use futures::stream::{self, Stream};
-
-		const NO_INVALID_BACK_REFS: &'static str = "Fails only on invalid back-references; back-references here known to be valid; qed";
 
 		// early exit for "to" block before "from" block.
 		let best_number = self.client.chain_info().best_block_number;
@@ -321,6 +364,65 @@ impl LightFetch {
 			Some(fut) => fut.boxed(),
 			None => future::err(errors::network_disabled()).boxed(),
 		}
+	}
+
+	// get a transaction by hash. also returns the index in the block.
+	// only returns transactions in the canonical chain.
+	pub fn transaction_by_hash(&self, tx_hash: H256, eip86_transition: u64)
+		-> BoxFuture<Option<(Transaction, usize)>, Error>
+	{
+		let params = (self.sync.clone(), self.on_demand.clone());
+		let fetcher: Self = self.clone();
+
+		Box::new(future::loop_fn(params, move |(sync, on_demand)| {
+			let maybe_future = sync.with_context(|ctx| {
+				let req = request::TransactionIndex(tx_hash.clone().into());
+				on_demand.request(ctx, req)
+			});
+
+			let eventual_index = match maybe_future {
+				Some(e) => e.expect(NO_INVALID_BACK_REFS).map_err(errors::on_demand_cancel),
+				None => return Either::A(future::err(errors::network_disabled())),
+			};
+
+			let fetcher = fetcher.clone();
+			let extract_transaction = eventual_index.and_then(move |index| {
+				// check that the block is known by number.
+				// that ensures that it is within the chain that we are aware of.
+				fetcher.block(BlockId::Number(index.num)).then(move |blk| match blk {
+					Ok(blk) => {
+						// if the block is known by number, make sure the
+						// index from earlier isn't garbage.
+
+						if blk.hash() != index.hash {
+							// index is on a different chain from us.
+							return Ok(future::Loop::Continue((sync, on_demand)))
+						}
+
+						let index = index.index as usize;
+						let transaction = extract_transaction_at_index(blk, index, eip86_transition);
+
+						if transaction.as_ref().map_or(true, |tx| tx.hash != tx_hash.into()) {
+							// index is actively wrong: indicated block has
+							// fewer transactions than necessary or the transaction
+							// at that index had a different hash.
+							// TODO: punish peer/move into OnDemand somehow?
+							Ok(future::Loop::Continue((sync, on_demand)))
+						} else {
+							let transaction = transaction.map(move |tx| (tx, index));
+							Ok(future::Loop::Break(transaction))
+						}
+					}
+					Err(ref e) if e == &errors::unknown_block() => {
+						// block by number not in the canonical chain.
+						Ok(future::Loop::Break(None))
+					}
+					Err(e) => Err(e),
+				})
+			});
+
+			Either::B(extract_transaction)
+		}))
 	}
 }
 
