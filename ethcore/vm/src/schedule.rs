@@ -133,9 +133,9 @@ pub struct WasmCosts {
 	pub static_region: usize,
 	/// General static query of u64 value from env-info
 	pub static_u64: usize,
-	/// General static query of U64 value from env-info
+	/// General static query of U256 value from env-info
 	pub static_u256: usize,
-	/// General static query of address value from env-info
+	/// General static query of Address value from env-info
 	pub static_address: usize,
 }
 
