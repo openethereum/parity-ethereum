@@ -194,8 +194,6 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		// if consensus is not yet established => start consensus session
 		let is_consensus_pre_established = data.shares_to_remove.is_some();
 		if !is_consensus_pre_established {
-			// TODO: even if node was lost, it is still required for ShareRemove session to complete.
-			// It is wrong - if node is not in all_nodes_set, it must be excluded from consensus.
 			let shares_to_remove = shares_to_remove.ok_or(Error::InvalidMessage)?;
 			check_shares_to_remove(&self.core, &shares_to_remove)?;
 
