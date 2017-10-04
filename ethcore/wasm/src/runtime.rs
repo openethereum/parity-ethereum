@@ -163,6 +163,19 @@ impl<'a, 'b> Runtime<'a, 'b> {
 		Ok(Some(0.into()))
 	}
 
+	/// Fetches balance for address
+	pub fn balance(&mut self, context: InterpreterCallerContext)
+		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
+	{
+		let mut context = context;
+		let return_ptr = context.value_stack.pop_as::<i32>()? as u32;
+		let address = self.pop_address(&mut context)?;
+		let balance = self.ext.balance(&address).map_err(|_| UserTrap::BalanceQueryError)?;
+		let value: H256 = balance.into();
+		self.memory.set(return_ptr, &*value)?;
+		Ok(None)
+	}
+
 	/// Pass suicide to state runtime
 	pub fn suicide(&mut self, context: InterpreterCallerContext)
 		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
@@ -663,6 +676,9 @@ impl<'a, 'b> interpreter::UserFunctionExecutor<UserTrap> for Runtime<'a, 'b> {
 			},
 			"_storage_write" => {
 				self.storage_write(context)
+			},
+			"_balance" => {
+				self.balance(context)
 			},
 			"_suicide" => {
 				self.suicide(context)
