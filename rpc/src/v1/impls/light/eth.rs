@@ -35,7 +35,7 @@ use ethcore::encoded;
 use ethcore::executed::{Executed, ExecutionError};
 use ethcore::ids::BlockId;
 use ethcore::filter::Filter as EthcoreFilter;
-use ethcore::transaction::{Action, SignedTransaction, Transaction as EthTransaction};
+use ethcore::transaction::{Action, SignedTransaction, Transaction as EthTransaction, LocalizedTransaction};
 use ethsync::LightSync;
 use rlp::UntrustedRlp;
 use hash::{KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP};
@@ -87,7 +87,6 @@ impl<T> Clone for EthClient<T> {
 		}
 	}
 }
-
 
 impl<T: LightChainClient + 'static> EthClient<T> {
 	/// Create a new `EthClient` with a handle to the light sync instance, client,
@@ -408,11 +407,17 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 	}
 
 	fn transaction_by_block_hash_and_index(&self, hash: RpcH256, idx: Index) -> BoxFuture<Option<Transaction>, Error> {
-		Box::new(future::err(errors::unimplemented(None)))
+		let eip86 = self.client.eip86_transition();
+		Box::new(self.fetcher().block(BlockId::Hash(hash.into())).map(move |block| {
+			extract_transaction_at_index(block, idx, eip86)
+		}))
 	}
 
 	fn transaction_by_block_number_and_index(&self, num: BlockNumber, idx: Index) -> BoxFuture<Option<Transaction>, Error> {
-		Box::new(future::err(errors::unimplemented(None)))
+		let eip86 = self.client.eip86_transition();
+		Box::new(self.fetcher().block(num.into()).map(move |block| {
+			extract_transaction_at_index(block, idx, eip86)
+		}))
 	}
 
 	fn transaction_receipt(&self, hash: RpcH256) -> BoxFuture<Option<Receipt>, Error> {
@@ -420,11 +425,17 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 	}
 
 	fn uncle_by_block_hash_and_index(&self, hash: RpcH256, idx: Index) -> BoxFuture<Option<RichBlock>, Error> {
-		Box::new(future::err(errors::unimplemented(None)))
+		let client = self.client.clone();
+		Box::new(self.fetcher().block(BlockId::Hash(hash.into())).map(move |block| {
+			extract_uncle_at_index(block, idx, client)
+		}))
 	}
 
 	fn uncle_by_block_number_and_index(&self, num: BlockNumber, idx: Index) -> BoxFuture<Option<RichBlock>, Error> {
-		Box::new(future::err(errors::unimplemented(None)))
+		let client = self.client.clone();
+		Box::new(self.fetcher().block(num.into()).map(move |block| {
+			extract_uncle_at_index(block, idx, client)
+		}))
 	}
 
 	fn compilers(&self) -> Result<Vec<String>, Error> {
@@ -487,4 +498,44 @@ impl<T: LightChainClient + 'static> Filterable for EthClient<T> {
 	fn polls(&self) -> &Mutex<PollManager<PollFilter>> {
 		&self.polls
 	}
+}
+
+fn extract_transaction_at_index(block: encoded::Block, index: Index, eip86_transition: u64) -> Option<Transaction> {
+	block.transactions().into_iter().nth(index.value())
+		.and_then(|tx| SignedTransaction::new(tx).ok())
+		.map(|tx| Transaction::from_signed(tx, block.number(), eip86_transition))
+}
+
+fn extract_uncle_at_index<T: LightChainClient>(block: encoded::Block, index: Index, client: Arc<T>) -> Option<RichBlock> {
+		let uncle = match block.uncles().into_iter().nth(index.value()) {
+			Some(u) => u,
+			None => return None,
+		};
+
+		let extra_info = client.engine().extra_info(&uncle);
+		Some(RichBlock {
+			inner: Block {
+				hash: Some(uncle.hash().into()),
+				size: None,
+				parent_hash: uncle.parent_hash().clone().into(),
+				uncles_hash: uncle.uncles_hash().clone().into(),
+				author: uncle.author().clone().into(),
+				miner: uncle.author().clone().into(),
+				state_root: uncle.state_root().clone().into(),
+				transactions_root: uncle.transactions_root().clone().into(),
+				number: Some(uncle.number().into()),
+				gas_used: uncle.gas_used().clone().into(),
+				gas_limit: uncle.gas_limit().clone().into(),
+				logs_bloom: uncle.log_bloom().clone().into(),
+				timestamp: uncle.timestamp().into(),
+				difficulty: uncle.difficulty().clone().into(),
+				total_difficulty: None,
+				receipts_root: uncle.receipts_root().clone().into(),
+				extra_data: uncle.extra_data().clone().into(),
+				seal_fields: uncle.seal().into_iter().cloned().map(Into::into).collect(),
+				uncles: vec![],
+				transactions: BlockTransactions::Hashes(vec![]),
+			},
+			extra_info: extra_info,
+		})
 }
