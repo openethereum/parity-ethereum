@@ -17,8 +17,6 @@
 //! Epoch verifiers and transitions.
 
 use bigint::hash::H256;
-use error::Error;
-use header::Header;
 
 /// A full epoch transition.
 #[derive(Debug, Clone, RlpEncodable, RlpDecodable)]
@@ -40,15 +38,13 @@ pub struct PendingTransition {
 }
 
 /// Verifier for all blocks within an epoch with self-contained state.
-///
-/// See docs on `Engine` relating to proving functions for more details.
-pub trait EpochVerifier: Send + Sync {
+pub trait EpochVerifier<M: ::parity_machine::Machine>: Send + Sync {
 	/// Lightly verify the next block header.
 	/// This may not be a header belonging to a different epoch.
-	fn verify_light(&self, header: &Header) -> Result<(), Error>;
+	fn verify_light(&self, header: &M::Header) -> Result<(), M::Error>;
 
 	/// Perform potentially heavier checks on the next block header.
-	fn verify_heavy(&self, header: &Header) -> Result<(), Error> {
+	fn verify_heavy(&self, header: &M::Header) -> Result<(), M::Error> {
 		self.verify_light(header)
 	}
 
@@ -63,6 +59,6 @@ pub trait EpochVerifier: Send + Sync {
 /// Special "no-op" verifier for stateless, epoch-less engines.
 pub struct NoOp;
 
-impl EpochVerifier for NoOp {
-	fn verify_light(&self, _header: &Header) -> Result<(), Error> { Ok(()) }
+impl<M: ::parity_machine::Machine> EpochVerifier<M> for NoOp {
+	fn verify_light(&self, _header: &M::Header) -> Result<(), M::Error> { Ok(()) }
 }

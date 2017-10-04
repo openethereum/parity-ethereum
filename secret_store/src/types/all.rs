@@ -93,6 +93,8 @@ pub struct ClusterConfiguration {
 	/// Allow outbound connections to 'higher' nodes.
 	/// This is useful for tests, but slower a bit for production.
 	pub allow_connecting_to_higher_nodes: bool,
+	/// Administrator public key.
+	pub admin_public: Option<Public>,
 }
 
 /// Shadow decryption result.

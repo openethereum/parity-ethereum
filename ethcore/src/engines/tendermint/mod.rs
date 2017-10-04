@@ -27,9 +27,8 @@ mod params;
 
 use std::sync::{Weak, Arc};
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
-use std::collections::{HashSet, BTreeMap, HashMap};
+use std::collections::{HashSet, BTreeMap};
 use hash::keccak;
-use std::cmp;
 use bigint::prelude::{U128, U256};
 use bigint::hash::{H256, H520};
 use parking_lot::RwLock;
@@ -39,12 +38,10 @@ use client::EngineClient;
 use bytes::Bytes;
 use error::{Error, BlockError};
 use header::{Header, BlockNumber};
-use builtin::Builtin;
 use rlp::UntrustedRlp;
 use ethkey::{Message, public_to_address, recover, Signature};
 use account_provider::AccountProvider;
 use block::*;
-use spec::CommonParams;
 use engines::{Engine, Seal, EngineError, ConstructedVerifier};
 use io::IoService;
 use super::signer::EngineSigner;
@@ -54,6 +51,7 @@ use super::vote_collector::VoteCollector;
 use self::message::*;
 use self::params::TendermintParams;
 use semantic_version::SemanticVersion;
+use machine::{AuxiliaryData, EthereumMachine};
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub enum Step {
@@ -78,8 +76,6 @@ pub type BlockHash = H256;
 
 /// Engine using `Tendermint` consensus algorithm, suitable for EVM chain.
 pub struct Tendermint {
-	params: CommonParams,
-	builtins: BTreeMap<Address, Builtin>,
 	step_service: IoService<Step>,
 	client: RwLock<Option<Weak<EngineClient>>>,
 	/// Blockchain height.
@@ -104,6 +100,10 @@ pub struct Tendermint {
 	last_proposed: RwLock<H256>,
 	/// Set used to determine the current validators.
 	validators: Box<ValidatorSet>,
+	/// Reward per block, in base units.
+	block_reward: U256,
+	/// ethereum machine descriptor
+	machine: EthereumMachine,
 }
 
 struct EpochVerifier<F>
@@ -113,7 +113,7 @@ struct EpochVerifier<F>
 	recover: F
 }
 
-impl <F> super::EpochVerifier for EpochVerifier<F>
+impl <F> super::EpochVerifier<EthereumMachine> for EpochVerifier<F>
 	where F: Fn(&Signature, &Message) -> Result<Address, Error> + Send + Sync
 {
 	fn verify_light(&self, header: &Header) -> Result<(), Error> {
@@ -167,11 +167,9 @@ fn destructure_proofs(combined: &[u8]) -> Result<(BlockNumber, &[u8], &[u8]), Er
 
 impl Tendermint {
 	/// Create a new instance of Tendermint engine
-	pub fn new(params: CommonParams, our_params: TendermintParams, builtins: BTreeMap<Address, Builtin>) -> Result<Arc<Self>, Error> {
+	pub fn new(our_params: TendermintParams, machine: EthereumMachine) -> Result<Arc<Self>, Error> {
 		let engine = Arc::new(
 			Tendermint {
-				params: params,
-				builtins: builtins,
 				client: RwLock::new(None),
 				step_service: IoService::<Step>::start()?,
 				height: AtomicUsize::new(1),
@@ -185,9 +183,13 @@ impl Tendermint {
 				proposal_parent: Default::default(),
 				last_proposed: Default::default(),
 				validators: our_params.validators,
+				block_reward: our_params.block_reward,
+				machine: machine,
 			});
-		let handler = TransitionHandler::new(Arc::downgrade(&engine) as Weak<Engine>, Box::new(our_params.timeouts));
+
+		let handler = TransitionHandler::new(Arc::downgrade(&engine) as Weak<Engine<_>>, Box::new(our_params.timeouts));
 		engine.step_service.register_handler(Arc::new(handler))?;
+
 		Ok(engine)
 	}
 
@@ -438,7 +440,7 @@ impl Tendermint {
 	}
 }
 
-impl Engine for Tendermint {
+impl Engine<EthereumMachine> for Tendermint {
 	fn name(&self) -> &str { "Tendermint" }
 
 	fn version(&self) -> SemanticVersion { SemanticVersion::new(1, 0, 0) }
@@ -446,13 +448,7 @@ impl Engine for Tendermint {
 	/// (consensus view, proposal signature, authority signatures)
 	fn seal_fields(&self) -> usize { 3 }
 
-	fn params(&self) -> &CommonParams { &self.params }
-
-	fn additional_params(&self) -> HashMap<String, String> {
-		hash_map!["registrar".to_owned() => self.params().registrar.hex()]
-	}
-
-	fn builtins(&self) -> &BTreeMap<Address, Builtin> { &self.builtins }
+	fn machine(&self) -> &EthereumMachine { &self.machine }
 
 	fn maximum_uncle_count(&self) -> usize { 0 }
 
@@ -469,19 +465,13 @@ impl Engine for Tendermint {
 		]
 	}
 
-	fn populate_from_parent(&self, header: &mut Header, parent: &Header, gas_floor_target: U256, _gas_ceil_target: U256) {
+	fn populate_from_parent(&self, header: &mut Header, parent: &Header) {
 		// Chain scoring: total weight is sqrt(U256::max_value())*height - view
-		let new_difficulty = U256::from(U128::max_value()) + consensus_view(parent).expect("Header has been verified; qed").into() - self.view.load(AtomicOrdering::SeqCst).into();
+		let new_difficulty = U256::from(U128::max_value())
+			+ consensus_view(parent).expect("Header has been verified; qed").into()
+			- self.view.load(AtomicOrdering::SeqCst).into();
+
 		header.set_difficulty(new_difficulty);
-		header.set_gas_limit({
-			let gas_limit = parent.gas_limit().clone();
-			let bound_divisor = self.params().gas_limit_bound_divisor;
-			if gas_limit < gas_floor_target {
-				cmp::min(gas_floor_target, gas_limit + gas_limit / bound_divisor - 1.into())
-			} else {
-				cmp::max(gas_floor_target, gas_limit - gas_limit / bound_divisor + 1.into())
-			}
-		});
 	}
 
 	/// Should this node participate.
@@ -525,19 +515,27 @@ impl Engine for Tendermint {
 		}
 	}
 
-	fn handle_message(&self, rlp: &[u8]) -> Result<(), Error> {
+	fn handle_message(&self, rlp: &[u8]) -> Result<(), EngineError> {
+		fn fmt_err<T: ::std::fmt::Debug>(x: T) -> EngineError {
+			EngineError::MalformedMessage(format!("{:?}", x))
+		}
+
 		let rlp = UntrustedRlp::new(rlp);
-		let message: ConsensusMessage = rlp.as_val()?;
+		let message: ConsensusMessage = rlp.as_val().map_err(fmt_err)?;
 		if !self.votes.is_old_or_known(&message) {
-			let sender = public_to_address(&recover(&message.signature.into(), &keccak(rlp.at(1)?.as_raw()))?);
+			let msg_hash = keccak(rlp.at(1).map_err(fmt_err)?.as_raw());
+			let sender = public_to_address(
+				&recover(&message.signature.into(), &msg_hash).map_err(fmt_err)?
+			);
+
 			if !self.is_authority(&sender) {
-				return Err(EngineError::NotAuthorized(sender).into());
+				return Err(EngineError::NotAuthorized(sender));
 			}
 			self.broadcast_message(rlp.as_raw().to_vec());
 			if let Some(double) = self.votes.vote(message.clone(), &sender) {
 				let height = message.vote_step.height as BlockNumber;
 				self.validators.report_malicious(&sender, height, height, ::rlp::encode(&double).into_vec());
-				return Err(EngineError::DoubleVote(sender).into());
+				return Err(EngineError::DoubleVote(sender));
 			}
 			trace!(target: "engine", "Handling a valid {:?} from {}.", message, sender);
 			self.handle_valid_message(&message);
@@ -545,12 +543,37 @@ impl Engine for Tendermint {
 		Ok(())
 	}
 
-	/// Apply the block reward on finalisation of the block.
-	fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<(), Error>{
-		::engines::common::bestow_block_reward(block, self)
+	fn on_new_block(&self, block: &mut ExecutedBlock, epoch_begin: bool) -> Result<(), Error> {
+		if !epoch_begin { return Ok(()) }
+
+		// genesis is never a new block, but might as well check.
+		let header = block.fields().header.clone();
+		let first = header.number() == 0;
+
+		let mut call = |to, data| {
+			let result = self.machine.execute_as_system(
+				block,
+				to,
+				U256::max_value(), // unbounded gas? maybe make configurable.
+				Some(data),
+			);
+
+			result.map_err(|e| format!("{}", e))
+		};
+
+		self.validators.on_epoch_begin(first, &header, &mut call)
 	}
 
-	fn verify_block_basic(&self, header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
+	/// Apply the block reward on finalisation of the block.
+	fn on_close_block(&self, block: &mut ExecutedBlock) -> Result<(), Error>{
+		::engines::common::bestow_block_reward(block, self.block_reward)
+	}
+
+	fn verify_local_seal(&self, _header: &Header) -> Result<(), Error> {
+		Ok(())
+	}
+
+	fn verify_block_basic(&self, header: &Header) -> Result<(), Error> {
 		let seal_length = header.seal().len();
 		if seal_length == self.seal_fields() {
 			// Either proposal or commit.
@@ -568,28 +591,7 @@ impl Engine for Tendermint {
 		}
 	}
 
-	fn verify_block_unordered(&self, _header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
-		Ok(())
-	}
-
-	/// Verify gas limit.
-	fn verify_block_family(&self, header: &Header, parent: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
-		if header.number() == 0 {
-			return Err(BlockError::RidiculousNumber(OutOfBounds { min: Some(1), max: None, found: header.number() }).into());
-		}
-
-		let gas_limit_divisor = self.params().gas_limit_bound_divisor;
-		let min_gas = parent.gas_limit().clone() - parent.gas_limit().clone() / gas_limit_divisor;
-		let max_gas = parent.gas_limit().clone() + parent.gas_limit().clone() / gas_limit_divisor;
-		if header.gas_limit() <= &min_gas || header.gas_limit() >= &max_gas {
-			self.validators.report_malicious(header.author(), header.number(), header.number(), Default::default());
-			return Err(BlockError::InvalidGasLimit(OutOfBounds { min: Some(min_gas), max: Some(max_gas), found: header.gas_limit().clone() }).into());
-		}
-
-		Ok(())
-	}
-
-	fn verify_block_external(&self, header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
+	fn verify_block_external(&self, header: &Header) -> Result<(), Error> {
 		if let Ok(proposal) = ConsensusMessage::new_proposal(header) {
 			let proposer = proposal.verify()?;
 			if !self.is_authority(&proposer) {
@@ -630,17 +632,17 @@ impl Engine for Tendermint {
 		}
 	}
 
-	fn signals_epoch_end(&self, header: &Header, block: Option<&[u8]>, receipts: Option<&[::receipt::Receipt]>)
-		-> super::EpochChange
+	fn signals_epoch_end(&self, header: &Header, aux: AuxiliaryData)
+		-> super::EpochChange<EthereumMachine>
 	{
 		let first = header.number() == 0;
-		self.validators.signals_epoch_end(first, header, block, receipts)
+		self.validators.signals_epoch_end(first, header, aux)
 	}
 
 	fn is_epoch_end(
 		&self,
 		chain_head: &Header,
-		_chain: &super::Headers,
+		_chain: &super::Headers<Header>,
 		transition_store: &super::PendingTransitionStore,
 	) -> Option<Vec<u8>> {
 		let first = chain_head.number() == 0;
@@ -657,14 +659,14 @@ impl Engine for Tendermint {
 		None
 	}
 
-	fn epoch_verifier<'a>(&self, _header: &Header, proof: &'a [u8]) -> ConstructedVerifier<'a> {
+	fn epoch_verifier<'a>(&self, _header: &Header, proof: &'a [u8]) -> ConstructedVerifier<'a, EthereumMachine> {
 		let (signal_number, set_proof, finality_proof) = match destructure_proofs(proof) {
 			Ok(x) => x,
 			Err(e) => return ConstructedVerifier::Err(e),
 		};
 
 		let first = signal_number == 0;
-		match self.validators.epoch_set(first, self, signal_number, set_proof) {
+		match self.validators.epoch_set(first, &self.machine, signal_number, set_proof) {
 			Ok((list, finalize)) => {
 				let verifier = Box::new(EpochVerifier {
 					subchain_validators: list,
@@ -785,7 +787,7 @@ mod tests {
 	use tests::helpers::*;
 	use account_provider::AccountProvider;
 	use spec::Spec;
-	use engines::{Engine, EngineError, Seal};
+	use engines::{EthEngine, EngineError, Seal};
 	use engines::epoch::EpochVerifier;
 	use super::*;
 
@@ -810,7 +812,7 @@ mod tests {
 		}
 	}
 
-	fn vote<F>(engine: &Engine, signer: F, height: usize, view: usize, step: Step, block_hash: Option<H256>) -> Bytes where F: FnOnce(H256) -> Result<H520, ::account_provider::SignError> {
+	fn vote<F>(engine: &EthEngine, signer: F, height: usize, view: usize, step: Step, block_hash: Option<H256>) -> Bytes where F: FnOnce(H256) -> Result<H520, ::account_provider::SignError> {
 		let mi = message_info_rlp(&VoteStep::new(height, view, step), block_hash);
 		let m = message_full_rlp(&signer(keccak(&mi)).unwrap().into(), &mi);
 		engine.handle_message(&m).unwrap();
@@ -834,7 +836,7 @@ mod tests {
 		addr
 	}
 
-	fn insert_and_register(tap: &Arc<AccountProvider>, engine: &Engine, acc: &str) -> Address {
+	fn insert_and_register(tap: &Arc<AccountProvider>, engine: &EthEngine, acc: &str) -> Address {
 		let addr = insert_and_unlock(tap, acc);
 		engine.set_signer(tap.clone(), addr.clone(), acc.into());
 		addr
@@ -871,7 +873,7 @@ mod tests {
 		let engine = Spec::new_test_tendermint().engine;
 		let header = Header::default();
 
-		let verify_result = engine.verify_block_basic(&header, None);
+		let verify_result = engine.verify_block_basic(&header);
 
 		match verify_result {
 			Err(Error::Block(BlockError::InvalidSealArity(_))) => {},
@@ -896,14 +898,14 @@ mod tests {
 		let seal = proposal_seal(&tap, &header, 0);
 		header.set_seal(seal);
 		// Good proposer.
-		assert!(engine.verify_block_external(&header, None).is_ok());
+		assert!(engine.verify_block_external(&header).is_ok());
 
 		let validator = insert_and_unlock(&tap, "0");
 		header.set_author(validator);
 		let seal = proposal_seal(&tap, &header, 0);
 		header.set_seal(seal);
 		// Bad proposer.
-		match engine.verify_block_external(&header, None) {
+		match engine.verify_block_external(&header) {
 			Err(Error::Engine(EngineError::NotProposer(_))) => {},
 			_ => panic!(),
 		}
@@ -913,7 +915,7 @@ mod tests {
 		let seal = proposal_seal(&tap, &header, 0);
 		header.set_seal(seal);
 		// Not authority.
-		match engine.verify_block_external(&header, None) {
+		match engine.verify_block_external(&header) {
 			Err(Error::Engine(EngineError::NotAuthorized(_))) => {},
 			_ => panic!(),
 		};
@@ -943,7 +945,7 @@ mod tests {
 		header.set_seal(seal.clone());
 
 		// One good signature is not enough.
-		match engine.verify_block_external(&header, None) {
+		match engine.verify_block_external(&header) {
 			Err(Error::Engine(EngineError::BadSealFieldSize(_))) => {},
 			_ => panic!(),
 		}
@@ -954,7 +956,7 @@ mod tests {
 		seal[2] = ::rlp::encode_list(&vec![H520::from(signature1.clone()), H520::from(signature0.clone())]).into_vec();
 		header.set_seal(seal.clone());
 
-		assert!(engine.verify_block_external(&header, None).is_ok());
+		assert!(engine.verify_block_external(&header).is_ok());
 
 		let bad_voter = insert_and_unlock(&tap, "101");
 		let bad_signature = tap.sign(bad_voter, None, keccak(vote_info)).unwrap();
@@ -963,7 +965,7 @@ mod tests {
 		header.set_seal(seal);
 
 		// One good and one bad signature.
-		match engine.verify_block_external(&header, None) {
+		match engine.verify_block_external(&header) {
 			Err(Error::Engine(EngineError::NotAuthorized(_))) => {},
 			_ => panic!(),
 		};

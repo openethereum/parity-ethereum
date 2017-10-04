@@ -80,14 +80,21 @@ class FirstRun extends Component {
     hasAccounts: PropTypes.bool.isRequired,
     newError: PropTypes.func.isRequired,
     onClose: PropTypes.func.isRequired,
-    visible: PropTypes.bool.isRequired
+    visible: PropTypes.bool.isRequired,
+    isTest: PropTypes.bool.isRequired
   }
 
-  createStore = new CreateStore(this.context.api, {}, true, false);
+  createStore = new CreateStore(this.context.api, {}, this.props.isTest, false);
 
   state = {
     stage: 0,
     hasAcceptedTnc: false
+  }
+
+  componentWillReceiveProps (nextProps) {
+    if (nextProps.isTest !== this.props.isTest) {
+      this.createStore.setIsTest(nextProps.isTest);
+    }
   }
 
   render () {
@@ -350,9 +357,10 @@ class FirstRun extends Component {
 
 function mapStateToProps (state) {
   const { hasAccounts } = state.personal;
+  const { isTest } = state.nodeStatus;
 
   return {
-    hasAccounts
+    hasAccounts, isTest
   };
 }
 

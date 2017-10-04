@@ -25,6 +25,7 @@ use key_server_cluster::message::{Message, DecryptionMessage, DecryptionConsensu
 	PartialDecryption, DecryptionSessionError, DecryptionSessionCompleted, ConsensusMessage, InitializeConsensusSession,
 	ConfirmConsensusInitialization};
 use key_server_cluster::jobs::job_session::JobTransport;
+use key_server_cluster::jobs::key_access_job::KeyAccessJob;
 use key_server_cluster::jobs::decryption_job::{PartialDecryptionRequest, PartialDecryptionResponse, DecryptionJob};
 use key_server_cluster::jobs::consensus_session::{ConsensusSessionParams, ConsensusSessionState, ConsensusSession};
 
@@ -66,7 +67,7 @@ struct SessionCore {
 }
 
 /// Decryption consensus session type.
-type DecryptionConsensusSession = ConsensusSession<DecryptionConsensusTransport, DecryptionJob, DecryptionJobTransport>;
+type DecryptionConsensusSession = ConsensusSession<KeyAccessJob, DecryptionConsensusTransport, DecryptionJob, DecryptionJobTransport>;
 
 /// Mutable session data.
 struct SessionData {
@@ -151,10 +152,18 @@ impl SessionImpl {
 			nonce: params.nonce,
 			cluster: params.cluster.clone(),
 		};
+		let consensus_session = ConsensusSession::new(ConsensusSessionParams {
+			meta: params.meta.clone(),
+			consensus_executor: match requester_signature {
+				Some(requester_signature) => KeyAccessJob::new_on_master(params.meta.id.clone(), params.acl_storage.clone(), requester_signature),
+				None => KeyAccessJob::new_on_slave(params.meta.id.clone(), params.acl_storage.clone()),
+			},
+			consensus_transport: consensus_transport,
+		})?;
 
 		Ok(SessionImpl {
 			core: SessionCore {
-				meta: params.meta.clone(),
+				meta: params.meta,
 				access_key: params.access_key,
 				key_share: params.key_share,
 				cluster: params.cluster,
@@ -162,18 +171,7 @@ impl SessionImpl {
 				completed: Condvar::new(),
 			},
 			data: Mutex::new(SessionData {
-				consensus_session: match requester_signature {
-					Some(requester_signature) => ConsensusSession::new_on_master(ConsensusSessionParams {
-						meta: params.meta,
-						acl_storage: params.acl_storage.clone(),
-						consensus_transport: consensus_transport,
-					}, requester_signature)?,
-					None => ConsensusSession::new_on_slave(ConsensusSessionParams {
-						meta: params.meta,
-						acl_storage: params.acl_storage.clone(),
-						consensus_transport: consensus_transport,
-					})?,
-				},
+				consensus_session: consensus_session,
 				is_shadow_decryption: None,
 				result: None,
 			}),
@@ -267,7 +265,7 @@ impl SessionImpl {
 		debug_assert!(sender != &self.core.meta.self_node_id);
 
 		let mut data = self.data.lock();
-		let requester = data.consensus_session.requester()?.clone();
+		let requester = data.consensus_session.consensus_job().executor().requester()?.ok_or(Error::InvalidStateForRequest)?.clone();
 		let decryption_job = DecryptionJob::new_on_slave(self.core.meta.self_node_id.clone(), self.core.access_key.clone(), requester, self.core.key_share.clone())?;
 		let decryption_transport = self.core.decryption_transport();
 
@@ -401,7 +399,7 @@ impl SessionCore {
 	}
 
 	pub fn disseminate_jobs(&self, consensus_session: &mut DecryptionConsensusSession, is_shadow_decryption: bool) -> Result<(), Error> {
-		let requester = consensus_session.requester()?.clone();
+		let requester = consensus_session.consensus_job().executor().requester()?.ok_or(Error::InvalidStateForRequest)?.clone();
 		let decryption_job = DecryptionJob::new_on_master(self.meta.self_node_id.clone(), self.access_key.clone(), requester, self.key_share.clone(), is_shadow_decryption)?;
 		consensus_session.disseminate_jobs(decryption_job, self.decryption_transport())
 	}
@@ -532,6 +530,7 @@ mod tests {
 			threshold: 3,
 			id_numbers: id_numbers.clone().into_iter().collect(),
 			secret_share: secret_shares[i].clone(),
+			polynom1: Vec::new(),
 			common_point: Some(common_point.clone()),
 			encrypted_point: Some(encrypted_point.clone()),
 		}).collect();
@@ -600,6 +599,7 @@ mod tests {
 				threshold: 0,
 				id_numbers: nodes,
 				secret_share: Random.generate().unwrap().secret().clone(),
+				polynom1: Vec::new(),
 				common_point: Some(Random.generate().unwrap().public().clone()),
 				encrypted_point: Some(Random.generate().unwrap().public().clone()),
 			},
@@ -631,6 +631,7 @@ mod tests {
 				threshold: 0,
 				id_numbers: nodes,
 				secret_share: Random.generate().unwrap().secret().clone(),
+				polynom1: Vec::new(),
 				common_point: Some(Random.generate().unwrap().public().clone()),
 				encrypted_point: Some(Random.generate().unwrap().public().clone()),
 			},
@@ -662,6 +663,7 @@ mod tests {
 				threshold: 2,
 				id_numbers: nodes,
 				secret_share: Random.generate().unwrap().secret().clone(),
+				polynom1: Vec::new(),
 				common_point: Some(Random.generate().unwrap().public().clone()),
 				encrypted_point: Some(Random.generate().unwrap().public().clone()),
 			},

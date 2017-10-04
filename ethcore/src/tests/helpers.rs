@@ -14,81 +14,30 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::collections::BTreeMap;
-use std::sync::Arc;
-use hash::keccak;
-use ethkey::KeyPair;
-use io::*;
-use client::{BlockChainClient, Client, ClientConfig};
-use bigint::prelude::U256;
-use bigint::hash::H256;
-use util::*;
-use bytes::Bytes;
-use spec::*;
 use account_provider::AccountProvider;
-use state_db::StateDB;
+use bigint::hash::H256;
+use bigint::prelude::U256;
 use block::{OpenBlock, Drain};
 use blockchain::{BlockChain, Config as BlockChainConfig};
-use builtin::Builtin;
-use state::*;
-use evm::{Schedule, Factory as EvmFactory};
-use factory::Factories;
-use engines::Engine;
-use ethereum;
+use bytes::Bytes;
+use client::{BlockChainClient, Client, ClientConfig};
 use ethereum::ethash::EthashParams;
-use miner::Miner;
+use ethkey::KeyPair;
+use evm::Factory as EvmFactory;
+use factory::Factories;
+use hash::keccak;
 use header::Header;
-use transaction::{Action, Transaction, SignedTransaction};
+use io::*;
+use machine::EthashExtensions;
+use miner::Miner;
 use rlp::{self, RlpStream};
+use spec::*;
+use state_db::StateDB;
+use state::*;
+use std::sync::Arc;
+use transaction::{Action, Transaction, SignedTransaction};
+use util::*;
 use views::BlockView;
-
-pub struct TestEngine {
-	engine: Arc<Engine>,
-	max_depth: usize,
-}
-
-impl TestEngine {
-	pub fn new(max_depth: usize) -> TestEngine {
-		TestEngine {
-			engine: ethereum::new_frontier_test().engine,
-			max_depth: max_depth,
-		}
-	}
-
-	pub fn new_byzantium() -> TestEngine {
-		TestEngine {
-			engine: ethereum::new_byzantium_test().engine,
-			max_depth: 0,
-		}
-	}
-
-	pub fn new_constantinople() -> TestEngine {
-		TestEngine {
-			engine: ethereum::new_constantinople_test().engine,
-			max_depth: 0,
-		}
-	}
-}
-
-impl Engine for TestEngine {
-	fn name(&self) -> &str {
-		"TestEngine"
-	}
-
-	fn params(&self) -> &CommonParams {
-		self.engine.params()
-	}
-
-	fn builtins(&self) -> &BTreeMap<Address, Builtin> {
-		self.engine.builtins()
-	}
-
-	fn schedule(&self, _block_number: u64) -> Schedule {
-		let mut schedule = self.engine.schedule(0);
-		schedule.max_depth = self.max_depth;
-		schedule
-	}
-}
 
 // TODO: move everything over to get_null_spec.
 pub fn get_test_spec() -> Spec {
@@ -233,9 +182,9 @@ pub fn generate_dummy_client_with_spec_accounts_and_data<F>(get_test_spec: F, ac
 
 pub fn push_blocks_to_client(client: &Arc<Client>, timestamp_salt: u64, starting_number: usize, block_number: usize) {
 	let test_spec = get_test_spec();
-	let test_engine = &test_spec.engine;
-	//let test_engine = test_spec.to_engine().unwrap();
 	let state_root = test_spec.genesis_header().state_root().clone();
+	let genesis_gas = test_spec.genesis_header().gas_limit().clone();
+
 	let mut rolling_hash = client.chain_info().best_block_hash;
 	let mut rolling_block_number = starting_number as u64;
 	let mut rolling_timestamp = timestamp_salt + starting_number as u64 * 10;
@@ -243,7 +192,7 @@ pub fn push_blocks_to_client(client: &Arc<Client>, timestamp_salt: u64, starting
 	for _ in 0..block_number {
 		let mut header = Header::new();
 
-		header.set_gas_limit(test_engine.params().min_gas_limit);
+		header.set_gas_limit(genesis_gas);
 		header.set_difficulty(U256::from(0x20000));
 		header.set_timestamp(rolling_timestamp);
 		header.set_number(rolling_block_number);
@@ -272,9 +221,9 @@ pub fn get_test_client_with_blocks(blocks: Vec<Bytes>) -> Arc<Client> {
 		IoChannel::disconnected(),
 	).unwrap();
 
-	for block in &blocks {
-		if client.import_block(block.clone()).is_err() {
-			panic!("panic importing block which is well-formed");
+	for block in blocks {
+		if let Err(e) = client.import_block(block) {
+			panic!("error importing block which is well-formed: {:?}", e);
 		}
 	}
 	client.flush_queue();
@@ -344,13 +293,13 @@ pub fn get_good_dummy_block_seq(count: usize) -> Vec<Bytes> {
 
 pub fn get_good_dummy_block_fork_seq(start_number: usize, count: usize, parent_hash: &H256) -> Vec<Bytes> {
 	let test_spec = get_test_spec();
-	let test_engine = &test_spec.engine;
+	let genesis_gas = test_spec.genesis_header().gas_limit().clone();
 	let mut rolling_timestamp = start_number as u64 * 10;
 	let mut parent = *parent_hash;
 	let mut r = Vec::new();
 	for i in start_number .. start_number + count + 1 {
 		let mut block_header = Header::new();
-		block_header.set_gas_limit(test_engine.params().min_gas_limit);
+		block_header.set_gas_limit(genesis_gas);
 		block_header.set_difficulty(U256::from(i) * U256([0, 1, 0, 0]));
 		block_header.set_timestamp(rolling_timestamp);
 		block_header.set_number(i as u64);
@@ -368,8 +317,8 @@ pub fn get_good_dummy_block_fork_seq(start_number: usize, count: usize, parent_h
 pub fn get_good_dummy_block_hash() -> (H256, Bytes) {
 	let mut block_header = Header::new();
 	let test_spec = get_test_spec();
-	let test_engine = &test_spec.engine;
-	block_header.set_gas_limit(test_engine.params().min_gas_limit);
+	let genesis_gas = test_spec.genesis_header().gas_limit().clone();
+	block_header.set_gas_limit(genesis_gas);
 	block_header.set_difficulty(U256::from(0x20000));
 	block_header.set_timestamp(40);
 	block_header.set_number(1);
@@ -387,8 +336,9 @@ pub fn get_good_dummy_block() -> Bytes {
 pub fn get_bad_state_dummy_block() -> Bytes {
 	let mut block_header = Header::new();
 	let test_spec = get_test_spec();
-	let test_engine = &test_spec.engine;
-	block_header.set_gas_limit(test_engine.params().min_gas_limit);
+	let genesis_gas = test_spec.genesis_header().gas_limit().clone();
+
+	block_header.set_gas_limit(genesis_gas);
 	block_header.set_difficulty(U256::from(0x20000));
 	block_header.set_timestamp(40);
 	block_header.set_number(1);
@@ -398,33 +348,35 @@ pub fn get_bad_state_dummy_block() -> Bytes {
 	create_test_block(&block_header)
 }
 
+pub fn get_default_ethash_extensions() -> EthashExtensions {
+	EthashExtensions {
+		homestead_transition: 1150000,
+		eip150_transition: u64::max_value(),
+		eip160_transition: u64::max_value(),
+		eip161abc_transition: u64::max_value(),
+		eip161d_transition: u64::max_value(),
+		dao_hardfork_transition: u64::max_value(),
+		dao_hardfork_beneficiary: "0000000000000000000000000000000000000001".into(),
+		dao_hardfork_accounts: Vec::new(),
+	}
+}
+
 pub fn get_default_ethash_params() -> EthashParams {
 	EthashParams {
 		minimum_difficulty: U256::from(131072),
 		difficulty_bound_divisor: U256::from(2048),
 		difficulty_increment_divisor: 10,
 		metropolis_difficulty_increment_divisor: 9,
-		duration_limit: 13,
 		homestead_transition: 1150000,
-		dao_hardfork_transition: u64::max_value(),
-		dao_hardfork_beneficiary: "0000000000000000000000000000000000000001".into(),
-		dao_hardfork_accounts: vec![],
+		duration_limit: 13,
+		block_reward: 0.into(),
 		difficulty_hardfork_transition: u64::max_value(),
 		difficulty_hardfork_bound_divisor: U256::from(0),
 		bomb_defuse_transition: u64::max_value(),
 		eip100b_transition: u64::max_value(),
-		eip150_transition: u64::max_value(),
-		eip160_transition: u64::max_value(),
-		eip161abc_transition: u64::max_value(),
-		eip161d_transition: u64::max_value(),
 		ecip1010_pause_transition: u64::max_value(),
 		ecip1010_continue_transition: u64::max_value(),
 		ecip1017_era_rounds: u64::max_value(),
-		max_code_size: u64::max_value(),
-		max_gas_limit_transition: u64::max_value(),
-		max_gas_limit: U256::max_value(),
-		min_gas_price_transition: u64::max_value(),
-		min_gas_price: U256::zero(),
 		eip649_transition: u64::max_value(),
 		eip649_delay: 3_000_000,
 		eip649_reward: None,

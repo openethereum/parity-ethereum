@@ -72,7 +72,7 @@ impl NotifyWork for WorkPoster {
 	fn notify(&self, pow_hash: H256, difficulty: U256, number: u64) {
 		// TODO: move this to engine
 		let target = Ethash::difficulty_to_boundary(&difficulty);
-		let seed_hash = &self.seed_compute.lock().get_seedhash(number);
+		let seed_hash = &self.seed_compute.lock().hash_block_number(number);
 		let seed_hash = H256::from_slice(&seed_hash[..]);
 		let body = format!(
 			r#"{{ "result": ["0x{}","0x{}","0x{}","0x{:x}"] }}"#,

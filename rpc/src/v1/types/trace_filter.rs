@@ -36,6 +36,10 @@ pub struct TraceFilter {
 	/// To address
 	#[serde(rename="toAddress")]
 	pub to_address: Option<Vec<H160>>,
+	/// Output offset
+	pub after: Option<usize>,
+	/// Output amount
+	pub count: Option<usize>,
 }
 
 impl Into<client::TraceFilter> for TraceFilter {
@@ -46,6 +50,8 @@ impl Into<client::TraceFilter> for TraceFilter {
 			range: start..end,
 			from_address: self.from_address.map_or_else(Vec::new, |x| x.into_iter().map(Into::into).collect()),
 			to_address: self.to_address.map_or_else(Vec::new, |x| x.into_iter().map(Into::into).collect()),
+			after: self.after,
+			count: self.count,
 		}
 	}
 }
@@ -64,7 +70,9 @@ mod tests {
 			from_block: None,
 			to_block: None,
 			from_address: None,
-			to_address: None
+			to_address: None,
+			after: None,
+			count: None,
 		});
 	}
 
@@ -74,7 +82,9 @@ mod tests {
 			"fromBlock": "latest",
 			"toBlock": "latest",
 			"fromAddress": ["0x0000000000000000000000000000000000000003"],
-			"toAddress": ["0x0000000000000000000000000000000000000005"]
+			"toAddress": ["0x0000000000000000000000000000000000000005"],
+			"after": 50,
+			"count": 100
 		}"#;
 		let deserialized: TraceFilter = serde_json::from_str(s).unwrap();
 		assert_eq!(deserialized, TraceFilter {
@@ -82,6 +92,8 @@ mod tests {
 			to_block: Some(BlockNumber::Latest),
 			from_address: Some(vec![Address::from(3).into()]),
 			to_address: Some(vec![Address::from(5).into()]),
+			after: 50.into(),
+			count: 100.into(),
 		});
 	}
 }

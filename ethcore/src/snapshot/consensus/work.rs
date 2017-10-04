@@ -27,7 +27,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 use blockchain::{BlockChain, BlockProvider};
-use engines::Engine;
+use engines::EthEngine;
 use snapshot::{Error, ManifestData};
 use snapshot::block::AbridgedBlock;
 use bigint::hash::H256;
@@ -219,7 +219,7 @@ impl PowRebuilder {
 impl Rebuilder for PowRebuilder {
 	/// Feed the rebuilder an uncompressed block chunk.
 	/// Returns the number of blocks fed or any errors.
-	fn feed(&mut self, chunk: &[u8], engine: &Engine, abort_flag: &AtomicBool) -> Result<(), ::error::Error> {
+	fn feed(&mut self, chunk: &[u8], engine: &EthEngine, abort_flag: &AtomicBool) -> Result<(), ::error::Error> {
 		use basic_types::Seal::With;
 		use views::BlockView;
 		use snapshot::verify_old_block;
@@ -271,7 +271,6 @@ impl Rebuilder for PowRebuilder {
 				&block.header,
 				engine,
 				&self.chain,
-				Some(&block_bytes),
 				is_best
 			)?;
 
@@ -298,7 +297,7 @@ impl Rebuilder for PowRebuilder {
 	}
 
 	/// Glue together any disconnected chunks and check that the chain is complete.
-	fn finalize(&mut self, _: &Engine) -> Result<(), ::error::Error> {
+	fn finalize(&mut self, _: &EthEngine) -> Result<(), ::error::Error> {
 		let mut batch = self.db.transaction();
 
 		for (first_num, first_hash) in self.disconnected.drain(..) {

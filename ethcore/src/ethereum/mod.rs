@@ -27,7 +27,7 @@ pub mod denominations;
 pub use self::ethash::{Ethash};
 pub use self::denominations::*;
 
-use std::path::Path;
+use machine::EthereumMachine;
 use super::spec::*;
 
 /// Most recent fork block that we support on Mainnet.
@@ -39,33 +39,51 @@ pub const FORK_SUPPORTED_ROPSTEN: u64 = 10;
 /// Most recent fork block that we support on Kovan.
 pub const FORK_SUPPORTED_KOVAN: u64 = 0;
 
-fn load<'a, T: 'a + Into<Option<&'a Path>>>(cache_dir: T, b: &[u8]) -> Spec {
-	match cache_dir.into() {
-		Some(path) => Spec::load(path, b),
+fn load<'a, T: Into<Option<SpecParams<'a>>>>(params: T, b: &[u8]) -> Spec {
+	match params.into() {
+		Some(params) => Spec::load(params, b),
 		None => Spec::load(&::std::env::temp_dir(), b)
 	}.expect("chain spec is invalid")
 }
 
+fn load_machine(b: &[u8]) -> EthereumMachine {
+	Spec::load_machine(b).expect("chain spec is invalid")
+}
+
 /// Create a new Foundation Olympic chain spec.
-pub fn new_olympic(cache_dir: &Path) -> Spec { load(cache_dir, include_bytes!("../../res/ethereum/olympic.json")) }
+pub fn new_olympic<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
+	load(params.into(), include_bytes!("../../res/ethereum/olympic.json"))
+}
 
 /// Create a new Foundation Mainnet chain spec.
-pub fn new_foundation(cache_dir: &Path) -> Spec { load(cache_dir, include_bytes!("../../res/ethereum/foundation.json")) }
+pub fn new_foundation<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
+	load(params.into(), include_bytes!("../../res/ethereum/foundation.json"))
+}
 
 /// Create a new Classic Mainnet chain spec without the DAO hardfork.
-pub fn new_classic(cache_dir: &Path) -> Spec { load(cache_dir, include_bytes!("../../res/ethereum/classic.json")) }
+pub fn new_classic<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
+	load(params.into(), include_bytes!("../../res/ethereum/classic.json"))
+}
 
 /// Create a new Expanse mainnet chain spec.
-pub fn new_expanse(cache_dir: &Path) -> Spec { load(cache_dir, include_bytes!("../../res/ethereum/expanse.json")) }
+pub fn new_expanse<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
+	load(params.into(), include_bytes!("../../res/ethereum/expanse.json"))
+}
 
 /// Create a new Kovan testnet chain spec.
-pub fn new_kovan(cache_dir: &Path) -> Spec { load(cache_dir, include_bytes!("../../res/ethereum/kovan.json")) }
+pub fn new_kovan<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
+	load(params.into(), include_bytes!("../../res/ethereum/kovan.json"))
+}
 
 /// Create a new Foundation Ropsten chain spec.
-pub fn new_ropsten(cache_dir: &Path) -> Spec { load(cache_dir, include_bytes!("../../res/ethereum/ropsten.json")) }
+pub fn new_ropsten<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
+	load(params.into(), include_bytes!("../../res/ethereum/ropsten.json"))
+}
 
 /// Create a new Morden chain spec.
-pub fn new_morden(cache_dir: &Path) -> Spec { load(cache_dir, include_bytes!("../../res/ethereum/morden.json")) }
+pub fn new_morden<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
+	load(params.into(), include_bytes!("../../res/ethereum/morden.json"))
+}
 
 // For tests
 
@@ -92,6 +110,20 @@ pub fn new_byzantium_test() -> Spec { load(None, include_bytes!("../../res/ether
 
 /// Create a new Foundation Constantinople era spec.
 pub fn new_constantinople_test() -> Spec { load(None, include_bytes!("../../res/ethereum/constantinople_test.json")) }
+
+// For tests
+
+/// Create a new Foundation Frontier-era chain spec as though it never changes to Homestead.
+pub fn new_frontier_test_machine() -> EthereumMachine { load_machine(include_bytes!("../../res/ethereum/frontier_test.json")) }
+
+/// Create a new Foundation Homestead-era chain spec as though it never changed from Frontier.
+pub fn new_homestead_test_machine() -> EthereumMachine { load_machine(include_bytes!("../../res/ethereum/homestead_test.json")) }
+
+/// Create a new Foundation Byzantium era spec.
+pub fn new_byzantium_test_machine() -> EthereumMachine { load_machine(include_bytes!("../../res/ethereum/byzantium_test.json")) }
+
+/// Create a new Foundation Constantinople era spec.
+pub fn new_constantinople_test_machine() -> EthereumMachine { load_machine(include_bytes!("../../res/ethereum/constantinople_test.json")) }
 
 #[cfg(test)]
 mod tests {

@@ -20,7 +20,7 @@ use ethcore::miner;
 use ethcore::{contract_address, CreateContractAddress};
 use ethcore::transaction::{LocalizedTransaction, Action, PendingTransaction, SignedTransaction};
 use v1::helpers::errors;
-use v1::types::{Bytes, H160, H256, U256, H512, TransactionCondition};
+use v1::types::{Bytes, H160, H256, U256, H512, U64, TransactionCondition};
 
 /// Transaction
 #[derive(Debug, Default, Clone, PartialEq, Serialize)]
@@ -60,7 +60,7 @@ pub struct Transaction {
 	pub public_key: Option<H512>,
 	/// The network id of the transaction, if any.
 	#[serde(rename="chainId")]
-	pub chain_id: Option<u64>,
+	pub chain_id: Option<U64>,
 	/// The standardised V field of the signature (0 or 1).
 	#[serde(rename="standardV")]
 	pub standard_v: U256,
@@ -196,7 +196,7 @@ impl Transaction {
 			},
 			raw: ::rlp::encode(&t.signed).into_vec().into(),
 			public_key: t.recover_public().ok().map(Into::into),
-			chain_id: t.chain_id(),
+			chain_id: t.chain_id().map(U64::from),
 			standard_v: t.standard_v().into(),
 			v: t.original_v().into(),
 			r: signature.r().into(),
@@ -230,7 +230,7 @@ impl Transaction {
 			},
 			raw: ::rlp::encode(&t).into_vec().into(),
 			public_key: t.public_key().map(Into::into),
-			chain_id: t.chain_id(),
+			chain_id: t.chain_id().map(U64::from),
 			standard_v: t.standard_v().into(),
 			v: t.original_v().into(),
 			r: signature.r().into(),

@@ -626,6 +626,7 @@ impl Configuration {
 			http_interface: self.secretstore_http_interface(),
 			http_port: self.args.arg_ports_shift + self.args.arg_secretstore_http_port,
 			data_path: self.directories().secretstore,
+			admin_public: self.secretstore_admin_public()?,
 		})
 	}
 
@@ -1037,6 +1038,13 @@ impl Configuration {
 		}
 	}
 
+	fn secretstore_admin_public(&self) -> Result<Option<Public>, String> {
+		match self.args.arg_secretstore_admin_public.as_ref() {
+			Some(admin_public) => Ok(Some(admin_public.parse().map_err(|e| format!("Invalid secret store admin public: {}", e))?)),
+			None => Ok(None),
+		}
+	}
+
 	fn secretstore_nodes(&self) -> Result<BTreeMap<Public, (String, u16)>, String> {
 		let mut nodes = BTreeMap::new();
 		for node in self.args.arg_secretstore_nodes.split(',').filter(|n| n != &"") {
@@ -1322,7 +1330,7 @@ mod tests {
 			origins: Some(vec!["chrome-extension://*".into(), "moz-extension://*".into()]),
 			hosts: Some(vec![]),
 			signer_path: expected.into(),
-			ui_address: Some(("127.0.0.1".to_owned(), 8180)),
+			ui_address: Some("127.0.0.1:8180".into()),
 			support_token_api: true
 		}, UiConfiguration {
 			enabled: true,

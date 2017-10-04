@@ -76,7 +76,7 @@ pub use self::trace_filter::TraceFilter;
 pub use self::transaction::{Transaction, RichRawTransaction, LocalTransactionStatus};
 pub use self::transaction_request::TransactionRequest;
 pub use self::transaction_condition::TransactionCondition;
-pub use self::uint::{U128, U256};
+pub use self::uint::{U128, U256, U64};
 pub use self::work::Work;
 
 // TODO [ToDr] Refactor to a proper type Vec of enums?
