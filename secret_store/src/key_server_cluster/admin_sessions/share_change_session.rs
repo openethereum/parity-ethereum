@@ -37,7 +37,8 @@ use key_server_cluster::admin_sessions::ShareChangeSessionMeta;
 /// Single session meta-change session. Brief overview:
 /// 1) new shares are added to the session
 /// 2) shares are moved between nodes
-/// 3) shares are removed from nodes 
+/// 3) shares are removed from nodes
+/// 4) nodes that have been already removed from cluster (isolated nodes) are removed from session
 pub struct ShareChangeSession {
 	/// Servers set change session id.
 	session_id: SessionId,
@@ -53,6 +54,8 @@ pub struct ShareChangeSession {
 	old_nodes_set: BTreeSet<NodeId>,
 	/// All cluster nodes set.
 	cluster_nodes_set: BTreeSet<NodeId>,
+	/// Nodes that are isolated and need to be removed before share addition.
+	isolated_nodes: Option<BTreeSet<NodeId>>,
 	/// Nodes to add shares for.
 	nodes_to_add: Option<BTreeMap<NodeId, Secret>>,
 	/// Nodes to move shares from/to.
@@ -70,7 +73,10 @@ pub struct ShareChangeSession {
 }
 
 /// Share change session plan.
+#[derive(Debug)]
 pub struct ShareChangeSessionPlan {
+	/// Nodes that are isolated and need to be removed before share addition.
+	pub isolated_nodes: BTreeSet<NodeId>,
 	/// Nodes to add shares for.
 	pub nodes_to_add: BTreeMap<NodeId, Secret>,
 	/// Nodes to move shares from/to (keys = target nodes, values = source nodes).
@@ -114,10 +120,20 @@ impl ShareChangeSession {
 	/// Create new share change session.
 	pub fn new(params: ShareChangeSessionParams) -> Result<Self, Error> {
 		// we can't create sessions right now, because key share is read when session is created, but it can change in previous session
+		let mut isolated_nodes = if !params.plan.isolated_nodes.is_empty() { Some(params.plan.isolated_nodes) } else { None };
 		let nodes_to_add = if !params.plan.nodes_to_add.is_empty() { Some(params.plan.nodes_to_add) } else { None };
 		let nodes_to_remove = if !params.plan.nodes_to_remove.is_empty() { Some(params.plan.nodes_to_remove) } else { None };
 		let nodes_to_move = if !params.plan.nodes_to_move.is_empty() { Some(params.plan.nodes_to_move) } else { None };
-		debug_assert!(nodes_to_add.is_some() || nodes_to_move.is_some() || nodes_to_remove.is_some());
+		debug_assert!(isolated_nodes.is_some() || nodes_to_add.is_some() || nodes_to_move.is_some() || nodes_to_remove.is_some());
+
+		// if it is degenerated session (only isolated nodes are removed && no network communication required)
+		// => remove isolated nodes && finish session
+		let mut is_finished = false;
+		if isolated_nodes.is_some() && nodes_to_add.is_none() && nodes_to_remove.is_none() && nodes_to_move.is_none() {
+			let isolated_nodes = isolated_nodes.take().expect("checked above");
+			Self::remove_isolated_nodes(&params.meta, &params.key_storage, isolated_nodes)?;
+			is_finished = true;
+		}
 
 		Ok(ShareChangeSession {
 			session_id: params.session_id,
@@ -127,13 +143,14 @@ impl ShareChangeSession {
 			key_storage: params.key_storage,
 			old_nodes_set: params.old_nodes_set,
 			cluster_nodes_set: params.cluster_nodes_set,
+			isolated_nodes: isolated_nodes,
 			nodes_to_add: nodes_to_add,
 			nodes_to_remove: nodes_to_remove,
 			nodes_to_move: nodes_to_move,
 			share_add_session: None,
 			share_move_session: None,
 			share_remove_session: None,
-			is_finished: false,
+			is_finished: is_finished,
 		})
 	}
 
@@ -264,7 +281,10 @@ impl ShareChangeSession {
 	/// Proceed to the next state.
 	fn proceed_to_next_state(&mut self) -> Result<(), Error> {
 		if self.meta.self_node_id != self.meta.master_node_id {
-			if self.nodes_to_add.is_none() && self.nodes_to_move.is_none() && self.nodes_to_remove.is_none() {
+			if self.isolated_nodes.is_none() && self.nodes_to_add.is_none() && self.nodes_to_move.is_none() && self.nodes_to_remove.is_none() {
+				if let Some(isolated_nodes) = self.isolated_nodes.take() {
+					Self::remove_isolated_nodes(&self.meta, &self.key_storage, isolated_nodes)?;
+				}
 				self.is_finished = true;
 			}
 			return Ok(());
@@ -291,9 +311,22 @@ impl ShareChangeSession {
 				.initialize(None, None, None);
 		}
 
+		if let Some(isolated_nodes) = self.isolated_nodes.take() {
+			Self::remove_isolated_nodes(&self.meta, &self.key_storage, isolated_nodes)?;
+		}
+
 		self.is_finished = true;
 
 		Ok(())
+	}
+
+	/// Remove isolated nodes from key share.
+	fn remove_isolated_nodes(meta: &ShareChangeSessionMeta, key_storage: &Arc<KeyStorage>, isolated_nodes: BTreeSet<NodeId>) -> Result<(), Error> {
+		let mut key_share = key_storage.get(&meta.id).map_err(|e| Error::KeyStorage(e.into()))?;
+		for isolated_node in &isolated_nodes {
+			key_share.id_numbers.remove(isolated_node);
+		}
+		key_storage.update(meta.id.clone(), key_share).map_err(|e| Error::KeyStorage(e.into()))
 	}
 }
 
@@ -359,10 +392,20 @@ impl ShareRemoveSessionTransport for ShareChangeTransport {
 }
 
 /// Prepare share change plan for moving from old `session_nodes` to `new_nodes_set`.
-pub fn prepare_share_change_session_plan(session_nodes: &BTreeSet<NodeId>, new_nodes_set: &BTreeSet<NodeId>) -> Result<ShareChangeSessionPlan, Error> {
+pub fn prepare_share_change_session_plan(cluster_nodes_set: &BTreeSet<NodeId>, session_nodes: &BTreeSet<NodeId>, new_nodes_set: &BTreeSet<NodeId>) -> Result<ShareChangeSessionPlan, Error> {
 	let mut nodes_to_add: BTreeSet<_> = new_nodes_set.difference(&session_nodes).cloned().collect();
 	let mut nodes_to_move = BTreeMap::new();
-	let mut nodes_to_remove: BTreeSet<_> = session_nodes.difference(&new_nodes_set).cloned().collect();
+	// isolated nodes are the nodes that are not currently in cluster + that are in new nodes set
+	let isolated_nodes: BTreeSet<_> = session_nodes.difference(&cluster_nodes_set)
+		.filter(|n| !new_nodes_set.contains(n))
+		.cloned()
+		.collect();
+	// removed nodes are all old session nodes, except nodes that are in new set + except isolated nodes
+	let mut nodes_to_remove: BTreeSet<_> = session_nodes.difference(&new_nodes_set)
+		.filter(|n| !isolated_nodes.contains(n))
+		.cloned()
+		.collect();
+
 	while !nodes_to_remove.is_empty() && !nodes_to_add.is_empty() {
 		let source_node = nodes_to_remove.iter().cloned().nth(0).expect("nodes_to_remove.is_empty is checked in while condition; qed");
 		let target_node = nodes_to_add.iter().cloned().nth(0).expect("nodes_to_add.is_empty is checked in while condition; qed");
@@ -372,6 +415,7 @@ pub fn prepare_share_change_session_plan(session_nodes: &BTreeSet<NodeId>, new_n
 	}
 
 	Ok(ShareChangeSessionPlan {
+		isolated_nodes: isolated_nodes,
 		nodes_to_add: nodes_to_add.into_iter()
 			.map(|n| math::generate_random_scalar().map(|s| (n, s)))
 			.collect::<Result<BTreeMap<_, _>, _>>()?,
@@ -383,7 +427,8 @@ pub fn prepare_share_change_session_plan(session_nodes: &BTreeSet<NodeId>, new_n
 impl ShareChangeSessionPlan {
 	/// Is empty (nothing-to-do) plan?
 	pub fn is_empty(&self) -> bool {
-		self.nodes_to_add.is_empty()
+		self.isolated_nodes.is_empty()
+			&& self.nodes_to_add.is_empty()
 			&& self.nodes_to_move.is_empty()
 			&& self.nodes_to_remove.is_empty()
 	}

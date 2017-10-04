@@ -160,8 +160,19 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 
 		check_shares_to_remove(&self.core, &shares_to_remove)?;
 
-		data.remove_confirmations_to_receive = Some(shares_to_remove.clone());
+		let remove_confirmations_to_receive: BTreeSet<NodeId> = shares_to_remove.iter()
+			.filter(|n| self.core.cluster_nodes_set.contains(n))
+			.cloned()
+			.collect();
+		let need_wait_for_confirmations = !remove_confirmations_to_receive.is_empty();
 		data.shares_to_remove = Some(shares_to_remove);
+		data.remove_confirmations_to_receive = Some(remove_confirmations_to_receive);
+
+		// on slave nodes it can happen that all nodes being removed are isolated
+		// => there's no need to wait for confirmations
+		if !need_wait_for_confirmations {
+			Self::complete_session(&self.core, &mut *data)?;
+		}
 
 		Ok(())
 	}
@@ -172,6 +183,10 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 
 		let mut data = self.data.lock();
 		// check state
+		if data.state == SessionState::Finished {
+			// probably there are isolated nodes && we only remove isolated nodes from session
+			return Ok(());
+		}
 		if data.state != SessionState::ConsensusEstablishing || data.consensus_session.is_some() {
 			return Err(Error::InvalidStateForRequest);
 		}
@@ -636,7 +651,6 @@ mod tests {
 
 		pub fn run(&mut self) {
 			while let Some((from, to, message)) = self.take_message() {
-println!("=== {} -> {}: {}", from, to, message);
 				self.process_message((from, to, message)).unwrap();
 			}
 		}
