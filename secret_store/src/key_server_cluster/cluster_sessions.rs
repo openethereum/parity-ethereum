@@ -464,7 +464,6 @@ impl ClusterSessions {
 
 	/// Create new servers set change session.
 	pub fn new_servers_set_change_session(&self, master: NodeId, session_id: Option<SessionId>, nonce: Option<u64>, cluster: Arc<Cluster>, all_nodes_set: BTreeSet<NodeId>) -> Result<Arc<AdminSession>, Error> {
-		// TODO: check if there's no other active sessions + do not allow to start other sessions when this session is active
 		let session_id = match session_id {
 			Some(session_id) => if session_id == *SERVERS_SET_CHANGE_SESSION_ID {
 				session_id
