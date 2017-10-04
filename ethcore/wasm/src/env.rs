@@ -103,6 +103,26 @@ pub const SIGNATURES: &'static [UserFunctionDescriptor] = &[
 		None,
 	),
 	Static(
+		"_sender",
+		&[I32],
+		None,
+	),
+	Static(
+		"_origin",
+		&[I32],
+		None,
+	),
+	Static(
+		"_address",
+		&[I32],
+		None,
+	),
+	Static(
+		"_value",
+		&[I32],
+		None,
+	),
+	Static(
 		"_timestamp",
 		&[],
 		Some(I32),
