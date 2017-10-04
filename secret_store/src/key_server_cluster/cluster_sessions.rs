@@ -510,9 +510,6 @@ impl ClusterSessions {
 		self.encryption_sessions.stop_stalled_sessions();
 		self.decryption_sessions.stop_stalled_sessions();
 		self.signing_sessions.stop_stalled_sessions();
-		// TODO: servers set change session could take a lot of time
-		// && during that session some nodes could not receive messages
-		// => they could stop session as stalled. This must be handled
 		self.admin_sessions.stop_stalled_sessions();
 	}
 
