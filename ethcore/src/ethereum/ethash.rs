@@ -475,10 +475,6 @@ mod tests {
 		new_morden(&::std::env::temp_dir())
 	}
 
-	fn test_spec_mcip3() -> Spec {
-		new_mcip3_test(&::std::env::temp_dir())
-	}
-
 	#[test]
 	fn on_close_block() {
 		let spec = test_spec();
@@ -543,7 +539,7 @@ mod tests {
 
 	#[test]
 	fn has_valid_mcip3_era_block_rewards() {
-		let spec = test_spec_mcip3();
+		let spec = new_mcip3_test();
 		let engine = &*spec.engine;
 		let genesis_header = spec.genesis_header();
 		let db = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
