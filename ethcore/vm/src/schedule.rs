@@ -113,6 +113,46 @@ pub struct Schedule {
 	pub kill_dust: CleanDustMode,
 	/// Enable EIP-86 rules
 	pub eip86: bool,
+	/// Wasm extra schedule settings
+	pub wasm: WasmCosts,
+}
+
+/// Wasm cost table
+pub struct WasmCosts {
+	/// Arena allocator cost, per byte
+	pub alloc: usize,
+	/// Div operations multiplier.
+	pub div: usize,
+	/// Memory (load/store) operations multiplier.
+	pub mem: usize,
+	/// Memory copy operation.
+	pub mem_copy: usize,
+	/// Static region charge, per byte.
+	pub static_region: usize,
+	/// General static query of u64 value from env-info
+	pub static_u64: usize,
+	/// General static query of U64 value from env-info
+	pub static_u256: usize,
+	/// General static query of address value from env-info
+	pub static_address: usize,
+}
+
+impl Default for WasmCosts {
+	fn default() -> Self {
+		WasmCosts {
+			alloc: 2,
+			div: 10,
+			mem: 2,
+			mem_copy: 1,
+			static_region: 1,
+
+			// due to runtime issues, this can be slow
+			static_u64: 64,
+
+			static_u256: 64,
+			static_address: 40,
+		}
+	}
 }
 
 /// Dust accounts cleanup mode.
@@ -187,6 +227,7 @@ impl Schedule {
 			have_static_call: false,
 			kill_dust: CleanDustMode::Off,
 			eip86: false,
+			wasm: Default::default(),
 		}
 	}
 
@@ -249,6 +290,7 @@ impl Schedule {
 			have_static_call: false,
 			kill_dust: CleanDustMode::Off,
 			eip86: false,
+			wasm: Default::default(),
 		}
 	}
 }

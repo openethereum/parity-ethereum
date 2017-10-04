@@ -22,6 +22,7 @@ use byteorder::{LittleEndian, ByteOrder};
 
 use vm;
 use parity_wasm::interpreter;
+use wasm_utils::rules;
 use bigint::prelude::U256;
 use bigint::hash::H256;
 use util::Address;
@@ -110,6 +111,13 @@ impl RuntimeContext {
 	}
 }
 
+macro_rules! charge {
+	($self: ident, $e: expr) => {
+		let gas_value = $e;
+		$self.charge_gas_fallable(gas_value)?;
+	}
+}
+
 /// Runtime enviroment data for wasm contract execution
 pub struct Runtime<'a, 'b> {
 	gas_counter: u64,
@@ -119,6 +127,7 @@ pub struct Runtime<'a, 'b> {
 	memory: Arc<InterpreterMemoryInstance>,
 	context: RuntimeContext,
 	instance: &'b InterpreterProgramInstance,
+	gas_rules: rules::Set,
 }
 
 impl<'a, 'b> Runtime<'a, 'b> {
@@ -131,6 +140,19 @@ impl<'a, 'b> Runtime<'a, 'b> {
 		context: RuntimeContext,
 		program_instance: &'d InterpreterProgramInstance,
 	) -> Runtime<'c, 'd> {
+
+		let rules = {
+			let schedule = ext.schedule();
+
+			rules::Set::new({
+				let mut vals = ::std::collections::HashMap::with_capacity(4);
+				vals.insert(rules::InstructionType::Load, schedule.wasm.mem as u32);
+				vals.insert(rules::InstructionType::Store, schedule.wasm.mem as u32);
+				vals.insert(rules::InstructionType::Div, schedule.wasm.div as u32);
+				vals
+			})
+		};
+
 		Runtime {
 			gas_counter: 0,
 			gas_limit: gas_limit,
@@ -139,6 +161,7 @@ impl<'a, 'b> Runtime<'a, 'b> {
 			ext: ext,
 			context: context,
 			instance: program_instance,
+			gas_rules: rules,
 		}
 	}
 
@@ -150,6 +173,8 @@ impl<'a, 'b> Runtime<'a, 'b> {
 		let val = self.pop_h256(&mut context)?;
 		let key = self.pop_h256(&mut context)?;
 		trace!(target: "wasm", "storage_write: value {} at @{}", &val, &key);
+
+		charge!(self, self.ext.schedule().sstore_set_gas);
 
 		self.ext.set_storage(key, val).map_err(|_| UserTrap::StorageUpdateError)?;
 
@@ -163,8 +188,9 @@ impl<'a, 'b> Runtime<'a, 'b> {
 		let mut context = context;
 		let val_ptr = context.value_stack.pop_as::<i32>()?;
 		let key = self.pop_h256(&mut context)?;
-
 		let val = self.ext.storage_at(&key).map_err(|_| UserTrap::StorageReadError)?;
+
+		charge!(self, self.ext.schedule().sload_gas);
 
 		self.memory.set(val_ptr as u32, &*val)?;
 
@@ -177,6 +203,12 @@ impl<'a, 'b> Runtime<'a, 'b> {
 	{
 		let mut context = context;
 		let refund_address = self.pop_address(&mut context)?;
+
+		if self.ext.exists(&refund_address).map_err(|_| UserTrap::SuicideAbort)? {
+			charge!(self, self.ext.schedule().suicide_gas);
+		} else {
+			charge!(self, self.ext.schedule().suicide_to_new_account_cost);
+		}
 
 		self.ext.suicide(&refund_address).map_err(|_| UserTrap::SuicideAbort)?;
 
@@ -205,6 +237,9 @@ impl<'a, 'b> Runtime<'a, 'b> {
 		trace!(target: "wasm", "       val: {:?}", endowment);
 
 		let code = self.memory.get(code_ptr, code_len as usize)?;
+
+		charge!(self, self.ext.schedule().create_gas);
+		charge!(self, self.ext.schedule().create_data_gas * code.len());
 
 		let gas_left = self.gas_left()
 			.map_err(|_| UserTrap::InvalidGasState)?
@@ -307,6 +342,8 @@ impl<'a, 'b> Runtime<'a, 'b> {
 			}
 		}
 
+		charge!(self, self.ext.schedule().call_gas);
+
 		let mut result = Vec::with_capacity(result_alloc_len as usize);
 		result.resize(result_alloc_len as usize, 0);
 		let gas = self.gas_left()
@@ -364,6 +401,9 @@ impl<'a, 'b> Runtime<'a, 'b> {
 		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
 	{
 		let amount = context.value_stack.pop_as::<i32>()? as u32;
+
+		charge!(self, self.ext.schedule().wasm.alloc * amount as usize);
+
 		let previous_top = self.dynamic_top;
 		self.dynamic_top = previous_top + amount;
 		Ok(Some((previous_top as i32).into()))
@@ -371,6 +411,7 @@ impl<'a, 'b> Runtime<'a, 'b> {
 
 	/// Allocate memory in wasm memory instance
 	pub fn alloc(&mut self, amount: u32) -> Result<u32, UserTrap> {
+
 		let previous_top = self.dynamic_top;
 		self.dynamic_top = previous_top + amount;
 		Ok(previous_top.into())
@@ -396,6 +437,14 @@ impl<'a, 'b> Runtime<'a, 'b> {
 		} else {
 			self.gas_counter = prev + amount;
 			true
+		}
+	}
+
+	fn charge_gas_fallable(&mut self, amount: usize) -> Result<(), InterpreterError> {
+		if !self.charge_gas(amount as u64) {
+			Err(UserTrap::GasLimit.into())
+		} else {
+			Ok(())
 		}
 	}
 
@@ -491,12 +540,14 @@ impl<'a, 'b> Runtime<'a, 'b> {
 		&*self.memory
 	}
 
-	fn mem_copy(&self, context: InterpreterCallerContext)
+	fn mem_copy(&mut self, context: InterpreterCallerContext)
 		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
 	{
 		let len = context.value_stack.pop_as::<i32>()? as u32;
 		let dst = context.value_stack.pop_as::<i32>()? as u32;
 		let src = context.value_stack.pop_as::<i32>()? as u32;
+
+		charge!(self, self.ext.schedule().wasm.mem_copy * len as usize);
 
 		let mem = self.memory().get(src, len as usize)?;
 		self.memory().set(dst, &mem)?;
@@ -541,6 +592,8 @@ impl<'a, 'b> Runtime<'a, 'b> {
 		let block_hi = context.value_stack.pop_as::<i32>()? as u32;
 		let block_lo = context.value_stack.pop_as::<i32>()? as u32;
 
+		charge!(self, self.ext.schedule().blockhash_gas);
+
 		let block_num = (block_hi as u64) << 32 | block_lo as u64;
 
 		trace!("Requesting block hash for block #{}", block_num);
@@ -555,6 +608,9 @@ impl<'a, 'b> Runtime<'a, 'b> {
 		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
 	{
 		let return_ptr = context.value_stack.pop_as::<i32>()? as u32;
+
+		charge!(self, self.ext.schedule().wasm.static_address);
+
 		self.memory.set(return_ptr, &*self.ext.env_info().author)?;
 		Ok(None)
 	}
@@ -577,6 +633,9 @@ impl<'a, 'b> Runtime<'a, 'b> {
 		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
 	{
 		let return_ptr = context.value_stack.pop_as::<i32>()? as u32;
+
+		charge!(self, self.ext.schedule().wasm.static_u256);
+
 		let difficulty: H256 = self.ext.env_info().difficulty.into();
 		self.memory.set(return_ptr, &*difficulty)?;
 		Ok(None)
@@ -586,12 +645,17 @@ impl<'a, 'b> Runtime<'a, 'b> {
 		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
 	{
 		let return_ptr = context.value_stack.pop_as::<i32>()? as u32;
+
+		charge!(self, self.ext.schedule().wasm.static_u256);
+
 		let gas_limit: H256 = self.ext.env_info().gas_limit.into();
 		self.memory.set(return_ptr, &*gas_limit)?;
 		Ok(None)
 	}
 
 	fn return_i64(&mut self, val: i64) -> Result<Option<interpreter::RuntimeValue>, InterpreterError> {
+		charge!(self, self.ext.schedule().wasm.static_u64);
+
 		let uval = val as u64;
 		let hi = (uval >> 32) as i32;
 		let lo = (uval << 32 >> 32) as i32;
