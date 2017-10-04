@@ -299,7 +299,7 @@ fn should_add_sign_transaction_to_the_queue() {
 	let response = r#"{"jsonrpc":"2.0","result":{"#.to_owned() +
 		r#""raw":"0x"# + &rlp.to_hex() + r#"","# +
 		r#""tx":{"# +
-		r#""blockHash":null,"blockNumber":null,"# +
+		r#""blockHash":null,"blockNumber":"0x0","# +
 		&format!("\"chainId\":{},", t.chain_id().map_or("null".to_owned(), |n| format!("{}", n))) +
 		r#""condition":null,"creates":null,"# +
 		&format!("\"from\":\"0x{:?}\",", &address) +
