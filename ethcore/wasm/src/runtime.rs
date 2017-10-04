@@ -106,7 +106,7 @@ pub struct RuntimeContext {
 macro_rules! charge {
 	($self: ident, $e: expr) => {
 		let gas_value = $e;
-		$self.charge_gas_fallable(gas_value)?;
+		$self.charge_gas_fallible(gas_value)?;
 	}
 }
 
@@ -434,7 +434,7 @@ impl<'a, 'b> Runtime<'a, 'b> {
 		}
 	}
 
-	pub fn charge_gas_fallable(&mut self, amount: usize) -> Result<(), InterpreterError> {
+	pub fn charge_gas_fallible(&mut self, amount: usize) -> Result<(), InterpreterError> {
 		if !self.charge_gas(amount as u64) {
 			Err(UserTrap::GasLimit.into())
 		} else {

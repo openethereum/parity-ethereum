@@ -131,7 +131,7 @@ impl vm::Vm for WasmInterpreter {
 			.unwrap_or(0);
 
 		let static_segment_cost = data_section_length * runtime.ext().schedule().wasm.static_region;
-		runtime.charge_gas_fallable(static_segment_cost).map_err(Error)?;
+		runtime.charge_gas_fallible(static_segment_cost).map_err(Error)?;
 
 		let d_ptr = runtime.write_descriptor(&params.data.unwrap_or_default())
 			.map_err(Error)?;
