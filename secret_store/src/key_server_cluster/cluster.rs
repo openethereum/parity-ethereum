@@ -1634,7 +1634,7 @@ pub mod tests {
 	fn generation_session_completion_signalled_if_failed_on_master() {
 		//::logger::init_log();
 		let mut core = Core::new().unwrap();
-		let clusters = make_clusters(&core, 6023, 3);
+		let clusters = make_clusters(&core, 6025, 3);
 		run_clusters(&clusters);
 		loop_until(&mut core, time::Duration::from_millis(300), || clusters.iter().all(all_connections_established));
 
