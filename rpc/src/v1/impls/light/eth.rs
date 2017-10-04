@@ -403,33 +403,32 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 		}).boxed()
 	}
 
-	fn transaction_by_hash(&self, hash: RpcH256) -> Result<Option<Transaction>, Error> {
-		Err(errors::unimplemented(None))
+	fn transaction_by_hash(&self, hash: RpcH256) -> BoxFuture<Option<Transaction>, Error> {
+		Box::new(future::err(errors::unimplemented(None)))
 	}
 
-	fn transaction_by_block_hash_and_index(&self, hash: RpcH256, idx: Index) -> Result<Option<Transaction>, Error> {
-		Err(errors::unimplemented(None))
+	fn transaction_by_block_hash_and_index(&self, hash: RpcH256, idx: Index) -> BoxFuture<Option<Transaction>, Error> {
+		Box::new(future::err(errors::unimplemented(None)))
 	}
 
-	fn transaction_by_block_number_and_index(&self, num: BlockNumber, idx: Index) -> Result<Option<Transaction>, Error> {
-		Err(errors::unimplemented(None))
+	fn transaction_by_block_number_and_index(&self, num: BlockNumber, idx: Index) -> BoxFuture<Option<Transaction>, Error> {
+		Box::new(future::err(errors::unimplemented(None)))
 	}
 
-	fn transaction_receipt(&self, hash: RpcH256) -> Result<Option<Receipt>, Error> {
-		Err(errors::unimplemented(None))
+	fn transaction_receipt(&self, hash: RpcH256) -> BoxFuture<Option<Receipt>, Error> {
+		Box::new(future::err(errors::unimplemented(None)))
 	}
 
-	fn uncle_by_block_hash_and_index(&self, hash: RpcH256, idx: Index) -> Result<Option<RichBlock>, Error> {
-		Err(errors::unimplemented(None))
+	fn uncle_by_block_hash_and_index(&self, hash: RpcH256, idx: Index) -> BoxFuture<Option<RichBlock>, Error> {
+		Box::new(future::err(errors::unimplemented(None)))
 	}
 
-	fn uncle_by_block_number_and_index(&self, num: BlockNumber, idx: Index) -> Result<Option<RichBlock>, Error> {
-		Err(errors::unimplemented(None))
+	fn uncle_by_block_number_and_index(&self, num: BlockNumber, idx: Index) -> BoxFuture<Option<RichBlock>, Error> {
+		Box::new(future::err(errors::unimplemented(None)))
 	}
 
 	fn compilers(&self) -> Result<Vec<String>, Error> {
 		Err(errors::deprecated("Compilation functionality is deprecated.".to_string()))
-
 	}
 
 	fn compile_lll(&self, _: String) -> Result<Bytes, Error> {

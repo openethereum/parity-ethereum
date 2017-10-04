@@ -118,28 +118,28 @@ build_rpc_trait! {
 		fn estimate_gas(&self, Self::Metadata, CallRequest, Trailing<BlockNumber>) -> BoxFuture<U256, Error>;
 
 		/// Get transaction by its hash.
-		#[rpc(name = "eth_getTransactionByHash")]
-		fn transaction_by_hash(&self, H256) -> Result<Option<Transaction>, Error>;
+		#[rpc(async, name = "eth_getTransactionByHash")]
+		fn transaction_by_hash(&self, H256) -> BoxFuture<Option<Transaction>, Error>;
 
 		/// Returns transaction at given block hash and index.
-		#[rpc(name = "eth_getTransactionByBlockHashAndIndex")]
-		fn transaction_by_block_hash_and_index(&self, H256, Index) -> Result<Option<Transaction>, Error>;
+		#[rpc(async, name = "eth_getTransactionByBlockHashAndIndex")]
+		fn transaction_by_block_hash_and_index(&self, H256, Index) -> BoxFuture<Option<Transaction>, Error>;
 
 		/// Returns transaction by given block number and index.
-		#[rpc(name = "eth_getTransactionByBlockNumberAndIndex")]
-		fn transaction_by_block_number_and_index(&self, BlockNumber, Index) -> Result<Option<Transaction>, Error>;
+		#[rpc(async, name = "eth_getTransactionByBlockNumberAndIndex")]
+		fn transaction_by_block_number_and_index(&self, BlockNumber, Index) -> BoxFuture<Option<Transaction>, Error>;
 
-		/// Returns transaction receipt.
-		#[rpc(name = "eth_getTransactionReceipt")]
-		fn transaction_receipt(&self, H256) -> Result<Option<Receipt>, Error>;
-
-		/// Returns an uncles at given block and index.
-		#[rpc(name = "eth_getUncleByBlockHashAndIndex")]
-		fn uncle_by_block_hash_and_index(&self, H256, Index) -> Result<Option<RichBlock>, Error>;
+		/// Returns transaction receipt by transaction hash.
+		#[rpc(async, name = "eth_getTransactionReceipt")]
+		fn transaction_receipt(&self, H256) -> BoxFuture<Option<Receipt>, Error>;
 
 		/// Returns an uncles at given block and index.
-		#[rpc(name = "eth_getUncleByBlockNumberAndIndex")]
-		fn uncle_by_block_number_and_index(&self, BlockNumber, Index) -> Result<Option<RichBlock>, Error>;
+		#[rpc(async, name = "eth_getUncleByBlockHashAndIndex")]
+		fn uncle_by_block_hash_and_index(&self, H256, Index) -> BoxFuture<Option<RichBlock>, Error>;
+
+		/// Returns an uncles at given block and index.
+		#[rpc(async, name = "eth_getUncleByBlockNumberAndIndex")]
+		fn uncle_by_block_number_and_index(&self, BlockNumber, Index) -> BoxFuture<Option<RichBlock>, Error>;
 
 		/// Returns available compilers.
 		/// @deprecated
