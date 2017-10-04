@@ -353,6 +353,7 @@ impl ClusterCore {
 
 	/// Send keepalive messages to every othe node.
 	fn keep_alive(data: Arc<ClusterData>) {
+		data.sessions.sessions_keep_alive();
 		for connection in data.connections.active_connections() {
 			let last_message_diff = time::Instant::now() - connection.last_message_time();
 			if last_message_diff > time::Duration::from_secs(KEEP_ALIVE_DISCONNECT_INTERVAL) {
@@ -456,7 +457,7 @@ impl ClusterCore {
 				}
 			},
 			_ => {
-				data.sessions.generation_sessions.get(&session_id)
+				data.sessions.generation_sessions.get(&session_id, true)
 					.ok_or(Error::InvalidSessionId)
 			},
 		};
@@ -534,7 +535,7 @@ impl ClusterCore {
 				}
 			},
 			_ => {
-				data.sessions.encryption_sessions.get(&session_id)
+				data.sessions.encryption_sessions.get(&session_id, true)
 					.ok_or(Error::InvalidSessionId)
 			},
 		};
@@ -625,7 +626,7 @@ impl ClusterCore {
 				}
 			},
 			_ => {
-				data.sessions.decryption_sessions.get(&decryption_session_id)
+				data.sessions.decryption_sessions.get(&decryption_session_id, true)
 					.ok_or(Error::InvalidSessionId)
 			},
 		};
@@ -701,7 +702,7 @@ impl ClusterCore {
 				}
 			},
 			_ => {
-				data.sessions.signing_sessions.get(&signing_session_id)
+				data.sessions.signing_sessions.get(&signing_session_id, true)
 					.ok_or(Error::InvalidSessionId)
 			},
 		};
@@ -780,7 +781,7 @@ impl ClusterCore {
 				}
 			},
 			_ => {
-				data.sessions.admin_sessions.get(&session_id)
+				data.sessions.admin_sessions.get(&session_id, true)
 					.ok_or(Error::InvalidSessionId)
 			},
 		};
@@ -861,7 +862,7 @@ impl ClusterCore {
 				}
 			},
 			_ => {
-				data.sessions.admin_sessions.get(&session_id)
+				data.sessions.admin_sessions.get(&session_id, true)
 					.ok_or(Error::InvalidSessionId)
 			},
 		};
@@ -942,7 +943,7 @@ impl ClusterCore {
 				}
 			},
 			_ => {
-				data.sessions.admin_sessions.get(&session_id)
+				data.sessions.admin_sessions.get(&session_id, true)
 					.ok_or(Error::InvalidSessionId)
 			},
 		};
@@ -1023,7 +1024,7 @@ impl ClusterCore {
 				}
 			},
 			_ => {
-				data.sessions.admin_sessions.get(&session_id)
+				data.sessions.admin_sessions.get(&session_id, true)
 					.ok_or(Error::InvalidSessionId)
 			},
 		};
@@ -1078,8 +1079,12 @@ impl ClusterCore {
 	/// Process single cluster message from the connection.
 	fn process_cluster_message(data: Arc<ClusterData>, connection: Arc<Connection>, message: ClusterMessage) {
 		match message {
-			ClusterMessage::KeepAlive(_) => data.spawn(connection.send_message(Message::Cluster(ClusterMessage::KeepAliveResponse(message::KeepAliveResponse {})))),
-			ClusterMessage::KeepAliveResponse(_) => (),
+			ClusterMessage::KeepAlive(_) => data.spawn(connection.send_message(Message::Cluster(ClusterMessage::KeepAliveResponse(message::KeepAliveResponse {
+				session_id: None,
+			})))),
+			ClusterMessage::KeepAliveResponse(msg) => if let Some(session_id) = msg.session_id {
+				data.sessions.on_session_keep_alive(connection.node_id(), session_id.into());
+			},
 			_ => warn!(target: "secretstore_net", "{}: received unexpected message {} from node {} at {}", data.self_key_pair.public(), message, connection.node_id(), connection.node_address()),
 		}
 	}
@@ -1447,7 +1452,7 @@ impl ClusterClient for ClusterClientImpl {
 
 	#[cfg(test)]
 	fn generation_session(&self, session_id: &SessionId) -> Option<Arc<GenerationSessionImpl>> {
-		self.data.sessions.generation_sessions.get(session_id)
+		self.data.sessions.generation_sessions.get(session_id, false)
 	}
 }
 

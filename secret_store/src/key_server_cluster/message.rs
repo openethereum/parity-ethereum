@@ -255,6 +255,8 @@ pub struct KeepAlive {
 /// Confirm that the node is still alive.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct KeepAliveResponse {
+	/// Session id, if used for session-level keep alive.
+	pub session_id: Option<MessageSessionId>,
 }
 
 /// Initialize new DKG session.
