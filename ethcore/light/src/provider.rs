@@ -328,7 +328,8 @@ impl<L: AsLightClient + Send + Sync> Provider for LightProvider<L> {
 	}
 
 	fn transaction_index(&self, _req: request::CompleteTransactionIndexRequest)
-		-> Option<request::TransactionIndexResponse> {
+		-> Option<request::TransactionIndexResponse> 
+	{
 		None
 	}
 
