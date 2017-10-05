@@ -16,7 +16,7 @@
 
 use std::path::Path;
 use std::cmp;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 use std::sync::Arc;
 use hash::{KECCAK_EMPTY_LIST_RLP};
 use ethash::{quick_get_difficulty, slow_hash_block_number, EthashManager, OptimizeFor};
@@ -26,7 +26,7 @@ use unexpected::{OutOfBounds, Mismatch};
 use block::*;
 use error::{BlockError, Error};
 use header::Header;
-use engines::{self, Engine, EthEngine};
+use engines::{self, Engine};
 use ethjson;
 use rlp::{self, UntrustedRlp};
 use machine::EthereumMachine;
@@ -149,8 +149,6 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 
 	// Two fields - nonce and mix.
 	fn seal_fields(&self) -> usize { 2 }
-
-	fn additional_params(&self) -> HashMap<String, String> { hash_map!["registrar".to_owned() => self.params().registrar.hex()] }
 
 	/// Additional engine-specific information for the user/developer concerning `header`.
 	fn extra_info(&self, header: &Header) -> BTreeMap<String, String> {
