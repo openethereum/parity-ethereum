@@ -18,7 +18,7 @@ use devtools::http_client;
 use rustc_hex::FromHex;
 use tests::helpers::{
 	serve_with_registrar, serve_with_registrar_and_sync, serve_with_fetch,
-	serve_with_registrar_and_fetch, serve_with_registrar_and_fetch_and_threads,
+	serve_with_registrar_and_fetch,
 	request, assert_security_headers_for_embed,
 };
 
@@ -171,6 +171,8 @@ fn should_return_fetched_dapp_content() {
 		r#"18
 <h1>Hello Gavcoin!</h1>
 
+0
+
 "#
 	);
 
@@ -257,7 +259,7 @@ fn should_not_request_content_twice() {
 	use std::thread;
 
 	// given
-	let (server, fetch, registrar) = serve_with_registrar_and_fetch_and_threads(true);
+	let (server, fetch, registrar) = serve_with_registrar_and_fetch();
 	let gavcoin = GAVCOIN_ICON.from_hex().unwrap();
 	registrar.set_result(
 		"2be00befcf008bc0e7d9cdefc194db9c75352e8632f48498b5a6bfce9f02c88e".parse().unwrap(),

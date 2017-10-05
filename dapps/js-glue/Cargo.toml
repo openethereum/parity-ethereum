@@ -1,7 +1,7 @@
 [package]
 description = "Base Package for all Parity built-in dapps"
 name = "parity-dapps-glue"
-version = "1.7.0"
+version = "1.8.0"
 license = "GPL-3.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 build = "build.rs"
@@ -12,7 +12,7 @@ syntex = { version = "0.58", optional = true }
 
 [dependencies]
 glob = { version = "0.2.11" }
-mime_guess = { version = "1.6.1" }
+mime_guess = { version = "2.0.0-alpha.2" }
 aster = { version = "0.41", default-features = false }
 quasi = { version = "0.32", default-features = false }
 quasi_macros = { version = "0.32", optional = true }
