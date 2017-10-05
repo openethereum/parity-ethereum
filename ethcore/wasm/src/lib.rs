@@ -128,7 +128,8 @@ impl vm::Vm for WasmInterpreter {
 
 		let data_section_length = contract_module.data_section()
 			.map(|section| section.entries().iter().fold(0, |sum, entry| sum + entry.value().len()))
-			.unwrap_or(0);
+			.unwrap_or(0)
+			as u32;
 
 		let static_segment_cost = data_section_length * runtime.ext().schedule().wasm.static_region;
 		runtime.charge_gas_fallible(static_segment_cost).map_err(Error)?;

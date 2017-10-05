@@ -120,23 +120,23 @@ pub struct Schedule {
 /// Wasm cost table
 pub struct WasmCosts {
 	/// Arena allocator cost, per byte
-	pub alloc: usize,
+	pub alloc: u32,
 	/// Div operations multiplier.
-	pub div: usize,
+	pub div: u32,
 	/// Div operations multiplier.
-	pub mul: usize,
+	pub mul: u32,
 	/// Memory (load/store) operations multiplier.
-	pub mem: usize,
+	pub mem: u32,
 	/// Memory copy operation.
-	pub mem_copy: usize,
+	pub mem_copy: u32,
 	/// Static region charge, per byte.
-	pub static_region: usize,
+	pub static_region: u32,
 	/// General static query of u64 value from env-info
-	pub static_u64: usize,
+	pub static_u64: u32,
 	/// General static query of U256 value from env-info
-	pub static_u256: usize,
+	pub static_u256: u32,
 	/// General static query of Address value from env-info
-	pub static_address: usize,
+	pub static_address: u32,
 }
 
 impl Default for WasmCosts {

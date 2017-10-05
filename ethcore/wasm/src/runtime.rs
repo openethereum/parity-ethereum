@@ -167,7 +167,7 @@ impl<'a, 'b> Runtime<'a, 'b> {
 		let key = self.pop_h256(&mut context)?;
 		trace!(target: "wasm", "storage_write: value {} at @{}", &val, &key);
 
-		charge!(self, self.ext.schedule().sstore_set_gas);
+		charge!(self, self.ext.schedule().sstore_set_gas as u32);
 
 		self.ext.set_storage(key, val).map_err(|_| UserTrap::StorageUpdateError)?;
 
@@ -183,7 +183,7 @@ impl<'a, 'b> Runtime<'a, 'b> {
 		let key = self.pop_h256(&mut context)?;
 		let val = self.ext.storage_at(&key).map_err(|_| UserTrap::StorageReadError)?;
 
-		charge!(self, self.ext.schedule().sload_gas);
+		charge!(self, self.ext.schedule().sload_gas as u32);
 
 		self.memory.set(val_ptr as u32, &*val)?;
 
@@ -199,10 +199,10 @@ impl<'a, 'b> Runtime<'a, 'b> {
 
 		if self.ext.exists(&refund_address).map_err(|_| UserTrap::SuicideAbort)? {
 			trace!(target: "wasm", "Suicide: refund to existing address {}", refund_address);
-			charge!(self, self.ext.schedule().suicide_gas);
+			charge!(self, self.ext.schedule().suicide_gas as u32);
 		} else {
 			trace!(target: "wasm", "Suicide: refund to new address {}", refund_address);
-			charge!(self, self.ext.schedule().suicide_to_new_account_cost);
+			charge!(self, self.ext.schedule().suicide_to_new_account_cost as u32);
 		}
 
 		self.ext.suicide(&refund_address).map_err(|_| UserTrap::SuicideAbort)?;
@@ -233,8 +233,8 @@ impl<'a, 'b> Runtime<'a, 'b> {
 
 		let code = self.memory.get(code_ptr, code_len as usize)?;
 
-		charge!(self, self.ext.schedule().create_gas);
-		charge!(self, self.ext.schedule().create_data_gas * code.len());
+		charge!(self, self.ext.schedule().create_gas as u32);
+		charge!(self, (self.ext.schedule().create_data_gas * code.len()) as u32);
 
 		let gas_left = self.gas_left()
 			.map_err(|_| UserTrap::InvalidGasState)?
@@ -337,7 +337,7 @@ impl<'a, 'b> Runtime<'a, 'b> {
 			}
 		}
 
-		charge!(self, self.ext.schedule().call_gas);
+		charge!(self, self.ext.schedule().call_gas as u32);
 
 		let mut result = Vec::with_capacity(result_alloc_len as usize);
 		result.resize(result_alloc_len as usize, 0);
@@ -397,7 +397,7 @@ impl<'a, 'b> Runtime<'a, 'b> {
 	{
 		let amount = context.value_stack.pop_as::<i32>()? as u32;
 
-		charge!(self, self.ext.schedule().wasm.alloc * amount as usize);
+		charge!(self, self.ext.schedule().wasm.alloc * amount);
 
 		let previous_top = self.dynamic_top;
 		self.dynamic_top = previous_top + amount;
@@ -435,7 +435,8 @@ impl<'a, 'b> Runtime<'a, 'b> {
 		}
 	}
 
-	pub fn charge_gas_fallible(&mut self, amount: usize) -> Result<(), InterpreterError> {
+	/// Charge gas, producing error if limit exceeded
+	pub fn charge_gas_fallible(&mut self, amount: u32) -> Result<(), InterpreterError> {
 		if !self.charge_gas(amount as u64) {
 			Err(UserTrap::GasLimit.into())
 		} else {
@@ -538,7 +539,7 @@ impl<'a, 'b> Runtime<'a, 'b> {
 		let dst = context.value_stack.pop_as::<i32>()? as u32;
 		let src = context.value_stack.pop_as::<i32>()? as u32;
 
-		charge!(self, self.ext.schedule().wasm.mem_copy * len as usize);
+		charge!(self, self.ext.schedule().wasm.mem_copy * len);
 
 		let mem = self.memory().get(src, len as usize)?;
 		self.memory().set(dst, &mem)?;
@@ -583,7 +584,7 @@ impl<'a, 'b> Runtime<'a, 'b> {
 		let block_hi = context.value_stack.pop_as::<i32>()? as u32;
 		let block_lo = context.value_stack.pop_as::<i32>()? as u32;
 
-		charge!(self, self.ext.schedule().blockhash_gas);
+		charge!(self, self.ext.schedule().blockhash_gas as u32);
 
 		let block_num = (block_hi as u64) << 32 | block_lo as u64;
 
