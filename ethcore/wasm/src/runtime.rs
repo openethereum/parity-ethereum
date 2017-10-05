@@ -197,6 +197,9 @@ impl<'a, 'b> Runtime<'a, 'b> {
 		let mut context = context;
 		let return_ptr = context.value_stack.pop_as::<i32>()? as u32;
 		let address = self.pop_address(&mut context)?;
+
+		charge!(self, self.ext.schedule().balance_gas as u32);
+
 		let balance = self.ext.balance(&address).map_err(|_| UserTrap::BalanceQueryError)?;
 		let value: H256 = balance.into();
 		self.memory.set(return_ptr, &*value)?;
