@@ -32,21 +32,16 @@ use ethcore::account_provider::{AccountProvider, DappId};
 use ethcore::encoded;
 use ethcore::ids::BlockId;
 use ethcore::filter::Filter as EthcoreFilter;
-use ethcore::transaction::{Action, SignedTransaction, LocalizedTransaction};
+use ethcore::transaction::SignedTransaction;
 use ethsync::LightSync;
 use rlp::UntrustedRlp;
 use hash::{KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP};
 use bigint::prelude::U256;
 use parking_lot::{RwLock, Mutex};
 
-use futures::{future, Future, IntoFuture};
-use futures::future::Either;
-use futures::sync::oneshot;
-
 use v1::impls::eth_filter::Filterable;
 use v1::helpers::{errors, limit_logs};
 use v1::helpers::{PollFilter, PollManager};
-use v1::helpers::block_import::is_major_importing;
 use v1::helpers::light_fetch::{self, LightFetch};
 use v1::traits::Eth;
 use v1::types::{

@@ -284,25 +284,24 @@ impl LightFetch {
 		let mut reqs = Vec::new();
 		let header_ref = match self.make_header_requests(id, &mut reqs) {
 			Ok(r) => r,
-			Err(e) => return future::err(e).boxed(),
+			Err(e) => return Box::new(future::err(e)),
 		};
 
 		reqs.push(request::BlockReceipts(header_ref).into());
 
 		let maybe_future = self.sync.with_context(move |ctx| {
-			self.on_demand.request_raw(ctx, reqs)
+			Box::new(self.on_demand.request_raw(ctx, reqs)
 				.expect(NO_INVALID_BACK_REFS)
 				.map(|mut res| match res.pop() {
 					Some(OnDemandResponse::Receipts(b)) => b,
 					_ => panic!("responses correspond directly with requests in amount and type; qed"),
 				})
-				.map_err(errors::on_demand_cancel)
-				.boxed()
+				.map_err(errors::on_demand_cancel))
 		});
 
 		match maybe_future {
 			Some(recv) => recv,
-			None => future::err(errors::network_disabled()).boxed()
+			None => Box::new(future::err(errors::network_disabled()))
 		}
 	}
 

@@ -444,6 +444,6 @@ mod tests {
 		);
 
 		assert_eq!(flow_params2.costs, flow_params3.costs);
-		assert_eq!(flow_params.costs.headers, flow_params2.costs.headers * 2.into());
+		assert_eq!(flow_params.costs.headers.unwrap(), flow_params2.costs.headers.unwrap() * 2.into());
 	}
 }

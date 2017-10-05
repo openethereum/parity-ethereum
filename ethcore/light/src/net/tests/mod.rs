@@ -318,7 +318,7 @@ fn get_block_headers() {
 		let headers: Vec<_> = (0..10).map(|i| provider.client.block_header(BlockId::Number(i + 1)).unwrap()).collect();
 		assert_eq!(headers.len(), 10);
 
-		let new_creds = *flow_params.limit() - flow_params.compute_cost_multi(requests.requests());
+		let new_creds = *flow_params.limit() - flow_params.compute_cost_multi(requests.requests()).unwrap();
 
 		let response = vec![Response::Headers(HeadersResponse {
 			headers: headers,
@@ -371,7 +371,7 @@ fn get_block_bodies() {
 	let request_body = make_packet(req_id, &requests);
 
 	let response = {
-		let new_creds = *flow_params.limit() - flow_params.compute_cost_multi(requests.requests());
+		let new_creds = *flow_params.limit() - flow_params.compute_cost_multi(requests.requests()).unwrap();
 
 		let mut response_stream = RlpStream::new_list(3);
 		response_stream.append(&req_id).append(&new_creds).append_list(&bodies);
@@ -426,7 +426,7 @@ fn get_block_receipts() {
 	let response = {
 		assert_eq!(receipts.len(), 10);
 
-		let new_creds = *flow_params.limit() - flow_params.compute_cost_multi(requests.requests());
+		let new_creds = *flow_params.limit() - flow_params.compute_cost_multi(requests.requests()).unwrap();
 
 		let mut response_stream = RlpStream::new_list(3);
 		response_stream.append(&req_id).append(&new_creds).append_list(&receipts);
@@ -485,7 +485,7 @@ fn get_state_proofs() {
 			}).unwrap()),
 		];
 
-		let new_creds = *flow_params.limit() - flow_params.compute_cost_multi(requests.requests());
+		let new_creds = *flow_params.limit() - flow_params.compute_cost_multi(requests.requests()).unwrap();
 
 		let mut response_stream = RlpStream::new_list(3);
 		response_stream.append(&req_id).append(&new_creds).append_list(&responses);
@@ -527,7 +527,7 @@ fn get_contract_code() {
 			code: key1.iter().chain(key2.iter()).cloned().collect(),
 		})];
 
-		let new_creds = *flow_params.limit() - flow_params.compute_cost_multi(requests.requests());
+		let new_creds = *flow_params.limit() - flow_params.compute_cost_multi(requests.requests()).unwrap();
 
 		let mut response_stream = RlpStream::new_list(3);
 
@@ -568,9 +568,8 @@ fn epoch_signal() {
 		})];
 
 		let limit = *flow_params.limit();
-		let cost = flow_params.compute_cost_multi(requests.requests());
+		let cost = flow_params.compute_cost_multi(requests.requests()).unwrap();
 
-		println!("limit = {}, cost = {}", limit, cost);
 		let new_creds = limit - cost;
 
 		let mut response_stream = RlpStream::new_list(3);
@@ -615,9 +614,8 @@ fn proof_of_execution() {
 
 	let response = {
 		let limit = *flow_params.limit();
-		let cost = flow_params.compute_cost_multi(requests.requests());
+		let cost = flow_params.compute_cost_multi(requests.requests()).unwrap();
 
-		println!("limit = {}, cost = {}", limit, cost);
 		let new_creds = limit - cost;
 
 		let mut response_stream = RlpStream::new_list(3);
@@ -755,7 +753,7 @@ fn get_transaction_index() {
 			index: 55,
 		})];
 
-		let new_creds = *flow_params.limit() - flow_params.compute_cost_multi(requests.requests());
+		let new_creds = *flow_params.limit() - flow_params.compute_cost_multi(requests.requests()).unwrap();
 
 		let mut response_stream = RlpStream::new_list(3);
 
