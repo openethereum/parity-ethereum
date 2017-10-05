@@ -632,6 +632,8 @@ pub struct InitializeShareChangeSession {
 	pub master_node_id: MessageNodeId,
 	/// Old nodes set.
 	pub old_shares_set: BTreeSet<MessageNodeId>,
+	/// Isolated nodes.
+	pub isolated_nodes: BTreeSet<MessageNodeId>,
 	/// Shares to add. Values are filled for new nodes only.
 	pub shares_to_add: BTreeMap<MessageNodeId, SerializableSecret>,
 	/// Shares to move.
