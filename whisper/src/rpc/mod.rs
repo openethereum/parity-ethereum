@@ -28,7 +28,6 @@ use jsonrpc_pubsub::{Session, PubSubMetadata, SubscriptionId};
 use jsonrpc_macros::pubsub;
 
 use bigint::hash::H256;
-use futures::{future, BoxFuture};
 use parking_lot::RwLock;
 
 use self::filter::Filter;
@@ -140,7 +139,7 @@ build_rpc_trait! {
 			/// Unsubscribe from filter matching given ID. Return
 			/// true on success, error otherwise.
 			#[rpc(name = "shh_unsubscribe")]
-			fn unsubscribe(&self, SubscriptionId) -> BoxFuture<bool, Error>;
+			fn unsubscribe(&self, SubscriptionId) -> Result<bool, Error>;
 		}
 	}
 }
@@ -377,7 +376,7 @@ impl<P: PoolHandle + 'static, M: Send + Sync + PubSubMetadata> WhisperPubSub for
 		}
 	}
 
-	fn unsubscribe(&self, id: SubscriptionId) -> BoxFuture<bool, Error> {
+	fn unsubscribe(&self, id: SubscriptionId) -> Result<bool, Error> {
 		use std::str::FromStr;
 
 		let res = match id {
@@ -387,6 +386,6 @@ impl<P: PoolHandle + 'static, M: Send + Sync + PubSubMetadata> WhisperPubSub for
 			SubscriptionId::Number(_) => Err("unrecognized ID"),
 		};
 
-		Box::new(future::done(res.map_err(whisper_error)))
+		res.map_err(whisper_error)
 	}
 }

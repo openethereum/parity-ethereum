@@ -15,10 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Eth rpc interface.
-use jsonrpc_core::Error;
+use jsonrpc_core::{BoxFuture, Error};
 use jsonrpc_macros::Trailing;
-
-use futures::BoxFuture;
 
 use v1::types::{RichBlock, BlockNumber, Bytes, CallRequest, Filter, FilterChanges, Index};
 use v1::types::{Log, Receipt, SyncStatus, Transaction, Work};
@@ -43,7 +41,7 @@ build_rpc_trait! {
 
 		/// Returns block author.
 		#[rpc(meta, name = "eth_coinbase")]
-		fn author(&self, Self::Metadata) -> BoxFuture<H160, Error>;
+		fn author(&self, Self::Metadata) -> Result<H160, Error>;
 
 		/// Returns true if client is actively mining new blocks.
 		#[rpc(name = "eth_mining")]
@@ -55,50 +53,50 @@ build_rpc_trait! {
 
 		/// Returns accounts list.
 		#[rpc(meta, name = "eth_accounts")]
-		fn accounts(&self, Self::Metadata) -> BoxFuture<Vec<H160>, Error>;
+		fn accounts(&self, Self::Metadata) -> Result<Vec<H160>, Error>;
 
 		/// Returns highest block number.
 		#[rpc(name = "eth_blockNumber")]
 		fn block_number(&self) -> Result<U256, Error>;
 
 		/// Returns balance of the given account.
-		#[rpc(async, name = "eth_getBalance")]
+		#[rpc(name = "eth_getBalance")]
 		fn balance(&self, H160, Trailing<BlockNumber>) -> BoxFuture<U256, Error>;
 
 		/// Returns content of the storage at given address.
-		#[rpc(async, name = "eth_getStorageAt")]
+		#[rpc(name = "eth_getStorageAt")]
 		fn storage_at(&self, H160, U256, Trailing<BlockNumber>) -> BoxFuture<H256, Error>;
 
 		/// Returns block with given hash.
-		#[rpc(async, name = "eth_getBlockByHash")]
+		#[rpc(name = "eth_getBlockByHash")]
 		fn block_by_hash(&self, H256, bool) -> BoxFuture<Option<RichBlock>, Error>;
 
 		/// Returns block with given number.
-		#[rpc(async, name = "eth_getBlockByNumber")]
+		#[rpc(name = "eth_getBlockByNumber")]
 		fn block_by_number(&self, BlockNumber, bool) -> BoxFuture<Option<RichBlock>, Error>;
 
 		/// Returns the number of transactions sent from given address at given time (block number).
-		#[rpc(async, name = "eth_getTransactionCount")]
+		#[rpc(name = "eth_getTransactionCount")]
 		fn transaction_count(&self, H160, Trailing<BlockNumber>) -> BoxFuture<U256, Error>;
 
 		/// Returns the number of transactions in a block with given hash.
-		#[rpc(async, name = "eth_getBlockTransactionCountByHash")]
+		#[rpc(name = "eth_getBlockTransactionCountByHash")]
 		fn block_transaction_count_by_hash(&self, H256) -> BoxFuture<Option<U256>, Error>;
 
 		/// Returns the number of transactions in a block with given block number.
-		#[rpc(async, name = "eth_getBlockTransactionCountByNumber")]
+		#[rpc(name = "eth_getBlockTransactionCountByNumber")]
 		fn block_transaction_count_by_number(&self, BlockNumber) -> BoxFuture<Option<U256>, Error>;
 
 		/// Returns the number of uncles in a block with given hash.
-		#[rpc(async, name = "eth_getUncleCountByBlockHash")]
+		#[rpc(name = "eth_getUncleCountByBlockHash")]
 		fn block_uncles_count_by_hash(&self, H256) -> BoxFuture<Option<U256>, Error>;
 
 		/// Returns the number of uncles in a block with given block number.
-		#[rpc(async, name = "eth_getUncleCountByBlockNumber")]
+		#[rpc(name = "eth_getUncleCountByBlockNumber")]
 		fn block_uncles_count_by_number(&self, BlockNumber) -> BoxFuture<Option<U256>, Error>;
 
 		/// Returns the code at given address at given time (block number).
-		#[rpc(async, name = "eth_getCode")]
+		#[rpc(name = "eth_getCode")]
 		fn code_at(&self, H160, Trailing<BlockNumber>) -> BoxFuture<Bytes, Error>;
 
 		/// Sends signed transaction, returning its hash.
@@ -162,7 +160,7 @@ build_rpc_trait! {
 		fn compile_serpent(&self, String) -> Result<Bytes, Error>;
 
 		/// Returns logs matching given filter object.
-		#[rpc(async, name = "eth_getLogs")]
+		#[rpc(name = "eth_getLogs")]
 		fn logs(&self, Filter) -> BoxFuture<Vec<Log>, Error>;
 
 		/// Returns the hash of the current block, the seedHash, and the boundary condition to be met.
@@ -196,11 +194,11 @@ build_rpc_trait! {
 		fn new_pending_transaction_filter(&self) -> Result<U256, Error>;
 
 		/// Returns filter changes since last poll.
-		#[rpc(async, name = "eth_getFilterChanges")]
+		#[rpc(name = "eth_getFilterChanges")]
 		fn filter_changes(&self, Index) -> BoxFuture<FilterChanges, Error>;
 
 		/// Returns all logs matching given filter (in a range 'from' - 'to').
-		#[rpc(async, name = "eth_getFilterLogs")]
+		#[rpc(name = "eth_getFilterLogs")]
 		fn filter_logs(&self, Index) -> BoxFuture<Vec<Log>, Error>;
 
 		/// Uninstalls filter.

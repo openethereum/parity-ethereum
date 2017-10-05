@@ -17,7 +17,7 @@
 //! Test implementation of fetch client.
 
 use std::{io, thread};
-use futures::{self, Future};
+use jsonrpc_core::futures::{self, Future};
 use fetch::{self, Fetch};
 
 /// Test implementation of fetcher. Will always return the same file.
@@ -25,7 +25,7 @@ use fetch::{self, Fetch};
 pub struct TestFetch;
 
 impl Fetch for TestFetch {
-	type Result = futures::BoxFuture<fetch::Response, fetch::Error>;
+	type Result = Box<Future<Item = fetch::Response, Error = fetch::Error> + Send + 'static>;
 
 	fn new() -> Result<Self, fetch::Error> where Self: Sized {
 		Ok(TestFetch)
@@ -38,6 +38,6 @@ impl Fetch for TestFetch {
 			tx.send(fetch::Response::from_reader(cursor)).unwrap();
 		});
 
-		rx.map_err(|_| fetch::Error::Aborted).boxed()
+		Box::new(rx.map_err(|_| fetch::Error::Aborted))
 	}
 }

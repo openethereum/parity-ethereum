@@ -21,12 +21,13 @@ use std::sync::Arc;
 use ethcore::account_provider::AccountProvider;
 use ethcore::transaction::{SignedTransaction, PendingTransaction};
 use ethkey;
-use futures::{future, BoxFuture, Future, IntoFuture};
 use parity_reactor::Remote;
 use rlp::UntrustedRlp;
 use parking_lot::Mutex;
 
-use jsonrpc_core::{futures, Error};
+use jsonrpc_core::{Error, BoxFuture};
+use jsonrpc_core::futures::{future, Future, IntoFuture};
+use jsonrpc_core::futures::future::Either;
 use jsonrpc_pubsub::SubscriptionId;
 use jsonrpc_macros::pubsub::{Sink, Subscriber};
 use v1::helpers::accounts::unwrap_provider;
@@ -87,18 +88,11 @@ impl<D: Dispatcher + 'static> SignerClient<D> {
 		T::Future: Send + 'static
 	{
 		let id = id.into();
+		let accounts = try_bf!(self.account_provider());
 		let dispatcher = self.dispatcher.clone();
+		let signer = self.signer.clone();
 
-		let setup = || {
-			Ok((self.account_provider()?, self.signer.clone()))
-		};
-
-		let (accounts, signer) = match setup() {
-			Ok(x) => x,
-			Err(e) => return future::err(e).boxed(),
-		};
-
-		signer.peek(&id).map(|confirmation| {
+		Box::new(signer.peek(&id).map(|confirmation| {
 			let mut payload = confirmation.payload.clone();
 			// Modify payload
 			if let ConfirmationPayload::SendTransaction(ref mut request) = payload {
@@ -118,16 +112,16 @@ impl<D: Dispatcher + 'static> SignerClient<D> {
 				}
 			}
 			let fut = f(dispatcher, accounts, payload);
-			fut.into_future().then(move |result| {
+			Either::A(fut.into_future().then(move |result| {
 				// Execute
 				if let Ok(ref response) = result {
 					signer.request_confirmed(id, Ok((*response).clone()));
 				}
 
 				result
-			}).boxed()
+			}))
 		})
-		.unwrap_or_else(|| future::err(errors::invalid_params("Unknown RequestID", id)).boxed())
+		.unwrap_or_else(|| Either::B(future::err(errors::invalid_params("Unknown RequestID", id)))))
 	}
 
 	fn verify_transaction<F>(bytes: Bytes, request: FilledTransactionRequest, process: F) -> Result<ConfirmationResponse, Error> where
@@ -178,15 +172,15 @@ impl<D: Dispatcher + 'static> Signer for SignerClient<D> {
 	fn confirm_request(&self, id: U256, modification: TransactionModification, pass: String)
 		-> BoxFuture<ConfirmationResponse, Error>
 	{
-		self.confirm_internal(id, modification, move |dis, accounts, payload| {
+		Box::new(self.confirm_internal(id, modification, move |dis, accounts, payload| {
 			dispatch::execute(dis, accounts, payload, dispatch::SignWith::Password(pass))
-		}).map(|v| v.into_value()).boxed()
+		}).map(|v| v.into_value()))
 	}
 
 	fn confirm_request_with_token(&self, id: U256, modification: TransactionModification, token: String)
 		-> BoxFuture<ConfirmationResponseWithToken, Error>
 	{
-		self.confirm_internal(id, modification, move |dis, accounts, payload| {
+		Box::new(self.confirm_internal(id, modification, move |dis, accounts, payload| {
 			dispatch::execute(dis, accounts, payload, dispatch::SignWith::Token(token))
 		}).and_then(|v| match v {
 			WithToken::No(_) => Err(errors::internal("Unexpected response without token.", "")),
@@ -194,7 +188,7 @@ impl<D: Dispatcher + 'static> Signer for SignerClient<D> {
 				result: response,
 				token: token,
 			}),
-		}).boxed()
+		}))
 	}
 
 	fn confirm_request_raw(&self, id: U256, bytes: Bytes) -> Result<ConfirmationResponse, Error> {
@@ -253,8 +247,8 @@ impl<D: Dispatcher + 'static> Signer for SignerClient<D> {
 		self.subscribers.lock().push(sub)
 	}
 
-	fn unsubscribe_pending(&self, id: SubscriptionId) -> BoxFuture<bool, Error> {
+	fn unsubscribe_pending(&self, id: SubscriptionId) -> Result<bool, Error> {
 		let res = self.subscribers.lock().remove(&id).is_some();
-		futures::future::ok(res).boxed()
+		Ok(res)
 	}
 }

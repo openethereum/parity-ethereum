@@ -27,7 +27,6 @@ extern crate wasm_utils;
 
 mod runtime;
 mod ptr;
-mod call_args;
 mod result;
 #[cfg(test)]
 mod tests;
@@ -107,7 +106,12 @@ impl vm::Vm for WasmInterpreter {
 			env_memory,
 			DEFAULT_STACK_SPACE,
 			params.gas.low_u64(),
-			RuntimeContext::new(params.address, params.sender),
+			RuntimeContext {
+				address: params.address,
+				sender: params.sender,
+				origin: params.origin,
+				value: params.value.value(),
+			},
 			&self.program,
 		);
 
@@ -121,15 +125,8 @@ impl vm::Vm for WasmInterpreter {
 			})?
 		);
 
-		let d_ptr = runtime.write_descriptor(
-			call_args::CallArgs::new(
-				params.address,
-				params.sender,
-				params.origin,
-				params.value.value(),
-				params.data.unwrap_or(Vec::with_capacity(0)),
-			)
-		).map_err(|e| Error(e))?;
+		let d_ptr = runtime.write_descriptor(&params.data.unwrap_or_default())
+			.map_err(Error)?;
 
 		{
 			let execution_params = runtime.execution_params()

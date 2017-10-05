@@ -532,6 +532,14 @@ impl Cluster for SessionKeyGenerationTransport {
 		debug_assert!(self.other_nodes_ids.contains(to));
 		self.cluster.send(to, self.map_message(message)?)
 	}
+
+	fn is_connected(&self, node: &NodeId) -> bool {
+		self.cluster.is_connected(node)
+	}
+
+	fn nodes(&self) -> BTreeSet<NodeId> {
+		self.cluster.nodes()
+	}
 }
 
 impl SessionCore {

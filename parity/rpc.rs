@@ -42,7 +42,7 @@ pub struct HttpConfiguration {
 	pub apis: ApiSet,
 	pub cors: Option<Vec<String>>,
 	pub hosts: Option<Vec<String>>,
-	pub server_threads: Option<usize>,
+	pub server_threads: usize,
 	pub processing_threads: usize,
 }
 
@@ -61,7 +61,7 @@ impl Default for HttpConfiguration {
 			apis: ApiSet::UnsafeContext,
 			cors: None,
 			hosts: Some(Vec::new()),
-			server_threads: None,
+			server_threads: 1,
 			processing_threads: 0,
 		}
 	}
@@ -100,7 +100,7 @@ impl From<UiConfiguration> for HttpConfiguration {
 			apis: rpc_apis::ApiSet::UnsafeContext,
 			cors: None,
 			hosts: conf.hosts,
-			server_threads: None,
+			server_threads: 1,
 			processing_threads: 0,
 		}
 	}
@@ -278,13 +278,8 @@ pub fn new_http<D: rpc_apis::Dependencies>(
 		handler,
 		remote,
 		rpc::RpcExtractor,
-		match (conf.server_threads, middleware) {
-			(Some(threads), None) => rpc::HttpSettings::Threads(threads),
-			(None, middleware) => rpc::HttpSettings::Dapps(middleware),
-			(Some(_), Some(_)) => {
-				return Err("Dapps and fast multi-threaded RPC server cannot be enabled at the same time.".into())
-			},
-		}
+		middleware,
+		conf.server_threads,
 	);
 
 	match start_result {

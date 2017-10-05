@@ -15,11 +15,9 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 
-mod builtin;
-mod local;
+pub mod builtin;
+pub mod local;
 mod handler;
 
-pub use self::local::LocalPageEndpoint;
-pub use self::builtin::PageEndpoint;
-pub use self::handler::{PageCache, PageHandlerWaiting};
+pub use self::handler::PageCache;
 

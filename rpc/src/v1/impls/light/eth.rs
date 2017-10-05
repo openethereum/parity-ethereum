@@ -16,12 +16,11 @@
 
 //! Eth RPC interface for the light client.
 
-// TODO: remove when complete.
-#![allow(unused_imports, unused_variables)]
-
 use std::sync::Arc;
 
-use jsonrpc_core::Error;
+use jsonrpc_core::{BoxFuture, Error};
+use jsonrpc_core::futures::{future, Future};
+use jsonrpc_core::futures::future::Either;
 use jsonrpc_macros::Trailing;
 
 use light::cache::Cache as LightDataCache;
@@ -30,25 +29,20 @@ use light::{cht, TransactionQueue};
 use light::on_demand::{request, OnDemand};
 
 use ethcore::account_provider::{AccountProvider, DappId};
-use ethcore::basic_account::BasicAccount;
 use ethcore::encoded;
-use ethcore::executed::{Executed, ExecutionError};
 use ethcore::ids::BlockId;
 use ethcore::filter::Filter as EthcoreFilter;
-use ethcore::transaction::{Action, SignedTransaction, Transaction as EthTransaction};
+use ethcore::transaction::SignedTransaction;
 use ethsync::LightSync;
 use rlp::UntrustedRlp;
 use hash::{KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP};
 use bigint::prelude::U256;
 use parking_lot::{RwLock, Mutex};
 
-use futures::{future, Future, BoxFuture, IntoFuture};
-use futures::sync::oneshot;
 
 use v1::impls::eth_filter::Filterable;
-use v1::helpers::{CallRequest as CRequest, errors, limit_logs, dispatch};
+use v1::helpers::{errors, limit_logs};
 use v1::helpers::{PollFilter, PollManager};
-use v1::helpers::block_import::is_major_importing;
 use v1::helpers::light_fetch::LightFetch;
 use v1::traits::Eth;
 use v1::types::{
@@ -57,8 +51,6 @@ use v1::types::{
 	H64 as RpcH64, H256 as RpcH256, H160 as RpcH160, U256 as RpcU256,
 };
 use v1::metadata::Metadata;
-
-use util::Address;
 
 const NO_INVALID_BACK_REFS: &'static str = "Fails only on invalid back-references; back-references here known to be valid; qed";
 
@@ -162,10 +154,10 @@ impl<T: LightChainClient + 'static> EthClient<T> {
 		};
 
 		// get the block itself.
-		self.fetcher().block(id).and_then(move |block| {
+		Box::new(self.fetcher().block(id).and_then(move |block| {
 			// then fetch the total difficulty (this is much easier after getting the block).
 			match client.score(id) {
-				Some(score) => future::ok(fill_rich(block, Some(score))).boxed(),
+				Some(score) => Either::A(future::ok(fill_rich(block, Some(score)))),
 				None => {
 					// make a CHT request to fetch the chain score.
 					let req = cht::block_to_cht_number(block.number())
@@ -181,7 +173,7 @@ impl<T: LightChainClient + 'static> EthClient<T> {
 								.expect("genesis always stored; qed")
 								.difficulty();
 
-							return future::ok(fill_rich(block, Some(score))).boxed()
+							return Either::A(future::ok(fill_rich(block, Some(score))))
 						}
 					};
 
@@ -191,7 +183,7 @@ impl<T: LightChainClient + 'static> EthClient<T> {
 					//   - we get a score, and our hash is canonical.
 					let maybe_fut = sync.with_context(move |ctx| on_demand.request(ctx, req).expect(NO_INVALID_BACK_REFS));
 					match maybe_fut {
-						Some(fut) => fut
+						Some(fut) => Either::B(fut
 							.map(move |(hash, score)| {
 								let score = if hash == block.hash() {
 									Some(score)
@@ -199,13 +191,13 @@ impl<T: LightChainClient + 'static> EthClient<T> {
 									None
 								};
 
-							fill_rich(block, score)
-							}).map_err(errors::on_demand_cancel).boxed(),
-						None => return future::err(errors::network_disabled()).boxed(),
+								fill_rich(block, score)
+							}).map_err(errors::on_demand_cancel)),
+						None => Either::A(future::err(errors::network_disabled())),
 					}
 				}
 			}
-		}).boxed()
+		}))
 	}
 }
 
@@ -235,8 +227,8 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 		}
 	}
 
-	fn author(&self, _meta: Self::Metadata) -> BoxFuture<RpcH160, Error> {
-		future::ok(Default::default()).boxed()
+	fn author(&self, _meta: Self::Metadata) -> Result<RpcH160, Error> {
+		Ok(Default::default())
 	}
 
 	fn is_mining(&self) -> Result<bool, Error> {
@@ -254,16 +246,14 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 			.unwrap_or_else(Default::default))
 	}
 
-	fn accounts(&self, meta: Metadata) -> BoxFuture<Vec<RpcH160>, Error> {
+	fn accounts(&self, meta: Metadata) -> Result<Vec<RpcH160>, Error> {
 		let dapp: DappId = meta.dapp_id().into();
 
-		let accounts = self.accounts
+		self.accounts
 			.note_dapp_used(dapp.clone())
 			.and_then(|_| self.accounts.dapp_addresses(dapp))
 			.map_err(|e| errors::account("Could not fetch accounts.", e))
-			.map(|accs| accs.into_iter().map(Into::<RpcH160>::into).collect());
-
-		future::done(accounts).boxed()
+			.map(|accs| accs.into_iter().map(Into::<RpcH160>::into).collect())
 	}
 
 	fn block_number(&self) -> Result<RpcU256, Error> {
@@ -271,93 +261,93 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 	}
 
 	fn balance(&self, address: RpcH160, num: Trailing<BlockNumber>) -> BoxFuture<RpcU256, Error> {
-		self.fetcher().account(address.into(), num.unwrap_or_default().into())
-			.map(|acc| acc.map_or(0.into(), |a| a.balance).into()).boxed()
+		Box::new(self.fetcher().account(address.into(), num.unwrap_or_default().into())
+			.map(|acc| acc.map_or(0.into(), |a| a.balance).into()))
 	}
 
 	fn storage_at(&self, _address: RpcH160, _key: RpcU256, _num: Trailing<BlockNumber>) -> BoxFuture<RpcH256, Error> {
-		future::err(errors::unimplemented(None)).boxed()
+		Box::new(future::err(errors::unimplemented(None)))
 	}
 
 	fn block_by_hash(&self, hash: RpcH256, include_txs: bool) -> BoxFuture<Option<RichBlock>, Error> {
-		self.rich_block(BlockId::Hash(hash.into()), include_txs).map(Some).boxed()
+		Box::new(self.rich_block(BlockId::Hash(hash.into()), include_txs).map(Some))
 	}
 
 	fn block_by_number(&self, num: BlockNumber, include_txs: bool) -> BoxFuture<Option<RichBlock>, Error> {
-		self.rich_block(num.into(), include_txs).map(Some).boxed()
+		Box::new(self.rich_block(num.into(), include_txs).map(Some))
 	}
 
 	fn transaction_count(&self, address: RpcH160, num: Trailing<BlockNumber>) -> BoxFuture<RpcU256, Error> {
-		self.fetcher().account(address.into(), num.unwrap_or_default().into())
-			.map(|acc| acc.map_or(0.into(), |a| a.nonce).into()).boxed()
+		Box::new(self.fetcher().account(address.into(), num.unwrap_or_default().into())
+			.map(|acc| acc.map_or(0.into(), |a| a.nonce).into()))
 	}
 
 	fn block_transaction_count_by_hash(&self, hash: RpcH256) -> BoxFuture<Option<RpcU256>, Error> {
 		let (sync, on_demand) = (self.sync.clone(), self.on_demand.clone());
 
-		self.fetcher().header(BlockId::Hash(hash.into())).and_then(move |hdr| {
+		Box::new(self.fetcher().header(BlockId::Hash(hash.into())).and_then(move |hdr| {
 			if hdr.transactions_root() == KECCAK_NULL_RLP {
-				future::ok(Some(U256::from(0).into())).boxed()
+				Either::A(future::ok(Some(U256::from(0).into())))
 			} else {
 				sync.with_context(|ctx| on_demand.request(ctx, request::Body(hdr.into())))
 					.map(|x| x.expect(NO_INVALID_BACK_REFS))
 					.map(|x| x.map(|b| Some(U256::from(b.transactions_count()).into())))
-					.map(|x| x.map_err(errors::on_demand_cancel).boxed())
-					.unwrap_or_else(|| future::err(errors::network_disabled()).boxed())
+					.map(|x| Either::B(x.map_err(errors::on_demand_cancel)))
+					.unwrap_or_else(|| Either::A(future::err(errors::network_disabled())))
 			}
-		}).boxed()
+		}))
 	}
 
 	fn block_transaction_count_by_number(&self, num: BlockNumber) -> BoxFuture<Option<RpcU256>, Error> {
 		let (sync, on_demand) = (self.sync.clone(), self.on_demand.clone());
 
-		self.fetcher().header(num.into()).and_then(move |hdr| {
+		Box::new(self.fetcher().header(num.into()).and_then(move |hdr| {
 			if hdr.transactions_root() == KECCAK_NULL_RLP {
-				future::ok(Some(U256::from(0).into())).boxed()
+				Either::A(future::ok(Some(U256::from(0).into())))
 			} else {
 				sync.with_context(|ctx| on_demand.request(ctx, request::Body(hdr.into())))
 					.map(|x| x.expect(NO_INVALID_BACK_REFS))
 					.map(|x| x.map(|b| Some(U256::from(b.transactions_count()).into())))
-					.map(|x| x.map_err(errors::on_demand_cancel).boxed())
-					.unwrap_or_else(|| future::err(errors::network_disabled()).boxed())
+					.map(|x| Either::B(x.map_err(errors::on_demand_cancel)))
+					.unwrap_or_else(|| Either::A(future::err(errors::network_disabled())))
 			}
-		}).boxed()
+		}))
 	}
 
 	fn block_uncles_count_by_hash(&self, hash: RpcH256) -> BoxFuture<Option<RpcU256>, Error> {
 		let (sync, on_demand) = (self.sync.clone(), self.on_demand.clone());
 
-		self.fetcher().header(BlockId::Hash(hash.into())).and_then(move |hdr| {
+		Box::new(self.fetcher().header(BlockId::Hash(hash.into())).and_then(move |hdr| {
 			if hdr.uncles_hash() == KECCAK_EMPTY_LIST_RLP {
-				future::ok(Some(U256::from(0).into())).boxed()
+				Either::A(future::ok(Some(U256::from(0).into())))
 			} else {
 				sync.with_context(|ctx| on_demand.request(ctx, request::Body(hdr.into())))
 					.map(|x| x.expect(NO_INVALID_BACK_REFS))
 					.map(|x| x.map(|b| Some(U256::from(b.uncles_count()).into())))
-					.map(|x| x.map_err(errors::on_demand_cancel).boxed())
-					.unwrap_or_else(|| future::err(errors::network_disabled()).boxed())
+					.map(|x| Either::B(x.map_err(errors::on_demand_cancel)))
+					.unwrap_or_else(|| Either::A(future::err(errors::network_disabled())))
 			}
-		}).boxed()
+		}))
 	}
 
 	fn block_uncles_count_by_number(&self, num: BlockNumber) -> BoxFuture<Option<RpcU256>, Error> {
 		let (sync, on_demand) = (self.sync.clone(), self.on_demand.clone());
 
-		self.fetcher().header(num.into()).and_then(move |hdr| {
+		Box::new(self.fetcher().header(num.into()).and_then(move |hdr| {
 			if hdr.uncles_hash() == KECCAK_EMPTY_LIST_RLP {
-				future::ok(Some(U256::from(0).into())).boxed()
+				Either::B(future::ok(Some(U256::from(0).into())))
 			} else {
 				sync.with_context(|ctx| on_demand.request(ctx, request::Body(hdr.into())))
 					.map(|x| x.expect(NO_INVALID_BACK_REFS))
 					.map(|x| x.map(|b| Some(U256::from(b.uncles_count()).into())))
-					.map(|x| x.map_err(errors::on_demand_cancel).boxed())
-					.unwrap_or_else(|| future::err(errors::network_disabled()).boxed())
+					.map(|x| Either::A(x.map_err(errors::on_demand_cancel)))
+					.unwrap_or_else(|| Either::B(future::err(errors::network_disabled())))
 			}
-		}).boxed()
+		}))
 	}
 
-	fn code_at(&self, address: RpcH160, num: Trailing<BlockNumber>) -> BoxFuture<Bytes, Error> {
-		future::err(errors::unimplemented(None)).boxed()
+	fn code_at(&self, _address: RpcH160, _num: Trailing<BlockNumber>) -> BoxFuture<Bytes, Error> {
+		Box::new(future::err(errors::unimplemented(None)))
 	}
 
 	fn send_raw_transaction(&self, raw: Bytes) -> Result<RpcH256, Error> {
@@ -385,45 +375,45 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 	}
 
 	fn call(&self, _meta: Self::Metadata, req: CallRequest, num: Trailing<BlockNumber>) -> BoxFuture<Bytes, Error> {
-		self.fetcher().proved_execution(req, num).and_then(|res| {
+		Box::new(self.fetcher().proved_execution(req, num).and_then(|res| {
 			match res {
 				Ok(exec) => Ok(exec.output.into()),
 				Err(e) => Err(errors::execution(e)),
 			}
-		}).boxed()
+		}))
 	}
 
 	fn estimate_gas(&self, _meta: Self::Metadata, req: CallRequest, num: Trailing<BlockNumber>) -> BoxFuture<RpcU256, Error> {
 		// TODO: binary chop for more accurate estimates.
-		self.fetcher().proved_execution(req, num).and_then(|res| {
+		Box::new(self.fetcher().proved_execution(req, num).and_then(|res| {
 			match res {
 				Ok(exec) => Ok((exec.refunded + exec.gas_used).into()),
 				Err(e) => Err(errors::execution(e)),
 			}
-		}).boxed()
+		}))
 	}
 
-	fn transaction_by_hash(&self, hash: RpcH256) -> Result<Option<Transaction>, Error> {
+	fn transaction_by_hash(&self, _hash: RpcH256) -> Result<Option<Transaction>, Error> {
 		Err(errors::unimplemented(None))
 	}
 
-	fn transaction_by_block_hash_and_index(&self, hash: RpcH256, idx: Index) -> Result<Option<Transaction>, Error> {
+	fn transaction_by_block_hash_and_index(&self, _hash: RpcH256, _idx: Index) -> Result<Option<Transaction>, Error> {
 		Err(errors::unimplemented(None))
 	}
 
-	fn transaction_by_block_number_and_index(&self, num: BlockNumber, idx: Index) -> Result<Option<Transaction>, Error> {
+	fn transaction_by_block_number_and_index(&self, _num: BlockNumber, _idx: Index) -> Result<Option<Transaction>, Error> {
 		Err(errors::unimplemented(None))
 	}
 
-	fn transaction_receipt(&self, hash: RpcH256) -> Result<Option<Receipt>, Error> {
+	fn transaction_receipt(&self, _hash: RpcH256) -> Result<Option<Receipt>, Error> {
 		Err(errors::unimplemented(None))
 	}
 
-	fn uncle_by_block_hash_and_index(&self, hash: RpcH256, idx: Index) -> Result<Option<RichBlock>, Error> {
+	fn uncle_by_block_hash_and_index(&self, _hash: RpcH256, _idx: Index) -> Result<Option<RichBlock>, Error> {
 		Err(errors::unimplemented(None))
 	}
 
-	fn uncle_by_block_number_and_index(&self, num: BlockNumber, idx: Index) -> Result<Option<RichBlock>, Error> {
+	fn uncle_by_block_number_and_index(&self, _num: BlockNumber, _idx: Index) -> Result<Option<RichBlock>, Error> {
 		Err(errors::unimplemented(None))
 	}
 
@@ -447,9 +437,8 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 	fn logs(&self, filter: Filter) -> BoxFuture<Vec<Log>, Error> {
 		let limit = filter.limit;
 
-		Filterable::logs(self, filter.into())
-			.map(move|logs| limit_logs(logs, limit))
-			.boxed()
+		Box::new(Filterable::logs(self, filter.into())
+			.map(move|logs| limit_logs(logs, limit)))
 	}
 
 	fn work(&self, _timeout: Trailing<u64>) -> Result<Work, Error> {

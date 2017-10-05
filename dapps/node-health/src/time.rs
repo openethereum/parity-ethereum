@@ -37,7 +37,7 @@ use std::collections::VecDeque;
 use std::sync::atomic::{self, AtomicUsize};
 use std::sync::Arc;
 
-use futures::{self, Future, BoxFuture};
+use futures::{self, Future};
 use futures::future::{self, IntoFuture};
 use futures_cpupool::{CpuPool, CpuFuture};
 use ntp;
@@ -195,6 +195,8 @@ const UPDATE_TIMEOUT_INCOMPLETE_SECS: u64 = 10;
 /// Maximal valid time drift.
 pub const MAX_DRIFT: i64 = 500;
 
+type BoxFuture<A, B> = Box<Future<Item = A, Error = B> + Send>;
+
 #[derive(Debug, Clone)]
 /// A time checker.
 pub struct TimeChecker<N: Ntp = SimpleNtp> {
@@ -224,7 +226,7 @@ impl<N: Ntp> TimeChecker<N> where <N::Future as IntoFuture>::Future: Send + 'sta
 	pub fn update(&self) -> BoxFuture<i64, Error> {
 		trace!(target: "dapps", "Updating time from NTP.");
 		let last_result = self.last_result.clone();
-		self.ntp.drift().into_future().then(move |res| {
+		Box::new(self.ntp.drift().into_future().then(move |res| {
 			let res = res.map(|d| d.num_milliseconds());
 
 			if let Err(Error::NoServersAvailable) = res {
@@ -255,7 +257,7 @@ impl<N: Ntp> TimeChecker<N> where <N::Future as IntoFuture>::Future: Send + 'sta
 			let res = select_result(results.iter());
 			*last_result.write() = (valid_till, results);
 			res
-		}).boxed()
+		}))
 	}
 
 	/// Returns a current time drift or error if last request to NTP server failed.
@@ -264,7 +266,7 @@ impl<N: Ntp> TimeChecker<N> where <N::Future as IntoFuture>::Future: Send + 'sta
 		{
 			let res = self.last_result.read();
 			if res.0 > time::Instant::now() {
-				return futures::done(select_result(res.1.iter())).boxed();
+				return Box::new(futures::done(select_result(res.1.iter())));
 			}
 		}
 		// or update and return result

@@ -16,8 +16,7 @@
 
 //! Parity-specific rpc interface for operations altering the settings.
 
-use jsonrpc_core::Error;
-use futures::BoxFuture;
+use jsonrpc_core::{BoxFuture, Error};
 
 use v1::types::{Bytes, H160, H256, U256, ReleaseInfo, Transaction, LocalDapp};
 
@@ -93,7 +92,7 @@ build_rpc_trait! {
 		fn set_spec_name(&self, String) -> Result<bool, Error>;
 
 		/// Hash a file content under given URL.
-		#[rpc(async, name = "parity_hashContent")]
+		#[rpc(name = "parity_hashContent")]
 		fn hash_content(&self, String) -> BoxFuture<H256, Error>;
 
 		/// Returns true if refresh successful, error if unsuccessful or server is disabled.
