@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! A provider for the LES protocol. This is typically a full node, who can
+//! A provider for the PIP protocol. This is typically a full node, who can
 //! give as much data as necessary to its peers.
 
 use std::sync::Arc;
