@@ -149,7 +149,7 @@ impl LightFetch {
 		}
 	}
 
-	/// helper for getting account info at a given block.
+	/// Helper for getting account info at a given block.
 	/// `None` indicates the account doesn't exist at the given block.
 	pub fn account(&self, address: Address, id: BlockId) -> BoxFuture<Option<BasicAccount>, Error> {
 		let mut reqs = Vec::new();
@@ -176,7 +176,7 @@ impl LightFetch {
 		}
 	}
 
-	/// helper for getting proved execution.
+	/// Helper for getting proved execution.
 	pub fn proved_execution(&self, req: CallRequest, num: Trailing<BlockNumber>) -> BoxFuture<ExecutionResult, Error> {
 		const DEFAULT_GAS_PRICE: u64 = 21_000;
 		// starting gas when gas not provided.
@@ -253,7 +253,7 @@ impl LightFetch {
 		}))
 	}
 
-	/// get a block itself. fails on unknown block ID.
+	/// Get a block itself. Fails on unknown block ID.
 	pub fn block(&self, id: BlockId) -> BoxFuture<encoded::Block, Error> {
 		let mut reqs = Vec::new();
 		let header_ref = match self.make_header_requests(id, &mut reqs) {
@@ -279,7 +279,7 @@ impl LightFetch {
 		}
 	}
 
-	/// get the block receipts. fails on unknown block ID.
+	/// Get the block receipts. Fails on unknown block ID.
 	pub fn receipts(&self, id: BlockId) -> BoxFuture<Vec<Receipt>, Error> {
 		let mut reqs = Vec::new();
 		let header_ref = match self.make_header_requests(id, &mut reqs) {
@@ -305,7 +305,7 @@ impl LightFetch {
 		}
 	}
 
-	/// get transaction logs
+	/// Get transaction logs
 	pub fn logs(&self, filter: EthcoreFilter) -> BoxFuture<Vec<Log>, Error> {
 		use std::collections::BTreeMap;
 		use jsonrpc_core::futures::stream::{self, Stream};
@@ -361,8 +361,8 @@ impl LightFetch {
 		}
 	}
 
-	// get a transaction by hash. also returns the index in the block.
-	// only returns transactions in the canonical chain.
+	// Get a transaction by hash. also returns the index in the block.
+	// Only returns transactions in the canonical chain.
 	pub fn transaction_by_hash(&self, tx_hash: H256, eip86_transition: u64)
 		-> BoxFuture<Option<(Transaction, usize)>, Error>
 	{
