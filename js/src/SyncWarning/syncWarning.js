@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component } from 'react';
+import React from 'react';
 import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
 
@@ -22,47 +22,38 @@ import StatusIndicator from '@parity/ui/StatusIndicator';
 
 import styles from './syncWarning.css';
 
-class SyncWarning extends Component {
-  static propTypes = {
-    className: PropTypes.string,
-    isOk: PropTypes.bool.isRequired,
-    health: PropTypes.object.isRequired
-  };
+function SyncWarning ({ className, isOk, health }) {
+  console.log('SyncWarning', isOk, health);
 
-  render () {
-    const { className, isOk, health } = this.props;
-
-    if (isOk) {
-      return null;
-    }
-
-    return (
-      <div className={ className }>
-        <div className={ styles.body }>
-          <div className={ styles.status }>
-            <StatusIndicator
-              type='signal'
-              id='healthWarning.indicator'
-              status={ health.overall.status }
-            />
-          </div>
-          {
-            health.overall.message.map((message) => (
-              <p key={ message }>
-                { message }
-              </p>
-            ))
-          }
-        </div>
-      </div>
-    );
+  if (isOk) {
+    return null;
   }
+
+  return (
+    <div className={ className }>
+      <div className={ styles.body }>
+        {
+          health.overall.message.map((message) => (
+            <p key={ message }>
+              { message }
+            </p>
+          ))
+        }
+      </div>
+    </div>
+  );
 }
+
+SyncWarning.propTypes = {
+  className: PropTypes.string,
+  isOk: PropTypes.bool.isRequired,
+  health: PropTypes.object.isRequired
+};
 
 function mapStateToProps (state) {
   const { health } = state.nodeStatus;
   const isNotAvailableYet = health.overall.isNotReady;
-  const isOk = isNotAvailableYet || health.overall.status === 'ok';
+  const isOk = !isNotAvailableYet && health.overall.status === 'ok';
 
   return {
     isOk,

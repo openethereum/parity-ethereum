@@ -44,7 +44,7 @@ function Status ({ className = '', upgradeStore }, { api }) {
   const accountStore = AccountStore.get(api);
 
   return (
-    <GradientBg className={ className }>
+    <GradientBg className={ `${styles.container} ${className}` }>
       <div className={ styles.status }>
         <ClientVersion className={ styles.version } />
         <div className={ styles.upgrade }>
@@ -94,8 +94,8 @@ function Status ({ className = '', upgradeStore }, { api }) {
           />
           <NetChain className={ styles.chain } />
         </div>
-        <SyncWarning className={ styles.warning } />
       </div>
+      <SyncWarning className={ styles.warning } />
     </GradientBg>
   );
 }

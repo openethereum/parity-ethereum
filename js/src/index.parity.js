@@ -57,6 +57,8 @@ if (window.location.hash && window.location.hash.indexOf(AUTH_HASH) === 0) {
 
 const api = new SecureApi(window.location.host, token);
 
+api.parity.registryAddress().then((address) => console.log('registryAddress', address)).catch((error) => console.error('registryAddress', error));
+
 ContractInstances.get(api);
 
 setupProviderFilters(api.provider);
