@@ -16,12 +16,15 @@
 
 import React from 'react';
 import PropTypes from 'prop-types';
-import { connect } from 'react-redux';
+import { observer } from 'mobx-react';
+
+import StatusIndicator from '@parity/ui/StatusIndicator';
 
 import styles from './syncWarning.css';
 
-function SyncWarning ({ className, isOk, health }) {
-  console.log('SyncWarning', isOk, health);
+function SyncWarning ({ className }, { api }) {
+  const statusStore = StatusIndicator.Store.get(api);
+  const isOk = !statusStore.health.overall || (!statusStore.health.overall.isNotReadyYet && statusStore.health.overall.status === 'ok');
 
   if (isOk) {
     return null;
@@ -31,7 +34,7 @@ function SyncWarning ({ className, isOk, health }) {
     <div className={ className }>
       <div className={ styles.body }>
         {
-          health.overall.message.map((message) => (
+          statusStore.health.overall.message.map((message) => (
             <p key={ message }>
               { message }
             </p>
@@ -42,24 +45,12 @@ function SyncWarning ({ className, isOk, health }) {
   );
 }
 
-SyncWarning.propTypes = {
-  className: PropTypes.string,
-  isOk: PropTypes.bool.isRequired,
-  health: PropTypes.object.isRequired
+SyncWarning.contextTypes = {
+  api: PropTypes.object
 };
 
-function mapStateToProps (state) {
-  const { health } = state.nodeStatus;
-  const isNotAvailableYet = health.overall.isNotReady;
-  const isOk = !isNotAvailableYet && health.overall.status === 'ok';
+SyncWarning.propTypes = {
+  className: PropTypes.string
+};
 
-  return {
-    isOk,
-    health
-  };
-}
-
-export default connect(
-  mapStateToProps,
-  null
-)(SyncWarning);
+export default observer(SyncWarning);
