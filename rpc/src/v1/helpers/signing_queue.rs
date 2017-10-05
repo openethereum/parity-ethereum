@@ -14,17 +14,16 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::mem;
-use std::cell::RefCell;
-use std::sync::Arc;
 use std::collections::BTreeMap;
 use jsonrpc_core;
 use bigint::prelude::U256;
 use util::Address;
 use parking_lot::{Mutex, RwLock};
 use ethcore::account_provider::DappId;
-use v1::helpers::{ConfirmationRequest, ConfirmationPayload};
+use v1::helpers::{ConfirmationRequest, ConfirmationPayload, oneshot};
 use v1::types::{ConfirmationResponse, H160 as RpcH160, Origin, DappId as RpcDappId};
+
+use jsonrpc_core::futures::{Future, Poll};
 
 /// Result that can be returned from JSON RPC.
 pub type RpcResult = Result<ConfirmationResponse, jsonrpc_core::Error>;
@@ -75,7 +74,7 @@ pub const QUEUE_LIMIT: usize = 50;
 pub trait SigningQueue: Send + Sync {
 	/// Add new request to the queue.
 	/// Returns a `ConfirmationPromise` that can be used to await for resolution of given request.
-	fn add_request(&self, request: ConfirmationPayload, origin: Origin) -> Result<ConfirmationPromise, QueueAddError>;
+	fn add_request(&self, request: ConfirmationPayload, origin: Origin) -> Result<ConfirmationReceiver, QueueAddError>;
 
 	/// Removes a request from the queue.
 	/// Notifies possible token holders that request was rejected.
@@ -101,85 +100,42 @@ pub trait SigningQueue: Send + Sync {
 #[derive(Debug, Clone, PartialEq)]
 /// Result of a pending confirmation request.
 pub enum ConfirmationResult {
-	/// The request has not yet been confirmed nor rejected.
-	Waiting,
 	/// The request has been rejected.
 	Rejected,
 	/// The request has been confirmed.
 	Confirmed(RpcResult),
 }
 
-type Listener = Box<FnMut(Option<RpcResult>) + Send>;
-
-/// A handle to submitted request.
-/// Allows to block and wait for a resolution of that request.
-pub struct ConfirmationToken {
-	result: Arc<Mutex<ConfirmationResult>>,
-	listeners: Arc<Mutex<Vec<Listener>>>,
+pub struct ConfirmationSender {
+	sender: oneshot::Sender<ConfirmationResult>,
 	request: ConfirmationRequest,
 }
 
-pub struct ConfirmationPromise {
+pub struct ConfirmationReceiver {
 	id: U256,
-	result: Arc<Mutex<ConfirmationResult>>,
-	listeners: Arc<Mutex<Vec<Listener>>>,
+	receiver: oneshot::Receiver<ConfirmationResult>,
 }
 
-impl ConfirmationToken {
-	/// Submit solution to all listeners
-	fn resolve(&self, result: Option<RpcResult>) {
-		let wrapped = result.clone().map_or(ConfirmationResult::Rejected, |h| ConfirmationResult::Confirmed(h));
-		{
-			let mut res = self.result.lock();
-			*res = wrapped.clone();
-		}
-		// Notify listener
-		let listeners = {
-			let mut listeners = self.listeners.lock();
-			mem::replace(&mut *listeners, Vec::new())
-		};
-		for mut listener in listeners {
-			listener(result.clone());
-		}
-	}
-
-	fn as_promise(&self) -> ConfirmationPromise {
-		ConfirmationPromise {
-			id: self.request.id,
-			result: self.result.clone(),
-			listeners: self.listeners.clone(),
-		}
+impl ConfirmationReceiver {
+	pub fn id(&self) -> U256 {
+		self.id
 	}
 }
 
-impl ConfirmationPromise {
-	/// Get the ID for this request.
-	pub fn id(&self) -> U256 { self.id }
+impl Future for ConfirmationReceiver {
+	type Item=ConfirmationResult;
+	type Error=jsonrpc_core::Error;
 
-	/// Just get the result, assuming it exists.
-	pub fn result(&self) -> ConfirmationResult {
-		self.result.lock().clone()
-	}
-
-	pub fn wait_for_result<F>(self, callback: F) where F: FnOnce(Option<RpcResult>) + Send + 'static {
-		trace!(target: "own_tx", "Signer: Awaiting confirmation... ({:?}).", self.id);
-		let _result = self.result.lock();
-		let mut listeners = self.listeners.lock();
-		// TODO [todr] Overcoming FnBox unstability
-		let callback = RefCell::new(Some(callback));
-		listeners.push(Box::new(move |result| {
-			let ref mut f = *callback.borrow_mut();
-			f.take().expect("Callbacks are called only once.")(result)
-		}));
+	fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+		self.receiver.poll()
 	}
 }
-
 
 /// Queue for all unconfirmed requests.
 #[derive(Default)]
 pub struct ConfirmationsQueue {
 	id: Mutex<U256>,
-	queue: RwLock<BTreeMap<U256, ConfirmationToken>>,
+	queue: RwLock<BTreeMap<U256, ConfirmationSender>>,
 	on_event: RwLock<Vec<Box<Fn(QueueEvent) -> () + Send + Sync>>>,
 }
 
@@ -206,20 +162,23 @@ impl ConfirmationsQueue {
 	/// Removes requests from this queue and notifies `ConfirmationPromise` holders about the result.
 	/// Notifies also a receiver about that event.
 	fn remove(&self, id: U256, result: Option<RpcResult>) -> Option<ConfirmationRequest> {
-		let token = self.queue.write().remove(&id);
+		let sender = self.queue.write().remove(&id);
 
-		if let Some(token) = token {
+		if let Some(sender) = sender {
 			// notify receiver about the event
 			self.notify(result.clone().map_or_else(
 				|| QueueEvent::RequestRejected(id),
 				|_| QueueEvent::RequestConfirmed(id)
 			));
-			// notify token holders about resolution
-			token.resolve(result);
-			// return a result
-			return Some(token.request.clone());
+
+			// notify confirmation receivers about resolution
+			let confirmation = result.clone().map_or(ConfirmationResult::Rejected, |h| ConfirmationResult::Confirmed(h));
+			sender.sender.send(Ok(confirmation));
+
+			Some(sender.request.clone())
+		} else {
+			None
 		}
-		None
 	}
 }
 
@@ -230,7 +189,7 @@ impl Drop for ConfirmationsQueue {
 }
 
 impl SigningQueue for ConfirmationsQueue {
-	fn add_request(&self, request: ConfirmationPayload, origin: Origin) -> Result<ConfirmationPromise, QueueAddError> {
+	fn add_request(&self, request: ConfirmationPayload, origin: Origin) -> Result<ConfirmationReceiver, QueueAddError> {
 		if self.len() > QUEUE_LIMIT {
 			return Err(QueueAddError::LimitReached);
 		}
@@ -247,16 +206,20 @@ impl SigningQueue for ConfirmationsQueue {
 			trace!(target: "own_tx", "Signer: ({:?}) : {:?}", id, request);
 
 			let mut queue = self.queue.write();
-			queue.insert(id, ConfirmationToken {
-				result: Arc::new(Mutex::new(ConfirmationResult::Waiting)),
-				listeners: Default::default(),
+			let (sender, receiver) = oneshot::oneshot::<ConfirmationResult>();
+
+			queue.insert(id, ConfirmationSender {
+				sender: sender,
 				request: ConfirmationRequest {
 					id: id,
 					payload: request,
 					origin: origin,
 				},
 			});
-			queue.get(&id).map(|token| token.as_promise()).expect("Token was just inserted.")
+			ConfirmationReceiver {
+				id: id,
+				receiver: receiver,
+			}
 		};
 		// Notify listeners
 		self.notify(QueueEvent::NewRequest(id));
@@ -264,7 +227,7 @@ impl SigningQueue for ConfirmationsQueue {
 	}
 
 	fn peek(&self, id: &U256) -> Option<ConfirmationRequest> {
-		self.queue.read().get(id).map(|token| token.request.clone())
+		self.queue.read().get(id).map(|sender| sender.request.clone())
 	}
 
 	fn request_rejected(&self, id: U256) -> Option<ConfirmationRequest> {
@@ -279,7 +242,7 @@ impl SigningQueue for ConfirmationsQueue {
 
 	fn requests(&self) -> Vec<ConfirmationRequest> {
 		let queue = self.queue.read();
-		queue.values().map(|token| token.request.clone()).collect()
+		queue.values().map(|sender| sender.request.clone()).collect()
 	}
 
 	fn len(&self) -> usize {
@@ -298,11 +261,13 @@ impl SigningQueue for ConfirmationsQueue {
 mod test {
 	use std::time::Duration;
 	use std::thread;
-	use std::sync::{mpsc, Arc};
+	use std::sync::Arc;
+	use std::ops::Deref;
 	use bigint::prelude::U256;
 	use util::Address;
 	use parking_lot::Mutex;
-	use v1::helpers::{SigningQueue, ConfirmationsQueue, QueueEvent, FilledTransactionRequest, ConfirmationPayload};
+	use jsonrpc_core::futures::Future;
+	use v1::helpers::{SigningQueue, ConfirmationsQueue, QueueEvent, FilledTransactionRequest, ConfirmationResult, ConfirmationPayload};
 	use v1::types::ConfirmationResponse;
 
 	fn request() -> ConfirmationPayload {
@@ -329,11 +294,7 @@ mod test {
 		let q = queue.clone();
 		let handle = thread::spawn(move || {
 			let v = q.add_request(request, Default::default()).unwrap();
-			let (tx, rx) = mpsc::channel();
-			v.wait_for_result(move |res| {
-				tx.send(res).unwrap();
-			});
-			rx.recv().unwrap().expect("Should return hash")
+			v.wait().expect("Confirmation should be passed through the channel")
 		});
 
 		let id = U256::from(1);
@@ -344,7 +305,8 @@ mod test {
 		queue.request_confirmed(id, Ok(ConfirmationResponse::SendTransaction(1.into())));
 
 		// then
-		assert_eq!(handle.join().expect("Thread should finish nicely"), Ok(ConfirmationResponse::SendTransaction(1.into())));
+		let confirmation = handle.join().expect("Thread should finish nicely");
+		assert_eq!(confirmation, ConfirmationResult::Confirmed(Ok(ConfirmationResponse::SendTransaction(1.into()))));
 	}
 
 	#[test]

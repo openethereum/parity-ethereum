@@ -23,13 +23,13 @@ use parking_lot::Mutex;
 
 use ethcore::account_provider::AccountProvider;
 
-use jsonrpc_core::{BoxFuture, Error};
-use jsonrpc_core::futures::{future, Future};
+use jsonrpc_core::Error;
+use jsonrpc_core::futures::{future, BoxFuture, Future, Async};
 use jsonrpc_core::futures::future::Either;
 use v1::helpers::{
 	errors, oneshot,
 	DefaultAccount,
-	SIGNING_QUEUE_LIMIT, SigningQueue, ConfirmationPromise, ConfirmationResult, SignerService,
+	SIGNING_QUEUE_LIMIT, SigningQueue, ConfirmationReceiver, ConfirmationResult, SignerService,
 };
 use v1::helpers::dispatch::{self, Dispatcher};
 use v1::helpers::accounts::unwrap_provider;
@@ -51,7 +51,7 @@ const MAX_PENDING_DURATION_SEC: u32 = 60;
 const MAX_TOTAL_REQUESTS: usize = SIGNING_QUEUE_LIMIT;
 
 enum DispatchResult {
-	Promise(ConfirmationPromise),
+	Future(ConfirmationReceiver),
 	Value(RpcConfirmationResponse),
 }
 
@@ -60,7 +60,7 @@ pub struct SigningQueueClient<D> {
 	signer: Arc<SignerService>,
 	accounts: Option<Arc<AccountProvider>>,
 	dispatcher: D,
-	pending: Arc<Mutex<TransientHashMap<U256, ConfirmationPromise>>>,
+	pending: Arc<Mutex<TransientHashMap<U256, ConfirmationReceiver>>>,
 }
 
 fn handle_dispatch<OnResponse>(res: Result<DispatchResult, Error>, on_response: OnResponse)
@@ -68,27 +68,24 @@ fn handle_dispatch<OnResponse>(res: Result<DispatchResult, Error>, on_response: 
 {
 	match res {
 		Ok(DispatchResult::Value(result)) => on_response(Ok(result)),
-		Ok(DispatchResult::Promise(promise)) => {
-			promise.wait_for_result(move |result| {
-				on_response(result.unwrap_or_else(|| Err(errors::request_rejected())))
-			})
-		},
+		Ok(DispatchResult::Future(future)) => {
+			future.and_then(move |result| {
+				let result = match result {
+					ConfirmationResult::Confirmed(rpc_result) => rpc_result,
+					ConfirmationResult::Rejected => Err(errors::request_rejected())
+				};
+				on_response(result);
+				future::ok(())
+			}).wait().unwrap_or_else(|err| debug!("Waiting for the confirmation message failed: {:?}", err));
+		}
 		Err(e) => on_response(Err(e)),
 	}
 }
 
-fn collect_garbage(map: &mut TransientHashMap<U256, ConfirmationPromise>) {
+fn collect_garbage(map: &mut TransientHashMap<U256, ConfirmationReceiver>) {
 	map.prune();
 	if map.len() > MAX_TOTAL_REQUESTS {
-		// Remove all non-waiting entries.
-		let non_waiting: Vec<_> = map
-			.iter()
-			.filter(|&(_, val)| val.result() != ConfirmationResult::Waiting)
-			.map(|(key, _)| *key)
-			.collect();
-		for k in non_waiting {
-			map.remove(&k);
-		}
+		map.retain(|_, ref mut val| val.poll().map(|async| async.is_not_ready()).unwrap_or(false));
 	}
 }
 
@@ -126,7 +123,7 @@ impl<D: Dispatcher + 'static> SigningQueueClient<D> {
 				} else {
 					Either::B(future::done(
 						signer.add_request(payload, origin)
-							.map(DispatchResult::Promise)
+							.map(DispatchResult::Future)
 							.map_err(|_| errors::request_rejected_limit())
 					))
 				}
@@ -151,11 +148,11 @@ impl<D: Dispatcher + 'static> ParitySigning for SigningQueueClient<D> {
 			meta.origin
 		).map(move |result| match result {
 			DispatchResult::Value(v) => RpcEither::Or(v),
-			DispatchResult::Promise(promise) => {
-				let id = promise.id();
+			DispatchResult::Future(future) => {
+				let id = future.id();
 				let mut pending = pending.lock();
 				collect_garbage(&mut pending);
-				pending.insert(id, promise);
+				pending.insert(id, future);
 
 				RpcEither::Either(id.into())
 			},
@@ -167,11 +164,11 @@ impl<D: Dispatcher + 'static> ParitySigning for SigningQueueClient<D> {
 		Box::new(self.dispatch(RpcConfirmationPayload::SendTransaction(request), meta.dapp_id().into(), meta.origin)
 			.map(move |result| match result {
 				DispatchResult::Value(v) => RpcEither::Or(v),
-				DispatchResult::Promise(promise) => {
-					let id = promise.id();
+				DispatchResult::Future(future) => {
+					let id = future.id();
 					let mut pending = pending.lock();
 					collect_garbage(&mut pending);
-					pending.insert(id, promise);
+					pending.insert(id, future);
 
 					RpcEither::Either(id.into())
 				},
@@ -180,11 +177,16 @@ impl<D: Dispatcher + 'static> ParitySigning for SigningQueueClient<D> {
 
 	fn check_request(&self, id: RpcU256) -> Result<Option<RpcConfirmationResponse>, Error> {
 		let id: U256 = id.into();
-		match self.pending.lock().get(&id) {
-			Some(ref promise) => match promise.result() {
-				ConfirmationResult::Waiting => Ok(None),
-				ConfirmationResult::Rejected => Err(errors::request_rejected()),
-				ConfirmationResult::Confirmed(rpc_response) => rpc_response.map(Some),
+		match self.pending.lock().get_mut(&id) {
+			Some(ref mut future) => match future.poll() {
+				Ok(Async::NotReady) => Ok(None),
+				Ok(Async::Ready(status)) => { 
+					match status {
+						ConfirmationResult::Rejected => Err(errors::request_rejected()),
+						ConfirmationResult::Confirmed(rpc_response) => rpc_response.clone().map(Some),
+					}
+				},
+				Err(error) => Err(error)
 			},
 			_ => Err(errors::request_not_found()),
 		}
