@@ -47,6 +47,8 @@ use key_server_cluster::admin_sessions::ShareChangeSessionMeta;
 /// This timeout is for cases when node is responding to KeepAlive messages, but intentionally ignores
 /// session messages.
 const SESSION_TIMEOUT_INTERVAL: u64 = 60;
+/// Interval to send session-level KeepAlive-messages.
+const SESSION_KEEP_ALIVE_INTERVAL: u64 = 30;
 
 lazy_static! {
 	/// Servers set change session id (there could be at most 1 session => hardcoded id).
@@ -129,6 +131,8 @@ pub struct QueuedSession<V, M> {
 	pub master: NodeId,
 	/// Cluster view.
 	pub cluster_view: Arc<Cluster>,
+	/// Last keep alive time.
+	pub last_keep_alive_time: time::Instant,
 	/// Last received message time.
 	pub last_message_time: time::Instant,
 	/// Generation session.
@@ -222,6 +226,18 @@ impl ClusterSessions {
 	#[cfg(test)]
 	pub fn make_faulty_generation_sessions(&self) {
 		self.make_faulty_generation_sessions.store(true, Ordering::Relaxed);
+	}
+
+	/// Send session-level keep-alive messages.
+	pub fn sessions_keep_alive(&self) {
+		self.admin_sessions.send_keep_alive(&*SERVERS_SET_CHANGE_SESSION_ID, &self.self_node_id);
+	}
+
+	/// When session-level keep-alive response is received.
+	pub fn on_session_keep_alive(&self, sender: &NodeId, session_id: SessionId) {
+		if session_id == *SERVERS_SET_CHANGE_SESSION_ID {
+			self.admin_sessions.on_keep_alive(&session_id, sender);
+		}
 	}
 
 	/// Create new generation session.
@@ -514,9 +530,6 @@ impl ClusterSessions {
 		self.encryption_sessions.stop_stalled_sessions();
 		self.decryption_sessions.stop_stalled_sessions();
 		self.signing_sessions.stop_stalled_sessions();
-		// TODO: servers set change session could take a lot of time
-		// && during that session some nodes could not receive messages
-		// => they could stop session as stalled. This must be handled
 		self.admin_sessions.stop_stalled_sessions();
 	}
 
@@ -571,8 +584,15 @@ impl<K, V, M> ClusterSessionsContainer<K, V, M> where K: Clone + Ord, V: Cluster
 		self.sessions.read().is_empty()
 	}
 
-	pub fn get(&self, session_id: &K) -> Option<Arc<V>> {
-		self.sessions.read().get(session_id).map(|s| s.session.clone())
+	pub fn get(&self, session_id: &K, update_last_message_time: bool) -> Option<Arc<V>> {
+		let mut sessions = self.sessions.write();
+		sessions.get_mut(session_id)
+			.map(|s| {
+				if update_last_message_time {
+					s.last_message_time = time::Instant::now();
+				}
+				s.session.clone()
+			})
 	}
 
 	pub fn insert<F: FnOnce() -> Result<V, Error>>(&self, master: NodeId, session_id: K, cluster: Arc<Cluster>, is_exclusive_session: bool, session: F) -> Result<Arc<V>, Error> {
@@ -590,6 +610,7 @@ impl<K, V, M> ClusterSessionsContainer<K, V, M> where K: Clone + Ord, V: Cluster
 		let queued_session = QueuedSession {
 			master: master,
 			cluster_view: cluster,
+			last_keep_alive_time: time::Instant::now(),
 			last_message_time: time::Instant::now(),
 			session: session.clone(),
 			queue: VecDeque::new(),
@@ -644,6 +665,33 @@ impl<K, V, M> ClusterSessionsContainer<K, V, M> where K: Clone + Ord, V: Cluster
 			};
 			if remove_session {
 				sessions.remove(&sid);
+			}
+		}
+	}
+}
+
+impl<K, V, M> ClusterSessionsContainer<K, V, M> where K: Clone + Ord, V: ClusterSession, SessionId: From<K> {
+	pub fn send_keep_alive(&self, session_id: &K, self_node_id: &NodeId) {
+		if let Some(session) = self.sessions.write().get_mut(session_id) {
+			let now = time::Instant::now();
+			if self_node_id == &session.master && now - session.last_keep_alive_time > time::Duration::from_secs(SESSION_KEEP_ALIVE_INTERVAL) {
+				session.last_keep_alive_time = now;
+				// since we send KeepAlive message to prevent nodes from disconnecting
+				// && worst thing that can happen if node is disconnected is that session is failed
+				// => ignore error here, because probably this node is not need for the rest of the session at all
+				let _ = session.cluster_view.broadcast(Message::Cluster(message::ClusterMessage::KeepAliveResponse(message::KeepAliveResponse {
+					session_id: Some(session_id.clone().into()),
+				})));
+			}
+		}
+	}
+
+	pub fn on_keep_alive(&self, session_id: &K, sender: &NodeId) {
+		if let Some(session) = self.sessions.write().get_mut(session_id) {
+			let now = time::Instant::now();
+			// we only accept keep alive from master node of ServersSetChange session
+			if sender == &session.master {
+				session.last_keep_alive_time = now;
 			}
 		}
 	}
