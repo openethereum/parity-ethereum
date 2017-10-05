@@ -1,3 +1,11 @@
+## Parity [v1.7.3](https://github.com/paritytech/parity/releases/tag/v1.7.3) (2017-10-06)
+
+- Tweaked block download timeouts ([#6595](https://github.com/paritytech/parity/pull/6595))
+- Backports ([#6563](https://github.com/paritytech/parity/pull/6563))
+  - Sync progress and error handling fixes ([#6560](https://github.com/paritytech/parity/pull/6560))
+  - Fixed receipt serialization and RPC ([#6555](https://github.com/paritytech/parity/pull/6555))
+- Bump to v1.7.3
+
 ## Parity [v1.7.2](https://github.com/paritytech/parity/releases/tag/v1.7.2) (2017-09-18)
 
 Parity 1.7.2 is a bug-fix release to improve performance and stability. Among others, it addresses the following:
