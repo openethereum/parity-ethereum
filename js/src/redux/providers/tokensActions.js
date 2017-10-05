@@ -155,7 +155,7 @@ export function loadTokensBasics (_tokenIndexes, options) {
   };
 }
 
-export function fetchTokens (_tokenIndexes, options = {}) {
+export function fetchTokens (_tokenIndexes) {
   const tokenIndexes = uniq(_tokenIndexes || []);
   const tokenChunks = chunk(tokenIndexes, 64);
 

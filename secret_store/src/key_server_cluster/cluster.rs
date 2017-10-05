@@ -57,7 +57,7 @@ const KEEP_ALIVE_SEND_INTERVAL: u64 = 30;
 const KEEP_ALIVE_DISCONNECT_INTERVAL: u64 = 60;
 
 /// Empty future.
-type BoxedEmptyFuture = ::std::boxed::Box<Future<Item = (), Error = ()> + Send>;
+type BoxedEmptyFuture = Box<Future<Item = (), Error = ()> + Send>;
 
 /// Cluster interface for external clients.
 pub trait ClusterClient: Send + Sync {

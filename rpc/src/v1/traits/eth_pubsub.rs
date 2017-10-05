@@ -20,7 +20,6 @@ use jsonrpc_core::Error;
 use jsonrpc_macros::Trailing;
 use jsonrpc_macros::pubsub::Subscriber;
 use jsonrpc_pubsub::SubscriptionId;
-use futures::BoxFuture;
 
 use v1::types::pubsub;
 
@@ -36,7 +35,7 @@ build_rpc_trait! {
 
 			/// Unsubscribe from existing Eth subscription.
 			#[rpc(name = "eth_unsubscribe")]
-			fn unsubscribe(&self, SubscriptionId) -> BoxFuture<bool, Error>;
+			fn unsubscribe(&self, SubscriptionId) -> Result<bool, Error>;
 		}
 	}
 }

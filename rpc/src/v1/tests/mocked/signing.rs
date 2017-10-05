@@ -20,6 +20,7 @@ use std::time::Duration;
 use rlp;
 
 use jsonrpc_core::{IoHandler, Success};
+use jsonrpc_core::futures::Future;
 use v1::impls::SigningQueueClient;
 use v1::metadata::Metadata;
 use v1::traits::{EthSigning, ParitySigning, Parity};
@@ -36,7 +37,6 @@ use ethcore::account_provider::AccountProvider;
 use ethcore::client::TestBlockChainClient;
 use ethcore::transaction::{Transaction, Action, SignedTransaction};
 use ethstore::ethkey::{Generator, Random};
-use futures::Future;
 use serde_json;
 
 struct SigningTester {

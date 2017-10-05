@@ -23,6 +23,7 @@ import { connect } from 'react-redux';
 
 import { TypedInput, InputAddress } from '../Form';
 import MethodDecodingStore from './methodDecodingStore';
+import TokenValue from './tokenValue';
 
 import styles from './methodDecoding.css';
 
@@ -602,9 +603,10 @@ class MethodDecoding extends Component {
     const { token } = this.props;
 
     return (
-      <span className={ styles.tokenValue }>
-        { value.div(token.format).toFormat(5) }<small> { token.tag }</small>
-      </span>
+      <TokenValue
+        id={ token.id }
+        value={ value }
+      />
     );
   }
 

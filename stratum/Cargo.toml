@@ -11,19 +11,17 @@ ethcore-ipc-codegen = { path = "../ipc/codegen" }
 
 [dependencies]
 log = "0.3"
-jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
-jsonrpc-macros = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
-jsonrpc-tcp-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
+jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.8" }
+jsonrpc-macros = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.8" }
+jsonrpc-tcp-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.8" }
 ethcore-util = { path = "../util" }
 ethcore-bigint = { path = "../util/bigint" }
 ethcore-devtools = { path = "../devtools" }
-lazy_static = "0.2"
 env_logger = "0.4"
 ethcore-ipc = { path = "../ipc/rpc" }
-semver = "0.6"
 ethcore-ipc-nano = { path = "../ipc/nano" }
-futures = "0.1"
 tokio-core = "0.1"
+tokio-io = "0.1"
 parking_lot = "0.4"
 ethcore-logger = { path = "../logger" }
 hash = { path = "../util/hash" }

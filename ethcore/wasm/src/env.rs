@@ -33,6 +33,11 @@ pub const SIGNATURES: &'static [UserFunctionDescriptor] = &[
 		Some(I32),
 	),
 	Static(
+		"_balance",
+		&[I32; 2],
+		None,
+	),
+	Static(
 		"_malloc",
 		&[I32],
 		Some(I32),

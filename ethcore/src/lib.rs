@@ -71,15 +71,12 @@
 //!   cargo build --release
 //!   ```
 
-extern crate bit_set;
 extern crate bloomchain;
 extern crate bn;
 extern crate byteorder;
 extern crate crossbeam;
 extern crate common_types as types;
 extern crate crypto;
-extern crate env_logger;
-extern crate ethabi;
 extern crate ethash;
 extern crate ethcore_bloom_journal as bloom_journal;
 extern crate ethcore_devtools as devtools;
@@ -119,7 +116,6 @@ extern crate unexpected;
 #[macro_use]
 extern crate rlp_derive;
 extern crate rustc_hex;
-extern crate semver;
 extern crate stats;
 extern crate time;
 extern crate transient_hashmap;
