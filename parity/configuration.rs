@@ -141,15 +141,10 @@ impl Configuration {
 		}
 		let warp_sync = !self.args.flag_no_warp && fat_db != Switch::On && tracing != Switch::On && pruning != Pruning::Specific(Algorithm::Archive);
 		let geth_compatibility = self.args.flag_geth;
-		let mut dapps_conf = self.dapps_config();
+		let dapps_conf = self.dapps_config();
 		let ipfs_conf = self.ipfs_config();
 		let secretstore_conf = self.secretstore_config()?;
 		let format = self.format()?;
-
-		if self.args.arg_jsonrpc_server_threads.is_some() && dapps_conf.enabled {
-			dapps_conf.enabled = false;
-			writeln!(&mut stderr(), "Warning: Disabling Dapps server because fast RPC server was enabled.").expect("Error writing to stderr.");
-		}
 
 		let cmd = if self.args.flag_version {
 			Cmd::Version
@@ -626,6 +621,7 @@ impl Configuration {
 			http_interface: self.secretstore_http_interface(),
 			http_port: self.args.arg_ports_shift + self.args.arg_secretstore_http_port,
 			data_path: self.directories().secretstore,
+			admin_public: self.secretstore_admin_public()?,
 		})
 	}
 
@@ -866,9 +862,8 @@ impl Configuration {
 			hosts: self.rpc_hosts(),
 			cors: self.rpc_cors(),
 			server_threads: match self.args.arg_jsonrpc_server_threads {
-				Some(threads) if threads > 0 => Some(threads),
-				None => None,
-				_ => return Err("--jsonrpc-server-threads number needs to be positive.".into()),
+				Some(threads) if threads > 0 => threads,
+				_ => 1,
 			},
 			processing_threads: self.args.arg_jsonrpc_threads,
 		};
@@ -1033,6 +1028,13 @@ impl Configuration {
 			Some(ref s) if s.len() == 40 => Ok(Some(NodeSecretKey::KeyStore(s.parse()
 				.map_err(|e| format!("Invalid secret store secret address: {}. Error: {:?}", s, e))?))),
 			Some(_) => Err(format!("Invalid secret store secret. Must be either existing account address, or hex-encoded private key")),
+			None => Ok(None),
+		}
+	}
+
+	fn secretstore_admin_public(&self) -> Result<Option<Public>, String> {
+		match self.args.arg_secretstore_admin_public.as_ref() {
+			Some(admin_public) => Ok(Some(admin_public.parse().map_err(|e| format!("Invalid secret store admin public: {}", e))?)),
 			None => Ok(None),
 		}
 	}

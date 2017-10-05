@@ -26,20 +26,21 @@ use bigint::prelude::U256;
 use bigint::hash::H256;
 use key_server_cluster::Error;
 use key_server_cluster::message::{Message, ClusterMessage, GenerationMessage, EncryptionMessage,
-	DecryptionMessage, SigningMessage};
+	DecryptionMessage, SigningMessage, ServersSetChangeMessage, ShareAddMessage, ShareMoveMessage,
+	ShareRemoveMessage};
 
 /// Size of serialized header.
-pub const MESSAGE_HEADER_SIZE: usize = 4;
+pub const MESSAGE_HEADER_SIZE: usize = 18;
 /// Current header version.
-pub const CURRENT_HEADER_VERSION: u8 = 1;
+pub const CURRENT_HEADER_VERSION: u64 = 1;
 
 /// Message header.
 #[derive(Debug, PartialEq)]
 pub struct MessageHeader {
 	/// Message/Header version.
-	pub version: u8,
+	pub version: u64,
 	/// Message kind.
-	pub kind: u8,
+	pub kind: u64,
 	/// Message payload size (without header).
 	pub size: u16,
 }
@@ -94,6 +95,45 @@ pub fn serialize_message(message: Message) -> Result<SerializedMessage, Error> {
 		Message::Signing(SigningMessage::PartialSignature(payload))							=> (203, serde_json::to_vec(&payload)),
 		Message::Signing(SigningMessage::SigningSessionError(payload))						=> (204, serde_json::to_vec(&payload)),
 		Message::Signing(SigningMessage::SigningSessionCompleted(payload))					=> (205, serde_json::to_vec(&payload)),
+
+		Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeConsensusMessage(payload))
+																							=> (250, serde_json::to_vec(&payload)),
+		Message::ServersSetChange(ServersSetChangeMessage::UnknownSessionsRequest(payload)) => (251, serde_json::to_vec(&payload)),
+		Message::ServersSetChange(ServersSetChangeMessage::UnknownSessions(payload))		=> (252, serde_json::to_vec(&payload)),
+		Message::ServersSetChange(ServersSetChangeMessage::InitializeShareChangeSession(payload))
+																							=> (253, serde_json::to_vec(&payload)),
+		Message::ServersSetChange(ServersSetChangeMessage::ConfirmShareChangeSessionInitialization(payload))
+																							=> (254, serde_json::to_vec(&payload)),
+		Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeDelegate(payload))
+																							=> (255, serde_json::to_vec(&payload)),
+		Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeDelegateResponse(payload))
+																							=> (256, serde_json::to_vec(&payload)),
+		Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeShareAddMessage(payload))
+																							=> (257, serde_json::to_vec(&payload)),
+		Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeShareMoveMessage(payload))
+																							=> (258, serde_json::to_vec(&payload)),
+		Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeShareRemoveMessage(payload))
+																							=> (259, serde_json::to_vec(&payload)),
+		Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeError(payload))	=> (260, serde_json::to_vec(&payload)),
+		Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeCompleted(payload))
+																							=> (261, serde_json::to_vec(&payload)),
+
+		Message::ShareAdd(ShareAddMessage::ShareAddConsensusMessage(payload))				=> (300, serde_json::to_vec(&payload)),
+		Message::ShareAdd(ShareAddMessage::KeyShareCommon(payload))							=> (301, serde_json::to_vec(&payload)),
+		Message::ShareAdd(ShareAddMessage::NewAbsoluteTermShare(payload))					=> (302, serde_json::to_vec(&payload)),
+		Message::ShareAdd(ShareAddMessage::NewKeysDissemination(payload))					=> (303, serde_json::to_vec(&payload)),
+		Message::ShareAdd(ShareAddMessage::ShareAddError(payload))							=> (304, serde_json::to_vec(&payload)),
+
+		Message::ShareMove(ShareMoveMessage::ShareMoveConsensusMessage(payload))			=> (350, serde_json::to_vec(&payload)),
+		Message::ShareMove(ShareMoveMessage::ShareMoveRequest(payload))						=> (351, serde_json::to_vec(&payload)),
+		Message::ShareMove(ShareMoveMessage::ShareMove(payload))							=> (352, serde_json::to_vec(&payload)),
+		Message::ShareMove(ShareMoveMessage::ShareMoveConfirm(payload))						=> (353, serde_json::to_vec(&payload)),
+		Message::ShareMove(ShareMoveMessage::ShareMoveError(payload))						=> (354, serde_json::to_vec(&payload)),
+
+		Message::ShareRemove(ShareRemoveMessage::ShareRemoveConsensusMessage(payload))		=> (400, serde_json::to_vec(&payload)),
+		Message::ShareRemove(ShareRemoveMessage::ShareRemoveRequest(payload))				=> (401, serde_json::to_vec(&payload)),
+		Message::ShareRemove(ShareRemoveMessage::ShareRemoveConfirm(payload))				=> (402, serde_json::to_vec(&payload)),
+		Message::ShareRemove(ShareRemoveMessage::ShareRemoveError(payload))					=> (403, serde_json::to_vec(&payload)),
 	};
 
 	let payload = payload.map_err(|err| Error::Serde(err.to_string()))?;
@@ -137,6 +177,36 @@ pub fn deserialize_message(header: &MessageHeader, payload: Vec<u8>) -> Result<M
 		204	=> Message::Signing(SigningMessage::SigningSessionError(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
 		205	=> Message::Signing(SigningMessage::SigningSessionCompleted(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
 
+		250	=> Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeConsensusMessage(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		251	=> Message::ServersSetChange(ServersSetChangeMessage::UnknownSessionsRequest(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		252	=> Message::ServersSetChange(ServersSetChangeMessage::UnknownSessions(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		253 => Message::ServersSetChange(ServersSetChangeMessage::InitializeShareChangeSession(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		254 => Message::ServersSetChange(ServersSetChangeMessage::ConfirmShareChangeSessionInitialization(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		255	=> Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeDelegate(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		256	=> Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeDelegateResponse(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		257	=> Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeShareAddMessage(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		258	=> Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeShareMoveMessage(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		259	=> Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeShareRemoveMessage(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		260	=> Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeError(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		261	=> Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeCompleted(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+
+		300 => Message::ShareAdd(ShareAddMessage::ShareAddConsensusMessage(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		301 => Message::ShareAdd(ShareAddMessage::KeyShareCommon(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		302 => Message::ShareAdd(ShareAddMessage::NewAbsoluteTermShare(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		303 => Message::ShareAdd(ShareAddMessage::NewKeysDissemination(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		304 => Message::ShareAdd(ShareAddMessage::ShareAddError(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+
+		350 => Message::ShareMove(ShareMoveMessage::ShareMoveConsensusMessage(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		351 => Message::ShareMove(ShareMoveMessage::ShareMoveRequest(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		352 => Message::ShareMove(ShareMoveMessage::ShareMove(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		353 => Message::ShareMove(ShareMoveMessage::ShareMoveConfirm(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		354 => Message::ShareMove(ShareMoveMessage::ShareMoveError(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+
+		400 => Message::ShareRemove(ShareRemoveMessage::ShareRemoveConsensusMessage(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		401 => Message::ShareRemove(ShareRemoveMessage::ShareRemoveRequest(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		402 => Message::ShareRemove(ShareRemoveMessage::ShareRemoveConfirm(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		403 => Message::ShareRemove(ShareRemoveMessage::ShareRemoveError(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+
 		_ => return Err(Error::Serde(format!("unknown message type {}", header.kind))),
 	})
 }
@@ -170,8 +240,8 @@ pub fn fix_shared_key(shared_secret: &Secret) -> Result<KeyPair, Error> {
 /// Serialize message header.
 fn serialize_header(header: &MessageHeader) -> Result<Vec<u8>, Error> {
 	let mut buffer = Vec::with_capacity(MESSAGE_HEADER_SIZE);
-	buffer.write_u8(header.version)?;
-	buffer.write_u8(header.kind)?;
+	buffer.write_u64::<LittleEndian>(header.version)?;
+	buffer.write_u64::<LittleEndian>(header.kind)?;
 	buffer.write_u16::<LittleEndian>(header.size)?;
 	Ok(buffer)
 }
@@ -179,14 +249,14 @@ fn serialize_header(header: &MessageHeader) -> Result<Vec<u8>, Error> {
 /// Deserialize message header.
 pub fn deserialize_header(data: &[u8]) -> Result<MessageHeader, Error> {
 	let mut reader = Cursor::new(data);
-	let version = reader.read_u8()?;
+	let version = reader.read_u64::<LittleEndian>()?;
 	if version != CURRENT_HEADER_VERSION {
 		return Err(Error::InvalidMessageVersion);
 	}
 
 	Ok(MessageHeader {
 		version: version,
-		kind: reader.read_u8()?,
+		kind: reader.read_u64::<LittleEndian>()?,
 		size: reader.read_u16::<LittleEndian>()?,
 	})
 }

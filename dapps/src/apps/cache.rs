@@ -19,12 +19,12 @@
 use std::fs;
 
 use linked_hash_map::LinkedHashMap;
-use page::LocalPageEndpoint;
+use page::local;
 use handlers::FetchControl;
 
 pub enum ContentStatus {
 	Fetching(FetchControl),
-	Ready(LocalPageEndpoint),
+	Ready(local::Dapp),
 }
 
 #[derive(Default)]

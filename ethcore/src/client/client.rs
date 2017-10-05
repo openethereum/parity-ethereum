@@ -1692,14 +1692,22 @@ impl BlockChainClient for Client {
 
 		match (start, end) {
 			(Some(s), Some(e)) => {
-				let filter = trace::Filter {
+				let db_filter = trace::Filter {
 					range: s as usize..e as usize,
 					from_address: From::from(filter.from_address),
 					to_address: From::from(filter.to_address),
 				};
 
-				let traces = self.tracedb.read().filter(&filter);
-				Some(traces)
+				let traces = self.tracedb.read().filter(&db_filter);
+				if traces.is_empty() {
+					return Some(vec![]);
+				}
+
+				let traces_iter = traces.into_iter().skip(filter.after.unwrap_or(0));
+				Some(match filter.count {
+					Some(count) => traces_iter.take(count).collect(),
+					None => traces_iter.collect(),
+				})
 			},
 			_ => None,
 		}

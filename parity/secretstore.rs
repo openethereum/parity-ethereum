@@ -55,6 +55,8 @@ pub struct Configuration {
 	pub http_port: u16,
 	/// Data directory path for secret store
 	pub data_path: String,
+	/// Administrator public key.
+	pub admin_public: Option<Public>,
 }
 
 /// Secret store dependencies
@@ -145,6 +147,7 @@ mod server {
 						port: port,
 					})).collect(),
 					allow_connecting_to_higher_nodes: true,
+					admin_public: conf.admin_public,
 				},
 			};
 
@@ -170,6 +173,7 @@ impl Default for Configuration {
 			http_enabled: true,
 			acl_check_enabled: true,
 			self_secret: None,
+			admin_public: None,
 			nodes: BTreeMap::new(),
 			interface: "127.0.0.1".to_owned(),
 			port: 8083,

@@ -28,7 +28,6 @@ use util::Address;
 
 use vm::CallType;
 use super::ptr::{WasmPtr, Error as PtrError};
-use super::call_args::CallArgs;
 
 /// User trap in native code
 #[derive(Debug, Clone, PartialEq)]
@@ -97,17 +96,10 @@ impl From<PtrError> for UserTrap {
 }
 
 pub struct RuntimeContext {
-	address: Address,
-	sender: Address,
-}
-
-impl RuntimeContext {
-	pub fn new(address: Address, sender: Address) -> Self {
-		RuntimeContext {
-			address: address,
-			sender: sender,
-		}
-	}
+	pub address: Address,
+	pub sender: Address,
+	pub origin: Address,
+	pub value: U256,
 }
 
 /// Runtime enviroment data for wasm contract execution
@@ -169,6 +161,19 @@ impl<'a, 'b> Runtime<'a, 'b> {
 		self.memory.set(val_ptr as u32, &*val)?;
 
 		Ok(Some(0.into()))
+	}
+
+	/// Fetches balance for address
+	pub fn balance(&mut self, context: InterpreterCallerContext)
+		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
+	{
+		let mut context = context;
+		let return_ptr = context.value_stack.pop_as::<i32>()? as u32;
+		let address = self.pop_address(&mut context)?;
+		let balance = self.ext.balance(&address).map_err(|_| UserTrap::BalanceQueryError)?;
+		let value: H256 = balance.into();
+		self.memory.set(return_ptr, &*value)?;
+		Ok(None)
 	}
 
 	/// Pass suicide to state runtime
@@ -442,10 +447,10 @@ impl<'a, 'b> Runtime<'a, 'b> {
 	}
 
 	/// Write call descriptor to wasm memory
-	pub fn write_descriptor(&mut self, call_args: CallArgs) -> Result<WasmPtr, InterpreterError> {
+	pub fn write_descriptor(&mut self, input: &[u8]) -> Result<WasmPtr, InterpreterError> {
 		let d_ptr = self.alloc(16)?;
 
-		let args_len = call_args.len();
+		let args_len = input.len() as u32;
 		let args_ptr = self.alloc(args_len)?;
 
 		// write call descriptor
@@ -457,11 +462,7 @@ impl<'a, 'b> Runtime<'a, 'b> {
 		self.memory.set(d_ptr, &d_buf)?;
 
 		// write call args to memory
-		self.memory.set(args_ptr, &call_args.address)?;
-		self.memory.set(args_ptr+20, &call_args.sender)?;
-		self.memory.set(args_ptr+40, &call_args.origin)?;
-		self.memory.set(args_ptr+60, &call_args.value)?;
-		self.memory.set(args_ptr+92, &call_args.data)?;
+		self.memory.set(args_ptr, input)?;
 
 		Ok(d_ptr.into())
 	}
@@ -559,6 +560,39 @@ impl<'a, 'b> Runtime<'a, 'b> {
 		Ok(None)
 	}
 
+	fn sender(&mut self, context: InterpreterCallerContext)
+		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
+	{
+		let return_ptr = context.value_stack.pop_as::<i32>()? as u32;
+		self.memory.set(return_ptr, &*self.context.sender)?;
+		Ok(None)
+	}
+
+	fn address(&mut self, context: InterpreterCallerContext)
+		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
+	{
+		let return_ptr = context.value_stack.pop_as::<i32>()? as u32;
+		self.memory.set(return_ptr, &*self.context.address)?;
+		Ok(None)
+	}
+
+	fn origin(&mut self, context: InterpreterCallerContext)
+		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
+	{
+		let return_ptr = context.value_stack.pop_as::<i32>()? as u32;
+		self.memory.set(return_ptr, &*self.context.origin)?;
+		Ok(None)
+	}
+
+	fn value(&mut self, context: InterpreterCallerContext)
+		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
+	{
+		let return_ptr = context.value_stack.pop_as::<i32>()? as u32;
+		let value: H256 = self.context.value.clone().into();
+		self.memory.set(return_ptr, &*value)?;
+		Ok(None)
+	}
+
 	fn timestamp(&mut self, _context: InterpreterCallerContext)
 		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
 	{
@@ -643,6 +677,9 @@ impl<'a, 'b> interpreter::UserFunctionExecutor<UserTrap> for Runtime<'a, 'b> {
 			"_storage_write" => {
 				self.storage_write(context)
 			},
+			"_balance" => {
+				self.balance(context)
+			},
 			"_suicide" => {
 				self.suicide(context)
 			},
@@ -690,6 +727,18 @@ impl<'a, 'b> interpreter::UserFunctionExecutor<UserTrap> for Runtime<'a, 'b> {
 			},
 			"_gaslimit" => {
 				self.ext_gas_limit(context)
+			},
+			"_sender" => {
+				self.sender(context)
+			},
+			"_address" => {
+				self.address(context)
+			},
+			"_origin" => {
+				self.origin(context)
+			},
+			"_value" => {
+				self.value(context)
 			},
 			_ => {
 				trace!(target: "wasm", "Trapped due to unhandled function: '{}'", name);

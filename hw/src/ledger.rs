@@ -235,7 +235,7 @@ impl Manager {
 		where F: Fn() -> Result<R, &'static str>
 	{
 		let mut err = Error::KeyNotFound;
-		/// Try to open device a few times.
+		// Try to open device a few times.
 		for _ in 0..10 {
 			match f() {
 				Ok(handle) => return Ok(handle),

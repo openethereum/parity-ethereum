@@ -23,11 +23,11 @@ use ethcore::client::MiningBlockChainClient;
 use ethcore::mode::Mode;
 use ethsync::ManageNetwork;
 use fetch::{self, Fetch};
-use futures::{BoxFuture, Future};
 use hash::keccak_buffer;
 use updater::{Service as UpdateService};
 
-use jsonrpc_core::Error;
+use jsonrpc_core::{BoxFuture, Error};
+use jsonrpc_core::futures::Future;
 use v1::helpers::dapps::DappsService;
 use v1::helpers::errors;
 use v1::traits::ParitySet;
