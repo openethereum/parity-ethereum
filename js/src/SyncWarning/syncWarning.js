@@ -18,8 +18,6 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import { connect } from 'react-redux';
 
-import StatusIndicator from '@parity/ui/StatusIndicator';
-
 import styles from './syncWarning.css';
 
 function SyncWarning ({ className, isOk, health }) {
