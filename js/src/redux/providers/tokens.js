@@ -18,7 +18,10 @@ import { updateTokensFilter } from './balancesActions';
 import { loadTokens, fetchTokens } from './tokensActions';
 import { padRight } from '~/api/util/format';
 
+import { LOG_KEYS, getLogger } from '~/config';
 import Contracts from '~/contracts';
+
+const log = getLogger(LOG_KEYS.Balances);
 
 let instance = null;
 
@@ -154,6 +157,8 @@ export default class Tokens {
   _handleTokensLogs (logs) {
     const { dispatch, getState } = this._store;
     const tokenIds = logs.map((log) => log.params.id.value.toNumber());
+
+    log.debug('got TokenRegistry logs', logs, tokenIds);
 
     return fetchTokens(tokenIds)(dispatch, getState)
       .then(() => updateTokensFilter()(dispatch, getState));
