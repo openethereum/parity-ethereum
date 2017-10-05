@@ -427,7 +427,6 @@ impl<'a, 'b> Runtime<'a, 'b> {
 
 	/// Allocate memory in wasm memory instance
 	pub fn alloc(&mut self, amount: u32) -> Result<u32, UserTrap> {
-
 		let previous_top = self.dynamic_top;
 		self.dynamic_top = previous_top + amount;
 		Ok(previous_top.into())
