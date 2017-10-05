@@ -16,8 +16,7 @@
 
 //! Eth rpc interface.
 
-use jsonrpc_core::Error;
-use futures::BoxFuture;
+use jsonrpc_core::{BoxFuture, Error};
 
 use v1::types::{Bytes, H160, H256, H520, TransactionRequest, RichRawTransaction};
 

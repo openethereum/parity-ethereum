@@ -21,7 +21,8 @@ use dir::default_data_path;
 use ethcore::client::{Client, BlockChainClient, BlockId};
 use ethcore::transaction::{Transaction, Action};
 use ethsync::LightSync;
-use futures::{future, IntoFuture, Future, BoxFuture};
+use futures::{future, IntoFuture, Future};
+use jsonrpc_core::BoxFuture;
 use hash_fetch::fetch::Client as FetchClient;
 use hash_fetch::urlhint::ContractClient;
 use helpers::replace_home;
@@ -30,7 +31,6 @@ use light::on_demand::{self, OnDemand};
 use node_health::{SyncStatus, NodeHealth};
 use rpc;
 use rpc_apis::SignerService;
-use parity_reactor;
 use util::Address;
 use bytes::Bytes;
 
@@ -81,9 +81,8 @@ impl ContractClient for FullRegistrar {
 	}
 
 	fn call(&self, address: Address, data: Bytes) -> BoxFuture<Bytes, String> {
-		self.client.call_contract(BlockId::Latest, address, data)
-			.into_future()
-			.boxed()
+		Box::new(self.client.call_contract(BlockId::Latest, address, data)
+			.into_future())
 	}
 }
 
@@ -113,7 +112,7 @@ impl<T: LightChainClient + 'static> ContractClient for LightRegistrar<T> {
 
 		let env_info = match env_info {
 			Ok(x) => x,
-			Err(e) => return future::err(e).boxed(),
+			Err(e) => return Box::new(future::err(e)),
 		};
 
 		let maybe_future = self.sync.with_context(move |ctx| {
@@ -140,8 +139,8 @@ impl<T: LightChainClient + 'static> ContractClient for LightRegistrar<T> {
 		});
 
 		match maybe_future {
-			Some(fut) => fut.boxed(),
-			None => future::err("cannot query registry: network disabled".into()).boxed(),
+			Some(fut) => Box::new(fut),
+			None => Box::new(future::err("cannot query registry: network disabled".into())),
 		}
 	}
 }
@@ -153,7 +152,6 @@ pub struct Dependencies {
 	pub node_health: NodeHealth,
 	pub sync_status: Arc<SyncStatus>,
 	pub contract_client: Arc<ContractClient>,
-	pub remote: parity_reactor::TokioRemote,
 	pub fetch: FetchClient,
 	pub signer: Arc<SignerService>,
 	pub ui_address: Option<(String, u16)>,
@@ -235,7 +233,6 @@ mod server {
 	use rpc_apis;
 
 	use parity_dapps;
-	use parity_reactor;
 
 	pub use parity_dapps::Middleware;
 
@@ -248,12 +245,11 @@ mod server {
 		extra_script_src: Vec<(String, u16)>,
 	) -> Result<Middleware, String> {
 		let signer = deps.signer;
-		let parity_remote = parity_reactor::Remote::new(deps.remote.clone());
 		let web_proxy_tokens = Arc::new(move |token| signer.web_proxy_access_token_domain(&token));
 
 		Ok(parity_dapps::Middleware::dapps(
+			deps.fetch.pool(),
 			deps.node_health,
-			parity_remote,
 			deps.ui_address,
 			extra_embed_on,
 			extra_script_src,
@@ -271,10 +267,9 @@ mod server {
 		deps: Dependencies,
 		dapps_domain: &str,
 	) -> Result<Middleware, String> {
-		let parity_remote = parity_reactor::Remote::new(deps.remote.clone());
 		Ok(parity_dapps::Middleware::ui(
+			deps.fetch.pool(),
 			deps.node_health,
-			parity_remote,
 			dapps_domain,
 			deps.contract_client,
 			deps.sync_status,

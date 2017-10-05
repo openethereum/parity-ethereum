@@ -20,7 +20,7 @@ use std::fmt;
 use rlp::DecoderError;
 use ethcore::error::{Error as EthcoreError, CallError, TransactionError};
 use ethcore::account_provider::{SignError as AccountError};
-use jsonrpc_core::{Error, ErrorCode, Value};
+use jsonrpc_core::{futures, Error, ErrorCode, Value};
 
 mod codes {
 	// NOTE [ToDr] Codes from [-32099, -32000]
@@ -379,6 +379,6 @@ pub fn deprecated<T: Into<Option<String>>>(message: T) -> Error {
 }
 
 // on-demand sender cancelled.
-pub fn on_demand_cancel(_cancel: ::futures::sync::oneshot::Canceled) -> Error {
+pub fn on_demand_cancel(_cancel: futures::sync::oneshot::Canceled) -> Error {
 	internal("on-demand sender cancelled", "")
 }
