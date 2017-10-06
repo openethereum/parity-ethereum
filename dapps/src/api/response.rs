@@ -16,27 +16,28 @@
 
 use serde::Serialize;
 use serde_json;
-use hyper::status::StatusCode;
+use hyper::{self, mime, StatusCode};
 
-use endpoint::Handler;
 use handlers::{ContentHandler, EchoHandler};
 
-pub fn empty() -> Box<Handler> {
-	Box::new(ContentHandler::ok("".into(), mime!(Text/Plain)))
+pub fn empty() -> hyper::Response {
+	ContentHandler::ok("".into(), mime::TEXT_PLAIN).into()
 }
 
-pub fn as_json<T: Serialize>(status: StatusCode, val: &T) -> ContentHandler {
+pub fn as_json<T: Serialize>(status: StatusCode, val: &T) -> hyper::Response {
 	let json = serde_json::to_string(val)
 		.expect("serialization to string is infallible; qed");
-	ContentHandler::new(status, json, mime!(Application/Json))
+	ContentHandler::new(status, json, mime::APPLICATION_JSON).into()
 }
 
-pub fn as_json_error<T: Serialize>(status: StatusCode, val: &T) -> ContentHandler {
-	let json = serde_json::to_string(val)
-		.expect("serialization to string is infallible; qed");
-	ContentHandler::new(status, json, mime!(Application/Json))
+pub fn ping(req: hyper::Request) -> hyper::Response {
+	EchoHandler::new(req).into()
 }
 
-pub fn ping() -> Box<Handler> {
-	Box::new(EchoHandler::default())
+pub fn not_found() -> hyper::Response {
+	as_json(StatusCode::NotFound, &::api::types::ApiError {
+		code: "404".into(),
+		title: "Not Found".into(),
+		detail: "Resource you requested has not been found.".into(),
+	})
 }

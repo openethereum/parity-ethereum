@@ -20,8 +20,8 @@ use std::sync::Arc;
 use std::time::Duration;
 use parking_lot::RwLock;
 
-use futures::{self, BoxFuture, Future, Stream, Sink};
 use jsonrpc_core::{self as core, Error, MetaIoHandler};
+use jsonrpc_core::futures::{Future, Stream, Sink};
 use jsonrpc_macros::Trailing;
 use jsonrpc_macros::pubsub::Subscriber;
 use jsonrpc_pubsub::SubscriptionId;
@@ -94,8 +94,8 @@ impl<S: core::Middleware<Metadata>> PubSub for PubSubClient<S> {
 		}
 	}
 
-	fn parity_unsubscribe(&self, id: SubscriptionId) -> BoxFuture<bool, Error> {
+	fn parity_unsubscribe(&self, id: SubscriptionId) -> Result<bool, Error> {
 		let res = self.poll_manager.write().unsubscribe(&id);
-		futures::future::ok(res).boxed()
+		Ok(res)
 	}
 }

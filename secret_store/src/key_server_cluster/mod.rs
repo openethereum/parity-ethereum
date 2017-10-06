@@ -107,6 +107,10 @@ pub enum Error {
 	ConsensusUnreachable,
 	/// Acl storage error.
 	AccessDenied,
+	/// Can't start session, because exclusive session is active.
+	ExclusiveSessionActive,
+	/// Can't start exclusive session, because there are other active sessions.
+	HasActiveSessions,
 }
 
 impl From<ethkey::Error> for Error {
@@ -152,6 +156,8 @@ impl fmt::Display for Error {
 			Error::KeyStorage(ref e) => write!(f, "key storage error {}", e),
 			Error::ConsensusUnreachable => write!(f, "Consensus unreachable"),
 			Error::AccessDenied => write!(f, "Access denied"),
+			Error::ExclusiveSessionActive => write!(f, "Exclusive session active"),
+			Error::HasActiveSessions => write!(f, "Unable to start exclusive session"),
 		}
 	}
 }
@@ -175,7 +181,6 @@ pub use self::client_sessions::decryption_session;
 pub use self::client_sessions::encryption_session;
 pub use self::client_sessions::generation_session;
 pub use self::client_sessions::signing_session;
-
 mod cluster;
 mod cluster_sessions;
 mod io;

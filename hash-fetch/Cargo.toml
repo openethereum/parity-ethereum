@@ -7,14 +7,12 @@ version = "1.8.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
-ethabi = "2.0"
 futures = "0.1"
 log = "0.3"
-mime = "0.2"
-mime_guess = "1.6.1"
+mime = "0.3"
+mime_guess = "2.0.0-alpha.2"
 rand = "0.3"
 rustc-hex = "1.0"
-parking_lot = "0.4"
 fetch = { path = "../util/fetch" }
 ethcore-util = { path = "../util" }
 ethcore-bigint = { path = "../util/bigint" }
@@ -22,3 +20,7 @@ ethcore-bytes = { path = "../util/bytes" }
 parity-reactor = { path = "../util/reactor" }
 native-contracts = { path = "../ethcore/native_contracts" }
 hash = { path = "../util/hash" }
+
+[dev-dependencies]
+ethabi = "2.0"
+parking_lot = "0.4"
