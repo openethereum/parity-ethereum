@@ -24,7 +24,7 @@ export default class StatusStore {
   @observable netPort = new BigNumber(0);
   @observable nodeName = '';
   @observable rpcSettings = {};
-
+  @observable blockNumber = new BigNumber(0);
   @observable coinbase = '';
   @observable extraData = '';
   @observable gasFloorTarget = new BigNumber(0);
@@ -46,9 +46,10 @@ export default class StatusStore {
     });
   }
 
-  @action setStatus ({ hashrate }) {
+  @action setStatus ({ hashrate, blockNumber }) {
     transaction(() => {
       this.hashrate = hashrate;
+      this.blockNumber = blockNumber;
     });
   }
 
@@ -108,13 +109,14 @@ export default class StatusStore {
 
     return Promise
       .all([
-        this.api.eth.hashrate()
+        this.api.eth.hashrate(),
+        this.api.eth.blockNumber()
       ])
       .then(([
-        hashrate
+        hashrate, blockNumber
       ]) => {
         this.setStatus({
-          hashrate
+          hashrate, blockNumber
         });
       })
       .catch((error) => {
