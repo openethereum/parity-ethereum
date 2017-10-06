@@ -8,10 +8,12 @@
         "difficultyBoundDivisor":"0x0800",
         "durationLimit":"0x0d",
         "homesteadTransition":"0x118c30",
+        "eip100bTransition":"0x7fffffffffffff",
         "eip150Transition":"0x7fffffffffffff",
         "eip160Transition":"0x7fffffffffffff",
         "eip161abcTransition":"0x7fffffffffffff",
         "eip161dTransition":"0x7fffffffffffff",
+        "eip649Transition":"0x7fffffffffffff",
         "blockReward":"0x1105a0185b50a80000",
         "mcip3Transition":"0x00",
         "mcip3MinerReward":"0xd8d726b7177a80000",
@@ -31,9 +33,13 @@
     "networkID":"0x76740b",
     "forkBlock":"0x5b6",
     "forkCanonHash":"0xa5e88ad9e34d113e264e307bc27e8471452c8fc13780324bb3abb96fd0558343",
-    "eip155Transition":"0x7fffffffffffff",
-    "eip98Transition":"0x7fffffffffffff",
     "eip86Transition":"0x7fffffffffffff",
+    "eip98Transition":"0x7fffffffffffff",
+    "eip140Transition":"0x7fffffffffffff",
+    "eip155Transition":"0x7fffffffffffff",
+    "eip211Transition":"0x7fffffffffffff",
+    "eip214Transition":"0x7fffffffffffff",
+    "eip658Transition":"0x7fffffffffffff",
     "maxCodeSize":"0x6000"
   },
   "genesis":{
@@ -116,7 +122,7 @@
         "activate_at":"0x7fffffffffffff",
         "pricing":{
           "modexp":{
-            "divisor":100
+            "divisor":20
           }
         }
       }
@@ -139,7 +145,7 @@
         "activate_at":"0x7fffffffffffff",
         "pricing":{
           "linear":{
-            "base":2000,
+            "base":40000,
             "word":0
           }
         }
