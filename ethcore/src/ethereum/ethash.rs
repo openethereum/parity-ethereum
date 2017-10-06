@@ -217,7 +217,7 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 		let n_uncles = LiveBlock::uncles(&*block).len();
 
 		// Bestow block rewards.
-		let result_block_reward = reward + reward.shr(5) * U256::from(n_uncles);
+		let mut result_block_reward = reward + reward.shr(5) * U256::from(n_uncles);
 		let mut uncle_rewards = Vec::with_capacity(n_uncles);
 
 		if number >= self.ethash_params.mcip3_transition {
