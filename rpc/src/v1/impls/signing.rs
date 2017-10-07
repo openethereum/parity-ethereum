@@ -24,12 +24,11 @@ use parking_lot::Mutex;
 use ethcore::account_provider::AccountProvider;
 
 use jsonrpc_core::Error;
-use jsonrpc_core::futures::{future, BoxFuture, Future, Async};
+use jsonrpc_core::futures::{future, BoxFuture, Future, Poll, Async};
 use jsonrpc_core::futures::future::Either;
 use v1::helpers::{
-	errors, oneshot,
-	DefaultAccount,
-	SIGNING_QUEUE_LIMIT, SigningQueue, ConfirmationReceiver, ConfirmationResult, SignerService,
+	errors, DefaultAccount,
+	SIGNING_QUEUE_LIMIT, SigningQueue, ConfirmationReceiver, ConfirmationResult as RpcConfirmationResult, SignerService,
 };
 use v1::helpers::dispatch::{self, Dispatcher};
 use v1::helpers::accounts::unwrap_provider;
@@ -55,31 +54,31 @@ enum DispatchResult {
 	Value(RpcConfirmationResponse),
 }
 
+impl Future for DispatchResult {
+	type Item=RpcConfirmationResponse;
+	type Error=Error;
+
+	fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+		match self {
+			&mut DispatchResult::Value(ref response) => Ok(Async::Ready(response.clone())),
+			&mut DispatchResult::Future(ref mut future) => future.poll().and_then(|async|
+				match async {
+					Async::NotReady => Ok(Async::NotReady),
+					Async::Ready(RpcConfirmationResult::Rejected) => Err(errors::request_rejected()),
+					Async::Ready(RpcConfirmationResult::Confirmed(Ok(response))) => Ok(Async::Ready(response)),
+					Async::Ready(RpcConfirmationResult::Confirmed(Err(error))) => Err(error)
+				}
+			)
+		}
+	}
+}
+
 /// Implementation of functions that require signing when no trusted signer is used.
 pub struct SigningQueueClient<D> {
 	signer: Arc<SignerService>,
 	accounts: Option<Arc<AccountProvider>>,
 	dispatcher: D,
 	pending: Arc<Mutex<TransientHashMap<U256, ConfirmationReceiver>>>,
-}
-
-fn handle_dispatch<OnResponse>(res: Result<DispatchResult, Error>, on_response: OnResponse)
-	where OnResponse: FnOnce(Result<RpcConfirmationResponse, Error>) + Send + 'static
-{
-	match res {
-		Ok(DispatchResult::Value(result)) => on_response(Ok(result)),
-		Ok(DispatchResult::Future(future)) => {
-			future.and_then(move |result| {
-				let result = match result {
-					ConfirmationResult::Confirmed(rpc_result) => rpc_result,
-					ConfirmationResult::Rejected => Err(errors::request_rejected())
-				};
-				on_response(result);
-				future::ok(())
-			}).wait().unwrap_or_else(|err| debug!("Waiting for the confirmation message failed: {:?}", err));
-		}
-		Err(e) => on_response(Err(e)),
-	}
 }
 
 fn collect_garbage(map: &mut TransientHashMap<U256, ConfirmationReceiver>) {
@@ -182,8 +181,8 @@ impl<D: Dispatcher + 'static> ParitySigning for SigningQueueClient<D> {
 				Ok(Async::NotReady) => Ok(None),
 				Ok(Async::Ready(status)) => { 
 					match status {
-						ConfirmationResult::Rejected => Err(errors::request_rejected()),
-						ConfirmationResult::Confirmed(rpc_response) => rpc_response.clone().map(Some),
+						RpcConfirmationResult::Rejected => Err(errors::request_rejected()),
+						RpcConfirmationResult::Confirmed(rpc_response) => rpc_response.clone().map(Some),
 					}
 				},
 				Err(error) => Err(error)
@@ -199,20 +198,13 @@ impl<D: Dispatcher + 'static> ParitySigning for SigningQueueClient<D> {
 			meta.origin,
 		);
 
-		let (ready, p) = oneshot::oneshot();
-
-		// when dispatch is complete
-		Box::new(res.then(move |res| {
-			// register callback via the oneshot sender.
-			handle_dispatch(res, move |response| {
-				match response {
-					Ok(RpcConfirmationResponse::Decrypt(data)) => ready.send(Ok(data)),
-					Err(e) => ready.send(Err(e)),
-					e => ready.send(Err(errors::internal("Unexpected result.", e))),
-				}
-			});
-
-			p
+		// when dispatch is complete - wait for result and then
+		Box::new(res.map(|result| result.wait()).and_then(move |response| {
+			match response {
+				Ok(RpcConfirmationResponse::Decrypt(data)) => Ok(data),
+				Err(e) => Err(e),
+				e => Err(errors::internal("Unexpected result.", e)),
+			}
 		}))
 	}
 }
@@ -227,18 +219,12 @@ impl<D: Dispatcher + 'static> EthSigning for SigningQueueClient<D> {
 			meta.origin,
 		);
 
-		let (ready, p) = oneshot::oneshot();
-
-		Box::new(res.then(move |res| {
-			handle_dispatch(res, move |response| {
-				match response {
-					Ok(RpcConfirmationResponse::Signature(sig)) => ready.send(Ok(sig)),
-					Err(e) => ready.send(Err(e)),
-					e => ready.send(Err(errors::internal("Unexpected result.", e))),
-				}
-			});
-
-			p
+		Box::new(res.map(|result| result.wait()).and_then(move |response| {
+			match response {
+				Ok(RpcConfirmationResponse::Signature(sig)) => Ok(sig),
+				Err(e) => Err(e),
+				e => Err(errors::internal("Unexpected result.", e)),
+			}
 		}))
 	}
 
@@ -249,18 +235,12 @@ impl<D: Dispatcher + 'static> EthSigning for SigningQueueClient<D> {
 			meta.origin,
 		);
 
-		let (ready, p) = oneshot::oneshot();
-
-		Box::new(res.then(move |res| {
-			handle_dispatch(res, move |response| {
-				match response {
-					Ok(RpcConfirmationResponse::SendTransaction(hash)) => ready.send(Ok(hash)),
-					Err(e) => ready.send(Err(e)),
-					e => ready.send(Err(errors::internal("Unexpected result.", e))),
-				}
-			});
-
-			p
+		Box::new(res.map(|result| result.wait()).and_then(move |response| {
+			match response {
+				Ok(RpcConfirmationResponse::SendTransaction(hash)) => Ok(hash),
+				Err(e) => Err(e),
+				e => Err(errors::internal("Unexpected result.", e)),
+			}
 		}))
 	}
 
@@ -271,18 +251,12 @@ impl<D: Dispatcher + 'static> EthSigning for SigningQueueClient<D> {
 			meta.origin,
 		);
 
-		let (ready, p) = oneshot::oneshot();
-
-		Box::new(res.then(move |res| {
-			handle_dispatch(res, move |response| {
-				match response {
-					Ok(RpcConfirmationResponse::SignTransaction(tx)) => ready.send(Ok(tx)),
-					Err(e) => ready.send(Err(e)),
-					e => ready.send(Err(errors::internal("Unexpected result.", e))),
-				}
-			});
-
-			p
+		Box::new(res.map(|result| result.wait()).and_then(move |response| {
+			match response {
+				Ok(RpcConfirmationResponse::SignTransaction(tx)) => Ok(tx),
+				Err(e) => Err(e),
+				e => Err(errors::internal("Unexpected result.", e)),
+			}
 		}))
 	}
 }
