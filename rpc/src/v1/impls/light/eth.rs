@@ -39,11 +39,10 @@ use hash::{KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP};
 use bigint::prelude::U256;
 use parking_lot::{RwLock, Mutex};
 
-
 use v1::impls::eth_filter::Filterable;
 use v1::helpers::{errors, limit_logs};
 use v1::helpers::{PollFilter, PollManager};
-use v1::helpers::light_fetch::LightFetch;
+use v1::helpers::light_fetch::{self, LightFetch};
 use v1::traits::Eth;
 use v1::types::{
 	RichBlock, Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncInfo,
@@ -79,7 +78,6 @@ impl<T> Clone for EthClient<T> {
 		}
 	}
 }
-
 
 impl<T: LightChainClient + 'static> EthClient<T> {
 	/// Create a new `EthClient` with a handle to the light sync instance, client,
@@ -393,33 +391,72 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 		}))
 	}
 
-	fn transaction_by_hash(&self, _hash: RpcH256) -> Result<Option<Transaction>, Error> {
-		Err(errors::unimplemented(None))
+	fn transaction_by_hash(&self, hash: RpcH256) -> BoxFuture<Option<Transaction>, Error> {
+		let eip86 = self.client.eip86_transition();
+		Box::new(self.fetcher().transaction_by_hash(hash.into(), eip86).map(|x| x.map(|(tx, _)| tx)))
 	}
 
-	fn transaction_by_block_hash_and_index(&self, _hash: RpcH256, _idx: Index) -> Result<Option<Transaction>, Error> {
-		Err(errors::unimplemented(None))
+	fn transaction_by_block_hash_and_index(&self, hash: RpcH256, idx: Index) -> BoxFuture<Option<Transaction>, Error> {
+		let eip86 = self.client.eip86_transition();
+		Box::new(self.fetcher().block(BlockId::Hash(hash.into())).map(move |block| {
+			light_fetch::extract_transaction_at_index(block, idx.value(), eip86)
+		}))
 	}
 
-	fn transaction_by_block_number_and_index(&self, _num: BlockNumber, _idx: Index) -> Result<Option<Transaction>, Error> {
-		Err(errors::unimplemented(None))
+	fn transaction_by_block_number_and_index(&self, num: BlockNumber, idx: Index) -> BoxFuture<Option<Transaction>, Error> {
+		let eip86 = self.client.eip86_transition();
+		Box::new(self.fetcher().block(num.into()).map(move |block| {
+			light_fetch::extract_transaction_at_index(block, idx.value(), eip86)
+		}))
 	}
 
-	fn transaction_receipt(&self, _hash: RpcH256) -> Result<Option<Receipt>, Error> {
-		Err(errors::unimplemented(None))
+	fn transaction_receipt(&self, hash: RpcH256) -> BoxFuture<Option<Receipt>, Error> {
+		let eip86 = self.client.eip86_transition();
+		let fetcher = self.fetcher();
+		Box::new(fetcher.transaction_by_hash(hash.clone().into(), eip86).and_then(move |tx| {
+			// the block hash included in the transaction object here has
+			// already been checked for canonicality and whether it contains
+			// the transaction.
+			match tx {
+				Some((tx, index)) => match tx.block_hash.clone() {
+					Some(block_hash) => {
+						let extract_receipt = fetcher.receipts(BlockId::Hash(block_hash.clone().into()))
+							.and_then(move |mut receipts| future::ok(receipts.swap_remove(index)))
+							.map(Receipt::from)
+							.map(move |mut receipt| {
+								receipt.transaction_hash = Some(hash);
+								receipt.transaction_index = Some(index.into());
+								receipt.block_hash = Some(block_hash);
+								receipt.block_number = tx.block_number;
+								receipt
+							})
+							.map(Some);
+
+						Either::B(extract_receipt)
+					}
+					None => Either::A(future::err(errors::unknown_block())),
+				},
+				None => Either::A(future::ok(None)),
+			}
+		}))
 	}
 
-	fn uncle_by_block_hash_and_index(&self, _hash: RpcH256, _idx: Index) -> Result<Option<RichBlock>, Error> {
-		Err(errors::unimplemented(None))
+	fn uncle_by_block_hash_and_index(&self, hash: RpcH256, idx: Index) -> BoxFuture<Option<RichBlock>, Error> {
+		let client = self.client.clone();
+		Box::new(self.fetcher().block(BlockId::Hash(hash.into())).map(move |block| {
+			extract_uncle_at_index(block, idx, client)
+		}))
 	}
 
-	fn uncle_by_block_number_and_index(&self, _num: BlockNumber, _idx: Index) -> Result<Option<RichBlock>, Error> {
-		Err(errors::unimplemented(None))
+	fn uncle_by_block_number_and_index(&self, num: BlockNumber, idx: Index) -> BoxFuture<Option<RichBlock>, Error> {
+		let client = self.client.clone();
+		Box::new(self.fetcher().block(num.into()).map(move |block| {
+			extract_uncle_at_index(block, idx, client)
+		}))
 	}
 
 	fn compilers(&self) -> Result<Vec<String>, Error> {
 		Err(errors::deprecated("Compilation functionality is deprecated.".to_string()))
-
 	}
 
 	fn compile_lll(&self, _: String) -> Result<Bytes, Error> {
@@ -477,4 +514,38 @@ impl<T: LightChainClient + 'static> Filterable for EthClient<T> {
 	fn polls(&self) -> &Mutex<PollManager<PollFilter>> {
 		&self.polls
 	}
+}
+
+fn extract_uncle_at_index<T: LightChainClient>(block: encoded::Block, index: Index, client: Arc<T>) -> Option<RichBlock> {
+		let uncle = match block.uncles().into_iter().nth(index.value()) {
+			Some(u) => u,
+			None => return None,
+		};
+
+		let extra_info = client.engine().extra_info(&uncle);
+		Some(RichBlock {
+			inner: Block {
+				hash: Some(uncle.hash().into()),
+				size: None,
+				parent_hash: uncle.parent_hash().clone().into(),
+				uncles_hash: uncle.uncles_hash().clone().into(),
+				author: uncle.author().clone().into(),
+				miner: uncle.author().clone().into(),
+				state_root: uncle.state_root().clone().into(),
+				transactions_root: uncle.transactions_root().clone().into(),
+				number: Some(uncle.number().into()),
+				gas_used: uncle.gas_used().clone().into(),
+				gas_limit: uncle.gas_limit().clone().into(),
+				logs_bloom: uncle.log_bloom().clone().into(),
+				timestamp: uncle.timestamp().into(),
+				difficulty: uncle.difficulty().clone().into(),
+				total_difficulty: None,
+				receipts_root: uncle.receipts_root().clone().into(),
+				extra_data: uncle.extra_data().clone().into(),
+				seal_fields: uncle.seal().into_iter().cloned().map(Into::into).collect(),
+				uncles: vec![],
+				transactions: BlockTransactions::Hashes(vec![]),
+			},
+			extra_info: extra_info,
+		})
 }
