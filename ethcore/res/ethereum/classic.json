@@ -14,7 +14,6 @@
 				"ecip1010PauseTransition": 3000000,
 				"ecip1010ContinueTransition": 5000000,
 				"ecip1017EraRounds": 5000000,
-
 				"eip161abcTransition": "0x7fffffffffffffff",
 				"eip161dTransition": "0x7fffffffffffffff"
 			}
@@ -31,7 +30,6 @@
 		"forkBlock": "0x1d4c00",
 		"forkCanonHash": "0x94365e3a8c0b35089c1d1195081fe7489b528a84b22199c916180db8b28ade7f",
 		"eip155Transition": 3000000,
-
 		"eip98Transition": "0x7fffffffffffff",
 		"eip86Transition": "0x7fffffffffffff"
 	},

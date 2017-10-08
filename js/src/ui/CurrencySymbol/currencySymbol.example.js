@@ -45,6 +45,12 @@ export default class CurrencySymbolExample extends Component {
             netChain='expanse'
           />
         </PlaygroundExample>
+
+        <PlaygroundExample name='MUSIC Currency Symbol'>
+          <CurrencySymbol
+            netChain='musicoin'
+          />
+        </PlaygroundExample>
       </div>
     );
   }
