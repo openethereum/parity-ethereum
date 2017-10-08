@@ -1,5 +1,10 @@
 ## Parity [v1.7.3](https://github.com/paritytech/parity/releases/tag/v1.7.3) (2017-10-06)
 
+Parity 1.7.3 enables Byzantium and offers a variety of bug fixes and stability improvements.
+
+Full list of included changes:
+
+- Refreshing block number on status view ([#6610](https://github.com/paritytech/parity/pull/6610))
 - Tweaked block download timeouts ([#6595](https://github.com/paritytech/parity/pull/6595))
 - Backports ([#6563](https://github.com/paritytech/parity/pull/6563))
   - Sync progress and error handling fixes ([#6560](https://github.com/paritytech/parity/pull/6560))
