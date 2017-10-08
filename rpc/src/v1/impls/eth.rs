@@ -458,38 +458,54 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 		Box::new(future::done(self.block(num.into(), include_txs)))
 	}
 
-	fn transaction_by_hash(&self, hash: RpcH256) -> Result<Option<Transaction>, Error> {
+	fn transaction_by_hash(&self, hash: RpcH256) -> BoxFuture<Option<Transaction>, Error> {
 		let hash: H256 = hash.into();
 		let block_number = self.client.chain_info().best_block_number;
-		Ok(self.transaction(TransactionId::Hash(hash))?.or_else(|| self.miner.transaction(block_number, &hash).map(|t| Transaction::from_pending(t, block_number, self.eip86_transition))))
+		let tx = try_bf!(self.transaction(TransactionId::Hash(hash))).or_else(|| {
+			self.miner.transaction(block_number, &hash)
+				.map(|t| Transaction::from_pending(t, block_number, self.eip86_transition))
+		});
+
+		Box::new(future::ok(tx))
 	}
 
-	fn transaction_by_block_hash_and_index(&self, hash: RpcH256, index: Index) -> Result<Option<Transaction>, Error> {
-		self.transaction(TransactionId::Location(BlockId::Hash(hash.into()), index.value()))
+	fn transaction_by_block_hash_and_index(&self, hash: RpcH256, index: Index) -> BoxFuture<Option<Transaction>, Error> {
+		Box::new(future::done(
+			self.transaction(TransactionId::Location(BlockId::Hash(hash.into()), index.value()))
+		))
 	}
 
-	fn transaction_by_block_number_and_index(&self, num: BlockNumber, index: Index) -> Result<Option<Transaction>, Error> {
-		self.transaction(TransactionId::Location(num.into(), index.value()))
+	fn transaction_by_block_number_and_index(&self, num: BlockNumber, index: Index) -> BoxFuture<Option<Transaction>, Error> {
+		Box::new(future::done(
+			self.transaction(TransactionId::Location(num.into(), index.value()))
+		))
 	}
 
-	fn transaction_receipt(&self, hash: RpcH256) -> Result<Option<Receipt>, Error> {
+	fn transaction_receipt(&self, hash: RpcH256) -> BoxFuture<Option<Receipt>, Error> {
 		let best_block = self.client.chain_info().best_block_number;
 		let hash: H256 = hash.into();
+
 		match (self.miner.pending_receipt(best_block, &hash), self.options.allow_pending_receipt_query) {
-			(Some(receipt), true) => Ok(Some(receipt.into())),
+			(Some(receipt), true) => Box::new(future::ok(Some(receipt.into()))),
 			_ => {
 				let receipt = self.client.transaction_receipt(TransactionId::Hash(hash));
-				Ok(receipt.map(Into::into))
+				Box::new(future::ok(receipt.map(Into::into)))
 			}
 		}
 	}
 
-	fn uncle_by_block_hash_and_index(&self, hash: RpcH256, index: Index) -> Result<Option<RichBlock>, Error> {
-		self.uncle(UncleId { block: BlockId::Hash(hash.into()), position: index.value() })
+	fn uncle_by_block_hash_and_index(&self, hash: RpcH256, index: Index) -> BoxFuture<Option<RichBlock>, Error> {
+		Box::new(future::done(self.uncle(UncleId {
+			block: BlockId::Hash(hash.into()),
+			position: index.value()
+		})))
 	}
 
-	fn uncle_by_block_number_and_index(&self, num: BlockNumber, index: Index) -> Result<Option<RichBlock>, Error> {
-		self.uncle(UncleId { block: num.into(), position: index.value() })
+	fn uncle_by_block_number_and_index(&self, num: BlockNumber, index: Index) -> BoxFuture<Option<RichBlock>, Error> {
+		Box::new(future::done(self.uncle(UncleId {
+			block: num.into(),
+			position: index.value()
+		})))
 	}
 
 	fn compilers(&self) -> Result<Vec<String>, Error> {

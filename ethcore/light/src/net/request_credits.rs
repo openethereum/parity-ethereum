@@ -79,19 +79,42 @@ impl Credits {
 }
 
 /// A cost table, mapping requests to base and per-request costs.
+/// Costs themselves may be missing.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CostTable {
 	base: U256, // cost per packet.
-	headers: U256, // cost per header
-	transaction_index: U256,
-	body: U256,
-	receipts: U256,
-	account: U256,
-	storage: U256,
-	code: U256,
-	header_proof: U256,
-	transaction_proof: U256, // cost per gas.
-	epoch_signal: U256,
+	headers: Option<U256>, // cost per header
+	transaction_index: Option<U256>,
+	body: Option<U256>,
+	receipts: Option<U256>,
+	account: Option<U256>,
+	storage: Option<U256>,
+	code: Option<U256>,
+	header_proof: Option<U256>,
+	transaction_proof: Option<U256>, // cost per gas.
+	epoch_signal: Option<U256>,
+}
+
+impl CostTable {
+	fn costs_set(&self) -> usize {
+		let mut num_set = 0;
+
+		{
+			let mut incr_if_set = |cost: &Option<_>| if cost.is_some() { num_set += 1 };
+			incr_if_set(&self.headers);
+			incr_if_set(&self.transaction_index);
+			incr_if_set(&self.body);
+			incr_if_set(&self.receipts);
+			incr_if_set(&self.account);
+			incr_if_set(&self.storage);
+			incr_if_set(&self.code);
+			incr_if_set(&self.header_proof);
+			incr_if_set(&self.transaction_proof);
+			incr_if_set(&self.epoch_signal);
+		}
+
+		num_set
+	}
 }
 
 impl Default for CostTable {
@@ -99,31 +122,32 @@ impl Default for CostTable {
 		// arbitrarily chosen constants.
 		CostTable {
 			base: 100000.into(),
-			headers: 10000.into(),
-			transaction_index: 10000.into(),
-			body: 15000.into(),
-			receipts: 5000.into(),
-			account: 25000.into(),
-			storage: 25000.into(),
-			code: 20000.into(),
-			header_proof: 15000.into(),
-			transaction_proof: 2.into(),
-			epoch_signal: 10000.into(),
+			headers: Some(10000.into()),
+			transaction_index: Some(10000.into()),
+			body: Some(15000.into()),
+			receipts: Some(5000.into()),
+			account: Some(25000.into()),
+			storage: Some(25000.into()),
+			code: Some(20000.into()),
+			header_proof: Some(15000.into()),
+			transaction_proof: Some(2.into()),
+			epoch_signal: Some(10000.into()),
 		}
 	}
 }
 
 impl Encodable for CostTable {
 	fn rlp_append(&self, s: &mut RlpStream) {
-		fn append_cost(s: &mut RlpStream, cost: &U256, kind: request::Kind) {
-			s.begin_list(2);
-
-			// hack around https://github.com/paritytech/parity/issues/4356
-			Encodable::rlp_append(&kind, s);
-			s.append(cost);
+		fn append_cost(s: &mut RlpStream, cost: &Option<U256>, kind: request::Kind) {
+			if let Some(ref cost) = *cost {
+				s.begin_list(2);
+				// hack around https://github.com/paritytech/parity/issues/4356
+				Encodable::rlp_append(&kind, s);
+				s.append(cost);
+			}
 		}
 
-		s.begin_list(11).append(&self.base);
+		s.begin_list(1 + self.costs_set()).append(&self.base);
 		append_cost(s, &self.headers, request::Kind::Headers);
 		append_cost(s, &self.transaction_index, request::Kind::TransactionIndex);
 		append_cost(s, &self.body, request::Kind::Body);
@@ -168,21 +192,25 @@ impl Decodable for CostTable {
 			}
 		}
 
-		let unwrap_cost = |cost: Option<U256>| cost.ok_or(DecoderError::Custom("Not all costs specified in cost table."));
-
-		Ok(CostTable {
+		let table = CostTable {
 			base: base,
-			headers: unwrap_cost(headers)?,
-			transaction_index: unwrap_cost(transaction_index)?,
-			body: unwrap_cost(body)?,
-			receipts: unwrap_cost(receipts)?,
-			account: unwrap_cost(account)?,
-			storage: unwrap_cost(storage)?,
-			code: unwrap_cost(code)?,
-			header_proof: unwrap_cost(header_proof)?,
-			transaction_proof: unwrap_cost(transaction_proof)?,
-			epoch_signal: unwrap_cost(epoch_signal)?,
-		})
+			headers: headers,
+			transaction_index: transaction_index,
+			body: body,
+			receipts: receipts,
+			account: account,
+			storage: storage,
+			code: code,
+			header_proof: header_proof,
+			transaction_proof: transaction_proof,
+			epoch_signal: epoch_signal,
+		};
+
+		if table.costs_set() == 0 {
+			Err(DecoderError::Custom("no cost types set."))
+		} else {
+			Ok(table)
+		}
 	}
 }
 
@@ -230,7 +258,7 @@ impl FlowParams {
 			let serve_per_second = serve_per_second.max(1.0 / 10_000.0);
 
 			// as a percentage of the recharge per second.
-			U256::from((recharge as f64 / serve_per_second) as u64)
+			Some(U256::from((recharge as f64 / serve_per_second) as u64))
 		};
 
 		let costs = CostTable {
@@ -256,12 +284,12 @@ impl FlowParams {
 
 	/// Create effectively infinite flow params.
 	pub fn free() -> Self {
-		let free_cost: U256 = 0.into();
+		let free_cost: Option<U256> = Some(0.into());
 		FlowParams {
 			limit: (!0u64).into(),
 			recharge: 1.into(),
 			costs: CostTable {
-				base: free_cost.clone(),
+				base: 0.into(),
 				headers: free_cost.clone(),
 				transaction_index: free_cost.clone(),
 				body: free_cost.clone(),
@@ -290,9 +318,9 @@ impl FlowParams {
 
 	/// Compute the actual cost of a request, given the kind of request
 	/// and number of requests made.
-	pub fn compute_cost(&self, request: &Request) -> U256 {
+	pub fn compute_cost(&self, request: &Request) -> Option<U256> {
 		match *request {
-			Request::Headers(ref req) => self.costs.headers * req.max.into(),
+			Request::Headers(ref req) => self.costs.headers.map(|c| c * req.max.into()),
 			Request::HeaderProof(_) => self.costs.header_proof,
 			Request::TransactionIndex(_) => self.costs.transaction_index,
 			Request::Body(_) => self.costs.body,
@@ -300,15 +328,23 @@ impl FlowParams {
 			Request::Account(_) => self.costs.account,
 			Request::Storage(_) => self.costs.storage,
 			Request::Code(_) => self.costs.code,
-			Request::Execution(ref req) => self.costs.transaction_proof * req.gas,
+			Request::Execution(ref req) => self.costs.transaction_proof.map(|c| c * req.gas),
 			Request::Signal(_) => self.costs.epoch_signal,
 		}
 	}
 
 	/// Compute the cost of a set of requests.
 	/// This is the base cost plus the cost of each individual request.
-	pub fn compute_cost_multi(&self, requests: &[Request]) -> U256 {
-		requests.iter().fold(self.costs.base, |cost, req| cost + self.compute_cost(req))
+	pub fn compute_cost_multi(&self, requests: &[Request]) -> Option<U256> {
+		let mut cost = self.costs.base;
+		for request in requests {
+			match self.compute_cost(request) {
+				Some(c) => cost = cost + c,
+				None => return None,
+			}
+		}
+
+		Some(cost)
 	}
 
 	/// Create initial credits.
@@ -408,6 +444,6 @@ mod tests {
 		);
 
 		assert_eq!(flow_params2.costs, flow_params3.costs);
-		assert_eq!(flow_params.costs.headers, flow_params2.costs.headers * 2.into());
+		assert_eq!(flow_params.costs.headers.unwrap(), flow_params2.costs.headers.unwrap() * 2.into());
 	}
 }

@@ -273,7 +273,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 				.map(|(k, v)| (k.clone(), v.clone().expect("new_nodes_map is updated above so that every value is_some; qed")))
 				.collect());
 			let mut consensus_session = ConsensusSession::new(ConsensusSessionParams {
-				meta: self.core.meta.clone().into_consensus_meta(new_nodes_set.len()),
+				meta: self.core.meta.clone().into_consensus_meta(new_nodes_set.len())?,
 				consensus_executor: ServersSetChangeAccessJob::new_on_master(admin_public,
 					old_nodes_set.clone(),
 					old_nodes_set.clone(),
@@ -329,7 +329,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 						.map(|ks| ks.id_numbers.keys().cloned().collect())
 						.unwrap_or_else(|| message.old_nodes_set.clone().into_iter().map(Into::into).collect());
 					data.consensus_session = Some(ConsensusSession::new(ConsensusSessionParams {
-						meta: self.core.meta.clone().into_consensus_meta(message.new_nodes_set.len()),
+						meta: self.core.meta.clone().into_consensus_meta(message.new_nodes_set.len())?,
 						consensus_executor: ServersSetChangeAccessJob::new_on_slave(admin_public, current_nodes_set),
 						consensus_transport: self.core.transport.clone(),
 					})?);

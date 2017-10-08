@@ -22,6 +22,7 @@ use hash::{KECCAK_EMPTY_LIST_RLP};
 use ethash::{quick_get_difficulty, slow_hash_block_number, EthashManager, OptimizeFor};
 use bigint::prelude::U256;
 use bigint::hash::{H256, H64};
+use util::Address;
 use unexpected::{OutOfBounds, Mismatch};
 use block::*;
 use error::{BlockError, Error};
@@ -69,6 +70,18 @@ pub struct EthashParams {
 	pub ecip1010_continue_transition: u64,
 	/// Total block number for one ECIP-1017 era.
 	pub ecip1017_era_rounds: u64,
+	/// Number of first block where MCIP-3 begins.
+	pub mcip3_transition: u64,
+	/// MCIP-3 Block reward coin-base for miners.
+	pub mcip3_miner_reward: U256,
+	/// MCIP-3 Block reward ubi-base for basic income.
+	pub mcip3_ubi_reward: U256,
+	/// MCIP-3 contract address for universal basic income.
+	pub mcip3_ubi_contract: Address,
+	/// MCIP-3 Block reward dev-base for dev funds.
+	pub mcip3_dev_reward: U256,
+	/// MCIP-3 contract address for the developer funds.
+	pub mcip3_dev_contract: Address,
 	/// Block reward in base units.
 	pub block_reward: U256,
 	/// EIP-649 transition block.
@@ -95,6 +108,12 @@ impl From<ethjson::spec::EthashParams> for EthashParams {
 			ecip1010_pause_transition: p.ecip1010_pause_transition.map_or(u64::max_value(), Into::into),
 			ecip1010_continue_transition: p.ecip1010_continue_transition.map_or(u64::max_value(), Into::into),
 			ecip1017_era_rounds: p.ecip1017_era_rounds.map_or(u64::max_value(), Into::into),
+			mcip3_transition: p.mcip3_transition.map_or(u64::max_value(), Into::into),
+			mcip3_miner_reward: p.mcip3_miner_reward.map_or_else(Default::default, Into::into),
+			mcip3_ubi_reward: p.mcip3_ubi_reward.map_or(U256::from(0), Into::into),
+			mcip3_ubi_contract: p.mcip3_ubi_contract.map_or_else(Address::new, Into::into),
+			mcip3_dev_reward: p.mcip3_dev_reward.map_or(U256::from(0), Into::into),
+			mcip3_dev_contract: p.mcip3_dev_contract.map_or_else(Address::new, Into::into),
 			block_reward: p.block_reward.map_or_else(Default::default, Into::into),
 			eip649_transition: p.eip649_transition.map_or(u64::max_value(), Into::into),
 			eip649_delay: p.eip649_delay.map_or(DEFAULT_EIP649_DELAY, Into::into),
@@ -184,24 +203,38 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 		let author = *LiveBlock::header(&*block).author();
 		let number = LiveBlock::header(&*block).number();
 
+		// Applies EIP-649 reward.
 		let reward = if number >= self.ethash_params.eip649_transition {
 			self.ethash_params.eip649_reward.unwrap_or(self.ethash_params.block_reward)
 		} else {
 			self.ethash_params.block_reward
 		};
 
+		// Applies ECIP-1017 eras.
 		let eras_rounds = self.ethash_params.ecip1017_era_rounds;
 		let (eras, reward) = ecip1017_eras_block_reward(eras_rounds, reward, number);
 
 		let n_uncles = LiveBlock::uncles(&*block).len();
 
-		// Bestow block reward
-		let result_block_reward = reward + reward.shr(5) * U256::from(n_uncles);
+		// Bestow block rewards.
+		let mut result_block_reward = reward + reward.shr(5) * U256::from(n_uncles);
 		let mut uncle_rewards = Vec::with_capacity(n_uncles);
 
-		self.machine.add_balance(block, &author, &result_block_reward)?;
+		if number >= self.ethash_params.mcip3_transition {
+			result_block_reward = self.ethash_params.mcip3_miner_reward;
+			let ubi_contract = self.ethash_params.mcip3_ubi_contract;
+			let ubi_reward = self.ethash_params.mcip3_ubi_reward;
+			let dev_contract = self.ethash_params.mcip3_dev_contract;
+			let dev_reward = self.ethash_params.mcip3_dev_reward;
 
-		// bestow uncle rewards.
+			self.machine.add_balance(block, &author, &result_block_reward)?;
+			self.machine.add_balance(block, &ubi_contract, &ubi_reward)?;
+			self.machine.add_balance(block, &dev_contract, &dev_reward)?;
+		} else {
+			self.machine.add_balance(block, &author, &result_block_reward)?;
+		}
+
+		// Bestow uncle rewards.
 		for u in LiveBlock::uncles(&*block) {
 			let uncle_author = u.author();
 			let result_uncle_reward = if eras == 0 {
@@ -217,7 +250,7 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 			self.machine.add_balance(block, a, reward)?;
 		}
 
-		// note and trace.
+		// Note and trace.
 		self.machine.note_rewards(block, &[(author, result_block_reward)], &uncle_rewards)
 	}
 
@@ -432,7 +465,7 @@ mod tests {
 	use error::{BlockError, Error};
 	use header::Header;
 	use spec::Spec;
-	use super::super::{new_morden, new_homestead_test_machine};
+	use super::super::{new_morden, new_mcip3_test, new_homestead_test_machine};
 	use super::{Ethash, EthashParams, ecip1017_eras_block_reward};
 	use rlp;
 
@@ -500,6 +533,23 @@ mod tests {
 		let b = b.close();
 		assert_eq!(b.state().balance(&Address::zero()).unwrap(), "478eae0e571ba000".into());
 		assert_eq!(b.state().balance(&uncle_author).unwrap(), "3cb71f51fc558000".into());
+	}
+
+	#[test]
+	fn has_valid_mcip3_era_block_rewards() {
+		let spec = new_mcip3_test();
+		let engine = &*spec.engine;
+		let genesis_header = spec.genesis_header();
+		let db = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
+		let last_hashes = Arc::new(vec![genesis_header.hash()]);
+		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, Address::zero(), (3141562.into(), 31415620.into()), vec![], false).unwrap();
+		let b = b.close();
+
+		let ubi_contract: Address = "00efdd5883ec628983e9063c7d969fe268bbf310".into();
+		let dev_contract: Address = "00756cf8159095948496617f5fb17ed95059f536".into();
+		assert_eq!(b.state().balance(&Address::zero()).unwrap(), U256::from_str("d8d726b7177a80000").unwrap());
+		assert_eq!(b.state().balance(&ubi_contract).unwrap(), U256::from_str("2b5e3af16b1880000").unwrap());
+		assert_eq!(b.state().balance(&dev_contract).unwrap(), U256::from_str("c249fdd327780000").unwrap());
 	}
 
 	#[test]

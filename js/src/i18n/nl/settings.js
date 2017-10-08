@@ -26,6 +26,7 @@ export default {
       chain_classic: `Parity synchroniseert met het Ethereum Classic netwerk`,
       chain_dev: `Parity gebruikt een lokale ontwikkelaars chain`,
       chain_expanse: `Parity synchroniseert met het Expanse netwerk`,
+      chain_musicoin: `Parity synchroniseert met het Musicoin netwerk`,
       chain_foundation: `Parity synchroniseert met het Ethereum netwerk wat door de Ethereum Foundation is uitgebracht`,
       chain_kovan: `Parity synchroniseert met het Kovan test netwerk`,
       chain_olympic: `Parity synchroniseert met het Olympic test netwerk`,
