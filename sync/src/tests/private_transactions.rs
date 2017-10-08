@@ -24,6 +24,7 @@ use ethcore::spec::Spec;
 use ethcore::miner::MinerService;
 use ethcore::transaction::*;
 use ethcore::private_transactions::{ProviderConfig};
+use ethcore::private_transactions::encryptor::{DummyEncryptor};
 use ethcore::account_provider::AccountProvider;
 use ethkey::KeyPair;
 use tests::helpers::*;
@@ -123,6 +124,9 @@ fn send_private_transaction() {
 
 	provider0.register_account_provider(Arc::downgrade(&ap));
 	provider1.register_account_provider(Arc::downgrade(&ap));
+
+	provider0.set_encryptor(Arc::new(DummyEncryptor::default()));
+	provider1.set_encryptor(Arc::new(DummyEncryptor::default()));
 
 	// Create contract
 	let private_contract_test = "6060604052341561000f57600080fd5b60d88061001d6000396000f30060606040526000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff1680630c55699c146046578063bc64b76d14607457600080fd5b3415605057600080fd5b60566098565b60405180826000191660001916815260200191505060405180910390f35b3415607e57600080fd5b6096600480803560001916906020019091905050609e565b005b60005481565b8060008160001916905550505600a165627a7a723058206acbdf4b15ca4c2d43e1b1879b830451a34f1e9d02ff1f2f394d8d857e79d2080029".from_hex().unwrap();

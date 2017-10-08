@@ -20,7 +20,7 @@ use std::{fmt, mem};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Instant, Duration};
-use fetch::{self, Fetch};
+use fetch::{self, Fetch, Method as FetchMethod};
 use futures::sync::oneshot;
 use futures::{self, Future};
 use hyper::{self, Method, StatusCode};
@@ -292,7 +292,7 @@ impl ContentFetcherHandler {
 	) -> BoxFuture<FetchState, ()> {
 		// Start fetching the content
 		let fetch2 = fetch.clone();
-		let future = fetch.fetch_with_abort(url, abort.into()).then(move |result| {
+		let future = fetch.fetch_with_abort(url, FetchMethod::Get, abort.into()).then(move |result| {
 			trace!(target: "dapps", "Fetching content finished. Starting validation: {:?}", result);
 			Ok(match result {
 				Ok(response) => match installer.validate_and_install(response) {

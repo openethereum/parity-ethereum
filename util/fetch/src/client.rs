@@ -28,6 +28,15 @@ use reqwest::mime::Mime;
 
 type BoxFuture<A, B> = Box<Future<Item = A, Error = B> + Send>;
 
+/// Fetch methods.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Method {
+	/// Get.
+	Get,
+	/// Post.
+	Post,
+}
+
 /// Fetch abort control
 #[derive(Default, Debug, Clone)]
 pub struct Abort(Arc<AtomicBool>);
@@ -76,11 +85,11 @@ pub trait Fetch: Clone + Send + Sync + 'static {
 
 	/// Fetch URL and get a future for the result.
 	/// Supports aborting the request in the middle of execution.
-	fn fetch_with_abort(&self, url: &str, abort: Abort) -> Self::Result;
+	fn fetch_with_abort(&self, url: &str, method: Method, abort: Abort) -> Self::Result;
 
 	/// Fetch URL and get a future for the result.
 	fn fetch(&self, url: &str) -> Self::Result {
-		self.fetch_with_abort(url, Default::default())
+		self.fetch_with_abort(url, Method::Get, Default::default())
 	}
 
 	/// Fetch URL and get the result synchronously.
@@ -170,7 +179,7 @@ impl Fetch for Client {
 		self.pool.spawn(f).forget()
 	}
 
-	fn fetch_with_abort(&self, url: &str, abort: Abort) -> Self::Result {
+	fn fetch_with_abort(&self, url: &str, method: Method, abort: Abort) -> Self::Result {
 		debug!(target: "fetch", "Fetching from: {:?}", url);
 
 		match self.client() {
@@ -180,6 +189,7 @@ impl Fetch for Client {
 					client: client,
 					limit: self.limit,
 					abort: abort,
+					method: method,
 				})
 			},
 			Err(err) => {
@@ -194,6 +204,7 @@ struct FetchTask {
 	client: Arc<reqwest::Client>,
 	limit: Option<usize>,
 	abort: Abort,
+	method: Method,
 }
 
 impl Future for FetchTask {
@@ -208,9 +219,13 @@ impl Future for FetchTask {
 		}
 
 		trace!(target: "fetch", "Starting fetch task: {:?}", self.url);
-		let result = self.client.get(&self.url)?
-						  .header(reqwest::header::UserAgent::new("Parity Fetch"))
-						  .send()?;
+		let mut result = match self.method {
+			Method::Get => self.client.get(&self.url)?,
+			Method::Post => self.client.post(&self.url)?,
+		};
+		let result = result
+			.header(reqwest::header::UserAgent::new("Parity Fetch"))
+			.send()?;
 
 		Ok(futures::Async::Ready(Response {
 			inner: ResponseInner::Response(result),

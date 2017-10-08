@@ -15,11 +15,14 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Private transactions module.
+/// Export encryptor module.
+pub mod encryptor;
 /// Export the private_transactions module.
 pub mod private_transactions;
 
 extern crate ethabi;
 
+pub use self::encryptor::{Encryptor, SecretStoreEncryptor, DummyEncryptor};
 pub use self::private_transactions::*;
 
 use std::sync::{Arc, Weak};
@@ -33,8 +36,7 @@ use parking_lot::{Mutex, RwLock};
 use futures::{self, Future};
 use bytes::Bytes;
 use error::Error as EthcoreError;
-use ethkey::{Signature, Error as EthkeyError, recover, public_to_address};
-use ethcrypto::aes::{encrypt, decrypt};
+use ethkey::{Signature, recover, public_to_address};
 use executive::{Executive, TransactOptions};
 use executed::{Executed};
 use transaction::{SignedTransaction, Transaction, Action, UnverifiedTransaction};
@@ -45,11 +47,7 @@ use error::{PrivateTransactionError};
 use miner::{MinerService, TransactionQueueDetailsProvider, AccountDetails};
 use native_contracts::Private as Contract;
 use trace::{Tracer, VMTracer};
-//TODO: to remove this uses
 use rustc_hex::FromHex;
-
-/// Initialization vector length.
-const INIT_VEC_LEN: usize = 16;
 
 // Source avaiable at https://gist.github.com/arkpar/5c8fda407c491163a38aeb90c7fac1d2
 const DEFAULT_STUB_CONTRACT: &'static str = "6060604052341561000f57600080fd5b6040516109ce3803806109ce83398101604052808051820191906020018051820191906020018051820191905050826000908051906020019061005392919061008a565b50816002908051906020019061006a929190610114565b508060019080519060200190610081929190610114565b505050506101fc565b828054828255906000526020600020908101928215610103579160200282015b828111156101025782518260006101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff160217905550916020019190600101906100aa565b5b5090506101109190610194565b5090565b828054600181600116156101000203166002900490600052602060002090601f016020900481019282601f1061015557805160ff1916838001178555610183565b82800160010185558215610183579182015b82811115610182578251825591602001919060010190610167565b5b50905061019091906101d7565b5090565b6101d491905b808211156101d057600081816101000a81549073ffffffffffffffffffffffffffffffffffffffff02191690555060010161019a565b5090565b90565b6101f991905b808211156101f55760008160009055506001016101dd565b5090565b90565b6107c38061020b6000396000f30060606040526000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff16806317ac53a21461005e5780631865c57d1461017b578063b7ab4db514610209578063ea8796341461027357600080fd5b341561006957600080fd5b610179600480803590602001908201803590602001908080601f01602080910402602001604051908101604052809392919081815260200183838082843782019150505050505091908035906020019082018035906020019080806020026020016040519081016040528093929190818152602001838360200280828437820191505050505050919080359060200190820180359060200190808060200260200160405190810160405280939291908181526020018383602002808284378201915050505050509190803590602001908201803590602001908080602002602001604051908101604052809392919081815260200183836020028082843782019150505050505091905050610301565b005b341561018657600080fd5b61018e6104e6565b6040518080602001828103825283818151815260200191508051906020019080838360005b838110156101ce5780820151818401526020810190506101b3565b50505050905090810190601f1680156101fb5780820380516001836020036101000a031916815260200191505b509250505060405180910390f35b341561021457600080fd5b61021c61058e565b6040518080602001828103825283818151815260200191508051906020019060200280838360005b8381101561025f578082015181840152602081019050610244565b505050509050019250505060405180910390f35b341561027e57600080fd5b610286610622565b6040518080602001828103825283818151815260200191508051906020019080838360005b838110156102c65780820151818401526020810190506102ab565b50505050905090810190601f1680156102f35780820380516001836020036101000a031916815260200191505b509250505060405180910390f35b600080856040518082805190602001908083835b60208310151561033a5780518252602082019150602081019050602083039250610315565b6001836020036101000a03801982511681845116808217855250505050505090500191505060405180910390209150600090505b6000805490508110156104c75760008181548110151561038a57fe5b906000526020600020900160009054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1660018387848151811015156103dd57fe5b9060200190602002015187858151811015156103f557fe5b90602001906020020151878681518110151561040d57fe5b90602001906020020151604051600081526020016040526000604051602001526040518085600019166000191681526020018460ff1660ff16815260200183600019166000191681526020018260001916600019168152602001945050505050602060405160208103908084039060008661646e5a03f1151561048f57600080fd5b50506020604051035173ffffffffffffffffffffffffffffffffffffffff161415156104ba57600080fd5b808060010191505061036e565b85600190805190602001906104dd9291906106ca565b50505050505050565b6104ee61074a565b60018054600181600116156101000203166002900480601f0160208091040260200160405190810160405280929190818152602001828054600181600116156101000203166002900480156105845780601f1061055957610100808354040283529160200191610584565b820191906000526020600020905b81548152906001019060200180831161056757829003601f168201915b5050505050905090565b61059661075e565b600080548060200260200160405190810160405280929190818152602001828054801561061857602002820191906000526020600020905b8160009054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200190600101908083116105ce575b5050505050905090565b61062a61074a565b60028054600181600116156101000203166002900480601f0160208091040260200160405190810160405280929190818152602001828054600181600116156101000203166002900480156106c05780601f10610695576101008083540402835291602001916106c0565b820191906000526020600020905b8154815290600101906020018083116106a357829003601f168201915b5050505050905090565b828054600181600116156101000203166002900490600052602060002090601f016020900481019282601f1061070b57805160ff1916838001178555610739565b82800160010185558215610739579182015b8281111561073857825182559160200191906001019061071d565b5b5090506107469190610772565b5090565b602060405190810160405280600081525090565b602060405190810160405280600081525090565b61079491905b80821115610790576000816000905550600101610778565b5090565b905600a165627a7a7230582012a0ab4be8ba61a3fc7601b05ab9c31c619ceccc4ff930f31cd28e140bcb4d340029";
@@ -213,6 +211,7 @@ pub struct Receipt {
 
 /// Manager of private transactions
 pub struct Provider {
+	encryptor: RwLock<Arc<Encryptor>>,
 	config: RwLock<ProviderConfig>,
 	notify: RwLock<Vec<Weak<ChainNotify>>>,
 	transactions_for_signing: Mutex<SigningStore>,
@@ -228,9 +227,9 @@ struct PrivateExecutionResult<T, V> where T: Tracer, V: VMTracer {
 	result: Executed<T::Output, V::Output>,
 }
 
-impl Provider {
+impl Provider where {
 	/// Create a new provider.
-	pub fn new() -> Self {
+	pub fn new(encryptor: Arc<Encryptor>) -> Self {
 		Provider {
 			config: RwLock::new(ProviderConfig::default()),
 			notify: RwLock::new(Vec::new()),
@@ -238,6 +237,7 @@ impl Provider {
 			transactions_for_verification: Mutex::new(VerificationStore::new()),
 			client: RwLock::new(None),
 			accounts: RwLock::new(None),
+			encryptor: RwLock::new(encryptor.clone()),
 		}
 	}
 
@@ -262,6 +262,11 @@ impl Provider {
 	/// Register accounts provider
 	pub fn register_account_provider(&self, accounts: Weak<AccountProvider>) {
 		*self.accounts.write() = Some(accounts);
+	}
+
+	/// Sets encryptor
+	pub fn set_encryptor(&self, encryptor: Arc<Encryptor>) {
+		*self.encryptor.write() = encryptor.clone();
 	}
 
 	/// Sets provider's config.
@@ -513,37 +518,14 @@ impl Provider {
 		self.notify(|notify| notify.broadcast(ChainMessageType::SignedPrivateTransaction, message.clone()));
 	}
 
-	fn encrypt(&self, _contract_address: &Address, data: &[u8]) -> Result<Bytes, EthcoreError> {
-		//TODO: retrieve key from secret store using contract
-		let init_key: Bytes = "cac6c205eb06c8308d65156ff6c862c62b000b8ead121a4455a8ddeff7248128d895692136f240d5d1614dc7cc4147b1bd584bd617e30560bb872064d09ea325".from_hex().unwrap();
-		let key: Bytes = init_key[..INIT_VEC_LEN].into();
-
-		let iv = vec![1; INIT_VEC_LEN];
-		let mut encrypted = vec![0; data.len() + iv.len()];
-		{
-			let (mut enc_buffer, iv_buffer) = encrypted.split_at_mut(data.len());
-			encrypt(&key, &iv, &data, &mut enc_buffer);
-			iv_buffer.copy_from_slice(&iv);
-		}
-		Ok(encrypted)
+	fn encrypt(&self, contract_address: &Address, data: &[u8]) -> Result<Bytes, EthcoreError> {
+		self.encryptor.read().encrypt(contract_address, data)
 	}
 
-	fn decrypt(&self, _contract_address: &Address, data: &[u8]) -> Result<Bytes, EthcoreError> {
-		let mut encrypted: Bytes = data.into();
-		let encrypted_len = encrypted.len();
-		if encrypted_len < INIT_VEC_LEN {
-			return Err(EthkeyError::InvalidMessage.into());
-		}
-
-		//TODO: retrieve key from secret store using contract
-		let init_key: Bytes = "cac6c205eb06c8308d65156ff6c862c62b000b8ead121a4455a8ddeff7248128d895692136f240d5d1614dc7cc4147b1bd584bd617e30560bb872064d09ea325".from_hex().unwrap();
-		let key: Bytes = init_key[..INIT_VEC_LEN].into();
-
-		// use symmetric decryption to decrypt transaction
-		let iv = encrypted.split_off(encrypted_len - INIT_VEC_LEN);
-		let mut decrypted = vec![0; encrypted_len - INIT_VEC_LEN];
-		decrypt(&key, &iv, &encrypted, &mut decrypted);
-		Ok(decrypted)
+	fn decrypt(&self, contract_address: &Address, data: &[u8]) -> Result<Bytes, EthcoreError> {
+		use ethkey::{Random, Generator};
+		let requester = Random.generate().unwrap(); // TODO
+		self.encryptor.read().decrypt(requester.secret(), contract_address, data)
 	}
 
 	fn get_decrypted_state(&self, address: &Address, block: BlockId) -> Result<Bytes, EthcoreError> {
@@ -738,6 +720,7 @@ impl ChainNotify for Provider {
 
 #[cfg(test)]
 mod test {
+	use std::sync::Arc;
 	use rustc_hex::FromHex;
 	use client::{BlockChainClient, BlockId};
 	use hash::keccak;
@@ -745,6 +728,7 @@ mod test {
 	use transaction::{Transaction, Action};
 	use executive::{contract_address};
 	use evm::CreateContractAddress;
+	use private_transactions::encryptor::{DummyEncryptor};
 	use tests::helpers::{generate_dummy_client, push_block_with_transactions};
 
 	/// Contract code:
@@ -760,6 +744,7 @@ mod test {
 		let key4 = KeyPair::from_secret(Secret::from("0000000000000000000000000000000000000000000000000000000000000014")).unwrap();
 
 		let pm = client.private_transactions_provider().clone();
+		pm.set_encryptor(Arc::new(DummyEncryptor::default()));
 		let (address, _) = contract_address(CreateContractAddress::FromSenderAndNonce, &key1.address(), &0.into(), &[]);
 
 		trace!("Creating private contract");

@@ -88,6 +88,7 @@ extern crate ethcore_stratum;
 extern crate ethcrypto;
 extern crate ethjson;
 extern crate ethkey;
+extern crate fetch;
 extern crate futures;
 extern crate hardware_wallet;
 extern crate hashdb;
