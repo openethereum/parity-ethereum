@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! A provider for the LES protocol. This is typically a full node, who can
+//! A provider for the PIP protocol. This is typically a full node, who can
 //! give as much data as necessary to its peers.
 
 use std::sync::Arc;
@@ -102,6 +102,10 @@ pub trait Provider: Send + Sync {
 	/// Get a block header by id.
 	fn block_header(&self, id: BlockId) -> Option<encoded::Header>;
 
+	/// Get a transaction index by hash.
+	fn transaction_index(&self, req: request::CompleteTransactionIndexRequest)
+		-> Option<request::TransactionIndexResponse>;
+
 	/// Fulfill a block body request.
 	fn block_body(&self, req: request::CompleteBodyRequest) -> Option<request::BodyResponse>;
 
@@ -148,6 +152,18 @@ impl<T: ProvingBlockChainClient + ?Sized> Provider for T {
 
 	fn block_header(&self, id: BlockId) -> Option<encoded::Header> {
 		BlockChainClient::block_header(self, id)
+	}
+
+	fn transaction_index(&self, req: request::CompleteTransactionIndexRequest)
+		-> Option<request::TransactionIndexResponse>
+	{
+		use ethcore::ids::TransactionId;
+
+		self.transaction_receipt(TransactionId::Hash(req.hash)).map(|receipt| request::TransactionIndexResponse {
+			num: receipt.block_number,
+			hash: receipt.block_hash,
+			index: receipt.transaction_index as u64,
+		})
 	}
 
 	fn block_body(&self, req: request::CompleteBodyRequest) -> Option<request::BodyResponse> {
@@ -309,6 +325,12 @@ impl<L: AsLightClient + Send + Sync> Provider for LightProvider<L> {
 
 	fn block_header(&self, id: BlockId) -> Option<encoded::Header> {
 		self.client.as_light_client().block_header(id)
+	}
+
+	fn transaction_index(&self, _req: request::CompleteTransactionIndexRequest)
+		-> Option<request::TransactionIndexResponse> 
+	{
+		None
 	}
 
 	fn block_body(&self, _req: request::CompleteBodyRequest) -> Option<request::BodyResponse> {

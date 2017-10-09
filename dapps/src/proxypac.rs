@@ -16,9 +16,11 @@
 
 //! Serving ProxyPac file
 
-use endpoint::{Endpoint, Handler, EndpointPath};
-use handlers::ContentHandler;
 use apps::HOME_PAGE;
+use endpoint::{Endpoint, Request, Response, EndpointPath};
+use futures::future;
+use handlers::ContentHandler;
+use hyper::mime;
 use {address, Embeddable};
 
 pub struct ProxyPac {
@@ -33,7 +35,7 @@ impl ProxyPac {
 }
 
 impl Endpoint for ProxyPac {
-	fn to_handler(&self, path: EndpointPath) -> Box<Handler> {
+	fn respond(&self, path: EndpointPath, _req: Request) -> Response {
 		let ui = self.embeddable
 			.as_ref()
 			.map(|ref parent| address(&parent.host, parent.port))
@@ -57,7 +59,9 @@ function FindProxyForURL(url, host) {{
 "#,
 		HOME_PAGE, self.dapps_domain, path.host, path.port, ui);
 
-		Box::new(ContentHandler::ok(content, mime!(Application/Javascript)))
+		Box::new(future::ok(
+			ContentHandler::ok(content, mime::TEXT_JAVASCRIPT).into()
+		))
 	}
 }
 

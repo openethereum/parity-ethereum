@@ -20,7 +20,6 @@ use std::thread;
 use std::time::{Instant, Duration};
 use std::sync::Arc;
 
-use futures::{self, future, BoxFuture, Future};
 use rlp::{self, UntrustedRlp};
 use time::get_time;
 use bigint::prelude::U256;
@@ -41,7 +40,8 @@ use ethcore::transaction::SignedTransaction;
 use ethcore::snapshot::SnapshotService;
 use ethsync::{SyncProvider};
 
-use jsonrpc_core::Error;
+use jsonrpc_core::{BoxFuture, Error};
+use jsonrpc_core::futures::future;
 use jsonrpc_macros::Trailing;
 
 use v1::helpers::{errors, limit_logs, fake_sign};
@@ -318,19 +318,15 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 		}
 	}
 
-	fn author(&self, meta: Metadata) -> BoxFuture<RpcH160, Error> {
+	fn author(&self, meta: Metadata) -> Result<RpcH160, Error> {
 		let dapp = meta.dapp_id();
 
-		let author = move || {
-			let mut miner = self.miner.author();
-			if miner == 0.into() {
-				miner = self.dapp_accounts(dapp.into())?.get(0).cloned().unwrap_or_default();
-			}
+		let mut miner = self.miner.author();
+		if miner == 0.into() {
+			miner = self.dapp_accounts(dapp.into())?.get(0).cloned().unwrap_or_default();
+		}
 
-			Ok(RpcH160::from(miner))
-		};
-
-		futures::done(author()).boxed()
+		Ok(RpcH160::from(miner))
 	}
 
 	fn is_mining(&self) -> Result<bool, Error> {
@@ -345,15 +341,11 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 		Ok(RpcU256::from(default_gas_price(&*self.client, &*self.miner)))
 	}
 
-	fn accounts(&self, meta: Metadata) -> BoxFuture<Vec<RpcH160>, Error> {
+	fn accounts(&self, meta: Metadata) -> Result<Vec<RpcH160>, Error> {
 		let dapp = meta.dapp_id();
 
-		let accounts = move || {
-			let accounts = self.dapp_accounts(dapp.into())?;
-			Ok(accounts.into_iter().map(Into::into).collect())
-		};
-
-		futures::done(accounts()).boxed()
+		let accounts = self.dapp_accounts(dapp.into())?;
+		Ok(accounts.into_iter().map(Into::into).collect())
 	}
 
 	fn block_number(&self) -> Result<RpcU256, Error> {
@@ -371,7 +363,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 			None => Err(errors::state_pruned()),
 		};
 
-		future::done(res).boxed()
+		Box::new(future::done(res))
 	}
 
 	fn storage_at(&self, address: RpcH160, pos: RpcU256, num: Trailing<BlockNumber>) -> BoxFuture<RpcH256, Error> {
@@ -386,7 +378,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 			None => Err(errors::state_pruned()),
 		};
 
-		future::done(res).boxed()
+		Box::new(future::done(res))
 	}
 
 	fn transaction_count(&self, address: RpcH160, num: Trailing<BlockNumber>) -> BoxFuture<RpcU256, Error> {
@@ -411,38 +403,37 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 			}
 		};
 
-		future::done(res).boxed()
+		Box::new(future::done(res))
 	}
 
 	fn block_transaction_count_by_hash(&self, hash: RpcH256) -> BoxFuture<Option<RpcU256>, Error> {
-		future::ok(self.client.block(BlockId::Hash(hash.into()))
-			.map(|block| block.transactions_count().into())).boxed()
+		Box::new(future::ok(self.client.block(BlockId::Hash(hash.into()))
+			.map(|block| block.transactions_count().into())))
 	}
 
 	fn block_transaction_count_by_number(&self, num: BlockNumber) -> BoxFuture<Option<RpcU256>, Error> {
-		future::ok(match num {
+		Box::new(future::ok(match num {
 			BlockNumber::Pending => Some(
 				self.miner.status().transactions_in_pending_block.into()
 			),
 			_ =>
 				self.client.block(num.into())
 					.map(|block| block.transactions_count().into())
-		}).boxed()
+		}))
 	}
 
 	fn block_uncles_count_by_hash(&self, hash: RpcH256) -> BoxFuture<Option<RpcU256>, Error> {
-			future::ok(self.client.block(BlockId::Hash(hash.into()))
-				.map(|block| block.uncles_count().into()))
-				.boxed()
+		Box::new(future::ok(self.client.block(BlockId::Hash(hash.into()))
+			.map(|block| block.uncles_count().into())))
 	}
 
 	fn block_uncles_count_by_number(&self, num: BlockNumber) -> BoxFuture<Option<RpcU256>, Error> {
-		future::ok(match num {
+		Box::new(future::ok(match num {
 			BlockNumber::Pending => Some(0.into()),
 			_ => self.client.block(num.into())
 					.map(|block| block.uncles_count().into()
 			),
-		}).boxed()
+		}))
 	}
 
 	fn code_at(&self, address: RpcH160, num: Trailing<BlockNumber>) -> BoxFuture<Bytes, Error> {
@@ -456,49 +447,65 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 			None => Err(errors::state_pruned()),
 		};
 
-		future::done(res).boxed()
+		Box::new(future::done(res))
 	}
 
 	fn block_by_hash(&self, hash: RpcH256, include_txs: bool) -> BoxFuture<Option<RichBlock>, Error> {
-		future::done(self.block(BlockId::Hash(hash.into()), include_txs)).boxed()
+		Box::new(future::done(self.block(BlockId::Hash(hash.into()), include_txs)))
 	}
 
 	fn block_by_number(&self, num: BlockNumber, include_txs: bool) -> BoxFuture<Option<RichBlock>, Error> {
-		future::done(self.block(num.into(), include_txs)).boxed()
+		Box::new(future::done(self.block(num.into(), include_txs)))
 	}
 
-	fn transaction_by_hash(&self, hash: RpcH256) -> Result<Option<Transaction>, Error> {
+	fn transaction_by_hash(&self, hash: RpcH256) -> BoxFuture<Option<Transaction>, Error> {
 		let hash: H256 = hash.into();
 		let block_number = self.client.chain_info().best_block_number;
-		Ok(self.transaction(TransactionId::Hash(hash))?.or_else(|| self.miner.transaction(block_number, &hash).map(|t| Transaction::from_pending(t, block_number, self.eip86_transition))))
+		let tx = try_bf!(self.transaction(TransactionId::Hash(hash))).or_else(|| {
+			self.miner.transaction(block_number, &hash)
+				.map(|t| Transaction::from_pending(t, block_number, self.eip86_transition))
+		});
+
+		Box::new(future::ok(tx))
 	}
 
-	fn transaction_by_block_hash_and_index(&self, hash: RpcH256, index: Index) -> Result<Option<Transaction>, Error> {
-		self.transaction(TransactionId::Location(BlockId::Hash(hash.into()), index.value()))
+	fn transaction_by_block_hash_and_index(&self, hash: RpcH256, index: Index) -> BoxFuture<Option<Transaction>, Error> {
+		Box::new(future::done(
+			self.transaction(TransactionId::Location(BlockId::Hash(hash.into()), index.value()))
+		))
 	}
 
-	fn transaction_by_block_number_and_index(&self, num: BlockNumber, index: Index) -> Result<Option<Transaction>, Error> {
-		self.transaction(TransactionId::Location(num.into(), index.value()))
+	fn transaction_by_block_number_and_index(&self, num: BlockNumber, index: Index) -> BoxFuture<Option<Transaction>, Error> {
+		Box::new(future::done(
+			self.transaction(TransactionId::Location(num.into(), index.value()))
+		))
 	}
 
-	fn transaction_receipt(&self, hash: RpcH256) -> Result<Option<Receipt>, Error> {
+	fn transaction_receipt(&self, hash: RpcH256) -> BoxFuture<Option<Receipt>, Error> {
 		let best_block = self.client.chain_info().best_block_number;
 		let hash: H256 = hash.into();
+
 		match (self.miner.pending_receipt(best_block, &hash), self.options.allow_pending_receipt_query) {
-			(Some(receipt), true) => Ok(Some(receipt.into())),
+			(Some(receipt), true) => Box::new(future::ok(Some(receipt.into()))),
 			_ => {
 				let receipt = self.client.transaction_receipt(TransactionId::Hash(hash));
-				Ok(receipt.map(Into::into))
+				Box::new(future::ok(receipt.map(Into::into)))
 			}
 		}
 	}
 
-	fn uncle_by_block_hash_and_index(&self, hash: RpcH256, index: Index) -> Result<Option<RichBlock>, Error> {
-		self.uncle(UncleId { block: BlockId::Hash(hash.into()), position: index.value() })
+	fn uncle_by_block_hash_and_index(&self, hash: RpcH256, index: Index) -> BoxFuture<Option<RichBlock>, Error> {
+		Box::new(future::done(self.uncle(UncleId {
+			block: BlockId::Hash(hash.into()),
+			position: index.value()
+		})))
 	}
 
-	fn uncle_by_block_number_and_index(&self, num: BlockNumber, index: Index) -> Result<Option<RichBlock>, Error> {
-		self.uncle(UncleId { block: num.into(), position: index.value() })
+	fn uncle_by_block_number_and_index(&self, num: BlockNumber, index: Index) -> BoxFuture<Option<RichBlock>, Error> {
+		Box::new(future::done(self.uncle(UncleId {
+			block: num.into(),
+			position: index.value()
+		})))
 	}
 
 	fn compilers(&self) -> Result<Vec<String>, Error> {
@@ -521,7 +528,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 
 		let logs = limit_logs(logs, filter.limit);
 
-		future::ok(logs).boxed()
+		Box::new(future::ok(logs))
 	}
 
 	fn work(&self, no_new_work_timeout: Trailing<u64>) -> Result<Work, Error> {
@@ -615,30 +622,24 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 
 	fn call(&self, meta: Self::Metadata, request: CallRequest, num: Trailing<BlockNumber>) -> BoxFuture<Bytes, Error> {
 		let request = CallRequest::into(request);
-		let signed = match fake_sign::sign_call(&self.client, &self.miner, request, meta.is_dapp()) {
-			Ok(signed) => signed,
-			Err(e) => return future::err(e).boxed(),
-		};
+		let signed = try_bf!(fake_sign::sign_call(&self.client, &self.miner, request, meta.is_dapp()));
 
 		let num = num.unwrap_or_default();
 		let result = self.client.call(&signed, Default::default(), num.into());
 
-		future::done(result
+		Box::new(future::done(result
 			.map(|b| b.output.into())
 			.map_err(errors::call)
-		).boxed()
+		))
 	}
 
 	fn estimate_gas(&self, meta: Self::Metadata, request: CallRequest, num: Trailing<BlockNumber>) -> BoxFuture<RpcU256, Error> {
 		let request = CallRequest::into(request);
-		let signed = match fake_sign::sign_call(&self.client, &self.miner, request, meta.is_dapp()) {
-			Ok(signed) => signed,
-			Err(e) => return future::err(e).boxed(),
-		};
-		future::done(self.client.estimate_gas(&signed, num.unwrap_or_default().into())
+		let signed = try_bf!(fake_sign::sign_call(&self.client, &self.miner, request, meta.is_dapp()));
+		Box::new(future::done(self.client.estimate_gas(&signed, num.unwrap_or_default().into())
 			.map(Into::into)
 			.map_err(errors::call)
-		).boxed()
+		))
 	}
 
 	fn compile_lll(&self, _: String) -> Result<Bytes, Error> {

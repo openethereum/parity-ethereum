@@ -20,7 +20,6 @@ use jsonrpc_core::{Error, Value, Params};
 use jsonrpc_pubsub::SubscriptionId;
 use jsonrpc_macros::Trailing;
 use jsonrpc_macros::pubsub::Subscriber;
-use futures::BoxFuture;
 
 build_rpc_trait! {
 	/// Parity-specific PUB-SUB rpc interface.
@@ -34,7 +33,7 @@ build_rpc_trait! {
 
 			/// Unsubscribe from existing Parity subscription.
 			#[rpc(name = "parity_unsubscribe")]
-			fn parity_unsubscribe(&self, SubscriptionId) -> BoxFuture<bool, Error>;
+			fn parity_unsubscribe(&self, SubscriptionId) -> Result<bool, Error>;
 		}
 	}
 }

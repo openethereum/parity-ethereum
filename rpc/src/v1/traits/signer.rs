@@ -15,10 +15,9 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Parity Signer-related rpc interface.
-use jsonrpc_core::Error;
+use jsonrpc_core::{BoxFuture, Error};
 use jsonrpc_pubsub::SubscriptionId;
 use jsonrpc_macros::pubsub::Subscriber;
-use futures::BoxFuture;
 
 use v1::types::{U256, Bytes, TransactionModification, ConfirmationRequest, ConfirmationResponse, ConfirmationResponseWithToken};
 
@@ -32,11 +31,11 @@ build_rpc_trait! {
 		fn requests_to_confirm(&self) -> Result<Vec<ConfirmationRequest>, Error>;
 
 		/// Confirm specific request.
-		#[rpc(async, name = "signer_confirmRequest")]
+		#[rpc(name = "signer_confirmRequest")]
 		fn confirm_request(&self, U256, TransactionModification, String) -> BoxFuture<ConfirmationResponse, Error>;
 
 		/// Confirm specific request with token.
-		#[rpc(async, name = "signer_confirmRequestWithToken")]
+		#[rpc(name = "signer_confirmRequestWithToken")]
 		fn confirm_request_with_token(&self, U256, TransactionModification, String) -> BoxFuture<ConfirmationResponseWithToken, Error>;
 
 		/// Confirm specific request with already signed data.
@@ -62,7 +61,7 @@ build_rpc_trait! {
 
 			/// Unsubscribe from pending requests subscription.
 			#[rpc(name = "signer_unsubscribePending")]
-			fn unsubscribe_pending(&self, SubscriptionId) -> BoxFuture<bool, Error>;
+			fn unsubscribe_pending(&self, SubscriptionId) -> Result<bool, Error>;
 		}
 	}
 }

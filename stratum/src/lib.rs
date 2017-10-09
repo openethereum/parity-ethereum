@@ -23,18 +23,13 @@ extern crate jsonrpc_macros;
 extern crate ethcore_util as util;
 extern crate ethcore_bigint as bigint;
 extern crate ethcore_ipc as ipc;
-extern crate semver;
-extern crate futures;
-extern crate ethcore_logger;
 extern crate hash;
 extern crate parking_lot;
 
 #[cfg(test)] extern crate tokio_core;
-extern crate ethcore_devtools as devtools;
+#[cfg(test)] extern crate tokio_io;
+#[cfg(test)] extern crate ethcore_logger;
 #[cfg(test)] extern crate env_logger;
-#[cfg(test)] #[macro_use] extern crate lazy_static;
-
-use futures::{future, BoxFuture, Future};
 
 mod traits {
 	//! Stratum ipc interfaces specification
@@ -61,7 +56,7 @@ use hash::keccak;
 use bigint::hash::H256;
 use parking_lot::{RwLock, RwLockReadGuard};
 
-type RpcResult = BoxFuture<jsonrpc_core::Value, jsonrpc_core::Error>;
+type RpcResult = Result<jsonrpc_core::Value, jsonrpc_core::Error>;
 
 const NOTIFY_COUNTER_INITIAL: u32 = 16;
 
@@ -188,7 +183,7 @@ impl Stratum {
 	}
 
 	fn submit(&self, params: Params, _meta: SocketMetadata) -> RpcResult {
-		future::ok(match params {
+		Ok(match params {
 			Params::Array(vals) => {
 				// first two elements are service messages (worker_id & job_id)
 				match self.dispatcher.submit(vals.iter().skip(2)
@@ -208,7 +203,7 @@ impl Stratum {
 				trace!(target: "stratum", "Invalid submit work format {:?}", params);
 				to_value(false)
 			}
-		}.expect("Only true/false is returned and it's always serializable; qed")).boxed()
+		}.expect("Only true/false is returned and it's always serializable; qed"))
 	}
 
 	fn subscribe(&self, _params: Params, meta: SocketMetadata) -> RpcResult {
@@ -218,7 +213,7 @@ impl Stratum {
 		self.job_que.write().insert(meta.addr().clone());
 		trace!(target: "stratum", "Subscription request from {:?}", meta.addr());
 
-		future::ok(match self.dispatcher.initial() {
+		Ok(match self.dispatcher.initial() {
 			Some(initial) => match jsonrpc_core::Value::from_str(&initial) {
 				Ok(val) => Ok(val),
 				Err(e) => {
@@ -227,11 +222,11 @@ impl Stratum {
 				},
 			},
 			None => to_value(&[0u8; 0]),
-		}.expect("Empty slices are serializable; qed")).boxed()
+		}.expect("Empty slices are serializable; qed"))
 	}
 
 	fn authorize(&self, params: Params, meta: SocketMetadata) -> RpcResult {
-		future::result(params.parse::<(String, String)>().map(|(worker_id, secret)|{
+		params.parse::<(String, String)>().map(|(worker_id, secret)|{
 			if let Some(valid_secret) = self.secret {
 				let hash = keccak(secret);
 				if hash != valid_secret {
@@ -241,7 +236,7 @@ impl Stratum {
 			trace!(target: "stratum", "New worker #{} registered", worker_id);
 			self.workers.write().insert(meta.addr().clone(), worker_id);
 			to_value(true)
-		}).map(|v| v.expect("Only true/false is returned and it's always serializable; qed"))).boxed()
+		}).map(|v| v.expect("Only true/false is returned and it's always serializable; qed"))
 	}
 
 	pub fn subscribers(&self) -> RwLockReadGuard<Vec<SocketAddr>> {
@@ -330,8 +325,8 @@ mod tests {
 
 	use tokio_core::reactor::{Core, Timeout};
 	use tokio_core::net::TcpStream;
-	use tokio_core::io;
-	use futures::{Future, future};
+	use tokio_io::io;
+	use jsonrpc_core::futures::{Future, future};
 
 	use ethcore_logger::init_log;
 

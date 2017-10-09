@@ -20,6 +20,7 @@ use std::time::Duration;
 use rlp;
 
 use jsonrpc_core::{IoHandler, Success};
+use jsonrpc_core::futures::Future;
 use v1::impls::SigningQueueClient;
 use v1::metadata::Metadata;
 use v1::traits::{EthSigning, ParitySigning, Parity};
@@ -36,7 +37,6 @@ use ethcore::account_provider::AccountProvider;
 use ethcore::client::TestBlockChainClient;
 use ethcore::transaction::{Transaction, Action, SignedTransaction};
 use ethstore::ethkey::{Generator, Random};
-use futures::Future;
 use serde_json;
 
 struct SigningTester {
@@ -299,7 +299,7 @@ fn should_add_sign_transaction_to_the_queue() {
 	let response = r#"{"jsonrpc":"2.0","result":{"#.to_owned() +
 		r#""raw":"0x"# + &rlp.to_hex() + r#"","# +
 		r#""tx":{"# +
-		r#""blockHash":null,"blockNumber":null,"# +
+		r#""blockHash":null,"blockNumber":"0x0","# +
 		&format!("\"chainId\":{},", t.chain_id().map_or("null".to_owned(), |n| format!("{}", n))) +
 		r#""condition":null,"creates":null,"# +
 		&format!("\"from\":\"0x{:?}\",", &address) +

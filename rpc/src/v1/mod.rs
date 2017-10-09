@@ -24,7 +24,7 @@ macro_rules! try_bf {
 	($res: expr) => {
 		match $res {
 			Ok(val) => val,
-			Err(e) => return ::futures::future::err(e.into()).boxed(),
+			Err(e) => return Box::new(::jsonrpc_core::futures::future::err(e.into())),
 		}
 	}
 }

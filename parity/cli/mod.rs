@@ -301,7 +301,7 @@ usage! {
 
 			ARG arg_chain: (String) = "foundation", or |c: &Config| otry!(c.parity).chain.clone(),
 			"--chain=[CHAIN]",
-			"Specify the blockchain type. CHAIN may be either a JSON chain specification file or olympic, frontier, homestead, mainnet, morden, ropsten, classic, expanse, testnet, kovan or dev.",
+			"Specify the blockchain type. CHAIN may be either a JSON chain specification file or olympic, frontier, homestead, mainnet, morden, ropsten, classic, expanse, musicoin, testnet, kovan or dev.",
 
 			ARG arg_keys_path: (String) = "$BASE/keys", or |c: &Config| otry!(c.parity).keys_path.clone(),
 			"--keys-path=[PATH]",
@@ -480,7 +480,7 @@ usage! {
 
 			ARG arg_jsonrpc_server_threads: (Option<usize>) = None, or |c: &Config| otry!(c.rpc).server_threads,
 			"--jsonrpc-server-threads=[NUM]",
-			"Enables experimental faster implementation of JSON-RPC server. Requires Dapps server to be disabled using --no-dapps.",
+			"Enables multiple threads handling incoming connections for HTTP JSON-RPC server.",
 
 		["API and console options – WebSockets"]
 			FLAG flag_no_ws: (bool) = false, or |c: &Config| otry!(c.websockets).disable.clone(),

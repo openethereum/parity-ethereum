@@ -3,7 +3,8 @@ use rpc::signer::{ConfirmationRequest, TransactionModification, U256, Transactio
 use serde;
 use serde_json::{Value as JsonValue, to_value};
 use std::path::PathBuf;
-use futures::{BoxFuture, Canceled};
+use futures::{Canceled};
+use jsonrpc_core::BoxFuture;
 
 pub struct SignerRpc {
 	rpc: Rpc,

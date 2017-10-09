@@ -16,32 +16,29 @@
 
 //! Simple Content Handler
 
-use hyper::{header, server, Decoder, Encoder, Next};
-use hyper::net::HttpStream;
-use hyper::mime::Mime;
-use hyper::status::StatusCode;
+use hyper::{self, mime, header};
+use hyper::StatusCode;
 
 use util::version;
 
 use handlers::add_security_headers;
 use Embeddable;
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct ContentHandler {
 	code: StatusCode,
 	content: String,
-	mimetype: Mime,
-	write_pos: usize,
+	mimetype: mime::Mime,
 	safe_to_embed_on: Embeddable,
 }
 
 impl ContentHandler {
-	pub fn ok(content: String, mimetype: Mime) -> Self {
+	pub fn ok(content: String, mimetype: mime::Mime) -> Self {
 		Self::new(StatusCode::Ok, content, mimetype)
 	}
 
 	pub fn html(code: StatusCode, content: String, embeddable_on: Embeddable) -> Self {
-		Self::new_embeddable(code, content, mime!(Text/Html), embeddable_on)
+		Self::new_embeddable(code, content, mime::TEXT_HTML, embeddable_on)
 	}
 
 	pub fn error(
@@ -60,57 +57,32 @@ impl ContentHandler {
 		), embeddable_on)
 	}
 
-	pub fn new(code: StatusCode, content: String, mimetype: Mime) -> Self {
+	pub fn new(code: StatusCode, content: String, mimetype: mime::Mime) -> Self {
 		Self::new_embeddable(code, content, mimetype, None)
 	}
 
 	pub fn new_embeddable(
 		code: StatusCode,
 		content: String,
-		mimetype: Mime,
+		mimetype: mime::Mime,
 		safe_to_embed_on: Embeddable,
 	) -> Self {
 		ContentHandler {
 			code,
 			content,
 			mimetype,
-			write_pos: 0,
 			safe_to_embed_on,
 		}
 	}
 }
 
-impl server::Handler<HttpStream> for ContentHandler {
-	fn on_request(&mut self, _request: server::Request<HttpStream>) -> Next {
-		Next::write()
-	}
-
-	fn on_request_readable(&mut self, _decoder: &mut Decoder<HttpStream>) -> Next {
-		Next::write()
-	}
-
-	fn on_response(&mut self, res: &mut server::Response) -> Next {
-		res.set_status(self.code);
-		res.headers_mut().set(header::ContentType(self.mimetype.clone()));
-		add_security_headers(&mut res.headers_mut(), self.safe_to_embed_on.take());
-		Next::write()
-	}
-
-	fn on_response_writable(&mut self, encoder: &mut Encoder<HttpStream>) -> Next {
-		let bytes = self.content.as_bytes();
-		if self.write_pos == bytes.len() {
-			return Next::end();
-		}
-
-		match encoder.write(&bytes[self.write_pos..]) {
-			Ok(bytes) => {
-				self.write_pos += bytes;
-				Next::write()
-			},
-			Err(e) => match e.kind() {
-				::std::io::ErrorKind::WouldBlock => Next::write(),
-				_ => Next::end()
-			},
-		}
+impl Into<hyper::Response> for ContentHandler {
+	fn into(self) -> hyper::Response {
+		let mut res = hyper::Response::new()
+			.with_status(self.code)
+			.with_header(header::ContentType(self.mimetype))
+			.with_body(self.content);
+		add_security_headers(&mut res.headers_mut(), self.safe_to_embed_on);
+		res
 	}
 }

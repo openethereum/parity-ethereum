@@ -213,7 +213,7 @@ impl Transaction {
 			hash: t.hash().into(),
 			nonce: t.nonce.into(),
 			block_hash: None,
-			block_number: None,
+			block_number: Some(block_number.into()),
 			transaction_index: None,
 			from: t.sender().into(),
 			to: match t.action {

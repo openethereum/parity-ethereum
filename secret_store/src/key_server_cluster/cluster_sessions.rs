@@ -18,10 +18,10 @@ use std::time;
 use std::sync::{Arc, Weak};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::collections::{VecDeque, BTreeSet, BTreeMap};
-use parking_lot::RwLock;
+use parking_lot::{Mutex, RwLock};
 use ethkey::{Public, Secret, Signature};
 use key_server_cluster::{Error, NodeId, SessionId, AclStorage, KeyStorage, DocumentKeyShare, EncryptedDocumentKeyShadow, SessionMeta};
-use key_server_cluster::cluster::{Cluster, ClusterData, ClusterView, ClusterConfiguration};
+use key_server_cluster::cluster::{Cluster, ClusterData, ClusterConfiguration};
 use key_server_cluster::message::{self, Message, GenerationMessage, EncryptionMessage, DecryptionMessage, SigningMessage,
 	ShareAddMessage, ShareMoveMessage, ShareRemoveMessage, ServersSetChangeMessage};
 use key_server_cluster::generation_session::{Session as GenerationSession, SessionImpl as GenerationSessionImpl,
@@ -47,10 +47,12 @@ use key_server_cluster::admin_sessions::ShareChangeSessionMeta;
 /// This timeout is for cases when node is responding to KeepAlive messages, but intentionally ignores
 /// session messages.
 const SESSION_TIMEOUT_INTERVAL: u64 = 60;
+/// Interval to send session-level KeepAlive-messages.
+const SESSION_KEEP_ALIVE_INTERVAL: u64 = 30;
 
 lazy_static! {
 	/// Servers set change session id (there could be at most 1 session => hardcoded id).
-	static ref SERVERS_SET_CHANGE_SESSION_ID: SessionId = "10b7af423bb551d5dc8645db754163a2145d37d78d468fa7330435ed77064c1c206f4b71d62491dfb9f7dbeccc42a6c112c8bb507de7b4fcad8d646272b2c363"
+	static ref SERVERS_SET_CHANGE_SESSION_ID: SessionId = "10b7af423bb551d5dc8645db754163a2145d37d78d468fa7330435ed77064c1c"
 		.parse()
 		.expect("hardcoded id should parse without errors; qed");
 }
@@ -119,6 +121,8 @@ pub struct ClusterSessions {
 pub struct ClusterSessionsContainer<K, V, M> {
 	/// Active sessions.
 	pub sessions: RwLock<BTreeMap<K, QueuedSession<V, M>>>,
+	/// Sessions container state.
+	container_state: Arc<Mutex<ClusterSessionsContainerState>>
 }
 
 /// Session and its message queue.
@@ -126,13 +130,26 @@ pub struct QueuedSession<V, M> {
 	/// Session master.
 	pub master: NodeId,
 	/// Cluster view.
-	pub cluster_view: Arc<ClusterView>,
+	pub cluster_view: Arc<Cluster>,
+	/// Last keep alive time.
+	pub last_keep_alive_time: time::Instant,
 	/// Last received message time.
 	pub last_message_time: time::Instant,
 	/// Generation session.
 	pub session: Arc<V>,
 	/// Messages queue.
 	pub queue: VecDeque<(NodeId, M)>,
+}
+
+/// Cluster sessions container state.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ClusterSessionsContainerState {
+	/// There's no active sessions => any session can be started.
+	Idle,
+	/// There are active sessions => exclusive session can't be started right now.
+	Active(usize),
+	/// Exclusive session is active => can't start any other sessions.
+	Exclusive,
 }
 
 /// Generation session implementation, which removes session from cluster on drop.
@@ -188,17 +205,18 @@ pub struct AdminSessionWrapper {
 impl ClusterSessions {
 	/// Create new cluster sessions container.
 	pub fn new(config: &ClusterConfiguration) -> Self {
+		let container_state = Arc::new(Mutex::new(ClusterSessionsContainerState::Idle));
 		ClusterSessions {
 			self_node_id: config.self_key_pair.public().clone(),
 			nodes: config.key_server_set.get().keys().cloned().collect(),
 			acl_storage: config.acl_storage.clone(),
 			key_storage: config.key_storage.clone(),
 			admin_public: config.admin_public.clone(),
-			generation_sessions: ClusterSessionsContainer::new(),
-			encryption_sessions: ClusterSessionsContainer::new(),
-			decryption_sessions: ClusterSessionsContainer::new(),
-			signing_sessions: ClusterSessionsContainer::new(),
-			admin_sessions: ClusterSessionsContainer::new(),
+			generation_sessions: ClusterSessionsContainer::new(container_state.clone()),
+			encryption_sessions: ClusterSessionsContainer::new(container_state.clone()),
+			decryption_sessions: ClusterSessionsContainer::new(container_state.clone()),
+			signing_sessions: ClusterSessionsContainer::new(container_state.clone()),
+			admin_sessions: ClusterSessionsContainer::new(container_state),
 			make_faulty_generation_sessions: AtomicBool::new(false),
 			session_counter: AtomicUsize::new(0),
 			max_nonce: RwLock::new(BTreeMap::new()),
@@ -210,8 +228,20 @@ impl ClusterSessions {
 		self.make_faulty_generation_sessions.store(true, Ordering::Relaxed);
 	}
 
+	/// Send session-level keep-alive messages.
+	pub fn sessions_keep_alive(&self) {
+		self.admin_sessions.send_keep_alive(&*SERVERS_SET_CHANGE_SESSION_ID, &self.self_node_id);
+	}
+
+	/// When session-level keep-alive response is received.
+	pub fn on_session_keep_alive(&self, sender: &NodeId, session_id: SessionId) {
+		if session_id == *SERVERS_SET_CHANGE_SESSION_ID {
+			self.admin_sessions.on_keep_alive(&session_id, sender);
+		}
+	}
+
 	/// Create new generation session.
-	pub fn new_generation_session(&self, master: NodeId, session_id: SessionId, nonce: Option<u64>, cluster: Arc<ClusterView>) -> Result<Arc<GenerationSessionImpl>, Error> {
+	pub fn new_generation_session(&self, master: NodeId, session_id: SessionId, nonce: Option<u64>, cluster: Arc<Cluster>) -> Result<Arc<GenerationSessionImpl>, Error> {
 		// check that there's no finished encryption session with the same id
 		if self.key_storage.contains(&session_id) {
 			return Err(Error::DuplicateSessionId);
@@ -225,7 +255,7 @@ impl ClusterSessions {
 
 		// check that there's no active encryption session with the same id
 		let nonce = self.check_session_nonce(&master, nonce)?;
-		self.generation_sessions.insert(master, session_id, cluster.clone(), move ||
+		self.generation_sessions.insert(master, session_id, cluster.clone(), false, move ||
 			Ok(GenerationSessionImpl::new(GenerationSessionParams {
 				id: session_id.clone(),
 				self_node_id: self.self_node_id.clone(),
@@ -254,11 +284,11 @@ impl ClusterSessions {
 	}
 
 	/// Create new encryption session.
-	pub fn new_encryption_session(&self, master: NodeId, session_id: SessionId, nonce: Option<u64>, cluster: Arc<ClusterView>) -> Result<Arc<EncryptionSessionImpl>, Error> {
+	pub fn new_encryption_session(&self, master: NodeId, session_id: SessionId, nonce: Option<u64>, cluster: Arc<Cluster>) -> Result<Arc<EncryptionSessionImpl>, Error> {
 		let encrypted_data = self.read_key_share(&session_id, &cluster)?;
 		let nonce = self.check_session_nonce(&master, nonce)?;
 
-		self.encryption_sessions.insert(master, session_id, cluster.clone(), move || EncryptionSessionImpl::new(EncryptionSessionParams {
+		self.encryption_sessions.insert(master, session_id, cluster.clone(), false, move || EncryptionSessionImpl::new(EncryptionSessionParams {
 			id: session_id.clone(),
 			self_node_id: self.self_node_id.clone(),
 			encrypted_data: encrypted_data,
@@ -281,12 +311,12 @@ impl ClusterSessions {
 	}
 
 	/// Create new decryption session.
-	pub fn new_decryption_session(&self, master: NodeId, session_id: SessionId, sub_session_id: Secret, nonce: Option<u64>, cluster: Arc<ClusterView>, requester_signature: Option<Signature>) -> Result<Arc<DecryptionSessionImpl>, Error> {
+	pub fn new_decryption_session(&self, master: NodeId, session_id: SessionId, sub_session_id: Secret, nonce: Option<u64>, cluster: Arc<Cluster>, requester_signature: Option<Signature>) -> Result<Arc<DecryptionSessionImpl>, Error> {
 		let session_id = DecryptionSessionId::new(session_id, sub_session_id);
 		let encrypted_data = self.read_key_share(&session_id.id, &cluster)?;
 		let nonce = self.check_session_nonce(&master, nonce)?;
 
-		self.decryption_sessions.insert(master, session_id.clone(), cluster.clone(), move || DecryptionSessionImpl::new(DecryptionSessionParams {
+		self.decryption_sessions.insert(master, session_id.clone(), cluster.clone(), false, move || DecryptionSessionImpl::new(DecryptionSessionParams {
 			meta: SessionMeta {
 				id: session_id.id,
 				self_node_id: self.self_node_id.clone(),
@@ -320,12 +350,12 @@ impl ClusterSessions {
 	}
 
 	/// Create new signing session.
-	pub fn new_signing_session(&self, master: NodeId, session_id: SessionId, sub_session_id: Secret, nonce: Option<u64>, cluster: Arc<ClusterView>, requester_signature: Option<Signature>) -> Result<Arc<SigningSessionImpl>, Error> {
+	pub fn new_signing_session(&self, master: NodeId, session_id: SessionId, sub_session_id: Secret, nonce: Option<u64>, cluster: Arc<Cluster>, requester_signature: Option<Signature>) -> Result<Arc<SigningSessionImpl>, Error> {
 		let session_id = SigningSessionId::new(session_id, sub_session_id);
 		let encrypted_data = self.read_key_share(&session_id.id, &cluster)?;
 		let nonce = self.check_session_nonce(&master, nonce)?;
 
-		self.signing_sessions.insert(master, session_id.clone(), cluster.clone(), move || SigningSessionImpl::new(SigningSessionParams {
+		self.signing_sessions.insert(master, session_id.clone(), cluster.clone(), false, move || SigningSessionImpl::new(SigningSessionParams {
 			meta: SessionMeta {
 				id: session_id.id,
 				self_node_id: self.self_node_id.clone(),
@@ -359,11 +389,11 @@ impl ClusterSessions {
 	}
 
 	/// Create new share add session.
-	pub fn new_share_add_session(&self, master: NodeId, session_id: SessionId, nonce: Option<u64>, cluster: Arc<ClusterView>) -> Result<Arc<AdminSession>, Error> {
+	pub fn new_share_add_session(&self, master: NodeId, session_id: SessionId, nonce: Option<u64>, cluster: Arc<Cluster>) -> Result<Arc<AdminSession>, Error> {
 		let nonce = self.check_session_nonce(&master, nonce)?;
 		let admin_public = self.admin_public.clone().ok_or(Error::AccessDenied)?;
 
-		self.admin_sessions.insert(master, session_id.clone(), cluster.clone(), move || ShareAddSessionImpl::new(ShareAddSessionParams {
+		self.admin_sessions.insert(master, session_id.clone(), cluster.clone(), false, move || ShareAddSessionImpl::new(ShareAddSessionParams {
 			meta: ShareChangeSessionMeta {
 				id: session_id,
 				self_node_id: self.self_node_id.clone(),
@@ -389,11 +419,11 @@ impl ClusterSessions {
 	}
 
 	/// Create new share move session.
-	pub fn new_share_move_session(&self, master: NodeId, session_id: SessionId, nonce: Option<u64>, cluster: Arc<ClusterView>) -> Result<Arc<AdminSession>, Error> {
+	pub fn new_share_move_session(&self, master: NodeId, session_id: SessionId, nonce: Option<u64>, cluster: Arc<Cluster>) -> Result<Arc<AdminSession>, Error> {
 		let nonce = self.check_session_nonce(&master, nonce)?;
 		let admin_public = self.admin_public.clone().ok_or(Error::AccessDenied)?;
 
-		self.admin_sessions.insert(master, session_id.clone(), cluster.clone(), move || ShareMoveSessionImpl::new(ShareMoveSessionParams {
+		self.admin_sessions.insert(master, session_id.clone(), cluster.clone(), false, move || ShareMoveSessionImpl::new(ShareMoveSessionParams {
 			meta: ShareChangeSessionMeta {
 				id: session_id,
 				self_node_id: self.self_node_id.clone(),
@@ -419,16 +449,17 @@ impl ClusterSessions {
 	}
 
 	/// Create new share remove session.
-	pub fn new_share_remove_session(&self, master: NodeId, session_id: SessionId, nonce: Option<u64>, cluster: Arc<ClusterView>) -> Result<Arc<AdminSession>, Error> {
+	pub fn new_share_remove_session(&self, master: NodeId, session_id: SessionId, nonce: Option<u64>, cluster: Arc<Cluster>, all_nodes_set: BTreeSet<NodeId>) -> Result<Arc<AdminSession>, Error> {
 		let nonce = self.check_session_nonce(&master, nonce)?;
 		let admin_public = self.admin_public.clone().ok_or(Error::AccessDenied)?;
 
-		self.admin_sessions.insert(master, session_id.clone(), cluster.clone(), move || ShareRemoveSessionImpl::new(ShareRemoveSessionParams {
+		self.admin_sessions.insert(master, session_id.clone(), cluster.clone(), false, move || ShareRemoveSessionImpl::new(ShareRemoveSessionParams {
 			meta: ShareChangeSessionMeta {
 				id: session_id,
 				self_node_id: self.self_node_id.clone(),
 				master_node_id: master,
 			},
+			cluster_nodes_set: all_nodes_set,
 			transport: ShareRemoveTransport::new(session_id.clone(), nonce, cluster),
 			key_storage: self.key_storage.clone(),
 			admin_public: Some(admin_public),
@@ -449,8 +480,13 @@ impl ClusterSessions {
 	}
 
 	/// Create new servers set change session.
-	pub fn new_servers_set_change_session(&self, master: NodeId, session_id: Option<SessionId>, nonce: Option<u64>, cluster: Arc<ClusterView>, all_nodes_set: BTreeSet<NodeId>) -> Result<Arc<AdminSession>, Error> {
-		// TODO: check if there's no other active sessions + do not allow to start other sessions when this session is active
+	pub fn new_servers_set_change_session(&self, master: NodeId, session_id: Option<SessionId>, nonce: Option<u64>, cluster: Arc<Cluster>, all_nodes_set: BTreeSet<NodeId>) -> Result<Arc<AdminSession>, Error> {
+		// communicating to all other nodes is crucial for ServersSetChange session
+		// => check that we have connections to all cluster nodes
+		if self.nodes.iter().any(|n| !cluster.is_connected(n)) {
+			return Err(Error::NodeDisconnected);
+		}
+
 		let session_id = match session_id {
 			Some(session_id) => if session_id == *SERVERS_SET_CHANGE_SESSION_ID {
 				session_id
@@ -462,7 +498,7 @@ impl ClusterSessions {
 		let nonce = self.check_session_nonce(&master, nonce)?;
 		let admin_public = self.admin_public.clone().ok_or(Error::AccessDenied)?;
 
-		self.admin_sessions.insert(master, session_id.clone(), cluster.clone(), move || ServersSetChangeSessionImpl::new(ServersSetChangeSessionParams {
+		self.admin_sessions.insert(master, session_id.clone(), cluster.clone(), true, move || ServersSetChangeSessionImpl::new(ServersSetChangeSessionParams {
 			meta: ShareChangeSessionMeta {
 				id: session_id,
 				self_node_id: self.self_node_id.clone(),
@@ -494,9 +530,6 @@ impl ClusterSessions {
 		self.encryption_sessions.stop_stalled_sessions();
 		self.decryption_sessions.stop_stalled_sessions();
 		self.signing_sessions.stop_stalled_sessions();
-		// TODO: servers set change session could take a lot of time
-		// && during that session some nodes could not receive messages
-		// => they could stop session as stalled. This must be handled
 		self.admin_sessions.stop_stalled_sessions();
 	}
 
@@ -511,7 +544,7 @@ impl ClusterSessions {
 	}
 
 	/// Read key share && remove disconnected nodes.
-	fn read_key_share(&self, key_id: &SessionId, cluster: &Arc<ClusterView>) -> Result<DocumentKeyShare, Error> {
+	fn read_key_share(&self, key_id: &SessionId, cluster: &Arc<Cluster>) -> Result<DocumentKeyShare, Error> {
 		let mut encrypted_data = self.key_storage.get(key_id).map_err(|e| Error::KeyStorage(e.into()))?;
 
 		// some of nodes, which were encrypting secret may be down
@@ -540,9 +573,10 @@ impl ClusterSessions {
 }
 
 impl<K, V, M> ClusterSessionsContainer<K, V, M> where K: Clone + Ord, V: ClusterSession {
-	pub fn new() -> Self {
+	pub fn new(container_state: Arc<Mutex<ClusterSessionsContainerState>>) -> Self {
 		ClusterSessionsContainer {
 			sessions: RwLock::new(BTreeMap::new()),
+			container_state: container_state,
 		}
 	}
 
@@ -550,20 +584,33 @@ impl<K, V, M> ClusterSessionsContainer<K, V, M> where K: Clone + Ord, V: Cluster
 		self.sessions.read().is_empty()
 	}
 
-	pub fn get(&self, session_id: &K) -> Option<Arc<V>> {
-		self.sessions.read().get(session_id).map(|s| s.session.clone())
+	pub fn get(&self, session_id: &K, update_last_message_time: bool) -> Option<Arc<V>> {
+		let mut sessions = self.sessions.write();
+		sessions.get_mut(session_id)
+			.map(|s| {
+				if update_last_message_time {
+					s.last_message_time = time::Instant::now();
+				}
+				s.session.clone()
+			})
 	}
 
-	pub fn insert<F: FnOnce() -> Result<V, Error>>(&self, master: NodeId, session_id: K, cluster: Arc<ClusterView>, session: F) -> Result<Arc<V>, Error> {
+	pub fn insert<F: FnOnce() -> Result<V, Error>>(&self, master: NodeId, session_id: K, cluster: Arc<Cluster>, is_exclusive_session: bool, session: F) -> Result<Arc<V>, Error> {
 		let mut sessions = self.sessions.write();
 		if sessions.contains_key(&session_id) {
 			return Err(Error::DuplicateSessionId);
 		}
 
+		// create session
 		let session = Arc::new(session()?);
+		// check if session can be started
+		self.container_state.lock().on_session_starting(is_exclusive_session)?;
+
+		// insert session
 		let queued_session = QueuedSession {
 			master: master,
 			cluster_view: cluster,
+			last_keep_alive_time: time::Instant::now(),
 			last_message_time: time::Instant::now(),
 			session: session.clone(),
 			queue: VecDeque::new(),
@@ -573,7 +620,9 @@ impl<K, V, M> ClusterSessionsContainer<K, V, M> where K: Clone + Ord, V: Cluster
 	}
 
 	pub fn remove(&self, session_id: &K) {
-		self.sessions.write().remove(session_id);
+		if self.sessions.write().remove(session_id).is_some() {
+			self.container_state.lock().on_session_completed();
+		}
 	}
 
 	pub fn enqueue_message(&self, session_id: &K, sender: NodeId, message: M, is_queued_message: bool) {
@@ -617,6 +666,72 @@ impl<K, V, M> ClusterSessionsContainer<K, V, M> where K: Clone + Ord, V: Cluster
 			if remove_session {
 				sessions.remove(&sid);
 			}
+		}
+	}
+}
+
+impl<K, V, M> ClusterSessionsContainer<K, V, M> where K: Clone + Ord, V: ClusterSession, SessionId: From<K> {
+	pub fn send_keep_alive(&self, session_id: &K, self_node_id: &NodeId) {
+		if let Some(session) = self.sessions.write().get_mut(session_id) {
+			let now = time::Instant::now();
+			if self_node_id == &session.master && now - session.last_keep_alive_time > time::Duration::from_secs(SESSION_KEEP_ALIVE_INTERVAL) {
+				session.last_keep_alive_time = now;
+				// since we send KeepAlive message to prevent nodes from disconnecting
+				// && worst thing that can happen if node is disconnected is that session is failed
+				// => ignore error here, because probably this node is not need for the rest of the session at all
+				let _ = session.cluster_view.broadcast(Message::Cluster(message::ClusterMessage::KeepAliveResponse(message::KeepAliveResponse {
+					session_id: Some(session_id.clone().into()),
+				})));
+			}
+		}
+	}
+
+	pub fn on_keep_alive(&self, session_id: &K, sender: &NodeId) {
+		if let Some(session) = self.sessions.write().get_mut(session_id) {
+			let now = time::Instant::now();
+			// we only accept keep alive from master node of ServersSetChange session
+			if sender == &session.master {
+				session.last_keep_alive_time = now;
+			}
+		}
+	}
+}
+
+impl ClusterSessionsContainerState {
+	/// When session is starting.
+	pub fn on_session_starting(&mut self, is_exclusive_session: bool) -> Result<(), Error> {
+		match *self {
+			ClusterSessionsContainerState::Idle if is_exclusive_session => {
+				::std::mem::replace(self, ClusterSessionsContainerState::Exclusive);
+			},
+			ClusterSessionsContainerState::Idle => {
+				::std::mem::replace(self, ClusterSessionsContainerState::Active(1));
+			},
+			ClusterSessionsContainerState::Active(_) if is_exclusive_session =>
+				return Err(Error::HasActiveSessions),
+			ClusterSessionsContainerState::Active(sessions_count) => {
+				::std::mem::replace(self, ClusterSessionsContainerState::Active(sessions_count + 1));
+			},
+			ClusterSessionsContainerState::Exclusive =>
+				return Err(Error::ExclusiveSessionActive),
+		}
+		Ok(())
+	}
+
+	/// When session is completed.
+	pub fn on_session_completed(&mut self) {
+		match *self {
+			ClusterSessionsContainerState::Idle =>
+				unreachable!("idle means that there are no active sessions; on_session_completed is only called once after active session is completed; qed"),
+			ClusterSessionsContainerState::Active(sessions_count) if sessions_count == 1 => {
+				::std::mem::replace(self, ClusterSessionsContainerState::Idle);
+			},
+			ClusterSessionsContainerState::Active(sessions_count) => {
+				::std::mem::replace(self, ClusterSessionsContainerState::Active(sessions_count - 1));
+			}
+			ClusterSessionsContainerState::Exclusive => {
+				::std::mem::replace(self, ClusterSessionsContainerState::Idle);
+			},
 		}
 	}
 }
@@ -838,6 +953,56 @@ impl Drop for AdminSessionWrapper {
 	fn drop(&mut self) {
 		if let Some(cluster) = self.cluster.upgrade() {
 			cluster.sessions().admin_sessions.remove(&self.session_id);
+		}
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use std::sync::Arc;
+	use std::collections::BTreeSet;
+	use ethkey::{Random, Generator};
+	use key_server_cluster::{Error, DummyAclStorage, DummyKeyStorage, MapKeyServerSet, PlainNodeKeyPair};
+	use key_server_cluster::cluster::ClusterConfiguration;
+	use key_server_cluster::cluster::tests::DummyCluster;
+	use super::ClusterSessions;
+
+	pub fn make_cluster_sessions() -> ClusterSessions {
+		let key_pair = Random.generate().unwrap();
+		let config = ClusterConfiguration {
+			threads: 1,
+			self_key_pair: Arc::new(PlainNodeKeyPair::new(key_pair.clone())),
+			listen_address: ("127.0.0.1".to_owned(), 100_u16),
+			key_server_set: Arc::new(MapKeyServerSet::new(vec![(key_pair.public().clone(), format!("127.0.0.1:{}", 100).parse().unwrap())].into_iter().collect())),
+			allow_connecting_to_higher_nodes: false,
+			key_storage: Arc::new(DummyKeyStorage::default()),
+			acl_storage: Arc::new(DummyAclStorage::default()),
+			admin_public: Some(Random.generate().unwrap().public().clone()),
+		};
+		ClusterSessions::new(&config)
+	}
+
+	#[test]
+	fn cluster_session_cannot_be_started_if_exclusive_session_is_active() {
+		let sessions = make_cluster_sessions();
+
+		sessions.new_generation_session(Default::default(), Default::default(), Some(1), Arc::new(DummyCluster::new(sessions.self_node_id.clone()))).unwrap();
+		match sessions.new_servers_set_change_session(Default::default(), None, Some(1), Arc::new(DummyCluster::new(sessions.self_node_id.clone())), BTreeSet::new()) {
+			Err(Error::HasActiveSessions) => (),
+			Err(e) => unreachable!(format!("{}", e)),
+			Ok(_) => unreachable!("OK"),
+		}
+	}
+
+	#[test]
+	fn exclusive_session_cannot_be_started_if_other_session_is_active() {
+		let sessions = make_cluster_sessions();
+
+		sessions.new_servers_set_change_session(Default::default(), None, Some(1), Arc::new(DummyCluster::new(sessions.self_node_id.clone())), BTreeSet::new()).unwrap();
+		match sessions.new_generation_session(Default::default(), Default::default(), Some(1), Arc::new(DummyCluster::new(sessions.self_node_id.clone()))) {
+			Err(Error::ExclusiveSessionActive) => (),
+			Err(e) => unreachable!(format!("{}", e)),
+			Ok(_) => unreachable!("OK"),
 		}
 	}
 }
