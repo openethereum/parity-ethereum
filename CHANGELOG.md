@@ -4,6 +4,33 @@ Parity 1.7.3 enables Byzantium and offers a variety of bug fixes and stability i
 
 Full list of included changes:
 
+- Backporting ([#6676](https://github.com/paritytech/parity/pull/6676))
+  - Fix wallet view ([#6597](https://github.com/paritytech/parity/pull/6597))
+    - Add safe fail for empty logs
+    - Filter transactions
+    - Add more logging
+    - Fix Wallet Creation and wallet tx list
+    - Remove logs
+    - Prevent selecting twice same wallet owner
+    - Fix tests
+    - Remove unused props
+  - Disallow pasting recovery phrases on first run ([#6602](https://github.com/paritytech/parity/pull/6602))
+    - Fix disallowing paste of recovery phrase on first run, ref [#6581](https://github.com/paritytech/parity/issue/6581)
+    - Allow the leader of CATS pasting recovery phrases.
+  - Updated systemd files for linux ([#6592](https://github.com/paritytech/parity/pull/6592))
+    - Previous version put $BASE directory in root directory.
+    - This version clearly explains how to run as root or as specific user.
+    - Additional configuration:
+      - send SIGHUP for clean exit,
+      - restart on fail.
+    - Tested on Ubuntu 16.04.3 LTS with 4.10.0-33-generic x86_64 kernel
+  - Don't expose port 80 for parity anymore ([#6633](https://github.com/paritytech/parity/pull/6633))
+- Backporting ([#6675](https://github.com/paritytech/parity/pull/6675))
+  - Required validators >= num owners ([#6551](https://github.com/paritytech/parity/pull/6551))
+  - Debounce sync status. ([#6572](https://github.com/paritytech/parity/pull/6572))
+  - Fixed network protocol version negotiation ([#6649](https://github.com/paritytech/parity/pull/6649))
+  - Renamed RPC receipt statusCode field to status ([#6650](https://github.com/paritytech/parity/pull/6650))
+  - Fixed RETURNDATA size for built-ins ([#6652](https://github.com/paritytech/parity/pull/6652))
 - Byzantium fork block number ([#6661](https://github.com/paritytech/parity/pull/6661))
 - Refreshing block number on status view ([#6610](https://github.com/paritytech/parity/pull/6610))
 - Tweaked block download timeouts ([#6595](https://github.com/paritytech/parity/pull/6595))
