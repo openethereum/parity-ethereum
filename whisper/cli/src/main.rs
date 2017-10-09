@@ -420,33 +420,32 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 		.and_then(|d| d.argv(command).deserialize())?;
 	let target_message_pool_size = args.flag_whisper_pool_size * 1024 * 1024;
 
-	// -- Whisper network handler
-	let manager = Arc::new(FilterManager::new()?);
-	let whisper_handler = Arc::new(WhisperNetwork::new(target_message_pool_size, manager.clone()));
+	// -- 1) Instantiate Whisper network handler
+	let filter_manager = Arc::new(FilterManager::new()?);
+	let network_handler = Arc::new(WhisperNetwork::new(target_message_pool_size, filter_manager.clone()));
 
-	// -- Whisper service
-	let mut service = NetworkService::new(NetworkConfiguration::new_local(), None).expect("Error creating network service");
-	service.start().expect("Error starting service");
-	service.register_protocol(whisper_handler, whisper_net::PROTOCOL_ID, whisper_net::PACKET_COUNT, whisper_net::SUPPORTED_VERSIONS);
-	service.register_protocol(Arc::new(whisper_net::ParityExtensions), whisper_net::PARITY_PROTOCOL_ID, whisper_net::PACKET_COUNT, whisper_net::SUPPORTED_VERSIONS);
+	// -- 2) Instantiate Whisper network and attach to it the network handler
+	let mut network = NetworkService::new(NetworkConfiguration::new_local(), None).expect("Error creating network service");
+	network.start().expect("Error starting service");
+	network.register_protocol(whisper_handler, whisper_net::PROTOCOL_ID, whisper_net::PACKET_COUNT, whisper_net::SUPPORTED_VERSIONS);
+	network.register_protocol(Arc::new(whisper_net::ParityExtensions), whisper_net::PARITY_PROTOCOL_ID, whisper_net::PACKET_COUNT, whisper_net::SUPPORTED_VERSIONS);
 
 	// -- Whisper RPC
 	let whisper_factory = RpcFactory { net: whisper_handler, manager: manager };
-	let mut handler = jsonrpc_core::MetaIoHandler::default(); // ou IoHandler::new();
 
-	/* rpc handler creation */
-	// Api::Whisper
-	let whisper_handler = whisper_factory.make_handler(network_manager.clone());
+	// -- 3) Instantiate RPC Handler
+	let mut rpc_handler = jsonrpc_core::MetaIoHandler::default(); // ou IoHandler::new();
+	let whisper_rpc_handler = whisper_factory.make_handler(network.clone());
+	rpc_handler.extend_with(::parity_whisper::rpc::Whisper::to_delegate(whisper_handler));
 
-	handler.extend_with(::parity_whisper::rpc::Whisper::to_delegate(whisper_handler));
+	// -- 4) Launch RPC with handler
 
 	// Api::WhisperPubSub
 	// if !for_generic_pubsub {
 		// needs arc managenetwork
-	let whisper_pubsub_handler = whisper_factory.make_handler(network_manager.clone());
-	handler.extend_with(
-		::parity_whisper::rpc::WhisperPubSub::to_delegate(whisper_pubsub_handler) // not sure why
-	);
+	// handler.extend_with(
+	// 	::parity_whisper::rpc::WhisperPubSub::to_delegate(whisper_pubsub_handler) // not sure why
+	// );
 	// }
 
 	// STart whisper service
@@ -470,7 +469,7 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 	// });
 
 	let threads = 1;
-	minihttp::ServerBuilder::new(handler) // yay handler => rpc
+	minihttp::ServerBuilder::new(rpc_handler) // yay handler => rpc
 				.threads(threads) // config param I guess // todo httpconfiguration
 				// .meta_extractor(http_common::MiniMetaExtractor::new(extractor))
 				// .cors(http_configuration.cors.into()) // cli
