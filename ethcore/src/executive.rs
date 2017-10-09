@@ -416,13 +416,19 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 
 			let cost = builtin.cost(data);
 			if cost <= params.gas {
-				if let Err(e) = builtin.execute(data, &mut output) {
+				let mut builtin_out_buffer = Vec::new();
+				let result = {
+					let mut builtin_output = BytesRef::Flexible(&mut builtin_out_buffer);
+					builtin.execute(data, &mut builtin_output)
+				};
+				if let Err(e) = result {
 					self.state.revert_to_checkpoint();
 					let evm_err: vm::Error = e.into();
 					tracer.trace_failed_call(trace_info, vec![], evm_err.clone().into());
 					Err(evm_err)
 				} else {
 					self.state.discard_checkpoint();
+					output.write(0, &builtin_out_buffer);
 
 					// trace only top level calls to builtins to avoid DDoS attacks
 					if self.depth == 0 {
@@ -439,9 +445,10 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 						);
 					}
 
+					let out_len = builtin_out_buffer.len();
 					Ok(FinalizationResult {
 						gas_left: params.gas - cost,
-						return_data: ReturnData::new(output.to_owned(), 0, output.len()),
+						return_data: ReturnData::new(builtin_out_buffer, 0, out_len),
 						apply_state: true,
 					})
 				}
