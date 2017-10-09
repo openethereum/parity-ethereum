@@ -605,3 +605,14 @@ Full list of included changes:
 - Adjust selection colours/display [#4811](https://github.com/paritytech/parity/pull/4811)
 - Update the Wallet Library Registry key [#4817](https://github.com/paritytech/parity/pull/4817)
 - Update Wallet to new Wallet Code [#4805](https://github.com/paritytech/parity/pull/4805)
+
+### Previous releases
+
+- [CHANGELOG-1.6](docs/CHANGELOG-1.6.md)
+- [CHANGELOG-1.5](docs/CHANGELOG-1.5.md)
+- [CHANGELOG-1.4](docs/CHANGELOG-1.4.md)
+- [CHANGELOG-1.3](docs/CHANGELOG-1.3.md)
+- [CHANGELOG-1.2](docs/CHANGELOG-1.2.md)
+- [CHANGELOG-1.1](docs/CHANGELOG-1.1.md)
+- [CHANGELOG-1.0](docs/CHANGELOG-1.0.md)
+- [CHANGELOG-0.9](docs/CHANGELOG-0.9.md)
