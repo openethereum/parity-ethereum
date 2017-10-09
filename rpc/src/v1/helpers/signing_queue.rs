@@ -23,7 +23,7 @@ use ethcore::account_provider::DappId;
 use v1::helpers::{ConfirmationRequest, ConfirmationPayload, oneshot};
 use v1::types::{ConfirmationResponse, H160 as RpcH160, Origin, DappId as RpcDappId};
 
-use jsonrpc_core::futures::{Future, Poll};
+use jsonrpc_core::futures::{Future, Poll, Async};
 
 /// Result that can be returned from JSON RPC.
 pub type RpcResult = Result<ConfirmationResponse, jsonrpc_core::Error>;
@@ -114,11 +114,24 @@ pub struct ConfirmationSender {
 pub struct ConfirmationReceiver {
 	id: U256,
 	receiver: oneshot::Receiver<ConfirmationResult>,
+	done: bool
 }
 
 impl ConfirmationReceiver {
+	pub fn new(id: U256, receiver: oneshot::Receiver<ConfirmationResult>) -> ConfirmationReceiver {
+		ConfirmationReceiver {
+			id: id,
+			receiver: receiver,
+			done: false
+		}
+	}
+
 	pub fn id(&self) -> U256 {
 		self.id
+	}
+
+	pub fn is_done(&self) -> bool {
+		self.done
 	}
 }
 
@@ -127,7 +140,12 @@ impl Future for ConfirmationReceiver {
 	type Error = jsonrpc_core::Error;
 
 	fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-		self.receiver.poll()
+		let polled = self.receiver.poll();
+
+		if polled.as_ref().map(|p| p.is_ready()).unwrap_or(false) {
+			self.done = true;
+		}
+		polled
 	}
 }
 
@@ -216,10 +234,7 @@ impl SigningQueue for ConfirmationsQueue {
 					origin: origin,
 				},
 			});
-			ConfirmationReceiver {
-				id: id,
-				receiver: receiver,
-			}
+			ConfirmationReceiver::new(id, receiver)
 		};
 		// Notify listeners
 		self.notify(QueueEvent::NewRequest(id));

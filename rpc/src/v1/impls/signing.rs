@@ -84,7 +84,7 @@ pub struct SigningQueueClient<D> {
 fn collect_garbage(map: &mut TransientHashMap<U256, ConfirmationReceiver>) {
 	map.prune();
 	if map.len() > MAX_TOTAL_REQUESTS {
-		map.retain(|_, ref mut val| val.poll().map(|async| async.is_not_ready()).unwrap_or(false));
+		map.retain(|_, ref mut val| !val.is_done());
 	}
 }
 
