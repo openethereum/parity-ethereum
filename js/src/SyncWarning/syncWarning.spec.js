@@ -17,8 +17,6 @@
 import { shallow } from 'enzyme';
 import React from 'react';
 
-import StatusIndicator from '@parity/ui/StatusIndicator';
-
 import SyncWarning from './';
 
 let component;
