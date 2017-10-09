@@ -177,7 +177,7 @@ export default class DetailsStep extends Component {
   }
 
   renderParameters () {
-    const { accounts, func, values, valuesError, onValueChange } = this.props;
+    const { func, values, valuesError, onValueChange } = this.props;
 
     if (!func) {
       return null;
@@ -197,7 +197,6 @@ export default class DetailsStep extends Component {
             value={ values[index] }
             error={ valuesError[index] }
             onChange={ onChange }
-            accounts={ accounts }
             param={ input.type }
             isEth={ false }
           />

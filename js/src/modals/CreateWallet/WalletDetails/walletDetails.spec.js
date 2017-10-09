@@ -25,6 +25,22 @@ import { ACCOUNTS } from '../createWallet.test.js';
 let component;
 let onChange;
 
+function createRedux () {
+  return {
+    dispatch: sinon.stub(),
+    subscribe: sinon.stub(),
+    getState: () => {
+      return {
+        personal: {
+          accounts: {},
+          contacts: {},
+          contracts: {}
+        }
+      };
+    }
+  };
+}
+
 function render (walletType = 'MULTISIG') {
   onChange = sinon.stub();
   component = shallow(
@@ -36,7 +52,12 @@ function render (walletType = 'MULTISIG') {
         owners: []
       } }
       walletType={ walletType }
-    />
+    />,
+    {
+      context: {
+        store: createRedux()
+      }
+    }
   );
 
   return component;

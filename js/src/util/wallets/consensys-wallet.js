@@ -212,6 +212,7 @@ export default class ConsensysWalletUtils {
 
           const transaction = {
             transactionHash: log.transactionHash,
+            transactionIndex: log.transactionIndex,
             blockNumber: log.blockNumber
           };
 

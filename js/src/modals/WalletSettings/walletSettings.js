@@ -34,7 +34,6 @@ class WalletSettings extends Component {
   };
 
   static propTypes = {
-    accountsInfo: PropTypes.object.isRequired,
     wallet: PropTypes.object.isRequired,
     onClose: PropTypes.func.isRequired,
     senders: PropTypes.object.isRequired
@@ -74,7 +73,7 @@ class WalletSettings extends Component {
       default:
       case 'EDIT':
         const { errors, fromString, wallet } = this.store;
-        const { accountsInfo, senders } = this.props;
+        const { senders } = this.props;
 
         return (
           <Form>
@@ -143,7 +142,6 @@ class WalletSettings extends Component {
                       }
                       value={ wallet.owners.slice() }
                       onChange={ this.store.onOwnersChange }
-                      accounts={ accountsInfo }
                       param='address[]'
                     />
 
@@ -443,13 +441,13 @@ class WalletSettings extends Component {
 }
 
 function mapStateToProps (initState, initProps) {
-  const { accountsInfo, accounts } = initState.personal;
+  const { accounts } = initState.personal;
   const { owners } = initProps.wallet;
 
   const senders = pick(accounts, owners);
 
   return () => {
-    return { accountsInfo, senders };
+    return { senders };
   };
 }
 

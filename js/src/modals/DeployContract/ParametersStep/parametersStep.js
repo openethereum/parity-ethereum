@@ -43,7 +43,6 @@ export default class ParametersStep extends Component {
   };
 
   static propTypes = {
-    accounts: PropTypes.object.isRequired,
     onParamsChange: PropTypes.func.isRequired,
 
     inputs: PropTypes.array,
@@ -60,7 +59,7 @@ export default class ParametersStep extends Component {
   }
 
   renderConstructorInputs () {
-    const { accounts, params, paramsError } = this.props;
+    const { params, paramsError } = this.props;
     const { inputs } = this.props;
 
     if (!inputs || !inputs.length) {
@@ -78,7 +77,6 @@ export default class ParametersStep extends Component {
       return (
         <div key={ index } className={ styles.funcparams }>
           <TypedInput
-            accounts={ accounts }
             error={ error }
             isEth={ false }
             label={ label }
