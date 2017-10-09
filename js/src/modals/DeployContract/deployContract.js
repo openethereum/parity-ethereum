@@ -314,7 +314,6 @@ class DeployContract extends Component {
         return (
           <ParametersStep
             { ...this.state }
-            accounts={ accounts }
             onParamsChange={ this.onParamsChange }
             readOnly={ readOnly }
           />
