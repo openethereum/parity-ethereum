@@ -17,34 +17,21 @@
 import { shallow } from 'enzyme';
 import React from 'react';
 
+import StatusIndicator from '@parity/ui/StatusIndicator';
+
 import SyncWarning from './';
 
 let component;
 
-function createRedux (syncing = null) {
-  return {
-    dispatch: () => {},
-    subscribe: () => {},
-    getState: () => {
-      return {
-        nodeStatus: {
-          health: {
-            overall: {
-              status: syncing ? 'needsAttention' : 'ok',
-              message: []
-            }
-          }
-        }
-      };
-    }
-  };
+function createApi (syncing = null) {
+  return {};
 }
 
-function render (store) {
+function render () {
   component = shallow(
     <SyncWarning />,
-    { context: { store: store || createRedux() } }
-  ).find('SyncWarning').shallow();
+    { context: { api: createApi() } }
+  );
 
   return component;
 }
@@ -54,11 +41,7 @@ describe('SyncWarning', () => {
     expect(render()).to.be.ok;
   });
 
-  it('does render when syncing', () => {
-    expect(render(createRedux({})).find('div')).to.have.length.gte(1);
-  });
-
-  it('does not render when not syncing', () => {
-    expect(render(createRedux(false)).find('div')).to.have.length(0);
+  it('does not render when healthy', () => {
+    expect(render().find('div')).to.have.length(0);
   });
 });
