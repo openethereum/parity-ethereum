@@ -1,6 +1,13 @@
-## Parity [v1.7.3](https://github.com/paritytech/parity/releases/tag/v1.7.3) (2017-10-06)
+## Parity [v1.7.3](https://github.com/paritytech/parity/releases/tag/v1.7.3) (2017-10-09)
 
-Parity 1.7.3 enables Byzantium and offers a variety of bug fixes and stability improvements.
+Parity 1.7.3 enables the Byzantium fork for Ethereum main network on Block 4_370_000 and offers a variety of bug fixes and stability improvements. Among them:
+
+- Fixed network protocol version negotiation with Geth nodes v1.7.1+.
+- Fixed `RETURNDATA` size for built-ins. (Built-ins in some cases overwrite only a portion of the output memory slice.)
+- Multisig Wallet View now loads if multiple transactions happened within one block.
+- Improved stability of snapshot-sycns (warp).
+- Revised timeout and batch size constants for bigger blocks.
+- Renamed RPC receipt `statusCode` field to `status`.
 
 Full list of included changes:
 
@@ -15,7 +22,7 @@ Full list of included changes:
     - Fix tests
     - Remove unused props
   - Disallow pasting recovery phrases on first run ([#6602](https://github.com/paritytech/parity/pull/6602))
-    - Fix disallowing paste of recovery phrase on first run, ref [#6581](https://github.com/paritytech/parity/issue/6581)
+    - Fix disallowing paste of recovery phrase on first run, ref [#6581](https://github.com/paritytech/parity/issues/6581)
     - Allow the leader of CATS pasting recovery phrases.
   - Updated systemd files for linux ([#6592](https://github.com/paritytech/parity/pull/6592))
     - Previous version put $BASE directory in root directory.
