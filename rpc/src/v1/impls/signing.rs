@@ -199,10 +199,9 @@ impl<D: Dispatcher + 'static> ParitySigning for SigningQueueClient<D> {
 		);
 
 		// when dispatch is complete - wait for result and then
-		Box::new(res.map(|result| result.wait()).and_then(move |response| {
+		Box::new(res.flatten().and_then(move |response| {
 			match response {
-				Ok(RpcConfirmationResponse::Decrypt(data)) => Ok(data),
-				Err(e) => Err(e),
+				RpcConfirmationResponse::Decrypt(data) => Ok(data),
 				e => Err(errors::internal("Unexpected result.", e)),
 			}
 		}))
@@ -219,10 +218,9 @@ impl<D: Dispatcher + 'static> EthSigning for SigningQueueClient<D> {
 			meta.origin,
 		);
 
-		Box::new(res.map(|result| result.wait()).and_then(move |response| {
+		Box::new(res.flatten().and_then(move |response| {
 			match response {
-				Ok(RpcConfirmationResponse::Signature(sig)) => Ok(sig),
-				Err(e) => Err(e),
+				RpcConfirmationResponse::Signature(sig) => Ok(sig),
 				e => Err(errors::internal("Unexpected result.", e)),
 			}
 		}))
@@ -235,10 +233,9 @@ impl<D: Dispatcher + 'static> EthSigning for SigningQueueClient<D> {
 			meta.origin,
 		);
 
-		Box::new(res.map(|result| result.wait()).and_then(move |response| {
+		Box::new(res.flatten().and_then(move |response| {
 			match response {
-				Ok(RpcConfirmationResponse::SendTransaction(hash)) => Ok(hash),
-				Err(e) => Err(e),
+				RpcConfirmationResponse::SendTransaction(hash) => Ok(hash),
 				e => Err(errors::internal("Unexpected result.", e)),
 			}
 		}))
@@ -251,10 +248,9 @@ impl<D: Dispatcher + 'static> EthSigning for SigningQueueClient<D> {
 			meta.origin,
 		);
 
-		Box::new(res.map(|result| result.wait()).and_then(move |response| {
+		Box::new(res.flatten().and_then(move |response| {
 			match response {
-				Ok(RpcConfirmationResponse::SignTransaction(tx)) => Ok(tx),
-				Err(e) => Err(e),
+				RpcConfirmationResponse::SignTransaction(tx) => Ok(tx),
 				e => Err(errors::internal("Unexpected result.", e)),
 			}
 		}))
