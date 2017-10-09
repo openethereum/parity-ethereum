@@ -55,8 +55,8 @@ enum DispatchResult {
 }
 
 impl Future for DispatchResult {
-	type Item=RpcConfirmationResponse;
-	type Error=Error;
+	type Item = RpcConfirmationResponse;
+	type Error = Error;
 
 	fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
 		match self {

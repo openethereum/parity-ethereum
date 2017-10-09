@@ -123,8 +123,8 @@ impl ConfirmationReceiver {
 }
 
 impl Future for ConfirmationReceiver {
-	type Item=ConfirmationResult;
-	type Error=jsonrpc_core::Error;
+	type Item = ConfirmationResult;
+	type Error = jsonrpc_core::Error;
 
 	fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
 		self.receiver.poll()
@@ -159,7 +159,7 @@ impl ConfirmationsQueue {
 		}
 	}
 
-	/// Removes requests from this queue and notifies `ConfirmationPromise` holders about the result.
+	/// Removes requests from this queue and notifies `ConfirmationReceiver` holder about the result.
 	/// Notifies also a receiver about that event.
 	fn remove(&self, id: U256, result: Option<RpcResult>) -> Option<ConfirmationRequest> {
 		let sender = self.queue.write().remove(&id);
@@ -171,11 +171,11 @@ impl ConfirmationsQueue {
 				|_| QueueEvent::RequestConfirmed(id)
 			));
 
-			// notify confirmation receivers about resolution
-			let confirmation = result.clone().map_or(ConfirmationResult::Rejected, |h| ConfirmationResult::Confirmed(h));
+			// notify confirmation receiver about resolution
+			let confirmation = result.map_or(ConfirmationResult::Rejected, |h| ConfirmationResult::Confirmed(h));
 			sender.sender.send(Ok(confirmation));
 
-			Some(sender.request.clone())
+			Some(sender.request)
 		} else {
 			None
 		}
