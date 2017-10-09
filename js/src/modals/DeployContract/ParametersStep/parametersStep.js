@@ -78,7 +78,6 @@ export default class ParametersStep extends Component {
       return (
         <div key={ index } className={ styles.funcparams }>
           <TypedInput
-            accounts={ accounts }
             error={ error }
             isEth={ false }
             label={ label }

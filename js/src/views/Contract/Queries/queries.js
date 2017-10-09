@@ -29,7 +29,6 @@ export default class Queries extends Component {
   }
 
   static propTypes = {
-    accountsInfo: PropTypes.object.isRequired,
     contract: PropTypes.object,
     values: PropTypes.object
   }
@@ -94,12 +93,11 @@ export default class Queries extends Component {
 
   renderInputQuery (fn) {
     const { abi, name, signature } = fn;
-    const { accountsInfo, contract } = this.props;
+    const { contract } = this.props;
 
     return (
       <div className={ styles.container } key={ fn.signature }>
         <InputQuery
-          accountsInfo={ accountsInfo }
           className={ styles.method }
           inputs={ abi.inputs }
           outputs={ abi.outputs }
@@ -144,13 +142,11 @@ export default class Queries extends Component {
       return null;
     }
 
-    const { accountsInfo } = this.props;
     const { name, type } = output;
     const label = `${name ? `${name}: ` : ''}${type}`;
 
     return (
       <TypedInput
-        accounts={ accountsInfo }
         allowCopy
         key={ key }
         isEth={ false }
