@@ -40,8 +40,8 @@ export default class TypedInput extends Component {
       PropTypes.string
     ]).isRequired,
 
-    accounts: PropTypes.object,
     allowCopy: PropTypes.bool,
+    allowedValues: PropTypes.array,
     className: PropTypes.string,
     error: PropTypes.any,
     hint: nodeOrStringProptype(),
@@ -97,7 +97,7 @@ export default class TypedInput extends Component {
     const { type } = param;
 
     if (type === ABI_TYPES.ARRAY) {
-      const { accounts, className, label } = this.props;
+      const { allowedValues, className, label } = this.props;
       const { subtype, length } = param;
       const value = this.getValue() || param.default;
 
@@ -113,8 +113,8 @@ export default class TypedInput extends Component {
 
         return (
           <TypedInput
-            accounts={ accounts }
             allowCopy={ allowCopy }
+            allowedValues={ allowedValues }
             className={ className }
             key={ `${subtype.type}_${index}` }
             onChange={ onChange }
@@ -340,13 +340,13 @@ export default class TypedInput extends Component {
   }
 
   renderAddress () {
-    const { accounts, allowCopy, className, label, error, hint, readOnly } = this.props;
+    const { allowCopy, allowedValues, className, label, error, hint, readOnly } = this.props;
     const value = this.getValue();
 
     return (
       <InputAddressSelect
         allowCopy={ allowCopy }
-        accounts={ accounts }
+        allowedValues={ allowedValues }
         className={ className }
         error={ error }
         hint={ hint }

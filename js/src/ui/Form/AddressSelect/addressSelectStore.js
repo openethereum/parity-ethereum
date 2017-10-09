@@ -165,7 +165,8 @@ export default class AddressSelectStore {
     const contactsN = Object.keys(contacts).length;
 
     if (accountsN + contractsN + contactsN === 0) {
-      return;
+      this.initValues = [];
+      return this.handleChange();
     }
 
     this.initValues = [

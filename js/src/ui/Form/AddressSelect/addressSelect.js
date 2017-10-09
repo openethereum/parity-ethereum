@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { eq } from 'lodash';
 import React, { Component, PropTypes } from 'react';
 import ReactDOM from 'react-dom';
 import { connect } from 'react-redux';
@@ -93,6 +94,18 @@ class AddressSelect extends Component {
   }
 
   componentWillReceiveProps (nextProps) {
+    if (!eq(Object.keys(this.props.accounts), Object.keys(nextProps.accounts))) {
+      return this.setValues(nextProps);
+    }
+
+    if (!eq(Object.keys(this.props.contacts), Object.keys(nextProps.contacts))) {
+      return this.setValues(nextProps);
+    }
+
+    if (!eq(Object.keys(this.props.contracts), Object.keys(nextProps.contracts))) {
+      return this.setValues(nextProps);
+    }
+
     if (this.store.values && this.store.values.length > 0) {
       return;
     }

@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { pick } from 'lodash';
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 
@@ -28,6 +29,7 @@ class InputAddressSelect extends Component {
     contracts: PropTypes.object.isRequired,
 
     allowCopy: PropTypes.bool,
+    allowedValues: PropTypes.array,
     className: PropTypes.string,
     error: nodeOrStringProptype(),
     hint: nodeOrStringProptype(),
@@ -38,16 +40,33 @@ class InputAddressSelect extends Component {
   };
 
   render () {
-    const { accounts, allowCopy, className, contacts, contracts, label, hint, error, value, onChange, readOnly } = this.props;
+    const { accounts, allowCopy, allowedValues, className, contacts, contracts, label, hint, error, value, onChange, readOnly } = this.props;
+    // Add the currently selected value to the list
+    // of allowed values, if any given
+    const nextAllowedValues = allowedValues
+      ? [].concat(allowedValues, value || [])
+      : null;
+
+    const filteredAccounts = nextAllowedValues
+      ? pick(accounts, nextAllowedValues)
+      : accounts;
+
+    const filteredContacts = nextAllowedValues
+      ? pick(contacts, nextAllowedValues)
+      : accounts;
+
+    const filteredContracts = nextAllowedValues
+      ? pick(contracts, nextAllowedValues)
+      : accounts;
 
     return (
       <AddressSelect
         allowCopy={ allowCopy }
         allowInput
-        accounts={ accounts }
+        accounts={ filteredAccounts }
         className={ className }
-        contacts={ contacts }
-        contracts={ contracts }
+        contacts={ filteredContacts }
+        contracts={ filteredContracts }
         error={ error }
         hint={ hint }
         label={ label }
