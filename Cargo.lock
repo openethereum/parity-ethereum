@@ -3,6 +3,7 @@ name = "whisper-cli"
 version = "0.1.0"
 dependencies = [
  "docopt 0.8.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethcore-ipc-hypervisor 1.2.0",
  "ethcore-ipc-nano 1.8.0",
  "ethcore-network 1.8.0",
  "ethsync 1.8.0",

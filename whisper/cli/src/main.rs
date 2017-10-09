@@ -22,8 +22,10 @@ extern crate parity_whisper;
 extern crate panic_hook;
 extern crate parity_rpc;
 extern crate ethcore_network as net;
+extern crate ethcore_ipc_hypervisor as hypervisor;
 
 use std::str::FromStr;
+
 
 extern crate jsonrpc_core;
 extern crate jsonrpc_http_server as http;
@@ -32,6 +34,38 @@ extern crate jsonrpc_minihttp_server as minihttp;
 extern crate jsonrpc_pubsub;
 extern crate parity_dapps;
 extern crate ethsync;
+
+// #[cfg(feature="ipc")]
+pub mod service_urls {
+	use std::path::PathBuf;
+
+	pub const CLIENT: &'static str = "parity-chain.ipc";
+	pub const SNAPSHOT: &'static str = "parity-snapshot.ipc";
+	pub const SYNC: &'static str = "parity-sync.ipc";
+	pub const SYNC_NOTIFY: &'static str = "parity-sync-notify.ipc";
+	pub const NETWORK_MANAGER: &'static str = "parity-manage-net.ipc";
+	pub const SYNC_CONTROL: &'static str = "parity-sync-control.ipc";
+	pub const LIGHT_PROVIDER: &'static str = "parity-light-provider.ipc";
+
+	#[cfg(feature="stratum")]
+	pub const STRATUM_CONTROL: &'static str = "parity-stratum-control.ipc";
+
+	pub fn with_base(data_dir: &str, service_path: &str) -> String {
+		let mut path = PathBuf::from(data_dir);
+		path.push(service_path);
+
+		format!("ipc://{}", path.to_str().unwrap())
+	}
+}
+use std::path::Path;
+use hypervisor::Hypervisor;
+use hypervisor::{SYNC_MODULE_ID, BootArgs, HYPERVISOR_IPC_URL};
+// #[cfg(feature="ipc")]
+pub fn hypervisor(base_path: &Path) -> Option<Hypervisor> {
+	Some(Hypervisor
+		::with_url(&service_urls::with_base(base_path.to_str().unwrap(), HYPERVISOR_IPC_URL))
+		.io_path(base_path.to_str().unwrap()))
+}
 
 /// RPC dependencies can be used to initialize RPC endpoints from APIs.
 // pub trait Dependencies {
@@ -213,7 +247,7 @@ impl RpcFactory {
 }
 
 use ethsync::ManageNetwork; // bad
-use ethsync::api::{SyncClient, NetworkManagerClient};
+// use ethsync::api::{SyncClient, NetworkManagerClient};
 
 // use parity_rpc::*;
 
@@ -267,6 +301,7 @@ pub struct HttpConfiguration {
 	pub processing_threads: usize,
 }
 
+pub use ethsync::api::{SyncClient, NetworkManagerClient};
 
 impl HttpConfiguration {
 	pub fn address(&self) -> Option<(String, u16)> {
@@ -385,7 +420,7 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 		.and_then(|d| d.argv(command).deserialize())?;
 	let target_message_pool_size = args.flag_whisper_pool_size * 1024 * 1024;
 
-	// -- Whisper handler
+	// -- Whisper network handler
 	let manager = Arc::new(FilterManager::new()?);
 	let whisper_handler = Arc::new(WhisperNetwork::new(target_message_pool_size, manager.clone()));
 
@@ -396,47 +431,37 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 	service.register_protocol(Arc::new(whisper_net::ParityExtensions), whisper_net::PARITY_PROTOCOL_ID, whisper_net::PACKET_COUNT, whisper_net::SUPPORTED_VERSIONS);
 
 	// -- Whisper RPC
-	// let attached_protos:Vec<AttachedProtocol> = Vec::new(); // @todo not sure when this is used / where
-	// protos.push(AttachedProtocol {
-	// 	handler: net.clone() as Arc<_>,
-	// 	packet_count: whisper_net::PACKET_COUNT,
-	// 	versions: whisper_net::SUPPORTED_VERSIONS,
-	// 	protocol_id: whisper_net::PROTOCOL_ID,
-	// });
-	// protos.push(AttachedProtocol { // parity-only extensions to whisper.
-	// 	handler: Arc::new(whisper_net::ParityExtensions),
-	// 	packet_count: whisper_net::PACKET_COUNT,
-	// 	versions: whisper_net::SUPPORTED_VERSIONS,
-	// 	protocol_id: whisper_net::PARITY_PROTOCOL_ID,
-	// }); @TODO research
 	let whisper_factory = RpcFactory { net: whisper_handler, manager: manager };
-
-	let network_manager = generic_client::<NetworkManagerClient<_>>(
-		&service_urls::with_base(&hypervisor.io_path, service_urls::NETWORK_MANAGER)).unwrap(); // network manager for RPC I guess?
-
-/*	let mut handler = MetaIoHandler::with_middleware((
-		rpc::WsDispatcher::new(full_handler),
-		Middleware::new(deps.stats.clone(), deps.apis.activity_notifier(), pool)
-	)); */
-	let mut handler = MetaIoHandler::default(); // ou IoHandler::new();
+	let mut handler = jsonrpc_core::MetaIoHandler::default(); // ou IoHandler::new();
 
 	/* rpc handler creation */
 	// Api::Whisper
-	let whisper = whisper_factory.make_handler(network_manager.clone());
-	handler.extend_with(::parity_whisper::rpc::Whisper::to_delegate(whisper));
+	let whisper_handler = whisper_factory.make_handler(network_manager.clone());
+
+	handler.extend_with(::parity_whisper::rpc::Whisper::to_delegate(whisper_handler));
 
 	// Api::WhisperPubSub
 	// if !for_generic_pubsub {
-	let whisper_pubsub = whisper_factory.make_handler(network_manager.clone());
+		// needs arc managenetwork
+	let whisper_pubsub_handler = whisper_factory.make_handler(network_manager.clone());
 	handler.extend_with(
-		::parity_whisper::rpc::WhisperPubSub::to_delegate(whisper_pubsub) // not sure why
+		::parity_whisper::rpc::WhisperPubSub::to_delegate(whisper_pubsub_handler) // not sure why
 	);
 	// }
 
+	// STart whisper service
+	// Create RPC handler with the service handle
+	// Whisper => RPC
+	// (or 2 and 3 reversed)
+	// make wrapper around devP2P and whisper; make it implement PoolHandle
+	// struct P2P, whisper
+	// poolhandle parity CLI can copy
+	// don't need managernetwork
+
 	let mut http_configuration = HttpConfiguration::default();
-	let http_address = http_configuration.address();
+	let http_address = http_configuration.address().unwrap();
 	let url = format!("{}:{}", http_address.0, http_address.1);
-	let addr = url.parse().map_err(|_| format!("Invalid {} listen host/port given: {}", id, url))?;
+	let addr = url.parse().map_err(|_| format!("Invalid listen host/port given: {}", url)); // "?"
 
 	// let mut allowed_hosts: Option<Vec<Host>> = http_configuration.hosts.into();
 	// allowed_hosts.as_mut().map(|mut hosts| {
@@ -450,7 +475,7 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 				// .meta_extractor(http_common::MiniMetaExtractor::new(extractor))
 				// .cors(http_configuration.cors.into()) // cli
 				//.allowed_hosts(allowed_hosts.into()) // cli
-				.start_http(&addr)
+				.start_http(&addr.unwrap())
 				.map(HttpServer::Mini)?;
 
 

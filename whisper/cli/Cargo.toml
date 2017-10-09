@@ -14,6 +14,7 @@ parity-rpc = { path = "../../rpc" }
 parity-dapps = { path = "../../dapps" }
 ethsync = { path = "../../sync" }
 ethcore-ipc-nano = { path = "../../ipc/nano" }
+ethcore-ipc-hypervisor = { path = "../../ipc/hypervisor" }
 
 jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
 jsonrpc-http-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.7" }
