@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { Address, BlockNumber, Data, Hash, CallRequest } from '../types';
+import { Address, BlockNumber, Data, Hash, CallRequest, Quantity } from '../types';
 import { withPreamble, Dummy, fromDecimal } from '../helpers';
 
 const SECTION_FILTERING = 'Transaction-Trace Filtering';
@@ -134,12 +134,24 @@ then it should look something like:
             type: Address,
             desc: 'Sent to these addresses.',
             optional: true
+          },
+          after: {
+            type: Quantity,
+            desc: 'The offset trace number',
+            optional: true
+          },
+          count: {
+            type: Quantity,
+            desc: 'Integer number of traces to display in a batch.',
+            optional: true
           }
         },
         example: {
           fromBlock: fromDecimal(3068100),
           toBlock: fromDecimal(3068200),
-          toAddress: ['0x8bbB73BCB5d553B5A556358d27625323Fd781D37']
+          toAddress: ['0x8bbB73BCB5d553B5A556358d27625323Fd781D37'],
+          after: 1000,
+          count: 100
         }
       }
     ],

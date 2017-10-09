@@ -20,7 +20,6 @@ use std::fmt::Debug;
 use std::ops::Deref;
 use std::sync::Arc;
 
-use futures::{future, Future, BoxFuture};
 use light::cache::Cache as LightDataCache;
 use light::client::LightChainClient;
 use light::on_demand::{request, OnDemand};
@@ -43,7 +42,9 @@ use ethcore::transaction::{Action, SignedTransaction, PendingTransaction, Transa
 use ethcore::account_provider::AccountProvider;
 use crypto::DEFAULT_MAC;
 
-use jsonrpc_core::Error;
+use jsonrpc_core::{BoxFuture, Error};
+use jsonrpc_core::futures::{future, Future};
+use jsonrpc_core::futures::future::Either;
 use v1::helpers::{errors, TransactionRequest, FilledTransactionRequest, ConfirmationPayload};
 use v1::types::{
 	H256 as RpcH256, H520 as RpcH520, Bytes as RpcBytes,
@@ -120,7 +121,7 @@ impl<C: MiningBlockChainClient, M: MinerService> Dispatcher for FullDispatcher<C
 			false => request.nonce,
 			true => Some(Self::fill_nonce(request.nonce, &from, &miner, &client)),
 		};
-		future::ok(FilledTransactionRequest {
+		Box::new(future::ok(FilledTransactionRequest {
 			from: from,
 			used_default_from: request.from.is_none(),
 			to: request.to,
@@ -130,7 +131,7 @@ impl<C: MiningBlockChainClient, M: MinerService> Dispatcher for FullDispatcher<C
 			value: request.value.unwrap_or_else(|| 0.into()),
 			data: request.data.unwrap_or_else(Vec::new),
 			condition: request.condition,
-		}).boxed()
+		}))
 	}
 
 	fn sign(&self, accounts: Arc<AccountProvider>, filled: FilledTransactionRequest, password: SignWith)
@@ -139,7 +140,7 @@ impl<C: MiningBlockChainClient, M: MinerService> Dispatcher for FullDispatcher<C
 		let (client, miner) = (self.client.clone(), self.miner.clone());
 		let chain_id = client.signing_chain_id();
 		let address = filled.from;
-		future::done({
+		Box::new(future::done({
 			let t = Transaction {
 				nonce: Self::fill_nonce(filled.nonce, &filled.from, &miner, &client),
 				action: filled.to.map_or(Action::Create, Action::Call),
@@ -159,7 +160,7 @@ impl<C: MiningBlockChainClient, M: MinerService> Dispatcher for FullDispatcher<C
 						.expect("Transaction was signed by AccountsProvider; it never produces invalid signatures; qed")
 				}))
 			}
-		}).boxed()
+		}))
 	}
 
 	fn dispatch_transaction(&self, signed_transaction: PendingTransaction) -> Result<H256, Error> {
@@ -182,7 +183,7 @@ pub fn fetch_gas_price_corpus(
 	const GAS_PRICE_SAMPLE_SIZE: usize = 100;
 
 	if let Some(cached) = { cache.lock().gas_price_corpus() } {
-		return future::ok(cached).boxed()
+		return Box::new(future::ok(cached))
 	}
 
 	let cache = cache.clone();
@@ -217,8 +218,8 @@ pub fn fetch_gas_price_corpus(
 	});
 
 	match eventual_corpus {
-		Some(corp) => corp.map_err(|_| errors::no_light_peers()).boxed(),
-		None => future::err(errors::network_disabled()).boxed(),
+		Some(corp) => Box::new(corp.map_err(|_| errors::no_light_peers())),
+		None => Box::new(future::err(errors::network_disabled())),
 	}
 }
 
@@ -284,7 +285,7 @@ impl LightDispatcher {
 		// fast path where we don't go to network; nonce provided or can be gotten from queue.
 		let maybe_nonce = self.transaction_queue.read().next_nonce(&addr);
 		if let Some(nonce) = maybe_nonce {
-			return future::ok(nonce).boxed()
+			return Box::new(future::ok(nonce))
 		}
 
 		let best_header = self.client.best_block_header();
@@ -295,11 +296,11 @@ impl LightDispatcher {
 		}).expect("no back-references; therefore all back-references valid; qed"));
 
 		match nonce_future {
-			Some(x) =>
+			Some(x) => Box::new(
 				x.map(move |acc| acc.map_or(account_start_nonce, |acc| acc.nonce))
 					.map_err(|_| errors::no_light_peers())
-					.boxed(),
-			None =>  future::err(errors::network_disabled()).boxed()
+			),
+			None =>  Box::new(future::err(errors::network_disabled()))
 		}
 	}
 }
@@ -332,29 +333,29 @@ impl Dispatcher for LightDispatcher {
 
 		// fast path for known gas price.
 		let gas_price = match request_gas_price {
-			Some(gas_price) => future::ok(with_gas_price(gas_price)).boxed(),
-			None => fetch_gas_price_corpus(
+			Some(gas_price) => Either::A(future::ok(with_gas_price(gas_price))),
+			None => Either::B(fetch_gas_price_corpus(
 				self.sync.clone(),
 				self.client.clone(),
 				self.on_demand.clone(),
 				self.cache.clone()
 			).and_then(|corp| match corp.median() {
-				Some(median) => future::ok(*median),
-				None => future::ok(DEFAULT_GAS_PRICE), // fall back to default on error.
-			}).map(with_gas_price).boxed()
+				Some(median) => Ok(*median),
+				None => Ok(DEFAULT_GAS_PRICE), // fall back to default on error.
+			}).map(with_gas_price))
 		};
 
 		match (request_nonce, force_nonce) {
-			(_, false) | (Some(_), true) => gas_price,
+			(_, false) | (Some(_), true) => Box::new(gas_price),
 			(None, true) => {
 				let next_nonce = self.next_nonce(from);
-				gas_price.and_then(move |mut filled| next_nonce
+				Box::new(gas_price.and_then(move |mut filled| next_nonce
 					.map_err(|_| errors::no_light_peers())
 					.map(move |nonce| {
 						filled.nonce = Some(nonce);
 						filled
 					})
-				).boxed()
+				))
 			},
 		}
 	}
@@ -390,13 +391,12 @@ impl Dispatcher for LightDispatcher {
 
 		// fast path for pre-filled nonce.
 		if let Some(nonce) = filled.nonce {
-			return future::done(with_nonce(filled, nonce)).boxed()
+			return Box::new(future::done(with_nonce(filled, nonce)))
 		}
 
-		self.next_nonce(address)
+		Box::new(self.next_nonce(address)
 			.map_err(|_| errors::no_light_peers())
-			.and_then(move |nonce| with_nonce(filled, nonce))
-			.boxed()
+			.and_then(move |nonce| with_nonce(filled, nonce)))
 	}
 
 	fn dispatch_transaction(&self, signed_transaction: PendingTransaction) -> Result<H256, Error> {
@@ -497,7 +497,7 @@ pub fn execute<D: Dispatcher + 'static>(
 	match payload {
 		ConfirmationPayload::SendTransaction(request) => {
 			let condition = request.condition.clone().map(Into::into);
-			dispatcher.sign(accounts, request, pass)
+			Box::new(dispatcher.sign(accounts, request, pass)
 				.map(move |v| v.map(move |tx| PendingTransaction::new(tx, condition)))
 				.map(WithToken::into_tuple)
 				.map(|(tx, token)| (tx, token, dispatcher))
@@ -506,18 +506,18 @@ pub fn execute<D: Dispatcher + 'static>(
 						.map(RpcH256::from)
 						.map(ConfirmationResponse::SendTransaction)
 						.map(move |h| WithToken::from((h, tok)))
-				}).boxed()
+				}))
 		},
 		ConfirmationPayload::SignTransaction(request) => {
-			dispatcher.sign(accounts, request, pass)
+			Box::new(dispatcher.sign(accounts, request, pass)
 				.map(|result| result
 					.map(RpcRichRawTransaction::from)
 					.map(ConfirmationResponse::SignTransaction)
-				).boxed()
+				))
 		},
 		ConfirmationPayload::EthSignMessage(address, data) => {
 			if accounts.is_hardware_address(address) {
-				return future::err(errors::unsupported("Signing via hardware wallets is not supported.", None)).boxed();
+				return Box::new(future::err(errors::unsupported("Signing via hardware wallets is not supported.", None)));
 			}
 
 			let hash = eth_data_hash(data);
@@ -527,11 +527,11 @@ pub fn execute<D: Dispatcher + 'static>(
 					.map(RpcH520::from)
 					.map(ConfirmationResponse::Signature)
 				);
-			future::done(res).boxed()
+			Box::new(future::done(res))
 		},
 		ConfirmationPayload::Decrypt(address, data) => {
 			if accounts.is_hardware_address(address) {
-				return future::err(errors::unsupported("Decrypting via hardware wallets is not supported.", None)).boxed();
+				return Box::new(future::err(errors::unsupported("Decrypting via hardware wallets is not supported.", None)));
 			}
 
 			let res = decrypt(&accounts, address, data, pass)
@@ -539,7 +539,7 @@ pub fn execute<D: Dispatcher + 'static>(
 					.map(RpcBytes)
 					.map(ConfirmationResponse::Decrypt)
 				);
-			future::done(res).boxed()
+			Box::new(future::done(res))
 		},
 	}
 }
@@ -602,20 +602,18 @@ pub fn from_rpc<D>(payload: RpcConfirmationPayload, default_account: Address, di
 {
 	match payload {
 		RpcConfirmationPayload::SendTransaction(request) => {
-			dispatcher.fill_optional_fields(request.into(), default_account, false)
-				.map(ConfirmationPayload::SendTransaction)
-				.boxed()
+			Box::new(dispatcher.fill_optional_fields(request.into(), default_account, false)
+				.map(ConfirmationPayload::SendTransaction))
 		},
 		RpcConfirmationPayload::SignTransaction(request) => {
-			dispatcher.fill_optional_fields(request.into(), default_account, false)
-				.map(ConfirmationPayload::SignTransaction)
-				.boxed()
+			Box::new(dispatcher.fill_optional_fields(request.into(), default_account, false)
+				.map(ConfirmationPayload::SignTransaction))
 		},
 		RpcConfirmationPayload::Decrypt(RpcDecryptRequest { address, msg }) => {
-			future::ok(ConfirmationPayload::Decrypt(address.into(), msg.into())).boxed()
+			Box::new(future::ok(ConfirmationPayload::Decrypt(address.into(), msg.into())))
 		},
 		RpcConfirmationPayload::EthSignMessage(RpcSignRequest { address, data }) => {
-			future::ok(ConfirmationPayload::EthSignMessage(address.into(), data.into())).boxed()
+			Box::new(future::ok(ConfirmationPayload::EthSignMessage(address.into(), data.into())))
 		},
 	}
 }

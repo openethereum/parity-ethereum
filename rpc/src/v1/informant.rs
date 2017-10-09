@@ -20,7 +20,6 @@ use std::fmt;
 use std::sync::Arc;
 use std::sync::atomic::{self, AtomicUsize};
 use std::time;
-use futures::Future;
 use futures_cpupool as pool;
 use jsonrpc_core as rpc;
 use order_stat;
@@ -222,15 +221,23 @@ impl<M: rpc::Metadata, T: ActivityNotifier> rpc::Middleware<M> for Middleware<T>
 		self.notifier.active();
 		self.stats.count_request();
 
+		let id = match request {
+			rpc::Request::Single(rpc::Call::MethodCall(ref call)) => Some(call.id.clone()),
+			_ => None,
+		};
 		let stats = self.stats.clone();
 		let future = process(request, meta).map(move |res| {
-			stats.add_roundtrip(Self::as_micro(start.elapsed()));
+			let time = Self::as_micro(start.elapsed());
+			if time > 10_000 {
+				debug!(target: "rpc", "[{:?}] Took {}ms", id, time / 1_000);
+			}
+			stats.add_roundtrip(time);
 			res
 		});
 
 		match self.pool {
 			Some(ref pool) => A(pool.spawn(future)),
-			None => B(future.boxed()),
+			None => B(Box::new(future)),
 		}
 	}
 }

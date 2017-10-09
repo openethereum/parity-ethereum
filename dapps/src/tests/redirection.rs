@@ -201,6 +201,7 @@ fn should_serve_utils() {
 
 	// then
 	response.assert_status("HTTP/1.1 200 OK");
-	assert_eq!(response.body.contains("function(){"), true);
+	response.assert_header("Content-Type", "application/javascript");
+	assert_eq!(response.body.contains("function(){"), true, "Expected function in: {}", response.body);
 	assert_security_headers(&response.headers);
 }

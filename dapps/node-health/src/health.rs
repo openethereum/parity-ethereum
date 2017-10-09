@@ -18,7 +18,7 @@
 
 use std::sync::Arc;
 use std::time;
-use futures::{Future, BoxFuture};
+use futures::Future;
 use futures::sync::oneshot;
 use types::{HealthInfo, HealthStatus, Health};
 use time::{TimeChecker, MAX_DRIFT};
@@ -44,7 +44,7 @@ impl NodeHealth {
 	}
 
 	/// Query latest health report.
-	pub fn health(&self) -> BoxFuture<Health, ()> {
+	pub fn health(&self) -> Box<Future<Item = Health, Error = ()> + Send> {
 		trace!(target: "dapps", "Checking node health.");
 		// Check timediff
 		let sync_status = self.sync_status.clone();
@@ -63,7 +63,7 @@ impl NodeHealth {
 			},
 		);
 
-		rx.map_err(|err| {
+		Box::new(rx.map_err(|err| {
 			warn!(target: "dapps", "Health request cancelled: {:?}", err);
 		}).and_then(move |time| {
 			// Check peers
@@ -117,6 +117,6 @@ impl NodeHealth {
 			};
 
 			Ok(Health { peers, sync, time})
-		}).boxed()
+		}))
 	}
 }

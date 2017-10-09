@@ -511,6 +511,7 @@ impl Session {
 			i += 1;
 		}
 		debug!(target: "network", "Hello: {} v{} {} {:?}", client_version, protocol, id, caps);
+		let protocol = ::std::cmp::min(protocol, host.protocol_version);
 		self.info.protocol_version = protocol;
 		self.info.client_version = client_version;
 		self.info.capabilities = caps;

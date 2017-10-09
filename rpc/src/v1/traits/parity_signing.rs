@@ -15,8 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! ParitySigning rpc interface.
-use jsonrpc_core::Error;
-use futures::BoxFuture;
+use jsonrpc_core::{BoxFuture, Error};
 
 use v1::types::{U256, H160, Bytes, ConfirmationResponse, TransactionRequest, Either};
 

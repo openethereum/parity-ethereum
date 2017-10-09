@@ -28,6 +28,7 @@ use key_server_cluster::message::{Message, SigningMessage, SigningConsensusMessa
 	RequestPartialSignature, PartialSignature, SigningSessionCompleted, GenerationMessage, ConsensusMessage, SigningSessionError,
 	InitializeConsensusSession, ConfirmConsensusInitialization};
 use key_server_cluster::jobs::job_session::JobTransport;
+use key_server_cluster::jobs::key_access_job::KeyAccessJob;
 use key_server_cluster::jobs::signing_job::{PartialSigningRequest, PartialSigningResponse, SigningJob};
 use key_server_cluster::jobs::consensus_session::{ConsensusSessionParams, ConsensusSessionState, ConsensusSession};
 
@@ -70,7 +71,7 @@ struct SessionCore {
 }
 
 /// Signing consensus session type.
-type SigningConsensusSession = ConsensusSession<SigningConsensusTransport, SigningJob, SigningJobTransport>;
+type SigningConsensusSession = ConsensusSession<KeyAccessJob, SigningConsensusTransport, SigningJob, SigningJobTransport>;
 
 /// Mutable session data.
 struct SessionData {
@@ -169,10 +170,18 @@ impl SessionImpl {
 			nonce: params.nonce,
 			cluster: params.cluster.clone(),
 		};
+		let consensus_session = ConsensusSession::new(ConsensusSessionParams {
+			meta: params.meta.clone(),
+			consensus_executor: match requester_signature {
+				Some(requester_signature) => KeyAccessJob::new_on_master(params.meta.id.clone(), params.acl_storage.clone(), requester_signature),
+				None => KeyAccessJob::new_on_slave(params.meta.id.clone(), params.acl_storage.clone()),
+			},
+			consensus_transport: consensus_transport,
+		})?;
 
 		Ok(SessionImpl {
 			core: SessionCore {
-				meta: params.meta.clone(),
+				meta: params.meta,
 				access_key: params.access_key,
 				key_share: params.key_share,
 				cluster: params.cluster,
@@ -182,18 +191,7 @@ impl SessionImpl {
 			data: Mutex::new(SessionData {
 				state: SessionState::ConsensusEstablishing,
 				message_hash: None,
-				consensus_session: match requester_signature {
-					Some(requester_signature) => ConsensusSession::new_on_master(ConsensusSessionParams {
-						meta: params.meta,
-						acl_storage: params.acl_storage.clone(),
-						consensus_transport: consensus_transport,
-					}, requester_signature)?,
-					None => ConsensusSession::new_on_slave(ConsensusSessionParams {
-						meta: params.meta,
-						acl_storage: params.acl_storage.clone(),
-						consensus_transport: consensus_transport,
-					})?,
-				},
+				consensus_session: consensus_session,
 				generation_session: None,
 				result: None,
 			}),
@@ -534,6 +532,14 @@ impl Cluster for SessionKeyGenerationTransport {
 		debug_assert!(self.other_nodes_ids.contains(to));
 		self.cluster.send(to, self.map_message(message)?)
 	}
+
+	fn is_connected(&self, node: &NodeId) -> bool {
+		self.cluster.is_connected(node)
+	}
+
+	fn nodes(&self) -> BTreeSet<NodeId> {
+		self.cluster.nodes()
+	}
 }
 
 impl SessionCore {
@@ -789,6 +795,7 @@ mod tests {
 				threshold: 0,
 				id_numbers: nodes,
 				secret_share: Random.generate().unwrap().secret().clone(),
+				polynom1: Vec::new(),
 				common_point: Some(Random.generate().unwrap().public().clone()),
 				encrypted_point: Some(Random.generate().unwrap().public().clone()),
 			},
@@ -820,6 +827,7 @@ mod tests {
 				threshold: 0,
 				id_numbers: nodes,
 				secret_share: Random.generate().unwrap().secret().clone(),
+				polynom1: Vec::new(),
 				common_point: Some(Random.generate().unwrap().public().clone()),
 				encrypted_point: Some(Random.generate().unwrap().public().clone()),
 			},
@@ -851,6 +859,7 @@ mod tests {
 				threshold: 2,
 				id_numbers: nodes,
 				secret_share: Random.generate().unwrap().secret().clone(),
+				polynom1: Vec::new(),
 				common_point: Some(Random.generate().unwrap().public().clone()),
 				encrypted_point: Some(Random.generate().unwrap().public().clone()),
 			},

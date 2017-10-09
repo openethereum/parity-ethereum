@@ -88,7 +88,7 @@ export default class TypedInput extends Component {
       return this.renderParam(param);
     }
 
-    console.error('<TypedInput>', `unkown "${param}" param passed to props`);
+    console.error('<TypedInput>', `unknown "${param}" param passed to props`);
     return null;
   }
 

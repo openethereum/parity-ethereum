@@ -164,8 +164,6 @@ mod tests {
 
 	#[test]
 	fn uses_current_set() {
-		let _ = ::env_logger::init();
-
 		let tap = Arc::new(AccountProvider::transient_provider());
 		let s0: Secret = keccak("0").into();
 		let v0 = tap.insert_account(s0.clone(), "").unwrap();

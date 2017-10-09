@@ -15,12 +15,10 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::BTreeSet;
-use std::sync::Arc;
-use ethkey::{Public, Signature, recover};
-use key_server_cluster::{Error, NodeId, SessionMeta, AclStorage};
+use ethkey::Signature;
+use key_server_cluster::{Error, NodeId, SessionMeta};
 use key_server_cluster::message::ConsensusMessage;
 use key_server_cluster::jobs::job_session::{JobSession, JobSessionState, JobTransport, JobExecutor};
-use key_server_cluster::jobs::key_access_job::KeyAccessJob;
 
 /// Consensus session state.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -47,15 +45,17 @@ pub enum ConsensusSessionState {
 /// 2) master node sends partial job requests to every member of consensus group
 /// 3) slave nodes are computing partial responses
 /// 4) master node computes result from partial responses
-pub struct ConsensusSession<ConsensusTransport: JobTransport<PartialJobRequest=Signature, PartialJobResponse=bool>, ComputationExecutor: JobExecutor, ComputationTransport: JobTransport<PartialJobRequest=ComputationExecutor::PartialJobRequest, PartialJobResponse=ComputationExecutor::PartialJobResponse>> {
+pub struct ConsensusSession<ConsensusExecutor: JobExecutor<PartialJobResponse=bool>,
+	ConsensusTransport: JobTransport<PartialJobRequest=ConsensusExecutor::PartialJobRequest, PartialJobResponse=ConsensusExecutor::PartialJobResponse>,
+	ComputationExecutor: JobExecutor,
+	ComputationTransport: JobTransport<PartialJobRequest=ComputationExecutor::PartialJobRequest, PartialJobResponse=ComputationExecutor::PartialJobResponse>
+> {
 	/// Current session state.
 	state: ConsensusSessionState,
 	/// Session metadata.
 	meta: SessionMeta,
-	/// Requester, for which consensus group has allowed access.
-	requester: Option<Public>,
 	/// Consensus establish job.
-	consensus_job: JobSession<KeyAccessJob, ConsensusTransport>,
+	consensus_job: JobSession<ConsensusExecutor, ConsensusTransport>,
 	/// Consensus group.
 	consensus_group: BTreeSet<NodeId>,
 	/// Computation job.
@@ -63,38 +63,30 @@ pub struct ConsensusSession<ConsensusTransport: JobTransport<PartialJobRequest=S
 }
 
 /// Consensus session creation parameters.
-pub struct ConsensusSessionParams<ConsensusTransport: JobTransport<PartialJobRequest=Signature, PartialJobResponse=bool>> {
+pub struct ConsensusSessionParams<ConsensusExecutor: JobExecutor<PartialJobResponse=bool>,
+	ConsensusTransport: JobTransport<PartialJobRequest=ConsensusExecutor::PartialJobRequest, PartialJobResponse=ConsensusExecutor::PartialJobResponse>
+> {
 	/// Session metadata.
 	pub meta: SessionMeta,
 	/// ACL storage for access check.
-	pub acl_storage: Arc<AclStorage>,
+	pub consensus_executor: ConsensusExecutor,
 	/// Transport for consensus establish job.
 	pub consensus_transport: ConsensusTransport,
 }
 
-impl<ConsensusTransport, ComputationExecutor, ComputationTransport> ConsensusSession<ConsensusTransport, ComputationExecutor, ComputationTransport> where ConsensusTransport: JobTransport<PartialJobRequest=Signature, PartialJobResponse=bool>, ComputationExecutor: JobExecutor, ComputationTransport: JobTransport<PartialJobRequest=ComputationExecutor::PartialJobRequest, PartialJobResponse=ComputationExecutor::PartialJobResponse> {
-	/// Create new consensus session on slave node.
-	pub fn new_on_slave(params: ConsensusSessionParams<ConsensusTransport>) -> Result<Self, Error> {
-		debug_assert!(params.meta.self_node_id != params.meta.master_node_id);
-		Self::new(None, KeyAccessJob::new_on_slave(params.meta.id.clone(), params.acl_storage.clone()), params)
-	}
-
-	/// Create new consensus session on master node.
-	pub fn new_on_master(params: ConsensusSessionParams<ConsensusTransport>, signature: Signature) -> Result<Self, Error> {
-		debug_assert!(params.meta.self_node_id == params.meta.master_node_id);
-		Self::new(Some(recover(&signature, &params.meta.id)?),
-			KeyAccessJob::new_on_master(params.meta.id.clone(), params.acl_storage.clone(), signature), params)
-	}
-
+impl<ConsensusExecutor, ConsensusTransport, ComputationExecutor, ComputationTransport> ConsensusSession<ConsensusExecutor, ConsensusTransport, ComputationExecutor, ComputationTransport>
+	where ConsensusExecutor: JobExecutor<PartialJobResponse=bool, JobResponse=BTreeSet<NodeId>>,
+		ConsensusTransport: JobTransport<PartialJobRequest=ConsensusExecutor::PartialJobRequest, PartialJobResponse=ConsensusExecutor::PartialJobResponse>,
+		ComputationExecutor: JobExecutor,
+		ComputationTransport: JobTransport<PartialJobRequest=ComputationExecutor::PartialJobRequest, PartialJobResponse=ComputationExecutor::PartialJobResponse> {
 	/// Create new consensus session.
-	fn new(requester: Option<Public>, consensus_job_executor: KeyAccessJob, params: ConsensusSessionParams<ConsensusTransport>) -> Result<Self, Error> {
-		let consensus_job = JobSession::new(params.meta.clone(), consensus_job_executor, params.consensus_transport);
+	pub fn new(params: ConsensusSessionParams<ConsensusExecutor, ConsensusTransport>) -> Result<Self, Error> {
+		let consensus_job = JobSession::new(params.meta.clone(), params.consensus_executor, params.consensus_transport);
 		debug_assert!(consensus_job.state() == JobSessionState::Inactive);
 
 		Ok(ConsensusSession {
 			state: ConsensusSessionState::WaitingForInitialization,
 			meta: params.meta,
-			requester: requester,
 			consensus_job: consensus_job,
 			consensus_group: BTreeSet::new(),
 			computation_job: None,
@@ -102,12 +94,11 @@ impl<ConsensusTransport, ComputationExecutor, ComputationTransport> ConsensusSes
 	}
 
 	/// Get consensus job reference.
-	#[cfg(test)]
-	pub fn consensus_job(&self) -> &JobSession<KeyAccessJob, ConsensusTransport> {
+	pub fn consensus_job(&self) -> &JobSession<ConsensusExecutor, ConsensusTransport> {
 		&self.consensus_job
 	}
 
-	/// Get all nodes, which chas not rejected consensus request.
+	/// Get all nodes, which has not rejected consensus request.
 	pub fn consensus_non_rejected_nodes(&self) -> BTreeSet<NodeId> {
 		self.consensus_job.responses().iter()
 			.filter(|r| *r.1)
@@ -130,11 +121,6 @@ impl<ConsensusTransport, ComputationExecutor, ComputationTransport> ConsensusSes
 		self.state
 	}
 
-	/// Get requester, for which consensus has been reached.
-	pub fn requester(&self) -> Result<&Public, Error> {
-		self.requester.as_ref().ok_or(Error::InvalidStateForRequest)
-	}
-
 	/// Get computation result.
 	pub fn result(&self) -> Result<ComputationExecutor::JobResponse, Error> {
 		debug_assert!(self.meta.self_node_id == self.meta.master_node_id);
@@ -155,17 +141,15 @@ impl<ConsensusTransport, ComputationExecutor, ComputationTransport> ConsensusSes
 		self.process_result(initialization_result)
 	}
 
-	/// Process consensus message.
-	pub fn on_consensus_message(&mut self, sender: &NodeId, message: &ConsensusMessage) -> Result<(), Error> {
-		let consensus_result = match message {
-			&ConsensusMessage::InitializeConsensusSession(ref message) => {
-				let signature = message.requestor_signature.clone().into();
-				self.requester = Some(recover(&signature, &self.meta.id)?);
-				self.consensus_job.on_partial_request(sender, signature)
-			},
-			&ConsensusMessage::ConfirmConsensusInitialization(ref message) =>
-				self.consensus_job.on_partial_response(sender, message.is_confirmed),
-		};
+	/// Process consensus request message.
+	pub fn on_consensus_partial_request(&mut self, sender: &NodeId, request: ConsensusExecutor::PartialJobRequest) -> Result<(), Error> {
+		let consensus_result = self.consensus_job.on_partial_request(sender, request);
+		self.process_result(consensus_result)
+	}
+
+	/// Process consensus message response.
+	pub fn on_consensus_partial_response(&mut self, sender: &NodeId, response: bool) -> Result<(), Error> {
+		let consensus_result = self.consensus_job.on_partial_response(sender, response);
 		self.process_result(consensus_result)
 	}
 
@@ -350,6 +334,24 @@ impl<ConsensusTransport, ComputationExecutor, ComputationTransport> ConsensusSes
 	}
 }
 
+impl<ConsensusExecutor, ConsensusTransport, ComputationExecutor, ComputationTransport> ConsensusSession<ConsensusExecutor, ConsensusTransport, ComputationExecutor, ComputationTransport>
+	where ConsensusExecutor: JobExecutor<PartialJobRequest=Signature, PartialJobResponse=bool, JobResponse=BTreeSet<NodeId>>,
+		ConsensusTransport: JobTransport<PartialJobRequest=ConsensusExecutor::PartialJobRequest, PartialJobResponse=ConsensusExecutor::PartialJobResponse>,
+		ComputationExecutor: JobExecutor,
+		ComputationTransport: JobTransport<PartialJobRequest=ComputationExecutor::PartialJobRequest, PartialJobResponse=ComputationExecutor::PartialJobResponse> {
+	/// Process basic consensus message.
+	pub fn on_consensus_message(&mut self, sender: &NodeId, message: &ConsensusMessage) -> Result<(), Error> {
+		let consensus_result = match message {
+			
+			&ConsensusMessage::InitializeConsensusSession(ref message) =>
+				self.consensus_job.on_partial_request(sender, message.requestor_signature.clone().into()),
+			&ConsensusMessage::ConfirmConsensusInitialization(ref message) =>
+				self.consensus_job.on_partial_response(sender, message.is_confirmed),
+		};
+		self.process_result(consensus_result)
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use std::sync::Arc;
@@ -357,23 +359,24 @@ mod tests {
 	use key_server_cluster::{Error, NodeId, SessionId, DummyAclStorage};
 	use key_server_cluster::message::{ConsensusMessage, InitializeConsensusSession, ConfirmConsensusInitialization};
 	use key_server_cluster::jobs::job_session::tests::{make_master_session_meta, make_slave_session_meta, SquaredSumJobExecutor, DummyJobTransport};
+	use key_server_cluster::jobs::key_access_job::KeyAccessJob;
 	use super::{ConsensusSession, ConsensusSessionParams, ConsensusSessionState};
 
-	type SquaredSumConsensusSession = ConsensusSession<DummyJobTransport<Signature, bool>, SquaredSumJobExecutor, DummyJobTransport<u32, u32>>;
+	type SquaredSumConsensusSession = ConsensusSession<KeyAccessJob, DummyJobTransport<Signature, bool>, SquaredSumJobExecutor, DummyJobTransport<u32, u32>>;
 
 	fn make_master_consensus_session(threshold: usize, requester: Option<KeyPair>, acl_storage: Option<DummyAclStorage>) -> SquaredSumConsensusSession {
 		let secret = requester.map(|kp| kp.secret().clone()).unwrap_or(Random.generate().unwrap().secret().clone());
-		SquaredSumConsensusSession::new_on_master(ConsensusSessionParams {
+		SquaredSumConsensusSession::new(ConsensusSessionParams {
 			meta: make_master_session_meta(threshold),
-			acl_storage: Arc::new(acl_storage.unwrap_or(DummyAclStorage::default())),
+			consensus_executor: KeyAccessJob::new_on_master(SessionId::default(), Arc::new(acl_storage.unwrap_or(DummyAclStorage::default())), sign(&secret, &SessionId::default()).unwrap()),
 			consensus_transport: DummyJobTransport::default(),
-		}, sign(&secret, &SessionId::default()).unwrap()).unwrap()
+		}).unwrap()
 	}
 
 	fn make_slave_consensus_session(threshold: usize, acl_storage: Option<DummyAclStorage>) -> SquaredSumConsensusSession {
-		SquaredSumConsensusSession::new_on_slave(ConsensusSessionParams {
+		SquaredSumConsensusSession::new(ConsensusSessionParams {
 			meta: make_slave_session_meta(threshold),
-			acl_storage: Arc::new(acl_storage.unwrap_or(DummyAclStorage::default())),
+			consensus_executor: KeyAccessJob::new_on_slave(SessionId::default(), Arc::new(acl_storage.unwrap_or(DummyAclStorage::default()))),
 			consensus_transport: DummyJobTransport::default(),
 		}).unwrap()
 	}

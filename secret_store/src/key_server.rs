@@ -153,6 +153,7 @@ impl KeyServerCore {
 			allow_connecting_to_higher_nodes: config.allow_connecting_to_higher_nodes,
 			acl_storage: acl_storage,
 			key_storage: key_storage,
+			admin_public: None,
 		};
 
 		let (stop, stopped) = futures::oneshot();
@@ -255,6 +256,7 @@ pub mod tests {
 						port: start_port + (j as u16),
 					})).collect(),
 				allow_connecting_to_higher_nodes: false,
+				admin_public: None,
 			}).collect();
 		let key_servers_set: BTreeMap<Public, SocketAddr> = configs[0].nodes.iter()
 			.map(|(k, a)| (k.clone(), format!("{}:{}", a.address, a.port).parse().unwrap()))

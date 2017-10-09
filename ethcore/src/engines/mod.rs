@@ -191,9 +191,6 @@ pub trait Engine<M: Machine>: Sync + Send {
 	/// Additional engine-specific information for the user/developer concerning `header`.
 	fn extra_info(&self, _header: &M::Header) -> BTreeMap<String, String> { BTreeMap::new() }
 
-	/// Additional information.
-	fn additional_params(&self) -> HashMap<String, String> { HashMap::new() }
-
 	/// Maximum number of uncles a block is allowed to declare.
 	fn maximum_uncle_count(&self) -> usize { 2 }
 	/// The number of generations back that uncles can be.
@@ -395,6 +392,11 @@ pub trait EthEngine: Engine<::machine::EthereumMachine> {
 	/// If this machine supports wasm.
 	fn supports_wasm(&self) -> bool {
 		self.machine().supports_wasm()
+	}
+
+	/// Additional information.
+	fn additional_params(&self) -> HashMap<String, String> {
+		self.machine().additional_params()
 	}
 }
 
