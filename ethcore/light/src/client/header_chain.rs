@@ -45,7 +45,7 @@ use rlp::{Encodable, Decodable, DecoderError, RlpStream, Rlp, UntrustedRlp};
 use heapsize::HeapSizeOf;
 use bigint::prelude::U256;
 use bigint::hash::{H256, H256FastMap, H264};
-use util::kvdb::{DBTransaction, KeyValueDB};
+use kvdb::{DBTransaction, KeyValueDB};
 
 use cache::Cache;
 use parking_lot::{Mutex, RwLock};
@@ -728,12 +728,13 @@ mod tests {
 	use ethcore::header::Header;
 	use ethcore::spec::Spec;
   	use cache::Cache;
+	use kvdb::{in_memory, KeyValueDB};
 
 	use time::Duration;
 	use parking_lot::Mutex;
 
-	fn make_db() -> Arc<::util::KeyValueDB> {
-		Arc::new(::util::kvdb::in_memory(0))
+	fn make_db() -> Arc<KeyValueDB> {
+		Arc::new(in_memory(0))
 	}
 
 	#[test]

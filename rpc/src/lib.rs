@@ -64,7 +64,10 @@ extern crate rlp;
 extern crate stats;
 extern crate hash;
 extern crate hardware_wallet;
+extern crate kvdb;
 
+#[macro_use]
+extern crate common;
 #[macro_use]
 extern crate log;
 #[cfg_attr(test, macro_use)]

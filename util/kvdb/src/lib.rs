@@ -16,6 +16,20 @@
 
 //! Key-Value store abstraction with `RocksDB` backend.
 
+#[macro_use]
+extern crate log;
+
+extern crate ethcore_error as error;
+extern crate ethcore_bytes as bytes;
+extern crate ethcore_bigint as bigint;
+extern crate ethcore_devtools as devtools;
+extern crate elastic_array;
+extern crate hashdb;
+extern crate parking_lot;
+extern crate rlp;
+extern crate rocksdb;
+extern crate regex;
+
 use std::{mem, fs};
 use std::collections::{HashMap, BTreeMap};
 use std::io::ErrorKind;
@@ -28,7 +42,7 @@ use hashdb::DBValue;
 use rlp::{UntrustedRlp, RlpType, Compressible};
 use rocksdb::{DB, Writable, WriteBatch, WriteOptions, IteratorMode, DBIterator,
 	Options, DBCompactionStyle, BlockBasedOptions, Direction, Cache, Column, ReadOptions};
-use UtilError;
+use error::UtilError;
 use bytes::Bytes;
 
 

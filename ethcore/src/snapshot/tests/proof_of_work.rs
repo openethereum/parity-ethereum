@@ -25,8 +25,8 @@ use snapshot::{chunk_secondary, Error as SnapshotError, Progress, SnapshotCompon
 use snapshot::io::{PackedReader, PackedWriter, SnapshotReader, SnapshotWriter};
 
 use parking_lot::Mutex;
-use util::snappy;
-use util::kvdb::{self, KeyValueDB, DBTransaction};
+use snappy;
+use kvdb::{self, KeyValueDB, DBTransaction};
 
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;

@@ -13,6 +13,7 @@ ethcore-bigint = { path = "../../util/bigint" }
 ethcore-bytes = { path = "../../util/bytes" }
 ethcore-io = { path = "../../util/io" }
 ethcore-network = { path = "../../util/network" }
+kvdb = { path = "../../util/kvdb" }
 native-contracts = { path = "../native_contracts" }
 futures = "0.1"
 log = "0.3"

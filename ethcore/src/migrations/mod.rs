@@ -16,7 +16,7 @@
 
 //! Database migrations.
 
-use util::migration::ChangeColumns;
+use migration::ChangeColumns;
 
 pub mod state;
 pub mod blocks;
