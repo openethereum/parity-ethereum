@@ -487,6 +487,8 @@ hey Rob, WhiperClient::new expects a PoolHandle with a struct implementing Manag
 	// 	hosts.push(format!("http://*.{}", DAPPS_DOMAIN).into());
 	// });
 
+
+
 	let threads = 1;
 	minihttp::ServerBuilder::new(rpc_handler) // yay handler => rpc
 				.threads(threads) // config param I guess // todo httpconfiguration
@@ -496,8 +498,7 @@ hey Rob, WhiperClient::new expects a PoolHandle with a struct implementing Manag
 				.start_http(&addr.unwrap())
 				.map(HttpServer::Mini)?;
 
-
-
+	println!("Rpc server listening.");
 
 
 
