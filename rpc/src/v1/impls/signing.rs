@@ -49,6 +49,7 @@ const MAX_PENDING_DURATION_SEC: u32 = 60;
 /// Max number of total requests pending and completed, before we start garbage collecting them.
 const MAX_TOTAL_REQUESTS: usize = SIGNING_QUEUE_LIMIT;
 
+#[must_use = "futures do nothing unless polled"]
 enum DispatchResult {
 	Future(ConfirmationReceiver),
 	Value(RpcConfirmationResponse),
@@ -179,7 +180,7 @@ impl<D: Dispatcher + 'static> ParitySigning for SigningQueueClient<D> {
 		match self.pending.lock().get_mut(&id) {
 			Some(ref mut future) => match future.poll() {
 				Ok(Async::NotReady) => Ok(None),
-				Ok(Async::Ready(status)) => { 
+				Ok(Async::Ready(status)) => {
 					match status {
 						RpcConfirmationResult::Rejected => Err(errors::request_rejected()),
 						RpcConfirmationResult::Confirmed(rpc_response) => rpc_response.clone().map(Some),

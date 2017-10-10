@@ -111,6 +111,7 @@ pub struct ConfirmationSender {
 	request: ConfirmationRequest,
 }
 
+#[must_use = "futures do nothing unless polled"]
 pub struct ConfirmationReceiver {
 	id: U256,
 	receiver: oneshot::Receiver<ConfirmationResult>,
