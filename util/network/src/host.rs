@@ -256,7 +256,7 @@ impl<'s> NetworkContext<'s> {
 	pub fn send_protocol(&self, protocol: ProtocolId, peer: PeerId, packet_id: PacketId, data: Vec<u8>) -> Result<(), NetworkError> {
 		let session = self.resolve_session(peer);
 		if let Some(session) = session {
-			session.lock().send_packet(self.io, protocol, packet_id as u8, &data)?;
+			session.lock().send_packet(self.io, Some(protocol), packet_id as u8, &data)?;
 		} else  {
 			trace!(target: "network", "Send: Peer no longer exist")
 		}
@@ -938,7 +938,7 @@ impl Host {
 			for (p, packet_id, data) in packet_data {
 				let reserved = self.reserved_nodes.read();
 				if let Some(h) = handlers.get(&p).clone() {
-					h.read(&NetworkContext::new(io, p, Some(session.clone()), self.sessions.clone(), &reserved), &token, packet_id, &data[1..]);
+					h.read(&NetworkContext::new(io, p, Some(session.clone()), self.sessions.clone(), &reserved), &token, packet_id, &data);
 				}
 			}
 		}
