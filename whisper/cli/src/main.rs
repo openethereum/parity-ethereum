@@ -209,42 +209,42 @@ use parity_whisper::rpc::{WhisperClient, FilterManager, PoolHandle};
 use parity_whisper::message::Message;
 
 /// Standard pool handle. {from parity/whisper}
-pub struct NetPoolHandle {
+pub struct NetworkPoolHandle {
 	/// Pool handle.
 	handle: Arc<WhisperNetwork<Arc<FilterManager>>>,
 	/// Network manager.
-	net: Arc<ManageNetwork>,
+	net: Arc<NetworkService>,
 }
 
-impl PoolHandle for NetPoolHandle {
-	fn relay(&self, message: Message) -> bool {
-		let mut res = false;
-		let mut message = Some(message);
-		self.net.with_proto_context(whisper_net::PROTOCOL_ID, &mut move |ctx| {
-			if let Some(message) = message.take() {
-				res = self.handle.post_message(message, ctx);
-			}
-		});
-		res
-	}
+// impl PoolHandle for NetworkPoolHandle {
+// 	fn relay(&self, message: Message) -> bool {
+// 		let mut res = false;
+// 		let mut message = Some(message);
+// 		self.net.with_proto_context(whisper_net::PROTOCOL_ID, &mut move |ctx| {
+// 			if let Some(message) = message.take() {
+// 				res = self.handle.post_message(message, ctx);
+// 			}
+// 		});
+// 		res
+// 	}
 
-	fn pool_status(&self) -> whisper_net::PoolStatus {
-		self.handle.pool_status()
-	}
-}
+// 	fn pool_status(&self) -> whisper_net::PoolStatus {
+// 		self.handle.pool_status()
+// 	}
+// }
 
 /// Factory for standard whisper RPC. {from parity/whisper}
-pub struct RpcFactory {
-	net: Arc<WhisperNetwork<Arc<FilterManager>>>,
-	manager: Arc<FilterManager>,
-}
+// pub struct RpcFactory {
+// 	net: Arc<WhisperNetwork<Arc<FilterManager>>>,
+// 	manager: Arc<FilterManager>,
+// }
 
-impl RpcFactory {
-	pub fn make_handler(&self, net: Arc<ManageNetwork>) -> WhisperClient<NetPoolHandle, Metadata> {
-		let handle = NetPoolHandle { handle: self.net.clone(), net: net };
-		WhisperClient::new(handle, self.manager.clone())
-	}
-}
+// impl RpcFactory {
+// 	pub fn make_handler(&self, net: Arc<ManageNetwork>) -> WhisperClient<NetPoolHandle, Metadata> {
+// 		let handle = NetPoolHandle { handle: self.net.clone(), net: net };
+// 		WhisperClient::new(handle, self.manager.clone())
+// 	}
+// }
 
 use ethsync::ManageNetwork; // bad
 // use ethsync::api::{SyncClient, NetworkManagerClient};
@@ -301,7 +301,7 @@ pub struct HttpConfiguration {
 	pub processing_threads: usize,
 }
 
-pub use ethsync::api::{SyncClient, NetworkManagerClient};
+// pub use ethsync::api::{NetworkManagerClient};
 
 impl HttpConfiguration {
 	pub fn address(&self) -> Option<(String, u16)> {
@@ -397,6 +397,7 @@ impl fmt::Display for Error {
 			// Error::Whisper(ref e) => write!(f, "{}", e),
 			Error::Docopt(ref e) => write!(f, "{}", e),
 			Error::Io(ref e) => write!(f, "{}", e),
+			Error::MiniHttp(ref e) => write!(f, "{:?}", e),
 		}
 	}
 }
@@ -415,28 +416,46 @@ fn main() {
 
 fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item=S>, S: AsRef<str> {
 
+	// Questions :
+	// - No need for Arc<>, right? Pas besoin d'envoyer à travers des threads, right ?
+
+	// Todo :
+	// - Réorganiser en structs pour fermer les dépendances
+
 	// -- CLI Parsing
 	let args: Args = Docopt::new(USAGE)
 		.and_then(|d| d.argv(command).deserialize())?;
 	let target_message_pool_size = args.flag_whisper_pool_size * 1024 * 1024;
 
 	// -- 1) Instantiate Whisper network handler
-	let filter_manager = Arc::new(FilterManager::new()?);
-	let network_handler = Arc::new(WhisperNetwork::new(target_message_pool_size, filter_manager.clone()));
+	let whisper_filter_manager = Arc::new(FilterManager::new()?);
+	let whisper_network_handler = Arc::new(WhisperNetwork::new(target_message_pool_size, whisper_filter_manager.clone()));
 
 	// -- 2) Instantiate Whisper network and attach to it the network handler
 	let mut network = NetworkService::new(NetworkConfiguration::new_local(), None).expect("Error creating network service");
 	network.start().expect("Error starting service");
-	network.register_protocol(whisper_handler, whisper_net::PROTOCOL_ID, whisper_net::PACKET_COUNT, whisper_net::SUPPORTED_VERSIONS);
+	network.register_protocol(whisper_network_handler.clone(), whisper_net::PROTOCOL_ID, whisper_net::PACKET_COUNT, whisper_net::SUPPORTED_VERSIONS);
 	network.register_protocol(Arc::new(whisper_net::ParityExtensions), whisper_net::PARITY_PROTOCOL_ID, whisper_net::PACKET_COUNT, whisper_net::SUPPORTED_VERSIONS);
 
-	// -- Whisper RPC
-	let whisper_factory = RpcFactory { net: whisper_handler, manager: manager };
-
 	// -- 3) Instantiate RPC Handler
-	let mut rpc_handler = jsonrpc_core::MetaIoHandler::default(); // ou IoHandler::new();
-	let whisper_rpc_handler = whisper_factory.make_handler(network.clone());
-	rpc_handler.extend_with(::parity_whisper::rpc::Whisper::to_delegate(whisper_handler));
+	// let whisper_factory = RpcFactory { net: whisper_network_handler, manager: whisper_filter_manager };
+	// let whisper_rpc_handler = whisper_factory.make_handler(Arc::new(network));
+
+	let handle2 = NetworkPoolHandle { handle: whisper_network_handler.clone(), net: Arc::new(network) };
+
+//	let handle = NetPoolHandle { handle: whisper_network_handler.clone(), net: Arc::new(network) };
+	// so, whisperclient::new needs a PoolHandle
+	// so: netpoolhandle needs a ManageNetwork (or not ,actually)
+	// if I want to make 'network' a ManageNetwork, I need to impl it. but I would implement an external trait to an external struct, so that wouldn't work.
+
+
+/*
+hey Rob, WhiperClient::new expects a PoolHandle with a struct implementing ManageNetwork, however NetworkService::new doesn't implement ManageNetwork by default. should I implement ManageNetwork for NetworkService::new in the whisper cli file? (if so, I imagine I'd have to use a wrapper of sorts, as both the trait and the struct are external to the parity cli ?)
+*/
+	let whisper_rpc_handler : WhisperClient<NetworkPoolHandle, Metadata> = WhisperClient::new(handle2, whisper_filter_manager.clone());
+
+	let mut rpc_handler : jsonrpc_core::MetaIoHandler<Metadata, _> = jsonrpc_core::MetaIoHandler::default(); // ou IoHandler::new();
+	// rpc_handler.extend_with(::parity_whisper::rpc::Whisper::to_delegate(whisper_rpc_handler));
 
 	// -- 4) Launch RPC with handler
 
