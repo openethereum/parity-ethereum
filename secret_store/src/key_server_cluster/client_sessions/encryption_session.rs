@@ -48,7 +48,7 @@ pub struct SessionImpl {
 	/// Public identifier of this node.
 	self_node_id: NodeId,
 	/// Encrypted data.
-	encrypted_data: DocumentKeyShare,
+	encrypted_data: Option<DocumentKeyShare>,
 	/// Key storage.
 	key_storage: Arc<KeyStorage>,
 	/// Cluster which allows this node to send messages to other nodes in the cluster.
@@ -68,7 +68,7 @@ pub struct SessionParams {
 	/// Id of node, on which this session is running.
 	pub self_node_id: Public,
 	/// Encrypted data (result of running generation_session::SessionImpl).
-	pub encrypted_data: DocumentKeyShare,
+	pub encrypted_data: Option<DocumentKeyShare>,
 	/// Key storage.
 	pub key_storage: Arc<KeyStorage>,
 	/// Cluster
@@ -147,32 +147,31 @@ impl SessionImpl {
 			return Err(Error::InvalidStateForRequest);
 		}
 
-		// check that the requester is the author of the encrypted data
-		let requestor_public = ethkey::recover(&requestor_signature, &self.id)?;
-		if self.encrypted_data.author != requestor_public {
-			return Err(Error::AccessDenied);
-		}
-
 		// update state
-		let key_version = self.encrypted_data.last_version().map_err(|e| Error::KeyStorage(e.into()))?; // TODO: here && below we need to broadcast message to all nodes
 		data.state = SessionState::WaitingForInitializationConfirm;
-		for node_id in key_version.id_numbers.keys() {
-			data.nodes.insert(node_id.clone(), NodeData {
-				initialization_confirmed: node_id == self.node(),
-			});
-		}
+		data.nodes.extend(self.cluster.nodes().iter().map(|n| (n, NodeData {
+			initialization_confirmed: n == self.node(),
+		})));
 
+		// TODO: id signature is not enough here, as it was already used in key generation
 		// TODO: there could be situation when some nodes have failed to store encrypted data
-		// => potential problems during restore. some confirmation step is needed?
+		// => potential problems during restore. some confirmation step is needed (2pc)?
 		// save encryption data
-		let mut encrypted_data = self.encrypted_data.clone();
-		encrypted_data.common_point = Some(common_point.clone());
-		encrypted_data.encrypted_point = Some(encrypted_point.clone());
-		self.key_storage.update(self.id.clone(), encrypted_data)
-			.map_err(|e| Error::KeyStorage(e.into()))?;
+		if let Some(mut encrypted_data) = self.encrypted_data.clone() {
+			// check that the requester is the author of the encrypted data
+			let requestor_public = ethkey::recover(&requestor_signature, &self.id)?;
+			if encrypted_data.author != requestor_public {
+				return Err(Error::AccessDenied);
+			}
+
+			encrypted_data.common_point = Some(common_point.clone());
+			encrypted_data.encrypted_point = Some(encrypted_point.clone());
+			self.key_storage.update(self.id.clone(), encrypted_data)
+				.map_err(|e| Error::KeyStorage(e.into()))?;
+		}
 
 		// start initialization
-		if key_version.id_numbers.len() > 1 {
+		if data.nodes.len() > 1 {
 			self.cluster.broadcast(Message::Encryption(EncryptionMessage::InitializeEncryptionSession(InitializeEncryptionSession {
 				session: self.id.clone().into(),
 				session_nonce: self.nonce,
@@ -204,17 +203,18 @@ impl SessionImpl {
 		}
 
 		// check that the requester is the author of the encrypted data
-		let requestor_public = ethkey::recover(&message.requestor_signature.clone().into(), &self.id)?;
-		if self.encrypted_data.author != requestor_public {
-			return Err(Error::AccessDenied);
-		}
+		if let Some(mut encrypted_data) = self.encrypted_data.clone() {
+			let requestor_public = ethkey::recover(&message.requestor_signature.clone().into(), &self.id)?;
+			if encrypted_data.author != requestor_public {
+				return Err(Error::AccessDenied);
+			}
 
-		// save encryption data
-		let mut encrypted_data = self.encrypted_data.clone();
-		encrypted_data.common_point = Some(message.common_point.clone().into());
-		encrypted_data.encrypted_point = Some(message.encrypted_point.clone().into());
-		self.key_storage.update(self.id.clone(), encrypted_data)
-			.map_err(|e| Error::KeyStorage(e.into()))?;
+			// save encryption data
+			encrypted_data.common_point = Some(message.common_point.clone().into());
+			encrypted_data.encrypted_point = Some(message.encrypted_point.clone().into());
+			self.key_storage.update(self.id.clone(), encrypted_data)
+				.map_err(|e| Error::KeyStorage(e.into()))?;
+		}
 
 		// update state
 		data.state = SessionState::Finished;
@@ -330,16 +330,15 @@ impl Debug for SessionImpl {
 	}
 }
 
-fn check_encrypted_data(self_node_id: &Public, encrypted_data: &DocumentKeyShare) -> Result<(), Error> {
-	use key_server_cluster::generation_session::{check_cluster_nodes, check_threshold};
+fn check_encrypted_data(self_node_id: &Public, encrypted_data: &Option<DocumentKeyShare>) -> Result<(), Error> {
+	if let &Some(ref encrypted_data) = encrypted_data {
+		use key_server_cluster::generation_session::{check_cluster_nodes, check_threshold};
 
-	// check that common_point and encrypted_point are still not set yet
-	if encrypted_data.common_point.is_some() || encrypted_data.encrypted_point.is_some() {
-		return Err(Error::CompletedSessionId);
+		// check that common_point and encrypted_point are still not set yet
+		if encrypted_data.common_point.is_some() || encrypted_data.encrypted_point.is_some() {
+			return Err(Error::CompletedSessionId);
+		}
 	}
 
-	// TODO: let nodes = encrypted_data.id_numbers.keys().cloned().collect();
-	// check_cluster_nodes(self_node_id, &nodes)?;
-	// check_threshold(encrypted_data.threshold, &nodes)
 	Ok(())
 }

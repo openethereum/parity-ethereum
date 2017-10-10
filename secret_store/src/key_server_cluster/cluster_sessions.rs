@@ -292,7 +292,7 @@ impl ClusterSessions {
 			return Err(Error::NodeDisconnected);
 		}
 
-		let encrypted_data = self.read_key_share(&session_id, &cluster)?.ok_or(Error::KeyStorage("TODO".into()))?;
+		let encrypted_data = self.read_key_share(&session_id, &cluster)?;
 		let nonce = self.check_session_nonce(&master, nonce)?;
 
 		self.encryption_sessions.insert(master, session_id, cluster.clone(), false, move || EncryptionSessionImpl::new(EncryptionSessionParams {
@@ -320,7 +320,7 @@ impl ClusterSessions {
 	/// Create new decryption session.
 	pub fn new_decryption_session(&self, master: NodeId, session_id: SessionId, sub_session_id: Secret, nonce: Option<u64>, cluster: Arc<Cluster>, requester_signature: Option<Signature>) -> Result<Arc<DecryptionSessionImpl>, Error> {
 		let session_id = DecryptionSessionId::new(session_id, sub_session_id);
-		let encrypted_data = self.read_key_share(&session_id.id, &cluster)?.ok_or(Error::KeyStorage("TODO".into()))?;
+		let encrypted_data = self.read_key_share(&session_id.id, &cluster)?.ok_or(Error::MissingKeyShare)?;
 		let nonce = self.check_session_nonce(&master, nonce)?;
 
 		self.decryption_sessions.insert(master, session_id.clone(), cluster.clone(), false, move || DecryptionSessionImpl::new(DecryptionSessionParams {
@@ -359,7 +359,7 @@ impl ClusterSessions {
 	/// Create new signing session.
 	pub fn new_signing_session(&self, master: NodeId, session_id: SessionId, sub_session_id: Secret, nonce: Option<u64>, cluster: Arc<Cluster>, requester_signature: Option<Signature>) -> Result<Arc<SigningSessionImpl>, Error> {
 		let session_id = SigningSessionId::new(session_id, sub_session_id);
-		let encrypted_data = self.read_key_share(&session_id.id, &cluster)?.ok_or(Error::KeyStorage("TODO".into()))?;
+		let encrypted_data = self.read_key_share(&session_id.id, &cluster)?.ok_or(Error::MissingKeyShare)?;
 		let nonce = self.check_session_nonce(&master, nonce)?;
 
 		self.signing_sessions.insert(master, session_id.clone(), cluster.clone(), false, move || SigningSessionImpl::new(SigningSessionParams {

@@ -95,6 +95,8 @@ pub enum Error {
 	ReplayProtection,
 	/// Connection to node, required for this session is not established.
 	NodeDisconnected,
+	/// Node is missing requested key share.
+	MissingKeyShare,
 	/// Cryptographic error.
 	EthKey(String),
 	/// I/O error has occured.
@@ -150,6 +152,7 @@ impl fmt::Display for Error {
 			Error::InvalidMessageVersion => write!(f, "unsupported message is received"),
 			Error::ReplayProtection => write!(f, "replay message is received"),
 			Error::NodeDisconnected => write!(f, "node required for this operation is currently disconnected"),
+			Error::MissingKeyShare => write!(f, "requested key share is not found"),
 			Error::EthKey(ref e) => write!(f, "cryptographic error {}", e),
 			Error::Io(ref e) => write!(f, "i/o error {}", e),
 			Error::Serde(ref e) => write!(f, "serde error {}", e),

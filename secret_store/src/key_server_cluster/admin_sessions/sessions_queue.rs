@@ -59,7 +59,7 @@ impl Iterator for SessionsQueue {
 				.map_err(|e| Error::KeyStorage(e.into()))
 				.and_then(|session| match session {
 					Some(session) => Ok(QueuedSession::Known(known_session, session)),
-					None => Err(Error::KeyStorage("TODO".into())),
+					None => Err(Error::MissingKeyShare),
 				}));
 		}
 

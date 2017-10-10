@@ -128,7 +128,7 @@ pub struct IsolatedSessionTransport {
 impl<T> SessionImpl<T> where T: SessionTransport {
 	/// Create new share remove session.
 	pub fn new(params: SessionParams<T>) -> Result<Self, Error> {
-		let key_share = params.key_storage.get(&params.meta.id).map_err(|e| Error::KeyStorage(e.into()))?.ok_or(Error::KeyStorage("TODO".into()))?;
+		let key_share = params.key_storage.get(&params.meta.id).map_err(|e| Error::KeyStorage(e.into()))?.ok_or(Error::MissingKeyShare)?;
 		Ok(SessionImpl {
 			core: SessionCore {
 				meta: params.meta.clone(),
