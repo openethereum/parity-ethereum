@@ -73,7 +73,7 @@ pub const QUEUE_LIMIT: usize = 50;
 /// A queue of transactions awaiting to be confirmed and signed.
 pub trait SigningQueue: Send + Sync {
 	/// Add new request to the queue.
-	/// Returns a `ConfirmationPromise` that can be used to await for resolution of given request.
+	/// Returns a `Result` wrapping  `ConfirmationReceiver` which is a `Future` awaiting for resolution of the given request.
 	fn add_request(&self, request: ConfirmationPayload, origin: Origin) -> Result<ConfirmationReceiver, QueueAddError>;
 
 	/// Removes a request from the queue.
@@ -106,11 +106,13 @@ pub enum ConfirmationResult {
 	Confirmed(RpcResult),
 }
 
-pub struct ConfirmationSender {
+struct ConfirmationSender {
 	sender: oneshot::Sender<ConfirmationResult>,
 	request: ConfirmationRequest,
 }
 
+/// Receiving end of the Confirmation channel; can be used as a `Future` to await for `ConfirmationRequest`
+/// being processed and turned into `ConfirmationResult` indicating the outcome.
 #[must_use = "futures do nothing unless polled"]
 pub struct ConfirmationReceiver {
 	id: U256,
@@ -119,7 +121,7 @@ pub struct ConfirmationReceiver {
 }
 
 impl ConfirmationReceiver {
-	pub fn new(id: U256, receiver: oneshot::Receiver<ConfirmationResult>) -> Self {
+	fn new(id: U256, receiver: oneshot::Receiver<ConfirmationResult>) -> Self {
 		ConfirmationReceiver {
 			id: id,
 			receiver: receiver,
@@ -127,6 +129,7 @@ impl ConfirmationReceiver {
 		}
 	}
 
+	/// `U256` id of the request we're waiting to get confirmed.
 	pub fn id(&self) -> U256 {
 		self.id
 	}
