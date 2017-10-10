@@ -80,7 +80,7 @@ fn signer_tester() -> SignerTester {
 fn should_return_list_of_items_to_confirm() {
 	// given
 	let tester = signer_tester();
-	tester.signer.add_request(ConfirmationPayload::SendTransaction(FilledTransactionRequest {
+	let _send_future = tester.signer.add_request(ConfirmationPayload::SendTransaction(FilledTransactionRequest {
 		from: Address::from(1),
 		used_default_from: false,
 		to: Some(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap()),
@@ -91,7 +91,7 @@ fn should_return_list_of_items_to_confirm() {
 		nonce: None,
 		condition: None,
 	}), Origin::Dapps("http://parity.io".into())).unwrap();
-	tester.signer.add_request(ConfirmationPayload::EthSignMessage(1.into(), vec![5].into()), Origin::Unknown).unwrap();
+	let _sign_future = tester.signer.add_request(ConfirmationPayload::EthSignMessage(1.into(), vec![5].into()), Origin::Unknown).unwrap();
 
 	// when
 	let request = r#"{"jsonrpc":"2.0","method":"signer_requestsToConfirm","params":[],"id":1}"#;
@@ -111,7 +111,7 @@ fn should_return_list_of_items_to_confirm() {
 fn should_reject_transaction_from_queue_without_dispatching() {
 	// given
 	let tester = signer_tester();
-	tester.signer.add_request(ConfirmationPayload::SendTransaction(FilledTransactionRequest {
+	let _confirmation_future = tester.signer.add_request(ConfirmationPayload::SendTransaction(FilledTransactionRequest {
 		from: Address::from(1),
 		used_default_from: false,
 		to: Some(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap()),
@@ -138,7 +138,7 @@ fn should_reject_transaction_from_queue_without_dispatching() {
 fn should_not_remove_transaction_if_password_is_invalid() {
 	// given
 	let tester = signer_tester();
-	tester.signer.add_request(ConfirmationPayload::SendTransaction(FilledTransactionRequest {
+	let _confirmation_future = tester.signer.add_request(ConfirmationPayload::SendTransaction(FilledTransactionRequest {
 		from: Address::from(1),
 		used_default_from: false,
 		to: Some(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap()),
@@ -164,7 +164,7 @@ fn should_not_remove_transaction_if_password_is_invalid() {
 fn should_not_remove_sign_if_password_is_invalid() {
 	// given
 	let tester = signer_tester();
-	tester.signer.add_request(ConfirmationPayload::EthSignMessage(0.into(), vec![5].into()), Origin::Unknown).unwrap();
+	let _confirmation_future = tester.signer.add_request(ConfirmationPayload::EthSignMessage(0.into(), vec![5].into()), Origin::Unknown).unwrap();
 	assert_eq!(tester.signer.requests().len(), 1);
 
 	// when
@@ -182,7 +182,7 @@ fn should_confirm_transaction_and_dispatch() {
 	let tester = signer_tester();
 	let address = tester.accounts.new_account("test").unwrap();
 	let recipient = Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap();
-	tester.signer.add_request(ConfirmationPayload::SendTransaction(FilledTransactionRequest {
+	let _confirmation_future = tester.signer.add_request(ConfirmationPayload::SendTransaction(FilledTransactionRequest {
 		from: address,
 		used_default_from: false,
 		to: Some(recipient),
@@ -228,7 +228,7 @@ fn should_alter_the_sender_and_nonce() {
 	//// given
 	let tester = signer_tester();
 	let recipient = Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap();
-	tester.signer.add_request(ConfirmationPayload::SendTransaction(FilledTransactionRequest {
+	let _confirmation_future = tester.signer.add_request(ConfirmationPayload::SendTransaction(FilledTransactionRequest {
 		from: 0.into(),
 		used_default_from: false,
 		to: Some(recipient),
@@ -278,7 +278,7 @@ fn should_confirm_transaction_with_token() {
 	let tester = signer_tester();
 	let address = tester.accounts.new_account("test").unwrap();
 	let recipient = Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap();
-	tester.signer.add_request(ConfirmationPayload::SendTransaction(FilledTransactionRequest {
+	let _confirmation_future = tester.signer.add_request(ConfirmationPayload::SendTransaction(FilledTransactionRequest {
 		from: address,
 		used_default_from: false,
 		to: Some(recipient),
@@ -327,7 +327,7 @@ fn should_confirm_transaction_with_rlp() {
 	let tester = signer_tester();
 	let address = tester.accounts.new_account("test").unwrap();
 	let recipient = Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap();
-	tester.signer.add_request(ConfirmationPayload::SendTransaction(FilledTransactionRequest {
+	let _confirmation_future = tester.signer.add_request(ConfirmationPayload::SendTransaction(FilledTransactionRequest {
 		from: address,
 		used_default_from: false,
 		to: Some(recipient),
@@ -374,7 +374,7 @@ fn should_return_error_when_sender_does_not_match() {
 	let tester = signer_tester();
 	let address = tester.accounts.new_account("test").unwrap();
 	let recipient = Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap();
-	tester.signer.add_request(ConfirmationPayload::SendTransaction(FilledTransactionRequest {
+	let _confirmation_future = tester.signer.add_request(ConfirmationPayload::SendTransaction(FilledTransactionRequest {
 		from: Address::default(),
 		used_default_from: false,
 		to: Some(recipient),
@@ -421,7 +421,7 @@ fn should_confirm_sign_transaction_with_rlp() {
 	let tester = signer_tester();
 	let address = tester.accounts.new_account("test").unwrap();
 	let recipient = Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap();
-	tester.signer.add_request(ConfirmationPayload::SignTransaction(FilledTransactionRequest {
+	let _confirmation_future = tester.signer.add_request(ConfirmationPayload::SignTransaction(FilledTransactionRequest {
 		from: address,
 		used_default_from: false,
 		to: Some(recipient),
@@ -485,7 +485,7 @@ fn should_confirm_data_sign_with_signature() {
 	// given
 	let tester = signer_tester();
 	let address = tester.accounts.new_account("test").unwrap();
-	tester.signer.add_request(ConfirmationPayload::EthSignMessage(
+	let _confirmation_future = tester.signer.add_request(ConfirmationPayload::EthSignMessage(
 		address,
 		vec![1, 2, 3, 4].into(),
 	), Origin::Unknown).unwrap();
@@ -515,7 +515,7 @@ fn should_confirm_decrypt_with_phrase() {
 	// given
 	let tester = signer_tester();
 	let address = tester.accounts.new_account("test").unwrap();
-	tester.signer.add_request(ConfirmationPayload::Decrypt(
+	let _confirmation_future = tester.signer.add_request(ConfirmationPayload::Decrypt(
 		address,
 		vec![1, 2, 3, 4].into(),
 	), Origin::Unknown).unwrap();

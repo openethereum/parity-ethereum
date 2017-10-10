@@ -277,8 +277,6 @@ impl SigningQueue for ConfirmationsQueue {
 
 #[cfg(test)]
 mod test {
-	use std::time::Duration;
-	use std::thread;
 	use std::sync::Arc;
 	use bigint::prelude::U256;
 	use util::Address;
@@ -308,7 +306,7 @@ mod test {
         let mut confirmation = ConfirmationReceiver::new(U256::from(1), receiver);
         assert_eq!(confirmation.is_done(), false);
         sender.send(Ok(ConfirmationResult::Rejected));
-		confirmation.poll();
+		confirmation.poll().unwrap();
         assert_eq!(confirmation.is_done(), true);
 	}
 
@@ -341,7 +339,7 @@ mod test {
 		queue.on_event(move |notification| {
 			r.lock().push(notification);
 		});
-		queue.add_request(request, Default::default()).unwrap();
+		let _future = queue.add_request(request, Default::default()).unwrap();
 		queue.finish();
 
 		// then
@@ -358,7 +356,7 @@ mod test {
 		let request = request();
 
 		// when
-		queue.add_request(request.clone(), Default::default()).unwrap();
+		let _future = queue.add_request(request.clone(), Default::default()).unwrap();
 		let all = queue.requests();
 
 		// then
