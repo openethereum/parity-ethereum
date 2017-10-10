@@ -32,7 +32,7 @@ hashdb = { path = "hashdb" }
 patricia_trie = { path = "patricia_trie" }
 ethcore-bytes = { path = "bytes" }
 memorydb = { path = "memorydb" }
-ethcore-error = { path = "error" }
+util-error = { path = "error" }
 kvdb = { path = "kvdb" }
 
 [features]

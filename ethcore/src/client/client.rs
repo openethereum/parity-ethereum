@@ -27,7 +27,7 @@ use hash::keccak;
 use timer::PerfTimer;
 use bytes::Bytes;
 use util::{Address, journaldb, DBValue};
-use ethcore_error::UtilError;
+use util_error::UtilError;
 use trie::{TrieSpec, TrieFactory, Trie};
 use kvdb::*;
 

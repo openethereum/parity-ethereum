@@ -27,7 +27,7 @@ use header::BlockNumber;
 use hash::keccak;
 use parking_lot::Mutex;
 use util::Address;
-use ethcore_error::UtilError;
+use util_error::UtilError;
 use bloom_journal::{Bloom, BloomJournal};
 use db::COL_ACCOUNT_BLOOM;
 use byteorder::{LittleEndian, ByteOrder};

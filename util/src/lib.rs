@@ -108,7 +108,7 @@ extern crate hashdb;
 extern crate memorydb;
 extern crate patricia_trie as trie;
 extern crate kvdb;
-extern crate ethcore_error as error;
+extern crate util_error as error;
 
 #[macro_use]
 extern crate log as rlog;

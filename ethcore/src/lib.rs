@@ -113,7 +113,7 @@ extern crate ansi_term;
 extern crate semantic_version;
 extern crate unexpected;
 extern crate kvdb;
-extern crate ethcore_error;
+extern crate util_error;
 extern crate snappy;
 extern crate migration;
 

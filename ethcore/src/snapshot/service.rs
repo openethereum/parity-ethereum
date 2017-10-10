@@ -37,7 +37,7 @@ use io::IoChannel;
 
 use bigint::hash::H256;
 use parking_lot::{Mutex, RwLock, RwLockReadGuard};
-use ethcore_error::UtilError;
+use util_error::UtilError;
 use bytes::Bytes;
 use util::journaldb::Algorithm;
 use kvdb::{Database, DatabaseConfig};
