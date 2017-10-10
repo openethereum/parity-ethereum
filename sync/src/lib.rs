@@ -43,7 +43,6 @@ extern crate ipnetwork;
 extern crate hash;
 extern crate triehash;
 extern crate kvdb;
-extern crate ethcore_error;
 
 extern crate ethcore_light as light;
 
@@ -83,6 +82,9 @@ mod api;
 pub use api::*;
 pub use chain::{SyncStatus, SyncState};
 pub use network::{is_valid_node_url, NonReservedPeerMode, NetworkError, ConnectionFilter, ConnectionDirection};
+
+#[cfg(test)]
+pub(crate) type Address = bigint::hash::H160;
 
 /// IPC interfaces
 #[cfg(feature="ipc")]

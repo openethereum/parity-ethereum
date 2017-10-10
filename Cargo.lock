@@ -1026,7 +1026,6 @@ dependencies = [
  "ethcore-bigint 0.1.3",
  "ethcore-bytes 0.1.0",
  "ethcore-devtools 1.8.0",
- "ethcore-error 0.1.0",
  "ethcore-io 1.8.0",
  "ethcore-ipc 1.8.0",
  "ethcore-ipc-codegen 1.8.0",

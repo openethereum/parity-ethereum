@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-///
 /// `BlockChain` synchronization strategy.
 /// Syncs to peers and keeps up to date.
 /// This implementation uses ethereum protocol v63
@@ -2235,7 +2234,6 @@ mod tests {
 	use tests::snapshot::TestSnapshotService;
 	use bigint::prelude::U256;
 	use bigint::hash::H256;
-	use util::Address;
 	use parking_lot::RwLock;
 	use bytes::Bytes;
 	use rlp::{Rlp, RlpStream, UntrustedRlp};
@@ -2247,6 +2245,7 @@ mod tests {
 	use ethcore::client::{BlockChainClient, EachBlockWith, TestBlockChainClient};
 	use ethcore::transaction::UnverifiedTransaction;
 	use ethcore::miner::MinerService;
+	use Address;
 
 	fn get_dummy_block(order: u32, parent_hash: H256) -> Bytes {
 		let mut header = Header::new();
