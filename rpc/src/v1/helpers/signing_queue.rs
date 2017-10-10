@@ -303,11 +303,11 @@ mod test {
 	#[test]
 	fn should_mark_future_as_done() {
 		let (sender, receiver) = oneshot::oneshot();
-        let mut confirmation = ConfirmationReceiver::new(U256::from(1), receiver);
-        assert_eq!(confirmation.is_done(), false);
-        sender.send(Ok(ConfirmationResult::Rejected));
+		let mut confirmation = ConfirmationReceiver::new(U256::from(1), receiver);
+		assert_eq!(confirmation.is_done(), false);
+		sender.send(Ok(ConfirmationResult::Rejected));
 		confirmation.poll().unwrap();
-        assert_eq!(confirmation.is_done(), true);
+		assert_eq!(confirmation.is_done(), true);
 	}
 
 	#[test]
