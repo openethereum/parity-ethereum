@@ -15,19 +15,24 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::path::PathBuf;
-use std::collections::BTreeMap;
+use std::collections::{BTreeSet, BTreeMap};
+use byteorder::{LittleEndian, WriteBytesExt};
 use serde_json;
+use tiny_keccak::Keccak;
+use bigint::hash::H256;
 use ethkey::{Secret, Public};
 use util::{Database, DatabaseIterator};
 use types::all::{Error, ServiceConfiguration, ServerKeyId, NodeId};
-use serialization::{SerializablePublic, SerializableSecret};
+use serialization::{SerializablePublic, SerializableSecret, SerializableH256};
 
 /// Key of version value.
 const DB_META_KEY_VERSION: &'static [u8; 7] = b"version";
 /// Current db version.
-const CURRENT_VERSION: u8 = 2;
+const CURRENT_VERSION: u8 = 3;
 /// Current type of serialized key shares.
-type CurrentSerializableDocumentKeyShare = SerializableDocumentKeyShareV2;
+type CurrentSerializableDocumentKeyShare = SerializableDocumentKeyShareV3;
+/// Current type of serialized key shares versions.
+type CurrentSerializableDocumentKeyVersion = SerializableDocumentKeyShareVersionV3;
 
 /// Encrypted key share, stored by key storage on the single key server.
 #[derive(Debug, Clone, PartialEq)]
@@ -36,16 +41,28 @@ pub struct DocumentKeyShare {
 	pub author: Public,
 	/// Decryption threshold (at least threshold + 1 nodes are required to decrypt data).
 	pub threshold: usize,
+	/// Common (shared) encryption point.
+	pub common_point: Option<Public>,
+	/// Encrypted point.
+	pub encrypted_point: Option<Public>,
+	/// Key share versions.
+	pub versions: Vec<DocumentKeyShareVersion>,
+}
+
+/// Versioned portion of document key share.
+#[derive(Debug, Clone, PartialEq)]
+pub struct DocumentKeyShareVersion {
+	/// Version hash (Keccak(time + id_numbers)).
+	pub hash: H256,
+	/// Version datetime. Used as hint to sort versions.
+	/// Sort order is, in turn, used to make key version agreement faster.
+	pub time: u64,
 	/// Nodes ids numbers.
 	pub id_numbers: BTreeMap<NodeId, Secret>,
 	/// Polynom1.
 	pub polynom1: Vec<Secret>,
 	/// Node secret share.
 	pub secret_share: Secret,
-	/// Common (shared) encryption point.
-	pub common_point: Option<Public>,
-	/// Encrypted point.
-	pub encrypted_point: Option<Public>,
 }
 
 /// Document encryption keys storage
@@ -55,7 +72,7 @@ pub trait KeyStorage: Send + Sync {
 	/// Update document encryption key
 	fn update(&self, document: ServerKeyId, key: DocumentKeyShare) -> Result<(), Error>;
 	/// Get document encryption key
-	fn get(&self, document: &ServerKeyId) -> Result<DocumentKeyShare, Error>;
+	fn get(&self, document: &ServerKeyId) -> Result<Option<DocumentKeyShare>, Error>;
 	/// Remove document encryption key
 	fn remove(&self, document: &ServerKeyId) -> Result<(), Error>;
 	/// Check if storage contains document encryption key
@@ -125,6 +142,36 @@ struct SerializableDocumentKeyShareV2 {
 	pub encrypted_point: Option<SerializablePublic>,
 }
 
+/// V3 of encrypted key share, as it is stored by key storage on the single key server.
+#[derive(Serialize, Deserialize)]
+struct SerializableDocumentKeyShareV3 {
+	/// Authore of the entry.
+	pub author: SerializablePublic,
+	/// Decryption threshold (at least threshold + 1 nodes are required to decrypt data).
+	pub threshold: usize,
+	/// Common (shared) encryption point.
+	pub common_point: Option<SerializablePublic>,
+	/// Encrypted point.
+	pub encrypted_point: Option<SerializablePublic>,
+	/// Versions.
+	pub versions: Vec<SerializableDocumentKeyShareVersionV3>
+}
+
+/// V3 of encrypted key share version, as it is stored by key storage on the single key server.
+#[derive(Serialize, Deserialize)]
+struct SerializableDocumentKeyShareVersionV3 {
+	/// Version hash.
+	pub hash: SerializableH256,
+	/// Version time.
+	pub time: u64,
+	/// Nodes ids numbers.
+	pub id_numbers: BTreeMap<SerializablePublic, SerializableSecret>,
+	/// Polynom1.
+	pub polynom1: Vec<SerializableSecret>,
+	/// Node secret share.
+	pub secret_share: SerializableSecret,
+}
+
 impl PersistentKeyStorage {
 	/// Create new persistent document encryption keys storage
 	pub fn new(config: &ServiceConfiguration) -> Result<Self, Error> {
@@ -150,18 +197,26 @@ fn upgrade_db(db: Database) -> Result<Database, Error> {
 			batch.put(None, DB_META_KEY_VERSION, &[CURRENT_VERSION]);
 			for (db_key, db_value) in db.iter(None).into_iter().flat_map(|inner| inner).filter(|&(ref k, _)| **k != *DB_META_KEY_VERSION) {
 				let v0_key = serde_json::from_slice::<SerializableDocumentKeyShareV0>(&db_value).map_err(|e| Error::Database(e.to_string()))?;
-				let v2_key = CurrentSerializableDocumentKeyShare {
+/*let i1 = v0_key.id_numbers.iter();
+let i2 = i1.map(|(k, v)| (&***k, &****v));
+let hash = DocumentKeyShareVersion::data_hash(0, i2).into();*/
+				let current_key = CurrentSerializableDocumentKeyShare {
 					// author is used in separate generation + encrypt sessions.
 					// in v0 there have been only simultaneous GenEnc sessions.
 					author: Public::default().into(), // added in v1 
 					threshold: v0_key.threshold,
-					id_numbers: v0_key.id_numbers,
-					secret_share: v0_key.secret_share,
-					polynom1: Vec::new(), // added in v2
 					common_point: Some(v0_key.common_point),
 					encrypted_point: Some(v0_key.encrypted_point),
+					versions: vec![CurrentSerializableDocumentKeyVersion {
+						hash: DocumentKeyShareVersion::data_hash(0, v0_key.id_numbers.iter()
+							.map(|(k, v)| (&***k, &****v))).into(),
+						time: 0, // added in v3
+						id_numbers: v0_key.id_numbers,
+						secret_share: v0_key.secret_share,
+						polynom1: Vec::new(), // added in v2
+					}],
 				};
-				let db_value = serde_json::to_vec(&v2_key).map_err(|e| Error::Database(e.to_string()))?;
+				let db_value = serde_json::to_vec(&current_key).map_err(|e| Error::Database(e.to_string()))?;
 				batch.put(None, &*db_key, &*db_value);
 			}
 			db.write(batch).map_err(Error::Database)?;
@@ -172,22 +227,60 @@ fn upgrade_db(db: Database) -> Result<Database, Error> {
 			batch.put(None, DB_META_KEY_VERSION, &[CURRENT_VERSION]);
 			for (db_key, db_value) in db.iter(None).into_iter().flat_map(|inner| inner).filter(|&(ref k, _)| **k != *DB_META_KEY_VERSION) {
 				let v1_key = serde_json::from_slice::<SerializableDocumentKeyShareV1>(&db_value).map_err(|e| Error::Database(e.to_string()))?;
-				let v2_key = CurrentSerializableDocumentKeyShare {
+/*let i1 = v1_key.id_numbers.iter();
+let i2 = i1.map(|(k, v)| (&***k, &****v));
+let hash = DocumentKeyShareVersion::data_hash(0, i2).into();*/
+				let current_key = CurrentSerializableDocumentKeyShare {
 					author: v1_key.author, // added in v1
 					threshold: v1_key.threshold,
-					id_numbers: v1_key.id_numbers,
-					secret_share: v1_key.secret_share,
-					polynom1: Vec::new(), // added in v2
 					common_point: v1_key.common_point,
 					encrypted_point: v1_key.encrypted_point,
+					versions: vec![CurrentSerializableDocumentKeyVersion {
+						hash: DocumentKeyShareVersion::data_hash(0, v1_key.id_numbers.iter()
+							.map(|(k, v)| (&***k, &****v))).into(),
+						time: 0, // added in v3
+						id_numbers: v1_key.id_numbers,
+						secret_share: v1_key.secret_share,
+						polynom1: Vec::new(), // added in v2
+					}],
 				};
-				let db_value = serde_json::to_vec(&v2_key).map_err(|e| Error::Database(e.to_string()))?;
+				let db_value = serde_json::to_vec(&current_key).map_err(|e| Error::Database(e.to_string()))?;
 				batch.put(None, &*db_key, &*db_value);
 			}
 			db.write(batch).map_err(Error::Database)?;
 			Ok(db)
 		}
-		2 => Ok(db),
+		2 => {
+			let mut batch = db.transaction();
+			batch.put(None, DB_META_KEY_VERSION, &[CURRENT_VERSION]);
+			for (db_key, db_value) in db.iter(None).into_iter().flat_map(|inner| inner).filter(|&(ref k, _)| **k != *DB_META_KEY_VERSION) {
+				let v2_key = serde_json::from_slice::<SerializableDocumentKeyShareV2>(&db_value).map_err(|e| Error::Database(e.to_string()))?;
+/*let i1 = v2_key.id_numbers.iter();
+let i2 = i1.map(|(k, v)| (&***k, &****v));
+let i2: Vec<_> = i2.collect();
+let i2 = i2.into_iter();
+let hash = DocumentKeyShareVersion::data_hash(0, i2).into();*/
+				let current_key = CurrentSerializableDocumentKeyShare {
+					author: v2_key.author, // added in v1
+					threshold: v2_key.threshold,
+					common_point: v2_key.common_point,
+					encrypted_point: v2_key.encrypted_point,
+					versions: vec![CurrentSerializableDocumentKeyVersion {
+						hash: DocumentKeyShareVersion::data_hash(0, v2_key.id_numbers.iter()
+							.map(|(k, v)| (&***k, &****v))).into(),
+						time: 0, // added in v3
+						id_numbers: v2_key.id_numbers,
+						secret_share: v2_key.secret_share,
+						polynom1: v2_key.polynom1,
+					}],
+				};
+				let db_value = serde_json::to_vec(&current_key).map_err(|e| Error::Database(e.to_string()))?;
+				batch.put(None, &*db_key, &*db_value);
+			}
+			db.write(batch).map_err(Error::Database)?;
+			Ok(db)
+		},
+		3 => Ok(db),
 		_ => Err(Error::Database(format!("unsupported SecretStore database version: {}", version))),
 	}
 }
@@ -205,13 +298,16 @@ impl KeyStorage for PersistentKeyStorage {
 		self.insert(document, key)
 	}
 
-	fn get(&self, document: &ServerKeyId) -> Result<DocumentKeyShare, Error> {
+	fn get(&self, document: &ServerKeyId) -> Result<Option<DocumentKeyShare>, Error> {
 		self.db.get(None, document)
-			.map_err(Error::Database)?
-			.ok_or(Error::DocumentNotFound)
-			.map(|key| key.into_vec())
-			.and_then(|key| serde_json::from_slice::<CurrentSerializableDocumentKeyShare>(&key).map_err(|e| Error::Database(e.to_string())))
-			.map(Into::into)
+			.map_err(Error::Database)
+			.and_then(|key| match key {
+				Some(key) => Ok(Some(serde_json::from_slice::<CurrentSerializableDocumentKeyShare>(&key)
+					.map(Into::into)
+					.map_err(|e| Error::Database(e.to_string()))?)),
+				None => Ok(None),
+			})
+			//.map(|key| key.map(Into::into))
 	}
 
 	fn remove(&self, document: &ServerKeyId) -> Result<(), Error> {
@@ -245,7 +341,68 @@ impl<'a> Iterator for PersistentKeyStorageIterator<'a> {
 	}
 }
 
-impl From<DocumentKeyShare> for SerializableDocumentKeyShareV2 {
+impl DocumentKeyShare {
+	// TODO: remove me
+	pub fn all_nodes(&self) -> BTreeSet<NodeId> {
+		self.versions.iter().flat_map(|v| v.id_numbers.keys().cloned()).collect()
+	}
+
+
+	/// Get last version hash.
+	pub fn last_version(&self) -> Result<&DocumentKeyShareVersion, Error> {
+		self.versions.iter().rev()
+			.nth(0)
+			.ok_or_else(|| Error::Database("key version is not found".into()))
+	}
+
+	/// Get given version.
+	pub fn version(&self, version: &H256) -> Result<&DocumentKeyShareVersion, Error> {
+		self.versions.iter().rev()
+			.find(|v| &v.hash == version)
+			.ok_or_else(|| Error::Database("key version is not found".into()))
+	}
+}
+
+impl DocumentKeyShareVersion {
+	/// Create new version
+	pub fn new(id_numbers: BTreeMap<NodeId, Secret>, polynom1: Vec<Secret>, secret_share: Secret) -> Self {
+		DocumentKeyShareVersion {
+			hash: Self::data_hash(0, id_numbers.iter().map(|(k, v)| (&**k, &***v))),
+			time: 0,
+			id_numbers: id_numbers,
+			polynom1: polynom1,
+			secret_share: secret_share,
+		}
+	}
+
+
+	/// Calculate hash of the version.
+	pub fn hash(&self) -> H256 {
+		Self::data_hash(self.time, self.id_numbers.iter()
+			.map(|(k, v)| (&**k, &***v)))
+	}
+
+	/// Calculate hash of given version data.
+	pub fn data_hash<'a, I>(time: u64, id_numbers: I) -> H256 where I: Iterator<Item=(&'a [u8], &'a [u8])> {
+		let mut nodes_keccak = Keccak::new_keccak256();
+
+		let mut time_buffer = Vec::with_capacity(8);
+		time_buffer.write_u64::<LittleEndian>(time).expect("writing to pre-allocated buffer; qed");
+		nodes_keccak.update(&time_buffer);
+
+		for (node, node_number) in id_numbers {
+			nodes_keccak.update(node);
+			nodes_keccak.update(node_number);
+		}
+
+		let mut nodes_keccak_value = [0u8; 32];
+		nodes_keccak.finalize(&mut nodes_keccak_value);
+
+		nodes_keccak_value.into()
+	}
+}
+
+/*impl From<DocumentKeyShare> for SerializableDocumentKeyShareV2 {
 	fn from(key: DocumentKeyShare) -> Self {
 		SerializableDocumentKeyShareV2 {
 			author: key.author.into(),
@@ -270,18 +427,66 @@ impl From<DocumentKeyShare> for SerializableDocumentKeyShareV1 {
 			encrypted_point: key.encrypted_point.map(Into::into),
 		}
 	}
+}*/
+
+impl From<DocumentKeyShare> for SerializableDocumentKeyShareV3 {
+	fn from(key: DocumentKeyShare) -> Self {
+		SerializableDocumentKeyShareV3 {
+			author: key.author.into(),
+			threshold: key.threshold,
+			common_point: key.common_point.map(Into::into),
+			encrypted_point: key.encrypted_point.map(Into::into),
+			versions: key.versions.into_iter().map(Into::into).collect(),
+		}
+	}
 }
 
-impl From<SerializableDocumentKeyShareV2> for DocumentKeyShare {
+impl From<DocumentKeyShareVersion> for SerializableDocumentKeyShareVersionV3 {
+	fn from(version: DocumentKeyShareVersion) -> Self {
+		SerializableDocumentKeyShareVersionV3 {
+			hash: version.hash.into(),
+			time: version.time,
+			id_numbers: version.id_numbers.into_iter().map(|(k, v)| (k.into(), v.into())).collect(),
+			polynom1: version.polynom1.into_iter().map(Into::into).collect(),
+			secret_share: version.secret_share.into(),
+		}
+	}
+}
+
+/*impl From<SerializableDocumentKeyShareV2> for DocumentKeyShare {
 	fn from(key: SerializableDocumentKeyShareV2) -> Self {
 		DocumentKeyShare {
 			author: key.author.into(),
 			threshold: key.threshold,
-			id_numbers: key.id_numbers.into_iter().map(|(k, v)| (k.into(), v.into())).collect(),
-			secret_share: key.secret_share.into(),
-			polynom1: key.polynom1.into_iter().map(Into::into).collect(),
 			common_point: key.common_point.map(Into::into),
 			encrypted_point: key.encrypted_point.map(Into::into),
+			versions: vec![DocumentKeyShareVersion {
+				hash: DocumentKeyShareVersion::data_hash(0, key.id_numbers.iter()),
+				time: 0,
+				id_numbers: key.id_numbers.into_iter().map(|(k, v)| (k.into(), v.into())).collect(),
+				polynom1: key.polynom1.into_iter().map(Into::into).collect(),
+				secret_share: key.secret_share.into(),
+			}],
+		}
+	}
+}*/
+
+impl From<SerializableDocumentKeyShareV3> for DocumentKeyShare {
+	fn from(key: SerializableDocumentKeyShareV3) -> Self {
+		DocumentKeyShare {
+			author: key.author.into(),
+			threshold: key.threshold,
+			common_point: key.common_point.map(Into::into),
+			encrypted_point: key.encrypted_point.map(Into::into),
+			versions: key.versions.into_iter()
+				.map(|v| DocumentKeyShareVersion {
+					hash: v.hash.into(),
+					time: v.time,
+					id_numbers: v.id_numbers.into_iter().map(|(k, v)| (k.into(), v.into())).collect(),
+					polynom1: v.polynom1.into_iter().map(Into::into).collect(),
+					secret_share: v.secret_share.into(),
+				})
+				.collect(),
 		}
 	}
 }
@@ -296,8 +501,8 @@ pub mod tests {
 	use util::Database;
 	use types::all::{Error, NodeAddress, ServiceConfiguration, ClusterConfiguration, ServerKeyId};
 	use super::{DB_META_KEY_VERSION, CURRENT_VERSION, KeyStorage, PersistentKeyStorage, DocumentKeyShare,
-		SerializableDocumentKeyShareV0, SerializableDocumentKeyShareV1,
-		CurrentSerializableDocumentKeyShare, upgrade_db};
+		DocumentKeyShareVersion, SerializableDocumentKeyShareV0, SerializableDocumentKeyShareV1,
+		SerializableDocumentKeyShareV2, CurrentSerializableDocumentKeyShare, upgrade_db};
 
 	/// In-memory document encryption keys storage
 	#[derive(Default)]
@@ -316,8 +521,8 @@ pub mod tests {
 			Ok(())
 		}
 
-		fn get(&self, document: &ServerKeyId) -> Result<DocumentKeyShare, Error> {
-			self.keys.read().get(document).cloned().ok_or(Error::DocumentNotFound)
+		fn get(&self, document: &ServerKeyId) -> Result<Option<DocumentKeyShare>, Error> {
+			Ok(self.keys.read().get(document).cloned())
 		}
 
 		fn remove(&self, document: &ServerKeyId) -> Result<(), Error> {
@@ -357,40 +562,48 @@ pub mod tests {
 		let value1 = DocumentKeyShare {
 			author: Public::default(),
 			threshold: 100,
-			id_numbers: vec![
-				(Random.generate().unwrap().public().clone(), Random.generate().unwrap().secret().clone())
-			].into_iter().collect(),
-			secret_share: Random.generate().unwrap().secret().clone(),
-			polynom1: Vec::new(),
 			common_point: Some(Random.generate().unwrap().public().clone()),
 			encrypted_point: Some(Random.generate().unwrap().public().clone()),
+			versions: vec![DocumentKeyShareVersion {
+				hash: Default::default(),
+				time: 0,
+				id_numbers: vec![
+					(Random.generate().unwrap().public().clone(), Random.generate().unwrap().secret().clone())
+				].into_iter().collect(),
+				polynom1: Vec::new(),
+				secret_share: Random.generate().unwrap().secret().clone(),
+			}],
 		};
 		let key2 = ServerKeyId::from(2);
 		let value2 = DocumentKeyShare {
 			author: Public::default(),
 			threshold: 200,
-			id_numbers: vec![
-				(Random.generate().unwrap().public().clone(), Random.generate().unwrap().secret().clone())
-			].into_iter().collect(),
-			secret_share: Random.generate().unwrap().secret().clone(),
-			polynom1: Vec::new(),
 			common_point: Some(Random.generate().unwrap().public().clone()),
 			encrypted_point: Some(Random.generate().unwrap().public().clone()),
+			versions: vec![DocumentKeyShareVersion {
+				hash: Default::default(),
+				time: 0,
+				id_numbers: vec![
+					(Random.generate().unwrap().public().clone(), Random.generate().unwrap().secret().clone())
+				].into_iter().collect(),
+				polynom1: Vec::new(),
+				secret_share: Random.generate().unwrap().secret().clone(),
+			}],
 		};
 		let key3 = ServerKeyId::from(3);
 
 		let key_storage = PersistentKeyStorage::new(&config).unwrap();
 		key_storage.insert(key1.clone(), value1.clone()).unwrap();
 		key_storage.insert(key2.clone(), value2.clone()).unwrap();
-		assert_eq!(key_storage.get(&key1), Ok(value1.clone()));
-		assert_eq!(key_storage.get(&key2), Ok(value2.clone()));
-		assert_eq!(key_storage.get(&key3), Err(Error::DocumentNotFound));
+		assert_eq!(key_storage.get(&key1), Ok(Some(value1.clone())));
+		assert_eq!(key_storage.get(&key2), Ok(Some(value2.clone())));
+		assert_eq!(key_storage.get(&key3), Ok(None));
 		drop(key_storage);
 
 		let key_storage = PersistentKeyStorage::new(&config).unwrap();
-		assert_eq!(key_storage.get(&key1), Ok(value1));
-		assert_eq!(key_storage.get(&key2), Ok(value2));
-		assert_eq!(key_storage.get(&key3), Err(Error::DocumentNotFound));
+		assert_eq!(key_storage.get(&key1), Ok(Some(value1)));
+		assert_eq!(key_storage.get(&key2), Ok(Some(value2)));
+		assert_eq!(key_storage.get(&key3), Ok(None));
 	}
 
 	#[test]
@@ -423,13 +636,16 @@ pub mod tests {
 		let key = serde_json::from_slice::<CurrentSerializableDocumentKeyShare>(&db.get(None, &[7]).unwrap().map(|key| key.to_vec()).unwrap()).unwrap();
 		assert_eq!(Public::default(), key.author.clone().into());
 		assert_eq!(777, key.threshold);
+		assert_eq!(Some("99e82b163b062d55a64085bacfd407bb55f194ba5fb7a1af9c34b84435455520f1372e0e650a4f91aed0058cb823f62146ccb5599c8d13372c300dea866b69fc".parse::<Public>().unwrap()), key.common_point.clone().map(Into::into));
+		assert_eq!(Some("7e05df9dd077ec21ed4bc45c9fe9e0a43d65fa4be540630de615ced5e95cf5c3003035eb713317237d7667feeeb64335525158f5f7411f67aca9645169ea554c".parse::<Public>().unwrap()), key.encrypted_point.clone().map(Into::into));
+
+		assert_eq!(key.versions.len(), 1);
+		assert_eq!(key.versions[0].time, 0);
 		assert_eq!(vec![(
 			"b486d3840218837b035c66196ecb15e6b067ca20101e11bd5e626288ab6806ecc70b8307012626bd512bad1559112d11d21025cef48cc7a1d2f3976da08f36c8".parse::<Public>().unwrap(),
 			"281b6bf43cb86d0dc7b98e1b7def4a80f3ce16d28d2308f934f116767306f06c".parse::<Secret>().unwrap(),
-		)], key.id_numbers.clone().into_iter().map(|(k, v)| (k.into(), v.into())).collect::<Vec<(Public, Secret)>>());
-		assert_eq!("00125d85a05e5e63e214cb60fe63f132eec8a103aa29266b7e6e6c5b7597230b".parse::<Secret>().unwrap(), key.secret_share.into());
-		assert_eq!(Some("99e82b163b062d55a64085bacfd407bb55f194ba5fb7a1af9c34b84435455520f1372e0e650a4f91aed0058cb823f62146ccb5599c8d13372c300dea866b69fc".parse::<Public>().unwrap()), key.common_point.clone().map(Into::into));
-		assert_eq!(Some("7e05df9dd077ec21ed4bc45c9fe9e0a43d65fa4be540630de615ced5e95cf5c3003035eb713317237d7667feeeb64335525158f5f7411f67aca9645169ea554c".parse::<Public>().unwrap()), key.encrypted_point.clone().map(Into::into));
+		)], key.versions[0].id_numbers.clone().into_iter().map(|(k, v)| (k.into(), v.into())).collect::<Vec<(Public, Secret)>>());
+		assert_eq!("00125d85a05e5e63e214cb60fe63f132eec8a103aa29266b7e6e6c5b7597230b".parse::<Secret>().unwrap(), key.versions[0].secret_share.clone().into());
 	}
 
 	#[test]
@@ -463,14 +679,18 @@ pub mod tests {
 		assert_eq!(db.get(None, DB_META_KEY_VERSION).unwrap().unwrap()[0], CURRENT_VERSION);
 		let key = serde_json::from_slice::<CurrentSerializableDocumentKeyShare>(&db.get(None, &[7]).unwrap().map(|key| key.to_vec()).unwrap()).unwrap();
 		assert_eq!(777, key.threshold);
-		assert_eq!(vec![(
-			"b486d3840218837b035c66196ecb15e6b067ca20101e11bd5e626288ab6806ecc70b8307012626bd512bad1559112d11d21025cef48cc7a1d2f3976da08f36c8".parse::<Public>().unwrap(),
-			"281b6bf43cb86d0dc7b98e1b7def4a80f3ce16d28d2308f934f116767306f06c".parse::<Secret>().unwrap(),
-		)], key.id_numbers.clone().into_iter().map(|(k, v)| (k.into(), v.into())).collect::<Vec<(Public, Secret)>>());
-		assert_eq!("00125d85a05e5e63e214cb60fe63f132eec8a103aa29266b7e6e6c5b7597230b".parse::<Secret>().unwrap(), key.secret_share.into());
 		assert_eq!(Some("99e82b163b062d55a64085bacfd407bb55f194ba5fb7a1af9c34b84435455520f1372e0e650a4f91aed0058cb823f62146ccb5599c8d13372c300dea866b69fc".parse::<Public>().unwrap()), key.common_point.clone().map(Into::into));
 		assert_eq!(Some("7e05df9dd077ec21ed4bc45c9fe9e0a43d65fa4be540630de615ced5e95cf5c3003035eb713317237d7667feeeb64335525158f5f7411f67aca9645169ea554c".parse::<Public>().unwrap()), key.encrypted_point.clone().map(Into::into));
 		assert_eq!(key.author, "b486d3840218837b035c66196ecb15e6b067ca20101e11bd5e626288ab6806ecc70b8307012626bd512bad1559112d11d21025cef48cc7a1d2f3976da08f36c8".into());
-		assert_eq!(key.polynom1, vec![]);
+
+		assert_eq!(key.versions.len(), 1);
+		assert_eq!(key.versions[0].time, 0);
+		assert_eq!(vec![(
+			"b486d3840218837b035c66196ecb15e6b067ca20101e11bd5e626288ab6806ecc70b8307012626bd512bad1559112d11d21025cef48cc7a1d2f3976da08f36c8".parse::<Public>().unwrap(),
+			"281b6bf43cb86d0dc7b98e1b7def4a80f3ce16d28d2308f934f116767306f06c".parse::<Secret>().unwrap(),
+		)], key.versions[0].id_numbers.clone().into_iter().map(|(k, v)| (k.into(), v.into())).collect::<Vec<(Public, Secret)>>());
+
+		assert_eq!("00125d85a05e5e63e214cb60fe63f132eec8a103aa29266b7e6e6c5b7597230b".parse::<Secret>().unwrap(), key.versions[0].secret_share.clone().into());
+		assert_eq!(key.versions[0].polynom1, vec![]);
 	}
 }

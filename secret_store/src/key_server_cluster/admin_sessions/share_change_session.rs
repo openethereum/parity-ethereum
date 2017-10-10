@@ -310,14 +310,15 @@ impl ShareChangeSession {
 
 	/// Remove isolated nodes from key share.
 	fn remove_isolated_nodes(meta: &ShareChangeSessionMeta, key_storage: &Arc<KeyStorage>, isolated_nodes: BTreeSet<NodeId>) -> Result<(), Error> {
-		let mut key_share = key_storage.get(&meta.id).map_err(|e| Error::KeyStorage(e.into()))?;
+unimplemented!("TODO")
+/*		let mut key_share = key_storage.get(&meta.id).map_err(|e| Error::KeyStorage(e.into()))?;
 		for isolated_node in &isolated_nodes {
 			key_share.id_numbers.remove(isolated_node);
 		}
 		if key_share.id_numbers.len() < key_share.threshold + 1 {
 			return Err(Error::InvalidNodesConfiguration);
 		}
-		key_storage.update(meta.id.clone(), key_share).map_err(|e| Error::KeyStorage(e.into()))
+		key_storage.update(meta.id.clone(), key_share).map_err(|e| Error::KeyStorage(e.into()))*/
 	}
 }
 

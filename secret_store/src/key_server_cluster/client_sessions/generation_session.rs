@@ -20,7 +20,7 @@ use std::time;
 use std::sync::Arc;
 use parking_lot::{Condvar, Mutex};
 use ethkey::{Public, Secret};
-use key_server_cluster::{Error, NodeId, SessionId, KeyStorage, DocumentKeyShare};
+use key_server_cluster::{Error, NodeId, SessionId, KeyStorage, DocumentKeyShare, DocumentKeyShareVersion};
 use key_server_cluster::math;
 use key_server_cluster::cluster::Cluster;
 use key_server_cluster::cluster_sessions::ClusterSession;
@@ -504,11 +504,13 @@ impl SessionImpl {
 			let encrypted_data = DocumentKeyShare {
 				author: data.author.as_ref().expect("author is filled in initialization phase; KG phase follows initialization phase; qed").clone(),
 				threshold: data.threshold.expect("threshold is filled in initialization phase; KG phase follows initialization phase; qed"),
-				id_numbers: data.nodes.iter().map(|(node_id, node_data)| (node_id.clone(), node_data.id_number.clone())).collect(),
-				secret_share: data.secret_share.as_ref().expect("secret_share is filled in KG phase; we are at the end of KG phase; qed").clone(),
-				polynom1: data.polynom1.as_ref().expect("polynom1 is filled in KG phase; we are at the end of KG phase; qed").clone(),
 				common_point: None,
 				encrypted_point: None,
+				versions: vec![DocumentKeyShareVersion::new(
+					data.nodes.iter().map(|(node_id, node_data)| (node_id.clone(), node_data.id_number.clone())).collect(),
+					data.polynom1.as_ref().expect("polynom1 is filled in KG phase; we are at the end of KG phase; qed").clone(),
+					data.secret_share.as_ref().expect("secret_share is filled in KG phase; we are at the end of KG phase; qed").clone(),
+				)],
 			};
 			
 			if let Some(ref key_storage) = self.key_storage {
@@ -683,11 +685,13 @@ impl SessionImpl {
 		let encrypted_data = DocumentKeyShare {
 			author: data.author.as_ref().expect("author is filled in initialization phase; KG phase follows initialization phase; qed").clone(),
 			threshold: data.threshold.expect("threshold is filled in initialization phase; KG phase follows initialization phase; qed"),
-			id_numbers: data.nodes.iter().map(|(node_id, node_data)| (node_id.clone(), node_data.id_number.clone())).collect(),
-			secret_share: data.secret_share.as_ref().expect("secret_share is filled in KG phase; we are at the end of KG phase; qed").clone(),
-			polynom1: data.polynom1.as_ref().expect("polynom1 is filled in KG phase; we are at the end of KG phase; qed").clone(),
 			common_point: None,
 			encrypted_point: None,
+			versions: vec![DocumentKeyShareVersion::new(
+				data.nodes.iter().map(|(node_id, node_data)| (node_id.clone(), node_data.id_number.clone())).collect(),
+				data.polynom1.as_ref().expect("polynom1 is filled in KG phase; we are at the end of KG phase; qed").clone(),
+				data.secret_share.as_ref().expect("secret_share is filled in KG phase; we are at the end of KG phase; qed").clone(),
+			)],
 		};
 
 		// if we are at the slave node - wait for session completion

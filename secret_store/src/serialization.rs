@@ -249,6 +249,13 @@ impl Deref for SerializableSecret {
 	}
 }
 
+impl AsRef<[u8]> for SerializableSecret {
+	#[inline]
+	fn as_ref(&self) -> &[u8] {
+		&*self.0
+	}
+}
+
 impl Serialize for SerializableSecret {
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
 		let mut serialized = "0x".to_owned();
@@ -306,6 +313,13 @@ impl Deref for SerializablePublic {
 
 	fn deref(&self) -> &Public {
 		&self.0
+	}
+}
+
+impl AsRef<[u8]> for SerializablePublic {
+	#[inline]
+	fn as_ref(&self) -> &[u8] {
+		&*self.0
 	}
 }
 

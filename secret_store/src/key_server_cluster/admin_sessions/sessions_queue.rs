@@ -56,8 +56,11 @@ impl Iterator for SessionsQueue {
 	fn next(&mut self) -> Option<Self::Item> {
 		if let Some(known_session) = self.known_sessions.pop_front() {
 			return Some(self.key_storage.get(&known_session)
-				.map(|session| QueuedSession::Known(known_session, session))
-				.map_err(|e| Error::KeyStorage(e.into())));
+				.map_err(|e| Error::KeyStorage(e.into()))
+				.and_then(|session| match session {
+					Some(session) => Ok(QueuedSession::Known(known_session, session)),
+					None => Err(Error::KeyStorage("TODO".into())),
+				}));
 		}
 
 		if let Some(unknown_session) = self.unknown_sessions.pop_front() {
@@ -80,7 +83,7 @@ impl QueuedSession {
 	/// OWners of key shares (aka session nodes).
 	pub fn nodes(&self) -> BTreeSet<NodeId> {
 		match *self {
-			QueuedSession::Known(_, ref key_share) => key_share.id_numbers.keys().cloned().collect(),
+			QueuedSession::Known(_, ref key_share) => key_share.all_nodes(), // TODO: session initialization message must be broadcasted!!!
 			QueuedSession::Unknown(_, ref nodes) => nodes.clone(),
 		}
 	}

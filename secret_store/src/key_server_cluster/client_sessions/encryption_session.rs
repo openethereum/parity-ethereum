@@ -154,8 +154,9 @@ impl SessionImpl {
 		}
 
 		// update state
+		let key_version = self.encrypted_data.last_version().map_err(|e| Error::KeyStorage(e.into()))?; // TODO: here && below we need to broadcast message to all nodes
 		data.state = SessionState::WaitingForInitializationConfirm;
-		for node_id in self.encrypted_data.id_numbers.keys() {
+		for node_id in key_version.id_numbers.keys() {
 			data.nodes.insert(node_id.clone(), NodeData {
 				initialization_confirmed: node_id == self.node(),
 			});
@@ -171,7 +172,7 @@ impl SessionImpl {
 			.map_err(|e| Error::KeyStorage(e.into()))?;
 
 		// start initialization
-		if self.encrypted_data.id_numbers.len() > 1 {
+		if key_version.id_numbers.len() > 1 {
 			self.cluster.broadcast(Message::Encryption(EncryptionMessage::InitializeEncryptionSession(InitializeEncryptionSession {
 				session: self.id.clone().into(),
 				session_nonce: self.nonce,
@@ -337,7 +338,8 @@ fn check_encrypted_data(self_node_id: &Public, encrypted_data: &DocumentKeyShare
 		return Err(Error::CompletedSessionId);
 	}
 
-	let nodes = encrypted_data.id_numbers.keys().cloned().collect();
-	check_cluster_nodes(self_node_id, &nodes)?;
-	check_threshold(encrypted_data.threshold, &nodes)
+	// TODO: let nodes = encrypted_data.id_numbers.keys().cloned().collect();
+	// check_cluster_nodes(self_node_id, &nodes)?;
+	// check_threshold(encrypted_data.threshold, &nodes)
+	Ok(())
 }

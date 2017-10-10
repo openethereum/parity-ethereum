@@ -1370,9 +1370,9 @@ impl ClusterClient for ClusterClientImpl {
 		connected_nodes.insert(self.data.self_key_pair.public().clone());
 
 		let access_key = Random.generate()?.secret().clone();
-		let cluster = Arc::new(ClusterView::new(self.data.clone(), connected_nodes));
+		let cluster = Arc::new(ClusterView::new(self.data.clone(), connected_nodes.clone()));
 		let session = self.data.sessions.new_decryption_session(self.data.self_key_pair.public().clone(), session_id, access_key.clone(), None, cluster, Some(requestor_signature))?;
-		session.initialize(is_shadow_decryption)?;
+		session.initialize(connected_nodes, is_shadow_decryption)?;
 		Ok(DecryptionSessionWrapper::new(Arc::downgrade(&self.data), DecryptionSessionId::new(session_id, access_key), session))
 	}
 
@@ -1381,9 +1381,9 @@ impl ClusterClient for ClusterClientImpl {
 		connected_nodes.insert(self.data.self_key_pair.public().clone());
 
 		let access_key = Random.generate()?.secret().clone();
-		let cluster = Arc::new(ClusterView::new(self.data.clone(), connected_nodes));
+		let cluster = Arc::new(ClusterView::new(self.data.clone(), connected_nodes.clone()));
 		let session = self.data.sessions.new_signing_session(self.data.self_key_pair.public().clone(), session_id, access_key.clone(), None, cluster, Some(requestor_signature))?;
-		session.initialize(message_hash)?;
+		session.initialize(connected_nodes, message_hash)?;
 		Ok(SigningSessionWrapper::new(Arc::downgrade(&self.data), SigningSessionId::new(session_id, access_key), session))
 	}
 
@@ -1400,7 +1400,7 @@ impl ClusterClient for ClusterClientImpl {
 	}
 
 	fn new_share_move_session(&self, session_id: SessionId, new_nodes_set: BTreeSet<NodeId>, old_set_signature: Signature, new_set_signature: Signature) -> Result<Arc<AdminSessionWrapper>, Error> {
-		let key_share = self.data.config.key_storage.get(&session_id).map_err(|e| Error::KeyStorage(e.into()))?;
+		/*let key_share = self.data.config.key_storage.get(&session_id).map_err(|e| Error::KeyStorage(e.into()))?;
 		if new_nodes_set.len() != key_share.id_numbers.len() {
 			return Err(Error::InvalidNodesConfiguration);
 		}
@@ -1420,7 +1420,8 @@ impl ClusterClient for ClusterClientImpl {
 		session.as_share_move()
 			.expect("created 1 line above; qed")
 			.initialize(Some(shares_to_move), Some(old_set_signature), Some(new_set_signature))?;
-		Ok(AdminSessionWrapper::new(Arc::downgrade(&self.data), session_id, session))
+		Ok(AdminSessionWrapper::new(Arc::downgrade(&self.data), session_id, session))*/
+		unimplemented!("TODO")
 	}
 
 	fn new_share_remove_session(&self, session_id: SessionId, new_nodes_set: BTreeSet<NodeId>, old_set_signature: Signature, new_set_signature: Signature) -> Result<Arc<AdminSessionWrapper>, Error> {

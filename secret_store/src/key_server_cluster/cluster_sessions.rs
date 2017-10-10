@@ -247,7 +247,7 @@ impl ClusterSessions {
 			return Err(Error::DuplicateSessionId);
 		}
 
-		// communicating to all other nodes is crucial for encryption session
+		// communicating to all other nodes is crucial for generation session
 		// => check that we have connections to all cluster nodes
 		if self.nodes.iter().any(|n| !cluster.is_connected(n)) {
 			return Err(Error::NodeDisconnected);
@@ -285,7 +285,14 @@ impl ClusterSessions {
 
 	/// Create new encryption session.
 	pub fn new_encryption_session(&self, master: NodeId, session_id: SessionId, nonce: Option<u64>, cluster: Arc<Cluster>) -> Result<Arc<EncryptionSessionImpl>, Error> {
-		let encrypted_data = self.read_key_share(&session_id, &cluster)?;
+// TODO: check that we have connected to all nodes
+		// communicating to all other nodes is crucial for encryption session
+		// => check that we have connections to all cluster nodes
+		if self.nodes.iter().any(|n| !cluster.is_connected(n)) {
+			return Err(Error::NodeDisconnected);
+		}
+
+		let encrypted_data = self.read_key_share(&session_id, &cluster)?.ok_or(Error::KeyStorage("TODO".into()))?;
 		let nonce = self.check_session_nonce(&master, nonce)?;
 
 		self.encryption_sessions.insert(master, session_id, cluster.clone(), false, move || EncryptionSessionImpl::new(EncryptionSessionParams {
@@ -313,7 +320,7 @@ impl ClusterSessions {
 	/// Create new decryption session.
 	pub fn new_decryption_session(&self, master: NodeId, session_id: SessionId, sub_session_id: Secret, nonce: Option<u64>, cluster: Arc<Cluster>, requester_signature: Option<Signature>) -> Result<Arc<DecryptionSessionImpl>, Error> {
 		let session_id = DecryptionSessionId::new(session_id, sub_session_id);
-		let encrypted_data = self.read_key_share(&session_id.id, &cluster)?;
+		let encrypted_data = self.read_key_share(&session_id.id, &cluster)?.ok_or(Error::KeyStorage("TODO".into()))?;
 		let nonce = self.check_session_nonce(&master, nonce)?;
 
 		self.decryption_sessions.insert(master, session_id.clone(), cluster.clone(), false, move || DecryptionSessionImpl::new(DecryptionSessionParams {
@@ -352,7 +359,7 @@ impl ClusterSessions {
 	/// Create new signing session.
 	pub fn new_signing_session(&self, master: NodeId, session_id: SessionId, sub_session_id: Secret, nonce: Option<u64>, cluster: Arc<Cluster>, requester_signature: Option<Signature>) -> Result<Arc<SigningSessionImpl>, Error> {
 		let session_id = SigningSessionId::new(session_id, sub_session_id);
-		let encrypted_data = self.read_key_share(&session_id.id, &cluster)?;
+		let encrypted_data = self.read_key_share(&session_id.id, &cluster)?.ok_or(Error::KeyStorage("TODO".into()))?;
 		let nonce = self.check_session_nonce(&master, nonce)?;
 
 		self.signing_sessions.insert(master, session_id.clone(), cluster.clone(), false, move || SigningSessionImpl::new(SigningSessionParams {
@@ -544,15 +551,15 @@ impl ClusterSessions {
 	}
 
 	/// Read key share && remove disconnected nodes.
-	fn read_key_share(&self, key_id: &SessionId, cluster: &Arc<Cluster>) -> Result<DocumentKeyShare, Error> {
+	fn read_key_share(&self, key_id: &SessionId, cluster: &Arc<Cluster>) -> Result<Option<DocumentKeyShare>, Error> {
 		let mut encrypted_data = self.key_storage.get(key_id).map_err(|e| Error::KeyStorage(e.into()))?;
 
 		// some of nodes, which were encrypting secret may be down
 		// => do not use these in session
-		let disconnected_nodes: BTreeSet<_> = encrypted_data.id_numbers.keys().cloned().collect();
-		for disconnected_node in disconnected_nodes.difference(&cluster.nodes()) {
-			encrypted_data.id_numbers.remove(&disconnected_node);
-		}
+		//let disconnected_nodes: BTreeSet<_> = encrypted_data.id_numbers.keys().cloned().collect();
+		//for disconnected_node in disconnected_nodes.difference(&cluster.nodes()) {
+		//	encrypted_data.id_numbers.remove(&disconnected_node);
+		//}
 		Ok(encrypted_data)
 	}
 
