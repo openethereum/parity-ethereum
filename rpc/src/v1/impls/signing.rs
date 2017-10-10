@@ -62,14 +62,11 @@ impl Future for DispatchResult {
 	fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
 		match self {
 			&mut DispatchResult::Value(ref response) => Ok(Async::Ready(response.clone())),
-			&mut DispatchResult::Future(ref mut future) => future.poll().and_then(|async|
-				match async {
-					Async::NotReady => Ok(Async::NotReady),
-					Async::Ready(RpcConfirmationResult::Rejected) => Err(errors::request_rejected()),
-					Async::Ready(RpcConfirmationResult::Confirmed(Ok(response))) => Ok(Async::Ready(response)),
-					Async::Ready(RpcConfirmationResult::Confirmed(Err(error))) => Err(error)
+			&mut DispatchResult::Future(ref mut future) => match try_ready!(future.poll()) {
+					RpcConfirmationResult::Rejected => Err(errors::request_rejected()),
+					RpcConfirmationResult::Confirmed(Ok(response)) => Ok(Async::Ready(response)),
+					RpcConfirmationResult::Confirmed(Err(error)) => Err(error)
 				}
-			)
 		}
 	}
 }
