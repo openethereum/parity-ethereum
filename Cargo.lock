@@ -368,10 +368,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "common"
-version = "0.1.0"
-
-[[package]]
 name = "common-types"
 version = "0.1.0"
 dependencies = [
@@ -579,7 +575,6 @@ dependencies = [
  "bn 0.4.4 (git+https://github.com/paritytech/bn)",
  "byteorder 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "clippy 0.0.103 (registry+https://github.com/rust-lang/crates.io-index)",
- "common 0.1.0",
  "common-types 0.1.0",
  "crossbeam 0.2.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethash 1.8.0",
@@ -611,6 +606,7 @@ dependencies = [
  "linked-hash-map 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "lru-cache 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "macros 0.1.0",
  "memorydb 0.1.0",
  "migration 0.1.0",
  "native-contracts 0.1.0",
@@ -902,7 +898,6 @@ name = "ethcore-util"
 version = "1.8.0"
 dependencies = [
  "clippy 0.0.103 (registry+https://github.com/rust-lang/crates.io-index)",
- "common 0.1.0",
  "elastic-array 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "error-chain 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -921,7 +916,6 @@ dependencies = [
  "log 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "lru-cache 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "memorydb 0.1.0",
- "migration 0.1.0",
  "nibbleslice 0.1.0",
  "nibblevec 0.1.0",
  "parking_lot 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -931,7 +925,6 @@ dependencies = [
  "rocksdb 0.4.5 (git+https://github.com/paritytech/rust-rocksdb)",
  "rustc-hex 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc_version 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
- "snappy 0.1.0",
  "target_info 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "tiny-keccak 1.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "triehash 0.1.0",
@@ -1029,7 +1022,6 @@ name = "ethsync"
 version = "1.8.0"
 dependencies = [
  "clippy 0.0.103 (registry+https://github.com/rust-lang/crates.io-index)",
- "common 0.1.0",
  "env_logger 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore 1.8.0",
  "ethcore-bigint 0.1.3",
@@ -1049,6 +1041,7 @@ dependencies = [
  "ipnetwork 0.12.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "kvdb 0.1.0",
  "log 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
+ "macros 0.1.0",
  "parking_lot 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.3.16 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlp 0.2.0",
@@ -1630,6 +1623,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "macros"
+version = "0.1.0"
+
+[[package]]
 name = "magenta"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1687,10 +1684,10 @@ dependencies = [
 name = "migration"
 version = "0.1.0"
 dependencies = [
- "common 0.1.0",
  "ethcore-devtools 1.8.0",
  "kvdb 0.1.0",
  "log 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
+ "macros 0.1.0",
 ]
 
 [[package]]
@@ -2301,7 +2298,6 @@ dependencies = [
  "ansi_term 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "cid 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "clippy 0.0.103 (registry+https://github.com/rust-lang/crates.io-index)",
- "common 0.1.0",
  "ethash 1.8.0",
  "ethcore 1.8.0",
  "ethcore-bigint 0.1.3",
@@ -2331,6 +2327,7 @@ dependencies = [
  "jsonrpc-ws-server 8.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.8)",
  "kvdb 0.1.0",
  "log 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
+ "macros 0.1.0",
  "multihash 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "node-health 0.1.0",
  "order-stat 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",

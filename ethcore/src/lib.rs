@@ -131,7 +131,7 @@ extern crate wasm;
 extern crate ethcore_util as util;
 
 #[macro_use]
-extern crate common;
+extern crate macros;
 #[macro_use]
 extern crate log;
 #[macro_use]

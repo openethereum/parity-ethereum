@@ -24,7 +24,7 @@ hash = { path = "../util/hash" }
 triehash = { path = "../util/triehash" }
 kvdb = { path = "../util/kvdb" }
 ethcore-error = { path = "../util/error" }
-common = { path = "../util/common" }
+macros = { path = "../util/macros" }
 clippy = { version = "0.0.103", optional = true}
 log = "0.3"
 env_logger = "0.4"

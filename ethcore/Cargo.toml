@@ -59,7 +59,7 @@ kvdb = { path = "../util/kvdb" }
 ethcore-error = { path = "../util/error" }
 snappy = { path = "../util/snappy" }
 migration = { path = "../util/migration" }
-common = { path = "../util/common" }
+macros = { path = "../util/macros" }
 rust-crypto = "0.2.34"
 rustc-hex = "1.0"
 stats = { path = "../util/stats" }

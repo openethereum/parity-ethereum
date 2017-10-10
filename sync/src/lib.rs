@@ -51,11 +51,9 @@ extern crate ethcore_light as light;
 #[cfg(test)] extern crate ethkey;
 
 #[macro_use]
-extern crate common;
+extern crate macros;
 #[macro_use]
 extern crate log;
-#[macro_use]
-extern crate ethcore_util as util;
 #[macro_use]
 extern crate heapsize;
 #[macro_use]

@@ -5,6 +5,6 @@ authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 log = "0.3"
-common = { path = "../common" }
+macros = { path = "../macros" }
 kvdb = { path = "../kvdb" }
 ethcore-devtools = { path = "../../devtools" }

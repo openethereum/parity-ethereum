@@ -21,11 +21,10 @@ mod tests;
 #[macro_use]
 extern crate log;
 #[macro_use]
-extern crate common;
+extern crate macros;
 
 extern crate ethcore_devtools as devtools;
 extern crate kvdb;
-
 
 use std::collections::BTreeMap;
 use std::fs;
