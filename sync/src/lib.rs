@@ -42,6 +42,7 @@ extern crate rlp;
 extern crate ipnetwork;
 extern crate hash;
 extern crate triehash;
+extern crate kvdb;
 
 extern crate ethcore_light as light;
 
@@ -49,9 +50,9 @@ extern crate ethcore_light as light;
 #[cfg(test)] extern crate ethkey;
 
 #[macro_use]
-extern crate log;
+extern crate macros;
 #[macro_use]
-extern crate ethcore_util as util;
+extern crate log;
 #[macro_use]
 extern crate heapsize;
 #[macro_use]
@@ -81,6 +82,9 @@ mod api;
 pub use api::*;
 pub use chain::{SyncStatus, SyncState};
 pub use network::{is_valid_node_url, NonReservedPeerMode, NetworkError, ConnectionFilter, ConnectionDirection};
+
+#[cfg(test)]
+pub(crate) type Address = bigint::hash::H160;
 
 /// IPC interfaces
 #[cfg(feature="ipc")]

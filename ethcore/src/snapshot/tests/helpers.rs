@@ -31,7 +31,8 @@ use snapshot::io::{SnapshotReader, PackedWriter, PackedReader};
 use devtools::{RandomTempPath, GuardedTempResult};
 use rand::Rng;
 
-use util::{DBValue, KeyValueDB};
+use util::DBValue;
+use kvdb::KeyValueDB;
 use bigint::hash::H256;
 use hashdb::HashDB;
 use util::journaldb;
@@ -165,7 +166,7 @@ pub fn restore(
 	genesis: &[u8],
 ) -> Result<(), ::error::Error> {
 	use std::sync::atomic::AtomicBool;
-	use util::snappy;
+	use snappy;
 
 	let flag = AtomicBool::new(true);
 	let components = engine.snapshot_components().unwrap();

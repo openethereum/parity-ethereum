@@ -62,6 +62,8 @@ parity-whisper = { path = "whisper" }
 path = { path = "util/path" }
 panic_hook = { path = "panic_hook" }
 hash = { path = "util/hash" }
+migration = { path = "util/migration" }
+kvdb = { path = "util/kvdb" }
 
 parity-dapps = { path = "dapps", optional = true }
 clippy = { version = "0.0.103", optional = true}

@@ -14,13 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-
 //! An owning, nibble-oriented byte vector.
-extern crate nibbleslice;
-extern crate elastic_array;
-
-use nibbleslice::NibbleSlice;
 use elastic_array::ElasticArray36;
+use nibbleslice::NibbleSlice;
 
 /// Owning, nibble-oriented byte vector. Counterpart to `NibbleSlice`.
 #[derive(Clone, PartialEq, Eq, Debug)]

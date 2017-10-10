@@ -26,7 +26,6 @@ use bigint::prelude::U256;
 use bigint::hash::{H256, H2048};
 use parking_lot::{Mutex, RwLock};
 use bytes::Bytes;
-use util::*;
 use rlp::*;
 use header::*;
 use super::extras::*;
@@ -47,6 +46,7 @@ use encoded;
 use engines::epoch::{Transition as EpochTransition, PendingTransition as PendingEpochTransition};
 use rayon::prelude::*;
 use ansi_term::Colour;
+use kvdb::{DBTransaction, KeyValueDB};
 
 const LOG_BLOOMS_LEVELS: usize = 3;
 const LOG_BLOOMS_ELEMENTS_PER_INDEX: usize = 16;
@@ -1479,7 +1479,7 @@ mod tests {
 	use std::sync::Arc;
 	use rustc_hex::FromHex;
 	use hash::keccak;
-	use util::kvdb::KeyValueDB;
+	use kvdb::{in_memory, KeyValueDB};
 	use bigint::hash::*;
 	use receipt::{Receipt, TransactionOutcome};
 	use blockchain::{BlockProvider, BlockChain, Config, ImportRoute};
@@ -1493,7 +1493,7 @@ mod tests {
 	use header::BlockNumber;
 
 	fn new_db() -> Arc<KeyValueDB> {
-		Arc::new(::util::kvdb::in_memory(::db::NUM_COLUMNS.unwrap_or(0)))
+		Arc::new(in_memory(::db::NUM_COLUMNS.unwrap_or(0)))
 	}
 
 	fn new_chain(genesis: &[u8], db: Arc<KeyValueDB>) -> BlockChain {

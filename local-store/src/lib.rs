@@ -26,7 +26,7 @@ use ethcore::transaction::{
 use ethcore::service::ClientIoMessage;
 use io::IoHandler;
 use rlp::UntrustedRlp;
-use util::kvdb::KeyValueDB;
+use kvdb::KeyValueDB;
 
 extern crate ethcore;
 extern crate ethcore_util as util;
@@ -34,6 +34,7 @@ extern crate ethcore_io as io;
 extern crate rlp;
 extern crate serde_json;
 extern crate serde;
+extern crate kvdb;
 
 #[macro_use]
 extern crate serde_derive;
@@ -242,7 +243,7 @@ mod tests {
 
 	#[test]
 	fn twice_empty() {
-		let db = Arc::new(::util::kvdb::in_memory(0));
+		let db = Arc::new(::kvdb::in_memory(0));
 
 		{
 			let store = super::create(db.clone(), None, Dummy(vec![]));
@@ -271,7 +272,7 @@ mod tests {
 			PendingTransaction::new(signed, condition)
 		}).collect();
 
-		let db = Arc::new(::util::kvdb::in_memory(0));
+		let db = Arc::new(::kvdb::in_memory(0));
 
 		{
 			// nothing written yet, will write pending.
@@ -310,7 +311,7 @@ mod tests {
 			PendingTransaction::new(signed, None)
 		});
 
-		let db = Arc::new(::util::kvdb::in_memory(0));
+		let db = Arc::new(::kvdb::in_memory(0));
 		{
 			// nothing written, will write bad.
 			let store = super::create(db.clone(), None, Dummy(transactions.clone()));

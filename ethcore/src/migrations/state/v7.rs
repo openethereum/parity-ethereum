@@ -22,8 +22,8 @@ use std::collections::HashMap;
 use bigint::hash::H256;
 use util::Address;
 use bytes::Bytes;
-use util::kvdb::Database;
-use util::migration::{Batch, Config, Error, Migration, SimpleMigration, Progress};
+use kvdb::Database;
+use migration::{Batch, Config, Error, Migration, SimpleMigration, Progress};
 use hash::keccak;
 use std::sync::Arc;
 

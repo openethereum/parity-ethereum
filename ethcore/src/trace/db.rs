@@ -22,7 +22,7 @@ use bloomchain::{Number, Config as BloomConfig};
 use bloomchain::group::{BloomGroupDatabase, BloomGroupChain, GroupPosition, BloomGroup};
 use heapsize::HeapSizeOf;
 use bigint::hash::{H256, H264};
-use util::{KeyValueDB, DBTransaction};
+use kvdb::{KeyValueDB, DBTransaction};
 use parking_lot::RwLock;
 use header::BlockNumber;
 use trace::{LocalizedTrace, Config, Filter, Database as TraceDatabase, ImportRequest, DatabaseExtras};
@@ -415,7 +415,8 @@ mod tests {
 	use std::sync::Arc;
 	use bigint::prelude::U256;
 	use bigint::hash::H256;
-	use util::{Address, DBTransaction};
+	use util::Address;
+	use kvdb::{DBTransaction, in_memory, KeyValueDB};
 	use header::BlockNumber;
 	use trace::{Config, TraceDB, Database as TraceDatabase, DatabaseExtras, ImportRequest};
 	use trace::{Filter, LocalizedTrace, AddressesFilter, TraceError};
@@ -465,8 +466,8 @@ mod tests {
 		}
 	}
 
-	fn new_db() -> Arc<::util::kvdb::KeyValueDB> {
-		Arc::new(::util::kvdb::in_memory(::db::NUM_COLUMNS.unwrap_or(0)))
+	fn new_db() -> Arc<KeyValueDB> {
+		Arc::new(in_memory(::db::NUM_COLUMNS.unwrap_or(0)))
 	}
 
 	#[test]

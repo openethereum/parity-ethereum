@@ -25,7 +25,7 @@ use engines::EthEngine;
 use snapshot::{Error, ManifestData};
 
 use bigint::hash::H256;
-use util::kvdb::KeyValueDB;
+use kvdb::KeyValueDB;
 
 mod authority;
 mod work;

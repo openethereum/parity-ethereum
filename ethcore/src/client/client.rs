@@ -26,10 +26,10 @@ use itertools::Itertools;
 use hash::keccak;
 use timer::PerfTimer;
 use bytes::Bytes;
-use util::{journaldb, DBValue};
-use util::{Address, UtilError};
+use util::{Address, journaldb, DBValue};
+use util_error::UtilError;
 use trie::{TrieSpec, TrieFactory, Trie};
-use util::kvdb::*;
+use kvdb::*;
 
 // other
 use bigint::prelude::U256;
@@ -2090,7 +2090,7 @@ mod tests {
 		use std::time::Duration;
 		use std::sync::Arc;
 		use std::sync::atomic::{AtomicBool, Ordering};
-		use util::kvdb::DBTransaction;
+		use kvdb::DBTransaction;
 
 		let client = generate_dummy_client(0);
 		let genesis = client.chain_info().best_block_hash;
