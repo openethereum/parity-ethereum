@@ -25,7 +25,6 @@ extern crate error_chain;
 extern crate ethcore_bigint as bigint;
 extern crate rlp;
 extern crate rustc_hex;
-extern crate snappy;
 
 use std::fmt;
 use rustc_hex::FromHexError;
@@ -67,7 +66,6 @@ error_chain! {
 		Io(::std::io::Error);
 		FromHex(FromHexError);
 		Decoder(DecoderError);
-		Snappy(snappy::InvalidInput);
 		BaseData(BaseDataError);
 	}
 }
