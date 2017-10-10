@@ -58,8 +58,10 @@ pub fn json_chain_test(json_data: &[u8]) -> Vec<String> {
 
 			{
 				let db = Arc::new(::util::kvdb::in_memory(::db::NUM_COLUMNS.unwrap_or(0)));
+				let mut config = ClientConfig::default();
+				config.history = 8;
 				let client = Client::new(
-					ClientConfig::default(),
+					config,
 					&spec,
 					db,
 					Arc::new(Miner::with_spec(&spec)),
