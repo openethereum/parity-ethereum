@@ -24,8 +24,6 @@ target_info = "0.1"
 ethcore-bigint = { path = "bigint", features = ["heapsizeof"] }
 parking_lot = "0.4"
 tiny-keccak= "1.0"
-ethcore-bloom-journal = { path = "bloom" }
-regex = "0.2"
 lru-cache = "0.1.0"
 ethcore-logger = { path = "../logger" }
 triehash = { path = "triehash" }
