@@ -21,7 +21,7 @@ use kvdb;
 use bigint::prelude::U256;
 use bigint::hash::H256;
 use util::*;
-use ethcore_error::UtilError;
+use util_error::UtilError;
 use snappy::InvalidInput;
 use unexpected::{Mismatch, OutOfBounds};
 use trie::TrieError;
