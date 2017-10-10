@@ -15,7 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Nibble-orientated view onto byte-slice, allowing nibble-precision offsets.
-extern crate elastic_array;
 
 use std::cmp::*;
 use std::fmt;
@@ -26,9 +25,8 @@ use elastic_array::ElasticArray36;
 /// This is an immutable struct. No operations actually change it.
 ///
 /// # Example
-/// ```rust
-/// extern crate nibbleslice;
-/// use nibbleslice::*;
+/// ```snippet
+/// use patricia_trie::nibbleslice::NibbleSlice;
 /// fn main() {
 ///   let d1 = &[0x01u8, 0x23, 0x45];
 ///   let d2 = &[0x34u8, 0x50, 0x12];
