@@ -42,6 +42,7 @@ use ansi_term::Colour;
 use util::version;
 use parking_lot::{Condvar, Mutex};
 use node_filter::NodeFilter;
+use util::journaldb::Algorithm;
 
 use params::{
 	SpecType, Pruning, AccountsConfig, GasPricerConfig, MinerExtras, Switch,
@@ -496,7 +497,21 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	}
 
 	sync_config.fork_block = spec.fork_block();
-	sync_config.warp_sync = spec.engine.supports_warp() && cmd.warp_sync;
+	let mut warp_sync = cmd.warp_sync;
+	if warp_sync {
+		// Logging is not initialized yet, so we print directly to stderr
+		if fat_db {
+			warn!("Warning: Warp Sync is disabled because Fat DB is turned on.");
+			warp_sync = false;
+		} else if tracing {
+			warn!("Warning: Warp Sync is disabled because tracing is turned on.");
+			warp_sync = false;
+		} else if algorithm != Algorithm::OverlayRecent {
+			warn!("Warning: Warp Sync is disabled because of non-default pruning mode.");
+			warp_sync = false;
+		}
+	}
+	sync_config.warp_sync = spec.engine.supports_warp() && warp_sync;
 	sync_config.download_old_blocks = cmd.download_old_blocks;
 	sync_config.serve_light = cmd.serve_light;
 
