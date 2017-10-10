@@ -23,7 +23,7 @@ use ethcore::account_provider::DappId;
 use v1::helpers::{ConfirmationRequest, ConfirmationPayload, oneshot};
 use v1::types::{ConfirmationResponse, H160 as RpcH160, Origin, DappId as RpcDappId};
 
-use jsonrpc_core::futures::{Future, Poll, Async};
+use jsonrpc_core::futures::{Future, Poll};
 
 /// Result that can be returned from JSON RPC.
 pub type RpcResult = Result<ConfirmationResponse, jsonrpc_core::Error>;
@@ -118,7 +118,7 @@ pub struct ConfirmationReceiver {
 }
 
 impl ConfirmationReceiver {
-	pub fn new(id: U256, receiver: oneshot::Receiver<ConfirmationResult>) -> ConfirmationReceiver {
+	pub fn new(id: U256, receiver: oneshot::Receiver<ConfirmationResult>) -> Self {
 		ConfirmationReceiver {
 			id: id,
 			receiver: receiver,
@@ -130,6 +130,8 @@ impl ConfirmationReceiver {
 		self.id
 	}
 
+	/// Our queue can keep ConfirmationReceivers after their Future aspect has been already resolved
+	/// To avoid undefined behavior, this method is used for checks in garbage collector
 	pub fn is_done(&self) -> bool {
 		self.done
 	}
@@ -277,12 +279,12 @@ mod test {
 	use std::time::Duration;
 	use std::thread;
 	use std::sync::Arc;
-	use std::ops::Deref;
 	use bigint::prelude::U256;
 	use util::Address;
 	use parking_lot::Mutex;
 	use jsonrpc_core::futures::Future;
-	use v1::helpers::{SigningQueue, ConfirmationsQueue, QueueEvent, FilledTransactionRequest, ConfirmationResult, ConfirmationPayload};
+	use v1::helpers::{SigningQueue, ConfirmationsQueue, QueueEvent, FilledTransactionRequest,
+					  ConfirmationResult, ConfirmationPayload, ConfirmationReceiver, oneshot};
 	use v1::types::ConfirmationResponse;
 
 	fn request() -> ConfirmationPayload {
@@ -300,27 +302,29 @@ mod test {
 	}
 
 	#[test]
+	fn should_mark_future_as_done() {
+		let (sender, receiver) = oneshot::oneshot();
+        let mut confirmation = ConfirmationReceiver::new(U256::from(1), receiver);
+        assert_eq!(confirmation.is_done(), false);
+        sender.send(Ok(ConfirmationResult::Rejected));
+		confirmation.poll();
+        assert_eq!(confirmation.is_done(), true);
+	}
+
+	#[test]
 	fn should_wait_for_hash() {
 		// given
 		let queue = Arc::new(ConfirmationsQueue::default());
 		let request = request();
 
 		// when
-		let q = queue.clone();
-		let handle = thread::spawn(move || {
-			let v = q.add_request(request, Default::default()).unwrap();
-			v.wait().expect("Confirmation should be passed through the channel")
-		});
+		let future = queue.add_request(request, Default::default()).unwrap();
 
 		let id = U256::from(1);
-		while queue.peek(&id).is_none() {
-			// Just wait for the other thread to start
-			thread::sleep(Duration::from_millis(100));
-		}
 		queue.request_confirmed(id, Ok(ConfirmationResponse::SendTransaction(1.into())));
 
 		// then
-		let confirmation = handle.join().expect("Thread should finish nicely");
+		let confirmation = future.wait().unwrap();
 		assert_eq!(confirmation, ConfirmationResult::Confirmed(Ok(ConfirmationResponse::SendTransaction(1.into()))));
 	}
 
