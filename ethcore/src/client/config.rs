@@ -20,7 +20,8 @@ use std::fmt::{Display, Formatter, Error as FmtError};
 
 use mode::Mode as IpcMode;
 use verification::{VerifierType, QueueConfig};
-use util::{journaldb, CompactionProfile};
+use util::journaldb;
+use kvdb::CompactionProfile;
 
 pub use std::time::Duration;
 pub use blockchain::Config as BlockChainConfig;

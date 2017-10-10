@@ -21,8 +21,6 @@ extern crate hash as keccak;
 extern crate rlp;
 extern crate hashdb;
 extern crate ethcore_bytes as bytes;
-extern crate nibbleslice;
-extern crate nibblevec;
 extern crate elastic_array;
 extern crate memorydb;
 extern crate ethcore_logger;
@@ -54,6 +52,8 @@ pub mod recorder;
 mod fatdb;
 mod fatdbmut;
 mod lookup;
+mod nibbleslice;
+mod nibblevec;
 
 pub use self::standardmap::{Alphabet, StandardMap, ValueMode};
 pub use self::triedbmut::TrieDBMut;

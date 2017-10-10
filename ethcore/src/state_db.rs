@@ -19,14 +19,15 @@ use std::sync::Arc;
 use lru_cache::LruCache;
 use util::cache::MemoryLruCache;
 use util::journaldb::JournalDB;
-use util::kvdb::KeyValueDB;
+use kvdb::{KeyValueDB, DBTransaction};
 use bigint::hash::H256;
 use hashdb::HashDB;
 use state::{self, Account};
 use header::BlockNumber;
 use hash::keccak;
 use parking_lot::Mutex;
-use util::{Address, DBTransaction, UtilError};
+use util::Address;
+use util_error::UtilError;
 use bloom_journal::{Bloom, BloomJournal};
 use db::COL_ACCOUNT_BLOOM;
 use byteorder::{LittleEndian, ByteOrder};
@@ -460,7 +461,8 @@ impl state::Backend for StateDB {
 mod tests {
 	use bigint::prelude::U256;
 	use bigint::hash::H256;
-	use util::{Address, DBTransaction};
+	use util::Address;
+	use kvdb::DBTransaction;
 	use tests::helpers::*;
 	use state::{Account, Backend};
 	use ethcore_logger::init_log;

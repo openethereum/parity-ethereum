@@ -37,11 +37,11 @@ use io::IoChannel;
 
 use bigint::hash::H256;
 use parking_lot::{Mutex, RwLock, RwLockReadGuard};
-use util::UtilError;
+use util_error::UtilError;
 use bytes::Bytes;
 use util::journaldb::Algorithm;
-use util::kvdb::{Database, DatabaseConfig};
-use util::snappy;
+use kvdb::{Database, DatabaseConfig};
+use snappy;
 
 /// Helper for removing directories in case of error.
 struct Guard(bool, PathBuf);
@@ -682,7 +682,7 @@ mod tests {
 	#[test]
 	fn cannot_finish_with_invalid_chunks() {
 		use bigint::hash::H256;
-		use util::kvdb::DatabaseConfig;
+		use kvdb::DatabaseConfig;
 
 		let spec = get_test_spec();
 		let dir = RandomTempPath::new();

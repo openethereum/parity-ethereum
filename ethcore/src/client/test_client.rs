@@ -27,6 +27,7 @@ use bigint::prelude::U256;
 use bigint::hash::H256;
 use parking_lot::RwLock;
 use util::*;
+use kvdb::{Database, DatabaseConfig};
 use bytes::Bytes;
 use rlp::*;
 use ethkey::{Generator, Random};

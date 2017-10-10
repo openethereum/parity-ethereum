@@ -100,7 +100,6 @@ extern crate ethcore_bytes as bytes;
 extern crate parking_lot;
 extern crate tiny_keccak;
 extern crate rlp;
-extern crate regex;
 extern crate lru_cache;
 extern crate heapsize;
 extern crate ethcore_logger;
@@ -108,22 +107,15 @@ extern crate hash as keccak;
 extern crate hashdb;
 extern crate memorydb;
 extern crate patricia_trie as trie;
-
-#[macro_use]
-extern crate error_chain;
+extern crate kvdb;
+extern crate util_error as error;
 
 #[macro_use]
 extern crate log as rlog;
 
-#[macro_use]
-pub mod common;
-pub mod error;
 pub mod misc;
-pub mod migration;
 pub mod overlaydb;
 pub mod journaldb;
-pub mod kvdb;
-pub mod snappy;
 pub mod cache;
 
 pub use misc::*;
@@ -131,8 +123,6 @@ pub use hashdb::*;
 pub use memorydb::MemoryDB;
 pub use overlaydb::*;
 pub use journaldb::JournalDB;
-pub use kvdb::*;
-pub use error::UtilError;
 
 /// 160-bit integer representing account address
 pub type Address = bigint::hash::H160;

@@ -21,8 +21,8 @@ use std::path::{Path, PathBuf};
 use std::fmt::{Display, Formatter, Error as FmtError};
 use std::sync::Arc;
 use util::journaldb::Algorithm;
-use util::migration::{Manager as MigrationManager, Config as MigrationConfig, Error as MigrationError, Migration};
-use util::kvdb::{CompactionProfile, Database, DatabaseConfig};
+use migr::{Manager as MigrationManager, Config as MigrationConfig, Error as MigrationError, Migration};
+use kvdb::{CompactionProfile, Database, DatabaseConfig};
 use ethcore::migrations;
 use ethcore::db;
 use ethcore::migrations::Extract;
@@ -282,8 +282,8 @@ mod legacy {
 	use super::*;
 	use std::path::{Path, PathBuf};
 	use util::journaldb::Algorithm;
-	use util::migration::{Manager as MigrationManager};
-	use util::kvdb::CompactionProfile;
+	use migr::{Manager as MigrationManager};
+	use kvdb::CompactionProfile;
 	use ethcore::migrations;
 
 	/// Blocks database path.

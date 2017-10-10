@@ -112,6 +112,10 @@ extern crate triehash;
 extern crate ansi_term;
 extern crate semantic_version;
 extern crate unexpected;
+extern crate kvdb;
+extern crate util_error;
+extern crate snappy;
+extern crate migration;
 
 #[macro_use]
 extern crate rlp_derive;
@@ -124,11 +128,12 @@ extern crate table;
 extern crate bloomable;
 extern crate vm;
 extern crate wasm;
+extern crate ethcore_util as util;
 
 #[macro_use]
-extern crate log;
+extern crate macros;
 #[macro_use]
-extern crate ethcore_util as util;
+extern crate log;
 #[macro_use]
 extern crate lazy_static;
 #[macro_use]

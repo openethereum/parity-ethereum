@@ -17,9 +17,12 @@
 //! General error types for use in ethcore.
 
 use std::fmt;
+use kvdb;
 use bigint::prelude::U256;
 use bigint::hash::H256;
 use util::*;
+use util_error::UtilError;
+use snappy::InvalidInput;
 use unexpected::{Mismatch, OutOfBounds};
 use trie::TrieError;
 use io::*;
@@ -299,6 +302,8 @@ impl From<Error> for TransactionImportError {
 pub enum Error {
 	/// Client configuration error.
 	Client(ClientError),
+	/// Database error.
+	Database(kvdb::Error),
 	/// Error concerning a utility.
 	Util(UtilError),
 	/// Error concerning block processing.
@@ -322,7 +327,7 @@ pub enum Error {
 	/// Standard io error.
 	StdIo(::std::io::Error),
 	/// Snappy error.
-	Snappy(::util::snappy::InvalidInput),
+	Snappy(InvalidInput),
 	/// Snapshot error.
 	Snapshot(SnapshotError),
 	/// Consensus vote error.
@@ -337,6 +342,7 @@ impl fmt::Display for Error {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match *self {
 			Error::Client(ref err) => err.fmt(f),
+			Error::Database(ref err) => err.fmt(f),
 			Error::Util(ref err) => err.fmt(f),
 			Error::Io(ref err) => err.fmt(f),
 			Error::Block(ref err) => err.fmt(f),
@@ -367,6 +373,12 @@ impl From<ClientError> for Error {
 			ClientError::Trie(err) => Error::Trie(err),
 			_ => Error::Client(err)
 		}
+	}
+}
+
+impl From<kvdb::Error> for Error {
+	fn from(err: kvdb::Error) -> Error {
+		Error::Database(err)
 	}
 }
 
@@ -434,8 +446,8 @@ impl From<BlockImportError> for Error {
 	}
 }
 
-impl From<snappy::InvalidInput> for Error {
-	fn from(err: snappy::InvalidInput) -> Error {
+impl From<::snappy::InvalidInput> for Error {
+	fn from(err: ::snappy::InvalidInput) -> Error {
 		Error::Snappy(err)
 	}
 }

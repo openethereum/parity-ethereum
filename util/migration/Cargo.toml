@@ -1,0 +1,10 @@
+[package]
+name = "migration"
+version = "0.1.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+
+[dependencies]
+log = "0.3"
+macros = { path = "../macros" }
+kvdb = { path = "../kvdb" }
+ethcore-devtools = { path = "../../devtools" }

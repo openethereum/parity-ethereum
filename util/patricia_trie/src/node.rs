@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use elastic_array::ElasticArray36;
-use nibbleslice::*;
+use nibbleslice::NibbleSlice;
 use nibblevec::NibbleVec;
 use bytes::*;
 use rlp::*;
