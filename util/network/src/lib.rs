@@ -69,7 +69,6 @@ extern crate rand;
 extern crate time;
 extern crate ansi_term; //TODO: remove this
 extern crate rustc_hex;
-extern crate rustc_serialize;
 extern crate igd;
 extern crate libc;
 extern crate slab;
@@ -81,6 +80,7 @@ extern crate path;
 extern crate ethcore_logger;
 extern crate ipnetwork;
 extern crate hash;
+extern crate serde_json;
 
 #[macro_use]
 extern crate log;

@@ -32,7 +32,7 @@ use error::NetworkError;
 use {AllowIP, IpFilter};
 use discovery::{TableUpdates, NodeEntry};
 use ip_utils::*;
-pub use rustc_serialize::json::Json;
+use serde_json::Value;
 
 /// Node public key
 pub type NodeId = H512;
@@ -332,7 +332,7 @@ impl NodeTable {
 					return nodes;
 				}
 			}
-			let json = match Json::from_str(&buf) {
+			let json: Value = match ::serde_json::from_str(&buf) {
 				Ok(json) => json,
 				Err(e) => {
 					warn!("Error parsing node table file: {:?}", e);
@@ -341,7 +341,7 @@ impl NodeTable {
 			};
 			if let Some(list) = json.as_object().and_then(|o| o.get("nodes")).and_then(|n| n.as_array()) {
 				for n in list.iter().filter_map(|n| n.as_object()) {
-					if let Some(url) = n.get("url").and_then(|u| u.as_string()) {
+					if let Some(url) = n.get("url").and_then(|u| u.as_str()) {
 						if let Ok(mut node) = Node::from_str(url) {
 							if let Some(failures) = n.get("failures").and_then(|f| f.as_u64()) {
 								node.failures = failures as u32;

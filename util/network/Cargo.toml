@@ -21,7 +21,6 @@ libc = "0.2.7"
 parking_lot = "0.4"
 ansi_term = "0.9"
 rustc-hex = "1.0"
-rustc-serialize = "0.3"
 ethcore-io = { path = "../io" }
 ethcore-util = { path = ".." }
 ethcore-bigint = { path = "../bigint" }
@@ -34,6 +33,7 @@ path = { path = "../path" }
 ethcore-logger = { path ="../../logger" }
 ipnetwork = "0.12.6"
 hash = { path = "../hash" }
+serde_json = "1.0"
 
 [features]
 default = []
