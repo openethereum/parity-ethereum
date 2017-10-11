@@ -19,6 +19,7 @@ import React, { Component, PropTypes } from 'react';
 import Container, { Title as ContainerTitle } from '~/ui/Container';
 import DappIcon from '~/ui/DappIcon';
 import Tags from '~/ui/Tags';
+import DappVouchFor from '../DappVouchFor';
 
 import styles from './dappCard.css';
 
@@ -61,6 +62,7 @@ export default class DappCard extends Component {
           app={ app }
           className={ styles.image }
         />
+        <DappVouchFor app={ app } />
         <Tags
           className={ styles.tags }
           tags={
