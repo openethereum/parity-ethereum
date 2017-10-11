@@ -1,3 +1,24 @@
+## Parity [v1.7.4](https://github.com/paritytech/parity/releases/tag/v1.7.4) (2017-10-11)
+
+Parity 1.7.4 includes a critical consensus-relevant fix for the Byzantium hard-fork. Please upgrade your Ethereum client before block number `4_370_000`.
+
+Full list of included changes:
+
+- Backport ([#6715](https://github.com/paritytech/parity/pull/6715))
+  - Fix estimate gas if from is not provided. ([#6714](https://github.com/paritytech/parity/pull/6714))
+  - Display vouched overlay on dapps ([#6710](https://github.com/paritytech/parity/pull/6710))
+    - Add vouch overlays to dapps
+    - Cleanup address
+    - Only run where we have a contentHash
+- Backporting ([#6712](https://github.com/paritytech/parity/pull/6712))
+  - Bump to v1.7.4
+  - Fixed potential exp len overflow ([#6686](https://github.com/paritytech/parity/pull/6686))
+  - Fix warp sync blockers detection ([#6691](https://github.com/paritytech/parity/pull/6691))
+- Backport ([#6713](https://github.com/paritytech/parity/pull/6713))
+  - Allow signer signing display of markdown ([#6707](https://github.com/paritytech/parity/pull/6707))
+  - Fix default values for address input ([#6701](https://github.com/paritytech/parity/pull/6701))
+  - Fix asciiToHex for characters < 0x10 ([#6702](https://github.com/paritytech/parity/pull/6702))
+
 ## Parity [v1.7.3](https://github.com/paritytech/parity/releases/tag/v1.7.3) (2017-10-09)
 
 Parity 1.7.3 enables the Byzantium fork for Ethereum main network on Block 4_370_000 and offers a variety of bug fixes and stability improvements. Among them:
