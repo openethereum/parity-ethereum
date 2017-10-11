@@ -69,6 +69,14 @@ describe('api/util/format', () => {
       expect(asciiToHex('abc')).to.equal('0x616263');
       expect(asciiToHex('a\nb')).to.equal('0x610a62');
     });
+
+    it('correctly converts where charCode < 0x10', () => {
+      expect(
+        asciiToHex(
+          [32, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0].map((v) => String.fromCharCode(v)).join('')
+        )
+      ).to.equal('0x20100f0e0d0c0b0a09080706050403020100');
+    });
   });
 
   describe('hexToAscii', () => {
