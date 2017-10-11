@@ -31,6 +31,10 @@ export default class JsonRpcBase extends EventEmitter {
     this._middlewareList = Promise.resolve([]);
   }
 
+  get ready () {
+    return this._middlewareList.then(() => true);
+  }
+
   encode (method, params) {
     const json = JSON.stringify({
       jsonrpc: '2.0',

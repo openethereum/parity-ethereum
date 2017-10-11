@@ -18,11 +18,12 @@ import Account from './account';
 import localStore from 'store';
 import { debounce } from 'lodash';
 import { decryptPrivateKey } from '../ethkey';
+import EventEmitter from 'eventemitter3';
 
 const NULL_ADDRESS = '0x0000000000000000000000000000000000000000';
 const LS_STORE_KEY = '_parity::localAccounts';
 
-export default class Accounts {
+export default class Accounts extends EventEmitter {
   persist = debounce(() => {
     this._lastState = JSON.stringify(this);
 
@@ -30,6 +31,8 @@ export default class Accounts {
   }, 100);
 
   constructor (data = localStore.get(LS_STORE_KEY) || {}) {
+    super();
+
     this._lastState = JSON.stringify(data);
 
     window.addEventListener('storage', ({ key, newValue }) => {
@@ -129,6 +132,8 @@ export default class Accounts {
 
   set dappsDefaultAddress (value) {
     this._dappsDefaultAddress = value.toLowerCase();
+
+    this.emit('dappsDefaultAddressChange', this._dappsDefaultAddress);
 
     this.persist();
   }
