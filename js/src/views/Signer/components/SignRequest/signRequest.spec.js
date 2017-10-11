@@ -84,7 +84,7 @@ describe('views/Signer/components/SignRequest', () => {
     expect(component).to.be.ok;
   });
 
-  describe.only('isMarkdown', () => {
+  describe('isMarkdown', () => {
     it('returns true for markdown', () => {
       const testMd = '# this is some\n\n*markdown*';
       const encodedMd = asciiToHex(unescape(encodeURIComponent(testMd)));
