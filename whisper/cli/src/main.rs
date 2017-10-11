@@ -456,6 +456,7 @@ hey Rob, WhiperClient::new expects a PoolHandle with a struct implementing Manag
 
 	let mut rpc_handler : jsonrpc_core::MetaIoHandler<Metadata, _> = jsonrpc_core::MetaIoHandler::default(); // ou IoHandler::new();
 	// rpc_handler.extend_with(::parity_whisper::rpc::Whisper::to_delegate(whisper_rpc_handler));
+	rpc_handler.extend_with(whisper_rpc_handler);
 
 	// -- 4) Launch RPC with handler
 
