@@ -216,22 +216,29 @@ pub struct NetworkPoolHandle {
 	net: Arc<NetworkService>,
 }
 
-// impl PoolHandle for NetworkPoolHandle {
-// 	fn relay(&self, message: Message) -> bool {
-// 		let mut res = false;
-// 		let mut message = Some(message);
-// 		self.net.with_proto_context(whisper_net::PROTOCOL_ID, &mut move |ctx| {
-// 			if let Some(message) = message.take() {
-// 				res = self.handle.post_message(message, ctx);
-// 			}
-// 		});
-// 		res
-// 	}
+impl PoolHandle for NetworkPoolHandle {
+	fn relay(&self, message: Message) -> bool {
+		let mut res = false;
+		let mut message = Some(message);
+		self.net.with_proto_context(whisper_net::PROTOCOL_ID, &mut move |ctx| {
+			if let Some(message) = message.take() {
+				res = self.handle.post_message(message, ctx);
+			}
+		});
+		res
+	}
 
-// 	fn pool_status(&self) -> whisper_net::PoolStatus {
-// 		self.handle.pool_status()
-// 	}
-// }
+	fn pool_status(&self) -> whisper_net::PoolStatus {
+		self.handle.pool_status()
+	}
+
+}
+
+impl NetworkPoolHandle {
+	fn with_proto_context(&self, proto: ProtocolId, f: &mut FnMut(&NetworkContext)) {
+		self.network.with_context_eval(proto, f);
+	}
+}
 
 /// Factory for standard whisper RPC. {from parity/whisper}
 // pub struct RpcFactory {
@@ -454,9 +461,16 @@ hey Rob, WhiperClient::new expects a PoolHandle with a struct implementing Manag
 */
 	let whisper_rpc_handler : WhisperClient<NetworkPoolHandle, Metadata> = WhisperClient::new(handle2, whisper_filter_manager.clone());
 
+// cannot use ethsync
+// make sth smilar to NetPoolHandle but that uses something else than ManageNetwork; this something else also has make_proto_context
+// -rob
+
+// mais je ne cprds pas la fonctionnalité de ces éléments (=frst); demander
+
+
 	let mut rpc_handler : jsonrpc_core::MetaIoHandler<Metadata, _> = jsonrpc_core::MetaIoHandler::default(); // ou IoHandler::new();
-	// rpc_handler.extend_with(::parity_whisper::rpc::Whisper::to_delegate(whisper_rpc_handler));
-	rpc_handler.extend_with(whisper_rpc_handler);
+	rpc_handler.extend_with(::parity_whisper::rpc::Whisper::to_delegate(whisper_rpc_handler)); // to_delete takes a PoolHandle I guess?
+//	rpc_handler.extend_with(whisper_rpc_handler);
 
 	// -- 4) Launch RPC with handler
 
