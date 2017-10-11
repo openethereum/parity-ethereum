@@ -18,8 +18,10 @@ import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
+import ReactMarkdown from 'react-markdown';
 import ReactTooltip from 'react-tooltip';
 
+import { hexToAscii } from '~/api/util/format';
 import HardwareStore from '~/mobx/hardwareStore';
 
 import Account from '../Account';
@@ -29,14 +31,37 @@ import RequestOrigin from '../RequestOrigin';
 import styles from './signRequest.css';
 
 function isAscii (data) {
-  for (var i = 2; i < data.length; i += 2) {
+  for (let i = 2; i < data.length; i += 2) {
     let n = parseInt(data.substr(i, 2), 16);
 
     if (n < 32 || n >= 128) {
       return false;
     }
   }
+
   return true;
+}
+
+function decodeMarkdown (data) {
+  return decodeURIComponent(escape(hexToAscii(data)));
+}
+
+export function isMarkdown (data) {
+  try {
+    const decoded = decodeMarkdown(data);
+
+    for (let i = 0; i < decoded.length; i++) {
+      const code = decoded.charCodeAt(i);
+
+      if (code < 32 && code !== 10) {
+        return false;
+      }
+    }
+
+    return decoded.indexOf('#') !== -1 || decoded.indexOf('*') !== -1;
+  } catch (error) {
+    return false;
+  }
 }
 
 @observer
@@ -113,29 +138,26 @@ class SignRequest extends Component {
     );
   }
 
-  renderAsciiDetails (ascii) {
-    return (
-      <div className={ styles.signData }>
-        <p>{ascii}</p>
-      </div>
-    );
-  }
+  renderData (data) {
+    if (isAscii(data)) {
+      return hexToAscii(data);
+    }
 
-  renderBinaryDetails (data) {
+    if (isMarkdown(data)) {
+      return (
+        <ReactMarkdown source={ decodeMarkdown(data) } />
+      );
+    }
+
     return (
-      <div className={ styles.signData }>
-        <p>
-          <FormattedMessage
-            id='signer.signRequest.unknownBinary'
-            defaultMessage='(Unknown binary data)'
-          />
-        </p>
-      </div>
+      <FormattedMessage
+        id='signer.signRequest.unknownBinary'
+        defaultMessage='(Unknown binary data)'
+      />
     );
   }
 
   renderDetails () {
-    const { api } = this.context;
     const { address, data, netVersion, origin, signerStore } = this.props;
     const { hashToSign } = this.state;
     const { balances, externalLink } = signerStore;
@@ -149,12 +171,14 @@ class SignRequest extends Component {
     const tooltip = [
       <FormattedMessage
         id='signer.signRequest.tooltip.hash'
+        key='tooltip.hash'
         defaultMessage='Hash to be signed: {hashToSign}'
         values={ { hashToSign } }
       />,
-      <br />,
+      <br key='tooltip.br' />,
       <FormattedMessage
         id='signer.signRequest.tooltip.data'
+        key='tooltip.data'
         defaultMessage='Data: {data}'
         values={ { data } }
       />
@@ -188,11 +212,9 @@ class SignRequest extends Component {
               defaultMessage='A request to sign data using your account:'
             />
           </p>
-          {
-            isAscii(data)
-              ? this.renderAsciiDetails(api.util.hexToAscii(data))
-              : this.renderBinaryDetails(data)
-          }
+          <div className={ styles.signData }>
+            <p>{ this.renderData(data) }</p>
+          </div>
           <p>
             <strong>
               <FormattedMessage

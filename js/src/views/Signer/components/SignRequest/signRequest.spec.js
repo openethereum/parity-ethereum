@@ -18,7 +18,9 @@ import { shallow } from 'enzyme';
 import React from 'react';
 import sinon from 'sinon';
 
-import SignRequest from './';
+import { asciiToHex } from '~/api/util/format';
+
+import SignRequest, { isMarkdown } from './signRequest';
 
 let component;
 let reduxStore;
@@ -80,5 +82,25 @@ describe('views/Signer/components/SignRequest', () => {
 
   it('renders', () => {
     expect(component).to.be.ok;
+  });
+
+  describe.only('isMarkdown', () => {
+    it('returns true for markdown', () => {
+      const testMd = '# this is some\n\n*markdown*';
+      const encodedMd = asciiToHex(unescape(encodeURIComponent(testMd)));
+
+      expect(isMarkdown(encodedMd)).to.be.true;
+    });
+
+    it('return true with utf-8 markdown', () => {
+      const testMd = '# header\n\n(n) you are not a citizen of, or resident in, or located in, or incorporated or otherwise established in, the People\'s Republic of China 参与方并非中华人民共和国公民，或不常住中华人民共和国，或不位于中华人民共和国境内，或并非在中华人民共和国设立或以其他方式组建; and';
+      const encodedMd = asciiToHex(unescape(encodeURIComponent(testMd)));
+
+      expect(isMarkdown(encodedMd)).to.be.true;
+    });
+
+    it('returns false for randow data', () => {
+      expect(isMarkdown('0x1234')).to.be.false;
+    });
   });
 });
