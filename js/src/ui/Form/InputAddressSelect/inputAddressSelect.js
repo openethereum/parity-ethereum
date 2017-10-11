@@ -53,11 +53,11 @@ class InputAddressSelect extends Component {
 
     const filteredContacts = nextAllowedValues
       ? pick(contacts, nextAllowedValues)
-      : accounts;
+      : contacts;
 
     const filteredContracts = nextAllowedValues
       ? pick(contracts, nextAllowedValues)
-      : accounts;
+      : contracts;
 
     return (
       <AddressSelect
