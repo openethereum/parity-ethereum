@@ -38,7 +38,7 @@ export default class Store {
         return api.newContract(vouchForAbi, address);
       })
       .then(async (contract) => {
-        const { contentHash, id } = app;
+        const { contentHash } = app;
 
         if (!contentHash) {
           return;
@@ -52,7 +52,7 @@ export default class Store {
           if (/^0x0*$/.test(voucher)) {
             lastItem = true;
           } else {
-            this.addVoucher(id, voucher);
+            this.addVoucher(voucher);
           }
         }
       })

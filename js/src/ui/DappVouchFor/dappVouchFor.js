@@ -41,8 +41,6 @@ export default class DappVouchFor extends Component {
       return null;
     }
 
-    console.log('vouchers', this.store.vouchers);
-
     return (
       <div className={ styles.tag }>
         <IdentityIcon
