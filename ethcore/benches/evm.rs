@@ -21,8 +21,9 @@ extern crate ethcore_util as util;
 extern crate rand;
 extern crate bn;
 extern crate crypto;
-extern crate rustc_serialize;
 extern crate ethkey;
+extern crate rustc_hex;
+extern crate ethcore_bigint;
 
 use self::test::{Bencher};
 use rand::{StdRng};
@@ -75,9 +76,9 @@ fn sha256(b: &mut Bencher) {
 
 #[bench]
 fn ecrecover(b: &mut Bencher) {
-	use rustc_serialize::hex::FromHex;
+	use rustc_hex::FromHex;
 	use ethkey::{Signature, recover as ec_recover};
-	use util::H256;
+	use ethcore_bigint::hash::H256;
 	let input = FromHex::from_hex("47173285a8d7341e5e972fc677286384f802f8ef42a5ec5f03bbfa254cb01fad000000000000000000000000000000000000000000000000000000000000001b650acf9d3f5f0a2c799776a1254355d5f4061762a237396a99a0e0e3fc2bcd6729514a0dacb2e623ac4abd157cb18163ff942280db4d5caad66ddf941ba12e03").unwrap();
 	let hash = H256::from_slice(&input[0..32]);
 	let v = H256::from_slice(&input[32..64]);
