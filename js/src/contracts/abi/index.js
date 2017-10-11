@@ -29,3 +29,4 @@ export signaturereg from './signaturereg.json';
 export smsverification from './sms-verification.json';
 export tokenreg from './tokenreg.json';
 export foundationWallet from './foundation-multisig-wallet.json';
+export vouchfor from './vouchfor.json';
