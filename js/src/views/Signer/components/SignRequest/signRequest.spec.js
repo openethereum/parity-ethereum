@@ -99,7 +99,7 @@ describe('views/Signer/components/SignRequest', () => {
       expect(isMarkdown(encodedMd)).to.be.true;
     });
 
-    it('returns false for randow data', () => {
+    it('returns false for random data', () => {
       expect(isMarkdown('0x1234')).to.be.false;
     });
   });
