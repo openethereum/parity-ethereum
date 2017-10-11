@@ -285,8 +285,10 @@ mod test {
 	use util::Address;
 	use parking_lot::Mutex;
 	use jsonrpc_core::futures::Future;
-	use v1::helpers::{SigningQueue, ConfirmationsQueue, QueueEvent, FilledTransactionRequest,
-					  ConfirmationResult, ConfirmationPayload, ConfirmationReceiver, oneshot};
+	use v1::helpers::{
+		SigningQueue, ConfirmationsQueue, QueueEvent, FilledTransactionRequest,
+		ConfirmationResult, ConfirmationPayload, ConfirmationReceiver, oneshot
+	};
 	use v1::types::ConfirmationResponse;
 
 	fn request() -> ConfirmationPayload {

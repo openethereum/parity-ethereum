@@ -60,13 +60,13 @@ impl Future for DispatchResult {
 	type Error = Error;
 
 	fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-		match self {
-			&mut DispatchResult::Value(ref response) => Ok(Async::Ready(response.clone())),
-			&mut DispatchResult::Future(ref mut future) => match try_ready!(future.poll()) {
-					RpcConfirmationResult::Rejected => Err(errors::request_rejected()),
-					RpcConfirmationResult::Confirmed(Ok(response)) => Ok(Async::Ready(response)),
-					RpcConfirmationResult::Confirmed(Err(error)) => Err(error)
-				}
+		match *self {
+			DispatchResult::Value(ref response) => Ok(Async::Ready(response.clone())),
+			DispatchResult::Future(ref mut future) => match try_ready!(future.poll()) {
+				RpcConfirmationResult::Rejected => Err(errors::request_rejected()),
+				RpcConfirmationResult::Confirmed(Ok(response)) => Ok(Async::Ready(response)),
+				RpcConfirmationResult::Confirmed(Err(error)) => Err(error)
+			}
 		}
 	}
 }
