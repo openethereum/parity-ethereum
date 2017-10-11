@@ -101,6 +101,7 @@ fn implement_webapp(cx: &ExtCtxt, builder: &aster::AstBuilder, item: &Item, push
 
 	let files_impl = quote_item!(cx,
 		impl $type_name {
+			#[allow(unused_mut)]
 			fn files() -> ::std::collections::HashMap<&'static str, File> {
 				let mut files = ::std::collections::HashMap::new();
 				$statements
