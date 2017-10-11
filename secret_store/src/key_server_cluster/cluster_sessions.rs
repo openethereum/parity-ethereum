@@ -23,7 +23,7 @@ use ethkey::{Public, Secret, Signature};
 use key_server_cluster::{Error, NodeId, SessionId, AclStorage, KeyStorage, DocumentKeyShare, EncryptedDocumentKeyShadow, SessionMeta};
 use key_server_cluster::cluster::{Cluster, ClusterData, ClusterConfiguration};
 use key_server_cluster::message::{self, Message, GenerationMessage, EncryptionMessage, DecryptionMessage, SigningMessage,
-	ShareAddMessage, ShareMoveMessage, ShareRemoveMessage, ServersSetChangeMessage};
+	ShareAddMessage, ShareMoveMessage, ShareRemoveMessage, ServersSetChangeMessage, KeyVersionNegotiationMessage};
 use key_server_cluster::generation_session::{Session as GenerationSession, SessionImpl as GenerationSessionImpl,
 	SessionParams as GenerationSessionParams, SessionState as GenerationSessionState};
 use key_server_cluster::decryption_session::{Session as DecryptionSession, SessionImpl as DecryptionSessionImpl,
@@ -40,6 +40,8 @@ use key_server_cluster::share_remove_session::{Session as ShareRemoveSession, Se
 	SessionParams as ShareRemoveSessionParams, IsolatedSessionTransport as ShareRemoveTransport};
 use key_server_cluster::servers_set_change_session::{Session as ServersSetChangeSession, SessionImpl as ServersSetChangeSessionImpl,
 	SessionParams as ServersSetChangeSessionParams};
+use key_server_cluster::key_version_negotiation_session::{Session as KeyVersionNegotiationSession, SessionImpl as KeyVersionNegotiationSessionImpl,
+	SessionParams as KeyVersionNegotiationSessionParams, IsolatedSessionTransport as VersionNegotiationTransport};
 use key_server_cluster::admin_sessions::ShareChangeSessionMeta;
 
 /// When there are no session-related messages for SESSION_TIMEOUT_INTERVAL seconds,
@@ -89,6 +91,8 @@ pub struct ClusterSessions {
 	pub decryption_sessions: ClusterSessionsContainer<DecryptionSessionId, DecryptionSessionImpl, DecryptionMessage>,
 	/// Signing sessions.
 	pub signing_sessions: ClusterSessionsContainer<SigningSessionId, SigningSessionImpl, SigningMessage>,
+	/// Key version negotiation sessions.
+	pub negotiation_sessions: ClusterSessionsContainer<SessionId, KeyVersionNegotiationSessionImpl<VersionNegotiationTransport>, KeyVersionNegotiationMessage>,
 	/// Administrative sessions.
 	pub admin_sessions: ClusterSessionsContainer<SessionId, AdminSession, Message>,
 	/// Self node id.
@@ -216,6 +220,7 @@ impl ClusterSessions {
 			encryption_sessions: ClusterSessionsContainer::new(container_state.clone()),
 			decryption_sessions: ClusterSessionsContainer::new(container_state.clone()),
 			signing_sessions: ClusterSessionsContainer::new(container_state.clone()),
+			negotiation_sessions: ClusterSessionsContainer::new(container_state.clone()),
 			admin_sessions: ClusterSessionsContainer::new(container_state),
 			make_faulty_generation_sessions: AtomicBool::new(false),
 			session_counter: AtomicUsize::new(0),
@@ -537,6 +542,7 @@ impl ClusterSessions {
 		self.encryption_sessions.stop_stalled_sessions();
 		self.decryption_sessions.stop_stalled_sessions();
 		self.signing_sessions.stop_stalled_sessions();
+		self.negotiation_sessions.stop_stalled_sessions();
 		self.admin_sessions.stop_stalled_sessions();
 	}
 
@@ -546,6 +552,7 @@ impl ClusterSessions {
 		self.encryption_sessions.on_connection_timeout(node_id);
 		self.decryption_sessions.on_connection_timeout(node_id);
 		self.signing_sessions.on_connection_timeout(node_id);
+		self.negotiation_sessions.on_connection_timeout(node_id);
 		self.admin_sessions.on_connection_timeout(node_id);
 		self.max_nonce.write().remove(node_id);
 	}

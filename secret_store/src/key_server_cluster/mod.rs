@@ -174,6 +174,7 @@ impl Into<String> for Error {
 mod admin_sessions;
 mod client_sessions;
 
+pub use self::admin_sessions::key_version_negotiation_session;
 pub use self::admin_sessions::servers_set_change_session;
 pub use self::admin_sessions::share_add_session;
 pub use self::admin_sessions::share_change_session;

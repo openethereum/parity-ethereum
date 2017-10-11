@@ -18,15 +18,22 @@ use std::sync::Arc;
 use std::collections::{BTreeSet, BTreeMap};
 use bigint::hash::H256;
 use ethkey::Secret;
-use parking_lot::Mutex;
+use parking_lot::{Mutex, Condvar};
 use key_server_cluster::{Error, SessionId, NodeId, DocumentKeyShare, KeyStorage};
 use key_server_cluster::cluster::Cluster;
+use key_server_cluster::cluster_sessions::ClusterSession;
 use key_server_cluster::message::{Message, KeyVersionNegotiationMessage, RequestKeyVersions, KeyVersions};
 use key_server_cluster::admin_sessions::ShareChangeSessionMeta;
 
 // TODO: when working on scalability, change sessions so that versions are sent by chunks.
 /// Number of versions sent in single message.
 const VERSIONS_PER_MESSAGE: usize = 32;
+
+/// Key version negotiation session API.
+pub trait Session: Send + Sync + 'static {
+	/// Wait until session is completed.
+	fn wait(&self) -> Result<(H256, NodeId), Error>;
+}
 
 /// Key version negotiation transport.
 pub trait SessionTransport {
@@ -35,21 +42,21 @@ pub trait SessionTransport {
 }
 
 /// Key version negotiation result computer.
-pub trait SessionResultComputer {
+pub trait SessionResultComputer: Send + Sync {
 	/// Compute result of session, if possible.
 	fn compute_result(&self, confirmations: &BTreeSet<NodeId>, versions: &BTreeMap<H256, BTreeSet<NodeId>>) -> Option<Result<(H256, NodeId), Error>>;
 }
 
 /// Key discovery session API.
-pub struct SessionImpl<C: SessionResultComputer, T: SessionTransport> {
+pub struct SessionImpl<T: SessionTransport> {
 	/// Session core.
-	core: SessionCore<C, T>,
+	core: SessionCore<T>,
 	/// Session data.
 	data: Mutex<SessionData>,
 }
 
 /// Immutable session data.
-struct SessionCore<C: SessionResultComputer, T: SessionTransport> {
+struct SessionCore<T: SessionTransport> {
 	/// Session meta.
 	pub meta: ShareChangeSessionMeta,
 	/// Sub-session id.
@@ -57,11 +64,13 @@ struct SessionCore<C: SessionResultComputer, T: SessionTransport> {
 	/// Key share.
 	pub key_share: Option<DocumentKeyShare>,
 	/// Session result computer.
-	pub result_computer: C,
+	pub result_computer: Arc<SessionResultComputer>,
 	/// Session transport.
 	pub transport: T,
 	/// Session nonce.
 	pub nonce: u64,
+	/// SessionImpl completion condvar.
+	pub completed: Condvar,
 }
 
 /// Mutable session data.
@@ -77,7 +86,7 @@ struct SessionData {
 }
 
 /// SessionImpl creation parameters
-pub struct SessionParams<C: SessionResultComputer, T: SessionTransport> {
+pub struct SessionParams<T: SessionTransport> {
 	/// Session meta.
 	pub meta: ShareChangeSessionMeta,
 	/// Sub-session id.
@@ -85,7 +94,7 @@ pub struct SessionParams<C: SessionResultComputer, T: SessionTransport> {
 	/// Key share.
 	pub key_share: Option<DocumentKeyShare>,
 	/// Session result computer.
-	pub result_computer: C,
+	pub result_computer: Arc<SessionResultComputer>,
 	/// Session transport to communicate to other cluster nodes.
 	pub transport: T,
 	/// Session nonce.
@@ -125,9 +134,9 @@ pub struct FastestResultComputer {
 }
 
 
-impl<C, T> SessionImpl<C, T> where C: SessionResultComputer, T: SessionTransport {
+impl<T> SessionImpl<T> where T: SessionTransport {
 	/// Create new session.
-	pub fn new(params: SessionParams<C, T>) -> Self {
+	pub fn new(params: SessionParams<T>) -> Self {
 		SessionImpl {
 			core: SessionCore {
 				meta: params.meta,
@@ -136,6 +145,7 @@ impl<C, T> SessionImpl<C, T> where C: SessionResultComputer, T: SessionTransport
 				result_computer: params.result_computer,
 				transport: params.transport,
 				nonce: params.nonce,
+				completed: Condvar::new(),
 			},
 			data: Mutex::new(SessionData {
 				state: SessionState::WaitingForInitialization,
@@ -185,7 +195,7 @@ impl<C, T> SessionImpl<C, T> where C: SessionResultComputer, T: SessionTransport
 
 		// try to complete session
 		if received_own_confirmation {
-			Self::try_complete(&self.core, &mut *data)?;
+			Self::try_complete(&self.core, &mut *data);
 			if no_confirmations_required && data.state != SessionState::Finished {
 				return Err(Error::ConsensusUnreachable);
 			}
@@ -265,22 +275,73 @@ impl<C, T> SessionImpl<C, T> where C: SessionResultComputer, T: SessionTransport
 
 		// try to compute result
 		if data.state != SessionState::Finished {
-			Self::try_complete(&self.core, &mut *data)?;
+			Self::try_complete(&self.core, &mut *data);
 		}
 
 		Ok(())
 	}
 
 	/// Try to complete result && finish session.
-	fn try_complete(core: &SessionCore<C, T>, data: &mut SessionData) -> Result<(), Error> {
+	fn try_complete(core: &SessionCore<T>, data: &mut SessionData) {
 		let confirmations = data.confirmations.as_ref().expect("TODO");
 		let versions = data.versions.as_ref().expect("TODO");
 		if let Some(result) = core.result_computer.compute_result(confirmations, versions) {
 			data.state = SessionState::Finished;
 			data.result = Some(result);
+			core.completed.notify_all();
+		}
+	}
+}
+
+impl<T> Session for SessionImpl<T> where T: SessionTransport + Send + Sync + 'static {
+	fn wait(&self) -> Result<(H256, NodeId), Error> {
+		let mut data = self.data.lock();
+		if !data.result.is_some() {
+			self.core.completed.wait(&mut data);
 		}
 
-		Ok(())
+		data.result.as_ref()
+			.expect("checked above or waited for completed; completed is only signaled when result.is_some(); qed")
+			.clone()
+	}
+}
+
+impl<T> ClusterSession for SessionImpl<T> where T: SessionTransport {
+	fn is_finished(&self) -> bool {
+		self.data.lock().state == SessionState::Finished
+	}
+
+	fn on_session_timeout(&self) {
+		let mut data = self.data.lock();
+
+		if data.confirmations.is_some() {
+			data.confirmations.as_mut().expect("TODO").clear();
+			Self::try_complete(&self.core, &mut *data);
+			if data.state != SessionState::Finished {
+				warn!("{}: key version negotiation session failed with timeout", self.core.meta.self_node_id);
+
+				data.result = Some(Err(Error::ConsensusUnreachable));
+				self.core.completed.notify_all();
+			}
+		}
+	}
+
+	fn on_node_timeout(&self, node: &NodeId) {
+		let mut data = self.data.lock();
+
+		if data.confirmations.is_some() {
+			let is_waiting_for_confirmation = data.confirmations.as_mut().expect("TODO").remove(node);
+			if is_waiting_for_confirmation {
+				Self::try_complete(&self.core, &mut *data);
+				if data.state != SessionState::Finished {
+					warn!("{}: key version negotiation session failed because {} connection has timeouted", self.core.meta.self_node_id, node);
+
+					data.state = SessionState::Finished;
+					data.result = Some(Err(Error::NodeDisconnected));
+					self.core.completed.notify_all();
+				}
+			}
+		}
 	}
 }
 
