@@ -431,6 +431,7 @@ impl ClusterCore {
 			Message::ShareAdd(message) => ClusterCore::process_share_add_message(data, connection, message),
 			Message::ShareMove(message) => ClusterCore::process_share_move_message(data, connection, message),
 			Message::ShareRemove(message) => ClusterCore::process_share_remove_message(data, connection, message),
+			Message::KeyVersionNegotiation(message) => unimplemented!("TODO"),
 			Message::Cluster(message) => ClusterCore::process_cluster_message(data, connection, message),
 		}
 	}

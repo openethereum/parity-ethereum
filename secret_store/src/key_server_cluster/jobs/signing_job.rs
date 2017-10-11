@@ -129,7 +129,7 @@ impl JobExecutor for SigningJob {
 		}))
 	}
 
-	fn check_partial_response(&self, partial_response: &PartialSigningResponse) -> Result<JobPartialResponseAction, Error> {
+	fn check_partial_response(&mut self, _sender: &NodeId, partial_response: &PartialSigningResponse) -> Result<JobPartialResponseAction, Error> {
 		if Some(&partial_response.request_id) != self.request_id.as_ref() {
 			return Ok(JobPartialResponseAction::Ignore);
 		}

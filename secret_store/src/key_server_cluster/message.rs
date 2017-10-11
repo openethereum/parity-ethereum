@@ -44,6 +44,8 @@ pub enum Message {
 	ShareRemove(ShareRemoveMessage),
 	/// Servers set change message.
 	ServersSetChange(ServersSetChangeMessage),
+	/// Key version negotiation message.
+	KeyVersionNegotiation(KeyVersionNegotiationMessage),
 }
 
 /// All possible cluster-level messages.
@@ -235,6 +237,15 @@ pub enum ShareRemoveMessage {
 	ShareRemoveConfirm(ShareRemoveConfirm),
 	/// When session error has occured.
 	ShareRemoveError(ShareRemoveError),
+}
+
+/// All possible messages that can be sent during key version negotiation message.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum KeyVersionNegotiationMessage {
+	/// Request key versions.
+	RequestKeyVersions(RequestKeyVersions),
+	/// Key versions.
+	KeyVersions(KeyVersions),
 }
 
 /// Introduce node public key.
@@ -964,6 +975,30 @@ pub struct ShareRemoveError {
 	pub error: String,
 }
 
+/// Key versions are requested.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct RequestKeyVersions {
+	/// Generation session id.
+	pub session: MessageSessionId,
+	/// Version negotiation session Id.
+	pub sub_session: SerializableSecret,
+	/// Session-level nonce.
+	pub session_nonce: u64,
+}
+
+/// Key versions are sent.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct KeyVersions {
+	/// Generation session id.
+	pub session: MessageSessionId,
+	/// Version negotiation session Id.
+	pub sub_session: SerializableSecret,
+	/// Session-level nonce.
+	pub session_nonce: u64,
+	/// Key versions.
+	pub versions: Vec<SerializableH256>,
+}
+
 impl GenerationMessage {
 	pub fn session_id(&self) -> &SessionId {
 		match *self {
@@ -1199,6 +1234,7 @@ impl fmt::Display for Message {
 			Message::ShareAdd(ref message) => write!(f, "ShareAdd.{}", message),
 			Message::ShareMove(ref message) => write!(f, "ShareMove.{}", message),
 			Message::ShareRemove(ref message) => write!(f, "ShareRemove.{}", message),
+			Message::KeyVersionNegotiation(ref message) => write!(f, "KeyVersionNegotiation.{}", message),
 		}
 	}
 }
@@ -1354,6 +1390,15 @@ impl fmt::Display for ShareRemoveMessage {
 			ShareRemoveMessage::ShareRemoveRequest(_) => write!(f, "ShareRemoveRequest"),
 			ShareRemoveMessage::ShareRemoveConfirm(_) => write!(f, "ShareRemoveConfirm"),
 			ShareRemoveMessage::ShareRemoveError(_) => write!(f, "ShareRemoveError"),
+		}
+	}
+}
+
+impl fmt::Display for KeyVersionNegotiationMessage {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		match *self {
+			KeyVersionNegotiationMessage::RequestKeyVersions(_) => write!(f, "RequestKeyVersions"),
+			KeyVersionNegotiationMessage::KeyVersions(_) => write!(f, "KeyVersionNegotiationMessage"),
 		}
 	}
 }

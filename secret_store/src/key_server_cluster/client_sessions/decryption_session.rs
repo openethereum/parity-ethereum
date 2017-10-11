@@ -1,3 +1,50 @@
+/*
+
+1. Add Option<version> parameter to initialize function
+2. If version.is_none() - we should select version first:
+2.1. broadcast RequestVersion message
+2.2. receive a number of { threshold, versions[] } messages (where there are at most ~10 versions in versions[])
+2.3. select version that have enough nodes
+2.4. if we have that version, continue as with version.is_some()
+2.5. else complete this session with error NeedToRestart()
+2.5.1. send delegated() message to all nodes with this version
+send delegate(version) message to any node that have this version + wait until it will respond
+1. In `initialize` function
+
+1. Broadcast key request
+2. Receive confirmations from all nodes && select
+
+===
+
+Idea is to have KeyVersionSelectJob, which will be runned on decryption/signing session start. 
+PartialRequest = KeyId, Offset, Length
+PartialResponse = VersionId[]
+Response = (NodeId, VersionId)
+
+KeyVersionSelectJob will:
+1) broadcast KeyVersionSelectRequest(key_id, 0)
+2) complete with success when: we have received at least t+1 confirmations that have the same session that we also have
+3) complete with other node_id if: we definitely won't get enough confirmations for our version(s)
+	AND there's at least t+1 confirmations of the same version
+4) complete with Error otherwise
+
+After KeyVersionSelectJob has succeeded or we have `initialize`d with version.is_some(), sessions continue as before
+
+If KeyVersionSelectJob has finished with other node id selected, then:
+1) send delegation request to all nodes, except new master
+2) receive delegation confirmations from all nodes, except new master
+3) receive session response from new master
+
+The same job can be used to build old_nodes_set in ShareAdd, ShareRemove, ShareMove sessions.
+
+Error(Delegate) means - send broadcast Delegate
+
+
+Also - Error(Delegate(node, version))
+Decryption/Signing session can complete
+
+*/
+
 // Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
@@ -78,6 +125,22 @@ struct SessionData {
 	pub is_shadow_decryption: Option<bool>,
 	/// Decryption result.
 	pub result: Option<Result<EncryptedDocumentKeyShadow, Error>>,
+}
+
+/// Signing session state.
+#[derive(Debug, PartialEq)]
+#[cfg_attr(test, derive(Clone, Copy))]
+pub enum SessionState {
+	/// Waiting for initialization.
+	WaitingForInitialization,
+	/// Selecting key version.
+	SelectingKeyVersion,
+	/// State when consensus is establishing.
+	ConsensusEstablishing,
+	/// State when session key is generating.
+	SessionKeyGeneration,
+	/// State when signature is computing.
+	SignatureComputing,
 }
 
 /// Decryption session Id.

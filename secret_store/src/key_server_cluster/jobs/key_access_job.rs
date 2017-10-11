@@ -71,7 +71,7 @@ impl JobExecutor for KeyAccessJob {
 			.map(|is_confirmed| if is_confirmed { JobPartialRequestAction::Respond(true) } else { JobPartialRequestAction::Reject(false) })
 	}
 
-	fn check_partial_response(&self, partial_response: &bool) -> Result<JobPartialResponseAction, Error> {
+	fn check_partial_response(&mut self, _sender: &NodeId, partial_response: &bool) -> Result<JobPartialResponseAction, Error> {
 		Ok(if *partial_response { JobPartialResponseAction::Accept } else { JobPartialResponseAction::Reject })
 	}
 

@@ -149,8 +149,8 @@ impl SessionImpl {
 
 		// update state
 		data.state = SessionState::WaitingForInitializationConfirm;
-		data.nodes.extend(self.cluster.nodes().iter().map(|n| (n, NodeData {
-			initialization_confirmed: n == self.node(),
+		data.nodes.extend(self.cluster.nodes().into_iter().map(|n| (n, NodeData {
+			initialization_confirmed: &n == self.node(),
 		})));
 
 		// TODO: id signature is not enough here, as it was already used in key generation

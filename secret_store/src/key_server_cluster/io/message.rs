@@ -27,7 +27,7 @@ use bigint::hash::H256;
 use key_server_cluster::Error;
 use key_server_cluster::message::{Message, ClusterMessage, GenerationMessage, EncryptionMessage,
 	DecryptionMessage, SigningMessage, ServersSetChangeMessage, ShareAddMessage, ShareMoveMessage,
-	ShareRemoveMessage};
+	ShareRemoveMessage, KeyVersionNegotiationMessage};
 
 /// Size of serialized header.
 pub const MESSAGE_HEADER_SIZE: usize = 18;
@@ -138,6 +138,11 @@ pub fn serialize_message(message: Message) -> Result<SerializedMessage, Error> {
 		Message::ShareRemove(ShareRemoveMessage::ShareRemoveRequest(payload))				=> (401, serde_json::to_vec(&payload)),
 		Message::ShareRemove(ShareRemoveMessage::ShareRemoveConfirm(payload))				=> (402, serde_json::to_vec(&payload)),
 		Message::ShareRemove(ShareRemoveMessage::ShareRemoveError(payload))					=> (403, serde_json::to_vec(&payload)),
+
+		Message::KeyVersionNegotiation(KeyVersionNegotiationMessage::RequestKeyVersions(payload))
+																							=> (450, serde_json::to_vec(&payload)),
+		Message::KeyVersionNegotiation(KeyVersionNegotiationMessage::KeyVersions(payload))
+																							=> (451, serde_json::to_vec(&payload)),
 	};
 
 	let payload = payload.map_err(|err| Error::Serde(err.to_string()))?;
@@ -214,6 +219,9 @@ pub fn deserialize_message(header: &MessageHeader, payload: Vec<u8>) -> Result<M
 		401 => Message::ShareRemove(ShareRemoveMessage::ShareRemoveRequest(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
 		402 => Message::ShareRemove(ShareRemoveMessage::ShareRemoveConfirm(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
 		403 => Message::ShareRemove(ShareRemoveMessage::ShareRemoveError(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+
+		450 => Message::KeyVersionNegotiation(KeyVersionNegotiationMessage::RequestKeyVersions(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		451 => Message::KeyVersionNegotiation(KeyVersionNegotiationMessage::KeyVersions(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
 
 		_ => return Err(Error::Serde(format!("unknown message type {}", header.kind))),
 	})

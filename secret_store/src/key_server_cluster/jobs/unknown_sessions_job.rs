@@ -59,7 +59,7 @@ impl JobExecutor for UnknownSessionsJob {
 			.collect()))
 	}
 
-	fn check_partial_response(&self, _partial_response: &BTreeSet<SessionId>) -> Result<JobPartialResponseAction, Error> {
+	fn check_partial_response(&mut self, _sender: &NodeId, _partial_response: &BTreeSet<SessionId>) -> Result<JobPartialResponseAction, Error> {
 		Ok(JobPartialResponseAction::Accept)
 	}
 

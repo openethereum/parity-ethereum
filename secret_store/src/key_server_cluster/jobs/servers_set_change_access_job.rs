@@ -148,7 +148,7 @@ impl JobExecutor for ServersSetChangeAccessJob {
 		Ok(if is_administrator { JobPartialRequestAction::Respond(true) } else { JobPartialRequestAction::Reject(false) })
 	}
 
-	fn check_partial_response(&self, partial_response: &bool) -> Result<JobPartialResponseAction, Error> {
+	fn check_partial_response(&mut self, _sender: &NodeId, partial_response: &bool) -> Result<JobPartialResponseAction, Error> {
 		Ok(if *partial_response { JobPartialResponseAction::Accept } else { JobPartialResponseAction::Reject })
 	}
 
