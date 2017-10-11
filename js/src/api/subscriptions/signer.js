@@ -38,26 +38,32 @@ export default class Signer {
   start () {
     this._started = true;
 
-    if (this._api.isPubSub) {
-      const subscription = this._api.pubsub
-        .subscribeAndGetResult(
-          callback => this._api.pubsub.signer.pendingRequests(callback),
-          requests => {
-            this.updateSubscriptions(requests);
-            return requests;
-          }
-        );
+    return this
+      ._api
+      .transport
+      .ready
+      .then(() => {
+        if (this._api.isPubSub) {
+          const subscription = this._api.pubsub
+            .subscribeAndGetResult(
+              callback => this._api.pubsub.signer.pendingRequests(callback),
+              requests => {
+                this.updateSubscriptions(requests);
+                return requests;
+              }
+            );
 
-      return Promise.all([
-        this._listRequests(false),
-        subscription
-      ]);
-    }
+          return Promise.all([
+            this._listRequests(false),
+            subscription
+          ]);
+        }
 
-    return Promise.all([
-      this._listRequests(true),
-      this._loggingSubscribe()
-    ]);
+        return Promise.all([
+          this._listRequests(true),
+          this._loggingSubscribe()
+        ]);
+      });
   }
 
   updateSubscriptions (requests) {

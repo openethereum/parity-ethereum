@@ -17,7 +17,7 @@ import PubsubBase from '../pubsubBase';
 
 import { outSignerRequest } from '../../format/output';
 
-export default class Net extends PubsubBase {
+export default class Signer extends PubsubBase {
   constructor (transport) {
     super(transport);
     this._api = {
