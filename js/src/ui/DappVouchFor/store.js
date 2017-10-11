@@ -25,22 +25,27 @@ export default class Store {
 
   constructor (api, app) {
     this._api = api;
-    this._app = app;
 
+    const { contentHash } = app;
+
+    if (contentHash) {
+      this.lookupVouchers(contentHash);
+    }
+  }
+
+  lookupVouchers (contentHash) {
     Contracts
       .get().registry
       .lookupAddress('vouchfor')
       .then((address) => {
         if (!address || /^0x0*$/.test(address)) {
-          return null;
+          return;
         }
 
-        return api.newContract(vouchForAbi, address);
+        return this._api.newContract(vouchForAbi, address);
       })
       .then(async (contract) => {
-        const { contentHash } = app;
-
-        if (!contentHash) {
+        if (!contract) {
           return;
         }
 
@@ -59,7 +64,7 @@ export default class Store {
       .catch((error) => {
         console.error('vouchFor', error);
 
-        return null;
+        return;
       });
   }
 
