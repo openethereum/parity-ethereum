@@ -22,7 +22,7 @@ use std::collections::HashMap;
 use bigint::hash::H256;
 use util::Address;
 use bytes::Bytes;
-use kvdb::Database;
+use kvdb_rocksdb::Database;
 use migration::{Batch, Config, Error, Migration, SimpleMigration, Progress};
 use hash::keccak;
 use std::sync::Arc;

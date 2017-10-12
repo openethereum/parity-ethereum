@@ -416,7 +416,8 @@ mod tests {
 	use bigint::prelude::U256;
 	use bigint::hash::H256;
 	use util::Address;
-	use kvdb::{DBTransaction, in_memory, KeyValueDB};
+	use kvdb::{DBTransaction, KeyValueDB};
+	use kvdb_memorydb::in_memory;
 	use header::BlockNumber;
 	use trace::{Config, TraceDB, Database as TraceDatabase, DatabaseExtras, ImportRequest};
 	use trace::{Filter, LocalizedTrace, AddressesFilter, TraceError};

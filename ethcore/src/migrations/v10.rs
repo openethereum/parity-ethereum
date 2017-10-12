@@ -26,7 +26,8 @@ use migration::{Error, Migration, Progress, Batch, Config};
 use util::journaldb;
 use bigint::hash::H256;
 use trie::Trie;
-use kvdb::{Database, DBTransaction};
+use kvdb::DBTransaction;
+use kvdb_rocksdb::Database;
 
 /// Account bloom upgrade routine. If bloom already present, does nothing.
 /// If database empty (no best block), does nothing.

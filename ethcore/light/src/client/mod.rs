@@ -36,7 +36,8 @@ use bigint::prelude::U256;
 use bigint::hash::H256;
 use futures::{IntoFuture, Future};
 
-use kvdb::{KeyValueDB, CompactionProfile};
+use kvdb::KeyValueDB;
+use kvdb_rocksdb::CompactionProfile;
 
 use self::fetch::ChainDataFetcher;
 use self::header_chain::{AncestryIter, HeaderChain};
@@ -214,7 +215,7 @@ impl<T: ChainDataFetcher> Client<T> {
 		io_channel: IoChannel<ClientIoMessage>,
 		cache: Arc<Mutex<Cache>>
 	) -> Self {
-		let db = ::kvdb::in_memory(0);
+		let db = ::kvdb_memorydb::in_memory(0);
 
 		Client::new(
 			config,

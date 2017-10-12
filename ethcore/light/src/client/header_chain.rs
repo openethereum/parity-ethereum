@@ -728,7 +728,8 @@ mod tests {
 	use ethcore::header::Header;
 	use ethcore::spec::Spec;
   	use cache::Cache;
-	use kvdb::{in_memory, KeyValueDB};
+	use kvdb::KeyValueDB;
+	use kvdb_memorydb::in_memory;
 
 	use time::Duration;
 	use parking_lot::Mutex;

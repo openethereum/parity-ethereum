@@ -1,0 +1,15 @@
+[package]
+name = "kvdb-rocksdb"
+version = "0.1.0"
+authors = ["debris <marek.kotewicz@gmail.com>"]
+
+[dependencies]
+log = "0.3"
+elastic-array = "0.9"
+ethcore-bigint = { path = "../bigint" }
+ethcore-devtools = { path = "../../devtools" }
+parking_lot = "0.4"
+regex = "0.2"
+rlp = { path = "../rlp" }
+rocksdb = { git = "https://github.com/paritytech/rust-rocksdb" }
+kvdb = { path = "../kvdb" }

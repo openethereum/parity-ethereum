@@ -22,7 +22,7 @@ use std::fmt::{Display, Formatter, Error as FmtError};
 use std::sync::Arc;
 use util::journaldb::Algorithm;
 use migr::{Manager as MigrationManager, Config as MigrationConfig, Error as MigrationError, Migration};
-use kvdb::{CompactionProfile, Database, DatabaseConfig};
+use kvdb_rocksdb::{CompactionProfile, Database, DatabaseConfig};
 use ethcore::migrations;
 use ethcore::db;
 use ethcore::migrations::Extract;
@@ -283,7 +283,7 @@ mod legacy {
 	use std::path::{Path, PathBuf};
 	use util::journaldb::Algorithm;
 	use migr::{Manager as MigrationManager};
-	use kvdb::CompactionProfile;
+	use kvdb_rocksdb::CompactionProfile;
 	use ethcore::migrations;
 
 	/// Blocks database path.

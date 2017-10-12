@@ -79,7 +79,7 @@ impl RefCountedDB {
 	/// Create a new instance with an anonymous temporary database.
 	#[cfg(test)]
 	fn new_temp() -> RefCountedDB {
-		let backing = Arc::new(::kvdb::in_memory(0));
+		let backing = Arc::new(::kvdb_memorydb::in_memory(0));
 		Self::new(backing, None)
 	}
 }

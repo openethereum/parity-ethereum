@@ -143,7 +143,7 @@ impl EarlyMergeDB {
 	/// Create a new instance with an anonymous temporary database.
 	#[cfg(test)]
 	fn new_temp() -> EarlyMergeDB {
-		let backing = Arc::new(::kvdb::in_memory(0));
+		let backing = Arc::new(::kvdb_memorydb::in_memory(0));
 		Self::new(backing, None)
 	}
 
@@ -560,7 +560,7 @@ mod tests {
 	use super::*;
 	use super::super::traits::JournalDB;
 	use ethcore_logger::init_log;
-	use kvdb::{DatabaseConfig};
+	use kvdb_rocksdb::{DatabaseConfig};
 	use bigint::hash::H32;
 
 	#[test]
@@ -820,7 +820,7 @@ mod tests {
 
 	fn new_db(path: &Path) -> EarlyMergeDB {
 		let config = DatabaseConfig::with_columns(Some(1));
-		let backing = Arc::new(::kvdb::Database::open(&config, path.to_str().unwrap()).unwrap());
+		let backing = Arc::new(::kvdb_rocksdb::Database::open(&config, path.to_str().unwrap()).unwrap());
 		EarlyMergeDB::new(backing, Some(0))
 	}
 

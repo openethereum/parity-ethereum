@@ -668,13 +668,13 @@ impl Spec {
 	pub fn genesis_epoch_data(&self) -> Result<Vec<u8>, String> {
 		use transaction::{Action, Transaction};
 		use util::journaldb;
-		use kvdb;
+		use kvdb_memorydb;
 
 		let genesis = self.genesis_header();
 
 		let factories = Default::default();
 		let mut db = journaldb::new(
-			Arc::new(kvdb::in_memory(0)),
+			Arc::new(kvdb_memorydb::in_memory(0)),
 			journaldb::Algorithm::Archive,
 			None,
 		);

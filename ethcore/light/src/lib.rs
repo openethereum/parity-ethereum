@@ -92,6 +92,8 @@ extern crate vm;
 extern crate hash;
 extern crate triehash;
 extern crate kvdb;
+extern crate kvdb_memorydb;
+extern crate kvdb_rocksdb;
 
 #[cfg(feature = "ipc")]
 extern crate ethcore_ipc as ipc;

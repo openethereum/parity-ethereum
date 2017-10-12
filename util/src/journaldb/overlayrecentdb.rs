@@ -120,7 +120,7 @@ impl OverlayRecentDB {
 	/// Create a new instance with an anonymous temporary database.
 	#[cfg(test)]
 	pub fn new_temp() -> OverlayRecentDB {
-		let backing = Arc::new(::kvdb::in_memory(0));
+		let backing = Arc::new(::kvdb_memorydb::in_memory(0));
 		Self::new(backing, None)
 	}
 
@@ -468,7 +468,7 @@ mod tests {
 	use hashdb::{HashDB, DBValue};
 	use ethcore_logger::init_log;
 	use journaldb::JournalDB;
-	use kvdb::Database;
+	use kvdb_rocksdb::Database;
 	use bigint::hash::H32;
 
 	fn new_db(path: &Path) -> OverlayRecentDB {

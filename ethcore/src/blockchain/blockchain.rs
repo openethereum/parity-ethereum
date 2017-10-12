@@ -1479,7 +1479,8 @@ mod tests {
 	use std::sync::Arc;
 	use rustc_hex::FromHex;
 	use hash::keccak;
-	use kvdb::{in_memory, KeyValueDB};
+	use kvdb::KeyValueDB;
+	use kvdb_memorydb::in_memory;
 	use bigint::hash::*;
 	use receipt::{Receipt, TransactionOutcome};
 	use blockchain::{BlockProvider, BlockChain, Config, ImportRoute};

@@ -33,7 +33,7 @@ use io::IoChannel;
 use bigint::prelude::U256;
 use bigint::hash::H256;
 use util::Address;
-use kvdb::in_memory;
+use kvdb_memorydb::in_memory;
 
 use jsonrpc_core::IoHandler;
 use v1::impls::{EthClient, SigningUnsafeClient};

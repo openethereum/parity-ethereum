@@ -58,7 +58,7 @@ impl ArchiveDB {
 	/// Create a new instance with an anonymous temporary database.
 	#[cfg(test)]
 	fn new_temp() -> ArchiveDB {
-		let backing = Arc::new(::kvdb::in_memory(0));
+		let backing = Arc::new(::kvdb_memorydb::in_memory(0));
 		Self::new(backing, None)
 	}
 
@@ -211,7 +211,7 @@ mod tests {
 	use hashdb::{HashDB, DBValue};
 	use super::*;
 	use journaldb::traits::JournalDB;
-	use kvdb::Database;
+	use kvdb_rocksdb::Database;
 	use bigint::hash::H32;
 
 	#[test]
