@@ -6,6 +6,9 @@ Parity 1.7.5 is the first stable release of the 1.7 branch. With this release th
 
 Full list of included changes:
 
+- Backport stable - Fixes Badges ([#6731](https://github.com/paritytech/parity/pull/6731))
+  - Fix badges not showing up ([#6730](https://github.com/paritytech/parity/pull/6730))
+  - Always fetch meta data first [badges]
 - Backport ([#6726](https://github.com/paritytech/parity/pull/6726))
   - Check vouch status on appId in addition to contentHash ([#6719](https://github.com/paritytech/parity/pull/6719))
 	  - Check vouch status on appId in addition to contentHash
