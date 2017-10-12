@@ -274,8 +274,6 @@ export default class CertifiersMonitor {
           .then((certified) => {
             const { id, title, icon, name } = certifier;
 
-            this.fetchedAccounts[address] = true;
-
             if (!certified) {
               return this.store.dispatch(removeCertification(address, id));
             }
@@ -283,7 +281,10 @@ export default class CertifiersMonitor {
             log.debug('seen as certified', { address, id, name, icon });
             this.store.dispatch(addCertification(address, id, name, title, icon));
           });
-      }, Promise.resolve());
+      }, Promise.resolve())
+      .then(() => {
+        this.fetchedAccounts[address] = true;
+      });
   }
 
   setCertifiersFilter () {
