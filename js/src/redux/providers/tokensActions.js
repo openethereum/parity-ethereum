@@ -115,9 +115,11 @@ export function loadTokensBasics (_tokenIndexes, options) {
     const prevTokensIndexes = Object.values(tokens).map((t) => t.index);
 
     // Only fetch tokens we don't have yet
-    const tokenIndexes = _tokenIndexes.filter((tokenIndex) => {
-      return !prevTokensIndexes.includes(tokenIndex);
-    });
+    const tokenIndexes = _tokenIndexes
+      .filter((tokenIndex) => {
+        return !prevTokensIndexes.includes(tokenIndex);
+      })
+      .sort();
 
     const count = tokenIndexes.length;
 
@@ -130,10 +132,15 @@ export function loadTokensBasics (_tokenIndexes, options) {
     return tokenReg.getContract()
       .then((tokenRegContract) => {
         let promise = Promise.resolve();
+        const first = tokenIndexes[0];
+        const last = tokenIndexes[tokenIndexes.length - 1];
 
-        for (let start = 0; start < count; start += limit) {
+        for (let from = first; from <= last; from += limit) {
+          // No need to fetch `limit` elements
+          const lowerLimit = Math.min(limit, last - from + 1);
+
           promise = promise
-            .then(() => fetchTokensBasics(api, tokenRegContract, start, limit))
+            .then(() => fetchTokensBasics(api, tokenRegContract, from, lowerLimit))
             .then((results) => {
               results
                 .forEach((token) => {

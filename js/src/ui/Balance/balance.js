@@ -15,11 +15,12 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import BigNumber from 'bignumber.js';
+import { pick } from 'lodash';
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 
-import TokenImage from '~/ui/TokenImage';
+import TokenValue from './tokenValue';
 
 import styles from './balance.css';
 
@@ -69,58 +70,19 @@ export class Balance extends Component {
         const balanceValue = balance[tokenId];
 
         const isEthToken = token.native;
-        const isFullToken = !showOnlyEth || isEthToken;
         const hasBalance = (balanceValue instanceof BigNumber) && balanceValue.gt(0);
 
         if (!hasBalance && !isEthToken) {
           return null;
         }
 
-        const bnf = new BigNumber(token.format || 1);
-        let decimals = 0;
-
-        if (bnf.gte(1000)) {
-          decimals = 3;
-        } else if (bnf.gte(100)) {
-          decimals = 2;
-        } else if (bnf.gte(10)) {
-          decimals = 1;
-        }
-
-        const rawValue = new BigNumber(balanceValue).div(bnf);
-        const value = rawValue.toFormat(decimals);
-
-        const classNames = [styles.balance];
-        let details = null;
-
-        if (isFullToken) {
-          classNames.push(styles.full);
-          details = [
-            <div
-              className={ styles.value }
-              key='value'
-            >
-              <span title={ `${rawValue.toFormat()} ${token.tag}` }>
-                { value }
-              </span>
-            </div>,
-            <div
-              className={ styles.tag }
-              key='tag'
-            >
-              { token.tag }
-            </div>
-          ];
-        }
-
         return (
-          <div
-            className={ classNames.join(' ') }
+          <TokenValue
             key={ tokenId }
-          >
-            <TokenImage token={ token } />
-            { details }
-          </div>
+            showOnlyEth={ showOnlyEth }
+            token={ token }
+            value={ balanceValue }
+          />
         );
       })
       .filter((node) => node);
@@ -155,11 +117,15 @@ export class Balance extends Component {
 }
 
 function mapStateToProps (state, props) {
-  const { balances, tokens } = state;
+  const { balances, tokens: allTokens } = state;
   const { address } = props;
+  const balance = balances[address] || props.balance || {};
+
+  const tokenIds = Object.keys(balance);
+  const tokens = pick(allTokens, tokenIds);
 
   return {
-    balance: balances[address] || props.balance || {},
+    balance,
     tokens
   };
 }
