@@ -206,7 +206,7 @@ export default class CertifiersMonitor {
     // Fetch the address, name and owner in one batch
     return querier(this.api, { address: instance.address, from, limit }, instance.badge)
       .then((results) => {
-        this.certifiers = results
+        const certifiers = results
           .map(([ address, name, owner ], index) => ({
             address, owner,
             id: index + from,
@@ -225,7 +225,7 @@ export default class CertifiersMonitor {
           }, {});
 
         // Fetch the meta-data in serie
-        return Object.values(this.certifiers).reduce((promise, certifier) => {
+        return Object.values(certifiers).reduce((promise, certifier) => {
           return promise.then(() => badgeReg.fetchMeta(certifier.id))
             .then((meta) => {
               this.certifiers[certifier.id] = { ...certifier, ...meta };
