@@ -39,7 +39,9 @@ export default class CertifiersMonitor {
     this._contractEvents = [ 'Confirmed', 'Revoked' ]
       .map((name) => this.contract.events.find((e) => e.name === name));
 
+    this.certifiers = {};
     this.fetchedAccounts = {};
+
     this.load();
   }
 
@@ -104,6 +106,8 @@ export default class CertifiersMonitor {
 
         const parsedLogs = this.contract.parseEventLogs(logs).filter((log) => log.params);
 
+        log.debug('received certifiers logs', parsedLogs);
+
         const promises = parsedLogs.map((log) => {
           const account = log.params.who.value;
           const certifier = Object.values(this.certifiers).find((c) => c.address === log.address);
@@ -113,7 +117,7 @@ export default class CertifiersMonitor {
             return Promise.resolve();
           }
 
-          return this.fetchAccount([ account ], [ certifier.id ]);
+          return this.fetchAccount(account, { ids: [ certifier.id ] });
         });
 
         return Promise.all(promises);
@@ -137,6 +141,7 @@ export default class CertifiersMonitor {
         const parsedLogs = this.contract.parseEventLogs(logs).filter((log) => log.params);
         const indexes = parsedLogs.map((log) => log.params && log.params.id.value.toNumber());
 
+        log.debug('received registry logs', parsedLogs);
         return this.fetchElements(indexes);
       })
       .catch((error) => {
@@ -227,6 +232,7 @@ export default class CertifiersMonitor {
             });
         }, Promise.resolve());
       })
+      .then(() => log.debug('fetched certifiers', { certifiers: this.certifiers }))
       // Fetch the know accounts in case it's an update of the certifiers
       .then(() => this.fetchAccounts(Object.keys(this.fetchedAccounts), { ids: indexes, force: true }));
   }
@@ -289,15 +295,23 @@ export default class CertifiersMonitor {
       accounts
     ];
 
+    if (accounts.length === 0 || addresses.length === 0) {
+      return;
+    }
+
+    const promise = this.certifiersFilter
+      ? this.api.eth.uninstallFilter(this.certifiersFilter)
+      : Promise.resolve();
+
     log.debug('setting up registry filter', { topics, accounts, addresses });
 
-    return this.api.eth
-      .newFilter({
+    return promise
+      .then(() => this.api.eth.newFilter({
         fromBlock: 'latest',
         toBlock: 'latest',
         address: addresses,
         topics
-      })
+      }))
       .then((filterId) => {
         this.certifiersFilter = filterId;
       })
