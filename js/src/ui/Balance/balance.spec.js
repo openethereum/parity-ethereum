@@ -84,13 +84,13 @@ describe('ui/Balance', () => {
   });
 
   it('renders all the non-zero balances', () => {
-    expect(component.find('Connect(TokenImage)')).to.have.length(2);
+    expect(component.find('Connect(TokenValue)')).to.have.length(2);
   });
 
   describe('render specifiers', () => {
     it('renders all the tokens with showZeroValues', () => {
       render({ showZeroValues: true });
-      expect(component.find('Connect(TokenImage)')).to.have.length(2);
+      expect(component.find('Connect(TokenValue)')).to.have.length(2);
     });
   });
 });
