@@ -28,9 +28,7 @@ export default class Store {
   constructor (api, app) {
     this._api = api;
 
-    const { contentHash, id } = app;
-
-    this.findVouchers(contentHash, id);
+    this.findVouchers(app);
   }
 
   async attachContract () {
@@ -45,7 +43,7 @@ export default class Store {
     return contract;
   }
 
-  async findVouchers (contentHash, id) {
+  async findVouchers ({ contentHash, id }) {
     if (!contentHash) {
       return;
     }
