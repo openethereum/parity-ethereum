@@ -26,7 +26,6 @@ import HardwareStore from '~/mobx/hardwareStore';
 import ExportStore from '~/modals/ExportAccount/exportStore';
 import { DeleteAccount, EditMeta, Faucet, PasswordManager, Shapeshift, Transfer, Verification } from '~/modals';
 import { setVisibleAccounts } from '~/redux/providers/personalActions';
-import { fetchCertifiers, fetchCertifications } from '~/redux/providers/certifications/actions';
 import { Actionbar, Button, ConfirmDialog, Input, Page, Portal } from '~/ui';
 import { DeleteIcon, DialIcon, EditIcon, LockedIcon, SendIcon, VerifyIcon, FileDownloadIcon } from '~/ui/Icons';
 
@@ -45,8 +44,6 @@ class Account extends Component {
 
   static propTypes = {
     accounts: PropTypes.object.isRequired,
-    fetchCertifiers: PropTypes.func.isRequired,
-    fetchCertifications: PropTypes.func.isRequired,
     setVisibleAccounts: PropTypes.func.isRequired,
 
     account: PropTypes.object,
@@ -67,7 +64,6 @@ class Account extends Component {
   }
 
   componentDidMount () {
-    this.props.fetchCertifiers();
     this.setVisibleAccounts();
   }
 
@@ -90,11 +86,10 @@ class Account extends Component {
   }
 
   setVisibleAccounts (props = this.props) {
-    const { params, setVisibleAccounts, fetchCertifications } = props;
+    const { params, setVisibleAccounts } = props;
     const addresses = [params.address];
 
     setVisibleAccounts(addresses);
-    fetchCertifications(params.address);
   }
 
   render () {
@@ -524,8 +519,6 @@ function mapStateToProps (state, props) {
 
 function mapDispatchToProps (dispatch) {
   return bindActionCreators({
-    fetchCertifiers,
-    fetchCertifications,
     newError,
     setVisibleAccounts
   }, dispatch);
