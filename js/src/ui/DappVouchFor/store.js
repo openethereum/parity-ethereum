@@ -20,55 +20,68 @@ import { uniq } from 'lodash';
 import Contracts from '~/contracts';
 import { vouchfor as vouchForAbi } from '~/contracts/abi';
 
+let contractPromise = null;
+
 export default class Store {
   @observable vouchers = [];
 
   constructor (api, app) {
     this._api = api;
 
-    const { contentHash } = app;
+    this.findVouchers(app);
+  }
 
-    if (contentHash) {
-      this.lookupVouchers(contentHash);
+  async attachContract () {
+    const address = await Contracts.get().registry.lookupAddress('vouchfor');
+
+    if (!address || /^0x0*$/.test(address)) {
+      return null;
     }
+
+    const contract = await this._api.newContract(vouchForAbi, address);
+
+    return contract;
   }
 
-  lookupVouchers (contentHash) {
-    Contracts
-      .get().registry
-      .lookupAddress('vouchfor')
-      .then((address) => {
-        if (!address || /^0x0*$/.test(address)) {
-          return;
-        }
+  async findVouchers ({ contentHash, id }) {
+    if (!contentHash) {
+      return;
+    }
 
-        return this._api.newContract(vouchForAbi, address);
-      })
-      .then(async (contract) => {
-        if (!contract) {
-          return;
-        }
+    if (!contractPromise) {
+      contractPromise = this.attachContract();
+    }
 
-        let lastItem = false;
+    const contract = await contractPromise;
 
-        for (let index = 0; !lastItem; index++) {
-          const voucher = await contract.instance.vouched.call({}, [`0x${contentHash}`, index]);
+    if (!contract) {
+      return;
+    }
 
-          if (/^0x0*$/.test(voucher)) {
-            lastItem = true;
-          } else {
-            this.addVoucher(voucher);
-          }
-        }
-      })
-      .catch((error) => {
-        console.error('vouchFor', error);
+    const vouchHash = await this.lookupHash(contract, `0x${contentHash}`);
+    const vouchId = await this.lookupHash(contract, id);
 
-        return;
-      });
+    this.addVouchers(vouchHash, vouchId);
   }
 
-  @action addVoucher = (voucher) => {
-    this.vouchers = uniq([].concat(this.vouchers.peek(), [voucher]));
+  async lookupHash (contract, hash) {
+    const vouchers = [];
+    let lastItem = false;
+
+    for (let index = 0; !lastItem; index++) {
+      const voucher = await contract.instance.vouched.call({}, [hash, index]);
+
+      if (/^0x0*$/.test(voucher)) {
+        lastItem = true;
+      } else {
+        vouchers.push(voucher);
+      }
+    }
+
+    return vouchers;
+  }
+
+  @action addVouchers = (vouchHash, vouchId) => {
+    this.vouchers = uniq([].concat(this.vouchers.peek(), vouchHash, vouchId));
   }
 }
