@@ -1,3 +1,29 @@
+## Parity [v1.7.5](https://github.com/paritytech/parity/releases/tag/v1.7.5) (2017-10-12)
+
+Parity 1.7.5 includes a critical consensus-relevant fix for the Byzantium hard-fork. Please upgrade your Ethereum client before block number `4_370_000`.
+
+Parity 1.7.5 is the first stable release of the 1.7 branch. With this release the support for 1.6 releases ends. Please upgrade your stable nodes to 1.7.5.
+
+Full list of included changes:
+
+- Backport ([#6726](https://github.com/paritytech/parity/pull/6726))
+  - Check vouch status on appId in addition to contentHash ([#6719](https://github.com/paritytech/parity/pull/6719))
+	  - Check vouch status on appId in addition to contentHash
+	  - Simplify var expansion
+  - Merge [#6725](https://github.com/paritytech/parity/pull/6725)
+    - Update new token fetching
+    - Working Certifications Monitoring
+    - Update on Certification / Revoke
+    - Fix none-fetched tokens value display
+    - Fix tests
+  - Add updated MethodDecoding from master
+- v1.7.5 stabilized
+- Backport ([#6724](https://github.com/paritytech/parity/pull/6724))
+  - Fixed RETURNDATA out of bounds check ([#6718](https://github.com/paritytech/parity/pull/6718))
+  - Prevent going offline when restoring or taking snapshot ([#6694](https://github.com/paritytech/parity/pull/6694))
+- Bump to v1.7.5
+- Trigger beta js build & release ([#6721](https://github.com/paritytech/parity/pull/6721))
+
 ## Parity [v1.7.4](https://github.com/paritytech/parity/releases/tag/v1.7.4) (2017-10-11)
 
 Parity 1.7.4 includes a critical consensus-relevant fix for the Byzantium hard-fork. Please upgrade your Ethereum client before block number `4_370_000`.
