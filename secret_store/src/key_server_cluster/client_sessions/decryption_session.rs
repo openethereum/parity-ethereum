@@ -442,6 +442,18 @@ impl ClusterSession for SessionImpl {
 		// ignore error, only state matters
 		let _ = self.process_node_error(None, &Error::NodeDisconnected.into());
 	}
+
+	fn on_session_error(&self, node: &NodeId, error: Error) {
+		// ignore error, only state matters
+		let _ = self.process_node_error(Some(node), &error.into());
+	}
+
+	fn on_message(&self, sender: &NodeId, message: &Message) -> Result<(), Error> {
+		match *message {
+			Message::Decryption(ref message) => self.process_message(sender, message),
+			_ => unreachable!("TODO"),
+		}
+	}
 }
 
 impl Session for SessionImpl {

@@ -758,6 +758,14 @@ impl ClusterSession for SessionImpl {
 		data.joint_public_and_secret = Some(Err(Error::NodeDisconnected));
 		self.completed.notify_all();
 	}
+
+	fn on_session_error(&self, node: &NodeId, error: Error) {
+		unimplemented!()
+	}
+
+	fn on_message(&self, sender: &NodeId, message: &Message) -> Result<(), Error> {
+		unimplemented!()
+	}
 }
 
 impl Session for SessionImpl {

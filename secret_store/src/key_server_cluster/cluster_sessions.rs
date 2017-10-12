@@ -67,6 +67,10 @@ pub trait ClusterSession {
 	fn on_session_timeout(&self);
 	/// When it takes too much time to receive response from the node.
 	fn on_node_timeout(&self, node_id: &NodeId);
+	/// Process error that has occured during session + propagate this error to required nodes.
+	fn on_session_error(&self, sender: &NodeId, error: Error);
+	/// Process session message.
+	fn on_message(&self, sender: &NodeId, message: &Message) -> Result<(), Error>;
 }
 
 /// Administrative session.
@@ -806,6 +810,14 @@ impl ClusterSession for AdminSession {
 			AdminSession::ShareRemove(ref session) => session.on_node_timeout(node_id),
 			AdminSession::ServersSetChange(ref session) => session.on_node_timeout(node_id),
 		}
+	}
+
+	fn on_session_error(&self, node: &NodeId, error: Error) {
+		unimplemented!()
+	}
+
+	fn on_message(&self, sender: &NodeId, message: &Message) -> Result<(), Error> {
+		unimplemented!()
 	}
 }
 

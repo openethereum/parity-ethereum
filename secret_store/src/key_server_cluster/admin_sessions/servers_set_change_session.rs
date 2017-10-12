@@ -824,6 +824,14 @@ impl ClusterSession for SessionImpl {
 		data.result = Some(Err(Error::NodeDisconnected));
 		self.core.completed.notify_all();
 	}
+
+	fn on_session_error(&self, node: &NodeId, error: Error) {
+		unimplemented!()
+	}
+
+	fn on_message(&self, sender: &NodeId, message: &Message) -> Result<(), Error> {
+		unimplemented!()
+	}
 }
 
 impl JobTransport for ServersSetChangeConsensusTransport {

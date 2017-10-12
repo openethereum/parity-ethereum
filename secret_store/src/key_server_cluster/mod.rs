@@ -185,8 +185,10 @@ pub use self::client_sessions::decryption_session;
 pub use self::client_sessions::encryption_session;
 pub use self::client_sessions::generation_session;
 pub use self::client_sessions::signing_session;
+
 mod cluster;
 mod cluster_sessions;
+mod cluster_sessions_adapters;
 mod io;
 mod jobs;
 pub mod math;

@@ -302,6 +302,32 @@ impl ClusterSession for SessionImpl {
 		data.result = Some(Err(Error::NodeDisconnected));
 		self.completed.notify_all();
 	}
+
+	fn on_session_error(&self, node: &NodeId, error: Error) {
+		let mut data = self.data.lock();
+
+		warn!("{}: encryption session failed because of error '{}' received from node {}", self.node(), error, node);
+
+		data.state = SessionState::Failed;
+		data.result = Some(Err(error));
+		self.completed.notify_all();
+	}
+
+	fn on_message(&self, sender: &NodeId, message: &Message) -> Result<(), Error> {
+		if Some(self.nonce) != message.session_nonce() {
+			return Err(Error::ReplayProtection);
+		}
+
+		match message {
+			&Message::Encryption(EncryptionMessage::InitializeEncryptionSession(ref message)) =>
+				self.on_initialize_session(sender.clone(), message),
+			&Message::Encryption(EncryptionMessage::ConfirmEncryptionInitialization(ref message)) =>
+				self.on_confirm_initialization(sender.clone(), message),
+			&Message::Encryption(EncryptionMessage::EncryptionSessionError(ref message)) =>
+				self.on_session_error(sender, message),
+			_ => unreachable!("TODO")
+		}
+	}
 }
 
 impl Session for SessionImpl {

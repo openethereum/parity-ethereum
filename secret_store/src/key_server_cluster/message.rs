@@ -999,6 +999,23 @@ pub struct KeyVersions {
 	pub versions: Vec<SerializableH256>,
 }
 
+impl Message {
+	pub fn session_nonce(&self) -> Option<u64> {
+		match *self {
+			Message::Cluster(ref message) => None,
+			Message::Generation(ref message) => Some(message.session_nonce()),
+			Message::Encryption(ref message) => Some(message.session_nonce()),
+			Message::Decryption(ref message) => Some(message.session_nonce()),
+			Message::Signing(ref message) => Some(message.session_nonce()),
+			Message::ShareAdd(ref message) => Some(message.session_nonce()),
+			Message::ShareMove(ref message) => Some(message.session_nonce()),
+			Message::ShareRemove(ref message) => Some(message.session_nonce()),
+			Message::ServersSetChange(ref message) => Some(message.session_nonce()),
+			Message::KeyVersionNegotiation(ref message) => None,
+		}
+	}
+}
+
 impl GenerationMessage {
 	pub fn session_id(&self) -> &SessionId {
 		match *self {

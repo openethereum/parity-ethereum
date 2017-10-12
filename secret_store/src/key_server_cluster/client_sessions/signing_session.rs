@@ -495,6 +495,14 @@ impl ClusterSession for SessionImpl {
 		// ignore error, only state matters
 		let _ = self.process_node_error(None, &Error::NodeDisconnected.into());
 	}
+
+	fn on_session_error(&self, node: &NodeId, error: Error) {
+		unimplemented!()
+	}
+
+	fn on_message(&self, sender: &NodeId, message: &Message) -> Result<(), Error> {
+		unimplemented!()
+	}
 }
 
 impl Session for SessionImpl {

@@ -154,17 +154,17 @@ pub struct ClusterView {
 /// Cross-thread shareable cluster data.
 pub struct ClusterData {
 	/// Cluster configuration.
-	config: ClusterConfiguration,
+	pub config: ClusterConfiguration,
 	/// Handle to the event loop.
-	handle: Remote,
+	pub handle: Remote,
 	/// Handle to the cpu thread pool.
-	pool: CpuPool,
+	pub pool: CpuPool,
 	/// KeyPair this node holds.
-	self_key_pair: Arc<NodeKeyPair>,
+	pub self_key_pair: Arc<NodeKeyPair>,
 	/// Connections data.
-	connections: ClusterConnections,
+	pub connections: ClusterConnections,
 	/// Active sessions data.
-	sessions: ClusterSessions,
+	pub sessions: ClusterSessions,
 }
 
 /// Connections that are forming the cluster.

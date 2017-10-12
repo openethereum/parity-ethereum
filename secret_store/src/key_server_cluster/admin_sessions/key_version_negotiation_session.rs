@@ -343,6 +343,14 @@ impl<T> ClusterSession for SessionImpl<T> where T: SessionTransport {
 			}
 		}
 	}
+
+	fn on_session_error(&self, node: &NodeId, error: Error) {
+		unimplemented!()
+	}
+
+	fn on_message(&self, sender: &NodeId, message: &Message) -> Result<(), Error> {
+		unimplemented!()
+	}
 }
 
 impl SessionTransport for IsolatedSessionTransport {
