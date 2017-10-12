@@ -20,24 +20,32 @@ export default (state = initialState, action) => {
   if (action.type === 'addCertification') {
     const { address, id, name, icon, title } = action;
     const certifications = state[address] || [];
+    const certifierIndex = certifications.findIndex((c) => c.id === id);
+    const data = { id, name, icon, title };
+    const nextCertifications = certifications.slice();
 
-    if (certifications.some((c) => c.id === id)) {
-      return state;
+    if (certifierIndex >= 0) {
+      nextCertifications[certifierIndex] = data;
+    } else {
+      nextCertifications.push(data);
     }
 
-    const newCertifications = certifications.concat({
-      id, name, icon, title
-    });
-
-    return { ...state, [address]: newCertifications };
+    return { ...state, [address]: nextCertifications };
   }
 
   if (action.type === 'removeCertification') {
     const { address, id } = action;
     const certifications = state[address] || [];
+    const certifierIndex = certifications.findIndex((c) => c.id === id);
 
-    const newCertifications = certifications.filter((c) => c.id !== id);
+    // Don't remove if not there
+    if (certifierIndex < 0) {
+      return state;
+    }
 
+    const newCertifications = certifications.slice();
+
+    newCertifications.splice(certifierIndex, 1);
     return { ...state, [address]: newCertifications };
   }
 
