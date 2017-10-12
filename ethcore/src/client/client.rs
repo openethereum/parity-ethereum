@@ -988,9 +988,11 @@ impl Client {
 
 	/// Tick the client.
 	// TODO: manage by real events.
-	pub fn tick(&self) {
+	pub fn tick(&self, prevent_sleep: bool) {
 		self.check_garbage();
-		self.check_snooze();
+		if !prevent_sleep {
+			self.check_snooze();
+		}
 	}
 
 	fn check_garbage(&self) {
@@ -1098,7 +1100,7 @@ impl Client {
 		if !self.liveness.load(AtomicOrdering::Relaxed) {
 			self.liveness.store(true, AtomicOrdering::Relaxed);
 			self.notify(|n| n.start());
-			trace!(target: "mode", "wake_up: Waking.");
+			info!(target: "mode", "wake_up: Waking.");
 		}
 	}
 
@@ -1108,11 +1110,11 @@ impl Client {
 			if self.queue_info().total_queue_size() <= MAX_QUEUE_SIZE_TO_SLEEP_ON {
 				self.liveness.store(false, AtomicOrdering::Relaxed);
 				self.notify(|n| n.stop());
-				trace!(target: "mode", "sleep: Sleeping.");
+				info!(target: "mode", "sleep: Sleeping.");
 			} else {
-				trace!(target: "mode", "sleep: Cannot sleep - syncing ongoing.");
+				info!(target: "mode", "sleep: Cannot sleep - syncing ongoing.");
 				// TODO: Consider uncommenting.
-				//*self.last_activity.lock() = Some(Instant::now());
+				//(*self.sleep_state.lock()).last_activity = Some(Instant::now());
 			}
 		}
 	}
