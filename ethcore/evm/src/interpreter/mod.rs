@@ -574,7 +574,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 					let source_offset = stack.peek(1);
 					let size = stack.peek(2);
 					let return_data_len = U256::from(self.return_data.len());
-					if source_offset.overflow_add(*size).0 > return_data_len {
+					if source_offset.saturating_add(*size) > return_data_len {
 						return Err(vm::Error::OutOfBounds);
 					}
 				}
@@ -939,5 +939,26 @@ mod tests {
 
 		assert_eq!(ext.calls.len(), 1);
 		assert_eq!(gas_left, 248_212.into());
+	}
+
+	#[test]
+	fn should_not_overflow_returndata() {
+		let code = "6001600160000360003e00".from_hex().unwrap();
+
+		let mut params = ActionParams::default();
+		params.address = 5.into();
+		params.gas = 300_000.into();
+		params.gas_price = 1.into();
+		params.code = Some(Arc::new(code));
+		let mut ext = FakeExt::new_byzantium();
+		ext.balances.insert(5.into(), 1_000_000_000.into());
+		ext.tracing = true;
+
+		let err = {
+			let mut vm = Factory::new(VMType::Interpreter, 1).create(params.gas);
+			test_finalize(vm.exec(params, &mut ext)).err().unwrap()
+		};
+
+		assert_eq!(err, ::vm::Error::OutOfBounds);
 	}
 }
