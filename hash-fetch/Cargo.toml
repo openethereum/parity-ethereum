@@ -22,5 +22,5 @@ native-contracts = { path = "../ethcore/native_contracts" }
 hash = { path = "../util/hash" }
 
 [dev-dependencies]
-ethabi = "2.0"
+ethabi = "4.0"
 parking_lot = "0.4"
