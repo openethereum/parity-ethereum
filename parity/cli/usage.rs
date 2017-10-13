@@ -38,7 +38,10 @@ macro_rules! return_if_parse_error {
 			Err(clap_error @ ClapError { kind: ClapErrorKind::ValueValidation, .. }) => {
 				return Err(clap_error);
 			},
-			_ => $e
+
+			// Otherwise, if $e is ClapErrorKind::ArgumentNotFound or Ok(),
+			// then convert to Option
+			_ => $e.ok()
 		}
 	)
 }
@@ -590,7 +593,7 @@ macro_rules! usage {
 									ELSE { value_t!(matches, stringify!($arg), $($arg_type_tt)+) }
 								)
 							}
-						)).ok();
+						));
 					)*
 				)*
 
@@ -621,7 +624,7 @@ macro_rules! usage {
 												ELSE { value_t!(submatches, stringify!($subc_arg), $($subc_arg_type_tt)+) }
 											)
 										}
-							)).ok();
+							));
 						)*
 
 						// Sub-subcommands
@@ -651,7 +654,7 @@ macro_rules! usage {
 												ELSE { value_t!(subsubmatches, stringify!($subc_subc_arg), $($subc_subc_arg_type_tt)+) }
 											)
 										}
-									)).ok();
+									));
 								)*
 							}
 							else {
