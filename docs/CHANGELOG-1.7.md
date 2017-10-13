@@ -1,3 +1,13 @@
+## Parity [v1.7.6](https://github.com/paritytech/parity/releases/tag/v1.7.6) (2017-10-13)
+
+Parity 1.7.6 includes a critical consensus-relevant fix for the Byzantium hard-fork. Please upgrade your Ethereum client before block number `4_370_000`.
+
+Full list of included changes:
+
+- Fixed modexp gas calculation overflow ([#6746](https://github.com/paritytech/parity/pull/6746))
+ - Fixed modexp gas calculation overflow ([#6741](https://github.com/paritytech/parity/pull/6741))
+ - Bump to v1.7.6
+
 ## Parity [v1.7.5](https://github.com/paritytech/parity/releases/tag/v1.7.5) (2017-10-12)
 
 Parity 1.7.5 includes a critical consensus-relevant fix for the Byzantium hard-fork. Please upgrade your Ethereum client before block number `4_370_000`.
