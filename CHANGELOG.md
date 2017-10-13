@@ -1,9 +1,25 @@
 ## Parity [v1.8.0](https://github.com/paritytech/parity/releases/tag/v1.8.0) (2017-10-13)
 
-@TODO
+@TODO describe and document
+
+- WASM contracts
+- light cient improvements (POA chain compatibility)
+- Trezor wallet support
+- Abstraction of engine: Generalize engine trait, Move more params to the common section
+- PICOPS certification badge
+- Vouch for Dapps
+- Premissioned p2p-connections
+- Transaction permissioning
+- Add Musicoin and MCIP-3 UBI hardfork.
+- Add pagination for trace_filter rpc method
+- Rename network_id to chain_id where applicable
+- Compatibility with whisper v6
+- Byzantium updates
+- Rewards on closing blocks
 
 Full list of included changes:
 
+- CLI: Reject invalid argument values rather than ignore them (#6747)
 - Fixed modexp gas calculation overflow ([#6745](https://github.com/paritytech/parity/pull/6745))
 - Backport beta - Fixes Badges ([#6732](https://github.com/paritytech/parity/pull/6732))
   - Fix badges not showing up ([#6730](https://github.com/paritytech/parity/pull/6730))
