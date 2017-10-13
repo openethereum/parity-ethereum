@@ -4,6 +4,7 @@
 
 Full list of included changes:
 
+- Fixed modexp gas calculation overflow ([#6745](https://github.com/paritytech/parity/pull/6745))
 - Backport beta - Fixes Badges ([#6732](https://github.com/paritytech/parity/pull/6732))
   - Fix badges not showing up ([#6730](https://github.com/paritytech/parity/pull/6730))
   - Always fetch meta data first [badges]
