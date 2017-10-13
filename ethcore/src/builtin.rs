@@ -123,7 +123,11 @@ impl Pricer for ModexpPricer {
 
 		let adjusted_exp_len = Self::adjusted_exp_len(exp_len, exp_low);
 
-		(Self::mult_complexity(m) * max(adjusted_exp_len, 1) / self.divisor as u64).into()
+		let (gas, overflow) = Self::mult_complexity(m).overflowing_mul(max(adjusted_exp_len, 1));
+		if overflow {
+			return U256::max_value();
+		}
+		(gas / self.divisor as u64).into()
 	}
 }
 
@@ -705,6 +709,14 @@ mod tests {
 			native: ethereum_builtin("modexp"),
 			activate_at: 0,
 		};
+
+		// test for potential gas cost multiplication overflow
+		{
+			let input = FromHex::from_hex("0000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000003b27bafd00000000000000000000000000000000000000000000000000000000503c8ac3").unwrap();
+			let expected_cost = U256::max_value();
+			assert_eq!(f.cost(&input[..]), expected_cost.into());
+		}
+
 
 		// test for potential exp len overflow
 		{
