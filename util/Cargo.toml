@@ -36,7 +36,6 @@ util-error = { path = "error" }
 kvdb = { path = "kvdb" }
 
 [dev-dependencies]
-kvdb-rocksdb = { path = "kvdb-rocksdb" }
 kvdb-memorydb = { path = "kvdb-memorydb" }
 
 [features]

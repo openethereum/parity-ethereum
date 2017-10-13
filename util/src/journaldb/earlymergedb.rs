@@ -140,13 +140,6 @@ impl EarlyMergeDB {
 		}
 	}
 
-	/// Create a new instance with an anonymous temporary database.
-	#[cfg(test)]
-	fn new_temp() -> EarlyMergeDB {
-		let backing = Arc::new(::kvdb_memorydb::in_memory(0));
-		Self::new(backing, None)
-	}
-
 	fn morph_key(key: &H256, index: u8) -> Bytes {
 		let mut ret = (&**key).to_owned();
 		ret.push(index);
@@ -554,19 +547,17 @@ mod tests {
 	#![cfg_attr(feature="dev", allow(blacklisted_name))]
 	#![cfg_attr(feature="dev", allow(similar_names))]
 
-	use std::path::Path;
 	use keccak::keccak;
 	use hashdb::{HashDB, DBValue};
 	use super::*;
 	use super::super::traits::JournalDB;
 	use ethcore_logger::init_log;
-	use kvdb_rocksdb::{DatabaseConfig};
-	use bigint::hash::H32;
+	use kvdb_memorydb::in_memory;
 
 	#[test]
 	fn insert_same_in_fork() {
 		// history is 1
-		let mut jdb = EarlyMergeDB::new_temp();
+		let mut jdb = new_db();
 
 		let x = jdb.insert(b"X");
 		jdb.commit_batch(1, &keccak(b"1"), None).unwrap();
@@ -595,7 +586,7 @@ mod tests {
 
 	#[test]
 	fn insert_older_era() {
-		let mut jdb = EarlyMergeDB::new_temp();
+		let mut jdb = new_db();
 		let foo = jdb.insert(b"foo");
 		jdb.commit_batch(0, &keccak(b"0a"), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
@@ -616,7 +607,7 @@ mod tests {
 	#[test]
 	fn long_history() {
 		// history is 3
-		let mut jdb = EarlyMergeDB::new_temp();
+		let mut jdb = new_db();
 		let h = jdb.insert(b"foo");
 		jdb.commit_batch(0, &keccak(b"0"), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
@@ -639,7 +630,7 @@ mod tests {
 	#[test]
 	fn complex() {
 		// history is 1
-		let mut jdb = EarlyMergeDB::new_temp();
+		let mut jdb = new_db();
 
 		let foo = jdb.insert(b"foo");
 		let bar = jdb.insert(b"bar");
@@ -682,7 +673,7 @@ mod tests {
 	#[test]
 	fn fork() {
 		// history is 1
-		let mut jdb = EarlyMergeDB::new_temp();
+		let mut jdb = new_db();
 
 		let foo = jdb.insert(b"foo");
 		let bar = jdb.insert(b"bar");
@@ -714,7 +705,7 @@ mod tests {
 	#[test]
 	fn overwrite() {
 		// history is 1
-		let mut jdb = EarlyMergeDB::new_temp();
+		let mut jdb = new_db();
 
 		let foo = jdb.insert(b"foo");
 		jdb.commit_batch(0, &keccak(b"0"), None).unwrap();
@@ -737,7 +728,7 @@ mod tests {
 	#[test]
 	fn fork_same_key_one() {
 
-		let mut jdb = EarlyMergeDB::new_temp();
+		let mut jdb = new_db();
 		jdb.commit_batch(0, &keccak(b"0"), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
@@ -762,7 +753,7 @@ mod tests {
 
 	#[test]
 	fn fork_same_key_other() {
-		let mut jdb = EarlyMergeDB::new_temp();
+		let mut jdb = new_db();
 		jdb.commit_batch(0, &keccak(b"0"), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
@@ -787,7 +778,7 @@ mod tests {
 
 	#[test]
 	fn fork_ins_del_ins() {
-		let mut jdb = EarlyMergeDB::new_temp();
+		let mut jdb = new_db();
 		jdb.commit_batch(0, &keccak(b"0"), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
@@ -818,20 +809,18 @@ mod tests {
 		assert!(jdb.can_reconstruct_refs());
 	}
 
-	fn new_db(path: &Path) -> EarlyMergeDB {
-		let config = DatabaseConfig::with_columns(Some(1));
-		let backing = Arc::new(::kvdb_rocksdb::Database::open(&config, path.to_str().unwrap()).unwrap());
-		EarlyMergeDB::new(backing, Some(0))
+	fn new_db() -> EarlyMergeDB {
+		let backing = Arc::new(in_memory(0));
+		EarlyMergeDB::new(backing, None)
 	}
 
 	#[test]
 	fn reopen() {
-		let mut dir = ::std::env::temp_dir();
-		dir.push(H32::random().hex());
+		let shared_db = Arc::new(in_memory(0));
 		let bar = H256::random();
 
 		let foo = {
-			let mut jdb = new_db(&dir);
+			let mut jdb = EarlyMergeDB::new(shared_db.clone(), None);
 			// history is 1
 			let foo = jdb.insert(b"foo");
 			jdb.emplace(bar.clone(), DBValue::from_slice(b"bar"));
@@ -841,14 +830,14 @@ mod tests {
 		};
 
 		{
-			let mut jdb = new_db(&dir);
+			let mut jdb = EarlyMergeDB::new(shared_db.clone(), None);
 			jdb.remove(&foo);
 			jdb.commit_batch(1, &keccak(b"1"), Some((0, keccak(b"0")))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
 		}
 
 		{
-			let mut jdb = new_db(&dir);
+			let mut jdb = EarlyMergeDB::new(shared_db, None);
 			assert!(jdb.contains(&foo));
 			assert!(jdb.contains(&bar));
 			jdb.commit_batch(2, &keccak(b"2"), Some((1, keccak(b"1")))).unwrap();
@@ -861,7 +850,7 @@ mod tests {
 	fn insert_delete_insert_delete_insert_expunge() {
 		init_log();
 
-		let mut jdb = EarlyMergeDB::new_temp();
+		let mut jdb = new_db();
 
 		// history is 4
 		let foo = jdb.insert(b"foo");
@@ -887,7 +876,7 @@ mod tests {
 	#[test]
 	fn forked_insert_delete_insert_delete_insert_expunge() {
 		init_log();
-		let mut jdb = EarlyMergeDB::new_temp();
+		let mut jdb = new_db();
 
 		// history is 4
 		let foo = jdb.insert(b"foo");
@@ -933,7 +922,7 @@ mod tests {
 
 	#[test]
 	fn broken_assert() {
-		let mut jdb = EarlyMergeDB::new_temp();
+		let mut jdb = new_db();
 
 		// history is 1
 		let foo = jdb.insert(b"foo");
@@ -962,7 +951,7 @@ mod tests {
 
 	#[test]
 	fn reopen_test() {
-		let mut jdb = EarlyMergeDB::new_temp();
+		let mut jdb = new_db();
 
 		// history is 4
 		let foo = jdb.insert(b"foo");
@@ -997,13 +986,11 @@ mod tests {
 	fn reopen_remove_three() {
 		init_log();
 
-		let mut dir = ::std::env::temp_dir();
-		dir.push(H32::random().hex());
-
+		let shared_db = Arc::new(in_memory(0));
 		let foo = keccak(b"foo");
 
 		{
-			let mut jdb = new_db(&dir);
+			let mut jdb = EarlyMergeDB::new(shared_db.clone(), None);
 			// history is 1
 			jdb.insert(b"foo");
 			jdb.commit_batch(0, &keccak(b"0"), None).unwrap();
@@ -1025,7 +1012,7 @@ mod tests {
 
 		// incantation to reopen the db
 		}; {
-			let mut jdb = new_db(&dir);
+			let mut jdb = EarlyMergeDB::new(shared_db.clone(), None);
 
 			jdb.remove(&foo);
 			jdb.commit_batch(4, &keccak(b"4"), Some((2, keccak(b"2")))).unwrap();
@@ -1034,7 +1021,7 @@ mod tests {
 
 		// incantation to reopen the db
 		}; {
-			let mut jdb = new_db(&dir);
+			let mut jdb = EarlyMergeDB::new(shared_db.clone(), None);
 
 			jdb.commit_batch(5, &keccak(b"5"), Some((3, keccak(b"3")))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
@@ -1042,7 +1029,7 @@ mod tests {
 
 		// incantation to reopen the db
 		}; {
-			let mut jdb = new_db(&dir);
+			let mut jdb = EarlyMergeDB::new(shared_db, None);
 
 			jdb.commit_batch(6, &keccak(b"6"), Some((4, keccak(b"4")))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
@@ -1052,10 +1039,10 @@ mod tests {
 
 	#[test]
 	fn reopen_fork() {
-		let mut dir = ::std::env::temp_dir();
-		dir.push(H32::random().hex());
+		let shared_db = Arc::new(in_memory(0));
+
 		let (foo, bar, baz) = {
-			let mut jdb = new_db(&dir);
+			let mut jdb = EarlyMergeDB::new(shared_db.clone(), None);
 			// history is 1
 			let foo = jdb.insert(b"foo");
 			let bar = jdb.insert(b"bar");
@@ -1073,7 +1060,7 @@ mod tests {
 		};
 
 		{
-			let mut jdb = new_db(&dir);
+			let mut jdb = EarlyMergeDB::new(shared_db, None);
 			jdb.commit_batch(2, &keccak(b"2b"), Some((1, keccak(b"1b")))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
 			assert!(jdb.contains(&foo));
@@ -1084,9 +1071,7 @@ mod tests {
 
 	#[test]
 	fn inject() {
-		let temp = ::devtools::RandomTempPath::new();
-
-		let mut jdb = new_db(temp.as_path().as_path());
+		let mut jdb = new_db();
 		let key = jdb.insert(b"dog");
 		jdb.inject_batch().unwrap();
 

@@ -117,13 +117,6 @@ impl OverlayRecentDB {
 		}
 	}
 
-	/// Create a new instance with an anonymous temporary database.
-	#[cfg(test)]
-	pub fn new_temp() -> OverlayRecentDB {
-		let backing = Arc::new(::kvdb_memorydb::in_memory(0));
-		Self::new(backing, None)
-	}
-
 	#[cfg(test)]
 	fn can_reconstruct_refs(&self) -> bool {
 		let reconstructed = Self::read_overlay(&*self.backing, self.column);
@@ -462,24 +455,22 @@ mod tests {
 	#![cfg_attr(feature="dev", allow(blacklisted_name))]
 	#![cfg_attr(feature="dev", allow(similar_names))]
 
-	use std::path::Path;
 	use keccak::keccak;
 	use super::*;
 	use hashdb::{HashDB, DBValue};
 	use ethcore_logger::init_log;
 	use journaldb::JournalDB;
-	use kvdb_rocksdb::Database;
-	use bigint::hash::H32;
+	use kvdb_memorydb::in_memory;
 
-	fn new_db(path: &Path) -> OverlayRecentDB {
-		let backing = Arc::new(Database::open_default(path.to_str().unwrap()).unwrap());
+	fn new_db() -> OverlayRecentDB {
+		let backing = Arc::new(in_memory(0));
 		OverlayRecentDB::new(backing, None)
 	}
 
 	#[test]
 	fn insert_same_in_fork() {
 		// history is 1
-		let mut jdb = OverlayRecentDB::new_temp();
+		let mut jdb = new_db();
 
 		let x = jdb.insert(b"X");
 		jdb.commit_batch(1, &keccak(b"1"), None).unwrap();
@@ -509,7 +500,7 @@ mod tests {
 	#[test]
 	fn long_history() {
 		// history is 3
-		let mut jdb = OverlayRecentDB::new_temp();
+		let mut jdb = new_db();
 		let h = jdb.insert(b"foo");
 		jdb.commit_batch(0, &keccak(b"0"), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
@@ -532,7 +523,7 @@ mod tests {
 	#[test]
 	fn complex() {
 		// history is 1
-		let mut jdb = OverlayRecentDB::new_temp();
+		let mut jdb = new_db();
 
 		let foo = jdb.insert(b"foo");
 		let bar = jdb.insert(b"bar");
@@ -575,7 +566,7 @@ mod tests {
 	#[test]
 	fn fork() {
 		// history is 1
-		let mut jdb = OverlayRecentDB::new_temp();
+		let mut jdb = new_db();
 
 		let foo = jdb.insert(b"foo");
 		let bar = jdb.insert(b"bar");
@@ -607,7 +598,7 @@ mod tests {
 	#[test]
 	fn overwrite() {
 		// history is 1
-		let mut jdb = OverlayRecentDB::new_temp();
+		let mut jdb = new_db();
 
 		let foo = jdb.insert(b"foo");
 		jdb.commit_batch(0, &keccak(b"0"), None).unwrap();
@@ -629,7 +620,7 @@ mod tests {
 
 	#[test]
 	fn fork_same_key_one() {
-		let mut jdb = OverlayRecentDB::new_temp();
+		let mut jdb = new_db();
 		jdb.commit_batch(0, &keccak(b"0"), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
 
@@ -654,7 +645,7 @@ mod tests {
 
 	#[test]
 	fn fork_same_key_other() {
-		let mut jdb = OverlayRecentDB::new_temp();
+		let mut jdb = new_db();
 
 		jdb.commit_batch(0, &keccak(b"0"), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
@@ -680,7 +671,7 @@ mod tests {
 
 	#[test]
 	fn fork_ins_del_ins() {
-		let mut jdb = OverlayRecentDB::new_temp();
+		let mut jdb = new_db();
 
 		jdb.commit_batch(0, &keccak(b"0"), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
@@ -714,12 +705,11 @@ mod tests {
 
 	#[test]
 	fn reopen() {
-		let mut dir = ::std::env::temp_dir();
-		dir.push(H32::random().hex());
+		let shared_db = Arc::new(in_memory(0));
 		let bar = H256::random();
 
 		let foo = {
-			let mut jdb = new_db(&dir);
+			let mut jdb = OverlayRecentDB::new(shared_db.clone(), None);
 			// history is 1
 			let foo = jdb.insert(b"foo");
 			jdb.emplace(bar.clone(), DBValue::from_slice(b"bar"));
@@ -729,14 +719,14 @@ mod tests {
 		};
 
 		{
-			let mut jdb = new_db(&dir);
+			let mut jdb = OverlayRecentDB::new(shared_db.clone(), None);
 			jdb.remove(&foo);
 			jdb.commit_batch(1, &keccak(b"1"), Some((0, keccak(b"0")))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
 		}
 
 		{
-			let mut jdb = new_db(&dir);
+			let mut jdb = OverlayRecentDB::new(shared_db.clone(), None);
 			assert!(jdb.contains(&foo));
 			assert!(jdb.contains(&bar));
 			jdb.commit_batch(2, &keccak(b"2"), Some((1, keccak(b"1")))).unwrap();
@@ -748,7 +738,7 @@ mod tests {
 	#[test]
 	fn insert_delete_insert_delete_insert_expunge() {
 		init_log();
-		let mut jdb = OverlayRecentDB::new_temp();
+		let mut jdb = new_db();
 
 		// history is 4
 		let foo = jdb.insert(b"foo");
@@ -774,7 +764,7 @@ mod tests {
 	#[test]
 	fn forked_insert_delete_insert_delete_insert_expunge() {
 		init_log();
-		let mut jdb = OverlayRecentDB::new_temp();
+		let mut jdb = new_db();
 
 		// history is 4
 		let foo = jdb.insert(b"foo");
@@ -820,7 +810,7 @@ mod tests {
 
 	#[test]
 	fn broken_assert() {
-		let mut jdb = OverlayRecentDB::new_temp();
+		let mut jdb = new_db();
 
 		let foo = jdb.insert(b"foo");
 		jdb.commit_batch(1, &keccak(b"1"), Some((0, keccak(b"0")))).unwrap();
@@ -848,7 +838,7 @@ mod tests {
 
 	#[test]
 	fn reopen_test() {
-		let mut jdb = OverlayRecentDB::new_temp();
+		let mut jdb = new_db();
 		// history is 4
 		let foo = jdb.insert(b"foo");
 		jdb.commit_batch(0, &keccak(b"0"), None).unwrap();
@@ -882,13 +872,11 @@ mod tests {
 	fn reopen_remove_three() {
 		init_log();
 
-		let mut dir = ::std::env::temp_dir();
-		dir.push(H32::random().hex());
-
+		let shared_db = Arc::new(in_memory(0));
 		let foo = keccak(b"foo");
 
 		{
-			let mut jdb = new_db(&dir);
+			let mut jdb = OverlayRecentDB::new(shared_db.clone(), None);
 			// history is 1
 			jdb.insert(b"foo");
 			jdb.commit_batch(0, &keccak(b"0"), None).unwrap();
@@ -910,7 +898,7 @@ mod tests {
 
 		// incantation to reopen the db
 		}; {
-			let mut jdb = new_db(&dir);
+			let mut jdb = OverlayRecentDB::new(shared_db.clone(), None);
 
 			jdb.remove(&foo);
 			jdb.commit_batch(4, &keccak(b"4"), Some((2, keccak(b"2")))).unwrap();
@@ -919,7 +907,7 @@ mod tests {
 
 		// incantation to reopen the db
 		}; {
-			let mut jdb = new_db(&dir);
+			let mut jdb = OverlayRecentDB::new(shared_db.clone(), None);
 
 			jdb.commit_batch(5, &keccak(b"5"), Some((3, keccak(b"3")))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
@@ -927,7 +915,7 @@ mod tests {
 
 		// incantation to reopen the db
 		}; {
-			let mut jdb = new_db(&dir);
+			let mut jdb = OverlayRecentDB::new(shared_db, None);
 
 			jdb.commit_batch(6, &keccak(b"6"), Some((4, keccak(b"4")))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
@@ -937,10 +925,10 @@ mod tests {
 
 	#[test]
 	fn reopen_fork() {
-		let mut dir = ::std::env::temp_dir();
-		dir.push(H32::random().hex());
+		let shared_db = Arc::new(in_memory(0));
+
 		let (foo, bar, baz) = {
-			let mut jdb = new_db(&dir);
+			let mut jdb = OverlayRecentDB::new(shared_db.clone(), None);
 			// history is 1
 			let foo = jdb.insert(b"foo");
 			let bar = jdb.insert(b"bar");
@@ -958,7 +946,7 @@ mod tests {
 		};
 
 		{
-			let mut jdb = new_db(&dir);
+			let mut jdb = OverlayRecentDB::new(shared_db, None);
 			jdb.commit_batch(2, &keccak(b"2b"), Some((1, keccak(b"1b")))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
 			assert!(jdb.contains(&foo));
@@ -969,7 +957,7 @@ mod tests {
 
 	#[test]
 	fn insert_older_era() {
-		let mut jdb = OverlayRecentDB::new_temp();
+		let mut jdb = new_db();
 		let foo = jdb.insert(b"foo");
 		jdb.commit_batch(0, &keccak(b"0a"), None).unwrap();
 		assert!(jdb.can_reconstruct_refs());
@@ -989,9 +977,7 @@ mod tests {
 
 	#[test]
 	fn inject() {
-		let temp = ::devtools::RandomTempPath::new();
-
-		let mut jdb = new_db(temp.as_path().as_path());
+		let mut jdb = new_db();
 		let key = jdb.insert(b"dog");
 		jdb.inject_batch().unwrap();
 
@@ -1004,10 +990,10 @@ mod tests {
 
 	#[test]
 	fn earliest_era() {
-		let temp = ::devtools::RandomTempPath::new();
+		let shared_db = Arc::new(in_memory(0));
 
 		// empty DB
-		let mut jdb = new_db(temp.as_path().as_path());
+		let mut jdb = OverlayRecentDB::new(shared_db.clone(), None);
 		assert!(jdb.earliest_era().is_none());
 
 		// single journalled era.
@@ -1041,7 +1027,7 @@ mod tests {
 
 		// reconstructed: no journal entries.
 		drop(jdb);
-		let jdb = new_db(temp.as_path().as_path());
+		let jdb = OverlayRecentDB::new(shared_db, None);
 		assert_eq!(jdb.earliest_era(), None);
 	}
 }

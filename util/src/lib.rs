@@ -112,8 +112,6 @@ extern crate util_error as error;
 
 #[cfg(test)]
 extern crate kvdb_memorydb;
-#[cfg(test)]
-extern crate kvdb_rocksdb;
 
 #[macro_use]
 extern crate log as rlog;
