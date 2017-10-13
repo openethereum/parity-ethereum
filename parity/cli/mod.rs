@@ -1203,6 +1203,16 @@ mod tests {
 	use toml;
 	use clap::{ErrorKind as ClapErrorKind};
 
+
+	#[test]
+	fn should_reject_invalid_values() {
+		let args = Args::parse(&["parity", "--cache=20"]);
+		assert!(args.is_ok());
+
+		let args = Args::parse(&["parity", "--cache=asd"]);
+		assert!(args.is_err());
+	}
+
 	#[test]
 	fn should_parse_args_and_flags() {
 		let args = Args::parse(&["parity", "--no-warp"]).unwrap();
