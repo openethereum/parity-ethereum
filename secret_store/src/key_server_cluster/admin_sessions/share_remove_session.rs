@@ -470,6 +470,12 @@ impl<T> Session for SessionImpl<T> where T: SessionTransport + Send + Sync + 'st
 }
 
 impl<T> ClusterSession for SessionImpl<T> where T: SessionTransport {
+	type Id = SessionId;
+
+	fn id(&self) -> SessionId {
+		self.core.meta.id.clone()
+	}
+
 	fn is_finished(&self) -> bool {
 		self.data.lock().state == SessionState::Finished
 	}

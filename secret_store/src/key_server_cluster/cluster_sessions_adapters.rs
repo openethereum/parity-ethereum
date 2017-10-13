@@ -22,6 +22,7 @@ use parking_lot::{Mutex, RwLock};
 use ethkey::Public;
 use key_server_cluster::{Error, NodeId, SessionId, AclStorage, KeyStorage};
 use key_server_cluster::cluster::{Cluster, ClusterData, ClusterView};
+use key_server_cluster::cluster_sessions::ClusterSession;
 use key_server_cluster::message::{self, Message, GenerationMessage};
 use key_server_cluster::generation_session::{Session as GenerationSession, SessionImpl as GenerationSessionImpl,
 	SessionParams as GenerationSessionParams, SessionState as GenerationSessionState};
@@ -34,7 +35,7 @@ const SESSION_TIMEOUT_INTERVAL: u64 = 60;
 /// Interval to send session-level KeepAlive-messages.
 const SESSION_KEEP_ALIVE_INTERVAL: u64 = 30;
 
-/// Generic cluster session.
+/*/// Generic cluster session.
 pub trait ClusterSession {
 	/// Session identifier type.
 	type Id: Ord + Clone;
@@ -49,7 +50,7 @@ pub trait ClusterSession {
 	fn on_session_error(&self, sender: &NodeId, error: Error) { unimplemented!() }
 	/// Process session message.
 	fn process_message(&self, sender: &NodeId, message: &Message) -> Result<(), Error> { unimplemented!() }
-}
+}*/
 
 /// Generic cluster session creator.
 pub trait ClusterSessionCreator<S: ClusterSession> {
@@ -154,7 +155,7 @@ fn process_message<S: ClusterSession, SC: ClusterSessionCreator<S>>(creator: &Se
 
 	let mut is_queued_message = false;
 	loop {
-		let message_result = session.process_message(&sender, &message);
+		let message_result = session.on_message(&sender, &message);
 		match message_result {
 			Ok(_) => {
 				// if session is completed => stop
@@ -211,9 +212,9 @@ impl SessionCreator {
 	}
 }
 
-impl ClusterSession for GenerationSessionImpl {
+/*impl ClusterSession for GenerationSessionImpl {
 	type Id = SessionId;
-}
+}*/
 
 impl ClusterSessionCreator<GenerationSessionImpl> for SessionCreator {
 	fn create(&self, cluster: Arc<Cluster>, master: NodeId, nonce: Option<u64>, id: SessionId, message: &Message) -> Result<Arc<GenerationSessionImpl>, Error> {

@@ -21,7 +21,7 @@ use ethkey::{Public, Secret, Signature};
 use bigint::hash::H256;
 use key_server_cluster::{Error, NodeId, SessionId, SessionMeta, AclStorage, DocumentKeyShare};
 use key_server_cluster::cluster::{Cluster};
-use key_server_cluster::cluster_sessions::ClusterSession;
+use key_server_cluster::cluster_sessions::{SessionIdWithSubSession, ClusterSession};
 use key_server_cluster::generation_session::{SessionImpl as GenerationSession, SessionParams as GenerationSessionParams,
 	Session as GenerationSessionApi, SessionState as GenerationSessionState};
 use key_server_cluster::message::{Message, SigningMessage, SigningConsensusMessage, SigningGenerationMessage,
@@ -31,8 +31,6 @@ use key_server_cluster::jobs::job_session::JobTransport;
 use key_server_cluster::jobs::key_access_job::KeyAccessJob;
 use key_server_cluster::jobs::signing_job::{PartialSigningRequest, PartialSigningResponse, SigningJob};
 use key_server_cluster::jobs::consensus_session::{ConsensusSessionParams, ConsensusSessionState, ConsensusSession};
-
-pub use key_server_cluster::decryption_session::DecryptionSessionId as SigningSessionId;
 
 /// Signing session API.
 pub trait Session: Send + Sync + 'static {
@@ -480,6 +478,12 @@ impl SessionImpl {
 }
 
 impl ClusterSession for SessionImpl {
+	type Id = SessionIdWithSubSession;
+
+	fn id(&self) -> SessionIdWithSubSession {
+		SessionIdWithSubSession::new(self.core.meta.id.clone(), self.core.access_key.clone())
+	}
+
 	fn is_finished(&self) -> bool {
 		let data = self.data.lock();
 		data.consensus_session.state() == ConsensusSessionState::Failed
@@ -497,11 +501,15 @@ impl ClusterSession for SessionImpl {
 	}
 
 	fn on_session_error(&self, node: &NodeId, error: Error) {
-		unimplemented!()
+		// ignore error, only state matters
+		let _ = self.process_node_error(Some(node), &error.into());
 	}
 
 	fn on_message(&self, sender: &NodeId, message: &Message) -> Result<(), Error> {
-		unimplemented!()
+		match *message {
+			Message::Signing(ref message) => self.process_message(sender, message),
+			_ => unreachable!("TODO"),
+		}
 	}
 }
 

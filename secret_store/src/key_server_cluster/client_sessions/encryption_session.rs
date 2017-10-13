@@ -277,6 +277,12 @@ impl SessionImpl {
 }
 
 impl ClusterSession for SessionImpl {
+	type Id = SessionId;
+
+	fn id(&self) -> SessionId {
+		self.id.clone()
+	}
+
 	fn is_finished(&self) -> bool {
 		let data = self.data.lock();
 		data.state == SessionState::Failed

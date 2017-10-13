@@ -729,6 +729,12 @@ impl SessionImpl {
 }
 
 impl ClusterSession for SessionImpl {
+	type Id = SessionId;
+
+	fn id(&self) -> SessionId {
+		self.id.clone()
+	}
+
 	fn is_finished(&self) -> bool {
 		let data = self.data.lock();
 		data.state == SessionState::Failed
@@ -760,11 +766,27 @@ impl ClusterSession for SessionImpl {
 	}
 
 	fn on_session_error(&self, node: &NodeId, error: Error) {
-		unimplemented!()
+		// error in generation session is considered fatal
+		// => broadcast error
+		// do not bother processing send error, as we already processing error
+		let _ = self.cluster.broadcast(Message::Generation(GenerationMessage::SessionError(SessionError {
+			session: self.id.clone().into(),
+			session_nonce: self.nonce,
+			error: error.clone().into(),
+		})));
+
+		let mut data = self.data.lock();
+		data.state = SessionState::Failed;
+		data.key_share = Some(Err(Error::NodeDisconnected));
+		data.joint_public_and_secret = Some(Err(error));
+		self.completed.notify_all();
 	}
 
 	fn on_message(&self, sender: &NodeId, message: &Message) -> Result<(), Error> {
-		unimplemented!()
+		match *message {
+			Message::Generation(ref message) => self.process_message(sender, message),
+			_ => unreachable!("TODO"),
+		}
 	}
 }
 

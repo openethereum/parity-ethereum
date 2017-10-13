@@ -1,3 +1,5 @@
+// TODO: after refactoring, check that there are no extra messages passing in tests (there are error messages)
+
 // Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
@@ -30,16 +32,17 @@ use ethkey::{Public, KeyPair, Signature, Random, Generator};
 use bigint::hash::H256;
 use key_server_cluster::{Error, NodeId, SessionId, AclStorage, KeyStorage, KeyServerSet, NodeKeyPair};
 use key_server_cluster::cluster_sessions::{ClusterSession, ClusterSessions, GenerationSessionWrapper, EncryptionSessionWrapper,
-	DecryptionSessionWrapper, SigningSessionWrapper, AdminSessionWrapper};
+	DecryptionSessionWrapper, SigningSessionWrapper, AdminSessionWrapper, SessionIdWithSubSession, ClusterSessionCreator,
+	IntoSessionId, ClusterSessionsContainer};
 use key_server_cluster::message::{self, Message, ClusterMessage, GenerationMessage, EncryptionMessage, DecryptionMessage,
 	SigningMessage, ServersSetChangeMessage, ConsensusMessage, ShareAddMessage, ShareMoveMessage, ShareRemoveMessage,
 	ConsensusMessageWithServersSecretMap, ConsensusMessageWithServersMap, ConsensusMessageWithServersSet};
 use key_server_cluster::generation_session::{Session as GenerationSession, SessionState as GenerationSessionState};
 #[cfg(test)]
 use key_server_cluster::generation_session::SessionImpl as GenerationSessionImpl;
-use key_server_cluster::decryption_session::{Session as DecryptionSession, DecryptionSessionId};
+use key_server_cluster::decryption_session::{Session as DecryptionSession};
 use key_server_cluster::encryption_session::{Session as EncryptionSession, SessionState as EncryptionSessionState};
-use key_server_cluster::signing_session::{Session as SigningSession, SigningSessionId};
+use key_server_cluster::signing_session::{Session as SigningSession};
 use key_server_cluster::io::{DeadlineStatus, ReadMessage, SharedTcpStream, read_encrypted_message, WriteMessage, write_encrypted_message};
 use key_server_cluster::net::{accept_connection as net_accept_connection, connect as net_connect, Connection as NetConnection};
 
@@ -372,12 +375,12 @@ impl ClusterCore {
 
 	/// Try to connect to every disconnected node.
 	fn connect_disconnected_nodes(data: Arc<ClusterData>) {
-		// do not update nodes set if any admin session is active
+/*		// do not update nodes set if any admin session is active
 		// this could happen, but will possibly lead to admin session error
 		// => should be performed later
 		if data.sessions.admin_sessions.is_empty() {
 			data.connections.update_nodes_set();
-		}
+		}*/
 
 		for (node_id, node_address) in data.connections.disconnected_nodes() {
 			if data.config.allow_connecting_to_higher_nodes || data.self_key_pair.public() < &node_id {
@@ -422,662 +425,101 @@ impl ClusterCore {
 	fn process_connection_message(data: Arc<ClusterData>, connection: Arc<Connection>, message: Message) {
 		connection.set_last_message_time(time::Instant::now());
 		trace!(target: "secretstore_net", "{}: received message {} from {}", data.self_key_pair.public(), message, connection.node_id());
+		// error is ignored as we only process errors on session level
 		match message {
-			Message::Generation(message) => ClusterCore::process_generation_message(data, connection, message),
-			Message::Encryption(message) => ClusterCore::process_encryption_message(data, connection, message),
-			Message::Decryption(message) => ClusterCore::process_decryption_message(data, connection, message),
-			Message::Signing(message) => ClusterCore::process_signing_message(data, connection, message),
-			Message::ServersSetChange(message) => ClusterCore::process_servers_set_change_message(data, connection, message),
-			Message::ShareAdd(message) => ClusterCore::process_share_add_message(data, connection, message),
-			Message::ShareMove(message) => ClusterCore::process_share_move_message(data, connection, message),
-			Message::ShareRemove(message) => ClusterCore::process_share_remove_message(data, connection, message),
+			Message::Generation(message) => Self::process_message(&data, &data.sessions.generation_sessions, connection, Message::Generation(message)),
+			Message::Encryption(message) => Self::process_message(&data, &data.sessions.encryption_sessions, connection, Message::Encryption(message)),
+			Message::Decryption(message) => Self::process_message(&data, &data.sessions.decryption_sessions, connection, Message::Decryption(message)),
+			Message::Signing(message) => Self::process_message(&data, &data.sessions.signing_sessions, connection, Message::Signing(message)),
+			Message::ServersSetChange(message) => Self::process_message(&data, &data.sessions.admin_sessions, connection, Message::ServersSetChange(message)),
+			Message::ShareAdd(message) => Self::process_message(&data, &data.sessions.admin_sessions, connection, Message::ShareAdd(message)),
+			Message::ShareMove(message) => Self::process_message(&data, &data.sessions.admin_sessions, connection, Message::ShareMove(message)),
+			Message::ShareRemove(message) => Self::process_message(&data, &data.sessions.admin_sessions, connection, Message::ShareRemove(message)),
 			Message::KeyVersionNegotiation(message) => unimplemented!("TODO"),
 			Message::Cluster(message) => ClusterCore::process_cluster_message(data, connection, message),
 		}
 	}
 
-	/// Process single generation message from the connection.
-	fn process_generation_message(data: Arc<ClusterData>, connection: Arc<Connection>, mut message: GenerationMessage) {
-		let session_id = message.session_id().clone();
-		let session_nonce = message.session_nonce();
-		let mut sender = connection.node_id().clone();
-		let session = match message {
-			GenerationMessage::InitializeSession(_) => {
-				let mut connected_nodes = data.connections.connected_nodes();
-				connected_nodes.insert(data.self_key_pair.public().clone());
+	/// Get or insert new session.
+	fn prepare_session<S: ClusterSession, SC: ClusterSessionCreator<S, D>, D>(data: &Arc<ClusterData>, sessions: &ClusterSessionsContainer<S, SC, D>, sender: &NodeId, message: &Message) -> Result<Arc<S>, Error>
+		where Message: IntoSessionId<S::Id> {
+		fn requires_all_connections(message: &Message) -> bool {
+			match *message {
+				Message::Generation(_) => true,
+				_ => false,
+			}
+		}
 
-				let cluster = Arc::new(ClusterView::new(data.clone(), connected_nodes));
-				match data.sessions.new_generation_session(sender.clone(), session_id.clone(), Some(session_nonce), cluster) {
-					Ok(session) => Ok(session),
-					Err(err) => {
-						// this is new session => it is not yet in container
-						warn!(target: "secretstore_net", "{}: generation session initialization error '{}' when requested for new session from node {}", data.self_key_pair.public(), err, sender);
-						data.spawn(connection.send_message(Message::Generation(GenerationMessage::SessionError(message::SessionError {
-							session: session_id.into(),
-							session_nonce: session_nonce,
-							error: format!("{:?}", err),
-						}))));
-						return;
-					},
-				}
+		// get or create new session, if required
+		let session_id = message.into_session_id().expect("TODO");
+		match message.is_initialization_message() {
+			false => sessions.get(&session_id, true).ok_or(Error::InvalidSessionId),
+			true => {
+				let creation_data = SC::creation_data_from_message(&message)?;
+				sessions.insert(data, sender.clone(), session_id.clone(), Some(message.session_nonce().ok_or(Error::InvalidMessage)?), requires_all_connections(&message), message.is_exclusive_session_message(), creation_data)
 			},
-			_ => {
-				data.sessions.generation_sessions.get(&session_id, true)
-					.ok_or(Error::InvalidSessionId)
+		}
+	}
+
+	/// Process single session message from connection.
+	fn process_message<S: ClusterSession, SC: ClusterSessionCreator<S, D>, D>(data: &Arc<ClusterData>, sessions: &ClusterSessionsContainer<S, SC, D>, connection: Arc<Connection>, mut message: Message)
+		where Message: IntoSessionId<S::Id> {
+
+		// get or create new session, if required
+		let mut sender = connection.node_id().clone();
+		let session = Self::prepare_session(data, sessions, &sender, &message);
+
+		// send error if session is not found, or failed to create
+		let session = match session {
+			Ok(session) => session,
+			Err(error) => {
+				// this is new session => it is not yet in container
+				//warn!(target: "secretstore_net", "{}: generation session initialization error '{}' when requested for new session from node {}", data.self_key_pair.public(), err, sender);
+				let session_id = message.into_session_id().expect("TODO");
+				let session_nonce = message.session_nonce().expect("TODO");
+				data.spawn(connection.send_message(SC::make_error_message(session_id, session_nonce, error)));
+				return;
 			},
 		};
 
+		let session_id = session.id();
 		let mut is_queued_message = false;
 		loop {
-			match session.clone().and_then(|session| session.process_message(&sender, &message)) {
+			let message_result = session.on_message(&sender, &message);
+			match message_result {
 				Ok(_) => {
 					// if session is completed => stop
-					let session = session.clone().expect("session.method() call finished with success; session exists; qed");
-					let session_state = session.state();
-					if session_state == GenerationSessionState::Finished {
-						info!(target: "secretstore_net", "{}: generation session completed", data.self_key_pair.public());
-					}
-					if session_state == GenerationSessionState::Finished || session_state == GenerationSessionState::Failed {
-						data.sessions.generation_sessions.remove(&session_id);
-						break;
+					if session.is_finished() {
+	//					info!(target: "secretstore_net", "{}: {} session completed", data.self_key_pair.public(), "generation");
+						sessions.remove(&session_id);
+						return;
 					}
 
 					// try to dequeue message
-					match data.sessions.generation_sessions.dequeue_message(&session_id) {
+					match sessions.dequeue_message(&session_id) {
 						Some((msg_sender, msg)) => {
 							is_queued_message = true;
 							sender = msg_sender;
 							message = msg;
 						},
-						None => break,
+						None => return,
 					}
 				},
 				Err(Error::TooEarlyForRequest) => {
-					data.sessions.generation_sessions.enqueue_message(&session_id, sender, message, is_queued_message);
-					break;
+					sessions.enqueue_message(&session_id, sender, message, is_queued_message);
+					return;
 				},
 				Err(err) => {
-					warn!(target: "secretstore_net", "{}: generation session error '{}' when processing message {} from node {}", data.self_key_pair.public(), err, message, sender);
-					let error_message = message::SessionError {
-						session: session_id.clone().into(),
-						session_nonce: session_nonce,
-						error: format!("{:?}", err),
-					};
-					let _ = session.and_then(|s| s.on_session_error(data.self_key_pair.public(), &error_message)); // processing error => ignore error
-					data.sessions.respond_with_generation_error(&session_id, error_message);
-					if err != Error::InvalidSessionId {
-						data.sessions.generation_sessions.remove(&session_id);
-					}
-					break;
-				},
-			}
-		}
-	}
-
-	/// Process single encryption message from the connection.
-	fn process_encryption_message(data: Arc<ClusterData>, connection: Arc<Connection>, mut message: EncryptionMessage) {
-		let session_id = message.session_id().clone();
-		let session_nonce = message.session_nonce();
-		let mut sender = connection.node_id().clone();
-		let session = match message {
-			EncryptionMessage::InitializeEncryptionSession(_) => {
-				let mut connected_nodes = data.connections.connected_nodes();
-				connected_nodes.insert(data.self_key_pair.public().clone());
-
-				let cluster = Arc::new(ClusterView::new(data.clone(), connected_nodes));
-				match data.sessions.new_encryption_session(sender.clone(), session_id.clone(), Some(session_nonce), cluster) {
-					Ok(session) => Ok(session),
-					Err(err) => {
-						// this is new session => it is not yet in container
-						warn!(target: "secretstore_net", "{}: encryption session initialization error '{}' when requested for new session from node {}", data.self_key_pair.public(), err, sender);
-						data.spawn(connection.send_message(Message::Encryption(EncryptionMessage::EncryptionSessionError(message::EncryptionSessionError {
-							session: session_id.into(),
-							session_nonce: session_nonce,
-							error: format!("{:?}", err),
-						}))));
-						return;
-					},
-				}
-			},
-			_ => {
-				data.sessions.encryption_sessions.get(&session_id, true)
-					.ok_or(Error::InvalidSessionId)
-			},
-		};
-
-		let mut is_queued_message = false;
-		loop {
-			match session.clone().and_then(|session| match message {
-				EncryptionMessage::InitializeEncryptionSession(ref message) =>
-					session.on_initialize_session(sender.clone(), message),
-				EncryptionMessage::ConfirmEncryptionInitialization(ref message) =>
-					session.on_confirm_initialization(sender.clone(), message),
-				EncryptionMessage::EncryptionSessionError(ref message) =>
-					session.on_session_error(&sender, message),
-			}) {
-				Ok(_) => {
-					// if session is completed => stop
-					let session = session.clone().expect("session.method() call finished with success; session exists; qed");
-					let session_state = session.state();
-					if session_state == EncryptionSessionState::Finished {
-						info!(target: "secretstore_net", "{}: encryption session completed", data.self_key_pair.public());
-					}
-					if session_state == EncryptionSessionState::Finished || session_state == EncryptionSessionState::Failed {
-						data.sessions.encryption_sessions.remove(&session_id);
-						break;
-					}
-
-					// try to dequeue message
-					match data.sessions.encryption_sessions.dequeue_message(&session_id) {
-						Some((msg_sender, msg)) => {
-							is_queued_message = true;
-							sender = msg_sender;
-							message = msg;
-						},
-						None => break,
-					}
-				},
-				Err(Error::TooEarlyForRequest) => {
-					data.sessions.encryption_sessions.enqueue_message(&session_id, sender, message, is_queued_message);
-					break;
-				},
-				Err(err) => {
-					warn!(target: "secretstore_net", "{}: encryption session error '{}' when processing message {} from node {}", data.self_key_pair.public(), err, message, sender);
-					let error_message = message::EncryptionSessionError {
-						session: session_id.clone().into(),
-						session_nonce: session_nonce,
-						error: format!("{:?}", err),
-					};
-					let _ = session.and_then(|s| s.on_session_error(data.self_key_pair.public(), &error_message)); // processing error => ignore error
-					data.sessions.respond_with_encryption_error(&session_id, error_message);
-					if err != Error::InvalidSessionId {
-						data.sessions.encryption_sessions.remove(&session_id);
-					}
-					break;
-				},
-			}
-		}
-	}
-
-	/// Process single decryption message from the connection.
-	fn process_decryption_message(data: Arc<ClusterData>, connection: Arc<Connection>, mut message: DecryptionMessage) {
-		let session_id = message.session_id().clone();
-		let sub_session_id = message.sub_session_id().clone();
-		let session_nonce = message.session_nonce();
-		let decryption_session_id = DecryptionSessionId::new(session_id.clone(), sub_session_id.clone());
-		let mut sender = connection.node_id().clone();
-		let session = match message {
-			DecryptionMessage::DecryptionConsensusMessage(ref message) if match message.message {
-				ConsensusMessage::InitializeConsensusSession(_) => true,
-				_ => false,
-			} => {
-				let mut connected_nodes = data.connections.connected_nodes();
-				connected_nodes.insert(data.self_key_pair.public().clone());
-
-				let cluster = Arc::new(ClusterView::new(data.clone(), connected_nodes));
-				match data.sessions.new_decryption_session(sender.clone(), session_id.clone(), sub_session_id.clone(), Some(session_nonce), cluster, None) {
-					Ok(session) => Ok(session),
-					Err(err) => {
-						// this is new session => it is not yet in container
-						warn!(target: "secretstore_net", "{}: decryption session initialization error '{}' when requested for new session from node {}", data.self_key_pair.public(), err, sender);
-						data.spawn(connection.send_message(Message::Decryption(DecryptionMessage::DecryptionSessionError(message::DecryptionSessionError {
-							session: session_id.into(),
-							sub_session: sub_session_id.clone().into(),
-							session_nonce: session_nonce,
-							error: format!("{:?}", err),
-						}))));
-						return;
-					},
-				}
-			},
-			_ => {
-				data.sessions.decryption_sessions.get(&decryption_session_id, true)
-					.ok_or(Error::InvalidSessionId)
-			},
-		};
-
-		loop {
-			match session.clone().and_then(|session| session.process_message(&sender, &message)) {
-				Ok(_) => {
-					// if session is completed => stop
-					let session = session.clone().expect("session.method() call finished with success; session exists; qed");
-					if session.is_finished() {
-						info!(target: "secretstore_net", "{}: decryption session completed", data.self_key_pair.public());
-						data.sessions.decryption_sessions.remove(&decryption_session_id);
-						break;
-					}
-
-					// try to dequeue message
-					match data.sessions.decryption_sessions.dequeue_message(&decryption_session_id) {
-						Some((msg_sender, msg)) => {
-							sender = msg_sender;
-							message = msg;
-						},
-						None => break,
-					}
-				},
-				Err(err) => {
-					warn!(target: "secretstore_net", "{}: decryption session error '{}' when processing message {} from node {}", data.self_key_pair.public(), err, message, sender);
-					let error_message = message::DecryptionSessionError {
-						session: session_id.clone().into(),
-						sub_session: sub_session_id.clone().into(),
-						session_nonce: session_nonce,
-						error: format!("{:?}", err),
-					};
-					let _ = session.and_then(|s| s.on_session_error(data.self_key_pair.public(), &error_message)); // processing error => ignore error
-					data.sessions.respond_with_decryption_error(&session_id, &sub_session_id, &sender, error_message);
-					if err != Error::InvalidSessionId {
-						data.sessions.decryption_sessions.remove(&decryption_session_id);
-					}
-					break;
-				},
-			}
-		}
-	}
-
-	/// Process single signing message from the connection.
-	fn process_signing_message(data: Arc<ClusterData>, connection: Arc<Connection>, mut message: SigningMessage) {
-		let session_id = message.session_id().clone();
-		let sub_session_id = message.sub_session_id().clone();
-		let session_nonce = message.session_nonce();
-		let signing_session_id = SigningSessionId::new(session_id.clone(), sub_session_id.clone());
-		let mut sender = connection.node_id().clone();
-		let session = match message {
-			SigningMessage::SigningConsensusMessage(ref message) if match message.message {
-				ConsensusMessage::InitializeConsensusSession(_) => true,
-				_ => false,
-			} => {
-				let mut connected_nodes = data.connections.connected_nodes();
-				connected_nodes.insert(data.self_key_pair.public().clone());
-
-				let cluster = Arc::new(ClusterView::new(data.clone(), connected_nodes));
-				match data.sessions.new_signing_session(sender.clone(), session_id.clone(), sub_session_id.clone(), Some(session_nonce), cluster, None) {
-					Ok(session) => Ok(session),
-					Err(err) => {
-						// this is new session => it is not yet in container
-						warn!(target: "secretstore_net", "{}: signing session initialization error '{}' when requested for new session from node {}", data.self_key_pair.public(), err, sender);
-						data.spawn(connection.send_message(Message::Signing(SigningMessage::SigningSessionError(message::SigningSessionError {
-							session: session_id.into(),
-							sub_session: sub_session_id.clone().into(),
-							session_nonce: session_nonce,
-							error: format!("{:?}", err),
-						}))));
-						return;
-					},
-				}
-			},
-			_ => {
-				data.sessions.signing_sessions.get(&signing_session_id, true)
-					.ok_or(Error::InvalidSessionId)
-			},
-		};
-
-		let mut is_queued_message = false;
-		loop {
-			match session.clone().and_then(|session| session.process_message(&sender, &message)) {
-				Ok(_) => {
-					// if session is completed => stop
-					let session = session.clone().expect("session.method() call finished with success; session exists; qed");
-					if session.is_finished() {
-						info!(target: "secretstore_net", "{}: signing session completed", data.self_key_pair.public());
-						data.sessions.signing_sessions.remove(&signing_session_id);
-						break;
-					}
-
-					// try to dequeue message
-					match data.sessions.signing_sessions.dequeue_message(&signing_session_id) {
-						Some((msg_sender, msg)) => {
-							is_queued_message = true;
-							sender = msg_sender;
-							message = msg;
-						},
-						None => break,
-					}
-				},
-				Err(Error::TooEarlyForRequest) => {
-					data.sessions.signing_sessions.enqueue_message(&signing_session_id, sender, message, is_queued_message);
-					break;
-				},
-				Err(err) => {
-					warn!(target: "secretstore_net", "{}: signing session error '{}' when processing message {} from node {}", data.self_key_pair.public(), err, message, sender);
-					let error_message = message::SigningSessionError {
-						session: session_id.clone().into(),
-						sub_session: sub_session_id.clone().into(),
-						session_nonce: session_nonce,
-						error: format!("{:?}", err),
-					};
-					let _ = session.and_then(|s| s.on_session_error(data.self_key_pair.public(), &error_message)); // processing error => ignore error
-					data.sessions.respond_with_signing_error(&session_id, &sub_session_id, &sender, error_message);
-					if err != Error::InvalidSessionId {
-						data.sessions.signing_sessions.remove(&signing_session_id);
-					}
-					break;
-				},
-			}
-		}
-	}
-
-	/// Process singlesigning message from the connection.
-	fn process_servers_set_change_message(data: Arc<ClusterData>, connection: Arc<Connection>, mut message: ServersSetChangeMessage) {
-		let session_id = message.session_id().clone();
-		let session_nonce = message.session_nonce();
-		let mut sender = connection.node_id().clone();
-		let session = match message {
-			ServersSetChangeMessage::ServersSetChangeConsensusMessage(ref message) if match message.message {
-				ConsensusMessageWithServersSet::InitializeConsensusSession(_) => true,
-				_ => false,
-			} => {
-				let mut connected_nodes = data.connections.connected_nodes();
-				connected_nodes.insert(data.self_key_pair.public().clone());
-
-				let cluster = Arc::new(ClusterView::new(data.clone(), connected_nodes.clone()));
-				match data.sessions.new_servers_set_change_session(sender.clone(), Some(session_id.clone()), Some(session_nonce), cluster, connected_nodes) {
-					Ok(session) => Ok(session),
-					Err(err) => {
-						// this is new session => it is not yet in container
-						warn!(target: "secretstore_net", "{}: servers set change session initialization error '{}' when requested for new session from node {}", data.self_key_pair.public(), err, sender);
-						data.spawn(connection.send_message(Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeError(message::ServersSetChangeError {
-							session: session_id.into(),
-							session_nonce: session_nonce,
-							error: format!("{:?}", err),
-						}))));
-						return;
-					},
-				}
-			},
-			_ => {
-				data.sessions.admin_sessions.get(&session_id, true)
-					.ok_or(Error::InvalidSessionId)
-			},
-		};
-
-		let mut is_queued_message = false;
-		loop {
-			match session.clone().and_then(|session| session.as_servers_set_change().ok_or(Error::InvalidMessage)?.process_message(&sender, &message)) {
-				Ok(_) => {
-					// if session is completed => stop
-					let session = session.clone().expect("session.method() call finished with success; session exists; qed");
-					if session.is_finished() {
-						info!(target: "secretstore_net", "{}: servers set change session completed", data.self_key_pair.public());
-						data.sessions.admin_sessions.remove(&session_id);
-						break;
-					}
-
-					// try to dequeue message
-					match data.sessions.admin_sessions.dequeue_message(&session_id) {
-						Some((msg_sender, Message::ServersSetChange(msg))) => {
-							is_queued_message = true;
-							sender = msg_sender;
-							message = msg;
-						},
-						Some(_) => unreachable!("we only queue message of the same type; qed"),
-						None => break,
-					}
-				},
-				Err(Error::TooEarlyForRequest) => {
-					data.sessions.admin_sessions.enqueue_message(&session_id, sender, Message::ServersSetChange(message), is_queued_message);
-					break;
-				},
-				Err(err) => {
-					warn!(target: "secretstore_net", "{}: servers set change session error '{}' when processing message {} from node {}", data.self_key_pair.public(), err, message, sender);
-					let error_message = message::ServersSetChangeError {
-						session: session_id.clone().into(),
-						session_nonce: session_nonce,
-						error: format!("{:?}", err),
-					};
-					let _ = session.and_then(|s| s.as_servers_set_change()
-						.ok_or(Error::InvalidMessage)
-						.and_then(|s| s.on_session_error(data.self_key_pair.public(), &error_message))); // processing error => ignore error
-					data.sessions.respond_with_servers_set_change_error(&session_id, error_message);
-					if err != Error::InvalidSessionId {
-						data.sessions.admin_sessions.remove(&session_id);
-					}
-					break;
-				},
-			}
-		}
-	}
-
-	/// Process single share add message from the connection.
-	fn process_share_add_message(data: Arc<ClusterData>, connection: Arc<Connection>, mut message: ShareAddMessage) {
-		let session_id = message.session_id().clone();
-		let session_nonce = message.session_nonce();
-		let mut sender = connection.node_id().clone();
-		let session = match message {
-			ShareAddMessage::ShareAddConsensusMessage(ref message) if match message.message {
-				ConsensusMessageWithServersSecretMap::InitializeConsensusSession(_) => true,
-				_ => false,
-			} => {
-				let mut connected_nodes = data.connections.connected_nodes();
-				connected_nodes.insert(data.self_key_pair.public().clone());
-
-				let cluster = Arc::new(ClusterView::new(data.clone(), connected_nodes));
-				match data.sessions.new_share_add_session(sender.clone(), session_id.clone(), Some(session_nonce), cluster) {
-					Ok(session) => Ok(session),
-					Err(err) => {
-						// this is new session => it is not yet in container
-						warn!(target: "secretstore_net", "{}: share add session initialization error '{}' when requested for new session from node {}", data.self_key_pair.public(), err, sender);
-						data.spawn(connection.send_message(Message::ShareAdd(ShareAddMessage::ShareAddError(message::ShareAddError {
-							session: session_id.into(),
-							session_nonce: session_nonce,
-							error: format!("{:?}", err),
-						}))));
-						return;
-					},
-				}
-			},
-			_ => {
-				data.sessions.admin_sessions.get(&session_id, true)
-					.ok_or(Error::InvalidSessionId)
-			},
-		};
-
-		let mut is_queued_message = false;
-		loop {
-			match session.clone().and_then(|session| session.as_share_add().ok_or(Error::InvalidMessage)?.process_message(&sender, &message)) {
-				Ok(_) => {
-					// if session is completed => stop
-					let session = session.clone().expect("session.method() call finished with success; session exists; qed");
-					if session.is_finished() {
-						info!(target: "secretstore_net", "{}: share add session completed", data.self_key_pair.public());
-						data.sessions.admin_sessions.remove(&session_id);
-						break;
-					}
-
-					// try to dequeue message
-					match data.sessions.admin_sessions.dequeue_message(&session_id) {
-						Some((msg_sender, Message::ShareAdd(msg))) => {
-							is_queued_message = true;
-							sender = msg_sender;
-							message = msg;
-						},
-						Some(_) => unreachable!("we only queue message of the same type; qed"),
-						None => break,
-					}
-				},
-				Err(Error::TooEarlyForRequest) => {
-					data.sessions.admin_sessions.enqueue_message(&session_id, sender, Message::ShareAdd(message), is_queued_message);
-					break;
-				},
-				Err(err) => {
-					warn!(target: "secretstore_net", "{}: share add session error '{}' when processing message {} from node {}", data.self_key_pair.public(), err, message, sender);
-					let error_message = message::ShareAddError {
-						session: session_id.clone().into(),
-						session_nonce: session_nonce,
-						error: format!("{:?}", err),
-					};
-					let _ = session.and_then(|s| s.as_share_add()
-						.ok_or(Error::InvalidMessage)
-						.and_then(|s| s.on_session_error(data.self_key_pair.public(), &error_message))); // processing error => ignore error
-					data.sessions.respond_with_share_add_error(&session_id, error_message);
-					if err != Error::InvalidSessionId {
-						data.sessions.admin_sessions.remove(&session_id);
-					}
-					break;
-				},
-			}
-		}
-	}
-
-	/// Process single share move message from the connection.
-	fn process_share_move_message(data: Arc<ClusterData>, connection: Arc<Connection>, mut message: ShareMoveMessage) {
-		let session_id = message.session_id().clone();
-		let session_nonce = message.session_nonce();
-		let mut sender = connection.node_id().clone();
-		let session = match message {
-			ShareMoveMessage::ShareMoveConsensusMessage(ref message) if match message.message {
-				ConsensusMessageWithServersMap::InitializeConsensusSession(_) => true,
-				_ => false,
-			} => {
-				let mut connected_nodes = data.connections.connected_nodes();
-				connected_nodes.insert(data.self_key_pair.public().clone());
-
-				let cluster = Arc::new(ClusterView::new(data.clone(), connected_nodes));
-				match data.sessions.new_share_move_session(sender.clone(), session_id.clone(), Some(session_nonce), cluster) {
-					Ok(session) => Ok(session),
-					Err(err) => {
-						// this is new session => it is not yet in container
-						warn!(target: "secretstore_net", "{}: share move session initialization error '{}' when requested for new session from node {}", data.self_key_pair.public(), err, sender);
-						data.spawn(connection.send_message(Message::ShareMove(ShareMoveMessage::ShareMoveError(message::ShareMoveError {
-							session: session_id.into(),
-							session_nonce: session_nonce,
-							error: format!("{:?}", err),
-						}))));
-						return;
-					},
-				}
-			},
-			_ => {
-				data.sessions.admin_sessions.get(&session_id, true)
-					.ok_or(Error::InvalidSessionId)
-			},
-		};
-
-		let mut is_queued_message = false;
-		loop {
-			match session.clone().and_then(|session| session.as_share_move().ok_or(Error::InvalidMessage)?.process_message(&sender, &message)) {
-				Ok(_) => {
-					// if session is completed => stop
-					let session = session.clone().expect("session.method() call finished with success; session exists; qed");
-					if session.is_finished() {
-						info!(target: "secretstore_net", "{}: share move session completed", data.self_key_pair.public());
-						data.sessions.admin_sessions.remove(&session_id);
-						break;
-					}
-
-					// try to dequeue message
-					match data.sessions.admin_sessions.dequeue_message(&session_id) {
-						Some((msg_sender, Message::ShareMove(msg))) => {
-							is_queued_message = true;
-							sender = msg_sender;
-							message = msg;
-						},
-						Some(_) => unreachable!("we only queue message of the same type; qed"),
-						None => break,
-					}
-				},
-				Err(Error::TooEarlyForRequest) => {
-					data.sessions.admin_sessions.enqueue_message(&session_id, sender, Message::ShareMove(message), is_queued_message);
-					break;
-				},
-				Err(err) => {
-					warn!(target: "secretstore_net", "{}: share move session error '{}' when processing message {} from node {}", data.self_key_pair.public(), err, message, sender);
-					let error_message = message::ShareMoveError {
-						session: session_id.clone().into(),
-						session_nonce: session_nonce,
-						error: format!("{:?}", err),
-					};
-					let _ = session.and_then(|s| s.as_share_move()
-						.ok_or(Error::InvalidMessage)
-						.and_then(|s| s.on_session_error(data.self_key_pair.public(), &error_message))); // processing error => ignore error
-					data.sessions.respond_with_share_move_error(&session_id, error_message);
-					if err != Error::InvalidSessionId {
-						data.sessions.admin_sessions.remove(&session_id);
-					}
-					break;
-				},
-			}
-		}
-	}
-
-	/// Process single share remove message from the connection.
-	fn process_share_remove_message(data: Arc<ClusterData>, connection: Arc<Connection>, mut message: ShareRemoveMessage) {
-		let session_id = message.session_id().clone();
-		let session_nonce = message.session_nonce();
-		let mut sender = connection.node_id().clone();
-		let session = match message {
-			ShareRemoveMessage::ShareRemoveConsensusMessage(ref message) if match message.message {
-				ConsensusMessageWithServersSet::InitializeConsensusSession(_) => true,
-				_ => false,
-			} => {
-				let mut all_cluster_nodes = data.connections.all_nodes();
-				all_cluster_nodes.insert(data.self_key_pair.public().clone());
-				let mut connected_nodes = data.connections.connected_nodes();
-				connected_nodes.insert(data.self_key_pair.public().clone());
-
-				let cluster = Arc::new(ClusterView::new(data.clone(), connected_nodes));
-				match data.sessions.new_share_remove_session(sender.clone(), session_id.clone(), Some(session_nonce), cluster, all_cluster_nodes) {
-					Ok(session) => Ok(session),
-					Err(err) => {
-						// this is new session => it is not yet in container
-						warn!(target: "secretstore_net", "{}: share remove session initialization error '{}' when requested for new session from node {}", data.self_key_pair.public(), err, sender);
-						data.spawn(connection.send_message(Message::ShareRemove(ShareRemoveMessage::ShareRemoveError(message::ShareRemoveError {
-							session: session_id.into(),
-							session_nonce: session_nonce,
-							error: format!("{:?}", err),
-						}))));
-						return;
-					},
-				}
-			},
-			_ => {
-				data.sessions.admin_sessions.get(&session_id, true)
-					.ok_or(Error::InvalidSessionId)
-			},
-		};
-
-		let mut is_queued_message = false;
-		loop {
-			match session.clone().and_then(|session| session.as_share_remove().ok_or(Error::InvalidMessage)?.process_message(&sender, &message)) {
-				Ok(_) => {
-					// if session is completed => stop
-					let session = session.clone().expect("session.method() call finished with success; session exists; qed");
-					if session.is_finished() {
-						info!(target: "secretstore_net", "{}: share remove session completed", data.self_key_pair.public());
-						data.sessions.admin_sessions.remove(&session_id);
-						break;
-					}
-
-					// try to dequeue message
-					match data.sessions.admin_sessions.dequeue_message(&session_id) {
-						Some((msg_sender, Message::ShareRemove(msg))) => {
-							is_queued_message = true;
-							sender = msg_sender;
-							message = msg;
-						},
-						Some(_) => unreachable!("we only queue message of the same type; qed"),
-						None => break,
-					}
-				},
-				Err(Error::TooEarlyForRequest) => {
-					data.sessions.admin_sessions.enqueue_message(&session_id, sender, Message::ShareRemove(message), is_queued_message);
-					break;
-				},
-				Err(err) => {
-					warn!(target: "secretstore_net", "{}: share remove session error '{}' when processing message {} from node {}", data.self_key_pair.public(), err, message, sender);
-					let error_message = message::ShareRemoveError {
-						session: session_id.clone().into(),
-						session_nonce: session_nonce,
-						error: format!("{:?}", err),
-					};
-					let _ = session.and_then(|s| s.as_share_remove()
-						.ok_or(Error::InvalidMessage)
-						.and_then(|s| s.on_session_error(data.self_key_pair.public(), &error_message))); // processing error => ignore error
-					data.sessions.respond_with_share_remove_error(&session_id, error_message);
-					if err != Error::InvalidSessionId {
-						data.sessions.admin_sessions.remove(&session_id);
-					}
-					break;
+					/*warn!(target: "secretstore_net", "{}: {} session error '{}' when processing message {} from node {}",
+						data.self_key_pair.public(),
+						"generation",
+						err,
+						message,
+						sender);*/
+					let _ = session.on_session_error(&Public::default()/*data.self_key_pair.public()*/, err); // processing error => ignore error
+					//session.cluster().broadcast(error_message.into());
+					sessions.remove(&session_id);
+					return;
 				},
 			}
 		}
@@ -1351,7 +793,7 @@ impl ClusterClient for ClusterClientImpl {
 		connected_nodes.insert(self.data.self_key_pair.public().clone());
 
 		let cluster = Arc::new(ClusterView::new(self.data.clone(), connected_nodes.clone()));
-		let session = self.data.sessions.new_generation_session(self.data.self_key_pair.public().clone(), session_id, None, cluster)?;
+		let session = self.data.sessions.generation_sessions.insert(&self.data, self.data.self_key_pair.public().clone(), session_id, None, true, false, None)?;
 		session.initialize(author, threshold, connected_nodes)?;
 		Ok(GenerationSessionWrapper::new(Arc::downgrade(&self.data), session_id, session))
 	}
@@ -1361,7 +803,7 @@ impl ClusterClient for ClusterClientImpl {
 		connected_nodes.insert(self.data.self_key_pair.public().clone());
 
 		let cluster = Arc::new(ClusterView::new(self.data.clone(), connected_nodes));
-		let session = self.data.sessions.new_encryption_session(self.data.self_key_pair.public().clone(), session_id, None, cluster)?;
+		let session = self.data.sessions.encryption_sessions.insert(&self.data, self.data.self_key_pair.public().clone(), session_id, None, true, false, None)?;
 		session.initialize(requestor_signature, common_point, encrypted_point)?;
 		Ok(EncryptionSessionWrapper::new(Arc::downgrade(&self.data), session_id, session))
 	}
@@ -1371,10 +813,11 @@ impl ClusterClient for ClusterClientImpl {
 		connected_nodes.insert(self.data.self_key_pair.public().clone());
 
 		let access_key = Random.generate()?.secret().clone();
+		let session_id = SessionIdWithSubSession::new(session_id, access_key);
 		let cluster = Arc::new(ClusterView::new(self.data.clone(), connected_nodes.clone()));
-		let session = self.data.sessions.new_decryption_session(self.data.self_key_pair.public().clone(), session_id, access_key.clone(), None, cluster, Some(requestor_signature))?;
+		let session = self.data.sessions.decryption_sessions.insert(&self.data, self.data.self_key_pair.public().clone(), session_id.clone(), None, false, false, Some(requestor_signature))?;
 		session.initialize(connected_nodes, is_shadow_decryption)?;
-		Ok(DecryptionSessionWrapper::new(Arc::downgrade(&self.data), DecryptionSessionId::new(session_id, access_key), session))
+		Ok(DecryptionSessionWrapper::new(Arc::downgrade(&self.data), session_id, session))
 	}
 
 	fn new_signing_session(&self, session_id: SessionId, requestor_signature: Signature, message_hash: H256) -> Result<Arc<SigningSession>, Error> {
@@ -1382,14 +825,15 @@ impl ClusterClient for ClusterClientImpl {
 		connected_nodes.insert(self.data.self_key_pair.public().clone());
 
 		let access_key = Random.generate()?.secret().clone();
+		let session_id = SessionIdWithSubSession::new(session_id, access_key);
 		let cluster = Arc::new(ClusterView::new(self.data.clone(), connected_nodes.clone()));
-		let session = self.data.sessions.new_signing_session(self.data.self_key_pair.public().clone(), session_id, access_key.clone(), None, cluster, Some(requestor_signature))?;
+		let session = self.data.sessions.signing_sessions.insert(&self.data, self.data.self_key_pair.public().clone(), session_id.clone(), None, false, false, Some(requestor_signature))?;
 		session.initialize(connected_nodes, message_hash)?;
-		Ok(SigningSessionWrapper::new(Arc::downgrade(&self.data), SigningSessionId::new(session_id, access_key), session))
+		Ok(SigningSessionWrapper::new(Arc::downgrade(&self.data), session_id, session))
 	}
 
 	fn new_share_add_session(&self, session_id: SessionId, new_nodes_set: BTreeSet<NodeId>, old_set_signature: Signature, new_set_signature: Signature) -> Result<Arc<AdminSessionWrapper>, Error> {
-		let mut connected_nodes = self.data.connections.connected_nodes();
+/*		let mut connected_nodes = self.data.connections.connected_nodes();
 		connected_nodes.insert(self.data.self_key_pair.public().clone());
 
 		let cluster = Arc::new(ClusterView::new(self.data.clone(), connected_nodes));
@@ -1397,7 +841,8 @@ impl ClusterClient for ClusterClientImpl {
 		session.as_share_add()
 			.expect("created 1 line above; qed")
 			.initialize(Some(new_nodes_set), Some(old_set_signature), Some(new_set_signature))?;
-		Ok(AdminSessionWrapper::new(Arc::downgrade(&self.data), session_id, session))
+		Ok(AdminSessionWrapper::new(Arc::downgrade(&self.data), session_id, session))*/
+unimplemented!()
 	}
 
 	fn new_share_move_session(&self, session_id: SessionId, new_nodes_set: BTreeSet<NodeId>, old_set_signature: Signature, new_set_signature: Signature) -> Result<Arc<AdminSessionWrapper>, Error> {
@@ -1426,7 +871,7 @@ impl ClusterClient for ClusterClientImpl {
 	}
 
 	fn new_share_remove_session(&self, session_id: SessionId, new_nodes_set: BTreeSet<NodeId>, old_set_signature: Signature, new_set_signature: Signature) -> Result<Arc<AdminSessionWrapper>, Error> {
-		let mut all_cluster_nodes = self.data.connections.all_nodes();
+/*		let mut all_cluster_nodes = self.data.connections.all_nodes();
 		all_cluster_nodes.insert(self.data.self_key_pair.public().clone());
 		let mut connected_nodes = self.data.connections.connected_nodes();
 		connected_nodes.insert(self.data.self_key_pair.public().clone());
@@ -1436,11 +881,12 @@ impl ClusterClient for ClusterClientImpl {
 		session.as_share_remove()
 			.expect("created 1 line above; qed")
 			.initialize(Some(new_nodes_set), Some(old_set_signature), Some(new_set_signature))?;
-		Ok(AdminSessionWrapper::new(Arc::downgrade(&self.data), session_id, session))
+		Ok(AdminSessionWrapper::new(Arc::downgrade(&self.data), session_id, session))*/
+unimplemented!()
 	}
 
 	fn new_servers_set_change_session(&self, session_id: Option<SessionId>, new_nodes_set: BTreeSet<NodeId>, old_set_signature: Signature, new_set_signature: Signature) -> Result<Arc<AdminSessionWrapper>, Error> {
-		let mut all_cluster_nodes = self.data.connections.all_nodes();
+/*		let mut all_cluster_nodes = self.data.connections.all_nodes();
 		all_cluster_nodes.insert(self.data.self_key_pair.public().clone());
 
 		let cluster = Arc::new(ClusterView::new(self.data.clone(), all_cluster_nodes.clone()));
@@ -1451,7 +897,8 @@ impl ClusterClient for ClusterClientImpl {
 			servers_set_change_session.id().clone()
 		};
 		Ok(AdminSessionWrapper::new(Arc::downgrade(&self.data), session_id, session))
-
+*/
+unimplemented!()
 	}
 
 	#[cfg(test)]

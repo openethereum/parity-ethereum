@@ -68,7 +68,7 @@ use parking_lot::{Mutex, Condvar};
 use ethkey::{Secret, Signature};
 use key_server_cluster::{Error, AclStorage, DocumentKeyShare, NodeId, SessionId, EncryptedDocumentKeyShadow, SessionMeta};
 use key_server_cluster::cluster::Cluster;
-use key_server_cluster::cluster_sessions::ClusterSession;
+use key_server_cluster::cluster_sessions::{SessionIdWithSubSession, ClusterSession};
 use key_server_cluster::message::{Message, DecryptionMessage, DecryptionConsensusMessage, RequestPartialDecryption,
 	PartialDecryption, DecryptionSessionError, DecryptionSessionCompleted, ConsensusMessage, InitializeConsensusSession,
 	ConfirmConsensusInitialization};
@@ -141,15 +141,6 @@ pub enum SessionState {
 	SessionKeyGeneration,
 	/// State when signature is computing.
 	SignatureComputing,
-}
-
-/// Decryption session Id.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct DecryptionSessionId {
-	/// Encryption session id.
-	pub id: SessionId,
-	/// Decryption session access key.
-	pub access_key: Secret,
 }
 
 /// SessionImpl creation parameters
@@ -427,6 +418,12 @@ impl SessionImpl {
 }
 
 impl ClusterSession for SessionImpl {
+	type Id = SessionIdWithSubSession;
+
+	fn id(&self) -> SessionIdWithSubSession {
+		SessionIdWithSubSession::new(self.core.meta.id.clone(), self.core.access_key.clone())
+	}
+
 	fn is_finished(&self) -> bool {
 		let data = self.data.lock();
 		data.consensus_session.state() == ConsensusSessionState::Failed
@@ -538,31 +535,6 @@ impl JobTransport for DecryptionJobTransport {
 			shadow_point: response.shadow_point.into(),
 			decrypt_shadow: response.decrypt_shadow,
 		})))
-	}
-}
-
-impl DecryptionSessionId {
-	/// Create new decryption session Id.
-	pub fn new(session_id: SessionId, sub_session_id: Secret) -> Self {
-		DecryptionSessionId {
-			id: session_id,
-			access_key: sub_session_id,
-		}
-	}
-}
-
-impl PartialOrd for DecryptionSessionId {
-	fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-		Some(self.cmp(other))
-	}
-}
-
-impl Ord for DecryptionSessionId {
-	fn cmp(&self, other: &Self) -> Ordering {
-		match self.id.cmp(&other.id) {
-			Ordering::Equal => self.access_key.cmp(&other.access_key),
-			r @ _ => r,
-		}
 	}
 }
 

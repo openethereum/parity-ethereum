@@ -21,7 +21,7 @@ use ethkey::Secret;
 use parking_lot::{Mutex, Condvar};
 use key_server_cluster::{Error, SessionId, NodeId, DocumentKeyShare, KeyStorage};
 use key_server_cluster::cluster::Cluster;
-use key_server_cluster::cluster_sessions::ClusterSession;
+use key_server_cluster::cluster_sessions::{SessionIdWithSubSession, ClusterSession};
 use key_server_cluster::message::{Message, KeyVersionNegotiationMessage, RequestKeyVersions, KeyVersions};
 use key_server_cluster::admin_sessions::ShareChangeSessionMeta;
 
@@ -307,6 +307,12 @@ impl<T> Session for SessionImpl<T> where T: SessionTransport + Send + Sync + 'st
 }
 
 impl<T> ClusterSession for SessionImpl<T> where T: SessionTransport {
+	type Id = SessionIdWithSubSession;
+
+	fn id(&self) -> SessionIdWithSubSession {
+		SessionIdWithSubSession::new(self.core.meta.id.clone(), self.core.sub_session.clone())
+	}
+
 	fn is_finished(&self) -> bool {
 		self.data.lock().state == SessionState::Finished
 	}

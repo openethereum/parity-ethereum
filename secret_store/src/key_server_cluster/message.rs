@@ -1000,6 +1000,46 @@ pub struct KeyVersions {
 }
 
 impl Message {
+	pub fn is_initialization_message(&self) -> bool {
+		match *self {
+			Message::Generation(GenerationMessage::InitializeSession(_)) => true,
+			Message::Encryption(EncryptionMessage::InitializeEncryptionSession(_)) => true,
+			Message::Decryption(DecryptionMessage::DecryptionConsensusMessage(ref msg)) => match msg.message {
+				ConsensusMessage::InitializeConsensusSession(_) => true,
+				_ => false
+			},
+			Message::Signing(SigningMessage::SigningConsensusMessage(ref msg)) => match msg.message {
+				ConsensusMessage::InitializeConsensusSession(_) => true,
+				_ => false
+			},
+			Message::ShareAdd(ShareAddMessage::ShareAddConsensusMessage(ref msg)) => match msg.message {
+				ConsensusMessageWithServersSecretMap::InitializeConsensusSession(_) => true,
+				_ => false
+			},
+			Message::ShareMove(ShareMoveMessage::ShareMoveConsensusMessage(ref msg)) => match msg.message {
+				ConsensusMessageWithServersMap::InitializeConsensusSession(_) => true,
+				_ => false
+			},
+			Message::ShareRemove(ShareRemoveMessage::ShareRemoveConsensusMessage(ref msg)) => match msg.message {
+				ConsensusMessageWithServersSet::InitializeConsensusSession(_) => true,
+				_ => false
+			},
+			Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeConsensusMessage(ref msg)) => match msg.message {
+				ConsensusMessageWithServersSet::InitializeConsensusSession(_) => true,
+				_ => false
+			},
+			Message::KeyVersionNegotiation(KeyVersionNegotiationMessage::RequestKeyVersions(_)) => true,
+			_ => false,
+		}
+	}
+
+	pub fn is_exclusive_session_message(&self) -> bool {
+		match *self {
+			Message::ServersSetChange(_) => true,
+			_ => false,
+		}
+	}
+
 	pub fn session_nonce(&self) -> Option<u64> {
 		match *self {
 			Message::Cluster(ref message) => None,
@@ -1235,6 +1275,22 @@ impl ShareRemoveMessage {
 			ShareRemoveMessage::ShareRemoveRequest(ref msg) => msg.session_nonce,
 			ShareRemoveMessage::ShareRemoveConfirm(ref msg) => msg.session_nonce,
 			ShareRemoveMessage::ShareRemoveError(ref msg) => msg.session_nonce,
+		}
+	}
+}
+
+impl KeyVersionNegotiationMessage {
+	pub fn session_id(&self) -> &SessionId {
+		match *self {
+			KeyVersionNegotiationMessage::RequestKeyVersions(ref msg) => &msg.session,
+			KeyVersionNegotiationMessage::KeyVersions(ref msg) => &msg.session,
+		}
+	}
+
+	pub fn sub_session_id(&self) -> &Secret {
+		match *self {
+			KeyVersionNegotiationMessage::RequestKeyVersions(ref msg) => &msg.sub_session,
+			KeyVersionNegotiationMessage::KeyVersions(ref msg) => &msg.sub_session,
 		}
 	}
 }
