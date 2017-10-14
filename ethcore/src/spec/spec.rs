@@ -85,7 +85,7 @@ pub struct CommonParams {
 	pub eip155_transition: BlockNumber,
 	/// Validate block receipts root.
 	pub validate_receipts_transition: BlockNumber,
-	/// Validate trsanasction chain id.
+	/// Validate transaction chain id.
 	pub validate_chain_id_transition: BlockNumber,
 	/// Number of first block where EIP-86 (Metropolis) rules begin.
 	pub eip86_transition: BlockNumber,
