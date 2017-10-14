@@ -176,7 +176,7 @@ class TxRow extends Component {
     return (
       <td className={ styles.timestamp }>
         <div>{ blockNumber && block ? moment(block.timestamp).fromNow() : null }</div>
-        <div>{ blockNumber ? _blockNumber.toFormat() : this.renderCancelToggle() }</div>
+        <div>{ this.renderCancelToggle() }</div>
       </td>
     );
   }
