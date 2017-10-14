@@ -33,6 +33,8 @@
 		"maximumExtraDataSize": "0x20",
 		"minGasLimit": "0x1388",
 		"networkID" : "0x2A",
+		"forkBlock": 4297256,
+		"forkCanonHash": "0x0a66d93c2f727dca618fabaf70c39b37018c73d78b939d8b11efbbd09034778f",
 		"validateReceiptsTransition" : 1000000,
 		"eip155Transition": 1000000,
 		"validateChainIdTransition": 1000000
