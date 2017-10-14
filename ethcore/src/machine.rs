@@ -351,7 +351,9 @@ impl EthereumMachine {
 			None => true,
 		};
 
-		let chain_id = if header.number() >= self.params().eip155_transition {
+		let chain_id = if header.number() < self.params().validate_chain_id_transition {
+			t.chain_id()
+		} else if header.number() >= self.params().eip155_transition {
 			Some(self.params().chain_id)
 		} else {
 			None
