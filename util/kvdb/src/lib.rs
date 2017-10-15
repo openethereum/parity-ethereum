@@ -28,6 +28,7 @@ use bytes::Bytes;
 /// Required length of prefixes.
 pub const PREFIX_LEN: usize = 12;
 
+/// Database value.
 pub type DBValue = ElasticArray128<u8>;
 
 error_chain! {
@@ -43,9 +44,11 @@ error_chain! {
 /// Write transaction. Batches a sequence of put/delete operations for efficiency.
 #[derive(Default, Clone, PartialEq)]
 pub struct DBTransaction {
+	/// Database operations.
 	pub ops: Vec<DBOp>,
 }
 
+/// Database operation.
 #[derive(Clone, PartialEq)]
 pub enum DBOp {
 	Insert {
