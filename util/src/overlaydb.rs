@@ -50,7 +50,7 @@ impl OverlayDB {
 	/// Create a new instance of OverlayDB with an anonymous temporary database.
 	#[cfg(test)]
 	pub fn new_temp() -> OverlayDB {
-		let backing = Arc::new(::kvdb_memorydb::in_memory(0));
+		let backing = Arc::new(::kvdb_memorydb::create(0));
 		Self::new(backing, None)
 	}
 

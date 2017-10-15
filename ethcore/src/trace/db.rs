@@ -417,7 +417,7 @@ mod tests {
 	use bigint::hash::H256;
 	use util::Address;
 	use kvdb::{DBTransaction, KeyValueDB};
-	use kvdb_memorydb::in_memory;
+	use kvdb_memorydb;
 	use header::BlockNumber;
 	use trace::{Config, TraceDB, Database as TraceDatabase, DatabaseExtras, ImportRequest};
 	use trace::{Filter, LocalizedTrace, AddressesFilter, TraceError};
@@ -468,7 +468,7 @@ mod tests {
 	}
 
 	fn new_db() -> Arc<KeyValueDB> {
-		Arc::new(in_memory(::db::NUM_COLUMNS.unwrap_or(0)))
+		Arc::new(kvdb_memorydb::create(::db::NUM_COLUMNS.unwrap_or(0)))
 	}
 
 	#[test]

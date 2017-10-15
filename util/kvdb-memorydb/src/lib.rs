@@ -32,7 +32,7 @@ pub struct InMemory {
 
 /// Create an in-memory database with the given number of columns.
 /// Columns will be indexable by 0..`num_cols`
-pub fn in_memory(num_cols: u32) -> InMemory {
+pub fn create(num_cols: u32) -> InMemory {
 	let mut cols = HashMap::new();
 	cols.insert(None, BTreeMap::new());
 

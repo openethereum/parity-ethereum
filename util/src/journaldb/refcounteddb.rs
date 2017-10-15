@@ -210,12 +210,12 @@ mod tests {
 
 	use keccak::keccak;
 	use hashdb::{HashDB, DBValue};
-	use kvdb_memorydb::in_memory;
+	use kvdb_memorydb;
 	use super::*;
 	use super::super::traits::JournalDB;
 
 	fn new_db() -> RefCountedDB {
-		let backing = Arc::new(in_memory(0));
+		let backing = Arc::new(kvdb_memorydb::create(0));
 		RefCountedDB::new(backing, None)
 	}
 

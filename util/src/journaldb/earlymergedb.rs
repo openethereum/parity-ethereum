@@ -552,7 +552,7 @@ mod tests {
 	use super::*;
 	use super::super::traits::JournalDB;
 	use ethcore_logger::init_log;
-	use kvdb_memorydb::in_memory;
+	use kvdb_memorydb;
 
 	#[test]
 	fn insert_same_in_fork() {
@@ -810,13 +810,13 @@ mod tests {
 	}
 
 	fn new_db() -> EarlyMergeDB {
-		let backing = Arc::new(in_memory(0));
+		let backing = Arc::new(kvdb_memorydb::create(0));
 		EarlyMergeDB::new(backing, None)
 	}
 
 	#[test]
 	fn reopen() {
-		let shared_db = Arc::new(in_memory(0));
+		let shared_db = Arc::new(kvdb_memorydb::create(0));
 		let bar = H256::random();
 
 		let foo = {
@@ -986,7 +986,7 @@ mod tests {
 	fn reopen_remove_three() {
 		init_log();
 
-		let shared_db = Arc::new(in_memory(0));
+		let shared_db = Arc::new(kvdb_memorydb::create(0));
 		let foo = keccak(b"foo");
 
 		{
@@ -1039,7 +1039,7 @@ mod tests {
 
 	#[test]
 	fn reopen_fork() {
-		let shared_db = Arc::new(in_memory(0));
+		let shared_db = Arc::new(kvdb_memorydb::create(0));
 
 		let (foo, bar, baz) = {
 			let mut jdb = EarlyMergeDB::new(shared_db.clone(), None);

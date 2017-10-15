@@ -33,7 +33,7 @@ use io::IoChannel;
 use bigint::prelude::U256;
 use bigint::hash::H256;
 use util::Address;
-use kvdb_memorydb::in_memory;
+use kvdb_memorydb;
 
 use jsonrpc_core::IoHandler;
 use v1::impls::{EthClient, SigningUnsafeClient};
@@ -131,7 +131,7 @@ impl EthTester {
 		let client = Client::new(
 			ClientConfig::default(),
 			&spec,
-			Arc::new(in_memory(::ethcore::db::NUM_COLUMNS.unwrap_or(0))),
+			Arc::new(kvdb_memorydb::create(::ethcore::db::NUM_COLUMNS.unwrap_or(0))),
 			miner_service.clone(),
 			IoChannel::disconnected(),
 		).unwrap();

@@ -140,7 +140,7 @@ mod test {
 		let contract_addr = Address::from_str("0000000000000000000000000000000000000005").unwrap();
 		let data = include_bytes!("../res/node_filter.json");
 		let spec = Spec::load(&::std::env::temp_dir(), &data[..]).unwrap();
-		let client_db = Arc::new(::kvdb_memorydb::in_memory(::ethcore::db::NUM_COLUMNS.unwrap_or(0)));
+		let client_db = Arc::new(::kvdb_memorydb::create(::ethcore::db::NUM_COLUMNS.unwrap_or(0)));
 
 		let client = Client::new(
 			ClientConfig::default(),

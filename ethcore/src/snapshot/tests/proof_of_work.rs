@@ -44,7 +44,7 @@ fn chunk_and_restore(amount: u64) {
 	let mut snapshot_path = new_path.as_path().to_owned();
 	snapshot_path.push("SNAP");
 
-	let old_db = Arc::new(kvdb_memorydb::in_memory(::db::NUM_COLUMNS.unwrap_or(0)));
+	let old_db = Arc::new(kvdb_memorydb::create(::db::NUM_COLUMNS.unwrap_or(0)));
 	let bc = BlockChain::new(Default::default(), &genesis, old_db.clone());
 
 	// build the blockchain.
@@ -81,7 +81,7 @@ fn chunk_and_restore(amount: u64) {
 	writer.into_inner().finish(manifest.clone()).unwrap();
 
 	// restore it.
-	let new_db = Arc::new(kvdb_memorydb::in_memory(::db::NUM_COLUMNS.unwrap_or(0)));
+	let new_db = Arc::new(kvdb_memorydb::create(::db::NUM_COLUMNS.unwrap_or(0)));
 	let new_chain = BlockChain::new(Default::default(), &genesis, new_db.clone());
 	let mut rebuilder = SNAPSHOT_MODE.rebuilder(new_chain, new_db.clone(), &manifest).unwrap();
 
@@ -128,7 +128,7 @@ fn checks_flag() {
 
 	let chunk = stream.out();
 
-	let db = Arc::new(kvdb_memorydb::in_memory(::db::NUM_COLUMNS.unwrap_or(0)));
+	let db = Arc::new(kvdb_memorydb::create(::db::NUM_COLUMNS.unwrap_or(0)));
 	let engine = ::spec::Spec::new_test().engine;
 	let chain = BlockChain::new(Default::default(), &genesis, db.clone());
 

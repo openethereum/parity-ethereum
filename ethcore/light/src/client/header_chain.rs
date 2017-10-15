@@ -729,13 +729,13 @@ mod tests {
 	use ethcore::spec::Spec;
   	use cache::Cache;
 	use kvdb::KeyValueDB;
-	use kvdb_memorydb::in_memory;
+	use kvdb_memorydb;
 
 	use time::Duration;
 	use parking_lot::Mutex;
 
 	fn make_db() -> Arc<KeyValueDB> {
-		Arc::new(in_memory(0))
+		Arc::new(kvdb_memorydb::create(0))
 	}
 
 	#[test]

@@ -203,12 +203,12 @@ mod tests {
 	use hashdb::{HashDB, DBValue};
 	use super::*;
 	use journaldb::traits::JournalDB;
-	use kvdb_memorydb::in_memory;
+	use kvdb_memorydb;
 
 	#[test]
 	fn insert_same_in_fork() {
 		// history is 1
-		let mut jdb = ArchiveDB::new(Arc::new(in_memory(0)), None);
+		let mut jdb = ArchiveDB::new(Arc::new(kvdb_memorydb::create(0)), None);
 
 		let x = jdb.insert(b"X");
 		jdb.commit_batch(1, &keccak(b"1"), None).unwrap();
@@ -230,7 +230,7 @@ mod tests {
 	#[test]
 	fn long_history() {
 		// history is 3
-		let mut jdb = ArchiveDB::new(Arc::new(in_memory(0)), None);
+		let mut jdb = ArchiveDB::new(Arc::new(kvdb_memorydb::create(0)), None);
 		let h = jdb.insert(b"foo");
 		jdb.commit_batch(0, &keccak(b"0"), None).unwrap();
 		assert!(jdb.contains(&h));
@@ -248,7 +248,7 @@ mod tests {
 	#[test]
 	#[should_panic]
 	fn multiple_owed_removal_not_allowed() {
-		let mut jdb = ArchiveDB::new(Arc::new(in_memory(0)), None);
+		let mut jdb = ArchiveDB::new(Arc::new(kvdb_memorydb::create(0)), None);
 		let h = jdb.insert(b"foo");
 		jdb.commit_batch(0, &keccak(b"0"), None).unwrap();
 		assert!(jdb.contains(&h));
@@ -262,7 +262,7 @@ mod tests {
 	#[test]
 	fn complex() {
 		// history is 1
-		let mut jdb = ArchiveDB::new(Arc::new(in_memory(0)), None);
+		let mut jdb = ArchiveDB::new(Arc::new(kvdb_memorydb::create(0)), None);
 
 		let foo = jdb.insert(b"foo");
 		let bar = jdb.insert(b"bar");
@@ -294,7 +294,7 @@ mod tests {
 	#[test]
 	fn fork() {
 		// history is 1
-		let mut jdb = ArchiveDB::new(Arc::new(in_memory(0)), None);
+		let mut jdb = ArchiveDB::new(Arc::new(kvdb_memorydb::create(0)), None);
 
 		let foo = jdb.insert(b"foo");
 		let bar = jdb.insert(b"bar");
@@ -320,7 +320,7 @@ mod tests {
 	#[test]
 	fn overwrite() {
 		// history is 1
-		let mut jdb = ArchiveDB::new(Arc::new(in_memory(0)), None);
+		let mut jdb = ArchiveDB::new(Arc::new(kvdb_memorydb::create(0)), None);
 
 		let foo = jdb.insert(b"foo");
 		jdb.commit_batch(0, &keccak(b"0"), None).unwrap();
@@ -339,7 +339,7 @@ mod tests {
 	#[test]
 	fn fork_same_key() {
 		// history is 1
-		let mut jdb = ArchiveDB::new(Arc::new(in_memory(0)), None);
+		let mut jdb = ArchiveDB::new(Arc::new(kvdb_memorydb::create(0)), None);
 		jdb.commit_batch(0, &keccak(b"0"), None).unwrap();
 
 		let foo = jdb.insert(b"foo");
@@ -355,7 +355,7 @@ mod tests {
 
 	#[test]
 	fn reopen() {
-		let shared_db = Arc::new(in_memory(0));
+		let shared_db = Arc::new(kvdb_memorydb::create(0));
 		let bar = H256::random();
 
 		let foo = {
@@ -383,7 +383,7 @@ mod tests {
 
 	#[test]
 	fn reopen_remove() {
-		let shared_db = Arc::new(in_memory(0));
+		let shared_db = Arc::new(kvdb_memorydb::create(0));
 
 		let foo = {
 			let mut jdb = ArchiveDB::new(shared_db.clone(), None);
@@ -412,7 +412,7 @@ mod tests {
 
 	#[test]
 	fn reopen_fork() {
-		let shared_db = Arc::new(in_memory(0));
+		let shared_db = Arc::new(kvdb_memorydb::create(0));
 		let (foo, _, _) = {
 			let mut jdb = ArchiveDB::new(shared_db.clone(), None);
 			// history is 1
@@ -437,7 +437,7 @@ mod tests {
 
 	#[test]
 	fn returns_state() {
-		let shared_db = Arc::new(in_memory(0));
+		let shared_db = Arc::new(kvdb_memorydb::create(0));
 
 		let key = {
 			let mut jdb = ArchiveDB::new(shared_db.clone(), None);
@@ -455,7 +455,7 @@ mod tests {
 
 	#[test]
 	fn inject() {
-		let mut jdb = ArchiveDB::new(Arc::new(in_memory(0)), None);
+		let mut jdb = ArchiveDB::new(Arc::new(kvdb_memorydb::create(0)), None);
 		let key = jdb.insert(b"dog");
 		jdb.inject_batch().unwrap();
 
