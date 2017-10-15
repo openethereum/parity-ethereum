@@ -433,7 +433,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 					// trace only top level calls to builtins to avoid DDoS attacks
 					if self.depth == 0 {
 						let mut trace_output = tracer.prepare_trace_output();
-						if let Some(mut out) = trace_output.as_mut() {
+						if let Some(out) = trace_output.as_mut() {
 							*out = output.to_owned();
 						}
 

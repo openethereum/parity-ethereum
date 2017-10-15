@@ -255,7 +255,7 @@ impl Manager {
 			let mut chunk_size = if chunk_index == 0 { 12 } else { 5 };
 			let size = min(64 - chunk_size, data.len() - offset);
 			{
-				let mut chunk = &mut hid_chunk[HID_PREFIX_ZERO..];
+				let chunk = &mut hid_chunk[HID_PREFIX_ZERO..];
 				&mut chunk[0..5].copy_from_slice(&[0x01, 0x01, APDU_TAG, (chunk_index >> 8) as u8, (chunk_index & 0xff) as u8 ]);
 
 				if chunk_index == 0 {
