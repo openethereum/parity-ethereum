@@ -434,7 +434,7 @@ dependencies = [
 
 [[package]]
 name = "ethabi"
-version = "2.0.0"
+version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "rustc-hex 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -466,7 +466,7 @@ dependencies = [
  "common-types 0.1.0",
  "crossbeam 0.2.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethabi 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethabi 2.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethash 1.7.0",
  "ethcore-bloom-journal 0.1.0",
  "ethcore-devtools 1.7.0",
@@ -674,7 +674,7 @@ name = "ethcore-secretstore"
 version = "1.0.0"
 dependencies = [
  "byteorder 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethabi 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethabi 2.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore 1.7.0",
  "ethcore-devtools 1.7.0",
  "ethcore-ipc 1.7.0",
@@ -1520,7 +1520,7 @@ dependencies = [
 name = "native-contract-generator"
 version = "0.1.0"
 dependencies = [
- "ethabi 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethabi 2.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "heck 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -1529,7 +1529,7 @@ name = "native-contracts"
 version = "0.1.0"
 dependencies = [
  "byteorder 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethabi 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethabi 2.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore-util 1.7.7",
  "futures 0.1.11 (registry+https://github.com/rust-lang/crates.io-index)",
  "native-contract-generator 0.1.0",
@@ -1844,7 +1844,7 @@ dependencies = [
 name = "parity-hash-fetch"
 version = "1.7.0"
 dependencies = [
- "ethabi 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethabi 2.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore-util 1.7.7",
  "fetch 0.1.0",
  "futures 0.1.11 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2007,7 +2007,7 @@ dependencies = [
 name = "parity-updater"
 version = "1.7.0"
 dependencies = [
- "ethabi 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethabi 2.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore 1.7.0",
  "ethcore-ipc 1.7.0",
  "ethcore-ipc-codegen 1.7.0",
@@ -3163,7 +3163,7 @@ dependencies = [
 "checksum env_logger 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)" = "e3856f1697098606fc6cb97a93de88ca3f3bc35bb878c725920e6e82ecf05e83"
 "checksum error-chain 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)" = "bd5c82c815138e278b8dcdeffc49f27ea6ffb528403e9dea4194f2e3dd40b143"
 "checksum eth-secp256k1 0.5.6 (git+https://github.com/paritytech/rust-secp256k1)" = "<none>"
-"checksum ethabi 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "0c3d62319ee0f35abf20afe8859dd2668195912614346447bb2dee9fb8da7c62"
+"checksum ethabi 2.0.1 (registry+https://github.com/rust-lang/crates.io-index)" = "8a6af84a622f9169efc6ead7f70043ca2058ef261c50e5e1e2ac60ccd381e386"
 "checksum fdlimit 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "b1ee15a7050e5580b3712877157068ea713b245b080ff302ae2ca973cfcd9baa"
 "checksum flate2 0.2.14 (registry+https://github.com/rust-lang/crates.io-index)" = "3eeb481e957304178d2e782f2da1257f1434dfecbae883bafb61ada2a9fea3bb"
 "checksum fnv 1.0.5 (registry+https://github.com/rust-lang/crates.io-index)" = "6cc484842f1e2884faf56f529f960cc12ad8c71ce96cc7abba0a067c98fee344"
