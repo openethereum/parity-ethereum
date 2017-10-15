@@ -49,7 +49,7 @@ impl HypervisorService {
 	// return type for making method synchronous
 	fn module_ready(&self, module_id: u64, control_url: String) -> bool {
 		let mut modules = self.modules.write().unwrap();
-		modules.get_mut(&module_id).map(|mut module| {
+		modules.get_mut(&module_id).map(|module| {
 			module.started = true;
 			module.control_url = control_url;
 		});
@@ -60,7 +60,7 @@ impl HypervisorService {
 	// return type for making method synchronous
 	fn module_shutdown(&self, module_id: u64) -> bool {
 		let mut modules = self.modules.write().unwrap();
-		modules.get_mut(&module_id).map(|mut module| {
+		modules.get_mut(&module_id).map(|module| {
 			module.shutdown = true;
 		});
 		trace!(target: "hypervisor", "Module shutdown: {}", module_id);
