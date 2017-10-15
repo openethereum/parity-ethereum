@@ -40,6 +40,7 @@ stats = { path = "../../util/stats" }
 hash = { path = "../../util/hash" }
 triehash = { path = "../../util/triehash" }
 kvdb = { path = "../../util/kvdb" }
+memory_cache = { path = "../../util/memory_cache" }
 
 [features]
 default = []

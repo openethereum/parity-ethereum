@@ -32,6 +32,7 @@ ethcore-logger = { path = "../logger" }
 ethcore-stratum = { path = "../stratum" }
 ethcore-util = { path = "../util" }
 ethcore-bigint = { path = "../util/bigint" }
+memory_cache = { path = "../util/memory_cache" }
 ethjson = { path = "../json" }
 ethkey = { path = "../ethkey" }
 ethstore = { path = "../ethstore" }
