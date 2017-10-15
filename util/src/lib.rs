@@ -116,7 +116,6 @@ extern crate log as rlog;
 pub mod misc;
 pub mod overlaydb;
 pub mod journaldb;
-pub mod cache;
 
 pub use misc::*;
 pub use hashdb::*;
