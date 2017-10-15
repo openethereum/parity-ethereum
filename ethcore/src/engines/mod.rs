@@ -421,7 +421,7 @@ pub mod common {
 			.and_then(|_| fields.state.commit());
 
 		let block_author = fields.header.author().clone();
-		fields.traces.as_mut().map(move |mut traces| {
+		fields.traces.as_mut().map(move |traces| {
   			let mut tracer = ExecutiveTracer::default();
   			tracer.trace_reward(block_author, reward, RewardType::Block);
   			traces.push(tracer.drain())
