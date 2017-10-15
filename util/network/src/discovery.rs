@@ -156,7 +156,7 @@ impl Discovery {
 		trace!(target: "discovery", "Inserting {:?}", &e);
 		let id_hash = keccak(e.id);
 		let ping = {
-			let mut bucket = &mut self.node_buckets[Discovery::distance(&self.id_hash, &id_hash) as usize];
+			let bucket = &mut self.node_buckets[Discovery::distance(&self.id_hash, &id_hash) as usize];
 			let updated = if let Some(node) = bucket.nodes.iter_mut().find(|n| n.address.id == e.id) {
 				node.address = e.clone();
 				node.timeout = None;
@@ -169,7 +169,7 @@ impl Discovery {
 
 			if bucket.nodes.len() > BUCKET_SIZE {
 				//ping least active node
-				let mut last = bucket.nodes.back_mut().expect("Last item is always present when len() > 0");
+				let last = bucket.nodes.back_mut().expect("Last item is always present when len() > 0");
 				last.timeout = Some(time::precise_time_ns());
 				Some(last.address.endpoint.clone())
 			} else { None }
@@ -180,7 +180,7 @@ impl Discovery {
 	}
 
 	fn clear_ping(&mut self, id: &NodeId) {
-		let mut bucket = &mut self.node_buckets[Discovery::distance(&self.id_hash, &keccak(id)) as usize];
+		let bucket = &mut self.node_buckets[Discovery::distance(&self.id_hash, &keccak(id)) as usize];
 		if let Some(node) = bucket.nodes.iter_mut().find(|n| &n.address.id == id) {
 			node.timeout = None;
 		}
