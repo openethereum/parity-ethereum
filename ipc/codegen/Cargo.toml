@@ -19,7 +19,7 @@ syntex = { version = "0.58", optional = true }
 
 [dependencies]
 aster = { version = "0.41", default-features = false }
-clippy = { version = "^0.*", optional = true }
+clippy = { version = "0.0.103", optional = true }
 quasi = { version = "0.32", default-features = false }
 quasi_macros = { version = "0.32", optional = true }
 syntex = { version = "0.58", optional = true }
