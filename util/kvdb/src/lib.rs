@@ -254,12 +254,12 @@ impl KeyValueDB for InMemory {
 		for op in ops {
 			match op {
 				DBOp::Insert { col, key, value } => {
-					if let Some(mut col) = columns.get_mut(&col) {
+					if let Some(col) = columns.get_mut(&col) {
 						col.insert(key.into_vec(), value);
 					}
 				},
 				DBOp::InsertCompressed { col, key, value } => {
-					if let Some(mut col) = columns.get_mut(&col) {
+					if let Some(col) = columns.get_mut(&col) {
 						let compressed = UntrustedRlp::new(&value).compress(RlpType::Blocks);
 						let mut value = DBValue::new();
 						value.append_slice(&compressed);
@@ -267,7 +267,7 @@ impl KeyValueDB for InMemory {
 					}
 				},
 				DBOp::Delete { col, key } => {
-					if let Some(mut col) = columns.get_mut(&col) {
+					if let Some(col) = columns.get_mut(&col) {
 						col.remove(&*key);
 					}
 				},
