@@ -22,11 +22,11 @@ use state_db::{ACCOUNT_BLOOM_SPACE, DEFAULT_ACCOUNT_PRESET, StateDB};
 use trie::TrieDB;
 use views::HeaderView;
 use bloom_journal::Bloom;
-use util::migration::{Error, Migration, Progress, Batch, Config};
+use migration::{Error, Migration, Progress, Batch, Config};
 use util::journaldb;
 use bigint::hash::H256;
 use trie::Trie;
-use util::{Database, DBTransaction};
+use kvdb::{Database, DBTransaction};
 
 /// Account bloom upgrade routine. If bloom already present, does nothing.
 /// If database empty (no best block), does nothing.

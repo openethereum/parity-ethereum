@@ -3,7 +3,7 @@ description = "Parity Light Client Implementation"
 homepage = "http://parity.io"
 license = "GPL-3.0"
 name = "ethcore-light"
-version = "1.8.0"
+version = "1.9.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 build = "build.rs"
 
@@ -39,6 +39,7 @@ parking_lot = "0.4"
 stats = { path = "../../util/stats" }
 hash = { path = "../../util/hash" }
 triehash = { path = "../../util/triehash" }
+kvdb = { path = "../../util/kvdb" }
 
 [features]
 default = []

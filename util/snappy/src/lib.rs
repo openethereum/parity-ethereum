@@ -15,8 +15,9 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Snappy compression bindings.
+extern crate libc;
 
-use std::{self, fmt};
+use std::fmt;
 use libc::{c_char, c_int, size_t};
 
 const SNAPPY_OK: c_int = 0;

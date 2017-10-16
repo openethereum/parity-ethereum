@@ -16,9 +16,23 @@
 
 //! Key-Value store abstraction with `RocksDB` backend.
 
-use std::{mem, fs};
+#[macro_use]
+extern crate log;
+#[macro_use]
+extern crate error_chain;
+
+extern crate ethcore_bytes as bytes;
+extern crate ethcore_bigint as bigint;
+extern crate ethcore_devtools as devtools;
+extern crate elastic_array;
+extern crate hashdb;
+extern crate parking_lot;
+extern crate rlp;
+extern crate rocksdb;
+extern crate regex;
+
+use std::{mem, fs, io};
 use std::collections::{HashMap, BTreeMap};
-use std::io::ErrorKind;
 use std::marker::PhantomData;
 use std::path::{PathBuf, Path};
 use parking_lot::{Mutex, MutexGuard, RwLock};
@@ -28,9 +42,7 @@ use hashdb::DBValue;
 use rlp::{UntrustedRlp, RlpType, Compressible};
 use rocksdb::{DB, Writable, WriteBatch, WriteOptions, IteratorMode, DBIterator,
 	Options, DBCompactionStyle, BlockBasedOptions, Direction, Cache, Column, ReadOptions};
-use UtilError;
 use bytes::Bytes;
-
 
 #[cfg(target_os = "linux")]
 use regex::Regex;
@@ -45,6 +57,16 @@ const DB_WRITE_BUFFER_SIZE: usize = 2048 * 1000;
 
 /// Required length of prefixes.
 pub const PREFIX_LEN: usize = 12;
+
+error_chain! {
+	types {
+		Error, ErrorKind, ResultExt;
+	}
+
+	foreign_links {
+		Io(io::Error);
+	}
+}
 
 /// Write transaction. Batches a sequence of put/delete operations for efficiency.
 #[derive(Default, Clone, PartialEq)]
@@ -182,7 +204,7 @@ pub trait KeyValueDB: Sync + Send {
 		-> Box<Iterator<Item=(Box<[u8]>, Box<[u8]>)> + 'a>;
 
 	/// Attempt to replace this database with a new one located at the given path.
-	fn restore(&self, new_db: &str) -> Result<(), UtilError>;
+	fn restore(&self, new_db: &str) -> Result<(), Error>;
 }
 
 /// A key-value database fulfilling the `KeyValueDB` trait, living in memory.
@@ -232,12 +254,12 @@ impl KeyValueDB for InMemory {
 		for op in ops {
 			match op {
 				DBOp::Insert { col, key, value } => {
-					if let Some(mut col) = columns.get_mut(&col) {
+					if let Some(col) = columns.get_mut(&col) {
 						col.insert(key.into_vec(), value);
 					}
 				},
 				DBOp::InsertCompressed { col, key, value } => {
-					if let Some(mut col) = columns.get_mut(&col) {
+					if let Some(col) = columns.get_mut(&col) {
 						let compressed = UntrustedRlp::new(&value).compress(RlpType::Blocks);
 						let mut value = DBValue::new();
 						value.append_slice(&compressed);
@@ -245,7 +267,7 @@ impl KeyValueDB for InMemory {
 					}
 				},
 				DBOp::Delete { col, key } => {
-					if let Some(mut col) = columns.get_mut(&col) {
+					if let Some(col) = columns.get_mut(&col) {
 						col.remove(&*key);
 					}
 				},
@@ -279,7 +301,7 @@ impl KeyValueDB for InMemory {
 		}
 	}
 
-	fn restore(&self, _new_db: &str) -> Result<(), UtilError> {
+	fn restore(&self, _new_db: &str) -> Result<(), Error> {
 		Err("Attempted to restore in-memory database".into())
 	}
 }
@@ -777,7 +799,7 @@ impl Database {
 	}
 
 	/// Restore the database from a copy at given path.
-	pub fn restore(&self, new_db: &str) -> Result<(), UtilError> {
+	pub fn restore(&self, new_db: &str) -> Result<(), Error> {
 		self.close();
 
 		let mut backup_db = PathBuf::from(&self.path);
@@ -786,7 +808,7 @@ impl Database {
 
 		let existed = match fs::rename(&self.path, &backup_db) {
 			Ok(_) => true,
-			Err(e) => if let ErrorKind::NotFound = e.kind() {
+			Err(e) => if let io::ErrorKind::NotFound = e.kind() {
 				false
 			} else {
 				return Err(e.into());
@@ -889,7 +911,7 @@ impl KeyValueDB for Database {
 		Box::new(unboxed.into_iter().flat_map(|inner| inner))
 	}
 
-	fn restore(&self, new_db: &str) -> Result<(), UtilError> {
+	fn restore(&self, new_db: &str) -> Result<(), Error> {
 		Database::restore(self, new_db)
 	}
 }

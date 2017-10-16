@@ -19,7 +19,7 @@
 use std::sync::Arc;
 use std::path::Path;
 use bigint::hash::H256;
-use util::*;
+use kvdb::{Database, DatabaseConfig, KeyValueDB};
 use bytes::Bytes;
 use io::*;
 use spec::Spec;
@@ -27,7 +27,7 @@ use error::*;
 use client::{Client, ClientConfig, ChainNotify};
 use miner::Miner;
 
-use snapshot::ManifestData;
+use snapshot::{ManifestData, RestorationStatus};
 use snapshot::service::{Service as SnapshotService, ServiceParams as SnapServiceParams};
 use std::sync::atomic::AtomicBool;
 use ansi_term::Colour;
@@ -180,7 +180,11 @@ impl IoHandler<ClientIoMessage> for ClientIoHandler {
 
 	fn timeout(&self, _io: &IoContext<ClientIoMessage>, timer: TimerToken) {
 		match timer {
-			CLIENT_TICK_TIMER => self.client.tick(),
+			CLIENT_TICK_TIMER => {
+				use snapshot::SnapshotService;
+				let snapshot_restoration = if let RestorationStatus::Ongoing{..} = self.snapshot.status() { true } else { false };
+				self.client.tick(snapshot_restoration)
+			},
 			SNAPSHOT_TICK_TIMER => self.snapshot.tick(),
 			_ => warn!("IO service triggered unregistered timer '{}'", timer),
 		}

@@ -136,7 +136,7 @@ impl ws::RequestMiddleware for WsExtractor {
 }
 
 fn add_security_headers(res: &mut ws::ws::Response) {
-	let mut headers = res.headers_mut();
+	let headers = res.headers_mut();
 	headers.push(("X-Frame-Options".into(), b"SAMEORIGIN".to_vec()));
 	headers.push(("X-XSS-Protection".into(), b"1; mode=block".to_vec()));
 	headers.push(("X-Content-Type-Options".into(), b"nosniff".to_vec()));

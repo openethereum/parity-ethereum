@@ -16,11 +16,11 @@
 
  // build.rs
 
-// Bring in a dependency on an externally maintained `gcc` package which manages
+// Bring in a dependency on an externally maintained `cc` package which manages
 // invoking the C compiler.
-extern crate gcc;
+extern crate cc;
 
 fn main() {
-    gcc::compile_library("libtinykeccak.a", &["src/tinykeccak.c"]);
+	cc::Build::new().file("src/tinykeccak.c").compile("libtinykeccak.a");
 }
 

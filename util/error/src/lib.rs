@@ -19,7 +19,14 @@
 #![allow(missing_docs)]
 #![allow(unknown_lints)]
 
-use std::{self, fmt};
+#[macro_use]
+extern crate error_chain;
+
+extern crate ethcore_bigint as bigint;
+extern crate rlp;
+extern crate rustc_hex;
+
+use std::fmt;
 use rustc_hex::FromHexError;
 use rlp::DecoderError;
 use bigint::hash::H256;
@@ -59,7 +66,6 @@ error_chain! {
 		Io(::std::io::Error);
 		FromHex(FromHexError);
 		Decoder(DecoderError);
-		Snappy(::snappy::InvalidInput);
 		BaseData(BaseDataError);
 	}
 }

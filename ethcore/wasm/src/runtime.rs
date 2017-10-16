@@ -22,6 +22,7 @@ use byteorder::{LittleEndian, ByteOrder};
 
 use vm;
 use parity_wasm::interpreter;
+use wasm_utils::rules;
 use bigint::prelude::U256;
 use bigint::hash::H256;
 use util::Address;
@@ -111,6 +112,7 @@ pub struct Runtime<'a, 'b> {
 	memory: Arc<InterpreterMemoryInstance>,
 	context: RuntimeContext,
 	instance: &'b InterpreterProgramInstance,
+	gas_rules: rules::Set,
 }
 
 impl<'a, 'b> Runtime<'a, 'b> {
@@ -123,6 +125,20 @@ impl<'a, 'b> Runtime<'a, 'b> {
 		context: RuntimeContext,
 		program_instance: &'d InterpreterProgramInstance,
 	) -> Runtime<'c, 'd> {
+
+		let rules = {
+			let schedule = ext.schedule();
+
+			rules::Set::new({
+				let mut vals = ::std::collections::HashMap::with_capacity(4);
+				vals.insert(rules::InstructionType::Load, schedule.wasm.mem as u32);
+				vals.insert(rules::InstructionType::Store, schedule.wasm.mem as u32);
+				vals.insert(rules::InstructionType::Div, schedule.wasm.div as u32);
+				vals.insert(rules::InstructionType::Mul, schedule.wasm.mul as u32);
+				vals
+			})
+		};
+
 		Runtime {
 			gas_counter: 0,
 			gas_limit: gas_limit,
@@ -131,6 +147,7 @@ impl<'a, 'b> Runtime<'a, 'b> {
 			ext: ext,
 			context: context,
 			instance: program_instance,
+			gas_rules: rules,
 		}
 	}
 
@@ -142,6 +159,8 @@ impl<'a, 'b> Runtime<'a, 'b> {
 		let val = self.pop_h256(&mut context)?;
 		let key = self.pop_h256(&mut context)?;
 		trace!(target: "wasm", "storage_write: value {} at @{}", &val, &key);
+
+		self.charge(|schedule| schedule.sstore_set_gas as u64)?;
 
 		self.ext.set_storage(key, val).map_err(|_| UserTrap::StorageUpdateError)?;
 
@@ -155,8 +174,9 @@ impl<'a, 'b> Runtime<'a, 'b> {
 		let mut context = context;
 		let val_ptr = context.value_stack.pop_as::<i32>()?;
 		let key = self.pop_h256(&mut context)?;
-
 		let val = self.ext.storage_at(&key).map_err(|_| UserTrap::StorageReadError)?;
+
+		self.charge(|schedule| schedule.sload_gas as u64)?;
 
 		self.memory.set(val_ptr as u32, &*val)?;
 
@@ -170,6 +190,9 @@ impl<'a, 'b> Runtime<'a, 'b> {
 		let mut context = context;
 		let return_ptr = context.value_stack.pop_as::<i32>()? as u32;
 		let address = self.pop_address(&mut context)?;
+
+		self.charge(|schedule| schedule.balance_gas as u64)?;
+
 		let balance = self.ext.balance(&address).map_err(|_| UserTrap::BalanceQueryError)?;
 		let value: H256 = balance.into();
 		self.memory.set(return_ptr, &*value)?;
@@ -183,10 +206,30 @@ impl<'a, 'b> Runtime<'a, 'b> {
 		let mut context = context;
 		let refund_address = self.pop_address(&mut context)?;
 
+		if self.ext.exists(&refund_address).map_err(|_| UserTrap::SuicideAbort)? {
+			trace!(target: "wasm", "Suicide: refund to existing address {}", refund_address);
+			self.charge(|schedule| schedule.suicide_gas as u64)?;
+		} else {
+			trace!(target: "wasm", "Suicide: refund to new address {}", refund_address);
+			self.charge(|schedule| schedule.suicide_to_new_account_cost as u64)?;
+		}
+
 		self.ext.suicide(&refund_address).map_err(|_| UserTrap::SuicideAbort)?;
 
 		// We send trap to interpreter so it should abort further execution
 		Err(UserTrap::Suicide.into())
+	}
+
+	/// Charge gas according to closure
+	pub fn charge<F>(&mut self, f: F) -> Result<(), InterpreterError> 
+		where F: FnOnce(&vm::Schedule) -> u64 
+	{
+		let amount = f(self.ext.schedule());
+		if !self.charge_gas(amount as u64) {
+			Err(UserTrap::GasLimit.into())
+		} else {
+			Ok(())
+		}
 	}
 
 	/// Invoke create in the state runtime
@@ -210,6 +253,9 @@ impl<'a, 'b> Runtime<'a, 'b> {
 		trace!(target: "wasm", "       val: {:?}", endowment);
 
 		let code = self.memory.get(code_ptr, code_len as usize)?;
+
+		self.charge(|schedule| schedule.create_gas as u64)?;
+		self.charge(|schedule| schedule.create_data_gas as u64 * code.len() as u64)?;
 
 		let gas_left = self.gas_left()
 			.map_err(|_| UserTrap::InvalidGasState)?
@@ -312,6 +358,8 @@ impl<'a, 'b> Runtime<'a, 'b> {
 			}
 		}
 
+		self.charge(|schedule| schedule.call_gas as u64)?;
+
 		let mut result = Vec::with_capacity(result_alloc_len as usize);
 		result.resize(result_alloc_len as usize, 0);
 		let gas = self.gas_left()
@@ -369,6 +417,9 @@ impl<'a, 'b> Runtime<'a, 'b> {
 		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
 	{
 		let amount = context.value_stack.pop_as::<i32>()? as u32;
+
+		self.charge(|schedule| schedule.wasm.alloc as u64 * amount as u64)?;
+
 		let previous_top = self.dynamic_top;
 		self.dynamic_top = previous_top + amount;
 		Ok(Some((previous_top as i32).into()))
@@ -492,12 +543,14 @@ impl<'a, 'b> Runtime<'a, 'b> {
 		&*self.memory
 	}
 
-	fn mem_copy(&self, context: InterpreterCallerContext)
+	fn mem_copy(&mut self, context: InterpreterCallerContext)
 		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
 	{
 		let len = context.value_stack.pop_as::<i32>()? as u32;
 		let dst = context.value_stack.pop_as::<i32>()? as u32;
 		let src = context.value_stack.pop_as::<i32>()? as u32;
+
+		self.charge(|schedule| schedule.wasm.mem_copy as u64 * len as u64)?;
 
 		let mem = self.memory().get(src, len as usize)?;
 		self.memory().set(dst, &mem)?;
@@ -542,6 +595,8 @@ impl<'a, 'b> Runtime<'a, 'b> {
 		let block_hi = context.value_stack.pop_as::<i32>()? as u32;
 		let block_lo = context.value_stack.pop_as::<i32>()? as u32;
 
+		self.charge(|schedule| schedule.blockhash_gas as u64)?;
+
 		let block_num = (block_hi as u64) << 32 | block_lo as u64;
 
 		trace!("Requesting block hash for block #{}", block_num);
@@ -552,44 +607,72 @@ impl<'a, 'b> Runtime<'a, 'b> {
 		Ok(Some(0i32.into()))
 	}
 
+	fn return_address_ptr(&mut self, ptr: u32, val: Address) -> Result<(), InterpreterError>
+	{
+		self.charge(|schedule| schedule.wasm.static_address as u64)?;
+		self.memory.set(ptr, &*val)?;
+		Ok(())
+	}
+
+	fn return_u256_ptr(&mut self, ptr: u32, val: U256) -> Result<(), InterpreterError> {
+		let value: H256 = val.into();	
+		self.charge(|schedule| schedule.wasm.static_u256 as u64)?;
+		self.memory.set(ptr, &*value)?;
+		Ok(())
+	}	
+
 	fn coinbase(&mut self, context: InterpreterCallerContext)
 		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
 	{
-		let return_ptr = context.value_stack.pop_as::<i32>()? as u32;
-		self.memory.set(return_ptr, &*self.ext.env_info().author)?;
+		let author = self.ext.env_info().author;
+		self.return_address_ptr(
+			context.value_stack.pop_as::<i32>()? as u32,
+			author,
+		)?;
 		Ok(None)
 	}
 
 	fn sender(&mut self, context: InterpreterCallerContext)
 		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
 	{
-		let return_ptr = context.value_stack.pop_as::<i32>()? as u32;
-		self.memory.set(return_ptr, &*self.context.sender)?;
-		Ok(None)
+		let sender = self.context.sender;
+		self.return_address_ptr(
+			context.value_stack.pop_as::<i32>()? as u32,
+			sender,
+		)?;
+		Ok(None)		
 	}
 
 	fn address(&mut self, context: InterpreterCallerContext)
 		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
 	{
-		let return_ptr = context.value_stack.pop_as::<i32>()? as u32;
-		self.memory.set(return_ptr, &*self.context.address)?;
-		Ok(None)
+		let addr = self.context.address;
+		self.return_address_ptr(
+			context.value_stack.pop_as::<i32>()? as u32,
+			addr,
+		)?;
+		Ok(None)	
 	}
 
 	fn origin(&mut self, context: InterpreterCallerContext)
 		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
 	{
-		let return_ptr = context.value_stack.pop_as::<i32>()? as u32;
-		self.memory.set(return_ptr, &*self.context.origin)?;
-		Ok(None)
+		let origin = self.context.origin;
+		self.return_address_ptr(
+			context.value_stack.pop_as::<i32>()? as u32,
+			origin,
+		)?;
+		Ok(None)	
 	}
 
 	fn value(&mut self, context: InterpreterCallerContext)
 		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
 	{
-		let return_ptr = context.value_stack.pop_as::<i32>()? as u32;
-		let value: H256 = self.context.value.clone().into();
-		self.memory.set(return_ptr, &*value)?;
+		let value = self.context.value;
+		self.return_u256_ptr(
+			context.value_stack.pop_as::<i32>()? as u32,
+			value,
+		)?;
 		Ok(None)
 	}
 
@@ -610,22 +693,28 @@ impl<'a, 'b> Runtime<'a, 'b> {
 	fn difficulty(&mut self, context: InterpreterCallerContext)
 		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
 	{
-		let return_ptr = context.value_stack.pop_as::<i32>()? as u32;
-		let difficulty: H256 = self.ext.env_info().difficulty.into();
-		self.memory.set(return_ptr, &*difficulty)?;
+		let difficulty = self.ext.env_info().difficulty;
+		self.return_u256_ptr(
+			context.value_stack.pop_as::<i32>()? as u32,
+			difficulty,
+		)?;
 		Ok(None)
 	}
 
 	fn ext_gas_limit(&mut self, context: InterpreterCallerContext)
 		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
 	{
-		let return_ptr = context.value_stack.pop_as::<i32>()? as u32;
-		let gas_limit: H256 = self.ext.env_info().gas_limit.into();
-		self.memory.set(return_ptr, &*gas_limit)?;
-		Ok(None)
+		let gas_limit = self.ext.env_info().gas_limit;
+		self.return_u256_ptr(
+			context.value_stack.pop_as::<i32>()? as u32,
+			gas_limit,
+		)?;
+		Ok(None)		
 	}
 
 	fn return_i64(&mut self, val: i64) -> Result<Option<interpreter::RuntimeValue>, InterpreterError> {
+		self.charge(|schedule| schedule.wasm.static_u64 as u64)?;
+
 		let uval = val as u64;
 		let hi = (uval >> 32) as i32;
 		let lo = (uval << 32 >> 32) as i32;
@@ -655,6 +744,14 @@ impl<'a, 'b> Runtime<'a, 'b> {
 					.expect("Env module always exists; qed")
 			)
 		)
+	}
+
+	pub fn gas_rules(&self) -> &rules::Set {
+		&self.gas_rules
+	}
+
+	pub fn ext(&mut self) -> &mut vm::Ext {
+		self.ext
 	}
 }
 

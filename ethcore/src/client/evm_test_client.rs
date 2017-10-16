@@ -23,7 +23,7 @@ use bigint::hash::H256;
 use util::journaldb;
 use trie;
 use bytes;
-use util::kvdb::{self, KeyValueDB};
+use kvdb::{self, KeyValueDB};
 use {state, state_db, client, executive, trace, transaction, db, spec, pod_state};
 use factory::Factories;
 use evm::{self, VMType, FinalizationResult};

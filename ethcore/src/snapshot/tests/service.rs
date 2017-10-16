@@ -27,7 +27,7 @@ use tests::helpers::generate_dummy_client_with_spec_and_data;
 
 use devtools::RandomTempPath;
 use io::IoChannel;
-use util::kvdb::{Database, DatabaseConfig};
+use kvdb::{Database, DatabaseConfig};
 
 struct NoopDBRestore;
 

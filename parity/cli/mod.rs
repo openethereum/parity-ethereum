@@ -1201,6 +1201,17 @@ mod tests {
 		Snapshots, VM, Misc, Whisper, SecretStore,
 	};
 	use toml;
+	use clap::{ErrorKind as ClapErrorKind};
+
+
+	#[test]
+	fn should_reject_invalid_values() {
+		let args = Args::parse(&["parity", "--cache=20"]);
+		assert!(args.is_ok());
+
+		let args = Args::parse(&["parity", "--cache=asd"]);
+		assert!(args.is_err());
+	}
 
 	#[test]
 	fn should_parse_args_and_flags() {
@@ -1215,6 +1226,17 @@ mod tests {
 
 		let args = Args::parse(&["parity", "export", "state", "--min-balance","123"]).unwrap();
 		assert_eq!(args.arg_export_state_min_balance, Some("123".to_string()));
+	}
+
+	#[test]
+	fn should_exit_gracefully_on_unknown_argument() {
+		let result = Args::parse(&["parity", "--please-exit-gracefully"]);
+		assert!(
+			match result {
+				Err(ArgsError::Clap(ref clap_error)) if clap_error.kind == ClapErrorKind::UnknownArgument => true,
+				_ => false
+			}
+		);
 	}
 
 	#[test]

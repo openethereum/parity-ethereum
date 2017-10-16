@@ -3,7 +3,7 @@ description = "Parity smart network connections"
 homepage = "http://parity.io"
 license = "GPL-3.0"
 name = "node-filter"
-version = "1.8.0"
+version = "1.9.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
@@ -13,6 +13,7 @@ ethcore-bigint = { path = "../../util/bigint" }
 ethcore-bytes = { path = "../../util/bytes" }
 ethcore-io = { path = "../../util/io" }
 ethcore-network = { path = "../../util/network" }
+kvdb = { path = "../../util/kvdb" }
 native-contracts = { path = "../native_contracts" }
 futures = "0.1"
 log = "0.3"

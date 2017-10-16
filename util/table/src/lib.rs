@@ -91,7 +91,7 @@ impl<Row, Col, Val> Table<Row, Col, Val>
 			if let None = row_map {
 				return None;
 			}
-			let mut row_map = row_map.unwrap();
+			let row_map = row_map.unwrap();
 			let val = row_map.remove(col);
 			(val, row_map.is_empty())
 		};

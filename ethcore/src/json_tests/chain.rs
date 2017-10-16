@@ -57,9 +57,11 @@ pub fn json_chain_test(json_data: &[u8]) -> Vec<String> {
 			};
 
 			{
-				let db = Arc::new(::util::kvdb::in_memory(::db::NUM_COLUMNS.unwrap_or(0)));
+				let db = Arc::new(::kvdb::in_memory(::db::NUM_COLUMNS.unwrap_or(0)));
+				let mut config = ClientConfig::default();
+				config.history = 8;
 				let client = Client::new(
-					ClientConfig::default(),
+					config,
 					&spec,
 					db,
 					Arc::new(Miner::with_spec(&spec)),
@@ -101,7 +103,7 @@ mod block_tests {
 	declare_test!{BlockchainTests_bcMultiChainTest, "BlockchainTests/bcMultiChainTest"}
 	declare_test!{BlockchainTests_bcRandomBlockhashTest, "BlockchainTests/bcRandomBlockhashTest"}
 	declare_test!{BlockchainTests_bcTotalDifficultyTest, "BlockchainTests/bcTotalDifficultyTest"}
-	declare_test!{BlockchainTests_bcUncleHeaderValiditiy, "BlockchainTests/bcUncleHeaderValiditiy"}
+	declare_test!{BlockchainTests_bcUncleHeaderValidity, "BlockchainTests/bcUncleHeaderValidity"}
 	declare_test!{BlockchainTests_bcUncleTest, "BlockchainTests/bcUncleTest"}
 	declare_test!{BlockchainTests_bcValidBlockTest, "BlockchainTests/bcValidBlockTest"}
 	declare_test!{BlockchainTests_bcWalletTest, "BlockchainTests/bcWalletTest"}

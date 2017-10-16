@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use util::migration::SimpleMigration;
+use migration::SimpleMigration;
 
 /// This migration reduces the sizes of keys and moves `ExtrasIndex` byte from back to the front.
 pub struct ToV6;
