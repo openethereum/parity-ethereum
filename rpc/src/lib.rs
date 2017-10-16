@@ -48,7 +48,6 @@ extern crate ethcore_bigint as bigint;
 extern crate ethcore_bytes as bytes;
 extern crate ethcore_devtools as devtools;
 extern crate ethcore_io as io;
-extern crate ethcore_ipc;
 extern crate ethcore_light as light;
 extern crate ethcore_util as util;
 extern crate ethcrypto as crypto;

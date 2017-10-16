@@ -4,12 +4,8 @@ name = "ethsync"
 version = "1.9.0"
 license = "GPL-3.0"
 authors = ["Parity Technologies <admin@parity.io>"]
-build = "build.rs"
 
 [lib]
-
-[build-dependencies]
-ethcore-ipc-codegen = { path = "../ipc/codegen" }
 
 [dependencies]
 ethcore-util = { path = "../util" }
@@ -30,10 +26,8 @@ env_logger = "0.4"
 time = "0.1.34"
 rand = "0.3.13"
 heapsize = "0.4"
-ethcore-ipc = { path = "../ipc/rpc" }
 semver = "0.6"
 smallvec = { version = "0.4", features = ["heapsizeof"] }
-ethcore-ipc-nano = { path = "../ipc/nano" }
 parking_lot = "0.4"
 ipnetwork = "0.12.6"
 
@@ -45,4 +39,3 @@ ethcore-devtools = { path = "../devtools" }
 [features]
 default = []
 dev = ["clippy", "ethcore/dev", "ethcore-util/dev"]
-ipc = ["ethcore-light/ipc"]

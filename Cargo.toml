@@ -39,9 +39,6 @@ ethcore-bytes = { path = "util/bytes" }
 ethcore-bigint = { path = "util/bigint" }
 ethcore-io = { path = "util/io" }
 ethcore-devtools = { path = "devtools" }
-ethcore-ipc = { path = "ipc/rpc" }
-ethcore-ipc-nano = { path = "ipc/nano" }
-ethcore-ipc-hypervisor = { path = "ipc/hypervisor" }
 ethcore-light = { path = "ethcore/light" }
 ethcore-logger = { path = "logger" }
 ethcore-stratum = { path = "stratum" }
@@ -74,7 +71,6 @@ ethcore-secretstore = { path = "secret_store", optional = true }
 rustc_version = "0.2"
 
 [dev-dependencies]
-ethcore-ipc-tests = { path = "ipc/tests" }
 pretty_assertions = "0.1"
 ipnetwork = "0.12.6"
 
@@ -96,7 +92,6 @@ ui-precompiled = [
 ]
 ui-enabled = ["dapps"]
 dapps = ["parity-dapps"]
-ipc = ["ethcore/ipc", "ethsync/ipc"]
 jit = ["ethcore/jit"]
 dev = ["clippy", "ethcore/dev", "ethcore-util/dev", "ethsync/dev", "parity-rpc/dev", "parity-dapps/dev"]
 json-tests = ["ethcore/json-tests"]

@@ -36,8 +36,7 @@ pub type RequestSignature = ethkey::Signature;
 pub use ethkey::Public;
 
 /// Secret store error
-#[derive(Debug, Clone, PartialEq)]
-#[binary]
+#[derive(Debug, PartialEq)]
 pub enum Error {
 	/// Bad signature is passed
 	BadSignature,
@@ -55,7 +54,6 @@ pub enum Error {
 
 /// Secret store configuration
 #[derive(Debug, Clone)]
-#[binary]
 pub struct NodeAddress {
 	/// IP address.
 	pub address: String,
@@ -65,7 +63,6 @@ pub struct NodeAddress {
 
 /// Secret store configuration
 #[derive(Debug)]
-#[binary]
 pub struct ServiceConfiguration {
 	/// HTTP listener address. If None, HTTP API is disabled.
 	pub listener_address: Option<NodeAddress>,
@@ -79,7 +76,6 @@ pub struct ServiceConfiguration {
 
 /// Key server cluster configuration
 #[derive(Debug)]
-#[binary]
 pub struct ClusterConfiguration {
 	/// Number of threads reserved by cluster.
 	pub threads: usize,
@@ -96,7 +92,6 @@ pub struct ClusterConfiguration {
 
 /// Shadow decryption result.
 #[derive(Clone, Debug, PartialEq)]
-#[binary]
 pub struct EncryptedDocumentKeyShadow {
 	/// Decrypted secret point. It is partially decrypted if shadow decrpytion was requested.
 	pub decrypted_secret: ethkey::Public,

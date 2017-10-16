@@ -81,7 +81,6 @@ extern crate ethash;
 extern crate ethcore_bloom_journal as bloom_journal;
 extern crate ethcore_devtools as devtools;
 extern crate ethcore_io as io;
-extern crate ethcore_ipc_nano as nanoipc;
 extern crate ethcore_bigint as bigint;
 extern crate ethcore_bytes as bytes;
 extern crate ethcore_logger;
@@ -139,8 +138,6 @@ extern crate macros;
 extern crate log;
 #[macro_use]
 extern crate lazy_static;
-#[macro_use]
-extern crate ethcore_ipc as ipc;
 #[cfg_attr(test, macro_use)]
 extern crate evm;
 

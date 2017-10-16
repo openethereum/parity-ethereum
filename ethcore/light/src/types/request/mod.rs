@@ -204,7 +204,6 @@ pub enum OutputKind {
 
 /// Either a hash or a number.
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "ipc", binary)]
 pub enum HashOrNumber {
 	/// Block hash variant.
 	Hash(H256),
