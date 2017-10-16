@@ -81,12 +81,11 @@ export function getTxOptions (api, func, _options, values = []) {
     options.to = options.to || func.contract.address;
   }
 
-  if (!address) {
-    return Promise.resolve({ func, options, values });
-  }
+  const promise = (!address)
+    ? Promise.resolve(false)
+    : WalletsUtils.isWallet(api, address);
 
-  return WalletsUtils
-    .isWallet(api, address)
+  return promise
     .then((isWallet) => {
       if (!isWallet) {
         return { func, options, values };

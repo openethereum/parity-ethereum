@@ -50,6 +50,7 @@ extern crate ethcore_devtools as devtools;
 extern crate ethcore_io as io;
 extern crate ethcore_ipc;
 extern crate ethcore_light as light;
+extern crate ethcore_util as util;
 extern crate ethcrypto as crypto;
 extern crate ethkey;
 extern crate ethstore;
@@ -64,11 +65,10 @@ extern crate rlp;
 extern crate stats;
 extern crate hash;
 extern crate hardware_wallet;
+extern crate kvdb;
 
 #[macro_use]
 extern crate log;
-#[cfg_attr(test, macro_use)]
-extern crate ethcore_util as util;
 #[macro_use]
 extern crate jsonrpc_macros;
 #[macro_use]
@@ -80,6 +80,10 @@ extern crate ethjson;
 #[cfg(test)]
 #[macro_use]
 extern crate pretty_assertions;
+
+#[cfg(test)]
+#[macro_use]
+extern crate macros;
 
 pub extern crate jsonrpc_ws_server as ws;
 

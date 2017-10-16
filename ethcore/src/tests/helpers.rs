@@ -231,8 +231,8 @@ pub fn get_test_client_with_blocks(blocks: Vec<Bytes>) -> Arc<Client> {
 	client
 }
 
-fn new_db() -> Arc<KeyValueDB> {
-	Arc::new(::util::kvdb::in_memory(::db::NUM_COLUMNS.unwrap_or(0)))
+fn new_db() -> Arc<::kvdb::KeyValueDB> {
+	Arc::new(::kvdb::in_memory(::db::NUM_COLUMNS.unwrap_or(0)))
 }
 
 pub fn generate_dummy_blockchain(block_number: u32) -> BlockChain {

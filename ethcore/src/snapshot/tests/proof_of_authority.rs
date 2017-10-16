@@ -31,7 +31,7 @@ use tests::helpers;
 use transaction::{Transaction, Action, SignedTransaction};
 
 use util::Address;
-use util::kvdb;
+use kvdb;
 
 const PASS: &'static str = "";
 const TRANSITION_BLOCK_1: usize = 2; // block at which the contract becomes activated.

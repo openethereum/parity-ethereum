@@ -32,11 +32,12 @@ use ids::BlockId;
 
 use bigint::prelude::U256;
 use bigint::hash::H256;
-use util::{HashDB, DBValue, snappy};
+use util::{HashDB, DBValue};
+use snappy;
 use bytes::Bytes;
 use parking_lot::Mutex;
 use util::journaldb::{self, Algorithm, JournalDB};
-use util::kvdb::KeyValueDB;
+use kvdb::KeyValueDB;
 use trie::{TrieDB, TrieDBMut, Trie, TrieMut};
 use rlp::{RlpStream, UntrustedRlp};
 use bloom_journal::Bloom;

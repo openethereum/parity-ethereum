@@ -26,10 +26,10 @@ use itertools::Itertools;
 use hash::keccak;
 use timer::PerfTimer;
 use bytes::Bytes;
-use util::{journaldb, DBValue};
-use util::{Address, UtilError};
+use util::{Address, journaldb, DBValue};
+use util_error::UtilError;
 use trie::{TrieSpec, TrieFactory, Trie};
-use util::kvdb::*;
+use kvdb::*;
 
 // other
 use bigint::prelude::U256;
@@ -988,9 +988,11 @@ impl Client {
 
 	/// Tick the client.
 	// TODO: manage by real events.
-	pub fn tick(&self) {
+	pub fn tick(&self, prevent_sleep: bool) {
 		self.check_garbage();
-		self.check_snooze();
+		if !prevent_sleep {
+			self.check_snooze();
+		}
 	}
 
 	fn check_garbage(&self) {
@@ -1098,7 +1100,7 @@ impl Client {
 		if !self.liveness.load(AtomicOrdering::Relaxed) {
 			self.liveness.store(true, AtomicOrdering::Relaxed);
 			self.notify(|n| n.start());
-			trace!(target: "mode", "wake_up: Waking.");
+			info!(target: "mode", "wake_up: Waking.");
 		}
 	}
 
@@ -1108,11 +1110,11 @@ impl Client {
 			if self.queue_info().total_queue_size() <= MAX_QUEUE_SIZE_TO_SLEEP_ON {
 				self.liveness.store(false, AtomicOrdering::Relaxed);
 				self.notify(|n| n.stop());
-				trace!(target: "mode", "sleep: Sleeping.");
+				info!(target: "mode", "sleep: Sleeping.");
 			} else {
-				trace!(target: "mode", "sleep: Cannot sleep - syncing ongoing.");
+				info!(target: "mode", "sleep: Cannot sleep - syncing ongoing.");
 				// TODO: Consider uncommenting.
-				//*self.last_activity.lock() = Some(Instant::now());
+				//(*self.sleep_state.lock()).last_activity = Some(Instant::now());
 			}
 		}
 	}
@@ -2090,7 +2092,7 @@ mod tests {
 		use std::time::Duration;
 		use std::sync::Arc;
 		use std::sync::atomic::{AtomicBool, Ordering};
-		use util::kvdb::DBTransaction;
+		use kvdb::DBTransaction;
 
 		let client = generate_dummy_client(0);
 		let genesis = client.chain_info().best_block_hash;

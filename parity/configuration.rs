@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::time::Duration;
-use std::io::{Read, Write, stderr};
+use std::io::Read;
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 use std::collections::BTreeMap;
@@ -27,7 +27,6 @@ use bigint::prelude::U256;
 use bigint::hash::H256;
 use util::{version_data, Address};
 use bytes::Bytes;
-use util::journaldb::Algorithm;
 use ansi_term::Colour;
 use ethsync::{NetworkConfiguration, is_valid_node_url};
 use ethcore::ethstore::ethkey::{Secret, Public};
@@ -41,7 +40,7 @@ use parity_rpc::NetworkSettings;
 use cache::CacheConfig;
 use helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_price, replace_home, replace_home_and_local,
 geth_ipc_path, parity_ipc_path, to_bootnodes, to_addresses, to_address, to_gas_limit, to_queue_strategy};
-use params::{ResealPolicy, AccountsConfig, GasPricerConfig, MinerExtras, Pruning, Switch};
+use params::{ResealPolicy, AccountsConfig, GasPricerConfig, MinerExtras};
 use ethcore_logger::Config as LogConfig;
 use dir::{self, Directories, default_hypervisor_path, default_local_path, default_data_path};
 use dapps::Configuration as DappsConfiguration;
@@ -129,17 +128,7 @@ impl Configuration {
 		let compaction = self.args.arg_db_compaction.parse()?;
 		let wal = !self.args.flag_fast_and_loose;
 		let public_node = self.args.flag_public_node;
-		if !self.args.flag_no_warp {
-			// Logging is not initialized yet, so we print directly to stderr
-			if fat_db == Switch::On {
-				writeln!(&mut stderr(), "Warning: Warp Sync is disabled because Fat DB is turned on").expect("Error writing to stderr");
-			} else if tracing == Switch::On {
-				writeln!(&mut stderr(), "Warning: Warp Sync is disabled because tracing is turned on").expect("Error writing to stderr");
-			} else if pruning == Pruning::Specific(Algorithm::Archive) {
-				writeln!(&mut stderr(), "Warning: Warp Sync is disabled because pruning mode is set to archive").expect("Error writing to stderr");
-			}
-		}
-		let warp_sync = !self.args.flag_no_warp && fat_db != Switch::On && tracing != Switch::On && pruning != Pruning::Specific(Algorithm::Archive);
+		let warp_sync = !self.args.flag_no_warp;
 		let geth_compatibility = self.args.flag_geth;
 		let dapps_conf = self.dapps_config();
 		let ipfs_conf = self.ipfs_config();

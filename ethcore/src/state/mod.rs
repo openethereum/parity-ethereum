@@ -962,7 +962,7 @@ impl<B: Backend> State<B> {
 
 		// at this point the entry is guaranteed to be in the cache.
 		Ok(RefMut::map(self.cache.borrow_mut(), |c| {
-			let mut entry = c.get_mut(a).expect("entry known to exist in the cache; qed");
+			let entry = c.get_mut(a).expect("entry known to exist in the cache; qed");
 
 			match &mut entry.account {
 				&mut Some(ref mut acc) => not_default(acc),

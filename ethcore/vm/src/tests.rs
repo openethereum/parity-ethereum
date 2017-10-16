@@ -80,6 +80,12 @@ impl FakeExt {
 	pub fn new() -> Self {
 		FakeExt::default()
 	}
+
+	pub fn new_byzantium() -> Self {
+		let mut ext = FakeExt::default();
+		ext.schedule = Schedule::new_byzantium();
+		ext
+	}
 }
 
 impl Ext for FakeExt {

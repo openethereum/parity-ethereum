@@ -17,7 +17,20 @@
 export default class Middleware {
   constructor (transport) {
     this._transport = transport;
+    this._subscribe = transport.subscribe;
+
+    transport.subscribe = this.handleSubscribe.bind(this);
+
     this._handlers = {};
+    this._subHandlers = {};
+  }
+
+  registerSubscribe (method, handler) {
+    if (method in this._subHandlers) {
+      throw new Error(`${method} is already defined in the middleware!`);
+    }
+
+    this._subHandlers[method] = handler;
   }
 
   register (method, handler) {
@@ -28,10 +41,24 @@ export default class Middleware {
     this._handlers[method] = handler;
   }
 
+  handleSubscribe (api, callback, event) {
+    // Don't ask
+    const method = api.subscribe ? api.subscribe : event[0];
+    const params = event.length === 2 ? event[1] : event;
+
+    const handler = this._subHandlers[method];
+
+    if (handler) {
+      return handler(params, callback);
+    }
+
+    this._subscribe.call(this._transport, api, callback, event);
+  }
+
   handle (method, params) {
     const handler = this._handlers[method];
 
-    if (handler != null) {
+    if (handler) {
       return handler(params);
     }
 

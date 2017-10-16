@@ -105,7 +105,7 @@ export default class BadgeReg {
         ]);
       })
       .then(([ title, icon ]) => {
-        title = bytesToHex(title);
+        title = bytesToHex(title).replace(/(00)+$/, '');
         title = title === ZERO32 ? null : hexToAscii(title);
 
         if (bytesToHex(icon) === ZERO32) {

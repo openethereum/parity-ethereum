@@ -18,7 +18,7 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
-import { fetchTokens } from '../../redux/providers/tokensActions';
+import { fetchTokens } from '~/redux/providers/tokensActions';
 import styles from './methodDecoding.css';
 
 class TokenValue extends Component {

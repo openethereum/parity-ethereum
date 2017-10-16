@@ -16,7 +16,7 @@
 
 use std::fmt;
 use hashdb::*;
-use nibbleslice::*;
+use nibbleslice::NibbleSlice;
 use rlp::*;
 use super::node::{Node, OwnedNode};
 use super::lookup::Lookup;

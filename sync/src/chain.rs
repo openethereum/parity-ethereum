@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-///
 /// `BlockChain` synchronization strategy.
 /// Syncs to peers and keeps up to date.
 /// This implementation uses ethereum protocol v63
@@ -460,7 +459,7 @@ impl ChainSync {
 
 	/// Updates transactions were received by a peer
 	pub fn transactions_received(&mut self, hashes: Vec<H256>, peer_id: PeerId) {
-		if let Some(mut peer_info) = self.peers.get_mut(&peer_id) {
+		if let Some(peer_info) = self.peers.get_mut(&peer_id) {
 			peer_info.last_sent_transactions.extend(&hashes);
 		}
 	}
@@ -731,7 +730,7 @@ impl ChainSync {
 		}
 
 		let result =  {
-			let mut downloader = match block_set {
+			let downloader = match block_set {
 				BlockSet::NewBlocks => &mut self.new_blocks,
 				BlockSet::OldBlocks => {
 					match self.old_blocks {
@@ -796,7 +795,7 @@ impl ChainSync {
 		else
 		{
 			let result = {
-				let mut downloader = match block_set {
+				let downloader = match block_set {
 					BlockSet::NewBlocks => &mut self.new_blocks,
 					BlockSet::OldBlocks => match self.old_blocks {
 						None => {
@@ -850,7 +849,7 @@ impl ChainSync {
 		else
 		{
 			let result = {
-				let mut downloader = match block_set {
+				let downloader = match block_set {
 					BlockSet::NewBlocks => &mut self.new_blocks,
 					BlockSet::OldBlocks => match self.old_blocks {
 						None => {
@@ -2187,7 +2186,7 @@ impl ChainSync {
 			// Select random peer to re-broadcast transactions to.
 			let peer = random::new().gen_range(0, self.peers.len());
 			trace!(target: "sync", "Re-broadcasting transactions to a random peer.");
-			self.peers.values_mut().nth(peer).map(|mut peer_info|
+			self.peers.values_mut().nth(peer).map(|peer_info|
 				peer_info.last_sent_transactions.clear()
 			);
 		}
@@ -2230,19 +2229,18 @@ fn accepts_service_transaction(client_id: &str) -> bool {
 #[cfg(test)]
 mod tests {
 	use std::collections::{HashSet, VecDeque};
+	use {ethkey, Address};
 	use network::PeerId;
 	use tests::helpers::*;
 	use tests::snapshot::TestSnapshotService;
 	use bigint::prelude::U256;
 	use bigint::hash::H256;
-	use util::Address;
 	use parking_lot::RwLock;
 	use bytes::Bytes;
 	use rlp::{Rlp, RlpStream, UntrustedRlp};
 	use super::*;
 	use ::SyncConfig;
 	use super::{PeerInfo, PeerAsking};
-	use ethkey;
 	use ethcore::header::*;
 	use ethcore::client::{BlockChainClient, EachBlockWith, TestBlockChainClient};
 	use ethcore::transaction::UnverifiedTransaction;

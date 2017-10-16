@@ -1,0 +1,10 @@
+[package]
+name = "util-error"
+version = "0.1.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+
+[dependencies]
+rlp = { path = "../rlp" }
+ethcore-bigint = { path = "../bigint" }
+error-chain = "0.11.0-rc.2"
+rustc-hex = "1.0"

@@ -1,7 +1,7 @@
 [package]
 description = "Parity JSON-RPC servers."
 name = "parity-rpc"
-version = "1.8.0"
+version = "1.9.0"
 license = "GPL-3.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
@@ -57,12 +57,14 @@ rlp = { path = "../util/rlp" }
 stats = { path = "../util/stats" }
 vm = { path = "../ethcore/vm" }
 hash = { path = "../util/hash" }
+kvdb = { path = "../util/kvdb" }
 hardware-wallet = { path = "../hw" }
 
 clippy = { version = "0.0.103", optional = true}
 pretty_assertions = "0.1"
 
 [dev-dependencies]
+macros = { path = "../util/macros" }
 ethcore-network = { path = "../util/network" }
 
 [features]

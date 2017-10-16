@@ -54,13 +54,24 @@ export const watchRequest = (request) => (dispatch, getState) => {
   dispatch(trackRequest(requestId, request));
 };
 
-export const trackRequest = (requestId, { transactionHash = null } = {}) => (dispatch, getState) => {
+export const trackRequest = (requestId, { transactionHash = null, retries = 0 } = {}) => (dispatch, getState) => {
   const { api } = getState();
 
   trackRequestUtil(api, { requestId, transactionHash }, (error, _data = {}) => {
     const data = { ..._data };
 
     if (error) {
+      // Retry in 500ms if request not found, max 5 times
+      if (error.type === 'REQUEST_NOT_FOUND') {
+        if (retries > 5) {
+          return dispatch(deleteRequest(requestId));
+        }
+
+        return setTimeout(() => {
+          trackRequest(requestId, { transactionHash, retries: retries + 1 })(dispatch, getState);
+        }, 500);
+      }
+
       console.error(error);
       return dispatch(setRequest(requestId, { error }));
     }

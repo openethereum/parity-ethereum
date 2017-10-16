@@ -82,8 +82,8 @@ macro_rules! map_into {
 
 #[macro_export]
 macro_rules! flush {
-	($arg:expr) => ($crate::common::flush($arg.into()));
-	($($arg:tt)*) => ($crate::common::flush(format!("{}", format_args!($($arg)*))));
+	($arg:expr) => ($crate::flush($arg.into()));
+	($($arg:tt)*) => ($crate::flush(format!("{}", format_args!($($arg)*))));
 }
 
 #[macro_export]

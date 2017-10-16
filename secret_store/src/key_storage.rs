@@ -21,7 +21,7 @@ use serde_json;
 use tiny_keccak::Keccak;
 use bigint::hash::H256;
 use ethkey::{Secret, Public};
-use util::{Database, DatabaseIterator};
+use kvdb::{Database, DatabaseIterator};
 use types::all::{Error, ServiceConfiguration, ServerKeyId, NodeId};
 use serialization::{SerializablePublic, SerializableSecret, SerializableH256};
 
@@ -203,7 +203,7 @@ let hash = DocumentKeyShareVersion::data_hash(0, i2).into();*/
 				let current_key = CurrentSerializableDocumentKeyShare {
 					// author is used in separate generation + encrypt sessions.
 					// in v0 there have been only simultaneous GenEnc sessions.
-					author: Public::default().into(), // added in v1 
+					author: Public::default().into(), // added in v1
 					threshold: v0_key.threshold,
 					common_point: Some(v0_key.common_point),
 					encrypted_point: Some(v0_key.encrypted_point),
@@ -498,7 +498,7 @@ pub mod tests {
 	use serde_json;
 	use devtools::RandomTempPath;
 	use ethkey::{Random, Generator, Public, Secret};
-	use util::Database;
+	use kvdb::Database;
 	use types::all::{Error, NodeAddress, ServiceConfiguration, ClusterConfiguration, ServerKeyId};
 	use super::{DB_META_KEY_VERSION, CURRENT_VERSION, KeyStorage, PersistentKeyStorage, DocumentKeyShare,
 		DocumentKeyShareVersion, SerializableDocumentKeyShareV0, SerializableDocumentKeyShareV1,
@@ -557,7 +557,7 @@ pub mod tests {
 				admin_public: None,
 			},
 		};
-		
+
 		let key1 = ServerKeyId::from(1);
 		let value1 = DocumentKeyShare {
 			author: Public::default(),

@@ -30,6 +30,7 @@ class IdentityIcon extends Component {
 
   static propTypes = {
     address: PropTypes.string,
+    alt: PropTypes.string,
     button: PropTypes.bool,
     center: PropTypes.bool,
     className: PropTypes.string,
@@ -84,7 +85,7 @@ class IdentityIcon extends Component {
   }
 
   render () {
-    const { address, button, className, center, disabled, inline, padded, tiny } = this.props;
+    const { address, alt, button, className, center, disabled, inline, padded, tiny } = this.props;
     const { iconsrc } = this.state;
     const classes = [
       styles.icon,
@@ -135,6 +136,7 @@ class IdentityIcon extends Component {
 
     return (
       <img
+        alt={ alt || address }
         className={ classes }
         data-address-img
         height={ size }

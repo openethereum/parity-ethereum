@@ -3,7 +3,7 @@ description = "Ethcore library"
 homepage = "http://parity.io"
 license = "GPL-3.0"
 name = "ethcore"
-version = "1.8.0"
+version = "1.9.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 build = "build.rs"
 
@@ -55,6 +55,11 @@ rayon = "0.8"
 rand = "0.3"
 rlp = { path = "../util/rlp" }
 rlp_derive = { path = "../util/rlp_derive" }
+kvdb = { path = "../util/kvdb" }
+util-error = { path = "../util/error" }
+snappy = { path = "../util/snappy" }
+migration = { path = "../util/migration" }
+macros = { path = "../util/macros" }
 rust-crypto = "0.2.34"
 rustc-hex = "1.0"
 stats = { path = "../util/stats" }

@@ -28,12 +28,12 @@
 }
 
 .signData {
+  background: rgba(255,255,255, 0.25);
   border: 0.25em solid red;
-  margin-left: 2em;
-  padding: 0.5em;
+  font-size: 0.75em;
+  padding: 0.5rem;
   overflow: auto;
-  max-height: 6em;
-  max-width: calc(100% - 2em);
+  max-height: 10em;
 }
 
 .signData > p {

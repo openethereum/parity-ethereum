@@ -9,7 +9,7 @@
 !define COMPANYNAME "Parity"
 !define DESCRIPTION "Fast, light, robust Ethereum implementation"
 !define VERSIONMAJOR 1
-!define VERSIONMINOR 8
+!define VERSIONMINOR 9
 !define VERSIONBUILD 0
 !define ARGS "--warp"
 !define FIRST_START_ARGS "ui --warp --mode=passive"

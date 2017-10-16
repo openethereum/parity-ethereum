@@ -149,7 +149,7 @@ impl BanningTransactionQueue {
 	/// queue.
 	fn ban_sender(&mut self, address: Address) -> bool {
 		let count = {
-			let mut count = self.senders_bans.entry(address).or_insert_with(|| 0);
+			let count = self.senders_bans.entry(address).or_insert_with(|| 0);
 			*count = count.saturating_add(1);
 			*count
 		};
@@ -169,7 +169,7 @@ impl BanningTransactionQueue {
 	/// Returns true if bans threshold has been reached.
 	fn ban_recipient(&mut self, address: Address) -> bool {
 		let count = {
-			let mut count = self.recipients_bans.entry(address).or_insert_with(|| 0);
+			let count = self.recipients_bans.entry(address).or_insert_with(|| 0);
 			*count = count.saturating_add(1);
 			*count
 		};
@@ -185,7 +185,7 @@ impl BanningTransactionQueue {
 	/// If bans threshold is reached all subsequent transactions to contracts with this codehash will be rejected.
 	/// Returns true if bans threshold has been reached.
 	fn ban_codehash(&mut self, code_hash: H256) -> bool {
-		let mut count = self.codes_bans.entry(code_hash).or_insert_with(|| 0);
+		let count = self.codes_bans.entry(code_hash).or_insert_with(|| 0);
 		*count = count.saturating_add(1);
 
 		match self.ban_threshold {

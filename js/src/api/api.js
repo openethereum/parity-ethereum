@@ -47,13 +47,6 @@ export default class Api extends EventEmitter {
     this._trace = new Trace(transport);
     this._web3 = new Web3(transport);
 
-    if (isFunction(transport.subscribe)) {
-      this._pubsub = new Pubsub(transport);
-    }
-
-    if (allowSubscriptions) {
-      this._subscriptions = new Subscriptions(this);
-    }
     // Doing a request here in test env would cause an error
     if (LocalAccountsMiddleware && process.env.NODE_ENV !== 'test') {
       const middleware = this.parity
@@ -68,6 +61,14 @@ export default class Api extends EventEmitter {
         .catch(() => null);
 
       transport.addMiddleware(middleware);
+    }
+
+    if (isFunction(transport.subscribe)) {
+      this._pubsub = new Pubsub(transport);
+    }
+
+    if (allowSubscriptions) {
+      this._subscriptions = new Subscriptions(this);
     }
   }
 
