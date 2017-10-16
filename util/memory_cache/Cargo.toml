@@ -1,5 +1,5 @@
 [package]
-name = "memory_cache"
+name = "memory-cache"
 version = "0.1.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 description = "An LRU-cache which operates on memory used"

@@ -606,7 +606,7 @@ dependencies = [
  "log 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "lru-cache 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "macros 0.1.0",
- "memory_cache 0.1.0",
+ "memory-cache 0.1.0",
  "memorydb 0.1.0",
  "migration 0.1.0",
  "native-contracts 0.1.0",
@@ -760,7 +760,7 @@ dependencies = [
  "itertools 0.5.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "kvdb 0.1.0",
  "log 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
- "memory_cache 0.1.0",
+ "memory-cache 0.1.0",
  "memorydb 0.1.0",
  "parking_lot 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "patricia_trie 0.1.0",
@@ -1048,7 +1048,7 @@ dependencies = [
  "heapsize 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "lazy_static 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
- "memory_cache 0.1.0",
+ "memory-cache 0.1.0",
  "parking_lot 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-hex 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "vm 0.1.0",
@@ -1648,7 +1648,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "memory_cache"
+name = "memory-cache"
 version = "0.1.0"
 dependencies = [
  "heapsize 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
