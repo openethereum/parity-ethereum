@@ -4,10 +4,6 @@ name = "ethcore-secretstore"
 version = "1.0.0"
 license = "GPL-3.0"
 authors = ["Parity Technologies <admin@parity.io>"]
-build = "build.rs"
-
-[build-dependencies]
-ethcore-ipc-codegen = { path = "../ipc/codegen" }
 
 [dependencies]
 byteorder = "1.0"
@@ -34,8 +30,6 @@ ethcore-bigint = { path = "../util/bigint" }
 kvdb = { path = "../util/kvdb" }
 kvdb-rocksdb = { path = "../util/kvdb-rocksdb" }
 hash = { path = "../util/hash" }
-ethcore-ipc = { path = "../ipc/rpc" }
-ethcore-ipc-nano = { path = "../ipc/nano" }
 ethcore-logger = { path = "../logger" }
 ethcrypto = { path = "../ethcrypto" }
 ethkey = { path = "../ethkey" }
