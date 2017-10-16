@@ -47,7 +47,7 @@ const isEmbed = EMBED === '1' || EMBED === 'true';
 
 const entry = isEmbed
   ? { embed: './embed.js' }
-  : { bundle: './index.parity.js' };
+  : { bundle: ['babel-polyfill', './index.parity.js'] };
 
 module.exports = {
   cache: !isProd,

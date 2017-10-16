@@ -23,3 +23,4 @@ require('babel-register')({
     return false;
   }
 });
+require('babel-polyfill');
