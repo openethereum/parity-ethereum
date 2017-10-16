@@ -129,6 +129,7 @@ extern crate bloomable;
 extern crate vm;
 extern crate wasm;
 extern crate ethcore_util as util;
+extern crate memory_cache;
 
 #[macro_use]
 extern crate macros;
