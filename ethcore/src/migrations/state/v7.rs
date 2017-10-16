@@ -23,7 +23,7 @@ use bigint::hash::H256;
 use util::Address;
 use bytes::Bytes;
 use kvdb_rocksdb::Database;
-use migration::{Batch, Config, Error, Migration, SimpleMigration, Progress};
+use migration::{Batch, Config, Error, ErrorKind, Migration, SimpleMigration, Progress};
 use hash::keccak;
 use std::sync::Arc;
 
@@ -109,7 +109,7 @@ impl OverlayRecentV7 {
 	// walk all journal entries in the database backwards.
 	// find migrations for any possible inserted keys.
 	fn walk_journal(&mut self, source: Arc<Database>) -> Result<(), Error> {
-		if let Some(val) = source.get(None, V7_LATEST_ERA_KEY).map_err(Error::Custom)? {
+		if let Some(val) = source.get(None, V7_LATEST_ERA_KEY)? {
 			let mut era = decode::<u64>(&val);
 			loop {
 				let mut index: usize = 0;
@@ -120,7 +120,7 @@ impl OverlayRecentV7 {
 						r.out()
 					};
 
-					if let Some(journal_raw) = source.get(None, &entry_key).map_err(Error::Custom)? {
+					if let Some(journal_raw) = source.get(None, &entry_key)? {
 						let rlp = Rlp::new(&journal_raw);
 
 						// migrate all inserted keys.
@@ -153,7 +153,7 @@ impl OverlayRecentV7 {
 	// replace all possible inserted/deleted keys with their migrated counterparts
 	// and commit the altered entries.
 	fn migrate_journal(&self, source: Arc<Database>, mut batch: Batch, dest: &mut Database) -> Result<(), Error> {
-		if let Some(val) = source.get(None, V7_LATEST_ERA_KEY).map_err(Error::Custom)? {
+		if let Some(val) = source.get(None, V7_LATEST_ERA_KEY)? {
 			batch.insert(V7_LATEST_ERA_KEY.into(), val.clone().into_vec(), dest)?;
 
 			let mut era = decode::<u64>(&val);
@@ -166,7 +166,7 @@ impl OverlayRecentV7 {
 						r.out()
 					};
 
-					if let Some(journal_raw) = source.get(None, &entry_key).map_err(Error::Custom)? {
+					if let Some(journal_raw) = source.get(None, &entry_key)? {
 						let rlp = Rlp::new(&journal_raw);
 						let id: H256 = rlp.val_at(0);
 						let mut inserted_keys: Vec<(H256, Bytes)> = Vec::new();
@@ -233,9 +233,9 @@ impl Migration for OverlayRecentV7 {
 		let mut batch = Batch::new(config, col);
 
 		// check version metadata.
-		match source.get(None, V7_VERSION_KEY).map_err(Error::Custom)? {
+		match source.get(None, V7_VERSION_KEY)? {
 			Some(ref version) if decode::<u32>(&*version) == DB_VERSION => {}
-			_ => return Err(Error::MigrationImpossible), // missing or wrong version
+			_ => return Err(ErrorKind::MigrationImpossible.into()), // missing or wrong version
 		}
 
 		let mut count = 0;

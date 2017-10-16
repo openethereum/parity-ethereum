@@ -36,7 +36,7 @@ use bigint::prelude::U256;
 use bigint::hash::H256;
 use futures::{IntoFuture, Future};
 
-use kvdb::KeyValueDB;
+use kvdb::{self, KeyValueDB};
 use kvdb_rocksdb::CompactionProfile;
 
 use self::fetch::ChainDataFetcher;
@@ -187,7 +187,7 @@ impl<T: ChainDataFetcher> Client<T> {
 		fetcher: T,
 		io_channel: IoChannel<ClientIoMessage>,
 		cache: Arc<Mutex<Cache>>
-	) -> Result<Self, String> {
+	) -> Result<Self, kvdb::Error> {
 		Ok(Client {
 			queue: HeaderQueue::new(config.queue, spec.engine.clone(), io_channel, config.check_seal),
 			engine: spec.engine.clone(),

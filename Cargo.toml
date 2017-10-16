@@ -60,6 +60,7 @@ path = { path = "util/path" }
 panic_hook = { path = "panic_hook" }
 hash = { path = "util/hash" }
 migration = { path = "util/migration" }
+kvdb = { path = "util/kvdb" }
 kvdb-rocksdb = { path = "util/kvdb-rocksdb" }
 
 parity-dapps = { path = "dapps", optional = true }

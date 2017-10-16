@@ -33,7 +33,7 @@ pub type DBValue = ElasticArray128<u8>;
 
 error_chain! {
 	types {
-		Error, ErrorKind, ResultExt;
+		Error, ErrorKind, ResultExt, Result;
 	}
 
 	foreign_links {
@@ -148,7 +148,7 @@ pub trait KeyValueDB: Sync + Send {
 	fn transaction(&self) -> DBTransaction { DBTransaction::new() }
 
 	/// Get a value by key.
-	fn get(&self, col: Option<u32>, key: &[u8]) -> Result<Option<DBValue>, String>;
+	fn get(&self, col: Option<u32>, key: &[u8]) -> Result<Option<DBValue>>;
 
 	/// Get a value by partial key. Only works for flushed data.
 	fn get_by_prefix(&self, col: Option<u32>, prefix: &[u8]) -> Option<Box<[u8]>>;
@@ -157,13 +157,13 @@ pub trait KeyValueDB: Sync + Send {
 	fn write_buffered(&self, transaction: DBTransaction);
 
 	/// Write a transaction of changes to the backing store.
-	fn write(&self, transaction: DBTransaction) -> Result<(), String> {
+	fn write(&self, transaction: DBTransaction) -> Result<()> {
 		self.write_buffered(transaction);
 		self.flush()
 	}
 
 	/// Flush all buffered data.
-	fn flush(&self) -> Result<(), String>;
+	fn flush(&self) -> Result<()>;
 
 	/// Iterate over flushed data for a given column.
 	fn iter<'a>(&'a self, col: Option<u32>) -> Box<Iterator<Item=(Box<[u8]>, Box<[u8]>)> + 'a>;
@@ -173,5 +173,5 @@ pub trait KeyValueDB: Sync + Send {
 		-> Box<Iterator<Item=(Box<[u8]>, Box<[u8]>)> + 'a>;
 
 	/// Attempt to replace this database with a new one located at the given path.
-	fn restore(&self, new_db: &str) -> Result<(), Error>;
+	fn restore(&self, new_db: &str) -> Result<()>;
 }

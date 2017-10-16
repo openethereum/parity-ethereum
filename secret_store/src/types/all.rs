@@ -18,10 +18,7 @@ use std::fmt;
 use std::collections::BTreeMap;
 use serde_json;
 
-use ethkey;
-use bytes;
-use bigint;
-use key_server_cluster;
+use {ethkey, kvdb, bytes, bigint, key_server_cluster};
 
 /// Node id.
 pub type NodeId = ethkey::Public;
@@ -126,6 +123,12 @@ impl From<serde_json::Error> for Error {
 impl From<ethkey::Error> for Error {
 	fn from(err: ethkey::Error) -> Self {
 		Error::Internal(err.into())
+	}
+}
+
+impl From<kvdb::Error> for Error {
+	fn from(err: kvdb::Error) -> Self {
+		Error::Database(err.to_string())
 	}
 }
 

@@ -45,7 +45,7 @@ use rlp::{Encodable, Decodable, DecoderError, RlpStream, Rlp, UntrustedRlp};
 use heapsize::HeapSizeOf;
 use bigint::prelude::U256;
 use bigint::hash::{H256, H256FastMap, H264};
-use kvdb::{DBTransaction, KeyValueDB};
+use kvdb::{self, DBTransaction, KeyValueDB};
 
 use cache::Cache;
 use parking_lot::{Mutex, RwLock};
@@ -198,7 +198,7 @@ impl HeaderChain {
 		col: Option<u32>,
 		spec: &Spec,
 		cache: Arc<Mutex<Cache>>,
-	) -> Result<Self, String> {
+	) -> Result<Self, kvdb::Error> {
 		let mut live_epoch_proofs = ::std::collections::HashMap::default();
 
 		let genesis = ::rlp::encode(&spec.genesis_header()).into_vec();
@@ -240,7 +240,7 @@ impl HeaderChain {
 			let best_block = {
 				let era = match candidates.get(&best_number) {
 					Some(era) => era,
-					None => return Err(format!("Database corrupt: highest block referenced but no data.")),
+					None => return Err("Database corrupt: highest block referenced but no data.".into()),
 				};
 
 				let best = &era.candidates[0];

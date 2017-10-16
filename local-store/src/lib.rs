@@ -56,7 +56,7 @@ const UPDATE_TIMEOUT_MS: u64 = 15 * 60 * 1000; // once every 15 minutes.
 #[derive(Debug)]
 pub enum Error {
 	/// Database errors: these manifest as `String`s.
-	Database(String),
+	Database(kvdb::Error),
 	/// JSON errors.
 	Json(::serde_json::Error),
 }
