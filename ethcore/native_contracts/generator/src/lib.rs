@@ -21,18 +21,17 @@
 //! due to missing crates or name collisions. This will change when
 //! it can be ported to a procedural macro.
 
-use ethabi::Contract;
-use ethabi::spec::{Interface, ParamType, Error as AbiError};
-use heck::SnakeCase;
-
 extern crate ethabi;
 extern crate heck;
+
+use ethabi::{Contract, ParamType};
+use heck::SnakeCase;
 
 /// Errors in generation.
 #[derive(Debug)]
 pub enum Error {
 	/// Bad ABI.
-	Abi(AbiError),
+	Abi(ethabi::Error),
 	/// Unsupported parameter type in given function.
 	UnsupportedType(String, ParamType),
 }
@@ -41,13 +40,13 @@ pub enum Error {
 /// a struct which can be used to call it.
 // TODO: make this a proc macro when that's possible.
 pub fn generate_module(struct_name: &str, abi: &str) -> Result<String, Error> {
-	let contract = Contract::new(Interface::load(abi.as_bytes()).map_err(Error::Abi)?);
+	let contract = Contract::load(abi.as_bytes()).map_err(Error::Abi)?;
 	let functions = generate_functions(&contract)?;
 
 	Ok(format!(r##"
 use byteorder::{{BigEndian, ByteOrder}};
 use futures::{{future, Future, IntoFuture}};
-use ethabi::{{Contract, Interface, Token, Event}};
+use ethabi::{{Contract, Token, Event}};
 use bigint;
 
 type BoxFuture<A, B> = Box<Future<Item = A, Error = B> + Send>;
@@ -66,8 +65,8 @@ impl {name} {{
 	/// Create a new instance of `{name}` with an address.
 	/// Calls can be made, given a callback for dispatching calls asynchronously.
 	pub fn new(address: bigint::prelude::H160) -> Self {{
-		let contract = Contract::new(Interface::load(ABI.as_bytes())
-			.expect("ABI checked at generation-time; qed"));
+		let contract = Contract::load(ABI.as_bytes())
+			.expect("ABI checked at generation-time; qed");
 		{name} {{
 			contract: contract,
 			address: address,
@@ -92,16 +91,16 @@ impl {name} {{
 fn generate_functions(contract: &Contract) -> Result<String, Error> {
 	let mut functions = String::new();
 	for function in contract.functions() {
-		let name = function.name();
+		let name = &function.name;
 		let snake_name = name.to_snake_case();
-		let inputs = function.input_params();
-		let outputs = function.output_params();
+		let inputs: Vec<_> = function.inputs.iter().map(|i| i.kind.clone()).collect();
+		let outputs: Vec<_> = function.outputs.iter().map(|i| i.kind.clone()).collect();
 
 		let (input_params, to_tokens) = input_params_codegen(&inputs)
-			.map_err(|bad_type| Error::UnsupportedType(name.into(), bad_type))?;
+			.map_err(|bad_type| Error::UnsupportedType(name.clone(), bad_type))?;
 
 		let (output_type, decode_outputs) = output_params_codegen(&outputs)
-			.map_err(|bad_type| Error::UnsupportedType(name.into(), bad_type))?;
+			.map_err(|bad_type| Error::UnsupportedType(name.clone(), bad_type))?;
 
 		functions.push_str(&format!(r##"
 /// Call the function "{abi_name}" on the contract.
@@ -115,17 +114,17 @@ pub fn {snake_name}<F, U>(&self, call: F, {params}) -> BoxFuture<{output_type}, 
 		U::Future: Send + 'static
 {{
 	let function = self.contract.function(r#"{abi_name}"#)
-		.expect("function existence checked at compile-time; qed");
+		.expect("function existence checked at compile-time; qed").clone();
 	let call_addr = self.address;
 
-	let call_future = match function.encode_call({to_tokens}) {{
+	let call_future = match function.encode_input(&{to_tokens}) {{
 		Ok(call_data) => (call)(call_addr, call_data),
 		Err(e) => return Box::new(future::err(format!("Error encoding call: {{:?}}", e))),
 	}};
 
 	Box::new(call_future
 		.into_future()
-		.and_then(move |out| function.decode_output(out).map_err(|e| format!("{{:?}}", e)))
+		.and_then(move |out| function.decode_output(&out).map_err(|e| format!("{{:?}}", e)))
 		.map(Vec::into_iter)
 		.and_then(|mut outputs| {decode_outputs}))
 }}
@@ -325,7 +324,7 @@ fn detokenize(name: &str, output_type: ParamType) -> String {
 
 #[cfg(test)]
 mod tests {
-	use ethabi::spec::ParamType;
+	use ethabi::ParamType;
 
 	#[test]
 	fn input_types() {
