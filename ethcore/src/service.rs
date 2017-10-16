@@ -19,7 +19,8 @@
 use std::sync::Arc;
 use std::path::Path;
 use bigint::hash::H256;
-use kvdb::{Database, DatabaseConfig, KeyValueDB};
+use kvdb::KeyValueDB;
+use kvdb_rocksdb::{Database, DatabaseConfig};
 use bytes::Bytes;
 use io::*;
 use spec::Spec;

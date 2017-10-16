@@ -65,7 +65,6 @@ extern crate rlp;
 extern crate stats;
 extern crate hash;
 extern crate hardware_wallet;
-extern crate kvdb;
 
 #[macro_use]
 extern crate log;
@@ -84,6 +83,9 @@ extern crate pretty_assertions;
 #[cfg(test)]
 #[macro_use]
 extern crate macros;
+
+#[cfg(test)]
+extern crate kvdb_memorydb;
 
 pub extern crate jsonrpc_ws_server as ws;
 

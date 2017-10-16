@@ -21,7 +21,7 @@ use std::fs::File;
 use bigint::prelude::U256;
 use bigint::hash::clean_0x;
 use util::Address;
-use kvdb::CompactionProfile;
+use kvdb_rocksdb::CompactionProfile;
 use util::journaldb::Algorithm;
 use ethcore::client::{Mode, BlockId, VMType, DatabaseCompactionProfile, ClientConfig, VerifierType};
 use ethcore::miner::{PendingSet, GasLimit, PrioritizationStrategy};

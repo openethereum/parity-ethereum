@@ -25,7 +25,7 @@ use ethcore::db;
 use ethcore::service::ClientIoMessage;
 use ethcore::spec::Spec;
 use io::{IoContext, IoError, IoHandler, IoService};
-use kvdb::{Database, DatabaseConfig};
+use kvdb_rocksdb::{Database, DatabaseConfig};
 
 use cache::Cache;
 use parking_lot::Mutex;
