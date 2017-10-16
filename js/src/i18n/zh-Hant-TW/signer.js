@@ -58,7 +58,7 @@ export default {
     },
     unknownBinary: `（未知二進位制資料）`, // (Unknown binary data)
     warning: `警告：此操作的結果是不可逆的。請在確認資訊後再通過請求。`
-    // WARNING: This consequences of doing this may be grave. Confirm the request only if you are sure.
+    // WARNING: The consequences of doing this may be grave. Confirm the request only if you are sure.
   },
   title: `可信的Signer`, // Trusted Signer
   txPending: {
