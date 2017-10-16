@@ -30,7 +30,7 @@ use jsonrpc_core::futures::future::Either;
 use v1::helpers::{
 	errors, DefaultAccount, SignerService, SigningQueue,
 	ConfirmationReceiver as RpcConfirmationReceiver,
-	ConfirmationOutcome as RpcConfirmationOutcome,
+	ConfirmationResult as RpcConfirmationResult,
 };
 use v1::helpers::dispatch::{self, Dispatcher};
 use v1::helpers::accounts::unwrap_provider;
@@ -64,18 +64,14 @@ impl Future for DispatchResult {
 	fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
 		match *self {
 			DispatchResult::Value(ref response) => Ok(Async::Ready(response.clone())),
-			DispatchResult::Future(_uid, ref mut future) => match try_ready!(future.poll()) {
-				RpcConfirmationOutcome::Rejected => Err(errors::request_rejected()),
-				RpcConfirmationOutcome::Confirmed(response) => Ok(Async::Ready(response)),
-				RpcConfirmationOutcome::Failed(error) => Err(error)
-			}
+			DispatchResult::Future(_uid, ref mut future) => try_ready!(future.poll()).map(Async::Ready),
 		}
 	}
 }
 
 fn schedule(remote: Remote,
 	pending: Arc<RwLock<BTreeSet<U256>>>,
-	confirmations: Arc<Mutex<TransientHashMap<U256, RpcConfirmationOutcome>>>,
+	confirmations: Arc<Mutex<TransientHashMap<U256, RpcConfirmationResult>>>,
 	id: U256,
 	future: RpcConfirmationReceiver) {
 	{
@@ -91,7 +87,7 @@ fn schedule(remote: Remote,
 		{
 			let mut confirmations = confirmations.lock();
 			confirmations.prune();
-			let result = result.unwrap_or_else(|error| RpcConfirmationOutcome::Failed(error));
+			let result = result.and_then(|response| response);
 			confirmations.insert(id, result);
 		}
 		Ok(())
@@ -106,7 +102,7 @@ pub struct SigningQueueClient<D> {
 	dispatcher: D,
 	remote: Remote,
 	pending: Arc<RwLock<BTreeSet<U256>>>,
-	confirmations: Arc<Mutex<TransientHashMap<U256, RpcConfirmationOutcome>>>,
+	confirmations: Arc<Mutex<TransientHashMap<U256, RpcConfirmationResult>>>,
 }
 
 impl<D: Dispatcher + 'static> SigningQueueClient<D> {
@@ -200,7 +196,7 @@ impl<D: Dispatcher + 'static> ParitySigning for SigningQueueClient<D> {
 		if self.pending.read().contains(&id) {
 			Ok(None)
 		} else if let Some(confirmation) = self.confirmations.lock().get(&id) {
-			confirmation.clone().into()
+			confirmation.clone().map(Some)
 		} else {
 			Err(errors::request_not_found())
 		}

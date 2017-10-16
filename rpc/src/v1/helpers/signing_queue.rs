@@ -23,10 +23,9 @@ use v1::helpers::{ConfirmationRequest, ConfirmationPayload, oneshot, errors};
 use v1::types::{ConfirmationResponse, H160 as RpcH160, Origin, DappId as RpcDappId};
 
 use jsonrpc_core::Error;
-use jsonrpc_core::futures::Future;
 
 /// Result that can be returned from JSON RPC.
-pub type RpcResult = Result<ConfirmationResponse, Error>;
+pub type ConfirmationResult = Result<ConfirmationResponse, Error>;
 
 /// Type of default account
 pub enum DefaultAccount {
@@ -82,7 +81,7 @@ pub trait SigningQueue: Send + Sync {
 
 	/// Removes a request from the queue.
 	/// Notifies possible token holders that request was confirmed and given hash was assigned.
-	fn request_confirmed(&self, id: U256, result: RpcResult) -> Option<ConfirmationRequest>;
+	fn request_confirmed(&self, id: U256, result: ConfirmationResult) -> Option<ConfirmationRequest>;
 
 	/// Returns a request if it is contained in the queue.
 	fn peek(&self, id: &U256) -> Option<ConfirmationRequest>;
@@ -97,46 +96,14 @@ pub trait SigningQueue: Send + Sync {
 	fn is_empty(&self) -> bool;
 }
 
-#[derive(Debug, Clone, PartialEq)]
-/// Result of a pending confirmation request.
-// TODO [kirushik] Let's get rid of this completely, and simplify that `Result<Option<Result...` juggling somehow
-pub enum ConfirmationOutcome {
-	/// The request has been rejected.
-	Rejected,
-	/// The request has been confirmed.
-	Confirmed(ConfirmationResponse),
-	/// We've failed to determine the state of the confirmation
-	Failed(Error),
-}
-
-impl From<Option<RpcResult>> for ConfirmationOutcome {
-	fn from(result: Option<RpcResult>) -> Self {
-		match result {
-			None => ConfirmationOutcome::Rejected,
-			Some(Ok(response)) => ConfirmationOutcome::Confirmed(response),
-			Some(Err(error)) => ConfirmationOutcome::Failed(error),
-		}
-	}
-}
-
-impl Into<Result<Option<ConfirmationResponse>, Error>> for ConfirmationOutcome {
-	fn into(self) -> Result<Option<ConfirmationResponse>, Error> {
-		match self {
-			ConfirmationOutcome::Rejected => Err(errors::request_rejected()),
-			ConfirmationOutcome::Confirmed(confirmation) => Ok(Some(confirmation)),
-			ConfirmationOutcome::Failed(error) => Err(error),
-		}
-	}
-}
-
 struct ConfirmationSender {
-	sender: oneshot::Sender<ConfirmationOutcome>,
+	sender: oneshot::Sender<ConfirmationResult>,
 	request: ConfirmationRequest,
 }
 
 /// Receiving end of the Confirmation channel; can be used as a `Future` to await for `ConfirmationRequest`
 /// being processed and turned into `ConfirmationOutcome`
-pub type ConfirmationReceiver =  oneshot::Receiver<ConfirmationOutcome>;
+pub type ConfirmationReceiver =  oneshot::Receiver<ConfirmationResult>;
 
 /// Queue for all unconfirmed requests.
 #[derive(Default)]
@@ -168,7 +135,7 @@ impl ConfirmationsQueue {
 
 	/// Removes requests from this queue and notifies `ConfirmationReceiver` holder about the result.
 	/// Notifies also a receiver about that event.
-	fn remove(&self, id: U256, result: Option<RpcResult>) -> Option<ConfirmationRequest> {
+	fn remove(&self, id: U256, result: Option<ConfirmationResult>) -> Option<ConfirmationRequest> {
 		let sender = self.queue.write().remove(&id);
 
 		if let Some(sender) = sender {
@@ -179,8 +146,8 @@ impl ConfirmationsQueue {
 			));
 
 			// notify confirmation receiver about resolution
-			let confirmation = result.into();
-			sender.sender.send(Ok(confirmation));
+			let result = result.ok_or(errors::request_rejected());
+			sender.sender.send(result);
 
 			Some(sender.request)
 		} else {
@@ -213,7 +180,7 @@ impl SigningQueue for ConfirmationsQueue {
 			trace!(target: "own_tx", "Signer: ({:?}) : {:?}", id, request);
 
 			let mut queue = self.queue.write();
-			let (sender, receiver) = oneshot::oneshot::<ConfirmationOutcome>();
+			let (sender, receiver) = oneshot::oneshot::<ConfirmationResult>();
 
 			queue.insert(id, ConfirmationSender {
 				sender,
@@ -239,7 +206,7 @@ impl SigningQueue for ConfirmationsQueue {
 		self.remove(id, None)
 	}
 
-	fn request_confirmed(&self, id: U256, result: RpcResult) -> Option<ConfirmationRequest> {
+	fn request_confirmed(&self, id: U256, result: ConfirmationResult) -> Option<ConfirmationRequest> {
 		debug!(target: "own_tx", "Signer: Transaction confirmed ({:?}).", id);
 		self.remove(id, Some(result))
 	}
@@ -269,8 +236,7 @@ mod test {
 	use parking_lot::Mutex;
 	use jsonrpc_core::futures::Future;
 	use v1::helpers::{
-		SigningQueue, ConfirmationsQueue, QueueEvent, FilledTransactionRequest,
-		ConfirmationOutcome, ConfirmationPayload,
+		SigningQueue, ConfirmationsQueue, QueueEvent, FilledTransactionRequest, ConfirmationPayload,
 	};
 	use v1::types::ConfirmationResponse;
 
@@ -300,7 +266,7 @@ mod test {
 
 		// then
 		let confirmation = future.wait().unwrap();
-		assert_eq!(confirmation, ConfirmationOutcome::Confirmed(ConfirmationResponse::SendTransaction(1.into())));
+		assert_eq!(confirmation, Ok(ConfirmationResponse::SendTransaction(1.into())));
 	}
 
 	#[test]
