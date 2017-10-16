@@ -16,6 +16,17 @@
 
 //! `JournalDB` interface and implementation.
 
+extern crate ethcore_bigint as bigint;
+extern crate ethcore_bytes as bytes;
+extern crate parking_lot;
+extern crate rlp;
+extern crate hashdb;
+extern crate memorydb;
+extern crate kvdb;
+extern crate util_error as error;
+extern crate heapsize;
+#[macro_use] extern crate log;
+
 use std::{fmt, str};
 use std::sync::Arc;
 
@@ -25,6 +36,8 @@ mod archivedb;
 mod earlymergedb;
 mod overlayrecentdb;
 mod refcounteddb;
+
+pub mod overlaydb;
 
 /// Export the `JournalDB` trait.
 pub use self::traits::JournalDB;
