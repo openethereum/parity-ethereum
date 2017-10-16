@@ -25,7 +25,7 @@ use key_server_cluster::cluster::Cluster;
 use key_server_cluster::cluster_sessions::{SessionIdWithSubSession, ClusterSession};
 use key_server_cluster::message::{Message, DecryptionMessage, DecryptionConsensusMessage, RequestPartialDecryption,
 	PartialDecryption, DecryptionSessionError, DecryptionSessionCompleted, ConsensusMessage, InitializeConsensusSession,
-	ConfirmConsensusInitialization};
+	ConfirmConsensusInitialization, DecryptionSessionDelegation, DecryptionSessionDelegationCompleted};
 use key_server_cluster::jobs::job_session::JobTransport;
 use key_server_cluster::jobs::key_access_job::KeyAccessJob;
 use key_server_cluster::jobs::decryption_job::{PartialDecryptionRequest, PartialDecryptionResponse, DecryptionJob};
@@ -81,22 +81,6 @@ struct SessionData {
 	pub is_shadow_decryption: Option<bool>,
 	/// Decryption result.
 	pub result: Option<Result<EncryptedDocumentKeyShadow, Error>>,
-}
-
-/// Signing session state.
-#[derive(Debug, PartialEq)]
-#[cfg_attr(test, derive(Clone, Copy))]
-pub enum SessionState {
-	/// Waiting for initialization.
-	WaitingForInitialization,
-	/// Selecting key version.
-	SelectingKeyVersion,
-	/// State when consensus is establishing.
-	ConsensusEstablishing,
-	/// State when session key is generating.
-	SessionKeyGeneration,
-	/// State when signature is computing.
-	SignatureComputing,
 }
 
 /// SessionImpl creation parameters
@@ -217,6 +201,11 @@ impl SessionImpl {
 		self.data.lock().result.clone()
 	}
 
+	/// Delegate session to other node.
+	pub fn delegate(&self, master: NodeId, version: H256, is_shadow_decryption: bool) -> Result<(), Error> {
+		unimplemented!()
+	}
+
 	/// Initialize decryption session on master node.
 	pub fn initialize(&self, connected_nodes: BTreeSet<NodeId>, version: H256, is_shadow_decryption: bool) -> Result<(), Error> {
 		// check if version exists
@@ -256,7 +245,21 @@ impl SessionImpl {
 				self.on_session_error(sender, message),
 			&DecryptionMessage::DecryptionSessionCompleted(ref message) =>
 				self.on_session_completed(sender, message),
+			&DecryptionMessage::DecryptionSessionDelegation(ref message) =>
+				self.on_session_delegated(sender, message),
+			&DecryptionMessage::DecryptionSessionDelegationCompleted(ref message) =>
+				self.on_session_delegation_completed(sender, message),
 		}
+	}
+
+	/// When session is delegated to this node.
+	pub fn on_session_delegated(&self, sender: &NodeId, message: &DecryptionSessionDelegation) -> Result<(), Error> {
+		unimplemented!()
+	}
+
+	/// When delegated session is completed on other node.
+	pub fn on_session_delegation_completed(&self, sender: &NodeId, message: &DecryptionSessionDelegationCompleted) -> Result<(), Error> {
+		unimplemented!()
 	}
 
 	/// When consensus-related message is received.

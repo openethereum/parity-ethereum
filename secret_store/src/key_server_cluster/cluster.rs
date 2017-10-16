@@ -470,7 +470,7 @@ impl ClusterCore {
 								connected_nodes.insert(data.self_key_pair.public().clone());
 								let _ = session.initialize(connected_nodes, version, is_shadow_decryption); // TODO: err
 							} else {
-								unimplemented!("TODO")
+								let _ = session.delegate(master, version, is_shadow_decryption); // TODO: err
 							}
 						},
 						Some(ContinueAction::Sign(session, message_hash)) => {
@@ -479,7 +479,7 @@ impl ClusterCore {
 								connected_nodes.insert(data.self_key_pair.public().clone());
 								let _ = session.initialize(connected_nodes, version, message_hash); // TODO: err
 							} else {
-								unimplemented!("TODO")
+								let _ = session.delegate(master, version, message_hash); // TODO: err
 							}
 						},
 						None => (),

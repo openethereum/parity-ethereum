@@ -26,7 +26,7 @@ use key_server_cluster::generation_session::{SessionImpl as GenerationSession, S
 	Session as GenerationSessionApi, SessionState as GenerationSessionState};
 use key_server_cluster::message::{Message, SigningMessage, SigningConsensusMessage, SigningGenerationMessage,
 	RequestPartialSignature, PartialSignature, SigningSessionCompleted, GenerationMessage, ConsensusMessage, SigningSessionError,
-	InitializeConsensusSession, ConfirmConsensusInitialization};
+	InitializeConsensusSession, ConfirmConsensusInitialization, SigningSessionDelegation, SigningSessionDelegationCompleted};
 use key_server_cluster::jobs::job_session::JobTransport;
 use key_server_cluster::jobs::key_access_job::KeyAccessJob;
 use key_server_cluster::jobs::signing_job::{PartialSigningRequest, PartialSigningResponse, SigningJob};
@@ -208,6 +208,11 @@ impl SessionImpl {
 		self.data.lock().state
 	}
 
+	/// Delegate session to other node.
+	pub fn delegate(&self, master: NodeId, version: H256, message_hash: H256) -> Result<(), Error> {
+		unimplemented!()
+	}
+
 	/// Initialize signing session on master node.
 	pub fn initialize(&self, connected_nodes: BTreeSet<NodeId>, version: H256, message_hash: H256) -> Result<(), Error> {
 		// check if version exists
@@ -270,8 +275,23 @@ impl SessionImpl {
 				self.on_session_error(sender, message),
 			&SigningMessage::SigningSessionCompleted(ref message) =>
 				self.on_session_completed(sender, message),
+			&SigningMessage::SigningSessionDelegation(ref message) =>
+				self.on_session_delegated(sender, message),
+			&SigningMessage::SigningSessionDelegationCompleted(ref message) =>
+				self.on_session_delegation_completed(sender, message),
 		}
 	}
+
+	/// When session is delegated to this node.
+	pub fn on_session_delegated(&self, sender: &NodeId, message: &SigningSessionDelegation) -> Result<(), Error> {
+		unimplemented!()
+	}
+
+	/// When delegated session is completed on other node.
+	pub fn on_session_delegation_completed(&self, sender: &NodeId, message: &SigningSessionDelegationCompleted) -> Result<(), Error> {
+		unimplemented!()
+	}
+
 
 	/// When consensus-related message is received.
 	pub fn on_consensus_message(&self, sender: &NodeId, message: &SigningConsensusMessage) -> Result<(), Error> {
