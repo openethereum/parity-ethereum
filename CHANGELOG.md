@@ -1,15 +1,15 @@
-## Parity [v1.8.0](https://github.com/paritytech/parity/releases/tag/v1.8.0) (2017-10-14)
+## Parity [v1.8.0](https://github.com/paritytech/parity/releases/tag/v1.8.0) (2017-10-15)
 
 We are happy to announce our newest Parity 1.8 release. Among others, it enables the following features:
 
-- Full Whisper v6 integration.
-- Trezor hardware-wallet support.
-- WASM contract support.
-- PICOPS KYC-certified accounts and vouching for community-dapps.
-- Light client compatibility for Proof-of-Authority networks.
-- Transaction permissioning and permissioned p2p-connections.
-- Full Byzantium-fork compatibility.
-- Full Musicoin MCIP-3 UBI-fork compatibility.
+- Full Whisper v6 integration
+- Trezor hardware-wallet support
+- WASM contract support
+- PICOPS KYC-certified accounts and vouching for community-dapps
+- Light client compatibility for Proof-of-Authority networks
+- Transaction permissioning and permissioned p2p-connections
+- Full Byzantium-fork compatibility
+- Full Musicoin MCIP-3 UBI-fork compatibility
 
 Further, users upgrading from 1.7 should acknowledge the following changes:
 
@@ -20,6 +20,12 @@ Further, users upgrading from 1.7 should acknowledge the following changes:
 
 Full list of included changes:
 
+- Updated ethabi to fix auto-update ([#6771](https://github.com/paritytech/parity/pull/6771))
+- Fixed kovan chain validation ([#6760](https://github.com/paritytech/parity/pull/6760))
+  - Fixed kovan chain validation
+  - Fork detection
+  - Fixed typo
+- Bumped fork block number for auto-update ([#6755](https://github.com/paritytech/parity/pull/6755))
 - CLI: Reject invalid argument values rather than ignore them ([#6747](https://github.com/paritytech/parity/pull/6747))
 - Fixed modexp gas calculation overflow ([#6745](https://github.com/paritytech/parity/pull/6745))
 - Backport beta - Fixes Badges ([#6732](https://github.com/paritytech/parity/pull/6732))
