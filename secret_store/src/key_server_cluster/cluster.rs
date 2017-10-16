@@ -32,8 +32,8 @@ use ethkey::{Public, KeyPair, Signature, Random, Generator};
 use bigint::hash::H256;
 use key_server_cluster::{Error, NodeId, SessionId, AclStorage, KeyStorage, KeyServerSet, NodeKeyPair};
 use key_server_cluster::cluster_sessions::{ClusterSession, ClusterSessions, GenerationSessionWrapper, EncryptionSessionWrapper,
-	DecryptionSessionWrapper, SigningSessionWrapper, AdminSessionWrapper, SessionIdWithSubSession, ClusterSessionCreator,
-	IntoSessionId, ClusterSessionsContainer};
+	DecryptionSessionWrapper, SigningSessionWrapper, AdminSessionWrapper, KeyNegotiationSessionWrapper, SessionIdWithSubSession,
+	ClusterSessionCreator, IntoSessionId, ClusterSessionsContainer};
 use key_server_cluster::message::{self, Message, ClusterMessage, GenerationMessage, EncryptionMessage, DecryptionMessage,
 	SigningMessage, ServersSetChangeMessage, ConsensusMessage, ShareAddMessage, ShareMoveMessage, ShareRemoveMessage,
 	ConsensusMessageWithServersSecretMap, ConsensusMessageWithServersMap, ConsensusMessageWithServersSet};
@@ -43,6 +43,7 @@ use key_server_cluster::generation_session::SessionImpl as GenerationSessionImpl
 use key_server_cluster::decryption_session::{Session as DecryptionSession};
 use key_server_cluster::encryption_session::{Session as EncryptionSession, SessionState as EncryptionSessionState};
 use key_server_cluster::signing_session::{Session as SigningSession};
+use key_server_cluster::key_version_negotiation_session::{Session as KeyVersionNegotiationSession};
 use key_server_cluster::io::{DeadlineStatus, ReadMessage, SharedTcpStream, read_encrypted_message, WriteMessage, write_encrypted_message};
 use key_server_cluster::net::{accept_connection as net_accept_connection, connect as net_connect, Connection as NetConnection};
 
@@ -71,9 +72,11 @@ pub trait ClusterClient: Send + Sync {
 	/// Start new encryption session.
 	fn new_encryption_session(&self, session_id: SessionId, requestor_signature: Signature, common_point: Public, encrypted_point: Public) -> Result<Arc<EncryptionSession>, Error>;
 	/// Start new decryption session.
-	fn new_decryption_session(&self, session_id: SessionId, requestor_signature: Signature, is_shadow_decryption: bool) -> Result<Arc<DecryptionSession>, Error>;
+	fn new_decryption_session(&self, session_id: SessionId, requestor_signature: Signature, version: Option<H256>, is_shadow_decryption: bool) -> Result<Arc<DecryptionSession>, Error>;
 	/// Start new signing session.
-	fn new_signing_session(&self, session_id: SessionId, requestor_signature: Signature, message_hash: H256) -> Result<Arc<SigningSession>, Error>;
+	fn new_signing_session(&self, session_id: SessionId, requestor_signature: Signature, version: Option<H256>, message_hash: H256) -> Result<Arc<SigningSession>, Error>;
+	/// Start new key version negotiation session.
+	fn new_key_version_negotiation_session(&self, session_id: SessionId) -> Result<Arc<KeyVersionNegotiationSession>, Error>;
 	/// Start new share add session.
 	fn new_share_add_session(&self, session_id: SessionId, new_nodes_set: BTreeSet<NodeId>, old_set_signature: Signature, new_set_signature: Signature) -> Result<Arc<AdminSessionWrapper>, Error>;
 	/// Start new share move session.
@@ -432,10 +435,10 @@ impl ClusterCore {
 			Message::Decryption(message) => Self::process_message(&data, &data.sessions.decryption_sessions, connection, Message::Decryption(message)),
 			Message::Signing(message) => Self::process_message(&data, &data.sessions.signing_sessions, connection, Message::Signing(message)),
 			Message::ServersSetChange(message) => Self::process_message(&data, &data.sessions.admin_sessions, connection, Message::ServersSetChange(message)),
+			Message::KeyVersionNegotiation(message) => Self::process_message(&data, &data.sessions.negotiation_sessions, connection, Message::KeyVersionNegotiation(message)),
 			Message::ShareAdd(message) => Self::process_message(&data, &data.sessions.admin_sessions, connection, Message::ShareAdd(message)),
 			Message::ShareMove(message) => Self::process_message(&data, &data.sessions.admin_sessions, connection, Message::ShareMove(message)),
 			Message::ShareRemove(message) => Self::process_message(&data, &data.sessions.admin_sessions, connection, Message::ShareRemove(message)),
-			Message::KeyVersionNegotiation(message) => unimplemented!("TODO"),
 			Message::Cluster(message) => ClusterCore::process_cluster_message(data, connection, message),
 		}
 	}
@@ -462,7 +465,7 @@ impl ClusterCore {
 	}
 
 	/// Process single session message from connection.
-	fn process_message<S: ClusterSession, SC: ClusterSessionCreator<S, D>, D>(data: &Arc<ClusterData>, sessions: &ClusterSessionsContainer<S, SC, D>, connection: Arc<Connection>, mut message: Message)
+	fn process_message<S: ClusterSession, SC: ClusterSessionCreator<S, D>, D>(data: &Arc<ClusterData>, sessions: &ClusterSessionsContainer<S, SC, D>, connection: Arc<Connection>, mut message: Message) -> Option<Arc<>>
 		where Message: IntoSessionId<S::Id> {
 
 		// get or create new session, if required
@@ -478,7 +481,7 @@ impl ClusterCore {
 				let session_id = message.into_session_id().expect("TODO");
 				let session_nonce = message.session_nonce().expect("TODO");
 				data.spawn(connection.send_message(SC::make_error_message(session_id, session_nonce, error)));
-				return;
+				return None;
 			},
 		};
 
@@ -492,7 +495,7 @@ impl ClusterCore {
 					if session.is_finished() {
 	//					info!(target: "secretstore_net", "{}: {} session completed", data.self_key_pair.public(), "generation");
 						sessions.remove(&session_id);
-						return;
+						return Some(session);
 					}
 
 					// try to dequeue message
@@ -502,12 +505,12 @@ impl ClusterCore {
 							sender = msg_sender;
 							message = msg;
 						},
-						None => return,
+						None => return Some(session),
 					}
 				},
 				Err(Error::TooEarlyForRequest) => {
 					sessions.enqueue_message(&session_id, sender, message, is_queued_message);
-					return;
+					return Some(session);
 				},
 				Err(err) => {
 					/*warn!(target: "secretstore_net", "{}: {} session error '{}' when processing message {} from node {}",
@@ -519,7 +522,7 @@ impl ClusterCore {
 					let _ = session.on_session_error(&Public::default()/*data.self_key_pair.public()*/, err); // processing error => ignore error
 					//session.cluster().broadcast(error_message.into());
 					sessions.remove(&session_id);
-					return;
+					return Some(session);
 				},
 			}
 		}
@@ -808,7 +811,7 @@ impl ClusterClient for ClusterClientImpl {
 		Ok(EncryptionSessionWrapper::new(Arc::downgrade(&self.data), session_id, session))
 	}
 
-	fn new_decryption_session(&self, session_id: SessionId, requestor_signature: Signature, is_shadow_decryption: bool) -> Result<Arc<DecryptionSession>, Error> {
+	fn new_decryption_session(&self, session_id: SessionId, requestor_signature: Signature, version: Option<H256>, is_shadow_decryption: bool) -> Result<Arc<DecryptionSession>, Error> {
 		let mut connected_nodes = self.data.connections.connected_nodes();
 		connected_nodes.insert(self.data.self_key_pair.public().clone());
 
@@ -816,11 +819,12 @@ impl ClusterClient for ClusterClientImpl {
 		let session_id = SessionIdWithSubSession::new(session_id, access_key);
 		let cluster = Arc::new(ClusterView::new(self.data.clone(), connected_nodes.clone()));
 		let session = self.data.sessions.decryption_sessions.insert(&self.data, self.data.self_key_pair.public().clone(), session_id.clone(), None, false, false, Some(requestor_signature))?;
-		session.initialize(connected_nodes, is_shadow_decryption)?;
+let version = version.expect("TODO");
+		session.initialize(connected_nodes, version, is_shadow_decryption)?;
 		Ok(DecryptionSessionWrapper::new(Arc::downgrade(&self.data), session_id, session))
 	}
 
-	fn new_signing_session(&self, session_id: SessionId, requestor_signature: Signature, message_hash: H256) -> Result<Arc<SigningSession>, Error> {
+	fn new_signing_session(&self, session_id: SessionId, requestor_signature: Signature, version: Option<H256>, message_hash: H256) -> Result<Arc<SigningSession>, Error> {
 		let mut connected_nodes = self.data.connections.connected_nodes();
 		connected_nodes.insert(self.data.self_key_pair.public().clone());
 
@@ -828,8 +832,21 @@ impl ClusterClient for ClusterClientImpl {
 		let session_id = SessionIdWithSubSession::new(session_id, access_key);
 		let cluster = Arc::new(ClusterView::new(self.data.clone(), connected_nodes.clone()));
 		let session = self.data.sessions.signing_sessions.insert(&self.data, self.data.self_key_pair.public().clone(), session_id.clone(), None, false, false, Some(requestor_signature))?;
-		session.initialize(connected_nodes, message_hash)?;
+let version = version.expect("TODO");
+		session.initialize(connected_nodes, version, message_hash)?;
 		Ok(SigningSessionWrapper::new(Arc::downgrade(&self.data), session_id, session))
+	}
+
+	fn new_key_version_negotiation_session(&self, session_id: SessionId) -> Result<Arc<KeyVersionNegotiationSession>, Error> {
+		let mut connected_nodes = self.data.connections.connected_nodes();
+		connected_nodes.insert(self.data.self_key_pair.public().clone());
+
+		let access_key = Random.generate()?.secret().clone();
+		let session_id = SessionIdWithSubSession::new(session_id, access_key);
+		let cluster = Arc::new(ClusterView::new(self.data.clone(), connected_nodes.clone()));
+		let session = self.data.sessions.negotiation_sessions.insert(&self.data, self.data.self_key_pair.public().clone(), session_id.clone(), None, true, false, None)?;
+		session.initialize(connected_nodes)?;
+		Ok(KeyNegotiationSessionWrapper::new(Arc::downgrade(&self.data), session_id, session))
 	}
 
 	fn new_share_add_session(&self, session_id: SessionId, new_nodes_set: BTreeSet<NodeId>, old_set_signature: Signature, new_set_signature: Signature) -> Result<Arc<AdminSessionWrapper>, Error> {

@@ -88,8 +88,6 @@ pub fn serialize_message(message: Message) -> Result<SerializedMessage, Error> {
 		Message::Decryption(DecryptionMessage::PartialDecryption(payload))					=> (152, serde_json::to_vec(&payload)),
 		Message::Decryption(DecryptionMessage::DecryptionSessionError(payload))				=> (153, serde_json::to_vec(&payload)),
 		Message::Decryption(DecryptionMessage::DecryptionSessionCompleted(payload))			=> (154, serde_json::to_vec(&payload)),
-		Message::Decryption(DecryptionMessage::DecryptionDelegation(payload))				=> (155, serde_json::to_vec(&payload)),
-		Message::Decryption(DecryptionMessage::DecryptionDelegationResponse(payload))		=> (156, serde_json::to_vec(&payload)),
 
 		Message::Signing(SigningMessage::SigningConsensusMessage(payload))					=> (200, serde_json::to_vec(&payload)),
 		Message::Signing(SigningMessage::SigningGenerationMessage(payload))					=> (201, serde_json::to_vec(&payload)),
@@ -97,8 +95,6 @@ pub fn serialize_message(message: Message) -> Result<SerializedMessage, Error> {
 		Message::Signing(SigningMessage::PartialSignature(payload))							=> (203, serde_json::to_vec(&payload)),
 		Message::Signing(SigningMessage::SigningSessionError(payload))						=> (204, serde_json::to_vec(&payload)),
 		Message::Signing(SigningMessage::SigningSessionCompleted(payload))					=> (205, serde_json::to_vec(&payload)),
-		Message::Signing(SigningMessage::SigningDelegation(payload))						=> (206, serde_json::to_vec(&payload)),
-		Message::Signing(SigningMessage::SigningDelegationResponse(payload))				=> (207, serde_json::to_vec(&payload)),
 
 		Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeConsensusMessage(payload))
 																							=> (250, serde_json::to_vec(&payload)),
@@ -143,6 +139,8 @@ pub fn serialize_message(message: Message) -> Result<SerializedMessage, Error> {
 																							=> (450, serde_json::to_vec(&payload)),
 		Message::KeyVersionNegotiation(KeyVersionNegotiationMessage::KeyVersions(payload))
 																							=> (451, serde_json::to_vec(&payload)),
+		Message::KeyVersionNegotiation(KeyVersionNegotiationMessage::KeyVersionsError(payload))
+																							=> (452, serde_json::to_vec(&payload)),
 	};
 
 	let payload = payload.map_err(|err| Error::Serde(err.to_string()))?;
@@ -178,8 +176,6 @@ pub fn deserialize_message(header: &MessageHeader, payload: Vec<u8>) -> Result<M
 		152	=> Message::Decryption(DecryptionMessage::PartialDecryption(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
 		153	=> Message::Decryption(DecryptionMessage::DecryptionSessionError(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
 		154	=> Message::Decryption(DecryptionMessage::DecryptionSessionCompleted(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
-		155	=> Message::Decryption(DecryptionMessage::DecryptionDelegation(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
-		156	=> Message::Decryption(DecryptionMessage::DecryptionDelegationResponse(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
 
 		200	=> Message::Signing(SigningMessage::SigningConsensusMessage(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
 		201	=> Message::Signing(SigningMessage::SigningGenerationMessage(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
@@ -187,8 +183,6 @@ pub fn deserialize_message(header: &MessageHeader, payload: Vec<u8>) -> Result<M
 		203	=> Message::Signing(SigningMessage::PartialSignature(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
 		204	=> Message::Signing(SigningMessage::SigningSessionError(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
 		205	=> Message::Signing(SigningMessage::SigningSessionCompleted(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
-		206	=> Message::Signing(SigningMessage::SigningDelegation(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
-		207	=> Message::Signing(SigningMessage::SigningDelegationResponse(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
 
 		250	=> Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeConsensusMessage(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
 		251	=> Message::ServersSetChange(ServersSetChangeMessage::UnknownSessionsRequest(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
@@ -222,6 +216,7 @@ pub fn deserialize_message(header: &MessageHeader, payload: Vec<u8>) -> Result<M
 
 		450 => Message::KeyVersionNegotiation(KeyVersionNegotiationMessage::RequestKeyVersions(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
 		451 => Message::KeyVersionNegotiation(KeyVersionNegotiationMessage::KeyVersions(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		452 => Message::KeyVersionNegotiation(KeyVersionNegotiationMessage::KeyVersionsError(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
 
 		_ => return Err(Error::Serde(format!("unknown message type {}", header.kind))),
 	})

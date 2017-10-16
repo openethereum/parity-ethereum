@@ -148,6 +148,12 @@ impl<'a> Deserialize<'a> for SerializableSignature {
 #[derive(Clone, Debug)]
 pub struct SerializableH256(pub H256);
 
+impl Default for SerializableH256 {
+	fn default() -> Self {
+		SerializableH256(Default::default())
+	}
+}
+
 impl<T> From<T> for SerializableH256 where H256: From<T> {
 	fn from(s: T) -> SerializableH256 {
 		SerializableH256(s.into())

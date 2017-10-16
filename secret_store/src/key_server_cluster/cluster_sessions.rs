@@ -19,6 +19,7 @@ use std::sync::{Arc, Weak};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::collections::{VecDeque, BTreeSet, BTreeMap};
 use parking_lot::{Mutex, RwLock};
+use bigint::hash::H256;
 use ethkey::{Public, Secret, Signature};
 use key_server_cluster::{Error, NodeId, SessionId, AclStorage, KeyStorage, DocumentKeyShare, EncryptedDocumentKeyShadow, SessionMeta};
 use key_server_cluster::cluster::{Cluster, ClusterData, ClusterConfiguration, ClusterView};
@@ -41,7 +42,8 @@ use key_server_cluster::share_remove_session::{Session as ShareRemoveSession, Se
 use key_server_cluster::servers_set_change_session::{Session as ServersSetChangeSession, SessionImpl as ServersSetChangeSessionImpl,
 	SessionParams as ServersSetChangeSessionParams};
 use key_server_cluster::key_version_negotiation_session::{Session as KeyVersionNegotiationSession, SessionImpl as KeyVersionNegotiationSessionImpl,
-	SessionParams as KeyVersionNegotiationSessionParams, IsolatedSessionTransport as VersionNegotiationTransport};
+	SessionParams as KeyVersionNegotiationSessionParams, IsolatedSessionTransport as VersionNegotiationTransport,
+	LargestSupportResultComputer as LargestSupportKeyVersionsResultComputer};
 use key_server_cluster::admin_sessions::ShareChangeSessionMeta;
 
 /// When there are no session-related messages for SESSION_TIMEOUT_INTERVAL seconds,
@@ -299,7 +301,44 @@ impl ClusterSessionCreator<SigningSessionImpl, Signature> for SigningSessionCrea
 		}, requester_signature)?))
 	}
 }
-pub struct KeyVersionNegotiationSessionCreator; impl ClusterSessionCreator<KeyVersionNegotiationSessionImpl<VersionNegotiationTransport>, ()> for KeyVersionNegotiationSessionCreator {}
+
+pub struct KeyVersionNegotiationSessionCreator {
+	core: Arc<SessionCreatorCore>,
+}
+
+impl ClusterSessionCreator<KeyVersionNegotiationSessionImpl<VersionNegotiationTransport>, ()> for KeyVersionNegotiationSessionCreator {
+	fn make_error_message(sid: SessionIdWithSubSession, nonce: u64, err: Error) -> Message {
+		message::Message::KeyVersionNegotiation(message::KeyVersionNegotiationMessage::KeyVersionsError(message::KeyVersionsError {
+			session: sid.id.into(),
+			sub_session: sid.access_key.into(),
+			session_nonce: nonce,
+			error: err.into(),
+		}))
+	}
+
+	fn create(&self, cluster: Arc<Cluster>, master: NodeId, nonce: Option<u64>, id: SessionIdWithSubSession, _creation_data: Option<()>) -> Result<Arc<KeyVersionNegotiationSessionImpl<VersionNegotiationTransport>>, Error> {
+		let encrypted_data = self.core.read_key_share(&id.id, &cluster)?;
+		let nonce = self.core.check_session_nonce(&master, nonce)?;
+		Ok(Arc::new(KeyVersionNegotiationSessionImpl::new(KeyVersionNegotiationSessionParams {
+			meta: ShareChangeSessionMeta {
+				id: id.id.clone(),
+				self_node_id: self.core.self_node_id.clone(),
+				master_node_id: master,
+			},
+			sub_session: id.access_key.clone(),
+			key_share: encrypted_data,
+			result_computer: Arc::new(LargestSupportKeyVersionsResultComputer),
+			transport: VersionNegotiationTransport {
+				cluster: cluster,
+				key_id: id.id,
+				sub_session: id.access_key.clone(),
+				nonce: nonce,
+			},
+			nonce: nonce,
+		})))
+	}
+}
+
 pub struct AdminSessionCreator; impl ClusterSessionCreator<AdminSession, ()> for AdminSessionCreator {}
 
 /// Active sessions on this cluster.
@@ -430,6 +469,16 @@ pub struct AdminSessionWrapper {
 	cluster: Weak<ClusterData>,
 }
 
+/// Key server version negotiation session implementation, which removes session from cluster on drop.
+pub struct KeyNegotiationSessionWrapper {
+	/// Wrapped session.
+	session: Arc<KeyVersionNegotiationSession>,
+	/// Session Id.
+	session_id: SessionIdWithSubSession,
+	/// Cluster data reference.
+	cluster: Weak<ClusterData>,
+}
+
 impl ClusterSessions {
 	/// Create new cluster sessions container.
 	pub fn new(config: &ClusterConfiguration) -> Self {
@@ -460,7 +509,9 @@ impl ClusterSessions {
 			signing_sessions: ClusterSessionsContainer::new(SigningSessionCreator {
 				core: creator_core.clone(),
 			}, container_state.clone()),
-			negotiation_sessions: ClusterSessionsContainer::new(KeyVersionNegotiationSessionCreator {}, container_state.clone()),
+			negotiation_sessions: ClusterSessionsContainer::new(KeyVersionNegotiationSessionCreator {
+				core: creator_core.clone(),
+			}, container_state.clone()),
 			admin_sessions: ClusterSessionsContainer::new(AdminSessionCreator {}, container_state),
 			make_faulty_generation_sessions: AtomicBool::new(false),
 			session_counter: AtomicUsize::new(0),
@@ -484,297 +535,6 @@ impl ClusterSessions {
 			self.admin_sessions.on_keep_alive(&session_id, sender);
 		}
 	}
-/*
-	/// Create new generation session.
-	pub fn new_generation_session(&self, master: NodeId, session_id: SessionId, nonce: Option<u64>, cluster: Arc<Cluster>) -> Result<Arc<GenerationSessionImpl>, Error> {
-		// check that there's no finished encryption session with the same id
-		if self.key_storage.contains(&session_id) {
-			return Err(Error::DuplicateSessionId);
-		}
-
-		// communicating to all other nodes is crucial for generation session
-		// => check that we have connections to all cluster nodes
-		if self.nodes.iter().any(|n| !cluster.is_connected(n)) {
-			return Err(Error::NodeDisconnected);
-		}
-
-		// check that there's no active encryption session with the same id
-		let nonce = self.check_session_nonce(&master, nonce)?;
-		self.generation_sessions.insert(master, session_id, cluster.clone(), false, move ||
-			Ok(GenerationSessionImpl::new(GenerationSessionParams {
-				id: session_id.clone(),
-				self_node_id: self.self_node_id.clone(),
-				key_storage: Some(self.key_storage.clone()),
-				cluster: cluster,
-				nonce: Some(nonce),
-			})))
-			.map(|session| {
-				if self.make_faulty_generation_sessions.load(Ordering::Relaxed) {
-					session.simulate_faulty_behaviour();
-				}
-				session
-			})
-	}
-
-	/// Send generation session error.
-	pub fn respond_with_generation_error(&self, session_id: &SessionId, error: message::SessionError) {
-		self.generation_sessions.sessions.read().get(session_id)
-			.map(|s| {
-				// error in generation session is considered fatal
-				// => broadcast error
-
-				// do not bother processing send error, as we already processing error
-				let _ = s.cluster_view.broadcast(Message::Generation(GenerationMessage::SessionError(error)));
-			});
-	}
-
-	/// Create new encryption session.
-	pub fn new_encryption_session(&self, master: NodeId, session_id: SessionId, nonce: Option<u64>, cluster: Arc<Cluster>) -> Result<Arc<EncryptionSessionImpl>, Error> {
-// TODO: check that we have connected to all nodes
-		// communicating to all other nodes is crucial for encryption session
-		// => check that we have connections to all cluster nodes
-		if self.nodes.iter().any(|n| !cluster.is_connected(n)) {
-			return Err(Error::NodeDisconnected);
-		}
-
-		let encrypted_data = self.read_key_share(&session_id, &cluster)?;
-		let nonce = self.check_session_nonce(&master, nonce)?;
-
-		self.encryption_sessions.insert(master, session_id, cluster.clone(), false, move || EncryptionSessionImpl::new(EncryptionSessionParams {
-			id: session_id.clone(),
-			self_node_id: self.self_node_id.clone(),
-			encrypted_data: encrypted_data,
-			key_storage: self.key_storage.clone(),
-			cluster: cluster,
-			nonce: nonce,
-		}))
-	}
-
-	/// Send encryption session error.
-	pub fn respond_with_encryption_error(&self, session_id: &SessionId, error: message::EncryptionSessionError) {
-		self.encryption_sessions.sessions.read().get(session_id)
-			.map(|s| {
-				// error in encryption session is considered fatal
-				// => broadcast error
-
-				// do not bother processing send error, as we already processing error
-				let _ = s.cluster_view.broadcast(Message::Encryption(EncryptionMessage::EncryptionSessionError(error)));
-			});
-	}
-
-	/// Create new decryption session.
-	pub fn new_decryption_session(&self, master: NodeId, session_id: SessionId, sub_session_id: Secret, nonce: Option<u64>, cluster: Arc<Cluster>, requester_signature: Option<Signature>) -> Result<Arc<DecryptionSessionImpl>, Error> {
-		let session_id = SessionIdWithSubSession::new(session_id, sub_session_id);
-		let encrypted_data = self.read_key_share(&session_id.id, &cluster)?.ok_or(Error::MissingKeyShare)?;
-		let nonce = self.check_session_nonce(&master, nonce)?;
-
-		self.decryption_sessions.insert(master, session_id.clone(), cluster.clone(), false, move || DecryptionSessionImpl::new(DecryptionSessionParams {
-			meta: SessionMeta {
-				id: session_id.id,
-				self_node_id: self.self_node_id.clone(),
-				master_node_id: master,
-				threshold: encrypted_data.threshold,
-			},
-			access_key: session_id.access_key,
-			key_share: encrypted_data,
-			acl_storage: self.acl_storage.clone(),
-			cluster: cluster,
-			nonce: nonce,
-		}, requester_signature))
-	}
-
-	/// Send decryption session error.
-	pub fn respond_with_decryption_error(&self, session_id: &SessionId, sub_session_id: &Secret, to: &NodeId, error: message::DecryptionSessionError) {
-		let session_id = SessionIdWithSubSession::new(session_id.clone(), sub_session_id.clone());
-		self.decryption_sessions.sessions.read().get(&session_id)
-			.map(|s| {
-				// error in decryption session is non-fatal, if occurs on slave node
-				// => either respond with error
-				// => or broadcast error
-
-				// do not bother processing send error, as we already processing error
-				if s.master == self.self_node_id {
-					let _ = s.cluster_view.broadcast(Message::Decryption(DecryptionMessage::DecryptionSessionError(error)));
-				} else {
-					let _ = s.cluster_view.send(to, Message::Decryption(DecryptionMessage::DecryptionSessionError(error)));
-				}
-			});
-	}
-
-	/// Create new signing session.
-	pub fn new_signing_session(&self, master: NodeId, session_id: SessionId, sub_session_id: Secret, nonce: Option<u64>, cluster: Arc<Cluster>, requester_signature: Option<Signature>) -> Result<Arc<SigningSessionImpl>, Error> {
-		let session_id = SessionIdWithSubSession::new(session_id, sub_session_id);
-		let encrypted_data = self.read_key_share(&session_id.id, &cluster)?.ok_or(Error::MissingKeyShare)?;
-		let nonce = self.check_session_nonce(&master, nonce)?;
-
-		self.signing_sessions.insert(master, session_id.clone(), cluster.clone(), false, move || SigningSessionImpl::new(SigningSessionParams {
-			meta: SessionMeta {
-				id: session_id.id,
-				self_node_id: self.self_node_id.clone(),
-				master_node_id: master,
-				threshold: encrypted_data.threshold,
-			},
-			access_key: session_id.access_key,
-			key_share: encrypted_data,
-			acl_storage: self.acl_storage.clone(),
-			cluster: cluster,
-			nonce: nonce,
-		}, requester_signature))
-	}
-
-	/// Send signing session error.
-	pub fn respond_with_signing_error(&self, session_id: &SessionId, sub_session_id: &Secret, to: &NodeId, error: message::SigningSessionError) {
-		let session_id = SessionIdWithSubSession::new(session_id.clone(), sub_session_id.clone());
-		self.signing_sessions.sessions.read().get(&session_id)
-			.map(|s| {
-				// error in signing session is non-fatal, if occurs on slave node
-				// => either respond with error
-				// => or broadcast error
-
-				// do not bother processing send error, as we already processing error
-				if s.master == self.self_node_id {
-					let _ = s.cluster_view.broadcast(Message::Signing(SigningMessage::SigningSessionError(error)));
-				} else {
-					let _ = s.cluster_view.send(to, Message::Signing(SigningMessage::SigningSessionError(error)));
-				}
-			});
-	}
-
-	/// Create new share add session.
-	pub fn new_share_add_session(&self, master: NodeId, session_id: SessionId, nonce: Option<u64>, cluster: Arc<Cluster>) -> Result<Arc<AdminSession>, Error> {
-		let nonce = self.check_session_nonce(&master, nonce)?;
-		let admin_public = self.admin_public.clone().ok_or(Error::AccessDenied)?;
-
-		self.admin_sessions.insert(master, session_id.clone(), cluster.clone(), false, move || ShareAddSessionImpl::new(ShareAddSessionParams {
-			meta: ShareChangeSessionMeta {
-				id: session_id,
-				self_node_id: self.self_node_id.clone(),
-				master_node_id: master,
-			},
-			transport: ShareAddTransport::new(session_id.clone(), nonce, cluster),
-			key_storage: self.key_storage.clone(),
-			admin_public: Some(admin_public),
-			nonce: nonce,
-		}).map(AdminSession::ShareAdd))
-	}
-
-	/// Send share add session error.
-	pub fn respond_with_share_add_error(&self, session_id: &SessionId, error: message::ShareAddError) {
-		self.admin_sessions.sessions.read().get(&session_id)
-			.map(|s| {
-				// error in any share change session is considered fatal
-				// => broadcast error
-
-				// do not bother processing send error, as we already processing error
-				let _ = s.cluster_view.broadcast(Message::ShareAdd(ShareAddMessage::ShareAddError(error)));
-			});
-	}
-
-	/// Create new share move session.
-	pub fn new_share_move_session(&self, master: NodeId, session_id: SessionId, nonce: Option<u64>, cluster: Arc<Cluster>) -> Result<Arc<AdminSession>, Error> {
-		let nonce = self.check_session_nonce(&master, nonce)?;
-		let admin_public = self.admin_public.clone().ok_or(Error::AccessDenied)?;
-
-		self.admin_sessions.insert(master, session_id.clone(), cluster.clone(), false, move || ShareMoveSessionImpl::new(ShareMoveSessionParams {
-			meta: ShareChangeSessionMeta {
-				id: session_id,
-				self_node_id: self.self_node_id.clone(),
-				master_node_id: master,
-			},
-			transport: ShareMoveTransport::new(session_id.clone(), nonce, cluster),
-			key_storage: self.key_storage.clone(),
-			admin_public: Some(admin_public),
-			nonce: nonce,
-		}).map(AdminSession::ShareMove))
-	}
-
-	/// Send share move session error.
-	pub fn respond_with_share_move_error(&self, session_id: &SessionId, error: message::ShareMoveError) {
-		self.admin_sessions.sessions.read().get(&session_id)
-			.map(|s| {
-				// error in any share change session is considered fatal
-				// => broadcast error
-
-				// do not bother processing send error, as we already processing error
-				let _ = s.cluster_view.broadcast(Message::ShareMove(ShareMoveMessage::ShareMoveError(error)));
-			});
-	}
-
-	/// Create new share remove session.
-	pub fn new_share_remove_session(&self, master: NodeId, session_id: SessionId, nonce: Option<u64>, cluster: Arc<Cluster>, all_nodes_set: BTreeSet<NodeId>) -> Result<Arc<AdminSession>, Error> {
-		let nonce = self.check_session_nonce(&master, nonce)?;
-		let admin_public = self.admin_public.clone().ok_or(Error::AccessDenied)?;
-
-		self.admin_sessions.insert(master, session_id.clone(), cluster.clone(), false, move || ShareRemoveSessionImpl::new(ShareRemoveSessionParams {
-			meta: ShareChangeSessionMeta {
-				id: session_id,
-				self_node_id: self.self_node_id.clone(),
-				master_node_id: master,
-			},
-			cluster_nodes_set: all_nodes_set,
-			transport: ShareRemoveTransport::new(session_id.clone(), nonce, cluster),
-			key_storage: self.key_storage.clone(),
-			admin_public: Some(admin_public),
-			nonce: nonce,
-		}).map(AdminSession::ShareRemove))
-	}
-
-	/// Send share remove session error.
-	pub fn respond_with_share_remove_error(&self, session_id: &SessionId, error: message::ShareRemoveError) {
-		self.admin_sessions.sessions.read().get(&session_id)
-			.map(|s| {
-				// error in any share change session is considered fatal
-				// => broadcast error
-
-				// do not bother processing send error, as we already processing error
-				let _ = s.cluster_view.broadcast(Message::ShareRemove(ShareRemoveMessage::ShareRemoveError(error)));
-			});
-	}
-
-	/// Create new servers set change session.
-	pub fn new_servers_set_change_session(&self, master: NodeId, session_id: Option<SessionId>, nonce: Option<u64>, cluster: Arc<Cluster>, all_nodes_set: BTreeSet<NodeId>) -> Result<Arc<AdminSession>, Error> {
-		// communicating to all other nodes is crucial for ServersSetChange session
-		// => check that we have connections to all cluster nodes
-		if self.nodes.iter().any(|n| !cluster.is_connected(n)) {
-			return Err(Error::NodeDisconnected);
-		}
-
-		let session_id = match session_id {
-			Some(session_id) => if session_id == *SERVERS_SET_CHANGE_SESSION_ID {
-				session_id
-			} else {
-				return Err(Error::InvalidMessage)
-			},
-			None => (*SERVERS_SET_CHANGE_SESSION_ID).clone(),
-		};
-		let nonce = self.check_session_nonce(&master, nonce)?;
-		let admin_public = self.admin_public.clone().ok_or(Error::AccessDenied)?;
-
-		self.admin_sessions.insert(master, session_id.clone(), cluster.clone(), true, move || ServersSetChangeSessionImpl::new(ServersSetChangeSessionParams {
-			meta: ShareChangeSessionMeta {
-				id: session_id,
-				self_node_id: self.self_node_id.clone(),
-				master_node_id: master,
-			},
-			cluster: cluster,
-			key_storage: self.key_storage.clone(),
-			admin_public: admin_public,
-			nonce: nonce,
-			all_nodes_set: all_nodes_set,
-		}).map(AdminSession::ServersSetChange))
-	}
-
-	/// Send share remove session error.
-	pub fn respond_with_servers_set_change_error(&self, session_id: &SessionId, error: message::ServersSetChangeError) {
-		self.admin_sessions.sessions.read().get(&session_id)
-			.map(|s| {
-				// error in any share change session is considered fatal
-				// => broadcast error
-
-				// do not bother processing send error, as we already processing error
-				let _ = s.cluster_view.broadcast(Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeError(error)));
-			});
-	}*/
 
 	/// Stop sessions that are stalling.
 	pub fn stop_stalled_sessions(&self) {
@@ -1305,6 +1065,31 @@ impl IntoSessionId<SessionIdWithSubSession> for Message {
 		}
 	}
 }
+
+impl KeyNegotiationSessionWrapper {
+	pub fn new(cluster: Weak<ClusterData>, session_id: SessionIdWithSubSession, session: Arc<KeyVersionNegotiationSession>) -> Arc<Self> {
+		Arc::new(KeyNegotiationSessionWrapper {
+			session: session,
+			session_id: session_id,
+			cluster: cluster,
+		})
+	}
+}
+
+impl KeyVersionNegotiationSession for KeyNegotiationSessionWrapper {
+	fn wait(&self) -> Result<(H256, NodeId), Error> {
+		self.session.wait()
+	}
+}
+
+impl Drop for KeyNegotiationSessionWrapper {
+	fn drop(&mut self) {
+		if let Some(cluster) = self.cluster.upgrade() {
+			cluster.sessions().negotiation_sessions.remove(&self.session_id);
+		}
+	}
+}
+
 
 #[cfg(test)]
 mod tests {

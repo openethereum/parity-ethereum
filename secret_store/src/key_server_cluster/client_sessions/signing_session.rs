@@ -77,6 +77,8 @@ struct SessionData {
 	pub state: SessionState,
 	/// Message hash.
 	pub message_hash: Option<H256>,
+	/// Key version to use for decryption.
+	pub version: Option<H256>,
 	/// Consensus-based signing session.
 	pub consensus_session: SigningConsensusSession,
 	/// Session key generation session.
@@ -121,6 +123,8 @@ struct SigningConsensusTransport {
 	access_key: Secret,
 	/// Session-level nonce.
 	nonce: u64,
+	/// Selected key version (on master node).
+	version: Option<H256>,
 	/// Cluster.
 	cluster: Arc<Cluster>,
 }
@@ -166,6 +170,7 @@ impl SessionImpl {
 			id: params.meta.id.clone(),
 			access_key: params.access_key.clone(),
 			nonce: params.nonce,
+			version: None,
 			cluster: params.cluster.clone(),
 		};
 		let consensus_session = ConsensusSession::new(ConsensusSessionParams {
@@ -189,6 +194,7 @@ impl SessionImpl {
 			data: Mutex::new(SessionData {
 				state: SessionState::ConsensusEstablishing,
 				message_hash: None,
+				version: None,
 				consensus_session: consensus_session,
 				generation_session: None,
 				result: None,
@@ -203,8 +209,13 @@ impl SessionImpl {
 	}
 
 	/// Initialize signing session on master node.
-	pub fn initialize(&self, connected_nodes: BTreeSet<NodeId>, message_hash: H256) -> Result<(), Error> {
+	pub fn initialize(&self, connected_nodes: BTreeSet<NodeId>, version: H256, message_hash: H256) -> Result<(), Error> {
+		// check if version exists
+		self.core.key_share.version(&version).map_err(|e| Error::KeyStorage(e.into()))?;
+
 		let mut data = self.data.lock();
+		data.consensus_session.consensus_job_mut().transport_mut().version = Some(version.clone());
+		data.version = Some(version);
 		data.message_hash = Some(message_hash);
 		data.consensus_session.initialize(connected_nodes)?;
 
@@ -259,10 +270,6 @@ impl SessionImpl {
 				self.on_session_error(sender, message),
 			&SigningMessage::SigningSessionCompleted(ref message) =>
 				self.on_session_completed(sender, message),
-			&SigningMessage::SigningDelegation(_) =>
-				unimplemented!("TODO"),
-			&SigningMessage::SigningDelegationResponse(_) =>
-				unimplemented!("TODO"),
 		}
 	}
 
@@ -585,12 +592,14 @@ impl JobTransport for SigningConsensusTransport {
 	type PartialJobResponse=bool;
 
 	fn send_partial_request(&self, node: &NodeId, request: Signature) -> Result<(), Error> {
+		let version = self.version.as_ref().expect("TODO");
 		self.cluster.send(node, Message::Signing(SigningMessage::SigningConsensusMessage(SigningConsensusMessage {
 			session: self.id.clone().into(),
 			sub_session: self.access_key.clone().into(),
 			session_nonce: self.nonce,
 			message: ConsensusMessage::InitializeConsensusSession(InitializeConsensusSession {
 				requestor_signature: request.into(),
+				version: version.clone().into(),
 			})
 		})))
 	}
@@ -662,10 +671,12 @@ mod tests {
 		pub nodes: BTreeMap<NodeId, Node>,
 		pub queue: VecDeque<(NodeId, NodeId, Message)>,
 		pub acl_storages: Vec<Arc<DummyAclStorage>>,
+		pub version: H256,
 	}
 
 	impl MessageLoop {
 		pub fn new(gl: &KeyGenerationMessageLoop) -> Self {
+			let version = gl.nodes.values().nth(0).unwrap().key_storage.get(&Default::default()).unwrap().unwrap().versions.iter().last().unwrap().hash;
 			let mut nodes = BTreeMap::new();
 			let session_id = gl.session_id.clone();
 			let requester = Random.generate().unwrap();
@@ -705,6 +716,7 @@ mod tests {
 				nodes: nodes,
 				queue: VecDeque::new(),
 				acl_storages: acl_storages,
+				version: version,
 			}
 		}
 
@@ -787,7 +799,7 @@ mod tests {
 
 			// run signing session
 			let message_hash = H256::from(777);
-			sl.master().initialize(sl.nodes.keys().cloned().collect(), message_hash).unwrap();
+			sl.master().initialize(sl.nodes.keys().cloned().collect(), sl.version.clone(), message_hash).unwrap();
 			while let Some((from, to, message)) = sl.take_message() {
 				sl.process_message((from, to, message)).unwrap();
 			}
@@ -909,14 +921,14 @@ mod tests {
 	#[test]
 	fn fails_to_initialize_when_already_initialized() {
 		let (_, sl) = prepare_signing_sessions(1, 3);
-		assert_eq!(sl.master().initialize(sl.nodes.keys().cloned().collect(), 777.into()), Ok(()));
-		assert_eq!(sl.master().initialize(sl.nodes.keys().cloned().collect(), 777.into()), Err(Error::InvalidStateForRequest));
+		assert_eq!(sl.master().initialize(sl.nodes.keys().cloned().collect(), sl.version.clone(), 777.into()), Ok(()));
+		assert_eq!(sl.master().initialize(sl.nodes.keys().cloned().collect(), sl.version.clone(), 777.into()), Err(Error::InvalidStateForRequest));
 	}
 
 	#[test]
 	fn does_not_fail_when_consensus_message_received_after_consensus_established() {
 		let (_, mut sl) = prepare_signing_sessions(1, 3);
-		sl.master().initialize(sl.nodes.keys().cloned().collect(), 777.into()).unwrap();
+		sl.master().initialize(sl.nodes.keys().cloned().collect(), sl.version.clone(), 777.into()).unwrap();
 		// consensus is established
 		sl.run_until(|sl| sl.master().state() == SessionState::SessionKeyGeneration).unwrap();
 		// but 3rd node continues to send its messages
@@ -963,7 +975,7 @@ mod tests {
 	#[test]
 	fn fails_when_generation_sesson_is_initialized_by_slave_node() {
 		let (_, mut sl) = prepare_signing_sessions(1, 3);
-		sl.master().initialize(sl.nodes.keys().cloned().collect(), 777.into()).unwrap();
+		sl.master().initialize(sl.nodes.keys().cloned().collect(), sl.version.clone(), 777.into()).unwrap();
 		sl.run_until(|sl| sl.master().state() == SessionState::SessionKeyGeneration).unwrap();
 
 		let slave2_id = sl.nodes.keys().nth(2).unwrap().clone();
@@ -1014,7 +1026,7 @@ mod tests {
 	#[test]
 	fn failed_signing_session() {
 		let (_, mut sl) = prepare_signing_sessions(1, 3);
-		sl.master().initialize(sl.nodes.keys().cloned().collect(), 777.into()).unwrap();
+		sl.master().initialize(sl.nodes.keys().cloned().collect(), sl.version.clone(), 777.into()).unwrap();
 
 		// we need at least 2-of-3 nodes to agree to reach consensus
 		// let's say 2 of 3 nodes disagee
@@ -1028,7 +1040,7 @@ mod tests {
 	#[test]
 	fn complete_signing_session_with_single_node_failing() {
 		let (_, mut sl) = prepare_signing_sessions(1, 3);
-		sl.master().initialize(sl.nodes.keys().cloned().collect(), 777.into()).unwrap();
+		sl.master().initialize(sl.nodes.keys().cloned().collect(), sl.version.clone(), 777.into()).unwrap();
 
 		// we need at least 2-of-3 nodes to agree to reach consensus
 		// let's say 1 of 3 nodes disagee
@@ -1049,7 +1061,7 @@ mod tests {
 	#[test]
 	fn complete_signing_session_with_acl_check_failed_on_master() {
 		let (_, mut sl) = prepare_signing_sessions(1, 3);
-		sl.master().initialize(sl.nodes.keys().cloned().collect(), 777.into()).unwrap();
+		sl.master().initialize(sl.nodes.keys().cloned().collect(), sl.version.clone(), 777.into()).unwrap();
 
 		// we need at least 2-of-3 nodes to agree to reach consensus
 		// let's say 1 of 3 nodes disagee

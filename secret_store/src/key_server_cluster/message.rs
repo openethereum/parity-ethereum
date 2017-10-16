@@ -140,10 +140,6 @@ pub enum DecryptionMessage {
 	DecryptionSessionError(DecryptionSessionError),
 	/// When decryption session is completed.
 	DecryptionSessionCompleted(DecryptionSessionCompleted),
-	/// Decryption delegation message.
-	DecryptionDelegation(DecryptionDelegation),
-	/// Decryption delegation response.
-	DecryptionDelegationResponse(DecryptionDelegationResponse),
 }
 
 /// All possible messages that can be sent during signing session.
@@ -161,10 +157,6 @@ pub enum SigningMessage {
 	SigningSessionError(SigningSessionError),
 	/// Signing session completed.
 	SigningSessionCompleted(SigningSessionCompleted),
-	/// Signing delegation message.
-	SigningDelegation(SigningDelegation),
-	/// Signing delegation response.
-	SigningDelegationResponse(SigningDelegationResponse),
 }
 
 /// All possible messages that can be sent during servers set change session.
@@ -246,6 +238,8 @@ pub enum KeyVersionNegotiationMessage {
 	RequestKeyVersions(RequestKeyVersions),
 	/// Key versions.
 	KeyVersions(KeyVersions),
+	/// When session error has occured.
+	KeyVersionsError(KeyVersionsError),
 }
 
 /// Introduce node public key.
@@ -407,6 +401,8 @@ pub struct EncryptionSessionError {
 pub struct InitializeConsensusSession {
 	/// Requestor signature.
 	pub requestor_signature: SerializableSignature,
+	/// Key version.
+	pub version: SerializableH256,
 }
 
 /// Node is responding to consensus initialization request.
@@ -537,34 +533,6 @@ pub struct SigningSessionCompleted {
 	pub session_nonce: u64,
 }
 
-/// When signing session is delegated to other node.
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct SigningDelegation {
-	/// Encryption session Id.
-	pub session: MessageSessionId,
-	/// Signing session Id.
-	pub sub_session: SerializableSecret,
-	/// Session-level nonce.
-	pub session_nonce: u64,
-	/// Selected key version.
-	pub key_version: SerializableH256,
-}
-
-/// When delegated signing session is completed.
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct SigningDelegationResponse {
-	/// Encryption session Id.
-	pub session: MessageSessionId,
-	/// Signing session Id.
-	pub sub_session: SerializableSecret,
-	/// Session-level nonce.
-	pub session_nonce: u64,
-	/// Signature c part.
-	pub signature_c: SerializableSecret,
-	/// Signature s part.
-	pub signature_s: SerializableSecret,
-}
-
 /// Consensus-related decryption message.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct DecryptionConsensusMessage {
@@ -635,36 +603,6 @@ pub struct DecryptionSessionCompleted {
 	pub sub_session: SerializableSecret,
 	/// Session-level nonce.
 	pub session_nonce: u64,
-}
-
-/// When decryption session is delegated to other node.
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct DecryptionDelegation {
-	/// Encryption session Id.
-	pub session: MessageSessionId,
-	/// Decryption session Id.
-	pub sub_session: SerializableSecret,
-	/// Session-level nonce.
-	pub session_nonce: u64,
-	/// Selected key version.
-	pub key_version: SerializableH256,
-}
-
-/// When delegated decryption session is completed.
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct DecryptionDelegationResponse {
-	/// Encryption session Id.
-	pub session: MessageSessionId,
-	/// Decryption session Id.
-	pub sub_session: SerializableSecret,
-	/// Session-level nonce.
-	pub session_nonce: u64,
-	/// Decrypted secret point. It is partially decrypted if shadow decrpytion was requested.
-	pub decrypted_secret: SerializablePublic,
-	/// Shared common point.
-	pub common_point: Option<SerializablePublic>,
-	/// If shadow decryption was requested: shadow decryption coefficients, encrypted with requestor public.
-	pub decrypt_shadows: Option<Vec<Vec<u8>>>,
 }
 
 /// Consensus-related servers set change message.
@@ -999,6 +937,19 @@ pub struct KeyVersions {
 	pub versions: Vec<SerializableH256>,
 }
 
+/// When key versions error has occured.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct KeyVersionsError {
+	/// Generation session id.
+	pub session: MessageSessionId,
+	/// Version negotiation session Id.
+	pub sub_session: SerializableSecret,
+	/// Session-level nonce.
+	pub session_nonce: u64,
+	/// Error message.
+	pub error: String,
+}
+
 impl Message {
 	pub fn is_initialization_message(&self) -> bool {
 		match *self {
@@ -1108,8 +1059,6 @@ impl DecryptionMessage {
 			DecryptionMessage::PartialDecryption(ref msg) => &msg.session,
 			DecryptionMessage::DecryptionSessionError(ref msg) => &msg.session,
 			DecryptionMessage::DecryptionSessionCompleted(ref msg) => &msg.session,
-			DecryptionMessage::DecryptionDelegation(ref msg) => &msg.session,
-			DecryptionMessage::DecryptionDelegationResponse(ref msg) => &msg.session,
 		}
 	}
 
@@ -1120,8 +1069,6 @@ impl DecryptionMessage {
 			DecryptionMessage::PartialDecryption(ref msg) => &msg.sub_session,
 			DecryptionMessage::DecryptionSessionError(ref msg) => &msg.sub_session,
 			DecryptionMessage::DecryptionSessionCompleted(ref msg) => &msg.sub_session,
-			DecryptionMessage::DecryptionDelegation(ref msg) => &msg.sub_session,
-			DecryptionMessage::DecryptionDelegationResponse(ref msg) => &msg.sub_session,
 		}
 	}
 
@@ -1132,8 +1079,6 @@ impl DecryptionMessage {
 			DecryptionMessage::PartialDecryption(ref msg) => msg.session_nonce,
 			DecryptionMessage::DecryptionSessionError(ref msg) => msg.session_nonce,
 			DecryptionMessage::DecryptionSessionCompleted(ref msg) => msg.session_nonce,
-			DecryptionMessage::DecryptionDelegation(ref msg) => msg.session_nonce,
-			DecryptionMessage::DecryptionDelegationResponse(ref msg) => msg.session_nonce,
 		}
 	}
 }
@@ -1147,8 +1092,6 @@ impl SigningMessage {
 			SigningMessage::PartialSignature(ref msg) => &msg.session,
 			SigningMessage::SigningSessionError(ref msg) => &msg.session,
 			SigningMessage::SigningSessionCompleted(ref msg) => &msg.session,
-			SigningMessage::SigningDelegation(ref msg) => &msg.session,
-			SigningMessage::SigningDelegationResponse(ref msg) => &msg.session,
 		}
 	}
 
@@ -1160,8 +1103,6 @@ impl SigningMessage {
 			SigningMessage::PartialSignature(ref msg) => &msg.sub_session,
 			SigningMessage::SigningSessionError(ref msg) => &msg.sub_session,
 			SigningMessage::SigningSessionCompleted(ref msg) => &msg.sub_session,
-			SigningMessage::SigningDelegation(ref msg) => &msg.sub_session,
-			SigningMessage::SigningDelegationResponse(ref msg) => &msg.sub_session,
 		}
 	}
 
@@ -1173,8 +1114,6 @@ impl SigningMessage {
 			SigningMessage::PartialSignature(ref msg) => msg.session_nonce,
 			SigningMessage::SigningSessionError(ref msg) => msg.session_nonce,
 			SigningMessage::SigningSessionCompleted(ref msg) => msg.session_nonce,
-			SigningMessage::SigningDelegation(ref msg) => msg.session_nonce,
-			SigningMessage::SigningDelegationResponse(ref msg) => msg.session_nonce,
 		}
 	}
 }
@@ -1284,6 +1223,7 @@ impl KeyVersionNegotiationMessage {
 		match *self {
 			KeyVersionNegotiationMessage::RequestKeyVersions(ref msg) => &msg.session,
 			KeyVersionNegotiationMessage::KeyVersions(ref msg) => &msg.session,
+			KeyVersionNegotiationMessage::KeyVersionsError(ref msg) => &msg.session,
 		}
 	}
 
@@ -1291,6 +1231,7 @@ impl KeyVersionNegotiationMessage {
 		match *self {
 			KeyVersionNegotiationMessage::RequestKeyVersions(ref msg) => &msg.sub_session,
 			KeyVersionNegotiationMessage::KeyVersions(ref msg) => &msg.sub_session,
+			KeyVersionNegotiationMessage::KeyVersionsError(ref msg) => &msg.sub_session,
 		}
 	}
 }
@@ -1391,8 +1332,6 @@ impl fmt::Display for DecryptionMessage {
 			DecryptionMessage::PartialDecryption(_) => write!(f, "PartialDecryption"),
 			DecryptionMessage::DecryptionSessionError(_) => write!(f, "DecryptionSessionError"),
 			DecryptionMessage::DecryptionSessionCompleted(_) => write!(f, "DecryptionSessionCompleted"),
-			DecryptionMessage::DecryptionDelegation(_) => write!(f, "DecryptionDelegation"),
-			DecryptionMessage::DecryptionDelegationResponse(_) => write!(f, "DecryptionDelegationResponse"),
 		}
 	}
 }
@@ -1406,8 +1345,6 @@ impl fmt::Display for SigningMessage {
 			SigningMessage::PartialSignature(_) => write!(f, "PartialSignature"),
 			SigningMessage::SigningSessionError(_) => write!(f, "SigningSessionError"),
 			SigningMessage::SigningSessionCompleted(_) => write!(f, "SigningSessionCompleted"),
-			SigningMessage::SigningDelegation(_) => write!(f, "SigningDelegation"),
-			SigningMessage::SigningDelegationResponse(_) => write!(f, "SigningDelegationResponse"),
 		}
 	}
 }
@@ -1471,7 +1408,8 @@ impl fmt::Display for KeyVersionNegotiationMessage {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match *self {
 			KeyVersionNegotiationMessage::RequestKeyVersions(_) => write!(f, "RequestKeyVersions"),
-			KeyVersionNegotiationMessage::KeyVersions(_) => write!(f, "KeyVersionNegotiationMessage"),
+			KeyVersionNegotiationMessage::KeyVersions(_) => write!(f, "KeyVersions"),
+			KeyVersionNegotiationMessage::KeyVersionsError(_) => write!(f, "KeyVersionsError"),
 		}
 	}
 }

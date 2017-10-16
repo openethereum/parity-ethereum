@@ -106,7 +106,7 @@ impl DocumentKeyServer for KeyServerImpl {
 			.map_err(|_| Error::BadSignature)?;
 
 		// decrypt document key
-		let decryption_session = self.data.lock().cluster.new_decryption_session(key_id.clone(), signature.clone(), false)?;
+		let decryption_session = self.data.lock().cluster.new_decryption_session(key_id.clone(), signature.clone(), None, false)?;
 		let document_key = decryption_session.wait()?.decrypted_secret;
 
 		// encrypt document key with requestor public key
@@ -116,7 +116,7 @@ impl DocumentKeyServer for KeyServerImpl {
 	}
 
 	fn restore_document_key_shadow(&self, key_id: &ServerKeyId, signature: &RequestSignature) -> Result<EncryptedDocumentKeyShadow, Error> {
-		let decryption_session = self.data.lock().cluster.new_decryption_session(key_id.clone(), signature.clone(), true)?;
+		let decryption_session = self.data.lock().cluster.new_decryption_session(key_id.clone(), signature.clone(), None, true)?;
 		decryption_session.wait().map_err(Into::into)
 	}
 }
@@ -128,7 +128,7 @@ impl MessageSigner for KeyServerImpl {
 			.map_err(|_| Error::BadSignature)?;
 
 		// sign message
-		let signing_session = self.data.lock().cluster.new_signing_session(key_id.clone(), signature.clone(), message)?;
+		let signing_session = self.data.lock().cluster.new_signing_session(key_id.clone(), signature.clone(), None, message)?;
 		let message_signature = signing_session.wait()?;
 
 		// compose two message signature components into single one

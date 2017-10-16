@@ -115,13 +115,13 @@ pub enum SessionState {
 /// Isolated session transport.
 pub struct IsolatedSessionTransport {
 	/// Cluster.
-	cluster: Arc<Cluster>,
+	pub cluster: Arc<Cluster>,
 	/// Key id.
-	key_id: SessionId,
+	pub key_id: SessionId,
 	/// Sub session id.
-	sub_session: Secret,
+	pub sub_session: Secret,
 	/// Session-level nonce.
-	nonce: u64,
+	pub nonce: u64,
 }
 
 /// Fastest session result computer. Computes first possible version that can be recovered on this node.
@@ -133,6 +133,8 @@ pub struct FastestResultComputer {
 	threshold: Option<usize>,
 }
 
+/// Selects version with most support, waiting for responses from all nodes.
+pub struct LargestSupportResultComputer;
 
 impl<T> SessionImpl<T> where T: SessionTransport {
 	/// Create new session.
@@ -211,6 +213,10 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 				self.on_key_versions_request(sender, message),
 			&KeyVersionNegotiationMessage::KeyVersions(ref message) =>
 				self.on_key_versions(sender, message),
+			&KeyVersionNegotiationMessage::KeyVersionsError(ref message) => {
+				self.on_session_error(sender, Error::Io(message.error.clone()));
+				Ok(())
+			},
 		}
 	}
 
@@ -391,5 +397,17 @@ impl SessionResultComputer for FastestResultComputer {
 				.map(|(version, nodes)| Ok((version.clone(), nodes.iter().cloned().nth(0).expect("TODO"))))
 				.unwrap_or(Err(Error::ConsensusUnreachable))),
 		}
+	}
+}
+
+impl SessionResultComputer for LargestSupportResultComputer {
+	fn compute_result(&self, confirmations: &BTreeSet<NodeId>, versions: &BTreeMap<H256, BTreeSet<NodeId>>) -> Option<Result<(H256, NodeId), Error>> {
+		if !confirmations.is_empty() {
+			return None;
+		}
+
+		versions.iter()
+			.max_by_key(|&(_, ref n)| n.len())
+			.map(|(version, nodes)| Ok((version.clone(), nodes.iter().cloned().nth(0).expect("TODO"))))
 	}
 }

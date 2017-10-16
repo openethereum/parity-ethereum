@@ -129,6 +129,11 @@ impl<Executor, Transport> JobSession<Executor, Transport> where Executor: JobExe
 		&self.transport
 	}
 
+	/// Get mutable transport reference.
+	pub fn transport_mut(&mut self) -> &mut Transport {
+		&mut self.transport
+	}
+
 	/// Get executor reference.
 	pub fn executor(&self) -> &Executor {
 		&self.executor
