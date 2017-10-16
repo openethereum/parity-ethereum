@@ -4,15 +4,12 @@ name = "parity-updater"
 version = "1.9.0"
 license = "GPL-3.0"
 authors = ["Parity Technologies <admin@parity.io>"]
-build = "build.rs"
-
-[build-dependencies]
-ethcore-ipc-codegen = { path = "../ipc/codegen" }
 
 [dependencies]
 log = "0.3"
 ethabi = "4.0"
 target_info = "0.1"
+semver = "0.6"
 ethcore = { path = "../ethcore" }
 ethsync = { path = "../sync" }
 ethcore-util = { path = "../util" }
@@ -21,7 +18,5 @@ ethcore-bytes = { path = "../util/bytes" }
 futures = "0.1"
 parking_lot = "0.4"
 parity-hash-fetch = { path = "../hash-fetch" }
-ipc-common-types = { path = "../ipc-common-types" }
-ethcore-ipc = { path = "../ipc/rpc" }
 parity-reactor = { path = "../util/reactor" }
 path = { path = "../util/path" }

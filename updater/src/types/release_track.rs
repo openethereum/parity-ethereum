@@ -20,7 +20,6 @@ use std::fmt;
 
 /// A release's track.
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
-#[binary]
 pub enum ReleaseTrack {
 	/// Stable track.
 	Stable,
@@ -35,7 +34,7 @@ pub enum ReleaseTrack {
 }
 
 impl fmt::Display for ReleaseTrack {
-	fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		write!(f, "{}", match *self {
 			ReleaseTrack::Stable => "stable",
 			ReleaseTrack::Beta => "beta",

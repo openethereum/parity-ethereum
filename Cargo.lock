@@ -1299,17 +1299,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ipc-common-types"
-version = "1.9.0"
-dependencies = [
- "ethcore-bigint 0.1.3",
- "ethcore-ipc 1.9.0",
- "ethcore-ipc-codegen 1.9.0",
- "ethcore-util 1.9.0",
- "semver 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
 name = "ipnetwork"
 version = "0.12.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2344,17 +2333,15 @@ dependencies = [
  "ethcore 1.9.0",
  "ethcore-bigint 0.1.3",
  "ethcore-bytes 0.1.0",
- "ethcore-ipc 1.9.0",
- "ethcore-ipc-codegen 1.9.0",
  "ethcore-util 1.9.0",
  "ethsync 1.9.0",
  "futures 0.1.16 (registry+https://github.com/rust-lang/crates.io-index)",
- "ipc-common-types 1.9.0",
  "log 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-hash-fetch 1.9.0",
  "parity-reactor 0.1.0",
  "parking_lot 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "path 0.1.0",
+ "semver 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "target_info 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
