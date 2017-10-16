@@ -17,10 +17,9 @@
 //! Signing RPC implementation.
 
 use std::sync::Arc;
-use std::collections::BTreeSet;
 use transient_hashmap::TransientHashMap;
 use bigint::prelude::U256;
-use parking_lot::{Mutex, RwLock};
+use parking_lot::Mutex;
 
 use ethcore::account_provider::AccountProvider;
 
@@ -70,25 +69,20 @@ impl Future for DispatchResult {
 }
 
 fn schedule(remote: Remote,
-	pending: Arc<RwLock<BTreeSet<U256>>>,
-	confirmations: Arc<Mutex<TransientHashMap<U256, RpcConfirmationResult>>>,
+	confirmations: Arc<Mutex<TransientHashMap<U256, Option<RpcConfirmationResult>>>>,
 	id: U256,
 	future: RpcConfirmationReceiver) {
 	{
-		let mut pending = pending.write();
-		pending.insert(id.clone());
+		let mut confirmations = confirmations.lock();
+		confirmations.insert(id.clone(), None);
 	}
 
 	let future = future.then(move |result| {
 		{
-			let mut pending = pending.write();
-			pending.remove(&id); // should return `true`, but it makes little sense to check for that
-		}
-		{
 			let mut confirmations = confirmations.lock();
 			confirmations.prune();
 			let result = result.and_then(|response| response);
-			confirmations.insert(id, result);
+			confirmations.insert(id, Some(result));
 		}
 		Ok(())
 	});
@@ -101,8 +95,8 @@ pub struct SigningQueueClient<D> {
 	accounts: Option<Arc<AccountProvider>>,
 	dispatcher: D,
 	remote: Remote,
-	pending: Arc<RwLock<BTreeSet<U256>>>,
-	confirmations: Arc<Mutex<TransientHashMap<U256, RpcConfirmationResult>>>,
+	// None here means that the request hasn't yet been confirmed
+	confirmations: Arc<Mutex<TransientHashMap<U256, Option<RpcConfirmationResult>>>>,
 }
 
 impl<D: Dispatcher + 'static> SigningQueueClient<D> {
@@ -113,7 +107,6 @@ impl<D: Dispatcher + 'static> SigningQueueClient<D> {
 			accounts: accounts.clone(),
 			dispatcher,
 			remote,
-			pending: Arc::new(RwLock::new(BTreeSet::new())),
 			confirmations: Arc::new(Mutex::new(TransientHashMap::new(MAX_PENDING_DURATION_SEC))),
 		}
 	}
@@ -160,7 +153,6 @@ impl<D: Dispatcher + 'static> ParitySigning for SigningQueueClient<D> {
 
 	fn post_sign(&self, meta: Metadata, address: RpcH160, data: RpcBytes) -> BoxFuture<RpcEither<RpcU256, RpcConfirmationResponse>, Error> {
 		let remote = self.remote.clone();
-		let pending = self.pending.clone();
 		let confirmations = self.confirmations.clone();
 
 		Box::new(self.dispatch(
@@ -170,7 +162,7 @@ impl<D: Dispatcher + 'static> ParitySigning for SigningQueueClient<D> {
 		).map(move |result| match result {
 			DispatchResult::Value(v) => RpcEither::Or(v),
 			DispatchResult::Future(id, future) => {
-				schedule(remote, pending, confirmations, id.clone(), future);
+				schedule(remote, confirmations, id, future);
 				RpcEither::Either(id.into())
 			},
 		}))
@@ -178,14 +170,13 @@ impl<D: Dispatcher + 'static> ParitySigning for SigningQueueClient<D> {
 
 	fn post_transaction(&self, meta: Metadata, request: RpcTransactionRequest) -> BoxFuture<RpcEither<RpcU256, RpcConfirmationResponse>, Error> {
 		let remote = self.remote.clone();
-		let pending = self.pending.clone();
 		let confirmations = self.confirmations.clone();
 
 		Box::new(self.dispatch(RpcConfirmationPayload::SendTransaction(request), meta.dapp_id().into(), meta.origin)
 			.map(|result| match result {
 				DispatchResult::Value(v) => RpcEither::Or(v),
 				DispatchResult::Future(id, future) => {
-					schedule(remote, pending, confirmations, id, future);
+					schedule(remote, confirmations, id, future);
 					RpcEither::Either(id.into())
 				},
 			}))
@@ -193,12 +184,10 @@ impl<D: Dispatcher + 'static> ParitySigning for SigningQueueClient<D> {
 
 	fn check_request(&self, id: RpcU256) -> Result<Option<RpcConfirmationResponse>, Error> {
 		let id: U256 = id.into();
-		if self.pending.read().contains(&id) {
-			Ok(None)
-		} else if let Some(confirmation) = self.confirmations.lock().get(&id) {
-			confirmation.clone().map(Some)
-		} else {
-			Err(errors::request_not_found())
+		match self.confirmations.lock().get(&id) {
+			None => Err(errors::request_not_found()), // Request info has been dropped, or even never been there
+			Some(&None) => Ok(None), // No confirmation yet, request is known, confirmation is pending
+			Some(&Some(ref confirmation)) => confirmation.clone().map(Some), // Confirmation is there
 		}
 	}
 
