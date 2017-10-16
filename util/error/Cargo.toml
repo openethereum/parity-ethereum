@@ -5,6 +5,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 rlp = { path = "../rlp" }
+kvdb = { path = "../kvdb" }
 ethcore-bigint = { path = "../bigint" }
 error-chain = "0.11.0-rc.2"
 rustc-hex = "1.0"

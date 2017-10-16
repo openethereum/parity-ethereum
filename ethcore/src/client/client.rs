@@ -29,7 +29,7 @@ use bytes::Bytes;
 use util::{Address, journaldb, DBValue};
 use util_error::UtilError;
 use trie::{TrieSpec, TrieFactory, Trie};
-use kvdb::*;
+use kvdb::{KeyValueDB, DBTransaction};
 
 // other
 use bigint::prelude::U256;

@@ -25,6 +25,7 @@ use ethcore::db;
 use ethcore::service::ClientIoMessage;
 use ethcore::spec::Spec;
 use io::{IoContext, IoError, IoHandler, IoService};
+use kvdb;
 use kvdb_rocksdb::{Database, DatabaseConfig};
 
 use cache::Cache;
@@ -36,7 +37,7 @@ use super::{ChainDataFetcher, Client, Config as ClientConfig};
 #[derive(Debug)]
 pub enum Error {
 	/// Database error.
-	Database(String),
+	Database(kvdb::Error),
 	/// I/O service error.
 	Io(IoError),
 }

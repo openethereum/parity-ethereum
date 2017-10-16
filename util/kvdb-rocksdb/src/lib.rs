@@ -40,7 +40,7 @@ use rocksdb::{
 
 use elastic_array::ElasticArray32;
 use rlp::{UntrustedRlp, RlpType, Compressible};
-use kvdb::{KeyValueDB, DBTransaction, DBValue, Error, DBOp};
+use kvdb::{KeyValueDB, DBTransaction, DBValue, DBOp, Result};
 
 #[cfg(target_os = "linux")]
 use regex::Regex;
@@ -257,12 +257,12 @@ pub struct Database {
 
 impl Database {
 	/// Open database with default settings.
-	pub fn open_default(path: &str) -> Result<Database, String> {
+	pub fn open_default(path: &str) -> Result<Database> {
 		Database::open(&DatabaseConfig::default(), path)
 	}
 
 	/// Open database file. Creates if it does not exist.
-	pub fn open(config: &DatabaseConfig, path: &str) -> Result<Database, String> {
+	pub fn open(config: &DatabaseConfig, path: &str) -> Result<Database> {
 		let mut opts = Options::new();
 		if let Some(rate_limit) = config.compaction.write_rate_limit {
 			opts.set_parsed_options(&format!("rate_limiter_bytes_per_sec={}", rate_limit))?;
@@ -312,7 +312,7 @@ impl Database {
 						// retry and create CFs
 						match DB::open_cf(&opts, path, &[], &[]) {
 							Ok(mut db) => {
-								cfs = cfnames.iter().enumerate().map(|(i, n)| db.create_cf(n, &cf_options[i])).collect::<Result<_, _>>()?;
+								cfs = cfnames.iter().enumerate().map(|(i, n)| db.create_cf(n, &cf_options[i])).collect::<::std::result::Result<_, _>>()?;
 								Ok(db)
 							},
 							err @ Err(_) => err,
@@ -335,7 +335,7 @@ impl Database {
 					false => DB::open_cf(&opts, path, &cfnames, &cf_options)?
 				}
 			},
-			Err(s) => { return Err(s); }
+			Err(s) => { return Err(s.into()); }
 		};
 		let num_cols = cfs.len();
 		Ok(Database {
@@ -383,7 +383,7 @@ impl Database {
 	}
 
 	/// Commit buffered changes to database. Must be called under `flush_lock`
-	fn write_flushing_with_lock(&self, _lock: &mut MutexGuard<bool>) -> Result<(), String> {
+	fn write_flushing_with_lock(&self, _lock: &mut MutexGuard<bool>) -> Result<()> {
 		match *self.db.read() {
 			Some(DBAndColumns { ref db, ref cfs }) => {
 				let batch = WriteBatch::new();
@@ -425,18 +425,18 @@ impl Database {
 				}
 				Ok(())
 			},
-			None => Err("Database is closed".to_owned())
+			None => Err("Database is closed".into())
 		}
 	}
 
 	/// Commit buffered changes to database.
-	pub fn flush(&self) -> Result<(), String> {
+	pub fn flush(&self) -> Result<()> {
 		let mut lock = self.flushing_lock.lock();
 		// If RocksDB batch allocation fails the thread gets terminated and the lock is released.
 		// The value inside the lock is used to detect that.
 		if *lock {
 			// This can only happen if another flushing thread is terminated unexpectedly.
-			return Err("Database write failure. Running low on memory perhaps?".to_owned());
+			return Err("Database write failure. Running low on memory perhaps?".into());
 		}
 		*lock = true;
 		let result = self.write_flushing_with_lock(&mut lock);
@@ -445,7 +445,7 @@ impl Database {
 	}
 
 	/// Commit transaction to database.
-	pub fn write(&self, tr: DBTransaction) -> Result<(), String> {
+	pub fn write(&self, tr: DBTransaction) -> Result<()> {
 		match *self.db.read() {
 			Some(DBAndColumns { ref db, ref cfs }) => {
 				let batch = WriteBatch::new();
@@ -464,14 +464,14 @@ impl Database {
 						},
 					}
 				}
-				db.write_opt(batch, &self.write_opts)
+				db.write_opt(batch, &self.write_opts).map_err(Into::into)
 			},
-			None => Err("Database is closed".to_owned())
+			None => Err("Database is closed".into())
 		}
 	}
 
 	/// Get value by key.
-	pub fn get(&self, col: Option<u32>, key: &[u8]) -> Result<Option<DBValue>, String> {
+	pub fn get(&self, col: Option<u32>, key: &[u8]) -> Result<Option<DBValue>> {
 		match *self.db.read() {
 			Some(DBAndColumns { ref db, ref cfs }) => {
 				let overlay = &self.overlay.read()[Self::to_overlay_column(col)];
@@ -487,6 +487,7 @@ impl Database {
 								col.map_or_else(
 									|| db.get_opt(key, &self.read_opts).map(|r| r.map(|v| DBValue::from_slice(&v))),
 									|c| db.get_cf_opt(cfs[c as usize], key, &self.read_opts).map(|r| r.map(|v| DBValue::from_slice(&v))))
+									.map_err(Into::into)
 							},
 						}
 					},
@@ -552,7 +553,7 @@ impl Database {
 	}
 
 	/// Restore the database from a copy at given path.
-	pub fn restore(&self, new_db: &str) -> Result<(), Error> {
+	pub fn restore(&self, new_db: &str) -> Result<()> {
 		self.close();
 
 		let mut backup_db = PathBuf::from(&self.path);
@@ -601,7 +602,7 @@ impl Database {
 	}
 
 	/// Drop a column family.
-	pub fn drop_column(&self) -> Result<(), String> {
+	pub fn drop_column(&self) -> Result<()> {
 		match *self.db.write() {
 			Some(DBAndColumns { ref mut db, ref mut cfs }) => {
 				if let Some(col) = cfs.pop() {
@@ -616,7 +617,7 @@ impl Database {
 	}
 
 	/// Add a column family.
-	pub fn add_column(&self) -> Result<(), String> {
+	pub fn add_column(&self) -> Result<()> {
 		match *self.db.write() {
 			Some(DBAndColumns { ref mut db, ref mut cfs }) => {
 				let col = cfs.len() as u32;
@@ -632,7 +633,7 @@ impl Database {
 // duplicate declaration of methods here to avoid trait import in certain existing cases
 // at time of addition.
 impl KeyValueDB for Database {
-	fn get(&self, col: Option<u32>, key: &[u8]) -> Result<Option<DBValue>, String> {
+	fn get(&self, col: Option<u32>, key: &[u8]) -> Result<Option<DBValue>> {
 		Database::get(self, col, key)
 	}
 
@@ -644,11 +645,11 @@ impl KeyValueDB for Database {
 		Database::write_buffered(self, transaction)
 	}
 
-	fn write(&self, transaction: DBTransaction) -> Result<(), String> {
+	fn write(&self, transaction: DBTransaction) -> Result<()> {
 		Database::write(self, transaction)
 	}
 
-	fn flush(&self) -> Result<(), String> {
+	fn flush(&self) -> Result<()> {
 		Database::flush(self)
 	}
 
@@ -664,7 +665,7 @@ impl KeyValueDB for Database {
 		Box::new(unboxed.into_iter().flat_map(|inner| inner))
 	}
 
-	fn restore(&self, new_db: &str) -> Result<(), Error> {
+	fn restore(&self, new_db: &str) -> Result<()> {
 		Database::restore(self, new_db)
 	}
 }

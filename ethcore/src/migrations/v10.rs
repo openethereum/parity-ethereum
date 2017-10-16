@@ -22,11 +22,11 @@ use state_db::{ACCOUNT_BLOOM_SPACE, DEFAULT_ACCOUNT_PRESET, StateDB};
 use trie::TrieDB;
 use views::HeaderView;
 use bloom_journal::Bloom;
-use migration::{Error, Migration, Progress, Batch, Config};
+use migration::{Error, Migration, Progress, Batch, Config, ErrorKind};
 use util::journaldb;
 use bigint::hash::H256;
 use trie::Trie;
-use kvdb::DBTransaction;
+use kvdb::{DBTransaction, ResultExt};
 use kvdb_rocksdb::Database;
 
 /// Account bloom upgrade routine. If bloom already present, does nothing.
@@ -60,9 +60,9 @@ pub fn generate_bloom(source: Arc<Database>, dest: &mut Database) -> Result<(), 
 			source.clone(),
 			journaldb::Algorithm::OverlayRecent,
 			COL_STATE);
-		let account_trie = TrieDB::new(state_db.as_hashdb(), &state_root).map_err(|e| Error::Custom(format!("Cannot open trie: {:?}", e)))?;
-		for item in account_trie.iter().map_err(|_| Error::MigrationImpossible)? {
-			let (ref account_key, _) = item.map_err(|_| Error::MigrationImpossible)?;
+		let account_trie = TrieDB::new(state_db.as_hashdb(), &state_root).chain_err(|| "Cannot open trie")?;
+		for item in account_trie.iter().map_err(|_| ErrorKind::MigrationImpossible)? {
+			let (ref account_key, _) = item.map_err(|_| ErrorKind::MigrationImpossible)?;
 			let account_key_hash = H256::from_slice(account_key);
 			bloom.set(&*account_key_hash);
 		}
@@ -73,7 +73,7 @@ pub fn generate_bloom(source: Arc<Database>, dest: &mut Database) -> Result<(), 
 	trace!(target: "migration", "Generated {} bloom updates", bloom_journal.entries.len());
 
 	let mut batch = DBTransaction::new();
-	StateDB::commit_bloom(&mut batch, bloom_journal).map_err(|_| Error::Custom("Failed to commit bloom".to_owned()))?;
+	StateDB::commit_bloom(&mut batch, bloom_journal).chain_err(|| "Failed to commit bloom")?;
 	dest.write(batch)?;
 
 	trace!(target: "migration", "Finished bloom update");

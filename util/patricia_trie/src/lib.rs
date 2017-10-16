@@ -28,7 +28,7 @@ extern crate ethcore_logger;
 #[macro_use]
 extern crate log;
 
-use std::fmt;
+use std::{fmt, error};
 use bigint::hash::H256;
 use keccak::KECCAK_NULL_RLP;
 use hashdb::{HashDB, DBValue};
@@ -82,6 +82,15 @@ impl fmt::Display for TrieError {
 			TrieError::InvalidStateRoot(ref root) => write!(f, "Invalid state root: {}", root),
 			TrieError::IncompleteDatabase(ref missing) =>
 				write!(f, "Database missing expected key: {}", missing),
+		}
+	}
+}
+
+impl error::Error for TrieError {
+	fn description(&self) -> &str {
+		match *self {
+			TrieError::InvalidStateRoot(_) => "Invalid state root",
+			TrieError::IncompleteDatabase(_) => "IncompleteDatabase",
 		}
 	}
 }
