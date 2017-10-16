@@ -132,7 +132,7 @@ impl PersistentKeyStorage {
 		db_path.push("db");
 		let db_path = db_path.to_str().ok_or(Error::Database("Invalid secretstore path".to_owned()))?;
 
-		let db = Database::open_default(&db_path).map_err(Error::Database)?;
+		let db = Database::open_default(&db_path)?;
 		let db = upgrade_db(db)?;
 
 		Ok(PersistentKeyStorage {
@@ -142,7 +142,7 @@ impl PersistentKeyStorage {
 }
 
 fn upgrade_db(db: Database) -> Result<Database, Error> {
-	let version = db.get(None, DB_META_KEY_VERSION).map_err(Error::Database)?;
+	let version = db.get(None, DB_META_KEY_VERSION)?;
 	let version = version.and_then(|v| v.get(0).cloned()).unwrap_or(0);
 	match version {
 		0 => {
@@ -164,7 +164,7 @@ fn upgrade_db(db: Database) -> Result<Database, Error> {
 				let db_value = serde_json::to_vec(&v2_key).map_err(|e| Error::Database(e.to_string()))?;
 				batch.put(None, &*db_key, &*db_value);
 			}
-			db.write(batch).map_err(Error::Database)?;
+			db.write(batch)?;
 			Ok(db)
 		},
 		1 => {
@@ -184,7 +184,7 @@ fn upgrade_db(db: Database) -> Result<Database, Error> {
 				let db_value = serde_json::to_vec(&v2_key).map_err(|e| Error::Database(e.to_string()))?;
 				batch.put(None, &*db_key, &*db_value);
 			}
-			db.write(batch).map_err(Error::Database)?;
+			db.write(batch)?;
 			Ok(db)
 		}
 		2 => Ok(db),
@@ -198,7 +198,7 @@ impl KeyStorage for PersistentKeyStorage {
 		let key = serde_json::to_vec(&key).map_err(|e| Error::Database(e.to_string()))?;
 		let mut batch = self.db.transaction();
 		batch.put(None, &document, &key);
-		self.db.write(batch).map_err(Error::Database)
+		self.db.write(batch).map_err(Into::into)
 	}
 
 	fn update(&self, document: ServerKeyId, key: DocumentKeyShare) -> Result<(), Error> {
@@ -206,8 +206,7 @@ impl KeyStorage for PersistentKeyStorage {
 	}
 
 	fn get(&self, document: &ServerKeyId) -> Result<DocumentKeyShare, Error> {
-		self.db.get(None, document)
-			.map_err(Error::Database)?
+		self.db.get(None, document)?
 			.ok_or(Error::DocumentNotFound)
 			.map(|key| key.into_vec())
 			.and_then(|key| serde_json::from_slice::<CurrentSerializableDocumentKeyShare>(&key).map_err(|e| Error::Database(e.to_string())))
@@ -217,7 +216,7 @@ impl KeyStorage for PersistentKeyStorage {
 	fn remove(&self, document: &ServerKeyId) -> Result<(), Error> {
 		let mut batch = self.db.transaction();
 		batch.delete(None, &document);
-		self.db.write(batch).map_err(Error::Database)
+		self.db.write(batch).map_err(Into::into)
 	}
 
 	fn contains(&self, document: &ServerKeyId) -> bool {

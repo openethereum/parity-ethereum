@@ -20,7 +20,7 @@ extern crate rlp;
 
 use std::collections::{BTreeMap, HashMap};
 use parking_lot::RwLock;
-use kvdb::{DBValue, Error, DBTransaction, KeyValueDB, DBOp};
+use kvdb::{DBValue, DBTransaction, KeyValueDB, DBOp, Result};
 use rlp::{RlpType, UntrustedRlp, Compressible};
 
 /// A key-value database fulfilling the `KeyValueDB` trait, living in memory.
@@ -46,10 +46,10 @@ pub fn create(num_cols: u32) -> InMemory {
 }
 
 impl KeyValueDB for InMemory {
-	fn get(&self, col: Option<u32>, key: &[u8]) -> Result<Option<DBValue>, String> {
+	fn get(&self, col: Option<u32>, key: &[u8]) -> Result<Option<DBValue>> {
 		let columns = self.columns.read();
 		match columns.get(&col) {
-			None => Err(format!("No such column family: {:?}", col)),
+			None => Err(format!("No such column family: {:?}", col).into()),
 			Some(map) => Ok(map.get(key).cloned()),
 		}
 	}
@@ -92,7 +92,10 @@ impl KeyValueDB for InMemory {
 		}
 	}
 
-	fn flush(&self) -> Result<(), String> { Ok(()) }
+	fn flush(&self) -> Result<()> {
+		Ok(())
+	}
+
 	fn iter<'a>(&'a self, col: Option<u32>) -> Box<Iterator<Item=(Box<[u8]>, Box<[u8]>)> + 'a> {
 		match self.columns.read().get(&col) {
 			Some(map) => Box::new( // TODO: worth optimizing at all?
@@ -118,7 +121,7 @@ impl KeyValueDB for InMemory {
 		}
 	}
 
-	fn restore(&self, _new_db: &str) -> Result<(), Error> {
+	fn restore(&self, _new_db: &str) -> Result<()> {
 		Err("Attempted to restore in-memory database".into())
 	}
 }

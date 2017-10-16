@@ -38,7 +38,7 @@ pub enum EvmTestError {
 	/// Initialization error.
 	ClientError(::error::Error),
 	/// Low-level database error.
-	Database(String),
+	Database(kvdb::Error),
 	/// Post-condition failure,
 	PostCondition(String),
 }
