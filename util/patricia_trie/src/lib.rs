@@ -90,7 +90,7 @@ impl error::Error for TrieError {
 	fn description(&self) -> &str {
 		match *self {
 			TrieError::InvalidStateRoot(_) => "Invalid state root",
-			TrieError::IncompleteDatabase(_) => "IncompleteDatabase",
+			TrieError::IncompleteDatabase(_) => "Incomplete database",
 		}
 	}
 }
