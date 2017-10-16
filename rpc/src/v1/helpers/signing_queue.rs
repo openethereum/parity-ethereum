@@ -23,7 +23,7 @@ use v1::helpers::{ConfirmationRequest, ConfirmationPayload, oneshot, errors};
 use v1::types::{ConfirmationResponse, H160 as RpcH160, Origin, DappId as RpcDappId};
 
 use jsonrpc_core::Error;
-use jsonrpc_core::futures::{Future, Poll};
+use jsonrpc_core::futures::Future;
 
 /// Result that can be returned from JSON RPC.
 pub type RpcResult = Result<ConfirmationResponse, Error>;
@@ -74,7 +74,7 @@ pub const QUEUE_LIMIT: usize = 50;
 pub trait SigningQueue: Send + Sync {
 	/// Add new request to the queue.
 	/// Returns a `Result` wrapping  `ConfirmationReceiver` which is a `Future` awaiting for resolution of the given request.
-	fn add_request(&self, request: ConfirmationPayload, origin: Origin) -> Result<ConfirmationReceiver, QueueAddError>;
+	fn add_request(&self, request: ConfirmationPayload, origin: Origin) -> Result<(U256, ConfirmationReceiver), QueueAddError>;
 
 	/// Removes a request from the queue.
 	/// Notifies possible token holders that request was rejected.
@@ -136,31 +136,7 @@ struct ConfirmationSender {
 
 /// Receiving end of the Confirmation channel; can be used as a `Future` to await for `ConfirmationRequest`
 /// being processed and turned into `ConfirmationOutcome`
-#[must_use = "futures do nothing unless polled"]
-pub struct ConfirmationReceiver {
-	id: U256,
-	receiver: oneshot::Receiver<ConfirmationOutcome>
-}
-
-impl ConfirmationReceiver {
-	fn new(id: U256, receiver: oneshot::Receiver<ConfirmationOutcome>) -> Self {
-		ConfirmationReceiver { id, receiver }
-	}
-
-	/// `U256` id of the request we're waiting to get confirmed.
-	pub fn id(&self) -> U256 {
-		self.id
-	}
-}
-
-impl Future for ConfirmationReceiver {
-	type Item = ConfirmationOutcome;
-	type Error = Error;
-
-	fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-		self.receiver.poll()
-	}
-}
+pub type ConfirmationReceiver =  oneshot::Receiver<ConfirmationOutcome>;
 
 /// Queue for all unconfirmed requests.
 #[derive(Default)]
@@ -220,7 +196,7 @@ impl Drop for ConfirmationsQueue {
 }
 
 impl SigningQueue for ConfirmationsQueue {
-	fn add_request(&self, request: ConfirmationPayload, origin: Origin) -> Result<ConfirmationReceiver, QueueAddError> {
+	fn add_request(&self, request: ConfirmationPayload, origin: Origin) -> Result<(U256, ConfirmationReceiver), QueueAddError> {
 		if self.len() > QUEUE_LIMIT {
 			return Err(QueueAddError::LimitReached);
 		}
@@ -247,7 +223,7 @@ impl SigningQueue for ConfirmationsQueue {
 					origin,
 				},
 			});
-			ConfirmationReceiver::new(id, receiver)
+			(id, receiver)
 		};
 		// Notify listeners
 		self.notify(QueueEvent::NewRequest(id));
@@ -319,9 +295,7 @@ mod test {
 		let request = request();
 
 		// when
-		let future = queue.add_request(request, Default::default()).unwrap();
-
-		let id = U256::from(1);
+		let (id, future) = queue.add_request(request, Default::default()).unwrap();
 		queue.request_confirmed(id, Ok(ConfirmationResponse::SendTransaction(1.into())));
 
 		// then

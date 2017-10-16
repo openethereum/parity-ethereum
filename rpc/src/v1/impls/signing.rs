@@ -53,7 +53,7 @@ const MAX_PENDING_DURATION_SEC: u32 = 60;
 
 #[must_use = "futures do nothing unless polled"]
 enum DispatchResult {
-	Future(RpcConfirmationReceiver),
+	Future(U256, RpcConfirmationReceiver),
 	Value(RpcConfirmationResponse),
 }
 
@@ -64,7 +64,7 @@ impl Future for DispatchResult {
 	fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
 		match *self {
 			DispatchResult::Value(ref response) => Ok(Async::Ready(response.clone())),
-			DispatchResult::Future(ref mut future) => match try_ready!(future.poll()) {
+			DispatchResult::Future(_uid, ref mut future) => match try_ready!(future.poll()) {
 				RpcConfirmationOutcome::Rejected => Err(errors::request_rejected()),
 				RpcConfirmationOutcome::Confirmed(response) => Ok(Async::Ready(response)),
 				RpcConfirmationOutcome::Failed(error) => Err(error)
@@ -73,8 +73,11 @@ impl Future for DispatchResult {
 	}
 }
 
-fn schedule(remote: Remote, pending: Arc<RwLock<BTreeSet<U256>>>, confirmations: Arc<Mutex<TransientHashMap<U256, RpcConfirmationOutcome>>>, future: RpcConfirmationReceiver) {
-	let id = future.id();
+fn schedule(remote: Remote,
+	pending: Arc<RwLock<BTreeSet<U256>>>,
+	confirmations: Arc<Mutex<TransientHashMap<U256, RpcConfirmationOutcome>>>,
+	id: U256,
+	future: RpcConfirmationReceiver) {
 	{
 		let mut pending = pending.write();
 		pending.insert(id.clone());
@@ -142,7 +145,7 @@ impl<D: Dispatcher + 'static> SigningQueueClient<D> {
 				} else {
 					Either::B(future::done(
 						signer.add_request(payload, origin)
-							.map(DispatchResult::Future)
+							.map(|(id, future)| DispatchResult::Future(id, future))
 							.map_err(|_| errors::request_rejected_limit())
 					))
 				}
@@ -170,9 +173,8 @@ impl<D: Dispatcher + 'static> ParitySigning for SigningQueueClient<D> {
 			meta.origin
 		).map(move |result| match result {
 			DispatchResult::Value(v) => RpcEither::Or(v),
-			DispatchResult::Future(future) => {
-				let id = future.id().clone();
-				schedule(remote, pending, confirmations, future);
+			DispatchResult::Future(id, future) => {
+				schedule(remote, pending, confirmations, id.clone(), future);
 				RpcEither::Either(id.into())
 			},
 		}))
@@ -186,9 +188,8 @@ impl<D: Dispatcher + 'static> ParitySigning for SigningQueueClient<D> {
 		Box::new(self.dispatch(RpcConfirmationPayload::SendTransaction(request), meta.dapp_id().into(), meta.origin)
 			.map(|result| match result {
 				DispatchResult::Value(v) => RpcEither::Or(v),
-				DispatchResult::Future(future) => {
-					let id = future.id().clone();
-					schedule(remote, pending, confirmations, future);
+				DispatchResult::Future(id, future) => {
+					schedule(remote, pending, confirmations, id, future);
 					RpcEither::Either(id.into())
 				},
 			}))
