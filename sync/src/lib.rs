@@ -56,8 +56,6 @@ extern crate macros;
 extern crate log;
 #[macro_use]
 extern crate heapsize;
-#[macro_use]
-extern crate ethcore_ipc as ipc;
 
 mod chain;
 mod blocks;
@@ -71,13 +69,6 @@ pub mod light_sync;
 #[cfg(test)]
 mod tests;
 
-#[cfg(feature = "ipc")]
-mod api {
-	#![allow(dead_code, unused_assignments, unused_variables, missing_docs)] // codegen issues
-	include!(concat!(env!("OUT_DIR"), "/api.rs"));
-}
-
-#[cfg(not(feature = "ipc"))]
 mod api;
 
 pub use api::*;
@@ -86,9 +77,3 @@ pub use network::{is_valid_node_url, NonReservedPeerMode, NetworkError, Connecti
 
 #[cfg(test)]
 pub(crate) type Address = bigint::hash::H160;
-
-/// IPC interfaces
-#[cfg(feature="ipc")]
-pub mod remote {
-	pub use api::{SyncClient, NetworkManagerClient};
-}
