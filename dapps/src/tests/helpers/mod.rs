@@ -268,7 +268,7 @@ impl Server {
 		};
 
 		let mut allowed_hosts: Option<Vec<Host>> = allowed_hosts.into();
-		allowed_hosts.as_mut().map(|mut hosts| {
+		allowed_hosts.as_mut().map(|hosts| {
 			hosts.push(format!("http://*.{}:*", DAPPS_DOMAIN).into());
 			hosts.push(format!("http://*.{}", DAPPS_DOMAIN).into());
 		});
