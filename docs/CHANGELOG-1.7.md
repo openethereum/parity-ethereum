@@ -1,3 +1,14 @@
+## Parity [v1.7.7](https://github.com/paritytech/parity/releases/tag/v1.7.7) (2017-10-15)
+
+Parity 1.7.7 Fixes an issue with auto-update system. Updating is recommended, but not required for Byzantium.
+
+Full list of included changes:
+
+- Fix auto-update ([#6769](https://github.com/paritytech/parity/pull/6759))
+  - Bump to v1.7.7
+  - Updated ethabi to fix auto-update
+- Bumped fork block number for auto-update ([#6754](https://github.com/paritytech/parity/pull/6754))
+
 ## Parity [v1.7.6](https://github.com/paritytech/parity/releases/tag/v1.7.6) (2017-10-13)
 
 Parity 1.7.6 includes a critical consensus-relevant fix for the Byzantium hard-fork. Please upgrade your Ethereum client before block number `4_370_000`.
