@@ -72,16 +72,7 @@ mod watcher;
 #[cfg(test)]
 mod tests;
 
-/// IPC interfaces
-#[cfg(feature="ipc")]
-pub mod remote {
-	pub use super::traits::RemoteSnapshotService;
-}
-
-mod traits {
-	#![allow(dead_code, unused_assignments, unused_variables, missing_docs)] // codegen issues
-	include!(concat!(env!("OUT_DIR"), "/snapshot_service_trait.rs"));
-}
+mod traits;
 
 // Try to have chunks be around 4MB (before compression)
 const PREFERRED_CHUNK_SIZE: usize = 4 * 1024 * 1024;

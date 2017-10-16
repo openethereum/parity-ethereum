@@ -17,13 +17,11 @@
 use super::{ManifestData, RestorationStatus};
 use bigint::hash::H256;
 use bytes::Bytes;
-use ipc::IpcConfig;
 
 /// The interface for a snapshot network service.
 /// This handles:
 ///    - restoration of snapshots to temporary databases.
 ///    - responding to queries for snapshot manifests and chunks
-#[ipc(client_ident="RemoteSnapshotService")]
 pub trait SnapshotService : Sync + Send {
 	/// Query the most recent manifest data.
 	fn manifest(&self) -> Option<ManifestData>;
@@ -54,5 +52,3 @@ pub trait SnapshotService : Sync + Send {
 	/// no-op if currently restoring.
 	fn restore_block_chunk(&self, hash: H256, chunk: Bytes);
 }
-
-impl IpcConfig for SnapshotService { }

@@ -29,7 +29,6 @@ use io::*;
 use header::BlockNumber;
 use basic_types::LogBloom;
 use client::Error as ClientError;
-use ipc::binary::{BinaryConvertError, BinaryConvertable};
 use snapshot::Error as SnapshotError;
 use engines::EngineError;
 use ethkey::Error as EthkeyError;
@@ -486,21 +485,3 @@ impl<E> From<Box<E>> for Error where Error: From<E> {
 		Error::from(*err)
 	}
 }
-
-binary_fixed_size!(BlockError);
-binary_fixed_size!(ImportError);
-binary_fixed_size!(TransactionError);
-
-// TODO: uncomment below once https://github.com/rust-lang/rust/issues/27336 sorted.
-/*#![feature(concat_idents)]
-macro_rules! assimilate {
-    ($name:ident) => (
-		impl From<concat_idents!($name, Error)> for Error {
-			fn from(err: concat_idents!($name, Error)) -> Error {
-				Error:: $name (err)
-			}
-		}
-    )
-}
-assimilate!(FromHex);
-assimilate!(BaseData);*/
