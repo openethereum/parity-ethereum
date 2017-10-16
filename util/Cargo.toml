@@ -34,6 +34,9 @@ memorydb = { path = "memorydb" }
 util-error = { path = "error" }
 kvdb = { path = "kvdb" }
 
+[dev-dependencies]
+kvdb-memorydb = { path = "kvdb-memorydb" }
+
 [features]
 default = []
 dev = ["clippy"]

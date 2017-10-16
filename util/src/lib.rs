@@ -109,6 +109,9 @@ extern crate patricia_trie as trie;
 extern crate kvdb;
 extern crate util_error as error;
 
+#[cfg(test)]
+extern crate kvdb_memorydb;
+
 #[macro_use]
 extern crate log as rlog;
 

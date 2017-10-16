@@ -32,6 +32,7 @@ ethcore-devtools = { path = "../devtools" }
 ethcore-util = { path = "../util" }
 ethcore-bigint = { path = "../util/bigint" }
 kvdb = { path = "../util/kvdb" }
+kvdb-rocksdb = { path = "../util/kvdb-rocksdb" }
 hash = { path = "../util/hash" }
 ethcore-ipc = { path = "../ipc/rpc" }
 ethcore-ipc-nano = { path = "../ipc/nano" }

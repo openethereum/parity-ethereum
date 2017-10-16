@@ -48,6 +48,7 @@ extern crate ethkey;
 extern crate native_contracts;
 extern crate hash;
 extern crate kvdb;
+extern crate kvdb_rocksdb;
 
 mod key_server_cluster;
 mod types;

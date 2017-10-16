@@ -18,7 +18,7 @@ use std::path::PathBuf;
 use std::collections::BTreeMap;
 use serde_json;
 use ethkey::{Secret, Public};
-use kvdb::{Database, DatabaseIterator};
+use kvdb_rocksdb::{Database, DatabaseIterator};
 use types::all::{Error, ServiceConfiguration, ServerKeyId, NodeId};
 use serialization::{SerializablePublic, SerializableSecret};
 
@@ -293,7 +293,7 @@ pub mod tests {
 	use serde_json;
 	use devtools::RandomTempPath;
 	use ethkey::{Random, Generator, Public, Secret};
-	use kvdb::Database;
+	use kvdb_rocksdb::Database;
 	use types::all::{Error, NodeAddress, ServiceConfiguration, ClusterConfiguration, ServerKeyId};
 	use super::{DB_META_KEY_VERSION, CURRENT_VERSION, KeyStorage, PersistentKeyStorage, DocumentKeyShare,
 		SerializableDocumentKeyShareV0, SerializableDocumentKeyShareV1,
