@@ -22,6 +22,8 @@ use parking_lot::{Mutex, Condvar};
 use key_server_cluster::{Error, SessionId, NodeId, DocumentKeyShare, KeyStorage};
 use key_server_cluster::cluster::Cluster;
 use key_server_cluster::cluster_sessions::{SessionIdWithSubSession, ClusterSession};
+use key_server_cluster::decryption_session::SessionImpl as DecryptionSession;
+use key_server_cluster::signing_session::SessionImpl as SigningSession;
 use key_server_cluster::message::{Message, KeyVersionNegotiationMessage, RequestKeyVersions, KeyVersions};
 use key_server_cluster::admin_sessions::ShareChangeSessionMeta;
 
@@ -31,6 +33,10 @@ const VERSIONS_PER_MESSAGE: usize = 32;
 
 /// Key version negotiation session API.
 pub trait Session: Send + Sync + 'static {
+	/// Set continue action.
+	fn set_continue_action(&self, action: ContinueAction);
+	/// Get continue action.
+	fn continue_action(&self) -> Option<ContinueAction>;
 	/// Wait until session is completed.
 	fn wait(&self) -> Result<(H256, NodeId), Error>;
 }
@@ -53,6 +59,15 @@ pub struct SessionImpl<T: SessionTransport> {
 	core: SessionCore<T>,
 	/// Session data.
 	data: Mutex<SessionData>,
+}
+
+/// Action after key version is negotiated.
+#[derive(Clone)]
+pub enum ContinueAction {
+	/// Decryption session + is_shadow_decryption.
+	Decrypt(Arc<DecryptionSession>, bool),
+	/// Signing session + message hash.
+	Sign(Arc<SigningSession>, H256),
 }
 
 /// Immutable session data.
@@ -83,6 +98,8 @@ struct SessionData {
 	pub versions: Option<BTreeMap<H256, BTreeSet<NodeId>>>,
 	/// Session result.
 	pub result: Option<Result<(H256, NodeId), Error>>,
+	/// Continue action.
+	pub continue_with: Option<ContinueAction>,
 }
 
 /// SessionImpl creation parameters
@@ -154,8 +171,14 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 				confirmations: None,
 				versions: None,
 				result: None,
+				continue_with: None,
 			})
 		}
+	}
+
+	/// Return session meta.
+	pub fn meta(&self) -> &ShareChangeSessionMeta {
+		&self.core.meta
 	}
 
 	/// Initialize session.
@@ -300,6 +323,14 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 }
 
 impl<T> Session for SessionImpl<T> where T: SessionTransport + Send + Sync + 'static {
+	fn set_continue_action(&self, action: ContinueAction) {
+		self.data.lock().continue_with = Some(action);
+	}
+
+	fn continue_action(&self) -> Option<ContinueAction> {
+		self.data.lock().continue_with.clone()
+	}
+
 	fn wait(&self) -> Result<(H256, NodeId), Error> {
 		let mut data = self.data.lock();
 		if !data.result.is_some() {
@@ -361,13 +392,25 @@ impl<T> ClusterSession for SessionImpl<T> where T: SessionTransport {
 	}
 
 	fn on_message(&self, sender: &NodeId, message: &Message) -> Result<(), Error> {
-		unimplemented!()
+		match *message {
+			Message::KeyVersionNegotiation(ref message) => self.process_message(sender, message),
+			_ => unreachable!("TODO"),
+		}
 	}
 }
 
 impl SessionTransport for IsolatedSessionTransport {
 	fn send(&self, node: &NodeId, message: KeyVersionNegotiationMessage) -> Result<(), Error> {
 		self.cluster.send(node, Message::KeyVersionNegotiation(message))
+	}
+}
+
+impl FastestResultComputer {
+	pub fn new(self_node_id: NodeId, threshold: Option<usize>) -> Self {
+		FastestResultComputer {
+			self_node_id: self_node_id,
+			threshold: threshold,
+		}
 	}
 }
 

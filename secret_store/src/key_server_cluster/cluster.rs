@@ -1,4 +1,5 @@
 // TODO: after refactoring, check that there are no extra messages passing in tests (there are error messages)
+// TODO: initialize() fails, session is not removed from container
 
 // Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
@@ -43,7 +44,8 @@ use key_server_cluster::generation_session::SessionImpl as GenerationSessionImpl
 use key_server_cluster::decryption_session::{Session as DecryptionSession};
 use key_server_cluster::encryption_session::{Session as EncryptionSession, SessionState as EncryptionSessionState};
 use key_server_cluster::signing_session::{Session as SigningSession};
-use key_server_cluster::key_version_negotiation_session::{Session as KeyVersionNegotiationSession};
+use key_server_cluster::key_version_negotiation_session::{Session as KeyVersionNegotiationSession, SessionImpl as KeyVersionNegotiationSessionImpl,
+	IsolatedSessionTransport as KeyVersionNegotiationSessionTransport, ContinueAction};
 use key_server_cluster::io::{DeadlineStatus, ReadMessage, SharedTcpStream, read_encrypted_message, WriteMessage, write_encrypted_message};
 use key_server_cluster::net::{accept_connection as net_accept_connection, connect as net_connect, Connection as NetConnection};
 
@@ -430,16 +432,60 @@ impl ClusterCore {
 		trace!(target: "secretstore_net", "{}: received message {} from {}", data.self_key_pair.public(), message, connection.node_id());
 		// error is ignored as we only process errors on session level
 		match message {
-			Message::Generation(message) => Self::process_message(&data, &data.sessions.generation_sessions, connection, Message::Generation(message)),
-			Message::Encryption(message) => Self::process_message(&data, &data.sessions.encryption_sessions, connection, Message::Encryption(message)),
-			Message::Decryption(message) => Self::process_message(&data, &data.sessions.decryption_sessions, connection, Message::Decryption(message)),
-			Message::Signing(message) => Self::process_message(&data, &data.sessions.signing_sessions, connection, Message::Signing(message)),
-			Message::ServersSetChange(message) => Self::process_message(&data, &data.sessions.admin_sessions, connection, Message::ServersSetChange(message)),
-			Message::KeyVersionNegotiation(message) => Self::process_message(&data, &data.sessions.negotiation_sessions, connection, Message::KeyVersionNegotiation(message)),
-			Message::ShareAdd(message) => Self::process_message(&data, &data.sessions.admin_sessions, connection, Message::ShareAdd(message)),
-			Message::ShareMove(message) => Self::process_message(&data, &data.sessions.admin_sessions, connection, Message::ShareMove(message)),
-			Message::ShareRemove(message) => Self::process_message(&data, &data.sessions.admin_sessions, connection, Message::ShareRemove(message)),
+			Message::Generation(message) => Self::process_message(&data, &data.sessions.generation_sessions, connection, Message::Generation(message))
+				.map(|_| ()).unwrap_or_default(),
+			Message::Encryption(message) => Self::process_message(&data, &data.sessions.encryption_sessions, connection, Message::Encryption(message))
+				.map(|_| ()).unwrap_or_default(),
+			Message::Decryption(message) => Self::process_message(&data, &data.sessions.decryption_sessions, connection, Message::Decryption(message))
+				.map(|_| ()).unwrap_or_default(),
+			Message::Signing(message) => Self::process_message(&data, &data.sessions.signing_sessions, connection, Message::Signing(message))
+				.map(|_| ()).unwrap_or_default(),
+			Message::ServersSetChange(message) => Self::process_message(&data, &data.sessions.admin_sessions, connection, Message::ServersSetChange(message))
+				.map(|_| ()).unwrap_or_default(),
+			Message::KeyVersionNegotiation(message) => {
+				let session = Self::process_message(&data, &data.sessions.negotiation_sessions, connection, Message::KeyVersionNegotiation(message));
+				Self::try_continue_session(&data, session);
+			},
+			Message::ShareAdd(message) => Self::process_message(&data, &data.sessions.admin_sessions, connection, Message::ShareAdd(message))
+				.map(|_| ()).unwrap_or_default(),
+			Message::ShareMove(message) => Self::process_message(&data, &data.sessions.admin_sessions, connection, Message::ShareMove(message))
+				.map(|_| ()).unwrap_or_default(),
+			Message::ShareRemove(message) => Self::process_message(&data, &data.sessions.admin_sessions, connection, Message::ShareRemove(message))
+				.map(|_| ()).unwrap_or_default(),
 			Message::Cluster(message) => ClusterCore::process_cluster_message(data, connection, message),
+		}
+	}
+
+	/// Try to contnue session.
+	fn try_continue_session(data: &Arc<ClusterData>, session: Option<Arc<KeyVersionNegotiationSessionImpl<KeyVersionNegotiationSessionTransport>>>) {
+		if let Some(session) = session {
+			let meta = session.meta();
+			let is_master_node = meta.self_node_id == meta.master_node_id;
+			if is_master_node && session.is_finished() {
+				if let Ok((version, master)) = session.wait() {
+					match session.continue_action() {
+						Some(ContinueAction::Decrypt(session, is_shadow_decryption)) => {
+							if data.self_key_pair.public() == &master {
+								let mut connected_nodes = data.connections.connected_nodes();
+								connected_nodes.insert(data.self_key_pair.public().clone());
+								let _ = session.initialize(connected_nodes, version, is_shadow_decryption); // TODO: err
+							} else {
+								unimplemented!("TODO")
+							}
+						},
+						Some(ContinueAction::Sign(session, message_hash)) => {
+							if data.self_key_pair.public() == &master {
+								let mut connected_nodes = data.connections.connected_nodes();
+								connected_nodes.insert(data.self_key_pair.public().clone());
+								let _ = session.initialize(connected_nodes, version, message_hash); // TODO: err
+							} else {
+								unimplemented!("TODO")
+							}
+						},
+						None => (),
+					}
+				}
+			}
 		}
 	}
 
@@ -465,22 +511,23 @@ impl ClusterCore {
 	}
 
 	/// Process single session message from connection.
-	fn process_message<S: ClusterSession, SC: ClusterSessionCreator<S, D>, D>(data: &Arc<ClusterData>, sessions: &ClusterSessionsContainer<S, SC, D>, connection: Arc<Connection>, mut message: Message) -> Option<Arc<>>
+	fn process_message<S: ClusterSession, SC: ClusterSessionCreator<S, D>, D>(data: &Arc<ClusterData>, sessions: &ClusterSessionsContainer<S, SC, D>, connection: Arc<Connection>, mut message: Message) -> Option<Arc<S>>
 		where Message: IntoSessionId<S::Id> {
 
 		// get or create new session, if required
 		let mut sender = connection.node_id().clone();
 		let session = Self::prepare_session(data, sessions, &sender, &message);
-
 		// send error if session is not found, or failed to create
 		let session = match session {
 			Ok(session) => session,
 			Err(error) => {
 				// this is new session => it is not yet in container
 				//warn!(target: "secretstore_net", "{}: generation session initialization error '{}' when requested for new session from node {}", data.self_key_pair.public(), err, sender);
-				let session_id = message.into_session_id().expect("TODO");
-				let session_nonce = message.session_nonce().expect("TODO");
-				data.spawn(connection.send_message(SC::make_error_message(session_id, session_nonce, error)));
+				if message.is_initialization_message() {
+					let session_id = message.into_session_id().expect("TODO");
+					let session_nonce = message.session_nonce().expect("TODO");
+					data.spawn(connection.send_message(SC::make_error_message(session_id, session_nonce, error)));
+				}
 				return None;
 			},
 		};
@@ -784,6 +831,18 @@ impl ClusterClientImpl {
 			data: data,
 		}
 	}
+
+	fn create_key_version_negotiation_session(&self, session_id: SessionId) -> Result<Arc<KeyVersionNegotiationSessionImpl<KeyVersionNegotiationSessionTransport>>, Error> {
+		let mut connected_nodes = self.data.connections.connected_nodes();
+		connected_nodes.insert(self.data.self_key_pair.public().clone());
+
+		let access_key = Random.generate()?.secret().clone();
+		let session_id = SessionIdWithSubSession::new(session_id, access_key);
+		let cluster = Arc::new(ClusterView::new(self.data.clone(), connected_nodes.clone()));
+		let session = self.data.sessions.negotiation_sessions.insert(&self.data, self.data.self_key_pair.public().clone(), session_id.clone(), None, true, false, None)?;
+		session.initialize(connected_nodes)?;
+		Ok(session)
+	}
 }
 
 impl ClusterClient for ClusterClientImpl {
@@ -819,8 +878,18 @@ impl ClusterClient for ClusterClientImpl {
 		let session_id = SessionIdWithSubSession::new(session_id, access_key);
 		let cluster = Arc::new(ClusterView::new(self.data.clone(), connected_nodes.clone()));
 		let session = self.data.sessions.decryption_sessions.insert(&self.data, self.data.self_key_pair.public().clone(), session_id.clone(), None, false, false, Some(requestor_signature))?;
-let version = version.expect("TODO");
-		session.initialize(connected_nodes, version, is_shadow_decryption)?;
+
+		match version {
+			Some(version) => {
+				session.initialize(connected_nodes, version, is_shadow_decryption)?;
+			},
+			None => {
+				let version_session = self.create_key_version_negotiation_session(session_id.id.clone())?;
+				version_session.set_continue_action(ContinueAction::Decrypt(session.clone(), is_shadow_decryption));
+				ClusterCore::try_continue_session(&self.data, Some(version_session));
+			}
+		}
+
 		Ok(DecryptionSessionWrapper::new(Arc::downgrade(&self.data), session_id, session))
 	}
 
@@ -832,21 +901,24 @@ let version = version.expect("TODO");
 		let session_id = SessionIdWithSubSession::new(session_id, access_key);
 		let cluster = Arc::new(ClusterView::new(self.data.clone(), connected_nodes.clone()));
 		let session = self.data.sessions.signing_sessions.insert(&self.data, self.data.self_key_pair.public().clone(), session_id.clone(), None, false, false, Some(requestor_signature))?;
-let version = version.expect("TODO");
-		session.initialize(connected_nodes, version, message_hash)?;
+
+		match version {
+			Some(version) => {
+				session.initialize(connected_nodes, version, message_hash)?;
+			},
+			None => {
+				let version_session = self.create_key_version_negotiation_session(session_id.id.clone())?;
+				version_session.set_continue_action(ContinueAction::Sign(session.clone(), message_hash));
+				ClusterCore::try_continue_session(&self.data, Some(version_session));
+			}
+		}
+
 		Ok(SigningSessionWrapper::new(Arc::downgrade(&self.data), session_id, session))
 	}
 
 	fn new_key_version_negotiation_session(&self, session_id: SessionId) -> Result<Arc<KeyVersionNegotiationSession>, Error> {
-		let mut connected_nodes = self.data.connections.connected_nodes();
-		connected_nodes.insert(self.data.self_key_pair.public().clone());
-
-		let access_key = Random.generate()?.secret().clone();
-		let session_id = SessionIdWithSubSession::new(session_id, access_key);
-		let cluster = Arc::new(ClusterView::new(self.data.clone(), connected_nodes.clone()));
-		let session = self.data.sessions.negotiation_sessions.insert(&self.data, self.data.self_key_pair.public().clone(), session_id.clone(), None, true, false, None)?;
-		session.initialize(connected_nodes)?;
-		Ok(KeyNegotiationSessionWrapper::new(Arc::downgrade(&self.data), session_id, session))
+		let session = self.create_key_version_negotiation_session(session_id)?;
+		Ok(KeyNegotiationSessionWrapper::new(Arc::downgrade(&self.data), session.id(), session))
 	}
 
 	fn new_share_add_session(&self, session_id: SessionId, new_nodes_set: BTreeSet<NodeId>, old_set_signature: Signature, new_set_signature: Signature) -> Result<Arc<AdminSessionWrapper>, Error> {

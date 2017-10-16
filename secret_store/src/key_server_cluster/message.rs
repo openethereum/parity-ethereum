@@ -963,6 +963,7 @@ impl Message {
 				ConsensusMessage::InitializeConsensusSession(_) => true,
 				_ => false
 			},
+			Message::KeyVersionNegotiation(KeyVersionNegotiationMessage::RequestKeyVersions(_)) => true,
 			Message::ShareAdd(ShareAddMessage::ShareAddConsensusMessage(ref msg)) => match msg.message {
 				ConsensusMessageWithServersSecretMap::InitializeConsensusSession(_) => true,
 				_ => false
@@ -979,7 +980,6 @@ impl Message {
 				ConsensusMessageWithServersSet::InitializeConsensusSession(_) => true,
 				_ => false
 			},
-			Message::KeyVersionNegotiation(KeyVersionNegotiationMessage::RequestKeyVersions(_)) => true,
 			_ => false,
 		}
 	}
@@ -1002,7 +1002,7 @@ impl Message {
 			Message::ShareMove(ref message) => Some(message.session_nonce()),
 			Message::ShareRemove(ref message) => Some(message.session_nonce()),
 			Message::ServersSetChange(ref message) => Some(message.session_nonce()),
-			Message::KeyVersionNegotiation(ref message) => None,
+			Message::KeyVersionNegotiation(ref message) => Some(message.session_nonce()),
 		}
 	}
 }
@@ -1232,6 +1232,14 @@ impl KeyVersionNegotiationMessage {
 			KeyVersionNegotiationMessage::RequestKeyVersions(ref msg) => &msg.sub_session,
 			KeyVersionNegotiationMessage::KeyVersions(ref msg) => &msg.sub_session,
 			KeyVersionNegotiationMessage::KeyVersionsError(ref msg) => &msg.sub_session,
+		}
+	}
+
+	pub fn session_nonce(&self) -> u64 {
+		match *self {
+			KeyVersionNegotiationMessage::RequestKeyVersions(ref msg) => msg.session_nonce,
+			KeyVersionNegotiationMessage::KeyVersions(ref msg) => msg.session_nonce,
+			KeyVersionNegotiationMessage::KeyVersionsError(ref msg) => msg.session_nonce,
 		}
 	}
 }

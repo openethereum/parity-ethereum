@@ -43,7 +43,7 @@ use key_server_cluster::servers_set_change_session::{Session as ServersSetChange
 	SessionParams as ServersSetChangeSessionParams};
 use key_server_cluster::key_version_negotiation_session::{Session as KeyVersionNegotiationSession, SessionImpl as KeyVersionNegotiationSessionImpl,
 	SessionParams as KeyVersionNegotiationSessionParams, IsolatedSessionTransport as VersionNegotiationTransport,
-	LargestSupportResultComputer as LargestSupportKeyVersionsResultComputer};
+	FastestResultComputer as FastestResultKeyVersionsResultComputer, ContinueAction};
 use key_server_cluster::admin_sessions::ShareChangeSessionMeta;
 
 /// When there are no session-related messages for SESSION_TIMEOUT_INTERVAL seconds,
@@ -318,6 +318,7 @@ impl ClusterSessionCreator<KeyVersionNegotiationSessionImpl<VersionNegotiationTr
 
 	fn create(&self, cluster: Arc<Cluster>, master: NodeId, nonce: Option<u64>, id: SessionIdWithSubSession, _creation_data: Option<()>) -> Result<Arc<KeyVersionNegotiationSessionImpl<VersionNegotiationTransport>>, Error> {
 		let encrypted_data = self.core.read_key_share(&id.id, &cluster)?;
+		let threshold = encrypted_data.as_ref().map(|ks| ks.threshold);
 		let nonce = self.core.check_session_nonce(&master, nonce)?;
 		Ok(Arc::new(KeyVersionNegotiationSessionImpl::new(KeyVersionNegotiationSessionParams {
 			meta: ShareChangeSessionMeta {
@@ -327,7 +328,7 @@ impl ClusterSessionCreator<KeyVersionNegotiationSessionImpl<VersionNegotiationTr
 			},
 			sub_session: id.access_key.clone(),
 			key_share: encrypted_data,
-			result_computer: Arc::new(LargestSupportKeyVersionsResultComputer),
+			result_computer: Arc::new(FastestResultKeyVersionsResultComputer::new(self.core.self_node_id.clone(), threshold)), // TODO: when running as separate session, it must be LArgestSupportComputer
 			transport: VersionNegotiationTransport {
 				cluster: cluster,
 				key_id: id.id,
@@ -1077,6 +1078,14 @@ impl KeyNegotiationSessionWrapper {
 }
 
 impl KeyVersionNegotiationSession for KeyNegotiationSessionWrapper {
+	fn set_continue_action(&self, action: ContinueAction) {
+		self.session.set_continue_action(action)
+	}
+
+	fn continue_action(&self) -> Option<ContinueAction> {
+		self.session.continue_action()
+	}
+
 	fn wait(&self) -> Result<(H256, NodeId), Error> {
 		self.session.wait()
 	}

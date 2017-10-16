@@ -286,7 +286,6 @@ impl<Executor, Transport> JobSession<Executor, Transport> where Executor: JobExe
 			},
 			JobPartialResponseAction::Accept => {
 				active_data.responses.insert(node.clone(), response);
-
 				if active_data.responses.len() < self.meta.threshold + 1 {
 					return Ok(());
 				}

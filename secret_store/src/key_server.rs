@@ -374,7 +374,7 @@ pub mod tests {
 
 	#[test]
 	fn server_key_generation_and_message_signing_works_over_network_with_3_nodes() {
-		//::logger::init_log();
+		::logger::init_log();
 		let key_servers = make_key_servers(6100, 3);
 
 		let test_cases = [0, 1, 2];
