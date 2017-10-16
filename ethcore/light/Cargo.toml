@@ -42,6 +42,7 @@ triehash = { path = "../../util/triehash" }
 kvdb = { path = "../../util/kvdb" }
 kvdb-rocksdb = { path = "../../util/kvdb-rocksdb" }
 kvdb-memorydb = { path = "../../util/kvdb-memorydb" }
+memory-cache = { path = "../../util/memory_cache" }
 
 [features]
 default = []

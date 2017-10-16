@@ -27,7 +27,7 @@ use parking_lot::{Mutex, RwLock};
 
 use util::*;
 use bytes::Bytes;
-use util::cache::MemoryLruCache;
+use memory_cache::MemoryLruCache;
 use unexpected::Mismatch;
 use rlp::{UntrustedRlp, RlpStream};
 

@@ -94,6 +94,7 @@ extern crate triehash;
 extern crate kvdb;
 extern crate kvdb_memorydb;
 extern crate kvdb_rocksdb;
+extern crate memory_cache;
 
 #[cfg(feature = "ipc")]
 extern crate ethcore_ipc as ipc;
