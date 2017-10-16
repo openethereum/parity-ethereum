@@ -112,8 +112,8 @@ impl<D: Dispatcher + 'static> SigningQueueClient<D> {
 		SigningQueueClient {
 			signer: signer.clone(),
 			accounts: accounts.clone(),
-			dispatcher: dispatcher,
-			remote: remote,
+			dispatcher,
+			remote,
 			pending: Arc::new(RwLock::new(BTreeSet::new())),
 			confirmations: Arc::new(Mutex::new(TransientHashMap::new(MAX_PENDING_DURATION_SEC))),
 		}
@@ -148,8 +148,6 @@ impl<D: Dispatcher + 'static> SigningQueueClient<D> {
 				}
 			}))
 	}
-
-
 }
 
 impl<D: Dispatcher + 'static> ParitySigning for SigningQueueClient<D> {

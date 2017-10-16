@@ -144,10 +144,7 @@ pub struct ConfirmationReceiver {
 
 impl ConfirmationReceiver {
 	fn new(id: U256, receiver: oneshot::Receiver<ConfirmationOutcome>) -> Self {
-		ConfirmationReceiver {
-			id: id,
-			receiver: receiver
-		}
+		ConfirmationReceiver { id, receiver }
 	}
 
 	/// `U256` id of the request we're waiting to get confirmed.
@@ -243,11 +240,11 @@ impl SigningQueue for ConfirmationsQueue {
 			let (sender, receiver) = oneshot::oneshot::<ConfirmationOutcome>();
 
 			queue.insert(id, ConfirmationSender {
-				sender: sender,
+				sender,
 				request: ConfirmationRequest {
-					id: id,
+					id,
 					payload: request,
-					origin: origin,
+					origin,
 				},
 			});
 			ConfirmationReceiver::new(id, receiver)
