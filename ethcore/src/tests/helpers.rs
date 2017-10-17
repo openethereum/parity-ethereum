@@ -36,7 +36,6 @@ use state_db::StateDB;
 use state::*;
 use std::sync::Arc;
 use transaction::{Action, Transaction, SignedTransaction};
-use util::*;
 use views::BlockView;
 
 // TODO: move everything over to get_null_spec.
@@ -282,7 +281,7 @@ pub fn get_temp_state_with_factory(factory: EvmFactory) -> State<::state_db::Sta
 
 pub fn get_temp_state_db() -> StateDB {
 	let db = new_db();
-	let journal_db = journaldb::new(db, journaldb::Algorithm::EarlyMerge, ::db::COL_STATE);
+	let journal_db = ::journaldb::new(db, ::journaldb::Algorithm::EarlyMerge, ::db::COL_STATE);
 	StateDB::new(journal_db, 5 * 1024 * 1024)
 }
 

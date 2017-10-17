@@ -35,7 +35,7 @@ use util::DBValue;
 use kvdb::KeyValueDB;
 use bigint::hash::H256;
 use hashdb::HashDB;
-use util::journaldb;
+use journaldb;
 use trie::{Alphabet, StandardMap, SecTrieDBMut, TrieMut, ValueMode};
 use trie::{TrieDB, TrieDBMut, Trie};
 
