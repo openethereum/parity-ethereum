@@ -13,7 +13,7 @@
 				"eip160Transition": 1915000,
 				"ecip1010PauseTransition": 1915000,
 				"ecip1010ContinueTransition": 3415000,
-        "ecip1017EraRounds": 2000000,
+				"ecip1017EraRounds": 2000000,
 
 				"eip161abcTransition": "0x7fffffffffffffff",
 				"eip161dTransition": "0x7fffffffffffffff"
