@@ -1,7 +1,7 @@
 [package]
 description = "Parity Ethereum client"
 name = "parity"
-version = "1.8.0"
+version = "1.9.0"
 license = "GPL-3.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 build = "build.rs"
