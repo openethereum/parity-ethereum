@@ -39,7 +39,7 @@ use bigint::hash::H256;
 use parking_lot::{Mutex, RwLock, RwLockReadGuard};
 use util_error::UtilError;
 use bytes::Bytes;
-use util::journaldb::Algorithm;
+use journaldb::Algorithm;
 use kvdb_rocksdb::{Database, DatabaseConfig};
 use snappy;
 
