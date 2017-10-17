@@ -12,8 +12,8 @@ use-precompiled-js = ["parity-dapps-glue/use-precompiled-js"]
 with-syntex = ["parity-dapps-glue/with-syntex"]
 
 [build-dependencies]
-parity-dapps-glue = "1.8"
+parity-dapps-glue = "1.9"
 
 [dependencies]
-parity-dapps-glue = "1.8"
+parity-dapps-glue = "1.9"
 
