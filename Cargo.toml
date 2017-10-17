@@ -62,6 +62,7 @@ hash = { path = "util/hash" }
 migration = { path = "util/migration" }
 kvdb = { path = "util/kvdb" }
 kvdb-rocksdb = { path = "util/kvdb-rocksdb" }
+journaldb = { path = "util/journaldb" }
 
 parity-dapps = { path = "dapps", optional = true }
 clippy = { version = "0.0.103", optional = true}

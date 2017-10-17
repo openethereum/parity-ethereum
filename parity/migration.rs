@@ -20,7 +20,7 @@ use std::io::{Read, Write, Error as IoError, ErrorKind};
 use std::path::{Path, PathBuf};
 use std::fmt::{Display, Formatter, Error as FmtError};
 use std::sync::Arc;
-use util::journaldb::Algorithm;
+use journaldb::Algorithm;
 use migr::{self, Manager as MigrationManager, Config as MigrationConfig, Migration};
 use kvdb;
 use kvdb_rocksdb::{CompactionProfile, Database, DatabaseConfig};
@@ -282,7 +282,6 @@ pub fn migrate(path: &Path, pruning: Algorithm, compaction_profile: CompactionPr
 mod legacy {
 	use super::*;
 	use std::path::{Path, PathBuf};
-	use util::journaldb::Algorithm;
 	use migr::{Manager as MigrationManager};
 	use kvdb_rocksdb::CompactionProfile;
 	use ethcore::migrations;
