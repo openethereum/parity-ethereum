@@ -81,10 +81,6 @@ impl fmt::Display for DisconnectReason {
 }
 
 error_chain! {
-	types {
-		Error, ErrorKind, ResultExt, Result;
-	}
-
 	foreign_links {
 		SocketIo(IoError) #[doc = "Socket IO error."];
 		Io(io::Error) #[doc = "Error concerning the Rust standard library's IO subsystem."];
