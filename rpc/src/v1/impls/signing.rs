@@ -78,12 +78,10 @@ fn schedule(remote: Remote,
 	}
 
 	let future = future.then(move |result| {
-		{
-			let mut confirmations = confirmations.lock();
-			confirmations.prune();
-			let result = result.and_then(|response| response);
-			confirmations.insert(id, Some(result));
-		}
+		let mut confirmations = confirmations.lock();
+		confirmations.prune();
+		let result = result.and_then(|response| response);
+		confirmations.insert(id, Some(result));
 		Ok(())
 	});
 	remote.spawn(future);
