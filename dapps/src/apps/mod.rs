@@ -78,11 +78,8 @@ pub fn all_endpoints<F: Fetch>(
 	// NOTE [ToDr] Dapps will be currently embeded on 8180
 	insert::<parity_ui::App>(&mut pages, "ui", Embeddable::Yes(embeddable.clone()), pool.clone());
 	// old version
-	{
-		let mut endpoint = PageEndpoint::new_safe_to_embed(parity_ui::old::App::default(), embeddable.clone());
-		endpoint.prefix = Some("v1".into());
-		pages.insert("v1".into(), Box::new(endpoint));
-	}
+	insert::<parity_ui::old::App>(&mut pages, "v1", Embeddable::Yes(embeddable.clone()), pool.clone());
+
 	pages.insert("proxy".into(), ProxyPac::boxed(embeddable.clone(), dapps_domain.to_owned()));
 	pages.insert(WEB_PATH.into(), Web::boxed(embeddable.clone(), web_proxy_tokens.clone(), fetch.clone()));
 

@@ -36,5 +36,11 @@ pub mod old {
 	pub use self::parity_ui_old_dev::*;
 }
 
+#[cfg(feature = "parity-ui-old-precompiled")]
+pub mod old {
+	extern crate parity_ui_old_precompiled;
+
+	pub use self::parity_ui_old_precompiled::*;
+}
 
 pub use self::inner::*;

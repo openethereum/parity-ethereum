@@ -28,8 +28,6 @@ import SectionList from '@parity/ui/SectionList';
 
 import DappsStore from '@parity/shared/mobx/dappsStore';
 
-import walletVersion1 from '../v1.json';
-
 import styles from './dapps.css';
 
 @observer
@@ -87,18 +85,12 @@ class Dapps extends Component {
           />
         }
       >
-        { this.renderHardcodedDapps() }
         { this.renderList(this.store.visibleViews) }
         { this.renderList(this.store.visibleLocal) }
         { this.renderList(this.store.visibleBuiltin) }
         { this.renderList(this.store.visibleNetwork, externalOverlay) }
       </Page>
     );
-  }
-
-  renderHardcodedDapps () {
-    const dapp = [walletVersion1];
-    return this.renderList(dapp);
   }
 
   renderList (items, overlay) {
