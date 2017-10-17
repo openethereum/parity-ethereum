@@ -28,7 +28,7 @@ use rlp::*;
 use connection::{EncryptedConnection, Packet, Connection};
 use handshake::Handshake;
 use io::{IoContext, StreamToken};
-use error::{NetworkError, DisconnectReason};
+use error::{Error, ErrorKind, DisconnectReason};
 use host::*;
 use node_table::NodeId;
 use stats::NetworkStats;
@@ -174,7 +174,7 @@ impl Session {
 	/// Create a new session out of comepleted handshake. This clones the handshake connection object
 	/// and leaves the handhsake in limbo to be deregistered from the event loop.
 	pub fn new<Message>(io: &IoContext<Message>, socket: TcpStream, token: StreamToken, id: Option<&NodeId>,
-		nonce: &H256, stats: Arc<NetworkStats>, host: &HostInfo) -> Result<Session, NetworkError>
+		nonce: &H256, stats: Arc<NetworkStats>, host: &HostInfo) -> Result<Session, Error>
 		where Message: Send + Clone + Sync + 'static {
 		let originated = id.is_some();
 		let mut handshake = Handshake::new(token, id, socket, nonce, stats).expect("Can't create handshake");
@@ -201,7 +201,7 @@ impl Session {
 		})
 	}
 
-	fn complete_handshake<Message>(&mut self, io: &IoContext<Message>, host: &HostInfo) -> Result<(), NetworkError> where Message: Send + Sync + Clone {
+	fn complete_handshake<Message>(&mut self, io: &IoContext<Message>, host: &HostInfo) -> Result<(), Error> where Message: Send + Sync + Clone {
 		let connection = if let State::Handshake(ref mut h) = self.state {
 			self.info.id = Some(h.id.clone());
 			self.info.remote_address = h.connection.remote_addr_str();
@@ -256,7 +256,7 @@ impl Session {
 	}
 
 	/// Readable IO handler. Returns packet data if available.
-	pub fn readable<Message>(&mut self, io: &IoContext<Message>, host: &HostInfo) -> Result<SessionData, NetworkError>  where Message: Send + Sync + Clone {
+	pub fn readable<Message>(&mut self, io: &IoContext<Message>, host: &HostInfo) -> Result<SessionData, Error>  where Message: Send + Sync + Clone {
 		if self.expired() {
 			return Ok(SessionData::None)
 		}
@@ -287,7 +287,7 @@ impl Session {
 	}
 
 	/// Writable IO handler. Sends pending packets.
-	pub fn writable<Message>(&mut self, io: &IoContext<Message>, _host: &HostInfo) -> Result<(), NetworkError> where Message: Send + Sync + Clone {
+	pub fn writable<Message>(&mut self, io: &IoContext<Message>, _host: &HostInfo) -> Result<(), Error> where Message: Send + Sync + Clone {
 		match self.state {
 			State::Handshake(ref mut h) => h.writable(io),
 			State::Session(ref mut s) => s.writable(io),
@@ -305,7 +305,7 @@ impl Session {
 	}
 
 	/// Register the session socket with the event loop
-	pub fn register_socket<Host:Handler<Timeout = Token>>(&self, reg: Token, event_loop: &mut EventLoop<Host>) -> Result<(), NetworkError> {
+	pub fn register_socket<Host:Handler<Timeout = Token>>(&self, reg: Token, event_loop: &mut EventLoop<Host>) -> Result<(), Error> {
 		if self.expired() {
 			return Ok(());
 		}
@@ -314,26 +314,26 @@ impl Session {
 	}
 
 	/// Update registration with the event loop. Should be called at the end of the IO handler.
-	pub fn update_socket<Host:Handler>(&self, reg:Token, event_loop: &mut EventLoop<Host>) -> Result<(), NetworkError> {
+	pub fn update_socket<Host:Handler>(&self, reg:Token, event_loop: &mut EventLoop<Host>) -> Result<(), Error> {
 		self.connection().update_socket(reg, event_loop)?;
 		Ok(())
 	}
 
 	/// Delete registration
-	pub fn deregister_socket<Host:Handler>(&self, event_loop: &mut EventLoop<Host>) -> Result<(), NetworkError> {
+	pub fn deregister_socket<Host:Handler>(&self, event_loop: &mut EventLoop<Host>) -> Result<(), Error> {
 		self.connection().deregister_socket(event_loop)?;
 		Ok(())
 	}
 
 	/// Send a protocol packet to peer.
-	pub fn send_packet<Message>(&mut self, io: &IoContext<Message>, protocol: [u8; 3], packet_id: u8, data: &[u8]) -> Result<(), NetworkError>
+	pub fn send_packet<Message>(&mut self, io: &IoContext<Message>, protocol: [u8; 3], packet_id: u8, data: &[u8]) -> Result<(), Error>
         where Message: Send + Sync + Clone {
 		if self.info.capabilities.is_empty() || !self.had_hello {
 			debug!(target: "network", "Sending to unconfirmed session {}, protocol: {}, packet: {}", self.token(), str::from_utf8(&protocol[..]).unwrap_or("??"), packet_id);
-			return Err(From::from(NetworkError::BadProtocol));
+			return Err(ErrorKind::BadProtocol.into());
 		}
 		if self.expired() {
-			return Err(From::from(NetworkError::Expired));
+			return Err(ErrorKind::Expired.into());
 		}
 		let mut i = 0usize;
 		while protocol != self.info.capabilities[i].protocol {
@@ -387,14 +387,14 @@ impl Session {
 		}
 	}
 
-	fn read_packet<Message>(&mut self, io: &IoContext<Message>, packet: Packet, host: &HostInfo) -> Result<SessionData, NetworkError>
+	fn read_packet<Message>(&mut self, io: &IoContext<Message>, packet: Packet, host: &HostInfo) -> Result<SessionData, Error>
 	where Message: Send + Sync + Clone {
 		if packet.data.len() < 2 {
-			return Err(From::from(NetworkError::BadProtocol));
+			return Err(ErrorKind::BadProtocol.into());
 		}
 		let packet_id = packet.data[0];
 		if packet_id != PACKET_HELLO && packet_id != PACKET_DISCONNECT && !self.had_hello {
-			return Err(From::from(NetworkError::BadProtocol));
+			return Err(ErrorKind::BadProtocol.into());
 		}
 		match packet_id {
 			PACKET_HELLO => {
@@ -408,7 +408,7 @@ impl Session {
 				if self.had_hello {
 					debug!(target:"network", "Disconnected: {}: {:?}", self.token(), DisconnectReason::from_u8(reason));
 				}
-				Err(From::from(NetworkError::Disconnect(DisconnectReason::from_u8(reason))))
+				Err(ErrorKind::Disconnect(DisconnectReason::from_u8(reason)).into())
 			}
 			PACKET_PING => {
 				self.send_pong(io)?;
@@ -456,7 +456,7 @@ impl Session {
 		}
 	}
 
-	fn write_hello<Message>(&mut self, io: &IoContext<Message>, host: &HostInfo) -> Result<(), NetworkError> where Message: Send + Sync + Clone {
+	fn write_hello<Message>(&mut self, io: &IoContext<Message>, host: &HostInfo) -> Result<(), Error> where Message: Send + Sync + Clone {
 		let mut rlp = RlpStream::new();
 		rlp.append_raw(&[PACKET_HELLO as u8], 0);
 		rlp.begin_list(5)
@@ -468,7 +468,7 @@ impl Session {
 		self.send(io, rlp)
 	}
 
-	fn read_hello<Message>(&mut self, io: &IoContext<Message>, rlp: &UntrustedRlp, host: &HostInfo) -> Result<(), NetworkError>
+	fn read_hello<Message>(&mut self, io: &IoContext<Message>, rlp: &UntrustedRlp, host: &HostInfo) -> Result<(), Error>
 	where Message: Send + Sync + Clone {
 		let protocol = rlp.val_at::<u32>(0)?;
 		let client_version = rlp.val_at::<String>(1)?;
@@ -529,19 +529,19 @@ impl Session {
 	}
 
 	/// Senf ping packet
-	pub fn send_ping<Message>(&mut self, io: &IoContext<Message>) -> Result<(), NetworkError> where Message: Send + Sync + Clone {
+	pub fn send_ping<Message>(&mut self, io: &IoContext<Message>) -> Result<(), Error> where Message: Send + Sync + Clone {
 		self.send(io, Session::prepare(PACKET_PING)?)?;
 		self.ping_time_ns = time::precise_time_ns();
 		self.pong_time_ns = None;
 		Ok(())
 	}
 
-	fn send_pong<Message>(&mut self, io: &IoContext<Message>) -> Result<(), NetworkError> where Message: Send + Sync + Clone {
+	fn send_pong<Message>(&mut self, io: &IoContext<Message>) -> Result<(), Error> where Message: Send + Sync + Clone {
 		self.send(io, Session::prepare(PACKET_PONG)?)
 	}
 
 	/// Disconnect this session
-	pub fn disconnect<Message>(&mut self, io: &IoContext<Message>, reason: DisconnectReason) -> NetworkError where Message: Send + Sync + Clone {
+	pub fn disconnect<Message>(&mut self, io: &IoContext<Message>, reason: DisconnectReason) -> Error where Message: Send + Sync + Clone {
 		if let State::Session(_) = self.state {
 			let mut rlp = RlpStream::new();
 			rlp.append(&(PACKET_DISCONNECT as u32));
@@ -549,17 +549,17 @@ impl Session {
 			rlp.append(&(reason as u32));
 			self.send(io, rlp).ok();
 		}
-		NetworkError::Disconnect(reason)
+		ErrorKind::Disconnect(reason).into()
 	}
 
-	fn prepare(packet_id: u8) -> Result<RlpStream, NetworkError> {
+	fn prepare(packet_id: u8) -> Result<RlpStream, Error> {
 		let mut rlp = RlpStream::new();
 		rlp.append(&(packet_id as u32));
 		rlp.begin_list(0);
 		Ok(rlp)
 	}
 
-	fn send<Message>(&mut self, io: &IoContext<Message>, rlp: RlpStream) -> Result<(), NetworkError> where Message: Send + Sync + Clone {
+	fn send<Message>(&mut self, io: &IoContext<Message>, rlp: RlpStream) -> Result<(), Error> where Message: Send + Sync + Clone {
 		match self.state {
 			State::Handshake(_) => {
 				warn!(target:"network", "Unexpected send request");
