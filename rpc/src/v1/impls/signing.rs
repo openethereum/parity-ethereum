@@ -23,8 +23,8 @@ use parking_lot::Mutex;
 
 use ethcore::account_provider::AccountProvider;
 
-use jsonrpc_core::Error;
-use jsonrpc_core::futures::{future, BoxFuture, Future, Poll, Async};
+use jsonrpc_core::{BoxFuture, Error};
+use jsonrpc_core::futures::{future, Future, Poll, Async};
 use jsonrpc_core::futures::future::Either;
 use v1::helpers::{
 	errors, DefaultAccount, SignerService, SigningQueue,
