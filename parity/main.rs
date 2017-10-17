@@ -52,9 +52,6 @@ extern crate toml;
 extern crate ethcore;
 extern crate ethcore_devtools as devtools;
 extern crate ethcore_io as io;
-extern crate ethcore_ipc as ipc;
-extern crate ethcore_ipc_hypervisor as hypervisor;
-extern crate ethcore_ipc_nano as nanoipc;
 extern crate ethcore_light as light;
 extern crate ethcore_logger;
 extern crate ethcore_util as util;
@@ -63,6 +60,7 @@ extern crate ethcore_bytes as bytes;
 extern crate ethcore_network as network;
 extern crate migration as migr;
 extern crate kvdb;
+extern crate kvdb_rocksdb;
 extern crate ethkey;
 extern crate ethsync;
 extern crate node_health;
@@ -124,11 +122,6 @@ mod upgrade;
 mod url;
 mod user_defaults;
 mod whisper;
-
-#[cfg(feature="ipc")]
-mod boot;
-#[cfg(feature="ipc")]
-mod sync;
 
 #[cfg(feature="stratum")]
 mod stratum;
@@ -203,13 +196,7 @@ fn stratum_main(alt_mains: &mut HashMap<String, fn()>) {
 	alt_mains.insert("stratum".to_owned(), stratum::main);
 }
 
-#[cfg(not(feature="ipc"))]
 fn sync_main(_: &mut HashMap<String, fn()>) {}
-
-#[cfg(feature="ipc")]
-fn sync_main(alt_mains: &mut HashMap<String, fn()>) {
-	alt_mains.insert("sync".to_owned(), sync::main);
-}
 
 fn updates_path(name: &str) -> PathBuf {
 	let mut dest = PathBuf::from(default_hypervisor_path());

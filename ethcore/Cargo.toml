@@ -5,10 +5,6 @@ license = "GPL-3.0"
 name = "ethcore"
 version = "1.9.0"
 authors = ["Parity Technologies <admin@parity.io>"]
-build = "build.rs"
-
-[build-dependencies]
-"ethcore-ipc-codegen" = { path = "../ipc/codegen" }
 
 [dependencies]
 ansi_term = "0.9"
@@ -26,12 +22,11 @@ memorydb = { path = "../util/memorydb" }
 patricia_trie = { path = "../util/patricia_trie" }
 ethcore-devtools = { path = "../devtools" }
 ethcore-io = { path = "../util/io" }
-ethcore-ipc = { path = "../ipc/rpc" }
-ethcore-ipc-nano = { path = "../ipc/nano" }
 ethcore-logger = { path = "../logger" }
 ethcore-stratum = { path = "../stratum" }
 ethcore-util = { path = "../util" }
 ethcore-bigint = { path = "../util/bigint" }
+memory-cache = { path = "../util/memory_cache" }
 ethjson = { path = "../json" }
 ethkey = { path = "../ethkey" }
 ethstore = { path = "../ethstore" }
@@ -56,6 +51,8 @@ rand = "0.3"
 rlp = { path = "../util/rlp" }
 rlp_derive = { path = "../util/rlp_derive" }
 kvdb = { path = "../util/kvdb" }
+kvdb-rocksdb = { path = "../util/kvdb-rocksdb" }
+kvdb-memorydb = { path = "../util/kvdb-memorydb" }
 util-error = { path = "../util/error" }
 snappy = { path = "../util/snappy" }
 migration = { path = "../util/migration" }
@@ -88,4 +85,3 @@ test-heavy = []
 dev = ["clippy"]
 default = []
 benches = []
-ipc = []

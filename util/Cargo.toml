@@ -24,16 +24,17 @@ target_info = "0.1"
 ethcore-bigint = { path = "bigint", features = ["heapsizeof"] }
 parking_lot = "0.4"
 tiny-keccak= "1.0"
-lru-cache = "0.1.0"
 ethcore-logger = { path = "../logger" }
 triehash = { path = "triehash" }
-error-chain = "0.11.0-rc.2"
 hashdb = { path = "hashdb" }
 patricia_trie = { path = "patricia_trie" }
 ethcore-bytes = { path = "bytes" }
 memorydb = { path = "memorydb" }
 util-error = { path = "error" }
 kvdb = { path = "kvdb" }
+
+[dev-dependencies]
+kvdb-memorydb = { path = "kvdb-memorydb" }
 
 [features]
 default = []

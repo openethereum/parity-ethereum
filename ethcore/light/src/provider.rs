@@ -34,7 +34,6 @@ use transaction_queue::TransactionQueue;
 use request;
 
 /// Defines the operations that a provider for the light subprotocol must fulfill.
-#[cfg_attr(feature = "ipc", ipc(client_ident="LightProviderClient"))]
 pub trait Provider: Send + Sync {
 	/// Provide current blockchain info.
 	fn chain_info(&self) -> BlockChainInfo;
@@ -328,7 +327,7 @@ impl<L: AsLightClient + Send + Sync> Provider for LightProvider<L> {
 	}
 
 	fn transaction_index(&self, _req: request::CompleteTransactionIndexRequest)
-		-> Option<request::TransactionIndexResponse> 
+		-> Option<request::TransactionIndexResponse>
 	{
 		None
 	}

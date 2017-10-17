@@ -17,11 +17,10 @@
 //! Types used in the public API
 
 use bigint::hash::H256;
-pub use ipc_common_types::{VersionInfo, ReleaseTrack};
+use types::VersionInfo;
 
 /// Information regarding a particular release of Parity
 #[derive(Debug, Clone, PartialEq)]
-#[binary]
 pub struct ReleaseInfo {
 	/// Information on the version.
 	pub version: VersionInfo,
@@ -35,7 +34,6 @@ pub struct ReleaseInfo {
 
 /// Information on our operations environment.
 #[derive(Debug, Clone, PartialEq)]
-#[binary]
 pub struct OperationsInfo {
 	/// Our blockchain's latest fork.
 	pub fork: u64,
@@ -51,7 +49,6 @@ pub struct OperationsInfo {
 
 /// Information on the current version's consensus capabililty.
 #[derive(Debug, Clone, Copy, PartialEq)]
-#[binary]
 pub enum CapState {
 	/// Unknown.
 	Unknown,

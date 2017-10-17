@@ -471,7 +471,7 @@ fn rpc_eth_transaction_count() {
 
 #[test]
 fn rpc_eth_transaction_count_next_nonce() {
-	let tester = EthTester::new_with_options(EthClientOptions::with(|mut options| {
+	let tester = EthTester::new_with_options(EthClientOptions::with(|options| {
 		options.pending_nonce_from_queue = true;
 	}));
 	tester.miner.increment_last_nonce(1.into());
@@ -1104,7 +1104,7 @@ fn rpc_get_work_returns_correct_work_package() {
 
 #[test]
 fn rpc_get_work_should_not_return_block_number() {
-	let eth_tester = EthTester::new_with_options(EthClientOptions::with(|mut options| {
+	let eth_tester = EthTester::new_with_options(EthClientOptions::with(|options| {
 		options.send_block_number_in_get_work = false;
 	}));
 	eth_tester.miner.set_author(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap());

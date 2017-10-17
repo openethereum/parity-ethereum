@@ -100,7 +100,6 @@ extern crate ethcore_bytes as bytes;
 extern crate parking_lot;
 extern crate tiny_keccak;
 extern crate rlp;
-extern crate lru_cache;
 extern crate heapsize;
 extern crate ethcore_logger;
 extern crate hash as keccak;
@@ -110,13 +109,15 @@ extern crate patricia_trie as trie;
 extern crate kvdb;
 extern crate util_error as error;
 
+#[cfg(test)]
+extern crate kvdb_memorydb;
+
 #[macro_use]
 extern crate log as rlog;
 
 pub mod misc;
 pub mod overlaydb;
 pub mod journaldb;
-pub mod cache;
 
 pub use misc::*;
 pub use hashdb::*;

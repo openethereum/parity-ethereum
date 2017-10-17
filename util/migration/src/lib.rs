@@ -22,17 +22,46 @@ mod tests;
 extern crate log;
 #[macro_use]
 extern crate macros;
+#[macro_use]
+extern crate error_chain;
 
 extern crate ethcore_devtools as devtools;
 extern crate kvdb;
+extern crate kvdb_rocksdb;
 
 use std::collections::BTreeMap;
-use std::fs;
-use std::fmt;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::{fs, io};
 
-use kvdb::{CompactionProfile, Database, DatabaseConfig, DBTransaction};
+use kvdb::DBTransaction;
+use kvdb_rocksdb::{CompactionProfile, Database, DatabaseConfig};
+
+error_chain! {
+	types {
+		Error, ErrorKind, ResultExt, Result;
+	}
+
+	links {
+		Db(kvdb::Error, kvdb::ErrorKind);
+	}
+
+	foreign_links {
+		Io(io::Error);
+	}
+
+	errors {
+		CannotAddMigration {
+			description("Cannot add migration"),
+			display("Cannot add migration"),
+		}
+
+		MigrationImpossible {
+			description("Migration impossible"),
+			display("Migration impossible"),
+		}
+	}
+}
 
 /// Migration config.
 #[derive(Clone)]
@@ -70,7 +99,7 @@ impl Batch {
 	}
 
 	/// Insert a value into the batch, committing if necessary.
-	pub fn insert(&mut self, key: Vec<u8>, value: Vec<u8>, dest: &mut Database) -> Result<(), Error> {
+	pub fn insert(&mut self, key: Vec<u8>, value: Vec<u8>, dest: &mut Database) -> Result<()> {
 		self.inner.insert(key, value);
 		if self.inner.len() == self.batch_size {
 			self.commit(dest)?;
@@ -79,7 +108,7 @@ impl Batch {
 	}
 
 	/// Commit all the items in the batch to the given database.
-	pub fn commit(&mut self, dest: &mut Database) -> Result<(), Error> {
+	pub fn commit(&mut self, dest: &mut Database) -> Result<()> {
 		if self.inner.is_empty() { return Ok(()) }
 
 		let mut transaction = DBTransaction::new();
@@ -89,43 +118,7 @@ impl Batch {
 		}
 
 		self.inner.clear();
-		dest.write(transaction).map_err(Error::Custom)
-	}
-}
-
-/// Migration error.
-#[derive(Debug)]
-pub enum Error {
-	/// Error returned when it is impossible to add new migration rules.
-	CannotAddMigration,
-	/// Error returned when migration from specific version can not be performed.
-	MigrationImpossible,
-	/// Io Error.
-	Io(::std::io::Error),
-	/// Custom error.
-	Custom(String),
-}
-
-impl fmt::Display for Error {
-	fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-		match *self {
-			Error::CannotAddMigration => write!(f, "Cannot add migration"),
-			Error::MigrationImpossible => write!(f, "Migration impossible"),
-			Error::Io(ref err) => write!(f, "{}", err),
-			Error::Custom(ref err) => write!(f, "{}", err),
-		}
-	}
-}
-
-impl From<::std::io::Error> for Error {
-	fn from(e: ::std::io::Error) -> Self {
-		Error::Io(e)
-	}
-}
-
-impl From<String> for Error {
-	fn from(e: String) -> Self {
-		Error::Custom(e)
+		dest.write(transaction).map_err(Into::into)
 	}
 }
 
@@ -141,7 +134,7 @@ pub trait Migration: 'static {
 	/// Version of the database after the migration.
 	fn version(&self) -> u32;
 	/// Migrate a source to a destination.
-	fn migrate(&mut self, source: Arc<Database>, config: &Config, destination: &mut Database, col: Option<u32>) -> Result<(), Error>;
+	fn migrate(&mut self, source: Arc<Database>, config: &Config, destination: &mut Database, col: Option<u32>) -> Result<()>;
 }
 
 /// A simple migration over key-value pairs.
@@ -162,7 +155,7 @@ impl<T: SimpleMigration> Migration for T {
 
 	fn alters_existing(&self) -> bool { true }
 
-	fn migrate(&mut self, source: Arc<Database>, config: &Config, dest: &mut Database, col: Option<u32>) -> Result<(), Error> {
+	fn migrate(&mut self, source: Arc<Database>, config: &Config, dest: &mut Database, col: Option<u32>) -> Result<()> {
 		let mut batch = Batch::new(config, col);
 
 		let iter = match source.iter(col) {
@@ -195,7 +188,7 @@ impl Migration for ChangeColumns {
 	fn columns(&self) -> Option<u32> { self.post_columns }
 	fn version(&self) -> u32 { self.version }
 	fn alters_existing(&self) -> bool { false }
-	fn migrate(&mut self, _: Arc<Database>, _: &Config, _: &mut Database, _: Option<u32>) -> Result<(), Error> {
+	fn migrate(&mut self, _: Arc<Database>, _: &Config, _: &mut Database, _: Option<u32>) -> Result<()> {
 		Ok(())
 	}
 }
@@ -249,7 +242,7 @@ impl Manager {
 	}
 
 	/// Adds new migration rules.
-	pub fn add_migration<T>(&mut self, migration: T) -> Result<(), Error> where T: Migration {
+	pub fn add_migration<T>(&mut self, migration: T) -> Result<()> where T: Migration {
 		let is_new = match self.migrations.last() {
 			Some(last) => migration.version() > last.version(),
 			None => true,
@@ -257,17 +250,19 @@ impl Manager {
 
 		match is_new {
 			true => Ok(self.migrations.push(Box::new(migration))),
-			false => Err(Error::CannotAddMigration),
+			false => Err(ErrorKind::CannotAddMigration.into()),
 		}
 	}
 
 	/// Performs migration in order, starting with a source path, migrating between two temporary databases,
 	/// and producing a path where the final migration lives.
-	pub fn execute(&mut self, old_path: &Path, version: u32) -> Result<PathBuf, Error> {
+	pub fn execute(&mut self, old_path: &Path, version: u32) -> Result<PathBuf> {
 		let config = self.config.clone();
 		let migrations = self.migrations_from(version);
 		trace!(target: "migration", "Total migrations to execute for version {}: {}", version, migrations.len());
-		if migrations.is_empty() { return Err(Error::MigrationImpossible) };
+		if migrations.is_empty() {
+			return Err(ErrorKind::MigrationImpossible.into())
+		};
 
 		let columns = migrations.get(0).and_then(|m| m.pre_columns());
 
@@ -285,8 +280,8 @@ impl Manager {
 		let mut temp_path = old_path.to_path_buf();
 
 		// start with the old db.
-		let old_path_str = old_path.to_str().ok_or(Error::MigrationImpossible)?;
-		let mut cur_db = Arc::new(Database::open(&db_config, old_path_str).map_err(Error::Custom)?);
+		let old_path_str = old_path.to_str().ok_or(ErrorKind::MigrationImpossible)?;
+		let mut cur_db = Arc::new(Database::open(&db_config, old_path_str)?);
 
 		for migration in migrations {
 			trace!(target: "migration", "starting migration to version {}", migration.version());
@@ -299,8 +294,8 @@ impl Manager {
 				temp_path = temp_idx.path(&db_root);
 
 				// open the target temporary database.
-				let temp_path_str = temp_path.to_str().ok_or(Error::MigrationImpossible)?;
-				let mut new_db = Database::open(&db_config, temp_path_str).map_err(Error::Custom)?;
+				let temp_path_str = temp_path.to_str().ok_or(ErrorKind::MigrationImpossible)?;
+				let mut new_db = Database::open(&db_config, temp_path_str)?;
 
 				match current_columns {
 					// migrate only default column
@@ -323,11 +318,11 @@ impl Manager {
 				// we can do this in-place.
 				let goal_columns = migration.columns().unwrap_or(0);
 				while cur_db.num_columns() < goal_columns {
-					cur_db.add_column().map_err(Error::Custom)?;
+					cur_db.add_column().map_err(kvdb::Error::from)?;
 				}
 
 				while cur_db.num_columns() > goal_columns {
-					cur_db.drop_column().map_err(Error::Custom)?;
+					cur_db.drop_column().map_err(kvdb::Error::from)?;
 				}
 			}
 		}

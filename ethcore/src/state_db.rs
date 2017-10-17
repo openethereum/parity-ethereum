@@ -17,7 +17,7 @@
 use std::collections::{VecDeque, HashSet};
 use std::sync::Arc;
 use lru_cache::LruCache;
-use util::cache::MemoryLruCache;
+use memory_cache::MemoryLruCache;
 use util::journaldb::JournalDB;
 use kvdb::{KeyValueDB, DBTransaction};
 use bigint::hash::H256;

@@ -16,6 +16,11 @@
 
 //! Types used in the public api
 
-#![allow(dead_code, unused_assignments, unused_variables)] // codegen issues
-include!(concat!(env!("OUT_DIR"), "/mod.rs.in"));
+mod all;
+mod release_track;
+mod version_info;
+
+pub use self::all::{ReleaseInfo, OperationsInfo, CapState};
+pub use self::release_track::ReleaseTrack;
+pub use self::version_info::VersionInfo;
 

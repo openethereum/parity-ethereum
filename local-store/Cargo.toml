@@ -14,4 +14,7 @@ serde = "1.0"
 serde_derive = "1.0"
 serde_json = "1.0"
 log = "0.3"
+
+[dev-dependencies]
 ethkey = { path = "../ethkey" }
+kvdb-memorydb = { path = "../util/kvdb-memorydb" }

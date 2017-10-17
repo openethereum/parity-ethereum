@@ -17,15 +17,13 @@
 //! Types used in the public API
 
 use std::fmt;
-use std::str::FromStr;
 use semver::{Version};
 use bigint::hash::H160;
 use util::misc::raw_package_info;
-use release_track::ReleaseTrack;
+use types::ReleaseTrack;
 
 /// Version information of a particular release.
 #[derive(Debug, Clone, PartialEq)]
-#[binary]
 pub struct VersionInfo {
 	/// The track on which it was released.
 	pub track: ReleaseTrack,
@@ -48,7 +46,7 @@ impl VersionInfo {
 		VersionInfo {
 			track: raw.0.into(),
 			version: { let mut v = Version::parse(raw.1).expect("Environment variables are known to be valid; qed"); v.build = vec![]; v.pre = vec![]; v },
-			hash: H160::from_str(raw.2).unwrap_or_else(|_| H160::zero()),
+			hash: raw.2.parse::<H160>().unwrap_or_else(|_| H160::zero()),
 		}
 	}
 

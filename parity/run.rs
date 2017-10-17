@@ -579,9 +579,6 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	// set network path.
 	net_conf.net_config_path = Some(db_dirs.network_path().to_string_lossy().into_owned());
 
-	// create supervisor
-	let mut hypervisor = modules::hypervisor(&cmd.dirs.ipc_path());
-
 	// create client service.
 	let service = ClientService::start(
 		client_config,
@@ -661,7 +658,6 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 
 	// create sync object
 	let (sync_provider, manage_network, chain_notify) = modules::sync(
-		&mut hypervisor,
 		sync_config,
 		net_conf.clone().into(),
 		client.clone(),
@@ -867,10 +863,6 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	informant.shutdown();
 	// just Arc is dropping here, to allow other reference release in its default time
 	drop(informant);
-
-	// hypervisor should be shutdown first while everything still works and can be
-	// terminated gracefully
-	drop(hypervisor);
 
 	Ok(restart)
 }

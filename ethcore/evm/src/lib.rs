@@ -23,6 +23,7 @@ extern crate parking_lot;
 extern crate heapsize;
 extern crate vm;
 extern crate hash;
+extern crate memory_cache;
 
 #[macro_use]
 extern crate lazy_static;

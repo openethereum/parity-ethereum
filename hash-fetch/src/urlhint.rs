@@ -265,8 +265,8 @@ pub mod tests {
 		// given
 		let registrar = FakeRegistrar::new();
 		let resolve_result = {
-			use ethabi::{Encoder, Token};
-			Encoder::encode(vec![Token::String(String::new()), Token::FixedBytes(vec![0; 20]), Token::Address([0; 20])])
+			use ethabi::{encode, Token};
+			encode(&[Token::String(String::new()), Token::FixedBytes(vec![0; 20]), Token::Address([0; 20])])
 		};
 		registrar.responses.lock()[1] = Ok(resolve_result);
 

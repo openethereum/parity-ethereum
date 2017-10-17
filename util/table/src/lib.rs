@@ -247,7 +247,7 @@ mod test {
 
 		// when
 		{
-			let mut row = table.row_mut(&1).unwrap();
+			let row = table.row_mut(&1).unwrap();
 			row.remove(&1);
 			row.remove(&2);
 		}

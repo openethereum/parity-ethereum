@@ -4,14 +4,6 @@ version = "0.1.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
-log = "0.3"
-ethcore-bytes = { path = "../bytes" }
-ethcore-bigint = { path = "../bigint" }
-ethcore-devtools = { path = "../../devtools" }
 elastic-array = "0.9"
-hashdb = { path = "../hashdb" }
-parking_lot = "0.4"
-regex = "0.2"
-rlp = { path = "../rlp" }
-rocksdb = { git = "https://github.com/paritytech/rust-rocksdb" }
-error-chain = "0.11.0-rc.2"
+error-chain = "0.11.0"
+ethcore-bytes = { path = "../bytes" }
