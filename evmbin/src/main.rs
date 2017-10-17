@@ -187,7 +187,7 @@ impl Args {
 	pub fn gas(&self) -> Result<U256, String> {
 		match self.flag_gas {
 			Some(ref gas) => gas.parse().map_err(to_string),
-			None => Ok(!U256::zero()),
+			None => Ok(U256::from(u64::max_value())),
 		}
 	}
 

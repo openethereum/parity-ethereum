@@ -37,6 +37,8 @@ pub struct Informant {
 	stack: Vec<U256>,
 	memory: Vec<u8>,
 	storage: HashMap<H256, H256>,
+	traces: Vec<String>,
+	subtraces: Vec<String>,
 }
 
 impl Informant {
@@ -54,6 +56,14 @@ impl Informant {
 			.map(|(k, v)| format!("\"0x{:?}\": \"0x{:?}\"", k, v))
 			.collect::<Vec<_>>();
 		format!("{{{}}}", vals.join(","))
+	}
+}
+
+impl Drop for Informant {
+	fn drop(&mut self) {
+		for trace in &self.traces {
+			println!("{}", trace);
+		}
 	}
 }
 
@@ -104,18 +114,19 @@ impl trace::VMTracer for Informant {
 	fn trace_executed(&mut self, gas_used: U256, stack_push: &[U256], mem_diff: Option<(usize, &[u8])>, store_diff: Option<(U256, U256)>) {
 		let info = ::evm::INSTRUCTIONS[self.instruction as usize];
 
-		println!(
+		let trace = format!(
 			"{{\"pc\":{pc},\"op\":{op},\"opName\":\"{name}\",\"gas\":{gas},\"gasCost\":{gas_cost},\"memory\":{memory},\"stack\":{stack},\"storage\":{storage},\"depth\":{depth}}}",
 			pc = self.pc,
 			op = self.instruction,
 			name = info.name,
-			gas = display::u256_as_str(&(gas_used + self.gas_cost)),
+			gas = display::u256_as_str(&(gas_used.saturating_add(self.gas_cost))),
 			gas_cost = display::u256_as_str(&self.gas_cost),
 			memory = self.memory(),
 			stack = self.stack(),
 			storage = self.storage(),
 			depth = self.depth,
 		);
+		self.traces.push(trace);
 
 		self.gas_used = gas_used;
 
@@ -133,6 +144,11 @@ impl trace::VMTracer for Informant {
 		if let Some((pos, val)) = store_diff {
 			self.storage.insert(pos.into(), val.into());
 		}
+
+
+		if !self.subtraces.is_empty() {
+			self.traces.extend(::std::mem::replace(&mut self.subtraces, vec![]));
+		}
 	}
 
 	fn prepare_subtrace(&self, code: &[u8]) -> Self where Self: Sized {
@@ -144,13 +160,23 @@ impl trace::VMTracer for Informant {
 	}
 
 	fn done_subtrace(&mut self, mut sub: Self) {
+		let subtraces = ::std::mem::replace(&mut sub.traces, vec![]);
 		if sub.depth == 1 {
+			self.traces.extend(subtraces);
 			// print last line with final state:
 			sub.gas_cost = 0.into();
 			let gas_used = sub.gas_used;
 			trace::VMTracer::trace_executed(&mut sub, gas_used, &[], None, None);
+		} else {
+			self.subtraces = subtraces;
 		}
 	}
 
-	fn drain(self) -> Option<trace::VMTrace> { None }
+	fn drain(self) -> Option<trace::VMTrace> {
+		println!("Drain called.");
+		for trace in &self.traces {
+			println!("{}", trace);
+		}
+		None
+	}
 }

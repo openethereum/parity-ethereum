@@ -219,7 +219,7 @@ impl<'a> EvmTestClient<'a> {
 				TransactResult::Ok {
 					state_root: *self.state.root(),
 					gas_left: initial_gas - result.receipt.gas_used,
-					output: result.output
+					output: result.output,
 				}
 			},
 			Err(error) => TransactResult::Err {
