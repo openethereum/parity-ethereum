@@ -321,7 +321,7 @@ pub mod tests {
 
 	#[test]
 	fn document_key_generation_and_retrievement_works_over_network_with_3_nodes() {
-		//::logger::init_log();
+		::logger::init_log();
 		let key_servers = make_key_servers(6080, 3);
 
 		let test_cases = [0, 1, 2];

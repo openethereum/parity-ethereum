@@ -140,7 +140,6 @@ impl<ConsensusExecutor, ConsensusTransport, ComputationExecutor, ComputationTran
 
 	/// Initialize session on master node.
 	pub fn initialize(&mut self, nodes: BTreeSet<NodeId>) -> Result<(), Error> {
-println!("=== initializing consensus session: {:?}", nodes);
 		debug_assert!(self.meta.self_node_id == self.meta.master_node_id);
 		let initialization_result = self.consensus_job.initialize(nodes);
 		self.state = ConsensusSessionState::EstablishingConsensus;

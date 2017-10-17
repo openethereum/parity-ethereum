@@ -254,7 +254,6 @@ impl ClusterSessionCreator<DecryptionSessionImpl, Signature> for DecryptionSessi
 	fn create(&self, cluster: Arc<Cluster>, master: NodeId, nonce: Option<u64>, id: SessionIdWithSubSession, requester_signature: Option<Signature>) -> Result<Arc<DecryptionSessionImpl>, Error> {
 		let encrypted_data = self.core.read_key_share(&id.id, &cluster)?;
 		//let nonce = if master == self.core.self_node_id { None } else { nonce }; // TODO
-println!("=== self = {}, master = {}", self.core.self_node_id, master);
 		let nonce = self.core.check_session_nonce(&master, nonce)?;
 		Ok(Arc::new(DecryptionSessionImpl::new(DecryptionSessionParams {
 			meta: SessionMeta {

@@ -142,7 +142,6 @@ impl SessionImpl {
 		debug_assert_eq!(params.meta.threshold, params.key_share.as_ref().map(|ks| ks.threshold).unwrap_or_default());
 
 		use key_server_cluster::generation_session::{check_cluster_nodes, check_threshold};
-println!("=== params.meta = {:?}", params.meta);
 		// check that common_point and encrypted_point are already set
 		if let Some(key_share) = params.key_share.as_ref() {
 			if key_share.common_point.is_none() || key_share.encrypted_point.is_none() {
@@ -338,6 +337,9 @@ println!("=== params.meta = {:?}", params.meta);
 		let mut data = self.data.lock();
 		let is_establishing_consensus = data.consensus_session.state() == ConsensusSessionState::EstablishingConsensus;
 		data.consensus_session.on_consensus_message(&sender, &message.message)?;
+		if let &ConsensusMessage::InitializeConsensusSession(ref msg) = &message.message {
+			data.version = Some(msg.version.clone().into());
+		}
 
 		let is_consensus_established = data.consensus_session.state() == ConsensusSessionState::ConsensusEstablished;
 		if self.core.meta.self_node_id != self.core.meta.master_node_id || !is_establishing_consensus || !is_consensus_established {
