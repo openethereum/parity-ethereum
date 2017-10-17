@@ -1260,9 +1260,12 @@ version = "0.1.0"
 dependencies = [
  "ethcore-bigint 0.1.3",
  "ethcore-bytes 0.1.0",
+ "ethcore-logger 1.9.0",
+ "hash 0.1.0",
  "hashdb 0.1.0",
  "heapsize 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "kvdb 0.1.0",
+ "kvdb-memorydb 0.1.0",
  "log 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "memorydb 0.1.0",
  "parking_lot 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",

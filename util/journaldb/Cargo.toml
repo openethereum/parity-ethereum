@@ -6,13 +6,18 @@ description = "A `HashDB` which can manage a short-term journal potentially cont
 license = "GPL3"
 
 [dependencies]
-hashdb = { path = "../hashdb" }
-kvdb = { path = "../kvdb" }
 ethcore-bigint = { path = "../bigint", features = ["heapsizeof"] }
 ethcore-bytes = { path = "../bytes" }
-rlp = { path = "../rlp" }
+hashdb = { path = "../hashdb" }
+heapsize = "0.4"
+kvdb = { path = "../kvdb" }
+log = "0.3"
 memorydb = { path = "../memorydb" }
 parking_lot = "0.4"
-heapsize = "0.4"
+rlp = { path = "../rlp" }
 util-error = { path = "../error" }
-log = "0.3"
+
+[dev-dependencies]
+ethcore-logger = { path = "../../logger" }
+hash = { path = "../hash" }
+kvdb-memorydb = { path = "../kvdb-memorydb" }

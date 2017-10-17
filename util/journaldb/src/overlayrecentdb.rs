@@ -324,7 +324,7 @@ impl JournalDB for OverlayRecentDB {
 				trace!(target: "journaldb", "Delete journal for time #{}.{}: {}, (canon was {}): +{} -{} entries", end_era, index, journal.id, canon_id, journal.insertions.len(), journal.deletions.len());
 				{
 					if *canon_id == journal.id {
-						for h in &journal.insertions {
+					for h in &journal.insertions {
 							if let Some((d, rc)) = journal_overlay.backing_overlay.raw(&to_short_key(h)) {
 								if rc > 0 {
 									canon_insertions.push((h.clone(), d)); //TODO: optimize this to avoid data copy
@@ -459,8 +459,7 @@ mod tests {
 	use super::*;
 	use hashdb::{HashDB, DBValue};
 	use ethcore_logger::init_log;
-	use journaldb::JournalDB;
-	use kvdb_memorydb;
+	use {kvdb_memorydb, JournalDB};
 
 	fn new_db() -> OverlayRecentDB {
 		let backing = Arc::new(kvdb_memorydb::create(0));

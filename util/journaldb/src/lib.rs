@@ -16,16 +16,25 @@
 
 //! `JournalDB` interface and implementation.
 
+extern crate heapsize;
+#[macro_use]
+extern crate log;
+
 extern crate ethcore_bigint as bigint;
 extern crate ethcore_bytes as bytes;
+extern crate hashdb;
+extern crate kvdb;
+extern crate memorydb;
 extern crate parking_lot;
 extern crate rlp;
-extern crate hashdb;
-extern crate memorydb;
-extern crate kvdb;
 extern crate util_error as error;
-extern crate heapsize;
-#[macro_use] extern crate log;
+
+#[cfg(test)]
+extern crate ethcore_logger;
+#[cfg(test)]
+extern crate hash as keccak;
+#[cfg(test)]
+extern crate kvdb_memorydb;
 
 use std::{fmt, str};
 use std::sync::Arc;

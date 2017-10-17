@@ -202,8 +202,7 @@ mod tests {
 	use keccak::keccak;
 	use hashdb::{HashDB, DBValue};
 	use super::*;
-	use journaldb::traits::JournalDB;
-	use kvdb_memorydb;
+	use {kvdb_memorydb, JournalDB};
 
 	#[test]
 	fn insert_same_in_fork() {
