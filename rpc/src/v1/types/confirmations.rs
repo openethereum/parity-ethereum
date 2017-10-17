@@ -47,13 +47,13 @@ impl From<helpers::ConfirmationRequest> for ConfirmationRequest {
 }
 
 impl fmt::Display for ConfirmationRequest {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		write!(f, "#{}: {} coming from {}", self.id, self.payload, self.origin)
 	}
 }
 
 impl fmt::Display for ConfirmationPayload {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match *self {
 			ConfirmationPayload::SendTransaction(ref transaction) => write!(f, "{}", transaction),
 			ConfirmationPayload::SignTransaction(ref transaction) => write!(f, "(Sign only) {}", transaction),
@@ -83,7 +83,7 @@ impl From<(H160, Bytes)> for SignRequest {
 }
 
 impl fmt::Display for SignRequest {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		write!(
 			f,
 			"sign 0x{} with {}",
@@ -113,7 +113,7 @@ impl From<(H160, Bytes)> for DecryptRequest {
 }
 
 impl fmt::Display for DecryptRequest {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		write!(
 			f,
 			"decrypt data with {}",

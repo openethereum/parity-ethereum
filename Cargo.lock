@@ -2137,6 +2137,7 @@ dependencies = [
  "ethstore 0.1.0",
  "ethsync 1.9.0",
  "fetch 0.1.0",
+ "futures 0.1.16 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures-cpupool 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "hardware-wallet 1.9.0",
  "hash 0.1.0",
