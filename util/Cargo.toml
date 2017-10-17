@@ -18,7 +18,6 @@ rlp = { path = "rlp" }
 heapsize = "0.4"
 hash = { path = "hash" }
 clippy = { version = "0.0.103", optional = true}
-ethcore-devtools = { path = "../devtools" }
 libc = "0.2.7"
 target_info = "0.1"
 ethcore-bigint = { path = "bigint", features = ["heapsizeof"] }
