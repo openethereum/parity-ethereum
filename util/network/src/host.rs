@@ -1267,11 +1267,12 @@ fn load_key(path: &Path) -> Option<Secret> {
 
 #[test]
 fn key_save_load() {
-	use ::devtools::RandomTempPath;
-	let temp_path = RandomTempPath::create_dir();
+	use tempdir::TempDir;
+
+	let tempdir = TempDir::new("").unwrap();
 	let key = H256::random().into();
-	save_key(temp_path.as_path(), &key);
-	let r = load_key(temp_path.as_path());
+	save_key(tempdir.path(), &key);
+	let r = load_key(tempdir.path());
 	assert_eq!(key, r.unwrap());
 }
 
