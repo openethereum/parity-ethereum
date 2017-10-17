@@ -19,7 +19,7 @@ use std::collections::{BTreeSet, BTreeMap};
 use bigint::hash::H256;
 use ethkey::Secret;
 use parking_lot::{Mutex, Condvar};
-use key_server_cluster::{Error, SessionId, NodeId, DocumentKeyShare, KeyStorage};
+use key_server_cluster::{Error, SessionId, NodeId, DocumentKeyShare};
 use key_server_cluster::cluster::Cluster;
 use key_server_cluster::cluster_sessions::{SessionIdWithSubSession, ClusterSession};
 use key_server_cluster::decryption_session::SessionImpl as DecryptionSession;
@@ -244,7 +244,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 	}
 
 	/// Process key versions request.
-	pub fn on_key_versions_request(&self, sender: &NodeId, message: &RequestKeyVersions) -> Result<(), Error> {
+	pub fn on_key_versions_request(&self, sender: &NodeId, _message: &RequestKeyVersions) -> Result<(), Error> {
 		debug_assert!(sender != &self.core.meta.self_node_id);
 
 		// check message
@@ -423,7 +423,7 @@ impl SessionResultComputer for FastestResultComputer {
 				let version = versions.iter().find(|&(_, ref n)| n.contains(&self.self_node_id) && n.len() >= threshold + 1);
 				// if there's no such version, wait for more confirmations
 				match version {
-					Some((version, nodes)) => Some(Ok((version.clone(), self.self_node_id.clone()))),
+					Some((version, _)) => Some(Ok((version.clone(), self.self_node_id.clone()))),
 					None if !confirmations.is_empty() => None,
 					// otherwise - try to find any version
 					None => Some(versions.iter()

@@ -147,7 +147,8 @@ impl SessionCreatorCore {
 	fn check_session_nonce(&self, master: &NodeId, nonce: Option<u64>) -> Result<u64, Error> {
 		// if we're master node of the session, then nonce should be generated
 		// if we're slave node of the session, then nonce should be passed from outside
-		debug_assert!((master == &self.self_node_id) == nonce.is_none());
+		// TODO: not true for delegation
+		// debug_assert!((master == &self.self_node_id) == nonce.is_none());
 
 		match nonce {
 			Some(nonce) => match nonce > *self.max_nonce.write().entry(master.clone()).or_insert(0) {
@@ -251,14 +252,16 @@ impl ClusterSessionCreator<DecryptionSessionImpl, Signature> for DecryptionSessi
 	}
 
 	fn create(&self, cluster: Arc<Cluster>, master: NodeId, nonce: Option<u64>, id: SessionIdWithSubSession, requester_signature: Option<Signature>) -> Result<Arc<DecryptionSessionImpl>, Error> {
-		let encrypted_data = self.core.read_key_share(&id.id, &cluster)?.ok_or(Error::MissingKeyShare)?;
+		let encrypted_data = self.core.read_key_share(&id.id, &cluster)?;
+		//let nonce = if master == self.core.self_node_id { None } else { nonce }; // TODO
+println!("=== self = {}, master = {}", self.core.self_node_id, master);
 		let nonce = self.core.check_session_nonce(&master, nonce)?;
 		Ok(Arc::new(DecryptionSessionImpl::new(DecryptionSessionParams {
 			meta: SessionMeta {
 				id: id.id,
 				self_node_id: self.core.self_node_id.clone(),
 				master_node_id: master,
-				threshold: encrypted_data.threshold,
+				threshold: encrypted_data.as_ref().map(|ks| ks.threshold).unwrap_or_default(),
 			},
 			access_key: id.access_key,
 			key_share: encrypted_data,

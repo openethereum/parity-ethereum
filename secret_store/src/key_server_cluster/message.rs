@@ -1059,6 +1059,13 @@ impl Message {
 		}
 	}
 
+	pub fn is_delegation_message(&self) -> bool {
+		match *self {
+			Message::Decryption(DecryptionMessage::DecryptionSessionDelegation(_)) => true,
+			_ => false,
+		}
+	}
+
 	pub fn is_exclusive_session_message(&self) -> bool {
 		match *self {
 			Message::ServersSetChange(_) => true,

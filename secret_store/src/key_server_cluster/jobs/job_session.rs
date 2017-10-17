@@ -139,6 +139,11 @@ impl<Executor, Transport> JobSession<Executor, Transport> where Executor: JobExe
 		&self.executor
 	}
 
+	/// Get mutable executor reference.
+	pub fn executor_mut(&mut self) -> &mut Executor {
+		&mut self.executor
+	}
+
 	/// Get job state.
 	pub fn state(&self) -> JobSessionState {
 		self.data.state

@@ -97,6 +97,9 @@ pub trait ClusterClient: Send + Sync {
 	/// Try connect to disconnected nodes.
 	#[cfg(test)]
 	fn connect(&self);
+	/// Get key storage.
+	#[cfg(test)]
+	fn key_storage(&self) -> Arc<KeyStorage>;
 }
 
 /// Cluster access for single session participant.
@@ -468,7 +471,7 @@ impl ClusterCore {
 							if data.self_key_pair.public() == &master {
 								let mut connected_nodes = data.connections.connected_nodes();
 								connected_nodes.insert(data.self_key_pair.public().clone());
-								let _ = session.initialize(connected_nodes, version, is_shadow_decryption); // TODO: err
+								let _ = session.initialize(version, is_shadow_decryption); // TODO: err
 							} else {
 								let _ = session.delegate(master, version, is_shadow_decryption); // TODO: err
 							}
@@ -501,11 +504,14 @@ impl ClusterCore {
 
 		// get or create new session, if required
 		let session_id = message.into_session_id().expect("TODO");
-		match message.is_initialization_message() {
+		let is_initialization_message = message.is_initialization_message();
+		let is_delegation_message = message.is_delegation_message();
+		match is_initialization_message || is_delegation_message {
 			false => sessions.get(&session_id, true).ok_or(Error::InvalidSessionId),
 			true => {
 				let creation_data = SC::creation_data_from_message(&message)?;
-				sessions.insert(data, sender.clone(), session_id.clone(), Some(message.session_nonce().ok_or(Error::InvalidMessage)?), requires_all_connections(&message), message.is_exclusive_session_message(), creation_data)
+				let master = if is_initialization_message { sender.clone() } else { data.self_key_pair.public().clone() };
+				sessions.insert(data, master, session_id.clone(), Some(message.session_nonce().ok_or(Error::InvalidMessage)?), requires_all_connections(&message), message.is_exclusive_session_message(), creation_data)
 			},
 		}
 	}
@@ -881,7 +887,7 @@ impl ClusterClient for ClusterClientImpl {
 
 		match version {
 			Some(version) => {
-				session.initialize(connected_nodes, version, is_shadow_decryption)?;
+				session.initialize(version, is_shadow_decryption)?;
 			},
 			None => {
 				let version_session = self.create_key_version_negotiation_session(session_id.id.clone())?;
@@ -1003,6 +1009,11 @@ unimplemented!()
 	#[cfg(test)]
 	fn generation_session(&self, session_id: &SessionId) -> Option<Arc<GenerationSessionImpl>> {
 		self.data.sessions.generation_sessions.get(session_id, false)
+	}
+
+	#[cfg(test)]
+	fn key_storage(&self) -> Arc<KeyStorage> {
+		self.data.config.key_storage.clone()
 	}
 }
 

@@ -47,6 +47,14 @@ impl KeyAccessJob {
 		}
 	}
 
+	pub fn set_requester_signature(&mut self, signature: Signature) {
+		self.signature = Some(signature);
+	}
+
+	pub fn requester_signature(&self) -> Option<&Signature> {
+		self.signature.as_ref()
+	}
+
 	pub fn requester(&self) -> Result<Option<Public>, Error> {
 		match self.signature.as_ref() {
 			Some(signature) => Ok(Some(recover(signature, &self.id)?)),
