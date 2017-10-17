@@ -469,8 +469,6 @@ impl ClusterCore {
 					match session.continue_action() {
 						Some(ContinueAction::Decrypt(session, is_shadow_decryption)) => {
 							if data.self_key_pair.public() == &master {
-								let mut connected_nodes = data.connections.connected_nodes();
-								connected_nodes.insert(data.self_key_pair.public().clone());
 								let _ = session.initialize(version, is_shadow_decryption); // TODO: err
 							} else {
 								let _ = session.delegate(master, version, is_shadow_decryption); // TODO: err
@@ -478,9 +476,7 @@ impl ClusterCore {
 						},
 						Some(ContinueAction::Sign(session, message_hash)) => {
 							if data.self_key_pair.public() == &master {
-								let mut connected_nodes = data.connections.connected_nodes();
-								connected_nodes.insert(data.self_key_pair.public().clone());
-								let _ = session.initialize(connected_nodes, version, message_hash); // TODO: err
+								let _ = session.initialize(version, message_hash); // TODO: err
 							} else {
 								let _ = session.delegate(master, version, message_hash); // TODO: err
 							}
@@ -910,7 +906,7 @@ impl ClusterClient for ClusterClientImpl {
 
 		match version {
 			Some(version) => {
-				session.initialize(connected_nodes, version, message_hash)?;
+				session.initialize(version, message_hash)?;
 			},
 			None => {
 				let version_session = self.create_key_version_negotiation_session(session_id.id.clone())?;

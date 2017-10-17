@@ -1062,6 +1062,7 @@ impl Message {
 	pub fn is_delegation_message(&self) -> bool {
 		match *self {
 			Message::Decryption(DecryptionMessage::DecryptionSessionDelegation(_)) => true,
+			Message::Signing(SigningMessage::SigningSessionDelegation(_)) => true,
 			_ => false,
 		}
 	}

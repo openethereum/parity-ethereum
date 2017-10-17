@@ -418,4 +418,30 @@ pub mod tests {
 		let retrieved_key = ethcrypto::ecies::decrypt(&secret, &ethcrypto::DEFAULT_MAC, &retrieved_key).unwrap();
 		assert_eq!(retrieved_key, generated_key);
 	}
+
+	#[test]
+	fn signing_session_is_delegated_when_node_does_not_have_key_share() {
+		::logger::init_log();
+		let key_servers = make_key_servers(6114, 3);
+		let threshold = 1;
+
+		// generate server key
+		let server_key_id = Random.generate().unwrap().secret().clone();
+		let requestor_secret = Random.generate().unwrap().secret().clone();
+		let signature = ethkey::sign(&requestor_secret, &server_key_id).unwrap();
+		let server_public = key_servers[0].generate_key(&server_key_id, &signature, threshold).unwrap();
+
+		// remove key from node0
+		key_servers[0].cluster().key_storage().remove(&server_key_id).unwrap();
+
+		// sign message
+		let message_hash = H256::from(42);
+		let combined_signature = key_servers[0].sign_message(&server_key_id, &signature, message_hash.clone()).unwrap();
+		let combined_signature = ethcrypto::ecies::decrypt(&requestor_secret, &ethcrypto::DEFAULT_MAC, &combined_signature).unwrap();
+		let signature_c = Secret::from_slice(&combined_signature[..32]);
+		let signature_s = Secret::from_slice(&combined_signature[32..]);
+
+		// check signature
+		assert_eq!(math::verify_signature(&server_public, &(signature_c, signature_s), &message_hash), Ok(true));
+	}
 }

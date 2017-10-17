@@ -286,14 +286,14 @@ impl ClusterSessionCreator<SigningSessionImpl, Signature> for SigningSessionCrea
 	}
 
 	fn create(&self, cluster: Arc<Cluster>, master: NodeId, nonce: Option<u64>, id: SessionIdWithSubSession, requester_signature: Option<Signature>) -> Result<Arc<SigningSessionImpl>, Error> {
-		let encrypted_data = self.core.read_key_share(&id.id, &cluster)?.ok_or(Error::MissingKeyShare)?;
+		let encrypted_data = self.core.read_key_share(&id.id, &cluster)?;
 		let nonce = self.core.check_session_nonce(&master, nonce)?;
 		Ok(Arc::new(SigningSessionImpl::new(SigningSessionParams {
 			meta: SessionMeta {
 				id: id.id,
 				self_node_id: self.core.self_node_id.clone(),
 				master_node_id: master,
-				threshold: encrypted_data.threshold,
+				threshold: encrypted_data.as_ref().map(|ks| ks.threshold).unwrap_or_default(),
 			},
 			access_key: id.access_key,
 			key_share: encrypted_data,
