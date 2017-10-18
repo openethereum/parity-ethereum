@@ -32,7 +32,7 @@ use sync_io::SyncIo;
 use blocks::BlockCollection;
 
 const MAX_HEADERS_TO_REQUEST: usize = 128;
-const MAX_BODIES_TO_REQUEST: usize = 64;
+const MAX_BODIES_TO_REQUEST: usize = 32;
 const MAX_RECEPITS_TO_REQUEST: usize = 128;
 const SUBCHAIN_SIZE: u64 = 256;
 const MAX_ROUND_PARENTS: usize = 16;

@@ -20,7 +20,7 @@ use std::{fmt, str};
 use std::sync::Arc;
 
 /// Export the journaldb module.
-pub mod traits;
+mod traits;
 mod archivedb;
 mod earlymergedb;
 mod overlayrecentdb;

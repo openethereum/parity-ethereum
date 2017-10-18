@@ -15,6 +15,7 @@
 
 # vim stuff
 *.swp
+*.swo
 
 # mac stuff
 .DS_Store

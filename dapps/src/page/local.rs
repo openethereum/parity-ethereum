@@ -15,16 +15,18 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use mime_guess;
-use std::io::{Seek, Read, SeekFrom};
-use std::fs;
+use std::{fs, fmt};
 use std::path::{Path, PathBuf};
-use page::handler::{self, PageCache, PageHandlerWaiting};
-use endpoint::{Endpoint, EndpointInfo, EndpointPath, Handler};
-use mime::Mime;
+use futures::{future};
+use futures_cpupool::CpuPool;
+use page::handler::{self, PageCache};
+use endpoint::{Endpoint, EndpointInfo, EndpointPath, Request, Response};
+use hyper::mime::Mime;
 use Embeddable;
 
-#[derive(Debug, Clone)]
-pub struct LocalPageEndpoint {
+#[derive(Clone)]
+pub struct Dapp {
+	pool: CpuPool,
 	path: PathBuf,
 	mime: Option<Mime>,
 	info: Option<EndpointInfo>,
@@ -32,23 +34,37 @@ pub struct LocalPageEndpoint {
 	embeddable_on: Embeddable,
 }
 
-impl LocalPageEndpoint {
-	pub fn new(path: PathBuf, info: EndpointInfo, cache: PageCache, embeddable_on: Embeddable) -> Self {
-		LocalPageEndpoint {
-			path: path,
+impl fmt::Debug for Dapp {
+	fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+		fmt.debug_struct("Dapp")
+			.field("path", &self.path)
+			.field("mime", &self.mime)
+			.field("info", &self.info)
+			.field("cache", &self.cache)
+			.field("embeddable_on", &self.embeddable_on)
+			.finish()
+	}
+}
+
+impl Dapp {
+	pub fn new(pool: CpuPool, path: PathBuf, info: EndpointInfo, cache: PageCache, embeddable_on: Embeddable) -> Self {
+		Dapp {
+			pool,
+			path,
 			mime: None,
 			info: Some(info),
-			cache: cache,
-			embeddable_on: embeddable_on,
+			cache,
+			embeddable_on,
 		}
 	}
 
-	pub fn single_file(path: PathBuf, mime: Mime, cache: PageCache) -> Self {
-		LocalPageEndpoint {
-			path: path,
+	pub fn single_file(pool: CpuPool, path: PathBuf, mime: Mime, cache: PageCache) -> Self {
+		Dapp {
+			pool,
+			path,
 			mime: Some(mime),
 			info: None,
-			cache: cache,
+			cache,
 			embeddable_on: None,
 		}
 	}
@@ -57,125 +73,75 @@ impl LocalPageEndpoint {
 		self.path.clone()
 	}
 
-	fn page_handler_with_mime(&self, path: EndpointPath, mime: &Mime) -> handler::PageHandler<LocalSingleFile> {
-		handler::PageHandler {
-			app: LocalSingleFile { path: self.path.clone(), mime: format!("{}", mime) },
-			prefix: None,
-			path: path,
-			file: handler::ServedFile::new(None),
-			safe_to_embed_on: self.embeddable_on.clone(),
-			cache: self.cache,
-		}
-	}
-
-	fn page_handler(&self, path: EndpointPath) -> handler::PageHandler<LocalDapp> {
-		handler::PageHandler {
-			app: LocalDapp { path: self.path.clone() },
-			prefix: None,
-			path: path,
-			file: handler::ServedFile::new(None),
-			safe_to_embed_on: self.embeddable_on.clone(),
-			cache: self.cache,
-		}
-	}
-
-	pub fn to_page_handler(&self, path: EndpointPath) -> Box<PageHandlerWaiting> {
+	fn get_file(&self, path: &EndpointPath) -> Option<LocalFile> {
 		if let Some(ref mime) = self.mime {
-			Box::new(self.page_handler_with_mime(path, mime))
-		} else {
-			Box::new(self.page_handler(path))
+			return LocalFile::from_path(&self.path, mime.to_owned());
 		}
+
+		let mut file_path = self.path.to_owned();
+
+		if path.has_no_params() {
+			file_path.push("index.html");
+		} else {
+			for part in &path.app_params {
+				file_path.push(part);
+			}
+		}
+
+		let mime = mime_guess::guess_mime_type(&file_path);
+		LocalFile::from_path(&file_path, mime)
+	}
+
+
+	pub fn to_response(&self, path: &EndpointPath) -> Response {
+		let (reader, response) = handler::PageHandler {
+			file: self.get_file(path),
+			cache: self.cache,
+			safe_to_embed_on: self.embeddable_on.clone(),
+		}.into_response();
+
+		self.pool.spawn(reader).forget();
+
+		Box::new(future::ok(response))
 	}
 }
 
-impl Endpoint for LocalPageEndpoint {
+impl Endpoint for Dapp {
 	fn info(&self) -> Option<&EndpointInfo> {
 		self.info.as_ref()
 	}
 
-	fn to_handler(&self, path: EndpointPath) -> Box<Handler> {
-		if let Some(ref mime) = self.mime {
-			Box::new(self.page_handler_with_mime(path, mime))
-		} else {
-			Box::new(self.page_handler(path))
-		}
-	}
-}
-
-struct LocalSingleFile {
-	path: PathBuf,
-	mime: String,
-}
-
-impl handler::Dapp for LocalSingleFile {
-	type DappFile = LocalFile;
-
-	fn file(&self, _path: &str) -> Option<Self::DappFile> {
-		LocalFile::from_path(&self.path, Some(&self.mime))
-	}
-}
-
-struct LocalDapp {
-	path: PathBuf,
-}
-
-impl handler::Dapp for LocalDapp {
-	type DappFile = LocalFile;
-
-	fn file(&self, file_path: &str) -> Option<Self::DappFile> {
-		let mut path = self.path.clone();
-		for part in file_path.split('/') {
-			path.push(part);
-		}
-		LocalFile::from_path(&path, None)
+	fn respond(&self, path: EndpointPath, _req: Request) -> Response {
+		self.to_response(&path)
 	}
 }
 
 struct LocalFile {
-	content_type: String,
-	buffer: [u8; 4096],
+	content_type: Mime,
 	file: fs::File,
-	len: u64,
-	pos: u64,
 }
 
 impl LocalFile {
-	fn from_path<P: AsRef<Path>>(path: P, mime: Option<&str>) -> Option<Self> {
+	fn from_path<P: AsRef<Path>>(path: P, content_type: Mime) -> Option<Self> {
+		trace!(target: "dapps", "Local file: {:?}", path.as_ref());
 		// Check if file exists
 		fs::File::open(&path).ok().map(|file| {
-			let content_type = mime.map(|mime| mime.to_owned())
-				.unwrap_or_else(|| mime_guess::guess_mime_type(path).to_string());
-			let len = file.metadata().ok().map_or(0, |meta| meta.len());
 			LocalFile {
-				content_type: content_type,
-				buffer: [0; 4096],
-				file: file,
-				pos: 0,
-				len: len,
+				content_type,
+				file,
 			}
 		})
 	}
 }
 
 impl handler::DappFile for LocalFile {
-	fn content_type(&self) -> &str {
+	type Reader = fs::File;
+
+	fn content_type(&self) -> &Mime {
 		&self.content_type
 	}
 
-	fn is_drained(&self) -> bool {
-		self.pos == self.len
-	}
-
-	fn next_chunk(&mut self) -> &[u8] {
-		let _ = self.file.seek(SeekFrom::Start(self.pos));
-		if let Ok(n) = self.file.read(&mut self.buffer) {
-			&self.buffer[0..n]
-		} else {
-			&self.buffer[0..0]
-		}
-	}
-
-	fn bytes_written(&mut self, bytes: usize) {
-		self.pos += bytes as u64;
+	fn into_reader(self) -> Self::Reader {
+		self.file
 	}
 }

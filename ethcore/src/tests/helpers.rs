@@ -231,8 +231,8 @@ pub fn get_test_client_with_blocks(blocks: Vec<Bytes>) -> Arc<Client> {
 	client
 }
 
-fn new_db() -> Arc<KeyValueDB> {
-	Arc::new(::util::kvdb::in_memory(::db::NUM_COLUMNS.unwrap_or(0)))
+fn new_db() -> Arc<::kvdb::KeyValueDB> {
+	Arc::new(::kvdb_memorydb::create(::db::NUM_COLUMNS.unwrap_or(0)))
 }
 
 pub fn generate_dummy_blockchain(block_number: u32) -> BlockChain {
@@ -377,6 +377,12 @@ pub fn get_default_ethash_params() -> EthashParams {
 		ecip1010_pause_transition: u64::max_value(),
 		ecip1010_continue_transition: u64::max_value(),
 		ecip1017_era_rounds: u64::max_value(),
+		mcip3_transition: u64::max_value(),
+		mcip3_miner_reward: 0.into(),
+		mcip3_ubi_reward: 0.into(),
+		mcip3_ubi_contract: "0000000000000000000000000000000000000001".into(),
+		mcip3_dev_reward: 0.into(),
+		mcip3_dev_contract: "0000000000000000000000000000000000000001".into(),
 		eip649_transition: u64::max_value(),
 		eip649_delay: 3_000_000,
 		eip649_reward: None,

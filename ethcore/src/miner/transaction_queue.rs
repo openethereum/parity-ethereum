@@ -341,7 +341,7 @@ impl GasPriceQueue {
 	/// Remove an item from a BTreeMap/HashSet "multimap".
 	/// Returns true if the item was removed successfully.
 	pub fn remove(&mut self, gas_price: &U256, hash: &H256) -> bool {
-		if let Some(mut hashes) = self.backing.get_mut(gas_price) {
+		if let Some(hashes) = self.backing.get_mut(gas_price) {
 			let only_one_left = hashes.len() == 1;
 			if !only_one_left {
 				// Operation may be ok: only if hash is in gas-price's Set.
@@ -1225,7 +1225,7 @@ impl TransactionQueue {
 			if by_nonce.is_none() {
 				return;
 			}
-			let mut by_nonce = by_nonce.expect("None is tested in early-exit condition above; qed");
+			let by_nonce = by_nonce.expect("None is tested in early-exit condition above; qed");
 			while let Some(order) = by_nonce.remove(&current_nonce) {
 				// remove also from priority and gas_price
 				self.future.by_priority.remove(&order);

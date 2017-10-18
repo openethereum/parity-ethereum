@@ -3,24 +3,17 @@ description = "Ethcore library"
 homepage = "http://parity.io"
 license = "GPL-3.0"
 name = "ethcore"
-version = "1.8.0"
+version = "1.9.0"
 authors = ["Parity Technologies <admin@parity.io>"]
-build = "build.rs"
-
-[build-dependencies]
-"ethcore-ipc-codegen" = { path = "../ipc/codegen" }
 
 [dependencies]
 ansi_term = "0.9"
-bit-set = "0.4"
 bloomchain = "0.1"
 bn = { git = "https://github.com/paritytech/bn" }
 byteorder = "1.0"
 clippy = { version = "0.0.103", optional = true}
 common-types = { path = "types" }
 crossbeam = "0.2.9"
-env_logger = "0.4"
-ethabi = "2.0"
 ethash = { path = "../ethash" }
 ethcore-bloom-journal = { path = "../util/bloom" }
 ethcore-bytes = { path = "../util/bytes" }
@@ -29,12 +22,11 @@ memorydb = { path = "../util/memorydb" }
 patricia_trie = { path = "../util/patricia_trie" }
 ethcore-devtools = { path = "../devtools" }
 ethcore-io = { path = "../util/io" }
-ethcore-ipc = { path = "../ipc/rpc" }
-ethcore-ipc-nano = { path = "../ipc/nano" }
 ethcore-logger = { path = "../logger" }
 ethcore-stratum = { path = "../stratum" }
 ethcore-util = { path = "../util" }
 ethcore-bigint = { path = "../util/bigint" }
+memory-cache = { path = "../util/memory_cache" }
 ethjson = { path = "../json" }
 ethkey = { path = "../ethkey" }
 ethstore = { path = "../ethstore" }
@@ -45,9 +37,9 @@ heapsize = "0.4"
 hyper = { git = "https://github.com/paritytech/hyper", default-features = false }
 itertools = "0.5"
 lazy_static = "0.2"
-linked-hash-map = "0.3.0"
+linked-hash-map = "0.5"
 log = "0.3"
-lru-cache = "0.1.0"
+lru-cache = "0.1"
 native-contracts = { path = "native_contracts" }
 num = "0.1"
 num_cpus = "1.2"
@@ -58,9 +50,15 @@ rayon = "0.8"
 rand = "0.3"
 rlp = { path = "../util/rlp" }
 rlp_derive = { path = "../util/rlp_derive" }
+kvdb = { path = "../util/kvdb" }
+kvdb-rocksdb = { path = "../util/kvdb-rocksdb" }
+kvdb-memorydb = { path = "../util/kvdb-memorydb" }
+util-error = { path = "../util/error" }
+snappy = { path = "../util/snappy" }
+migration = { path = "../util/migration" }
+macros = { path = "../util/macros" }
 rust-crypto = "0.2.34"
 rustc-hex = "1.0"
-semver = "0.6"
 stats = { path = "../util/stats" }
 time = "0.1"
 transient-hashmap = "0.4"
@@ -87,4 +85,3 @@ test-heavy = []
 dev = ["clippy"]
 default = []
 benches = []
-ipc = []

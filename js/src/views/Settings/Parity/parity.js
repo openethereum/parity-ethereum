@@ -264,6 +264,14 @@ export default class Parity extends Component {
           ))
         }
         {
+          this.renderItem('musicoin', (
+            <FormattedMessage
+              id='settings.parity.chains.chain_musicoin'
+              defaultMessage='Parity syncs to the Musicoin network'
+            />
+          ))
+        }
+        {
           this.renderItem('dev', (
             <FormattedMessage
               id='settings.parity.chains.chain_dev'

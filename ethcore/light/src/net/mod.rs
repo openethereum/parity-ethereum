@@ -430,7 +430,11 @@ impl LightProtocol {
 
 				// compute and deduct cost.
 				let pre_creds = creds.current();
-				let cost = params.compute_cost_multi(requests.requests());
+				let cost = match params.compute_cost_multi(requests.requests()) {
+					Some(cost) => cost,
+					None => return Err(Error::NotServer),
+				};
+
 				creds.deduct_cost(cost)?;
 
 				trace!(target: "pip", "requesting from peer {}. Cost: {}; Available: {}",
@@ -924,7 +928,7 @@ impl LightProtocol {
 		peer.local_credits.deduct_cost(peer.local_flow.base_cost())?;
 		for request_rlp in raw.at(1)?.iter().take(MAX_REQUESTS) {
 			let request: Request = request_rlp.as_val()?;
-			let cost = peer.local_flow.compute_cost(&request);
+			let cost = peer.local_flow.compute_cost(&request).ok_or(Error::NotServer)?;
 			peer.local_credits.deduct_cost(cost)?;
 			request_builder.push(request).map_err(|_| Error::BadBackReference)?;
 		}
@@ -939,7 +943,7 @@ impl LightProtocol {
 			match complete_req {
 				CompleteRequest::Headers(req) => self.provider.block_headers(req).map(Response::Headers),
 				CompleteRequest::HeaderProof(req) => self.provider.header_proof(req).map(Response::HeaderProof),
-				CompleteRequest::TransactionIndex(_) => None, // don't answer these yet, but leave them in protocol.
+				CompleteRequest::TransactionIndex(req) => self.provider.transaction_index(req).map(Response::TransactionIndex),
 				CompleteRequest::Body(req) => self.provider.block_body(req).map(Response::Body),
 				CompleteRequest::Receipts(req) => self.provider.block_receipts(req).map(Response::Receipts),
 				CompleteRequest::Account(req) => self.provider.account_proof(req).map(Response::Account),

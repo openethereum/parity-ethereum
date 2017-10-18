@@ -1756,7 +1756,7 @@ export default {
     params: [
       {
         type: String,
-        desc: 'Chain spec name, one of: "foundation", "ropsten", "morden", "kovan", "olympic", "classic", "dev", "expanse" or a filename.',
+        desc: 'Chain spec name, one of: "foundation", "ropsten", "morden", "kovan", "olympic", "classic", "dev", "expanse", "musicoin" or a filename.',
         example: 'foundation'
       }
     ],

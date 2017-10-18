@@ -20,23 +20,25 @@
 
 #[macro_use]
 extern crate log;
-#[macro_use]
-extern crate mime;
 
-extern crate ethabi;
 extern crate ethcore_util as util;
 extern crate ethcore_bigint as bigint;
 extern crate ethcore_bytes as bytes;
 extern crate futures;
+extern crate hash;
+extern crate mime;
 extern crate mime_guess;
 extern crate native_contracts;
 extern crate parity_reactor;
-extern crate parking_lot;
 extern crate rand;
 extern crate rustc_hex;
-extern crate hash;
 
 pub extern crate fetch;
+
+#[cfg(test)]
+extern crate parking_lot;
+#[cfg(test)]
+extern crate ethabi;
 
 mod client;
 

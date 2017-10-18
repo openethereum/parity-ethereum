@@ -20,6 +20,7 @@ import { connect } from 'react-redux';
 const SYMBOL_ETC = 'ETC';
 const SYMBOL_ETH = 'ETH';
 const SYMBOL_EXP = 'EXP';
+const SYMBOL_MUSIC = 'MUSIC';
 
 export class CurrencySymbol extends Component {
   static propTypes = {
@@ -44,6 +45,9 @@ export class CurrencySymbol extends Component {
 
       case 'expanse':
         return SYMBOL_EXP;
+
+      case 'musicoin':
+        return SYMBOL_MUSIC;
 
       default:
         return SYMBOL_ETH;

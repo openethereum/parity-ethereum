@@ -176,7 +176,7 @@ impl<T: TimeProvider> AuthCodes<T> {
 		}
 
 		// look for code
-		for mut code in &mut self.codes {
+		for code in &mut self.codes {
 			if &as_token(&code.code) == hash {
 				code.last_used_at = Some(time::Duration::from_secs(now));
 				return true;

@@ -17,7 +17,6 @@
 //! Traces api implementation.
 
 use jsonrpc_core::Error;
-use jsonrpc_core::futures::{future, Future, BoxFuture};
 use jsonrpc_macros::Trailing;
 use v1::Metadata;
 use v1::traits::Traces;
@@ -47,12 +46,12 @@ impl Traces for TracesClient {
 		Err(errors::light_unimplemented(None))
 	}
 
-	fn call(&self, _meta: Self::Metadata, _request: CallRequest, _flags: TraceOptions, _block: Trailing<BlockNumber>) -> BoxFuture<TraceResults, Error> {
-		future::err(errors::light_unimplemented(None)).boxed()
+	fn call(&self, _meta: Self::Metadata, _request: CallRequest, _flags: TraceOptions, _block: Trailing<BlockNumber>) -> Result<TraceResults, Error> {
+		Err(errors::light_unimplemented(None))
 	}
 
-	fn call_many(&self, _meta: Self::Metadata, _request: Vec<(CallRequest, TraceOptions)>, _block: Trailing<BlockNumber>) -> BoxFuture<Vec<TraceResults>, Error> {
-		future::err(errors::light_unimplemented(None)).boxed()
+	fn call_many(&self, _meta: Self::Metadata, _request: Vec<(CallRequest, TraceOptions)>, _block: Trailing<BlockNumber>) -> Result<Vec<TraceResults>, Error> {
+		Err(errors::light_unimplemented(None))
 	}
 
 	fn raw_transaction(&self, _raw_transaction: Bytes, _flags: TraceOptions, _block: Trailing<BlockNumber>) -> Result<TraceResults, Error> {

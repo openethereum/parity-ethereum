@@ -75,10 +75,13 @@ export function bytesToAscii (bytes) {
 }
 
 export function asciiToHex (string) {
-  return '0x' + string.split('')
-    .map(s => s.charCodeAt(0))
-    .map(s => s < 0x10 ? '0' + s.toString(16) : s.toString(16))
-    .join('');
+  let result = '0x';
+
+  for (let i = 0; i < string.length; ++i) {
+    result += ('0' + string.charCodeAt(i).toString(16)).substr(-2);
+  }
+
+  return result;
 }
 
 export function padRight (input, length) {

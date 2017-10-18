@@ -69,7 +69,7 @@ export default {
       hash: `Hash to be signed: {hashToSign}`
     },
     unknownBinary: `(Unknown binary data)`,
-    warning: `WARNING: This consequences of doing this may be grave. Confirm the request only if you are sure.`
+    warning: `WARNING: The consequences of doing this may be grave. Confirm the request only if you are sure.`
   },
   title: `Trusted Signer`,
   txPending: {

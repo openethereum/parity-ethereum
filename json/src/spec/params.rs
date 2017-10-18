@@ -58,6 +58,9 @@ pub struct Params {
 	#[serde(rename="eip155Transition")]
 	pub eip155_transition: Option<Uint>,
 	/// See `CommonParams` docs.
+	#[serde(rename="validateChainIdTransition")]
+	pub validate_chain_id_transition: Option<Uint>,
+	/// See `CommonParams` docs.
 	#[serde(rename="validateReceiptsTransition")]
 	pub validate_receipts_transition: Option<Uint>,
 	/// See `CommonParams` docs.

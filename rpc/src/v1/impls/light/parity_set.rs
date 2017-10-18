@@ -22,10 +22,10 @@ use std::sync::Arc;
 
 use ethsync::ManageNetwork;
 use fetch::Fetch;
-use futures::{BoxFuture, Future};
 use hash::keccak_buffer;
 
-use jsonrpc_core::Error;
+use jsonrpc_core::{BoxFuture, Error};
+use jsonrpc_core::futures::Future;
 use v1::helpers::dapps::DappsService;
 use v1::helpers::errors;
 use v1::traits::ParitySet;

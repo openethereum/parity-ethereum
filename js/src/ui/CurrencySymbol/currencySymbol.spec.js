@@ -74,6 +74,10 @@ describe('ui/CurrencySymbol', () => {
       expect(render('expanse').text()).equal('EXP');
     });
 
+    it('renders MUSIC for musicoin', () => {
+      expect(render('musicoin').text()).equal('MUSIC');
+    });
+
     it('renders ETH as default', () => {
       expect(render('somethingElse').text()).equal('ETH');
     });
@@ -94,6 +98,10 @@ describe('ui/CurrencySymbol', () => {
 
     it('render EXP', () => {
       expect(render('expanse').instance().renderSymbol()).equal('EXP');
+    });
+
+    it('render MUSIC', () => {
+      expect(render('musicoin').instance().renderSymbol()).equal('MUSIC');
     });
   });
 });

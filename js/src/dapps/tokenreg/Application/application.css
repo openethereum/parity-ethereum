@@ -29,6 +29,7 @@
   left: 0;
   opacity: 1;
   padding: 1.5em;
+  cursor: pointer;
   position: fixed;
   right: 50%;
   z-index: 100;

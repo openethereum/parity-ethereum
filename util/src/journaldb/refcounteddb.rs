@@ -27,7 +27,7 @@ use super::{DB_PREFIX_LEN, LATEST_ERA_KEY};
 use super::traits::JournalDB;
 use kvdb::{KeyValueDB, DBTransaction};
 use bigint::hash::H256;
-use UtilError;
+use error::UtilError;
 use bytes::Bytes;
 
 /// Implementation of the `HashDB` trait for a disk-backed database with a memory overlay
@@ -74,13 +74,6 @@ impl RefCountedDB {
 			latest_era: latest_era,
 			column: col,
 		}
-	}
-
-	/// Create a new instance with an anonymous temporary database.
-	#[cfg(test)]
-	fn new_temp() -> RefCountedDB {
-		let backing = Arc::new(::kvdb::in_memory(0));
-		Self::new(backing, None)
 	}
 }
 
@@ -217,13 +210,19 @@ mod tests {
 
 	use keccak::keccak;
 	use hashdb::{HashDB, DBValue};
+	use kvdb_memorydb;
 	use super::*;
 	use super::super::traits::JournalDB;
+
+	fn new_db() -> RefCountedDB {
+		let backing = Arc::new(kvdb_memorydb::create(0));
+		RefCountedDB::new(backing, None)
+	}
 
 	#[test]
 	fn long_history() {
 		// history is 3
-		let mut jdb = RefCountedDB::new_temp();
+		let mut jdb = new_db();
 		let h = jdb.insert(b"foo");
 		jdb.commit_batch(0, &keccak(b"0"), None).unwrap();
 		assert!(jdb.contains(&h));
@@ -241,7 +240,7 @@ mod tests {
 	#[test]
 	fn latest_era_should_work() {
 		// history is 3
-		let mut jdb = RefCountedDB::new_temp();
+		let mut jdb = new_db();
 		assert_eq!(jdb.latest_era(), None);
 		let h = jdb.insert(b"foo");
 		jdb.commit_batch(0, &keccak(b"0"), None).unwrap();
@@ -260,7 +259,7 @@ mod tests {
 	#[test]
 	fn complex() {
 		// history is 1
-		let mut jdb = RefCountedDB::new_temp();
+		let mut jdb = new_db();
 
 		let foo = jdb.insert(b"foo");
 		let bar = jdb.insert(b"bar");
@@ -298,7 +297,7 @@ mod tests {
 	#[test]
 	fn fork() {
 		// history is 1
-		let mut jdb = RefCountedDB::new_temp();
+		let mut jdb = new_db();
 
 		let foo = jdb.insert(b"foo");
 		let bar = jdb.insert(b"bar");
@@ -325,7 +324,7 @@ mod tests {
 
 	#[test]
 	fn inject() {
-		let mut jdb = RefCountedDB::new_temp();
+		let mut jdb = new_db();
 		let key = jdb.insert(b"dog");
 		jdb.inject_batch().unwrap();
 

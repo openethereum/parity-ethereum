@@ -18,16 +18,17 @@ use zip;
 use std::{fs, fmt};
 use std::io::{self, Read, Write};
 use std::path::PathBuf;
-use fetch::{self, Mime};
-use hash::keccak_buffer;
 use bigint::hash::H256;
+use fetch::{self, Mime};
+use futures_cpupool::CpuPool;
+use hash::keccak_buffer;
 
-use page::{LocalPageEndpoint, PageCache};
-use handlers::{ContentValidator, ValidatorResponse};
 use apps::manifest::{MANIFEST_FILENAME, deserialize_manifest, serialize_manifest, Manifest};
+use handlers::{ContentValidator, ValidatorResponse};
+use page::{local, PageCache};
 use Embeddable;
 
-type OnDone = Box<Fn(Option<LocalPageEndpoint>) + Send>;
+type OnDone = Box<Fn(Option<local::Dapp>) + Send>;
 
 fn write_response_and_check_hash(
 	id: &str,
@@ -75,15 +76,17 @@ pub struct Content {
 	mime: Mime,
 	content_path: PathBuf,
 	on_done: OnDone,
+	pool: CpuPool,
 }
 
 impl Content {
-	pub fn new(id: String, mime: Mime, content_path: PathBuf, on_done: OnDone) -> Self {
+	pub fn new(id: String, mime: Mime, content_path: PathBuf, on_done: OnDone, pool: CpuPool) -> Self {
 		Content {
-			id: id,
-			mime: mime,
-			content_path: content_path,
-			on_done: on_done,
+			id,
+			mime,
+			content_path,
+			on_done,
+			pool,
 		}
 	}
 }
@@ -91,12 +94,15 @@ impl Content {
 impl ContentValidator for Content {
 	type Error = ValidationError;
 
-	fn validate_and_install(&self, response: fetch::Response) -> Result<ValidatorResponse, ValidationError> {
-		let validate = |content_path: PathBuf| {
+	fn validate_and_install(self, response: fetch::Response) -> Result<ValidatorResponse, ValidationError> {
+		let pool = self.pool;
+		let id = self.id.clone();
+		let mime = self.mime;
+		let validate = move |content_path: PathBuf| {
 			// Create dir
-			let (_, content_path) = write_response_and_check_hash(self.id.as_str(), content_path.clone(), self.id.as_str(), response)?;
+			let (_, content_path) = write_response_and_check_hash(&id, content_path, &id, response)?;
 
-			Ok(LocalPageEndpoint::single_file(content_path, self.mime.clone(), PageCache::Enabled))
+			Ok(local::Dapp::single_file(pool, content_path, mime, PageCache::Enabled))
 		};
 
 		// Prepare path for a file
@@ -118,15 +124,17 @@ pub struct Dapp {
 	dapps_path: PathBuf,
 	on_done: OnDone,
 	embeddable_on: Embeddable,
+	pool: CpuPool,
 }
 
 impl Dapp {
-	pub fn new(id: String, dapps_path: PathBuf, on_done: OnDone, embeddable_on: Embeddable) -> Self {
+	pub fn new(id: String, dapps_path: PathBuf, on_done: OnDone, embeddable_on: Embeddable, pool: CpuPool) -> Self {
 		Dapp {
 			id,
 			dapps_path,
 			on_done,
 			embeddable_on,
+			pool,
 		}
 	}
 
@@ -158,16 +166,19 @@ impl Dapp {
 impl ContentValidator for Dapp {
 	type Error = ValidationError;
 
-	fn validate_and_install(&self, response: fetch::Response) -> Result<ValidatorResponse, ValidationError> {
-		let validate = |dapp_path: PathBuf| {
-			let (file, zip_path) = write_response_and_check_hash(self.id.as_str(), dapp_path.clone(), &format!("{}.zip", self.id), response)?;
+	fn validate_and_install(self, response: fetch::Response) -> Result<ValidatorResponse, ValidationError> {
+		let id = self.id.clone();
+		let pool = self.pool;
+		let embeddable_on = self.embeddable_on;
+		let validate = move |dapp_path: PathBuf| {
+			let (file, zip_path) = write_response_and_check_hash(&id, dapp_path.clone(), &format!("{}.zip", id), response)?;
 			trace!(target: "dapps", "Opening dapp bundle at {:?}", zip_path);
 			// Unpack archive
 			let mut zip = zip::ZipArchive::new(file)?;
 			// First find manifest file
 			let (mut manifest, manifest_dir) = Self::find_manifest(&mut zip)?;
 			// Overwrite id to match hash
-			manifest.id = self.id.clone();
+			manifest.id = id;
 
 			// Unpack zip
 			for i in 0..zip.len() {
@@ -198,7 +209,7 @@ impl ContentValidator for Dapp {
 			let mut manifest_file = fs::File::create(manifest_path)?;
 			manifest_file.write_all(manifest_str.as_bytes())?;
 			// Create endpoint
-			let endpoint = LocalPageEndpoint::new(dapp_path, manifest.clone().into(), PageCache::Enabled, self.embeddable_on.clone());
+			let endpoint = local::Dapp::new(pool, dapp_path, manifest.into(), PageCache::Enabled, embeddable_on);
 			Ok(endpoint)
 		};
 

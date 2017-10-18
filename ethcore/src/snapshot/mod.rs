@@ -32,11 +32,12 @@ use ids::BlockId;
 
 use bigint::prelude::U256;
 use bigint::hash::H256;
-use util::{HashDB, DBValue, snappy};
+use util::{HashDB, DBValue};
+use snappy;
 use bytes::Bytes;
 use parking_lot::Mutex;
 use util::journaldb::{self, Algorithm, JournalDB};
-use util::kvdb::KeyValueDB;
+use kvdb::KeyValueDB;
 use trie::{TrieDB, TrieDBMut, Trie, TrieMut};
 use rlp::{RlpStream, UntrustedRlp};
 use bloom_journal::Bloom;
@@ -71,16 +72,7 @@ mod watcher;
 #[cfg(test)]
 mod tests;
 
-/// IPC interfaces
-#[cfg(feature="ipc")]
-pub mod remote {
-	pub use super::traits::RemoteSnapshotService;
-}
-
-mod traits {
-	#![allow(dead_code, unused_assignments, unused_variables, missing_docs)] // codegen issues
-	include!(concat!(env!("OUT_DIR"), "/snapshot_service_trait.rs"));
-}
+mod traits;
 
 // Try to have chunks be around 4MB (before compression)
 const PREFERRED_CHUNK_SIZE: usize = 4 * 1024 * 1024;

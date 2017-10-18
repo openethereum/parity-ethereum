@@ -26,6 +26,7 @@ export default {
       chain_classic: `Parity syncs to the Ethereum Classic network`,
       chain_dev: `Parity uses a local development chain`,
       chain_expanse: `Parity syncs to the Expanse network`,
+      chain_musicoin: `Parity syncs to the Musicoin network`,
       chain_foundation: `Parity syncs to the Ethereum network launched by the Ethereum Foundation`,
       chain_kovan: `Parity syncs to the Kovan test network`,
       chain_olympic: `Parity syncs to the Olympic test network`,

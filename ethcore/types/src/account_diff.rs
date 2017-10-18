@@ -51,7 +51,6 @@ impl<T> Diff<T> where T: Eq {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-#[cfg_attr(feature = "ipc", binary)]
 /// Account diff.
 pub struct AccountDiff {
 	/// Change in balance, allowed to be `Diff::Same`.
@@ -65,7 +64,6 @@ pub struct AccountDiff {
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-#[cfg_attr(feature = "ipc", binary)]
 /// Change in existance type.
 // TODO: include other types of change.
 pub enum Existance {

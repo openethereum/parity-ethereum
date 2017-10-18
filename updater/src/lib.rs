@@ -20,27 +20,23 @@
 extern crate ethcore_util as util;
 extern crate ethcore_bigint as bigint;
 extern crate ethcore_bytes as bytes;
-extern crate ipc_common_types;
 extern crate parking_lot;
 extern crate parity_hash_fetch as hash_fetch;
 extern crate ethcore;
 extern crate ethabi;
 extern crate ethsync;
-extern crate ethcore_ipc as ipc;
 extern crate futures;
 extern crate target_info;
 extern crate parity_reactor;
 extern crate path;
+extern crate semver;
 
 mod updater;
 mod operations;
 mod types;
 
-mod service {
-	#![allow(dead_code, unused_assignments, unused_variables, missing_docs)] // codegen issues
-	include!(concat!(env!("OUT_DIR"), "/service.rs"));
-}
+mod service;
 
 pub use service::{Service};
-pub use types::all::{ReleaseInfo, OperationsInfo, CapState, VersionInfo, ReleaseTrack};
+pub use types::{ReleaseInfo, OperationsInfo, CapState, VersionInfo, ReleaseTrack};
 pub use updater::{Updater, UpdateFilter, UpdatePolicy};

@@ -27,7 +27,6 @@ use evm::{Factory as EvmFactory, Schedule};
 use executive::Executed;
 use filter::Filter;
 use header::{BlockNumber};
-use ipc::IpcConfig;
 use log_entry::LocalizedLogEntry;
 use receipt::LocalizedReceipt;
 use trace::LocalizedTrace;
@@ -49,7 +48,6 @@ use types::block_status::BlockStatus;
 use types::mode::Mode;
 use types::pruning_info::PruningInfo;
 
-#[ipc(client_ident="RemoteClient")]
 /// Blockchain database client. Owns and manages a blockchain and a block queue.
 pub trait BlockChainClient : Sync + Send {
 
@@ -286,8 +284,6 @@ pub trait BlockChainClient : Sync + Send {
 	/// Get the EIP-86 transition block number.
 	fn eip86_transition(&self) -> u64;
 }
-
-impl IpcConfig for BlockChainClient { }
 
 /// Extended client interface used for mining
 pub trait MiningBlockChainClient: BlockChainClient {

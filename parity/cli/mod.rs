@@ -301,7 +301,7 @@ usage! {
 
 			ARG arg_chain: (String) = "foundation", or |c: &Config| otry!(c.parity).chain.clone(),
 			"--chain=[CHAIN]",
-			"Specify the blockchain type. CHAIN may be either a JSON chain specification file or olympic, frontier, homestead, mainnet, morden, ropsten, classic, expanse, testnet, kovan or dev.",
+			"Specify the blockchain type. CHAIN may be either a JSON chain specification file or olympic, frontier, homestead, mainnet, morden, ropsten, classic, expanse, musicoin, testnet, kovan or dev.",
 
 			ARG arg_keys_path: (String) = "$BASE/keys", or |c: &Config| otry!(c.parity).keys_path.clone(),
 			"--keys-path=[PATH]",
@@ -480,7 +480,7 @@ usage! {
 
 			ARG arg_jsonrpc_server_threads: (Option<usize>) = None, or |c: &Config| otry!(c.rpc).server_threads,
 			"--jsonrpc-server-threads=[NUM]",
-			"Enables experimental faster implementation of JSON-RPC server. Requires Dapps server to be disabled using --no-dapps.",
+			"Enables multiple threads handling incoming connections for HTTP JSON-RPC server.",
 
 		["API and console options – WebSockets"]
 			FLAG flag_no_ws: (bool) = false, or |c: &Config| otry!(c.websockets).disable.clone(),
@@ -1201,6 +1201,17 @@ mod tests {
 		Snapshots, VM, Misc, Whisper, SecretStore,
 	};
 	use toml;
+	use clap::{ErrorKind as ClapErrorKind};
+
+
+	#[test]
+	fn should_reject_invalid_values() {
+		let args = Args::parse(&["parity", "--cache=20"]);
+		assert!(args.is_ok());
+
+		let args = Args::parse(&["parity", "--cache=asd"]);
+		assert!(args.is_err());
+	}
 
 	#[test]
 	fn should_parse_args_and_flags() {
@@ -1215,6 +1226,17 @@ mod tests {
 
 		let args = Args::parse(&["parity", "export", "state", "--min-balance","123"]).unwrap();
 		assert_eq!(args.arg_export_state_min_balance, Some("123".to_string()));
+	}
+
+	#[test]
+	fn should_exit_gracefully_on_unknown_argument() {
+		let result = Args::parse(&["parity", "--please-exit-gracefully"]);
+		assert!(
+			match result {
+				Err(ArgsError::Clap(ref clap_error)) if clap_error.kind == ClapErrorKind::UnknownArgument => true,
+				_ => false
+			}
+		);
 	}
 
 	#[test]

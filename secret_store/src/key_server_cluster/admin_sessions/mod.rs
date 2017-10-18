@@ -22,7 +22,7 @@ pub mod share_remove_session;
 
 mod sessions_queue;
 
-use key_server_cluster::{SessionId, NodeId, SessionMeta};
+use key_server_cluster::{SessionId, NodeId, SessionMeta, Error};
 
 /// Share change session metadata.
 #[derive(Debug, Clone)]
@@ -37,12 +37,12 @@ pub struct ShareChangeSessionMeta {
 
 impl ShareChangeSessionMeta {
 	/// Convert to consensus session meta. `all_nodes_set` is the union of `old_nodes_set` && `new_nodes_set`.
-	pub fn into_consensus_meta(self, all_nodes_set_len: usize) -> SessionMeta {
-		SessionMeta {
+	pub fn into_consensus_meta(self, all_nodes_set_len: usize) -> Result<SessionMeta, Error> {
+		Ok(SessionMeta {
 			id: self.id,
 			master_node_id: self.master_node_id,
 			self_node_id: self.self_node_id,
-			threshold: all_nodes_set_len - 1,
-		}
+			threshold: all_nodes_set_len.checked_sub(1).ok_or(Error::ConsensusUnreachable)?,
+		})
 	}
 }

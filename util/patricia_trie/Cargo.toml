@@ -12,8 +12,6 @@ ethcore-bigint = { path = "../bigint" }
 hash = { path = "../hash" }
 hashdb = { path = "../hashdb" }
 rlp = { path = "../rlp" }
-nibbleslice = { path = "../nibbleslice" }
-nibblevec = { path = "../nibblevec" }
 triehash = { path = "../triehash" }
 memorydb = { path = "../memorydb" }
 ethcore-logger = { path = "../../logger" }

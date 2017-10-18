@@ -57,7 +57,7 @@ const KEEP_ALIVE_SEND_INTERVAL: u64 = 30;
 const KEEP_ALIVE_DISCONNECT_INTERVAL: u64 = 60;
 
 /// Empty future.
-type BoxedEmptyFuture = ::std::boxed::Box<Future<Item = (), Error = ()> + Send>;
+type BoxedEmptyFuture = Box<Future<Item = (), Error = ()> + Send>;
 
 /// Cluster interface for external clients.
 pub trait ClusterClient: Send + Sync {
@@ -97,6 +97,10 @@ pub trait Cluster: Send + Sync {
 	fn broadcast(&self, message: Message) -> Result<(), Error>;
 	/// Send message to given node.
 	fn send(&self, to: &NodeId, message: Message) -> Result<(), Error>;
+	/// Is connected to given node?
+	fn is_connected(&self, node: &NodeId) -> bool;
+	/// Get a set of connected nodes.
+	fn nodes(&self) -> BTreeSet<NodeId>;
 }
 
 /// Cluster initialization parameters.
@@ -353,6 +357,7 @@ impl ClusterCore {
 
 	/// Send keepalive messages to every othe node.
 	fn keep_alive(data: Arc<ClusterData>) {
+		data.sessions.sessions_keep_alive();
 		for connection in data.connections.active_connections() {
 			let last_message_diff = time::Instant::now() - connection.last_message_time();
 			if last_message_diff > time::Duration::from_secs(KEEP_ALIVE_DISCONNECT_INTERVAL) {
@@ -456,7 +461,7 @@ impl ClusterCore {
 				}
 			},
 			_ => {
-				data.sessions.generation_sessions.get(&session_id)
+				data.sessions.generation_sessions.get(&session_id, true)
 					.ok_or(Error::InvalidSessionId)
 			},
 		};
@@ -534,7 +539,7 @@ impl ClusterCore {
 				}
 			},
 			_ => {
-				data.sessions.encryption_sessions.get(&session_id)
+				data.sessions.encryption_sessions.get(&session_id, true)
 					.ok_or(Error::InvalidSessionId)
 			},
 		};
@@ -625,7 +630,7 @@ impl ClusterCore {
 				}
 			},
 			_ => {
-				data.sessions.decryption_sessions.get(&decryption_session_id)
+				data.sessions.decryption_sessions.get(&decryption_session_id, true)
 					.ok_or(Error::InvalidSessionId)
 			},
 		};
@@ -701,7 +706,7 @@ impl ClusterCore {
 				}
 			},
 			_ => {
-				data.sessions.signing_sessions.get(&signing_session_id)
+				data.sessions.signing_sessions.get(&signing_session_id, true)
 					.ok_or(Error::InvalidSessionId)
 			},
 		};
@@ -780,7 +785,7 @@ impl ClusterCore {
 				}
 			},
 			_ => {
-				data.sessions.admin_sessions.get(&session_id)
+				data.sessions.admin_sessions.get(&session_id, true)
 					.ok_or(Error::InvalidSessionId)
 			},
 		};
@@ -861,7 +866,7 @@ impl ClusterCore {
 				}
 			},
 			_ => {
-				data.sessions.admin_sessions.get(&session_id)
+				data.sessions.admin_sessions.get(&session_id, true)
 					.ok_or(Error::InvalidSessionId)
 			},
 		};
@@ -942,7 +947,7 @@ impl ClusterCore {
 				}
 			},
 			_ => {
-				data.sessions.admin_sessions.get(&session_id)
+				data.sessions.admin_sessions.get(&session_id, true)
 					.ok_or(Error::InvalidSessionId)
 			},
 		};
@@ -1004,11 +1009,13 @@ impl ClusterCore {
 				ConsensusMessageWithServersSet::InitializeConsensusSession(_) => true,
 				_ => false,
 			} => {
+				let mut all_cluster_nodes = data.connections.all_nodes();
+				all_cluster_nodes.insert(data.self_key_pair.public().clone());
 				let mut connected_nodes = data.connections.connected_nodes();
 				connected_nodes.insert(data.self_key_pair.public().clone());
 
 				let cluster = Arc::new(ClusterView::new(data.clone(), connected_nodes));
-				match data.sessions.new_share_remove_session(sender.clone(), session_id.clone(), Some(session_nonce), cluster) {
+				match data.sessions.new_share_remove_session(sender.clone(), session_id.clone(), Some(session_nonce), cluster, all_cluster_nodes) {
 					Ok(session) => Ok(session),
 					Err(err) => {
 						// this is new session => it is not yet in container
@@ -1023,7 +1030,7 @@ impl ClusterCore {
 				}
 			},
 			_ => {
-				data.sessions.admin_sessions.get(&session_id)
+				data.sessions.admin_sessions.get(&session_id, true)
 					.ok_or(Error::InvalidSessionId)
 			},
 		};
@@ -1078,8 +1085,12 @@ impl ClusterCore {
 	/// Process single cluster message from the connection.
 	fn process_cluster_message(data: Arc<ClusterData>, connection: Arc<Connection>, message: ClusterMessage) {
 		match message {
-			ClusterMessage::KeepAlive(_) => data.spawn(connection.send_message(Message::Cluster(ClusterMessage::KeepAliveResponse(message::KeepAliveResponse {})))),
-			ClusterMessage::KeepAliveResponse(_) => (),
+			ClusterMessage::KeepAlive(_) => data.spawn(connection.send_message(Message::Cluster(ClusterMessage::KeepAliveResponse(message::KeepAliveResponse {
+				session_id: None,
+			})))),
+			ClusterMessage::KeepAliveResponse(msg) => if let Some(session_id) = msg.session_id {
+				data.sessions.on_session_keep_alive(connection.node_id(), session_id.into());
+			},
 			_ => warn!(target: "secretstore_net", "{}: received unexpected message {} from node {} at {}", data.self_key_pair.public(), message, connection.node_id(), connection.node_address()),
 		}
 	}
@@ -1143,6 +1154,10 @@ impl ClusterConnections {
 			trace!(target: "secretstore_net", "{}: removing connection to {} at {}", self.self_node_id, entry.get().node_id(), entry.get().node_address());
 			entry.remove_entry();
 		}
+	}
+
+	pub fn all_nodes(&self) -> BTreeSet<NodeId> {
+		self.data.read().nodes.keys().cloned().collect()
 	}
 
 	pub fn connected_nodes(&self) -> BTreeSet<NodeId> {
@@ -1287,14 +1302,6 @@ impl ClusterView {
 			})),
 		}
 	}
-
-	pub fn is_connected(&self, node: &NodeId) -> bool {
-		self.core.lock().nodes.contains(node)
-	}
-
-	pub fn nodes(&self) -> BTreeSet<NodeId> {
-		self.core.lock().nodes.clone()
-	}
 }
 
 impl Cluster for ClusterView {
@@ -1314,6 +1321,14 @@ impl Cluster for ClusterView {
 		let connection = core.cluster.connection(to).ok_or(Error::NodeDisconnected)?;
 		core.cluster.spawn(connection.send_message(message));
 		Ok(())
+	}
+
+	fn is_connected(&self, node: &NodeId) -> bool {
+		self.core.lock().nodes.contains(node)
+	}
+
+	fn nodes(&self) -> BTreeSet<NodeId> {
+		self.core.lock().nodes.clone()
 	}
 }
 
@@ -1409,11 +1424,13 @@ impl ClusterClient for ClusterClientImpl {
 	}
 
 	fn new_share_remove_session(&self, session_id: SessionId, new_nodes_set: BTreeSet<NodeId>, old_set_signature: Signature, new_set_signature: Signature) -> Result<Arc<AdminSessionWrapper>, Error> {
+		let mut all_cluster_nodes = self.data.connections.all_nodes();
+		all_cluster_nodes.insert(self.data.self_key_pair.public().clone());
 		let mut connected_nodes = self.data.connections.connected_nodes();
 		connected_nodes.insert(self.data.self_key_pair.public().clone());
 
 		let cluster = Arc::new(ClusterView::new(self.data.clone(), connected_nodes));
-		let session = self.data.sessions.new_share_remove_session(self.data.self_key_pair.public().clone(), session_id, None, cluster)?;
+		let session = self.data.sessions.new_share_remove_session(self.data.self_key_pair.public().clone(), session_id, None, cluster, all_cluster_nodes)?;
 		session.as_share_remove()
 			.expect("created 1 line above; qed")
 			.initialize(Some(new_nodes_set), Some(old_set_signature), Some(new_set_signature))?;
@@ -1421,11 +1438,11 @@ impl ClusterClient for ClusterClientImpl {
 	}
 
 	fn new_servers_set_change_session(&self, session_id: Option<SessionId>, new_nodes_set: BTreeSet<NodeId>, old_set_signature: Signature, new_set_signature: Signature) -> Result<Arc<AdminSessionWrapper>, Error> {
-		let mut connected_nodes = self.data.connections.connected_nodes();
-		connected_nodes.insert(self.data.self_key_pair.public().clone());
+		let mut all_cluster_nodes = self.data.connections.all_nodes();
+		all_cluster_nodes.insert(self.data.self_key_pair.public().clone());
 
-		let cluster = Arc::new(ClusterView::new(self.data.clone(), connected_nodes.clone()));
-		let session = self.data.sessions.new_servers_set_change_session(self.data.self_key_pair.public().clone(), session_id, None, cluster, connected_nodes)?;
+		let cluster = Arc::new(ClusterView::new(self.data.clone(), all_cluster_nodes.clone()));
+		let session = self.data.sessions.new_servers_set_change_session(self.data.self_key_pair.public().clone(), session_id, None, cluster, all_cluster_nodes)?;
 		let session_id = {
 			let servers_set_change_session = session.as_servers_set_change().expect("created 1 line above; qed");
 			servers_set_change_session.initialize(new_nodes_set, old_set_signature, new_set_signature)?;
@@ -1447,7 +1464,7 @@ impl ClusterClient for ClusterClientImpl {
 
 	#[cfg(test)]
 	fn generation_session(&self, session_id: &SessionId) -> Option<Arc<GenerationSessionImpl>> {
-		self.data.sessions.generation_sessions.get(session_id)
+		self.data.sessions.generation_sessions.get(session_id, false)
 	}
 }
 
@@ -1460,7 +1477,7 @@ fn make_socket_address(address: &str, port: u16) -> Result<SocketAddr, Error> {
 pub mod tests {
 	use std::sync::Arc;
 	use std::time;
-	use std::collections::VecDeque;
+	use std::collections::{BTreeSet, VecDeque};
 	use parking_lot::Mutex;
 	use tokio_core::reactor::Core;
 	use ethkey::{Random, Generator, Public};
@@ -1497,6 +1514,12 @@ pub mod tests {
 			self.data.lock().nodes.push(node);
 		}
 
+		pub fn remove_node(&self, node: &NodeId) {
+			let mut data = self.data.lock();
+			let position = data.nodes.iter().position(|n| n == node).unwrap();
+			data.nodes.remove(position);
+		}
+
 		pub fn take_message(&self) -> Option<(NodeId, Message)> {
 			self.data.lock().messages.pop_front()
 		}
@@ -1516,6 +1539,15 @@ pub mod tests {
 			debug_assert!(&self.id != to);
 			self.data.lock().messages.push_back((to.clone(), message));
 			Ok(())
+		}
+
+		fn is_connected(&self, node: &NodeId) -> bool {
+			let data = self.data.lock();
+			&self.id == node || data.nodes.contains(node)
+		}
+
+		fn nodes(&self) -> BTreeSet<NodeId> {
+			self.data.lock().nodes.iter().cloned().collect()
 		}
 	}
 
@@ -1621,7 +1653,7 @@ pub mod tests {
 	fn generation_session_completion_signalled_if_failed_on_master() {
 		//::logger::init_log();
 		let mut core = Core::new().unwrap();
-		let clusters = make_clusters(&core, 6023, 3);
+		let clusters = make_clusters(&core, 6025, 3);
 		run_clusters(&clusters);
 		loop_until(&mut core, time::Duration::from_millis(300), || clusters.iter().all(all_connections_established));
 
