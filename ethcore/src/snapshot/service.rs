@@ -39,7 +39,7 @@ use bigint::hash::H256;
 use parking_lot::{Mutex, RwLock, RwLockReadGuard};
 use util_error::UtilError;
 use bytes::Bytes;
-use util::journaldb::Algorithm;
+use journaldb::Algorithm;
 use kvdb_rocksdb::{Database, DatabaseConfig};
 use snappy;
 
@@ -625,7 +625,7 @@ mod tests {
 	use io::{IoService};
 	use devtools::RandomTempPath;
 	use tests::helpers::get_test_spec;
-	use util::journaldb::Algorithm;
+	use journaldb::Algorithm;
 	use error::Error;
 	use snapshot::{ManifestData, RestorationStatus, SnapshotService};
 	use super::*;

@@ -76,6 +76,7 @@ extern crate path;
 extern crate rpc_cli;
 extern crate node_filter;
 extern crate hash;
+extern crate journaldb;
 
 #[macro_use]
 extern crate log as rlog;

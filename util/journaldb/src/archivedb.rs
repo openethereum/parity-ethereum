@@ -21,9 +21,9 @@ use std::collections::hash_map::Entry;
 use std::sync::Arc;
 use rlp::*;
 use hashdb::*;
-use super::super::memorydb::*;
+use super::memorydb::*;
 use super::{DB_PREFIX_LEN, LATEST_ERA_KEY};
-use super::traits::JournalDB;
+use traits::JournalDB;
 use kvdb::{KeyValueDB, DBTransaction};
 use bigint::hash::H256;
 use error::{BaseDataError, UtilError};
@@ -202,8 +202,7 @@ mod tests {
 	use keccak::keccak;
 	use hashdb::{HashDB, DBValue};
 	use super::*;
-	use journaldb::traits::JournalDB;
-	use kvdb_memorydb;
+	use {kvdb_memorydb, JournalDB};
 
 	#[test]
 	fn insert_same_in_fork() {

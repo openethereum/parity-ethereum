@@ -36,7 +36,7 @@ use util::{HashDB, DBValue};
 use snappy;
 use bytes::Bytes;
 use parking_lot::Mutex;
-use util::journaldb::{self, Algorithm, JournalDB};
+use journaldb::{self, Algorithm, JournalDB};
 use kvdb::KeyValueDB;
 use trie::{TrieDB, TrieDBMut, Trie, TrieMut};
 use rlp::{RlpStream, UntrustedRlp};

@@ -459,8 +459,7 @@ mod tests {
 	use super::*;
 	use hashdb::{HashDB, DBValue};
 	use ethcore_logger::init_log;
-	use journaldb::JournalDB;
-	use kvdb_memorydb;
+	use {kvdb_memorydb, JournalDB};
 
 	fn new_db() -> OverlayRecentDB {
 		let backing = Arc::new(kvdb_memorydb::create(0));

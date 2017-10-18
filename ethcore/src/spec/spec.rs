@@ -670,7 +670,7 @@ impl Spec {
 	/// constructor.
 	pub fn genesis_epoch_data(&self) -> Result<Vec<u8>, String> {
 		use transaction::{Action, Transaction};
-		use util::journaldb;
+		use journaldb;
 		use kvdb_memorydb;
 
 		let genesis = self.genesis_header();
