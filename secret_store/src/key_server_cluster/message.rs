@@ -36,6 +36,8 @@ pub enum Message {
 	Decryption(DecryptionMessage),
 	/// Signing message.
 	Signing(SigningMessage),
+	/// Key version negotiation message.
+	KeyVersionNegotiation(KeyVersionNegotiationMessage),
 	/// Share add message.
 	ShareAdd(ShareAddMessage),
 	/// Share move message.
@@ -44,8 +46,6 @@ pub enum Message {
 	ShareRemove(ShareRemoveMessage),
 	/// Servers set change message.
 	ServersSetChange(ServersSetChangeMessage),
-	/// Key version negotiation message.
-	KeyVersionNegotiation(KeyVersionNegotiationMessage),
 }
 
 /// All possible cluster-level messages.
@@ -176,6 +176,8 @@ pub enum ServersSetChangeMessage {
 	UnknownSessionsRequest(UnknownSessionsRequest),
 	/// Unknown sessions ids.
 	UnknownSessions(UnknownSessions),
+	/// Negotiating key version to use as a base for ShareAdd session.
+	ShareChangeKeyVersionNegotiation(ShareChangeKeyVersionNegotiation),
 	/// Initialize share change session(s).
 	InitializeShareChangeSession(InitializeShareChangeSession),
 	/// Confirm share change session(s) initialization.
@@ -436,6 +438,8 @@ pub struct InitializeConsensusSessionWithServersSet {
 /// Node is asked to be part of servers-set consensus group.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct InitializeConsensusSessionWithServersSecretMap {
+	/// Key version.
+	pub version: SerializableH256,
 	/// Old nodes set.
 	pub old_nodes_set: BTreeSet<MessageNodeId>,
 	/// New nodes set.
@@ -711,6 +715,17 @@ pub struct UnknownSessions {
 	pub unknown_sessions: BTreeSet<MessageSessionId>,
 }
 
+/// Key version negotiation message.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ShareChangeKeyVersionNegotiation {
+	/// Servers set change session Id.
+	pub session: MessageSessionId,
+	/// Session-level nonce.
+	pub session_nonce: u64,
+	/// Key version negotiation message.
+	pub message: KeyVersionNegotiationMessage,
+}
+
 /// Master node opens share initialize session on other nodes.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct InitializeShareChangeSession {
@@ -720,6 +735,8 @@ pub struct InitializeShareChangeSession {
 	pub session_nonce: u64,
 	/// Key id.
 	pub key_id: MessageSessionId,
+	/// Key vesion to use in ShareAdd session.
+	pub version: SerializableH256,
 	/// Master node.
 	pub master_node_id: MessageNodeId,
 	/// Old nodes set.
@@ -1219,6 +1236,7 @@ impl ServersSetChangeMessage {
 			ServersSetChangeMessage::ServersSetChangeConsensusMessage(ref msg) => &msg.session,
 			ServersSetChangeMessage::UnknownSessionsRequest(ref msg) => &msg.session,
 			ServersSetChangeMessage::UnknownSessions(ref msg) => &msg.session,
+			ServersSetChangeMessage::ShareChangeKeyVersionNegotiation(ref msg) => &msg.session,
 			ServersSetChangeMessage::InitializeShareChangeSession(ref msg) => &msg.session,
 			ServersSetChangeMessage::ConfirmShareChangeSessionInitialization(ref msg) => &msg.session,
 			ServersSetChangeMessage::ServersSetChangeDelegate(ref msg) => &msg.session,
@@ -1236,6 +1254,7 @@ impl ServersSetChangeMessage {
 			ServersSetChangeMessage::ServersSetChangeConsensusMessage(ref msg) => msg.session_nonce,
 			ServersSetChangeMessage::UnknownSessionsRequest(ref msg) => msg.session_nonce,
 			ServersSetChangeMessage::UnknownSessions(ref msg) => msg.session_nonce,
+			ServersSetChangeMessage::ShareChangeKeyVersionNegotiation(ref msg) => msg.session_nonce,
 			ServersSetChangeMessage::InitializeShareChangeSession(ref msg) => msg.session_nonce,
 			ServersSetChangeMessage::ConfirmShareChangeSessionInitialization(ref msg) => msg.session_nonce,
 			ServersSetChangeMessage::ServersSetChangeDelegate(ref msg) => msg.session_nonce,
@@ -1462,6 +1481,7 @@ impl fmt::Display for ServersSetChangeMessage {
 			ServersSetChangeMessage::ServersSetChangeConsensusMessage(ref m) => write!(f, "ServersSetChangeConsensusMessage.{}", m.message),
 			ServersSetChangeMessage::UnknownSessionsRequest(_) => write!(f, "UnknownSessionsRequest"),
 			ServersSetChangeMessage::UnknownSessions(_) => write!(f, "UnknownSessions"),
+			ServersSetChangeMessage::ShareChangeKeyVersionNegotiation(ref msg) => write!(f, "ShareChangeKeyVersionNegotiation"),
 			ServersSetChangeMessage::InitializeShareChangeSession(_) => write!(f, "InitializeShareChangeSession"),
 			ServersSetChangeMessage::ConfirmShareChangeSessionInitialization(_) => write!(f, "ConfirmShareChangeSessionInitialization"),
 			ServersSetChangeMessage::ServersSetChangeDelegate(_) => write!(f, "ServersSetChangeDelegate"),

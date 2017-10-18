@@ -16,6 +16,7 @@
 
 use std::sync::Arc;
 use std::collections::{BTreeSet, BTreeMap};
+use bigint::hash::H256;
 use ethkey::Secret;
 use key_server_cluster::{Error, NodeId, SessionId, KeyStorage};
 use key_server_cluster::cluster::Cluster;
@@ -50,6 +51,8 @@ pub struct ShareChangeSession {
 	cluster: Arc<Cluster>,
 	/// Key storage.
 	key_storage: Arc<KeyStorage>,
+	/// Key version.
+	key_version: H256,
 	/// Old nodes set.
 	old_nodes_set: BTreeSet<NodeId>,
 	/// All cluster nodes set.
@@ -73,6 +76,8 @@ pub struct ShareChangeSession {
 /// Share change session plan.
 #[derive(Debug)]
 pub struct ShareChangeSessionPlan {
+	/// Key version that plan is valid for.
+	pub key_version: H256,
 	/// Nodes that are isolated and need to be removed before share addition.
 	pub isolated_nodes: BTreeSet<NodeId>,
 	/// Nodes to add shares for.
@@ -118,6 +123,7 @@ impl ShareChangeSession {
 	/// Create new share change session.
 	pub fn new(params: ShareChangeSessionParams) -> Result<Self, Error> {
 		// we can't create sessions right now, because key share is read when session is created, but it can change in previous session
+		let key_version = params.plan.key_version;
 		let isolated_nodes = if !params.plan.isolated_nodes.is_empty() { Some(params.plan.isolated_nodes) } else { None };
 		let nodes_to_add = if !params.plan.nodes_to_add.is_empty() { Some(params.plan.nodes_to_add) } else { None };
 		let nodes_to_remove = if !params.plan.nodes_to_remove.is_empty() { Some(params.plan.nodes_to_remove) } else { None };
@@ -137,6 +143,7 @@ impl ShareChangeSession {
 			meta: params.meta,
 			cluster: params.cluster,
 			key_storage: params.key_storage,
+			key_version: key_version,
 			old_nodes_set: params.old_nodes_set,
 			cluster_nodes_set: params.cluster_nodes_set,
 			nodes_to_add: nodes_to_add,
@@ -237,7 +244,7 @@ impl ShareChangeSession {
 			key_storage: self.key_storage.clone(),
 			admin_public: None,
 		})?;
-		share_add_session.set_consensus_output(self.old_nodes_set.clone(), new_nodes_set)?;
+		share_add_session.set_consensus_output(&self.key_version, self.old_nodes_set.clone(), new_nodes_set)?;
 		self.share_add_session = Some(share_add_session);
 		Ok(())
 	}
@@ -286,7 +293,7 @@ impl ShareChangeSession {
 			self.create_share_add_session()?;
 			return self.share_add_session.as_ref()
 				.expect("either create_share_add_session fails, or session is created; qed")
-				.initialize(None, None, None);
+				.initialize(None, None, None, None);
 		}
 
 		if self.nodes_to_move.is_some() {
@@ -384,7 +391,10 @@ impl ShareRemoveSessionTransport for ShareChangeTransport {
 }
 
 /// Prepare share change plan for moving from old `session_nodes` to `new_nodes_set`.
-pub fn prepare_share_change_session_plan(cluster_nodes_set: &BTreeSet<NodeId>, session_nodes: &BTreeSet<NodeId>, new_nodes_set: &BTreeSet<NodeId>) -> Result<ShareChangeSessionPlan, Error> {
+// TODO:
+// 1: session_nodes - должны быть все ноды, у которых есть выбранная версия (т.е. версия должна быть выбрана до начала)
+// 2: проверка плана становится возможной только на нодах, у которых есть выбранная версия
+pub fn prepare_share_change_session_plan(key_version: H256, cluster_nodes_set: &BTreeSet<NodeId>, session_nodes: &BTreeSet<NodeId>, new_nodes_set: &BTreeSet<NodeId>) -> Result<ShareChangeSessionPlan, Error> {
 	let mut nodes_to_add: BTreeSet<_> = new_nodes_set.difference(&session_nodes).cloned().collect();
 	let mut nodes_to_move = BTreeMap::new();
 	// isolated nodes are the nodes that are not currently in cluster + that are in new nodes set
@@ -407,6 +417,7 @@ pub fn prepare_share_change_session_plan(cluster_nodes_set: &BTreeSet<NodeId>, s
 	}
 
 	Ok(ShareChangeSessionPlan {
+		key_version: key_version,
 		isolated_nodes: isolated_nodes,
 		nodes_to_add: nodes_to_add.into_iter()
 			.map(|n| math::generate_random_scalar().map(|s| (n, s)))

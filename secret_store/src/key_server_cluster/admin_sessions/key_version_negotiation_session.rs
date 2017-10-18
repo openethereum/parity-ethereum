@@ -181,6 +181,13 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		&self.core.meta
 	}
 
+	/// Return result computer reference.
+	pub fn version_holders(&self, version: &H256) -> Result<BTreeSet<NodeId>, Error> {
+		Ok(self.data.lock().versions.as_ref().ok_or(Error::InvalidStateForRequest)?
+			.get(version).ok_or(Error::KeyStorage("TODO".into()))?
+			.clone())
+	}
+
 	/// Initialize session.
 	pub fn initialize(&self, connected_nodes: BTreeSet<NodeId>) -> Result<(), Error> {
 		// check state
