@@ -294,6 +294,12 @@ impl Miner {
 			false => ServiceTransactionAction::Check(ServiceTransactionChecker::default()),
 		};
 
+		let amended_gas_pricer = match spec.params().wei_per_gas > 0 {
+			// When dynamic pricing is unavailable on current chain, switch to fixed pricing.
+			true => GasPricer::new_fixed(spec.params().wei_per_gas.into()),
+			false => gas_pricer,
+		};
+
 		Miner {
 			transaction_queue: Arc::new(RwLock::new(txq)),
 			next_allowed_reseal: Mutex::new(Instant::now()),
@@ -312,7 +318,7 @@ impl Miner {
 			accounts: accounts,
 			engine: spec.engine.clone(),
 			notifiers: RwLock::new(notifiers),
-			gas_pricer: Mutex::new(gas_pricer),
+			gas_pricer: Mutex::new(amended_gas_pricer),
 			service_transaction_action: service_transaction_action,
 		}
 	}

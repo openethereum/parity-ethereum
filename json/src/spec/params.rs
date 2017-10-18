@@ -117,6 +117,9 @@ pub struct Params {
 	/// Transaction permission contract address.
 	#[serde(rename="transactionPermissionContract")]
 	pub transaction_permission_contract: Option<Address>,
+	/// Wei per gas
+	#[serde(rename="weiPerGas")]
+	pub wei_per_gas: Option<Uint>,
 }
 
 #[cfg(test)]
