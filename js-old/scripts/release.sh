@@ -4,7 +4,7 @@ set -e
 # variables
 UTCDATE=`date -u "+%Y%m%d-%H%M%S"`
 PACKAGES=( "parity" "etherscan" "shapeshift" "jsonrpc" )
-BRANCH=$CI_BUILD_REF_NAME
+BRANCH="v1"
 GIT_JS_PRECOMPILED="https://${GITHUB_JS_PRECOMPILED}:@github.com/paritytech/js-precompiled.git"
 GIT_PARITY="https://${GITHUB_JS_PRECOMPILED}:@github.com/paritytech/parity.git"
 
@@ -57,40 +57,11 @@ setup_git_user
 git remote set-url origin $GIT_PARITY
 git reset --hard origin/$BRANCH 2>$GITLOG
 
-if [ "$BRANCH" == "master" ]; then
-  cd js
-
-  echo "*** Bumping package.json patch version"
-  npm --no-git-tag-version version
-  npm version patch
-
-  echo "*** Building packages for npmjs"
-  echo "$NPM_TOKEN" >> ~/.npmrc
-
-  # build jsonrpc
-  echo "*** Building JSONRPC .json"
-  mkdir -p .npmjs/jsonrpc
-  npm run ci:build:jsonrpc
-
-  for PACKAGE in ${PACKAGES[@]}
-  do
-    echo "*** Building $PACKAGE"
-    LIBRARY=$PACKAGE npm run ci:build:npm
-    DIRECTORY=.npmjs/$PACKAGE
-
-    echo "*** Publishing $PACKAGE from $DIRECTORY"
-    cd $DIRECTORY
-    npm publish --access public || true
-    cd ../..
-  done
-
-  cd ..
-fi
-
-echo "*** Updating cargo parity-ui-precompiled#$PRECOMPILED_HASH"
+echo "*** Updating cargo parity-ui-old-precompiled#$PRECOMPILED_HASH"
 git submodule update
-sed -i "/^parity-ui-precompiled/ { s/branch = \".*\"/branch = \"$BRANCH\"/g; }" dapps/ui/Cargo.toml
-cargo update -p parity-ui-precompiled
+# Not needed since $BRANCH is hardcoded
+# sed -i "/^parity-ui-old-precompiled/ { s/branch = \".*\"/branch = \"$BRANCH\"/g; }" dapps/ui/Cargo.toml
+cargo update -p parity-ui-old-precompiled
 # --precise "$PRECOMPILED_HASH"
 
 echo "*** Committing updated files"

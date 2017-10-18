@@ -5,7 +5,7 @@ set -e
 pushd `dirname $0`
 cd ../../
 
-cargo update -p parity-ui-precompiled
+cargo update -p parity-ui-old-precompiled
 
 popd
 exit 0
