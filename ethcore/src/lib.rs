@@ -131,6 +131,7 @@ extern crate vm;
 extern crate wasm;
 extern crate ethcore_util as util;
 extern crate memory_cache;
+extern crate journaldb;
 
 #[macro_use]
 extern crate macros;

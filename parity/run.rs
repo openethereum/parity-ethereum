@@ -42,7 +42,7 @@ use ansi_term::Colour;
 use util::version;
 use parking_lot::{Condvar, Mutex};
 use node_filter::NodeFilter;
-use util::journaldb::Algorithm;
+use journaldb::Algorithm;
 
 use params::{
 	SpecType, Pruning, AccountsConfig, GasPricerConfig, MinerExtras, Switch,
