@@ -40,6 +40,8 @@ pub trait Session: Send + Sync + 'static {
 
 /// Share addition session transport.
 pub trait SessionTransport: Clone + JobTransport<PartialJobRequest=ServersSetChangeAccessRequest, PartialJobResponse=bool> {
+	/// Get all connected nodes.
+	fn nodes(&self) -> BTreeSet<NodeId>;
 	/// Send message to given node.
 	fn send(&self, node: &NodeId, message: ShareAddMessage) -> Result<(), Error>;
 	/// Set all nodes id numbers (required for consensus messages).
@@ -174,10 +176,6 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		let key_id = params.meta.id.clone();
 		let key_share = params.key_storage.get(&key_id).map_err(|e| Error::KeyStorage(e.into()))?;
 
-		/*TODO: if key_share.as_ref().map(|ks| ks.polynom1.len() != ks.threshold + 1).unwrap_or_default() {
-			return Err(Error::KeyStorage("unsupported key share in storage".into()));
-		}*/
-
 		Ok(SessionImpl {
 			core: SessionCore {
 				meta: params.meta,
@@ -211,7 +209,6 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		if data.state != SessionState::ConsensusEstablishing || data.consensus_session.is_some() || data.nodes.is_some() {
 			return Err(Error::InvalidStateForRequest);
 		}
-
 
 		// check if this node has given version
 		let has_this_version = match self.core.key_share.as_ref() {
@@ -266,60 +263,70 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 			return Err(Error::InvalidStateForRequest);
 		}
 
-		// if consensus is not yet established => start consensus session
+		// if consensus is pre-established => start sending ShareAdd-specific messages
 		let is_consensus_pre_established = data.nodes.is_some();
-		if !is_consensus_pre_established {
-			// TODO: when session is started on the node, which doesn't have share, it must be delegated to another node
-			// this is also true for other sessions (signing, decryption, ...)
-			let version = version.ok_or(Error::InvalidMessage)?;
-			let key_share = self.core.key_share.as_ref().ok_or(Error::KeyStorage("key share is not found on master node".into()))?;
-			let key_version = key_share.version(&version).map_err(|e| Error::KeyStorage(e.into()))?;
-			let new_nodes_set = new_nodes_set.ok_or(Error::InvalidMessage)?;
-			let old_nodes_set: BTreeSet<_> = key_version.id_numbers.keys().cloned().collect();
-			let new_nodes_map = new_nodes_set.iter()
-				.map(|n| key_version.id_numbers.get(n)
-					.cloned()
-					.map(Ok)
-					.unwrap_or_else(|| math::generate_random_scalar())
-					.map(|nn| (n.clone(), Some(nn))))
-				.collect::<Result<BTreeMap<_, _>, _>>()?;
-			check_nodes_set(&old_nodes_set, &new_nodes_map)?;
-
-			let old_set_signature = old_set_signature.ok_or(Error::InvalidMessage)?;
-			let new_set_signature = new_set_signature.ok_or(Error::InvalidMessage)?;
-			let admin_public = self.core.admin_public.clone().ok_or(Error::InvalidMessage)?;
-			let mut consensus_transport = self.core.transport.clone();
-			consensus_transport.set_id_numbers(new_nodes_map.iter()
-				.map(|(k, v)| (k.clone(), v.clone().expect("new_nodes_map is updated above so that every value is_some; qed")))
-				.collect());
-			let mut consensus_session = ConsensusSession::new(ConsensusSessionParams {
-				meta: self.core.meta.clone().into_consensus_meta(new_nodes_set.len())?,
-				consensus_executor: ServersSetChangeAccessJob::new_on_master(admin_public,
-					old_nodes_set.clone(),
-					old_nodes_set.clone(),
-					new_nodes_set.clone(),
-					old_set_signature,
-					new_set_signature),
-				consensus_transport: consensus_transport,
-			})?;
-			consensus_session.initialize(new_nodes_set)?;
-
-			data.version = Some(version);
-			data.consensus_session = Some(consensus_session);
-			data.nodes = Some(new_nodes_map.into_iter()
-				.map(|(n, nn)| (n, NodeData::new(nn, !old_nodes_set.contains(&n))))
-				.collect());
-			return Ok(());
+		if is_consensus_pre_established {
+			return Self::on_consensus_established(&self.core, &mut *data);
 		}
 
-		// otherwise => start sending ShareAdd-specific messages
-		Self::on_consensus_established(&self.core, &mut *data)
+		// else => prepare to start consensus session
+		// require all initialization params for consensus session
+		let version = version.ok_or(Error::InvalidMessage)?;
+		let old_set_signature = old_set_signature.ok_or(Error::InvalidMessage)?;
+		let new_set_signature = new_set_signature.ok_or(Error::InvalidMessage)?;
+		let new_nodes_set = new_nodes_set.ok_or(Error::InvalidMessage)?;
+		let admin_public = self.core.admin_public.as_ref().cloned().ok_or(Error::ConsensusUnreachable)?;
+
+		// key share version is required on ShareAdd master node
+		let key_share = self.core.key_share.as_ref().ok_or(Error::KeyStorage("key share is not found on master node".into()))?;
+		let key_version = key_share.version(&version).map_err(|e| Error::KeyStorage(e.into()))?;
+
+		// prepare new nodes set
+		let cluster_nodes_set = self.core.transport.nodes();
+		let old_nodes_set: BTreeSet<_> = key_version.id_numbers.keys().cloned().collect();
+		let new_active_nodes_set = make_new_active_nodes_set(&cluster_nodes_set, &new_nodes_set, &old_nodes_set)?;
+
+		// generate id number for every node being added
+		let new_nodes_map = new_active_nodes_set.iter()
+			.map(|n| key_version.id_numbers.get(n)
+				.cloned()
+				.map(Ok)
+				.unwrap_or_else(|| math::generate_random_scalar())
+				.map(|nn| (n.clone(), Some(nn))))
+			.collect::<Result<BTreeMap<_, _>, _>>()?;
+		check_nodes_set(&old_nodes_set, &new_nodes_map)?;
+
+		// prepare consensus session transport
+		let mut consensus_transport = self.core.transport.clone();
+		consensus_transport.set_id_numbers(new_nodes_map.iter()
+			.map(|(k, v)| (k.clone(), v.clone().expect("new_nodes_map is updated above so that every value is_some; qed")))
+			.collect());
+
+		// create && initialize consensus session
+		let mut consensus_session = ConsensusSession::new(ConsensusSessionParams {
+			meta: self.core.meta.clone().into_consensus_meta(new_active_nodes_set.len())?,
+			consensus_executor: ServersSetChangeAccessJob::new_on_master(admin_public,
+				old_nodes_set.clone(),
+				new_nodes_set.clone(),
+				old_set_signature,
+				new_set_signature),
+			consensus_transport: consensus_transport,
+		})?;
+		consensus_session.initialize(new_active_nodes_set)?;
+
+		// update data
+		data.version = Some(version);
+		data.consensus_session = Some(consensus_session);
+		data.nodes = Some(new_nodes_map.into_iter()
+			.map(|(n, nn)| (n, NodeData::new(nn, !old_nodes_set.contains(&n))))
+			.collect());
+
+		Ok(())
 	}
 
 	/// Process single message.
 	pub fn process_message(&self, sender: &NodeId, message: &ShareAddMessage) -> Result<(), Error> {
 		if self.core.nonce != message.session_nonce() {
-println!("=== ShareAdd ReplayProtection: {} {}", self.core.nonce, message.session_nonce());
 			return Err(Error::ReplayProtection);
 		}
 
@@ -344,39 +351,39 @@ println!("=== ShareAdd ReplayProtection: {} {}", self.core.nonce, message.sessio
 
 		// start slave consensus session if needed
 		let mut data = self.data.lock();
-		if data.consensus_session.is_none() && sender == &self.core.meta.master_node_id {
-			match &message.message {
-				&ConsensusMessageWithServersSecretMap::InitializeConsensusSession(ref message) => {
-					let admin_public = self.core.admin_public.clone().ok_or(Error::InvalidMessage)?;
-					let current_nodes_set = self.core.key_share.as_ref()
-						.and_then(|ks| ks.version(&message.version.clone().into()).ok())
-						.map(|kv| kv.id_numbers.keys().cloned().collect())
-						.unwrap_or_else(|| message.old_nodes_set.clone().into_iter().map(Into::into).collect());
+		match &message.message {
+			&ConsensusMessageWithServersSecretMap::InitializeConsensusSession(ref message)
+				if data.consensus_session.is_none() && sender == &self.core.meta.master_node_id => {
+					let admin_public = self.core.admin_public.as_ref().cloned().ok_or(Error::ConsensusUnreachable)?;
 					data.consensus_session = Some(ConsensusSession::new(ConsensusSessionParams {
 						meta: self.core.meta.clone().into_consensus_meta(message.new_nodes_set.len())?,
-						consensus_executor: ServersSetChangeAccessJob::new_on_slave(admin_public, current_nodes_set),
+						consensus_executor: ServersSetChangeAccessJob::new_on_slave(admin_public),
 						consensus_transport: self.core.transport.clone(),
 					})?);
 				},
-				_ => return Err(Error::InvalidStateForRequest),
-			}
-		}
+			_ => (),
+		};
 
+		// process consensus message
 		let (is_establishing_consensus, is_consensus_established, new_nodes_set, version) = {
 			let consensus_session = data.consensus_session.as_mut().ok_or(Error::InvalidMessage)?;
 			let is_establishing_consensus = consensus_session.state() == ConsensusSessionState::EstablishingConsensus;
+
 			let (new_nodes_set, version) = match &message.message {
 				&ConsensusMessageWithServersSecretMap::InitializeConsensusSession(ref message) => {
 					consensus_session.on_consensus_partial_request(sender, ServersSetChangeAccessRequest::from(message))?;
+
 					let new_nodes_set = message.new_nodes_set.iter()
 						.map(|(n, nn)| (n.clone().into(), Some(nn.clone().into())))
 						.collect();
-					// check nodes set on old nodes
+
+					// check old set of nodes
 					if let Some(key_share) = self.core.key_share.as_ref() {
 						if let Ok(key_version) = key_share.version(&message.version.clone().into()) {
 							check_nodes_set(&key_version.id_numbers.keys().cloned().collect(), &new_nodes_set)?;
 						}
 					}
+
 					(Some(new_nodes_set.into_iter()
 						.map(|(n, nn)| (n, NodeData::new(nn, !message.old_nodes_set.contains(&n.clone().into()))))
 						.collect()), Some(message.version.clone().into()))
@@ -865,6 +872,10 @@ impl JobTransport for IsolatedSessionTransport {
 }
 
 impl SessionTransport for IsolatedSessionTransport {
+	fn nodes(&self) -> BTreeSet<NodeId> {
+		self.cluster.nodes()
+	}
+
 	fn set_id_numbers(&mut self, id_numbers: BTreeMap<NodeId, Secret>) {
 		self.id_numbers = Some(id_numbers);
 	}
@@ -874,11 +885,32 @@ impl SessionTransport for IsolatedSessionTransport {
 	}
 }
 
+fn make_new_active_nodes_set(cluster_nodes_set: &BTreeSet<NodeId>, new_nodes_set: &BTreeSet<NodeId>, old_nodes_set: &BTreeSet<NodeId>) -> Result<BTreeSet<NodeId>, Error> {
+	// update new_nodes_set && old_nodes_set so that:
+	// 1) we do not require confirmations from isolated nodes
+	// 2) share won't get updated on isolated nodes
+println!("=== cluster_nodes_set = {:?}", cluster_nodes_set);
+println!("=== new_nodes_set = {:?}", new_nodes_set);
+println!("=== old_nodes_set = {:?}", old_nodes_set);
+	let mut new_active_nodes_set = BTreeSet::new();
+	for new_node in new_nodes_set {
+		let is_isolated_node = !cluster_nodes_set.contains(new_node);
+		if is_isolated_node && !old_nodes_set.contains(new_node) {
+			return Err(Error::ConsensusUnreachable);
+		}
+
+		new_active_nodes_set.insert(new_node.clone());
+	}
+
+	Ok(new_active_nodes_set)
+}
+
 fn check_nodes_set(old_nodes_set: &BTreeSet<NodeId>, new_nodes_set: &BTreeMap<NodeId, Option<Secret>>) -> Result<(), Error> {
 	// it is impossible to remove nodes using share add session
 	if old_nodes_set.iter().any(|n| !new_nodes_set.contains_key(n)) {
 		return Err(Error::InvalidNodesConfiguration);
 	}
+
 	// it is impossible to not to add any nodes using share add session
 	if new_nodes_set.len() == old_nodes_set.len() {
 		return Err(Error::InvalidNodesConfiguration);
@@ -958,7 +990,8 @@ pub mod tests {
 		}).unwrap()
 	}
 
-	fn create_node(meta: ShareChangeSessionMeta, admin_public: Public, node: GenerationNode) -> Node {
+	fn create_node(meta: ShareChangeSessionMeta, admin_public: Public, node: GenerationNode, added_nodes: &BTreeSet<NodeId>) -> Node {
+		node.cluster.add_nodes(added_nodes.iter().cloned());
 		Node {
 			cluster: node.cluster.clone(),
 			key_storage: node.key_storage.clone(),
@@ -1026,7 +1059,7 @@ pub mod tests {
 						session: new_node_session,
 					}
 				});
-			let old_nodes = gml.nodes.into_iter().map(|gn| create_node(meta.clone(), admin_public.clone(), gn.1));
+			let old_nodes = gml.nodes.into_iter().map(|gn| create_node(meta.clone(), admin_public.clone(), gn.1, &new_nodes_set));
 			let nodes = old_nodes.chain(new_nodes).map(|n| (n.session.core.meta.self_node_id.clone(), n)).collect();
 
 			let old_set_signature = sign(admin_key_pair.secret(), &ordered_nodes_hash(&old_nodes_set)).unwrap();

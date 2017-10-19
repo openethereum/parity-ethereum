@@ -28,7 +28,6 @@ use key_server_cluster::message::{Message, ServersSetChangeMessage,
 	ConsensusMessageWithServersSet, InitializeConsensusSessionWithServersSet,
 	ServersSetChangeConsensusMessage, ConfirmConsensusInitialization, UnknownSessionsRequest, UnknownSessions,
 	ServersSetChangeShareAddMessage, ServersSetChangeError, ServersSetChangeCompleted,
-	ServersSetChangeShareMoveMessage, ServersSetChangeShareRemoveMessage,
 	ServersSetChangeDelegate, ServersSetChangeDelegateResponse, InitializeShareChangeSession,
 	ConfirmShareChangeSessionInitialization, KeyVersionNegotiationMessage, ShareChangeKeyVersionNegotiation};
 use key_server_cluster::share_change_session::{ShareChangeSession, ShareChangeSessionParams, ShareChangeSessionPlan,
@@ -226,7 +225,6 @@ impl SessionImpl {
 			meta: self.core.meta.clone().into_consensus_meta(self.core.all_nodes_set.len())?,
 			consensus_executor: ServersSetChangeAccessJob::new_on_master(self.core.admin_public.clone(),
 				self.core.all_nodes_set.clone(),
-				self.core.all_nodes_set.clone(),
 				new_nodes_set.clone(),
 				all_set_signature,
 				new_set_signature),
@@ -248,7 +246,6 @@ impl SessionImpl {
 	/// Process servers set change message.
 	pub fn process_message(&self, sender: &NodeId, message: &ServersSetChangeMessage) -> Result<(), Error> {
 		if self.core.nonce != message.session_nonce() {
-println!("=== ServersSetChange ReplayProtection: {} {}", self.core.nonce, message.session_nonce());
 			return Err(Error::ReplayProtection);
 		}
 
@@ -271,10 +268,6 @@ println!("=== ServersSetChange ReplayProtection: {} {}", self.core.nonce, messag
 				self.on_delegated_session_completed(sender, message),
 			&ServersSetChangeMessage::ServersSetChangeShareAddMessage(ref message) =>
 				self.on_share_add_message(sender, message),
-			&ServersSetChangeMessage::ServersSetChangeShareMoveMessage(ref message) =>
-				self.on_share_move_message(sender, message),
-			&ServersSetChangeMessage::ServersSetChangeShareRemoveMessage(ref message) =>
-				self.on_share_remove_message(sender, message),
 			&ServersSetChangeMessage::ServersSetChangeError(ref message) =>
 				self.on_session_error(sender, message),
 			&ServersSetChangeMessage::ServersSetChangeCompleted(ref message) => 
@@ -299,9 +292,7 @@ println!("=== ServersSetChange ReplayProtection: {} {}", self.core.nonce, messag
 					&ConsensusMessageWithServersSet::InitializeConsensusSession(_) => {
 						data.consensus_session = Some(ConsensusSession::new(ConsensusSessionParams {
 							meta: self.core.meta.clone().into_consensus_meta(self.core.all_nodes_set.len())?,
-							consensus_executor: ServersSetChangeAccessJob::new_on_slave(self.core.admin_public.clone(),
-								self.core.all_nodes_set.clone(),
-							),
+							consensus_executor: ServersSetChangeAccessJob::new_on_slave(self.core.admin_public.clone()),
 							consensus_transport: ServersSetChangeConsensusTransport {
 								id: self.core.meta.id.clone(),
 								nonce: self.core.nonce,
@@ -474,9 +465,7 @@ println!("=== ServersSetChange ReplayProtection: {} {}", self.core.nonce, messag
 			false => {
 				let master_plan = ShareChangeSessionPlan {
 					key_version: message.version.clone().into(),
-					isolated_nodes: message.isolated_nodes.iter().cloned().map(Into::into).collect(),
 					nodes_to_add: message.shares_to_add.iter().map(|(k, v)| (k.clone().into(), v.clone().into())).collect(),
-					nodes_to_move: message.shares_to_move.iter().map(|(k, v)| (k.clone().into(), v.clone().into())).collect(),
 					nodes_to_remove: message.shares_to_remove.iter().cloned().map(Into::into).collect(),
 				};
 
@@ -496,7 +485,6 @@ println!("=== ServersSetChange ReplayProtection: {} {}", self.core.nonce, messag
 					if local_plan.isolated_nodes != master_plan.isolated_nodes
 						|| local_plan.nodes_to_add.keys().any(|n| !local_plan.nodes_to_add.contains_key(n))
 						|| local_plan.nodes_to_add.keys().any(|n| !master_plan.nodes_to_add.contains_key(n))
-						|| local_plan.nodes_to_move != master_plan.nodes_to_move
 						|| local_plan.nodes_to_remove != master_plan.nodes_to_remove {
 						return Err(Error::InvalidMessage);
 					}
@@ -631,18 +619,6 @@ println!("=== ServersSetChange ReplayProtection: {} {}", self.core.nonce, messag
 	pub fn on_share_add_message(&self, sender: &NodeId, message: &ServersSetChangeShareAddMessage) -> Result<(), Error> {
 		self.on_share_change_message(message.message.session_id().clone().into(), |session|
 			session.on_share_add_message(sender, &message.message))
-	}
-
-	/// When share move message is received.
-	pub fn on_share_move_message(&self, sender: &NodeId, message: &ServersSetChangeShareMoveMessage) -> Result<(), Error> {
-		self.on_share_change_message(message.message.session_id().clone().into(), |session|
-			session.on_share_move_message(sender, &message.message))
-	}
-
-	/// When share remove message is received.
-	pub fn on_share_remove_message(&self, sender: &NodeId, message: &ServersSetChangeShareRemoveMessage) -> Result<(), Error> {
-		self.on_share_change_message(message.message.session_id().clone().into(), |session|
-			session.on_share_remove_message(sender, &message.message))
 	}
 
 	/// When error has occured on another node.
@@ -811,7 +787,6 @@ println!("=== ServersSetChange ReplayProtection: {} {}", self.core.nonce, messag
 		// send key session initialization requests
 		let mut confirmations: BTreeSet<_> = old_nodes_set.iter().cloned()
 			.chain(session_plan.nodes_to_add.keys().cloned())
-			.chain(session_plan.nodes_to_move.keys().cloned())
 			.filter(|n| core.all_nodes_set.contains(n))
 			.collect();
 		let need_create_session = confirmations.remove(&core.meta.self_node_id);
@@ -822,12 +797,8 @@ println!("=== ServersSetChange ReplayProtection: {} {}", self.core.nonce, messag
 			version: selected_version.into(),
 			master_node_id: selected_master.clone().into(),
 			old_shares_set: old_nodes_set.iter().cloned().map(Into::into).collect(),
-			isolated_nodes: session_plan.isolated_nodes.iter().cloned().map(Into::into).collect(),
 			shares_to_add: session_plan.nodes_to_add.iter()
 				.map(|(n, nid)| (n.clone().into(), nid.clone().into()))
-				.collect(),
-			shares_to_move: session_plan.nodes_to_move.iter()
-				.map(|(source, target)| (source.clone().into(), target.clone().into()))
 				.collect(),
 			shares_to_remove: session_plan.nodes_to_remove.iter().cloned().map(Into::into).collect(),
 		}));
@@ -1228,7 +1199,7 @@ pub mod tests {
 		assert!(ml.nodes.values().all(|n| n.session.is_finished()));
 	}
 
-	#[test]
+	/*#[test]
 	fn node_moved_using_servers_set_change() {
 		// initial 2-of-3 session
 		let gml = generate_key(1, generate_nodes_ids(3));
@@ -1305,5 +1276,5 @@ pub mod tests {
 
 		// check that all sessions have finished
 		assert!(ml.nodes.iter().filter(|&(k, _)| !nodes_to_isolate.contains(k)).all(|(_, v)| v.session.is_finished()));
-	}
+	}*/
 }

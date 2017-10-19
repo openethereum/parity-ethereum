@@ -258,7 +258,7 @@ impl SessionImpl {
 		data.version = Some(version.clone());
 		data.message_hash = Some(message_hash);
 		data.consensus_session.initialize(key_version.id_numbers.keys().cloned().chain(::std::iter::once(self.core.meta.self_node_id.clone())).collect())?;
-println!("=== 2");
+
 		if data.consensus_session.state() == ConsensusSessionState::ConsensusEstablished {
 			let generation_session = GenerationSession::new(GenerationSessionParams {
 				id: self.core.meta.id.clone(),
@@ -325,7 +325,6 @@ println!("=== 2");
 		{
 			let mut data = self.data.lock();
 			if data.consensus_session.state() != ConsensusSessionState::WaitingForInitialization || data.delegation_status.is_some() {
-println!("=== 1");
 				return Err(Error::InvalidStateForRequest);
 			}
 

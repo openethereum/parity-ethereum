@@ -178,8 +178,6 @@ pub use self::admin_sessions::key_version_negotiation_session;
 pub use self::admin_sessions::servers_set_change_session;
 pub use self::admin_sessions::share_add_session;
 pub use self::admin_sessions::share_change_session;
-pub use self::admin_sessions::share_move_session;
-pub use self::admin_sessions::share_remove_session;
 
 pub use self::client_sessions::decryption_session;
 pub use self::client_sessions::encryption_session;

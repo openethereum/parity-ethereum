@@ -36,7 +36,7 @@ use key_server_cluster::cluster_sessions::{ClusterSession, ClusterSessions, Gene
 	DecryptionSessionWrapper, SigningSessionWrapper, AdminSessionWrapper, KeyNegotiationSessionWrapper, SessionIdWithSubSession,
 	ClusterSessionCreator, IntoSessionId, ClusterSessionsContainer};
 use key_server_cluster::message::{self, Message, ClusterMessage, GenerationMessage, EncryptionMessage, DecryptionMessage,
-	SigningMessage, ServersSetChangeMessage, ConsensusMessage, ShareAddMessage, ShareMoveMessage, ShareRemoveMessage,
+	SigningMessage, ServersSetChangeMessage, ConsensusMessage, ShareAddMessage,
 	ConsensusMessageWithServersSecretMap, ConsensusMessageWithServersMap, ConsensusMessageWithServersSet};
 use key_server_cluster::generation_session::{Session as GenerationSession, SessionState as GenerationSessionState};
 #[cfg(test)]
@@ -451,10 +451,6 @@ impl ClusterCore {
 			},
 			Message::ShareAdd(message) => Self::process_message(&data, &data.sessions.admin_sessions, connection, Message::ShareAdd(message))
 				.map(|_| ()).unwrap_or_default(),
-			Message::ShareMove(message) => Self::process_message(&data, &data.sessions.admin_sessions, connection, Message::ShareMove(message))
-				.map(|_| ()).unwrap_or_default(),
-			Message::ShareRemove(message) => Self::process_message(&data, &data.sessions.admin_sessions, connection, Message::ShareRemove(message))
-				.map(|_| ()).unwrap_or_default(),
 			Message::Cluster(message) => ClusterCore::process_cluster_message(data, connection, message),
 		}
 	}
@@ -494,6 +490,8 @@ impl ClusterCore {
 		fn requires_all_connections(message: &Message) -> bool {
 			match *message {
 				Message::Generation(_) => true,
+				Message::ShareAdd(_) => true,
+				Message::ServersSetChange(_) => true,
 				_ => false,
 			}
 		}
@@ -1057,6 +1055,10 @@ pub mod tests {
 
 		pub fn add_node(&self, node: NodeId) {
 			self.data.lock().nodes.push(node);
+		}
+
+		pub fn add_nodes<I: Iterator<Item=NodeId>>(&self, nodes: I) {
+			self.data.lock().nodes.extend(nodes)
 		}
 
 		pub fn remove_node(&self, node: &NodeId) {

@@ -24,7 +24,7 @@ use ethkey::{Public, Secret, Signature};
 use key_server_cluster::{Error, NodeId, SessionId, AclStorage, KeyStorage, DocumentKeyShare, EncryptedDocumentKeyShadow, SessionMeta};
 use key_server_cluster::cluster::{Cluster, ClusterData, ClusterConfiguration, ClusterView};
 use key_server_cluster::message::{self, Message, GenerationMessage, EncryptionMessage, DecryptionMessage, SigningMessage,
-	ShareAddMessage, ShareMoveMessage, ShareRemoveMessage, ServersSetChangeMessage, KeyVersionNegotiationMessage};
+	ShareAddMessage, ServersSetChangeMessage, KeyVersionNegotiationMessage};
 use key_server_cluster::generation_session::{Session as GenerationSession, SessionImpl as GenerationSessionImpl,
 	SessionParams as GenerationSessionParams, SessionState as GenerationSessionState};
 use key_server_cluster::decryption_session::{Session as DecryptionSession, SessionImpl as DecryptionSessionImpl,
@@ -35,10 +35,6 @@ use key_server_cluster::signing_session::{Session as SigningSession, SessionImpl
 	SessionParams as SigningSessionParams};
 use key_server_cluster::share_add_session::{Session as ShareAddSession, SessionImpl as ShareAddSessionImpl,
 	SessionParams as ShareAddSessionParams, IsolatedSessionTransport as ShareAddTransport};
-use key_server_cluster::share_move_session::{Session as ShareMoveSession, SessionImpl as ShareMoveSessionImpl,
-	SessionParams as ShareMoveSessionParams, IsolatedSessionTransport as ShareMoveTransport};
-use key_server_cluster::share_remove_session::{Session as ShareRemoveSession, SessionImpl as ShareRemoveSessionImpl,
-	SessionParams as ShareRemoveSessionParams, IsolatedSessionTransport as ShareRemoveTransport};
 use key_server_cluster::servers_set_change_session::{Session as ServersSetChangeSession, SessionImpl as ServersSetChangeSessionImpl,
 	SessionParams as ServersSetChangeSessionParams};
 use key_server_cluster::key_version_negotiation_session::{Session as KeyVersionNegotiationSession, SessionImpl as KeyVersionNegotiationSessionImpl,
@@ -113,10 +109,6 @@ pub trait IntoSessionId<K> {
 pub enum AdminSession {
 	/// Share add session.
 	ShareAdd(ShareAddSessionImpl<ShareAddTransport>),
-	/// Share move session.
-	ShareMove(ShareMoveSessionImpl<ShareMoveTransport>),
-	/// Share remove session.
-	ShareRemove(ShareRemoveSessionImpl<ShareRemoveTransport>),
 	/// Servers set change session.
 	ServersSetChange(ServersSetChangeSessionImpl),
 }
@@ -790,20 +782,6 @@ impl AdminSession {
 		}
 	}
 
-	pub fn as_share_move(&self) -> Option<&ShareMoveSessionImpl<ShareMoveTransport>> {
-		match *self {
-			AdminSession::ShareMove(ref session) => Some(session),
-			_ => None
-		}
-	}
-
-	pub fn as_share_remove(&self) -> Option<&ShareRemoveSessionImpl<ShareRemoveTransport>> {
-		match *self {
-			AdminSession::ShareRemove(ref session) => Some(session),
-			_ => None
-		}
-	}
-
 	pub fn as_servers_set_change(&self) -> Option<&ServersSetChangeSessionImpl> {
 		match *self {
 			AdminSession::ServersSetChange(ref session) => Some(session),
@@ -818,8 +796,6 @@ impl ClusterSession for AdminSession {
 	fn id(&self) -> SessionId {
 		match *self {
 			AdminSession::ShareAdd(ref session) => session.id().clone(),
-			AdminSession::ShareMove(ref session) => session.id().clone(),
-			AdminSession::ShareRemove(ref session) => session.id().clone(),
 			AdminSession::ServersSetChange(ref session) => session.id().clone(),
 		}
 	}
@@ -827,8 +803,6 @@ impl ClusterSession for AdminSession {
 	fn is_finished(&self) -> bool {
 		match *self {
 			AdminSession::ShareAdd(ref session) => session.is_finished(),
-			AdminSession::ShareMove(ref session) => session.is_finished(),
-			AdminSession::ShareRemove(ref session) => session.is_finished(),
 			AdminSession::ServersSetChange(ref session) => session.is_finished(),
 		}
 	}
@@ -836,8 +810,6 @@ impl ClusterSession for AdminSession {
 	fn on_session_timeout(&self) {
 		match *self {
 			AdminSession::ShareAdd(ref session) => session.on_session_timeout(),
-			AdminSession::ShareMove(ref session) => session.on_session_timeout(),
-			AdminSession::ShareRemove(ref session) => session.on_session_timeout(),
 			AdminSession::ServersSetChange(ref session) => session.on_session_timeout(),
 		}
 	}
@@ -845,8 +817,6 @@ impl ClusterSession for AdminSession {
 	fn on_node_timeout(&self, node_id: &NodeId) {
 		match *self {
 			AdminSession::ShareAdd(ref session) => session.on_node_timeout(node_id),
-			AdminSession::ShareMove(ref session) => session.on_node_timeout(node_id),
-			AdminSession::ShareRemove(ref session) => session.on_node_timeout(node_id),
 			AdminSession::ServersSetChange(ref session) => session.on_node_timeout(node_id),
 		}
 	}
@@ -987,24 +957,6 @@ impl ShareAddSession for AdminSessionWrapper {
 	}
 }
 
-impl ShareMoveSession for AdminSessionWrapper {
-	fn wait(&self) -> Result<(), Error> {
-		match *self.session {
-			AdminSession::ShareMove(ref session) => session.wait(),
-			_ => Err(Error::InvalidMessage),
-		}
-	}
-}
-
-impl ShareRemoveSession for AdminSessionWrapper {
-	fn wait(&self) -> Result<(), Error> {
-		match *self.session {
-			AdminSession::ShareRemove(ref session) => session.wait(),
-			_ => Err(Error::InvalidMessage),
-		}
-	}
-}
-
 impl ServersSetChangeSession for AdminSessionWrapper {
 	fn wait(&self) -> Result<(), Error> {
 		match *self.session {
@@ -1044,8 +996,6 @@ impl IntoSessionId<SessionId> for Message {
 			Message::Signing(_) => Err(Error::InvalidMessage),
 			Message::ServersSetChange(ref message) => Ok(message.session_id().clone()),
 			Message::ShareAdd(ref message) => Ok(message.session_id().clone()),
-			Message::ShareMove(ref message) => Ok(message.session_id().clone()),
-			Message::ShareRemove(ref message) => Ok(message.session_id().clone()),
 			Message::KeyVersionNegotiation(_) => Err(Error::InvalidMessage),
 			Message::Cluster(_) => Err(Error::InvalidMessage),
 		}
@@ -1061,8 +1011,6 @@ impl IntoSessionId<SessionIdWithSubSession> for Message {
 			Message::Signing(ref message) => Ok(SessionIdWithSubSession::new(message.session_id().clone(), message.sub_session_id().clone())),
 			Message::ServersSetChange(_) => Err(Error::InvalidMessage),
 			Message::ShareAdd(_) => Err(Error::InvalidMessage),
-			Message::ShareMove(_) => Err(Error::InvalidMessage),
-			Message::ShareRemove(_) => Err(Error::InvalidMessage),
 			Message::KeyVersionNegotiation(ref message) => Ok(SessionIdWithSubSession::new(message.session_id().clone(), message.sub_session_id().clone())),
 			Message::Cluster(_) => Err(Error::InvalidMessage),
 		}
