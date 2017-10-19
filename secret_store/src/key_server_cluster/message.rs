@@ -1481,7 +1481,7 @@ impl fmt::Display for ServersSetChangeMessage {
 			ServersSetChangeMessage::ServersSetChangeConsensusMessage(ref m) => write!(f, "ServersSetChangeConsensusMessage.{}", m.message),
 			ServersSetChangeMessage::UnknownSessionsRequest(_) => write!(f, "UnknownSessionsRequest"),
 			ServersSetChangeMessage::UnknownSessions(_) => write!(f, "UnknownSessions"),
-			ServersSetChangeMessage::ShareChangeKeyVersionNegotiation(ref msg) => write!(f, "ShareChangeKeyVersionNegotiation"),
+			ServersSetChangeMessage::ShareChangeKeyVersionNegotiation(ref m) => write!(f, "ShareChangeKeyVersionNegotiation.{}", m.message),
 			ServersSetChangeMessage::InitializeShareChangeSession(_) => write!(f, "InitializeShareChangeSession"),
 			ServersSetChangeMessage::ConfirmShareChangeSessionInitialization(_) => write!(f, "ConfirmShareChangeSessionInitialization"),
 			ServersSetChangeMessage::ServersSetChangeDelegate(_) => write!(f, "ServersSetChangeDelegate"),

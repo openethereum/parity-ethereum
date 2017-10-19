@@ -247,6 +247,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		}
 
 		check_nodes_set(&old_nodes_set, &new_nodes_set)?;
+		data.version = Some(version.clone());
 		data.nodes = Some(new_nodes_set.into_iter()
 			.map(|(n, nn)| (n, NodeData::new(nn, !old_nodes_set.contains(&n))))
 			.collect());
@@ -303,6 +304,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 			})?;
 			consensus_session.initialize(new_nodes_set)?;
 
+			data.version = Some(version);
 			data.consensus_session = Some(consensus_session);
 			data.nodes = Some(new_nodes_map.into_iter()
 				.map(|(n, nn)| (n, NodeData::new(nn, !old_nodes_set.contains(&n))))
@@ -317,6 +319,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 	/// Process single message.
 	pub fn process_message(&self, sender: &NodeId, message: &ShareAddMessage) -> Result<(), Error> {
 		if self.core.nonce != message.session_nonce() {
+println!("=== ShareAdd ReplayProtection: {} {}", self.core.nonce, message.session_nonce());
 			return Err(Error::ReplayProtection);
 		}
 
@@ -391,6 +394,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 				version,
 			)
 		};
+
 		if let Some(version) = version {
 			data.version = Some(version);
 		}
@@ -943,9 +947,11 @@ pub mod tests {
 	fn create_session(mut meta: ShareChangeSessionMeta, admin_public: Public, self_node_id: NodeId, cluster: Arc<Cluster>, key_storage: Arc<KeyStorage>) -> SessionImpl<IsolatedSessionTransport> {
 		let session_id = meta.id.clone();
 		meta.self_node_id = self_node_id;
+		let key_version = key_storage.get(&session_id).unwrap().map(|ks| ks.versions.iter().last().unwrap().hash.clone());
+
 		SessionImpl::new(SessionParams {
 			meta: meta.clone(),
-			transport: IsolatedSessionTransport::new(session_id, None, 1, cluster),
+			transport: IsolatedSessionTransport::new(session_id, key_version, 1, cluster),
 			key_storage: key_storage,
 			admin_public: Some(admin_public),
 			nonce: 1,

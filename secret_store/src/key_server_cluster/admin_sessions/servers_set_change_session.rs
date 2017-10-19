@@ -248,6 +248,7 @@ impl SessionImpl {
 	/// Process servers set change message.
 	pub fn process_message(&self, sender: &NodeId, message: &ServersSetChangeMessage) -> Result<(), Error> {
 		if self.core.nonce != message.session_nonce() {
+println!("=== ServersSetChange ReplayProtection: {} {}", self.core.nonce, message.session_nonce());
 			return Err(Error::ReplayProtection);
 		}
 
@@ -395,7 +396,59 @@ impl SessionImpl {
 
 	/// When key version negotiation message is received.
 	pub fn on_key_version_negotiation(&self, sender: &NodeId, message: &ShareChangeKeyVersionNegotiation) -> Result<(), Error> {
-		unimplemented!()
+		debug_assert!(self.core.meta.id == *message.session);
+		debug_assert!(sender != &self.core.meta.self_node_id);
+
+		// check state
+		let mut data = self.data.lock();
+		if data.state != SessionState::RunningShareChangeSessions {
+			return Err(Error::InvalidStateForRequest);
+		}
+
+		// process message
+		match &message.message {
+			&KeyVersionNegotiationMessage::RequestKeyVersions(ref message) if sender == &self.core.meta.master_node_id => {
+				let key_id = message.session.clone().into();
+				let key_share = self.core.key_storage.get(&key_id).map_err(|e| Error::KeyStorage(e.into()))?;
+				let negotiation_session = KeyVersionNegotiationSessionImpl::new(KeyVersionNegotiationSessionParams {
+					meta: ShareChangeSessionMeta {
+						id: key_id.clone(),
+						self_node_id: self.core.meta.self_node_id.clone(),
+						master_node_id: sender.clone(),
+					},
+					sub_session: message.sub_session.clone().into(),
+					key_share: key_share,
+					result_computer: Arc::new(LargestSupportResultComputer {}),
+					transport: ServersSetChangeKeyVersionNegotiationTransport {
+						id: key_id,
+						nonce: self.core.nonce,
+						cluster: self.core.cluster.clone(),
+					},
+					nonce: message.session_nonce,
+				});
+				negotiation_session.on_key_versions_request(sender, message)?;
+				debug_assert!(negotiation_session.is_finished());
+				Ok(())
+			},
+			&KeyVersionNegotiationMessage::KeyVersions(ref message) if self.core.meta.self_node_id == self.core.meta.master_node_id => {
+				let key_id = message.session.clone().into();
+				{
+					let negotiation_session = data.negotiation_sessions.get(&key_id).ok_or(Error::InvalidMessage)?;
+					negotiation_session.on_key_versions(sender, message)?;
+					if !negotiation_session.is_finished() {
+						return Ok(());
+					}
+				}
+
+				// else prepare plan && start share change session
+				if !Self::initialize_share_change_session(&self.core, &mut *data, key_id)? {
+					Self::disseminate_session_initialization_requests(&self.core, &mut *data)?;
+				}
+
+				Ok(())
+			},
+			_ => Err(Error::InvalidMessage),
+		}
 	}
 
 	/// When share change session initialization is requested.
@@ -702,7 +755,7 @@ impl SessionImpl {
 					result_computer: Arc::new(LargestSupportResultComputer {}),
 					transport: ServersSetChangeKeyVersionNegotiationTransport {
 						id: key_id,
-						nonce: 0,
+						nonce: core.nonce,
 						cluster: core.cluster.clone(),
 					},
 					nonce: 0,
@@ -729,7 +782,9 @@ impl SessionImpl {
 		// iteration is finished => complete session
 		if data.state != SessionState::Finished {
 			data.sessions_queue = None;
-			if data.active_key_sessions.len() == 0 && data.delegated_key_sessions.len() == 0 {
+			if data.active_key_sessions.len() == 0 &&
+				data.delegated_key_sessions.len() == 0 &&
+				data.negotiation_sessions.len() == 0 {
 				Self::complete_session(core, data)?;
 			}
 		}
