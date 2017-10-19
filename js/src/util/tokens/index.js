@@ -55,9 +55,14 @@ export function fetchTokensBasics (api, tokenReg, start = 0, limit = 100) {
   return api.eth
     .call({ data: tokenAddressesBytcode + tokenAddressesCallData })
     .then((result) => {
-      const tokenAddresses = decodeArray(api, 'address[]', result);
-
+      return decodeArray(api, 'address[]', result);
+    })
+    .then((tokenAddresses) => {
       return tokenAddresses.map((tokenAddress, index) => {
+        if (/^0x0*$/.test(tokenAddress)) {
+          return null;
+        }
+
         const tokenIndex = start + index;
 
         return {
@@ -68,6 +73,17 @@ export function fetchTokensBasics (api, tokenReg, start = 0, limit = 100) {
           fetched: false
         };
       });
+    })
+    .then((tokens) => tokens.filter((token) => token))
+    .then((tokens) => {
+      const randomAddress = sha3(`${Date.now()}`).substr(0, 42);
+
+      return fetchTokensBalances(api, tokens, [randomAddress])
+        .then((_balances) => {
+          const balances = _balances[randomAddress];
+
+          return tokens.filter(({ id }) => balances[id].eq(0));
+        });
     });
 }
 

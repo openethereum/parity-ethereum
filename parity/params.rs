@@ -18,7 +18,7 @@ use std::{str, fs, fmt};
 use std::time::Duration;
 use bigint::prelude::U256;
 use util::{Address, version_data};
-use util::journaldb::Algorithm;
+use journaldb::Algorithm;
 use ethcore::spec::{Spec, SpecParams};
 use ethcore::ethereum;
 use ethcore::client::Mode;
@@ -326,7 +326,7 @@ pub fn mode_switch_to_bool(switch: Option<Mode>, user_defaults: &UserDefaults) -
 
 #[cfg(test)]
 mod tests {
-	use util::journaldb::Algorithm;
+	use journaldb::Algorithm;
 	use user_defaults::UserDefaults;
 	use super::{SpecType, Pruning, ResealPolicy, Switch, tracing_switch_to_bool};
 

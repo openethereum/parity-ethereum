@@ -11,8 +11,8 @@ default = ["with-syntex"]
 with-syntex = ["parity-dapps-glue/with-syntex"]
 
 [build-dependencies]
-parity-dapps-glue = "1.8"
+parity-dapps-glue = "1.9"
 
 [dependencies]
-parity-dapps-glue = "1.8"
+parity-dapps-glue = "1.9"
 

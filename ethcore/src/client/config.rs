@@ -20,7 +20,7 @@ use std::fmt::{Display, Formatter, Error as FmtError};
 
 use mode::Mode as IpcMode;
 use verification::{VerifierType, QueueConfig};
-use util::journaldb;
+use journaldb;
 use kvdb_rocksdb::CompactionProfile;
 
 pub use std::time::Duration;
