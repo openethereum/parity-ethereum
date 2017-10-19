@@ -22,20 +22,20 @@ pub mod block_import;
 pub mod dapps;
 pub mod dispatch;
 pub mod fake_sign;
-pub mod light_fetch;
-pub mod oneshot;
 pub mod ipfs;
+pub mod light_fetch;
+pub mod nonce;
+pub mod oneshot;
 pub mod secretstore;
 
 mod network_settings;
-mod poll_manager;
 mod poll_filter;
+mod poll_manager;
 mod requests;
 mod signer;
 mod signing_queue;
 mod subscribers;
 mod subscription_manager;
-mod nonce;
 
 pub use self::dispatch::{Dispatcher, FullDispatcher};
 pub use self::network_settings::NetworkSettings;

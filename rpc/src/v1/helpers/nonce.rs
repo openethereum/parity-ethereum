@@ -1,4 +1,4 @@
-// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// Copyright 2015-2017 harity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -14,183 +14,236 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::sync::Arc;
-use futures::{Future, Poll, Async};
-use util::{U256, RwLock};
-use std::collections::{VecDeque};
+use std::{cmp, mem};
+use std::sync::{atomic, Arc};
+use std::sync::atomic::AtomicUsize;
 
-#[derive(Copy, Clone, PartialEq, Debug)]
-pub enum NonceError {
-    Dropped,
-    InvalidPoll,
+use bigint::prelude::U256;
+use futures::{Future, future, Poll, Async};
+use futures::future::Either;
+use futures::sync::oneshot;
+use futures_cpupool::CpuPool;
+
+/// Manages currently reserved and prospective nonces.
+#[derive(Debug)]
+pub struct Reservations {
+	previous: Option<oneshot::Receiver<U256>>,
+	pool: CpuPool,
+	prospective_value: U256,
+	dropped: Arc<AtomicUsize>,
 }
 
-#[derive(Copy, Clone)]
-enum NonceState {
-    Prospective,
-    Reserved,
-    Dispatch,
-    Error(NonceError),
+impl Reservations {
+	/// Create new nonces manager and spawn a single-threaded cpu pool
+	/// for progressing execution of dropped nonces.
+	pub fn new() -> Self {
+		Self::with_pool(CpuPool::new(1))
+	}
+
+	/// Create new nonces manager with given cpu pool.
+	pub fn with_pool(pool: CpuPool) -> Self {
+		Reservations {
+			previous: None,
+			pool,
+			prospective_value: Default::default(),
+			dropped: Default::default(),
+		}
+	}
+
+	/// Reserves a prospective nonce.
+	/// The caller should provide a minimal nonce that needs to be reserved (taken from state/txqueue).
+	/// If there were any previous reserved nonces the returned future will be resolved when those are finished
+	/// (confirmed that the nonce were indeed used).
+	/// The caller can use `prospective_nonce` and perform some heavy computation anticipating
+	/// that the `prospective_nonce` will be equal to the one he will get.
+	pub fn reserve_nonce(&mut self, minimal: U256) -> Reserved {
+		// Update prospective value
+		let dropped = self.dropped.swap(0, atomic::Ordering::SeqCst);
+		let prospective_value = cmp::max(minimal, self.prospective_value - dropped.into());
+		self.prospective_value = prospective_value + 1.into();
+
+		let (next, rx) = oneshot::channel();
+		let next = Some(next);
+		let pool = self.pool.clone();
+		let dropped = self.dropped.clone();
+		match mem::replace(&mut self.previous, Some(rx)) {
+			Some(previous) => Reserved {
+				previous: Either::A(previous),
+				next,
+				minimal,
+				prospective_value,
+				pool,
+				dropped,
+			},
+			None => Reserved {
+				previous: Either::B(future::ok(minimal)),
+				next,
+				minimal,
+				prospective_value,
+				pool,
+				dropped,
+			},
+		}
+	}
 }
 
-pub struct Nonce {
-    state: NonceState,
-    value: U256,
-    reserved: Arc<RwLock<VecDeque<U256>>>,
+/// Represents a future nonce.
+#[derive(Debug)]
+pub struct Reserved {
+	previous: Either<
+		oneshot::Receiver<U256>,
+		future::FutureResult<U256, oneshot::Canceled>
+	>,
+	next: Option<oneshot::Sender<U256>>,
+	minimal: U256,
+	prospective_value: U256,
+	pool: CpuPool,
+	dropped: Arc<AtomicUsize>,
 }
 
-impl Drop for Nonce {
-    fn drop(&mut self) {
-        match self.state {
-            NonceState::Reserved => {
-                let reserved = self.reserved.read();
-                if let Some(idx) = reserved.iter().position(|x| *x == self.value) {
-                    drop(reserved);
-                    let mut reserved = self.reserved.write();
-                    reserved.drain(idx..); // any reservations after this one are now invalid
-                }
-            }
-            _ => {}
-        }
-    }
+impl Reserved {
+	/// Returns a prospective value of the nonce.
+	/// NOTE: This might be different than the one we resolve to.
+	/// Make sure to check if both nonces match or use the latter one.
+	pub fn prospective_value(&self) -> &U256 {
+		&self.prospective_value
+	}
 }
 
-impl Future for Nonce {
-    type Item = U256;
-    type Error = NonceError;
+impl Future for Reserved {
+    type Item = Ready;
+    type Error = ();
 
     fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-        match self.state {
-            NonceState::Prospective => {
-                let result = if let Some(reserved) = self.reserved.try_read() {
-                    while reserved.contains(&self.value) { // reserved by another thread
-                        self.value = self.value + U256::one(); // increment prospective nonce
-                    }
-                    drop(reserved);
-                    // prospective nonce is available
-                    if let Some(mut reserved) = self.reserved.try_write() {
-                        reserved.push_back(self.value);
-                        // use this nonce for signing
-                        // then poll for dispatch readiness
-                        // dispatch may fail if another thread drops its nonce
-                        Ok(Async::Ready(self.value))
-                    } else {
-                        Ok(Async::NotReady)
-                    }
-                } else {
-                    Ok(Async::NotReady)
-                };
+		let mut value = try_ready!(self.previous.poll().map_err(|e| {
+			warn!("Unexpected nonce cancellation: {}", e);
+		}));
 
-                self.state = match result {
-                    Ok(Async::Ready(_)) => NonceState::Reserved,
-                    Ok(Async::NotReady) => NonceState::Prospective,
-                    Err(e) => NonceState::Error(e),
-                };
+		if value < self.minimal {
+			value = self.minimal
+		}
+		let matches_prospective = value == self.prospective_value;
 
-                result
-            }
-
-            NonceState::Reserved => {
-                let result = if let Some(mut reserved) = self.reserved.try_write() { 
-                    if reserved.front().map(|&x| x == self.value).is_some() { // front of the line, ready for dispatch
-                        let _ = reserved.pop_front();
-                        Ok(Async::Ready(self.value))
-                    } else if reserved.contains(&self.value) { // still in line, not ready
-                        Ok(Async::NotReady)
-                    } else { // dropped, will never be ready
-                        Err(NonceError::Dropped)
-                    }
-                } else { // queue locked, not ready
-                    Ok(Async::NotReady)
-                };
-
-                self.state = match result {
-                    Ok(Async::Ready(_)) => NonceState::Dispatch,
-                    Ok(Async::NotReady) => NonceState::Reserved,
-                    Err(e) => NonceState::Error(e),
-                };
-
-                result
-            }
-
-            NonceState::Dispatch => Ok(Async::Ready(self.value)),
-            NonceState::Error(ne) => Err(ne)
-        }
-    }
+		Ok(Async::Ready(Ready {
+			value,
+			matches_prospective,
+			next: self.next.take(),
+			dropped: self.dropped.clone(),
+		}))
+	}
 }
 
-impl Nonce {
-    pub fn start_with(nonce: U256, reserved: Arc<RwLock<VecDeque<U256>>>) -> Nonce {
-        Nonce {
-            state: NonceState::Prospective,
-            value: nonce,
-            reserved: reserved,
-        }
-    }
+impl Drop for Reserved {
+	fn drop(&mut self) {
+		if let Some(next) = self.next.take() {
+			self.dropped.fetch_add(1, atomic::Ordering::SeqCst);
+			// If Reserved is dropped just pipe previous and next together.
+			let previous = mem::replace(&mut self.previous, Either::B(future::ok(U256::default())));
+			self.pool.spawn(previous.map(|nonce| {
+				next.send(nonce).expect(Ready::RECV_PROOF)
+			})).forget()
+		}
+	}
+}
 
-    pub fn poll_reserve(&mut self) -> Result<Async<U256>, NonceError> {
-        match self.state {
-            NonceState::Prospective => self.poll(),
-            NonceState::Reserved => Ok(Async::Ready(self.value)),
-            _ => Err(NonceError::InvalidPoll),
-        }
-    }
+/// Represents a valid reserved nonce.
+/// This can be used to dispatch the transaction.
+///
+/// After this nonce is used it should be marked as such
+/// using `mark_used` method.
+#[derive(Debug)]
+pub struct Ready {
+	value: U256,
+	matches_prospective: bool,
+	next: Option<oneshot::Sender<U256>>,
+	dropped: Arc<AtomicUsize>,
+}
 
-    pub fn poll_dispatch(&mut self) -> Result<Async<U256>, NonceError> {
-        match self.state {
-            NonceState::Reserved => self.poll(),
-            NonceState::Dispatch => Ok(Async::Ready(self.value)),
-            _ => Err(NonceError::InvalidPoll),
-        }
-    }
+impl Ready {
+	const RECV_PROOF: &'static str = "Receiver never dropped.";
+
+	/// Returns a value of the nonce.
+	pub fn value(&self) -> &U256 {
+		&self.value
+	}
+
+	/// Returns true if current value matches the prospective nonce.
+	pub fn matches_prospective(&self) -> bool {
+		self.matches_prospective
+	}
+
+	/// Marks this nonce as used.
+	/// Make sure to call that method after this nonce has been consumed.
+	pub fn mark_used(mut self) {
+		let next = self.next.take().expect("Nonce can be marked as used only once; qed");
+		next.send(self.value + 1.into()).expect(Self::RECV_PROOF);
+	}
+}
+
+impl Drop for Ready {
+	fn drop(&mut self) {
+		if let Some(send) = self.next.take() {
+			self.dropped.fetch_add(1, atomic::Ordering::SeqCst);
+			send.send(self.value).expect(Self::RECV_PROOF);
+		}
+	}
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    #[test]
-    fn reserve() {
-        let mut reserved_inner = VecDeque::new();
-        reserved_inner.push_back(U256::from(0));
-        reserved_inner.push_back(U256::from(1));
-        let reserved = Arc::new(RwLock::new(reserved_inner));
+	#[test]
+	fn should_reserve_a_set_of_nonces_and_resolve_them() {
+		let mut nonces = Reservations::new();
 
-        let mut nonce_a = Nonce::start_with(U256::from(0), reserved.clone());
-        let mut nonce_b = Nonce::start_with(U256::from(3), reserved.clone());
-        let mut nonce_e = Nonce::start_with(U256::from(3), reserved.clone());
-        let mut nonce_l = Nonce::start_with(U256::from(3), reserved.clone());
+		let n1 = nonces.reserve_nonce(5.into());
+		let n2 = nonces.reserve_nonce(5.into());
+		let n3 = nonces.reserve_nonce(5.into());
+		let n4 = nonces.reserve_nonce(5.into());
 
-        let reserve_a = nonce_a.poll_reserve().ok().unwrap();
-        let reserve_b = nonce_b.poll_reserve().ok().unwrap();
-        let reserve_e = nonce_e.poll_dispatch().err().unwrap();
+		// Check first nonce
+		let r = n1.wait().unwrap();
+		assert_eq!(r.value(), &U256::from(5));
+		assert!(r.matches_prospective());
+		r.mark_used();
 
-        let read = reserved.read();
-        let reserve_l = nonce_l.poll_reserve().ok().unwrap();
+		// Drop second nonce
+		drop(n2);
 
-        assert_eq!(reserve_a, Async::Ready(U256::from(2)));
-        assert_eq!(reserve_b, Async::Ready(U256::from(3)));
-        assert_eq!(reserve_e, NonceError::InvalidPoll);
-        assert_eq!(reserve_l, Async::NotReady);
-    }
+		// Drop third without marking as used
+		let r = n3.wait().unwrap();
+		drop(r);
 
-    #[test]
-    fn dispatch() {
-        let mut reserved = Arc::new(RwLock::new(VecDeque::new()));
-        let mut nonce = Nonce::start_with(U256::from(55), reserved.clone());
-        let mut nonce_l = Nonce::start_with(U256::from(55), reserved.clone());
-        
-        let _ = nonce.poll_reserve();
-        let _ = nonce_l.poll_reserve();
+		// Last nonce should be resolved to 6
+		let r = n4.wait().unwrap();
+		assert_eq!(r.value(), &U256::from(6));
+		assert!(!r.matches_prospective());
+		r.mark_used();
 
-        let dispatch = nonce.poll_dispatch().ok().unwrap();
-        let dispatch_e = nonce.poll_reserve().err().unwrap();
+		// Next nonce should be immediately available.
+		let n5 = nonces.reserve_nonce(5.into());
+		let r = n5.wait().unwrap();
+		assert_eq!(r.value(), &U256::from(7));
+		assert!(!r.matches_prospective());
+		r.mark_used();
 
-        let read = reserved.read();
-        let dispatch_l = nonce_l.poll_dispatch().ok().unwrap();
+		// Should use start number if it's greater
+		let n6 = nonces.reserve_nonce(10.into());
+		let r = n6.wait().unwrap();
+		assert_eq!(r.value(), &U256::from(10));
+		assert!(r.matches_prospective());
+		r.mark_used();
+	}
 
-        assert_eq!(dispatch, Async::Ready(U256::from(55)));
-        assert_eq!(dispatch_e, NonceError::InvalidPoll);
-        assert_eq!(dispatch_l, Async::NotReady);
-    }
+	#[test]
+	fn should_return_prospective_nonce() {
+		let mut nonces = Reservations::new();
+
+		let n1 = nonces.reserve_nonce(5.into());
+		let n2 = nonces.reserve_nonce(5.into());
+
+		assert_eq!(n1.prospective_value(), &U256::from(5));
+		assert_eq!(n2.prospective_value(), &U256::from(6));
+	}
 }

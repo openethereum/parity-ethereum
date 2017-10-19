@@ -45,7 +45,7 @@ use jsonrpc_core::futures::future;
 use jsonrpc_macros::Trailing;
 
 use v1::helpers::{errors, limit_logs, fake_sign};
-use v1::helpers::dispatch::{Dispatcher, FullDispatcher, default_gas_price};
+use v1::helpers::dispatch::{FullDispatcher, default_gas_price};
 use v1::helpers::block_import::is_major_importing;
 use v1::helpers::accounts::unwrap_provider;
 use v1::traits::Eth;
@@ -610,8 +610,11 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 			.map_err(errors::rlp)
 			.and_then(|tx| SignedTransaction::new(tx).map_err(errors::transaction))
 			.and_then(|signed_transaction| {
-				FullDispatcher::new(self.client.clone(), self.miner.clone())
-					.dispatch_transaction(signed_transaction.into())
+				FullDispatcher::dispatch_transaction(
+					&*self.client,
+					&*self.miner,
+					signed_transaction.into(),
+				)
 			})
 			.map(Into::into)
 	}
