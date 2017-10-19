@@ -15,148 +15,62 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 const webpack = require('webpack');
-const path = require('path');
-const fs = require('fs');
-const HappyPack = require('happypack');
 
-const postcssImport = require('postcss-import');
-const postcssNested = require('postcss-nested');
-const postcssVars = require('postcss-simple-vars');
-const rucksack = require('rucksack-css');
-const CircularDependencyPlugin = require('circular-dependency-plugin');
-const ProgressBarPlugin = require('progress-bar-webpack-plugin');
+const HappyPack = require('happypack');
+const PackageJson = require('../package.json');
 
 const EMBED = process.env.EMBED;
 const ENV = process.env.NODE_ENV || 'development';
 const isProd = ENV === 'production';
-const isAnalize = process.env.WPANALIZE === '1';
+const UI_VERSION = PackageJson
+  .version
+  .split('.')
+  .map((part, index) => {
+    if (index !== 2) {
+      return part;
+    }
 
-function getBabelrc () {
-  const babelrc = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../.babelrc')));
-
-  const es2015Index = babelrc.presets.findIndex((p) => p === 'es2015');
-
-  // [ "es2015", { "modules": false } ]
-  babelrc.presets[es2015Index] = [ 'es2015', { modules: false } ];
-  babelrc['babelrc'] = false;
-
-  const BABEL_PRESET_ENV = process.env.BABEL_PRESET_ENV;
-  const npmStart = process.env.npm_lifecycle_event === 'start';
-  const npmStartApp = process.env.npm_lifecycle_event === 'start:app';
-
-  if (BABEL_PRESET_ENV && (npmStart || npmStartApp)) {
-    console.log('using babel-preset-env');
-
-    babelrc.presets = [
-      // 'es2017',
-      'stage-0', 'react',
-      [
-        'env',
-        {
-          targets: { browsers: ['last 2 Chrome versions'] },
-          modules: false,
-          loose: true,
-          useBuiltIns: true
-        }
-      ]
-    ];
-  }
-
-  return babelrc;
-}
+    return `${parseInt(part, 10) + 1}`;
+  })
+  .join('.');
 
 function getPlugins (_isProd = isProd) {
-  const postcss = [
-    postcssImport({
-      addDependencyTo: webpack
-    }),
-    postcssNested({}),
-    postcssVars({
-      unknown: function (node, name, result) {
-        node.warn(result, `Unknown variable ${name}`);
+  const plugins = [
+    new webpack.DefinePlugin({
+      'process.env': {
+        EMBED: JSON.stringify(EMBED),
+        NODE_ENV: JSON.stringify(ENV),
+        RPC_ADDRESS: JSON.stringify(process.env.RPC_ADDRESS),
+        PARITY_URL: JSON.stringify(process.env.PARITY_URL),
+        DAPPS_URL: JSON.stringify(process.env.DAPPS_URL),
+        LOGGING: JSON.stringify(!isProd),
+        UI_VERSION: JSON.stringify(UI_VERSION)
       }
     }),
-    rucksack({
-      autoprefixer: true
+    new HappyPack({
+      id: 'babel',
+      threads: 4,
+      loaders: ['babel-loader']
     })
   ];
 
-  const plugins = (isAnalize
-    ? []
-    : [
-      new ProgressBarPlugin({
-        format: '[:msg] [:bar] ' + ':percent' + ' (:elapsed seconds)'
-      })
-    ]).concat([
-      new HappyPack({
-        id: 'css',
-        threads: 4,
-        loaders: [
-          'style-loader',
-          'css-loader?modules&sourceMap&importLoaders=1&localIdentName=[name]__[local]___[hash:base64:5]',
-          'postcss-loader'
-        ],
-        verbose: !isAnalize
-      }),
-
-      new HappyPack({
-        id: 'babel-js',
-        threads: 4,
-        loaders: [ isProd ? 'babel-loader' : 'babel-loader?cacheDirectory=true' ],
-        verbose: !isAnalize
-      }),
-
-      new webpack.DefinePlugin({
-        'process.env': {
-          EMBED: JSON.stringify(EMBED),
-          NODE_ENV: JSON.stringify(ENV),
-          RPC_ADDRESS: JSON.stringify(process.env.RPC_ADDRESS),
-          PARITY_URL: JSON.stringify(process.env.PARITY_URL),
-          DAPPS_URL: JSON.stringify(process.env.DAPPS_URL),
-          LOGGING: JSON.stringify(!isProd)
-        }
-      }),
-
-      new webpack.LoaderOptionsPlugin({
-        minimize: isProd,
-        debug: !isProd,
-        options: {
-          context: path.join(__dirname, '../src'),
-          postcss: postcss,
-          babel: getBabelrc()
-        }
-      }),
-
-      new webpack.optimize.OccurrenceOrderPlugin(!_isProd),
-
-      new CircularDependencyPlugin({
-        exclude: /node_modules/,
-        failOnError: true
-      })
-    ]);
-
   if (_isProd) {
-    plugins.push(new webpack.optimize.UglifyJsPlugin({
-      screwIe8: true,
-      compress: {
-        warnings: false
-      },
-      output: {
-        comments: false
-      }
-    }));
+    plugins.push(
+      new webpack.optimize.ModuleConcatenationPlugin(),
+      new webpack.optimize.UglifyJsPlugin({
+        sourceMap: true,
+        screwIe8: true,
+        compress: {
+          warnings: false
+        },
+        output: {
+          comments: false
+        }
+      })
+    );
   }
 
   return plugins;
-}
-
-function getDappsEntry () {
-  const DAPPS = require('../src/views/Dapps/builtin.json');
-
-  return DAPPS.filter((dapp) => !dapp.skipBuild).reduce((_entry, dapp) => {
-    _entry[dapp.url] = './dapps/' + dapp.url + '.js';
-    return _entry;
-  }, {});
 }
 
 function addProxies (app) {
@@ -191,8 +105,6 @@ function addProxies (app) {
 }
 
 module.exports = {
-  getBabelrc: getBabelrc,
-  getPlugins: getPlugins,
-  dappsEntry: getDappsEntry(),
-  addProxies: addProxies
+  getPlugins,
+  addProxies
 };

@@ -19,8 +19,6 @@ const path = require('path');
 module.exports = {
   context: path.join(__dirname, '../src'),
   resolve: {
-    alias: {
-      '~': path.resolve(__dirname, '../src')
-    }
+    alias: {}
   }
 };

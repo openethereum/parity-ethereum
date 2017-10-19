@@ -11,9 +11,11 @@ rustc_version = "0.1"
 
 [dependencies]
 parity-ui-dev = { path = "../../js", optional = true }
+parity-ui-old-dev = { path = "../../js-old", optional = true }
 # This is managed by the js/scripts/release.sh script on CI - keep it in a single line
+parity-ui-old-precompiled = { git = "https://github.com/paritytech/js-precompiled.git", optional = true, branch = "v1" }
 parity-ui-precompiled = { git = "https://github.com/paritytech/js-precompiled.git", optional = true, branch = "master" }
 
 [features]
-no-precompiled-js = ["parity-ui-dev"]
-use-precompiled-js = ["parity-ui-precompiled"]
+no-precompiled-js = ["parity-ui-dev", "parity-ui-old-dev"]
+use-precompiled-js = ["parity-ui-precompiled", "parity-ui-old-precompiled"]

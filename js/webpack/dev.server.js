@@ -73,6 +73,7 @@ app.use(webpackDevMiddleware(compiler, {
     // @see https://github.com/webpack/webpack/blob/324d309107f00cfc38ec727521563d309339b2ec/lib/Stats.js#L790
     // Accepted values: none, errors-only, minimal, normal, verbose
     const options = WebpackStats.presetToOptions('minimal');
+
     options.timings = true;
 
     const output = data.stats.toString(options);
@@ -89,6 +90,7 @@ Shared.addProxies(app);
 app.use(express.static(webpackConfig.output.path));
 
 const server = http.createServer(app);
+
 server.listen(process.env.PORT || 3000, function () {
   console.log('Listening on port', server.address().port);
   progressBar = new ProgressBar('[:bar] :percent :etas', { total: 50 });

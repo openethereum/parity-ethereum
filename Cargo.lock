@@ -2235,6 +2235,8 @@ name = "parity-ui"
 version = "1.9.0"
 dependencies = [
  "parity-ui-dev 1.9.0",
+ "parity-ui-old-dev 1.9.0",
+ "parity-ui-old-precompiled 1.8.0 (git+https://github.com/paritytech/js-precompiled.git?branch=v1)",
  "parity-ui-precompiled 1.4.0 (git+https://github.com/paritytech/js-precompiled.git)",
  "rustc_version 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -2242,6 +2244,21 @@ dependencies = [
 [[package]]
 name = "parity-ui-dev"
 version = "1.9.0"
+dependencies = [
+ "parity-dapps-glue 1.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "parity-ui-old-dev"
+version = "1.9.0"
+dependencies = [
+ "parity-dapps-glue 1.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "parity-ui-old-precompiled"
+version = "1.8.0"
+source = "git+https://github.com/paritytech/js-precompiled.git?branch=v1#94b0a89aac7eb5ddfdb53cd9bb039da6fdbf7583"
 dependencies = [
  "parity-dapps-glue 1.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -3657,6 +3674,7 @@ dependencies = [
 "checksum owning_ref 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)" = "cdf84f41639e037b484f93433aa3897863b561ed65c6e59c7073d7c561710f37"
 "checksum parity-dapps-glue 1.9.0 (registry+https://github.com/rust-lang/crates.io-index)" = "9df5504a83dbbbd25ddb0645372bd09dff5a7716e18690a21211873b81606fe9"
 "checksum parity-tokio-ipc 0.1.5 (git+https://github.com/nikvolf/parity-tokio-ipc)" = "<none>"
+"checksum parity-ui-old-precompiled 1.8.0 (git+https://github.com/paritytech/js-precompiled.git?branch=v1)" = "<none>"
 "checksum parity-ui-precompiled 1.4.0 (git+https://github.com/paritytech/js-precompiled.git)" = "<none>"
 "checksum parity-wasm 0.14.5 (registry+https://github.com/rust-lang/crates.io-index)" = "d4502e18417d96bd8e72fca9ea4cc18f4d80288ff565582d10aefe86f18b4fc3"
 "checksum parity-wordlist 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "81451bfab101d186f8fc4a0aa13cb5539b31b02c4ed96425a0842e2a413daba6"

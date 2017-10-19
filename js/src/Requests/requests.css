@@ -1,0 +1,131 @@
+/* Copyright 2015-2017 Parity Technologies (UK) Ltd.
+/* This file is part of Parity.
+/*
+/* Parity is free software: you can redistribute it and/or modify
+/* it under the terms of the GNU General Public License as published by
+/* the Free Software Foundation, either version 3 of the License, or
+/* (at your option) any later version.
+/*
+/* Parity is distributed in the hope that it will be useful,
+/* but WITHOUT ANY WARRANTY; without even the implied warranty of
+/* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+/* GNU General Public License for more details.
+/*
+/* You should have received a copy of the GNU General Public License
+/* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+$baseColor: 255;
+$baseOpacity: 0.95;
+$borderColor: rgba(0, 0, 0, 0.15);
+
+.requests {
+  align-items: flex-end;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  right: 0.175em;
+  width: 24em;
+  z-index: 750;
+
+  * {
+    font-size: 0.85rem !important;
+  }
+}
+
+.request {
+  animation-fill-mode: forwards;
+  animation-timing-function: cubic-bezier(0.7, 0, 0.3, 1);
+  background: white;
+  background: linear-gradient(white, #fcfcfc);
+  border: 4px solid $borderColor;
+  cursor: pointer;
+  margin-top: 0.25em;
+  opacity: 1;
+  width: 100%;
+
+  &:hover {
+    background: white;
+  }
+
+  &.hide {
+    animation-duration: 0.5s;
+    animation-name: fadeout;
+  }
+
+  .progress {
+    margin: 0 0.25em 0.5em;
+  }
+
+  .status {
+    padding: 0.75em;
+
+    &.error {
+      background: rgba(200, 40, 40, 0.95);
+      color: white;
+    }
+  }
+
+  .container {
+    display: flex;
+    flex-direction: row;
+    padding: 1em 1em 0.5em;
+  }
+
+  p {
+    margin: 0;
+  }
+}
+
+@keyframes fadeout {
+  from {
+    display: block;
+    height: inherit;
+    opacity: 1;
+  }
+
+  49% {
+    display: block;
+    height: inherit;
+    opacity: 0;
+  }
+
+  98% {
+    display: block;
+    height: 0;
+    opacity: 0;
+  }
+
+  to {
+    display: none;
+    height: 0;
+    opacity: 0;
+  }
+}
+
+.identity {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  margin-right: 1em;
+
+  .icon {
+    margin-bottom: 0.5rem;
+  }
+}
+
+.inline {
+  align-items: center;
+  display: flex;
+  flex-direction: row;
+
+  .fill {
+    flex: 1 0 auto;
+  }
+}
+
+.hash {
+  margin-left: 0.25em;
+}
