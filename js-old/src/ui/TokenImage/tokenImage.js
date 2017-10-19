@@ -32,14 +32,19 @@ class TokenImage extends Component {
     }).isRequired
   };
 
+  state = {
+    error: false
+  };
+
   render () {
+    const { error } = this.state;
     const { api } = this.context;
     const { image, token } = this.props;
 
     const imageurl = token.image || image;
     let imagesrc = unknownImage;
 
-    if (imageurl) {
+    if (imageurl && !error) {
       const host = /^(\/)?api/.test(imageurl)
         ? api.dappsUrl
         : '';
@@ -49,11 +54,16 @@ class TokenImage extends Component {
 
     return (
       <img
-        src={ imagesrc }
         alt={ token.name }
+        onError={ this.handleError }
+        src={ imagesrc }
       />
     );
   }
+
+  handleError = () => {
+    this.setState({ error: true });
+  };
 }
 
 function mapStateToProps (iniState) {
