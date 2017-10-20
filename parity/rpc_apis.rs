@@ -35,7 +35,7 @@ use light::{TransactionQueue as LightTransactionQueue, Cache as LightDataCache};
 use light::client::LightChainClient;
 use node_health::NodeHealth;
 use parity_reactor;
-use parity_rpc::dispatch::{self, FullDispatcher, LightDispatcher};
+use parity_rpc::dispatch::{FullDispatcher, LightDispatcher};
 use parity_rpc::informant::{ActivityNotifier, ClientNotifier};
 use parity_rpc::{Metadata, NetworkSettings, Host};
 use updater::Updater;

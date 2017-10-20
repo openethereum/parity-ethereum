@@ -43,7 +43,7 @@ use ethcore::account_provider::AccountProvider;
 use crypto::DEFAULT_MAC;
 
 use jsonrpc_core::{BoxFuture, Error};
-use jsonrpc_core::futures::{future, Future};
+use jsonrpc_core::futures::{future, Future, Poll, Async};
 use jsonrpc_core::futures::future::Either;
 use v1::helpers::{errors, nonce, TransactionRequest, FilledTransactionRequest, ConfirmationPayload};
 use v1::types::{
@@ -160,7 +160,7 @@ impl<C: MiningBlockChainClient, M: MinerService> Dispatcher for FullDispatcher<C
 
 		let state = self.state_nonce(&filled.from);
 		let reserved = self.nonces.lock().reserve_nonce(state);
-		sign_transaction_with_reserved_nonce(accounts, filled, chain_id, reserved, password)
+		Box::new(ProspectiveSigner::new(accounts, filled, chain_id, reserved, password))
 	}
 
 	fn dispatch_transaction(&self, signed_transaction: PendingTransaction) -> Result<H256, Error> {
@@ -375,7 +375,7 @@ impl Dispatcher for LightDispatcher {
 			.map_err(|_| errors::no_light_peers())
 			.and_then(move |nonce| {
 				let reserved = nonces.lock().reserve_nonce(nonce);
-				sign_transaction_with_reserved_nonce(accounts, filled, chain_id, reserved, password)
+				ProspectiveSigner::new(accounts, filled, chain_id, reserved, password)
 			}))
 	}
 
@@ -387,40 +387,6 @@ impl Dispatcher for LightDispatcher {
 			.map_err(errors::transaction)
 			.map(|_| hash)
 	}
-}
-
-fn sign_transaction_with_reserved_nonce(
-	accounts: Arc<AccountProvider>,
-	filled: FilledTransactionRequest,
-	chain_id: Option<u64>,
-	reserved: nonce::Reserved,
-	password: SignWith,
-) -> BoxFuture<WithToken<SignedTransaction>, Error> {
-	// If the account is permanently unlocked we can try to sign
-	// using prospective nonce. This should speed up sending
-	// multiple subsequent transactions in multi-threaded RPC environment.
-	let is_unlocked_permanently = accounts.is_unlocked_permanently(&filled.from);
-	let prospective = if is_unlocked_permanently || password.is_password() {
-		Some(sign_transaction(&*accounts, filled.clone(), chain_id, *reserved.prospective_value(), password.clone()))
-	} else {
-		None
-	};
-
-	Box::new(reserved
-		.map_err(|_| errors::internal("Nonce reservation failure", ""))
-		.and_then(move |nonce| {
-			let result = match (prospective, nonce.matches_prospective()) {
-				(Some(prospective), true) => prospective,
-				_ => sign_transaction(&*accounts, filled, chain_id, *nonce.value(), password),
-			};
-
-			// Mark nonce as used on successful signing
-			result.map(move |tx| {
-				nonce.mark_used();
-				tx
-			})
-		})
-	)
 }
 
 fn sign_transaction(
@@ -450,6 +416,118 @@ fn sign_transaction(
 		SignedTransaction::new(t.with_signature(sig, chain_id))
 			.expect("Transaction was signed by AccountsProvider; it never produces invalid signatures; qed")
 	}))
+}
+
+#[derive(Debug, Clone, Copy)]
+enum ProspectiveSignerState {
+	TryProspectiveSign,
+	WaitForNonce,
+	Finish,
+}
+
+struct ProspectiveSigner {
+	accounts: Arc<AccountProvider>,
+	filled: FilledTransactionRequest,
+	chain_id: Option<u64>,
+	reserved: nonce::Reserved,
+	password: SignWith,
+	state: ProspectiveSignerState,
+	prospective: Option<Result<WithToken<SignedTransaction>, Error>>,
+	ready: Option<nonce::Ready>,
+}
+
+impl ProspectiveSigner {
+	pub fn new(
+		accounts: Arc<AccountProvider>,
+		filled: FilledTransactionRequest,
+		chain_id: Option<u64>,
+		reserved: nonce::Reserved,
+		password: SignWith,
+	) -> Self {
+		// If the account is permanently unlocked we can try to sign
+		// using prospective nonce. This should speed up sending
+		// multiple subsequent transactions in multi-threaded RPC environment.
+		let is_unlocked_permanently = accounts.is_unlocked_permanently(&filled.from);
+		let has_password = password.is_password();
+
+		ProspectiveSigner {
+			accounts,
+			filled,
+			chain_id,
+			reserved,
+			password,
+			state: if is_unlocked_permanently || has_password {
+				ProspectiveSignerState::TryProspectiveSign
+			} else {
+				ProspectiveSignerState::WaitForNonce
+			},
+			prospective: None,
+			ready: None,
+		}
+	}
+
+	fn sign(&self, nonce: &U256) -> Result<WithToken<SignedTransaction>, Error> {
+		sign_transaction(
+			&*self.accounts,
+			self.filled.clone(),
+			self.chain_id,
+			*nonce,
+			self.password.clone()
+		)
+	}
+
+	fn poll_reserved(&mut self) -> Poll<nonce::Ready, Error> {
+		self.reserved.poll().map_err(|_| errors::internal("Nonce reservation failure", ""))
+	}
+}
+
+impl Future for ProspectiveSigner {
+	type Item = WithToken<SignedTransaction>;
+	type Error = Error;
+
+	fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+		use self::ProspectiveSignerState::*;
+
+		loop {
+			match self.state {
+				TryProspectiveSign => {
+					// Try to poll reserved, it might be ready.
+					match self.poll_reserved()? {
+						Async::NotReady => {
+							self.state = WaitForNonce;
+							self.prospective = Some(self.sign(self.reserved.prospective_value()));
+						},
+						Async::Ready(nonce) => {
+							self.state = Finish;
+							self.prospective = Some(self.sign(nonce.value()));
+							self.ready = Some(nonce);
+						},
+					}
+				},
+				WaitForNonce => {
+					let nonce = try_ready!(self.poll_reserved());
+					let result = match (self.prospective.take(), nonce.matches_prospective()) {
+						(Some(prospective), true) => prospective,
+						_ => self.sign(nonce.value()),
+					};
+					self.state = Finish;
+					self.prospective = Some(result);
+					self.ready = Some(nonce);
+				},
+				Finish => {
+					if let (Some(result), Some(nonce)) = (self.prospective.take(), self.ready.take()) {
+						// Mark nonce as used on successful signing
+						return result.map(move |tx| {
+							nonce.mark_used();
+							Async::Ready(tx)
+						})
+					} else {
+						panic!("Poll after ready.");
+					}
+				}
+			}
+		}
+	}
 }
 
 /// Single-use account token.
