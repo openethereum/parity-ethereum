@@ -3,7 +3,7 @@ set -e
 
 # variables
 UTCDATE=`date -u "+%Y%m%d-%H%M%S"`
-PACKAGES=( "parity" )
+PACKAGES=()
 BRANCH=$CI_BUILD_REF_NAME
 GIT_JS_PRECOMPILED="https://${GITHUB_JS_PRECOMPILED}:@github.com/paritytech/js-precompiled.git"
 GIT_PARITY="https://${GITHUB_JS_PRECOMPILED}:@github.com/paritytech/parity.git"
