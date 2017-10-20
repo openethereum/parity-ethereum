@@ -15,6 +15,7 @@ If you don't want to downgrade or move your funds off your Trezor-device, you ca
 
 Full list of included changes:
 
+- Add ECIP1017 to Morden config ([#6845](https://github.com/paritytech/parity/pull/6845))
 - Ethstore optimizations ([#6844](https://github.com/paritytech/parity/pull/6844))
 - Bumb to v1.8.1 ([#6843](https://github.com/paritytech/parity/pull/6843))
 - Backport ([#6837](https://github.com/paritytech/parity/pull/6837))
