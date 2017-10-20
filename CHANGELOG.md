@@ -1,6 +1,6 @@
 ## Parity [v1.8.1](https://github.com/paritytech/parity/releases/tag/v1.8.1) (2017-10-20)
 
-Parity 1.8.1 fixes several bugs with token balances, tweaks snapshot-sync, and changes the Trezor account devivation path.
+Parity 1.8.1 fixes several bugs with token balances, tweaks snapshot-sync, improves performance of nodes with huge amounts of accounts, and changes the Trezor account devivation path.
 
 **Important Note**: The **Trezor** account derivation path was changed in this release ([#6815](https://github.com/paritytech/parity/pull/6815)) to always use the first account (`m/44'/60'/0'/0/0` instead of `m/44'/60'/0'/0`). This way we enable compatibility with other Ethereum wallets supporting Trezor hardware-wallets. However, **action is required** before upgrading, if you have funds on your Parity Trezor wallet. If you already upgraded to 1.8.1, please downgrade to 1.8.0 first to recover the funds with the following steps:
 
@@ -15,6 +15,7 @@ If you don't want to downgrade or move your funds off your Trezor-device, you ca
 
 Full list of included changes:
 
+- Ethstore optimizations ([#6844](https://github.com/paritytech/parity/pull/6844))
 - Bumb to v1.8.1 ([#6843](https://github.com/paritytech/parity/pull/6843))
 - Backport ([#6837](https://github.com/paritytech/parity/pull/6837))
   - Tweaked snapshot sync threshold ([#6829](https://github.com/paritytech/parity/pull/6829))
