@@ -112,18 +112,12 @@ extern crate util_error as error;
 #[cfg(test)]
 extern crate kvdb_memorydb;
 
-#[macro_use]
-extern crate log as rlog;
 
 pub mod misc;
-pub mod overlaydb;
-pub mod journaldb;
 
 pub use misc::*;
 pub use hashdb::*;
 pub use memorydb::MemoryDB;
-pub use overlaydb::*;
-pub use journaldb::JournalDB;
 
 /// 160-bit integer representing account address
 pub type Address = bigint::hash::H160;

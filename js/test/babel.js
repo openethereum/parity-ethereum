@@ -14,4 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-require('babel-register')();
+require('babel-register')({
+  ignore: function (filename) {
+    if (filename.indexOf('node_modules') !== -1) {
+      return filename.indexOf('@parity') === -1;
+    }
+
+    return false;
+  }
+});
+require('babel-polyfill');

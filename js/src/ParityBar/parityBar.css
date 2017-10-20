@@ -1,0 +1,269 @@
+/* Copyright 2015-2017 Parity Technologies (UK) Ltd.
+/* This file is part of Parity.
+/*
+/* Parity is free software: you can redistribute it and/or modify
+/* it under the terms of the GNU General Public License as published by
+/* the Free Software Foundation, either version 3 of the License, or
+/* (at your option) any later version.
+/*
+/* Parity is distributed in the hope that it will be useful,
+/* but WITHOUT ANY WARRANTY; without even the implied warranty of
+/* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+/* GNU General Public License for more details.
+/*
+/* You should have received a copy of the GNU General Public License
+/* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+$overlayZ: 10000;
+$modalZ: 10001;
+
+.account {
+  width: 100%;
+
+  .selected,
+  .unselected {
+    margin: 0.125em 0;
+
+    &:focus {
+      outline: none;
+    }
+  }
+
+  .unselected {
+    background: rgba(0, 0, 0, 0.4) !important;
+  }
+
+  .selected {
+    background: rgba(255, 255, 255, 0.35) !important;
+  }
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.overlay {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background: rgba(0, 0, 0, 0.35);
+  z-index: $overlayZ;
+  user-select: none;
+}
+
+.bar,
+.expanded {
+  position: fixed;
+  font-size: 16px;
+  font-family: 'Roboto', sans-serif;
+  z-index: $modalZ;
+  user-select: none;
+}
+
+.bar {
+  vertical-align: middle;
+  display: flex;
+  flex-wrap: wrap;
+  width: 100%;
+  top: 0;
+  left: 0;
+
+  &.moving {
+    bottom: 0;
+    right: 0;
+
+    &:hover {
+      cursor: move;
+    }
+  }
+}
+
+.parityBg {
+  position: fixed;
+  transition-property: left, top, right, bottom;
+  transition-duration: 0.25s;
+  transition-timing-function: ease;
+
+  &.moving {
+    transition-duration: 0.05s;
+    transition-timing-function: ease-in-out;
+  }
+}
+
+.accountsSection {
+  padding: 0 1em;
+  width: 920px;
+}
+
+.expanded {
+  border-radius: 4px 4px 0 0;
+  display: flex;
+  flex-direction: row;
+  min-height: 30vh;
+  max-height: 80vh;
+  max-width: calc(100vw - 2em);
+  width: 960px;
+
+  .content {
+    background: rgba(255, 255, 255, 0.95);
+    display: flex;
+    flex: 1;
+    max-width: calc(100vw - 2em);
+    overflow: auto;
+  }
+}
+
+.corner {
+  border-radius: 4px 4px 0 0;
+}
+
+.cornercolor {
+  align-items: center;
+  display: flex;
+  padding: 0 1em;
+}
+
+.link {
+  white-space: nowrap;
+  border: none;
+  outline: none !important;
+  color: white !important;
+  display: inline-block;
+
+  img,
+  svg {
+    height: 24px !important;
+    width: 24px !important;
+    margin: 2px 0.5em 0 0;
+  }
+}
+
+.link + .link {
+  margin-left: 1em;
+}
+
+.button,
+.iconButton,
+.parityButton {
+  overflow: visible !important;
+}
+
+.parityButton img {
+  width: auto !important;
+  height: 24px;
+}
+
+.button svg {
+  fill: white !important;
+}
+
+.iconButton {
+  min-width: 2em !important;
+
+  img {
+    margin: 6px 0.5em 0;
+  }
+}
+
+.label {
+  display: inline-block;
+  padding: 5px;
+  position: relative;
+  vertical-align: top;
+}
+
+.labelText {
+  text-transform: uppercase;
+  vertical-align: top;
+}
+
+.labelBubble {
+  position: absolute;
+  top: 0;
+  right: -10px;
+}
+
+.header {
+  /* height: 2em; */
+  padding: 0.5em 1em;
+  margin-bottom: 0;
+
+  &::after {
+    clear: both;
+  }
+}
+
+.header,
+.corner {
+  button {
+    background-color: transparent !important;
+    padding: 0.5em 1.5em !important;
+  }
+}
+
+.body {
+  padding: 1em;
+}
+
+.title {
+  color: white;
+  float: left;
+
+  h3 {
+    background: transparent !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+}
+
+.actions {
+  float: right;
+
+  div {
+    margin-left: 1em;
+    display: inline-block;
+    cursor: pointer;
+  }
+}
+
+.parityIcon,
+.signerIcon {
+  width: 24px;
+  height: 24px;
+  vertical-align: middle;
+  margin-left: 12px;
+}
+
+.moveIcon {
+  display: flex;
+  align-items: center;
+
+  &:hover {
+    cursor: move;
+  }
+}
+
+.dragButton {
+  width: 1em;
+  height: 1em;
+  margin-left: 0.5em;
+  background-color: white;
+  opacity: 0.25;
+  border-radius: 50%;
+  transition-property: opacity;
+  transition-duration: 0.1s;
+  transition-timing-function: ease-in-out;
+
+  &:hover {
+    opacity: 0.5;
+  }
+
+  &.moving {
+    opacity: 0.75;
+  }
+}

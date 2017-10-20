@@ -14,13 +14,17 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { uniq } from 'lodash';
+import uniq from 'lodash.uniq';
 import store from 'store';
 
-import Api from './api';
-import { LOG_KEYS, getLogger } from '~/config';
+import Api from '@parity/api';
+import { LOG_KEYS, getLogger } from '@parity/shared/config';
 
 const log = getLogger(LOG_KEYS.Signer);
+
+const RPC_URL = '127.0.0.1:8545';
+const WS_URL = '127.0.0.1:8546';
+const UI_URL = '127.0.0.1:8180';
 
 export default class SecureApi extends Api {
   _isConnecting = false;
@@ -32,13 +36,17 @@ export default class SecureApi extends Api {
   _wsUrl = null;
   _url = null;
 
-  static getTransport (url, sysuiToken, protocol) {
-    const transportUrl = SecureApi.transportUrl(url, protocol);
-
-    return new Api.Transport.Ws(transportUrl, sysuiToken, false);
+  static getHttpProvider (url, protocol) {
+    return new Api.Provider.Http(`${protocol}//${url || RPC_URL}/rpc`, 0);
   }
 
-  static transportUrl (url, protocol) {
+  static getWsProvider (url, protocol, sysuiToken) {
+    const transportUrl = SecureApi.transportWsUrl(url || WS_URL, protocol);
+
+    return new Api.Provider.Ws(transportUrl, sysuiToken, false);
+  }
+
+  static transportWsUrl (url, protocol) {
     const proto = protocol() === 'https:' ? 'wss:' : 'ws:';
 
     return `${proto}//${url}`;
@@ -46,26 +54,34 @@ export default class SecureApi extends Api {
 
   // Returns a protocol with `:` at the end.
   static protocol () {
-    return window.location.protocol;
+    return window.location.protocol === 'file:'
+      ? 'http:'
+      : window.location.protocol;
   }
 
-  constructor (uiUrl, nextToken, getTransport = SecureApi.getTransport, protocol = SecureApi.protocol) {
+  constructor (uiUrl, nextToken, getProvider = SecureApi.getWsProvider, protocol = SecureApi.protocol) {
     const sysuiToken = store.get('sysuiToken');
-    const transport = getTransport(uiUrl, sysuiToken, protocol);
+    const wsProvider = getProvider(uiUrl, protocol, sysuiToken);
 
-    super(transport);
+    super(wsProvider);
 
     this.protocol = protocol;
-    this._url = uiUrl;
-    this._uiApi = new Api(new Api.Transport.Http(`${this.protocol()}//${this._url}/rpc`, 0), false);
+    this._url = uiUrl || UI_URL;
+
+    const httpProvider = SecureApi.getHttpProvider(this._url, this.protocol());
+
+    this._uiApi = new Api(httpProvider, false);
     this._wsUrl = uiUrl;
     // Try tokens from localStorage, from hash and 'initial'
     this._tokens = uniq([sysuiToken, nextToken, 'initial'])
       .filter((token) => token)
-      .map((token) => ({ value: token, tried: false }));
+      .map((value) => ({
+        value,
+        tried: false
+      }));
 
-    // When the transport is closed, try to reconnect
-    transport.on('close', this.connect, this);
+    // When the provider is closed, try to reconnect
+    wsProvider.on('close', this.connect, this);
 
     this.connect();
   }
@@ -103,7 +119,7 @@ export default class SecureApi extends Api {
       return 'dapps.parity';
     }
 
-    return this._dappsAddress.host;
+    return this._dappsAddress.host || '127.0.0.1';
   }
 
   get isConnecting () {
@@ -111,7 +127,7 @@ export default class SecureApi extends Api {
   }
 
   get isConnected () {
-    return this._transport.isConnected;
+    return this.provider.isConnected;
   }
 
   get needsToken () {
@@ -119,7 +135,7 @@ export default class SecureApi extends Api {
   }
 
   get secureToken () {
-    return this._transport.token;
+    return this.provider.token;
   }
 
   connect () {
@@ -266,12 +282,12 @@ export default class SecureApi extends Api {
     const connectPromise = this._fetchSettings()
       .then(() => {
         // Update the URL and token in the transport layer
-        this.transport.url = SecureApi.transportUrl(this._wsUrl, this.protocol);
-        this.transport.updateToken(token, false);
+        this.transport.url = SecureApi.transportWsUrl(this._wsUrl, this.protocol);
+        this.provider.updateToken(token, false);
 
         log.debug('connecting with token', token);
 
-        return this.transport.connect();
+        return this.provider.connect();
       })
       .then(() => {
         log.debug('connected with', token);

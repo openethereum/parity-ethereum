@@ -138,6 +138,7 @@ impl Router {
 			},
 			// Any other GET|HEAD requests to home page.
 			_ if (is_get_request || is_head_request) && self.special.contains_key(&SpecialEndpoint::Home) => {
+				trace!(target: "dapps", "Resolving to home page.");
 				let special = self.special.get(&SpecialEndpoint::Home).expect("special known to contain key; qed");
 				match *special {
 					Some(ref special) => {

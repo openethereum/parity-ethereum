@@ -70,10 +70,12 @@ pub trait Dispatcher: Send + Sync + Clone {
 		-> BoxFuture<FilledTransactionRequest, Error>;
 
 	/// Sign the given transaction request without dispatching, fetching appropriate nonce.
-	fn sign(&self, accounts: Arc<AccountProvider>, filled: FilledTransactionRequest, password: SignWith) -> BoxFuture<WithToken<SignedTransaction>, Error>;
+	fn sign(&self, accounts: Arc<AccountProvider>, filled: FilledTransactionRequest, password: SignWith)
+		-> BoxFuture<WithToken<SignedTransaction>, Error>;
 
 	/// "Dispatch" a local transaction.
-	fn dispatch_transaction(&self, signed_transaction: PendingTransaction) -> Result<H256, Error>;
+	fn dispatch_transaction(&self, signed_transaction: PendingTransaction)
+		-> Result<H256, Error>;
 }
 
 /// A dispatcher which uses references to a client and miner in order to sign

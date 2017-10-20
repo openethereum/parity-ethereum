@@ -32,6 +32,7 @@ ethcore-bytes = { path = "bytes" }
 memorydb = { path = "memorydb" }
 util-error = { path = "error" }
 kvdb = { path = "kvdb" }
+journaldb = { path = "journaldb" }
 
 [dev-dependencies]
 kvdb-memorydb = { path = "kvdb-memorydb" }
