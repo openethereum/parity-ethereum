@@ -16,8 +16,8 @@
 
 import flatten from 'flat';
 
-import * as defaults from '../src/i18n/_default';
-import { LANGUAGES, MESSAGES } from '../src/i18n/store';
+import * as defaults from '../i18n/_default';
+import { LANGUAGES, MESSAGES } from '../i18n/store';
 
 const SKIP_LANG = ['en'];
 const defaultValues = flatten(Object.assign({}, defaults, LANGUAGES));

@@ -1,0 +1,113 @@
+/* Copyright 2015-2017 Parity Technologies (UK) Ltd.
+/* This file is part of Parity.
+/*
+/* Parity is free software: you can redistribute it and/or modify
+/* it under the terms of the GNU General Public License as published by
+/* the Free Software Foundation, either version 3 of the License, or
+/* (at your option) any later version.
+/*
+/* Parity is distributed in the hope that it will be useful,
+/* but WITHOUT ANY WARRANTY; without even the implied warranty of
+/* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+/* GNU General Public License for more details.
+/*
+/* You should have received a copy of the GNU General Public License
+/* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+@font-face {
+  font-family: "Roboto";
+  src: url('~roboto-font/fonts/Roboto/roboto-light-webfont.eot');
+  src: url('~roboto-font/fonts/Roboto/roboto-light-webfont.eot?#iefix') format('embedded-opentype'), url('~roboto-font/fonts/Roboto/roboto-light-webfont.woff') format('woff'), url('~roboto-font/fonts/Roboto/roboto-light-webfont.ttf') format('truetype');
+  font-weight: 300;
+  font-style: normal;
+}
+
+@font-face {
+    font-family: 'Roboto Mono';
+    src: url('~roboto-mono-webfont/fonts/RobotoMono-Light.ttf') format('truetype');
+    font-style: normal;
+    font-weight: 300;
+    text-rendering: optimizeLegibility;
+}
+
+:root, :root body {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  font-size: 100%;
+  font: inherit;
+  vertical-align: baseline;
+  background: rgb(95, 95, 95);
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 16px;
+  font-family: 'Roboto', sans-serif;
+  font-weight: 300;
+}
+
+:root a, :root a:visited {
+  text-decoration: none;
+  cursor: pointer;
+  color: rgb(0, 151, 167); /* #f80 */
+}
+
+:root a:hover {
+  color: rgb(0, 174, 193);
+}
+
+h1,h2,h3,h4,h5,h6 {
+  font-weight: 300;
+  text-transform: uppercase;
+  text-decoration: none;
+}
+
+h1 {
+  font-size: 24px;
+  line-height: 36px;
+  color: rgb(0, 151, 167);
+}
+
+h2 {
+  font-size: 20px;
+  line-height: 34px;
+}
+
+code,kbd,pre,samp {
+  font-family: 'Roboto Mono', monospace;
+}
+
+.parity-navbar {
+  background: rgb(65, 65, 65);
+  height: 72px;
+  padding: 0 1rem;
+  display: flex;
+  justify-content: space-between;
+}
+
+.parity-status {
+  clear: both;
+  padding: 1rem;
+  margin: 1rem 0;
+  text-align: right;
+  opacity: 0.75;
+}
+
+.parity-box {
+  margin: 1rem;
+  padding: 1rem;
+  background-color: rgb(48, 48, 48);
+  box-sizing: border-box;
+  box-shadow: rgba(0, 0, 0, 0.117647) 0px 1px 6px, rgba(0, 0, 0, 0.117647) 0px 1px 4px;
+  border-radius: 2px;
+  z-index: 1;
+  color: #aaa;
+}
+
+.parity-box h1,
+.parity-box h2,
+.parity-box h3,
+.parity-box h4,
+.parity-box h5,
+.parity-box h6 {
+  margin: 0;
+}

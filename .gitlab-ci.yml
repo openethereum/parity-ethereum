@@ -93,7 +93,7 @@ linux-snap:
     paths:
     - scripts/parity_*_amd64.snap
     name: "stable-x86_64-unknown-snap-gnu_parity"
-  allow_failure: true  
+  allow_failure: true
 linux-stable-debian:
   stage: build
   image: parity/rust-debian:gitlab-ci
@@ -244,7 +244,7 @@ linux-i686:
     - strip target/$PLATFORM/release/parity
     - strip target/$PLATFORM/release/parity-evm
     - strip target/$PLATFORM/release/ethstore
-    - strip target/$PLATFORM/release/ethkey   
+    - strip target/$PLATFORM/release/ethkey
     - strip target/$PLATFORM/release/parity
     - md5sum target/$PLATFORM/release/parity > parity.md5
     - export SHA3=$(target/$PLATFORM/release/parity tools hash target/$PLATFORM/release/parity)
@@ -627,8 +627,12 @@ js-test:
     - git submodule update --init --recursive
     - export JS_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep ^js/ | wc -l)
     - if [ $JS_FILES_MODIFIED -eq 0 ]; then echo "Skipping JS deps install since no JS files modified."; else ./js/scripts/install-deps.sh;fi
+    - export JS_OLD_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep ^js-old/ | wc -l)
+    - if [ $JS_OLD_FILES_MODIFIED -eq 0  ]; then echo "Skipping JS (old) deps install since no JS files modified."; else ./js-old/scripts/install-deps.sh;fi
+
   script:
     - if [ $JS_FILES_MODIFIED -eq 0 ]; then echo "Skipping JS lint since no JS files modified."; else ./js/scripts/lint.sh && ./js/scripts/test.sh && ./js/scripts/build.sh; fi
+    - if [ $JS_OLD_FILES_MODIFIED -eq 0 ]; then echo "Skipping JS (old) lint since no JS files modified."; else ./js-old/scripts/lint.sh && ./js-old/scripts/test.sh && ./js-old/scripts/build.sh; fi
   tags:
     - rust
     - rust-stable
@@ -679,10 +683,17 @@ js-release:
     - export JS_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep ^js/ | wc -l)
     - echo $JS_FILES_MODIFIED
     - if [ $JS_FILES_MODIFIED -eq 0  ]; then echo "Skipping JS deps install since no JS files modified."; else ./js/scripts/install-deps.sh;fi
+    - export JS_OLD_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep ^js-old/ | wc -l)
+    - echo $JS_OLD_FILES_MODIFIED
+    - if [ $JS_OLD_FILES_MODIFIED -eq 0  ]; then echo "Skipping JS (old) deps install since no JS files modified."; else ./js-old/scripts/install-deps.sh;fi
+
   script:
     - rustup default stable
     - echo $JS_FILES_MODIFIED
     - if [ $JS_FILES_MODIFIED -eq 0 ]; then echo "Skipping JS rebuild since no JS files modified."; else ./js/scripts/build.sh && ./js/scripts/release.sh; fi
+    - echo $JS_OLD_FILES_MODIFIED
+    - if [ $JS_OLD_FILES_MODIFIED -eq 0 ]; then echo "Skipping JS (old) rebuild since no JS files modified."; else ./js-old/scripts/build.sh && ./js-old/scripts/release.sh; fi
+
   tags:
     - javascript
 push-release:
