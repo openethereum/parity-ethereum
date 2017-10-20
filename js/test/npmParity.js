@@ -26,7 +26,7 @@ try {
     throw new Error('No Abi');
   }
 
-  var transport = new Api.Transport.Http('http://localhost:8545');
+  var transport = new Api.Provider.Http('http://localhost:8545');
   var api = new Api(transport);
 
   api.eth

@@ -16,7 +16,7 @@
 
 use std::{io, net, fmt};
 use io::IoError;
-use {rlp, ethkey, crypto};
+use {rlp, ethkey, crypto, snappy};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum DisconnectReason
@@ -85,6 +85,7 @@ error_chain! {
 		SocketIo(IoError) #[doc = "Socket IO error."];
 		Io(io::Error) #[doc = "Error concerning the Rust standard library's IO subsystem."];
 		AddressParse(net::AddrParseError) #[doc = "Error concerning the network address parsing subsystem."];
+		Decomression(snappy::InvalidInput) #[doc = "Decompression error."];
 	}
 
 	errors {

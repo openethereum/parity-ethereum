@@ -40,6 +40,7 @@ use error::{Error, ErrorKind};
 
 const ENCRYPTED_HEADER_LEN: usize = 32;
 const RECIEVE_PAYLOAD_TIMEOUT: u64 = 30000;
+pub const MAX_PAYLOAD_SIZE: usize = (1 << 24) - 1;
 
 pub trait GenericSocket : Read + Write {
 }
@@ -345,7 +346,7 @@ impl EncryptedConnection {
 			ingress_mac: ingress_mac,
 			read_state: EncryptedConnectionState::Header,
 			protocol_id: 0,
-			payload_len: 0
+			payload_len: 0,
 		};
 		enc.connection.expect(ENCRYPTED_HEADER_LEN);
 		Ok(enc)
@@ -355,8 +356,8 @@ impl EncryptedConnection {
 	pub fn send_packet<Message>(&mut self, io: &IoContext<Message>, payload: &[u8]) -> Result<(), Error> where Message: Send + Clone + Sync + 'static {
 		let mut header = RlpStream::new();
 		let len = payload.len();
-		if len >= (1 << 24) {
-			return Err(ErrorKind::OversizedPacket.into());
+		if len > MAX_PAYLOAD_SIZE {
+			bail!(ErrorKind::OversizedPacket);
 		}
 		header.append_raw(&[(len >> 16) as u8, (len >> 8) as u8, len as u8], 1);
 		header.append_raw(&[0xc2u8, 0x80u8, 0x80u8], 1);

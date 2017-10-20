@@ -862,6 +862,7 @@ impl Configuration {
 
 	fn ws_config(&self) -> Result<WsConfiguration, String> {
 		let ui = self.ui_config();
+		let http = self.http_config()?;
 
 		let conf = WsConfiguration {
 			enabled: self.ws_enabled(),
@@ -873,6 +874,7 @@ impl Configuration {
 			signer_path: self.directories().signer.into(),
 			support_token_api: !self.args.flag_public_node,
 			ui_address: ui.address(),
+			dapps_address: http.address(),
 		};
 
 		Ok(conf)
@@ -1314,6 +1316,7 @@ mod tests {
 			hosts: Some(vec![]),
 			signer_path: expected.into(),
 			ui_address: Some("127.0.0.1:8180".into()),
+			dapps_address: Some("127.0.0.1:8545".into()),
 			support_token_api: true
 		}, UiConfiguration {
 			enabled: true,

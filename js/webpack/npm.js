@@ -18,14 +18,14 @@ const path = require('path');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const packageJson = require('../package.json');
 
+const rulesEs6 = require('./rules/es6');
+const rulesParity = require('./rules/parity');
 const Shared = require('./shared');
-
-const ENV = process.env.NODE_ENV || 'development';
-const isProd = ENV === 'production';
 
 const LIBRARY = process.env.LIBRARY;
 
 if (!LIBRARY) {
+  console.error('$LIBRARY environment variable not defined');
   process.exit(-1);
 }
 
@@ -34,7 +34,7 @@ const OUTPUT_PATH = path.join(__dirname, '../.npmjs', SRC);
 
 const TEST_CONTEXT = SRC === 'parity'
   ? '../npm/parity/test/'
-  : `../src/3rdparty/${SRC}/`;
+  : `../packages/${SRC}/`;
 
 console.log(`Building ${LIBRARY} from library.${SRC}.js to .npmjs/${SRC}`);
 
@@ -54,19 +54,12 @@ module.exports = {
   },
   module: {
     rules: [
+      rulesParity,
+      rulesEs6,
       {
         test: /(\.jsx|\.js)$/,
-        // use: [ 'happypack/loader?id=js' ],
-        use: isProd ? ['babel-loader'] : [
-          // 'react-hot-loader',
-          'babel-loader?cacheDirectory=true'
-        ],
+        use: ['babel-loader'],
         exclude: /node_modules/
-      },
-      {
-        test: /\.js$/,
-        include: /node_modules\/(ethereumjs-tx|@parity\/wordlist)/,
-        use: 'babel-loader'
       }
     ]
   },
@@ -74,11 +67,8 @@ module.exports = {
     fs: 'empty'
   },
   resolve: {
-    alias: {
-      '~': path.resolve(__dirname, '../src')
-    },
+    alias: {},
     modules: [
-      path.resolve('./src'),
       path.join(__dirname, '../node_modules')
     ],
     extensions: ['.json', '.js', '.jsx']
