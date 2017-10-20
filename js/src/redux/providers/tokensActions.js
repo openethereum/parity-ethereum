@@ -71,7 +71,6 @@ function loadCachedTokens (tokenRegContract) {
       // Check if we have data from the right contract
       if (cached.tokenreg === tokenRegContract.address && cached.tokens) {
         log.debug('found cached tokens', cached.tokens);
-        dispatch(_setTokens(cached.tokens));
 
         // Fetch all the tokens images on load
         // (it's the only thing that might have changed)
@@ -105,22 +104,13 @@ export function loadTokens (options = {}) {
   };
 }
 
-export function loadTokensBasics (_tokenIndexes, options) {
+export function loadTokensBasics (tokenIndexes, options) {
   const limit = 64;
 
   return (dispatch, getState) => {
-    const { api, tokens } = getState();
+    const { api } = getState();
     const { tokenReg } = Contracts.get();
     const nextTokens = {};
-    const prevTokensIndexes = Object.values(tokens).map((t) => t.index);
-
-    // Only fetch tokens we don't have yet
-    const tokenIndexes = _tokenIndexes
-      .filter((tokenIndex) => {
-        return !prevTokensIndexes.includes(tokenIndex);
-      })
-      .sort();
-
     const count = tokenIndexes.length;
 
     log.debug('loading basic tokens', tokenIndexes);
@@ -240,6 +230,7 @@ function fetchTokensData (tokenRegContract, tokenIndexes) {
         log.debug('fetched', { fullResults, partialResults });
 
         return [].concat(fullResults, partialResults)
+          .filter(({ address }) => !/0x0*$/.test(address))
           .reduce((tokens, token) => {
             const { id, image, address } = token;
 

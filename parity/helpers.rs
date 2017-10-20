@@ -22,7 +22,7 @@ use bigint::prelude::U256;
 use bigint::hash::clean_0x;
 use util::Address;
 use kvdb_rocksdb::CompactionProfile;
-use util::journaldb::Algorithm;
+use journaldb::Algorithm;
 use ethcore::client::{Mode, BlockId, VMType, DatabaseCompactionProfile, ClientConfig, VerifierType};
 use ethcore::miner::{PendingSet, GasLimit, PrioritizationStrategy};
 use cache::CacheConfig;

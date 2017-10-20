@@ -20,7 +20,7 @@ use std::fmt;
 use std::sync::Arc;
 use bigint::prelude::U256;
 use bigint::hash::H256;
-use util::journaldb;
+use journaldb;
 use {trie, kvdb_memorydb, bytes};
 use kvdb::{self, KeyValueDB};
 use {state, state_db, client, executive, trace, transaction, db, spec, pod_state};
