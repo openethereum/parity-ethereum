@@ -11,7 +11,7 @@ Parity 1.8.1 fixes several bugs with token balances, tweaks snapshot-sync, and i
 5. Move your funds from your Parity account to the new Trezor account.
 6. Keep using Parity as normal.
 
-If you don't want to downgrade, you can also use the official Trezor application or other wallets allowing to select the derivation path to access the funds.
+If you don't want to downgrade or move your funds off your Trezor-device, you can also use the official Trezor application or other wallets allowing to select the derivation path to access the funds.
 
 Full list of included changes:
 
