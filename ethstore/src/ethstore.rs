@@ -358,7 +358,7 @@ impl EthMultiStore {
 
 		// update cache
 		let mut cache = self.cache.write();
-		let mut accounts = cache.entry(account_ref.clone()).or_insert_with(Vec::new);
+		let accounts = cache.entry(account_ref.clone()).or_insert_with(Vec::new);
 		// Remove old account
 		accounts.retain(|acc| acc != &old);
 		// And push updated to the end

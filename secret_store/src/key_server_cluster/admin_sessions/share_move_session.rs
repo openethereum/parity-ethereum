@@ -419,7 +419,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 
 		// find share source
 		{
-			let mut move_confirmations_to_receive = data.move_confirmations_to_receive.as_mut()
+			let move_confirmations_to_receive = data.move_confirmations_to_receive.as_mut()
 				.expect("move_confirmations_to_receive are filled during consensus establishing; move confirmations are processed after this; qed");
 			if !move_confirmations_to_receive.remove(sender) {
 				return Err(Error::InvalidMessage);

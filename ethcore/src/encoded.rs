@@ -37,7 +37,6 @@ use rlp::Rlp;
 
 /// Owning header view.
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "ipc", binary)]
 pub struct Header(Vec<u8>);
 
 impl HeapSizeOf for Header {
@@ -115,7 +114,6 @@ impl Header {
 
 /// Owning block body view.
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "ipc", binary)]
 pub struct Body(Vec<u8>);
 
 impl HeapSizeOf for Body {
@@ -175,7 +173,6 @@ impl Body {
 
 /// Owning block view.
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "ipc", binary)]
 pub struct Block(Vec<u8>);
 
 impl HeapSizeOf for Block {

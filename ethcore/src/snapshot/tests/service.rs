@@ -27,7 +27,7 @@ use tests::helpers::generate_dummy_client_with_spec_and_data;
 
 use devtools::RandomTempPath;
 use io::IoChannel;
-use kvdb::{Database, DatabaseConfig};
+use kvdb_rocksdb::{Database, DatabaseConfig};
 
 struct NoopDBRestore;
 
@@ -69,7 +69,7 @@ fn restored_is_equivalent() {
 		engine: spec.engine.clone(),
 		genesis_block: spec.genesis_block(),
 		db_config: db_config,
-		pruning: ::util::journaldb::Algorithm::Archive,
+		pruning: ::journaldb::Algorithm::Archive,
 		channel: IoChannel::disconnected(),
 		snapshot_root: path,
 		db_restore: client2.clone(),
@@ -112,7 +112,7 @@ fn guards_delete_folders() {
 		engine: spec.engine.clone(),
 		genesis_block: spec.genesis_block(),
 		db_config: DatabaseConfig::with_columns(::db::NUM_COLUMNS),
-		pruning: ::util::journaldb::Algorithm::Archive,
+		pruning: ::journaldb::Algorithm::Archive,
 		channel: IoChannel::disconnected(),
 		snapshot_root: path.clone(),
 		db_restore: Arc::new(NoopDBRestore),

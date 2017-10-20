@@ -17,8 +17,8 @@
 use std::collections::{VecDeque, HashSet};
 use std::sync::Arc;
 use lru_cache::LruCache;
-use util::cache::MemoryLruCache;
-use util::journaldb::JournalDB;
+use memory_cache::MemoryLruCache;
+use journaldb::JournalDB;
 use kvdb::{KeyValueDB, DBTransaction};
 use bigint::hash::H256;
 use hashdb::HashDB;
@@ -211,7 +211,7 @@ impl StateDB {
 	pub fn sync_cache(&mut self, enacted: &[H256], retracted: &[H256], is_best: bool) {
 		trace!("sync_cache id = (#{:?}, {:?}), parent={:?}, best={}", self.commit_number, self.commit_hash, self.parent_hash, is_best);
 		let mut cache = self.account_cache.lock();
-		let mut cache = &mut *cache;
+		let cache = &mut *cache;
 
 		// Purge changes from re-enacted and retracted blocks.
 		// Filter out commiting block if any.

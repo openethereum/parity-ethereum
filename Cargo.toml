@@ -1,7 +1,7 @@
 [package]
 description = "Parity Ethereum client"
 name = "parity"
-version = "1.8.0"
+version = "1.9.0"
 license = "GPL-3.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 build = "build.rs"
@@ -15,7 +15,7 @@ clap = "2"
 time = "0.1"
 num_cpus = "1.2"
 number_prefix = "0.2"
-rpassword = "0.2.1"
+rpassword = "1.0"
 semver = "0.6"
 ansi_term = "0.9"
 parking_lot = "0.4"
@@ -39,9 +39,6 @@ ethcore-bytes = { path = "util/bytes" }
 ethcore-bigint = { path = "util/bigint" }
 ethcore-io = { path = "util/io" }
 ethcore-devtools = { path = "devtools" }
-ethcore-ipc = { path = "ipc/rpc" }
-ethcore-ipc-nano = { path = "ipc/nano" }
-ethcore-ipc-hypervisor = { path = "ipc/hypervisor" }
 ethcore-light = { path = "ethcore/light" }
 ethcore-logger = { path = "logger" }
 ethcore-stratum = { path = "stratum" }
@@ -64,6 +61,8 @@ panic_hook = { path = "panic_hook" }
 hash = { path = "util/hash" }
 migration = { path = "util/migration" }
 kvdb = { path = "util/kvdb" }
+kvdb-rocksdb = { path = "util/kvdb-rocksdb" }
+journaldb = { path = "util/journaldb" }
 
 parity-dapps = { path = "dapps", optional = true }
 clippy = { version = "0.0.103", optional = true}
@@ -73,7 +72,6 @@ ethcore-secretstore = { path = "secret_store", optional = true }
 rustc_version = "0.2"
 
 [dev-dependencies]
-ethcore-ipc-tests = { path = "ipc/tests" }
 pretty_assertions = "0.1"
 ipnetwork = "0.12.6"
 
@@ -95,7 +93,6 @@ ui-precompiled = [
 ]
 ui-enabled = ["dapps"]
 dapps = ["parity-dapps"]
-ipc = ["ethcore/ipc", "ethsync/ipc"]
 jit = ["ethcore/jit"]
 dev = ["clippy", "ethcore/dev", "ethcore-util/dev", "ethsync/dev", "parity-rpc/dev", "parity-dapps/dev"]
 json-tests = ["ethcore/json-tests"]

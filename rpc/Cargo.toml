@@ -10,6 +10,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [dependencies]
 ansi_term = "0.9"
 cid = "0.2"
+futures = "0.1.6"
 futures-cpupool = "0.1"
 log = "0.3"
 multihash ="0.6"
@@ -35,7 +36,6 @@ jsonrpc-macros = { git = "https://github.com/paritytech/jsonrpc.git", branch = "
 jsonrpc-pubsub = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.8" }
 
 ethcore-io = { path = "../util/io" }
-ethcore-ipc = { path = "../ipc/rpc" }
 ethcore-util = { path = "../util" }
 ethcore-bigint = { path = "../util/bigint" }
 ethcore-bytes = { path = "../util/bytes" }
@@ -57,7 +57,6 @@ rlp = { path = "../util/rlp" }
 stats = { path = "../util/stats" }
 vm = { path = "../ethcore/vm" }
 hash = { path = "../util/hash" }
-kvdb = { path = "../util/kvdb" }
 hardware-wallet = { path = "../hw" }
 
 clippy = { version = "0.0.103", optional = true}
@@ -66,6 +65,7 @@ pretty_assertions = "0.1"
 [dev-dependencies]
 macros = { path = "../util/macros" }
 ethcore-network = { path = "../util/network" }
+kvdb-memorydb = { path = "../util/kvdb-memorydb" }
 
 [features]
 dev = ["clippy", "ethcore/dev", "ethcore-util/dev", "ethsync/dev"]

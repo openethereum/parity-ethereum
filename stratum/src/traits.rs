@@ -17,11 +17,9 @@
 use std;
 use std::error::Error as StdError;
 use bigint::hash::H256;
-use ipc::IpcConfig;
 use jsonrpc_tcp_server::PushMessageError;
 
 #[derive(Debug, Clone)]
-#[binary]
 pub enum Error {
 	NoWork,
 	NoWorkers,
@@ -43,7 +41,6 @@ impl From<PushMessageError> for Error {
 }
 
 /// Interface that can provide pow/blockchain-specific responses for the clients
-#[ipc(client_ident="RemoteJobDispatcher")]
 pub trait JobDispatcher: Send + Sync {
 	// json for initial client handshake
 	fn initial(&self) -> Option<String> { None }
@@ -56,7 +53,6 @@ pub trait JobDispatcher: Send + Sync {
 }
 
 /// Interface that can handle requests to push job for workers
-#[ipc(client_ident="RemoteWorkHandler")]
 pub trait PushWorkHandler: Send + Sync {
 	/// push the same work package for all workers (`payload`: json of pow-specific set of work specification)
 	fn push_work_all(&self, payload: String) -> Result<(), Error>;
@@ -65,13 +61,9 @@ pub trait PushWorkHandler: Send + Sync {
 	fn push_work(&self, payloads: Vec<String>) -> Result<(), Error>;
 }
 
-#[binary]
 pub struct ServiceConfiguration {
 	pub io_path: String,
 	pub listen_addr: String,
 	pub port: u16,
 	pub secret: Option<H256>,
 }
-
-impl IpcConfig for PushWorkHandler { }
-impl IpcConfig for JobDispatcher { }

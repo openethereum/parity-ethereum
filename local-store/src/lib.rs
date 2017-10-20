@@ -44,6 +44,8 @@ extern crate log;
 
 #[cfg(test)]
 extern crate ethkey;
+#[cfg(test)]
+extern crate kvdb_memorydb;
 
 const LOCAL_TRANSACTIONS_KEY: &'static [u8] = &*b"LOCAL_TXS";
 
@@ -54,7 +56,7 @@ const UPDATE_TIMEOUT_MS: u64 = 15 * 60 * 1000; // once every 15 minutes.
 #[derive(Debug)]
 pub enum Error {
 	/// Database errors: these manifest as `String`s.
-	Database(String),
+	Database(kvdb::Error),
 	/// JSON errors.
 	Json(::serde_json::Error),
 }
@@ -243,7 +245,7 @@ mod tests {
 
 	#[test]
 	fn twice_empty() {
-		let db = Arc::new(::kvdb::in_memory(0));
+		let db = Arc::new(::kvdb_memorydb::create(0));
 
 		{
 			let store = super::create(db.clone(), None, Dummy(vec![]));
@@ -272,7 +274,7 @@ mod tests {
 			PendingTransaction::new(signed, condition)
 		}).collect();
 
-		let db = Arc::new(::kvdb::in_memory(0));
+		let db = Arc::new(::kvdb_memorydb::create(0));
 
 		{
 			// nothing written yet, will write pending.
@@ -311,7 +313,7 @@ mod tests {
 			PendingTransaction::new(signed, None)
 		});
 
-		let db = Arc::new(::kvdb::in_memory(0));
+		let db = Arc::new(::kvdb_memorydb::create(0));
 		{
 			// nothing written, will write bad.
 			let store = super::create(db.clone(), None, Dummy(transactions.clone()));

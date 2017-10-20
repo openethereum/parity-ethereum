@@ -1479,7 +1479,8 @@ mod tests {
 	use std::sync::Arc;
 	use rustc_hex::FromHex;
 	use hash::keccak;
-	use kvdb::{in_memory, KeyValueDB};
+	use kvdb::KeyValueDB;
+	use kvdb_memorydb;
 	use bigint::hash::*;
 	use receipt::{Receipt, TransactionOutcome};
 	use blockchain::{BlockProvider, BlockChain, Config, ImportRoute};
@@ -1493,7 +1494,7 @@ mod tests {
 	use header::BlockNumber;
 
 	fn new_db() -> Arc<KeyValueDB> {
-		Arc::new(in_memory(::db::NUM_COLUMNS.unwrap_or(0)))
+		Arc::new(kvdb_memorydb::create(::db::NUM_COLUMNS.unwrap_or(0)))
 	}
 
 	fn new_chain(genesis: &[u8], db: Arc<KeyValueDB>) -> BlockChain {

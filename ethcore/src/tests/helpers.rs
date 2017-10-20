@@ -36,7 +36,6 @@ use state_db::StateDB;
 use state::*;
 use std::sync::Arc;
 use transaction::{Action, Transaction, SignedTransaction};
-use util::*;
 use views::BlockView;
 
 // TODO: move everything over to get_null_spec.
@@ -232,7 +231,7 @@ pub fn get_test_client_with_blocks(blocks: Vec<Bytes>) -> Arc<Client> {
 }
 
 fn new_db() -> Arc<::kvdb::KeyValueDB> {
-	Arc::new(::kvdb::in_memory(::db::NUM_COLUMNS.unwrap_or(0)))
+	Arc::new(::kvdb_memorydb::create(::db::NUM_COLUMNS.unwrap_or(0)))
 }
 
 pub fn generate_dummy_blockchain(block_number: u32) -> BlockChain {
@@ -282,7 +281,7 @@ pub fn get_temp_state_with_factory(factory: EvmFactory) -> State<::state_db::Sta
 
 pub fn get_temp_state_db() -> StateDB {
 	let db = new_db();
-	let journal_db = journaldb::new(db, journaldb::Algorithm::EarlyMerge, ::db::COL_STATE);
+	let journal_db = ::journaldb::new(db, ::journaldb::Algorithm::EarlyMerge, ::db::COL_STATE);
 	StateDB::new(journal_db, 5 * 1024 * 1024)
 }
 

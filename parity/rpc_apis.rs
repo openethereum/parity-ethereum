@@ -244,7 +244,7 @@ impl FullDependencies {
 					let deps = &$deps;
 					let dispatcher = FullDispatcher::new(deps.client.clone(), deps.miner.clone());
 					if deps.signer_service.is_enabled() {
-						$handler.extend_with($namespace::to_delegate(SigningQueueClient::new(&deps.signer_service, dispatcher, &deps.secret_store)))
+						$handler.extend_with($namespace::to_delegate(SigningQueueClient::new(&deps.signer_service, dispatcher, deps.remote.clone(), &deps.secret_store)))
 					} else {
 						$handler.extend_with($namespace::to_delegate(SigningUnsafeClient::new(&deps.secret_store, dispatcher)))
 					}
@@ -445,7 +445,7 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 					let secret_store = Some(deps.secret_store.clone());
 					if deps.signer_service.is_enabled() {
 						$handler.extend_with($namespace::to_delegate(
-							SigningQueueClient::new(&deps.signer_service, dispatcher, &secret_store)
+							SigningQueueClient::new(&deps.signer_service, dispatcher, deps.remote.clone(), &secret_store)
 						))
 					} else {
 						$handler.extend_with(

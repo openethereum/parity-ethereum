@@ -62,7 +62,7 @@ pub fn format_ether(i: U256) -> String {
 }
 
 impl fmt::Display for TransactionRequest {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		let eth = self.value.unwrap_or(U256::from(0));
 		match self.to {
 			Some(ref to) => write!(

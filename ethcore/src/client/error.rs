@@ -14,9 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use util_error::UtilError;
 use std::fmt::{Display, Formatter, Error as FmtError};
-
+use util_error::UtilError;
+use kvdb;
 use trie::TrieError;
 
 /// Client configuration errors.
@@ -25,7 +25,7 @@ pub enum Error {
 	/// TrieDB-related error.
 	Trie(TrieError),
 	/// Database error
-	Database(String),
+	Database(kvdb::Error),
 	/// Util error
 	Util(UtilError),
 }

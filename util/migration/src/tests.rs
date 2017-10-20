@@ -18,17 +18,18 @@
 //! A random temp directory is created. A database is created within it, and migrations
 //! are performed in temp sub-directories.
 
-use std::collections::BTreeMap;
-use std::sync::Arc;
-use std::path::{Path, PathBuf};
-use {Batch, Config, Error, SimpleMigration, Migration, Manager, ChangeColumns};
-use kvdb::Database;
-use devtools::RandomTempPath;
+extern crate tempdir;
 
+use std::collections::BTreeMap;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
+use self::tempdir::TempDir;
+use kvdb_rocksdb::Database;
+use {Batch, Config, Error, SimpleMigration, Migration, Manager, ChangeColumns};
+
+#[inline]
 fn db_path(path: &Path) -> PathBuf {
-	let mut p = path.to_owned();
-	p.push("db");
-	p
+	path.join("db")
 }
 
 // initialize a database at the given directory with the given values.
@@ -109,8 +110,8 @@ impl Migration for AddsColumn {
 
 #[test]
 fn one_simple_migration() {
-	let dir = RandomTempPath::create_dir();
-	let db_path = db_path(dir.as_path());
+	let tempdir = TempDir::new("").unwrap();
+	let db_path = db_path(tempdir.path());
 	let mut manager = Manager::new(Config::default());
 	make_db(&db_path, map![vec![] => vec![], vec![1] => vec![1]]);
 	let expected = map![vec![0x11] => vec![0x22], vec![1, 0x11] => vec![1, 0x22]];
@@ -124,8 +125,8 @@ fn one_simple_migration() {
 #[test]
 #[should_panic]
 fn no_migration_needed() {
-	let dir = RandomTempPath::create_dir();
-	let db_path = db_path(dir.as_path());
+	let tempdir = TempDir::new("").unwrap();
+	let db_path = db_path(tempdir.path());
 	let mut manager = Manager::new(Config::default());
 	make_db(&db_path, map![vec![] => vec![], vec![1] => vec![1]]);
 
@@ -136,8 +137,8 @@ fn no_migration_needed() {
 #[test]
 #[should_panic]
 fn wrong_adding_order() {
-	let dir = RandomTempPath::create_dir();
-	let db_path = db_path(dir.as_path());
+	let tempdir = TempDir::new("").unwrap();
+	let db_path = db_path(tempdir.path());
 	let mut manager = Manager::new(Config::default());
 	make_db(&db_path, map![vec![] => vec![], vec![1] => vec![1]]);
 
@@ -147,8 +148,8 @@ fn wrong_adding_order() {
 
 #[test]
 fn multiple_migrations() {
-	let dir = RandomTempPath::create_dir();
-	let db_path = db_path(dir.as_path());
+	let tempdir = TempDir::new("").unwrap();
+	let db_path = db_path(tempdir.path());
 	let mut manager = Manager::new(Config::default());
 	make_db(&db_path, map![vec![] => vec![], vec![1] => vec![1]]);
 	let expected = map![vec![0x11] => vec![], vec![1, 0x11] => vec![]];
@@ -162,8 +163,8 @@ fn multiple_migrations() {
 
 #[test]
 fn second_migration() {
-	let dir = RandomTempPath::create_dir();
-	let db_path = db_path(dir.as_path());
+	let tempdir = TempDir::new("").unwrap();
+	let db_path = db_path(tempdir.path());
 	let mut manager = Manager::new(Config::default());
 	make_db(&db_path, map![vec![] => vec![], vec![1] => vec![1]]);
 	let expected = map![vec![] => vec![], vec![1] => vec![]];
@@ -177,8 +178,8 @@ fn second_migration() {
 
 #[test]
 fn first_and_noop_migration() {
-	let dir = RandomTempPath::create_dir();
-	let db_path = db_path(dir.as_path());
+	let tempdir = TempDir::new("").unwrap();
+	let db_path = db_path(tempdir.path());
 	let mut manager = Manager::new(Config::default());
 	make_db(&db_path, map![vec![] => vec![], vec![1] => vec![1]]);
 	let expected = map![vec![0x11] => vec![0x22], vec![1, 0x11] => vec![1, 0x22]];
@@ -191,8 +192,8 @@ fn first_and_noop_migration() {
 
 #[test]
 fn noop_and_second_migration() {
-	let dir = RandomTempPath::create_dir();
-	let db_path = db_path(dir.as_path());
+	let tempdir = TempDir::new("").unwrap();
+	let db_path = db_path(tempdir.path());
 	let mut manager = Manager::new(Config::default());
 	make_db(&db_path, map![vec![] => vec![], vec![1] => vec![1]]);
 	let expected = map![vec![] => vec![], vec![1] => vec![]];
@@ -219,8 +220,8 @@ fn pre_columns() {
 	let mut manager = Manager::new(Config::default());
 	manager.add_migration(AddsColumn).unwrap();
 
-	let dir = RandomTempPath::create_dir();
-	let db_path = db_path(dir.as_path());
+	let tempdir = TempDir::new("").unwrap();
+	let db_path = db_path(tempdir.path());
 
 	// this shouldn't fail to open the database even though it's one column
 	// short of the one before it.
@@ -229,7 +230,7 @@ fn pre_columns() {
 
 #[test]
 fn change_columns() {
-	use kvdb::DatabaseConfig;
+	use kvdb_rocksdb::DatabaseConfig;
 
 	let mut manager = Manager::new(Config::default());
 	manager.add_migration(ChangeColumns {
@@ -238,8 +239,8 @@ fn change_columns() {
 		version: 1,
 	}).unwrap();
 
-	let dir = RandomTempPath::create_dir();
-	let db_path = db_path(dir.as_path());
+	let tempdir = TempDir::new("").unwrap();
+	let db_path = db_path(tempdir.path());
 
 	let new_path = manager.execute(&db_path, 0).unwrap();
 

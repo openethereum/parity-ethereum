@@ -92,7 +92,6 @@ extern crate rocksdb;
 extern crate env_logger;
 extern crate secp256k1;
 extern crate elastic_array;
-extern crate ethcore_devtools as devtools;
 extern crate libc;
 extern crate target_info;
 extern crate ethcore_bigint as bigint;
@@ -100,7 +99,6 @@ extern crate ethcore_bytes as bytes;
 extern crate parking_lot;
 extern crate tiny_keccak;
 extern crate rlp;
-extern crate lru_cache;
 extern crate heapsize;
 extern crate ethcore_logger;
 extern crate hash as keccak;
@@ -110,19 +108,15 @@ extern crate patricia_trie as trie;
 extern crate kvdb;
 extern crate util_error as error;
 
-#[macro_use]
-extern crate log as rlog;
+#[cfg(test)]
+extern crate kvdb_memorydb;
+
 
 pub mod misc;
-pub mod overlaydb;
-pub mod journaldb;
-pub mod cache;
 
 pub use misc::*;
 pub use hashdb::*;
 pub use memorydb::MemoryDB;
-pub use overlaydb::*;
-pub use journaldb::JournalDB;
 
 /// 160-bit integer representing account address
 pub type Address = bigint::hash::H160;

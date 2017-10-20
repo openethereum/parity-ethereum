@@ -16,33 +16,28 @@
 
 import 'whatwg-fetch';
 
-import es6Promise from 'es6-promise';
-es6Promise.polyfill();
-
 import React from 'react';
 import ReactDOM from 'react-dom';
 import { AppContainer } from 'react-hot-loader';
 
 import injectTapEventPlugin from 'react-tap-event-plugin';
 
-import SecureApi from '~/secureApi';
-import ContractInstances from '~/contracts';
+import ContractInstances from '@parity/shared/contracts';
+import { initStore } from '@parity/shared/redux';
+import { setApi } from '@parity/shared/redux/providers/apiActions';
+import ContextProvider from '@parity/ui/ContextProvider';
+import muiTheme from '@parity/ui/Theme';
+import { patchApi } from '@parity/shared/util/tx';
 
-import { initStore } from '~/redux';
-import ContextProvider from '~/ui/ContextProvider';
-import muiTheme from '~/ui/Theme';
+import SecureApi from './secureApi';
 
-import { patchApi } from '~/util/tx';
-import { setApi } from '~/redux/providers/apiActions';
-
-import '~/environment';
-
-import '../assets/fonts/Roboto/font.css';
-import '../assets/fonts/RobotoMono/font.css';
+import '@parity/shared/environment';
+import '@parity/shared/assets/fonts/Roboto/font.css';
+import '@parity/shared/assets/fonts/RobotoMono/font.css';
 
 injectTapEventPlugin();
 
-import ParityBar from '~/views/ParityBar';
+import ParityBar from './ParityBar';
 
 // Test transport (std transport should be provided as global object)
 class FakeTransport {

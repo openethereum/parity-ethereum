@@ -15,20 +15,28 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-const webpack = require('webpack');
+const Api = require('@parity/api');
+const fs = require('fs');
 const path = require('path');
-const ReactIntlAggregatePlugin = require('react-intl-aggregate-webpack-plugin');
+const flatten = require('lodash.flatten');
+// const ReactIntlAggregatePlugin = require('react-intl-aggregate-webpack-plugin');
+const ExtractTextPlugin = require('extract-text-webpack-plugin');
 const WebpackErrorNotificationPlugin = require('webpack-error-notification');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
-const ExtractTextPlugin = require('extract-text-webpack-plugin');
-const ServiceWorkerWebpackPlugin = require('serviceworker-webpack-plugin');
-const ScriptExtHtmlWebpackPlugin = require('script-ext-html-webpack-plugin');
 
+const rulesEs6 = require('./rules/es6');
+const rulesParity = require('./rules/parity');
 const Shared = require('./shared');
-const DAPPS = require('../src/views/Dapps/builtin.json');
 
-const FAVICON = path.resolve(__dirname, '../assets/images/parity-logo-black-no-text.png');
+const DAPPS_BUILTIN = require('@parity/shared/config/dappsBuiltin.json');
+const DAPPS_VIEWS = require('@parity/shared/config/dappsViews.json');
+const DAPPS_ALL = []
+  .concat(DAPPS_BUILTIN, DAPPS_VIEWS)
+  .filter((dapp) => !dapp.skipBuild)
+  .filter((dapp) => dapp.package);
+
+const FAVICON = path.resolve(__dirname, '../node_modules/@parity/shared/assets/images/parity-logo-black-no-text.png');
 
 const DEST = process.env.BUILD_DEST || '.build';
 const ENV = process.env.NODE_ENV || 'development';
@@ -36,111 +44,104 @@ const EMBED = process.env.EMBED;
 
 const isProd = ENV === 'production';
 const isEmbed = EMBED === '1' || EMBED === 'true';
-const isAnalize = process.env.WPANALIZE === '1';
 
 const entry = isEmbed
-  ? {
-    embed: './embed.js'
-  }
-  : Object.assign({}, Shared.dappsEntry, {
-    index: './index.js'
-  });
+  ? { embed: './embed.js' }
+  : { bundle: ['babel-polyfill', './index.parity.js'] };
 
 module.exports = {
   cache: !isProd,
-  devtool: isProd ? '#hidden-source-map' : '#source-map',
-
+  devtool: isProd
+    ? '#source-map'
+    : '#eval',
   context: path.join(__dirname, '../src'),
-  entry: entry,
+  entry,
   output: {
-    // publicPath: '/',
     path: path.join(__dirname, '../', DEST),
-    filename: '[name].[hash:10].js'
+    filename: '[name].js'
   },
 
   module: {
     rules: [
+      rulesParity,
+      rulesEs6,
       {
         test: /\.js$/,
-        exclude: /(node_modules)/,
-        use: [ 'happypack/loader?id=babel-js' ]
-      },
-      {
-        test: /\.js$/,
-        include: /node_modules\/(material-chip-input|ethereumjs-tx|@parity\/wordlist)/,
-        use: 'babel-loader'
+        exclude: /node_modules/,
+        use: [ {
+          loader: 'happypack/loader',
+          options: {
+            id: 'babel'
+          }
+        } ]
       },
       {
         test: /\.json$/,
-        use: [ 'json-loader' ]
+        use: ['json-loader']
       },
       {
         test: /\.ejs$/,
-        use: [ 'ejs-loader' ]
-      },
-      {
-        test: /\.html$/,
-        use: [
-          'file-loader?name=[name].[ext]!extract-loader',
-          {
-            loader: 'html-loader',
-            options: {
-              root: path.resolve(__dirname, '../assets/images'),
-              attrs: ['img:src', 'link:href']
-            }
-          }
-        ]
+        use: ['ejs-loader']
       },
       {
         test: /\.md$/,
-        use: [
-          {
-            loader: 'html-loader',
-            options: {}
-          },
-          {
-            loader: 'markdown-loader',
-            options: {}
+        use: ['html-loader', 'markdown-loader']
+      },
+      {
+        test: /\.css$/,
+        include: /semantic-ui-css/,
+        use: ExtractTextPlugin.extract({
+          fallback: 'style-loader',
+          use: [
+            {
+              loader: 'css-loader',
+              options: {
+                minimize: isProd
+              }
+            }
+          ]
+        })
+      },
+      {
+        test: /\.css$/,
+        exclude: /semantic-ui-css/,
+        use: ExtractTextPlugin.extract({
+          fallback: 'style-loader',
+          use: [
+            {
+              loader: 'css-loader',
+              options: {
+                importLoaders: 1,
+                localIdentName: '[name]_[local]_[hash:base64:10]',
+                minimize: isProd,
+                modules: true
+              }
+            },
+            {
+              loader: 'postcss-loader',
+              options: {
+                sourceMap: isProd,
+                plugins: [
+                  require('postcss-import'),
+                  require('postcss-nested'),
+                  require('postcss-simple-vars')
+                ]
+              }
+            }
+          ]
+        })
+      },
+      {
+        test: /\.(png|jpg|svg|woff|woff2|ttf|eot|otf)(\?.*)?$/,
+        use: {
+          loader: 'file-loader',
+          options: {
+            name: '[name].[hash:10].[ext]',
+            outputPath: '',
+            publicPath: '',
+            useRelativePath: false
           }
-        ]
-      },
-      {
-        test: /\.css$/,
-        include: [ /src/ ],
-        // exclude: [ /src\/dapps/ ],
-        loader: (isProd && !isEmbed)
-          ? ExtractTextPlugin.extract([
-            // 'style-loader',
-            'css-loader?modules&sourceMap&importLoaders=1&localIdentName=[name]__[local]___[hash:base64:5]',
-            'postcss-loader'
-          ])
-          : undefined,
-        use: (isProd && !isEmbed)
-          ? undefined
-          : [ 'happypack/loader?id=css' ]
-      },
-
-      {
-        test: /\.css$/,
-        exclude: [ /src/ ],
-        use: [ 'style-loader', 'css-loader' ]
-      },
-      {
-        test: /\.(png|jpg)$/,
-        use: [ 'file-loader?&name=assets/[name].[hash:10].[ext]' ]
-      },
-      {
-        test: /\.(woff(2)|ttf|eot|otf)(\?v=[0-9]\.[0-9]\.[0-9])?$/,
-        use: [ 'file-loader?name=fonts/[name][hash:10].[ext]' ]
-      },
-      {
-        test: /parity-logo-white-no-text\.svg/,
-        use: [ 'url-loader' ]
-      },
-      {
-        test: /\.svg(\?v=[0-9]\.[0-9]\.[0-9])?$/,
-        exclude: [ /parity-logo-white-no-text\.svg/ ],
-        use: [ 'file-loader?name=assets/[name].[hash:10].[ext]' ]
+        }
       }
     ],
     noParse: [
@@ -149,11 +150,6 @@ module.exports = {
   },
 
   resolve: {
-    alias: {
-      '~/api/local': path.resolve(__dirname, '../src/api/local/localAccountsMiddleware.js'),
-      '~': path.resolve(__dirname, '../src'),
-      'keythereum': path.resolve(__dirname, '../node_modules/keythereum/dist/keythereum')
-    },
     modules: [
       path.join(__dirname, '../node_modules')
     ],
@@ -166,19 +162,11 @@ module.exports = {
   },
 
   plugins: (function () {
-    const DappsHTMLInjection = DAPPS.filter((dapp) => !dapp.skipBuild).map((dapp) => {
-      return new HtmlWebpackPlugin({
-        title: dapp.name,
-        filename: dapp.url + '.html',
-        template: './dapps/index.ejs',
-        favicon: FAVICON,
-        secure: dapp.secure,
-        chunks: [ isProd ? null : 'commons', dapp.url ]
-      });
-    });
-
     let plugins = Shared.getPlugins().concat(
-      new WebpackErrorNotificationPlugin()
+      new WebpackErrorNotificationPlugin(),
+      new ExtractTextPlugin({
+        filename: `${isEmbed ? 'embed' : 'bundle'}.css`
+      }),
     );
 
     if (!isEmbed) {
@@ -188,34 +176,57 @@ module.exports = {
         new HtmlWebpackPlugin({
           title: 'Parity',
           filename: 'index.html',
-          template: './index.ejs',
+          template: './index.parity.ejs',
           favicon: FAVICON,
-          chunks: [
-            isProd ? null : 'commons',
-            'index'
-          ]
+          chunks: ['bundle']
         }),
 
-        new ServiceWorkerWebpackPlugin({
-          entry: path.join(__dirname, '../src/serviceWorker.js')
-        }),
+        new CopyWebpackPlugin(
+          flatten([
+            {
+              from: path.join(__dirname, '../src/error_pages.css'),
+              to: 'styles.css'
+            },
+            {
+              from: path.join(__dirname, '../src/index.electron.js'),
+              to: 'electron.js'
+            },
+            {
+              from: path.join(__dirname, '../package.electron.json'),
+              to: 'package.json'
+            },
+            flatten(
+              DAPPS_ALL
+                .map((dapp) => {
+                  const dir = path.join(__dirname, '../node_modules', dapp.package);
 
-        DappsHTMLInjection,
+                  if (!fs.existsSync(path.join(dir, 'dist'))) {
+                    return null;
+                  }
 
-        new webpack.DllReferencePlugin({
-          context: '.',
-          manifest: require(`../${DEST}/vendor-manifest.json`)
-        }),
+                  const destination = Api.util.isHex(dapp.id)
+                    ? dapp.id
+                    : Api.util.sha3(dapp.url);
 
-        new ScriptExtHtmlWebpackPlugin({
-          sync: [ 'commons', 'vendor.js' ],
-          defaultAttribute: 'defer'
-        }),
-
-        new CopyWebpackPlugin([
-          { from: './error_pages.css', to: 'styles.css' },
-          { from: 'dapps/static' }
-        ], {})
+                  return [
+                    'index.html', 'dist.css', 'dist.css.map', 'dist.js', 'dist.js.map'
+                  ]
+                  .map((file) => path.join(dir, file))
+                  .filter((from) => fs.existsSync(from))
+                  .map((from) => ({
+                    from,
+                    to: `dapps/${destination}/`
+                  }))
+                  .concat({
+                    from: path.join(dir, 'dist'),
+                    to: `dapps/${destination}/dist/`
+                  });
+                })
+                .filter((copy) => copy)
+            )
+          ]),
+          {}
+        )
       );
     }
 
@@ -226,37 +237,9 @@ module.exports = {
           filename: 'embed.html',
           template: './index.ejs',
           favicon: FAVICON,
-          chunks: [
-            isProd ? null : 'commons',
-            'embed'
-          ]
+          chunks: ['embed']
         })
       );
-    }
-
-    if (!isAnalize && !isProd) {
-      const DEST_I18N = path.join(__dirname, '..', DEST, 'i18n');
-
-      plugins.push(
-        new ReactIntlAggregatePlugin({
-          messagesPattern: DEST_I18N + '/src/**/*.json',
-          aggregateOutputDir: DEST_I18N + '/i18n/',
-          aggregateFilename: 'en'
-        }),
-
-        new webpack.optimize.CommonsChunkPlugin({
-          filename: 'commons.[hash:10].js',
-          name: 'commons',
-          minChunks: 2
-        })
-      );
-    }
-
-    if (isProd) {
-      plugins.push(new ExtractTextPlugin({
-        filename: 'styles/[name].[hash:10].css',
-        allChunks: true
-      }));
     }
 
     return plugins;

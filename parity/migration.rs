@@ -20,9 +20,10 @@ use std::io::{Read, Write, Error as IoError, ErrorKind};
 use std::path::{Path, PathBuf};
 use std::fmt::{Display, Formatter, Error as FmtError};
 use std::sync::Arc;
-use util::journaldb::Algorithm;
-use migr::{Manager as MigrationManager, Config as MigrationConfig, Error as MigrationError, Migration};
-use kvdb::{CompactionProfile, Database, DatabaseConfig};
+use journaldb::Algorithm;
+use migr::{self, Manager as MigrationManager, Config as MigrationConfig, Migration};
+use kvdb;
+use kvdb_rocksdb::{CompactionProfile, Database, DatabaseConfig};
 use ethcore::migrations;
 use ethcore::db;
 use ethcore::migrations::Extract;
@@ -52,7 +53,7 @@ pub enum Error {
 	/// Migration unexpectadly failed.
 	MigrationFailed,
 	/// Internal migration error.
-	Internal(MigrationError),
+	Internal(migr::Error),
 	/// Migration was completed succesfully,
 	/// but there was a problem with io.
 	Io(IoError),
@@ -80,11 +81,11 @@ impl From<IoError> for Error {
 	}
 }
 
-impl From<MigrationError> for Error {
-	fn from(err: MigrationError) -> Self {
-		match err {
-			MigrationError::Io(e) => Error::Io(e),
-			_ => Error::Internal(err),
+impl From<migr::Error> for Error {
+	fn from(err: migr::Error) -> Self {
+		match err.into() {
+			migr::ErrorKind::Io(e) => Error::Io(e),
+			err => Error::Internal(err.into()),
 		}
 	}
 }
@@ -158,7 +159,7 @@ fn consolidate_database(
 	column: Option<u32>,
 	extract: Extract,
 	compaction_profile: &CompactionProfile) -> Result<(), Error> {
-	fn db_error(e: String) -> Error {
+	fn db_error(e: kvdb::Error) -> Error {
 		warn!("Cannot open Database for consolidation: {:?}", e);
 		Error::MigrationFailed
 	}
@@ -281,9 +282,8 @@ pub fn migrate(path: &Path, pruning: Algorithm, compaction_profile: CompactionPr
 mod legacy {
 	use super::*;
 	use std::path::{Path, PathBuf};
-	use util::journaldb::Algorithm;
 	use migr::{Manager as MigrationManager};
-	use kvdb::CompactionProfile;
+	use kvdb_rocksdb::CompactionProfile;
 	use ethcore::migrations;
 
 	/// Blocks database path.

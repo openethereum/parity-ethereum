@@ -81,7 +81,6 @@ extern crate ethash;
 extern crate ethcore_bloom_journal as bloom_journal;
 extern crate ethcore_devtools as devtools;
 extern crate ethcore_io as io;
-extern crate ethcore_ipc_nano as nanoipc;
 extern crate ethcore_bigint as bigint;
 extern crate ethcore_bytes as bytes;
 extern crate ethcore_logger;
@@ -113,6 +112,8 @@ extern crate ansi_term;
 extern crate semantic_version;
 extern crate unexpected;
 extern crate kvdb;
+extern crate kvdb_rocksdb;
+extern crate kvdb_memorydb;
 extern crate util_error;
 extern crate snappy;
 extern crate migration;
@@ -129,6 +130,8 @@ extern crate bloomable;
 extern crate vm;
 extern crate wasm;
 extern crate ethcore_util as util;
+extern crate memory_cache;
+extern crate journaldb;
 
 #[macro_use]
 extern crate macros;
@@ -136,8 +139,6 @@ extern crate macros;
 extern crate log;
 #[macro_use]
 extern crate lazy_static;
-#[macro_use]
-extern crate ethcore_ipc as ipc;
 #[cfg_attr(test, macro_use)]
 extern crate evm;
 
