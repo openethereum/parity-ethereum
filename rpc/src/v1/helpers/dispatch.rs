@@ -55,6 +55,8 @@ use v1::types::{
 	DecryptRequest as RpcDecryptRequest,
 };
 
+pub use self::nonce::Reservations;
+
 /// Has the capability to dispatch, sign, and decrypt.
 ///
 /// Requires a clone implementation, with the implication that it be cheap;

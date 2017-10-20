@@ -225,7 +225,7 @@ mod tests {
 		let n5 = nonces.reserve_nonce(5.into());
 		let r = n5.wait().unwrap();
 		assert_eq!(r.value(), &U256::from(7));
-		assert!(!r.matches_prospective());
+		assert!(r.matches_prospective());
 		r.mark_used();
 
 		// Should use start number if it's greater
