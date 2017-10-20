@@ -512,7 +512,7 @@ mod tests {
 	use mio::{Ready};
 	use std::collections::VecDeque;
 	use ethcore_bytes::Bytes;
-	use devtools::*;
+	use devtools::TestSocket;
 	use io::*;
 
 	impl GenericSocket for TestSocket {}

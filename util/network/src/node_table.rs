@@ -374,7 +374,7 @@ mod tests {
 	use std::net::{SocketAddr, SocketAddrV4, Ipv4Addr};
 	use bigint::hash::H512;
 	use std::str::FromStr;
-	use devtools::*;
+	use tempdir::TempDir;
 	use ipnetwork::IpNetwork;
 
 	#[test]
@@ -429,20 +429,20 @@ mod tests {
 
 	#[test]
 	fn table_save_load() {
-		let temp_path = RandomTempPath::create_dir();
+		let tempdir = TempDir::new("").unwrap();
 		let node1 = Node::from_str("enode://a979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c@22.99.55.44:7770").unwrap();
 		let node2 = Node::from_str("enode://b979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c@22.99.55.44:7770").unwrap();
 		let id1 = H512::from_str("a979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c").unwrap();
 		let id2 = H512::from_str("b979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c").unwrap();
 		{
-			let mut table = NodeTable::new(Some(temp_path.as_path().to_str().unwrap().to_owned()));
+			let mut table = NodeTable::new(Some(tempdir.path().to_str().unwrap().to_owned()));
 			table.add_node(node1);
 			table.add_node(node2);
 			table.note_failure(&id2);
 		}
 
 		{
-			let table = NodeTable::new(Some(temp_path.as_path().to_str().unwrap().to_owned()));
+			let table = NodeTable::new(Some(tempdir.path().to_str().unwrap().to_owned()));
 			let r = table.nodes(IpFilter::default());
 			assert_eq!(r[0][..], id1[..]);
 			assert_eq!(r[1][..], id2[..]);

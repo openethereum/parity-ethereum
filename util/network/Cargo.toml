@@ -25,7 +25,6 @@ ethcore-io = { path = "../io" }
 ethcore-util = { path = ".." }
 ethcore-bigint = { path = "../bigint" }
 ethcore-bytes = { path = "../bytes" }
-ethcore-devtools = { path = "../../devtools" }
 ethkey = { path = "../../ethkey" }
 ethcrypto = { path = "../../ethcrypto" }
 rlp = { path = "../rlp" }
@@ -35,6 +34,10 @@ ipnetwork = "0.12.6"
 hash = { path = "../hash" }
 snappy = { path = "../snappy" }
 serde_json = "1.0"
+
+[dev-dependencies]
+ethcore-devtools = { path = "../../devtools" }
+tempdir = "0.3"
 
 [features]
 default = []
