@@ -25,7 +25,6 @@ extern crate macros;
 #[macro_use]
 extern crate error_chain;
 
-extern crate ethcore_devtools as devtools;
 extern crate kvdb;
 extern crate kvdb_rocksdb;
 
@@ -38,10 +37,6 @@ use kvdb::DBTransaction;
 use kvdb_rocksdb::{CompactionProfile, Database, DatabaseConfig};
 
 error_chain! {
-	types {
-		Error, ErrorKind, ResultExt, Result;
-	}
-
 	links {
 		Db(kvdb::Error, kvdb::ErrorKind);
 	}

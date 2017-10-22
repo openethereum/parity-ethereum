@@ -16,6 +16,7 @@
 
 use std::hash::{Hash, Hasher};
 use std::path::PathBuf;
+use std::cmp::Ordering;
 use ethkey::{Address, Message, Signature, Secret, Public};
 use Error;
 use json::{Uuid, OpaqueKeyFile};
@@ -32,12 +33,24 @@ pub enum SecretVaultRef {
 }
 
 /// Stored account reference
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, Ord)]
 pub struct StoreAccountRef {
-	/// Vault reference
-	pub vault: SecretVaultRef,
 	/// Account address
 	pub address: Address,
+	/// Vault reference
+	pub vault: SecretVaultRef,
+}
+
+impl PartialOrd for StoreAccountRef {
+	fn partial_cmp(&self, other: &StoreAccountRef) -> Option<Ordering> {
+		Some(self.address.cmp(&other.address).then_with(|| self.vault.cmp(&other.vault)))
+	}
+}
+
+impl ::std::borrow::Borrow<Address> for StoreAccountRef {
+	fn borrow(&self) -> &Address {
+		&self.address
+	}
 }
 
 /// Simple Secret Store API
