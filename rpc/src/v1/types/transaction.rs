@@ -158,11 +158,10 @@ pub struct RichRawTransaction {
 	pub transaction: Transaction
 }
 
-
-impl From<SignedTransaction> for RichRawTransaction {
-	fn from(t: SignedTransaction) -> Self {
-		// TODO: change transition to 0 when EIP-86 is commonly used.
-		let tx: Transaction = Transaction::from_signed(t, 0, u64::max_value());
+impl RichRawTransaction {
+	/// Creates new `RichRawTransaction` from `SignedTransaction`.
+	pub fn from_signed(tx: SignedTransaction, block_number: u64, eip86_transition: u64) -> Self {
+		let tx = Transaction::from_signed(tx, block_number, eip86_transition);
 		RichRawTransaction {
 			raw: tx.raw.clone(),
 			transaction: tx,
