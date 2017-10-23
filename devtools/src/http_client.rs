@@ -83,9 +83,17 @@ pub fn request(address: &SocketAddr, request: &str) -> Response {
 	req.set_read_timeout(Some(Duration::from_secs(2))).unwrap();
 	req.write_all(request.as_bytes()).unwrap();
 
-	let mut response = String::new();
-	let _ = req.read_to_string(&mut response);
+	let mut response = Vec::new();
+	loop {
+		let mut chunk = [0; 32 *1024];
+		match req.read(&mut chunk) {
+			Err(err) => panic!("Unable to read response: {:?}", err),
+			Ok(0) => break,
+			Ok(read) => response.extend_from_slice(&chunk[..read]),
+		}
+	}
 
+	let response = String::from_utf8_lossy(&response).into_owned();
 	let mut lines = response.lines();
 	let status = lines.next().expect("Expected a response").to_owned();
 	let headers_raw = read_block(&mut lines, false);
