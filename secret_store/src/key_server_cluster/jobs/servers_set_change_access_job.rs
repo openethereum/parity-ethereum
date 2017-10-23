@@ -19,7 +19,7 @@ use ethkey::{Public, Signature, recover};
 use tiny_keccak::Keccak;
 use key_server_cluster::{Error, NodeId, SessionId};
 use key_server_cluster::message::{InitializeConsensusSessionWithServersSet, InitializeConsensusSessionWithServersMap,
-	InitializeConsensusSessionWithServersSecretMap};
+	InitializeConsensusSessionOfShareAdd};
 use key_server_cluster::jobs::job_session::{JobPartialResponseAction, JobPartialRequestAction, JobExecutor};
 
 /// Purpose of this job is to check if requestor is administrator of SecretStore (i.e. it have access to change key servers set).
@@ -72,11 +72,11 @@ impl<'a> From<&'a InitializeConsensusSessionWithServersMap> for ServersSetChange
 	}
 }
 
-impl<'a> From<&'a InitializeConsensusSessionWithServersSecretMap> for ServersSetChangeAccessRequest {
-	fn from(message: &InitializeConsensusSessionWithServersSecretMap) -> Self {
+impl<'a> From<&'a InitializeConsensusSessionOfShareAdd> for ServersSetChangeAccessRequest {
+	fn from(message: &InitializeConsensusSessionOfShareAdd) -> Self {
 		ServersSetChangeAccessRequest {
 			old_servers_set: message.old_nodes_set.iter().cloned().map(Into::into).collect(),
-			new_servers_set: message.new_nodes_set.keys().cloned().map(Into::into).collect(),
+			new_servers_set: message.new_nodes_set.iter().cloned().map(Into::into).collect(),
 			old_set_signature: message.old_set_signature.clone().into(),
 			new_set_signature: message.new_set_signature.clone().into(),
 		}

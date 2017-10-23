@@ -59,74 +59,131 @@ impl Secret {
 		self.to_secp256k1_secret().map(|_| ())
 	}
 
+	/// Is zero secret?
+	pub fn is_zero(&self) -> bool {
+		self.inner.is_zero()
+	}
+
 	/// Inplace add one secret key to another (scalar + scalar)
 	pub fn add(&mut self, other: &Secret) -> Result<(), Error> {
-		let mut key_secret = self.to_secp256k1_secret()?;
-		let other_secret = other.to_secp256k1_secret()?;
-		key_secret.add_assign(&SECP256K1, &other_secret)?;
+		match (self.is_zero(), other.is_zero()) {
+			(true, true) => (),
+			(true, false) => self.inner = other.inner.clone(),
+			(false, true) => (),
+			(false, false) => {
+				let mut key_secret = self.to_secp256k1_secret()?;
+				let other_secret = other.to_secp256k1_secret()?;
+				key_secret.add_assign(&SECP256K1, &other_secret)?;
 
-		*self = key_secret.into();
+				*self = key_secret.into();
+			},
+		}
+
 		Ok(())
 	}
 
 	/// Inplace subtract one secret key from another (scalar - scalar)
 	pub fn sub(&mut self, other: &Secret) -> Result<(), Error> {
-		let mut key_secret = self.to_secp256k1_secret()?;
-		let mut other_secret = other.to_secp256k1_secret()?;
-		other_secret.mul_assign(&SECP256K1, &key::MINUS_ONE_KEY)?;
-		key_secret.add_assign(&SECP256K1, &other_secret)?;
+		match (self.is_zero(), other.is_zero()) {
+			(true, true) => (),
+			(true, false) => {
+				self.inner = other.inner.clone();
+				self.neg()?;
+			},
+			(false, true) => (),
+			(false, false) => {
+				let mut key_secret = self.to_secp256k1_secret()?;
+				let mut other_secret = other.to_secp256k1_secret()?;
+				other_secret.mul_assign(&SECP256K1, &key::MINUS_ONE_KEY)?;
+				key_secret.add_assign(&SECP256K1, &other_secret)?;
 
-		*self = key_secret.into();
+				*self = key_secret.into();
+			},
+		}
+
 		Ok(())
 	}
 
 	/// Inplace decrease secret key (scalar - 1)
 	pub fn dec(&mut self) -> Result<(), Error> {
-		let mut key_secret = self.to_secp256k1_secret()?;
-		key_secret.add_assign(&SECP256K1, &key::MINUS_ONE_KEY)?;
+		match self.is_zero() {
+			true => {
+				*self = key::MINUS_ONE_KEY.into();
+			},
+			false => {
+				let mut key_secret = self.to_secp256k1_secret()?;
+				key_secret.add_assign(&SECP256K1, &key::MINUS_ONE_KEY)?;
 
-		*self = key_secret.into();
+				*self = key_secret.into();
+			},
+		}
+
 		Ok(())
 	}
 
 	/// Inplace multiply one secret key to another (scalar * scalar)
 	pub fn mul(&mut self, other: &Secret) -> Result<(), Error> {
-		let mut key_secret = self.to_secp256k1_secret()?;
-		let other_secret = other.to_secp256k1_secret()?;
-		key_secret.mul_assign(&SECP256K1, &other_secret)?;
+		match (self.is_zero(), other.is_zero()) {
+			(false, false) => {
+				let mut key_secret = self.to_secp256k1_secret()?;
+				let other_secret = other.to_secp256k1_secret()?;
+				key_secret.mul_assign(&SECP256K1, &other_secret)?;
 
-		*self = key_secret.into();
+				*self = key_secret.into();
+			},
+			_ => {
+				self.inner = Default::default();
+			}
+		}
+
 		Ok(())
 	}
 
 	/// Inplace negate secret key (-scalar)
 	pub fn neg(&mut self) -> Result<(), Error> {
-		let mut key_secret = self.to_secp256k1_secret()?;
-		key_secret.mul_assign(&SECP256K1, &key::MINUS_ONE_KEY)?;
+		match self.is_zero() {
+			true => (),
+			false => {
+				let mut key_secret = self.to_secp256k1_secret()?;
+				key_secret.mul_assign(&SECP256K1, &key::MINUS_ONE_KEY)?;
 
-		*self = key_secret.into();
+				*self = key_secret.into();
+			},
+		}
+
 		Ok(())
 	}
 
 	/// Inplace inverse secret key (1 / scalar)
 	pub fn inv(&mut self) -> Result<(), Error> {
-		let mut key_secret = self.to_secp256k1_secret()?;
-		key_secret.inv_assign(&SECP256K1)?;
+		match self.is_zero() {
+			true => (),
+			false => {
+				let mut key_secret = self.to_secp256k1_secret()?;
+				key_secret.inv_assign(&SECP256K1)?;
 
-		*self = key_secret.into();
+				*self = key_secret.into();
+			},
+		}
+
 		Ok(())
 	}
 
 	/// Compute power of secret key inplace (secret ^ pow).
 	/// This function is not intended to be used with large powers.
 	pub fn pow(&mut self, pow: usize) -> Result<(), Error> {
-		match pow {
-			0 => *self = key::ONE_KEY.into(),
-			1 => (),
-			_ => {
-				let c = self.clone();
-				for _ in 1..pow {
-					self.mul(&c)?;
+		match self.is_zero() {
+			true => (),
+			false => {
+				match pow {
+					0 => *self = key::ONE_KEY.into(),
+					1 => (),
+					_ => {
+						let c = self.clone();
+						for _ in 1..pow {
+							self.mul(&c)?;
+						}
+					},
 				}
 			},
 		}

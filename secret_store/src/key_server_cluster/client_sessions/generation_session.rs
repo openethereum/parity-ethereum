@@ -508,7 +508,6 @@ impl SessionImpl {
 				encrypted_point: None,
 				versions: vec![DocumentKeyShareVersion::new(
 					data.nodes.iter().map(|(node_id, node_data)| (node_id.clone(), node_data.id_number.clone())).collect(),
-					data.polynom1.as_ref().expect("polynom1 is filled in KG phase; we are at the end of KG phase; qed").clone(),
 					data.secret_share.as_ref().expect("secret_share is filled in KG phase; we are at the end of KG phase; qed").clone(),
 				)],
 			};
@@ -689,7 +688,6 @@ impl SessionImpl {
 			encrypted_point: None,
 			versions: vec![DocumentKeyShareVersion::new(
 				data.nodes.iter().map(|(node_id, node_data)| (node_id.clone(), node_data.id_number.clone())).collect(),
-				data.polynom1.as_ref().expect("polynom1 is filled in KG phase; we are at the end of KG phase; qed").clone(),
 				data.secret_share.as_ref().expect("secret_share is filled in KG phase; we are at the end of KG phase; qed").clone(),
 			)],
 		};
@@ -886,8 +884,8 @@ pub mod tests {
 	use std::sync::Arc;
 	use std::collections::{BTreeSet, BTreeMap, VecDeque};
 	use tokio_core::reactor::Core;
-	use ethkey::{Random, Generator, Public};
-	use key_server_cluster::{NodeId, SessionId, Error, DummyKeyStorage};
+	use ethkey::{Random, Generator, Public, KeyPair};
+	use key_server_cluster::{NodeId, SessionId, Error, KeyStorage, DummyKeyStorage};
 	use key_server_cluster::message::{self, Message, GenerationMessage};
 	use key_server_cluster::cluster::tests::{DummyCluster, make_clusters, run_clusters, loop_until, all_connections_established};
 	use key_server_cluster::cluster_sessions::ClusterSession;
@@ -989,6 +987,20 @@ pub mod tests {
 		pub fn take_and_process_message(&mut self) -> Result<(), Error> {
 			let msg = self.take_message().unwrap();
 			self.process_message(msg)
+		}
+
+		pub fn compute_key_pair(&self, t: usize) -> KeyPair {
+			let secret_shares = self.nodes.values()
+				.map(|nd| nd.key_storage.get(&SessionId::default()).unwrap().unwrap().last_version().unwrap().secret_share.clone())
+				.take(t + 1)
+				.collect::<Vec<_>>();
+			let secret_shares = secret_shares.iter().collect::<Vec<_>>();
+			let id_numbers = self.nodes.iter()
+				.map(|(n, nd)| nd.key_storage.get(&SessionId::default()).unwrap().unwrap().last_version().unwrap().id_numbers[n].clone())
+				.take(t + 1)
+				.collect::<Vec<_>>();
+			let id_numbers = id_numbers.iter().collect::<Vec<_>>();
+			KeyPair::from_secret(math::compute_joint_secret_from_shares(t, &secret_shares, &id_numbers).unwrap()).unwrap()
 		}
 	}
 

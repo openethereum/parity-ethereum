@@ -661,7 +661,6 @@ mod tests {
 				time: 0,
 				id_numbers: id_numbers.clone().into_iter().collect(),
 				secret_share: secret_shares[i].clone(),
-				polynom1: Vec::new(),
 			}],
 		}).collect();
 		let acl_storages: Vec<_> = (0..5).map(|_| Arc::new(DummyAclStorage::default())).collect();
@@ -734,7 +733,6 @@ mod tests {
 					time: 0,
 					id_numbers: nodes,
 					secret_share: Random.generate().unwrap().secret().clone(),
-					polynom1: Vec::new(),
 				}],
 			}),
 			acl_storage: Arc::new(DummyAclStorage::default()),
@@ -770,7 +768,6 @@ mod tests {
 					time: 0,
 					id_numbers: nodes,
 					secret_share: Random.generate().unwrap().secret().clone(),
-					polynom1: Vec::new(),
 				}],
 			}),
 			acl_storage: Arc::new(DummyAclStorage::default()),
@@ -806,7 +803,6 @@ mod tests {
 					time: 0,
 					id_numbers: nodes,
 					secret_share: Random.generate().unwrap().secret().clone(),
-					polynom1: Vec::new(),
 				}],
 			}),
 			acl_storage: Arc::new(DummyAclStorage::default()),

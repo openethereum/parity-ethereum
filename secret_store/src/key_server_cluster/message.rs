@@ -116,9 +116,9 @@ pub enum ConsensusMessageWithServersMap {
 
 /// All possible messages that can be sent during share add consensus establishing.
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum ConsensusMessageWithServersSecretMap {
+pub enum ConsensusMessageOfShareAdd {
 	/// Initialize consensus session.
-	InitializeConsensusSession(InitializeConsensusSessionWithServersSecretMap),
+	InitializeConsensusSession(InitializeConsensusSessionOfShareAdd),
 	/// Confirm/reject consensus session initialization.
 	ConfirmConsensusInitialization(ConfirmConsensusInitialization),
 }
@@ -197,8 +197,6 @@ pub enum ShareAddMessage {
 	ShareAddConsensusMessage(ShareAddConsensusMessage),
 	/// Common key share data is sent to new node.
 	KeyShareCommon(KeyShareCommon),
-	/// Absolute term share of secret polynom is sent to new node.
-	NewAbsoluteTermShare(NewAbsoluteTermShare),
 	/// Generated keys are sent to every node.
 	NewKeysDissemination(NewKeysDissemination),
 	/// When session error has occured.
@@ -401,13 +399,15 @@ pub struct InitializeConsensusSessionWithServersSet {
 
 /// Node is asked to be part of servers-set consensus group.
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct InitializeConsensusSessionWithServersSecretMap {
+pub struct InitializeConsensusSessionOfShareAdd {
 	/// Key version.
 	pub version: SerializableH256,
 	/// Old nodes set (all owners of key share version).
 	pub old_nodes_set: BTreeSet<MessageNodeId>,
-	/// New nodes set (all previous nodes, excluding isolated + new nodes).
-	pub new_nodes_set: BTreeMap<MessageNodeId, SerializableSecret>,
+	/// New nodes set (all owners of key share version + new nodes).
+	pub new_nodes_set: BTreeSet<MessageNodeId>,
+	/// New nodes id_numbers map (for all previous nodes, excluding isolated + new nodes).
+	pub new_nodes_map: BTreeMap<MessageNodeId, SerializableSecret>,
 	/// Old server set, signed by requester.
 	pub old_set_signature: SerializableSignature,
 	/// New server set, signed by requester.
@@ -783,7 +783,7 @@ pub struct ShareAddConsensusMessage {
 	/// Session-level nonce.
 	pub session_nonce: u64,
 	/// Consensus message.
-	pub message: ConsensusMessageWithServersSecretMap,
+	pub message: ConsensusMessageOfShareAdd,
 }
 
 /// Key share common data is passed to new node.
@@ -892,7 +892,7 @@ impl Message {
 			},
 			Message::KeyVersionNegotiation(KeyVersionNegotiationMessage::RequestKeyVersions(_)) => true,
 			Message::ShareAdd(ShareAddMessage::ShareAddConsensusMessage(ref msg)) => match msg.message {
-				ConsensusMessageWithServersSecretMap::InitializeConsensusSession(_) => true,
+				ConsensusMessageOfShareAdd::InitializeConsensusSession(_) => true,
 				_ => false
 			},
 			Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeConsensusMessage(ref msg)) => match msg.message {
@@ -1094,7 +1094,6 @@ impl ShareAddMessage {
 		match *self {
 			ShareAddMessage::ShareAddConsensusMessage(ref msg) => &msg.session,
 			ShareAddMessage::KeyShareCommon(ref msg) => &msg.session,
-			ShareAddMessage::NewAbsoluteTermShare(ref msg) => &msg.session,
 			ShareAddMessage::NewKeysDissemination(ref msg) => &msg.session,
 			ShareAddMessage::ShareAddError(ref msg) => &msg.session,
 		}
@@ -1104,7 +1103,6 @@ impl ShareAddMessage {
 		match *self {
 			ShareAddMessage::ShareAddConsensusMessage(ref msg) => msg.session_nonce,
 			ShareAddMessage::KeyShareCommon(ref msg) => msg.session_nonce,
-			ShareAddMessage::NewAbsoluteTermShare(ref msg) => msg.session_nonce,
 			ShareAddMessage::NewKeysDissemination(ref msg) => msg.session_nonce,
 			ShareAddMessage::ShareAddError(ref msg) => msg.session_nonce,
 		}
@@ -1214,11 +1212,11 @@ impl fmt::Display for ConsensusMessageWithServersMap {
 	}
 }
 
-impl fmt::Display for ConsensusMessageWithServersSecretMap {
+impl fmt::Display for ConsensusMessageOfShareAdd {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match *self {
-			ConsensusMessageWithServersSecretMap::InitializeConsensusSession(_) => write!(f, "InitializeConsensusSession"),
-			ConsensusMessageWithServersSecretMap::ConfirmConsensusInitialization(_) => write!(f, "ConfirmConsensusInitialization"),
+			ConsensusMessageOfShareAdd::InitializeConsensusSession(_) => write!(f, "InitializeConsensusSession"),
+			ConsensusMessageOfShareAdd::ConfirmConsensusInitialization(_) => write!(f, "ConfirmConsensusInitialization"),
 		}
 	}
 }
@@ -1275,7 +1273,6 @@ impl fmt::Display for ShareAddMessage {
 		match *self {
 			ShareAddMessage::ShareAddConsensusMessage(ref m) => write!(f, "ShareAddConsensusMessage.{}", m.message),
 			ShareAddMessage::KeyShareCommon(_) => write!(f, "KeyShareCommon"),
-			ShareAddMessage::NewAbsoluteTermShare(_) => write!(f, "NewAbsoluteTermShare"),
 			ShareAddMessage::NewKeysDissemination(_) => write!(f, "NewKeysDissemination"),
 			ShareAddMessage::ShareAddError(_) => write!(f, "ShareAddError"),
 

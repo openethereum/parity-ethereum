@@ -37,7 +37,7 @@ use key_server_cluster::cluster_sessions::{ClusterSession, ClusterSessions, Gene
 	ClusterSessionCreator, IntoSessionId, ClusterSessionsContainer};
 use key_server_cluster::message::{self, Message, ClusterMessage, GenerationMessage, EncryptionMessage, DecryptionMessage,
 	SigningMessage, ServersSetChangeMessage, ConsensusMessage, ShareAddMessage,
-	ConsensusMessageWithServersSecretMap, ConsensusMessageWithServersMap, ConsensusMessageWithServersSet};
+	ConsensusMessageOfShareAdd, ConsensusMessageWithServersMap, ConsensusMessageWithServersSet};
 use key_server_cluster::generation_session::{Session as GenerationSession, SessionState as GenerationSessionState};
 #[cfg(test)]
 use key_server_cluster::generation_session::SessionImpl as GenerationSessionImpl;
@@ -1037,7 +1037,7 @@ pub mod tests {
 
 	#[derive(Debug, Default)]
 	struct DummyClusterData {
-		nodes: Vec<NodeId>,
+		nodes: BTreeSet<NodeId>,
 		messages: VecDeque<(NodeId, Message)>,
 	}
 
@@ -1054,7 +1054,7 @@ pub mod tests {
 		}
 
 		pub fn add_node(&self, node: NodeId) {
-			self.data.lock().nodes.push(node);
+			self.data.lock().nodes.insert(node);
 		}
 
 		pub fn add_nodes<I: Iterator<Item=NodeId>>(&self, nodes: I) {
@@ -1062,9 +1062,7 @@ pub mod tests {
 		}
 
 		pub fn remove_node(&self, node: &NodeId) {
-			let mut data = self.data.lock();
-			let position = data.nodes.iter().position(|n| n == node).unwrap();
-			data.nodes.remove(position);
+			self.data.lock().nodes.remove(node);
 		}
 
 		pub fn take_message(&self) -> Option<(NodeId, Message)> {

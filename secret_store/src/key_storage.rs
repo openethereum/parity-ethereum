@@ -59,8 +59,6 @@ pub struct DocumentKeyShareVersion {
 	pub time: u64,
 	/// Nodes ids numbers.
 	pub id_numbers: BTreeMap<NodeId, Secret>,
-	/// Polynom1.
-	pub polynom1: Vec<Secret>,
 	/// Node secret share.
 	pub secret_share: Secret,
 }
@@ -166,8 +164,6 @@ struct SerializableDocumentKeyShareVersionV3 {
 	pub time: u64,
 	/// Nodes ids numbers.
 	pub id_numbers: BTreeMap<SerializablePublic, SerializableSecret>,
-	/// Polynom1.
-	pub polynom1: Vec<SerializableSecret>,
 	/// Node secret share.
 	pub secret_share: SerializableSecret,
 }
@@ -213,7 +209,6 @@ let hash = DocumentKeyShareVersion::data_hash(0, i2).into();*/
 						time: 0, // added in v3
 						id_numbers: v0_key.id_numbers,
 						secret_share: v0_key.secret_share,
-						polynom1: Vec::new(), // added in v2
 					}],
 				};
 				let db_value = serde_json::to_vec(&current_key).map_err(|e| Error::Database(e.to_string()))?;
@@ -241,7 +236,6 @@ let hash = DocumentKeyShareVersion::data_hash(0, i2).into();*/
 						time: 0, // added in v3
 						id_numbers: v1_key.id_numbers,
 						secret_share: v1_key.secret_share,
-						polynom1: Vec::new(), // added in v2
 					}],
 				};
 				let db_value = serde_json::to_vec(&current_key).map_err(|e| Error::Database(e.to_string()))?;
@@ -271,7 +265,6 @@ let hash = DocumentKeyShareVersion::data_hash(0, i2).into();*/
 						time: 0, // added in v3
 						id_numbers: v2_key.id_numbers,
 						secret_share: v2_key.secret_share,
-						polynom1: v2_key.polynom1,
 					}],
 				};
 				let db_value = serde_json::to_vec(&current_key).map_err(|e| Error::Database(e.to_string()))?;
@@ -365,12 +358,11 @@ impl DocumentKeyShare {
 
 impl DocumentKeyShareVersion {
 	/// Create new version
-	pub fn new(id_numbers: BTreeMap<NodeId, Secret>, polynom1: Vec<Secret>, secret_share: Secret) -> Self {
+	pub fn new(id_numbers: BTreeMap<NodeId, Secret>, secret_share: Secret) -> Self {
 		DocumentKeyShareVersion {
 			hash: Self::data_hash(0, id_numbers.iter().map(|(k, v)| (&**k, &***v))),
 			time: 0,
 			id_numbers: id_numbers,
-			polynom1: polynom1,
 			secret_share: secret_share,
 		}
 	}
@@ -447,7 +439,6 @@ impl From<DocumentKeyShareVersion> for SerializableDocumentKeyShareVersionV3 {
 			hash: version.hash.into(),
 			time: version.time,
 			id_numbers: version.id_numbers.into_iter().map(|(k, v)| (k.into(), v.into())).collect(),
-			polynom1: version.polynom1.into_iter().map(Into::into).collect(),
 			secret_share: version.secret_share.into(),
 		}
 	}
@@ -483,7 +474,6 @@ impl From<SerializableDocumentKeyShareV3> for DocumentKeyShare {
 					hash: v.hash.into(),
 					time: v.time,
 					id_numbers: v.id_numbers.into_iter().map(|(k, v)| (k.into(), v.into())).collect(),
-					polynom1: v.polynom1.into_iter().map(Into::into).collect(),
 					secret_share: v.secret_share.into(),
 				})
 				.collect(),
@@ -570,7 +560,6 @@ pub mod tests {
 				id_numbers: vec![
 					(Random.generate().unwrap().public().clone(), Random.generate().unwrap().secret().clone())
 				].into_iter().collect(),
-				polynom1: Vec::new(),
 				secret_share: Random.generate().unwrap().secret().clone(),
 			}],
 		};
@@ -586,7 +575,6 @@ pub mod tests {
 				id_numbers: vec![
 					(Random.generate().unwrap().public().clone(), Random.generate().unwrap().secret().clone())
 				].into_iter().collect(),
-				polynom1: Vec::new(),
 				secret_share: Random.generate().unwrap().secret().clone(),
 			}],
 		};
@@ -691,6 +679,5 @@ pub mod tests {
 		)], key.versions[0].id_numbers.clone().into_iter().map(|(k, v)| (k.into(), v.into())).collect::<Vec<(Public, Secret)>>());
 
 		assert_eq!("00125d85a05e5e63e214cb60fe63f132eec8a103aa29266b7e6e6c5b7597230b".parse::<Secret>().unwrap(), key.versions[0].secret_share.clone().into());
-		assert_eq!(key.versions[0].polynom1, vec![]);
 	}
 }

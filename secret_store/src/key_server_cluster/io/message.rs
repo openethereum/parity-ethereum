@@ -122,9 +122,8 @@ pub fn serialize_message(message: Message) -> Result<SerializedMessage, Error> {
 
 		Message::ShareAdd(ShareAddMessage::ShareAddConsensusMessage(payload))				=> (300, serde_json::to_vec(&payload)),
 		Message::ShareAdd(ShareAddMessage::KeyShareCommon(payload))							=> (301, serde_json::to_vec(&payload)),
-		Message::ShareAdd(ShareAddMessage::NewAbsoluteTermShare(payload))					=> (302, serde_json::to_vec(&payload)),
-		Message::ShareAdd(ShareAddMessage::NewKeysDissemination(payload))					=> (303, serde_json::to_vec(&payload)),
-		Message::ShareAdd(ShareAddMessage::ShareAddError(payload))							=> (304, serde_json::to_vec(&payload)),
+		Message::ShareAdd(ShareAddMessage::NewKeysDissemination(payload))					=> (302, serde_json::to_vec(&payload)),
+		Message::ShareAdd(ShareAddMessage::ShareAddError(payload))							=> (303, serde_json::to_vec(&payload)),
 
 		Message::KeyVersionNegotiation(KeyVersionNegotiationMessage::RequestKeyVersions(payload))
 																							=> (450, serde_json::to_vec(&payload)),
@@ -193,9 +192,8 @@ pub fn deserialize_message(header: &MessageHeader, payload: Vec<u8>) -> Result<M
 
 		300 => Message::ShareAdd(ShareAddMessage::ShareAddConsensusMessage(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
 		301 => Message::ShareAdd(ShareAddMessage::KeyShareCommon(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
-		302 => Message::ShareAdd(ShareAddMessage::NewAbsoluteTermShare(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
-		303 => Message::ShareAdd(ShareAddMessage::NewKeysDissemination(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
-		304 => Message::ShareAdd(ShareAddMessage::ShareAddError(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		302 => Message::ShareAdd(ShareAddMessage::NewKeysDissemination(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
+		303 => Message::ShareAdd(ShareAddMessage::ShareAddError(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
 
 		450 => Message::KeyVersionNegotiation(KeyVersionNegotiationMessage::RequestKeyVersions(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),
 		451 => Message::KeyVersionNegotiation(KeyVersionNegotiationMessage::KeyVersions(serde_json::from_slice(&payload).map_err(|err| Error::Serde(err.to_string()))?)),

@@ -1058,11 +1058,7 @@ pub mod tests {
 			let admin_public = admin_key_pair.public().clone();
 
 			// compute original secret key
-			let original_secret = math::compute_joint_secret(gml.nodes.values()
-				.map(|nd| nd.key_storage.get(&SessionId::default()).unwrap().unwrap().last_version().unwrap().polynom1[0].clone())
-				.collect::<Vec<_>>()
-				.iter()).unwrap();
-			let original_key_pair = KeyPair::from_secret(original_secret).unwrap();
+			let original_key_pair = gml.compute_key_pair(1);
 
 			// all active nodes set
 			let mut all_nodes_set: BTreeSet<_> = gml.nodes.keys()
