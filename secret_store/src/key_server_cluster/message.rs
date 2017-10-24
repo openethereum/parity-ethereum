@@ -681,10 +681,12 @@ pub struct InitializeShareChangeSession {
 	pub version: SerializableH256,
 	/// Master node.
 	pub master_node_id: MessageNodeId,
+	/// Consensus group to use in ShareAdd session.
+	pub consensus_group: BTreeSet<MessageNodeId>,
 	/// Old nodes set.
 	pub old_shares_set: BTreeSet<MessageNodeId>,
 	/// Shares to add. Values are filled for new nodes only.
-	pub shares_to_add: BTreeMap<MessageNodeId, SerializableSecret>,
+	pub new_nodes_map: BTreeMap<MessageNodeId, Option<SerializableSecret>>,
 	/// Shares to remove.
 	pub shares_to_remove: BTreeSet<MessageNodeId>,
 }
@@ -779,6 +781,8 @@ pub struct KeyShareCommon {
 	pub common_point: Option<SerializablePublic>,
 	/// Encrypted point.
 	pub encrypted_point: Option<SerializablePublic>,
+	/// Selected version id numbers.
+	pub id_numbers: BTreeMap<MessageNodeId, SerializableSecret>,
 }
 
 /// Generated keys are sent to every node.
@@ -823,6 +827,8 @@ pub struct KeyVersions {
 	pub sub_session: SerializableSecret,
 	/// Session-level nonce.
 	pub session_nonce: u64,
+	/// Key threshold.
+	pub threshold: Option<usize>,
 	/// Key versions.
 	pub versions: Vec<SerializableH256>,
 }

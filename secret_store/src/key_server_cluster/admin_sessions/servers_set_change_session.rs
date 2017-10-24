@@ -465,7 +465,8 @@ impl SessionImpl {
 			false => {
 				let master_plan = ShareChangeSessionPlan {
 					key_version: message.version.clone().into(),
-					nodes_to_add: message.shares_to_add.iter().map(|(k, v)| (k.clone().into(), v.clone().into())).collect(),
+					consensus_group: message.consensus_group.iter().cloned().map(Into::into).collect(),
+					new_nodes_map: message.new_nodes_map.iter().map(|(k, v)| (k.clone().into(), v.clone().map(Into::into))).collect(),
 					nodes_to_remove: message.shares_to_remove.iter().cloned().map(Into::into).collect(),
 				};
 
@@ -774,21 +775,19 @@ impl SessionImpl {
 		let negotiation_session = data.negotiation_sessions.remove(&key_id).expect("TODO");
 		let (selected_version, selected_master) = negotiation_session.wait()?; // TODO: currently it selects version with largest support
 		let selected_version_holders = negotiation_session.version_holders(&selected_version)?;
+		let selected_version_threshold = negotiation_session.key_threshold()?;
 
 		// prepare session change plan && check if something needs to be changed
 		let old_nodes_set = selected_version_holders;
 		let new_nodes_set = data.new_nodes_set.as_ref()
 			.expect("this method is called after consensus estabished; new_nodes_set is a result of consensus session; qed");
-		let session_plan = prepare_share_change_session_plan(selected_version.clone(), &core.all_nodes_set, &old_nodes_set, new_nodes_set)?;
+		let session_plan = prepare_share_change_session_plan(selected_version_threshold, selected_version.clone(), &selected_master, &core.all_nodes_set, &old_nodes_set, new_nodes_set)?;
 		if session_plan.is_empty() {
 			return Ok(false);
 		}
 
 		// send key session initialization requests
-		let mut confirmations: BTreeSet<_> = old_nodes_set.iter().cloned()
-			.chain(session_plan.nodes_to_add.keys().cloned())
-			.filter(|n| core.all_nodes_set.contains(n))
-			.collect();
+		let mut confirmations: BTreeSet<_> = session_plan.new_nodes_map.keys().cloned().collect();
 		let need_create_session = confirmations.remove(&core.meta.self_node_id);
 		let initialization_message = Message::ServersSetChange(ServersSetChangeMessage::InitializeShareChangeSession(InitializeShareChangeSession {
 			session: core.meta.id.clone().into(),
@@ -796,9 +795,10 @@ impl SessionImpl {
 			key_id: key_id.clone().into(),
 			version: selected_version.into(),
 			master_node_id: selected_master.clone().into(),
+			consensus_group: session_plan.consensus_group.iter().cloned().map(Into::into).collect(),
 			old_shares_set: old_nodes_set.iter().cloned().map(Into::into).collect(),
-			shares_to_add: session_plan.nodes_to_add.iter()
-				.map(|(n, nid)| (n.clone().into(), nid.clone().into()))
+			new_nodes_map: session_plan.new_nodes_map.iter()
+				.map(|(n, nid)| (n.clone().into(), nid.clone().map(Into::into)))
 				.collect(),
 			shares_to_remove: session_plan.nodes_to_remove.iter().cloned().map(Into::into).collect(),
 		}));
@@ -1121,6 +1121,7 @@ pub mod tests {
 
 		pub fn run(&mut self) {
 			while let Some((from, to, message)) = self.take_message() {
+println!("=== {} -> {}: {}", from, to, message);
 				self.process_message((from, to, message)).unwrap();
 			}
 		}

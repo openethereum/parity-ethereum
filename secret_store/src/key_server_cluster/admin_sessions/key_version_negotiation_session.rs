@@ -94,6 +94,8 @@ struct SessionData {
 	pub state: SessionState,
 	/// Initialization confirmations.
 	pub confirmations: Option<BTreeSet<NodeId>>,
+	/// Key threshold.
+	pub threshold: Option<usize>,
 	/// { Version => Nodes }
 	pub versions: Option<BTreeMap<H256, BTreeSet<NodeId>>>,
 	/// Session result.
@@ -169,6 +171,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 			data: Mutex::new(SessionData {
 				state: SessionState::WaitingForInitialization,
 				confirmations: None,
+				threshold: None,
 				versions: None,
 				result: None,
 				continue_with: None,
@@ -179,6 +182,11 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 	/// Return session meta.
 	pub fn meta(&self) -> &ShareChangeSessionMeta {
 		&self.core.meta
+	}
+
+	/// Return key threshold.
+	pub fn key_threshold(&self) -> Result<usize, Error> {
+		Ok(self.data.lock().threshold.clone().ok_or(Error::InvalidStateForRequest)?)
 	}
 
 	/// Return result computer reference.
@@ -270,6 +278,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 			session: self.core.meta.id.clone().into(),
 			sub_session: self.core.sub_session.clone().into(),
 			session_nonce: self.core.nonce,
+			threshold: self.core.key_share.as_ref().map(|key_share| key_share.threshold),
 			versions: self.core.key_share.as_ref().map(|key_share|
 				key_share.versions.iter().rev()
 					.filter(|v| v.id_numbers.contains_key(sender))
@@ -301,6 +310,16 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 
 		// remember versions that sender have
 		{
+			match message.threshold.clone() {
+				Some(threshold) if data.threshold.is_none() => {
+					data.threshold = Some(threshold);
+				},
+				Some(threshold) if data.threshold.as_ref() == Some(&threshold) => (),
+				Some(threshold) => return Err(Error::InvalidMessage),
+				None if message.versions.is_empty() => (),
+				None => return Err(Error::InvalidMessage),
+			}
+
 			let versions = data.versions.as_mut().expect("TODO");
 			for version in &message.versions {
 				versions.entry(version.clone().into())
