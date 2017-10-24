@@ -1137,4 +1137,9 @@ pub mod tests {
 			.map(|(k, v)| (k.clone(), v.key_storage.clone()))
 			.collect());
 	}
+
+	#[test]
+	fn nodes_add_fails_when_not_enough_share_owners_are_connected() {
+		// TODO
+	}
 }

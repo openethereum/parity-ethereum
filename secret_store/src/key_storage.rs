@@ -56,7 +56,7 @@ pub struct DocumentKeyShareVersion {
 	pub hash: H256,
 	/// Version datetime. Used as hint to sort versions.
 	/// Sort order is, in turn, used to make key version agreement faster.
-	pub time: u64,
+	pub time: u64, // TODO: remove me
 	/// Nodes ids numbers.
 	pub id_numbers: BTreeMap<NodeId, Secret>,
 	/// Node secret share.

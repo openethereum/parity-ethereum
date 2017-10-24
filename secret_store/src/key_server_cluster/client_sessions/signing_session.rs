@@ -1216,4 +1216,14 @@ mod tests {
 			}),
 		})), Err(Error::ReplayProtection));
 	}
+
+	#[test]
+	fn signing_works_when_delegated_to_other_node() {
+		// TODO
+	}
+
+	#[test]
+	fn signing_works_when_share_owners_are_isolated() {
+		// TODO
+	}
 }

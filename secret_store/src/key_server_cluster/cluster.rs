@@ -870,7 +870,7 @@ impl ClusterClient for ClusterClientImpl {
 		Ok(EncryptionSessionWrapper::new(Arc::downgrade(&self.data), session_id, session))
 	}
 
-	fn new_decryption_session(&self, session_id: SessionId, requestor_signature: Signature, version: Option<H256>, is_shadow_decryption: bool) -> Result<Arc<DecryptionSession>, Error> {
+	fn new_decryption_session(&self, session_id: SessionId, requestor_signature: Signature, mut version: Option<H256>, is_shadow_decryption: bool) -> Result<Arc<DecryptionSession>, Error> {
 		let mut connected_nodes = self.data.connections.connected_nodes();
 		connected_nodes.insert(self.data.self_key_pair.public().clone());
 

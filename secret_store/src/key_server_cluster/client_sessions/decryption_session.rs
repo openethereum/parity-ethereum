@@ -1120,4 +1120,14 @@ mod tests {
 			}
 		)), Err(Error::ReplayProtection));
 	}
+
+	#[test]
+	fn decryption_works_when_delegated_to_other_node() {
+		// TODO
+	}
+
+	#[test]
+	fn decryption_works_when_share_owners_are_isolated() {
+		// TODO
+	}
 }

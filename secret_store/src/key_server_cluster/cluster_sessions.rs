@@ -312,8 +312,8 @@ impl ClusterSessionCreator<KeyVersionNegotiationSessionImpl<VersionNegotiationTr
 
 	fn create(&self, cluster: Arc<Cluster>, master: NodeId, nonce: Option<u64>, id: SessionIdWithSubSession, _creation_data: Option<()>) -> Result<Arc<KeyVersionNegotiationSessionImpl<VersionNegotiationTransport>>, Error> {
 		let encrypted_data = self.core.read_key_share(&id.id, &cluster)?;
-		let threshold = encrypted_data.as_ref().map(|ks| ks.threshold);
 		let nonce = self.core.check_session_nonce(&master, nonce)?;
+		let computer = Arc::new(FastestResultKeyVersionsResultComputer::new(self.core.self_node_id.clone(), encrypted_data.as_ref(), &cluster.nodes()));
 		Ok(Arc::new(KeyVersionNegotiationSessionImpl::new(KeyVersionNegotiationSessionParams {
 			meta: ShareChangeSessionMeta {
 				id: id.id.clone(),
@@ -322,7 +322,7 @@ impl ClusterSessionCreator<KeyVersionNegotiationSessionImpl<VersionNegotiationTr
 			},
 			sub_session: id.access_key.clone(),
 			key_share: encrypted_data,
-			result_computer: Arc::new(FastestResultKeyVersionsResultComputer::new(self.core.self_node_id.clone(), threshold)), // TODO: when running as separate session, it must be LArgestSupportComputer
+			result_computer: computer,
 			transport: VersionNegotiationTransport {
 				cluster: cluster,
 				key_id: id.id,

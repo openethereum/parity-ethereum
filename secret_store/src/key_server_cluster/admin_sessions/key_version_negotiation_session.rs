@@ -50,7 +50,7 @@ pub trait SessionTransport {
 /// Key version negotiation result computer.
 pub trait SessionResultComputer: Send + Sync {
 	/// Compute result of session, if possible.
-	fn compute_result(&self, confirmations: &BTreeSet<NodeId>, versions: &BTreeMap<H256, BTreeSet<NodeId>>) -> Option<Result<(H256, NodeId), Error>>;
+	fn compute_result(&self, threshold: Option<usize>, confirmations: &BTreeSet<NodeId>, versions: &BTreeMap<H256, BTreeSet<NodeId>>) -> Option<Result<(H256, NodeId), Error>>;
 }
 
 /// Key discovery session API.
@@ -146,6 +146,8 @@ pub struct IsolatedSessionTransport {
 /// Fastest session result computer. Computes first possible version that can be recovered on this node.
 /// If there's no such version, selects version with the most support.
 pub struct FastestResultComputer {
+	/// Best version.
+	best_version: Option<H256>,
 	/// This node id.
 	self_node_id: NodeId,
 	/// Threshold (if known).
@@ -192,7 +194,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 	/// Return result computer reference.
 	pub fn version_holders(&self, version: &H256) -> Result<BTreeSet<NodeId>, Error> {
 		Ok(self.data.lock().versions.as_ref().ok_or(Error::InvalidStateForRequest)?
-			.get(version).ok_or(Error::KeyStorage("TODO".into()))?
+			.get(version).ok_or(Error::KeyStorage("key version not found".into()))?
 			.clone())
 	}
 
@@ -225,7 +227,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 				session: self.core.meta.id.clone().into(),
 				sub_session: self.core.sub_session.clone().into(),
 				session_nonce: self.core.nonce,
-			}));
+			}))?;
 		}
 
 		// update state
@@ -234,11 +236,9 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		data.versions = Some(versions);
 
 		// try to complete session
-		if received_own_confirmation {
-			Self::try_complete(&self.core, &mut *data);
-			if no_confirmations_required && data.state != SessionState::Finished {
-				return Err(Error::ConsensusUnreachable);
-			}
+		Self::try_complete(&self.core, &mut *data);
+		if no_confirmations_required && data.state != SessionState::Finished {
+			return Err(Error::ConsensusUnreachable);
 		}
 
 		Ok(())
@@ -246,6 +246,10 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 
 	/// Process single message.
 	pub fn process_message(&self, sender: &NodeId, message: &KeyVersionNegotiationMessage) -> Result<(), Error> {
+		if self.core.nonce != message.session_nonce() {
+			return Err(Error::ReplayProtection);
+		}
+
 		match message {
 			&KeyVersionNegotiationMessage::RequestKeyVersions(ref message) =>
 				self.on_key_versions_request(sender, message),
@@ -304,7 +308,8 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		if data.state != SessionState::WaitingForResponses && data.state != SessionState::Finished {
 			return Err(Error::InvalidStateForRequest);
 		}
-		if !data.confirmations.as_mut().expect("TODO").remove(sender) {
+		let reason = "this field is filled on master node when initializing; this is initialized master node; qed";
+		if !data.confirmations.as_mut().expect(reason).remove(sender) {
 			return Err(Error::InvalidMessage);
 		}
 
@@ -320,7 +325,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 				None => return Err(Error::InvalidMessage),
 			}
 
-			let versions = data.versions.as_mut().expect("TODO");
+			let versions = data.versions.as_mut().expect(reason);
 			for version in &message.versions {
 				versions.entry(version.clone().into())
 					.or_insert_with(Default::default)
@@ -338,9 +343,10 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 
 	/// Try to complete result && finish session.
 	fn try_complete(core: &SessionCore<T>, data: &mut SessionData) {
-		let confirmations = data.confirmations.as_ref().expect("TODO");
-		let versions = data.versions.as_ref().expect("TODO");
-		if let Some(result) = core.result_computer.compute_result(confirmations, versions) {
+		let reason = "this field is filled on master node when initializing; try_complete is only called on initialized master node; qed";
+		let confirmations = data.confirmations.as_ref().expect(reason);
+		let versions = data.versions.as_ref().expect(reason);
+		if let Some(result) = core.result_computer.compute_result(data.threshold.clone(), confirmations, versions) {
 			data.state = SessionState::Finished;
 			data.result = Some(result);
 			core.completed.notify_all();
@@ -384,7 +390,7 @@ impl<T> ClusterSession for SessionImpl<T> where T: SessionTransport {
 		let mut data = self.data.lock();
 
 		if data.confirmations.is_some() {
-			data.confirmations.as_mut().expect("TODO").clear();
+			data.confirmations.as_mut().expect("checked a line above; qed").clear();
 			Self::try_complete(&self.core, &mut *data);
 			if data.state != SessionState::Finished {
 				warn!("{}: key version negotiation session failed with timeout", self.core.meta.self_node_id);
@@ -399,7 +405,7 @@ impl<T> ClusterSession for SessionImpl<T> where T: SessionTransport {
 		let mut data = self.data.lock();
 
 		if data.confirmations.is_some() {
-			let is_waiting_for_confirmation = data.confirmations.as_mut().expect("TODO").remove(node);
+			let is_waiting_for_confirmation = data.confirmations.as_mut().expect("checked a line above; qed").remove(node);
 			if is_waiting_for_confirmation {
 				Self::try_complete(&self.core, &mut *data);
 				if data.state != SessionState::Finished {
@@ -420,7 +426,7 @@ impl<T> ClusterSession for SessionImpl<T> where T: SessionTransport {
 	fn on_message(&self, sender: &NodeId, message: &Message) -> Result<(), Error> {
 		match *message {
 			Message::KeyVersionNegotiation(ref message) => self.process_message(sender, message),
-			_ => unreachable!("TODO"),
+			_ => unreachable!("on_message is only called for version negotiation messages; qed"),
 		}
 	}
 }
@@ -432,21 +438,45 @@ impl SessionTransport for IsolatedSessionTransport {
 }
 
 impl FastestResultComputer {
-	pub fn new(self_node_id: NodeId, threshold: Option<usize>) -> Self {
+	pub fn new(self_node_id: NodeId, key_share: Option<&DocumentKeyShare>, connected_nodes: &BTreeSet<NodeId>) -> Self {
+		let (best_version, threshold) = match key_share {
+			Some(key_share) => (
+				Self::find_best_version(&self_node_id, key_share, connected_nodes),
+				Some(key_share.threshold),
+			),
+			None => (None, None),
+		};
+
 		FastestResultComputer {
+			best_version: best_version,
 			self_node_id: self_node_id,
 			threshold: threshold,
 		}
 	}
+
+	fn find_best_version(self_node_id: &NodeId, key_share: &DocumentKeyShare, connected_nodes: &BTreeSet<NodeId>) -> Option<H256> {
+		for version in key_share.versions.iter().rev() {
+			let mut connected_owners = version.id_numbers.keys().filter(|n| connected_nodes.contains(*n));
+			if connected_owners.nth(key_share.threshold + 1).is_some() {
+				return Some(version.hash.clone());
+			}
+		}
+		None
+	}
 }
 
 impl SessionResultComputer for FastestResultComputer {
-	fn compute_result(&self, confirmations: &BTreeSet<NodeId>, versions: &BTreeMap<H256, BTreeSet<NodeId>>) -> Option<Result<(H256, NodeId), Error>> {
-		match self.threshold {
+	fn compute_result(&self, threshold: Option<usize>, confirmations: &BTreeSet<NodeId>, versions: &BTreeMap<H256, BTreeSet<NodeId>>) -> Option<Result<(H256, NodeId), Error>> {
+		if let Some(best_version) = self.best_version.as_ref() {
+			return Some(Ok((best_version.clone(), self.self_node_id.clone())));
+		}
+
+		match self.threshold.or(threshold) {
 			// if we have key share on this node
 			Some(threshold) => {
 				// select version this node have, with enough participants
-				let version = versions.iter().find(|&(_, ref n)| n.contains(&self.self_node_id) && n.len() >= threshold + 1);
+				let has_key_share = self.threshold.is_some();
+				let version = versions.iter().find(|&(_, ref n)| !has_key_share || n.contains(&self.self_node_id) && n.len() >= threshold + 1);
 				// if there's no such version, wait for more confirmations
 				match version {
 					Some((version, _)) => Some(Ok((version.clone(), self.self_node_id.clone()))),
@@ -454,7 +484,8 @@ impl SessionResultComputer for FastestResultComputer {
 					// otherwise - try to find any version
 					None => Some(versions.iter()
 						.find(|&(_, ref n)| n.len() >= threshold + 1)
-						.map(|(version, nodes)| Ok((version.clone(), nodes.iter().cloned().nth(0).expect("TODO"))))
+						.map(|(version, nodes)| Ok((version.clone(), nodes.iter().cloned().nth(0)
+							.expect("version is only inserted when there's at least one owner; qed"))))
 						.unwrap_or(Err(Error::ConsensusUnreachable))),
 				}
 			},
@@ -463,20 +494,251 @@ impl SessionResultComputer for FastestResultComputer {
 			// ...and select version with largest support
 			None => Some(versions.iter()
 				.max_by_key(|&(_, ref n)| n.len())
-				.map(|(version, nodes)| Ok((version.clone(), nodes.iter().cloned().nth(0).expect("TODO"))))
+				.map(|(version, nodes)| Ok((version.clone(), nodes.iter().cloned().nth(0)
+					.expect("version is only inserted when there's at least one owner; qed"))))
 				.unwrap_or(Err(Error::ConsensusUnreachable))),
 		}
 	}
 }
 
 impl SessionResultComputer for LargestSupportResultComputer {
-	fn compute_result(&self, confirmations: &BTreeSet<NodeId>, versions: &BTreeMap<H256, BTreeSet<NodeId>>) -> Option<Result<(H256, NodeId), Error>> {
+	fn compute_result(&self, _threshold: Option<usize>, confirmations: &BTreeSet<NodeId>, versions: &BTreeMap<H256, BTreeSet<NodeId>>) -> Option<Result<(H256, NodeId), Error>> {
 		if !confirmations.is_empty() {
 			return None;
 		}
 
 		versions.iter()
 			.max_by_key(|&(_, ref n)| n.len())
-			.map(|(version, nodes)| Ok((version.clone(), nodes.iter().cloned().nth(0).expect("TODO"))))
+			.map(|(version, nodes)| Ok((version.clone(), nodes.iter().cloned().nth(0)
+				.expect("version is only inserted when there's at least one owner; qed"))))
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use std::sync::Arc;
+	use std::collections::{VecDeque, BTreeMap, BTreeSet};
+	use key_server_cluster::{NodeId, SessionId, Error, KeyStorage, DummyKeyStorage, DocumentKeyShare, DocumentKeyShareVersion};
+	use key_server_cluster::math;
+	use key_server_cluster::cluster::Cluster;
+	use key_server_cluster::cluster::tests::DummyCluster;
+	use key_server_cluster::admin_sessions::ShareChangeSessionMeta;
+	use key_server_cluster::generation_session::tests::generate_nodes_ids;
+	use key_server_cluster::message::{Message, KeyVersionNegotiationMessage, RequestKeyVersions, KeyVersions};
+	use super::{Session, SessionImpl, SessionTransport, SessionResultComputer, SessionParams, FastestResultComputer, SessionState};
+
+	struct DummyTransport {
+		cluster: Arc<DummyCluster>,
+	}
+
+	impl SessionTransport for DummyTransport {
+		fn send(&self, node: &NodeId, message: KeyVersionNegotiationMessage) -> Result<(), Error> {
+			self.cluster.send(node, Message::KeyVersionNegotiation(message))
+		}
+	}
+
+	struct Node {
+		pub cluster: Arc<DummyCluster>,
+		pub key_storage: Arc<DummyKeyStorage>,
+		pub session: SessionImpl<DummyTransport>,
+	}
+
+	struct MessageLoop {
+		pub session_id: SessionId,
+		pub nodes: BTreeMap<NodeId, Node>,
+		pub queue: VecDeque<(NodeId, NodeId, Message)>,
+	}
+
+	impl MessageLoop {
+		pub fn prepare_nodes(nodes_num: usize) -> BTreeMap<NodeId, Arc<DummyKeyStorage>> {
+			(0..nodes_num).map(|_| (math::generate_random_point().unwrap(),
+				Arc::new(DummyKeyStorage::default()))).collect()
+		}
+
+		pub fn empty(nodes_num: usize) -> Self {
+			Self::new(Self::prepare_nodes(nodes_num))
+		}
+
+		pub fn new(nodes: BTreeMap<NodeId, Arc<DummyKeyStorage>>) -> Self {
+			let master_node_id = nodes.keys().cloned().nth(0).unwrap();
+			let sub_sesion = math::generate_random_scalar().unwrap();
+			let all_nodes_ids: BTreeSet<_> = nodes.keys().cloned().collect();
+			MessageLoop {
+				session_id: Default::default(),
+				nodes: nodes.iter().map(|(node_id, key_storage)| {
+					let cluster = Arc::new(DummyCluster::new(node_id.clone()));
+					cluster.add_nodes(all_nodes_ids.iter().cloned());
+					(node_id.clone(), Node {
+						cluster: cluster.clone(),
+						key_storage: key_storage.clone(),
+						session: SessionImpl::new(SessionParams {
+							meta: ShareChangeSessionMeta {
+								id: Default::default(),
+								self_node_id: node_id.clone(),
+								master_node_id: master_node_id.clone(),
+							},
+							sub_session: sub_sesion.clone(),
+							key_share: key_storage.get(&Default::default()).unwrap(),
+							result_computer: Arc::new(FastestResultComputer::new(
+								node_id.clone(),
+								key_storage.get(&Default::default()).unwrap().as_ref(),
+								&all_nodes_ids.clone(),
+							)),
+							transport: DummyTransport {
+								cluster: cluster,
+							},
+							nonce: 0,
+						}),
+					})
+				}).collect(),
+				queue: VecDeque::new(),
+			}
+		}
+
+		pub fn node_id(&self, idx: usize) -> &NodeId {
+			self.nodes.keys().nth(idx).unwrap()
+		}
+
+		pub fn session(&self, idx: usize) -> &SessionImpl<DummyTransport> {
+			&self.nodes.values().nth(idx).unwrap().session
+		}
+	}
+
+	#[test]
+	fn negotiation_fails_if_initialized_twice() {
+		let mut ml = MessageLoop::empty(1);
+		assert_eq!(ml.session(0).initialize(BTreeSet::new()), Ok(()));
+		assert_eq!(ml.session(0).initialize(BTreeSet::new()), Err(Error::InvalidStateForRequest));
+	}
+
+	#[test]
+	fn negotiation_fails_if_message_contains_wrong_nonce() {
+		let mut ml = MessageLoop::empty(2);
+		assert_eq!(ml.session(1).process_message(ml.node_id(0), &KeyVersionNegotiationMessage::RequestKeyVersions(RequestKeyVersions {
+			session: Default::default(),
+			sub_session: math::generate_random_scalar().unwrap().into(),
+			session_nonce: 100,
+		})), Err(Error::ReplayProtection));
+	}
+
+	#[test]
+	fn negotiation_fails_if_versions_request_received_from_non_master() {
+		let mut ml = MessageLoop::empty(3);
+		assert_eq!(ml.session(2).process_message(ml.node_id(1), &KeyVersionNegotiationMessage::RequestKeyVersions(RequestKeyVersions {
+			session: Default::default(),
+			sub_session: math::generate_random_scalar().unwrap().into(),
+			session_nonce: 0,
+		})), Err(Error::InvalidMessage));
+	}
+
+	#[test]
+	fn negotiation_fails_if_versions_request_received_twice() {
+		let mut ml = MessageLoop::empty(2);
+		assert_eq!(ml.session(1).process_message(ml.node_id(0), &KeyVersionNegotiationMessage::RequestKeyVersions(RequestKeyVersions {
+			session: Default::default(),
+			sub_session: math::generate_random_scalar().unwrap().into(),
+			session_nonce: 0,
+		})), Ok(()));
+		assert_eq!(ml.session(1).process_message(ml.node_id(0), &KeyVersionNegotiationMessage::RequestKeyVersions(RequestKeyVersions {
+			session: Default::default(),
+			sub_session: math::generate_random_scalar().unwrap().into(),
+			session_nonce: 0,
+		})), Err(Error::InvalidStateForRequest));
+	}
+
+	#[test]
+	fn negotiation_fails_if_versions_received_before_initialization() {
+		let mut ml = MessageLoop::empty(2);
+		assert_eq!(ml.session(1).process_message(ml.node_id(0), &KeyVersionNegotiationMessage::KeyVersions(KeyVersions {
+			session: Default::default(),
+			sub_session: math::generate_random_scalar().unwrap().into(),
+			session_nonce: 0,
+			threshold: Some(10),
+			versions: Vec::new(),
+		})), Err(Error::InvalidStateForRequest));
+	}
+
+	#[test]
+	fn negotiation_does_not_fails_if_versions_received_after_completion() {
+		let mut ml = MessageLoop::empty(3);
+		ml.session(0).initialize(ml.nodes.keys().cloned().collect()).unwrap();
+		assert_eq!(ml.session(0).data.lock().state, SessionState::WaitingForResponses);
+
+		let version_id = (*math::generate_random_scalar().unwrap()).clone();
+		assert_eq!(ml.session(0).process_message(ml.node_id(1), &KeyVersionNegotiationMessage::KeyVersions(KeyVersions {
+			session: Default::default(),
+			sub_session: math::generate_random_scalar().unwrap().into(),
+			session_nonce: 0,
+			threshold: Some(0),
+			versions: vec![version_id.clone().into()]
+		})), Ok(()));
+		assert_eq!(ml.session(0).data.lock().state, SessionState::Finished);
+
+		assert_eq!(ml.session(0).process_message(ml.node_id(2), &KeyVersionNegotiationMessage::KeyVersions(KeyVersions {
+			session: Default::default(),
+			sub_session: math::generate_random_scalar().unwrap().into(),
+			session_nonce: 0,
+			threshold: Some(0),
+			versions: vec![version_id.clone().into()]
+		})), Ok(()));
+		assert_eq!(ml.session(0).data.lock().state, SessionState::Finished);
+	}
+
+	#[test]
+	fn negotiation_fails_if_wrong_threshold_sent() {
+		let mut ml = MessageLoop::empty(3);
+		ml.session(0).initialize(ml.nodes.keys().cloned().collect()).unwrap();
+
+		let version_id = (*math::generate_random_scalar().unwrap()).clone();
+		assert_eq!(ml.session(0).process_message(ml.node_id(1), &KeyVersionNegotiationMessage::KeyVersions(KeyVersions {
+			session: Default::default(),
+			sub_session: math::generate_random_scalar().unwrap().into(),
+			session_nonce: 0,
+			threshold: Some(1),
+			versions: vec![version_id.clone().into()]
+		})), Ok(()));
+		assert_eq!(ml.session(0).process_message(ml.node_id(2), &KeyVersionNegotiationMessage::KeyVersions(KeyVersions {
+			session: Default::default(),
+			sub_session: math::generate_random_scalar().unwrap().into(),
+			session_nonce: 0,
+			threshold: Some(2),
+			versions: vec![version_id.clone().into()]
+		})), Err(Error::InvalidMessage));
+	}
+
+	#[test]
+	fn negotiation_fails_if_threshold_empty_when_versions_are_not_empty() {
+		let mut ml = MessageLoop::empty(2);
+		ml.session(0).initialize(ml.nodes.keys().cloned().collect()).unwrap();
+
+		let version_id = (*math::generate_random_scalar().unwrap()).clone();
+		assert_eq!(ml.session(0).process_message(ml.node_id(1), &KeyVersionNegotiationMessage::KeyVersions(KeyVersions {
+			session: Default::default(),
+			sub_session: math::generate_random_scalar().unwrap().into(),
+			session_nonce: 0,
+			threshold: None,
+			versions: vec![version_id.clone().into()]
+		})), Err(Error::InvalidMessage));
+	}
+
+	#[test]
+	fn fast_negotiation_completes_instantly_when_enough_share_owners_are_connected() {
+		let nodes = MessageLoop::prepare_nodes(2);
+		let version_id = (*math::generate_random_scalar().unwrap()).clone();
+		nodes.values().nth(0).unwrap().insert(Default::default(), DocumentKeyShare {
+			author: Default::default(),
+			threshold: 0,
+			common_point: None,
+			encrypted_point: None,
+			versions: vec![DocumentKeyShareVersion {
+				hash: version_id,
+				time: 0,
+				id_numbers: vec![(nodes.keys().cloned().nth(0).unwrap(), math::generate_random_scalar().unwrap())].into_iter().collect(),
+				secret_share: math::generate_random_scalar().unwrap(),
+			}],
+		});
+		let mut ml = MessageLoop::new(nodes);
+		ml.session(0).initialize(ml.nodes.keys().cloned().collect()).unwrap();
+		assert_eq!(ml.session(0).data.lock().state, SessionState::Finished);
 	}
 }
