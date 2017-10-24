@@ -251,7 +251,10 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 
 		// let's select consensus group
 		let consensus_group: BTreeSet<_> = ::std::iter::once(self.core.meta.self_node_id.clone())
-			.chain(old_nodes_set.iter().filter(|n| **n != self.core.meta.self_node_id).take(key_share.threshold).cloned())
+			.chain(old_nodes_set.iter()
+				.filter(|n| **n != self.core.meta.self_node_id && non_isolated_nodes.contains(*n))
+				.take(key_share.threshold)
+				.cloned())
 			.collect();
 
 		// now check nodes map
