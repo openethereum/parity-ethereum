@@ -172,11 +172,12 @@ class TxRow extends Component {
   renderBlockNumber (_blockNumber) {
     const { block } = this.props;
     const blockNumber = _blockNumber.toNumber();
+    const isMined = !!(blockNumber && block);
 
     return (
       <td className={ styles.timestamp }>
-        <div>{ blockNumber && block ? moment(block.timestamp).fromNow() : null }</div>
-        <div>{ blockNumber ? _blockNumber.toFormat() : this.renderCancelToggle() }</div>
+        <div>{ isMined ? moment(block.timestamp).fromNow() : null }</div>
+        <div>{ isMined ? _blockNumber.toFormat() : this.renderCancelToggle() }</div>
       </td>
     );
   }
