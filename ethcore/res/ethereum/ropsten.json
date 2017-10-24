@@ -35,7 +35,8 @@
 		"eip140Transition": 1700000,
 		"eip211Transition": 1700000,
 		"eip214Transition": 1700000,
-		"eip658Transition": 1700000
+		"eip658Transition": 1700000,
+		"weiPerGas": 40000000
 	},
 	"genesis": {
 		"seal": {

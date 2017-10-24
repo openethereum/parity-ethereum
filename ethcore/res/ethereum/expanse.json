@@ -31,7 +31,8 @@
 		"subprotocolName": "exp",
 		"eip98Transition": "0x7fffffffffffff",
 		"eip86Transition": "0x7fffffffffffff",
-		"eip155Transition": "0x927C0"
+		"eip155Transition": "0x927C0",
+		"weiPerGas": 40000000
 	},
 	"genesis": {
 		"seal": {
