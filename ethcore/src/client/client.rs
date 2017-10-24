@@ -1867,8 +1867,6 @@ impl MiningBlockChainClient for Client {
 			is_epoch_begin,
 		).expect("OpenBlock::new only fails if parent state root invalid; state root of best block's header is never invalid; qed");
 
-		open_block.set_gas_limit(!U256::zero());
-
 		// Add uncles
 		chain
 			.find_uncle_headers(&h, engine.maximum_uncle_age())
