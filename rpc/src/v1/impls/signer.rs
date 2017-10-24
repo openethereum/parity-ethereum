@@ -73,8 +73,8 @@ impl<D: Dispatcher + 'static> SignerClient<D> {
 		SignerClient {
 			signer: signer.clone(),
 			accounts: store.clone(),
-			dispatcher: dispatcher,
-			subscribers: subscribers,
+			dispatcher,
+			subscribers,
 		}
 	}
 
@@ -205,7 +205,8 @@ impl<D: Dispatcher + 'static> Signer for SignerClient<D> {
 				},
 				ConfirmationPayload::SignTransaction(request) => {
 					Self::verify_transaction(bytes, request, |pending_transaction| {
-						Ok(ConfirmationResponse::SignTransaction(pending_transaction.transaction.into()))
+						let rich = self.dispatcher.enrich(pending_transaction.transaction);
+						Ok(ConfirmationResponse::SignTransaction(rich))
 					})
 				},
 				ConfirmationPayload::EthSignMessage(address, data) => {

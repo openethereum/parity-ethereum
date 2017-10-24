@@ -1,3 +1,30 @@
+## Parity [v1.8.1](https://github.com/paritytech/parity/releases/tag/v1.8.1) (2017-10-20)
+
+Parity 1.8.1 fixes several bugs with token balances, tweaks snapshot-sync, improves the performance of nodes with huge amounts of accounts and changes the Trezor account derivation path.
+
+**Important Note**: The **Trezor** account derivation path was changed in this release ([#6815](https://github.com/paritytech/parity/pull/6815)) to always use the first account (`m/44'/60'/0'/0/0` instead of `m/44'/60'/0'/0`). This way we enable compatibility with other Ethereum wallets supporting Trezor hardware-wallets. However, **action is required** before upgrading, if you have funds on your Parity Trezor wallet. If you already upgraded to 1.8.1, please downgrade to 1.8.0 first to recover the funds with the following steps:
+
+1. Make sure you have 1.8.0-beta and your Trezor plugged in.
+2. Create a new standard Parity account. Make sure you have backups of the recovery phrase and don't forget the password.
+3. Move your funds from the Trezor hardware-wallet account to the freshly generated Parity account.
+4. Upgrade to 1.8.1-beta and plug in your Trezor.
+5. Move your funds from your Parity account to the new Trezor account.
+6. Keep using Parity as normal.
+
+If you don't want to downgrade or move your funds off your Trezor-device, you can also use the official Trezor application or other wallets allowing to select the derivation path to access the funds.
+
+Full list of included changes:
+
+- Add ECIP1017 to Morden config ([#6845](https://github.com/paritytech/parity/pull/6845))
+- Ethstore optimizations ([#6844](https://github.com/paritytech/parity/pull/6844))
+- Bumb to v1.8.1 ([#6843](https://github.com/paritytech/parity/pull/6843))
+- Backport ([#6837](https://github.com/paritytech/parity/pull/6837))
+  - Tweaked snapshot sync threshold ([#6829](https://github.com/paritytech/parity/pull/6829))
+  - Change keypath derivation logic ([#6815](https://github.com/paritytech/parity/pull/6815))
+- Refresh cached tokens based on registry info & random balances ([#6824](https://github.com/paritytech/parity/pull/6824))
+  - Refresh cached tokens based on registry info & random balances ([#6818](https://github.com/paritytech/parity/pull/6818))
+  - Don't display errored token images
+
 ## Parity [v1.8.0](https://github.com/paritytech/parity/releases/tag/v1.8.0) (2017-10-15)
 
 We are happy to announce our newest Parity 1.8 release. Among others, it enables the following features:
