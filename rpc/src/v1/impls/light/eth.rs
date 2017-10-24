@@ -392,8 +392,21 @@ impl<T: LightChainClient + 'static> Eth for EthClient<T> {
 	}
 
 	fn transaction_by_hash(&self, hash: RpcH256) -> BoxFuture<Option<Transaction>, Error> {
+		let hash = hash.into();
 		let eip86 = self.client.eip86_transition();
-		Box::new(self.fetcher().transaction_by_hash(hash.into(), eip86).map(|x| x.map(|(tx, _)| tx)))
+
+		{
+			let tx_queue = self.transaction_queue.read();
+			if let Some(tx) = tx_queue.get(&hash) {
+				return Box::new(future::ok(Some(Transaction::from_pending(
+					tx.clone(),
+					self.client.chain_info().best_block_number,
+					eip86,
+				))));
+			}
+		}
+
+		Box::new(self.fetcher().transaction_by_hash(hash, eip86).map(|x| x.map(|(tx, _)| tx)))
 	}
 
 	fn transaction_by_block_hash_and_index(&self, hash: RpcH256, idx: Index) -> BoxFuture<Option<Transaction>, Error> {
