@@ -40,7 +40,7 @@ use parity_rpc::NetworkSettings;
 use cache::CacheConfig;
 use helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_price, replace_home, replace_home_and_local,
 geth_ipc_path, parity_ipc_path, to_bootnodes, to_addresses, to_address, to_gas_limit, to_queue_strategy};
-use params::{ResealPolicy, AccountsConfig, GasPricerConfig, MinerExtras};
+use params::{ResealPolicy, AccountsConfig, GasPricerConfig, MinerExtras, SpecType};
 use ethcore_logger::Config as LogConfig;
 use dir::{self, Directories, default_hypervisor_path, default_local_path, default_data_path};
 use dapps::Configuration as DappsConfiguration;
@@ -109,7 +109,7 @@ impl Configuration {
 		let pruning = self.args.arg_pruning.parse()?;
 		let pruning_history = self.args.arg_pruning_history;
 		let vm_type = self.vm_type()?;
-		let spec = self.chain().parse()?;
+		let spec = self.chain()?;
 		let mode = match self.args.arg_mode.as_ref() {
 			"last" => None,
 			mode => Some(to_mode(&mode, self.args.arg_mode_timeout, self.args.arg_mode_alarm)?),
@@ -336,7 +336,7 @@ impl Configuration {
 				pruning_memory: self.args.arg_pruning_memory,
 				daemon: daemon,
 				logger_config: logger_config.clone(),
-				miner_options: self.miner_options(self.args.arg_reseal_min_period)?,
+				miner_options: self.miner_options()?,
 				ntp_servers: self.ntp_servers(),
 				ws_conf: ws_conf,
 				http_conf: http_conf,
@@ -441,15 +441,16 @@ impl Configuration {
 		}
 	}
 
-	fn chain(&self) -> String {
-		if let Some(ref s) = self.spec_name_override {
+	fn chain(&self) -> Result<SpecType, String> {
+		let name = if let Some(ref s) = self.spec_name_override {
 			s.clone()
-		}
-		else if self.args.flag_testnet {
+		} else if self.args.flag_testnet {
 			"testnet".to_owned()
 		} else {
 			self.args.arg_chain.clone()
-		}
+		};
+
+		Ok(name.parse()?)
 	}
 
 	fn max_peers(&self) -> u32 {
@@ -504,8 +505,9 @@ impl Configuration {
 		} else { Ok(None) }
 	}
 
-	fn miner_options(&self, reseal_min_period: u64) -> Result<MinerOptions, String> {
-		if self.args.flag_force_sealing && reseal_min_period == 0 {
+	fn miner_options(&self) -> Result<MinerOptions, String> {
+		let is_dev_chain = self.chain()? == SpecType::Dev;
+		if is_dev_chain && self.args.flag_force_sealing && self.args.arg_reseal_min_period == 0 {
 			return Err("Force sealing can't be used with reseal_min_period = 0".into());
 		}
 
@@ -528,7 +530,7 @@ impl Configuration {
 			tx_queue_gas_limit: to_gas_limit(&self.args.arg_tx_queue_gas)?,
 			tx_queue_strategy: to_queue_strategy(&self.args.arg_tx_queue_strategy)?,
 			pending_set: to_pending_set(&self.args.arg_relay_set)?,
-			reseal_min_period: Duration::from_millis(reseal_min_period),
+			reseal_min_period: Duration::from_millis(self.args.arg_reseal_min_period),
 			reseal_max_period: Duration::from_millis(self.args.arg_reseal_max_period),
 			work_queue_size: self.args.arg_work_queue_size,
 			enable_resubmission: !self.args.flag_remove_solved,
@@ -885,7 +887,7 @@ impl Configuration {
 		let net_addresses = self.net_addresses()?;
 		Ok(NetworkSettings {
 			name: self.args.arg_identity.clone(),
-			chain: self.chain(),
+			chain: format!("{}", self.chain()?),
 			network_port: net_addresses.0.port(),
 			rpc_enabled: http_conf.enabled,
 			rpc_interface: http_conf.interface,
@@ -916,8 +918,6 @@ impl Configuration {
 	}
 
 	fn directories(&self) -> Directories {
-		use path;
-
 		let local_path = default_local_path();
 		let base_path = self.args.arg_base_path.as_ref().or_else(|| self.args.arg_datadir.as_ref()).map_or_else(|| default_data_path(), |s| s.clone());
 		let data_path = replace_home("", &base_path);
@@ -936,21 +936,6 @@ impl Configuration {
 		let dapps_path = replace_home(&data_path, &self.args.arg_dapps_path);
 		let secretstore_path = replace_home(&data_path, &self.args.arg_secretstore_path);
 		let ui_path = replace_home(&data_path, &self.args.arg_ui_path);
-
-		if self.args.flag_geth && !cfg!(windows) {
-			let geth_root  = if self.chain() == "testnet".to_owned() { path::ethereum::test() } else {  path::ethereum::default() };
-			::std::fs::create_dir_all(geth_root.as_path()).unwrap_or_else(
-				|e| warn!("Failed to create '{}' for geth mode: {}", &geth_root.to_str().unwrap(), e));
-		}
-
-		if cfg!(feature = "ipc") && !cfg!(feature = "windows") {
-			let mut path_buf = PathBuf::from(data_path.clone());
-			path_buf.push("ipc");
-			let ipc_path = path_buf.to_str().unwrap();
-			::std::fs::create_dir_all(ipc_path).unwrap_or_else(
-				|e| warn!("Failed to directory '{}' for ipc sockets: {}", ipc_path, e)
-			);
-		}
 
 		Directories {
 			keys: keys_path,
@@ -1404,21 +1389,20 @@ mod tests {
 		let conf3 = parse(&["parity", "--tx-queue-strategy", "gas"]);
 
 		// then
-		let min_period = conf0.args.arg_reseal_min_period;
-		assert_eq!(conf0.miner_options(min_period).unwrap(), mining_options);
+		assert_eq!(conf0.miner_options().unwrap(), mining_options);
 		mining_options.tx_queue_strategy = PrioritizationStrategy::GasFactorAndGasPrice;
-		assert_eq!(conf1.miner_options(min_period).unwrap(), mining_options);
+		assert_eq!(conf1.miner_options().unwrap(), mining_options);
 		mining_options.tx_queue_strategy = PrioritizationStrategy::GasPriceOnly;
-		assert_eq!(conf2.miner_options(min_period).unwrap(), mining_options);
+		assert_eq!(conf2.miner_options().unwrap(), mining_options);
 		mining_options.tx_queue_strategy = PrioritizationStrategy::GasAndGasPrice;
-		assert_eq!(conf3.miner_options(min_period).unwrap(), mining_options);
+		assert_eq!(conf3.miner_options().unwrap(), mining_options);
 	}
 
 	#[test]
 	fn should_fail_on_force_reseal_and_reseal_min_period() {
-		let conf = parse(&["parity", "--chain", "dev", "--force-sealing"]);
+		let conf = parse(&["parity", "--chain", "dev", "--force-sealing", "--reseal-min-period", "0"]);
 
-		assert!(conf.miner_options(0).is_err());
+		assert!(conf.miner_options().is_err());
 	}
 
 	#[test]
@@ -1446,7 +1430,7 @@ mod tests {
 		// then
 		assert_eq!(conf.network_settings(), Ok(NetworkSettings {
 			name: "testname".to_owned(),
-			chain: "testnet".to_owned(),
+			chain: "kovan".to_owned(),
 			network_port: 30303,
 			rpc_enabled: true,
 			rpc_interface: "127.0.0.1".to_owned(),

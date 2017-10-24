@@ -23,7 +23,7 @@ use ethcore::encoded;
 use ethcore::executed::{Executed, ExecutionError};
 use ethcore::ids::BlockId;
 use ethcore::filter::Filter as EthcoreFilter;
-use ethcore::transaction::{Action, Transaction as EthTransaction, SignedTransaction};
+use ethcore::transaction::{Action, Transaction as EthTransaction, SignedTransaction, LocalizedTransaction};
 use ethcore::receipt::Receipt;
 
 use jsonrpc_core::{BoxFuture, Error};
@@ -65,13 +65,24 @@ pub struct LightFetch {
 /// Extract a transaction at given index.
 pub fn extract_transaction_at_index(block: encoded::Block, index: usize, eip86_transition: u64) -> Option<Transaction> {
 	block.transactions().into_iter().nth(index)
+		// Verify if transaction signature is correct.
 		.and_then(|tx| SignedTransaction::new(tx).ok())
-		.map(|tx| Transaction::from_signed(tx, block.number(), eip86_transition))
-		.map(|mut tx| {
-			tx.block_hash = Some(block.hash().into());
-			tx.transaction_index = Some(index.into());
-			tx
+		.map(|signed_tx| {
+			let (signed, sender, _) = signed_tx.deconstruct();
+			let block_hash = block.hash();
+			let block_number = block.number();
+			let transaction_index = index;
+			let cached_sender = Some(sender);
+
+			LocalizedTransaction {
+				signed,
+				block_number,
+				block_hash,
+				transaction_index,
+				cached_sender,
+			}
 		})
+		.map(|tx| Transaction::from_localized(tx, eip86_transition))
 }
 
 

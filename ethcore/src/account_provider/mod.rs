@@ -269,7 +269,7 @@ impl AccountProvider {
 
 	/// Checks whether an account with a given address is present.
 	pub fn has_account(&self, address: Address) -> Result<bool, Error> {
-		Ok(self.accounts()?.iter().any(|&a| a == address))
+		Ok(self.sstore.account_ref(&address).is_ok() && !self.blacklisted_accounts.contains(&address))
 	}
 
 	/// Returns addresses of all accounts.
