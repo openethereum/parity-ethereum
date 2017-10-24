@@ -18,8 +18,7 @@ use std::collections::{BTreeSet, BTreeMap};
 use ethkey::{Public, Signature, recover};
 use tiny_keccak::Keccak;
 use key_server_cluster::{Error, NodeId, SessionId};
-use key_server_cluster::message::{InitializeConsensusSessionWithServersSet, InitializeConsensusSessionWithServersMap,
-	InitializeConsensusSessionOfShareAdd};
+use key_server_cluster::message::{InitializeConsensusSessionWithServersSet, InitializeConsensusSessionOfShareAdd};
 use key_server_cluster::jobs::job_session::{JobPartialResponseAction, JobPartialRequestAction, JobExecutor};
 
 /// Purpose of this job is to check if requestor is administrator of SecretStore (i.e. it have access to change key servers set).
@@ -61,22 +60,11 @@ impl<'a> From<&'a InitializeConsensusSessionWithServersSet> for ServersSetChange
 	}
 }
 
-impl<'a> From<&'a InitializeConsensusSessionWithServersMap> for ServersSetChangeAccessRequest {
-	fn from(message: &InitializeConsensusSessionWithServersMap) -> Self {
-		ServersSetChangeAccessRequest {
-			old_servers_set: message.old_nodes_set.iter().cloned().map(Into::into).collect(),
-			new_servers_set: message.new_nodes_set.keys().cloned().map(Into::into).collect(),
-			old_set_signature: message.old_set_signature.clone().into(),
-			new_set_signature: message.new_set_signature.clone().into(),
-		}
-	}
-}
-
 impl<'a> From<&'a InitializeConsensusSessionOfShareAdd> for ServersSetChangeAccessRequest {
 	fn from(message: &InitializeConsensusSessionOfShareAdd) -> Self {
 		ServersSetChangeAccessRequest {
 			old_servers_set: message.old_nodes_set.iter().cloned().map(Into::into).collect(),
-			new_servers_set: message.new_nodes_set.iter().cloned().map(Into::into).collect(),
+			new_servers_set: message.new_nodes_map.keys().cloned().map(Into::into).collect(),
 			old_set_signature: message.old_set_signature.clone().into(),
 			new_set_signature: message.new_set_signature.clone().into(),
 		}
@@ -142,6 +130,7 @@ impl JobExecutor for ServersSetChangeAccessJob {
 		// check old servers set signature
 		let old_actual_public = recover(&old_set_signature, &ordered_nodes_hash(&old_servers_set).into())?;
 		let new_actual_public = recover(&new_set_signature, &ordered_nodes_hash(&new_servers_set).into())?;
+println!("=== {} {}", old_actual_public == self.administrator, new_actual_public == self.administrator);
 		let is_administrator = old_actual_public == self.administrator && new_actual_public == self.administrator;
 		self.new_servers_set = Some(new_servers_set);
 

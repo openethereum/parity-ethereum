@@ -107,15 +107,6 @@ pub enum ConsensusMessageWithServersSet {
 
 /// All possible messages that can be sent during share add consensus establishing.
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum ConsensusMessageWithServersMap {
-	/// Initialize consensus session.
-	InitializeConsensusSession(InitializeConsensusSessionWithServersMap),
-	/// Confirm/reject consensus session initialization.
-	ConfirmConsensusInitialization(ConfirmConsensusInitialization),
-}
-
-/// All possible messages that can be sent during share add consensus establishing.
-#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum ConsensusMessageOfShareAdd {
 	/// Initialize consensus session.
 	InitializeConsensusSession(InitializeConsensusSessionOfShareAdd),
@@ -402,25 +393,12 @@ pub struct InitializeConsensusSessionWithServersSet {
 pub struct InitializeConsensusSessionOfShareAdd {
 	/// Key version.
 	pub version: SerializableH256,
-	/// Old nodes set (all owners of key share version).
+	/// threshold+1 nodes from old_nodes_set selected for shares redistribution.
+	pub consensus_group: BTreeSet<MessageNodeId>,
+	/// Old nodes set: all non-isolated owners of selected key share version.
 	pub old_nodes_set: BTreeSet<MessageNodeId>,
-	/// New nodes set (all owners of key share version + new nodes).
-	pub new_nodes_set: BTreeSet<MessageNodeId>,
-	/// New nodes id_numbers map (for all previous nodes, excluding isolated + new nodes).
+	/// New nodes map: node id => node id number.
 	pub new_nodes_map: BTreeMap<MessageNodeId, SerializableSecret>,
-	/// Old server set, signed by requester.
-	pub old_set_signature: SerializableSignature,
-	/// New server set, signed by requester.
-	pub new_set_signature: SerializableSignature,
-}
-
-/// Node is asked to be part of servers-set consensus group.
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct InitializeConsensusSessionWithServersMap {
-	/// Old nodes set.
-	pub old_nodes_set: BTreeSet<MessageNodeId>,
-	/// New nodes set (keys() = new_nodes_set, values = old nodes [differs from new if share is moved]).
-	pub new_nodes_set: BTreeMap<MessageNodeId, MessageNodeId>,
 	/// Old server set, signed by requester.
 	pub old_set_signature: SerializableSignature,
 	/// New server set, signed by requester.
@@ -803,19 +781,6 @@ pub struct KeyShareCommon {
 	pub encrypted_point: Option<SerializablePublic>,
 }
 
-/// Absolute term share is passed to new node.
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct NewAbsoluteTermShare {
-	/// Generation session Id.
-	pub session: MessageSessionId,
-	/// Sender id number.
-	pub sender_id: SerializableSecret,
-	/// Session-level nonce.
-	pub session_nonce: u64,
-	/// Absolute term share.
-	pub absolute_term_share: SerializableSecret,
-}
-
 /// Generated keys are sent to every node.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct NewKeysDissemination {
@@ -823,10 +788,8 @@ pub struct NewKeysDissemination {
 	pub session: MessageSessionId,
 	/// Session-level nonce.
 	pub session_nonce: u64,
-	/// Refreshed secret1 value.
-	pub refreshed_secret1: SerializableSecret,
-	/// Refreshed public values.
-	pub refreshed_publics: Vec<SerializablePublic>,
+	/// Sub share of rcevier' secret share.
+	pub secret_subshare: SerializableSecret,
 }
 
 /// When share add session error has occured.
@@ -1199,15 +1162,6 @@ impl fmt::Display for ConsensusMessageWithServersSet {
 		match *self {
 			ConsensusMessageWithServersSet::InitializeConsensusSession(_) => write!(f, "InitializeConsensusSession"),
 			ConsensusMessageWithServersSet::ConfirmConsensusInitialization(_) => write!(f, "ConfirmConsensusInitialization"),
-		}
-	}
-}
-
-impl fmt::Display for ConsensusMessageWithServersMap {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		match *self {
-			ConsensusMessageWithServersMap::InitializeConsensusSession(_) => write!(f, "InitializeConsensusSession"),
-			ConsensusMessageWithServersMap::ConfirmConsensusInitialization(_) => write!(f, "ConfirmConsensusInitialization"),
 		}
 	}
 }

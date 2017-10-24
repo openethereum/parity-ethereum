@@ -215,6 +215,16 @@ pub fn refreshed_keys_verification(threshold: usize, number_id: &Secret, secret1
 	Ok(left == right)
 }
 
+/// Compute secret subshare from passed secret value.
+pub fn compute_secret_subshare<'a, I>(threshold: usize, secret_value: &Secret, sender_id_number: &Secret, other_id_numbers: I) -> Result<Secret, Error> where I: Iterator<Item=&'a Secret> {
+	let mut subshare = compute_shadow_mul(secret_value, sender_id_number, other_id_numbers)?;
+	if threshold % 2 != 0 {
+		subshare.neg()?;
+	}
+
+	Ok(subshare)
+}
+
 /// Compute secret share.
 pub fn compute_secret_share<'a, I>(secret_values: I) -> Result<Secret, Error> where I: Iterator<Item=&'a Secret> {
 	compute_secret_sum(secret_values)
@@ -528,7 +538,7 @@ pub mod tests {
 		// on every authorized node: generate random polynomial ai(j) = si + ... + ai[new_t - 1] * j^(new_t - 1)
 		let mut subshare_polynoms = Vec::new();
 		for i in 0..old_t+1 {
-			let mut subshare_polynom = generate_random_polynom(new_t - 1).unwrap();
+			let mut subshare_polynom = generate_random_polynom(new_t).unwrap();
 			subshare_polynom[0] = old_artifacts.secret_shares[i].clone();
 			subshare_polynoms.push(subshare_polynom);
 		}
@@ -747,7 +757,7 @@ pub mod tests {
 
 	#[test]
 	fn full_generation_math_session_with_adding_new_nodes() {
-		let test_cases = vec![(1, 4), (6, 10)];
+		let test_cases = vec![(1, 3), (1, 4), (6, 10)];
 		for (t, n) in test_cases {
 			// generate key using t-of-n session
 			let artifacts1 = run_key_generation(t, n, None);

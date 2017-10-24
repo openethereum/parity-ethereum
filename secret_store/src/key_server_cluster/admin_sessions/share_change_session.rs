@@ -168,9 +168,10 @@ impl ShareChangeSession {
 	/// Create new share add session.
 	fn create_share_add_session(&mut self) -> Result<(), Error> {
 		let nodes_to_add = self.nodes_to_add.take().ok_or(Error::InvalidStateForRequest)?;
-		let new_nodes_set = self.old_nodes_set.iter().map(|n| (n.clone(), None))
+		/*let new_nodes_set = self.old_nodes_set.iter().map(|n| (n.clone(), None))
 			.chain(nodes_to_add.clone().into_iter().map(|(k, v)| (k, Some(v))))
-			.collect();
+			.collect();*/
+let new_nodes_set = BTreeMap::new();
 		let share_add_session = ShareAddSessionImpl::new(ShareAddSessionParams {
 			meta: self.meta.clone(),
 			nonce: self.nonce,
@@ -233,7 +234,7 @@ impl ShareAddSessionTransport for ShareChangeTransport {
 		self.cluster.nodes()
 	}
 
-	fn set_id_numbers(&mut self, _id_numbers: BTreeMap<NodeId, Secret>) {
+	fn set_master_data(&mut self, _consensus_group: BTreeSet<NodeId>, _id_numbers: BTreeMap<NodeId, Secret>) {
 		unreachable!("only called when establishing consensus; this transport is never used for establishing consensus; qed")
 	}
 

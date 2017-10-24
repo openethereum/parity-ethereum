@@ -335,20 +335,20 @@ impl<'a> Iterator for PersistentKeyStorageIterator<'a> {
 }
 
 impl DocumentKeyShare {
-	// TODO: remove me
-	pub fn all_nodes(&self) -> BTreeSet<NodeId> {
-		self.versions.iter().flat_map(|v| v.id_numbers.keys().cloned()).collect()
+	/// Returns true if version exists.
+	pub fn has_version(&self, version: &H256) -> bool {
+		self.versions.iter().rev()
+			.any(|v| &v.hash == version)
 	}
 
-
-	/// Get last version hash.
+	/// Get last version reference.
 	pub fn last_version(&self) -> Result<&DocumentKeyShareVersion, Error> {
 		self.versions.iter().rev()
 			.nth(0)
 			.ok_or_else(|| Error::Database("key version is not found".into()))
 	}
 
-	/// Get given version.
+	/// Get given version reference.
 	pub fn version(&self, version: &H256) -> Result<&DocumentKeyShareVersion, Error> {
 		self.versions.iter().rev()
 			.find(|v| &v.hash == version)

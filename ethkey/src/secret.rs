@@ -35,7 +35,8 @@ impl ToHex for Secret {
 
 impl fmt::Debug for Secret {
 	fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-		write!(fmt, "Secret: 0x{:x}{:x}..{:x}{:x}", self.inner[0], self.inner[1], self.inner[30], self.inner[31])
+		//write!(fmt, "Secret: 0x{:x}{:x}..{:x}{:x}", self.inner[0], self.inner[1], self.inner[30], self.inner[31])
+		write!(fmt, "0x{:?}", self.inner)
 	}
 }
 

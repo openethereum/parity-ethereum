@@ -1000,7 +1000,13 @@ pub mod tests {
 				.take(t + 1)
 				.collect::<Vec<_>>();
 			let id_numbers = id_numbers.iter().collect::<Vec<_>>();
-			KeyPair::from_secret(math::compute_joint_secret_from_shares(t, &secret_shares, &id_numbers).unwrap()).unwrap()
+			let joint_secret1 = math::compute_joint_secret_from_shares(t, &secret_shares, &id_numbers).unwrap();
+
+			let secret_values: Vec<_> = self.nodes.values().map(|s| s.session.joint_public_and_secret().unwrap().unwrap().1).collect();
+			let joint_secret2 = math::compute_joint_secret(secret_values.iter()).unwrap();
+			assert_eq!(joint_secret1, joint_secret2);
+
+			KeyPair::from_secret(joint_secret1).unwrap()
 		}
 	}
 

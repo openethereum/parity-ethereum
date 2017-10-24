@@ -37,7 +37,7 @@ use key_server_cluster::cluster_sessions::{ClusterSession, ClusterSessions, Gene
 	ClusterSessionCreator, IntoSessionId, ClusterSessionsContainer};
 use key_server_cluster::message::{self, Message, ClusterMessage, GenerationMessage, EncryptionMessage, DecryptionMessage,
 	SigningMessage, ServersSetChangeMessage, ConsensusMessage, ShareAddMessage,
-	ConsensusMessageOfShareAdd, ConsensusMessageWithServersMap, ConsensusMessageWithServersSet};
+	ConsensusMessageOfShareAdd, ConsensusMessageWithServersSet};
 use key_server_cluster::generation_session::{Session as GenerationSession, SessionState as GenerationSessionState};
 #[cfg(test)]
 use key_server_cluster::generation_session::SessionImpl as GenerationSessionImpl;
