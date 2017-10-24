@@ -1,0 +1,59 @@
+/* Copyright 2015-2017 Parity Technologies (UK) Ltd.
+/* This file is part of Parity.
+/*
+/* Parity is free software: you can redistribute it and/or modify
+/* it under the terms of the GNU General Public License as published by
+/* the Free Software Foundation, either version 3 of the License, or
+/* (at your option) any later version.
+/*
+/* Parity is distributed in the hope that it will be useful,
+/* but WITHOUT ANY WARRANTY; without even the implied warranty of
+/* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+/* GNU General Public License for more details.
+/*
+/* You should have received a copy of the GNU General Public License
+/* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+@import '../_colors.css';
+
+.body {
+  color: $text-color;
+  background: $background-color;
+  padding: 3em 0 6em;
+  text-align: center;
+}
+
+.apps {
+  background: white;
+  border-radius: 0.5em;
+  margin: 0 auto;
+  max-width: 980px;
+  padding: 1.5em;
+  text-align: left;
+}
+
+.footer {
+  font-size: 0.75em;
+  margin: 1em;
+  padding: 1.5em;
+  text-align: center;
+}
+
+.header {
+  background: $blue;
+  color: white;
+  left: 0;
+  padding: 1em;
+  position: fixed;
+  right: 0;
+  top: 0;
+  z-index: 25;
+}
+
+.loading {
+  text-align: center;
+  padding-top: 5em;
+  font-size: 2em;
+  color: $loading-color;
+}

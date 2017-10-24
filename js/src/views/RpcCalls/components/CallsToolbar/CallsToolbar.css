@@ -1,0 +1,66 @@
+/* Copyright 2015-2017 Parity Technologies (UK) Ltd.
+/* This file is part of Parity.
+/*
+/* Parity is free software: you can redistribute it and/or modify
+/* it under the terms of the GNU General Public License as published by
+/* the Free Software Foundation, either version 3 of the License, or
+/* (at your option) any later version.
+/*
+/* Parity is distributed in the hope that it will be useful,
+/* but WITHOUT ANY WARRANTY; without even the implied warranty of
+/* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+/* GNU General Public License for more details.
+/*
+/* You should have received a copy of the GNU General Public License
+/* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+*/
+.callActionsWrap {
+  position: absolute;
+  animation: fadein .5s;
+  right: 0;
+  height: 28px;
+}
+
+.callActionsButton {
+  padding: 0 !important;
+  height: 24px !important;
+}
+
+.callActionsWrap:hover .callActionsButton {
+  display: none !important;
+}
+
+.callActions {
+  display: none;
+  height: 100%;
+  margin-top: 1px;
+  margin-right: 10px;
+}
+
+.callActionsWrap:hover .callActions {
+  display: block;
+}
+
+.callAction {
+  float: right;
+  transition: opacity ease-in-out .2s;
+  transition-delay: .2s;
+  opacity: 0;
+  padding: 3px !important;
+  height: 22px !important;
+  width: 22px !important;
+}
+
+.callActions:hover .callAction {
+  opacity: 1;
+}
+
+.callActionIcon {
+  height: 100% !important;
+  width: 100% !important;
+}
+
+@keyframes fadein {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}

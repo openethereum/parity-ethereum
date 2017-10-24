@@ -1,0 +1,141 @@
+/* Copyright 2015-2017 Parity Technologies (UK) Ltd.
+/* This file is part of Parity.
+/*
+/* Parity is free software: you can redistribute it and/or modify
+/* it under the terms of the GNU General Public License as published by
+/* the Free Software Foundation, either version 3 of the License, or
+/* (at your option) any later version.
+/*
+/* Parity is distributed in the hope that it will be useful,
+/* but WITHOUT ANY WARRANTY; without even the implied warranty of
+/* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+/* GNU General Public License for more details.
+/*
+/* You should have received a copy of the GNU General Public License
+/* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+@import '../_colors.css';
+@import '../_utils.css';
+
+.modal {
+  align-items: center;
+  background-color: $modal-bg;
+  bottom: 0;
+  display: flex;
+  justify-content: center;
+  left: 0;
+  position: fixed;
+  right: 0;
+  top: 0;
+  z-index: 150;
+
+  &.secondary {
+    align-items: flex-start;
+    z-index: 200;
+
+    .content {
+      line-height: 1.5rem;
+      padding: 2rem;
+      text-align: center;
+    }
+
+    .dialog {
+      max-width: 840px;
+      width: 85vw;
+    }
+  }
+}
+
+.close {
+  composes: bezier-transform;
+
+  color: white;
+  display: inline-block;
+  font-family: 'Roboto Mono', monospace;
+  font-size: 4rem;
+  opacity: 0.75;
+  padding: 0;
+  position: fixed;
+  right: 1rem;
+  top: 0.25rem;
+
+  &:hover {
+    cursor: pointer;
+    opacity: 1;
+
+    .closeIcon {
+      transform: rotate(135deg);
+    }
+  }
+}
+
+.closeIcon {
+  composes: bezier-transform;
+
+  height: 3rem;
+  width: 3rem;
+  transform: rotate(45deg);
+}
+
+.dialog {
+  background-color: rgba(255, 255, 255, 0.95);
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
+  overflow: hidden;
+  position: relative;
+  max-width: 740px;
+  width: 75vw;
+
+  > * {
+    padding: 0.5rem 1rem;
+  }
+}
+
+.content {
+  flex: 1 1 auto;
+  overflow: auto;
+
+  .section {
+    margin: 0;
+    padding: 0;
+
+    * {
+      overflow-x: hidden;
+      text-overflow: ellipsis;
+    }
+  }
+
+  .section + .section {
+    margin-top: 1em;
+  }
+}
+
+.footer {
+  padding: 0.5em 1.625em;
+  text-align: right;
+}
+
+.header {
+  background-color: $blue;
+  color: white;
+  min-height: 3rem;
+
+  &,
+  & > * {
+    align-items: center;
+    display: flex;
+    flex: 0 0 auto;
+    flex-direction: row;
+  }
+}
+
+.heading {
+  color: #888;
+  font-size: 0.75em;
+}
+
+.light {
+  color: #888;
+}

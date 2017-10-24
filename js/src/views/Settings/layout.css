@@ -1,0 +1,69 @@
+/* Copyright 2015-2017 Parity Technologies (UK) Ltd.
+/* This file is part of Parity.
+/*
+/* Parity is free software: you can redistribute it and/or modify
+/* it under the terms of the GNU General Public License as published by
+/* the Free Software Foundation, either version 3 of the License, or
+/* (at your option) any later version.
+/*
+/* Parity is distributed in the hope that it will be useful,
+/* but WITHOUT ANY WARRANTY; without even the implied warranty of
+/* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+/* GNU General Public License for more details.
+/*
+/* You should have received a copy of the GNU General Public License
+/* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+.layout {
+  padding-top: 1.5em;
+}
+
+.layout::after {
+  display: table;
+  clear: both;
+  content: '';
+}
+
+.overview, .details {
+  float: left;
+  box-sizing: border-box;
+}
+
+.overview {
+  width: 33.33333%;
+  width: -webkit-calc(100% / 12 * 4);
+  width: -moz-calc(100% / 12 * 4);
+  width: calc(100% / 12 * 4);
+}
+
+.overview {
+  opacity: 0.5;
+}
+
+.overview div {
+  line-height: 1.5em;
+}
+
+.overview>div+div {
+  margin-top: 1.25em;
+}
+
+.details {
+  width: 66.66665%;
+  width: -webkit-calc(100% / 12 * 8);
+  width: -moz-calc(100% / 12 * 8);
+  width: calc(100% / 12 * 8);
+  padding-left: 3em;
+}
+
+.console {
+  font-family: 'Roboto Mono', monospace;
+  background: rgba(255, 255, 255, 0.1);
+  font-size: 16px;
+  padding: 0 0.25em;
+}
+
+.center {
+  text-align: center;
+}

@@ -1,0 +1,96 @@
+/* Copyright 2015-2017 Parity Technologies (UK) Ltd.
+/* This file is part of Parity.
+/*
+/* Parity is free software: you can redistribute it and/or modify
+/* it under the terms of the GNU General Public License as published by
+/* the Free Software Foundation, either version 3 of the License, or
+/* (at your option) any later version.
+/*
+/* Parity is distributed in the hope that it will be useful,
+/* but WITHOUT ANY WARRANTY; without even the implied warranty of
+/* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+/* GNU General Public License for more details.
+/*
+/* You should have received a copy of the GNU General Public License
+/* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+.input {
+  position: relative;
+
+  input, select {
+    background: rgba(255, 255, 255, 0.85);
+    border: 4px solid rgba(223, 223, 223, 0.85);
+    border-radius: 0.25em;
+    box-sizing: border-box;
+    color: #333;
+    font-size: 1em;
+    margin: 0.25em 0 0.25em 0;
+    padding: 0.5em 0.5em 1.5em 0.5em;
+    width: 100%;
+  }
+
+  &.withOverlay input {
+    padding-right: 3em;
+  }
+
+  input {
+    padding-bottom: 1.5em;
+
+    &[data-dirty="true"] {
+      background: rgba(255, 255, 203, 0.85);
+      border-color: rgba(203, 203, 151, 0.85);
+    }
+
+    &[data-error="true"] {
+      background: rgba(255, 223, 223, 0.85) !important;
+      border-color: rgba(223, 191, 191, 0.85) !important;
+    }
+
+    &[readonly] {
+      background: rgba(239, 239, 239, 0.85);
+      border-color: rgba(223, 223, 223, 0.85);
+    }
+  }
+
+  label {
+    color: #888;
+    display: block;
+    font-size: 0.75em;
+    margin-top: 1.5em;
+  }
+
+  select {
+    -moz-appearance: none;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 58px;
+
+    &[disabled] {
+      background: rgba(239, 239, 239, 0.85);
+      border-color: rgba(223, 223, 223, 0.85);
+    }
+  }
+
+  .hint {
+    color: #888;
+    display: block;
+    font-size: 0.75em;
+    position: absolute;
+    right: 52px;
+    text-align: right;
+    top: 52px;
+  }
+
+  .overlay {
+    right: 10px;
+    position: absolute;
+    top: 30px;
+
+    img {
+      border-radius: 50%;
+      height: 32px;
+      width: 32px;
+    }
+  }
+}

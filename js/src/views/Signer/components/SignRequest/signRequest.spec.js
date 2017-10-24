@@ -1,0 +1,84 @@
+// Copyright 2015-2017 Parity Technologies (UK) Ltd.
+// This file is part of Parity.
+
+// Parity is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// Parity is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+
+import { shallow } from 'enzyme';
+import React from 'react';
+import sinon from 'sinon';
+
+import SignRequest from './';
+
+let component;
+let reduxStore;
+let signerStore;
+
+function createSignerStore () {
+  return {
+    balances: {},
+    fetchBalance: sinon.stub()
+  };
+}
+
+function createReduxStore () {
+  return {
+    dispatch: sinon.stub(),
+    subscribe: sinon.stub(),
+    getState: () => {
+      return {
+        personal: {
+          accounts: {}
+        }
+      };
+    }
+  };
+}
+
+function render () {
+  reduxStore = createReduxStore();
+  signerStore = createSignerStore();
+  const context = {
+    store: reduxStore,
+    api: {
+      transport: {
+        on: sinon.stub()
+      },
+      pubsub: {
+        subscribeAndGetResult: sinon.stub().returns(Promise.resolve(1))
+      },
+      util: {
+        sha3: (x) => x,
+        hexToBytes: (x) => x,
+        asciiToHex: (x) => x
+      }
+    }
+  };
+
+  component = shallow(
+    <SignRequest signerStore={ signerStore } />,
+    { context }
+  ).find('SignRequest').shallow({ context });
+
+  return component;
+}
+
+describe.only('views/Signer/components/SignRequest', () => {
+  beforeEach(() => {
+    render();
+  });
+
+  it('renders', () => {
+    expect(component).to.be.ok;
+  });
+});

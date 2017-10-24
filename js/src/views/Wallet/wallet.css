@@ -1,0 +1,139 @@
+/* Copyright 2015-2017 Parity Technologies (UK) Ltd.
+/* This file is part of Parity.
+/*
+/* Parity is free software: you can redistribute it and/or modify
+/* it under the terms of the GNU General Public License as published by
+/* the Free Software Foundation, either version 3 of the License, or
+/* (at your option) any later version.
+/*
+/* Parity is distributed in the hope that it will be useful,
+/* but WITHOUT ANY WARRANTY; without even the implied warranty of
+/* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+/* GNU General Public License for more details.
+/*
+/* You should have received a copy of the GNU General Public License
+/* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+.details {
+  margin: 0;
+
+  display: flex;
+  flex-direction: row;
+
+  > * {
+    flex: 1;
+    height: auto;
+
+    &:first-child {
+      margin-left: 0;
+    }
+
+    &:last-child {
+      margin-right: 0;
+    }
+  }
+}
+
+.owners {
+  margin-top: 0.75em;
+
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  padding: 1em 0.5em 0.5em;
+
+  > * {
+    margin-bottom: 0.5em;
+  }
+}
+
+.info {
+  display: flex;
+  flex-direction: row;
+
+  .header {
+    flex: 1;
+    margin-right: 0.25em;
+    overflow: hidden;
+  }
+
+  .details {
+    flex: 1;
+    margin-left: 0.25em;
+  }
+
+  > * {
+    height: auto;
+  }
+}
+
+.detail {
+  font-size: 1.125em;
+  color: white;
+  margin: 0 0.375em;
+  line-height: 1.5em;
+
+  &:first-child {
+    margin-left: 0;
+  }
+}
+
+.eth:after {
+  content: 'ETH';
+  font-size: 0.75em;
+  margin-left: 0.125em;
+}
+
+.progressText {
+  text-align: center;
+  margin: 0.75em 0 0.25em;
+}
+
+.confirmed {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  padding: 0.75em 0.5em 0;
+}
+
+.confirmations {
+  tr {
+    &:nth-child(even) {
+      background-color: initial;
+    }
+
+    &.light {
+      background-color: rgba(255, 255, 255, 0.04);
+    }
+
+    &.dark {
+      background-color: transparent;
+    }
+  }
+}
+
+.actions {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-around;
+}
+
+.accountItem {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+
+.confirmationContainer {
+  position: relative;
+}
+
+.pendingOverlay {
+  position: absolute;
+  top: 1em;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background-color: rgba(255, 255, 255, 0.1);
+}
