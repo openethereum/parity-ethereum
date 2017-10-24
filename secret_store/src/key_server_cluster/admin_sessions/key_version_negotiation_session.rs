@@ -479,7 +479,8 @@ impl SessionResultComputer for FastestResultComputer {
 				let version = versions.iter().find(|&(_, ref n)| !has_key_share || n.contains(&self.self_node_id) && n.len() >= threshold + 1);
 				// if there's no such version, wait for more confirmations
 				match version {
-					Some((version, _)) => Some(Ok((version.clone(), self.self_node_id.clone()))),
+					Some((version, nodes)) => Some(Ok((version.clone(), if has_key_share { self.self_node_id.clone() } else { nodes.iter().cloned().nth(0)
+						.expect("version is only inserted when there's at least one owner; qed") }))),
 					None if !confirmations.is_empty() => None,
 					// otherwise - try to find any version
 					None => Some(versions.iter()
