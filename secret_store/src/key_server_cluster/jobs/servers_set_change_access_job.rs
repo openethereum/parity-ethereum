@@ -130,7 +130,6 @@ impl JobExecutor for ServersSetChangeAccessJob {
 		// check old servers set signature
 		let old_actual_public = recover(&old_set_signature, &ordered_nodes_hash(&old_servers_set).into())?;
 		let new_actual_public = recover(&new_set_signature, &ordered_nodes_hash(&new_servers_set).into())?;
-println!("=== {} {}", old_actual_public == self.administrator, new_actual_public == self.administrator);
 		let is_administrator = old_actual_public == self.administrator && new_actual_public == self.administrator;
 		self.new_servers_set = Some(new_servers_set);
 

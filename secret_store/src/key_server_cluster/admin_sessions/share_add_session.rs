@@ -532,20 +532,17 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 
 				// there must be exactly thresold + 1 nodes in consensus group
 				if consensus_group.len() != key_share.threshold + 1 {
-println!("=== 1");
 					return Err(Error::ConsensusUnreachable);
 				}
 
 				// every non-isolated node must be a part of new_nodes_set
 				let non_isolated_nodes = core.transport.nodes();
 				if key_version.id_numbers.keys().any(|n| non_isolated_nodes.contains(n) && !new_nodes_map.contains_key(n)) {
-println!("=== 2");
 					return Err(Error::ConsensusUnreachable);
 				}
 
 				// there must be at least one new node in new_nodes_map
 				if key_version.id_numbers.len() >= new_nodes_map.len() {
-println!("=== 3");
 					return Err(Error::ConsensusUnreachable);
 				}
 			},
@@ -554,7 +551,6 @@ println!("=== 3");
 				// but we must be on new nodes set, since this is a ShareAdd session
 				if consensus_group.contains(&core.meta.self_node_id) ||
 					!new_nodes_map.contains_key(&core.meta.self_node_id) {
-println!("=== 4");
 					return Err(Error::ConsensusUnreachable);
 				}
 			},
@@ -562,13 +558,11 @@ println!("=== 4");
 
 		// master node must always be a part of consensus group
 		if !consensus_group.contains(&core.meta.master_node_id) {
-println!("=== 5");
 			return Err(Error::ConsensusUnreachable);
 		}
 
 		// master node must always be a part of new_nodes_map
 		if !new_nodes_map.contains_key(&core.meta.master_node_id) {
-println!("=== 6");
 			return Err(Error::ConsensusUnreachable);
 		}
 
