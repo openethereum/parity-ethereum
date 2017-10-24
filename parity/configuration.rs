@@ -649,7 +649,7 @@ impl Configuration {
 			return Ok(GasPricerConfig::Fixed(to_u256(dec)?));
 		} else if let Some(dec) = self.args.arg_min_gas_price {
 			return Ok(GasPricerConfig::Fixed(U256::from(dec)));
-		} else if self.args.arg_chain != "foundation" {
+		} else if !self.chain().map_or(false, |s| s == SpecType::Foundation) {
 			return Ok(GasPricerConfig::Fixed(U256::zero()));
 		}
 
