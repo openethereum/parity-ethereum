@@ -303,6 +303,12 @@ pub fn new_ipc<D: rpc_apis::Dependencies>(
 
 	let handler = setup_apis(conf.apis, dependencies);
 	let remote = dependencies.remote.clone();
+	let path = PathBuf::from(&conf.socket_addr);
+	if let Some(dir) = path.parent() {
+		::std::fs::create_dir_all(&dir)
+			.map_err(|err| format!("Unable to create IPC directory at {}: {}", dir.display(), err))?;
+	}
+
 	match rpc::start_ipc(&conf.socket_addr, handler, remote, rpc::RpcExtractor) {
 		Ok(server) => Ok(Some(server)),
 		Err(io_error) => Err(format!("IPC error: {}", io_error)),
