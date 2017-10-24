@@ -85,7 +85,7 @@ error_chain! {
 		SocketIo(IoError) #[doc = "Socket IO error."];
 		Io(io::Error) #[doc = "Error concerning the Rust standard library's IO subsystem."];
 		AddressParse(net::AddrParseError) #[doc = "Error concerning the network address parsing subsystem."];
-		Decomression(snappy::InvalidInput) #[doc = "Decompression error."];
+		Decompression(snappy::InvalidInput) #[doc = "Decompression error."];
 	}
 
 	errors {
