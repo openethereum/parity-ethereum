@@ -152,7 +152,7 @@ impl fmt::Display for Error {
 			Error::InvalidMessageVersion => write!(f, "unsupported message is received"),
 			Error::ReplayProtection => write!(f, "replay message is received"),
 			Error::NodeDisconnected => write!(f, "node required for this operation is currently disconnected"),
-			Error::MissingKeyShare => write!(f, "requested key share is not found"),
+			Error::MissingKeyShare => write!(f, "requested key share version is not found"),
 			Error::EthKey(ref e) => write!(f, "cryptographic error {}", e),
 			Error::Io(ref e) => write!(f, "i/o error {}", e),
 			Error::Serde(ref e) => write!(f, "serde error {}", e),
@@ -186,6 +186,7 @@ pub use self::client_sessions::signing_session;
 
 mod cluster;
 mod cluster_sessions;
+mod cluster_sessions_creator;
 mod io;
 mod jobs;
 pub mod math;

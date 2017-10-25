@@ -34,7 +34,8 @@ use bigint::hash::H256;
 use key_server_cluster::{Error, NodeId, SessionId, AclStorage, KeyStorage, KeyServerSet, NodeKeyPair};
 use key_server_cluster::cluster_sessions::{ClusterSession, ClusterSessions, GenerationSessionWrapper, EncryptionSessionWrapper,
 	DecryptionSessionWrapper, SigningSessionWrapper, AdminSessionWrapper, KeyNegotiationSessionWrapper, SessionIdWithSubSession,
-	ClusterSessionCreator, IntoSessionId, ClusterSessionsContainer, SERVERS_SET_CHANGE_SESSION_ID};
+	ClusterSessionsContainer, SERVERS_SET_CHANGE_SESSION_ID};
+use key_server_cluster::cluster_sessions_creator::{ClusterSessionCreator, IntoSessionId};
 use key_server_cluster::message::{self, Message, ClusterMessage, GenerationMessage, EncryptionMessage, DecryptionMessage,
 	SigningMessage, ServersSetChangeMessage, ConsensusMessage, ShareAddMessage,
 	ConsensusMessageOfShareAdd, ConsensusMessageWithServersSet};
