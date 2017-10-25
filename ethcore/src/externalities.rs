@@ -234,8 +234,6 @@ impl<'a, T: 'a, V: 'a, B: 'a, E: 'a> Ext for Externalities<'a, T, V, B, E>
 			Ok(FinalizationResult{ gas_left, apply_state: false, return_data }) => {
 				ContractCreateResult::Reverted(gas_left, return_data)
 			},
-			Err(evm::Error::MutableCallInStaticContext) => ContractCreateResult::FailedInStaticCall,
-			_ => ContractCreateResult::Failed,
 		}
 	}
 

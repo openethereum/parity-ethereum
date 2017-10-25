@@ -313,19 +313,23 @@ impl<Cost: CostType> Interpreter<Cost> {
 				let init_off = stack.pop_back();
 				let init_size = stack.pop_back();
 
-				let address_scheme = if instruction == instructions::CREATE { CreateContractAddress::FromSenderAndNonce } else { CreateContractAddress::FromSenderAndCodeHash };
 				let create_gas = provided.expect("`provided` comes through Self::exec from `Gasometer::get_gas_cost_mem`; `gas_gas_mem_cost` guarantees `Some` when instruction is `CALL`/`CALLCODE`/`DELEGATECALL`/`CREATE`; this is `CREATE`; qed");
 
-				let contract_code = self.mem.read_slice(init_off, init_size);
-				let can_create = ext.balance(&params.address)? >= endowment && ext.depth() < ext.schedule().max_depth;
+				if ext.is_static() {
+					return Err(evm::Error::MutableCallInStaticContext);
+				}
 
 				// clear return data buffer before creating new call frame.
 				self.return_data = ReturnData::empty();
 
+				let can_create = ext.balance(&params.address)? >= endowment && ext.depth() < ext.schedule().max_depth;
 				if !can_create {
 					stack.push(U256::zero());
 					return Ok(InstructionResult::UnusedGas(create_gas));
 				}
+
+				let contract_code = self.mem.read_slice(init_off, init_size);
+				let address_scheme = if instruction == instructions::CREATE { CreateContractAddress::FromSenderAndNonce } else { CreateContractAddress::FromSenderAndCodeHash };
 
 				let create_result = ext.create(&create_gas.as_u256(), &endowment, contract_code, address_scheme);
 				return match create_result {
@@ -341,9 +345,6 @@ impl<Cost: CostType> Interpreter<Cost> {
 					ContractCreateResult::Failed => {
 						stack.push(U256::zero());
 						Ok(InstructionResult::Ok)
-					},
-					ContractCreateResult::FailedInStaticCall => {
-						Err(evm::Error::MutableCallInStaticContext)
 					},
 				};
 			},
@@ -906,8 +907,8 @@ mod tests {
 	use rustc_hex::FromHex;
 	use vmtype::VMType;
 	use factory::Factory;
-	use vm::{self, ActionParams, ActionValue};
-	use vm::tests::{FakeExt, test_finalize};
+	use action_params::{ActionParams, ActionValue};
+	use ::tests::{FakeExt, test_finalize};
 
 	#[test]
 	fn should_not_fail_on_tracing_mem() {
@@ -950,6 +951,6 @@ mod tests {
 			test_finalize(vm.exec(params, &mut ext)).err().unwrap()
 		};
 
-		assert_eq!(err, ::vm::Error::OutOfBounds);
+		assert_eq!(err, ::Error::OutOfBounds);
 	}
 }
