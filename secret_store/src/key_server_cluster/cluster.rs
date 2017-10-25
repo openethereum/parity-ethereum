@@ -34,7 +34,7 @@ use bigint::hash::H256;
 use key_server_cluster::{Error, NodeId, SessionId, AclStorage, KeyStorage, KeyServerSet, NodeKeyPair};
 use key_server_cluster::cluster_sessions::{ClusterSession, ClusterSessions, GenerationSessionWrapper, EncryptionSessionWrapper,
 	DecryptionSessionWrapper, SigningSessionWrapper, AdminSessionWrapper, KeyNegotiationSessionWrapper, SessionIdWithSubSession,
-	ClusterSessionsContainer, SERVERS_SET_CHANGE_SESSION_ID};
+	ClusterSessionsContainer, SERVERS_SET_CHANGE_SESSION_ID, create_cluster_view};
 use key_server_cluster::cluster_sessions_creator::{ClusterSessionCreator, IntoSessionId};
 use key_server_cluster::message::{self, Message, ClusterMessage, GenerationMessage, EncryptionMessage, DecryptionMessage,
 	SigningMessage, ServersSetChangeMessage, ConsensusMessage, ShareAddMessage,
@@ -500,7 +500,8 @@ impl ClusterCore {
 			true => {
 				let creation_data = SC::creation_data_from_message(&message)?;
 				let master = if is_initialization_message { sender.clone() } else { data.self_key_pair.public().clone() };
-				sessions.insert(data, master, session_id.clone(), Some(message.session_nonce().ok_or(Error::InvalidMessage)?), requires_all_connections(&message), message.is_exclusive_session_message(), creation_data)
+				let cluster = create_cluster_view(data, requires_all_connections(&message))?;
+				sessions.insert(cluster, master, session_id.clone(), Some(message.session_nonce().ok_or(Error::InvalidMessage)?), message.is_exclusive_session_message(), creation_data)
 			},
 		}
 	}
@@ -833,8 +834,8 @@ impl ClusterClientImpl {
 
 		let access_key = Random.generate()?.secret().clone();
 		let session_id = SessionIdWithSubSession::new(session_id, access_key);
-		let cluster = Arc::new(ClusterView::new(self.data.clone(), connected_nodes.clone()));
-		let session = self.data.sessions.negotiation_sessions.insert(&self.data, self.data.self_key_pair.public().clone(), session_id.clone(), None, true, false, None)?;
+		let cluster = create_cluster_view(&self.data, false)?;
+		let session = self.data.sessions.negotiation_sessions.insert(cluster, self.data.self_key_pair.public().clone(), session_id.clone(), None, false, None)?;
 		session.initialize(connected_nodes)?;
 		Ok(session)
 	}
@@ -849,8 +850,8 @@ impl ClusterClient for ClusterClientImpl {
 		let mut connected_nodes = self.data.connections.connected_nodes();
 		connected_nodes.insert(self.data.self_key_pair.public().clone());
 
-		let cluster = Arc::new(ClusterView::new(self.data.clone(), connected_nodes.clone()));
-		let session = self.data.sessions.generation_sessions.insert(&self.data, self.data.self_key_pair.public().clone(), session_id, None, true, false, None)?;
+		let cluster = create_cluster_view(&self.data, true)?;
+		let session = self.data.sessions.generation_sessions.insert(cluster, self.data.self_key_pair.public().clone(), session_id, None, false, None)?;
 		session.initialize(author, threshold, connected_nodes)?;
 		Ok(GenerationSessionWrapper::new(Arc::downgrade(&self.data), session_id, session))
 	}
@@ -859,8 +860,8 @@ impl ClusterClient for ClusterClientImpl {
 		let mut connected_nodes = self.data.connections.connected_nodes();
 		connected_nodes.insert(self.data.self_key_pair.public().clone());
 
-		let cluster = Arc::new(ClusterView::new(self.data.clone(), connected_nodes));
-		let session = self.data.sessions.encryption_sessions.insert(&self.data, self.data.self_key_pair.public().clone(), session_id, None, true, false, None)?;
+		let cluster = create_cluster_view(&self.data, true)?;
+		let session = self.data.sessions.encryption_sessions.insert(cluster, self.data.self_key_pair.public().clone(), session_id, None, false, None)?;
 		session.initialize(requestor_signature, common_point, encrypted_point)?;
 		Ok(EncryptionSessionWrapper::new(Arc::downgrade(&self.data), session_id, session))
 	}
@@ -871,8 +872,8 @@ impl ClusterClient for ClusterClientImpl {
 
 		let access_key = Random.generate()?.secret().clone();
 		let session_id = SessionIdWithSubSession::new(session_id, access_key);
-		let cluster = Arc::new(ClusterView::new(self.data.clone(), connected_nodes.clone()));
-		let session = self.data.sessions.decryption_sessions.insert(&self.data, self.data.self_key_pair.public().clone(), session_id.clone(), None, false, false, Some(requestor_signature))?;
+		let cluster = create_cluster_view(&self.data, false)?;
+		let session = self.data.sessions.decryption_sessions.insert(cluster, self.data.self_key_pair.public().clone(), session_id.clone(), None, false, Some(requestor_signature))?;
 
 		match version {
 			Some(version) => {
@@ -894,8 +895,8 @@ impl ClusterClient for ClusterClientImpl {
 
 		let access_key = Random.generate()?.secret().clone();
 		let session_id = SessionIdWithSubSession::new(session_id, access_key);
-		let cluster = Arc::new(ClusterView::new(self.data.clone(), connected_nodes.clone()));
-		let session = self.data.sessions.signing_sessions.insert(&self.data, self.data.self_key_pair.public().clone(), session_id.clone(), None, false, false, Some(requestor_signature))?;
+		let cluster = create_cluster_view(&self.data, false)?;
+		let session = self.data.sessions.signing_sessions.insert(cluster, self.data.self_key_pair.public().clone(), session_id.clone(), None, false, Some(requestor_signature))?;
 
 		match version {
 			Some(version) => {
@@ -926,8 +927,8 @@ impl ClusterClient for ClusterClientImpl {
 			None => *SERVERS_SET_CHANGE_SESSION_ID,
 		};
 
-		let cluster = Arc::new(ClusterView::new(self.data.clone(), connected_nodes.clone()));
-		let session = self.data.sessions.admin_sessions.insert(&self.data, self.data.self_key_pair.public().clone(), session_id, None, true, false, None)?;
+		let cluster = create_cluster_view(&self.data, true)?;
+		let session = self.data.sessions.admin_sessions.insert(cluster, self.data.self_key_pair.public().clone(), session_id, None, true, None)?;
 		session.as_servers_set_change().expect("TODO")
 			.initialize(new_nodes_set, old_set_signature, new_set_signature)?;
 		Ok(AdminSessionWrapper::new(Arc::downgrade(&self.data), session_id, session))

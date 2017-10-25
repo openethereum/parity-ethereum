@@ -309,14 +309,14 @@ impl<S, SC, D> ClusterSessionsContainer<S, SC, D> where S: ClusterSession, SC: C
 			})
 	}
 
-	pub fn insert(&self, data: &Arc<ClusterData>, master: NodeId, session_id: S::Id, session_nonce: Option<u64>, requires_all_connections: bool, is_exclusive_session: bool, creation_data: Option<D>) -> Result<Arc<S>, Error> {
+	pub fn insert(&self, cluster: Arc<Cluster>, master: NodeId, session_id: S::Id, session_nonce: Option<u64>, is_exclusive_session: bool, creation_data: Option<D>) -> Result<Arc<S>, Error> {
 		let mut sessions = self.sessions.write();
 		if sessions.contains_key(&session_id) {
 			return Err(Error::DuplicateSessionId);
 		}
 
 		// create cluster
-		let cluster = create_cluster_view(data, requires_all_connections)?;
+		// let cluster = create_cluster_view(data, requires_all_connections)?;
 		// create session
 		let session = self.creator.create(cluster.clone(), master.clone(), session_nonce, session_id.clone(), creation_data)?;
 		// check if session can be started
@@ -748,12 +748,11 @@ mod tests {
 		ClusterSessions::new(&config)
 	}
 
-/*	#[test]
+	#[test]
 	fn cluster_session_cannot_be_started_if_exclusive_session_is_active() {
 		let sessions = make_cluster_sessions();
-
-		sessions.new_generation_session(Default::default(), Default::default(), Some(1), Arc::new(DummyCluster::new(sessions.self_node_id.clone()))).unwrap();
-		match sessions.new_servers_set_change_session(Default::default(), None, Some(1), Arc::new(DummyCluster::new(sessions.self_node_id.clone())), BTreeSet::new()) {
+		sessions.generation_sessions.insert(Arc::new(DummyCluster::new(Default::default())), Default::default(), Default::default(), None, false, None).unwrap();
+		match sessions.admin_sessions.insert(Arc::new(DummyCluster::new(Default::default())), Default::default(), Default::default(), None, true, None) {
 			Err(Error::HasActiveSessions) => (),
 			Err(e) => unreachable!(format!("{}", e)),
 			Ok(_) => unreachable!("OK"),
@@ -764,11 +763,11 @@ mod tests {
 	fn exclusive_session_cannot_be_started_if_other_session_is_active() {
 		let sessions = make_cluster_sessions();
 
-		sessions.new_servers_set_change_session(Default::default(), None, Some(1), Arc::new(DummyCluster::new(sessions.self_node_id.clone())), BTreeSet::new()).unwrap();
-		match sessions.new_generation_session(Default::default(), Default::default(), Some(1), Arc::new(DummyCluster::new(sessions.self_node_id.clone()))) {
+		sessions.admin_sessions.insert(Arc::new(DummyCluster::new(Default::default())), Default::default(), Default::default(), None, true, None).unwrap();
+		match sessions.generation_sessions.insert(Arc::new(DummyCluster::new(Default::default())), Default::default(), Default::default(), None, false, None) {
 			Err(Error::ExclusiveSessionActive) => (),
 			Err(e) => unreachable!(format!("{}", e)),
 			Ok(_) => unreachable!("OK"),
 		}
-	}*/
+	}
 }
