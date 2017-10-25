@@ -236,8 +236,9 @@ impl<ConsensusExecutor, ConsensusTransport, ComputationExecutor, ComputationTran
 		let (is_restart_needed, timeout_result) = match self.state {
 			ConsensusSessionState::WaitingForInitialization if is_self_master => {
 				// it is strange to receive error before session is initialized && slave doesn't know access_key
-				// => ignore this error for now
-				(false, Ok(()))
+				// => fatal error
+				self.state = ConsensusSessionState::Failed;
+				(false, Err(Error::ConsensusUnreachable))
 			}
 			ConsensusSessionState::WaitingForInitialization if is_node_master => {
 				// can not establish consensus
@@ -551,9 +552,10 @@ mod tests {
 	}
 
 	#[test]
-	fn consensus_session_continues_if_node_error_received_by_uninitialized_master() {
+	fn consensus_session_fails_if_node_error_received_by_uninitialized_master() {
 		let mut session = make_master_consensus_session(0, None, None);
-		assert_eq!(session.on_node_error(&NodeId::from(2)), Ok(false));
+		assert_eq!(session.on_node_error(&NodeId::from(2)), Err(Error::ConsensusUnreachable));
+		assert_eq!(session.state(), ConsensusSessionState::Failed);
 	}
 
 	#[test]

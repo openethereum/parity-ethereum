@@ -220,17 +220,8 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 			}
 		}
 
-		// send requests
-		let no_confirmations_required = confirmations.is_empty();
-		for connected_node in &confirmations {
-			self.core.transport.send(connected_node, KeyVersionNegotiationMessage::RequestKeyVersions(RequestKeyVersions {
-				session: self.core.meta.id.clone().into(),
-				sub_session: self.core.sub_session.clone().into(),
-				session_nonce: self.core.nonce,
-			}))?;
-		}
-
 		// update state
+		let no_confirmations_required = confirmations.is_empty();
 		data.state = SessionState::WaitingForResponses;
 		data.confirmations = Some(confirmations);
 		data.versions = Some(versions);
@@ -239,6 +230,17 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		Self::try_complete(&self.core, &mut *data);
 		if no_confirmations_required && data.state != SessionState::Finished {
 			return Err(Error::ConsensusUnreachable);
+		} else if data.state == SessionState::Finished {
+			return Ok(());
+		}
+
+		// send requests
+		for connected_node in data.confirmations.as_ref().expect("TODO") {
+			self.core.transport.send(connected_node, KeyVersionNegotiationMessage::RequestKeyVersions(RequestKeyVersions {
+				session: self.core.meta.id.clone().into(),
+				sub_session: self.core.sub_session.clone().into(),
+				session_nonce: self.core.nonce,
+			}))?;
 		}
 
 		Ok(())

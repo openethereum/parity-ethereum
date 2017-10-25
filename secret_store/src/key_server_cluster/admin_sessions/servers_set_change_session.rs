@@ -898,12 +898,23 @@ impl ClusterSession for SessionImpl {
 	}
 
 	fn on_session_error(&self, node: &NodeId, error: Error) {
+		// error in generation session is considered fatal
+		// => broadcast error if error occured on this node
+		if *node == self.core.meta.self_node_id {
+			// do not bother processing send error, as we already processing error
+			let _ = self.core.cluster.broadcast(Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeError(ServersSetChangeError {
+				session: self.core.meta.id.clone().into(),
+				session_nonce: self.core.nonce,
+				error: error.clone().into(),
+			})));
+		}
+
 		let mut data = self.data.lock();
 
 		warn!("{}: servers set change session failed: {} on {}", self.core.meta.self_node_id, error, node);
 
 		data.state = SessionState::Finished;
-		data.result = Some(Err(Error::NodeDisconnected));
+		data.result = Some(Err(error));
 		self.core.completed.notify_all();
 	}
 

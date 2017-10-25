@@ -254,10 +254,15 @@ impl SessionImpl {
 		};
 
 		let mut data = self.data.lock();
+		let non_isolated_nodes = self.core.cluster.nodes();
 		data.consensus_session.consensus_job_mut().transport_mut().version = Some(version.clone());
 		data.version = Some(version.clone());
 		data.message_hash = Some(message_hash);
-		data.consensus_session.initialize(key_version.id_numbers.keys().cloned().chain(::std::iter::once(self.core.meta.self_node_id.clone())).collect())?;
+		data.consensus_session.initialize(key_version.id_numbers.keys()
+			.filter(|n| non_isolated_nodes.contains(*n))
+			.cloned()
+			.chain(::std::iter::once(self.core.meta.self_node_id.clone()))
+			.collect())?;
 
 		if data.consensus_session.state() == ConsensusSessionState::ConsensusEstablished {
 			let generation_session = GenerationSession::new(GenerationSessionParams {
@@ -307,7 +312,7 @@ impl SessionImpl {
 			&SigningMessage::PartialSignature(ref message) =>
 				self.on_partial_signature(sender, message),
 			&SigningMessage::SigningSessionError(ref message) =>
-				self.on_session_error(sender, message),
+				self.process_node_error(Some(&sender), Error::Io(message.error.clone())),
 			&SigningMessage::SigningSessionCompleted(ref message) =>
 				self.on_session_completed(sender, message),
 			&SigningMessage::SigningSessionDelegation(ref message) =>
@@ -536,14 +541,16 @@ impl SessionImpl {
 		self.data.lock().consensus_session.on_session_completed(sender)
 	}
 
-	/// When error has occured on another node.
-	pub fn on_session_error(&self, sender: &NodeId, message: &SigningSessionError) -> Result<(), Error> {
-		self.process_node_error(Some(&sender), &message.error)
-	}
-
 	/// Process error from the other node.
-	fn process_node_error(&self, node: Option<&NodeId>, error: &String) -> Result<(), Error> {
+	fn process_node_error(&self, node: Option<&NodeId>, error: Error) -> Result<(), Error> {
 		let mut data = self.data.lock();
+		let is_self_node_error = node.map(|n| n == &self.core.meta.self_node_id).unwrap_or(false);
+		// error is always fatal if coming from this node
+		if is_self_node_error {
+			Self::set_signing_result(&self.core, &mut *data, Err(error.clone()));
+			return Err(error);
+		}
+
 		match {
 			match node {
 				Some(node) => data.consensus_session.on_node_error(node),
@@ -620,17 +627,35 @@ impl ClusterSession for SessionImpl {
 
 	fn on_node_timeout(&self, node: &NodeId) {
 		// ignore error, only state matters
-		let _ = self.process_node_error(Some(node), &Error::NodeDisconnected.into());
+		let _ = self.process_node_error(Some(node), Error::NodeDisconnected);
 	}
 
 	fn on_session_timeout(&self) {
 		// ignore error, only state matters
-		let _ = self.process_node_error(None, &Error::NodeDisconnected.into());
+		let _ = self.process_node_error(None, Error::NodeDisconnected);
 	}
 
 	fn on_session_error(&self, node: &NodeId, error: Error) {
-		// ignore error, only state matters
-		let _ = self.process_node_error(Some(node), &error.into());
+		let is_fatal = self.process_node_error(Some(node), error.clone()).is_err();
+		let is_this_node_error = *node == self.core.meta.self_node_id;
+		if is_fatal || is_this_node_error {
+			// error in signing session is non-fatal, if occurs on slave node
+			// => either respond with error
+			// => or broadcast error
+			let message = Message::Signing(SigningMessage::SigningSessionError(SigningSessionError {
+				session: self.core.meta.id.clone().into(),
+				sub_session: self.core.access_key.clone().into(),
+				session_nonce: self.core.nonce,
+				error: error.clone().into(),
+			}));
+
+			// do not bother processing send error, as we already processing error
+			let _ = if self.core.meta.master_node_id == self.core.meta.self_node_id {
+				self.core.cluster.broadcast(message);
+			} else {
+				self.core.cluster.send(&self.core.meta.master_node_id, message);
+			};
+		}
 	}
 
 	fn on_message(&self, sender: &NodeId, message: &Message) -> Result<(), Error> {

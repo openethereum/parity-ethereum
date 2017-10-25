@@ -459,17 +459,25 @@ impl ClusterCore {
 				if let Ok((version, master)) = session.wait() {
 					match session.continue_action() {
 						Some(ContinueAction::Decrypt(session, is_shadow_decryption)) => {
-							if data.self_key_pair.public() == &master {
-								let _ = session.initialize(version, is_shadow_decryption); // TODO: err
+							let initialization_error = if data.self_key_pair.public() == &master {
+								session.initialize(version, is_shadow_decryption)
 							} else {
-								let _ = session.delegate(master, version, is_shadow_decryption); // TODO: err
+								session.delegate(master, version, is_shadow_decryption)
+							};
+
+							if let Err(error) = initialization_error {
+								session.on_session_error(&meta.self_node_id, error);
 							}
 						},
 						Some(ContinueAction::Sign(session, message_hash)) => {
-							if data.self_key_pair.public() == &master {
-								let _ = session.initialize(version, message_hash); // TODO: err
+							let initialization_error = if data.self_key_pair.public() == &master {
+								session.initialize(version, message_hash)
 							} else {
-								let _ = session.delegate(master, version, message_hash); // TODO: err
+								session.delegate(master, version, message_hash)
+							};
+
+							if let Err(error) = initialization_error {
+								session.on_session_error(&meta.self_node_id, error);
 							}
 						},
 						None => (),
@@ -562,7 +570,7 @@ impl ClusterCore {
 						err,
 						message,
 						sender);*/
-					let _ = session.on_session_error(&Public::default()/*data.self_key_pair.public()*/, err); // processing error => ignore error
+					session.on_session_error(data.self_key_pair.public(), err);
 					//session.cluster().broadcast(error_message.into());
 					sessions.remove(&session_id);
 					return Some(session);

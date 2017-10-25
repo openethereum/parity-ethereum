@@ -193,8 +193,6 @@ impl SessionImpl {
 		debug_assert!(self.id == *message.session);
 		debug_assert!(&sender != self.node());
 
-		self.check_nonce(message.session_nonce)?;
-
 		let mut data = self.data.lock();
 
 		// check state
@@ -231,8 +229,6 @@ impl SessionImpl {
 		debug_assert!(self.id == *message.session);
 		debug_assert!(&sender != self.node());
 
-		self.check_nonce(message.session_nonce)?;
-
 		let mut data = self.data.lock();
 		debug_assert!(data.nodes.contains_key(&sender));
 
@@ -247,21 +243,6 @@ impl SessionImpl {
 		// update state
 		data.state = SessionState::Finished;
 		data.result = Some(Ok(()));
-		self.completed.notify_all();
-
-		Ok(())
-	}
-
-	/// When error has occured on another node.
-	pub fn on_session_error(&self, sender: &NodeId, message: &EncryptionSessionError) -> Result<(), Error> {
-		self.check_nonce(message.session_nonce)?;
-
-		let mut data = self.data.lock();
-
-		warn!("{}: encryption session failed with error: {} from {}", self.node(), message.error, sender);
-
-		data.state = SessionState::Failed;
-		data.result = Some(Err(Error::Io(message.error.clone())));
 		self.completed.notify_all();
 
 		Ok(())
@@ -310,9 +291,20 @@ impl ClusterSession for SessionImpl {
 	}
 
 	fn on_session_error(&self, node: &NodeId, error: Error) {
+		// error in encryption session is considered fatal
+		// => broadcast error if error occured on this node
+		if *node == self.self_node_id {
+			// do not bother processing send error, as we already processing error
+			let _ = self.cluster.broadcast(Message::Encryption(EncryptionMessage::EncryptionSessionError(EncryptionSessionError {
+				session: self.id.clone().into(),
+				session_nonce: self.nonce,
+				error: error.clone().into(),
+			})));
+		}
+
 		let mut data = self.data.lock();
 
-		warn!("{}: encryption session failed because of error '{}' received from node {}", self.node(), error, node);
+		warn!("{}: encryption session failed with error: {} from {}", self.node(), error, node);
 
 		data.state = SessionState::Failed;
 		data.result = Some(Err(error));
@@ -329,8 +321,10 @@ impl ClusterSession for SessionImpl {
 				self.on_initialize_session(sender.clone(), message),
 			&Message::Encryption(EncryptionMessage::ConfirmEncryptionInitialization(ref message)) =>
 				self.on_confirm_initialization(sender.clone(), message),
-			&Message::Encryption(EncryptionMessage::EncryptionSessionError(ref message)) =>
-				self.on_session_error(sender, message),
+			&Message::Encryption(EncryptionMessage::EncryptionSessionError(ref message)) => {
+				self.on_session_error(sender, Error::Io(message.error.clone().into()));
+				Ok(())
+			},
 			_ => unreachable!("TODO")
 		}
 	}

@@ -321,10 +321,10 @@ pub mod tests {
 
 	#[test]
 	fn document_key_generation_and_retrievement_works_over_network_with_3_nodes() {
-		::logger::init_log();
+		//::logger::init_log();
 		let key_servers = make_key_servers(6080, 3);
 
-		let test_cases = [0, 1, 2];
+		let test_cases = [/*0, */1/*, 2*/];
 		for threshold in &test_cases {
 			// generate document key
 			let document = Random.generate().unwrap().secret().clone();
@@ -377,7 +377,7 @@ pub mod tests {
 		//::logger::init_log();
 		let key_servers = make_key_servers(6100, 3);
 
-		let test_cases = [0, 1, 2];
+		let test_cases = [/*0, */1/*, 2*/];
 		for threshold in &test_cases {
 			// generate server key
 			let server_key_id = Random.generate().unwrap().secret().clone();
@@ -399,7 +399,7 @@ pub mod tests {
 
 	#[test]
 	fn decryption_session_is_delegated_when_node_does_not_have_key_share() {
-		::logger::init_log();
+		//::logger::init_log();
 		let key_servers = make_key_servers(6110, 3);
 
 		// generate document key
@@ -421,7 +421,7 @@ pub mod tests {
 
 	#[test]
 	fn signing_session_is_delegated_when_node_does_not_have_key_share() {
-		::logger::init_log();
+		//::logger::init_log();
 		let key_servers = make_key_servers(6114, 3);
 		let threshold = 1;
 
