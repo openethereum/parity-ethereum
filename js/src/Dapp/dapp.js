@@ -24,7 +24,7 @@ import builtinDapps from '@parity/shared/config/dappsBuiltin.json';
 import viewsDapps from '@parity/shared/config/dappsViews.json';
 import DappsStore from '@parity/shared/mobx/dappsStore';
 import HistoryStore from '@parity/shared/mobx/historyStore';
-import { Bond } from 'oo7';
+// import { Bond } from 'oo7';
 
 import styles from './dapp.css';
 
@@ -151,7 +151,7 @@ export default class Dapp extends Component {
         frameBorder={ 0 }
         id='dappFrame'
         name={ name }
-        onLoad={ this.injectObjects }
+        onLoad={ this.onDappLoad }
         sandbox='allow-forms allow-popups allow-same-origin allow-scripts allow-top-navigation'
         scrolling='auto'
         src={ `${src}${hash}` }
@@ -159,10 +159,10 @@ export default class Dapp extends Component {
     );
   }
 
-  injectObjects = () => {
+  onDappLoad = () => {
     const frame = document.getElementById('dappFrame');
 
     frame.style.opacity = 1;
-    frame.contentWindow.injectedBondCache = Bond.cache;
+    // frame.contentWindow.injectedBondCache = Bond.cache;
   }
 }
