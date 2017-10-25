@@ -24,6 +24,7 @@ import builtinDapps from '@parity/shared/config/dappsBuiltin.json';
 import viewsDapps from '@parity/shared/config/dappsViews.json';
 import DappsStore from '@parity/shared/mobx/dappsStore';
 import HistoryStore from '@parity/shared/mobx/historyStore';
+// import { Bond } from 'oo7';
 
 import styles from './dapp.css';
 
@@ -90,16 +91,7 @@ export default class Dapp extends Component {
     const { app, loading } = this.state;
 
     if (loading) {
-      return (
-        <div className={ styles.full }>
-          <div className={ styles.text }>
-            <FormattedMessage
-              id='dapp.loading'
-              defaultMessage='Loading'
-            />
-          </div>
-        </div>
-      );
+      return null;
     }
 
     if (!app) {
@@ -157,11 +149,20 @@ export default class Dapp extends Component {
       <iframe
         className={ styles.frame }
         frameBorder={ 0 }
+        id='dappFrame'
         name={ name }
+        onLoad={ this.onDappLoad }
         sandbox='allow-forms allow-popups allow-same-origin allow-scripts allow-top-navigation'
         scrolling='auto'
         src={ `${src}${hash}` }
       />
     );
+  }
+
+  onDappLoad = () => {
+    const frame = document.getElementById('dappFrame');
+
+    frame.style.opacity = 1;
+    // frame.contentWindow.injectedBondCache = Bond.cache;
   }
 }
