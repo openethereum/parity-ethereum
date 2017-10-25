@@ -411,7 +411,7 @@ impl SessionImpl {
 					},
 					sub_session: message.sub_session.clone().into(),
 					key_share: key_share,
-					result_computer: Arc::new(LargestSupportResultComputer {}),
+					result_computer: Arc::new(LargestSupportResultComputer {}), // TODO: use fastest instead!!!
 					transport: ServersSetChangeKeyVersionNegotiationTransport {
 						id: key_id,
 						nonce: self.core.nonce,
@@ -476,23 +476,30 @@ impl SessionImpl {
 					return Err(Error::InvalidMessage);
 				}
 
-				// on nodes, which have their own key share, we could check if master node plan is correct
-/*				if let Some(key_share) = self.core.key_storage.get(&key_id).map_err(|e| Error::KeyStorage(e.into()))? {
-					let key_version = key_share.version(&message.version.clone().into()).map_err(|e| Error::KeyStorage(e.into()))?;
-					let old_nodes_set = key_version.id_numbers.keys().cloned().collect();
-					let new_nodes_set = data.new_nodes_set.as_ref()
-						.expect("new_nodes_set is filled during consensus establishing; change sessions are running after this; qed");
-					let key_share_owners = key_version.id_numbers.keys().cloned().collect();
-					let local_plan = prepare_share_change_session_plan(&self.core.all_nodes_set, &old_nodes_set, new_nodes_set)?;
-					if local_plan.isolated_nodes != master_plan.isolated_nodes
-						|| local_plan.nodes_to_add.keys().any(|n| !local_plan.nodes_to_add.contains_key(n))
-						|| local_plan.nodes_to_add.keys().any(|n| !master_plan.nodes_to_add.contains_key(n))
-						return Err(Error::InvalidMessage);
+				// on nodes, holding selected key share version, we could check if master node plan is correct
+				let master_node_id = message.master_node_id.clone().into();
+				if let Some(key_share) = self.core.key_storage.get(&key_id).map_err(|e| Error::KeyStorage(e.into()))? {
+					let version = message.version.clone().into();
+					if let Ok(key_version) = key_share.version(&version) {
+						let key_share_owners = key_version.id_numbers.keys().cloned().collect();
+						let new_nodes_set = data.new_nodes_set.as_ref()
+							.expect("new_nodes_set is filled during consensus establishing; change sessions are running after this; qed");
+						let local_plan = prepare_share_change_session_plan(
+							&self.core.all_nodes_set,
+							key_share.threshold,
+							version,
+							&master_node_id,
+							&key_share_owners,
+							new_nodes_set)?;
+
+						if local_plan.new_nodes_map.keys().collect::<BTreeSet<_>>() != master_plan.new_nodes_map.keys().collect::<BTreeSet<_>>() {
+							return Err(Error::InvalidMessage);
+						}
 					}
-				} TODO*/
+				}
 
 				let session = Self::create_share_change_session(&self.core, key_id,
-					message.master_node_id.clone().into(),
+					master_node_id,
 					message.old_shares_set.iter().cloned().map(Into::into).collect(),
 					master_plan)?;
 				if !session.is_finished() {
@@ -638,7 +645,9 @@ impl SessionImpl {
 		}
 
 		// if we are on the set of nodes that are being removed from the cluster, let's clear database
-		if !data.new_nodes_set.as_ref().expect("TODO").contains(&self.core.meta.self_node_id) {
+		if !data.new_nodes_set.as_ref()
+			.expect("new_nodes_set is filled during initialization; session is completed after initialization; qed")
+			.contains(&self.core.meta.self_node_id) {
 			self.core.key_storage.clear();
 		}
 
@@ -706,7 +715,7 @@ impl SessionImpl {
 				+ data.negotiation_sessions.len();
 			let mut number_of_sessions_to_start = MAX_ACTIVE_KEY_SESSIONS.saturating_sub(number_of_sessions_active);
 			while number_of_sessions_to_start > 0 {
-				let key_id = match data.sessions_queue.as_mut().expect("TODO").next() {
+				let key_id = match data.sessions_queue.as_mut().expect("checked before beginning of the loop; qed").next() {
 					None => break, // complete session
 					Some(Err(e)) => return Err(e),
 					Some(Ok(key_id)) => key_id,
@@ -765,7 +774,7 @@ impl SessionImpl {
 	fn initialize_share_change_session(core: &SessionCore, data: &mut SessionData, key_id: SessionId) -> Result<bool, Error> {
 		// get selected version && old nodes set from key negotiation session
 		let negotiation_session = data.negotiation_sessions.remove(&key_id).expect("TODO");
-		let (selected_version, selected_master) = negotiation_session.wait()?; // TODO: currently it selects version with largest support
+		let (selected_version, selected_master) = negotiation_session.wait()?;
 		let selected_version_holders = negotiation_session.version_holders(&selected_version)?;
 		let selected_version_threshold = negotiation_session.key_threshold()?;
 
@@ -1271,5 +1280,10 @@ pub mod tests {
 
 		// check that all sessions have finished
 		assert!(ml.nodes.iter().filter(|&(k, _)| !nodes_to_isolate.contains(k)).all(|(_, v)| v.session.is_finished()));
+	}
+
+	#[test]
+	fn share_is_added_to_the_node_with_obsolete_version() {
+		// TODO
 	}
 }

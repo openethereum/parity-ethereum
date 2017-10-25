@@ -235,7 +235,8 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		}
 
 		// send requests
-		for connected_node in data.confirmations.as_ref().expect("TODO") {
+		let confirmations = data.confirmations.as_ref().expect("dilled couple of lines above; qed");
+		for connected_node in confirmations {
 			self.core.transport.send(connected_node, KeyVersionNegotiationMessage::RequestKeyVersions(RequestKeyVersions {
 				session: self.core.meta.id.clone().into(),
 				sub_session: self.core.sub_session.clone().into(),
