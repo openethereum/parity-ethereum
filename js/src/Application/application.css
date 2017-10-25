@@ -20,11 +20,11 @@
   margin-top: 2.75em;
 
   .logo {
-    background: #757575;
     top: 0;
     right: 0;
     left: 0;
     bottom: 0;
+    opacity: 0.2;
     position: fixed;
     padding: 7em;
     text-align: center;
