@@ -281,6 +281,7 @@ impl<'a> Iterator for PersistentKeyStorageIterator<'a> {
 
 impl DocumentKeyShare {
 	/// Get last version reference.
+	#[cfg(test)]
 	pub fn last_version(&self) -> Result<&DocumentKeyShareVersion, Error> {
 		self.versions.iter().rev()
 			.nth(0)

@@ -683,8 +683,6 @@ pub struct InitializeShareChangeSession {
 	pub master_node_id: MessageNodeId,
 	/// Consensus group to use in ShareAdd session.
 	pub consensus_group: BTreeSet<MessageNodeId>,
-	/// Old nodes set.
-	pub old_shares_set: BTreeSet<MessageNodeId>,
 	/// Shares to add. Values are filled for new nodes only.
 	pub new_nodes_map: BTreeMap<MessageNodeId, Option<SerializableSecret>>,
 }
@@ -853,10 +851,12 @@ impl Message {
 				ConsensusMessage::InitializeConsensusSession(_) => true,
 				_ => false
 			},
+			//Message::Decryption(DecryptionMessage::DecryptionSessionDelegation(_)) => true,
 			Message::Signing(SigningMessage::SigningConsensusMessage(ref msg)) => match msg.message {
 				ConsensusMessage::InitializeConsensusSession(_) => true,
 				_ => false
 			},
+			//Message::Signing(SigningMessage::SigningSessionDelegation(_)) => true,
 			Message::KeyVersionNegotiation(KeyVersionNegotiationMessage::RequestKeyVersions(_)) => true,
 			Message::ShareAdd(ShareAddMessage::ShareAddConsensusMessage(ref msg)) => match msg.message {
 				ConsensusMessageOfShareAdd::InitializeConsensusSession(_) => true,

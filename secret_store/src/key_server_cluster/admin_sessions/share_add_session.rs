@@ -823,26 +823,6 @@ impl SessionTransport for IsolatedSessionTransport {
 	}
 }
 
-fn make_new_active_nodes_set(cluster_nodes_set: &BTreeSet<NodeId>, new_nodes_set: &BTreeSet<NodeId>, old_nodes_set: &BTreeSet<NodeId>) -> Result<BTreeSet<NodeId>, Error> {
-	// update new_nodes_set && old_nodes_set so that:
-	// 1) we do not require confirmations from isolated nodes
-	// 2) share won't get updated on isolated nodes
-	let mut new_active_nodes_set = BTreeSet::new();
-	for new_node in new_nodes_set {
-		let is_isolated_node = !cluster_nodes_set.contains(new_node);
-		if is_isolated_node {
-			match old_nodes_set.contains(new_node) {
-				true => continue,
-				false => return Err(Error::ConsensusUnreachable),
-			}
-		}
-
-		new_active_nodes_set.insert(new_node.clone());
-	}
-
-	Ok(new_active_nodes_set)
-}
-
 #[cfg(test)]
 pub mod tests {
 	use std::sync::Arc;
@@ -1079,7 +1059,7 @@ pub mod tests {
 
 	#[test]
 	fn nodes_added_using_share_add() {
-		let test_cases = vec![(3, 1)/*, (3, 3)*/];
+		let test_cases = vec![(3, 1), (3, 3)];
 		for (n, nodes_to_add) in test_cases {
 			// generate key && prepare ShareAdd sessions
 			let old_nodes_set = generate_nodes_ids(n);
@@ -1116,7 +1096,7 @@ pub mod tests {
 		ml.nodes.remove(&isolated_node_id);
 		ml.old_nodes_set.remove(&isolated_node_id);
 		ml.new_nodes_set.remove(&isolated_node_id);
-		for (n, node) in ml.nodes.iter_mut() {
+		for (_, node) in ml.nodes.iter_mut() {
 			node.cluster.remove_node(&isolated_node_id);
 		}
 		ml.update_signature();

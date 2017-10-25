@@ -14,8 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::cmp::{Ord, PartialOrd, Ordering};
-use std::collections::BTreeSet;
 use std::sync::Arc;
 use parking_lot::{Mutex, Condvar};
 use bigint::hash::H256;
@@ -141,7 +139,6 @@ impl SessionImpl {
 		//debug_assert_eq!(params.meta.self_node_id == params.meta.master_node_id, requester_signature.is_some());
 		debug_assert_eq!(params.meta.threshold, params.key_share.as_ref().map(|ks| ks.threshold).unwrap_or_default());
 
-		use key_server_cluster::generation_session::{check_cluster_nodes, check_threshold};
 		// check that common_point and encrypted_point are already set
 		if let Some(key_share) = params.key_share.as_ref() {
 			if key_share.common_point.is_none() || key_share.encrypted_point.is_none() {
@@ -528,9 +525,9 @@ impl ClusterSession for SessionImpl {
 
 			// do not bother processing send error, as we already processing error
 			let _ = if self.core.meta.master_node_id == self.core.meta.self_node_id {
-				self.core.cluster.broadcast(message);
+				self.core.cluster.broadcast(message)
 			} else {
-				self.core.cluster.send(&self.core.meta.master_node_id, message);
+				self.core.cluster.send(&self.core.meta.master_node_id, message)
 			};
 		}
 	}
@@ -538,7 +535,7 @@ impl ClusterSession for SessionImpl {
 	fn on_message(&self, sender: &NodeId, message: &Message) -> Result<(), Error> {
 		match *message {
 			Message::Decryption(ref message) => self.process_message(sender, message),
-			_ => unreachable!("TODO"),
+			_ => unreachable!("cluster checks message to be correct before passing; qed"),
 		}
 	}
 }

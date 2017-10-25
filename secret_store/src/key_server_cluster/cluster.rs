@@ -1,5 +1,6 @@
 // TODO: after refactoring, check that there are no extra messages passing in tests (there are error messages)
 // TODO: initialize() fails, session is not removed from container
+// TODO: KeyVersionNegotiation starts even if we have enough nodes connected
 
 // Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
@@ -36,14 +37,12 @@ use key_server_cluster::cluster_sessions::{ClusterSession, ClusterSessions, Gene
 	DecryptionSessionWrapper, SigningSessionWrapper, AdminSessionWrapper, KeyNegotiationSessionWrapper, SessionIdWithSubSession,
 	ClusterSessionsContainer, SERVERS_SET_CHANGE_SESSION_ID, create_cluster_view};
 use key_server_cluster::cluster_sessions_creator::{ClusterSessionCreator, IntoSessionId};
-use key_server_cluster::message::{self, Message, ClusterMessage, GenerationMessage, EncryptionMessage, DecryptionMessage,
-	SigningMessage, ServersSetChangeMessage, ConsensusMessage, ShareAddMessage,
-	ConsensusMessageOfShareAdd, ConsensusMessageWithServersSet};
-use key_server_cluster::generation_session::{Session as GenerationSession, SessionState as GenerationSessionState};
+use key_server_cluster::message::{self, Message, ClusterMessage};
+use key_server_cluster::generation_session::{Session as GenerationSession};
 #[cfg(test)]
 use key_server_cluster::generation_session::SessionImpl as GenerationSessionImpl;
 use key_server_cluster::decryption_session::{Session as DecryptionSession};
-use key_server_cluster::encryption_session::{Session as EncryptionSession, SessionState as EncryptionSessionState};
+use key_server_cluster::encryption_session::{Session as EncryptionSession};
 use key_server_cluster::signing_session::{Session as SigningSession};
 use key_server_cluster::key_version_negotiation_session::{Session as KeyVersionNegotiationSession, SessionImpl as KeyVersionNegotiationSessionImpl,
 	IsolatedSessionTransport as KeyVersionNegotiationSessionTransport, ContinueAction};
@@ -378,12 +377,12 @@ impl ClusterCore {
 
 	/// Try to connect to every disconnected node.
 	fn connect_disconnected_nodes(data: Arc<ClusterData>) {
-/*		// do not update nodes set if any admin session is active
+		// do not update nodes set if any admin session is active
 		// this could happen, but will possibly lead to admin session error
 		// => should be performed later
 		if data.sessions.admin_sessions.is_empty() {
 			data.connections.update_nodes_set();
-		}*/
+		}
 
 		for (node_id, node_address) in data.connections.disconnected_nodes() {
 			if data.config.allow_connecting_to_higher_nodes || data.self_key_pair.public() < &node_id {
@@ -500,7 +499,7 @@ impl ClusterCore {
 		}
 
 		// get or create new session, if required
-		let session_id = message.into_session_id().expect("TODO");
+		let session_id = message.into_session_id().expect("into_session_id fails for cluster messages only; only session messages are passed to prepare_session; qed");
 		let is_initialization_message = message.is_initialization_message();
 		let is_delegation_message = message.is_delegation_message();
 		match is_initialization_message || is_delegation_message {
@@ -528,8 +527,8 @@ impl ClusterCore {
 				// this is new session => it is not yet in container
 				//warn!(target: "secretstore_net", "{}: generation session initialization error '{}' when requested for new session from node {}", data.self_key_pair.public(), err, sender);
 				if message.is_initialization_message() {
-					let session_id = message.into_session_id().expect("TODO");
-					let session_nonce = message.session_nonce().expect("TODO");
+					let session_id = message.into_session_id().expect("session_id only fails for cluster messages; only session messages are passed to process_message; qed");
+					let session_nonce = message.session_nonce().expect("session_nonce only fails for cluster messages; only session messages are passed to process_message; qed");
 					data.spawn(connection.send_message(SC::make_error_message(session_id, session_nonce, error)));
 				}
 				return None;
@@ -651,10 +650,6 @@ impl ClusterConnections {
 			trace!(target: "secretstore_net", "{}: removing connection to {} at {}", self.self_node_id, entry.get().node_id(), entry.get().node_address());
 			entry.remove_entry();
 		}
-	}
-
-	pub fn all_nodes(&self) -> BTreeSet<NodeId> {
-		self.data.read().nodes.keys().cloned().collect()
 	}
 
 	pub fn connected_nodes(&self) -> BTreeSet<NodeId> {
@@ -874,7 +869,7 @@ impl ClusterClient for ClusterClientImpl {
 		Ok(EncryptionSessionWrapper::new(Arc::downgrade(&self.data), session_id, session))
 	}
 
-	fn new_decryption_session(&self, session_id: SessionId, requestor_signature: Signature, mut version: Option<H256>, is_shadow_decryption: bool) -> Result<Arc<DecryptionSession>, Error> {
+	fn new_decryption_session(&self, session_id: SessionId, requestor_signature: Signature, version: Option<H256>, is_shadow_decryption: bool) -> Result<Arc<DecryptionSession>, Error> {
 		let mut connected_nodes = self.data.connections.connected_nodes();
 		connected_nodes.insert(self.data.self_key_pair.public().clone());
 
@@ -937,7 +932,7 @@ impl ClusterClient for ClusterClientImpl {
 
 		let cluster = create_cluster_view(&self.data, true)?;
 		let session = self.data.sessions.admin_sessions.insert(cluster, self.data.self_key_pair.public().clone(), session_id, None, true, None)?;
-		session.as_servers_set_change().expect("TODO")
+		session.as_servers_set_change().expect("servers set change session is created; qed")
 			.initialize(new_nodes_set, old_set_signature, new_set_signature)?;
 		Ok(AdminSessionWrapper::new(Arc::downgrade(&self.data), session_id, session))
 	}

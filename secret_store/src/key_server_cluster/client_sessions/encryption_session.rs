@@ -115,7 +115,7 @@ pub enum SessionState {
 impl SessionImpl {
 	/// Create new encryption session.
 	pub fn new(params: SessionParams) -> Result<Self, Error> {
-		check_encrypted_data(&params.self_node_id, &params.encrypted_data)?;
+		check_encrypted_data(&params.encrypted_data)?;
 
 		Ok(SessionImpl {
 			id: params.id,
@@ -247,14 +247,6 @@ impl SessionImpl {
 
 		Ok(())
 	}
-
-	/// Check session nonce.
-	fn check_nonce(&self, message_session_nonce: u64) -> Result<(), Error> {
-		match self.nonce == message_session_nonce {
-			true => Ok(()),
-			false => Err(Error::ReplayProtection),
-		}
-	}
 }
 
 impl ClusterSession for SessionImpl {
@@ -317,15 +309,17 @@ impl ClusterSession for SessionImpl {
 		}
 
 		match message {
-			&Message::Encryption(EncryptionMessage::InitializeEncryptionSession(ref message)) =>
-				self.on_initialize_session(sender.clone(), message),
-			&Message::Encryption(EncryptionMessage::ConfirmEncryptionInitialization(ref message)) =>
-				self.on_confirm_initialization(sender.clone(), message),
-			&Message::Encryption(EncryptionMessage::EncryptionSessionError(ref message)) => {
-				self.on_session_error(sender, Error::Io(message.error.clone().into()));
-				Ok(())
+			&Message::Encryption(ref message) => match message {
+				&EncryptionMessage::InitializeEncryptionSession(ref message) =>
+					self.on_initialize_session(sender.clone(), message),
+				&EncryptionMessage::ConfirmEncryptionInitialization(ref message) =>
+					self.on_confirm_initialization(sender.clone(), message),
+				&EncryptionMessage::EncryptionSessionError(ref message) => {
+					self.on_session_error(sender, Error::Io(message.error.clone().into()));
+					Ok(())
+				},
 			},
-			_ => unreachable!("TODO")
+			_ => unreachable!("cluster checks message to be correct before passing; qed"),
 		}
 	}
 }
@@ -356,10 +350,8 @@ impl Debug for SessionImpl {
 	}
 }
 
-fn check_encrypted_data(self_node_id: &Public, encrypted_data: &Option<DocumentKeyShare>) -> Result<(), Error> {
+fn check_encrypted_data(encrypted_data: &Option<DocumentKeyShare>) -> Result<(), Error> {
 	if let &Some(ref encrypted_data) = encrypted_data {
-		use key_server_cluster::generation_session::{check_cluster_nodes, check_threshold};
-
 		// check that common_point and encrypted_point are still not set yet
 		if encrypted_data.common_point.is_some() || encrypted_data.encrypted_point.is_some() {
 			return Err(Error::CompletedSessionId);

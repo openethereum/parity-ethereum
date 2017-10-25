@@ -15,9 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
-use std::collections::{VecDeque, BTreeSet, BTreeMap};
-use bigint::hash::H256;
-use key_server_cluster::{Error, NodeId, SessionId, KeyStorage, DocumentKeyShare};
+use std::collections::{VecDeque, BTreeSet};
+use key_server_cluster::{Error, SessionId, KeyStorage};
 
 /// Queue of share change sessions.
 pub struct SessionsQueue {

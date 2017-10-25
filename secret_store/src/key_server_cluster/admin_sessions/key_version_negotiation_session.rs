@@ -323,7 +323,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 					data.threshold = Some(threshold);
 				},
 				Some(threshold) if data.threshold.as_ref() == Some(&threshold) => (),
-				Some(threshold) => return Err(Error::InvalidMessage),
+				Some(_) => return Err(Error::InvalidMessage),
 				None if message.versions.is_empty() => (),
 				None => return Err(Error::InvalidMessage),
 			}
@@ -419,7 +419,7 @@ impl<T> ClusterSession for SessionImpl<T> where T: SessionTransport {
 					warn!("{}: key version negotiation session failed because {} connection has timeouted", self.core.meta.self_node_id, node);
 
 					data.state = SessionState::Finished;
-					data.result = Some(Err(Error::NodeDisconnected));
+					data.result = Some(Err(error));
 					self.core.completed.notify_all();
 				}
 			}
@@ -429,7 +429,7 @@ impl<T> ClusterSession for SessionImpl<T> where T: SessionTransport {
 	fn on_message(&self, sender: &NodeId, message: &Message) -> Result<(), Error> {
 		match *message {
 			Message::KeyVersionNegotiation(ref message) => self.process_message(sender, message),
-			_ => unreachable!("on_message is only called for version negotiation messages; qed"),
+			_ => unreachable!("cluster checks message to be correct before passing; qed"),
 		}
 	}
 }
@@ -444,7 +444,7 @@ impl FastestResultComputer {
 	pub fn new(self_node_id: NodeId, key_share: Option<&DocumentKeyShare>, connected_nodes: &BTreeSet<NodeId>) -> Self {
 		let (best_version, threshold) = match key_share {
 			Some(key_share) => (
-				Self::find_best_version(&self_node_id, key_share, connected_nodes),
+				Self::find_best_version(key_share, connected_nodes),
 				Some(key_share.threshold),
 			),
 			None => (None, None),
@@ -457,7 +457,7 @@ impl FastestResultComputer {
 		}
 	}
 
-	fn find_best_version(self_node_id: &NodeId, key_share: &DocumentKeyShare, connected_nodes: &BTreeSet<NodeId>) -> Option<H256> {
+	fn find_best_version(key_share: &DocumentKeyShare, connected_nodes: &BTreeSet<NodeId>) -> Option<H256> {
 		for version in key_share.versions.iter().rev() {
 			let mut connected_owners = version.id_numbers.keys().filter(|n| connected_nodes.contains(*n));
 			if connected_owners.nth(key_share.threshold + 1).is_some() {
@@ -527,9 +527,8 @@ mod tests {
 	use key_server_cluster::cluster::Cluster;
 	use key_server_cluster::cluster::tests::DummyCluster;
 	use key_server_cluster::admin_sessions::ShareChangeSessionMeta;
-	use key_server_cluster::generation_session::tests::generate_nodes_ids;
 	use key_server_cluster::message::{Message, KeyVersionNegotiationMessage, RequestKeyVersions, KeyVersions};
-	use super::{Session, SessionImpl, SessionTransport, SessionResultComputer, SessionParams, FastestResultComputer, SessionState};
+	use super::{SessionImpl, SessionTransport, SessionParams, FastestResultComputer, SessionState};
 
 	struct DummyTransport {
 		cluster: Arc<DummyCluster>,
@@ -610,14 +609,14 @@ mod tests {
 
 	#[test]
 	fn negotiation_fails_if_initialized_twice() {
-		let mut ml = MessageLoop::empty(1);
+		let ml = MessageLoop::empty(1);
 		assert_eq!(ml.session(0).initialize(BTreeSet::new()), Ok(()));
 		assert_eq!(ml.session(0).initialize(BTreeSet::new()), Err(Error::InvalidStateForRequest));
 	}
 
 	#[test]
 	fn negotiation_fails_if_message_contains_wrong_nonce() {
-		let mut ml = MessageLoop::empty(2);
+		let ml = MessageLoop::empty(2);
 		assert_eq!(ml.session(1).process_message(ml.node_id(0), &KeyVersionNegotiationMessage::RequestKeyVersions(RequestKeyVersions {
 			session: Default::default(),
 			sub_session: math::generate_random_scalar().unwrap().into(),
@@ -627,7 +626,7 @@ mod tests {
 
 	#[test]
 	fn negotiation_fails_if_versions_request_received_from_non_master() {
-		let mut ml = MessageLoop::empty(3);
+		let ml = MessageLoop::empty(3);
 		assert_eq!(ml.session(2).process_message(ml.node_id(1), &KeyVersionNegotiationMessage::RequestKeyVersions(RequestKeyVersions {
 			session: Default::default(),
 			sub_session: math::generate_random_scalar().unwrap().into(),
@@ -637,7 +636,7 @@ mod tests {
 
 	#[test]
 	fn negotiation_fails_if_versions_request_received_twice() {
-		let mut ml = MessageLoop::empty(2);
+		let ml = MessageLoop::empty(2);
 		assert_eq!(ml.session(1).process_message(ml.node_id(0), &KeyVersionNegotiationMessage::RequestKeyVersions(RequestKeyVersions {
 			session: Default::default(),
 			sub_session: math::generate_random_scalar().unwrap().into(),
@@ -652,7 +651,7 @@ mod tests {
 
 	#[test]
 	fn negotiation_fails_if_versions_received_before_initialization() {
-		let mut ml = MessageLoop::empty(2);
+		let ml = MessageLoop::empty(2);
 		assert_eq!(ml.session(1).process_message(ml.node_id(0), &KeyVersionNegotiationMessage::KeyVersions(KeyVersions {
 			session: Default::default(),
 			sub_session: math::generate_random_scalar().unwrap().into(),
@@ -664,7 +663,7 @@ mod tests {
 
 	#[test]
 	fn negotiation_does_not_fails_if_versions_received_after_completion() {
-		let mut ml = MessageLoop::empty(3);
+		let ml = MessageLoop::empty(3);
 		ml.session(0).initialize(ml.nodes.keys().cloned().collect()).unwrap();
 		assert_eq!(ml.session(0).data.lock().state, SessionState::WaitingForResponses);
 
@@ -690,7 +689,7 @@ mod tests {
 
 	#[test]
 	fn negotiation_fails_if_wrong_threshold_sent() {
-		let mut ml = MessageLoop::empty(3);
+		let ml = MessageLoop::empty(3);
 		ml.session(0).initialize(ml.nodes.keys().cloned().collect()).unwrap();
 
 		let version_id = (*math::generate_random_scalar().unwrap()).clone();
@@ -712,7 +711,7 @@ mod tests {
 
 	#[test]
 	fn negotiation_fails_if_threshold_empty_when_versions_are_not_empty() {
-		let mut ml = MessageLoop::empty(2);
+		let ml = MessageLoop::empty(2);
 		ml.session(0).initialize(ml.nodes.keys().cloned().collect()).unwrap();
 
 		let version_id = (*math::generate_random_scalar().unwrap()).clone();
@@ -739,8 +738,8 @@ mod tests {
 				id_numbers: vec![(nodes.keys().cloned().nth(0).unwrap(), math::generate_random_scalar().unwrap())].into_iter().collect(),
 				secret_share: math::generate_random_scalar().unwrap(),
 			}],
-		});
-		let mut ml = MessageLoop::new(nodes);
+		}).unwrap();
+		let ml = MessageLoop::new(nodes);
 		ml.session(0).initialize(ml.nodes.keys().cloned().collect()).unwrap();
 		assert_eq!(ml.session(0).data.lock().state, SessionState::Finished);
 	}

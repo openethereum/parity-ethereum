@@ -18,7 +18,6 @@ use std::sync::Arc;
 use std::collections::{BTreeSet, BTreeMap};
 use std::collections::btree_map::Entry;
 use parking_lot::{Mutex, Condvar};
-use bigint::hash::H256;
 use ethkey::{Public, Signature};
 use key_server_cluster::{Error, NodeId, SessionId, KeyStorage};
 use key_server_cluster::math;
@@ -498,10 +497,7 @@ impl SessionImpl {
 					}
 				}
 
-				let session = Self::create_share_change_session(&self.core, key_id,
-					master_node_id,
-					message.old_shares_set.iter().cloned().map(Into::into).collect(),
-					master_plan)?;
+				let session = Self::create_share_change_session(&self.core, key_id, master_node_id, master_plan)?;
 				if !session.is_finished() {
 					data.active_key_sessions.insert(key_id.clone(), session);
 				}
@@ -648,7 +644,7 @@ impl SessionImpl {
 		if !data.new_nodes_set.as_ref()
 			.expect("new_nodes_set is filled during initialization; session is completed after initialization; qed")
 			.contains(&self.core.meta.self_node_id) {
-			self.core.key_storage.clear();
+			self.core.key_storage.clear().map_err(|e| Error::KeyStorage(e.into()))?;
 		}
 
 		data.state = SessionState::Finished;
@@ -689,7 +685,7 @@ impl SessionImpl {
 	}
 
 	/// Create share change session.
-	fn create_share_change_session(core: &SessionCore, key_id: SessionId, master_node_id: NodeId, old_nodes_set: BTreeSet<NodeId>, session_plan: ShareChangeSessionPlan) -> Result<ShareChangeSession, Error> {
+	fn create_share_change_session(core: &SessionCore, key_id: SessionId, master_node_id: NodeId, session_plan: ShareChangeSessionPlan) -> Result<ShareChangeSession, Error> {
 		ShareChangeSession::new(ShareChangeSessionParams {
 			session_id: key_id.clone(),
 			nonce: core.nonce,
@@ -700,8 +696,6 @@ impl SessionImpl {
 			},
 			cluster: core.cluster.clone(),
 			key_storage: core.key_storage.clone(),
-			old_nodes_set: old_nodes_set,
-			cluster_nodes_set: core.all_nodes_set.clone(),
 			plan: session_plan,
 		})
 	}
@@ -797,7 +791,6 @@ impl SessionImpl {
 			version: selected_version.into(),
 			master_node_id: selected_master.clone().into(),
 			consensus_group: session_plan.consensus_group.iter().cloned().map(Into::into).collect(),
-			old_shares_set: old_nodes_set.iter().cloned().map(Into::into).collect(),
 			new_nodes_map: session_plan.new_nodes_map.iter()
 				.map(|(n, nid)| (n.clone().into(), nid.clone().map(Into::into)))
 				.collect(),
@@ -810,7 +803,6 @@ impl SessionImpl {
 		if need_create_session {
 			data.active_key_sessions.insert(key_id.clone(), Self::create_share_change_session(core, key_id,
 				selected_master.clone(),
-				old_nodes_set,
 				session_plan)?);
 		}
 
@@ -1011,7 +1003,6 @@ pub mod tests {
 	use key_server_cluster::cluster_sessions::ClusterSession;
 	use key_server_cluster::cluster::tests::DummyCluster;
 	use key_server_cluster::generation_session::tests::{MessageLoop as GenerationMessageLoop, Node as GenerationNode, generate_nodes_ids};
-	use key_server_cluster::math;
 	use key_server_cluster::message::Message;
 	use key_server_cluster::admin_sessions::ShareChangeSessionMeta;
 	use key_server_cluster::admin_sessions::share_add_session::tests::check_secret_is_preserved;

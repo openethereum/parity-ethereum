@@ -14,39 +14,35 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::time;
-use std::sync::{Arc, Weak};
+use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-use std::collections::{VecDeque, BTreeSet, BTreeMap};
-use parking_lot::{Mutex, RwLock};
-use bigint::hash::H256;
-use ethkey::{Public, Secret, Signature};
-use key_server_cluster::{Error, NodeId, SessionId, AclStorage, KeyStorage, DocumentKeyShare, EncryptedDocumentKeyShadow, SessionMeta};
-use key_server_cluster::cluster::{Cluster, ClusterData, ClusterConfiguration, ClusterView};
-use key_server_cluster::cluster_sessions::{ClusterSession, SessionIdWithSubSession, AdminSession};
-use key_server_cluster::message::{self, Message, GenerationMessage, EncryptionMessage, DecryptionMessage, SigningMessage,
-	ShareAddMessage, ServersSetChangeMessage, KeyVersionNegotiationMessage};
-use key_server_cluster::generation_session::{Session as GenerationSession, SessionImpl as GenerationSessionImpl,
-	SessionParams as GenerationSessionParams, SessionState as GenerationSessionState};
-use key_server_cluster::decryption_session::{Session as DecryptionSession, SessionImpl as DecryptionSessionImpl,
+use std::collections::BTreeMap;
+use parking_lot::RwLock;
+use ethkey::{Public, Signature};
+use key_server_cluster::{Error, NodeId, SessionId, AclStorage, KeyStorage, DocumentKeyShare, SessionMeta};
+use key_server_cluster::cluster::{Cluster, ClusterConfiguration};
+use key_server_cluster::cluster_sessions::{ClusterSession, SessionIdWithSubSession, AdminSession, AdminSessionCreationData};
+use key_server_cluster::message::{self, Message, DecryptionMessage, SigningMessage, ConsensusMessageOfShareAdd,
+	ShareAddMessage, ServersSetChangeMessage, ConsensusMessage, ConsensusMessageWithServersSet};
+use key_server_cluster::generation_session::{SessionImpl as GenerationSessionImpl, SessionParams as GenerationSessionParams};
+use key_server_cluster::decryption_session::{SessionImpl as DecryptionSessionImpl,
 	SessionParams as DecryptionSessionParams};
-use key_server_cluster::encryption_session::{Session as EncryptionSession, SessionImpl as EncryptionSessionImpl,
-	SessionParams as EncryptionSessionParams, SessionState as EncryptionSessionState};
-use key_server_cluster::signing_session::{Session as SigningSession, SessionImpl as SigningSessionImpl,
+use key_server_cluster::encryption_session::{SessionImpl as EncryptionSessionImpl, SessionParams as EncryptionSessionParams};
+use key_server_cluster::signing_session::{SessionImpl as SigningSessionImpl,
 	SessionParams as SigningSessionParams};
-use key_server_cluster::share_add_session::{Session as ShareAddSession, SessionImpl as ShareAddSessionImpl,
+use key_server_cluster::share_add_session::{SessionImpl as ShareAddSessionImpl,
 	SessionParams as ShareAddSessionParams, IsolatedSessionTransport as ShareAddTransport};
-use key_server_cluster::servers_set_change_session::{Session as ServersSetChangeSession, SessionImpl as ServersSetChangeSessionImpl,
+use key_server_cluster::servers_set_change_session::{SessionImpl as ServersSetChangeSessionImpl,
 	SessionParams as ServersSetChangeSessionParams};
-use key_server_cluster::key_version_negotiation_session::{Session as KeyVersionNegotiationSession, SessionImpl as KeyVersionNegotiationSessionImpl,
+use key_server_cluster::key_version_negotiation_session::{SessionImpl as KeyVersionNegotiationSessionImpl,
 	SessionParams as KeyVersionNegotiationSessionParams, IsolatedSessionTransport as VersionNegotiationTransport,
-	FastestResultComputer as FastestResultKeyVersionsResultComputer, ContinueAction};
+	FastestResultComputer as FastestResultKeyVersionsResultComputer};
 use key_server_cluster::admin_sessions::ShareChangeSessionMeta;
 
 /// Generic cluster session creator.
 pub trait ClusterSessionCreator<S: ClusterSession, D> {
 	/// Get creation data from message.
-	fn creation_data_from_message(message: &Message) -> Result<Option<D>, Error> {
+	fn creation_data_from_message(_message: &Message) -> Result<Option<D>, Error> {
 		Ok(None)
 	}
 
@@ -105,9 +101,6 @@ impl SessionCreatorCore {
 	fn check_session_nonce(&self, master: &NodeId, nonce: Option<u64>) -> Result<u64, Error> {
 		// if we're master node of the session, then nonce should be generated
 		// if we're slave node of the session, then nonce should be passed from outside
-		// TODO: not true for delegation
-		// debug_assert!((master == &self.self_node_id) == nonce.is_none());
-
 		match nonce {
 			Some(nonce) => match nonce > *self.max_nonce.write().entry(master.clone()).or_insert(0) {
 				true => Ok(nonce),
@@ -118,16 +111,8 @@ impl SessionCreatorCore {
 	}
 
 	/// Read key share && remove disconnected nodes.
-	fn read_key_share(&self, key_id: &SessionId, cluster: &Arc<Cluster>) -> Result<Option<DocumentKeyShare>, Error> {
-		let mut encrypted_data = self.key_storage.get(key_id).map_err(|e| Error::KeyStorage(e.into()))?;
-
-		// some of nodes, which were encrypting secret may be down
-		// => do not use these in session
-		//let disconnected_nodes: BTreeSet<_> = encrypted_data.id_numbers.keys().cloned().collect();
-		//for disconnected_node in disconnected_nodes.difference(&cluster.nodes()) {
-		//	encrypted_data.id_numbers.remove(&disconnected_node);
-		//}
-		Ok(encrypted_data)
+	fn read_key_share(&self, key_id: &SessionId) -> Result<Option<DocumentKeyShare>, Error> {
+		self.key_storage.get(key_id).map_err(|e| Error::KeyStorage(e.into()))
 	}
 }
 
@@ -195,7 +180,7 @@ impl ClusterSessionCreator<EncryptionSessionImpl, ()> for EncryptionSessionCreat
 	}
 
 	fn create(&self, cluster: Arc<Cluster>, master: NodeId, nonce: Option<u64>, id: SessionId, _creation_data: Option<()>) -> Result<Arc<EncryptionSessionImpl>, Error> {
-		let encrypted_data = self.core.read_key_share(&id, &cluster)?;
+		let encrypted_data = self.core.read_key_share(&id)?;
 		let nonce = self.core.check_session_nonce(&master, nonce)?;
 		Ok(Arc::new(EncryptionSessionImpl::new(EncryptionSessionParams {
 			id: id,
@@ -215,6 +200,17 @@ pub struct DecryptionSessionCreator {
 }
 
 impl ClusterSessionCreator<DecryptionSessionImpl, Signature> for DecryptionSessionCreator {
+	fn creation_data_from_message(message: &Message) -> Result<Option<Signature>, Error> {
+		match *message {
+			Message::Decryption(DecryptionMessage::DecryptionConsensusMessage(ref message)) => match &message.message {
+				&ConsensusMessage::InitializeConsensusSession(ref message) => Ok(Some(message.requestor_signature.clone().into())),
+				_ => Err(Error::InvalidMessage),
+			},
+			Message::Decryption(DecryptionMessage::DecryptionSessionDelegation(ref message)) => Ok(Some(message.requestor_signature.clone().into())),
+			_ => Err(Error::InvalidMessage),
+		}
+	}
+
 	fn make_error_message(sid: SessionIdWithSubSession, nonce: u64, err: Error) -> Message {
 		message::Message::Decryption(message::DecryptionMessage::DecryptionSessionError(message::DecryptionSessionError {
 			session: sid.id.into(),
@@ -225,8 +221,7 @@ impl ClusterSessionCreator<DecryptionSessionImpl, Signature> for DecryptionSessi
 	}
 
 	fn create(&self, cluster: Arc<Cluster>, master: NodeId, nonce: Option<u64>, id: SessionIdWithSubSession, requester_signature: Option<Signature>) -> Result<Arc<DecryptionSessionImpl>, Error> {
-		let encrypted_data = self.core.read_key_share(&id.id, &cluster)?;
-		//let nonce = if master == self.core.self_node_id { None } else { nonce }; // TODO
+		let encrypted_data = self.core.read_key_share(&id.id)?;
 		let nonce = self.core.check_session_nonce(&master, nonce)?;
 		Ok(Arc::new(DecryptionSessionImpl::new(DecryptionSessionParams {
 			meta: SessionMeta {
@@ -251,6 +246,17 @@ pub struct SigningSessionCreator {
 }
 
 impl ClusterSessionCreator<SigningSessionImpl, Signature> for SigningSessionCreator {
+	fn creation_data_from_message(message: &Message) -> Result<Option<Signature>, Error> {
+		match *message {
+			Message::Signing(SigningMessage::SigningConsensusMessage(ref message)) => match &message.message {
+				&ConsensusMessage::InitializeConsensusSession(ref message) => Ok(Some(message.requestor_signature.clone().into())),
+				_ => Err(Error::InvalidMessage),
+			},
+			Message::Signing(SigningMessage::SigningSessionDelegation(ref message)) => Ok(Some(message.requestor_signature.clone().into())),
+			_ => Err(Error::InvalidMessage),
+		}
+	}
+
 	fn make_error_message(sid: SessionIdWithSubSession, nonce: u64, err: Error) -> Message {
 		message::Message::Signing(message::SigningMessage::SigningSessionError(message::SigningSessionError {
 			session: sid.id.into(),
@@ -261,7 +267,7 @@ impl ClusterSessionCreator<SigningSessionImpl, Signature> for SigningSessionCrea
 	}
 
 	fn create(&self, cluster: Arc<Cluster>, master: NodeId, nonce: Option<u64>, id: SessionIdWithSubSession, requester_signature: Option<Signature>) -> Result<Arc<SigningSessionImpl>, Error> {
-		let encrypted_data = self.core.read_key_share(&id.id, &cluster)?;
+		let encrypted_data = self.core.read_key_share(&id.id)?;
 		let nonce = self.core.check_session_nonce(&master, nonce)?;
 		Ok(Arc::new(SigningSessionImpl::new(SigningSessionParams {
 			meta: SessionMeta {
@@ -296,7 +302,7 @@ impl ClusterSessionCreator<KeyVersionNegotiationSessionImpl<VersionNegotiationTr
 	}
 
 	fn create(&self, cluster: Arc<Cluster>, master: NodeId, nonce: Option<u64>, id: SessionIdWithSubSession, _creation_data: Option<()>) -> Result<Arc<KeyVersionNegotiationSessionImpl<VersionNegotiationTransport>>, Error> {
-		let encrypted_data = self.core.read_key_share(&id.id, &cluster)?;
+		let encrypted_data = self.core.read_key_share(&id.id)?;
 		let nonce = self.core.check_session_nonce(&master, nonce)?;
 		let computer = Arc::new(FastestResultKeyVersionsResultComputer::new(self.core.self_node_id.clone(), encrypted_data.as_ref(), &cluster.nodes()));
 		Ok(Arc::new(KeyVersionNegotiationSessionImpl::new(KeyVersionNegotiationSessionParams {
@@ -327,7 +333,21 @@ pub struct AdminSessionCreator {
 	pub admin_public: Option<Public>,
 }
 
-impl ClusterSessionCreator<AdminSession, ()> for AdminSessionCreator {
+impl ClusterSessionCreator<AdminSession, AdminSessionCreationData> for AdminSessionCreator {
+	fn creation_data_from_message(message: &Message) -> Result<Option<AdminSessionCreationData>, Error> {
+		match *message {
+			Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeConsensusMessage(ref message)) => match &message.message {
+				&ConsensusMessageWithServersSet::InitializeConsensusSession(_) => Ok(Some(AdminSessionCreationData::ServersSetChange)),
+				_ => Err(Error::InvalidMessage),
+			},
+			Message::ShareAdd(ShareAddMessage::ShareAddConsensusMessage(ref message)) => match &message.message {
+				&ConsensusMessageOfShareAdd::InitializeConsensusSession(ref message) => Ok(Some(AdminSessionCreationData::ShareAdd(message.version.clone().into()))),
+				_ => Err(Error::InvalidMessage),
+			},
+			_ => Err(Error::InvalidMessage),
+		}
+	}
+
 	fn make_error_message(sid: SessionId, nonce: u64, err: Error) -> Message {
 		message::Message::ServersSetChange(message::ServersSetChangeMessage::ServersSetChangeError(message::ServersSetChangeError {
 			session: sid.into(),
@@ -336,21 +356,39 @@ impl ClusterSessionCreator<AdminSession, ()> for AdminSessionCreator {
 		}))
 	}
 
-	fn create(&self, cluster: Arc<Cluster>, master: NodeId, nonce: Option<u64>, id: SessionId, _creation_data: Option<()>) -> Result<Arc<AdminSession>, Error> {
+	fn create(&self, cluster: Arc<Cluster>, master: NodeId, nonce: Option<u64>, id: SessionId, creation_data: Option<AdminSessionCreationData>) -> Result<Arc<AdminSession>, Error> {
 		let nonce = self.core.check_session_nonce(&master, nonce)?;
 		let admin_public = self.admin_public.clone().ok_or(Error::AccessDenied)?;
-		Ok(Arc::new(AdminSession::ServersSetChange(ServersSetChangeSessionImpl::new(ServersSetChangeSessionParams {
-			meta: ShareChangeSessionMeta {
-				id: id.clone(),
-				self_node_id: self.core.self_node_id.clone(),
-				master_node_id: master,
+		Ok(Arc::new(match creation_data {
+			Some(AdminSessionCreationData::ShareAdd(version)) => {
+				AdminSession::ShareAdd(ShareAddSessionImpl::new(ShareAddSessionParams {
+					meta: ShareChangeSessionMeta {
+						id: id.clone(),
+						self_node_id: self.core.self_node_id.clone(),
+						master_node_id: master,
+					},
+					transport: ShareAddTransport::new(id.clone(), Some(version), nonce, cluster),
+					key_storage: self.core.key_storage.clone(),
+					nonce: nonce,
+					admin_public: Some(admin_public),
+				})?)
 			},
-			cluster: cluster.clone(),
-			key_storage: self.core.key_storage.clone(),
-			nonce: nonce,
-			all_nodes_set: cluster.nodes(),
-			admin_public: admin_public,
-		})?)))
+			Some(AdminSessionCreationData::ServersSetChange) => {
+				AdminSession::ServersSetChange(ServersSetChangeSessionImpl::new(ServersSetChangeSessionParams {
+					meta: ShareChangeSessionMeta {
+						id: id.clone(),
+						self_node_id: self.core.self_node_id.clone(),
+						master_node_id: master,
+					},
+					cluster: cluster.clone(),
+					key_storage: self.core.key_storage.clone(),
+					nonce: nonce,
+					all_nodes_set: cluster.nodes(),
+					admin_public: admin_public,
+				})?)
+			},
+			None => unreachable!("expected to call with non-empty creation data; qed"),
+		}))
 	}
 }
 

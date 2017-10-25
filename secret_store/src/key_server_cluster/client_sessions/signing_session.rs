@@ -169,8 +169,6 @@ impl SessionImpl {
 		//debug_assert_eq!(params.meta.self_node_id == params.meta.master_node_id, requester_signature.is_some());
 		debug_assert_eq!(params.meta.threshold, params.key_share.as_ref().map(|ks| ks.threshold).unwrap_or_default());
 
-		use key_server_cluster::generation_session::{check_cluster_nodes, check_threshold};
-
 		// check nodes and threshold
 		// TODO: let nodes = params.key_share.id_numbers.keys().cloned().collect();
 		// check_cluster_nodes(&params.meta.self_node_id, &nodes)?;
@@ -651,9 +649,9 @@ impl ClusterSession for SessionImpl {
 
 			// do not bother processing send error, as we already processing error
 			let _ = if self.core.meta.master_node_id == self.core.meta.self_node_id {
-				self.core.cluster.broadcast(message);
+				self.core.cluster.broadcast(message)
 			} else {
-				self.core.cluster.send(&self.core.meta.master_node_id, message);
+				self.core.cluster.send(&self.core.meta.master_node_id, message)
 			};
 		}
 	}
@@ -661,7 +659,7 @@ impl ClusterSession for SessionImpl {
 	fn on_message(&self, sender: &NodeId, message: &Message) -> Result<(), Error> {
 		match *message {
 			Message::Signing(ref message) => self.process_message(sender, message),
-			_ => unreachable!("TODO"),
+			_ => unreachable!("cluster checks message to be correct before passing; qed"),
 		}
 	}
 }
@@ -743,7 +741,8 @@ impl JobTransport for SigningConsensusTransport {
 	type PartialJobResponse=bool;
 
 	fn send_partial_request(&self, node: &NodeId, request: Signature) -> Result<(), Error> {
-		let version = self.version.as_ref().expect("TODO");
+		let version = self.version.as_ref()
+			.expect("send_partial_request is called on initialized master node only; version is filled in before initialization starts on master node; qed");
 		self.cluster.send(node, Message::Signing(SigningMessage::SigningConsensusMessage(SigningConsensusMessage {
 			session: self.id.clone().into(),
 			sub_session: self.access_key.clone().into(),

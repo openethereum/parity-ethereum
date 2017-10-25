@@ -16,31 +16,25 @@
 
 use std::time;
 use std::sync::{Arc, Weak};
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-use std::collections::{VecDeque, BTreeSet, BTreeMap};
+use std::sync::atomic::AtomicBool;
+use std::collections::{VecDeque, BTreeMap};
 use parking_lot::{Mutex, RwLock};
 use bigint::hash::H256;
 use ethkey::{Public, Secret, Signature};
-use key_server_cluster::{Error, NodeId, SessionId, AclStorage, KeyStorage, DocumentKeyShare, EncryptedDocumentKeyShadow, SessionMeta};
+use key_server_cluster::{Error, NodeId, SessionId, EncryptedDocumentKeyShadow};
 use key_server_cluster::cluster::{Cluster, ClusterData, ClusterConfiguration, ClusterView};
-use key_server_cluster::message::{self, Message, GenerationMessage, EncryptionMessage, DecryptionMessage, SigningMessage,
-	ShareAddMessage, ServersSetChangeMessage, KeyVersionNegotiationMessage};
+use key_server_cluster::message::{self, Message};
 use key_server_cluster::generation_session::{Session as GenerationSession, SessionImpl as GenerationSessionImpl,
-	SessionParams as GenerationSessionParams, SessionState as GenerationSessionState};
-use key_server_cluster::decryption_session::{Session as DecryptionSession, SessionImpl as DecryptionSessionImpl,
-	SessionParams as DecryptionSessionParams};
+	SessionState as GenerationSessionState};
+use key_server_cluster::decryption_session::{Session as DecryptionSession, SessionImpl as DecryptionSessionImpl};
 use key_server_cluster::encryption_session::{Session as EncryptionSession, SessionImpl as EncryptionSessionImpl,
-	SessionParams as EncryptionSessionParams, SessionState as EncryptionSessionState};
-use key_server_cluster::signing_session::{Session as SigningSession, SessionImpl as SigningSessionImpl,
-	SessionParams as SigningSessionParams};
+	SessionState as EncryptionSessionState};
+use key_server_cluster::signing_session::{Session as SigningSession, SessionImpl as SigningSessionImpl};
 use key_server_cluster::share_add_session::{Session as ShareAddSession, SessionImpl as ShareAddSessionImpl,
-	SessionParams as ShareAddSessionParams, IsolatedSessionTransport as ShareAddTransport};
-use key_server_cluster::servers_set_change_session::{Session as ServersSetChangeSession, SessionImpl as ServersSetChangeSessionImpl,
-	SessionParams as ServersSetChangeSessionParams};
+	IsolatedSessionTransport as ShareAddTransport};
+use key_server_cluster::servers_set_change_session::{Session as ServersSetChangeSession, SessionImpl as ServersSetChangeSessionImpl};
 use key_server_cluster::key_version_negotiation_session::{Session as KeyVersionNegotiationSession, SessionImpl as KeyVersionNegotiationSessionImpl,
-	SessionParams as KeyVersionNegotiationSessionParams, IsolatedSessionTransport as VersionNegotiationTransport,
-	FastestResultComputer as FastestResultKeyVersionsResultComputer, ContinueAction};
-use key_server_cluster::admin_sessions::ShareChangeSessionMeta;
+	IsolatedSessionTransport as VersionNegotiationTransport, ContinueAction};
 
 use key_server_cluster::cluster_sessions_creator::{GenerationSessionCreator, EncryptionSessionCreator, DecryptionSessionCreator, SigningSessionCreator,
 	KeyVersionNegotiationSessionCreator, AdminSessionCreator, SessionCreatorCore, ClusterSessionCreator};
@@ -96,6 +90,14 @@ pub enum AdminSession {
 	ServersSetChange(ServersSetChangeSessionImpl),
 }
 
+/// Administrative session creation data.
+pub enum AdminSessionCreationData {
+	/// Share add session.
+	ShareAdd(H256),
+	/// Servers set change session.
+	ServersSetChange,
+}
+
 /// Active sessions on this cluster.
 pub struct ClusterSessions {
 	/// Key generation sessions.
@@ -109,7 +111,7 @@ pub struct ClusterSessions {
 	/// Key version negotiation sessions.
 	pub negotiation_sessions: ClusterSessionsContainer<KeyVersionNegotiationSessionImpl<VersionNegotiationTransport>, KeyVersionNegotiationSessionCreator, ()>,
 	/// Administrative sessions.
-	pub admin_sessions: ClusterSessionsContainer<AdminSession, AdminSessionCreator, ()>,
+	pub admin_sessions: ClusterSessionsContainer<AdminSession, AdminSessionCreator, AdminSessionCreationData>,
 	/// Self node id.
 	self_node_id: NodeId,
 	/// Creator core.
@@ -478,13 +480,6 @@ impl Ord for SessionIdWithSubSession {
 }
 
 impl AdminSession {
-	pub fn as_share_add(&self) -> Option<&ShareAddSessionImpl<ShareAddTransport>> {
-		match *self {
-			AdminSession::ShareAdd(ref session) => Some(session),
-			_ => None
-		}
-	}
-
 	pub fn as_servers_set_change(&self) -> Option<&ServersSetChangeSessionImpl> {
 		match *self {
 			AdminSession::ServersSetChange(ref session) => Some(session),
@@ -732,12 +727,11 @@ impl Drop for KeyNegotiationSessionWrapper {
 #[cfg(test)]
 mod tests {
 	use std::sync::Arc;
-	use std::collections::BTreeSet;
 	use ethkey::{Random, Generator};
 	use key_server_cluster::{Error, DummyAclStorage, DummyKeyStorage, MapKeyServerSet, PlainNodeKeyPair};
 	use key_server_cluster::cluster::ClusterConfiguration;
 	use key_server_cluster::cluster::tests::DummyCluster;
-	use super::ClusterSessions;
+	use super::{ClusterSessions, AdminSessionCreationData};
 
 	pub fn make_cluster_sessions() -> ClusterSessions {
 		let key_pair = Random.generate().unwrap();
@@ -758,7 +752,7 @@ mod tests {
 	fn cluster_session_cannot_be_started_if_exclusive_session_is_active() {
 		let sessions = make_cluster_sessions();
 		sessions.generation_sessions.insert(Arc::new(DummyCluster::new(Default::default())), Default::default(), Default::default(), None, false, None).unwrap();
-		match sessions.admin_sessions.insert(Arc::new(DummyCluster::new(Default::default())), Default::default(), Default::default(), None, true, None) {
+		match sessions.admin_sessions.insert(Arc::new(DummyCluster::new(Default::default())), Default::default(), Default::default(), None, true, Some(AdminSessionCreationData::ShareAdd(Default::default()))) {
 			Err(Error::HasActiveSessions) => (),
 			Err(e) => unreachable!(format!("{}", e)),
 			Ok(_) => unreachable!("OK"),
@@ -769,7 +763,7 @@ mod tests {
 	fn exclusive_session_cannot_be_started_if_other_session_is_active() {
 		let sessions = make_cluster_sessions();
 
-		sessions.admin_sessions.insert(Arc::new(DummyCluster::new(Default::default())), Default::default(), Default::default(), None, true, None).unwrap();
+		sessions.admin_sessions.insert(Arc::new(DummyCluster::new(Default::default())), Default::default(), Default::default(), None, true, Some(AdminSessionCreationData::ShareAdd(Default::default()))).unwrap();
 		match sessions.generation_sessions.insert(Arc::new(DummyCluster::new(Default::default())), Default::default(), Default::default(), None, false, None) {
 			Err(Error::ExclusiveSessionActive) => (),
 			Err(e) => unreachable!(format!("{}", e)),

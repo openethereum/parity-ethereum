@@ -773,7 +773,7 @@ impl ClusterSession for SessionImpl {
 	fn on_message(&self, sender: &NodeId, message: &Message) -> Result<(), Error> {
 		match *message {
 			Message::Generation(ref message) => self.process_message(sender, message),
-			_ => unreachable!("TODO"),
+			_ => unreachable!("cluster checks message to be correct before passing; qed"),
 		}
 	}
 }

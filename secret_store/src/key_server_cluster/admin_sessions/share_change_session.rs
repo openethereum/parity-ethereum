@@ -48,10 +48,6 @@ pub struct ShareChangeSession {
 	key_storage: Arc<KeyStorage>,
 	/// Key version.
 	key_version: H256,
-	/// Old nodes set.
-	old_nodes_set: BTreeSet<NodeId>,
-	/// All cluster nodes set.
-	cluster_nodes_set: BTreeSet<NodeId>,
 	/// Consensus group to use in ShareAdd session.
 	consensus_group: Option<BTreeSet<NodeId>>,
 	/// Nodes to add shares for.
@@ -85,10 +81,6 @@ pub struct ShareChangeSessionParams {
 	pub cluster: Arc<Cluster>,
 	/// Keys storage.
 	pub key_storage: Arc<KeyStorage>,
-	/// All cluster nodes set.
-	pub cluster_nodes_set: BTreeSet<NodeId>,
-	/// Old nodes set.
-	pub old_nodes_set: BTreeSet<NodeId>,
 	/// Session plan.
 	pub plan: ShareChangeSessionPlan,
 }
@@ -121,8 +113,6 @@ impl ShareChangeSession {
 			cluster: params.cluster,
 			key_storage: params.key_storage,
 			key_version: key_version,
-			old_nodes_set: params.old_nodes_set,
-			cluster_nodes_set: params.cluster_nodes_set,
 			consensus_group: consensus_group,
 			new_nodes_map: new_nodes_map,
 			share_add_session: None,
@@ -286,7 +276,6 @@ impl ShareChangeSessionPlan {
 
 #[cfg(test)]
 mod tests {
-	use std::collections::BTreeSet;
 	use key_server_cluster::math;
 	use super::prepare_share_change_session_plan;
 
