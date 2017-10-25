@@ -268,8 +268,10 @@ impl SessionImpl {
 				self.on_delegated_session_completed(sender, message),
 			&ServersSetChangeMessage::ServersSetChangeShareAddMessage(ref message) =>
 				self.on_share_add_message(sender, message),
-			&ServersSetChangeMessage::ServersSetChangeError(ref message) =>
-				self.on_session_error(sender, message),
+			&ServersSetChangeMessage::ServersSetChangeError(ref message) => {
+				self.on_session_error(sender, Error::Io(message.error.clone()));
+				Ok(())
+			},
 			&ServersSetChangeMessage::ServersSetChangeCompleted(ref message) => 
 				self.on_session_completed(sender, message),
 		}
@@ -620,19 +622,6 @@ impl SessionImpl {
 			session.on_share_add_message(sender, &message.message))
 	}
 
-	/// When error has occured on another node.
-	pub fn on_session_error(&self, sender: &NodeId, message: &ServersSetChangeError) -> Result<(), Error> {
-		let mut data = self.data.lock();
-
-		warn!("{}: servers set change session failed with error: {} from {}", self.core.meta.self_node_id, message.error, sender);
-
-		data.state = SessionState::Finished;
-		data.result = Some(Err(Error::Io(message.error.clone())));
-		self.core.completed.notify_all();
-
-		Ok(())
-	}
-
 	/// When session completion message is received.
 	pub fn on_session_completed(&self, sender: &NodeId, message: &ServersSetChangeCompleted) -> Result<(), Error> {
 		debug_assert!(self.core.meta.id == *message.session);
@@ -901,31 +890,28 @@ impl ClusterSession for SessionImpl {
 	}
 
 	fn on_session_timeout(&self) {
-		let mut data = self.data.lock();
-
-		warn!("{}: servers set change session failed with timeout", self.core.meta.self_node_id);
-
-		data.state = SessionState::Finished;
-		data.result = Some(Err(Error::NodeDisconnected));
-		self.core.completed.notify_all();
+		self.on_session_error(&self.core.meta.self_node_id, Error::NodeDisconnected);
 	}
 
 	fn on_node_timeout(&self, node: &NodeId) {
+		self.on_session_error(node, Error::NodeDisconnected);
+	}
+
+	fn on_session_error(&self, node: &NodeId, error: Error) {
 		let mut data = self.data.lock();
 
-		warn!("{}: servers set change session failed because {} connection has timeouted", self.core.meta.self_node_id, node);
+		warn!("{}: servers set change session failed: {} on {}", self.core.meta.self_node_id, error, node);
 
 		data.state = SessionState::Finished;
 		data.result = Some(Err(Error::NodeDisconnected));
 		self.core.completed.notify_all();
 	}
 
-	fn on_session_error(&self, node: &NodeId, error: Error) {
-		unimplemented!()
-	}
-
 	fn on_message(&self, sender: &NodeId, message: &Message) -> Result<(), Error> {
-		unimplemented!()
+		match *message {
+			Message::ServersSetChange(ref message) => self.process_message(sender, message),
+			_ => unreachable!("cluster checks message to be correct before passing; qed"),
+		}
 	}
 }
 

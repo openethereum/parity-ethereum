@@ -525,11 +525,17 @@ impl ClusterSession for AdminSession {
 	}
 
 	fn on_session_error(&self, node: &NodeId, error: Error) {
-		unimplemented!()
+		match *self {
+			AdminSession::ShareAdd(ref session) => session.on_session_error(node, error),
+			AdminSession::ServersSetChange(ref session) => session.on_session_error(node, error),
+		}
 	}
 
 	fn on_message(&self, sender: &NodeId, message: &Message) -> Result<(), Error> {
-		unimplemented!()
+		match *self {
+			AdminSession::ShareAdd(ref session) => session.on_message(sender, message),
+			AdminSession::ServersSetChange(ref session) => session.on_message(sender, message),
+		}
 	}
 }
 

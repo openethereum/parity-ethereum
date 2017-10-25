@@ -321,8 +321,10 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 				self.on_common_key_share_data(sender, message),
 			&ShareAddMessage::NewKeysDissemination(ref message) =>
 				self.on_new_keys_dissemination(sender, message),
-			&ShareAddMessage::ShareAddError(ref message) =>
-				self.on_session_error(sender, message),
+			&ShareAddMessage::ShareAddError(ref message) => {
+				self.on_session_error(sender, Error::Io(message.error.clone().into()));
+				Ok(())
+			},
 		}
 	}
 
@@ -500,19 +502,6 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 
 		// TODO: find a way to verificate keys
 		Self::complete_session(&self.core, &mut *data)
-	}
-
-	/// When error has occured on another node.
-	pub fn on_session_error(&self, sender: &NodeId, message: &ShareAddError) -> Result<(), Error> {
-		let mut data = self.data.lock();
-
-		warn!("{}: share add session failed with error: {} from {}", self.core.meta.self_node_id, message.error, sender);
-
-		data.state = SessionState::Finished;
-		data.result = Some(Err(Error::Io(message.error.clone())));
-		self.core.completed.notify_all();
-
-		Ok(())
 	}
 
 	/// Check nodes map.
@@ -732,31 +721,28 @@ impl<T> ClusterSession for SessionImpl<T> where T: SessionTransport {
 	}
 
 	fn on_session_timeout(&self) {
-		let mut data = self.data.lock();
-
-		warn!("{}: share add session failed with timeout", self.core.meta.self_node_id);
-
-		data.state = SessionState::Finished;
-		data.result = Some(Err(Error::NodeDisconnected));
-		self.core.completed.notify_all();
+		self.on_session_error(&self.core.meta.self_node_id, Error::NodeDisconnected)
 	}
 
 	fn on_node_timeout(&self, node: &NodeId) {
+		self.on_session_error(node, Error::NodeDisconnected)
+	}
+
+	fn on_session_error(&self, node: &NodeId, error: Error) {
 		let mut data = self.data.lock();
 
-		warn!("{}: share add session failed because {} connection has timeouted", self.core.meta.self_node_id, node);
+		warn!("{}: share add session failed: {} on {}", self.core.meta.self_node_id, error, node);
 
 		data.state = SessionState::Finished;
 		data.result = Some(Err(Error::NodeDisconnected));
 		self.core.completed.notify_all();
 	}
 
-	fn on_session_error(&self, node: &NodeId, error: Error) {
-		unimplemented!()
-	}
-
 	fn on_message(&self, sender: &NodeId, message: &Message) -> Result<(), Error> {
-		unimplemented!()
+		match *message {
+			Message::ShareAdd(ref message) => self.process_message(sender, message),
+			_ => unreachable!("cluster checks message to be correct before passing; qed"),
+		}
 	}
 }
 
