@@ -221,8 +221,8 @@ impl<'a, 'b> Runtime<'a, 'b> {
 	}
 
 	/// Charge gas according to closure
-	pub fn charge<F>(&mut self, f: F) -> Result<(), InterpreterError> 
-		where F: FnOnce(&vm::Schedule) -> u64 
+	pub fn charge<F>(&mut self, f: F) -> Result<(), InterpreterError>
+		where F: FnOnce(&vm::Schedule) -> u64
 	{
 		let amount = f(self.ext.schedule());
 		if !self.charge_gas(amount as u64) {
@@ -276,10 +276,6 @@ impl<'a, 'b> Runtime<'a, 'b> {
 				trace!(target: "wasm", "runtime: create contract reverted");
 				self.gas_counter = self.gas_limit - gas_left.low_u64();
 				Ok(Some((-1i32).into()))
-			},
-			vm::ContractCreateResult::FailedInStaticCall => {
-				trace!(target: "wasm", "runtime: create contract called in static context");
-				Err(interpreter::Error::Trap("CREATE in static context".to_owned()))
 			},
 		}
 	}
@@ -615,11 +611,11 @@ impl<'a, 'b> Runtime<'a, 'b> {
 	}
 
 	fn return_u256_ptr(&mut self, ptr: u32, val: U256) -> Result<(), InterpreterError> {
-		let value: H256 = val.into();	
+		let value: H256 = val.into();
 		self.charge(|schedule| schedule.wasm.static_u256 as u64)?;
 		self.memory.set(ptr, &*value)?;
 		Ok(())
-	}	
+	}
 
 	fn coinbase(&mut self, context: InterpreterCallerContext)
 		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
@@ -640,7 +636,7 @@ impl<'a, 'b> Runtime<'a, 'b> {
 			context.value_stack.pop_as::<i32>()? as u32,
 			sender,
 		)?;
-		Ok(None)		
+		Ok(None)
 	}
 
 	fn address(&mut self, context: InterpreterCallerContext)
@@ -651,7 +647,7 @@ impl<'a, 'b> Runtime<'a, 'b> {
 			context.value_stack.pop_as::<i32>()? as u32,
 			addr,
 		)?;
-		Ok(None)	
+		Ok(None)
 	}
 
 	fn origin(&mut self, context: InterpreterCallerContext)
@@ -662,7 +658,7 @@ impl<'a, 'b> Runtime<'a, 'b> {
 			context.value_stack.pop_as::<i32>()? as u32,
 			origin,
 		)?;
-		Ok(None)	
+		Ok(None)
 	}
 
 	fn value(&mut self, context: InterpreterCallerContext)
@@ -709,7 +705,7 @@ impl<'a, 'b> Runtime<'a, 'b> {
 			context.value_stack.pop_as::<i32>()? as u32,
 			gas_limit,
 		)?;
-		Ok(None)		
+		Ok(None)
 	}
 
 	fn return_i64(&mut self, val: i64) -> Result<Option<interpreter::RuntimeValue>, InterpreterError> {
