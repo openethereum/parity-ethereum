@@ -316,7 +316,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 				let create_gas = provided.expect("`provided` comes through Self::exec from `Gasometer::get_gas_cost_mem`; `gas_gas_mem_cost` guarantees `Some` when instruction is `CALL`/`CALLCODE`/`DELEGATECALL`/`CREATE`; this is `CREATE`; qed");
 
 				if ext.is_static() {
-					return Err(vm::Error::MutableCallInStaticContext);
+					return Err(evm::Error::MutableCallInStaticContext);
 				}
 
 				// clear return data buffer before creating new call frame.
@@ -907,8 +907,8 @@ mod tests {
 	use rustc_hex::FromHex;
 	use vmtype::VMType;
 	use factory::Factory;
-	use vm::{self, ActionParams, ActionValue};
-	use vm::tests::{FakeExt, test_finalize};
+	use action_params::{ActionParams, ActionValue};
+	use ::tests::{FakeExt, test_finalize};
 
 	#[test]
 	fn should_not_fail_on_tracing_mem() {
@@ -951,6 +951,6 @@ mod tests {
 			test_finalize(vm.exec(params, &mut ext)).err().unwrap()
 		};
 
-		assert_eq!(err, ::vm::Error::OutOfBounds);
+		assert_eq!(err, ::Error::OutOfBounds);
 	}
 }

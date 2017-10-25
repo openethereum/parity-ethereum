@@ -169,10 +169,6 @@ impl<'a> Runtime<'a> {
 				self.gas_counter = self.gas_limit - gas_left.low_u64();
 				Ok(Some((-1i32).into()))
 			},
-			ext::ContractCreateResult::FailedInStaticCall => {
-				trace!(target: "wasm", "runtime: create contract called in static context");
-				Err(interpreter::Error::Trap("CREATE in static context".to_owned()))
-			},
 		}
 	}
 

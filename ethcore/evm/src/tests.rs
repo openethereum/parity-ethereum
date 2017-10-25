@@ -55,19 +55,20 @@ pub struct FakeExt {
 	pub store: HashMap<H256, H256>,
 	pub suicides: HashSet<Address>,
 	pub calls: HashSet<FakeCall>,
-	sstore_clears: usize,
-	depth: usize,
-	blockhashes: HashMap<U256, H256>,
-	codes: HashMap<Address, Arc<Bytes>>,
-	logs: Vec<FakeLogEntry>,
-	info: EnvInfo,
-	schedule: Schedule,
-	balances: HashMap<Address, U256>,
+	pub sstore_clears: usize,
+	pub depth: usize,
+	pub blockhashes: HashMap<U256, H256>,
+	pub codes: HashMap<Address, Arc<Bytes>>,
+	pub logs: Vec<FakeLogEntry>,
+	pub info: EnvInfo,
+	pub schedule: Schedule,
+	pub balances: HashMap<Address, U256>,
 	pub is_static: bool,
+	pub tracing: bool,
 }
 
 // similar to the normal `finalize` function, but ignoring NeedsReturn.
-fn test_finalize(res: Result<GasLeft, evm::Error>) -> Result<U256, evm::Error> {
+pub fn test_finalize(res: Result<GasLeft, evm::Error>) -> Result<U256, evm::Error> {
 	match res {
 		Ok(GasLeft::Known(gas)) => Ok(gas),
 		Ok(GasLeft::NeedsReturn{..}) => unimplemented!(), // since ret is unimplemented.
@@ -78,6 +79,12 @@ fn test_finalize(res: Result<GasLeft, evm::Error>) -> Result<U256, evm::Error> {
 impl FakeExt {
 	pub fn new() -> Self {
 		FakeExt::default()
+	}
+
+	pub fn new_byzantium() -> Self {
+		let mut ext = FakeExt::new();
+		ext.schedule = Schedule::new_byzantium();
+		ext
 	}
 }
 
@@ -169,7 +176,7 @@ impl Ext for FakeExt {
 		Ok(())
 	}
 
-	fn ret(self, _gas: &U256, _data: &ReturnData) -> evm::Result<U256> {
+	fn ret(self, _gas: &U256, _data: &ReturnData, _apply_state: bool) -> evm::Result<U256> {
 		unimplemented!();
 	}
 
@@ -983,7 +990,7 @@ fn test_create_in_staticcall(factory: super::Factory) {
 		test_finalize(vm.exec(params, &mut ext)).unwrap_err()
 	};
 
-	assert_eq!(err, vm::Error::MutableCallInStaticContext);
+	assert_eq!(err, ::Error::MutableCallInStaticContext);
 	assert_eq!(ext.calls.len(), 0);
 }
 
