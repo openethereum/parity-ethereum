@@ -32,7 +32,7 @@ use key_server_cluster::message::{Message, ServersSetChangeMessage,
 use key_server_cluster::share_change_session::{ShareChangeSession, ShareChangeSessionParams, ShareChangeSessionPlan,
 	prepare_share_change_session_plan};
 use key_server_cluster::key_version_negotiation_session::{SessionImpl as KeyVersionNegotiationSessionImpl,
-	SessionParams as KeyVersionNegotiationSessionParams, LargestSupportResultComputer as LargestSupportResultComputer,
+	SessionParams as KeyVersionNegotiationSessionParams, LargestSupportResultComputer,
 	SessionTransport as KeyVersionNegotiationTransport, Session as KeyVersionNegotiationSession};
 use key_server_cluster::jobs::job_session::JobTransport;
 use key_server_cluster::jobs::servers_set_change_access_job::{ServersSetChangeAccessJob, ServersSetChangeAccessRequest};
@@ -410,7 +410,7 @@ impl SessionImpl {
 					},
 					sub_session: message.sub_session.clone().into(),
 					key_share: key_share,
-					result_computer: Arc::new(LargestSupportResultComputer {}), // TODO: use fastest instead!!!
+					result_computer: Arc::new(LargestSupportResultComputer {}),
 					transport: ServersSetChangeKeyVersionNegotiationTransport {
 						id: key_id,
 						nonce: self.core.nonce,
@@ -724,7 +724,7 @@ impl SessionImpl {
 					},
 					sub_session: math::generate_random_scalar()?,
 					key_share: key_share,
-					result_computer: Arc::new(LargestSupportResultComputer {}),
+					result_computer: Arc::new(LargestSupportResultComputer {}), // TODO: optimization: could use modified Fast version
 					transport: ServersSetChangeKeyVersionNegotiationTransport {
 						id: key_id,
 						nonce: core.nonce,
@@ -767,7 +767,8 @@ impl SessionImpl {
 	/// Initialize share change session.
 	fn initialize_share_change_session(core: &SessionCore, data: &mut SessionData, key_id: SessionId) -> Result<bool, Error> {
 		// get selected version && old nodes set from key negotiation session
-		let negotiation_session = data.negotiation_sessions.remove(&key_id).expect("TODO");
+		let negotiation_session = data.negotiation_sessions.remove(&key_id)
+			.expect("share change session is only initialized when negotiation is completed; qed");
 		let (selected_version, selected_master) = negotiation_session.wait()?;
 		let selected_version_holders = negotiation_session.version_holders(&selected_version)?;
 		let selected_version_threshold = negotiation_session.key_threshold()?;

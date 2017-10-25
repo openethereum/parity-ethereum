@@ -211,6 +211,11 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 
 					new_nodes_map.insert(node.clone(), Some(id_number.clone()));
 				}
+
+				// check that all id_numbers are filled
+				if new_nodes_map.values().any(Option::is_none) {
+					return Err(Error::ConsensusUnreachable);
+				}
 			}
 		}
 
@@ -359,9 +364,14 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 
 					let version = message.version.clone().into();
 					let consensus_group = message.consensus_group.iter().cloned().map(Into::into).collect();
-					let new_nodes_map = message.new_nodes_map.iter()
+					let new_nodes_map: BTreeMap<_, _> = message.new_nodes_map.iter()
 						.map(|(n, nn)| (n.clone().into(), Some(nn.clone().into())))
 						.collect();
+
+					// check that all id_numbers are filled
+					if new_nodes_map.values().any(Option::is_none) {
+						return Err(Error::ConsensusUnreachable);
+					}
 
 					// check old set of nodes
 					Self::check_nodes_map(&self.core, &version, &consensus_group, &new_nodes_map)?;
@@ -415,7 +425,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		let mut data = self.data.lock();
 
 		// check state
-		if data.state != SessionState::ConsensusEstablishing {
+		if data.state != SessionState::ConsensusEstablishing || data.id_numbers.is_none() {
 			return Ok(());
 		}
 
@@ -440,7 +450,8 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		data.key_share_common_point = message.common_point.clone().map(Into::into);
 		data.key_share_encrypted_point = message.encrypted_point.clone().map(Into::into);
 
-		let mut id_numbers = data.id_numbers.as_mut().expect("TODO");
+		let mut id_numbers = data.id_numbers.as_mut()
+			.expect("common key share data is expected after initialization; id_numers are filled during initialization; qed");
 		for (node, id_number) in &message.id_numbers {
 			let id_number: Secret = id_number.clone().into();
 			{
@@ -479,15 +490,18 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		}
 
 		// update data
+		let explanation = "secret_subshares is filled during initialization; keys are disseminated after initialization; qed";
 		{
-			match data.secret_subshares.as_ref().expect("TODO").get(sender) {
+			match data.secret_subshares.as_ref().expect(explanation).get(sender) {
 				None => return Err(Error::InvalidMessage),
 				Some(&Some(_)) => return Err(Error::InvalidMessage),
 				Some(&None) => (),
 			};
 
 			let secret_subshare = Self::comute_secret_subshare(&self.core, &mut *data, sender, &message.secret_subshare.clone().into())?;
-			*data.secret_subshares.as_mut().expect("TODO").get_mut(sender).expect("TODO") = Some(secret_subshare);
+			*data.secret_subshares.as_mut().expect(explanation)
+				.get_mut(sender)
+				.expect("checked couple of lines above; qed") = Some(secret_subshare);
 		}
 
 		// if we have received subshare from master node, it means that we should start dissemination
@@ -496,7 +510,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		}
 
 		// check if shares from all nodes are received
-		if data.secret_subshares.as_ref().expect("TODO").values().any(|v| v.is_none()) {
+		if data.secret_subshares.as_ref().expect(explanation).values().any(|v| v.is_none()) {
 			return Ok(())
 		}
 
@@ -516,8 +530,9 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		match has_this_version {
 			true => {
 				// check if version exists
-				let key_share = core.key_share.as_ref().expect("TODO");
-				let key_version = key_share.version(version).expect("TODO");
+				let explanation = "has_this_version is true; it is true if we have given version of the key; qed";
+				let key_share = core.key_share.as_ref().expect(explanation);
+				let key_version = key_share.version(version).expect(explanation);
 
 				// there must be exactly thresold + 1 nodes in consensus group
 				if consensus_group.len() != key_share.threshold + 1 {
@@ -588,10 +603,11 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 
 	/// Send common share data to evey new node.
 	fn disseminate_common_share_data(core: &SessionCore<T>, data: &SessionData<T>) -> Result<(), Error> {
-		let old_key_share = core.key_share.as_ref()
-			.expect("disseminate_common_share_data is only called on master node; key_share is filled in initialization phase on master node; qed");
-		let old_key_version = old_key_share.version(data.version.as_ref().expect("TODO")).expect("TODO");
-		let consensus_group = data.secret_subshares.as_ref().expect("TODO");
+		let explanation = "disseminate_common_share_data is only called on master node; master node has specified version of the key; qed";
+		let old_key_share = core.key_share.as_ref().expect(explanation);
+		let old_key_version = old_key_share.version(data.version.as_ref().expect(explanation)).expect(explanation);
+		let consensus_group = data.secret_subshares.as_ref()
+			.expect("disseminate_common_share_data is only called on master node; consensus group is created during initialization on master node; qed");
 		let nodes = data.id_numbers.as_ref()
 			.expect("nodes are filled during consensus establishing; common share data sent after consensus is established; qed")
 			.keys()
@@ -614,13 +630,15 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 	/// Disseminate key refreshing data.
 	fn disseminate_keys(core: &SessionCore<T>, data: &mut SessionData<T>) -> Result<(), Error> {
 		// generate random polynom with secret share as absolute term
-		let key_share = core.key_share.as_ref().expect("TODO");
-		let key_version = key_share.version(data.version.as_ref().expect("TODO")).expect("TODO");
+		let explanation = "disseminate_keys is only called on consensus group nodes; consensus group nodes have specified version of the key; qed";
+		let key_share = core.key_share.as_ref().expect(explanation);
+		let key_version = key_share.version(data.version.as_ref().expect(explanation)).expect(explanation);
 		let mut secret_share_polynom = math::generate_random_polynom(key_share.threshold)?;
 		secret_share_polynom[0] = key_version.secret_share.clone();
 
 		// calculate secret subshare for every new node (including this node)
-		for (new_node, new_node_number) in data.id_numbers.as_ref().expect("TODO").iter() {
+		let explanation = "disseminate_keys is called after initialization has completed; this field is filled during initialization; qed";
+		for (new_node, new_node_number) in data.id_numbers.as_ref().expect(explanation).iter() {
 			let new_node_number = new_node_number.as_ref().ok_or(Error::InvalidMessage)?;
 			let secret_subshare = math::compute_polynom(&secret_share_polynom, new_node_number)?;
 			if new_node != &core.meta.self_node_id {
@@ -631,9 +649,10 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 				}))?;
 			} else {
 				let secret_subshare = Self::comute_secret_subshare(core, data, new_node, &secret_subshare)?;
-				*data.secret_subshares.as_mut().expect("TODO")
+				*data.secret_subshares.as_mut().expect(explanation)
 					.get_mut(&core.meta.self_node_id)
-					.expect("TODO") = Some(secret_subshare);
+					.expect("disseminate_keys is only calle on consensus group nodes; there's entry for every consensus node in secret_subshares; qed")
+						= Some(secret_subshare);
 			}
 		}
 

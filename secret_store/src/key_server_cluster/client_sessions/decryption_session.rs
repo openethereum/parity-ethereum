@@ -581,7 +581,8 @@ impl JobTransport for DecryptionConsensusTransport {
 	type PartialJobResponse=bool;
 
 	fn send_partial_request(&self, node: &NodeId, request: Signature) -> Result<(), Error> {
-		let version = self.version.as_ref().expect("TODO");
+		let version = self.version.as_ref()
+			.expect("send_partial_request is called on initialized master node only; version is filled in before initialization starts on master node; qed");
 		self.cluster.send(node, Message::Decryption(DecryptionMessage::DecryptionConsensusMessage(DecryptionConsensusMessage {
 			session: self.id.clone().into(),
 			sub_session: self.access_key.clone().into(),
