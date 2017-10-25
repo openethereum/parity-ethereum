@@ -52,7 +52,7 @@ const SESSION_KEEP_ALIVE_INTERVAL: u64 = 30;
 
 lazy_static! {
 	/// Servers set change session id (there could be at most 1 session => hardcoded id).
-	static ref SERVERS_SET_CHANGE_SESSION_ID: SessionId = "10b7af423bb551d5dc8645db754163a2145d37d78d468fa7330435ed77064c1c"
+	pub static ref SERVERS_SET_CHANGE_SESSION_ID: SessionId = "10b7af423bb551d5dc8645db754163a2145d37d78d468fa7330435ed77064c1c"
 		.parse()
 		.expect("hardcoded id should parse without errors; qed");
 }
@@ -334,7 +334,37 @@ impl ClusterSessionCreator<KeyVersionNegotiationSessionImpl<VersionNegotiationTr
 	}
 }
 
-pub struct AdminSessionCreator; impl ClusterSessionCreator<AdminSession, ()> for AdminSessionCreator {}
+pub struct AdminSessionCreator {
+	core: Arc<SessionCreatorCore>,
+	admin_public: Option<Public>,
+}
+
+impl ClusterSessionCreator<AdminSession, ()> for AdminSessionCreator {
+	fn make_error_message(sid: SessionId, nonce: u64, err: Error) -> Message {
+		message::Message::ServersSetChange(message::ServersSetChangeMessage::ServersSetChangeError(message::ServersSetChangeError {
+			session: sid.into(),
+			session_nonce: nonce,
+			error: err.into(),
+		}))
+	}
+
+	fn create(&self, cluster: Arc<Cluster>, master: NodeId, nonce: Option<u64>, id: SessionId, _creation_data: Option<()>) -> Result<Arc<AdminSession>, Error> {
+		let nonce = self.core.check_session_nonce(&master, nonce)?;
+		let admin_public = self.admin_public.clone().ok_or(Error::AccessDenied)?;
+		Ok(Arc::new(AdminSession::ServersSetChange(ServersSetChangeSessionImpl::new(ServersSetChangeSessionParams {
+			meta: ShareChangeSessionMeta {
+				id: id.clone(),
+				self_node_id: self.core.self_node_id.clone(),
+				master_node_id: master,
+			},
+			cluster: cluster.clone(),
+			key_storage: self.core.key_storage.clone(),
+			nonce: nonce,
+			all_nodes_set: cluster.nodes(),
+			admin_public: admin_public,
+		})?)))
+	}
+}
 
 /// Active sessions on this cluster.
 pub struct ClusterSessions {
@@ -507,7 +537,10 @@ impl ClusterSessions {
 			negotiation_sessions: ClusterSessionsContainer::new(KeyVersionNegotiationSessionCreator {
 				core: creator_core.clone(),
 			}, container_state.clone()),
-			admin_sessions: ClusterSessionsContainer::new(AdminSessionCreator {}, container_state),
+			admin_sessions: ClusterSessionsContainer::new(AdminSessionCreator {
+				core: creator_core,
+				admin_public: config.admin_public.clone(),
+			}, container_state),
 			make_faulty_generation_sessions: AtomicBool::new(false),
 			session_counter: AtomicUsize::new(0),
 			max_nonce: RwLock::new(BTreeMap::new()),

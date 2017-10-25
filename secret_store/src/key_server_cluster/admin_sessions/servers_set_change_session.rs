@@ -467,7 +467,6 @@ impl SessionImpl {
 					key_version: message.version.clone().into(),
 					consensus_group: message.consensus_group.iter().cloned().map(Into::into).collect(),
 					new_nodes_map: message.new_nodes_map.iter().map(|(k, v)| (k.clone().into(), v.clone().map(Into::into))).collect(),
-					nodes_to_remove: message.shares_to_remove.iter().cloned().map(Into::into).collect(),
 				};
 
 				// if master plan is empty, it is cheating
@@ -486,7 +485,6 @@ impl SessionImpl {
 					if local_plan.isolated_nodes != master_plan.isolated_nodes
 						|| local_plan.nodes_to_add.keys().any(|n| !local_plan.nodes_to_add.contains_key(n))
 						|| local_plan.nodes_to_add.keys().any(|n| !master_plan.nodes_to_add.contains_key(n))
-						|| local_plan.nodes_to_remove != master_plan.nodes_to_remove {
 						return Err(Error::InvalidMessage);
 					}
 				} TODO*/
@@ -650,6 +648,11 @@ impl SessionImpl {
 			return Err(Error::TooEarlyForRequest);
 		}
 
+		// if we are on the set of nodes that are being removed from the cluster, let's clear database
+		if !data.new_nodes_set.as_ref().expect("TODO").contains(&self.core.meta.self_node_id) {
+			self.core.key_storage.clear();
+		}
+
 		data.state = SessionState::Finished;
 		self.core.completed.notify_all();
 
@@ -781,7 +784,7 @@ impl SessionImpl {
 		let old_nodes_set = selected_version_holders;
 		let new_nodes_set = data.new_nodes_set.as_ref()
 			.expect("this method is called after consensus estabished; new_nodes_set is a result of consensus session; qed");
-		let session_plan = prepare_share_change_session_plan(selected_version_threshold, selected_version.clone(), &selected_master, &core.all_nodes_set, &old_nodes_set, new_nodes_set)?;
+		let session_plan = prepare_share_change_session_plan(&core.all_nodes_set, selected_version_threshold, selected_version.clone(), &selected_master, &old_nodes_set, new_nodes_set)?;
 		if session_plan.is_empty() {
 			return Ok(false);
 		}
@@ -800,7 +803,6 @@ impl SessionImpl {
 			new_nodes_map: session_plan.new_nodes_map.iter()
 				.map(|(n, nid)| (n.clone().into(), nid.clone().map(Into::into)))
 				.collect(),
-			shares_to_remove: session_plan.nodes_to_remove.iter().cloned().map(Into::into).collect(),
 		}));
 		for node in &confirmations {
 			core.cluster.send(&node, initialization_message.clone())?;
@@ -1195,7 +1197,7 @@ pub mod tests {
 		assert!(ml.nodes.values().all(|n| n.session.is_finished()));
 	}
 
-	/*#[test]
+/*	#[test]
 	fn node_moved_using_servers_set_change() {
 		// initial 2-of-3 session
 		let gml = generate_key(1, generate_nodes_ids(3));

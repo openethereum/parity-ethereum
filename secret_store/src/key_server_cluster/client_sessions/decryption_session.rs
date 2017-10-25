@@ -658,7 +658,6 @@ mod tests {
 			encrypted_point: Some(encrypted_point.clone()),
 			versions: vec![DocumentKeyShareVersion {
 				hash: Default::default(),
-				time: 0,
 				id_numbers: id_numbers.clone().into_iter().collect(),
 				secret_share: secret_shares[i].clone(),
 			}],
@@ -730,7 +729,6 @@ mod tests {
 				encrypted_point: Some(Random.generate().unwrap().public().clone()),
 				versions: vec![DocumentKeyShareVersion {
 					hash: Default::default(),
-					time: 0,
 					id_numbers: nodes,
 					secret_share: Random.generate().unwrap().secret().clone(),
 				}],
@@ -765,7 +763,6 @@ mod tests {
 				encrypted_point: Some(Random.generate().unwrap().public().clone()),
 				versions: vec![DocumentKeyShareVersion {
 					hash: Default::default(),
-					time: 0,
 					id_numbers: nodes,
 					secret_share: Random.generate().unwrap().secret().clone(),
 				}],
@@ -800,7 +797,6 @@ mod tests {
 				encrypted_point: Some(Random.generate().unwrap().public().clone()),
 				versions: vec![DocumentKeyShareVersion {
 					hash: Default::default(),
-					time: 0,
 					id_numbers: nodes,
 					secret_share: Random.generate().unwrap().secret().clone(),
 				}],

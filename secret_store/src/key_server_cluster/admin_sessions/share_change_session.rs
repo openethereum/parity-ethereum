@@ -56,8 +56,6 @@ pub struct ShareChangeSession {
 	consensus_group: Option<BTreeSet<NodeId>>,
 	/// Nodes to add shares for.
 	new_nodes_map: Option<BTreeMap<NodeId, Option<Secret>>>,
-	/// Nodes to remove shares from.
-	nodes_to_remove: Option<BTreeSet<NodeId>>,
 	/// Share add session.
 	share_add_session: Option<ShareAddSessionImpl<ShareChangeTransport>>,
 	/// Is finished.
@@ -73,8 +71,6 @@ pub struct ShareChangeSessionPlan {
 	pub consensus_group: BTreeSet<NodeId>,
 	/// Nodes to add shares for.
 	pub new_nodes_map: BTreeMap<NodeId, Option<Secret>>,
-	/// Nodes to remove shares from.
-	pub nodes_to_remove: BTreeSet<NodeId>,
 }
 
 /// Session parameters.
@@ -115,10 +111,9 @@ impl ShareChangeSession {
 		let key_version = params.plan.key_version;
 		let consensus_group = if !params.plan.consensus_group.is_empty() { Some(params.plan.consensus_group) } else { None };
 		let new_nodes_map = if !params.plan.new_nodes_map.is_empty() { Some(params.plan.new_nodes_map) } else { None };
-		let nodes_to_remove = if !params.plan.nodes_to_remove.is_empty() { Some(params.plan.nodes_to_remove) } else { None };
-		debug_assert!(new_nodes_map.is_some() || nodes_to_remove.is_some());
+		debug_assert!(new_nodes_map.is_some());
 
-		let is_finished = new_nodes_map.is_none() && nodes_to_remove.is_none();
+		let is_finished = new_nodes_map.is_none();
 		Ok(ShareChangeSession {
 			session_id: params.session_id,
 			nonce: params.nonce,
@@ -130,7 +125,6 @@ impl ShareChangeSession {
 			cluster_nodes_set: params.cluster_nodes_set,
 			consensus_group: consensus_group,
 			new_nodes_map: new_nodes_map,
-			nodes_to_remove: nodes_to_remove,
 			share_add_session: None,
 			is_finished: is_finished,
 		})
@@ -190,7 +184,7 @@ impl ShareChangeSession {
 	/// Proceed to the next state.
 	fn proceed_to_next_state(&mut self) -> Result<(), Error> {
 		if self.meta.self_node_id != self.meta.master_node_id {
-			if self.new_nodes_map.is_none() && self.nodes_to_remove.is_none() {
+			if self.new_nodes_map.is_none() {
 				self.is_finished = true;
 			}
 			return Ok(());
@@ -250,32 +244,36 @@ impl ShareAddSessionTransport for ShareChangeTransport {
 	}
 }
 
-/// Prepare share change plan for moving from old `session_nodes` to `new_nodes_set`.
-pub fn prepare_share_change_session_plan(threshold: usize, key_version: H256, master: &NodeId, non_isolated_nodes: &BTreeSet<NodeId>, old_nodes_set: &BTreeSet<NodeId>, new_nodes_set: &BTreeSet<NodeId>) -> Result<ShareChangeSessionPlan, Error> {
-	let mut consensus_group: BTreeSet<_> = ::std::iter::once(master.clone())
-		.chain(old_nodes_set.iter()
-			.filter(|n| *n != master && non_isolated_nodes.contains(*n))
-			.take(threshold)
-			.cloned())
-		.collect();
-
-	let nodes_to_add = new_nodes_set.difference(&old_nodes_set).cloned();
-	let new_nodes_map = old_nodes_set.iter()
-		.filter(|n| non_isolated_nodes.contains(n))
-		.map(|n| Ok((n.clone(), None)))
-		.chain(nodes_to_add.map(|n| math::generate_random_scalar().map(|id| (n, Some(id)))))
+/// Prepare share change plan for moving from old `old_key_version_owners` to `new_nodes_set`.
+pub fn prepare_share_change_session_plan(cluster_nodes: &BTreeSet<NodeId>, threshold: usize, key_version: H256, master: &NodeId, old_key_version_owners: &BTreeSet<NodeId>, new_nodes_set: &BTreeSet<NodeId>) -> Result<ShareChangeSessionPlan, Error> {
+	// make new nodes map, so that:
+	// all non-isolated old nodes will have their id number preserved
+	// all new nodes will have new id number
+	let mut new_nodes_map = new_nodes_set.difference(&old_key_version_owners)
+		.map(|n| math::generate_random_scalar().map(|id| (n.clone(), Some(id))))
 		.collect::<Result<BTreeMap<_, _>, _>>()?;
+	if !new_nodes_map.is_empty() {
+		for old_node in old_key_version_owners.iter().filter(|n| cluster_nodes.contains(n)) {
+			new_nodes_map.insert(old_node.clone(), None);
+		}
+	}
 
-	let mut nodes_to_remove: BTreeSet<_> = old_nodes_set.difference(&new_nodes_set)
-		.filter(|n| non_isolated_nodes.contains(n))
-		.cloned()
-		.collect();
+	// select consensus group if there are some nodes to add
+	let consensus_group = if !new_nodes_map.is_empty() {
+			::std::iter::once(master.clone())
+				.chain(old_key_version_owners.iter()
+					.filter(|n| *n != master && cluster_nodes.contains(*n))
+					.take(threshold)
+					.cloned())
+				.collect()
+		} else {
+			BTreeSet::new()
+		};
 
 	Ok(ShareChangeSessionPlan {
 		key_version: key_version,
 		consensus_group: consensus_group,
 		new_nodes_map: new_nodes_map,
-		nodes_to_remove: nodes_to_remove,
 	})
 }
 
@@ -283,6 +281,36 @@ impl ShareChangeSessionPlan {
 	/// Is empty (nothing-to-do) plan?
 	pub fn is_empty(&self) -> bool {
 		self.new_nodes_map.is_empty()
-			&& self.nodes_to_remove.is_empty()
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use std::collections::BTreeSet;
+	use key_server_cluster::math;
+	use super::prepare_share_change_session_plan;
+
+	#[test]
+	fn share_change_plan_creates_empty_plan() {
+		let cluster_nodes: Vec<_> = (0..3).map(|_| math::generate_random_point().unwrap()).collect();
+		let master = cluster_nodes[0].clone();
+		let old_key_version_owners = cluster_nodes.iter().cloned().collect();
+		let new_nodes_set = cluster_nodes.iter().cloned().collect();
+		let plan = prepare_share_change_session_plan(&cluster_nodes.iter().cloned().collect(), 1, Default::default(), &master, &old_key_version_owners, &new_nodes_set).unwrap();
+
+		assert!(plan.is_empty());
+	}
+
+	#[test]
+	fn share_change_plan_adds_new_nodes() {
+		let cluster_nodes: Vec<_> = (0..3).map(|_| math::generate_random_point().unwrap()).collect();
+		let master = cluster_nodes[0].clone();
+		let old_key_version_owners = cluster_nodes[0..2].iter().cloned().collect();
+		let new_nodes_set = cluster_nodes.iter().cloned().collect();
+		let plan = prepare_share_change_session_plan(&cluster_nodes.iter().cloned().collect(), 1, Default::default(), &master, &old_key_version_owners, &new_nodes_set).unwrap();
+
+		assert!(!plan.is_empty());
+		assert_eq!(old_key_version_owners, plan.consensus_group);
+		assert_eq!(new_nodes_set, plan.new_nodes_map.keys().cloned().collect());
 	}
 }

@@ -93,27 +93,6 @@ pub fn generate_random_polynom(threshold: usize) -> Result<Vec<Secret>, Error> {
 		.collect()
 }
 
-/// Compute absolute term of additional polynom1 when new node is added to the existing generation node set
-pub fn compute_additional_polynom1_absolute_term<'a, I>(secret_values: I) -> Result<Secret, Error> where I: Iterator<Item=&'a Secret> {
-	let mut absolute_term = compute_secret_sum(secret_values)?;
-	absolute_term.neg()?;
-	Ok(absolute_term)
-}
-
-/// Add two polynoms together (coeff = coeff1 + coeff2).
-pub fn add_polynoms(polynom1: &[Secret], polynom2: &[Secret], is_absolute_term2_zero: bool) -> Result<Vec<Secret>, Error> {
-	polynom1.iter().zip(polynom2.iter())
-		.enumerate()
-		.map(|(i, (c1, c2))| {
-			let mut sum_coeff = c1.clone();
-			if !is_absolute_term2_zero || i != 0 {
-				sum_coeff.add(c2)?;
-			}
-			Ok(sum_coeff)
-		})
-		.collect()
-}
-
 /// Compute value of polynom, using `node_number` as argument
 pub fn compute_polynom(polynom: &[Secret], node_number: &Secret) -> Result<Secret, Error> {
 	debug_assert!(!polynom.is_empty());
@@ -160,13 +139,6 @@ pub fn public_values_generation(threshold: usize, derived_point: &Public, polyno
 	Ok(publics)
 }
 
-/// Generate refreshed public keys for other participants.
-pub fn refreshed_public_values_generation(threshold: usize, refreshed_polynom1: &[Secret]) -> Result<Vec<Public>, Error> {
-	debug_assert_eq!(refreshed_polynom1.len(), threshold + 1);
-
-	(0..threshold + 1).map(|i| compute_public_share(&refreshed_polynom1[i])).collect()
-}
-
 /// Check keys passed by other participants.
 pub fn keys_verification(threshold: usize, derived_point: &Public, number_id: &Secret, secret1: &Secret, secret2: &Secret, publics: &[Public]) -> Result<bool, Error> {
 	// calculate left part
@@ -178,27 +150,6 @@ pub fn keys_verification(threshold: usize, derived_point: &Public, number_id: &S
 
 	math::public_add(&mut multiplication1, &multiplication2)?;
 	let left = multiplication1;
-
-	// calculate right part
-	let mut right = publics[0].clone();
-	for i in 1..threshold + 1 {
-		let mut secret_pow = number_id.clone();
-		secret_pow.pow(i)?;
-
-		let mut public_k = publics[i].clone();
-		math::public_mul_secret(&mut public_k, &secret_pow)?;
-
-		math::public_add(&mut right, &public_k)?;
-	}
-
-	Ok(left == right)
-}
-
-/// Check refreshed keys passed by other participants.
-pub fn refreshed_keys_verification(threshold: usize, number_id: &Secret, secret1: &Secret, publics: &[Public]) -> Result<bool, Error> {
-	// calculate left part
-	let mut left = math::generation_point();
-	math::public_mul_secret(&mut left, secret1)?;
 
 	// calculate right part
 	let mut right = publics[0].clone();

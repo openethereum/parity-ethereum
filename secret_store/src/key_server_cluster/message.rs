@@ -687,8 +687,6 @@ pub struct InitializeShareChangeSession {
 	pub old_shares_set: BTreeSet<MessageNodeId>,
 	/// Shares to add. Values are filled for new nodes only.
 	pub new_nodes_map: BTreeMap<MessageNodeId, Option<SerializableSecret>>,
-	/// Shares to remove.
-	pub shares_to_remove: BTreeSet<MessageNodeId>,
 }
 
 /// Slave node confirms session initialization.
@@ -889,7 +887,7 @@ impl Message {
 
 	pub fn session_nonce(&self) -> Option<u64> {
 		match *self {
-			Message::Cluster(ref message) => None,
+			Message::Cluster(_) => None,
 			Message::Generation(ref message) => Some(message.session_nonce()),
 			Message::Encryption(ref message) => Some(message.session_nonce()),
 			Message::Decryption(ref message) => Some(message.session_nonce()),

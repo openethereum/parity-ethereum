@@ -122,7 +122,7 @@ pub struct SessionParams<T: SessionTransport> {
 
 /// Signing session state.
 #[derive(Debug, PartialEq)]
-pub enum SessionState {
+enum SessionState {
 	/// Waiting for initialization.
 	WaitingForInitialization,
 	/// Waiting for responses.
@@ -402,6 +402,10 @@ impl<T> ClusterSession for SessionImpl<T> where T: SessionTransport {
 	}
 
 	fn on_node_timeout(&self, node: &NodeId) {
+		self.on_session_error(node, Error::NodeDisconnected)
+	}
+
+	fn on_session_error(&self, node: &NodeId, error: Error) {
 		let mut data = self.data.lock();
 
 		if data.confirmations.is_some() {
@@ -417,10 +421,6 @@ impl<T> ClusterSession for SessionImpl<T> where T: SessionTransport {
 				}
 			}
 		}
-	}
-
-	fn on_session_error(&self, node: &NodeId, error: Error) {
-		unimplemented!()
 	}
 
 	fn on_message(&self, sender: &NodeId, message: &Message) -> Result<(), Error> {
@@ -733,7 +733,6 @@ mod tests {
 			encrypted_point: None,
 			versions: vec![DocumentKeyShareVersion {
 				hash: version_id,
-				time: 0,
 				id_numbers: vec![(nodes.keys().cloned().nth(0).unwrap(), math::generate_random_scalar().unwrap())].into_iter().collect(),
 				secret_share: math::generate_random_scalar().unwrap(),
 			}],

@@ -34,7 +34,7 @@ use bigint::hash::H256;
 use key_server_cluster::{Error, NodeId, SessionId, AclStorage, KeyStorage, KeyServerSet, NodeKeyPair};
 use key_server_cluster::cluster_sessions::{ClusterSession, ClusterSessions, GenerationSessionWrapper, EncryptionSessionWrapper,
 	DecryptionSessionWrapper, SigningSessionWrapper, AdminSessionWrapper, KeyNegotiationSessionWrapper, SessionIdWithSubSession,
-	ClusterSessionCreator, IntoSessionId, ClusterSessionsContainer};
+	ClusterSessionCreator, IntoSessionId, ClusterSessionsContainer, SERVERS_SET_CHANGE_SESSION_ID};
 use key_server_cluster::message::{self, Message, ClusterMessage, GenerationMessage, EncryptionMessage, DecryptionMessage,
 	SigningMessage, ServersSetChangeMessage, ConsensusMessage, ShareAddMessage,
 	ConsensusMessageOfShareAdd, ConsensusMessageWithServersSet};
@@ -79,12 +79,6 @@ pub trait ClusterClient: Send + Sync {
 	fn new_signing_session(&self, session_id: SessionId, requestor_signature: Signature, version: Option<H256>, message_hash: H256) -> Result<Arc<SigningSession>, Error>;
 	/// Start new key version negotiation session.
 	fn new_key_version_negotiation_session(&self, session_id: SessionId) -> Result<Arc<KeyVersionNegotiationSession>, Error>;
-	/// Start new share add session.
-	fn new_share_add_session(&self, session_id: SessionId, new_nodes_set: BTreeSet<NodeId>, old_set_signature: Signature, new_set_signature: Signature) -> Result<Arc<AdminSessionWrapper>, Error>;
-	/// Start new share move session.
-	fn new_share_move_session(&self, session_id: SessionId, shares_to_move: BTreeSet<NodeId>, old_set_signature: Signature, new_set_signature: Signature) -> Result<Arc<AdminSessionWrapper>, Error>;
-	/// Start new share remove session.
-	fn new_share_remove_session(&self, session_id: SessionId, new_nodes_set: BTreeSet<NodeId>, old_set_signature: Signature, new_set_signature: Signature) -> Result<Arc<AdminSessionWrapper>, Error>;
 	/// Start new servers set change session.
 	fn new_servers_set_change_session(&self, session_id: Option<SessionId>, new_nodes_set: BTreeSet<NodeId>, old_set_signature: Signature, new_set_signature: Signature) -> Result<Arc<AdminSessionWrapper>, Error>;
 
@@ -921,73 +915,21 @@ impl ClusterClient for ClusterClientImpl {
 		Ok(KeyNegotiationSessionWrapper::new(Arc::downgrade(&self.data), session.id(), session))
 	}
 
-	fn new_share_add_session(&self, session_id: SessionId, new_nodes_set: BTreeSet<NodeId>, old_set_signature: Signature, new_set_signature: Signature) -> Result<Arc<AdminSessionWrapper>, Error> {
-/*		let mut connected_nodes = self.data.connections.connected_nodes();
-		connected_nodes.insert(self.data.self_key_pair.public().clone());
-
-		let cluster = Arc::new(ClusterView::new(self.data.clone(), connected_nodes));
-		let session = self.data.sessions.new_share_add_session(self.data.self_key_pair.public().clone(), session_id, None, cluster)?;
-		session.as_share_add()
-			.expect("created 1 line above; qed")
-			.initialize(Some(new_nodes_set), Some(old_set_signature), Some(new_set_signature))?;
-		Ok(AdminSessionWrapper::new(Arc::downgrade(&self.data), session_id, session))*/
-unimplemented!()
-	}
-
-	fn new_share_move_session(&self, session_id: SessionId, new_nodes_set: BTreeSet<NodeId>, old_set_signature: Signature, new_set_signature: Signature) -> Result<Arc<AdminSessionWrapper>, Error> {
-		/*let key_share = self.data.config.key_storage.get(&session_id).map_err(|e| Error::KeyStorage(e.into()))?;
-		if new_nodes_set.len() != key_share.id_numbers.len() {
-			return Err(Error::InvalidNodesConfiguration);
-		}
-
-		let old_nodes_set: BTreeSet<_> = key_share.id_numbers.keys().cloned().collect();
-		let nodes_to_add: BTreeSet<_> = new_nodes_set.difference(&old_nodes_set).collect();
-		let mut shares_to_move = BTreeMap::new();
-		for (target_node, source_node) in nodes_to_add.into_iter().zip(key_share.id_numbers.keys()) {
-			shares_to_move.insert(target_node.clone(), source_node.clone());
-		}
-
-		let mut connected_nodes = self.data.connections.connected_nodes();
-		connected_nodes.insert(self.data.self_key_pair.public().clone());
-
-		let cluster = Arc::new(ClusterView::new(self.data.clone(), connected_nodes));
-		let session = self.data.sessions.new_share_move_session(self.data.self_key_pair.public().clone(), session_id, None, cluster)?;
-		session.as_share_move()
-			.expect("created 1 line above; qed")
-			.initialize(Some(shares_to_move), Some(old_set_signature), Some(new_set_signature))?;
-		Ok(AdminSessionWrapper::new(Arc::downgrade(&self.data), session_id, session))*/
-		unimplemented!("TODO")
-	}
-
-	fn new_share_remove_session(&self, session_id: SessionId, new_nodes_set: BTreeSet<NodeId>, old_set_signature: Signature, new_set_signature: Signature) -> Result<Arc<AdminSessionWrapper>, Error> {
-/*		let mut all_cluster_nodes = self.data.connections.all_nodes();
-		all_cluster_nodes.insert(self.data.self_key_pair.public().clone());
-		let mut connected_nodes = self.data.connections.connected_nodes();
-		connected_nodes.insert(self.data.self_key_pair.public().clone());
-
-		let cluster = Arc::new(ClusterView::new(self.data.clone(), connected_nodes));
-		let session = self.data.sessions.new_share_remove_session(self.data.self_key_pair.public().clone(), session_id, None, cluster, all_cluster_nodes)?;
-		session.as_share_remove()
-			.expect("created 1 line above; qed")
-			.initialize(Some(new_nodes_set), Some(old_set_signature), Some(new_set_signature))?;
-		Ok(AdminSessionWrapper::new(Arc::downgrade(&self.data), session_id, session))*/
-unimplemented!()
-	}
-
 	fn new_servers_set_change_session(&self, session_id: Option<SessionId>, new_nodes_set: BTreeSet<NodeId>, old_set_signature: Signature, new_set_signature: Signature) -> Result<Arc<AdminSessionWrapper>, Error> {
-/*		let mut all_cluster_nodes = self.data.connections.all_nodes();
-		all_cluster_nodes.insert(self.data.self_key_pair.public().clone());
+		let mut connected_nodes = self.data.connections.connected_nodes();
+		connected_nodes.insert(self.data.self_key_pair.public().clone());
 
-		let cluster = Arc::new(ClusterView::new(self.data.clone(), all_cluster_nodes.clone()));
-		let session = self.data.sessions.new_servers_set_change_session(self.data.self_key_pair.public().clone(), session_id, None, cluster, all_cluster_nodes)?;
-		let session_id = {
-			let servers_set_change_session = session.as_servers_set_change().expect("created 1 line above; qed");
-			servers_set_change_session.initialize(new_nodes_set, old_set_signature, new_set_signature)?;
-			servers_set_change_session.id().clone()
+		let session_id = match session_id {
+			Some(session_id) if session_id == *SERVERS_SET_CHANGE_SESSION_ID => session_id,
+			Some(_) => return Err(Error::InvalidMessage),
+			None => *SERVERS_SET_CHANGE_SESSION_ID,
 		};
+
+		let cluster = Arc::new(ClusterView::new(self.data.clone(), connected_nodes.clone()));
+		let session = self.data.sessions.admin_sessions.insert(&self.data, self.data.self_key_pair.public().clone(), session_id, None, true, false, None)?;
+		session.as_servers_set_change().expect("TODO")
+			.initialize(new_nodes_set, old_set_signature, new_set_signature)?;
 		Ok(AdminSessionWrapper::new(Arc::downgrade(&self.data), session_id, session))
-*/
-unimplemented!()
 	}
 
 	#[cfg(test)]

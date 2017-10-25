@@ -26,8 +26,6 @@ pub enum JobPartialResponseAction {
 	Reject,
 	/// Accept this response.
 	Accept,
-	/// Accept this response and finish session.
-	AcceptAndFinish,
 }
 
 /// Partial request action.
@@ -294,12 +292,6 @@ impl<Executor, Transport> JobSession<Executor, Transport> where Executor: JobExe
 				if active_data.responses.len() < self.meta.threshold + 1 {
 					return Ok(());
 				}
-
-				self.data.state = JobSessionState::Finished;
-				Ok(())
-			},
-			JobPartialResponseAction::AcceptAndFinish => {
-				active_data.responses.insert(node.clone(), response);
 
 				self.data.state = JobSessionState::Finished;
 				Ok(())
