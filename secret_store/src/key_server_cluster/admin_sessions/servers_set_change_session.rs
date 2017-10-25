@@ -1197,7 +1197,7 @@ pub mod tests {
 		assert!(ml.nodes.values().all(|n| n.session.is_finished()));
 	}
 
-/*	#[test]
+	#[test]
 	fn node_moved_using_servers_set_change() {
 		// initial 2-of-3 session
 		let gml = generate_key(1, generate_nodes_ids(3));
@@ -1218,7 +1218,7 @@ pub mod tests {
 			.collect());
 
 		// check that all removed nodes do not own key share
-		assert!(ml.nodes.iter().filter(|&(k, _)| nodes_to_remove.contains(k)).all(|(_, v)| v.key_storage.get(&SessionId::default()).is_err()));
+		assert!(ml.nodes.iter().filter(|&(k, _)| nodes_to_remove.contains(k)).all(|(_, v)| v.key_storage.get(&SessionId::default()).unwrap().is_none()));
 
 		// check that all sessions have finished
 		assert!(ml.nodes.values().all(|n| n.session.is_finished()));
@@ -1244,7 +1244,7 @@ pub mod tests {
 			.collect());
 
 		// check that all removed nodes do not own key share
-		assert!(ml.nodes.iter().filter(|&(k, _)| nodes_to_remove.contains(k)).all(|(_, v)| v.key_storage.get(&SessionId::default()).is_err()));
+		assert!(ml.nodes.iter().filter(|&(k, _)| nodes_to_remove.contains(k)).all(|(_, v)| v.key_storage.get(&SessionId::default()).unwrap().is_none()));
 
 		// check that all sessions have finished
 		assert!(ml.nodes.values().all(|n| n.session.is_finished()));
@@ -1270,9 +1270,9 @@ pub mod tests {
 			.collect());
 
 		// check that all isolated nodes still OWN key share
-		assert!(ml.nodes.iter().filter(|&(k, _)| nodes_to_isolate.contains(k)).all(|(_, v)| v.key_storage.get(&SessionId::default()).is_ok()));
+		assert!(ml.nodes.iter().filter(|&(k, _)| nodes_to_isolate.contains(k)).all(|(_, v)| v.key_storage.get(&SessionId::default()).unwrap().is_some()));
 
 		// check that all sessions have finished
 		assert!(ml.nodes.iter().filter(|&(k, _)| !nodes_to_isolate.contains(k)).all(|(_, v)| v.session.is_finished()));
-	}*/
+	}
 }
