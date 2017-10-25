@@ -1449,7 +1449,7 @@ mod tests {
 			arg_jsonrpc_apis: "web3,eth,net,parity,traces,rpc,secretstore".into(),
 			arg_jsonrpc_hosts: "none".into(),
 			arg_jsonrpc_server_threads: None,
-			arg_jsonrpc_threads: 0,
+			arg_jsonrpc_threads: 4,
 
 			// WS
 			flag_no_ws: false,
