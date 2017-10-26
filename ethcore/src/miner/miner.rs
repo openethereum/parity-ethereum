@@ -35,7 +35,7 @@ use error::*;
 use transaction::{Action, UnverifiedTransaction, PendingTransaction, SignedTransaction, Condition as TransactionCondition};
 use receipt::{Receipt, RichReceipt};
 use spec::Spec;
-use engines::{Engine, Seal};
+use engines::{EthEngine, Seal};
 use miner::{MinerService, MinerStatus, TransactionQueue, RemovalReason, TransactionQueueDetailsProvider, PrioritizationStrategy,
 	AccountDetails, TransactionOrigin};
 use miner::banning_queue::{BanningTransactionQueue, Threshold};
@@ -240,7 +240,7 @@ pub struct Miner {
 	gas_range_target: RwLock<(U256, U256)>,
 	author: RwLock<Address>,
 	extra_data: RwLock<Bytes>,
-	engine: Arc<Engine>,
+	engine: Arc<EthEngine>,
 
 	accounts: Option<Arc<AccountProvider>>,
 	notifiers: RwLock<Vec<Box<NotifyWork>>>,
@@ -647,10 +647,6 @@ impl Miner {
 		condition: Option<TransactionCondition>,
 		transaction_queue: &mut BanningTransactionQueue,
 	) -> Vec<Result<TransactionImportResult, Error>> {
-		let accounts = self.accounts.as_ref()
-			.and_then(|provider| provider.accounts().ok())
-			.map(|accounts| accounts.into_iter().collect::<HashSet<_>>());
-
 		let best_block_header = client.best_block_header().decode();
 		let insertion_time = client.chain_info().best_block_number;
 
@@ -662,15 +658,15 @@ impl Miner {
 					return Err(Error::Transaction(TransactionError::AlreadyImported));
 				}
 				match self.engine.verify_transaction_basic(&tx, &best_block_header)
-					.and_then(|_| self.engine.verify_transaction(tx, &best_block_header))
+					.and_then(|_| self.engine.verify_transaction_unordered(tx, &best_block_header))
 				{
 					Err(e) => {
 						debug!(target: "miner", "Rejected tx {:?} with invalid signature: {:?}", hash, e);
 						Err(e)
 					},
 					Ok(transaction) => {
-						let origin = accounts.as_ref().and_then(|accounts| {
-							match accounts.contains(&transaction.sender()) {
+						let origin = self.accounts.as_ref().and_then(|accounts| {
+							match accounts.has_account(transaction.sender()).unwrap_or(false) {
 								true => Some(TransactionOrigin::Local),
 								false => None,
 							}

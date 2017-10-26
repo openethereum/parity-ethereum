@@ -11,8 +11,6 @@ ethcore-bigint = { path = "../../util/bigint" }
 patricia_trie = { path = "../../util/patricia_trie" }
 log = "0.3"
 common-types = { path = "../types" }
-evmjit = { path = "../../evmjit", optional = true }
 ethjson = { path = "../../json" }
-lazy_static = "0.2"
 rlp = { path = "../../util/rlp" }
 hash = { path = "../../util/hash" }

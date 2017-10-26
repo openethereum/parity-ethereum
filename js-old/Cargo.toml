@@ -1,0 +1,18 @@
+[package]
+description = "Parity built-in dapps."
+name = "parity-ui-old-dev"
+version = "1.9.0"
+license = "GPL-3.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+build = "build.rs"
+
+[features]
+default = ["with-syntex"]
+with-syntex = ["parity-dapps-glue/with-syntex"]
+
+[build-dependencies]
+parity-dapps-glue = "1.9"
+
+[dependencies]
+parity-dapps-glue = "1.9"
+

@@ -17,9 +17,8 @@
 use std::sync::Arc;
 use hash::keccak;
 use bigint::prelude::U256;
-use util::*;
 use io::{IoHandler, IoChannel};
-use ethcore::client::BlockChainClient;
+use ethcore::client::{BlockChainClient, Client};
 use ethcore::service::ClientIoMessage;
 use ethcore::spec::Spec;
 use ethcore::miner::MinerService;
@@ -27,7 +26,7 @@ use ethcore::transaction::*;
 use ethcore::account_provider::AccountProvider;
 use ethkey::{KeyPair, Secret};
 use super::helpers::*;
-use SyncConfig;
+use {SyncConfig, Address};
 
 fn new_tx(secret: &Secret, nonce: U256, chain_id: u64) -> PendingTransaction {
 	let signed = Transaction {

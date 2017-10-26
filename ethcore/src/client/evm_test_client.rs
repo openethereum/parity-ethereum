@@ -20,10 +20,9 @@ use std::fmt;
 use std::sync::Arc;
 use bigint::prelude::U256;
 use bigint::hash::H256;
-use util::journaldb;
-use trie;
-use bytes;
-use util::kvdb::{self, KeyValueDB};
+use journaldb;
+use {trie, kvdb_memorydb, bytes};
+use kvdb::{self, KeyValueDB};
 use {state, state_db, client, executive, trace, transaction, db, spec, pod_state};
 use factory::Factories;
 use evm::{self, VMType, FinalizationResult};
@@ -39,7 +38,7 @@ pub enum EvmTestError {
 	/// Initialization error.
 	ClientError(::error::Error),
 	/// Low-level database error.
-	Database(String),
+	Database(kvdb::Error),
 	/// Post-condition failure,
 	PostCondition(String),
 }
@@ -128,7 +127,7 @@ impl<'a> EvmTestClient<'a> {
 	}
 
 	fn state_from_spec(spec: &'a spec::Spec, factories: &Factories) -> Result<state::State<state_db::StateDB>, EvmTestError> {
-		let db = Arc::new(kvdb::in_memory(db::NUM_COLUMNS.expect("We use column-based DB; qed")));
+		let db = Arc::new(kvdb_memorydb::create(db::NUM_COLUMNS.expect("We use column-based DB; qed")));
 		let journal_db = journaldb::new(db.clone(), journaldb::Algorithm::EarlyMerge, db::COL_STATE);
 		let mut state_db = state_db::StateDB::new(journal_db, 5 * 1024 * 1024);
 		state_db = spec.ensure_db_good(state_db, factories)?;
@@ -150,7 +149,7 @@ impl<'a> EvmTestClient<'a> {
 	}
 
 	fn state_from_pod(spec: &'a spec::Spec, factories: &Factories, pod_state: pod_state::PodState) -> Result<state::State<state_db::StateDB>, EvmTestError> {
-		let db = Arc::new(kvdb::in_memory(db::NUM_COLUMNS.expect("We use column-based DB; qed")));
+		let db = Arc::new(kvdb_memorydb::create(db::NUM_COLUMNS.expect("We use column-based DB; qed")));
 		let journal_db = journaldb::new(db.clone(), journaldb::Algorithm::EarlyMerge, db::COL_STATE);
 		let state_db = state_db::StateDB::new(journal_db, 5 * 1024 * 1024);
 		let mut state = state::State::new(
@@ -181,7 +180,7 @@ impl<'a> EvmTestClient<'a> {
 		let mut substate = state::Substate::new();
 		let mut tracer = trace::NoopTracer;
 		let mut output = vec![];
-		let mut executive = executive::Executive::new(&mut self.state, &info, &*self.spec.engine);
+		let mut executive = executive::Executive::new(&mut self.state, &info, self.spec.engine.machine());
 		executive.call(
 			params,
 			&mut substate,
@@ -211,7 +210,7 @@ impl<'a> EvmTestClient<'a> {
 
 		// Apply transaction
 		let tracer = trace::NoopTracer;
-		let result = self.state.apply_with_tracing(&env_info, &*self.spec.engine, &transaction, tracer, vm_tracer);
+		let result = self.state.apply_with_tracing(&env_info, self.spec.engine.machine(), &transaction, tracer, vm_tracer);
 
 		match result {
 			Ok(result) => {

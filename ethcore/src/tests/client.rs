@@ -27,6 +27,7 @@ use tests::helpers::*;
 use types::filter::Filter;
 use bigint::prelude::U256;
 use util::*;
+use kvdb_rocksdb::{Database, DatabaseConfig};
 use devtools::*;
 use miner::Miner;
 use spec::Spec;
@@ -194,7 +195,7 @@ fn imports_block_sequence() {
 #[test]
 fn can_collect_garbage() {
 	let client = generate_dummy_client(100);
-	client.tick();
+	client.tick(true);
 	assert!(client.blockchain_cache_info().blocks < 100 * 1024);
 }
 
@@ -362,7 +363,7 @@ fn transaction_proof() {
 	let root = client.best_block_header().state_root();
 
 	let mut state = State::from_existing(backend, root, 0.into(), factories.clone()).unwrap();
-	Executive::new(&mut state, &client.latest_env_info(), &*test_spec.engine)
+	Executive::new(&mut state, &client.latest_env_info(), test_spec.engine.machine())
 		.transact(&transaction, TransactOptions::with_no_tracing().dont_check_nonce()).unwrap();
 
 	assert_eq!(state.balance(&Address::default()).unwrap(), 5.into());

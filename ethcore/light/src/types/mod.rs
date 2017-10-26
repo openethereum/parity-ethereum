@@ -14,11 +14,4 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Types used in the public (IPC) api which require custom code generation.
-#![cfg_attr(feature = "ipc", allow(dead_code, unused_assignments, unused_variables))] // codegen issues
-
-#[cfg(feature = "ipc")]
-include!(concat!(env!("OUT_DIR"), "/mod.rs.in"));
-
-#[cfg(not(feature = "ipc"))]
-include!("mod.rs.in");
+pub mod request;

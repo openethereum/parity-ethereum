@@ -292,7 +292,7 @@ impl TestNet<EthPeer<EthcoreClient>> {
 		let client = EthcoreClient::new(
 			ClientConfig::default(),
 			&spec,
-			Arc::new(::util::kvdb::in_memory(::ethcore::db::NUM_COLUMNS.unwrap_or(0))),
+			Arc::new(::kvdb_memorydb::create(::ethcore::db::NUM_COLUMNS.unwrap_or(0))),
 			Arc::new(Miner::with_spec_and_accounts(&spec, accounts)),
 			IoChannel::disconnected(),
 		).unwrap();

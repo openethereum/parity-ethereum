@@ -322,19 +322,23 @@ impl<Cost: CostType> Interpreter<Cost> {
 				let init_off = stack.pop_back();
 				let init_size = stack.pop_back();
 
-				let address_scheme = if instruction == instructions::CREATE { CreateContractAddress::FromSenderAndNonce } else { CreateContractAddress::FromSenderAndCodeHash };
 				let create_gas = provided.expect("`provided` comes through Self::exec from `Gasometer::get_gas_cost_mem`; `gas_gas_mem_cost` guarantees `Some` when instruction is `CALL`/`CALLCODE`/`DELEGATECALL`/`CREATE`; this is `CREATE`; qed");
 
-				let contract_code = self.mem.read_slice(init_off, init_size);
-				let can_create = ext.balance(&params.address)? >= endowment && ext.depth() < ext.schedule().max_depth;
+				if ext.is_static() {
+					return Err(vm::Error::MutableCallInStaticContext);
+				}
 
 				// clear return data buffer before creating new call frame.
 				self.return_data = ReturnData::empty();
 
+				let can_create = ext.balance(&params.address)? >= endowment && ext.depth() < ext.schedule().max_depth;
 				if !can_create {
 					stack.push(U256::zero());
 					return Ok(InstructionResult::UnusedGas(create_gas));
 				}
+
+				let contract_code = self.mem.read_slice(init_off, init_size);
+				let address_scheme = if instruction == instructions::CREATE { CreateContractAddress::FromSenderAndNonce } else { CreateContractAddress::FromSenderAndCodeHash };
 
 				let create_result = ext.create(&create_gas.as_u256(), &endowment, contract_code, address_scheme);
 				return match create_result {
@@ -350,9 +354,6 @@ impl<Cost: CostType> Interpreter<Cost> {
 					ContractCreateResult::Failed => {
 						stack.push(U256::zero());
 						Ok(InstructionResult::Ok)
-					},
-					ContractCreateResult::FailedInStaticCall => {
-						Err(vm::Error::MutableCallInStaticContext)
 					},
 				};
 			},
@@ -574,7 +575,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 					let source_offset = stack.peek(1);
 					let size = stack.peek(2);
 					let return_data_len = U256::from(self.return_data.len());
-					if source_offset.overflow_add(*size).0 > return_data_len {
+					if source_offset.saturating_add(*size) > return_data_len {
 						return Err(vm::Error::OutOfBounds);
 					}
 				}
@@ -939,5 +940,26 @@ mod tests {
 
 		assert_eq!(ext.calls.len(), 1);
 		assert_eq!(gas_left, 248_212.into());
+	}
+
+	#[test]
+	fn should_not_overflow_returndata() {
+		let code = "6001600160000360003e00".from_hex().unwrap();
+
+		let mut params = ActionParams::default();
+		params.address = 5.into();
+		params.gas = 300_000.into();
+		params.gas_price = 1.into();
+		params.code = Some(Arc::new(code));
+		let mut ext = FakeExt::new_byzantium();
+		ext.balances.insert(5.into(), 1_000_000_000.into());
+		ext.tracing = true;
+
+		let err = {
+			let mut vm = Factory::new(VMType::Interpreter, 1).create(params.gas);
+			test_finalize(vm.exec(params, &mut ext)).err().unwrap()
+		};
+
+		assert_eq!(err, ::vm::Error::OutOfBounds);
 	}
 }

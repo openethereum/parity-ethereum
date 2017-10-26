@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use ipc::IpcConfig;
 use bigint::hash::H256;
 use bytes::Bytes;
 
@@ -29,7 +28,6 @@ pub enum ChainMessageType {
 }
 
 /// Represents what has to be handled by actor listening to chain events
-#[ipc]
 pub trait ChainNotify : Send + Sync {
 	/// fires when chain has new blocks.
 	fn new_blocks(
@@ -67,5 +65,3 @@ pub trait ChainNotify : Send + Sync {
 		// does nothing by default
 	}
 }
-
-impl IpcConfig for ChainNotify { }

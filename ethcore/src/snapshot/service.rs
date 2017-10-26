@@ -28,7 +28,7 @@ use super::io::{SnapshotReader, LooseReader, SnapshotWriter, LooseWriter};
 
 use blockchain::BlockChain;
 use client::{BlockChainClient, Client};
-use engines::Engine;
+use engines::EthEngine;
 use error::Error;
 use ids::BlockId;
 use service::ClientIoMessage;
@@ -37,11 +37,11 @@ use io::IoChannel;
 
 use bigint::hash::H256;
 use parking_lot::{Mutex, RwLock, RwLockReadGuard};
-use util::UtilError;
+use util_error::UtilError;
 use bytes::Bytes;
-use util::journaldb::Algorithm;
-use util::kvdb::{Database, DatabaseConfig};
-use util::snappy;
+use journaldb::Algorithm;
+use kvdb_rocksdb::{Database, DatabaseConfig};
+use snappy;
 
 /// Helper for removing directories in case of error.
 struct Guard(bool, PathBuf);
@@ -91,7 +91,7 @@ struct RestorationParams<'a> {
 	writer: Option<LooseWriter>, // writer for recovered snapshot.
 	genesis: &'a [u8], // genesis block of the chain.
 	guard: Guard, // guard for the restoration directory.
-	engine: &'a Engine,
+	engine: &'a EthEngine,
 }
 
 impl Restoration {
@@ -145,7 +145,7 @@ impl Restoration {
 	}
 
 	// feeds a block chunk
-	fn feed_blocks(&mut self, hash: H256, chunk: &[u8], engine: &Engine, flag: &AtomicBool) -> Result<(), Error> {
+	fn feed_blocks(&mut self, hash: H256, chunk: &[u8], engine: &EthEngine, flag: &AtomicBool) -> Result<(), Error> {
 		if self.block_chunks_left.contains(&hash) {
 			let len = snappy::decompress_into(chunk, &mut self.snappy_buffer)?;
 
@@ -161,7 +161,7 @@ impl Restoration {
 	}
 
 	// finish up restoration.
-	fn finalize(mut self, engine: &Engine) -> Result<(), Error> {
+	fn finalize(mut self, engine: &EthEngine) -> Result<(), Error> {
 		use trie::TrieError;
 
 		if !self.is_done() { return Ok(()) }
@@ -199,7 +199,7 @@ pub type Channel = IoChannel<ClientIoMessage>;
 /// Snapshot service parameters.
 pub struct ServiceParams {
 	/// The consensus engine this is built on.
-	pub engine: Arc<Engine>,
+	pub engine: Arc<EthEngine>,
 	/// The chain's genesis block.
 	pub genesis_block: Bytes,
 	/// Database configuration options.
@@ -225,7 +225,7 @@ pub struct Service {
 	pruning: Algorithm,
 	status: Mutex<RestorationStatus>,
 	reader: RwLock<Option<LooseReader>>,
-	engine: Arc<Engine>,
+	engine: Arc<EthEngine>,
 	genesis_block: Bytes,
 	state_chunks: AtomicUsize,
 	block_chunks: AtomicUsize,
@@ -625,7 +625,7 @@ mod tests {
 	use io::{IoService};
 	use devtools::RandomTempPath;
 	use tests::helpers::get_test_spec;
-	use util::journaldb::Algorithm;
+	use journaldb::Algorithm;
 	use error::Error;
 	use snapshot::{ManifestData, RestorationStatus, SnapshotService};
 	use super::*;
@@ -682,7 +682,7 @@ mod tests {
 	#[test]
 	fn cannot_finish_with_invalid_chunks() {
 		use bigint::hash::H256;
-		use util::kvdb::DatabaseConfig;
+		use kvdb_rocksdb::DatabaseConfig;
 
 		let spec = get_test_spec();
 		let dir = RandomTempPath::new();

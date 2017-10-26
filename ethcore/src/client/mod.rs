@@ -45,21 +45,6 @@ pub use vm::{LastHashes, EnvInfo};
 pub use error::{BlockImportError, TransactionImportError, TransactionImportResult};
 pub use verification::VerifierType;
 
-/// IPC interfaces
-#[cfg(feature="ipc")]
-pub mod remote {
-	pub use super::traits::RemoteClient;
-	pub use super::chain_notify::ChainNotifyClient;
-}
+mod traits;
 
-mod traits {
-	#![allow(dead_code, unused_assignments, unused_variables, missing_docs)] // codegen issues
-	include!(concat!(env!("OUT_DIR"), "/traits.rs"));
-}
-
-pub mod chain_notify {
-	//! Chain notify interface
-	#![allow(dead_code, unused_assignments, unused_variables, missing_docs)] // codegen issues
-	include!(concat!(env!("OUT_DIR"), "/chain_notify.rs"));
-}
-
+mod chain_notify;

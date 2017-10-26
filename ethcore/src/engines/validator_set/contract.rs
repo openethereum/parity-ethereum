@@ -27,8 +27,8 @@ use futures::Future;
 use native_contracts::ValidatorReport as Provider;
 
 use client::EngineClient;
-use engines::{Call, Engine};
 use header::{Header, BlockNumber};
+use machine::{AuxiliaryData, Call, EthereumMachine};
 
 use super::{ValidatorSet, SimpleList, SystemCall};
 use super::safe_contract::ValidatorSafeContract;
@@ -91,14 +91,13 @@ impl ValidatorSet for ValidatorContract {
 		&self,
 		first: bool,
 		header: &Header,
-		block: Option<&[u8]>,
-		receipts: Option<&[::receipt::Receipt]>,
-	) -> ::engines::EpochChange {
-		self.validators.signals_epoch_end(first, header, block, receipts)
+		aux: AuxiliaryData,
+	) -> ::engines::EpochChange<EthereumMachine> {
+		self.validators.signals_epoch_end(first, header, aux)
 	}
 
-	fn epoch_set(&self, first: bool, engine: &Engine, number: BlockNumber, proof: &[u8]) -> Result<(SimpleList, Option<H256>), ::error::Error> {
-		self.validators.epoch_set(first, engine, number, proof)
+	fn epoch_set(&self, first: bool, machine: &EthereumMachine, number: BlockNumber, proof: &[u8]) -> Result<(SimpleList, Option<H256>), ::error::Error> {
+		self.validators.epoch_set(first, machine, number, proof)
 	}
 
 	fn contains_with_caller(&self, bh: &H256, address: &Address, caller: &Call) -> bool {
@@ -182,7 +181,7 @@ mod tests {
 		header.set_parent_hash(client.chain_info().best_block_hash);
 
 		// `reportBenign` when the designated proposer releases block from the future (bad clock).
-		assert!(client.engine().verify_block_external(&header, None).is_err());
+		assert!(client.engine().verify_block_external(&header).is_err());
 		// Seal a block.
 		client.engine().step();
 		assert_eq!(client.chain_info().best_block_number, 1);
@@ -190,7 +189,7 @@ mod tests {
 		assert_eq!(client.call_contract(BlockId::Latest, validator_contract, "d8f2e0bf".from_hex().unwrap()).unwrap().to_hex(), "0000000000000000000000007d577a597b2742b498cb5cf0c26cdcd726d39e6e");
 		// Simulate a misbehaving validator by handling a double proposal.
 		let header = client.best_block_header().decode();
-		assert!(client.engine().verify_block_family(&header, &header, None).is_err());
+		assert!(client.engine().verify_block_family(&header, &header).is_err());
 		// Seal a block.
 		client.engine().step();
 		client.engine().step();

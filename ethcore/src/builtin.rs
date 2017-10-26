@@ -101,18 +101,17 @@ impl Pricer for ModexpPricer {
 		let exp_len = read_len();
 		let mod_len = read_len();
 
-		let max_len = U256::from(u32::max_value() / 2);
-		if base_len > max_len || mod_len > max_len {
-			return U256::max_value();
+		if mod_len.is_zero() && base_len.is_zero() {
+			return U256::zero()
 		}
 
-		let base_len = base_len.low_u64();
-		let exp_len = exp_len.low_u64();
-		let mod_len = mod_len.low_u64();
-		let m = max(mod_len, base_len);
-		if m == 0 {
-			return U256::zero();
+		let max_len = U256::from(u32::max_value() / 2);
+		if base_len > max_len || mod_len > max_len || exp_len > max_len {
+			return U256::max_value();
 		}
+		let (base_len, exp_len, mod_len) = (base_len.low_u64(), exp_len.low_u64(), mod_len.low_u64());
+
+		let m = max(mod_len, base_len);
 		// read fist 32-byte word of the exponent.
 		let exp_low = if base_len + 96 >= input.len() as u64 { U256::zero() } else {
 			let mut buf = [0; 32];
@@ -124,7 +123,11 @@ impl Pricer for ModexpPricer {
 
 		let adjusted_exp_len = Self::adjusted_exp_len(exp_len, exp_low);
 
-		(Self::mult_complexity(m) * max(adjusted_exp_len, 1) / self.divisor as u64).into()
+		let (gas, overflow) = Self::mult_complexity(m).overflowing_mul(max(adjusted_exp_len, 1));
+		if overflow {
+			return U256::max_value();
+		}
+		(gas / self.divisor as u64).into()
 	}
 }
 
@@ -133,8 +136,7 @@ impl ModexpPricer {
 		let bit_index = if exp_low.is_zero() { 0 } else { (255 - exp_low.leading_zeros()) as u64 };
 		if len <= 32 {
 			bit_index
-		}
-		else {
+		} else {
 			8 * (len - 32) + bit_index
 		}
 	}
@@ -707,6 +709,32 @@ mod tests {
 			native: ethereum_builtin("modexp"),
 			activate_at: 0,
 		};
+
+		// test for potential gas cost multiplication overflow
+		{
+			let input = FromHex::from_hex("0000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000000000000000000000000000000003b27bafd00000000000000000000000000000000000000000000000000000000503c8ac3").unwrap();
+			let expected_cost = U256::max_value();
+			assert_eq!(f.cost(&input[..]), expected_cost.into());
+		}
+
+
+		// test for potential exp len overflow
+		{
+			let input = FromHex::from_hex("\
+				00000000000000000000000000000000000000000000000000000000000000ff\
+				2a1e530000000000000000000000000000000000000000000000000000000000\
+				0000000000000000000000000000000000000000000000000000000000000000"
+				).unwrap();
+
+			let mut output = vec![0u8; 32];
+			let expected = FromHex::from_hex("0000000000000000000000000000000000000000000000000000000000000000").unwrap();
+			let expected_cost = U256::max_value();
+
+			f.execute(&input[..], &mut BytesRef::Fixed(&mut output[..])).expect("Builtin should fail");
+			assert_eq!(output, expected);
+			assert_eq!(f.cost(&input[..]), expected_cost.into());
+		}
+
 		// fermat's little theorem example.
 		{
 			let input = FromHex::from_hex("\

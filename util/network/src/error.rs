@@ -19,6 +19,7 @@ use rlp::*;
 use std::fmt;
 use ethkey::Error as KeyError;
 use crypto::Error as CryptoError;
+use snappy;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum DisconnectReason
@@ -107,6 +108,8 @@ pub enum NetworkError {
 	StdIo(::std::io::Error),
 	/// Packet size is over the protocol limit.
 	OversizedPacket,
+	/// Decompression error.
+	Decompression(snappy::InvalidInput),
 }
 
 impl fmt::Display for NetworkError {
@@ -126,6 +129,7 @@ impl fmt::Display for NetworkError {
 			StdIo(ref err) => format!("{}", err),
 			InvalidNodeId => "Invalid node id".into(),
 			OversizedPacket => "Packet is too large".into(),
+			Decompression(ref err) => format!("Error decompressing packet: {}", err),
 		};
 
 		f.write_fmt(format_args!("Network error ({})", msg))
@@ -159,6 +163,12 @@ impl From<KeyError> for NetworkError {
 impl From<CryptoError> for NetworkError {
 	fn from(_err: CryptoError) -> NetworkError {
 		NetworkError::Auth
+	}
+}
+
+impl From<snappy::InvalidInput> for NetworkError {
+	fn from(err: snappy::InvalidInput) -> NetworkError {
+		NetworkError::Decompression(err)
 	}
 }
 

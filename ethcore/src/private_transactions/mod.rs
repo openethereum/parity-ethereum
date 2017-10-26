@@ -176,7 +176,7 @@ impl Provider {
 		};
 
 		let engine = client.engine();
-		let result = Executive::new(&mut state, &env_info, engine).transact_virtual(transaction, options)?;
+		let result = Executive::new(&mut state, &env_info, engine.machine()).transact_virtual(transaction, options)?;
 		let contract_address = contract_address.or(result.contracts_created.first().cloned());
 		let (encrypted_code, encrypted_storage) = match contract_address {
 			Some(address) => {

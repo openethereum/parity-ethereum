@@ -17,12 +17,14 @@
 use std::sync::{Arc, Weak};
 
 use ethcore::encoded;
-use ethcore::engines::{Engine, StateDependentProof};
+use ethcore::engines::{EthEngine, StateDependentProof};
 use ethcore::header::Header;
+use ethcore::machine::EthereumMachine;
 use ethcore::receipt::Receipt;
 use ethsync::LightSync;
 
-use futures::{future, Future, BoxFuture};
+use futures::{future, Future};
+use futures::future::Either;
 
 use light::client::fetch::ChainDataFetcher;
 use light::on_demand::{request, OnDemand};
@@ -31,6 +33,8 @@ use parking_lot::RwLock;
 use bigint::hash::H256;
 
 const ALL_VALID_BACKREFS: &str = "no back-references, therefore all back-references valid; qed";
+
+type BoxFuture<T, E> = Box<Future<Item = T, Error = E>>;
 
 /// Allows on-demand fetch of data useful for the light client.
 pub struct EpochFetch {
@@ -44,7 +48,7 @@ impl EpochFetch {
 	fn request<T>(&self, req: T) -> BoxFuture<T::Out, &'static str>
 		where T: Send + request::RequestAdapter + 'static, T::Out: Send + 'static
 	{
-		match self.sync.read().upgrade() {
+		Box::new(match self.sync.read().upgrade() {
 			Some(sync) => {
 				let on_demand = &self.on_demand;
 				let maybe_future = sync.with_context(move |ctx| {
@@ -52,12 +56,12 @@ impl EpochFetch {
 				});
 
 				match maybe_future {
-					Some(x) => x.map_err(|_| "Request canceled").boxed(),
-					None => future::err("Unable to access network.").boxed(),
+					Some(x) => Either::A(x.map_err(|_| "Request canceled")),
+					None => Either::B(future::err("Unable to access network.")),
 				}
 			}
-			None => future::err("Unable to access network").boxed(),
-		}
+			None => Either::B(future::err("Unable to access network")),
+		})
 	}
 }
 
@@ -78,7 +82,7 @@ impl ChainDataFetcher for EpochFetch {
 	}
 
 	/// Fetch epoch transition proof at given header.
-	fn epoch_transition(&self, hash: H256, engine: Arc<Engine>, checker: Arc<StateDependentProof>)
+	fn epoch_transition(&self, hash: H256, engine: Arc<EthEngine>, checker: Arc<StateDependentProof<EthereumMachine>>)
 		-> Self::Transition
 	{
 		self.request(request::Signal {

@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-///
 /// `BlockChain` synchronization strategy.
 /// Syncs to peers and keeps up to date.
 /// This implementation uses ethereum protocol v63
@@ -138,7 +137,7 @@ const MAX_TRANSACTION_PACKET_SIZE: usize = 8 * 1024 * 1024;
 // Maximal number of transactions in sent in single packet.
 const MAX_TRANSACTIONS_TO_PROPAGATE: usize = 64;
 // Min number of blocks to be behind for a snapshot sync
-const SNAPSHOT_RESTORE_THRESHOLD: BlockNumber = 10000;
+const SNAPSHOT_RESTORE_THRESHOLD: BlockNumber = 30000;
 const SNAPSHOT_MIN_PEERS: usize = 3;
 
 const STATUS_PACKET: u8 = 0x00;
@@ -172,7 +171,7 @@ const MAX_SNAPSHOT_CHUNKS_DOWNLOAD_AHEAD: usize = 3;
 const WAIT_PEERS_TIMEOUT_SEC: u64 = 5;
 const STATUS_TIMEOUT_SEC: u64 = 5;
 const HEADERS_TIMEOUT_SEC: u64 = 15;
-const BODIES_TIMEOUT_SEC: u64 = 10;
+const BODIES_TIMEOUT_SEC: u64 = 20;
 const RECEIPTS_TIMEOUT_SEC: u64 = 10;
 const FORK_HEADER_TIMEOUT_SEC: u64 = 3;
 const SNAPSHOT_MANIFEST_TIMEOUT_SEC: u64 = 5;
@@ -462,7 +461,7 @@ impl ChainSync {
 
 	/// Updates transactions were received by a peer
 	pub fn transactions_received(&mut self, hashes: Vec<H256>, peer_id: PeerId) {
-		if let Some(mut peer_info) = self.peers.get_mut(&peer_id) {
+		if let Some(peer_info) = self.peers.get_mut(&peer_id) {
 			peer_info.last_sent_transactions.extend(&hashes);
 		}
 	}
@@ -733,7 +732,7 @@ impl ChainSync {
 		}
 
 		let result =  {
-			let mut downloader = match block_set {
+			let downloader = match block_set {
 				BlockSet::NewBlocks => &mut self.new_blocks,
 				BlockSet::OldBlocks => {
 					match self.old_blocks {
@@ -798,7 +797,7 @@ impl ChainSync {
 		else
 		{
 			let result = {
-				let mut downloader = match block_set {
+				let downloader = match block_set {
 					BlockSet::NewBlocks => &mut self.new_blocks,
 					BlockSet::OldBlocks => match self.old_blocks {
 						None => {
@@ -852,7 +851,7 @@ impl ChainSync {
 		else
 		{
 			let result = {
-				let mut downloader = match block_set {
+				let downloader = match block_set {
 					BlockSet::NewBlocks => &mut self.new_blocks,
 					BlockSet::OldBlocks => match self.old_blocks {
 						None => {
@@ -2191,7 +2190,7 @@ impl ChainSync {
 			// Select random peer to re-broadcast transactions to.
 			let peer = random::new().gen_range(0, self.peers.len());
 			trace!(target: "sync", "Re-broadcasting transactions to a random peer.");
-			self.peers.values_mut().nth(peer).map(|mut peer_info|
+			self.peers.values_mut().nth(peer).map(|peer_info|
 				peer_info.last_sent_transactions.clear()
 			);
 		}
@@ -2271,19 +2270,18 @@ fn accepts_service_transaction(client_id: &str) -> bool {
 #[cfg(test)]
 mod tests {
 	use std::collections::{HashSet, VecDeque};
+	use {ethkey, Address};
 	use network::PeerId;
 	use tests::helpers::*;
 	use tests::snapshot::TestSnapshotService;
 	use bigint::prelude::U256;
 	use bigint::hash::H256;
-	use util::Address;
 	use parking_lot::RwLock;
 	use bytes::Bytes;
 	use rlp::{Rlp, RlpStream, UntrustedRlp};
 	use super::*;
 	use ::SyncConfig;
 	use super::{PeerInfo, PeerAsking};
-	use ethkey;
 	use ethcore::header::*;
 	use ethcore::client::{BlockChainClient, EachBlockWith, TestBlockChainClient};
 	use ethcore::transaction::UnverifiedTransaction;

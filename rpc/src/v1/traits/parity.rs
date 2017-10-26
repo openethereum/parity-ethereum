@@ -18,13 +18,12 @@
 
 use std::collections::BTreeMap;
 
-use jsonrpc_core::Error;
+use jsonrpc_core::{BoxFuture, Error};
 use jsonrpc_macros::Trailing;
-use futures::BoxFuture;
 
 use node_health::Health;
 use v1::types::{
-	H160, H256, H512, U256, Bytes, CallRequest,
+	H160, H256, H512, U256, U64, Bytes, CallRequest,
 	Peers, Transaction, RpcSettings, Histogram,
 	TransactionStats, LocalTransactionStatus,
 	BlockNumber, ConsensusCapability, VersionInfo,
@@ -51,7 +50,7 @@ build_rpc_trait! {
 
 		/// Returns default account for dapp.
 		#[rpc(meta, name = "parity_defaultAccount")]
-		fn default_account(&self, Self::Metadata) -> BoxFuture<H160, Error>;
+		fn default_account(&self, Self::Metadata) -> Result<H160, Error>;
 
 		/// Returns current transactions limit.
 		#[rpc(name = "parity_transactionsLimit")]
@@ -106,7 +105,7 @@ build_rpc_trait! {
 		fn default_extra_data(&self) -> Result<Bytes, Error>;
 
 		/// Returns distribution of gas price in latest blocks.
-		#[rpc(async, name = "parity_gasPriceHistogram")]
+		#[rpc(name = "parity_gasPriceHistogram")]
 		fn gas_price_histogram(&self) -> BoxFuture<Histogram, Error>;
 
 		/// Returns number of unsigned transactions waiting in the signer queue (if signer enabled)
@@ -165,12 +164,18 @@ build_rpc_trait! {
 		fn ws_url(&self) -> Result<String, Error>;
 
 		/// Returns next nonce for particular sender. Should include all transactions in the queue.
-		#[rpc(async, name = "parity_nextNonce")]
+		#[rpc(name = "parity_nextNonce")]
 		fn next_nonce(&self, H160) -> BoxFuture<U256, Error>;
 
 		/// Get the mode. Returns one of: "active", "passive", "dark", "offline".
 		#[rpc(name = "parity_mode")]
 		fn mode(&self) -> Result<String, Error>;
+
+		/// Returns the chain ID used for transaction signing at the
+		/// current best block. An empty string is returned if not
+		/// available.
+		#[rpc(name = "parity_chainId")]
+		fn chain_id(&self) -> Result<Option<U64>, Error>;
 
 		/// Get the chain name. Returns one of: "foundation", "kovan", &c. of a filename.
 		#[rpc(name = "parity_chain")]
@@ -202,7 +207,7 @@ build_rpc_trait! {
 
 		/// Get block header.
 		/// Same as `eth_getBlockByNumber` but without uncles and transactions.
-		#[rpc(async, name = "parity_getBlockHeaderByNumber")]
+		#[rpc(name = "parity_getBlockHeaderByNumber")]
 		fn block_header(&self, Trailing<BlockNumber>) -> BoxFuture<RichHeader, Error>;
 
 		/// Get IPFS CIDv0 given protobuf encoded bytes.
@@ -211,10 +216,10 @@ build_rpc_trait! {
 
 		/// Call contract, returning the output data.
 		#[rpc(meta, name = "parity_call")]
-		fn call(&self, Self::Metadata, Vec<CallRequest>, Trailing<BlockNumber>) -> BoxFuture<Vec<Bytes>, Error>;
+		fn call(&self, Self::Metadata, Vec<CallRequest>, Trailing<BlockNumber>) -> Result<Vec<Bytes>, Error>;
 
 		/// Returns node's health report.
-		#[rpc(async, name = "parity_nodeHealth")]
+		#[rpc(name = "parity_nodeHealth")]
 		fn node_health(&self) -> BoxFuture<Health, Error>;
 	}
 }

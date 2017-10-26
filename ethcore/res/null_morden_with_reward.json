@@ -1,15 +1,18 @@
 {
 	"name": "Morden",
 	"engine": {
-		"null": null
+		"null": {
+			"params": {
+				"blockReward": "0x4563918244F40000"
+			}
+		}
 	},
 	"params": {
-		"gasLimitBoundDivisor": "0x0400", 
+		"gasLimitBoundDivisor": "0x0400",
 		"accountStartNonce": "0x0",
 		"maximumExtraDataSize": "0x20",
 		"minGasLimit": "0x1388",
-		"networkID" : "0x2",
-		"blockReward": "0x4563918244F40000"
+		"networkID" : "0x2"
 	},
 	"genesis": {
 		"seal": {

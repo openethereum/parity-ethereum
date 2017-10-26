@@ -222,6 +222,17 @@ fn rpc_parity_extra_data() {
 }
 
 #[test]
+fn rpc_parity_chain_id() {
+	let deps = Dependencies::new();
+	let io = deps.default_client();
+
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_chainId", "params": [], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":null,"id":1}"#;
+
+	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
+}
+
+#[test]
 fn rpc_parity_default_extra_data() {
 	use util::misc;
 	use bytes::ToPretty;

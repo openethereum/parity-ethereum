@@ -20,8 +20,9 @@ use std::sync::Arc;
 
 use ethcore::basic_account::BasicAccount;
 use ethcore::encoded;
-use ethcore::engines::{Engine, StateDependentProof};
-use ethcore::receipt::{Receipt};
+use ethcore::engines::{EthEngine, StateDependentProof};
+use ethcore::machine::EthereumMachine;
+use ethcore::receipt::Receipt;
 use ethcore::state::{self, ProvedExecution};
 use ethcore::transaction::SignedTransaction;
 use vm::EnvInfo;
@@ -47,6 +48,8 @@ pub enum Request {
 	HeaderProof(HeaderProof),
 	/// A request for a header by hash.
 	HeaderByHash(HeaderByHash),
+	/// A request for the index of a transaction.
+	TransactionIndex(TransactionIndex),
 	/// A request for block receipts.
 	Receipts(BlockReceipts),
 	/// A request for a block body.
@@ -134,6 +137,7 @@ macro_rules! impl_single {
 // implement traits for each kind of request.
 impl_single!(HeaderProof, HeaderProof, (H256, U256));
 impl_single!(HeaderByHash, HeaderByHash, encoded::Header);
+impl_single!(TransactionIndex, TransactionIndex, net_request::TransactionIndexResponse);
 impl_single!(Receipts, BlockReceipts, Vec<Receipt>);
 impl_single!(Body, Body, encoded::Block);
 impl_single!(Account, Account, Option<BasicAccount>);
@@ -243,6 +247,7 @@ impl From<encoded::Header> for HeaderRef {
 pub enum CheckedRequest {
 	HeaderProof(HeaderProof, net_request::IncompleteHeaderProofRequest),
 	HeaderByHash(HeaderByHash, net_request::IncompleteHeadersRequest),
+	TransactionIndex(TransactionIndex, net_request::IncompleteTransactionIndexRequest),
 	Receipts(BlockReceipts, net_request::IncompleteReceiptsRequest),
 	Body(Body, net_request::IncompleteBodyRequest),
 	Account(Account, net_request::IncompleteAccountRequest),
@@ -268,6 +273,12 @@ impl From<Request> for CheckedRequest {
 					num: req.num().into(),
 				};
 				CheckedRequest::HeaderProof(req, net_req)
+			}
+			Request::TransactionIndex(req) => {
+				let net_req = net_request::IncompleteTransactionIndexRequest {
+					hash: req.0.clone(),
+				};
+				CheckedRequest::TransactionIndex(req, net_req)
 			}
 			Request::Body(req) =>  {
 				let net_req = net_request::IncompleteBodyRequest {
@@ -325,6 +336,7 @@ impl CheckedRequest {
 		match self {
 			CheckedRequest::HeaderProof(_, req) => NetRequest::HeaderProof(req),
 			CheckedRequest::HeaderByHash(_, req) => NetRequest::Headers(req),
+			CheckedRequest::TransactionIndex(_, req) => NetRequest::TransactionIndex(req),
 			CheckedRequest::Receipts(_, req) => NetRequest::Receipts(req),
 			CheckedRequest::Body(_, req) => NetRequest::Body(req),
 			CheckedRequest::Account(_, req) => NetRequest::Account(req),
@@ -453,6 +465,7 @@ macro_rules! match_me {
 		match $me {
 			CheckedRequest::HeaderProof($check, $req) => $e,
 			CheckedRequest::HeaderByHash($check, $req) => $e,
+			CheckedRequest::TransactionIndex($check, $req) => $e,
 			CheckedRequest::Receipts($check, $req) => $e,
 			CheckedRequest::Body($check, $req) => $e,
 			CheckedRequest::Account($check, $req) => $e,
@@ -481,6 +494,7 @@ impl IncompleteRequest for CheckedRequest {
 					_ => Ok(()),
 				}
 			}
+			CheckedRequest::TransactionIndex(_, ref req) => req.check_outputs(f),
 			CheckedRequest::Receipts(_, ref req) => req.check_outputs(f),
 			CheckedRequest::Body(_, ref req) => req.check_outputs(f),
 			CheckedRequest::Account(_, ref req) => req.check_outputs(f),
@@ -502,6 +516,7 @@ impl IncompleteRequest for CheckedRequest {
 		match self {
 			CheckedRequest::HeaderProof(_, req) => req.complete().map(CompleteRequest::HeaderProof),
 			CheckedRequest::HeaderByHash(_, req) => req.complete().map(CompleteRequest::Headers),
+			CheckedRequest::TransactionIndex(_, req) => req.complete().map(CompleteRequest::TransactionIndex),
 			CheckedRequest::Receipts(_, req) => req.complete().map(CompleteRequest::Receipts),
 			CheckedRequest::Body(_, req) => req.complete().map(CompleteRequest::Body),
 			CheckedRequest::Account(_, req) => req.complete().map(CompleteRequest::Account),
@@ -544,6 +559,9 @@ impl net_request::CheckedRequest for CheckedRequest {
 			CheckedRequest::HeaderByHash(ref prover, _) =>
 				expect!((&NetResponse::Headers(ref res), &CompleteRequest::Headers(ref req)) =>
 					prover.check_response(cache, &req.start, &res.headers).map(Response::HeaderByHash)),
+			CheckedRequest::TransactionIndex(ref prover, _) =>
+				expect!((&NetResponse::TransactionIndex(ref res), _) =>
+					prover.check_response(cache, res).map(Response::TransactionIndex)),
 			CheckedRequest::Receipts(ref prover, _) =>
 				expect!((&NetResponse::Receipts(ref res), _) =>
 					prover.check_response(cache, &res.receipts).map(Response::Receipts)),
@@ -574,6 +592,8 @@ pub enum Response {
 	HeaderProof((H256, U256)),
 	/// Response to a header-by-hash request.
 	HeaderByHash(encoded::Header),
+	/// Response to a transaction-index request.
+	TransactionIndex(net_request::TransactionIndexResponse),
 	/// Response to a receipts request.
 	Receipts(Vec<Receipt>),
 	/// Response to a block body request.
@@ -722,6 +742,33 @@ impl HeaderByHash {
 	}
 }
 
+/// Request for a transaction index.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TransactionIndex(pub Field<H256>);
+
+impl TransactionIndex {
+	/// Check a response for the transaction index.
+	//
+	// TODO: proper checking involves looking at canonicality of the
+	// hash w.r.t. the current best block header.
+	//
+	// unlike all other forms of request, we don't know the header to check
+	// until we make this request.
+	//
+	// This would require lookups in the database or perhaps CHT requests,
+	// which aren't currently possible.
+	//
+	// Also, returning a result that is not locally canonical doesn't necessarily
+	// indicate misbehavior, so the punishment scheme would need to be revised.
+	pub fn check_response(
+		&self,
+		_cache: &Mutex<::cache::Cache>,
+		res: &net_request::TransactionIndexResponse,
+	) -> Result<net_request::TransactionIndexResponse, Error> {
+		Ok(res.clone())
+	}
+}
+
 /// Request for a block, with header for verification.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Body(pub HeaderRef);
@@ -843,7 +890,7 @@ pub struct TransactionProof {
 	// TODO: it's not really possible to provide this if the header is unknown.
 	pub env_info: EnvInfo,
 	/// Consensus engine.
-	pub engine: Arc<Engine>,
+	pub engine: Arc<EthEngine>,
 }
 
 impl TransactionProof {
@@ -858,7 +905,7 @@ impl TransactionProof {
 			state_items,
 			root,
 			&self.tx,
-			&*self.engine,
+			self.engine.machine(),
 			&self.env_info,
 		);
 
@@ -877,15 +924,15 @@ pub struct Signal {
 	/// Block hash and number to fetch proof for.
 	pub hash: H256,
 	/// Consensus engine, used to check the proof.
-	pub engine: Arc<Engine>,
+	pub engine: Arc<EthEngine>,
 	/// Special checker for the proof.
-	pub proof_check: Arc<StateDependentProof>,
+	pub proof_check: Arc<StateDependentProof<EthereumMachine>>,
 }
 
 impl Signal {
 	/// Check the signal, returning the signal or indicate that it's bad.
 	pub fn check_response(&self, _: &Mutex<::cache::Cache>, signal: &[u8]) -> Result<Vec<u8>, Error> {
-		self.proof_check.check_proof(&*self.engine, signal)
+		self.proof_check.check_proof(self.engine.machine(), signal)
 			.map(|_| signal.to_owned())
 			.map_err(|_| Error::BadProof)
 	}
@@ -904,7 +951,7 @@ mod tests {
 	use ethcore::client::{BlockChainClient, TestBlockChainClient, EachBlockWith};
 	use ethcore::header::Header;
 	use ethcore::encoded;
-	use ethcore::receipt::Receipt;
+	use ethcore::receipt::{Receipt, TransactionOutcome};
 
 	fn make_cache() -> ::cache::Cache {
 		::cache::Cache::new(Default::default(), ::time::Duration::seconds(1))

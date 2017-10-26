@@ -21,8 +21,6 @@ extern crate hash as keccak;
 extern crate rlp;
 extern crate hashdb;
 extern crate ethcore_bytes as bytes;
-extern crate nibbleslice;
-extern crate nibblevec;
 extern crate elastic_array;
 extern crate memorydb;
 extern crate ethcore_logger;
@@ -30,7 +28,7 @@ extern crate ethcore_logger;
 #[macro_use]
 extern crate log;
 
-use std::fmt;
+use std::{fmt, error};
 use bigint::hash::H256;
 use keccak::KECCAK_NULL_RLP;
 use hashdb::{HashDB, DBValue};
@@ -54,6 +52,8 @@ pub mod recorder;
 mod fatdb;
 mod fatdbmut;
 mod lookup;
+mod nibbleslice;
+mod nibblevec;
 
 pub use self::standardmap::{Alphabet, StandardMap, ValueMode};
 pub use self::triedbmut::TrieDBMut;
@@ -82,6 +82,15 @@ impl fmt::Display for TrieError {
 			TrieError::InvalidStateRoot(ref root) => write!(f, "Invalid state root: {}", root),
 			TrieError::IncompleteDatabase(ref missing) =>
 				write!(f, "Database missing expected key: {}", missing),
+		}
+	}
+}
+
+impl error::Error for TrieError {
+	fn description(&self) -> &str {
+		match *self {
+			TrieError::InvalidStateRoot(_) => "Invalid state root",
+			TrieError::IncompleteDatabase(_) => "Incomplete database",
 		}
 	}
 }

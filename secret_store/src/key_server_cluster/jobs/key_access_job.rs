@@ -16,7 +16,7 @@
 
 use std::sync::Arc;
 use std::collections::{BTreeSet, BTreeMap};
-use ethkey::{Signature, recover};
+use ethkey::{Public, Signature, recover};
 use key_server_cluster::{Error, NodeId, SessionId, AclStorage};
 use key_server_cluster::jobs::job_session::{JobPartialResponseAction, JobPartialRequestAction, JobExecutor};
 
@@ -46,6 +46,13 @@ impl KeyAccessJob {
 			signature: Some(signature),
 		}
 	}
+
+	pub fn requester(&self) -> Result<Option<Public>, Error> {
+		match self.signature.as_ref() {
+			Some(signature) => Ok(Some(recover(signature, &self.id)?)),
+			None => Ok(None),
+		}
+	}
 }
 
 impl JobExecutor for KeyAccessJob {
@@ -57,7 +64,8 @@ impl JobExecutor for KeyAccessJob {
 		Ok(self.signature.as_ref().expect("prepare_partial_request is only called on master nodes; new_on_master fills the signature; qed").clone())
 	}
 
-	fn process_partial_request(&self, partial_request: Signature) -> Result<JobPartialRequestAction<bool>, Error> {
+	fn process_partial_request(&mut self, partial_request: Signature) -> Result<JobPartialRequestAction<bool>, Error> {
+		self.signature = Some(partial_request.clone());
 		self.acl_storage.check(&recover(&partial_request, &self.id)?, &self.id)
 			.map_err(|_| Error::AccessDenied)
 			.map(|is_confirmed| if is_confirmed { JobPartialRequestAction::Respond(true) } else { JobPartialRequestAction::Reject(false) })
