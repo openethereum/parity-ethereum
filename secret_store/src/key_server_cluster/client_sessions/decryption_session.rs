@@ -1148,6 +1148,23 @@ mod tests {
 
 	#[test]
 	fn decryption_works_when_share_owners_are_isolated() {
-		// TODO
+		let (_, clusters, _, sessions) = prepare_decryption_sessions();
+
+		// we need 4 out of 5 nodes to agree to do a decryption
+		// let's say that 1 of these nodes (master) is isolated
+		let isolated_node_id = sessions[4].core.meta.self_node_id.clone();
+		for cluster in &clusters {
+			cluster.remove_node(&isolated_node_id);
+		}
+
+		// now let's try to do a decryption
+		sessions[0].initialize(Default::default(), false).unwrap();
+		do_messages_exchange(&clusters, &sessions).unwrap();
+
+		assert_eq!(sessions[0].decrypted_secret().unwrap().unwrap(), EncryptedDocumentKeyShadow {
+			decrypted_secret: SECRET_PLAIN.into(),
+			common_point: None,
+			decrypt_shadows: None,
+		});
 	}
 }

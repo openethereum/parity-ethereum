@@ -1246,6 +1246,27 @@ mod tests {
 
 	#[test]
 	fn signing_works_when_share_owners_are_isolated() {
-		// TODO
+		let (_, mut sl) = prepare_signing_sessions(1, 3);
+
+		// we need 2 out of 3 nodes to agree to do a decryption
+		// let's say that 1 of these nodes (master) is isolated
+		let isolated_node_id = sl.nodes.keys().skip(2).nth(0).cloned().unwrap();
+		for node in sl.nodes.values() {
+			node.cluster.remove_node(&isolated_node_id);
+		}
+
+		// now let's try to do a signing
+		sl.master().initialize(sl.version.clone(), 777.into()).unwrap();
+
+		// then consensus reachable, but single node will disagree
+		while let Some((from, to, message)) = sl.take_message() {
+			sl.process_message((from, to, message)).unwrap();
+		}
+
+		let data = sl.master().data.lock();
+		match data.result {
+			Some(Ok(_)) => (),
+			_ => unreachable!(),
+		}
 	}
 }
