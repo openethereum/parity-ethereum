@@ -411,7 +411,7 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 	// -- 3) Instantiate RPC Handler
 	// let whisper_factory = RpcFactory { net: whisper_network_handler, manager: whisper_filter_manager };
 	// let whisper_rpc_handler = whisper_factory.make_handler(Arc::new(network));
-
+/*x<
 	let handle2 = NetworkPoolHandle { handle: whisper_network_handler.clone(), net: Arc::new(network) };
 
 	let whisper_rpc_handler : WhisperClient<NetworkPoolHandle, Metadata> = WhisperClient::new(handle2, whisper_filter_manager.clone());
@@ -426,7 +426,6 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 	let mut rpc_handler : jsonrpc_core::MetaIoHandler<Metadata, _> = jsonrpc_core::MetaIoHandler::default(); // ou IoHandler::new();
 	rpc_handler.extend_with(::parity_whisper::rpc::Whisper::to_delegate(whisper_rpc_handler)); // to_delete takes a PoolHandle I guess?
 //	rpc_handler.extend_with(whisper_rpc_handler);
-
 	// -- 4) Launch RPC with handler
 
 	// Api::WhisperPubSub
@@ -453,11 +452,13 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 
 	// let mut allowed_hosts: Option<Vec<Host>> = http_configuration.hosts.into();
 	// allowed_hosts.as_mut().map(|mut hosts| {
+x>*/
+
 	// 	hosts.push(format!("http://*.{}:*", DAPPS_DOMAIN).into());
 	// 	hosts.push(format!("http://*.{}", DAPPS_DOMAIN).into());
 	// });
 
-
+/* y<
 
 	let threads = 1;
 	minihttp::ServerBuilder::new(rpc_handler) // yay handler => rpc
@@ -470,7 +471,7 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 
 	println!("Rpc server listening.");
 
-
+y>*/
 
 
 	// Arc::new(whisper_net::ParityExtensions),
@@ -522,7 +523,6 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 // 			}
 // 			builder.start_http(addr)
 // 				.map(HttpServer::Hyper)?
-
 
 
 
