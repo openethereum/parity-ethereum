@@ -92,6 +92,9 @@ use http::{
 
 const DAPPS_DOMAIN: &'static str = "web3.site";
 
+
+use jsonrpc_core::IoHandler;
+
 mod http_common {
 	/* start http_common.rs */
 
@@ -409,12 +412,13 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 	network.register_protocol(Arc::new(whisper_net::ParityExtensions), whisper_net::PARITY_PROTOCOL_ID, whisper_net::PACKET_COUNT, whisper_net::SUPPORTED_VERSIONS);
 
 	// -- 3) Instantiate RPC Handler
-	// let whisper_factory = RpcFactory { net: whisper_network_handler, manager: whisper_filter_manager };
-	// let whisper_rpc_handler = whisper_factory.make_handler(Arc::new(network));
-/*x<
 	let handle2 = NetworkPoolHandle { handle: whisper_network_handler.clone(), net: Arc::new(network) };
 
 	let whisper_rpc_handler : WhisperClient<NetworkPoolHandle, Metadata> = WhisperClient::new(handle2, whisper_filter_manager.clone());
+
+	// je pourrais plus tard reprendre le pattern utilisé dans parity/whisper.rs :
+	// let whisper_factory = RpcFactory { net: whisper_network_handler, manager: whisper_filter_manager };
+	// let whisper_rpc_handler = whisper_factory.make_handler(Arc::new(network));
 
 // cannot use ethsync
 // make sth smilar to NetPoolHandle but that uses something else than ManageNetwork; this something else also has make_proto_context
@@ -422,10 +426,22 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 
 // mais je ne cprds pas la fonctionnalité de ces éléments (=frst); demander
 
+// regarder comment c'est fait sur whisper !
 
-	let mut rpc_handler : jsonrpc_core::MetaIoHandler<Metadata, _> = jsonrpc_core::MetaIoHandler::default(); // ou IoHandler::new();
-	rpc_handler.extend_with(::parity_whisper::rpc::Whisper::to_delegate(whisper_rpc_handler)); // to_delete takes a PoolHandle I guess?
-//	rpc_handler.extend_with(whisper_rpc_handler);
+/// Metadata trait
+#[derive(Debug, Eq, PartialEq, Clone)]
+pub struct MyMetadata { }
+impl Default for MyMetadata { fn default() -> MyMetadata { MyMetadata{} } }
+impl jsonrpc_core::Metadata for MyMetadata {}
+
+	let mut rpc_handler : jsonrpc_core::MetaIoHandler<MyMetadata, _> = jsonrpc_core::MetaIoHandler::default(); // ou IoHandler::new();
+	// let mut rpc_handler = jsonrpc_core::MetaIoHandler::with_middleware(whisper_rpc_handler); // ou IoHandler::new();
+	//let mut rpc_handler = IoHandler::new();
+	// let expected_to_delegate_input = whisper_rpc.make_handler(self.net.clone());
+rpc_handler.extend_with(::parity_whisper::rpc::Whisper::to_delegate(whisper_rpc_handler)); // to_delete takes a PoolHandle I guess?
+/*
+	rpc_handler.extend_with(whisper_rpc_handler);
+
 	// -- 4) Launch RPC with handler
 
 	// Api::WhisperPubSub
