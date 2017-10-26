@@ -498,7 +498,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 				Some(&None) => (),
 			};
 
-			let secret_subshare = Self::comute_secret_subshare(&self.core, &mut *data, sender, &message.secret_subshare.clone().into())?;
+			let secret_subshare = Self::compute_secret_subshare(&self.core, &mut *data, sender, &message.secret_subshare.clone().into())?;
 			*data.secret_subshares.as_mut().expect(explanation)
 				.get_mut(sender)
 				.expect("checked couple of lines above; qed") = Some(secret_subshare);
@@ -579,7 +579,8 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		data.state = SessionState::WaitingForKeysDissemination;
 
 		// if we're not a part of consensus group, wait for secret subshares
-		let is_consensus_group_node = data.secret_subshares.as_ref().expect("TODO").contains_key(&core.meta.self_node_id);
+		let explanation = "secret_subshares is a result of consensus job; consensus is established; qed";
+		let is_consensus_group_node = data.secret_subshares.as_ref().expect(explanation).contains_key(&core.meta.self_node_id);
 		if !is_consensus_group_node {
 			return Ok(());
 		}
@@ -593,7 +594,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		Self::disseminate_keys(core, data)?;
 
 		// ..and check if session could be completed
-		if data.secret_subshares.as_ref().expect("TODO").values().any(|v| v.is_none()) {
+		if data.secret_subshares.as_ref().expect(explanation).values().any(|v| v.is_none()) {
 			return Ok(())
 		}
 
@@ -648,7 +649,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 					secret_subshare: secret_subshare.into(),
 				}))?;
 			} else {
-				let secret_subshare = Self::comute_secret_subshare(core, data, new_node, &secret_subshare)?;
+				let secret_subshare = Self::compute_secret_subshare(core, data, new_node, &secret_subshare)?;
 				*data.secret_subshares.as_mut().expect(explanation)
 					.get_mut(&core.meta.self_node_id)
 					.expect("disseminate_keys is only calle on consensus group nodes; there's entry for every consensus node in secret_subshares; qed")
@@ -660,14 +661,17 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 	}
 
 	/// Compute secret subshare from passed secret value.
-	fn comute_secret_subshare(core: &SessionCore<T>, data: &SessionData<T>, sender: &NodeId, secret_value: &Secret) -> Result<Secret, Error> {
-		let id_numbers = data.id_numbers.as_ref().expect("TODO");
-		let secret_subshares = data.secret_subshares.as_ref().expect("TODO");
+	fn compute_secret_subshare(core: &SessionCore<T>, data: &SessionData<T>, sender: &NodeId, secret_value: &Secret) -> Result<Secret, Error> {
+		let explanation = "this field is a result of consensus job; compute_secret_subshare is called after consensus is established";
+		let id_numbers = data.id_numbers.as_ref().expect(explanation);
+		let secret_subshares = data.secret_subshares.as_ref().expect(explanation);
 		let threshold = core.key_share.as_ref().map(|ks| ks.threshold)
-			.unwrap_or_else(|| *data.key_share_threshold.as_ref().expect("TODO"));
+			.unwrap_or_else(|| *data.key_share_threshold.as_ref()
+				.expect("computation occurs after receiving key share threshold if not having one already; qed"));
 
-		let sender_id_number = id_numbers[sender].as_ref().expect("TODO: check this");
-		let other_id_numbers = secret_subshares.keys().filter(|k| *k != sender).map(|n| id_numbers[n].as_ref().expect("TODO: check this"));
+		let explanation = "id_numbers are checked to have Some value for every consensus group node when consensus is establishe; qed";
+		let sender_id_number = id_numbers[sender].as_ref().expect(explanation);
+		let other_id_numbers = secret_subshares.keys().filter(|k| *k != sender).map(|n| id_numbers[n].as_ref().expect(explanation));
 		math::compute_secret_subshare(threshold, secret_value, sender_id_number, other_id_numbers)
 	}
 
@@ -679,12 +683,15 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		}
 
 		// compose updated key share
-		let id_numbers = data.id_numbers.as_ref().expect("TODO");
+		let explanation = "this field is a result of consensus job; complete_session is called after consensus is established";
+		let id_numbers = data.id_numbers.as_ref().expect(explanation);
 		let secret_subshares = data.secret_subshares.as_ref()
 			.expect("nodes are filled during consensus establishing; session is completed after consensus is established; qed");
-		let secret_share = math::compute_secret_share(secret_subshares.values().map(|ss| ss.as_ref().expect("TODO")))?;
+		let secret_share = math::compute_secret_share(secret_subshares.values().map(|ss| ss.as_ref()
+			.expect("complete_session is only called when subshares from all nodes are received; qed")))?;
 
-		let refreshed_key_version = DocumentKeyShareVersion::new(id_numbers.clone().into_iter().map(|(k, v)| (k.clone(), v.expect("TODO: check this"))).collect(),
+		let refreshed_key_version = DocumentKeyShareVersion::new(id_numbers.clone().into_iter().map(|(k, v)| (k.clone(),
+			v.expect("id_numbers are checked to have Some value for every consensus group node when consensus is establishe; qed"))).collect(),
 			secret_share);
 		let mut refreshed_key_share = core.key_share.as_ref().cloned().unwrap_or_else(|| DocumentKeyShare {
 			author: data.key_share_author.clone()
@@ -700,8 +707,6 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		// save encrypted data to the key storage
 		data.state = SessionState::Finished;
 		if core.key_share.is_some() {
-			// TODO: if db was updated on some nodes && wasn't updated on others, this could lead to secret loss
-			// => need mechanism to confirm insert/update OR store all versions of shares and negotiate version on session start (part of consensus)
 			core.key_storage.update(core.meta.id.clone(), refreshed_key_share.clone())
 		} else {
 			core.key_storage.insert(core.meta.id.clone(), refreshed_key_share.clone())
@@ -796,19 +801,21 @@ impl JobTransport for IsolatedSessionTransport {
 	type PartialJobResponse = bool;
 
 	fn send_partial_request(&self, node: &NodeId, request: ServersSetChangeAccessRequest) -> Result<(), Error> {
-		let id_numbers = self.id_numbers.as_ref()
-			.expect("partial requests are sent from master node only; on master node id_numers are filled during creation; qed");
+		let explanation = "partial requests are sent from master node only; on master node this field is filled during creation; qed";
+		let id_numbers = self.id_numbers.as_ref().expect(explanation);
 
 		self.cluster.send(node, Message::ShareAdd(ShareAddMessage::ShareAddConsensusMessage(ShareAddConsensusMessage {
 			session: self.session.clone().into(),
 			session_nonce: self.nonce,
 			message: ConsensusMessageOfShareAdd::InitializeConsensusSession(InitializeConsensusSessionOfShareAdd {
-				version: self.version.clone().expect("TODO").into(),
-				consensus_group: self.consensus_group.as_ref().expect("TODO").iter().cloned().map(Into::into).collect(),
+				version: self.version.clone().expect(explanation).into(),
+				consensus_group: self.consensus_group.as_ref().expect(explanation).iter().cloned().map(Into::into).collect(),
 				old_nodes_set: request.old_servers_set.into_iter().map(Into::into).collect(),
 				new_nodes_map: request.new_servers_set.into_iter()
 					.filter_map(|n| id_numbers.get(&n)
-						.map(|id| (n.into(), id.clone().expect("TODO: check me").into())))
+						.map(|id| (n.into(), id.clone()
+							.expect("partial requests are sent from master node only after consensus is established;
+								on master id_numbers are initialized with Some id_number for every consensus group node; qed").into())))
 					.collect(),
 				old_set_signature: request.old_set_signature.into(),
 				new_set_signature: request.new_set_signature.into(),

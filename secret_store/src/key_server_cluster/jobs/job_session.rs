@@ -191,7 +191,10 @@ impl<Executor, Transport> JobSession<Executor, Transport> where Executor: JobExe
 	/// Initialize.
 	pub fn initialize(&mut self, nodes: BTreeSet<NodeId>) -> Result<(), Error> {		
 		debug_assert!(self.meta.self_node_id == self.meta.master_node_id);
-		debug_assert!(nodes.len() >= self.meta.threshold + 1);
+
+		if nodes.len() < self.meta.threshold + 1 {
+			return Err(Error::ConsensusUnreachable);
+		}
 
 		if self.data.state != JobSessionState::Inactive {
 			return Err(Error::InvalidStateForRequest);

@@ -995,12 +995,9 @@ mod tests {
 	}
 
 	#[test]
-	fn fails_to_construct_if_not_a_part_of_cluster() {
-		let mut nodes = BTreeMap::new();
+	fn fails_to_initialize_if_does_not_have_a_share() {
 		let self_node_id = Random.generate().unwrap().public().clone();
-		nodes.insert(Random.generate().unwrap().public().clone(), Random.generate().unwrap().secret().clone());
-		nodes.insert(Random.generate().unwrap().public().clone(), Random.generate().unwrap().secret().clone());
-		match SessionImpl::new(SessionParams {
+		let session = SessionImpl::new(SessionParams {
 			meta: SessionMeta {
 				id: SessionId::default(),
 				self_node_id: self_node_id.clone(),
@@ -1008,33 +1005,21 @@ mod tests {
 				threshold: 0,
 			},
 			access_key: Random.generate().unwrap().secret().clone(),
-			key_share: Some(DocumentKeyShare {
-				author: Public::default(),
-				threshold: 0,
-				common_point: Some(Random.generate().unwrap().public().clone()),
-				encrypted_point: Some(Random.generate().unwrap().public().clone()),
-				versions: vec![DocumentKeyShareVersion {
-					hash: Default::default(),
-					id_numbers: nodes,
-					secret_share: Random.generate().unwrap().secret().clone(),
-				}],
-			}),
+			key_share: None,
 			acl_storage: Arc::new(DummyAclStorage::default()),
 			cluster: Arc::new(DummyCluster::new(self_node_id.clone())),
 			nonce: 0,
-		}, Some(ethkey::sign(Random.generate().unwrap().secret(), &SessionId::default()).unwrap())) {
-			Err(Error::InvalidNodesConfiguration) => (),
-			_ => panic!("unexpected"),
-		}
+		}, Some(ethkey::sign(Random.generate().unwrap().secret(), &SessionId::default()).unwrap())).unwrap();
+		assert_eq!(session.initialize(Default::default(), Default::default()), Err(Error::InvalidMessage));
 	}
 
 	#[test]
-	fn fails_to_construct_if_threshold_is_wrong() {
+	fn fails_to_initialize_if_threshold_is_wrong() {
 		let mut nodes = BTreeMap::new();
 		let self_node_id = Random.generate().unwrap().public().clone();
 		nodes.insert(self_node_id.clone(), Random.generate().unwrap().secret().clone());
 		nodes.insert(Random.generate().unwrap().public().clone(), Random.generate().unwrap().secret().clone());
-		match SessionImpl::new(SessionParams {
+		let session = SessionImpl::new(SessionParams {
 			meta: SessionMeta {
 				id: SessionId::default(),
 				self_node_id: self_node_id.clone(),
@@ -1056,10 +1041,8 @@ mod tests {
 			acl_storage: Arc::new(DummyAclStorage::default()),
 			cluster: Arc::new(DummyCluster::new(self_node_id.clone())),
 			nonce: 0,
-		}, Some(ethkey::sign(Random.generate().unwrap().secret(), &SessionId::default()).unwrap())) {
-			Err(Error::InvalidThreshold) => (),
-			_ => panic!("unexpected"),
-		}
+		}, Some(ethkey::sign(Random.generate().unwrap().secret(), &SessionId::default()).unwrap())).unwrap();
+		assert_eq!(session.initialize(Default::default(), Default::default()), Err(Error::ConsensusUnreachable));
 	}
 
 	#[test]
