@@ -478,16 +478,18 @@ rpc_handler.extend_with(whisper_rpc_handler.to_delegate()); // to_delete takes a
 	// });
 
 	let threads = 1;
-	minihttp::ServerBuilder::new(rpc_handler) // yay handler => rpc
+	let server = minihttp::ServerBuilder::new(rpc_handler) // yay handler => rpc
 				.threads(threads) // config param I guess // todo httpconfiguration
 				// .meta_extractor(http_common::MiniMetaExtractor::new(extractor))
 				// .cors(http_configuration.cors.into()) // cli
 				//.allowed_hosts(allowed_hosts.into()) // cli
 				.start_http(&addr.unwrap())
-				.map(HttpServer::Mini)?;
+				.expect("Unable to start RPC server");
+				// .map(HttpServer::Mini)?;
 
-	println!("Rpc server listening.");
-
+	println!("Rpc about to listen.");
+	server.wait().unwrap();
+	println!("Rpc listening.");
 	// Arc::new(whisper_net::ParityExtensions),
 	// ou bien via factory
 
