@@ -135,7 +135,7 @@ impl Provider {
 		self.decrypt(address, &code)
 	}
 
-	fn to_storage(raw: Bytes) -> HashMap<H256, H256> {
+	fn snapshot_to_storage(raw: Bytes) -> HashMap<H256, H256> {
 		let items = raw.len() / 64;
 		(0..items).map(|i| {
 			let offset = i * 64;
@@ -145,7 +145,7 @@ impl Provider {
 		}).collect()
 	}
 
-	fn from_storage(storage: &HashMap<H256, H256>) -> Bytes {
+	fn snapshot_from_storage(storage: &HashMap<H256, H256>) -> Bytes {
 		let mut raw = Vec::with_capacity(storage.len() * 64);
 		for (key, value) in storage {
 			raw.extend_from_slice(key);
@@ -169,7 +169,7 @@ impl Provider {
 				let contract_code = Arc::new(self.get_decrypted_code(contract_address, block, client)?);
 				let contract_state = self.get_decrypted_state(contract_address, block, client)?;
 				trace!("Patching contract at {:?}, code: {:?}, state: {:?}", contract_address, contract_code, contract_state);
-				state.patch_account(contract_address, contract_code.clone(), Self::to_storage(contract_state))?;
+				state.patch_account(contract_address, contract_code.clone(), Self::snapshot_to_storage(contract_state))?;
 				Some(contract_address.clone())
 			},
 			&Action::Create => None,
@@ -185,7 +185,7 @@ impl Provider {
 					Some(c) => Some(self.encrypt(&address, &c)?),
 					None => None,
 				};
-				(enc_code, self.encrypt(&address, &Self::from_storage(&storage))?)
+				(enc_code, self.encrypt(&address, &Self::snapshot_from_storage(&storage))?)
 			},
 			None => return Err(PrivateTransactionError::ContractDoesNotExist.into())
 		};
