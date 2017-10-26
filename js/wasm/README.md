@@ -1,3 +1,3 @@
 # WASM modules
 
-- `ethkey` -> `/js/src/api/local/ethkey/ethkey.wasm`
+- `ethkey` -> `/js/packages/api/local/ethkey/ethkey.wasm`

@@ -81,12 +81,16 @@ extern crate ethcore_logger;
 extern crate ipnetwork;
 extern crate hash;
 extern crate serde_json;
+extern crate snappy;
 
 #[macro_use]
 extern crate log;
 
 #[cfg(test)]
 extern crate ethcore_devtools as devtools;
+
+#[cfg(test)]
+extern crate tempdir;
 
 mod host;
 mod connection;
@@ -115,7 +119,7 @@ pub use node_table::{is_valid_node_url, NodeId};
 use ipnetwork::{IpNetwork, IpNetworkError};
 use std::str::FromStr;
 
-const PROTOCOL_VERSION: u32 = 4;
+const PROTOCOL_VERSION: u32 = 5;
 
 /// Network IO protocol handler. This needs to be implemented for each new subprotocol.
 /// All the handler function are called from within IO event loop.

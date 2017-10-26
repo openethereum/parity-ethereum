@@ -36,28 +36,23 @@ extern crate tokio_service;
 extern crate tokio_proto;
 extern crate url;
 
-extern crate ethabi;
 extern crate ethcore;
 extern crate ethcore_devtools as devtools;
 extern crate ethcore_bytes as bytes;
 extern crate ethcore_util as util;
 extern crate ethcore_bigint as bigint;
-extern crate ethcore_ipc as ipc;
 extern crate ethcore_logger as logger;
 extern crate ethcrypto;
 extern crate ethkey;
 extern crate native_contracts;
 extern crate hash;
 extern crate kvdb;
+extern crate kvdb_rocksdb;
 
 mod key_server_cluster;
 mod types;
 
-mod traits {
-	#![allow(dead_code, unused_assignments, unused_variables, missing_docs)] // codegen issues
-	include!(concat!(env!("OUT_DIR"), "/traits.rs"));
-}
-
+mod traits;
 mod acl_storage;
 mod http_listener;
 mod key_server;

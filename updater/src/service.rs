@@ -14,10 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use types::all::{CapState, ReleaseInfo, OperationsInfo};
-use ipc_common_types::VersionInfo;
+use types::{CapState, ReleaseInfo, OperationsInfo, VersionInfo};
 
-#[ipc(client_ident="RemoteUpdater")]
 pub trait Service: Send + Sync {
 	/// Is the currently running client capable of supporting the current chain?
 	/// We default to true if there's no clear information.

@@ -263,7 +263,7 @@ impl EthereumMachine {
 				} else if block_number < ext.eip150_transition {
 					Schedule::new_homestead()
 				} else {
-					/// There's no max_code_size transition so we tie it to eip161abc
+					// There's no max_code_size transition so we tie it to eip161abc
 					let max_code_size = if block_number >= ext.eip161abc_transition {
 						self.params.max_code_size as usize
 					} else {

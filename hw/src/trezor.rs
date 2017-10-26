@@ -37,8 +37,8 @@ use trezor_sys::messages::{EthereumAddress, PinMatrixAck, MessageType, EthereumT
 
 const TREZOR_VID: u16 = 0x534c;
 const TREZOR_PIDS: [u16; 1] = [0x0001]; // Trezor v1, keeping this as an array to leave room for Trezor v2 which is in progress
-const ETH_DERIVATION_PATH: [u32; 4] = [0x8000002C, 0x8000003C, 0x80000000, 0]; // m/44'/60'/0'/0
-const ETC_DERIVATION_PATH: [u32; 4] = [0x8000002C, 0x8000003D, 0x80000000, 0]; // m/44'/61'/0'/0
+const ETH_DERIVATION_PATH: [u32; 5] = [0x8000002C, 0x8000003C, 0x80000000, 0, 0]; // m/44'/60'/0'/0/0
+const ETC_DERIVATION_PATH: [u32; 5] = [0x8000002C, 0x8000003D, 0x80000000, 0, 0]; // m/44'/61'/0'/0/0
 
 
 /// Hardware wallet error.
@@ -201,7 +201,7 @@ impl Manager {
 		where F: Fn() -> Result<R, &'static str>
 	{
 		let mut err = Error::KeyNotFound;
-		/// Try to open device a few times.
+		// Try to open device a few times.
 		for _ in 0..10 {
 			match f() {
 				Ok(handle) => return Ok(handle),

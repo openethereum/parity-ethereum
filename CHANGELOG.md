@@ -1,25 +1,59 @@
-## Parity [v1.8.0](https://github.com/paritytech/parity/releases/tag/v1.8.0) (2017-10-13)
+## Parity [v1.8.1](https://github.com/paritytech/parity/releases/tag/v1.8.1) (2017-10-20)
 
-@TODO describe and document
+Parity 1.8.1 fixes several bugs with token balances, tweaks snapshot-sync, improves the performance of nodes with huge amounts of accounts and changes the Trezor account derivation path.
 
-- WASM contracts
-- light cient improvements (POA chain compatibility)
-- Trezor wallet support
-- Abstraction of engine: Generalize engine trait, Move more params to the common section
-- PICOPS certification badge
-- Vouch for Dapps
-- Premissioned p2p-connections
-- Transaction permissioning
-- Add Musicoin and MCIP-3 UBI hardfork.
-- Add pagination for trace_filter rpc method
-- Rename network_id to chain_id where applicable
-- Compatibility with whisper v6
-- Byzantium updates
-- Rewards on closing blocks
+**Important Note**: The **Trezor** account derivation path was changed in this release ([#6815](https://github.com/paritytech/parity/pull/6815)) to always use the first account (`m/44'/60'/0'/0/0` instead of `m/44'/60'/0'/0`). This way we enable compatibility with other Ethereum wallets supporting Trezor hardware-wallets. However, **action is required** before upgrading, if you have funds on your Parity Trezor wallet. If you already upgraded to 1.8.1, please downgrade to 1.8.0 first to recover the funds with the following steps:
+
+1. Make sure you have 1.8.0-beta and your Trezor plugged in.
+2. Create a new standard Parity account. Make sure you have backups of the recovery phrase and don't forget the password.
+3. Move your funds from the Trezor hardware-wallet account to the freshly generated Parity account.
+4. Upgrade to 1.8.1-beta and plug in your Trezor.
+5. Move your funds from your Parity account to the new Trezor account.
+6. Keep using Parity as normal.
+
+If you don't want to downgrade or move your funds off your Trezor-device, you can also use the official Trezor application or other wallets allowing to select the derivation path to access the funds.
 
 Full list of included changes:
 
-- CLI: Reject invalid argument values rather than ignore them (#6747)
+- Add ECIP1017 to Morden config ([#6845](https://github.com/paritytech/parity/pull/6845))
+- Ethstore optimizations ([#6844](https://github.com/paritytech/parity/pull/6844))
+- Bumb to v1.8.1 ([#6843](https://github.com/paritytech/parity/pull/6843))
+- Backport ([#6837](https://github.com/paritytech/parity/pull/6837))
+  - Tweaked snapshot sync threshold ([#6829](https://github.com/paritytech/parity/pull/6829))
+  - Change keypath derivation logic ([#6815](https://github.com/paritytech/parity/pull/6815))
+- Refresh cached tokens based on registry info & random balances ([#6824](https://github.com/paritytech/parity/pull/6824))
+  - Refresh cached tokens based on registry info & random balances ([#6818](https://github.com/paritytech/parity/pull/6818))
+  - Don't display errored token images
+
+## Parity [v1.8.0](https://github.com/paritytech/parity/releases/tag/v1.8.0) (2017-10-15)
+
+We are happy to announce our newest Parity 1.8 release. Among others, it enables the following features:
+
+- Full Whisper v6 integration
+- Trezor hardware-wallet support
+- WASM contract support
+- PICOPS KYC-certified accounts and vouching for community-dapps
+- Light client compatibility for Proof-of-Authority networks
+- Transaction permissioning and permissioned p2p-connections
+- Full Byzantium-fork compatibility
+- Full Musicoin MCIP-3 UBI-fork compatibility
+
+Further, users upgrading from 1.7 should acknowledge the following changes:
+
+- The chain-engine was further abstracted and chain-specs need to be upgraded. [#6134](https://github.com/paritytech/parity/pull/6134) [#6591](https://github.com/paritytech/parity/pull/6591)
+- `network_id` was renamed to `chain_id` where applicable. [#6345](https://github.com/paritytech/parity/pull/6345)
+- `trace_filter` RPC method now comes with pagination. [#6312](https://github.com/paritytech/parity/pull/6312)
+- Added tracing of rewards on closing blocks. [#6194](https://github.com/paritytech/parity/pull/6194)
+
+Full list of included changes:
+
+- Updated ethabi to fix auto-update ([#6771](https://github.com/paritytech/parity/pull/6771))
+- Fixed kovan chain validation ([#6760](https://github.com/paritytech/parity/pull/6760))
+  - Fixed kovan chain validation
+  - Fork detection
+  - Fixed typo
+- Bumped fork block number for auto-update ([#6755](https://github.com/paritytech/parity/pull/6755))
+- CLI: Reject invalid argument values rather than ignore them ([#6747](https://github.com/paritytech/parity/pull/6747))
 - Fixed modexp gas calculation overflow ([#6745](https://github.com/paritytech/parity/pull/6745))
 - Backport beta - Fixes Badges ([#6732](https://github.com/paritytech/parity/pull/6732))
   - Fix badges not showing up ([#6730](https://github.com/paritytech/parity/pull/6730))

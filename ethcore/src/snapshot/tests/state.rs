@@ -26,8 +26,8 @@ use error::Error;
 
 use rand::{XorShiftRng, SeedableRng};
 use bigint::hash::H256;
-use util::journaldb::{self, Algorithm};
-use kvdb::{Database, DatabaseConfig};
+use journaldb::{self, Algorithm};
+use kvdb_rocksdb::{Database, DatabaseConfig};
 use memorydb::MemoryDB;
 use parking_lot::Mutex;
 use devtools::RandomTempPath;

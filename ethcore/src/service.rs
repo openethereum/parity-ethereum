@@ -19,7 +19,8 @@
 use std::sync::Arc;
 use std::path::Path;
 use bigint::hash::H256;
-use kvdb::{Database, DatabaseConfig, KeyValueDB};
+use kvdb::KeyValueDB;
+use kvdb_rocksdb::{Database, DatabaseConfig};
 use bytes::Bytes;
 use io::*;
 use spec::Spec;
@@ -29,11 +30,7 @@ use miner::Miner;
 
 use snapshot::{ManifestData, RestorationStatus};
 use snapshot::service::{Service as SnapshotService, ServiceParams as SnapServiceParams};
-use std::sync::atomic::AtomicBool;
 use ansi_term::Colour;
-
-#[cfg(feature="ipc")]
-use nanoipc;
 
 /// Message type for external and internal events
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -72,7 +69,7 @@ impl ClientService {
 		spec: &Spec,
 		client_path: &Path,
 		snapshot_path: &Path,
-		ipc_path: &Path,
+		_ipc_path: &Path,
 		miner: Arc<Miner>,
 		) -> Result<ClientService, Error>
 	{
@@ -120,7 +117,6 @@ impl ClientService {
 		spec.engine.register_client(Arc::downgrade(&client) as _);
 
 		let stop_guard = ::devtools::StopGuard::new();
-		run_ipc(ipc_path, client.clone(), snapshot.clone(), stop_guard.share());
 
 		Ok(ClientService {
 			io_service: Arc::new(io_service),
@@ -226,38 +222,6 @@ impl IoHandler<ClientIoMessage> for ClientIoHandler {
 			_ => {} // ignore other messages
 		}
 	}
-}
-
-#[cfg(feature="ipc")]
-fn run_ipc(base_path: &Path, client: Arc<Client>, snapshot_service: Arc<SnapshotService>, stop: Arc<AtomicBool>) {
-	let mut path = base_path.to_owned();
-	path.push("parity-chain.ipc");
-	let socket_addr = format!("ipc://{}", path.to_string_lossy());
-	let s = stop.clone();
-	::std::thread::spawn(move || {
-		let mut worker = nanoipc::Worker::new(&(client as Arc<BlockChainClient>));
-		worker.add_reqrep(&socket_addr).expect("Ipc expected to initialize with no issues");
-
-		while !s.load(::std::sync::atomic::Ordering::Relaxed) {
-			worker.poll();
-		}
-	});
-
-	let mut path = base_path.to_owned();
-	path.push("parity-snapshot.ipc");
-	let socket_addr = format!("ipc://{}", path.to_string_lossy());
-	::std::thread::spawn(move || {
-		let mut worker = nanoipc::Worker::new(&(snapshot_service as Arc<::snapshot::SnapshotService>));
-		worker.add_reqrep(&socket_addr).expect("Ipc expected to initialize with no issues");
-
-		while !stop.load(::std::sync::atomic::Ordering::Relaxed) {
-			worker.poll();
-		}
-	});
-}
-
-#[cfg(not(feature="ipc"))]
-fn run_ipc(_base_path: &Path, _client: Arc<Client>, _snapshot_service: Arc<SnapshotService>, _stop: Arc<AtomicBool>) {
 }
 
 #[cfg(test)]

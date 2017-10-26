@@ -38,20 +38,7 @@ pub mod net;
 pub mod on_demand;
 pub mod transaction_queue;
 pub mod cache;
-
-#[cfg(not(feature = "ipc"))]
 pub mod provider;
-
-#[cfg(feature = "ipc")]
-pub mod provider {
-	#![allow(dead_code, unused_assignments, unused_variables, missing_docs)] // codegen issues
-	include!(concat!(env!("OUT_DIR"), "/provider.rs"));
-}
-
-#[cfg(feature = "ipc")]
-pub mod remote {
-	pub use provider::LightProviderClient;
-}
 
 mod types;
 
@@ -92,9 +79,9 @@ extern crate vm;
 extern crate hash;
 extern crate triehash;
 extern crate kvdb;
-
-#[cfg(feature = "ipc")]
-extern crate ethcore_ipc as ipc;
+extern crate kvdb_memorydb;
+extern crate kvdb_rocksdb;
+extern crate memory_cache;
 
 #[cfg(test)]
 extern crate ethcore_devtools as devtools;

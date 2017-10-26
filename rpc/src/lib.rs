@@ -20,6 +20,9 @@
 #![cfg_attr(feature="dev", feature(plugin))]
 #![cfg_attr(feature="dev", plugin(clippy))]
 
+#[macro_use]
+extern crate futures;
+
 extern crate ansi_term;
 extern crate cid;
 extern crate crypto as rust_crypto;
@@ -48,7 +51,6 @@ extern crate ethcore_bigint as bigint;
 extern crate ethcore_bytes as bytes;
 extern crate ethcore_devtools as devtools;
 extern crate ethcore_io as io;
-extern crate ethcore_ipc;
 extern crate ethcore_light as light;
 extern crate ethcore_util as util;
 extern crate ethcrypto as crypto;
@@ -65,7 +67,6 @@ extern crate rlp;
 extern crate stats;
 extern crate hash;
 extern crate hardware_wallet;
-extern crate kvdb;
 
 #[macro_use]
 extern crate log;
@@ -84,6 +85,9 @@ extern crate pretty_assertions;
 #[cfg(test)]
 #[macro_use]
 extern crate macros;
+
+#[cfg(test)]
+extern crate kvdb_memorydb;
 
 pub extern crate jsonrpc_ws_server as ws;
 

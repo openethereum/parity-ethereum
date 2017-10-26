@@ -22,7 +22,6 @@ extern crate jsonrpc_macros;
 #[macro_use] extern crate log;
 extern crate ethcore_util as util;
 extern crate ethcore_bigint as bigint;
-extern crate ethcore_ipc as ipc;
 extern crate hash;
 extern crate parking_lot;
 
@@ -31,15 +30,10 @@ extern crate parking_lot;
 #[cfg(test)] extern crate ethcore_logger;
 #[cfg(test)] extern crate env_logger;
 
-mod traits {
-	//! Stratum ipc interfaces specification
-	#![allow(dead_code, unused_assignments, unused_variables, missing_docs)] // codegen issues
-	include!(concat!(env!("OUT_DIR"), "/traits.rs"));
-}
+mod traits;
 
 pub use traits::{
 	JobDispatcher, PushWorkHandler, Error, ServiceConfiguration,
-	RemoteWorkHandler, RemoteJobDispatcher,
 };
 
 use jsonrpc_tcp_server::{

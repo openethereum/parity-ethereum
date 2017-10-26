@@ -71,6 +71,9 @@ pub trait Dispatcher: Send + Sync + Clone {
 	fn sign(&self, accounts: Arc<AccountProvider>, filled: FilledTransactionRequest, password: SignWith)
 		-> BoxFuture<WithToken<SignedTransaction>, Error>;
 
+	/// Converts a `SignedTransaction` into `RichRawTransaction`
+	fn enrich(&self, SignedTransaction) -> RpcRichRawTransaction;
+
 	/// "Dispatch" a local transaction.
 	fn dispatch_transaction(&self, signed_transaction: PendingTransaction) -> Result<H256, Error>;
 }
@@ -161,6 +164,11 @@ impl<C: MiningBlockChainClient, M: MinerService> Dispatcher for FullDispatcher<C
 				}))
 			}
 		}))
+	}
+
+	fn enrich(&self, signed_transaction: SignedTransaction) -> RpcRichRawTransaction {
+		let block_number = self.client.best_block_header().number();
+		RpcRichRawTransaction::from_signed(signed_transaction, block_number, self.client.eip86_transition())
 	}
 
 	fn dispatch_transaction(&self, signed_transaction: PendingTransaction) -> Result<H256, Error> {
@@ -261,11 +269,11 @@ impl LightDispatcher {
 		transaction_queue: Arc<RwLock<LightTransactionQueue>>,
 	) -> Self {
 		LightDispatcher {
-			sync: sync,
-			client: client,
-			on_demand: on_demand,
-			cache: cache,
-			transaction_queue: transaction_queue,
+			sync,
+			client,
+			on_demand,
+			cache,
+			transaction_queue,
 		}
 	}
 
@@ -399,6 +407,11 @@ impl Dispatcher for LightDispatcher {
 			.and_then(move |nonce| with_nonce(filled, nonce)))
 	}
 
+	fn enrich(&self, signed_transaction: SignedTransaction) -> RpcRichRawTransaction {
+		let block_number = self.client.best_block_header().number();
+		RpcRichRawTransaction::from_signed(signed_transaction, block_number, self.client.eip86_transition())
+	}
+
 	fn dispatch_transaction(&self, signed_transaction: PendingTransaction) -> Result<H256, Error> {
 		let hash = signed_transaction.transaction.hash();
 
@@ -510,8 +523,8 @@ pub fn execute<D: Dispatcher + 'static>(
 		},
 		ConfirmationPayload::SignTransaction(request) => {
 			Box::new(dispatcher.sign(accounts, request, pass)
-				.map(|result| result
-					.map(RpcRichRawTransaction::from)
+				.map(move |result| result
+					.map(move |tx| dispatcher.enrich(tx))
 					.map(ConfirmationResponse::SignTransaction)
 				))
 		},

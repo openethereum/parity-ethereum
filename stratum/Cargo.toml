@@ -4,10 +4,6 @@ name = "ethcore-stratum"
 version = "1.9.0"
 license = "GPL-3.0"
 authors = ["Parity Technologies <admin@parity.io>"]
-build = "build.rs"
-
-[build-dependencies]
-ethcore-ipc-codegen = { path = "../ipc/codegen" }
 
 [dependencies]
 log = "0.3"
@@ -18,8 +14,6 @@ ethcore-util = { path = "../util" }
 ethcore-bigint = { path = "../util/bigint" }
 ethcore-devtools = { path = "../devtools" }
 env_logger = "0.4"
-ethcore-ipc = { path = "../ipc/rpc" }
-ethcore-ipc-nano = { path = "../ipc/nano" }
 tokio-core = "0.1"
 tokio-io = "0.1"
 parking_lot = "0.4"

@@ -244,7 +244,7 @@ impl FullDependencies {
 					let deps = &$deps;
 					let dispatcher = FullDispatcher::new(deps.client.clone(), deps.miner.clone());
 					if deps.signer_service.is_enabled() {
-						$handler.extend_with($namespace::to_delegate(SigningQueueClient::new(&deps.signer_service, dispatcher, &deps.secret_store)))
+						$handler.extend_with($namespace::to_delegate(SigningQueueClient::new(&deps.signer_service, dispatcher, deps.remote.clone(), &deps.secret_store)))
 					} else {
 						$handler.extend_with($namespace::to_delegate(SigningUnsafeClient::new(&deps.secret_store, dispatcher)))
 					}
@@ -292,7 +292,7 @@ impl FullDependencies {
 					}
 				},
 				Api::Personal => {
-					handler.extend_with(PersonalClient::new(&self.secret_store, dispatcher.clone(), self.geth_compatibility).to_delegate());
+					handler.extend_with(PersonalClient::new(self.secret_store.clone(), dispatcher.clone(), self.geth_compatibility).to_delegate());
 				},
 				Api::Signer => {
 					handler.extend_with(SignerClient::new(&self.secret_store, dispatcher.clone(), &self.signer_service, self.remote.clone()).to_delegate());
@@ -445,7 +445,7 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 					let secret_store = Some(deps.secret_store.clone());
 					if deps.signer_service.is_enabled() {
 						$handler.extend_with($namespace::to_delegate(
-							SigningQueueClient::new(&deps.signer_service, dispatcher, &secret_store)
+							SigningQueueClient::new(&deps.signer_service, dispatcher, deps.remote.clone(), &secret_store)
 						))
 					} else {
 						$handler.extend_with(
@@ -495,7 +495,7 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 				},
 				Api::Personal => {
 					let secret_store = Some(self.secret_store.clone());
-					handler.extend_with(PersonalClient::new(&secret_store, dispatcher.clone(), self.geth_compatibility).to_delegate());
+					handler.extend_with(PersonalClient::new(secret_store, dispatcher.clone(), self.geth_compatibility).to_delegate());
 				},
 				Api::Signer => {
 					let secret_store = Some(self.secret_store.clone());

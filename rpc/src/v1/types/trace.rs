@@ -164,7 +164,7 @@ pub enum Diff<T> where T: Serialize {
 	Changed(ChangedType<T>),
 }
 
-impl<T, U> From<account_diff::Diff<T>> for Diff<U> where T: Eq + ::ethcore_ipc::BinaryConvertable, U: Serialize + From<T> {
+impl<T, U> From<account_diff::Diff<T>> for Diff<U> where T: Eq, U: Serialize + From<T> {
 	fn from(c: account_diff::Diff<T>) -> Self {
 		match c {
 			account_diff::Diff::Same => Diff::Same,
@@ -374,7 +374,7 @@ pub enum Action {
 	/// Suicide
 	Suicide(Suicide),
 	/// Reward
-	Reward(Reward),	
+	Reward(Reward),
 }
 
 impl From<trace::Action> for Action {

@@ -694,7 +694,7 @@ usage! {
 
 			ARG arg_min_gas_price: (Option<u64>) = None, or |c: &Config| otry!(c.mining).min_gas_price.clone(),
 			"--min-gas-price=[STRING]",
-			"Minimum amount of Wei per GAS to be paid for a transaction to be accepted for mining. Overrides --basic-tx-usd.",
+			"Minimum amount of Wei per GAS to be paid for a transaction to be accepted for mining. Overrides --usd-per-tx.",
 
 			ARG arg_author: (Option<String>) = None, or |c: &Config| otry!(c.mining).author.clone(),
 			"--author=[ADDRESS]",
