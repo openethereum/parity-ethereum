@@ -381,6 +381,10 @@ impl<T> Session for SessionImpl<T> where T: SessionTransport + Send + Sync + 'st
 impl<T> ClusterSession for SessionImpl<T> where T: SessionTransport {
 	type Id = SessionIdWithSubSession;
 
+	fn type_name() -> &'static str {
+		"version negotiation"
+	}
+
 	fn id(&self) -> SessionIdWithSubSession {
 		SessionIdWithSubSession::new(self.core.meta.id.clone(), self.core.sub_session.clone())
 	}

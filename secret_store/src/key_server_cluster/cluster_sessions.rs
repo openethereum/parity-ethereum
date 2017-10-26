@@ -68,6 +68,8 @@ pub trait ClusterSession {
 	/// Session identifier type.
 	type Id: Ord + Clone;
 
+	/// Session type name.
+	fn type_name() -> &'static str;
 	/// Get session id.
 	fn id(&self) -> Self::Id;
 	/// If session is finished (either with succcess or not).
@@ -490,6 +492,10 @@ impl AdminSession {
 
 impl ClusterSession for AdminSession {
 	type Id = SessionId;
+
+	fn type_name() -> &'static str {
+		"admin"
+	}
 
 	fn id(&self) -> SessionId {
 		match *self {

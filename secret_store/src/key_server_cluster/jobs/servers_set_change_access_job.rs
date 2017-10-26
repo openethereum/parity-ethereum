@@ -72,10 +72,9 @@ impl<'a> From<&'a InitializeConsensusSessionOfShareAdd> for ServersSetChangeAcce
 }
 
 impl ServersSetChangeAccessJob {
-	pub fn new_on_slave(administrator: Public/*, current_servers_set: BTreeSet<NodeId>*/) -> Self {
+	pub fn new_on_slave(administrator: Public) -> Self {
 		ServersSetChangeAccessJob {
 			administrator: administrator,
-			//current_servers_set: current_servers_set,
 			old_servers_set: None,
 			new_servers_set: None,
 			old_set_signature: None,
@@ -83,10 +82,9 @@ impl ServersSetChangeAccessJob {
 		}
 	}
 
-	pub fn new_on_master(administrator: Public/*, current_servers_set: BTreeSet<NodeId>*/, old_servers_set: BTreeSet<NodeId>, new_servers_set: BTreeSet<NodeId>, old_set_signature: Signature, new_set_signature: Signature) -> Self {
+	pub fn new_on_master(administrator: Public, old_servers_set: BTreeSet<NodeId>, new_servers_set: BTreeSet<NodeId>, old_set_signature: Signature, new_set_signature: Signature) -> Self {
 		ServersSetChangeAccessJob {
 			administrator: administrator,
-			//current_servers_set: current_servers_set,
 			old_servers_set: Some(old_servers_set),
 			new_servers_set: Some(new_servers_set),
 			old_set_signature: Some(old_set_signature),
@@ -121,11 +119,6 @@ impl JobExecutor for ServersSetChangeAccessJob {
 			old_set_signature,
 			new_set_signature,
 		} = partial_request;
-
-		// check that current set is exactly the same set as old set
-/*		if self.current_servers_set.symmetric_difference(&old_servers_set).next().is_some() {
-			return Ok(JobPartialRequestAction::Reject(false));
-		}*/
 
 		// check old servers set signature
 		let old_actual_public = recover(&old_set_signature, &ordered_nodes_hash(&old_servers_set).into())?;

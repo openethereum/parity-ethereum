@@ -522,7 +522,8 @@ impl ClusterCore {
 			Ok(session) => session,
 			Err(error) => {
 				// this is new session => it is not yet in container
-				//warn!(target: "secretstore_net", "{}: generation session initialization error '{}' when requested for new session from node {}", data.self_key_pair.public(), err, sender);
+				warn!(target: "secretstore_net", "{}: {} session initialization error '{}' when requested for new session from node {}",
+					data.self_key_pair.public(), S::type_name(), error, sender);
 				if message.is_initialization_message() {
 					let session_id = message.into_session_id().expect("session_id only fails for cluster messages; only session messages are passed to process_message; qed");
 					let session_nonce = message.session_nonce().expect("session_nonce only fails for cluster messages; only session messages are passed to process_message; qed");
@@ -540,7 +541,7 @@ impl ClusterCore {
 				Ok(_) => {
 					// if session is completed => stop
 					if session.is_finished() {
-	//					info!(target: "secretstore_net", "{}: {} session completed", data.self_key_pair.public(), "generation");
+						info!(target: "secretstore_net", "{}: {} session completed", data.self_key_pair.public(), S::type_name());
 						sessions.remove(&session_id);
 						return Some(session);
 					}
@@ -560,14 +561,13 @@ impl ClusterCore {
 					return Some(session);
 				},
 				Err(err) => {
-					/*warn!(target: "secretstore_net", "{}: {} session error '{}' when processing message {} from node {}",
+					warn!(target: "secretstore_net", "{}: {} session error '{}' when processing message {} from node {}",
 						data.self_key_pair.public(),
-						"generation",
+						S::type_name(),
 						err,
 						message,
-						sender);*/
+						sender);
 					session.on_session_error(data.self_key_pair.public(), err);
-					//session.cluster().broadcast(error_message.into());
 					sessions.remove(&session_id);
 					return Some(session);
 				},

@@ -717,6 +717,10 @@ impl SessionImpl {
 impl ClusterSession for SessionImpl {
 	type Id = SessionId;
 
+	fn type_name() -> &'static str {
+		"generation"
+	}
+
 	fn id(&self) -> SessionId {
 		self.id.clone()
 	}

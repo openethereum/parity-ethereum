@@ -616,6 +616,10 @@ impl SessionImpl {
 impl ClusterSession for SessionImpl {
 	type Id = SessionIdWithSubSession;
 
+	fn type_name() -> &'static str {
+		"signing"
+	}
+
 	fn id(&self) -> SessionIdWithSubSession {
 		SessionIdWithSubSession::new(self.core.meta.id.clone(), self.core.access_key.clone())
 	}

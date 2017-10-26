@@ -736,6 +736,10 @@ impl<T> Session for SessionImpl<T> where T: SessionTransport + Send + Sync + 'st
 impl<T> ClusterSession for SessionImpl<T> where T: SessionTransport {
 	type Id = SessionId;
 
+	fn type_name() -> &'static str {
+		"share add"
+	}
+
 	fn id(&self) -> SessionId {
 		self.core.meta.id.clone()
 	}

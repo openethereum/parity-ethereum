@@ -883,6 +883,10 @@ impl Session for SessionImpl {
 impl ClusterSession for SessionImpl {
 	type Id = SessionId;
 
+	fn type_name() -> &'static str {
+		"servers set change"
+	}
+
 	fn id(&self) -> SessionId {
 		self.core.meta.id.clone()
 	}
