@@ -24,6 +24,8 @@ use key_server_cluster::jobs::job_session::{JobPartialResponseAction, JobPartial
 pub struct KeyAccessJob {
 	/// Key id.
 	id: SessionId,
+	/// Has key share?
+	has_key_share: bool,
 	/// ACL storage.
 	acl_storage: Arc<AclStorage>,
 	/// Requester signature.
@@ -34,6 +36,7 @@ impl KeyAccessJob {
 	pub fn new_on_slave(id: SessionId, acl_storage: Arc<AclStorage>) -> Self {
 		KeyAccessJob {
 			id: id,
+			has_key_share: true,
 			acl_storage: acl_storage,
 			signature: None,
 		}
@@ -42,9 +45,14 @@ impl KeyAccessJob {
 	pub fn new_on_master(id: SessionId, acl_storage: Arc<AclStorage>, signature: Signature) -> Self {
 		KeyAccessJob {
 			id: id,
+			has_key_share: true,
 			acl_storage: acl_storage,
 			signature: Some(signature),
 		}
+	}
+
+	pub fn set_has_key_share(&mut self, has_key_share: bool) {
+		self.has_key_share = has_key_share;
 	}
 
 	pub fn set_requester_signature(&mut self, signature: Signature) {
@@ -73,6 +81,10 @@ impl JobExecutor for KeyAccessJob {
 	}
 
 	fn process_partial_request(&mut self, partial_request: Signature) -> Result<JobPartialRequestAction<bool>, Error> {
+		if !self.has_key_share {
+			return Ok(JobPartialRequestAction::Reject(false));
+		}
+		
 		self.signature = Some(partial_request.clone());
 		self.acl_storage.check(&recover(&partial_request, &self.id)?, &self.id)
 			.map_err(|_| Error::AccessDenied)

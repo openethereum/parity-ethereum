@@ -217,6 +217,7 @@ impl SessionImpl {
 			return Err(Error::InvalidStateForRequest);
 		}
 
+		data.consensus_session.consensus_job_mut().executor_mut().set_has_key_share(false);
 		self.core.cluster.send(&master, Message::Decryption(DecryptionMessage::DecryptionSessionDelegation(DecryptionSessionDelegation {
 			session: self.core.meta.id.clone().into(),
 			sub_session: self.core.access_key.clone().into(),
@@ -1121,7 +1122,28 @@ mod tests {
 
 	#[test]
 	fn decryption_works_when_delegated_to_other_node() {
-		// TODO
+		let (_, clusters, _, mut sessions) = prepare_decryption_sessions();
+
+		// let's say node1 doesn't have a share && delegates decryption request to node0
+		// initially session is created on node1 => node1 is master for itself, but for other nodes node0 is still master
+		sessions[1].core.meta.master_node_id = sessions[1].core.meta.self_node_id.clone();
+		sessions[1].data.lock().consensus_session.consensus_job_mut().executor_mut().set_requester_signature(
+			sessions[0].data.lock().consensus_session.consensus_job().executor().requester_signature().unwrap().clone()
+		);
+
+		// now let's try to do a decryption
+		sessions[1].delegate(sessions[0].core.meta.self_node_id.clone(), Default::default(), false).unwrap();
+		do_messages_exchange(&clusters, &sessions).unwrap();
+
+		// now check that:
+		// 1) 4 of 5 sessions are in Finished state
+		assert_eq!(sessions.iter().filter(|s| s.state() == ConsensusSessionState::Finished).count(), 4);
+		// 2) 1 session has decrypted key value
+		assert_eq!(sessions[1].decrypted_secret().unwrap().unwrap(), EncryptedDocumentKeyShadow {
+			decrypted_secret: SECRET_PLAIN.into(),
+			common_point: None,
+			decrypt_shadows: None,
+		});
 	}
 
 	#[test]

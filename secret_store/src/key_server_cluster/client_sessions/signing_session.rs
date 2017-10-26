@@ -228,6 +228,7 @@ impl SessionImpl {
 			return Err(Error::InvalidStateForRequest);
 		}
 
+		data.consensus_session.consensus_job_mut().executor_mut().set_has_key_share(false);
 		self.core.cluster.send(&master, Message::Signing(SigningMessage::SigningSessionDelegation(SigningSessionDelegation {
 			session: self.core.meta.id.clone().into(),
 			sub_session: self.core.access_key.clone().into(),
@@ -368,6 +369,7 @@ impl SessionImpl {
 		let mut data = self.data.lock();
 		let is_establishing_consensus = data.consensus_session.state() == ConsensusSessionState::EstablishingConsensus;
 		data.consensus_session.on_consensus_message(&sender, &message.message)?;
+
 		if let &ConsensusMessage::InitializeConsensusSession(ref msg) = &message.message {
 			data.version = Some(msg.version.clone().into());
 		}
@@ -415,7 +417,10 @@ impl SessionImpl {
 
 		if let &GenerationMessage::InitializeSession(ref message) = &message.message {
 			if &self.core.meta.master_node_id != sender {
-				return Err(Error::InvalidMessage);
+				match data.delegation_status.as_ref() {
+					Some(&DelegationStatus::DelegatedTo(s)) if s == *sender => (),
+					_ => return Err(Error::InvalidMessage),
+				}
 			}
 
 			let consensus_group: BTreeSet<NodeId> = message.nodes.keys().cloned().map(Into::into).collect();
@@ -800,7 +805,8 @@ mod tests {
 	use bigint::hash::H256;
 	use ethkey::{self, Random, Generator, Public, Secret, KeyPair};
 	use acl_storage::DummyAclStorage;
-	use key_server_cluster::{NodeId, DocumentKeyShare, DocumentKeyShareVersion, SessionId, SessionMeta, Error, KeyStorage};
+	use key_server_cluster::{NodeId, DummyKeyStorage, DocumentKeyShare, DocumentKeyShareVersion, SessionId, SessionMeta, Error, KeyStorage};
+	use key_server_cluster::cluster_sessions::ClusterSession;
 	use key_server_cluster::cluster::tests::DummyCluster;
 	use key_server_cluster::generation_session::{Session as GenerationSession};
 	use key_server_cluster::generation_session::tests::MessageLoop as KeyGenerationMessageLoop;
@@ -812,6 +818,7 @@ mod tests {
 	struct Node {
 		pub node_id: NodeId,
 		pub cluster: Arc<DummyCluster>,
+		pub key_storage: Arc<DummyKeyStorage>,
 		pub session: SessionImpl,
 	}
 
@@ -850,7 +857,7 @@ mod tests {
 					cluster: cluster.clone(),
 					nonce: 0,
 				}, if i == 0 { signature.clone() } else { None }).unwrap();
-				nodes.insert(gl_node_id.clone(), Node { node_id: gl_node_id.clone(), cluster: cluster, session: session });
+				nodes.insert(gl_node_id.clone(), Node { node_id: gl_node_id.clone(), cluster: cluster, key_storage: gl_node.key_storage.clone(), session: session });
 			}
 
 			let nodes_ids: Vec<_> = nodes.keys().cloned().collect();
@@ -884,16 +891,7 @@ mod tests {
 		pub fn process_message(&mut self, mut msg: (NodeId, NodeId, Message)) -> Result<(), Error> {
 			let mut is_queued_message = false;
 			loop {
-				match {
-					match msg.2 {
-						Message::Signing(SigningMessage::SigningConsensusMessage(ref message)) => self.nodes[&msg.1].session.on_consensus_message(&msg.0, &message),
-						Message::Signing(SigningMessage::SigningGenerationMessage(ref message)) => self.nodes[&msg.1].session.on_generation_message(&msg.0, &message),
-						Message::Signing(SigningMessage::RequestPartialSignature(ref message)) => self.nodes[&msg.1].session.on_partial_signature_requested(&msg.0, &message),
-						Message::Signing(SigningMessage::PartialSignature(ref message)) => self.nodes[&msg.1].session.on_partial_signature(&msg.0, &message),
-						Message::Signing(SigningMessage::SigningSessionCompleted(ref message)) => self.nodes[&msg.1].session.on_session_completed(&msg.0, &message),
-						_ => panic!("unexpected"),
-					}
-				} {
+				match self.nodes[&msg.1].session.on_message(&msg.0, &msg.2) {
 					Ok(_) => {
 						if let Some(message) = self.queue.pop_front() {
 							msg = message;
@@ -1223,7 +1221,27 @@ mod tests {
 
 	#[test]
 	fn signing_works_when_delegated_to_other_node() {
-		// TODO
+		let (_, mut sl) = prepare_signing_sessions(1, 3);
+
+		// let's say node1 doesn't have a share && delegates decryption request to node0
+		// initially session is created on node1 => node1 is master for itself, but for other nodes node0 is still master
+		let actual_master = sl.nodes.keys().nth(0).cloned().unwrap();
+		let requested_node = sl.nodes.keys().skip(1).nth(0).cloned().unwrap();
+		let version = sl.nodes[&actual_master].key_storage.get(&Default::default()).unwrap().unwrap().last_version().unwrap().hash.clone();
+		sl.nodes[&requested_node].key_storage.remove(&Default::default()).unwrap();
+		sl.nodes.get_mut(&requested_node).unwrap().session.core.key_share = None;
+		sl.nodes.get_mut(&requested_node).unwrap().session.core.meta.master_node_id = sl.nodes[&requested_node].session.core.meta.self_node_id.clone();
+		sl.nodes[&requested_node].session.data.lock().consensus_session.consensus_job_mut().executor_mut().set_requester_signature(
+			sl.nodes[&actual_master].session.data.lock().consensus_session.consensus_job().executor().requester_signature().unwrap().clone()
+		);
+
+		// now let's try to do a decryption
+		sl.nodes[&requested_node].session.delegate(actual_master, version, Default::default()).unwrap();
+
+		// then consensus reachable, but single node will disagree
+		while let Some((from, to, message)) = sl.take_message() {
+			sl.process_message((from, to, message)).unwrap();
+		}
 	}
 
 	#[test]

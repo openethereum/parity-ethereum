@@ -851,12 +851,10 @@ impl Message {
 				ConsensusMessage::InitializeConsensusSession(_) => true,
 				_ => false
 			},
-			//Message::Decryption(DecryptionMessage::DecryptionSessionDelegation(_)) => true,
 			Message::Signing(SigningMessage::SigningConsensusMessage(ref msg)) => match msg.message {
 				ConsensusMessage::InitializeConsensusSession(_) => true,
 				_ => false
 			},
-			//Message::Signing(SigningMessage::SigningSessionDelegation(_)) => true,
 			Message::KeyVersionNegotiation(KeyVersionNegotiationMessage::RequestKeyVersions(_)) => true,
 			Message::ShareAdd(ShareAddMessage::ShareAddConsensusMessage(ref msg)) => match msg.message {
 				ConsensusMessageOfShareAdd::InitializeConsensusSession(_) => true,
@@ -1156,7 +1154,7 @@ impl fmt::Display for ConsensusMessage {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match *self {
 			ConsensusMessage::InitializeConsensusSession(_) => write!(f, "InitializeConsensusSession"),
-			ConsensusMessage::ConfirmConsensusInitialization(_) => write!(f, "ConfirmConsensusInitialization"),
+			ConsensusMessage::ConfirmConsensusInitialization(ref msg) => write!(f, "ConfirmConsensusInitialization({})", msg.is_confirmed),
 		}
 	}
 }
