@@ -26,6 +26,7 @@ import qs from 'querystring';
 import ContractInstances from '@parity/shared/contracts';
 import { initStore } from '@parity/shared/redux';
 import ContextProvider from '@parity/ui/ContextProvider';
+import { BondProxy } from 'oo7-parity';
 
 import '@parity/shared/environment';
 
@@ -56,6 +57,7 @@ if (window.location.hash && window.location.hash.indexOf(AUTH_HASH) === 0) {
 }
 
 const api = new SecureApi(window.location.host, token);
+const proxy = new BondProxy(); // eslint-disable-line
 
 api.parity.registryAddress().then((address) => console.log('registryAddress', address)).catch((error) => console.error('registryAddress', error));
 
