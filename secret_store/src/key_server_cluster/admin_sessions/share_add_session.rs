@@ -1255,6 +1255,32 @@ pub mod tests {
 
 	#[test]
 	fn nodes_add_fails_when_not_enough_share_owners_are_connected() {
-		// TODO
+		let (n, nodes_to_add) = (3, 3);
+
+		// generate key (2-of-3) && prepare ShareAdd sessions
+		let old_nodes_set = generate_nodes_ids(n);
+		let new_nodes_set: BTreeSet<_> = old_nodes_set.clone().into_iter().chain(generate_nodes_ids(nodes_to_add)).collect();
+		let master_node_id = old_nodes_set.iter().cloned().nth(0).unwrap();
+		let isolated_node_id1 = old_nodes_set.iter().cloned().nth(1).unwrap();
+		let isolated_node_id2 = old_nodes_set.iter().cloned().nth(2).unwrap();
+		let mut ml = MessageLoop::new(1, master_node_id.clone(), old_nodes_set.clone(), new_nodes_set.clone());
+
+		// now let's isolate 2 of 3 nodes owning key share
+		ml.nodes.remove(&isolated_node_id1);
+		ml.nodes.remove(&isolated_node_id2);
+		ml.old_nodes_set.remove(&isolated_node_id1);
+		ml.new_nodes_set.remove(&isolated_node_id1);
+		ml.old_nodes_set.remove(&isolated_node_id2);
+		ml.new_nodes_set.remove(&isolated_node_id2);
+		for (_, node) in ml.nodes.iter_mut() {
+			node.cluster.remove_node(&isolated_node_id1);
+			node.cluster.remove_node(&isolated_node_id2);
+		}
+		ml.update_signature();
+
+		// initialize session on master node && run to completion (2-of-5)
+		assert_eq!(ml.nodes[&master_node_id].session.initialize(Some(ml.version), Some(new_nodes_set),
+			Some(ml.old_set_signature.clone()),
+			Some(ml.new_set_signature.clone())).map(|_| ()), Err(Error::ConsensusUnreachable));
 	}
 }
