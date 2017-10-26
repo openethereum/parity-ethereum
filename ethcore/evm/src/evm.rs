@@ -17,7 +17,7 @@
 //! Evm interface.
 
 use std::{ops, cmp, fmt};
-use util::{U128, U256, U512};
+use bigint::prelude::{U128, U256, U512};
 use vm::{Ext, Result, ReturnData, GasLeft, Error};
 
 /// Finalization result. Gas Left: either it is a known value, or it needs to be computed by processing
@@ -45,7 +45,7 @@ impl Finalize for Result<GasLeft> {
 	fn finalize<E: Ext>(self, ext: E) -> Result<FinalizationResult> {
 		match self {
 			Ok(GasLeft::Known(gas_left)) => Ok(FinalizationResult { gas_left: gas_left, apply_state: true, return_data: ReturnData::empty() }),
-			Ok(GasLeft::NeedsReturn {gas_left, data, apply_state}) => ext.ret(&gas_left, &data).map(|gas_left| FinalizationResult {
+			Ok(GasLeft::NeedsReturn {gas_left, data, apply_state}) => ext.ret(&gas_left, &data, apply_state).map(|gas_left| FinalizationResult {
 				gas_left: gas_left,
 				apply_state: apply_state,
 				return_data: data,
@@ -149,7 +149,7 @@ impl CostType for usize {
 
 #[cfg(test)]
 mod tests {
-	use util::U256;
+	use bigint::prelude::U256;
 	use super::CostType;
 
 	#[test]

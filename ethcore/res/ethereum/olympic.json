@@ -6,6 +6,7 @@
 				"minimumDifficulty": "0x020000",
 				"difficultyBoundDivisor": "0x0800",
 				"durationLimit": "0x08",
+				"blockReward": "0x14D1120D7B160000",
 				"homesteadTransition": "0x7fffffffffffffff",
 				"eip150Transition": "0x7fffffffffffffff",
 				"eip160Transition": "0x7fffffffffffffff",
@@ -16,7 +17,6 @@
 	},
 	"params": {
 		"gasLimitBoundDivisor": "0x0400",
-		"blockReward": "0x14D1120D7B160000",
 		"registrar": "5e70c0bbcd5636e0f9f9316e9f8633feb64d4050",
 		"accountStartNonce": "0x00",
 		"maximumExtraDataSize": "0x0400",

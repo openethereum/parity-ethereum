@@ -18,9 +18,12 @@
 use std::cmp;
 use std::sync::Arc;
 use hash::keccak;
+use bigint::prelude::{U256, U512};
+use bigint::hash::H256;
 use util::*;
+use bytes::{Bytes, BytesRef};
 use state::{Backend as StateBackend, State, Substate, CleanupMode};
-use engines::Engine;
+use machine::EthereumMachine as Machine;
 use vm::EnvInfo;
 use error::ExecutionError;
 use evm::{CallType, Factory, Finalize, FinalizationResult};
@@ -75,6 +78,8 @@ pub struct TransactOptions<T, V> {
 	pub vm_tracer: V,
 	/// Check transaction nonce before execution.
 	pub check_nonce: bool,
+	/// Records the output from init contract calls.
+	pub output_from_init_contract: bool,
 }
 
 impl<T, V> TransactOptions<T, V> {
@@ -84,12 +89,19 @@ impl<T, V> TransactOptions<T, V> {
 			tracer,
 			vm_tracer,
 			check_nonce: true,
+			output_from_init_contract: false,
 		}
 	}
 
 	/// Disables the nonce check
 	pub fn dont_check_nonce(mut self) -> Self {
 		self.check_nonce = false;
+		self
+	}
+
+	/// Saves the output from contract creation.
+	pub fn save_output_from_contract(mut self) -> Self {
+		self.output_from_init_contract = true;
 		self
 	}
 }
@@ -101,6 +113,7 @@ impl TransactOptions<trace::ExecutiveTracer, trace::ExecutiveVMTracer> {
 			tracer: trace::ExecutiveTracer::default(),
 			vm_tracer: trace::ExecutiveVMTracer::toplevel(),
 			check_nonce: true,
+			output_from_init_contract: false,
 		}
 	}
 }
@@ -112,6 +125,7 @@ impl TransactOptions<trace::ExecutiveTracer, trace::NoopVMTracer> {
 			tracer: trace::ExecutiveTracer::default(),
 			vm_tracer: trace::NoopVMTracer,
 			check_nonce: true,
+			output_from_init_contract: false,
 		}
 	}
 }
@@ -123,6 +137,7 @@ impl TransactOptions<trace::NoopTracer, trace::ExecutiveVMTracer> {
 			tracer: trace::NoopTracer,
 			vm_tracer: trace::ExecutiveVMTracer::toplevel(),
 			check_nonce: true,
+			output_from_init_contract: false,
 		}
 	}
 }
@@ -134,14 +149,13 @@ impl TransactOptions<trace::NoopTracer, trace::NoopVMTracer> {
 			tracer: trace::NoopTracer,
 			vm_tracer: trace::NoopVMTracer,
 			check_nonce: true,
+			output_from_init_contract: false,
 		}
 	}
 }
 
-pub fn executor<E>(engine: &E, vm_factory: &Factory, params: &ActionParams)
-	-> Box<vm::Vm> where E: Engine + ?Sized
-{
-	if engine.supports_wasm() && params.code.as_ref().map_or(false, |code| code.len() > 4 && &code[0..4] == WASM_MAGIC_NUMBER) {
+pub fn executor(machine: &Machine, vm_factory: &Factory, params: &ActionParams) -> Box<vm::Vm> {
+	if machine.supports_wasm() && params.code.as_ref().map_or(false, |code| code.len() > 4 && &code[0..4] == WASM_MAGIC_NUMBER) {
 		Box::new(
 			wasm::WasmInterpreter::new()
 				// prefer to fail fast
@@ -153,32 +167,32 @@ pub fn executor<E>(engine: &E, vm_factory: &Factory, params: &ActionParams)
 }
 
 /// Transaction executor.
-pub struct Executive<'a, B: 'a + StateBackend, E: 'a + Engine + ?Sized> {
+pub struct Executive<'a, B: 'a + StateBackend> {
 	state: &'a mut State<B>,
 	info: &'a EnvInfo,
-	engine: &'a E,
+	machine: &'a Machine,
 	depth: usize,
 	static_flag: bool,
 }
 
-impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
+impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 	/// Basic constructor.
-	pub fn new(state: &'a mut State<B>, info: &'a EnvInfo, engine: &'a E) -> Self {
+	pub fn new(state: &'a mut State<B>, info: &'a EnvInfo, machine: &'a Machine) -> Self {
 		Executive {
 			state: state,
 			info: info,
-			engine: engine,
+			machine: machine,
 			depth: 0,
 			static_flag: false,
 		}
 	}
 
 	/// Populates executive from parent properties. Increments executive depth.
-	pub fn from_parent(state: &'a mut State<B>, info: &'a EnvInfo, engine: &'a E, parent_depth: usize, static_flag: bool) -> Self {
+	pub fn from_parent(state: &'a mut State<B>, info: &'a EnvInfo, machine: &'a Machine, parent_depth: usize, static_flag: bool) -> Self {
 		Executive {
 			state: state,
 			info: info,
-			engine: engine,
+			machine: machine,
 			depth: parent_depth + 1,
 			static_flag: static_flag,
 		}
@@ -193,16 +207,16 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 		tracer: &'any mut T,
 		vm_tracer: &'any mut V,
 		static_call: bool,
-	) -> Externalities<'any, T, V, B, E> where T: Tracer, V: VMTracer {
+	) -> Externalities<'any, T, V, B> where T: Tracer, V: VMTracer {
 		let is_static = self.static_flag || static_call;
-		Externalities::new(self.state, self.info, self.engine, self.depth, origin_info, substate, output, tracer, vm_tracer, is_static)
+		Externalities::new(self.state, self.info, self.machine, self.depth, origin_info, substate, output, tracer, vm_tracer, is_static)
 	}
 
 	/// This function should be used to execute transaction.
 	pub fn transact<T, V>(&'a mut self, t: &SignedTransaction, options: TransactOptions<T, V>)
 		-> Result<Executed, ExecutionError> where T: Tracer, V: VMTracer,
 	{
-		self.transact_with_tracer(t, options.check_nonce, options.tracer, options.vm_tracer)
+		self.transact_with_tracer(t, options.check_nonce, options.output_from_init_contract, options.tracer, options.vm_tracer)
 	}
 
 	/// Execute a transaction in a "virtual" context.
@@ -227,13 +241,14 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 		&'a mut self,
 		t: &SignedTransaction,
 		check_nonce: bool,
+		output_from_create: bool,
 		mut tracer: T,
 		mut vm_tracer: V
 	) -> Result<Executed, ExecutionError> where T: Tracer, V: VMTracer {
 		let sender = t.sender();
 		let nonce = self.state.nonce(&sender)?;
 
-		let schedule = self.engine.schedule(self.info.number);
+		let schedule = self.machine.schedule(self.info.number);
 		let base_gas_required = U256::from(t.gas_required(&schedule));
 
 		if t.gas < base_gas_required {
@@ -274,14 +289,14 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 		let mut substate = Substate::new();
 
 		// NOTE: there can be no invalid transactions from this point.
-		if !t.is_unsigned() {
+		if !schedule.eip86 || !t.is_unsigned() {
 			self.state.inc_nonce(&sender)?;
 		}
 		self.state.sub_balance(&sender, &U256::from(gas_cost), &mut substate.to_cleanup_mode(&schedule))?;
 
 		let (result, output) = match t.action {
 			Action::Create => {
-				let (new_address, code_hash) = contract_address(self.engine.create_address_scheme(self.info.number), &sender, &nonce, &t.data);
+				let (new_address, code_hash) = contract_address(self.machine.create_address_scheme(self.info.number), &sender, &nonce, &t.data);
 				let params = ActionParams {
 					code_address: new_address.clone(),
 					code_hash: code_hash,
@@ -295,7 +310,8 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 					data: None,
 					call_type: CallType::None,
 				};
-				(self.create(params, &mut substate, &mut tracer, &mut vm_tracer), vec![])
+				let mut out = if output_from_create { Some(vec![]) } else { None };
+				(self.create(params, &mut substate, &mut out, &mut tracer, &mut vm_tracer), out.unwrap_or_else(Vec::new))
 			},
 			Action::Call(ref address) => {
 				let params = ActionParams {
@@ -337,19 +353,19 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 			let vm_factory = self.state.vm_factory();
 			let mut ext = self.as_externalities(OriginInfo::from(&params), unconfirmed_substate, output_policy, tracer, vm_tracer, static_call);
 			trace!(target: "executive", "ext.schedule.have_delegate_call: {}", ext.schedule().have_delegate_call);
-			return executor(self.engine, &vm_factory, &params).exec(params, &mut ext).finalize(ext);
+			return executor(self.machine, &vm_factory, &params).exec(params, &mut ext).finalize(ext);
 		}
 
 		// Start in new thread to reset stack
 		// TODO [todr] No thread builder yet, so we need to reset once for a while
 		// https://github.com/aturon/crossbeam/issues/16
 		crossbeam::scope(|scope| {
-			let engine = self.engine;
+			let machine = self.machine;
 			let vm_factory = self.state.vm_factory();
 			let mut ext = self.as_externalities(OriginInfo::from(&params), unconfirmed_substate, output_policy, tracer, vm_tracer, static_call);
 
 			scope.spawn(move || {
-				executor(engine, &vm_factory, &params).exec(params, &mut ext).finalize(ext)
+				executor(machine, &vm_factory, &params).exec(params, &mut ext).finalize(ext)
 			})
 		}).join()
 	}
@@ -365,12 +381,12 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 		mut output: BytesRef,
 		tracer: &mut T,
 		vm_tracer: &mut V
-	) -> vm::Result<(U256, ReturnData)> where T: Tracer, V: VMTracer {
+	) -> vm::Result<FinalizationResult> where T: Tracer, V: VMTracer {
 
-		trace!("Executive::call(params={:?}) self.env_info={:?}", params, self.info);
+		trace!("Executive::call(params={:?}) self.env_info={:?}, static={}", params, self.info, self.static_flag);
 		if (params.call_type == CallType::StaticCall ||
-				((params.call_type == CallType::Call || params.call_type == CallType::DelegateCall) &&
-				 self.static_flag))
+				((params.call_type == CallType::Call) &&
+				self.static_flag))
 			&& params.value.value() > 0.into() {
 			return Err(vm::Error::MutableCallInStaticContext);
 		}
@@ -378,7 +394,7 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 		// backup used in case of running out of gas
 		self.state.checkpoint();
 
-		let schedule = self.engine.schedule(self.info.number);
+		let schedule = self.machine.schedule(self.info.number);
 
 		// at first, transfer value to destination
 		if let ActionValue::Transfer(val) = params.value {
@@ -386,7 +402,7 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 		}
 
 		// if destination is builtin, try to execute it
-		if let Some(builtin) = self.engine.builtin(&params.code_address, self.info.number) {
+		if let Some(builtin) = self.machine.builtin(&params.code_address, self.info.number) {
 			// Engines aren't supposed to return builtins until activation, but
 			// prefer to fail rather than silently break consensus.
 			if !builtin.is_active(self.info.number) {
@@ -400,18 +416,24 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 
 			let cost = builtin.cost(data);
 			if cost <= params.gas {
-				if let Err(e) = builtin.execute(data, &mut output) {
+				let mut builtin_out_buffer = Vec::new();
+				let result = {
+					let mut builtin_output = BytesRef::Flexible(&mut builtin_out_buffer);
+					builtin.execute(data, &mut builtin_output)
+				};
+				if let Err(e) = result {
 					self.state.revert_to_checkpoint();
 					let evm_err: vm::Error = e.into();
 					tracer.trace_failed_call(trace_info, vec![], evm_err.clone().into());
 					Err(evm_err)
 				} else {
 					self.state.discard_checkpoint();
+					output.write(0, &builtin_out_buffer);
 
 					// trace only top level calls to builtins to avoid DDoS attacks
 					if self.depth == 0 {
 						let mut trace_output = tracer.prepare_trace_output();
-						if let Some(mut out) = trace_output.as_mut() {
+						if let Some(out) = trace_output.as_mut() {
 							*out = output.to_owned();
 						}
 
@@ -423,7 +445,12 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 						);
 					}
 
-					Ok((params.gas - cost, ReturnData::empty()))
+					let out_len = builtin_out_buffer.len();
+					Ok(FinalizationResult {
+						gas_left: params.gas - cost,
+						return_data: ReturnData::new(builtin_out_buffer, 0, out_len),
+						apply_state: true,
+					})
 				}
 			} else {
 				// just drain the whole gas
@@ -470,13 +497,17 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 
 				self.enact_result(&res, substate, unconfirmed_substate);
 				trace!(target: "executive", "enacted: substate={:?}\n", substate);
-				res.map(|r| (r.gas_left, r.return_data))
+				res
 			} else {
 				// otherwise it's just a basic transaction, only do tracing, if necessary.
 				self.state.discard_checkpoint();
 
 				tracer.trace_call(trace_info, U256::zero(), trace_output, vec![]);
-				Ok((params.gas, ReturnData::empty()))
+				Ok(FinalizationResult {
+					gas_left: params.gas,
+					return_data: ReturnData::empty(),
+					apply_state: true,
+				})
 			}
 		}
 	}
@@ -488,15 +519,21 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 		&mut self,
 		params: ActionParams,
 		substate: &mut Substate,
+		output: &mut Option<Bytes>,
 		tracer: &mut T,
 		vm_tracer: &mut V,
-	) -> vm::Result<(U256, ReturnData)> where T: Tracer, V: VMTracer {
+	) -> vm::Result<FinalizationResult> where T: Tracer, V: VMTracer {
 
-		let scheme = self.engine.create_address_scheme(self.info.number);
-		if scheme != CreateContractAddress::FromSenderAndNonce && self.state.exists_and_has_code(&params.address)? {
+		// EIP-684: If a contract creation is attempted, due to either a creation transaction or the
+		// CREATE (or future CREATE2) opcode, and the destination address already has either
+		// nonzero nonce, or nonempty code, then the creation throws immediately, with exactly
+		// the same behavior as would arise if the first byte in the init code were an invalid
+		// opcode. This applies retroactively starting from genesis.
+		if self.state.exists_and_has_code_or_nonce(&params.address)? {
 			return Err(vm::Error::OutOfGas);
 		}
 
+		trace!("Executive::create(params={:?}) self.env_info={:?}, static={}", params, self.info, self.static_flag);
 		if params.call_type == CallType::StaticCall || self.static_flag {
 			let trace_info = tracer.prepare_trace_create(&params);
 			tracer.trace_failed_create(trace_info, vec![], vm::Error::MutableCallInStaticContext.into());
@@ -510,7 +547,7 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 		let mut unconfirmed_substate = Substate::new();
 
 		// create contract and transfer value to it if necessary
-		let schedule = self.engine.schedule(self.info.number);
+		let schedule = self.machine.schedule(self.info.number);
 		let nonce_offset = if schedule.no_empty {1} else {0}.into();
 		let prev_bal = self.state.balance(&params.address)?;
 		if let ActionValue::Transfer(val) = params.value {
@@ -529,7 +566,7 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 		let mut subvmtracer = vm_tracer.prepare_subtrace(params.code.as_ref().expect("two ways into create (Externalities::create and Executive::transact_with_tracer); both place `Some(...)` `code` in `params`; qed"));
 
 		let res = {
-			self.exec_vm(params, &mut unconfirmed_substate, OutputPolicy::InitContract(trace_output.as_mut()), &mut subtracer, &mut subvmtracer)
+			self.exec_vm(params, &mut unconfirmed_substate, OutputPolicy::InitContract(output.as_mut().or(trace_output.as_mut())), &mut subtracer, &mut subvmtracer)
 		};
 
 		vm_tracer.done_subtrace(subvmtracer);
@@ -538,7 +575,7 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 			Ok(ref res) => tracer.trace_create(
 				trace_info,
 				gas - res.gas_left,
-				trace_output,
+				trace_output.map(|data| output.as_ref().map(|out| out.to_vec()).unwrap_or(data)),
 				created,
 				subtracer.drain()
 			),
@@ -546,7 +583,7 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 		};
 
 		self.enact_result(&res, substate, unconfirmed_substate);
-		res.map(|r| (r.gas_left, r.return_data))
+		res
 	}
 
 	/// Finalizes the transaction (does refunds and suicides).
@@ -554,12 +591,12 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 		&mut self,
 		t: &SignedTransaction,
 		mut substate: Substate,
-		result: vm::Result<(U256, ReturnData)>,
+		result: vm::Result<FinalizationResult>,
 		output: Bytes,
 		trace: Vec<FlatTrace>,
 		vm_trace: Option<VMTrace>
 	) -> ExecutionResult {
-		let schedule = self.engine.schedule(self.info.number);
+		let schedule = self.machine.schedule(self.info.number);
 
 		// refunds from SSTORE nonzero -> zero
 		let sstore_refunds = U256::from(schedule.sstore_refund_gas) * substate.sstore_clears_count;
@@ -568,7 +605,7 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 		let refunds_bound = sstore_refunds + suicide_refunds;
 
 		// real ammount to refund
-		let gas_left_prerefund = match result { Ok((x, _)) => x, _ => 0.into() };
+		let gas_left_prerefund = match result { Ok(FinalizationResult{ gas_left, .. }) => gas_left, _ => 0.into() };
 		let refunded = cmp::min(refunds_bound, (t.gas - gas_left_prerefund) >> 1);
 		let gas_left = gas_left_prerefund + refunded;
 
@@ -612,9 +649,9 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 					state_diff: None,
 				})
 			},
-			_ => {
+			Ok(r) => {
 				Ok(Executed {
-					exception: None,
+					exception: if r.apply_state { None } else { Some(vm::Error::Reverted) },
 					gas: t.gas,
 					gas_used: gas_used,
 					refunded: refunded,
@@ -640,6 +677,8 @@ impl<'a, B: 'a + StateBackend, E: Engine + ?Sized> Executive<'a, B, E> {
 				| Err(vm::Error::Wasm {..})
 				| Err(vm::Error::OutOfStack {..})
 				| Err(vm::Error::MutableCallInStaticContext)
+				| Err(vm::Error::OutOfBounds)
+				| Err(vm::Error::Reverted)
 				| Ok(FinalizationResult { apply_state: false, .. }) => {
 					self.state.revert_to_checkpoint();
 			},
@@ -659,17 +698,26 @@ mod tests {
 	use rustc_hex::FromHex;
 	use ethkey::{Generator, Random};
 	use super::*;
-	use util::{H256, U256, U512, Address};
-	use util::bytes::BytesRef;
+	use bigint::prelude::{U256, U512};
+	use bigint::hash::H256;
+	use util::Address;
+	use bytes::BytesRef;
 	use vm::{ActionParams, ActionValue, CallType, EnvInfo, CreateContractAddress};
 	use evm::{Factory, VMType};
 	use error::ExecutionError;
+	use machine::EthereumMachine;
 	use state::{Substate, CleanupMode};
 	use tests::helpers::*;
 	use trace::trace;
 	use trace::{FlatTrace, Tracer, NoopTracer, ExecutiveTracer};
 	use trace::{VMTrace, VMOperation, VMExecutedOperation, MemoryDiff, StorageDiff, VMTracer, NoopVMTracer, ExecutiveVMTracer};
 	use transaction::{Action, Transaction};
+
+	fn make_frontier_machine(max_depth: usize) -> EthereumMachine {
+		let mut machine = ::ethereum::new_frontier_test_machine();
+		machine.set_schedule_creation_rules(Box::new(move |s, _| s.max_depth = max_depth));
+		machine
+	}
 
 	#[test]
 	fn test_contract_address() {
@@ -692,12 +740,12 @@ mod tests {
 		let mut state = get_temp_state_with_factory(factory);
 		state.add_balance(&sender, &U256::from(0x100u64), CleanupMode::NoEmpty).unwrap();
 		let info = EnvInfo::default();
-		let engine = TestEngine::new(0);
+		let machine = make_frontier_machine(0);
 		let mut substate = Substate::new();
 
-		let (gas_left, _) = {
-			let mut ex = Executive::new(&mut state, &info, &engine);
-			ex.create(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer).unwrap()
+		let FinalizationResult { gas_left, .. } = {
+			let mut ex = Executive::new(&mut state, &info, &machine);
+			ex.create(params, &mut substate, &mut None, &mut NoopTracer, &mut NoopVMTracer).unwrap()
 		};
 
 		assert_eq!(gas_left, U256::from(79_975));
@@ -750,12 +798,12 @@ mod tests {
 		let mut state = get_temp_state_with_factory(factory);
 		state.add_balance(&sender, &U256::from(100), CleanupMode::NoEmpty).unwrap();
 		let info = EnvInfo::default();
-		let engine = TestEngine::new(0);
+		let machine = make_frontier_machine(0);
 		let mut substate = Substate::new();
 
-		let (gas_left, _) = {
-			let mut ex = Executive::new(&mut state, &info, &engine);
-			ex.create(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer).unwrap()
+		let FinalizationResult { gas_left, .. } = {
+			let mut ex = Executive::new(&mut state, &info, &machine);
+			ex.create(params, &mut substate, &mut None, &mut NoopTracer, &mut NoopVMTracer).unwrap()
 		};
 
 		assert_eq!(gas_left, U256::from(62_976));
@@ -806,13 +854,13 @@ mod tests {
 		let mut state = get_temp_state();
 		state.add_balance(&sender, &U256::from(100), CleanupMode::NoEmpty).unwrap();
 		let info = EnvInfo::default();
-		let engine = TestEngine::new(5);
+		let machine = make_frontier_machine(5);
 		let mut substate = Substate::new();
 		let mut tracer = ExecutiveTracer::default();
 		let mut vm_tracer = ExecutiveVMTracer::toplevel();
 
-		let (gas_left, _) = {
-			let mut ex = Executive::new(&mut state, &info, &engine);
+		let FinalizationResult { gas_left, .. } = {
+			let mut ex = Executive::new(&mut state, &info, &machine);
 			let output = BytesRef::Fixed(&mut[0u8;0]);
 			ex.call(params, &mut substate, output, &mut tracer, &mut vm_tracer).unwrap()
 		};
@@ -915,14 +963,14 @@ mod tests {
 		let mut state = get_temp_state();
 		state.add_balance(&sender, &U256::from(100), CleanupMode::NoEmpty).unwrap();
 		let info = EnvInfo::default();
-		let engine = TestEngine::new(5);
+		let machine = make_frontier_machine(5);
 		let mut substate = Substate::new();
 		let mut tracer = ExecutiveTracer::default();
 		let mut vm_tracer = ExecutiveVMTracer::toplevel();
 
-		let (gas_left, _) = {
-			let mut ex = Executive::new(&mut state, &info, &engine);
-			ex.create(params.clone(), &mut substate, &mut tracer, &mut vm_tracer).unwrap()
+		let FinalizationResult { gas_left, .. } = {
+			let mut ex = Executive::new(&mut state, &info, &machine);
+			ex.create(params.clone(), &mut substate, &mut None, &mut tracer, &mut vm_tracer).unwrap()
 		};
 
 		assert_eq!(gas_left, U256::from(96_776));
@@ -1002,12 +1050,12 @@ mod tests {
 		let mut state = get_temp_state_with_factory(factory);
 		state.add_balance(&sender, &U256::from(100), CleanupMode::NoEmpty).unwrap();
 		let info = EnvInfo::default();
-		let engine = TestEngine::new(0);
+		let machine = make_frontier_machine(0);
 		let mut substate = Substate::new();
 
-		let (gas_left, _) = {
-			let mut ex = Executive::new(&mut state, &info, &engine);
-			ex.create(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer).unwrap()
+		let FinalizationResult { gas_left, .. } = {
+			let mut ex = Executive::new(&mut state, &info, &machine);
+			ex.create(params, &mut substate, &mut None, &mut NoopTracer, &mut NoopVMTracer).unwrap()
 		};
 
 		assert_eq!(gas_left, U256::from(62_976));
@@ -1053,12 +1101,12 @@ mod tests {
 		let mut state = get_temp_state_with_factory(factory);
 		state.add_balance(&sender, &U256::from(100), CleanupMode::NoEmpty).unwrap();
 		let info = EnvInfo::default();
-		let engine = TestEngine::new(1024);
+		let machine = make_frontier_machine(1024);
 		let mut substate = Substate::new();
 
 		{
-			let mut ex = Executive::new(&mut state, &info, &engine);
-			ex.create(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer).unwrap();
+			let mut ex = Executive::new(&mut state, &info, &machine);
+			ex.create(params, &mut substate, &mut None, &mut NoopTracer, &mut NoopVMTracer).unwrap();
 		}
 
 		assert_eq!(substate.contracts_created.len(), 1);
@@ -1113,11 +1161,11 @@ mod tests {
 		state.add_balance(&sender, &U256::from(100_000), CleanupMode::NoEmpty).unwrap();
 
 		let info = EnvInfo::default();
-		let engine = TestEngine::new(0);
+		let machine = make_frontier_machine(0);
 		let mut substate = Substate::new();
 
-		let (gas_left, _) = {
-			let mut ex = Executive::new(&mut state, &info, &engine);
+		let FinalizationResult { gas_left, .. } = {
+			let mut ex = Executive::new(&mut state, &info, &machine);
 			ex.call(params, &mut substate, BytesRef::Fixed(&mut []), &mut NoopTracer, &mut NoopVMTracer).unwrap()
 		};
 
@@ -1157,11 +1205,11 @@ mod tests {
 		let mut state = get_temp_state_with_factory(factory);
 		state.init_code(&address, code).unwrap();
 		let info = EnvInfo::default();
-		let engine = TestEngine::new(0);
+		let machine = make_frontier_machine(0);
 		let mut substate = Substate::new();
 
-		let (gas_left, _) = {
-			let mut ex = Executive::new(&mut state, &info, &engine);
+		let FinalizationResult { gas_left, .. } = {
+			let mut ex = Executive::new(&mut state, &info, &machine);
 			ex.call(params, &mut substate, BytesRef::Fixed(&mut []), &mut NoopTracer, &mut NoopVMTracer).unwrap()
 		};
 
@@ -1190,10 +1238,10 @@ mod tests {
 		state.add_balance(&sender, &U256::from(18), CleanupMode::NoEmpty).unwrap();
 		let mut info = EnvInfo::default();
 		info.gas_limit = U256::from(100_000);
-		let engine = TestEngine::new(0);
+		let machine = make_frontier_machine(0);
 
 		let executed = {
-			let mut ex = Executive::new(&mut state, &info, &engine);
+			let mut ex = Executive::new(&mut state, &info, &machine);
 			let opts = TransactOptions::with_no_tracing();
 			ex.transact(&t, opts).unwrap()
 		};
@@ -1227,10 +1275,10 @@ mod tests {
 		state.add_balance(&sender, &U256::from(17), CleanupMode::NoEmpty).unwrap();
 		let mut info = EnvInfo::default();
 		info.gas_limit = U256::from(100_000);
-		let engine = TestEngine::new(0);
+		let machine = make_frontier_machine(0);
 
 		let res = {
-			let mut ex = Executive::new(&mut state, &info, &engine);
+			let mut ex = Executive::new(&mut state, &info, &machine);
 			let opts = TransactOptions::with_no_tracing();
 			ex.transact(&t, opts)
 		};
@@ -1260,10 +1308,10 @@ mod tests {
 		let mut info = EnvInfo::default();
 		info.gas_used = U256::from(20_000);
 		info.gas_limit = U256::from(100_000);
-		let engine = TestEngine::new(0);
+		let machine = make_frontier_machine(0);
 
 		let res = {
-			let mut ex = Executive::new(&mut state, &info, &engine);
+			let mut ex = Executive::new(&mut state, &info, &machine);
 			let opts = TransactOptions::with_no_tracing();
 			ex.transact(&t, opts)
 		};
@@ -1293,10 +1341,10 @@ mod tests {
 		state.add_balance(&sender, &U256::from(100_017), CleanupMode::NoEmpty).unwrap();
 		let mut info = EnvInfo::default();
 		info.gas_limit = U256::from(100_000);
-		let engine = TestEngine::new(0);
+		let machine = make_frontier_machine(0);
 
 		let res = {
-			let mut ex = Executive::new(&mut state, &info, &engine);
+			let mut ex = Executive::new(&mut state, &info, &machine);
 			let opts = TransactOptions::with_no_tracing();
 			ex.transact(&t, opts)
 		};
@@ -1326,12 +1374,12 @@ mod tests {
 		let mut state = get_temp_state_with_factory(factory);
 		state.add_balance(&sender, &U256::from_str("152d02c7e14af6800000").unwrap(), CleanupMode::NoEmpty).unwrap();
 		let info = EnvInfo::default();
-		let engine = TestEngine::new(0);
+		let machine = make_frontier_machine(0);
 		let mut substate = Substate::new();
 
 		let result = {
-			let mut ex = Executive::new(&mut state, &info, &engine);
-			ex.create(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer)
+			let mut ex = Executive::new(&mut state, &info, &machine);
+			ex.create(params, &mut substate, &mut None, &mut NoopTracer, &mut NoopVMTracer)
 		};
 
 		match result {
@@ -1361,12 +1409,12 @@ mod tests {
 		let mut state = get_temp_state_with_factory(factory);
 		state.add_balance(&sender, &U256::from_str("152d02c7e14af68000000").unwrap(), CleanupMode::NoEmpty).unwrap();
 		let info = EnvInfo::default();
-		let engine = TestEngine::new_metropolis();
+		let machine = ::ethereum::new_byzantium_test_machine();
 		let mut substate = Substate::new();
 
 		let mut output = [0u8; 14];
-		let (result, _) = {
-			let mut ex = Executive::new(&mut state, &info, &engine);
+		let FinalizationResult { gas_left: result, .. } = {
+			let mut ex = Executive::new(&mut state, &info, &machine);
 			ex.call(params, &mut substate, BytesRef::Fixed(&mut output), &mut NoopTracer, &mut NoopVMTracer).unwrap()
 		};
 

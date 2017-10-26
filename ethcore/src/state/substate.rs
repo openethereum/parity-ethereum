@@ -16,7 +16,8 @@
 
 //! Execution environment substate.
 use std::collections::HashSet;
-use util::{Address, U256};
+use bigint::prelude::U256;
+use util::Address;
 use log_entry::LogEntry;
 use evm::{Schedule, CleanDustMode};
 use super::CleanupMode;
@@ -49,11 +50,11 @@ impl Substate {
 
 	/// Merge secondary substate `s` into self, accruing each element correspondingly.
 	pub fn accrue(&mut self, s: Substate) {
-		self.suicides.extend(s.suicides.into_iter());
-		self.touched.extend(s.touched.into_iter());
-		self.logs.extend(s.logs.into_iter());
+		self.suicides.extend(s.suicides);
+		self.touched.extend(s.touched);
+		self.logs.extend(s.logs);
 		self.sstore_clears_count = self.sstore_clears_count + s.sstore_clears_count;
-		self.contracts_created.extend(s.contracts_created.into_iter());
+		self.contracts_created.extend(s.contracts_created);
 	}
 
 	/// Get the cleanup mode object from this.

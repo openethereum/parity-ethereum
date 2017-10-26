@@ -18,12 +18,14 @@
 
 use std::collections::BTreeMap;
 use std::sync::Weak;
-use engines::{Call, Engine};
+use bigint::hash::H256;
 use parking_lot::RwLock;
-use util::{Bytes, H256, Address};
+use util::Address;
+use bytes::Bytes;
 use ids::BlockId;
 use header::{BlockNumber, Header};
-use client::{Client, BlockChainClient};
+use client::EngineClient;
+use machine::{AuxiliaryData, Call, EthereumMachine};
 use super::{SystemCall, ValidatorSet};
 
 type BlockNumberLookup = Box<Fn(BlockId) -> Result<BlockNumber, String> + Send + Sync + 'static>;
@@ -91,20 +93,20 @@ impl ValidatorSet for Multi {
 		set.is_epoch_end(first, chain_head)
 	}
 
-	fn signals_epoch_end(&self, _first: bool, header: &Header, block: Option<&[u8]>, receipts: Option<&[::receipt::Receipt]>)
-		-> ::engines::EpochChange
+	fn signals_epoch_end(&self, _first: bool, header: &Header, aux: AuxiliaryData)
+		-> ::engines::EpochChange<EthereumMachine>
 	{
 		let (set_block, set) = self.correct_set_by_number(header.number());
 		let first = set_block == header.number();
 
-		set.signals_epoch_end(first, header, block, receipts)
+		set.signals_epoch_end(first, header, aux)
 	}
 
-	fn epoch_set(&self, _first: bool, engine: &Engine, number: BlockNumber, proof: &[u8]) -> Result<(super::SimpleList, Option<H256>), ::error::Error> {
+	fn epoch_set(&self, _first: bool, machine: &EthereumMachine, number: BlockNumber, proof: &[u8]) -> Result<(super::SimpleList, Option<H256>), ::error::Error> {
 		let (set_block, set) = self.correct_set_by_number(number);
 		let first = set_block == number;
 
-		set.epoch_set(first, engine, number, proof)
+		set.epoch_set(first, machine, number, proof)
 	}
 
 	fn contains_with_caller(&self, bh: &H256, address: &Address, caller: &Call) -> bool {
@@ -130,9 +132,9 @@ impl ValidatorSet for Multi {
 		self.correct_set_by_number(set_block).1.report_benign(validator, set_block, block);
 	}
 
-	fn register_contract(&self, client: Weak<Client>) {
+	fn register_client(&self, client: Weak<EngineClient>) {
 		for set in self.sets.values() {
-			set.register_contract(client.clone());
+			set.register_client(client.clone());
 		}
 		*self.block_number.write() = Box::new(move |id| client
 			.upgrade()
@@ -147,7 +149,7 @@ mod tests {
 	use std::collections::BTreeMap;
 	use hash::keccak;
 	use account_provider::AccountProvider;
-	use client::{BlockChainClient, EngineClient};
+	use client::BlockChainClient;
 	use engines::EpochChange;
 	use engines::validator_set::ValidatorSet;
 	use ethkey::Secret;
@@ -162,14 +164,12 @@ mod tests {
 
 	#[test]
 	fn uses_current_set() {
-		let _ = ::env_logger::init();
-
 		let tap = Arc::new(AccountProvider::transient_provider());
 		let s0: Secret = keccak("0").into();
 		let v0 = tap.insert_account(s0.clone(), "").unwrap();
 		let v1 = tap.insert_account(keccak("1").into(), "").unwrap();
 		let client = generate_dummy_client_with_spec_and_accounts(Spec::new_validator_multi, Some(tap));
-		client.engine().register_client(Arc::downgrade(&client));
+		client.engine().register_client(Arc::downgrade(&client) as _);
 
 		// Make sure txs go through.
 		client.miner().set_gas_floor_target(1_000_000.into());
@@ -177,27 +177,27 @@ mod tests {
 		// Wrong signer for the first block.
 		client.miner().set_engine_signer(v1, "".into()).unwrap();
 		client.transact_contract(Default::default(), Default::default()).unwrap();
-		client.update_sealing();
+		::client::EngineClient::update_sealing(&*client);
 		assert_eq!(client.chain_info().best_block_number, 0);
 		// Right signer for the first block.
 		client.miner().set_engine_signer(v0, "".into()).unwrap();
-		client.update_sealing();
+		::client::EngineClient::update_sealing(&*client);
 		assert_eq!(client.chain_info().best_block_number, 1);
 		// This time v0 is wrong.
 		client.transact_contract(Default::default(), Default::default()).unwrap();
-		client.update_sealing();
+		::client::EngineClient::update_sealing(&*client);
 		assert_eq!(client.chain_info().best_block_number, 1);
 		client.miner().set_engine_signer(v1, "".into()).unwrap();
-		client.update_sealing();
+		::client::EngineClient::update_sealing(&*client);
 		assert_eq!(client.chain_info().best_block_number, 2);
 		// v1 is still good.
 		client.transact_contract(Default::default(), Default::default()).unwrap();
-		client.update_sealing();
+		::client::EngineClient::update_sealing(&*client);
 		assert_eq!(client.chain_info().best_block_number, 3);
 
 		// Check syncing.
 		let sync_client = generate_dummy_client_with_spec_and_data(Spec::new_validator_multi, 0, 0, &[]);
-		sync_client.engine().register_client(Arc::downgrade(&sync_client));
+		sync_client.engine().register_client(Arc::downgrade(&sync_client) as _);
 		for i in 1..4 {
 			sync_client.import_block(client.block(BlockId::Number(i)).unwrap().into_inner()).unwrap();
 		}
@@ -225,7 +225,7 @@ mod tests {
 		let mut header = Header::new();
 		header.set_number(499);
 
-		match multi.signals_epoch_end(false, &header, None, None) {
+		match multi.signals_epoch_end(false, &header, Default::default()) {
 			EpochChange::No => {},
 			_ => panic!("Expected no epoch signal change."),
 		}
@@ -233,7 +233,7 @@ mod tests {
 
 		header.set_number(500);
 
-		match multi.signals_epoch_end(false, &header, None, None) {
+		match multi.signals_epoch_end(false, &header, Default::default()) {
 			EpochChange::No => {},
 			_ => panic!("Expected no epoch signal change."),
 		}

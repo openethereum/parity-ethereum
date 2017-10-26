@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::time::Duration;
-use std::io::{Read, Write, stderr};
+use std::io::Read;
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 use std::collections::BTreeMap;
@@ -23,8 +23,10 @@ use std::cmp::max;
 use std::str::FromStr;
 use cli::{Args, ArgsError};
 use hash::keccak;
-use util::{H256, U256, Bytes, version_data, Address};
-use util::journaldb::Algorithm;
+use bigint::prelude::U256;
+use bigint::hash::H256;
+use util::{version_data, Address};
+use bytes::Bytes;
 use ansi_term::Colour;
 use ethsync::{NetworkConfiguration, is_valid_node_url};
 use ethcore::ethstore::ethkey::{Secret, Public};
@@ -38,7 +40,7 @@ use parity_rpc::NetworkSettings;
 use cache::CacheConfig;
 use helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_price, replace_home, replace_home_and_local,
 geth_ipc_path, parity_ipc_path, to_bootnodes, to_addresses, to_address, to_gas_limit, to_queue_strategy};
-use params::{ResealPolicy, AccountsConfig, GasPricerConfig, MinerExtras, Pruning, Switch};
+use params::{ResealPolicy, AccountsConfig, GasPricerConfig, MinerExtras, SpecType};
 use ethcore_logger::Config as LogConfig;
 use dir::{self, Directories, default_hypervisor_path, default_local_path, default_data_path};
 use dapps::Configuration as DappsConfiguration;
@@ -104,13 +106,13 @@ impl Configuration {
 
 	pub fn into_command(self) -> Result<Execute, String> {
 		let dirs = self.directories();
-		let pruning = self.args.flag_pruning.parse()?;
-		let pruning_history = self.args.flag_pruning_history;
+		let pruning = self.args.arg_pruning.parse()?;
+		let pruning_history = self.args.arg_pruning_history;
 		let vm_type = self.vm_type()?;
-		let spec = self.chain().parse()?;
-		let mode = match self.args.flag_mode.as_ref() {
+		let spec = self.chain()?;
+		let mode = match self.args.arg_mode.as_ref() {
 			"last" => None,
-			mode => Some(to_mode(&mode, self.args.flag_mode_timeout, self.args.flag_mode_alarm)?),
+			mode => Some(to_mode(&mode, self.args.arg_mode_timeout, self.args.arg_mode_alarm)?),
 		};
 		let update_policy = self.update_policy()?;
 		let logger_config = self.logger_config();
@@ -121,54 +123,42 @@ impl Configuration {
 		let ui_conf = self.ui_config();
 		let network_id = self.network_id();
 		let cache_config = self.cache_config();
-		let tracing = self.args.flag_tracing.parse()?;
-		let fat_db = self.args.flag_fat_db.parse()?;
-		let compaction = self.args.flag_db_compaction.parse()?;
+		let tracing = self.args.arg_tracing.parse()?;
+		let fat_db = self.args.arg_fat_db.parse()?;
+		let compaction = self.args.arg_db_compaction.parse()?;
 		let wal = !self.args.flag_fast_and_loose;
-		match self.args.flag_warp {
-			// Logging is not initialized yet, so we print directly to stderr
-			Some(true) if fat_db == Switch::On => writeln!(&mut stderr(), "Warning: Warp Sync is disabled because Fat DB is turned on").expect("Error writing to stderr"),
-			Some(true) if tracing == Switch::On => writeln!(&mut stderr(), "Warning: Warp Sync is disabled because tracing is turned on").expect("Error writing to stderr"),
-			Some(true) if pruning == Pruning::Specific(Algorithm::Archive) => writeln!(&mut stderr(), "Warning: Warp Sync is disabled because pruning mode is set to archive").expect("Error writing to stderr"),
-			_ => {},
-		};
 		let public_node = self.args.flag_public_node;
-		let warp_sync = !self.args.flag_no_warp && fat_db != Switch::On && tracing != Switch::On && pruning != Pruning::Specific(Algorithm::Archive);
+		let warp_sync = !self.args.flag_no_warp;
 		let geth_compatibility = self.args.flag_geth;
-		let mut dapps_conf = self.dapps_config();
+		let dapps_conf = self.dapps_config();
 		let ipfs_conf = self.ipfs_config();
 		let secretstore_conf = self.secretstore_config()?;
 		let format = self.format()?;
-
-		if self.args.flag_jsonrpc_server_threads.is_some() && dapps_conf.enabled {
-			dapps_conf.enabled = false;
-			writeln!(&mut stderr(), "Warning: Disabling Dapps server because fast RPC server was enabled.").expect("Error writing to stderr.")
-		}
 
 		let cmd = if self.args.flag_version {
 			Cmd::Version
 		} else if self.args.cmd_signer {
 			let authfile = ::signer::codes_path(&ws_conf.signer_path);
 
-			if self.args.cmd_new_token {
+			if self.args.cmd_signer_new_token {
 				Cmd::SignerToken(ws_conf, ui_conf, logger_config.clone())
-			} else if self.args.cmd_sign {
-				let pwfile = self.args.flag_password.get(0).map(|pwfile| {
+			} else if self.args.cmd_signer_sign {
+				let pwfile = self.args.arg_signer_sign_password.map(|pwfile| {
 					PathBuf::from(pwfile)
 				});
 				Cmd::SignerSign {
-					id: self.args.arg_id,
+					id: self.args.arg_signer_sign_id,
 					pwfile: pwfile,
 					port: ws_conf.port,
 					authfile: authfile,
 				}
-			} else if self.args.cmd_reject  {
+			} else if self.args.cmd_signer_reject  {
 				Cmd::SignerReject {
-					id: self.args.arg_id,
+					id: self.args.arg_signer_reject_id,
 					port: ws_conf.port,
 					authfile: authfile,
 				}
-			} else if self.args.cmd_list  {
+			} else if self.args.cmd_signer_list  {
 				Cmd::SignerList {
 					port: ws_conf.port,
 					authfile: authfile,
@@ -176,32 +166,32 @@ impl Configuration {
 			} else {
 				unreachable!();
 			}
-		} else if self.args.cmd_tools && self.args.cmd_hash {
-			Cmd::Hash(self.args.arg_file)
-		} else if self.args.cmd_db && self.args.cmd_kill {
+		} else if self.args.cmd_tools && self.args.cmd_tools_hash {
+			Cmd::Hash(self.args.arg_tools_hash_file)
+		} else if self.args.cmd_db && self.args.cmd_db_kill {
 			Cmd::Blockchain(BlockchainCmd::Kill(KillBlockchain {
 				spec: spec,
 				dirs: dirs,
 				pruning: pruning,
 			}))
 		} else if self.args.cmd_account {
-			let account_cmd = if self.args.cmd_new {
+			let account_cmd = if self.args.cmd_account_new {
 				let new_acc = NewAccount {
-					iterations: self.args.flag_keys_iterations,
+					iterations: self.args.arg_keys_iterations,
 					path: dirs.keys,
 					spec: spec,
-					password_file: self.args.flag_password.first().cloned(),
+					password_file: self.args.arg_account_new_password.clone(),
 				};
 				AccountCmd::New(new_acc)
-			} else if self.args.cmd_list {
+			} else if self.args.cmd_account_list {
 				let list_acc = ListAccounts {
 					path: dirs.keys,
 					spec: spec,
 				};
 				AccountCmd::List(list_acc)
-			} else if self.args.cmd_import {
+			} else if self.args.cmd_account_import {
 				let import_acc = ImportAccounts {
-					from: self.args.arg_path.clone(),
+					from: self.args.arg_account_import_path.expect("CLI argument is required; qed").clone(),
 					to: dirs.keys,
 					spec: spec,
 				};
@@ -221,11 +211,11 @@ impl Configuration {
 			Cmd::Account(account_cmd)
 		} else if self.args.cmd_wallet {
 			let presale_cmd = ImportWallet {
-				iterations: self.args.flag_keys_iterations,
+				iterations: self.args.arg_keys_iterations,
 				path: dirs.keys,
 				spec: spec,
-				wallet_path: self.args.arg_path.first().unwrap().clone(),
-				password_file: self.args.flag_password.first().cloned(),
+				wallet_path: self.args.arg_wallet_import_path.unwrap().clone(),
+				password_file: self.args.arg_wallet_import_password,
 			};
 			Cmd::ImportPresaleWallet(presale_cmd)
 		} else if self.args.cmd_import {
@@ -233,11 +223,11 @@ impl Configuration {
 				spec: spec,
 				cache_config: cache_config,
 				dirs: dirs,
-				file_path: self.args.arg_file.clone(),
+				file_path: self.args.arg_import_file.clone(),
 				format: format,
 				pruning: pruning,
 				pruning_history: pruning_history,
-				pruning_memory: self.args.flag_pruning_memory,
+				pruning_memory: self.args.arg_pruning_memory,
 				compaction: compaction,
 				wal: wal,
 				tracing: tracing,
@@ -250,44 +240,44 @@ impl Configuration {
 			};
 			Cmd::Blockchain(BlockchainCmd::Import(import_cmd))
 		} else if self.args.cmd_export {
-			if self.args.cmd_blocks {
+			if self.args.cmd_export_blocks {
 				let export_cmd = ExportBlockchain {
 					spec: spec,
 					cache_config: cache_config,
 					dirs: dirs,
-					file_path: self.args.arg_file.clone(),
+					file_path: self.args.arg_export_blocks_file.clone(),
 					format: format,
 					pruning: pruning,
 					pruning_history: pruning_history,
-					pruning_memory: self.args.flag_pruning_memory,
+					pruning_memory: self.args.arg_pruning_memory,
 					compaction: compaction,
 					wal: wal,
 					tracing: tracing,
 					fat_db: fat_db,
-					from_block: to_block_id(&self.args.flag_from)?,
-					to_block: to_block_id(&self.args.flag_to)?,
+					from_block: to_block_id(&self.args.arg_export_blocks_from)?,
+					to_block: to_block_id(&self.args.arg_export_blocks_to)?,
 					check_seal: !self.args.flag_no_seal_check,
 				};
 				Cmd::Blockchain(BlockchainCmd::Export(export_cmd))
-			} else if self.args.cmd_state {
+			} else if self.args.cmd_export_state {
 				let export_cmd = ExportState {
 					spec: spec,
 					cache_config: cache_config,
 					dirs: dirs,
-					file_path: self.args.arg_file.clone(),
+					file_path: self.args.arg_export_state_file.clone(),
 					format: format,
 					pruning: pruning,
 					pruning_history: pruning_history,
-					pruning_memory: self.args.flag_pruning_memory,
+					pruning_memory: self.args.arg_pruning_memory,
 					compaction: compaction,
 					wal: wal,
 					tracing: tracing,
 					fat_db: fat_db,
-					at: to_block_id(&self.args.flag_at)?,
-					storage: !self.args.flag_no_storage,
-					code: !self.args.flag_no_code,
-					min_balance: self.args.flag_min_balance.and_then(|s| to_u256(&s).ok()),
-					max_balance: self.args.flag_max_balance.and_then(|s| to_u256(&s).ok()),
+					at: to_block_id(&self.args.arg_export_state_at)?,
+					storage: !self.args.flag_export_state_no_storage,
+					code: !self.args.flag_export_state_no_code,
+					min_balance: self.args.arg_export_state_min_balance.and_then(|s| to_u256(&s).ok()),
+					max_balance: self.args.arg_export_state_max_balance.and_then(|s| to_u256(&s).ok()),
 				};
 				Cmd::Blockchain(BlockchainCmd::ExportState(export_cmd))
 			} else {
@@ -300,14 +290,14 @@ impl Configuration {
 				spec: spec,
 				pruning: pruning,
 				pruning_history: pruning_history,
-				pruning_memory: self.args.flag_pruning_memory,
+				pruning_memory: self.args.arg_pruning_memory,
 				tracing: tracing,
 				fat_db: fat_db,
 				compaction: compaction,
-				file_path: self.args.arg_file.clone(),
+				file_path: self.args.arg_snapshot_file.clone(),
 				wal: wal,
 				kind: snapshot::Kind::Take,
-				block_at: to_block_id(&self.args.flag_at)?,
+				block_at: to_block_id(&self.args.arg_snapshot_at)?,
 			};
 			Cmd::Snapshot(snapshot_cmd)
 		} else if self.args.cmd_restore {
@@ -317,11 +307,11 @@ impl Configuration {
 				spec: spec,
 				pruning: pruning,
 				pruning_history: pruning_history,
-				pruning_memory: self.args.flag_pruning_memory,
+				pruning_memory: self.args.arg_pruning_memory,
 				tracing: tracing,
 				fat_db: fat_db,
 				compaction: compaction,
-				file_path: self.args.arg_file.clone(),
+				file_path: self.args.arg_restore_file.clone(),
 				wal: wal,
 				kind: snapshot::Kind::Restore,
 				block_at: to_block_id("latest")?, // unimportant.
@@ -329,7 +319,7 @@ impl Configuration {
 			Cmd::Snapshot(restore_cmd)
 		} else {
 			let daemon = if self.args.cmd_daemon {
-				Some(self.args.arg_pid_file.clone())
+				Some(self.args.arg_daemon_pid_file.clone().expect("CLI argument is required; qed"))
 			} else {
 				None
 			};
@@ -343,10 +333,10 @@ impl Configuration {
 				spec: spec,
 				pruning: pruning,
 				pruning_history: pruning_history,
-				pruning_memory: self.args.flag_pruning_memory,
+				pruning_memory: self.args.arg_pruning_memory,
 				daemon: daemon,
 				logger_config: logger_config.clone(),
-				miner_options: self.miner_options(self.args.flag_reseal_min_period)?,
+				miner_options: self.miner_options()?,
 				ntp_servers: self.ntp_servers(),
 				ws_conf: ws_conf,
 				http_conf: http_conf,
@@ -374,8 +364,8 @@ impl Configuration {
 				secretstore_conf: secretstore_conf,
 				dapp: self.dapp_to_open()?,
 				ui: self.args.cmd_ui,
-				name: self.args.flag_identity,
-				custom_bootnodes: self.args.flag_bootnodes.is_some(),
+				name: self.args.arg_identity,
+				custom_bootnodes: self.args.arg_bootnodes.is_some(),
 				no_periodic_snapshot: self.args.flag_no_periodic_snapshot,
 				check_seal: !self.args.flag_no_seal_check,
 				download_old_blocks: !self.args.flag_no_ancient_blocks,
@@ -406,8 +396,8 @@ impl Configuration {
 		let extras = MinerExtras {
 			author: self.author()?,
 			extra_data: self.extra_data()?,
-			gas_floor_target: to_u256(&self.args.flag_gas_floor_target)?,
-			gas_ceil_target: to_u256(&self.args.flag_gas_cap)?,
+			gas_floor_target: to_u256(&self.args.arg_gas_floor_target)?,
+			gas_ceil_target: to_u256(&self.args.arg_gas_cap)?,
 			engine_signer: self.engine_signer()?,
 		};
 
@@ -415,85 +405,88 @@ impl Configuration {
 	}
 
 	fn author(&self) -> Result<Address, String> {
-		to_address(self.args.flag_etherbase.clone().or(self.args.flag_author.clone()))
+		to_address(self.args.arg_etherbase.clone().or(self.args.arg_author.clone()))
 	}
 
 	fn engine_signer(&self) -> Result<Address, String> {
-		to_address(self.args.flag_engine_signer.clone())
+		to_address(self.args.arg_engine_signer.clone())
 	}
 
 	fn format(&self) -> Result<Option<DataFormat>, String> {
-		match self.args.flag_format {
+		match self.args.arg_import_format.clone()
+				.or(self.args.arg_export_blocks_format.clone())
+				.or(self.args.arg_export_state_format.clone()) {
 			Some(ref f) => Ok(Some(f.parse()?)),
 			None => Ok(None),
 		}
 	}
 
 	fn cache_config(&self) -> CacheConfig {
-		match self.args.flag_cache_size.or(self.args.flag_cache) {
+		match self.args.arg_cache_size.or(self.args.arg_cache) {
 			Some(size) => CacheConfig::new_with_total_cache_size(size),
 			None => CacheConfig::new(
-				self.args.flag_cache_size_db,
-				self.args.flag_cache_size_blocks,
-				self.args.flag_cache_size_queue,
-				self.args.flag_cache_size_state,
+				self.args.arg_cache_size_db,
+				self.args.arg_cache_size_blocks,
+				self.args.arg_cache_size_queue,
+				self.args.arg_cache_size_state,
 			),
 		}
 	}
 
 	fn logger_config(&self) -> LogConfig {
 		LogConfig {
-			mode: self.args.flag_logging.clone(),
+			mode: self.args.arg_logging.clone(),
 			color: !self.args.flag_no_color && !cfg!(windows),
-			file: self.args.flag_log_file.clone(),
+			file: self.args.arg_log_file.clone(),
 		}
 	}
 
-	fn chain(&self) -> String {
-		if let Some(ref s) = self.spec_name_override {
+	fn chain(&self) -> Result<SpecType, String> {
+		let name = if let Some(ref s) = self.spec_name_override {
 			s.clone()
-		}
-		else if self.args.flag_testnet {
+		} else if self.args.flag_testnet {
 			"testnet".to_owned()
 		} else {
-			self.args.flag_chain.clone()
-		}
+			self.args.arg_chain.clone()
+		};
+
+		Ok(name.parse()?)
 	}
 
 	fn max_peers(&self) -> u32 {
-		let peers = self.args.flag_max_peers as u32;
+		let peers = self.args.arg_max_peers as u32;
 		max(self.min_peers(), peers)
 	}
 
 	fn ip_filter(&self) -> Result<IpFilter, String> {
-		match IpFilter::parse(self.args.flag_allow_ips.as_str()) {
+		match IpFilter::parse(self.args.arg_allow_ips.as_str()) {
 			Ok(allow_ip) => Ok(allow_ip),
 			Err(_) => Err("Invalid IP filter value".to_owned()),
 		}
 	}
 
 	fn min_peers(&self) -> u32 {
-		self.args.flag_peers.unwrap_or(self.args.flag_min_peers) as u32
+		self.args.arg_peers.unwrap_or(self.args.arg_min_peers) as u32
 	}
 
 	fn max_pending_peers(&self) -> u32 {
-		self.args.flag_max_pending_peers as u32
+		self.args.arg_max_pending_peers as u32
 	}
 
 	fn snapshot_peers(&self) -> u32 {
-		self.args.flag_snapshot_peers as u32
+		self.args.arg_snapshot_peers as u32
 	}
 
 	fn work_notify(&self) -> Vec<String> {
-		self.args.flag_notify_work.as_ref().map_or_else(Vec::new, |s| s.split(',').map(|s| s.to_owned()).collect())
+		self.args.arg_notify_work.as_ref().map_or_else(Vec::new, |s| s.split(',').map(|s| s.to_owned()).collect())
 	}
 
 	fn accounts_config(&self) -> Result<AccountsConfig, String> {
 		let cfg = AccountsConfig {
-			iterations: self.args.flag_keys_iterations,
+			iterations: self.args.arg_keys_iterations,
 			testnet: self.args.flag_testnet,
-			password_files: self.args.flag_password.clone(),
-			unlocked_accounts: to_addresses(&self.args.flag_unlock)?,
+			password_files: self.args.arg_password.clone(),
+			unlocked_accounts: to_addresses(&self.args.arg_unlock)?,
 			enable_hardware_wallets: !self.args.flag_no_hardware_wallets,
 			enable_fast_unlock: self.args.flag_fast_unlock,
 		};
@@ -506,18 +499,19 @@ impl Configuration {
 			Ok(Some(StratumOptions {
 				io_path: self.directories().db,
 				listen_addr: self.stratum_interface(),
-				port: self.args.flag_ports_shift + self.args.flag_stratum_port,
-				secret: self.args.flag_stratum_secret.as_ref().map(|s| s.parse::<H256>().unwrap_or_else(|_| keccak(s))),
+				port: self.args.arg_ports_shift + self.args.arg_stratum_port,
+				secret: self.args.arg_stratum_secret.as_ref().map(|s| s.parse::<H256>().unwrap_or_else(|_| keccak(s))),
 			}))
 		} else { Ok(None) }
 	}
 
-	fn miner_options(&self, reseal_min_period: u64) -> Result<MinerOptions, String> {
-		if self.args.flag_force_sealing && reseal_min_period == 0 {
+	fn miner_options(&self) -> Result<MinerOptions, String> {
+		let is_dev_chain = self.chain()? == SpecType::Dev;
+		if is_dev_chain && self.args.flag_force_sealing && self.args.arg_reseal_min_period == 0 {
 			return Err("Force sealing can't be used with reseal_min_period = 0".into());
 		}
 
-		let reseal = self.args.flag_reseal_on_txs.parse::<ResealPolicy>()?;
+		let reseal = self.args.arg_reseal_on_txs.parse::<ResealPolicy>()?;
 
 		let options = MinerOptions {
 			new_work_notify: self.work_notify(),
@@ -525,26 +519,26 @@ impl Configuration {
 			reseal_on_external_tx: reseal.external,
 			reseal_on_own_tx: reseal.own,
 			reseal_on_uncle: self.args.flag_reseal_on_uncle,
-			tx_gas_limit: match self.args.flag_tx_gas_limit {
+			tx_gas_limit: match self.args.arg_tx_gas_limit {
 				Some(ref d) => to_u256(d)?,
 				None => U256::max_value(),
 			},
-			tx_queue_size: self.args.flag_tx_queue_size,
-			tx_queue_memory_limit: if self.args.flag_tx_queue_mem_limit > 0 {
-				Some(self.args.flag_tx_queue_mem_limit as usize * 1024 * 1024)
+			tx_queue_size: self.args.arg_tx_queue_size,
+			tx_queue_memory_limit: if self.args.arg_tx_queue_mem_limit > 0 {
+				Some(self.args.arg_tx_queue_mem_limit as usize * 1024 * 1024)
 			} else { None },
-			tx_queue_gas_limit: to_gas_limit(&self.args.flag_tx_queue_gas)?,
-			tx_queue_strategy: to_queue_strategy(&self.args.flag_tx_queue_strategy)?,
-			pending_set: to_pending_set(&self.args.flag_relay_set)?,
-			reseal_min_period: Duration::from_millis(reseal_min_period),
-			reseal_max_period: Duration::from_millis(self.args.flag_reseal_max_period),
-			work_queue_size: self.args.flag_work_queue_size,
+			tx_queue_gas_limit: to_gas_limit(&self.args.arg_tx_queue_gas)?,
+			tx_queue_strategy: to_queue_strategy(&self.args.arg_tx_queue_strategy)?,
+			pending_set: to_pending_set(&self.args.arg_relay_set)?,
+			reseal_min_period: Duration::from_millis(self.args.arg_reseal_min_period),
+			reseal_max_period: Duration::from_millis(self.args.arg_reseal_max_period),
+			work_queue_size: self.args.arg_work_queue_size,
 			enable_resubmission: !self.args.flag_remove_solved,
-			tx_queue_banning: match self.args.flag_tx_time_limit {
+			tx_queue_banning: match self.args.arg_tx_time_limit {
 				Some(limit) => Banning::Enabled {
-					min_offends: self.args.flag_tx_queue_ban_count,
+					min_offends: self.args.arg_tx_queue_ban_count,
 					offend_threshold: Duration::from_millis(limit),
-					ban_duration: Duration::from_secs(self.args.flag_tx_queue_ban_time as u64),
+					ban_duration: Duration::from_secs(self.args.arg_tx_queue_ban_time as u64),
 				},
 				None => Banning::Disabled,
 			},
@@ -555,11 +549,11 @@ impl Configuration {
 	}
 
 	fn ui_port(&self) -> u16 {
-		self.args.flag_ports_shift + self.args.flag_ui_port
+		self.args.arg_ports_shift + self.args.arg_ui_port
 	}
 
 	fn ntp_servers(&self) -> Vec<String> {
-		self.args.flag_ntp_servers.split(",").map(str::to_owned).collect()
+		self.args.arg_ntp_servers.split(",").map(str::to_owned).collect()
 	}
 
 	fn ui_config(&self) -> UiConfiguration {
@@ -579,7 +573,7 @@ impl Configuration {
 			enabled: self.dapps_enabled(),
 			dapps_path: PathBuf::from(self.directories().dapps),
 			extra_dapps: if self.args.cmd_dapp {
-				self.args.arg_path.iter().map(|path| PathBuf::from(path)).collect()
+				self.args.arg_dapp_path.iter().map(|path| PathBuf::from(path)).collect()
 			} else {
 				vec![]
 			},
@@ -614,17 +608,18 @@ impl Configuration {
 			self_secret: self.secretstore_self_secret()?,
 			nodes: self.secretstore_nodes()?,
 			interface: self.secretstore_interface(),
-			port: self.args.flag_ports_shift + self.args.flag_secretstore_port,
+			port: self.args.arg_ports_shift + self.args.arg_secretstore_port,
 			http_interface: self.secretstore_http_interface(),
-			http_port: self.args.flag_ports_shift + self.args.flag_secretstore_http_port,
+			http_port: self.args.arg_ports_shift + self.args.arg_secretstore_http_port,
 			data_path: self.directories().secretstore,
+			admin_public: self.secretstore_admin_public()?,
 		})
 	}
 
 	fn ipfs_config(&self) -> IpfsConfiguration {
 		IpfsConfiguration {
 			enabled: self.args.flag_ipfs_api,
-			port: self.args.flag_ports_shift + self.args.flag_ipfs_api_port,
+			port: self.args.arg_ports_shift + self.args.arg_ipfs_api_port,
 			interface: self.ipfs_interface(),
 			cors: self.ipfs_cors(),
 			hosts: self.ipfs_hosts(),
@@ -635,7 +630,7 @@ impl Configuration {
 		if !self.args.cmd_dapp {
 			return Ok(None);
 		}
-		let path = self.args.arg_path.get(0).map(String::as_str).unwrap_or(".");
+		let path = self.args.arg_dapp_path.as_ref().map(String::as_str).unwrap_or(".");
 		let path = Path::new(path).canonicalize()
 			.map_err(|e| format!("Invalid path: {}. Error: {:?}", path, e))?;
 		let name = path.file_name()
@@ -652,14 +647,16 @@ impl Configuration {
 			U256::from_dec_str(&format!("{:.0}", wei_per_gas)).unwrap()
 		}
 
-		if let Some(dec) = self.args.flag_gasprice.as_ref() {
+		if let Some(dec) = self.args.arg_gasprice.as_ref() {
 			return Ok(GasPricerConfig::Fixed(to_u256(dec)?));
-		} else if let Some(dec) = self.args.flag_min_gas_price {
+		} else if let Some(dec) = self.args.arg_min_gas_price {
 			return Ok(GasPricerConfig::Fixed(U256::from(dec)));
+		} else if self.chain()? != SpecType::Foundation {
+			return Ok(GasPricerConfig::Fixed(U256::zero()));
 		}
 
-		let usd_per_tx = to_price(&self.args.flag_usd_per_tx)?;
-		if "auto" == self.args.flag_usd_per_eth.as_str() {
+		let usd_per_tx = to_price(&self.args.arg_usd_per_tx)?;
+		if "auto" == self.args.arg_usd_per_eth.as_str() {
 			// Just a very rough estimate to avoid accepting
 			// ZGP transactions before the price is fetched
 			// if user does not want it.
@@ -667,11 +664,11 @@ impl Configuration {
 			return Ok(GasPricerConfig::Calibrated {
 				initial_minimum: wei_per_gas(usd_per_tx, last_known_usd_per_eth),
 				usd_per_tx: usd_per_tx,
-				recalibration_period: to_duration(self.args.flag_price_update_period.as_str())?,
+				recalibration_period: to_duration(self.args.arg_price_update_period.as_str())?,
 			});
 		}
 
-		let usd_per_eth = to_price(&self.args.flag_usd_per_eth)?;
+		let usd_per_eth = to_price(&self.args.arg_usd_per_eth)?;
 		let wei_per_gas = wei_per_gas(usd_per_tx, usd_per_eth);
 
 		info!(
@@ -684,7 +681,7 @@ impl Configuration {
 	}
 
 	fn extra_data(&self) -> Result<Bytes, String> {
-		match self.args.flag_extradata.as_ref().or(self.args.flag_extra_data.as_ref()) {
+		match self.args.arg_extradata.as_ref().or(self.args.arg_extra_data.as_ref()) {
 			Some(x) if x.len() <= 32 => Ok(x.as_bytes().to_owned()),
 			None => Ok(version_data()),
 			Some(_) => Err("Extra data must be at most 32 characters".into()),
@@ -694,7 +691,7 @@ impl Configuration {
 	fn init_reserved_nodes(&self) -> Result<Vec<String>, String> {
 		use std::fs::File;
 
-		match self.args.flag_reserved_peers {
+		match self.args.arg_reserved_peers {
 			Some(ref path) => {
 				let mut buffer = String::new();
 				let mut node_file = File::open(path).map_err(|e| format!("Error opening reserved nodes file: {}", e))?;
@@ -710,10 +707,10 @@ impl Configuration {
 	}
 
 	fn net_addresses(&self) -> Result<(SocketAddr, Option<SocketAddr>), String> {
-		let port = self.args.flag_ports_shift + self.args.flag_port;
+		let port = self.args.arg_ports_shift + self.args.arg_port;
 		let listen_address = SocketAddr::new("0.0.0.0".parse().unwrap(), port);
-		let public_address = if self.args.flag_nat.starts_with("extip:") {
-			let host = &self.args.flag_nat[6..];
+		let public_address = if self.args.arg_nat.starts_with("extip:") {
+			let host = &self.args.arg_nat[6..];
 			let host = host.parse().map_err(|_| format!("Invalid host given with `--nat extip:{}`", host))?;
 			Some(SocketAddr::new(host, port))
 		} else {
@@ -724,12 +721,12 @@ impl Configuration {
 
 	fn net_config(&self) -> Result<NetworkConfiguration, String> {
 		let mut ret = NetworkConfiguration::new();
-		ret.nat_enabled = self.args.flag_nat == "any" || self.args.flag_nat == "upnp";
-		ret.boot_nodes = to_bootnodes(&self.args.flag_bootnodes)?;
+		ret.nat_enabled = self.args.arg_nat == "any" || self.args.arg_nat == "upnp";
+		ret.boot_nodes = to_bootnodes(&self.args.arg_bootnodes)?;
 		let (listen, public) = self.net_addresses()?;
 		ret.listen_address = Some(format!("{}", listen));
 		ret.public_address = public.map(|p| format!("{}", p));
-		ret.use_secret = match self.args.flag_node_key.as_ref()
+		ret.use_secret = match self.args.arg_node_key.as_ref()
 			.map(|s| s.parse::<Secret>().or_else(|_| Secret::from_unsafe_slice(&keccak(s))).map_err(|e| format!("Invalid key: {:?}", e))
 			) {
 			None => None,
@@ -751,13 +748,13 @@ impl Configuration {
 	}
 
 	fn network_id(&self) -> Option<u64> {
-		self.args.flag_network_id.or(self.args.flag_networkid)
+		self.args.arg_network_id.or(self.args.arg_networkid)
 	}
 
 	fn rpc_apis(&self) -> String {
-		let mut apis: Vec<&str> = self.args.flag_rpcapi
+		let mut apis: Vec<&str> = self.args.arg_rpcapi
 			.as_ref()
-			.unwrap_or(&self.args.flag_jsonrpc_apis)
+			.unwrap_or(&self.args.arg_jsonrpc_apis)
 			.split(",")
 			.collect();
 
@@ -773,12 +770,12 @@ impl Configuration {
 	}
 
 	fn rpc_cors(&self) -> Option<Vec<String>> {
-		let cors = self.args.flag_jsonrpc_cors.as_ref().or(self.args.flag_rpccorsdomain.as_ref());
+		let cors = self.args.arg_jsonrpc_cors.as_ref().or(self.args.arg_rpccorsdomain.as_ref());
 		Self::cors(cors)
 	}
 
 	fn ipfs_cors(&self) -> Option<Vec<String>> {
-		Self::cors(self.args.flag_ipfs_api_cors.as_ref())
+		Self::cors(self.args.arg_ipfs_api_cors.as_ref())
 	}
 
 	fn hosts(&self, hosts: &str, interface: &str) -> Option<Vec<String>> {
@@ -804,15 +801,15 @@ impl Configuration {
 	}
 
 	fn ui_hosts(&self) -> Option<Vec<String>> {
-		self.hosts(&self.args.flag_ui_hosts, &self.ui_interface())
+		self.hosts(&self.args.arg_ui_hosts, &self.ui_interface())
 	}
 
 	fn rpc_hosts(&self) -> Option<Vec<String>> {
-		self.hosts(&self.args.flag_jsonrpc_hosts, &self.rpc_interface())
+		self.hosts(&self.args.arg_jsonrpc_hosts, &self.rpc_interface())
 	}
 
 	fn ws_hosts(&self) -> Option<Vec<String>> {
-		self.hosts(&self.args.flag_ws_hosts, &self.ws_interface())
+		self.hosts(&self.args.arg_ws_hosts, &self.ws_interface())
 	}
 
 	fn ws_origins(&self) -> Option<Vec<String>> {
@@ -820,11 +817,11 @@ impl Configuration {
 			return None;
 		}
 
-		Self::parse_hosts(&self.args.flag_ws_origins)
+		Self::parse_hosts(&self.args.arg_ws_origins)
 	}
 
 	fn ipfs_hosts(&self) -> Option<Vec<String>> {
-		self.hosts(&self.args.flag_ipfs_api_hosts, &self.ipfs_interface())
+		self.hosts(&self.args.arg_ipfs_api_hosts, &self.ipfs_interface())
 	}
 
 	fn ipc_config(&self) -> Result<IpcConfiguration, String> {
@@ -832,7 +829,7 @@ impl Configuration {
 			enabled: !(self.args.flag_ipcdisable || self.args.flag_ipc_off || self.args.flag_no_ipc),
 			socket_addr: self.ipc_path(),
 			apis: {
-				let mut apis = self.args.flag_ipcapi.clone().unwrap_or(self.args.flag_ipc_apis.clone());
+				let mut apis = self.args.arg_ipcapi.clone().unwrap_or(self.args.arg_ipc_apis.clone());
 				if self.args.flag_geth {
 					if !apis.is_empty() {
  						apis.push_str(",");
@@ -850,19 +847,18 @@ impl Configuration {
 		let conf = HttpConfiguration {
 			enabled: self.rpc_enabled(),
 			interface: self.rpc_interface(),
-			port: self.args.flag_ports_shift + self.args.flag_rpcport.unwrap_or(self.args.flag_jsonrpc_port),
+			port: self.args.arg_ports_shift + self.args.arg_rpcport.unwrap_or(self.args.arg_jsonrpc_port),
 			apis: match self.args.flag_public_node {
 				false => self.rpc_apis().parse()?,
 				true => self.rpc_apis().parse::<ApiSet>()?.retain(ApiSet::PublicContext),
 			},
 			hosts: self.rpc_hosts(),
 			cors: self.rpc_cors(),
-			server_threads: match self.args.flag_jsonrpc_server_threads {
-				Some(threads) if threads > 0 => Some(threads),
-				None => None,
-				_ => return Err("--jsonrpc-server-threads number needs to be positive.".into()),
+			server_threads: match self.args.arg_jsonrpc_server_threads {
+				Some(threads) if threads > 0 => threads,
+				_ => 1,
 			},
-			processing_threads: self.args.flag_jsonrpc_threads,
+			processing_threads: self.args.arg_jsonrpc_threads,
 		};
 
 		Ok(conf)
@@ -870,17 +866,19 @@ impl Configuration {
 
 	fn ws_config(&self) -> Result<WsConfiguration, String> {
 		let ui = self.ui_config();
+		let http = self.http_config()?;
 
 		let conf = WsConfiguration {
 			enabled: self.ws_enabled(),
 			interface: self.ws_interface(),
-			port: self.args.flag_ports_shift + self.args.flag_ws_port,
-			apis: self.args.flag_ws_apis.parse()?,
+			port: self.args.arg_ports_shift + self.args.arg_ws_port,
+			apis: self.args.arg_ws_apis.parse()?,
 			hosts: self.ws_hosts(),
 			origins: self.ws_origins(),
 			signer_path: self.directories().signer.into(),
 			support_token_api: !self.args.flag_public_node,
 			ui_address: ui.address(),
+			dapps_address: http.address(),
 		};
 
 		Ok(conf)
@@ -890,8 +888,8 @@ impl Configuration {
 		let http_conf = self.http_config()?;
 		let net_addresses = self.net_addresses()?;
 		Ok(NetworkSettings {
-			name: self.args.flag_identity.clone(),
-			chain: self.chain(),
+			name: self.args.arg_identity.clone(),
+			chain: format!("{}", self.chain()?),
 			network_port: net_addresses.0.port(),
 			rpc_enabled: http_conf.enabled,
 			rpc_interface: http_conf.interface,
@@ -903,13 +901,13 @@ impl Configuration {
 		Ok(UpdatePolicy {
 			enable_downloading: !self.args.flag_no_download,
 			require_consensus: !self.args.flag_no_consensus,
-			filter: match self.args.flag_auto_update.as_ref() {
+			filter: match self.args.arg_auto_update.as_ref() {
 				"none" => UpdateFilter::None,
 				"critical" => UpdateFilter::Critical,
 				"all" => UpdateFilter::All,
 				_ => return Err("Invalid value for `--auto-update`. See `--help` for more information.".into()),
 			},
-			track: match self.args.flag_release_track.as_ref() {
+			track: match self.args.arg_release_track.as_ref() {
 				"stable" => ReleaseTrack::Stable,
 				"beta" => ReleaseTrack::Beta,
 				"nightly" => ReleaseTrack::Nightly,
@@ -922,41 +920,24 @@ impl Configuration {
 	}
 
 	fn directories(&self) -> Directories {
-		use path;
-
 		let local_path = default_local_path();
-		let base_path = self.args.flag_base_path.as_ref().or_else(|| self.args.flag_datadir.as_ref()).map_or_else(|| default_data_path(), |s| s.clone());
+		let base_path = self.args.arg_base_path.as_ref().or_else(|| self.args.arg_datadir.as_ref()).map_or_else(|| default_data_path(), |s| s.clone());
 		let data_path = replace_home("", &base_path);
-		let is_using_base_path = self.args.flag_base_path.is_some();
+		let is_using_base_path = self.args.arg_base_path.is_some();
 		// If base_path is set and db_path is not we default to base path subdir instead of LOCAL.
-		let base_db_path = if is_using_base_path && self.args.flag_db_path.is_none() {
+		let base_db_path = if is_using_base_path && self.args.arg_db_path.is_none() {
 			"$BASE/chains"
 		} else {
-			self.args.flag_db_path.as_ref().map_or(dir::CHAINS_PATH, |s| &s)
+			self.args.arg_db_path.as_ref().map_or(dir::CHAINS_PATH, |s| &s)
 		};
 		let cache_path = if is_using_base_path { "$BASE/cache" } else { dir::CACHE_PATH };
 
 		let db_path = replace_home_and_local(&data_path, &local_path, &base_db_path);
 		let cache_path = replace_home_and_local(&data_path, &local_path, cache_path);
-		let keys_path = replace_home(&data_path, &self.args.flag_keys_path);
-		let dapps_path = replace_home(&data_path, &self.args.flag_dapps_path);
-		let secretstore_path = replace_home(&data_path, &self.args.flag_secretstore_path);
-		let ui_path = replace_home(&data_path, &self.args.flag_ui_path);
-
-		if self.args.flag_geth && !cfg!(windows) {
-			let geth_root  = if self.chain() == "testnet".to_owned() { path::ethereum::test() } else {  path::ethereum::default() };
-			::std::fs::create_dir_all(geth_root.as_path()).unwrap_or_else(
-				|e| warn!("Failed to create '{}' for geth mode: {}", &geth_root.to_str().unwrap(), e));
-		}
-
-		if cfg!(feature = "ipc") && !cfg!(feature = "windows") {
-			let mut path_buf = PathBuf::from(data_path.clone());
-			path_buf.push("ipc");
-			let ipc_path = path_buf.to_str().unwrap();
-			::std::fs::create_dir_all(ipc_path).unwrap_or_else(
-				|e| warn!("Failed to directory '{}' for ipc sockets: {}", ipc_path, e)
-			);
-		}
+		let keys_path = replace_home(&data_path, &self.args.arg_keys_path);
+		let dapps_path = replace_home(&data_path, &self.args.arg_dapps_path);
+		let secretstore_path = replace_home(&data_path, &self.args.arg_secretstore_path);
+		let ui_path = replace_home(&data_path, &self.args.arg_ui_path);
 
 		Directories {
 			keys: keys_path,
@@ -975,8 +956,8 @@ impl Configuration {
 		} else {
 			parity_ipc_path(
 				&self.directories().base,
-				&self.args.flag_ipcpath.clone().unwrap_or(self.args.flag_ipc_path.clone()),
-				self.args.flag_ports_shift,
+				&self.args.arg_ipcpath.clone().unwrap_or(self.args.arg_ipc_path.clone()),
+				self.args.arg_ports_shift,
 			)
 		}
 	}
@@ -994,32 +975,32 @@ impl Configuration {
 	}
 
 	fn ui_interface(&self) -> String {
-		self.interface(&self.args.flag_ui_interface)
+		self.interface(&self.args.arg_ui_interface)
 	}
 
 	fn rpc_interface(&self) -> String {
-		let rpc_interface = self.args.flag_rpcaddr.clone().unwrap_or(self.args.flag_jsonrpc_interface.clone());
+		let rpc_interface = self.args.arg_rpcaddr.clone().unwrap_or(self.args.arg_jsonrpc_interface.clone());
 		self.interface(&rpc_interface)
 	}
 
 	fn ws_interface(&self) -> String {
-		self.interface(&self.args.flag_ws_interface)
+		self.interface(&self.args.arg_ws_interface)
 	}
 
 	fn ipfs_interface(&self) -> String {
-		self.interface(&self.args.flag_ipfs_api_interface)
+		self.interface(&self.args.arg_ipfs_api_interface)
 	}
 
 	fn secretstore_interface(&self) -> String {
-		self.interface(&self.args.flag_secretstore_interface)
+		self.interface(&self.args.arg_secretstore_interface)
 	}
 
 	fn secretstore_http_interface(&self) -> String {
-		self.interface(&self.args.flag_secretstore_http_interface)
+		self.interface(&self.args.arg_secretstore_http_interface)
 	}
 
 	fn secretstore_self_secret(&self) -> Result<Option<NodeSecretKey>, String> {
-		match self.args.flag_secretstore_secret {
+		match self.args.arg_secretstore_secret {
 			Some(ref s) if s.len() == 64 => Ok(Some(NodeSecretKey::Plain(s.parse()
 				.map_err(|e| format!("Invalid secret store secret: {}. Error: {:?}", s, e))?))),
 			Some(ref s) if s.len() == 40 => Ok(Some(NodeSecretKey::KeyStore(s.parse()
@@ -1029,9 +1010,16 @@ impl Configuration {
 		}
 	}
 
+	fn secretstore_admin_public(&self) -> Result<Option<Public>, String> {
+		match self.args.arg_secretstore_admin_public.as_ref() {
+			Some(admin_public) => Ok(Some(admin_public.parse().map_err(|e| format!("Invalid secret store admin public: {}", e))?)),
+			None => Ok(None),
+		}
+	}
+
 	fn secretstore_nodes(&self) -> Result<BTreeMap<Public, (String, u16)>, String> {
 		let mut nodes = BTreeMap::new();
-		for node in self.args.flag_secretstore_nodes.split(',').filter(|n| n != &"") {
+		for node in self.args.arg_secretstore_nodes.split(',').filter(|n| n != &"") {
 			let public_and_addr: Vec<_> = node.split('@').collect();
 			if public_and_addr.len() != 2 {
 				return Err(format!("Invalid secret store node: {}", node));
@@ -1054,7 +1042,7 @@ impl Configuration {
 	}
 
 	fn stratum_interface(&self) -> String {
-		self.interface(&self.args.flag_stratum_interface)
+		self.interface(&self.args.arg_stratum_interface)
 	}
 
 	fn rpc_enabled(&self) -> bool {
@@ -1086,7 +1074,7 @@ impl Configuration {
 			return true;
 		}
 
-		let ui_disabled = self.args.flag_unlock.is_some() ||
+		let ui_disabled = self.args.arg_unlock.is_some() ||
 			self.args.flag_geth ||
 			self.args.flag_no_ui;
 
@@ -1096,7 +1084,7 @@ impl Configuration {
 	fn verifier_settings(&self) -> VerifierSettings {
 		let mut settings = VerifierSettings::default();
 		settings.scale_verifiers = self.args.flag_scale_verifiers;
-		if let Some(num_verifiers) = self.args.flag_num_verifiers {
+		if let Some(num_verifiers) = self.args.arg_num_verifiers {
 			settings.num_verifiers = num_verifiers;
 		}
 
@@ -1106,7 +1094,7 @@ impl Configuration {
 	fn whisper_config(&self) -> ::whisper::Config {
 		::whisper::Config {
 			enabled: self.args.flag_whisper,
-			target_message_pool_size: self.args.flag_whisper_pool_size * 1024 * 1024,
+			target_message_pool_size: self.args.arg_whisper_pool_size * 1024 * 1024,
 		}
 	}
 }
@@ -1314,7 +1302,8 @@ mod tests {
 			origins: Some(vec!["chrome-extension://*".into(), "moz-extension://*".into()]),
 			hosts: Some(vec![]),
 			signer_path: expected.into(),
-			ui_address: Some(("127.0.0.1".to_owned(), 8180)),
+			ui_address: Some("127.0.0.1:8180".into()),
+			dapps_address: Some("127.0.0.1:8545".into()),
 			support_token_api: true
 		}, UiConfiguration {
 			enabled: true,
@@ -1402,21 +1391,20 @@ mod tests {
 		let conf3 = parse(&["parity", "--tx-queue-strategy", "gas"]);
 
 		// then
-		let min_period = conf0.args.flag_reseal_min_period;
-		assert_eq!(conf0.miner_options(min_period).unwrap(), mining_options);
+		assert_eq!(conf0.miner_options().unwrap(), mining_options);
 		mining_options.tx_queue_strategy = PrioritizationStrategy::GasFactorAndGasPrice;
-		assert_eq!(conf1.miner_options(min_period).unwrap(), mining_options);
+		assert_eq!(conf1.miner_options().unwrap(), mining_options);
 		mining_options.tx_queue_strategy = PrioritizationStrategy::GasPriceOnly;
-		assert_eq!(conf2.miner_options(min_period).unwrap(), mining_options);
+		assert_eq!(conf2.miner_options().unwrap(), mining_options);
 		mining_options.tx_queue_strategy = PrioritizationStrategy::GasAndGasPrice;
-		assert_eq!(conf3.miner_options(min_period).unwrap(), mining_options);
+		assert_eq!(conf3.miner_options().unwrap(), mining_options);
 	}
 
 	#[test]
 	fn should_fail_on_force_reseal_and_reseal_min_period() {
-		let conf = parse(&["parity", "--chain", "dev", "--force-sealing"]);
+		let conf = parse(&["parity", "--chain", "dev", "--force-sealing", "--reseal-min-period", "0"]);
 
-		assert!(conf.miner_options(0).is_err());
+		assert!(conf.miner_options().is_err());
 	}
 
 	#[test]
@@ -1444,7 +1432,7 @@ mod tests {
 		// then
 		assert_eq!(conf.network_settings(), Ok(NetworkSettings {
 			name: "testname".to_owned(),
-			chain: "testnet".to_owned(),
+			chain: "kovan".to_owned(),
 			network_port: 30303,
 			rpc_enabled: true,
 			rpc_interface: "127.0.0.1".to_owned(),
@@ -1561,10 +1549,10 @@ mod tests {
 		// given
 
 		// when
-		let conf0 = parse(&["parity", "--ui-path", "signer"]);
-		let conf1 = parse(&["parity", "--ui-path", "signer", "--ui-no-validation"]);
-		let conf2 = parse(&["parity", "--ui-path", "signer", "--ui-port", "3123"]);
-		let conf3 = parse(&["parity", "--ui-path", "signer", "--ui-interface", "test"]);
+		let conf0 = parse(&["parity", "--ui-path=signer"]);
+		let conf1 = parse(&["parity", "--ui-path=signer", "--ui-no-validation"]);
+		let conf2 = parse(&["parity", "--ui-path=signer", "--ui-port", "3123"]);
+		let conf3 = parse(&["parity", "--ui-path=signer", "--ui-interface", "test"]);
 
 		// then
 		assert_eq!(conf0.directories().signer, "signer".to_owned());

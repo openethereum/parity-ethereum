@@ -45,7 +45,8 @@ use light::net::{
 };
 use light::request::{self, CompleteHeadersRequest as HeadersRequest};
 use network::PeerId;
-use util::{U256, H256};
+use bigint::prelude::U256;
+use bigint::hash::H256;
 use parking_lot::{Mutex, RwLock};
 use rand::{Rng, OsRng};
 
@@ -521,7 +522,7 @@ impl<L: AsLightClient> LightSync<L> {
 				rng.shuffle(&mut peer_ids);
 
 				let request = {
-					let mut builder = request::RequestBuilder::default();
+					let mut builder = request::Builder::default();
 					builder.push(request::Request::Headers(request::IncompleteHeadersRequest {
 						start: req.start.into(),
 						skip: req.skip,

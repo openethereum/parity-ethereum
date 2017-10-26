@@ -32,11 +32,12 @@ use ethsync::{ManageNetwork, SyncProvider, LightSync};
 use hash_fetch::fetch::Client as FetchClient;
 use jsonrpc_core::{self as core, MetaIoHandler};
 use light::{TransactionQueue as LightTransactionQueue, Cache as LightDataCache};
+use light::client::LightChainClient;
 use node_health::NodeHealth;
 use parity_reactor;
 use parity_rpc::dispatch::{FullDispatcher, LightDispatcher};
 use parity_rpc::informant::{ActivityNotifier, ClientNotifier};
-use parity_rpc::{Metadata, NetworkSettings};
+use parity_rpc::{Metadata, NetworkSettings, Host};
 use updater::Updater;
 use parking_lot::{Mutex, RwLock};
 
@@ -221,8 +222,8 @@ pub struct FullDependencies {
 	pub health: NodeHealth,
 	pub geth_compatibility: bool,
 	pub dapps_service: Option<Arc<DappsService>>,
-	pub dapps_address: Option<(String, u16)>,
-	pub ws_address: Option<(String, u16)>,
+	pub dapps_address: Option<Host>,
+	pub ws_address: Option<Host>,
 	pub fetch: FetchClient,
 	pub remote: parity_reactor::Remote,
 	pub whisper_rpc: Option<::whisper::RpcFactory>,
@@ -243,7 +244,7 @@ impl FullDependencies {
 					let deps = &$deps;
 					let dispatcher = FullDispatcher::new(deps.client.clone(), deps.miner.clone());
 					if deps.signer_service.is_enabled() {
-						$handler.extend_with($namespace::to_delegate(SigningQueueClient::new(&deps.signer_service, dispatcher, &deps.secret_store)))
+						$handler.extend_with($namespace::to_delegate(SigningQueueClient::new(&deps.signer_service, dispatcher, deps.remote.clone(), &deps.secret_store)))
 					} else {
 						$handler.extend_with($namespace::to_delegate(SigningUnsafeClient::new(&deps.secret_store, dispatcher)))
 					}
@@ -291,7 +292,7 @@ impl FullDependencies {
 					}
 				},
 				Api::Personal => {
-					handler.extend_with(PersonalClient::new(&self.secret_store, dispatcher.clone(), self.geth_compatibility).to_delegate());
+					handler.extend_with(PersonalClient::new(self.secret_store.clone(), dispatcher.clone(), self.geth_compatibility).to_delegate());
 				},
 				Api::Signer => {
 					handler.extend_with(SignerClient::new(&self.secret_store, dispatcher.clone(), &self.signer_service, self.remote.clone()).to_delegate());
@@ -398,9 +399,9 @@ impl ActivityNotifier for LightClientNotifier {
 }
 
 /// RPC dependencies for a light client.
-pub struct LightDependencies {
+pub struct LightDependencies<T> {
 	pub signer_service: Arc<SignerService>,
-	pub client: Arc<::light::client::Client>,
+	pub client: Arc<T>,
 	pub sync: Arc<LightSync>,
 	pub net: Arc<ManageNetwork>,
 	pub secret_store: Arc<AccountProvider>,
@@ -411,15 +412,15 @@ pub struct LightDependencies {
 	pub cache: Arc<Mutex<LightDataCache>>,
 	pub transaction_queue: Arc<RwLock<LightTransactionQueue>>,
 	pub dapps_service: Option<Arc<DappsService>>,
-	pub dapps_address: Option<(String, u16)>,
-	pub ws_address: Option<(String, u16)>,
+	pub dapps_address: Option<Host>,
+	pub ws_address: Option<Host>,
 	pub fetch: FetchClient,
 	pub geth_compatibility: bool,
 	pub remote: parity_reactor::Remote,
 	pub whisper_rpc: Option<::whisper::RpcFactory>,
 }
 
-impl LightDependencies {
+impl<C: LightChainClient + 'static> LightDependencies<C> {
 	fn extend_api<T: core::Middleware<Metadata>>(
 		&self,
 		handler: &mut MetaIoHandler<Metadata, T>,
@@ -444,7 +445,7 @@ impl LightDependencies {
 					let secret_store = Some(deps.secret_store.clone());
 					if deps.signer_service.is_enabled() {
 						$handler.extend_with($namespace::to_delegate(
-							SigningQueueClient::new(&deps.signer_service, dispatcher, &secret_store)
+							SigningQueueClient::new(&deps.signer_service, dispatcher, deps.remote.clone(), &secret_store)
 						))
 					} else {
 						$handler.extend_with(
@@ -494,7 +495,7 @@ impl LightDependencies {
 				},
 				Api::Personal => {
 					let secret_store = Some(self.secret_store.clone());
-					handler.extend_with(PersonalClient::new(&secret_store, dispatcher.clone(), self.geth_compatibility).to_delegate());
+					handler.extend_with(PersonalClient::new(secret_store, dispatcher.clone(), self.geth_compatibility).to_delegate());
 				},
 				Api::Signer => {
 					let secret_store = Some(self.secret_store.clone());
@@ -568,7 +569,7 @@ impl LightDependencies {
 	}
 }
 
-impl Dependencies for LightDependencies {
+impl<T: LightChainClient + 'static> Dependencies for LightDependencies<T> {
 	type Notifier = LightClientNotifier;
 
 	fn activity_notifier(&self) -> Self::Notifier { LightClientNotifier }

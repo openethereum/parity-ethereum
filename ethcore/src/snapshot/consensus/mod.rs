@@ -21,11 +21,11 @@ use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 
 use blockchain::BlockChain;
-use engines::Engine;
+use engines::EthEngine;
 use snapshot::{Error, ManifestData};
 
-use util::H256;
-use util::kvdb::KeyValueDB;
+use bigint::hash::H256;
+use kvdb::KeyValueDB;
 
 mod authority;
 mod work;
@@ -84,7 +84,7 @@ pub trait Rebuilder: Send {
 	fn feed(
 		&mut self,
 		chunk: &[u8],
-		engine: &Engine,
+		engine: &EthEngine,
 		abort_flag: &AtomicBool,
 	) -> Result<(), ::error::Error>;
 
@@ -93,5 +93,5 @@ pub trait Rebuilder: Send {
 	///
 	/// This should apply the necessary "glue" between chunks,
 	/// and verify against the restored state.
-	fn finalize(&mut self, engine: &Engine) -> Result<(), ::error::Error>;
+	fn finalize(&mut self, engine: &EthEngine) -> Result<(), ::error::Error>;
 }

@@ -20,10 +20,12 @@ use std::sync::Arc;
 use ethcore::account_provider::AccountProvider;
 use ethcore::transaction::PendingTransaction;
 
-use util::{Address, U128, ToPretty};
+use bigint::prelude::U128;
+use util::Address;
+use bytes::ToPretty;
 
-use futures::{future, Future, BoxFuture};
-use jsonrpc_core::Error;
+use jsonrpc_core::{BoxFuture, Error};
+use jsonrpc_core::futures::{future, Future};
 use v1::helpers::errors;
 use v1::helpers::dispatch::{Dispatcher, SignWith};
 use v1::helpers::accounts::unwrap_provider;
@@ -40,11 +42,11 @@ pub struct PersonalClient<D: Dispatcher> {
 
 impl<D: Dispatcher> PersonalClient<D> {
 	/// Creates new PersonalClient
-	pub fn new(store: &Option<Arc<AccountProvider>>, dispatcher: D, allow_perm_unlock: bool) -> Self {
+	pub fn new(accounts: Option<Arc<AccountProvider>>, dispatcher: D, allow_perm_unlock: bool) -> Self {
 		PersonalClient {
-			accounts: store.clone(),
-			dispatcher: dispatcher,
-			allow_perm_unlock: allow_perm_unlock,
+			accounts,
+			dispatcher,
+			allow_perm_unlock,
 		}
 	}
 
@@ -87,15 +89,18 @@ impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 		};
 
 		let r = match (self.allow_perm_unlock, duration) {
-			(false, _) => store.unlock_account_temporarily(account, account_pass),
+			(false, None) => store.unlock_account_temporarily(account, account_pass),
+			(false, _) => return Err(errors::unsupported(
+				"Time-unlocking is only supported in --geth compatibility mode.",
+				Some("Restart your client with --geth flag or use personal_sendTransaction instead."),
+			)),
 			(true, Some(0)) => store.unlock_account_permanently(account, account_pass),
 			(true, Some(d)) => store.unlock_account_timed(account, account_pass, d * 1000),
 			(true, None) => store.unlock_account_timed(account, account_pass, 300_000),
 		};
 		match r {
 			Ok(_) => Ok(true),
-			// TODO [ToDr] Proper error here?
-			Err(_) => Ok(false),
+			Err(err) => Err(errors::account("Unable to unlock the account.", err)),
 		}
 	}
 
@@ -112,10 +117,10 @@ impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 
 		let default = match default {
 			Ok(default) => default,
-			Err(e) => return future::err(e).boxed(),
+			Err(e) => return Box::new(future::err(e)),
 		};
 
-		dispatcher.fill_optional_fields(request.into(), default, false)
+		Box::new(dispatcher.fill_optional_fields(request.into(), default, false)
 			.and_then(move |filled| {
 				let condition = filled.condition.clone().map(Into::into);
 				dispatcher.sign(accounts, filled, SignWith::Password(password))
@@ -129,8 +134,7 @@ impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 					::rlp::encode(&*pending_tx).into_vec().pretty(), chain_id);
 
 				dispatcher.dispatch_transaction(pending_tx).map(Into::into)
-			})
-			.boxed()
+			}))
 	}
 
 	fn sign_and_send_transaction(&self, meta: Metadata, request: TransactionRequest, password: String) -> BoxFuture<RpcH256, Error> {

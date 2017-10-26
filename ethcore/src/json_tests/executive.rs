@@ -18,7 +18,6 @@ use std::sync::Arc;
 use super::test_common::*;
 use state::{Backend as StateBackend, State, Substate};
 use executive::*;
-use engines::Engine;
 use evm::{VMType, Finalize};
 use vm::{
 	self, ActionParams, CallType, Schedule, Ext,
@@ -30,6 +29,11 @@ use tests::helpers::*;
 use ethjson;
 use trace::{Tracer, NoopTracer};
 use trace::{VMTracer, NoopVMTracer};
+use bytes::{Bytes, BytesRef};
+use trie;
+use rlp::RlpStream;
+use hash::keccak;
+use machine::EthereumMachine as Machine;
 
 #[derive(Debug, PartialEq, Clone)]
 struct CallCreate {
@@ -53,22 +57,22 @@ impl From<ethjson::vm::Call> for CallCreate {
 
 /// Tiny wrapper around executive externalities.
 /// Stores callcreates.
-struct TestExt<'a, T: 'a, V: 'a, B: 'a, E: 'a>
-	where T: Tracer, V: VMTracer, B: StateBackend, E: Engine + ?Sized
+struct TestExt<'a, T: 'a, V: 'a, B: 'a>
+	where T: Tracer, V: VMTracer, B: StateBackend
 {
-	ext: Externalities<'a, T, V, B, E>,
+	ext: Externalities<'a, T, V, B>,
 	callcreates: Vec<CallCreate>,
 	nonce: U256,
 	sender: Address,
 }
 
-impl<'a, T: 'a, V: 'a, B: 'a, E: 'a> TestExt<'a, T, V, B, E>
-	where T: Tracer, V: VMTracer, B: StateBackend, E: Engine + ?Sized
+impl<'a, T: 'a, V: 'a, B: 'a> TestExt<'a, T, V, B>
+	where T: Tracer, V: VMTracer, B: StateBackend,
 {
 	fn new(
 		state: &'a mut State<B>,
 		info: &'a EnvInfo,
-		engine: &'a E,
+		machine: &'a Machine,
 		depth: usize,
 		origin_info: OriginInfo,
 		substate: &'a mut Substate,
@@ -80,15 +84,15 @@ impl<'a, T: 'a, V: 'a, B: 'a, E: 'a> TestExt<'a, T, V, B, E>
 		let static_call = false;
 		Ok(TestExt {
 			nonce: state.nonce(&address)?,
-			ext: Externalities::new(state, info, engine, depth, origin_info, substate, output, tracer, vm_tracer, static_call),
+			ext: Externalities::new(state, info, machine, depth, origin_info, substate, output, tracer, vm_tracer, static_call),
 			callcreates: vec![],
 			sender: address,
 		})
 	}
 }
 
-impl<'a, T: 'a, V: 'a, B: 'a, E: 'a> Ext for TestExt<'a, T, V, B, E>
-	where T: Tracer, V: VMTracer, B: StateBackend, E: Engine + ?Sized
+impl<'a, T: 'a, V: 'a, B: 'a> Ext for TestExt<'a, T, V, B>
+	where T: Tracer, V: VMTracer, B: StateBackend
 {
 	fn storage_at(&self, key: &H256) -> vm::Result<H256> {
 		self.ext.storage_at(key)
@@ -160,8 +164,8 @@ impl<'a, T: 'a, V: 'a, B: 'a, E: 'a> Ext for TestExt<'a, T, V, B, E>
 		self.ext.log(topics, data)
 	}
 
-	fn ret(self, gas: &U256, data: &ReturnData) -> Result<U256, vm::Error> {
-		self.ext.ret(gas, data)
+	fn ret(self, gas: &U256, data: &ReturnData, apply_state: bool) -> Result<U256, vm::Error> {
+		self.ext.ret(gas, data, apply_state)
 	}
 
 	fn suicide(&mut self, refund_address: &Address) -> vm::Result<()> {
@@ -178,6 +182,10 @@ impl<'a, T: 'a, V: 'a, B: 'a, E: 'a> Ext for TestExt<'a, T, V, B, E>
 
 	fn depth(&self) -> usize {
 		0
+	}
+
+	fn is_static(&self) -> bool {
+		false
 	}
 
 	fn inc_sstore_clears(&mut self) {
@@ -223,7 +231,12 @@ fn do_json_test_for(vm_type: &VMType, json_data: &[u8]) -> Vec<String> {
 		let mut state = get_temp_state();
 		state.populate_from(From::from(vm.pre_state.clone()));
 		let info = From::from(vm.env);
-		let engine = TestEngine::new(1);
+		let machine = {
+			let mut machine = ::ethereum::new_frontier_test_machine();
+			machine.set_schedule_creation_rules(Box::new(move |s, _| s.max_depth = 1));
+			machine
+		};
+
 		let params = ActionParams::from(vm.transaction);
 
 		let mut substate = Substate::new();
@@ -237,7 +250,7 @@ fn do_json_test_for(vm_type: &VMType, json_data: &[u8]) -> Vec<String> {
 			let mut ex = try_fail!(TestExt::new(
 				&mut state,
 				&info,
-				&engine,
+				&machine,
 				0,
 				OriginInfo::from(&params),
 				&mut substate,
@@ -253,6 +266,14 @@ fn do_json_test_for(vm_type: &VMType, json_data: &[u8]) -> Vec<String> {
 			(res.finalize(ex), callcreates)
 		};
 
+		let log_hash = {
+			let mut rlp = RlpStream::new_list(substate.logs.len());
+			for l in &substate.logs {
+				rlp.append(l);
+			}
+			keccak(&rlp.drain())
+		};
+
 		match res {
 			Err(_) => fail_unless(out_of_gas, "didn't expect to run out of gas."),
 			Ok(res) => {
@@ -260,6 +281,7 @@ fn do_json_test_for(vm_type: &VMType, json_data: &[u8]) -> Vec<String> {
 				fail_unless(Some(res.gas_left) == vm.gas_left.map(Into::into), "gas_left is incorrect");
 				let vm_output: Option<Vec<u8>> = vm.output.map(Into::into);
 				fail_unless(Some(output) == vm_output, "output is incorrect");
+				fail_unless(Some(log_hash) == vm.logs.map(|h| h.0), "logs are incorrect");
 
 				for (address, account) in vm.post_state.unwrap().into_iter() {
 					let address = address.into();
@@ -293,15 +315,15 @@ fn do_json_test_for(vm_type: &VMType, json_data: &[u8]) -> Vec<String> {
 }
 
 declare_test!{ExecutiveTests_vmArithmeticTest, "VMTests/vmArithmeticTest"}
-declare_test!{ExecutiveTests_vmBitwiseLogicOperationTest, "VMTests/vmBitwiseLogicOperationTest"}
+declare_test!{ExecutiveTests_vmBitwiseLogicOperationTest, "VMTests/vmBitwiseLogicOperation"}
 declare_test!{ExecutiveTests_vmBlockInfoTest, "VMTests/vmBlockInfoTest"}
  // TODO [todr] Fails with Signal 11 when using JIT
-declare_test!{ExecutiveTests_vmEnvironmentalInfoTest, "VMTests/vmEnvironmentalInfoTest"}
-declare_test!{ExecutiveTests_vmIOandFlowOperationsTest, "VMTests/vmIOandFlowOperationsTest"}
-declare_test!{heavy => ExecutiveTests_vmInputLimits, "VMTests/vmInputLimits"}
+declare_test!{ExecutiveTests_vmEnvironmentalInfoTest, "VMTests/vmEnvironmentalInfo"}
+declare_test!{ExecutiveTests_vmIOandFlowOperationsTest, "VMTests/vmIOandFlowOperations"}
 declare_test!{ExecutiveTests_vmLogTest, "VMTests/vmLogTest"}
-declare_test!{ExecutiveTests_vmPerformanceTest, "VMTests/vmPerformanceTest"}
+declare_test!{heavy => ExecutiveTests_vmPerformance, "VMTests/vmPerformance"}
 declare_test!{ExecutiveTests_vmPushDupSwapTest, "VMTests/vmPushDupSwapTest"}
+declare_test!{ExecutiveTests_vmRandomTest, "VMTests/vmRandomTest"}
 declare_test!{ExecutiveTests_vmSha3Test, "VMTests/vmSha3Test"}
-declare_test!{ExecutiveTests_vmSystemOperationsTest, "VMTests/vmSystemOperationsTest"}
-declare_test!{ExecutiveTests_vmtests, "VMTests/vmtests"}
+declare_test!{ExecutiveTests_vmSystemOperationsTest, "VMTests/vmSystemOperations"}
+declare_test!{ExecutiveTests_vmTests, "VMTests/vmTests"}

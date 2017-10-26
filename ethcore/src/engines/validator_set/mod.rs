@@ -25,10 +25,13 @@ mod multi;
 
 use std::sync::Weak;
 use ids::BlockId;
-use util::{Bytes, Address, H256};
+use bigint::hash::H256;
+use util::Address;
+use bytes::Bytes;
 use ethjson::spec::ValidatorSet as ValidatorSpec;
-use client::Client;
+use client::EngineClient;
 use header::{Header, BlockNumber};
+use machine::{AuxiliaryData, Call, EthereumMachine};
 
 #[cfg(test)]
 pub use self::test::TestSet;
@@ -36,8 +39,6 @@ pub use self::simple_list::SimpleList;
 use self::contract::ValidatorContract;
 use self::safe_contract::ValidatorSafeContract;
 use self::multi::Multi;
-
-use super::{Call, Engine};
 
 /// A system-calling closure. Enacts calls on a block's state from the system address.
 pub type SystemCall<'a> = FnMut(Address, Bytes) -> Result<Bytes, String> + 'a;
@@ -111,9 +112,8 @@ pub trait ValidatorSet: Send + Sync {
 		&self,
 		first: bool,
 		header: &Header,
-		block: Option<&[u8]>,
-		receipts: Option<&[::receipt::Receipt]>,
-	) -> ::engines::EpochChange;
+		aux: AuxiliaryData,
+	) -> ::engines::EpochChange<EthereumMachine>;
 
 	/// Recover the validator set from the given proof, the block number, and
 	/// whether this header is first in its set.
@@ -123,7 +123,7 @@ pub trait ValidatorSet: Send + Sync {
 	///
 	/// Returns the set, along with a flag indicating whether finality of a specific
 	/// hash should be proven.
-	fn epoch_set(&self, first: bool, engine: &Engine, number: BlockNumber, proof: &[u8])
+	fn epoch_set(&self, first: bool, machine: &EthereumMachine, number: BlockNumber, proof: &[u8])
 		-> Result<(SimpleList, Option<H256>), ::error::Error>;
 
 	/// Checks if a given address is a validator, with the given function
@@ -141,5 +141,5 @@ pub trait ValidatorSet: Send + Sync {
 	/// Notifies about benign misbehaviour.
 	fn report_benign(&self, _validator: &Address, _set_block: BlockNumber, _block: BlockNumber) {}
 	/// Allows blockchain state access.
-	fn register_contract(&self, _client: Weak<Client>) {}
+	fn register_client(&self, _client: Weak<EngineClient>) {}
 }

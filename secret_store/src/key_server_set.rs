@@ -23,7 +23,9 @@ use ethcore::filter::Filter;
 use ethcore::client::{Client, BlockChainClient, BlockId, ChainNotify};
 use native_contracts::KeyServerSet as KeyServerSetContract;
 use hash::keccak;
-use util::{H256, Address, Bytes};
+use bigint::hash::H256;
+use util::Address;
+use bytes::Bytes;
 use types::all::{Error, Public, NodeAddress};
 
 const KEY_SERVER_SET_CONTRACT_REGISTRY_NAME: &'static str = "secretstore_server_set";

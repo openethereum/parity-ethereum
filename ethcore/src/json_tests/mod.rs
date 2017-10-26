@@ -21,5 +21,5 @@ mod transaction;
 mod executive;
 mod state;
 mod chain;
-mod homestead_chain;
 mod trie;
+mod difficulty;

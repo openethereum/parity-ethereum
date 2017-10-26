@@ -20,7 +20,7 @@ use std::sync::Arc;
 use std::thread;
 use std::time::*;
 use parking_lot::Mutex;
-use util::Bytes;
+use ethcore_bytes::Bytes;
 use io::TimerToken;
 use ethkey::{Random, Generator};
 

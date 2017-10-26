@@ -17,7 +17,8 @@
 //! View onto block body rlp.
 
 use hash::keccak;
-use util::*;
+use bigint::hash::H256;
+use bytes::Bytes;
 use header::*;
 use transaction::*;
 use super::{TransactionView, HeaderView};

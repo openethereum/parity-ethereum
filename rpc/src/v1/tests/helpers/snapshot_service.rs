@@ -16,9 +16,9 @@
 
 use ethcore::snapshot::{ManifestData, RestorationStatus, SnapshotService};
 
+use bytes::Bytes;
+use bigint::hash::H256;
 use parking_lot::Mutex;
-use util::Bytes;
-use util::hash::H256;
 
 /// Mocked snapshot service (used for sync info extensions).
 pub struct TestSnapshotService {

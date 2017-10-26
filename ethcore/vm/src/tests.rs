@@ -17,7 +17,10 @@
 use std::sync::Arc;
 use std::collections::{HashMap, HashSet};
 
-use util::{H256, U256, Address, Bytes};
+use bigint::prelude::U256;
+use bigint::hash::H256;
+use util::Address;
+use bytes::Bytes;
 use {
 	CallType, Schedule, EnvInfo,
 	ReturnData, Ext, ContractCreateResult, MessageCallResult,
@@ -62,6 +65,7 @@ pub struct FakeExt {
 	pub schedule: Schedule,
 	pub balances: HashMap<Address, U256>,
 	pub tracing: bool,
+	pub is_static: bool,
 }
 
 // similar to the normal `finalize` function, but ignoring NeedsReturn.
@@ -76,6 +80,12 @@ pub fn test_finalize(res: Result<GasLeft>) -> Result<U256> {
 impl FakeExt {
 	pub fn new() -> Self {
 		FakeExt::default()
+	}
+
+	pub fn new_byzantium() -> Self {
+		let mut ext = FakeExt::default();
+		ext.schedule = Schedule::new_byzantium();
+		ext
 	}
 }
 
@@ -161,7 +171,7 @@ impl Ext for FakeExt {
 		Ok(())
 	}
 
-	fn ret(self, _gas: &U256, _data: &ReturnData) -> Result<U256> {
+	fn ret(self, _gas: &U256, _data: &ReturnData, _apply_state: bool) -> Result<U256> {
 		unimplemented!();
 	}
 
@@ -180,6 +190,10 @@ impl Ext for FakeExt {
 
 	fn depth(&self) -> usize {
 		self.depth
+	}
+
+	fn is_static(&self) -> bool {
+		self.is_static
 	}
 
 	fn inc_sstore_clears(&mut self) {

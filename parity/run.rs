@@ -27,6 +27,7 @@ use ethcore::miner::{Miner, MinerService, ExternalMiner, MinerOptions};
 use ethcore::miner::{StratumOptions, Stratum};
 use ethcore::service::ClientService;
 use ethcore::snapshot;
+use ethcore::spec::{SpecParams, OptimizeFor};
 use ethcore::verification::queue::VerifierSettings;
 use ethsync::{self, SyncConfig};
 use fdlimit::raise_fd_limit;
@@ -41,6 +42,7 @@ use ansi_term::Colour;
 use util::version;
 use parking_lot::{Condvar, Mutex};
 use node_filter::NodeFilter;
+use journaldb::Algorithm;
 
 use params::{
 	SpecType, Pruning, AccountsConfig, GasPricerConfig, MinerExtras, Switch,
@@ -175,7 +177,7 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 	use parking_lot::{Mutex, RwLock};
 
 	// load spec
-	let spec = cmd.spec.spec(&cmd.dirs.cache)?;
+	let spec = cmd.spec.spec(SpecParams::new(cmd.dirs.cache.as_ref(), OptimizeFor::Memory))?;
 
 	// load genesis hash
 	let genesis_hash = spec.genesis_header().hash();
@@ -223,7 +225,16 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 	config.queue.max_mem_use = cmd.cache_config.queue() as usize * 1024 * 1024;
 	config.queue.verifier_settings = cmd.verifier_settings;
 
-	let service = light_client::Service::start(config, &spec, &db_dirs.client_path(algorithm), cache.clone())
+	// start on_demand service.
+	let on_demand = Arc::new(::light::on_demand::OnDemand::new(cache.clone()));
+
+	let sync_handle = Arc::new(RwLock::new(Weak::new()));
+	let fetch = ::light_helpers::EpochFetch {
+		on_demand: on_demand.clone(),
+		sync: sync_handle.clone(),
+	};
+
+	let service = light_client::Service::start(config, &spec, fetch, &db_dirs.client_path(algorithm), cache.clone())
 		.map_err(|e| format!("Error starting light client: {}", e))?;
 	let txq = Arc::new(RwLock::new(::light::transaction_queue::TransactionQueue::default()));
 	let provider = ::light::provider::LightProvider::new(service.client().clone(), txq.clone());
@@ -234,9 +245,6 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 	if !cmd.custom_bootnodes {
 		net_conf.boot_nodes = spec.nodes.clone();
 	}
-
-	// start on_demand service.
-	let on_demand = Arc::new(::light::on_demand::OnDemand::new(cache.clone()));
 
 	let mut attached_protos = Vec::new();
 	let whisper_factory = if cmd.whisper.enabled {
@@ -259,6 +267,7 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 	};
 	let light_sync = LightSync::new(sync_params).map_err(|e| format!("Error starting network: {}", e))?;
 	let light_sync = Arc::new(light_sync);
+	*sync_handle.write() = Arc::downgrade(&light_sync);
 
 	// spin up event loop
 	let event_loop = EventLoop::spawn();
@@ -319,10 +328,9 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 			sync_status,
 			node_health,
 			contract_client: contract_client,
-			remote: event_loop.raw_remote(),
 			fetch: fetch.clone(),
 			signer: signer_service.clone(),
-			ui_address: cmd.ui_conf.address(),
+			ui_address: cmd.ui_conf.redirection_address(),
 		})
 	};
 
@@ -489,7 +497,21 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	}
 
 	sync_config.fork_block = spec.fork_block();
-	sync_config.warp_sync = spec.engine.supports_warp() && cmd.warp_sync;
+	let mut warp_sync = cmd.warp_sync;
+	if warp_sync {
+		// Logging is not initialized yet, so we print directly to stderr
+		if fat_db {
+			warn!("Warning: Warp Sync is disabled because Fat DB is turned on.");
+			warp_sync = false;
+		} else if tracing {
+			warn!("Warning: Warp Sync is disabled because tracing is turned on.");
+			warp_sync = false;
+		} else if algorithm != Algorithm::OverlayRecent {
+			warn!("Warning: Warp Sync is disabled because of non-default pruning mode.");
+			warp_sync = false;
+		}
+	}
+	sync_config.warp_sync = spec.engine.supports_warp() && warp_sync;
 	sync_config.download_old_blocks = cmd.download_old_blocks;
 	sync_config.serve_light = cmd.serve_light;
 
@@ -556,9 +578,6 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 
 	// set network path.
 	net_conf.net_config_path = Some(db_dirs.network_path().to_string_lossy().into_owned());
-
-	// create supervisor
-	let mut hypervisor = modules::hypervisor(&cmd.dirs.ipc_path());
 
 	// create client service.
 	let service = ClientService::start(
@@ -639,7 +658,6 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 
 	// create sync object
 	let (sync_provider, manage_network, chain_notify) = modules::sync(
-		&mut hypervisor,
 		sync_config,
 		net_conf.clone().into(),
 		client.clone(),
@@ -713,10 +731,9 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 			sync_status,
 			node_health,
 			contract_client: contract_client,
-			remote: event_loop.raw_remote(),
 			fetch: fetch.clone(),
 			signer: signer_service.clone(),
-			ui_address: cmd.ui_conf.address(),
+			ui_address: cmd.ui_conf.redirection_address(),
 		})
 	};
 	let dapps_middleware = dapps::new(cmd.dapps_conf.clone(), dapps_deps.clone())?;
@@ -846,10 +863,6 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	informant.shutdown();
 	// just Arc is dropping here, to allow other reference release in its default time
 	drop(informant);
-
-	// hypervisor should be shutdown first while everything still works and can be
-	// terminated gracefully
-	drop(hypervisor);
 
 	Ok(restart)
 }

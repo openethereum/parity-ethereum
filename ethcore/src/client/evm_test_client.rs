@@ -18,24 +18,27 @@
 
 use std::fmt;
 use std::sync::Arc;
-use util::{self, U256, H256, journaldb, trie};
-use util::kvdb::{self, KeyValueDB};
+use bigint::prelude::U256;
+use bigint::hash::H256;
+use journaldb;
+use {trie, kvdb_memorydb, bytes};
+use kvdb::{self, KeyValueDB};
 use {state, state_db, client, executive, trace, transaction, db, spec, pod_state};
 use factory::Factories;
-use evm::{self, VMType};
+use evm::{self, VMType, FinalizationResult};
 use vm::{self, ActionParams};
 
 /// EVM test Error.
 #[derive(Debug)]
 pub enum EvmTestError {
 	/// Trie integrity error.
-	Trie(util::TrieError),
+	Trie(trie::TrieError),
 	/// EVM error.
 	Evm(vm::Error),
 	/// Initialization error.
 	ClientError(::error::Error),
 	/// Low-level database error.
-	Database(String),
+	Database(kvdb::Error),
 	/// Post-condition failure,
 	PostCondition(String),
 }
@@ -68,7 +71,8 @@ lazy_static! {
 	pub static ref HOMESTEAD: spec::Spec = ethereum::new_homestead_test();
 	pub static ref EIP150: spec::Spec = ethereum::new_eip150_test();
 	pub static ref EIP161: spec::Spec = ethereum::new_eip161_test();
-	pub static ref _METROPOLIS: spec::Spec = ethereum::new_metropolis_test();
+	pub static ref BYZANTIUM: spec::Spec = ethereum::new_byzantium_test();
+	pub static ref BYZANTIUM_TRANSITION: spec::Spec = ethereum::new_transition_test();
 }
 
 /// Simplified, single-block EVM test client.
@@ -85,7 +89,10 @@ impl<'a> EvmTestClient<'a> {
 			ForkSpec::Homestead => Some(&*HOMESTEAD),
 			ForkSpec::EIP150 => Some(&*EIP150),
 			ForkSpec::EIP158 => Some(&*EIP161),
-			ForkSpec::Metropolis | ForkSpec::Byzantium | ForkSpec::Constantinople => None,
+			ForkSpec::Byzantium => Some(&*BYZANTIUM),
+			ForkSpec::EIP158ToByzantiumAt5 => Some(&BYZANTIUM_TRANSITION),
+			ForkSpec::FrontierToHomesteadAt5 | ForkSpec::HomesteadToDaoAt5 | ForkSpec::HomesteadToEIP150At5 => None,
+			_ => None,
 		}
 	}
 
@@ -120,7 +127,7 @@ impl<'a> EvmTestClient<'a> {
 	}
 
 	fn state_from_spec(spec: &'a spec::Spec, factories: &Factories) -> Result<state::State<state_db::StateDB>, EvmTestError> {
-		let db = Arc::new(kvdb::in_memory(db::NUM_COLUMNS.expect("We use column-based DB; qed")));
+		let db = Arc::new(kvdb_memorydb::create(db::NUM_COLUMNS.expect("We use column-based DB; qed")));
 		let journal_db = journaldb::new(db.clone(), journaldb::Algorithm::EarlyMerge, db::COL_STATE);
 		let mut state_db = state_db::StateDB::new(journal_db, 5 * 1024 * 1024);
 		state_db = spec.ensure_db_good(state_db, factories)?;
@@ -142,7 +149,7 @@ impl<'a> EvmTestClient<'a> {
 	}
 
 	fn state_from_pod(spec: &'a spec::Spec, factories: &Factories, pod_state: pod_state::PodState) -> Result<state::State<state_db::StateDB>, EvmTestError> {
-		let db = Arc::new(kvdb::in_memory(db::NUM_COLUMNS.expect("We use column-based DB; qed")));
+		let db = Arc::new(kvdb_memorydb::create(db::NUM_COLUMNS.expect("We use column-based DB; qed")));
 		let journal_db = journaldb::new(db.clone(), journaldb::Algorithm::EarlyMerge, db::COL_STATE);
 		let state_db = state_db::StateDB::new(journal_db, 5 * 1024 * 1024);
 		let mut state = state::State::new(
@@ -158,7 +165,7 @@ impl<'a> EvmTestClient<'a> {
 	/// Execute the VM given ActionParams and tracer.
 	/// Returns amount of gas left and the output.
 	pub fn call<T: trace::VMTracer>(&mut self, params: ActionParams, vm_tracer: &mut T)
-		-> Result<(U256, Vec<u8>), EvmTestError>
+		-> Result<FinalizationResult, EvmTestError>
 	{
 		let genesis = self.spec.genesis_header();
 		let info = client::EnvInfo {
@@ -166,23 +173,21 @@ impl<'a> EvmTestClient<'a> {
 			author: *genesis.author(),
 			timestamp: genesis.timestamp(),
 			difficulty: *genesis.difficulty(),
-			last_hashes: Arc::new([util::H256::default(); 256].to_vec()),
+			last_hashes: Arc::new([H256::default(); 256].to_vec()),
 			gas_used: 0.into(),
 			gas_limit: *genesis.gas_limit(),
 		};
 		let mut substate = state::Substate::new();
 		let mut tracer = trace::NoopTracer;
 		let mut output = vec![];
-		let mut executive = executive::Executive::new(&mut self.state, &info, &*self.spec.engine);
-		let (gas_left, _) = executive.call(
+		let mut executive = executive::Executive::new(&mut self.state, &info, self.spec.engine.machine());
+		executive.call(
 			params,
 			&mut substate,
-			util::BytesRef::Flexible(&mut output),
+			bytes::BytesRef::Flexible(&mut output),
 			&mut tracer,
 			vm_tracer,
-		).map_err(EvmTestError::Evm)?;
-
-		Ok((gas_left, output))
+		).map_err(EvmTestError::Evm)
 	}
 
 	/// Executes a SignedTransaction within context of the provided state and `EnvInfo`.
@@ -205,13 +210,16 @@ impl<'a> EvmTestClient<'a> {
 
 		// Apply transaction
 		let tracer = trace::NoopTracer;
-		let result = self.state.apply_with_tracing(&env_info, &*self.spec.engine, &transaction, tracer, vm_tracer);
+		let result = self.state.apply_with_tracing(&env_info, self.spec.engine.machine(), &transaction, tracer, vm_tracer);
 
 		match result {
-			Ok(result) => TransactResult::Ok {
-				state_root: *self.state.root(),
-				gas_left: initial_gas - result.receipt.gas_used,
-				output: result.output
+			Ok(result) => {
+				self.state.commit().ok();
+				TransactResult::Ok {
+					state_root: *self.state.root(),
+					gas_left: initial_gas - result.receipt.gas_used,
+					output: result.output
+				}
 			},
 			Err(error) => TransactResult::Err {
 				state_root: *self.state.root(),

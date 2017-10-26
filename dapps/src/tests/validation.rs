@@ -33,7 +33,7 @@ fn should_reject_invalid_host() {
 	);
 
 	// then
-	assert_eq!(response.status, "HTTP/1.1 403 Forbidden".to_owned());
+	response.assert_status("HTTP/1.1 403 Forbidden");
 	assert!(response.body.contains("Provided Host header is not whitelisted."), response.body);
 }
 
@@ -54,7 +54,7 @@ fn should_allow_valid_host() {
 	);
 
 	// then
-	assert_eq!(response.status, "HTTP/1.1 200 OK".to_owned());
+	response.assert_status("HTTP/1.1 200 OK");
 }
 
 #[test]
@@ -74,7 +74,7 @@ fn should_serve_dapps_domains() {
 	);
 
 	// then
-	assert_eq!(response.status, "HTTP/1.1 200 OK".to_owned());
+	response.assert_status("HTTP/1.1 200 OK");
 }
 
 #[test]
@@ -95,5 +95,5 @@ fn should_allow_parity_utils_even_on_invalid_domain() {
 	);
 
 	// then
-	assert_eq!(response.status, "HTTP/1.1 200 OK".to_owned());
+	response.assert_status("HTTP/1.1 200 OK");
 }

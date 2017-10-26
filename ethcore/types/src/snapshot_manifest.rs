@@ -16,9 +16,9 @@
 
 //! Snapshot manifest type definition
 
-use util::hash::H256;
+use bigint::hash::H256;
 use rlp::*;
-use util::Bytes;
+use bytes::Bytes;
 
 /// Manifest data.
 #[derive(Debug, Clone, PartialEq, Eq)]

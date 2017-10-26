@@ -25,10 +25,10 @@ use super::helpers::{compare_dbs, StateProducer};
 use error::Error;
 
 use rand::{XorShiftRng, SeedableRng};
-use util::hash::H256;
-use util::journaldb::{self, Algorithm};
-use util::kvdb::{Database, DatabaseConfig};
-use util::memorydb::MemoryDB;
+use bigint::hash::H256;
+use journaldb::{self, Algorithm};
+use kvdb_rocksdb::{Database, DatabaseConfig};
+use memorydb::MemoryDB;
 use parking_lot::Mutex;
 use devtools::RandomTempPath;
 
@@ -76,7 +76,7 @@ fn snap_and_restore() {
 
 		for chunk_hash in &reader.manifest().state_hashes {
 			let raw = reader.chunk(*chunk_hash).unwrap();
-			let chunk = ::util::snappy::decompress(&raw).unwrap();
+			let chunk = ::snappy::decompress(&raw).unwrap();
 
 			rebuilder.feed(&chunk, &flag).unwrap();
 		}
@@ -97,7 +97,9 @@ fn snap_and_restore() {
 fn get_code_from_prev_chunk() {
 	use std::collections::HashSet;
 	use rlp::RlpStream;
-	use util::{HashDB, H256, U256};
+	use bigint::prelude::U256;
+	use bigint::hash::H256;
+	use hashdb::HashDB;
 
 	use account_db::{AccountDBMut, AccountDB};
 
@@ -188,7 +190,7 @@ fn checks_flag() {
 
 		for chunk_hash in &reader.manifest().state_hashes {
 			let raw = reader.chunk(*chunk_hash).unwrap();
-			let chunk = ::util::snappy::decompress(&raw).unwrap();
+			let chunk = ::snappy::decompress(&raw).unwrap();
 
 			match rebuilder.feed(&chunk, &flag) {
 				Err(Error::Snapshot(SnapshotError::RestorationAborted)) => {},

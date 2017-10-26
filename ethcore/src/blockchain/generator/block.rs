@@ -15,8 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use rlp::*;
-use util::{H256, H2048};
-use util::bytes::Bytes;
+use bigint::hash::{H256, H2048};
+use bytes::Bytes;
 use header::Header;
 use transaction::SignedTransaction;
 

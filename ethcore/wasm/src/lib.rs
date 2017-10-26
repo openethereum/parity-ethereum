@@ -18,6 +18,7 @@
 
 extern crate vm;
 extern crate ethcore_util as util;
+extern crate ethcore_bigint as bigint;
 #[macro_use] extern crate log;
 extern crate ethcore_logger;
 extern crate byteorder;
@@ -26,7 +27,6 @@ extern crate wasm_utils;
 
 mod runtime;
 mod ptr;
-mod call_args;
 mod result;
 #[cfg(test)]
 mod tests;
@@ -38,21 +38,41 @@ use parity_wasm::{interpreter, elements};
 use parity_wasm::interpreter::ModuleInstanceInterface;
 
 use vm::{GasLeft, ReturnData, ActionParams};
-use self::runtime::{Runtime, RuntimeContext};
+use self::runtime::{Runtime, RuntimeContext, UserTrap};
 
-pub use self::runtime::Error as RuntimeError;
+pub use self::runtime::InterpreterError;
 
 const DEFAULT_RESULT_BUFFER: usize = 1024;
 
+/// Wrapped interpreter error
+#[derive(Debug)]
+pub struct Error(InterpreterError);
+
+impl From<InterpreterError> for Error {
+	fn from(e: InterpreterError) -> Self {
+		Error(e)
+	}
+}
+
+impl From<Error> for vm::Error {
+	fn from(e: Error) -> Self {
+		vm::Error::Wasm(format!("Wasm runtime error: {:?}", e.0))
+	}
+}
+
+impl From<UserTrap> for vm::Error {
+	fn from(e: UserTrap) -> Self { e.into() }
+}
+
 /// Wasm interpreter instance
 pub struct WasmInterpreter {
-	program: interpreter::ProgramInstance,
+	program: runtime::InterpreterProgramInstance,
 	result: Vec<u8>,
 }
 
 impl WasmInterpreter {
 	/// New wasm interpreter instance
-	pub fn new() -> Result<WasmInterpreter, RuntimeError> {
+	pub fn new() -> Result<WasmInterpreter, Error> {
 		Ok(WasmInterpreter {
 			program: interpreter::ProgramInstance::new()?,
 			result: Vec::with_capacity(DEFAULT_RESULT_BUFFER),
@@ -86,7 +106,12 @@ impl vm::Vm for WasmInterpreter {
 			env_memory,
 			DEFAULT_STACK_SPACE,
 			params.gas.low_u64(),
-			RuntimeContext::new(params.address, params.sender),
+			RuntimeContext {
+				address: params.address,
+				sender: params.sender,
+				origin: params.origin,
+				value: params.value.value(),
+			},
 			&self.program,
 		);
 
@@ -97,18 +122,20 @@ impl vm::Vm for WasmInterpreter {
 				&mut cursor
 			).map_err(|err| {
 				vm::Error::Wasm(format!("Error deserializing contract code ({:?})", err))
-			})?
+			})?,
+			runtime.gas_rules(),
 		);
 
-		let d_ptr = runtime.write_descriptor(
-			call_args::CallArgs::new(
-				params.address,
-				params.sender,
-				params.origin,
-				params.value.value(),
-				params.data.unwrap_or(Vec::with_capacity(0)),
-			)
-		)?;
+		let data_section_length = contract_module.data_section()
+			.map(|section| section.entries().iter().fold(0, |sum, entry| sum + entry.value().len()))
+			.unwrap_or(0)
+			as u64;
+
+		let static_segment_cost = data_section_length * runtime.ext().schedule().wasm.static_region as u64;
+		runtime.charge(|_| static_segment_cost).map_err(Error)?;
+
+		let d_ptr = runtime.write_descriptor(&params.data.unwrap_or_default())
+			.map_err(Error)?;
 
 		{
 			let execution_params = runtime.execution_params()
@@ -117,27 +144,30 @@ impl vm::Vm for WasmInterpreter {
 			let module_instance = self.program.add_module("contract", contract_module, Some(&execution_params.externals))
 				.map_err(|err| {
 					trace!(target: "wasm", "Error adding contract module: {:?}", err);
-					vm::Error::from(RuntimeError::Interpreter(err))
+					vm::Error::from(Error(err))
 				})?;
 
-			module_instance.execute_export("_call", execution_params)
-				.map_err(|err| {
+			match module_instance.execute_export("_call", execution_params) {
+				Ok(_) => { },
+				Err(interpreter::Error::User(UserTrap::Suicide)) => { },
+				Err(err) => {
 					trace!(target: "wasm", "Error executing contract: {:?}", err);
-					vm::Error::from(RuntimeError::Interpreter(err))
-				})?;
+					return Err(vm::Error::from(Error(err)))
+				}
+			}
 		}
 
 		let result = result::WasmResult::new(d_ptr);
-		if result.peek_empty(&*runtime.memory())? {
+		if result.peek_empty(&*runtime.memory()).map_err(|e| Error(e))? {
 			trace!(target: "wasm", "Contract execution result is empty.");
 			Ok(GasLeft::Known(runtime.gas_left()?.into()))
 		} else {
 			self.result.clear();
 			// todo: use memory views to avoid copy
-			self.result.extend(result.pop(&*runtime.memory())?);
+			self.result.extend(result.pop(&*runtime.memory()).map_err(|e| Error(e.into()))?);
 			let len = self.result.len();
 			Ok(GasLeft::NeedsReturn {
-				gas_left: runtime.gas_left()?.into(),
+				gas_left: runtime.gas_left().map_err(|e| Error(e.into()))?.into(),
 				data: ReturnData::new(
 					::std::mem::replace(&mut self.result, Vec::with_capacity(DEFAULT_RESULT_BUFFER)),
 					0,
@@ -146,11 +176,5 @@ impl vm::Vm for WasmInterpreter {
 				apply_state: true,
 			})
 		}
-	}
-}
-
-impl From<runtime::Error> for vm::Error {
-	fn from(err: runtime::Error) -> vm::Error {
-		vm::Error::Wasm(format!("WASM runtime-error: {:?}", err))
 	}
 }

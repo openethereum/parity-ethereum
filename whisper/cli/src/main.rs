@@ -22,50 +22,18 @@ extern crate parity_whisper;
 extern crate panic_hook;
 extern crate parity_rpc;
 extern crate ethcore_network as net;
-extern crate ethcore_ipc_hypervisor as hypervisor;
 
 use std::str::FromStr;
 
 
 extern crate jsonrpc_core;
 extern crate jsonrpc_http_server as http;
-extern crate jsonrpc_ipc_server as ipc;
 extern crate jsonrpc_minihttp_server as minihttp;
 extern crate jsonrpc_pubsub;
 extern crate parity_dapps;
 extern crate ethsync;
 
-// #[cfg(feature="ipc")]
-pub mod service_urls {
-	use std::path::PathBuf;
-
-	pub const CLIENT: &'static str = "parity-chain.ipc";
-	pub const SNAPSHOT: &'static str = "parity-snapshot.ipc";
-	pub const SYNC: &'static str = "parity-sync.ipc";
-	pub const SYNC_NOTIFY: &'static str = "parity-sync-notify.ipc";
-	pub const NETWORK_MANAGER: &'static str = "parity-manage-net.ipc";
-	pub const SYNC_CONTROL: &'static str = "parity-sync-control.ipc";
-	pub const LIGHT_PROVIDER: &'static str = "parity-light-provider.ipc";
-
-	#[cfg(feature="stratum")]
-	pub const STRATUM_CONTROL: &'static str = "parity-stratum-control.ipc";
-
-	pub fn with_base(data_dir: &str, service_path: &str) -> String {
-		let mut path = PathBuf::from(data_dir);
-		path.push(service_path);
-
-		format!("ipc://{}", path.to_str().unwrap())
-	}
-}
 use std::path::Path;
-use hypervisor::Hypervisor;
-use hypervisor::{SYNC_MODULE_ID, BootArgs, HYPERVISOR_IPC_URL};
-// #[cfg(feature="ipc")]
-pub fn hypervisor(base_path: &Path) -> Option<Hypervisor> {
-	Some(Hypervisor
-		::with_url(&service_urls::with_base(base_path.to_str().unwrap(), HYPERVISOR_IPC_URL))
-		.io_path(base_path.to_str().unwrap()))
-}
 
 /// RPC dependencies can be used to initialize RPC endpoints from APIs.
 // pub trait Dependencies {
@@ -105,8 +73,6 @@ pub fn hypervisor(base_path: &Path) -> Option<Hypervisor> {
 // 	pub pool: Option<CpuPool>,
 // }
 
-extern crate ethcore_ipc_nano as nanoipc;
-use nanoipc::{GuardedSocket, NanoSocket, generic_client, fast_client};
 use parity_dapps as dapps;
 use parity_rpc::informant::{RpcStats, Middleware, CpuPool, ActivityNotifier};
 use parity_rpc::Metadata;
@@ -127,83 +93,83 @@ use http::{
 const DAPPS_DOMAIN: &'static str = "web3.site";
 
 mod http_common {
-/* start http_common.rs */
+	/* start http_common.rs */
 
-use jsonrpc_core;
-use jsonrpc_core::MetaIoHandler;
-use http;
-use hyper;
-use minihttp;
-// use parity_reactor::TokioRemote;
-use tokio_core::reactor::{Remote as TokioRemote};
+	use jsonrpc_core;
+	use jsonrpc_core::MetaIoHandler;
+	use http;
+	use hyper;
+	use minihttp;
+	// use parity_reactor::TokioRemote;
+	use tokio_core::reactor::{Remote as TokioRemote};
 
 
-/// HTTP RPC server impl-independent metadata extractor
-pub trait HttpMetaExtractor: Send + Sync + 'static {
-	/// Type of Metadata
-	type Metadata: jsonrpc_core::Metadata;
-	/// Extracts metadata from given params.
-	fn read_metadata(&self, origin: Option<String>, user_agent: Option<String>, dapps_origin: Option<String>) -> Self::Metadata;
-}
+	/// HTTP RPC server impl-independent metadata extractor
+	pub trait HttpMetaExtractor: Send + Sync + 'static {
+		/// Type of Metadata
+		type Metadata: jsonrpc_core::Metadata;
+		/// Extracts metadata from given params.
+		fn read_metadata(&self, origin: Option<String>, user_agent: Option<String>, dapps_origin: Option<String>) -> Self::Metadata;
+	}
 
-pub struct HyperMetaExtractor<T> {
-	extractor: T,
-}
+	pub struct HyperMetaExtractor<T> {
+		extractor: T,
+	}
 
-impl<T> HyperMetaExtractor<T> {
-	pub fn new(extractor: T) -> Self {
-		HyperMetaExtractor {
-			extractor: extractor,
+	impl<T> HyperMetaExtractor<T> {
+		pub fn new(extractor: T) -> Self {
+			HyperMetaExtractor {
+				extractor: extractor,
+			}
 		}
 	}
-}
 
-impl<M, T> http::MetaExtractor<M> for HyperMetaExtractor<T> where
-	T: HttpMetaExtractor<Metadata = M>,
-	M: jsonrpc_core::Metadata,
-{
-	fn read_metadata(&self, req: &hyper::server::Request<hyper::net::HttpStream>) -> M {
-		let as_string = |header: Option<&http::request_response::header::Raw>| header
-			.and_then(|raw| raw.one())
-			.map(|raw| String::from_utf8_lossy(raw).into_owned());
+	impl<M, T> http::MetaExtractor<M> for HyperMetaExtractor<T> where
+		T: HttpMetaExtractor<Metadata = M>,
+		M: jsonrpc_core::Metadata,
+	{
+		fn read_metadata(&self, req: &hyper::server::Request<hyper::net::HttpStream>) -> M {
+			let as_string = |header: Option<&http::request_response::header::Raw>| header
+				.and_then(|raw| raw.one())
+				.map(|raw| String::from_utf8_lossy(raw).into_owned());
 
-		let origin = as_string(req.headers().get_raw("origin"));
-		let user_agent = as_string(req.headers().get_raw("user-agent"));
-		let dapps_origin = as_string(req.headers().get_raw("x-parity-origin"));
-		self.extractor.read_metadata(origin, user_agent, dapps_origin)
-	}
-}
-
-pub struct MiniMetaExtractor<T> {
-	extractor: T,
-}
-
-impl<T> MiniMetaExtractor<T> {
-	pub fn new(extractor: T) -> Self {
-		MiniMetaExtractor {
-			extractor: extractor,
+			let origin = as_string(req.headers().get_raw("origin"));
+			let user_agent = as_string(req.headers().get_raw("user-agent"));
+			let dapps_origin = as_string(req.headers().get_raw("x-parity-origin"));
+			self.extractor.read_metadata(origin, user_agent, dapps_origin)
 		}
 	}
-}
 
-impl<M, T> minihttp::MetaExtractor<M> for MiniMetaExtractor<T> where
-	T: HttpMetaExtractor<Metadata = M>,
-	M: jsonrpc_core::Metadata,
-{
-	fn read_metadata(&self, req: &minihttp::Req) -> M {
-		let origin = req.header("origin").map(|h| h.to_owned());
-		let user_agent = req.header("user-agent").map(|h| h.to_owned());
-		let dapps_origin = req.header("x-parity-origin").map(|h| h.to_owned());
-
-		self.extractor.read_metadata(origin, user_agent, dapps_origin)
+	pub struct MiniMetaExtractor<T> {
+		extractor: T,
 	}
+
+	impl<T> MiniMetaExtractor<T> {
+		pub fn new(extractor: T) -> Self {
+			MiniMetaExtractor {
+				extractor: extractor,
+			}
+		}
+	}
+
+	impl<M, T> minihttp::MetaExtractor<M> for MiniMetaExtractor<T> where
+		T: HttpMetaExtractor<Metadata = M>,
+		M: jsonrpc_core::Metadata,
+	{
+		fn read_metadata(&self, req: &minihttp::Req) -> M {
+			let origin = req.header("origin").map(|h| h.to_owned());
+			let user_agent = req.header("user-agent").map(|h| h.to_owned());
+			let dapps_origin = req.header("x-parity-origin").map(|h| h.to_owned());
+
+			self.extractor.read_metadata(origin, user_agent, dapps_origin)
+		}
+	}
+
+	/* end http_common.rs */
 }
 
-/* end http_common.rs */
-}
 
-
-use std::sync::Arc; // no
+use std::sync::Arc;
 use parity_whisper::net::{self as whisper_net, Network as WhisperNetwork};
 use parity_whisper::rpc::{WhisperClient, FilterManager, PoolHandle};
 use parity_whisper::message::Message;
@@ -220,7 +186,7 @@ impl PoolHandle for NetworkPoolHandle {
 	fn relay(&self, message: Message) -> bool {
 		let mut res = false;
 		let mut message = Some(message);
-		self.net.with_proto_context(whisper_net::PROTOCOL_ID, &mut move |ctx| {
+		self.with_proto_context(whisper_net::PROTOCOL_ID, &mut move |ctx| {
 			if let Some(message) = message.take() {
 				res = self.handle.post_message(message, ctx);
 			}
@@ -231,12 +197,11 @@ impl PoolHandle for NetworkPoolHandle {
 	fn pool_status(&self) -> whisper_net::PoolStatus {
 		self.handle.pool_status()
 	}
-
 }
 
 impl NetworkPoolHandle {
 	fn with_proto_context(&self, proto: ProtocolId, f: &mut FnMut(&NetworkContext)) {
-		self.network.with_context_eval(proto, f);
+		self.net.with_context_eval(proto, f);
 	}
 }
 
@@ -253,7 +218,6 @@ impl NetworkPoolHandle {
 // 	}
 // }
 
-use ethsync::ManageNetwork; // bad
 // use ethsync::api::{SyncClient, NetworkManagerClient};
 
 // use parity_rpc::*;
@@ -427,7 +391,7 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 	// - No need for Arc<>, right? Pas besoin d'envoyer à travers des threads, right ?
 
 	// Todo :
-	// - Réorganiser en structs pour fermer les dépendances
+	// - Réorganiser en structs pour fermer les dépendences
 
 	// -- CLI Parsing
 	let args: Args = Docopt::new(USAGE)
@@ -450,15 +414,6 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 
 	let handle2 = NetworkPoolHandle { handle: whisper_network_handler.clone(), net: Arc::new(network) };
 
-//	let handle = NetPoolHandle { handle: whisper_network_handler.clone(), net: Arc::new(network) };
-	// so, whisperclient::new needs a PoolHandle
-	// so: netpoolhandle needs a ManageNetwork (or not ,actually)
-	// if I want to make 'network' a ManageNetwork, I need to impl it. but I would implement an external trait to an external struct, so that wouldn't work.
-
-
-/*
-hey Rob, WhiperClient::new expects a PoolHandle with a struct implementing ManageNetwork, however NetworkService::new doesn't implement ManageNetwork by default. should I implement ManageNetwork for NetworkService::new in the whisper cli file? (if so, I imagine I'd have to use a wrapper of sorts, as both the trait and the struct are external to the parity cli ?)
-*/
 	let whisper_rpc_handler : WhisperClient<NetworkPoolHandle, Metadata> = WhisperClient::new(handle2, whisper_filter_manager.clone());
 
 // cannot use ethsync

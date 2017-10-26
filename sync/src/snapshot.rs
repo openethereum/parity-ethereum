@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use hash::keccak;
-use util::H256;
+use bigint::hash::H256;
 use std::collections::HashSet;
 use ethcore::snapshot::ManifestData;
 
@@ -137,7 +137,7 @@ impl Snapshot {
 #[cfg(test)]
 mod test {
 	use hash::keccak;
-	use util::*;
+	use bytes::Bytes;
 	use super::*;
 	use ethcore::snapshot::ManifestData;
 

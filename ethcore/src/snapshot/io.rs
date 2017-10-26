@@ -25,8 +25,8 @@ use std::io::{self, Read, Seek, SeekFrom, Write};
 use std::fs::{self, File};
 use std::path::{Path, PathBuf};
 
-use util::Bytes;
-use util::hash::H256;
+use bytes::Bytes;
+use bigint::hash::H256;
 use rlp::{RlpStream, UntrustedRlp};
 
 use super::ManifestData;

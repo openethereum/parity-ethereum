@@ -24,19 +24,20 @@ use account_db::AccountDBMut;
 use basic_account::BasicAccount;
 use blockchain::BlockChain;
 use client::{BlockChainClient, Client};
-use engines::Engine;
+use engines::EthEngine;
 use snapshot::{StateRebuilder};
 use snapshot::io::{SnapshotReader, PackedWriter, PackedReader};
 
 use devtools::{RandomTempPath, GuardedTempResult};
 use rand::Rng;
 
-use util::{DBValue, KeyValueDB};
-use util::hash::H256;
-use util::hashdb::HashDB;
-use util::journaldb;
-use util::trie::{Alphabet, StandardMap, SecTrieDBMut, TrieMut, ValueMode};
-use util::trie::{TrieDB, TrieDBMut, Trie};
+use util::DBValue;
+use kvdb::KeyValueDB;
+use bigint::hash::H256;
+use hashdb::HashDB;
+use journaldb;
+use trie::{Alphabet, StandardMap, SecTrieDBMut, TrieMut, ValueMode};
+use trie::{TrieDB, TrieDBMut, Trie};
 
 // the proportion of accounts we will alter each tick.
 const ACCOUNT_CHURN: f32 = 0.01;
@@ -160,12 +161,12 @@ pub fn snap(client: &Client) -> GuardedTempResult<Box<SnapshotReader>> {
 /// write into the given database.
 pub fn restore(
 	db: Arc<KeyValueDB>,
-	engine: &Engine,
+	engine: &EthEngine,
 	reader: &SnapshotReader,
 	genesis: &[u8],
 ) -> Result<(), ::error::Error> {
 	use std::sync::atomic::AtomicBool;
-	use util::snappy;
+	use snappy;
 
 	let flag = AtomicBool::new(true);
 	let components = engine.snapshot_components().unwrap();

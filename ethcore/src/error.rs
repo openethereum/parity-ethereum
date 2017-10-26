@@ -17,12 +17,18 @@
 //! General error types for use in ethcore.
 
 use std::fmt;
+use kvdb;
+use bigint::prelude::U256;
+use bigint::hash::H256;
 use util::*;
+use util_error::UtilError;
+use snappy::InvalidInput;
+use unexpected::{Mismatch, OutOfBounds};
+use trie::TrieError;
 use io::*;
 use header::BlockNumber;
 use basic_types::LogBloom;
 use client::Error as ClientError;
-use ipc::binary::{BinaryConvertError, BinaryConvertable};
 use snapshot::Error as SnapshotError;
 use engines::EngineError;
 use ethkey::Error as EthkeyError;
@@ -80,6 +86,8 @@ pub enum TransactionError {
 	CodeBanned,
 	/// Invalid chain ID given.
 	InvalidChainId,
+	/// Not enough permissions given by permission contract.
+	NotAllowed,
 }
 
 impl fmt::Display for TransactionError {
@@ -104,6 +112,7 @@ impl fmt::Display for TransactionError {
 			RecipientBanned => "Recipient is temporarily banned.".into(),
 			CodeBanned => "Contract code is temporarily banned.".into(),
 			InvalidChainId => "Transaction of this chain ID is not allowed on this chain.".into(),
+			NotAllowed => "Sender does not have permissions to execute this type of transction".into(),
 		};
 
 		f.write_fmt(format_args!("Transaction error ({})", msg))
@@ -292,6 +301,8 @@ impl From<Error> for TransactionImportError {
 pub enum Error {
 	/// Client configuration error.
 	Client(ClientError),
+	/// Database error.
+	Database(kvdb::Error),
 	/// Error concerning a utility.
 	Util(UtilError),
 	/// Error concerning block processing.
@@ -315,7 +326,7 @@ pub enum Error {
 	/// Standard io error.
 	StdIo(::std::io::Error),
 	/// Snappy error.
-	Snappy(::util::snappy::InvalidInput),
+	Snappy(InvalidInput),
 	/// Snapshot error.
 	Snapshot(SnapshotError),
 	/// Consensus vote error.
@@ -330,6 +341,7 @@ impl fmt::Display for Error {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match *self {
 			Error::Client(ref err) => err.fmt(f),
+			Error::Database(ref err) => err.fmt(f),
 			Error::Util(ref err) => err.fmt(f),
 			Error::Io(ref err) => err.fmt(f),
 			Error::Block(ref err) => err.fmt(f),
@@ -363,6 +375,12 @@ impl From<ClientError> for Error {
 	}
 }
 
+impl From<kvdb::Error> for Error {
+	fn from(err: kvdb::Error) -> Error {
+		Error::Database(err)
+	}
+}
+
 impl From<TransactionError> for Error {
 	fn from(err: TransactionError) -> Error {
 		Error::Transaction(err)
@@ -389,7 +407,7 @@ impl From<ExecutionError> for Error {
 
 impl From<::rlp::DecoderError> for Error {
 	fn from(err: ::rlp::DecoderError) -> Error {
-		Error::Util(UtilError::Decoder(err))
+		Error::Util(UtilError::from(err))
 	}
 }
 
@@ -422,13 +440,13 @@ impl From<BlockImportError> for Error {
 		match err {
 			BlockImportError::Block(e) => Error::Block(e),
 			BlockImportError::Import(e) => Error::Import(e),
-			BlockImportError::Other(s) => Error::Util(UtilError::SimpleString(s)),
+			BlockImportError::Other(s) => Error::Util(UtilError::from(s)),
 		}
 	}
 }
 
-impl From<snappy::InvalidInput> for Error {
-	fn from(err: snappy::InvalidInput) -> Error {
+impl From<::snappy::InvalidInput> for Error {
+	fn from(err: ::snappy::InvalidInput) -> Error {
 		Error::Snappy(err)
 	}
 }
@@ -467,21 +485,3 @@ impl<E> From<Box<E>> for Error where Error: From<E> {
 		Error::from(*err)
 	}
 }
-
-binary_fixed_size!(BlockError);
-binary_fixed_size!(ImportError);
-binary_fixed_size!(TransactionError);
-
-// TODO: uncomment below once https://github.com/rust-lang/rust/issues/27336 sorted.
-/*#![feature(concat_idents)]
-macro_rules! assimilate {
-    ($name:ident) => (
-		impl From<concat_idents!($name, Error)> for Error {
-			fn from(err: concat_idents!($name, Error)) -> Error {
-				Error:: $name (err)
-			}
-		}
-    )
-}
-assimilate!(FromHex);
-assimilate!(BaseData);*/

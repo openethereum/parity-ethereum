@@ -58,6 +58,9 @@ pub struct Params {
 	#[serde(rename="eip155Transition")]
 	pub eip155_transition: Option<Uint>,
 	/// See `CommonParams` docs.
+	#[serde(rename="validateChainIdTransition")]
+	pub validate_chain_id_transition: Option<Uint>,
+	/// See `CommonParams` docs.
 	#[serde(rename="validateReceiptsTransition")]
 	pub validate_receipts_transition: Option<Uint>,
 	/// See `CommonParams` docs.
@@ -85,6 +88,9 @@ pub struct Params {
 	#[serde(rename="eip214Transition")]
 	pub eip214_transition: Option<Uint>,
 	/// See `CommonParams` docs.
+	#[serde(rename="eip658Transition")]
+	pub eip658_transition: Option<Uint>,
+	/// See `CommonParams` docs.
 	#[serde(rename="dustProtectionTransition")]
 	pub dust_protection_transition: Option<Uint>,
 	/// See `CommonParams` docs.
@@ -98,9 +104,6 @@ pub struct Params {
 	#[serde(rename="gasLimitBoundDivisor")]
 	pub gas_limit_bound_divisor: Uint,
 	/// See `CommonParams` docs.
-	#[serde(rename="blockReward")]
-	pub block_reward: Option<Uint>,
-	/// See `CommonParams` docs.
 	pub registrar: Option<Address>,
 	/// Apply reward flag
 	#[serde(rename="applyReward")]
@@ -108,6 +111,12 @@ pub struct Params {
 	/// Node permission contract address.
 	#[serde(rename="nodePermissionContract")]
 	pub node_permission_contract: Option<Address>,
+	/// See main EthashParams docs.
+	#[serde(rename="maxCodeSize")]
+	pub max_code_size: Option<Uint>,
+	/// Transaction permission contract address.
+	#[serde(rename="transactionPermissionContract")]
+	pub transaction_permission_contract: Option<Address>,
 }
 
 #[cfg(test)]
@@ -126,7 +135,8 @@ mod tests {
 			"subprotocolName" : "exp",
 			"minGasLimit": "0x1388",
 			"accountStartNonce": "0x01",
-			"gasLimitBoundDivisor": "0x20"
+			"gasLimitBoundDivisor": "0x20",
+			"maxCodeSize": "0x1000"
 		}"#;
 
 		let deserialized: Params = serde_json::from_str(s).unwrap();
@@ -137,5 +147,6 @@ mod tests {
 		assert_eq!(deserialized.min_gas_limit, Uint(U256::from(0x1388)));
 		assert_eq!(deserialized.account_start_nonce, Some(Uint(U256::from(0x01))));
 		assert_eq!(deserialized.gas_limit_bound_divisor, Uint(U256::from(0x20)));
+		assert_eq!(deserialized.max_code_size, Some(Uint(U256::from(0x1000))));
 	}
 }

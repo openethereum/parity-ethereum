@@ -35,15 +35,14 @@ pub use self::decryption_session::Session as DecryptionSession;
 pub use super::node_key_pair::PlainNodeKeyPair;
 #[cfg(test)]
 pub use super::key_storage::tests::DummyKeyStorage;
-#[cfg(test)]
 pub use super::acl_storage::DummyAclStorage;
 #[cfg(test)]
 pub use super::key_server_set::tests::MapKeyServerSet;
 
 pub type SessionId = ServerKeyId;
 
-#[derive(Debug, Clone)]
 /// Session metadata.
+#[derive(Debug, Clone)]
 pub struct SessionMeta {
 	/// Key id.
 	pub id: SessionId,
@@ -55,8 +54,8 @@ pub struct SessionMeta {
 	pub threshold: usize,
 }
 
-#[derive(Clone, Debug, PartialEq)]
 /// Errors which can occur during encryption/decryption session
+#[derive(Clone, Debug, PartialEq)]
 pub enum Error {
 	/// Invalid node address has been passed.
 	InvalidNodeAddress,
@@ -90,6 +89,10 @@ pub enum Error {
 	/// Message or some data in the message was recognized as invalid.
 	/// This means that node is misbehaving/cheating.
 	InvalidMessage,
+	/// Message version is not supported.
+	InvalidMessageVersion,
+	/// Message is invalid because of replay-attack protection.
+	ReplayProtection,
 	/// Connection to node, required for this session is not established.
 	NodeDisconnected,
 	/// Cryptographic error.
@@ -104,6 +107,10 @@ pub enum Error {
 	ConsensusUnreachable,
 	/// Acl storage error.
 	AccessDenied,
+	/// Can't start session, because exclusive session is active.
+	ExclusiveSessionActive,
+	/// Can't start exclusive session, because there are other active sessions.
+	HasActiveSessions,
 }
 
 impl From<ethkey::Error> for Error {
@@ -140,6 +147,8 @@ impl fmt::Display for Error {
 			Error::InvalidStateForRequest => write!(f, "session is in invalid state for processing this request"),
 			Error::InvalidNodeForRequest => write!(f, "invalid node for this request"),
 			Error::InvalidMessage => write!(f, "invalid message is received"),
+			Error::InvalidMessageVersion => write!(f, "unsupported message is received"),
+			Error::ReplayProtection => write!(f, "replay message is received"),
 			Error::NodeDisconnected => write!(f, "node required for this operation is currently disconnected"),
 			Error::EthKey(ref e) => write!(f, "cryptographic error {}", e),
 			Error::Io(ref e) => write!(f, "i/o error {}", e),
@@ -147,6 +156,8 @@ impl fmt::Display for Error {
 			Error::KeyStorage(ref e) => write!(f, "key storage error {}", e),
 			Error::ConsensusUnreachable => write!(f, "Consensus unreachable"),
 			Error::AccessDenied => write!(f, "Access denied"),
+			Error::ExclusiveSessionActive => write!(f, "Exclusive session active"),
+			Error::HasActiveSessions => write!(f, "Unable to start exclusive session"),
 		}
 	}
 }
@@ -157,14 +168,23 @@ impl Into<String> for Error {
 	}
 }
 
+mod admin_sessions;
+mod client_sessions;
+
+pub use self::admin_sessions::servers_set_change_session;
+pub use self::admin_sessions::share_add_session;
+pub use self::admin_sessions::share_change_session;
+pub use self::admin_sessions::share_move_session;
+pub use self::admin_sessions::share_remove_session;
+
+pub use self::client_sessions::decryption_session;
+pub use self::client_sessions::encryption_session;
+pub use self::client_sessions::generation_session;
+pub use self::client_sessions::signing_session;
 mod cluster;
 mod cluster_sessions;
-mod decryption_session;
-mod encryption_session;
-mod generation_session;
 mod io;
 mod jobs;
 pub mod math;
 mod message;
-mod signing_session;
 mod net;

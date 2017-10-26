@@ -18,13 +18,18 @@
 
 use std::sync::Arc;
 use rustc_hex::ToHex;
-use mime::Mime;
+use mime::{self, Mime};
 use mime_guess;
 use hash::keccak;
 
-use futures::{future, BoxFuture, Future};
+use futures::{future, Future};
 use native_contracts::{Registry, Urlhint};
-use util::{Address, Bytes};
+use util::Address;
+use bytes::Bytes;
+
+/// Boxed future that can be shared between threads.
+/// TODO [ToDr] Use concrete types!
+pub type BoxFuture<A, B> = Box<Future<Item = A, Error = B> + Send>;
 
 const COMMIT_LEN: usize = 20;
 
@@ -117,7 +122,7 @@ impl URLHintContract {
 	}
 }
 
-fn decode_urlhint_output(output: (String, ::util::H160, Address)) -> Option<URLHintResult> {
+fn decode_urlhint_output(output: (String, ::bigint::hash::H160, Address)) -> Option<URLHintResult> {
 	let (account_slash_repo, commit, owner) = output;
 
 	if owner == Address::default() {
@@ -126,7 +131,7 @@ fn decode_urlhint_output(output: (String, ::util::H160, Address)) -> Option<URLH
 
 	let commit = GithubApp::commit(&commit);
 	if commit == Some(Default::default()) {
-		let mime = guess_mime_type(&account_slash_repo).unwrap_or(mime!(Application/_));
+		let mime = guess_mime_type(&account_slash_repo).unwrap_or(mime::APPLICATION_JSON);
 		return Some(URLHintResult::Content(Content {
 			url: account_slash_repo,
 			mime: mime,
@@ -157,7 +162,8 @@ impl URLHint for URLHintContract {
 		let do_call = |_, data| {
 			let addr = match self.client.registrar() {
 				Ok(addr) => addr,
-				Err(e) => return future::err(e).boxed(),
+				Err(e) => return Box::new(future::err(e))
+					as BoxFuture<Vec<u8>, _>,
 			};
 
 			self.client.call(addr, data)
@@ -165,7 +171,7 @@ impl URLHint for URLHintContract {
 
 		let urlhint = self.urlhint.clone();
 		let client = self.client.clone();
-		self.registrar.get_address(do_call, keccak("githubhint"), "A".into())
+		Box::new(self.registrar.get_address(do_call, keccak("githubhint"), "A".into())
 			.map(|addr| if addr == Address::default() { None } else { Some(addr) })
 			.and_then(move |address| {
 				let mut fixed_id = [0; 32];
@@ -176,10 +182,10 @@ impl URLHint for URLHintContract {
 					None => Either::A(future::ok(None)),
 					Some(address) => {
 						let do_call = move |_, data| client.call(address, data);
-						Either::B(urlhint.entries(do_call, ::util::H256(fixed_id)).map(decode_urlhint_output))
+						Either::B(urlhint.entries(do_call, ::bigint::hash::H256(fixed_id)).map(decode_urlhint_output))
 					}
 				}
-			}).boxed()
+			}))
 	}
 }
 
@@ -212,12 +218,13 @@ pub mod tests {
 	use std::str::FromStr;
 	use rustc_hex::FromHex;
 
-	use futures::{BoxFuture, Future, IntoFuture};
+	use futures::{Future, IntoFuture};
 
 	use super::*;
 	use super::guess_mime_type;
 	use parking_lot::Mutex;
-	use util::{Bytes, Address, ToPretty};
+	use util::Address;
+	use bytes::{Bytes, ToPretty};
 
 	pub struct FakeRegistrar {
 		pub calls: Arc<Mutex<Vec<(String, String)>>>,
@@ -249,7 +256,7 @@ pub mod tests {
 		fn call(&self, address: Address, data: Bytes) -> BoxFuture<Bytes, String> {
 			self.calls.lock().push((address.to_hex(), data.to_hex()));
 			let res = self.responses.lock().remove(0);
-			res.into_future().boxed()
+			Box::new(res.into_future())
 		}
 	}
 
@@ -258,8 +265,8 @@ pub mod tests {
 		// given
 		let registrar = FakeRegistrar::new();
 		let resolve_result = {
-			use ethabi::{Encoder, Token};
-			Encoder::encode(vec![Token::String(String::new()), Token::FixedBytes(vec![0; 20]), Token::Address([0; 20])])
+			use ethabi::{encode, Token};
+			encode(&[Token::String(String::new()), Token::FixedBytes(vec![0; 20]), Token::Address([0; 20])])
 		};
 		registrar.responses.lock()[1] = Ok(resolve_result);
 
@@ -324,7 +331,7 @@ pub mod tests {
 		// then
 		assert_eq!(res, Some(URLHintResult::Content(Content {
 			url: "https://parity.io/assets/images/ethcore-black-horizontal.png".into(),
-			mime: mime!(Image/Png),
+			mime: mime::IMAGE_PNG,
 			owner: Address::from_str("deadcafebeefbeefcafedeaddeedfeedffffffff").unwrap(),
 		})))
 	}
@@ -356,9 +363,9 @@ pub mod tests {
 
 
 		assert_eq!(guess_mime_type(url1), None);
-		assert_eq!(guess_mime_type(url2), Some(mime!(Image/Png)));
-		assert_eq!(guess_mime_type(url3), Some(mime!(Image/Png)));
-		assert_eq!(guess_mime_type(url4), Some(mime!(Image/Jpeg)));
-		assert_eq!(guess_mime_type(url5), Some(mime!(Image/Png)));
+		assert_eq!(guess_mime_type(url2), Some(mime::IMAGE_PNG));
+		assert_eq!(guess_mime_type(url3), Some(mime::IMAGE_PNG));
+		assert_eq!(guess_mime_type(url4), Some(mime::IMAGE_JPEG));
+		assert_eq!(guess_mime_type(url5), Some(mime::IMAGE_PNG));
 	}
 }

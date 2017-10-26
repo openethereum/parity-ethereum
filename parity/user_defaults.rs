@@ -26,7 +26,7 @@ use serde::de::value::MapAccessDeserializer;
 use serde_json::Value;
 use serde_json::de::from_reader;
 use serde_json::ser::to_string;
-use util::journaldb::Algorithm;
+use journaldb::Algorithm;
 use ethcore::client::Mode;
 
 pub struct UserDefaults {

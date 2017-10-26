@@ -17,7 +17,10 @@
 //! View onto block header rlp
 
 use hash::keccak;
-use util::{U256, Bytes, H256, Address, H2048};
+use bigint::prelude::U256;
+use bigint::hash::{H256, H2048};
+use util::Address;
+use bytes::Bytes;
 use rlp::Rlp;
 use header::BlockNumber;
 
@@ -102,7 +105,9 @@ impl<'a> HeaderView<'a> {
 mod tests {
 	use std::str::FromStr;
 	use rustc_hex::FromHex;
-	use util::{H256, Address, H2048, U256};
+	use bigint::prelude::U256;
+	use bigint::hash::{H256, H2048};
+	use util::Address;
 	use super::HeaderView;
 
 	#[test]

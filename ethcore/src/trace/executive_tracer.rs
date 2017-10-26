@@ -16,7 +16,9 @@
 
 //! Simple executive tracer.
 
-use util::{Bytes, Address, U256};
+use bigint::prelude::U256;
+use util::Address;
+use bytes::Bytes;
 use vm::ActionParams;
 use trace::trace::{Call, Create, Action, Res, CreateResult, CallResult, VMTrace, VMOperation, VMExecutedOperation, MemoryDiff, StorageDiff, Suicide, Reward, RewardType};
 use trace::{Tracer, VMTracer, FlatTrace, TraceError};
@@ -158,7 +160,7 @@ impl Tracer for ExecutiveTracer {
 		debug!(target: "trace", "Traced suicide {:?}", trace);
 		self.traces.push(trace);
 	}
-	
+
 	fn trace_reward(&mut self, author: Address, value: U256, reward_type: RewardType) {
 		let trace = FlatTrace {
 			subtraces: 0,

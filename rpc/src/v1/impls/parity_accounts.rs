@@ -68,7 +68,7 @@ impl ParityAccounts for ParityAccountsClient {
 
 		for (address, account) in account_iter {
 			match accounts.entry(address) {
-				/// Insert only if occupied entry isn't already an account with UUID
+				// Insert only if occupied entry isn't already an account with UUID
 				Entry::Occupied(ref mut occupied) if occupied.get().uuid.is_none() => {
 					occupied.insert(account);
 				},
@@ -354,6 +354,11 @@ impl ParityAccounts for ParityAccountsClient {
 			)
 			.map(Into::into)
 			.map_err(|e| errors::account("Could not sign message.", e))
+	}
+
+	fn hardware_pin_matrix_ack(&self, path: String, pin: String) -> Result<bool, Error> {
+		let store = self.account_provider()?;
+		Ok(store.hardware_pin_matrix_ack(&path, &pin).map_err(|e| errors::account("Error communicating with hardware wallet.", e))?)
 	}
 }
 

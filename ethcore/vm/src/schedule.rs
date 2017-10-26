@@ -111,6 +111,51 @@ pub struct Schedule {
 	pub have_return_data: bool,
 	/// Kill basic accounts below this balance if touched.
 	pub kill_dust: CleanDustMode,
+	/// Enable EIP-86 rules
+	pub eip86: bool,
+	/// Wasm extra schedule settings
+	pub wasm: WasmCosts,
+}
+
+/// Wasm cost table
+pub struct WasmCosts {
+	/// Arena allocator cost, per byte
+	pub alloc: u32,
+	/// Div operations multiplier.
+	pub div: u32,
+	/// Div operations multiplier.
+	pub mul: u32,
+	/// Memory (load/store) operations multiplier.
+	pub mem: u32,
+	/// Memory copy operation.
+	pub mem_copy: u32,
+	/// Static region charge, per byte.
+	pub static_region: u32,
+	/// General static query of u64 value from env-info
+	pub static_u64: u32,
+	/// General static query of U256 value from env-info
+	pub static_u256: u32,
+	/// General static query of Address value from env-info
+	pub static_address: u32,
+}
+
+impl Default for WasmCosts {
+	fn default() -> Self {
+		WasmCosts {
+			alloc: 2,
+			div: 16,
+			mul: 4,
+			mem: 2,
+			mem_copy: 1,
+			static_region: 1,
+
+			// due to runtime issues, this can be slow
+			static_u64: 32,
+
+			static_u256: 64,
+			static_address: 40,
+		}
+	}
 }
 
 /// Dust accounts cleanup mode.
@@ -184,17 +229,18 @@ impl Schedule {
 			blockhash_gas: 20,
 			have_static_call: false,
 			kill_dust: CleanDustMode::Off,
+			eip86: false,
+			wasm: Default::default(),
 		}
 	}
 
-	/// Schedule for the Metropolis of the Ethereum main net.
-	pub fn new_metropolis() -> Schedule {
+	/// Schedule for the Byzantium fork of the Ethereum main net.
+	pub fn new_byzantium() -> Schedule {
 		let mut schedule = Self::new_post_eip150(24576, true, true, true);
 		schedule.have_create2 = true;
 		schedule.have_revert = true;
 		schedule.have_static_call = true;
 		schedule.have_return_data = true;
-		schedule.blockhash_gas = 350;
 		schedule
 	}
 
@@ -246,6 +292,8 @@ impl Schedule {
 			blockhash_gas: 20,
 			have_static_call: false,
 			kill_dust: CleanDustMode::Off,
+			eip86: false,
+			wasm: Default::default(),
 		}
 	}
 }

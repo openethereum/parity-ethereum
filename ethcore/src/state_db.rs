@@ -17,16 +17,17 @@
 use std::collections::{VecDeque, HashSet};
 use std::sync::Arc;
 use lru_cache::LruCache;
-use util::cache::MemoryLruCache;
-use util::journaldb::JournalDB;
-use util::kvdb::KeyValueDB;
-use util::hash::{H256};
-use util::hashdb::HashDB;
+use memory_cache::MemoryLruCache;
+use journaldb::JournalDB;
+use kvdb::{KeyValueDB, DBTransaction};
+use bigint::hash::H256;
+use hashdb::HashDB;
 use state::{self, Account};
 use header::BlockNumber;
 use hash::keccak;
 use parking_lot::Mutex;
-use util::{Address, DBTransaction, UtilError};
+use util::Address;
+use util_error::UtilError;
 use bloom_journal::{Bloom, BloomJournal};
 use db::COL_ACCOUNT_BLOOM;
 use byteorder::{LittleEndian, ByteOrder};
@@ -210,7 +211,7 @@ impl StateDB {
 	pub fn sync_cache(&mut self, enacted: &[H256], retracted: &[H256], is_best: bool) {
 		trace!("sync_cache id = (#{:?}, {:?}), parent={:?}, best={}", self.commit_number, self.commit_hash, self.parent_hash, is_best);
 		let mut cache = self.account_cache.lock();
-		let mut cache = &mut *cache;
+		let cache = &mut *cache;
 
 		// Purge changes from re-enacted and retracted blocks.
 		// Filter out commiting block if any.
@@ -458,7 +459,10 @@ impl state::Backend for StateDB {
 
 #[cfg(test)]
 mod tests {
-	use util::{U256, H256, Address, DBTransaction};
+	use bigint::prelude::U256;
+	use bigint::hash::H256;
+	use util::Address;
+	use kvdb::DBTransaction;
 	use tests::helpers::*;
 	use state::{Account, Backend};
 	use ethcore_logger::init_log;

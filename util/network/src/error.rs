@@ -16,10 +16,10 @@
 
 use io::IoError;
 use rlp::*;
-use util::UtilError;
 use std::fmt;
 use ethkey::Error as KeyError;
 use crypto::Error as CryptoError;
+use snappy;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum DisconnectReason
@@ -96,8 +96,8 @@ pub enum NetworkError {
 	PeerNotFound,
 	/// Peer is diconnected.
 	Disconnect(DisconnectReason),
-	/// Util error.
-	Util(UtilError),
+	/// Invalid NodeId
+	InvalidNodeId,
 	/// Socket IO error.
 	Io(IoError),
 	/// Error concerning the network address parsing subsystem.
@@ -108,6 +108,8 @@ pub enum NetworkError {
 	StdIo(::std::io::Error),
 	/// Packet size is over the protocol limit.
 	OversizedPacket,
+	/// Decompression error.
+	Decompression(snappy::InvalidInput),
 }
 
 impl fmt::Display for NetworkError {
@@ -125,8 +127,9 @@ impl fmt::Display for NetworkError {
 			AddressResolve(Some(ref err)) => format!("{}", err),
 			AddressResolve(_) => "Failed to resolve network address.".into(),
 			StdIo(ref err) => format!("{}", err),
-			Util(ref err) => format!("{}", err),
+			InvalidNodeId => "Invalid node id".into(),
 			OversizedPacket => "Packet is too large".into(),
+			Decompression(ref err) => format!("Error decompressing packet: {}", err),
 		};
 
 		f.write_fmt(format_args!("Network error ({})", msg))
@@ -151,12 +154,6 @@ impl From<IoError> for NetworkError {
 	}
 }
 
-impl From<UtilError> for NetworkError {
-	fn from(err: UtilError) -> NetworkError {
-		NetworkError::Util(err)
-	}
-}
-
 impl From<KeyError> for NetworkError {
 	fn from(_err: KeyError) -> Self {
 		NetworkError::Auth
@@ -166,6 +163,12 @@ impl From<KeyError> for NetworkError {
 impl From<CryptoError> for NetworkError {
 	fn from(_err: CryptoError) -> NetworkError {
 		NetworkError::Auth
+	}
+}
+
+impl From<snappy::InvalidInput> for NetworkError {
+	fn from(err: snappy::InvalidInput) -> NetworkError {
+		NetworkError::Decompression(err)
 	}
 }
 

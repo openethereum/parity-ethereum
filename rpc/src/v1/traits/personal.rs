@@ -15,9 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Personal rpc interface.
-use jsonrpc_core::Error;
-
-use futures::BoxFuture;
+use jsonrpc_core::{BoxFuture, Error};
 
 use v1::types::{U128, H160, H256, TransactionRequest};
 

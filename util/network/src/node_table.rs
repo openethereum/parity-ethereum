@@ -25,15 +25,14 @@ use std::path::{PathBuf};
 use std::fmt;
 use std::fs;
 use std::io::{Read, Write};
-use util::hash::*;
-use util::UtilError;
+use bigint::hash::*;
 use rlp::*;
 use time::Tm;
 use error::NetworkError;
 use {AllowIP, IpFilter};
 use discovery::{TableUpdates, NodeEntry};
 use ip_utils::*;
-pub use rustc_serialize::json::Json;
+use serde_json::Value;
 
 /// Node public key
 pub type NodeId = H512;
@@ -58,7 +57,7 @@ impl NodeEndpoint {
 	pub fn is_allowed(&self, filter: &IpFilter) -> bool {
 		(self.is_allowed_by_predefined(&filter.predefined) || filter.custom_allow.iter().any(|ipnet| {
 			self.address.ip().is_within(ipnet)
-		})) 
+		}))
 		&& !filter.custom_block.iter().any(|ipnet| {
 			self.address.ip().is_within(ipnet)
 		})
@@ -175,7 +174,7 @@ impl FromStr for Node {
 	type Err = NetworkError;
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
 		let (id, endpoint) = if s.len() > 136 && &s[0..8] == "enode://" && &s[136..137] == "@" {
-			(s[8..136].parse().map_err(UtilError::from)?, NodeEndpoint::from_str(&s[137..])?)
+			(s[8..136].parse().map_err(|_| NetworkError::InvalidNodeId)?, NodeEndpoint::from_str(&s[137..])?)
 		}
 		else {
 			(NodeId::new(), NodeEndpoint::from_str(s)?)
@@ -254,7 +253,7 @@ impl NodeTable {
 	/// Apply table changes coming from discovery
 	pub fn update(&mut self, mut update: TableUpdates, reserved: &HashSet<NodeId>) {
 		for (_, node) in update.added.drain() {
-			let mut entry = self.nodes.entry(node.id.clone()).or_insert_with(|| Node::new(node.id.clone(), node.endpoint.clone()));
+			let entry = self.nodes.entry(node.id.clone()).or_insert_with(|| Node::new(node.id.clone(), node.endpoint.clone()));
 			entry.endpoint = node.endpoint;
 		}
 		for r in update.removed {
@@ -333,7 +332,7 @@ impl NodeTable {
 					return nodes;
 				}
 			}
-			let json = match Json::from_str(&buf) {
+			let json: Value = match ::serde_json::from_str(&buf) {
 				Ok(json) => json,
 				Err(e) => {
 					warn!("Error parsing node table file: {:?}", e);
@@ -342,7 +341,7 @@ impl NodeTable {
 			};
 			if let Some(list) = json.as_object().and_then(|o| o.get("nodes")).and_then(|n| n.as_array()) {
 				for n in list.iter().filter_map(|n| n.as_object()) {
-					if let Some(url) = n.get("url").and_then(|u| u.as_string()) {
+					if let Some(url) = n.get("url").and_then(|u| u.as_str()) {
 						if let Ok(mut node) = Node::from_str(url) {
 							if let Some(failures) = n.get("failures").and_then(|f| f.as_u64()) {
 								node.failures = failures as u32;
@@ -373,9 +372,9 @@ pub fn is_valid_node_url(url: &str) -> bool {
 mod tests {
 	use super::*;
 	use std::net::{SocketAddr, SocketAddrV4, Ipv4Addr};
-	use util::H512;
+	use bigint::hash::H512;
 	use std::str::FromStr;
-	use devtools::*;
+	use tempdir::TempDir;
 	use ipnetwork::IpNetwork;
 
 	#[test]
@@ -430,20 +429,20 @@ mod tests {
 
 	#[test]
 	fn table_save_load() {
-		let temp_path = RandomTempPath::create_dir();
+		let tempdir = TempDir::new("").unwrap();
 		let node1 = Node::from_str("enode://a979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c@22.99.55.44:7770").unwrap();
 		let node2 = Node::from_str("enode://b979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c@22.99.55.44:7770").unwrap();
 		let id1 = H512::from_str("a979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c").unwrap();
 		let id2 = H512::from_str("b979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c").unwrap();
 		{
-			let mut table = NodeTable::new(Some(temp_path.as_path().to_str().unwrap().to_owned()));
+			let mut table = NodeTable::new(Some(tempdir.path().to_str().unwrap().to_owned()));
 			table.add_node(node1);
 			table.add_node(node2);
 			table.note_failure(&id2);
 		}
 
 		{
-			let table = NodeTable::new(Some(temp_path.as_path().to_str().unwrap().to_owned()));
+			let table = NodeTable::new(Some(tempdir.path().to_str().unwrap().to_owned()));
 			let r = table.nodes(IpFilter::default());
 			assert_eq!(r[0][..], id1[..]);
 			assert_eq!(r[1][..], id2[..]);

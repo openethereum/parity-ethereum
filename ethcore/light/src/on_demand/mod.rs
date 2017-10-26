@@ -74,8 +74,8 @@ impl Peer {
 
 // Attempted request info and sender to put received value.
 struct Pending {
-	requests: basic_request::Requests<CheckedRequest>,
-	net_requests: basic_request::Requests<NetworkRequest>,
+	requests: basic_request::Batch<CheckedRequest>,
+	net_requests: basic_request::Batch<NetworkRequest>,
 	required_capabilities: Capabilities,
 	responses: Vec<Response>,
 	sender: oneshot::Sender<Vec<Response>>,
@@ -151,7 +151,7 @@ impl Pending {
 	fn update_net_requests(&mut self) {
 		use request::IncompleteRequest;
 
-		let mut builder = basic_request::RequestBuilder::default();
+		let mut builder = basic_request::Builder::default();
 		let num_answered = self.requests.num_answered();
 		let mut mapping = move |idx| idx - num_answered;
 
@@ -194,6 +194,9 @@ fn guess_capabilities(requests: &[CheckedRequest]) -> Capabilities {
 			CheckedRequest::HeaderProof(_, _) =>
 				caps.serve_headers = true,
 			CheckedRequest::HeaderByHash(_, _) =>
+				caps.serve_headers = true,
+			CheckedRequest::TransactionIndex(_, _) => {} // hashes yield no info.
+			CheckedRequest::Signal(_, _) =>
 				caps.serve_headers = true,
 			CheckedRequest::Body(ref req, _) => if let Ok(ref hdr) = req.0.as_ref() {
 				update_since(&mut caps.serve_chain_since, hdr.number());
@@ -279,7 +282,7 @@ impl OnDemand {
 			return Ok(receiver);
 		}
 
-		let mut builder = basic_request::RequestBuilder::default();
+		let mut builder = basic_request::Builder::default();
 
 		let responses = Vec::with_capacity(requests.len());
 

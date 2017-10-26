@@ -15,8 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use jsonrpc_core::Error;
-use futures::{self, Future};
-use futures::sync::oneshot;
+use jsonrpc_core::futures::{self, Future};
+use jsonrpc_core::futures::sync::oneshot;
 use v1::helpers::errors;
 
 pub type Res<T> = Result<T, Error>;

@@ -21,8 +21,11 @@ use basic_account::BasicAccount;
 use snapshot::Error;
 use hash::{KECCAK_EMPTY, KECCAK_NULL_RLP};
 
-use util::{U256, H256, Bytes, HashDB};
-use util::trie::{TrieDB, Trie};
+use bigint::prelude::U256;
+use bigint::hash::H256;
+use util::HashDB;
+use bytes::Bytes;
+use trie::{TrieDB, Trie};
 use rlp::{RlpStream, UntrustedRlp};
 
 use std::collections::HashSet;
@@ -149,7 +152,7 @@ pub fn from_fat_rlp(
 	rlp: UntrustedRlp,
 	mut storage_root: H256,
 ) -> Result<(BasicAccount, Option<Bytes>), Error> {
-	use util::{TrieDBMut, TrieMut};
+	use trie::{TrieDBMut, TrieMut};
 
 	// check for special case of empty account.
 	if rlp.is_empty() {
@@ -212,7 +215,8 @@ mod tests {
 	use snapshot::tests::helpers::fill_storage;
 
 	use hash::{KECCAK_EMPTY, KECCAK_NULL_RLP, keccak};
-	use util::{Address, H256, HashDB, DBValue};
+	use bigint::hash::H256;
+	use util::{Address, HashDB, DBValue};
 	use rlp::UntrustedRlp;
 
 	use std::collections::HashSet;

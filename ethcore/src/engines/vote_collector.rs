@@ -19,8 +19,10 @@
 use std::fmt::Debug;
 use std::collections::{BTreeMap, HashSet, HashMap};
 use std::hash::Hash;
+use bigint::hash::{H256, H520};
 use parking_lot:: RwLock;
 use util::*;
+use bytes::Bytes;
 use rlp::{Encodable, RlpStream};
 
 pub trait Message: Clone + PartialEq + Eq + Hash + Encodable + Debug {
@@ -208,6 +210,7 @@ impl <M: Message + Default + Encodable + Debug> VoteCollector<M> {
 #[cfg(test)]
 mod tests {
 	use hash::keccak;
+	use bigint::hash::H160;
 	use util::*;
 	use rlp::*;
 	use super::*;

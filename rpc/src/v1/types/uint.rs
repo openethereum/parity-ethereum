@@ -17,7 +17,7 @@
 use std::str::FromStr;
 use std::fmt;
 use serde;
-use util::{U256 as EthU256, U128 as EthU128};
+use bigint::prelude::{U256 as EthU256, U128 as EthU128};
 
 macro_rules! impl_uint {
 	($name: ident, $other: ident, $size: expr) => {
@@ -56,12 +56,6 @@ macro_rules! impl_uint {
 		impl fmt::LowerHex for $name {
 			fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 				write!(f, "{:#x}", self.0)
-			}
-		}
-
-		impl serde::Serialize for $name {
-			fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: serde::Serializer {
-				serializer.serialize_str(&format!("0x{}", self.0.to_hex()))
 			}
 		}
 
@@ -104,7 +98,25 @@ macro_rules! impl_uint {
 
 impl_uint!(U128, EthU128, 2);
 impl_uint!(U256, EthU256, 4);
+impl_uint!(U64, u64, 1);
 
+impl serde::Serialize for U128 {
+	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: serde::Serializer {
+		serializer.serialize_str(&format!("0x{}", self.0.to_hex()))
+	}
+}
+
+impl serde::Serialize for U256 {
+	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: serde::Serializer {
+		serializer.serialize_str(&format!("0x{}", self.0.to_hex()))
+	}
+}
+
+impl serde::Serialize for U64 {
+	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: serde::Serializer {
+		serializer.serialize_str(&format!("0x{:x}", self.0))
+	}
+}
 
 #[cfg(test)]
 mod tests {

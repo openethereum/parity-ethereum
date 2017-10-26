@@ -20,8 +20,8 @@ use std::fmt;
 
 use ids::BlockId;
 
-use util::H256;
-use util::trie::TrieError;
+use bigint::hash::H256;
+use trie::TrieError;
 use rlp::DecoderError;
 
 /// Snapshot-related errors.

@@ -25,7 +25,7 @@ use std::io::{Read, Write};
 use std::path::{PathBuf, Path};
 use dir::{DatabaseDirectories, default_data_path};
 use helpers::replace_home;
-use util::journaldb::Algorithm;
+use journaldb::Algorithm;
 
 #[cfg_attr(feature="dev", allow(enum_variant_names))]
 #[derive(Debug)]

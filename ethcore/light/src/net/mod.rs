@@ -23,8 +23,9 @@ use ethcore::transaction::UnverifiedTransaction;
 use io::TimerToken;
 use network::{HostInfo, NetworkProtocolHandler, NetworkContext, PeerId};
 use rlp::{RlpStream, UntrustedRlp};
-use util::hash::H256;
-use util::{DBValue, U256};
+use bigint::prelude::U256;
+use bigint::hash::H256;
+use util::DBValue;
 use parking_lot::{Mutex, RwLock};
 use time::{Duration, SteadyTime};
 
@@ -103,9 +104,8 @@ mod packet {
 	// relay transactions to peers.
 	pub const SEND_TRANSACTIONS: u8 = 0x06;
 
-	// request and respond with epoch transition proof
-	pub const REQUEST_EPOCH_PROOF: u8 = 0x07;
-	pub const EPOCH_PROOF: u8 = 0x08;
+	// two packets were previously meant to be reserved for epoch proofs.
+	// these have since been moved to requests.
 }
 
 // timeouts for different kinds of requests. all values are in milliseconds.
@@ -123,6 +123,7 @@ mod timeout {
 	pub const CONTRACT_CODE: i64 = 100;
 	pub const HEADER_PROOF: i64 = 100;
 	pub const TRANSACTION_PROOF: i64 = 1000; // per gas?
+	pub const EPOCH_SIGNAL: i64 = 200;
 }
 
 /// A request id.
@@ -429,7 +430,11 @@ impl LightProtocol {
 
 				// compute and deduct cost.
 				let pre_creds = creds.current();
-				let cost = params.compute_cost_multi(requests.requests());
+				let cost = match params.compute_cost_multi(requests.requests()) {
+					Some(cost) => cost,
+					None => return Err(Error::NotServer),
+				};
+
 				creds.deduct_cost(cost)?;
 
 				trace!(target: "pip", "requesting from peer {}. Cost: {}; Available: {}",
@@ -582,12 +587,6 @@ impl LightProtocol {
 			packet::ACKNOWLEDGE_UPDATE => self.acknowledge_update(peer, io, rlp),
 
 			packet::SEND_TRANSACTIONS => self.relay_transactions(peer, io, rlp),
-
-			packet::REQUEST_EPOCH_PROOF | packet::EPOCH_PROOF => {
-				// ignore these for now, but leave them specified.
-				debug!(target: "pip", "Ignoring request/response for epoch proof");
-				Ok(())
-			}
 
 			other => {
 				Err(Error::UnrecognizedPacket(other))
@@ -904,7 +903,7 @@ impl LightProtocol {
 		// the maximum amount of requests we'll fill in a single packet.
 		const MAX_REQUESTS: usize = 256;
 
-		use ::request::RequestBuilder;
+		use ::request::Builder;
 		use ::request::CompleteRequest;
 
 		let peers = self.peers.read();
@@ -919,7 +918,7 @@ impl LightProtocol {
 		let peer: &mut Peer = &mut *peer;
 
 		let req_id: u64 = raw.val_at(0)?;
-		let mut request_builder = RequestBuilder::default();
+		let mut request_builder = Builder::default();
 
 		trace!(target: "pip", "Received requests (id: {}) from peer {}", req_id, peer_id);
 
@@ -929,7 +928,7 @@ impl LightProtocol {
 		peer.local_credits.deduct_cost(peer.local_flow.base_cost())?;
 		for request_rlp in raw.at(1)?.iter().take(MAX_REQUESTS) {
 			let request: Request = request_rlp.as_val()?;
-			let cost = peer.local_flow.compute_cost(&request);
+			let cost = peer.local_flow.compute_cost(&request).ok_or(Error::NotServer)?;
 			peer.local_credits.deduct_cost(cost)?;
 			request_builder.push(request).map_err(|_| Error::BadBackReference)?;
 		}
@@ -944,13 +943,14 @@ impl LightProtocol {
 			match complete_req {
 				CompleteRequest::Headers(req) => self.provider.block_headers(req).map(Response::Headers),
 				CompleteRequest::HeaderProof(req) => self.provider.header_proof(req).map(Response::HeaderProof),
-				CompleteRequest::TransactionIndex(_) => None, // don't answer these yet, but leave them in protocol.
+				CompleteRequest::TransactionIndex(req) => self.provider.transaction_index(req).map(Response::TransactionIndex),
 				CompleteRequest::Body(req) => self.provider.block_body(req).map(Response::Body),
 				CompleteRequest::Receipts(req) => self.provider.block_receipts(req).map(Response::Receipts),
 				CompleteRequest::Account(req) => self.provider.account_proof(req).map(Response::Account),
 				CompleteRequest::Storage(req) => self.provider.storage_proof(req).map(Response::Storage),
 				CompleteRequest::Code(req) => self.provider.contract_code(req).map(Response::Code),
 				CompleteRequest::Execution(req) => self.provider.transaction_proof(req).map(Response::Execution),
+				CompleteRequest::Signal(req) => self.provider.epoch_signal(req).map(Response::Signal),
 			}
 		});
 

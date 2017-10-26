@@ -30,12 +30,13 @@ use views;
 
 use hash::keccak;
 use heapsize::HeapSizeOf;
-use util::{Address, H256, H2048, U256};
+use bigint::prelude::U256;
+use bigint::hash::{H256, H2048};
+use util::Address;
 use rlp::Rlp;
 
 /// Owning header view.
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "ipc", binary)]
 pub struct Header(Vec<u8>);
 
 impl HeapSizeOf for Header {
@@ -113,7 +114,6 @@ impl Header {
 
 /// Owning block body view.
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "ipc", binary)]
 pub struct Body(Vec<u8>);
 
 impl HeapSizeOf for Body {
@@ -173,7 +173,6 @@ impl Body {
 
 /// Owning block view.
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "ipc", binary)]
 pub struct Block(Vec<u8>);
 
 impl HeapSizeOf for Block {

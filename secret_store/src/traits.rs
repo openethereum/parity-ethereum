@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use ethkey::{KeyPair, Signature, Error as EthKeyError};
-use util::H256;
+use bigint::hash::H256;
 use types::all::{Error, Public, ServerKeyId, MessageHash, EncryptedMessageSignature, RequestSignature, EncryptedDocumentKey,
 	EncryptedDocumentKeyShadow};
 
@@ -82,7 +82,6 @@ pub trait MessageSigner: ServerKeyGenerator {
 }
 
 
-#[ipc(client_ident="RemoteKeyServer")]
 /// Key server.
 pub trait KeyServer: DocumentKeyServer + MessageSigner + Send + Sync {
 }

@@ -1,0 +1,23 @@
+[package]
+name = "journaldb"
+version = "0.1.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+description = "A `HashDB` which can manage a short-term journal potentially containing many forks of mutually exclusive actions"
+license = "GPL3"
+
+[dependencies]
+ethcore-bigint = { path = "../bigint", features = ["heapsizeof"] }
+ethcore-bytes = { path = "../bytes" }
+hashdb = { path = "../hashdb" }
+heapsize = "0.4"
+kvdb = { path = "../kvdb" }
+log = "0.3"
+memorydb = { path = "../memorydb" }
+parking_lot = "0.4"
+rlp = { path = "../rlp" }
+util-error = { path = "../error" }
+
+[dev-dependencies]
+ethcore-logger = { path = "../../logger" }
+hash = { path = "../hash" }
+kvdb-memorydb = { path = "../kvdb-memorydb" }

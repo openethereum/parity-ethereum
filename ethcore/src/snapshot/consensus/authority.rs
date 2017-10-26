@@ -25,7 +25,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 use blockchain::{BlockChain, BlockProvider};
-use engines::{Engine, EpochVerifier, EpochTransition};
+use engines::{EthEngine, EpochVerifier, EpochTransition};
+use machine::EthereumMachine;
 use ids::BlockId;
 use header::Header;
 use receipt::Receipt;
@@ -33,7 +34,9 @@ use snapshot::{Error, ManifestData};
 
 use itertools::{Position, Itertools};
 use rlp::{RlpStream, UntrustedRlp};
-use util::{Bytes, H256, KeyValueDB};
+use bigint::hash::H256;
+use kvdb::KeyValueDB;
+use bytes::Bytes;
 
 /// Snapshot creation and restoration for PoA chains.
 /// Chunk format:
@@ -166,7 +169,7 @@ struct ChunkRebuilder {
 	// and epoch data from last blocks in chunks.
 	// verification for these will be done at the end.
 	unverified_firsts: Vec<(Header, Bytes, H256)>,
-	last_epochs: Vec<(Header, Box<EpochVerifier>)>,
+	last_epochs: Vec<(Header, Box<EpochVerifier<EthereumMachine>>)>,
 }
 
 // verified data.
@@ -178,9 +181,9 @@ struct Verified {
 impl ChunkRebuilder {
 	fn verify_transition(
 		&mut self,
-		last_verifier: &mut Option<Box<EpochVerifier>>,
+		last_verifier: &mut Option<Box<EpochVerifier<EthereumMachine>>>,
 		transition_rlp: UntrustedRlp,
-		engine: &Engine,
+		engine: &EthEngine,
 	) -> Result<Verified, ::error::Error> {
 		use engines::ConstructedVerifier;
 
@@ -236,7 +239,7 @@ impl Rebuilder for ChunkRebuilder {
 	fn feed(
 		&mut self,
 		chunk: &[u8],
-		engine: &Engine,
+		engine: &EthEngine,
 		abort_flag: &AtomicBool,
 	) -> Result<(), ::error::Error> {
 		let rlp = UntrustedRlp::new(chunk);
@@ -332,7 +335,7 @@ impl Rebuilder for ChunkRebuilder {
 				}
 			}
 
-			let parent_td: ::util::U256 = last_rlp.val_at(4)?;
+			let parent_td: ::bigint::prelude::U256 = last_rlp.val_at(4)?;
 
 			let mut batch = self.db.transaction();
 			self.chain.insert_unordered_block(&mut batch, &block_data, receipts, Some(parent_td), true, false);
@@ -344,7 +347,7 @@ impl Rebuilder for ChunkRebuilder {
 		Ok(())
 	}
 
-	fn finalize(&mut self, _engine: &Engine) -> Result<(), ::error::Error> {
+	fn finalize(&mut self, _engine: &EthEngine) -> Result<(), ::error::Error> {
 		if !self.had_genesis {
 			return Err(Error::WrongChunkFormat("No genesis transition included.".into()).into());
 		}

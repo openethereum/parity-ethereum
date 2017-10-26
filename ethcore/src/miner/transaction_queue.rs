@@ -25,11 +25,13 @@
 //!
 //! ```rust
 //! extern crate ethcore_util as util;
+//! extern crate ethcore_bigint as bigint;
 //! extern crate ethcore;
 //! extern crate ethkey;
 //! extern crate rustc_hex;
 //!
-//! use util::{U256, Address};
+//! use bigint::prelude::U256;
+//! use util::Address;
 //! use ethkey::{Random, Generator};
 //!	use ethcore::miner::{TransactionQueue, RemovalReason, TransactionQueueDetailsProvider, AccountDetails, TransactionOrigin};
 //!	use ethcore::transaction::*;
@@ -106,7 +108,9 @@ use std::cmp;
 use std::collections::{HashSet, HashMap, BTreeSet, BTreeMap};
 use linked_hash_map::LinkedHashMap;
 use heapsize::HeapSizeOf;
-use util::{Address, H256, U256};
+use bigint::prelude::U256;
+use bigint::hash::H256;
+use util::Address;
 use table::Table;
 use transaction::*;
 use error::{Error, TransactionError};
@@ -337,7 +341,7 @@ impl GasPriceQueue {
 	/// Remove an item from a BTreeMap/HashSet "multimap".
 	/// Returns true if the item was removed successfully.
 	pub fn remove(&mut self, gas_price: &U256, hash: &H256) -> bool {
-		if let Some(mut hashes) = self.backing.get_mut(gas_price) {
+		if let Some(hashes) = self.backing.get_mut(gas_price) {
 			let only_one_left = hashes.len() == 1;
 			if !only_one_left {
 				// Operation may be ok: only if hash is in gas-price's Set.
@@ -1221,7 +1225,7 @@ impl TransactionQueue {
 			if by_nonce.is_none() {
 				return;
 			}
-			let mut by_nonce = by_nonce.expect("None is tested in early-exit condition above; qed");
+			let by_nonce = by_nonce.expect("None is tested in early-exit condition above; qed");
 			while let Some(order) = by_nonce.remove(&current_nonce) {
 				// remove also from priority and gas_price
 				self.future.by_priority.remove(&order);

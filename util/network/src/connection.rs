@@ -22,8 +22,8 @@ use hash::{keccak, write_keccak};
 use mio::{Token, Ready, PollOpt};
 use mio::deprecated::{Handler, EventLoop, TryRead, TryWrite};
 use mio::tcp::*;
-use util::hash::*;
-use util::bytes::*;
+use bigint::hash::*;
+use ethcore_bytes::*;
 use rlp::*;
 use std::io::{self, Cursor, Read, Write};
 use error::*;
@@ -40,6 +40,7 @@ use crypto;
 
 const ENCRYPTED_HEADER_LEN: usize = 32;
 const RECIEVE_PAYLOAD_TIMEOUT: u64 = 30000;
+pub const MAX_PAYLOAD_SIZE: usize = (1 << 24) - 1;
 
 pub trait GenericSocket : Read + Write {
 }
@@ -345,7 +346,7 @@ impl EncryptedConnection {
 			ingress_mac: ingress_mac,
 			read_state: EncryptedConnectionState::Header,
 			protocol_id: 0,
-			payload_len: 0
+			payload_len: 0,
 		};
 		enc.connection.expect(ENCRYPTED_HEADER_LEN);
 		Ok(enc)
@@ -355,7 +356,7 @@ impl EncryptedConnection {
 	pub fn send_packet<Message>(&mut self, io: &IoContext<Message>, payload: &[u8]) -> Result<(), NetworkError> where Message: Send + Clone + Sync + 'static {
 		let mut header = RlpStream::new();
 		let len = payload.len();
-		if len >= (1 << 24) {
+		if len > MAX_PAYLOAD_SIZE {
 			return Err(NetworkError::OversizedPacket);
 		}
 		header.append_raw(&[(len >> 16) as u8, (len >> 8) as u8, len as u8], 1);
@@ -481,7 +482,7 @@ impl EncryptedConnection {
 
 #[test]
 pub fn test_encryption() {
-	use util::hash::*;
+	use bigint::hash::*;
 	use std::str::FromStr;
 	let key = H256::from_str("2212767d793a7a3d66f869ae324dd11bd17044b82c9f463b8a541a4d089efec5").unwrap();
 	let before = H128::from_str("12532abaec065082a3cf1da7d0136f15").unwrap();
@@ -510,8 +511,8 @@ mod tests {
 	use std::io::{Read, Write, Error, Cursor, ErrorKind};
 	use mio::{Ready};
 	use std::collections::VecDeque;
-	use util::bytes::Bytes;
-	use devtools::*;
+	use ethcore_bytes::Bytes;
+	use devtools::TestSocket;
 	use io::*;
 
 	impl GenericSocket for TestSocket {}

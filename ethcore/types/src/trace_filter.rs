@@ -28,4 +28,8 @@ pub struct Filter {
 	pub from_address: Vec<Address>,
 	/// To address.
 	pub to_address: Vec<Address>,
+	/// Output offset
+	pub after: Option<usize>,
+	/// Output amount
+	pub count: Option<usize>,
 }

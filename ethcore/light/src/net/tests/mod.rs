@@ -32,14 +32,16 @@ use request;
 use request::*;
 
 use rlp::*;
-use util::{Address, H256, U256};
+use bigint::prelude::U256;
+use bigint::hash::H256;
+use util::Address;
 
 use std::sync::Arc;
 
 // helper for encoding a single request into a packet.
 // panics on bad backreference.
 fn encode_single(request: Request) -> NetworkRequests {
-	let mut builder = RequestBuilder::default();
+	let mut builder = Builder::default();
 	builder.push(request).unwrap();
 	builder.build()
 }
@@ -114,6 +116,16 @@ impl Provider for TestProvider {
 		self.0.client.block_header(id)
 	}
 
+	fn transaction_index(&self, req: request::CompleteTransactionIndexRequest)
+		-> Option<request::TransactionIndexResponse>
+	{
+		Some(request::TransactionIndexResponse {
+			num: 100,
+			hash: req.hash,
+			index: 55,
+		})
+	}
+
 	fn block_body(&self, req: request::CompleteBodyRequest) -> Option<request::BodyResponse> {
 		self.0.client.block_body(req)
 	}
@@ -154,6 +166,12 @@ impl Provider for TestProvider {
 
 	fn transaction_proof(&self, _req: request::CompleteExecutionRequest) -> Option<request::ExecutionResponse> {
 		None
+	}
+
+	fn epoch_signal(&self, _req: request::CompleteSignalRequest) -> Option<request::SignalResponse> {
+		Some(request::SignalResponse {
+			signal: vec![1, 2, 3, 4],
+		})
 	}
 
 	fn ready_transactions(&self) -> Vec<PendingTransaction> {
@@ -300,7 +318,7 @@ fn get_block_headers() {
 		let headers: Vec<_> = (0..10).map(|i| provider.client.block_header(BlockId::Number(i + 1)).unwrap()).collect();
 		assert_eq!(headers.len(), 10);
 
-		let new_creds = *flow_params.limit() - flow_params.compute_cost_multi(requests.requests());
+		let new_creds = *flow_params.limit() - flow_params.compute_cost_multi(requests.requests()).unwrap();
 
 		let response = vec![Response::Headers(HeadersResponse {
 			headers: headers,
@@ -336,7 +354,7 @@ fn get_block_bodies() {
 		proto.handle_packet(&Expect::Nothing, &1, packet::STATUS, &my_status);
 	}
 
-	let mut builder = RequestBuilder::default();
+	let mut builder = Builder::default();
 	let mut bodies = Vec::new();
 
 	for i in 0..10 {
@@ -353,7 +371,7 @@ fn get_block_bodies() {
 	let request_body = make_packet(req_id, &requests);
 
 	let response = {
-		let new_creds = *flow_params.limit() - flow_params.compute_cost_multi(requests.requests());
+		let new_creds = *flow_params.limit() - flow_params.compute_cost_multi(requests.requests()).unwrap();
 
 		let mut response_stream = RlpStream::new_list(3);
 		response_stream.append(&req_id).append(&new_creds).append_list(&bodies);
@@ -392,7 +410,7 @@ fn get_block_receipts() {
 		.take(10)
 		.collect();
 
-	let mut builder = RequestBuilder::default();
+	let mut builder = Builder::default();
 	let mut receipts = Vec::new();
 	for hash in block_hashes.iter().cloned() {
 		builder.push(Request::Receipts(IncompleteReceiptsRequest { hash: hash.into() })).unwrap();
@@ -408,7 +426,7 @@ fn get_block_receipts() {
 	let response = {
 		assert_eq!(receipts.len(), 10);
 
-		let new_creds = *flow_params.limit() - flow_params.compute_cost_multi(requests.requests());
+		let new_creds = *flow_params.limit() - flow_params.compute_cost_multi(requests.requests()).unwrap();
 
 		let mut response_stream = RlpStream::new_list(3);
 		response_stream.append(&req_id).append(&new_creds).append_list(&receipts);
@@ -440,7 +458,7 @@ fn get_state_proofs() {
 	let key1: H256 = U256::from(11223344).into();
 	let key2: H256 = U256::from(99988887).into();
 
-	let mut builder = RequestBuilder::default();
+	let mut builder = Builder::default();
 	builder.push(Request::Account(IncompleteAccountRequest {
 		block_hash: H256::default().into(),
 		address_hash: key1.into(),
@@ -467,7 +485,7 @@ fn get_state_proofs() {
 			}).unwrap()),
 		];
 
-		let new_creds = *flow_params.limit() - flow_params.compute_cost_multi(requests.requests());
+		let new_creds = *flow_params.limit() - flow_params.compute_cost_multi(requests.requests()).unwrap();
 
 		let mut response_stream = RlpStream::new_list(3);
 		response_stream.append(&req_id).append(&new_creds).append_list(&responses);
@@ -509,11 +527,54 @@ fn get_contract_code() {
 			code: key1.iter().chain(key2.iter()).cloned().collect(),
 		})];
 
-		let new_creds = *flow_params.limit() - flow_params.compute_cost_multi(requests.requests());
+		let new_creds = *flow_params.limit() - flow_params.compute_cost_multi(requests.requests()).unwrap();
 
 		let mut response_stream = RlpStream::new_list(3);
 
 		response_stream.append(&req_id).append(&new_creds).append_list(&response);
+		response_stream.out()
+	};
+
+	let expected = Expect::Respond(packet::RESPONSE, response);
+	proto.handle_packet(&expected, &1, packet::REQUEST, &request_body);
+}
+
+#[test]
+fn epoch_signal() {
+	let capabilities = capabilities();
+
+	let (provider, proto) = setup(capabilities.clone());
+	let flow_params = proto.flow_params.read().clone();
+
+	let cur_status = status(provider.client.chain_info());
+
+	{
+		let packet_body = write_handshake(&cur_status, &capabilities, &proto);
+		proto.on_connect(&1, &Expect::Send(1, packet::STATUS, packet_body.clone()));
+		proto.handle_packet(&Expect::Nothing, &1, packet::STATUS, &packet_body);
+	}
+
+	let req_id = 112;
+	let request = Request::Signal(request::IncompleteSignalRequest {
+		block_hash: H256([1; 32]).into(),
+	});
+
+	let requests = encode_single(request.clone());
+	let request_body = make_packet(req_id, &requests);
+
+	let response = {
+		let response = vec![Response::Signal(SignalResponse {
+			signal: vec![1, 2, 3, 4],
+		})];
+
+		let limit = *flow_params.limit();
+		let cost = flow_params.compute_cost_multi(requests.requests()).unwrap();
+
+		let new_creds = limit - cost;
+
+		let mut response_stream = RlpStream::new_list(3);
+		response_stream.append(&req_id).append(&new_creds).append_list(&response);
+
 		response_stream.out()
 	};
 
@@ -553,9 +614,8 @@ fn proof_of_execution() {
 
 	let response = {
 		let limit = *flow_params.limit();
-		let cost = flow_params.compute_cost_multi(requests.requests());
+		let cost = flow_params.compute_cost_multi(requests.requests()).unwrap();
 
-		println!("limit = {}, cost = {}", limit, cost);
 		let new_creds = limit - cost;
 
 		let mut response_stream = RlpStream::new_list(3);
@@ -660,4 +720,47 @@ fn id_guard() {
 		assert!(peer_info.pending_requests.collect_ids::<Vec<_>>().is_empty());
 		assert_eq!(peer_info.failed_requests, &[req_id_1]);
 	}
+}
+
+#[test]
+fn get_transaction_index() {
+	let capabilities = capabilities();
+
+	let (provider, proto) = setup(capabilities.clone());
+	let flow_params = proto.flow_params.read().clone();
+
+	let cur_status = status(provider.client.chain_info());
+
+	{
+		let packet_body = write_handshake(&cur_status, &capabilities, &proto);
+		proto.on_connect(&1, &Expect::Send(1, packet::STATUS, packet_body.clone()));
+		proto.handle_packet(&Expect::Nothing, &1, packet::STATUS, &packet_body);
+	}
+
+	let req_id = 112;
+	let key1: H256 = U256::from(11223344).into();
+
+	let request = Request::TransactionIndex(IncompleteTransactionIndexRequest {
+		hash: key1.into(),
+	});
+
+	let requests = encode_single(request.clone());
+	let request_body = make_packet(req_id, &requests);
+	let response = {
+		let response = vec![Response::TransactionIndex(TransactionIndexResponse {
+			num: 100,
+			hash: key1,
+			index: 55,
+		})];
+
+		let new_creds = *flow_params.limit() - flow_params.compute_cost_multi(requests.requests()).unwrap();
+
+		let mut response_stream = RlpStream::new_list(3);
+
+		response_stream.append(&req_id).append(&new_creds).append_list(&response);
+		response_stream.out()
+	};
+
+	let expected = Expect::Respond(packet::RESPONSE, response);
+	proto.handle_packet(&expected, &1, packet::REQUEST, &request_body);
 }

@@ -7,13 +7,13 @@
 				"minimumDifficulty": "0x020000",
 				"difficultyBoundDivisor": "0x0800",
 				"durationLimit": "0x0d",
+				"blockReward": "0x4563918244F40000",
 				"homesteadTransition": 1150000,
 				"eip150Transition": 2500000,
 				"eip160Transition": 3000000,
 				"ecip1010PauseTransition": 3000000,
 				"ecip1010ContinueTransition": 5000000,
 				"ecip1017EraRounds": 5000000,
-
 				"eip161abcTransition": "0x7fffffffffffffff",
 				"eip161dTransition": "0x7fffffffffffffff"
 			}
@@ -21,7 +21,6 @@
 	},
 	"params": {
 		"gasLimitBoundDivisor": "0x0400",
-		"blockReward": "0x4563918244F40000",
 		"registrar" : "0xc6d9d2cd449a754c494264e1809c50e34d64562b",
 		"accountStartNonce": "0x00",
 		"maximumExtraDataSize": "0x20",
@@ -31,7 +30,6 @@
 		"forkBlock": "0x1d4c00",
 		"forkCanonHash": "0x94365e3a8c0b35089c1d1195081fe7489b528a84b22199c916180db8b28ade7f",
 		"eip155Transition": 3000000,
-
 		"eip98Transition": "0x7fffffffffffff",
 		"eip86Transition": "0x7fffffffffffff"
 	},

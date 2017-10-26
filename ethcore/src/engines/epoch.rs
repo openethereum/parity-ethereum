@@ -16,12 +16,12 @@
 
 //! Epoch verifiers and transitions.
 
-use util::H256;
-use error::Error;
-use header::Header;
+use bigint::hash::H256;
+
+use rlp::{Encodable, Decodable, DecoderError, RlpStream, UntrustedRlp};
 
 /// A full epoch transition.
-#[derive(Debug, Clone, RlpEncodable, RlpDecodable)]
+#[derive(Debug, Clone)]
 pub struct Transition {
 	/// Block hash at which the transition occurred.
 	pub block_hash: H256,
@@ -31,24 +31,54 @@ pub struct Transition {
 	pub proof: Vec<u8>,
 }
 
+impl Encodable for Transition {
+	fn rlp_append(&self, s: &mut RlpStream) {
+		s.begin_list(3)
+			.append(&self.block_hash)
+			.append(&self.block_number)
+			.append(&self.proof);
+	}
+}
+
+impl Decodable for Transition {
+	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+		Ok(Transition {
+			block_hash: rlp.val_at(0)?,
+			block_number: rlp.val_at(1)?,
+			proof: rlp.val_at(2)?,
+		})
+	}
+}
+
 /// An epoch transition pending a finality proof.
 /// Not all transitions need one.
-#[derive(RlpEncodableWrapper, RlpDecodableWrapper)]
 pub struct PendingTransition {
 	/// "transition/epoch" proof from the engine.
 	pub proof: Vec<u8>,
 }
 
+impl Encodable for PendingTransition {
+	fn rlp_append(&self, s: &mut RlpStream) {
+		s.append(&self.proof);
+	}
+}
+
+impl Decodable for PendingTransition {
+	fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+		Ok(PendingTransition {
+			proof: rlp.as_val()?,
+		})
+	}
+}
+
 /// Verifier for all blocks within an epoch with self-contained state.
-///
-/// See docs on `Engine` relating to proving functions for more details.
-pub trait EpochVerifier: Send + Sync {
+pub trait EpochVerifier<M: ::parity_machine::Machine>: Send + Sync {
 	/// Lightly verify the next block header.
 	/// This may not be a header belonging to a different epoch.
-	fn verify_light(&self, header: &Header) -> Result<(), Error>;
+	fn verify_light(&self, header: &M::Header) -> Result<(), M::Error>;
 
 	/// Perform potentially heavier checks on the next block header.
-	fn verify_heavy(&self, header: &Header) -> Result<(), Error> {
+	fn verify_heavy(&self, header: &M::Header) -> Result<(), M::Error> {
 		self.verify_light(header)
 	}
 
@@ -63,6 +93,6 @@ pub trait EpochVerifier: Send + Sync {
 /// Special "no-op" verifier for stateless, epoch-less engines.
 pub struct NoOp;
 
-impl EpochVerifier for NoOp {
-	fn verify_light(&self, _header: &Header) -> Result<(), Error> { Ok(()) }
+impl<M: ::parity_machine::Machine> EpochVerifier<M> for NoOp {
+	fn verify_light(&self, _header: &M::Header) -> Result<(), M::Error> { Ok(()) }
 }

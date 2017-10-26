@@ -17,7 +17,7 @@
 import nock from 'nock';
 import { Server as MockWsServer } from 'mock-socket';
 
-import { isFunction } from '../src/api/util/types';
+import { isFunction } from '../packages/api/util/types';
 
 export const TEST_HTTP_URL = 'http://localhost:6688';
 export const TEST_WS_URL = 'ws://localhost:8866';

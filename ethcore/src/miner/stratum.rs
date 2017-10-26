@@ -25,7 +25,8 @@ use std::sync::{Arc, Weak};
 use std::net::{SocketAddr, AddrParseError};
 use std::fmt;
 
-use util::{H256, U256, H64, clean_0x};
+use bigint::prelude::U256;
+use bigint::hash::{H64, H256, clean_0x};
 use ethereum::ethash::Ethash;
 use ethash::SeedHashCompute;
 use parking_lot::Mutex;
@@ -170,7 +171,7 @@ impl StratumJobDispatcher {
 	fn payload(&self, pow_hash: H256, difficulty: U256, number: u64) -> String {
 		// TODO: move this to engine
 		let target = Ethash::difficulty_to_boundary(&difficulty);
-		let seed_hash = &self.seed_compute.lock().get_seedhash(number);
+		let seed_hash = &self.seed_compute.lock().hash_block_number(number);
 		let seed_hash = H256::from_slice(&seed_hash[..]);
 		format!(
 			r#"["0x", "0x{}","0x{}","0x{}","0x{:x}"]"#,

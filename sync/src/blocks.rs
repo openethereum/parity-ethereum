@@ -19,8 +19,9 @@ use std::collections::hash_map::Entry;
 use smallvec::SmallVec;
 use hash::{keccak, KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP};
 use heapsize::HeapSizeOf;
+use bigint::hash::H256;
 use triehash::ordered_trie_root;
-use util::*;
+use bytes::Bytes;
 use rlp::*;
 use network::NetworkError;
 use ethcore::header::Header as BlockHeader;
@@ -404,7 +405,7 @@ impl BlockCollection {
 		}
 	}
 
-	fn insert_header(&mut self, header: Bytes) -> Result<H256, UtilError> {
+	fn insert_header(&mut self, header: Bytes) -> Result<H256, DecoderError> {
 		let info: BlockHeader = UntrustedRlp::new(&header).as_val()?;
 		let hash = info.hash();
 		if self.blocks.contains_key(&hash) {

@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-///
 /// `BlockChain` synchronization strategy.
 /// Syncs to peers and keeps up to date.
 /// This implementation uses ethereum protocol v63
@@ -93,8 +92,10 @@ use std::collections::{HashSet, HashMap};
 use std::cmp;
 use hash::keccak;
 use heapsize::HeapSizeOf;
+use bigint::prelude::U256;
+use bigint::hash::{H256, H256FastMap};
 use parking_lot::RwLock;
-use util::*;
+use bytes::Bytes;
 use rlp::*;
 use network::*;
 use ethcore::header::{BlockNumber, Header as BlockHeader};
@@ -136,7 +137,7 @@ const MAX_TRANSACTION_PACKET_SIZE: usize = 8 * 1024 * 1024;
 // Maximal number of transactions in sent in single packet.
 const MAX_TRANSACTIONS_TO_PROPAGATE: usize = 64;
 // Min number of blocks to be behind for a snapshot sync
-const SNAPSHOT_RESTORE_THRESHOLD: BlockNumber = 10000;
+const SNAPSHOT_RESTORE_THRESHOLD: BlockNumber = 30000;
 const SNAPSHOT_MIN_PEERS: usize = 3;
 
 const STATUS_PACKET: u8 = 0x00;
@@ -168,7 +169,7 @@ const MAX_SNAPSHOT_CHUNKS_DOWNLOAD_AHEAD: usize = 3;
 const WAIT_PEERS_TIMEOUT_SEC: u64 = 5;
 const STATUS_TIMEOUT_SEC: u64 = 5;
 const HEADERS_TIMEOUT_SEC: u64 = 15;
-const BODIES_TIMEOUT_SEC: u64 = 10;
+const BODIES_TIMEOUT_SEC: u64 = 20;
 const RECEIPTS_TIMEOUT_SEC: u64 = 10;
 const FORK_HEADER_TIMEOUT_SEC: u64 = 3;
 const SNAPSHOT_MANIFEST_TIMEOUT_SEC: u64 = 5;
@@ -458,7 +459,7 @@ impl ChainSync {
 
 	/// Updates transactions were received by a peer
 	pub fn transactions_received(&mut self, hashes: Vec<H256>, peer_id: PeerId) {
-		if let Some(mut peer_info) = self.peers.get_mut(&peer_id) {
+		if let Some(peer_info) = self.peers.get_mut(&peer_id) {
 			peer_info.last_sent_transactions.extend(&hashes);
 		}
 	}
@@ -693,7 +694,7 @@ impl ChainSync {
 						}
 					} else {
 						trace!(target: "sync", "{}: Fork mismatch", peer_id);
-						io.disconnect_peer(peer_id);
+						io.disable_peer(peer_id);
 						return Ok(());
 					}
 				}
@@ -729,7 +730,7 @@ impl ChainSync {
 		}
 
 		let result =  {
-			let mut downloader = match block_set {
+			let downloader = match block_set {
 				BlockSet::NewBlocks => &mut self.new_blocks,
 				BlockSet::OldBlocks => {
 					match self.old_blocks {
@@ -794,7 +795,7 @@ impl ChainSync {
 		else
 		{
 			let result = {
-				let mut downloader = match block_set {
+				let downloader = match block_set {
 					BlockSet::NewBlocks => &mut self.new_blocks,
 					BlockSet::OldBlocks => match self.old_blocks {
 						None => {
@@ -848,7 +849,7 @@ impl ChainSync {
 		else
 		{
 			let result = {
-				let mut downloader = match block_set {
+				let downloader = match block_set {
 					BlockSet::NewBlocks => &mut self.new_blocks,
 					BlockSet::OldBlocks => match self.old_blocks {
 						None => {
@@ -1151,7 +1152,7 @@ impl ChainSync {
 		trace!(target: "sync", "== Connected {}: {}", peer, io.peer_info(peer));
 		if let Err(e) = self.send_status(io, peer) {
 			debug!(target:"sync", "Error sending status request: {:?}", e);
-			io.disable_peer(peer);
+			io.disconnect_peer(peer);
 		} else {
 			self.handshaking_peers.insert(peer, time::precise_time_ns());
 		}
@@ -1452,7 +1453,7 @@ impl ChainSync {
 			};
 			if let Err(e) = result {
 				debug!(target:"sync", "Error sending request: {:?}", e);
-				sync.disable_peer(peer_id);
+				sync.disconnect_peer(peer_id);
 			}
 		}
 	}
@@ -1461,7 +1462,7 @@ impl ChainSync {
 	fn send_packet(&mut self, sync: &mut SyncIo, peer_id: PeerId, packet_id: PacketId, packet: Bytes) {
 		if let Err(e) = sync.send(peer_id, packet_id, packet) {
 			debug!(target:"sync", "Error sending packet: {:?}", e);
-			sync.disable_peer(peer_id);
+			sync.disconnect_peer(peer_id);
 		}
 	}
 
@@ -2185,7 +2186,7 @@ impl ChainSync {
 			// Select random peer to re-broadcast transactions to.
 			let peer = random::new().gen_range(0, self.peers.len());
 			trace!(target: "sync", "Re-broadcasting transactions to a random peer.");
-			self.peers.values_mut().nth(peer).map(|mut peer_info|
+			self.peers.values_mut().nth(peer).map(|peer_info|
 				peer_info.last_sent_transactions.clear()
 			);
 		}
@@ -2228,20 +2229,20 @@ fn accepts_service_transaction(client_id: &str) -> bool {
 #[cfg(test)]
 mod tests {
 	use std::collections::{HashSet, VecDeque};
+	use {ethkey, Address};
 	use network::PeerId;
 	use tests::helpers::*;
 	use tests::snapshot::TestSnapshotService;
+	use bigint::prelude::U256;
+	use bigint::hash::H256;
 	use parking_lot::RwLock;
-	use util::{U256, Address};
-	use util::hash::H256;
-	use util::bytes::Bytes;
+	use bytes::Bytes;
 	use rlp::{Rlp, RlpStream, UntrustedRlp};
 	use super::*;
 	use ::SyncConfig;
 	use super::{PeerInfo, PeerAsking};
-	use ethkey;
 	use ethcore::header::*;
-	use ethcore::client::*;
+	use ethcore::client::{BlockChainClient, EachBlockWith, TestBlockChainClient};
 	use ethcore::transaction::UnverifiedTransaction;
 	use ethcore::miner::MinerService;
 

@@ -14,28 +14,33 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::thread;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 use rlp;
 
 use jsonrpc_core::{IoHandler, Success};
+use jsonrpc_core::futures::Future;
 use v1::impls::SigningQueueClient;
 use v1::metadata::Metadata;
 use v1::traits::{EthSigning, ParitySigning, Parity};
 use v1::helpers::{SignerService, SigningQueue, FullDispatcher};
-use v1::types::ConfirmationResponse;
+use v1::types::{ConfirmationResponse, RichRawTransaction};
 use v1::tests::helpers::TestMinerService;
 use v1::tests::mocked::parity;
 
-use util::{Address, U256, ToPretty};
+use bigint::prelude::U256;
+use util::Address;
+use bytes::ToPretty;
 use ethkey::Secret;
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::TestBlockChainClient;
 use ethcore::transaction::{Transaction, Action, SignedTransaction};
 use ethstore::ethkey::{Generator, Random};
-use futures::Future;
 use serde_json;
+
+use parity_reactor::Remote;
 
 struct SigningTester {
 	pub signer: Arc<SignerService>,
@@ -56,9 +61,11 @@ impl Default for SigningTester {
 
 		let dispatcher = FullDispatcher::new(client.clone(), miner.clone());
 
-		let rpc = SigningQueueClient::new(&signer, dispatcher.clone(), &opt_accounts);
+		let remote = Remote::new_thread_per_future();
+
+		let rpc = SigningQueueClient::new(&signer, dispatcher.clone(), remote.clone(), &opt_accounts);
 		io.extend_with(EthSigning::to_delegate(rpc));
-		let rpc = SigningQueueClient::new(&signer, dispatcher, &opt_accounts);
+		let rpc = SigningQueueClient::new(&signer, dispatcher, remote, &opt_accounts);
 		io.extend_with(ParitySigning::to_delegate(rpc));
 
 		SigningTester {
@@ -181,6 +188,9 @@ fn should_check_status_of_request_when_its_resolved() {
 	}"#;
 	tester.io.handle_request_sync(&request).expect("Sent");
 	tester.signer.request_confirmed(1.into(), Ok(ConfirmationResponse::Signature(1.into())));
+
+	// This is not ideal, but we need to give futures some time to be executed, and they need to run in a separate thread
+	thread::sleep(Duration::from_millis(20));
 
 	// when
 	let request = r#"{
@@ -324,7 +334,9 @@ fn should_add_sign_transaction_to_the_queue() {
 	::std::thread::spawn(move || loop {
 		if signer.requests().len() == 1 {
 			// respond
-			signer.request_confirmed(1.into(), Ok(ConfirmationResponse::SignTransaction(t.into())));
+			signer.request_confirmed(1.into(), Ok(ConfirmationResponse::SignTransaction(
+				RichRawTransaction::from_signed(t.into(), 0x0, u64::max_value())
+			)));
 			break
 		}
 		::std::thread::sleep(Duration::from_millis(100))

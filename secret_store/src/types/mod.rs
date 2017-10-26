@@ -16,5 +16,4 @@
 
 //! Types used in the public api
 
-#![allow(dead_code, unused_assignments, unused_variables)] // codegen issues
-include!(concat!(env!("OUT_DIR"), "/mod.rs.in"));
+pub mod all;

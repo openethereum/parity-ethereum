@@ -26,16 +26,19 @@ use hash::{keccak, KECCAK_NULL_RLP, KECCAK_EMPTY};
 
 use account_db::{AccountDB, AccountDBMut};
 use blockchain::{BlockChain, BlockProvider};
-use engines::Engine;
+use engines::EthEngine;
 use header::Header;
 use ids::BlockId;
 
-use util::{Bytes, HashDB, DBValue, snappy, U256};
+use bigint::prelude::U256;
+use bigint::hash::H256;
+use util::{HashDB, DBValue};
+use snappy;
+use bytes::Bytes;
 use parking_lot::Mutex;
-use util::hash::{H256};
-use util::journaldb::{self, Algorithm, JournalDB};
-use util::kvdb::KeyValueDB;
-use util::trie::{TrieDB, TrieDBMut, Trie, TrieMut};
+use journaldb::{self, Algorithm, JournalDB};
+use kvdb::KeyValueDB;
+use trie::{TrieDB, TrieDBMut, Trie, TrieMut};
 use rlp::{RlpStream, UntrustedRlp};
 use bloom_journal::Bloom;
 
@@ -69,16 +72,7 @@ mod watcher;
 #[cfg(test)]
 mod tests;
 
-/// IPC interfaces
-#[cfg(feature="ipc")]
-pub mod remote {
-	pub use super::traits::RemoteSnapshotService;
-}
-
-mod traits {
-	#![allow(dead_code, unused_assignments, unused_variables, missing_docs)] // codegen issues
-	include!(concat!(env!("OUT_DIR"), "/snapshot_service_trait.rs"));
-}
+mod traits;
 
 // Try to have chunks be around 4MB (before compression)
 const PREFERRED_CHUNK_SIZE: usize = 4 * 1024 * 1024;
@@ -124,7 +118,7 @@ impl Progress {
 }
 /// Take a snapshot using the given blockchain, starting block hash, and database, writing into the given writer.
 pub fn take_snapshot<W: SnapshotWriter + Send>(
-	engine: &Engine,
+	engine: &EthEngine,
 	chain: &BlockChain,
 	block_at: H256,
 	state_db: &HashDB,
@@ -482,13 +476,13 @@ const POW_VERIFY_RATE: f32 = 0.02;
 /// Verify an old block with the given header, engine, blockchain, body. If `always` is set, it will perform
 /// the fullest verification possible. If not, it will take a random sample to determine whether it will
 /// do heavy or light verification.
-pub fn verify_old_block(rng: &mut OsRng, header: &Header, engine: &Engine, chain: &BlockChain, body: Option<&[u8]>, always: bool) -> Result<(), ::error::Error> {
-	engine.verify_block_basic(header, body)?;
+pub fn verify_old_block(rng: &mut OsRng, header: &Header, engine: &EthEngine, chain: &BlockChain, always: bool) -> Result<(), ::error::Error> {
+	engine.verify_block_basic(header)?;
 
 	if always || rng.gen::<f32>() <= POW_VERIFY_RATE {
-		engine.verify_block_unordered(header, body)?;
+		engine.verify_block_unordered(header)?;
 		match chain.block_header(header.parent_hash()) {
-			Some(parent) => engine.verify_block_family(header, &parent, body),
+			Some(parent) => engine.verify_block_family(header, &parent),
 			None => Ok(()),
 		}
 	} else {

@@ -17,10 +17,11 @@
 use std::sync::Arc;
 use std::collections::{HashMap, BTreeMap};
 use std::io;
-use util::Bytes;
+use bytes::Bytes;
 use network::{NetworkProtocolHandler, NetworkService, NetworkContext, HostInfo, PeerId, ProtocolId,
 	NetworkConfiguration as BasicNetworkConfiguration, NonReservedPeerMode, NetworkError, ConnectionFilter};
-use util::{U256, H256, H512};
+use bigint::prelude::U256;
+use bigint::hash::{H256, H512};
 use io::{TimerToken};
 use ethcore::ethstore::ethkey::Secret;
 use ethcore::client::{BlockChainClient, ChainNotify};
@@ -29,7 +30,6 @@ use ethcore::header::BlockNumber;
 use sync_io::NetSyncIo;
 use chain::{ChainSync, SyncStatus as EthSyncStatus};
 use std::net::{SocketAddr, AddrParseError};
-use ipc::{BinaryConvertable, BinaryConvertError, IpcConfig};
 use std::str::FromStr;
 use parking_lot::RwLock;
 use chain::{ETH_PACKET_COUNT, SNAPSHOT_SYNC_PACKET_COUNT};
@@ -81,9 +81,6 @@ impl Default for SyncConfig {
 	}
 }
 
-binary_fixed_size!(SyncConfig);
-binary_fixed_size!(EthSyncStatus);
-
 /// Current sync status
 pub trait SyncProvider: Send + Sync {
 	/// Get sync status
@@ -101,7 +98,6 @@ pub trait SyncProvider: Send + Sync {
 
 /// Transaction stats
 #[derive(Debug)]
-#[cfg_attr(feature = "ipc", derive(Binary))]
 pub struct TransactionStats {
 	/// Block number where this TX was first seen.
 	pub first_seen: u64,
@@ -111,7 +107,6 @@ pub struct TransactionStats {
 
 /// Peer connection information
 #[derive(Debug)]
-#[cfg_attr(feature = "ipc", derive(Binary))]
 pub struct PeerInfo {
 	/// Public node id
 	pub id: Option<String>,
@@ -131,7 +126,6 @@ pub struct PeerInfo {
 
 /// Ethereum protocol info.
 #[derive(Debug)]
-#[cfg_attr(feature = "ipc", derive(Binary))]
 pub struct EthProtocolInfo {
 	/// Protocol version
 	pub version: u32,
@@ -143,7 +137,6 @@ pub struct EthProtocolInfo {
 
 /// PIP protocol info.
 #[derive(Debug)]
-#[cfg_attr(feature = "ipc", derive(Binary))]
 pub struct PipProtocolInfo {
 	/// Protocol version
 	pub version: u32,
@@ -165,7 +158,6 @@ impl From<light_net::Status> for PipProtocolInfo {
 
 /// Configuration to attach alternate protocol handlers.
 /// Only works when IPC is disabled.
-#[cfg(not(feature = "ipc"))]
 pub struct AttachedProtocol {
 	/// The protocol handler in question.
 	pub handler: Arc<NetworkProtocolHandler + Send + Sync>,
@@ -177,32 +169,11 @@ pub struct AttachedProtocol {
 	pub versions: &'static [u8],
 }
 
-/// Attached protocol: disabled in IPC mode.
-#[cfg(feature = "ipc")]
-#[cfg_attr(feature = "ipc", derive(Binary))]
-pub struct AttachedProtocol;
-
 impl AttachedProtocol {
-	#[cfg(feature = "ipc")]
-	fn register(&self, network: &NetworkService) {
-		let res = network.register_protocol(
-			self.handler.clone(),
-			self.protocol_id,
-			self.packet_count,
-			self.versions
-		);
-
-		if let Err(e) = res {
-			warn!(target: "sync","Error attaching protocol {:?}", protocol_id);
-		}
-	}
-
-	#[cfg(not(feature = "ipc"))]
 	fn register(&self, _network: &NetworkService) {}
 }
 
 /// EthSync initialization parameters.
-#[cfg_attr(feature = "ipc", derive(Binary))]
 pub struct Params {
 	/// Configuration.
 	pub config: SyncConfig,
@@ -292,7 +263,6 @@ impl EthSync {
 	}
 }
 
-#[cfg_attr(feature = "ipc", ipc(client_ident="SyncClient"))]
 impl SyncProvider for EthSync {
 	/// Get sync status
 	fn status(&self) -> EthSyncStatus {
@@ -477,9 +447,6 @@ impl LightHandler for TxRelay {
 	}
 }
 
-impl IpcConfig for ManageNetwork { }
-impl IpcConfig for SyncProvider { }
-
 /// Trait for managing network
 pub trait ManageNetwork : Send + Sync {
 	/// Set to allow unreserved peers to connect
@@ -501,7 +468,6 @@ pub trait ManageNetwork : Send + Sync {
 }
 
 
-#[cfg_attr(feature = "ipc", ipc(client_ident="NetworkManagerClient"))]
 impl ManageNetwork for EthSync {
 	fn accept_unreserved_peers(&self) {
 		self.network.set_non_reserved_mode(NonReservedPeerMode::Accept);
@@ -546,7 +512,6 @@ impl ManageNetwork for EthSync {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "ipc", binary)]
 /// Network service configuration
 pub struct NetworkConfiguration {
 	/// Directory path to store general network configuration. None means nothing will be saved
@@ -642,7 +607,6 @@ impl From<BasicNetworkConfiguration> for NetworkConfiguration {
 
 /// Configuration for IPC service.
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "ipc", binary)]
 pub struct ServiceConfiguration {
 	/// Sync config.
 	pub sync: SyncConfig,
@@ -654,7 +618,6 @@ pub struct ServiceConfiguration {
 
 /// Numbers of peers (max, min, active).
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "ipc", binary)]
 pub struct PeerNumbers {
 	/// Number of connected peers.
 	pub connected: usize,

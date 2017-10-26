@@ -3,7 +3,7 @@ description = "Ethcore development/test/build tools"
 homepage = "http://parity.io"
 license = "GPL-3.0"
 name = "ethcore-devtools"
-version = "1.8.0"
+version = "1.9.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]

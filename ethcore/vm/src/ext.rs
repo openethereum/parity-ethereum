@@ -17,7 +17,10 @@
 //! Interface for Evm externalities.
 
 use std::sync::Arc;
+use bigint::prelude::U256;
+use bigint::hash::H256;
 use util::*;
+use bytes::Bytes;
 use call_type::CallType;
 use env_info::EnvInfo;
 use schedule::Schedule;
@@ -31,7 +34,9 @@ pub enum ContractCreateResult {
 	Created(Address, U256),
 	/// Returned when contract creation failed.
 	/// VM doesn't have to know the reason.
-	Failed
+	Failed,
+	/// Reverted with REVERT.
+	Reverted(U256, ReturnData),
 }
 
 /// Result of externalities call function.
@@ -41,7 +46,10 @@ pub enum MessageCallResult {
 	Success(U256, ReturnData),
 	/// Returned when message call failed.
 	/// VM doesn't have to know the reason.
-	Failed
+	Failed,
+	/// Returned when message call was reverted.
+	/// Contains gas left and output data.
+	Reverted(U256, ReturnData),
 }
 
 /// Specifies how an address is calculated for a new contract.
@@ -111,7 +119,7 @@ pub trait Ext {
 
 	/// Should be called when transaction calls `RETURN` opcode.
 	/// Returns gas_left if cost of returning the data is not too high.
-	fn ret(self, gas: &U256, data: &ReturnData) -> Result<U256>;
+	fn ret(self, gas: &U256, data: &ReturnData, apply_state: bool) -> Result<U256>;
 
 	/// Should be called when contract commits suicide.
 	/// Address to which funds should be refunded.
@@ -140,4 +148,7 @@ pub trait Ext {
 
 	/// Trace the finalised execution of a single instruction.
 	fn trace_executed(&mut self, _gas_used: U256, _stack_push: &[U256], _mem_diff: Option<(usize, &[u8])>, _store_diff: Option<(U256, U256)>) {}
+
+	/// Check if running in static context.
+	fn is_static(&self) -> bool;
 }

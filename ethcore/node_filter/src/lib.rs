@@ -18,19 +18,29 @@
 
 extern crate ethcore;
 extern crate ethcore_util as util;
+extern crate ethcore_bigint as bigint;
+extern crate ethcore_bytes as bytes;
 extern crate ethcore_network as network;
 extern crate native_contracts;
 extern crate futures;
 extern crate parking_lot;
-#[cfg(test)] extern crate ethcore_io as io;
-#[macro_use] extern crate log;
+
+#[macro_use]
+extern crate log;
+
+#[cfg(test)]
+extern crate kvdb_memorydb;
+#[cfg(test)]
+extern crate ethcore_io as io;
 
 use std::sync::Weak;
 use std::collections::HashMap;
 use native_contracts::PeerSet as Contract;
 use network::{NodeId, ConnectionFilter, ConnectionDirection};
 use ethcore::client::{BlockChainClient, BlockId, ChainNotify};
-use util::{Address, H256, Bytes};
+use bigint::hash::H256;
+use util::Address;
+use bytes::Bytes;
 use parking_lot::Mutex;
 use futures::Future;
 
@@ -129,8 +139,8 @@ mod test {
 	fn node_filter() {
 		let contract_addr = Address::from_str("0000000000000000000000000000000000000005").unwrap();
 		let data = include_bytes!("../res/node_filter.json");
-		let spec = Spec::load(::std::env::temp_dir(), &data[..]).unwrap();
-		let client_db = Arc::new(::util::kvdb::in_memory(::ethcore::db::NUM_COLUMNS.unwrap_or(0)));
+		let spec = Spec::load(&::std::env::temp_dir(), &data[..]).unwrap();
+		let client_db = Arc::new(::kvdb_memorydb::create(::ethcore::db::NUM_COLUMNS.unwrap_or(0)));
 
 		let client = Client::new(
 			ClientConfig::default(),
