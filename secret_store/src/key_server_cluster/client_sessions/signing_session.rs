@@ -169,11 +169,6 @@ impl SessionImpl {
 		//debug_assert_eq!(params.meta.self_node_id == params.meta.master_node_id, requester_signature.is_some());
 		debug_assert_eq!(params.meta.threshold, params.key_share.as_ref().map(|ks| ks.threshold).unwrap_or_default());
 
-		// check nodes and threshold
-		// TODO: let nodes = params.key_share.id_numbers.keys().cloned().collect();
-		// check_cluster_nodes(&params.meta.self_node_id, &nodes)?;
-		// check_threshold(params.key_share.threshold, &nodes)?;
-
 		let consensus_transport = SigningConsensusTransport {
 			id: params.meta.id.clone(),
 			access_key: params.access_key.clone(),
@@ -233,7 +228,9 @@ impl SessionImpl {
 			session: self.core.meta.id.clone().into(),
 			sub_session: self.core.access_key.clone().into(),
 			session_nonce: self.core.nonce,
-			requestor_signature: data.consensus_session.consensus_job().executor().requester_signature().expect("TODO").clone().into(),
+			requestor_signature: data.consensus_session.consensus_job().executor().requester_signature()
+				.expect("signature is passed to master node on creation; session can be delegated from master node only; qed")
+				.clone().into(),
 			version: version.into(),
 			message_hash: message_hash.into(),
 		})))?;
@@ -493,7 +490,8 @@ impl SessionImpl {
 			.expect("session key is generated before signature is computed; we are in SignatureComputing state; qed")
 			.joint_public_and_secret()
 			.expect("session key is generated before signature is computed; we are in SignatureComputing state; qed")?;
-		let key_version = key_share.version(data.version.as_ref().expect("TODO")).map_err(|e| Error::KeyStorage(e.into()))?.hash.clone();
+		let key_version = key_share.version(data.version.as_ref().ok_or(Error::InvalidMessage)?)
+			.map_err(|e| Error::KeyStorage(e.into()))?.hash.clone();
 		let signing_job = SigningJob::new_on_slave(self.core.meta.self_node_id.clone(), key_share.clone(), key_version, joint_public_and_secret.0, joint_public_and_secret.1)?;
 		let signing_transport = self.core.signing_transport();
 

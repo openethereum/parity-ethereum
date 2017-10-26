@@ -1,7 +1,3 @@
-// TODO: after refactoring, check that there are no extra messages passing in tests (there are error messages)
-// TODO: initialize() fails, session is not removed from container
-// TODO: KeyVersionNegotiation starts even if we have enough nodes connected
-
 // Copyright 2015-2017 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
@@ -455,6 +451,7 @@ impl ClusterCore {
 			let meta = session.meta();
 			let is_master_node = meta.self_node_id == meta.master_node_id;
 			if is_master_node && session.is_finished() {
+				data.sessions.negotiation_sessions.remove(&session.id());
 				if let Ok((version, master)) = session.wait() {
 					match session.continue_action() {
 						Some(ContinueAction::Decrypt(session, is_shadow_decryption)) => {
@@ -839,8 +836,13 @@ impl ClusterClientImpl {
 		let session_id = SessionIdWithSubSession::new(session_id, access_key);
 		let cluster = create_cluster_view(&self.data, false)?;
 		let session = self.data.sessions.negotiation_sessions.insert(cluster, self.data.self_key_pair.public().clone(), session_id.clone(), None, false, None)?;
-		session.initialize(connected_nodes)?;
-		Ok(session)
+		match session.initialize(connected_nodes) {
+			Ok(()) => Ok(session),
+			Err(error) => {
+				self.data.sessions.negotiation_sessions.remove(&session.id());
+				Err(error)
+			}
+		}
 	}
 }
 
@@ -855,8 +857,13 @@ impl ClusterClient for ClusterClientImpl {
 
 		let cluster = create_cluster_view(&self.data, true)?;
 		let session = self.data.sessions.generation_sessions.insert(cluster, self.data.self_key_pair.public().clone(), session_id, None, false, None)?;
-		session.initialize(author, threshold, connected_nodes)?;
-		Ok(GenerationSessionWrapper::new(Arc::downgrade(&self.data), session_id, session))
+		match session.initialize(author, threshold, connected_nodes) {
+			Ok(()) => Ok(GenerationSessionWrapper::new(Arc::downgrade(&self.data), session_id, session)),
+			Err(error) => {
+				self.data.sessions.generation_sessions.remove(&session.id());
+				Err(error)
+			},
+		}
 	}
 
 	fn new_encryption_session(&self, session_id: SessionId, requestor_signature: Signature, common_point: Public, encrypted_point: Public) -> Result<Arc<EncryptionSession>, Error> {
@@ -865,8 +872,13 @@ impl ClusterClient for ClusterClientImpl {
 
 		let cluster = create_cluster_view(&self.data, true)?;
 		let session = self.data.sessions.encryption_sessions.insert(cluster, self.data.self_key_pair.public().clone(), session_id, None, false, None)?;
-		session.initialize(requestor_signature, common_point, encrypted_point)?;
-		Ok(EncryptionSessionWrapper::new(Arc::downgrade(&self.data), session_id, session))
+		match session.initialize(requestor_signature, common_point, encrypted_point) {
+			Ok(()) => Ok(EncryptionSessionWrapper::new(Arc::downgrade(&self.data), session_id, session)),
+			Err(error) => {
+				self.data.sessions.encryption_sessions.remove(&session.id());
+				Err(error)
+			},
+		}
 	}
 
 	fn new_decryption_session(&self, session_id: SessionId, requestor_signature: Signature, version: Option<H256>, is_shadow_decryption: bool) -> Result<Arc<DecryptionSession>, Error> {
@@ -878,18 +890,24 @@ impl ClusterClient for ClusterClientImpl {
 		let cluster = create_cluster_view(&self.data, false)?;
 		let session = self.data.sessions.decryption_sessions.insert(cluster, self.data.self_key_pair.public().clone(), session_id.clone(), None, false, Some(requestor_signature))?;
 
-		match version {
-			Some(version) => {
-				session.initialize(version, is_shadow_decryption)?;
-			},
+		let initialization_result = match version {
+			Some(version) => session.initialize(version, is_shadow_decryption),
 			None => {
-				let version_session = self.create_key_version_negotiation_session(session_id.id.clone())?;
-				version_session.set_continue_action(ContinueAction::Decrypt(session.clone(), is_shadow_decryption));
-				ClusterCore::try_continue_session(&self.data, Some(version_session));
-			}
-		}
+				self.create_key_version_negotiation_session(session_id.id.clone())
+					.map(|version_session| {
+						version_session.set_continue_action(ContinueAction::Decrypt(session.clone(), is_shadow_decryption));
+						ClusterCore::try_continue_session(&self.data, Some(version_session));
+					})
+			},
+		};
 
-		Ok(DecryptionSessionWrapper::new(Arc::downgrade(&self.data), session_id, session))
+		match initialization_result {
+			Ok(()) => Ok(DecryptionSessionWrapper::new(Arc::downgrade(&self.data), session_id, session)),
+			Err(error) => {
+				self.data.sessions.decryption_sessions.remove(&session.id());
+				Err(error)
+			},
+		}
 	}
 
 	fn new_signing_session(&self, session_id: SessionId, requestor_signature: Signature, version: Option<H256>, message_hash: H256) -> Result<Arc<SigningSession>, Error> {
@@ -901,18 +919,24 @@ impl ClusterClient for ClusterClientImpl {
 		let cluster = create_cluster_view(&self.data, false)?;
 		let session = self.data.sessions.signing_sessions.insert(cluster, self.data.self_key_pair.public().clone(), session_id.clone(), None, false, Some(requestor_signature))?;
 
-		match version {
-			Some(version) => {
-				session.initialize(version, message_hash)?;
-			},
+		let initialization_result = match version {
+			Some(version) => session.initialize(version, message_hash),
 			None => {
-				let version_session = self.create_key_version_negotiation_session(session_id.id.clone())?;
-				version_session.set_continue_action(ContinueAction::Sign(session.clone(), message_hash));
-				ClusterCore::try_continue_session(&self.data, Some(version_session));
-			}
-		}
+				self.create_key_version_negotiation_session(session_id.id.clone())
+					.map(|version_session| {
+						version_session.set_continue_action(ContinueAction::Sign(session.clone(), message_hash));
+						ClusterCore::try_continue_session(&self.data, Some(version_session));
+					})
+			},
+		};
 
-		Ok(SigningSessionWrapper::new(Arc::downgrade(&self.data), session_id, session))
+		match initialization_result {
+			Ok(()) => Ok(SigningSessionWrapper::new(Arc::downgrade(&self.data), session_id, session)),
+			Err(error) => {
+				self.data.sessions.signing_sessions.remove(&session.id());
+				Err(error)
+			},
+		}
 	}
 
 	fn new_key_version_negotiation_session(&self, session_id: SessionId) -> Result<Arc<KeyVersionNegotiationSession>, Error> {
@@ -932,9 +956,16 @@ impl ClusterClient for ClusterClientImpl {
 
 		let cluster = create_cluster_view(&self.data, true)?;
 		let session = self.data.sessions.admin_sessions.insert(cluster, self.data.self_key_pair.public().clone(), session_id, None, true, None)?;
-		session.as_servers_set_change().expect("servers set change session is created; qed")
-			.initialize(new_nodes_set, old_set_signature, new_set_signature)?;
-		Ok(AdminSessionWrapper::new(Arc::downgrade(&self.data), session_id, session))
+		let initialization_result = session.as_servers_set_change().expect("servers set change session is created; qed")
+			.initialize(new_nodes_set, old_set_signature, new_set_signature);
+
+		match initialization_result {
+			Ok(()) => Ok(AdminSessionWrapper::new(Arc::downgrade(&self.data), session_id, session)),
+			Err(error) => {
+				self.data.sessions.admin_sessions.remove(&session.id());
+				Err(error)
+			},
+		}
 	}
 
 	#[cfg(test)]
@@ -1115,6 +1146,7 @@ pub mod tests {
 
 	#[test]
 	fn error_in_generation_session_broadcasted_to_all_other_nodes() {
+		//::logger::init_log();
 		let mut core = Core::new().unwrap();
 		let clusters = make_clusters(&core, 6016, 3);
 		run_clusters(&clusters);
@@ -1193,6 +1225,41 @@ pub mod tests {
 					&& clusters[i].client().generation_session(&SessionId::default()).is_none());
 				assert!(session.joint_public_and_secret().unwrap().is_err());
 			}
+		}
+	}
+
+	#[test]
+	fn sessions_are_removed_when_initialization_fails() {
+		let mut core = Core::new().unwrap();
+		let clusters = make_clusters(&core, 6022, 3);
+		run_clusters(&clusters);
+		loop_until(&mut core, time::Duration::from_millis(300), || clusters.iter().all(all_connections_established));
+
+		// generation session
+		{
+			// try to start generation session => fail in initialization
+			assert_eq!(clusters[0].client().new_generation_session(SessionId::default(), Public::default(), 100).map(|_| ()),
+				Err(Error::InvalidThreshold));
+
+			// try to start generation session => fails in initialization
+			assert_eq!(clusters[0].client().new_generation_session(SessionId::default(), Public::default(), 100).map(|_| ()),
+				Err(Error::InvalidThreshold));
+		
+			assert!(clusters[0].data.sessions.generation_sessions.is_empty());
+		}
+
+		// decryption session
+		{
+			// try to start decryption session => fails in initialization
+			assert_eq!(clusters[0].client().new_decryption_session(Default::default(), Default::default(), Some(Default::default()), false).map(|_| ()),
+				Err(Error::InvalidMessage));
+
+			// try to start generation session => fails in initialization
+			assert_eq!(clusters[0].client().new_decryption_session(Default::default(), Default::default(), Some(Default::default()), false).map(|_| ()),
+				Err(Error::InvalidMessage));
+
+			assert!(clusters[0].data.sessions.decryption_sessions.is_empty());
+			assert!(clusters[0].data.sessions.negotiation_sessions.is_empty());
 		}
 	}
 }

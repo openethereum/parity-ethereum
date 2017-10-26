@@ -222,7 +222,9 @@ impl SessionImpl {
 			session: self.core.meta.id.clone().into(),
 			sub_session: self.core.access_key.clone().into(),
 			session_nonce: self.core.nonce,
-			requestor_signature: data.consensus_session.consensus_job().executor().requester_signature().expect("TODO").clone().into(),
+			requestor_signature: data.consensus_session.consensus_job().executor().requester_signature()
+				.expect("signature is passed to master node on creation; session can be delegated from master node only; qed")
+				.clone().into(),
 			version: version.into(),
 			is_shadow_decryption: is_shadow_decryption,
 		})))?;
@@ -363,7 +365,8 @@ impl SessionImpl {
 		};
 
 		let mut data = self.data.lock();
-		let key_version = key_share.version(data.version.as_ref().expect("TODO")).map_err(|e| Error::KeyStorage(e.into()))?.hash.clone();
+		let key_version = key_share.version(data.version.as_ref().ok_or(Error::InvalidMessage)?)
+			.map_err(|e| Error::KeyStorage(e.into()))?.hash.clone();
 		let requester = data.consensus_session.consensus_job().executor().requester()?.ok_or(Error::InvalidStateForRequest)?.clone();
 		let decryption_job = DecryptionJob::new_on_slave(self.core.meta.self_node_id.clone(), self.core.access_key.clone(), requester, key_share.clone(), key_version)?;
 		let decryption_transport = self.core.decryption_transport();
