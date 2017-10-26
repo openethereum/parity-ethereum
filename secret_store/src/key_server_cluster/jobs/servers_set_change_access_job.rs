@@ -25,8 +25,6 @@ use key_server_cluster::jobs::job_session::{JobPartialResponseAction, JobPartial
 pub struct ServersSetChangeAccessJob {
 	/// Servers set administrator public key (this could be changed to ACL-based check later).
 	administrator: Public,
-	/// Current servers set (in session/cluster).
-	//current_servers_set: BTreeSet<NodeId>,
 	/// Old servers set.
 	old_servers_set: Option<BTreeSet<NodeId>>,
 	/// New servers set.

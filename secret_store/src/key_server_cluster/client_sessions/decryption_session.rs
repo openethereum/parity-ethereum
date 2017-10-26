@@ -136,7 +136,6 @@ enum DelegationStatus {
 impl SessionImpl {
 	/// Create new decryption session.
 	pub fn new(params: SessionParams, requester_signature: Option<Signature>) -> Result<Self, Error> {
-		//debug_assert_eq!(params.meta.self_node_id == params.meta.master_node_id, requester_signature.is_some());
 		debug_assert_eq!(params.meta.threshold, params.key_share.as_ref().map(|ks| ks.threshold).unwrap_or_default());
 
 		// check that common_point and encrypted_point are already set
