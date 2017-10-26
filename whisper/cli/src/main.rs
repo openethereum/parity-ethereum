@@ -98,75 +98,75 @@ use jsonrpc_core::IoHandler;
 mod http_common {
 	/* start http_common.rs */
 
-	use jsonrpc_core;
-	use jsonrpc_core::MetaIoHandler;
-	use http;
-	use hyper;
-	use minihttp;
-	// use parity_reactor::TokioRemote;
-	use tokio_core::reactor::{Remote as TokioRemote};
+	// use jsonrpc_core;
+	// use jsonrpc_core::MetaIoHandler;
+	// use http;
+	// use hyper;
+	// use minihttp;
+	// // use parity_reactor::TokioRemote;
+	// use tokio_core::reactor::{Remote as TokioRemote};
 
 
-	/// HTTP RPC server impl-independent metadata extractor
-	pub trait HttpMetaExtractor: Send + Sync + 'static {
-		/// Type of Metadata
-		type Metadata: jsonrpc_core::Metadata;
-		/// Extracts metadata from given params.
-		fn read_metadata(&self, origin: Option<String>, user_agent: Option<String>, dapps_origin: Option<String>) -> Self::Metadata;
-	}
+	// /// HTTP RPC server impl-independent metadata extractor
+	// pub trait HttpMetaExtractor: Send + Sync + 'static {
+	// 	/// Type of Metadata
+	// 	type Metadata: jsonrpc_core::Metadata;
+	// 	/// Extracts metadata from given params.
+	// 	fn read_metadata(&self, origin: Option<String>, user_agent: Option<String>, dapps_origin: Option<String>) -> Self::Metadata;
+	// }
 
-	pub struct HyperMetaExtractor<T> {
-		extractor: T,
-	}
+	// pub struct HyperMetaExtractor<T> {
+	// 	extractor: T,
+	// }
 
-	impl<T> HyperMetaExtractor<T> {
-		pub fn new(extractor: T) -> Self {
-			HyperMetaExtractor {
-				extractor: extractor,
-			}
-		}
-	}
+	// impl<T> HyperMetaExtractor<T> {
+	// 	pub fn new(extractor: T) -> Self {
+	// 		HyperMetaExtractor {
+	// 			extractor: extractor,
+	// 		}
+	// 	}
+	// }
 
-	impl<M, T> http::MetaExtractor<M> for HyperMetaExtractor<T> where
-		T: HttpMetaExtractor<Metadata = M>,
-		M: jsonrpc_core::Metadata,
-	{
-		fn read_metadata(&self, req: &hyper::server::Request<hyper::net::HttpStream>) -> M {
-			let as_string = |header: Option<&http::request_response::header::Raw>| header
-				.and_then(|raw| raw.one())
-				.map(|raw| String::from_utf8_lossy(raw).into_owned());
+	// impl<M, T> http::MetaExtractor<M> for HyperMetaExtractor<T> where
+	// 	T: HttpMetaExtractor<Metadata = M>,
+	// 	M: jsonrpc_core::Metadata,
+	// {
+	// 	fn read_metadata(&self, req: &hyper::server::Request<hyper::net::HttpStream>) -> M {
+	// 		let as_string = |header: Option<&http::request_response::header::Raw>| header
+	// 			.and_then(|raw| raw.one())
+	// 			.map(|raw| String::from_utf8_lossy(raw).into_owned());
 
-			let origin = as_string(req.headers().get_raw("origin"));
-			let user_agent = as_string(req.headers().get_raw("user-agent"));
-			let dapps_origin = as_string(req.headers().get_raw("x-parity-origin"));
-			self.extractor.read_metadata(origin, user_agent, dapps_origin)
-		}
-	}
+	// 		let origin = as_string(req.headers().get_raw("origin"));
+	// 		let user_agent = as_string(req.headers().get_raw("user-agent"));
+	// 		let dapps_origin = as_string(req.headers().get_raw("x-parity-origin"));
+	// 		self.extractor.read_metadata(origin, user_agent, dapps_origin)
+	// 	}
+	// }
 
-	pub struct MiniMetaExtractor<T> {
-		extractor: T,
-	}
+	// pub struct MiniMetaExtractor<T> {
+	// 	extractor: T,
+	// }
 
-	impl<T> MiniMetaExtractor<T> {
-		pub fn new(extractor: T) -> Self {
-			MiniMetaExtractor {
-				extractor: extractor,
-			}
-		}
-	}
+	// impl<T> MiniMetaExtractor<T> {
+	// 	pub fn new(extractor: T) -> Self {
+	// 		MiniMetaExtractor {
+	// 			extractor: extractor,
+	// 		}
+	// 	}
+	// }
 
-	impl<M, T> minihttp::MetaExtractor<M> for MiniMetaExtractor<T> where
-		T: HttpMetaExtractor<Metadata = M>,
-		M: jsonrpc_core::Metadata,
-	{
-		fn read_metadata(&self, req: &minihttp::Req) -> M {
-			let origin = req.header("origin").map(|h| h.to_owned());
-			let user_agent = req.header("user-agent").map(|h| h.to_owned());
-			let dapps_origin = req.header("x-parity-origin").map(|h| h.to_owned());
+	// impl<M, T> minihttp::MetaExtractor<M> for MiniMetaExtractor<T> where
+	// 	T: HttpMetaExtractor<Metadata = M>,
+	// 	M: jsonrpc_core::Metadata,
+	// {
+	// 	fn read_metadata(&self, req: &minihttp::Req) -> M {
+	// 		let origin = req.header("origin").map(|h| h.to_owned());
+	// 		let user_agent = req.header("user-agent").map(|h| h.to_owned());
+	// 		let dapps_origin = req.header("x-parity-origin").map(|h| h.to_owned());
 
-			self.extractor.read_metadata(origin, user_agent, dapps_origin)
-		}
-	}
+	// 		self.extractor.read_metadata(origin, user_agent, dapps_origin)
+	// 	}
+	// }
 
 	/* end http_common.rs */
 }
@@ -253,15 +253,15 @@ pub enum HttpServerError {
 	Hyper(hyper::Error),
 }
 
-impl HttpServer {
-	/// Returns current listening address.
-	pub fn address(&self) -> &SocketAddr {
-		match *self {
-			HttpServer::Mini(ref s) => s.address(),
-			HttpServer::Hyper(ref s) => &s.addrs()[0],
-		}
-	}
-}
+// impl HttpServer {
+// 	/// Returns current listening address.
+// 	pub fn address(&self) -> &SocketAddr {
+// 		match *self {
+// 			HttpServer::Mini(ref s) => s.address(),
+// 			HttpServer::Hyper(ref s) => &s.addrs()[0],
+// 		}
+// 	}
+// }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct HttpConfiguration {
@@ -412,9 +412,16 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 	network.register_protocol(Arc::new(whisper_net::ParityExtensions), whisper_net::PARITY_PROTOCOL_ID, whisper_net::PACKET_COUNT, whisper_net::SUPPORTED_VERSIONS);
 
 	// -- 3) Instantiate RPC Handler
+
+/// Metadata trait
+#[derive(Debug, Eq, PartialEq, Clone)]
+pub struct MyMetadata { }
+impl Default for MyMetadata { fn default() -> MyMetadata { MyMetadata{} } }
+impl jsonrpc_core::Metadata for MyMetadata {}
+
 	let handle2 = NetworkPoolHandle { handle: whisper_network_handler.clone(), net: Arc::new(network) };
 
-	let whisper_rpc_handler : WhisperClient<NetworkPoolHandle, Metadata> = WhisperClient::new(handle2, whisper_filter_manager.clone());
+	let whisper_rpc_handler : WhisperClient<NetworkPoolHandle, MyMetadata> = WhisperClient::new(handle2, whisper_filter_manager.clone());
 
 	// je pourrais plus tard reprendre le pattern utilisé dans parity/whisper.rs :
 	// let whisper_factory = RpcFactory { net: whisper_network_handler, manager: whisper_filter_manager };
@@ -428,19 +435,15 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 
 // regarder comment c'est fait sur whisper !
 
-/// Metadata trait
-#[derive(Debug, Eq, PartialEq, Clone)]
-pub struct MyMetadata { }
-impl Default for MyMetadata { fn default() -> MyMetadata { MyMetadata{} } }
-impl jsonrpc_core::Metadata for MyMetadata {}
-
 	let mut rpc_handler : jsonrpc_core::MetaIoHandler<MyMetadata, _> = jsonrpc_core::MetaIoHandler::default(); // ou IoHandler::new();
 	// let mut rpc_handler = jsonrpc_core::MetaIoHandler::with_middleware(whisper_rpc_handler); // ou IoHandler::new();
 	//let mut rpc_handler = IoHandler::new();
 	// let expected_to_delegate_input = whisper_rpc.make_handler(self.net.clone());
-rpc_handler.extend_with(::parity_whisper::rpc::Whisper::to_delegate(whisper_rpc_handler)); // to_delete takes a PoolHandle I guess?
-/*
-	rpc_handler.extend_with(whisper_rpc_handler);
+	use parity_whisper::rpc::Whisper;
+	// let foo: () = whisper_rpc_handler.to_delegate();
+
+rpc_handler.extend_with(whisper_rpc_handler.to_delegate()); // to_delete takes a PoolHandle I guess?
+
 
 	// -- 4) Launch RPC with handler
 
@@ -468,13 +471,11 @@ rpc_handler.extend_with(::parity_whisper::rpc::Whisper::to_delegate(whisper_rpc_
 
 	// let mut allowed_hosts: Option<Vec<Host>> = http_configuration.hosts.into();
 	// allowed_hosts.as_mut().map(|mut hosts| {
-x>*/
+
 
 	// 	hosts.push(format!("http://*.{}:*", DAPPS_DOMAIN).into());
 	// 	hosts.push(format!("http://*.{}", DAPPS_DOMAIN).into());
 	// });
-
-/* y<
 
 	let threads = 1;
 	minihttp::ServerBuilder::new(rpc_handler) // yay handler => rpc
@@ -486,9 +487,6 @@ x>*/
 				.map(HttpServer::Mini)?;
 
 	println!("Rpc server listening.");
-
-y>*/
-
 
 	// Arc::new(whisper_net::ParityExtensions),
 	// ou bien via factory
