@@ -724,7 +724,7 @@ impl SessionImpl {
 					},
 					sub_session: math::generate_random_scalar()?,
 					key_share: key_share,
-					result_computer: Arc::new(LargestSupportResultComputer {}), // TODO: optimization: could use modified Fast version
+					result_computer: Arc::new(LargestSupportResultComputer {}), // TODO: optimizations: could use modified Fast version
 					transport: ServersSetChangeKeyVersionNegotiationTransport {
 						id: key_id,
 						nonce: core.nonce,
@@ -1272,10 +1272,5 @@ pub mod tests {
 
 		// check that all sessions have finished
 		assert!(ml.nodes.iter().filter(|&(k, _)| !nodes_to_isolate.contains(k)).all(|(_, v)| v.session.is_finished()));
-	}
-
-	#[test]
-	fn share_is_added_to_the_node_with_obsolete_version() {
-		// TODO
 	}
 }

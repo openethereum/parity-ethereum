@@ -978,6 +978,54 @@ pub mod tests {
 			}
 		}
 
+		pub fn new_additional(master_node_id: NodeId, ml: MessageLoop, new_nodes_set: BTreeSet<NodeId>) -> Self {
+			let version = ml.nodes.values().nth(0).unwrap().key_storage.get(&Default::default()).unwrap().unwrap().versions.last().unwrap().hash.clone();
+
+			// prepare sessions on all nodes
+			let meta = ShareChangeSessionMeta {
+				id: SessionId::default(),
+				self_node_id: NodeId::default(),
+				master_node_id: master_node_id,
+			};
+			let old_nodes_set = ml.nodes.keys().cloned().collect();
+			let nodes = ml.nodes.iter()
+				.map(|(n, nd)| {
+					let node_cluster = nd.cluster.clone();
+					let node_key_storage = nd.key_storage.clone();
+					let node_session = create_session(meta.clone(), ml.admin_key_pair.public().clone(), n.clone(), node_cluster.clone(), node_key_storage.clone());
+					node_cluster.add_nodes(new_nodes_set.iter().cloned());
+					(n.clone(), Node {
+						cluster: node_cluster,
+						key_storage: node_key_storage,
+						session: node_session,
+					})
+				}).chain(new_nodes_set.difference(&old_nodes_set).map(|n| {
+					let new_node_cluster = Arc::new(DummyCluster::new(n.clone()));
+					let new_node_key_storage = Arc::new(DummyKeyStorage::default());
+					let new_node_session = create_session(meta.clone(), ml.admin_key_pair.public().clone(), n.clone(), new_node_cluster.clone(), new_node_key_storage.clone());
+					new_node_cluster.add_nodes(new_nodes_set.iter().cloned());
+					(n.clone(), Node {
+						cluster: new_node_cluster,
+						key_storage: new_node_key_storage,
+						session: new_node_session,
+					})
+				})).collect();
+
+			let old_set_signature = sign(ml.admin_key_pair.secret(), &ordered_nodes_hash(&old_nodes_set)).unwrap();
+			let new_set_signature = sign(ml.admin_key_pair.secret(), &ordered_nodes_hash(&new_nodes_set)).unwrap();
+			MessageLoop {
+				admin_key_pair: ml.admin_key_pair,
+				original_key_pair: ml.original_key_pair,
+				version: version,
+				old_nodes_set: old_nodes_set.clone(),
+				new_nodes_set: new_nodes_set.clone(),
+				old_set_signature: old_set_signature,
+				new_set_signature: new_set_signature,
+				nodes: nodes,
+				queue: Default::default(),
+			}
+		}
+
 		pub fn update_signature(&mut self) {
 			self.old_set_signature = sign(self.admin_key_pair.secret(), &ordered_nodes_hash(&self.old_nodes_set)).unwrap();
 			self.new_set_signature = sign(self.admin_key_pair.secret(), &ordered_nodes_hash(&self.new_nodes_set)).unwrap();
@@ -1134,6 +1182,75 @@ pub mod tests {
 			.iter()
 			.map(|(k, v)| (k.clone(), v.key_storage.clone()))
 			.collect());
+	}
+
+	#[test]
+	fn nodes_add_to_the_node_with_obsolete_version() {
+		let (n, nodes_to_add) = (3, 3);
+
+		// generate key (2-of-3) && prepare ShareAdd sessions
+		let old_nodes_set = generate_nodes_ids(n);
+		let newest_nodes_set = generate_nodes_ids(nodes_to_add);
+		let new_nodes_set: BTreeSet<_> = old_nodes_set.clone().into_iter().chain(newest_nodes_set.clone()).collect();
+		let master_node_id = old_nodes_set.iter().cloned().nth(0).unwrap();
+		let isolated_node_id = old_nodes_set.iter().cloned().nth(1).unwrap();
+		let oldest_nodes_set: BTreeSet<_> = old_nodes_set.iter().filter(|n| **n != isolated_node_id).cloned().collect();
+		let mut ml = MessageLoop::new(1, master_node_id.clone(), old_nodes_set.clone(), new_nodes_set.clone());
+		let isolated_key_storage = ml.nodes[&isolated_node_id].key_storage.clone();
+
+		// now let's isolate 1 of 3 nodes owning key share
+		ml.nodes.remove(&isolated_node_id);
+		ml.old_nodes_set.remove(&isolated_node_id);
+		ml.new_nodes_set.remove(&isolated_node_id);
+		for (_, node) in ml.nodes.iter_mut() {
+			node.cluster.remove_node(&isolated_node_id);
+		}
+		ml.update_signature();
+
+		// initialize session on master node && run to completion (2-of-5)
+		ml.nodes[&master_node_id].session.initialize(Some(ml.version), Some(new_nodes_set),
+			Some(ml.old_set_signature.clone()),
+			Some(ml.new_set_signature.clone())).unwrap();
+		ml.run();
+
+		// now let's add back old node so that key becames 2-of-6
+		let new_nodes_set: BTreeSet<_> = ml.nodes.keys().cloned().chain(::std::iter::once(isolated_node_id.clone())).collect();
+		let mut ml = MessageLoop::new_additional(master_node_id.clone(), ml, new_nodes_set.clone());
+		ml.nodes.get_mut(&isolated_node_id).unwrap().key_storage = isolated_key_storage.clone();
+		ml.nodes.get_mut(&isolated_node_id).unwrap().session.core.key_share = isolated_key_storage.get(&Default::default()).unwrap();
+		ml.nodes.get_mut(&isolated_node_id).unwrap().session.core.key_storage = isolated_key_storage;
+
+		// initialize session on master node && run to completion (2-of65)
+		ml.nodes[&master_node_id].session.initialize(Some(ml.version), Some(new_nodes_set),
+			Some(ml.old_set_signature.clone()),
+			Some(ml.new_set_signature.clone())).unwrap();
+		ml.run();
+
+		// check that session has completed on all nodes
+		assert!(ml.nodes.values().all(|n| n.session.is_finished()));
+
+		// check that secret is still the same as before adding the share
+		check_secret_is_preserved(ml.original_key_pair.clone(), ml.nodes
+			.iter()
+			.map(|(k, v)| (k.clone(), v.key_storage.clone()))
+			.collect());
+		
+		// check that all oldest nodes have versions A, B, C
+		// isolated node has version A, C
+		// new nodes have versions B, C
+		let oldest_key_share = ml.nodes[oldest_nodes_set.iter().nth(0).unwrap()].key_storage.get(&Default::default()).unwrap().unwrap();
+		debug_assert_eq!(oldest_key_share.versions.len(), 3);
+		let version_a = oldest_key_share.versions[0].hash.clone();
+		let version_b = oldest_key_share.versions[1].hash.clone();
+		let version_c = oldest_key_share.versions[2].hash.clone();
+		debug_assert!(version_a != version_b && version_b != version_c);
+
+		debug_assert!(oldest_nodes_set.iter().all(|n| vec![version_a.clone(), version_b.clone(), version_c.clone()] ==
+			ml.nodes[n].key_storage.get(&Default::default()).unwrap().unwrap().versions.iter().map(|v| v.hash.clone()).collect::<Vec<_>>()));
+		debug_assert!(::std::iter::once(&isolated_node_id).all(|n| vec![version_a.clone(), version_c.clone()] ==
+			ml.nodes[n].key_storage.get(&Default::default()).unwrap().unwrap().versions.iter().map(|v| v.hash.clone()).collect::<Vec<_>>()));
+		debug_assert!(newest_nodes_set.iter().all(|n| vec![version_b.clone(), version_c.clone()] ==
+			ml.nodes[n].key_storage.get(&Default::default()).unwrap().unwrap().versions.iter().map(|v| v.hash.clone()).collect::<Vec<_>>()));
 	}
 
 	#[test]
