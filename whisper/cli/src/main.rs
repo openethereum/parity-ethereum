@@ -82,10 +82,6 @@ impl RpcFactory {
 	}
 }
 
-// use ethsync::api::{SyncClient, NetworkManagerClient};
-
-// use parity_rpc::*;
-
 #[derive(Debug, Clone, PartialEq)]
 pub struct HttpConfiguration {
 	pub enabled: bool,
@@ -142,7 +138,7 @@ struct Args {
 	flag_whisper_pool_size: usize,
 }
 
-// TODO error-chain
+// TODO error-chain?
 #[derive(Debug)]
 enum Error {
 	// Whisper(WhisperError),
@@ -225,7 +221,7 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 
 	// -- 4) Launch RPC with handler
 	let mut http_configuration = HttpConfiguration::default();
-	let http_address = http_configuration.address().unwrap();
+	let http_address = http_configuration.address().unwrap(); // .ok_or(some_error)?;
 	let url = format!("{}:{}", http_address.0, http_address.1);
 	let addr = url.parse().map_err(|_| format!("Invalid listen host/port given: {}", url));
 
@@ -236,7 +232,7 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 	// });
 
 	let threads = 1;
-	let server = minihttp::ServerBuilder::new(rpc_handler) // yay handler => rpc
+	let server = minihttp::ServerBuilder::new(rpc_handler)
 				.threads(threads) // config param I guess // todo httpconfiguration
 				// .meta_extractor(http_common::MiniMetaExtractor::new(extractor))
 				// .cors(http_configuration.cors.into()) // cli
@@ -250,52 +246,3 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 
 	Ok("OK".to_owned())
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// #[cfg(not(feature = "ipc"))]
-// pub fn whisper_setup(target_pool_size: usize, protos: &mut Vec<AttachedProtocol>)
-// 	-> io::Result<Option<RpcFactory>> // whisper::RpcFactory
-// {
-// 	let manager = Arc::new(FilterManager::new()?);
-// 	let net = Arc::new(WhisperNetwork::new(target_pool_size, manager.clone()));
-
-// 	protos.push(AttachedProtocol {
-// 		handler: net.clone() as Arc<_>,
-// 		packet_count: whisper_net::PACKET_COUNT,
-// 		versions: whisper_net::SUPPORTED_VERSIONS,
-// 		protocol_id: whisper_net::PROTOCOL_ID,
-// 	});
-
-// 	// parity-only extensions to whisper.
-// 	protos.push(AttachedProtocol {
-// 		handler: Arc::new(whisper_net::ParityExtensions),
-// 		packet_count: whisper_net::PACKET_COUNT,
-// 		versions: whisper_net::SUPPORTED_VERSIONS,
-// 		protocol_id: whisper_net::PARITY_PROTOCOL_ID,
-// 	});
-
-// 	let factory = RpcFactory { net: net, manager: manager };
-
-// 	Ok(Some(factory))
-// }
-
-// // TODO: make it possible to attach generic protocols in IPC.
-// #[cfg(feature = "ipc")]
-// pub fn whisper_setup(_target_pool_size: usize, _protos: &mut Vec<AttachedProtocol>)
-// 	-> io::Result<Option<RpcFactory>>
-// {
-// 	Ok(None)
-// }
