@@ -75,8 +75,8 @@ pub struct RpcFactory {
 }
 
 impl RpcFactory {
-	pub fn make_handler(&self, net: Arc<NetworkService>) -> WhisperClient<NetPoolHandle, Metadata> {
-		let whisper_pool_handle = WhisperPoolHandle { handle: self.handle.clone(), net: net.clone() };
+	pub fn make_handler(&self, net: Arc<NetworkService>) -> WhisperClient<WhisperPoolHandle, WhisperMetadata> {
+		let whisper_pool_handle = WhisperPoolHandle { handle: self.handle.clone(), net: net };
 		let whisper_rpc_handler : WhisperClient<WhisperPoolHandle, WhisperMetadata> = WhisperClient::new(whisper_pool_handle, self.manager.clone());
 		whisper_rpc_handler
 	}
@@ -216,46 +216,21 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 	network.register_protocol(Arc::new(whisper_net::ParityExtensions), whisper_net::PARITY_PROTOCOL_ID, whisper_net::PACKET_COUNT, whisper_net::SUPPORTED_VERSIONS);
 
 	// -- 3) Instantiate RPC Handler
-	// let whisper_pool_handle = WhisperPoolHandle { handle: whisper_network_handler.clone(), net: Arc::new(network) };
-	// let whisper_rpc_handler : WhisperClient<WhisperPoolHandle, WhisperMetadata> = WhisperClient::new(whisper_pool_handle, whisper_filter_manager.clone());
-
 	let whisper_factory = RpcFactory { handle: whisper_network_handler, manager: whisper_filter_manager };
 	let mut rpc_handler : jsonrpc_core::MetaIoHandler<WhisperMetadata, _> = jsonrpc_core::MetaIoHandler::default();
 
-	rpc_handler.extend_with(::parity_whisper::rpc::Whisper::to_delegate(whisper_factory.make_handler(Arc::new(network))));
-	rpc_handler.extend_with(::parity_whisper::rpc::WhisperPubSub::to_delegate(whisper_factory.make_handler(Arc::new(network))));
-	/*
-
-					if let Some(ref whisper_rpc) = self.whisper_rpc {
-						let whisper = whisper_rpc.make_handler(self.net.clone());
-						handler.extend_with(::parity_whisper::rpc::WhisperPubSub::to_delegate(whisper));
-					}
-
-					donc utiliser factory
-	*/
-
-
-	// TODO WhisperPubSub?
+	let network = Arc::new(network);
+	rpc_handler.extend_with(::parity_whisper::rpc::Whisper::to_delegate(whisper_factory.make_handler(network.clone())));
+	rpc_handler.extend_with(::parity_whisper::rpc::WhisperPubSub::to_delegate(whisper_factory.make_handler(network.clone())));
 
 	// -- 4) Launch RPC with handler
-
-	// Api::WhisperPubSub
-	// if !for_generic_pubsub {
-		// needs arc managenetwork
-	// handler.extend_with(
-	// 	::parity_whisper::rpc::WhisperPubSub::to_delegate(whisper_pubsub_handler) // not sure why
-	// );
-	// }
-
 	let mut http_configuration = HttpConfiguration::default();
 	let http_address = http_configuration.address().unwrap();
 	let url = format!("{}:{}", http_address.0, http_address.1);
-	let addr = url.parse().map_err(|_| format!("Invalid listen host/port given: {}", url)); // "?"
+	let addr = url.parse().map_err(|_| format!("Invalid listen host/port given: {}", url));
 
 	// let mut allowed_hosts: Option<Vec<Host>> = http_configuration.hosts.into();
 	// allowed_hosts.as_mut().map(|mut hosts| {
-
-
 	// 	hosts.push(format!("http://*.{}:*", DAPPS_DOMAIN).into());
 	// 	hosts.push(format!("http://*.{}", DAPPS_DOMAIN).into());
 	// });
@@ -270,79 +245,8 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 				.expect("Unable to start RPC server");
 				// .map(HttpServer::Mini)?;
 
-	println!("Rpc about to listen.");
+	println!("Starting listening...");
 	server.wait().unwrap();
-	println!("Rpc listening.");
-	// Arc::new(whisper_net::ParityExtensions),
-	// ou bien via factory
-
-// let deps_for_rpc_apis = Arc::new(rpc_apis::FullDependencies {
-// 		signer_service: signer_service,
-// 		snapshot: snapshot_service.clone(),
-// 		client: client.clone(),
-// 		sync: sync_provider.clone(),
-// 		health: node_health,
-// 		net: manage_network.clone(),
-// 		secret_store: secret_store,
-// 		miner: miner.clone(),
-// 		external_miner: external_miner.clone(),
-// 		logger: logger.clone(),
-// 		settings: Arc::new(cmd.net_settings.clone()),
-// 		net_service: manage_network.clone(),
-// 		updater: updater.clone(),
-// 		geth_compatibility: cmd.geth_compatibility,
-// 		dapps_service: dapps_service,
-// 		dapps_address: cmd.dapps_conf.address(cmd.http_conf.address()),
-// 		ws_address: cmd.ws_conf.address(),
-// 		fetch: fetch.clone(),
-// 		remote: event_loop.remote(),
-// 		whisper_rpc: whisper_factory,
-// 	}); //<-- I don't need this
-
-
-
-
-
-
-
-
-
-
-	// FROM HERE ON, clean / ok / goody
-
-
-// let mut builder = http::ServerBuilder::new(handler)
-// 				.event_loop_remote(remote)
-// 				.meta_extractor(http_common::HyperMetaExtractor::new(extractor))
-// 				.cors(cors_domains.into())
-// 				.allowed_hosts(allowed_hosts.into());
-
-// 			if let Some(dapps) = middleware {
-// 				builder = builder.request_middleware(dapps)
-// 			}
-// 			builder.start_http(addr)
-// 				.map(HttpServer::Hyper)?
-
-
-
-
-
-
-
-
-
-
-
-
-	/*
-		util/network/src/networkconfigration
-		create netwokconfiguration, crete network ervice (lib.rs)
-	*/
-
-	// let (whisper_net, whisper_factory) = ::whisper::setup(target_message_pool_size)
-	// 	.map_err(|e| format!("Failed to initialize whisper: {}", e))?;
-
-	// attached_protos.push(whisper_net);
 
 	Ok("OK".to_owned())
 }
