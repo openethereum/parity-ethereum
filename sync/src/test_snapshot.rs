@@ -23,10 +23,9 @@ use bytes::Bytes;
 use ethcore::snapshot::{SnapshotService, ManifestData, RestorationStatus};
 use ethcore::header::BlockNumber;
 use ethcore::client::{EachBlockWith};
-use super::helpers::*;
 use SyncConfig;
 
-struct TestSnapshotService {
+pub struct TestSnapshotService {
 	manifest: Option<ManifestData>,
 	chunks: HashMap<H256, Bytes>,
 

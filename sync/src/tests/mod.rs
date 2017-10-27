@@ -16,6 +16,7 @@
 
 pub mod helpers;
 pub mod snapshot;
+pub mod TestSync;
 mod chain;
 mod consensus;
 

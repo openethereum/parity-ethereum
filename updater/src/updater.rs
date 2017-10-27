@@ -248,14 +248,18 @@ impl Updater {
 		}
 
 		if self.operations.lock().is_none() {
-			if let Some(ops_addr) = self.client.upgrade().and_then(|c| c.registry_address("operations".into())) {
-				trace!(target: "updater", "Found operations at {}", ops_addr);
-				let client = self.client.clone();
-				*self.operations.lock() = Some(Operations::new(ops_addr, move |a, d| client.upgrade().ok_or("No client!".into()).and_then(|c| c.call_contract(BlockId::Latest, a, d))));
-			} else {
-				// No Operations contract - bail.
-				return;
-			}
+		    if let Some(ops_addr) = self.client.upgrade().and_then(|c| c.registry_address("operations".into())) {
+		    	trace!(target: "updater", "Found operations at {}", ops_addr);
+		    	let client = self.client.clone();
+		    	*self.operations.lock() = Some(Operations::new(ops_addr, move |a, d| {
+                    client.upgrade()
+                    .ok_or("No client!".into())
+                    .and_then(|c| c.call_contract(BlockId::Latest, a, d))
+                }));
+		    } else {
+		    	// No Operations contract - bail.
+		    	return;
+		    }
 		}
 
 		let current_number = self.client.upgrade().map_or(0, |c| c.block_number(BlockId::Latest).unwrap_or(0));
@@ -393,4 +397,168 @@ impl Service for Updater {
 	fn version_info(&self) -> VersionInfo { self.this.clone() }
 
 	fn info(&self) -> Option<OperationsInfo> { self.state.lock().latest.clone() }
+}
+
+#[cfg(test)]
+pub mod tests {
+    use super::*;
+    use ethsync::EthSync;
+    use ethcore::client::TestBlockChainClient;
+    use hash_fetch::urlhint::ContractClient;
+    use parking_lot::{Condvar, Mutex};
+
+    fn release_id() -> H256 {
+        H256::from_slice(b"fbfdb84089c022cf1cb421135fa44628a7b790e17eaa666b563fcbbc5959aa41")
+    }
+
+    struct TestUpdater {
+        updater: Arc<Updater>,
+        release_info: ReleaseInfo,
+        operations_info: OperationsInfo,
+    }
+
+    impl TestUpdater {
+        pub fn new() -> TestUpdater {
+            let policy = UpdatePolicy::default();
+            TestUpdater::with_policy(policy)
+        }
+
+        pub fn with_policy(policy: UpdatePolicy) -> TestUpdater {
+            let sync = EthSync::new_test().unwrap();
+            let weak_sync = Arc::downgrade(&sync);
+            let weak_client = Arc::downgrade(&Arc::new(TestBlockChainClient::new()));
+
+		    let r = Arc::new(Updater {
+		    	update_policy: policy,
+		    	weak_self: Mutex::new(Default::default()),
+		    	client: weak_client.clone(),
+		    	sync: weak_sync.clone(),
+                // TODO implement a stub fetcher struct
+		    	fetcher: Mutex::new(None),
+		    	operations: Mutex::new(None),
+		    	exit_handler: Mutex::new(None),
+		    	this: VersionInfo::this(),
+		    	state: Mutex::new(Default::default()),
+		    });
+		    *r.weak_self.lock() = Arc::downgrade(&r);
+		    r.poll();
+
+            let release_info = ReleaseInfo { 
+                version: VersionInfo::this(), 
+                is_critical: false, 
+                fork: 151000, 
+                binary: None 
+            };
+
+            let ops_release = release_info.clone();
+            let ops_info = OperationsInfo {
+                fork: 0,
+                this_fork: None,
+                track: ops_release,
+                minor: None,
+            };
+
+		    TestUpdater { updater: r, release_info: release_info, operations_info: ops_info }
+        }
+
+        fn new_operations(&self) -> Option<Operations> {
+            if let Some(ops_addr) = self.updater.client.upgrade()
+                .and_then(|c| c.registry_address("operations".into())) 
+            {
+                let client = self.updater.client.clone();
+
+		        Some(Operations::new(ops_addr, move |a, d| {
+                    client.upgrade()
+                    .ok_or("No client!".into())
+                    .and_then(|c| c.call_contract(BlockId::Latest, a, d))
+                }))
+            } 
+            else { None }
+        }
+    }
+
+    #[test]
+    fn release_track() {
+        let tracks = [ReleaseTrack::Stable, ReleaseTrack::Beta, ReleaseTrack::Nightly, ReleaseTrack::Unknown];
+
+        for track in tracks.iter() {
+            let mut policy = UpdatePolicy::default();
+            policy.track = *track;
+            let upd = TestUpdater::with_policy(policy).updater;
+            assert_eq!(*track, upd.clone().track());
+        }
+    } 
+
+    #[test]
+    fn set_exit_handler() {
+        let upd = TestUpdater::new().updater;
+        let e = Arc::new(Condvar::new());
+        upd.set_exit_handler(move || { e.notify_all(); });
+    }
+
+    #[test]
+    fn collect_release_info() {
+        let test_upd = TestUpdater::new();
+        let ops = match test_upd.new_operations() {
+            Some(operations) => operations,
+            None => panic!("Updater has no client"),
+        };
+
+        match Updater::collect_release_info(&ops, &release_id()) {
+            Ok(o) => assert_eq!(test_upd.release_info, o),
+            Err(s) => assert_eq!("", s),
+        }
+    }
+
+    #[test]
+    fn collect_latest() {
+        let test_upd = TestUpdater::new();
+        match test_upd.updater.collect_latest() {
+            Ok(ops_info) => assert_eq!(test_upd.operations_info, ops_info),
+            Err(s) => assert_eq!("Operations not available", s),
+        }
+    }
+
+    #[test]
+    fn registrar() {
+        let upd = TestUpdater::new().updater;
+        match upd.registrar() {
+            Ok(addr) => assert_eq!(H160::zero(), addr),
+            Err(s) => assert_eq!("Client not available", s),
+        }
+    }
+
+    #[test]
+    fn updates_path() {
+        let upd = TestUpdater::new().updater;
+        let mut path = PathBuf::default();
+        path.push("new_string");
+        assert_eq!(path, upd.updates_path("new_string"));
+    }
+
+    #[test]
+    fn capability() {
+        let upd = TestUpdater::new().updater;
+        assert_eq!(CapState::default(), upd.capability());
+    }
+
+    #[test]
+    fn version_info() {
+        let mut policy = UpdatePolicy::default();
+        policy.track = ReleaseTrack::Stable;
+        let upd = TestUpdater::with_policy(policy).updater; 
+
+        assert_eq!(VersionInfo::this(), upd.clone().version_info());
+    }
+
+    #[test]
+    fn info() {
+        let test_updater = TestUpdater::new();
+        let updater = test_updater.updater;
+
+        match updater.info() {
+            Some(inf) => assert_eq!(test_updater.operations_info, inf),
+            None => panic!("No operations info"), 
+        }
+    }
 }

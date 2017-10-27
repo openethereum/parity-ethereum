@@ -69,9 +69,6 @@ mod consensus;
 mod error;
 mod watcher;
 
-#[cfg(test)]
-mod tests;
-
 mod traits;
 
 // Try to have chunks be around 4MB (before compression)

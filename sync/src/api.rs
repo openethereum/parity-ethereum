@@ -261,6 +261,24 @@ impl EthSync {
 
 		Ok(sync)
 	}
+
+    pub fn new_test() -> Result<Arc<EthSync>, NetworkError> {
+        use ethcore::client::TestBlockChainClient;
+        use test_snapshot::TestSnapshotService;
+
+        let client = Arc::new(TestBlockChainClient::new());
+
+        let params = Params {
+            config: Default::default(),
+            chain: client.clone(),
+            snapshot_service: Arc::new(TestSnapshotService::new()),
+            provider: client.clone(),
+            network_config: NetworkConfiguration::new(),
+            attached_protos: Vec::new(),
+        };
+
+        Self::new(params, None)
+    }
 }
 
 impl SyncProvider for EthSync {
@@ -308,7 +326,7 @@ impl SyncProvider for EthSync {
 	}
 }
 
-struct SyncProtocolHandler {
+pub struct SyncProtocolHandler {
 	/// Shared blockchain client.
 	chain: Arc<BlockChainClient>,
 	/// Shared snapshot service.
@@ -438,7 +456,7 @@ impl ChainNotify for EthSync {
 
 /// PIP event handler.
 /// Simply queues transactions from light client peers.
-struct TxRelay(Arc<BlockChainClient>);
+pub struct TxRelay(Arc<BlockChainClient>);
 
 impl LightHandler for TxRelay {
 	fn on_transactions(&self, ctx: &EventContext, relay: &[::ethcore::transaction::UnverifiedTransaction]) {
