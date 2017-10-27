@@ -36,7 +36,7 @@ use parity_whisper::rpc::Whisper;
 
 use std::sync::Arc;
 use parity_whisper::net::{self as whisper_net, Network as WhisperNetwork};
-use parity_whisper::rpc::{WhisperClient, FilterManager, PoolHandle};
+use parity_whisper::rpc::{WhisperClient, FilterManager, PoolHandle, Meta as WhisperMetadata};
 use parity_whisper::message::Message;
 
 pub struct WhisperPoolHandle {
@@ -69,17 +69,22 @@ impl WhisperPoolHandle {
 	}
 }
 
-use parity_whisper::rpc::{Meta as WhisperMetadata};
-// #[derive(Debug, Eq, PartialEq, Clone)]
-// pub struct WhisperMetadata { session: Option<Arc<Session>> }
-// impl Default for WhisperMetadata { fn default() -> WhisperMetadata { WhisperMetadata{} } }
-// impl jsonrpc_core::Metadata for WhisperMetadata {}
-// impl jsonrpc_pubsub::PubSubMetadata for WhisperMetadata {
-// 	fn session(&self) -> Option<Arc<jsonrpc_pubsub::Session>> {
-// 		self.session.clone()
-// 	}
-// }
-// todo impot meta
+pub struct RpcFactory {
+	handle: Arc<WhisperNetwork<Arc<FilterManager>>>,
+	manager: Arc<FilterManager>,
+}
+
+impl RpcFactory {
+	pub fn make_handler(&self, net: Arc<NetworkService>) -> WhisperClient<NetPoolHandle, Metadata> {
+		let whisper_pool_handle = WhisperPoolHandle { handle: self.handle.clone(), net: net.clone() };
+		let whisper_rpc_handler : WhisperClient<WhisperPoolHandle, WhisperMetadata> = WhisperClient::new(whisper_pool_handle, self.manager.clone());
+		whisper_rpc_handler
+	}
+}
+
+// use ethsync::api::{SyncClient, NetworkManagerClient};
+
+// use parity_rpc::*;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct HttpConfiguration {
@@ -211,18 +216,14 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 	network.register_protocol(Arc::new(whisper_net::ParityExtensions), whisper_net::PARITY_PROTOCOL_ID, whisper_net::PACKET_COUNT, whisper_net::SUPPORTED_VERSIONS);
 
 	// -- 3) Instantiate RPC Handler
-	let whisper_pool_handle = WhisperPoolHandle { handle: whisper_network_handler.clone(), net: Arc::new(network) };
-	let whisper_rpc_handler : WhisperClient<WhisperPoolHandle, WhisperMetadata> = WhisperClient::new(whisper_pool_handle, whisper_filter_manager.clone());
+	// let whisper_pool_handle = WhisperPoolHandle { handle: whisper_network_handler.clone(), net: Arc::new(network) };
+	// let whisper_rpc_handler : WhisperClient<WhisperPoolHandle, WhisperMetadata> = WhisperClient::new(whisper_pool_handle, whisper_filter_manager.clone());
 
+	let whisper_factory = RpcFactory { handle: whisper_network_handler, manager: whisper_filter_manager };
 	let mut rpc_handler : jsonrpc_core::MetaIoHandler<WhisperMetadata, _> = jsonrpc_core::MetaIoHandler::default();
 
-
-
-	// let whisper_factory = RpcFactory { net: whisper_network_handler, manager: whisper_filter_manager };
-	// let whisper_rpc_handler = whisper_factory.make_handler(Arc::new(network));
-
-	rpc_handler.extend_with(::parity_whisper::rpc::Whisper::to_delegate(whisper_rpc_handler));
-	// rpc_handler.extend_with(::parity_whisper::rpc::WhisperPubSub::to_delegate(whisper_rpc_handler));
+	rpc_handler.extend_with(::parity_whisper::rpc::Whisper::to_delegate(whisper_factory.make_handler(Arc::new(network))));
+	rpc_handler.extend_with(::parity_whisper::rpc::WhisperPubSub::to_delegate(whisper_factory.make_handler(Arc::new(network))));
 	/*
 
 					if let Some(ref whisper_rpc) = self.whisper_rpc {
