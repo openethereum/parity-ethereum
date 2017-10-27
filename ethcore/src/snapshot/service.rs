@@ -288,7 +288,7 @@ impl Service {
     pub fn new_test() -> Result<Self, Error> {
 	    let spec = Spec::new_null();
 	    let path = RandomTempPath::create_dir();
-	    let mut path = path.as_path().clone();
+	    let path = path.as_path().clone();
 
 	    let service_params = ServiceParams {
 	    	engine: spec.engine.clone(),
