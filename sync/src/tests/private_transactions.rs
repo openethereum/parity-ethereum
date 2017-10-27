@@ -16,7 +16,7 @@
 
 use std::sync::Arc;
 use hash::keccak;
-use util::*;
+use Address;
 use rlp::*;
 use io::{IoHandler, IoChannel};
 use ethcore::service::ClientIoMessage;
