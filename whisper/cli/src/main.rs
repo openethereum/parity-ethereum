@@ -20,172 +20,33 @@ extern crate serde;
 extern crate serde_derive;
 extern crate parity_whisper;
 extern crate panic_hook;
-extern crate parity_rpc;
 extern crate ethcore_network as net;
-
-use std::str::FromStr;
-
-
 extern crate jsonrpc_core;
 extern crate jsonrpc_http_server as http;
 extern crate jsonrpc_minihttp_server as minihttp;
 extern crate jsonrpc_pubsub;
-extern crate parity_dapps;
-extern crate ethsync;
 
-use std::path::Path;
-
-/// RPC dependencies can be used to initialize RPC endpoints from APIs.
-// pub trait Dependencies {
-// 	type Notifier: ActivityNotifier;
-
-// 	/// Create the activity notifier.
-// 	fn activity_notifier(&self) -> Self::Notifier;
-
-// 	/// Extend the given I/O handler with endpoints for each API.
-// 	fn extend_with_set<S>(
-// 		&self,
-// 		handler: &mut jsonrpc_core::MetaIoHandler<Metadata, S>,
-// 		apis: &HashSet<Api>,
-// 	) where S: jsonrpc_core::Middleware<Metadata>;
-// }
-
-
-/// RPC dependencies can be used to initialize RPC endpoints from APIs.
-// pub trait RpcApisDependencies {
-// 	type Notifier: ActivityNotifier;
-
-// 	/// Create the activity notifier.
-// 	fn activity_notifier(&self) -> Self::Notifier;
-
-// 	/// Extend the given I/O handler with endpoints for each API.
-// 	fn extend_with_set<S>(
-// 		&self,
-// 		handler: &mut jsonrpc_core::MetaIoHandler<Metadata, S>,
-// 		apis: &HashSet<Api>,
-// 	) where S: jsonrpc_core::Middleware<Metadata>;
-// }
-
-// pub struct Dependencies<D: RpcApisDependencies> {
-// 	pub apis: Arc<D>,
-// 	pub remote: tokio_core::reactor::Remote,
-// 	pub stats: Arc<RpcStats>,
-// 	pub pool: Option<CpuPool>,
-// }
-
-use parity_dapps as dapps;
-use parity_rpc::informant::{RpcStats, Middleware, CpuPool, ActivityNotifier};
-use parity_rpc::Metadata;
-use std::collections::HashSet;
 use std::{env, fmt, process};
 use docopt::Docopt;
 use std::io;
 use net::*;
-use std::net::SocketAddr;
-// use http::tokio_core;
-use http::{
-	hyper,
-	tokio_core,
-	RequestMiddleware, RequestMiddlewareAction,
-	AccessControlAllowOrigin, Host, DomainsValidation
-};
+use parity_whisper::rpc::Whisper;
 
-const DAPPS_DOMAIN: &'static str = "web3.site";
-
-
-use jsonrpc_core::IoHandler;
-
-mod http_common {
-	/* start http_common.rs */
-
-	// use jsonrpc_core;
-	// use jsonrpc_core::MetaIoHandler;
-	// use http;
-	// use hyper;
-	// use minihttp;
-	// // use parity_reactor::TokioRemote;
-	// use tokio_core::reactor::{Remote as TokioRemote};
-
-
-	// /// HTTP RPC server impl-independent metadata extractor
-	// pub trait HttpMetaExtractor: Send + Sync + 'static {
-	// 	/// Type of Metadata
-	// 	type Metadata: jsonrpc_core::Metadata;
-	// 	/// Extracts metadata from given params.
-	// 	fn read_metadata(&self, origin: Option<String>, user_agent: Option<String>, dapps_origin: Option<String>) -> Self::Metadata;
-	// }
-
-	// pub struct HyperMetaExtractor<T> {
-	// 	extractor: T,
-	// }
-
-	// impl<T> HyperMetaExtractor<T> {
-	// 	pub fn new(extractor: T) -> Self {
-	// 		HyperMetaExtractor {
-	// 			extractor: extractor,
-	// 		}
-	// 	}
-	// }
-
-	// impl<M, T> http::MetaExtractor<M> for HyperMetaExtractor<T> where
-	// 	T: HttpMetaExtractor<Metadata = M>,
-	// 	M: jsonrpc_core::Metadata,
-	// {
-	// 	fn read_metadata(&self, req: &hyper::server::Request<hyper::net::HttpStream>) -> M {
-	// 		let as_string = |header: Option<&http::request_response::header::Raw>| header
-	// 			.and_then(|raw| raw.one())
-	// 			.map(|raw| String::from_utf8_lossy(raw).into_owned());
-
-	// 		let origin = as_string(req.headers().get_raw("origin"));
-	// 		let user_agent = as_string(req.headers().get_raw("user-agent"));
-	// 		let dapps_origin = as_string(req.headers().get_raw("x-parity-origin"));
-	// 		self.extractor.read_metadata(origin, user_agent, dapps_origin)
-	// 	}
-	// }
-
-	// pub struct MiniMetaExtractor<T> {
-	// 	extractor: T,
-	// }
-
-	// impl<T> MiniMetaExtractor<T> {
-	// 	pub fn new(extractor: T) -> Self {
-	// 		MiniMetaExtractor {
-	// 			extractor: extractor,
-	// 		}
-	// 	}
-	// }
-
-	// impl<M, T> minihttp::MetaExtractor<M> for MiniMetaExtractor<T> where
-	// 	T: HttpMetaExtractor<Metadata = M>,
-	// 	M: jsonrpc_core::Metadata,
-	// {
-	// 	fn read_metadata(&self, req: &minihttp::Req) -> M {
-	// 		let origin = req.header("origin").map(|h| h.to_owned());
-	// 		let user_agent = req.header("user-agent").map(|h| h.to_owned());
-	// 		let dapps_origin = req.header("x-parity-origin").map(|h| h.to_owned());
-
-	// 		self.extractor.read_metadata(origin, user_agent, dapps_origin)
-	// 	}
-	// }
-
-	/* end http_common.rs */
-}
-
+// const DAPPS_DOMAIN: &'static str = "web3.site";
 
 use std::sync::Arc;
 use parity_whisper::net::{self as whisper_net, Network as WhisperNetwork};
 use parity_whisper::rpc::{WhisperClient, FilterManager, PoolHandle};
 use parity_whisper::message::Message;
 
-/// Standard pool handle. {from parity/whisper}
-pub struct NetworkPoolHandle {
+pub struct WhisperPoolHandle {
 	/// Pool handle.
 	handle: Arc<WhisperNetwork<Arc<FilterManager>>>,
 	/// Network manager.
 	net: Arc<NetworkService>,
 }
 
-impl PoolHandle for NetworkPoolHandle {
+impl PoolHandle for WhisperPoolHandle {
 	fn relay(&self, message: Message) -> bool {
 		let mut res = false;
 		let mut message = Some(message);
@@ -202,66 +63,23 @@ impl PoolHandle for NetworkPoolHandle {
 	}
 }
 
-impl NetworkPoolHandle {
+impl WhisperPoolHandle {
 	fn with_proto_context(&self, proto: ProtocolId, f: &mut FnMut(&NetworkContext)) {
 		self.net.with_context_eval(proto, f);
 	}
 }
 
-/// Factory for standard whisper RPC. {from parity/whisper}
-// pub struct RpcFactory {
-// 	net: Arc<WhisperNetwork<Arc<FilterManager>>>,
-// 	manager: Arc<FilterManager>,
-// }
-
-// impl RpcFactory {
-// 	pub fn make_handler(&self, net: Arc<ManageNetwork>) -> WhisperClient<NetPoolHandle, Metadata> {
-// 		let handle = NetPoolHandle { handle: self.net.clone(), net: net };
-// 		WhisperClient::new(handle, self.manager.clone())
+use parity_whisper::rpc::{Meta as WhisperMetadata};
+// #[derive(Debug, Eq, PartialEq, Clone)]
+// pub struct WhisperMetadata { session: Option<Arc<Session>> }
+// impl Default for WhisperMetadata { fn default() -> WhisperMetadata { WhisperMetadata{} } }
+// impl jsonrpc_core::Metadata for WhisperMetadata {}
+// impl jsonrpc_pubsub::PubSubMetadata for WhisperMetadata {
+// 	fn session(&self) -> Option<Arc<jsonrpc_pubsub::Session>> {
+// 		self.session.clone()
 // 	}
 // }
-
-// use ethsync::api::{SyncClient, NetworkManagerClient};
-
-// use parity_rpc::*;
-
-
-/// HTTP server implementation-specific settings.
-pub enum HttpSettings<R: RequestMiddleware> {
-	/// Enable fast minihttp server with given number of threads.
-	Threads(usize),
-	/// Enable standard server with optional dapps middleware.
-	Dapps(Option<R>),
-}
-
-
-/// RPC HTTP Server instance
-pub enum HttpServer {
-	/// Fast MiniHTTP variant
-	Mini(minihttp::Server),
-	/// Hyper variant
-	Hyper(http::Server),
-}
-
-
-/// RPC HTTP Server error
-#[derive(Debug)]
-pub enum HttpServerError {
-	/// IO error
-	Io(::std::io::Error),
-	/// Other hyper error
-	Hyper(hyper::Error),
-}
-
-// impl HttpServer {
-// 	/// Returns current listening address.
-// 	pub fn address(&self) -> &SocketAddr {
-// 		match *self {
-// 			HttpServer::Mini(ref s) => s.address(),
-// 			HttpServer::Hyper(ref s) => &s.addrs()[0],
-// 		}
-// 	}
-// }
+// todo impot meta
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct HttpConfiguration {
@@ -274,8 +92,6 @@ pub struct HttpConfiguration {
 	pub server_threads: Option<usize>,
 	pub processing_threads: usize,
 }
-
-// pub use ethsync::api::{NetworkManagerClient};
 
 impl HttpConfiguration {
 	pub fn address(&self) -> Option<(String, u16)> {
@@ -314,25 +130,14 @@ Options:
     -h, --help                     Display this message and exit.
 "#;
 
-// go to clap
-
-/*
-
-
-Commands:
-    generate           Generates new ethereum key.
-    random             Random generation.
-    prefix             Random generation, but address must start with a prefix
-    brain              Generate new key from string seed.
-    sign               Sign message using secret.
-    verify             Verify signer of the signature.
-	*/
+// TODO: move to clap?
 
 #[derive(Debug, Deserialize)]
 struct Args {
 	flag_whisper_pool_size: usize,
 }
 
+// TODO error-chain
 #[derive(Debug)]
 enum Error {
 	// Whisper(WhisperError),
@@ -390,12 +195,6 @@ fn main() {
 
 fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item=S>, S: AsRef<str> {
 
-	// Questions :
-	// - No need for Arc<>, right? Pas besoin d'envoyer à travers des threads, right ?
-
-	// Todo :
-	// - Réorganiser en structs pour fermer les dépendences
-
 	// -- CLI Parsing
 	let args: Args = Docopt::new(USAGE)
 		.and_then(|d| d.argv(command).deserialize())?;
@@ -412,38 +211,30 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 	network.register_protocol(Arc::new(whisper_net::ParityExtensions), whisper_net::PARITY_PROTOCOL_ID, whisper_net::PACKET_COUNT, whisper_net::SUPPORTED_VERSIONS);
 
 	// -- 3) Instantiate RPC Handler
+	let whisper_pool_handle = WhisperPoolHandle { handle: whisper_network_handler.clone(), net: Arc::new(network) };
+	let whisper_rpc_handler : WhisperClient<WhisperPoolHandle, WhisperMetadata> = WhisperClient::new(whisper_pool_handle, whisper_filter_manager.clone());
 
-/// Metadata trait
-#[derive(Debug, Eq, PartialEq, Clone)]
-pub struct MyMetadata { }
-impl Default for MyMetadata { fn default() -> MyMetadata { MyMetadata{} } }
-impl jsonrpc_core::Metadata for MyMetadata {}
+	let mut rpc_handler : jsonrpc_core::MetaIoHandler<WhisperMetadata, _> = jsonrpc_core::MetaIoHandler::default();
 
-	let handle2 = NetworkPoolHandle { handle: whisper_network_handler.clone(), net: Arc::new(network) };
 
-	let whisper_rpc_handler : WhisperClient<NetworkPoolHandle, MyMetadata> = WhisperClient::new(handle2, whisper_filter_manager.clone());
 
-	// je pourrais plus tard reprendre le pattern utilisé dans parity/whisper.rs :
 	// let whisper_factory = RpcFactory { net: whisper_network_handler, manager: whisper_filter_manager };
 	// let whisper_rpc_handler = whisper_factory.make_handler(Arc::new(network));
 
-// cannot use ethsync
-// make sth smilar to NetPoolHandle but that uses something else than ManageNetwork; this something else also has make_proto_context
-// -rob
+	rpc_handler.extend_with(::parity_whisper::rpc::Whisper::to_delegate(whisper_rpc_handler));
+	// rpc_handler.extend_with(::parity_whisper::rpc::WhisperPubSub::to_delegate(whisper_rpc_handler));
+	/*
 
-// mais je ne cprds pas la fonctionnalité de ces éléments (=frst); demander
+					if let Some(ref whisper_rpc) = self.whisper_rpc {
+						let whisper = whisper_rpc.make_handler(self.net.clone());
+						handler.extend_with(::parity_whisper::rpc::WhisperPubSub::to_delegate(whisper));
+					}
 
-// regarder comment c'est fait sur whisper !
+					donc utiliser factory
+	*/
 
-	let mut rpc_handler : jsonrpc_core::MetaIoHandler<MyMetadata, _> = jsonrpc_core::MetaIoHandler::default(); // ou IoHandler::new();
-	// let mut rpc_handler = jsonrpc_core::MetaIoHandler::with_middleware(whisper_rpc_handler); // ou IoHandler::new();
-	//let mut rpc_handler = IoHandler::new();
-	// let expected_to_delegate_input = whisper_rpc.make_handler(self.net.clone());
-	use parity_whisper::rpc::Whisper;
-	// let foo: () = whisper_rpc_handler.to_delegate();
 
-rpc_handler.extend_with(whisper_rpc_handler.to_delegate()); // to_delete takes a PoolHandle I guess?
-
+	// TODO WhisperPubSub?
 
 	// -- 4) Launch RPC with handler
 
@@ -454,15 +245,6 @@ rpc_handler.extend_with(whisper_rpc_handler.to_delegate()); // to_delete takes a
 	// 	::parity_whisper::rpc::WhisperPubSub::to_delegate(whisper_pubsub_handler) // not sure why
 	// );
 	// }
-
-	// STart whisper service
-	// Create RPC handler with the service handle
-	// Whisper => RPC
-	// (or 2 and 3 reversed)
-	// make wrapper around devP2P and whisper; make it implement PoolHandle
-	// struct P2P, whisper
-	// poolhandle parity CLI can copy
-	// don't need managernetwork
 
 	let mut http_configuration = HttpConfiguration::default();
 	let http_address = http_configuration.address().unwrap();

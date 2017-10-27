@@ -10,9 +10,6 @@ serde_derive = "1.0"
 docopt = "0.8"
 panic_hook = { path = "../../panic_hook" }
 ethcore-network = { path = "../../util/network" }
-parity-rpc = { path = "../../rpc" }
-parity-dapps = { path = "../../dapps" }
-ethsync = { path = "../../sync" }
 
 jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.8" }
 jsonrpc-http-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.8" }
