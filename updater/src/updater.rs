@@ -247,20 +247,20 @@ impl Updater {
 			return;
 		}
 
-		if self.operations.lock().is_none() {
-		    if let Some(ops_addr) = self.client.upgrade().and_then(|c| c.registry_address("operations".into())) {
-		    	trace!(target: "updater", "Found operations at {}", ops_addr);
-		    	let client = self.client.clone();
-		    	*self.operations.lock() = Some(Operations::new(ops_addr, move |a, d| {
+        if self.operations.lock().is_none() {
+            if let Some(ops_addr) = self.client.upgrade().and_then(|c| c.registry_address("operations".into())) {
+                trace!(target: "updater", "Found operations at {}", ops_addr);
+                let client = self.client.clone();
+                *self.operations.lock() = Some(Operations::new(ops_addr, move |a, d| {
                     client.upgrade()
                     .ok_or("No client!".into())
                     .and_then(|c| c.call_contract(BlockId::Latest, a, d))
                 }));
-		    } else {
-		    	// No Operations contract - bail.
-		    	return;
-		    }
-		}
+            } else {
+                // No Operations contract - bail.
+                return;
+            }
+        }
 
 		let current_number = self.client.upgrade().map_or(0, |c| c.block_number(BlockId::Latest).unwrap_or(0));
 
