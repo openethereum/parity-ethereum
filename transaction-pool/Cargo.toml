@@ -1,0 +1,8 @@
+[package]
+name = "transaction-pool"
+version = "0.1.0"
+authors = ["Tomasz Drwięga <tomasz@parity.io>"]
+
+[dependencies]
+error-chain = "0.11"
+smallvec = "0.4"
