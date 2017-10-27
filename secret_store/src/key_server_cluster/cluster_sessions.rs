@@ -128,6 +128,7 @@ pub struct ClusterSessionsContainer<S: ClusterSession, SC: ClusterSessionCreator
 	sessions: RwLock<BTreeMap<S::Id, QueuedSession<S>>>,
 	/// Sessions container state.
 	container_state: Arc<Mutex<ClusterSessionsContainerState>>,
+	/// Phantom data.
 	_pd: ::std::marker::PhantomData<D>,
 }
 
@@ -311,6 +312,11 @@ impl<S, SC, D> ClusterSessionsContainer<S, SC, D> where S: ClusterSession, SC: C
 				}
 				s.session.clone()
 			})
+	}
+
+	#[cfg(test)]
+	pub fn first(&self) -> Option<Arc<S>> {
+		self.sessions.read().values().nth(0).map(|s| s.session.clone())
 	}
 
 	pub fn insert(&self, cluster: Arc<Cluster>, master: NodeId, session_id: S::Id, session_nonce: Option<u64>, is_exclusive_session: bool, creation_data: Option<D>) -> Result<Arc<S>, Error> {

@@ -463,6 +463,7 @@ impl ClusterCore {
 
 							if let Err(error) = initialization_error {
 								session.on_session_error(&meta.self_node_id, error);
+								data.sessions.decryption_sessions.remove(&session.id());
 							}
 						},
 						Some(ContinueAction::Sign(session, message_hash)) => {
@@ -474,7 +475,20 @@ impl ClusterCore {
 
 							if let Err(error) = initialization_error {
 								session.on_session_error(&meta.self_node_id, error);
+								data.sessions.signing_sessions.remove(&session.id());
 							}
+						},
+						None => (),
+					}
+				} else {
+					match session.continue_action() {
+						Some(ContinueAction::Decrypt(session, _)) => {
+							data.sessions.decryption_sessions.remove(&session.id());
+							session.on_session_error(&meta.self_node_id, Error::ConsensusUnreachable);
+						},
+						Some(ContinueAction::Sign(session, _)) => {
+							data.sessions.signing_sessions.remove(&session.id());
+							session.on_session_error(&meta.self_node_id, Error::ConsensusUnreachable);
 						},
 						None => (),
 					}
@@ -1001,10 +1015,11 @@ pub mod tests {
 	use std::collections::{BTreeSet, VecDeque};
 	use parking_lot::Mutex;
 	use tokio_core::reactor::Core;
-	use ethkey::{Random, Generator, Public};
+	use ethkey::{Random, Generator, Public, sign};
 	use key_server_cluster::{NodeId, SessionId, Error, DummyAclStorage, DummyKeyStorage, MapKeyServerSet, PlainNodeKeyPair};
 	use key_server_cluster::message::Message;
 	use key_server_cluster::cluster::{Cluster, ClusterCore, ClusterConfiguration};
+	use key_server_cluster::cluster_sessions::ClusterSession;
 	use key_server_cluster::generation_session::{Session as GenerationSession, SessionState as GenerationSessionState};
 
 	#[derive(Debug)]
@@ -1261,5 +1276,41 @@ pub mod tests {
 			assert!(clusters[0].data.sessions.decryption_sessions.is_empty());
 			assert!(clusters[0].data.sessions.negotiation_sessions.is_empty());
 		}
+	}
+
+	#[test]
+	fn signing_session_completes_if_node_does_not_have_a_share() {
+		//::logger::init_log();
+		let mut core = Core::new().unwrap();
+		let clusters = make_clusters(&core, 6028, 3);
+		run_clusters(&clusters);
+		loop_until(&mut core, time::Duration::from_millis(300), || clusters.iter().all(all_connections_established));
+
+		// start && wait for generation session to complete
+		let session = clusters[0].client().new_generation_session(SessionId::default(), Public::default(), 1).unwrap();
+		loop_until(&mut core, time::Duration::from_millis(300), || (session.state() == GenerationSessionState::Finished
+			|| session.state() == GenerationSessionState::Failed)
+			&& clusters[0].client().generation_session(&SessionId::default()).is_none());
+		assert!(session.joint_public_and_secret().unwrap().is_ok());
+
+		// now remove share from node2
+		clusters[2].data.config.key_storage.remove(&Default::default()).unwrap();
+
+		// and try to sign message with generated key
+		let signature = sign(Random.generate().unwrap().secret(), &Default::default()).unwrap();
+		let session0 = clusters[0].client().new_signing_session(Default::default(), signature, None, Default::default()).unwrap();
+		let session = clusters[0].data.sessions.signing_sessions.first().unwrap();
+		loop_until(&mut core, time::Duration::from_millis(300), || session.is_finished());
+		session0.wait().unwrap();
+
+		// now remove share from node1
+		clusters[1].data.config.key_storage.remove(&Default::default()).unwrap();
+
+		// and try to sign message with generated key
+		let signature = sign(Random.generate().unwrap().secret(), &Default::default()).unwrap();
+		let session1 = clusters[0].client().new_signing_session(Default::default(), signature, None, Default::default()).unwrap();
+		let session = clusters[0].data.sessions.signing_sessions.first().unwrap();
+		loop_until(&mut core, time::Duration::from_millis(300), || session.is_finished());
+		session1.wait().unwrap_err();
 	}
 }

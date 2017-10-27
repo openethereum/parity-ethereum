@@ -364,11 +364,16 @@ impl SessionImpl {
 
 		let mut data = self.data.lock();
 		let is_establishing_consensus = data.consensus_session.state() == ConsensusSessionState::EstablishingConsensus;
-		data.consensus_session.on_consensus_message(&sender, &message.message)?;
 
 		if let &ConsensusMessage::InitializeConsensusSession(ref msg) = &message.message {
-			data.version = Some(msg.version.clone().into());
+			let version = msg.version.clone().into();
+			let has_key_share = self.core.key_share.as_ref()
+				.map(|ks| ks.version(&version).is_ok())
+				.unwrap_or(false);
+			data.consensus_session.consensus_job_mut().executor_mut().set_has_key_share(has_key_share);
+			data.version = Some(version);
 		}
+		data.consensus_session.on_consensus_message(&sender, &message.message)?;
 
 		let is_consensus_established = data.consensus_session.state() == ConsensusSessionState::ConsensusEstablished;
 		if self.core.meta.self_node_id != self.core.meta.master_node_id || !is_establishing_consensus || !is_consensus_established {
@@ -557,7 +562,9 @@ impl SessionImpl {
 				None => data.consensus_session.on_session_timeout(),
 			}
 		} {
-			Ok(false) => Ok(()),
+			Ok(false) => {
+				Ok(())
+			},
 			Ok(true) => {
 				let version = data.version.as_ref().ok_or(Error::InvalidMessage)?.clone();
 				let message_hash = data.message_hash.as_ref().cloned()
@@ -571,7 +578,6 @@ impl SessionImpl {
 					Ok(()) => Ok(()),
 					Err(err) => {
 						warn!("{}: signing session failed with error: {:?} from {:?}", &self.core.meta.self_node_id, error, node);
-
 						Self::set_signing_result(&self.core, &mut *data, Err(err.clone()));
 						Err(err)
 					}
@@ -579,7 +585,6 @@ impl SessionImpl {
 			},
 			Err(err) => {
 				warn!("{}: signing session failed with error: {:?} from {:?}", &self.core.meta.self_node_id, error, node);
-
 				Self::set_signing_result(&self.core, &mut *data, Err(err.clone()));
 				Err(err)
 			},
@@ -624,9 +629,7 @@ impl ClusterSession for SessionImpl {
 	}
 
 	fn is_finished(&self) -> bool {
-		let data = self.data.lock();
-		data.consensus_session.state() == ConsensusSessionState::Failed
-			|| data.consensus_session.state() == ConsensusSessionState::Finished
+		self.data.lock().result.is_some()
 	}
 
 	fn on_node_timeout(&self, node: &NodeId) {

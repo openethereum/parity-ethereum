@@ -146,8 +146,6 @@ pub struct IsolatedSessionTransport {
 /// Fastest session result computer. Computes first possible version that can be recovered on this node.
 /// If there's no such version, selects version with the most support.
 pub struct FastestResultComputer {
-	/// Best version.
-	best_version: Option<H256>,
 	/// This node id.
 	self_node_id: NodeId,
 	/// Threshold (if known).
@@ -445,39 +443,16 @@ impl SessionTransport for IsolatedSessionTransport {
 }
 
 impl FastestResultComputer {
-	pub fn new(self_node_id: NodeId, key_share: Option<&DocumentKeyShare>, connected_nodes: &BTreeSet<NodeId>) -> Self {
-		let (best_version, threshold) = match key_share {
-			Some(key_share) => (
-				Self::find_best_version(key_share, connected_nodes),
-				Some(key_share.threshold),
-			),
-			None => (None, None),
-		};
-
+	pub fn new(self_node_id: NodeId, key_share: Option<&DocumentKeyShare>) -> Self {
+		let threshold = key_share.map(|ks| ks.threshold);
 		FastestResultComputer {
-			best_version: best_version,
 			self_node_id: self_node_id,
 			threshold: threshold,
 		}
-	}
-
-	fn find_best_version(key_share: &DocumentKeyShare, connected_nodes: &BTreeSet<NodeId>) -> Option<H256> {
-		for version in key_share.versions.iter().rev() {
-			let mut connected_owners = version.id_numbers.keys().filter(|n| connected_nodes.contains(*n));
-			if connected_owners.nth(key_share.threshold + 1).is_some() {
-				return Some(version.hash.clone());
-			}
-		}
-		None
-	}
-}
+	}}
 
 impl SessionResultComputer for FastestResultComputer {
 	fn compute_result(&self, threshold: Option<usize>, confirmations: &BTreeSet<NodeId>, versions: &BTreeMap<H256, BTreeSet<NodeId>>) -> Option<Result<(H256, NodeId), Error>> {
-		if let Some(best_version) = self.best_version.as_ref() {
-			return Some(Ok((best_version.clone(), self.self_node_id.clone())));
-		}
-
 		match self.threshold.or(threshold) {
 			// if we have key share on this node
 			Some(threshold) => {
@@ -589,7 +564,6 @@ mod tests {
 							result_computer: Arc::new(FastestResultComputer::new(
 								node_id.clone(),
 								key_storage.get(&Default::default()).unwrap().as_ref(),
-								&all_nodes_ids.clone(),
 							)),
 							transport: DummyTransport {
 								cluster: cluster,
@@ -729,12 +703,12 @@ mod tests {
 	}
 
 	#[test]
-	fn fast_negotiation_completes_instantly_when_enough_share_owners_are_connected() {
+	fn fast_negotiation_does_not_completes_instantly_when_enough_share_owners_are_connected() {
 		let nodes = MessageLoop::prepare_nodes(2);
 		let version_id = (*math::generate_random_scalar().unwrap()).clone();
 		nodes.values().nth(0).unwrap().insert(Default::default(), DocumentKeyShare {
 			author: Default::default(),
-			threshold: 0,
+			threshold: 1,
 			common_point: None,
 			encrypted_point: None,
 			versions: vec![DocumentKeyShareVersion {
@@ -745,6 +719,7 @@ mod tests {
 		}).unwrap();
 		let ml = MessageLoop::new(nodes);
 		ml.session(0).initialize(ml.nodes.keys().cloned().collect()).unwrap();
-		assert_eq!(ml.session(0).data.lock().state, SessionState::Finished);
+		// we can't be sure that node has given key version because previous ShareAdd session could fail
+		assert!(ml.session(0).data.lock().state != SessionState::Finished);
 	}
 }
