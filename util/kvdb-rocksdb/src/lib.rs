@@ -515,13 +515,14 @@ impl Database {
 		match *self.db.read() {
 			Some(DBAndColumns { ref db, ref cfs }) => {
 				let overlay = &self.overlay.read()[Self::to_overlay_column(col)];
-				let overlay_data = overlay.iter()
-					.filter_map(|(k, v)| match v {
-						&KeyState::Insert(ref value) |
-						&KeyState::InsertCompressed(ref value) =>
+				let mut overlay_data = overlay.iter()
+					.filter_map(|(k, v)| match *v {
+						KeyState::Insert(ref value) |
+						KeyState::InsertCompressed(ref value) =>
 							Some((k.clone().into_vec().into_boxed_slice(), value.clone().into_vec().into_boxed_slice())),
-						&KeyState::Delete => None,
+						KeyState::Delete => None,
 					}).collect::<Vec<_>>();
+				overlay_data.sort();
 
 				let iter = col.map_or_else(
 					|| db.iterator_opt(IteratorMode::Start, &self.read_opts),
