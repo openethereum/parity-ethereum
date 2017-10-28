@@ -285,6 +285,7 @@ impl Service {
 		Ok(service)
 	}
 
+    /// Test stub function to build a minimal snapshot service
     pub fn new_test() -> Result<Self, Error> {
 	    let spec = Spec::new_null();
 	    let path = RandomTempPath::create_dir();
@@ -638,7 +639,12 @@ impl Drop for Service {
 	}
 }
 
+/// Test struct for a stub implementation of DatabaseRestore trait
+/// shared across crates, should be moved to external parity-test helper crate
 pub struct NoopDBRestore;
+
+/// Implement DatabaseRestore for a stub of the restore_db() function
+/// shared across crates, should be moved to external parity-test helper crate
 impl DatabaseRestore for NoopDBRestore {
 	fn restore_db(&self, _new_db: &str) -> Result<(), Error> {
 		Ok(())
