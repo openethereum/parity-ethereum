@@ -1,15 +1,20 @@
 [root]
-name = "wasm"
+name = "whisper-cli"
 version = "0.1.0"
 dependencies = [
- "byteorder 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethcore-bigint 0.1.3",
- "ethcore-logger 1.9.0",
- "ethcore-util 1.9.0",
- "log 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
- "parity-wasm 0.14.5 (registry+https://github.com/rust-lang/crates.io-index)",
- "vm 0.1.0",
- "wasm-utils 0.1.0 (git+https://github.com/paritytech/wasm-utils)",
+ "docopt 0.8.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethcore-network 1.9.0",
+ "jsonrpc-core 8.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.8)",
+ "jsonrpc-http-server 8.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.8)",
+ "jsonrpc-ipc-server 8.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.8)",
+ "jsonrpc-macros 8.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.8)",
+ "jsonrpc-minihttp-server 8.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.8)",
+ "jsonrpc-pubsub 8.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.8)",
+ "jsonrpc-ws-server 8.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.8)",
+ "panic_hook 0.1.0",
+ "parity-whisper 0.1.0",
+ "serde 1.0.15 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_derive 1.0.15 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -1292,6 +1297,21 @@ dependencies = [
  "jsonrpc-core 8.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.8)",
  "jsonrpc-pubsub 8.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.8)",
  "serde 1.0.15 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "jsonrpc-minihttp-server"
+version = "8.0.0"
+source = "git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.8#cf6f3481760f6ee8fbef7a987954ffc720ff4acf"
+dependencies = [
+ "bytes 0.4.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "jsonrpc-core 8.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.8)",
+ "jsonrpc-server-utils 8.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.8)",
+ "log 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
+ "parking_lot 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tokio-minihttp 0.1.0 (git+https://github.com/tomusdrw/tokio-minihttp)",
+ "tokio-proto 0.1.0 (git+https://github.com/tomusdrw/tokio-proto)",
+ "tokio-service 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -3145,6 +3165,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "tokio-minihttp"
+version = "0.1.0"
+source = "git+https://github.com/tomusdrw/tokio-minihttp#67a400060bd29e51beaf206c552845255b6f699f"
+dependencies = [
+ "bytes 0.4.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "futures 0.1.16 (registry+https://github.com/rust-lang/crates.io-index)",
+ "httparse 1.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "log 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
+ "net2 0.2.31 (registry+https://github.com/rust-lang/crates.io-index)",
+ "time 0.1.38 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tokio-core 0.1.9 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tokio-io 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tokio-proto 0.1.0 (git+https://github.com/tomusdrw/tokio-proto)",
+ "tokio-service 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "tokio-named-pipes"
 version = "0.1.0"
 source = "git+https://github.com/nikvolf/tokio-named-pipes#0b9b728eaeb0a6673c287ac7692be398fd651752"
@@ -3154,6 +3191,22 @@ dependencies = [
  "mio-named-pipes 0.1.4 (git+https://github.com/alexcrichton/mio-named-pipes)",
  "tokio-core 0.1.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "tokio-io 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "tokio-proto"
+version = "0.1.0"
+source = "git+https://github.com/tomusdrw/tokio-proto#f6ee08cb594fa2fc1b4178eaaca0855d66e68fd3"
+dependencies = [
+ "futures 0.1.16 (registry+https://github.com/rust-lang/crates.io-index)",
+ "log 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
+ "net2 0.2.31 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rand 0.3.16 (registry+https://github.com/rust-lang/crates.io-index)",
+ "slab 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "smallvec 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "take 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tokio-core 0.1.9 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tokio-service 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -3422,6 +3475,20 @@ version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
+name = "wasm"
+version = "0.1.0"
+dependencies = [
+ "byteorder 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethcore-bigint 0.1.3",
+ "ethcore-logger 1.9.0",
+ "ethcore-util 1.9.0",
+ "log 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
+ "parity-wasm 0.14.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "vm 0.1.0",
+ "wasm-utils 0.1.0 (git+https://github.com/paritytech/wasm-utils)",
+]
+
+[[package]]
 name = "wasm-utils"
 version = "0.1.0"
 source = "git+https://github.com/paritytech/wasm-utils#6a39db802eb6b67a0c4e5cf50741f965e217335a"
@@ -3588,6 +3655,7 @@ dependencies = [
 "checksum jsonrpc-http-server 8.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.8)" = "<none>"
 "checksum jsonrpc-ipc-server 8.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.8)" = "<none>"
 "checksum jsonrpc-macros 8.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.8)" = "<none>"
+"checksum jsonrpc-minihttp-server 8.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.8)" = "<none>"
 "checksum jsonrpc-pubsub 8.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.8)" = "<none>"
 "checksum jsonrpc-server-utils 8.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.8)" = "<none>"
 "checksum jsonrpc-tcp-server 8.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.8)" = "<none>"
@@ -3739,7 +3807,9 @@ dependencies = [
 "checksum tiny-keccak 1.3.1 (registry+https://github.com/rust-lang/crates.io-index)" = "d52d12ad79e4063e0cb0ca5efa202ed7244b6ce4d25f4d3abe410b2a66128292"
 "checksum tokio-core 0.1.9 (registry+https://github.com/rust-lang/crates.io-index)" = "e85d419699ec4b71bfe35bbc25bb8771e52eff0471a7f75c853ad06e200b4f86"
 "checksum tokio-io 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)" = "b4ab83e7adb5677e42e405fa4ceff75659d93c4d7d7dd22f52fcec59ee9f02af"
+"checksum tokio-minihttp 0.1.0 (git+https://github.com/tomusdrw/tokio-minihttp)" = "<none>"
 "checksum tokio-named-pipes 0.1.0 (git+https://github.com/nikvolf/tokio-named-pipes)" = "<none>"
+"checksum tokio-proto 0.1.0 (git+https://github.com/tomusdrw/tokio-proto)" = "<none>"
 "checksum tokio-proto 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "8fbb47ae81353c63c487030659494b295f6cb6576242f907f203473b191b0389"
 "checksum tokio-service 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "24da22d077e0f15f55162bdbdc661228c1581892f52074fb242678d015b45162"
 "checksum tokio-timer 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)" = "6131e780037787ff1b3f8aad9da83bca02438b72277850dd6ad0d455e0e20efc"
