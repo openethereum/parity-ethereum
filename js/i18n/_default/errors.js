@@ -20,7 +20,7 @@ export default {
   noFile: `select a valid wallet file to import`,
   noKey: `you need to provide the raw private key`,
   noMatchBackupPhrase: `the supplied recovery phrase does not match`,
-  noMatchPassword: `the supplied passwords does not match`,
+  noMatchPassword: `the supplied passwords do not match`,
   noMatchPhraseBackedUp: `type "I have written down the phrase"`,
   noName: `you need to specify a valid name`
 };
