@@ -173,8 +173,10 @@ impl<'a> From<&'a EthHeader> for Header {
 			logs_bloom: h.log_bloom().into(),
 			timestamp: h.timestamp().into(),
 			difficulty: h.difficulty().into(),
-			seal_fields: h.seal().into_iter().map(Into::into).collect(),
 			extra_data: h.extra_data().into(),
+			seal_fields: h.view().decode_seal()
+				.expect("Client/Miner returns only valid headers. We only serialize headers from Client/Miner; qed")
+				.into_iter().map(Into::into).collect(),
 		}
 	}
 }
