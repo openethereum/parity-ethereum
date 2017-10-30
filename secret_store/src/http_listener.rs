@@ -162,7 +162,7 @@ impl<T> HttpHandler for KeyServerHttpHandler<T> where T: KeyServer + 'static {
 		let req_method = req.method.clone();
 		let req_uri = req.uri.clone();
 		match &req_uri {
-			&RequestUri::AbsolutePath(ref path) => match parse_request(&req_method, &path, req_body) {
+			&RequestUri::AbsolutePath(ref path) => match parse_request(&req_method, &path, &req_body) {
 				Request::GenerateServerKey(document, signature, threshold) => {
 					return_server_public_key(req, res, self.handler.key_server.generate_key(&document, &signature, threshold)
 						.map_err(|err| {
@@ -286,7 +286,7 @@ fn return_error(mut res: HttpResponse, err: Error) {
 	}
 }
 
-fn parse_request(method: &HttpMethod, uri_path: &str, body: String) -> Request {
+fn parse_request(method: &HttpMethod, uri_path: &str, body: &str) -> Request {
 	let uri_path = match percent_decode(uri_path.as_bytes()).decode_utf8() {
 		Ok(path) => path,
 		Err(_) => return Request::Invalid,
@@ -337,23 +337,23 @@ fn parse_request(method: &HttpMethod, uri_path: &str, body: String) -> Request {
 	}
 }
 
-fn parse_admin_request(method: &HttpMethod, path: Vec<String>, body: String) -> Request {
-	let args_count = path.len() - 1;
-	if *method != HttpMethod::Post || args_count != 3 || path[0] != "servers_set_change" {
+fn parse_admin_request(method: &HttpMethod, path: Vec<String>, body: &str) -> Request {
+	let args_count = path.len();
+	if *method != HttpMethod::Post || args_count != 4 || path[1] != "servers_set_change" {
 		return Request::Invalid;
 	}
 
-	let old_set_signature = match path[1].parse() {
+	let old_set_signature = match path[2].parse() {
 		Ok(signature) => signature,
 		_ => return Request::Invalid,
 	};
 
-	let new_set_signature = match path[1].parse() {
+	let new_set_signature = match path[3].parse() {
 		Ok(signature) => signature,
 		_ => return Request::Invalid,
 	};
 
-	let new_servers_set: BTreeSet<SerializablePublic> = match serde_json::from_str(&body) {
+	let new_servers_set: BTreeSet<SerializablePublic> = match serde_json::from_str(body) {
 		Ok(new_servers_set) => new_servers_set,
 		_ => return Request::Invalid,
 	};
@@ -365,6 +365,7 @@ fn parse_admin_request(method: &HttpMethod, path: Vec<String>, body: String) -> 
 #[cfg(test)]
 mod tests {
 	use hyper::method::Method as HttpMethod;
+	use ethkey::Public;
 	use key_server::tests::DummyKeyServer;
 	use types::all::NodeAddress;
 	use super::{parse_request, Request, KeyServerHttpListener};
@@ -411,6 +412,18 @@ mod tests {
 			Request::SignMessage("0000000000000000000000000000000000000000000000000000000000000001".into(),
 				"a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01".parse().unwrap(),
 				"281b6bf43cb86d0dc7b98e1b7def4a80f3ce16d28d2308f934f116767306f06c".parse().unwrap()));
+		// POST		/admin/servers_set_change/{old_set_signature}/{new_set_signature} + body
+		let node1: Public = "843645726384530ffb0c52f175278143b5a93959af7864460f5a4fec9afd1450cfb8aef63dec90657f43f55b13e0a73c7524d4e9a13c051b4e5f1e53f39ecd91".parse().unwrap();
+		let node2: Public = "07230e34ebfe41337d3ed53b186b3861751f2401ee74b988bba55694e2a6f60c757677e194be2e53c3523cc8548694e636e6acb35c4e8fdc5e29d28679b9b2f3".parse().unwrap();
+		let nodes = vec![node1, node2].into_iter().collect();
+		assert_eq!(parse_request(&HttpMethod::Post, "/admin/servers_set_change/a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01/b199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01",
+			&r#"["0x843645726384530ffb0c52f175278143b5a93959af7864460f5a4fec9afd1450cfb8aef63dec90657f43f55b13e0a73c7524d4e9a13c051b4e5f1e53f39ecd91",
+				"0x07230e34ebfe41337d3ed53b186b3861751f2401ee74b988bba55694e2a6f60c757677e194be2e53c3523cc8548694e636e6acb35c4e8fdc5e29d28679b9b2f3"]"#),
+			Request::ChangeServersSet(
+				"a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01".parse().unwrap(),
+				"b199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01".parse().unwrap(),
+				nodes,
+			));
 	}
 
 	#[test]
@@ -423,5 +436,11 @@ mod tests {
 		assert_eq!(parse_request(&HttpMethod::Get, "/0000000000000000000000000000000000000000000000000000000000000001/", Default::default()), Request::Invalid);
 		assert_eq!(parse_request(&HttpMethod::Get, "/a/b", Default::default()), Request::Invalid);
 		assert_eq!(parse_request(&HttpMethod::Get, "/0000000000000000000000000000000000000000000000000000000000000001/a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01/0000000000000000000000000000000000000000000000000000000000000002/0000000000000000000000000000000000000000000000000000000000000002", Default::default()), Request::Invalid);
+		assert_eq!(parse_request(&HttpMethod::Post, "/admin/servers_set_change/xxx/yyy",
+			&r#"["0x843645726384530ffb0c52f175278143b5a93959af7864460f5a4fec9afd1450cfb8aef63dec90657f43f55b13e0a73c7524d4e9a13c051b4e5f1e53f39ecd91",
+				"0x07230e34ebfe41337d3ed53b186b3861751f2401ee74b988bba55694e2a6f60c757677e194be2e53c3523cc8548694e636e6acb35c4e8fdc5e29d28679b9b2f3"]"#),
+			Request::Invalid);
+		assert_eq!(parse_request(&HttpMethod::Post, "/admin/servers_set_change/a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01/a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01", ""),
+			Request::Invalid);
 	}
 }
