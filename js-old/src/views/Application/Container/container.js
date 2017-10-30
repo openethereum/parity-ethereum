@@ -16,7 +16,7 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import { FirstRun, UpgradeParity } from '~/modals';
+import { FirstRun } from '~/modals';
 import { Errors, ParityBackground, Tooltips } from '~/ui';
 
 import styles from '../application.css';
@@ -25,12 +25,11 @@ export default class Container extends Component {
   static propTypes = {
     children: PropTypes.node.isRequired,
     onCloseFirstRun: PropTypes.func,
-    showFirstRun: PropTypes.bool,
-    upgradeStore: PropTypes.object.isRequired
+    showFirstRun: PropTypes.bool
   };
 
   render () {
-    const { children, onCloseFirstRun, showFirstRun, upgradeStore } = this.props;
+    const { children, onCloseFirstRun, showFirstRun } = this.props;
 
     return (
       <ParityBackground
@@ -42,7 +41,6 @@ export default class Container extends Component {
           visible={ showFirstRun }
         />
         <Tooltips />
-        <UpgradeParity store={ upgradeStore } />
         <Errors />
         { children }
       </ParityBackground>
