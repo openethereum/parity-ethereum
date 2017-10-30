@@ -21,11 +21,8 @@ import { connect } from 'react-redux';
 import Snackbar from './Snackbar';
 import Container from './Container';
 import DappContainer from './DappContainer';
-import Extension from './Extension';
-import Status from './Status';
 import Store from './store';
 import TabBar from './TabBar';
-import Requests from './Requests';
 
 import styles from './application.css';
 
@@ -58,13 +55,12 @@ class Application extends Component {
     return (
       <div>
         { this.renderApp() }
-        <Requests />
       </div>
     );
   }
 
   renderApp () {
-    const { blockNumber, children, pending } = this.props;
+    const { children, pending } = this.props;
 
     return (
       <Container
@@ -75,12 +71,6 @@ class Application extends Component {
         <div className={ styles.content }>
           { children }
         </div>
-        {
-          blockNumber
-            ? <Status upgradeStore={ this.upgradeStore } />
-            : null
-        }
-        <Extension />
         <Snackbar />
       </Container>
     );
