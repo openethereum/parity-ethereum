@@ -662,6 +662,13 @@ impl AdminSessionWrapper {
 			cluster: cluster,
 		})
 	}
+
+	pub fn wait(&self) -> Result<(), Error> {
+		match *self.session {
+			AdminSession::ShareAdd(ref session) => session.wait(),
+			AdminSession::ServersSetChange(ref session) => session.wait(),
+		}
+	}
 }
 
 impl ShareAddSession for AdminSessionWrapper {
