@@ -26,7 +26,7 @@ import { AppContainer } from 'react-hot-loader';
 import injectTapEventPlugin from 'react-tap-event-plugin';
 import { hashHistory } from 'react-router';
 
-import Api from '@aprtiy/api';
+import Api from '@parity/api';
 
 import ContractInstances from '~/contracts';
 

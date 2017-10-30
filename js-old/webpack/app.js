@@ -67,7 +67,7 @@ module.exports = {
       },
       {
         test: /\.js$/,
-        include: /node_modules\/(material-chip-input|ethereumjs-tx|@parity\/wordlist)/,
+        include: /node_modules\/(material-chip-input|ethereumjs-tx|@parity)/,
         use: 'babel-loader'
       },
       {
