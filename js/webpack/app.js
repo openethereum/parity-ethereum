@@ -209,8 +209,11 @@ module.exports = {
                     : Api.util.sha3(dapp.url);
 
                   return [
-                    'index.html', 'dist.css', 'dist.css.map', 'dist.js', 'dist.js.map'
+                    'index.html', 'dist.css', 'dist.js',
+                    isProd ? null : 'dist.css.map',
+                    isProd ? null : 'dist.js.map'
                   ]
+                  .filter((file) => file)
                   .map((file) => path.join(dir, file))
                   .filter((from) => fs.existsSync(from))
                   .map((from) => ({
