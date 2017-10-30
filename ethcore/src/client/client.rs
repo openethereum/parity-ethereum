@@ -1142,7 +1142,7 @@ impl Client {
 			state_diff: bool,
 			transaction: &SignedTransaction,
 			options: TransactOptions<T, V>,
-		) -> Result<Executed, CallError> where
+		) -> Result<Executed<T::Output, V::Output>, CallError> where
 			T: trace::Tracer,
 			V: trace::VMTracer,
 		{

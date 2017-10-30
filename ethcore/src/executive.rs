@@ -30,7 +30,7 @@ use evm::{CallType, Factory, Finalize, FinalizationResult};
 use vm::{self, Ext, CreateContractAddress, ReturnData, CleanDustMode, ActionParams, ActionValue};
 use wasm;
 use externalities::*;
-use trace::{self, FlatTrace, VMTrace, Tracer, VMTracer};
+use trace::{self, Tracer, VMTracer};
 use transaction::{Action, SignedTransaction};
 use crossbeam;
 pub use executed::{Executed, ExecutionResult};
@@ -214,7 +214,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 
 	/// This function should be used to execute transaction.
 	pub fn transact<T, V>(&'a mut self, t: &SignedTransaction, options: TransactOptions<T, V>)
-		-> Result<Executed, ExecutionError> where T: Tracer, V: VMTracer,
+		-> Result<Executed<T::Output, V::Output>, ExecutionError> where T: Tracer, V: VMTracer,
 	{
 		self.transact_with_tracer(t, options.check_nonce, options.output_from_init_contract, options.tracer, options.vm_tracer)
 	}
@@ -223,7 +223,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 	/// This will ensure the caller has enough balance to execute the desired transaction.
 	/// Used for extra-block executions for things like consensus contracts and RPCs
 	pub fn transact_virtual<T, V>(&'a mut self, t: &SignedTransaction, options: TransactOptions<T, V>)
-		-> Result<Executed, ExecutionError> where T: Tracer, V: VMTracer,
+		-> Result<Executed<T::Output, V::Output>, ExecutionError> where T: Tracer, V: VMTracer,
 	{
 		let sender = t.sender();
 		let balance = self.state.balance(&sender)?;
@@ -244,7 +244,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		output_from_create: bool,
 		mut tracer: T,
 		mut vm_tracer: V
-	) -> Result<Executed, ExecutionError> where T: Tracer, V: VMTracer {
+	) -> Result<Executed<T::Output, V::Output>, ExecutionError> where T: Tracer, V: VMTracer {
 		let sender = t.sender();
 		let nonce = self.state.nonce(&sender)?;
 
@@ -587,15 +587,15 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 	}
 
 	/// Finalizes the transaction (does refunds and suicides).
-	fn finalize(
+	fn finalize<T, V>(
 		&mut self,
 		t: &SignedTransaction,
 		mut substate: Substate,
 		result: vm::Result<FinalizationResult>,
 		output: Bytes,
-		trace: Vec<FlatTrace>,
-		vm_trace: Option<VMTrace>
-	) -> ExecutionResult {
+		trace: Vec<T>,
+		vm_trace: Option<V>
+	) -> Result<Executed<T, V>, ExecutionError> {
 		let schedule = self.machine.schedule(self.info.number);
 
 		// refunds from SSTORE nonzero -> zero
