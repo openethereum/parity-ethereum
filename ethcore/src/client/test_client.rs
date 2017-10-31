@@ -351,6 +351,18 @@ impl TestBlockChainClient {
 	pub fn set_history(&self, h: Option<u64>) {
 		*self.history.write() = h;
 	}
+
+    pub fn contract_call_tx(&self, id: BlockId, address: Address, data: Bytes) -> SignedTransaction {
+		let from = Address::default();
+		Transaction {
+			nonce: self.nonce(&from, block_id).unwrap_or_else(|| self.spec.engine.clone().account_start_nonce(0)),
+			action: Action::Call(address),
+			gas: U256::from(50_000_000),
+			gas_price: U256::default(),
+			value: U256::default(),
+			data: data,
+		}.fake_sign(from)
+    }
 }
 
 pub fn get_temp_state_db() -> GuardedTempResult<StateDB> {
@@ -764,7 +776,18 @@ impl BlockChainClient for TestBlockChainClient {
 		}
 	}
 
-	fn call_contract(&self, _id: BlockId, _address: Address, _data: Bytes) -> Result<Bytes, String> { Ok(vec![]) }
+	fn call_contract(&self, id: BlockId, address: Address, data: Bytes) -> Result<Bytes, String> { 
+        // Use mock local Operations contract to complete the call 
+        // Unsure of best way to stub out calling into the Operations contract
+        // decode data and call resulting function name?
+        if address == "operations".into() {
+            let tx = self.contract_call_tx(id, address, data);
+            self.call(&tx, CallAnalytics::default, id)
+        }
+        else {
+            Ok(vec![]) 
+        }
+    }
 
 	fn transact_contract(&self, address: Address, data: Bytes) -> Result<TransactionImportResult, EthcoreError> {
 		let transaction = Transaction {
