@@ -66,7 +66,7 @@ pub struct SessionIdWithSubSession {
 /// Generic cluster session.
 pub trait ClusterSession {
 	/// Session identifier type.
-	type Id: Ord + Clone;
+	type Id: ::std::fmt::Debug + Ord + Clone;
 
 	/// Session type name.
 	fn type_name() -> &'static str;

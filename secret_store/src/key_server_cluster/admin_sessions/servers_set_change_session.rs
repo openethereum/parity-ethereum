@@ -412,7 +412,7 @@ impl SessionImpl {
 					key_share: key_share,
 					result_computer: Arc::new(LargestSupportResultComputer {}),
 					transport: ServersSetChangeKeyVersionNegotiationTransport {
-						id: key_id,
+						id: self.core.meta.id.clone(),
 						nonce: self.core.nonce,
 						cluster: self.core.cluster.clone(),
 					},
@@ -687,7 +687,7 @@ impl SessionImpl {
 	/// Create share change session.
 	fn create_share_change_session(core: &SessionCore, key_id: SessionId, master_node_id: NodeId, session_plan: ShareChangeSessionPlan) -> Result<ShareChangeSession, Error> {
 		ShareChangeSession::new(ShareChangeSessionParams {
-			session_id: key_id.clone(),
+			session_id: core.meta.id.clone(),
 			nonce: core.nonce,
 			meta: ShareChangeSessionMeta {
 				id: key_id,
@@ -726,7 +726,7 @@ impl SessionImpl {
 					key_share: key_share,
 					result_computer: Arc::new(LargestSupportResultComputer {}), // TODO: optimizations: could use modified Fast version
 					transport: ServersSetChangeKeyVersionNegotiationTransport {
-						id: key_id,
+						id: core.meta.id.clone(),
 						nonce: core.nonce,
 						cluster: core.cluster.clone(),
 					},
@@ -855,10 +855,19 @@ impl SessionImpl {
 	/// Complete servers set change session.
 	fn complete_session(core: &SessionCore, data: &mut SessionData) -> Result<(), Error> {
 		debug_assert_eq!(core.meta.self_node_id, core.meta.master_node_id);
+		
+		// send completion notification
 		core.cluster.broadcast(Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeCompleted(ServersSetChangeCompleted {
 			session: core.meta.id.clone().into(),
 			session_nonce: core.nonce,
 		})))?;
+
+		// if we are on the set of nodes that are being removed from the cluster, let's clear database
+		if !data.new_nodes_set.as_ref()
+			.expect("new_nodes_set is filled during initialization; session is completed after initialization; qed")
+			.contains(&core.meta.self_node_id) {
+			core.key_storage.clear().map_err(|e| Error::KeyStorage(e.into()))?;
+		}
 
 		data.state = SessionState::Finished;
 		data.result = Some(Ok(()));

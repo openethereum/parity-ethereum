@@ -162,7 +162,7 @@ impl KeyServerCore {
 			allow_connecting_to_higher_nodes: config.allow_connecting_to_higher_nodes,
 			acl_storage: acl_storage,
 			key_storage: key_storage,
-			admin_public: None,
+			admin_public: config.admin_public.clone(),
 		};
 
 		let (stop, stopped) = futures::oneshot();
@@ -459,5 +459,10 @@ pub mod tests {
 
 		// check signature
 		assert_eq!(math::verify_signature(&server_public, &(signature_c, signature_s), &message_hash), Ok(true));
+	}
+
+	#[test]
+	fn servers_set_change_session_works_over_network() {
+		// TODO
 	}
 }
