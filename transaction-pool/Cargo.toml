@@ -5,4 +5,5 @@ authors = ["Tomasz Drwięga <tomasz@parity.io>"]
 
 [dependencies]
 error-chain = "0.11"
+log = "0.3"
 smallvec = "0.4"
