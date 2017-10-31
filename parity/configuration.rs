@@ -28,7 +28,7 @@ use bigint::hash::H256;
 use util::{version_data, Address};
 use bytes::Bytes;
 use ansi_term::Colour;
-use ethsync::{NetworkConfiguration, is_valid_node_url};
+use ethsync::{NetworkConfiguration, validate_node_url, NetworkError};
 use ethcore::ethstore::ethkey::{Secret, Public};
 use ethcore::client::{VMType};
 use ethcore::miner::{MinerOptions, Banning, StratumOptions};
@@ -698,9 +698,15 @@ impl Configuration {
 				let mut node_file = File::open(path).map_err(|e| format!("Error opening reserved nodes file: {}", e))?;
 				node_file.read_to_string(&mut buffer).map_err(|_| "Error reading reserved node file")?;
 				let lines = buffer.lines().map(|s| s.trim().to_owned()).filter(|s| !s.is_empty() && !s.starts_with("#")).collect::<Vec<_>>();
-				if let Some(invalid) = lines.iter().find(|s| !is_valid_node_url(s)) {
-					return Err(format!("Invalid node address format given for a boot node: {}", invalid));
+
+				for line in &lines {
+					match validate_node_url(line) {
+						None => continue,
+						Some(NetworkError::AddressResolve(_)) => return Err(format!("Failed to resolve hostname of a boot node: {}", line)),
+						Some(_) => return Err(format!("Invalid node address format given for a boot node: {}", line)),
+					}
 				}
+
 				Ok(lines)
 			},
 			None => Ok(Vec::new())

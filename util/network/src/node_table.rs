@@ -28,7 +28,7 @@ use std::io::{Read, Write};
 use bigint::hash::*;
 use rlp::*;
 use time::Tm;
-use error::NetworkError;
+use NetworkError;
 use {AllowIP, IpFilter};
 use discovery::{TableUpdates, NodeEntry};
 use ip_utils::*;
@@ -366,6 +366,15 @@ impl Drop for NodeTable {
 pub fn is_valid_node_url(url: &str) -> bool {
 	use std::str::FromStr;
 	Node::from_str(url).is_ok()
+}
+
+/// Same as `is_valid_node_url` but returns detailed `NetworkError`
+pub fn validate_node_url(url: &str) -> Option<NetworkError> {
+	use std::str::FromStr;
+	match Node::from_str(url) {
+		Ok(_) => None,
+		Err(e) => Some(e)
+	}
 }
 
 #[cfg(test)]
