@@ -35,9 +35,6 @@ pub enum ContractCreateResult {
 	/// Returned when contract creation failed.
 	/// VM doesn't have to know the reason.
 	Failed,
-	/// Returned when contract creation failed.
-	/// VM doesn't have to know the reason.
-	FailedInStaticCall,
 	/// Reverted with REVERT.
 	Reverted(U256, ReturnData),
 }
