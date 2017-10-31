@@ -5,7 +5,6 @@ version = "1.9.0"
 license = "GPL-3.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 build = "build.rs"
-
 [dependencies]
 log = "0.3"
 env_logger = "0.4"
@@ -78,6 +77,8 @@ ipnetwork = "0.12.6"
 [target.'cfg(windows)'.dependencies]
 winapi = "0.2"
 
+
+
 [target.'cfg(not(windows))'.dependencies]
 daemonize = "0.2"
 
@@ -103,6 +104,8 @@ slow-blocks = ["ethcore/slow-blocks"]
 final = ["ethcore-util/final"]
 secretstore = ["ethcore-secretstore"]
 
+
+
 [[bin]]
 path = "parity/main.rs"
 name = "parity"
@@ -114,6 +117,8 @@ panic = "abort"
 debug = false
 lto = false
 panic = "abort"
+
+
 
 [workspace]
 members = ["ethstore/cli", "ethkey/cli", "evmbin", "whisper", "chainspec", "dapps/js-glue"]
