@@ -42,6 +42,7 @@ use ansi_term::Colour;
 use util::version;
 use parking_lot::{Condvar, Mutex};
 use node_filter::NodeFilter;
+use journaldb::Algorithm;
 
 use params::{
 	SpecType, Pruning, AccountsConfig, GasPricerConfig, MinerExtras, Switch,
@@ -327,7 +328,6 @@ fn execute_light(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) ->
 			sync_status,
 			node_health,
 			contract_client: contract_client,
-			remote: event_loop.raw_remote(),
 			fetch: fetch.clone(),
 			signer: signer_service.clone(),
 			ui_address: cmd.ui_conf.redirection_address(),
@@ -497,7 +497,21 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	}
 
 	sync_config.fork_block = spec.fork_block();
-	sync_config.warp_sync = spec.engine.supports_warp() && cmd.warp_sync;
+	let mut warp_sync = cmd.warp_sync;
+	if warp_sync {
+		// Logging is not initialized yet, so we print directly to stderr
+		if fat_db {
+			warn!("Warning: Warp Sync is disabled because Fat DB is turned on.");
+			warp_sync = false;
+		} else if tracing {
+			warn!("Warning: Warp Sync is disabled because tracing is turned on.");
+			warp_sync = false;
+		} else if algorithm != Algorithm::OverlayRecent {
+			warn!("Warning: Warp Sync is disabled because of non-default pruning mode.");
+			warp_sync = false;
+		}
+	}
+	sync_config.warp_sync = spec.engine.supports_warp() && warp_sync;
 	sync_config.download_old_blocks = cmd.download_old_blocks;
 	sync_config.serve_light = cmd.serve_light;
 
@@ -564,9 +578,6 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 
 	// set network path.
 	net_conf.net_config_path = Some(db_dirs.network_path().to_string_lossy().into_owned());
-
-	// create supervisor
-	let mut hypervisor = modules::hypervisor(&cmd.dirs.ipc_path());
 
 	// create client service.
 	let service = ClientService::start(
@@ -647,7 +658,6 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 
 	// create sync object
 	let (sync_provider, manage_network, chain_notify) = modules::sync(
-		&mut hypervisor,
 		sync_config,
 		net_conf.clone().into(),
 		client.clone(),
@@ -721,7 +731,6 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 			sync_status,
 			node_health,
 			contract_client: contract_client,
-			remote: event_loop.raw_remote(),
 			fetch: fetch.clone(),
 			signer: signer_service.clone(),
 			ui_address: cmd.ui_conf.redirection_address(),
@@ -854,10 +863,6 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	informant.shutdown();
 	// just Arc is dropping here, to allow other reference release in its default time
 	drop(informant);
-
-	// hypervisor should be shutdown first while everything still works and can be
-	// terminated gracefully
-	drop(hypervisor);
 
 	Ok(restart)
 }

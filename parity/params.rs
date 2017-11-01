@@ -18,7 +18,7 @@ use std::{str, fs, fmt};
 use std::time::Duration;
 use bigint::prelude::U256;
 use util::{Address, version_data};
-use util::journaldb::Algorithm;
+use journaldb::Algorithm;
 use ethcore::spec::{Spec, SpecParams};
 use ethcore::ethereum;
 use ethcore::client::Mode;
@@ -35,6 +35,7 @@ pub enum SpecType {
 	Olympic,
 	Classic,
 	Expanse,
+	Musicoin,
 	Dev,
 	Custom(String),
 }
@@ -57,6 +58,7 @@ impl str::FromStr for SpecType {
 			"kovan" | "testnet" => SpecType::Kovan,
 			"olympic" => SpecType::Olympic,
 			"expanse" => SpecType::Expanse,
+			"musicoin" => SpecType::Musicoin,
 			"dev" => SpecType::Dev,
 			other => SpecType::Custom(other.into()),
 		};
@@ -73,6 +75,7 @@ impl fmt::Display for SpecType {
 			SpecType::Olympic => "olympic",
 			SpecType::Classic => "classic",
 			SpecType::Expanse => "expanse",
+			SpecType::Musicoin => "musicoin",
 			SpecType::Kovan => "kovan",
 			SpecType::Dev => "dev",
 			SpecType::Custom(ref custom) => custom,
@@ -90,6 +93,7 @@ impl SpecType {
 			SpecType::Olympic => Ok(ethereum::new_olympic(params)),
 			SpecType::Classic => Ok(ethereum::new_classic(params)),
 			SpecType::Expanse => Ok(ethereum::new_expanse(params)),
+			SpecType::Musicoin => Ok(ethereum::new_musicoin(params)),
 			SpecType::Kovan => Ok(ethereum::new_kovan(params)),
 			SpecType::Dev => Ok(Spec::new_instant()),
 			SpecType::Custom(ref filename) => {
@@ -103,6 +107,7 @@ impl SpecType {
 		match *self {
 			SpecType::Classic => Some("classic".to_owned()),
 			SpecType::Expanse => Some("expanse".to_owned()),
+			SpecType::Musicoin => Some("musicoin".to_owned()),
 			_ => None,
 		}
 	}
@@ -321,7 +326,7 @@ pub fn mode_switch_to_bool(switch: Option<Mode>, user_defaults: &UserDefaults) -
 
 #[cfg(test)]
 mod tests {
-	use util::journaldb::Algorithm;
+	use journaldb::Algorithm;
 	use user_defaults::UserDefaults;
 	use super::{SpecType, Pruning, ResealPolicy, Switch, tracing_switch_to_bool};
 
@@ -353,6 +358,7 @@ mod tests {
 		assert_eq!(format!("{}", SpecType::Olympic), "olympic");
 		assert_eq!(format!("{}", SpecType::Classic), "classic");
 		assert_eq!(format!("{}", SpecType::Expanse), "expanse");
+		assert_eq!(format!("{}", SpecType::Musicoin), "musicoin");
 		assert_eq!(format!("{}", SpecType::Kovan), "kovan");
 		assert_eq!(format!("{}", SpecType::Dev), "dev");
 		assert_eq!(format!("{}", SpecType::Custom("foo/bar".into())), "foo/bar");

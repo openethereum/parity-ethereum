@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import Api from '../../src/api';
+import Api from '../../packages/api';
 
 function createApi (transport) {
   if (process.env.DEBUG) {
@@ -25,9 +25,9 @@ function createApi (transport) {
 }
 
 export function createHttpApi () {
-  return createApi(new Api.Transport.Http('http://localhost:8545'));
+  return createApi(new Api.Provider.Http('http://localhost:8545'));
 }
 
 export function createWsApi () {
-  return createApi(new Api.Transport.Ws('ws://localhost:8546'));
+  return createApi(new Api.Provider.WsSecure('ws://localhost:8546'));
 }

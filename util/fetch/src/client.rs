@@ -20,11 +20,13 @@ use std::{io, fmt, time};
 use std::sync::Arc;
 use std::sync::atomic::{self, AtomicBool};
 
-use futures::{self, BoxFuture, Future};
+use futures::{self, Future};
 use futures_cpupool::{CpuPool, CpuFuture};
-use mime::{self, Mime};
 use parking_lot::RwLock;
 use reqwest;
+use reqwest::mime::Mime;
+
+type BoxFuture<A, B> = Box<Future<Item = A, Error = B> + Send>;
 
 /// Fetch abort control
 #[derive(Default, Debug, Clone)]
@@ -58,16 +60,19 @@ pub trait Fetch: Clone + Send + Sync + 'static {
 		I: Send + 'static,
 		E: Send + 'static,
 	{
-		f.boxed()
+		Box::new(f)
 	}
 
 	/// Spawn the future in context of this `Fetch` thread pool as "fire and forget", i.e. dropping this future without
 	/// canceling the underlying future.
 	/// Implementation is optional.
-	fn forget<F, I, E>(&self, _: F) where
+	fn process_and_forget<F, I, E>(&self, _: F) where
 		F: Future<Item=I, Error=E> + Send + 'static,
 		I: Send + 'static,
-		E: Send + 'static {}
+		E: Send + 'static,
+	{
+		panic!("Attempting to process and forget future on unsupported Fetch.");
+	}
 
 	/// Fetch URL and get a future for the result.
 	/// Supports aborting the request in the middle of execution.
@@ -109,9 +114,9 @@ impl Clone for Client {
 
 impl Client {
 	fn new_client() -> Result<Arc<reqwest::Client>, Error> {
-		let mut client = reqwest::Client::new()?;
+		let mut client = reqwest::ClientBuilder::new()?;
 		client.redirect(reqwest::RedirectPolicy::limited(5));
-		Ok(Arc::new(client))
+		Ok(Arc::new(client.build()?))
 	}
 
 	fn with_limit(limit: Option<usize>) -> Result<Self, Error> {
@@ -154,10 +159,10 @@ impl Fetch for Client {
 		I: Send + 'static,
 		E: Send + 'static,
 	{
-		self.pool.spawn(f).boxed()
+		Box::new(self.pool.spawn(f))
 	}
 
-	fn forget<F, I, E>(&self, f: F) where
+	fn process_and_forget<F, I, E>(&self, f: F) where
 		F: Future<Item=I, Error=E> + Send + 'static,
 		I: Send + 'static,
 		E: Send + 'static,
@@ -203,8 +208,8 @@ impl Future for FetchTask {
 		}
 
 		trace!(target: "fetch", "Starting fetch task: {:?}", self.url);
-		let result = self.client.get(&self.url)
-						  .header(reqwest::header::UserAgent("Parity Fetch".into()))
+		let result = self.client.get(&self.url)?
+						  .header(reqwest::header::UserAgent::new("Parity Fetch"))
 						  .send()?;
 
 		Ok(futures::Async::Ready(Response {
@@ -289,7 +294,7 @@ impl Response {
 	/// Returns status code of this response.
 	pub fn status(&self) -> reqwest::StatusCode {
 		match self.inner {
-			ResponseInner::Response(ref r) => *r.status(),
+			ResponseInner::Response(ref r) => r.status(),
 			ResponseInner::NotFound => reqwest::StatusCode::NotFound,
 			_ => reqwest::StatusCode::Ok,
 		}
@@ -303,7 +308,7 @@ impl Response {
 	/// Returns `true` if content type of this response is `text/html`
 	pub fn is_html(&self) -> bool {
 		match self.content_type() {
-			Some(Mime(mime::TopLevel::Text, mime::SubLevel::Html, _)) => true,
+			Some(ref mime) if mime.type_() == "text" && mime.subtype() == "html" => true,
 			_ => false,
 		}
 	}

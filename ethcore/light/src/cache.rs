@@ -29,7 +29,7 @@ use time::{SteadyTime, Duration};
 use heapsize::HeapSizeOf;
 use bigint::prelude::U256;
 use bigint::hash::H256;
-use util::cache::MemoryLruCache;
+use memory_cache::MemoryLruCache;
 
 /// Configuration for how much data to cache.
 #[derive(Debug, Clone, PartialEq, Eq)]

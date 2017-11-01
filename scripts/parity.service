@@ -3,8 +3,18 @@ Description=Parity Daemon
 After=network.target
 
 [Service]
-EnvironmentFile=-%h/.parity/parity.conf
-ExecStart=/usr/bin/parity $ARGS
+# run as root, set base_path in config.toml
+ExecStart=/usr/bin/parity --config /etc/parity/config.toml
+# To run as user, comment out above and uncomment below, fill in user and group
+# picks up users default config.toml in $HOME/.local/.share/io.parity.ethereum/
+# User=username
+# Group=groupname
+# ExecStart=/usr/bin/parity
+Restart=on-failure
+
+# Specifies which signal to use when killing a service. Defaults to SIGTERM.
+# SIGHUP gives parity time to exit cleanly before SIGKILL (default 90s)
+KillSignal=SIGHUP
 
 [Install]
 WantedBy=default.target

@@ -20,6 +20,7 @@ mod helpers;
 
 mod api;
 mod fetch;
+mod home;
 mod redirection;
 mod rpc;
 mod validation;

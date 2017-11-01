@@ -469,6 +469,11 @@ impl SignedTransaction {
 	pub fn is_unsigned(&self) -> bool {
 		self.transaction.is_unsigned()
 	}
+
+	/// Deconstructs this transaction back into `UnverifiedTransaction`
+	pub fn deconstruct(self) -> (UnverifiedTransaction, Address, Option<Public>) {
+		(self.transaction, self.sender, self.public)
+	}
 }
 
 /// Signed Transaction that is a part of canon blockchain.

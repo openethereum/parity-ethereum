@@ -82,9 +82,7 @@ impl<'a> Visitor<'a> for BlockNumberVisitor {
 			_ if value.starts_with("0x") => u64::from_str_radix(&value[2..], 16).map(BlockNumber::Num).map_err(|e| {
 				Error::custom(format!("Invalid block number: {}", e))
 			}),
-			_ => value.parse::<u64>().map(BlockNumber::Num).map_err(|e| {
-				Error::custom(format!("Invalid block number: {}", e))
-			}),
+			_ => Err(Error::custom(format!("Invalid block number: missing 0x prefix"))),
 		}
 	}
 
@@ -112,9 +110,15 @@ mod tests {
 
 	#[test]
 	fn block_number_deserialization() {
-		let s = r#"["0xa", "10", "latest", "earliest", "pending"]"#;
+		let s = r#"["0xa", "latest", "earliest", "pending"]"#;
 		let deserialized: Vec<BlockNumber> = serde_json::from_str(s).unwrap();
-		assert_eq!(deserialized, vec![BlockNumber::Num(10), BlockNumber::Num(10), BlockNumber::Latest, BlockNumber::Earliest, BlockNumber::Pending])
+		assert_eq!(deserialized, vec![BlockNumber::Num(10), BlockNumber::Latest, BlockNumber::Earliest, BlockNumber::Pending])
+	}
+
+	#[test]
+	fn should_not_deserialize_decimal() {
+		let s = r#""10""#;
+		assert!(serde_json::from_str::<BlockNumber>(s).is_err());
 	}
 
 	#[test]

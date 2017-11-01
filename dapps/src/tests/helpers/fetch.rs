@@ -94,7 +94,7 @@ impl FakeFetch {
 }
 
 impl Fetch for FakeFetch {
-	type Result = futures::BoxFuture<fetch::Response, fetch::Error>;
+	type Result = Box<Future<Item = fetch::Response, Error = fetch::Error> + Send>;
 
 	fn new() -> Result<Self, fetch::Error> where Self: Sized {
 		Ok(FakeFetch::default())
@@ -117,6 +117,17 @@ impl Fetch for FakeFetch {
 			tx.send(fetch::Response::from_reader(cursor)).unwrap();
 		});
 
-		rx.map_err(|_| fetch::Error::Aborted).boxed()
+		Box::new(rx.map_err(|_| fetch::Error::Aborted))
+	}
+
+	fn process_and_forget<F, I, E>(&self, f: F) where
+		F: Future<Item=I, Error=E> + Send + 'static,
+		I: Send + 'static,
+		E: Send + 'static,
+	{
+		// Spawn the task in a separate thread.
+		thread::spawn(|| {
+			let _ = f.wait();
+		});
 	}
 }

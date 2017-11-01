@@ -40,6 +40,7 @@ use crypto;
 
 const ENCRYPTED_HEADER_LEN: usize = 32;
 const RECIEVE_PAYLOAD_TIMEOUT: u64 = 30000;
+pub const MAX_PAYLOAD_SIZE: usize = (1 << 24) - 1;
 
 pub trait GenericSocket : Read + Write {
 }
@@ -345,7 +346,7 @@ impl EncryptedConnection {
 			ingress_mac: ingress_mac,
 			read_state: EncryptedConnectionState::Header,
 			protocol_id: 0,
-			payload_len: 0
+			payload_len: 0,
 		};
 		enc.connection.expect(ENCRYPTED_HEADER_LEN);
 		Ok(enc)
@@ -355,7 +356,7 @@ impl EncryptedConnection {
 	pub fn send_packet<Message>(&mut self, io: &IoContext<Message>, payload: &[u8]) -> Result<(), NetworkError> where Message: Send + Clone + Sync + 'static {
 		let mut header = RlpStream::new();
 		let len = payload.len();
-		if len >= (1 << 24) {
+		if len > MAX_PAYLOAD_SIZE {
 			return Err(NetworkError::OversizedPacket);
 		}
 		header.append_raw(&[(len >> 16) as u8, (len >> 8) as u8, len as u8], 1);
@@ -511,7 +512,7 @@ mod tests {
 	use mio::{Ready};
 	use std::collections::VecDeque;
 	use ethcore_bytes::Bytes;
-	use devtools::*;
+	use devtools::TestSocket;
 	use io::*;
 
 	impl GenericSocket for TestSocket {}

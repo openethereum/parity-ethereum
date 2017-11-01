@@ -315,8 +315,9 @@ void OpenUI()
 	STARTUPINFO startupInfo = { sizeof(STARTUPINFO) };
 
 	LPWSTR args = new WCHAR[lstrlen(commandLineFiltered) + MAX_PATH + 2];
-	lstrcpy(args, L"parity.exe ui ");
+	lstrcpy(args, L"parity.exe ");
 	lstrcat(args, commandLineFiltered);
+	lstrcat(args, L" ui");
 	CreateProcess(path, args, nullptr, nullptr, false, CREATE_NO_WINDOW, nullptr, nullptr, &startupInfo, &procInfo);
 }
 

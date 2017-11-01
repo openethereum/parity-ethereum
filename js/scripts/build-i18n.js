@@ -37,8 +37,8 @@ const FILE_HEADER = `// Copyright 2015-2017 Parity Technologies (UK) Ltd.
 const SECTION_HEADER = 'export default ';
 const SECTION_FOOTER = ';\n';
 const INDENT = '  ';
-const DESTPATH = path.join(__dirname, '../src/i18n/_default');
-const ENPATH = path.join(__dirname, '../src/i18n/en');
+const DESTPATH = path.join(__dirname, '../i18n/_default');
+const ENPATH = path.join(__dirname, '../i18n/en');
 const SRCPATH = path.join(__dirname, '../.build/i18n/i18n/en.json');
 
 // main entry point

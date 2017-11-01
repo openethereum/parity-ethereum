@@ -33,6 +33,11 @@ pub const SIGNATURES: &'static [UserFunctionDescriptor] = &[
 		Some(I32),
 	),
 	Static(
+		"_balance",
+		&[I32; 2],
+		None,
+	),
+	Static(
 		"_malloc",
 		&[I32],
 		Some(I32),
@@ -99,6 +104,26 @@ pub const SIGNATURES: &'static [UserFunctionDescriptor] = &[
 	),
 	Static(
 		"_coinbase",
+		&[I32],
+		None,
+	),
+	Static(
+		"_sender",
+		&[I32],
+		None,
+	),
+	Static(
+		"_origin",
+		&[I32],
+		None,
+	),
+	Static(
+		"_address",
+		&[I32],
+		None,
+	),
+	Static(
+		"_value",
 		&[I32],
 		None,
 	),

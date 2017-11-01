@@ -20,10 +20,9 @@ use std::fmt;
 use std::sync::Arc;
 use bigint::prelude::U256;
 use bigint::hash::H256;
-use util::journaldb;
-use trie;
-use bytes;
-use util::kvdb::{self, KeyValueDB};
+use journaldb;
+use {trie, kvdb_memorydb, bytes};
+use kvdb::{self, KeyValueDB};
 use {state, state_db, client, executive, trace, transaction, db, spec, pod_state};
 use factory::Factories;
 use evm::{self, VMType, FinalizationResult};
@@ -39,7 +38,7 @@ pub enum EvmTestError {
 	/// Initialization error.
 	ClientError(::error::Error),
 	/// Low-level database error.
-	Database(String),
+	Database(kvdb::Error),
 	/// Post-condition failure,
 	PostCondition(String),
 }
@@ -128,7 +127,7 @@ impl<'a> EvmTestClient<'a> {
 	}
 
 	fn state_from_spec(spec: &'a spec::Spec, factories: &Factories) -> Result<state::State<state_db::StateDB>, EvmTestError> {
-		let db = Arc::new(kvdb::in_memory(db::NUM_COLUMNS.expect("We use column-based DB; qed")));
+		let db = Arc::new(kvdb_memorydb::create(db::NUM_COLUMNS.expect("We use column-based DB; qed")));
 		let journal_db = journaldb::new(db.clone(), journaldb::Algorithm::EarlyMerge, db::COL_STATE);
 		let mut state_db = state_db::StateDB::new(journal_db, 5 * 1024 * 1024);
 		state_db = spec.ensure_db_good(state_db, factories)?;
@@ -150,7 +149,7 @@ impl<'a> EvmTestClient<'a> {
 	}
 
 	fn state_from_pod(spec: &'a spec::Spec, factories: &Factories, pod_state: pod_state::PodState) -> Result<state::State<state_db::StateDB>, EvmTestError> {
-		let db = Arc::new(kvdb::in_memory(db::NUM_COLUMNS.expect("We use column-based DB; qed")));
+		let db = Arc::new(kvdb_memorydb::create(db::NUM_COLUMNS.expect("We use column-based DB; qed")));
 		let journal_db = journaldb::new(db.clone(), journaldb::Algorithm::EarlyMerge, db::COL_STATE);
 		let state_db = state_db::StateDB::new(journal_db, 5 * 1024 * 1024);
 		let mut state = state::State::new(
@@ -198,7 +197,7 @@ impl<'a> EvmTestClient<'a> {
 		env_info: &client::EnvInfo,
 		transaction: transaction::SignedTransaction,
 		vm_tracer: T,
-	) -> TransactResult {
+	) -> TransactResult<T::Output> {
 		let initial_gas = transaction.gas;
 		// Verify transaction
 		let is_ok = transaction.verify_basic(true, None, env_info.number >= self.spec.engine.params().eip86_transition);
@@ -219,7 +218,8 @@ impl<'a> EvmTestClient<'a> {
 				TransactResult::Ok {
 					state_root: *self.state.root(),
 					gas_left: initial_gas - result.receipt.gas_used,
-					output: result.output
+					output: result.output,
+					vm_trace: result.vm_trace,
 				}
 			},
 			Err(error) => TransactResult::Err {
@@ -231,7 +231,7 @@ impl<'a> EvmTestClient<'a> {
 }
 
 /// A result of applying transaction to the state.
-pub enum TransactResult {
+pub enum TransactResult<T> {
 	/// Successful execution
 	Ok {
 		/// State root
@@ -240,6 +240,8 @@ pub enum TransactResult {
 		gas_left: U256,
 		/// Output
 		output: Vec<u8>,
+		/// VM Traces
+		vm_trace: Option<T>,
 	},
 	/// Transaction failed to run
 	Err {

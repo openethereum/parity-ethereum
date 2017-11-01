@@ -522,7 +522,7 @@ impl<K: Kind> VerificationQueue<K> {
 			return;
 		}
 		let mut verified_lock = self.verification.verified.lock();
-		let mut verified = &mut *verified_lock;
+		let verified = &mut *verified_lock;
 		let mut bad = self.verification.bad.lock();
 		let mut processing = self.processing.write();
 		bad.reserve(hashes.len());

@@ -71,7 +71,6 @@ function loadCachedTokens (tokenRegContract) {
       // Check if we have data from the right contract
       if (cached.tokenreg === tokenRegContract.address && cached.tokens) {
         log.debug('found cached tokens', cached.tokens);
-        dispatch(_setTokens(cached.tokens));
 
         // Fetch all the tokens images on load
         // (it's the only thing that might have changed)
@@ -105,20 +104,13 @@ export function loadTokens (options = {}) {
   };
 }
 
-export function loadTokensBasics (_tokenIndexes, options) {
+export function loadTokensBasics (tokenIndexes, options) {
   const limit = 64;
 
   return (dispatch, getState) => {
-    const { api, tokens } = getState();
+    const { api } = getState();
     const { tokenReg } = Contracts.get();
     const nextTokens = {};
-    const prevTokensIndexes = Object.values(tokens).map((t) => t.index);
-
-    // Only fetch tokens we don't have yet
-    const tokenIndexes = _tokenIndexes.filter((tokenIndex) => {
-      return !prevTokensIndexes.includes(tokenIndex);
-    });
-
     const count = tokenIndexes.length;
 
     log.debug('loading basic tokens', tokenIndexes);
@@ -130,10 +122,15 @@ export function loadTokensBasics (_tokenIndexes, options) {
     return tokenReg.getContract()
       .then((tokenRegContract) => {
         let promise = Promise.resolve();
+        const first = tokenIndexes[0];
+        const last = tokenIndexes[tokenIndexes.length - 1];
 
-        for (let start = 0; start < count; start += limit) {
+        for (let from = first; from <= last; from += limit) {
+          // No need to fetch `limit` elements
+          const lowerLimit = Math.min(limit, last - from + 1);
+
           promise = promise
-            .then(() => fetchTokensBasics(api, tokenRegContract, start, limit))
+            .then(() => fetchTokensBasics(api, tokenRegContract, from, lowerLimit))
             .then((results) => {
               results
                 .forEach((token) => {
@@ -155,7 +152,7 @@ export function loadTokensBasics (_tokenIndexes, options) {
   };
 }
 
-export function fetchTokens (_tokenIndexes, options = {}) {
+export function fetchTokens (_tokenIndexes) {
   const tokenIndexes = uniq(_tokenIndexes || []);
   const tokenChunks = chunk(tokenIndexes, 64);
 
@@ -233,6 +230,7 @@ function fetchTokensData (tokenRegContract, tokenIndexes) {
         log.debug('fetched', { fullResults, partialResults });
 
         return [].concat(fullResults, partialResults)
+          .filter(({ address }) => !/0x0*$/.test(address))
           .reduce((tokens, token) => {
             const { id, image, address } = token;
 

@@ -49,6 +49,7 @@ fn should_handle_ping() {
 		"\
 			POST /api/ping HTTP/1.1\r\n\
 			Host: home.parity\r\n\
+			Content-Type: application/json\r\n\
 			Connection: close\r\n\
 			\r\n\
 			{}

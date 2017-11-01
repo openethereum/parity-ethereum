@@ -83,6 +83,8 @@ fn should_prefix_address_properly() {
 }
 
 impl Tracer for ExecutiveTracer {
+	type Output = FlatTrace;
+
 	fn prepare_trace_call(&self, params: &ActionParams) -> Option<Call> {
 		Some(Call::from(params.clone()))
 	}
@@ -201,6 +203,8 @@ impl ExecutiveVMTracer {
 }
 
 impl VMTracer for ExecutiveVMTracer {
+	type Output = VMTrace;
+
 	fn trace_next_instruction(&mut self, _pc: usize, _instruction: u8) -> bool { true }
 
 	fn trace_prepare_execute(&mut self, pc: usize, instruction: u8, gas_cost: U256) {

@@ -94,11 +94,11 @@ impl<T: LightChainClient + 'static> IoHandler<ClientIoMessage> for QueueCull<T> 
 			});
 
 			match maybe_fetching {
-				Some(fut) => fut.boxed(),
+				Some(fut) => future::Either::A(fut),
 				None => {
 					debug!(target: "cull", "Unable to acquire network context; qed");
-					future::ok(()).boxed()
-				}
+					future::Either::B(future::ok(()))
+				},
 			}
 		}, Duration::from_millis(PURGE_TIMEOUT_MS), || {})
 	}

@@ -647,10 +647,6 @@ impl Miner {
 		condition: Option<TransactionCondition>,
 		transaction_queue: &mut BanningTransactionQueue,
 	) -> Vec<Result<TransactionImportResult, Error>> {
-		let accounts = self.accounts.as_ref()
-			.and_then(|provider| provider.accounts().ok())
-			.map(|accounts| accounts.into_iter().collect::<HashSet<_>>());
-
 		let best_block_header = client.best_block_header().decode();
 		let insertion_time = client.chain_info().best_block_number;
 
@@ -669,8 +665,8 @@ impl Miner {
 						Err(e)
 					},
 					Ok(transaction) => {
-						let origin = accounts.as_ref().and_then(|accounts| {
-							match accounts.contains(&transaction.sender()) {
+						let origin = self.accounts.as_ref().and_then(|accounts| {
+							match accounts.has_account(transaction.sender()).unwrap_or(false) {
 								true => Some(TransactionOrigin::Local),
 								false => None,
 							}
