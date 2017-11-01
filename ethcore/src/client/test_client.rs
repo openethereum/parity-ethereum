@@ -36,18 +36,19 @@ use devtools::*;
 use transaction::{Transaction, LocalizedTransaction, PendingTransaction, SignedTransaction, Action};
 use blockchain::TreeRoute;
 use client::{
-	BlockChainClient, MiningBlockChainClient, BlockChainInfo, BlockStatus, BlockId,
+	self, BlockChainClient, MiningBlockChainClient, BlockChainInfo, BlockStatus, BlockId,
 	TransactionId, UncleId, TraceId, TraceFilter, LastHashes, CallAnalytics, BlockImportError,
 	ProvingBlockChainClient,
 };
+use client::evm_test_client::{EvmTestError};
 use db::{NUM_COLUMNS, COL_STATE};
 use header::{Header as BlockHeader, BlockNumber};
 use filter::Filter;
 use log_entry::LocalizedLogEntry;
 use receipt::{Receipt, LocalizedReceipt, TransactionOutcome};
 use blockchain::extras::BlockReceipts;
-use error::{ImportResult, Error as EthcoreError};
-use evm::{Factory as EvmFactory, VMType};
+use error::{ImportResult, ExecutionError, Error as EthcoreError};
+use evm::{EnvInfo, Factory as EvmFactory, VMType};
 use vm::Schedule;
 use miner::{Miner, MinerService, TransactionImportResult};
 use spec::Spec;
@@ -57,11 +58,14 @@ use types::pruning_info::PruningInfo;
 
 use verification::queue::QueueInfo;
 use block::{OpenBlock, SealedBlock, ClosedBlock};
-use executive::Executed;
+use executive::{Executive, Executed, TransactOptions};
 use error::CallError;
 use trace::LocalizedTrace;
-use state_db::StateDB;
-use encoded;
+use state_db::{StateDB};
+use state::{self, State};
+use kvdb::{self, KeyValueDB};
+use factory::Factories;
+use {encoded, trace, trie, kvdb_memorydb};
 
 /// Test client.
 pub struct TestBlockChainClient {
@@ -352,10 +356,12 @@ impl TestBlockChainClient {
 		*self.history.write() = h;
 	}
 
+    /// Create a signed transaction destined for `address`
+    /// `data` is an ethabi encoded function call
     pub fn contract_call_tx(&self, id: BlockId, address: Address, data: Bytes) -> SignedTransaction {
 		let from = Address::default();
 		Transaction {
-			nonce: self.nonce(&from, block_id).unwrap_or_else(|| self.spec.engine.clone().account_start_nonce(0)),
+			nonce: self.nonce(&from, id).unwrap_or_else(|| self.spec.engine.account_start_nonce(0)),
 			action: Action::Call(address),
 			gas: U256::from(50_000_000),
 			gas_price: U256::default(),
@@ -363,6 +369,71 @@ impl TestBlockChainClient {
 			data: data,
 		}.fake_sign(from)
     }
+
+    /// Evaluate a transaction on a local EVM Interpreter
+	fn do_virtual_call(&self, env_info: &EnvInfo, state: &mut State<StateDB>, t: &SignedTransaction, analytics: CallAnalytics) -> Result<Executed, CallError> {
+		fn call<V, T>(
+			state: &mut State<StateDB>,
+			env_info: &EnvInfo,
+			machine: &::machine::EthereumMachine,
+			state_diff: bool,
+			transaction: &SignedTransaction,
+			options: TransactOptions<T, V>,
+		) -> Result<Executed, CallError> where
+			T: trace::Tracer,
+			V: trace::VMTracer,
+		{
+			let options = options
+				.dont_check_nonce()
+				.save_output_from_contract();
+			let original_state = if state_diff { Some(state.clone()) } else { None };
+
+			let mut ret = Executive::new(state, env_info, machine).transact_virtual(transaction, options)?;
+
+			if let Some(original) = original_state {
+				ret.state_diff = Some(state.diff_from(original).map_err(ExecutionError::from)?);
+			}
+			Ok(ret)
+		}
+
+		let state_diff = analytics.state_diffing;
+		let machine = self.spec.engine.machine();
+
+		match (analytics.vm_tracing,) {
+			(true,) => call(state, env_info, machine, state_diff, t, TransactOptions::with_vm_tracing()),
+			(false,) => call(state, env_info, machine, state_diff, t, TransactOptions::with_no_tracing()),
+		}
+	}
+}
+
+pub fn factories() -> Factories {
+    Factories { 
+        vm: EvmFactory::new(VMType::Interpreter, 1024 * 1024), 
+        trie: trie::TrieFactory::new(trie::TrieSpec::Secure), 
+        accountdb: Default::default(), 
+    } 
+}
+
+pub fn get_in_memory_state_db(spec: &Spec) -> Result<state::State<StateDB>, EvmTestError> {
+	let db = Arc::new(kvdb_memorydb::create(NUM_COLUMNS.expect("We use column-based DB; qed")));
+	let journal_db = journaldb::new(db.clone(), journaldb::Algorithm::EarlyMerge, COL_STATE);
+	let mut state_db = StateDB::new(journal_db, 5 * 1024 * 1024);
+    let factories = factories();
+
+	let genesis = spec.genesis_header();
+	// Write DB
+	{
+		let mut batch = kvdb::DBTransaction::new();
+		state_db.journal_under(&mut batch, 0, &genesis.hash())?;
+		db.write(batch).map_err(EvmTestError::Database)?;
+	}
+
+	state::State::from_existing(
+		state_db,
+		*genesis.state_root(),
+		spec.engine.account_start_nonce(0),
+		factories.clone()
+	).map_err(EvmTestError::Trie)
 }
 
 pub fn get_temp_state_db() -> GuardedTempResult<StateDB> {
@@ -375,6 +446,7 @@ pub fn get_temp_state_db() -> GuardedTempResult<StateDB> {
 		result: Some(state_db)
 	}
 }
+
 
 impl MiningBlockChainClient for TestBlockChainClient {
 	fn latest_schedule(&self) -> Schedule {
@@ -421,8 +493,36 @@ impl MiningBlockChainClient for TestBlockChainClient {
 }
 
 impl BlockChainClient for TestBlockChainClient {
-	fn call(&self, _t: &SignedTransaction, _analytics: CallAnalytics, _block: BlockId) -> Result<Executed, CallError> {
-		self.execution_result.read().clone().unwrap()
+	fn call(&self, t: &SignedTransaction, analytics: CallAnalytics, _block: BlockId) -> Result<Executed, CallError> {
+		let genesis = self.spec.genesis_header();
+		let env_info = client::EnvInfo {
+			number: genesis.number(),
+			author: *genesis.author(),
+			timestamp: genesis.timestamp(),
+			difficulty: *genesis.difficulty(),
+			last_hashes: Arc::new([H256::default(); 256].to_vec()),
+			gas_used: 0.into(),
+			gas_limit: *genesis.gas_limit(),
+		};
+
+        let not_executed = Executed {
+            exception: None,
+            gas: 0.into(),
+            gas_used: 0.into(),
+            refunded: 0.into(),
+            cumulative_gas_used: 0.into(),
+            logs: vec![],
+            contracts_created: vec![],
+            output: vec![],
+            trace: vec![],
+            vm_trace: None,
+            state_diff: None,
+        };
+
+        match get_in_memory_state_db(&self.spec) {
+            Ok(mut state) => self.do_virtual_call(&env_info, &mut state, t, analytics),
+            _ => Ok(not_executed).into(), 
+        }
 	}
 
 	fn call_many(&self, txs: &[(SignedTransaction, CallAnalytics)], block: BlockId) -> Result<Vec<Executed>, CallError> {
@@ -547,8 +647,18 @@ impl BlockChainClient for TestBlockChainClient {
 			.map(encoded::Header::new)
 	}
 
-	fn block_number(&self, _id: BlockId) -> Option<BlockNumber> {
-		unimplemented!()
+
+	fn block_number(&self, id: BlockId) -> Option<BlockNumber> {
+        let len = self.blocks.read().len() as u64;
+
+		match id {
+			BlockId::Number(number) => Some(number),
+            // So gross...
+            BlockId::Hash(ref hash) => if let Some(hnum) = self.blocks.read().iter().position(|(hkey, _b)| hash == hkey) { Some(hnum as u64) } else { None },
+			BlockId::Earliest => Some(0),
+			BlockId::Latest => Some(len - 1),
+			BlockId::Pending => Some(len),
+		}
 	}
 
 	fn block_body(&self, id: BlockId) -> Option<encoded::Body> {
@@ -777,16 +887,13 @@ impl BlockChainClient for TestBlockChainClient {
 	}
 
 	fn call_contract(&self, id: BlockId, address: Address, data: Bytes) -> Result<Bytes, String> { 
-        // Use mock local Operations contract to complete the call 
-        // Unsure of best way to stub out calling into the Operations contract
-        // decode data and call resulting function name?
-        if address == "operations".into() {
-            let tx = self.contract_call_tx(id, address, data);
-            self.call(&tx, CallAnalytics::default, id)
-        }
-        else {
-            Ok(vec![]) 
-        }
+		let transaction = self.contract_call_tx(id, address, data);
+
+		self.call(&transaction, Default::default(), id)
+			.map_err(|e| format!("{:?}", e))
+			.map(|executed| {
+				executed.output
+			})
     }
 
 	fn transact_contract(&self, address: Address, data: Bytes) -> Result<TransactionImportResult, EthcoreError> {

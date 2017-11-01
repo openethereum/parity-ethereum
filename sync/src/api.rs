@@ -261,24 +261,6 @@ impl EthSync {
 
 		Ok(sync)
 	}
-
-    pub fn new_test() -> Result<Arc<EthSync>, NetworkError> {
-        use ethcore::client::TestBlockChainClient;
-        use test_snapshot::TestSnapshotService;
-
-        let client = Arc::new(TestBlockChainClient::new());
-
-        let params = Params {
-            config: Default::default(),
-            chain: client.clone(),
-            snapshot_service: Arc::new(TestSnapshotService::new()),
-            provider: client.clone(),
-            network_config: NetworkConfiguration::new(),
-            attached_protos: Vec::new(),
-        };
-
-        Self::new(params, None)
-    }
 }
 
 impl SyncProvider for EthSync {

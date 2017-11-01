@@ -76,3 +76,4 @@ pub use network::{is_valid_node_url, NonReservedPeerMode, NetworkError, Connecti
 pub(crate) type Address = bigint::hash::H160;
 
 pub mod test_snapshot;
+pub mod test_sync;

@@ -401,8 +401,11 @@ impl Service for Updater {
 
 #[cfg(test)]
 pub mod tests {
+    use std::str::FromStr;
+
     use super::*;
-    use ethsync::EthSync;
+    use ethcore::spec::Spec;
+    use ethsync::test_sync::TestSync;
     use ethcore::client::TestBlockChainClient;
     use hash_fetch::urlhint::ContractClient;
     use parking_lot::{Condvar, Mutex};
@@ -424,9 +427,37 @@ pub mod tests {
         }
 
         pub fn with_policy(policy: UpdatePolicy) -> TestUpdater {
+            let release_info = ReleaseInfo { 
+                version: VersionInfo::this(), 
+                is_critical: false, 
+                fork: 151000, 
+                binary: None 
+            };
+
+            let ops_info = OperationsInfo {
+                fork: 151000,
+                this_fork: Some(151000u64),
+                track: release_info.clone(),
+                minor: Some(release_info.clone()),
+            };
+
+            let up_state = UpdaterState {
+	            latest: Some(ops_info.clone()),
+	            fetching: None,
+	            ready: Some(release_info.clone()),
+	            installed: Some(release_info.clone()),
+	            capability: CapState::default(),
+	            disabled: false,
+            };
+
             let sync = EthSync::new_test().unwrap();
             let weak_sync = Arc::downgrade(&sync);
-            let weak_client = Arc::downgrade(&Arc::new(TestBlockChainClient::new()));
+
+            let spec = Spec::new_test();
+            let client = Arc::new(TestBlockChainClient::new_with_spec(spec));
+            let weak_client = Arc::downgrade(&client);
+
+            let ops = TestUpdater::new_operations(client);
 
 		    let r = Arc::new(Updater {
 		    	update_policy: policy,
@@ -435,45 +466,24 @@ pub mod tests {
 		    	sync: weak_sync.clone(),
                 // TODO implement a stub fetcher struct
 		    	fetcher: Mutex::new(None),
-		    	operations: Mutex::new(None),
+		    	operations: Mutex::new(Some(ops)),
 		    	exit_handler: Mutex::new(None),
 		    	this: VersionInfo::this(),
-		    	state: Mutex::new(Default::default()),
+		    	state: Mutex::new(up_state),
 		    });
 		    *r.weak_self.lock() = Arc::downgrade(&r);
-		    r.poll();
-
-            let release_info = ReleaseInfo { 
-                version: VersionInfo::this(), 
-                is_critical: false, 
-                fork: 151000, 
-                binary: None 
-            };
-
-            let ops_release = release_info.clone();
-            let ops_info = OperationsInfo {
-                fork: 0,
-                this_fork: None,
-                track: ops_release,
-                minor: None,
-            };
 
 		    TestUpdater { updater: r, release_info: release_info, operations_info: ops_info }
         }
 
-        fn new_operations(&self) -> Option<Operations> {
-            if let Some(ops_addr) = self.updater.client.upgrade()
-                .and_then(|c| c.registry_address("operations".into())) 
-            {
-                let client = self.updater.client.clone();
+        fn new_operations(client: Arc<TestBlockChainClient>) -> Operations {
+            let addr_str = "2F3656F60bc6862f2E675a8c8cca354524d53c46";
+            let ops_addr = Address::from_str(addr_str).unwrap_or(H160([0u8; 20]));
 
-		        Some(Operations::new(ops_addr, move |a, d| {
-                    client.upgrade()
-                    .ok_or("No client!".into())
-                    .and_then(|c| c.call_contract(BlockId::Latest, a, d))
-                }))
-            } 
-            else { None }
+            let cli = client.clone();
+		    Operations::new(ops_addr, move |a, d| {
+                cli.call_contract(BlockId::Latest, a, d)
+            })
         }
     }
 
@@ -499,14 +509,12 @@ pub mod tests {
     #[test]
     fn collect_release_info() {
         let test_upd = TestUpdater::new();
-        let ops = match test_upd.new_operations() {
-            Some(operations) => operations,
-            None => panic!("Updater has no client"),
-        };
+        let ops = TestUpdater::new_operations(Arc::new(TestBlockChainClient::new()));
 
         match Updater::collect_release_info(&ops, &release_id()) {
             Ok(o) => assert_eq!(test_upd.release_info, o),
-            Err(s) => assert_eq!("", s),
+            // We created a fresh blockchain, no data should be available
+            Err(s) => assert_eq!("Error", &s[0..5]),
         }
     }
 
@@ -515,7 +523,7 @@ pub mod tests {
         let test_upd = TestUpdater::new();
         match test_upd.updater.collect_latest() {
             Ok(ops_info) => assert_eq!(test_upd.operations_info, ops_info),
-            Err(s) => assert_eq!("Operations not available", s),
+            Err(s) => assert!(s.ends_with("unreleased.")),
         }
     }
 
@@ -524,7 +532,7 @@ pub mod tests {
         let upd = TestUpdater::new().updater;
         match upd.registrar() {
             Ok(addr) => assert_eq!(H160::zero(), addr),
-            Err(s) => assert_eq!("Client not available", s),
+            Err(s) => assert_eq!("Registrar not available", s),
         }
     }
 
@@ -556,9 +564,6 @@ pub mod tests {
         let test_updater = TestUpdater::new();
         let updater = test_updater.updater;
 
-        match updater.info() {
-            Some(inf) => assert_eq!(test_updater.operations_info, inf),
-            None => panic!("No operations info"), 
-        }
+        assert_eq!(test_updater.operations_info, updater.info().unwrap());
     }
 }

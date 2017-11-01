@@ -212,7 +212,7 @@ mod tests {
 	use account_db::{AccountDB, AccountDBMut};
 	use basic_account::BasicAccount;
 	use tests::helpers::get_temp_state_db;
-	use tests::helpers::fill_storage;
+    use snapshot::tests::helpers::fill_storage;
 
 	use hash::{KECCAK_EMPTY, KECCAK_NULL_RLP, keccak};
 	use bigint::hash::H256;

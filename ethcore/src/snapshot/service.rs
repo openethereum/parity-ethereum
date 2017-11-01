@@ -659,7 +659,6 @@ mod tests {
 	use devtools::RandomTempPath;
 	use tests::helpers::get_test_spec;
 	use journaldb::Algorithm;
-	use error::Error;
 	use snapshot::{ManifestData, RestorationStatus, SnapshotService};
 	use super::*;
 

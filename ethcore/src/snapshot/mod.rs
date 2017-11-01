@@ -60,6 +60,9 @@ pub use types::snapshot_manifest::ManifestData;
 pub use types::restoration_status::RestorationStatus;
 pub use types::basic_account::BasicAccount;
 
+#[cfg(test)]
+pub mod tests;
+
 pub mod io;
 pub mod service;
 
@@ -70,7 +73,6 @@ mod error;
 mod watcher;
 
 mod traits;
-
 // Try to have chunks be around 4MB (before compression)
 const PREFERRED_CHUNK_SIZE: usize = 4 * 1024 * 1024;
 
