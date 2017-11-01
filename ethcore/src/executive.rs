@@ -309,6 +309,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 					code: Some(Arc::new(t.data.clone())),
 					data: None,
 					call_type: CallType::None,
+					params_type: vm::ParamsType::Embedded,
 				};
 				let mut out = if output_from_create { Some(vec![]) } else { None };
 				(self.create(params, &mut substate, &mut out, &mut tracer, &mut vm_tracer), out.unwrap_or_else(Vec::new))
@@ -326,6 +327,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 					code_hash: Some(self.state.code_hash(address)?),
 					data: Some(t.data.clone()),
 					call_type: CallType::Call,
+					params_type: vm::ParamsType::Separate,
 				};
 				let mut out = vec![];
 				(self.call(params, &mut substate, BytesRef::Flexible(&mut out), &mut tracer, &mut vm_tracer), out)
