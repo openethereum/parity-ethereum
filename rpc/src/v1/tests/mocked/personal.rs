@@ -17,14 +17,16 @@
 use std::sync::Arc;
 use std::str::FromStr;
 
+use bigint::prelude::U256;
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::TestBlockChainClient;
 use ethcore::transaction::{Action, Transaction};
 use jsonrpc_core::IoHandler;
-use bigint::prelude::U256;
+use parking_lot::Mutex;
 use util::Address;
 
 use v1::{PersonalClient, Personal, Metadata};
+use v1::helpers::nonce;
 use v1::helpers::dispatch::FullDispatcher;
 use v1::tests::helpers::TestMinerService;
 
@@ -52,8 +54,9 @@ fn setup() -> PersonalTester {
 	let opt_accounts = Some(accounts.clone());
 	let client = blockchain_client();
 	let miner = miner_service();
+	let reservations = Arc::new(Mutex::new(nonce::Reservations::new()));
 
-	let dispatcher = FullDispatcher::new(client, miner.clone());
+	let dispatcher = FullDispatcher::new(client, miner.clone(), reservations);
 	let personal = PersonalClient::new(opt_accounts, dispatcher, false);
 
 	let mut io = IoHandler::default();

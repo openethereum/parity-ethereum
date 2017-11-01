@@ -125,7 +125,7 @@ impl<D: Dispatcher + 'static> SigningQueueClient<D> {
 		Box::new(dispatch::from_rpc(payload, default_account, &dispatcher)
 			.and_then(move |payload| {
 				let sender = payload.sender();
-				if accounts.is_unlocked(sender) {
+				if accounts.is_unlocked(&sender) {
 					Either::A(dispatch::execute(dispatcher, accounts, payload, dispatch::SignWith::Nothing)
 						.map(|v| v.into_value())
 						.map(DispatchResult::Value))
