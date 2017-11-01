@@ -184,6 +184,14 @@ module.exports = {
         new CopyWebpackPlugin(
           flatten([
             {
+              from: path.join(__dirname, '../src/dev.web3.html'),
+              to: 'dev.web3.html'
+            },
+            {
+              from: path.join(__dirname, '../src/dev.parity.html'),
+              to: 'dev.parity.html'
+            },
+            {
               from: path.join(__dirname, '../src/error_pages.css'),
               to: 'styles.css'
             },

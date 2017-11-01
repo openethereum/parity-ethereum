@@ -52,8 +52,12 @@ function initProvider () {
 
 function initWeb3 (ethereum) {
   // FIXME: Use standard provider for web3
-  const http = new Web3.providers.HttpProvider('/rpc/');
-  const web3 = new Web3(http);
+  const provider = new Api.Provider.SendAsync(ethereum);
+  const web3 = new Web3(provider);
+
+  if (!web3.currentProvider) {
+    web3.currentProvider = provider;
+  }
 
   // set default account
   web3.eth.getAccounts((error, accounts) => {
