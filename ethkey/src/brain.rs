@@ -16,6 +16,7 @@
 
 use keccak::Keccak256;
 use super::{KeyPair, Generator, Secret};
+use parity_wordlist;
 
 /// Simple brainwallet.
 pub struct Brain(String);
@@ -23,6 +24,10 @@ pub struct Brain(String);
 impl Brain {
 	pub fn new(s: String) -> Self {
 		Brain(s)
+	}
+
+	pub fn validate_phrase(phrase: &str, expected_words: usize) -> Result<(), ::WordlistError> {
+		parity_wordlist::validate_phrase(phrase, expected_words)
 	}
 }
 
