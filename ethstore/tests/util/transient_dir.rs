@@ -17,7 +17,7 @@
 use std::path::PathBuf;
 use std::{env, fs};
 use rand::{Rng, OsRng};
-use ethstore::dir::{KeyDirectory, RootDiskDirectory};
+use ethstore::accounts_dir::{KeyDirectory, RootDiskDirectory};
 use ethstore::{Error, SafeAccount};
 
 pub fn random_dir() -> PathBuf {

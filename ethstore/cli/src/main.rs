@@ -16,6 +16,7 @@
 
 extern crate rustc_hex;
 extern crate docopt;
+extern crate dir;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
@@ -26,7 +27,7 @@ use std::{env, process, fs, fmt};
 use std::io::Read;
 use docopt::Docopt;
 use ethstore::ethkey::Address;
-use ethstore::dir::{paths, KeyDirectory, RootDiskDirectory};
+use ethstore::accounts_dir::{KeyDirectory, RootDiskDirectory};
 use ethstore::{EthStore, SimpleSecretStore, SecretStore, import_accounts, PresaleWallet,
 	SecretVaultRef, StoreAccountRef};
 
@@ -148,11 +149,11 @@ fn main() {
 
 fn key_dir(location: &str) -> Result<Box<KeyDirectory>, Error> {
 	let dir: Box<KeyDirectory> = match location {
-		"geth" => Box::new(RootDiskDirectory::create(paths::geth(false))?),
-		"geth-test" => Box::new(RootDiskDirectory::create(paths::geth(true))?),
+		"geth" => Box::new(RootDiskDirectory::create(dir::geth(false))?),
+		"geth-test" => Box::new(RootDiskDirectory::create(dir::geth(true))?),
 		path if path.starts_with("parity") => {
 			let chain = path.split('-').nth(1).unwrap_or("ethereum");
-			let path = paths::parity(chain);
+			let path = dir::parity(chain);
 			Box::new(RootDiskDirectory::create(path)?)
 		},
 		path => Box::new(RootDiskDirectory::create(path)?),

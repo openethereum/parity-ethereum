@@ -25,7 +25,7 @@ use futures::{future, IntoFuture, Future};
 use jsonrpc_core::BoxFuture;
 use hash_fetch::fetch::Client as FetchClient;
 use hash_fetch::urlhint::ContractClient;
-use helpers::replace_home;
+use dir::helpers::replace_home;
 use light::client::LightChainClient;
 use light::on_demand::{self, OnDemand};
 use node_health::{SyncStatus, NodeHealth};

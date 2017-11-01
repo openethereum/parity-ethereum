@@ -113,7 +113,7 @@ impl<T> DiskDirectory<T> where T: KeyFileManager {
 		use std::collections::hash_map::DefaultHasher;
 		use std::hash::Hasher;
 
-    	let mut hasher = DefaultHasher::new();
+		let mut hasher = DefaultHasher::new();
 		let files = self.files()?;
 		for file in files {
 			hasher.write(file.to_str().unwrap_or("").as_bytes())
@@ -291,7 +291,7 @@ mod test {
 
 	use std::{env, fs};
 	use super::RootDiskDirectory;
-	use dir::{KeyDirectory, VaultKey};
+	use super::{KeyDirectory, VaultKey};
 	use account::SafeAccount;
 	use ethkey::{Random, Generator};
 	use self::tempdir::TempDir;
