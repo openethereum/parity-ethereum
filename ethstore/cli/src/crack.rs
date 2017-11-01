@@ -1,4 +1,4 @@
-use std::thread;
+use std::{cmp, thread};
 use std::sync::Arc;
 use std::collections::VecDeque;
 use parking_lot::Mutex;
