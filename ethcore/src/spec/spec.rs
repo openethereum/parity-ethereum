@@ -504,6 +504,7 @@ impl Spec {
 					code: Some(Arc::new(constructor.clone())),
 					data: None,
 					call_type: CallType::None,
+					params_type: vm::ParamsType::Embedded,
 				};
 
 				let mut substate = Substate::new();

@@ -149,6 +149,7 @@ impl EthereumMachine {
 			code_hash: Some(state.code_hash(&contract_address)?),
 			data: data,
 			call_type: CallType::Call,
+			params_type: vm::ParamsType::Separate,
 		};
 		let mut ex = Executive::new(&mut state, &env_info, self);
 		let mut substate = Substate::new();
