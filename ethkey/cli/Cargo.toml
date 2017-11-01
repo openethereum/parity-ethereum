@@ -4,12 +4,13 @@ version = "0.1.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
+docopt = "0.8"
 ethkey = { path = "../" }
+num_cpus = "1.7"
+panic_hook = { path = "../../panic_hook" }
+rustc-hex = "1.0"
 serde = "1.0"
 serde_derive = "1.0"
-rustc-hex = "1.0"
-docopt = "0.8"
-panic_hook = { path = "../../panic_hook" }
 
 [[bin]]
 name = "ethkey"

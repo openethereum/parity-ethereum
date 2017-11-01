@@ -29,8 +29,8 @@ impl Brain {
 impl Generator for Brain {
     type Error = ::Void;
 
-	fn generate(self) -> Result<KeyPair, Self::Error> {
-		let seed = self.0;
+	fn generate(&mut self) -> Result<KeyPair, Self::Error> {
+		let seed = self.0.clone();
 		let mut secret = seed.into_bytes().keccak256();
 
 		let mut i = 0;

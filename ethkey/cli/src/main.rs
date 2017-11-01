@@ -15,19 +15,20 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 extern crate docopt;
+extern crate ethkey;
+extern crate num_cpus;
+extern crate panic_hook;
 extern crate rustc_hex;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
-extern crate ethkey;
-extern crate panic_hook;
 
-use std::{env, fmt, process};
 use std::num::ParseIntError;
+use std::{env, fmt, process, io, thread};
+
 use docopt::Docopt;
+use ethkey::{KeyPair, Random, Brain, BrainPrefix, Prefix, Error as EthkeyError, Generator, sign, verify_public, verify_address};
 use rustc_hex::{ToHex, FromHex, FromHexError};
-use ethkey::{KeyPair, Random, Brain, Prefix, Error as EthkeyError, Generator, sign, verify_public, verify_address};
-use std::io;
 
 pub const USAGE: &'static str = r#"
 Ethereum keys generator.
@@ -36,11 +37,12 @@ Ethereum keys generator.
 Usage:
     ethkey info <secret> [options]
     ethkey generate random [options]
-    ethkey generate prefix <prefix> <iterations> [options]
+    ethkey generate prefix <prefix> [options] [-b, --brain]
     ethkey generate brain <seed> [options]
     ethkey sign <secret> <message>
     ethkey verify public <public> <signature> <message>
     ethkey verify address <address> <signature> <message>
+    ethkey verify brain <seed>
     ethkey [-h | --help]
 
 Options:
@@ -71,7 +73,6 @@ struct Args {
 	cmd_public: bool,
 	cmd_address: bool,
 	arg_prefix: String,
-	arg_iterations: String,
 	arg_seed: String,
 	arg_secret: String,
 	arg_message: String,
@@ -81,6 +82,7 @@ struct Args {
 	flag_secret: bool,
 	flag_public: bool,
 	flag_address: bool,
+	flag_brain: bool,
 }
 
 #[derive(Debug)]
@@ -167,12 +169,18 @@ fn main() {
 	}
 }
 
-fn display(keypair: KeyPair, mode: DisplayMode) -> String {
-	match mode {
+fn display(result: (KeyPair, Option<String>), mode: DisplayMode) -> String {
+	let keypair = result.0;
+	let key = match mode {
 		DisplayMode::KeyPair => format!("{}", keypair),
 		DisplayMode::Secret => format!("{}", keypair.secret().to_hex()),
 		DisplayMode::Public => format!("{:?}", keypair.public()),
 		DisplayMode::Address => format!("{:?}", keypair.address()),
+	};
+
+	match result.1 {
+		Some(extra_data) => format!("{}\n{}", extra_data, key),
+		None => key,
 	}
 }
 
@@ -184,19 +192,32 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 		let display_mode = DisplayMode::new(&args);
 		let secret = args.arg_secret.parse().map_err(|_| EthkeyError::InvalidSecret)?;
 		let keypair = KeyPair::from_secret(secret)?;
-		Ok(display(keypair, display_mode))
+		Ok(display((keypair, None), display_mode))
 	} else if args.cmd_generate {
 		let display_mode = DisplayMode::new(&args);
 		let keypair = if args.cmd_random {
-			Random.generate()?
+			(Random.generate()?, None)
 		} else if args.cmd_prefix {
 			let prefix = args.arg_prefix.from_hex()?;
-			let iterations = usize::from_str_radix(&args.arg_iterations, 10)?;
-			Prefix::new(prefix, iterations).generate()?
+			let iterations = usize::max_value();
+			let brain = args.flag_brain;
+			in_threads(move || {
+				let prefix = prefix.clone();
+				return move || {
+					if brain {
+						let mut brain = BrainPrefix::new(prefix, iterations, 12);
+						let result = brain.generate();
+						let phrase = format!("recovery phrase: {}", brain.phrase());
+						result.map(|keypair| (keypair, Some(phrase)))
+					} else {
+						Ok((Prefix::new(prefix, iterations).generate()?, None))
+					}
+				}
+			})?
 		} else if args.cmd_brain {
-			Brain::new(args.arg_seed).generate().expect("Brain wallet generator is infallible; qed")
+			(Brain::new(args.arg_seed).generate().expect("Brain wallet generator is infallible; qed"), None)
 		} else {
-			unreachable!();
+			return Ok(format!("{}", USAGE))
 		};
 		Ok(display(keypair, display_mode))
 	} else if args.cmd_sign {
@@ -214,12 +235,31 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 			let address = args.arg_address.parse().map_err(|_| EthkeyError::InvalidAddress)?;
 			verify_address(&address, &signature, &message)?
 		} else {
-			unreachable!();
+			return Ok(format!("{}", USAGE))
 		};
 		Ok(format!("{}", ok))
 	} else {
-		unreachable!();
+		Ok(format!("{}", USAGE))
 	}
+}
+
+fn in_threads<F, X, O>(task: F) -> Result<O, EthkeyError> where
+	O: Send + 'static,
+	X: Send + 'static,
+	F: Fn() -> X,
+	X: FnOnce() -> Result<O, EthkeyError>,
+{
+	let mut handles = Vec::new();
+	for _ in 0..num_cpus::get() {
+		handles.push(thread::spawn(task()));
+	}
+
+	for handle in handles {
+		return handle.join()
+			.map_err(|err| EthkeyError::Custom(format!("Failed to wait for thread: {:?}", err)))?;
+	}
+
+	unreachable!()
 }
 
 #[cfg(test)]
