@@ -24,7 +24,7 @@ use jsonrpc_core::futures::Future;
 use v1::impls::SigningQueueClient;
 use v1::metadata::Metadata;
 use v1::traits::{EthSigning, ParitySigning, Parity};
-use v1::helpers::{SignerService, SigningQueue, FullDispatcher};
+use v1::helpers::{nonce, SignerService, SigningQueue, FullDispatcher};
 use v1::types::{ConfirmationResponse, RichRawTransaction};
 use v1::tests::helpers::TestMinerService;
 use v1::tests::mocked::parity;
@@ -38,6 +38,7 @@ use ethcore::client::TestBlockChainClient;
 use ethcore::transaction::{Transaction, Action, SignedTransaction};
 use ethstore::ethkey::{Generator, Random};
 use serde_json;
+use parking_lot::Mutex;
 
 struct SigningTester {
 	pub signer: Arc<SignerService>,
@@ -54,9 +55,10 @@ impl Default for SigningTester {
 		let miner = Arc::new(TestMinerService::default());
 		let accounts = Arc::new(AccountProvider::transient_provider());
 		let opt_accounts = Some(accounts.clone());
+		let reservations = Arc::new(Mutex::new(nonce::Reservations::new()));
 		let mut io = IoHandler::default();
 
-		let dispatcher = FullDispatcher::new(client.clone(), miner.clone());
+		let dispatcher = FullDispatcher::new(client.clone(), miner.clone(), reservations);
 
 		let rpc = SigningQueueClient::new(&signer, dispatcher.clone(), &opt_accounts);
 		io.extend_with(EthSigning::to_delegate(rpc));

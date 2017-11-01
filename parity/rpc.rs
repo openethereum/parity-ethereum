@@ -62,7 +62,7 @@ impl Default for HttpConfiguration {
 			cors: Some(vec![]),
 			hosts: Some(vec![]),
 			server_threads: 1,
-			processing_threads: 0,
+			processing_threads: 4,
 		}
 	}
 }

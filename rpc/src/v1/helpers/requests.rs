@@ -15,8 +15,9 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use bigint::prelude::U256;
-use util::Address;
 use bytes::Bytes;
+use util::Address;
+
 use v1::types::{Origin, TransactionCondition};
 
 /// Transaction request coming from RPC
