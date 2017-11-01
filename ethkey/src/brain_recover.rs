@@ -29,16 +29,14 @@ pub fn brain_recover(
 ) -> Result<String, Error> {
 	let known_words = parity_wordlist::WORDS.iter().cloned().collect::<HashSet<_>>();
 	let mut words = known_phrase.split(' ')
-		.map(|word| {
-			match known_words.get(word) {
-				None => {
-					info!("Invalid word '{}', looking for potential substitutions.", word);
-					let substitutions = generate_substitutions(word);
-					info!("Closest found: {}", &substitutions[0]);
-					substitutions
-				},
-				Some(word) => vec![*word],
-			}
+		.map(|word| match known_words.get(word) {
+			None => {
+				info!("Invalid word '{}', looking for potential substitutions.", word);
+				let substitutions = generate_substitutions(word);
+				info!("Closest found: {}", &substitutions[0]);
+				substitutions
+			},
+			Some(word) => vec![*word],
 		})
 		.collect::<Vec<_>>();
 

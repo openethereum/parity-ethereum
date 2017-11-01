@@ -42,7 +42,7 @@ Usage:
     ethkey sign <secret> <message>
     ethkey verify public <public> <signature> <message>
     ethkey verify address <address> <signature> <message>
-	ethkey recover <address> <known-phrase>
+    ethkey recover <address> <known-phrase>
     ethkey [-h | --help]
 
 Options:
@@ -58,7 +58,7 @@ Commands:
     generate prefix    Random generation, but address must start with a prefix.
     sign               Sign message using secret.
     verify             Verify signer of the signature.
-	recover            Try to find brain phrase matching given address from partial phrase.
+    recover            Try to find brain phrase matching given address from partial phrase.
 "#;
 
 #[derive(Debug, Deserialize)]

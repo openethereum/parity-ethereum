@@ -30,16 +30,9 @@ fn look_for_password(passwords: Arc<Mutex<VecDeque<String>>>, wallet: PresaleWal
 	let mut counter = 0;
 	while !passwords.lock().is_empty() {
 		let package = {
-			let mut to_process = Vec::new();
 			let mut passwords = passwords.lock();
-			for _ in 0..32 {
-				if let Some(pass) = passwords.pop_front() {
-					to_process.push(pass);
-				} else {
-					break;
-				}
-			}
-			to_process
+			let len = passwords.len();
+			passwords.split_off(cmp::min(len, 32))
 		};
 		for pass in package {
 			counter += 1;
