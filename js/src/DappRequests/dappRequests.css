@@ -23,7 +23,7 @@ $backgroundTwo: #e57a00;
   position: fixed;
   left: 0;
   right: 0;
-  bottom: 2.75em;
+  bottom: 0;
   z-index: 1001; /* sits above sync warning */
 
   .request {

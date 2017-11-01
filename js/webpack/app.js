@@ -185,11 +185,11 @@ module.exports = {
           flatten([
             {
               from: path.join(__dirname, '../src/dev.web3.html'),
-              to: 'dev.web3.html'
+              to: 'dev.web3/index.html'
             },
             {
               from: path.join(__dirname, '../src/dev.parity.html'),
-              to: 'dev.parity.html'
+              to: 'dev.parity/index.html'
             },
             {
               from: path.join(__dirname, '../src/error_pages.css'),

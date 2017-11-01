@@ -16,8 +16,7 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import { FirstRun } from '~/modals';
-import { Errors, ParityBackground, Tooltips } from '~/ui';
+import { Errors, ParityBackground } from '~/ui';
 
 import styles from '../application.css';
 
@@ -29,18 +28,13 @@ export default class Container extends Component {
   };
 
   render () {
-    const { children, onCloseFirstRun, showFirstRun } = this.props;
+    const { children } = this.props;
 
     return (
       <ParityBackground
         attachDocument
         className={ styles.container }
       >
-        <FirstRun
-          onClose={ onCloseFirstRun }
-          visible={ showFirstRun }
-        />
-        <Tooltips />
         <Errors />
         { children }
       </ParityBackground>

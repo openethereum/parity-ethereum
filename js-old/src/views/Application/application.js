@@ -63,10 +63,7 @@ class Application extends Component {
     const { children, pending } = this.props;
 
     return (
-      <Container
-        onCloseFirstRun={ this.store.closeFirstrun }
-        showFirstRun={ this.store.firstrunVisible }
-      >
+      <Container>
         <TabBar pending={ pending } />
         <div className={ styles.content }>
           { children }
