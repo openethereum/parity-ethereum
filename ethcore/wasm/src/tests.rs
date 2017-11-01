@@ -696,12 +696,11 @@ fn embedded_keccak() {
 		let mut interpreter = wasm_interpreter();
 		let result = interpreter.exec(params, &mut ext).expect("Interpreter to execute without any errors");
 		match result {
-				GasLeft::Known(_) => { panic!("keccak should return payload"); },
-				GasLeft::NeedsReturn { gas_left: gas, data: result, apply_state: _apply } => (gas, result.to_vec()),
+			GasLeft::Known(_) => { panic!("keccak should return payload"); },
+			GasLeft::NeedsReturn { gas_left: gas, data: result, apply_state: _apply } => (gas, result.to_vec()),
 		}
 	};
 
 	assert_eq!(H256::from_slice(&result), H256::from("68371d7e884c168ae2022c82bd837d51837718a7f7dfb7aa3f753074a35e1d87"));
 	assert_eq!(gas_left, U256::from(80_452));
-
 }
