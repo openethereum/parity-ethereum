@@ -18,6 +18,7 @@
 
 extern crate byteorder;
 extern crate crypto as rcrypto;
+extern crate edit_distance;
 extern crate ethcore_bigint as bigint;
 extern crate parity_wordlist;
 extern crate rand;
@@ -27,9 +28,12 @@ extern crate tiny_keccak;
 
 #[macro_use]
 extern crate lazy_static;
+#[macro_use]
+extern crate log;
 
 mod brain;
 mod brain_prefix;
+mod brain_recover;
 mod error;
 mod keypair;
 mod keccak;
@@ -44,6 +48,7 @@ pub mod math;
 pub use self::parity_wordlist::Error as WordlistError;
 pub use self::brain::Brain;
 pub use self::brain_prefix::BrainPrefix;
+pub use self::brain_recover::brain_recover;
 pub use self::error::Error;
 pub use self::keypair::{KeyPair, public_to_address};
 pub use self::math::public_is_valid;

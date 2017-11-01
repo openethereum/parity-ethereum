@@ -5,6 +5,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 docopt = "0.8"
+env_logger = "0.4"
 ethkey = { path = "../" }
 num_cpus = "1.7"
 panic_hook = { path = "../../panic_hook" }

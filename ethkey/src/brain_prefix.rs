@@ -59,12 +59,12 @@ impl Generator for BrainPrefix {
 
 #[cfg(test)]
 mod tests {
-	use {Generator, Prefix};
+	use {Generator, BrainPrefix};
 
 	#[test]
 	fn prefix_generator() {
-		let prefix = vec![0xffu8];
-		let keypair = Prefix::new(prefix.clone(), usize::max_value()).generate().unwrap();
+		let prefix = vec![0x00u8];
+		let keypair = BrainPrefix::new(prefix.clone(), usize::max_value(), 12).generate().unwrap();
 		assert!(keypair.address().starts_with(&prefix));
 	}
 }

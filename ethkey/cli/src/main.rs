@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 extern crate docopt;
+extern crate env_logger;
 extern crate ethkey;
 extern crate num_cpus;
 extern crate panic_hook;
@@ -24,10 +25,10 @@ extern crate serde;
 extern crate serde_derive;
 
 use std::num::ParseIntError;
-use std::{env, fmt, process, io, thread};
+use std::{env, fmt, process, io, thread, sync};
 
 use docopt::Docopt;
-use ethkey::{KeyPair, Random, Brain, BrainPrefix, Prefix, Error as EthkeyError, Generator, sign, verify_public, verify_address};
+use ethkey::{KeyPair, Random, Brain, BrainPrefix, Prefix, Error as EthkeyError, Generator, sign, verify_public, verify_address, brain_recover};
 use rustc_hex::{ToHex, FromHex, FromHexError};
 
 pub const USAGE: &'static str = r#"
@@ -35,12 +36,13 @@ Ethereum keys generator.
   Copyright 2016, 2017 Parity Technologies (UK) Ltd
 
 Usage:
-    ethkey info <secret-or-seed> [-b | --brain] [options]
+    ethkey info <secret-or-phrase> [options]
     ethkey generate random [options]
-    ethkey generate prefix <prefix> [-b, --brain] [options]
+    ethkey generate prefix <prefix> [options]
     ethkey sign <secret> <message>
     ethkey verify public <public> <signature> <message>
     ethkey verify address <address> <signature> <message>
+	ethkey recover <address> <known-phrase>
     ethkey [-h | --help]
 
 Options:
@@ -48,13 +50,15 @@ Options:
     -s, --secret       Display only the secret.
     -p, --public       Display only the public.
     -a, --address      Display only the address.
+    -b, --brain        Use parity brain wallet algorithm.
 
 Commands:
     info               Display public and address of the secret.
     generate random    Generates new random ethereum key.
-    generate prefix    Random generation, but address must start with a prefix
+    generate prefix    Random generation, but address must start with a prefix.
     sign               Sign message using secret.
     verify             Verify signer of the signature.
+	recover            Try to find brain phrase matching given address from partial phrase.
 "#;
 
 #[derive(Debug, Deserialize)]
@@ -67,9 +71,11 @@ struct Args {
 	cmd_verify: bool,
 	cmd_public: bool,
 	cmd_address: bool,
+	cmd_recover: bool,
 	arg_prefix: String,
 	arg_secret: String,
-	arg_secret_or_seed: String,
+	arg_secret_or_phrase: String,
+	arg_known_phrase: String,
 	arg_message: String,
 	arg_public: String,
 	arg_address: String,
@@ -154,6 +160,7 @@ impl DisplayMode {
 
 fn main() {
 	panic_hook::set();
+	env_logger::init().expect("Logger initialized only once.");
 
 	match execute(env::args()) {
 		Ok(ok) => println!("{}", ok),
@@ -185,26 +192,33 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 		let display_mode = DisplayMode::new(&args);
 
 		let result = if args.flag_brain {
-			let phrase = args.arg_secret_or_seed;
+			let phrase = args.arg_secret_or_phrase;
 			let phrase_info = validate_phrase(&phrase);
 			let keypair = Brain::new(phrase).generate().expect("Brain wallet generator is infallible; qed");
 			(keypair, Some(phrase_info))
 		} else {
-			let secret = args.arg_secret_or_seed.parse().map_err(|_| EthkeyError::InvalidSecret)?;
+			let secret = args.arg_secret_or_phrase.parse().map_err(|_| EthkeyError::InvalidSecret)?;
 			(KeyPair::from_secret(secret)?, None)
 		};
 		Ok(display(result, display_mode))
 	} else if args.cmd_generate {
 		let display_mode = DisplayMode::new(&args);
 		let result = if args.cmd_random {
-			(Random.generate()?, None)
+			if args.flag_brain {
+				let mut brain = BrainPrefix::new(vec![0], usize::max_value(), BRAIN_WORDS);
+				let keypair = brain.generate()?;
+				let phrase = format!("recovery phrase: {}", brain.phrase());
+				(keypair, Some(phrase))
+			} else {
+				(Random.generate()?, None)
+			}
 		} else if args.cmd_prefix {
 			let prefix = args.arg_prefix.from_hex()?;
 			let iterations = usize::max_value();
 			let brain = args.flag_brain;
-			in_threads(move || {
+			in_threads(move |_, _| {
 				let prefix = prefix.clone();
-				return move || {
+				move || {
 					if brain {
 						let mut brain = BrainPrefix::new(prefix, iterations, BRAIN_WORDS);
 						let result = brain.generate();
@@ -237,6 +251,16 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 			return Ok(format!("{}", USAGE))
 		};
 		Ok(format!("{}", ok))
+	} else if args.cmd_recover {
+		let display_mode = DisplayMode::new(&args);
+		let known_phrase = args.arg_known_phrase;
+		let address = args.arg_address.parse().map_err(|_| EthkeyError::InvalidAddress)?;
+		let phrase = in_threads(move |idx, max| {
+			let known_phrase = known_phrase.clone();
+			move || brain_recover(&address, &known_phrase, BRAIN_WORDS, Some((idx, max)))
+		})?;
+		let keypair = Brain::new(phrase.clone()).generate().expect("Brain wallet generator is infallible; qed");
+		Ok(display((keypair, Some(phrase)), display_mode))
 	} else {
 		Ok(format!("{}", USAGE))
 	}
@@ -254,20 +278,37 @@ fn validate_phrase(phrase: &str) -> String {
 fn in_threads<F, X, O>(task: F) -> Result<O, EthkeyError> where
 	O: Send + 'static,
 	X: Send + 'static,
-	F: Fn() -> X,
+	F: Fn(usize, usize) -> X,
 	X: FnOnce() -> Result<O, EthkeyError>,
 {
 	let mut handles = Vec::new();
-	for _ in 0..num_cpus::get() {
-		handles.push(thread::spawn(task()));
+	let max = num_cpus::get();
+
+	let (tx, rx) = sync::mpsc::sync_channel(1);
+	for i in 0..max {
+		let t = task(i, max);
+		let tx = tx.clone();
+		handles.push(thread::spawn(move || {
+			match t() {
+				Ok(solution) => {
+					tx.send(solution).expect("Receiving end never dropped.");
+					Ok(())
+				},
+				Err(err) => Err(err),
+			}
+		}));
+	}
+
+	if let Ok(solution) = rx.recv() {
+		return Ok(solution);
 	}
 
 	for handle in handles {
-		return handle.join()
-			.map_err(|err| EthkeyError::Custom(format!("Failed to wait for thread: {:?}", err)))?;
+		handle.join()
+			.map_err(|err| EthkeyError::Custom(format!("Failed to wait for thread: {:?}", err)))??;
 	}
 
-	unreachable!()
+	Err(EthkeyError::Custom("No results found.".into()))
 }
 
 #[cfg(test)]
@@ -289,8 +330,22 @@ address: 26d1ec50b4e62c1d1a40d16e7cacc6a6580757d5".to_owned();
 	}
 
 	#[test]
+	fn info() {
+		let command = vec!["ethkey", "info", "17d08f5fe8c77af811caa0c9a187e668ce3b74a99acc3f6d976f075fa8e0be55"]
+			.into_iter()
+			.map(Into::into)
+			.collect::<Vec<String>>();
+
+		let expected =
+"secret:  17d08f5fe8c77af811caa0c9a187e668ce3b74a99acc3f6d976f075fa8e0be55
+public:  689268c0ff57a20cd299fa60d3fb374862aff565b20b5f1767906a99e6e09f3ff04ca2b2a5cd22f62941db103c0356df1a8ed20ce322cab2483db67685afd124
+address: 26d1ec50b4e62c1d1a40d16e7cacc6a6580757d5".to_owned();
+		assert_eq!(execute(command).unwrap(), expected);
+	}
+
+	#[test]
 	fn brain() {
-		let command = vec!["ethkey", "generate", "brain", "this is sparta"]
+		let command = vec!["ethkey", "info", "--brain", "this is sparta"]
 			.into_iter()
 			.map(Into::into)
 			.collect::<Vec<String>>();
@@ -304,7 +359,7 @@ address: 006e27b6a72e1f34c626762f3c4761547aff1421".to_owned();
 
 	#[test]
 	fn secret() {
-		let command = vec!["ethkey", "generate", "brain", "this is sparta", "--secret"]
+		let command = vec!["ethkey", "info", "--brain", "this is sparta", "--secret"]
 			.into_iter()
 			.map(Into::into)
 			.collect::<Vec<String>>();
@@ -315,7 +370,7 @@ address: 006e27b6a72e1f34c626762f3c4761547aff1421".to_owned();
 
 	#[test]
 	fn public() {
-		let command = vec!["ethkey", "generate", "brain", "this is sparta", "--public"]
+		let command = vec!["ethkey", "info", "--brain", "this is sparta", "--public"]
 			.into_iter()
 			.map(Into::into)
 			.collect::<Vec<String>>();
@@ -326,7 +381,7 @@ address: 006e27b6a72e1f34c626762f3c4761547aff1421".to_owned();
 
 	#[test]
 	fn address() {
-		let command = vec!["ethkey", "generate", "brain", "this is sparta", "--address"]
+		let command = vec!["ethkey", "info", "-b", "this is sparta", "--address"]
 			.into_iter()
 			.map(Into::into)
 			.collect::<Vec<String>>();
