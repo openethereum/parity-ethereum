@@ -348,7 +348,7 @@ impl FullDependencies {
 					).to_delegate())
 				},
 				Api::Traces => {
-					handler.extend_with(TracesClient::new(&self.client, &self.miner).to_delegate())
+					handler.extend_with(TracesClient::new(&self.client).to_delegate())
 				},
 				Api::Rpc => {
 					let modules = to_modules(&apis);

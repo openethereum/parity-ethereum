@@ -35,7 +35,7 @@ use tx_filter::TransactionFilter;
 use bigint::prelude::U256;
 use bytes::BytesRef;
 use util::Address;
-use vm::{CallType, ActionParams, ActionValue};
+use vm::{CallType, ActionParams, ActionValue, ParamsType};
 use vm::{EnvInfo, Schedule, CreateContractAddress};
 
 /// Parity tries to round block.gas_limit to multiple of this constant
@@ -149,6 +149,7 @@ impl EthereumMachine {
 			code_hash: Some(state.code_hash(&contract_address)?),
 			data: data,
 			call_type: CallType::Call,
+			params_type: ParamsType::Separate,
 		};
 		let mut ex = Executive::new(&mut state, &env_info, self);
 		let mut substate = Substate::new();
