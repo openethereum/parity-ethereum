@@ -130,11 +130,13 @@ pub trait Scoring {
 }
 
 pub trait Readiness {
-	fn is_ready(&mut self, tx: &VerifiedTransaction) -> Option<bool>;
+	/// Returns true if transaction is ready to be included in pending block,
+	/// given all previous transactions that were ready are included.
+	fn is_ready(&mut self, tx: &VerifiedTransaction) -> bool;
 }
 
-impl<F> Readiness for F where F: FnMut(&VerifiedTransaction) -> Option<bool> {
-	fn is_ready(&mut self, tx: &VerifiedTransaction) -> Option<bool> {
+impl<F> Readiness for F where F: FnMut(&VerifiedTransaction) -> bool {
+	fn is_ready(&mut self, tx: &VerifiedTransaction) -> bool {
 		(*self)(tx)
 	}
 }

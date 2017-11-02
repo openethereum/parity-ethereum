@@ -284,43 +284,54 @@ impl<S, L> Pool<S, L> where
 		}
 	}
 
-	pub fn pending<R: Readiness>(&self, mut ready: R) -> Vec<SharedTransaction> {
-		let mut pending = Vec::new();
-		let mut current_best = self.best_transactions.clone();
+	pub fn pending<R: Readiness>(&self, ready: R) -> PendingIterator<R, S, L> {
+		PendingIterator {
+			ready,
+			best_transactions: self.best_transactions.clone(),
+			pool: self,
+		}
+	}
+}
 
-		while !current_best.is_empty() {
-			println!("Best: {:?}", current_best);
-			println!("Pending: {:?}", pending);
-			// remove best from the set
+pub struct PendingIterator<'a, R, S, L> where
+	S: Scoring + 'a,
+	L: 'a
+{
+	ready: R,
+	best_transactions: BTreeSet<ScoreWithRef<S::Score>>,
+	pool: &'a Pool<S, L>,
+}
+
+impl<'a, R, S, L> Iterator for PendingIterator<'a, R, S, L> where
+	R: Readiness,
+	S: Scoring,
+{
+	type Item = SharedTransaction;
+
+	fn next(&mut self) -> Option<Self::Item> {
+		while !self.best_transactions.is_empty() {
+			println!("Best: {:?}", self.best_transactions);
 			let best = {
-				let best = current_best.iter().next().expect("current_best is not empty; qed").clone();
-				current_best.take(&best).expect("Just taken from iterator; qed")
+				let best = self.best_transactions.iter().next().expect("current_best is not empty; qed").clone();
+				self.best_transactions.take(&best).expect("Just taken from iterator; qed")
 			};
 
-			match ready.is_ready(&best.transaction) {
-				// No more transactions needed.
-				None => return pending,
-				// Transaction is ready
-				Some(true) => {
-					let sender = best.transaction.sender();
+			if self.ready.is_ready(&best.transaction) {
+				let sender = best.transaction.sender();
 
-					// retrieve next one from that sender.
-					let next = self.transactions
-						.get(&sender)
-						.and_then(|s| s.find_next(&best.transaction, &self.scoring));
-					if let Some((score, tx)) = next {
-						current_best.insert(ScoreWithRef::new(score, tx));
-					}
+				// retrieve next one from that sender.
+				let next = self.pool.transactions
+					.get(&sender)
+					.and_then(|s| s.find_next(&best.transaction, &self.pool.scoring));
+				if let Some((score, tx)) = next {
+					self.best_transactions.insert(ScoreWithRef::new(score, tx));
+				}
 
-					// push to pending
-					pending.push(best.transaction);
-				},
-				// Transaction is not ready, just ignore it and don't process any more from this sender.
-				Some(false) => {},
+				return Some(best.transaction)
 			}
 		}
 
-		pending
+		None
 	}
 }
 
@@ -718,33 +729,34 @@ mod tests {
 		assert_eq!(txq.status().count, 11);
 
 		// when
-		let mut consumed_gas = 0;
+		let mut current_gas = 0;
 		let mut nonces = HashMap::new();
-		let pending = txq.pending(|tx: &VerifiedTransaction| {
-			if consumed_gas + tx.gas.0 > 21_000 * 8 {
-				return None;
-			}
-
+		let mut pending = txq.pending(|tx: &VerifiedTransaction| {
 			let nonce = nonces.entry(tx.sender()).or_insert_with(|| U256::from(0));
 			if tx.nonce != *nonce {
-				return Some(false)
+				false
+			} else {
+				// increment nonce and consumed gas
+				*nonce = U256::from(nonce.0 + 1);
+				true
 			}
-			// increment nonce and consumed gas
-			*nonce = U256::from(nonce.0 + 1);
-			consumed_gas += tx.gas.0;
-
-			Some(true)
+		}).take_while(|tx| {
+			let should_take = tx.gas.0 + current_gas <= 21_000 * 8;
+			if should_take {
+				current_gas += tx.gas.0
+			}
+			should_take
 		});
 
-		assert_eq!(pending.len(), 8);
-		assert_eq!(pending[0], tx0);
-		assert_eq!(pending[1], tx1);
-		assert_eq!(pending[2], tx9);
-		assert_eq!(pending[3], tx5);
-		assert_eq!(pending[4], tx6);
-		assert_eq!(pending[5], tx7);
-		assert_eq!(pending[6], tx8);
-		assert_eq!(pending[7], tx2);
+		assert_eq!(pending.next(), Some(tx0));
+		assert_eq!(pending.next(), Some(tx1));
+		assert_eq!(pending.next(), Some(tx9));
+		assert_eq!(pending.next(), Some(tx5));
+		assert_eq!(pending.next(), Some(tx6));
+		assert_eq!(pending.next(), Some(tx7));
+		assert_eq!(pending.next(), Some(tx8));
+		assert_eq!(pending.next(), Some(tx2));
+		assert_eq!(pending.next(), None);
 	}
 
 	#[test]
