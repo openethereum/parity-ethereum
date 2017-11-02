@@ -63,6 +63,8 @@ mod updater_utils {
 	}
 }
 
+pub type DoCallFn = Fn(Vec<u8>) -> Result<Vec<u8>, String> + Send + Sync + 'static;
+
 /// Filter for releases.
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub enum UpdateFilter {
@@ -123,7 +125,7 @@ pub struct Updater {
 	sync: Weak<SyncProvider>,
 	fetcher: Mutex<Option<fetch::Client>>,
 	operations_contract: operations_contract::Operations,
-	do_call: Mutex<Option<Box<Fn(Vec<u8>) -> Result<Vec<u8>, String> + Send + Sync + 'static>>>,
+	do_call: Mutex<Option<Box<DoCallFn>>>,
 	exit_handler: Mutex<Option<Box<Fn() + 'static + Send>>>,
 
 	// Our version info (static)
@@ -172,7 +174,7 @@ impl Updater {
 		*self.exit_handler.lock() = Some(Box::new(f));
 	}
 
-	fn collect_release_info(operations_contract: &operations_contract::Operations, do_call: &Box<Fn(Vec<u8>) -> Result<Vec<u8>, String> + Send + Sync + 'static>, release_id: &H256) -> Result<ReleaseInfo, String> {
+	fn collect_release_info(operations_contract: &operations_contract::Operations, do_call: &Box<DoCallFn>, release_id: &H256) -> Result<ReleaseInfo, String> {
 		let (fork, track, semver, is_critical) = operations_contract.functions().release()
 			.call(
 				updater_utils::str_to_ethabi_hash(&CLIENT_ID),
