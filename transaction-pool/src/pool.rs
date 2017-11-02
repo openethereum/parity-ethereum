@@ -219,6 +219,9 @@ impl<S, L> Pool<S, L> where
 				update_best(best, false);
 			},
 			(Some((worst, best)), None) => {
+				// all transactions from that sender has been removed.
+				// We can clear a hashmap entry.
+				self.transactions.remove(&worst.1.sender());
 				update_worst(worst, true);
 				update_best(best, true);
 			},
@@ -252,19 +255,20 @@ impl<S, L> Pool<S, L> where
 			},
 		};
 
-		// Remove worst transaction from the list
-		self.worst_transactions.remove(&to_remove);
-		// Might also be on the best_transactions list
-		self.best_transactions.remove(&to_remove);
 		// Remove from transaction set
-		let sender = to_remove.transaction.sender();
+		self.remove_transaction(&to_remove.transaction);
+		Ok(to_remove.transaction)
+	}
+
+	/// Removes transaction from sender's transaction `HashMap`.
+	fn remove_transaction(&mut self, transaction: &VerifiedTransaction) {
+		let sender = transaction.sender();
 		let (prev, next) = if let Some(set) = self.transactions.get_mut(&sender) {
 			let prev = set.worst_and_best();
-			set.remove(&to_remove.transaction, &self.scoring);
+			set.remove(&transaction, &self.scoring);
 			(prev, set.worst_and_best())
 		} else { (None, None) };
 		self.update_senders_worst_and_best(prev, next);
-		Ok(to_remove.transaction)
 	}
 
 	pub fn clear(&mut self) {
@@ -272,6 +276,7 @@ impl<S, L> Pool<S, L> where
 		self.transactions.clear();
 		self.best_transactions.clear();
 		self.worst_transactions.clear();
+
 		for (_hash, tx) in self.by_hash.drain() {
 			self.listener.dropped(&tx)
 		}
@@ -289,6 +294,20 @@ impl<S, L> Pool<S, L> where
 			ready,
 			best_transactions: self.best_transactions.clone(),
 			pool: self,
+		}
+	}
+
+	pub fn remove(&mut self, hash: &H256, is_invalid: bool) -> bool {
+		if let Some(tx) = self.by_hash.remove(hash) {
+			self.remove_transaction(&tx);
+			if is_invalid {
+				self.listener.invalid(&tx);
+			} else {
+				self.listener.cancelled(&tx);
+			}
+			true
+		} else {
+			false
 		}
 	}
 }
@@ -335,7 +354,6 @@ impl<'a, R, S, L> Iterator for PendingIterator<'a, R, S, L> where
 	}
 }
 
-// TODO [ToDr] Add lifetime here (avoid cloning Arcs)
 #[derive(Debug)]
 enum AddResult {
 	Ok(SharedTransaction),
@@ -510,6 +528,20 @@ mod tests {
 
 		fn should_replace(&self, old: &VerifiedTransaction, new: &VerifiedTransaction) -> bool {
 			new.gas_price.0 > old.gas_price.0
+		}
+	}
+
+	#[derive(Default)]
+	struct NonceReadiness(HashMap<Sender, U256>);
+	impl Readiness for NonceReadiness {
+		fn is_ready(&mut self, tx: &VerifiedTransaction) -> bool {
+			let nonce = self.0.entry(tx.sender()).or_insert_with(|| U256::from(0));
+			if tx.nonce == *nonce {
+				*nonce = U256::from(nonce.0 + 1);
+				true
+			} else {
+				false
+			}
 		}
 	}
 
@@ -730,17 +762,7 @@ mod tests {
 
 		// when
 		let mut current_gas = 0;
-		let mut nonces = HashMap::new();
-		let mut pending = txq.pending(|tx: &VerifiedTransaction| {
-			let nonce = nonces.entry(tx.sender()).or_insert_with(|| U256::from(0));
-			if tx.nonce != *nonce {
-				false
-			} else {
-				// increment nonce and consumed gas
-				*nonce = U256::from(nonce.0 + 1);
-				true
-			}
-		}).take_while(|tx| {
+		let mut pending = txq.pending(NonceReadiness::default()).take_while(|tx| {
 			let should_take = tx.gas.0 + current_gas <= 21_000 * 8;
 			if should_take {
 				current_gas += tx.gas.0
@@ -756,6 +778,27 @@ mod tests {
 		assert_eq!(pending.next(), Some(tx7));
 		assert_eq!(pending.next(), Some(tx8));
 		assert_eq!(pending.next(), Some(tx2));
+		assert_eq!(pending.next(), None);
+	}
+
+	#[test]
+	fn should_remove_transaction() {
+		// given
+		let b = TransactionBuilder::default();
+		let mut txq = TestPool::default();
+
+		let tx1 = txq.import(b.tx().nonce(0).new()).unwrap();
+		let tx2 = txq.import(b.tx().nonce(1).new()).unwrap();
+		txq.import(b.tx().nonce(2).new()).unwrap();
+		assert_eq!(txq.status().count, 3);
+
+		// when
+		assert!(txq.remove(&tx2.hash(), false));
+
+		// then
+		assert_eq!(txq.status().count, 2);
+		let mut pending = txq.pending(NonceReadiness::default());
+		assert_eq!(pending.next(), Some(tx1));
 		assert_eq!(pending.next(), None);
 	}
 

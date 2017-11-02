@@ -40,8 +40,6 @@ impl VerifiedTransaction {
 		self.sender.clone()
 	}
 }
-#[derive(Debug)]
-pub struct PendingTransaction;
 #[derive(Default, Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Address(u64);
 impl From<u64> for Address {
@@ -88,8 +86,8 @@ pub trait Listener {
 	fn added(&mut self, _tx: &VerifiedTransaction, _old: Option<&VerifiedTransaction>) {}
 	fn rejected(&mut self, _tx: &VerifiedTransaction) {}
 	fn dropped(&mut self, _tx: &VerifiedTransaction) {}
-	fn invalid(&mut self, _tx: &SignedTransaction) {}
-	fn cancelled(&mut self, _tx: &PendingTransaction) {}
+	fn invalid(&mut self, _tx: &VerifiedTransaction) {}
+	fn cancelled(&mut self, _tx: &VerifiedTransaction) {}
 }
 
 pub struct NoopListener;
