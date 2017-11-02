@@ -35,7 +35,7 @@ mod error;
 
 pub mod tests;
 
-pub use action_params::{ActionParams, ActionValue};
+pub use action_params::{ActionParams, ActionValue, ParamsType};
 pub use call_type::CallType;
 pub use env_info::{EnvInfo, LastHashes};
 pub use schedule::{Schedule, CleanDustMode};
