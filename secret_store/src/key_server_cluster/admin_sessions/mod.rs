@@ -14,11 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+pub mod key_version_negotiation_session;
 pub mod servers_set_change_session;
 pub mod share_add_session;
 pub mod share_change_session;
-pub mod share_move_session;
-pub mod share_remove_session;
 
 mod sessions_queue;
 

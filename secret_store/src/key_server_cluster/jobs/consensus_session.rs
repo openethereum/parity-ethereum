@@ -98,6 +98,11 @@ impl<ConsensusExecutor, ConsensusTransport, ComputationExecutor, ComputationTran
 		&self.consensus_job
 	}
 
+	/// Get mutable consensus job reference.
+	pub fn consensus_job_mut(&mut self) -> &mut JobSession<ConsensusExecutor, ConsensusTransport> {
+		&mut self.consensus_job
+	}
+
 	/// Get all nodes, which has not rejected consensus request.
 	pub fn consensus_non_rejected_nodes(&self) -> BTreeSet<NodeId> {
 		self.consensus_job.responses().iter()
@@ -231,8 +236,9 @@ impl<ConsensusExecutor, ConsensusTransport, ComputationExecutor, ComputationTran
 		let (is_restart_needed, timeout_result) = match self.state {
 			ConsensusSessionState::WaitingForInitialization if is_self_master => {
 				// it is strange to receive error before session is initialized && slave doesn't know access_key
-				// => ignore this error for now
-				(false, Ok(()))
+				// => fatal error
+				self.state = ConsensusSessionState::Failed;
+				(false, Err(Error::ConsensusUnreachable))
 			}
 			ConsensusSessionState::WaitingForInitialization if is_node_master => {
 				// can not establish consensus
@@ -496,6 +502,7 @@ mod tests {
 		assert_eq!(session.state(), ConsensusSessionState::WaitingForInitialization);
 		session.on_consensus_message(&NodeId::from(1), &ConsensusMessage::InitializeConsensusSession(InitializeConsensusSession {
 			requestor_signature: sign(Random.generate().unwrap().secret(), &SessionId::default()).unwrap().into(),
+			version: Default::default(),
 		})).unwrap();
 		assert_eq!(session.state(), ConsensusSessionState::ConsensusEstablished);
 		assert_eq!(session.on_job_request(&NodeId::from(1), 20, SquaredSumJobExecutor, DummyJobTransport::default()).unwrap_err(), Error::InvalidMessage);
@@ -508,6 +515,7 @@ mod tests {
 		assert_eq!(session.state(), ConsensusSessionState::WaitingForInitialization);
 		session.on_consensus_message(&NodeId::from(1), &ConsensusMessage::InitializeConsensusSession(InitializeConsensusSession {
 			requestor_signature: sign(Random.generate().unwrap().secret(), &SessionId::default()).unwrap().into(),
+			version: Default::default(),
 		})).unwrap();
 		assert_eq!(session.state(), ConsensusSessionState::ConsensusEstablished);
 		session.on_job_request(&NodeId::from(1), 2, SquaredSumJobExecutor, DummyJobTransport::default()).unwrap();
@@ -537,15 +545,17 @@ mod tests {
 		let mut session = make_slave_consensus_session(0, None);
 		session.on_consensus_message(&NodeId::from(1), &ConsensusMessage::InitializeConsensusSession(InitializeConsensusSession {
 			requestor_signature: sign(Random.generate().unwrap().secret(), &SessionId::default()).unwrap().into(),
+			version: Default::default(),
 		})).unwrap();
 		session.on_session_completed(&NodeId::from(1)).unwrap();
 		assert_eq!(session.state(), ConsensusSessionState::Finished);
 	}
 
 	#[test]
-	fn consensus_session_continues_if_node_error_received_by_uninitialized_master() {
+	fn consensus_session_fails_if_node_error_received_by_uninitialized_master() {
 		let mut session = make_master_consensus_session(0, None, None);
-		assert_eq!(session.on_node_error(&NodeId::from(2)), Ok(false));
+		assert_eq!(session.on_node_error(&NodeId::from(2)), Err(Error::ConsensusUnreachable));
+		assert_eq!(session.state(), ConsensusSessionState::Failed);
 	}
 
 	#[test]
