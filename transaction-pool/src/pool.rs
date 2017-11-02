@@ -1,12 +1,13 @@
-use std::{cmp, mem};
+use std::{cmp, mem, fmt};
 use std::sync::Arc;
 use std::collections::{HashMap, BTreeSet};
 
 use smallvec::SmallVec;
 
 use error;
+use {Readiness};
 use {Listener, NoopListener};
-use {Scoring, ScoringDecision, ScoringChange};
+use {Scoring, ScoringChoice, ScoringChange};
 use {VerifiedTransaction, SharedTransaction, H256};
 
 type Sender = ::Address;
@@ -46,7 +47,8 @@ impl<T> ScoreWithRef<T> {
 }
 impl<T: cmp::Ord> Ord for ScoreWithRef<T> {
 	fn cmp(&self, other: &Self) -> cmp::Ordering {
-		self.score.cmp(&other.score)
+		other.score.cmp(&self.score)
+			.then(other.transaction.insertion_id.cmp(&self.transaction.insertion_id))
 	}
 }
 impl<T: cmp::Ord> PartialOrd for ScoreWithRef<T> {
@@ -56,7 +58,7 @@ impl<T: cmp::Ord> PartialOrd for ScoreWithRef<T> {
 }
 impl<T: cmp::Ord>  PartialEq for ScoreWithRef<T> {
 	fn eq(&self, other: &Self) -> bool {
-		self.score == other.score
+		self.score == other.score && self.transaction.insertion_id == other.transaction.insertion_id
 	}
 }
 impl<T: cmp::Ord> Eq for ScoreWithRef<T> {}
@@ -114,7 +116,7 @@ impl<S, L> Pool<S, L> where
 		}
 
 	}
-	pub fn import(&mut self, transaction: VerifiedTransaction) -> error::Result<()> {
+	pub fn import(&mut self, transaction: VerifiedTransaction) -> error::Result<SharedTransaction> {
 		let sender = transaction.sender();
 		let mem_usage = transaction.mem_usage();
 		let hash = transaction.hash();
@@ -155,14 +157,16 @@ impl<S, L> Pool<S, L> where
 		self.update_senders_worst_and_best(result.1, result.2);
 
 		match result.0 {
-			AddResult::Ok(ref tx) => {
-				self.listener.added(tx, None);
-				self.added(tx, None);
+			AddResult::Ok(tx) => {
+				self.listener.added(&tx, None);
+				self.added(&tx, None);
+				Ok(tx)
 			},
-			AddResult::PushedOut { ref new, ref old } |
-			AddResult::Replaced { ref new, ref old } => {
-				self.listener.added(new, Some(old));
-				self.added(new, Some(old));
+			AddResult::PushedOut { new, old } |
+			AddResult::Replaced { new, old } => {
+				self.listener.added(&new, Some(&old));
+				self.added(&new, Some(&old));
+				Ok(new)
 			},
 			AddResult::TooCheap { new, old } => {
 				self.listener.rejected(&new);
@@ -173,8 +177,6 @@ impl<S, L> Pool<S, L> where
 				bail!(error::ErrorKind::TooCheapToEnter(new.hash()))
 			}
 		}
-
-		Ok(())
 	}
 
 	fn added(&mut self, new: &SharedTransaction, old: Option<&SharedTransaction>) {
@@ -241,10 +243,12 @@ impl<S, L> Pool<S, L> where
 				warn!("The queue is full but there is no transaction to remove.");
 				return Err(error::ErrorKind::TooCheapToEnter(transaction.hash()).into());
 			},
-			Some(old) => match self.scoring.decide(&old.transaction, transaction) {
+			Some(old) => if self.scoring.should_replace(&old.transaction, transaction) {
 				// New transaction is better than the worst one so we can replace it.
-				ScoringDecision::Replace | ScoringDecision::Insert => old.clone(),
-				ScoringDecision::Reject => return Err(error::ErrorKind::TooCheapToEnter(transaction.hash()).into()),
+				old.clone()
+			} else {
+				// otherwise fail
+				return Err(error::ErrorKind::TooCheapToEnter(transaction.hash()).into())
 			},
 		};
 
@@ -279,6 +283,45 @@ impl<S, L> Pool<S, L> where
 			count: self.by_hash.len(),
 		}
 	}
+
+	pub fn pending<R: Readiness>(&self, mut ready: R) -> Vec<SharedTransaction> {
+		let mut pending = Vec::new();
+		let mut current_best = self.best_transactions.clone();
+
+		while !current_best.is_empty() {
+			println!("Best: {:?}", current_best);
+			println!("Pending: {:?}", pending);
+			// remove best from the set
+			let best = {
+				let best = current_best.iter().next().expect("current_best is not empty; qed").clone();
+				current_best.take(&best).expect("Just taken from iterator; qed")
+			};
+
+			match ready.is_ready(&best.transaction) {
+				// No more transactions needed.
+				None => return pending,
+				// Transaction is ready
+				Some(true) => {
+					let sender = best.transaction.sender();
+
+					// retrieve next one from that sender.
+					let next = self.transactions
+						.get(&sender)
+						.and_then(|s| s.find_next(&best.transaction, &self.scoring));
+					if let Some((score, tx)) = next {
+						current_best.insert(ScoreWithRef::new(score, tx));
+					}
+
+					// push to pending
+					pending.push(best.transaction);
+				},
+				// Transaction is not ready, just ignore it and don't process any more from this sender.
+				Some(false) => {},
+			}
+		}
+
+		pending
+	}
 }
 
 // TODO [ToDr] Add lifetime here (avoid cloning Arcs)
@@ -304,7 +347,7 @@ enum AddResult {
 const PER_SENDER: usize = 8;
 #[derive(Default, Debug)]
 struct Transactions<T> {
-	// TODO [ToDr] Consider using VecDeque?
+	// TODO [ToDr] Consider using something that doesn't require shifting all records.
 	transactions: SmallVec<[SharedTransaction; PER_SENDER]>,
 	scores: SmallVec<[T; PER_SENDER]>,
 }
@@ -312,17 +355,30 @@ struct Transactions<T> {
 impl<T: Clone> Transactions<T> {
 	pub fn worst_and_best(&self) -> Option<((T, SharedTransaction), (T, SharedTransaction))> {
 		let len = self.scores.len();
-		self.scores.get(0).cloned().map(|worst| {
-			let best = self.scores[len - 1].clone();
-			let worst_tx = self.transactions[0].clone();
-			let best_tx = self.transactions[len - 1].clone();
+		self.scores.get(0).cloned().map(|best| {
+			let worst = self.scores[len - 1].clone();
+			let best_tx = self.transactions[0].clone();
+			let worst_tx = self.transactions[len - 1].clone();
 
 			((worst, worst_tx), (best, best_tx))
 		})
 	}
 }
 
-impl<T: cmp::Ord + Clone + Default> Transactions<T> {
+impl<T: cmp::Ord + Clone + Default + fmt::Debug> Transactions<T> {
+	pub fn find_next<S>(&self, tx: &VerifiedTransaction, scoring: &S) -> Option<(T, SharedTransaction)> where
+		S: Scoring<Score=T>,
+	{
+		self.transactions.binary_search_by(|old| scoring.compare(old, &tx)).ok().and_then(|index| {
+			let index = index + 1;
+			if index >= self.scores.len() {
+				None
+			} else {
+				Some((self.scores[index].clone(), self.transactions[index].clone()))
+			}
+		})
+	}
+
 	pub fn add<S>(&mut self, tx: VerifiedTransaction, scoring: &S, max_count: usize) -> AddResult where
 		S: Scoring<Score=T>,
 	{
@@ -348,12 +404,12 @@ impl<T: cmp::Ord + Clone + Default> Transactions<T> {
 		}
 
 		// Decide if the transaction should be replaced
-		match scoring.decide(&self.transactions[index], &tx) {
-			ScoringDecision::Reject => AddResult::TooCheap {
+		match scoring.choose(&self.transactions[index], &tx) {
+			ScoringChoice::RejectNew => AddResult::TooCheap {
 				old: self.transactions[index].clone(),
 				new: tx,
 			},
-			ScoringDecision::Insert => {
+			ScoringChoice::InsertNew => {
 				let new = Arc::new(tx);
 
 				self.transactions.insert(index, new.clone());
@@ -373,7 +429,7 @@ impl<T: cmp::Ord + Clone + Default> Transactions<T> {
 
 				AddResult::Ok(new)
 			},
-			ScoringDecision::Replace => {
+			ScoringChoice::ReplaceOld => {
 				let new = Arc::new(tx);
 				let old = mem::replace(&mut self.transactions[index], new.clone());
 				scoring.update_scores(&self.transactions, &mut self.scores, ScoringChange::ReplacedAt(index));
@@ -406,6 +462,8 @@ impl<T: cmp::Ord + Clone + Default> Transactions<T> {
 
 #[cfg(test)]
 mod tests {
+	use std::rc::Rc;
+	use std::cell::Cell;
 	use super::*;
 	use U256;
 
@@ -419,17 +477,17 @@ mod tests {
 			old.nonce.cmp(&other.nonce)
 		}
 
-		fn decide(&self, old: &VerifiedTransaction, new: &VerifiedTransaction) -> ScoringDecision {
-			let decision = match old.gas_price.cmp(&new.gas_price) {
-				cmp::Ordering::Greater | cmp::Ordering::Equal => ScoringDecision::Reject,
-				_ => if old.nonce == new.nonce {
-					ScoringDecision::Replace
+		fn choose(&self, old: &VerifiedTransaction, new: &VerifiedTransaction) -> ScoringChoice {
+			let decision = if old.nonce == new.nonce {
+				if new.gas_price > old.gas_price {
+					ScoringChoice::ReplaceOld
 				} else {
-					ScoringDecision::Insert
+					ScoringChoice::RejectNew
 				}
+			} else {
+				ScoringChoice::InsertNew
 			};
 
-			println!("Comparing: {:?} vs {:?}. Decision: {:?}", old, new, decision);
 			decision
 		}
 
@@ -438,18 +496,28 @@ mod tests {
 				scores[i] = txs[i].gas_price.0;
 			}
 		}
+
+		fn should_replace(&self, old: &VerifiedTransaction, new: &VerifiedTransaction) -> bool {
+			new.gas_price.0 > old.gas_price.0
+		}
 	}
 
 	type TestPool = Pool<DummyScoring>;
 
-	#[derive(Debug, Default)]
+	#[derive(Debug, Default, Clone)]
 	struct TransactionBuilder {
 		nonce: U256,
 		gas_price: U256,
+		gas: U256,
 		sender: Sender,
+		insertion_id: Rc<Cell<u64>>,
 	}
 
 	impl TransactionBuilder {
+		pub fn tx(&self) -> Self {
+			self.clone()
+		}
+
 		pub fn nonce<T: Into<U256>>(mut self, nonce: T) -> Self {
 			self.nonce = nonce.into();
 			self
@@ -466,29 +534,33 @@ mod tests {
 		}
 
 		pub fn new(self) -> VerifiedTransaction {
+			let insertion_id = {
+				let id = self.insertion_id.get() + 1;
+				self.insertion_id.set(id);
+				id
+			};
 			VerifiedTransaction {
-				hash: (self.nonce.0 ^ self.gas_price.0 ^ self.sender.0).into(),
+				hash: (self.nonce.0 ^ (100 * self.gas_price.0) ^ (100_000 * self.sender.0)).into(),
 				nonce: self.nonce,
 				gas_price: self.gas_price,
+				gas: 21_000.into(),
 				sender: self.sender,
+				insertion_id,
 			}
 		}
-	}
-
-	fn tx() -> TransactionBuilder {
-		TransactionBuilder::default()
 	}
 
 	#[test]
 	fn should_clear_queue() {
 		// given
+		let b = TransactionBuilder::default();
 		let mut txq = TestPool::default();
 		assert_eq!(txq.status(), Status {
 			mem_usage: 0,
 			count: 0,
 		});
-		let tx1 = tx().nonce(0).new();
-		let tx2 = tx().nonce(1).new();
+		let tx1 = b.tx().nonce(0).new();
+		let tx2 = b.tx().nonce(1).new();
 
 		// add
 		txq.import(tx1).unwrap();
@@ -511,9 +583,10 @@ mod tests {
 	#[test]
 	fn should_not_allow_same_transaction_twice() {
 		// given
+		let b = TransactionBuilder::default();
 		let mut txq = TestPool::default();
-		let tx1 = tx().nonce(0).new();
-		let tx2 = tx().nonce(0).new();
+		let tx1 = b.tx().nonce(0).new();
+		let tx2 = b.tx().nonce(0).new();
 
 		// when
 		txq.import(tx1).unwrap();
@@ -526,9 +599,10 @@ mod tests {
 	#[test]
 	fn should_replace_transaction() {
 		// given
+		let b = TransactionBuilder::default();
 		let mut txq = TestPool::default();
-		let tx1 = tx().nonce(0).gas_price(1).new();
-		let tx2 = tx().nonce(0).gas_price(2).new();
+		let tx1 = b.tx().nonce(0).gas_price(1).new();
+		let tx2 = b.tx().nonce(0).gas_price(2).new();
 
 		// when
 		txq.import(tx1).unwrap();
@@ -540,15 +614,15 @@ mod tests {
 
 	#[test]
 	fn should_reject_if_above_count() {
-		// given
+		let b = TransactionBuilder::default();
 		let mut txq = TestPool::with_options(Options {
 			max_count: 1,
 			..Default::default()
 		});
 
 		// Reject second
-		let tx1 = tx().nonce(0).new();
-		let tx2 = tx().nonce(1).new();
+		let tx1 = b.tx().nonce(0).new();
+		let tx2 = b.tx().nonce(1).new();
 		let hash = tx2.hash();
 		txq.import(tx1).unwrap();
 		assert_eq!(txq.import(tx2).unwrap_err().kind(), &error::ErrorKind::TooCheapToEnter(hash));
@@ -557,8 +631,8 @@ mod tests {
 		txq.clear();
 
 		// Replace first
-		let tx1 = tx().nonce(0).new();
-		let tx2 = tx().nonce(0).sender(1).gas_price(2).new();
+		let tx1 = b.tx().nonce(0).new();
+		let tx2 = b.tx().nonce(0).sender(1).gas_price(2).new();
 		txq.import(tx1).unwrap();
 		txq.import(tx2).unwrap();
 		assert_eq!(txq.status().count, 1);
@@ -566,15 +640,15 @@ mod tests {
 
 	#[test]
 	fn should_reject_if_above_mem_usage() {
-		// given
+		let b = TransactionBuilder::default();
 		let mut txq = TestPool::with_options(Options {
 			max_mem_usage: 1,
 			..Default::default()
 		});
 
 		// Reject second
-		let tx1 = tx().nonce(1).new();
-		let tx2 = tx().nonce(2).new();
+		let tx1 = b.tx().nonce(1).new();
+		let tx2 = b.tx().nonce(2).new();
 		let hash = tx2.hash();
 		txq.import(tx1).unwrap();
 		assert_eq!(txq.import(tx2).unwrap_err().kind(), &error::ErrorKind::TooCheapToEnter(hash));
@@ -583,8 +657,8 @@ mod tests {
 		txq.clear();
 
 		// Replace first
-		let tx1 = tx().nonce(1).new();
-		let tx2 = tx().nonce(1).sender(1).gas_price(2).new();
+		let tx1 = b.tx().nonce(1).new();
+		let tx2 = b.tx().nonce(1).sender(1).gas_price(2).new();
 		txq.import(tx1).unwrap();
 		txq.import(tx2).unwrap();
 		assert_eq!(txq.status().count, 1);
@@ -592,15 +666,15 @@ mod tests {
 
 	#[test]
 	fn should_reject_if_above_sender_count() {
-		// given
+		let b = TransactionBuilder::default();
 		let mut txq = TestPool::with_options(Options {
 			max_per_sender: 1,
 			..Default::default()
 		});
 
 		// Reject second
-		let tx1 = tx().nonce(1).new();
-		let tx2 = tx().nonce(2).new();
+		let tx1 = b.tx().nonce(1).new();
+		let tx2 = b.tx().nonce(2).new();
 		let hash = tx2.hash();
 		txq.import(tx1).unwrap();
 		assert_eq!(txq.import(tx2).unwrap_err().kind(), &error::ErrorKind::TooCheapToEnter(hash));
@@ -609,13 +683,68 @@ mod tests {
 		txq.clear();
 
 		// Replace first
-		let tx1 = tx().nonce(1).new();
-		let tx2 = tx().nonce(2).gas_price(2).new();
+		let tx1 = b.tx().nonce(1).new();
+		let tx2 = b.tx().nonce(2).gas_price(2).new();
 		let hash = tx2.hash();
 		txq.import(tx1).unwrap();
 		// This results in error because we also compare nonces
 		assert_eq!(txq.import(tx2).unwrap_err().kind(), &error::ErrorKind::TooCheapToEnter(hash));
 		assert_eq!(txq.status().count, 1);
+	}
+
+	#[test]
+	fn should_construct_pending() {
+		// given
+		let b = TransactionBuilder::default();
+		let mut txq = TestPool::default();
+
+		let tx0 = txq.import(b.tx().nonce(0).gas_price(5).new()).unwrap();
+		let tx1 = txq.import(b.tx().nonce(1).gas_price(5).new()).unwrap();
+		let tx2 = txq.import(b.tx().nonce(2).new()).unwrap();
+		// this transaction doesn't get to the block despite high gas price
+		// because of block gas limit and simplistic ordering algorithm.
+		txq.import(b.tx().nonce(3).gas_price(4).new()).unwrap();
+		//gap
+		txq.import(b.tx().nonce(5).new()).unwrap();
+
+		let tx5 = txq.import(b.tx().sender(1).nonce(0).new()).unwrap();
+		let tx6 = txq.import(b.tx().sender(1).nonce(1).new()).unwrap();
+		let tx7 = txq.import(b.tx().sender(1).nonce(2).new()).unwrap();
+		let tx8 = txq.import(b.tx().sender(1).nonce(3).gas_price(4).new()).unwrap();
+		// gap
+		txq.import(b.tx().sender(1).nonce(5).new()).unwrap();
+
+		let tx9 = txq.import(b.tx().sender(2).nonce(0).new()).unwrap();
+		assert_eq!(txq.status().count, 11);
+
+		// when
+		let mut consumed_gas = 0;
+		let mut nonces = HashMap::new();
+		let pending = txq.pending(|tx: &VerifiedTransaction| {
+			if consumed_gas + tx.gas.0 > 21_000 * 8 {
+				return None;
+			}
+
+			let nonce = nonces.entry(tx.sender()).or_insert_with(|| U256::from(0));
+			if tx.nonce != *nonce {
+				return Some(false)
+			}
+			// increment nonce and consumed gas
+			*nonce = U256::from(nonce.0 + 1);
+			consumed_gas += tx.gas.0;
+
+			Some(true)
+		});
+
+		assert_eq!(pending.len(), 8);
+		assert_eq!(pending[0], tx0);
+		assert_eq!(pending[1], tx1);
+		assert_eq!(pending[2], tx9);
+		assert_eq!(pending[3], tx5);
+		assert_eq!(pending[4], tx6);
+		assert_eq!(pending[5], tx7);
+		assert_eq!(pending[6], tx8);
+		assert_eq!(pending[7], tx2);
 	}
 
 	#[test]

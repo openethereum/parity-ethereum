@@ -11,7 +11,7 @@ mod pool;
 pub use self::pool::Pool;
 
 use std::sync::Arc;
-use std::cmp;
+use std::{cmp, fmt};
 
 // Types
 #[derive(Debug)]
@@ -23,7 +23,9 @@ pub struct VerifiedTransaction {
 	pub hash: H256,
 	pub nonce: U256,
 	pub gas_price: U256,
+	pub gas: U256,
 	pub sender: Address,
+	pub insertion_id: u64,
 }
 impl VerifiedTransaction {
 	pub fn hash(&self) -> H256 {
@@ -94,10 +96,10 @@ pub struct NoopListener;
 impl Listener for NoopListener {}
 
 #[derive(Debug, Clone, Copy)]
-pub enum ScoringDecision {
-	Reject,
-	Replace,
-	Insert,
+pub enum ScoringChoice {
+	RejectNew,
+	ReplaceOld,
+	InsertNew,
 }
 
 pub enum ScoringChange {
@@ -116,11 +118,23 @@ pub enum ScoringChange {
 }
 
 pub trait Scoring {
-	type Score: cmp::Ord + Clone + Default;
+	type Score: cmp::Ord + Clone + Default + fmt::Debug;
 
 	fn compare(&self, old: &VerifiedTransaction, other: &VerifiedTransaction) -> cmp::Ordering;
 
-	fn decide(&self, old: &VerifiedTransaction, new: &VerifiedTransaction) -> ScoringDecision;
+	fn choose(&self, old: &VerifiedTransaction, new: &VerifiedTransaction) -> ScoringChoice;
 
 	fn update_scores(&self, txs: &[SharedTransaction], scores: &mut [Self::Score], change: ScoringChange);
+
+	fn should_replace(&self, old: &VerifiedTransaction, new: &VerifiedTransaction) -> bool;
+}
+
+pub trait Readiness {
+	fn is_ready(&mut self, tx: &VerifiedTransaction) -> Option<bool>;
+}
+
+impl<F> Readiness for F where F: FnMut(&VerifiedTransaction) -> Option<bool> {
+	fn is_ready(&mut self, tx: &VerifiedTransaction) -> Option<bool> {
+		(*self)(tx)
+	}
 }
