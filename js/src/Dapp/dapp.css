@@ -18,9 +18,11 @@
 .frame {
   background: white;
   border: 0;
+  opacity: 0;
   position: absolute;
   height: 100%;
   width: 100%;
+  z-index: 1;
 }
 
 .full {
@@ -32,13 +34,4 @@
   font-family: 'Roboto', sans-serif;
   font-size: 16px;
   font-weight: 300;
-
-  .text {
-    text-align: center;
-    padding: 5em;
-    font-size: 2em;
-    color: #999;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
 }

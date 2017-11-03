@@ -94,7 +94,6 @@ class Dapps extends Component {
   }
 
   renderList (items, overlay) {
-    console.log(items);
     return (
       <SectionList
         items={ items }

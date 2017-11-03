@@ -418,7 +418,7 @@ impl<C, M, U> Parity for ParityClient<C, M, U> where
 		let requests = requests
 			.into_iter()
 			.map(|request| Ok((
-				fake_sign::sign_call(&self.client, &self.miner, request.into(), meta.is_dapp())?,
+				fake_sign::sign_call(request.into(), meta.is_dapp())?,
 				Default::default()
 			)))
 			.collect::<Result<Vec<_>, Error>>()?;

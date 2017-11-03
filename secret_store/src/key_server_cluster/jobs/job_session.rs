@@ -48,7 +48,7 @@ pub trait JobExecutor {
 	/// Process partial request.
 	fn process_partial_request(&mut self, partial_request: Self::PartialJobRequest) -> Result<JobPartialRequestAction<Self::PartialJobResponse>, Error>;
 	/// Check partial response of given node.
-	fn check_partial_response(&self, partial_response: &Self::PartialJobResponse) -> Result<JobPartialResponseAction, Error>;
+	fn check_partial_response(&mut self, sender: &NodeId, partial_response: &Self::PartialJobResponse) -> Result<JobPartialResponseAction, Error>;
 	/// Compute final job response.
 	fn compute_response(&self, partial_responses: &BTreeMap<NodeId, Self::PartialJobResponse>) -> Result<Self::JobResponse, Error>;
 }
@@ -127,9 +127,19 @@ impl<Executor, Transport> JobSession<Executor, Transport> where Executor: JobExe
 		&self.transport
 	}
 
+	/// Get mutable transport reference.
+	pub fn transport_mut(&mut self) -> &mut Transport {
+		&mut self.transport
+	}
+
 	/// Get executor reference.
 	pub fn executor(&self) -> &Executor {
 		&self.executor
+	}
+
+	/// Get mutable executor reference.
+	pub fn executor_mut(&mut self) -> &mut Executor {
+		&mut self.executor
 	}
 
 	/// Get job state.
@@ -181,7 +191,10 @@ impl<Executor, Transport> JobSession<Executor, Transport> where Executor: JobExe
 	/// Initialize.
 	pub fn initialize(&mut self, nodes: BTreeSet<NodeId>) -> Result<(), Error> {		
 		debug_assert!(self.meta.self_node_id == self.meta.master_node_id);
-		debug_assert!(nodes.len() >= self.meta.threshold + 1);
+
+		if nodes.len() < self.meta.threshold + 1 {
+			return Err(Error::ConsensusUnreachable);
+		}
 
 		if self.data.state != JobSessionState::Inactive {
 			return Err(Error::InvalidStateForRequest);
@@ -266,7 +279,7 @@ impl<Executor, Transport> JobSession<Executor, Transport> where Executor: JobExe
 			return Err(Error::InvalidNodeForRequest);
 		}
 		
-		match self.executor.check_partial_response(&response)? {
+		match self.executor.check_partial_response(node, &response)? {
 			JobPartialResponseAction::Ignore => Ok(()),
 			JobPartialResponseAction::Reject => {
 				active_data.rejects.insert(node.clone());
@@ -279,7 +292,6 @@ impl<Executor, Transport> JobSession<Executor, Transport> where Executor: JobExe
 			},
 			JobPartialResponseAction::Accept => {
 				active_data.responses.insert(node.clone(), response);
-
 				if active_data.responses.len() < self.meta.threshold + 1 {
 					return Ok(());
 				}
@@ -351,7 +363,7 @@ pub mod tests {
 
 		fn prepare_partial_request(&self, _n: &NodeId, _nodes: &BTreeSet<NodeId>) -> Result<u32, Error> { Ok(2) }
 		fn process_partial_request(&mut self, r: u32) -> Result<JobPartialRequestAction<u32>, Error> { if r <= 10 { Ok(JobPartialRequestAction::Respond(r * r)) } else { Err(Error::InvalidMessage) } }
-		fn check_partial_response(&self, r: &u32) -> Result<JobPartialResponseAction, Error> { if r % 2 == 0 { Ok(JobPartialResponseAction::Accept) } else { Ok(JobPartialResponseAction::Reject) } }
+		fn check_partial_response(&mut self, _s: &NodeId, r: &u32) -> Result<JobPartialResponseAction, Error> { if r % 2 == 0 { Ok(JobPartialResponseAction::Accept) } else { Ok(JobPartialResponseAction::Reject) } }
 		fn compute_response(&self, r: &BTreeMap<NodeId, u32>) -> Result<u32, Error> { Ok(r.values().fold(0, |v1, v2| v1 + v2)) }
 	}
 

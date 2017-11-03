@@ -35,6 +35,15 @@ pub enum ActionValue {
 	Apparent(U256)
 }
 
+/// Type of the way parameters encoded
+#[derive(Clone, Debug)]
+pub enum ParamsType {
+	/// Parameters are included in code
+	Embedded,
+	/// Parameters are passed in data section
+	Separate,
+}
+
 impl ActionValue {
 	/// Returns action value as U256.
 	pub fn value(&self) -> U256 {
@@ -81,7 +90,8 @@ pub struct ActionParams {
 	pub data: Option<Bytes>,
 	/// Type of call
 	pub call_type: CallType,
-
+	/// Param types encoding
+	pub params_type: ParamsType,
 }
 
 impl Default for ActionParams {
@@ -99,6 +109,7 @@ impl Default for ActionParams {
 			code: None,
 			data: None,
 			call_type: CallType::None,
+			params_type: ParamsType::Separate,
 		}
 	}
 }
@@ -118,6 +129,7 @@ impl From<ethjson::vm::Transaction> for ActionParams {
 			gas_price: t.gas_price.into(),
 			value: ActionValue::Transfer(t.value.into()),
 			call_type: match address.is_zero() { true => CallType::None, false => CallType::Call },	// TODO @debris is this correct?
+			params_type: ParamsType::Separate,
 		}
 	}
 }

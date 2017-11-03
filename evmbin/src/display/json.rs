@@ -16,11 +16,13 @@
 
 //! JSON VM output.
 
-use ethcore::trace;
 use std::collections::HashMap;
-use bigint::prelude::U256;
+use std::mem;
+
 use bigint::hash::H256;
+use bigint::prelude::U256;
 use bytes::ToPretty;
+use ethcore::trace;
 
 use display;
 use info as vm;
@@ -37,6 +39,9 @@ pub struct Informant {
 	stack: Vec<U256>,
 	memory: Vec<u8>,
 	storage: HashMap<H256, H256>,
+	traces: Vec<String>,
+	subtraces: Vec<String>,
+	unmatched: bool,
 }
 
 impl Informant {
@@ -70,28 +75,43 @@ impl vm::Informant for Informant {
 		self.gas_used = gas;
 	}
 
-	fn finish(result: Result<vm::Success, vm::Failure>) {
+	fn finish(result: vm::RunResult<Self::Output>) {
 		match result {
-			Ok(success) => println!(
-				"{{\"output\":\"0x{output}\",\"gasUsed\":\"{gas:x}\",\"time\":{time}}}",
-				output = success.output.to_hex(),
-				gas = success.gas_used,
-				time = display::as_micros(&success.time),
-			),
-			Err(failure) => println!(
-				"{{\"error\":\"{error}\",\"gasUsed\":\"{gas:x}\",\"time\":{time}}}",
-				error = failure.error,
-				gas = failure.gas_used,
-				time = display::as_micros(&failure.time),
-			),
+			Ok(success) => {
+				for trace in success.traces.unwrap_or_else(Vec::new) {
+					println!("{}", trace);
+				}
+
+				println!(
+					"{{\"output\":\"0x{output}\",\"gasUsed\":\"{gas:x}\",\"time\":{time}}}",
+					output = success.output.to_hex(),
+					gas = success.gas_used,
+					time = display::as_micros(&success.time),
+				)
+			},
+			Err(failure) => {
+				for trace in failure.traces.unwrap_or_else(Vec::new) {
+					println!("{}", trace);
+				}
+
+				println!(
+					"{{\"error\":\"{error}\",\"gasUsed\":\"{gas:x}\",\"time\":{time}}}",
+					error = failure.error,
+					gas = failure.gas_used,
+					time = display::as_micros(&failure.time),
+				)
+			},
 		}
 	}
 }
 
 impl trace::VMTracer for Informant {
+	type Output = Vec<String>;
+
 	fn trace_next_instruction(&mut self, pc: usize, instruction: u8) -> bool {
 		self.pc = pc;
 		self.instruction = instruction;
+		self.unmatched = true;
 		true
 	}
 
@@ -104,19 +124,21 @@ impl trace::VMTracer for Informant {
 	fn trace_executed(&mut self, gas_used: U256, stack_push: &[U256], mem_diff: Option<(usize, &[u8])>, store_diff: Option<(U256, U256)>) {
 		let info = ::evm::INSTRUCTIONS[self.instruction as usize];
 
-		println!(
+		let trace = format!(
 			"{{\"pc\":{pc},\"op\":{op},\"opName\":\"{name}\",\"gas\":{gas},\"gasCost\":{gas_cost},\"memory\":{memory},\"stack\":{stack},\"storage\":{storage},\"depth\":{depth}}}",
 			pc = self.pc,
 			op = self.instruction,
 			name = info.name,
-			gas = display::u256_as_str(&(gas_used + self.gas_cost)),
+			gas = display::u256_as_str(&(gas_used.saturating_add(self.gas_cost))),
 			gas_cost = display::u256_as_str(&self.gas_cost),
 			memory = self.memory(),
 			stack = self.stack(),
 			storage = self.storage(),
 			depth = self.depth,
 		);
+		self.traces.push(trace);
 
+		self.unmatched = false;
 		self.gas_used = gas_used;
 
 		let len = self.stack.len();
@@ -133,6 +155,11 @@ impl trace::VMTracer for Informant {
 		if let Some((pos, val)) = store_diff {
 			self.storage.insert(pos.into(), val.into());
 		}
+
+
+		if !self.subtraces.is_empty() {
+			self.traces.extend(mem::replace(&mut self.subtraces, vec![]));
+		}
 	}
 
 	fn prepare_subtrace(&self, code: &[u8]) -> Self where Self: Sized {
@@ -143,14 +170,21 @@ impl trace::VMTracer for Informant {
 		vm
 	}
 
-	fn done_subtrace(&mut self, mut sub: Self) {
-		if sub.depth == 1 {
-			// print last line with final state:
-			sub.gas_cost = 0.into();
-			let gas_used = sub.gas_used;
-			trace::VMTracer::trace_executed(&mut sub, gas_used, &[], None, None);
+	fn done_subtrace(&mut self, sub: Self) {
+		if let Some(subtraces) = sub.drain() {
+			self.subtraces.extend(subtraces);
 		}
 	}
 
-	fn drain(self) -> Option<trace::VMTrace> { None }
+	fn drain(mut self) -> Option<Self::Output> {
+		if self.unmatched {
+			// print last line with final state:
+			self.gas_cost = 0.into();
+			let gas_used = self.gas_used;
+			self.trace_executed(gas_used, &[], None, None);
+		} else if !self.subtraces.is_empty() {
+			self.traces.extend(mem::replace(&mut self.subtraces, vec![]));
+		}
+		Some(self.traces)
+	}
 }

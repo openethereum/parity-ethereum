@@ -23,7 +23,7 @@ use super::types::all::ServerKeyId;
 pub use super::traits::NodeKeyPair;
 pub use super::types::all::{NodeId, EncryptedDocumentKeyShadow};
 pub use super::acl_storage::AclStorage;
-pub use super::key_storage::{KeyStorage, DocumentKeyShare};
+pub use super::key_storage::{KeyStorage, DocumentKeyShare, DocumentKeyShareVersion};
 pub use super::key_server_set::KeyServerSet;
 pub use super::serialization::{SerializableSignature, SerializableH256, SerializableSecret, SerializablePublic, SerializableMessageHash};
 pub use self::cluster::{ClusterCore, ClusterConfiguration, ClusterClient};
@@ -95,6 +95,8 @@ pub enum Error {
 	ReplayProtection,
 	/// Connection to node, required for this session is not established.
 	NodeDisconnected,
+	/// Node is missing requested key share.
+	MissingKeyShare,
 	/// Cryptographic error.
 	EthKey(String),
 	/// I/O error has occured.
@@ -150,6 +152,7 @@ impl fmt::Display for Error {
 			Error::InvalidMessageVersion => write!(f, "unsupported message is received"),
 			Error::ReplayProtection => write!(f, "replay message is received"),
 			Error::NodeDisconnected => write!(f, "node required for this operation is currently disconnected"),
+			Error::MissingKeyShare => write!(f, "requested key share version is not found"),
 			Error::EthKey(ref e) => write!(f, "cryptographic error {}", e),
 			Error::Io(ref e) => write!(f, "i/o error {}", e),
 			Error::Serde(ref e) => write!(f, "serde error {}", e),
@@ -171,18 +174,19 @@ impl Into<String> for Error {
 mod admin_sessions;
 mod client_sessions;
 
+pub use self::admin_sessions::key_version_negotiation_session;
 pub use self::admin_sessions::servers_set_change_session;
 pub use self::admin_sessions::share_add_session;
 pub use self::admin_sessions::share_change_session;
-pub use self::admin_sessions::share_move_session;
-pub use self::admin_sessions::share_remove_session;
 
 pub use self::client_sessions::decryption_session;
 pub use self::client_sessions::encryption_session;
 pub use self::client_sessions::generation_session;
 pub use self::client_sessions::signing_session;
+
 mod cluster;
 mod cluster_sessions;
+mod cluster_sessions_creator;
 mod io;
 mod jobs;
 pub mod math;

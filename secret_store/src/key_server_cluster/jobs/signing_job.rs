@@ -27,6 +27,8 @@ pub struct SigningJob {
 	self_node_id: NodeId,
 	/// Key share.
 	key_share: DocumentKeyShare,
+	/// Key version.
+	key_version: H256,
 	/// Session public key.
 	session_public: Public,
 	/// Session secret coefficient.
@@ -56,10 +58,11 @@ pub struct PartialSigningResponse {
 }
 
 impl SigningJob {
-	pub fn new_on_slave(self_node_id: NodeId, key_share: DocumentKeyShare, session_public: Public, session_secret_coeff: Secret) -> Result<Self, Error> {
+	pub fn new_on_slave(self_node_id: NodeId, key_share: DocumentKeyShare, key_version: H256, session_public: Public, session_secret_coeff: Secret) -> Result<Self, Error> {
 		Ok(SigningJob {
 			self_node_id: self_node_id,
 			key_share: key_share,
+			key_version: key_version,
 			session_public: session_public,
 			session_secret_coeff: session_secret_coeff,
 			request_id: None,
@@ -67,10 +70,11 @@ impl SigningJob {
 		})
 	}
 
-	pub fn new_on_master(self_node_id: NodeId, key_share: DocumentKeyShare, session_public: Public, session_secret_coeff: Secret, message_hash: H256) -> Result<Self, Error> {
+	pub fn new_on_master(self_node_id: NodeId, key_share: DocumentKeyShare, key_version: H256, session_public: Public, session_secret_coeff: Secret, message_hash: H256) -> Result<Self, Error> {
 		Ok(SigningJob {
 			self_node_id: self_node_id,
 			key_share: key_share,
+			key_version: key_version,
 			session_public: session_public,
 			session_secret_coeff: session_secret_coeff,
 			request_id: Some(math::generate_random_scalar()?),
@@ -102,14 +106,15 @@ impl JobExecutor for SigningJob {
 	}
 
 	fn process_partial_request(&mut self, partial_request: PartialSigningRequest) -> Result<JobPartialRequestAction<PartialSigningResponse>, Error> {
+		let key_version = self.key_share.version(&self.key_version).map_err(|e| Error::KeyStorage(e.into()))?;
 		if partial_request.other_nodes_ids.len() != self.key_share.threshold
 			|| partial_request.other_nodes_ids.contains(&self.self_node_id)
-			|| partial_request.other_nodes_ids.iter().any(|n| !self.key_share.id_numbers.contains_key(n)) {
+			|| partial_request.other_nodes_ids.iter().any(|n| !key_version.id_numbers.contains_key(n)) {
 			return Err(Error::InvalidMessage);
 		}
 
-		let self_id_number = &self.key_share.id_numbers[&self.self_node_id];
-		let other_id_numbers = partial_request.other_nodes_ids.iter().map(|n| &self.key_share.id_numbers[n]);
+		let self_id_number = &key_version.id_numbers[&self.self_node_id];
+		let other_id_numbers = partial_request.other_nodes_ids.iter().map(|n| &key_version.id_numbers[n]);
 		let combined_hash = math::combine_message_hash_with_public(&partial_request.message_hash, &self.session_public)?;
 		Ok(JobPartialRequestAction::Respond(PartialSigningResponse {
 			request_id: partial_request.id,
@@ -117,14 +122,14 @@ impl JobExecutor for SigningJob {
 				self.key_share.threshold,
 				&combined_hash,
 				&self.session_secret_coeff,
-				&self.key_share.secret_share,
+				&key_version.secret_share,
 				self_id_number,
 				other_id_numbers
 			)?,
 		}))
 	}
 
-	fn check_partial_response(&self, partial_response: &PartialSigningResponse) -> Result<JobPartialResponseAction, Error> {
+	fn check_partial_response(&mut self, _sender: &NodeId, partial_response: &PartialSigningResponse) -> Result<JobPartialResponseAction, Error> {
 		if Some(&partial_response.request_id) != self.request_id.as_ref() {
 			return Ok(JobPartialResponseAction::Ignore);
 		}

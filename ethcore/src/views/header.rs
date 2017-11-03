@@ -21,7 +21,7 @@ use bigint::prelude::U256;
 use bigint::hash::{H256, H2048};
 use util::Address;
 use bytes::Bytes;
-use rlp::Rlp;
+use rlp::{self, Rlp};
 use header::BlockNumber;
 
 /// View onto block header rlp.
@@ -98,6 +98,14 @@ impl<'a> HeaderView<'a> {
 			seal.push(self.rlp.at(i).as_raw().to_vec());
 		}
 		seal
+	}
+
+	/// Returns a vector of seal fields (RLP-decoded).
+	pub fn decode_seal(&self) -> Result<Vec<Bytes>, rlp::DecoderError> {
+		let seal = self.seal();
+		seal.into_iter()
+			.map(|s| rlp::UntrustedRlp::new(&s).data().map(|x| x.to_vec()))
+			.collect()
 	}
 }
 

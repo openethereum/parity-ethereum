@@ -19,7 +19,6 @@
 use std::sync::Arc;
 
 use ethcore::client::{MiningBlockChainClient, CallAnalytics, TransactionId, TraceId};
-use ethcore::miner::MinerService;
 use ethcore::transaction::SignedTransaction;
 use rlp::UntrustedRlp;
 
@@ -39,22 +38,20 @@ fn to_call_analytics(flags: TraceOptions) -> CallAnalytics {
 }
 
 /// Traces api implementation.
-pub struct TracesClient<C, M> {
+pub struct TracesClient<C> {
 	client: Arc<C>,
-	miner: Arc<M>,
 }
 
-impl<C, M> TracesClient<C, M> {
+impl<C> TracesClient<C> {
 	/// Creates new Traces client.
-	pub fn new(client: &Arc<C>, miner: &Arc<M>) -> Self {
+	pub fn new(client: &Arc<C>) -> Self {
 		TracesClient {
 			client: client.clone(),
-			miner: miner.clone(),
 		}
 	}
 }
 
-impl<C, M> Traces for TracesClient<C, M> where C: MiningBlockChainClient + 'static, M: MinerService + 'static {
+impl<C> Traces for TracesClient<C> where C: MiningBlockChainClient + 'static {
 	type Metadata = Metadata;
 
 	fn filter(&self, filter: TraceFilter) -> Result<Option<Vec<LocalizedTrace>>, Error> {
@@ -86,7 +83,7 @@ impl<C, M> Traces for TracesClient<C, M> where C: MiningBlockChainClient + 'stat
 		let block = block.unwrap_or_default();
 
 		let request = CallRequest::into(request);
-		let signed = fake_sign::sign_call(&self.client, &self.miner, request, meta.is_dapp())?;
+		let signed = fake_sign::sign_call(request, meta.is_dapp())?;
 
 		self.client.call(&signed, to_call_analytics(flags), block.into())
 			.map(TraceResults::from)
@@ -99,7 +96,7 @@ impl<C, M> Traces for TracesClient<C, M> where C: MiningBlockChainClient + 'stat
 		let requests = requests.into_iter()
 			.map(|(request, flags)| {
 				let request = CallRequest::into(request);
-				let signed = fake_sign::sign_call(&self.client, &self.miner, request, meta.is_dapp())?;
+				let signed = fake_sign::sign_call(request, meta.is_dapp())?;
 				Ok((signed, to_call_analytics(flags)))
 			})
 			.collect::<Result<Vec<_>, Error>>()?;
