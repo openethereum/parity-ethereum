@@ -14,8 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import 'whatwg-fetch';
-
 import Api from '@parity/api';
 import Web3 from 'web3';
 

@@ -164,7 +164,6 @@
     "@parity/api": "2.1.x",
     "@parity/wordlist": "1.1.x",
     "arraybuffer-loader": "0.2.2",
-    "babel-runtime": "6.23.0",
     "base32.js": "0.1.0",
     "bignumber.js": "3.0.1",
     "blockies": "0.0.2",

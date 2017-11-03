@@ -28,12 +28,12 @@ const DEST = process.env.BUILD_DEST || '.build';
 module.exports = {
   context: path.join(__dirname, '../src'),
   devtool: isProd
-    ? '#source-map'
+    ? false
     : '#eval',
   entry: {
     inject: ['./inject.js'],
-    parity: ['./inject.js'],
-    web3: ['./inject.js']
+    parity: ['./inject.script.js'],
+    web3: ['./inject.script.js']
   },
   output: {
     path: path.join(__dirname, '../', DEST),
@@ -43,9 +43,7 @@ module.exports = {
   },
 
   resolve: {
-    alias: {
-
-    }
+    alias: {}
   },
 
   node: {

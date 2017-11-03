@@ -14,13 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-module.exports = {
-  test: /\.js$/,
-  include: /node_modules\/(@parity\/dapp-|@parity\/plugin-|@parity\/shared|@parity\/ui|oo7)/,
-  use: [ {
-    loader: 'happypack/loader',
-    options: {
-      id: 'babel'
-    }
-  } ]
-};
+const script = document.createElement('script');
+
+script.type = 'text/javascript';
+script.onload = function() {};
+script.src = '/parity-utils/inject.js';
+
+document.getElementsByTagName('head')[0].appendChild(script);
