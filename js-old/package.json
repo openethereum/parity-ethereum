@@ -161,7 +161,7 @@
     "yargs": "6.6.0"
   },
   "dependencies": {
-    "@parity/api": "2.0.x",
+    "@parity/api": "2.1.x",
     "@parity/wordlist": "1.1.x",
     "arraybuffer-loader": "0.2.2",
     "babel-runtime": "6.23.0",

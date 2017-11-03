@@ -16,7 +16,7 @@
 
 import flatten from 'lodash.flatten';
 
-import { sha3 } from '@parity/api/util/sha3';
+import { sha3 } from '@parity/api/lib/util/sha3';
 import VisibleStore from '@parity/shared/mobx/dappsStore';
 
 import RequestStore from './DappRequests/store';
