@@ -33,7 +33,7 @@ pub fn brain_recover(
 			None => {
 				info!("Invalid word '{}', looking for potential substitutions.", word);
 				let substitutions = generate_substitutions(word);
-				info!("Closest found: {}", &substitutions[0]);
+				info!("Closest words: {:?}", &substitutions[..10]);
 				substitutions
 			},
 			Some(word) => vec![*word],
