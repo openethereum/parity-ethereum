@@ -5,7 +5,7 @@ use std::collections::{HashMap, BTreeSet};
 use smallvec::SmallVec;
 
 use error;
-use {Readiness};
+use {Ready, Readiness};
 use {Listener, NoopListener};
 use {Scoring, ScoringChoice, ScoringChange};
 use {VerifiedTransaction, SharedTransaction, H256};
@@ -30,9 +30,18 @@ impl Default for Options {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct Status {
+pub struct LightStatus {
 	pub mem_usage: usize,
 	pub count: usize,
+	pub senders: usize,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct Status {
+	pub stalled: usize,
+	pub pending: usize,
+	pub future: usize,
+	pub senders: usize,
 }
 
 #[derive(Debug, Clone)]
@@ -282,21 +291,6 @@ impl<S, L> Pool<S, L> where
 		}
 	}
 
-	pub fn status(&self) -> Status {
-		Status {
-			mem_usage: self.mem_usage,
-			count: self.by_hash.len(),
-		}
-	}
-
-	pub fn pending<R: Readiness>(&self, ready: R) -> PendingIterator<R, S, L> {
-		PendingIterator {
-			ready,
-			best_transactions: self.best_transactions.clone(),
-			pool: self,
-		}
-	}
-
 	pub fn remove(&mut self, hash: &H256, is_invalid: bool) -> bool {
 		if let Some(tx) = self.by_hash.remove(hash) {
 			self.remove_transaction(&tx);
@@ -308,6 +302,51 @@ impl<S, L> Pool<S, L> where
 			true
 		} else {
 			false
+		}
+	}
+
+	pub fn light_status(&self) -> LightStatus {
+		LightStatus {
+			mem_usage: self.mem_usage,
+			count: self.by_hash.len(),
+			senders: self.transactions.len(),
+		}
+	}
+
+	pub fn status<R: Ready>(&self, mut ready: R) -> Status {
+		let mut stalled = 0;
+		let mut pending = 0;
+		let mut future = 0;
+		let mut senders = 0;
+
+		for (_sender, transactions) in &self.transactions {
+			senders += 1;
+			let len = transactions.len();
+			for (idx, tx) in transactions.iter().enumerate() {
+				match ready.is_ready(tx) {
+					Readiness::Stalled => stalled += 1,
+					Readiness::Ready => pending += 1,
+					Readiness::Future => {
+						future += len - idx;
+						break;
+					}
+				}
+			}
+		}
+
+		Status {
+			stalled,
+			pending,
+			future,
+			senders,
+		}
+	}
+
+	pub fn pending<R: Ready>(&self, ready: R) -> PendingIterator<R, S, L> {
+		PendingIterator {
+			ready,
+			best_transactions: self.best_transactions.clone(),
+			pool: self,
 		}
 	}
 }
@@ -322,7 +361,7 @@ pub struct PendingIterator<'a, R, S, L> where
 }
 
 impl<'a, R, S, L> Iterator for PendingIterator<'a, R, S, L> where
-	R: Readiness,
+	R: Ready,
 	S: Scoring,
 {
 	type Item = SharedTransaction;
@@ -335,18 +374,21 @@ impl<'a, R, S, L> Iterator for PendingIterator<'a, R, S, L> where
 				self.best_transactions.take(&best).expect("Just taken from iterator; qed")
 			};
 
-			if self.ready.is_ready(&best.transaction) {
-				let sender = best.transaction.sender();
+			match self.ready.is_ready(&best.transaction) {
+				Readiness::Ready => {
+					let sender = best.transaction.sender();
 
-				// retrieve next one from that sender.
-				let next = self.pool.transactions
-					.get(&sender)
-					.and_then(|s| s.find_next(&best.transaction, &self.pool.scoring));
-				if let Some((score, tx)) = next {
-					self.best_transactions.insert(ScoreWithRef::new(score, tx));
-				}
+					// retrieve next one from that sender.
+					let next = self.pool.transactions
+						.get(&sender)
+						.and_then(|s| s.find_next(&best.transaction, &self.pool.scoring));
+					if let Some((score, tx)) = next {
+						self.best_transactions.insert(ScoreWithRef::new(score, tx));
+					}
 
-				return Some(best.transaction)
+					return Some(best.transaction)
+				},
+				state => warn!("[{:?}] Ignoring {:?} transaction.", best.transaction.hash(), state),
 			}
 		}
 
@@ -382,6 +424,14 @@ struct Transactions<T> {
 }
 
 impl<T: Clone> Transactions<T> {
+	pub fn len(&self) -> usize {
+		self.transactions.len()
+	}
+
+	pub fn iter(&self) -> ::std::slice::Iter<SharedTransaction> {
+		self.transactions.iter()
+	}
+
 	pub fn worst_and_best(&self) -> Option<((T, SharedTransaction), (T, SharedTransaction))> {
 		let len = self.scores.len();
 		self.scores.get(0).cloned().map(|best| {
@@ -470,6 +520,7 @@ impl<T: cmp::Ord + Clone + Default + fmt::Debug> Transactions<T> {
 			},
 		}
 	}
+
 	pub fn remove<S>(&mut self, tx: &VerifiedTransaction, scoring: &S) -> bool where
 		S: Scoring<Score=T>,
 	{
@@ -532,15 +583,17 @@ mod tests {
 	}
 
 	#[derive(Default)]
-	struct NonceReadiness(HashMap<Sender, U256>);
-	impl Readiness for NonceReadiness {
-		fn is_ready(&mut self, tx: &VerifiedTransaction) -> bool {
+	struct NonceReady(HashMap<Sender, U256>);
+	impl Ready for NonceReady {
+		fn is_ready(&mut self, tx: &VerifiedTransaction) -> Readiness {
 			let nonce = self.0.entry(tx.sender()).or_insert_with(|| U256::from(0));
-			if tx.nonce == *nonce {
-				*nonce = U256::from(nonce.0 + 1);
-				true
-			} else {
-				false
+			match tx.nonce.cmp(nonce) {
+				cmp::Ordering::Greater => Readiness::Future,
+				cmp::Ordering::Equal => {
+					*nonce = U256::from(nonce.0 + 1);
+					Readiness::Ready
+				},
+				cmp::Ordering::Less => Readiness::Stalled,
 			}
 		}
 	}
@@ -598,9 +651,10 @@ mod tests {
 		// given
 		let b = TransactionBuilder::default();
 		let mut txq = TestPool::default();
-		assert_eq!(txq.status(), Status {
+		assert_eq!(txq.light_status(), LightStatus {
 			mem_usage: 0,
 			count: 0,
+			senders: 0,
 		});
 		let tx1 = b.tx().nonce(0).new();
 		let tx2 = b.tx().nonce(1).new();
@@ -608,18 +662,20 @@ mod tests {
 		// add
 		txq.import(tx1).unwrap();
 		txq.import(tx2).unwrap();
-		assert_eq!(txq.status(), Status {
+		assert_eq!(txq.light_status(), LightStatus {
 			mem_usage: 1,
 			count: 2,
+			senders: 1,
 		});
 
 		// when
 		txq.clear();
 
 		// then
-		assert_eq!(txq.status(), Status {
+		assert_eq!(txq.light_status(), LightStatus {
 			mem_usage: 0,
 			count: 0,
+			senders: 0,
 		});
 	}
 
@@ -636,7 +692,7 @@ mod tests {
 		txq.import(tx2).unwrap_err();
 
 		// then
-		assert_eq!(txq.status().count, 1);
+		assert_eq!(txq.light_status().count, 1);
 	}
 
 	#[test]
@@ -652,7 +708,7 @@ mod tests {
 		txq.import(tx2).unwrap();
 
 		// then
-		assert_eq!(txq.status().count, 1);
+		assert_eq!(txq.light_status().count, 1);
 	}
 
 	#[test]
@@ -669,7 +725,7 @@ mod tests {
 		let hash = tx2.hash();
 		txq.import(tx1).unwrap();
 		assert_eq!(txq.import(tx2).unwrap_err().kind(), &error::ErrorKind::TooCheapToEnter(hash));
-		assert_eq!(txq.status().count, 1);
+		assert_eq!(txq.light_status().count, 1);
 
 		txq.clear();
 
@@ -678,7 +734,7 @@ mod tests {
 		let tx2 = b.tx().nonce(0).sender(1).gas_price(2).new();
 		txq.import(tx1).unwrap();
 		txq.import(tx2).unwrap();
-		assert_eq!(txq.status().count, 1);
+		assert_eq!(txq.light_status().count, 1);
 	}
 
 	#[test]
@@ -695,7 +751,7 @@ mod tests {
 		let hash = tx2.hash();
 		txq.import(tx1).unwrap();
 		assert_eq!(txq.import(tx2).unwrap_err().kind(), &error::ErrorKind::TooCheapToEnter(hash));
-		assert_eq!(txq.status().count, 1);
+		assert_eq!(txq.light_status().count, 1);
 
 		txq.clear();
 
@@ -704,7 +760,7 @@ mod tests {
 		let tx2 = b.tx().nonce(1).sender(1).gas_price(2).new();
 		txq.import(tx1).unwrap();
 		txq.import(tx2).unwrap();
-		assert_eq!(txq.status().count, 1);
+		assert_eq!(txq.light_status().count, 1);
 	}
 
 	#[test]
@@ -721,7 +777,7 @@ mod tests {
 		let hash = tx2.hash();
 		txq.import(tx1).unwrap();
 		assert_eq!(txq.import(tx2).unwrap_err().kind(), &error::ErrorKind::TooCheapToEnter(hash));
-		assert_eq!(txq.status().count, 1);
+		assert_eq!(txq.light_status().count, 1);
 
 		txq.clear();
 
@@ -732,7 +788,7 @@ mod tests {
 		txq.import(tx1).unwrap();
 		// This results in error because we also compare nonces
 		assert_eq!(txq.import(tx2).unwrap_err().kind(), &error::ErrorKind::TooCheapToEnter(hash));
-		assert_eq!(txq.status().count, 1);
+		assert_eq!(txq.light_status().count, 1);
 	}
 
 	#[test]
@@ -758,11 +814,17 @@ mod tests {
 		txq.import(b.tx().sender(1).nonce(5).new()).unwrap();
 
 		let tx9 = txq.import(b.tx().sender(2).nonce(0).new()).unwrap();
-		assert_eq!(txq.status().count, 11);
+		assert_eq!(txq.light_status().count, 11);
+		assert_eq!(txq.status(NonceReady::default()), Status {
+			stalled: 0,
+			pending: 9,
+			future: 2,
+			senders: 3,
+		});
 
 		// when
 		let mut current_gas = 0;
-		let mut pending = txq.pending(NonceReadiness::default()).take_while(|tx| {
+		let mut pending = txq.pending(NonceReady::default()).take_while(|tx| {
 			let should_take = tx.gas.0 + current_gas <= 21_000 * 8;
 			if should_take {
 				current_gas += tx.gas.0
@@ -790,14 +852,14 @@ mod tests {
 		let tx1 = txq.import(b.tx().nonce(0).new()).unwrap();
 		let tx2 = txq.import(b.tx().nonce(1).new()).unwrap();
 		txq.import(b.tx().nonce(2).new()).unwrap();
-		assert_eq!(txq.status().count, 3);
+		assert_eq!(txq.light_status().count, 3);
 
 		// when
 		assert!(txq.remove(&tx2.hash(), false));
 
 		// then
-		assert_eq!(txq.status().count, 2);
-		let mut pending = txq.pending(NonceReadiness::default());
+		assert_eq!(txq.light_status().count, 2);
+		let mut pending = txq.pending(NonceReady::default());
 		assert_eq!(pending.next(), Some(tx1));
 		assert_eq!(pending.next(), None);
 	}

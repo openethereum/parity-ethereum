@@ -93,13 +93,14 @@ pub trait Listener {
 pub struct NoopListener;
 impl Listener for NoopListener {}
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ScoringChoice {
 	RejectNew,
 	ReplaceOld,
 	InsertNew,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ScoringChange {
 	/// New transaction has been inserted at given index.
 	/// The Score at that index is initialized with default value
@@ -127,14 +128,27 @@ pub trait Scoring {
 	fn should_replace(&self, old: &VerifiedTransaction, new: &VerifiedTransaction) -> bool;
 }
 
-pub trait Readiness {
-	/// Returns true if transaction is ready to be included in pending block,
-	/// given all previous transactions that were ready are included.
-	fn is_ready(&mut self, tx: &VerifiedTransaction) -> bool;
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Readiness {
+	Stalled,
+	Ready,
+	Future,
 }
 
-impl<F> Readiness for F where F: FnMut(&VerifiedTransaction) -> bool {
-	fn is_ready(&mut self, tx: &VerifiedTransaction) -> bool {
+impl From<bool> for Readiness {
+	fn from(b: bool) -> Self {
+		if b { Readiness::Ready } else { Readiness::Future }
+	}
+}
+
+pub trait Ready {
+	/// Returns true if transaction is ready to be included in pending block,
+	/// given all previous transactions that were ready are included.
+	fn is_ready(&mut self, tx: &VerifiedTransaction) -> Readiness;
+}
+
+impl<F> Ready for F where F: FnMut(&VerifiedTransaction) -> Readiness {
+	fn is_ready(&mut self, tx: &VerifiedTransaction) -> Readiness {
 		(*self)(tx)
 	}
 }
