@@ -115,7 +115,18 @@ impl vm::Vm for WasmInterpreter {
 			&self.program,
 		);
 
-		let mut cursor = ::std::io::Cursor::new(&*code);
+		let (mut cursor, data_position) = match params.params_type {
+			vm::ParamsType::Embedded => {
+				let module_size = parity_wasm::peek_size(&*code);
+				(
+					::std::io::Cursor::new(&code[..module_size]),
+					module_size
+				)
+			},
+			vm::ParamsType::Separate => {
+				(::std::io::Cursor::new(&code[..]), 0)
+			},
+		};
 
 		let contract_module = wasm_utils::inject_gas_counter(
 			elements::Module::deserialize(
@@ -134,8 +145,19 @@ impl vm::Vm for WasmInterpreter {
 		let static_segment_cost = data_section_length * runtime.ext().schedule().wasm.static_region as u64;
 		runtime.charge(|_| static_segment_cost).map_err(Error)?;
 
-		let d_ptr = runtime.write_descriptor(&params.data.unwrap_or_default())
-			.map_err(Error)?;
+		let d_ptr = {
+			match params.params_type {
+				vm::ParamsType::Embedded => {
+					runtime.write_descriptor(
+						if data_position < code.len() { &code[data_position..] } else { &[] }
+					).map_err(Error)?
+				},
+				vm::ParamsType::Separate => {
+					runtime.write_descriptor(&params.data.unwrap_or_default())
+						.map_err(Error)?
+				}
+			}
+		};
 
 		{
 			let execution_params = runtime.execution_params()

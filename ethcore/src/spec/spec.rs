@@ -30,7 +30,7 @@ use parking_lot::RwLock;
 use rlp::{Rlp, RlpStream};
 use rustc_hex::FromHex;
 use util::*;
-use vm::{EnvInfo, CallType, ActionValue, ActionParams};
+use vm::{EnvInfo, CallType, ActionValue, ActionParams, ParamsType};
 
 use super::genesis::Genesis;
 use super::seal::Generic as GenericSeal;
@@ -504,6 +504,7 @@ impl Spec {
 					code: Some(Arc::new(constructor.clone())),
 					data: None,
 					call_type: CallType::None,
+					params_type: ParamsType::Embedded,
 				};
 
 				let mut substate = Substate::new();
