@@ -34,7 +34,7 @@ impl JobExecutor for DummyJob {
 		unreachable!("dummy job methods are never called")
 	}
 
-	fn check_partial_response(&self, _r: &()) -> Result<JobPartialResponseAction, Error> {
+	fn check_partial_response(&mut self, _s: &NodeId, _r: &()) -> Result<JobPartialResponseAction, Error> {
 		unreachable!("dummy job methods are never called")
 	}
 

@@ -515,10 +515,6 @@ pub struct AccountDetails {
 /// `new_gas_price > old_gas_price + old_gas_price >> SHIFT`
 const GAS_PRICE_BUMP_SHIFT: usize = 3; // 2 = 25%, 3 = 12.5%, 4 = 6.25%
 
-/// Future queue limits are lower from current queue limits:
-/// `future_limit = current_limit >> SHIFT`
-const FUTURE_QUEUE_LIMITS_SHIFT: usize = 3; // 2 = 25%, 3 = 12.5%, 4 = 6.25%
-
 /// Describes the strategy used to prioritize transactions in the queue.
 #[cfg_attr(feature="dev", allow(enum_variant_names))]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -626,9 +622,9 @@ impl TransactionQueue {
 			by_priority: BTreeSet::new(),
 			by_address: Table::new(),
 			by_gas_price: Default::default(),
-			total_gas_limit: total_gas_limit >> FUTURE_QUEUE_LIMITS_SHIFT,
-			limit: limit >> FUTURE_QUEUE_LIMITS_SHIFT,
-			memory_limit: memory_limit >> FUTURE_QUEUE_LIMITS_SHIFT,
+			total_gas_limit,
+			limit,
+			memory_limit,
 		};
 
 		TransactionQueue {
@@ -649,7 +645,7 @@ impl TransactionQueue {
 	/// Set the new limit for `current` and `future` queue.
 	pub fn set_limit(&mut self, limit: usize) {
 		self.current.set_limit(limit);
-		self.future.set_limit(limit >> FUTURE_QUEUE_LIMITS_SHIFT);
+		self.future.set_limit(limit);
 		// And ensure the limits
 		self.current.enforce_limit(&mut self.by_hash, &mut self.local_transactions);
 		self.future.enforce_limit(&mut self.by_hash, &mut self.local_transactions);
@@ -686,7 +682,7 @@ impl TransactionQueue {
 	/// Sets new total gas limit.
 	pub fn set_total_gas_limit(&mut self, total_gas_limit: U256) {
 		self.current.total_gas_limit = total_gas_limit;
-		self.future.total_gas_limit = total_gas_limit >> FUTURE_QUEUE_LIMITS_SHIFT;
+		self.future.total_gas_limit = total_gas_limit;
 		self.future.enforce_limit(&mut self.by_hash, &mut self.local_transactions);
 	}
 
@@ -2412,7 +2408,7 @@ pub mod test {
 	fn should_limit_future_transactions() {
 		let mut txq = TransactionQueue::with_limits(
 			PrioritizationStrategy::GasPriceOnly,
-			1 << FUTURE_QUEUE_LIMITS_SHIFT,
+			1,
 			usize::max_value(),
 			!U256::zero(),
 			!U256::zero(),
@@ -2736,7 +2732,7 @@ pub mod test {
 		// given
 		let mut txq = TransactionQueue::with_limits(
 			PrioritizationStrategy::GasPriceOnly,
-			1 << FUTURE_QUEUE_LIMITS_SHIFT,
+			1,
 			usize::max_value(),
 			!U256::zero(),
 			!U256::zero()

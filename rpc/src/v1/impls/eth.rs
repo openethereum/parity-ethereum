@@ -625,7 +625,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 
 	fn call(&self, meta: Self::Metadata, request: CallRequest, num: Trailing<BlockNumber>) -> BoxFuture<Bytes, Error> {
 		let request = CallRequest::into(request);
-		let signed = try_bf!(fake_sign::sign_call(&self.client, &self.miner, request, meta.is_dapp()));
+		let signed = try_bf!(fake_sign::sign_call(request, meta.is_dapp()));
 
 		let num = num.unwrap_or_default();
 		let result = self.client.call(&signed, Default::default(), num.into());
@@ -638,7 +638,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 
 	fn estimate_gas(&self, meta: Self::Metadata, request: CallRequest, num: Trailing<BlockNumber>) -> BoxFuture<RpcU256, Error> {
 		let request = CallRequest::into(request);
-		let signed = try_bf!(fake_sign::sign_call(&self.client, &self.miner, request, meta.is_dapp()));
+		let signed = try_bf!(fake_sign::sign_call(request, meta.is_dapp()));
 		Box::new(future::done(self.client.estimate_gas(&signed, num.unwrap_or_default().into())
 			.map(Into::into)
 			.map_err(errors::call)
