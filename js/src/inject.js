@@ -82,9 +82,11 @@ function initParity (ethereum) {
   });
 }
 
-const ethereum = initProvider();
+if (typeof window !== 'undefined' && !window.isParity) {
+  const ethereum = initProvider();
 
-initWeb3(ethereum);
-initParity(ethereum);
+  initWeb3(ethereum);
+  initParity(ethereum);
 
-console.warn('Deprecation: Dapps should only used the exposed EthereumProvider on `window.ethereum`, the use of `window.parity` and `window.web3` will be removed in future versions of this injector');
+  console.warn('Deprecation: Dapps should only used the exposed EthereumProvider on `window.ethereum`, the use of `window.parity` and `window.web3` will be removed in future versions of this injector');
+}
