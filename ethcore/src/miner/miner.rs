@@ -123,6 +123,10 @@ pub struct MinerOptions {
 	pub tx_queue_banning: Banning,
 	/// Do we refuse to accept service transactions even if sender is certified.
 	pub refuse_service_transactions: bool,
+	/// Create a pending block with maximal possible gas limit.
+	/// NOTE: Such block will contain all pending transactions but
+	/// will be invalid if mined.
+	pub infinite_pending_block: bool,
 }
 
 impl Default for MinerOptions {
@@ -145,6 +149,7 @@ impl Default for MinerOptions {
 			enable_resubmission: true,
 			tx_queue_banning: Banning::Disabled,
 			refuse_service_transactions: false,
+			infinite_pending_block: false,
 		}
 	}
 }
@@ -374,15 +379,14 @@ impl Miner {
 			let mut sealing_work = self.sealing_work.lock();
 			let last_work_hash = sealing_work.queue.peek_last_ref().map(|pb| pb.block().fields().header.hash());
 			let best_hash = chain_info.best_block_hash;
-/*
+
 			// check to see if last ClosedBlock in would_seals is actually same parent block.
 			// if so
 			//   duplicate, re-open and push any new transactions.
 			//   if at least one was pushed successfully, close and enqueue new ClosedBlock;
 			//   otherwise, leave everything alone.
 			// otherwise, author a fresh block.
-*/
-			let open_block = match sealing_work.queue.pop_if(|b| b.block().fields().header.parent_hash() == &best_hash) {
+			let mut open_block = match sealing_work.queue.pop_if(|b| b.block().fields().header.parent_hash() == &best_hash) {
 				Some(old_block) => {
 					trace!(target: "miner", "prepare_block: Already have previous work; updating and returning");
 					// add transactions to old_block
@@ -398,6 +402,11 @@ impl Miner {
 					)
 				}
 			};
+
+			if self.options.infinite_pending_block {
+				open_block.set_gas_limit(!U256::zero());
+			}
+
 			(transactions, open_block, last_work_hash)
 		};
 
@@ -1301,6 +1310,7 @@ mod tests {
 				enable_resubmission: true,
 				tx_queue_banning: Banning::Disabled,
 				refuse_service_transactions: false,
+				infinite_pending_block: false,
 			},
 			GasPricer::new_fixed(0u64.into()),
 			&Spec::new_test(),

@@ -543,6 +543,7 @@ impl Configuration {
 				None => Banning::Disabled,
 			},
 			refuse_service_transactions: self.args.flag_refuse_service_transactions,
+			infinite_pending_block: self.args.flag_infinite_pending_block,
 		};
 
 		Ok(options)
