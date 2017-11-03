@@ -11,8 +11,8 @@
 !define VERSIONMAJOR 1
 !define VERSIONMINOR 9
 !define VERSIONBUILD 0
-!define ARGS "--warp"
-!define FIRST_START_ARGS "ui --warp --mode=passive"
+!define ARGS ""
+!define FIRST_START_ARGS "--mode=passive ui"
 
 !addplugindir .\
 

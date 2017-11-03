@@ -36,12 +36,10 @@ pub enum Message {
 	Decryption(DecryptionMessage),
 	/// Signing message.
 	Signing(SigningMessage),
+	/// Key version negotiation message.
+	KeyVersionNegotiation(KeyVersionNegotiationMessage),
 	/// Share add message.
 	ShareAdd(ShareAddMessage),
-	/// Share move message.
-	ShareMove(ShareMoveMessage),
-	/// Share add message.
-	ShareRemove(ShareRemoveMessage),
 	/// Servers set change message.
 	ServersSetChange(ServersSetChangeMessage),
 }
@@ -109,18 +107,9 @@ pub enum ConsensusMessageWithServersSet {
 
 /// All possible messages that can be sent during share add consensus establishing.
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum ConsensusMessageWithServersMap {
+pub enum ConsensusMessageOfShareAdd {
 	/// Initialize consensus session.
-	InitializeConsensusSession(InitializeConsensusSessionWithServersMap),
-	/// Confirm/reject consensus session initialization.
-	ConfirmConsensusInitialization(ConfirmConsensusInitialization),
-}
-
-/// All possible messages that can be sent during share add consensus establishing.
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum ConsensusMessageWithServersSecretMap {
-	/// Initialize consensus session.
-	InitializeConsensusSession(InitializeConsensusSessionWithServersSecretMap),
+	InitializeConsensusSession(InitializeConsensusSessionOfShareAdd),
 	/// Confirm/reject consensus session initialization.
 	ConfirmConsensusInitialization(ConfirmConsensusInitialization),
 }
@@ -138,6 +127,10 @@ pub enum DecryptionMessage {
 	DecryptionSessionError(DecryptionSessionError),
 	/// When decryption session is completed.
 	DecryptionSessionCompleted(DecryptionSessionCompleted),
+	/// When decryption session is delegated to another node.
+	DecryptionSessionDelegation(DecryptionSessionDelegation),
+	/// When delegated decryption session is completed.
+	DecryptionSessionDelegationCompleted(DecryptionSessionDelegationCompleted),
 }
 
 /// All possible messages that can be sent during signing session.
@@ -155,6 +148,10 @@ pub enum SigningMessage {
 	SigningSessionError(SigningSessionError),
 	/// Signing session completed.
 	SigningSessionCompleted(SigningSessionCompleted),
+	/// When signing session is delegated to another node.
+	SigningSessionDelegation(SigningSessionDelegation),
+	/// When delegated signing session is completed.
+	SigningSessionDelegationCompleted(SigningSessionDelegationCompleted),
 }
 
 /// All possible messages that can be sent during servers set change session.
@@ -166,6 +163,8 @@ pub enum ServersSetChangeMessage {
 	UnknownSessionsRequest(UnknownSessionsRequest),
 	/// Unknown sessions ids.
 	UnknownSessions(UnknownSessions),
+	/// Negotiating key version to use as a base for ShareAdd session.
+	ShareChangeKeyVersionNegotiation(ShareChangeKeyVersionNegotiation),
 	/// Initialize share change session(s).
 	InitializeShareChangeSession(InitializeShareChangeSession),
 	/// Confirm share change session(s) initialization.
@@ -176,10 +175,6 @@ pub enum ServersSetChangeMessage {
 	ServersSetChangeDelegateResponse(ServersSetChangeDelegateResponse),
 	/// Share add message.
 	ServersSetChangeShareAddMessage(ServersSetChangeShareAddMessage),
-	/// Share move message.
-	ServersSetChangeShareMoveMessage(ServersSetChangeShareMoveMessage),
-	/// Share remove message.
-	ServersSetChangeShareRemoveMessage(ServersSetChangeShareRemoveMessage),
 	/// Servers set change session completed.
 	ServersSetChangeError(ServersSetChangeError),
 	/// Servers set change session completed.
@@ -193,40 +188,21 @@ pub enum ShareAddMessage {
 	ShareAddConsensusMessage(ShareAddConsensusMessage),
 	/// Common key share data is sent to new node.
 	KeyShareCommon(KeyShareCommon),
-	/// Absolute term share of secret polynom is sent to new node.
-	NewAbsoluteTermShare(NewAbsoluteTermShare),
 	/// Generated keys are sent to every node.
 	NewKeysDissemination(NewKeysDissemination),
 	/// When session error has occured.
 	ShareAddError(ShareAddError),
 }
 
-/// All possible messages that can be sent during share move session.
+/// All possible messages that can be sent during key version negotiation message.
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum ShareMoveMessage {
-	/// Consensus establishing message.
-	ShareMoveConsensusMessage(ShareMoveConsensusMessage),
-	/// Share move request.
-	ShareMoveRequest(ShareMoveRequest),
-	/// Share move.
-	ShareMove(ShareMove),
-	/// Share move confirmation.
-	ShareMoveConfirm(ShareMoveConfirm),
+pub enum KeyVersionNegotiationMessage {
+	/// Request key versions.
+	RequestKeyVersions(RequestKeyVersions),
+	/// Key versions.
+	KeyVersions(KeyVersions),
 	/// When session error has occured.
-	ShareMoveError(ShareMoveError),
-}
-
-/// All possible messages that can be sent during share remove session.
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum ShareRemoveMessage {
-	/// Consensus establishing message.
-	ShareRemoveConsensusMessage(ShareRemoveConsensusMessage),
-	/// Share remove request.
-	ShareRemoveRequest(ShareRemoveRequest),
-	/// Share remove confirmation.
-	ShareRemoveConfirm(ShareRemoveConfirm),
-	/// When session error has occured.
-	ShareRemoveError(ShareRemoveError),
+	KeyVersionsError(KeyVersionsError),
 }
 
 /// Introduce node public key.
@@ -388,6 +364,8 @@ pub struct EncryptionSessionError {
 pub struct InitializeConsensusSession {
 	/// Requestor signature.
 	pub requestor_signature: SerializableSignature,
+	/// Key version.
+	pub version: SerializableH256,
 }
 
 /// Node is responding to consensus initialization request.
@@ -412,24 +390,15 @@ pub struct InitializeConsensusSessionWithServersSet {
 
 /// Node is asked to be part of servers-set consensus group.
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct InitializeConsensusSessionWithServersSecretMap {
-	/// Old nodes set.
+pub struct InitializeConsensusSessionOfShareAdd {
+	/// Key version.
+	pub version: SerializableH256,
+	/// threshold+1 nodes from old_nodes_set selected for shares redistribution.
+	pub consensus_group: BTreeSet<MessageNodeId>,
+	/// Old nodes set: all non-isolated owners of selected key share version.
 	pub old_nodes_set: BTreeSet<MessageNodeId>,
-	/// New nodes set.
-	pub new_nodes_set: BTreeMap<MessageNodeId, SerializableSecret>,
-	/// Old server set, signed by requester.
-	pub old_set_signature: SerializableSignature,
-	/// New server set, signed by requester.
-	pub new_set_signature: SerializableSignature,
-}
-
-/// Node is asked to be part of servers-set consensus group.
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct InitializeConsensusSessionWithServersMap {
-	/// Old nodes set.
-	pub old_nodes_set: BTreeSet<MessageNodeId>,
-	/// New nodes set (keys() = new_nodes_set, values = old nodes [differs from new if share is moved]).
-	pub new_nodes_set: BTreeMap<MessageNodeId, MessageNodeId>,
+	/// New nodes map: node id => node id number.
+	pub new_nodes_map: BTreeMap<MessageNodeId, SerializableSecret>,
 	/// Old server set, signed by requester.
 	pub old_set_signature: SerializableSignature,
 	/// New server set, signed by requester.
@@ -518,6 +487,38 @@ pub struct SigningSessionCompleted {
 	pub session_nonce: u64,
 }
 
+/// When signing session is delegated to another node.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct SigningSessionDelegation {
+	/// Encryption session Id.
+	pub session: MessageSessionId,
+	/// Decryption session Id.
+	pub sub_session: SerializableSecret,
+	/// Session-level nonce.
+	pub session_nonce: u64,
+	/// Requestor signature.
+	pub requestor_signature: SerializableSignature,
+	/// Key version.
+	pub version: SerializableH256,
+	/// Message hash.
+	pub message_hash: SerializableH256,
+}
+
+/// When delegated signing session is completed.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct SigningSessionDelegationCompleted {
+	/// Encryption session Id.
+	pub session: MessageSessionId,
+	/// Decryption session Id.
+	pub sub_session: SerializableSecret,
+	/// Session-level nonce.
+	pub session_nonce: u64,
+	/// S-portion of signature.
+	pub signature_s: SerializableSecret,
+	/// C-portion of signature.
+	pub signature_c: SerializableSecret,
+}
+
 /// Consensus-related decryption message.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct DecryptionConsensusMessage {
@@ -590,6 +591,41 @@ pub struct DecryptionSessionCompleted {
 	pub session_nonce: u64,
 }
 
+/// When decryption session is delegated to another node.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct DecryptionSessionDelegation {
+	/// Encryption session Id.
+	pub session: MessageSessionId,
+	/// Decryption session Id.
+	pub sub_session: SerializableSecret,
+	/// Session-level nonce.
+	pub session_nonce: u64,
+	/// Requestor signature.
+	pub requestor_signature: SerializableSignature,
+	/// Key version.
+	pub version: SerializableH256,
+	/// Is shadow decryption requested? When true, decryption result
+	/// will be visible to the owner of requestor public key only.
+	pub is_shadow_decryption: bool,
+}
+
+/// When delegated decryption session is completed.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct DecryptionSessionDelegationCompleted {
+	/// Encryption session Id.
+	pub session: MessageSessionId,
+	/// Decryption session Id.
+	pub sub_session: SerializableSecret,
+	/// Session-level nonce.
+	pub session_nonce: u64,
+	/// Decrypted secret point. It is partially decrypted if shadow decrpytion was requested.
+	pub decrypted_secret: SerializablePublic,
+	/// Shared common point.
+	pub common_point: Option<SerializablePublic>,
+	/// If shadow decryption was requested: shadow decryption coefficients, encrypted with requestor public.
+	pub decrypt_shadows: Option<Vec<Vec<u8>>>,
+}
+
 /// Consensus-related servers set change message.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ServersSetChangeConsensusMessage {
@@ -621,6 +657,17 @@ pub struct UnknownSessions {
 	pub unknown_sessions: BTreeSet<MessageSessionId>,
 }
 
+/// Key version negotiation message.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ShareChangeKeyVersionNegotiation {
+	/// Servers set change session Id.
+	pub session: MessageSessionId,
+	/// Session-level nonce.
+	pub session_nonce: u64,
+	/// Key version negotiation message.
+	pub message: KeyVersionNegotiationMessage,
+}
+
 /// Master node opens share initialize session on other nodes.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct InitializeShareChangeSession {
@@ -630,18 +677,14 @@ pub struct InitializeShareChangeSession {
 	pub session_nonce: u64,
 	/// Key id.
 	pub key_id: MessageSessionId,
+	/// Key vesion to use in ShareAdd session.
+	pub version: SerializableH256,
 	/// Master node.
 	pub master_node_id: MessageNodeId,
-	/// Old nodes set.
-	pub old_shares_set: BTreeSet<MessageNodeId>,
-	/// Isolated nodes.
-	pub isolated_nodes: BTreeSet<MessageNodeId>,
+	/// Consensus group to use in ShareAdd session.
+	pub consensus_group: BTreeSet<MessageNodeId>,
 	/// Shares to add. Values are filled for new nodes only.
-	pub shares_to_add: BTreeMap<MessageNodeId, SerializableSecret>,
-	/// Shares to move.
-	pub shares_to_move: BTreeMap<MessageNodeId, MessageNodeId>,
-	/// Shares to remove.
-	pub shares_to_remove: BTreeSet<MessageNodeId>,
+	pub new_nodes_map: BTreeMap<MessageNodeId, Option<SerializableSecret>>,
 }
 
 /// Slave node confirms session initialization.
@@ -688,28 +731,6 @@ pub struct ServersSetChangeShareAddMessage {
 	pub message: ShareAddMessage,
 }
 
-/// Servers set change share move message.
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct ServersSetChangeShareMoveMessage {
-	/// Servers set change session Id.
-	pub session: MessageSessionId,
-	/// Session-level nonce.
-	pub session_nonce: u64,
-	/// Unknown session id.
-	pub message: ShareMoveMessage,
-}
-
-/// Servers set change share remove message.
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct ServersSetChangeShareRemoveMessage {
-	/// Servers set change session Id.
-	pub session: MessageSessionId,
-	/// Session-level nonce.
-	pub session_nonce: u64,
-	/// Unknown session id.
-	pub message: ShareRemoveMessage,
-}
-
 /// When servers set change session error has occured.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ServersSetChangeError {
@@ -738,7 +759,7 @@ pub struct ShareAddConsensusMessage {
 	/// Session-level nonce.
 	pub session_nonce: u64,
 	/// Consensus message.
-	pub message: ConsensusMessageWithServersSecretMap,
+	pub message: ConsensusMessageOfShareAdd,
 }
 
 /// Key share common data is passed to new node.
@@ -756,19 +777,8 @@ pub struct KeyShareCommon {
 	pub common_point: Option<SerializablePublic>,
 	/// Encrypted point.
 	pub encrypted_point: Option<SerializablePublic>,
-}
-
-/// Absolute term share is passed to new node.
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct NewAbsoluteTermShare {
-	/// Generation session Id.
-	pub session: MessageSessionId,
-	/// Sender id number.
-	pub sender_id: SerializableSecret,
-	/// Session-level nonce.
-	pub session_nonce: u64,
-	/// Absolute term share.
-	pub absolute_term_share: SerializableSecret,
+	/// Selected version id numbers.
+	pub id_numbers: BTreeMap<MessageNodeId, SerializableSecret>,
 }
 
 /// Generated keys are sent to every node.
@@ -778,10 +788,8 @@ pub struct NewKeysDissemination {
 	pub session: MessageSessionId,
 	/// Session-level nonce.
 	pub session_nonce: u64,
-	/// Refreshed secret1 value.
-	pub refreshed_secret1: SerializableSecret,
-	/// Refreshed public values.
-	pub refreshed_publics: Vec<SerializablePublic>,
+	/// Sub share of rcevier' secret share.
+	pub secret_subshare: SerializableSecret,
 }
 
 /// When share add session error has occured.
@@ -795,107 +803,98 @@ pub struct ShareAddError {
 	pub error: String,
 }
 
-/// Consensus-related share move session message.
+/// Key versions are requested.
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct ShareMoveConsensusMessage {
-	/// Share move session Id.
+pub struct RequestKeyVersions {
+	/// Generation session id.
 	pub session: MessageSessionId,
-	/// Session-level nonce.
-	pub session_nonce: u64,
-	/// Consensus message.
-	pub message: ConsensusMessageWithServersMap,
-}
-
-/// Share move is requested.
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct ShareMoveRequest {
-	/// Generation session Id.
-	pub session: MessageSessionId,
+	/// Version negotiation session Id.
+	pub sub_session: SerializableSecret,
 	/// Session-level nonce.
 	pub session_nonce: u64,
 }
 
-/// Share is moved from source to destination.
+/// Key versions are sent.
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct ShareMove {
-	/// Generation session Id.
+pub struct KeyVersions {
+	/// Generation session id.
 	pub session: MessageSessionId,
+	/// Version negotiation session Id.
+	pub sub_session: SerializableSecret,
 	/// Session-level nonce.
 	pub session_nonce: u64,
-	/// Author of the entry.
-	pub author: SerializablePublic,
-	/// Decryption threshold.
-	pub threshold: usize,
-	/// Nodes ids numbers.
-	pub id_numbers: BTreeMap<MessageNodeId, SerializableSecret>,
-	/// Polynom1.
-	pub polynom1: Vec<SerializableSecret>,
-	/// Node secret share.
-	pub secret_share: SerializableSecret,
-	/// Common (shared) encryption point.
-	pub common_point: Option<SerializablePublic>,
-	/// Encrypted point.
-	pub encrypted_point: Option<SerializablePublic>,
+	/// Key threshold.
+	pub threshold: Option<usize>,
+	/// Key versions.
+	pub versions: Vec<SerializableH256>,
 }
 
-/// Share move is confirmed (destination node confirms to all other nodes).
+/// When key versions error has occured.
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct ShareMoveConfirm {
-	/// Generation session Id.
+pub struct KeyVersionsError {
+	/// Generation session id.
 	pub session: MessageSessionId,
-	/// Session-level nonce.
-	pub session_nonce: u64,
-}
-
-/// When share move session error has occured.
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct ShareMoveError {
-	/// Generation session Id.
-	pub session: MessageSessionId,
+	/// Version negotiation session Id.
+	pub sub_session: SerializableSecret,
 	/// Session-level nonce.
 	pub session_nonce: u64,
 	/// Error message.
 	pub error: String,
 }
 
-/// Consensus-related share remove session message.
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct ShareRemoveConsensusMessage {
-	/// Share move session Id.
-	pub session: MessageSessionId,
-	/// Session-level nonce.
-	pub session_nonce: u64,
-	/// Consensus message.
-	pub message: ConsensusMessageWithServersSet,
-}
+impl Message {
+	pub fn is_initialization_message(&self) -> bool {
+		match *self {
+			Message::Generation(GenerationMessage::InitializeSession(_)) => true,
+			Message::Encryption(EncryptionMessage::InitializeEncryptionSession(_)) => true,
+			Message::Decryption(DecryptionMessage::DecryptionConsensusMessage(ref msg)) => match msg.message {
+				ConsensusMessage::InitializeConsensusSession(_) => true,
+				_ => false
+			},
+			Message::Signing(SigningMessage::SigningConsensusMessage(ref msg)) => match msg.message {
+				ConsensusMessage::InitializeConsensusSession(_) => true,
+				_ => false
+			},
+			Message::KeyVersionNegotiation(KeyVersionNegotiationMessage::RequestKeyVersions(_)) => true,
+			Message::ShareAdd(ShareAddMessage::ShareAddConsensusMessage(ref msg)) => match msg.message {
+				ConsensusMessageOfShareAdd::InitializeConsensusSession(_) => true,
+				_ => false
+			},
+			Message::ServersSetChange(ServersSetChangeMessage::ServersSetChangeConsensusMessage(ref msg)) => match msg.message {
+				ConsensusMessageWithServersSet::InitializeConsensusSession(_) => true,
+				_ => false
+			},
+			_ => false,
+		}
+	}
 
-/// Share remove is requested.
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct ShareRemoveRequest {
-	/// Generation session Id.
-	pub session: MessageSessionId,
-	/// Session-level nonce.
-	pub session_nonce: u64,
-}
+	pub fn is_delegation_message(&self) -> bool {
+		match *self {
+			Message::Decryption(DecryptionMessage::DecryptionSessionDelegation(_)) => true,
+			Message::Signing(SigningMessage::SigningSessionDelegation(_)) => true,
+			_ => false,
+		}
+	}
 
-/// Share remove is confirmed (destination node confirms to all other nodes).
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct ShareRemoveConfirm {
-	/// Generation session Id.
-	pub session: MessageSessionId,
-	/// Session-level nonce.
-	pub session_nonce: u64,
-}
+	pub fn is_exclusive_session_message(&self) -> bool {
+		match *self {
+			Message::ServersSetChange(_) => true,
+			_ => false,
+		}
+	}
 
-/// When share remove session error has occured.
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct ShareRemoveError {
-	/// Generation session Id.
-	pub session: MessageSessionId,
-	/// Session-level nonce.
-	pub session_nonce: u64,
-	/// Error message.
-	pub error: String,
+	pub fn session_nonce(&self) -> Option<u64> {
+		match *self {
+			Message::Cluster(_) => None,
+			Message::Generation(ref message) => Some(message.session_nonce()),
+			Message::Encryption(ref message) => Some(message.session_nonce()),
+			Message::Decryption(ref message) => Some(message.session_nonce()),
+			Message::Signing(ref message) => Some(message.session_nonce()),
+			Message::ShareAdd(ref message) => Some(message.session_nonce()),
+			Message::ServersSetChange(ref message) => Some(message.session_nonce()),
+			Message::KeyVersionNegotiation(ref message) => Some(message.session_nonce()),
+		}
+	}
 }
 
 impl GenerationMessage {
@@ -950,6 +949,8 @@ impl DecryptionMessage {
 			DecryptionMessage::PartialDecryption(ref msg) => &msg.session,
 			DecryptionMessage::DecryptionSessionError(ref msg) => &msg.session,
 			DecryptionMessage::DecryptionSessionCompleted(ref msg) => &msg.session,
+			DecryptionMessage::DecryptionSessionDelegation(ref msg) => &msg.session,
+			DecryptionMessage::DecryptionSessionDelegationCompleted(ref msg) => &msg.session,
 		}
 	}
 
@@ -960,6 +961,8 @@ impl DecryptionMessage {
 			DecryptionMessage::PartialDecryption(ref msg) => &msg.sub_session,
 			DecryptionMessage::DecryptionSessionError(ref msg) => &msg.sub_session,
 			DecryptionMessage::DecryptionSessionCompleted(ref msg) => &msg.sub_session,
+			DecryptionMessage::DecryptionSessionDelegation(ref msg) => &msg.sub_session,
+			DecryptionMessage::DecryptionSessionDelegationCompleted(ref msg) => &msg.sub_session,
 		}
 	}
 
@@ -970,6 +973,8 @@ impl DecryptionMessage {
 			DecryptionMessage::PartialDecryption(ref msg) => msg.session_nonce,
 			DecryptionMessage::DecryptionSessionError(ref msg) => msg.session_nonce,
 			DecryptionMessage::DecryptionSessionCompleted(ref msg) => msg.session_nonce,
+			DecryptionMessage::DecryptionSessionDelegation(ref msg) => msg.session_nonce,
+			DecryptionMessage::DecryptionSessionDelegationCompleted(ref msg) => msg.session_nonce,
 		}
 	}
 }
@@ -983,6 +988,8 @@ impl SigningMessage {
 			SigningMessage::PartialSignature(ref msg) => &msg.session,
 			SigningMessage::SigningSessionError(ref msg) => &msg.session,
 			SigningMessage::SigningSessionCompleted(ref msg) => &msg.session,
+			SigningMessage::SigningSessionDelegation(ref msg) => &msg.session,
+			SigningMessage::SigningSessionDelegationCompleted(ref msg) => &msg.session,
 		}
 	}
 
@@ -994,6 +1001,8 @@ impl SigningMessage {
 			SigningMessage::PartialSignature(ref msg) => &msg.sub_session,
 			SigningMessage::SigningSessionError(ref msg) => &msg.sub_session,
 			SigningMessage::SigningSessionCompleted(ref msg) => &msg.sub_session,
+			SigningMessage::SigningSessionDelegation(ref msg) => &msg.sub_session,
+			SigningMessage::SigningSessionDelegationCompleted(ref msg) => &msg.sub_session,
 		}
 	}
 
@@ -1005,6 +1014,8 @@ impl SigningMessage {
 			SigningMessage::PartialSignature(ref msg) => msg.session_nonce,
 			SigningMessage::SigningSessionError(ref msg) => msg.session_nonce,
 			SigningMessage::SigningSessionCompleted(ref msg) => msg.session_nonce,
+			SigningMessage::SigningSessionDelegation(ref msg) => msg.session_nonce,
+			SigningMessage::SigningSessionDelegationCompleted(ref msg) => msg.session_nonce,
 		}
 	}
 }
@@ -1015,13 +1026,12 @@ impl ServersSetChangeMessage {
 			ServersSetChangeMessage::ServersSetChangeConsensusMessage(ref msg) => &msg.session,
 			ServersSetChangeMessage::UnknownSessionsRequest(ref msg) => &msg.session,
 			ServersSetChangeMessage::UnknownSessions(ref msg) => &msg.session,
+			ServersSetChangeMessage::ShareChangeKeyVersionNegotiation(ref msg) => &msg.session,
 			ServersSetChangeMessage::InitializeShareChangeSession(ref msg) => &msg.session,
 			ServersSetChangeMessage::ConfirmShareChangeSessionInitialization(ref msg) => &msg.session,
 			ServersSetChangeMessage::ServersSetChangeDelegate(ref msg) => &msg.session,
 			ServersSetChangeMessage::ServersSetChangeDelegateResponse(ref msg) => &msg.session,
 			ServersSetChangeMessage::ServersSetChangeShareAddMessage(ref msg) => &msg.session,
-			ServersSetChangeMessage::ServersSetChangeShareMoveMessage(ref msg) => &msg.session,
-			ServersSetChangeMessage::ServersSetChangeShareRemoveMessage(ref msg) => &msg.session,
 			ServersSetChangeMessage::ServersSetChangeError(ref msg) => &msg.session,
 			ServersSetChangeMessage::ServersSetChangeCompleted(ref msg) => &msg.session,
 		}
@@ -1032,13 +1042,12 @@ impl ServersSetChangeMessage {
 			ServersSetChangeMessage::ServersSetChangeConsensusMessage(ref msg) => msg.session_nonce,
 			ServersSetChangeMessage::UnknownSessionsRequest(ref msg) => msg.session_nonce,
 			ServersSetChangeMessage::UnknownSessions(ref msg) => msg.session_nonce,
+			ServersSetChangeMessage::ShareChangeKeyVersionNegotiation(ref msg) => msg.session_nonce,
 			ServersSetChangeMessage::InitializeShareChangeSession(ref msg) => msg.session_nonce,
 			ServersSetChangeMessage::ConfirmShareChangeSessionInitialization(ref msg) => msg.session_nonce,
 			ServersSetChangeMessage::ServersSetChangeDelegate(ref msg) => msg.session_nonce,
 			ServersSetChangeMessage::ServersSetChangeDelegateResponse(ref msg) => msg.session_nonce,
 			ServersSetChangeMessage::ServersSetChangeShareAddMessage(ref msg) => msg.session_nonce,
-			ServersSetChangeMessage::ServersSetChangeShareMoveMessage(ref msg) => msg.session_nonce,
-			ServersSetChangeMessage::ServersSetChangeShareRemoveMessage(ref msg) => msg.session_nonce,
 			ServersSetChangeMessage::ServersSetChangeError(ref msg) => msg.session_nonce,
 			ServersSetChangeMessage::ServersSetChangeCompleted(ref msg) => msg.session_nonce,
 		}
@@ -1050,7 +1059,6 @@ impl ShareAddMessage {
 		match *self {
 			ShareAddMessage::ShareAddConsensusMessage(ref msg) => &msg.session,
 			ShareAddMessage::KeyShareCommon(ref msg) => &msg.session,
-			ShareAddMessage::NewAbsoluteTermShare(ref msg) => &msg.session,
 			ShareAddMessage::NewKeysDissemination(ref msg) => &msg.session,
 			ShareAddMessage::ShareAddError(ref msg) => &msg.session,
 		}
@@ -1060,51 +1068,34 @@ impl ShareAddMessage {
 		match *self {
 			ShareAddMessage::ShareAddConsensusMessage(ref msg) => msg.session_nonce,
 			ShareAddMessage::KeyShareCommon(ref msg) => msg.session_nonce,
-			ShareAddMessage::NewAbsoluteTermShare(ref msg) => msg.session_nonce,
 			ShareAddMessage::NewKeysDissemination(ref msg) => msg.session_nonce,
 			ShareAddMessage::ShareAddError(ref msg) => msg.session_nonce,
 		}
 	}
 }
 
-impl ShareMoveMessage {
+impl KeyVersionNegotiationMessage {
 	pub fn session_id(&self) -> &SessionId {
 		match *self {
-			ShareMoveMessage::ShareMoveConsensusMessage(ref msg) => &msg.session,
-			ShareMoveMessage::ShareMoveRequest(ref msg) => &msg.session,
-			ShareMoveMessage::ShareMove(ref msg) => &msg.session,
-			ShareMoveMessage::ShareMoveConfirm(ref msg) => &msg.session,
-			ShareMoveMessage::ShareMoveError(ref msg) => &msg.session,
+			KeyVersionNegotiationMessage::RequestKeyVersions(ref msg) => &msg.session,
+			KeyVersionNegotiationMessage::KeyVersions(ref msg) => &msg.session,
+			KeyVersionNegotiationMessage::KeyVersionsError(ref msg) => &msg.session,
+		}
+	}
+
+	pub fn sub_session_id(&self) -> &Secret {
+		match *self {
+			KeyVersionNegotiationMessage::RequestKeyVersions(ref msg) => &msg.sub_session,
+			KeyVersionNegotiationMessage::KeyVersions(ref msg) => &msg.sub_session,
+			KeyVersionNegotiationMessage::KeyVersionsError(ref msg) => &msg.sub_session,
 		}
 	}
 
 	pub fn session_nonce(&self) -> u64 {
 		match *self {
-			ShareMoveMessage::ShareMoveConsensusMessage(ref msg) => msg.session_nonce,
-			ShareMoveMessage::ShareMoveRequest(ref msg) => msg.session_nonce,
-			ShareMoveMessage::ShareMove(ref msg) => msg.session_nonce,
-			ShareMoveMessage::ShareMoveConfirm(ref msg) => msg.session_nonce,
-			ShareMoveMessage::ShareMoveError(ref msg) => msg.session_nonce,
-		}
-	}
-}
-
-impl ShareRemoveMessage {
-	pub fn session_id(&self) -> &SessionId {
-		match *self {
-			ShareRemoveMessage::ShareRemoveConsensusMessage(ref msg) => &msg.session,
-			ShareRemoveMessage::ShareRemoveRequest(ref msg) => &msg.session,
-			ShareRemoveMessage::ShareRemoveConfirm(ref msg) => &msg.session,
-			ShareRemoveMessage::ShareRemoveError(ref msg) => &msg.session,
-		}
-	}
-
-	pub fn session_nonce(&self) -> u64 {
-		match *self {
-			ShareRemoveMessage::ShareRemoveConsensusMessage(ref msg) => msg.session_nonce,
-			ShareRemoveMessage::ShareRemoveRequest(ref msg) => msg.session_nonce,
-			ShareRemoveMessage::ShareRemoveConfirm(ref msg) => msg.session_nonce,
-			ShareRemoveMessage::ShareRemoveError(ref msg) => msg.session_nonce,
+			KeyVersionNegotiationMessage::RequestKeyVersions(ref msg) => msg.session_nonce,
+			KeyVersionNegotiationMessage::KeyVersions(ref msg) => msg.session_nonce,
+			KeyVersionNegotiationMessage::KeyVersionsError(ref msg) => msg.session_nonce,
 		}
 	}
 }
@@ -1119,8 +1110,7 @@ impl fmt::Display for Message {
 			Message::Signing(ref message) => write!(f, "Signing.{}", message),
 			Message::ServersSetChange(ref message) => write!(f, "ServersSetChange.{}", message),
 			Message::ShareAdd(ref message) => write!(f, "ShareAdd.{}", message),
-			Message::ShareMove(ref message) => write!(f, "ShareMove.{}", message),
-			Message::ShareRemove(ref message) => write!(f, "ShareRemove.{}", message),
+			Message::KeyVersionNegotiation(ref message) => write!(f, "KeyVersionNegotiation.{}", message),
 		}
 	}
 }
@@ -1164,7 +1154,7 @@ impl fmt::Display for ConsensusMessage {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match *self {
 			ConsensusMessage::InitializeConsensusSession(_) => write!(f, "InitializeConsensusSession"),
-			ConsensusMessage::ConfirmConsensusInitialization(_) => write!(f, "ConfirmConsensusInitialization"),
+			ConsensusMessage::ConfirmConsensusInitialization(ref msg) => write!(f, "ConfirmConsensusInitialization({})", msg.is_confirmed),
 		}
 	}
 }
@@ -1178,20 +1168,11 @@ impl fmt::Display for ConsensusMessageWithServersSet {
 	}
 }
 
-impl fmt::Display for ConsensusMessageWithServersMap {
+impl fmt::Display for ConsensusMessageOfShareAdd {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match *self {
-			ConsensusMessageWithServersMap::InitializeConsensusSession(_) => write!(f, "InitializeConsensusSession"),
-			ConsensusMessageWithServersMap::ConfirmConsensusInitialization(_) => write!(f, "ConfirmConsensusInitialization"),
-		}
-	}
-}
-
-impl fmt::Display for ConsensusMessageWithServersSecretMap {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		match *self {
-			ConsensusMessageWithServersSecretMap::InitializeConsensusSession(_) => write!(f, "InitializeConsensusSession"),
-			ConsensusMessageWithServersSecretMap::ConfirmConsensusInitialization(_) => write!(f, "ConfirmConsensusInitialization"),
+			ConsensusMessageOfShareAdd::InitializeConsensusSession(_) => write!(f, "InitializeConsensusSession"),
+			ConsensusMessageOfShareAdd::ConfirmConsensusInitialization(_) => write!(f, "ConfirmConsensusInitialization"),
 		}
 	}
 }
@@ -1204,6 +1185,8 @@ impl fmt::Display for DecryptionMessage {
 			DecryptionMessage::PartialDecryption(_) => write!(f, "PartialDecryption"),
 			DecryptionMessage::DecryptionSessionError(_) => write!(f, "DecryptionSessionError"),
 			DecryptionMessage::DecryptionSessionCompleted(_) => write!(f, "DecryptionSessionCompleted"),
+			DecryptionMessage::DecryptionSessionDelegation(_) => write!(f, "DecryptionSessionDelegation"),
+			DecryptionMessage::DecryptionSessionDelegationCompleted(_) => write!(f, "DecryptionSessionDelegationCompleted"),
 		}
 	}
 }
@@ -1217,6 +1200,8 @@ impl fmt::Display for SigningMessage {
 			SigningMessage::PartialSignature(_) => write!(f, "PartialSignature"),
 			SigningMessage::SigningSessionError(_) => write!(f, "SigningSessionError"),
 			SigningMessage::SigningSessionCompleted(_) => write!(f, "SigningSessionCompleted"),
+			SigningMessage::SigningSessionDelegation(_) => write!(f, "SigningSessionDelegation"),
+			SigningMessage::SigningSessionDelegationCompleted(_) => write!(f, "SigningSessionDelegationCompleted"),
 		}
 	}
 }
@@ -1227,13 +1212,12 @@ impl fmt::Display for ServersSetChangeMessage {
 			ServersSetChangeMessage::ServersSetChangeConsensusMessage(ref m) => write!(f, "ServersSetChangeConsensusMessage.{}", m.message),
 			ServersSetChangeMessage::UnknownSessionsRequest(_) => write!(f, "UnknownSessionsRequest"),
 			ServersSetChangeMessage::UnknownSessions(_) => write!(f, "UnknownSessions"),
+			ServersSetChangeMessage::ShareChangeKeyVersionNegotiation(ref m) => write!(f, "ShareChangeKeyVersionNegotiation.{}", m.message),
 			ServersSetChangeMessage::InitializeShareChangeSession(_) => write!(f, "InitializeShareChangeSession"),
 			ServersSetChangeMessage::ConfirmShareChangeSessionInitialization(_) => write!(f, "ConfirmShareChangeSessionInitialization"),
 			ServersSetChangeMessage::ServersSetChangeDelegate(_) => write!(f, "ServersSetChangeDelegate"),
 			ServersSetChangeMessage::ServersSetChangeDelegateResponse(_) => write!(f, "ServersSetChangeDelegateResponse"),
 			ServersSetChangeMessage::ServersSetChangeShareAddMessage(ref m) => write!(f, "ServersSetChangeShareAddMessage.{}", m.message),
-			ServersSetChangeMessage::ServersSetChangeShareMoveMessage(ref m) => write!(f, "ServersSetChangeShareMoveMessage.{}", m.message),
-			ServersSetChangeMessage::ServersSetChangeShareRemoveMessage(ref m) => write!(f, "ServersSetChangeShareRemoveMessage.{}", m.message),
 			ServersSetChangeMessage::ServersSetChangeError(_) => write!(f, "ServersSetChangeError"),
 			ServersSetChangeMessage::ServersSetChangeCompleted(_) => write!(f, "ServersSetChangeCompleted"),
 		}
@@ -1245,7 +1229,6 @@ impl fmt::Display for ShareAddMessage {
 		match *self {
 			ShareAddMessage::ShareAddConsensusMessage(ref m) => write!(f, "ShareAddConsensusMessage.{}", m.message),
 			ShareAddMessage::KeyShareCommon(_) => write!(f, "KeyShareCommon"),
-			ShareAddMessage::NewAbsoluteTermShare(_) => write!(f, "NewAbsoluteTermShare"),
 			ShareAddMessage::NewKeysDissemination(_) => write!(f, "NewKeysDissemination"),
 			ShareAddMessage::ShareAddError(_) => write!(f, "ShareAddError"),
 
@@ -1253,25 +1236,12 @@ impl fmt::Display for ShareAddMessage {
 	}
 }
 
-impl fmt::Display for ShareMoveMessage {
+impl fmt::Display for KeyVersionNegotiationMessage {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match *self {
-			ShareMoveMessage::ShareMoveConsensusMessage(ref m) => write!(f, "ShareMoveConsensusMessage.{}", m.message),
-			ShareMoveMessage::ShareMoveRequest(_) => write!(f, "ShareMoveRequest"),
-			ShareMoveMessage::ShareMove(_) => write!(f, "ShareMove"),
-			ShareMoveMessage::ShareMoveConfirm(_) => write!(f, "ShareMoveConfirm"),
-			ShareMoveMessage::ShareMoveError(_) => write!(f, "ShareMoveError"),
-		}
-	}
-}
-
-impl fmt::Display for ShareRemoveMessage {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		match *self {
-			ShareRemoveMessage::ShareRemoveConsensusMessage(ref m) => write!(f, "InitializeShareRemoveSession.{}", m.message),
-			ShareRemoveMessage::ShareRemoveRequest(_) => write!(f, "ShareRemoveRequest"),
-			ShareRemoveMessage::ShareRemoveConfirm(_) => write!(f, "ShareRemoveConfirm"),
-			ShareRemoveMessage::ShareRemoveError(_) => write!(f, "ShareRemoveError"),
+			KeyVersionNegotiationMessage::RequestKeyVersions(_) => write!(f, "RequestKeyVersions"),
+			KeyVersionNegotiationMessage::KeyVersions(_) => write!(f, "KeyVersions"),
+			KeyVersionNegotiationMessage::KeyVersionsError(_) => write!(f, "KeyVersionsError"),
 		}
 	}
 }

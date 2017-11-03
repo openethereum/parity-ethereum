@@ -31,7 +31,7 @@ impl vm::Informant for Informant {
 		println!("Test: {} ({})", name, action);
 	}
 
-	fn finish(result: Result<vm::Success, vm::Failure>) {
+	fn finish(result: vm::RunResult<Self::Output>) {
 		match result {
 			Ok(success) => {
 				println!("Output: 0x{}", success.output.to_hex());
@@ -47,7 +47,9 @@ impl vm::Informant for Informant {
 }
 
 impl trace::VMTracer for Informant {
+	type Output = ();
+
 	fn prepare_subtrace(&self, _code: &[u8]) -> Self where Self: Sized { Default::default() }
 	fn done_subtrace(&mut self, _sub: Self) {}
-	fn drain(self) -> Option<trace::VMTrace> { None }
+	fn drain(self) -> Option<()> { None }
 }

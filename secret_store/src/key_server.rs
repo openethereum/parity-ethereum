@@ -106,7 +106,7 @@ impl DocumentKeyServer for KeyServerImpl {
 			.map_err(|_| Error::BadSignature)?;
 
 		// decrypt document key
-		let decryption_session = self.data.lock().cluster.new_decryption_session(key_id.clone(), signature.clone(), false)?;
+		let decryption_session = self.data.lock().cluster.new_decryption_session(key_id.clone(), signature.clone(), None, false)?;
 		let document_key = decryption_session.wait()?.decrypted_secret;
 
 		// encrypt document key with requestor public key
@@ -116,7 +116,7 @@ impl DocumentKeyServer for KeyServerImpl {
 	}
 
 	fn restore_document_key_shadow(&self, key_id: &ServerKeyId, signature: &RequestSignature) -> Result<EncryptedDocumentKeyShadow, Error> {
-		let decryption_session = self.data.lock().cluster.new_decryption_session(key_id.clone(), signature.clone(), true)?;
+		let decryption_session = self.data.lock().cluster.new_decryption_session(key_id.clone(), signature.clone(), None, true)?;
 		decryption_session.wait().map_err(Into::into)
 	}
 }
@@ -128,7 +128,7 @@ impl MessageSigner for KeyServerImpl {
 			.map_err(|_| Error::BadSignature)?;
 
 		// sign message
-		let signing_session = self.data.lock().cluster.new_signing_session(key_id.clone(), signature.clone(), message)?;
+		let signing_session = self.data.lock().cluster.new_signing_session(key_id.clone(), signature.clone(), None, message)?;
 		let message_signature = signing_session.wait()?;
 
 		// compose two message signature components into single one
@@ -395,5 +395,53 @@ pub mod tests {
 			// check signature
 			assert_eq!(math::verify_signature(&server_public, &(signature_c, signature_s), &message_hash), Ok(true));
 		}
+	}
+
+	#[test]
+	fn decryption_session_is_delegated_when_node_does_not_have_key_share() {
+		//::logger::init_log();
+		let key_servers = make_key_servers(6110, 3);
+
+		// generate document key
+		let threshold = 0;
+		let document = Random.generate().unwrap().secret().clone();
+		let secret = Random.generate().unwrap().secret().clone();
+		let signature = ethkey::sign(&secret, &document).unwrap();
+		let generated_key = key_servers[0].generate_document_key(&document, &signature, threshold).unwrap();
+		let generated_key = ethcrypto::ecies::decrypt(&secret, &ethcrypto::DEFAULT_MAC, &generated_key).unwrap();
+
+		// remove key from node0
+		key_servers[0].cluster().key_storage().remove(&document).unwrap();
+
+		// now let's try to retrieve key back by requesting it from node0, so that session must be delegated
+		let retrieved_key = key_servers[0].restore_document_key(&document, &signature).unwrap();
+		let retrieved_key = ethcrypto::ecies::decrypt(&secret, &ethcrypto::DEFAULT_MAC, &retrieved_key).unwrap();
+		assert_eq!(retrieved_key, generated_key);
+	}
+
+	#[test]
+	fn signing_session_is_delegated_when_node_does_not_have_key_share() {
+		//::logger::init_log();
+		let key_servers = make_key_servers(6114, 3);
+		let threshold = 1;
+
+		// generate server key
+		let server_key_id = Random.generate().unwrap().secret().clone();
+		let requestor_secret = Random.generate().unwrap().secret().clone();
+		let signature = ethkey::sign(&requestor_secret, &server_key_id).unwrap();
+		let server_public = key_servers[0].generate_key(&server_key_id, &signature, threshold).unwrap();
+
+		// remove key from node0
+		key_servers[0].cluster().key_storage().remove(&server_key_id).unwrap();
+
+		// sign message
+		let message_hash = H256::from(42);
+		let combined_signature = key_servers[0].sign_message(&server_key_id, &signature, message_hash.clone()).unwrap();
+		let combined_signature = ethcrypto::ecies::decrypt(&requestor_secret, &ethcrypto::DEFAULT_MAC, &combined_signature).unwrap();
+		let signature_c = Secret::from_slice(&combined_signature[..32]);
+		let signature_s = Secret::from_slice(&combined_signature[32..]);
+
+		// check signature
+		assert_eq!(math::verify_signature(&server_public, &(signature_c, signature_s), &message_hash), Ok(true));
 	}
 }

@@ -22,5 +22,8 @@ evm = { path = "../ethcore/evm" }
 vm = { path = "../ethcore/vm" }
 panic_hook = { path = "../panic_hook" }
 
+[dev-dependencies]
+pretty_assertions = "0.1"
+
 [features]
 evm-debug = ["ethcore/evm-debug-tests"]

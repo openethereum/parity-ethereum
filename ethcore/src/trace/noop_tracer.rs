@@ -27,6 +27,8 @@ use trace::trace::{Call, Create, VMTrace, RewardType};
 pub struct NoopTracer;
 
 impl Tracer for NoopTracer {
+	type Output = FlatTrace;
+
 	fn prepare_trace_call(&self, _: &ActionParams) -> Option<Call> {
 		None
 	}
@@ -76,6 +78,8 @@ impl Tracer for NoopTracer {
 pub struct NoopVMTracer;
 
 impl VMTracer for NoopVMTracer {
+	type Output = VMTrace;
+
 	fn trace_next_instruction(&mut self, _pc: usize, _instruction: u8) -> bool { false }
 
 	fn trace_prepare_execute(&mut self, _pc: usize, _instruction: u8, _gas_cost: U256) {}
