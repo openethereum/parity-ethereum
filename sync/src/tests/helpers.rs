@@ -21,6 +21,8 @@ use parking_lot::RwLock;
 use bytes::Bytes;
 use network::*;
 use tests::snapshot::*;
+// Use snapshot helpers under local dir
+use super::snapshot::TestSnapshotService;
 use ethcore::client::{TestBlockChainClient, BlockChainClient, Client as EthcoreClient, ClientConfig, ChainNotify};
 use ethcore::header::BlockNumber;
 use ethcore::snapshot::SnapshotService;

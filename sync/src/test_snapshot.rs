@@ -15,15 +15,12 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::HashMap;
-use std::sync::Arc;
 use hash::keccak;
 use bigint::hash::H256;
 use parking_lot::Mutex;
 use bytes::Bytes;
 use ethcore::snapshot::{SnapshotService, ManifestData, RestorationStatus};
 use ethcore::header::BlockNumber;
-use ethcore::client::{EachBlockWith};
-use SyncConfig;
 
 pub struct TestSnapshotService {
 	manifest: Option<ManifestData>,

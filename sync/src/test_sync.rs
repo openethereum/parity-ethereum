@@ -1,7 +1,7 @@
-use std::sync::{Arc, Weak};
+use std::sync::{Arc};
 
 use api::{EthSync, NetworkConfiguration, Params};
-use ethcore::client::{BlockChainClient, TestBlockChainClient};
+use ethcore::client::{TestBlockChainClient};
 use ethcore::spec::Spec;
 use network::NetworkError;
 use test_snapshot::TestSnapshotService;
