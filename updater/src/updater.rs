@@ -404,6 +404,8 @@ pub mod tests {
     use std::str::FromStr;
 
     use super::*;
+    use bigint::prelude::U256;
+    use ethcore::transaction::{Action, Transaction};
     use ethcore::spec::Spec;
     use ethsync::test_sync::TestSync;
     use ethcore::client::TestBlockChainClient;
@@ -464,7 +466,6 @@ pub mod tests {
 		    	weak_self: Mutex::new(Default::default()),
 		    	client: weak_client.clone(),
 		    	sync: weak_sync.clone(),
-                // TODO implement a stub fetcher struct
 		    	fetcher: Mutex::new(None),
 		    	operations: Mutex::new(Some(ops)),
 		    	exit_handler: Mutex::new(None),
@@ -569,6 +570,23 @@ pub mod tests {
 
     #[test]
     fn deploy_operations_to_blockchain() {
-        
+       let test_updater = TestUpdater::new();
+       let updater = test_updater.updater;
+       let client = updater.client;
+
+       if let operations = updater.operations.lock() {
+           let ops_tx = Transaction {
+               action: Action::Create,
+               value: U256::from(0),
+               // need to figure out how to compile ETHABI JSON to bytes
+               data: Bytes::new(),
+               gas: U256::from(250_000_000),
+               gas_price: Default::default(),
+               nonce: U256::from(0), 
+           };
+       }
+       else {
+           // create new operations contract from scratch 
+       }
     }
 }

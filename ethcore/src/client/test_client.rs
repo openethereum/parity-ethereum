@@ -492,8 +492,8 @@ impl MiningBlockChainClient for TestBlockChainClient {
 	fn prepare_open_block(&self, author: Address, gas_range_target: (U256, U256), extra_data: Bytes) -> OpenBlock {
 		let engine = &*self.spec.engine;
 		let genesis_header = self.spec.genesis_header();
-		let mut db_result = get_temp_state_db();
-		let db = self.spec.ensure_db_good(db_result.take(), &Default::default()).unwrap();
+        let mut db_result = self.state_db.lock().boxed_clone();
+		let db = self.spec.ensure_db_good(db_result, &Default::default()).unwrap();
 
 		let last_hashes = vec![genesis_header.hash()];
 		let mut open_block = OpenBlock::new(
