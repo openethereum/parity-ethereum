@@ -672,7 +672,10 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	if let Some(filter) = connection_filter {
 		service.add_notify(filter);
 	}
-	client.private_transactions_provider().add_notify(chain_notify.clone());
+	let provider = client.private_transactions_provider().clone();
+	provider.add_notify(chain_notify.clone());
+	provider.register_account_provider(Arc::downgrade(&account_provider));
+	service.add_notify(provider);
 
 	// start network
 	if network_enabled {

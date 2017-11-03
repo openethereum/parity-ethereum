@@ -134,10 +134,22 @@ pub enum PrivateTransactionError {
 	Call(String),
 	/// State is not available.
 	StatePruned,
+	/// State is incorrect.
+	StateIncorrect,
 	/// Wrong private transaction type.
 	BadTransactonType,
 	/// Contract does not exist or was not created.
 	ContractDoesNotExist,
+	/// Reference to the client is corrupted.
+	ClientIsMalformed,
+	/// Reference to account provider is corrupted.
+	AccountProviderIsMalformed,
+	/// Queue of private transactions is full.
+	QueueIsFull,
+	/// The transaction already exists in queue of private transactions.
+	PrivateTransactionAlreadyImported,
+	/// The information about private transaction is not found in the store
+	PrivateTransactionNotFound,
 }
 
 impl fmt::Display for PrivateTransactionError {
@@ -150,8 +162,14 @@ impl fmt::Display for PrivateTransactionError {
 			TooManyContracts => f.write_str("Private transaction created too many contracts."),
 			Call(ref msg) => f.write_fmt(format_args!("Contract call error. ({})", msg)),
 			StatePruned => f.write_str("State is not available."),
+			StateIncorrect => f.write_str("State is incorrect."),
 			BadTransactonType => f.write_str("Bad transaction type."),
 			ContractDoesNotExist => f.write_str("Private contract does not exist."),
+			ClientIsMalformed => f.write_str("Client is not registered."),
+			AccountProviderIsMalformed => f.write_str("Account provider is not registered."),
+			QueueIsFull => f.write_str("Private transactions queue is full."),
+			PrivateTransactionAlreadyImported => f.write_str("Private transactions already imported."),
+			PrivateTransactionNotFound => f.write_str("Private transactions is not found in the store."),
 		}
 	}
 }

@@ -34,6 +34,7 @@ use private_transactions::Provider as PrivateTransactionsProvider;
 use transaction::{LocalizedTransaction, PendingTransaction, SignedTransaction};
 use verification::queue::QueueInfo as BlockQueueInfo;
 
+use std::sync::Arc;
 use bigint::prelude::U256;
 use bigint::hash::H256;
 use util::Address;
@@ -185,7 +186,7 @@ pub trait BlockChainClient : Sync + Send {
 	fn logs(&self, filter: Filter) -> Vec<LocalizedLogEntry>;
 
 	/// Get the private transactions provider.
-	fn private_transactions_provider(&self) -> &PrivateTransactionsProvider;
+	fn private_transactions_provider(&self) -> Arc<PrivateTransactionsProvider>;
 
 	/// Makes a non-persistent transaction call.
 	fn call(&self, tx: &SignedTransaction, analytics: CallAnalytics, block: BlockId) -> Result<Executed, CallError>;

@@ -16,6 +16,7 @@ ethcore-io = { path = "../util/io" }
 ethcore-light = { path = "../ethcore/light"}
 ethcore = { path = "../ethcore" }
 rlp = { path = "../util/rlp" }
+rustc-hex = "1.0"
 hash = { path = "../util/hash" }
 triehash = { path = "../util/triehash" }
 kvdb = { path = "../util/kvdb" }

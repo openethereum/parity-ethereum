@@ -409,6 +409,9 @@ impl IoHandler<ClientIoMessage> for TestIoHandler {
 			ClientIoMessage::NewMessage(ref message) => if let Err(e) = self.client.engine().handle_message(message) {
 				panic!("Invalid message received: {}", e);
 			},
+			ClientIoMessage::NewPrivateTransaction => if let Err(e) = self.client.private_transactions_provider().on_private_transaction_queued() {
+				warn!("Failed to handle private transaction {}", e);
+			},
 			_ => {} // ignore other messages
 		}
 	}

@@ -25,7 +25,7 @@ use bytes::Bytes;
 use io::*;
 use spec::Spec;
 use error::*;
-use client::{Client, ClientConfig, ChainNotify};
+use client::{Client, ClientConfig, ChainNotify, BlockChainClient};
 use miner::Miner;
 
 use snapshot::{ManifestData, RestorationStatus};
@@ -51,6 +51,8 @@ pub enum ClientIoMessage {
 	TakeSnapshot(u64),
 	/// New consensus message received.
 	NewMessage(Bytes),
+	/// New private transaction arrived
+	NewPrivateTransaction,
 }
 
 /// Client service setup. Creates and registers client and network services with the IO subsystem.
@@ -218,6 +220,9 @@ impl IoHandler<ClientIoMessage> for ClientIoHandler {
 			},
 			ClientIoMessage::NewMessage(ref message) => if let Err(e) = self.client.engine().handle_message(message) {
 				trace!(target: "poa", "Invalid message received: {}", e);
+			},
+			ClientIoMessage::NewPrivateTransaction => if let Err(e) = self.client.private_transactions_provider().on_private_transaction_queued() {
+				warn!("Failed to handle private transaction {}", e);
 			},
 			_ => {} // ignore other messages
 		}
