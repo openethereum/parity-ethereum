@@ -450,7 +450,7 @@ pub mod tests {
 	            disabled: false,
             };
 
-            let sync = EthSync::new_test().unwrap();
+            let sync = TestSync::new().unwrap();
             let weak_sync = Arc::downgrade(&sync);
 
             let spec = Spec::new_test();
@@ -565,5 +565,10 @@ pub mod tests {
         let updater = test_updater.updater;
 
         assert_eq!(test_updater.operations_info, updater.info().unwrap());
+    }
+
+    #[test]
+    fn deploy_operations_to_blockchain() {
+        
     }
 }

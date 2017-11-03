@@ -25,7 +25,7 @@ use rustc_hex::FromHex;
 use hash::keccak;
 use bigint::prelude::U256;
 use bigint::hash::H256;
-use parking_lot::RwLock;
+use parking_lot::{Mutex, RwLock};
 use journaldb;
 use util::{Address, DBValue};
 use kvdb_rocksdb::{Database, DatabaseConfig};
@@ -62,7 +62,7 @@ use executive::{Executive, Executed, TransactOptions};
 use error::CallError;
 use trace::LocalizedTrace;
 use state_db::{StateDB};
-use state::{self, State};
+use state::{State};
 use kvdb::{self, KeyValueDB};
 use factory::Factories;
 use {encoded, trace, trie, kvdb_memorydb};
@@ -113,6 +113,14 @@ pub struct TestBlockChainClient {
 	pub traces: RwLock<Option<Vec<LocalizedTrace>>>,
 	/// Pruning history size to report.
 	pub history: RwLock<Option<u64>>,
+    /// In-memory key-value database backend for state_db
+    /// Optional for tests using the HashMap-backed blockchain
+    pub db: RwLock<Arc<KeyValueDB>>,
+    /// Blockchain state db
+    /// Optional for tests using the HashMap-backed blockchain
+    pub state_db: Mutex<StateDB>,
+    /// VM and State Trie factories
+    pub factories: Factories,
 }
 
 /// Used for generating test client blocks.
@@ -156,37 +164,46 @@ impl TestBlockChainClient {
 		let genesis_block = spec.genesis_block();
 		let genesis_hash = spec.genesis_header().hash();
 
-		let mut client = TestBlockChainClient {
-			blocks: RwLock::new(HashMap::new()),
-			numbers: RwLock::new(HashMap::new()),
-			genesis_hash: H256::new(),
-			extra_data: extra_data,
-			last_hash: RwLock::new(H256::new()),
-			difficulty: RwLock::new(spec.genesis_header().difficulty().clone()),
-			balances: RwLock::new(HashMap::new()),
-			nonces: RwLock::new(HashMap::new()),
-			storage: RwLock::new(HashMap::new()),
-			code: RwLock::new(HashMap::new()),
-			execution_result: RwLock::new(None),
-			receipts: RwLock::new(HashMap::new()),
-			logs: RwLock::new(Vec::new()),
-			queue_size: AtomicUsize::new(0),
-			miner: Arc::new(Miner::with_spec(&spec)),
-			spec: spec,
-			vm_factory: EvmFactory::new(VMType::Interpreter, 1024 * 1024),
-			latest_block_timestamp: RwLock::new(10_000_000),
-			ancient_block: RwLock::new(None),
-			first_block: RwLock::new(None),
-			traces: RwLock::new(None),
-			history: RwLock::new(None),
-		};
+        if let Ok((keydb, state_db)) = get_in_memory_db(&spec) {
+		    let mut client = TestBlockChainClient {
+		    	blocks: RwLock::new(HashMap::new()),
+		    	numbers: RwLock::new(HashMap::new()),
+		    	genesis_hash: H256::new(),
+		    	extra_data: extra_data,
+		    	last_hash: RwLock::new(H256::new()),
+		    	difficulty: RwLock::new(spec.genesis_header().difficulty().clone()),
+		    	balances: RwLock::new(HashMap::new()),
+		    	nonces: RwLock::new(HashMap::new()),
+		    	storage: RwLock::new(HashMap::new()),
+		    	code: RwLock::new(HashMap::new()),
+		    	execution_result: RwLock::new(None),
+		    	receipts: RwLock::new(HashMap::new()),
+		    	logs: RwLock::new(Vec::new()),
+		    	queue_size: AtomicUsize::new(0),
+		    	miner: Arc::new(Miner::with_spec(&spec)),
+		    	spec: spec,
+		    	vm_factory: EvmFactory::new(VMType::Interpreter, 1024 * 1024),
+		    	latest_block_timestamp: RwLock::new(10_000_000),
+		    	ancient_block: RwLock::new(None),
+		    	first_block: RwLock::new(None),
+		    	traces: RwLock::new(None),
+		    	history: RwLock::new(None),
+                state_db: state_db,
+                db: keydb,
+                factories: factories(),
+		    };
 
-		// insert genesis hash.
-		client.blocks.get_mut().insert(genesis_hash, genesis_block);
-		client.numbers.get_mut().insert(0, genesis_hash);
-		*client.last_hash.get_mut() = genesis_hash;
-		client.genesis_hash = genesis_hash;
-		client
+		    // insert genesis hash.
+		    client.blocks.get_mut().insert(genesis_hash, genesis_block);
+		    client.numbers.get_mut().insert(0, genesis_hash);
+		    *client.last_hash.get_mut() = genesis_hash;
+		    client.genesis_hash = genesis_hash;
+
+		    client
+        }
+        else {
+            panic!("Error creating database"); 
+        }
 	}
 
 	/// Set the transaction receipt result
@@ -404,6 +421,31 @@ impl TestBlockChainClient {
 			(false,) => call(state, env_info, machine, state_diff, t, TransactOptions::with_no_tracing()),
 		}
 	}
+
+    /// Convenience method to retrieve current state from a given state_db
+    pub fn get_in_memory_state(&self) -> Result<State<StateDB>, EvmTestError> {
+        {
+	        let state_db = self.state_db.lock().boxed_clone();
+
+    	    State::from_existing(
+    	    	state_db,
+    	    	*self.spec.genesis_header().state_root(),
+    	    	self.spec.engine.account_start_nonce(0),
+    	    	factories(),
+    	    ).map_err(EvmTestError::Trie)
+        }
+    }
+    
+    /// Convenience method to retrieve state from a fresh state_db
+    pub fn get_new_state(&self) -> Result<State<StateDB>, EvmTestError> {
+        let (_, state_db) = get_in_memory_db(&self.spec).unwrap();
+    	State::from_existing(
+    		state_db.into_inner(),
+    		*self.spec.genesis_header().state_root(),
+    		self.spec.engine.account_start_nonce(0),
+    		factories(),
+    	).map_err(EvmTestError::Trie)
+    }
 }
 
 pub fn factories() -> Factories {
@@ -414,11 +456,10 @@ pub fn factories() -> Factories {
     } 
 }
 
-pub fn get_in_memory_state_db(spec: &Spec) -> Result<state::State<StateDB>, EvmTestError> {
+pub fn get_in_memory_db(spec: &Spec) -> Result<(RwLock<Arc<KeyValueDB>>, Mutex<StateDB>), EvmTestError> {
 	let db = Arc::new(kvdb_memorydb::create(NUM_COLUMNS.expect("We use column-based DB; qed")));
 	let journal_db = journaldb::new(db.clone(), journaldb::Algorithm::EarlyMerge, COL_STATE);
 	let mut state_db = StateDB::new(journal_db, 5 * 1024 * 1024);
-    let factories = factories();
 
 	let genesis = spec.genesis_header();
 	// Write DB
@@ -428,12 +469,7 @@ pub fn get_in_memory_state_db(spec: &Spec) -> Result<state::State<StateDB>, EvmT
 		db.write(batch).map_err(EvmTestError::Database)?;
 	}
 
-	state::State::from_existing(
-		state_db,
-		*genesis.state_root(),
-		spec.engine.account_start_nonce(0),
-		factories.clone()
-	).map_err(EvmTestError::Trie)
+    Ok((RwLock::new(db), Mutex::new(state_db)))
 }
 
 pub fn get_temp_state_db() -> GuardedTempResult<StateDB> {
@@ -519,9 +555,9 @@ impl BlockChainClient for TestBlockChainClient {
             state_diff: None,
         };
 
-        match get_in_memory_state_db(&self.spec) {
-            Ok(mut state) => self.do_virtual_call(&env_info, &mut state, t, analytics),
-            _ => Ok(not_executed).into(), 
+        match self.get_in_memory_state() {
+            Ok(mut state) => self.do_virtual_call(&env_info, &mut state, t, analytics), 
+            _ => Ok(not_executed).into(),
         }
 	}
 
