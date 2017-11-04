@@ -404,7 +404,11 @@ pub mod tests {
     use std::str::FromStr;
 
     use super::*;
+
+    // Tools to setup Contracts
     use bigint::prelude::U256;
+    use ethcore::state::Account;
+    use ethcore::{contract_address, CreateContractAddress};
     use ethcore::transaction::{Action, Transaction};
     use ethcore::spec::Spec;
     use ethsync::test_sync::TestSync;
@@ -481,9 +485,9 @@ pub mod tests {
             let addr_str = "2F3656F60bc6862f2E675a8c8cca354524d53c46";
             let ops_addr = Address::from_str(addr_str).unwrap_or(H160([0u8; 20]));
 
-            let cli = client.clone();
+            // Call function on contract not deployed to a blockchain
 		    Operations::new(ops_addr, move |a, d| {
-                cli.call_contract(BlockId::Latest, a, d)
+                client.call_contract(BlockId::Latest, a, d)
             })
         }
     }
@@ -569,17 +573,11 @@ pub mod tests {
     }
 
     #[test]
-    fn deploy_operations_to_blockchain() {
-       let test_updater = TestUpdater::new();
-
-       let ops_tx = Transaction {
-           action: Action::Create,
-           value: U256::from(0),
-           // need to figure out how to compile ETHABI JSON to bytes
-           data: Bytes::new(),
-           gas: U256::from(250_000_000),
-           gas_price: Default::default(),
-           nonce: U256::from(0), 
+    fn operations_call_reset_client_owner_from_nonowner_address() {
+       let updater = TestUpdater::new().updater;
+       let _ = match *updater.operations.lock() {
+           Some(ref mut ops) => ops.reset_client_owner(CLIENT_ID, &Address::from([0u8; 20])).map_err(|e| panic!("{:?}", e)),
+           None => panic!("No operations available"),
        };
     }
 }
