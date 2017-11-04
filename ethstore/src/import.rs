@@ -19,7 +19,8 @@ use std::path::Path;
 use std::fs;
 
 use ethkey::Address;
-use dir::{paths, KeyDirectory, RootDiskDirectory, DiskKeyFileManager, KeyFileManager};
+use accounts_dir::{KeyDirectory, RootDiskDirectory, DiskKeyFileManager, KeyFileManager};
+use dir;
 use Error;
 
 /// Import an account from a file.
@@ -54,7 +55,7 @@ pub fn import_accounts(src: &KeyDirectory, dst: &KeyDirectory) -> Result<Vec<Add
 
 /// Provide a `HashSet` of all accounts available for import from the Geth keystore.
 pub fn read_geth_accounts(testnet: bool) -> Vec<Address> {
-	RootDiskDirectory::at(paths::geth(testnet))
+	RootDiskDirectory::at(dir::geth(testnet))
 		.load()
 		.map(|d| d.into_iter().map(|a| a.address).collect())
 		.unwrap_or_else(|_| Vec::new())
@@ -62,7 +63,7 @@ pub fn read_geth_accounts(testnet: bool) -> Vec<Address> {
 
 /// Import specific `desired` accounts from the Geth keystore into `dst`.
 pub fn import_geth_accounts(dst: &KeyDirectory, desired: HashSet<Address>, testnet: bool) -> Result<Vec<Address>, Error> {
-	let src = RootDiskDirectory::at(paths::geth(testnet));
+	let src = RootDiskDirectory::at(dir::geth(testnet));
 	let accounts = src.load()?;
 	let existing_accounts = dst.load()?.into_iter().map(|a| a.address).collect::<HashSet<_>>();
 

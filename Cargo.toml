@@ -57,6 +57,7 @@ parity-rpc-client = { path = "rpc_client" }
 parity-updater = { path = "updater" }
 parity-whisper = { path = "whisper" }
 path = { path = "util/path" }
+dir = { path = "util/dir" }
 panic_hook = { path = "panic_hook" }
 hash = { path = "util/hash" }
 migration = { path = "util/migration" }

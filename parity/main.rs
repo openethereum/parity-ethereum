@@ -28,6 +28,7 @@ extern crate ctrlc;
 extern crate docopt;
 #[macro_use]
 extern crate clap;
+extern crate dir;
 extern crate env_logger;
 extern crate fdlimit;
 extern crate futures;
@@ -105,7 +106,6 @@ mod configuration;
 mod dapps;
 mod ipfs;
 mod deprecated;
-mod dir;
 mod helpers;
 mod informant;
 mod light_helpers;

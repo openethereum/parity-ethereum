@@ -154,7 +154,7 @@ macro_rules! usage {
 		use std::io::{Read, Write};
 		use util::version;
 		use clap::{Arg, App, SubCommand, AppSettings, Error as ClapError, ErrorKind as ClapErrorKind};
-		use helpers::replace_home;
+		use dir::helpers::replace_home;
 		use std::ffi::OsStr;
 		use std::collections::HashMap;
 

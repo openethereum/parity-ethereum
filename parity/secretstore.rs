@@ -20,7 +20,7 @@ use dir::default_data_path;
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::Client;
 use ethkey::{Secret, Public};
-use helpers::replace_home;
+use dir::helpers::replace_home;
 use util::Address;
 
 #[derive(Debug, PartialEq, Clone)]

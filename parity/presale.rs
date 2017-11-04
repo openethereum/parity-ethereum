@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use ethcore::ethstore::{PresaleWallet, EthStore};
-use ethcore::ethstore::dir::RootDiskDirectory;
+use ethcore::ethstore::accounts_dir::RootDiskDirectory;
 use ethcore::account_provider::{AccountProvider, AccountProviderSettings};
 use helpers::{password_prompt, password_from_file};
 use params::SpecType;
