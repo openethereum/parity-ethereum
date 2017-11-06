@@ -4,7 +4,7 @@ homepage = "http://parity.io"
 repository = "https://github.com/paritytech/parity"
 license = "MIT/Apache-2.0"
 name = "ethcore-bigint"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
@@ -18,4 +18,5 @@ plain_hasher = { path = "../plain_hasher", version = "0.1" }
 [features]
 x64asm_arithmetic=[]
 rust_arithmetic=[]
+std = ["bigint/std"]
 heapsizeof = ["heapsize", "bigint/heapsizeof"]
