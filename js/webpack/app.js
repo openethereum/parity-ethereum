@@ -29,8 +29,8 @@ const rulesEs6 = require('./rules/es6');
 const rulesParity = require('./rules/parity');
 const Shared = require('./shared');
 
-const DAPPS_BUILTIN = require('@parity/shared/config/dappsBuiltin.json');
-const DAPPS_VIEWS = require('@parity/shared/config/dappsViews.json');
+const DAPPS_BUILTIN = require('@parity/shared/lib/config/dappsBuiltin.json');
+const DAPPS_VIEWS = require('@parity/shared/lib/config/dappsViews.json');
 const DAPPS_ALL = []
   .concat(DAPPS_BUILTIN, DAPPS_VIEWS)
   .filter((dapp) => !dapp.skipBuild)
