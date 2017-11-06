@@ -31,7 +31,7 @@
     "analize:app": "WPANALIZE=1 webpack --config webpack/app --json > .build/analize.app.json && cat .build/analize.app.json | webpack-bundle-size-analyzer",
     "analize:lib": "WPANALIZE=1 webpack --config webpack/libraries --json > .build/analize.lib.json && cat .build/analize.lib.json | webpack-bundle-size-analyzer",
     "analize:dll": "WPANALIZE=1 webpack --config webpack/vendor --json > .build/analize.dll.json && cat .build/analize.dll.json | webpack-bundle-size-analyzer",
-    "build": "npm run build:lib && npm run build:dll && npm run build:app && npm run build:embed",
+    "build": "npm run build:lib && npm run build:dll && npm run build:app",
     "build:app": "webpack --config webpack/app",
     "build:lib": "webpack --config webpack/libraries",
     "build:dll": "webpack --config webpack/vendor",

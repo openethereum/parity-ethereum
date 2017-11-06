@@ -68,7 +68,7 @@ module.exports = {
       },
       {
         test: /\.js$/,
-        include: /node_modules\/(material-chip-input|ethereumjs-tx)/,
+        include: /(material-chip-input|ethereumjs-tx)/,
         use: 'babel-loader'
       },
       {
