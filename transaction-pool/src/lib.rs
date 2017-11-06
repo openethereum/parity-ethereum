@@ -1,4 +1,5 @@
 extern crate smallvec;
+extern crate ethcore_bigint as bigint;
 
 #[macro_use]
 extern crate error_chain;
@@ -13,11 +14,12 @@ pub use self::pool::Pool;
 use std::sync::Arc;
 use std::{cmp, fmt};
 
+use self::bigint::prelude::{H256, U256};
+type Address = bigint::hash::H160;
+
 // Types
 #[derive(Debug)]
 pub struct UnverifiedTransaction;
-#[derive(Debug)]
-pub struct SignedTransaction;
 #[derive(Debug, PartialEq)]
 pub struct VerifiedTransaction {
 	pub hash: H256,
@@ -33,33 +35,11 @@ impl VerifiedTransaction {
 	}
 
 	pub fn mem_usage(&self) -> usize {
-		self.nonce.0 as usize
+		self.nonce.low_u64() as usize
 	}
 
 	pub fn sender(&self) -> Address {
 		self.sender.clone()
-	}
-}
-#[derive(Default, Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Address(u64);
-impl From<u64> for Address {
-	fn from(x: u64) -> Self {
-		Address(x)
-	}
-}
-
-#[derive(Default, Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub struct U256(u64);
-impl From<u64> for U256 {
-	fn from(x: u64) -> Self {
-		U256(x)
-	}
-}
-#[derive(Default, Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub struct H256(u64);
-impl From<u64> for H256 {
-	fn from(x: u64) -> Self {
-		H256(x)
 	}
 }
 

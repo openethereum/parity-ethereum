@@ -4,14 +4,15 @@ use std::sync::Arc;
 use std::collections::{HashMap, BTreeSet};
 
 use smallvec::SmallVec;
+use bigint::hash::{H160, H256};
 
 use error;
 use {Ready, Readiness};
 use {Listener, NoopListener};
 use {Scoring, ScoringChoice, ScoringChange};
-use {VerifiedTransaction, SharedTransaction, H256};
+use {VerifiedTransaction, SharedTransaction};
 
-type Sender = ::Address;
+type Sender = H160;
 
 #[derive(Debug)]
 pub struct Options {
@@ -630,13 +631,13 @@ mod tests {
 	use std::rc::Rc;
 	use std::cell::Cell;
 	use super::*;
-	use U256;
+	use bigint::uint::U256;
 
 	#[derive(Default)]
 	struct DummyScoring;
 
 	impl Scoring for DummyScoring {
-		type Score = u64;
+		type Score = U256;
 
 		fn compare(&self, old: &VerifiedTransaction, other: &VerifiedTransaction) -> cmp::Ordering {
 			old.nonce.cmp(&other.nonce)
@@ -658,22 +659,22 @@ mod tests {
 
 		fn update_scores(&self, txs: &[SharedTransaction], scores: &mut [Self::Score], _change: ScoringChange) {
 			for i in 0..txs.len() {
-				scores[i] = txs[i].gas_price.0;
+				scores[i] = txs[i].gas_price;
 			}
 		}
 
 		fn should_replace(&self, old: &VerifiedTransaction, new: &VerifiedTransaction) -> bool {
-			new.gas_price.0 > old.gas_price.0
+			new.gas_price > old.gas_price
 		}
 	}
 
 	#[derive(Default)]
-	struct NonceReady(HashMap<Sender, U256>, u64);
+	struct NonceReady(HashMap<Sender, U256>, U256);
 
 	impl NonceReady {
-		pub fn new(min: u64) -> Self {
+		pub fn new<T: Into<U256>>(min: T) -> Self {
 			let mut n = NonceReady::default();
-			n.1 = min;
+			n.1 = min.into();
 			n
 		}
 	}
@@ -681,11 +682,11 @@ mod tests {
 	impl Ready for NonceReady {
 		fn is_ready(&mut self, tx: &VerifiedTransaction) -> Readiness {
 			let min = self.1;
-			let nonce = self.0.entry(tx.sender()).or_insert_with(|| U256::from(min));
+			let nonce = self.0.entry(tx.sender()).or_insert_with(|| min);
 			match tx.nonce.cmp(nonce) {
 				cmp::Ordering::Greater => Readiness::Future,
 				cmp::Ordering::Equal => {
-					*nonce = U256::from(nonce.0 + 1);
+					*nonce = *nonce + 1.into();
 					Readiness::Ready
 				},
 				cmp::Ordering::Less => Readiness::Stalled,
@@ -730,8 +731,9 @@ mod tests {
 				self.insertion_id.set(id);
 				id
 			};
+			let hash = self.nonce ^ (U256::from(100) * self.gas_price) ^ (U256::from(100_000) * self.sender.low_u64().into());
 			VerifiedTransaction {
-				hash: (self.nonce.0 ^ (100 * self.gas_price.0) ^ (100_000 * self.sender.0)).into(),
+				hash: hash.into(),
 				nonce: self.nonce,
 				gas_price: self.gas_price,
 				gas: 21_000.into(),
@@ -924,11 +926,12 @@ mod tests {
 		});
 
 		// when
-		let mut current_gas = 0;
+		let mut current_gas = U256::zero();
+		let limit = (21_000 * 8).into();
 		let mut pending = txq.pending(NonceReady::default()).take_while(|tx| {
-			let should_take = tx.gas.0 + current_gas <= 21_000 * 8;
+			let should_take = tx.gas + current_gas <= limit;
 			if should_take {
-				current_gas += tx.gas.0
+				current_gas = current_gas + tx.gas
 			}
 			should_take
 		});
