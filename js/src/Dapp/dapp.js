@@ -20,10 +20,10 @@ import { FormattedMessage } from 'react-intl';
 import PropTypes from 'prop-types';
 
 import Api from '@parity/api';
-import builtinDapps from '@parity/shared/config/dappsBuiltin.json';
-import viewsDapps from '@parity/shared/config/dappsViews.json';
-import DappsStore from '@parity/shared/mobx/dappsStore';
-import HistoryStore from '@parity/shared/mobx/historyStore';
+import builtinDapps from '@parity/shared/lib/config/dappsBuiltin.json';
+import viewsDapps from '@parity/shared/lib/config/dappsViews.json';
+import DappsStore from '@parity/shared/lib/mobx/dappsStore';
+import HistoryStore from '@parity/shared/lib/mobx/historyStore';
 // import { Bond } from 'oo7';
 
 import styles from './dapp.css';

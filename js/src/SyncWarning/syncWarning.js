@@ -18,7 +18,7 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import { observer } from 'mobx-react';
 
-import StatusIndicator from '@parity/ui/StatusIndicator';
+import StatusIndicator from '@parity/ui/lib/StatusIndicator';
 
 import styles from './syncWarning.css';
 
