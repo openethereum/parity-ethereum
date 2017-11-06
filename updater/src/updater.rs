@@ -402,6 +402,7 @@ impl Service for Updater {
 #[cfg(test)]
 pub mod tests {
     use std::str::FromStr;
+    use std::io::{Read, Error};
 
     use super::*;
 
@@ -489,6 +490,16 @@ pub mod tests {
 		    Operations::new(ops_addr, move |a, d| {
                 client.call_contract(BlockId::Latest, a, d)
             })
+        }
+
+        fn load_operations_bin() -> Result<Bytes, Error> {
+            let mut binfile = fs::File::open("res/operations.bin")?;
+            let mut bindata: Vec<u8> = vec![];
+
+            let bytes_read = binfile.read_to_end(&mut bindata).ok().unwrap();
+            assert!(bytes_read != 0, "Operations binary data file is empty");
+
+            Ok(bindata)
         }
     }
 
@@ -604,7 +615,8 @@ pub mod tests {
         let _ = match *updater.operations.lock() {
             Some(ref mut ops) => ops.reset_client_owner(CLIENT_ID, &Address::from([0u8; 20]))
                 .map_err(|e| panic!("resetClientOwner failed with {:?}", e)),
-            None => panic!("No operations available"), };
+            None => panic!("No operations available"), 
+        };
     }
 
     #[test]
@@ -614,8 +626,8 @@ pub mod tests {
             Some(ref mut ops) => ops.add_release(
                 &release_id(), /* release */
                 0, /* fork block */
-                0, /* track */
-                0x01078200, /* semver */
+                1, /* track */
+                0x01070800, /* semver */
                 false /* critical */)
                .map_err(|e| panic!("addRelease failed with error {:?}", e)),
             None => panic!("No operations available"),
