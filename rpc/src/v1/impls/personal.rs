@@ -30,7 +30,7 @@ use v1::helpers::errors;
 use v1::helpers::dispatch::{Dispatcher, SignWith};
 use v1::helpers::accounts::unwrap_provider;
 use v1::traits::Personal;
-use v1::types::{H160 as RpcH160, H256 as RpcH256, U128 as RpcU128, TransactionRequest};
+use v1::types::{H160 as RpcH160, H256 as RpcH256, U128 as RpcU128, TransactionRequest, RichRawTransaction as RpcRichRawTransaction};
 use v1::metadata::Metadata;
 
 /// Account management (personal) rpc implementation.
@@ -133,9 +133,9 @@ impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 		}
 	}
 
-	fn sign_transaction(&self, meta: Metadata, request: TransactionRequest, password: String) -> BoxFuture<RpcH256, Error> {
+	fn sign_transaction(&self, meta: Metadata, request: TransactionRequest, password: String) -> BoxFuture<RpcRichRawTransaction, Error> {
 		Box::new(self.do_sign_transaction(meta, request, password)
-			.map(|(pending_tx, _)| pending_tx.hash().into()))
+			.map(|(pending_tx, dispatcher)| dispatcher.enrich(pending_tx.transaction)))
 	}
 
 	fn send_transaction(&self, meta: Metadata, request: TransactionRequest, password: String) -> BoxFuture<RpcH256, Error> {

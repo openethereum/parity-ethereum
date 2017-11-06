@@ -17,7 +17,7 @@
 //! Personal rpc interface.
 use jsonrpc_core::{BoxFuture, Result};
 
-use v1::types::{U128, H160, H256, TransactionRequest};
+use v1::types::{U128, H160, H256, TransactionRequest, RichRawTransaction as RpcRichRawTransaction};
 
 build_rpc_trait! {
 	/// Personal rpc interface. Safe (read-only) functions.
@@ -39,7 +39,7 @@ build_rpc_trait! {
 
 		/// Signs transaction. The account is not unlocked in such case.
 		#[rpc(meta, name = "personal_signTransaction")]
-		fn sign_transaction(&self, Self::Metadata, TransactionRequest, String) -> BoxFuture<H256, Error>;
+		fn sign_transaction(&self, Self::Metadata, TransactionRequest, String) -> BoxFuture<RpcRichRawTransaction, Error>;
 
 		/// Sends transaction and signs it in single call. The account is not unlocked in such case.
 		#[rpc(meta, name = "personal_sendTransaction")]
