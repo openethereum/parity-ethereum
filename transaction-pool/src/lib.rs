@@ -61,14 +61,13 @@ impl Verifier for NoopVerifier {
 	}
 }
 
-// TODO [ToDr] Should accept SharedTransaction instead.
 pub trait Listener {
-	fn added(&mut self, _tx: &VerifiedTransaction, _old: Option<&VerifiedTransaction>) {}
-	fn rejected(&mut self, _tx: &VerifiedTransaction) {}
-	fn dropped(&mut self, _tx: &VerifiedTransaction) {}
-	fn invalid(&mut self, _tx: &VerifiedTransaction) {}
-	fn cancelled(&mut self, _tx: &VerifiedTransaction) {}
-	fn mined(&mut self, _tx: &VerifiedTransaction) {}
+	fn added(&mut self, _tx: &SharedTransaction, _old: Option<&SharedTransaction>) {}
+	fn rejected(&mut self, _tx: VerifiedTransaction) {}
+	fn dropped(&mut self, _tx: &SharedTransaction) {}
+	fn invalid(&mut self, _tx: &SharedTransaction) {}
+	fn cancelled(&mut self, _tx: &SharedTransaction) {}
+	fn mined(&mut self, _tx: &SharedTransaction) {}
 }
 
 pub struct NoopListener;

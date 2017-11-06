@@ -1,4 +1,4 @@
-use {SharedTransaction, VerifiedTransaction, H256};
+use bigint::hash::H256;
 
 error_chain! {
 	errors {
@@ -10,9 +10,9 @@ error_chain! {
 			description("the pool is full and transaction is too cheap to replace any transaction"),
 			display("[{:?}] transaction too cheap to enter the pool", hash)
 		}
-		TooCheapToReplace(old: SharedTransaction, new: VerifiedTransaction) {
+		TooCheapToReplace(old_hash: H256, hash: H256) {
 			description("transaction is too cheap too replace existing transaction in the queue"),
-			display("[{:?}] transaction too cheap to replace: {:?}", new.hash(), old.hash())
+			display("[{:?}] transaction too cheap to replace: {:?}", hash, old_hash)
 		}
 	}
 }

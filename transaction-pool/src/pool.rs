@@ -127,7 +127,7 @@ impl<S, L> Pool<S, L> where
 		}
 
 	}
-	pub fn import(&mut self, transaction: VerifiedTransaction) -> error::Result<SharedTransaction> {
+	pub fn import(&mut self, mut transaction: VerifiedTransaction) -> error::Result<SharedTransaction> {
 		let sender = transaction.sender();
 		let mem_usage = transaction.mem_usage();
 		let hash = transaction.hash();
@@ -136,22 +136,25 @@ impl<S, L> Pool<S, L> where
 
 		{
 			let remove_worst = |s: &mut Self, transaction| {
-				s.remove_worst(transaction).map_err(|err| {
-					s.listener.rejected(transaction);
-					err
-				}).map(|removed| {
-					s.listener.dropped(&removed);
-					s.removed(&removed);
-					()
-				})
+				match s.remove_worst(&transaction) {
+					Err(err) => {
+						s.listener.rejected(transaction);
+						Err(err)
+					},
+					Ok(removed) => {
+						s.listener.dropped(&removed);
+						s.removed(&removed);
+						Ok(transaction)
+					},
+				}
 			};
 
 			while self.by_hash.len() + 1 > self.options.max_count {
-				remove_worst(self, &transaction)?;
+				transaction = remove_worst(self, transaction)?;
 			}
 
 			while self.mem_usage + mem_usage > self.options.max_mem_usage {
-				remove_worst(self, &transaction)?;
+				transaction = remove_worst(self, transaction)?;
 			}
 		}
 
@@ -180,12 +183,14 @@ impl<S, L> Pool<S, L> where
 				Ok(new)
 			},
 			AddResult::TooCheap { new, old } => {
-				self.listener.rejected(&new);
-				bail!(error::ErrorKind::TooCheapToReplace(old, new))
+				let hash = new.hash();
+				self.listener.rejected(new);
+				bail!(error::ErrorKind::TooCheapToReplace(old.hash(), hash))
 			},
 			AddResult::TooCheapToEnter(new) => {
-				self.listener.rejected(&new);
-				bail!(error::ErrorKind::TooCheapToEnter(new.hash()))
+				let hash = new.hash();
+				self.listener.rejected(new);
+				bail!(error::ErrorKind::TooCheapToEnter(hash))
 			}
 		}
 	}
@@ -1043,27 +1048,27 @@ mod tests {
 		struct MyListener(pub Rc<RefCell<Vec<&'static str>>>);
 
 		impl Listener for MyListener {
-			fn added(&mut self, _tx: &VerifiedTransaction, old: Option<&VerifiedTransaction>) {
+			fn added(&mut self, _tx: &SharedTransaction, old: Option<&SharedTransaction>) {
 				self.0.borrow_mut().push(if old.is_some() { "replaced" } else { "added" });
 			}
 
-			fn rejected(&mut self, _tx: &VerifiedTransaction) {
+			fn rejected(&mut self, _tx: VerifiedTransaction) {
 				self.0.borrow_mut().push("rejected".into());
 			}
 
-			fn dropped(&mut self, _tx: &VerifiedTransaction) {
+			fn dropped(&mut self, _tx: &SharedTransaction) {
 				self.0.borrow_mut().push("dropped".into());
 			}
 
-			fn invalid(&mut self, _tx: &VerifiedTransaction) {
+			fn invalid(&mut self, _tx: &SharedTransaction) {
 				self.0.borrow_mut().push("invalid".into());
 			}
 
-			fn cancelled(&mut self, _tx: &VerifiedTransaction) {
+			fn cancelled(&mut self, _tx: &SharedTransaction) {
 				self.0.borrow_mut().push("cancelled".into());
 			}
 
-			fn mined(&mut self, _tx: &VerifiedTransaction) {
+			fn mined(&mut self, _tx: &SharedTransaction) {
 				self.0.borrow_mut().push("mined".into());
 			}
 		}
