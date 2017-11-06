@@ -417,7 +417,7 @@ pub mod tests {
     use parking_lot::{Condvar, Mutex};
 
     fn release_id() -> H256 {
-        H256::from_slice(b"fbfdb84089c022cf1cb421135fa44628a7b790e17eaa666b563fcbbc5959aa41")
+        H256::from_slice(b"unreleased")
     }
 
     struct TestUpdater {
@@ -492,8 +492,9 @@ pub mod tests {
         }
     }
 
+    // Tests with `setup_` prefix just ensure that Updater functions work on a basic level
     #[test]
-    fn release_track() {
+    fn setup_release_track() {
         let tracks = [ReleaseTrack::Stable, ReleaseTrack::Beta, ReleaseTrack::Nightly, ReleaseTrack::Unknown];
 
         for track in tracks.iter() {
@@ -505,14 +506,14 @@ pub mod tests {
     } 
 
     #[test]
-    fn set_exit_handler() {
+    fn setup_set_exit_handler() {
         let upd = TestUpdater::new().updater;
         let e = Arc::new(Condvar::new());
         upd.set_exit_handler(move || { e.notify_all(); });
     }
 
     #[test]
-    fn collect_release_info() {
+    fn setup_collect_release_info() {
         let test_upd = TestUpdater::new();
         let ops = TestUpdater::new_operations(Arc::new(TestBlockChainClient::new()));
 
@@ -524,7 +525,7 @@ pub mod tests {
     }
 
     #[test]
-    fn collect_latest() {
+    fn setup_collect_latest() {
         let test_upd = TestUpdater::new();
         match test_upd.updater.collect_latest() {
             Ok(ops_info) => assert_eq!(test_upd.operations_info, ops_info),
@@ -533,7 +534,7 @@ pub mod tests {
     }
 
     #[test]
-    fn registrar() {
+    fn setup_registrar() {
         let upd = TestUpdater::new().updater;
         match upd.registrar() {
             Ok(addr) => assert_eq!(H160::zero(), addr),
@@ -542,7 +543,7 @@ pub mod tests {
     }
 
     #[test]
-    fn updates_path() {
+    fn setup_updates_path() {
         let upd = TestUpdater::new().updater;
         let mut path = PathBuf::default();
         path.push("new_string");
@@ -550,13 +551,13 @@ pub mod tests {
     }
 
     #[test]
-    fn capability() {
+    fn setup_capability() {
         let upd = TestUpdater::new().updater;
         assert_eq!(CapState::default(), upd.capability());
     }
 
     #[test]
-    fn version_info() {
+    fn setup_version_info() {
         let mut policy = UpdatePolicy::default();
         policy.track = ReleaseTrack::Stable;
         let upd = TestUpdater::with_policy(policy).updater; 
@@ -565,19 +566,158 @@ pub mod tests {
     }
 
     #[test]
-    fn info() {
+    fn setup_info() {
         let test_updater = TestUpdater::new();
         let updater = test_updater.updater;
 
         assert_eq!(test_updater.operations_info, updater.info().unwrap());
     }
 
+    // Tests with the `operations_` prefix test calls to Updater's inner Operations contract
+    // Testing the deployed Operations contract is left for integration tests
+
+    // Operations Setters
+
     #[test]
-    fn operations_call_reset_client_owner_from_nonowner_address() {
-       let updater = TestUpdater::new().updater;
-       let _ = match *updater.operations.lock() {
-           Some(ref mut ops) => ops.reset_client_owner(CLIENT_ID, &Address::from([0u8; 20])).map_err(|e| panic!("{:?}", e)),
-           None => panic!("No operations available"),
-       };
+    fn operations_call_set_owner() {
+        let updater = TestUpdater::new().updater;
+        let _ = match *updater.operations.lock() {
+            Some(ref mut ops) => ops.set_owner(&Address::from([0u8; 20]))
+               .map_err(|e| panic!("setOwner failed with {:?}", e)),
+            None => panic!("No operations available"),
+        };
+    }
+
+    #[test]
+    fn operations_call_set_client_owner() {
+        let updater = TestUpdater::new().updater;
+        let _ = match *updater.operations.lock() {
+            Some(ref mut ops) => ops.set_client_owner(&Address::from([0u8; 20]))
+               .map_err(|e| panic!("setClientOwner failed with error {:?}", e)),
+            None => panic!("No operations available"),
+        };
+    }
+
+    #[test]
+    fn operations_call_reset_client_owner() {
+        let updater = TestUpdater::new().updater;
+        let _ = match *updater.operations.lock() {
+            Some(ref mut ops) => ops.reset_client_owner(CLIENT_ID, &Address::from([0u8; 20]))
+                .map_err(|e| panic!("resetClientOwner failed with {:?}", e)),
+            None => panic!("No operations available"), };
+    }
+
+    #[test]
+    fn operations_call_add_release() {
+        let updater = TestUpdater::new().updater;
+        let _ = match *updater.operations.lock() {
+            Some(ref mut ops) => ops.add_release(
+                &release_id(), /* release */
+                0, /* fork block */
+                0, /* track */
+                0x01078200, /* semver */
+                false /* critical */)
+               .map_err(|e| panic!("addRelease failed with error {:?}", e)),
+            None => panic!("No operations available"),
+        };
+    }
+
+    #[test]
+    fn operations_call_accept_fork() {
+        let updater = TestUpdater::new().updater;
+        let _ = match *updater.operations.lock() {
+            Some(ref mut ops) => ops.accept_fork()
+                .map_err(|e| panic!("acceptFork failed with {:?}", e)),
+            None => panic!("No operations available"),
+        };
+    }
+
+    #[test]
+    fn operations_call_set_client_required() {
+        let updater = TestUpdater::new().updater;
+        let _ = match *updater.operations.lock() {
+            Some(ref mut ops) => ops.set_client_required(CLIENT_ID, true)
+                .map_err(|e| panic!("setClientRequired failed with {:?}", e)),
+            None => panic!("No operations available"),
+        };
+    }
+
+    #[test]
+    fn operations_call_add_checksum() {
+        let updater = TestUpdater::new().updater;
+
+        let _ = match *updater.operations.lock() {
+            Some(ref mut ops) => ops.add_checksum(
+                &release_id(),
+                &platform(),
+                &H256::from_slice("checksum".as_bytes()))
+                .map_err(|e| panic!("checksum failed with {:?}", e)),
+            None => panic!("No operations available"),
+        };
+    }
+
+    // Operations Getters
+
+    #[test]
+    fn operations_call_clients_required() {
+        let updater = TestUpdater::new().updater;
+        let _ = match *updater.operations.lock() {
+            Some(ref mut ops) => ops.clients_required()
+                .map_err(|e| panic!("clientsRequired failed with {:?}", e)),
+            None => panic!("No operations available"),
+        };
+    }
+
+    #[test]
+    fn operations_call_track() {
+        let updater = TestUpdater::new().updater;
+        let _ = match *updater.operations.lock() {
+            Some(ref mut ops) => ops.track(CLIENT_ID, &release_id())
+                .map_err(|e| panic!("track failed with {:?}", e)),
+            None => panic!("No operations available"),
+        };
+    }
+
+    #[test]
+    fn operations_call_latest_fork() {
+        let updater = TestUpdater::new().updater;
+        let _ = match *updater.operations.lock() {
+            Some(ref mut ops) => ops.latest_fork()
+                .map_err(|e| panic!("latestFork failed with {:?}", e)),
+            None => panic!("No operations available"),
+        };
+    }
+
+    #[test]
+    fn operations_call_latest_in_track() {
+        let updater = TestUpdater::new().updater;
+        let _ = match *updater.operations.lock() {
+            Some(ref mut ops) => ops.latest_in_track(CLIENT_ID, 1u8 /* track */)
+                .map_err(|e| panic!("latestInTrack failed with {:?}", e)),
+            None => panic!("No operations available"),
+        };
+    }
+
+    #[test]
+    fn operations_call_checksum_with_no_release() {
+        let updater = TestUpdater::new().updater;
+        let _ = match *updater.operations.lock() {
+            Some(ref mut ops) => ops.checksum(
+                CLIENT_ID,
+                &release_id(),
+                &platform())
+                .map_err(|e| panic!("checksum failed with {:?}", e)),
+            None => panic!("No operations available"),
+        };
+    }
+
+    #[test]
+    fn operations_call_proposed_fork() {
+        let updater = TestUpdater::new().updater;
+        let _ = match *updater.operations.lock() {
+            Some(ref mut ops) => ops.proposed_fork()
+                .map_err(|e| panic!("proposedFork failed with {:?}", e)),
+            None => panic!("No operations available"),
+        };
     }
 }
