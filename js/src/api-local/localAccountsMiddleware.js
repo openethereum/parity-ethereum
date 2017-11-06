@@ -16,12 +16,13 @@
 
 const EthereumTx = require('ethereumjs-tx');
 
+const { Middleware } = require('@parity/api/lib/transport');
+const { inNumber16 } = require('@parity/api/lib/format/input');
+const { randomPhrase } = require('@parity/wordlist');
+
 const accounts = require('./accounts');
 const transactions = require('./transactions');
-const { Middleware } = require('../transport');
-const { inNumber16 } = require('../format/input');
 const { phraseToWallet, phraseToAddress, verifySecret } = require('./ethkey');
-const { randomPhrase } = require('@parity/wordlist');
 
 class LocalAccountsMiddleware extends Middleware {
   constructor (transport) {

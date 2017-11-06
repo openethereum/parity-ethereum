@@ -16,8 +16,9 @@
 
 /* eslint-disable no-unused-expressions */
 
+const JsonRpcBase = require('@parity/api/lib/transport/jsonRpcBase');
+
 const LocalAccountsMiddleware = require('./localAccountsMiddleware');
-const JsonRpcBase = require('../transport/jsonRpcBase');
 
 const RPC_RESPONSE = Symbol('RPC response');
 const ADDRESS = '0x00a329c0648769a73afac7f9381e08fb43dbea72';

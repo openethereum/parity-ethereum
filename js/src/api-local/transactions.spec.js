@@ -16,8 +16,9 @@
 
 /* eslint-disable no-unused-expressions */
 
+const { TransportError } = require('@parity/api/lib/transport/error');
+
 const transactions = require('./transactions');
-const { TransportError } = require('../transport/error');
 
 const DUMMY_TX = 'dummy';
 

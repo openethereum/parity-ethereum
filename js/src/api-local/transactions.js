@@ -16,8 +16,8 @@
 
 const EventEmitter = require('eventemitter3');
 
-const { toHex } = require('../util/format');
-const { TransportError } = require('../transport');
+const { toHex } = require('@parity/api/lib/util/format');
+const { TransportError } = require('@parity/api/lib/transport');
 
 const AWAITING = Symbol('awaiting');
 const LOCKED = Symbol('locked');
