@@ -145,11 +145,9 @@ class Application extends Component {
 
 function mapStateToProps (state) {
   const { blockNumber } = state.nodeStatus;
-  const { hasAccounts } = state.personal;
 
   return {
-    blockNumber,
-    hasAccounts
+    blockNumber
   };
 }
 
