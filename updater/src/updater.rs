@@ -421,6 +421,11 @@ pub mod tests {
         H256::from_slice(b"unreleased")
     }
 
+    fn operations_address() -> Address {
+        let addr_str = "2F3656F60bc6862f2E675a8c8cca354524d53c46";
+        Address::from_str(addr_str).unwrap_or(H160([0u8; 20]))
+    }
+
     struct TestUpdater {
         updater: Arc<Updater>,
         release_info: ReleaseInfo,
@@ -483,11 +488,8 @@ pub mod tests {
         }
 
         fn new_operations(client: Arc<TestBlockChainClient>) -> Operations {
-            let addr_str = "2F3656F60bc6862f2E675a8c8cca354524d53c46";
-            let ops_addr = Address::from_str(addr_str).unwrap_or(H160([0u8; 20]));
-
             // Call function on contract not deployed to a blockchain
-		    Operations::new(ops_addr, move |a, d| {
+		    Operations::new(operations_address(), move |a, d| {
                 client.call_contract(BlockId::Latest, a, d)
             })
         }
@@ -500,6 +502,18 @@ pub mod tests {
             assert!(bytes_read != 0, "Operations binary data file is empty");
 
             Ok(bindata)
+        }
+
+        fn deploy_operations_contract(&self) {
+            if let Some(ops_data) = TestUpdater::load_operations_bin().ok() {
+                let _ = self.updater.client
+                    .upgrade()
+                    .unwrap()
+                    .transact_contract(operations_address(), ops_data);
+            }
+            else {
+                panic!("Unable to load operations binary data");
+            }
         }
     }
 
@@ -672,8 +686,10 @@ pub mod tests {
 
     #[test]
     fn operations_call_clients_required() {
-        let updater = TestUpdater::new().updater;
-        let _ = match *updater.operations.lock() {
+        let test_updater = TestUpdater::new();
+        test_updater.deploy_operations_contract();
+
+        let _ = match *test_updater.updater.operations.lock() {
             Some(ref mut ops) => ops.clients_required()
                 .map_err(|e| panic!("clientsRequired failed with {:?}", e)),
             None => panic!("No operations available"),
