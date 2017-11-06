@@ -610,7 +610,11 @@ usage! {
 
 			FLAG flag_refuse_service_transactions: (bool) = false, or |c: &Config| otry!(c.mining).refuse_service_transactions.clone(),
 			"--refuse-service-transactions",
-			"Always refuse service transactions..",
+			"Always refuse service transactions.",
+
+			FLAG flag_infinite_pending_block: (bool) = false, or |c: &Config| otry!(c.mining).infinite_pending_block.clone(),
+			"--infinite-pending-block",
+			"Pending block will be created with maximal possible gas limit and will execute all transactions in the queue. Note that such block is invalid and should never be attempted to be mined.",
 
 			FLAG flag_no_persistent_txqueue: (bool) = false, or |c: &Config| otry!(c.parity).no_persistent_txqueue,
 			"--no-persistent-txqueue",
@@ -1140,6 +1144,7 @@ struct Mining {
 	remove_solved: Option<bool>,
 	notify_work: Option<Vec<String>>,
 	refuse_service_transactions: Option<bool>,
+	infinite_pending_block: Option<bool>,
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
@@ -1515,6 +1520,7 @@ mod tests {
 			flag_remove_solved: false,
 			arg_notify_work: Some("http://localhost:3001".into()),
 			flag_refuse_service_transactions: false,
+			flag_infinite_pending_block: false,
 
 			flag_stratum: false,
 			arg_stratum_interface: "local".to_owned(),
@@ -1755,6 +1761,7 @@ mod tests {
 				remove_solved: None,
 				notify_work: None,
 				refuse_service_transactions: None,
+				infinite_pending_block: None,
 			}),
 			footprint: Some(Footprint {
 				tracing: Some("on".into()),
