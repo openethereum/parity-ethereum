@@ -21,7 +21,7 @@
     "Parity"
   ],
   "scripts": {
-    "build": "npm run build:lib && npm run build:app",
+    "build": "npm run build:lib && npm run build:app && npm run build:embed",
     "build:app": "webpack --progress --config webpack/app",
     "build:lib": "webpack --progress --config webpack/libraries",
     "build:embed": "EMBED=1 node webpack/embed",
