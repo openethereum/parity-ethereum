@@ -1034,9 +1034,131 @@ mod tests {
 		});
 	}
 
-	#[test]
-	fn should_notify_listener() {
-		// all 3 cases
-		assert_eq!(false, true)
+	mod listener {
+		use super::*;
+		use std::rc::Rc;
+		use std::cell::RefCell;
+
+		#[derive(Default)]
+		struct MyListener(pub Rc<RefCell<Vec<&'static str>>>);
+
+		impl Listener for MyListener {
+			fn added(&mut self, _tx: &VerifiedTransaction, old: Option<&VerifiedTransaction>) {
+				self.0.borrow_mut().push(if old.is_some() { "replaced" } else { "added" });
+			}
+
+			fn rejected(&mut self, _tx: &VerifiedTransaction) {
+				self.0.borrow_mut().push("rejected".into());
+			}
+
+			fn dropped(&mut self, _tx: &VerifiedTransaction) {
+				self.0.borrow_mut().push("dropped".into());
+			}
+
+			fn invalid(&mut self, _tx: &VerifiedTransaction) {
+				self.0.borrow_mut().push("invalid".into());
+			}
+
+			fn cancelled(&mut self, _tx: &VerifiedTransaction) {
+				self.0.borrow_mut().push("cancelled".into());
+			}
+
+			fn mined(&mut self, _tx: &VerifiedTransaction) {
+				self.0.borrow_mut().push("mined".into());
+			}
+		}
+
+		#[test]
+		fn insert_transaction() {
+			let b = TransactionBuilder::default();
+			let listener = MyListener::default();
+			let results = listener.0.clone();
+			let mut txq = Pool::new(listener, DummyScoring, Options {
+				max_per_sender: 1,
+				max_count: 2,
+				..Default::default()
+			});
+			assert!(results.borrow().is_empty());
+
+			// Regular import
+			txq.import(b.tx().nonce(1).new()).unwrap();
+			assert_eq!(*results.borrow(), &["added"]);
+			// Already present (no notification)
+			txq.import(b.tx().nonce(1).new()).unwrap_err();
+			assert_eq!(*results.borrow(), &["added"]);
+			// Push out the first one
+			txq.import(b.tx().nonce(1).gas_price(1).new()).unwrap();
+			assert_eq!(*results.borrow(), &["added", "replaced"]);
+			// Reject
+			txq.import(b.tx().nonce(1).new()).unwrap_err();
+			assert_eq!(*results.borrow(), &["added", "replaced", "rejected"]);
+			results.borrow_mut().clear();
+			// Different sender (accept)
+			txq.import(b.tx().sender(1).nonce(1).gas_price(2).new()).unwrap();
+			assert_eq!(*results.borrow(), &["added"]);
+			// Third sender push out low gas price
+			txq.import(b.tx().sender(2).nonce(1).gas_price(4).new()).unwrap();
+			assert_eq!(*results.borrow(), &["added", "dropped", "added"]);
+			// Reject (too cheap)
+			txq.import(b.tx().sender(2).nonce(1).gas_price(2).new()).unwrap_err();
+			assert_eq!(*results.borrow(), &["added", "dropped", "added", "rejected"]);
+
+			assert_eq!(txq.light_status().count, 2);
+		}
+
+		#[test]
+		fn remove_transaction() {
+			let b = TransactionBuilder::default();
+			let listener = MyListener::default();
+			let results = listener.0.clone();
+			let mut txq = Pool::new(listener, DummyScoring, Options::default());
+
+			// insert
+			let tx1 = txq.import(b.tx().nonce(1).new()).unwrap();
+			let tx2 = txq.import(b.tx().nonce(2).new()).unwrap();
+
+			// then
+			txq.remove(&tx1.hash(), false);
+			assert_eq!(*results.borrow(), &["added", "added", "cancelled"]);
+			txq.remove(&tx2.hash(), true);
+			assert_eq!(*results.borrow(), &["added", "added", "cancelled", "invalid"]);
+			assert_eq!(txq.light_status().count, 0);
+		}
+
+		#[test]
+		fn clear_queue() {
+			let b = TransactionBuilder::default();
+			let listener = MyListener::default();
+			let results = listener.0.clone();
+			let mut txq = Pool::new(listener, DummyScoring, Options::default());
+
+			// insert
+			txq.import(b.tx().nonce(1).new()).unwrap();
+			txq.import(b.tx().nonce(2).new()).unwrap();
+
+			// when
+			txq.clear();
+
+			// then
+			assert_eq!(*results.borrow(), &["added", "added", "dropped", "dropped"]);
+		}
+
+		#[test]
+		fn cull_stalled() {
+			let b = TransactionBuilder::default();
+			let listener = MyListener::default();
+			let results = listener.0.clone();
+			let mut txq = Pool::new(listener, DummyScoring, Options::default());
+
+			// insert
+			txq.import(b.tx().nonce(1).new()).unwrap();
+			txq.import(b.tx().nonce(2).new()).unwrap();
+
+			// when
+			txq.cull(None, NonceReady::new(3));
+
+			// then
+			assert_eq!(*results.borrow(), &["added", "added", "mined", "mined"]);
+		}
 	}
 }
