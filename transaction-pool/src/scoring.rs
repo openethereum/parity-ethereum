@@ -14,16 +14,31 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+//! A transactions ordering abstraction.
+
 use std::{cmp, fmt};
 use {VerifiedTransaction, SharedTransaction};
 
+/// Represents a decision what to do with
+/// a new transaction that tries to enter the pool.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Choice {
+	/// New transaction should be rejected
+	/// (i.e. the old transaction that occupies the same spot
+	/// is better).
 	RejectNew,
+	/// The old transaction should be dropped
+	/// in favour of the new one.
 	ReplaceOld,
+	/// The new transaction should be inserted
+	/// and both (old and new) should stay in the pool.
 	InsertNew,
 }
 
+/// Describes a reason why the `Score` of transactions
+/// should be updated.
+/// The `Scoring` implementations can use this information
+/// to update the `Score` table more efficiently.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Change {
 	/// New transaction has been inserted at given index.
@@ -43,24 +58,53 @@ pub enum Change {
 	Culled(usize),
 }
 
+/// A transaction ordering.
+///
+/// The implementation should decide on order of transactions in the pool.
+/// Each transaction should also get assigned a `Score` which is used to later
+/// prioritize transactions in the pending set.
+///
+/// Implementation notes:
+/// - Returned `Score`s should match ordering of `compare` method.
+/// - `compare` will be called only within a context of transactions from the same sender.
+/// - `choose` will be called only if `compare` returns `Ordering::Equal`
+/// - `should_replace` is used to decide if new transaction should push out an old transaction already in the queue.
+/// - `Score`s and `compare` should align with `Ready` implementation.
+///
+/// Example: Natural ordering of Ethereum transactions.
+/// - `compare`: compares transaction `nonce` ()
+/// - `choose`: compares transactions `gasPrice` (decides if old transaction should be replaced)
+/// - `update_scores`: score defined as `gasPrice` if `n==0` and `max(scores[n-1], gasPrice)` if `n>0`
+/// - `should_replace`: compares `gasPrice` (decides if transaction from a different sender is more valuable)
+///
 pub trait Scoring {
+	/// A score of a transaction.
 	type Score: cmp::Ord + Clone + Default + fmt::Debug;
 
+	/// Decides on ordering of `VerifiedTransaction`s from a particular sender.
 	fn compare(&self, old: &VerifiedTransaction, other: &VerifiedTransaction) -> cmp::Ordering;
 
+	/// Decides how to deal with two transactions from a sender that seem to occupy the same slot in the queue.
 	fn choose(&self, old: &VerifiedTransaction, new: &VerifiedTransaction) -> Choice;
 
+	/// Updates the transaction scores given a list of transactions and a change to previous scoring.
+	/// NOTE: `txs.len() === scores.len()`
 	fn update_scores(&self, txs: &[SharedTransaction], scores: &mut [Self::Score], change: Change);
 
+	/// Decides if `new` should push out `old` transaction from the pool.
 	fn should_replace(&self, old: &VerifiedTransaction, new: &VerifiedTransaction) -> bool;
 }
 
+/// A score with a reference to the transaction.
 #[derive(Debug, Clone)]
 pub struct ScoreWithRef<T> {
+	/// Score
 	pub score: T,
+	/// Shared transaction
 	pub transaction: SharedTransaction,
 }
 impl<T> ScoreWithRef<T> {
+	/// Creates a new `ScoreWithRef`
 	pub fn new(score: T, transaction: SharedTransaction) -> Self {
 		ScoreWithRef { score, transaction }
 	}

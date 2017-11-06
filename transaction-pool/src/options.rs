@@ -14,10 +14,14 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+/// Transaction Pool options.
 #[derive(Debug)]
 pub struct Options {
+	/// Maximal number of transactions in the pool.
 	pub max_count: usize,
+	/// Maximal number of transactions from single sender.
 	pub max_per_sender: usize,
+	/// Maximal memory usage.
 	pub max_mem_usage: usize,
 }
 

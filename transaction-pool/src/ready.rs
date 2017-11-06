@@ -16,10 +16,14 @@
 
 use {VerifiedTransaction};
 
+/// Transaction readiness.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Readiness {
+	/// The transaction is stalled (and should/will be removed from the pool).
 	Stalled,
+	/// The transaction is ready to be included in pending set.
 	Ready,
+	/// The transaction is not yet ready.
 	Future,
 }
 
@@ -29,9 +33,13 @@ impl From<bool> for Readiness {
 	}
 }
 
+/// A readiness indicator.
 pub trait Ready {
 	/// Returns true if transaction is ready to be included in pending block,
-	/// given all previous transactions that were ready are included.
+	/// given all previous transactions that were ready are already included.
+	///
+	/// NOTE: readiness of transactions will be checked according to `Score` ordering,
+	/// the implementation should maintain a state of already checked transactions.
 	fn is_ready(&mut self, tx: &VerifiedTransaction) -> Readiness;
 }
 

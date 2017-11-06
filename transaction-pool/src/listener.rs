@@ -16,14 +16,33 @@
 
 use {SharedTransaction, VerifiedTransaction};
 
+/// Transaction pool listener.
+///
+/// Listener is being notified about status of every transaction in the pool.
 pub trait Listener {
+	/// The transaction has been successfuly added to the pool.
+	/// If second argument is `Some` the transaction has took place of some other transaction
+	/// which was already in pool.
+	/// NOTE: You won't be notified about drop of `old` transaction separately.
 	fn added(&mut self, _tx: &SharedTransaction, _old: Option<&SharedTransaction>) {}
+
+	/// The transaction was rejected from the pool.
+	/// It means that it was too cheap to replace any transaction already in the pool.
 	fn rejected(&mut self, _tx: VerifiedTransaction) {}
+
+	/// The transaction was dropped from the pool because of a limit.
 	fn dropped(&mut self, _tx: &SharedTransaction) {}
+
+	/// The transaction was marked as invalid by executor.
 	fn invalid(&mut self, _tx: &SharedTransaction) {}
+
+	/// The transaction has been cancelled.
 	fn cancelled(&mut self, _tx: &SharedTransaction) {}
+
+	/// The transaction has been mined.
 	fn mined(&mut self, _tx: &SharedTransaction) {}
 }
 
+/// A no-op implementation of `Listener`.
 pub struct NoopListener;
 impl Listener for NoopListener {}

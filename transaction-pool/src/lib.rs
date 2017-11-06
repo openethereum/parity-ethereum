@@ -14,6 +14,15 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+//! Transaction Pool
+//! An extensible and performant implementation of Ethereum Transaction Pool.
+//! The pool stores ordered, verified transactions according to some pluggable
+//! `Scoring` implementation.
+//! The pool also allows you to construct a set of `pending` transactions according
+//! to some notion of `Readiness` (pluggable).
+
+#![deny(missing_docs)]
+
 extern crate smallvec;
 extern crate ethcore_bigint as bigint;
 
@@ -49,30 +58,40 @@ use std::sync::Arc;
 use self::bigint::prelude::{H256, U256};
 type Address = bigint::hash::H160;
 
-// Types
-#[derive(Debug)]
-pub struct UnverifiedTransaction;
+/// Verified transaction
 #[derive(Debug, PartialEq)]
 pub struct VerifiedTransaction {
+	/// hash
 	pub hash: H256,
+	/// nonce
 	pub nonce: U256,
+	/// gas_price
 	pub gas_price: U256,
+	/// gas
 	pub gas: U256,
+	/// sender
 	pub sender: Address,
+	/// insertion_id
 	pub insertion_id: u64,
 }
 impl VerifiedTransaction {
+	/// Transaction hash
 	pub fn hash(&self) -> H256 {
+		// TODO [ToDr] return a reference
 		self.hash.clone()
 	}
 
+	/// Memory usage
 	pub fn mem_usage(&self) -> usize {
 		self.nonce.low_u64() as usize
 	}
 
+	/// Transaction sender
 	pub fn sender(&self) -> Address {
+		// TODO [ToDr] return a reference
 		self.sender.clone()
 	}
 }
 
+/// Shared transaction
 pub type SharedTransaction = Arc<VerifiedTransaction>;

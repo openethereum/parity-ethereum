@@ -14,11 +14,15 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use {UnverifiedTransaction, VerifiedTransaction};
+use {VerifiedTransaction};
 
-/// Main part of the transaction verification is decoupled from the pool
-pub trait Verifier {
+/// Transaction verification.
+///
+/// Verifier is responsible to decide if the transaction should even be considered for pool inclusion.
+pub trait Verifier<U> {
+	/// Verification error.
 	type Error;
 
-	fn verify_transaction(&self, tx: UnverifiedTransaction) -> Result<VerifiedTransaction, Self::Error>;
+	/// Verifies a `UnverifiedTransaction` and produces `VerifiedTransaction` instance.
+	fn verify_transaction(&self, tx: U) -> Result<VerifiedTransaction, Self::Error>;
 }

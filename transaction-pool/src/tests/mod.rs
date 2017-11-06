@@ -197,13 +197,11 @@ fn should_construct_pending() {
 		stalled: 0,
 		pending: 9,
 		future: 2,
-		senders: 3,
 	});
 	assert_eq!(txq.status(NonceReady::new(1)), Status {
 		stalled: 3,
 		pending: 6,
 		future: 2,
-		senders: 3,
 	});
 
 	// when
@@ -267,7 +265,6 @@ fn should_cull_stalled_transactions() {
 		stalled: 2,
 		pending: 2,
 		future: 2,
-		senders: 2,
 	});
 
 	// when
@@ -278,7 +275,6 @@ fn should_cull_stalled_transactions() {
 		stalled: 0,
 		pending: 2,
 		future: 2,
-		senders: 2,
 	});
 }
 
@@ -299,7 +295,6 @@ fn should_cull_stalled_transactions_from_a_sender() {
 		stalled: 4,
 		pending: 1,
 		future: 0,
-		senders: 2,
 	});
 
 	// when
@@ -311,7 +306,6 @@ fn should_cull_stalled_transactions_from_a_sender() {
 		stalled: 2,
 		pending: 1,
 		future: 0,
-		senders: 1,
 	});
 }
 

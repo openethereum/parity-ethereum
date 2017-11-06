@@ -30,6 +30,7 @@ use {VerifiedTransaction, SharedTransaction};
 
 type Sender = H160;
 
+/// A transaction pool.
 #[derive(Debug)]
 pub struct Pool<S: Scoring, L = NoopListener> {
 	listener: L,
@@ -51,23 +52,30 @@ impl<S: Scoring + Default> Default for Pool<S> {
 }
 
 impl<S: Scoring + Default> Pool<S> {
+	/// Creates a new `Pool` with given options
+	/// and default `Scoring` and `Listener`.
 	pub fn with_options(options: Options) -> Self {
 		Self::with_scoring(S::default(), options)
 	}
 }
 
 impl<S: Scoring> Pool<S> {
+	/// Creates a new `Pool` with given `Scoring` and options.
 	pub fn with_scoring(scoring: S, options: Options) -> Self {
 		Self::new(NoopListener, scoring, options)
 	}
 }
 
+
+const INITIAL_NUMBER_OF_SENDERS: usize = 16;
+
 impl<S, L> Pool<S, L> where
 	S: Scoring,
 	L: Listener,
 {
+	/// Creates new `Pool` with given `Scoring`, `Listener` and options.
 	pub fn new(listener: L, scoring: S, options: Options) -> Self {
-		let transactions = HashMap::with_capacity(16);
+		let transactions = HashMap::with_capacity(INITIAL_NUMBER_OF_SENDERS);
 		let by_hash = HashMap::with_capacity(options.max_count / 16);
 
 		Pool {
@@ -82,6 +90,15 @@ impl<S, L> Pool<S, L> where
 		}
 
 	}
+
+	/// Attempts to import new transaction to the pool, returns a `SharedTransaction` or an `Error`.
+	///
+	/// NOTE: The transaction may push out some other transactions from the pool
+	/// either because of limits (see `Options`) or because `Scoring` decides that the transaction
+	/// replaces an existing transaction from that sender.
+	/// If any limit is reached the transaction with the lowest `Score` is evicted to make room.
+	///
+	/// The `Listener` will be informed on any drops or rejections.
 	pub fn import(&mut self, mut transaction: VerifiedTransaction) -> error::Result<SharedTransaction> {
 		let sender = transaction.sender();
 		let mem_usage = transaction.mem_usage();
@@ -150,6 +167,7 @@ impl<S, L> Pool<S, L> where
 		}
 	}
 
+	/// Updates state of the pool statistics if the transaction was added to a set.
 	fn added(&mut self, new: &SharedTransaction, old: Option<&SharedTransaction>) {
 		self.mem_usage += new.mem_usage();
 		self.by_hash.insert(new.hash(), new.clone());
@@ -159,11 +177,13 @@ impl<S, L> Pool<S, L> where
 		}
 	}
 
+	/// Updates the pool statistics if transaction was removed.
 	fn removed(&mut self, old: &SharedTransaction) {
 		self.mem_usage -= old.mem_usage();
 		self.by_hash.remove(&old.hash());
 	}
 
+	/// Updates best and worst transactions from a sender.
 	fn update_senders_worst_and_best(
 		&mut self,
 		previous: Option<((S::Score, SharedTransaction), (S::Score, SharedTransaction))>,
@@ -210,11 +230,12 @@ impl<S, L> Pool<S, L> where
 		}
 	}
 
+	/// Attempts to remove the worst transaction from the pool if it's worse than the given one.
 	fn remove_worst(&mut self, transaction: &VerifiedTransaction) -> error::Result<SharedTransaction> {
 		let to_remove = match self.worst_transactions.iter().next_back() {
-			// No elements to remove? and the queue is still full?
+			// No elements to remove? and the pool is still full?
 			None => {
-				warn!("The queue is full but there is no transaction to remove.");
+				warn!("The pool is full but there is no transaction to remove.");
 				return Err(error::ErrorKind::TooCheapToEnter(transaction.hash()).into());
 			},
 			Some(old) => if self.scoring.should_replace(&old.transaction, transaction) {
@@ -242,6 +263,9 @@ impl<S, L> Pool<S, L> where
 		self.update_senders_worst_and_best(prev, next);
 	}
 
+	/// Clears pool from all transactions.
+	/// This causes a listener notification that all transactions were dropped.
+	/// NOTE: the drop-notification order will be arbitrary.
 	pub fn clear(&mut self) {
 		self.mem_usage = 0;
 		self.transactions.clear();
@@ -253,6 +277,9 @@ impl<S, L> Pool<S, L> where
 		}
 	}
 
+	/// Removes single transaction from the pool.
+	/// Depending on the `is_invalid` flag the listener
+	/// will either get a `cancelled` or `invalid` notification.
 	pub fn remove(&mut self, hash: &H256, is_invalid: bool) -> bool {
 		if let Some(tx) = self.by_hash.remove(hash) {
 			self.remove_transaction(&tx);
@@ -267,7 +294,9 @@ impl<S, L> Pool<S, L> where
 		}
 	}
 
+	/// Removes all stalled transactions from given sender.
 	fn remove_stalled<R: Ready>(&mut self, sender: &Sender, ready: &mut R) -> usize {
+		// TODO [ToDr] Does not update by_hash nor best_and_wrost
 		let (sender_empty, removed) = match self.transactions.get_mut(sender) {
 			None => (false, 0),
 			Some(ref mut transactions) => {
@@ -287,6 +316,7 @@ impl<S, L> Pool<S, L> where
 		removed
 	}
 
+	/// Removes all stalled transactions from given sender list (or from all senders).
 	pub fn cull<R: Ready>(&mut self, senders: Option<&[Sender]>, mut ready: R) -> usize {
 		let mut removed = 0;
 		match senders {
@@ -306,6 +336,7 @@ impl<S, L> Pool<S, L> where
 		removed
 	}
 
+	/// Returns an iterator of pending (ready) transactions.
 	pub fn pending<R: Ready>(&self, ready: R) -> PendingIterator<R, S, L> {
 		PendingIterator {
 			ready,
@@ -314,14 +345,13 @@ impl<S, L> Pool<S, L> where
 		}
 	}
 
+	/// Computes the full status of the pool (including readiness).
 	pub fn status<R: Ready>(&self, mut ready: R) -> Status {
 		let mut stalled = 0;
 		let mut pending = 0;
 		let mut future = 0;
-		let mut senders = 0;
 
 		for (_sender, transactions) in &self.transactions {
-			senders += 1;
 			let len = transactions.len();
 			for (idx, tx) in transactions.iter().enumerate() {
 				match ready.is_ready(tx) {
@@ -339,10 +369,10 @@ impl<S, L> Pool<S, L> where
 			stalled,
 			pending,
 			future,
-			senders,
 		}
 	}
 
+	/// Returns light status of the pool.
 	pub fn light_status(&self) -> LightStatus {
 		LightStatus {
 			mem_usage: self.mem_usage,
@@ -352,6 +382,9 @@ impl<S, L> Pool<S, L> where
 	}
 }
 
+/// An iterator over all pending (ready) transactions.
+/// NOTE: the transactions are not removed from the queue.
+/// You might remove them later by calling `cull`.
 pub struct PendingIterator<'a, R, S, L> where
 	S: Scoring + 'a,
 	L: 'a
