@@ -13,7 +13,7 @@ rustc-hex = "1.0"
 rand = "0.3.12"
 libc = "0.2"
 heapsize = { version = "0.4", optional = true }
-plain_hasher = { path = "../plain_hasher" }
+plain_hasher = { path = "../plain_hasher", version = "0.1" }
 
 [features]
 x64asm_arithmetic=[]
