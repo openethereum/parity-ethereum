@@ -54,12 +54,12 @@ impl JobExecutor for UnknownSessionsJob {
 
 	fn process_partial_request(&mut self, partial_request: NodeId) -> Result<JobPartialRequestAction<BTreeSet<SessionId>>, Error> {
 		Ok(JobPartialRequestAction::Respond(self.key_storage.iter()
-			.filter(|&(_, ref key_share)| !key_share.id_numbers.contains_key(&partial_request))
+			.filter(|&(_, ref key_share)| !key_share.versions.last().map(|v| v.id_numbers.contains_key(&partial_request)).unwrap_or(true))
 			.map(|(id, _)| id.clone())
 			.collect()))
 	}
 
-	fn check_partial_response(&self, _partial_response: &BTreeSet<SessionId>) -> Result<JobPartialResponseAction, Error> {
+	fn check_partial_response(&mut self, _sender: &NodeId, _partial_response: &BTreeSet<SessionId>) -> Result<JobPartialResponseAction, Error> {
 		Ok(JobPartialResponseAction::Accept)
 	}
 

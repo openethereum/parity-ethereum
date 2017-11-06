@@ -17,14 +17,16 @@
 use std::sync::Arc;
 use std::str::FromStr;
 
+use bigint::prelude::U256;
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::TestBlockChainClient;
 use ethcore::transaction::{Action, Transaction};
 use jsonrpc_core::IoHandler;
-use bigint::prelude::U256;
+use parking_lot::Mutex;
 use util::Address;
 
 use v1::{PersonalClient, Personal, Metadata};
+use v1::helpers::nonce;
 use v1::helpers::dispatch::FullDispatcher;
 use v1::tests::helpers::TestMinerService;
 
@@ -52,9 +54,10 @@ fn setup() -> PersonalTester {
 	let opt_accounts = Some(accounts.clone());
 	let client = blockchain_client();
 	let miner = miner_service();
+	let reservations = Arc::new(Mutex::new(nonce::Reservations::new()));
 
-	let dispatcher = FullDispatcher::new(client, miner.clone());
-	let personal = PersonalClient::new(&opt_accounts, dispatcher, false);
+	let dispatcher = FullDispatcher::new(client, miner.clone(), reservations);
+	let personal = PersonalClient::new(opt_accounts, dispatcher, false);
 
 	let mut io = IoHandler::default();
 	io.extend_with(personal.to_delegate());
@@ -178,7 +181,7 @@ fn sign_and_send_test(method: &str) {
 }
 
 #[test]
-fn should_unlock_account_temporarily() {
+fn should_unlock_not_account_temporarily_if_allow_perm_is_disabled() {
 	let tester = setup();
 	let address = tester.accounts.new_account("password123").unwrap();
 
@@ -192,10 +195,10 @@ fn should_unlock_account_temporarily() {
 		],
 		"id": 1
 	}"#;
-	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","error":{"code":-32000,"message":"Time-unlocking is only supported in --geth compatibility mode.","data":"Restart your client with --geth flag or use personal_sendTransaction instead."},"id":1}"#;
 	assert_eq!(tester.io.handle_request_sync(&request), Some(response.into()));
 
-	assert!(tester.accounts.sign(address, None, Default::default()).is_ok(), "Should unlock account.");
+	assert!(tester.accounts.sign(address, None, Default::default()).is_err(), "Should not unlock account.");
 }
 
 #[test]

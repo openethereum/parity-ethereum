@@ -29,7 +29,7 @@ import Button from '@parity/ui/Button';
 import ContainerTitle from '@parity/ui/Container/Title';
 import IdentityIcon from '@parity/ui/IdentityIcon';
 import GradientBg from '@parity/ui/GradientBg';
-import SelectionList from '@parity/ui/SectionList';
+import SelectionList from '@parity/ui/SelectionList';
 import SignerPending from '@parity/ui/SignerPending';
 import { CancelIcon } from '@parity/ui/Icons';
 
