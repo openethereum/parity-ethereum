@@ -1,4 +1,5 @@
-use std::{cmp, mem, fmt};
+use std::{cmp, mem};
+use std::marker::PhantomData;
 use std::sync::Arc;
 use std::collections::{HashMap, BTreeSet};
 
@@ -80,7 +81,7 @@ pub struct Pool<S: Scoring, L = NoopListener> {
 	options: Options,
 	mem_usage: usize,
 
-	transactions: HashMap<Sender, Transactions<S::Score>>,
+	transactions: HashMap<Sender, Transactions<S>>,
 	by_hash: HashMap<H256, SharedTransaction>,
 
 	best_transactions: BTreeSet<ScoreWithRef<S::Score>>,
@@ -305,11 +306,50 @@ impl<S, L> Pool<S, L> where
 		}
 	}
 
-	pub fn light_status(&self) -> LightStatus {
-		LightStatus {
-			mem_usage: self.mem_usage,
-			count: self.by_hash.len(),
-			senders: self.transactions.len(),
+	fn remove_stalled<R: Ready>(&mut self, sender: &Sender, ready: &mut R) -> usize {
+		let (sender_empty, removed) = match self.transactions.get_mut(sender) {
+			None => (false, 0),
+			Some(ref mut transactions) => {
+				let removed = transactions.cull(ready, &mut self.scoring);
+				let len = removed.len();
+				for tx in removed {
+					self.listener.mined(&tx);
+				}
+				(transactions.is_empty(), len)
+			}
+		};
+
+		if sender_empty {
+			self.transactions.remove(sender);
+		}
+
+		removed
+	}
+
+	pub fn cull<R: Ready>(&mut self, senders: Option<&[Sender]>, mut ready: R) -> usize {
+		let mut removed = 0;
+		match senders {
+			Some(senders) => {
+				for sender in senders {
+					removed += self.remove_stalled(sender, &mut ready);
+				}
+			},
+			None => {
+				let senders = self.transactions.keys().cloned().collect::<Vec<_>>();
+				for sender in senders {
+					removed += self.remove_stalled(&sender, &mut ready);
+				}
+			},
+		}
+
+		removed
+	}
+
+	pub fn pending<R: Ready>(&self, ready: R) -> PendingIterator<R, S, L> {
+		PendingIterator {
+			ready,
+			best_transactions: self.best_transactions.clone(),
+			pool: self,
 		}
 	}
 
@@ -342,11 +382,11 @@ impl<S, L> Pool<S, L> where
 		}
 	}
 
-	pub fn pending<R: Ready>(&self, ready: R) -> PendingIterator<R, S, L> {
-		PendingIterator {
-			ready,
-			best_transactions: self.best_transactions.clone(),
-			pool: self,
+	pub fn light_status(&self) -> LightStatus {
+		LightStatus {
+			mem_usage: self.mem_usage,
+			count: self.by_hash.len(),
+			senders: self.transactions.len(),
 		}
 	}
 }
@@ -416,14 +456,29 @@ enum AddResult {
 
 /// Represents all transactions from a particular sender ordered by nonce.
 const PER_SENDER: usize = 8;
-#[derive(Default, Debug)]
-struct Transactions<T> {
+#[derive(Debug)]
+struct Transactions<S: Scoring> {
 	// TODO [ToDr] Consider using something that doesn't require shifting all records.
 	transactions: SmallVec<[SharedTransaction; PER_SENDER]>,
-	scores: SmallVec<[T; PER_SENDER]>,
+	scores: SmallVec<[S::Score; PER_SENDER]>,
+	_score: PhantomData<S>,
 }
 
-impl<T: Clone> Transactions<T> {
+impl<S: Scoring> Default for Transactions<S> {
+	fn default() -> Self {
+		Transactions {
+			transactions: Default::default(),
+			scores: Default::default(),
+			_score: PhantomData,
+		}
+	}
+}
+
+impl<S: Scoring> Transactions<S> {
+	pub fn is_empty(&self) -> bool {
+		self.transactions.is_empty()
+	}
+
 	pub fn len(&self) -> usize {
 		self.transactions.len()
 	}
@@ -432,7 +487,7 @@ impl<T: Clone> Transactions<T> {
 		self.transactions.iter()
 	}
 
-	pub fn worst_and_best(&self) -> Option<((T, SharedTransaction), (T, SharedTransaction))> {
+	pub fn worst_and_best(&self) -> Option<((S::Score, SharedTransaction), (S::Score, SharedTransaction))> {
 		let len = self.scores.len();
 		self.scores.get(0).cloned().map(|best| {
 			let worst = self.scores[len - 1].clone();
@@ -442,12 +497,8 @@ impl<T: Clone> Transactions<T> {
 			((worst, worst_tx), (best, best_tx))
 		})
 	}
-}
 
-impl<T: cmp::Ord + Clone + Default + fmt::Debug> Transactions<T> {
-	pub fn find_next<S>(&self, tx: &VerifiedTransaction, scoring: &S) -> Option<(T, SharedTransaction)> where
-		S: Scoring<Score=T>,
-	{
+	pub fn find_next(&self, tx: &VerifiedTransaction, scoring: &S) -> Option<(S::Score, SharedTransaction)> {
 		self.transactions.binary_search_by(|old| scoring.compare(old, &tx)).ok().and_then(|index| {
 			let index = index + 1;
 			if index >= self.scores.len() {
@@ -458,9 +509,7 @@ impl<T: cmp::Ord + Clone + Default + fmt::Debug> Transactions<T> {
 		})
 	}
 
-	pub fn add<S>(&mut self, tx: VerifiedTransaction, scoring: &S, max_count: usize) -> AddResult where
-		S: Scoring<Score=T>,
-	{
+	pub fn add(&mut self, tx: VerifiedTransaction, scoring: &S, max_count: usize) -> AddResult {
 		let index = match self.transactions.binary_search_by(|old| scoring.compare(old, &tx)) {
 			Ok(index) => index,
 			Err(index) => index,
@@ -521,9 +570,7 @@ impl<T: cmp::Ord + Clone + Default + fmt::Debug> Transactions<T> {
 		}
 	}
 
-	pub fn remove<S>(&mut self, tx: &VerifiedTransaction, scoring: &S) -> bool where
-		S: Scoring<Score=T>,
-	{
+	pub fn remove(&mut self, tx: &VerifiedTransaction, scoring: &S) -> bool {
 		let index = match self.transactions.binary_search_by(|old| scoring.compare(old, tx)) {
 			Ok(index) => index,
 			Err(_) => {
@@ -537,6 +584,44 @@ impl<T: cmp::Ord + Clone + Default + fmt::Debug> Transactions<T> {
 		// Update scoring
 		scoring.update_scores(&self.transactions, &mut self.scores, ScoringChange::RemovedAt(index));
 		return true;
+	}
+
+	pub fn cull<R: Ready>(&mut self, ready: &mut R, scoring: &S) -> SmallVec<[SharedTransaction; PER_SENDER]> {
+		let mut result = SmallVec::new();
+		if self.is_empty() {
+			return result;
+		}
+
+		let mut first_non_stalled = 0;
+		for tx in &self.transactions {
+			match ready.is_ready(tx) {
+				Readiness::Stalled => {
+					first_non_stalled += 1;
+				},
+				Readiness::Ready | Readiness::Future => break,
+			}
+		}
+
+		// reverse the vectors to allow
+		self.transactions.reverse();
+		self.scores.reverse();
+
+		for _ in 0..first_non_stalled {
+			self.scores.pop();
+			result.push(
+				self.transactions.pop().expect("first_non_stalled is never greater than transactions.len(); qed")
+			);
+		}
+
+		self.transactions.reverse();
+		self.scores.reverse();
+
+		// update scoring
+		scoring.update_scores(&self.transactions, &mut self.scores, ScoringChange::Culled(result.len()));
+
+		// reverse the result to maintain correct order.
+		result.reverse();
+		result
 	}
 }
 
@@ -583,10 +668,20 @@ mod tests {
 	}
 
 	#[derive(Default)]
-	struct NonceReady(HashMap<Sender, U256>);
+	struct NonceReady(HashMap<Sender, U256>, u64);
+
+	impl NonceReady {
+		pub fn new(min: u64) -> Self {
+			let mut n = NonceReady::default();
+			n.1 = min;
+			n
+		}
+	}
+
 	impl Ready for NonceReady {
 		fn is_ready(&mut self, tx: &VerifiedTransaction) -> Readiness {
-			let nonce = self.0.entry(tx.sender()).or_insert_with(|| U256::from(0));
+			let min = self.1;
+			let nonce = self.0.entry(tx.sender()).or_insert_with(|| U256::from(min));
 			match tx.nonce.cmp(nonce) {
 				cmp::Ordering::Greater => Readiness::Future,
 				cmp::Ordering::Equal => {
@@ -821,6 +916,12 @@ mod tests {
 			future: 2,
 			senders: 3,
 		});
+		assert_eq!(txq.status(NonceReady::new(1)), Status {
+			stalled: 3,
+			pending: 6,
+			future: 2,
+			senders: 3,
+		});
 
 		// when
 		let mut current_gas = 0;
@@ -862,6 +963,72 @@ mod tests {
 		let mut pending = txq.pending(NonceReady::default());
 		assert_eq!(pending.next(), Some(tx1));
 		assert_eq!(pending.next(), None);
+	}
+
+	#[test]
+	fn should_cull_stalled_transactions() {
+		// given
+		let b = TransactionBuilder::default();
+		let mut txq = TestPool::default();
+
+		txq.import(b.tx().nonce(0).gas_price(5).new()).unwrap();
+		txq.import(b.tx().nonce(1).new()).unwrap();
+		txq.import(b.tx().nonce(3).new()).unwrap();
+
+		txq.import(b.tx().sender(1).nonce(0).new()).unwrap();
+		txq.import(b.tx().sender(1).nonce(1).new()).unwrap();
+		txq.import(b.tx().sender(1).nonce(5).new()).unwrap();
+
+		assert_eq!(txq.status(NonceReady::new(1)), Status {
+			stalled: 2,
+			pending: 2,
+			future: 2,
+			senders: 2,
+		});
+
+		// when
+		assert_eq!(txq.cull(None, NonceReady::new(1)), 2);
+
+		// then
+		assert_eq!(txq.status(NonceReady::new(1)), Status {
+			stalled: 0,
+			pending: 2,
+			future: 2,
+			senders: 2,
+		});
+	}
+
+	#[test]
+	fn should_cull_stalled_transactions_from_a_sender() {
+		// given
+		let b = TransactionBuilder::default();
+		let mut txq = TestPool::default();
+
+		txq.import(b.tx().nonce(0).gas_price(5).new()).unwrap();
+		txq.import(b.tx().nonce(1).new()).unwrap();
+
+		txq.import(b.tx().sender(1).nonce(0).new()).unwrap();
+		txq.import(b.tx().sender(1).nonce(1).new()).unwrap();
+		txq.import(b.tx().sender(1).nonce(2).new()).unwrap();
+
+		assert_eq!(txq.status(NonceReady::new(2)), Status {
+			stalled: 4,
+			pending: 1,
+			future: 0,
+			senders: 2,
+		});
+
+		// when
+		let sender = 0.into();
+		assert_eq!(txq.cull(Some(&[sender]), NonceReady::new(2)), 2);
+
+		// then
+		assert_eq!(txq.status(NonceReady::new(2)), Status {
+			stalled: 2,
+			pending: 1,
+			future: 0,
+			senders: 1,
+		});
 	}
 
 	#[test]

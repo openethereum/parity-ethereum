@@ -88,6 +88,7 @@ pub trait Listener {
 	fn dropped(&mut self, _tx: &VerifiedTransaction) {}
 	fn invalid(&mut self, _tx: &VerifiedTransaction) {}
 	fn cancelled(&mut self, _tx: &VerifiedTransaction) {}
+	fn mined(&mut self, _tx: &VerifiedTransaction) {}
 }
 
 pub struct NoopListener;
@@ -114,6 +115,9 @@ pub enum ScoringChange {
 	/// The transaction at given index has replaced a previous transaction.
 	/// The score at that index needs to be update (it contains value from previous transaction).
 	ReplacedAt(usize),
+	/// Given number of stalled transactions has been culled from the beginning.
+	/// Usually the score will have to be re-computed from scratch.
+	Culled(usize),
 }
 
 pub trait Scoring {
