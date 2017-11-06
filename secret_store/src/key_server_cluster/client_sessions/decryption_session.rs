@@ -335,48 +335,6 @@ impl SessionImpl {
 		Ok(())
 	}
 
-	/// When session is delegated to this node.
-	pub fn on_session_delegated(&self, sender: &NodeId, message: &DecryptionSessionDelegation) -> Result<(), Error> {
-		debug_assert!(self.core.meta.id == *message.session);
-		debug_assert!(self.core.access_key == *message.sub_session);
-
-		{
-			let mut data = self.data.lock();
-			if data.consensus_session.state() != ConsensusSessionState::WaitingForInitialization || data.delegation_status.is_some() {
-				return Err(Error::InvalidStateForRequest);
-			}
-
-			data.consensus_session.consensus_job_mut().executor_mut().set_requester_signature(message.requestor_signature.clone().into());
-			data.delegation_status = Some(DelegationStatus::DelegatedFrom(sender.clone(), message.session_nonce));
-		}
-
-		self.initialize(message.version.clone().into(), message.is_shadow_decryption)
-	}
-
-	/// When delegated session is completed on other node.
-	pub fn on_session_delegation_completed(&self, sender: &NodeId, message: &DecryptionSessionDelegationCompleted) -> Result<(), Error> {
-		debug_assert!(self.core.meta.id == *message.session);
-		debug_assert!(self.core.access_key == *message.sub_session);
-
-		if self.core.meta.master_node_id != self.core.meta.self_node_id {
-			return Err(Error::InvalidStateForRequest);
-		}
-
-		let mut data = self.data.lock();
-		match data.delegation_status.as_ref() {
-			Some(&DelegationStatus::DelegatedTo(ref node)) if node == sender => (),
-			_ => return Err(Error::InvalidMessage),
-		}
-
-		Self::set_decryption_result(&self.core, &mut *data, Ok(EncryptedDocumentKeyShadow {
-				decrypted_secret: message.decrypted_secret.clone().into(),
-				common_point: message.common_point.clone().map(Into::into),
-				decrypt_shadows: message.decrypt_shadows.clone().map(Into::into),
-			}));
-
-		Ok(())
-	}
-
 	/// When consensus-related message is received.
 	pub fn on_consensus_message(&self, sender: &NodeId, message: &DecryptionConsensusMessage) -> Result<(), Error> {
 		debug_assert!(self.core.meta.id == *message.session);
@@ -1197,7 +1155,7 @@ mod tests {
 
 		// now check that:
 		// 1) 4 of 5 sessions are in Finished state
-		assert_eq!(sessions.iter().filter(|s| s.state() == ConsensusSessionState::Finished).count(), 5);
+		assert_eq!(sessions.iter().filter(|s| s.state() == ConsensusSessionState::Finished).count(), 4);
 		// 2) 1 session has decrypted key value
 		assert_eq!(sessions[1].decrypted_secret().unwrap().unwrap(), EncryptedDocumentKeyShadow {
 			decrypted_secret: SECRET_PLAIN.into(),
