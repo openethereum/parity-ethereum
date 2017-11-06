@@ -100,11 +100,9 @@ impl<S, L> Pool<S, L> where
 	///
 	/// The `Listener` will be informed on any drops or rejections.
 	pub fn import(&mut self, mut transaction: VerifiedTransaction) -> error::Result<SharedTransaction> {
-		let sender = transaction.sender();
 		let mem_usage = transaction.mem_usage();
-		let hash = transaction.hash();
 
-		ensure!(!self.by_hash.contains_key(&hash), error::ErrorKind::AlreadyImported(hash));
+		ensure!(!self.by_hash.contains_key(transaction.hash()), error::ErrorKind::AlreadyImported(*transaction.hash()));
 
 		{
 			let remove_worst = |s: &mut Self, transaction| {
@@ -131,7 +129,7 @@ impl<S, L> Pool<S, L> where
 		}
 
 		let result = {
-			let transactions = self.transactions.entry(sender).or_insert_with(Transactions::default);
+			let transactions = self.transactions.entry(*transaction.sender()).or_insert_with(Transactions::default);
 			// get worst and best transactions for comparison
 			let prev = transactions.worst_and_best();
 			let result = transactions.add(transaction, &self.scoring, self.options.max_per_sender);
@@ -155,12 +153,12 @@ impl<S, L> Pool<S, L> where
 				Ok(new)
 			},
 			AddResult::TooCheap { new, old } => {
-				let hash = new.hash();
+				let hash = *new.hash();
 				self.listener.rejected(new);
-				bail!(error::ErrorKind::TooCheapToReplace(old.hash(), hash))
+				bail!(error::ErrorKind::TooCheapToReplace(*old.hash(), hash))
 			},
 			AddResult::TooCheapToEnter(new) => {
-				let hash = new.hash();
+				let hash = *new.hash();
 				self.listener.rejected(new);
 				bail!(error::ErrorKind::TooCheapToEnter(hash))
 			}
@@ -170,7 +168,7 @@ impl<S, L> Pool<S, L> where
 	/// Updates state of the pool statistics if the transaction was added to a set.
 	fn added(&mut self, new: &SharedTransaction, old: Option<&SharedTransaction>) {
 		self.mem_usage += new.mem_usage();
-		self.by_hash.insert(new.hash(), new.clone());
+		self.by_hash.insert(*new.hash(), new.clone());
 
 		if let Some(old) = old {
 			self.removed(old)
@@ -180,7 +178,7 @@ impl<S, L> Pool<S, L> where
 	/// Updates the pool statistics if transaction was removed.
 	fn removed(&mut self, old: &SharedTransaction) {
 		self.mem_usage -= old.mem_usage();
-		self.by_hash.remove(&old.hash());
+		self.by_hash.remove(old.hash());
 	}
 
 	/// Updates best and worst transactions from a sender.
@@ -212,7 +210,7 @@ impl<S, L> Pool<S, L> where
 			(Some((worst, best)), None) => {
 				// all transactions from that sender has been removed.
 				// We can clear a hashmap entry.
-				self.transactions.remove(&worst.1.sender());
+				self.transactions.remove(worst.1.sender());
 				update_worst(worst, true);
 				update_best(best, true);
 			},
@@ -236,14 +234,14 @@ impl<S, L> Pool<S, L> where
 			// No elements to remove? and the pool is still full?
 			None => {
 				warn!("The pool is full but there is no transaction to remove.");
-				return Err(error::ErrorKind::TooCheapToEnter(transaction.hash()).into());
+				return Err(error::ErrorKind::TooCheapToEnter(*transaction.hash()).into());
 			},
 			Some(old) => if self.scoring.should_replace(&old.transaction, transaction) {
 				// New transaction is better than the worst one so we can replace it.
 				old.clone()
 			} else {
 				// otherwise fail
-				return Err(error::ErrorKind::TooCheapToEnter(transaction.hash()).into())
+				return Err(error::ErrorKind::TooCheapToEnter(*transaction.hash()).into())
 			},
 		};
 
@@ -254,8 +252,7 @@ impl<S, L> Pool<S, L> where
 
 	/// Removes transaction from sender's transaction `HashMap`.
 	fn remove_transaction(&mut self, transaction: &VerifiedTransaction) {
-		let sender = transaction.sender();
-		let (prev, next) = if let Some(set) = self.transactions.get_mut(&sender) {
+		let (prev, next) = if let Some(set) = self.transactions.get_mut(transaction.sender()) {
 			let prev = set.worst_and_best();
 			set.remove(&transaction, &self.scoring);
 			(prev, set.worst_and_best())
@@ -409,11 +406,9 @@ impl<'a, R, S, L> Iterator for PendingIterator<'a, R, S, L> where
 
 			match self.ready.is_ready(&best.transaction) {
 				Readiness::Ready => {
-					let sender = best.transaction.sender();
-
 					// retrieve next one from that sender.
 					let next = self.pool.transactions
-						.get(&sender)
+						.get(best.transaction.sender())
 						.and_then(|s| s.find_next(&best.transaction, &self.pool.scoring));
 					if let Some((score, tx)) = next {
 						self.best_transactions.insert(ScoreWithRef::new(score, tx));

@@ -68,7 +68,7 @@ impl NonceReady {
 impl Ready for NonceReady {
 	fn is_ready(&mut self, tx: &VerifiedTransaction) -> Readiness {
 		let min = self.1;
-		let nonce = self.0.entry(tx.sender()).or_insert_with(|| min);
+		let nonce = self.0.entry(*tx.sender()).or_insert_with(|| min);
 		match tx.nonce.cmp(nonce) {
 			cmp::Ordering::Greater => Readiness::Future,
 			cmp::Ordering::Equal => {

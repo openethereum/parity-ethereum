@@ -21,7 +21,7 @@
 //! The pool also allows you to construct a set of `pending` transactions according
 //! to some notion of `Readiness` (pluggable).
 
-#![deny(missing_docs)]
+#![warn(missing_docs)]
 
 extern crate smallvec;
 extern crate ethcore_bigint as bigint;
@@ -31,6 +31,9 @@ extern crate error_chain;
 #[macro_use]
 extern crate log;
 
+#[cfg(test)]
+mod tests;
+
 mod error;
 mod listener;
 mod options;
@@ -39,9 +42,6 @@ mod ready;
 mod status;
 mod transactions;
 mod verifier;
-
-#[cfg(test)]
-mod tests;
 
 pub mod scoring;
 
@@ -76,9 +76,8 @@ pub struct VerifiedTransaction {
 }
 impl VerifiedTransaction {
 	/// Transaction hash
-	pub fn hash(&self) -> H256 {
-		// TODO [ToDr] return a reference
-		self.hash.clone()
+	pub fn hash(&self) -> &H256 {
+		&self.hash
 	}
 
 	/// Memory usage
@@ -87,9 +86,8 @@ impl VerifiedTransaction {
 	}
 
 	/// Transaction sender
-	pub fn sender(&self) -> Address {
-		// TODO [ToDr] return a reference
-		self.sender.clone()
+	pub fn sender(&self) -> &Address {
+		&self.sender
 	}
 }
 

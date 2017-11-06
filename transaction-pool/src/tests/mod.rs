@@ -100,7 +100,7 @@ fn should_reject_if_above_count() {
 	// Reject second
 	let tx1 = b.tx().nonce(0).new();
 	let tx2 = b.tx().nonce(1).new();
-	let hash = tx2.hash();
+	let hash = *tx2.hash();
 	txq.import(tx1).unwrap();
 	assert_eq!(txq.import(tx2).unwrap_err().kind(), &error::ErrorKind::TooCheapToEnter(hash));
 	assert_eq!(txq.light_status().count, 1);
@@ -126,7 +126,7 @@ fn should_reject_if_above_mem_usage() {
 	// Reject second
 	let tx1 = b.tx().nonce(1).new();
 	let tx2 = b.tx().nonce(2).new();
-	let hash = tx2.hash();
+	let hash = *tx2.hash();
 	txq.import(tx1).unwrap();
 	assert_eq!(txq.import(tx2).unwrap_err().kind(), &error::ErrorKind::TooCheapToEnter(hash));
 	assert_eq!(txq.light_status().count, 1);
@@ -152,7 +152,7 @@ fn should_reject_if_above_sender_count() {
 	// Reject second
 	let tx1 = b.tx().nonce(1).new();
 	let tx2 = b.tx().nonce(2).new();
-	let hash = tx2.hash();
+	let hash = *tx2.hash();
 	txq.import(tx1).unwrap();
 	assert_eq!(txq.import(tx2).unwrap_err().kind(), &error::ErrorKind::TooCheapToEnter(hash));
 	assert_eq!(txq.light_status().count, 1);
@@ -162,7 +162,7 @@ fn should_reject_if_above_sender_count() {
 	// Replace first
 	let tx1 = b.tx().nonce(1).new();
 	let tx2 = b.tx().nonce(2).gas_price(2).new();
-	let hash = tx2.hash();
+	let hash = *tx2.hash();
 	txq.import(tx1).unwrap();
 	// This results in error because we also compare nonces
 	assert_eq!(txq.import(tx2).unwrap_err().kind(), &error::ErrorKind::TooCheapToEnter(hash));
