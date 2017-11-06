@@ -363,12 +363,6 @@ impl Drop for NodeTable {
 }
 
 /// Check if node url is valid
-pub fn is_valid_node_url(url: &str) -> bool {
-	use std::str::FromStr;
-	Node::from_str(url).is_ok()
-}
-
-/// Same as `is_valid_node_url` but returns detailed `NetworkError`
 pub fn validate_node_url(url: &str) -> Option<NetworkError> {
 	use std::str::FromStr;
 	match Node::from_str(url) {
@@ -399,7 +393,7 @@ mod tests {
 
 	#[test]
 	fn node_parse() {
-		assert!(is_valid_node_url("enode://a979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c@22.99.55.44:7770"));
+		assert!(validate_node_url("enode://a979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c@22.99.55.44:7770").is_some());
 		let node = Node::from_str("enode://a979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c@22.99.55.44:7770");
 		assert!(node.is_ok());
 		let node = node.unwrap();

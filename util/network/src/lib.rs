@@ -115,7 +115,7 @@ pub use session::SessionInfo;
 pub use connection_filter::{ConnectionFilter, ConnectionDirection};
 
 pub use io::TimerToken;
-pub use node_table::{is_valid_node_url, validate_node_url, NodeId};
+pub use node_table::{validate_node_url, NodeId};
 use ipnetwork::{IpNetwork, IpNetworkError};
 use std::str::FromStr;
 
