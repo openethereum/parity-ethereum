@@ -93,6 +93,9 @@ impl<S, L> Pool<S, L> where
 
 	/// Attempts to import new transaction to the pool, returns a `SharedTransaction` or an `Error`.
 	///
+	/// NOTE: Since `Ready`ness is separate from the pool it's possible to import stalled transactions.
+	/// It's the caller responsibility to make sure that's not the case.
+	///
 	/// NOTE: The transaction may push out some other transactions from the pool
 	/// either because of limits (see `Options`) or because `Scoring` decides that the transaction
 	/// replaces an existing transaction from that sender.
@@ -113,7 +116,7 @@ impl<S, L> Pool<S, L> where
 					},
 					Ok(removed) => {
 						s.listener.dropped(&removed);
-						s.removed(&removed);
+						s.removed(removed.hash());
 						Ok(transaction)
 					},
 				}
@@ -171,14 +174,16 @@ impl<S, L> Pool<S, L> where
 		self.by_hash.insert(*new.hash(), new.clone());
 
 		if let Some(old) = old {
-			self.removed(old)
+			self.removed(old.hash());
 		}
 	}
 
 	/// Updates the pool statistics if transaction was removed.
-	fn removed(&mut self, old: &SharedTransaction) {
-		self.mem_usage -= old.mem_usage();
-		self.by_hash.remove(old.hash());
+	fn removed(&mut self, hash: &H256) -> Option<SharedTransaction> {
+		self.by_hash.remove(hash).map(|old| {
+			self.mem_usage -= old.mem_usage();
+			old
+		})
 	}
 
 	/// Updates best and worst transactions from a sender.
@@ -246,18 +251,24 @@ impl<S, L> Pool<S, L> where
 		};
 
 		// Remove from transaction set
-		self.remove_transaction(&to_remove.transaction);
+		self.remove_from_set(to_remove.transaction.sender(), |set, scoring| {
+			set.remove(&to_remove.transaction, scoring)
+		});
 		Ok(to_remove.transaction)
 	}
 
 	/// Removes transaction from sender's transaction `HashMap`.
-	fn remove_transaction(&mut self, transaction: &VerifiedTransaction) {
-		let (prev, next) = if let Some(set) = self.transactions.get_mut(transaction.sender()) {
+	fn remove_from_set<R, F: FnOnce(&mut Transactions<S>, &S) -> R>(&mut self, sender: &Sender, f: F) -> Option<R> {
+		let (prev, next, result) = if let Some(set) = self.transactions.get_mut(sender) {
 			let prev = set.worst_and_best();
-			set.remove(&transaction, &self.scoring);
-			(prev, set.worst_and_best())
-		} else { (None, None) };
+			let result = f(set, &self.scoring);
+			(prev, set.worst_and_best(), result)
+		} else {
+			return None;
+		};
+
 		self.update_senders_worst_and_best(prev, next);
+		Some(result)
 	}
 
 	/// Clears pool from all transactions.
@@ -278,8 +289,10 @@ impl<S, L> Pool<S, L> where
 	/// Depending on the `is_invalid` flag the listener
 	/// will either get a `cancelled` or `invalid` notification.
 	pub fn remove(&mut self, hash: &H256, is_invalid: bool) -> bool {
-		if let Some(tx) = self.by_hash.remove(hash) {
-			self.remove_transaction(&tx);
+		if let Some(tx) = self.removed(hash) {
+			self.remove_from_set(tx.sender(), |set, scoring| {
+				set.remove(&tx, scoring)
+			});
 			if is_invalid {
 				self.listener.invalid(&tx);
 			} else {
@@ -293,24 +306,21 @@ impl<S, L> Pool<S, L> where
 
 	/// Removes all stalled transactions from given sender.
 	fn remove_stalled<R: Ready>(&mut self, sender: &Sender, ready: &mut R) -> usize {
-		// TODO [ToDr] Does not update by_hash nor best_and_wrost
-		let (sender_empty, removed) = match self.transactions.get_mut(sender) {
-			None => (false, 0),
-			Some(ref mut transactions) => {
-				let removed = transactions.cull(ready, &mut self.scoring);
+		let removed = self.remove_from_set(sender, |transactions, scoring| {
+			transactions.cull(ready, scoring)
+		});
+
+		match removed {
+			Some(removed) => {
 				let len = removed.len();
 				for tx in removed {
+					self.removed(tx.hash());
 					self.listener.mined(&tx);
 				}
-				(transactions.is_empty(), len)
-			}
-		};
-
-		if sender_empty {
-			self.transactions.remove(sender);
+				len
+			},
+			None => 0,
 		}
-
-		removed
 	}
 
 	/// Removes all stalled transactions from given sender list (or from all senders).

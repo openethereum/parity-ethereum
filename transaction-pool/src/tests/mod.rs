@@ -276,6 +276,11 @@ fn should_cull_stalled_transactions() {
 		pending: 2,
 		future: 2,
 	});
+	assert_eq!(txq.light_status(), LightStatus {
+		count: 4,
+		senders: 2,
+		mem_usage: 10,
+	});
 }
 
 #[test]
@@ -305,6 +310,44 @@ fn should_cull_stalled_transactions_from_a_sender() {
 	assert_eq!(txq.status(NonceReady::new(2)), Status {
 		stalled: 2,
 		pending: 1,
+		future: 0,
+	});
+	assert_eq!(txq.light_status(), LightStatus {
+		count: 3,
+		senders: 1,
+		mem_usage: 3,
+	});
+}
+
+#[test]
+fn should_re_insert_after_cull() {
+	// given
+	let b = TransactionBuilder::default();
+	let mut txq = TestPool::default();
+
+	txq.import(b.tx().nonce(0).gas_price(5).new()).unwrap();
+	txq.import(b.tx().nonce(1).new()).unwrap();
+	txq.import(b.tx().sender(1).nonce(0).new()).unwrap();
+	txq.import(b.tx().sender(1).nonce(1).new()).unwrap();
+	assert_eq!(txq.status(NonceReady::new(1)), Status {
+		stalled: 2,
+		pending: 2,
+		future: 0,
+	});
+
+	// when
+	assert_eq!(txq.cull(None, NonceReady::new(1)), 2);
+	assert_eq!(txq.status(NonceReady::new(1)), Status {
+		stalled: 0,
+		pending: 2,
+		future: 0,
+	});
+	txq.import(b.tx().nonce(0).gas_price(5).new()).unwrap();
+	txq.import(b.tx().sender(1).nonce(0).new()).unwrap();
+
+	assert_eq!(txq.status(NonceReady::new(1)), Status {
+		stalled: 2,
+		pending: 2,
 		future: 0,
 	});
 }
