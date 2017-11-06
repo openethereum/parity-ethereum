@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::sync::Arc;
 use std::collections::{HashMap, BTreeSet};
 
 use bigint::hash::{H160, H256};
@@ -26,32 +27,32 @@ use scoring::{Scoring, ScoreWithRef};
 use status::{LightStatus, Status};
 use transactions::{AddResult, Transactions};
 
-use {VerifiedTransaction, SharedTransaction};
+use {VerifiedTransaction};
 
 type Sender = H160;
 
 /// A transaction pool.
 #[derive(Debug)]
-pub struct Pool<S: Scoring, L = NoopListener> {
+pub struct Pool<T, S: Scoring<T>, L = NoopListener> {
 	listener: L,
 	scoring: S,
 	options: Options,
 	mem_usage: usize,
 
-	transactions: HashMap<Sender, Transactions<S>>,
-	by_hash: HashMap<H256, SharedTransaction>,
+	transactions: HashMap<Sender, Transactions<T, S>>,
+	by_hash: HashMap<H256, Arc<T>>,
 
-	best_transactions: BTreeSet<ScoreWithRef<S::Score>>,
-	worst_transactions: BTreeSet<ScoreWithRef<S::Score>>,
+	best_transactions: BTreeSet<ScoreWithRef<T, S::Score>>,
+	worst_transactions: BTreeSet<ScoreWithRef<T, S::Score>>,
 }
 
-impl<S: Scoring + Default> Default for Pool<S> {
+impl<T: VerifiedTransaction, S: Scoring<T> + Default> Default for Pool<T, S> {
 	fn default() -> Self {
 		Self::with_scoring(S::default(), Options::default())
 	}
 }
 
-impl<S: Scoring + Default> Pool<S> {
+impl<T: VerifiedTransaction, S: Scoring<T> + Default> Pool<T, S> {
 	/// Creates a new `Pool` with given options
 	/// and default `Scoring` and `Listener`.
 	pub fn with_options(options: Options) -> Self {
@@ -59,7 +60,7 @@ impl<S: Scoring + Default> Pool<S> {
 	}
 }
 
-impl<S: Scoring> Pool<S> {
+impl<T: VerifiedTransaction, S: Scoring<T>> Pool<T, S> {
 	/// Creates a new `Pool` with given `Scoring` and options.
 	pub fn with_scoring(scoring: S, options: Options) -> Self {
 		Self::new(NoopListener, scoring, options)
@@ -69,9 +70,10 @@ impl<S: Scoring> Pool<S> {
 
 const INITIAL_NUMBER_OF_SENDERS: usize = 16;
 
-impl<S, L> Pool<S, L> where
-	S: Scoring,
-	L: Listener,
+impl<T, S, L> Pool<T, S, L> where
+	T: VerifiedTransaction,
+	S: Scoring<T>,
+	L: Listener<T>,
 {
 	/// Creates new `Pool` with given `Scoring`, `Listener` and options.
 	pub fn new(listener: L, scoring: S, options: Options) -> Self {
@@ -91,7 +93,7 @@ impl<S, L> Pool<S, L> where
 
 	}
 
-	/// Attempts to import new transaction to the pool, returns a `SharedTransaction` or an `Error`.
+	/// Attempts to import new transaction to the pool, returns a `Arc<T>` or an `Error`.
 	///
 	/// NOTE: Since `Ready`ness is separate from the pool it's possible to import stalled transactions.
 	/// It's the caller responsibility to make sure that's not the case.
@@ -102,7 +104,7 @@ impl<S, L> Pool<S, L> where
 	/// If any limit is reached the transaction with the lowest `Score` is evicted to make room.
 	///
 	/// The `Listener` will be informed on any drops or rejections.
-	pub fn import(&mut self, mut transaction: VerifiedTransaction) -> error::Result<SharedTransaction> {
+	pub fn import(&mut self, mut transaction: T) -> error::Result<Arc<T>> {
 		let mem_usage = transaction.mem_usage();
 
 		ensure!(!self.by_hash.contains_key(transaction.hash()), error::ErrorKind::AlreadyImported(*transaction.hash()));
@@ -169,7 +171,7 @@ impl<S, L> Pool<S, L> where
 	}
 
 	/// Updates state of the pool statistics if the transaction was added to a set.
-	fn added(&mut self, new: &SharedTransaction, old: Option<&SharedTransaction>) {
+	fn added(&mut self, new: &Arc<T>, old: Option<&Arc<T>>) {
 		self.mem_usage += new.mem_usage();
 		self.by_hash.insert(*new.hash(), new.clone());
 
@@ -179,7 +181,7 @@ impl<S, L> Pool<S, L> where
 	}
 
 	/// Updates the pool statistics if transaction was removed.
-	fn removed(&mut self, hash: &H256) -> Option<SharedTransaction> {
+	fn removed(&mut self, hash: &H256) -> Option<Arc<T>> {
 		self.by_hash.remove(hash).map(|old| {
 			self.mem_usage -= old.mem_usage();
 			old
@@ -189,11 +191,15 @@ impl<S, L> Pool<S, L> where
 	/// Updates best and worst transactions from a sender.
 	fn update_senders_worst_and_best(
 		&mut self,
-		previous: Option<((S::Score, SharedTransaction), (S::Score, SharedTransaction))>,
-		current: Option<((S::Score, SharedTransaction), (S::Score, SharedTransaction))>,
+		previous: Option<((S::Score, Arc<T>), (S::Score, Arc<T>))>,
+		current: Option<((S::Score, Arc<T>), (S::Score, Arc<T>))>,
 	) {
 		let worst = &mut self.worst_transactions;
 		let best = &mut self.best_transactions;
+
+		let is_same = |a: &(S::Score, Arc<T>), b: &(S::Score, Arc<T>)| {
+			a.0 == b.0 && a.1.hash() == b.1.hash()
+		};
 
 		let mut update_worst = |(score, tx), remove| if remove {
 			worst.remove(&ScoreWithRef::new(score, tx));
@@ -220,11 +226,11 @@ impl<S, L> Pool<S, L> where
 				update_best(best, true);
 			},
 			(Some((w1, b1)), Some((w2, b2))) => {
-				if w1 != w2 {
+				if !is_same(&w1, &w2) {
 					update_worst(w1, true);
 					update_worst(w2, false);
 				}
-				if b1 != b2 {
+				if !is_same(&b1, &b2) {
 					update_best(b1, true);
 					update_best(b2, false);
 				}
@@ -234,7 +240,7 @@ impl<S, L> Pool<S, L> where
 	}
 
 	/// Attempts to remove the worst transaction from the pool if it's worse than the given one.
-	fn remove_worst(&mut self, transaction: &VerifiedTransaction) -> error::Result<SharedTransaction> {
+	fn remove_worst(&mut self, transaction: &T) -> error::Result<Arc<T>> {
 		let to_remove = match self.worst_transactions.iter().next_back() {
 			// No elements to remove? and the pool is still full?
 			None => {
@@ -258,7 +264,7 @@ impl<S, L> Pool<S, L> where
 	}
 
 	/// Removes transaction from sender's transaction `HashMap`.
-	fn remove_from_set<R, F: FnOnce(&mut Transactions<S>, &S) -> R>(&mut self, sender: &Sender, f: F) -> Option<R> {
+	fn remove_from_set<R, F: FnOnce(&mut Transactions<T, S>, &S) -> R>(&mut self, sender: &Sender, f: F) -> Option<R> {
 		let (prev, next, result) = if let Some(set) = self.transactions.get_mut(sender) {
 			let prev = set.worst_and_best();
 			let result = f(set, &self.scoring);
@@ -305,7 +311,7 @@ impl<S, L> Pool<S, L> where
 	}
 
 	/// Removes all stalled transactions from given sender.
-	fn remove_stalled<R: Ready>(&mut self, sender: &Sender, ready: &mut R) -> usize {
+	fn remove_stalled<R: Ready<T>>(&mut self, sender: &Sender, ready: &mut R) -> usize {
 		let removed = self.remove_from_set(sender, |transactions, scoring| {
 			transactions.cull(ready, scoring)
 		});
@@ -324,7 +330,7 @@ impl<S, L> Pool<S, L> where
 	}
 
 	/// Removes all stalled transactions from given sender list (or from all senders).
-	pub fn cull<R: Ready>(&mut self, senders: Option<&[Sender]>, mut ready: R) -> usize {
+	pub fn cull<R: Ready<T>>(&mut self, senders: Option<&[Sender]>, mut ready: R) -> usize {
 		let mut removed = 0;
 		match senders {
 			Some(senders) => {
@@ -344,7 +350,7 @@ impl<S, L> Pool<S, L> where
 	}
 
 	/// Returns an iterator of pending (ready) transactions.
-	pub fn pending<R: Ready>(&self, ready: R) -> PendingIterator<R, S, L> {
+	pub fn pending<R: Ready<T>>(&self, ready: R) -> PendingIterator<T, R, S, L> {
 		PendingIterator {
 			ready,
 			best_transactions: self.best_transactions.clone(),
@@ -353,7 +359,7 @@ impl<S, L> Pool<S, L> where
 	}
 
 	/// Computes the full status of the pool (including readiness).
-	pub fn status<R: Ready>(&self, mut ready: R) -> Status {
+	pub fn status<R: Ready<T>>(&self, mut ready: R) -> Status {
 		let mut stalled = 0;
 		let mut pending = 0;
 		let mut future = 0;
@@ -392,20 +398,22 @@ impl<S, L> Pool<S, L> where
 /// An iterator over all pending (ready) transactions.
 /// NOTE: the transactions are not removed from the queue.
 /// You might remove them later by calling `cull`.
-pub struct PendingIterator<'a, R, S, L> where
-	S: Scoring + 'a,
-	L: 'a
+pub struct PendingIterator<'a, T, R, S, L> where
+	T: VerifiedTransaction + 'a,
+	S: Scoring<T> + 'a,
+	L: 'a,
 {
 	ready: R,
-	best_transactions: BTreeSet<ScoreWithRef<S::Score>>,
-	pool: &'a Pool<S, L>,
+	best_transactions: BTreeSet<ScoreWithRef<T, S::Score>>,
+	pool: &'a Pool<T, S, L>,
 }
 
-impl<'a, R, S, L> Iterator for PendingIterator<'a, R, S, L> where
-	R: Ready,
-	S: Scoring,
+impl<'a, T, R, S, L> Iterator for PendingIterator<'a, T, R, S, L> where
+	T: VerifiedTransaction,
+	R: Ready<T>,
+	S: Scoring<T>,
 {
-	type Item = SharedTransaction;
+	type Item = Arc<T>;
 
 	fn next(&mut self) -> Option<Self::Item> {
 		while !self.best_transactions.is_empty() {

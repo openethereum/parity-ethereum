@@ -14,8 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use {VerifiedTransaction};
-
 /// Transaction readiness.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Readiness {
@@ -34,17 +32,17 @@ impl From<bool> for Readiness {
 }
 
 /// A readiness indicator.
-pub trait Ready {
+pub trait Ready<T> {
 	/// Returns true if transaction is ready to be included in pending block,
 	/// given all previous transactions that were ready are already included.
 	///
 	/// NOTE: readiness of transactions will be checked according to `Score` ordering,
 	/// the implementation should maintain a state of already checked transactions.
-	fn is_ready(&mut self, tx: &VerifiedTransaction) -> Readiness;
+	fn is_ready(&mut self, tx: &T) -> Readiness;
 }
 
-impl<F> Ready for F where F: FnMut(&VerifiedTransaction) -> Readiness {
-	fn is_ready(&mut self, tx: &VerifiedTransaction) -> Readiness {
+impl<T, F> Ready<T> for F where F: FnMut(&T) -> Readiness {
+	fn is_ready(&mut self, tx: &T) -> Readiness {
 		(*self)(tx)
 	}
 }

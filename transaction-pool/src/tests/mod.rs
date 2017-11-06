@@ -20,9 +20,32 @@ mod tx_builder;
 use self::helpers::{DummyScoring, NonceReady};
 use self::tx_builder::TransactionBuilder;
 
+use std::sync::Arc;
+
+use bigint::prelude::{H256, U256, H160 as Address};
 use super::*;
 
-type TestPool = Pool<DummyScoring>;
+#[derive(Debug, PartialEq)]
+pub struct Transaction {
+	pub hash: H256,
+	pub nonce: U256,
+	pub gas_price: U256,
+	pub gas: U256,
+	pub sender: Address,
+	pub insertion_id: u64,
+	pub mem_usage: usize,
+}
+
+impl VerifiedTransaction for Transaction {
+	fn hash(&self) -> &H256 { &self.hash }
+	fn mem_usage(&self) -> usize { self.mem_usage }
+	fn sender(&self) -> &Address { &self.sender }
+	fn insertion_id(&self) -> u64 { self.insertion_id }
+}
+
+pub type SharedTransaction = Arc<Transaction>;
+
+type TestPool = Pool<Transaction, DummyScoring>;
 
 #[test]
 fn should_clear_queue() {
@@ -35,7 +58,7 @@ fn should_clear_queue() {
 		senders: 0,
 	});
 	let tx1 = b.tx().nonce(0).new();
-	let tx2 = b.tx().nonce(1).new();
+	let tx2 = b.tx().nonce(1).mem_usage(1).new();
 
 	// add
 	txq.import(tx1).unwrap();
@@ -124,8 +147,8 @@ fn should_reject_if_above_mem_usage() {
 	});
 
 	// Reject second
-	let tx1 = b.tx().nonce(1).new();
-	let tx2 = b.tx().nonce(2).new();
+	let tx1 = b.tx().nonce(1).mem_usage(1).new();
+	let tx2 = b.tx().nonce(2).mem_usage(2).new();
 	let hash = *tx2.hash();
 	txq.import(tx1).unwrap();
 	assert_eq!(txq.import(tx2).unwrap_err().kind(), &error::ErrorKind::TooCheapToEnter(hash));
@@ -134,8 +157,8 @@ fn should_reject_if_above_mem_usage() {
 	txq.clear();
 
 	// Replace first
-	let tx1 = b.tx().nonce(1).new();
-	let tx2 = b.tx().nonce(1).sender(1).gas_price(2).new();
+	let tx1 = b.tx().nonce(1).mem_usage(1).new();
+	let tx2 = b.tx().nonce(1).sender(1).gas_price(2).mem_usage(1).new();
 	txq.import(tx1).unwrap();
 	txq.import(tx2).unwrap();
 	assert_eq!(txq.light_status().count, 1);
@@ -279,7 +302,7 @@ fn should_cull_stalled_transactions() {
 	assert_eq!(txq.light_status(), LightStatus {
 		count: 4,
 		senders: 2,
-		mem_usage: 10,
+		mem_usage: 0,
 	});
 }
 
@@ -315,7 +338,7 @@ fn should_cull_stalled_transactions_from_a_sender() {
 	assert_eq!(txq.light_status(), LightStatus {
 		count: 3,
 		senders: 1,
-		mem_usage: 3,
+		mem_usage: 0,
 	});
 }
 
@@ -353,19 +376,20 @@ fn should_re_insert_after_cull() {
 }
 
 mod listener {
-	use super::*;
-	use std::rc::Rc;
 	use std::cell::RefCell;
+	use std::rc::Rc;
+
+	use super::*;
 
 	#[derive(Default)]
 	struct MyListener(pub Rc<RefCell<Vec<&'static str>>>);
 
-	impl Listener for MyListener {
+	impl Listener<Transaction> for MyListener {
 		fn added(&mut self, _tx: &SharedTransaction, old: Option<&SharedTransaction>) {
 			self.0.borrow_mut().push(if old.is_some() { "replaced" } else { "added" });
 		}
 
-		fn rejected(&mut self, _tx: VerifiedTransaction) {
+		fn rejected(&mut self, _tx: Transaction) {
 			self.0.borrow_mut().push("rejected".into());
 		}
 

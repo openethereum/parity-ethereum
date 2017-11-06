@@ -17,19 +17,20 @@
 use std::cmp;
 use std::collections::HashMap;
 
-use {scoring, Scoring, Ready, Readiness, Address as Sender, U256, VerifiedTransaction, SharedTransaction};
+use {scoring, Scoring, Ready, Readiness, Address as Sender};
+use super::{Transaction, SharedTransaction, U256};
 
 #[derive(Default)]
 pub struct DummyScoring;
 
-impl Scoring for DummyScoring {
+impl Scoring<Transaction> for DummyScoring {
 	type Score = U256;
 
-	fn compare(&self, old: &VerifiedTransaction, other: &VerifiedTransaction) -> cmp::Ordering {
+	fn compare(&self, old: &Transaction, other: &Transaction) -> cmp::Ordering {
 		old.nonce.cmp(&other.nonce)
 	}
 
-	fn choose(&self, old: &VerifiedTransaction, new: &VerifiedTransaction) -> scoring::Choice {
+	fn choose(&self, old: &Transaction, new: &Transaction) -> scoring::Choice {
 		let decision = if old.nonce == new.nonce {
 			if new.gas_price > old.gas_price {
 				scoring::Choice::ReplaceOld
@@ -49,7 +50,7 @@ impl Scoring for DummyScoring {
 		}
 	}
 
-	fn should_replace(&self, old: &VerifiedTransaction, new: &VerifiedTransaction) -> bool {
+	fn should_replace(&self, old: &Transaction, new: &Transaction) -> bool {
 		new.gas_price > old.gas_price
 	}
 }
@@ -65,10 +66,10 @@ impl NonceReady {
 	}
 }
 
-impl Ready for NonceReady {
-	fn is_ready(&mut self, tx: &VerifiedTransaction) -> Readiness {
+impl Ready<Transaction> for NonceReady {
+	fn is_ready(&mut self, tx: &Transaction) -> Readiness {
 		let min = self.1;
-		let nonce = self.0.entry(*tx.sender()).or_insert_with(|| min);
+		let nonce = self.0.entry(tx.sender).or_insert_with(|| min);
 		match tx.nonce.cmp(nonce) {
 			cmp::Ordering::Greater => Readiness::Future,
 			cmp::Ordering::Equal => {

@@ -23,6 +23,9 @@ pub trait Verifier<U> {
 	/// Verification error.
 	type Error;
 
+	/// Verified transaction.
+	type VerifiedTransaction: VerifiedTransaction;
+
 	/// Verifies a `UnverifiedTransaction` and produces `VerifiedTransaction` instance.
-	fn verify_transaction(&self, tx: U) -> Result<VerifiedTransaction, Self::Error>;
+	fn verify_transaction(&self, tx: U) -> Result<Self::VerifiedTransaction, Self::Error>;
 }

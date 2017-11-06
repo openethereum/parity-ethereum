@@ -17,14 +17,15 @@
 use std::rc::Rc;
 use std::cell::Cell;
 
-use {U256, Address as Sender, VerifiedTransaction};
+use super::{Transaction, U256, Address};
 
 #[derive(Debug, Default, Clone)]
 pub struct TransactionBuilder {
 	nonce: U256,
 	gas_price: U256,
 	gas: U256,
-	sender: Sender,
+	sender: Address,
+	mem_usage: usize,
 	insertion_id: Rc<Cell<u64>>,
 }
 
@@ -43,25 +44,31 @@ impl TransactionBuilder {
 		self
 	}
 
-	pub fn sender<T: Into<Sender>>(mut self, sender: T) -> Self {
+	pub fn sender<T: Into<Address>>(mut self, sender: T) -> Self {
 		self.sender = sender.into();
 		self
 	}
 
-	pub fn new(self) -> VerifiedTransaction {
+	pub fn mem_usage(mut self, mem_usage: usize) -> Self {
+		self.mem_usage = mem_usage;
+		self
+	}
+
+	pub fn new(self) -> Transaction {
 		let insertion_id = {
 			let id = self.insertion_id.get() + 1;
 			self.insertion_id.set(id);
 			id
 		};
 		let hash = self.nonce ^ (U256::from(100) * self.gas_price) ^ (U256::from(100_000) * self.sender.low_u64().into());
-		VerifiedTransaction {
+		Transaction {
 			hash: hash.into(),
 			nonce: self.nonce,
 			gas_price: self.gas_price,
 			gas: 21_000.into(),
 			sender: self.sender,
 			insertion_id,
+			mem_usage: self.mem_usage,
 		}
 	}
 }

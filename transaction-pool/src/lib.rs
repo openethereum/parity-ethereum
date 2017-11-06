@@ -53,43 +53,20 @@ pub use self::scoring::Scoring;
 pub use self::status::{LightStatus, Status};
 pub use self::verifier::Verifier;
 
-use std::sync::Arc;
+use std::fmt;
 
-use self::bigint::prelude::{H256, U256};
-type Address = bigint::hash::H160;
+use self::bigint::prelude::{H256, H160 as Address};
 
-/// Verified transaction
-#[derive(Debug, PartialEq)]
-pub struct VerifiedTransaction {
-	/// hash
-	pub hash: H256,
-	/// nonce
-	pub nonce: U256,
-	/// gas_price
-	pub gas_price: U256,
-	/// gas
-	pub gas: U256,
-	/// sender
-	pub sender: Address,
-	/// insertion_id
-	pub insertion_id: u64,
-}
-impl VerifiedTransaction {
+pub trait VerifiedTransaction: fmt::Debug {
 	/// Transaction hash
-	pub fn hash(&self) -> &H256 {
-		&self.hash
-	}
+	fn hash(&self) -> &H256;
 
 	/// Memory usage
-	pub fn mem_usage(&self) -> usize {
-		self.nonce.low_u64() as usize
-	}
+	fn mem_usage(&self) -> usize;
 
 	/// Transaction sender
-	pub fn sender(&self) -> &Address {
-		&self.sender
-	}
-}
+	fn sender(&self) -> &Address;
 
-/// Shared transaction
-pub type SharedTransaction = Arc<VerifiedTransaction>;
+	/// Unique index of insertion (lower = older).
+	fn insertion_id(&self) -> u64;
+}

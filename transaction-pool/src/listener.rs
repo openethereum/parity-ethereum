@@ -14,35 +14,35 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use {SharedTransaction, VerifiedTransaction};
+use std::sync::Arc;
 
 /// Transaction pool listener.
 ///
 /// Listener is being notified about status of every transaction in the pool.
-pub trait Listener {
+pub trait Listener<T> {
 	/// The transaction has been successfuly added to the pool.
 	/// If second argument is `Some` the transaction has took place of some other transaction
 	/// which was already in pool.
 	/// NOTE: You won't be notified about drop of `old` transaction separately.
-	fn added(&mut self, _tx: &SharedTransaction, _old: Option<&SharedTransaction>) {}
+	fn added(&mut self, _tx: &Arc<T>, _old: Option<&Arc<T>>) {}
 
 	/// The transaction was rejected from the pool.
 	/// It means that it was too cheap to replace any transaction already in the pool.
-	fn rejected(&mut self, _tx: VerifiedTransaction) {}
+	fn rejected(&mut self, _tx: T) {}
 
 	/// The transaction was dropped from the pool because of a limit.
-	fn dropped(&mut self, _tx: &SharedTransaction) {}
+	fn dropped(&mut self, _tx: &Arc<T>) {}
 
 	/// The transaction was marked as invalid by executor.
-	fn invalid(&mut self, _tx: &SharedTransaction) {}
+	fn invalid(&mut self, _tx: &Arc<T>) {}
 
 	/// The transaction has been cancelled.
-	fn cancelled(&mut self, _tx: &SharedTransaction) {}
+	fn cancelled(&mut self, _tx: &Arc<T>) {}
 
 	/// The transaction has been mined.
-	fn mined(&mut self, _tx: &SharedTransaction) {}
+	fn mined(&mut self, _tx: &Arc<T>) {}
 }
 
 /// A no-op implementation of `Listener`.
 pub struct NoopListener;
-impl Listener for NoopListener {}
+impl<T> Listener<T> for NoopListener {}

@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::mem;
+use std::{fmt, mem};
 use std::marker::PhantomData;
 use std::sync::Arc;
 
@@ -22,37 +22,36 @@ use smallvec::SmallVec;
 
 use ready::{Ready, Readiness};
 use scoring::{self, Scoring};
-use {SharedTransaction, VerifiedTransaction};
 
 #[derive(Debug)]
-pub enum AddResult {
-	Ok(SharedTransaction),
-	TooCheapToEnter(VerifiedTransaction),
+pub enum AddResult<T> {
+	Ok(Arc<T>),
+	TooCheapToEnter(T),
 	TooCheap {
-		old: SharedTransaction,
-		new: VerifiedTransaction,
+		old: Arc<T>,
+		new: T,
 	},
 	Replaced {
-		old: SharedTransaction,
-		new: SharedTransaction,
+		old: Arc<T>,
+		new: Arc<T>,
 	},
 	PushedOut {
-		old: SharedTransaction,
-		new: SharedTransaction,
+		old: Arc<T>,
+		new: Arc<T>,
 	},
 }
 
 /// Represents all transactions from a particular sender ordered by nonce.
 const PER_SENDER: usize = 8;
 #[derive(Debug)]
-pub struct Transactions<S: Scoring> {
+pub struct Transactions<T, S: Scoring<T>> {
 	// TODO [ToDr] Consider using something that doesn't require shifting all records.
-	transactions: SmallVec<[SharedTransaction; PER_SENDER]>,
+	transactions: SmallVec<[Arc<T>; PER_SENDER]>,
 	scores: SmallVec<[S::Score; PER_SENDER]>,
 	_score: PhantomData<S>,
 }
 
-impl<S: Scoring> Default for Transactions<S> {
+impl<T, S: Scoring<T>> Default for Transactions<T, S> {
 	fn default() -> Self {
 		Transactions {
 			transactions: Default::default(),
@@ -62,7 +61,7 @@ impl<S: Scoring> Default for Transactions<S> {
 	}
 }
 
-impl<S: Scoring> Transactions<S> {
+impl<T: fmt::Debug, S: Scoring<T>> Transactions<T, S> {
 	pub fn is_empty(&self) -> bool {
 		self.transactions.is_empty()
 	}
@@ -71,11 +70,11 @@ impl<S: Scoring> Transactions<S> {
 		self.transactions.len()
 	}
 
-	pub fn iter(&self) -> ::std::slice::Iter<SharedTransaction> {
+	pub fn iter(&self) -> ::std::slice::Iter<Arc<T>> {
 		self.transactions.iter()
 	}
 
-	pub fn worst_and_best(&self) -> Option<((S::Score, SharedTransaction), (S::Score, SharedTransaction))> {
+	pub fn worst_and_best(&self) -> Option<((S::Score, Arc<T>), (S::Score, Arc<T>))> {
 		let len = self.scores.len();
 		self.scores.get(0).cloned().map(|best| {
 			let worst = self.scores[len - 1].clone();
@@ -86,7 +85,7 @@ impl<S: Scoring> Transactions<S> {
 		})
 	}
 
-	pub fn find_next(&self, tx: &VerifiedTransaction, scoring: &S) -> Option<(S::Score, SharedTransaction)> {
+	pub fn find_next(&self, tx: &T, scoring: &S) -> Option<(S::Score, Arc<T>)> {
 		self.transactions.binary_search_by(|old| scoring.compare(old, &tx)).ok().and_then(|index| {
 			let index = index + 1;
 			if index >= self.scores.len() {
@@ -97,7 +96,7 @@ impl<S: Scoring> Transactions<S> {
 		})
 	}
 
-	pub fn add(&mut self, tx: VerifiedTransaction, scoring: &S, max_count: usize) -> AddResult {
+	pub fn add(&mut self, tx: T, scoring: &S, max_count: usize) -> AddResult<T> {
 		let index = match self.transactions.binary_search_by(|old| scoring.compare(old, &tx)) {
 			Ok(index) => index,
 			Err(index) => index,
@@ -158,7 +157,7 @@ impl<S: Scoring> Transactions<S> {
 		}
 	}
 
-	pub fn remove(&mut self, tx: &VerifiedTransaction, scoring: &S) -> bool {
+	pub fn remove(&mut self, tx: &T, scoring: &S) -> bool {
 		let index = match self.transactions.binary_search_by(|old| scoring.compare(old, tx)) {
 			Ok(index) => index,
 			Err(_) => {
@@ -174,7 +173,7 @@ impl<S: Scoring> Transactions<S> {
 		return true;
 	}
 
-	pub fn cull<R: Ready>(&mut self, ready: &mut R, scoring: &S) -> SmallVec<[SharedTransaction; PER_SENDER]> {
+	pub fn cull<R: Ready<T>>(&mut self, ready: &mut R, scoring: &S) -> SmallVec<[Arc<T>; PER_SENDER]> {
 		let mut result = SmallVec::new();
 		if self.is_empty() {
 			return result;

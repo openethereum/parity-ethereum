@@ -17,7 +17,9 @@
 //! A transactions ordering abstraction.
 
 use std::{cmp, fmt};
-use {VerifiedTransaction, SharedTransaction};
+use std::sync::Arc;
+
+use {VerifiedTransaction};
 
 /// Represents a decision what to do with
 /// a new transaction that tries to enter the pool.
@@ -77,52 +79,66 @@ pub enum Change {
 /// - `update_scores`: score defined as `gasPrice` if `n==0` and `max(scores[n-1], gasPrice)` if `n>0`
 /// - `should_replace`: compares `gasPrice` (decides if transaction from a different sender is more valuable)
 ///
-pub trait Scoring {
+pub trait Scoring<T> {
 	/// A score of a transaction.
 	type Score: cmp::Ord + Clone + Default + fmt::Debug;
 
-	/// Decides on ordering of `VerifiedTransaction`s from a particular sender.
-	fn compare(&self, old: &VerifiedTransaction, other: &VerifiedTransaction) -> cmp::Ordering;
+	/// Decides on ordering of `T`s from a particular sender.
+	fn compare(&self, old: &T, other: &T) -> cmp::Ordering;
 
 	/// Decides how to deal with two transactions from a sender that seem to occupy the same slot in the queue.
-	fn choose(&self, old: &VerifiedTransaction, new: &VerifiedTransaction) -> Choice;
+	fn choose(&self, old: &T, new: &T) -> Choice;
 
 	/// Updates the transaction scores given a list of transactions and a change to previous scoring.
 	/// NOTE: `txs.len() === scores.len()`
-	fn update_scores(&self, txs: &[SharedTransaction], scores: &mut [Self::Score], change: Change);
+	fn update_scores(&self, txs: &[Arc<T>], scores: &mut [Self::Score], change: Change);
 
 	/// Decides if `new` should push out `old` transaction from the pool.
-	fn should_replace(&self, old: &VerifiedTransaction, new: &VerifiedTransaction) -> bool;
+	fn should_replace(&self, old: &T, new: &T) -> bool;
 }
 
 /// A score with a reference to the transaction.
-#[derive(Debug, Clone)]
-pub struct ScoreWithRef<T> {
+#[derive(Debug)]
+pub struct ScoreWithRef<T, S> {
 	/// Score
-	pub score: T,
+	pub score: S,
 	/// Shared transaction
-	pub transaction: SharedTransaction,
+	pub transaction: Arc<T>,
 }
-impl<T> ScoreWithRef<T> {
+
+impl<T, S: Clone> Clone for ScoreWithRef<T, S> {
+	fn clone(&self) -> Self {
+		ScoreWithRef {
+			score: self.score.clone(),
+			transaction: self.transaction.clone(),
+		}
+	}
+}
+
+impl<T, S> ScoreWithRef<T, S> {
 	/// Creates a new `ScoreWithRef`
-	pub fn new(score: T, transaction: SharedTransaction) -> Self {
+	pub fn new(score: S, transaction: Arc<T>) -> Self {
 		ScoreWithRef { score, transaction }
 	}
 }
-impl<T: cmp::Ord> Ord for ScoreWithRef<T> {
+
+impl<S: cmp::Ord, T: VerifiedTransaction> Ord for ScoreWithRef<T, S> {
 	fn cmp(&self, other: &Self) -> cmp::Ordering {
 		other.score.cmp(&self.score)
-			.then(other.transaction.insertion_id.cmp(&self.transaction.insertion_id))
+			.then(other.transaction.insertion_id().cmp(&self.transaction.insertion_id()))
 	}
 }
-impl<T: cmp::Ord> PartialOrd for ScoreWithRef<T> {
+
+impl<S: cmp::Ord, T: VerifiedTransaction> PartialOrd for ScoreWithRef<T, S> {
 	fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
 		Some(self.cmp(other))
 	}
 }
-impl<T: cmp::Ord>  PartialEq for ScoreWithRef<T> {
+
+impl<S: cmp::Ord, T: VerifiedTransaction>  PartialEq for ScoreWithRef<T, S> {
 	fn eq(&self, other: &Self) -> bool {
-		self.score == other.score && self.transaction.insertion_id == other.transaction.insertion_id
+		self.score == other.score && self.transaction.insertion_id() == other.transaction.insertion_id()
 	}
 }
-impl<T: cmp::Ord> Eq for ScoreWithRef<T> {}
+
+impl<S: cmp::Ord, T: VerifiedTransaction> Eq for ScoreWithRef<T, S> {}
