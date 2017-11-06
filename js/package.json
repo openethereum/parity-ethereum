@@ -99,7 +99,6 @@
     "http-proxy-middleware": "0.17.3",
     "husky": "0.13.1",
     "ignore-styles": "5.0.1",
-    "image-webpack-loader": "3.2.0",
     "istanbul": "1.0.0-alpha.2",
     "jsdom": "9.11.0",
     "json-loader": "0.5.4",
@@ -143,12 +142,12 @@
     "@parity/etherscan": "2.1.x",
     "@parity/ledger": "2.1.x",
     "@parity/shapeshift": "2.1.x",
-    "@parity/shared": "2.1.x",
-    "@parity/ui": "2.1.x",
-    "@parity/plugin-signer-account": "paritytech/plugin-signer-account#b96f5932a4e4173b680fe29dd5a8d8d7ec86bd6c",
-    "@parity/plugin-signer-default": "paritytech/plugin-signer-default#810955067267e2b9f91e281595aff5c074e432c4",
-    "@parity/plugin-signer-hardware": "paritytech/plugin-signer-hardware#bb58c9e41e3de1d56c57f0ea075adf0a180cb143",
-    "@parity/plugin-signer-qr": "paritytech/plugin-signer-qr#7a93e55cf09101fe9625f37f6335a067ba51c1fb",
+    "@parity/shared": "2.2.x",
+    "@parity/ui": "2.2.x",
+    "@parity/plugin-signer-account": "paritytech/plugin-signer-account",
+    "@parity/plugin-signer-default": "paritytech/plugin-signer-default",
+    "@parity/plugin-signer-hardware": "paritytech/plugin-signer-hardware",
+    "@parity/plugin-signer-qr": "paritytech/plugin-signer-qr",
     "@parity/dapp-account": "paritytech/dapp-account",
     "@parity/dapp-accounts": "paritytech/dapp-accounts",
     "@parity/dapp-address": "paritytech/dapp-address",
@@ -175,7 +174,6 @@
     "@parity/dapp-vaults": "paritytech/dapp-vaults",
     "@parity/dapp-wallet": "paritytech/dapp-wallet",
     "@parity/dapp-web": "paritytech/dapp-web",
-    "isomorphic-fetch": "2.2.1",
     "lodash.flatten": "4.4.0",
     "lodash.omitby": "4.6.0",
     "lodash.throttle": "4.1.1",
@@ -191,7 +189,6 @@
     "redux": "3.6.0",
     "solc": "ngotchac/solc-js",
     "store": "1.3.20",
-    "web3": "0.17.0-beta",
-    "whatwg-fetch": "2.0.1"
+    "web3": "0.17.0-beta"
   }
 }

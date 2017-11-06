@@ -121,7 +121,6 @@
     "http-proxy-middleware": "0.17.3",
     "husky": "0.13.1",
     "ignore-styles": "5.0.1",
-    "image-webpack-loader": "3.2.0",
     "istanbul": "1.0.0-alpha.2",
     "jsdom": "9.11.0",
     "json-loader": "0.5.4",
@@ -163,7 +162,6 @@
   "dependencies": {
     "@parity/api": "2.1.x",
     "@parity/wordlist": "1.1.x",
-    "arraybuffer-loader": "0.2.2",
     "base32.js": "0.1.0",
     "bignumber.js": "3.0.1",
     "blockies": "0.0.2",
@@ -235,7 +233,6 @@
     "web3": "0.17.0-beta",
     "whatwg-fetch": "2.0.1",
     "worker-loader": "^0.8.0",
-    "yarn": "^0.21.3",
     "zxcvbn": "4.4.1"
   }
 }
