@@ -360,7 +360,6 @@ impl SessionImpl {
 		Ok(())
 	}
 
-
 	/// When consensus-related message is received.
 	pub fn on_consensus_message(&self, sender: &NodeId, message: &SigningConsensusMessage) -> Result<(), Error> {
 		debug_assert!(self.core.meta.id == *message.session);

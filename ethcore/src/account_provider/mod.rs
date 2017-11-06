@@ -516,8 +516,8 @@ impl AccountProvider {
 	}
 
 	/// Returns each hardware account along with name and meta.
-	pub fn is_hardware_address(&self, address: Address) -> bool {
-		self.hardware_store.as_ref().and_then(|s| s.wallet_info(&address)).is_some()
+	pub fn is_hardware_address(&self, address: &Address) -> bool {
+		self.hardware_store.as_ref().and_then(|s| s.wallet_info(address)).is_some()
 	}
 
 	/// Returns each account along with name and meta.
@@ -589,7 +589,7 @@ impl AccountProvider {
 			}
 		}
 
-		if self.unlock_keep_secret && unlock != Unlock::OneTime {
+		if self.unlock_keep_secret && unlock == Unlock::Perm {
 			// verify password and get the secret
 			let secret = self.sstore.raw_secret(&account, &password)?;
 			self.unlocked_secrets.write().insert(account.clone(), secret);
@@ -639,11 +639,19 @@ impl AccountProvider {
 	}
 
 	/// Checks if given account is unlocked
-	pub fn is_unlocked(&self, address: Address) -> bool {
+	pub fn is_unlocked(&self, address: &Address) -> bool {
 		let unlocked = self.unlocked.read();
 		let unlocked_secrets = self.unlocked_secrets.read();
-		self.sstore.account_ref(&address)
+		self.sstore.account_ref(address)
 			.map(|r| unlocked.get(&r).is_some() || unlocked_secrets.get(&r).is_some())
+			.unwrap_or(false)
+	}
+
+	/// Checks if given account is unlocked permanently
+	pub fn is_unlocked_permanently(&self, address: &Address) -> bool {
+		let unlocked = self.unlocked.read();
+		self.sstore.account_ref(address)
+			.map(|r| unlocked.get(&r).map_or(false, |account| account.unlock == Unlock::Perm))
 			.unwrap_or(false)
 	}
 

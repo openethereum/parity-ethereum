@@ -1301,6 +1301,7 @@ pub mod tests {
 		let signature = sign(Random.generate().unwrap().secret(), &Default::default()).unwrap();
 		let session0 = clusters[0].client().new_signing_session(Default::default(), signature, None, Default::default()).unwrap();
 		let session = clusters[0].data.sessions.signing_sessions.first().unwrap();
+
 		loop_until(&mut core, time::Duration::from_millis(300), || session.is_finished() && (0..3).all(|i|
 			clusters[i].data.sessions.signing_sessions.is_empty()));
 		session0.wait().unwrap();
