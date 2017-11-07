@@ -470,7 +470,7 @@ usage! {
 			"--jsonrpc-hosts=[HOSTS]",
 			"List of allowed Host header values. This option will validate the Host header sent by the browser, it is additional security against some attack vectors. Special options: \"all\", \"none\",.",
 
-			ARG arg_jsonrpc_threads: (usize) = 0usize, or |c: &Config| otry!(c.rpc).processing_threads,
+			ARG arg_jsonrpc_threads: (usize) = 4usize, or |c: &Config| otry!(c.rpc).processing_threads,
 			"--jsonrpc-threads=[THREADS]",
 			"Turn on additional processing threads in all RPC servers. Setting this to non-zero value allows parallel cpu-heavy queries execution.",
 
@@ -610,7 +610,11 @@ usage! {
 
 			FLAG flag_refuse_service_transactions: (bool) = false, or |c: &Config| otry!(c.mining).refuse_service_transactions.clone(),
 			"--refuse-service-transactions",
-			"Always refuse service transactions..",
+			"Always refuse service transactions.",
+
+			FLAG flag_infinite_pending_block: (bool) = false, or |c: &Config| otry!(c.mining).infinite_pending_block.clone(),
+			"--infinite-pending-block",
+			"Pending block will be created with maximal possible gas limit and will execute all transactions in the queue. Note that such block is invalid and should never be attempted to be mined.",
 
 			FLAG flag_no_persistent_txqueue: (bool) = false, or |c: &Config| otry!(c.parity).no_persistent_txqueue,
 			"--no-persistent-txqueue",
@@ -694,7 +698,7 @@ usage! {
 
 			ARG arg_min_gas_price: (Option<u64>) = None, or |c: &Config| otry!(c.mining).min_gas_price.clone(),
 			"--min-gas-price=[STRING]",
-			"Minimum amount of Wei per GAS to be paid for a transaction to be accepted for mining. Overrides --basic-tx-usd.",
+			"Minimum amount of Wei per GAS to be paid for a transaction to be accepted for mining. Overrides --usd-per-tx.",
 
 			ARG arg_author: (Option<String>) = None, or |c: &Config| otry!(c.mining).author.clone(),
 			"--author=[ADDRESS]",
@@ -1140,6 +1144,7 @@ struct Mining {
 	remove_solved: Option<bool>,
 	notify_work: Option<Vec<String>>,
 	refuse_service_transactions: Option<bool>,
+	infinite_pending_block: Option<bool>,
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
@@ -1449,7 +1454,7 @@ mod tests {
 			arg_jsonrpc_apis: "web3,eth,net,parity,traces,rpc,secretstore".into(),
 			arg_jsonrpc_hosts: "none".into(),
 			arg_jsonrpc_server_threads: None,
-			arg_jsonrpc_threads: 0,
+			arg_jsonrpc_threads: 4,
 
 			// WS
 			flag_no_ws: false,
@@ -1515,6 +1520,7 @@ mod tests {
 			flag_remove_solved: false,
 			arg_notify_work: Some("http://localhost:3001".into()),
 			flag_refuse_service_transactions: false,
+			flag_infinite_pending_block: false,
 
 			flag_stratum: false,
 			arg_stratum_interface: "local".to_owned(),
@@ -1755,6 +1761,7 @@ mod tests {
 				remove_solved: None,
 				notify_work: None,
 				refuse_service_transactions: None,
+				infinite_pending_block: None,
 			}),
 			footprint: Some(Footprint {
 				tracing: Some("on".into()),

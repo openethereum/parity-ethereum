@@ -45,6 +45,7 @@ function initProvider () {
     });
 
   window.ethereum = ethereum;
+  window.isParity = true;
 
   return ethereum;
 }

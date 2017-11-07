@@ -171,6 +171,7 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 				code_hash: Some(code_hash),
 				data: Some(H256::from(number).to_vec()),
 				call_type: CallType::Call,
+				params_type: vm::ParamsType::Separate,
 			};
 
 			let mut output = H256::new();
@@ -219,6 +220,7 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 			code_hash: code_hash,
 			data: None,
 			call_type: CallType::None,
+			params_type: vm::ParamsType::Embedded,
 		};
 
 		if !self.static_flag {
@@ -240,7 +242,6 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 			Ok(FinalizationResult{ gas_left, apply_state: false, return_data }) => {
 				ContractCreateResult::Reverted(gas_left, return_data)
 			},
-			Err(vm::Error::MutableCallInStaticContext) => ContractCreateResult::FailedInStaticCall,
 			_ => ContractCreateResult::Failed,
 		}
 	}
@@ -277,6 +278,7 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 			code_hash: Some(code_hash),
 			data: Some(data.to_vec()),
 			call_type: call_type,
+			params_type: vm::ParamsType::Separate,
 		};
 
 		if let Some(value) = value {

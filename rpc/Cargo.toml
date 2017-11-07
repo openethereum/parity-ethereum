@@ -60,9 +60,9 @@ hash = { path = "../util/hash" }
 hardware-wallet = { path = "../hw" }
 
 clippy = { version = "0.0.103", optional = true}
-pretty_assertions = "0.1"
 
 [dev-dependencies]
+pretty_assertions = "0.1"
 macros = { path = "../util/macros" }
 ethcore-network = { path = "../util/network" }
 kvdb-memorydb = { path = "../util/kvdb-memorydb" }
