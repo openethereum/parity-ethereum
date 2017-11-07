@@ -66,7 +66,7 @@ fn io() -> Tester {
 		state_diff: None,
 	}));
 	let miner = Arc::new(TestMinerService::default());
-	let traces = TracesClient::new(&client, &miner);
+	let traces = TracesClient::new(&client);
 	let mut io = IoHandler::default();
 	io.extend_with(traces.to_delegate());
 

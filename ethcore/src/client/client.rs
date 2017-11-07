@@ -1142,7 +1142,7 @@ impl Client {
 			state_diff: bool,
 			transaction: &SignedTransaction,
 			options: TransactOptions<T, V>,
-		) -> Result<Executed, CallError> where
+		) -> Result<Executed<T::Output, V::Output>, CallError> where
 			T: trace::Tracer,
 			V: trace::VMTracer,
 		{
@@ -1242,7 +1242,7 @@ impl BlockChainClient for Client {
 		// that's just a copy of the state.
 		let original_state = self.state_at(block).ok_or(CallError::StatePruned)?;
 		let sender = t.sender();
-		let options = || TransactOptions::with_tracing();
+		let options = || TransactOptions::with_tracing().dont_check_nonce();
 
 		let cond = |gas| {
 			let mut tx = t.as_unsigned().clone();

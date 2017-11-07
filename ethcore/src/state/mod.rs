@@ -62,19 +62,19 @@ pub use self::backend::Backend;
 pub use self::substate::Substate;
 
 /// Used to return information about an `State::apply` operation.
-pub struct ApplyOutcome {
+pub struct ApplyOutcome<T, V> {
 	/// The receipt for the applied transaction.
 	pub receipt: Receipt,
 	/// The output of the applied transaction.
 	pub output: Bytes,
 	/// The trace for the applied transaction, empty if tracing was not produced.
-	pub trace: Vec<FlatTrace>,
+	pub trace: Vec<T>,
 	/// The VM trace for the applied transaction, None if tracing was not produced.
-	pub vm_trace: Option<VMTrace>
+	pub vm_trace: Option<V>
 }
 
 /// Result type for the execution ("application") of a transaction.
-pub type ApplyResult = Result<ApplyOutcome, Error>;
+pub type ApplyResult<T, V> = Result<ApplyOutcome<T, V>, Error>;
 
 /// Return type of proof validity check.
 #[derive(Debug, Clone)]
@@ -668,7 +668,7 @@ impl<B: Backend> State<B> {
 
 	/// Execute a given transaction, producing a receipt and an optional trace.
 	/// This will change the state accordingly.
-	pub fn apply(&mut self, env_info: &EnvInfo, machine: &Machine, t: &SignedTransaction, tracing: bool) -> ApplyResult {
+	pub fn apply(&mut self, env_info: &EnvInfo, machine: &Machine, t: &SignedTransaction, tracing: bool) -> ApplyResult<FlatTrace, VMTrace> {
 		if tracing {
 			let options = TransactOptions::with_tracing();
 			self.apply_with_tracing(env_info, machine, t, options.tracer, options.vm_tracer)
@@ -687,7 +687,7 @@ impl<B: Backend> State<B> {
 		t: &SignedTransaction,
 		tracer: T,
 		vm_tracer: V,
-	) -> ApplyResult where
+	) -> ApplyResult<T::Output, V::Output> where
 		T: trace::Tracer,
 		V: trace::VMTracer,
 	{
@@ -728,7 +728,7 @@ impl<B: Backend> State<B> {
 	// `virt` signals that we are executing outside of a block set and restrictions like
 	// gas limits and gas costs should be lifted.
 	fn execute<T, V>(&mut self, env_info: &EnvInfo, machine: &Machine, t: &SignedTransaction, options: TransactOptions<T, V>, virt: bool)
-		-> Result<Executed, ExecutionError> where T: trace::Tracer, V: trace::VMTracer,
+		-> Result<Executed<T::Output, V::Output>, ExecutionError> where T: trace::Tracer, V: trace::VMTracer,
 	{
 		let mut e = Executive::new(self, env_info, machine);
 

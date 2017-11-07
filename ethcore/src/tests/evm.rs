@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 use hash::keccak;
-use vm::{EnvInfo, ActionParams, ActionValue, CallType};
+use vm::{EnvInfo, ActionParams, ActionValue, CallType, ParamsType};
 use evm::{Factory, VMType};
 use executive::Executive;
 use state::Substate;
@@ -45,6 +45,7 @@ fn test_blockhash_eip210(factory: Factory) {
 			code_hash: Some(blockhash_contract_code_hash),
 			data: Some(H256::from(i - 1).to_vec()),
 			call_type: CallType::Call,
+			params_type: ParamsType::Separate,
 		};
 		let mut ex = Executive::new(&mut state, &env_info, &machine);
 		let mut substate = Substate::new();
@@ -67,6 +68,7 @@ fn test_blockhash_eip210(factory: Factory) {
 		code_hash: Some(get_prev_hash_code_hash),
 		data: None,
 		call_type: CallType::Call,
+		params_type: ParamsType::Separate,
 	};
 	let mut ex = Executive::new(&mut state, &env_info, &machine);
 	let mut substate = Substate::new();

@@ -724,7 +724,6 @@ fn test_jumps(factory: super::Factory) {
 	assert_eq!(gas_left, U256::from(54_117));
 }
 
-
 evm_test!{test_calls: test_calls_jit, test_calls_int}
 fn test_calls(factory: super::Factory) {
 	let code = "600054602d57600160005560006000600060006050610998610100f160006000600060006050610998610100f25b".from_hex().unwrap();
@@ -767,6 +766,27 @@ fn test_calls(factory: super::Factory) {
 	});
 	assert_eq!(gas_left, U256::from(91_405));
 	assert_eq!(ext.calls.len(), 2);
+}
+
+evm_test!{test_create_in_staticcall: test_create_in_staticcall_jit, test_create_in_staticcall_int}
+fn test_create_in_staticcall(factory: super::Factory) {
+	let code = "600060006064f000".from_hex().unwrap();
+
+	let address = Address::from(0x155);
+	let mut params = ActionParams::default();
+	params.gas = U256::from(100_000);
+	params.code = Some(Arc::new(code));
+	params.address = address.clone();
+	let mut ext = FakeExt::new_byzantium();
+	ext.is_static = true;
+
+	let err = {
+		let mut vm = factory.create(params.gas);
+		test_finalize(vm.exec(params, &mut ext)).unwrap_err()
+	};
+
+	assert_eq!(err, vm::Error::MutableCallInStaticContext);
+	assert_eq!(ext.calls.len(), 0);
 }
 
 fn assert_set_contains<T : Debug + Eq + PartialEq + Hash>(set: &HashSet<T>, val: &T) {

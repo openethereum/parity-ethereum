@@ -148,6 +148,12 @@ impl<'a> Deserialize<'a> for SerializableSignature {
 #[derive(Clone, Debug)]
 pub struct SerializableH256(pub H256);
 
+impl Default for SerializableH256 {
+	fn default() -> Self {
+		SerializableH256(Default::default())
+	}
+}
+
 impl<T> From<T> for SerializableH256 where H256: From<T> {
 	fn from(s: T) -> SerializableH256 {
 		SerializableH256(s.into())
@@ -249,6 +255,13 @@ impl Deref for SerializableSecret {
 	}
 }
 
+impl AsRef<[u8]> for SerializableSecret {
+	#[inline]
+	fn as_ref(&self) -> &[u8] {
+		&*self.0
+	}
+}
+
 impl Serialize for SerializableSecret {
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
 		let mut serialized = "0x".to_owned();
@@ -306,6 +319,13 @@ impl Deref for SerializablePublic {
 
 	fn deref(&self) -> &Public {
 		&self.0
+	}
+}
+
+impl AsRef<[u8]> for SerializablePublic {
+	#[inline]
+	fn as_ref(&self) -> &[u8] {
+		&*self.0
 	}
 }
 
