@@ -178,6 +178,13 @@ impl AccountProvider {
 			}
 		}
 
+		if let Ok(accounts) = sstore.accounts() {
+			for account in accounts.into_iter().filter(|a| settings.blacklisted_accounts.contains(&a.address)) {
+				warn!("Local Account {} has a blacklisted (known to be weak) address and will be ignored",
+					account.address);
+			}
+		}
+
 		// Remove blacklisted accounts from address book.
 		let mut address_book = AddressBook::new(&sstore.local_path());
 		for addr in &settings.blacklisted_accounts {
