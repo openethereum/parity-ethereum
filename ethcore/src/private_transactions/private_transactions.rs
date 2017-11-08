@@ -172,7 +172,7 @@ impl SigningStore {
 
 	/// Adds received signature for the stored private transaction
 	pub fn add_signature(&mut self, private_hash: &H256, signature: Signature) -> Result<(), Error> {
-		let mut desc = self.transactions.get_mut(private_hash).ok_or_else(|| PrivateTransactionError::PrivateTransactionNotFound)?;
+		let desc = self.transactions.get_mut(private_hash).ok_or_else(|| PrivateTransactionError::PrivateTransactionNotFound)?;
 		if !desc.received_signatures.contains(&signature) {
 			desc.received_signatures.push(signature);
 		}

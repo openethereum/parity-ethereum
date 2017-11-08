@@ -18,43 +18,34 @@
 /// Export the private_transactions module.
 pub mod private_transactions;
 
+extern crate ethabi;
+
 pub use self::private_transactions::*;
 
 use std::sync::{Arc, Weak};
+use std::collections::HashMap;
 use bigint::hash::H256;
 use bigint::prelude::U256;
 use util::Address;
-use executive::{Executive, TransactOptions};
-use executed::{Executed};
-use transaction::{SignedTransaction, Transaction, Action};
-use client::{Client, ChainNotify, ChainMessageType, BlockId};
-use client::BlockChainClient;
-use error::{PrivateTransactionError};
-use transaction::UnverifiedTransaction;
-use error::Error as EthcoreError;
-use ethkey::{Signature, Error as EthkeyError, recover, public_to_address};
-use rlp::*;
-use bigint::prelude::U256;
-use bigint::hash::H256;
 use hash::keccak;
+use rlp::*;
 use rand::{Rng, OsRng};
 use parking_lot::{Mutex, RwLock};
+use futures::{self, Future};
 use bytes::Bytes;
-use util::Address;
+use error::Error as EthcoreError;
+use ethkey::{Signature, Error as EthkeyError, recover, public_to_address};
 use ethcrypto::aes::{encrypt, decrypt};
-use std::collections::HashMap;
 use executive::{Executive, TransactOptions};
 use executed::{Executed};
-use transaction::{SignedTransaction, Transaction, Action};
+use transaction::{SignedTransaction, Transaction, Action, UnverifiedTransaction};
 use client::{Client, BlockChainClient, ChainNotify, ChainMessageType, BlockId, MiningBlockChainClient};
 use account_provider::AccountProvider;
 use service::ClientIoMessage;
-use error::PrivateTransactionError;
+use error::{PrivateTransactionError};
 use miner::{MinerService, TransactionQueueDetailsProvider, AccountDetails};
 use native_contracts::Private as Contract;
-use futures::{self, Future};
-use trace;
-use ethabi;
+use trace::{Tracer, VMTracer};
 //TODO: to remove this uses
 use rustc_hex::FromHex;
 use std::iter::repeat;
@@ -258,10 +249,10 @@ pub struct Provider {
 }
 
 #[derive(Debug)]
-struct PrivateExecutionResult {
+struct PrivateExecutionResult<T, V> where T: Tracer, V: VMTracer {
 	code: Option<Bytes>,
 	state: Bytes,
-	result: Executed,
+	result: Executed<T::Output, V::Output>,
 }
 
 impl Provider {
@@ -510,14 +501,6 @@ impl Provider {
 		self.notify(|notify| notify.broadcast(ChainMessageType::SignedPrivateTransaction, message.clone()));
 	}
 
-	/// Temp unit test
-	pub fn test_encryption(&self) -> bool {
-		let data: Bytes = "c862c62b000b8ead121a4455a8ddeff7".from_hex().unwrap();
-		let addr = Address::random();
-		let encrypted_data = self.encrypt(&addr, &data).unwrap();
-		self.decrypt(&addr, &encrypted_data).unwrap() == data
-	}
-
 	fn encrypt(&self, _contract_address: &Address, data: &[u8]) -> Result<Bytes, EthcoreError> {
 		//TODO: retrieve key from secret store using contract
 		let init_key: Bytes = "cac6c205eb06c8308d65156ff6c862c62b000b8ead121a4455a8ddeff7248128d895692136f240d5d1614dc7cc4147b1bd584bd617e30560bb872064d09ea325".from_hex().unwrap();
@@ -588,10 +571,10 @@ impl Provider {
 		raw
 	}
 
-	fn execute_private<T, V>(&self, transaction: &SignedTransaction, options: TransactOptions<T, V>, block: BlockId) -> Result<PrivateExecutionResult, EthcoreError>
+	fn execute_private<T, V>(&self, transaction: &SignedTransaction, options: TransactOptions<T, V>, block: BlockId) -> Result<PrivateExecutionResult<T, V>, EthcoreError>
 		where
-			T: trace::Tracer,
-			V: trace::VMTracer,
+			T: Tracer,
+			V: VMTracer,
 	{
 		let client = self.client.read().clone().ok_or_else(|| PrivateTransactionError::ClientIsMalformed)?;
 		let client = client.upgrade().ok_or_else(|| PrivateTransactionError::ClientIsMalformed)?;
@@ -612,7 +595,7 @@ impl Provider {
 		};
 
 		let engine = client.engine();
-		let result = Executive::new(&mut state, &env_info, engine).transact_virtual(transaction, options)?;
+		let result = Executive::new(&mut state, &env_info, engine.machine()).transact_virtual(transaction, options)?;
 		let contract_address = contract_address.or(result.contracts_created.first().cloned());
 		let (encrypted_code, encrypted_storage) = match contract_address {
 			Some(address) => {
@@ -625,7 +608,7 @@ impl Provider {
 			},
 			None => return Err(PrivateTransactionError::ContractDoesNotExist.into())
 		};
-		trace!("Private contract executed. code: {:?}, state: {:?}, result: {:?}", encrypted_code, encrypted_storage, result);
+		trace!("Private contract executed. code: {:?}, state: {:?}", encrypted_code, encrypted_storage);
 		Ok(PrivateExecutionResult {
 			code: encrypted_code,
 			state: encrypted_storage,

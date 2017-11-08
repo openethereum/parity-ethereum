@@ -17,22 +17,25 @@
 use std::collections::{VecDeque, HashSet, HashMap};
 use std::sync::Arc;
 use bigint::hash::H256;
+use bigint::prelude::U256;
 use parking_lot::RwLock;
 use bytes::Bytes;
 use network::*;
 use tests::snapshot::*;
-use ethcore::client::{TestBlockChainClient, BlockChainClient, Client as EthcoreClient, ClientConfig, ChainNotify, ChainMessageType};
+use ethcore::client::{TestBlockChainClient, BlockChainClient, MiningBlockChainClient, Client as EthcoreClient, ClientConfig, ChainNotify, ChainMessageType};
 use ethcore::service::ClientIoMessage;
 use ethcore::header::BlockNumber;
 use ethcore::snapshot::SnapshotService;
 use ethcore::spec::Spec;
 use ethcore::account_provider::AccountProvider;
 use ethcore::miner::Miner;
+use ethcore::engines::EthEngine;
+use ethcore::transaction::SignedTransaction;
 use sync_io::SyncIo;
 use io::{IoChannel, IoContext, IoHandler};
 use api::WARP_SYNC_PROTOCOL_ID;
 use chain::ChainSync;
-use ::SyncConfig;
+use {SyncConfig, Address};
 
 pub trait FlushingBlockChainClient: BlockChainClient {
 	fn flush(&self) {}
@@ -142,6 +145,26 @@ impl<'p, C> SyncIo for TestIo<'p, C> where C: FlushingBlockChainClient, C: 'p {
 	fn chain_overlay(&self) -> &RwLock<HashMap<BlockNumber, Bytes>> {
 		&self.overlay
 	}
+}
+
+pub fn push_block_with_transactions(client: &Arc<EthcoreClient>, engine: &EthEngine, transactions: &[SignedTransaction]) {
+	let block_number = client.chain_info().best_block_number as u64 + 1;
+
+	let mut b = client.prepare_open_block(Address::default(), (0.into(), 5000000.into()), Bytes::new());
+	b.set_difficulty(U256::from(0x20000));
+	b.set_timestamp(block_number * 10);
+
+	for t in transactions {
+		b.push_transaction(t.clone(), None).unwrap();
+	}
+	let b = b.close_and_lock().seal(engine, vec![]).unwrap();
+
+	if let Err(e) = client.import_block(b.rlp_bytes()) {
+		panic!("error importing block which is valid by definition: {:?}", e);
+	}
+
+	client.flush_queue();
+	client.import_verified_blocks();
 }
 
 /// Abstract messages between peers.

@@ -298,17 +298,7 @@ pub trait Engine<M: Machine>: Sync + Send {
 
 	/// Handle any potential consensus messages;
 	/// updating consensus state and potentially issuing a new one.
-	fn handle_message(&self, _message: &[u8]) -> Result<(), Error> { Err(EngineError::UnexpectedMessage.into()) }
-
-	/// Attempt to get a handle to a built-in contract.
-	/// Only returns references to activated built-ins.
-	// TODO: builtin contract routing - to do this properly, it will require removing the built-in configuration-reading logic
-	// from Spec into here and removing the Spec::builtins field.
-	fn builtin(&self, a: &Address, block_number: ::header::BlockNumber) -> Option<&Builtin> {
-		self.builtins()
-			.get(a)
-			.and_then(|b| if b.is_active(block_number) { Some(b) } else { None })
-	}
+	fn handle_message(&self, _message: &[u8]) -> Result<(), EngineError> { Err(EngineError::UnexpectedMessage) }
 
 	/// Find out if the block is a proposal block and should not be inserted into the DB.
 	/// Takes a header of a fully verified block.
