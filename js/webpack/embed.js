@@ -23,8 +23,6 @@ const WebpackConfig = require('./app');
 
 const compiler = webpack(WebpackConfig);
 
-process.env.EMDED = 'true';
-
 compiler.run(function handler (err, stats) {
   if (err) {
     return console.error(err);
