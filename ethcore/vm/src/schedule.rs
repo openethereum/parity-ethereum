@@ -127,12 +127,14 @@ pub struct WasmCosts {
 	pub mul: u32,
 	/// Memory (load/store) operations multiplier.
 	pub mem: u32,
-	/// Memory copy operation.
+	/// Memory copy operation, per byte.
 	pub mem_copy: u32,
+	/// Memory move operation, per byte.
+	pub mem_move: u32,
+	/// Memory set operation, per byte.
+	pub mem_set: u32,
 	/// Static region charge, per byte.
 	pub static_region: u32,
-	/// General static query of u64 value from env-info
-	pub static_u64: u32,
 	/// General static query of U256 value from env-info
 	pub static_u256: u32,
 	/// General static query of Address value from env-info
@@ -147,11 +149,9 @@ impl Default for WasmCosts {
 			mul: 4,
 			mem: 2,
 			mem_copy: 1,
+			mem_move: 1,
+			mem_set: 1,
 			static_region: 1,
-
-			// due to runtime issues, this can be slow
-			static_u64: 32,
-
 			static_u256: 64,
 			static_address: 40,
 		}
