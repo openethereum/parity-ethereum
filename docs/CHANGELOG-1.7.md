@@ -1,3 +1,18 @@
+### [v1.7.8](https://github.com/paritytech/parity/releases/tag/v1.7.8) d5fcf3b8ed74e241ca24db19bab1a44f6ea398bf
+
+- [stable] Refactor static context check in CREATE [#6889](https://github.com/paritytech/parity/pull/6889)
+- fix #6228: do not display eth price in cli for etc [#6877](https://github.com/paritytech/parity/pull/6877)
+- fix mining help [#6885](https://github.com/paritytech/parity/pull/6885)
+- [stable] v1.7.8 [#6890](https://github.com/paritytech/parity/pull/6890)
+- Refactor static context check in CREATE. [#6886](https://github.com/paritytech/parity/pull/6886)
+- Cleanup some configuration options [#6878](https://github.com/paritytech/parity/pull/6878)
+- Fix serialization of non-localized transactions [#6868](https://github.com/paritytech/parity/pull/6868)
+- updated ntp to version 0.3 [#6854](https://github.com/paritytech/parity/pull/6854)
+- Align README with 1.8 and prepare CHANGELOG with 1.8.1 [#6833](https://github.com/paritytech/parity/pull/6833)
+- Return error on timed unlock [#6777](https://github.com/paritytech/parity/pull/6777)
+- Fix dapps tests in master [#6866](https://github.com/paritytech/parity/pull/6866)
+- [Beta] Add ECIP1017 to Morden config (#6810) [#6845](https://github.com/paritytech/parity/pull/6845)
+
 ## Parity [v1.7.7](https://github.com/paritytech/parity/releases/tag/v1.7.7) (2017-10-15)
 
 Parity 1.7.7 Fixes an issue with auto-update system. Updating is recommended, but not required for Byzantium.
