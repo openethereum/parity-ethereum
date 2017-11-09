@@ -43,6 +43,8 @@ pub struct AuthorityRoundParams {
 	/// Reward per block in wei.
 	#[serde(rename="blockReward")]
 	pub block_reward: Option<Uint>,
+	#[serde(rename="maximumUncleCount")]
+	pub maximum_uncle_count: Option<Uint>,
 }
 
 /// Authority engine deserialization.
