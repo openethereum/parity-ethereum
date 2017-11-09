@@ -28,11 +28,9 @@ use bigint::hash::H256;
 use parking_lot::{Mutex, RwLock};
 use journaldb;
 use util::{Address, DBValue};
-use kvdb_rocksdb::{Database, DatabaseConfig};
 use bytes::Bytes;
 use rlp::*;
 use ethkey::{Generator, Random};
-use devtools::*;
 use transaction::{Transaction, LocalizedTransaction, PendingTransaction, SignedTransaction, Action};
 use blockchain::TreeRoute;
 use client::{
@@ -387,6 +385,18 @@ impl TestBlockChainClient {
 		}.fake_sign(from)
     }
 
+    /// Create a signed transaction to deploy a contract encoded in the `data` parameter 
+    pub fn contract_create_tx(&self, id: BlockId, address: Address, data: Bytes) -> SignedTransaction {
+		Transaction {
+			nonce: self.nonce(&address, id).unwrap_or_else(|| self.spec.engine.account_start_nonce(0)),
+			action: Action::Create,
+			gas: U256::from(50_000_000),
+			gas_price: U256::default(),
+			value: U256::default(),
+			data: data,
+		}.fake_sign(address)
+    }
+
     /// Evaluate a transaction on a local EVM Interpreter
 	fn do_virtual_call(&self, env_info: &EnvInfo, state: &mut State<StateDB>, t: &SignedTransaction, analytics: CallAnalytics) -> Result<Executed, CallError> {
 		fn call<V, T>(
@@ -480,7 +490,7 @@ impl MiningBlockChainClient for TestBlockChainClient {
 	fn prepare_open_block(&self, author: Address, gas_range_target: (U256, U256), extra_data: Bytes) -> OpenBlock {
 		let engine = &*self.spec.engine;
 		let genesis_header = self.spec.genesis_header();
-        let mut db_result = self.state_db.lock().boxed_clone();
+        let db_result = self.state_db.lock().boxed_clone();
 		let db = self.spec.ensure_db_good(db_result, &Default::default()).unwrap();
 
 		let last_hashes = vec![genesis_header.hash()];

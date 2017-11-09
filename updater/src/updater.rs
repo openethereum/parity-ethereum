@@ -407,9 +407,6 @@ pub mod tests {
     use super::*;
 
     // Tools to setup Contracts
-    use bigint::prelude::U256;
-    use ethcore::state::Account;
-    use ethcore::{contract_address, CreateContractAddress};
     use ethcore::transaction::{Action, Transaction};
     use ethcore::spec::Spec;
     use ethsync::test_sync::TestSync;

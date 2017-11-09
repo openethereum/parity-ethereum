@@ -806,6 +806,11 @@ impl Spec {
 	pub fn new_pow_test_spec() -> Self {
 		load_bundled!("ethereum/olympic")
 	}
+
+    /// Create a new spec for Operations contract
+    pub fn new_operations_test_spec() -> Self {
+        load_bundled!("operations")
+    }
 }
 
 #[cfg(test)]
