@@ -39,7 +39,7 @@
     "build:json": "babel-node ./scripts/build-rpc-json.js",
     "build:embed": "EMBED=1 node webpack/embed",
     "build:i18n": "npm run clean && npm run build && babel-node ./scripts/build-i18n.js",
-    "ci:build": "cross-env NODE_ENV=production npm:run:build",
+    "ci:build": "cross-env NODE_ENV=production npm run build",
     "start": "npm run clean && npm install && npm run build:lib && npm run build:dll && npm run start:app",
     "start:app": "node webpack/dev.server",
     "clean": "rm -rf ./.build ./.coverage ./.happypack ./.npmjs ./build ./node_modules/.cache ./node_modules/@parity",
