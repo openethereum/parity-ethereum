@@ -402,12 +402,8 @@ impl Service for Updater {
 #[cfg(test)]
 pub mod tests {
     use std::str::FromStr;
-    use std::io::{Read, Error};
-
     use super::*;
 
-    // Tools to setup Contracts
-    use ethcore::transaction::{Action, Transaction};
     use ethcore::spec::Spec;
     use ethsync::test_sync::TestSync;
     use ethcore::client::TestBlockChainClient;
@@ -419,7 +415,7 @@ pub mod tests {
     }
 
     fn operations_address() -> Address {
-        let addr_str = "2F3656F60bc6862f2E675a8c8cca354524d53c46";
+        let addr_str = "0000000000000000000000000000000000000005";
         Address::from_str(addr_str).unwrap_or(H160([0u8; 20]))
     }
 
@@ -485,32 +481,9 @@ pub mod tests {
         }
 
         fn new_operations(client: Arc<TestBlockChainClient>) -> Operations {
-            // Call function on contract not deployed to a blockchain
 		    Operations::new(operations_address(), move |a, d| {
                 client.call_contract(BlockId::Latest, a, d)
             })
-        }
-
-        fn load_operations_bin() -> Result<Bytes, Error> {
-            let mut binfile = fs::File::open("res/operations.bin")?;
-            let mut bindata: Vec<u8> = vec![];
-
-            let bytes_read = binfile.read_to_end(&mut bindata).ok().unwrap();
-            assert!(bytes_read != 0, "Operations binary data file is empty");
-
-            Ok(bindata)
-        }
-
-        fn deploy_operations_contract(&self) {
-            if let Some(ops_data) = TestUpdater::load_operations_bin().ok() {
-                let _ = self.updater.client
-                    .upgrade()
-                    .unwrap()
-                    .transact_contract(operations_address(), ops_data);
-            }
-            else {
-                panic!("Unable to load operations binary data");
-            }
         }
     }
 
@@ -684,7 +657,6 @@ pub mod tests {
     #[test]
     fn operations_call_clients_required() {
         let test_updater = TestUpdater::new();
-        test_updater.deploy_operations_contract();
 
         let _ = match *test_updater.updater.operations.lock() {
             Some(ref mut ops) => ops.clients_required()
@@ -696,6 +668,17 @@ pub mod tests {
     #[test]
     fn operations_call_track() {
         let updater = TestUpdater::new().updater;
+        let _ = match *updater.operations.lock() {
+            Some(ref mut ops) => ops.add_release(
+                &release_id(), /* release */
+                0, /* fork block */
+                1, /* track */
+                0x01070800, /* semver */
+                false /* critical */)
+               .map_err(|e| panic!("addRelease failed with error {:?}", e)),
+            None => panic!("No operations available"),
+        };
+
         let _ = match *updater.operations.lock() {
             Some(ref mut ops) => ops.track(CLIENT_ID, &release_id())
                 .map_err(|e| panic!("track failed with {:?}", e)),
