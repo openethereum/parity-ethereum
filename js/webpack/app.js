@@ -46,7 +46,7 @@ const isProd = ENV === 'production';
 const isEmbed = EMBED === '1' || EMBED === 'true';
 
 const entry = isEmbed
-  ? { embed: './embed.js' }
+  ? { embed: ['babel-polyfill', './embed.js'] }
   : { bundle: ['babel-polyfill', './index.parity.js'] };
 
 module.exports = {
@@ -238,7 +238,7 @@ module.exports = {
         new HtmlWebpackPlugin({
           title: 'Parity Bar',
           filename: 'embed.html',
-          template: './index.ejs',
+          template: './index.parity.ejs',
           favicon: FAVICON,
           chunks: ['embed']
         })
