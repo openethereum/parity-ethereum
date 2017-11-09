@@ -597,7 +597,7 @@ pub mod tests {
     fn operations_call_reset_client_owner() {
         let updater = TestUpdater::new().updater;
         let _ = match *updater.operations.lock() {
-            Some(ref mut ops) => ops.reset_client_owner(CLIENT_ID, &Address::from([0u8; 20]))
+            Some(ref mut ops) => ops.reset_client_owner(CLIENT_ID, &Address::from([0x69; 20]))
                 .map_err(|e| panic!("resetClientOwner failed with {:?}", e)),
             None => panic!("No operations available"), 
         };
@@ -657,6 +657,13 @@ pub mod tests {
     #[test]
     fn operations_call_clients_required() {
         let test_updater = TestUpdater::new();
+
+        // Set the client required
+        let _ = match *test_updater.updater.operations.lock() {
+            Some(ref mut ops) => ops.set_client_required(CLIENT_ID, true)
+                .map_err(|e| panic!("setClientRequired failed with {:?}", e)),
+            None => panic!("No operations available"),
+        };
 
         let _ = match *test_updater.updater.operations.lock() {
             Some(ref mut ops) => ops.clients_required()
