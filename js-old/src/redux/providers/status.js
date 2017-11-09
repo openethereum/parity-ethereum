@@ -17,7 +17,7 @@
 import { isEqual, debounce } from 'lodash';
 
 import { LOG_KEYS, getLogger } from '~/config';
-import UpgradeStore from '~/modals/UpgradeParity/store';
+// import UpgradeStore from '~/modals/UpgradeParity/store';
 
 import { statusBlockNumber, statusCollection } from './statusActions';
 
@@ -39,7 +39,7 @@ export default class Status {
   constructor (store, api) {
     this._api = api;
     this._store = store;
-    this._upgradeStore = UpgradeStore.get(api);
+    // this._upgradeStore = UpgradeStore.get(api);
 
     this.updateApiStatus();
   }
@@ -285,9 +285,9 @@ export default class Status {
       this._api.parity.netChain()
     ];
 
-    if (nodeKindFull) {
-      statusPromises.push(this._upgradeStore.checkUpgrade());
-    }
+    // if (nodeKindFull) {
+    //   statusPromises.push(this._upgradeStore.checkUpgrade());
+    // }
 
     return Promise
       .all(statusPromises)
