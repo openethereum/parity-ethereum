@@ -58,39 +58,42 @@ export default function (api, browserHistory, forEmbed = false) {
   setupWorker(store);
 
   const start = () => {
-    return Promise.resolve()
-      .then(() => console.log('starting Status Provider...'))
+    return Promise
+      .resolve()
+      .then(() => console.log('v1: starting Status Provider...'))
       .then(() => StatusProvider.start())
-      .then(() => console.log('started Status Provider'))
+      .then(() => console.log('v1: started Status Provider'))
 
-      .then(() => console.log('starting Personal Provider...'))
+      .then(() => console.log('v1: starting Personal Provider...'))
       .then(() => PersonalProvider.start())
-      .then(() => console.log('started Personal Provider'))
+      .then(() => console.log('v1: started Personal Provider'))
 
-      .then(() => console.log('starting Balances Provider...'))
+      .then(() => console.log('v1: starting Balances Provider...'))
       .then(() => BalancesProvider.start())
-      .then(() => console.log('started Balances Provider'))
+      .then(() => console.log('v1: started Balances Provider'))
 
-      .then(() => console.log('starting Tokens Provider...'))
+      .then(() => console.log('v1: starting Tokens Provider...'))
       .then(() => TokensProvider.start())
-      .then(() => console.log('started Tokens Provider'));
+      .then(() => console.log('v1: started Tokens Provider'));
   };
 
   const stop = () => {
-    return StatusProvider.stop()
+    return StatusProvider
+      .stop()
       .then(() => PersonalProvider.stop())
       .then(() => TokensProvider.stop())
       .then(() => BalancesProvider.stop());
   };
-
-  // On connecting, stop all subscriptions
-  api.on('connecting', stop);
 
   // On connected, start the subscriptions
   api.on('connected', start);
 
   // On disconnected, stop all subscriptions
   api.on('disconnected', stop);
+
+  if (api.isConnected) {
+    start();
+  }
 
   return store;
 }
