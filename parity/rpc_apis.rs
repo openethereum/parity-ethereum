@@ -239,10 +239,10 @@ impl FullDependencies {
 		use parity_rpc::v1::*;
 
 		macro_rules! add_signing_methods {
-			($namespace:ident, $handler:expr, $deps:expr, $nonces:expr) => {
+			($namespace:ident, $handler:expr, $deps:expr) => {
 				{
 					let deps = &$deps;
-					let dispatcher = FullDispatcher::new(deps.client.clone(), deps.miner.clone(), $nonces);
+					let dispatcher = FullDispatcher::new(deps.client.clone(), deps.miner.clone(), deps.fetch.pool());
 					if deps.signer_service.is_enabled() {
 						$handler.extend_with($namespace::to_delegate(SigningQueueClient::new(&deps.signer_service, dispatcher, deps.remote.clone(), &deps.secret_store)))
 					} else {
@@ -252,11 +252,10 @@ impl FullDependencies {
 			}
 		}
 
-		let nonces = Arc::new(Mutex::new(dispatch::Reservations::with_pool(self.fetch.pool())));
 		let dispatcher = FullDispatcher::new(
 			self.client.clone(),
 			self.miner.clone(),
-			nonces.clone(),
+			self.fetch.pool(),
 		);
 		for api in apis {
 			match *api {
@@ -286,7 +285,7 @@ impl FullDependencies {
 						let filter_client = EthFilterClient::new(self.client.clone(), self.miner.clone());
 						handler.extend_with(filter_client.to_delegate());
 
-						add_signing_methods!(EthSigning, handler, self, nonces.clone());
+						add_signing_methods!(EthSigning, handler, self);
 					}
 				},
 				Api::EthPubSub => {
@@ -323,7 +322,7 @@ impl FullDependencies {
 					).to_delegate());
 
 					if !for_generic_pubsub {
-						add_signing_methods!(ParitySigning, handler, self, nonces.clone());
+						add_signing_methods!(ParitySigning, handler, self);
 					}
 				},
 				Api::ParityPubSub => {
@@ -440,7 +439,7 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 			self.on_demand.clone(),
 			self.cache.clone(),
 			self.transaction_queue.clone(),
-			Arc::new(Mutex::new(dispatch::Reservations::with_pool(self.fetch.pool()))),
+			self.fetch.pool(),
 		);
 
 		macro_rules! add_signing_methods {
