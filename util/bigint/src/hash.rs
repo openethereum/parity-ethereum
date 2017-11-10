@@ -17,7 +17,7 @@ use rand::{Rand, Rng};
 use rand::os::OsRng;
 use rustc_hex::{FromHex, FromHexError};
 use plain_hasher::PlainHasher;
-use bigint::U256;
+use uint::U256;
 use libc::{c_void, memcmp};
 
 /// Return `s` without the `0x` at the beginning of it, if any.

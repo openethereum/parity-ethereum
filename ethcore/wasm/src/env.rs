@@ -147,6 +147,11 @@ pub const SIGNATURES: &'static [UserFunctionDescriptor] = &[
 		&[I32],
 		None,
 	),
+	Static(
+		"_elog",
+		&[I32; 4],
+		None,
+	),
 
 	// TODO: Get rid of it also somehow?
 	Static(

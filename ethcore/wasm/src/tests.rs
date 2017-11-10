@@ -680,7 +680,6 @@ fn externs() {
 
 #[test]
 fn embedded_keccak() {
-
 	::ethcore_logger::init_log();
 	let mut code = load_sample!("keccak.wasm");
 	code.extend_from_slice(b"something");
@@ -703,4 +702,39 @@ fn embedded_keccak() {
 
 	assert_eq!(H256::from_slice(&result), H256::from("68371d7e884c168ae2022c82bd837d51837718a7f7dfb7aa3f753074a35e1d87"));
 	assert_eq!(gas_left, U256::from(80_452));
+}
+
+/// This test checks the correctness of log extern
+/// Target test puts one event with two topic [keccak(input), reverse(keccak(input))]
+/// and reversed input as a data
+#[test]
+fn events() {
+	::ethcore_logger::init_log();
+	let code = load_sample!("events.wasm");
+
+	let mut params = ActionParams::default();
+	params.gas = U256::from(100_000);
+	params.code = Some(Arc::new(code));
+	params.data = Some(b"something".to_vec());
+
+	let mut ext = FakeExt::new();
+
+	let (gas_left, result) = {
+		let mut interpreter = wasm_interpreter();
+		let result = interpreter.exec(params, &mut ext).expect("Interpreter to execute without any errors");
+		match result {
+			GasLeft::Known(_) => { panic!("events should return payload"); },
+			GasLeft::NeedsReturn { gas_left: gas, data: result, apply_state: _apply } => (gas, result.to_vec()),
+		}
+	};
+
+	assert_eq!(ext.logs.len(), 1);
+	let log_entry = &ext.logs[0];
+	assert_eq!(log_entry.topics.len(), 2);
+	assert_eq!(&log_entry.topics[0], &H256::from("68371d7e884c168ae2022c82bd837d51837718a7f7dfb7aa3f753074a35e1d87"));
+	assert_eq!(&log_entry.topics[1], &H256::from("871d5ea37430753faab7dff7a7187783517d83bd822c02e28a164c887e1d3768"));
+	assert_eq!(&log_entry.data, b"gnihtemos");
+
+	assert_eq!(&result, b"gnihtemos");
+	assert_eq!(gas_left, U256::from(78039));
 }
