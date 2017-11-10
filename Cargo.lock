@@ -508,7 +508,7 @@ dependencies = [
  "lru-cache 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "macros 0.1.0",
  "memory-cache 0.1.0",
- "memorydb 0.1.0",
+ "memorydb 0.1.1",
  "migration 0.1.0",
  "native-contracts 0.1.0",
  "num 0.1.40 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -600,7 +600,7 @@ dependencies = [
  "kvdb-rocksdb 0.1.0",
  "log 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "memory-cache 0.1.0",
- "memorydb 0.1.0",
+ "memorydb 0.1.1",
  "parking_lot 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "patricia-trie 0.1.0",
  "rand 0.3.16 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -738,7 +738,7 @@ dependencies = [
  "kvdb-memorydb 0.1.0",
  "libc 0.2.31 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
- "memorydb 0.1.0",
+ "memorydb 0.1.1",
  "parking_lot 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "patricia-trie 0.1.0",
  "rlp 0.2.0",
@@ -1218,7 +1218,7 @@ dependencies = [
  "kvdb 0.1.0",
  "kvdb-memorydb 0.1.0",
  "log 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
- "memorydb 0.1.0",
+ "memorydb 0.1.1",
  "parking_lot 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlp 0.2.0",
  "util-error 0.1.0",
@@ -1507,7 +1507,7 @@ dependencies = [
 
 [[package]]
 name = "memorydb"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "bigint 4.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "elastic-array 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2336,7 +2336,7 @@ dependencies = [
  "hashdb 0.1.1",
  "keccak-hash 0.1.0",
  "log 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
- "memorydb 0.1.0",
+ "memorydb 0.1.1",
  "rand 0.3.16 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlp 0.2.0",
  "triehash 0.1.0",
