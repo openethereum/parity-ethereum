@@ -16,7 +16,7 @@ eth-secp256k1 = { git = "https://github.com/paritytech/rust-secp256k1" }
 elastic-array = "0.9"
 rlp = { path = "rlp" }
 heapsize = "0.4"
-hash = { path = "hash" }
+keccak-hash = { path = "hash" }
 clippy = { version = "0.0.103", optional = true}
 libc = "0.2.7"
 target_info = "0.1"

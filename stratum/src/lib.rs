@@ -22,7 +22,7 @@ extern crate jsonrpc_macros;
 #[macro_use] extern crate log;
 extern crate ethcore_util as util;
 extern crate ethcore_bigint as bigint;
-extern crate hash;
+extern crate keccak_hash as hash;
 extern crate parking_lot;
 
 #[cfg(test)] extern crate tokio_core;

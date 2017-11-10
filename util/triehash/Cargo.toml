@@ -8,4 +8,4 @@ license = "GPL-3.0"
 [dependencies]
 rlp = { version = "0.2", path = "../rlp" }
 ethcore-bigint = { version = "0.2.1", path = "../bigint" }
-hash = { version = "0.1", path = "../hash" }
+keccak-hash = { version = "0.1", path = "../hash" }

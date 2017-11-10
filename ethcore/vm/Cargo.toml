@@ -13,4 +13,4 @@ log = "0.3"
 common-types = { path = "../types" }
 ethjson = { path = "../../json" }
 rlp = { path = "../../util/rlp" }
-hash = { path = "../../util/hash" }
+keccak-hash = { path = "../../util/hash" }

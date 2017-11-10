@@ -9,7 +9,7 @@ log = "0.3"
 rand = "0.3"
 ethcore-bytes = { version = "0.1.0", path = "../bytes" }
 ethcore-bigint = { version = "0.2.1", path = "../bigint" }
-hash = { version = "0.1.0", path = "../hash" }
+keccak-hash = { version = "0.1.0", path = "../hash" }
 hashdb = { version = "0.1.1", path = "../hashdb" }
 rlp = { version = "0.2.0", path = "../rlp" }
 triehash = { version = "0.1.0", path = "../triehash" }

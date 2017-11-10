@@ -36,7 +36,7 @@ node-health = { path = "./node-health" }
 parity-hash-fetch = { path = "../hash-fetch" }
 parity-reactor = { path = "../util/reactor" }
 parity-ui = { path = "./ui" }
-hash = { path = "../util/hash" }
+keccak-hash = { path = "../util/hash" }
 
 clippy = { version = "0.0.103", optional = true}
 

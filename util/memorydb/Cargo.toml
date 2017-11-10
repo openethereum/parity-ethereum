@@ -10,6 +10,6 @@ bigint = "4.0"
 elastic-array = "0.9"
 heapsize = "0.4"
 ethcore-bigint = { version = "0.2", path = "../bigint", features = ["heapsizeof"] }
-hash = { version = "0.1.0", path = "../hash" }
+keccak-hash = { version = "0.1.0", path = "../hash" }
 hashdb = { version = "0.1.0", path = "../hashdb" }
 rlp = { version = "0.2.0", path = "../rlp" }
