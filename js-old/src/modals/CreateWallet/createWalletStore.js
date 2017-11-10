@@ -59,7 +59,7 @@ const STEPS = {
 export default class CreateWalletStore {
   @observable step = null;
   @observable txhash = null;
-  @observable walletType = 'MULTISIG';
+  @observable walletType = 'WATCH'; // 'MULTISIG';
 
   @observable wallet = {
     account: '',
