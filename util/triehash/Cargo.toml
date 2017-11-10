@@ -2,6 +2,8 @@
 name = "triehash"
 version = "0.1.0"
 authors = ["Parity Technologies <admin@parity.io>"]
+description = "in memory patricia trie operations"
+license = "GPL-3.0"
 
 [dependencies]
 rlp = { path = "../rlp" }
