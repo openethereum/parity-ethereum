@@ -95,9 +95,12 @@ pub struct FullDispatcher<C, M> {
 
 impl<C, M> FullDispatcher<C, M> {
 	/// Create a `FullDispatcher` from Arc references to a client and miner.
-	pub fn new(client: Arc<C>, miner: Arc<M>, pool: CpuPool) -> Self {
-		let nonces = Arc::new(Mutex::new(HashMap::new()));
-
+	pub fn new(
+		client: Arc<C>,
+		miner: Arc<M>,
+		pool: CpuPool,
+		nonces: Arc<Mutex<HashMap<Address, nonce::Reservations>>>,
+	) -> Self {
 		FullDispatcher {
 			client,
 			miner,
@@ -278,9 +281,8 @@ impl LightDispatcher {
 		cache: Arc<Mutex<LightDataCache>>,
 		transaction_queue: Arc<RwLock<LightTransactionQueue>>,
 		pool: CpuPool,
+		nonces: Arc<Mutex<HashMap<Address, nonce::Reservations>>>,
 	) -> Self {
-		let nonces = Arc::new(Mutex::new(HashMap::new()));
-
 		LightDispatcher {
 			sync,
 			client,

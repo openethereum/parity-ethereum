@@ -15,8 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::cmp::PartialEq;
-use std::collections::BTreeMap;
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet, HashMap};
 use std::str::FromStr;
 use std::sync::{Arc, Weak};
 
@@ -239,10 +238,10 @@ impl FullDependencies {
 		use parity_rpc::v1::*;
 
 		macro_rules! add_signing_methods {
-			($namespace:ident, $handler:expr, $deps:expr) => {
+			($namespace:ident, $handler:expr, $deps:expr, $nonces:expr) => {
 				{
 					let deps = &$deps;
-					let dispatcher = FullDispatcher::new(deps.client.clone(), deps.miner.clone(), deps.fetch.pool());
+					let dispatcher = FullDispatcher::new(deps.client.clone(), deps.miner.clone(), deps.fetch.pool(), $nonces);
 					if deps.signer_service.is_enabled() {
 						$handler.extend_with($namespace::to_delegate(SigningQueueClient::new(&deps.signer_service, dispatcher, deps.remote.clone(), &deps.secret_store)))
 					} else {
@@ -252,10 +251,12 @@ impl FullDependencies {
 			}
 		}
 
+		let nonces = Arc::new(Mutex::new(HashMap::new()));
 		let dispatcher = FullDispatcher::new(
 			self.client.clone(),
 			self.miner.clone(),
 			self.fetch.pool(),
+			nonces.clone(),
 		);
 		for api in apis {
 			match *api {
@@ -285,7 +286,7 @@ impl FullDependencies {
 						let filter_client = EthFilterClient::new(self.client.clone(), self.miner.clone());
 						handler.extend_with(filter_client.to_delegate());
 
-						add_signing_methods!(EthSigning, handler, self);
+						add_signing_methods!(EthSigning, handler, self, nonces.clone());
 					}
 				},
 				Api::EthPubSub => {
@@ -322,7 +323,7 @@ impl FullDependencies {
 					).to_delegate());
 
 					if !for_generic_pubsub {
-						add_signing_methods!(ParitySigning, handler, self);
+						add_signing_methods!(ParitySigning, handler, self, nonces.clone());
 					}
 				},
 				Api::ParityPubSub => {
@@ -440,6 +441,7 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 			self.cache.clone(),
 			self.transaction_queue.clone(),
 			self.fetch.pool(),
+			Arc::new(Mutex::new(HashMap::new())),
 		);
 
 		macro_rules! add_signing_methods {
