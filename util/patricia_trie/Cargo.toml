@@ -2,6 +2,8 @@
 name = "patricia-trie"
 version = "0.1.0"
 authors = ["Parity Technologies <admin@parity.io>"]
+description = "Merkle-Patricia Trie (Ethereum Style)"
+license = "GPL-3.0"
 
 [dependencies]
 elastic-array = "0.9"
