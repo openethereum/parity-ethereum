@@ -31,6 +31,7 @@ import { patchApi } from '@parity/shared/util/tx';
 
 import SecureApi from './secureApi';
 
+import './ShellExtend';
 import '@parity/shared/environment';
 import '@parity/shared/assets/fonts/Roboto/font.css';
 import '@parity/shared/assets/fonts/RobotoMono/font.css';
@@ -70,8 +71,6 @@ class FrameSecureApi extends SecureApi {
   connect () {
     // Do nothing - this API does not need connecting
     this.emit('connecting');
-    // Fetch settings
-    this._fetchSettings();
     // Fire connected event with some delay.
     setTimeout(() => {
       this.emit('connected');
@@ -99,7 +98,7 @@ transport.uiUrl = uiUrl.replace('http://', '').replace('https://', '');
 const api = new FrameSecureApi(transport);
 
 patchApi(api);
-ContractInstances.create(api);
+ContractInstances.get(api);
 
 const store = initStore(api, null, true);
 
@@ -125,3 +124,9 @@ ReactDOM.render(
   </AppContainer>,
   container
 );
+
+// testing, signer plugins
+import '@parity/plugin-signer-account';
+import '@parity/plugin-signer-default';
+import '@parity/plugin-signer-hardware';
+import '@parity/plugin-signer-qr';

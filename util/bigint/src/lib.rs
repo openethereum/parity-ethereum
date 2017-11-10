@@ -12,7 +12,6 @@
 
 extern crate rand;
 extern crate rustc_hex;
-extern crate bigint;
 extern crate libc;
 extern crate plain_hasher;
 
@@ -20,6 +19,7 @@ extern crate plain_hasher;
 #[macro_use]
 extern crate heapsize;
 
+pub extern crate bigint as uint;
 pub mod hash;
 
 /// A prelude module for re-exporting all the types defined in this crate.
@@ -31,6 +31,6 @@ pub mod hash;
 /// let y = x + 1.into();
 /// ```
 pub mod prelude {
-	pub use ::bigint::*;
+	pub use ::uint::*;
 	pub use ::hash::*;
 }
