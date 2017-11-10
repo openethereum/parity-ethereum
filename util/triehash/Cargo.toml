@@ -6,6 +6,6 @@ description = "in memory patricia trie operations"
 license = "GPL-3.0"
 
 [dependencies]
-rlp = { version = "0.2", path = "../rlp" }
+rlp = { version = "0.2.1", path = "../rlp" }
 ethcore-bigint = { version = "0.2.1", path = "../bigint" }
 keccak-hash = { version = "0.1", path = "../hash" }
