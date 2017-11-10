@@ -20,7 +20,6 @@ use Address;
 use rlp::*;
 use io::{IoHandler, IoChannel};
 use ethcore::service::ClientIoMessage;
-use ethcore::client::BlockChainClient;
 use ethcore::spec::Spec;
 use ethcore::miner::MinerService;
 use ethcore::transaction::*;

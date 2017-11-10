@@ -16,9 +16,9 @@
 
 //! Private transactions module.
 
-pub mod private_transactions;
+mod private_transactions;
 
-pub use self::private_transactions::PrivateTransactions;
+use self::private_transactions::PrivateTransactions;
 
 use std::collections::HashMap;
 use std::sync::{Arc, Weak};
@@ -59,6 +59,17 @@ struct PrivateExecutionResult {
 	result: Executed,
 }
 
+#[derive(Debug)]
+/// Private transaction execution receipt.
+pub struct Receipt {
+	/// Private transaction hash.
+	pub hash: H256,
+	/// Created contract address if any.
+	pub contract_address: Option<Address>,
+	/// Execution status.
+	pub status_code: u8,
+}
+
 impl Provider {
 	/// Create a new provider.
 	pub fn new() -> Self {
@@ -82,9 +93,16 @@ impl Provider {
 	}
 
 	/// Add private transaction into the store
-	pub fn import_private_transaction(&self, rlp: &[u8], peer_id: usize) -> Result<(), EthcoreError> {
+	pub fn import_private_transaction(&self, rlp: &[u8], peer_id: usize) -> Result<Receipt, EthcoreError> {
 		let tx: UnverifiedTransaction = UntrustedRlp::new(rlp).as_val()?;
-		self.private_transactions.lock().import_transaction(tx, peer_id)
+		// TODO: execute transaction and add it to the validation queue
+		let hash = tx.hash();
+		self.private_transactions.lock().import_transaction(tx, peer_id)?;
+		Ok(Receipt {
+			hash: hash,
+			contract_address: None,
+			status_code: 0,
+		})
 	}
 
 	/// Add signed private transaction into the store

@@ -159,7 +159,7 @@ pub struct Client {
 	import_lock: Mutex<()>,
 	verifier: Box<Verifier>,
 	miner: Arc<Miner>,
-	provider: Arc<PrivateTransactionsProvider>,
+	private_tx_provider: Arc<PrivateTransactionsProvider>,
 	sleep_state: Mutex<SleepState>,
 	liveness: AtomicBool,
 	io_channel: Mutex<IoChannel<ClientIoMessage>>,
@@ -249,7 +249,7 @@ impl Client {
 			report: RwLock::new(Default::default()),
 			import_lock: Mutex::new(()),
 			miner: miner,
-			provider: Arc::new(PrivateTransactionsProvider::new()),
+			private_tx_provider: Arc::new(PrivateTransactionsProvider::new()),
 			io_channel: Mutex::new(message_channel),
 			notify: RwLock::new(Vec::new()),
 			queue_transactions: AtomicUsize::new(0),
@@ -1182,6 +1182,11 @@ impl Client {
 			BlockId::Pending => Some(self.chain.read().best_block_number() + 1),
 		}
 	}
+
+	/// Get private transaction manager.
+	pub fn private_transactions_provider(&self) -> Arc<PrivateTransactionsProvider> {
+		self.private_tx_provider.clone()
+	}
 }
 
 impl snapshot::DatabaseRestore for Client {
@@ -1231,10 +1236,6 @@ impl BlockChainClient for Client {
 		}
 
 		Ok(results)
-	}
-
-	fn private_transactions_provider(&self) -> &PrivateTransactionsProvider {
-		&*self.provider
 	}
 
 	fn estimate_gas(&self, t: &SignedTransaction, block: BlockId) -> Result<U256, CallError> {

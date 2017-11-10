@@ -27,6 +27,7 @@ use ethcore::header::BlockNumber;
 use ethcore::snapshot::SnapshotService;
 use ethcore::spec::Spec;
 use ethcore::account_provider::AccountProvider;
+use ethcore::private_transactions::Provider as PrivateTransactionProvider;
 use ethcore::miner::Miner;
 use sync_io::SyncIo;
 use io::{IoChannel, IoContext, IoHandler};
@@ -125,6 +126,10 @@ impl<'p, C> SyncIo for TestIo<'p, C> where C: FlushingBlockChainClient, C: 'p {
 
 	fn snapshot_service(&self) -> &SnapshotService {
 		self.snapshot_service
+	}
+
+	fn private_transactions_provider(&self) -> &PrivateTransactionProvider {
+		unimplemented!();
 	}
 
 	fn peer_session_info(&self, _peer_id: PeerId) -> Option<SessionInfo> {

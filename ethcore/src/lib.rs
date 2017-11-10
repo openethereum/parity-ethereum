@@ -171,11 +171,11 @@ pub mod trace;
 pub mod transaction;
 pub mod verification;
 pub mod views;
+pub mod private_transactions;
 
 mod cache_manager;
 mod blooms;
 mod basic_types;
-mod private_transactions;
 mod pod_account;
 mod state_db;
 mod account_db;

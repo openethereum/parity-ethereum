@@ -27,6 +27,7 @@ use ethcore::account_provider::AccountProvider;
 use ethcore::client::Client;
 use ethcore::miner::{Miner, ExternalMiner};
 use ethcore::snapshot::SnapshotService;
+use ethcore::private_transactions::Provider as PrivateTransactionManager;
 use ethcore_logger::RotatingLogger;
 use ethsync::{ManageNetwork, SyncProvider, LightSync};
 use hash_fetch::fetch::Client as FetchClient;
@@ -69,6 +70,8 @@ pub enum Api {
 	Rpc,
 	/// SecretStore (Safe)
 	SecretStore,
+	/// Private transaction manager (Safe)
+	Private,
 	/// Whisper (Safe)
 	// TODO: _if_ someone guesses someone else's key or filter IDs they can remove
 	// BUT these are all ephemeral so it seems fine.
@@ -97,6 +100,7 @@ impl FromStr for Api {
 			"traces" => Ok(Traces),
 			"rpc" => Ok(Rpc),
 			"secretstore" => Ok(SecretStore),
+			"private" => Ok(Private),
 			"shh" => Ok(Whisper),
 			"shh_pubsub" => Ok(WhisperPubSub),
 			api => Err(format!("Unknown api: {}", api))
@@ -182,6 +186,7 @@ fn to_modules(apis: &HashSet<Api>) -> BTreeMap<String, String> {
 			Api::Traces => ("traces", "1.0"),
 			Api::Rpc => ("rpc", "1.0"),
 			Api::SecretStore => ("secretstore", "1.0"),
+			Api::Private => ("private", "1.0"),
 			Api::Whisper => ("shh", "1.0"),
 			Api::WhisperPubSub => ("shh_pubsub", "1.0"),
 		};
@@ -213,6 +218,7 @@ pub struct FullDependencies {
 	pub sync: Arc<SyncProvider>,
 	pub net: Arc<ManageNetwork>,
 	pub secret_store: Option<Arc<AccountProvider>>,
+	pub private_tx_manager: Option<Arc<PrivateTransactionManager>>,
 	pub miner: Arc<Miner>,
 	pub external_miner: Arc<ExternalMiner>,
 	pub logger: Arc<RotatingLogger>,
@@ -367,7 +373,10 @@ impl FullDependencies {
 							);
 						}
 					}
-				}
+				},
+				Api::Private => {
+					handler.extend_with(PrivateClient::new(&self.private_tx_manager).to_delegate());
+				},
 			}
 		}
 	}
@@ -418,6 +427,7 @@ pub struct LightDependencies<T> {
 	pub geth_compatibility: bool,
 	pub remote: parity_reactor::Remote,
 	pub whisper_rpc: Option<::whisper::RpcFactory>,
+	pub private_tx_manager: Option<Arc<PrivateTransactionManager>>,
 }
 
 impl<C: LightChainClient + 'static> LightDependencies<C> {
@@ -557,11 +567,17 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 						let whisper = whisper_rpc.make_handler(self.net.clone());
 						handler.extend_with(::parity_whisper::rpc::Whisper::to_delegate(whisper));
 					}
-				}
+				},
 				Api::WhisperPubSub => {
 					if let Some(ref whisper_rpc) = self.whisper_rpc {
 						let whisper = whisper_rpc.make_handler(self.net.clone());
 						handler.extend_with(::parity_whisper::rpc::WhisperPubSub::to_delegate(whisper));
+					}
+				},
+				Api::Private => {
+					if let Some(ref tx_manager) = self.private_tx_manager {
+						let private_tx_manager = Some(tx_manager.clone());
+						handler.extend_with(PrivateClient::new(&private_tx_manager).to_delegate());
 					}
 				}
 			}
@@ -600,6 +616,7 @@ impl ApiSet {
 			Api::SecretStore,
 			Api::Whisper,
 			Api::WhisperPubSub,
+			Api::Private,
 		].into_iter().cloned().collect();
 
 		match *self {
@@ -662,6 +679,7 @@ mod test {
 		assert_eq!(Api::Traces, "traces".parse().unwrap());
 		assert_eq!(Api::Rpc, "rpc".parse().unwrap());
 		assert_eq!(Api::SecretStore, "secretstore".parse().unwrap());
+		assert_eq!(Api::Private, "private".parse().unwrap());
 		assert_eq!(Api::Whisper, "shh".parse().unwrap());
 		assert_eq!(Api::WhisperPubSub, "shh_pubsub".parse().unwrap());
 		assert!("rp".parse::<Api>().is_err());
