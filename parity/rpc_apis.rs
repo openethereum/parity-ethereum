@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::cmp::PartialEq;
-use std::collections::{BTreeMap, HashSet, HashMap};
+use std::collections::{BTreeMap, HashSet};
 use std::str::FromStr;
 use std::sync::{Arc, Weak};
 
@@ -241,7 +241,7 @@ impl FullDependencies {
 			($namespace:ident, $handler:expr, $deps:expr, $nonces:expr) => {
 				{
 					let deps = &$deps;
-					let dispatcher = FullDispatcher::new(deps.client.clone(), deps.miner.clone(), deps.fetch.pool(), $nonces);
+					let dispatcher = FullDispatcher::new(deps.client.clone(), deps.miner.clone(), $nonces);
 					if deps.signer_service.is_enabled() {
 						$handler.extend_with($namespace::to_delegate(SigningQueueClient::new(&deps.signer_service, dispatcher, deps.remote.clone(), &deps.secret_store)))
 					} else {
@@ -251,11 +251,10 @@ impl FullDependencies {
 			}
 		}
 
-		let nonces = Arc::new(Mutex::new(HashMap::new()));
+		let nonces = Arc::new(Mutex::new(dispatch::Reservations::with_pool(self.fetch.pool())));
 		let dispatcher = FullDispatcher::new(
 			self.client.clone(),
 			self.miner.clone(),
-			self.fetch.pool(),
 			nonces.clone(),
 		);
 		for api in apis {
@@ -440,8 +439,7 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 			self.on_demand.clone(),
 			self.cache.clone(),
 			self.transaction_queue.clone(),
-			self.fetch.pool(),
-			Arc::new(Mutex::new(HashMap::new())),
+			Arc::new(Mutex::new(dispatch::Reservations::with_pool(self.fetch.pool()))),
 		);
 
 		macro_rules! add_signing_methods {

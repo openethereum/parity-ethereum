@@ -19,7 +19,6 @@
 use std::fmt::Debug;
 use std::ops::Deref;
 use std::sync::Arc;
-use std::collections::HashMap;
 
 use light::cache::Cache as LightDataCache;
 use light::client::LightChainClient;
@@ -33,7 +32,6 @@ use util::Address;
 use bytes::Bytes;
 use parking_lot::{Mutex, RwLock};
 use stats::Corpus;
-use futures_cpupool::CpuPool;
 
 use ethkey::Signature;
 use ethsync::LightSync;
@@ -89,8 +87,7 @@ pub trait Dispatcher: Send + Sync + Clone {
 pub struct FullDispatcher<C, M> {
 	client: Arc<C>,
 	miner: Arc<M>,
-	nonces: Arc<Mutex<HashMap<Address, nonce::Reservations>>>,
-	pool: CpuPool,
+	nonces: Arc<Mutex<nonce::Reservations>>,
 }
 
 impl<C, M> FullDispatcher<C, M> {
@@ -98,14 +95,12 @@ impl<C, M> FullDispatcher<C, M> {
 	pub fn new(
 		client: Arc<C>,
 		miner: Arc<M>,
-		pool: CpuPool,
-		nonces: Arc<Mutex<HashMap<Address, nonce::Reservations>>>,
+		nonces: Arc<Mutex<nonce::Reservations>>,
 	) -> Self {
 		FullDispatcher {
 			client,
 			miner,
 			nonces,
-			pool,
 		}
 	}
 }
@@ -116,7 +111,6 @@ impl<C, M> Clone for FullDispatcher<C, M> {
 			client: self.client.clone(),
 			miner: self.miner.clone(),
 			nonces: self.nonces.clone(),
-			pool: self.pool.clone(),
 		}
 	}
 }
@@ -172,9 +166,7 @@ impl<C: MiningBlockChainClient, M: MinerService> Dispatcher for FullDispatcher<C
 		}
 
 		let state = self.state_nonce(&filled.from);
-		let reserved = self.nonces.lock().entry(filled.from)
-			.or_insert(nonce::Reservations::with_pool(self.pool.clone()))
-			.reserve_nonce(state);
+		let reserved = self.nonces.lock().reserve(filled.from, state);
 
 		Box::new(ProspectiveSigner::new(accounts, filled, chain_id, reserved, password))
 	}
@@ -265,9 +257,7 @@ pub struct LightDispatcher {
 	/// Transaction queue.
 	pub transaction_queue: Arc<RwLock<LightTransactionQueue>>,
 	/// Nonce reservations
-	pub nonces: Arc<Mutex<HashMap<Address, nonce::Reservations>>>,
-	/// Cpu pool
-	pub pool: CpuPool,
+	pub nonces: Arc<Mutex<nonce::Reservations>>,
 }
 
 impl LightDispatcher {
@@ -280,8 +270,7 @@ impl LightDispatcher {
 		on_demand: Arc<OnDemand>,
 		cache: Arc<Mutex<LightDataCache>>,
 		transaction_queue: Arc<RwLock<LightTransactionQueue>>,
-		pool: CpuPool,
-		nonces: Arc<Mutex<HashMap<Address, nonce::Reservations>>>,
+		nonces: Arc<Mutex<nonce::Reservations>>,
 	) -> Self {
 		LightDispatcher {
 			sync,
@@ -290,7 +279,6 @@ impl LightDispatcher {
 			cache,
 			transaction_queue,
 			nonces,
-			pool,
 		}
 	}
 
@@ -396,13 +384,11 @@ impl Dispatcher for LightDispatcher {
 		}
 
 		let nonces = self.nonces.clone();
-		let pool = self.pool.clone();
 		Box::new(self.next_nonce(filled.from)
 			.map_err(|_| errors::no_light_peers())
 			.and_then(move |nonce| {
-				let reserved = nonces.lock().entry(filled.from)
-					.or_insert(nonce::Reservations::with_pool(pool))
-					.reserve_nonce(nonce);
+				let reserved = nonces.lock().reserve(filled.from, nonce);
+
 				ProspectiveSigner::new(accounts, filled, chain_id, reserved, password)
 			}))
 	}
