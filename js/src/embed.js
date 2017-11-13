@@ -32,7 +32,7 @@ import { patchApi } from '@parity/shared/lib/util/tx';
 import SecureApi from './secureApi';
 
 import './ShellExtend';
-import '@parity/shared/environment';
+import '@parity/shared/lib/environment';
 import '@parity/shared/assets/fonts/Roboto/font.css';
 import '@parity/shared/assets/fonts/RobotoMono/font.css';
 
