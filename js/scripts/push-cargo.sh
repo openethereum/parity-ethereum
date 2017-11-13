@@ -16,7 +16,7 @@ function setup_git_user {
 
 # change into the build directory
 BASEDIR=`dirname $0`
-GITLOG=./.git/gitcommand.log
+GITLOG="./.git/gitcommand.log"
 pushd $BASEDIR
 
 echo "*** [cargo] Setting up GitHub config for parity"
