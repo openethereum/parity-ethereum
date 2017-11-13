@@ -166,6 +166,16 @@ pub fn keys_verification(threshold: usize, derived_point: &Public, number_id: &S
 	Ok(left == right)
 }
 
+/// Compute secret subshare from passed secret value.
+pub fn compute_secret_subshare<'a, I>(threshold: usize, secret_value: &Secret, sender_id_number: &Secret, other_id_numbers: I) -> Result<Secret, Error> where I: Iterator<Item=&'a Secret> {
+	let mut subshare = compute_shadow_mul(secret_value, sender_id_number, other_id_numbers)?;
+	if threshold % 2 != 0 {
+		subshare.neg()?;
+	}
+
+	Ok(subshare)
+}
+
 /// Compute secret share.
 pub fn compute_secret_share<'a, I>(secret_values: I) -> Result<Secret, Error> where I: Iterator<Item=&'a Secret> {
 	compute_secret_sum(secret_values)
@@ -183,10 +193,32 @@ pub fn compute_joint_public<'a, I>(public_shares: I) -> Result<Public, Error> wh
 	compute_public_sum(public_shares)
 }
 
-/// Compute joint secret key.
+/// Compute joint secret key from N secret coefficients.
 #[cfg(test)]
 pub fn compute_joint_secret<'a, I>(secret_coeffs: I) -> Result<Secret, Error> where I: Iterator<Item=&'a Secret> {
 	compute_secret_sum(secret_coeffs)
+}
+
+/// Compute joint secret key from t+1 secret shares.
+#[cfg(test)]
+pub fn compute_joint_secret_from_shares<'a>(t: usize, secret_shares: &[&'a Secret], id_numbers: &[&'a Secret]) -> Result<Secret, Error> {
+	let secret_share_0 = secret_shares[0];
+	let id_number_0 = id_numbers[0];
+	let other_nodes_numbers = id_numbers.iter().skip(1).cloned();
+	let mut result = compute_node_shadow(secret_share_0, id_number_0, other_nodes_numbers)?;
+	for i in 1..secret_shares.len() {
+		let secret_share_i = secret_shares[i];
+		let id_number_i = id_numbers[i];
+		let other_nodes_numbers = id_numbers.iter().enumerate().filter(|&(j, _)| j != i).map(|(_, n)| n).cloned();
+		let addendum = compute_node_shadow(secret_share_i, id_number_i, other_nodes_numbers)?;
+		result.add(&addendum)?;
+	}
+
+	if t % 2 != 0 {
+		result.neg()?;
+	}
+
+	Ok(result)
 }
 
 /// Encrypt secret with joint public key.
@@ -407,6 +439,7 @@ pub mod tests {
 		// === PART1: DKG ===
 
 		// data, gathered during initialization
+		let derived_point = Random.generate().unwrap().public().clone();
 		let id_numbers: Vec<_> = match id_numbers {
 			Some(id_numbers) => id_numbers,
 			None => (0..n).map(|_| generate_random_scalar().unwrap()).collect(),
@@ -415,6 +448,15 @@ pub mod tests {
 		// data, generated during keys dissemination
 		let polynoms1: Vec<_> = (0..n).map(|_| generate_random_polynom(t).unwrap()).collect();
 		let secrets1: Vec<_> = (0..n).map(|i| (0..n).map(|j| compute_polynom(&polynoms1[i], &id_numbers[j]).unwrap()).collect::<Vec<_>>()).collect();
+		// following data is used only on verification step
+		let polynoms2: Vec<_> = (0..n).map(|_| generate_random_polynom(t).unwrap()).collect();
+		let secrets2: Vec<_> = (0..n).map(|i| (0..n).map(|j| compute_polynom(&polynoms2[i], &id_numbers[j]).unwrap()).collect::<Vec<_>>()).collect();
+		let publics: Vec<_> = (0..n).map(|i| public_values_generation(t, &derived_point, &polynoms1[i], &polynoms2[i]).unwrap()).collect();
+
+		// keys verification
+		(0..n).map(|i| (0..n).map(|j| if i != j {
+			assert!(keys_verification(t, &derived_point, &id_numbers[i], &secrets1[j][i], &secrets2[j][i], &publics[j]).unwrap());
+		}).collect::<Vec<_>>()).collect::<Vec<_>>();
 
 		// data, generated during keys generation
 		let public_shares: Vec<_> = (0..n).map(|i| compute_public_share(&polynoms1[i][0]).unwrap()).collect();
@@ -431,6 +473,60 @@ pub mod tests {
 			secret_shares: secret_shares,
 			joint_public: joint_public,
 		}
+	}
+
+	fn run_key_share_refreshing(old_t: usize, new_t: usize, new_n: usize, old_artifacts: &KeyGenerationArtifacts) -> KeyGenerationArtifacts {
+		// === share refreshing protocol from
+		// === based on "Verifiable Secret Redistribution for Threshold Sharing Schemes"
+		// === http://www.cs.cmu.edu/~wing/publications/CMU-CS-02-114.pdf
+
+		// generate new id_numbers for new nodes
+		let new_nodes = new_n.saturating_sub(old_artifacts.id_numbers.len());
+		let id_numbers: Vec<_> = old_artifacts.id_numbers.iter().take(new_n).cloned()
+			.chain((0..new_nodes).map(|_| generate_random_scalar().unwrap()))
+			.collect();
+
+		// on every authorized node: generate random polynomial ai(j) = si + ... + ai[new_t - 1] * j^(new_t - 1)
+		let mut subshare_polynoms = Vec::new();
+		for i in 0..old_t+1 {
+			let mut subshare_polynom = generate_random_polynom(new_t).unwrap();
+			subshare_polynom[0] = old_artifacts.secret_shares[i].clone();
+			subshare_polynoms.push(subshare_polynom);
+		}
+
+		// on every authorized node: calculate subshare for every new node
+		let mut subshares = Vec::new();
+		for j in 0..new_n {
+			let mut subshares_to_j = Vec::new();
+			for i in 0..old_t+1 {
+				let subshare_from_i_to_j = compute_polynom(&subshare_polynoms[i], &id_numbers[j]).unwrap();
+				subshares_to_j.push(subshare_from_i_to_j);
+			}
+			subshares.push(subshares_to_j);
+		}
+
+		// on every new node: generate new share using Lagrange interpolation
+		// on every node: generate new share using Lagrange interpolation
+		let mut new_secret_shares = Vec::new();
+		for j in 0..new_n {
+			let mut subshares_to_j = Vec::new();
+			for i in 0..old_t+1 {
+				let subshare_from_i = &subshares[j][i];
+				let id_number_i = &id_numbers[i];
+				let other_id_numbers = (0usize..old_t+1).filter(|j| *j != i).map(|j| &id_numbers[j]);
+				let mut subshare_from_i = compute_shadow_mul(subshare_from_i, id_number_i, other_id_numbers).unwrap();
+				if old_t % 2 != 0 {
+					subshare_from_i.neg().unwrap();
+				}
+				subshares_to_j.push(subshare_from_i);
+			}
+			new_secret_shares.push(compute_secret_sum(subshares_to_j.iter()).unwrap());
+		}
+
+		let mut result = old_artifacts.clone();
+		result.id_numbers = id_numbers;
+		result.secret_shares = new_secret_shares;
+		result
 	}
 
 	pub fn do_encryption_and_decryption(t: usize, joint_public: &Public, id_numbers: &[Secret], secret_shares: &[Secret], joint_secret: Option<&Secret>, document_secret_plain: Public) -> (Public, Public) {
@@ -451,10 +547,12 @@ pub mod tests {
 				.filter(|&(j, _)| j != i)
 				.take(t)
 				.map(|(_, id_number)| id_number)).unwrap()).collect();
+
 		let nodes_shadow_points: Vec<_> = nodes_shadows.iter()
 			.map(|s| compute_node_shadow_point(&access_key, &encrypted_secret.common_point, s, None).unwrap())
 			.map(|sp| sp.0)
 			.collect();
+
 		assert_eq!(nodes_shadows.len(), t + 1);
 		assert_eq!(nodes_shadow_points.len(), t + 1);
 
@@ -581,6 +679,53 @@ pub mod tests {
 				assert_eq!(signature, &local_signature);
 				assert_eq!(verify_signature(&artifacts.joint_public, signature, &message_hash), Ok(true));
 			}
+		}
+	}
+
+	#[test]
+	fn full_generation_math_session_with_refreshing_shares() {
+		let test_cases = vec![(1, 4), (6, 10)];
+		for (t, n) in test_cases {
+			// generate key using t-of-n session
+			let artifacts1 = run_key_generation(t, n, None);
+			let joint_secret1 = compute_joint_secret(artifacts1.polynoms1.iter().map(|p1| &p1[0])).unwrap();
+
+			// let's say we want to refresh existing secret shares
+			// by doing this every T seconds, and assuming that in each T-second period adversary KS is not able to collect t+1 secret shares
+			// we can be sure that the scheme is secure
+			let artifacts2 = run_key_share_refreshing(t, t, n, &artifacts1);
+			let joint_secret2 = compute_joint_secret_from_shares(t, &artifacts2.secret_shares.iter().take(t + 1).collect::<Vec<_>>(),
+				&artifacts2.id_numbers.iter().take(t + 1).collect::<Vec<_>>()).unwrap();
+			assert_eq!(joint_secret1, joint_secret2);
+
+			// refresh again
+			let artifacts3 = run_key_share_refreshing(t, t, n, &artifacts2);
+			let joint_secret3 = compute_joint_secret_from_shares(t, &artifacts3.secret_shares.iter().take(t + 1).collect::<Vec<_>>(),
+				&artifacts3.id_numbers.iter().take(t + 1).collect::<Vec<_>>()).unwrap();
+			assert_eq!(joint_secret1, joint_secret3);
+		}
+	}
+
+	#[test]
+	fn full_generation_math_session_with_adding_new_nodes() {
+		let test_cases = vec![(1, 3), (1, 4), (6, 10)];
+		for (t, n) in test_cases {
+			// generate key using t-of-n session
+			let artifacts1 = run_key_generation(t, n, None);
+			let joint_secret1 = compute_joint_secret(artifacts1.polynoms1.iter().map(|p1| &p1[0])).unwrap();
+
+			// let's say we want to include additional couple of servers to the set
+			// so that scheme becames t-of-n+2
+			let artifacts2 = run_key_share_refreshing(t, t, n + 2, &artifacts1);
+			let joint_secret2 = compute_joint_secret_from_shares(t, &artifacts2.secret_shares.iter().take(t + 1).collect::<Vec<_>>(),
+				&artifacts2.id_numbers.iter().take(t + 1).collect::<Vec<_>>()).unwrap();
+			assert_eq!(joint_secret1, joint_secret2);
+
+			// include another server (t-of-n+3)
+			let artifacts3 = run_key_share_refreshing(t, t, n + 3, &artifacts2);
+			let joint_secret3 = compute_joint_secret_from_shares(t, &artifacts3.secret_shares.iter().take(t + 1).collect::<Vec<_>>(),
+				&artifacts3.id_numbers.iter().take(t + 1).collect::<Vec<_>>()).unwrap();
+			assert_eq!(joint_secret1, joint_secret3);
 		}
 	}
 }

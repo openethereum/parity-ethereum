@@ -32,6 +32,10 @@ extern crate vm;
 extern crate evm;
 extern crate panic_hook;
 
+#[cfg(test)]
+#[macro_use]
+extern crate pretty_assertions;
+
 use std::sync::Arc;
 use std::{fmt, fs};
 use std::path::PathBuf;
@@ -136,7 +140,7 @@ fn run_state_test(args: Args) {
 	}
 }
 
-fn run_call<T: Informant>(args: Args, mut informant: T) {
+fn run_call<T: Informant>(args: Args, informant: T) {
 	let from = arg(args.from(), "--from");
 	let to = arg(args.to(), "--to");
 	let code = arg(args.code(), "--code");
@@ -160,10 +164,7 @@ fn run_call<T: Informant>(args: Args, mut informant: T) {
 	params.code = code.map(Arc::new);
 	params.data = data;
 
-	informant.set_gas(gas);
-	let result = info::run(&spec, gas, None, |mut client| {
-		client.call(params, &mut informant).map(|r| (r.gas_left, r.return_data.to_vec()))
-	});
+	let result = info::run_action(&spec, params, informant);
 	T::finish(result);
 }
 
@@ -187,7 +188,7 @@ impl Args {
 	pub fn gas(&self) -> Result<U256, String> {
 		match self.flag_gas {
 			Some(ref gas) => gas.parse().map_err(to_string),
-			None => Ok(!U256::zero()),
+			None => Ok(U256::from(u64::max_value())),
 		}
 	}
 

@@ -20,7 +20,7 @@
 #![cfg_attr(feature="nightly", plugin(clippy))]
 
 extern crate base32;
-extern crate futures;
+extern crate futures_cpupool;
 extern crate itertools;
 extern crate linked_hash_map;
 extern crate mime_guess;
@@ -29,9 +29,7 @@ extern crate rand;
 extern crate rustc_hex;
 extern crate serde;
 extern crate serde_json;
-extern crate time;
 extern crate unicase;
-extern crate url as url_lib;
 extern crate zip;
 
 extern crate jsonrpc_core;
@@ -44,14 +42,13 @@ extern crate fetch;
 extern crate node_health;
 extern crate parity_dapps_glue as parity_dapps;
 extern crate parity_hash_fetch as hash_fetch;
-extern crate parity_reactor;
 extern crate parity_ui;
 extern crate hash;
 
 #[macro_use]
-extern crate log;
+extern crate futures;
 #[macro_use]
-extern crate mime;
+extern crate log;
 #[macro_use]
 extern crate serde_derive;
 
@@ -59,6 +56,8 @@ extern crate serde_derive;
 extern crate ethcore_devtools as devtools;
 #[cfg(test)]
 extern crate env_logger;
+#[cfg(test)]
+extern crate parity_reactor;
 
 mod endpoint;
 mod apps;
@@ -67,7 +66,6 @@ mod router;
 mod handlers;
 mod api;
 mod proxypac;
-mod url;
 mod web;
 #[cfg(test)]
 mod tests;
@@ -76,13 +74,12 @@ use std::collections::HashMap;
 use std::mem;
 use std::path::PathBuf;
 use std::sync::Arc;
-use parking_lot::RwLock;
-
+use futures_cpupool::CpuPool;
 use jsonrpc_http_server::{self as http, hyper, Origin};
+use parking_lot::RwLock;
 
 use fetch::Fetch;
 use node_health::NodeHealth;
-use parity_reactor::Remote;
 
 pub use hash_fetch::urlhint::ContractClient;
 pub use node_health::SyncStatus;
@@ -105,6 +102,7 @@ pub struct Endpoints {
 	endpoints: Arc<RwLock<endpoint::Endpoints>>,
 	dapps_path: PathBuf,
 	embeddable: Option<ParentFrameSettings>,
+	pool: Option<CpuPool>,
 }
 
 impl Endpoints {
@@ -117,7 +115,11 @@ impl Endpoints {
 
 	/// Check for any changes in the local dapps folder and update.
 	pub fn refresh_local_dapps(&self) {
-		let new_local = apps::fs::local_endpoints(&self.dapps_path, self.embeddable.clone());
+		let pool = match self.pool.as_ref() {
+			None => return,
+			Some(pool) => pool,
+		};
+		let new_local = apps::fs::local_endpoints(&self.dapps_path, self.embeddable.clone(), pool.clone());
 		let old_local = mem::replace(&mut *self.local_endpoints.write(), new_local.keys().cloned().collect());
 		let (_, to_remove): (_, Vec<_>) = old_local
 			.into_iter()
@@ -151,8 +153,8 @@ impl Middleware {
 
 	/// Creates new middleware for UI server.
 	pub fn ui<F: Fetch>(
+		pool: CpuPool,
 		health: NodeHealth,
-		remote: Remote,
 		dapps_domain: &str,
 		registrar: Arc<ContractClient>,
 		sync_status: Arc<SyncStatus>,
@@ -161,16 +163,16 @@ impl Middleware {
 		let content_fetcher = Arc::new(apps::fetcher::ContentFetcher::new(
 			hash_fetch::urlhint::URLHintContract::new(registrar),
 			sync_status.clone(),
-			remote.clone(),
 			fetch.clone(),
+			pool.clone(),
 		).embeddable_on(None).allow_dapps(false));
 		let special = {
 			let mut special = special_endpoints(
+				pool.clone(),
 				health,
 				content_fetcher.clone(),
-				remote.clone(),
 			);
-			special.insert(router::SpecialEndpoint::Home, Some(apps::ui()));
+			special.insert(router::SpecialEndpoint::Home, Some(apps::ui(pool.clone())));
 			special
 		};
 		let router = router::Router::new(
@@ -189,8 +191,8 @@ impl Middleware {
 
 	/// Creates new Dapps server middleware.
 	pub fn dapps<F: Fetch>(
+		pool: CpuPool,
 		health: NodeHealth,
-		remote: Remote,
 		ui_address: Option<(String, u16)>,
 		extra_embed_on: Vec<(String, u16)>,
 		extra_script_src: Vec<(String, u16)>,
@@ -206,8 +208,8 @@ impl Middleware {
 		let content_fetcher = Arc::new(apps::fetcher::ContentFetcher::new(
 			hash_fetch::urlhint::URLHintContract::new(registrar),
 			sync_status.clone(),
-			remote.clone(),
 			fetch.clone(),
+			pool.clone(),
 		).embeddable_on(embeddable.clone()).allow_dapps(true));
 		let (local_endpoints, endpoints) = apps::all_endpoints(
 			dapps_path.clone(),
@@ -215,21 +217,22 @@ impl Middleware {
 			dapps_domain,
 			embeddable.clone(),
 			web_proxy_tokens,
-			remote.clone(),
 			fetch.clone(),
+			pool.clone(),
 		);
 		let endpoints = Endpoints {
 			endpoints: Arc::new(RwLock::new(endpoints)),
 			dapps_path,
 			local_endpoints: Arc::new(RwLock::new(local_endpoints)),
 			embeddable: embeddable.clone(),
+			pool: Some(pool.clone()),
 		};
 
 		let special = {
 			let mut special = special_endpoints(
+				pool.clone(),
 				health,
 				content_fetcher.clone(),
-				remote.clone(),
 			);
 			special.insert(
 				router::SpecialEndpoint::Home,
@@ -254,23 +257,22 @@ impl Middleware {
 }
 
 impl http::RequestMiddleware for Middleware {
-	fn on_request(&self, req: &hyper::server::Request<hyper::net::HttpStream>, control: &hyper::Control) -> http::RequestMiddlewareAction {
-		self.router.on_request(req, control)
+	fn on_request(&self, req: hyper::Request) -> http::RequestMiddlewareAction {
+		self.router.on_request(req)
 	}
 }
 
 fn special_endpoints(
+	pool: CpuPool,
 	health: NodeHealth,
 	content_fetcher: Arc<apps::fetcher::Fetcher>,
-	remote: Remote,
 ) -> HashMap<router::SpecialEndpoint, Option<Box<endpoint::Endpoint>>> {
 	let mut special = HashMap::new();
 	special.insert(router::SpecialEndpoint::Rpc, None);
-	special.insert(router::SpecialEndpoint::Utils, Some(apps::utils()));
+	special.insert(router::SpecialEndpoint::Utils, Some(apps::utils(pool)));
 	special.insert(router::SpecialEndpoint::Api, Some(api::RestApi::new(
 		content_fetcher,
 		health,
-		remote,
 	)));
 	special
 }

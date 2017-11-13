@@ -42,7 +42,7 @@ pub struct HttpConfiguration {
 	pub apis: ApiSet,
 	pub cors: Option<Vec<String>>,
 	pub hosts: Option<Vec<String>>,
-	pub server_threads: Option<usize>,
+	pub server_threads: usize,
 	pub processing_threads: usize,
 }
 
@@ -61,8 +61,8 @@ impl Default for HttpConfiguration {
 			apis: ApiSet::UnsafeContext,
 			cors: None,
 			hosts: Some(Vec::new()),
-			server_threads: None,
-			processing_threads: 0,
+			server_threads: 1,
+			processing_threads: 4,
 		}
 	}
 }
@@ -100,7 +100,7 @@ impl From<UiConfiguration> for HttpConfiguration {
 			apis: rpc_apis::ApiSet::UnsafeContext,
 			cors: None,
 			hosts: conf.hosts,
-			server_threads: None,
+			server_threads: 1,
 			processing_threads: 0,
 		}
 	}
@@ -150,6 +150,7 @@ pub struct WsConfiguration {
 	pub signer_path: PathBuf,
 	pub support_token_api: bool,
 	pub ui_address: Option<rpc::Host>,
+	pub dapps_address: Option<rpc::Host>,
 }
 
 impl Default for WsConfiguration {
@@ -165,6 +166,7 @@ impl Default for WsConfiguration {
 			signer_path: replace_home(&data_dir, "$BASE/signer").into(),
 			support_token_api: true,
 			ui_address: Some("127.0.0.1:8180".into()),
+			dapps_address: Some("127.0.0.1:8545".into()),
 		}
 	}
 }
@@ -220,8 +222,8 @@ pub fn new_ws<D: rpc_apis::Dependencies>(
 
 	let remote = deps.remote.clone();
 	let ui_address = conf.ui_address.clone();
-	let allowed_origins = into_domains(with_domain(conf.origins, domain, &ui_address));
-	let allowed_hosts = into_domains(with_domain(conf.hosts, domain, &Some(url.clone().into())));
+	let allowed_origins = into_domains(with_domain(conf.origins, domain, &ui_address, &conf.dapps_address));
+	let allowed_hosts = into_domains(with_domain(conf.hosts, domain, &Some(url.clone().into()), &None));
 
 	let signer_path;
 	let path = match conf.support_token_api && conf.ui_address.is_some() {
@@ -269,7 +271,7 @@ pub fn new_http<D: rpc_apis::Dependencies>(
 	let remote = deps.remote.clone();
 
 	let cors_domains = into_domains(conf.cors);
-	let allowed_hosts = into_domains(with_domain(conf.hosts, domain, &Some(url.clone().into())));
+	let allowed_hosts = into_domains(with_domain(conf.hosts, domain, &Some(url.clone().into()), &None));
 
 	let start_result = rpc::start_http(
 		&addr,
@@ -278,13 +280,8 @@ pub fn new_http<D: rpc_apis::Dependencies>(
 		handler,
 		remote,
 		rpc::RpcExtractor,
-		match (conf.server_threads, middleware) {
-			(Some(threads), None) => rpc::HttpSettings::Threads(threads),
-			(None, middleware) => rpc::HttpSettings::Dapps(middleware),
-			(Some(_), Some(_)) => {
-				return Err("Dapps and fast multi-threaded RPC server cannot be enabled at the same time.".into())
-			},
-		}
+		middleware,
+		conf.server_threads,
 	);
 
 	match start_result {
@@ -306,6 +303,16 @@ pub fn new_ipc<D: rpc_apis::Dependencies>(
 
 	let handler = setup_apis(conf.apis, dependencies);
 	let remote = dependencies.remote.clone();
+	let path = PathBuf::from(&conf.socket_addr);
+	// Make sure socket file can be created on unix-like OS.
+	// Windows pipe paths are not on the FS.
+	if !cfg!(windows) {
+		if let Some(dir) = path.parent() {
+			::std::fs::create_dir_all(&dir)
+				.map_err(|err| format!("Unable to create IPC directory at {}: {}", dir.display(), err))?;
+		}
+	}
+
 	match rpc::start_ipc(&conf.socket_addr, handler, remote, rpc::RpcExtractor) {
 		Ok(server) => Ok(Some(server)),
 		Err(io_error) => Err(format!("IPC error: {}", io_error)),
@@ -316,20 +323,27 @@ fn into_domains<T: From<String>>(items: Option<Vec<String>>) -> DomainsValidatio
 	items.map(|vals| vals.into_iter().map(T::from).collect()).into()
 }
 
-fn with_domain(items: Option<Vec<String>>, domain: &str, address: &Option<rpc::Host>) -> Option<Vec<String>> {
+fn with_domain(items: Option<Vec<String>>, domain: &str, ui_address: &Option<rpc::Host>, dapps_address: &Option<rpc::Host>) -> Option<Vec<String>> {
 	fn extract_port(s: &str) -> Option<u16> {
 		s.split(':').nth(1).and_then(|s| s.parse().ok())
 	}
 
 	items.map(move |items| {
 		let mut items = items.into_iter().collect::<HashSet<_>>();
-		if let Some(host) = address.clone() {
-			items.insert(host.to_string());
-			items.insert(host.replace("127.0.0.1", "localhost"));
-			items.insert(format!("http://*.{}", domain)); //proxypac
-			if let Some(port) = extract_port(&*host) {
-				items.insert(format!("http://*.{}:{}", domain, port));
-			}
+		{
+			let mut add_hosts = |address: &Option<rpc::Host>| {
+				if let Some(host) = address.clone() {
+					items.insert(host.to_string());
+					items.insert(host.replace("127.0.0.1", "localhost"));
+					items.insert(format!("http://*.{}", domain)); //proxypac
+					if let Some(port) = extract_port(&*host) {
+						items.insert(format!("http://*.{}:{}", domain, port));
+					}
+				}
+			};
+
+			add_hosts(ui_address);
+			add_hosts(dapps_address);
 		}
 		items.into_iter().collect()
 	})

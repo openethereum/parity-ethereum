@@ -2,16 +2,11 @@
 set -e
 
 # variables
-PACKAGES=( "parity" "etherscan" "shapeshift" "jsonrpc" )
+PACKAGES=( "parity" )
 
 # change into the build directory
 BASEDIR=`dirname $0`
 cd $BASEDIR/..
-
-# build jsonrpc
-echo "*** Building JSONRPC .json"
-mkdir -p .npmjs/jsonrpc
-npm run ci:build:jsonrpc
 
 # build all packages
 echo "*** Building packages for npmjs"

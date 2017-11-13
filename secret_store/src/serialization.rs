@@ -148,6 +148,12 @@ impl<'a> Deserialize<'a> for SerializableSignature {
 #[derive(Clone, Debug)]
 pub struct SerializableH256(pub H256);
 
+impl Default for SerializableH256 {
+	fn default() -> Self {
+		SerializableH256(Default::default())
+	}
+}
+
 impl<T> From<T> for SerializableH256 where H256: From<T> {
 	fn from(s: T) -> SerializableH256 {
 		SerializableH256(s.into())
@@ -204,8 +210,29 @@ impl<'a> Deserialize<'a> for SerializableH256 {
 	}
 }
 
+impl PartialEq<SerializableH256> for SerializableH256 {
+	fn eq(&self, other: &Self) -> bool {
+		self.0.eq(&other.0)
+	}
+}
+
+impl Eq for SerializableH256 {
+}
+
+impl PartialOrd for SerializableH256 {
+	fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+		self.0.partial_cmp(&other.0)
+	}
+}
+
+impl Ord for SerializableH256 {
+	fn cmp(&self, other: &Self) -> Ordering {
+		self.0.cmp(&other.0)
+	}
+}
+
 /// Serializable EC scalar/secret key.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct SerializableSecret(pub Secret);
 
 impl<T> From<T> for SerializableSecret where Secret: From<T> {
@@ -225,6 +252,13 @@ impl Deref for SerializableSecret {
 
 	fn deref(&self) -> &Secret {
 		&self.0
+	}
+}
+
+impl AsRef<[u8]> for SerializableSecret {
+	#[inline]
+	fn as_ref(&self) -> &[u8] {
+		&*self.0
 	}
 }
 
@@ -285,6 +319,13 @@ impl Deref for SerializablePublic {
 
 	fn deref(&self) -> &Public {
 		&self.0
+	}
+}
+
+impl AsRef<[u8]> for SerializablePublic {
+	#[inline]
+	fn as_ref(&self) -> &[u8] {
+		&*self.0
 	}
 }
 

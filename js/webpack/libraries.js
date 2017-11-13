@@ -18,19 +18,22 @@
 
 const path = require('path');
 
+const rulesEs6 = require('./rules/es6');
+const rulesParity = require('./rules/parity');
 const Shared = require('./shared');
 
+const isProd = process.env.NODE_ENV === 'production';
 const DEST = process.env.BUILD_DEST || '.build';
-const ENV = process.env.NODE_ENV || 'development';
-const isProd = ENV === 'production';
 
 module.exports = {
   context: path.join(__dirname, '../src'),
+  devtool: isProd
+    ? '#source-map'
+    : '#eval',
   entry: {
-    // library
-    'inject': ['./inject.js'],
-    'web3': ['./web3.js'],
-    'parity': ['./parity.js']
+    inject: ['./inject.js'],
+    parity: ['./inject.js'],
+    web3: ['./inject.js']
   },
   output: {
     path: path.join(__dirname, '../', DEST),
@@ -41,7 +44,7 @@ module.exports = {
 
   resolve: {
     alias: {
-      '~': path.resolve(__dirname, '../src')
+
     }
   },
 
@@ -51,27 +54,30 @@ module.exports = {
 
   module: {
     rules: [
+      rulesParity,
+      rulesEs6,
       {
         test: /\.js$/,
         exclude: /node_modules/,
-        // use: [ 'happypack/loader?id=js' ]
-        use: isProd ? ['babel-loader'] : [
-          // 'react-hot-loader',
-          'babel-loader?cacheDirectory=true'
-        ]
-      },
-      {
-        test: /\.js$/,
-        include: /node_modules\/(ethereumjs-tx|@parity\/wordlist)/,
-        use: 'babel-loader'
+        use: [ {
+          loader: 'happypack/loader',
+          options: {
+            id: 'babel'
+          }
+        } ]
       },
       {
         test: /\.json$/,
-        use: [ 'json-loader' ]
+        use: ['json-loader']
       },
       {
         test: /\.html$/,
-        use: [ 'file-loader?name=[name].[ext]' ]
+        use: [ {
+          loader: 'file-loader',
+          options: {
+            name: '[name].[ext]'
+          }
+        } ]
       }
     ]
   },

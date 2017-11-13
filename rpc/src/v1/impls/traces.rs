@@ -19,12 +19,10 @@
 use std::sync::Arc;
 
 use ethcore::client::{MiningBlockChainClient, CallAnalytics, TransactionId, TraceId};
-use ethcore::miner::MinerService;
 use ethcore::transaction::SignedTransaction;
 use rlp::UntrustedRlp;
 
 use jsonrpc_core::Error;
-use jsonrpc_core::futures::{self, Future, BoxFuture};
 use jsonrpc_macros::Trailing;
 use v1::Metadata;
 use v1::traits::Traces;
@@ -40,22 +38,20 @@ fn to_call_analytics(flags: TraceOptions) -> CallAnalytics {
 }
 
 /// Traces api implementation.
-pub struct TracesClient<C, M> {
+pub struct TracesClient<C> {
 	client: Arc<C>,
-	miner: Arc<M>,
 }
 
-impl<C, M> TracesClient<C, M> {
+impl<C> TracesClient<C> {
 	/// Creates new Traces client.
-	pub fn new(client: &Arc<C>, miner: &Arc<M>) -> Self {
+	pub fn new(client: &Arc<C>) -> Self {
 		TracesClient {
 			client: client.clone(),
-			miner: miner.clone(),
 		}
 	}
 }
 
-impl<C, M> Traces for TracesClient<C, M> where C: MiningBlockChainClient + 'static, M: MinerService + 'static {
+impl<C> Traces for TracesClient<C> where C: MiningBlockChainClient + 'static {
 	type Metadata = Metadata;
 
 	fn filter(&self, filter: TraceFilter) -> Result<Option<Vec<LocalizedTrace>>, Error> {
@@ -83,35 +79,31 @@ impl<C, M> Traces for TracesClient<C, M> where C: MiningBlockChainClient + 'stat
 			.map(LocalizedTrace::from))
 	}
 
-	fn call(&self, meta: Self::Metadata, request: CallRequest, flags: TraceOptions, block: Trailing<BlockNumber>) -> BoxFuture<TraceResults, Error> {
+	fn call(&self, meta: Self::Metadata, request: CallRequest, flags: TraceOptions, block: Trailing<BlockNumber>) -> Result<TraceResults, Error> {
 		let block = block.unwrap_or_default();
 
 		let request = CallRequest::into(request);
-		let signed = try_bf!(fake_sign::sign_call(&self.client, &self.miner, request, meta.is_dapp()));
+		let signed = fake_sign::sign_call(request, meta.is_dapp())?;
 
-		let res = self.client.call(&signed, to_call_analytics(flags), block.into())
+		self.client.call(&signed, to_call_analytics(flags), block.into())
 			.map(TraceResults::from)
-			.map_err(errors::call);
-
-		futures::done(res).boxed()
+			.map_err(errors::call)
 	}
 
-	fn call_many(&self, meta: Self::Metadata, requests: Vec<(CallRequest, TraceOptions)>, block: Trailing<BlockNumber>) -> BoxFuture<Vec<TraceResults>, Error> {
+	fn call_many(&self, meta: Self::Metadata, requests: Vec<(CallRequest, TraceOptions)>, block: Trailing<BlockNumber>) -> Result<Vec<TraceResults>, Error> {
 		let block = block.unwrap_or_default();
 
-		let requests = try_bf!(requests.into_iter()
+		let requests = requests.into_iter()
 			.map(|(request, flags)| {
 				let request = CallRequest::into(request);
-				let signed = fake_sign::sign_call(&self.client, &self.miner, request, meta.is_dapp())?;
+				let signed = fake_sign::sign_call(request, meta.is_dapp())?;
 				Ok((signed, to_call_analytics(flags)))
 			})
-			.collect::<Result<Vec<_>, Error>>());
+			.collect::<Result<Vec<_>, Error>>()?;
 
-		let res = self.client.call_many(&requests, block.into())
+		self.client.call_many(&requests, block.into())
 			.map(|results| results.into_iter().map(TraceResults::from).collect())
-			.map_err(errors::call);
-
-		futures::done(res).boxed()
+			.map_err(errors::call)
 	}
 
 	fn raw_transaction(&self, raw_transaction: Bytes, flags: TraceOptions, block: Trailing<BlockNumber>) -> Result<TraceResults, Error> {

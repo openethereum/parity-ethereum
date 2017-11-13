@@ -68,7 +68,7 @@ impl ParityAccounts for ParityAccountsClient {
 
 		for (address, account) in account_iter {
 			match accounts.entry(address) {
-				/// Insert only if occupied entry isn't already an account with UUID
+				// Insert only if occupied entry isn't already an account with UUID
 				Entry::Occupied(ref mut occupied) if occupied.get().uuid.is_none() => {
 					occupied.insert(account);
 				},

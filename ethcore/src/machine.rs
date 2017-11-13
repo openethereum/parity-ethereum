@@ -16,7 +16,7 @@
 
 //! Ethereum-like state machine definition.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::cmp;
 use std::sync::Arc;
 
@@ -35,7 +35,7 @@ use tx_filter::TransactionFilter;
 use bigint::prelude::U256;
 use bytes::BytesRef;
 use util::Address;
-use vm::{CallType, ActionParams, ActionValue};
+use vm::{CallType, ActionParams, ActionValue, ParamsType};
 use vm::{EnvInfo, Schedule, CreateContractAddress};
 
 /// Parity tries to round block.gas_limit to multiple of this constant
@@ -149,6 +149,7 @@ impl EthereumMachine {
 			code_hash: Some(state.code_hash(&contract_address)?),
 			data: data,
 			call_type: CallType::Call,
+			params_type: ParamsType::Separate,
 		};
 		let mut ex = Executive::new(&mut state, &env_info, self);
 		let mut substate = Substate::new();
@@ -263,7 +264,7 @@ impl EthereumMachine {
 				} else if block_number < ext.eip150_transition {
 					Schedule::new_homestead()
 				} else {
-					/// There's no max_code_size transition so we tie it to eip161abc
+					// There's no max_code_size transition so we tie it to eip161abc
 					let max_code_size = if block_number >= ext.eip161abc_transition {
 						self.params.max_code_size as usize
 					} else {
@@ -351,7 +352,9 @@ impl EthereumMachine {
 			None => true,
 		};
 
-		let chain_id = if header.number() >= self.params().eip155_transition {
+		let chain_id = if header.number() < self.params().validate_chain_id_transition {
+			t.chain_id()
+		} else if header.number() >= self.params().eip155_transition {
 			Some(self.params().chain_id)
 		} else {
 			None
@@ -377,6 +380,13 @@ impl EthereumMachine {
 	/// If this machine supports wasm.
 	pub fn supports_wasm(&self) -> bool {
 		self.params().wasm
+	}
+
+	/// Additional params.
+	pub fn additional_params(&self) -> HashMap<String, String> {
+		hash_map![
+			"registrar".to_owned() => self.params.registrar.hex()
+		]
 	}
 }
 

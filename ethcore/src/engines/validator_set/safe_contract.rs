@@ -27,7 +27,7 @@ use parking_lot::{Mutex, RwLock};
 
 use util::*;
 use bytes::Bytes;
-use util::cache::MemoryLruCache;
+use memory_cache::MemoryLruCache;
 use unexpected::Mismatch;
 use rlp::{UntrustedRlp, RlpStream};
 
@@ -276,7 +276,7 @@ impl ValidatorSafeContract {
 			.filter(move |l| check_log(l))
 			.filter_map(|log| {
 				let topics = log.topics.iter().map(|x| x.0.clone()).collect();
-				event.decode_log(topics, log.data.clone()).ok()
+				event.parse_log((topics, log.data.clone()).into()).ok()
 			});
 
 		match decoded_events.next() {
@@ -285,7 +285,7 @@ impl ValidatorSafeContract {
 
 				// decode log manually until the native contract generator is
 				// good enough to do it for us.
-				let validators_token = &matched_event[1].value;
+				let validators_token = &matched_event.params[1].value;
 
 				let validators = validators_token.clone().to_array()
 					.and_then(|a| a.into_iter()

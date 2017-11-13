@@ -1,0 +1,17 @@
+[package]
+description = "Parity ethkey WASM module."
+name = "parity-ethkey-wasm"
+version = "1.8.0"
+license = "GPL-3.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+
+[workspace]
+members = []
+
+[dependencies]
+tiny-keccak = "1.3"
+tiny-secp256k1 = "0.1"
+libc = { version = "0.2.14", default-features = false }
+
+[profile.release]
+panic = "abort"

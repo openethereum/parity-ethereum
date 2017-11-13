@@ -27,7 +27,6 @@ extern crate wasm_utils;
 
 mod runtime;
 mod ptr;
-mod call_args;
 mod result;
 #[cfg(test)]
 mod tests;
@@ -107,29 +106,58 @@ impl vm::Vm for WasmInterpreter {
 			env_memory,
 			DEFAULT_STACK_SPACE,
 			params.gas.low_u64(),
-			RuntimeContext::new(params.address, params.sender),
+			RuntimeContext {
+				address: params.address,
+				sender: params.sender,
+				origin: params.origin,
+				value: params.value.value(),
+			},
 			&self.program,
 		);
 
-		let mut cursor = ::std::io::Cursor::new(&*code);
+		let (mut cursor, data_position) = match params.params_type {
+			vm::ParamsType::Embedded => {
+				let module_size = parity_wasm::peek_size(&*code);
+				(
+					::std::io::Cursor::new(&code[..module_size]),
+					module_size
+				)
+			},
+			vm::ParamsType::Separate => {
+				(::std::io::Cursor::new(&code[..]), 0)
+			},
+		};
 
 		let contract_module = wasm_utils::inject_gas_counter(
 			elements::Module::deserialize(
 				&mut cursor
 			).map_err(|err| {
 				vm::Error::Wasm(format!("Error deserializing contract code ({:?})", err))
-			})?
+			})?,
+			runtime.gas_rules(),
 		);
 
-		let d_ptr = runtime.write_descriptor(
-			call_args::CallArgs::new(
-				params.address,
-				params.sender,
-				params.origin,
-				params.value.value(),
-				params.data.unwrap_or(Vec::with_capacity(0)),
-			)
-		).map_err(|e| Error(e))?;
+		let data_section_length = contract_module.data_section()
+			.map(|section| section.entries().iter().fold(0, |sum, entry| sum + entry.value().len()))
+			.unwrap_or(0)
+			as u64;
+
+		let static_segment_cost = data_section_length * runtime.ext().schedule().wasm.static_region as u64;
+		runtime.charge(|_| static_segment_cost).map_err(Error)?;
+
+		let d_ptr = {
+			match params.params_type {
+				vm::ParamsType::Embedded => {
+					runtime.write_descriptor(
+						if data_position < code.len() { &code[data_position..] } else { &[] }
+					).map_err(Error)?
+				},
+				vm::ParamsType::Separate => {
+					runtime.write_descriptor(&params.data.unwrap_or_default())
+						.map_err(Error)?
+				}
+			}
+		};
 
 		{
 			let execution_params = runtime.execution_params()

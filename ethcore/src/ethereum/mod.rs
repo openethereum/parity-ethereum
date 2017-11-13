@@ -31,7 +31,7 @@ use machine::EthereumMachine;
 use super::spec::*;
 
 /// Most recent fork block that we support on Mainnet.
-pub const FORK_SUPPORTED_FOUNDATION: u64 = 2675000;
+pub const FORK_SUPPORTED_FOUNDATION: u64 = 4370000;
 
 /// Most recent fork block that we support on Ropsten.
 pub const FORK_SUPPORTED_ROPSTEN: u64 = 10;
@@ -68,6 +68,11 @@ pub fn new_classic<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
 /// Create a new Expanse mainnet chain spec.
 pub fn new_expanse<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
 	load(params.into(), include_bytes!("../../res/ethereum/expanse.json"))
+}
+
+/// Create a new Musicoin mainnet chain spec.
+pub fn new_musicoin<'a, T: Into<SpecParams<'a>>>(params: T) -> Spec {
+	load(params.into(), include_bytes!("../../res/ethereum/musicoin.json"))
 }
 
 /// Create a new Kovan testnet chain spec.
@@ -111,6 +116,9 @@ pub fn new_byzantium_test() -> Spec { load(None, include_bytes!("../../res/ether
 /// Create a new Foundation Constantinople era spec.
 pub fn new_constantinople_test() -> Spec { load(None, include_bytes!("../../res/ethereum/constantinople_test.json")) }
 
+/// Create a new Musicoin-MCIP3-era spec.
+pub fn new_mcip3_test() -> Spec { load(None, include_bytes!("../../res/ethereum/mcip3_test.json")) }
+
 // For tests
 
 /// Create a new Foundation Frontier-era chain spec as though it never changes to Homestead.
@@ -124,6 +132,9 @@ pub fn new_byzantium_test_machine() -> EthereumMachine { load_machine(include_by
 
 /// Create a new Foundation Constantinople era spec.
 pub fn new_constantinople_test_machine() -> EthereumMachine { load_machine(include_bytes!("../../res/ethereum/constantinople_test.json")) }
+
+/// Create a new Musicoin-MCIP3-era spec.
+pub fn new_mcip3_test_machine() -> EthereumMachine { load_machine(include_bytes!("../../res/ethereum/mcip3_test.json")) }
 
 #[cfg(test)]
 mod tests {

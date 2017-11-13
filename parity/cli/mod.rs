@@ -24,6 +24,7 @@ usage! {
 		// Subcommands must start with cmd_ and have '_' in place of '-'
 		// Sub-subcommands must start with the name of the subcommand
 		// Arguments must start with arg_
+		// Flags must start with flag_
 
 		CMD cmd_ui {
 			"Manage ui",
@@ -53,10 +54,6 @@ usage! {
 
 			CMD cmd_account_new {
 				"Create a new acount",
-
-				ARG arg_account_new_password: (Option<String>) = None,
-				"--password=[FILE]",
-				"Path to the password file",
 			}
 
 			CMD cmd_account_list {
@@ -80,10 +77,6 @@ usage! {
 			CMD cmd_wallet_import
 			{
 				"Import wallet",
-
-				ARG arg_wallet_import_password: (Option<String>) = None,
-				"--password=[FILE]",
-				"Path to the password file",
 
 				ARG arg_wallet_import_path: (Option<String>) = None,
 				"<PATH>",
@@ -179,10 +172,6 @@ usage! {
 			{
 				"Sign",
 
-				ARG arg_signer_sign_password: (Option<String>) = None,
-				"--password=[FILE]",
-				"Path to the password file",
-
 				ARG arg_signer_sign_id: (Option<usize>) = None,
 				"[ID]",
 				"ID",
@@ -244,7 +233,7 @@ usage! {
 		}
 	}
 	{
-		// Flags and arguments
+		// Global flags and arguments
 		["Operating Options"]
 			FLAG flag_public_node: (bool) = false, or |c: &Config| otry!(c.parity).public_node.clone(),
 			"--public-node",
@@ -301,7 +290,7 @@ usage! {
 
 			ARG arg_chain: (String) = "foundation", or |c: &Config| otry!(c.parity).chain.clone(),
 			"--chain=[CHAIN]",
-			"Specify the blockchain type. CHAIN may be either a JSON chain specification file or olympic, frontier, homestead, mainnet, morden, ropsten, classic, expanse, testnet, kovan or dev.",
+			"Specify the blockchain type. CHAIN may be either a JSON chain specification file or olympic, frontier, homestead, mainnet, morden, ropsten, classic, expanse, musicoin, testnet, kovan or dev.",
 
 			ARG arg_keys_path: (String) = "$BASE/keys", or |c: &Config| otry!(c.parity).keys_path.clone(),
 			"--keys-path=[PATH]",
@@ -353,7 +342,6 @@ usage! {
 			ARG arg_password: (Vec<String>) = Vec::new(), or |c: &Config| otry!(c.account).password.clone(),
 			"--password=[FILE]...",
 			"Provide a file containing a password for unlocking an account. Leading and trailing whitespace is trimmed.",
-
 		["UI options"]
 			FLAG flag_force_ui: (bool) = false, or |c: &Config| otry!(c.ui).force.clone(),
 			"--force-ui",
@@ -470,7 +458,7 @@ usage! {
 			"--jsonrpc-hosts=[HOSTS]",
 			"List of allowed Host header values. This option will validate the Host header sent by the browser, it is additional security against some attack vectors. Special options: \"all\", \"none\",.",
 
-			ARG arg_jsonrpc_threads: (usize) = 0usize, or |c: &Config| otry!(c.rpc).processing_threads,
+			ARG arg_jsonrpc_threads: (usize) = 4usize, or |c: &Config| otry!(c.rpc).processing_threads,
 			"--jsonrpc-threads=[THREADS]",
 			"Turn on additional processing threads in all RPC servers. Setting this to non-zero value allows parallel cpu-heavy queries execution.",
 
@@ -480,7 +468,7 @@ usage! {
 
 			ARG arg_jsonrpc_server_threads: (Option<usize>) = None, or |c: &Config| otry!(c.rpc).server_threads,
 			"--jsonrpc-server-threads=[NUM]",
-			"Enables experimental faster implementation of JSON-RPC server. Requires Dapps server to be disabled using --no-dapps.",
+			"Enables multiple threads handling incoming connections for HTTP JSON-RPC server.",
 
 		["API and console options – WebSockets"]
 			FLAG flag_no_ws: (bool) = false, or |c: &Config| otry!(c.websockets).disable.clone(),
@@ -591,6 +579,10 @@ usage! {
 			"--secretstore-secret=[SECRET]",
 			"Hex-encoded secret key of this node.",
 
+			ARG arg_secretstore_admin_public: (Option<String>) = None, or |c: &Config| otry!(c.secretstore).admin_public.clone(),
+			"--secretstore-admin-public=[PUBLIC]",
+			"Hex-encoded public key of secret store administrator.",
+
 		["Sealing/Mining options"]
 			FLAG flag_force_sealing: (bool) = false, or |c: &Config| otry!(c.mining).force_sealing.clone(),
 			"--force-sealing",
@@ -606,7 +598,11 @@ usage! {
 
 			FLAG flag_refuse_service_transactions: (bool) = false, or |c: &Config| otry!(c.mining).refuse_service_transactions.clone(),
 			"--refuse-service-transactions",
-			"Always refuse service transactions..",
+			"Always refuse service transactions.",
+
+			FLAG flag_infinite_pending_block: (bool) = false, or |c: &Config| otry!(c.mining).infinite_pending_block.clone(),
+			"--infinite-pending-block",
+			"Pending block will be created with maximal possible gas limit and will execute all transactions in the queue. Note that such block is invalid and should never be attempted to be mined.",
 
 			FLAG flag_no_persistent_txqueue: (bool) = false, or |c: &Config| otry!(c.parity).no_persistent_txqueue,
 			"--no-persistent-txqueue",
@@ -690,7 +686,7 @@ usage! {
 
 			ARG arg_min_gas_price: (Option<u64>) = None, or |c: &Config| otry!(c.mining).min_gas_price.clone(),
 			"--min-gas-price=[STRING]",
-			"Minimum amount of Wei per GAS to be paid for a transaction to be accepted for mining. Overrides --basic-tx-usd.",
+			"Minimum amount of Wei per GAS to be paid for a transaction to be accepted for mining. Overrides --usd-per-tx.",
 
 			ARG arg_author: (Option<String>) = None, or |c: &Config| otry!(c.mining).author.clone(),
 			"--author=[ADDRESS]",
@@ -832,6 +828,10 @@ usage! {
 			"Target size of the whisper message pool in megabytes.",
 
 		["Legacy options"]
+			FLAG flag_warp: (bool) = false, or |_| None,
+			"--warp",
+			"Does nothing; warp sync is enabled by default.",
+
 			FLAG flag_dapps_apis_all: (bool) = false, or |_| None,
 			"--dapps-apis-all",
 			"Dapps server is merged with RPC server. Use --jsonrpc-apis.",
@@ -1089,6 +1089,7 @@ struct SecretStore {
 	disable_http: Option<bool>,
 	disable_acl_check: Option<bool>,
 	self_secret: Option<String>,
+	admin_public: Option<String>,
 	nodes: Option<Vec<String>>,
 	interface: Option<String>,
 	port: Option<u16>,
@@ -1135,6 +1136,7 @@ struct Mining {
 	remove_solved: Option<bool>,
 	notify_work: Option<Vec<String>>,
 	refuse_service_transactions: Option<bool>,
+	infinite_pending_block: Option<bool>,
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
@@ -1196,6 +1198,40 @@ mod tests {
 		Snapshots, VM, Misc, Whisper, SecretStore,
 	};
 	use toml;
+	use clap::{ErrorKind as ClapErrorKind};
+
+	#[test]
+	fn should_accept_any_argument_order() {
+		let args = Args::parse(&["parity", "--no-warp", "account", "list"]).unwrap();
+		assert_eq!(args.flag_no_warp, true);
+
+		let args = Args::parse(&["parity", "account", "list", "--no-warp"]).unwrap();
+		assert_eq!(args.flag_no_warp, true);
+
+		let args = Args::parse(&["parity", "--chain=dev", "account", "list"]).unwrap();
+		assert_eq!(args.arg_chain, "dev");
+
+		let args = Args::parse(&["parity", "account", "list", "--chain=dev"]).unwrap();
+		assert_eq!(args.arg_chain, "dev");
+	}
+
+	#[test]
+	fn should_not_crash_on_warp() {
+		let args = Args::parse(&["parity", "--warp"]);
+		assert!(args.is_ok());
+
+		let args = Args::parse(&["parity", "account", "list", "--warp"]);
+		assert!(args.is_ok());
+	}
+
+	#[test]
+	fn should_reject_invalid_values() {
+		let args = Args::parse(&["parity", "--cache=20"]);
+		assert!(args.is_ok());
+
+		let args = Args::parse(&["parity", "--cache=asd"]);
+		assert!(args.is_err());
+	}
 
 	#[test]
 	fn should_parse_args_and_flags() {
@@ -1210,6 +1246,17 @@ mod tests {
 
 		let args = Args::parse(&["parity", "export", "state", "--min-balance","123"]).unwrap();
 		assert_eq!(args.arg_export_state_min_balance, Some("123".to_string()));
+	}
+
+	#[test]
+	fn should_exit_gracefully_on_unknown_argument() {
+		let result = Args::parse(&["parity", "--please-exit-gracefully"]);
+		assert!(
+			match result {
+				Err(ArgsError::Clap(ref clap_error)) if clap_error.kind == ClapErrorKind::UnknownArgument => true,
+				_ => false
+			}
+		);
 	}
 
 	#[test]
@@ -1348,9 +1395,6 @@ mod tests {
 			arg_restore_file: None,
 			arg_tools_hash_file: None,
 
-			arg_account_new_password: None,
-			arg_signer_sign_password: None,
-			arg_wallet_import_password: None,
 			arg_signer_sign_id: None,
 			arg_signer_reject_id: None,
 			arg_dapp_path: None,
@@ -1422,7 +1466,7 @@ mod tests {
 			arg_jsonrpc_apis: "web3,eth,net,parity,traces,rpc,secretstore".into(),
 			arg_jsonrpc_hosts: "none".into(),
 			arg_jsonrpc_server_threads: None,
-			arg_jsonrpc_threads: 0,
+			arg_jsonrpc_threads: 4,
 
 			// WS
 			flag_no_ws: false,
@@ -1445,6 +1489,7 @@ mod tests {
 			flag_no_secretstore_http: false,
 			flag_no_secretstore_acl_check: false,
 			arg_secretstore_secret: None,
+			arg_secretstore_admin_public: None,
 			arg_secretstore_nodes: "".into(),
 			arg_secretstore_interface: "local".into(),
 			arg_secretstore_port: 8083u16,
@@ -1487,6 +1532,7 @@ mod tests {
 			flag_remove_solved: false,
 			arg_notify_work: Some("http://localhost:3001".into()),
 			flag_refuse_service_transactions: false,
+			flag_infinite_pending_block: false,
 
 			flag_stratum: false,
 			arg_stratum_interface: "local".to_owned(),
@@ -1531,6 +1577,7 @@ mod tests {
 			arg_whisper_pool_size: 20,
 
 			// -- Legacy Options
+			flag_warp: false,
 			flag_geth: false,
 			flag_testnet: false,
 			flag_import_geth_keys: false,
@@ -1684,6 +1731,7 @@ mod tests {
 				disable_http: None,
 				disable_acl_check: None,
 				self_secret: None,
+				admin_public: None,
 				nodes: None,
 				interface: None,
 				port: Some(8083),
@@ -1726,6 +1774,7 @@ mod tests {
 				remove_solved: None,
 				notify_work: None,
 				refuse_service_transactions: None,
+				infinite_pending_block: None,
 			}),
 			footprint: Some(Footprint {
 				tracing: Some("on".into()),

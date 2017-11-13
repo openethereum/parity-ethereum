@@ -16,33 +16,29 @@
 
 import 'whatwg-fetch';
 
-import es6Promise from 'es6-promise';
-es6Promise.polyfill();
-
 import React from 'react';
 import ReactDOM from 'react-dom';
 import { AppContainer } from 'react-hot-loader';
 
 import injectTapEventPlugin from 'react-tap-event-plugin';
 
-import SecureApi from '~/secureApi';
-import ContractInstances from '~/contracts';
+import ContractInstances from '@parity/shared/contracts';
+import { initStore } from '@parity/shared/redux';
+import { setApi } from '@parity/shared/redux/providers/apiActions';
+import ContextProvider from '@parity/ui/ContextProvider';
+import muiTheme from '@parity/ui/Theme';
+import { patchApi } from '@parity/shared/util/tx';
 
-import { initStore } from '~/redux';
-import ContextProvider from '~/ui/ContextProvider';
-import muiTheme from '~/ui/Theme';
+import SecureApi from './secureApi';
 
-import { patchApi } from '~/util/tx';
-import { setApi } from '~/redux/providers/apiActions';
-
-import '~/environment';
-
-import '../assets/fonts/Roboto/font.css';
-import '../assets/fonts/RobotoMono/font.css';
+import './ShellExtend';
+import '@parity/shared/environment';
+import '@parity/shared/assets/fonts/Roboto/font.css';
+import '@parity/shared/assets/fonts/RobotoMono/font.css';
 
 injectTapEventPlugin();
 
-import ParityBar from '~/views/ParityBar';
+import ParityBar from './ParityBar';
 
 // Test transport (std transport should be provided as global object)
 class FakeTransport {
@@ -75,8 +71,6 @@ class FrameSecureApi extends SecureApi {
   connect () {
     // Do nothing - this API does not need connecting
     this.emit('connecting');
-    // Fetch settings
-    this._fetchSettings();
     // Fire connected event with some delay.
     setTimeout(() => {
       this.emit('connected');
@@ -104,7 +98,7 @@ transport.uiUrl = uiUrl.replace('http://', '').replace('https://', '');
 const api = new FrameSecureApi(transport);
 
 patchApi(api);
-ContractInstances.create(api);
+ContractInstances.get(api);
 
 const store = initStore(api, null, true);
 
@@ -130,3 +124,9 @@ ReactDOM.render(
   </AppContainer>,
   container
 );
+
+// testing, signer plugins
+import '@parity/plugin-signer-account';
+import '@parity/plugin-signer-default';
+import '@parity/plugin-signer-hardware';
+import '@parity/plugin-signer-qr';

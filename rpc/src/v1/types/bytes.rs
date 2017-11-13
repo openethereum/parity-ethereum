@@ -74,13 +74,7 @@ impl<'a> Visitor<'a> for BytesVisitor {
 	}
 
 	fn visit_str<E>(self, value: &str) -> Result<Self::Value, E> where E: Error {
-		if value.is_empty() {
-			warn!(
-				target: "deprecated",
-				"Deserializing empty string as empty bytes. This is a non-standard behaviour that will be removed in future versions. Please update your code to send `0x` instead!"
-			);
-			Ok(Bytes::new(Vec::new()))
-		} else if value.len() >= 2 && &value[0..2] == "0x" && value.len() & 1 == 0 {
+		if value.len() >= 2 && &value[0..2] == "0x" && value.len() & 1 == 0 {
 			Ok(Bytes::new(FromHex::from_hex(&value[2..]).map_err(|e| Error::custom(format!("Invalid hex: {}", e)))?))
 		} else {
 			Err(Error::custom("Invalid bytes format. Expected a 0x-prefixed hex string with even length"))
@@ -108,8 +102,7 @@ mod tests {
 
 	#[test]
 	fn test_bytes_deserialize() {
-		// TODO [ToDr] Uncomment when Mist starts sending correct data
-		// let bytes1: Result<Bytes, serde_json::Error> = serde_json::from_str(r#""""#);
+		let bytes1: Result<Bytes, serde_json::Error> = serde_json::from_str(r#""""#);
 		let bytes2: Result<Bytes, serde_json::Error> = serde_json::from_str(r#""0x123""#);
 		let bytes3: Result<Bytes, serde_json::Error> = serde_json::from_str(r#""0xgg""#);
 
@@ -117,19 +110,12 @@ mod tests {
 		let bytes5: Bytes = serde_json::from_str(r#""0x12""#).unwrap();
 		let bytes6: Bytes = serde_json::from_str(r#""0x0123""#).unwrap();
 
-		// assert!(bytes1.is_err());
+		assert!(bytes1.is_err());
 		assert!(bytes2.is_err());
 		assert!(bytes3.is_err());
 		assert_eq!(bytes4, Bytes(vec![]));
 		assert_eq!(bytes5, Bytes(vec![0x12]));
 		assert_eq!(bytes6, Bytes(vec![0x1, 0x23]));
-	}
-
-	// TODO [ToDr] Remove when Mist starts sending correct data
-	#[test]
-	fn test_bytes_lenient_against_the_spec_deserialize_for_empty_string_for_mist_compatibility() {
-		let deserialized: Bytes = serde_json::from_str(r#""""#).unwrap();
-		assert_eq!(deserialized, Bytes(Vec::new()));
 	}
 }
 

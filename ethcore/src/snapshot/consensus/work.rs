@@ -31,7 +31,7 @@ use engines::EthEngine;
 use snapshot::{Error, ManifestData};
 use snapshot::block::AbridgedBlock;
 use bigint::hash::H256;
-use util::KeyValueDB;
+use kvdb::KeyValueDB;
 use bytes::Bytes;
 use rlp::{RlpStream, UntrustedRlp};
 use rand::OsRng;

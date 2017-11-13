@@ -20,15 +20,16 @@ use std::time::Duration;
 use std::fs::File;
 use bigint::prelude::U256;
 use bigint::hash::clean_0x;
-use util::{Address, CompactionProfile};
-use util::journaldb::Algorithm;
+use util::Address;
+use kvdb_rocksdb::CompactionProfile;
+use journaldb::Algorithm;
 use ethcore::client::{Mode, BlockId, VMType, DatabaseCompactionProfile, ClientConfig, VerifierType};
 use ethcore::miner::{PendingSet, GasLimit, PrioritizationStrategy};
 use cache::CacheConfig;
 use dir::DatabaseDirectories;
 use upgrade::{upgrade, upgrade_data_paths};
 use migration::migrate;
-use ethsync::is_valid_node_url;
+use ethsync::{validate_node_url, NetworkError};
 use path;
 
 pub fn to_duration(s: &str) -> Result<Duration, String> {
@@ -180,10 +181,10 @@ pub fn parity_ipc_path(base: &str, path: &str, shift: u16) -> String {
 pub fn to_bootnodes(bootnodes: &Option<String>) -> Result<Vec<String>, String> {
 	match *bootnodes {
 		Some(ref x) if !x.is_empty() => x.split(',').map(|s| {
-			if is_valid_node_url(s) {
-				Ok(s.to_owned())
-			} else {
-				Err(format!("Invalid node address format given for a boot node: {}", s))
+			match validate_node_url(s) {
+				None => Ok(s.to_owned()),
+				Some(NetworkError::AddressResolve(_)) => Err(format!("Failed to resolve hostname of a boot node: {}", s)),
+				Some(_) => Err(format!("Invalid node address format given for a boot node: {}", s)),
 			}
 		}).collect(),
 		Some(_) => Ok(vec![]),

@@ -30,7 +30,7 @@ use evm::{CallType, Factory, Finalize, FinalizationResult};
 use vm::{self, Ext, CreateContractAddress, ReturnData, CleanDustMode, ActionParams, ActionValue};
 use wasm;
 use externalities::*;
-use trace::{self, FlatTrace, VMTrace, Tracer, VMTracer};
+use trace::{self, Tracer, VMTracer};
 use transaction::{Action, SignedTransaction};
 use crossbeam;
 pub use executed::{Executed, ExecutionResult};
@@ -214,7 +214,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 
 	/// This function should be used to execute transaction.
 	pub fn transact<T, V>(&'a mut self, t: &SignedTransaction, options: TransactOptions<T, V>)
-		-> Result<Executed, ExecutionError> where T: Tracer, V: VMTracer,
+		-> Result<Executed<T::Output, V::Output>, ExecutionError> where T: Tracer, V: VMTracer,
 	{
 		self.transact_with_tracer(t, options.check_nonce, options.output_from_init_contract, options.tracer, options.vm_tracer)
 	}
@@ -223,7 +223,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 	/// This will ensure the caller has enough balance to execute the desired transaction.
 	/// Used for extra-block executions for things like consensus contracts and RPCs
 	pub fn transact_virtual<T, V>(&'a mut self, t: &SignedTransaction, options: TransactOptions<T, V>)
-		-> Result<Executed, ExecutionError> where T: Tracer, V: VMTracer,
+		-> Result<Executed<T::Output, V::Output>, ExecutionError> where T: Tracer, V: VMTracer,
 	{
 		let sender = t.sender();
 		let balance = self.state.balance(&sender)?;
@@ -244,7 +244,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		output_from_create: bool,
 		mut tracer: T,
 		mut vm_tracer: V
-	) -> Result<Executed, ExecutionError> where T: Tracer, V: VMTracer {
+	) -> Result<Executed<T::Output, V::Output>, ExecutionError> where T: Tracer, V: VMTracer {
 		let sender = t.sender();
 		let nonce = self.state.nonce(&sender)?;
 
@@ -309,6 +309,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 					code: Some(Arc::new(t.data.clone())),
 					data: None,
 					call_type: CallType::None,
+					params_type: vm::ParamsType::Embedded,
 				};
 				let mut out = if output_from_create { Some(vec![]) } else { None };
 				(self.create(params, &mut substate, &mut out, &mut tracer, &mut vm_tracer), out.unwrap_or_else(Vec::new))
@@ -326,6 +327,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 					code_hash: Some(self.state.code_hash(address)?),
 					data: Some(t.data.clone()),
 					call_type: CallType::Call,
+					params_type: vm::ParamsType::Separate,
 				};
 				let mut out = vec![];
 				(self.call(params, &mut substate, BytesRef::Flexible(&mut out), &mut tracer, &mut vm_tracer), out)
@@ -416,18 +418,24 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 
 			let cost = builtin.cost(data);
 			if cost <= params.gas {
-				if let Err(e) = builtin.execute(data, &mut output) {
+				let mut builtin_out_buffer = Vec::new();
+				let result = {
+					let mut builtin_output = BytesRef::Flexible(&mut builtin_out_buffer);
+					builtin.execute(data, &mut builtin_output)
+				};
+				if let Err(e) = result {
 					self.state.revert_to_checkpoint();
 					let evm_err: vm::Error = e.into();
 					tracer.trace_failed_call(trace_info, vec![], evm_err.clone().into());
 					Err(evm_err)
 				} else {
 					self.state.discard_checkpoint();
+					output.write(0, &builtin_out_buffer);
 
 					// trace only top level calls to builtins to avoid DDoS attacks
 					if self.depth == 0 {
 						let mut trace_output = tracer.prepare_trace_output();
-						if let Some(mut out) = trace_output.as_mut() {
+						if let Some(out) = trace_output.as_mut() {
 							*out = output.to_owned();
 						}
 
@@ -439,9 +447,10 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 						);
 					}
 
+					let out_len = builtin_out_buffer.len();
 					Ok(FinalizationResult {
 						gas_left: params.gas - cost,
-						return_data: ReturnData::new(output.to_owned(), 0, output.len()),
+						return_data: ReturnData::new(builtin_out_buffer, 0, out_len),
 						apply_state: true,
 					})
 				}
@@ -580,15 +589,15 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 	}
 
 	/// Finalizes the transaction (does refunds and suicides).
-	fn finalize(
+	fn finalize<T, V>(
 		&mut self,
 		t: &SignedTransaction,
 		mut substate: Substate,
 		result: vm::Result<FinalizationResult>,
 		output: Bytes,
-		trace: Vec<FlatTrace>,
-		vm_trace: Option<VMTrace>
-	) -> ExecutionResult {
+		trace: Vec<T>,
+		vm_trace: Option<V>
+	) -> Result<Executed<T, V>, ExecutionError> {
 		let schedule = self.machine.schedule(self.info.number);
 
 		// refunds from SSTORE nonzero -> zero

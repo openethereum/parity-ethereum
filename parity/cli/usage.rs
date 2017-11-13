@@ -32,6 +32,20 @@ macro_rules! otry {
 	)
 }
 
+macro_rules! return_if_parse_error {
+	($e:expr) => (
+		match $e {
+			Err(clap_error @ ClapError { kind: ClapErrorKind::ValueValidation, .. }) => {
+				return Err(clap_error);
+			},
+
+			// Otherwise, if $e is ClapErrorKind::ArgumentNotFound or Ok(),
+			// then convert to Option
+			_ => $e.ok()
+		}
+	)
+}
+
 macro_rules! if_option {
 	(Option<$type:ty>, THEN {$($then:tt)*} ELSE {$($otherwise:tt)*}) => (
 		$($then)*
@@ -139,7 +153,7 @@ macro_rules! usage {
 		use std::{fs, io, process};
 		use std::io::{Read, Write};
 		use util::version;
-		use clap::{Arg, App, SubCommand, AppSettings, Error as ClapError};
+		use clap::{Arg, App, SubCommand, AppSettings, ArgMatches as ClapArgMatches, Error as ClapError, ErrorKind as ClapErrorKind};
 		use helpers::replace_home;
 		use std::ffi::OsStr;
 		use std::collections::HashMap;
@@ -489,6 +503,36 @@ macro_rules! usage {
 				args
 			}
 
+			pub fn hydrate_with_globals(self: &mut Self, matches: &ClapArgMatches) -> Result<(), ClapError> {
+				$(
+					$(
+						self.$flag = self.$flag || matches.is_present(stringify!($flag));
+					)*
+					$(
+						if let some @ Some(_) = return_if_parse_error!(if_option!(
+							$($arg_type_tt)+,
+							THEN {
+								if_option_vec!(
+									$($arg_type_tt)+,
+									THEN { values_t!(matches, stringify!($arg), inner_option_vec_type!($($arg_type_tt)+)) }
+									ELSE { value_t!(matches, stringify!($arg), inner_option_type!($($arg_type_tt)+)) }
+								)
+							}
+							ELSE {
+								if_vec!(
+									$($arg_type_tt)+,
+									THEN { values_t!(matches, stringify!($arg), inner_vec_type!($($arg_type_tt)+)) }
+									ELSE { value_t!(matches, stringify!($arg), $($arg_type_tt)+) }
+								)
+							}
+						)) {
+							self.$arg = some;
+						}
+					)*
+				)*
+				Ok(())
+			}
+
 			#[allow(unused_variables)] // the submatches of arg-less subcommands aren't used
 			pub fn parse<S: AsRef<str>>(command: &[S]) -> Result<Self, ClapError> {
 
@@ -537,21 +581,22 @@ macro_rules! usage {
 
 				let matches = App::new("Parity")
 				    	.global_setting(AppSettings::VersionlessSubcommands)
-						.global_setting(AppSettings::AllowLeadingHyphen) // allow for example --allow-ips -10.0.0.0/8
 						.global_setting(AppSettings::DisableHelpSubcommand)
 						.help(Args::print_help().as_ref())
-						.args(&usages.iter().map(|u| Arg::from_usage(u).use_delimiter(false)).collect::<Vec<Arg>>())
+						.args(&usages.iter().map(|u| Arg::from_usage(u).use_delimiter(false).allow_hyphen_values(true)).collect::<Vec<Arg>>())
 						$(
 							.subcommand(
 								SubCommand::with_name(&underscore_to_hyphen!(&stringify!($subc)[4..]))
 								.about($subc_help)
-								.args(&subc_usages.get(stringify!($subc)).unwrap().iter().map(|u| Arg::from_usage(u).use_delimiter(false)).collect::<Vec<Arg>>())
+								.args(&subc_usages.get(stringify!($subc)).unwrap().iter().map(|u| Arg::from_usage(u).use_delimiter(false).allow_hyphen_values(true)).collect::<Vec<Arg>>())
+								.args(&usages.iter().map(|u| Arg::from_usage(u).use_delimiter(false).allow_hyphen_values(true)).collect::<Vec<Arg>>()) // accept global arguments at this position
 								$(
 									.setting(AppSettings::SubcommandRequired) // prevent from running `parity account`
 									.subcommand(
 										SubCommand::with_name(&underscore_to_hyphen!(&stringify!($subc_subc)[stringify!($subc).len()+1..]))
 										.about($subc_subc_help)
-										.args(&subc_usages.get(stringify!($subc_subc)).unwrap().iter().map(|u| Arg::from_usage(u).use_delimiter(false)).collect::<Vec<Arg>>())
+										.args(&subc_usages.get(stringify!($subc_subc)).unwrap().iter().map(|u| Arg::from_usage(u).use_delimiter(false).allow_hyphen_values(true)).collect::<Vec<Arg>>())
+										.args(&usages.iter().map(|u| Arg::from_usage(u).use_delimiter(false).allow_hyphen_values(true)).collect::<Vec<Arg>>()) // accept global arguments at this position
 									)
 								)*
 							)
@@ -559,89 +604,70 @@ macro_rules! usage {
 						.get_matches_from_safe(command.iter().map(|x| OsStr::new(x.as_ref())))?;
 
 				let mut raw_args : RawArgs = Default::default();
-				$(
-					$(
-						raw_args.$flag = matches.is_present(stringify!($flag));
-					)*
-					$(
-						raw_args.$arg = if_option!(
-							$($arg_type_tt)+,
-							THEN {
-								if_option_vec!(
-									$($arg_type_tt)+,
-									THEN { values_t!(matches, stringify!($arg), inner_option_vec_type!($($arg_type_tt)+)).ok() }
-									ELSE { value_t!(matches, stringify!($arg), inner_option_type!($($arg_type_tt)+)).ok() }
-								)
-							}
-							ELSE {
-								if_vec!(
-									$($arg_type_tt)+,
-									THEN { values_t!(matches, stringify!($arg), inner_vec_type!($($arg_type_tt)+)).ok() }
-									ELSE { value_t!(matches, stringify!($arg), $($arg_type_tt)+).ok() }
-								)
-							}
-						);
-					)*
-				)*
+
+				raw_args.hydrate_with_globals(&matches)?;
 
 				// Subcommands
 				$(
 					if let Some(submatches) = matches.subcommand_matches(&underscore_to_hyphen!(&stringify!($subc)[4..])) {
 						raw_args.$subc = true;
 
+						// Globals
+						raw_args.hydrate_with_globals(&submatches)?;
 						// Subcommand flags
 						$(
 							raw_args.$subc_flag = submatches.is_present(&stringify!($subc_flag));
 						)*
 						// Subcommand arguments
 						$(
-							raw_args.$subc_arg = if_option!(
+							raw_args.$subc_arg = return_if_parse_error!(if_option!(
 										$($subc_arg_type_tt)+,
 										THEN {
 											if_option_vec!(
 												$($subc_arg_type_tt)+,
-												THEN { values_t!(submatches, stringify!($subc_arg), inner_option_vec_type!($($subc_arg_type_tt)+)).ok() }
-												ELSE { value_t!(submatches, stringify!($subc_arg), inner_option_type!($($subc_arg_type_tt)+)).ok() }
+												THEN { values_t!(submatches, stringify!($subc_arg), inner_option_vec_type!($($subc_arg_type_tt)+)) }
+												ELSE { value_t!(submatches, stringify!($subc_arg), inner_option_type!($($subc_arg_type_tt)+)) }
 											)
 										}
 										ELSE {
 											if_vec!(
 												$($subc_arg_type_tt)+,
-												THEN { values_t!(submatches, stringify!($subc_arg), inner_vec_type!($($subc_arg_type_tt)+)).ok() }
-												ELSE { value_t!(submatches, stringify!($subc_arg), $($subc_arg_type_tt)+).ok() }
+												THEN { values_t!(submatches, stringify!($subc_arg), inner_vec_type!($($subc_arg_type_tt)+)) }
+												ELSE { value_t!(submatches, stringify!($subc_arg), $($subc_arg_type_tt)+) }
 											)
 										}
-							);
+							));
 						)*
-
 						// Sub-subcommands
 						$(
 							if let Some(subsubmatches) = submatches.subcommand_matches(&underscore_to_hyphen!(&stringify!($subc_subc)[stringify!($subc).len()+1..])) {
 								raw_args.$subc_subc = true;
 
+								// Globals
+								raw_args.hydrate_with_globals(&subsubmatches)?;
 								// Sub-subcommand flags
 								$(
 									raw_args.$subc_subc_flag = subsubmatches.is_present(&stringify!($subc_subc_flag));
 								)*
 								// Sub-subcommand arguments
 								$(
-									raw_args.$subc_subc_arg = if_option!(
+									raw_args.$subc_subc_arg = return_if_parse_error!(if_option!(
 										$($subc_subc_arg_type_tt)+,
 										THEN {
 											if_option_vec!(
 												$($subc_subc_arg_type_tt)+,
-												THEN { values_t!(subsubmatches, stringify!($subc_subc_arg), inner_option_vec_type!($($subc_subc_arg_type_tt)+)).ok() }
-												ELSE { value_t!(subsubmatches, stringify!($subc_subc_arg), inner_option_type!($($subc_subc_arg_type_tt)+)).ok() }
+												THEN { values_t!(subsubmatches, stringify!($subc_subc_arg), inner_option_vec_type!($($subc_subc_arg_type_tt)+)) }
+												ELSE { value_t!(subsubmatches, stringify!($subc_subc_arg), inner_option_type!($($subc_subc_arg_type_tt)+)) }
 											)
 										}
 										ELSE {
 											if_vec!(
 												$($subc_subc_arg_type_tt)+,
-												THEN { values_t!(subsubmatches, stringify!($subc_subc_arg), inner_vec_type!($($subc_subc_arg_type_tt)+)).ok() }
-												ELSE { value_t!(subsubmatches, stringify!($subc_subc_arg), $($subc_subc_arg_type_tt)+).ok() }
+												THEN { values_t!(subsubmatches, stringify!($subc_subc_arg), inner_vec_type!($($subc_subc_arg_type_tt)+)) }
+												ELSE { value_t!(subsubmatches, stringify!($subc_subc_arg), $($subc_subc_arg_type_tt)+) }
 											)
 										}
-									);
+									));
 								)*
 							}
 							else {

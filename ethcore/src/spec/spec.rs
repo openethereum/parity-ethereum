@@ -30,7 +30,7 @@ use parking_lot::RwLock;
 use rlp::{Rlp, RlpStream};
 use rustc_hex::FromHex;
 use util::*;
-use vm::{EnvInfo, CallType, ActionValue, ActionParams};
+use vm::{EnvInfo, CallType, ActionValue, ActionParams, ParamsType};
 
 use super::genesis::Genesis;
 use super::seal::Generic as GenericSeal;
@@ -85,6 +85,8 @@ pub struct CommonParams {
 	pub eip155_transition: BlockNumber,
 	/// Validate block receipts root.
 	pub validate_receipts_transition: BlockNumber,
+	/// Validate transaction chain id.
+	pub validate_chain_id_transition: BlockNumber,
 	/// Number of first block where EIP-86 (Metropolis) rules begin.
 	pub eip86_transition: BlockNumber,
 	/// Number of first block where EIP-140 (Metropolis: REVERT opcode) rules begin.
@@ -153,7 +155,7 @@ impl CommonParams {
 			self.validate_receipts_transition != 0 && self.eip86_transition != 0 &&
 			self.eip140_transition != 0 && self.eip210_transition != 0 &&
 			self.eip211_transition != 0 && self.eip214_transition != 0 &&
-			self.dust_protection_transition != 0
+			self.validate_chain_id_transition != 0 && self.dust_protection_transition != 0
 	}
 }
 
@@ -178,6 +180,7 @@ impl From<ethjson::spec::Params> for CommonParams {
 			eip98_transition: p.eip98_transition.map_or(0, Into::into),
 			eip155_transition: p.eip155_transition.map_or(0, Into::into),
 			validate_receipts_transition: p.validate_receipts_transition.map_or(0, Into::into),
+			validate_chain_id_transition: p.validate_chain_id_transition.map_or(0, Into::into),
 			eip86_transition: p.eip86_transition.map_or(
 				BlockNumber::max_value(),
 				Into::into,
@@ -501,6 +504,7 @@ impl Spec {
 					code: Some(Arc::new(constructor.clone())),
 					data: None,
 					call_type: CallType::None,
+					params_type: ParamsType::Embedded,
 				};
 
 				let mut substate = Substate::new();
@@ -667,13 +671,14 @@ impl Spec {
 	/// constructor.
 	pub fn genesis_epoch_data(&self) -> Result<Vec<u8>, String> {
 		use transaction::{Action, Transaction};
-		use util::{journaldb, kvdb};
+		use journaldb;
+		use kvdb_memorydb;
 
 		let genesis = self.genesis_header();
 
 		let factories = Default::default();
 		let mut db = journaldb::new(
-			Arc::new(kvdb::in_memory(0)),
+			Arc::new(kvdb_memorydb::create(0)),
 			journaldb::Algorithm::Archive,
 			None,
 		);

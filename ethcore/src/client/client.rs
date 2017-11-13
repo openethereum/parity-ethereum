@@ -26,10 +26,11 @@ use itertools::Itertools;
 use hash::keccak;
 use timer::PerfTimer;
 use bytes::Bytes;
-use util::{journaldb, DBValue};
-use util::{Address, UtilError};
+use util::{Address, DBValue};
+use journaldb;
+use util_error::UtilError;
 use trie::{TrieSpec, TrieFactory, Trie};
-use util::kvdb::*;
+use kvdb::{KeyValueDB, DBTransaction};
 
 // other
 use bigint::prelude::U256;
@@ -988,9 +989,11 @@ impl Client {
 
 	/// Tick the client.
 	// TODO: manage by real events.
-	pub fn tick(&self) {
+	pub fn tick(&self, prevent_sleep: bool) {
 		self.check_garbage();
-		self.check_snooze();
+		if !prevent_sleep {
+			self.check_snooze();
+		}
 	}
 
 	fn check_garbage(&self) {
@@ -1098,7 +1101,7 @@ impl Client {
 		if !self.liveness.load(AtomicOrdering::Relaxed) {
 			self.liveness.store(true, AtomicOrdering::Relaxed);
 			self.notify(|n| n.start());
-			trace!(target: "mode", "wake_up: Waking.");
+			info!(target: "mode", "wake_up: Waking.");
 		}
 	}
 
@@ -1108,11 +1111,11 @@ impl Client {
 			if self.queue_info().total_queue_size() <= MAX_QUEUE_SIZE_TO_SLEEP_ON {
 				self.liveness.store(false, AtomicOrdering::Relaxed);
 				self.notify(|n| n.stop());
-				trace!(target: "mode", "sleep: Sleeping.");
+				info!(target: "mode", "sleep: Sleeping.");
 			} else {
-				trace!(target: "mode", "sleep: Cannot sleep - syncing ongoing.");
+				info!(target: "mode", "sleep: Cannot sleep - syncing ongoing.");
 				// TODO: Consider uncommenting.
-				//*self.last_activity.lock() = Some(Instant::now());
+				//(*self.sleep_state.lock()).last_activity = Some(Instant::now());
 			}
 		}
 	}
@@ -1139,7 +1142,7 @@ impl Client {
 			state_diff: bool,
 			transaction: &SignedTransaction,
 			options: TransactOptions<T, V>,
-		) -> Result<Executed, CallError> where
+		) -> Result<Executed<T::Output, V::Output>, CallError> where
 			T: trace::Tracer,
 			V: trace::VMTracer,
 		{
@@ -1239,7 +1242,7 @@ impl BlockChainClient for Client {
 		// that's just a copy of the state.
 		let original_state = self.state_at(block).ok_or(CallError::StatePruned)?;
 		let sender = t.sender();
-		let options = || TransactOptions::with_tracing();
+		let options = || TransactOptions::with_tracing().dont_check_nonce();
 
 		let cond = |gas| {
 			let mut tx = t.as_unsigned().clone();
@@ -1692,14 +1695,22 @@ impl BlockChainClient for Client {
 
 		match (start, end) {
 			(Some(s), Some(e)) => {
-				let filter = trace::Filter {
+				let db_filter = trace::Filter {
 					range: s as usize..e as usize,
 					from_address: From::from(filter.from_address),
 					to_address: From::from(filter.to_address),
 				};
 
-				let traces = self.tracedb.read().filter(&filter);
-				Some(traces)
+				let traces = self.tracedb.read().filter(&db_filter);
+				if traces.is_empty() {
+					return Some(vec![]);
+				}
+
+				let traces_iter = traces.into_iter().skip(filter.after.unwrap_or(0));
+				Some(match filter.count {
+					Some(count) => traces_iter.take(count).collect(),
+					None => traces_iter.collect(),
+				})
 			},
 			_ => None,
 		}
@@ -2082,7 +2093,7 @@ mod tests {
 		use std::time::Duration;
 		use std::sync::Arc;
 		use std::sync::atomic::{AtomicBool, Ordering};
-		use util::kvdb::DBTransaction;
+		use kvdb::DBTransaction;
 
 		let client = generate_dummy_client(0);
 		let genesis = client.chain_info().best_block_hash;

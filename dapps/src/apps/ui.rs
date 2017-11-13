@@ -16,9 +16,10 @@
 
 //! UI redirections
 
-use hyper::{Control, StatusCode};
+use hyper::StatusCode;
+use futures::future;
 
-use endpoint::{Endpoint, Handler, EndpointPath};
+use endpoint::{Endpoint, Request, Response, EndpointPath};
 use {handlers, Embeddable};
 
 /// Redirection to UI server.
@@ -37,19 +38,20 @@ impl Redirection {
 }
 
 impl Endpoint for Redirection {
-	fn to_async_handler(&self, _path: EndpointPath, _control: Control) -> Box<Handler> {
-		if let Some(ref frame) = self.embeddable_on {
+	fn respond(&self, _path: EndpointPath, req: Request) -> Response {
+		Box::new(future::ok(if let Some(ref frame) = self.embeddable_on {
 			trace!(target: "dapps", "Redirecting to signer interface.");
-			handlers::Redirection::boxed(&format!("http://{}:{}", &frame.host, frame.port))
+			let protocol = req.uri().scheme().unwrap_or("http");
+			handlers::Redirection::new(format!("{}://{}:{}", protocol, &frame.host, frame.port)).into()
 		} else {
 			trace!(target: "dapps", "Signer disabled, returning 404.");
-			Box::new(handlers::ContentHandler::error(
+			handlers::ContentHandler::error(
 				StatusCode::NotFound,
 				"404 Not Found",
 				"Your homepage is not available when Trusted Signer is disabled.",
 				Some("You can still access dapps by writing a correct address, though. Re-enable Signer to get your homepage back."),
 				None,
-			))
-		}
+			).into()
+		}))
 	}
 }
