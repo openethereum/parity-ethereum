@@ -148,6 +148,7 @@
     "@parity/plugin-signer-default": "paritytech/plugin-signer-default",
     "@parity/plugin-signer-hardware": "paritytech/plugin-signer-hardware",
     "@parity/plugin-signer-qr": "paritytech/plugin-signer-qr",
+    "@parity/dapp-vaults": "paritytech/dapp-vaults",
     "@parity/shared": "2.2.x",
     "@parity/ui": "2.2.x",
     "keythereum": "1.0.2",
