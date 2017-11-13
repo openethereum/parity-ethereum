@@ -17,7 +17,7 @@
 import { action, computed, observable } from 'mobx';
 import store from 'store';
 
-import { sha3 } from '@parity/api/util/sha3';
+import { sha3 } from '@parity/api/lib/util/sha3';
 
 import filteredRequests from './filteredRequests';
 

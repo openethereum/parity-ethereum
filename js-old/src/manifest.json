@@ -1,0 +1,7 @@
+{
+  "name": "Parity Wallet",
+  "version": "development",
+  "author": "Parity <admin@parity.io>",
+  "description": "Parity Wallet and Account management tools",
+  "icon_url": "icon.png",
+}

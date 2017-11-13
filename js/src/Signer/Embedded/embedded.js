@@ -20,8 +20,8 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import { observer } from 'mobx-react';
 
-import * as RequestsActions from '@parity/shared/redux/providers/signerActions';
-import Container from '@parity/ui/Container';
+import * as RequestsActions from '@parity/shared/lib/redux/providers/signerActions';
+import Container from '@parity/ui/lib/Container';
 
 import PendingList from '../PendingList';
 import PendingStore from '../pendingStore';
