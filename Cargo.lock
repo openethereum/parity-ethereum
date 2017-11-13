@@ -2196,7 +2196,7 @@ version = "1.9.0"
 dependencies = [
  "parity-ui-dev 1.9.0",
  "parity-ui-old-dev 1.9.0",
- "parity-ui-old-precompiled 1.8.0 (git+https://github.com/paritytech/js-precompiled.git?branch=v1)",
+ "parity-ui-old-precompiled 1.9.0 (git+https://github.com/paritytech/js-precompiled.git?branch=v1)",
  "parity-ui-precompiled 1.9.0 (git+https://github.com/paritytech/js-precompiled.git)",
  "rustc_version 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -2217,8 +2217,8 @@ dependencies = [
 
 [[package]]
 name = "parity-ui-old-precompiled"
-version = "1.8.0"
-source = "git+https://github.com/paritytech/js-precompiled.git?branch=v1#94b0a89aac7eb5ddfdb53cd9bb039da6fdbf7583"
+version = "1.9.0"
+source = "git+https://github.com/paritytech/js-precompiled.git?branch=v1#f3fa5e5efb0ed8ada6cd091694fcdaa921e6720f"
 dependencies = [
  "parity-dapps-glue 1.9.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -2226,7 +2226,7 @@ dependencies = [
 [[package]]
 name = "parity-ui-precompiled"
 version = "1.9.0"
-source = "git+https://github.com/paritytech/js-precompiled.git#b5e514c4a35923d5edc19eb9560b2b72320b62b0"
+source = "git+https://github.com/paritytech/js-precompiled.git#31b526f7ec289801a96100e80f19c4cbe850276b"
 dependencies = [
  "parity-dapps-glue 1.9.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -3645,7 +3645,7 @@ dependencies = [
 "checksum owning_ref 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)" = "cdf84f41639e037b484f93433aa3897863b561ed65c6e59c7073d7c561710f37"
 "checksum parity-dapps-glue 1.9.1 (registry+https://github.com/rust-lang/crates.io-index)" = "261c025c67ba416e9fe63aa9b3236520ce3c74cfbe43590c9cdcec4ccc8180e4"
 "checksum parity-tokio-ipc 0.1.5 (git+https://github.com/nikvolf/parity-tokio-ipc)" = "<none>"
-"checksum parity-ui-old-precompiled 1.8.0 (git+https://github.com/paritytech/js-precompiled.git?branch=v1)" = "<none>"
+"checksum parity-ui-old-precompiled 1.9.0 (git+https://github.com/paritytech/js-precompiled.git?branch=v1)" = "<none>"
 "checksum parity-ui-precompiled 1.9.0 (git+https://github.com/paritytech/js-precompiled.git)" = "<none>"
 "checksum parity-wasm 0.15.3 (registry+https://github.com/rust-lang/crates.io-index)" = "8431a184ad88cfbcd71a792aaca319cc7203a94300c26b8dce2d0df0681ea87d"
 "checksum parity-wordlist 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "81451bfab101d186f8fc4a0aa13cb5539b31b02c4ed96425a0842e2a413daba6"
