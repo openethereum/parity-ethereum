@@ -69,7 +69,6 @@ struct Args {
 	cmd_random: bool,
 	cmd_prefix: bool,
 	cmd_sign: bool,
-	cmd_find: bool,
 	cmd_verify: bool,
 	cmd_public: bool,
 	cmd_address: bool,
