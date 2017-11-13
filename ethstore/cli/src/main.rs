@@ -14,23 +14,27 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-extern crate rustc_hex;
 extern crate docopt;
-extern crate serde;
-#[macro_use]
-extern crate serde_derive;
 extern crate ethstore;
 extern crate num_cpus;
 extern crate panic_hook;
+extern crate parking_lot;
+extern crate rustc_hex;
+extern crate serde;
 
-use std::{env, process, fs, fmt, sync, thread};
-use std::io::Read;
+#[macro_use]
+extern crate serde_derive;
+
 use std::collections::VecDeque;
+use std::io::Read;
+use std::{env, process, fs, fmt};
+
 use docopt::Docopt;
-use ethstore::ethkey::Address;
 use ethstore::dir::{paths, KeyDirectory, RootDiskDirectory};
-use ethstore::{EthStore, SimpleSecretStore, SecretStore, import_accounts, PresaleWallet,
-	SecretVaultRef, StoreAccountRef};
+use ethstore::ethkey::Address;
+use ethstore::{EthStore, SimpleSecretStore, SecretStore, import_accounts, PresaleWallet, SecretVaultRef, StoreAccountRef};
+
+mod crack;
 
 pub const USAGE: &'static str = r#"
 Ethereum key management.
@@ -247,49 +251,7 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 	} else if args.cmd_find_wallet_pass {
 		let passwords = load_password(&args.arg_password)?;
 		let passwords = passwords.lines().map(str::to_owned).collect::<VecDeque<_>>();
-		let passwords = sync::Arc::new(sync::Mutex::new(passwords));
-
-		let mut handles: Vec<thread::JoinHandle<_>> = Vec::new();
-		let threads = num_cpus::get();
-		for _ in 0..threads {
-			let passwords = passwords.clone();
-			let wallet = PresaleWallet::open(&args.arg_path)?;
-			handles.push(thread::spawn(move || {
-				let mut counter = 0;
-				while !passwords.lock().unwrap().is_empty() {
-					let package = {
-						let mut to_process = Vec::new();
-						let mut passwords = passwords.lock().unwrap();
-						for _ in 0..32 {
-							if let Some(pass) = passwords.pop_front() {
-								to_process.push(pass);
-							} else {
-								break;
-							}
-						}
-						to_process
-					};
-					for pass in package {
-						counter += 1;
-						match wallet.decrypt(&pass) {
-							Ok(_) => {
-								println!("Found password: {}", &pass);
-								passwords.lock().unwrap().clear();
-								return ();
-							},
-							_ if counter % 100 == 0 => print!("."),
-							_ => {},
-						}
-					}
-				}
-				()
-			}));
-		}
-
-		for handle in handles {
-			handle.join().unwrap();
-		}
-
+		crack::run(passwords, &args.arg_path)?;
 		Ok(format!("Password not found."))
 	} else if args.cmd_remove {
 		let address = args.arg_address.parse().map_err(|_| ethstore::Error::InvalidAccount)?;
