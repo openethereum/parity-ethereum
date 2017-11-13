@@ -57,10 +57,7 @@ impl Reservations {
 	/// The reserved nonce cannot be smaller than the minimal nonce.
 	pub fn reserve(&mut self, sender: Address, minimal: U256) -> Reserved {
 		if self.nonces.len() + 1 > Self::CLEAN_AT {
-			let to_remove = self.nonces.iter().filter(|&(_, v)| v.is_empty()).map(|(k, _)| *k).collect::<Vec<_>>();
-			for address in to_remove {
-				self.nonces.remove(&address);
-			}
+			self.nonces.retain(|_, v| !v.is_empty());
 		}
 
 		let pool = &self.pool;
