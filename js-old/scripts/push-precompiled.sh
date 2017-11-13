@@ -16,7 +16,7 @@ function setup_git_user {
 
 # change into the build directory
 BASEDIR=`dirname $0`
-GITLOG=.git-release.log
+GITLOG=./.git/.git-release.log
 pushd $BASEDIR
 cd ../.dist
 
