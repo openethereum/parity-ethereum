@@ -144,32 +144,70 @@ impl SleepState {
 /// Blockchain database client backed by a persistent database. Owns and manages a blockchain and a block queue.
 /// Call `import_block()` to import a block asynchronously; `flush_queue()` flushes the queue.
 pub struct Client {
+	/// Flag used to disable the client forever. Not to be confused with `liveness`.
+	///
+	/// For example, auto-updater will disable client forever if there is a
+	/// hard fork registered on-chain that we don't have capability for.
+	/// When hard fork block rolls around, the client (if `update` is false)
+	/// knows it can't proceed further.
 	enabled: AtomicBool,
+
+	/// Operating mode for the client
 	mode: Mutex<Mode>,
+
 	chain: RwLock<Arc<BlockChain>>,
 	tracedb: RwLock<TraceDB<BlockChain>>,
 	engine: Arc<EthEngine>,
+
+	/// Client configuration
 	config: ClientConfig,
+
+	/// Database pruning strategy to use for StateDB
 	pruning: journaldb::Algorithm,
+
+	/// Client uses this to store blocks, traces, etc.
 	db: RwLock<Arc<KeyValueDB>>,
+
 	state_db: Mutex<StateDB>,
 	block_queue: BlockQueue,
+
+	/// Report on the status of client
 	report: RwLock<ClientReport>,
+
+	/// Lock used during block import
 	import_lock: Mutex<()>,
 	verifier: Box<Verifier>,
 	miner: Arc<Miner>,
 	sleep_state: Mutex<SleepState>,
+
+	/// Flag changed by `sleep` and `wake_up` methods. Not to be confused with `enabled`.
 	liveness: AtomicBool,
 	io_channel: Mutex<IoChannel<ClientIoMessage>>,
+
+	/// List of actors to be notified on certain chain events
 	notify: RwLock<Vec<Weak<ChainNotify>>>,
+
+	/// Count of pending transactions in the queue
 	queue_transactions: AtomicUsize,
 	last_hashes: RwLock<VecDeque<H256>>,
 	factories: Factories,
+
+	/// Number of eras kept in a journal before they are pruned
 	history: u64,
+
+	/// Random number generator used by `Client`
 	rng: Mutex<OsRng>,
+
+	/// Ancient block verifier: import an ancient sequence of blocks in order from a starting epoch
 	ancient_verifier: Mutex<Option<AncientVerifier>>,
+
+	/// An action to be done if a mode/spec_name change happens
 	on_user_defaults_change: Mutex<Option<Box<FnMut(Option<Mode>) + 'static + Send>>>,
+
+	/// Link to a registry object useful for looking up names
 	registrar: Mutex<Option<Registry>>,
+	
+	/// A closure to call when we want to restart the client
 	exit_handler: Mutex<Option<Box<Fn(bool, Option<String>) + 'static + Send>>>,
 }
 
