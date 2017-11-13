@@ -55,6 +55,8 @@ pub enum UserTrap {
 	Unknown,
 	/// Passed string had invalid utf-8 encoding
 	BadUtf8,
+	/// Log event error
+	Log,
 	/// Other error in native code
 	Other,
 	/// Panic with message
@@ -75,6 +77,7 @@ impl ::std::fmt::Display for UserTrap {
 			UserTrap::AllocationFailed => write!(f, "Memory allocation failed (OOM)"),
 			UserTrap::BadUtf8 => write!(f, "String encoding is bad utf-8 sequence"),
 			UserTrap::GasLimit => write!(f, "Invocation resulted in gas limit violated"),
+			UserTrap::Log => write!(f, "Error occured while logging an event"),
 			UserTrap::Other => write!(f, "Other unspecified error"),
 			UserTrap::Panic(ref msg) => write!(f, "Panic: {}", msg),
 		}
@@ -225,6 +228,21 @@ impl<'a, 'b> Runtime<'a, 'b> {
 		where F: FnOnce(&vm::Schedule) -> u64
 	{
 		let amount = f(self.ext.schedule());
+		if !self.charge_gas(amount as u64) {
+			Err(UserTrap::GasLimit.into())
+		} else {
+			Ok(())
+		}
+	}
+
+	pub fn overflow_charge<F>(&mut self, f: F) -> Result<(), InterpreterError>
+		where F: FnOnce(&vm::Schedule) -> Option<u64>
+	{
+		let amount = match f(self.ext.schedule()) {
+			Some(amount) => amount,
+			None => { return Err(UserTrap::GasLimit.into()); }
+		};
+
 		if !self.charge_gas(amount as u64) {
 			Err(UserTrap::GasLimit.into())
 		} else {
@@ -749,6 +767,44 @@ impl<'a, 'b> Runtime<'a, 'b> {
 	pub fn ext(&mut self) -> &mut vm::Ext {
 		self.ext
 	}
+
+	pub fn log(&mut self, context: InterpreterCallerContext)
+		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
+	{
+		// signature is:
+		// pub fn elog(topic_ptr: *const u8, topic_count: u32, data_ptr: *const u8, data_len: u32);
+		let data_len = context.value_stack.pop_as::<i32>()? as u32;
+		let data_ptr = context.value_stack.pop_as::<i32>()? as u32;
+		let topic_count = context.value_stack.pop_as::<i32>()? as u32;
+		let topic_ptr = context.value_stack.pop_as::<i32>()? as u32;
+
+		if topic_count > 4 {
+			return Err(UserTrap::Log.into());
+		}
+
+		self.overflow_charge(|schedule|
+			{
+				let topics_gas = schedule.log_gas as u64 + schedule.log_topic_gas as u64 * topic_count as u64;
+				(schedule.log_data_gas as u64)
+					.checked_mul(schedule.log_data_gas as u64)
+					.and_then(|data_gas| data_gas.checked_add(topics_gas))
+			}
+		)?;
+
+		let mut topics: Vec<H256> = Vec::with_capacity(topic_count as usize);
+		topics.resize(topic_count as usize, H256::zero());
+		for i in 0..topic_count {
+			let offset = i.checked_mul(32).ok_or(UserTrap::MemoryAccessViolation)?
+				.checked_add(topic_ptr).ok_or(UserTrap::MemoryAccessViolation)?;
+
+			*topics.get_mut(i as usize)
+				.expect("topics is resized to `topic_count`, i is in 0..topic count iterator, get_mut uses i as an indexer, get_mut cannot fail; qed")
+				= H256::from(&self.memory.get(offset, 32)?[..]);
+		}
+		self.ext.log(topics, &self.memory.get(data_ptr, data_len as usize)?).map_err(|_| UserTrap::Log)?;
+
+		Ok(None)
+	}
 }
 
 impl<'a, 'b> interpreter::UserFunctionExecutor<UserTrap> for Runtime<'a, 'b> {
@@ -832,6 +888,9 @@ impl<'a, 'b> interpreter::UserFunctionExecutor<UserTrap> for Runtime<'a, 'b> {
 			},
 			"_value" => {
 				self.value(context)
+			},
+			"_elog" => {
+				self.log(context)
 			},
 			_ => {
 				trace!(target: "wasm", "Trapped due to unhandled function: '{}'", name);
