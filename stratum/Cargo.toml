@@ -7,9 +7,9 @@ authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 log = "0.3"
-jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.8" }
-jsonrpc-macros = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.8" }
-jsonrpc-tcp-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.8" }
+jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.9" }
+jsonrpc-macros = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.9" }
+jsonrpc-tcp-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.9" }
 ethcore-util = { path = "../util" }
 ethcore-bigint = { path = "../util/bigint" }
 ethcore-devtools = { path = "../devtools" }
