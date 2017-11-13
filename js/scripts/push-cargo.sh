@@ -5,6 +5,7 @@ set -e
 UTCDATE=`date -u "+%Y%m%d-%H%M%S"`
 BRANCH=$CI_BUILD_REF_NAME
 GIT_PARITY="https://${GITHUB_JS_PRECOMPILED}:@github.com/paritytech/parity.git"
+GITLOG=./.git/.git-release.log
 
 # setup the git user defaults for the current repo
 function setup_git_user {
@@ -13,11 +14,6 @@ function setup_git_user {
   git config user.email "$GITHUB_EMAIL"
   git config user.name "GitLab Build Bot"
 }
-
-# change into the build directory
-BASEDIR=`dirname $0`
-GITLOG=.git-release.log
-pushd $BASEDIR/..
 
 echo "*** [cargo] Setting up GitHub config for parity"
 setup_git_user
@@ -47,10 +43,6 @@ git add dapps/ui/Cargo.toml
 git add Cargo.lock
 git commit -m "[ci skip] js-precompiled $UTCDATE"
 git push origin HEAD:refs/heads/$BRANCH 2>$GITLOG
-
-# back to root
-echo "*** [cargo] Release completed"
-popd
 
 # exit with exit code
 exit 0

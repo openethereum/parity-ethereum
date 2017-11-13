@@ -5,6 +5,8 @@ set -e
 UTCDATE=`date -u "+%Y%m%d-%H%M%S"`
 BRANCH=$CI_BUILD_REF_NAME
 GIT_JS_PRECOMPILED="https://${GITHUB_JS_PRECOMPILED}:@github.com/paritytech/js-precompiled.git"
+BASEDIR=`dirname $0`
+GITLOG=./.git/.git-release.log
 
 # setup the git user defaults for the current repo
 function setup_git_user {
@@ -15,8 +17,6 @@ function setup_git_user {
 }
 
 # change into the build directory
-BASEDIR=`dirname $0`
-GITLOG=./.git/.git-release.log
 pushd $BASEDIR
 cd ../.dist
 
