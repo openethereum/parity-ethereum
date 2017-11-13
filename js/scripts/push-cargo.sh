@@ -18,7 +18,7 @@ function setup_git_user {
 BASEDIR=`dirname $0`
 pushd $BASEDIR
 
-echo "*** [v2] Setting up GitHub config for parity"
+echo "*** [cargo] Setting up GitHub config for parity"
 setup_git_user
 git remote set-url origin $GIT_PARITY
 git reset --hard origin/$BRANCH 2>$GITLOG
@@ -27,7 +27,7 @@ git submodule update
 if [ "$BRANCH" == "master" ]; then
   cd js
 
-  echo "*** [all] Bumping package.json patch version"
+  echo "*** [cargo] Bumping package.json patch version"
   npm --no-git-tag-version version
   npm version patch
 
@@ -36,19 +36,19 @@ if [ "$BRANCH" == "master" ]; then
   git add js
 fi
 
-echo "*** [all] Updating cargo parity-ui-precompiled"
+echo "*** [cargo] Updating cargo parity-ui-precompiled"
 sed -i "/^parity-ui-precompiled/ { s/branch = \".*\"/branch = \"$BRANCH\"/g; }" dapps/ui/Cargo.toml
 cargo update -p parity-ui-precompiled
 cargo update -p parity-ui-old-precompiled
 
-echo "*** [all] Committing updated files"
+echo "*** [cargo] Committing updated files"
 git add dapps/ui/Cargo.toml
 git add Cargo.lock
 git commit -m "[ci skip] js-precompiled $UTCDATE"
 git push origin HEAD:refs/heads/$BRANCH 2>$GITLOG
 
 # back to root
-echo "*** [all] Release completed"
+echo "*** [cargo] Release completed"
 popd
 
 # exit with exit code
