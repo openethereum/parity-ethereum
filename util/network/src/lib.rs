@@ -56,6 +56,7 @@
 
 //TODO: use Poll from mio
 #![allow(deprecated)]
+#![recursion_limit="128"]
 
 extern crate ethcore_io as io;
 extern crate ethcore_util as util;
@@ -84,6 +85,9 @@ extern crate serde_json;
 extern crate snappy;
 
 #[macro_use]
+extern crate error_chain;
+
+#[macro_use]
 extern crate log;
 
 #[cfg(test)]
@@ -109,7 +113,7 @@ mod tests;
 
 pub use host::{HostInfo, PeerId, PacketId, ProtocolId, NetworkContext, NetworkIoMessage, NetworkConfiguration};
 pub use service::NetworkService;
-pub use error::NetworkError;
+pub use error::{Error, ErrorKind};
 pub use stats::NetworkStats;
 pub use session::SessionInfo;
 pub use connection_filter::{ConnectionFilter, ConnectionDirection};
