@@ -693,7 +693,7 @@ js-release:
     - if [ $JS_FILES_MODIFIED -eq 0 ]; then echo "Skipping JS rebuild since no JS files modified."; else ./js/scripts/build.sh && ./js/scripts/push-precompiled.sh; fi
     - echo $JS_OLD_FILES_MODIFIED
     - if [ $JS_OLD_FILES_MODIFIED -eq 0 ]; then echo "Skipping JS (old) rebuild since no JS files modified."; else ./js-old/scripts/build.sh && ./js-old/scripts/push-precompiled.sh; fi
-    - if [ $JS_FILES_MODIFIED -eq 0 ] || [ $JS_OLD_FILES_MODIFIED -eq 0 ]; then echo "Skipping Cargo update since no JS files modified."; else ./js/scripts/push-cargo.sh; fi
+    - if [ $JS_FILES_MODIFIED -eq 0 ] && [ $JS_OLD_FILES_MODIFIED -eq 0 ]; then echo "Skipping Cargo update since no JS files modified."; else ./js/scripts/push-cargo.sh; fi
 
   tags:
     - javascript
