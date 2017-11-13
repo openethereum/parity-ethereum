@@ -14,12 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { isEqual } from 'lodash';
+import { isEqual, debounce } from 'lodash';
 
 import { LOG_KEYS, getLogger } from '~/config';
-import UpgradeStore from '~/modals/UpgradeParity/store';
+// import UpgradeStore from '~/modals/UpgradeParity/store';
 
-import BalancesProvider from './balances';
 import { statusBlockNumber, statusCollection } from './statusActions';
 
 const log = getLogger(LOG_KEYS.Signer);
@@ -31,7 +30,6 @@ const STATUS_BAD = 'bad';
 
 export default class Status {
   _apiStatus = {};
-  _status = {};
   _longStatus = {};
   _minerSettings = {};
   _timeoutIds = {};
@@ -41,21 +39,14 @@ export default class Status {
   constructor (store, api) {
     this._api = api;
     this._store = store;
-    this._upgradeStore = UpgradeStore.get(api);
-
-    // On connecting, stop all subscriptions
-    api.on('connecting', this.stop, this);
-
-    // On connected, start the subscriptions
-    api.on('connected', this.start, this);
-
-    // On disconnected, stop all subscriptions
-    api.on('disconnected', this.stop, this);
+    // this._upgradeStore = UpgradeStore.get(api);
 
     this.updateApiStatus();
   }
 
-  static instantiate (store, api) {
+  static init (store) {
+    const { api } = store.getState();
+
     if (!instance) {
       instance = new Status(store, api);
     }
@@ -63,59 +54,61 @@ export default class Status {
     return instance;
   }
 
-  static get () {
-    if (!instance) {
+  static get (store) {
+    if (!instance && store) {
+      return Status.init(store);
+    } else if (!instance) {
       throw new Error('The Status Provider has not been initialized yet');
     }
 
     return instance;
   }
 
-  start () {
+  static start () {
+    const self = instance;
+
     log.debug('status::start');
 
-    Promise
-      .all([
-        this._subscribeBlockNumber(),
+    const promises = [
+      self._subscribeBlockNumber(),
+      self._subscribeNetPeers(),
+      self._subscribeEthSyncing(),
+      self._subscribeNodeHealth(),
+      self._pollLongStatus(),
+      self._pollApiStatus()
+    ];
 
-        this._pollLongStatus(),
-        this._pollStatus()
-      ])
-      .then(() => {
-        return BalancesProvider.start();
-      });
+    return Status.stop()
+      .then(() => Promise.all(promises));
   }
 
-  stop () {
-    log.debug('status::stop');
-
-    const promises = [];
-
-    if (this._blockNumberSubscriptionId) {
-      const promise = this._api
-        .unsubscribe(this._blockNumberSubscriptionId)
-        .then(() => {
-          this._blockNumberSubscriptionId = null;
-        });
-
-      promises.push(promise);
+  static stop () {
+    if (!instance) {
+      return Promise.resolve();
     }
 
-    Object.values(this._timeoutIds).forEach((timeoutId) => {
-      clearTimeout(timeoutId);
-    });
+    const self = instance;
 
-    const promise = BalancesProvider.stop();
+    log.debug('status::stop');
 
-    promises.push(promise);
+    self._clearTimeouts();
 
-    return Promise.all(promises)
-      .then(() => true)
+    return self._unsubscribeBlockNumber()
       .catch((error) => {
         console.error('status::stop', error);
-        return true;
       })
-      .then(() => this.updateApiStatus());
+      .then(() => self.updateApiStatus());
+  }
+
+  getApiStatus = () => {
+    const { isConnected, isConnecting, needsToken, secureToken } = this._api;
+
+    return {
+      isConnected,
+      isConnecting,
+      needsToken,
+      secureToken
+    };
   }
 
   updateApiStatus () {
@@ -127,6 +120,33 @@ export default class Status {
       this._store.dispatch(statusCollection(apiStatus));
       this._apiStatus = apiStatus;
     }
+  }
+
+  _clearTimeouts () {
+    Object.values(this._timeoutIds).forEach((timeoutId) => {
+      clearTimeout(timeoutId);
+    });
+  }
+
+  _overallStatus (health) {
+    const allWithTime = [health.peers, health.sync, health.time].filter(x => x);
+    const all = [health.peers, health.sync].filter(x => x);
+    const statuses = all.map(x => x.status);
+    const bad = statuses.find(x => x === STATUS_BAD);
+    const needsAttention = statuses.find(x => x === STATUS_WARN);
+    const message = allWithTime.map(x => x.message).filter(x => x);
+
+    if (all.length) {
+      return {
+        status: bad || needsAttention || STATUS_OK,
+        message
+      };
+    }
+
+    return {
+      status: STATUS_BAD,
+      message: ['Unable to fetch node health.']
+    };
   }
 
   _subscribeBlockNumber = () => {
@@ -159,92 +179,81 @@ export default class Status {
       });
   }
 
-  _pollTraceMode = () => {
-    return this._api.trace
-      .block()
-      .then(blockTraces => {
-        // Assumes not in Trace Mode if no transactions
-        // in latest block...
-        return blockTraces.length > 0;
-      })
-      .catch(() => false);
+  _updateStatus = debounce(status => {
+    this._store.dispatch(statusCollection(status));
+  }, 2500, {
+    maxWait: 5000
+  });
+
+  _subscribeEthSyncing = () => {
+    return this._api.pubsub
+      .eth
+      .syncing((error, syncing) => {
+        if (error) {
+          return;
+        }
+
+        this._updateStatus({ syncing });
+      });
   }
 
-  getApiStatus = () => {
-    const { isConnected, isConnecting, needsToken, secureToken } = this._api;
+  _subscribeNetPeers = () => {
+    return this._api.pubsub
+      .parity
+      .netPeers((error, netPeers) => {
+        if (error || !netPeers) {
+          return;
+        }
 
-    return {
-      isConnected,
-      isConnecting,
-      needsToken,
-      secureToken
-    };
+        this._store.dispatch(statusCollection({ netPeers }));
+      });
   }
 
-  _pollStatus = () => {
-    const nextTimeout = (timeout = 1000) => {
-      if (this._timeoutIds.status) {
-        clearTimeout(this._timeoutIds.status);
-      }
-
-      this._timeoutIds.status = setTimeout(() => this._pollStatus(), timeout);
-    };
-
-    this.updateApiStatus();
-
-    if (!this._api.isConnected) {
-      nextTimeout(250);
-      return Promise.resolve();
-    }
-
-    const statusPromises = [
-      this._api.eth.syncing(),
-      this._api.parity.netPeers(),
-      this._api.parity.nodeHealth()
-    ];
-
-    return Promise
-      .all(statusPromises)
-      .then(([ syncing, netPeers, health ]) => {
-        const status = { netPeers, syncing, health };
+  _subscribeNodeHealth = () => {
+    return this._api.pubsub
+      .parity
+      .nodeHealth((error, health) => {
+        if (error || !health) {
+          return;
+        }
 
         health.overall = this._overallStatus(health);
         health.peers = health.peers || {};
         health.sync = health.sync || {};
         health.time = health.time || {};
 
-        if (!isEqual(status, this._status)) {
-          this._store.dispatch(statusCollection(status));
-          this._status = status;
-        }
-      })
-      .catch((error) => {
-        console.error('_pollStatus', error);
-      })
-      .then(() => {
-        nextTimeout();
+        this._store.dispatch(statusCollection({ health }));
       });
   }
 
-  _overallStatus = (health) => {
-    const allWithTime = [health.peers, health.sync, health.time].filter(x => x);
-    const all = [health.peers, health.sync].filter(x => x);
-    const statuses = all.map(x => x.status);
-    const bad = statuses.find(x => x === STATUS_BAD);
-    const needsAttention = statuses.find(x => x === STATUS_WARN);
-    const message = allWithTime.map(x => x.message).filter(x => x);
-
-    if (all.length) {
-      return {
-        status: bad || needsAttention || STATUS_OK,
-        message
-      };
+  _unsubscribeBlockNumber () {
+    if (this._blockNumberSubscriptionId) {
+      return this._api
+        .unsubscribe(this._blockNumberSubscriptionId)
+        .then(() => {
+          this._blockNumberSubscriptionId = null;
+        });
     }
 
-    return {
-      status: STATUS_BAD,
-      message: ['Unable to fetch node health.']
+    return Promise.resolve();
+  }
+
+  _pollApiStatus = () => {
+    const nextTimeout = (timeout = 1000) => {
+      if (this._timeoutIds.status) {
+        clearTimeout(this._timeoutIds.status);
+      }
+
+      this._timeoutIds.status = setTimeout(() => this._pollApiStatus(), timeout);
     };
+
+    this.updateApiStatus();
+
+    if (!this._api.isConnected) {
+      nextTimeout(250);
+    } else {
+      nextTimeout();
+    }
   }
 
   /**
@@ -259,7 +268,7 @@ export default class Status {
     }
 
     const { nodeKindFull } = this._store.getState().nodeStatus;
-    const defaultTimeout = (nodeKindFull === false ? 240 : 30) * 1000;
+    const defaultTimeout = (nodeKindFull === false ? 240 : 60) * 1000;
 
     const nextTimeout = (timeout = defaultTimeout) => {
       if (this._timeoutIds.longStatus) {
@@ -271,19 +280,18 @@ export default class Status {
 
     const statusPromises = [
       this._api.parity.nodeKind(),
-      this._api.parity.netPeers(),
       this._api.web3.clientVersion(),
       this._api.net.version(),
       this._api.parity.netChain()
     ];
 
-    if (nodeKindFull) {
-      statusPromises.push(this._upgradeStore.checkUpgrade());
-    }
+    // if (nodeKindFull) {
+    //   statusPromises.push(this._upgradeStore.checkUpgrade());
+    // }
 
     return Promise
       .all(statusPromises)
-      .then(([nodeKind, netPeers, clientVersion, netVersion, netChain]) => {
+      .then(([nodeKind, clientVersion, netVersion, netChain]) => {
         const isTest = [
           '2',  // morden
           '3',  // ropsten,
@@ -298,7 +306,6 @@ export default class Status {
         const longStatus = {
           nodeKind,
           nodeKindFull,
-          netPeers,
           clientVersion,
           netChain,
           netVersion,
@@ -310,11 +317,12 @@ export default class Status {
           this._longStatus = longStatus;
         }
       })
+      .then(() => {
+        nextTimeout();
+      })
       .catch((error) => {
         console.error('_pollLongStatus', error);
-      })
-      .then(() => {
-        nextTimeout(60000);
+        nextTimeout(30000);
       });
   }
 }

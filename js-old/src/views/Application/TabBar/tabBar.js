@@ -15,13 +15,12 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { Link } from 'react-router';
 import { Toolbar, ToolbarGroup } from 'material-ui/Toolbar';
 import { isEqual } from 'lodash';
 
-import { Tooltip, StatusIndicator } from '~/ui';
+import { StatusIndicator } from '~/ui';
 
 import Tab from './Tab';
 import styles from './tabBar.css';
@@ -66,15 +65,6 @@ class TabBar extends Component {
             </div>
           </Link>
           { this.renderTabItems() }
-          <Tooltip
-            className={ styles.tabbarTooltip }
-            text={
-              <FormattedMessage
-                id='tabBar.tooltip.overview'
-                defaultMessage='navigate between the different parts and views of the application, switching between an account view, token view and decentralized application view'
-              />
-            }
-          />
         </div>
         <ToolbarGroup className={ styles.last }>
           <div />

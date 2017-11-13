@@ -21,9 +21,9 @@
     "Parity"
   ],
   "scripts": {
-    "build": "npm run build:lib && npm run build:app && npm run build:embed",
-    "build:app": "webpack --progress --config webpack/app",
-    "build:lib": "webpack --progress --config webpack/libraries",
+    "build": "npm run build:inject && npm run build:app && npm run build:embed",
+    "build:app": "webpack --config webpack/app",
+    "build:inject": "webpack --config webpack/inject",
     "build:embed": "cross-env EMBED=1 node webpack/embed",
     "build:i18n": "npm run clean && npm run build && babel-node ./scripts/build-i18n.js",
     "ci:build": "cross-env NODE_ENV=production npm run build",
@@ -41,10 +41,7 @@
     "start:app": "node webpack/dev.server",
     "start:electron": "npm run build:app && electron .build/",
     "test": "cross-env NODE_ENV=test mocha --compilers ejs:ejsify 'src/**/*.spec.js'",
-    "test:coverage": "cross-env NODE_ENV=test istanbul cover _mocha -- --compilers ejs:ejsify 'src/**/*.spec.js'",
-    "test:e2e": "cross-env NODE_ENV=test mocha 'src/**/*.e2e.js'",
-    "test:npm": "(cd .npmjs && npm i) && node test/npmParity && node test/npmJsonRpc && (rimraf .npmjs/node_modules)",
-    "prepush": "npm run lint:cached"
+    "test:coverage": "cross-env NODE_ENV=test istanbul cover _mocha -- --compilers ejs:ejsify 'src/**/*.spec.js'"
   },
   "devDependencies": {
     "babel-cli": "6.26.0",
@@ -94,9 +91,7 @@
     "html-loader": "0.4.4",
     "html-webpack-plugin": "2.30.1",
     "http-proxy-middleware": "0.17.3",
-    "husky": "0.13.1",
     "ignore-styles": "5.0.1",
-    "image-webpack-loader": "3.2.0",
     "istanbul": "1.0.0-alpha.2",
     "jsdom": "9.11.0",
     "json-loader": "0.5.4",
@@ -135,18 +130,8 @@
     "yargs": "6.6.0"
   },
   "dependencies": {
-    "@parity/abi": "^2",
-    "@parity/api": "^2",
-    "@parity/jsonrpc": "^2",
-    "@parity/etherscan": "^2",
-    "@parity/ledger": "^2",
-    "@parity/shapeshift": "^2",
-    "@parity/shared": "^2",
-    "@parity/ui": "^2",
-    "@parity/plugin-signer-account": "paritytech/plugin-signer-account",
-    "@parity/plugin-signer-default": "paritytech/plugin-signer-default",
-    "@parity/plugin-signer-hardware": "paritytech/plugin-signer-hardware",
-    "@parity/plugin-signer-qr": "paritytech/plugin-signer-qr",
+    "@parity/abi": "2.1.x",
+    "@parity/api": "2.1.x",
     "@parity/dapp-account": "paritytech/dapp-account",
     "@parity/dapp-accounts": "paritytech/dapp-accounts",
     "@parity/dapp-address": "paritytech/dapp-address",
@@ -173,12 +158,21 @@
     "@parity/dapp-vaults": "paritytech/dapp-vaults",
     "@parity/dapp-wallet": "paritytech/dapp-wallet",
     "@parity/dapp-web": "paritytech/dapp-web",
-    "isomorphic-fetch": "2.2.1",
+    "@parity/etherscan": "2.1.x",
+    "@parity/jsonrpc": "2.1.x",
+    "@parity/ledger": "2.1.x",
+    "@parity/plugin-signer-account": "paritytech/plugin-signer-account",
+    "@parity/plugin-signer-default": "paritytech/plugin-signer-default",
+    "@parity/plugin-signer-hardware": "paritytech/plugin-signer-hardware",
+    "@parity/plugin-signer-qr": "paritytech/plugin-signer-qr",
+    "@parity/shapeshift": "2.1.x",
+    "@parity/shared": "2.2.x",
+    "@parity/ui": "2.2.x",
+    "keythereum": "1.0.2",
     "lodash.flatten": "4.4.0",
     "lodash.omitby": "4.6.0",
     "lodash.throttle": "4.1.1",
     "lodash.uniq": "4.5.0",
-    "oo7": "paritytech/oo7#34fdb5991f4e59b2cf84260cab48cec9a57d88c0",
     "prop-types": "15.5.10",
     "react": "15.6.1",
     "react-dom": "15.6.1",
@@ -189,7 +183,6 @@
     "redux": "3.6.0",
     "solc": "ngotchac/solc-js",
     "store": "1.3.20",
-    "web3": "0.17.0-beta",
-    "whatwg-fetch": "2.0.1"
+    "web3": "0.17.0-beta"
   }
 }

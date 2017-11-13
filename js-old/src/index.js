@@ -25,9 +25,9 @@ import { AppContainer } from 'react-hot-loader';
 
 import injectTapEventPlugin from 'react-tap-event-plugin';
 import { hashHistory } from 'react-router';
-import qs from 'querystring';
 
-import SecureApi from './secureApi';
+import Api from '@parity/api';
+
 import ContractInstances from '~/contracts';
 
 import { initStore } from './redux';
@@ -45,23 +45,7 @@ import '../assets/fonts/RobotoMono/font.css';
 
 injectTapEventPlugin();
 
-if (process.env.NODE_ENV === 'development') {
-  // Expose the React Performance Tools on the`window` object
-  const Perf = require('react-addons-perf');
-
-  window.Perf = Perf;
-}
-
-const AUTH_HASH = '#/auth?';
-
-let token = null;
-
-if (window.location.hash && window.location.hash.indexOf(AUTH_HASH) === 0) {
-  token = qs.parse(window.location.hash.substr(AUTH_HASH.length)).token;
-}
-
-const uiUrl = window.location.host;
-const api = new SecureApi(uiUrl, token);
+const api = new Api(window.ethereum);
 
 patchApi(api);
 loadSender(api);
@@ -71,8 +55,6 @@ const store = initStore(api, hashHistory);
 
 store.dispatch({ type: 'initAll', api });
 store.dispatch(setApi(api));
-
-window.secureApi = api;
 
 ReactDOM.render(
   <AppContainer>

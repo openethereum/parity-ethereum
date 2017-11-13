@@ -20,9 +20,9 @@ import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import PropTypes from 'prop-types';
 
-import HardwareStore from '@parity/shared/mobx/hardwareStore';
-import UpgradeStore from '@parity/shared/mobx/upgradeParity';
-import Errors from '@parity/ui/Errors';
+import HardwareStore from '@parity/shared/lib/mobx/hardwareStore';
+import UpgradeStore from '@parity/shared/lib/mobx/upgradeParity';
+import Errors from '@parity/ui/lib/Errors';
 
 import Connection from '../Connection';
 import DappRequests from '../DappRequests';
@@ -145,11 +145,9 @@ class Application extends Component {
 
 function mapStateToProps (state) {
   const { blockNumber } = state.nodeStatus;
-  const { hasAccounts } = state.personal;
 
   return {
-    blockNumber,
-    hasAccounts
+    blockNumber
   };
 }
 

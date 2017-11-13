@@ -18,7 +18,7 @@ import uniq from 'lodash.uniq';
 import store from 'store';
 
 import Api from '@parity/api';
-import { LOG_KEYS, getLogger } from '@parity/shared/config';
+import { LOG_KEYS, getLogger } from '@parity/shared/lib/config';
 
 const log = getLogger(LOG_KEYS.Signer);
 
