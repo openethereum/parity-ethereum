@@ -24,7 +24,6 @@ import builtinDapps from '@parity/shared/lib/config/dappsBuiltin.json';
 import viewsDapps from '@parity/shared/lib/config/dappsViews.json';
 import DappsStore from '@parity/shared/lib/mobx/dappsStore';
 import HistoryStore from '@parity/shared/lib/mobx/historyStore';
-// import { Bond } from 'oo7';
 
 import styles from './dapp.css';
 
@@ -163,6 +162,5 @@ export default class Dapp extends Component {
     const frame = document.getElementById('dappFrame');
 
     frame.style.opacity = 1;
-    // frame.contentWindow.injectedBondCache = Bond.cache;
   }
 }
