@@ -156,6 +156,7 @@
     "lodash.omitby": "4.6.0",
     "lodash.throttle": "4.1.1",
     "lodash.uniq": "4.5.0",
+    "material-ui": "0.16.5",
     "prop-types": "15.5.10",
     "react": "15.6.1",
     "react-dom": "15.6.1",
