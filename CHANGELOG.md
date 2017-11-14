@@ -1,3 +1,31 @@
+## Parity [v1.8.3](https://github.com/paritytech/parity/releases/tag/v1.8.3) (2017-11-15)
+
+The full list of included changes:
+
+- Disallow built-in multi-sig deploy (only watch) ([#7014](https://github.com/paritytech/parity/pull/7014))
+- Add hint in ActionParams for splitting code/data ([#6968](https://github.com/paritytech/parity/pull/6968))
+  - Action params and embedded params handling
+  - Fix name-spaces
+
+## Parity [v1.8.2](https://github.com/paritytech/parity/releases/tag/v1.8.2) (2017-10-26)
+
+Parity 1.8.2 fixes an important potential consensus issue and a few additional minor issues:
+
+- `blockNumber` transaction field is now returned correctly in RPC calls.
+- Possible crash when `--force-sealing` option is used.
+
+The full list of included changes:
+
+- Beta Backports ([#6891](https://github.com/paritytech/parity/pull/6891))
+  - Bump to v1.8.2
+  - Refactor static context check in CREATE. ([#6886](https://github.com/paritytech/parity/pull/6886))
+    - Refactor static context check in CREATE.
+    - Fix wasm.
+  - Fix serialization of non-localized transactions ([#6868](https://github.com/paritytech/parity/pull/6868))
+    - Fix serialization of non-localized transactions.
+    - Return proper SignedTransactions representation.
+  - Allow force sealing and reseal=0 for non-dev chains. ([#6878](https://github.com/paritytech/parity/pull/6878))
+
 ## Parity [v1.8.1](https://github.com/paritytech/parity/releases/tag/v1.8.1) (2017-10-20)
 
 Parity 1.8.1 fixes several bugs with token balances, tweaks snapshot-sync, improves the performance of nodes with huge amounts of accounts and changes the Trezor account derivation path.
@@ -13,7 +41,7 @@ Parity 1.8.1 fixes several bugs with token balances, tweaks snapshot-sync, impro
 
 If you don't want to downgrade or move your funds off your Trezor-device, you can also use the official Trezor application or other wallets allowing to select the derivation path to access the funds.
 
-Full list of included changes:
+The full list of included changes:
 
 - Add ECIP1017 to Morden config ([#6845](https://github.com/paritytech/parity/pull/6845))
 - Ethstore optimizations ([#6844](https://github.com/paritytech/parity/pull/6844))
@@ -45,7 +73,7 @@ Further, users upgrading from 1.7 should acknowledge the following changes:
 - `trace_filter` RPC method now comes with pagination. [#6312](https://github.com/paritytech/parity/pull/6312)
 - Added tracing of rewards on closing blocks. [#6194](https://github.com/paritytech/parity/pull/6194)
 
-Full list of included changes:
+The full list of included changes:
 
 - Updated ethabi to fix auto-update ([#6771](https://github.com/paritytech/parity/pull/6771))
 - Fixed kovan chain validation ([#6760](https://github.com/paritytech/parity/pull/6760))
