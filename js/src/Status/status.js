@@ -19,14 +19,14 @@ import PropTypes from 'prop-types';
 import { observer } from 'mobx-react';
 import { FormattedMessage } from 'react-intl';
 
-import BlockNumber from '@parity/ui/BlockNumber';
-import ClientVersion from '@parity/ui/ClientVersion';
-import GradientBg from '@parity/ui/GradientBg';
-import IdentityIcon from '@parity/ui/IdentityIcon';
-import NetChain from '@parity/ui/NetChain';
-import NetPeers from '@parity/ui/NetPeers';
-import SignerPending from '@parity/ui/SignerPending';
-import StatusIndicator from '@parity/ui/StatusIndicator';
+import BlockNumber from '@parity/ui/lib/BlockNumber';
+import ClientVersion from '@parity/ui/lib/ClientVersion';
+import GradientBg from '@parity/ui/lib/GradientBg';
+import IdentityIcon from '@parity/ui/lib/IdentityIcon';
+import NetChain from '@parity/ui/lib/NetChain';
+import NetPeers from '@parity/ui/lib/NetPeers';
+import SignerPending from '@parity/ui/lib/SignerPending';
+import StatusIndicator from '@parity/ui/lib/StatusIndicator';
 
 import Consensus from './Consensus';
 import AccountStore from '../ParityBar/accountStore';

@@ -22,16 +22,17 @@ import { AppContainer } from 'react-hot-loader';
 
 import injectTapEventPlugin from 'react-tap-event-plugin';
 
-import ContractInstances from '@parity/shared/contracts';
-import { initStore } from '@parity/shared/redux';
-import { setApi } from '@parity/shared/redux/providers/apiActions';
-import ContextProvider from '@parity/ui/ContextProvider';
-import muiTheme from '@parity/ui/Theme';
-import { patchApi } from '@parity/shared/util/tx';
+import ContractInstances from '@parity/shared/lib/contracts';
+import { initStore } from '@parity/shared/lib/redux';
+import { setApi } from '@parity/shared/lib/redux/providers/apiActions';
+import ContextProvider from '@parity/ui/lib/ContextProvider';
+import muiTheme from '@parity/ui/lib/Theme';
+import { patchApi } from '@parity/shared/lib/util/tx';
 
 import SecureApi from './secureApi';
 
-import '@parity/shared/environment';
+import './ShellExtend';
+import '@parity/shared/lib/environment';
 import '@parity/shared/assets/fonts/Roboto/font.css';
 import '@parity/shared/assets/fonts/RobotoMono/font.css';
 
@@ -70,8 +71,6 @@ class FrameSecureApi extends SecureApi {
   connect () {
     // Do nothing - this API does not need connecting
     this.emit('connecting');
-    // Fetch settings
-    this._fetchSettings();
     // Fire connected event with some delay.
     setTimeout(() => {
       this.emit('connected');
@@ -99,7 +98,7 @@ transport.uiUrl = uiUrl.replace('http://', '').replace('https://', '');
 const api = new FrameSecureApi(transport);
 
 patchApi(api);
-ContractInstances.create(api);
+ContractInstances.get(api);
 
 const store = initStore(api, null, true);
 
@@ -125,3 +124,9 @@ ReactDOM.render(
   </AppContainer>,
   container
 );
+
+// testing, signer plugins
+import '@parity/plugin-signer-account';
+import '@parity/plugin-signer-default';
+import '@parity/plugin-signer-hardware';
+import '@parity/plugin-signer-qr';

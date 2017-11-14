@@ -44,7 +44,6 @@ pub fn write_encrypted_message<A>(a: A, key: &KeyPair, message: Message) -> Writ
 		Err(error) => (Some(error), write_all(a, Vec::new())),
 	};
 
-
 	WriteMessage {
 		error: error,
 		future: future,

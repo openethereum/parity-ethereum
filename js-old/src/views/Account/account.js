@@ -26,7 +26,6 @@ import HardwareStore from '~/mobx/hardwareStore';
 import ExportStore from '~/modals/ExportAccount/exportStore';
 import { DeleteAccount, EditMeta, Faucet, PasswordManager, Shapeshift, Transfer, Verification } from '~/modals';
 import { setVisibleAccounts } from '~/redux/providers/personalActions';
-import { fetchCertifiers, fetchCertifications } from '~/redux/providers/certifications/actions';
 import { Actionbar, Button, ConfirmDialog, Input, Page, Portal } from '~/ui';
 import { DeleteIcon, DialIcon, EditIcon, LockedIcon, SendIcon, VerifyIcon, FileDownloadIcon } from '~/ui/Icons';
 
@@ -45,8 +44,6 @@ class Account extends Component {
 
   static propTypes = {
     accounts: PropTypes.object.isRequired,
-    fetchCertifiers: PropTypes.func.isRequired,
-    fetchCertifications: PropTypes.func.isRequired,
     setVisibleAccounts: PropTypes.func.isRequired,
 
     account: PropTypes.object,
@@ -67,7 +64,6 @@ class Account extends Component {
   }
 
   componentDidMount () {
-    this.props.fetchCertifiers();
     this.setVisibleAccounts();
   }
 
@@ -90,11 +86,10 @@ class Account extends Component {
   }
 
   setVisibleAccounts (props = this.props) {
-    const { params, setVisibleAccounts, fetchCertifications } = props;
+    const { params, setVisibleAccounts } = props;
     const addresses = [params.address];
 
     setVisibleAccounts(addresses);
-    fetchCertifications(params.address);
   }
 
   render () {
@@ -370,14 +365,14 @@ class Account extends Component {
           onDeny={ this.exportClose }
           title={
             <FormattedMessage
-              id='export.account.title'
+              id='account.export.title'
               defaultMessage='Export Account'
             />
           }
         >
           <div className={ styles.textbox }>
             <FormattedMessage
-              id='export.account.info'
+              id='account.export.info'
               defaultMessage='Export your account as a JSON file. Please enter the password linked with this account.'
             />
           </div>
@@ -388,13 +383,13 @@ class Account extends Component {
             type='password'
             hint={
               <FormattedMessage
-                id='export.account.password.hint'
+                id='account.export.password.hint'
                 defaultMessage='The password specified when creating this account'
               />
             }
             label={
               <FormattedMessage
-                id='export.account.password.label'
+                id='account.export.password.label'
                 defaultMessage='Account password'
               />
             }
@@ -524,8 +519,6 @@ function mapStateToProps (state, props) {
 
 function mapDispatchToProps (dispatch) {
   return bindActionCreators({
-    fetchCertifiers,
-    fetchCertifications,
     newError,
     setVisibleAccounts
   }, dispatch);

@@ -21,12 +21,12 @@ import ReactDOM from 'react-dom';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
-import { hideRequest } from '@parity/shared/redux/providers/requestsActions';
-import MethodDecoding from '@parity/ui/MethodDecoding';
-import IdentityIcon from '@parity/ui/IdentityIcon';
-import Progress from '@parity/ui/Progress';
-import ScrollableText from '@parity/ui/ScrollableText';
-import ShortenedHash from '@parity/ui/ShortenedHash';
+import { hideRequest } from '@parity/shared/lib/redux/providers/requestsActions';
+import MethodDecoding from '@parity/ui/lib/MethodDecoding';
+import IdentityIcon from '@parity/ui/lib/IdentityIcon';
+import Progress from '@parity/ui/lib/Progress';
+import ScrollableText from '@parity/ui/lib/ScrollableText';
+import ShortenedHash from '@parity/ui/lib/ShortenedHash';
 
 import styles from './requests.css';
 

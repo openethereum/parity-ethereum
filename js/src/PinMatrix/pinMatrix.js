@@ -18,7 +18,7 @@ import React, { Component } from 'react';
 import PropTypes from 'prop-types';
 import { FormattedMessage } from 'react-intl';
 
-import GradientBg from '@parity/ui/GradientBg';
+import GradientBg from '@parity/ui/lib/GradientBg';
 
 import styles from './pinMatrix.css';
 

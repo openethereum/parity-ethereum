@@ -14,8 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-// Run with `webpack --config webpack.libraries.js`
-
 const path = require('path');
 
 const rulesEs6 = require('./rules/es6');
@@ -28,12 +26,12 @@ const DEST = process.env.BUILD_DEST || '.build';
 module.exports = {
   context: path.join(__dirname, '../src'),
   devtool: isProd
-    ? '#source-map'
+    ? false
     : '#eval',
   entry: {
     inject: ['./inject.js'],
-    parity: ['./inject.js'],
-    web3: ['./inject.js']
+    parity: ['./inject.script.js'],
+    web3: ['./inject.script.js']
   },
   output: {
     path: path.join(__dirname, '../', DEST),
@@ -43,9 +41,7 @@ module.exports = {
   },
 
   resolve: {
-    alias: {
-
-    }
+    alias: {}
   },
 
   node: {

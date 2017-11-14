@@ -18,9 +18,9 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import { FormattedMessage } from 'react-intl';
 
-import Button from '@parity/ui/Button';
+import Button from '@parity/ui/lib/Button';
 
-import DappsStore from '@parity/shared/mobx/dappsStore';
+import DappsStore from '@parity/shared/lib/mobx/dappsStore';
 
 export default function Request ({ appId, className, approveRequest, denyRequest, queueId, request: { from, method } }) {
   const _onApprove = () => approveRequest(queueId, false);
