@@ -25,9 +25,9 @@ use serde::Serialize;
 use serde_json;
 use url::percent_encoding::percent_decode;
 
-use traits::{ServerKeyGenerator, DocumentKeyServer, MessageSigner, KeyServer};
+use traits::KeyServer;
 use serialization::{SerializableEncryptedDocumentKeyShadow, SerializableBytes, SerializablePublic};
-use types::all::{Error, Public, MessageHash, EncryptedMessageSignature, NodeAddress, RequestSignature, ServerKeyId,
+use types::all::{Error, Public, MessageHash, NodeAddress, RequestSignature, ServerKeyId,
 	EncryptedDocumentKey, EncryptedDocumentKeyShadow};
 
 /// Key server http-requests listener. Available requests:
@@ -38,9 +38,9 @@ use types::all::{Error, Public, MessageHash, EncryptedMessageSignature, NodeAddr
 /// To get document key shadow:						GET			/shadow/{server_key_id}/{signature} 
 /// To sign message with server key:				GET			/{server_key_id}/{signature}/{message_hash}
 
-pub struct KeyServerHttpListener<T: KeyServer + 'static> {
-	http_server: Option<HttpListening>,
-	handler: Arc<KeyServerSharedHttpHandler<T>>,
+pub struct KeyServerHttpListener {
+	http_server: HttpListening,
+	_handler: Arc<KeyServerSharedHttpHandler>,
 }
 
 /// Parsed http request
@@ -63,77 +63,44 @@ enum Request {
 }
 
 /// Cloneable http handler
-struct KeyServerHttpHandler<T: KeyServer + 'static> {
-	handler: Arc<KeyServerSharedHttpHandler<T>>,
+struct KeyServerHttpHandler {
+	handler: Arc<KeyServerSharedHttpHandler>,
 }
 
 /// Shared http handler
-struct KeyServerSharedHttpHandler<T: KeyServer + 'static> {
-	key_server: T,
+struct KeyServerSharedHttpHandler {
+	key_server: Arc<KeyServer>,
 }
 
-impl<T> KeyServerHttpListener<T> where T: KeyServer + 'static {
+impl KeyServerHttpListener {
 	/// Start KeyServer http listener
-	pub fn start(listener_address: Option<NodeAddress>, key_server: T) -> Result<Self, Error> {
+	pub fn start(listener_address: NodeAddress, key_server: Arc<KeyServer>) -> Result<Self, Error> {
 		let shared_handler = Arc::new(KeyServerSharedHttpHandler {
 			key_server: key_server,
 		});
 
-		let http_server = listener_address
-			.map(|listener_address| format!("{}:{}", listener_address.address, listener_address.port))
-			.map(|listener_address| HttpServer::http(&listener_address).expect("cannot start HttpServer"))
-			.map(|http_server| http_server.handle(KeyServerHttpHandler {
+		let listener_address = format!("{}:{}", listener_address.address, listener_address.port);
+		let http_server = HttpServer::http(&listener_address).expect("cannot start HttpServer");
+		let http_server = http_server.handle(KeyServerHttpHandler {
 				handler: shared_handler.clone(),
-			}).expect("cannot start HttpServer"));
+			}).expect("cannot start HttpServer");
 
 		let listener = KeyServerHttpListener {
 			http_server: http_server,
-			handler: shared_handler,
+			_handler: shared_handler,
 		};
 		Ok(listener)
 	}
 }
 
-impl<T> KeyServer for KeyServerHttpListener<T> where T: KeyServer + 'static {}
-
-impl<T> ServerKeyGenerator for KeyServerHttpListener<T> where T: KeyServer + 'static {
-	fn generate_key(&self, key_id: &ServerKeyId, signature: &RequestSignature, threshold: usize) -> Result<Public, Error> {
-		self.handler.key_server.generate_key(key_id, signature, threshold)
-	}
-}
-
-impl<T> DocumentKeyServer for KeyServerHttpListener<T> where T: KeyServer + 'static {
-	fn store_document_key(&self, key_id: &ServerKeyId, signature: &RequestSignature, common_point: Public, encrypted_document_key: Public) -> Result<(), Error> {
-		self.handler.key_server.store_document_key(key_id, signature, common_point, encrypted_document_key)
-	}
-
-	fn generate_document_key(&self, key_id: &ServerKeyId, signature: &RequestSignature, threshold: usize) -> Result<EncryptedDocumentKey, Error> {
-		self.handler.key_server.generate_document_key(key_id, signature, threshold)
-	}
-
-	fn restore_document_key(&self, key_id: &ServerKeyId, signature: &RequestSignature) -> Result<EncryptedDocumentKey, Error> {
-		self.handler.key_server.restore_document_key(key_id, signature)
-	}
-
-	fn restore_document_key_shadow(&self, key_id: &ServerKeyId, signature: &RequestSignature) -> Result<EncryptedDocumentKeyShadow, Error> {
-		self.handler.key_server.restore_document_key_shadow(key_id, signature)
-	}
-}
-
-impl <T> MessageSigner for KeyServerHttpListener<T> where T: KeyServer + 'static {
-	fn sign_message(&self, key_id: &ServerKeyId, signature: &RequestSignature, message: MessageHash) -> Result<EncryptedMessageSignature, Error> {
-		self.handler.key_server.sign_message(key_id, signature, message)
-	}
-}
-
-impl<T> Drop for KeyServerHttpListener<T> where T: KeyServer + 'static {
+impl Drop for KeyServerHttpListener {
 	fn drop(&mut self) {
 		// ignore error as we are dropping anyway
 		self.http_server.take().map(|mut s| { let _ = s.close(); });
 	}
 }
 
-impl<T> HttpHandler for KeyServerHttpHandler<T> where T: KeyServer + 'static {
+impl HttpHandler for KeyServerHttpHandler {
 	fn handle(&self, req: HttpRequest, mut res: HttpResponse) {
 		if req.headers.has::<header::Origin>() {
 			warn!(target: "secretstore", "Ignoring {}-request {} with Origin header", req.method, req.uri);
@@ -310,6 +277,7 @@ fn parse_request(method: &HttpMethod, uri_path: &str) -> Request {
 
 #[cfg(test)]
 mod tests {
+	use std::sync::Arc;
 	use hyper::method::Method as HttpMethod;
 	use key_server::tests::DummyKeyServer;
 	use types::all::NodeAddress;
@@ -317,12 +285,12 @@ mod tests {
 
 	#[test]
 	fn http_listener_successfully_drops() {
-		let key_server = DummyKeyServer;
+		let key_server = Arc::new(DummyKeyServer);
 		let address = NodeAddress { address: "127.0.0.1".into(), port: 9000 };
 		let listener = KeyServerHttpListener::start(Some(address), key_server).unwrap();
 		drop(listener);
 	}
-
+ 
 	#[test]
 	fn parse_request_successful() {
 		// POST		/shadow/{server_key_id}/{signature}/{threshold}						=> generate server key

@@ -54,12 +54,12 @@ mod types;
 
 mod traits;
 mod acl_storage;
-mod http_listener;
 mod key_server;
 mod key_storage;
 mod serialization;
 mod key_server_set;
 mod node_key_pair;
+mod listener;
 
 use std::sync::Arc;
 use ethcore::client::Client;
@@ -71,8 +71,6 @@ pub use self::node_key_pair::{PlainNodeKeyPair, KeyStoreNodeKeyPair};
 
 /// Start new key server instance
 pub fn start(client: Arc<Client>, self_key_pair: Arc<NodeKeyPair>, config: ServiceConfiguration) -> Result<Box<KeyServer>, Error> {
-	use std::sync::Arc;
-
 	let acl_storage: Arc<acl_storage::AclStorage> = if config.acl_check_enabled {
 			acl_storage::OnChainAclStorage::new(&client)
 		} else {
@@ -80,7 +78,12 @@ pub fn start(client: Arc<Client>, self_key_pair: Arc<NodeKeyPair>, config: Servi
 		};
 	let key_server_set = key_server_set::OnChainKeyServerSet::new(&client, config.cluster_config.nodes.clone())?;
 	let key_storage = Arc::new(key_storage::PersistentKeyStorage::new(&config)?);
-	let key_server = key_server::KeyServerImpl::new(&config.cluster_config, key_server_set, self_key_pair, acl_storage, key_storage)?;
-	let listener = http_listener::KeyServerHttpListener::start(config.listener_address, key_server)?;
+	let key_server = Arc::new(key_server::KeyServerImpl::new(&config.cluster_config, key_server_set, self_key_pair.clone(), acl_storage, key_storage)?);
+	let http_listener = match config.listener_address {
+		Some(listener_address) => Some(listener::http_listener::KeyServerHttpListener::start(listener_address, key_server.clone())?),
+		None => None,
+	};
+	let contract_listener = listener::service_contract_listener::ServiceContractListener::new(&client, key_server.clone(), self_key_pair);
+	let listener = listener::Listener::new(key_server, Some(http_listener), Some(contract_listener));
 	Ok(Box::new(listener))
 }
