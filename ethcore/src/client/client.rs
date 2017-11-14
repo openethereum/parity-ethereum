@@ -153,6 +153,9 @@ struct Importer {
 
 	/// Handles block sealing
 	pub miner: Arc<Miner>,
+
+	/// Ancient block verifier: import an ancient sequence of blocks in order from a starting epoch
+	pub ancient_verifier: Mutex<Option<AncientVerifier>>,
 }
 
 /// Blockchain database client backed by a persistent database. Owns and manages a blockchain and a block queue.
@@ -207,9 +210,6 @@ pub struct Client {
 	/// Random number generator used by `Client`
 	rng: Mutex<OsRng>,
 
-	/// Ancient block verifier: import an ancient sequence of blocks in order from a starting epoch
-	ancient_verifier: Mutex<Option<AncientVerifier>>,
-
 	/// An action to be done if a mode/spec_name change happens
 	on_user_defaults_change: Mutex<Option<Box<FnMut(Option<Mode>) + 'static + Send>>>,
 
@@ -236,6 +236,7 @@ impl Importer {
 			verifier: verification::new(config.verifier_type.clone()),
 			block_queue,
 			miner,
+			ancient_verifier: Mutex::new(None),
 		}
 	}
 }
@@ -317,7 +318,6 @@ impl Client {
 			factories: factories,
 			history: history,
 			rng: Mutex::new(OsRng::new().map_err(UtilError::from)?),
-			ancient_verifier: Mutex::new(None),
 			on_user_defaults_change: Mutex::new(None),
 			registrar: Mutex::new(None),
 			exit_handler: Mutex::new(None),
@@ -668,7 +668,7 @@ impl Client {
 		{
 			let _timer = PerfTimer::new("import_old_block");
 			let chain = self.chain.read();
-			let mut ancient_verifier = self.ancient_verifier.lock();
+			let mut ancient_verifier = self.importer.ancient_verifier.lock();
 
 			{
 				// closure for verifying a block.
