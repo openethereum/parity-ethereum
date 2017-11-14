@@ -144,6 +144,9 @@ impl SleepState {
 struct Importer {
 	/// Lock used during block import
 	pub import_lock: Mutex<()>, // FIXME Maybe wrap the whole `Importer` instead?
+
+	/// Used to verify blocks
+	pub verifier: Box<Verifier>,
 }
 
 /// Blockchain database client backed by a persistent database. Owns and manages a blockchain and a block queue.
@@ -179,7 +182,6 @@ pub struct Client {
 	/// Report on the status of client
 	report: RwLock<ClientReport>,
 
-	verifier: Box<Verifier>,
 	miner: Arc<Miner>,
 	sleep_state: Mutex<SleepState>,
 
@@ -217,9 +219,10 @@ pub struct Client {
 }
 
 impl Importer {
-	pub fn new() -> Importer {
+	pub fn new(config: &ClientConfig) -> Importer {
 		Importer {
 			import_lock: Mutex::new(()),
+			verifier: verification::new(config.verifier_type.clone()),
 		}
 	}
 }
@@ -281,6 +284,8 @@ impl Client {
 
 		let awake = match config.mode { Mode::Dark(..) | Mode::Off => false, _ => true };
 
+		let importer = Importer::new(&config);
+
 		let client = Arc::new(Client {
 			enabled: AtomicBool::new(true),
 			sleep_state: Mutex::new(SleepState::new(awake)),
@@ -290,7 +295,6 @@ impl Client {
 			tracedb: tracedb,
 			engine: engine,
 			pruning: config.pruning.clone(),
-			verifier: verification::new(config.verifier_type.clone()),
 			config: config,
 			db: RwLock::new(db),
 			state_db: Mutex::new(state_db),
@@ -308,7 +312,7 @@ impl Client {
 			on_user_defaults_change: Mutex::new(None),
 			registrar: Mutex::new(None),
 			exit_handler: Mutex::new(None),
-			importer: Importer::new(),
+			importer,
 		});
 
 		// prune old states.
@@ -483,7 +487,7 @@ impl Client {
 		};
 
 		// Verify Block Family
-		let verify_family_result = self.verifier.verify_block_family(
+		let verify_family_result = self.importer.verifier.verify_block_family(
 			header,
 			&parent,
 			engine,
@@ -495,7 +499,7 @@ impl Client {
 			return Err(());
 		};
 
-		let verify_external_result = self.verifier.verify_block_external(header, engine);
+		let verify_external_result = self.importer.verifier.verify_block_external(header, engine);
 		if let Err(e) = verify_external_result {
 			warn!(target: "client", "Stage 4 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 			return Err(());
@@ -524,7 +528,7 @@ impl Client {
 		}
 
 		// Final Verification
-		if let Err(e) = self.verifier.verify_block_final(header, locked_block.block().header()) {
+		if let Err(e) = self.importer.verifier.verify_block_final(header, locked_block.block().header()) {
 			warn!(target: "client", "Stage 5 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 			return Err(());
 		}
