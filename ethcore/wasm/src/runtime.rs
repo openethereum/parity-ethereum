@@ -55,6 +55,8 @@ pub enum UserTrap {
 	Unknown,
 	/// Passed string had invalid utf-8 encoding
 	BadUtf8,
+	/// Log event error
+	Log,
 	/// Other error in native code
 	Other,
 	/// Panic with message
@@ -75,6 +77,7 @@ impl ::std::fmt::Display for UserTrap {
 			UserTrap::AllocationFailed => write!(f, "Memory allocation failed (OOM)"),
 			UserTrap::BadUtf8 => write!(f, "String encoding is bad utf-8 sequence"),
 			UserTrap::GasLimit => write!(f, "Invocation resulted in gas limit violated"),
+			UserTrap::Log => write!(f, "Error occured while logging an event"),
 			UserTrap::Other => write!(f, "Other unspecified error"),
 			UserTrap::Panic(ref msg) => write!(f, "Panic: {}", msg),
 		}
@@ -225,6 +228,21 @@ impl<'a, 'b> Runtime<'a, 'b> {
 		where F: FnOnce(&vm::Schedule) -> u64
 	{
 		let amount = f(self.ext.schedule());
+		if !self.charge_gas(amount as u64) {
+			Err(UserTrap::GasLimit.into())
+		} else {
+			Ok(())
+		}
+	}
+
+	pub fn overflow_charge<F>(&mut self, f: F) -> Result<(), InterpreterError>
+		where F: FnOnce(&vm::Schedule) -> Option<u64>
+	{
+		let amount = match f(self.ext.schedule()) {
+			Some(amount) => amount,
+			None => { return Err(UserTrap::GasLimit.into()); }
+		};
+
 		if !self.charge_gas(amount as u64) {
 			Err(UserTrap::GasLimit.into())
 		} else {
@@ -542,32 +560,67 @@ impl<'a, 'b> Runtime<'a, 'b> {
 	fn mem_copy(&mut self, context: InterpreterCallerContext)
 		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
 	{
+		//
+		// method signature:
+		//   fn memcpy(dest: *const u8, src: *const u8, len: u32) -> *mut u8;
+		//
+
 		let len = context.value_stack.pop_as::<i32>()? as u32;
-		let dst = context.value_stack.pop_as::<i32>()? as u32;
 		let src = context.value_stack.pop_as::<i32>()? as u32;
+		let dst = context.value_stack.pop_as::<i32>()? as u32;
 
 		self.charge(|schedule| schedule.wasm.mem_copy as u64 * len as u64)?;
 
-		let mem = self.memory().get(src, len as usize)?;
-		self.memory().set(dst, &mem)?;
+		self.memory().copy_nonoverlapping(src as usize, dst as usize, len as usize)?;
 
-		Ok(Some(0i32.into()))
+		Ok(Some(Into::into(dst as i32)))
 	}
 
-	fn bswap_32(x: u32) -> u32 {
-		x >> 24 | x >> 8 & 0xff00 | x << 8 & 0xff0000 | x << 24
+	fn mem_move(&mut self, context: InterpreterCallerContext)
+		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
+	{
+		//
+		// method signature:
+		//   fn memmove(dest: *const u8, src: *const u8, len: u32) -> *mut u8;
+		//
+
+		let len = context.value_stack.pop_as::<i32>()? as u32;
+		let src = context.value_stack.pop_as::<i32>()? as u32;
+		let dst = context.value_stack.pop_as::<i32>()? as u32;
+
+		self.charge(|schedule| schedule.wasm.mem_move as u64 * len as u64)?;
+
+		self.memory().copy(src as usize, dst as usize, len as usize)?;
+
+		Ok(Some(Into::into(dst as i32)))
+	}
+
+	fn mem_set(&mut self, context: InterpreterCallerContext)
+		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
+	{
+		//
+		// method signature:
+		//   fn memset(dest: *const u8, c: u32, len: u32) -> *mut u8;
+		//
+
+		let len = context.value_stack.pop_as::<i32>()? as u32;
+		let c = context.value_stack.pop_as::<i32>()? as u32;
+		let dst = context.value_stack.pop_as::<i32>()? as u32;
+
+		self.charge(|schedule| schedule.wasm.mem_set as u64 * len as u64)?;
+
+		self.memory().clear(dst as usize, c as u8, len as usize)?;
+
+		Ok(Some(Into::into(dst as i32)))
 	}
 
 	fn bitswap_i64(&mut self, context: InterpreterCallerContext)
 		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
 	{
-		let x1 = context.value_stack.pop_as::<i32>()?;
-		let x2 = context.value_stack.pop_as::<i32>()?;
+		let x = context.value_stack.pop_as::<i64>()?;
+		let result = x.swap_bytes();
 
-		let result = ((Runtime::bswap_32(x2 as u32) as u64) << 32
-			| Runtime::bswap_32(x1 as u32) as u64) as i64;
-
-		self.return_i64(result)
+		Ok(Some(result.into()))
 	}
 
 	fn user_panic(&mut self, context: InterpreterCallerContext)
@@ -588,12 +641,9 @@ impl<'a, 'b> Runtime<'a, 'b> {
 		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
 	{
 		let return_ptr = context.value_stack.pop_as::<i32>()? as u32;
-		let block_hi = context.value_stack.pop_as::<i32>()? as u32;
-		let block_lo = context.value_stack.pop_as::<i32>()? as u32;
+		let block_num = context.value_stack.pop_as::<i64>()? as u64;
 
 		self.charge(|schedule| schedule.blockhash_gas as u64)?;
-
-		let block_num = (block_hi as u64) << 32 | block_lo as u64;
 
 		trace!("Requesting block hash for block #{}", block_num);
 		let hash = self.ext.blockhash(&U256::from(block_num));
@@ -676,14 +726,14 @@ impl<'a, 'b> Runtime<'a, 'b> {
 		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
 	{
 		let timestamp = self.ext.env_info().timestamp as i64;
-		self.return_i64(timestamp)
+		Ok(Some(timestamp.into()))
 	}
 
 	fn block_number(&mut self, _context: InterpreterCallerContext)
 		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
 	{
-		let block_number: u64 = self.ext.env_info().number.into();
-		self.return_i64(block_number as i64)
+		let block_number = self.ext.env_info().number as i64;
+		Ok(Some(block_number.into()))
 	}
 
 	fn difficulty(&mut self, context: InterpreterCallerContext)
@@ -708,25 +758,6 @@ impl<'a, 'b> Runtime<'a, 'b> {
 		Ok(None)
 	}
 
-	fn return_i64(&mut self, val: i64) -> Result<Option<interpreter::RuntimeValue>, InterpreterError> {
-		self.charge(|schedule| schedule.wasm.static_u64 as u64)?;
-
-		let uval = val as u64;
-		let hi = (uval >> 32) as i32;
-		let lo = (uval << 32 >> 32) as i32;
-
-		let target = self.instance.module("contract").ok_or(UserTrap::Other)?;
-		target.execute_export(
-			"setTempRet0",
-			self.execution_params().add_argument(
-				interpreter::RuntimeValue::I32(hi).into()
-			),
-		)?;
-		Ok(Some(
-			(lo).into()
-		))
-	}
-
 	pub fn execution_params(&mut self) -> interpreter::ExecutionParams<UserTrap> {
 		use super::env;
 
@@ -749,6 +780,44 @@ impl<'a, 'b> Runtime<'a, 'b> {
 	pub fn ext(&mut self) -> &mut vm::Ext {
 		self.ext
 	}
+
+	pub fn log(&mut self, context: InterpreterCallerContext)
+		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
+	{
+		// signature is:
+		// pub fn elog(topic_ptr: *const u8, topic_count: u32, data_ptr: *const u8, data_len: u32);
+		let data_len = context.value_stack.pop_as::<i32>()? as u32;
+		let data_ptr = context.value_stack.pop_as::<i32>()? as u32;
+		let topic_count = context.value_stack.pop_as::<i32>()? as u32;
+		let topic_ptr = context.value_stack.pop_as::<i32>()? as u32;
+
+		if topic_count > 4 {
+			return Err(UserTrap::Log.into());
+		}
+
+		self.overflow_charge(|schedule|
+			{
+				let topics_gas = schedule.log_gas as u64 + schedule.log_topic_gas as u64 * topic_count as u64;
+				(schedule.log_data_gas as u64)
+					.checked_mul(schedule.log_data_gas as u64)
+					.and_then(|data_gas| data_gas.checked_add(topics_gas))
+			}
+		)?;
+
+		let mut topics: Vec<H256> = Vec::with_capacity(topic_count as usize);
+		topics.resize(topic_count as usize, H256::zero());
+		for i in 0..topic_count {
+			let offset = i.checked_mul(32).ok_or(UserTrap::MemoryAccessViolation)?
+				.checked_add(topic_ptr).ok_or(UserTrap::MemoryAccessViolation)?;
+
+			*topics.get_mut(i as usize)
+				.expect("topics is resized to `topic_count`, i is in 0..topic count iterator, get_mut uses i as an indexer, get_mut cannot fail; qed")
+				= H256::from(&self.memory.get(offset, 32)?[..]);
+		}
+		self.ext.log(topics, &self.memory.get(data_ptr, data_len as usize)?).map_err(|_| UserTrap::Log)?;
+
+		Ok(None)
+	}
 }
 
 impl<'a, 'b> interpreter::UserFunctionExecutor<UserTrap> for Runtime<'a, 'b> {
@@ -756,10 +825,10 @@ impl<'a, 'b> interpreter::UserFunctionExecutor<UserTrap> for Runtime<'a, 'b> {
 		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
 	{
 		match name {
-			"_malloc" => {
+			"_ext_malloc" => {
 				self.malloc(context)
 			},
-			"_free" => {
+			"_ext_free" => {
 				// Since it is arena allocator, free does nothing
 				// todo: update if changed
 				self.user_noop(context)
@@ -797,6 +866,15 @@ impl<'a, 'b> interpreter::UserFunctionExecutor<UserTrap> for Runtime<'a, 'b> {
 			"_emscripten_memcpy_big" => {
 				self.mem_copy(context)
 			},
+			"_ext_memcpy" => {
+				self.mem_copy(context)
+			},
+			"_ext_memmove" => {
+				self.mem_move(context)
+			},
+			"_ext_memset" => {
+				self.mem_set(context)
+			},
 			"_llvm_bswap_i64" => {
 				self.bitswap_i64(context)
 			},
@@ -832,6 +910,9 @@ impl<'a, 'b> interpreter::UserFunctionExecutor<UserTrap> for Runtime<'a, 'b> {
 			},
 			"_value" => {
 				self.value(context)
+			},
+			"_elog" => {
+				self.log(context)
 			},
 			_ => {
 				trace!(target: "wasm", "Trapped due to unhandled function: '{}'", name);
