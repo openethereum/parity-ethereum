@@ -28,7 +28,6 @@ use timer::PerfTimer;
 use bytes::Bytes;
 use util::{Address, DBValue};
 use journaldb;
-use util_error::UtilError;
 use trie::{TrieSpec, TrieFactory, Trie};
 use kvdb::{KeyValueDB, DBTransaction};
 
@@ -156,6 +155,9 @@ struct Importer {
 
 	/// Ancient block verifier: import an ancient sequence of blocks in order from a starting epoch
 	pub ancient_verifier: Mutex<Option<AncientVerifier>>,
+
+	/// Random number generator used by `AncientVerifier`
+	pub rng: Mutex<OsRng>,
 }
 
 /// Blockchain database client backed by a persistent database. Owns and manages a blockchain and a block queue.
@@ -207,9 +209,6 @@ pub struct Client {
 	/// Number of eras kept in a journal before they are pruned
 	history: u64,
 
-	/// Random number generator used by `Client`
-	rng: Mutex<OsRng>,
-
 	/// An action to be done if a mode/spec_name change happens
 	on_user_defaults_change: Mutex<Option<Box<FnMut(Option<Mode>) + 'static + Send>>>,
 
@@ -228,16 +227,17 @@ impl Importer {
 		engine: Arc<EthEngine>,
 		message_channel: IoChannel<ClientIoMessage>,
 		miner: Arc<Miner>,
-	) -> Importer {
+	) -> Result<Importer, ::error::Error> {
 		let block_queue = BlockQueue::new(config.queue.clone(), engine.clone(), message_channel.clone(), config.verifier_type.verifying_seal());
 
-		Importer {
+		Ok(Importer {
 			import_lock: Mutex::new(()),
 			verifier: verification::new(config.verifier_type.clone()),
 			block_queue,
 			miner,
 			ancient_verifier: Mutex::new(None),
-		}
+			rng: Mutex::new(OsRng::new()?),
+		})
 	}
 }
 
@@ -296,7 +296,7 @@ impl Client {
 
 		let awake = match config.mode { Mode::Dark(..) | Mode::Off => false, _ => true };
 
-		let importer = Importer::new(&config, engine.clone(), message_channel.clone(), miner);
+		let importer = Importer::new(&config, engine.clone(), message_channel.clone(), miner)?;
 
 		let client = Arc::new(Client {
 			enabled: AtomicBool::new(true),
@@ -317,7 +317,6 @@ impl Client {
 			last_hashes: RwLock::new(VecDeque::new()),
 			factories: factories,
 			history: history,
-			rng: Mutex::new(OsRng::new().map_err(UtilError::from)?),
 			on_user_defaults_change: Mutex::new(None),
 			registrar: Mutex::new(None),
 			exit_handler: Mutex::new(None),
@@ -675,7 +674,7 @@ impl Client {
 				let verify_with = |verifier: &AncientVerifier| -> Result<(), ::error::Error> {
 					// verify the block, passing the chain for updating the epoch
 					// verifier.
-					verifier.verify(&mut *self.rng.lock(), &header, &chain)
+					verifier.verify(&mut *self.importer.rng.lock(), &header, &chain)
 				};
 
 				// initialize the ancient block verifier if we don't have one already.
