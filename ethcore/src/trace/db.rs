@@ -102,7 +102,9 @@ enum CacheId {
 	Bloom(TraceGroupPosition),
 }
 
-/// Whenever a transaction is executed by evm it's execution trace is stored
+/// Database to store transaction execution trace.
+///
+/// Whenever a transaction is executed by EVM it's execution trace is stored
 /// in trace database. Each trace has information, which contracts have been
 /// touched, which have been created during the execution of transaction, and
 /// which calls failed.
