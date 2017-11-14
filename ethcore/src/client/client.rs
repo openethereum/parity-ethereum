@@ -147,6 +147,9 @@ struct Importer {
 
 	/// Used to verify blocks
 	pub verifier: Box<Verifier>,
+
+	/// Queue containing pending blocks
+	pub block_queue: BlockQueue,
 }
 
 /// Blockchain database client backed by a persistent database. Owns and manages a blockchain and a block queue.
@@ -177,7 +180,6 @@ pub struct Client {
 	db: RwLock<Arc<KeyValueDB>>,
 
 	state_db: Mutex<StateDB>,
-	block_queue: BlockQueue,
 
 	/// Report on the status of client
 	report: RwLock<ClientReport>,
@@ -219,10 +221,17 @@ pub struct Client {
 }
 
 impl Importer {
-	pub fn new(config: &ClientConfig) -> Importer {
+	pub fn new(
+		config: &ClientConfig,
+		engine: Arc<EthEngine>,
+		message_channel: IoChannel<ClientIoMessage>,
+	) -> Importer {
+		let block_queue = BlockQueue::new(config.queue.clone(), engine.clone(), message_channel.clone(), config.verifier_type.verifying_seal());
+
 		Importer {
 			import_lock: Mutex::new(()),
 			verifier: verification::new(config.verifier_type.clone()),
+			block_queue,
 		}
 	}
 }
@@ -280,11 +289,9 @@ impl Client {
 
 		let engine = spec.engine.clone();
 
-		let block_queue = BlockQueue::new(config.queue.clone(), engine.clone(), message_channel.clone(), config.verifier_type.verifying_seal());
-
 		let awake = match config.mode { Mode::Dark(..) | Mode::Off => false, _ => true };
 
-		let importer = Importer::new(&config);
+		let importer = Importer::new(&config, engine.clone(), message_channel.clone());
 
 		let client = Arc::new(Client {
 			enabled: AtomicBool::new(true),
@@ -298,7 +305,6 @@ impl Client {
 			config: config,
 			db: RwLock::new(db),
 			state_db: Mutex::new(state_db),
-			block_queue: block_queue,
 			report: RwLock::new(Default::default()),
 			miner: miner,
 			io_channel: Mutex::new(message_channel),
@@ -412,8 +418,8 @@ impl Client {
 
 	/// Flush the block import queue.
 	pub fn flush_queue(&self) {
-		self.block_queue.flush();
-		while !self.block_queue.queue_info().is_empty() {
+		self.importer.block_queue.flush();
+		while !self.importer.block_queue.queue_info().is_empty() {
 			self.import_verified_blocks();
 		}
 	}
@@ -578,7 +584,7 @@ impl Client {
 			let mut import_results = Vec::with_capacity(max_blocks_to_import);
 
 			let _import_lock = self.importer.import_lock.lock();
-			let blocks = self.block_queue.drain(max_blocks_to_import);
+			let blocks = self.importer.block_queue.drain(max_blocks_to_import);
 			if blocks.is_empty() {
 				return 0;
 			}
@@ -594,7 +600,7 @@ impl Client {
 				}
 				if let Ok(closed_block) = self.check_and_close_block(&block) {
 					if self.engine.is_proposal(&block.header) {
-						self.block_queue.mark_as_good(&[header.hash()]);
+						self.importer.block_queue.mark_as_good(&[header.hash()]);
 						proposed_blocks.push(block.bytes);
 					} else {
 						imported_blocks.push(header.hash());
@@ -613,9 +619,9 @@ impl Client {
 			let invalid_blocks = invalid_blocks.into_iter().collect::<Vec<H256>>();
 
 			if !invalid_blocks.is_empty() {
-				self.block_queue.mark_as_bad(&invalid_blocks);
+				self.importer.block_queue.mark_as_bad(&invalid_blocks);
 			}
-			let is_empty = self.block_queue.mark_as_good(&imported_blocks);
+			let is_empty = self.importer.block_queue.mark_as_good(&imported_blocks);
 			let duration_ns = precise_time_ns() - start;
 			(imported_blocks, import_results, invalid_blocks, imported, proposed_blocks, duration_ns, is_empty)
 		};
@@ -1053,7 +1059,7 @@ impl Client {
 
 	fn check_garbage(&self) {
 		self.chain.read().collect_garbage();
-		self.block_queue.collect_garbage();
+		self.importer.block_queue.collect_garbage();
 		self.tracedb.read().collect_garbage();
 	}
 
@@ -1484,7 +1490,7 @@ impl BlockChainClient for Client {
 		let chain = self.chain.read();
 		match Self::block_hash(&chain, &self.miner, id) {
 			Some(ref hash) if chain.is_known(hash) => BlockStatus::InChain,
-			Some(hash) => self.block_queue.status(&hash).into(),
+			Some(hash) => self.importer.block_queue.status(&hash).into(),
 			None => BlockStatus::Unknown
 		}
 	}
@@ -1688,7 +1694,7 @@ impl BlockChainClient for Client {
 				return Err(BlockImportError::Block(BlockError::UnknownParent(unverified.parent_hash())));
 			}
 		}
-		Ok(self.block_queue.import(unverified)?)
+		Ok(self.importer.block_queue.import(unverified)?)
 	}
 
 	fn import_block_with_receipts(&self, block_bytes: Bytes, receipts_bytes: Bytes) -> Result<H256, BlockImportError> {
@@ -1707,16 +1713,16 @@ impl BlockChainClient for Client {
 	}
 
 	fn queue_info(&self) -> BlockQueueInfo {
-		self.block_queue.queue_info()
+		self.importer.block_queue.queue_info()
 	}
 
 	fn clear_queue(&self) {
-		self.block_queue.clear();
+		self.importer.block_queue.clear();
 	}
 
 	fn chain_info(&self) -> BlockChainInfo {
 		let mut chain_info = self.chain.read().chain_info();
-		chain_info.pending_total_difficulty = chain_info.total_difficulty + self.block_queue.total_difficulty();
+		chain_info.pending_total_difficulty = chain_info.total_difficulty + self.importer.block_queue.total_difficulty();
 		chain_info
 	}
 
