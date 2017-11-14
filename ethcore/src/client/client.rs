@@ -150,6 +150,9 @@ struct Importer {
 
 	/// Queue containing pending blocks
 	pub block_queue: BlockQueue,
+
+	/// Handles block sealing
+	pub miner: Arc<Miner>,
 }
 
 /// Blockchain database client backed by a persistent database. Owns and manages a blockchain and a block queue.
@@ -184,7 +187,6 @@ pub struct Client {
 	/// Report on the status of client
 	report: RwLock<ClientReport>,
 
-	miner: Arc<Miner>,
 	sleep_state: Mutex<SleepState>,
 
 	/// Flag changed by `sleep` and `wake_up` methods. Not to be confused with `enabled`.
@@ -225,6 +227,7 @@ impl Importer {
 		config: &ClientConfig,
 		engine: Arc<EthEngine>,
 		message_channel: IoChannel<ClientIoMessage>,
+		miner: Arc<Miner>,
 	) -> Importer {
 		let block_queue = BlockQueue::new(config.queue.clone(), engine.clone(), message_channel.clone(), config.verifier_type.verifying_seal());
 
@@ -232,6 +235,7 @@ impl Importer {
 			import_lock: Mutex::new(()),
 			verifier: verification::new(config.verifier_type.clone()),
 			block_queue,
+			miner,
 		}
 	}
 }
@@ -291,7 +295,7 @@ impl Client {
 
 		let awake = match config.mode { Mode::Dark(..) | Mode::Off => false, _ => true };
 
-		let importer = Importer::new(&config, engine.clone(), message_channel.clone());
+		let importer = Importer::new(&config, engine.clone(), message_channel.clone(), miner);
 
 		let client = Arc::new(Client {
 			enabled: AtomicBool::new(true),
@@ -306,7 +310,6 @@ impl Client {
 			db: RwLock::new(db),
 			state_db: Mutex::new(state_db),
 			report: RwLock::new(Default::default()),
-			miner: miner,
 			io_channel: Mutex::new(message_channel),
 			notify: RwLock::new(Vec::new()),
 			queue_transactions: AtomicUsize::new(0),
@@ -631,7 +634,7 @@ impl Client {
 				let (enacted, retracted) = self.calculate_enacted_retracted(&import_results);
 
 				if is_empty {
-					self.miner.chain_new_blocks(self, &imported_blocks, &invalid_blocks, &enacted, &retracted);
+					self.importer.miner.chain_new_blocks(self, &imported_blocks, &invalid_blocks, &enacted, &retracted);
 				}
 
 				self.notify(|notify| {
@@ -965,13 +968,13 @@ impl Client {
 		self.notify(|notify| {
 			notify.transactions_received(hashes.clone(), peer_id);
 		});
-		let results = self.miner.import_external_transactions(self, txs);
+		let results = self.importer.miner.import_external_transactions(self, txs);
 		results.len()
 	}
 
 	/// Get shared miner reference.
 	pub fn miner(&self) -> Arc<Miner> {
-		self.miner.clone()
+		self.importer.miner.clone()
 	}
 
 	/// Replace io channel. Useful for testing.
@@ -987,7 +990,7 @@ impl Client {
 	pub fn state_at(&self, id: BlockId) -> Option<State<StateDB>> {
 		// fast path for latest state.
 		match id.clone() {
-			BlockId::Pending => return self.miner.pending_state(self.chain.read().best_block_number()).or_else(|| Some(self.state())),
+			BlockId::Pending => return self.importer.miner.pending_state(self.chain.read().best_block_number()).or_else(|| Some(self.state())),
 			BlockId::Latest => return Some(self.state()),
 			_ => {},
 		}
@@ -1151,7 +1154,7 @@ impl Client {
 	fn transaction_address(&self, id: TransactionId) -> Option<TransactionAddress> {
 		match id {
 			TransactionId::Hash(ref hash) => self.chain.read().transaction_address(hash),
-			TransactionId::Location(id, index) => Self::block_hash(&self.chain.read(), &self.miner, id).map(|hash| TransactionAddress {
+			TransactionId::Location(id, index) => Self::block_hash(&self.chain.read(), &self.importer.miner, id).map(|hash| TransactionAddress {
 				block_hash: hash,
 				index: index,
 			})
@@ -1251,7 +1254,7 @@ impl snapshot::DatabaseRestore for Client {
 		let mut state_db = self.state_db.lock();
 		let mut chain = self.chain.write();
 		let mut tracedb = self.tracedb.write();
-		self.miner.clear();
+		self.importer.miner.clear();
 		let db = self.db.write();
 		db.restore(new_db)?;
 
@@ -1438,14 +1441,14 @@ impl BlockChainClient for Client {
 		let chain = self.chain.read();
 
 		if let BlockId::Pending = id {
-			if let Some(block) = self.miner.pending_block(chain.best_block_number()) {
+			if let Some(block) = self.importer.miner.pending_block(chain.best_block_number()) {
 				return Some(encoded::Header::new(block.header.rlp(Seal::Without)));
 			}
 			// fall back to latest
 			return self.block_header(BlockId::Latest);
 		}
 
-		Self::block_hash(&chain, &self.miner, id).and_then(|hash| chain.block_header_data(&hash))
+		Self::block_hash(&chain, &self.importer.miner, id).and_then(|hash| chain.block_header_data(&hash))
 	}
 
 	fn block_number(&self, id: BlockId) -> Option<BlockNumber> {
@@ -1456,28 +1459,28 @@ impl BlockChainClient for Client {
 		let chain = self.chain.read();
 
 		if let BlockId::Pending = id {
-			if let Some(block) = self.miner.pending_block(chain.best_block_number()) {
+			if let Some(block) = self.importer.miner.pending_block(chain.best_block_number()) {
 				return Some(encoded::Body::new(BlockChain::block_to_body(&block.rlp_bytes(Seal::Without))));
 			}
 			// fall back to latest
 			return self.block_body(BlockId::Latest);
 		}
 
-		Self::block_hash(&chain, &self.miner, id).and_then(|hash| chain.block_body(&hash))
+		Self::block_hash(&chain, &self.importer.miner, id).and_then(|hash| chain.block_body(&hash))
 	}
 
 	fn block(&self, id: BlockId) -> Option<encoded::Block> {
 		let chain = self.chain.read();
 
 		if let BlockId::Pending = id {
-			if let Some(block) = self.miner.pending_block(chain.best_block_number()) {
+			if let Some(block) = self.importer.miner.pending_block(chain.best_block_number()) {
 				return Some(encoded::Block::new(block.rlp_bytes(Seal::Without)));
 			}
 			// fall back to latest
 			return self.block(BlockId::Latest);
 		}
 
-		Self::block_hash(&chain, &self.miner, id).and_then(|hash| {
+		Self::block_hash(&chain, &self.importer.miner, id).and_then(|hash| {
 			chain.block(&hash)
 		})
 	}
@@ -1488,7 +1491,7 @@ impl BlockChainClient for Client {
 		}
 
 		let chain = self.chain.read();
-		match Self::block_hash(&chain, &self.miner, id) {
+		match Self::block_hash(&chain, &self.importer.miner, id) {
 			Some(ref hash) if chain.is_known(hash) => BlockStatus::InChain,
 			Some(hash) => self.importer.block_queue.status(&hash).into(),
 			None => BlockStatus::Unknown
@@ -1499,7 +1502,7 @@ impl BlockChainClient for Client {
 		let chain = self.chain.read();
 		if let BlockId::Pending = id {
 			let latest_difficulty = self.block_total_difficulty(BlockId::Latest).expect("blocks in chain have details; qed");
-			let pending_difficulty = self.miner.pending_block_header(chain.best_block_number()).map(|header| *header.difficulty());
+			let pending_difficulty = self.importer.miner.pending_block_header(chain.best_block_number()).map(|header| *header.difficulty());
 			if let Some(difficulty) = pending_difficulty {
 				return Some(difficulty + latest_difficulty);
 			}
@@ -1507,7 +1510,7 @@ impl BlockChainClient for Client {
 			return Some(latest_difficulty);
 		}
 
-		Self::block_hash(&chain, &self.miner, id).and_then(|hash| chain.block_details(&hash)).map(|d| d.total_difficulty)
+		Self::block_hash(&chain, &self.importer.miner, id).and_then(|hash| chain.block_details(&hash)).map(|d| d.total_difficulty)
 	}
 
 	fn nonce(&self, address: &Address, id: BlockId) -> Option<U256> {
@@ -1520,7 +1523,7 @@ impl BlockChainClient for Client {
 
 	fn block_hash(&self, id: BlockId) -> Option<H256> {
 		let chain = self.chain.read();
-		Self::block_hash(&chain, &self.miner, id)
+		Self::block_hash(&chain, &self.importer.miner, id)
 	}
 
 	fn code(&self, address: &Address, id: BlockId) -> Option<Option<Bytes>> {
@@ -1826,7 +1829,7 @@ impl BlockChainClient for Client {
 			let chain = self.chain.read();
 			(chain.best_block_number(), chain.best_block_timestamp())
 		};
-		self.miner.ready_transactions(number, timestamp)
+		self.importer.miner.ready_transactions(number, timestamp)
 	}
 
 	fn queue_consensus_message(&self, message: Bytes) {
@@ -1869,17 +1872,17 @@ impl BlockChainClient for Client {
 
 	fn transact_contract(&self, address: Address, data: Bytes) -> Result<TransactionImportResult, EthcoreError> {
 		let transaction = Transaction {
-			nonce: self.latest_nonce(&self.miner.author()),
+			nonce: self.latest_nonce(&self.importer.miner.author()),
 			action: Action::Call(address),
-			gas: self.miner.gas_floor_target(),
-			gas_price: self.miner.sensible_gas_price(),
+			gas: self.importer.miner.gas_floor_target(),
+			gas_price: self.importer.miner.sensible_gas_price(),
 			value: U256::zero(),
 			data: data,
 		};
 		let chain_id = self.engine.signing_chain_id(&self.latest_env_info());
 		let signature = self.engine.sign(transaction.hash(chain_id))?;
 		let signed = SignedTransaction::new(transaction.with_signature(signature, chain_id))?;
-		self.miner.import_own_transaction(self, signed.into())
+		self.importer.miner.import_own_transaction(self, signed.into())
 	}
 
 	fn registrar_address(&self) -> Option<Address> {
@@ -2008,7 +2011,7 @@ impl MiningBlockChainClient for Client {
 			route
 		};
 		let (enacted, retracted) = self.calculate_enacted_retracted(&[route]);
-		self.miner.chain_new_blocks(self, &[h.clone()], &[], &enacted, &retracted);
+		self.importer.miner.chain_new_blocks(self, &[h.clone()], &[], &enacted, &retracted);
 		self.notify(|notify| {
 			notify.new_blocks(
 				vec![h.clone()],
@@ -2027,11 +2030,11 @@ impl MiningBlockChainClient for Client {
 
 impl super::traits::EngineClient for Client {
 	fn update_sealing(&self) {
-		self.miner.update_sealing(self)
+		self.importer.miner.update_sealing(self)
 	}
 
 	fn submit_seal(&self, block_hash: H256, seal: Vec<Bytes>) {
-		if self.miner.submit_seal(self, block_hash, seal).is_err() {
+		if self.importer.miner.submit_seal(self, block_hash, seal).is_err() {
 			warn!(target: "poa", "Wrong internal seal submission!")
 		}
 	}
