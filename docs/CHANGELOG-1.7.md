@@ -1,10 +1,15 @@
-### Parity [v1.7.9](https://github.com/paritytech/parity/releases/tag/v1.7.9) (2017-11-15)
+### Parity [v1.7.9](https://github.com/paritytech/parity/releases/tag/v1.7.9) (2017-11-14)
+
+Parity 1.7.9 removes the ability to deploy built-in multi-signature wallets.
 
 Full list of included changes:
 
+- Bumb to v1.7.9 ([#7047](https://github.com/paritytech/parity/pull/7047))
+- Disallow builtin multisig deploy (only watch) ([#7017](https://github.com/paritytech/parity/pull/7017))
+
 ### Parity [v1.7.8](https://github.com/paritytech/parity/releases/tag/v1.7.8) (2017-10-26)
 
-Parity 1.7.8 Fixes a critical Byzantium consensus issue. Update is highly recommended.
+Parity 1.7.8 fixes a critical Byzantium consensus issue. Update is highly recommended.
 
 Full list of included changes:
 
@@ -13,7 +18,7 @@ Full list of included changes:
 
 ## Parity [v1.7.7](https://github.com/paritytech/parity/releases/tag/v1.7.7) (2017-10-15)
 
-Parity 1.7.7 Fixes an issue with auto-update system. Updating is recommended, but not required for Byzantium.
+Parity 1.7.7 fixes an issue with auto-update system. Updating is recommended, but not required for Byzantium.
 
 Full list of included changes:
 
