@@ -209,8 +209,8 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 		let secret = args.arg_secret.parse().map_err(|_| ethstore::Error::InvalidSecret)?;
 		let password = load_password(&args.arg_password)?;
 		let vault_ref = open_args_vault(&store, &args)?;
-		let address = store.insert_account(vault_ref, secret, &password)?;
-		Ok(format!("0x{:?}", address))
+		let account_ref = store.insert_account(vault_ref, secret, &password)?;
+		Ok(format!("0x{:?}", account_ref.address))
 	} else if args.cmd_change_pwd {
 		let address = args.arg_address.parse().map_err(|_| ethstore::Error::InvalidAccount)?;
 		let old_pwd = load_password(&args.arg_old_pwd)?;
@@ -237,8 +237,8 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 		let password = load_password(&args.arg_password)?;
 		let kp = wallet.decrypt(&password)?;
 		let vault_ref = open_args_vault(&store, &args)?;
-		let address = store.insert_account(vault_ref, kp.secret().clone(), &password)?;
-		Ok(format!("0x{:?}", address))
+		let account_ref = store.insert_account(vault_ref, kp.secret().clone(), &password)?;
+		Ok(format!("0x{:?}", account_ref.address))
 	} else if args.cmd_remove {
 		let address = args.arg_address.parse().map_err(|_| ethstore::Error::InvalidAccount)?;
 		let password = load_password(&args.arg_password)?;
