@@ -24,7 +24,7 @@ const SNAPPY_OK: c_int = 0;
 const SNAPPY_INVALID_INPUT: c_int = 1;
 const SNAPPY_BUFFER_TOO_SMALL: c_int = 2;
 
-#[link(name = "snappy")]
+#[link(name = "snappy", kind = "static")]
 extern {
 	fn snappy_compress(
 		input: *const c_char,
