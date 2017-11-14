@@ -48,7 +48,6 @@ use native_contracts::Private as Contract;
 use trace::{Tracer, VMTracer};
 //TODO: to remove this uses
 use rustc_hex::FromHex;
-use std::iter::repeat;
 
 /// Initialization vector length.
 const INIT_VEC_LEN: usize = 16;
@@ -149,7 +148,14 @@ impl SignedPrivateTransaction {
 	}
 
 	/// 0 if `v` would have been 27 under "Electrum" notation, 1 if 28 or 4 if invalid.
-	pub fn standard_v(&self) -> u8 { match self.v { v if v == 27 || v == 28 || v > 36 => ((v - 1) % 2) as u8, _ => 4 } }
+	pub fn standard_v(&self) -> u8 {
+		match self.v {
+			v if v == 27 => 0 as u8,
+			v if v == 28 => 1 as u8,
+			v if v > 36 => ((v - 1) % 2) as u8,
+			 _ => 4
+		}
+	}
 
 	/// Construct a signature object from the sig.
 	pub fn signature(&self) -> Signature {
@@ -336,48 +342,48 @@ impl Provider {
 		let private_tx: PrivateTransaction = UntrustedRlp::new(rlp).as_val()?;
 		let contract = private_tx.contract;
 		let contract_validators = self.get_validators(BlockId::Latest, &contract)?;
-		let addresses_intersection = contract_validators
+
+		match contract_validators
 			.iter()
 			.filter(|&&address| validator_accounts
 				.iter()
-				.find(|validator| validator.address == address)
-				.is_some())
-			.collect::<Vec<_>>();
-		if addresses_intersection.is_empty() {
-			// Not for verification, broadcast further to peers
-			self.broadcast_private_transaction(rlp.into());
-			return Ok(());
-		}
-		else {
-			trace!("Private transaction taken for verification");
-			let client = self.client.read().clone().ok_or_else(|| PrivateTransactionError::ClientIsMalformed)?;
-			let client = client.upgrade().ok_or_else(|| PrivateTransactionError::ClientIsMalformed)?;
-			let original_tx = self.extract_original_transaction(private_tx.clone(), &contract)?;
-			let details_provider = TransactionDetailsProvider::new(&*client as &MiningBlockChainClient);
-			let insertion_time = client.chain_info().best_block_number;
-			// Verify with the first account available
-			let validation_account = addresses_intersection[0].clone();
-			trace!("The following account will be used for verification: {:?}", validation_account);
-			let add_res = self.transactions_for_verification.lock().add_transaction(original_tx, contract, validation_account, private_tx.hash(), &details_provider, insertion_time);
-			match add_res {
-				Ok(_) => {
-					let channel = client.get_io_channel();
-					let channel = channel.lock();
-					channel.send(ClientIoMessage::NewPrivateTransaction)
-						.map_err(|_| PrivateTransactionError::ClientIsMalformed.into())
-				},
-				Err(err) => Err(err),
+				.any(|validator| validator.address == address))
+			.next() {
+			None => {
+				// Not for verification, broadcast further to peers
+				self.broadcast_private_transaction(rlp.into());
+				return Ok(());
+			},
+			Some(&validation_account) => {
+				trace!("Private transaction taken for verification");
+				let client = self.client.read().clone().ok_or_else(|| PrivateTransactionError::ClientIsMalformed)?;
+				let client = client.upgrade().ok_or_else(|| PrivateTransactionError::ClientIsMalformed)?;
+				let original_tx = self.extract_original_transaction(private_tx.clone(), &contract)?;
+				let details_provider = TransactionDetailsProvider::new(&*client as &MiningBlockChainClient);
+				let insertion_time = client.chain_info().best_block_number;
+				// Verify with the first account available
+				trace!("The following account will be used for verification: {:?}", validation_account);
+				let add_res = self.transactions_for_verification.lock().add_transaction(original_tx, contract, validation_account, private_tx.hash(), &details_provider, insertion_time);
+				match add_res {
+					Ok(_) => {
+						let channel = client.get_io_channel();
+						let channel = channel.lock();
+						channel.send(ClientIoMessage::NewPrivateTransaction)
+							.map_err(|_| PrivateTransactionError::ClientIsMalformed.into())
+					},
+					Err(err) => Err(err),
+				}
 			}
 		}
 	}
 
 	/// Private transaction for validation added into queue
 	pub fn on_private_transaction_queued(&self) -> Result<(), EthcoreError> {
-		self.prune_transactions_queue()
+		self.process_queue()
 	}
 
 	/// Retrieve and verify the first available private transaction for every sender
-	fn prune_transactions_queue(&self) -> Result<(), EthcoreError> {
+	fn process_queue(&self) -> Result<(), EthcoreError> {
 		let client = self.client.read().clone().ok_or_else(|| PrivateTransactionError::ClientIsMalformed)?;
 		let client = client.upgrade().ok_or_else(|| PrivateTransactionError::ClientIsMalformed)?;
 		let ready_transactions = self.transactions_for_verification.lock().ready_transactions();
@@ -440,8 +446,8 @@ impl Provider {
 			let accounts = accounts.upgrade().ok_or_else(|| PrivateTransactionError::AccountProviderIsMalformed)?;
 			let chain_id = desc.original_transaction.chain_id();
 			let hash = public_tx.hash(chain_id);
-			let signer = self.config.lock().signer_account.clone();
-			let signature = accounts.sign(signer.address.clone(), signer.password.clone(), hash)?;
+			let config = self.config.lock();
+			let signature = accounts.sign(config.signer_account.address.clone(), config.signer_account.password.clone(), hash)?;
 			let signed = SignedTransaction::new(public_tx.with_signature(signature, chain_id))?;
 			let client = self.client.read().clone().ok_or_else(|| PrivateTransactionError::ClientIsMalformed)?;
 			let client = client.upgrade().ok_or_else(|| PrivateTransactionError::ClientIsMalformed)?;
@@ -465,18 +471,16 @@ impl Provider {
 	}
 
 	fn last_required_signature(&self, desc: &PrivateTransactionSigningDesc, sign: Signature) -> Result<bool, EthcoreError>  {
-		let existing_signatures = desc.received_signatures.clone();
-		if existing_signatures.contains(&sign) {
+		if desc.received_signatures.contains(&sign) {
 			return Ok(false);
 		}
-		let state_hash = keccak(desc.state.clone());
+		let state_hash = keccak(&desc.state);
 		match recover(&sign, &state_hash) {
 			Ok(public) => {
 				let sender = public_to_address(&public);
-				let validators = desc.validators.clone();
-				match validators.contains(&sender) {
+				match desc.validators.contains(&sender) {
 					true => {
-						Ok(existing_signatures.len() + 1 == validators.len())
+						Ok(desc.received_signatures.len() + 1 == desc.validators.len())
 					}
 					false => {
 						trace!("Sender's state doesn't correspond to validator's");
@@ -507,16 +511,17 @@ impl Provider {
 		let key: Bytes = init_key[..INIT_VEC_LEN].into();
 
 		let iv = initialization_vector();
-		let mut encrypted = Vec::with_capacity(data.len() + iv.len());
-		encrypted.extend(repeat(0).take(data.len()));
-		encrypt(&key, &iv, &data, &mut encrypted);
-		encrypted.extend_from_slice(&iv);
-
+		let mut encrypted = vec![0; data.len() + iv.len()];
+		{
+			let (mut enc_buffer, iv_buffer) = encrypted.split_at_mut(data.len());
+			encrypt(&key, &iv, &data, &mut enc_buffer);
+			iv_buffer.copy_from_slice(&iv);
+		}
 		Ok(encrypted)
 	}
 
 	fn decrypt(&self, _contract_address: &Address, data: &[u8]) -> Result<Bytes, EthcoreError> {
-		let mut encrypted: Bytes = data.to_vec().clone();
+		let mut encrypted: Bytes = data.into();
 		let encrypted_len = encrypted.len();
 		if encrypted_len < INIT_VEC_LEN {
 			return Err(EthkeyError::InvalidMessage.into());
@@ -528,10 +533,9 @@ impl Provider {
 
 		// use symmetric decryption to decrypt transaction
 		let iv = encrypted.split_off(encrypted_len - INIT_VEC_LEN);
-		let mut decrypted = Vec::with_capacity(encrypted_len - INIT_VEC_LEN);
-		decrypted.extend(repeat(0).take(encrypted_len - INIT_VEC_LEN));
+		let mut decrypted = vec![0; encrypted_len - INIT_VEC_LEN];
 		decrypt(&key, &iv, &encrypted, &mut decrypted);
-		Ok(decrypted.to_vec())
+		Ok(decrypted)
 	}
 
 	fn get_decrypted_state(&self, address: &Address, block: BlockId) -> Result<Bytes, EthcoreError> {
@@ -717,7 +721,7 @@ impl ChainNotify for Provider {
 	fn new_blocks(&self, imported: Vec<H256>, _invalid: Vec<H256>, _enacted: Vec<H256>, _retracted: Vec<H256>, _sealed: Vec<H256>, _proposed: Vec<Bytes>, _duration: u64) {
 		if !imported.is_empty() {
 			trace!("New blocks imported, try to prune the queue");
-			if let Err(err) = self.prune_transactions_queue() {
+			if let Err(err) = self.process_queue() {
 				trace!("Cannot prune private transactions queue. error: {:?}", err);
 			}
 		}

@@ -75,17 +75,16 @@ impl VerificationStore {
 		}
 		let transaction_hash = transaction.hash();
 		let signed_transaction = SignedTransaction::new(transaction)?;
-		match self.transactions.add(signed_transaction, TransactionOrigin::External, insertion_time, None, details_provider) {
-			Ok(_) => {
+		self.transactions
+			.add(signed_transaction, TransactionOrigin::External, insertion_time, None, details_provider)
+			.and_then(|_| {
 				self.descriptors.insert(transaction_hash, PrivateTransactionDesc{
 					private_hash: private_hash,
 					contract: contract,
 					validator_account: validator_account,
 				});
 				Ok(())
-			}
-			Err(e) => Err(e),
-		}
+			})
 	}
 
 	/// Returns transactions ready for verification
