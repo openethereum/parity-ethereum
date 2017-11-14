@@ -1,7 +1,18 @@
 ## Parity [v1.8.3](https://github.com/paritytech/parity/releases/tag/v1.8.3) (2017-11-15)
 
+Parity 1.8.3 contains several bug-fixes and removes the ability to deploy built-in multi-signature wallets.
+
 The full list of included changes:
 
+- Backports to beta ([#7043](https://github.com/paritytech/parity/pull/7043))
+  - pwasm-std update ([#7018](https://github.com/paritytech/parity/pull/7018))
+  - Version 1.8.3
+  - Make CLI arguments parsing more backwards compatible ([#7004](https://github.com/paritytech/parity/pull/7004))
+  - Skip nonce check for gas estimation ([#6997](https://github.com/paritytech/parity/pull/6997))
+  - Events in WASM runtime ([#6967](https://github.com/paritytech/parity/pull/6967))
+  - Return decoded seal fields. ([#6932](https://github.com/paritytech/parity/pull/6932))
+  - Fix serialization of status in transaction receipts. ([#6926](https://github.com/paritytech/parity/pull/6926))
+  - Windows fixes ([#6921](https://github.com/paritytech/parity/pull/6921))
 - Disallow built-in multi-sig deploy (only watch) ([#7014](https://github.com/paritytech/parity/pull/7014))
 - Add hint in ActionParams for splitting code/data ([#6968](https://github.com/paritytech/parity/pull/6968))
   - Action params and embedded params handling
