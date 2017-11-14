@@ -92,7 +92,11 @@ pub struct FullDispatcher<C, M> {
 
 impl<C, M> FullDispatcher<C, M> {
 	/// Create a `FullDispatcher` from Arc references to a client and miner.
-	pub fn new(client: Arc<C>, miner: Arc<M>, nonces: Arc<Mutex<nonce::Reservations>>) -> Self {
+	pub fn new(
+		client: Arc<C>,
+		miner: Arc<M>,
+		nonces: Arc<Mutex<nonce::Reservations>>,
+	) -> Self {
 		FullDispatcher {
 			client,
 			miner,
@@ -162,7 +166,8 @@ impl<C: MiningBlockChainClient, M: MinerService> Dispatcher for FullDispatcher<C
 		}
 
 		let state = self.state_nonce(&filled.from);
-		let reserved = self.nonces.lock().reserve_nonce(state);
+		let reserved = self.nonces.lock().reserve(filled.from, state);
+
 		Box::new(ProspectiveSigner::new(accounts, filled, chain_id, reserved, password))
 	}
 
@@ -382,7 +387,8 @@ impl Dispatcher for LightDispatcher {
 		Box::new(self.next_nonce(filled.from)
 			.map_err(|_| errors::no_light_peers())
 			.and_then(move |nonce| {
-				let reserved = nonces.lock().reserve_nonce(nonce);
+				let reserved = nonces.lock().reserve(filled.from, nonce);
+
 				ProspectiveSigner::new(accounts, filled, chain_id, reserved, password)
 			}))
 	}
