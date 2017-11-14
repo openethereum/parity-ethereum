@@ -246,7 +246,7 @@ pub fn new_ws<D: rpc_apis::Dependencies>(
 
 	match start_result {
 		Ok(server) => Ok(Some(server)),
-		Err(rpc::ws::Error::Io(ref err)) if err.kind() == io::ErrorKind::AddrInUse => Err(
+		Err(rpc::ws::Error(rpc::ws::ErrorKind::Io(ref err), _)) if err.kind() == io::ErrorKind::AddrInUse => Err(
 			format!("WebSockets address {} is already in use, make sure that another instance of an Ethereum client is not running or change the address using the --ws-port and --ws-interface options.", url)
 		),
 		Err(e) => Err(format!("WebSockets error: {:?}", e)),
@@ -286,7 +286,7 @@ pub fn new_http<D: rpc_apis::Dependencies>(
 
 	match start_result {
 		Ok(server) => Ok(Some(server)),
-		Err(rpc::HttpServerError::Io(ref err)) if err.kind() == io::ErrorKind::AddrInUse => Err(
+		Err(ref err) if err.kind() == io::ErrorKind::AddrInUse => Err(
 			format!("{} address {} is already in use, make sure that another instance of an Ethereum client is not running or change the address using the --{}-port and --{}-interface options.", id, url, options, options)
 		),
 		Err(e) => Err(format!("{} error: {:?}", id, e)),

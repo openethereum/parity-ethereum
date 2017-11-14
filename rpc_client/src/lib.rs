@@ -18,6 +18,8 @@ extern crate log;
 #[macro_use]
 extern crate matches;
 
+/// Boxed future response.
+pub type BoxFuture<T, E> = Box<futures::Future<Item=T, Error=E> + Send>;
 
 #[cfg(test)]
 mod tests {

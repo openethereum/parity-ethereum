@@ -42,7 +42,7 @@ use ethcore::transaction::{Action, SignedTransaction, PendingTransaction, Transa
 use ethcore::account_provider::AccountProvider;
 use crypto::DEFAULT_MAC;
 
-use jsonrpc_core::{BoxFuture, Error};
+use jsonrpc_core::{BoxFuture, Result, Error};
 use jsonrpc_core::futures::{future, Future, Poll, Async};
 use jsonrpc_core::futures::future::Either;
 use v1::helpers::{errors, nonce, TransactionRequest, FilledTransactionRequest, ConfirmationPayload};
@@ -67,18 +67,18 @@ pub trait Dispatcher: Send + Sync + Clone {
 
 	/// Fill optional fields of a transaction request, fetching gas price but not nonce.
 	fn fill_optional_fields(&self, request: TransactionRequest, default_sender: Address, force_nonce: bool)
-		-> BoxFuture<FilledTransactionRequest, Error>;
+		-> BoxFuture<FilledTransactionRequest>;
 
 	/// Sign the given transaction request without dispatching, fetching appropriate nonce.
 	fn sign(&self, accounts: Arc<AccountProvider>, filled: FilledTransactionRequest, password: SignWith)
-		-> BoxFuture<WithToken<SignedTransaction>, Error>;
+		-> BoxFuture<WithToken<SignedTransaction>>;
 
 	/// Converts a `SignedTransaction` into `RichRawTransaction`
 	fn enrich(&self, SignedTransaction) -> RpcRichRawTransaction;
 
 	/// "Dispatch" a local transaction.
 	fn dispatch_transaction(&self, signed_transaction: PendingTransaction)
-		-> Result<H256, Error>;
+		-> Result<H256>;
 }
 
 /// A dispatcher which uses references to a client and miner in order to sign
@@ -122,7 +122,7 @@ impl<C: MiningBlockChainClient, M: MinerService> FullDispatcher<C, M> {
 	}
 
 	/// Imports transaction to the miner's queue.
-	pub fn dispatch_transaction(client: &C, miner: &M, signed_transaction: PendingTransaction) -> Result<H256, Error> {
+	pub fn dispatch_transaction(client: &C, miner: &M, signed_transaction: PendingTransaction) -> Result<H256> {
 		let hash = signed_transaction.transaction.hash();
 
 		miner.import_own_transaction(client, signed_transaction)
@@ -133,7 +133,7 @@ impl<C: MiningBlockChainClient, M: MinerService> FullDispatcher<C, M> {
 
 impl<C: MiningBlockChainClient, M: MinerService> Dispatcher for FullDispatcher<C, M> {
 	fn fill_optional_fields(&self, request: TransactionRequest, default_sender: Address, force_nonce: bool)
-		-> BoxFuture<FilledTransactionRequest, Error>
+		-> BoxFuture<FilledTransactionRequest>
 	{
 		let request = request;
 		let from = request.from.unwrap_or(default_sender);
@@ -157,7 +157,7 @@ impl<C: MiningBlockChainClient, M: MinerService> Dispatcher for FullDispatcher<C
 	}
 
 	fn sign(&self, accounts: Arc<AccountProvider>, filled: FilledTransactionRequest, password: SignWith)
-		-> BoxFuture<WithToken<SignedTransaction>, Error>
+		-> BoxFuture<WithToken<SignedTransaction>>
 	{
 		let chain_id = self.client.signing_chain_id();
 
@@ -176,7 +176,7 @@ impl<C: MiningBlockChainClient, M: MinerService> Dispatcher for FullDispatcher<C
 		RpcRichRawTransaction::from_signed(signed_transaction, block_number, self.client.eip86_transition())
 	}
 
-	fn dispatch_transaction(&self, signed_transaction: PendingTransaction) -> Result<H256, Error> {
+	fn dispatch_transaction(&self, signed_transaction: PendingTransaction) -> Result<H256> {
 		Self::dispatch_transaction(&*self.client, &*self.miner, signed_transaction)
 	}
 }
@@ -188,7 +188,7 @@ pub fn fetch_gas_price_corpus(
 	client: Arc<LightChainClient>,
 	on_demand: Arc<OnDemand>,
 	cache: Arc<Mutex<LightDataCache>>,
-) -> BoxFuture<Corpus<U256>, Error> {
+) -> BoxFuture<Corpus<U256>> {
 	const GAS_PRICE_SAMPLE_SIZE: usize = 100;
 
 	if let Some(cached) = { cache.lock().gas_price_corpus() } {
@@ -284,7 +284,7 @@ impl LightDispatcher {
 
 	/// Get a recent gas price corpus.
 	// TODO: this could be `impl Trait`.
-	pub fn gas_price_corpus(&self) -> BoxFuture<Corpus<U256>, Error> {
+	pub fn gas_price_corpus(&self) -> BoxFuture<Corpus<U256>> {
 		fetch_gas_price_corpus(
 			self.sync.clone(),
 			self.client.clone(),
@@ -294,7 +294,7 @@ impl LightDispatcher {
 	}
 
 	/// Get an account's next nonce.
-	pub fn next_nonce(&self, addr: Address) -> BoxFuture<U256, Error> {
+	pub fn next_nonce(&self, addr: Address) -> BoxFuture<U256> {
 		// fast path where we don't go to network; nonce provided or can be gotten from queue.
 		let maybe_nonce = self.transaction_queue.read().next_nonce(&addr);
 		if let Some(nonce) = maybe_nonce {
@@ -320,7 +320,7 @@ impl LightDispatcher {
 
 impl Dispatcher for LightDispatcher {
 	fn fill_optional_fields(&self, request: TransactionRequest, default_sender: Address, force_nonce: bool)
-		-> BoxFuture<FilledTransactionRequest, Error>
+		-> BoxFuture<FilledTransactionRequest>
 	{
 		const DEFAULT_GAS_PRICE: U256 = U256([0, 0, 0, 21_000_000]);
 
@@ -374,7 +374,7 @@ impl Dispatcher for LightDispatcher {
 	}
 
 	fn sign(&self, accounts: Arc<AccountProvider>, filled: FilledTransactionRequest, password: SignWith)
-		-> BoxFuture<WithToken<SignedTransaction>, Error>
+		-> BoxFuture<WithToken<SignedTransaction>>
 	{
 		let chain_id = self.client.signing_chain_id();
 
@@ -398,7 +398,7 @@ impl Dispatcher for LightDispatcher {
 		RpcRichRawTransaction::from_signed(signed_transaction, block_number, self.client.eip86_transition())
 	}
 
-	fn dispatch_transaction(&self, signed_transaction: PendingTransaction) -> Result<H256, Error> {
+	fn dispatch_transaction(&self, signed_transaction: PendingTransaction) -> Result<H256> {
 		let hash = signed_transaction.transaction.hash();
 
 		self.transaction_queue.write().import(signed_transaction)
@@ -414,7 +414,7 @@ fn sign_transaction(
 	chain_id: Option<u64>,
 	nonce: U256,
 	password: SignWith,
-) -> Result<WithToken<SignedTransaction>, Error> {
+) -> Result<WithToken<SignedTransaction>> {
 	let t = Transaction {
 		nonce: nonce,
 		action: filled.to.map_or(Action::Create, Action::Call),
@@ -451,7 +451,7 @@ struct ProspectiveSigner {
 	reserved: nonce::Reserved,
 	password: SignWith,
 	state: ProspectiveSignerState,
-	prospective: Option<Result<WithToken<SignedTransaction>, Error>>,
+	prospective: Option<Result<WithToken<SignedTransaction>>>,
 	ready: Option<nonce::Ready>,
 }
 
@@ -485,7 +485,7 @@ impl ProspectiveSigner {
 		}
 	}
 
-	fn sign(&self, nonce: &U256) -> Result<WithToken<SignedTransaction>, Error> {
+	fn sign(&self, nonce: &U256) -> Result<WithToken<SignedTransaction>> {
 		sign_transaction(
 			&*self.accounts,
 			self.filled.clone(),
@@ -643,7 +643,7 @@ pub fn execute<D: Dispatcher + 'static>(
 	accounts: Arc<AccountProvider>,
 	payload: ConfirmationPayload,
 	pass: SignWith
-) -> BoxFuture<WithToken<ConfirmationResponse>, Error> {
+) -> BoxFuture<WithToken<ConfirmationResponse>> {
 	match payload {
 		ConfirmationPayload::SendTransaction(request) => {
 			let condition = request.condition.clone().map(Into::into);
@@ -694,7 +694,7 @@ pub fn execute<D: Dispatcher + 'static>(
 	}
 }
 
-fn signature(accounts: &AccountProvider, address: Address, hash: H256, password: SignWith) -> Result<WithToken<Signature>, Error> {
+fn signature(accounts: &AccountProvider, address: Address, hash: H256, password: SignWith) -> Result<WithToken<Signature>> {
 	match password.clone() {
 		SignWith::Nothing => accounts.sign(address, None, hash).map(WithToken::No),
 		SignWith::Password(pass) => accounts.sign(address, Some(pass), hash).map(WithToken::No),
@@ -707,7 +707,7 @@ fn signature(accounts: &AccountProvider, address: Address, hash: H256, password:
 
 // obtain a hardware signature from the given account.
 fn hardware_signature(accounts: &AccountProvider, address: Address, t: Transaction, chain_id: Option<u64>)
-	-> Result<SignedTransaction, Error>
+	-> Result<SignedTransaction>
 {
 	debug_assert!(accounts.is_hardware_address(&address));
 
@@ -726,7 +726,7 @@ fn hardware_signature(accounts: &AccountProvider, address: Address, t: Transacti
 		})
 }
 
-fn decrypt(accounts: &AccountProvider, address: Address, msg: Bytes, password: SignWith) -> Result<WithToken<Bytes>, Error> {
+fn decrypt(accounts: &AccountProvider, address: Address, msg: Bytes, password: SignWith) -> Result<WithToken<Bytes>> {
 	match password.clone() {
 		SignWith::Nothing => accounts.decrypt(address, None, &DEFAULT_MAC, &msg).map(WithToken::No),
 		SignWith::Password(pass) => accounts.decrypt(address, Some(pass), &DEFAULT_MAC, &msg).map(WithToken::No),
@@ -747,7 +747,7 @@ pub fn default_gas_price<C, M>(client: &C, miner: &M) -> U256 where
 
 /// Convert RPC confirmation payload to signer confirmation payload.
 /// May need to resolve in the future to fetch things like gas price.
-pub fn from_rpc<D>(payload: RpcConfirmationPayload, default_account: Address, dispatcher: &D) -> BoxFuture<ConfirmationPayload, Error>
+pub fn from_rpc<D>(payload: RpcConfirmationPayload, default_account: Address, dispatcher: &D) -> BoxFuture<ConfirmationPayload>
 	where D: Dispatcher
 {
 	match payload {

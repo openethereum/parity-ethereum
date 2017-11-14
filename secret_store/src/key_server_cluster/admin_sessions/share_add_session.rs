@@ -450,7 +450,7 @@ impl<T> SessionImpl<T> where T: SessionTransport {
 		data.key_share_common_point = message.common_point.clone().map(Into::into);
 		data.key_share_encrypted_point = message.encrypted_point.clone().map(Into::into);
 
-		let mut id_numbers = data.id_numbers.as_mut()
+		let id_numbers = data.id_numbers.as_mut()
 			.expect("common key share data is expected after initialization; id_numers are filled during initialization; qed");
 		for (node, id_number) in &message.id_numbers {
 			let id_number: Secret = id_number.clone().into();
@@ -1153,7 +1153,7 @@ pub mod tests {
 
 			// check that session has completed on all nodes
 			assert!(ml.nodes.values().all(|n| n.session.is_finished()));
-			
+
 			// check that secret is still the same as before adding the share
 			check_secret_is_preserved(ml.original_key_pair.clone(), ml.nodes.iter().map(|(k, v)| (k.clone(), v.key_storage.clone())).collect());
 		}
@@ -1187,7 +1187,7 @@ pub mod tests {
 
 		// check that session has completed on all nodes
 		assert!(ml.nodes.values().all(|n| n.session.is_finished()));
-		
+
 		// check that secret is still the same as before adding the share
 		check_secret_is_preserved(ml.original_key_pair.clone(), ml.nodes
 			.iter()
@@ -1245,7 +1245,7 @@ pub mod tests {
 			.iter()
 			.map(|(k, v)| (k.clone(), v.key_storage.clone()))
 			.collect());
-		
+
 		// check that all oldest nodes have versions A, B, C
 		// isolated node has version A, C
 		// new nodes have versions B, C
