@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Personal rpc interface.
-use jsonrpc_core::{BoxFuture, Error};
+use jsonrpc_core::{BoxFuture, Result};
 
 use v1::types::{U128, H160, H256, TransactionRequest};
 
@@ -26,24 +26,24 @@ build_rpc_trait! {
 
 		/// Lists all stored accounts
 		#[rpc(name = "personal_listAccounts")]
-		fn accounts(&self) -> Result<Vec<H160>, Error>;
+		fn accounts(&self) -> Result<Vec<H160>>;
 
 		/// Creates new account (it becomes new current unlocked account)
 		/// Param is the password for the account.
 		#[rpc(name = "personal_newAccount")]
-		fn new_account(&self, String) -> Result<H160, Error>;
+		fn new_account(&self, String) -> Result<H160>;
 
 		/// Unlocks specified account for use (can only be one unlocked account at one moment)
 		#[rpc(name = "personal_unlockAccount")]
-		fn unlock_account(&self, H160, String, Option<U128>) -> Result<bool, Error>;
+		fn unlock_account(&self, H160, String, Option<U128>) -> Result<bool>;
 
 		/// Sends transaction and signs it in single call. The account is not unlocked in such case.
 		#[rpc(meta, name = "personal_sendTransaction")]
-		fn send_transaction(&self, Self::Metadata, TransactionRequest, String) -> BoxFuture<H256, Error>;
+		fn send_transaction(&self, Self::Metadata, TransactionRequest, String) -> BoxFuture<H256>;
 
 		/// @deprecated alias for `personal_sendTransaction`.
 		#[rpc(meta, name = "personal_signAndSendTransaction")]
-		fn sign_and_send_transaction(&self, Self::Metadata, TransactionRequest, String) -> BoxFuture<H256, Error>;
+		fn sign_and_send_transaction(&self, Self::Metadata, TransactionRequest, String) -> BoxFuture<H256>;
 
 	}
 }

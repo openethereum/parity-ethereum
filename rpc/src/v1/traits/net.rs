@@ -15,22 +15,22 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Net rpc interface.
-use jsonrpc_core::Error;
+use jsonrpc_core::Result;
 
 build_rpc_trait! {
 	/// Net rpc interface.
 	pub trait Net {
 		/// Returns protocol version.
 		#[rpc(name = "net_version")]
-		fn version(&self) -> Result<String, Error>;
+		fn version(&self) -> Result<String>;
 
 		/// Returns number of peers connected to node.
 		#[rpc(name = "net_peerCount")]
-		fn peer_count(&self) -> Result<String, Error>;
+		fn peer_count(&self) -> Result<String>;
 
 		/// Returns true if client is actively listening for network connections.
 		/// Otherwise false.
 		#[rpc(name = "net_listening")]
-		fn is_listening(&self) -> Result<bool, Error>;
+		fn is_listening(&self) -> Result<bool>;
 	}
 }

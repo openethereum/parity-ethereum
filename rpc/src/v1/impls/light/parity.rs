@@ -30,7 +30,7 @@ use node_health::{NodeHealth, Health};
 
 use light::client::LightChainClient;
 
-use jsonrpc_core::{BoxFuture, Error};
+use jsonrpc_core::{Result, BoxFuture};
 use jsonrpc_core::futures::Future;
 use jsonrpc_macros::Trailing;
 use v1::helpers::{self, errors, ipfs, SigningQueue, SignerService, NetworkSettings};
@@ -103,7 +103,7 @@ impl ParityClient {
 impl Parity for ParityClient {
 	type Metadata = Metadata;
 
-	fn accounts_info(&self, dapp: Trailing<DappId>) -> Result<BTreeMap<H160, AccountInfo>, Error> {
+	fn accounts_info(&self, dapp: Trailing<DappId>) -> Result<BTreeMap<H160, AccountInfo>> {
 		let dapp = dapp.unwrap_or_default();
 
 		let store = &self.accounts;
@@ -125,7 +125,7 @@ impl Parity for ParityClient {
 		)
 	}
 
-	fn hardware_accounts_info(&self) -> Result<BTreeMap<H160, HwAccountInfo>, Error> {
+	fn hardware_accounts_info(&self) -> Result<BTreeMap<H160, HwAccountInfo>> {
 		let store = &self.accounts;
 		let info = store.hardware_accounts_info().map_err(|e| errors::account("Could not fetch account info.", e))?;
 		Ok(info
@@ -135,12 +135,12 @@ impl Parity for ParityClient {
 		)
 	}
 
-	fn locked_hardware_accounts_info(&self) -> Result<Vec<String>, Error> {
+	fn locked_hardware_accounts_info(&self) -> Result<Vec<String>> {
 		let store = &self.accounts;
 		Ok(store.locked_hardware_accounts().map_err(|e| errors::account("Error communicating with hardware wallet.", e))?)
 	}
 
-	fn default_account(&self, meta: Self::Metadata) -> Result<H160, Error> {
+	fn default_account(&self, meta: Self::Metadata) -> Result<H160> {
 		let dapp_id = meta.dapp_id();
 		Ok(self.accounts
 			.dapp_addresses(dapp_id.into())
@@ -150,40 +150,40 @@ impl Parity for ParityClient {
 			.unwrap_or_default())
 	}
 
-	fn transactions_limit(&self) -> Result<usize, Error> {
+	fn transactions_limit(&self) -> Result<usize> {
 		Ok(usize::max_value())
 	}
 
-	fn min_gas_price(&self) -> Result<U256, Error> {
+	fn min_gas_price(&self) -> Result<U256> {
 		Ok(U256::default())
 	}
 
-	fn extra_data(&self) -> Result<Bytes, Error> {
+	fn extra_data(&self) -> Result<Bytes> {
 		Ok(Bytes::default())
 	}
 
-	fn gas_floor_target(&self) -> Result<U256, Error> {
+	fn gas_floor_target(&self) -> Result<U256> {
 		Ok(U256::default())
 	}
 
-	fn gas_ceil_target(&self) -> Result<U256, Error> {
+	fn gas_ceil_target(&self) -> Result<U256> {
 		Ok(U256::default())
 	}
 
-	fn dev_logs(&self) -> Result<Vec<String>, Error> {
+	fn dev_logs(&self) -> Result<Vec<String>> {
 		let logs = self.logger.logs();
 		Ok(logs.as_slice().to_owned())
 	}
 
-	fn dev_logs_levels(&self) -> Result<String, Error> {
+	fn dev_logs_levels(&self) -> Result<String> {
 		Ok(self.logger.levels().to_owned())
 	}
 
-	fn net_chain(&self) -> Result<String, Error> {
+	fn net_chain(&self) -> Result<String> {
 		Ok(self.settings.chain.clone())
 	}
 
-	fn net_peers(&self) -> Result<Peers, Error> {
+	fn net_peers(&self) -> Result<Peers> {
 		let peers = self.light_dispatch.sync.peers().into_iter().map(Into::into).collect();
 		let peer_numbers = self.light_dispatch.sync.peer_numbers();
 
@@ -195,19 +195,19 @@ impl Parity for ParityClient {
 		})
 	}
 
-	fn net_port(&self) -> Result<u16, Error> {
+	fn net_port(&self) -> Result<u16> {
 		Ok(self.settings.network_port)
 	}
 
-	fn node_name(&self) -> Result<String, Error> {
+	fn node_name(&self) -> Result<String> {
 		Ok(self.settings.name.clone())
 	}
 
-	fn registry_address(&self) -> Result<Option<H160>, Error> {
+	fn registry_address(&self) -> Result<Option<H160>> {
 		Err(errors::light_unimplemented(None))
 	}
 
-	fn rpc_settings(&self) -> Result<RpcSettings, Error> {
+	fn rpc_settings(&self) -> Result<RpcSettings> {
 		Ok(RpcSettings {
 			enabled: self.settings.rpc_enabled,
 			interface: self.settings.rpc_interface.clone(),
@@ -215,46 +215,46 @@ impl Parity for ParityClient {
 		})
 	}
 
-	fn default_extra_data(&self) -> Result<Bytes, Error> {
+	fn default_extra_data(&self) -> Result<Bytes> {
 		Ok(Bytes::new(version_data()))
 	}
 
-	fn gas_price_histogram(&self) -> BoxFuture<Histogram, Error> {
+	fn gas_price_histogram(&self) -> BoxFuture<Histogram> {
 		Box::new(self.light_dispatch.gas_price_corpus()
 			.and_then(|corpus| corpus.histogram(10).ok_or_else(errors::not_enough_data))
 			.map(Into::into))
 	}
 
-	fn unsigned_transactions_count(&self) -> Result<usize, Error> {
+	fn unsigned_transactions_count(&self) -> Result<usize> {
 		match self.signer {
 			None => Err(errors::signer_disabled()),
 			Some(ref signer) => Ok(signer.len()),
 		}
 	}
 
-	fn generate_secret_phrase(&self) -> Result<String, Error> {
+	fn generate_secret_phrase(&self) -> Result<String> {
 		Ok(random_phrase(12))
 	}
 
-	fn phrase_to_address(&self, phrase: String) -> Result<H160, Error> {
+	fn phrase_to_address(&self, phrase: String) -> Result<H160> {
 		Ok(Brain::new(phrase).generate().unwrap().address().into())
 	}
 
-	fn list_accounts(&self, _: u64, _: Option<H160>, _: Trailing<BlockNumber>) -> Result<Option<Vec<H160>>, Error> {
+	fn list_accounts(&self, _: u64, _: Option<H160>, _: Trailing<BlockNumber>) -> Result<Option<Vec<H160>>> {
 		Err(errors::light_unimplemented(None))
 	}
 
-	fn list_storage_keys(&self, _: H160, _: u64, _: Option<H256>, _: Trailing<BlockNumber>) -> Result<Option<Vec<H256>>, Error> {
+	fn list_storage_keys(&self, _: H160, _: u64, _: Option<H256>, _: Trailing<BlockNumber>) -> Result<Option<Vec<H256>>> {
 		Err(errors::light_unimplemented(None))
 	}
 
-	fn encrypt_message(&self, key: H512, phrase: Bytes) -> Result<Bytes, Error> {
+	fn encrypt_message(&self, key: H512, phrase: Bytes) -> Result<Bytes> {
 		ecies::encrypt(&key.into(), &DEFAULT_MAC, &phrase.0)
 			.map_err(errors::encryption)
 			.map(Into::into)
 	}
 
-	fn pending_transactions(&self) -> Result<Vec<Transaction>, Error> {
+	fn pending_transactions(&self) -> Result<Vec<Transaction>> {
 		let txq = self.light_dispatch.transaction_queue.read();
 		let chain_info = self.light_dispatch.client.chain_info();
 		Ok(
@@ -265,7 +265,7 @@ impl Parity for ParityClient {
 		)
 	}
 
-	fn future_transactions(&self) -> Result<Vec<Transaction>, Error> {
+	fn future_transactions(&self) -> Result<Vec<Transaction>> {
 		let txq = self.light_dispatch.transaction_queue.read();
 		let chain_info = self.light_dispatch.client.chain_info();
 		Ok(
@@ -276,7 +276,7 @@ impl Parity for ParityClient {
 		)
 	}
 
-	fn pending_transactions_stats(&self) -> Result<BTreeMap<H256, TransactionStats>, Error> {
+	fn pending_transactions_stats(&self) -> Result<BTreeMap<H256, TransactionStats>> {
 		let stats = self.light_dispatch.sync.transactions_stats();
 		Ok(stats.into_iter()
 		   .map(|(hash, stats)| (hash.into(), stats.into()))
@@ -284,7 +284,7 @@ impl Parity for ParityClient {
 		)
 	}
 
-	fn local_transactions(&self) -> Result<BTreeMap<H256, LocalTransactionStatus>, Error> {
+	fn local_transactions(&self) -> Result<BTreeMap<H256, LocalTransactionStatus>> {
 		let mut map = BTreeMap::new();
 		let chain_info = self.light_dispatch.client.chain_info();
 		let (best_num, best_tm) = (chain_info.best_block_number, chain_info.best_block_timestamp);
@@ -303,49 +303,49 @@ impl Parity for ParityClient {
 		Ok(map)
 	}
 
-	fn dapps_url(&self) -> Result<String, Error> {
+	fn dapps_url(&self) -> Result<String> {
 		helpers::to_url(&self.dapps_address)
 			.ok_or_else(|| errors::dapps_disabled())
 	}
 
-	fn ws_url(&self) -> Result<String, Error> {
+	fn ws_url(&self) -> Result<String> {
 		helpers::to_url(&self.ws_address)
 			.ok_or_else(|| errors::ws_disabled())
 	}
 
-	fn next_nonce(&self, address: H160) -> BoxFuture<U256, Error> {
+	fn next_nonce(&self, address: H160) -> BoxFuture<U256> {
 		Box::new(self.light_dispatch.next_nonce(address.into()).map(Into::into))
 	}
 
-	fn mode(&self) -> Result<String, Error> {
+	fn mode(&self) -> Result<String> {
 		Err(errors::light_unimplemented(None))
 	}
 
-	fn chain_id(&self) -> Result<Option<U64>, Error> {
+	fn chain_id(&self) -> Result<Option<U64>> {
 		Ok(self.client.signing_chain_id().map(U64::from))
 	}
 
-	fn chain(&self) -> Result<String, Error> {
+	fn chain(&self) -> Result<String> {
 		Ok(self.settings.chain.clone())
 	}
 
-	fn enode(&self) -> Result<String, Error> {
+	fn enode(&self) -> Result<String> {
 		self.light_dispatch.sync.enode().ok_or_else(errors::network_disabled)
 	}
 
-	fn consensus_capability(&self) -> Result<ConsensusCapability, Error> {
+	fn consensus_capability(&self) -> Result<ConsensusCapability> {
 		Err(errors::light_unimplemented(None))
 	}
 
-	fn version_info(&self) -> Result<VersionInfo, Error> {
+	fn version_info(&self) -> Result<VersionInfo> {
 		Err(errors::light_unimplemented(None))
 	}
 
-	fn releases_info(&self) -> Result<Option<OperationsInfo>, Error> {
+	fn releases_info(&self) -> Result<Option<OperationsInfo>> {
 		Err(errors::light_unimplemented(None))
 	}
 
-	fn chain_status(&self) -> Result<ChainStatus, Error> {
+	fn chain_status(&self) -> Result<ChainStatus> {
 		let chain_info = self.light_dispatch.client.chain_info();
 
 		let gap = chain_info.ancient_block_number.map(|x| U256::from(x + 1))
@@ -356,7 +356,7 @@ impl Parity for ParityClient {
 		})
 	}
 
-	fn node_kind(&self) -> Result<::v1::types::NodeKind, Error> {
+	fn node_kind(&self) -> Result<::v1::types::NodeKind> {
 		use ::v1::types::{NodeKind, Availability, Capability};
 
 		Ok(NodeKind {
@@ -365,7 +365,7 @@ impl Parity for ParityClient {
 		})
 	}
 
-	fn block_header(&self, number: Trailing<BlockNumber>) -> BoxFuture<RichHeader, Error> {
+	fn block_header(&self, number: Trailing<BlockNumber>) -> BoxFuture<RichHeader> {
 		use ethcore::encoded;
 
 		let engine = self.light_dispatch.client.engine().clone();
@@ -399,15 +399,15 @@ impl Parity for ParityClient {
 		Box::new(self.fetcher().header(number.unwrap_or_default().into()).map(from_encoded))
 	}
 
-	fn ipfs_cid(&self, content: Bytes) -> Result<String, Error> {
+	fn ipfs_cid(&self, content: Bytes) -> Result<String> {
 		ipfs::cid(content)
 	}
 
-	fn call(&self, _meta: Self::Metadata, _requests: Vec<CallRequest>, _block: Trailing<BlockNumber>) -> Result<Vec<Bytes>, Error> {
+	fn call(&self, _meta: Self::Metadata, _requests: Vec<CallRequest>, _block: Trailing<BlockNumber>) -> Result<Vec<Bytes>> {
 		Err(errors::light_unimplemented(None))
 	}
 
-	fn node_health(&self) -> BoxFuture<Health, Error> {
+	fn node_health(&self) -> BoxFuture<Health> {
 		Box::new(self.health.health()
 			.map_err(|err| errors::internal("Health API failure.", err)))
 	}
