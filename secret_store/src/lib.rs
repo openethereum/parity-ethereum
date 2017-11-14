@@ -37,7 +37,6 @@ extern crate tokio_proto;
 extern crate url;
 
 extern crate ethcore;
-extern crate ethcore_devtools as devtools;
 extern crate ethcore_bytes as bytes;
 extern crate ethcore_util as util;
 extern crate ethcore_bigint as bigint;
