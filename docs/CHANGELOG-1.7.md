@@ -1,17 +1,15 @@
-### Parity [v1.7.8](https://github.com/paritytech/parity/releases/tag/v1.7.8) (2017-10-27)
+### Parity [v1.7.9](https://github.com/paritytech/parity/releases/tag/v1.7.9) (2017-11-15)
 
-- [stable] Refactor static context check in CREATE ([#6889](https://github.com/paritytech/parity/pull/6889))
-- Fix #6228: do not display eth price in cli for etc ([#6877](https://github.com/paritytech/parity/pull/6877))
-- Fix mining help ([#6885](https://github.com/paritytech/parity/pull/6885))
-- [stable] v1.7.8 ([#6890](https://github.com/paritytech/parity/pull/6890))
-- Refactor static context check in CREATE. ([#6886](https://github.com/paritytech/parity/pull/6886))
-- Cleanup some configuration options ([#6878](https://github.com/paritytech/parity/pull/6878))
-- Fix serialization of non-localized transactions ([#6868](https://github.com/paritytech/parity/pull/6868))
-- Updated NTP to version 0.3 ([#6854](https://github.com/paritytech/parity/pull/6854))
-- Align README with 1.8 and prepare CHANGELOG with 1.8.1 ([#6833](https://github.com/paritytech/parity/pull/6833))
-- Return error on timed unlock ([#6777](https://github.com/paritytech/parity/pull/6777))
-- Fix dapps tests in master ([#6866](https://github.com/paritytech/parity/pull/6866))
-- [Beta] Add ECIP1017 to Morden config (#6810) ([#6845](https://github.com/paritytech/parity/pull/6845))
+Full list of included changes:
+
+### Parity [v1.7.8](https://github.com/paritytech/parity/releases/tag/v1.7.8) (2017-10-26)
+
+Parity 1.7.8 Fixes a critical Byzantium consensus issue. Update is highly recommended.
+
+Full list of included changes:
+
+- Refactor static context check in CREATE ([#6889](https://github.com/paritytech/parity/pull/6889))
+- Bumb to v1.7.8 ([#6890](https://github.com/paritytech/parity/pull/6890))
 
 ## Parity [v1.7.7](https://github.com/paritytech/parity/releases/tag/v1.7.7) (2017-10-15)
 
