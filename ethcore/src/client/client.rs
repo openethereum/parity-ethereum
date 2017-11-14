@@ -141,6 +141,11 @@ impl SleepState {
 	}
 }
 
+struct Importer {
+	/// Lock used during block import
+	pub import_lock: Mutex<()>, // FIXME Maybe wrap the whole `Importer` instead?
+}
+
 /// Blockchain database client backed by a persistent database. Owns and manages a blockchain and a block queue.
 /// Call `import_block()` to import a block asynchronously; `flush_queue()` flushes the queue.
 pub struct Client {
@@ -174,8 +179,6 @@ pub struct Client {
 	/// Report on the status of client
 	report: RwLock<ClientReport>,
 
-	/// Lock used during block import
-	import_lock: Mutex<()>,
 	verifier: Box<Verifier>,
 	miner: Arc<Miner>,
 	sleep_state: Mutex<SleepState>,
@@ -209,6 +212,16 @@ pub struct Client {
 	
 	/// A closure to call when we want to restart the client
 	exit_handler: Mutex<Option<Box<Fn(bool, Option<String>) + 'static + Send>>>,
+
+	importer: Importer,
+}
+
+impl Importer {
+	pub fn new() -> Importer {
+		Importer {
+			import_lock: Mutex::new(()),
+		}
+	}
 }
 
 impl Client {
@@ -283,7 +296,6 @@ impl Client {
 			state_db: Mutex::new(state_db),
 			block_queue: block_queue,
 			report: RwLock::new(Default::default()),
-			import_lock: Mutex::new(()),
 			miner: miner,
 			io_channel: Mutex::new(message_channel),
 			notify: RwLock::new(Vec::new()),
@@ -296,6 +308,7 @@ impl Client {
 			on_user_defaults_change: Mutex::new(None),
 			registrar: Mutex::new(None),
 			exit_handler: Mutex::new(None),
+			importer: Importer::new(),
 		});
 
 		// prune old states.
@@ -560,7 +573,7 @@ impl Client {
 			let mut proposed_blocks = Vec::with_capacity(max_blocks_to_import);
 			let mut import_results = Vec::with_capacity(max_blocks_to_import);
 
-			let _import_lock = self.import_lock.lock();
+			let _import_lock = self.importer.import_lock.lock();
 			let blocks = self.block_queue.drain(max_blocks_to_import);
 			if blocks.is_empty() {
 				return 0;
@@ -637,7 +650,7 @@ impl Client {
 		let header = block.header();
 		let receipts = ::rlp::decode_list(&receipts_bytes);
 		let hash = header.hash();
-		let _import_lock = self.import_lock.lock();
+		let _import_lock = self.importer.import_lock.lock();
 
 		{
 			let _timer = PerfTimer::new("import_old_block");
@@ -1224,7 +1237,7 @@ impl snapshot::DatabaseRestore for Client {
 	fn restore_db(&self, new_db: &str) -> Result<(), EthcoreError> {
 		trace!(target: "snapshot", "Replacing client database with {:?}", new_db);
 
-		let _import_lock = self.import_lock.lock();
+		let _import_lock = self.importer.import_lock.lock();
 		let mut state_db = self.state_db.lock();
 		let mut chain = self.chain.write();
 		let mut tracedb = self.tracedb.write();
@@ -1972,7 +1985,7 @@ impl MiningBlockChainClient for Client {
 		let start = precise_time_ns();
 		let route = {
 			// scope for self.import_lock
-			let _import_lock = self.import_lock.lock();
+			let _import_lock = self.importer.import_lock.lock();
 			let _timer = PerfTimer::new("import_sealed_block");
 
 			let number = block.header().number();
