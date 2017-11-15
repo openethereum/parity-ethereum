@@ -72,7 +72,7 @@ mod api;
 
 pub use api::*;
 pub use chain::{SyncStatus, SyncState};
-pub use network::{validate_node_url, NonReservedPeerMode, NetworkError, ConnectionFilter, ConnectionDirection};
+pub use network::{validate_node_url, NonReservedPeerMode, Error, ErrorKind, ConnectionFilter, ConnectionDirection};
 
 #[cfg(test)]
 pub(crate) type Address = bigint::hash::H160;

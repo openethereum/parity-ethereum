@@ -22,7 +22,7 @@ use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
 use std::ops::*;
 use std::cmp::min;
 use std::path::{Path, PathBuf};
-use std::io::{Read, Write, ErrorKind};
+use std::io::{Read, Write, self};
 use std::fs;
 use ethkey::{KeyPair, Secret, Random, Generator};
 use hash::keccak;
@@ -33,7 +33,6 @@ use bigint::hash::*;
 use util::version;
 use rlp::*;
 use session::{Session, SessionInfo, SessionData};
-use error::*;
 use io::*;
 use {NetworkProtocolHandler, NonReservedPeerMode, PROTOCOL_VERSION, IpFilter};
 use node_table::*;
@@ -43,6 +42,7 @@ use ip_utils::{map_external_address, select_public_address};
 use path::restrict_permissions_owner;
 use parking_lot::{Mutex, RwLock};
 use connection_filter::{ConnectionFilter, ConnectionDirection};
+use error::{Error, ErrorKind, DisconnectReason};
 
 type Slab<T> = ::slab::Slab<T, usize>;
 
@@ -248,12 +248,12 @@ impl<'s> NetworkContext<'s> {
 	}
 
 	/// Send a packet over the network to another peer.
-	pub fn send(&self, peer: PeerId, packet_id: PacketId, data: Vec<u8>) -> Result<(), NetworkError> {
+	pub fn send(&self, peer: PeerId, packet_id: PacketId, data: Vec<u8>) -> Result<(), Error> {
 		self.send_protocol(self.protocol, peer, packet_id, data)
 	}
 
 	/// Send a packet over the network to another peer using specified protocol.
-	pub fn send_protocol(&self, protocol: ProtocolId, peer: PeerId, packet_id: PacketId, data: Vec<u8>) -> Result<(), NetworkError> {
+	pub fn send_protocol(&self, protocol: ProtocolId, peer: PeerId, packet_id: PacketId, data: Vec<u8>) -> Result<(), Error> {
 		let session = self.resolve_session(peer);
 		if let Some(session) = session {
 			session.lock().send_packet(self.io, Some(protocol), packet_id as u8, &data)?;
@@ -264,9 +264,9 @@ impl<'s> NetworkContext<'s> {
 	}
 
 	/// Respond to a current network message. Panics if no there is no packet in the context. If the session is expired returns nothing.
-	pub fn respond(&self, packet_id: PacketId, data: Vec<u8>) -> Result<(), NetworkError> {
+	pub fn respond(&self, packet_id: PacketId, data: Vec<u8>) -> Result<(), Error> {
 		assert!(self.session.is_some(), "Respond called without network context");
-		self.session_id.map_or_else(|| Err(NetworkError::Expired), |id| self.send(id, packet_id, data))
+		self.session_id.map_or_else(|| Err(ErrorKind::Expired.into()), |id| self.send(id, packet_id, data))
 	}
 
 	/// Get an IoChannel.
@@ -292,7 +292,7 @@ impl<'s> NetworkContext<'s> {
 	}
 
 	/// Register a new IO timer. 'IoHandler::timeout' will be called with the token.
-	pub fn register_timer(&self, token: TimerToken, ms: u64) -> Result<(), NetworkError> {
+	pub fn register_timer(&self, token: TimerToken, ms: u64) -> Result<(), Error> {
 		self.io.message(NetworkIoMessage::AddTimer {
 			token: token,
 			delay: ms,
@@ -386,7 +386,7 @@ pub struct Host {
 
 impl Host {
 	/// Create a new instance
-	pub fn new(mut config: NetworkConfiguration, stats: Arc<NetworkStats>, filter: Option<Arc<ConnectionFilter>>) -> Result<Host, NetworkError> {
+	pub fn new(mut config: NetworkConfiguration, stats: Arc<NetworkStats>, filter: Option<Arc<ConnectionFilter>>) -> Result<Host, Error> {
 		let mut listen_address = match config.listen_address {
 			None => SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(0, 0, 0, 0), DEFAULT_PORT)),
 			Some(addr) => addr,
@@ -468,7 +468,7 @@ impl Host {
 		}
 	}
 
-	pub fn add_reserved_node(&self, id: &str) -> Result<(), NetworkError> {
+	pub fn add_reserved_node(&self, id: &str) -> Result<(), Error> {
 		let n = Node::from_str(id)?;
 
 		let entry = NodeEntry { endpoint: n.endpoint.clone(), id: n.id.clone() };
@@ -512,7 +512,7 @@ impl Host {
 		}
 	}
 
-	pub fn remove_reserved_node(&self, id: &str) -> Result<(), NetworkError> {
+	pub fn remove_reserved_node(&self, id: &str) -> Result<(), Error> {
 		let n = Node::from_str(id)?;
 		self.reserved_nodes.write().remove(&n.id);
 
@@ -533,7 +533,7 @@ impl Host {
 		format!("{}", Node::new(info.id().clone(), info.local_endpoint.clone()))
 	}
 
-	pub fn stop(&self, io: &IoContext<NetworkIoMessage>) -> Result<(), NetworkError> {
+	pub fn stop(&self, io: &IoContext<NetworkIoMessage>) -> Result<(), Error> {
 		self.stopping.store(true, AtomicOrdering::Release);
 		let mut to_kill = Vec::new();
 		for e in self.sessions.write().iter_mut() {
@@ -563,7 +563,7 @@ impl Host {
 		peers
 	}
 
-	fn init_public_interface(&self, io: &IoContext<NetworkIoMessage>) -> Result<(), NetworkError> {
+	fn init_public_interface(&self, io: &IoContext<NetworkIoMessage>) -> Result<(), Error> {
 		if self.info.read().public_endpoint.is_some() {
 			return Ok(());
 		}
@@ -746,7 +746,7 @@ impl Host {
 	}
 
 	#[cfg_attr(feature="dev", allow(block_in_if_condition_stmt))]
-	fn create_connection(&self, socket: TcpStream, id: Option<&NodeId>, io: &IoContext<NetworkIoMessage>) -> Result<(), NetworkError> {
+	fn create_connection(&self, socket: TcpStream, id: Option<&NodeId>, io: &IoContext<NetworkIoMessage>) -> Result<(), Error> {
 		let nonce = self.info.write().next_nonce();
 		let mut sessions = self.sessions.write();
 
@@ -775,7 +775,7 @@ impl Host {
 			let socket = match self.tcp_listener.lock().accept() {
 				Ok((sock, _addr)) => sock,
 				Err(e) => {
-					if e.kind() != ErrorKind::WouldBlock {
+					if e.kind() != io::ErrorKind::WouldBlock {
 						debug!(target: "network", "Error accepting connection: {:?}", e);
 					}
 					break
@@ -821,7 +821,7 @@ impl Host {
 					match session_result {
 						Err(e) => {
 							trace!(target: "network", "Session read error: {}:{:?} ({:?}) {:?}", token, s.id(), s.remote_addr(), e);
-							if let NetworkError::Disconnect(DisconnectReason::IncompatibleProtocol) = e {
+							if let ErrorKind::Disconnect(DisconnectReason::IncompatibleProtocol) = *e.kind() {
 								if let Some(id) = s.id() {
 									if !self.reserved_nodes.read().contains(id) {
 										self.nodes.write().mark_as_useless(id);

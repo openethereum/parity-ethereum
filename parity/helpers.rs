@@ -29,7 +29,7 @@ use cache::CacheConfig;
 use dir::DatabaseDirectories;
 use upgrade::{upgrade, upgrade_data_paths};
 use migration::migrate;
-use ethsync::{validate_node_url, NetworkError};
+use ethsync::{validate_node_url, self};
 use path;
 
 pub fn to_duration(s: &str) -> Result<Duration, String> {
@@ -181,9 +181,9 @@ pub fn parity_ipc_path(base: &str, path: &str, shift: u16) -> String {
 pub fn to_bootnodes(bootnodes: &Option<String>) -> Result<Vec<String>, String> {
 	match *bootnodes {
 		Some(ref x) if !x.is_empty() => x.split(',').map(|s| {
-			match validate_node_url(s) {
+			match validate_node_url(s).map(Into::into) {
 				None => Ok(s.to_owned()),
-				Some(NetworkError::AddressResolve(_)) => Err(format!("Failed to resolve hostname of a boot node: {}", s)),
+				Some(ethsync::ErrorKind::AddressResolve(_)) => Err(format!("Failed to resolve hostname of a boot node: {}", s)),
 				Some(_) => Err(format!("Invalid node address format given for a boot node: {}", s)),
 			}
 		}).collect(),
