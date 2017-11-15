@@ -84,6 +84,6 @@ pub fn start(client: Arc<Client>, self_key_pair: Arc<NodeKeyPair>, config: Servi
 		None => None,
 	};
 	let contract_listener = listener::service_contract_listener::ServiceContractListener::new(&client, key_server.clone(), self_key_pair);
-	let listener = listener::Listener::new(key_server, Some(http_listener), Some(contract_listener));
+	let listener = listener::Listener::new(key_server, http_listener, Some(contract_listener));
 	Ok(Box::new(listener))
 }

@@ -131,10 +131,10 @@ pub fn {snake_name}<F, U>(&self, call: F, {params}) -> BoxFuture<{output_type}, 
 
 /// Encode "{abi_name}" function arguments.
 /// Arguments: {abi_inputs:?}
-pub fn encode_{snake_name}_input(&self, {params}) -> Result<Bytes, String> {{
+pub fn encode_{snake_name}_input(&self, {params}) -> Result<Vec<u8>, String> {{
 	self.contract.function(r#"{abi_name}"#)
 		.expect("function existence checked at compile-time; qed")
-		.encode_input(&{to_tokens})
+		.encode_call({to_tokens})
 		.map_err(|e| format!("Error encoding call: {{:?}}", e))
 }}
 	"##,

@@ -96,7 +96,7 @@ impl KeyServerHttpListener {
 impl Drop for KeyServerHttpListener {
 	fn drop(&mut self) {
 		// ignore error as we are dropping anyway
-		self.http_server.take().map(|mut s| { let _ = s.close(); });
+		let _ = self.http_server.close();
 	}
 }
 
