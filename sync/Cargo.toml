@@ -34,7 +34,6 @@ ipnetwork = "0.12.6"
 [dev-dependencies]
 ethkey = { path = "../ethkey" }
 kvdb-memorydb = { path = "../util/kvdb-memorydb" }
-ethcore-devtools = { path = "../devtools" }
 
 [features]
 default = []
