@@ -52,6 +52,8 @@ pub struct AuthorityRoundParams {
 	/// Whether transitions should be immediate.
 	#[serde(rename="immediateTransitions")]
 	pub immediate_transitions: Option<bool>,
+	#[serde(rename="maximumUncleCount")]
+	pub maximum_uncle_count: Option<Uint>,
 }
 
 /// Authority engine deserialization.

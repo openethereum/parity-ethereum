@@ -67,6 +67,8 @@ pub struct AuthorityRoundParams {
 	pub validate_step_transition: u64,
 	/// Immediate transitions.
 	pub immediate_transitions: bool,
+	/// Number of accepted uncles.
+	pub maximum_uncle_count: usize,
 }
 
 impl From<ethjson::spec::AuthorityRoundParams> for AuthorityRoundParams {
@@ -82,6 +84,7 @@ impl From<ethjson::spec::AuthorityRoundParams> for AuthorityRoundParams {
 			eip155_transition: p.eip155_transition.map_or(0, Into::into),
 			validate_step_transition: p.validate_step_transition.map_or(0, Into::into),
 			immediate_transitions: p.immediate_transitions.unwrap_or(false),
+			maximum_uncle_count: p.maximum_uncle_count.map_or(0, Into::into),
 		}
 	}
 }
@@ -229,6 +232,7 @@ pub struct AuthorityRound {
 	validate_step_transition: u64,
 	epoch_manager: Mutex<EpochManager>,
 	immediate_transitions: bool,
+	maximum_uncle_count: usize,
 }
 
 // header-chain validator.
@@ -381,6 +385,7 @@ impl AuthorityRound {
 				validate_step_transition: our_params.validate_step_transition,
 				epoch_manager: Mutex::new(EpochManager::blank()),
 				immediate_transitions: our_params.immediate_transitions,
+				maximum_uncle_count: our_params.maximum_uncle_count,
 			});
 
 		// Do not initialize timeouts for tests.
@@ -455,8 +460,9 @@ impl Engine for AuthorityRound {
 		]
 	}
 
+	fn maximum_uncle_count(&self) -> usize { self.maximum_uncle_count }
+
 	fn populate_from_parent(&self, header: &mut Header, parent: &Header, gas_floor_target: U256, _gas_ceil_target: U256) {
-		// Chain scoring: total weight is sqrt(U256::max_value())*height - step
 		let new_difficulty = U256::from(U128::max_value()) + header_step(parent).expect("Header has been verified; qed").into() - self.step.load().into();
 		header.set_difficulty(new_difficulty);
 		header.set_gas_limit({
@@ -1027,7 +1033,9 @@ mod tests {
 			validate_step_transition: 0,
 			eip155_transition: 0,
 			immediate_transitions: true,
+			maximum_uncle_count: 0,
 		};
+
 		let aura = AuthorityRound::new(Default::default(), params, Default::default()).unwrap();
 
 		let mut parent_header: Header = Header::default();
