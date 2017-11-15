@@ -158,6 +158,9 @@ struct Importer {
 
 	/// Random number generator used by `AncientVerifier`
 	pub rng: Mutex<OsRng>,
+
+	/// Ethereum engine to be used during import
+	pub engine: Arc<EthEngine>,
 }
 
 /// Blockchain database client backed by a persistent database. Owns and manages a blockchain and a block queue.
@@ -237,7 +240,68 @@ impl Importer {
 			miner,
 			ancient_verifier: Mutex::new(None),
 			rng: Mutex::new(OsRng::new()?),
+			engine,
 		})
+	}
+
+	/// Import a block with transaction receipts.
+	///
+	/// The block is guaranteed to be the next best blocks in the
+	/// first block sequence. Does no sealing or transaction validation.
+	pub fn import_old_block(&self, block_bytes: Bytes, receipts_bytes: Bytes, db: &KeyValueDB, chain: &BlockChain) -> Result<H256, ::error::Error> {
+		let block = BlockView::new(&block_bytes);
+		let header = block.header();
+		let receipts = ::rlp::decode_list(&receipts_bytes);
+		let hash = header.hash();
+		let _import_lock = self.import_lock.lock();
+
+		{
+			let _timer = PerfTimer::new("import_old_block");
+			let mut ancient_verifier = self.ancient_verifier.lock();
+
+			{
+				// Closure for verifying a block
+				let verify_with = |verifier: &AncientVerifier| -> Result<(), ::error::Error> {
+					// Verify the block, passing the chain for updating the epoch verifier
+					verifier.verify(&mut *self.rng.lock(), &header, &chain)
+				};
+
+				// Initialize the ancient block verifier if we don't have one already
+				match &mut *ancient_verifier {
+					&mut Some(ref verifier) => {
+						verify_with(verifier)?
+					}
+
+					x @ &mut None => {
+						// Load most recent epoch
+						trace!(target: "client", "Initializing ancient block restoration.");
+						let current_epoch_data = chain.epoch_transitions()
+							.take_while(|&(_, ref t)| t.block_number < header.number())
+							.last()
+							.map(|(_, t)| t.proof)
+							.expect("At least one epoch entry (genesis) always stored; qed");
+
+						let current_verifier = self.engine.epoch_verifier(&header, &current_epoch_data)
+							.known_confirmed()?;
+						let current_verifier = AncientVerifier::new(self.engine.clone(), current_verifier);
+
+						verify_with(&current_verifier)?;
+						*x = Some(current_verifier);
+					}
+				}
+			}
+
+			// Commit results
+			let mut batch = DBTransaction::new();
+			chain.insert_unordered_block(&mut batch, &block_bytes, receipts, None, false, true);
+
+			// Final commit to the DB
+			db.write_buffered(batch);
+			chain.commit();
+		}
+
+		db.flush().expect("DB flush failed.");
+		Ok(hash)
 	}
 }
 
@@ -658,58 +722,7 @@ impl Client {
 	/// The block is guaranteed to be the next best blocks in the first block sequence.
 	/// Does no sealing or transaction validation.
 	fn import_old_block(&self, block_bytes: Bytes, receipts_bytes: Bytes) -> Result<H256, ::error::Error> {
-		let block = BlockView::new(&block_bytes);
-		let header = block.header();
-		let receipts = ::rlp::decode_list(&receipts_bytes);
-		let hash = header.hash();
-		let _import_lock = self.importer.import_lock.lock();
-
-		{
-			let _timer = PerfTimer::new("import_old_block");
-			let chain = self.chain.read();
-			let mut ancient_verifier = self.importer.ancient_verifier.lock();
-
-			{
-				// closure for verifying a block.
-				let verify_with = |verifier: &AncientVerifier| -> Result<(), ::error::Error> {
-					// verify the block, passing the chain for updating the epoch
-					// verifier.
-					verifier.verify(&mut *self.importer.rng.lock(), &header, &chain)
-				};
-
-				// initialize the ancient block verifier if we don't have one already.
-				match &mut *ancient_verifier {
-					&mut Some(ref verifier) => {
-						verify_with(verifier)?
-					}
-					x @ &mut None => {
-						// load most recent epoch.
-						trace!(target: "client", "Initializing ancient block restoration.");
-						let current_epoch_data = chain.epoch_transitions()
-							.take_while(|&(_, ref t)| t.block_number < header.number())
-							.last()
-							.map(|(_, t)| t.proof)
-							.expect("At least one epoch entry (genesis) always stored; qed");
-
-						let current_verifier = self.engine.epoch_verifier(&header, &current_epoch_data)
-							.known_confirmed()?;
-						let current_verifier = AncientVerifier::new(self.engine.clone(), current_verifier);
-
-						verify_with(&current_verifier)?;
-						*x = Some(current_verifier);
-					}
-				}
-			}
-
-			// Commit results
-			let mut batch = DBTransaction::new();
-			chain.insert_unordered_block(&mut batch, &block_bytes, receipts, None, false, true);
-			// Final commit to the DB
-			self.db.read().write_buffered(batch);
-			chain.commit();
-		}
-		self.db.read().flush().expect("DB flush failed.");
-		Ok(hash)
+		return self.importer.import_old_block(block_bytes, receipts_bytes, &**self.db.read(), &*self.chain.read());
 	}
 
 	// NOTE: the header of the block passed here is not necessarily sealed, as
