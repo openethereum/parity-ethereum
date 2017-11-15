@@ -65,6 +65,8 @@ pub struct AuthorityRoundParams {
 	pub immediate_transitions: bool,
 	/// Block reward in base units.
 	pub block_reward: U256,
+	/// Number of accepted uncles.
+	pub maximum_uncle_count: usize,
 }
 
 impl From<ethjson::spec::AuthorityRoundParams> for AuthorityRoundParams {
@@ -77,6 +79,7 @@ impl From<ethjson::spec::AuthorityRoundParams> for AuthorityRoundParams {
 			validate_step_transition: p.validate_step_transition.map_or(0, Into::into),
 			immediate_transitions: p.immediate_transitions.unwrap_or(false),
 			block_reward: p.block_reward.map_or_else(Default::default, Into::into),
+			maximum_uncle_count: p.maximum_uncle_count.map_or(0, Into::into),
 		}
 	}
 }
@@ -218,6 +221,7 @@ pub struct AuthorityRound {
 	epoch_manager: Mutex<EpochManager>,
 	immediate_transitions: bool,
 	block_reward: U256,
+	maximum_uncle_count: usize,
 	machine: EthereumMachine,
 }
 
@@ -365,6 +369,7 @@ impl AuthorityRound {
 				epoch_manager: Mutex::new(EpochManager::blank()),
 				immediate_transitions: our_params.immediate_transitions,
 				block_reward: our_params.block_reward,
+				maximum_uncle_count: our_params.maximum_uncle_count,
 				machine: machine,
 			});
 
@@ -435,6 +440,8 @@ impl Engine<EthereumMachine> for AuthorityRound {
 			"signature".into() => header_signature(header).as_ref().map(ToString::to_string).unwrap_or("".into())
 		]
 	}
+
+	fn maximum_uncle_count(&self) -> usize { self.maximum_uncle_count }
 
 	fn populate_from_parent(&self, header: &mut Header, parent: &Header) {
 		// Chain scoring: total weight is sqrt(U256::max_value())*height - step
@@ -949,6 +956,7 @@ mod tests {
 			validate_score_transition: 0,
 			validate_step_transition: 0,
 			immediate_transitions: true,
+			maximum_uncle_count: 0,
 			block_reward: Default::default(),
 		};
 

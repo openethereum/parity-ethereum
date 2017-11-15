@@ -192,7 +192,7 @@ pub trait Engine<M: Machine>: Sync + Send {
 	fn extra_info(&self, _header: &M::Header) -> BTreeMap<String, String> { BTreeMap::new() }
 
 	/// Maximum number of uncles a block is allowed to declare.
-	fn maximum_uncle_count(&self) -> usize { 2 }
+	fn maximum_uncle_count(&self) -> usize { 0 }
 	/// The number of generations back that uncles can be.
 	fn maximum_uncle_age(&self) -> usize { 6 }
 

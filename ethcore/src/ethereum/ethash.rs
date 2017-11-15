@@ -181,6 +181,8 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
 		}
 	}
 
+	fn maximum_uncle_count(&self) -> usize { 2 }
+
 	fn populate_from_parent(&self, header: &mut Header, parent: &Header) {
 		let difficulty = self.calculate_difficulty(header, parent);
 		header.set_difficulty(difficulty);
