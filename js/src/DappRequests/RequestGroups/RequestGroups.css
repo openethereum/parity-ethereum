@@ -15,10 +15,25 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.requests {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 1001; /* sits above sync warning */
+$backgroundOne: #f80;
+$backgroundTwo: #e57a00;
+
+.requestGroups {
+  background: $backgroundOne;
+  background: linear-gradient($backgroundOne, $backgroundTwo);
+  padding: 0.5em;
+  text-align: right;
+  color: white;
+
+  > span {
+    margin-right: 30px;
+  }
+
+  .requestGroup {
+    margin-top: 2px;
+
+    .requestGroupTitle {
+      margin-right: 10px;
+    }
+  }
 }

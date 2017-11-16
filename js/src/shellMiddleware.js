@@ -20,7 +20,7 @@ import { sha3 } from '@parity/api/lib/util/sha3';
 import VisibleStore from '@parity/shared/lib/mobx/dappsStore';
 
 import RequestStore from './DappRequests/store';
-import filteredRequests from './DappRequests/filteredRequests';
+import methodGroups from './DappRequests/methodGroups';
 
 export default function execute (appId, method, params, callback) {
   const visibleStore = VisibleStore.get();
@@ -30,18 +30,19 @@ export default function execute (appId, method, params, callback) {
     case 'shell_getApps':
       const [displayAll] = params;
 
-      callback(null, displayAll
-        ? visibleStore.allApps.slice()
-        : visibleStore.visibleApps.slice()
+      callback(
+        null,
+        displayAll
+          ? visibleStore.allApps.slice()
+          : visibleStore.visibleApps.slice()
       );
       return true;
 
     case 'shell_getFilteredMethods':
-      callback(null, flatten(
-        Object
-          .keys(filteredRequests)
-          .map((key) => filteredRequests[key].methods)
-      ));
+      callback(
+        null,
+        flatten(Object.keys(methodGroups).map(key => methodGroups[key].methods))
+      );
       return true;
 
     case 'shell_getMethodPermissions':
@@ -50,9 +51,7 @@ export default function execute (appId, method, params, callback) {
 
     case 'shell_loadApp':
       const [_loadId, loadParams] = params;
-      const loadId = _loadId.substr(0, 2) !== '0x'
-        ? sha3(_loadId)
-        : _loadId;
+      const loadId = _loadId.substr(0, 2) !== '0x' ? sha3(_loadId) : _loadId;
       const loadUrl = `/${loadId}/${loadParams || ''}`;
 
       window.location.hash = loadUrl;
@@ -67,9 +66,11 @@ export default function execute (appId, method, params, callback) {
     case 'shell_setAppVisibility':
       const [changeId, visibility] = params;
 
-      callback(null, visibility
-        ? visibleStore.showApp(changeId)
-        : visibleStore.hideApp(changeId)
+      callback(
+        null,
+        visibility
+          ? visibleStore.showApp(changeId)
+          : visibleStore.hideApp(changeId)
       );
       return true;
 

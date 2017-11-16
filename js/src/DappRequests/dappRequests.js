@@ -17,32 +17,38 @@
 import { observer } from 'mobx-react';
 import React from 'react';
 
-import Request from './Request';
+import RequestGroups from './RequestGroups';
 import Store from './store';
 import styles from './dappRequests.css';
 
 function DappRequests () {
   const store = Store.get();
 
+  console.log(
+    'REQUESTS',
+    store.requests,
+    store.hasRequests,
+    store.groupedRequests
+  );
+
   if (!store || !store.hasRequests) {
     return null;
   }
 
+  console.log('REQUESTS', this.groupedRequests);
+
   return (
     <div className={ styles.requests }>
-      {
-        store.squashedRequests.map(({ appId, queueId, request: { data } }) => (
-          <Request
+      {Object.keys(store.groupedRequests)
+        .map(appId => (
+          <RequestGroups
+            key={ appId }
             appId={ appId }
-            className={ styles.request }
-            approveRequest={ store.approveRequest }
-            denyRequest={ store.rejectRequest }
-            key={ queueId }
-            queueId={ queueId }
-            request={ data }
+            onApproveRequestGroup={ store.approveRequestGroup }
+            onRejectRequestGroup={ store.rejectRequestGroup }
+            requestGroups={ store.groupedRequests[appId] }
           />
-        ))
-      }
+        ))}
     </div>
   );
 }

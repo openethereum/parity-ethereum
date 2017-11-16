@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export default {
+const methodGroups = {
   shell: {
     methods: [
       'shell_getApps',
@@ -25,10 +25,7 @@ export default {
     ]
   },
   accountsView: {
-    methods: [
-      'parity_accountsInfo',
-      'parity_allAccountsInfo'
-    ]
+    methods: ['parity_accountsInfo', 'parity_allAccountsInfo']
   },
   accountsCreate: {
     methods: [
@@ -42,10 +39,7 @@ export default {
     ]
   },
   accountsEdit: {
-    methods: [
-      'parity_setAccountName',
-      'parity_setAccountMeta'
-    ]
+    methods: ['parity_setAccountName', 'parity_setAccountMeta']
   },
   upgrade: {
     methods: [
@@ -76,3 +70,15 @@ export default {
     ]
   }
 };
+
+const methodGroupFromMethod = {}; // Maps method to methodGroup
+
+// Populate methodGroupFromMethod
+Object.keys(methodGroups).forEach(groupId => {
+  methodGroups[groupId].methods.forEach(method => {
+    methodGroupFromMethod[method] = groupId;
+  });
+});
+
+export { methodGroupFromMethod };
+export default methodGroups;

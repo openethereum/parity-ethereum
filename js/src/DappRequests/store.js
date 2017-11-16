@@ -19,19 +19,16 @@ import store from 'store';
 
 import { sha3 } from '@parity/api/lib/util/sha3';
 
-import filteredRequests from './filteredRequests';
+import methodGroups, { methodGroupFromMethod } from './methodGroups';
 
 const LS_PERMISSIONS = '_parity::dapps::methods';
 
-let nextQueueId = 0;
-
 export default class Store {
-  @observable permissions = {};
-  @observable requests = [];
-  @observable tokens = {};
+  @observable permissions = {}; // Maps `${method}:${appId}` to true/false
+  @observable requests = {}; // Maps `${method}:${appId}` to request (if multiple requests for same app+method, then only store last)
+  @observable tokens = {}; // Maps token to appId
 
   middleware = [];
-  sources = {};
 
   constructor (provider) {
     this.provider = provider;
@@ -41,26 +38,26 @@ export default class Store {
   }
 
   @computed get hasRequests () {
-    return this.requests.length !== 0;
+    return Object.keys(this.requests).length !== 0;
   }
 
-  @computed get squashedRequests () {
-    const duplicates = {};
+  @computed get groupedRequests () {
+    // Group by appId on top level, and by methodGroup on 2nd level
+    return Object.values(this.requests).reduce((accumulator, request) => {
+      const { data: { method, params, token } } = request;
+      const appId = this.tokens[token];
 
-    return this.requests.filter(({ request: { data: { method, token } } }) => {
-      const section = this.getFilteredSectionName(method);
-      const id = `${token}:${section}`;
+      accumulator[appId] = accumulator[appId] || {};
 
-      if (!duplicates[id]) {
-        duplicates[id] = true;
-        return true;
-      }
+      const methodGroup = methodGroupFromMethod[method || params[0]]; // Get the methodGroup the current request belongs to
 
-      return false;
-    });
+      accumulator[appId][methodGroup] = accumulator[appId][methodGroup] || [];
+      accumulator[appId][methodGroup].push(request);
+      return accumulator;
+    }, {});
   }
 
-  @action createToken = (appId) => {
+  @action createToken = appId => {
     const token = sha3(`${appId}:${Date.now()}`);
 
     this.tokens = Object.assign({}, this.tokens, {
@@ -68,93 +65,99 @@ export default class Store {
     });
 
     return token;
-  }
+  };
 
-  @action removeRequest = (_queueId) => {
-    this.requests = this.requests.filter(({ queueId }) => queueId !== _queueId);
-    delete this.sources[_queueId];
-  }
+  @action queueRequest = request => {
+    const { data: { method, token } } = request;
+    const appId = this.tokens[token];
 
-  @action queueRequest = (request) => {
-    const { data, origin, source } = request;
-    const appId = this.tokens[data.token];
+    // Add a new request in this.requests
+    this.requests = {
+      ...this.requests,
+      [`${method}:${appId}`]: request
+    };
+  };
 
-    let queueId = ++nextQueueId;
+  @action approveRequest = (method, appId) => {
+    const { source, data } = this.requests[`${method}:${appId}`];
 
-    this.sources[queueId] = source;
-    this.requests = this.requests.concat([{
-      appId,
-      queueId,
-      request: {
-        data,
-        origin
-      }
-    }]);
-  }
-
-  @action addTokenPermission = (method, token) => {
-    const id = `${method}:${this.tokens[token]}`;
-
-    this.permissions = Object.assign({}, this.permissions, {
-      [id]: true
-    });
-    this.savePermissions();
-  }
-
-  @action approveSingleRequest = ({ queueId, request: { data } }) => {
-    const source = this.sources[queueId];
-
-    this.removeRequest(queueId);
+    this.addAppPermission(method, appId);
+    this.removeRequest(method, appId);
 
     if (data.api) {
       this.executePubsubCall(data, source);
     } else {
       this.executeMethodCall(data, source);
     }
-  }
+  };
 
-  @action approveRequest = (queueId, approveAll) => {
-    const queued = this.findRequest(queueId);
+  @action approveRequestGroup = (groupId, appId) => {
+    // Get methods of this requestGroup
+    const { methods } = methodGroups[groupId];
 
-    if (approveAll) {
-      const { request: { data: { method, token, params } } } = queued;
+    methods.forEach(method => {
+      if (!this.requests[`${method}:${appId}`]) {
+        return;
+      }
 
-      this.getFilteredSection(method || params[0]).methods.forEach((m) => {
-        this.addTokenPermission(m, token);
-        this.findMatchingRequests(m, token).forEach(this.approveSingleRequest);
-      });
-    } else {
-      this.approveSingleRequest(queued);
-    }
-  }
+      this.approveRequest(method, appId);
+    });
+  };
 
-  @action rejectRequest = (queueId) => {
-    const { request: { data } } = this.findRequest(queueId);
-    const source = this.sources[queueId];
+  @action rejectRequest = (method, appId) => {
+    const { source, data } = this.requests[`${method}:${appId}`];
 
-    this.removeRequest(queueId);
+    this.removeRequest(method, appId);
     this.rejectMessage(source, data);
-  }
+  };
+
+  @action rejectRequestGroup = (groupId, appId) => {
+    // Get methods of this requestGroup
+    const { methods } = methodGroups[groupId];
+
+    methods.forEach(method => {
+      if (!this.requests[`${method}:${appId}`]) {
+        return;
+      }
+
+      this.rejectRequest(method, appId);
+    });
+  };
+
+  @action removeRequest = (method, appId) => {
+    delete this.requests[`${method}:${appId}`];
+    this.requests = { ...this.requests };
+  };
 
   @action rejectMessage = (source, { id, from, method, token }) => {
     if (!source) {
       return;
     }
 
-    source.postMessage({
-      error: `Method ${method} not allowed`,
-      id,
-      from: 'shell',
-      result: null,
-      to: from,
-      token
-    }, '*');
-  }
+    source.postMessage(
+      {
+        error: `Method ${method} not allowed`,
+        id,
+        from: 'shell',
+        result: null,
+        to: from,
+        token
+      },
+      '*'
+    );
+  };
 
-  @action setPermissions = (_permissions) => {
+  @action addAppPermission = (method, appId) => {
+    this.permissions = Object.assign({}, this.permissions, {
+      [`${method}:${appId}`]: true
+    });
+    this.savePermissions();
+  };
+
+  @action setPermissions = _permissions => {
     const permissions = {};
 
-    Object.keys(_permissions).forEach((id) => {
+    Object.keys(_permissions).forEach(id => {
       permissions[id] = !!_permissions[id];
     });
 
@@ -162,10 +165,10 @@ export default class Store {
     this.savePermissions();
 
     return true;
-  }
+  };
 
   addMiddleware (middleware) {
-    if (!middleware || (typeof middleware !== 'function')) {
+    if (!middleware || typeof middleware !== 'function') {
       throw new Error('Interceptor middleware does not implement a function');
     }
 
@@ -180,27 +183,19 @@ export default class Store {
     }
 
     return this.tokens[token] === appId;
-  }
+  };
 
   hasTokenPermission = (method, token) => {
     return this.hasAppPermission(method, this.tokens[token]);
-  }
+  };
 
   hasAppPermission = (method, appId) => {
     return this.permissions[`${method}:${appId}`] || false;
-  }
+  };
 
   savePermissions = () => {
     store.set(LS_PERMISSIONS, this.permissions);
-  }
-
-  findRequest (_queueId) {
-    return this.requests.find(({ queueId }) => queueId === _queueId);
-  }
-
-  findMatchingRequests (_method, _token) {
-    return this.requests.filter(({ request: { data: { method, token, params } } }) => (method === _method || (params && params[0] === _method)) && token === _token);
-  }
+  };
 
   _methodCallbackPost = (id, from, source, token) => {
     return (error, result) => {
@@ -208,47 +203,38 @@ export default class Store {
         return;
       }
 
-      source.postMessage({
-        error: error
-          ? error.message
-          : null,
-        id,
-        from: 'shell',
-        to: from,
-        result,
-        token
-      }, '*');
+      source.postMessage(
+        {
+          error: error ? error.message : null,
+          id,
+          from: 'shell',
+          to: from,
+          result,
+          token
+        },
+        '*'
+      );
     };
-  }
+  };
 
   executePubsubCall = ({ api, id, from, token, params }, source) => {
     const callback = this._methodCallbackPost(id, from, source, token);
 
-    this.provider
-      .subscribe(api, callback, params)
-      .then((result, error) => {
-        this._methodCallbackPost(id, from, source, token)(null, result);
-      });
-  }
+    this.provider.subscribe(api, callback, params).then((result, error) => {
+      this._methodCallbackPost(id, from, source, token)(null, result);
+    });
+  };
 
   executeMethodCall = ({ id, from, method, params, token }, source) => {
     const callback = this._methodCallbackPost(id, from, source, token);
-    const isHandled = this.middleware.find((middleware) => middleware(from, method, params, callback));
+    const isHandled = this.middleware.find(middleware =>
+      middleware(from, method, params, callback)
+    );
 
     if (!isHandled) {
       this.provider.send(method, params, callback);
     }
-  }
-
-  getFilteredSectionName = (method) => {
-    return Object.keys(filteredRequests).find((key) => {
-      return filteredRequests[key].methods.includes(method);
-    });
-  }
-
-  getFilteredSection = (method) => {
-    return filteredRequests[this.getFilteredSectionName(method)];
-  }
+  };
 
   receiveMessage = ({ data, origin, source }) => {
     if (!data) {
@@ -266,8 +252,14 @@ export default class Store {
       return;
     }
 
-    if ((method && this.getFilteredSection(method) && !this.hasTokenPermission(method, token)) ||
-        (api && this.getFilteredSection(params[0]) && !this.hasTokenPermission(method, token))) {
+    if (
+      (method &&
+        methodGroupFromMethod[method] &&
+        !this.hasTokenPermission(method, token)) ||
+      (api &&
+        methodGroupFromMethod[params[0]] &&
+        !this.hasTokenPermission(method, token))
+    ) {
       this.queueRequest({ data, origin, source });
       return;
     }
@@ -276,12 +268,20 @@ export default class Store {
       this.executePubsubCall(data, source);
     } else if (subId) {
       subId === '*'
-        ? this.provider.unsubscribeAll().then(v => this._methodCallbackPost(id, from, source, token)(null, v))
-        : this.provider.unsubscribe(subId).then(v => this._methodCallbackPost(id, from, source, token)(null, v));
+        ? this.provider
+          .unsubscribeAll()
+          .then(v =>
+            this._methodCallbackPost(id, from, source, token)(null, v)
+          )
+        : this.provider
+          .unsubscribe(subId)
+          .then(v =>
+            this._methodCallbackPost(id, from, source, token)(null, v)
+          );
     } else {
       this.executeMethodCall(data, source);
     }
-  }
+  };
 
   static instance = null;
 
