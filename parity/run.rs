@@ -25,6 +25,7 @@ use ethcore::client::{Client, Mode, DatabaseCompactionProfile, VMType, BlockChai
 use ethcore::ethstore::ethkey;
 use ethcore::miner::{Miner, MinerService, ExternalMiner, MinerOptions};
 use ethcore::miner::{StratumOptions, Stratum};
+use ethcore::private_transactions::{ProviderConfig};
 use ethcore::service::ClientService;
 use ethcore::snapshot;
 use ethcore::spec::{SpecParams, OptimizeFor};
@@ -111,6 +112,7 @@ pub struct RunCmd {
 	pub ipfs_conf: ipfs::Configuration,
 	pub ui_conf: rpc::UiConfiguration,
 	pub secretstore_conf: secretstore::Configuration,
+	pub private_provider_conf: ProviderConfig,
 	pub dapp: Option<String>,
 	pub ui: bool,
 	pub name: String,
@@ -675,6 +677,7 @@ pub fn execute(cmd: RunCmd, can_restart: bool, logger: Arc<RotatingLogger>) -> R
 	let provider = client.private_transactions_provider().clone();
 	provider.add_notify(chain_notify.clone());
 	provider.register_account_provider(Arc::downgrade(&account_provider));
+	provider.set_config(cmd.private_provider_conf);
 	service.add_notify(provider);
 
 	// start network

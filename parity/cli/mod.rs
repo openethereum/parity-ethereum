@@ -354,6 +354,19 @@ usage! {
 			"--password=[FILE]...",
 			"Provide a file containing a password for unlocking an account. Leading and trailing whitespace is trimmed.",
 
+		["Private transactions options"]
+			ARG arg_private_signer: (Option<String>) = None, or |c: &Config| otry!(c.privatetransactions).signer.clone(),
+			"--private-signer=[ACCOUNT]",
+			"Specify the account for signing public transaction created upon verified private transaction.",
+
+			ARG arg_private_validators: (Option<String>) = None, or |c: &Config| otry!(c.privatetransactions).validators.as_ref().map(|vec| vec.join(",")),
+			"--private-validators=[ACCOUNTS]",
+			"Specify the accounts for validating private transactions. ACCOUNTS is a comma-delimited list of addresses.",
+
+			ARG arg_private_passwords: (Option<String>) = None, or |c: &Config| otry!(c.privatetransactions).passwords.clone(),
+			"--private-passwords=[FILE]...",
+			"Provide a file containing passwords for unlocking signer and validators accounts.",
+
 		["UI options"]
 			FLAG flag_force_ui: (bool) = false, or |c: &Config| otry!(c.ui).force.clone(),
 			"--force-ui",
@@ -983,6 +996,7 @@ struct Config {
 	ipc: Option<Ipc>,
 	dapps: Option<Dapps>,
 	secretstore: Option<SecretStore>,
+	privatetransactions: Option<PrivateTransactions>,
 	ipfs: Option<Ipfs>,
 	mining: Option<Mining>,
 	footprint: Option<Footprint>,
@@ -1019,6 +1033,13 @@ struct Account {
 	keys_iterations: Option<u32>,
 	disable_hardware: Option<bool>,
 	fast_unlock: Option<bool>,
+}
+
+#[derive(Default, Debug, PartialEq, Deserialize)]
+struct PrivateTransactions {
+	signer: Option<String>,
+	validators: Option<Vec<String>>,
+	passwords: Option<String>,
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
@@ -1419,6 +1440,11 @@ mod tests {
 			flag_no_hardware_wallets: false,
 			flag_fast_unlock: false,
 
+			// -- Private Transactions Options
+			arg_private_signer: Some("0xdeadbeefcafe0000000000000000000000000000".into()),
+			arg_private_validators: Some("0xdeadbeefcafe0000000000000000000000000000".into()),
+			arg_private_passwords: Some("~/.safe/password.file".into()),
+
 			flag_force_ui: false,
 			flag_no_ui: false,
 			arg_ui_port: 8180u16,
@@ -1726,6 +1752,7 @@ mod tests {
 				http_port: Some(8082),
 				path: None,
 			}),
+			privatetransactions: None,
 			ipfs: Some(Ipfs {
 				enable: Some(false),
 				port: Some(5001),

@@ -31,6 +31,7 @@ use ansi_term::Colour;
 use ethsync::{NetworkConfiguration, is_valid_node_url};
 use ethcore::ethstore::ethkey::{Secret, Public};
 use ethcore::client::{VMType};
+use ethcore::private_transactions::{ProviderConfig};
 use ethcore::miner::{MinerOptions, Banning, StratumOptions};
 use ethcore::verification::queue::VerifierSettings;
 
@@ -39,7 +40,7 @@ use rpc_apis::ApiSet;
 use parity_rpc::NetworkSettings;
 use cache::CacheConfig;
 use helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_price, replace_home, replace_home_and_local,
-geth_ipc_path, parity_ipc_path, to_bootnodes, to_addresses, to_address, to_gas_limit, to_queue_strategy};
+geth_ipc_path, parity_ipc_path, to_bootnodes, to_addresses, to_address, to_gas_limit, to_queue_strategy, passwords_from_files};
 use params::{ResealPolicy, AccountsConfig, GasPricerConfig, MinerExtras, SpecType};
 use ethcore_logger::Config as LogConfig;
 use dir::{self, Directories, default_hypervisor_path, default_local_path, default_data_path};
@@ -362,6 +363,7 @@ impl Configuration {
 				ipfs_conf: ipfs_conf,
 				ui_conf: ui_conf,
 				secretstore_conf: secretstore_conf,
+				private_provider_conf: self.private_provider_config()?,
 				dapp: self.dapp_to_open()?,
 				ui: self.args.cmd_ui,
 				name: self.args.arg_identity,
@@ -885,6 +887,19 @@ impl Configuration {
 		Ok(conf)
 	}
 
+	fn private_provider_config(&self) -> Result<ProviderConfig, String> {
+		let conf = ProviderConfig {
+			validator_accounts: to_addresses(&self.args.arg_private_validators)?,
+			signer_account: self.args.arg_private_signer.clone().and(to_address(self.args.arg_private_signer.clone()).ok()),
+			passwords: match self.args.arg_private_passwords.clone() {
+				Some(file) => passwords_from_files(&vec![file].as_slice())?,
+				None => Vec::new(),
+			}
+		};
+
+		Ok(conf)
+	}
+
 	fn network_settings(&self) -> Result<NetworkSettings, String> {
 		let http_conf = self.http_config()?;
 		let net_addresses = self.net_addresses()?;
@@ -1360,6 +1375,7 @@ mod tests {
 			ipfs_conf: Default::default(),
 			ui_conf: Default::default(),
 			secretstore_conf: Default::default(),
+			private_provider_conf: Default::default(),
 			ui: false,
 			dapp: None,
 			name: "".into(),

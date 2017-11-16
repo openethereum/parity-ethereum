@@ -197,56 +197,20 @@ impl<'a> TransactionQueueDetailsProvider for TransactionDetailsProvider<'a> {
 	}
 }
 
-/// Information about verification account
-#[derive(Default, Clone, Debug)]
-pub struct VerificationAccount {
-	/// Address
-	address: Address,
-	/// Password
-	password: Option<String>,
-}
-
-impl VerificationAccount {
-	/// Creates a new verification account
-	pub fn new(address: Address, password: Option<String>) -> Self {
-		VerificationAccount {
-			address: address,
-			password: password,
-		}
-	}
-}
-
-/// Account used for signing public transactions created from private transactions
-#[derive(Default, Clone, Debug)]
-pub struct PublicSigningAccount {
-	/// Address
-	address: Address,
-	/// Password
-	password: Option<String>,
-}
-
-impl PublicSigningAccount {
-	/// Creates a new public signing account
-	pub fn new(address: Address, password: Option<String>) -> Self {
-		PublicSigningAccount {
-			address: address,
-			password: password,
-		}
-	}
-}
-
 /// Configurtion for private transaction provider
-#[derive(Default, Debug)]
+#[derive(Default, PartialEq, Debug)]
 pub struct ProviderConfig {
 	/// Accounts that can be used for validation
-	pub validator_accounts: Vec<VerificationAccount>,
+	pub validator_accounts: Vec<Address>,
 	/// Account used for signing public transactions created from private transactions
-	pub signer_account: PublicSigningAccount,
+	pub signer_account: Option<Address>,
+	/// Passwords used to unlock accounts
+	pub passwords: Vec<String>,
 }
 
 /// Manager of private transactions
 pub struct Provider {
-	config: Mutex<ProviderConfig>,
+	config: RwLock<ProviderConfig>,
 	notify: RwLock<Vec<Weak<ChainNotify>>>,
 	transactions_for_signing: Mutex<SigningStore>,
 	transactions_for_verification: Mutex<VerificationStore>,
@@ -263,9 +227,9 @@ struct PrivateExecutionResult<T, V> where T: Tracer, V: VMTracer {
 
 impl Provider {
 	/// Create a new provider.
-	pub fn new(config: ProviderConfig) -> Self {
+	pub fn new() -> Self {
 		Provider {
-			config: Mutex::new(config),
+			config: RwLock::new(ProviderConfig::default()),
 			notify: RwLock::new(Vec::new()),
 			transactions_for_signing: Mutex::new(SigningStore::new()),
 			transactions_for_verification: Mutex::new(VerificationStore::new()),
@@ -297,9 +261,9 @@ impl Provider {
 		*self.accounts.write() = Some(accounts);
 	}
 
-	/// Sets provider's config. Required mostly in tests
+	/// Sets provider's config.
 	pub fn set_config(&self, config: ProviderConfig) {
-		*self.config.lock() = config;
+		*self.config.write() = config;
 	}
 
 	/// 1. Create private transaction from the regular transaction
@@ -308,6 +272,10 @@ impl Provider {
 	/// 4. Broadcast corresponding message to the chain
 	pub fn create_private_transaction(&self, transaction: SignedTransaction, contract: &Address) -> Result<(), EthcoreError> {
 		trace!("Creating private transaction from regular transaction: {:?}", transaction);
+		if self.config.read().signer_account.is_none() {
+			trace!("Signing account not set");
+			return Err(PrivateTransactionError::SignerAccountNotSet.into());
+		}
 		let data = transaction.rlp_bytes();
 		let encrypted_transaction = self.encrypt(contract, &data)?;
 		let private = PrivateTransaction {
@@ -323,6 +291,19 @@ impl Provider {
 		Ok(())
 	}
 
+	/// Try to unlock account using stored passwords
+	fn unlock_account(&self, account: &Address) -> Result<bool, EthcoreError> {
+		let accounts = self.accounts.read().clone().ok_or_else(|| PrivateTransactionError::AccountProviderIsMalformed)?;
+		let accounts = accounts.upgrade().ok_or_else(|| PrivateTransactionError::AccountProviderIsMalformed)?;
+		let passwords = self.config.read().passwords.clone();
+		for password in passwords {
+			if let Ok(()) = accounts.unlock_account_temporarily(account.clone(), password) {
+				return Ok(true);
+			}
+		}
+		Ok(false)
+	}
+
 	/// Extract signed transaction from private transaction
 	fn extract_original_transaction(&self, private: PrivateTransaction, contract: &Address) -> Result<UnverifiedTransaction, EthcoreError> {
 		let encrypted_transaction = private.encrypted.clone();
@@ -333,7 +314,7 @@ impl Provider {
 
 	/// Process received private transaction
 	pub fn import_private_transaction(&self, rlp: &[u8]) -> Result<(), EthcoreError> {
-		let validator_accounts = self.config.lock().validator_accounts.clone();
+		let validator_accounts = self.config.read().validator_accounts.clone();
 		trace!("Private transaction received");
 		if validator_accounts.is_empty() {
 			self.broadcast_private_transaction(rlp.into());
@@ -347,7 +328,7 @@ impl Provider {
 			.iter()
 			.filter(|&&address| validator_accounts
 				.iter()
-				.any(|validator| validator.address == address))
+				.any(|&validator| validator == address))
 			.next() {
 			None => {
 				// Not for verification, broadcast further to peers
@@ -392,17 +373,21 @@ impl Provider {
 			let transaction_hash = transaction.hash();
 			match self.transactions_for_verification.lock().private_transaction_descriptor(&transaction_hash) {
 				Ok(desc) => {
-					match self.config.lock().validator_accounts.iter().find(|account| account.address == desc.validator_account) {
+					match self.config.read().validator_accounts.iter().find(|&&account| account == desc.validator_account) {
 						Some(account) => {
 							let accounts = self.accounts.read().clone().ok_or_else(|| PrivateTransactionError::AccountProviderIsMalformed)?;
 							let accounts = accounts.upgrade().ok_or_else(|| PrivateTransactionError::AccountProviderIsMalformed)?;
 							let private_state = self.execute_private_transaction(BlockId::Latest, &transaction)?;
 							let private_state_hash = keccak(&private_state);
 							trace!("Hashed effective private state for validator: {:?}", private_state_hash);
-							let signed_state = accounts.sign(account.address.clone(), account.password.clone(), private_state_hash)?;
-							let signed_private_transaction = SignedPrivateTransaction::new(desc.private_hash, signed_state, None);
-							trace!("Sending signature for private transaction: {:?}", signed_private_transaction);
-							self.broadcast_signed_private_transaction(signed_private_transaction.rlp_bytes().into_vec());
+							if let Ok(true) = self.unlock_account(&account) {
+								let signed_state = accounts.sign(account.clone(), None, private_state_hash)?;
+								let signed_private_transaction = SignedPrivateTransaction::new(desc.private_hash, signed_state, None);
+								trace!("Sending signature for private transaction: {:?}", signed_private_transaction);
+								self.broadcast_signed_private_transaction(signed_private_transaction.rlp_bytes().into_vec());
+							} else {
+								trace!("Cannot unlock account");
+							}
 						}
 						None => trace!("Cannot find validator account in config"),
 					}
@@ -446,14 +431,18 @@ impl Provider {
 			let accounts = accounts.upgrade().ok_or_else(|| PrivateTransactionError::AccountProviderIsMalformed)?;
 			let chain_id = desc.original_transaction.chain_id();
 			let hash = public_tx.hash(chain_id);
-			let config = self.config.lock();
-			let signature = accounts.sign(config.signer_account.address.clone(), config.signer_account.password.clone(), hash)?;
-			let signed = SignedTransaction::new(public_tx.with_signature(signature, chain_id))?;
-			let client = self.client.read().clone().ok_or_else(|| PrivateTransactionError::ClientIsMalformed)?;
-			let client = client.upgrade().ok_or_else(|| PrivateTransactionError::ClientIsMalformed)?;
-			match client.miner().import_own_transaction(&*client as &MiningBlockChainClient, signed.into()) {
-				Ok(_) => trace!("Public transaction added to queue"),
-				Err(err) => trace!("Failed to add transaction to queue, error: {:?}", err),
+			let signer_account = self.config.read().signer_account.ok_or_else(|| PrivateTransactionError::SignerAccountNotSet)?;
+			if let Ok(true) = self.unlock_account(&signer_account) {
+				let signature = accounts.sign(signer_account.clone(), None, hash)?;
+				let signed = SignedTransaction::new(public_tx.with_signature(signature, chain_id))?;
+				let client = self.client.read().clone().ok_or_else(|| PrivateTransactionError::ClientIsMalformed)?;
+				let client = client.upgrade().ok_or_else(|| PrivateTransactionError::ClientIsMalformed)?;
+				match client.miner().import_own_transaction(&*client as &MiningBlockChainClient, signed.into()) {
+					Ok(_) => trace!("Public transaction added to queue"),
+					Err(err) => trace!("Failed to add transaction to queue, error: {:?}", err),
+				}
+			} else {
+				trace!("Cannot unlock account");
 			}
 			//Remove from store for signing
 			match self.transactions_for_signing.lock().remove(&private_hash) {

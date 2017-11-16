@@ -150,6 +150,8 @@ pub enum PrivateTransactionError {
 	PrivateTransactionAlreadyImported,
 	/// The information about private transaction is not found in the store
 	PrivateTransactionNotFound,
+	/// Account for signing public transactions not set
+	SignerAccountNotSet,
 }
 
 impl fmt::Display for PrivateTransactionError {
@@ -170,6 +172,7 @@ impl fmt::Display for PrivateTransactionError {
 			QueueIsFull => f.write_str("Private transactions queue is full."),
 			PrivateTransactionAlreadyImported => f.write_str("Private transactions already imported."),
 			PrivateTransactionNotFound => f.write_str("Private transactions is not found in the store."),
+			SignerAccountNotSet => f.write_str("Account for signing public transactions not set."),
 		}
 	}
 }

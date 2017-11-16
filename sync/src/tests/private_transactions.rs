@@ -23,7 +23,7 @@ use ethcore::client::{BlockChainClient, BlockId};
 use ethcore::spec::Spec;
 use ethcore::miner::MinerService;
 use ethcore::transaction::*;
-use ethcore::private_transactions::{VerificationAccount, ProviderConfig, PublicSigningAccount};
+use ethcore::private_transactions::{ProviderConfig};
 use ethcore::account_provider::AccountProvider;
 use ethkey::KeyPair;
 use tests::helpers::*;
@@ -107,16 +107,17 @@ fn send_private_transaction() {
 	let provider0 = client0.private_transactions_provider().clone();
 	let provider1 = client1.private_transactions_provider().clone();
 
-	let mut validator_config = ProviderConfig{
-		validator_accounts: Vec::new(),
-		signer_account: PublicSigningAccount::default(),
+	let validator_config = ProviderConfig{
+		validator_accounts: vec![s1.address()],
+		signer_account: None,
+		passwords: vec!["".into()],
 	};
-	validator_config.validator_accounts.push(VerificationAccount::new(s1.address(), Some("".into())));
 	provider1.set_config(validator_config);
 
 	let signer_config = ProviderConfig{
 		validator_accounts: Vec::new(),
-		signer_account: PublicSigningAccount::new(s1.address(), Some("".into())),
+		signer_account: Some(s0.address()),
+		passwords: vec!["".into()],
 	};
 	provider0.set_config(signer_config);
 
@@ -151,6 +152,6 @@ fn send_private_transaction() {
 	//Exchange with signature and create corresponding public transaction
 	net.sync();
 
-	let future_transactions = client0.miner().future_transactions();
-	assert_eq!(future_transactions.len(), 1);
+	let ready_transactions = client0.miner().pending_transactions();
+	assert_eq!(ready_transactions.len(), 1);
 }
