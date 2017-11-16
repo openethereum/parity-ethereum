@@ -39,7 +39,7 @@ build_rpc_trait! {
 
 		/// Signs transaction. The account is not unlocked in such case.
 		#[rpc(meta, name = "personal_signTransaction")]
-		fn sign_transaction(&self, Self::Metadata, TransactionRequest, String) -> BoxFuture<RpcRichRawTransaction, Error>;
+		fn sign_transaction(&self, Self::Metadata, TransactionRequest, String) -> BoxFuture<RpcRichRawTransaction>;
 
 		/// Sends transaction and signs it in single call. The account is not unlocked in such case.
 		#[rpc(meta, name = "personal_sendTransaction")]

@@ -56,7 +56,7 @@ impl<D: Dispatcher> PersonalClient<D> {
 }
 
 impl<D: Dispatcher + 'static> PersonalClient<D> {
-	fn do_sign_transaction(&self, meta: Metadata, request: TransactionRequest, password: String) -> BoxFuture<(PendingTransaction, D), Error> {
+	fn do_sign_transaction(&self, meta: Metadata, request: TransactionRequest, password: String) -> BoxFuture<(PendingTransaction, D)> {
 		let dispatcher = self.dispatcher.clone();
 		let accounts = try_bf!(self.account_provider());
 
@@ -133,12 +133,12 @@ impl<D: Dispatcher + 'static> Personal for PersonalClient<D> {
 		}
 	}
 
-	fn sign_transaction(&self, meta: Metadata, request: TransactionRequest, password: String) -> BoxFuture<RpcRichRawTransaction, Error> {
+	fn sign_transaction(&self, meta: Metadata, request: TransactionRequest, password: String) -> BoxFuture<RpcRichRawTransaction> {
 		Box::new(self.do_sign_transaction(meta, request, password)
 			.map(|(pending_tx, dispatcher)| dispatcher.enrich(pending_tx.transaction)))
 	}
 
-	fn send_transaction(&self, meta: Metadata, request: TransactionRequest, password: String) -> BoxFuture<RpcH256, Error> {
+	fn send_transaction(&self, meta: Metadata, request: TransactionRequest, password: String) -> BoxFuture<RpcH256> {
 		Box::new(self.do_sign_transaction(meta, request, password)
 			.and_then(|(pending_tx, dispatcher)| {
 				let chain_id = pending_tx.chain_id();
