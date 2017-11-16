@@ -37,6 +37,7 @@ extern crate semver;
 extern crate serde;
 extern crate serde_json;
 extern crate time;
+extern crate tiny_keccak;
 extern crate tokio_timer;
 extern crate transient_hashmap;
 
