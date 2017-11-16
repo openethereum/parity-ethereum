@@ -449,12 +449,12 @@ fn ecip1017_eras_block_reward(era_rounds: u64, mut reward: U256, block_number:u6
 	} else {
 		block_number / era_rounds
 	};
+	let mut divi = U256::from(1);
 	for _ in 0..eras {
 		reward = reward * U256::from(4);
+		divi = divi * U256::from(5);
 	}
-	for _ in 0..eras {
-		reward = reward / U256::from(5);	
-	}
+	reward = reward / divi;
 	(eras, reward)
 }
 
