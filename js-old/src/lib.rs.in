@@ -40,10 +40,10 @@ impl WebApp for App {
 
 	fn info(&self) -> Info {
 		Info {
-			name: "Parity Wallet v1",
+			name: "Parity Wallet",
 			version: env!("CARGO_PKG_VERSION"),
 			author: "Parity <admin@parity.io>",
-			description: "Deprecated version of Parity Wallet.",
+			description: "Parity Wallet and Account management tools",
 			icon_url: "icon.png",
 		}
 	}

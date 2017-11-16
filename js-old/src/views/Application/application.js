@@ -18,26 +18,13 @@ import { observer } from 'mobx-react';
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 
-import UpgradeStore from '~/modals/UpgradeParity/store';
-
-import Connection from '../Connection';
-import ParityBar from '../ParityBar';
-import SyncWarning, { showSyncWarning } from '../SyncWarning';
-
 import Snackbar from './Snackbar';
 import Container from './Container';
 import DappContainer from './DappContainer';
-import Extension from './Extension';
-import FrameError from './FrameError';
-import Status from './Status';
 import Store from './store';
 import TabBar from './TabBar';
-import Requests from './Requests';
 
 import styles from './application.css';
-
-const inFrame = window.parent !== window && window.parent.frames.length !== 0;
-const doShowSyncWarning = showSyncWarning();
 
 @observer
 class Application extends Component {
@@ -53,11 +40,9 @@ class Application extends Component {
   }
 
   store = new Store(this.context.api);
-  upgradeStore = UpgradeStore.get(this.context.api);
 
   render () {
     const [root] = (window.location.hash || '').replace('#/', '').split('/');
-    const isMinimized = root === 'app' || root === 'web';
 
     if (process.env.NODE_ENV !== 'production' && root === 'playground') {
       return (
@@ -69,47 +54,20 @@ class Application extends Component {
 
     return (
       <div>
-        {
-          inFrame
-            ? <FrameError />
-            : null
-        }
-        {
-          isMinimized
-            ? this.renderMinimized()
-            : this.renderApp()
-        }
-        {
-          doShowSyncWarning
-          ? (<SyncWarning />)
-          : null
-        }
-        <Connection />
-        <Requests />
-        <ParityBar dapp={ isMinimized } />
+        { this.renderApp() }
       </div>
     );
   }
 
   renderApp () {
-    const { blockNumber, children, pending } = this.props;
+    const { children, pending } = this.props;
 
     return (
-      <Container
-        upgradeStore={ this.upgradeStore }
-        onCloseFirstRun={ this.store.closeFirstrun }
-        showFirstRun={ this.store.firstrunVisible }
-      >
+      <Container>
         <TabBar pending={ pending } />
         <div className={ styles.content }>
           { children }
         </div>
-        {
-          blockNumber
-            ? <Status upgradeStore={ this.upgradeStore } />
-            : null
-        }
-        <Extension />
         <Snackbar />
       </Container>
     );

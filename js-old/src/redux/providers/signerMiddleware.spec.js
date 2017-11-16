@@ -48,6 +48,12 @@ let store;
 
 function createApi () {
   api = {
+    transport: {
+      on: sinon.stub()
+    },
+    pubsub: {
+      subscribeAndGetResult: sinon.stub().returns(Promise.reject(new Error('not connected')))
+    },
     net: {
       version: sinon.stub().resolves('2')
     },

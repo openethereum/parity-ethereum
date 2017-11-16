@@ -23,8 +23,8 @@ $backgroundTwo: #e57a00;
   position: fixed;
   left: 0;
   right: 0;
-  top: 2.75em;
-  z-index: 760; /* sits above requests */
+  bottom: 0;
+  z-index: 1001; /* sits above sync warning */
 
   .request {
     align-items: center;

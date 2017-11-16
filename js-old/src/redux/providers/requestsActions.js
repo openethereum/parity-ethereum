@@ -23,12 +23,19 @@ import SavedRequests from '~/views/Application/Requests/savedRequests';
 const savedRequests = new SavedRequests();
 
 export const init = (api) => (dispatch) => {
-  api.subscribe('parity_postTransaction', (error, request) => {
+  api.subscribe('signer_requestsToConfirm', (error, pending) => {
     if (error) {
-      return console.error(error);
+      return;
     }
 
-    dispatch(watchRequest(request));
+    const requests = pending
+      .filter((p) => p.payload && p.payload.sendTransaction)
+      .map((p) => ({
+        requestId: '0x' + p.id.toString(16),
+        transaction: p.payload.sendTransaction
+      }));
+
+    requests.forEach((request) => dispatch(watchRequest(request)));
   });
 
   api.once('connected', () => {
@@ -47,13 +54,24 @@ export const watchRequest = (request) => (dispatch, getState) => {
   dispatch(trackRequest(requestId, request));
 };
 
-export const trackRequest = (requestId, { transactionHash = null } = {}) => (dispatch, getState) => {
+export const trackRequest = (requestId, { transactionHash = null, retries = 0 } = {}) => (dispatch, getState) => {
   const { api } = getState();
 
   trackRequestUtil(api, { requestId, transactionHash }, (error, _data = {}) => {
     const data = { ..._data };
 
     if (error) {
+      // Retry in 500ms if request not found, max 5 times
+      if (error.type === 'REQUEST_NOT_FOUND') {
+        if (retries > 5) {
+          return dispatch(deleteRequest(requestId));
+        }
+
+        return setTimeout(() => {
+          trackRequest(requestId, { transactionHash, retries: retries + 1 })(dispatch, getState);
+        }, 500);
+      }
+
       console.error(error);
       return dispatch(setRequest(requestId, { error }));
     }
@@ -65,8 +83,9 @@ export const trackRequest = (requestId, { transactionHash = null } = {}) => (dis
       const requestData = requests[requestId];
       let blockSubscriptionId = -1;
 
-      // Set the block height to 0 at the beggining
-      data.blockHeight = new BigNumber(0);
+      // Set the block height to 1 at the beginning (transaction mined,
+      // thus one confirmation)
+      data.blockHeight = new BigNumber(1);
 
       // If the request was a contract deployment,
       // then add the contract with the saved metadata to the account

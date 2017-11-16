@@ -29,8 +29,8 @@ const rulesEs6 = require('./rules/es6');
 const rulesParity = require('./rules/parity');
 const Shared = require('./shared');
 
-const DAPPS_BUILTIN = require('@parity/shared/config/dappsBuiltin.json');
-const DAPPS_VIEWS = require('@parity/shared/config/dappsViews.json');
+const DAPPS_BUILTIN = require('@parity/shared/lib/config/dappsBuiltin.json');
+const DAPPS_VIEWS = require('@parity/shared/lib/config/dappsViews.json');
 const DAPPS_ALL = []
   .concat(DAPPS_BUILTIN, DAPPS_VIEWS)
   .filter((dapp) => !dapp.skipBuild)
@@ -46,13 +46,13 @@ const isProd = ENV === 'production';
 const isEmbed = EMBED === '1' || EMBED === 'true';
 
 const entry = isEmbed
-  ? { embed: './embed.js' }
+  ? { embed: ['babel-polyfill', './embed.js'] }
   : { bundle: ['babel-polyfill', './index.parity.js'] };
 
 module.exports = {
   cache: !isProd,
   devtool: isProd
-    ? '#source-map'
+    ? false
     : '#eval',
   context: path.join(__dirname, '../src'),
   entry,
@@ -184,6 +184,14 @@ module.exports = {
         new CopyWebpackPlugin(
           flatten([
             {
+              from: path.join(__dirname, '../src/dev.web3.html'),
+              to: 'dev.web3/index.html'
+            },
+            {
+              from: path.join(__dirname, '../src/dev.parity.html'),
+              to: 'dev.parity/index.html'
+            },
+            {
               from: path.join(__dirname, '../src/error_pages.css'),
               to: 'styles.css'
             },
@@ -238,7 +246,7 @@ module.exports = {
         new HtmlWebpackPlugin({
           title: 'Parity Bar',
           filename: 'embed.html',
-          template: './index.ejs',
+          template: './index.parity.ejs',
           favicon: FAVICON,
           chunks: ['embed']
         })

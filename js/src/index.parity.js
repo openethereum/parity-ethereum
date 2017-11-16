@@ -23,11 +23,11 @@ import injectTapEventPlugin from 'react-tap-event-plugin';
 import { IndexRoute, Redirect, Route, Router, hashHistory } from 'react-router';
 import qs from 'querystring';
 
-import ContractInstances from '@parity/shared/contracts';
-import { initStore } from '@parity/shared/redux';
-import ContextProvider from '@parity/ui/ContextProvider';
+import ContractInstances from '@parity/shared/lib/contracts';
+import { initStore } from '@parity/shared/lib/redux';
+import ContextProvider from '@parity/ui/lib/ContextProvider';
 
-import '@parity/shared/environment';
+import '@parity/shared/lib/environment';
 
 import Application from './Application';
 import Dapp from './Dapp';

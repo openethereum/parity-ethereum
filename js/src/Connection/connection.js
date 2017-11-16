@@ -19,9 +19,9 @@ import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import PropTypes from 'prop-types';
 
-import GradientBg from '@parity/ui/GradientBg';
-import Input from '@parity/ui/Form/Input';
-import { CompareIcon, ComputerIcon, DashboardIcon, VpnIcon } from '@parity/ui/Icons';
+import GradientBg from '@parity/ui/lib/GradientBg';
+import Input from '@parity/ui/lib/Form/Input';
+import { CompareIcon, ComputerIcon, DashboardIcon, VpnIcon } from '@parity/ui/lib/Icons';
 
 import styles from './connection.css';
 
