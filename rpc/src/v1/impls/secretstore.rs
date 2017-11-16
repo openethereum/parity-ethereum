@@ -84,7 +84,7 @@ impl SecretStore for SecretStoreClient {
 			.map(Into::into)
 	}
 
-	fn sign_servers_set(&self, address: H160, password: String, servers_set: BTreeSet<H512>) -> Result<Bytes, Error> {
+	fn sign_servers_set(&self, address: H160, password: String, servers_set: BTreeSet<H512>) -> Result<Bytes> {
 		let servers_set_keccak_value = ordered_servers_keccak(servers_set);
 		let store = self.account_provider()?;
 		store

@@ -42,6 +42,6 @@ build_rpc_trait! {
 		/// Sign servers set for use in ServersSetChange session.
 		/// Arguments: `account`, `password`, `servers_set`.
 		#[rpc(name = "secretstore_signServersSet")]
-		fn sign_servers_set(&self, H160, String, BTreeSet<H512>) -> Result<Bytes, Error>;
+		fn sign_servers_set(&self, H160, String, BTreeSet<H512>) -> Result<Bytes>;
 	}
 }
