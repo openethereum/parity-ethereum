@@ -450,7 +450,10 @@ fn ecip1017_eras_block_reward(era_rounds: u64, mut reward: U256, block_number:u6
 		block_number / era_rounds
 	};
 	for _ in 0..eras {
-		reward = reward / U256::from(5) * U256::from(4);
+		reward = reward * U256::from(4);
+	}
+	for _ in 0..eras {
+		reward = reward / U256::from(5);	
 	}
 	(eras, reward)
 }
