@@ -5,3 +5,4 @@ authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 libc = "0.2.7"
+rocksdb = { git = "https://github.com/paritytech/rust-rocksdb" }

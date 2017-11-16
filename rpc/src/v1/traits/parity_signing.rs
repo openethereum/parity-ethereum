@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! ParitySigning rpc interface.
-use jsonrpc_core::{BoxFuture, Error};
+use jsonrpc_core::{BoxFuture, Result};
 
 use v1::types::{U256, H160, Bytes, ConfirmationResponse, TransactionRequest, Either};
 
@@ -27,26 +27,26 @@ build_rpc_trait! {
 		/// Given partial transaction request produces transaction with all fields filled in.
 		/// Such transaction can be then signed externally.
 		#[rpc(meta, name = "parity_composeTransaction")]
-		fn compose_transaction(&self, Self::Metadata, TransactionRequest) -> BoxFuture<TransactionRequest, Error>;
+		fn compose_transaction(&self, Self::Metadata, TransactionRequest) -> BoxFuture<TransactionRequest>;
 
 		/// Posts sign request asynchronously.
 		/// Will return a confirmation ID for later use with check_transaction.
 		#[rpc(meta, name = "parity_postSign")]
-		fn post_sign(&self, Self::Metadata, H160, Bytes) -> BoxFuture<Either<U256, ConfirmationResponse>, Error>;
+		fn post_sign(&self, Self::Metadata, H160, Bytes) -> BoxFuture<Either<U256, ConfirmationResponse>>;
 
 		/// Posts transaction asynchronously.
 		/// Will return a transaction ID for later use with check_transaction.
 		#[rpc(meta, name = "parity_postTransaction")]
-		fn post_transaction(&self, Self::Metadata, TransactionRequest) -> BoxFuture<Either<U256, ConfirmationResponse>, Error>;
+		fn post_transaction(&self, Self::Metadata, TransactionRequest) -> BoxFuture<Either<U256, ConfirmationResponse>>;
 
 		/// Checks the progress of a previously posted request (transaction/sign).
 		/// Should be given a valid send_transaction ID.
 		#[rpc(name = "parity_checkRequest")]
-		fn check_request(&self, U256) -> Result<Option<ConfirmationResponse>, Error>;
+		fn check_request(&self, U256) -> Result<Option<ConfirmationResponse>>;
 
 		/// Decrypt some ECIES-encrypted message.
 		/// First parameter is the address with which it is encrypted, second is the ciphertext.
 		#[rpc(meta, name = "parity_decryptMessage")]
-		fn decrypt_message(&self, Self::Metadata, H160, Bytes) -> BoxFuture<Bytes, Error>;
+		fn decrypt_message(&self, Self::Metadata, H160, Bytes) -> BoxFuture<Bytes>;
 	}
 }

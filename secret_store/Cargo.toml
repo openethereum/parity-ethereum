@@ -24,7 +24,6 @@ tokio-proto = "0.1"
 url = "1.0"
 ethcore = { path = "../ethcore" }
 ethcore-bytes = { path = "../util/bytes" }
-ethcore-devtools = { path = "../devtools" }
 ethcore-util = { path = "../util" }
 ethcore-bigint = { path = "../util/bigint" }
 kvdb = { path = "../util/kvdb" }
@@ -35,3 +34,6 @@ ethcrypto = { path = "../ethcrypto" }
 ethkey = { path = "../ethkey" }
 native-contracts = { path = "../ethcore/native_contracts" }
 lazy_static = "0.2"
+
+[dev-dependencies]
+tempdir = "0.3"

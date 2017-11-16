@@ -22,7 +22,6 @@ use ethcore::client::{Client, BlockChainClient, BlockId};
 use ethcore::transaction::{Transaction, Action};
 use ethsync::LightSync;
 use futures::{future, IntoFuture, Future};
-use jsonrpc_core::BoxFuture;
 use hash_fetch::fetch::Client as FetchClient;
 use hash_fetch::urlhint::ContractClient;
 use helpers::replace_home;
@@ -80,7 +79,7 @@ impl ContractClient for FullRegistrar {
 			 })
 	}
 
-	fn call(&self, address: Address, data: Bytes) -> BoxFuture<Bytes, String> {
+	fn call(&self, address: Address, data: Bytes) -> Box<Future<Item=Bytes, Error=String> + Send> {
 		Box::new(self.client.call_contract(BlockId::Latest, address, data)
 			.into_future())
 	}
@@ -105,7 +104,7 @@ impl<T: LightChainClient + 'static> ContractClient for LightRegistrar<T> {
 			 })
 	}
 
-	fn call(&self, address: Address, data: Bytes) -> BoxFuture<Bytes, String> {
+	fn call(&self, address: Address, data: Bytes) -> Box<Future<Item=Bytes, Error=String> + Send> {
 		let header = self.client.best_block_header();
 		let env_info = self.client.env_info(BlockId::Hash(header.hash()))
 			.ok_or_else(|| format!("Cannot fetch env info for header {}", header.hash()));
