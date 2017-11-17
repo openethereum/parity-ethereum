@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import Contracts from '~/contracts';
-import Abi from '~/abi';
+import Abi from '@parity/abi';
 import * as abis from '~/contracts/abi';
 
 import { decodeMethodInput } from '@parity/api/lib/util/decode';

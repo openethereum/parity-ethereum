@@ -16,7 +16,7 @@
 
 import BigNumber from 'bignumber.js';
 
-import Abi from '~/abi';
+import Abi from '@parity/abi';
 import Contract from '@parity/api/lib/contract';
 import { toHex } from '@parity/api/lib/util/format';
 

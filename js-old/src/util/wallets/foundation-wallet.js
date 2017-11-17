@@ -16,7 +16,7 @@
 
 import { range, uniq } from 'lodash';
 
-import Abi from '~/abi';
+import Abi from '@parity/abi';
 import Contract from '@parity/api/lib/contract';
 import { bytesToHex, toHex } from '@parity/api/lib/util/format';
 import { validateAddress } from '~/util/validation';
