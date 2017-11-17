@@ -19,6 +19,7 @@ const methodGroups = {
     methods: [
       'shell_getApps',
       'shell_getFilteredMethods',
+      'shell_getMethodGroups',
       'shell_getMethodPermissions',
       'shell_setAppVisibility',
       'shell_setMethodPermissions'

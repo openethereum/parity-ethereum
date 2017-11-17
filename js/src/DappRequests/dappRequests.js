@@ -24,18 +24,9 @@ import styles from './dappRequests.css';
 function DappRequests () {
   const store = Store.get();
 
-  console.log(
-    'REQUESTS',
-    store.requests,
-    store.hasRequests,
-    store.groupedRequests
-  );
-
   if (!store || !store.hasRequests) {
     return null;
   }
-
-  console.log('REQUESTS', this.groupedRequests);
 
   return (
     <div className={ styles.requests }>

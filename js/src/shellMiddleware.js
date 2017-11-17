@@ -45,6 +45,13 @@ export default function execute (appId, method, params, callback) {
       );
       return true;
 
+    case 'shell_getMethodGroups':
+      callback(
+        null,
+        methodGroups
+      );
+      return true;
+
     case 'shell_getMethodPermissions':
       callback(null, requestStore.permissions);
       return true;
