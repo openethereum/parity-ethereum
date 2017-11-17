@@ -20,10 +20,19 @@ $textColor: #ccc;
 .container {
   flex: 0;
   box-sizing: border-box;
-  border-bottom: 1px solid #405161;
-  color: $textColor;
   height: 2.75em;
-  z-index: 1000;
+
+  .fixed {
+    box-sizing: border-box;
+    position: fixed;
+    top: 0;
+    right: 0;
+    left: 0;
+    height: 2.75em;
+    z-index: 1000;
+    border-bottom: 1px solid #405161;
+    color: $textColor;
+  }
 
   .status,
   .warning {

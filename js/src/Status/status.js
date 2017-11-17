@@ -44,59 +44,61 @@ function Status ({ className = '', upgradeStore }, { api }) {
   const accountStore = AccountStore.get(api);
 
   return (
-    <GradientBg className={ `${styles.container} ${className}` }>
-      <div className={ styles.status }>
-        <ClientVersion className={ styles.version } />
-        <div className={ styles.upgrade }>
-          <Consensus upgradeStore={ upgradeStore } />
-          <Upgrade upgradeStore={ upgradeStore } />
-        </div>
-        <div className={ styles.plugins }>
-          {
-            pluginStore.components.map((Component, index) => (
-              <Component key={ index } />
-            ))
-          }
-          <div className={ styles.divider } />
-          <SignerPending
-            className={ styles.signerPending }
-            onClick={ parityBarStore.toggleOpenSigner }
-          />
-          <IdentityIcon
-            address={ accountStore.defaultAccount }
-            button
-            center
-            className={ styles.defaultAccount }
-            onClick={ parityBarStore.toggleOpenAccounts }
-          />
-          <StatusIndicator
-            className={ styles.health }
-            id='application.status.health'
-          />
-          <div className={ styles.divider } />
-          <BlockNumber
-            className={ styles.blockNumber }
-            message={
-              <FormattedMessage
-                id='ui.blockStatus.bestBlock'
-                defaultMessage=' best block'
-              />
+    <div className={ `${styles.container} ${className}` }>
+      <GradientBg className={ styles.fixed }>
+        <div className={ styles.status }>
+          <ClientVersion className={ styles.version } />
+          <div className={ styles.upgrade }>
+            <Consensus upgradeStore={ upgradeStore } />
+            <Upgrade upgradeStore={ upgradeStore } />
+          </div>
+          <div className={ styles.plugins }>
+            {
+              pluginStore.components.map((Component, index) => (
+                <Component key={ index } />
+              ))
             }
-          />
-          <NetPeers
-            className={ styles.peers }
-            message={
-              <FormattedMessage
-                id='ui.netPeers.peers'
-                defaultMessage=' peers'
-              />
-            }
-          />
-          <NetChain className={ styles.chain } />
+            <div className={ styles.divider } />
+            <SignerPending
+              className={ styles.signerPending }
+              onClick={ parityBarStore.toggleOpenSigner }
+            />
+            <IdentityIcon
+              address={ accountStore.defaultAccount }
+              button
+              center
+              className={ styles.defaultAccount }
+              onClick={ parityBarStore.toggleOpenAccounts }
+            />
+            <StatusIndicator
+              className={ styles.health }
+              id='application.status.health'
+            />
+            <div className={ styles.divider } />
+            <BlockNumber
+              className={ styles.blockNumber }
+              message={
+                <FormattedMessage
+                  id='ui.blockStatus.bestBlock'
+                  defaultMessage=' best block'
+                />
+              }
+            />
+            <NetPeers
+              className={ styles.peers }
+              message={
+                <FormattedMessage
+                  id='ui.netPeers.peers'
+                  defaultMessage=' peers'
+                />
+              }
+            />
+            <NetChain className={ styles.chain } />
+          </div>
         </div>
-      </div>
-      <SyncWarning className={ styles.warning } />
-    </GradientBg>
+        <SyncWarning className={ styles.warning } />
+      </GradientBg>
+    </div>
   );
 }
 
