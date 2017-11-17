@@ -54,6 +54,7 @@ fetch = { path = "../util/fetch" }
 node-health = { path = "../dapps/node-health" }
 parity-reactor = { path = "../util/reactor" }
 parity-updater = { path = "../updater" }
+parity-version = { path = "../util/version" }
 rlp = { path = "../util/rlp" }
 stats = { path = "../util/stats" }
 vm = { path = "../ethcore/vm" }

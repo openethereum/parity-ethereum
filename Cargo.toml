@@ -55,6 +55,7 @@ parity-reactor = { path = "util/reactor" }
 parity-rpc = { path = "rpc" }
 parity-rpc-client = { path = "rpc_client" }
 parity-updater = { path = "updater" }
+parity-version = { path = "util/version" }
 parity-whisper = { path = "whisper" }
 path = { path = "util/path" }
 panic_hook = { path = "panic_hook" }

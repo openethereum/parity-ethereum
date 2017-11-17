@@ -30,7 +30,7 @@ use mio::*;
 use mio::deprecated::{EventLoop};
 use mio::tcp::*;
 use bigint::hash::*;
-use util::version;
+use parity_version::version;
 use rlp::*;
 use session::{Session, SessionInfo, SessionData};
 use io::*;

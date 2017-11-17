@@ -35,6 +35,15 @@ use std::cell::{RefCell, Cell};
 
 const STORAGE_CACHE_ITEMS: usize = 8192;
 
+/// Boolean type for clean/dirty status.
+#[derive(PartialEq, Eq, Clone, Copy, Debug)]
+pub enum Filth {
+	/// Data has not been changed.
+	Clean,
+	/// Data has been changed.
+	Dirty,
+}
+
 /// Single account in the system.
 /// Keeps track of changes to the code and storage.
 /// The changes are applied in `commit_storage` and `commit_code`
