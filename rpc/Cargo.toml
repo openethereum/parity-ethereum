@@ -70,4 +70,4 @@ ethcore-network = { path = "../util/network" }
 kvdb-memorydb = { path = "../util/kvdb-memorydb" }
 
 [features]
-dev = ["clippy", "ethcore/dev", "ethcore-util/dev", "ethsync/dev"]
+dev = ["clippy", "ethcore/dev", "ethsync/dev"]

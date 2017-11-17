@@ -37,4 +37,4 @@ kvdb-memorydb = { path = "../util/kvdb-memorydb" }
 
 [features]
 default = []
-dev = ["clippy", "ethcore/dev", "ethcore-util/dev"]
+dev = ["clippy", "ethcore/dev"]
