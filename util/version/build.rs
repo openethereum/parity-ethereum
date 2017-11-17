@@ -17,11 +17,11 @@
 extern crate vergen;
 extern crate rustc_version;
 
-use vergen::*;
 use std::env;
 use std::fs::File;
 use std::io::Write;
 use std::path::Path;
+use vergen::{vergen, OutputFns};
 
 fn main() {
 	vergen(OutputFns::all()).unwrap();

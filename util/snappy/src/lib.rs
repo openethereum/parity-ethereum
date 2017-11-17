@@ -162,3 +162,4 @@ pub fn validate_compressed_buffer(input: &[u8]) -> bool {
 	let status = unsafe { snappy_validate_compressed_buffer(input.as_ptr() as *const c_char, input.len() as size_t )};
 	status == SNAPPY_OK
 }
+
