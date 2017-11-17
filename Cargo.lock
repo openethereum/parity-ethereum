@@ -424,6 +424,9 @@ dependencies = [
 name = "error-chain"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "backtrace 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
+]
 
 [[package]]
 name = "eth-secp256k1"
@@ -705,7 +708,6 @@ dependencies = [
  "env_logger 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore-bigint 0.2.1",
  "ethcore-logger 1.9.0",
- "ethcore-util 1.9.0",
  "jsonrpc-core 8.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.9)",
  "jsonrpc-macros 8.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.9)",
  "jsonrpc-tcp-server 8.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.9)",
@@ -2131,6 +2133,7 @@ dependencies = [
  "jsonrpc-macros 8.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.9)",
  "jsonrpc-pubsub 8.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.9)",
  "jsonrpc-ws-server 8.0.0 (git+https://github.com/paritytech/jsonrpc.git?branch=parity-1.9)",
+ "keccak-hash 0.1.0",
  "kvdb-memorydb 0.1.0",
  "log 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "macros 0.1.0",

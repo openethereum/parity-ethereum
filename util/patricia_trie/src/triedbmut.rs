@@ -262,12 +262,12 @@ impl<'a> Index<&'a StorageHandle> for NodeStorage {
 /// # Example
 /// ```
 /// extern crate patricia_trie as trie;
+/// extern crate keccak_hash;
 /// extern crate hashdb;
 /// extern crate memorydb;
 /// extern crate ethcore_bigint as bigint;
-/// extern crate hash;
 ///
-/// use hash::KECCAK_NULL_RLP;
+/// use keccak_hash::KECCAK_NULL_RLP;
 /// use trie::*;
 /// use hashdb::*;
 /// use memorydb::*;
