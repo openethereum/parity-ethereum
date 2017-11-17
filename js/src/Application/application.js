@@ -78,6 +78,11 @@ class Application extends Component {
     return (
       <div className={ styles.application }>
         {
+          blockNumber
+            ? <Status upgradeStore={ this.upgradeStore } />
+            : null
+        }
+        {
           isMinimized
             ? this.renderMinimized()
             : this.renderApp()
@@ -99,11 +104,6 @@ class Application extends Component {
           alwaysHidden
           dapp={ isMinimized }
         />
-        {
-          blockNumber
-            ? <Status upgradeStore={ this.upgradeStore } />
-            : null
-        }
       </div>
     );
   }

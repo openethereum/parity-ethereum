@@ -18,11 +18,11 @@
 $textColor: #ccc;
 
 .container {
+  flex: 0;
+  box-sizing: border-box;
+  border-bottom: 1px solid #405161;
   color: $textColor;
-  left: 0;
-  position: fixed;
-  right: 0;
-  top: 0;
+  height: 2.75em;
   z-index: 1000;
 
   .status,
