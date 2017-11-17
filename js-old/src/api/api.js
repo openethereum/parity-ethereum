@@ -25,7 +25,7 @@ import Pubsub from './pubsub';
 import util from './util';
 import { isFunction } from './util/types';
 
-import LocalAccountsMiddleware from '~/api/local';
+import LocalAccountsMiddleware from './local';
 
 export default class Api extends EventEmitter {
   constructor (transport, allowSubscriptions = true) {
