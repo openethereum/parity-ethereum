@@ -560,32 +560,67 @@ impl<'a, 'b> Runtime<'a, 'b> {
 	fn mem_copy(&mut self, context: InterpreterCallerContext)
 		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
 	{
+		//
+		// method signature:
+		//   fn memcpy(dest: *const u8, src: *const u8, len: u32) -> *mut u8;
+		//
+
 		let len = context.value_stack.pop_as::<i32>()? as u32;
-		let dst = context.value_stack.pop_as::<i32>()? as u32;
 		let src = context.value_stack.pop_as::<i32>()? as u32;
+		let dst = context.value_stack.pop_as::<i32>()? as u32;
 
 		self.charge(|schedule| schedule.wasm.mem_copy as u64 * len as u64)?;
 
-		let mem = self.memory().get(src, len as usize)?;
-		self.memory().set(dst, &mem)?;
+		self.memory().copy_nonoverlapping(src as usize, dst as usize, len as usize)?;
 
-		Ok(Some(0i32.into()))
+		Ok(Some(Into::into(dst as i32)))
 	}
 
-	fn bswap_32(x: u32) -> u32 {
-		x >> 24 | x >> 8 & 0xff00 | x << 8 & 0xff0000 | x << 24
+	fn mem_move(&mut self, context: InterpreterCallerContext)
+		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
+	{
+		//
+		// method signature:
+		//   fn memmove(dest: *const u8, src: *const u8, len: u32) -> *mut u8;
+		//
+
+		let len = context.value_stack.pop_as::<i32>()? as u32;
+		let src = context.value_stack.pop_as::<i32>()? as u32;
+		let dst = context.value_stack.pop_as::<i32>()? as u32;
+
+		self.charge(|schedule| schedule.wasm.mem_move as u64 * len as u64)?;
+
+		self.memory().copy(src as usize, dst as usize, len as usize)?;
+
+		Ok(Some(Into::into(dst as i32)))
+	}
+
+	fn mem_set(&mut self, context: InterpreterCallerContext)
+		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
+	{
+		//
+		// method signature:
+		//   fn memset(dest: *const u8, c: u32, len: u32) -> *mut u8;
+		//
+
+		let len = context.value_stack.pop_as::<i32>()? as u32;
+		let c = context.value_stack.pop_as::<i32>()? as u32;
+		let dst = context.value_stack.pop_as::<i32>()? as u32;
+
+		self.charge(|schedule| schedule.wasm.mem_set as u64 * len as u64)?;
+
+		self.memory().clear(dst as usize, c as u8, len as usize)?;
+
+		Ok(Some(Into::into(dst as i32)))
 	}
 
 	fn bitswap_i64(&mut self, context: InterpreterCallerContext)
 		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
 	{
-		let x1 = context.value_stack.pop_as::<i32>()?;
-		let x2 = context.value_stack.pop_as::<i32>()?;
+		let x = context.value_stack.pop_as::<i64>()?;
+		let result = x.swap_bytes();
 
-		let result = ((Runtime::bswap_32(x2 as u32) as u64) << 32
-			| Runtime::bswap_32(x1 as u32) as u64) as i64;
-
-		self.return_i64(result)
+		Ok(Some(result.into()))
 	}
 
 	fn user_panic(&mut self, context: InterpreterCallerContext)
@@ -606,12 +641,9 @@ impl<'a, 'b> Runtime<'a, 'b> {
 		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
 	{
 		let return_ptr = context.value_stack.pop_as::<i32>()? as u32;
-		let block_hi = context.value_stack.pop_as::<i32>()? as u32;
-		let block_lo = context.value_stack.pop_as::<i32>()? as u32;
+		let block_num = context.value_stack.pop_as::<i64>()? as u64;
 
 		self.charge(|schedule| schedule.blockhash_gas as u64)?;
-
-		let block_num = (block_hi as u64) << 32 | block_lo as u64;
 
 		trace!("Requesting block hash for block #{}", block_num);
 		let hash = self.ext.blockhash(&U256::from(block_num));
@@ -694,14 +726,14 @@ impl<'a, 'b> Runtime<'a, 'b> {
 		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
 	{
 		let timestamp = self.ext.env_info().timestamp as i64;
-		self.return_i64(timestamp)
+		Ok(Some(timestamp.into()))
 	}
 
 	fn block_number(&mut self, _context: InterpreterCallerContext)
 		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
 	{
-		let block_number: u64 = self.ext.env_info().number.into();
-		self.return_i64(block_number as i64)
+		let block_number = self.ext.env_info().number as i64;
+		Ok(Some(block_number.into()))
 	}
 
 	fn difficulty(&mut self, context: InterpreterCallerContext)
@@ -724,25 +756,6 @@ impl<'a, 'b> Runtime<'a, 'b> {
 			gas_limit,
 		)?;
 		Ok(None)
-	}
-
-	fn return_i64(&mut self, val: i64) -> Result<Option<interpreter::RuntimeValue>, InterpreterError> {
-		self.charge(|schedule| schedule.wasm.static_u64 as u64)?;
-
-		let uval = val as u64;
-		let hi = (uval >> 32) as i32;
-		let lo = (uval << 32 >> 32) as i32;
-
-		let target = self.instance.module("contract").ok_or(UserTrap::Other)?;
-		target.execute_export(
-			"setTempRet0",
-			self.execution_params().add_argument(
-				interpreter::RuntimeValue::I32(hi).into()
-			),
-		)?;
-		Ok(Some(
-			(lo).into()
-		))
 	}
 
 	pub fn execution_params(&mut self) -> interpreter::ExecutionParams<UserTrap> {
@@ -812,10 +825,10 @@ impl<'a, 'b> interpreter::UserFunctionExecutor<UserTrap> for Runtime<'a, 'b> {
 		-> Result<Option<interpreter::RuntimeValue>, InterpreterError>
 	{
 		match name {
-			"_malloc" => {
+			"_ext_malloc" => {
 				self.malloc(context)
 			},
-			"_free" => {
+			"_ext_free" => {
 				// Since it is arena allocator, free does nothing
 				// todo: update if changed
 				self.user_noop(context)
@@ -852,6 +865,15 @@ impl<'a, 'b> interpreter::UserFunctionExecutor<UserTrap> for Runtime<'a, 'b> {
 			},
 			"_emscripten_memcpy_big" => {
 				self.mem_copy(context)
+			},
+			"_ext_memcpy" => {
+				self.mem_copy(context)
+			},
+			"_ext_memmove" => {
+				self.mem_move(context)
+			},
+			"_ext_memset" => {
+				self.mem_set(context)
 			},
 			"_llvm_bswap_i64" => {
 				self.bitswap_i64(context)

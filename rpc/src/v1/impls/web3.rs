@@ -16,7 +16,7 @@
 
 //! Web3 rpc implementation.
 use hash::keccak;
-use jsonrpc_core::Error;
+use jsonrpc_core::Result;
 use util::version;
 use v1::traits::Web3;
 use v1::types::{H256, Bytes};
@@ -30,11 +30,11 @@ impl Web3Client {
 }
 
 impl Web3 for Web3Client {
-	fn client_version(&self) -> Result<String, Error> {
+	fn client_version(&self) -> Result<String> {
 		Ok(version().to_owned().replace("Parity/", "Parity//"))
 	}
 
-	fn sha3(&self, data: Bytes) -> Result<H256, Error> {
+	fn sha3(&self, data: Bytes) -> Result<H256> {
 		Ok(keccak(&data.0).into())
 	}
 }

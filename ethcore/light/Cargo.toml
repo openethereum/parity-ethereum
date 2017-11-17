@@ -16,7 +16,6 @@ memorydb = { path = "../../util/memorydb" }
 patricia-trie = { path = "../../util/patricia_trie" }
 ethcore-network = { path = "../../util/network" }
 ethcore-io = { path = "../../util/io" }
-ethcore-devtools = { path = "../../devtools" }
 evm = { path = "../evm" }
 heapsize = "0.4"
 vm = { path = "../vm" }
@@ -38,6 +37,9 @@ kvdb = { path = "../../util/kvdb" }
 kvdb-rocksdb = { path = "../../util/kvdb-rocksdb" }
 kvdb-memorydb = { path = "../../util/kvdb-memorydb" }
 memory-cache = { path = "../../util/memory_cache" }
+
+[dev-dependencies]
+tempdir = "0.3"
 
 [features]
 default = []

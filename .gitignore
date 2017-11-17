@@ -24,6 +24,9 @@
 npm-debug.log
 node_modules
 
+# js build artifacts
+.git-release.log
+
 # gdb files
 .gdb_history
 

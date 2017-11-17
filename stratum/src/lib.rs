@@ -20,7 +20,6 @@ extern crate jsonrpc_tcp_server;
 extern crate jsonrpc_core;
 extern crate jsonrpc_macros;
 #[macro_use] extern crate log;
-extern crate ethcore_util as util;
 extern crate ethcore_bigint as bigint;
 extern crate keccak_hash as hash;
 extern crate parking_lot;
@@ -28,7 +27,6 @@ extern crate parking_lot;
 #[cfg(test)] extern crate tokio_core;
 #[cfg(test)] extern crate tokio_io;
 #[cfg(test)] extern crate ethcore_logger;
-#[cfg(test)] extern crate env_logger;
 
 mod traits;
 

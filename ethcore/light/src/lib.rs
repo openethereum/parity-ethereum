@@ -84,4 +84,4 @@ extern crate kvdb_rocksdb;
 extern crate memory_cache;
 
 #[cfg(test)]
-extern crate ethcore_devtools as devtools;
+extern crate tempdir;

@@ -37,6 +37,7 @@ extern crate semver;
 extern crate serde;
 extern crate serde_json;
 extern crate time;
+extern crate tiny_keccak;
 extern crate tokio_timer;
 extern crate transient_hashmap;
 
@@ -117,26 +118,6 @@ use http::tokio_core;
 /// RPC HTTP Server instance
 pub type HttpServer = http::Server;
 
-
-/// RPC HTTP Server error
-#[derive(Debug)]
-pub enum HttpServerError {
-	/// IO error
-	Io(::std::io::Error),
-	/// Other hyper error
-	Hyper(hyper::Error),
-}
-
-impl From<http::Error> for HttpServerError {
-	fn from(e: http::Error) -> Self {
-		use self::HttpServerError::*;
-		match e {
-			http::Error::Io(io) => Io(io),
-			http::Error::Other(hyper) => Hyper(hyper),
-		}
-	}
-}
-
 /// Start http server asynchronously and returns result with `Server` handle on success or an error.
 pub fn start_http<M, S, H, T, R>(
 	addr: &SocketAddr,
@@ -147,7 +128,7 @@ pub fn start_http<M, S, H, T, R>(
 	extractor: T,
 	middleware: Option<R>,
 	threads: usize,
-) -> Result<HttpServer, HttpServerError> where
+) -> ::std::io::Result<HttpServer> where
 	M: jsonrpc_core::Metadata,
 	S: jsonrpc_core::Middleware<M>,
 	H: Into<jsonrpc_core::MetaIoHandler<M, S>>,

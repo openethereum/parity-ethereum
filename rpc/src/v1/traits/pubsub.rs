@@ -16,7 +16,7 @@
 
 //! Parity-specific PUB-SUB rpc interface.
 
-use jsonrpc_core::{Error, Value, Params};
+use jsonrpc_core::{Result, Value, Params};
 use jsonrpc_pubsub::SubscriptionId;
 use jsonrpc_macros::Trailing;
 use jsonrpc_macros::pubsub::Subscriber;
@@ -33,7 +33,7 @@ build_rpc_trait! {
 
 			/// Unsubscribe from existing Parity subscription.
 			#[rpc(name = "parity_unsubscribe")]
-			fn parity_unsubscribe(&self, SubscriptionId) -> Result<bool, Error>;
+			fn parity_unsubscribe(&self, SubscriptionId) -> Result<bool>;
 		}
 	}
 }

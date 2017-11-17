@@ -27,7 +27,7 @@ use time;
 use bigint::hash::*;
 use rlp::*;
 use node_table::*;
-use error::NetworkError;
+use error::{Error, ErrorKind};
 use io::{StreamToken, IoContext};
 use ethkey::{Secret, KeyPair, sign, recover};
 use IpFilter;
@@ -362,15 +362,15 @@ impl Discovery {
 		res
 	}
 
-	fn on_packet(&mut self, packet: &[u8], from: SocketAddr) -> Result<Option<TableUpdates>, NetworkError> {
+	fn on_packet(&mut self, packet: &[u8], from: SocketAddr) -> Result<Option<TableUpdates>, Error> {
 		// validate packet
 		if packet.len() < 32 + 65 + 4 + 1 {
-			return Err(NetworkError::BadProtocol);
+			return Err(ErrorKind::BadProtocol.into());
 		}
 
 		let hash_signed = keccak(&packet[32..]);
 		if hash_signed[..] != packet[0..32] {
-			return Err(NetworkError::BadProtocol);
+			return Err(ErrorKind::BadProtocol.into());
 		}
 
 		let signed = &packet[(32 + 65)..];
@@ -391,10 +391,10 @@ impl Discovery {
 		}
 	}
 
-	fn check_timestamp(&self, timestamp: u64) -> Result<(), NetworkError> {
+	fn check_timestamp(&self, timestamp: u64) -> Result<(), Error> {
 		if self.check_timestamps && timestamp < time::get_time().sec as u64{
 			debug!(target: "discovery", "Expired packet");
-			return Err(NetworkError::Expired);
+			return Err(ErrorKind::Expired.into());
 		}
 		Ok(())
 	}
@@ -403,7 +403,7 @@ impl Discovery {
 		entry.endpoint.is_allowed(&self.ip_filter) && entry.id != self.id
 	}
 
-	fn on_ping(&mut self, rlp: &UntrustedRlp, node: &NodeId, from: &SocketAddr) -> Result<Option<TableUpdates>, NetworkError> {
+	fn on_ping(&mut self, rlp: &UntrustedRlp, node: &NodeId, from: &SocketAddr) -> Result<Option<TableUpdates>, Error> {
 		trace!(target: "discovery", "Got Ping from {:?}", &from);
 		let source = NodeEndpoint::from_rlp(&rlp.at(1)?)?;
 		let dest = NodeEndpoint::from_rlp(&rlp.at(2)?)?;
@@ -428,7 +428,7 @@ impl Discovery {
 		Ok(Some(TableUpdates { added: added_map, removed: HashSet::new() }))
 	}
 
-	fn on_pong(&mut self, rlp: &UntrustedRlp, node: &NodeId, from: &SocketAddr) -> Result<Option<TableUpdates>, NetworkError> {
+	fn on_pong(&mut self, rlp: &UntrustedRlp, node: &NodeId, from: &SocketAddr) -> Result<Option<TableUpdates>, Error> {
 		trace!(target: "discovery", "Got Pong from {:?}", &from);
 		// TODO: validate pong packet
 		let dest = NodeEndpoint::from_rlp(&rlp.at(0)?)?;
@@ -445,7 +445,7 @@ impl Discovery {
 		Ok(None)
 	}
 
-	fn on_find_node(&mut self, rlp: &UntrustedRlp, _node: &NodeId, from: &SocketAddr) -> Result<Option<TableUpdates>, NetworkError> {
+	fn on_find_node(&mut self, rlp: &UntrustedRlp, _node: &NodeId, from: &SocketAddr) -> Result<Option<TableUpdates>, Error> {
 		trace!(target: "discovery", "Got FindNode from {:?}", &from);
 		let target: NodeId = rlp.val_at(0)?;
 		let timestamp: u64 = rlp.val_at(1)?;
@@ -478,7 +478,7 @@ impl Discovery {
 		packets.collect()
 	}
 
-	fn on_neighbours(&mut self, rlp: &UntrustedRlp, _node: &NodeId, from: &SocketAddr) -> Result<Option<TableUpdates>, NetworkError> {
+	fn on_neighbours(&mut self, rlp: &UntrustedRlp, _node: &NodeId, from: &SocketAddr) -> Result<Option<TableUpdates>, Error> {
 		// TODO: validate packet
 		let mut added = HashMap::new();
 		trace!(target: "discovery", "Got {} Neighbours from {:?}", rlp.at(0)?.item_count()?, &from);
@@ -536,12 +536,12 @@ impl Discovery {
 		self.start();
 	}
 
-	pub fn register_socket<Host:Handler>(&self, event_loop: &mut EventLoop<Host>) -> Result<(), NetworkError> {
+	pub fn register_socket<Host:Handler>(&self, event_loop: &mut EventLoop<Host>) -> Result<(), Error> {
 		event_loop.register(&self.udp_socket, Token(self.token), Ready::all(), PollOpt::edge()).expect("Error registering UDP socket");
 		Ok(())
 	}
 
-	pub fn update_registration<Host:Handler>(&self, event_loop: &mut EventLoop<Host>) -> Result<(), NetworkError> {
+	pub fn update_registration<Host:Handler>(&self, event_loop: &mut EventLoop<Host>) -> Result<(), Error> {
 		let registration = if !self.send_queue.is_empty() {
 			Ready::readable() | Ready::writable()
 		} else {

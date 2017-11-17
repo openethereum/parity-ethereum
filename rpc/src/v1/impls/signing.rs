@@ -23,7 +23,7 @@ use parking_lot::Mutex;
 
 use ethcore::account_provider::AccountProvider;
 
-use jsonrpc_core::{BoxFuture, Error};
+use jsonrpc_core::{BoxFuture, Result, Error};
 use jsonrpc_core::futures::{future, Future, Poll, Async};
 use jsonrpc_core::futures::future::Either;
 use v1::helpers::{
@@ -109,11 +109,11 @@ impl<D: Dispatcher + 'static> SigningQueueClient<D> {
 		}
 	}
 
-	fn account_provider(&self) -> Result<Arc<AccountProvider>, Error> {
+	fn account_provider(&self) -> Result<Arc<AccountProvider>> {
 		unwrap_provider(&self.accounts)
 	}
 
-	fn dispatch(&self, payload: RpcConfirmationPayload, default_account: DefaultAccount, origin: Origin) -> BoxFuture<DispatchResult, Error> {
+	fn dispatch(&self, payload: RpcConfirmationPayload, default_account: DefaultAccount, origin: Origin) -> BoxFuture<DispatchResult> {
 		let accounts = try_bf!(self.account_provider());
 		let default_account = match default_account {
 			DefaultAccount::Provided(acc) => acc,
@@ -143,13 +143,13 @@ impl<D: Dispatcher + 'static> SigningQueueClient<D> {
 impl<D: Dispatcher + 'static> ParitySigning for SigningQueueClient<D> {
 	type Metadata = Metadata;
 
-	fn compose_transaction(&self, meta: Metadata, transaction: RpcTransactionRequest) -> BoxFuture<RpcTransactionRequest, Error> {
+	fn compose_transaction(&self, meta: Metadata, transaction: RpcTransactionRequest) -> BoxFuture<RpcTransactionRequest> {
 		let accounts = try_bf!(self.account_provider());
 		let default_account = accounts.dapp_default_address(meta.dapp_id().into()).ok().unwrap_or_default();
 		Box::new(self.dispatcher.fill_optional_fields(transaction.into(), default_account, true).map(Into::into))
 	}
 
-	fn post_sign(&self, meta: Metadata, address: RpcH160, data: RpcBytes) -> BoxFuture<RpcEither<RpcU256, RpcConfirmationResponse>, Error> {
+	fn post_sign(&self, meta: Metadata, address: RpcH160, data: RpcBytes) -> BoxFuture<RpcEither<RpcU256, RpcConfirmationResponse>> {
 		let remote = self.remote.clone();
 		let confirmations = self.confirmations.clone();
 
@@ -166,7 +166,7 @@ impl<D: Dispatcher + 'static> ParitySigning for SigningQueueClient<D> {
 		}))
 	}
 
-	fn post_transaction(&self, meta: Metadata, request: RpcTransactionRequest) -> BoxFuture<RpcEither<RpcU256, RpcConfirmationResponse>, Error> {
+	fn post_transaction(&self, meta: Metadata, request: RpcTransactionRequest) -> BoxFuture<RpcEither<RpcU256, RpcConfirmationResponse>> {
 		let remote = self.remote.clone();
 		let confirmations = self.confirmations.clone();
 
@@ -180,7 +180,7 @@ impl<D: Dispatcher + 'static> ParitySigning for SigningQueueClient<D> {
 			}))
 	}
 
-	fn check_request(&self, id: RpcU256) -> Result<Option<RpcConfirmationResponse>, Error> {
+	fn check_request(&self, id: RpcU256) -> Result<Option<RpcConfirmationResponse>> {
 		let id: U256 = id.into();
 		match self.confirmations.lock().get(&id) {
 			None => Err(errors::request_not_found()), // Request info has been dropped, or even never been there
@@ -189,7 +189,7 @@ impl<D: Dispatcher + 'static> ParitySigning for SigningQueueClient<D> {
 		}
 	}
 
-	fn decrypt_message(&self, meta: Metadata, address: RpcH160, data: RpcBytes) -> BoxFuture<RpcBytes, Error> {
+	fn decrypt_message(&self, meta: Metadata, address: RpcH160, data: RpcBytes) -> BoxFuture<RpcBytes> {
 		let res = self.dispatch(
 			RpcConfirmationPayload::Decrypt((address.clone(), data).into()),
 			address.into(),
@@ -209,7 +209,7 @@ impl<D: Dispatcher + 'static> ParitySigning for SigningQueueClient<D> {
 impl<D: Dispatcher + 'static> EthSigning for SigningQueueClient<D> {
 	type Metadata = Metadata;
 
-	fn sign(&self, meta: Metadata, address: RpcH160, data: RpcBytes) -> BoxFuture<RpcH520, Error> {
+	fn sign(&self, meta: Metadata, address: RpcH160, data: RpcBytes) -> BoxFuture<RpcH520> {
 		let res = self.dispatch(
 			RpcConfirmationPayload::EthSignMessage((address.clone(), data).into()),
 			address.into(),
@@ -224,7 +224,7 @@ impl<D: Dispatcher + 'static> EthSigning for SigningQueueClient<D> {
 		}))
 	}
 
-	fn send_transaction(&self, meta: Metadata, request: RpcTransactionRequest) -> BoxFuture<RpcH256, Error> {
+	fn send_transaction(&self, meta: Metadata, request: RpcTransactionRequest) -> BoxFuture<RpcH256> {
 		let res = self.dispatch(
 			RpcConfirmationPayload::SendTransaction(request),
 			meta.dapp_id().into(),
@@ -239,7 +239,7 @@ impl<D: Dispatcher + 'static> EthSigning for SigningQueueClient<D> {
 		}))
 	}
 
-	fn sign_transaction(&self, meta: Metadata, request: RpcTransactionRequest) -> BoxFuture<RpcRichRawTransaction, Error> {
+	fn sign_transaction(&self, meta: Metadata, request: RpcTransactionRequest) -> BoxFuture<RpcRichRawTransaction> {
 		let res = self.dispatch(
 			RpcConfirmationPayload::SignTransaction(request),
 			meta.dapp_id().into(),

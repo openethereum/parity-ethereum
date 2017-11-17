@@ -92,17 +92,6 @@ class Views extends Component {
               )
             }
             {
-              this.renderView('apps',
-                <FormattedMessage
-                  id='settings.views.apps.label'
-                />,
-                <FormattedMessage
-                  id='settings.views.apps.description'
-                  defaultMessage='Decentralized applications that interact with the underlying network. Add applications, manage you application portfolio and interact with application from around the network.'
-                />
-              )
-            }
-            {
               this.renderView('contracts',
                 <FormattedMessage
                   id='settings.views.contracts.label'
