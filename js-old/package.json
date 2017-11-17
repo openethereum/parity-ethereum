@@ -134,6 +134,7 @@
     "yargs": "6.6.0"
   },
   "dependencies": {
+    "@parity/abi": "2.1.x",
     "@parity/api": "2.1.x",
     "@parity/wordlist": "1.1.x",
     "base32.js": "0.1.0",

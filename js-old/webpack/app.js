@@ -187,9 +187,7 @@ module.exports = {
       }),
 
       new CopyWebpackPlugin([
-        { from: './error_pages.css', to: 'styles.css' },
-        { from: './manifest.json', to: 'manifest.json' },
-        { from: 'dapps/static' }
+        { from: './manifest.json', to: 'manifest.json' }
       ], {})
     );
 

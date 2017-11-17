@@ -22,12 +22,10 @@ import { FormattedMessage } from 'react-intl';
 import HistoryStore from '~/mobx/historyStore';
 import { Page } from '~/ui';
 
-import DappsStore from '../Dapps/dappsStore';
 import ExtensionStore from '../Application/Extension/store';
 import WebStore from '../Web/store';
 
 import Accounts from './Accounts';
-import Dapps from './Dapps';
 import News from './News';
 import Urls from './Urls';
 import styles from './home.css';
@@ -42,12 +40,10 @@ class Home extends Component {
     availability: PropTypes.string.isRequired
   };
 
-  dappsStore = DappsStore.get(this.context.api);
   extensionStore = ExtensionStore.get();
   webStore = WebStore.get(this.context.api);
 
   accountsHistory = HistoryStore.get('accounts');
-  dappsHistory = HistoryStore.get('dapps');
 
   componentWillMount () {
     return this.webStore.loadHistory();
@@ -74,12 +70,6 @@ class Home extends Component {
         <News />
         { urls }
         <div className={ styles.row }>
-          <div className={ styles.column }>
-            <Dapps
-              history={ this.dappsHistory.history }
-              store={ this.dappsStore }
-            />
-          </div>
           <div className={ styles.column }>
             <Accounts history={ this.accountsHistory.history } />
           </div>
