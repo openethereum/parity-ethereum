@@ -42,6 +42,7 @@ extern crate node_health;
 extern crate parity_dapps_glue as parity_dapps;
 extern crate parity_hash_fetch as hash_fetch;
 extern crate parity_ui;
+extern crate parity_version;
 extern crate keccak_hash as hash;
 
 #[macro_use]

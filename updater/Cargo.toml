@@ -19,4 +19,5 @@ futures = "0.1"
 parking_lot = "0.4"
 parity-hash-fetch = { path = "../hash-fetch" }
 parity-reactor = { path = "../util/reactor" }
+parity-version = { path = "../util/version" }
 path = { path = "../util/path" }
