@@ -28,7 +28,7 @@ ethcore-util = { path = "../util" }
 ethcore-bigint = { path = "../util/bigint" }
 kvdb = { path = "../util/kvdb" }
 kvdb-rocksdb = { path = "../util/kvdb-rocksdb" }
-hash = { path = "../util/hash" }
+keccak-hash = { path = "../util/hash" }
 ethcore-logger = { path = "../logger" }
 ethcrypto = { path = "../ethcrypto" }
 ethkey = { path = "../ethkey" }

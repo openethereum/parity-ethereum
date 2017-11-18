@@ -40,7 +40,7 @@ extern crate parking_lot;
 extern crate smallvec;
 extern crate rlp;
 extern crate ipnetwork;
-extern crate hash;
+extern crate keccak_hash as hash;
 extern crate triehash;
 extern crate kvdb;
 
