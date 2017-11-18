@@ -59,7 +59,7 @@ parity-version = { path = "util/version" }
 parity-whisper = { path = "whisper" }
 path = { path = "util/path" }
 panic_hook = { path = "panic_hook" }
-hash = { path = "util/hash" }
+keccak-hash = { path = "util/hash" }
 migration = { path = "util/migration" }
 kvdb = { path = "util/kvdb" }
 kvdb-rocksdb = { path = "util/kvdb-rocksdb" }

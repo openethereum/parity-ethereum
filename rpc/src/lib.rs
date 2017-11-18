@@ -67,7 +67,7 @@ extern crate parity_updater as updater;
 extern crate parity_version as version;
 extern crate rlp;
 extern crate stats;
-extern crate hash;
+extern crate keccak_hash as hash;
 extern crate hardware_wallet;
 
 #[macro_use]

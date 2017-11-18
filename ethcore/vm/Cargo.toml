@@ -8,9 +8,9 @@ byteorder = "1.0"
 ethcore-util = { path = "../../util" }
 ethcore-bytes = { path = "../../util/bytes" }
 ethcore-bigint = { path = "../../util/bigint" }
-patricia_trie = { path = "../../util/patricia_trie" }
+patricia-trie = { path = "../../util/patricia_trie" }
 log = "0.3"
 common-types = { path = "../types" }
 ethjson = { path = "../../json" }
 rlp = { path = "../../util/rlp" }
-hash = { path = "../../util/hash" }
+keccak-hash = { path = "../../util/hash" }

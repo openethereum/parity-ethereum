@@ -13,7 +13,7 @@ memorydb = { path = "memorydb" }
 
 [dev-dependencies]
 ethcore-bytes = { path = "bytes" }
-hash = { path = "hash" }
+keccak-hash = { path = "hash" }
 log = "0.3"
-patricia_trie = { path = "patricia_trie" }
+patricia-trie = { path = "patricia_trie" }
 triehash = { path = "triehash" }

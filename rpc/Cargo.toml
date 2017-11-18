@@ -58,7 +58,7 @@ parity-version = { path = "../util/version" }
 rlp = { path = "../util/rlp" }
 stats = { path = "../util/stats" }
 vm = { path = "../ethcore/vm" }
-hash = { path = "../util/hash" }
+keccak-hash = { path = "../util/hash" }
 hardware-wallet = { path = "../hw" }
 
 clippy = { version = "0.0.103", optional = true}
