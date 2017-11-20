@@ -36,7 +36,7 @@ use devtools::*;
 use transaction::{Transaction, LocalizedTransaction, PendingTransaction, SignedTransaction, Action};
 use blockchain::TreeRoute;
 use client::{
-	Nonce, Balance, BlockChainClient, MiningBlockChainClient, BlockChainInfo, BlockStatus, BlockId,
+	Nonce, Balance, ChainInfo, BlockChainClient, MiningBlockChainClient, BlockChainInfo, BlockStatus, BlockId,
 	TransactionId, UncleId, TraceId, TraceFilter, LastHashes, CallAnalytics, BlockImportError,
 	ProvingBlockChainClient,
 };
@@ -434,6 +434,24 @@ impl Balance for TestBlockChainClient {
 	}
 }
 
+impl ChainInfo for TestBlockChainClient {
+	fn chain_info(&self) -> BlockChainInfo {
+		let number = self.blocks.read().len() as BlockNumber - 1;
+		BlockChainInfo {
+			total_difficulty: *self.difficulty.read(),
+			pending_total_difficulty: *self.difficulty.read(),
+			genesis_hash: self.genesis_hash.clone(),
+			best_block_hash: self.last_hash.read().clone(),
+			best_block_number: number,
+			best_block_timestamp: number,
+			first_block_hash: self.first_block.read().as_ref().map(|x| x.0),
+			first_block_number: self.first_block.read().as_ref().map(|x| x.1),
+			ancient_block_hash: self.ancient_block.read().as_ref().map(|x| x.0),
+			ancient_block_number: self.ancient_block.read().as_ref().map(|x| x.1)
+		}
+	}
+}
+
 impl BlockChainClient for TestBlockChainClient {
 	fn call(&self, _t: &SignedTransaction, _analytics: CallAnalytics, _block: BlockId) -> Result<Executed, CallError> {
 		self.execution_result.read().clone().unwrap()
@@ -701,22 +719,6 @@ impl BlockChainClient for TestBlockChainClient {
 		Default::default()
 	}
 
-	fn chain_info(&self) -> BlockChainInfo {
-		let number = self.blocks.read().len() as BlockNumber - 1;
-		BlockChainInfo {
-			total_difficulty: *self.difficulty.read(),
-			pending_total_difficulty: *self.difficulty.read(),
-			genesis_hash: self.genesis_hash.clone(),
-			best_block_hash: self.last_hash.read().clone(),
-			best_block_number: number,
-			best_block_timestamp: number,
-			first_block_hash: self.first_block.read().as_ref().map(|x| x.0),
-			first_block_number: self.first_block.read().as_ref().map(|x| x.1),
-			ancient_block_hash: self.ancient_block.read().as_ref().map(|x| x.0),
-			ancient_block_number: self.ancient_block.read().as_ref().map(|x| x.1)
-		}
-	}
-
 	fn filter_traces(&self, _filter: TraceFilter) -> Option<Vec<LocalizedTrace>> {
 		self.traces.read().clone()
 	}
@@ -825,10 +827,6 @@ impl super::traits::EngineClient for TestBlockChainClient {
 
 	fn epoch_transition_for(&self, _block_hash: H256) -> Option<::engines::EpochTransition> {
 		None
-	}
-
-	fn chain_info(&self) -> BlockChainInfo {
-		BlockChainClient::chain_info(self)
 	}
 
 	fn as_full_client(&self) -> Option<&BlockChainClient> { Some(self) }

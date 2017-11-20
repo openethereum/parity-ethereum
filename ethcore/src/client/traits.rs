@@ -78,8 +78,14 @@ pub trait Balance {
 	}
 }
 
+/// Provides `chain_info` method
+pub trait ChainInfo {
+	/// Get blockchain information.
+	fn chain_info(&self) -> BlockChainInfo;
+}
+
 /// Blockchain database client. Owns and manages a blockchain and a block queue.
-pub trait BlockChainClient : Sync + Send + Nonce + Balance {
+pub trait BlockChainClient : Sync + Send + Nonce + Balance + ChainInfo {
 
 	/// Get raw block header data by block id.
 	fn block_header(&self, id: BlockId) -> Option<encoded::Header>;
@@ -176,9 +182,6 @@ pub trait BlockChainClient : Sync + Send + Nonce + Balance {
 
 	/// Clear block queue and abort all import activity.
 	fn clear_queue(&self);
-
-	/// Get blockchain information.
-	fn chain_info(&self) -> BlockChainInfo;
 
 	/// Get the registrar address, if it exists.
 	fn additional_params(&self) -> BTreeMap<String, String>;
@@ -317,7 +320,7 @@ pub trait MiningBlockChainClient: BlockChainClient {
 }
 
 /// Client facilities used by internally sealing Engines.
-pub trait EngineClient: Sync + Send {
+pub trait EngineClient: Sync + Send + ChainInfo {
 	/// Make a new block and seal it.
 	fn update_sealing(&self);
 
@@ -333,9 +336,6 @@ pub trait EngineClient: Sync + Send {
 	///
 	/// The block corresponding the the parent hash must be stored already.
 	fn epoch_transition_for(&self, parent_hash: H256) -> Option<::engines::EpochTransition>;
-
-	/// Get block chain info.
-	fn chain_info(&self) -> BlockChainInfo;
 
 	/// Attempt to cast the engine client to a full client.
 	fn as_full_client(&self) -> Option<&BlockChainClient>;

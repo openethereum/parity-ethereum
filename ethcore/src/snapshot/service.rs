@@ -27,7 +27,7 @@ use super::{ManifestData, StateRebuilder, Rebuilder, RestorationStatus, Snapshot
 use super::io::{SnapshotReader, LooseReader, SnapshotWriter, LooseWriter};
 
 use blockchain::BlockChain;
-use client::{BlockChainClient, Client};
+use client::{Client, ChainInfo};
 use engines::EthEngine;
 use error::Error;
 use ids::BlockId;

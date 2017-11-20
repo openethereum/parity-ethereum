@@ -20,7 +20,7 @@
 use std::sync::Arc;
 
 use ethcore::blockchain_info::BlockChainInfo;
-use ethcore::client::{BlockChainClient, ProvingBlockChainClient};
+use ethcore::client::{BlockChainClient, ProvingBlockChainClient, ChainInfo};
 use ethcore::transaction::PendingTransaction;
 use ethcore::ids::BlockId;
 use ethcore::encoded;
@@ -138,7 +138,7 @@ pub trait Provider: Send + Sync {
 // Implementation of a light client data provider for a client.
 impl<T: ProvingBlockChainClient + ?Sized> Provider for T {
 	fn chain_info(&self) -> BlockChainInfo {
-		BlockChainClient::chain_info(self)
+		ChainInfo::chain_info(self)
 	}
 
 	fn reorg_depth(&self, a: &H256, b: &H256) -> Option<u64> {

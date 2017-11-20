@@ -41,7 +41,7 @@ use blockchain::extras::TransactionAddress;
 use client::ancient_import::AncientVerifier;
 use client::Error as ClientError;
 use client::{
-	BlockId, TransactionId, UncleId, TraceId, ClientConfig, Nonce, Balance, BlockChainClient,
+	BlockId, TransactionId, UncleId, TraceId, ClientConfig, Nonce, Balance, ChainInfo, BlockChainClient,
 	MiningBlockChainClient, TraceFilter, CallAnalytics, BlockImportError, Mode,
 	ChainNotify, PruningInfo, ProvingBlockChainClient,
 };
@@ -1290,6 +1290,14 @@ impl Balance for Client {
 	}
 }
 
+impl ChainInfo for Client {
+	fn chain_info(&self) -> BlockChainInfo {
+		let mut chain_info = self.chain.read().chain_info();
+		chain_info.pending_total_difficulty = chain_info.total_difficulty + self.importer.block_queue.total_difficulty();
+		chain_info
+	}
+}
+
 impl BlockChainClient for Client {
 	fn call(&self, transaction: &SignedTransaction, analytics: CallAnalytics, block: BlockId) -> Result<Executed, CallError> {
 		let mut env_info = self.env_info(block).ok_or(CallError::StatePruned)?;
@@ -1739,12 +1747,6 @@ impl BlockChainClient for Client {
 		self.importer.block_queue.clear();
 	}
 
-	fn chain_info(&self) -> BlockChainInfo {
-		let mut chain_info = self.chain.read().chain_info();
-		chain_info.pending_total_difficulty = chain_info.total_difficulty + self.importer.block_queue.total_difficulty();
-		chain_info
-	}
-
 	fn additional_params(&self) -> BTreeMap<String, String> {
 		self.engine.additional_params().into_iter().collect()
 	}
@@ -2061,10 +2063,6 @@ impl super::traits::EngineClient for Client {
 
 	fn epoch_transition_for(&self, parent_hash: H256) -> Option<::engines::EpochTransition> {
 		self.chain.read().epoch_transition_for(parent_hash)
-	}
-
-	fn chain_info(&self) -> BlockChainInfo {
-		BlockChainClient::chain_info(self)
 	}
 
 	fn as_full_client(&self) -> Option<&BlockChainClient> { Some(self) }
