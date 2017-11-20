@@ -364,9 +364,9 @@ impl ChainNotify for ServiceContractListener {
 
 				// schedule retry if received enough blocks since last retry
 				// it maybe inaccurate when switching syncing/synced states, but that's ok
-				if self.data.last_retry.fetch_add(enacted_len, Ordering::AcqRel) >= RETRY_INTEVAL_BLOCKS {
+				if self.data.last_retry.fetch_add(enacted_len, Ordering::Relaxed) >= RETRY_INTEVAL_BLOCKS {
 					self.data.tasks_queue.push(::std::iter::once(ServiceTask::Retry));
-					self.data.last_retry.store(0, Ordering::AcqRel);
+					self.data.last_retry.store(0, Ordering::Relaxed);
 				}
 			}
 		}
