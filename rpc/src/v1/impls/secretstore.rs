@@ -16,16 +16,17 @@
 
 //! SecretStore-specific rpc implementation.
 
+use std::collections::BTreeSet;
 use std::sync::Arc;
 
 use crypto::DEFAULT_MAC;
 use ethkey::Secret;
 use ethcore::account_provider::AccountProvider;
 
-use jsonrpc_core::Error;
+use jsonrpc_core::Result;
 use v1::helpers::errors;
 use v1::helpers::accounts::unwrap_provider;
-use v1::helpers::secretstore::{encrypt_document, decrypt_document, decrypt_document_with_shadow};
+use v1::helpers::secretstore::{encrypt_document, decrypt_document, decrypt_document_with_shadow, ordered_servers_keccak};
 use v1::traits::SecretStore;
 use v1::types::{H160, H512, Bytes};
 
@@ -44,36 +45,36 @@ impl SecretStoreClient {
 
 	/// Attempt to get the `Arc<AccountProvider>`, errors if provider was not
 	/// set.
-	fn account_provider(&self) -> Result<Arc<AccountProvider>, Error> {
+	fn account_provider(&self) -> Result<Arc<AccountProvider>> {
 		unwrap_provider(&self.accounts)
 	}
 
 	/// Decrypt public key using account' private key
-	fn decrypt_key(&self, address: H160, password: String, key: Bytes) -> Result<Vec<u8>, Error> {
+	fn decrypt_key(&self, address: H160, password: String, key: Bytes) -> Result<Vec<u8>> {
 		let store = self.account_provider()?;
 		store.decrypt(address.into(), Some(password), &DEFAULT_MAC, &key.0)
 			.map_err(|e| errors::account("Could not decrypt key.", e))
 	}
 
 	/// Decrypt secret key using account' private key
-	fn decrypt_secret(&self, address: H160, password: String, key: Bytes) -> Result<Secret, Error> {
+	fn decrypt_secret(&self, address: H160, password: String, key: Bytes) -> Result<Secret> {
 		self.decrypt_key(address, password, key)
 			.and_then(|s| Secret::from_unsafe_slice(&s).map_err(|e| errors::account("invalid secret", e)))
 	}
 }
 
 impl SecretStore for SecretStoreClient {
-	fn encrypt(&self, address: H160, password: String, key: Bytes, data: Bytes) -> Result<Bytes, Error> {
+	fn encrypt(&self, address: H160, password: String, key: Bytes, data: Bytes) -> Result<Bytes> {
 		encrypt_document(self.decrypt_key(address, password, key)?, data.0)
 			.map(Into::into)
 	}
 
-	fn decrypt(&self, address: H160, password: String, key: Bytes, data: Bytes) -> Result<Bytes, Error> {
+	fn decrypt(&self, address: H160, password: String, key: Bytes, data: Bytes) -> Result<Bytes> {
 		decrypt_document(self.decrypt_key(address, password, key)?, data.0)
 			.map(Into::into)
 	}
 
-	fn shadow_decrypt(&self, address: H160, password: String, decrypted_secret: H512, common_point: H512, decrypt_shadows: Vec<Bytes>, data: Bytes) -> Result<Bytes, Error> {
+	fn shadow_decrypt(&self, address: H160, password: String, decrypted_secret: H512, common_point: H512, decrypt_shadows: Vec<Bytes>, data: Bytes) -> Result<Bytes> {
 		let mut shadows = Vec::with_capacity(decrypt_shadows.len());
 		for decrypt_shadow in decrypt_shadows {
 			shadows.push(self.decrypt_secret(address.clone(), password.clone(), decrypt_shadow)?);
@@ -81,5 +82,14 @@ impl SecretStore for SecretStoreClient {
 
 		decrypt_document_with_shadow(decrypted_secret.into(), common_point.into(), shadows, data.0)
 			.map(Into::into)
+	}
+
+	fn sign_servers_set(&self, address: H160, password: String, servers_set: BTreeSet<H512>) -> Result<Bytes> {
+		let servers_set_keccak_value = ordered_servers_keccak(servers_set);
+		let store = self.account_provider()?;
+		store
+			.sign(address.into(), Some(password), servers_set_keccak_value.into())
+			.map(|s| Bytes::new((*s).to_vec()))
+			.map_err(|e| errors::account("Could not sign servers set.", e))
 	}
 }

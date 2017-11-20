@@ -38,12 +38,12 @@ pub const SIGNATURES: &'static [UserFunctionDescriptor] = &[
 		None,
 	),
 	Static(
-		"_malloc",
+		"_ext_malloc",
 		&[I32],
 		Some(I32),
 	),
 	Static(
-		"_free",
+		"_ext_free",
 		&[I32],
 		None,
 	),
@@ -93,13 +93,28 @@ pub const SIGNATURES: &'static [UserFunctionDescriptor] = &[
 		Some(I32),
 	),
 	Static(
+		"_ext_memcpy",
+		&[I32; 3],
+		Some(I32),
+	),
+	Static(
+		"_ext_memset",
+		&[I32; 3],
+		Some(I32),
+	),
+	Static(
+		"_ext_memmove",
+		&[I32; 3],
+		Some(I32),
+	),
+	Static(
 		"_panic",
 		&[I32; 2],
 		None,
 	),
 	Static(
 		"_blockhash",
-		&[I32; 3],
+		&[I64, I32],
 		Some(I32),
 	),
 	Static(
@@ -130,12 +145,12 @@ pub const SIGNATURES: &'static [UserFunctionDescriptor] = &[
 	Static(
 		"_timestamp",
 		&[],
-		Some(I32),
+		Some(I64),
 	),
 	Static(
 		"_blocknumber",
 		&[],
-		Some(I32),
+		Some(I64),
 	),
 	Static(
 		"_difficulty",
@@ -162,8 +177,8 @@ pub const SIGNATURES: &'static [UserFunctionDescriptor] = &[
 
 	Static(
 		"_llvm_bswap_i64",
-		&[I32; 2],
-		Some(I32)
+		&[I64],
+		Some(I64)
 	),
 ];
 

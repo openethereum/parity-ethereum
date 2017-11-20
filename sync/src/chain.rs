@@ -97,7 +97,7 @@ use bigint::hash::{H256, H256FastMap};
 use parking_lot::RwLock;
 use bytes::Bytes;
 use rlp::*;
-use network::*;
+use network::{self, PeerId, PacketId};
 use ethcore::header::{BlockNumber, Header as BlockHeader};
 use ethcore::client::{BlockChainClient, BlockStatus, BlockId, BlockChainInfo, BlockImportError, BlockQueueInfo};
 use ethcore::error::*;
@@ -1493,7 +1493,7 @@ impl ChainSync {
 	}
 
 	/// Send Status message
-	fn send_status(&mut self, io: &mut SyncIo, peer: PeerId) -> Result<(), NetworkError> {
+	fn send_status(&mut self, io: &mut SyncIo, peer: PeerId) -> Result<(), network::Error> {
 		let warp_protocol_version = io.protocol_version(&WARP_SYNC_PROTOCOL_ID, peer);
 		let warp_protocol = warp_protocol_version != 0;
 		let protocol = if warp_protocol { warp_protocol_version } else { PROTOCOL_VERSION_63 };
@@ -1705,7 +1705,7 @@ impl ChainSync {
 
 	fn return_rlp<FRlp, FError>(io: &mut SyncIo, rlp: &UntrustedRlp, peer: PeerId, rlp_func: FRlp, error_func: FError) -> Result<(), PacketDecodeError>
 		where FRlp : Fn(&SyncIo, &UntrustedRlp, PeerId) -> RlpResponseResult,
-			FError : FnOnce(NetworkError) -> String
+			FError : FnOnce(network::Error) -> String
 	{
 		let response = rlp_func(io, rlp, peer);
 		match response {

@@ -366,10 +366,12 @@ impl From<SerializableDocumentKeyShareV2> for DocumentKeyShare {
 
 #[cfg(test)]
 pub mod tests {
+	extern crate tempdir;
+
 	use std::collections::{BTreeMap, HashMap};
 	use parking_lot::RwLock;
 	use serde_json;
-	use devtools::RandomTempPath;
+	use self::tempdir::TempDir;
 	use ethkey::{Random, Generator, Public, Secret};
 	use kvdb_rocksdb::Database;
 	use types::all::{Error, NodeAddress, ServiceConfiguration, ClusterConfiguration, ServerKeyId};
@@ -419,11 +421,11 @@ pub mod tests {
 
 	#[test]
 	fn persistent_key_storage() {
-		let path = RandomTempPath::create_dir();
+		let tempdir = TempDir::new("").unwrap();
 		let config = ServiceConfiguration {
 			listener_address: None,
 			acl_check_enabled: true,
-			data_path: path.as_str().to_owned(),
+			data_path: tempdir.path().display().to_string(),
 			cluster_config: ClusterConfiguration {
 				threads: 1,
 				listener_address: NodeAddress {
@@ -482,8 +484,8 @@ pub mod tests {
 
 	#[test]
 	fn upgrade_db_from_0() {
-		let db_path = RandomTempPath::create_dir();
-		let db = Database::open_default(db_path.as_str()).unwrap();
+		let tempdir = TempDir::new("").unwrap();
+		let db = Database::open_default(&tempdir.path().display().to_string()).unwrap();
 
 		// prepare v0 database
 		{
@@ -523,8 +525,8 @@ pub mod tests {
 
 	#[test]
 	fn upgrade_db_from_1() {
-		let db_path = RandomTempPath::create_dir();
-		let db = Database::open_default(db_path.as_str()).unwrap();
+		let tempdir = TempDir::new("").unwrap();
+		let db = Database::open_default(&tempdir.path().display().to_string()).unwrap();
 
 		// prepare v1 database
 		{

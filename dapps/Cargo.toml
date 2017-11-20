@@ -25,8 +25,8 @@ unicase = "1.4"
 zip = { version = "0.1", default-features = false }
 itertools = "0.5"
 
-jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.8" }
-jsonrpc-http-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.8" }
+jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.9" }
+jsonrpc-http-server = { git = "https://github.com/paritytech/jsonrpc.git", branch = "parity-1.9" }
 
 ethcore-util = { path = "../util" }
 ethcore-bigint = { path = "../util/bigint" }
@@ -36,7 +36,7 @@ node-health = { path = "./node-health" }
 parity-hash-fetch = { path = "../hash-fetch" }
 parity-reactor = { path = "../util/reactor" }
 parity-ui = { path = "./ui" }
-hash = { path = "../util/hash" }
+keccak-hash = { path = "../util/hash" }
 
 clippy = { version = "0.0.103", optional = true}
 

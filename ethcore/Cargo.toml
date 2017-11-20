@@ -19,7 +19,7 @@ ethcore-bloom-journal = { path = "../util/bloom" }
 ethcore-bytes = { path = "../util/bytes" }
 hashdb = { path = "../util/hashdb" }
 memorydb = { path = "../util/memorydb" }
-patricia_trie = { path = "../util/patricia_trie" }
+patricia-trie = { path = "../util/patricia_trie" }
 ethcore-devtools = { path = "../devtools" }
 ethcore-io = { path = "../util/io" }
 ethcore-logger = { path = "../logger" }
@@ -67,7 +67,7 @@ table = { path = "../util/table" }
 bloomable = { path = "../util/bloomable" }
 vm = { path = "vm" }
 wasm = { path = "wasm" }
-hash = { path = "../util/hash" }
+keccak-hash = { path = "../util/hash" }
 triehash = { path = "../util/triehash" }
 semantic_version = { path = "../util/semantic_version" }
 unexpected = { path = "../util/unexpected" }
