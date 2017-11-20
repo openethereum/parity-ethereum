@@ -27,7 +27,7 @@ pub struct App {
 	#[serde(rename="iconUrl")]
 	pub icon_url: String,
 	#[serde(rename="localUrl")]
-	pub local_url: String,
+	pub local_url: Option<String>,
 }
 
 impl App {

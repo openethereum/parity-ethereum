@@ -38,7 +38,6 @@ pub struct Info {
 	pub author: &'static str,
 	pub description: &'static str,
 	pub icon_url: &'static str,
-	pub local_url: &'static str,
 }
 
 pub trait WebApp : Default + Send + Sync {

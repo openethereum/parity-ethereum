@@ -132,7 +132,7 @@ impl From<Info> for EndpointInfo {
 			description: info.description.into(),
 			author: info.author.into(),
 			icon_url: info.icon_url.into(),
-			local_url: info.local_url.into(),
+			local_url: None,
 			version: info.version.into(),
 		}
 	}
