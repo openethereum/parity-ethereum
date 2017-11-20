@@ -36,7 +36,7 @@ use devtools::*;
 use transaction::{Transaction, LocalizedTransaction, PendingTransaction, SignedTransaction, Action};
 use blockchain::TreeRoute;
 use client::{
-	BlockChainClient, MiningBlockChainClient, BlockChainInfo, BlockStatus, BlockId,
+	Nonce, BlockChainClient, MiningBlockChainClient, BlockChainInfo, BlockStatus, BlockId,
 	TransactionId, UncleId, TraceId, TraceFilter, LastHashes, CallAnalytics, BlockImportError,
 	ProvingBlockChainClient,
 };
@@ -408,6 +408,19 @@ impl MiningBlockChainClient for TestBlockChainClient {
 	fn broadcast_proposal_block(&self, _block: SealedBlock) {}
 }
 
+impl Nonce for TestBlockChainClient {
+	fn nonce(&self, address: &Address, id: BlockId) -> Option<U256> {
+		match id {
+			BlockId::Latest | BlockId::Pending => Some(self.nonces.read().get(address).cloned().unwrap_or(self.spec.params().account_start_nonce)),
+			_ => None,
+		}
+	}
+
+	fn latest_nonce(&self, address: &Address) -> U256 {
+		self.nonce(address, BlockId::Latest).unwrap()
+	}
+}
+
 impl BlockChainClient for TestBlockChainClient {
 	fn call(&self, _t: &SignedTransaction, _analytics: CallAnalytics, _block: BlockId) -> Result<Executed, CallError> {
 		self.execution_result.read().clone().unwrap()
@@ -437,19 +450,8 @@ impl BlockChainClient for TestBlockChainClient {
 		Self::block_hash(self, id)
 	}
 
-	fn nonce(&self, address: &Address, id: BlockId) -> Option<U256> {
-		match id {
-			BlockId::Latest | BlockId::Pending => Some(self.nonces.read().get(address).cloned().unwrap_or(self.spec.params().account_start_nonce)),
-			_ => None,
-		}
-	}
-
 	fn storage_root(&self, _address: &Address, _id: BlockId) -> Option<H256> {
 		None
-	}
-
-	fn latest_nonce(&self, address: &Address) -> U256 {
-		self.nonce(address, BlockId::Latest).unwrap()
 	}
 
 	fn code(&self, address: &Address, id: BlockId) -> Option<Option<Bytes>> {

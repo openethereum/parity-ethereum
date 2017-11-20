@@ -41,7 +41,7 @@ use blockchain::extras::TransactionAddress;
 use client::ancient_import::AncientVerifier;
 use client::Error as ClientError;
 use client::{
-	BlockId, TransactionId, UncleId, TraceId, ClientConfig, BlockChainClient,
+	BlockId, TransactionId, UncleId, TraceId, ClientConfig, Nonce, BlockChainClient,
 	MiningBlockChainClient, TraceFilter, CallAnalytics, BlockImportError, Mode,
 	ChainNotify, PruningInfo, ProvingBlockChainClient,
 };
@@ -1278,6 +1278,12 @@ impl snapshot::DatabaseRestore for Client {
 	}
 }
 
+impl Nonce for Client {
+	fn nonce(&self, address: &Address, id: BlockId) -> Option<U256> {
+		self.state_at(id).and_then(|s| s.nonce(address).ok())
+	}
+}
+
 impl BlockChainClient for Client {
 	fn call(&self, transaction: &SignedTransaction, analytics: CallAnalytics, block: BlockId) -> Result<Executed, CallError> {
 		let mut env_info = self.env_info(block).ok_or(CallError::StatePruned)?;
@@ -1523,10 +1529,6 @@ impl BlockChainClient for Client {
 		}
 
 		Self::block_hash(&chain, &self.importer.miner, id).and_then(|hash| chain.block_details(&hash)).map(|d| d.total_difficulty)
-	}
-
-	fn nonce(&self, address: &Address, id: BlockId) -> Option<U256> {
-		self.state_at(id).and_then(|s| s.nonce(address).ok())
 	}
 
 	fn storage_root(&self, address: &Address, id: BlockId) -> Option<H256> {

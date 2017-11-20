@@ -28,7 +28,7 @@ use util::Address;
 use bytes::ToPretty;
 use rlp::PayloadInfo;
 use ethcore::service::ClientService;
-use ethcore::client::{Mode, DatabaseCompactionProfile, VMType, BlockImportError, BlockChainClient, BlockId};
+use ethcore::client::{Mode, DatabaseCompactionProfile, VMType, BlockImportError, Nonce, BlockChainClient, BlockId};
 use ethcore::error::ImportError;
 use ethcore::miner::Miner;
 use ethcore::verification::queue::VerifierSettings;

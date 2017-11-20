@@ -48,8 +48,22 @@ use types::block_status::BlockStatus;
 use types::mode::Mode;
 use types::pruning_info::PruningInfo;
 
+/// Provides `nonce` and `latest_nonce` methods
+pub trait Nonce {
+	/// Attempt to get address nonce at given block.
+	/// May not fail on BlockId::Latest.
+	fn nonce(&self, address: &Address, id: BlockId) -> Option<U256>;
+
+	/// Get address nonce at the latest block's state.
+	fn latest_nonce(&self, address: &Address) -> U256 {
+		self.nonce(address, BlockId::Latest)
+			.expect("nonce will return Some when given BlockId::Latest. nonce was given BlockId::Latest. \
+			Therefore nonce has returned Some; qed")
+	}
+}
+
 /// Blockchain database client. Owns and manages a blockchain and a block queue.
-pub trait BlockChainClient : Sync + Send {
+pub trait BlockChainClient : Sync + Send + Nonce {
 
 	/// Get raw block header data by block id.
 	fn block_header(&self, id: BlockId) -> Option<encoded::Header>;
@@ -70,20 +84,9 @@ pub trait BlockChainClient : Sync + Send {
 	/// Get block total difficulty.
 	fn block_total_difficulty(&self, id: BlockId) -> Option<U256>;
 
-	/// Attempt to get address nonce at given block.
-	/// May not fail on BlockId::Latest.
-	fn nonce(&self, address: &Address, id: BlockId) -> Option<U256>;
-
 	/// Attempt to get address storage root at given block.
 	/// May not fail on BlockId::Latest.
 	fn storage_root(&self, address: &Address, id: BlockId) -> Option<H256>;
-
-	/// Get address nonce at the latest block's state.
-	fn latest_nonce(&self, address: &Address) -> U256 {
-		self.nonce(address, BlockId::Latest)
-			.expect("nonce will return Some when given BlockId::Latest. nonce was given BlockId::Latest. \
-			Therefore nonce has returned Some; qed")
-	}
 
 	/// Get block hash.
 	fn block_hash(&self, id: BlockId) -> Option<H256>;
