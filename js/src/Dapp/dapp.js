@@ -110,7 +110,10 @@ export default class Dapp extends Component {
 
     switch (app.type) {
       case 'local':
-        src = `${dappsUrl}/${app.id}/`;
+        console.log('app', app);
+        src = app.localUrl
+          ? `${app.localUrl}?appId=${app.id}`
+          : `${dappsUrl}/${app.id}/`;
         break;
 
       case 'network':

@@ -20,11 +20,29 @@ import Web3 from 'web3';
 import web3extensions from './web3.extensions';
 
 function initProvider () {
-  const parts = window.location.pathname.split('/');
-  let appId = parts[1];
+  const path = window.location.pathname.split('/');
+  const qs = ((query) => {
+    if (!query) {
+      return {};
+    }
+
+    return query.split('&').reduce((result, combined) => {
+      const [name, value] = combined.split('=', 2);
+
+      result[name] = !name
+        ? ''
+        : decodeURIComponent(value.replace(/\+/g, ' '));
+
+      return result;
+    }, {});
+  })(window.location.search.substr(1));
+
+  let appId = path[1] || qs.appId;
+
+  console.log('appId', appId, path, qs);
 
   if (appId === 'dapps') {
-    appId = parts[2];
+    appId = path[2];
   } else if (!Api.util.isHex(appId)) {
     appId = Api.util.sha3(appId);
   }
