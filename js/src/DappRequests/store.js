@@ -229,57 +229,75 @@ export default class Store {
   };
 
   executeMethodCall = ({ id, from, method, params, token }, source) => {
-    const callback = this._methodCallbackPost(id, from, source, token);
-    const isHandled = this.middleware.find(middleware =>
-      middleware(from, method, params, callback)
-    );
+    try {
+      if (/^shell/.test(method)) {
+        console.error('*** ', method);
+      }
 
-    if (!isHandled) {
-      this.provider.send(method, params, callback);
+      const callback = this._methodCallbackPost(id, from, source, token);
+      const isHandled = this.middleware.find(middleware => {
+        try {
+          return middleware(from, method, params, callback);
+        } catch (error) {
+          console.error(`Middleware error handling '${method}'`, error);
+        }
+
+        return false;
+      });
+
+      if (!isHandled) {
+        this.provider.send(method, params, callback);
+      }
+    } catch (error) {
+      console.error(`Execution error handling '${method}'`, error);
     }
   };
 
   receiveMessage = ({ data, origin, source }) => {
-    if (!data) {
-      return;
-    }
+    try {
+      if (!data) {
+        return;
+      }
 
-    const { from, method, to, token, params, api, subId, id } = data;
+      const { from, method, to, token, params, api, subId, id } = data;
 
-    if (to !== 'shell' || !from || from === 'shell') {
-      return;
-    }
+      if (to !== 'shell' || !from || from === 'shell') {
+        return;
+      }
 
-    if (!this.hasValidToken(method, from, token)) {
-      this.rejectMessage(source, data);
-      return;
-    }
+      if (!this.hasValidToken(method, from, token)) {
+        this.rejectMessage(source, data);
+        return;
+      }
 
-    if (
-      (method &&
-        methodGroupFromMethod[method] &&
-        !this.hasTokenPermission(method, token)) ||
-      (api &&
-        methodGroupFromMethod[params[0]] &&
-        !this.hasTokenPermission(method, token))
-    ) {
-      this.queueRequest({ data, origin, source });
-      return;
-    }
+      if (
+        (method &&
+          methodGroupFromMethod[method] &&
+          !this.hasTokenPermission(method, token)) ||
+        (api &&
+          methodGroupFromMethod[params[0]] &&
+          !this.hasTokenPermission(method, token))
+      ) {
+        this.queueRequest({ data, origin, source });
+        return;
+      }
 
-    if (api) {
-      this.executePubsubCall(data, source);
-    } else if (subId) {
-      const unsubscribePromise = subId === '*'
-        ? this.provider.unsubscribeAll()
-        : this.provider.unsubscribe(subId);
+      if (api) {
+        this.executePubsubCall(data, source);
+      } else if (subId) {
+        const unsubscribePromise = subId === '*'
+          ? this.provider.unsubscribeAll()
+          : this.provider.unsubscribe(subId);
 
-      unsubscribePromise
-        .then(v =>
-          this._methodCallbackPost(id, from, source, token)(null, v)
-        );
-    } else {
-      this.executeMethodCall(data, source);
+        unsubscribePromise
+          .then(v =>
+            this._methodCallbackPost(id, from, source, token)(null, v)
+          );
+      } else {
+        this.executeMethodCall(data, source);
+      }
+    } catch (error) {
+      console.error('Exception handling data', data, error);
     }
   };
 

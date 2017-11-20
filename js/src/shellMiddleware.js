@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import mobx from 'mobx';
 import flatten from 'lodash.flatten';
 
 import { sha3 } from '@parity/api/lib/util/sha3';
@@ -33,8 +34,8 @@ export default function execute (appId, method, params, callback) {
       callback(
         null,
         displayAll
-          ? visibleStore.allApps.slice()
-          : visibleStore.visibleApps.slice()
+          ? visibleStore.allApps.slice().map(mobx.toJS)
+          : visibleStore.visibleApps.slice().map(mobx.toJS)
       );
       return true;
 
@@ -53,7 +54,7 @@ export default function execute (appId, method, params, callback) {
       return true;
 
     case 'shell_getMethodPermissions':
-      callback(null, requestStore.permissions);
+      callback(null, mobx.toJS(requestStore.permissions));
       return true;
 
     case 'shell_loadApp':
