@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::collections::BTreeSet;
+use std::io::Read;
 use std::sync::Arc;
 use hyper::header;
 use hyper::uri::RequestUri;
@@ -28,7 +30,13 @@ use url::percent_encoding::percent_decode;
 use traits::KeyServer;
 use serialization::{SerializableEncryptedDocumentKeyShadow, SerializableBytes, SerializablePublic};
 use types::all::{Error, Public, MessageHash, NodeAddress, RequestSignature, ServerKeyId,
-	EncryptedDocumentKey, EncryptedDocumentKeyShadow};
+	EncryptedDocumentKey, EncryptedDocumentKeyShadow, NodeId};
+/*=======
+use traits::{ServerKeyGenerator, AdminSessionsServer, DocumentKeyServer, MessageSigner, KeyServer};
+use serialization::{SerializableEncryptedDocumentKeyShadow, SerializableBytes, SerializablePublic};
+use types::all::{Error, Public, MessageHash, EncryptedMessageSignature, NodeAddress, RequestSignature, ServerKeyId,
+	EncryptedDocumentKey, EncryptedDocumentKeyShadow, NodeId};
+>>>>>>> master:secret_store/src/http_listener.rs*/
 
 /// Key server http-requests listener. Available requests:
 /// To generate server key:							POST		/shadow/{server_key_id}/{signature}/{threshold}
@@ -37,6 +45,7 @@ use types::all::{Error, Public, MessageHash, NodeAddress, RequestSignature, Serv
 /// To get document key:							GET			/{server_key_id}/{signature}
 /// To get document key shadow:						GET			/shadow/{server_key_id}/{signature} 
 /// To sign message with server key:				GET			/{server_key_id}/{signature}/{message_hash}
+/// To change servers set:							POST		/admin/servers_set_change/{old_signature}/{new_signature} + BODY: json array of hex-encoded nodes ids
 
 pub struct KeyServerHttpListener {
 	http_server: HttpListening,
@@ -60,6 +69,8 @@ enum Request {
 	GetDocumentKeyShadow(ServerKeyId, RequestSignature),
 	/// Sign message.
 	SignMessage(ServerKeyId, RequestSignature, MessageHash),
+	/// Change servers set.
+	ChangeServersSet(RequestSignature, RequestSignature, BTreeSet<NodeId>),
 }
 
 /// Cloneable http handler
@@ -101,17 +112,24 @@ impl Drop for KeyServerHttpListener {
 }
 
 impl HttpHandler for KeyServerHttpHandler {
-	fn handle(&self, req: HttpRequest, mut res: HttpResponse) {
+	fn handle(&self, mut req: HttpRequest, mut res: HttpResponse) {
 		if req.headers.has::<header::Origin>() {
 			warn!(target: "secretstore", "Ignoring {}-request {} with Origin header", req.method, req.uri);
 			*res.status_mut() = HttpStatusCode::NotFound;
 			return;
 		}
 
+		let mut req_body = Default::default();
+		if let Err(error) = req.read_to_string(&mut req_body) {
+			warn!(target: "secretstore", "Error {} reading body of {}-request {}", error, req.method, req.uri);
+			*res.status_mut() = HttpStatusCode::BadRequest;
+			return;
+		}
+
 		let req_method = req.method.clone();
 		let req_uri = req.uri.clone();
 		match &req_uri {
-			&RequestUri::AbsolutePath(ref path) => match parse_request(&req_method, &path) {
+			&RequestUri::AbsolutePath(ref path) => match parse_request(&req_method, &path, &req_body) {
 				Request::GenerateServerKey(document, signature, threshold) => {
 					return_server_public_key(req, res, self.handler.key_server.generate_key(&document, &signature, threshold)
 						.map_err(|err| {
@@ -151,6 +169,13 @@ impl HttpHandler for KeyServerHttpHandler {
 					return_message_signature(req, res, self.handler.key_server.sign_message(&document, &signature, message_hash)
 						.map_err(|err| {
 							warn!(target: "secretstore", "SignMessage request {} has failed with: {}", req_uri, err);
+							err
+						}));
+				},
+				Request::ChangeServersSet(old_set_signature, new_set_signature, new_servers_set) => {
+					return_empty(req, res, self.handler.key_server.change_servers_set(old_set_signature, new_set_signature, new_servers_set)
+						.map_err(|err| {
+							warn!(target: "secretstore", "ChangeServersSet request {} has failed with: {}", req_uri, err);
 							err
 						}));
 				},
@@ -228,7 +253,7 @@ fn return_error(mut res: HttpResponse, err: Error) {
 	}
 }
 
-fn parse_request(method: &HttpMethod, uri_path: &str) -> Request {
+fn parse_request(method: &HttpMethod, uri_path: &str, body: &str) -> Request {
 	let uri_path = match percent_decode(uri_path.as_bytes()).decode_utf8() {
 		Ok(path) => path,
 		Err(_) => return Request::Invalid,
@@ -237,6 +262,10 @@ fn parse_request(method: &HttpMethod, uri_path: &str) -> Request {
 	let path: Vec<String> = uri_path.trim_left_matches('/').split('/').map(Into::into).collect();
 	if path.len() == 0 {
 		return Request::Invalid;
+	}
+
+	if path[0] == "admin" {
+		return parse_admin_request(method, path, body);
 	}
 
 	let (is_shadow_request, args_offset) = if &path[0] == "shadow" { (true, 1) } else { (false, 0) };
@@ -275,10 +304,36 @@ fn parse_request(method: &HttpMethod, uri_path: &str) -> Request {
 	}
 }
 
+fn parse_admin_request(method: &HttpMethod, path: Vec<String>, body: &str) -> Request {
+	let args_count = path.len();
+	if *method != HttpMethod::Post || args_count != 4 || path[1] != "servers_set_change" {
+		return Request::Invalid;
+	}
+
+	let old_set_signature = match path[2].parse() {
+		Ok(signature) => signature,
+		_ => return Request::Invalid,
+	};
+
+	let new_set_signature = match path[3].parse() {
+		Ok(signature) => signature,
+		_ => return Request::Invalid,
+	};
+
+	let new_servers_set: BTreeSet<SerializablePublic> = match serde_json::from_str(body) {
+		Ok(new_servers_set) => new_servers_set,
+		_ => return Request::Invalid,
+	};
+
+	Request::ChangeServersSet(old_set_signature, new_set_signature,
+		new_servers_set.into_iter().map(Into::into).collect())
+}
+
 #[cfg(test)]
 mod tests {
 	use std::sync::Arc;
 	use hyper::method::Method as HttpMethod;
+	use ethkey::Public;
 	use key_server::tests::DummyKeyServer;
 	use types::all::NodeAddress;
 	use super::{parse_request, Request, KeyServerHttpListener};
@@ -294,48 +349,66 @@ mod tests {
 	#[test]
 	fn parse_request_successful() {
 		// POST		/shadow/{server_key_id}/{signature}/{threshold}						=> generate server key
-		assert_eq!(parse_request(&HttpMethod::Post, "/shadow/0000000000000000000000000000000000000000000000000000000000000001/a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01/2"),
+		assert_eq!(parse_request(&HttpMethod::Post, "/shadow/0000000000000000000000000000000000000000000000000000000000000001/a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01/2", Default::default()),
 			Request::GenerateServerKey("0000000000000000000000000000000000000000000000000000000000000001".into(),
 				"a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01".parse().unwrap(),
 				2));
 		// POST		/shadow/{server_key_id}/{signature}/{common_point}/{encrypted_key}	=> store encrypted document key
-		assert_eq!(parse_request(&HttpMethod::Post, "/shadow/0000000000000000000000000000000000000000000000000000000000000001/a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01/b486d3840218837b035c66196ecb15e6b067ca20101e11bd5e626288ab6806ecc70b8307012626bd512bad1559112d11d21025cef48cc7a1d2f3976da08f36c8/1395568277679f7f583ab7c0992da35f26cde57149ee70e524e49bdae62db3e18eb96122501e7cbb798b784395d7bb5a499edead0706638ad056d886e56cf8fb"),
+		assert_eq!(parse_request(&HttpMethod::Post, "/shadow/0000000000000000000000000000000000000000000000000000000000000001/a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01/b486d3840218837b035c66196ecb15e6b067ca20101e11bd5e626288ab6806ecc70b8307012626bd512bad1559112d11d21025cef48cc7a1d2f3976da08f36c8/1395568277679f7f583ab7c0992da35f26cde57149ee70e524e49bdae62db3e18eb96122501e7cbb798b784395d7bb5a499edead0706638ad056d886e56cf8fb", Default::default()),
 			Request::StoreDocumentKey("0000000000000000000000000000000000000000000000000000000000000001".into(),
 				"a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01".parse().unwrap(),
 				"b486d3840218837b035c66196ecb15e6b067ca20101e11bd5e626288ab6806ecc70b8307012626bd512bad1559112d11d21025cef48cc7a1d2f3976da08f36c8".parse().unwrap(),
 				"1395568277679f7f583ab7c0992da35f26cde57149ee70e524e49bdae62db3e18eb96122501e7cbb798b784395d7bb5a499edead0706638ad056d886e56cf8fb".parse().unwrap()));
 		// POST		/{server_key_id}/{signature}/{threshold}							=> generate server && document key
-		assert_eq!(parse_request(&HttpMethod::Post, "/0000000000000000000000000000000000000000000000000000000000000001/a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01/2"),
+		assert_eq!(parse_request(&HttpMethod::Post, "/0000000000000000000000000000000000000000000000000000000000000001/a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01/2", Default::default()),
 			Request::GenerateDocumentKey("0000000000000000000000000000000000000000000000000000000000000001".into(),
 				"a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01".parse().unwrap(),
 				2));
 		// GET		/{server_key_id}/{signature}										=> get document key
-		assert_eq!(parse_request(&HttpMethod::Get, "/0000000000000000000000000000000000000000000000000000000000000001/a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01"),
+		assert_eq!(parse_request(&HttpMethod::Get, "/0000000000000000000000000000000000000000000000000000000000000001/a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01", Default::default()),
 			Request::GetDocumentKey("0000000000000000000000000000000000000000000000000000000000000001".into(),
 				"a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01".parse().unwrap()));
-		assert_eq!(parse_request(&HttpMethod::Get, "/%30000000000000000000000000000000000000000000000000000000000000001/a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01"),
+		assert_eq!(parse_request(&HttpMethod::Get, "/%30000000000000000000000000000000000000000000000000000000000000001/a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01", Default::default()),
 			Request::GetDocumentKey("0000000000000000000000000000000000000000000000000000000000000001".into(),
 				"a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01".parse().unwrap()));
 		// GET		/shadow/{server_key_id}/{signature}									=> get document key shadow
-		assert_eq!(parse_request(&HttpMethod::Get, "/shadow/0000000000000000000000000000000000000000000000000000000000000001/a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01"),
+		assert_eq!(parse_request(&HttpMethod::Get, "/shadow/0000000000000000000000000000000000000000000000000000000000000001/a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01", Default::default()),
 			Request::GetDocumentKeyShadow("0000000000000000000000000000000000000000000000000000000000000001".into(),
 				"a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01".parse().unwrap()));
 		// GET		/{server_key_id}/{signature}/{message_hash}							=> sign message with server key
-		assert_eq!(parse_request(&HttpMethod::Get, "/0000000000000000000000000000000000000000000000000000000000000001/a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01/281b6bf43cb86d0dc7b98e1b7def4a80f3ce16d28d2308f934f116767306f06c"),
+		assert_eq!(parse_request(&HttpMethod::Get, "/0000000000000000000000000000000000000000000000000000000000000001/a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01/281b6bf43cb86d0dc7b98e1b7def4a80f3ce16d28d2308f934f116767306f06c", Default::default()),
 			Request::SignMessage("0000000000000000000000000000000000000000000000000000000000000001".into(),
 				"a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01".parse().unwrap(),
 				"281b6bf43cb86d0dc7b98e1b7def4a80f3ce16d28d2308f934f116767306f06c".parse().unwrap()));
+		// POST		/admin/servers_set_change/{old_set_signature}/{new_set_signature} + body
+		let node1: Public = "843645726384530ffb0c52f175278143b5a93959af7864460f5a4fec9afd1450cfb8aef63dec90657f43f55b13e0a73c7524d4e9a13c051b4e5f1e53f39ecd91".parse().unwrap();
+		let node2: Public = "07230e34ebfe41337d3ed53b186b3861751f2401ee74b988bba55694e2a6f60c757677e194be2e53c3523cc8548694e636e6acb35c4e8fdc5e29d28679b9b2f3".parse().unwrap();
+		let nodes = vec![node1, node2].into_iter().collect();
+		assert_eq!(parse_request(&HttpMethod::Post, "/admin/servers_set_change/a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01/b199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01",
+			&r#"["0x843645726384530ffb0c52f175278143b5a93959af7864460f5a4fec9afd1450cfb8aef63dec90657f43f55b13e0a73c7524d4e9a13c051b4e5f1e53f39ecd91",
+				"0x07230e34ebfe41337d3ed53b186b3861751f2401ee74b988bba55694e2a6f60c757677e194be2e53c3523cc8548694e636e6acb35c4e8fdc5e29d28679b9b2f3"]"#),
+			Request::ChangeServersSet(
+				"a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01".parse().unwrap(),
+				"b199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01".parse().unwrap(),
+				nodes,
+			));
 	}
 
 	#[test]
 	fn parse_request_failed() {
-		assert_eq!(parse_request(&HttpMethod::Get, ""), Request::Invalid);
-		assert_eq!(parse_request(&HttpMethod::Get, "/shadow"), Request::Invalid);
-		assert_eq!(parse_request(&HttpMethod::Get, "///2"), Request::Invalid);
-		assert_eq!(parse_request(&HttpMethod::Get, "/shadow///2"), Request::Invalid);
-		assert_eq!(parse_request(&HttpMethod::Get, "/0000000000000000000000000000000000000000000000000000000000000001"), Request::Invalid);
-		assert_eq!(parse_request(&HttpMethod::Get, "/0000000000000000000000000000000000000000000000000000000000000001/"), Request::Invalid);
-		assert_eq!(parse_request(&HttpMethod::Get, "/a/b"), Request::Invalid);
-		assert_eq!(parse_request(&HttpMethod::Get, "/0000000000000000000000000000000000000000000000000000000000000001/a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01/0000000000000000000000000000000000000000000000000000000000000002/0000000000000000000000000000000000000000000000000000000000000002"), Request::Invalid);
+		assert_eq!(parse_request(&HttpMethod::Get, "", Default::default()), Request::Invalid);
+		assert_eq!(parse_request(&HttpMethod::Get, "/shadow", Default::default()), Request::Invalid);
+		assert_eq!(parse_request(&HttpMethod::Get, "///2", Default::default()), Request::Invalid);
+		assert_eq!(parse_request(&HttpMethod::Get, "/shadow///2", Default::default()), Request::Invalid);
+		assert_eq!(parse_request(&HttpMethod::Get, "/0000000000000000000000000000000000000000000000000000000000000001", Default::default()), Request::Invalid);
+		assert_eq!(parse_request(&HttpMethod::Get, "/0000000000000000000000000000000000000000000000000000000000000001/", Default::default()), Request::Invalid);
+		assert_eq!(parse_request(&HttpMethod::Get, "/a/b", Default::default()), Request::Invalid);
+		assert_eq!(parse_request(&HttpMethod::Get, "/0000000000000000000000000000000000000000000000000000000000000001/a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01/0000000000000000000000000000000000000000000000000000000000000002/0000000000000000000000000000000000000000000000000000000000000002", Default::default()), Request::Invalid);
+		assert_eq!(parse_request(&HttpMethod::Post, "/admin/servers_set_change/xxx/yyy",
+			&r#"["0x843645726384530ffb0c52f175278143b5a93959af7864460f5a4fec9afd1450cfb8aef63dec90657f43f55b13e0a73c7524d4e9a13c051b4e5f1e53f39ecd91",
+				"0x07230e34ebfe41337d3ed53b186b3861751f2401ee74b988bba55694e2a6f60c757677e194be2e53c3523cc8548694e636e6acb35c4e8fdc5e29d28679b9b2f3"]"#),
+			Request::Invalid);
+		assert_eq!(parse_request(&HttpMethod::Post, "/admin/servers_set_change/a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01/a199fb39e11eefb61c78a4074a53c0d4424600a3e74aad4fb9d93a26c30d067e1d4d29936de0c73f19827394a1dd049480a0d581aee7ae7546968da7d3d1c2fd01", ""),
+			Request::Invalid);
 	}
 }

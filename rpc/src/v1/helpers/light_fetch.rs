@@ -26,7 +26,7 @@ use ethcore::filter::Filter as EthcoreFilter;
 use ethcore::transaction::{Action, Transaction as EthTransaction, SignedTransaction, LocalizedTransaction};
 use ethcore::receipt::Receipt;
 
-use jsonrpc_core::{BoxFuture, Error};
+use jsonrpc_core::{BoxFuture, Result};
 use jsonrpc_core::futures::{future, Future};
 use jsonrpc_core::futures::future::Either;
 use jsonrpc_macros::Trailing;
@@ -87,7 +87,7 @@ pub fn extract_transaction_at_index(block: encoded::Block, index: usize, eip86_t
 
 
 /// Type alias for convenience.
-pub type ExecutionResult = Result<Executed, ExecutionError>;
+pub type ExecutionResult = ::std::result::Result<Executed, ExecutionError>;
 
 // extract the header indicated by the given `HeaderRef` from the given responses.
 // fails only if they do not correspond.
@@ -104,7 +104,7 @@ fn extract_header(res: &[OnDemandResponse], header: HeaderRef) -> Option<encoded
 impl LightFetch {
 	// push the necessary requests onto the request chain to get the header by the given ID.
 	// yield a header reference which other requests can use.
-	fn make_header_requests(&self, id: BlockId, reqs: &mut Vec<OnDemandRequest>) -> Result<HeaderRef, Error> {
+	fn make_header_requests(&self, id: BlockId, reqs: &mut Vec<OnDemandRequest>) -> Result<HeaderRef> {
 		if let Some(h) = self.client.block_header(id) {
 			return Ok(h.into());
 		}
@@ -138,7 +138,7 @@ impl LightFetch {
 	}
 
 	/// Get a block header from the on demand service or client, or error.
-	pub fn header(&self, id: BlockId) -> BoxFuture<encoded::Header, Error> {
+	pub fn header(&self, id: BlockId) -> BoxFuture<encoded::Header> {
 		let mut reqs = Vec::new();
 		let header_ref = match self.make_header_requests(id, &mut reqs) {
 			Ok(r) => r,
@@ -162,7 +162,7 @@ impl LightFetch {
 
 	/// Helper for getting account info at a given block.
 	/// `None` indicates the account doesn't exist at the given block.
-	pub fn account(&self, address: Address, id: BlockId) -> BoxFuture<Option<BasicAccount>, Error> {
+	pub fn account(&self, address: Address, id: BlockId) -> BoxFuture<Option<BasicAccount>> {
 		let mut reqs = Vec::new();
 		let header_ref = match self.make_header_requests(id, &mut reqs) {
 			Ok(r) => r,
@@ -188,7 +188,7 @@ impl LightFetch {
 	}
 
 	/// Helper for getting proved execution.
-	pub fn proved_execution(&self, req: CallRequest, num: Trailing<BlockNumber>) -> BoxFuture<ExecutionResult, Error> {
+	pub fn proved_execution(&self, req: CallRequest, num: Trailing<BlockNumber>) -> BoxFuture<ExecutionResult> {
 		const DEFAULT_GAS_PRICE: u64 = 21_000;
 		// starting gas when gas not provided.
 		const START_GAS: u64 = 50_000;
@@ -265,7 +265,7 @@ impl LightFetch {
 	}
 
 	/// Get a block itself. Fails on unknown block ID.
-	pub fn block(&self, id: BlockId) -> BoxFuture<encoded::Block, Error> {
+	pub fn block(&self, id: BlockId) -> BoxFuture<encoded::Block> {
 		let mut reqs = Vec::new();
 		let header_ref = match self.make_header_requests(id, &mut reqs) {
 			Ok(r) => r,
@@ -291,7 +291,7 @@ impl LightFetch {
 	}
 
 	/// Get the block receipts. Fails on unknown block ID.
-	pub fn receipts(&self, id: BlockId) -> BoxFuture<Vec<Receipt>, Error> {
+	pub fn receipts(&self, id: BlockId) -> BoxFuture<Vec<Receipt>> {
 		let mut reqs = Vec::new();
 		let header_ref = match self.make_header_requests(id, &mut reqs) {
 			Ok(r) => r,
@@ -317,7 +317,7 @@ impl LightFetch {
 	}
 
 	/// Get transaction logs
-	pub fn logs(&self, filter: EthcoreFilter) -> BoxFuture<Vec<Log>, Error> {
+	pub fn logs(&self, filter: EthcoreFilter) -> BoxFuture<Vec<Log>> {
 		use std::collections::BTreeMap;
 		use jsonrpc_core::futures::stream::{self, Stream};
 
@@ -375,7 +375,7 @@ impl LightFetch {
 	// Get a transaction by hash. also returns the index in the block.
 	// Only returns transactions in the canonical chain.
 	pub fn transaction_by_hash(&self, tx_hash: H256, eip86_transition: u64)
-		-> BoxFuture<Option<(Transaction, usize)>, Error>
+		-> BoxFuture<Option<(Transaction, usize)>>
 	{
 		let params = (self.sync.clone(), self.on_demand.clone());
 		let fetcher: Self = self.clone();
@@ -445,7 +445,7 @@ struct ExecuteParams {
 
 // has a peer execute the transaction with given params. If `gas_known` is false,
 // this will double the gas on each `OutOfGas` error.
-fn execute_tx(gas_known: bool, params: ExecuteParams) -> BoxFuture<ExecutionResult, Error> {
+fn execute_tx(gas_known: bool, params: ExecuteParams) -> BoxFuture<ExecutionResult> {
 	if !gas_known {
 		Box::new(future::loop_fn(params, |mut params| {
 			execute_tx(true, params.clone()).and_then(move |res| {

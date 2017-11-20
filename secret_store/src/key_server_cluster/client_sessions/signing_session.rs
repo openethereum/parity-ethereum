@@ -250,14 +250,19 @@ impl SessionImpl {
 
 		let mut data = self.data.lock();
 		let non_isolated_nodes = self.core.cluster.nodes();
-		data.consensus_session.consensus_job_mut().transport_mut().version = Some(version.clone());
-		data.version = Some(version.clone());
-		data.message_hash = Some(message_hash);
-		data.consensus_session.initialize(key_version.id_numbers.keys()
+		let mut consensus_nodes: BTreeSet<_> = key_version.id_numbers.keys()
 			.filter(|n| non_isolated_nodes.contains(*n))
 			.cloned()
 			.chain(::std::iter::once(self.core.meta.self_node_id.clone()))
-			.collect())?;
+			.collect();
+		if let Some(&DelegationStatus::DelegatedFrom(delegation_master, _)) = data.delegation_status.as_ref() {
+			consensus_nodes.remove(&delegation_master);
+		}
+
+		data.consensus_session.consensus_job_mut().transport_mut().version = Some(version.clone());
+		data.version = Some(version.clone());
+		data.message_hash = Some(message_hash);
+		data.consensus_session.initialize(consensus_nodes)?;
 
 		if data.consensus_session.state() == ConsensusSessionState::ConsensusEstablished {
 			let generation_session = GenerationSession::new(GenerationSessionParams {
@@ -354,7 +359,6 @@ impl SessionImpl {
 
 		Ok(())
 	}
-
 
 	/// When consensus-related message is received.
 	pub fn on_consensus_message(&self, sender: &NodeId, message: &SigningConsensusMessage) -> Result<(), Error> {
@@ -629,7 +633,10 @@ impl ClusterSession for SessionImpl {
 	}
 
 	fn is_finished(&self) -> bool {
-		self.data.lock().result.is_some()
+		let data = self.data.lock();
+		data.consensus_session.state() == ConsensusSessionState::Failed
+			|| data.consensus_session.state() == ConsensusSessionState::Finished
+			|| data.result.is_some()
 	}
 
 	fn on_node_timeout(&self, node: &NodeId) {

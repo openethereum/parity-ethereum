@@ -12,7 +12,7 @@ ethcore-util = { path = "../../util" }
 ethcore-bigint = { path = "../../util/bigint" }
 ethjson = { path = "../../json" }
 bloomable = { path = "../../util/bloomable" }
-hash = { path = "../../util/hash" }
+keccak-hash = { path = "../../util/hash" }
 heapsize = "0.4"
 
 [dev-dependencies]

@@ -95,6 +95,8 @@ impl<M: WithBalances> Engine<M> for NullEngine<M> {
 		self.machine.note_rewards(block, &[(author, result_block_reward)], &uncle_rewards)
 	}
 
+	fn maximum_uncle_count(&self) -> usize { 2 }
+
 	fn verify_local_seal(&self, _header: &M::Header) -> Result<(), M::Error> {
 		Ok(())
 	}

@@ -14,8 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::env;
-use std::str;
+use std::{env, io, str};
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -187,7 +186,7 @@ impl<T: Fetch> ServerBuilder<T> {
 
 	/// Asynchronously start server with no authentication,
 	/// returns result with `Server` handle on success or an error.
-	pub fn start_unsecured_http(self, addr: &SocketAddr, io: IoHandler) -> Result<Server, http::Error> {
+	pub fn start_unsecured_http(self, addr: &SocketAddr, io: IoHandler) -> io::Result<Server> {
 		let fetch = self.fetch_client();
 		Server::start_http(
 			addr,
@@ -234,7 +233,7 @@ impl Server {
 		remote: Remote,
 		fetch: F,
 		serve_ui: bool,
-	) -> Result<Server, http::Error> {
+	) -> io::Result<Server> {
 		let health = NodeHealth::new(
 			sync_status.clone(),
 			TimeChecker::new::<String>(&[], CpuPool::new(1)),

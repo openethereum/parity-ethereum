@@ -31,7 +31,7 @@ use bigint::hash::H256;
 use key_server_cluster::{Error, NodeId, SessionId, AclStorage, KeyStorage, KeyServerSet, NodeKeyPair};
 use key_server_cluster::cluster_sessions::{ClusterSession, ClusterSessions, GenerationSessionWrapper, EncryptionSessionWrapper,
 	DecryptionSessionWrapper, SigningSessionWrapper, AdminSessionWrapper, KeyNegotiationSessionWrapper, SessionIdWithSubSession,
-	ClusterSessionsContainer, SERVERS_SET_CHANGE_SESSION_ID, create_cluster_view};
+	ClusterSessionsContainer, SERVERS_SET_CHANGE_SESSION_ID, create_cluster_view, AdminSessionCreationData};
 use key_server_cluster::cluster_sessions_creator::{ClusterSessionCreator, IntoSessionId};
 use key_server_cluster::message::{self, Message, ClusterMessage};
 use key_server_cluster::generation_session::{Session as GenerationSession};
@@ -519,7 +519,7 @@ impl ClusterCore {
 				let creation_data = SC::creation_data_from_message(&message)?;
 				let master = if is_initialization_message { sender.clone() } else { data.self_key_pair.public().clone() };
 				let cluster = create_cluster_view(data, requires_all_connections(&message))?;
-				sessions.insert(cluster, master, session_id.clone(), Some(message.session_nonce().ok_or(Error::InvalidMessage)?), message.is_exclusive_session_message(), creation_data)
+				sessions.insert(cluster, master, session_id, Some(message.session_nonce().ok_or(Error::InvalidMessage)?), message.is_exclusive_session_message(), creation_data)
 			},
 		}
 	}
@@ -536,7 +536,7 @@ impl ClusterCore {
 			Ok(session) => session,
 			Err(error) => {
 				// this is new session => it is not yet in container
-				warn!(target: "secretstore_net", "{}: {} session initialization error '{}' when requested for new session from node {}",
+				warn!(target: "secretstore_net", "{}: {} session read error '{}' when requested for session from node {}",
 					data.self_key_pair.public(), S::type_name(), error, sender);
 				if message.is_initialization_message() {
 					let session_id = message.into_session_id().expect("session_id only fails for cluster messages; only session messages are passed to process_message; qed");
@@ -969,7 +969,7 @@ impl ClusterClient for ClusterClientImpl {
 		};
 
 		let cluster = create_cluster_view(&self.data, true)?;
-		let session = self.data.sessions.admin_sessions.insert(cluster, self.data.self_key_pair.public().clone(), session_id, None, true, None)?;
+		let session = self.data.sessions.admin_sessions.insert(cluster, self.data.self_key_pair.public().clone(), session_id, None, true, Some(AdminSessionCreationData::ServersSetChange))?;
 		let initialization_result = session.as_servers_set_change().expect("servers set change session is created; qed")
 			.initialize(new_nodes_set, old_set_signature, new_set_signature);
 
@@ -1294,14 +1294,25 @@ pub mod tests {
 		assert!(session.joint_public_and_secret().unwrap().is_ok());
 
 		// now remove share from node2
+		assert!((0..3).all(|i| clusters[i].data.sessions.generation_sessions.is_empty()));
 		clusters[2].data.config.key_storage.remove(&Default::default()).unwrap();
 
 		// and try to sign message with generated key
 		let signature = sign(Random.generate().unwrap().secret(), &Default::default()).unwrap();
 		let session0 = clusters[0].client().new_signing_session(Default::default(), signature, None, Default::default()).unwrap();
 		let session = clusters[0].data.sessions.signing_sessions.first().unwrap();
-		loop_until(&mut core, time::Duration::from_millis(300), || session.is_finished());
+
+		loop_until(&mut core, time::Duration::from_millis(300), || session.is_finished() && (0..3).all(|i|
+			clusters[i].data.sessions.signing_sessions.is_empty()));
 		session0.wait().unwrap();
+
+		// and try to sign message with generated key using node that has no key share
+		let signature = sign(Random.generate().unwrap().secret(), &Default::default()).unwrap();
+		let session2 = clusters[2].client().new_signing_session(Default::default(), signature, None, Default::default()).unwrap();
+		let session = clusters[2].data.sessions.signing_sessions.first().unwrap();
+		loop_until(&mut core, time::Duration::from_millis(300), || session.is_finished()  && (0..3).all(|i|
+			clusters[i].data.sessions.signing_sessions.is_empty()));
+		session2.wait().unwrap();
 
 		// now remove share from node1
 		clusters[1].data.config.key_storage.remove(&Default::default()).unwrap();
