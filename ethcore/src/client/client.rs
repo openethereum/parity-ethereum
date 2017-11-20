@@ -41,7 +41,7 @@ use blockchain::extras::TransactionAddress;
 use client::ancient_import::AncientVerifier;
 use client::Error as ClientError;
 use client::{
-	BlockId, TransactionId, UncleId, TraceId, ClientConfig, Nonce, BlockChainClient,
+	BlockId, TransactionId, UncleId, TraceId, ClientConfig, Nonce, Balance, BlockChainClient,
 	MiningBlockChainClient, TraceFilter, CallAnalytics, BlockImportError, Mode,
 	ChainNotify, PruningInfo, ProvingBlockChainClient,
 };
@@ -1284,6 +1284,12 @@ impl Nonce for Client {
 	}
 }
 
+impl Balance for Client {
+	fn balance(&self, address: &Address, id: BlockId) -> Option<U256> {
+		self.state_at(id).and_then(|s| s.balance(address).ok())
+	}
+}
+
 impl BlockChainClient for Client {
 	fn call(&self, transaction: &SignedTransaction, analytics: CallAnalytics, block: BlockId) -> Result<Executed, CallError> {
 		let mut env_info = self.env_info(block).ok_or(CallError::StatePruned)?;
@@ -1546,10 +1552,6 @@ impl BlockChainClient for Client {
 
 	fn code_hash(&self, address: &Address, id: BlockId) -> Option<H256> {
 		self.state_at(id).and_then(|s| s.code_hash(address).ok())
-	}
-
-	fn balance(&self, address: &Address, id: BlockId) -> Option<U256> {
-		self.state_at(id).and_then(|s| s.balance(address).ok())
 	}
 
 	fn storage_at(&self, address: &Address, position: &H256, id: BlockId) -> Option<H256> {

@@ -62,8 +62,24 @@ pub trait Nonce {
 	}
 }
 
+/// Provides `balance` and `latest_balance` methods
+pub trait Balance {
+	/// Get address balance at the given block's state.
+	///
+	/// May not return None if given BlockId::Latest.
+	/// Returns None if and only if the block's root hash has been pruned from the DB.
+	fn balance(&self, address: &Address, id: BlockId) -> Option<U256>;
+
+	/// Get address balance at the latest block's state.
+	fn latest_balance(&self, address: &Address) -> U256 {
+		self.balance(address, BlockId::Latest)
+			.expect("balance will return Some if given BlockId::Latest. balance was given BlockId::Latest \
+			Therefore balance has returned Some; qed")
+	}
+}
+
 /// Blockchain database client. Owns and manages a blockchain and a block queue.
-pub trait BlockChainClient : Sync + Send + Nonce {
+pub trait BlockChainClient : Sync + Send + Nonce + Balance {
 
 	/// Get raw block header data by block id.
 	fn block_header(&self, id: BlockId) -> Option<encoded::Header>;
@@ -102,19 +118,6 @@ pub trait BlockChainClient : Sync + Send + Nonce {
 
 	/// Get address code hash at given block's state.
 	fn code_hash(&self, address: &Address, id: BlockId) -> Option<H256>;
-
-	/// Get address balance at the given block's state.
-	///
-	/// May not return None if given BlockId::Latest.
-	/// Returns None if and only if the block's root hash has been pruned from the DB.
-	fn balance(&self, address: &Address, id: BlockId) -> Option<U256>;
-
-	/// Get address balance at the latest block's state.
-	fn latest_balance(&self, address: &Address) -> U256 {
-		self.balance(address, BlockId::Latest)
-			.expect("balance will return Some if given BlockId::Latest. balance was given BlockId::Latest \
-			Therefore balance has returned Some; qed")
-	}
 
 	/// Get value of the storage at given position at the given block's state.
 	///

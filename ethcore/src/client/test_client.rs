@@ -36,7 +36,7 @@ use devtools::*;
 use transaction::{Transaction, LocalizedTransaction, PendingTransaction, SignedTransaction, Action};
 use blockchain::TreeRoute;
 use client::{
-	Nonce, BlockChainClient, MiningBlockChainClient, BlockChainInfo, BlockStatus, BlockId,
+	Nonce, Balance, BlockChainClient, MiningBlockChainClient, BlockChainInfo, BlockStatus, BlockId,
 	TransactionId, UncleId, TraceId, TraceFilter, LastHashes, CallAnalytics, BlockImportError,
 	ProvingBlockChainClient,
 };
@@ -421,6 +421,19 @@ impl Nonce for TestBlockChainClient {
 	}
 }
 
+impl Balance for TestBlockChainClient {
+	fn balance(&self, address: &Address, id: BlockId) -> Option<U256> {
+		match id {
+			BlockId::Latest | BlockId::Pending => Some(self.balances.read().get(address).cloned().unwrap_or_else(U256::zero)),
+			_ => None,
+		}
+	}
+
+	fn latest_balance(&self, address: &Address) -> U256 {
+		self.balance(address, BlockId::Latest).unwrap()
+	}
+}
+
 impl BlockChainClient for TestBlockChainClient {
 	fn call(&self, _t: &SignedTransaction, _analytics: CallAnalytics, _block: BlockId) -> Result<Executed, CallError> {
 		self.execution_result.read().clone().unwrap()
@@ -466,17 +479,6 @@ impl BlockChainClient for TestBlockChainClient {
 			BlockId::Latest | BlockId::Pending => self.code.read().get(address).map(|c| keccak(&c)),
 			_ => None,
 		}
-	}
-
-	fn balance(&self, address: &Address, id: BlockId) -> Option<U256> {
-		match id {
-			BlockId::Latest | BlockId::Pending => Some(self.balances.read().get(address).cloned().unwrap_or_else(U256::zero)),
-			_ => None,
-		}
-	}
-
-	fn latest_balance(&self, address: &Address) -> U256 {
-		self.balance(address, BlockId::Latest).unwrap()
 	}
 
 	fn storage_at(&self, address: &Address, position: &H256, id: BlockId) -> Option<H256> {
