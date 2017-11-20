@@ -15,8 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use byteorder::{LittleEndian, ReadBytesExt};
-use std::io;
-use std::io::Read;
+use std::io::{self, Read};
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct PanicPayload {
