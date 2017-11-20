@@ -37,6 +37,8 @@ export default class Store {
     window.addEventListener('message', this.receiveMessage, false);
   }
 
+  getMethodAppId = (method, appId) => `${method}:${appId}` // Create an id to identify permissions/requests based on appId and method
+
   @computed get hasRequests () {
     return Object.keys(this.requests).length !== 0;
   }
@@ -60,9 +62,10 @@ export default class Store {
   @action createToken = appId => {
     const token = sha3(`${appId}:${Date.now()}`);
 
-    this.tokens = Object.assign({}, this.tokens, {
+    this.tokens = {
+      ...this.tokens,
       [token]: appId
-    });
+    };
 
     return token;
   };
@@ -74,12 +77,12 @@ export default class Store {
     // Add a new request in this.requests
     this.requests = {
       ...this.requests,
-      [`${method}:${appId}`]: request
+      [this.getMethodAppId(method, appId)]: request
     };
   };
 
   @action approveRequest = (method, appId) => {
-    const { source, data } = this.requests[`${method}:${appId}`];
+    const { source, data } = this.requests[this.getMethodAppId(method, appId)];
 
     this.addAppPermission(method, appId);
     this.removeRequest(method, appId);
@@ -95,17 +98,15 @@ export default class Store {
     // Get methods of this requestGroup
     const { methods } = methodGroups[groupId];
 
-    methods.forEach(method => {
-      if (!this.requests[`${method}:${appId}`]) {
-        return;
-      }
-
-      this.approveRequest(method, appId);
-    });
+    methods
+      .filter(method => this.requests[this.getMethodAppId(method, appId)])
+      .forEach(method => {
+        this.approveRequest(method, appId);
+      });
   };
 
   @action rejectRequest = (method, appId) => {
-    const { source, data } = this.requests[`${method}:${appId}`];
+    const { source, data } = this.requests[this.getMethodAppId(method, appId)];
 
     this.removeRequest(method, appId);
     this.rejectMessage(source, data);
@@ -115,17 +116,15 @@ export default class Store {
     // Get methods of this requestGroup
     const { methods } = methodGroups[groupId];
 
-    methods.forEach(method => {
-      if (!this.requests[`${method}:${appId}`]) {
-        return;
-      }
-
-      this.rejectRequest(method, appId);
-    });
+    methods
+      .filter(method => this.requests[this.getMethodAppId(method, appId)])
+      .forEach(method => {
+        this.rejectRequest(method, appId);
+      });
   };
 
   @action removeRequest = (method, appId) => {
-    delete this.requests[`${method}:${appId}`];
+    delete this.requests[this.getMethodAppId(method, appId)];
     this.requests = { ...this.requests };
   };
 
@@ -148,9 +147,10 @@ export default class Store {
   };
 
   @action addAppPermission = (method, appId) => {
-    this.permissions = Object.assign({}, this.permissions, {
-      [`${method}:${appId}`]: true
-    });
+    this.permissions = {
+      ...this.permissions,
+      [this.getMethodAppId(method, appId)]: true
+    };
     this.savePermissions();
   };
 
@@ -161,7 +161,10 @@ export default class Store {
       permissions[id] = !!_permissions[id];
     });
 
-    this.permissions = Object.assign({}, this.permissions, permissions);
+    this.permissions = {
+      ...this.permissions,
+      ...permissions
+    };
     this.savePermissions();
 
     return true;
@@ -190,7 +193,7 @@ export default class Store {
   };
 
   hasAppPermission = (method, appId) => {
-    return this.permissions[`${method}:${appId}`] || false;
+    return this.permissions[this.getMethodAppId(method, appId)] || false;
   };
 
   savePermissions = () => {
@@ -267,17 +270,14 @@ export default class Store {
     if (api) {
       this.executePubsubCall(data, source);
     } else if (subId) {
-      subId === '*'
-        ? this.provider
-          .unsubscribeAll()
-          .then(v =>
-            this._methodCallbackPost(id, from, source, token)(null, v)
-          )
-        : this.provider
-          .unsubscribe(subId)
-          .then(v =>
-            this._methodCallbackPost(id, from, source, token)(null, v)
-          );
+      const unsubscribePromise = subId === '*'
+        ? this.provider.unsubscribeAll()
+        : this.provider.unsubscribe(subId);
+
+      unsubscribePromise
+        .then(v =>
+          this._methodCallbackPost(id, from, source, token)(null, v)
+        );
     } else {
       this.executeMethodCall(data, source);
     }
