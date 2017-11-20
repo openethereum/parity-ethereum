@@ -54,7 +54,7 @@ fn should_clear_queue() {
 	let mut txq = TestPool::default();
 	assert_eq!(txq.light_status(), LightStatus {
 		mem_usage: 0,
-		count: 0,
+		transaction_count: 0,
 		senders: 0,
 	});
 	let tx1 = b.tx().nonce(0).new();
@@ -65,7 +65,7 @@ fn should_clear_queue() {
 	txq.import(tx2).unwrap();
 	assert_eq!(txq.light_status(), LightStatus {
 		mem_usage: 1,
-		count: 2,
+		transaction_count: 2,
 		senders: 1,
 	});
 
@@ -75,7 +75,7 @@ fn should_clear_queue() {
 	// then
 	assert_eq!(txq.light_status(), LightStatus {
 		mem_usage: 0,
-		count: 0,
+		transaction_count: 0,
 		senders: 0,
 	});
 }
@@ -93,7 +93,7 @@ fn should_not_allow_same_transaction_twice() {
 	txq.import(tx2).unwrap_err();
 
 	// then
-	assert_eq!(txq.light_status().count, 1);
+	assert_eq!(txq.light_status().transaction_count, 1);
 }
 
 #[test]
@@ -109,7 +109,7 @@ fn should_replace_transaction() {
 	txq.import(tx2).unwrap();
 
 	// then
-	assert_eq!(txq.light_status().count, 1);
+	assert_eq!(txq.light_status().transaction_count, 1);
 }
 
 #[test]
@@ -126,7 +126,7 @@ fn should_reject_if_above_count() {
 	let hash = *tx2.hash();
 	txq.import(tx1).unwrap();
 	assert_eq!(txq.import(tx2).unwrap_err().kind(), &error::ErrorKind::TooCheapToEnter(hash));
-	assert_eq!(txq.light_status().count, 1);
+	assert_eq!(txq.light_status().transaction_count, 1);
 
 	txq.clear();
 
@@ -135,7 +135,7 @@ fn should_reject_if_above_count() {
 	let tx2 = b.tx().nonce(0).sender(1).gas_price(2).new();
 	txq.import(tx1).unwrap();
 	txq.import(tx2).unwrap();
-	assert_eq!(txq.light_status().count, 1);
+	assert_eq!(txq.light_status().transaction_count, 1);
 }
 
 #[test]
@@ -152,7 +152,7 @@ fn should_reject_if_above_mem_usage() {
 	let hash = *tx2.hash();
 	txq.import(tx1).unwrap();
 	assert_eq!(txq.import(tx2).unwrap_err().kind(), &error::ErrorKind::TooCheapToEnter(hash));
-	assert_eq!(txq.light_status().count, 1);
+	assert_eq!(txq.light_status().transaction_count, 1);
 
 	txq.clear();
 
@@ -161,7 +161,7 @@ fn should_reject_if_above_mem_usage() {
 	let tx2 = b.tx().nonce(1).sender(1).gas_price(2).mem_usage(1).new();
 	txq.import(tx1).unwrap();
 	txq.import(tx2).unwrap();
-	assert_eq!(txq.light_status().count, 1);
+	assert_eq!(txq.light_status().transaction_count, 1);
 }
 
 #[test]
@@ -178,7 +178,7 @@ fn should_reject_if_above_sender_count() {
 	let hash = *tx2.hash();
 	txq.import(tx1).unwrap();
 	assert_eq!(txq.import(tx2).unwrap_err().kind(), &error::ErrorKind::TooCheapToEnter(hash));
-	assert_eq!(txq.light_status().count, 1);
+	assert_eq!(txq.light_status().transaction_count, 1);
 
 	txq.clear();
 
@@ -189,7 +189,7 @@ fn should_reject_if_above_sender_count() {
 	txq.import(tx1).unwrap();
 	// This results in error because we also compare nonces
 	assert_eq!(txq.import(tx2).unwrap_err().kind(), &error::ErrorKind::TooCheapToEnter(hash));
-	assert_eq!(txq.light_status().count, 1);
+	assert_eq!(txq.light_status().transaction_count, 1);
 }
 
 #[test]
@@ -215,7 +215,7 @@ fn should_construct_pending() {
 	txq.import(b.tx().sender(1).nonce(5).new()).unwrap();
 
 	let tx9 = txq.import(b.tx().sender(2).nonce(0).new()).unwrap();
-	assert_eq!(txq.light_status().count, 11);
+	assert_eq!(txq.light_status().transaction_count, 11);
 	assert_eq!(txq.status(NonceReady::default()), Status {
 		stalled: 0,
 		pending: 9,
@@ -258,13 +258,13 @@ fn should_remove_transaction() {
 	let tx1 = txq.import(b.tx().nonce(0).new()).unwrap();
 	let tx2 = txq.import(b.tx().nonce(1).new()).unwrap();
 	txq.import(b.tx().nonce(2).new()).unwrap();
-	assert_eq!(txq.light_status().count, 3);
+	assert_eq!(txq.light_status().transaction_count, 3);
 
 	// when
 	assert!(txq.remove(&tx2.hash(), false));
 
 	// then
-	assert_eq!(txq.light_status().count, 2);
+	assert_eq!(txq.light_status().transaction_count, 2);
 	let mut pending = txq.pending(NonceReady::default());
 	assert_eq!(pending.next(), Some(tx1));
 	assert_eq!(pending.next(), None);
@@ -300,7 +300,7 @@ fn should_cull_stalled_transactions() {
 		future: 2,
 	});
 	assert_eq!(txq.light_status(), LightStatus {
-		count: 4,
+		transaction_count: 4,
 		senders: 2,
 		mem_usage: 0,
 	});
@@ -336,7 +336,7 @@ fn should_cull_stalled_transactions_from_a_sender() {
 		future: 0,
 	});
 	assert_eq!(txq.light_status(), LightStatus {
-		count: 3,
+		transaction_count: 3,
 		senders: 1,
 		mem_usage: 0,
 	});
@@ -445,7 +445,7 @@ mod listener {
 		txq.import(b.tx().sender(2).nonce(1).gas_price(2).new()).unwrap_err();
 		assert_eq!(*results.borrow(), &["added", "dropped", "added", "rejected"]);
 
-		assert_eq!(txq.light_status().count, 2);
+		assert_eq!(txq.light_status().transaction_count, 2);
 	}
 
 	#[test]
@@ -464,7 +464,7 @@ mod listener {
 		assert_eq!(*results.borrow(), &["added", "added", "cancelled"]);
 		txq.remove(&tx2.hash(), true);
 		assert_eq!(*results.borrow(), &["added", "added", "cancelled", "invalid"]);
-		assert_eq!(txq.light_status().count, 0);
+		assert_eq!(txq.light_status().transaction_count, 0);
 	}
 
 	#[test]

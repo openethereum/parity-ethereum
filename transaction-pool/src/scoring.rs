@@ -90,7 +90,8 @@ pub trait Scoring<T> {
 	fn choose(&self, old: &T, new: &T) -> Choice;
 
 	/// Updates the transaction scores given a list of transactions and a change to previous scoring.
-	/// NOTE: `txs.len() === scores.len()`
+	/// NOTE: you can safely assume that both slices have the same length.
+	/// (i.e. score at index `i` represents transaction at the same index)
 	fn update_scores(&self, txs: &[Arc<T>], scores: &mut [Self::Score], change: Change);
 
 	/// Decides if `new` should push out `old` transaction from the pool.

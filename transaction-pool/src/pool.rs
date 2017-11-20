@@ -118,7 +118,7 @@ impl<T, S, L> Pool<T, S, L> where
 					},
 					Ok(removed) => {
 						s.listener.dropped(&removed);
-						s.removed(removed.hash());
+						s.finalize_remove(removed.hash());
 						Ok(transaction)
 					},
 				}
@@ -133,7 +133,7 @@ impl<T, S, L> Pool<T, S, L> where
 			}
 		}
 
-		let result = {
+		let (result, prev_state, current_state) = {
 			let transactions = self.transactions.entry(*transaction.sender()).or_insert_with(Transactions::default);
 			// get worst and best transactions for comparison
 			let prev = transactions.worst_and_best();
@@ -143,18 +143,18 @@ impl<T, S, L> Pool<T, S, L> where
 		};
 
 		// update best and worst transactions from this sender (if required)
-		self.update_senders_worst_and_best(result.1, result.2);
+		self.update_senders_worst_and_best(prev_state, current_state);
 
-		match result.0 {
+		match result {
 			AddResult::Ok(tx) => {
 				self.listener.added(&tx, None);
-				self.added(&tx, None);
+				self.finalize_insert(&tx, None);
 				Ok(tx)
 			},
 			AddResult::PushedOut { new, old } |
 			AddResult::Replaced { new, old } => {
 				self.listener.added(&new, Some(&old));
-				self.added(&new, Some(&old));
+				self.finalize_insert(&new, Some(&old));
 				Ok(new)
 			},
 			AddResult::TooCheap { new, old } => {
@@ -171,17 +171,17 @@ impl<T, S, L> Pool<T, S, L> where
 	}
 
 	/// Updates state of the pool statistics if the transaction was added to a set.
-	fn added(&mut self, new: &Arc<T>, old: Option<&Arc<T>>) {
+	fn finalize_insert(&mut self, new: &Arc<T>, old: Option<&Arc<T>>) {
 		self.mem_usage += new.mem_usage();
 		self.by_hash.insert(*new.hash(), new.clone());
 
 		if let Some(old) = old {
-			self.removed(old.hash());
+			self.finalize_remove(old.hash());
 		}
 	}
 
 	/// Updates the pool statistics if transaction was removed.
-	fn removed(&mut self, hash: &H256) -> Option<Arc<T>> {
+	fn finalize_remove(&mut self, hash: &H256) -> Option<Arc<T>> {
 		self.by_hash.remove(hash).map(|old| {
 			self.mem_usage -= old.mem_usage();
 			old
@@ -194,45 +194,39 @@ impl<T, S, L> Pool<T, S, L> where
 		previous: Option<((S::Score, Arc<T>), (S::Score, Arc<T>))>,
 		current: Option<((S::Score, Arc<T>), (S::Score, Arc<T>))>,
 	) {
-		let worst = &mut self.worst_transactions;
-		let best = &mut self.best_transactions;
+		let worst_collection = &mut self.worst_transactions;
+		let best_collection = &mut self.best_transactions;
 
 		let is_same = |a: &(S::Score, Arc<T>), b: &(S::Score, Arc<T>)| {
 			a.0 == b.0 && a.1.hash() == b.1.hash()
 		};
 
-		let mut update_worst = |(score, tx), remove| if remove {
-			worst.remove(&ScoreWithRef::new(score, tx));
+		let update = |collection: &mut BTreeSet<_>, (score, tx), remove| if remove {
+			collection.remove(&ScoreWithRef::new(score, tx));
 		} else {
-			worst.insert(ScoreWithRef::new(score, tx));
-		};
-
-		let mut update_best = |(score, tx), remove| if remove {
-			best.remove(&ScoreWithRef::new(score, tx));
-		} else {
-			best.insert(ScoreWithRef::new(score, tx));
+			collection.insert(ScoreWithRef::new(score, tx));
 		};
 
 		match (previous, current) {
 			(None, Some((worst, best))) => {
-				update_worst(worst, false);
-				update_best(best, false);
+				update(worst_collection, worst, false);
+				update(best_collection, best, false);
 			},
 			(Some((worst, best)), None) => {
 				// all transactions from that sender has been removed.
 				// We can clear a hashmap entry.
 				self.transactions.remove(worst.1.sender());
-				update_worst(worst, true);
-				update_best(best, true);
+				update(worst_collection, worst, true);
+				update(best_collection, best, true);
 			},
 			(Some((w1, b1)), Some((w2, b2))) => {
 				if !is_same(&w1, &w2) {
-					update_worst(w1, true);
-					update_worst(w2, false);
+					update(worst_collection, w1, true);
+					update(worst_collection, w2, false);
 				}
 				if !is_same(&b1, &b2) {
-					update_best(b1, true);
-					update_best(b2, false);
+					update(best_collection, b1, true);
+					update(best_collection, b2, false);
 				}
 			},
 			(None, None) => {},
@@ -244,7 +238,7 @@ impl<T, S, L> Pool<T, S, L> where
 		let to_remove = match self.worst_transactions.iter().next_back() {
 			// No elements to remove? and the pool is still full?
 			None => {
-				warn!("The pool is full but there is no transaction to remove.");
+				warn!("The pool is full but there are no transactions to remove.");
 				return Err(error::ErrorKind::TooCheapToEnter(*transaction.hash()).into());
 			},
 			Some(old) => if self.scoring.should_replace(&old.transaction, transaction) {
@@ -295,7 +289,7 @@ impl<T, S, L> Pool<T, S, L> where
 	/// Depending on the `is_invalid` flag the listener
 	/// will either get a `cancelled` or `invalid` notification.
 	pub fn remove(&mut self, hash: &H256, is_invalid: bool) -> bool {
-		if let Some(tx) = self.removed(hash) {
+		if let Some(tx) = self.finalize_remove(hash) {
 			self.remove_from_set(tx.sender(), |set, scoring| {
 				set.remove(&tx, scoring)
 			});
@@ -312,15 +306,15 @@ impl<T, S, L> Pool<T, S, L> where
 
 	/// Removes all stalled transactions from given sender.
 	fn remove_stalled<R: Ready<T>>(&mut self, sender: &Sender, ready: &mut R) -> usize {
-		let removed = self.remove_from_set(sender, |transactions, scoring| {
+		let removed_from_set = self.remove_from_set(sender, |transactions, scoring| {
 			transactions.cull(ready, scoring)
 		});
 
-		match removed {
+		match removed_from_set {
 			Some(removed) => {
 				let len = removed.len();
 				for tx in removed {
-					self.removed(tx.hash());
+					self.finalize_remove(tx.hash());
 					self.listener.mined(&tx);
 				}
 				len
@@ -360,36 +354,30 @@ impl<T, S, L> Pool<T, S, L> where
 
 	/// Computes the full status of the pool (including readiness).
 	pub fn status<R: Ready<T>>(&self, mut ready: R) -> Status {
-		let mut stalled = 0;
-		let mut pending = 0;
-		let mut future = 0;
+		let mut status = Status::default();
 
 		for (_sender, transactions) in &self.transactions {
 			let len = transactions.len();
 			for (idx, tx) in transactions.iter().enumerate() {
 				match ready.is_ready(tx) {
-					Readiness::Stalled => stalled += 1,
-					Readiness::Ready => pending += 1,
+					Readiness::Stalled => status.stalled += 1,
+					Readiness::Ready => status.pending += 1,
 					Readiness::Future => {
-						future += len - idx;
+						status.future += len - idx;
 						break;
 					}
 				}
 			}
 		}
 
-		Status {
-			stalled,
-			pending,
-			future,
-		}
+		status
 	}
 
 	/// Returns light status of the pool.
 	pub fn light_status(&self) -> LightStatus {
 		LightStatus {
 			mem_usage: self.mem_usage,
-			count: self.by_hash.len(),
+			transaction_count: self.by_hash.len(),
 			senders: self.transactions.len(),
 		}
 	}

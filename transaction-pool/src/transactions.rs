@@ -88,12 +88,26 @@ impl<T: fmt::Debug, S: Scoring<T>> Transactions<T, S> {
 	pub fn find_next(&self, tx: &T, scoring: &S) -> Option<(S::Score, Arc<T>)> {
 		self.transactions.binary_search_by(|old| scoring.compare(old, &tx)).ok().and_then(|index| {
 			let index = index + 1;
-			if index >= self.scores.len() {
-				None
-			} else {
+			if index < self.scores.len() {
 				Some((self.scores[index].clone(), self.transactions[index].clone()))
+			} else {
+				None
 			}
 		})
+	}
+
+	fn push_cheapest_transaction(&mut self, tx: T, scoring: &S, max_count: usize) -> AddResult<T> {
+		let index = self.transactions.len();
+		if index == max_count {
+			AddResult::TooCheapToEnter(tx)
+		} else {
+			let shared = Arc::new(tx);
+			self.transactions.push(shared.clone());
+			self.scores.push(Default::default());
+			scoring.update_scores(&self.transactions, &mut self.scores, scoring::Change::InsertedAt(index));
+
+			AddResult::Ok(shared)
+		}
 	}
 
 	pub fn add(&mut self, tx: T, scoring: &S, max_count: usize) -> AddResult<T> {
@@ -103,27 +117,18 @@ impl<T: fmt::Debug, S: Scoring<T>> Transactions<T, S> {
 		};
 
 		// Insert at the end.
-		let len = self.transactions.len();
-		if index == len {
-			// trying to insert least worth transaction
-			return if len == max_count {
-				AddResult::TooCheapToEnter(tx)
-			} else {
-				let shared = Arc::new(tx);
-				self.transactions.push(shared.clone());
-				self.scores.push(Default::default());
-				scoring.update_scores(&self.transactions, &mut self.scores, scoring::Change::InsertedAt(index));
-
-				AddResult::Ok(shared)
-			}
+		if index == self.transactions.len() {
+			return self.push_cheapest_transaction(tx, scoring, max_count)
 		}
 
-		// Decide if the transaction should be replaced
+		// Decide if the transaction should replace some other.
 		match scoring.choose(&self.transactions[index], &tx) {
+			// New transaction should be rejected
 			scoring::Choice::RejectNew => AddResult::TooCheap {
 				old: self.transactions[index].clone(),
 				new: tx,
 			},
+			// New transaction should be kept along with old ones.
 			scoring::Choice::InsertNew => {
 				let new = Arc::new(tx);
 
@@ -136,14 +141,15 @@ impl<T: fmt::Debug, S: Scoring<T>> Transactions<T, S> {
 					self.scores.pop();
 					scoring.update_scores(&self.transactions, &mut self.scores, scoring::Change::RemovedAt(self.transactions.len()));
 
-					return AddResult::PushedOut {
+					AddResult::PushedOut {
 						old,
 						new,
-					};
+					}
+				} else {
+					AddResult::Ok(new)
 				}
-
-				AddResult::Ok(new)
 			},
+			// New transaction is replacing some other transaction already in the queue.
 			scoring::Choice::ReplaceOld => {
 				let new = Arc::new(tx);
 				let old = mem::replace(&mut self.transactions[index], new.clone());

@@ -31,7 +31,7 @@ impl Scoring<Transaction> for DummyScoring {
 	}
 
 	fn choose(&self, old: &Transaction, new: &Transaction) -> scoring::Choice {
-		let decision = if old.nonce == new.nonce {
+		if old.nonce == new.nonce {
 			if new.gas_price > old.gas_price {
 				scoring::Choice::ReplaceOld
 			} else {
@@ -39,9 +39,7 @@ impl Scoring<Transaction> for DummyScoring {
 			}
 		} else {
 			scoring::Choice::InsertNew
-		};
-
-		decision
+		}
 	}
 
 	fn update_scores(&self, txs: &[SharedTransaction], scores: &mut [Self::Score], _change: scoring::Change) {

@@ -25,12 +25,6 @@ pub enum Readiness {
 	Future,
 }
 
-impl From<bool> for Readiness {
-	fn from(b: bool) -> Self {
-		if b { Readiness::Ready } else { Readiness::Future }
-	}
-}
-
 /// A readiness indicator.
 pub trait Ready<T> {
 	/// Returns true if transaction is ready to be included in pending block,

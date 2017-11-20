@@ -57,6 +57,7 @@ use std::fmt;
 
 use self::bigint::prelude::{H256, H160 as Address};
 
+/// Already verified transaction that can be safely queued.
 pub trait VerifiedTransaction: fmt::Debug {
 	/// Transaction hash
 	fn hash(&self) -> &H256;

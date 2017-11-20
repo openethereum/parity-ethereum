@@ -27,7 +27,7 @@ error_chain! {
 			display("[{:?}] transaction too cheap to enter the pool", hash)
 		}
 		TooCheapToReplace(old_hash: H256, hash: H256) {
-			description("transaction is too cheap too replace existing transaction in the queue"),
+			description("transaction is too cheap to replace existing transaction in the queue"),
 			display("[{:?}] transaction too cheap to replace: {:?}", hash, old_hash)
 		}
 	}
