@@ -194,9 +194,7 @@ mod server {
 
 	pub struct Middleware;
 	impl RequestMiddleware for Middleware {
-		fn on_request(
-			&self, _req: &hyper::server::Request<hyper::net::HttpStream>, _control: &hyper::Control
-		) -> RequestMiddlewareAction {
+		fn on_request(&self, _req: hyper::Request) -> RequestMiddlewareAction {
 			unreachable!()
 		}
 	}
