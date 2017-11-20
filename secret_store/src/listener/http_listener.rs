@@ -31,12 +31,6 @@ use traits::KeyServer;
 use serialization::{SerializableEncryptedDocumentKeyShadow, SerializableBytes, SerializablePublic};
 use types::all::{Error, Public, MessageHash, NodeAddress, RequestSignature, ServerKeyId,
 	EncryptedDocumentKey, EncryptedDocumentKeyShadow, NodeId};
-/*=======
-use traits::{ServerKeyGenerator, AdminSessionsServer, DocumentKeyServer, MessageSigner, KeyServer};
-use serialization::{SerializableEncryptedDocumentKeyShadow, SerializableBytes, SerializablePublic};
-use types::all::{Error, Public, MessageHash, EncryptedMessageSignature, NodeAddress, RequestSignature, ServerKeyId,
-	EncryptedDocumentKey, EncryptedDocumentKeyShadow, NodeId};
->>>>>>> master:secret_store/src/http_listener.rs*/
 
 /// Key server http-requests listener. Available requests:
 /// To generate server key:							POST		/shadow/{server_key_id}/{signature}/{threshold}

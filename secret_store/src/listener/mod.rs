@@ -1,10 +1,11 @@
 pub mod http_listener;
 pub mod service_contract_listener;
 
+use std::collections::BTreeSet;
 use std::sync::Arc;
-use traits::{ServerKeyGenerator, DocumentKeyServer, MessageSigner, KeyServer};
+use traits::{ServerKeyGenerator, DocumentKeyServer, MessageSigner, AdminSessionsServer, KeyServer};
 use types::all::{Error, Public, MessageHash, EncryptedMessageSignature, RequestSignature, ServerKeyId,
-	EncryptedDocumentKey, EncryptedDocumentKeyShadow};
+	EncryptedDocumentKey, EncryptedDocumentKeyShadow, NodeId};
 
 pub struct Listener {
 	key_server: Arc<KeyServer>,
@@ -51,5 +52,11 @@ impl DocumentKeyServer for Listener {
 impl MessageSigner for Listener {
 	fn sign_message(&self, key_id: &ServerKeyId, signature: &RequestSignature, message: MessageHash) -> Result<EncryptedMessageSignature, Error> {
 		self.key_server.sign_message(key_id, signature, message)
+	}
+}
+
+impl AdminSessionsServer for Listener {
+	fn change_servers_set(&self, old_set_signature: RequestSignature, new_set_signature: RequestSignature, new_servers_set: BTreeSet<NodeId>) -> Result<(), Error> {
+		self.key_server.change_servers_set(old_set_signature, new_set_signature, new_servers_set)
 	}
 }
