@@ -678,7 +678,7 @@ dependencies = [
  "ethcore-util 1.9.0",
  "ethcrypto 0.1.0",
  "ethkey 0.2.0",
- "ethsync 1.8.0",
+ "ethsync 1.9.0",
  "futures 0.1.16 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures-cpupool 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "hash 0.1.0",
