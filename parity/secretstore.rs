@@ -20,6 +20,7 @@ use dir::default_data_path;
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::Client;
 use ethkey::{Secret, Public};
+use ethsync::SyncProvider;
 use helpers::replace_home;
 use util::Address;
 
@@ -63,6 +64,8 @@ pub struct Configuration {
 pub struct Dependencies<'a> {
 	/// Blockchain client.
 	pub client: Arc<Client>,
+	/// Sync provider.
+	pub sync: Arc<SyncProvider>,
 	/// Account provider.
 	pub account_provider: Arc<AccountProvider>,
 	/// Passed accounts passwords.
@@ -153,7 +156,7 @@ mod server {
 
 			cconf.cluster_config.nodes.insert(self_secret.public().clone(), cconf.cluster_config.listener_address.clone());
 
-			let key_server = ethcore_secretstore::start(deps.client, self_secret, cconf)
+			let key_server = ethcore_secretstore::start(deps.client, deps.sync, self_secret, cconf)
 				.map_err(|e| format!("Error starting KeyServer {}: {}", key_server_name, e))?;
 
 			Ok(KeyServer {

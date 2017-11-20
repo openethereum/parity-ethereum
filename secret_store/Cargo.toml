@@ -27,6 +27,7 @@ ethcore-bytes = { path = "../util/bytes" }
 ethcore-devtools = { path = "../devtools" }
 ethcore-util = { path = "../util" }
 ethcore-bigint = { path = "../util/bigint" }
+ethsync = { path = "../sync" }
 kvdb = { path = "../util/kvdb" }
 kvdb-rocksdb = { path = "../util/kvdb-rocksdb" }
 hash = { path = "../util/hash" }
