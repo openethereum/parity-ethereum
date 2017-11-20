@@ -31,13 +31,14 @@ export default class RequestGroups extends PureComponent {
   };
 
   render () {
-    const app = DappsStore.get().getAppById(appId);
     const {
       appId,
       requestGroups,
       onApproveRequestGroup,
       onRejectRequestGroup
     } = this.props;
+
+    const app = DappsStore.get().getAppById(appId);
 
     return (
       <div className={ styles.requestGroups }>
