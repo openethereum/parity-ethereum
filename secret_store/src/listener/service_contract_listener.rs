@@ -152,8 +152,6 @@ impl ServiceContractListener {
 	fn process_service_contract_events(&self, client: &Client, service_contract: Address, blocks: Vec<H256>) {
 		debug_assert!(!blocks.is_empty());
 
-		// TODO: is blocks guaranteed to be ordered here?
-		// TODO: logs() is called from notify() thread - is it ok (doesn't 'logs')?
 		// read server key generation requests
 		let request_logs = client.logs(Filter {
 			from_block: BlockId::Hash(blocks.first().expect("!block.is_empty(); qed").clone()),
@@ -296,14 +294,13 @@ impl ServiceContractListener {
 			return Err(format!("invalid threshold {:?}", threshold));
 		}
 
-		// TODO: check if key is already generated
-		// TODO: if this server key is going to be used for document key generation later, author must
-		// be specified from outside
+		// key server expects signed server_key_id in server_key_generation procedure
+		// only signer could store document key for this server key later
+		// => this API (server key generation) is not suitable for usage in encryption via contract endpoint
 		let author_key = Random.generate().map_err(|e| format!("{}", e))?;
 		let server_key_id_signature = sign(author_key.secret(), server_key_id).map_err(|e| format!("{}", e))?;
 		data.key_server.generate_key(server_key_id, &server_key_id_signature, threshold_num as usize)
 			.map_err(Into::into)
-
 	}
 
 	fn publish_server_key(data: &Arc<ServiceContractListenerData>, server_key_id: &ServerKeyId, server_key: &Public) -> Result<(), String> {
