@@ -9,6 +9,3 @@ _Before filing a new issue, please **provide the following information**._
 > - **Did you try to restart the node?**: no / yes
 
 _Your issue description goes here below. Try to include **actual** vs. **expected behavior** and **steps to reproduce** the issue._
-
----
-
